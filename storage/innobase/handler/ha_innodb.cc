@@ -1697,6 +1697,7 @@ convert_error_code_to_mysql(
 	case DB_ROW_IS_REFERENCED:
 		return(HA_ERR_ROW_IS_REFERENCED);
 
+	case DB_NO_FK_ON_V_BASE_COL:
 	case DB_CANNOT_ADD_CONSTRAINT:
 	case DB_CHILD_NO_INDEX:
 	case DB_PARENT_NO_INDEX:
@@ -6879,6 +6880,7 @@ ha_innobase::build_template(
 					ut_ad(!bitmap_is_set(
 						table->write_set, i));
 
+					num_v++;
 					continue;
 				}
 
@@ -11371,6 +11373,15 @@ create_table_info_t::create_table()
 				" failed. There is no index in the referencing"
 				" table where referencing columns appear"
 				" as the first columns.\n", m_table_name);
+			break;
+		case DB_NO_FK_ON_V_BASE_COL:
+			push_warning_printf(
+				m_thd, Sql_condition::SL_WARNING,
+				HA_ERR_CANNOT_ADD_FOREIGN,
+				"Create table '%s' with foreign key constraint"
+				" failed. Cannot add foreign key constraint"
+				" placed on the base column of indexed"
+				" virtual column.\n", m_table_name);
 			break;
 		default:
 			break;

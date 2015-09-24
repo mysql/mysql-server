@@ -1216,3 +1216,66 @@ t1	CREATE TABLE `t1` (
   `h` varchar(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t1;
+CREATE TABLE parent (id INT PRIMARY KEY) ENGINE=INNODB;
+CREATE TABLE child (
+id INT,
+parent_id INT,
+x int(11) GENERATED ALWAYS AS (parent_id+1),
+INDEX par_ind (parent_id),
+FOREIGN KEY (parent_id)
+REFERENCES parent(id)
+ON DELETE CASCADE
+) ENGINE=INNODB;
+ALTER TABLE child ADD INDEX `i1` (x);
+ERROR HY000: Cannot create index on virtual column whose base column has foreign constraint.
+CREATE TABLE child_1 (
+id INT,
+parent_id INT,
+x int(11) GENERATED ALWAYS AS (parent_id+1),
+INDEX par_ind (parent_id),
+FOREIGN KEY (parent_id)
+REFERENCES parent(id)
+) ENGINE=INNODB;
+ALTER TABLE child_1 ADD INDEX `i1` (x);
+DROP TABLE child_1;
+DROP TABLE child;
+CREATE TABLE child (
+id INT,
+parent_id INT,
+x int(11) GENERATED ALWAYS AS (parent_id+1),
+INDEX par_ind (parent_id),
+INDEX i1 (x),
+FOREIGN KEY (parent_id)
+REFERENCES parent(id)
+ON DELETE CASCADE
+) ENGINE=INNODB;
+ERROR HY000: Cannot add foreign key constraint
+CREATE TABLE child (
+id INT,
+parent_id INT,
+x int(11) GENERATED ALWAYS AS (parent_id+1),
+INDEX par_ind (parent_id),
+INDEX `i1` (x)
+) ENGINE=INNODB;
+ALTER TABLE child ADD FOREIGN KEY (parent_id)
+REFERENCES parent(id)
+ON DELETE CASCADE;
+ERROR HY000: Cannot add foreign key constraint
+SET foreign_key_checks = 0;
+ALTER TABLE child ADD FOREIGN KEY (parent_id)
+REFERENCES parent(id)
+ON DELETE CASCADE;
+ERROR HY000: Cannot add foreign key on the base column of indexed virtual column.
+ALTER TABLE child ADD FOREIGN KEY (parent_id)
+REFERENCES parent(id)
+ON DELETE SET NULL;
+ERROR HY000: Cannot add foreign key on the base column of indexed virtual column.
+ALTER TABLE child ADD FOREIGN KEY (parent_id)
+REFERENCES parent(id)
+ON UPDATE CASCADE;
+ERROR HY000: Cannot add foreign key on the base column of indexed virtual column.
+ALTER TABLE child ADD FOREIGN KEY (parent_id)
+REFERENCES parent(id);
+SET foreign_key_checks = 1;
+DROP TABLE child;
+DROP TABLE parent;

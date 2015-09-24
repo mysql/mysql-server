@@ -4528,6 +4528,10 @@ loop:
 			return(DB_CANNOT_ADD_CONSTRAINT);
 		}
 
+		if (dict_foreigns_has_v_base_col(local_fk_set, table)) {
+			return(DB_NO_FK_ON_V_BASE_COL);
+		}
+
 		/**********************************************************/
 		/* The following call adds the foreign key constraints
 		to the data dictionary system tables on disk */

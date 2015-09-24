@@ -956,6 +956,34 @@ innobase_check_fk_option(
 	return(true);
 }
 
+/** Check whether the foreign key options is legit
+@param[in]	foreign		foreign key
+@return true if it is */
+static __attribute__((warn_unused_result))
+bool
+innobase_check_v_base_col(
+	const dict_foreign_t*	foreign)
+{
+	ulint	type = foreign->type;
+
+	type &= ~(DICT_FOREIGN_ON_DELETE_NO_ACTION
+		  | DICT_FOREIGN_ON_UPDATE_NO_ACTION);
+
+
+	if (type != 0) {
+
+		for (ulint i = 0; i < foreign->n_fields; i++) {
+			if (dict_foreign_has_col_as_base_col(
+				    foreign->foreign_col_names[i],
+				    foreign->foreign_table)) {
+				return(false);
+			}
+		}
+	}
+
+	return(true);
+}
+
 /*************************************************************//**
 Set foreign key options
 @return true if successfully set */
@@ -1344,6 +1372,11 @@ innobase_get_foreign_key_info(
 				 MYF(0),
 				 table_share->table_name.str,
 				 add_fk[num_fk]->id);
+			goto err_exit;
+		}
+
+		if (!innobase_check_v_base_col(add_fk[num_fk])) {
+			my_error(ER_CANNOT_ADD_FOREIGN_BASE_COL_VIRTUAL, MYF(0));
 			goto err_exit;
 		}
 
