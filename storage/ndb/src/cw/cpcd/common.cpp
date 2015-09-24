@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006 MySQL AB, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -74,32 +73,4 @@ insert(const char * pair, Properties & p){
   p.put(split[0].trim().c_str(), split[1].trim().c_str()); 
 
   return 0;
-}
-
-int
-insert_file(FILE * f, class Properties& p, bool break_on_empty){
-  if(f == 0)
-    return -1;
-
-  while(!feof(f)){
-    char buf[1024];
-    fgets(buf, 1024, f);
-    BaseString tmp = buf;
-
-    if(tmp.length() > 0 && tmp.c_str()[0] == '#')
-      continue;
-
-    if(insert(tmp.c_str(), p) != 0 && break_on_empty)
-      break;
-  }
-
-  return 0;
-}
-
-int
-insert_file(const char * filename, class Properties& p){
-  FILE * f = fopen(filename, "r");
-  int res = insert_file(f, p);
-  if(f) fclose(f);
-  return res;
 }

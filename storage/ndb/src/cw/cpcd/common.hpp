@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006 MySQL AB, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,8 +27,5 @@ extern Logger logger;
 
 int runas(const char * user);
 int insert(const char * pair, class Properties & p);
-
-int insert_file(const char * filename, class Properties&);
-int insert_file(FILE *, class Properties&, bool break_on_empty = false);
 
 #endif /* ! __CPCD_COMMON_HPP_INCLUDED__ */
