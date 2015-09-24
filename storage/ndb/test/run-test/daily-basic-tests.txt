@@ -2147,6 +2147,7 @@ max-time : 600
 cmd: testBasic
 args: -n AccCommitOrder T1
 
+<<<<<<< HEAD
 max-time: 1200
 cmd: test_event
 args: -n EmptyUpdates T1
@@ -2174,4 +2175,8 @@ args: -n BackwardCompatiblePollInconsistency T1
 max-time: 1200
 cmd: test_event
 args: -n Apiv2-check_event_queue_cleared_initial T1
+
+max-time: 300
+cmd: testSystemRestart
+args: -n OneNodeWithCleanFilesystem T1
 
