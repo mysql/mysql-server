@@ -1158,7 +1158,7 @@ static void mark_temp_tables_as_free_for_reuse(THD *thd)
     if ((table->query_id == thd->query_id) && ! table->open_by_handler)
     {
       mark_tmp_table_for_reuse(table);
-      table->cleanup_gc_items(thd);
+      table->cleanup_gc_items();
     }
   }
 }
@@ -1388,7 +1388,7 @@ void close_thread_tables(THD *thd)
     {
       DBUG_ASSERT(table->file);
       table->file->extra(HA_EXTRA_DETACH_CHILDREN);
-      table->cleanup_gc_items(thd);
+      table->cleanup_gc_items();
     }
   }
 

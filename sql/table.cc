@@ -4578,17 +4578,13 @@ bool TABLE::refix_gc_items(THD *thd)
 }
   
 
-void TABLE::cleanup_gc_items(THD *thd)
+void TABLE::cleanup_gc_items()
 {
-  if (vfield)
-  {
-    for (Field **vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
-    {
-      Field *vfield= *vfield_ptr;
-      DBUG_ASSERT(vfield->gcol_info && vfield->gcol_info->expr_item);
-      vfield->gcol_info->expr_item->cleanup();
-    }
-  }
+  if (!has_gcol())
+    return;
+
+  for (Field **vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
+    cleanup_items((*vfield_ptr)->gcol_info->item_free_list);
 }
 
 /*

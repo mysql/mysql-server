@@ -1425,10 +1425,8 @@ public:
   /**
     Clean any state in items associated with generated columns to be ready for
     the next statement.
-   
-    @param[in] thd    the current thread
   */
-  void cleanup_gc_items(THD *thd);
+  void cleanup_gc_items();
 };
 
 
