@@ -14,3 +14,4 @@ set debug_sync = 'now SIGNAL del_t1';
 # Connection default:
 set debug_sync = reset;
 set debug = reset;
+set global innodb_background_drop_list_empty = 0;

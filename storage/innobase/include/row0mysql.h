@@ -950,4 +950,10 @@ innobase_get_computed_value(
 #include "row0mysql.ic"
 #endif
 
+#ifdef UNIV_DEBUG
+/** Wait for the background drop list to become empty. */
+void
+row_wait_for_background_drop_list_empty();
+#endif /* UNIV_DEBUG */
+
 #endif /* row0mysql.h */
