@@ -201,6 +201,12 @@ yield(struct thr_wait* wait, const Uint32 nsec,
     timeout.tv_sec = 0;
     timeout.tv_nsec = nsec;
     futex_wait(val, thr_wait::FS_SLEEPING, &timeout);
+    /**
+     * Any spurious wakeups are handled by simply running the scheduler code.
+     * The check_callback is needed to ensure that we don't miss wakeups. But
+     * that a spurious wakeups causes one loop in the scheduler compared to
+     * the cost of always checking through buffers to check condition.
+     */
   }
   xcng(val, thr_wait::FS_RUNNING);
   return waited;
@@ -249,9 +255,14 @@ yield(struct thr_wait* wait, const Uint32 nsec,
   NdbCondition_ComputeAbsTime(&end, (nsec >= 1000000) ? nsec/1000000 : 1);
   NdbMutex_Lock(wait->m_mutex);
 
+  /**
+   * Any spurious wakeups are handled by simply running the scheduler code.
+   * The check_callback is needed to ensure that we don't miss wakeups. But
+   * that a spurious wakeups causes one loop in the scheduler compared to
+   * the cost of always checking through buffers to check condition.
+   */
   Uint32 waits = 0;
-  /* May have spurious wakeups: Always recheck condition predicate */
-  while ((*check_callback)(check_arg))
+  if ((*check_callback)(check_arg))
   {
     wait->m_need_wakeup = true;
     waits++;
@@ -259,7 +270,6 @@ yield(struct thr_wait* wait, const Uint32 nsec,
                                     wait->m_mutex, &end) == ETIMEDOUT)
     {
       wait->m_need_wakeup = false;
-      break;
     }
   }
   NdbMutex_Unlock(wait->m_mutex);
@@ -1073,6 +1083,7 @@ struct MY_ALIGNED(NDB_CL) thr_data
   Uint32 m_cpu;
   pthread_t m_thr_id;
   NdbThread* m_thread;
+  Signal *m_signal;
 };
 
 struct mt_send_handle  : public TransporterSendBufferHandle
@@ -4280,11 +4291,41 @@ read_jba_state(thr_data *selfptr)
   return r->is_empty();
 }
 
+static
+inline
+void
+check_for_input_from_ndbfs(struct thr_data* thr_ptr, Signal* signal)
+{
+  /**
+   * The manner to check for input from NDBFS file threads misuses
+   * the SEND_PACKED signal. For ndbmtd this is intended to be
+   * replaced by using signals directly from NDBFS file threads to
+   * the issuer of the file request. This is WL#8890.
+   */
+  Uint32 i;
+  for (i = 0; i < thr_ptr->m_instance_count; i++)
+  {
+    BlockReference block = thr_ptr->m_instance_list[i];
+    Uint32 main = blockToMain(block);
+    if (main == NDBFS)
+    {
+      Uint32 instance = blockToInstance(block);
+      SimulatedBlock* b = globalData.getBlock(main, instance);
+      b->executeFunction_async(GSN_SEND_PACKED, signal);
+      return;
+    }
+  }
+}
+
 /* Check all job queues, return true only if all are empty. */
 static bool
 check_queues_empty(thr_data *selfptr)
 {
   Uint32 thr_count = g_thr_repository->m_thread_count;
+  if (selfptr->m_thr_no == 0)
+  {
+    check_for_input_from_ndbfs(selfptr, selfptr->m_signal);
+  }
   bool empty = read_jba_state(selfptr);
   if (!empty)
     return false;
@@ -5243,6 +5284,7 @@ mt_job_thread_main(void *thr_arg)
   NdbTick_Invalidate(&start_spin_ticks);
   NDB_TICKS now = NdbTick_getCurrentTicks();
   selfptr->m_ticks = start_spin_ticks = yield_ticks = now;
+  selfptr->m_signal = signal;
 
   while (globalData.theRestartFlag != perform_stop)
   { 
@@ -5339,6 +5381,16 @@ mt_job_thread_main(void *thr_arg)
             selfptr->m_stat.m_wait_cnt += waits;
             selfptr->m_stat.m_loop_cnt += loops;
             waits = loops = 0;
+            if (selfptr->m_thr_no == 0)
+            {
+              /**
+               * NDBFS is using thread 0, here we need to call SEND_PACKED
+               * to scan the memory channel for messages from NDBFS threads.
+               * We want to do this here to avoid an extra loop in scheduler
+               * before we discover those messages from NDBFS.
+               */
+              check_for_input_from_ndbfs(selfptr, signal);
+            }
           }
         }
       }
