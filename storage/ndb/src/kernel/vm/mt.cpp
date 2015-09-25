@@ -3961,7 +3961,7 @@ check_for_input_from_ndbfs(struct thr_data* thr_ptr, Signal* signal)
     {
       Uint32 instance = blockToInstance(block);
       SimulatedBlock* b = globalData.getBlock(main, instance);
-      b->executeFunction_async(GSN_SEND_PACKED, signal);
+      b->executeFunction(GSN_SEND_PACKED, signal);
       return;
     }
   }
