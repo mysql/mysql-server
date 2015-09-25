@@ -806,7 +806,7 @@ Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (`geometry` geometry NOT NULL default '',SPATIAL KEY `gndx` (`geometry`)) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 Warnings:
-Warning	1101	BLOB/TEXT column 'geometry' can't have a default value
+Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'geometry' can't have a default value
 INSERT INTO t1 (geometry) VALUES
 (ST_PolygonFromText('POLYGON((-18.6086111000 -66.9327777000, -18.6055555000
 -66.8158332999, -18.7186111000 -66.8102777000, -18.7211111000 -66.9269443999,
@@ -821,7 +821,7 @@ test.t1	check	status	OK
 drop table t1;
 CREATE TABLE t1 (`geometry` geometry NOT NULL default '',SPATIAL KEY `gndx` (`geometry`)) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 Warnings:
-Warning	1101	BLOB/TEXT column 'geometry' can't have a default value
+Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'geometry' can't have a default value
 INSERT INTO t1 (geometry) VALUES
 (ST_PolygonFromText('POLYGON((2 2, 2 8, 10 8, 10 2, 2 2))'));
 INSERT INTO t1 (geometry) VALUES
@@ -861,7 +861,7 @@ c1 geometry NOT NULL default '',
 SPATIAL KEY i1 (c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 Warnings:
-Warning	1101	BLOB/TEXT column 'c1' can't have a default value
+Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'c1' can't have a default value
 INSERT INTO t1 (c1) VALUES (
 ST_PolygonFromText('POLYGON((-18.6086111000 -66.9327777000,
                             -18.6055555000 -66.8158332999,
@@ -877,7 +877,7 @@ c1 geometry NOT NULL default '',
 SPATIAL KEY i1 (c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 Warnings:
-Warning	1101	BLOB/TEXT column 'c1' can't have a default value
+Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'c1' can't have a default value
 INSERT INTO t1 (c1) VALUES (
 ST_PolygonFromText('POLYGON((-18.6086111000 -66.9327777000,
                             -18.6055555000 -66.8158332999,
