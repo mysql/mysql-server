@@ -1289,6 +1289,8 @@ row_upd_replace_vcol(
 		}
 	}
 
+	bool	first_v_col = true;
+
 	/* We will read those unchanged (but indexed) virtual columns in */
 	if (ptr != NULL) {
 		const byte*	end_ptr;
@@ -1301,14 +1303,27 @@ row_upd_replace_vcol(
 			ulint                   field_no;
 			ulint                   len;
 			ulint                   orig_len;
+			bool			is_v;
 
 			field_no = mach_read_next_compressed(&ptr);
+
+			is_v = (field_no >= REC_MAX_N_FIELDS);
+
+			if (is_v) {
+				ptr = trx_undo_read_v_idx(
+					table, ptr, first_v_col, &field_no);
+				first_v_col = false;
+			}
 
 			ptr = trx_undo_rec_get_col_val(
 				ptr, &field, &len, &orig_len);
 
-			if (field_no >= REC_MAX_N_FIELDS) {
-				field_no -= REC_MAX_N_FIELDS;
+			if (field_no == ULINT_UNDEFINED) {
+				ut_ad(is_v);
+				continue;
+			}
+
+			if (is_v) {
 				dict_v_col_t* vcol = dict_table_get_nth_v_col(
 							table, field_no);
 
