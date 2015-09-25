@@ -37,3 +37,6 @@ set debug = reset;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
+
+set global innodb_background_drop_list_empty = 0;
+
