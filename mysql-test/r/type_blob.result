@@ -42,7 +42,7 @@ ERROR 42000: Column length too big for column 'a' (max = 255); use BLOB or TEXT 
 CREATE TABLE t1 (a varchar(70000) default "hello");
 ERROR 42000: Column length too big for column 'a' (max = 65535); use BLOB or TEXT instead
 CREATE TABLE t2 (a blob default "hello");
-ERROR 42000: BLOB/TEXT column 'a' can't have a default value
+ERROR 42000: BLOB, TEXT, GEOMETRY or JSON column 'a' can't have a default value
 drop table if exists t1,t2;
 create table t1 (nr int(5) not null auto_increment,b blob,str char(10), primary key (nr));
 insert into t1 values (null,"a","A");
@@ -507,7 +507,7 @@ fish	10
 drop table t1;
 create table t1 (id integer auto_increment unique,imagem LONGBLOB not null default '');
 Warnings:
-Warning	1101	BLOB/TEXT column 'imagem' can't have a default value
+Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'imagem' can't have a default value
 insert into t1 (id) values (1);
 select
 charset(load_file('../../std_data/words.dat')),
@@ -802,7 +802,7 @@ NULL
 drop table t1;
 create table t1 (a text default '');
 Warnings:
-Warning	1101	BLOB/TEXT column 'a' can't have a default value
+Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'a' can't have a default value
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -817,7 +817,7 @@ set @@sql_mode='TRADITIONAL';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (a text default '');
-ERROR 42000: BLOB/TEXT column 'a' can't have a default value
+ERROR 42000: BLOB, TEXT, GEOMETRY or JSON column 'a' can't have a default value
 set @@sql_mode='';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.

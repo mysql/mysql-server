@@ -12,7 +12,7 @@ KEY kv(value(15)),
 FULLTEXT KEY kvf(value)
 ) ENGINE=MyISAM;
 Warnings:
-Warning	1101	BLOB/TEXT column 'value' can't have a default value
+Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'value' can't have a default value
 CREATE TABLE t2 (
 id_t2 mediumint unsigned NOT NULL default '0',
 id_t1 mediumint unsigned NOT NULL default '0',
