@@ -211,6 +211,16 @@ dict_mem_table_free(
 
 	ut_free(table->name.m_name);
 	table->name.m_name = NULL;
+
+	/* Clean up virtual index info structures that are registered
+	with virtual columns */
+	for (ulint i = 0; i < table->n_v_def; i++) {
+		dict_v_col_t*	vcol
+			= dict_table_get_nth_v_col(table, i);
+
+		UT_DELETE(vcol->v_indexes);
+	}
+
 	mem_heap_free(table->heap);
 }
 
@@ -377,6 +387,9 @@ dict_mem_table_add_v_col(
 	}
 
 	v_col->num_base = num_base;
+
+	/* Initialize the index list for virtual columns */
+	v_col->v_indexes = UT_NEW_NOKEY(dict_v_idx_list());
 
 	return(v_col);
 }

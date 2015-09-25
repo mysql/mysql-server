@@ -564,6 +564,20 @@ struct dict_col_t{
 					bytes. */
 };
 
+/** Index information put in a list of virtual column structure. Index
+id and virtual column position in the index will be logged.
+There can be multiple entries for a given index, with a different position. */
+struct dict_v_idx_t {
+	/** active index on the column */
+	dict_index_t*	index;
+
+	/** position in this index */
+	ulint		nth_field;
+};
+
+/** Index list to put in dict_v_col_t */
+typedef	std::list<dict_v_idx_t, ut_allocator<dict_v_idx_t> >	dict_v_idx_list;
+
 /** Data structure for a virtual column in a table */
 struct dict_v_col_t{
 	/** column structure */
@@ -577,6 +591,12 @@ struct dict_v_col_t{
 
 	/** column pos in table */
 	ulint			v_pos;
+
+	/** Virtual index list, and column position in the index,
+	the allocated memory is not from table->heap, nor it is
+	tracked by dict_sys->size */
+	dict_v_idx_list*	v_indexes;
+
 };
 
 /** Data structure for newly added virtual column in a table */
