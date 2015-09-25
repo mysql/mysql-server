@@ -300,7 +300,7 @@ trx_undo_read_v_idx_low(
 	dict_index_t*	clust_index = dict_table_get_first_index(table);
 
 	for (ulint i = 0; i < num_idx; i++) {
-		index_id_t	id = mach_read_next_compressed(&ptr);
+		space_index_t	id = mach_read_next_compressed(&ptr);
 		ulint		pos = mach_read_next_compressed(&ptr);
 		dict_index_t*	index = dict_table_get_next_index(clust_index);
 
