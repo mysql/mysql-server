@@ -7448,6 +7448,52 @@ int runLCPandRestart(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int runLCP(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+
+  NdbSleep_MilliSleep(6000);
+
+  while(ctx->isTestStopped() == false)
+  {
+    ndbout << "Triggering LCP..." << endl;
+    int lcpDumpCode = 7099;
+    restarter.dumpStateAllNodes(&lcpDumpCode, 1);
+    
+    /* TODO : Proper 'wait for LCP completion' here */
+    NdbSleep_MilliSleep(2000);
+  }
+
+  return NDBT_OK;
+}
+
+int snapshotLMBUsage(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  
+  int code = DumpStateOrd::CmvmiLongSignalMemorySnapshotStart;
+  restarter.dumpStateAllNodes(&code, 1);
+  code = DumpStateOrd::CmvmiLongSignalMemorySnapshot;
+  restarter.dumpStateAllNodes(&code, 1);
+  
+  return NDBT_OK;
+}
+
+int waitAndCheckLMBUsage(NDBT_Context* ctx, NDBT_Step* step)
+{
+  ndbout_c("Waiting for some time (and LCPs) to pass...");
+  NdbSleep_MilliSleep(120000);
+  
+  NdbRestarter restarter;
+  
+  ndbout_c("Checking growth not excessive...");
+  int code = DumpStateOrd::CmvmiLongSignalMemorySnapshotCheck2;
+  restarter.dumpStateAllNodes(&code, 1);
+  NdbSleep_MilliSleep(5000);
+  
+  ctx->stopTest();
+  return NDBT_OK;
+}
 
 
 NDBT_TESTSUITE(testNodeRestart);
@@ -8115,6 +8161,15 @@ TESTCASE("GcpStopIsolation",
   INITIALIZER(runCreateEvent);
   STEP(runGcpStop);
   FINALIZER(runDropEvent);
+}
+TESTCASE("LCPLMBLeak",
+         "Check for Long message buffer leaks during LCP");
+{
+  INITIALIZER(createManyTables);
+  INITIALIZER(snapshotLMBUsage);
+  STEP(runLCP);
+  STEP(waitAndCheckLMBUsage);
+  FINALIZER(dropManyTables);
 }
 
 NDBT_TESTSUITE_END(testNodeRestart);

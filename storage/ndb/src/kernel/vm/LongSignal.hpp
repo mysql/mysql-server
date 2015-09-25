@@ -24,6 +24,26 @@
 
 #define JAM_FILE_ID 288
 
+/**
+ * NDB_DEBUG_RES_OWNERSHIP
+ *
+ * Useful for debugging shared resource ownership problems in the lab.
+ * Currently implemented for LongSignalMemory.
+ * When defined :
+ *   - LongSignalMemory segments have an 'owner' tag added to each
+ *   - This is maintained mostly by import() and appendToSection()
+ *     (Some other segment uses may be uncovered)
+ *   - The value is obtained from a thread local value
+ *   - The threadlocal is set :
+ *      - By the Transporter receiver to 0x1 << 16 | gsn
+ *      - By SimulatedBlock::exec to Block << 16 | gsn
+ *      - Manually using functions below if desired
+ *   - DUMP 2612 can be used to get a breakdown of segments owned
+ *     per owner tag
+ *   - This can help understand usage, leaks etc...
+ *   - The owner tag idea may be useful for other resources in future
+ */
+//#define NDB_DEBUG_RES_OWNERSHIP
 
 /**
  * Section handling
@@ -132,6 +152,36 @@ append(DataBuffer<sz>& dst, SegmentedSectionPtr ptr, SectionSegmentPool& pool){
   }
   dst.append(ptr.p->theData, len);
 }
+
+#ifdef NDB_DEBUG_RES_OWNERSHIP
+
+void setResOwner(Uint32 id);
+Uint32 getResOwner();
+
+/* Util for custom-owner within a scope */
+class ResOwnerGuard
+{
+private:
+  Uint32 oldOwner;
+public:
+  ResOwnerGuard(Uint32 id)
+  {
+    oldOwner = getResOwner();
+    setResOwner(id);
+  }
+  ~ResOwnerGuard()
+  {
+    setResOwner(oldOwner);
+  }
+};
+
+#define DEBUG_RES_OWNER_GUARD(x) ResOwnerGuard _ROG_TMP(x)
+
+#else
+
+#define DEBUG_RES_OWNER_GUARD(x) { }
+
+#endif
 
 #undef JAM_FILE_ID
 

@@ -10953,6 +10953,9 @@ Dblqh::seize_acc_ptr_list(ScanRecord* scanP,
     return true;
   }
 
+  /* Should never get here for reserved scans */
+  ndbrequire(!scanP->m_reserved);
+
   if (new_batch_size > 1)
   {
     for (Uint32 i = 1 + scanP->scan_acc_segments; i <= segments; i++)
@@ -12690,7 +12693,8 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   scanPtr->m_curr_batch_size_bytes= 0;
   scanPtr->m_exec_direct_batch_size_words = 0;
   scanPtr->m_last_row = 0;
-  scanptr.p->scan_acc_segments = 0;
+  /* Reserved scans keep their scan_acc_segments between uses */
+  ndbrequire(scanPtr->scan_acc_segments == 0 || scanPtr->m_reserved);
   scanPtr->m_row_id.setNull();
   scanPtr->scanKeyinfoFlag = keyinfo;
   scanPtr->scanLockHold = scanLockHold;
@@ -12770,11 +12774,16 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
     return ScanFragRef::ZTOO_MANY_ACTIVE_SCAN_ERROR;
   }
 
-  if (!seize_acc_ptr_list(scanPtr, 0, max_rows)){
-    jam();
-    return ScanFragRef::ZTOO_MANY_ACTIVE_SCAN_ERROR;
+
+  {
+    DEBUG_RES_OWNER_GUARD(refToBlock(reference()) << 16 | 999);
+
+    if (!seize_acc_ptr_list(scanPtr, 0, max_rows)){
+      jam();
+      return ScanFragRef::ZTOO_MANY_ACTIVE_SCAN_ERROR;
+    }
+    init_acc_ptr_list(scanPtr);
   }
-  init_acc_ptr_list(scanPtr);
 
   /**
    * Used for scan take over
@@ -22606,16 +22615,21 @@ void Dblqh::initialiseScanrec(Signal* signal)
    * We need to allocate an ACC pointer list that fits
    * all reserved since we can use the LCP record for NR or Backup and
    * vice versa for NR scans and Backup scans.
+   * We mark as reserved afterwards as there should be no further seizing
+   * of segments for acc_ptrs, and this is checked.
    */
   m_reserved_scans.seizeFirst(scanptr); // LCP
-  scanptr.p->m_reserved = 1;
   ndbrequire(seize_acc_ptr_list(scanptr.p, 0, ZRESERVED_SCAN_BATCH_SIZE));
+  scanptr.p->m_reserved = 1;
+
   m_reserved_scans.seizeFirst(scanptr); // NR
-  scanptr.p->m_reserved = 1;
   ndbrequire(seize_acc_ptr_list(scanptr.p, 0, ZRESERVED_SCAN_BATCH_SIZE));
+  scanptr.p->m_reserved = 1;
+
   m_reserved_scans.seizeFirst(scanptr); // Backup
-  scanptr.p->m_reserved = 1;
   ndbrequire(seize_acc_ptr_list(scanptr.p, 0, ZRESERVED_SCAN_BATCH_SIZE));
+  scanptr.p->m_reserved = 1;
+
 
 }//Dblqh::initialiseScanrec()
 

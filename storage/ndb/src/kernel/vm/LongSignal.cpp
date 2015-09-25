@@ -234,6 +234,12 @@ appendToSection(SPC_ARG Uint32& firstSegmentIVal, const Uint32* src, Uint32 len)
   Uint32 remain= SectionSegment::DataLength;
   Uint32 segmentLen= 0;
 
+#ifdef NDB_DEBUG_RES_OWNERSHIP
+  const Uint32 owner = getResOwner();
+#else
+  const Uint32 owner = 0;
+#endif
+
   if (firstSegmentIVal == RNIL)
   {
 #ifdef ERROR_INSERT
@@ -255,7 +261,7 @@ appendToSection(SPC_ARG Uint32& firstSegmentIVal, const Uint32* src, Uint32 len)
       return false;
 
     firstPtr.p->m_sz= 0;
-    firstPtr.p->m_ownerRef= 0;
+    firstPtr.p->m_ownerRef= owner;
     firstSegmentIVal= firstPtr.i;
 
     currPtr= firstPtr;
@@ -321,7 +327,7 @@ appendToSection(SPC_ARG Uint32& firstSegmentIVal, const Uint32* src, Uint32 len)
     }
     prevPtr.p->m_nextSegment = currPtr.i;
     currPtr.p->m_sz= 0;
-    currPtr.p->m_ownerRef= 0;
+    currPtr.p->m_ownerRef= owner;
 
     segmentLen= 0;
     remain= SectionSegment::DataLength;
@@ -350,6 +356,12 @@ import(SPC_ARG Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
   }
 #endif
 
+#ifdef NDB_DEBUG_RES_OWNERSHIP
+  const Uint32 owner = getResOwner();
+#else
+  const Uint32 owner = 0;
+#endif
+
   first.p = 0;
   if(g_sectionSegmentPool.seize(SPC_SEIZE_ARG first)){
     ;
@@ -359,7 +371,7 @@ import(SPC_ARG Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
   }
 
   first.p->m_sz = len;
-  first.p->m_ownerRef = 0;
+  first.p->m_ownerRef = owner;
 
   Ptr<SectionSegment> currPtr = first;
 
@@ -392,6 +404,7 @@ import(SPC_ARG Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
 
     if(g_sectionSegmentPool.seize(SPC_SEIZE_ARG currPtr)){
       prevPtr.p->m_nextSegment = currPtr.i;
+      currPtr.p->m_ownerRef = owner;
       ;
     } else {
       /* Leave segment chain in ok condition for release */
@@ -487,6 +500,20 @@ writeToSection(Uint32 firstSegmentIVal, Uint32 offset,
     }
   }
 }
+
+#ifdef NDB_DEBUG_RES_OWNERSHIP
+
+void setResOwner(Uint32 id)
+{
+  NdbThread_SetTlsKey(NDB_THREAD_TLS_RES_OWNER, (void*) ((UintPtr)id));
+}
+
+Uint32 getResOwner()
+{
+  return (Uint32) ((UintPtr) NdbThread_GetTlsKey(NDB_THREAD_TLS_RES_OWNER));
+}
+
+#endif
 
 /** 
  * #undef is needed since this file is included by LongSignal_nonmt.cpp
