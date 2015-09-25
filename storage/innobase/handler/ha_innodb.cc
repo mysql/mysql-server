@@ -17859,12 +17859,31 @@ innobase_fts_find_ranking(
 }
 
 #ifdef UNIV_DEBUG
+static my_bool	innodb_background_drop_list_empty = TRUE;
 static my_bool	innodb_purge_run_now = TRUE;
 static my_bool	innodb_purge_stop_now = TRUE;
 static my_bool	innodb_log_checkpoint_now = TRUE;
 static my_bool	innodb_buf_flush_list_now = TRUE;
 static uint	innodb_merge_threshold_set_all_debug
 	= DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
+
+/** Wait for the background drop list to become empty. */
+static
+void
+wait_background_drop_list_empty(
+	THD*				thd	/*!< in: thread handle */
+					__attribute__((unused)),
+	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+						variable */
+					__attribute__((unused)),
+	void*				var_ptr	/*!< out: where the formal
+						string goes */
+					__attribute__((unused)),
+	const void*			save)	/*!< in: immediate result from
+						check function */
+{
+	row_wait_for_background_drop_list_empty();
+}
 
 /****************************************************************//**
 Set the purge state to RUN. If purge is disabled then it
@@ -18254,6 +18273,12 @@ static MYSQL_SYSVAR_ULONG(io_capacity_max, srv_max_io_capacity,
   SRV_MAX_IO_CAPACITY_LIMIT, 0);
 
 #ifdef UNIV_DEBUG
+static MYSQL_SYSVAR_BOOL(background_drop_list_empty,
+  innodb_background_drop_list_empty,
+  PLUGIN_VAR_OPCMDARG,
+  "Wait for the background drop list to become empty",
+  NULL, wait_background_drop_list_empty, FALSE);
+
 static MYSQL_SYSVAR_BOOL(purge_run_now, innodb_purge_run_now,
   PLUGIN_VAR_OPCMDARG,
   "Set purge state to RUN",
@@ -19196,6 +19221,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(purge_threads),
   MYSQL_SYSVAR(purge_batch_size),
 #ifdef UNIV_DEBUG
+  MYSQL_SYSVAR(background_drop_list_empty),
   MYSQL_SYSVAR(purge_run_now),
   MYSQL_SYSVAR(purge_stop_now),
   MYSQL_SYSVAR(log_checkpoint_now),

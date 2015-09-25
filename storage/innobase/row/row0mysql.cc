@@ -118,6 +118,21 @@ row_add_table_to_background_drop_list(
 /*==================================*/
 	const char*	name);	/*!< in: table name */
 
+#ifdef UNIV_DEBUG
+/** Wait for the background drop list to become empty. */
+void
+row_wait_for_background_drop_list_empty()
+{
+	bool	empty = false;
+	while (!empty) {
+		mutex_enter(&row_drop_list_mutex);
+		empty = (UT_LIST_GET_LEN(row_mysql_drop_list) == 0);
+		mutex_exit(&row_drop_list_mutex);
+		os_thread_sleep(100000);
+	}
+}
+#endif /* UNIV_DEBUG */
+
 /*******************************************************************//**
 Delays an INSERT, DELETE or UPDATE operation if the purge is lagging. */
 static
