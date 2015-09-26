@@ -5645,6 +5645,8 @@ fts_update_doc_id(
 
 	if (error == DB_SUCCESS) {
 		dict_index_t*	clust_index;
+		dict_col_t*	col = dict_table_get_nth_col(
+			table, table->fts->doc_col);
 
 		ufield->exp = NULL;
 
@@ -5652,8 +5654,8 @@ fts_update_doc_id(
 
 		clust_index = dict_table_get_first_index(table);
 
-		ufield->field_no = dict_col_get_clust_pos(
-			&table->cols[table->fts->doc_col], clust_index);
+		ufield->field_no = dict_col_get_clust_pos(col, clust_index);
+		dict_col_copy_type(col, dfield_get_type(&ufield->new_val));
 
 		/* It is possible we update record that has
 		not yet be sync-ed from last crash. */
