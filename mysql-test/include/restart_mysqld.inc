@@ -1,3 +1,8 @@
+# ==== Usage ====
+#
+# [--let $shutdown_timeout= 30]
+# [--let $allow_rpl_inited= 1]
+# --source include/restart_mysqld.inc
 
 if ($rpl_inited)
 {
@@ -5,6 +10,16 @@ if ($rpl_inited)
   {
     --die ERROR IN TEST: When using the replication test framework (master-slave.inc, rpl_init.inc etc), use rpl_restart_server.inc instead of restart_mysqld.inc. If you know what you are doing and you really have to use restart_mysqld.inc, set allow_rpl_inited=1 before you source restart_mysqld.inc
   }
+}
+
+--let $server_shutdown_timeout= 10
+if ($shutdown_timeout) 
+{
+  --let $server_shutdown_timeout= $shutdown_timeout
+}
+if ($shutdown_timeout == 0)
+{
+  --let $server_shutdown_timeout= 0
 }
 
 # Write file to make mysql-test-run.pl expect the "crash", but don't start
@@ -15,7 +30,7 @@ if ($rpl_inited)
 
 # Send shutdown to the connected server and give
 # it 10 seconds to die before zapping it
-shutdown_server 10;
+shutdown_server $server_shutdown_timeout;
 
 # Write file to make mysql-test-run.pl start up the server again
 --exec echo "restart" > $_expect_file_name

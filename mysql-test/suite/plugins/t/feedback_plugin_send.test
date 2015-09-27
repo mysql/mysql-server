@@ -14,6 +14,15 @@ if (!$MTR_FEEDBACK_PLUGIN) {
 # is doing some work in other workers.
 #
 sleep 310;
+
+# The test expects that the plugin will send a report at least 2 times,
+# now (5 min after loading) and on server shutdown which happens below. 
+# Since we have already waited for 5 min, let's be generous
+# and make sure the server has enough time to shut down properly.
+# We won't lose anything if the shutdown is fast, but if it's slow, the plugin 
+# will still be able to finish the job and write about it in the error log.
+
+--let $shutdown_timeout= 60
 source include/restart_mysqld.inc;
 
 replace_result https http;
