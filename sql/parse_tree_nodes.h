@@ -141,6 +141,7 @@ public:
     order->item= &order->item_ptr;
     order->used_alias= false;
     order->used= 0;
+    order->is_position= false;
     value.link_in_list(order, &order->next);
   }
 };

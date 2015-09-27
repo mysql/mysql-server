@@ -10729,6 +10729,7 @@ alter_order_item:
               MYSQL_YYABORT;
             order->item_ptr= $1;
             order->direction= ($2 == 1) ? ORDER::ORDER_ASC : ORDER::ORDER_DESC;
+            order->is_position= false;
             add_order_to_list(thd, order);
           }
         ;
