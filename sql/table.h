@@ -234,6 +234,7 @@ typedef struct st_order {
   Field  *field;                        /* If tmp-table group */
   char   *buff;                         /* If tmp-table group */
   table_map used, depend_map;
+  bool is_position;  /* An item expresses a position in a ORDER clause */
 } ORDER;
 
 /**
