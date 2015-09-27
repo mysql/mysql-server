@@ -4,7 +4,24 @@ if (`select count(*) = 0 from information_schema.plugins where plugin_name = 'fe
 }
 
 select plugin_status from information_schema.plugins where plugin_name='feedback';
+
+# Every SELECT from INFORMATION_SCHEMA.FEEDBACK increases the value of 'FEEDBACK used'.
+# We cannot record the actual value, because the test can be executed more than once,
+# but we can check that the value indeed increases as expected.
+# There is still a room for some race condition, e.g. if at the very moment
+# between first SELECT to store the value and the next SELECT to check that it increases,
+# the feedback plugin is activated. But the probability of it is close to 0,
+# so lets get back to it if it ever happens.
+
+# Lets say the plugin was used X times before this SELECT
+SELECT variable_value INTO @feedback_used FROM information_schema.feedback where variable_name = 'FEEDBACK used';
+
+# Now $feedback_used == X+1, and 'FEEDBACK used' is also X+1. And variable_value is increased again when we run the next SELECT
+SELECT variable_value = @feedback_used + 1 FROM information_schema.feedback where variable_name = 'FEEDBACK used';
+
+# Now when we are happy with 'FEEDBACK used', we can check everything else
+
 --replace_result https http
 --sorted_result
 select * from information_schema.feedback where variable_name like 'feed%'
-       and variable_name not like  '%_uid';
+       and variable_name not like  '%_uid' and variable_name not like 'FEEDBACK used';
