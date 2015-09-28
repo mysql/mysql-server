@@ -1110,6 +1110,12 @@ private:
 		THD*	thd,
 		int	lock_type);
 
+	THR_LOCK_DATA**
+	store_lock(
+		THD*			thd,
+		THR_LOCK_DATA**		to,
+		thr_lock_type		lock_type);
+
 	int
 	write_row(
 		uchar*	record)
