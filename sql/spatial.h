@@ -771,7 +771,8 @@ protected:
   }
   static Class_info *find_class(const char *name, size_t len);
   void append_points(String *txt, uint32 n_points,
-                     wkb_parser *wkb, uint32 offset) const;
+                     wkb_parser *wkb, uint32 offset,
+                     bool bracket_pt= false) const;
   bool create_point(String *result, wkb_parser *wkb) const;
   bool create_point(String *result, point_xy p) const;
   bool get_mbr_for_points(MBR *mbr, wkb_parser *wkb, uint offset) const;
