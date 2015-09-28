@@ -113,6 +113,7 @@ struct atrt_config
   bool m_generated;
   BaseString m_key;
   BaseString m_replication;
+  BaseString m_site;
   Vector<atrt_host*> m_hosts;
   Vector<atrt_cluster*> m_clusters;
   Vector<atrt_process*> m_processes;
@@ -203,6 +204,7 @@ extern int          g_fix_nodeid;
 extern int          g_default_ports;
 extern int          g_restart;
 
+extern const char * g_site;
 extern const char * g_clusters;
 
 /**

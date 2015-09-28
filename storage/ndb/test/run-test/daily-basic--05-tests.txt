@@ -24,7 +24,7 @@ args: -n AsynchMultiwaitWakeup T1
 max-time: 180
 
 cmd: testNativeDefault
-args: testNativeDefault
+args:
 max-time: 180
 
 cmd: testScan
@@ -98,11 +98,6 @@ max-time: 360
 cmd: testNdbApi
 args: -n UnlockRepeat T2
 max-time: 360
-
-cmd: DbAsyncGenerator
-args: -time 60 -p 1 -proc 25
-max-time: 360
-type: bench
 
 cmd: testNdbApi
 args: -n NdbClusterConnectSR T1

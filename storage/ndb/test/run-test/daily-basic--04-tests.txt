@@ -84,7 +84,7 @@ args: -n Bug12598496 T1
 max-time: 360
 
 cmd: testIndexStat
-args: testIndexStat
+args:
 max-time: 360
 
 cmd: atrt-testBackup
