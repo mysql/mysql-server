@@ -33,8 +33,8 @@ Area(NULL)
 NULL
 Warnings:
 Warning	1287	'AREA' is deprecated and will be removed in a future release. Please use ST_AREA instead
-SELECT AsBinary(NULL);
-AsBinary(NULL)
+SELECT HEX(AsBinary(NULL));
+HEX(AsBinary(NULL))
 NULL
 Warnings:
 Warning	1287	'ASBINARY' is deprecated and will be removed in a future release. Please use ST_ASBINARY instead
@@ -43,8 +43,8 @@ AsText(NULL)
 NULL
 Warnings:
 Warning	1287	'ASTEXT' is deprecated and will be removed in a future release. Please use ST_ASTEXT instead
-SELECT AsWKB(NULL);
-AsWKB(NULL)
+SELECT HEX(AsWKB(NULL));
+HEX(AsWKB(NULL))
 NULL
 Warnings:
 Warning	1287	'ASWKB' is deprecated and will be removed in a future release. Please use ST_ASWKB instead
@@ -531,9 +531,9 @@ Area(ST_GeomFromText(@polygon))
 675
 Warnings:
 Warning	1287	'AREA' is deprecated and will be removed in a future release. Please use ST_AREA instead
-SELECT AsBinary(ST_GeomFromText(@point_1));
-AsBinary(ST_GeomFromText(@point_1))
-         &@      ,@
+SELECT HEX(AsBinary(ST_GeomFromText(@point_1)));
+HEX(AsBinary(ST_GeomFromText(@point_1)))
+010100000000000000000026400000000000002C40
 Warnings:
 Warning	1287	'ASBINARY' is deprecated and will be removed in a future release. Please use ST_ASBINARY instead
 SELECT AsText(ST_GeomFromText(@point_1));
@@ -541,9 +541,9 @@ AsText(ST_GeomFromText(@point_1))
 POINT(11 14)
 Warnings:
 Warning	1287	'ASTEXT' is deprecated and will be removed in a future release. Please use ST_ASTEXT instead
-SELECT AsWKB(ST_GeomFromText(@point_1));
-AsWKB(ST_GeomFromText(@point_1))
-         &@      ,@
+SELECT HEX(AsWKB(ST_GeomFromText(@point_1)));
+HEX(AsWKB(ST_GeomFromText(@point_1)))
+010100000000000000000026400000000000002C40
 Warnings:
 Warning	1287	'ASWKB' is deprecated and will be removed in a future release. Please use ST_ASWKB instead
 SELECT AsWKT(ST_GeomFromText(@point_1));
@@ -818,22 +818,22 @@ Warnings:
 Warning	1287	'MLINEFROMWKB' is deprecated and will be removed in a future release. Please use ST_MLINEFROMWKB instead
 SELECT ST_AsText(MPointFromText(@multipoint));
 ST_AsText(MPointFromText(@multipoint))
-MULTIPOINT(10 10,12 12)
+MULTIPOINT((10 10),(12 12))
 Warnings:
 Warning	1287	'MPOINTFROMTEXT' is deprecated and will be removed in a future release. Please use ST_MPOINTFROMTEXT instead
 SELECT ST_AsText(MPointFromText(@multipoint, 4326));
 ST_AsText(MPointFromText(@multipoint, 4326))
-MULTIPOINT(10 10,12 12)
+MULTIPOINT((10 10),(12 12))
 Warnings:
 Warning	1287	'MPOINTFROMTEXT' is deprecated and will be removed in a future release. Please use ST_MPOINTFROMTEXT instead
 SELECT ST_AsText(MPointFromWKB(ST_GeomFromText(@multipoint)));
 ST_AsText(MPointFromWKB(ST_GeomFromText(@multipoint)))
-MULTIPOINT(10 10,12 12)
+MULTIPOINT((10 10),(12 12))
 Warnings:
 Warning	1287	'MPOINTFROMWKB' is deprecated and will be removed in a future release. Please use ST_MPOINTFROMWKB instead
 SELECT ST_AsText(MPointFromWKB(ST_GeomFromText(@multipoint), 4326));
 ST_AsText(MPointFromWKB(ST_GeomFromText(@multipoint), 4326))
-MULTIPOINT(10 10,12 12)
+MULTIPOINT((10 10),(12 12))
 Warnings:
 Warning	1287	'MPOINTFROMWKB' is deprecated and will be removed in a future release. Please use ST_MPOINTFROMWKB instead
 SELECT ST_AsText(MPolyFromText(@multipolygon));
@@ -878,22 +878,22 @@ Warnings:
 Warning	1287	'MULTILINESTRINGFROMWKB' is deprecated and will be removed in a future release. Please use ST_MULTILINESTRINGFROMWKB instead
 SELECT ST_AsText(MultiPointFromText(@multipoint));
 ST_AsText(MultiPointFromText(@multipoint))
-MULTIPOINT(10 10,12 12)
+MULTIPOINT((10 10),(12 12))
 Warnings:
 Warning	1287	'MULTIPOINTFROMTEXT' is deprecated and will be removed in a future release. Please use ST_MULTIPOINTFROMTEXT instead
 SELECT ST_AsText(MultiPointFromText(@multipoint, 4326));
 ST_AsText(MultiPointFromText(@multipoint, 4326))
-MULTIPOINT(10 10,12 12)
+MULTIPOINT((10 10),(12 12))
 Warnings:
 Warning	1287	'MULTIPOINTFROMTEXT' is deprecated and will be removed in a future release. Please use ST_MULTIPOINTFROMTEXT instead
 SELECT ST_AsText(MultiPointFromWKB(ST_GeomFromText(@multipoint)));
 ST_AsText(MultiPointFromWKB(ST_GeomFromText(@multipoint)))
-MULTIPOINT(10 10,12 12)
+MULTIPOINT((10 10),(12 12))
 Warnings:
 Warning	1287	'MULTIPOINTFROMWKB' is deprecated and will be removed in a future release. Please use ST_MULTIPOINTFROMWKB instead
 SELECT ST_AsText(MultiPointFromWKB(ST_GeomFromText(@multipoint), 4326));
 ST_AsText(MultiPointFromWKB(ST_GeomFromText(@multipoint), 4326))
-MULTIPOINT(10 10,12 12)
+MULTIPOINT((10 10),(12 12))
 Warnings:
 Warning	1287	'MULTIPOINTFROMWKB' is deprecated and will be removed in a future release. Please use ST_MULTIPOINTFROMWKB instead
 SELECT ST_AsText(MultiPolygonFromText(@multipolygon));
