@@ -823,9 +823,9 @@ public:
      logged indirectly, like "DELETE FROM a_memory_table". So don't use it on any
      normal statement.
 
-     @param[IN] thd  the THD object of current thread.
-     @param[IN] stmt the DELETE statement.
-     @param[IN] stmt_len the length of DELETE statement.
+     @param[in] thd  the THD object of current thread.
+     @param[in] stmt the DELETE statement.
+     @param[in] stmt_len the length of DELETE statement.
 
      @return Returns false if succeeds, otherwise true is returned.
   */

@@ -225,12 +225,10 @@ end:
 }
 
 /**
-   Function to display SQL Thread's status as part of
-   'replication_applier_status_by_worker' in single threaded slave mode.
+  Function to display SQL Thread's status as part of
+  'replication_applier_status_by_worker' in single threaded slave mode.
 
-   @param[in] Master_info
-
-   @retval void
+   @param[in] mi Master_info
 */
 void table_replication_applier_status_by_worker::make_row(Master_info *mi)
 {
