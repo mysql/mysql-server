@@ -71,6 +71,7 @@ const char * g_my_cnf = 0;
 const char * g_prefix = 0;
 const char * g_prefix1 = 0;
 const char * g_clusters = 0;
+const char * g_site = NULL;
 BaseString g_replicate;
 const char *save_file = 0;
 const char *save_group_suffix = 0;
@@ -124,6 +125,9 @@ static struct my_option g_options[] =
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "version", 'V', "Output version information and exit.", 0, 0, 0, 
     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "site", 256, "Site",
+    (uchar **) &g_site, (uchar **) &g_site,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "clusters", 256, "Cluster",
     (uchar **) &g_clusters, (uchar **) &g_clusters,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -868,6 +872,7 @@ parse_args(int argc, char** argv)
     g_logger.info("No default user specified, will use 'sakila'.");
     g_logger.info("Please set LOGNAME environment variable for other username");
   }
+
   return true;
 }
 

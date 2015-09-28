@@ -20,6 +20,6 @@ args: -n mixedmultiop T1 I2 I3 D2
 max-time: 7020
 
 cmd: testOperations
-args: testOperations
+args:
 max-time: 12960
 

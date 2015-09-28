@@ -91,11 +91,6 @@ cmd: testSpj
 args: -n MixedJoin
 max-time: 540
 
-cmd: DbAsyncGenerator
-args: -time 60 -p 25
-max-time: 360
-type: bench
-
 cmd: testBlobs
 args: -version 1 -rows 25
 max-time: 540

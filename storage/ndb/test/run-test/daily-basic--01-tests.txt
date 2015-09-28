@@ -28,7 +28,7 @@ args: -n bug37672 T1
 max-time: 180
 
 cmd: testNativeDefault
-args: testNativeDefault
+args:
 max-time: 180
 
 cmd: testBasic
@@ -90,11 +90,6 @@ max-time: 360
 cmd: testDict
 args: -n CreateAndDropWithData
 max-time: 360
-
-cmd: DbAsyncGenerator
-args: -time 60 -p 1
-max-time: 360
-type: bench
 
 cmd: testDict
 args: -n TableAddAttrs

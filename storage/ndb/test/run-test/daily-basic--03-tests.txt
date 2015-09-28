@@ -91,11 +91,6 @@ cmd: testDict
 args: -n CreateAndDropAtRandom -l 200 T1
 max-time: 360
 
-cmd: DbAsyncGenerator
-args: -time 60 -p 100
-max-time: 360
-type: bench
-
 cmd: testBasic
 args: -n PkUpdate
 max-time: 720

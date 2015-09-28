@@ -120,6 +120,6 @@ args: -n CreateAndDropIndexes -l 200 T1
 max-time: 2700
 
 cmd: testPartitioning
-args: testPartitioning
+args:
 max-time: 4140
 

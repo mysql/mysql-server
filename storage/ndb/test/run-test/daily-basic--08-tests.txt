@@ -92,7 +92,7 @@ args: -n UnlockBasic T1
 max-time: 540
 
 cmd: testNdbinfo
-args: testNdbinfo
+args:
 max-time: 720
 
 cmd: testBasic

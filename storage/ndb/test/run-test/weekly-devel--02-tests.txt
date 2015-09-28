@@ -20,6 +20,6 @@ args: -n CreateTableWhenDbIsFull T6
 max-time: 10800
 
 cmd: testTransactions
-args: testTransactions
+args:
 max-time: 9000
 
