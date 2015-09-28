@@ -2080,6 +2080,12 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 
   DBUG_ENTER("mysql_rm_table");
 
+  // DROP table is not allowed in the XA_IDLE or XA_PREPARED transaction states.
+  if (thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
+  {
+    DBUG_RETURN(true);
+  }
+
   /* Disable drop of enabled log tables, must be done before name locking */
   for (table= tables; table; table= table->next_local)
   {
