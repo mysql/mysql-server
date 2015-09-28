@@ -354,6 +354,10 @@ then
 else
     echo "clonename=$clone0" >> info.txt
 fi
+for f in INFO_BIN INFO_SRC ; do
+  [ ! -f "${install_dir0}/docs/${f}" ] || cp "${install_dir0}/docs/${f}" "${f}.0"
+  [ ! -f "${install_dir1}/docs/${f}" ] || cp "${install_dir1}/docs/${f}" "${f}.1"
+done
 find . | xargs chmod ugo+r
 
 # Try to pack and transfer as much as possible
