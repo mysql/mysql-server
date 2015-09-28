@@ -16,7 +16,6 @@
 # GENERATED FILE
 #
 cmd: testNativeDefault
-args: testNativeDefault
 max-time: 180
 
 cmd: testNdbApi

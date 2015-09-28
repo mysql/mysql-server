@@ -20,6 +20,5 @@ args: -n MergeEventOperationApplier_NR -l 2
 max-time: 5580
 
 cmd: testTransactions
-args: testTransactions
 max-time: 10620
 

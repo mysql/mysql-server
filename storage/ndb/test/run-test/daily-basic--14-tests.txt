@@ -83,11 +83,6 @@ cmd: testNdbApi
 args: -n UnlockRepeat T2
 max-time: 360
 
-cmd: DbAsyncGenerator
-args: -time 60 -p 25
-max-time: 360
-type: bench
-
 cmd: testBasic
 args: -n MassiveRollback T1 T6 D1 D2
 max-time: 1080

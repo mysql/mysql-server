@@ -43,16 +43,11 @@ cmd: testScan
 args: -n Bug24447 T1
 max-time: 180
 
-cmd: DbCreate
-args: DbCreate
-max-time: 180
-
 cmd: testDict
 args: -n IndexStatCreate T1
 max-time: 180
 
 cmd: testDataBuffers
-args: testDataBuffers
 max-time: 180
 
 cmd: testNodeRestart
@@ -76,7 +71,6 @@ args: T1
 max-time: 360
 
 cmd: testIndexStat
-args: testIndexStat
 max-time: 540
 
 cmd: testDict

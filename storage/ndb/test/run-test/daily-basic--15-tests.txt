@@ -44,7 +44,6 @@ args: -n CloseWithoutStop T6 D1 D2
 max-time: 180
 
 cmd: testBitfield
-args: testBitfield
 max-time: 180
 
 cmd: testScan
@@ -82,11 +81,6 @@ max-time: 360
 cmd: testScan
 args: -n ScanReadError5023 T1 D1 D2
 max-time: 720
-
-cmd: DbAsyncGenerator
-args: -time 60 -p 1
-max-time: 360
-type: bench
 
 cmd: atrt-testBackup
 args: -n FailMaster T1

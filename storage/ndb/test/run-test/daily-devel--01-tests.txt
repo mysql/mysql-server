@@ -64,6 +64,5 @@ args: -n Bug46585 T1 I3 D1
 max-time: 2160
 
 cmd: testPartitioning
-args: testPartitioning
 max-time: 4320
 

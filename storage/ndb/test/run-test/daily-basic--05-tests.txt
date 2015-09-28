@@ -104,7 +104,6 @@ args: -n NFMasterAsSlave T1
 max-time: 1080
 
 cmd: testMgm
-args: testMgm
 max-time: 900
 
 cmd: testSystemRestart

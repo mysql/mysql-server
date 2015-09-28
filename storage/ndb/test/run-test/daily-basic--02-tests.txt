@@ -87,11 +87,6 @@ cmd: testBasic
 args: -n TupError
 max-time: 540
 
-cmd: DbAsyncGenerator
-args: -time 60 -p 1 -proc 25
-max-time: 360
-type: bench
-
 cmd: testNdbApi
 args: -n NdbClusterConnectSR T1
 max-time: 720
