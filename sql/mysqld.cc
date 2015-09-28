@@ -6434,11 +6434,19 @@ show_ssl_get_server_not_before(THD *thd, SHOW_VAR *var, char *buff)
     X509 *cert= SSL_get_certificate(ssl_acceptor);
     ASN1_TIME *not_before= X509_get_notBefore(cert);
 
+    if (not_before == NULL)
+    {
+      var->value= empty_c_string;
+      return 0;
+    }
+
     var->value= my_asn1_time_to_string(not_before, buff,
                                        SHOW_VAR_FUNC_BUFF_SIZE);
-    if (!var->value)
+    if (var->value == NULL)
+    {
+      var->value= empty_c_string;
       return 1;
-    var->value= buff;
+    }
   }
   else
     var->value= empty_c_string;
@@ -6466,10 +6474,19 @@ show_ssl_get_server_not_after(THD *thd, SHOW_VAR *var, char *buff)
     X509 *cert= SSL_get_certificate(ssl_acceptor);
     ASN1_TIME *not_after= X509_get_notAfter(cert);
 
+    if (not_after == NULL)
+    {
+      var->value= empty_c_string;
+      return 0;
+    }
+
     var->value= my_asn1_time_to_string(not_after, buff,
                                        SHOW_VAR_FUNC_BUFF_SIZE);
-    if (!var->value)
+    if (var->value == NULL)
+    {
+      var->value= empty_c_string;
       return 1;
+    }
   }
   else
     var->value= empty_c_string;
