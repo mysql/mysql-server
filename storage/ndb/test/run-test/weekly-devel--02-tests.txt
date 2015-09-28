@@ -20,6 +20,6 @@ args: -n Fill T6
 max-time: 10260
 
 cmd: testTransactions
-args: testTransactions
+args:
 max-time: 12420
 

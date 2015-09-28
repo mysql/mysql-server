@@ -52,7 +52,7 @@ args: T1
 max-time: 180
 
 cmd: testBitfield
-args: testBitfield
+args:
 max-time: 180
 
 cmd: test_event
@@ -100,7 +100,7 @@ args: -n TableAddAttrsDuringError
 max-time: 540
 
 cmd: testNdbinfo
-args: testNdbinfo
+args:
 max-time: 900
 
 cmd: testBasic
@@ -136,6 +136,6 @@ args: -n Restart_NR2 T1 I3
 max-time: 4140
 
 cmd: testPartitioning
-args: testPartitioning
+args:
 max-time: 4500
 

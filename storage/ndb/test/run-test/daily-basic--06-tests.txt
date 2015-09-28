@@ -47,10 +47,6 @@ cmd: testDict
 args: -n testDropDDObjects T1
 max-time: 180
 
-cmd: DbCreate
-args: DbCreate
-max-time: 180
-
 cmd: testBasic
 args: -n Bug20535
 max-time: 180
@@ -98,11 +94,6 @@ max-time: 360
 cmd: testDict
 args: -n Bug46552 T1
 max-time: 540
-
-cmd: DbAsyncGenerator
-args: -time 60 -p 25
-max-time: 360
-type: bench
 
 cmd: testNodeRestart
 args: -n LateCommit T1

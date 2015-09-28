@@ -99,11 +99,6 @@ cmd: testSystemRestart
 args: -l 2 -n Bug28770 T1
 max-time: 540
 
-cmd: DbAsyncGenerator
-args: -time 60 -p 200
-max-time: 360
-type: bench
-
 cmd: test_event
 args: -n Bug37442 T1
 max-time: 540
