@@ -106,3 +106,49 @@ RESET MASTER;
 DROP TABLE t1;
 
 # End of 4.1 tests
+
+--echo #
+--echo # BUG#21638823: ASSERTION FAILED:
+--echo # THD->GET_TRANSACTION()->IS_EMPTY(TRANSACTION_CTX::STMT) || THD
+--echo #
+--echo # Test case first checks that it is possible to terminate a connection
+--echo # with a temporary table (which will implicitly remove the temporary
+--echo # table) while in XA_idle. Then checks that an explicit DROP TEMPORARY
+--echo # TABLE is rejected with ER_XAER_RMFAIL as required by the XA spec.
+--echo #
+--echo # Reset master to avoid clutter when dumping binlog
+RESET MASTER;
+--echo # Create separate connection
+connect (con3,localhost,root,,);
+--connection con3
+--echo # Create temporary table
+CREATE TEMPORARY TABLE temp(i int);
+INSERT INTO temp VALUES (0), (1), (2), (3);
+--echo # Start XA txn and leave it in XA_idle
+XA START 'idle_at_disconnect';
+XA END 'idle_at_disconnect';
+--echo # Terminate connection to verify that the temporary table can be
+--echo # removed at disconnect even in XA_idle, and that this does not
+--echo # cause problems for replication
+--disconnect con3
+--source include/wait_until_disconnected.inc
+--connection default
+--let $wait_binlog_event= DROP
+--source include/wait_for_binlog_event.inc
+--echo # Dump binlog to show that, either the generated DROP comes after tx
+--echo # commit (stmt or mixed), or there is no trace of the XA txn and
+--echo # the temp table (row)
+--source include/show_binlog_events.inc
+--echo #
+--echo # Start XA txn and leave in XA_idle
+XA START 'idle_when_drop_temp';
+XA END 'idle_when_drop_temp';
+--echo # Verify that explicit DROP TEMPORARY TABLE is rejected in XA_idle
+--error ER_XAER_RMFAIL, ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
+DROP TEMPORARY TABLE IF EXISTS t;
+
+XA ROLLBACK 'idle_when_drop_temp';
+
+# clean up the binary log at in the end of the test
+# case as well.
+RESET MASTER;
