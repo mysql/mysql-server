@@ -35,11 +35,6 @@ cmd: testBasic
 args: -n RefreshLocking D1
 max-time: 360
 
-cmd: DbAsyncGenerator
-args: -time 60 -p 200
-max-time: 360
-type: bench
-
 cmd: testNodeRestart
 args: -n NoLoad T6
 max-time: 1080

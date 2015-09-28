@@ -80,7 +80,6 @@ args: -n Bug25090 T1
 max-time: 360
 
 cmd: testNdbinfo
-args: testNdbinfo
 max-time: 720
 
 cmd: testNdbApi
