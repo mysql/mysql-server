@@ -43,10 +43,6 @@ cmd: testBasic
 args: -n PkInsertTwice T1 T6 D1 D2
 max-time: 180
 
-cmd: DbCreate
-args: DbCreate
-max-time: 180
-
 cmd: testNdbApi
 args: -n MaxEqual
 max-time: 180
@@ -72,7 +68,7 @@ args: -n FK_Bug18069680 T1
 max-time: 360
 
 cmd: testIndexStat
-args: testIndexStat
+args:
 max-time: 360
 
 cmd: testNodeRestart
@@ -104,7 +100,7 @@ args: -n Bug56044 T1
 max-time: 1080
 
 cmd: testMgm
-args: testMgm
+args:
 max-time: 900
 
 cmd: testNodeRestart

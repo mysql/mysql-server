@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -12,34 +12,32 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-#
-# GENERATED FILE
-#
-cmd: testSpj
-args: -n FeatureDisabled T1
+max-time: 300
+cmd: DbCreate
+args:
+
 max-time: 180
+cmd: DbAsyncGenerator
+args: -time 60 -p 1
+type: bench
 
-cmd: testBasic
-args: -n RollbackNothing T1 T6 D1 D2
 max-time: 180
+cmd: DbAsyncGenerator
+args: -time 60 -p 25
+type: bench
 
-cmd: testNdbApi
-args: -n Bug44065
 max-time: 180
+cmd: DbAsyncGenerator
+args: -time 60 -p 100
+type: bench
 
-cmd: testBasic
-args: -n PkReadAndLocker T6 D1 D2
 max-time: 180
+cmd: DbAsyncGenerator
+args: -time 60 -p 200
+type: bench
 
-cmd: testBasic
-args: -n RefreshLocking D1
-max-time: 360
-
-cmd: testNodeRestart
-args: -n NoLoad T6
-max-time: 1080
-
-cmd: testNodeRestart
-args: -n MixedPkRead T6 T13
-max-time: 2160
+max-time: 180
+cmd: DbAsyncGenerator
+args: -time 60 -p 1 -proc 25
+type: bench
 

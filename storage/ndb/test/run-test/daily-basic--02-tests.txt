@@ -60,7 +60,7 @@ args: -n RecordSpecificationBackwardCompatibility
 max-time: 180
 
 cmd: testDataBuffers
-args: testDataBuffers
+args:
 max-time: 180
 
 cmd: testDict
@@ -90,11 +90,6 @@ max-time: 540
 cmd: testIndex
 args: -n InsertDelete T1
 max-time: 360
-
-cmd: DbAsyncGenerator
-args: -time 60 -p 200
-max-time: 360
-type: bench
 
 cmd: atrt-testBackup
 args: -n FailMaster T1

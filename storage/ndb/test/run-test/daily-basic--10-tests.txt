@@ -48,7 +48,7 @@ args: -n Bug36199 T1
 max-time: 360
 
 cmd: testBitfield
-args: testBitfield
+args:
 max-time: 180
 
 cmd: testDict

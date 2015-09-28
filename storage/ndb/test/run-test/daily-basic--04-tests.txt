@@ -91,11 +91,6 @@ cmd: testNodeRestart
 args: -n Bug15632 T1
 max-time: 540
 
-cmd: DbAsyncGenerator
-args: -time 60 -p 1 -proc 25
-max-time: 360
-type: bench
-
 cmd: testBasic
 args: --forceshortreqs -n PkUpdate
 max-time: 540

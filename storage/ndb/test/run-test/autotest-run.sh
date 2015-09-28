@@ -26,7 +26,7 @@
 ##############
 
 save_args=$*
-VERSION="autotest-run.sh version 1.00"
+VERSION="autotest-run.sh version 1.02"
 
 DATE=`date '+%Y-%m-%d'`
 if [ `uname -s` != "SunOS" ]
@@ -85,6 +85,7 @@ do
                 --baseport=*) baseport_arg="$1";;
                 --base-dir=*) base_dir=`echo $1 | sed s/--base-dir=//`;;
                 --clusters=*) clusters_arg="$1";;
+                --site=*) site_arg="$1";;
         esac
         shift
 done
@@ -159,14 +160,12 @@ then
     echo "$DATE $RUN" > $LOCK
 fi
 
-#############################
-#If any errors here down, we#
-# trap them, and remove the #
-# Lock file before exit     #
-#############################
-if [ `uname -s` != "SunOS" ]
+####################################
+# Remove the lock file before exit #
+####################################
+if [ -z "${nolock}" ]
 then
-	trap "rm -f $LOCK" ERR
+    trap "rm -f $LOCK" EXIT
 fi
 
 
@@ -175,8 +174,19 @@ fi
 ###############################################
 
 test_dir=$install_dir0/mysql-test/ndb
-atrt=`PATH=$test_dir:$PATH which atrt`
-ndb_cpcc=`PATH=$install_dir0/bin:$PATH which ndb_cpcc`
+
+# Check if executables in $install_dir0 is executable at current
+# platform, they could be built for another kind of platform
+unset NDB_CPCC_HOSTS
+if ${install_dir0}/bin/ndb_cpcc 2>/dev/null ; then
+  # Use atrt and ndb_cpcc from test build
+  atrt="${test_dir}/atrt"
+  ndb_cpcc="${install_dir0}/bin/ndb_cpcc"
+else
+  echo "Note: Cross platform testing, atrt and ndb_cpcc is not used from test build" >&2
+  atrt=`which atrt`
+  ndb_cpcc=`which ndb_cpcc`
+fi
 
 test_file=$test_dir/$RUN-tests.txt
 
@@ -305,7 +315,7 @@ then
 fi
 
 # Setup configuration
-$atrt Cdq ${clusters_arg} $prefix my.cnf
+$atrt Cdq ${site_arg} ${clusters_arg} $prefix my.cnf
 
 # Start...
 args=""
@@ -313,7 +323,7 @@ args="--report-file=report.txt"
 args="$args --log-file=log.txt"
 args="$args --testcase-file=$test_dir/$RUN-tests.txt"
 args="$args ${baseport_arg}"
-args="$args ${clusters_arg}"
+args="$args ${site_arg} ${clusters_arg}"
 args="$args $prefix"
 args="$args --verbose=${verbose}"
 $atrt $args my.cnf
@@ -329,6 +339,8 @@ echo "suite=$RUN" >> info.txt
 echo "clone=$clone0" >> info.txt
 echo "arch=$target" >> info.txt
 echo "host=$HOST" >> info.txt
+echo "test_hosts=$hosts" >> info.txt
+echo "test_atrt_command='$atrt $args my.cnf'" >> info.txt
 if [ "$clone1" ]
 then
     echo "clone1=$clone1" >> info.txt
@@ -368,8 +380,3 @@ fi
 
 cd $p
 rm -rf $res_dir $run_dir
-
-if [ -z "$nolock" ]
-then
-    rm -f $LOCK
-fi
