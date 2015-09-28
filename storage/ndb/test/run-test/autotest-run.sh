@@ -339,7 +339,8 @@ echo "suite=$RUN" >> info.txt
 echo "clone=$clone0" >> info.txt
 echo "arch=$target" >> info.txt
 echo "host=$HOST" >> info.txt
-echo "test_hosts=$hosts" >> info.txt
+[ -z "${clusters_arg}" ] || echo "clusters=${clusters_arg/--clusters=/}" >> info.txt
+echo "test_hosts='$hosts'" >> info.txt
 echo "test_atrt_command='$atrt $args my.cnf'" >> info.txt
 if [ "$clone1" ]
 then
