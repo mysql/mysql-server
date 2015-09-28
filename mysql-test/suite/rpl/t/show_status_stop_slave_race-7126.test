@@ -10,3 +10,10 @@
 --exec $MYSQL_SLAP --silent --socket=$SLAVE_MYSOCK -q "START SLAVE; STOP SLAVE; SHOW GLOBAL STATUS" -c 2 --number-of-queries=100 --create-schema=test
 
 # All done.
+
+--connection slave
+start slave;
+
+--connection master
+--source include/rpl_end.inc
+
