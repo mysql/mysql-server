@@ -96,13 +96,6 @@ insert into t2 (b2,c2) values (61,62);
 -- error ER_ROW_IS_REFERENCED_2
 delete from t1 where b1=61 and c1=62;
 
--- source ndb_fk_restore.inc
-
--- error ER_NO_REFERENCED_ROW_2
-insert into t2 (b2,c2) values (61,62);
--- error ER_ROW_IS_REFERENCED_2
-delete from t1 where b1=61 and c1=62;
-
 -- echo # TEST: disable indexes
 
 -- let $disable_indexes=1
