@@ -214,7 +214,7 @@ fil_name_process(
 	further checks can ensure that a MLOG_FILE_NAME record was
 	scanned before applying any page records for the space_id. */
 
-	os_normalize_path_for_win(name);
+	os_normalize_path(name);
 	file_name_t	fname(std::string(name, len - 1), deleted);
 	std::pair<recv_spaces_t::iterator,bool> p = recv_spaces.insert(
 		std::make_pair(space_id, fname));
