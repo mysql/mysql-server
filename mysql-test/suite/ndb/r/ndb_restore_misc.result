@@ -713,3 +713,14 @@ count(*)
 0
 #clearup
 drop database db1;
+# ndb_restore with unique index, should fail if run without --disable-indexes
+use test;
+create table t1(id int primary key, val int unique) engine=ndb;
+drop table t1;
+# ndb_restore without --disable-indexes for table with unique index
+# ndb_restore with --disable-indexes for table with unique index
+drop table t1;
+# ndb_restore without --disable-indexes for schema without unique index
+create table t1(id int primary key, val int) engine=ndb;
+drop table t1;
+drop table t1;

@@ -922,6 +922,13 @@ isIndex(const TableS* table)
 }
 
 static inline bool
+isUniqueIndex(const TableS* table)
+{
+  const NdbTableImpl & tmptab = NdbTableImpl::getImpl(* table->m_dictTable);
+  return (int) tmptab.m_indexType == (int) NdbDictionary::Index::UniqueHashIndex;
+}
+
+static inline bool
 isSYSTAB_0(const TableS* table)
 {
   return table->isSYSTAB_0();
@@ -1376,6 +1383,25 @@ main(int argc, char** argv)
     err << "The backup contains no tables" << endl;
     exitHandler(NDBT_FAILED);
   }
+
+  debug << "Check for unique index in schema " << endl;
+  if (!ga_disable_indexes && !ga_rebuild_indexes)
+  {
+    for(Uint32 i = 0; i<metaData.getNoOfTables(); i++)
+    {
+      const TableS *table= metaData[i];
+      if (! (checkSysTable(table) && checkDbAndTableName(table)))
+        continue;
+      if (isUniqueIndex(table))
+      {
+        err << "Schema contains unique index on table " << getTableName(table) << endl;
+        err << "This can cause ndb_restore failures with duplicate key errors." << endl;
+        err << "Re-run ndb_restore with --disable-indexes and --rebuild-indexes." << endl;
+        exitHandler(NDBT_FAILED);
+      }
+    }
+  }
+
   debug << "Validate Footer" << endl;
 
   if (!metaData.validateFooter()) 
