@@ -8390,15 +8390,6 @@ static ST_FIELD_INFO	innodb_sys_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,           ""),
 	 STRUCT_FLD(open_method,        SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESPACES_COMPRESSION	11
-	{STRUCT_FLD(field_name,		"COMPRESSION"),
-	 STRUCT_FLD(field_length,	MAX_COMPRESSION_LEN + 1),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
 	END_OF_ST_FIELD_INFO
 
 };
@@ -8514,12 +8505,6 @@ i_s_dict_fill_sys_tablespaces(
 	OK(fields[SYS_TABLESPACES_FILE_SIZE]->store(file.m_total_size, true));
 
 	OK(fields[SYS_TABLESPACES_ALLOC_SIZE]->store(file.m_alloc_size, true));
-
-	Compression::Type	type = fil_get_compression(space);
-
-	OK(field_store_string(
-			fields[SYS_TABLESPACES_COMPRESSION],
-			Compression::to_string(type)));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
