@@ -116,7 +116,7 @@ char *convert_dirname(char *to, const char *from, const char *from_end)
 
 #if FN_LIBCHAR != '/'
   {
-    for (; from != from_end && *from ; from++)
+    for (; from < from_end && *from ; from++)
     {
       if (*from == '/')
 	*to++= FN_LIBCHAR;
