@@ -4680,8 +4680,8 @@ runInjectClusterFailure(NDBT_Context* ctx, NDBT_Step* step)
   NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
   const NdbDictionary::Table tab(* ctx->getTab());
 
-  NdbEventOperation* evOp = createEventOperation(pNdb, tab);
-  CHK(evOp != NULL, "Event operation creation failed");
+  NdbEventOperation* evOp1 = createEventOperation(pNdb, tab);
+  CHK(evOp1 != NULL, "Event operation creation failed");
 
   // Generate some transaction load
   HugoTransactions hugoTrans(tab);
@@ -4701,6 +4701,7 @@ runInjectClusterFailure(NDBT_Context* ctx, NDBT_Step* step)
   const NdbDictionary::Table tab1(* ctx->getTab());
 
   bool initialRestart = ctx->getProperty("InitialRestart");
+  bool keepSomeEvOpOnClusterFailure = ctx->getProperty("KeepSomeEvOpOnClusterFailure");
   if (initialRestart)
   {
     CHK(dropEvent(pNdb, tab) == 0, pDict->getNdbError());
@@ -4723,8 +4724,12 @@ runInjectClusterFailure(NDBT_Context* ctx, NDBT_Step* step)
   g_err << "wait started" << endl;
   restarter.waitClusterStarted();
 
-  CHK(pNdb->dropEventOperation(evOp) == 0, "dropEventOperation failed");
-  NdbSleep_SecSleep(1);
+  if (!keepSomeEvOpOnClusterFailure)
+  {
+    CHK(pNdb->dropEventOperation(evOp1) == 0, "dropEventOperation failed");
+    NdbSleep_SecSleep(1);
+    evOp1 = NULL;
+  }
 
   if (initialRestart)
   {
@@ -4738,8 +4743,8 @@ runInjectClusterFailure(NDBT_Context* ctx, NDBT_Step* step)
   ctx->setProperty("ClusterRestarted", (Uint32)1);
 
   //Create event op
-  evOp = createEventOperation(pNdb, *tab_ptr_after_CR);
-  CHK(evOp != NULL, "Event operation creation failed");
+  NdbEventOperation* evOp2 = createEventOperation(pNdb, *tab_ptr_after_CR);
+  CHK(evOp2 != NULL, "Event operation creation failed");
 
   // Consume 5 epochs to ensure that the event consumption
   // has started after recovery from cluster failure
@@ -4749,7 +4754,14 @@ runInjectClusterFailure(NDBT_Context* ctx, NDBT_Step* step)
   ctx->setProperty("ClusterRestarted", (Uint32)0);
   NdbSleep_SecSleep(1);
 
-  CHK(pNdb->dropEventOperation(evOp) == 0, "dropEventOperation failed");
+  CHK(pNdb->dropEventOperation(evOp2) == 0, "dropEventOperation failed");
+
+  if (keepSomeEvOpOnClusterFailure)
+  {
+    CHK(pNdb->dropEventOperation(evOp1) == 0, "dropEventOperation failed");
+    NdbSleep_SecSleep(1);
+    evOp1 = NULL;
+  }
   return NDBT_OK;
 }
 
@@ -5370,6 +5382,18 @@ TESTCASE("Apiv2-check_event_queue_cleared_initial",
          "dropped and recreated, and cluster is restarted initially.")
 {
   TC_PROPERTY("InitialRestart", 1);
+  INITIALIZER(runCreateEvent);
+  STEP(runInjectClusterFailure);
+  STEP(runInsertDeleteAfterClusterFailure);
+}
+TESTCASE("Apiv2-check_event_received_after_restart",
+         "Check whether latestGCI is properly reset "
+         "after a cluster failure. Even if subcriptions are "
+         "dropped and recreated 'out of order', such that "
+         "'active_op_count == 0' is never reached.")
+{
+  TC_PROPERTY("InitialRestart", 1);
+  TC_PROPERTY("KeepSomeEvOpOnClusterFailure", 1);
   INITIALIZER(runCreateEvent);
   STEP(runInjectClusterFailure);
   STEP(runInsertDeleteAfterClusterFailure);
