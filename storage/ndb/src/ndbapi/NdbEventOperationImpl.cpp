@@ -1476,8 +1476,16 @@ NdbEventBuffer::remove_op()
       Gci_container& bucket = (Gci_container&)m_active_gci[i];
       free_list(bucket.m_data);
     }
-    free_list(m_complete_data.m_data);
     init_gci_containers();
+
+    /**
+     * Clear buffered events completed by the receiver thread.
+     * NOTE: This is only an optimization where we are releasing
+     * events which would have been discarded by nextEvent() anyway.
+     * The benifit is to free up the memory earlier.
+     */
+    free_list(m_complete_data.m_data);
+    bzero(&m_complete_data, sizeof(m_complete_data));
   }
 }
 
@@ -1485,16 +1493,14 @@ void
 NdbEventBuffer::init_gci_containers()
 {
   m_startup_hack = true;
-  bzero(&m_complete_data, sizeof(m_complete_data));
-  m_latest_complete_GCI = m_latestGCI = 0;
   m_active_gci.clear();
   m_active_gci.fill(3, g_empty_gci_container);
   m_min_gci_index = m_max_gci_index = 1;
   Uint64 gci = 0;
   m_known_gci.clear();
   m_known_gci.fill(7, gci);
-  // Reset cluster failure marker
-  m_failure_detected= false;
+  // No 'out of order' epoch in the containers.
+  m_latest_complete_GCI = 0;
 }
 
 int NdbEventBuffer::expand(unsigned sz)
@@ -1739,7 +1745,9 @@ NdbEventBuffer::nextEvent2()
      * consumed. (Which may reset the GCI sequence)
      * NOTE: Assert is racy as m_failure_detect is read wo/ lock
      */
-    assert(gci <= m_latest_poll_GCI || m_failure_detected);
+    //OJA: Temp disabled, has to work with how CLUSTER_FAILURE
+    //     with GCI reset is communicated to client
+    //assert(gci <= m_latest_poll_GCI || m_failure_detected);
 
 #ifdef VM_TRACE
     op->m_data_done_count++;
@@ -2971,6 +2979,11 @@ NdbEventBuffer::report_node_failure_completed(Uint32 node_id)
   Uint32 minpos = m_min_gci_index;
   Uint32 maxpos = m_max_gci_index;
 
+  /**
+   * Incompleted and/or 'out-of-order' Gci_containers should be cleared after
+   * a failure. (Nothing more will ever arrive for whatever remaing there)
+   * Temporary keep the last one, the failure-event will complete it.
+   */
   while (minpos != maxpos && array[minpos] != gci)
   {
     Gci_container* tmp = find_bucket(array[minpos]);
@@ -2982,6 +2995,8 @@ NdbEventBuffer::report_node_failure_completed(Uint32 node_id)
     minpos = (minpos + 1) & mask;
   }
   m_min_gci_index = minpos;
+  m_latest_complete_GCI = 0; //Cleared any 'out of order' epoch
+
   if (found)
   {
     assert(((minpos + 1) & mask) == maxpos);
@@ -3035,6 +3050,17 @@ NdbEventBuffer::report_node_failure_completed(Uint32 node_id)
   rep.gcp_complete_rep_count= cnt;
   rep.flags = 0;
   execSUB_GCP_COMPLETE_REP(&rep, SubGcpCompleteRep::SignalLength, 1);
+
+  /**
+   * We have now cleaned up all Gci_containers which were
+   * incomplete at time of failure, assert that.
+   * As the failure possible resets the GCI-sequence, we 
+   * do the same to avoid false duplicate rejection.
+   */
+  //init_gci_containers(); //Known to already be empty
+  assert(m_min_gci_index == m_max_gci_index);
+  assert(m_latest_complete_GCI == 0);
+  m_latestGCI = 0;
 
   DBUG_VOID_RETURN;
 }
