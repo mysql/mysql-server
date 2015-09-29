@@ -4357,7 +4357,6 @@ col_loop2:
 	ptr = dict_accept(cs, ptr, ")", &success);
 
 	if (!success || foreign->n_fields != i) {
-		dict_foreign_free(foreign);
 
 		dict_foreign_report_syntax_err(
 			"%s table %s with foreign key constraint"
@@ -4370,6 +4369,9 @@ col_loop2:
 			" failed. Foreign key constraint parse error in %s"
 			" close to %s. Too few referenced columns, you have %d when you should have %d.",
 			operation, create_name, start_of_latest_foreign, orig, i, foreign->n_fields);
+
+		dict_foreign_free(foreign);
+
 		return(DB_CANNOT_ADD_CONSTRAINT);
 	}
 
