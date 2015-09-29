@@ -2675,7 +2675,7 @@ AIO::is_linux_native_aio_supported()
 		}
 	} else {
 
-		os_normalize_path_for_win(srv_log_group_home_dir);
+		os_normalize_path(srv_log_group_home_dir);
 
 		ulint	dirnamelen = strlen(srv_log_group_home_dir);
 

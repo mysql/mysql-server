@@ -3392,7 +3392,7 @@ innobase_init(
 		srv_undo_dir = default_path;
 	}
 
-	os_normalize_path_for_win(srv_undo_dir);
+	os_normalize_path(srv_undo_dir);
 
 	if (strchr(srv_undo_dir, ';')) {
 		sql_print_error("syntax error in innodb_undo_directory");
