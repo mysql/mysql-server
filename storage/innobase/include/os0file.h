@@ -1718,14 +1718,6 @@ On Windows, we convert '/' to '\', else we convert '\' to '/'.
 @param[in,out] str A null-terminated directory and file path */
 void os_normalize_path(char*	str);
 
-/** Normalizes a directory path for Windows: converts '/' to '\'.
-@param[in,out] str A null-terminated Windows directory and file path */
-#ifdef _WIN32
-#define os_normalize_path_for_win(str)	os_normalize_path(str)
-#else
-#define os_normalize_path_for_win(str)
-#endif
-
 /* Determine if a path is an absolute path or not.
 @param[in]	OS directory or file path to evaluate
 @retval true if an absolute path

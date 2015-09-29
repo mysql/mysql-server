@@ -1988,7 +1988,7 @@ fil_create_directory_for_tablename(
 	memcpy(path + len + 1, name, namend - name);
 	path[len + (namend - name) + 1] = 0;
 
-	os_normalize_path_for_win(path);
+	os_normalize_path(path);
 
 	bool	success = os_file_create_directory(path, false);
 	ut_a(success);
@@ -6614,7 +6614,7 @@ fil_names_dirty_and_write(
 	DBUG_EXECUTE_IF("fil_names_write_bogus",
 			{
 				char bogus_name[] = "./test/bogus file.ibd";
-				os_normalize_path_for_win(bogus_name);
+				os_normalize_path(bogus_name);
 				fil_name_write(
 					SRV_LOG_SPACE_FIRST_ID, 0,
 					bogus_name, mtr);
