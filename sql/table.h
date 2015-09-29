@@ -507,7 +507,13 @@ public:
   Table_check_intact() {}
   virtual ~Table_check_intact() {}
 
-  /** Checks whether a table is intact. */
+  /**
+    Checks whether a table is intact.
+
+    @param thd Session.
+    @param table Table to check.
+    @param table_def Table definition struct.
+  */
   bool check(THD *thd, TABLE *table, const TABLE_FIELD_DEF *table_def);
 };
 
@@ -736,16 +742,14 @@ struct TABLE_SHARE
   const File_parser *view_def;
 
 
-  /*
+  /**
     Set share's table cache key and update its db and table name appropriately.
 
-    SYNOPSIS
-      set_table_cache_key()
-        key_buff    Buffer with already built table cache key to be
+    @param key_buff    Buffer with already built table cache key to be
                     referenced from share.
-        key_length  Key length.
+    @param key_length  Key length.
 
-    NOTES
+    @note
       Since 'key_buff' buffer will be referenced from share it should has same
       life-time as share itself.
       This method automatically ensures that TABLE_SHARE::table_name/db have
@@ -767,15 +771,13 @@ struct TABLE_SHARE
   }
 
 
-  /*
+  /**
     Set share's table cache key and update its db and table name appropriately.
 
-    SYNOPSIS
-      set_table_cache_key()
-        key_buff    Buffer to be used as storage for table cache key
+    @param key_buff    Buffer to be used as storage for table cache key
                     (should be at least key_length bytes).
-        key         Value for table cache key.
-        key_length  Key length.
+    @param key         Value for table cache key.
+    @param key_length  Key length.
 
     NOTE
       Since 'key_buff' buffer will be used as storage for table cache key
@@ -2639,17 +2641,15 @@ public:
 };
 
 
-/*
+/**
   Generic iterator over the fields of an arbitrary table reference.
 
-  DESCRIPTION
     This class unifies the various ways of iterating over the columns
     of a table reference depending on the type of SQL entity it
     represents. If such an entity represents a nested table reference,
     this iterator encapsulates the iteration over the columns of the
     members of the table reference.
 
-  IMPLEMENTATION
     The implementation assumes that all underlying NATURAL/USING table
     references already contain their result columns and are linked into
     the list TABLE_LIST::next_name_resolution_table.

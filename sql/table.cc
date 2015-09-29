@@ -246,23 +246,20 @@ static uchar *get_field_name(Field **buff, size_t *length,
 }
 
 
-/*
+/**
   Returns pointer to '.frm' extension of the file name.
 
-  SYNOPSIS
-    fn_rext()
-    name       file name
+  @param name       file name
 
-  DESCRIPTION
     Checks file name part starting with the rightmost '.' character,
     and returns it if it is equal to '.frm'. 
 
-  TODO
+  @todo
     It is a good idea to get rid of this function modifying the code
     to garantee that the functions presently calling fn_rext() always
     get arguments in the same format: either with '.frm' or without '.frm'.
 
-  RETURN VALUES
+  @return
     Pointer to the '.frm' extension. If there is no extension,
     or extension is not '.frm', pointer at the end of file name.
 */
@@ -430,20 +427,18 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
 }
 
 
-/*
+/**
   Initialize share for temporary tables
 
-  SYNOPSIS
-    init_tmp_table_share()
-    thd         thread handle
-    share	Share to fill
-    key		Table_cache_key, as generated from create_table_def_key.
-		must start with db name.    
-    key_length	Length of key
-    table_name	Table name
-    path	Path to file (possible in lower case) without .frm
+  @param thd         thread handle
+  @param share	Share to fill
+  @param key		Table_cache_key, as generated from create_table_def_key.
+                must start with db name.
+  @param key_length	Length of key
+  @param table_name	Table name
+  @param path	Path to file (possible in lower case) without .frm
 
-  NOTES
+  @note
     This is different from alloc_table_share() because temporary tables
     don't have to be shared between threads or put into the table def
     cache, so we can do some things notable simpler and faster
@@ -540,12 +535,10 @@ void TABLE_SHARE::destroy()
   DBUG_VOID_RETURN;
 }
 
-/*
+/**
   Free table share and memory used by it
 
-  SYNOPSIS
-    free_table_share()
-    share		Table share
+  @param share		Table share
 */
 
 void free_table_share(TABLE_SHARE *share)
@@ -639,31 +632,28 @@ inline bool is_system_table_name(const char *name, size_t length)
 }
 
 
-/*
+/**
   Read table definition from a binary / text based .frm file
   
-  SYNOPSIS
-  open_table_def()
-  thd		Thread handler
-  share		Fill this with table definition
-  db_flags	Bit mask of the following flags: OPEN_VIEW
+  @param thd		Thread handler
+  @param share		Fill this with table definition
+  @param db_flags	Bit mask of the following flags: OPEN_VIEW
 
-  NOTES
+  @note
     This function is called when the table definition is not cached in
     table_def_cache
     The data is returned in 'share', which is alloced by
     alloc_table_share().. The code assumes that share is initialized.
 
-  RETURN VALUES
-   0	ok
-   1	Error (see open_table_error)
-   2    Error (see open_table_error)
-   3    Wrong data in .frm file
-   4    Error (see open_table_error)
-   5    Error (see open_table_error: charset unavailable)
-   6    Unknown .frm version
-   8    Error while reading view definition from .FRM file.
-   9    Wrong type in view's .frm file.
+  @retval 0	ok
+  @retval 1	Error (see open_table_error)
+  @retval 2    Error (see open_table_error)
+  @retval 3    Wrong data in .frm file
+  @retval 4    Error (see open_table_error)
+  @retval 5    Error (see open_table_error: charset unavailable)
+  @retval 6    Unknown .frm version
+  @retval 8    Error while reading view definition from .FRM file.
+  @retval 9    Wrong type in view's .frm file.
 */
 
 int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
@@ -2555,8 +2545,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
   @param field  Pointer of generated column
 
-  @return  TRUE  The generated expression has some invalid objects
-  @return  FALSE No illegal objects in the generated expression
+  @retval TRUE  The generated expression has some invalid objects
+  @retval FALSE No illegal objects in the generated expression
  */
 static bool validate_generated_expr(Field *field)
 {
@@ -2602,11 +2592,8 @@ static bool validate_generated_expr(Field *field)
   @param thd                The thread object
   @param field              The processed field
 
-  @return
-    TRUE                 An error occurred, something was wrong with the
-                         function.
-  @return
-    FALSE                Ok, generated expression is fixed sucessfully 
+  @retval TRUE An error occurred, something was wrong with the function.
+  @retval FALSE Ok, generated expression is fixed sucessfully 
  */
 static bool fix_fields_gcol_func(THD *thd, Field *field)
 {
@@ -2700,7 +2687,7 @@ end:
 
   @param table    Table with the checked field
 
-  @return true if error
+  @retval true if error
  */
 
 bool Generated_column::register_base_columns(TABLE *table)
@@ -2742,10 +2729,8 @@ bool Generated_column::register_base_columns(TABLE *table)
   @param error_reported       updated flag for the caller that no other error
                               messages are to be generated.
 
-  @return
-    TRUE            Failure
-  @return
-    FALSE           Success
+  @retval TRUE Failure.
+  @retval FALSE Success.
  */
 
 static bool unpack_gcol_info_from_frm(THD *thd,
@@ -2863,31 +2848,28 @@ parse_err:
   Read data from a binary .frm file from MySQL 3.23 - 5.0 into TABLE_SHARE
 */
 
-/*
+/**
   Open a table based on a TABLE_SHARE
 
-  SYNOPSIS
-    open_table_from_share()
-    thd			Thread handler
-    share		Table definition
-    alias       	Alias for table
-    db_stat		open flags (for example HA_OPEN_KEYFILE|
-    			HA_OPEN_RNDFILE..) can be 0 (example in
-                        ha_example_table)
-    prgflag   		READ_ALL etc..
-    ha_open_flags	HA_OPEN_ABORT_IF_LOCKED etc..
-    outparam       	result table
-    is_create_table     Indicates that table is opened as part
-                        of CREATE or ALTER and does not yet exist in SE
+  @param thd			Thread handler
+  @param share		Table definition
+  @param alias    Alias for table
+  @param db_stat	Open flags (for example HA_OPEN_KEYFILE|
+    			        HA_OPEN_RNDFILE..) can be 0 (example in
+                  ha_example_table)
+  @param prgflag   		READ_ALL etc..
+  @param ha_open_flags HA_OPEN_ABORT_IF_LOCKED etc..
+  @param outparam      Result table.
+  @param is_create_table Indicates that table is opened as part
+                         of CREATE or ALTER and does not yet exist in SE.
 
-  RETURN VALUES
-   0	ok
-   1	Error (see open_table_error)
-   2    Error (see open_table_error)
-   3    Wrong data in .frm file
-   4    Error (see open_table_error)
-   5    Error (see open_table_error: charset unavailable)
-   7    Table definition has changed in engine
+  @retval 0	ok
+  @retval 1	Error (see open_table_error)
+  @retval 2 Error (see open_table_error)
+  @retval 3    Wrong data in .frm file
+  @retval 4    Error (see open_table_error)
+  @retval 5    Error (see open_table_error: charset unavailable)
+  @retval 7    Table definition has changed in engine
 */
 
 int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
@@ -3286,13 +3268,11 @@ partititon_err:
 }
 
 
-/*
+/**
   Free information allocated by openfrm
 
-  SYNOPSIS
-    closefrm()
-    table		TABLE object to free
-    free_share		Is 1 if we also want to free table_share
+  @param table		TABLE object to free
+  @param free_share		Is 1 if we also want to free table_share
 */
 
 int closefrm(TABLE *table, bool free_share)
@@ -3381,11 +3361,12 @@ void free_blob_buffers_and_reset(TABLE *table, uint32 size)
 /**
   Find where a form starts.
 
+  @param file File to search in.
   @param head The start of the form file.
 
   @remark If formname is NULL then only formnames is read.
 
-  @retval The form position.
+  @return The form position.
 */
 
 static ulong get_form_pos(File file, uchar *head)
@@ -3674,17 +3655,16 @@ TYPELIB *typelib(MEM_ROOT *mem_root, List<String> &strings)
 }
 
 
-/*
+/**
  Search after a field with given start & length
  If an exact field isn't found, return longest field with starts
  at right position.
  
- NOTES
+ @note
    This is needed because in some .frm fields 'fieldnr' was saved wrong
 
- RETURN
-   0  error
-   #  field number +1
+  @retval 0 error
+  @retval other field number +1
 */
 
 static uint find_field(Field **fields, uchar *record, uint start, uint length)
@@ -3730,14 +3710,12 @@ ulong next_io_size(ulong pos)
 } /* next_io_size */
 
 
-/*
+/**
   Store an SQL quoted string.
 
-  SYNOPSIS  
-    append_unescaped()
-    res		result String
-    pos		string to be quoted
-    length	it's length
+  @param res		result String
+  @param pos		string to be quoted
+  @param length	it's length
 
   NOTE
     This function works correctly with utf8 or single-byte charset strings.
@@ -3932,18 +3910,15 @@ rename_file_ext(const char * from,const char * to,const char * ext)
 }
 
 
-/*
+/**
   Allocate string field in MEM_ROOT and return it as String
 
-  SYNOPSIS
-    get_field()
-    mem   	MEM_ROOT for allocating
-    field 	Field for retrieving of string
-    res         result String
+  @param mem   	MEM_ROOT for allocating
+  @param field 	Field for retrieving of string
+  @param res         result String
 
-  RETURN VALUES
-    1   string is empty
-    0	all ok
+  @retval  1   string is empty
+  @retval  0	all ok
 */
 
 bool get_field(MEM_ROOT *mem, Field *field, String *res)
@@ -3965,17 +3940,14 @@ bool get_field(MEM_ROOT *mem, Field *field, String *res)
 }
 
 
-/*
+/**
   Allocate string field in MEM_ROOT and return it as NULL-terminated string
 
-  SYNOPSIS
-    get_field()
-    mem   	MEM_ROOT for allocating
-    field 	Field for retrieving of string
+  @param mem   	MEM_ROOT for allocating
+  @param field 	Field for retrieving of string
 
-  RETURN VALUES
-    NullS  string is empty
-    #      pointer to NULL-terminated string value of field
+  @retval  NullS  string is empty
+  @retval  other  pointer to NULL-terminated string value of field
 */
 
 char *get_field(MEM_ROOT *mem, Field *field)
@@ -4291,6 +4263,7 @@ uint Wait_for_flush::get_deadlock_weight() const
   Traverse portion of wait-for graph which is reachable through this
   table share in search for deadlocks.
 
+  @param wait_for_flush Undocumented.
   @param gvisitor        Deadlock detection visitor.
 
   @retval TRUE  A deadlock is found. A victim is remembered
@@ -4387,6 +4360,7 @@ end:
   open_table_def()), which will notify the owners of the flush tickets,
   and the last one being notified will actually destroy the share.
 
+  @param thd Session.
   @param abstime         Timeout for waiting as absolute time value.
   @param deadlock_weight Weight of this wait for deadlock detector.
 
@@ -4587,21 +4561,19 @@ void TABLE::cleanup_gc_items()
     cleanup_items((*vfield_ptr)->gcol_info->item_free_list);
 }
 
-/*
+/**
   Create Item_field for each column in the table.
 
   SYNPOSIS
     TABLE::fill_item_list()
       item_list          a pointer to an empty list used to store items
 
-  DESCRIPTION
     Create Item_field object for each column in the table and
     initialize it with the corresponding Field. New items are
     created in the current THD memory root.
 
-  RETURN VALUE
-    0                    success
-    1                    out of memory
+  @retval 0 success
+  @retval 1 out of memory
 */
 
 bool TABLE::fill_item_list(List<Item> *item_list) const
@@ -4620,7 +4592,7 @@ bool TABLE::fill_item_list(List<Item> *item_list) const
   return FALSE;
 }
 
-/*
+/**
   Reset an existing list of Item_field items to point to the
   Fields of this table.
 
@@ -4628,7 +4600,6 @@ bool TABLE::fill_item_list(List<Item> *item_list) const
     TABLE::reset_item_list()
       item_list          a non-empty list with Item_fields
 
-  DESCRIPTION
     This is a counterpart of fill_item_list used to redirect
     Item_fields to the fields of a newly created table.
 */
@@ -4717,12 +4688,10 @@ bool TABLE_LIST::merge_underlying_tables(SELECT_LEX *select)
 
 
 
-/*
+/**
   calculate md5 of query
 
-  SYNOPSIS
-    TABLE_LIST::calc_md5()
-    buffer	buffer for md5 writing
+  @param buffer	buffer for md5 writing
 */
 
 void  TABLE_LIST::calc_md5(char *buffer)
@@ -5120,21 +5089,17 @@ bool TABLE_LIST::set_insert_values(MEM_ROOT *mem_root)
 }
 
 
-/*
+/**
   Test if this is a leaf with respect to name resolution.
 
-  SYNOPSIS
-    TABLE_LIST::is_leaf_for_name_resolution()
 
-  DESCRIPTION
     A table reference is a leaf with respect to name resolution if
     it is either a leaf node in a nested join tree (table, view,
     schema table, subquery), or an inner node that represents a
     NATURAL/USING join, or a nested join with materialized join
     columns.
 
-  RETURN
-    TRUE if a leaf, FALSE otherwise.
+  @retval TRUE if a leaf, FALSE otherwise.
 */
 bool TABLE_LIST::is_leaf_for_name_resolution() const
 {
@@ -5143,26 +5108,21 @@ bool TABLE_LIST::is_leaf_for_name_resolution() const
 }
 
 
-/*
+/**
   Retrieve the first (left-most) leaf in a nested join tree with
   respect to name resolution.
 
-  SYNOPSIS
-    TABLE_LIST::first_leaf_for_name_resolution()
 
-  DESCRIPTION
     Given that 'this' is a nested table reference, recursively walk
     down the left-most children of 'this' until we reach a leaf
     table reference with respect to name resolution.
 
-  IMPLEMENTATION
     The left-most child of a nested table reference is the last element
     in the list of children because the children are inserted in
     reverse order.
 
-  RETURN
-    If 'this' is a nested table reference - the left-most child of
-      the tree rooted in 'this',
+  @retval If 'this' is a nested table reference - the left-most child of
+  @retval the tree rooted in 'this',
     else return 'this'
 */
 
@@ -5200,27 +5160,22 @@ TABLE_LIST *TABLE_LIST::first_leaf_for_name_resolution()
 }
 
 
-/*
+/**
   Retrieve the last (right-most) leaf in a nested join tree with
   respect to name resolution.
 
-  SYNOPSIS
-    TABLE_LIST::last_leaf_for_name_resolution()
 
-  DESCRIPTION
     Given that 'this' is a nested table reference, recursively walk
     down the right-most children of 'this' until we reach a leaf
     table reference with respect to name resolution.
 
-  IMPLEMENTATION
     The right-most child of a nested table reference is the first
     element in the list of children because the children are inserted
     in reverse order.
 
-  RETURN
-    - If 'this' is a nested table reference - the right-most child of
-      the tree rooted in 'this',
-    - else - 'this'
+  @retval - If 'this' is a nested table reference - the right-most child of
+  @retval the tree rooted in 'this',
+  @retval - else - 'this'
 */
 
 TABLE_LIST *TABLE_LIST::last_leaf_for_name_resolution()
@@ -5278,16 +5233,13 @@ void TABLE_LIST::set_want_privilege(ulong want_privilege)
 }
 
 
-/*
+/**
   Load security context information for this view
 
-  SYNOPSIS
-    TABLE_LIST::prepare_view_securety_context()
-    thd                  [in] thread handler
+  @param thd                  [in] thread handler
 
-  RETURN
-    FALSE  OK
-    TRUE   Error
+  @retval FALSE OK
+  @retval TRUE Error
 */
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -5343,12 +5295,10 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
 #endif
 
 
-/*
+/**
   Find security context of current view
 
-  SYNOPSIS
-    TABLE_LIST::find_view_security_context()
-    thd                  [in] thread handler
+  @param thd                  [in] thread handler
 
 */
 
@@ -5382,16 +5332,13 @@ Security_context *TABLE_LIST::find_view_security_context(THD *thd)
 #endif
 
 
-/*
+/**
   Prepare security context and load underlying tables priveleges for view
 
-  SYNOPSIS
-    TABLE_LIST::prepare_security()
-    thd                  [in] thread handler
+  @param thd                  [in] thread handler
 
-  RETURN
-    FALSE  OK
-    TRUE   Error
+  @retval FALSE OK
+  @retval TRUE Error
 */
 
 bool TABLE_LIST::prepare_security(THD *thd)
@@ -5765,16 +5712,14 @@ GRANT_INFO *Field_iterator_table_ref::grant()
 }
 
 
-/*
+/**
   Create new or return existing column reference to a column of a
   natural/using join.
 
-  SYNOPSIS
-    Field_iterator_table_ref::get_or_create_column_ref()
-    parent_table_ref  the parent table reference over which the
+  @param thd Session.
+  @param parent_table_ref  the parent table reference over which the
                       iterator is iterating
 
-  DESCRIPTION
     Create a new natural join column for the current field of the
     iterator if no such column was created, or return an already
     created natural join column. The former happens for base tables or
@@ -5783,7 +5728,7 @@ GRANT_INFO *Field_iterator_table_ref::grant()
     given, or to the original table referene of the field if
     parent_table_ref == NULL.
 
-  NOTES
+  @note
     This method is designed so that when a Field_iterator_table_ref
     walks through the fields of a table reference, all its fields
     are created and stored as follows:
@@ -5797,9 +5742,8 @@ GRANT_INFO *Field_iterator_table_ref::grant()
       table references (recursively). In this way we avoid the storage
       of unnecessay copies of result columns of nested joins.
 
-  RETURN
-    #     Pointer to a column of a natural join (or its operand)
-    NULL  No memory to allocate the column
+  @retval other Pointer to a column of a natural join (or its operand)
+  @retval NULL No memory to allocate the column
 */
 
 Natural_join_column *
@@ -5878,20 +5822,16 @@ Field_iterator_table_ref::get_or_create_column_ref(THD *thd, TABLE_LIST *parent_
 }
 
 
-/*
+/**
   Return an existing reference to a column of a natural/using join.
 
-  SYNOPSIS
-    Field_iterator_table_ref::get_natural_column_ref()
 
-  DESCRIPTION
     The method should be called in contexts where it is expected that
     all natural join columns are already created, and that the column
     being retrieved is a Natural_join_column.
 
-  RETURN
-    #     Pointer to a column of a natural join (or its operand)
-    NULL  No memory to allocate the column
+  @retval other Pointer to a column of a natural join (or its operand)
+  @retval NULL No memory to allocate the column
 */
 
 Natural_join_column *
@@ -6076,10 +6016,10 @@ void TABLE::mark_columns_used_by_index_no_reset(uint index,
 }
 
 
-/*
+/**
   Mark auto-increment fields as used fields in both read and write maps
 
-  NOTES
+  @note
     This is needed in insert & update as the auto-increment field is
     always set and sometimes read.
 */
@@ -6344,8 +6284,8 @@ void TABLE::mark_columns_per_binlog_row_image(THD *thd)
   @details
   Allocate space enough to fit 'key_count' keys for this table.
 
-  @return FALSE space was successfully allocated.
-  @return TRUE OOM error occur.
+  @retval FALSE space was successfully allocated.
+  @retval TRUE OOM error occur.
 */
 
 bool TABLE::alloc_keys(uint key_count)
@@ -6733,11 +6673,9 @@ bool TABLE::has_virtual_gcol() const
   return false;
 }
 
-/*
+/**
   Cleanup this table for re-execution.
 
-  SYNOPSIS
-    TABLE_LIST::reinit_before_use()
 */
 
 void TABLE_LIST::reinit_before_use(THD *thd)
@@ -6771,14 +6709,11 @@ uint TABLE_LIST::query_block_id() const
   return derived ? derived->first_select()->select_number : 0;
 }
 
-/*
+/**
   Compiles the tagged hints list and fills up the bitmasks.
 
-  SYNOPSIS
-    process_index_hints()
-      table         the TABLE to operate on.
+  @param tbl the TABLE to operate on.
 
-  DESCRIPTION
     The parser collects the index hints for each table in a "tagged list" 
     (TABLE_LIST::index_hints). Using the information in this tagged list
     this function sets the members st_table::keys_in_use_for_query,
@@ -6815,9 +6750,8 @@ uint TABLE_LIST::query_block_id() const
     e.g. "USE INDEX i1, IGNORE INDEX i1, USE INDEX i1" will not use i1 at all
     as if we had "USE INDEX i1, USE INDEX i1, IGNORE INDEX i1".
 
-  RETURN VALUE
-    FALSE                no errors found
-    TRUE                 found and reported an error.
+  @retval FALSE no errors found
+  @retval TRUE found and reported an error.
 */
 bool TABLE_LIST::process_index_hints(TABLE *tbl)
 {
