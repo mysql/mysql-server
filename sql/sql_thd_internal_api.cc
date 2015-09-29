@@ -20,7 +20,7 @@
 #include "mysqld.h"
 
 
-int thd_init(THD *thd, char *stack_start, bool bound)
+int thd_init(THD *thd, char *stack_start, bool bound, PSI_thread_key psi_key)
 {
   DBUG_ENTER("thd_init");
   thd->set_time();
@@ -37,14 +37,8 @@ int thd_init(THD *thd, char *stack_start, bool bound)
     thd_manager->add_thd(thd);
   }
 #ifdef HAVE_PSI_INTERFACE
-  PSI_thread_key key_thread;
   PSI_thread *psi;
-  if (thd->system_thread == SYSTEM_THREAD_BACKGROUND)
-    key_thread= key_thread_background;
-  else
-    key_thread= key_thread_one_connection;
-
-  psi= PSI_THREAD_CALL(new_thread)(key_thread, thd, thd->thread_id());
+  psi= PSI_THREAD_CALL(new_thread)(psi_key, thd, thd->thread_id());
   if (bound)
   {
     PSI_THREAD_CALL(set_thread_os_id)(psi);
@@ -65,12 +59,12 @@ int thd_init(THD *thd, char *stack_start, bool bound)
 }
 
 
-THD *create_thd(bool enable_plugins, bool background_thread, bool bound)
+THD *create_thd(bool enable_plugins, bool background_thread, bool bound, PSI_thread_key psi_key)
 {
   THD *thd= new THD(enable_plugins);
   if (background_thread)
     thd->system_thread= SYSTEM_THREAD_BACKGROUND;
-  (void)thd_init(thd, reinterpret_cast<char*>(&thd), bound);
+  (void)thd_init(thd, reinterpret_cast<char*>(&thd), bound, psi_key);
   return thd;
 }
 

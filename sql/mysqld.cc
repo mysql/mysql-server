@@ -8585,7 +8585,6 @@ PSI_thread_key key_thread_compress_gtid_table;
 PSI_thread_key key_thread_parser_service;
 PSI_thread_key key_thread_daemon_plugin;
 PSI_thread_key key_thread_timer_notifier;
-PSI_thread_key key_thread_background;
 
 #ifndef EMBEDDED_LIBRARY
 static PSI_thread_info all_server_threads[]=
@@ -8604,7 +8603,6 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_signal_hand, "signal_handler", PSI_FLAG_GLOBAL},
   { &key_thread_compress_gtid_table, "compress_gtid_table", PSI_FLAG_GLOBAL},
   { &key_thread_parser_service, "parser_service", PSI_FLAG_GLOBAL},
-  { &key_thread_background, "background", PSI_FLAG_GLOBAL},
   { &key_thread_daemon_plugin, "daemon_plugin", PSI_FLAG_GLOBAL}
 };
 #endif // !EMBEDDED_LIBRARY
