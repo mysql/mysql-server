@@ -301,6 +301,7 @@ Requires:       mysql-community-libs%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-devel < %{version}-%{release}
 Obsoletes:      mysql-devel < %{version}-%{release}
 Obsoletes:      mariadb-devel
+Obsoletes:      mysql-connector-c-shared-devel < 6.2
 Provides:       mysql-devel = %{version}-%{release}
 Provides:       mysql-devel%{?_isa} = %{version}-%{release}
 
@@ -323,6 +324,7 @@ Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-shared < %{version}-%{release}
 Obsoletes:      mysql-libs < %{version}-%{release}
 Obsoletes:      mariadb-libs
+Obsoletes:      mysql-connector-c-shared < 6.2
 Provides:       mysql-libs = %{version}-%{release}
 Provides:       mysql-libs%{?_isa} = %{version}-%{release}
 
@@ -1042,10 +1044,11 @@ fi
 %endif
 
 %changelog
-* Sun Aug 2 2015 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.9-1
+* Tue Sep 29 2015 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.9-1
 - Updated for 5.7.9
 - Added libtest_* plugins to test package subpackage
 - Add mysqlpump man page
+- Obsolete mysql-connector-c-shared dependencies
 
 * Thu Jun 25 2015 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.8-0.2.rc
 - Add support for pkg-config
