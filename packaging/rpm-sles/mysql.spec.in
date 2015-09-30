@@ -268,6 +268,7 @@ Obsoletes:      mariadb-devel
 Obsoletes:      libmysqlclient-devel
 Provides:       mysql-devel = %{version}-%{release}
 Provides:       libmysqlclient-devel = %{version}-%{release}
+Conflicts:      mysql-connector-c-shared-devel < 6.2
 
 %description    devel
 This package contains the development header files and libraries necessary
@@ -293,6 +294,7 @@ Obsoletes:      libmysqlclient_r18 < %{version}-%{release}
 Provides:       mysql-libs = %{version}-%{release}
 Provides:       libmysqlclient18 = %{version}-%{release}
 Provides:       libmysqlclient_r18 = %{version}-%{release}
+Conflicts:      mysql-connector-c-shared < 6.2
 
 %description    libs
 This package contains the shared libraries for MySQL client
@@ -779,6 +781,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
+* Tue Sep 29 2015 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.5.47-1
+- Added conflicts to mysql-connector-c-shared dependencies
+
 * Mon Oct 06 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.5.41-1
 - Backport to 5.5.41
 
