@@ -4202,6 +4202,17 @@ row_merge_create_index(
 			}
 		} else {
 			name = dict_table_get_col_name(table, ifield->col_no);
+
+			/* If this is a virtual index, we need to block
+			any non-virtual column (in this virtual index) that is
+			also part of some foreign constraint */
+			if ((index_def->ind_type & DICT_VIRTUAL)
+			    && dict_foreigns_has_this_col(table, name)) {
+				my_error(ER_CANNOT_CREATE_VIRTUAL_INDEX_CONSTRAINT,
+					 MYF(0));
+				trx->error_state = DB_NO_VIRTUAL_INDEX_ON_FK;
+				DBUG_RETURN(NULL);
+			}
 		}
 
 		dict_mem_index_add_field(index, name, ifield->prefix_len);

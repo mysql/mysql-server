@@ -985,6 +985,13 @@ innobase_check_v_base_col(
 				    foreign->foreign_table)) {
 				return(false);
 			}
+
+			/* Check if the fk column is in any virtual index */
+			if (dict_foreign_has_col_in_v_index(
+				foreign->foreign_col_names[i],
+				foreign->foreign_table)) {
+				return(false);
+			}
 		}
 	}
 
