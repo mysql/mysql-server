@@ -425,7 +425,6 @@ public:
 
   Create_field *datetime_field;
   error_if_not_empty_mask error_if_not_empty;
-  bool         requires_generated_column_server_evaluation;
   uint         tables_opened;
   const char   *db;
   const char   *table_name;
