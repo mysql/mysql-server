@@ -532,7 +532,7 @@ public:
   longlong val_int()
   {
     Item_func *comp= (Item_func*)args[1];
-    Item_string *fake= (Item_string*)(comp->arguments()[0]);
+    Item *fake= comp->arguments()[0];
     String *res= args[0]->val_nodeset(&tmp_nodeset);
     MY_XPATH_FLT *fltbeg= (MY_XPATH_FLT*) res->ptr();
     MY_XPATH_FLT *fltend= (MY_XPATH_FLT*) (res->ptr() + res->length());

@@ -1205,8 +1205,7 @@ public:
   void value_to_item(uint pos, Item *item)
   {    
     String *str= base_pointers[pos];
-    Item_string *to= (Item_string*)item;
-    to->str_value= *str;
+    item->str_value= *str;
   }
   Item_result result_type() { return STRING_RESULT; }
 

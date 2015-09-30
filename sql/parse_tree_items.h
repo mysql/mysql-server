@@ -763,7 +763,6 @@ public:
     if (super::itemize(pc, res) || expr->itemize(pc, &expr))
       return true;
 
-    Item_string *item;
     *res= NULL;
     /*
       If "expr" is reasonably short pure ASCII string literal,
@@ -774,12 +773,11 @@ public:
       SELECT {ts'2001-01-01 10:20:30'};
     */
     if (expr->type() == Item::STRING_ITEM &&
-       (item= (Item_string *) expr) &&
-        item->collation.repertoire == MY_REPERTOIRE_ASCII &&
-        item->str_value.length() < MAX_DATE_STRING_REP_LENGTH * 4)
+        expr->collation.repertoire == MY_REPERTOIRE_ASCII &&
+        expr->str_value.length() < MAX_DATE_STRING_REP_LENGTH * 4)
     {
       enum_field_types type= MYSQL_TYPE_STRING;
-      ErrConvString str(&item->str_value);
+      ErrConvString str(&expr->str_value);
       LEX_STRING *ls= &ident;
       if (ls->length == 1)
       {
