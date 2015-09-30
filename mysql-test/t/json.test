@@ -4719,6 +4719,7 @@ DROP TABLE t1, t2;
 --echo #               ON EXPLAIN SELECT JSON
 --echo #
 create table t (pk int primary key, col_json json);
+ANALYZE TABLE t;
 explain SELECT col_json FROM t WHERE pk = 1;
 drop table t;
 
@@ -6112,6 +6113,7 @@ DROP TABLE t;
 CREATE TABLE t1(f1 JSON);
 INSERT INTO t1 VALUES('{"a":1}'),('{"a":3}'),('{"a":2}');
 INSERT INTO t1 VALUES('{"a":11, "b":3}'),('{"a":33, "b":1}'),('{"a":22,"b":2}');
+ANALYZE TABLE t1;
 
 SELECT f1->"$.a" FROM t1;
 EXPLAIN SELECT f1->"$.a" FROM t1;
