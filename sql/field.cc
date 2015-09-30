@@ -11288,7 +11288,7 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
 
 Create_field::Create_field(Field *old_field,Field *orig_field) :
   field_name(old_field->field_name),
-  change(old_field->field_name),
+  change(NULL),
   comment(old_field->comment),
   sql_type(old_field->real_type()),
   length(old_field->field_length),

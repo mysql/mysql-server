@@ -4254,7 +4254,11 @@ class Create_field :public Sql_alloc
 {
 public:
   const char *field_name;
-  const char *change;			// If done with alter table
+  /**
+    Name of column modified by ALTER TABLE's CHANGE/MODIFY COLUMN clauses,
+    NULL for columns added.
+  */
+  const char *change;
   const char *after;			// Put column after this one
   LEX_STRING comment;			// Comment for field
 

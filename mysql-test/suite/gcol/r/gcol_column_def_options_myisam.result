@@ -508,8 +508,8 @@ ALTER TABLE t ADD c int(11) as (a+b), ADD f varchar(10) as ('aaa');
 affected rows: 1
 info: Records: 1  Duplicates: 0  Warnings: 0
 ALTER TABLE t CHANGE c c int(11) as (a), CHANGE f f varchar(10) as('bbb');
-affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
 # Change order should be ALGORITHM=INPLACE on Innodb
 ALTER TABLE t CHANGE c c int(11) as (a) after f;
 affected rows: 1
