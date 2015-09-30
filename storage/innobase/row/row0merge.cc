@@ -2316,6 +2316,10 @@ write_buffers:
 						clust_btr_bulk->release();
 					}
 
+					if (err != DB_SUCCESS) {
+						break;
+					}
+
 					if (row != NULL) {
 						/* Restore the cursor on the
 						previous clustered index record,
@@ -2407,6 +2411,14 @@ write_buffers:
 						-1, NULL, buf, &btr_bulk);
 
 					err = btr_bulk.finish(err);
+
+					DBUG_EXECUTE_IF(
+						"row_merge_insert_big_row",
+						err = DB_TOO_BIG_RECORD;);
+
+					if (err != DB_SUCCESS) {
+						break;
+					}
 				} else {
 					if (row_merge_file_create_if_needed(
 						file, tmpfd,
@@ -2480,7 +2492,11 @@ write_buffers:
 	}
 
 func_exit:
-	mtr_commit(&mtr);
+	/* row_merge_spatial_rows may have committed
+	the mtr	before an error occurs. */
+	if (mtr.is_active()) {
+		mtr_commit(&mtr);
+	}
 	mem_heap_free(row_heap);
 	ut_free(nonnull);
 
