@@ -2787,3 +2787,9 @@ DO st_centroid(point(1,1)) IN ('1',1,'1');
 
 SELECT ST_AsText(ST_GeomFromText('POINT(0 0)', NULL));
 SELECT ST_SRID(ST_GeomFromText('POINT(0 0)', NULL));
+
+--echo #
+--echo # Bug#21871856 ST_BUFFER() RETURNS AN INVALID POLYGON
+--echo #
+SELECT ST_ISVALID(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((-5 15,7
+15,19 -10,-11 -2),(2 13,2 -9))'), 1));
