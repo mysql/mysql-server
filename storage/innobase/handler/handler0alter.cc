@@ -5804,8 +5804,8 @@ ha_innobase::inplace_alter_table(
 {
 	dberr_t			error;
 	dict_add_v_col_t*	add_v = NULL;
-	innodb_col_templ_t*	s_templ = NULL;
-	innodb_col_templ_t*	old_templ = NULL;
+	dict_vcol_templ_t*	s_templ = NULL;
+	dict_vcol_templ_t*	old_templ = NULL;
 
 
 	DBUG_ENTER("inplace_alter_table");
@@ -5856,9 +5856,8 @@ ok_exit:
 	table, which indicates the virtual columns and their base columns
 	info. This is used to do the computation callback, so that the
 	data in base columns can be extracted send to server */
-	if (ctx->need_rebuild() && ctx->new_table->n_v_cols) {
-		s_templ = static_cast<innodb_col_templ_t*>(
-			mem_heap_alloc(ctx->heap, sizeof *s_templ));
+	if (ctx->need_rebuild() && ctx->new_table->n_v_cols > 0) {
+		s_templ = UT_NEW_NOKEY(dict_vcol_templ_t());
 		s_templ->vtempl = NULL;
 
 		innobase_build_v_templ(
@@ -5866,10 +5865,9 @@ ok_exit:
 			NULL, false, NULL);
 
 		ctx->new_table->vc_templ = s_templ;
-	} else if (ctx->num_to_add_vcol) {
+	} else if (ctx->num_to_add_vcol > 0) {
 		ut_ad(!ctx->online);
-		s_templ = static_cast<innodb_col_templ_t*>(
-				mem_heap_alloc(ctx->heap, sizeof *s_templ));
+		s_templ = UT_NEW_NOKEY(dict_vcol_templ_t());
 
 		add_v = static_cast<dict_add_v_col_t*>(
 			mem_heap_alloc(ctx->heap, sizeof *add_v));
@@ -5901,12 +5899,11 @@ ok_exit:
 		ctx->m_stage, add_v);
 
 	if (s_templ) {
-		ut_ad(ctx->need_rebuild() || ctx->num_to_add_vcol);
-		free_vc_templ(s_templ);
+		ut_ad(ctx->need_rebuild() || ctx->num_to_add_vcol > 0);
+		dict_free_vc_templ(s_templ);
+		UT_DELETE(s_templ);
 
-		if (old_templ) {
-			ctx->new_table->vc_templ = old_templ;
-		}
+		ctx->new_table->vc_templ = old_templ;
 	}
 
 #ifndef DBUG_OFF
@@ -8253,12 +8250,6 @@ foreign_fail:
 
 			row_prebuilt_free(ctx->prebuilt, TRUE);
 
-			if (ctx->new_table->n_v_cols
-			    && ctx->old_table->vc_templ) {
-				refresh_share_vtempl(
-					altered_table, ctx->new_table,
-					ctx->old_table->vc_templ->share_name);
-			}
 			/* Drop the copy of the old table, which was
 			renamed to ctx->tmp_name at the atomic DDL
 			transaction commit.  If the system crashes
