@@ -808,7 +808,7 @@ row_log_table_low_redundant(
 
 		if (o_ventry) {
 			mrec_size += rec_get_converted_size_temp(
-				index, NULL, 0, ventry, &v_extra);
+				index, NULL, 0, o_ventry, &v_extra);
 		}
 	} else if (index->table->n_v_cols) {
 		mrec_size += 2;
@@ -955,7 +955,7 @@ row_log_table_low(
 
 		if (o_ventry) {
 			mrec_size += rec_get_converted_size_temp(
-				index, NULL, 0, ventry, &v_extra);
+				index, NULL, 0, o_ventry, &v_extra);
 		}
 	} else if (index->table->n_v_cols) {
 		/* Always leave 2 bytes length marker for virtual column

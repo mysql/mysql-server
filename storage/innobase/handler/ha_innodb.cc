@@ -5115,13 +5115,13 @@ is done when the table first opened.
 @param[in,out]	s_templ		InnoDB template structure
 @param[in]	add_v		new virtual columns added along with
 				add index call
-@param[in]	locked		true if innobase_share_mutex is held
+@param[in]	locked		true if dict_sys mutex is held
 @param[in]	share_tbl_name	original MySQL table name */
 void
 innobase_build_v_templ(
 	const TABLE*		table,
 	const dict_table_t*	ib_table,
-	innodb_col_templ_t*	s_templ,
+	dict_vcol_templ_t*	s_templ,
 	const dict_add_v_col_t*	add_v,
 	bool			locked,
 	const char*		share_tbl_name)
@@ -5139,12 +5139,12 @@ innobase_build_v_templ(
 	ut_ad(n_v_col > 0);
 
 	if (!locked) {
-		mysql_mutex_lock(&innobase_share_mutex);
+		mutex_enter(&dict_sys->mutex);
 	}
 
 	if (s_templ->vtempl) {
 		if (!locked) {
-			mysql_mutex_unlock(&innobase_share_mutex);
+			mutex_exit(&dict_sys->mutex);
 		}
 		return;
 	}
@@ -5252,22 +5252,14 @@ innobase_build_v_templ(
 	}
 
 	if (!locked) {
-		mysql_mutex_unlock(&innobase_share_mutex);
+		mutex_exit(&dict_sys->mutex);
 	}
 
-	ut_strlcpy(s_templ->db_name, table->s->db.str,
-		   table->s->db.length + 1);
-	s_templ->db_name[table->s->db.length] = 0;
-
-	ut_strlcpy(s_templ->tb_name, table->s->table_name.str,
-		   table->s->table_name.length + 1);
-	s_templ->tb_name[table->s->table_name.length] = 0;
+	s_templ->db_name = table->s->db.str;
+	s_templ->tb_name = table->s->table_name.str;
 
 	if (share_tbl_name) {
-		ulint	s_len = strlen(share_tbl_name);
-		ut_strlcpy(s_templ->share_name, share_tbl_name,
-			   s_len + 1);
-		s_templ->tb_name[s_len] = 0;
+		s_templ->share_name = share_tbl_name;
 	}
 }
 
@@ -5533,25 +5525,6 @@ ha_innobase::innobase_initialize_autoinc()
 	dict_table_autoinc_initialize(m_prebuilt->table, auto_inc);
 }
 
-/** Free the virtual column template
-@param[in,out]	vc_templ	virtual column template */
-void
-free_vc_templ(
-	innodb_col_templ_t*	vc_templ)
-{
-	if (vc_templ->vtempl) {
-		ut_ad(vc_templ->n_v_col);
-		for (ulint i = 0; i < vc_templ->n_col
-		     + vc_templ->n_v_col ; i++) {
-			if (vc_templ->vtempl[i]) {
-				ut_free(vc_templ->vtempl[i]);
-			}
-		}
-		ut_free(vc_templ->vtempl);
-		vc_templ->vtempl = NULL;
-	}
-}
-
 /*****************************************************************//**
 Creates and opens a handle to a table which already exists in an InnoDB
 database.
@@ -5744,22 +5717,19 @@ ha_innobase::open(
 	key_used_on_scan = m_primary_key;
 
 	if (ib_table->n_v_cols) {
-		if (!m_share->s_templ.vtempl) {
-			innobase_build_v_templ(
-				table, ib_table, &(m_share->s_templ), NULL,
-				false, m_share->table_name);
+		mutex_enter(&dict_sys->mutex);
+		if (ib_table->vc_templ == NULL) {
+			ib_table->vc_templ = UT_NEW_NOKEY(dict_vcol_templ_t());
 
-			mysql_mutex_lock(&innobase_share_mutex);
-			if (ib_table->vc_templ
-			    && ib_table->vc_templ_purge) {
-				free_vc_templ(ib_table->vc_templ);
-				ut_free(ib_table->vc_templ);
-			}
-			mysql_mutex_unlock(&innobase_share_mutex);
+		} else {
+			/* Clean and refresh the template */
+			dict_free_vc_templ(ib_table->vc_templ);
 		}
-		ib_table->vc_templ = &m_share->s_templ;
-	} else {
-		ib_table->vc_templ = NULL;
+		innobase_build_v_templ(
+			table, ib_table, ib_table->vc_templ, NULL,
+			true, m_share->table_name);
+
+		mutex_exit(&dict_sys->mutex);
 	}
 
 	if (!innobase_build_index_translation(table, ib_table, m_share)) {
@@ -15635,56 +15605,6 @@ innobase_show_status(
 	return(false);
 }
 
-/** Refresh template for the virtual columns and their base columns if
-the share structure exists
-@param[in]      table           MySQL TABLE
-@param[in]      ib_table        InnoDB dict_table_t
-@param[in]	table_name	table_name used to find the share structure */
-void
-refresh_share_vtempl(
-	const TABLE*		mysql_table,
-	const dict_table_t*	ib_table,
-	const char*		table_name)
-{
-	INNOBASE_SHARE*	share;
-
-	ulint	fold = ut_fold_string(table_name);
-
-	mysql_mutex_lock(&innobase_share_mutex);
-
-	HASH_SEARCH(table_name_hash, innobase_open_tables, fold,
-		    INNOBASE_SHARE*, share,
-		    ut_ad(share->use_count > 0),
-		    !strcmp(share->table_name, table_name));
-
-	if (share == NULL) {
-		/* Partition table does not have "share" structure
-		instantiated, no need to refresh it */
-#ifdef UNIV_DEBUG
- #ifdef _WIN32
-		char*   is_part = strstr(ib_table->name.m_name, "#p#");
- #else
-		char*   is_part = strstr(ib_table->name.m_name, "#P#");
- #endif /* _WIN32 */
-
-		ut_ad(is_part != NULL);
-#endif /* UNIV_DEBUG */
-
-		mysql_mutex_unlock(&innobase_share_mutex);
-		return;
-	}
-
-	free_share_vtemp(share);
-
-	innobase_build_v_templ(
-		mysql_table, ib_table, &(share->s_templ), NULL, true,
-		share->table_name);
-
-	mysql_mutex_unlock(&innobase_share_mutex);
-
-	return;
-}
-
 /************************************************************************//**
 Handling the shared INNOBASE_SHARE structure that is needed to provide table
 locking. Register the table name if it doesn't exist in the hash table. */
@@ -15727,8 +15647,6 @@ get_share(
 		share->idx_trans_tbl.index_mapping = NULL;
 		share->idx_trans_tbl.index_count = 0;
 		share->idx_trans_tbl.array_size = 0;
-		share->s_templ.vtempl = NULL;
-		share->s_templ.n_col = 0;
 	}
 
 	++share->use_count;
@@ -15736,15 +15654,6 @@ get_share(
 	mysql_mutex_unlock(&innobase_share_mutex);
 
 	return(share);
-}
-
-/** Free a virtual template in INNOBASE_SHARE structure
-@param[in,out]	share	table share holds the template to free */
-void
-free_share_vtemp(
-	INNOBASE_SHARE*	share)
-{
-	free_vc_templ(&share->s_templ);
 }
 
 /************************************************************************//**
@@ -15779,8 +15688,6 @@ free_share(
 
 		/* Free any memory from index translation table */
 		ut_free(share->idx_trans_tbl.index_mapping);
-
-		free_share_vtemp(share);
 
 		my_free(share);
 
@@ -19446,12 +19353,10 @@ innobase_init_vc_templ(
 	char    t_dbname[MAX_DATABASE_NAME_LEN + 1];
 	char    t_tbname[MAX_TABLE_NAME_LEN + 1];
 
-	/* Acquire innobase_share_mutex to see if table->vc_templ
-	is assigned with its counter part in the share structure */
-	mysql_mutex_lock(&innobase_share_mutex);
+	mutex_enter(&dict_sys->mutex);
 
-	if (table->vc_templ) {
-		mysql_mutex_unlock(&innobase_share_mutex);
+	if (table->vc_templ != NULL) {
+		mutex_exit(&dict_sys->mutex);
 
 		return;
 	}
@@ -19474,8 +19379,7 @@ innobase_init_vc_templ(
 		tbnamelen = is_part - tbname;
 	}
 
-	table->vc_templ = static_cast<innodb_col_templ_t*>(
-		ut_zalloc_nokey(sizeof *(table->vc_templ)));
+	table->vc_templ = UT_NEW_NOKEY(dict_vcol_templ_t());
 
 	dbnamelen = filename_to_tablename(dbname, t_dbname,
 					  MAX_DATABASE_NAME_LEN + 1);
@@ -19491,7 +19395,7 @@ innobase_init_vc_templ(
 		static_cast<void*>(table));
 	ut_ad(!ret);
 	table->vc_templ_purge = true;
-	mysql_mutex_unlock(&innobase_share_mutex);
+	mutex_exit(&dict_sys->mutex);
 }
 
 /** Get the computed value by supplying the base column values.
@@ -19626,13 +19530,14 @@ innobase_get_computed_value(
                 }
 
 		ret = handler::my_eval_gcolumn_expr(
-			current_thd, false, index->table->vc_templ->db_name,
-			index->table->vc_templ->tb_name, &column_map,
+			current_thd, false,
+			index->table->vc_templ->db_name.c_str(),
+			index->table->vc_templ->tb_name.c_str(), &column_map,
 			(uchar *)mysql_rec);
         } else {
 		ret = handler::my_eval_gcolumn_expr(
-			current_thd, index->table->vc_templ->db_name,
-			index->table->vc_templ->tb_name, &column_map,
+			current_thd, index->table->vc_templ->db_name.c_str(),
+			index->table->vc_templ->tb_name.c_str(), &column_map,
 			(uchar *)mysql_rec);
 	}
 
