@@ -16,7 +16,7 @@ ALTER TABLE t1 ADD COLUMN b1 INT GENERATED ALWAYS AS (b) VIRTUAL, ADD
 INDEX(b1),
 ALGORITHM=INPLACE;
 COMMIT;
-Timeout in wait_innodb_all_purged.inc for INNODB_PURGE_TRX_ID_AGE = 1
+UPDATE t1 SET a=1;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -43,8 +43,8 @@ BEGIN;
 SELECT * FROM t0;
 a
 UPDATE t1 SET a=0;
-affected rows: 1
-info: Rows matched: 2  Changed: 1  Warnings: 0
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
 UPDATE t1 SET b=0;
 affected rows: 2
 info: Rows matched: 2  Changed: 2  Warnings: 0
