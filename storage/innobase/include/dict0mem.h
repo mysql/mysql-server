@@ -1256,7 +1256,6 @@ if table->memcached_sync_count == DICT_TABLE_IN_DDL means there's DDL running on
 the table, DML from memcached will be blocked. */
 #define DICT_TABLE_IN_DDL -1
 
-<<<<<<< HEAD
 /** The dirty status of tables, used to indicate if a table has some
 dynamic metadata changed to be written back */
 enum table_dirty_status {
@@ -1274,9 +1273,6 @@ enum table_dirty_status {
 	METADATA_CLEAN
 };
 
-struct innodb_col_templ_t;
-=======
->>>>>>> Bug#21894654 - MEMORY ACCESS VIOLATION IN OPEN TABLE
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
 struct dict_table_t {
