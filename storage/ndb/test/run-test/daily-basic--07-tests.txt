@@ -99,11 +99,6 @@ cmd: testDict
 args: -n Bug13416603 I2
 max-time: 540
 
-cmd: DbAsyncGenerator
-args: -time 60 -p 100
-max-time: 360
-type: bench
-
 cmd: testNodeRestart
 args: -n Bug16834416 T1
 max-time: 540

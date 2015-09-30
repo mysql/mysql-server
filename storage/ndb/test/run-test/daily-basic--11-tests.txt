@@ -60,7 +60,7 @@ args: -n Bug46069 T1
 max-time: 360
 
 cmd: testDataBuffers
-args: testDataBuffers
+args:
 max-time: 180
 
 cmd: testIndex
