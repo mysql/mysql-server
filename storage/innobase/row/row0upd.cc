@@ -1907,12 +1907,20 @@ row_upd_store_v_row(
 				/* If this is an update, then the value
 				should be in update->old_vrow */
 				if (update) {
-					ut_ad(update->old_vrow);
-					dfield_t*       vfield
-						= dtuple_get_nth_v_field(
-							update->old_vrow,
-							col_no);
-					dfield_copy_data(dfield, vfield);
+					if (update->old_vrow == NULL) {
+						/* This only happens in
+						cascade update. And virtual
+						column can't be affected,
+						so it is Ok to set it to NULL */
+						ut_ad(!node->cascade_top);
+						dfield_set_null(dfield);
+					} else {
+						dfield_t*       vfield
+							= dtuple_get_nth_v_field(
+								update->old_vrow,
+								col_no);
+						dfield_copy_data(dfield, vfield);
+					}
 				} else {
 					/* Need to compute, this happens when
 					deleting row */

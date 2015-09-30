@@ -2137,6 +2137,53 @@ dict_create_add_foreign_to_dictionary(
 	DBUG_RETURN(error);
 }
 
+/** Check whether a column is in an index by the column name
+@param[in]	col_name	column name for the column to be checked
+@param[in]	index		the index to be searched
+@return	true if this column is in the index, otherwise, false */
+static
+bool
+dict_index_has_col_by_name(
+	const char*		col_name,
+	const dict_index_t*	index)
+{
+        for (ulint i = 0; i < index->n_fields; i++) {
+                dict_field_t*   field = dict_index_get_nth_field(index, i);
+
+		if (strcmp(field->name, col_name) == 0) {
+			return(true);
+		}
+	}
+	return(false);
+}
+
+/** Check whether the foreign constraint could be on a column that is
+part of a virtual index (index contains virtual column) in the table
+@param[in]	fk_col_name	FK column name to be checked
+@param[in]	table		the table
+@return	true if this column is indexed with other virtual columns */
+bool
+dict_foreign_has_col_in_v_index(
+	const char*		fk_col_name,
+	const dict_table_t*	table)
+{
+	/* virtual column can't be Primary Key, so start with secondary index */
+	for (dict_index_t* index = dict_table_get_next_index(
+		     dict_table_get_first_index(table));
+	     index;
+	     index = dict_table_get_next_index(index)) {
+
+		if (dict_index_has_virtual(index)) {
+			if (dict_index_has_col_by_name(fk_col_name, index)) {
+				return(true);
+			}
+		}
+	}
+
+	return(false);
+}
+
+
 /** Check whether the foreign constraint could be on a column that is
 a base column of some indexed virtual columns.
 @param[in]	col_name	column name for the column to be checked
@@ -2170,8 +2217,9 @@ dict_foreign_has_col_as_base_col(
 }
 
 /** Check if a foreign constraint is on columns served as based columns
-of some virtual column. This is to prevent creating SET NULL or CASCADE
-constraint on such columns
+of some virtual column, or the column is part of virtual index (index
+that contains virtual column). This is to prevent creating SET NULL or
+CASCADE constraint on such columns
 @param[in]	local_fk_set	set of foreign key objects, to be added to
 the dictionary tables
 @param[in]	table		table to which the foreign key objects in
@@ -2199,8 +2247,17 @@ dict_foreigns_has_v_base_col(
 		}
 
 		for (ulint i = 0; i < foreign->n_fields; i++) {
+			/* Check if the constraint is on a column that
+			is a base column of some virtual column */
 			if (dict_foreign_has_col_as_base_col(
 				    foreign->foreign_col_names[i], table)) {
+				return(true);
+			}
+
+			/* Check if the column is part of a virtual index (
+			index contains virtual columns) */
+			if (dict_foreign_has_col_in_v_index(
+				foreign->foreign_col_names[i], table)) {
 				return(true);
 			}
 		}
@@ -2210,10 +2267,9 @@ dict_foreigns_has_v_base_col(
 
 /** Check if a column is in foreign constraint with CASCADE properties or
 SET NULL
-@param[in]	table	table
-@param[in]	col_name	name for the column to be checked
+@param[in]	table		table
+@param[in]	fk_col_name	name for the column to be checked
 @return true if the column is in foreign constraint, otherwise, false */
-static
 bool
 dict_foreigns_has_this_col(
 	const dict_table_t*	table,

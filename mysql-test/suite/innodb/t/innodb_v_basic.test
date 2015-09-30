@@ -1182,3 +1182,112 @@ SET foreign_key_checks = 1;
 DROP TABLE child;
 
 DROP TABLE parent;
+
+# Test for Bug 21890816 - ASSERT UPDATE->OLD_VROW, VIRTUAL COLUMNS
+CREATE TABLE `ibstd_16` (
+  `a` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  `b` varchar(198) DEFAULT NULL,
+  `c` char(179) DEFAULT NULL,
+  `vadcol` int(11) GENERATED ALWAYS AS (a+length(d)) STORED,
+  `vbcol` char(2) GENERATED ALWAYS AS (substr(b,2,2)) VIRTUAL,
+  `vbidxcol` char(3) GENERATED ALWAYS AS (substr(b,1,3)) VIRTUAL,
+  UNIQUE KEY `b` (`b`(10),`d`),
+  KEY `d` (`d`),
+  KEY `a` (`a`),
+  KEY `c` (`c`(99),`b`(33)),
+  KEY `b_2` (`b`(5),`c`(10),`a`),
+  KEY `vbidxcol` (`vbidxcol`),
+  KEY `a_2` (`a`,`vbidxcol`),
+  KEY `vbidxcol_2` (`vbidxcol`,`d`)
+)  ENGINE=INNODB;
+
+# This should fail, since KEY `a_2` contains a virtual column and
+# a column 'a' that is in a cascading foreign constraint
+--error ER_CANNOT_ADD_FOREIGN
+CREATE TABLE `ibstd_16_fk` (
+  `a` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  `b` varchar(198) DEFAULT NULL,
+  `c` char(179) DEFAULT NULL,
+  `vadcol` int(11) GENERATED ALWAYS AS (a+length(d)) STORED,
+  `vbcol` char(2) GENERATED ALWAYS AS (substr(b,2,2)) VIRTUAL,
+  `vbidxcol` char(3) GENERATED ALWAYS AS (substr(b,1,3)) VIRTUAL,
+  UNIQUE KEY `b` (`b`(10),`a`,`d`),
+  KEY `d` (`d`),
+  KEY `a` (`a`),
+  KEY `c` (`c`(99),`b`(33)),
+  KEY `b_2` (`b`(5),`c`(10),`a`),
+  KEY `vbidxcol` (`vbidxcol`),
+  KEY `a_2` (`a`,`vbidxcol`),
+  KEY `vbidxcol_2` (`vbidxcol`,`d`),
+  CONSTRAINT `fk_16` FOREIGN KEY (`a`) REFERENCES `ibstd_16` (`a`) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+# Take out "KEY `a_2` (`a`,`vbidxcol`)", this should then be successful
+CREATE TABLE `ibstd_16_fk` (
+  `a` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  `b` varchar(198) DEFAULT NULL,
+  `c` char(179) DEFAULT NULL,
+  `vadcol` int(11) GENERATED ALWAYS AS (a+length(d)) STORED,
+  `vbcol` char(2) GENERATED ALWAYS AS (substr(b,2,2)) VIRTUAL,
+  `vbidxcol` char(3) GENERATED ALWAYS AS (substr(b,1,3)) VIRTUAL,
+  UNIQUE KEY `b` (`b`(10),`a`,`d`),
+  KEY `d` (`d`),
+  KEY `a` (`a`),
+  KEY `c` (`c`(99),`b`(33)),
+  KEY `b_2` (`b`(5),`c`(10),`a`),
+  KEY `vbidxcol` (`vbidxcol`),
+  KEY `vbidxcol_2` (`vbidxcol`,`d`),
+  CONSTRAINT `fk_16` FOREIGN KEY (`a`) REFERENCES `ibstd_16` (`a`) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+# Add this index with virtual column and normal column in constraint
+# also should fail
+--error ER_CANNOT_CREATE_VIRTUAL_INDEX_CONSTRAINT
+ALTER TABLE ibstd_16_fk ADD INDEX `a_2` (`a`,`vbidxcol`);
+
+# Now try to add a table with virtual index, and then add constraint
+DROP TABLE ibstd_16_fk;
+
+# Create a table without constraint
+CREATE TABLE `ibstd_16_fk` (
+  `a` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  `b` varchar(198) DEFAULT NULL,
+  `c` char(179) DEFAULT NULL,
+  `vadcol` int(11) GENERATED ALWAYS AS (a+length(d)) STORED,
+  `vbcol` char(2)  GENERATED ALWAYS AS (substr(b,2,2)) VIRTUAL,
+  `vbidxcol` char(3) GENERATED ALWAYS AS (substr(b,1,3)) VIRTUAL,
+  UNIQUE KEY `b` (`b`(10),`a`,`d`),
+  KEY `d` (`d`),
+  KEY `a` (`a`),
+  KEY `c` (`c`(99),`b`(33)),
+  KEY `b_2` (`b`(5),`c`(10),`a`),
+  KEY `vbidxcol` (`vbidxcol`),
+  KEY `a_2` (`a`,`vbidxcol`),
+  KEY `vbidxcol_2` (`vbidxcol`,`d`)
+) ENGINE=InnoDB;
+
+# This should fail, since it will make column `a` part of constraint, and
+# it is already part of a virtual index (`a_2` (`a`,`vbidxcol`))
+--error ER_CANNOT_ADD_FOREIGN
+ALTER TABLE `ibstd_16_fk` ADD CONSTRAINT `fk_16` FOREIGN KEY (`a`) REFERENCES `ibstd_16` (`a`) ON DELETE SET NULL;
+
+# DROP the index
+DROP INDEX a_2 ON ibstd_16_fk;
+
+# Now the constraint can be added, since NONE of virtual columns can be
+# affected by cascade update
+ALTER TABLE `ibstd_16_fk` ADD CONSTRAINT `fk_16` FOREIGN KEY (`a`) REFERENCES `ibstd_16` (`a`) ON DELETE SET NULL;
+
+INSERT INTO ibstd_16 VALUES (1, 2, "aaa", "bbb", default, default, default);
+INSERT INTO ibstd_16_fk VALUES(1, 3, "mmm", "SSS", default, default, default);
+
+# Cascading delete/update on column non-related to virtual column or virtual
+# index will be fine
+DELETE FROM ibstd_16 WHERE a = 1;
+
+DROP TABLE ibstd_16_fk;
+DROP TABLE ibstd_16;
