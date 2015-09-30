@@ -57,6 +57,8 @@ Created 10/10/1995 Heikki Tuuri
 #include "ut0counter.h"
 #include "fil0fil.h"
 
+struct fil_space_t;
+
 /* Global counters used inside InnoDB. */
 struct srv_stats_t {
 	typedef ib_counter_t<ulint, 64> ulint_ctr_64_t;
@@ -827,11 +829,11 @@ bool
 srv_is_tablespace_truncated(ulint space_id);
 
 /** Check if tablespace was truncated.
-@param	space_id	space_id to check for truncate action
+@param[in]	space	space object to check for truncate action
 @return true if tablespace was truncated and we still have an active
 MLOG_TRUNCATE REDO log record. */
 bool
-srv_was_tablespace_truncated(ulint space_id);
+srv_was_tablespace_truncated(const fil_space_t* space);
 
 /** Status variables to be passed to MySQL */
 struct export_var_t{
