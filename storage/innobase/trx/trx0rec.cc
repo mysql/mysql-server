@@ -1273,10 +1273,15 @@ trx_undo_page_report_modify(
 					 return(0);
 				}
 
-				if (update && update->old_vrow) {
+				if (update) {
 					ut_ad(!row);
-					vfield = dtuple_get_nth_v_field(
-						update->old_vrow, col->v_pos);
+					if (update->old_vrow == NULL) {
+						flen = UNIV_SQL_NULL;
+					} else {
+						vfield = dtuple_get_nth_v_field(
+							update->old_vrow,
+							col->v_pos);
+					}
 				} else if (row) {
 					vfield = dtuple_get_nth_v_field(
 						row, col->v_pos);
@@ -1284,8 +1289,12 @@ trx_undo_page_report_modify(
 					ut_ad(0);
 				}
 
-				field = static_cast<byte*>(vfield->data);
-				flen = vfield->len;
+				if (vfield) {
+					field = static_cast<byte*>(vfield->data);
+					flen = vfield->len;
+				} else {
+					ut_ad(flen == UNIV_SQL_NULL);
+				}
 
 				if (flen != UNIV_SQL_NULL) {
 					flen = ut_min(
