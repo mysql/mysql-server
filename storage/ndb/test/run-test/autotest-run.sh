@@ -314,8 +314,14 @@ then
     prefix="$prefix --prefix1=$install_dir1"
 fi
 
+# If verbose level 0, use default verbose mode (1) for atrt anyway
+# otherwise it will not write test progress to log file
+if [ ${verbose} -gt 0 ] ; then
+  verbose_arg=--verbose=${verbose}
+fi
+
 # Setup configuration
-$atrt Cdq ${site_arg} ${clusters_arg} $prefix my.cnf
+$atrt Cdq ${site_arg} ${clusters_arg} ${verbose_arg} $prefix my.cnf
 
 # Start...
 args=""
@@ -325,7 +331,7 @@ args="$args --testcase-file=$test_dir/$RUN-tests.txt"
 args="$args ${baseport_arg}"
 args="$args ${site_arg} ${clusters_arg}"
 args="$args $prefix"
-args="$args --verbose=${verbose}"
+args="$args ${verbose_arg}"
 $atrt $args my.cnf
 
 # Make tar-ball
