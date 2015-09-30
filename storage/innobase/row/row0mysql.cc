@@ -842,7 +842,8 @@ row_create_prebuilt(
 	uint		srch_key_len = 0;
 	ulint		search_tuple_n_fields;
 
-	search_tuple_n_fields = 2 * dict_table_get_n_cols(table);
+	search_tuple_n_fields = 2 * (dict_table_get_n_cols(table)
+				     + dict_table_get_n_v_cols(table));
 
 	clust_index = dict_table_get_first_index(table);
 
@@ -882,7 +883,8 @@ row_create_prebuilt(
 	sure if this prebuilt instance is going to be \
 	used in inserts */ \
 	+ (mysql_row_len < 256 ? mysql_row_len : 0) \
-	+ DTUPLE_EST_ALLOC(dict_table_get_n_cols(table)) \
+	+ DTUPLE_EST_ALLOC(dict_table_get_n_cols(table) \
+			   + dict_table_get_n_v_cols(table)) \
 	+ sizeof(que_fork_t) \
 	+ sizeof(que_thr_t) \
 	+ sizeof(*prebuilt->pcur) \

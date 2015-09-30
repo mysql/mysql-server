@@ -29,6 +29,7 @@ ALGORITHM=INPLACE;
 connection con1;
 # enable purge
 COMMIT;
+UPDATE t1 SET a=1;
 
 connection default;
 # wait for purge to process the update_undo record.
