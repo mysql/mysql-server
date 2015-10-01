@@ -2008,6 +2008,9 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
   }
   else
   {
+    /*
+      Grep for "WL#6570" to see the relevant comment about real_item.
+    */
     Item *orig_item= select->item_list.head()->real_item();
 
     if (select->table_list.elements || select->where_cond())
