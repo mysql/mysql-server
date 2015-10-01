@@ -2120,7 +2120,7 @@ ha_innopart::index_next_in_part(
 	ut_ad(m_ordered_scan_ongoing
 	      || m_ordered_rec_buffer == NULL
 	      || m_prebuilt->used_in_HANDLER
-	      || m_part_info->num_partitions_used() <= 1);
+	      || m_part_spec.start_part >= m_part_spec.end_part);
 
 	DBUG_RETURN(error);
 }
@@ -2183,7 +2183,7 @@ ha_innopart::index_prev_in_part(
 	ut_ad(m_ordered_scan_ongoing
 	      || m_ordered_rec_buffer == NULL
 	      || m_prebuilt->used_in_HANDLER
-	      || m_part_info->num_partitions_used() <= 1);
+	      || m_part_spec.start_part >= m_part_spec.end_part);
 
 	return(error);
 }
