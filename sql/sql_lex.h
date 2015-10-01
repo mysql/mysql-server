@@ -1399,6 +1399,9 @@ public:
   void reset_nj_counters(List<TABLE_LIST> *join_list= NULL);
   bool check_only_full_group_by(THD *thd);
 
+  /// Merge name resolution context objects of a subquery into its parent
+  void merge_contexts(SELECT_LEX *inner);
+
   /**
     Returns which subquery execution strategies can be used for this query block.
 

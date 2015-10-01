@@ -1815,7 +1815,6 @@ public:
   */
   virtual bool intro_version(uchar *int_arg) { return false; }
 
-  virtual bool remove_dependence_processor(uchar * arg) { return false; }
   virtual bool remove_fixed(uchar * arg) { fixed= 0; return false; }
   virtual bool cleanup_processor(uchar *arg);
   virtual bool collect_item_field_processor(uchar * arg) { return 0; }
@@ -2628,7 +2627,6 @@ public:
   virtual void fix_after_pullout(st_select_lex *parent_select,
                                  st_select_lex *removed_select);
   void cleanup();
-  bool remove_dependence_processor(uchar * arg);
   virtual bool aggregate_check_distinct(uchar *arg);
   virtual bool aggregate_check_group(uchar *arg);
   Bool3 local_column(const st_select_lex *sl) const;
