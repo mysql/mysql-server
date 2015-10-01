@@ -27,6 +27,13 @@
 #include <NdbEnv.h>
 #include <Bitmask.hpp>
 
+#define CHK(b,e) \
+  if (!(b)) { \
+    g_err << "ERR: " << #b << " failed at line " << __LINE__ \
+          << ": " << e << endl; \
+    return NDBT_FAILED; \
+  }
+
 static int createEvent(Ndb *pNdb,
                        const NdbDictionary::Table &tab,
                        bool merge_events,
@@ -3776,6 +3783,118 @@ int runTryGetEvent(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+/**
+ * Inject error to crash the coordinator dbdict while performing dropEvent
+ * after sumas have removed the subscriptions and returned execSUB_REMOVE_CONF
+ * but beore the coordinator deletes the event from the systable.
+ *
+ * Test whether the dropped event is dangling in the sysTable.
+ *
+ * The test will fail if the following create/drop events fail
+ * due to the dangling event.
+ */
+int runCreateDropEventOperation_NF(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb *pNdb=GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+  const NdbDictionary::Table& tab= *ctx->getTab();
+
+  char eventName[1024];
+  sprintf(eventName,"%s_EVENT",tab.getName());
+
+  NdbDictionary::Event myEvent(eventName);
+  myEvent.setTable(tab.getName());
+  myEvent.addTableEvent(NdbDictionary::Event::TE_ALL);
+
+  NdbEventOperation *pOp = pNdb->createEventOperation(eventName);
+  CHK(pOp != NULL, "Event operation creation failed");
+
+  CHK(pOp->execute() == 0, "Execute operation execution failed");
+
+  NdbRestarter restarter;
+  restarter.insertErrorInNode(restarter.getMasterNodeId(), 6125);
+
+  const int res = pDict->dropEvent(eventName);
+  if (res != 0)
+  {
+    g_err << "Failed to drop event: res "<< res <<" "
+          << pDict->getNdbError().code << " : "
+          << pDict->getNdbError().message << endl;
+  }
+  else
+    g_info << "Dropped event1" << endl;
+
+  g_info << "Waiting for the node to start" << endl;
+  if (restarter.waitClusterStarted(120) != 0)
+  {
+    g_err << "Cluster failed to start" << endl;
+    return NDBT_FAILED;
+  }
+  g_err << "Node started" << endl;
+
+// g_err << "Dropping ev op:"
+//       << " will remove the MARKED_DROPPED subscription at Suma" << endl;
+//  CHK(pNdb->dropEventOperation(pOp) == 0, "dropEventOperation failed");
+
+  int res1 = pDict->dropEvent(eventName);
+  if (res1 != 0)
+  {
+    if (pDict->getNdbError().code == 4710)
+    {
+      // "4710 : Event not found" is expected since it is dropped above.
+      res1 = 0;
+      g_info << "Dropped event2" << endl;
+    }
+    else
+    {
+      g_err << "Failed to drop event: res1 "<< res1 <<" "
+	    << pDict->getNdbError().code << " : "
+	    << pDict->getNdbError().message << endl;
+    }
+  }
+
+  const int res2 = pDict->createEvent(myEvent);
+  if (res2 != 0)
+    g_err << "Failed to cre event: res2 " << res2 << " "
+          << pDict->getNdbError().code << " : "
+          << pDict->getNdbError().message << endl;
+  else
+    g_info << "Event created1" << endl;
+
+  const int res3 = pDict->dropEvent(eventName, -1);
+  if (res3 != 0) {
+    g_err << "Failed to drop event: res3 "<< res3 << " "
+          << pDict->getNdbError().code << " : "
+          << pDict->getNdbError().message << endl;
+  }
+  else
+    g_info << "Dropped event3" << endl;
+
+  const int res4 = pDict->createEvent(myEvent);
+  if (res4)
+    g_err << "Failed to cre event: res4 " << res4 << " "
+          << pDict->getNdbError().code << " : "
+          << pDict->getNdbError().message << endl;
+  else
+    g_info << "Event created2" << endl;
+
+// clean up the newly created evnt and the eventops
+  const int res5 = pDict->dropEvent(eventName, -1);
+  if (res5 != 0) {
+    g_err << "Failed to drop event: res5 "<< res5 << " "
+          << pDict->getNdbError().code << " : "
+          << pDict->getNdbError().message << endl;
+  }
+  else
+    g_info << "Dropped event3" << endl;
+
+  CHK(pNdb->dropEventOperation(pOp) == 0, "dropEventOperation failed");
+
+  if (res || res1 || res2 || res3 || res4 || res5)
+    return NDBT_FAILED;
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -4042,6 +4161,14 @@ TESTCASE("NextEventRemoveInconsisEvent", "")
   STEP(runInsertDeleteUntilStopped);
   STEP(errorInjectBufferOverflowOnly);
   FINALIZER(runDropEvent);
+}
+TESTCASE("createDropEvent_NF",
+         "Check cleanup works when Dbdict crashes before"
+         " the event is deleted from the dictionary"
+         " while performing dropEvent")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runCreateDropEventOperation_NF);
 }
 NDBT_TESTSUITE_END(test_event);
 
