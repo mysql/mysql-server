@@ -21,7 +21,6 @@
 
 #include <my_global.h>
 #include <mysys_priv.h>
-#ifdef HAVE_COMPRESS
 #include <my_sys.h>
 #include <m_string.h>
 #include <zlib.h>
@@ -270,4 +269,3 @@ int unpackfrm(uchar **unpack_data, size_t *unpack_len,
                        (ulong) *unpack_len));
    DBUG_RETURN(0);
 }
-#endif /* HAVE_COMPRESS */

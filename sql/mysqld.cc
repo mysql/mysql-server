@@ -7019,11 +7019,8 @@ static int mysql_init_variables(void)
 #else
   have_crypt=SHOW_OPTION_NO;
 #endif
-#ifdef HAVE_COMPRESS
+  /* Always true */
   have_compress= SHOW_OPTION_YES;
-#else
-  have_compress= SHOW_OPTION_NO;
-#endif
 #ifdef HAVE_OPENSSL
   des_key_file = 0;
 #ifndef EMBEDDED_LIBRARY

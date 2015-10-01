@@ -612,7 +612,6 @@ net_write_packet(NET *net, const uchar *packet, size_t length)
 
   net->reading_or_writing= 2;
 
-#ifdef HAVE_COMPRESS
   const bool do_compress= net->compress;
   if (do_compress)
   {
@@ -625,7 +624,6 @@ net_write_packet(NET *net, const uchar *packet, size_t length)
       DBUG_RETURN(TRUE);
     }
   }
-#endif /* HAVE_COMPRESS */
 
 #ifdef DEBUG_DATA_PACKETS
   DBUG_DUMP("data", packet, length);
@@ -633,10 +631,8 @@ net_write_packet(NET *net, const uchar *packet, size_t length)
 
   res= net_write_raw_loop(net, packet, length);
 
-#ifdef HAVE_COMPRESS
   if (do_compress)
     my_free((void *) packet);
-#endif
 
   net->reading_or_writing= 0;
 
@@ -819,7 +815,6 @@ static size_t net_read_packet(NET *net, size_t *complen)
 
   net->compress_pkt_nr= net->pkt_nr;
 
-#ifdef HAVE_COMPRESS
   if (net->compress)
   {
     /*
@@ -835,7 +830,6 @@ static size_t net_read_packet(NET *net, size_t *complen)
     */
     *complen= uint3korr(&(net->buff[net->where_b + NET_HEADER_SIZE]));
   }
-#endif
 
   /* The length of the packet that follows. */
   pkt_len= uint3korr(net->buff+net->where_b);
@@ -887,10 +881,8 @@ my_net_read(NET *net)
 
   MYSQL_NET_READ_START();
 
-#ifdef HAVE_COMPRESS
   if (!net->compress)
   {
-#endif
     len= net_read_packet(net, &complen);
     if (len == MAX_PACKET_LENGTH)
     {
@@ -912,7 +904,6 @@ my_net_read(NET *net)
       net->read_pos[len]=0;		/* Safeguard for mysql_use_result */
     MYSQL_NET_READ_DONE(0, len);
     return static_cast<ulong>(len);
-#ifdef HAVE_COMPRESS
   }
   else
   {
@@ -1025,7 +1016,6 @@ my_net_read(NET *net)
     net->save_char= net->read_pos[len];	/* Must be saved */
     net->read_pos[len]=0;		/* Safeguard for mysql_use_result */
   }
-#endif /* HAVE_COMPRESS */
   MYSQL_NET_READ_DONE(0, len);
   return static_cast<ulong>(len);
 }

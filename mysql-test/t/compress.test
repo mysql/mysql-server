@@ -11,8 +11,6 @@
 # Can't test with embedded server
 -- source include/not_embedded.inc
 
--- source include/have_compress.inc
-
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 

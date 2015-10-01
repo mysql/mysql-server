@@ -194,11 +194,7 @@
 #define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
 #define CLIENT_REMEMBER_OPTIONS (1UL << 31)
 
-#ifdef HAVE_COMPRESS
 #define CAN_CLIENT_COMPRESS CLIENT_COMPRESS
-#else
-#define CAN_CLIENT_COMPRESS 0
-#endif
 
 /* Gather all possible capabilites (flags) supported by the server */
 #define CLIENT_ALL_FLAGS  (CLIENT_LONG_PASSWORD \

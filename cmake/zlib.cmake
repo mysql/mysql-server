@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -71,5 +71,4 @@ MACRO (MYSQL_CHECK_ZLIB_WITH_COMPRESS)
       MYSQL_USE_BUNDLED_ZLIB()
     ENDIF()
   ENDIF()
-  SET(HAVE_COMPRESS 1)
 ENDMACRO()

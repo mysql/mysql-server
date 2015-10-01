@@ -3409,9 +3409,6 @@ cli_calculate_client_flag(MYSQL *mysql, const char *db, ulong client_flag)
     mysql->client_flag&= ~CLIENT_SSL;
     mysql->options.use_ssl= FALSE;
   }
-#ifndef HAVE_COMPRESS
-  mysql->client_flag&= ~CLIENT_COMPRESS;
-#endif
 }
 
 

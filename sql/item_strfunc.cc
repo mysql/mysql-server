@@ -4910,7 +4910,6 @@ longlong Item_func_crc32::val_int()
   return (longlong) crc32(0L, (uchar*)res->ptr(), res->length());
 }
 
-#ifdef HAVE_COMPRESS
 #include "zlib.h"
 
 String *Item_func_compress::val_str(String *str)
@@ -5033,21 +5032,6 @@ err:
   return 0;
 }
 
-#else /* HAVE_COMPRESS */
-
-String *Item_func_compress::val_str(String *str)
-{
-  null_value= 1;
-  return NULL;
-}
-
-String *Item_func_uncompress::val_str(String *str)
-{
-  null_value= 1;
-  return NULL;
-}
-
-#endif /* not HAVE_COMPRESS */
 
 /*
   UUID, as in
