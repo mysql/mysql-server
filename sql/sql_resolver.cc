@@ -2146,23 +2146,8 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
   // Unlink the subquery's query expression:
   subq_select->master_unit()->exclude_level();
 
-  /*
-    Add Name res objects belonging to subquery to parent query block.
-    Update all name res objects to have this base query block.
-  */
-  for (Name_resolution_context *ctx= subq_select->first_context;
-       ctx != NULL;
-       ctx= ctx->next_context)
-  {
-    ctx->select_lex= this;
-    if (ctx->next_context == NULL)
-    {
-      ctx->next_context= first_context;
-      first_context= subq_select->first_context;
-      subq_select->first_context= NULL;
-      break;
-    }
-  }
+  // Merge subquery's name resolution contexts into parent's
+  merge_contexts(subq_select);
 
   repoint_contexts_of_join_nests(subq_select->top_join_list);
 
@@ -2376,23 +2361,8 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
   // Don't try to access it:
   derived_table->set_derived_unit((SELECT_LEX_UNIT *)1);
 
-  /*
-    Add Name res objects belonging to subquery to parent query block.
-    Update all name res objects to have this base query block.
-  */
-  for (Name_resolution_context *ctx= derived_select->first_context;
-       ctx != NULL;
-       ctx= ctx->next_context)
-  {
-    ctx->select_lex= this;
-    if (ctx->next_context == NULL)
-    {
-      ctx->next_context= first_context;
-      first_context= derived_select->first_context;
-      derived_select->first_context= NULL;
-      break;
-    }
-  }
+  // Merge subquery's name resolution contexts into parent's
+  merge_contexts(derived_select);
 
   repoint_contexts_of_join_nests(derived_select->top_join_list);
 
@@ -2777,6 +2747,32 @@ void SELECT_LEX::repoint_contexts_of_join_nests(List<TABLE_LIST> join_list)
     tbl->select_lex= this;
     if (tbl->nested_join)
       repoint_contexts_of_join_nests(tbl->nested_join->join_list);
+  }
+}
+
+
+/**
+  Merge name resolution context objects belonging to an inner subquery
+  to parent query block.
+  Update all context objects to have this base query block.
+  Used when a subquery's query block is merged into its parent.
+
+  @param inner  Subquery for which context objects are to be merged.
+*/
+void SELECT_LEX::merge_contexts(SELECT_LEX *inner)
+{
+  for (Name_resolution_context *ctx= inner->first_context;
+       ctx != NULL;
+       ctx= ctx->next_context)
+  {
+    ctx->select_lex= this;
+    if (ctx->next_context == NULL)
+    {
+      ctx->next_context= first_context;
+      first_context= inner->first_context;
+      inner->first_context= NULL;
+      break;
+    }
   }
 }
 

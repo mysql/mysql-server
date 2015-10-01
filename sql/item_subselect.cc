@@ -1078,6 +1078,7 @@ Item_singlerow_subselect::select_transformer(SELECT_LEX *select)
 
   THD * const thd= unit->thd;
   Query_arena *arena= thd->stmt_arena;
+  SELECT_LEX *outer= select->outer_select();
  
   if (!unit->is_union() &&
       !select->table_list.elements &&
@@ -1116,12 +1117,11 @@ Item_singlerow_subselect::select_transformer(SELECT_LEX *select)
       Item_subselect *subs= (Item_subselect*)substitution;
       subs->unit->set_explain_marker_from(unit);
     }
-    /*
-      as far as we moved content to upper level, field which depend of
-      'upper' select is not really dependent => we remove this dependence
-    */
-    substitution->walk(&Item::remove_dependence_processor, WALK_POSTFIX,
-		       (uchar *) select->outer_select());
+    // Merge subquery's name resolution contexts into parent's
+    outer->merge_contexts(select);
+
+    // Fix query block contexts after merging the subquery
+    substitution->fix_after_pullout(outer, select);
     DBUG_RETURN(RES_REDUCE);
   }
   DBUG_RETURN(RES_OK);
@@ -1958,6 +1958,8 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
   THD * const thd= unit->thd;
   DBUG_ENTER("Item_in_subselect::single_value_in_to_exists_transformer");
 
+  SELECT_LEX *outer= select->outer_select();
+
   OPT_TRACE_TRANSFORM(&thd->opt_trace, oto0, oto1, select->select_number,
                       "IN (SELECT)", "EXISTS (CORRELATED SELECT)");
   oto1.add("chosen", true);
@@ -2153,8 +2155,9 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
           The expression is moved to the immediately outer query block, so it
           may no longer contain outer references.
         */
-        orig_item->walk(&Item::remove_dependence_processor, WALK_POSTFIX,
-                        (uchar *) select->outer_select());
+        outer->merge_contexts(select);
+        orig_item->fix_after_pullout(outer, select);
+
         /*
           fix_field of substitution item will be done in time of
           substituting.
