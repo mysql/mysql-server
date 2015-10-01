@@ -942,15 +942,6 @@ void Item_ident::cleanup()
   DBUG_VOID_RETURN;
 }
 
-bool Item_ident::remove_dependence_processor(uchar * arg)
-{
-  DBUG_ENTER("Item_ident::remove_dependence_processor");
-  if (depended_from == (st_select_lex *) arg)
-    depended_from= 0;
-  context= &((st_select_lex *) arg)->context;
-  DBUG_RETURN(0);
-}
-
 
 /**
   Store the pointer to this item field into a list if not already there.
