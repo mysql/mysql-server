@@ -3236,7 +3236,7 @@ runDeferredError(NDBT_Context* ctx, NDBT_Step* step)
       {
         CHK_RET_FAILED(res.insertErrorInNode(nodeId, errorno) == 0);
         NdbSleep_MilliSleep(300);
-        CHK_RET_FAILED(res.insertErrorInNode(nodeId, errorno) == 0);
+        CHK_RET_FAILED(res.insertErrorInNode(nodeId, 0) == 0);
       }
       else
       {
