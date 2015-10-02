@@ -395,5 +395,5 @@ ENDIF(WITHOUT_PARTITION_STORAGE_ENGINE)
 ADD_SUBDIRECTORY(wix)
 
 # Show any MySQL Server patches
-INCLUDE(ndb_show_patches)
-NDB_SHOW_PATCHES()
+#INCLUDE(ndb_show_patches)
+#NDB_SHOW_PATCHES()
