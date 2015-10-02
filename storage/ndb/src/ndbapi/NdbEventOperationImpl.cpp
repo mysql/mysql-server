@@ -1390,6 +1390,7 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
     m_ndb->theImpl->m_ndb_cluster_connection.m_event_add_drop_mutex;
 
   // initialize lists
+  bzero(&m_complete_data, sizeof(m_complete_data));
   bzero(&g_empty_gci_container, sizeof(Gci_container));
   init_gci_containers();
 
