@@ -17,8 +17,10 @@
 #define BINLOG_H_INCLUDED
 
 #include "my_global.h"
+#include "m_string.h"                  // llstr
 #include "binlog_event.h"              // enum_binlog_checksum_alg
-#include "log.h"                       // TC_LOG
+#include "mysqld.h"                    // opt_relay_logname
+#include "tc_log.h"                    // TC_LOG
 #include "atomic_class.h"
 
 class Relay_log_info;
@@ -32,6 +34,8 @@ class Incident_log_event;
 class Log_event;
 class Gtid_set;
 struct Gtid;
+
+typedef int64 query_id_t;
 
 /**
   Logical timestamp generator for logical timestamping binlog transactions.
@@ -379,6 +383,10 @@ class MYSQL_BIN_LOG: public TC_LOG
   PSI_file_key m_key_file_log;
   /** The instrumentation key to use for opening the log index file. */
   PSI_file_key m_key_file_log_index;
+  /** The instrumentation key to use for opening a log cache file. */
+  PSI_file_key m_key_file_log_cache;
+  /** The instrumentation key to use for opening a log index cache file. */
+  PSI_file_key m_key_file_log_index_cache;
 #endif
   /* POSIX thread objects are inited by init_pthread_objects() */
   mysql_mutex_t LOCK_index;
@@ -545,7 +553,9 @@ public:
                     PSI_cond_key key_update_cond,
                     PSI_cond_key key_prep_xids_cond,
                     PSI_file_key key_file_log,
-                    PSI_file_key key_file_log_index)
+                    PSI_file_key key_file_log_index,
+                    PSI_file_key key_file_log_cache,
+                    PSI_file_key key_file_log_index_cache)
   {
     m_key_COND_done= key_COND_done;
 
@@ -564,6 +574,8 @@ public:
     m_key_prep_xids_cond= key_prep_xids_cond;
     m_key_file_log= key_file_log;
     m_key_file_log_index= key_file_log_index;
+    m_key_file_log_cache= key_file_log_cache;
+    m_key_file_log_index_cache= key_file_log_index_cache;
   }
 #endif
 
@@ -684,7 +696,6 @@ public:
   int open_binlog(const char *opt_name);
   void close();
   enum_result commit(THD *thd, bool all);
-  enum_result write_binlog_and_commit_engine(THD *thd, bool all);
   int rollback(THD *thd, bool all);
   int prepare(THD *thd, bool all);
   int recover(IO_CACHE *log, Format_description_log_event *fdle,
@@ -791,6 +802,22 @@ public:
   bool write_gtid(THD *thd, binlog_cache_data *cache_data,
                   class Binlog_event_writer *writer);
 
+  /**
+     Write a dml into statement cache and then flush it into binlog. It writes
+     Gtid_log_event and BEGIN, COMMIT automatically.
+
+     It is aimed to handle cases of "background" logging where a statement is
+     logged indirectly, like "DELETE FROM a_memory_table". So don't use it on any
+     normal statement.
+
+     @param[IN] thd  the THD object of current thread.
+     @param[IN] stmt the DELETE statement.
+     @param[IN] stmt_len the length of DELETE statement.
+
+     @return Returns false if succeeds, otherwise true is returned.
+  */
+  bool write_dml_directly(THD* thd, const char *stmt, size_t stmt_len);
+
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
   bool write_incident(THD *thd, bool need_lock_log,
@@ -862,7 +889,7 @@ public:
                    bool need_lock_index);
   int find_next_log(LOG_INFO* linfo, bool need_lock_index);
   int find_next_relay_log(char log_name[FN_REFLEN+1]);
-  int get_current_log(LOG_INFO* linfo);
+  int get_current_log(LOG_INFO* linfo, bool need_lock_log= true);
   int raw_get_current_log(LOG_INFO* linfo);
   uint next_file_id();
   inline char* get_index_fname() { return index_file_name;}

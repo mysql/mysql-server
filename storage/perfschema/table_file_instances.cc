@@ -65,7 +65,8 @@ table_file_instances::m_share=
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 PFS_engine_table* table_file_instances::create(void)

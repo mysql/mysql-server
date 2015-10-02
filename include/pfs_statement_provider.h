@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
   Performance schema instrumentation (declarations).
 */
 
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
 #ifdef MYSQL_SERVER
 #ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_DYNAMIC_PLUGIN
@@ -112,7 +112,7 @@ C_MODE_END
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* EMBEDDED_LIBRARY */
 #endif /* MYSQL_SERVER */
-#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+#endif /* HAVE_PSI_STATEMENT_INTERFACE */
 
 #endif
 

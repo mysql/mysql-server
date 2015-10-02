@@ -51,12 +51,10 @@
 #include <string>
 
 #ifdef MYSQL_CLIENT
-/*
-  Variable to suppress the USE <DATABASE> command when using the
-  new mysqlbinlog option
-*/
-bool option_rewrite_set= FALSE;
-extern I_List<i_string_pair> binlog_rewrite_db;
+class Format_description_log_event;
+typedef bool (*read_log_event_filter_function)(char** buf,
+                                               ulong*,
+                                               const Format_description_log_event*);
 #endif
 
 extern PSI_memory_key key_memory_Incident_log_event_message;
@@ -379,7 +377,6 @@ typedef struct st_print_event_info
   uint charset_database_number;
   my_thread_id thread_id;
   bool thread_id_printed;
-  uint32 server_id_from_fd_event;
 
   st_print_event_info();
 
@@ -438,22 +435,6 @@ typedef struct st_print_event_info
    */
   bool skipped_event_in_transaction;
 
-  /* true if gtid_next is set with a value */
-  bool is_gtid_next_set;
-
-  /*
-    Determines if the current value of gtid_next needs to be restored
-    to AUTOMATIC if the binary log would end after the current event.
-
-    If the log ends after a transaction, then this should be false.
-    If the log ends in the middle of a transaction, then this should
-    be true; this can happen for relay logs where transactions are
-    split over multiple logs.
-
-    Set to true initially, and after a Gtid_log_event is processed.
-    Set to false if is_gtid_next_set is true.
-   */
-  bool is_gtid_next_valid;
 } PRINT_EVENT_INFO;
 #endif
 
@@ -798,7 +779,8 @@ public:
     /* avoid having to link mysqlbinlog against libpthread */
   static Log_event* read_log_event(IO_CACHE* file,
                                    const Format_description_log_event
-                                   *description_event, my_bool crc_check);
+                                   *description_event, my_bool crc_check,
+                                   read_log_event_filter_function f);
   /* print*() functions are used by mysqlbinlog */
   virtual void print(FILE* file, PRINT_EVENT_INFO* print_event_info) = 0;
   void print_timestamp(IO_CACHE* file, time_t* ts);
@@ -1414,6 +1396,8 @@ public:
 #else
   void print_query_header(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info);
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
+  static bool rewrite_db_in_buffer(char **buf, ulong *event_len,
+                                   const Format_description_log_event *fde);
 #endif
 
   Query_log_event();
@@ -1489,7 +1473,8 @@ public:        /* !!! Public in this patch to allow old usage */
     return
       !strncmp(query, "COMMIT", q_len) ||
       (!native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK"))
-       && native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK TO ")));
+       && native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK TO "))) ||
+      !strncmp(query, STRING_WITH_LEN("XA ROLLBACK"));
   }
   static size_t get_query(const char *buf, size_t length,
                           const Format_description_log_event *fd_event,
@@ -1721,6 +1706,23 @@ class Format_description_log_event: public Format_description_event,
                                     public Start_log_event_v3
 {
 public:
+  /*
+    MTS Workers and Coordinator share the event and that affects its
+    destruction. Instantiation is always done by Coordinator/SQL thread.
+    Workers are allowed to destroy only "obsolete" instances, those
+    that are not actual for Coordinator anymore but needed to Workers
+    that are processing queued events depending on the old instance.
+    The counter of a new FD is incremented by Coordinator or Worker at
+    time of {Relay_log_info,Slave_worker}::set_rli_description_event()
+    execution.
+    In the same methods the counter of the "old" FD event is decremented
+    and when it drops to zero the old FD is deleted.
+    The latest read from relay-log event is to be
+    destroyed by Coordinator/SQL thread at its thread exit.
+    Notice the counter is processed even in the single-thread mode where
+    decrement and increment are done by the single SQL thread.
+  */
+  Atomic_int32 usage_counter;
   Format_description_log_event(uint8_t binlog_ver, const char* server_ver=0);
   Format_description_log_event(const char* buf, uint event_len,
                                const Format_description_event
@@ -2720,6 +2722,8 @@ public:
     return new table_def(m_coltype, m_colcnt, m_field_metadata,
                          m_field_metadata_size, m_null_bits, m_flags);
   }
+  static bool rewrite_db_in_buffer(char **buf, ulong *event_len,
+                                   const Format_description_log_event *fde);
 #endif
   const Table_id& get_table_id() const { return m_table_id; }
   const char *get_table_name() const { return m_tblnam.c_str(); }
@@ -4305,7 +4309,7 @@ private:
   bool write_data_map(IO_CACHE* file, std::map<std::string, std::string> *map);
 #endif
 
-  int get_size_data_map(std::map<std::string, std::string> *map);
+  size_t get_size_data_map(std::map<std::string, std::string> *map);
 
 public:
 

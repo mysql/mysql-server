@@ -75,4 +75,5 @@ if ($rpl_connection_name == $CURRENT_CONNECTION)
 
 --let $include_filename= sync_slave_sql_with_master.inc
 --let $skip_restore_connection= 1
+--let $_saved_channel_name=
 --source include/end_include_file.inc

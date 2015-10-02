@@ -68,7 +68,7 @@ int _my_b_net_read(IO_CACHE *info, uchar *Buffer,
     DBUG_RETURN(1);
   }
   /* to set up stuff for my_b_get (no _) */
-  info->read_end = (info->read_pos = (uchar*) net->read_pos) + read_length;
+  info->read_end = (info->read_pos = net->read_pos) + read_length;
   Buffer[0] = info->read_pos[0];		/* length is always 1 */
 
   /*

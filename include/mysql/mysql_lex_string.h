@@ -23,4 +23,11 @@ struct st_mysql_lex_string
 };
 typedef struct st_mysql_lex_string MYSQL_LEX_STRING;
 
+struct st_mysql_const_lex_string
+{
+  const char *str;
+  size_t length;
+};
+typedef struct st_mysql_const_lex_string MYSQL_LEX_CSTRING;
+
 #endif  // MYSQL_LEX_STRING_INCLUDED

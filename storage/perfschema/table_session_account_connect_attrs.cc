@@ -21,7 +21,7 @@ PFS_engine_table_share
 table_session_account_connect_attrs::m_share=
 {
   { C_STRING_WITH_LEN("session_account_connect_attrs") },
-  &pfs_readonly_acl,
+  &pfs_readonly_world_acl,
   table_session_account_connect_attrs::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
@@ -29,7 +29,8 @@ table_session_account_connect_attrs::m_share=
   sizeof(pos_connect_attr_by_thread_by_attr), /* ref length */
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 PFS_engine_table* table_session_account_connect_attrs::create()

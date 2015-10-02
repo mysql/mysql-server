@@ -26,7 +26,7 @@
 #include "sql_select.h"          // free_underlaid_joins
 #include "sql_show.h"            // append_identifier
 #include "sys_vars_shared.h"     // PolyLock_mutex
-
+#include "sql_audit.h"           // mysql_audit
 
 static HASH system_variable_hash;
 static PolyLock_mutex PLock_global_system_variables(&LOCK_global_system_variables);
@@ -53,7 +53,8 @@ int sys_var_init()
   DBUG_ASSERT(system_charset_info != NULL);
 
   if (my_hash_init(&system_variable_hash, system_charset_info, 100, 0,
-                   0, (my_hash_get_key) get_sys_var_length, 0, HASH_UNIQUE))
+                   0, (my_hash_get_key) get_sys_var_length, 0, HASH_UNIQUE,
+                   PSI_INSTRUMENT_ME))
     goto error;
 
   if (mysql_add_sys_var_chain(all_sys_vars.first))
@@ -198,12 +199,22 @@ bool sys_var::update(THD *thd, set_var *var)
     if (locked)
       mysql_mutex_unlock(&thd->LOCK_thd_sysvar);
 
-    if ((!ret) &&
-        thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->is_enabled())
-      thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->mark_as_changed(thd, &(var->var->name));
-    if ((!ret) &&
-        thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
-      thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(thd, &var->var->name);
+    /*
+      Make sure we don't session-track variables that are not actually
+      part of the session. tx_isolation and and tx_read_only for example
+      exist as GLOBAL, SESSION, and one-shot ("for next transaction only").
+    */
+    if ((var->type == OPT_SESSION) || !is_trilevel())
+    {
+      if ((!ret) &&
+          thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->is_enabled())
+        thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->mark_as_changed(thd, &(var->var->name));
+
+      if ((!ret) &&
+          thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
+        thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(thd, &var->var->name);
+    }
+
     return ret;
   }
 }
@@ -730,6 +741,17 @@ int set_var::check(THD *thd)
     DBUG_RETURN(-1);
   }
   int ret= var->check(thd, this) ? -1 : 0;
+
+#ifndef EMBEDDED_LIBRARY
+  if (!ret && type == OPT_GLOBAL)
+  {
+    ret= mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_SET),
+                            var->name.str,
+                            value->item_name.ptr(),
+                            value->item_name.length());
+  }
+#endif
+
   DBUG_RETURN(ret);
 }
 

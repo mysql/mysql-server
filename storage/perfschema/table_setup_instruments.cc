@@ -67,7 +67,8 @@ table_setup_instruments::m_share=
   sizeof(pos_setup_instruments),
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 PFS_engine_table* table_setup_instruments::create(void)
@@ -100,6 +101,8 @@ int table_setup_instruments::rnd_next(void)
 {
   PFS_instr_class *instr_class= NULL;
   PFS_builtin_memory_class *pfs_builtin;
+  bool update_enabled;
+  bool update_timed;
 
   /* Do not advertise hard coded instruments when disabled. */
   if (! pfs_initialized)
@@ -109,6 +112,9 @@ int table_setup_instruments::rnd_next(void)
        m_pos.has_more_view();
        m_pos.next_view())
   {
+    update_enabled= true;
+    update_timed= true;
+
     switch (m_pos.m_index_1)
     {
     case pos_setup_instruments::VIEW_MUTEX:
@@ -145,6 +151,8 @@ int table_setup_instruments::rnd_next(void)
       instr_class= find_idle_class(m_pos.m_index_2);
       break;
     case pos_setup_instruments::VIEW_BUILTIN_MEMORY:
+      update_enabled= false;
+      update_timed= false;
       pfs_builtin= find_builtin_memory_class(m_pos.m_index_2);
       if (pfs_builtin != NULL)
         instr_class= & pfs_builtin->m_class;
@@ -152,6 +160,7 @@ int table_setup_instruments::rnd_next(void)
         instr_class= NULL;
       break;
     case pos_setup_instruments::VIEW_MEMORY:
+      update_timed= false;
       instr_class= find_memory_class(m_pos.m_index_2);
       break;
     case pos_setup_instruments::VIEW_METADATA:
@@ -160,7 +169,7 @@ int table_setup_instruments::rnd_next(void)
     }
     if (instr_class)
     {
-      make_row(instr_class);
+      make_row(instr_class, update_enabled, update_timed);
       m_next_pos.set_after(&m_pos);
       return 0;
     }
@@ -173,12 +182,17 @@ int table_setup_instruments::rnd_pos(const void *pos)
 {
   PFS_instr_class *instr_class= NULL;
   PFS_builtin_memory_class *pfs_builtin;
+  bool update_enabled;
+  bool update_timed;
 
   /* Do not advertise hard coded instruments when disabled. */
   if (! pfs_initialized)
     return HA_ERR_END_OF_FILE;
 
   set_position(pos);
+
+  update_enabled= true;
+  update_timed= true;
 
   switch (m_pos.m_index_1)
   {
@@ -216,6 +230,8 @@ int table_setup_instruments::rnd_pos(const void *pos)
     instr_class= find_idle_class(m_pos.m_index_2);
     break;
   case pos_setup_instruments::VIEW_BUILTIN_MEMORY:
+    update_enabled= false;
+    update_timed= false;
     pfs_builtin= find_builtin_memory_class(m_pos.m_index_2);
     if (pfs_builtin != NULL)
       instr_class= & pfs_builtin->m_class;
@@ -223,6 +239,7 @@ int table_setup_instruments::rnd_pos(const void *pos)
       instr_class= NULL;
     break;
   case pos_setup_instruments::VIEW_MEMORY:
+    update_timed= false;
     instr_class= find_memory_class(m_pos.m_index_2);
     break;
   case pos_setup_instruments::VIEW_METADATA:
@@ -231,16 +248,18 @@ int table_setup_instruments::rnd_pos(const void *pos)
   }
   if (instr_class)
   {
-    make_row(instr_class);
+    make_row(instr_class, update_enabled, update_timed);
     return 0;
   }
 
   return HA_ERR_RECORD_DELETED;
 }
 
-void table_setup_instruments::make_row(PFS_instr_class *klass)
+void table_setup_instruments::make_row(PFS_instr_class *klass, bool update_enabled, bool update_timed)
 {
   m_row.m_instr_class= klass;
+  m_row.m_update_enabled= update_enabled;
+  m_row.m_update_timed= update_timed;
 }
 
 int table_setup_instruments::read_row_values(TABLE *table,
@@ -298,12 +317,20 @@ int table_setup_instruments::update_row_values(TABLE *table,
       case 0: /* NAME */
         return HA_ERR_WRONG_COMMAND;
       case 1: /* ENABLED */
-        value= (enum_yes_no) get_field_enum(f);
-        m_row.m_instr_class->m_enabled= (value == ENUM_YES) ? true : false;
+        /* Do not raise error if m_update_enabled is false, silently ignore. */
+        if (m_row.m_update_enabled)
+        {
+          value= (enum_yes_no) get_field_enum(f);
+          m_row.m_instr_class->m_enabled= (value == ENUM_YES) ? true : false;
+        }
         break;
       case 2: /* TIMED */
-        value= (enum_yes_no) get_field_enum(f);
-        m_row.m_instr_class->m_timed= (value == ENUM_YES) ? true : false;
+        /* Do not raise error if m_update_timed is false, silently ignore. */
+        if (m_row.m_update_timed)
+        {
+          value= (enum_yes_no) get_field_enum(f);
+          m_row.m_instr_class->m_timed= (value == ENUM_YES) ? true : false;
+        }
         break;
       default:
         DBUG_ASSERT(false);

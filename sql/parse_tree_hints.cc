@@ -417,20 +417,26 @@ bool PT_hint_max_execution_time::contextualize(Parse_context *pc)
   if (super::contextualize(pc))
     return true;
 
-  if (pc->thd->lex->sql_command != SQLCOM_SELECT)
+  if (pc->thd->lex->sql_command != SQLCOM_SELECT || // not a SELECT statement
+      pc->thd->lex->sphead ||                       // or in a SP/trigger/event
+      pc->select != pc->thd->lex->select_lex)       // or in a subquery
+  {
     push_warning(pc->thd, Sql_condition::SL_WARNING,
                  ER_WARN_UNSUPPORTED_MAX_EXECUTION_TIME,
                  ER_THD(pc->thd, ER_WARN_UNSUPPORTED_MAX_EXECUTION_TIME));
+    return false;
+  }
 
   Opt_hints_global *global_hint= get_global_hints(pc);
   if (global_hint->is_specified(type()))
   {
+    // Hint duplication: /*+ MAX_EXECUTION_TIME ... MAX_EXECUTION_TIME */
     print_warn(pc->thd, ER_WARN_CONFLICTING_HINT,
                NULL, NULL, NULL, this);
     return false;
   }
 
-  pc->thd->lex->max_statement_time= milliseconds;
+  pc->thd->lex->max_execution_time= milliseconds;
   global_hint->set_switch(switch_on(), type(), false);
   global_hint->max_exec_time= this;
   return false;

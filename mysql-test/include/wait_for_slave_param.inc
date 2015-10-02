@@ -11,6 +11,7 @@
 # [--let $slave_param_comparison= [ < | <= | >= | > | = | != ]]
 # [--let $slave_timeout= NUMBER]
 # [--let $slave_error_param= [Slave_SQL_Errno | Slave_IO_Errno]]
+# [--let $slave_io_running_check_disable= 1]
 # [--let $rpl_channel_name= NAME]
 # [--let $rpl_debug= 1]
 # --source include/wait_for_slave_param.inc
@@ -42,6 +43,12 @@
 #   SHOW SLAVE STATUS named $slave_error_param is nonzero.  If it is,
 #   this script will faile immediately.  Typically, this should be set
 #   to Last_IO_Errno or Last_SQL_Errno.
+#
+# $slave_io_running_check_disable
+#   If set, this bypasses the check to see if the IO thread is started,
+#   so params can be checked and verified for a stopped IO thread as
+#   well. Otherwise check is made, and it is checked if the IO thread
+#   is connected successfully with master.
 #
 # $rpl_debug
 #   See include/rpl_init.inc
@@ -99,13 +106,16 @@ if ($rpl_channel_name != '')
   --let $slave_param_statement= $slave_param_statement FOR CHANNEL  '$rpl_channel_name'
 }
 
---let $_slave_check_configured= query_get_value($slave_param_statement, Slave_IO_Running, 1)
-
-if ($_slave_check_configured == 'No such row')
+if (!$slave_io_running_check_disable)
 {
-  --echo **** ERROR: $slave_param_statement returned empty result set. Slave not configured. ****
-  --source include/show_rpl_debug_info.inc
-  --die SHOW SLAVE STATUS returned empty result set. Slave not configured.
+  --let $_slave_check_configured= query_get_value($slave_param_statement, Slave_IO_Running, 1)
+
+  if ($_slave_check_configured == 'No such row')
+  {
+    --echo **** ERROR: $slave_param_statement returned empty result set. Slave not configured. ****
+    --source include/show_rpl_debug_info.inc
+    --die SHOW SLAVE STATUS returned empty result set. Slave not configured.
+  }
 }
 
 --let $_slave_timeout_counter= `select $_slave_timeout * $sleep_freq`

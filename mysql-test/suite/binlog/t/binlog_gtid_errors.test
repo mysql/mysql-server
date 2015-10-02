@@ -30,11 +30,15 @@
 # ==== References ====
 #
 # Implemented in WL#3584: Global Transaction Identifiers
+# Bug#20343644  ASSERTION AT BINLOG.CC:1120 WHEN GTID_MODE=ON, GTID_NEXT='UUID:NUMBER'
 
 --source include/have_innodb.inc
 --source include/have_log_bin.inc
 --source include/have_gtid.inc
 --source include/have_debug.inc
+
+# Clean gtid_executed so that test can execute after other tests
+RESET MASTER;
 
 --let $ida= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
 --let $idb= bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
@@ -259,7 +263,39 @@ BEGIN;
 CREATE TABLE t2 (a INT);
 ROLLBACK;
 
-eval SET GTID_NEXT = '$ida:15';
+# ==== Purpose ====
+#
+# Verify that we can succeed to commit a transaction with a specified gtid,
+# even if an error is caused by executing the statement 'CREATE TABLE'
+# in the middle.
+#
+# ==== References ====
+#
+# Bug#20343644  ASSERTION AT BINLOG.CC:1120 WHEN GTID_MODE=ON, GTID_NEXT='UUID:NUMBER'
+
+eval SET @@SESSION.GTID_NEXT= '$ida:15';
+BEGIN;
+INSERT INTO t1 VALUES (1);
+--error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
+CREATE TABLE t2 (a INT);
+COMMIT;
+
+# ==== Purpose ====
+#
+# Verify that we can succeed to commit a transaction with a specified gtid,
+# even if an error is caused by executing the statement 'CREATE..SELECT'
+# in the middle.
+#
+# ==== References ====
+#
+# Bug#20444828  WL7592: ASSERT `THD->VARIABLES.GTID_NEXT.TYPE == GTID_GROUP' ON CREATE..SELECT
+
+--eval SET @@SESSION.GTID_NEXT= '$ida:16'
+--error ER_GTID_UNSAFE_CREATE_SELECT
+CREATE TABLE t2 AS SELECT * FROM t1;
+COMMIT;
+
+eval SET @@SESSION.GTID_NEXT = '$ida:17';
 --echo # can't do implicit commit while gtid_next=SID:GNO
 SET AUTOCOMMIT = 0;
 INSERT INTO t1 VALUES (1);

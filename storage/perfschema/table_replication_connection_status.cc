@@ -34,6 +34,48 @@
 #include "log.h"
 #include "rpl_group_replication.h"
 
+/*
+  Callbacks implementation for GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS.
+*/
+static void set_channel_name(void* const context, const char& value,
+                             size_t length)
+{
+}
+
+static void set_group_name(void* const context, const char& value,
+                           size_t length)
+{
+  struct st_row_connect_status* row=
+      static_cast<struct st_row_connect_status*>(context);
+  const size_t max= UUID_LENGTH;
+  length= std::min(length, max);
+
+  row->group_name_is_null= false;
+  memcpy(row->group_name, &value, length);
+}
+
+static void set_source_uuid(void* const context, const char& value,
+                            size_t length)
+{
+  struct st_row_connect_status* row=
+      static_cast<struct st_row_connect_status*>(context);
+  const size_t max= UUID_LENGTH;
+  length= std::min(length, max);
+
+  row->source_uuid_is_null= false;
+  memcpy(row->source_uuid, &value, length);
+}
+
+static void set_service_state(void* const context, bool value)
+{
+  struct st_row_connect_status* row=
+      static_cast<struct st_row_connect_status*>(context);
+
+  row->service_state= value ? PS_RPL_CONNECT_SERVICE_STATE_YES
+                            : PS_RPL_CONNECT_SERVICE_STATE_NO;
+}
+
+
 THR_LOCK table_replication_connection_status::m_table_lock;
 
 
@@ -112,7 +154,8 @@ table_replication_connection_status::m_share=
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 PFS_engine_table* table_replication_connection_status::create(void)
@@ -139,7 +182,7 @@ void table_replication_connection_status::reset_position(void)
 ha_rows table_replication_connection_status::get_row_count()
 {
   /*A lock is not needed for an estimate */
-  return msr_map.get_max_channels();
+  return channel_map.get_max_channels();
 }
 
 
@@ -147,51 +190,45 @@ ha_rows table_replication_connection_status::get_row_count()
 int table_replication_connection_status::rnd_next(void)
 {
   Master_info *mi= NULL;
+  int res= HA_ERR_END_OF_FILE;
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.rdlock();
 
   for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < msr_map.get_max_channels();
+       m_pos.m_index < channel_map.get_max_channels() && res != 0;
        m_pos.next())
   {
-    mi= msr_map.get_mi_at_pos(m_pos.m_index);
+    mi= channel_map.get_mi_at_pos(m_pos.m_index);
 
     if (mi && mi->host[0])
     {
       make_row(mi);
       m_next_pos.set_after(&m_pos);
-
-      mysql_mutex_unlock(&LOCK_msr_map);
-      return 0;
+      res= 0;
     }
   }
 
-  mysql_mutex_unlock(&LOCK_msr_map);
-
-  return HA_ERR_END_OF_FILE;
-
+  channel_map.unlock();
+  return res;
 }
 
 int table_replication_connection_status::rnd_pos(const void *pos)
 {
   Master_info *mi;
+  int res= HA_ERR_RECORD_DELETED;
 
   set_position(pos);
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.rdlock();
 
-  if ((mi= msr_map.get_mi_at_pos(m_pos.m_index)))
+  if ((mi= channel_map.get_mi_at_pos(m_pos.m_index)))
   {
     make_row(mi);
-
-    mysql_mutex_unlock(&LOCK_msr_map);
-    return 0;
+    res= 0;
   }
 
-  mysql_mutex_unlock(&LOCK_msr_map);
-
-  return HA_ERR_RECORD_DELETED;
-
+  channel_map.unlock();
+  return res;
 }
 
 void table_replication_connection_status::make_row(Master_info *mi)
@@ -216,49 +253,26 @@ void table_replication_connection_status::make_row(Master_info *mi)
   memcpy(m_row.channel_name, mi->get_channel(), m_row.channel_name_length);
 
   if (is_group_replication_plugin_loaded() &&
-      msr_map.is_group_replication_channel_name(mi->get_channel(), true))
+      channel_map.is_group_replication_channel_name(mi->get_channel(), true))
   {
-    /* Group Replication applier channel. */
-    GROUP_REPLICATION_CONNECTION_STATUS_INFO *group_replication_info= NULL;
-    if (!(group_replication_info= (GROUP_REPLICATION_CONNECTION_STATUS_INFO*)
-                                     my_malloc(PSI_NOT_INSTRUMENTED,
-                                               sizeof(GROUP_REPLICATION_CONNECTION_STATUS_INFO),
-                                               MYF(MY_WME))))
+    /*
+      Group Replication applier channel.
+      Set callbacks on GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS.
+    */
+    const GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS callbacks=
     {
-      sql_print_error("Unable to allocate memory on "
-                      "table_replication_connection_status::make_row");
-      error= true;
-      goto end;
-    }
+      &m_row,
+      &set_channel_name,
+      &set_group_name,
+      &set_source_uuid,
+      &set_service_state,
+    };
 
-    bool stats_not_available=
-        get_group_replication_connection_status_info(group_replication_info);
-    if (stats_not_available)
+    // Query plugin and let callbacks do their job.
+    if (get_group_replication_connection_status_info(callbacks))
     {
       DBUG_PRINT("info", ("Group Replication stats not available!"));
     }
-    else
-    {
-      my_free((void*)group_replication_info->channel_name);
-
-      if (group_replication_info->group_name != NULL)
-      {
-        memcpy(m_row.group_name, group_replication_info->group_name, UUID_LENGTH);
-        m_row.group_name_is_null= false;
-
-        memcpy(m_row.source_uuid, group_replication_info->group_name, UUID_LENGTH);
-        m_row.source_uuid_is_null= false;
-
-        my_free((void*)group_replication_info->group_name);
-      }
-
-      if (group_replication_info->service_state)
-        m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_YES;
-      else
-        m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_NO;
-    }
-
-    my_free(group_replication_info);
   }
   else
   {

@@ -232,6 +232,11 @@ static void set_thread_command_noop(int command NNN)
   return;
 }
 
+static void set_connection_type_noop(opaque_vio_type conn_type NNN)
+{
+  return;
+}
+
 static void set_thread_start_time_noop(time_t start_time NNN)
 {
   return;
@@ -424,6 +429,12 @@ static PSI_file* end_file_open_wait_noop(PSI_file_locker *locker NNN,
 
 static void end_file_open_wait_and_bind_to_descriptor_noop
   (PSI_file_locker *locker NNN, File file NNN)
+{
+  return;
+}
+
+static void end_temp_file_open_wait_and_bind_to_descriptor_noop
+  (PSI_file_locker *locker NNN, File file NNN, const char *filaneme NNN)
 {
   return;
 }
@@ -893,6 +904,7 @@ static PSI PSI_noop=
   set_thread_user_host_noop,
   set_thread_db_noop,
   set_thread_command_noop,
+  set_connection_type_noop,
   set_thread_start_time_noop,
   set_thread_state_noop,
   set_thread_info_noop,
@@ -923,6 +935,7 @@ static PSI PSI_noop=
   start_file_open_wait_noop,
   end_file_open_wait_noop,
   end_file_open_wait_and_bind_to_descriptor_noop,
+  end_temp_file_open_wait_and_bind_to_descriptor_noop,
   start_file_wait_noop,
   end_file_wait_noop,
   start_file_close_wait_noop,

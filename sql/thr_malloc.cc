@@ -27,7 +27,7 @@ using std::max;
 extern "C" void sql_alloc_error_handler(void);
 
 void init_sql_alloc(PSI_memory_key key,
-                    MEM_ROOT *mem_root, uint block_size, uint pre_alloc)
+                    MEM_ROOT *mem_root, size_t block_size, size_t pre_alloc)
 {
   init_alloc_root(key, mem_root, block_size, pre_alloc);
   mem_root->error_handler=sql_alloc_error_handler;
@@ -102,7 +102,7 @@ char *sql_strmake_with_convert(const char *str, size_t arg_length,
   else
   {
     uint dummy_errors;
-    new_length= copy_and_convert((char*) pos, new_length, to_cs, str,
+    new_length= copy_and_convert(pos, new_length, to_cs, str,
 				 arg_length, from_cs, &dummy_errors);
   }
   pos[new_length]= 0;

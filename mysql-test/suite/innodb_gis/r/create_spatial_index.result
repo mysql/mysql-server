@@ -53,10 +53,13 @@ INSERT INTO tab(c1,c2,c3,c4,c5)
 VALUES(10,ST_GeomFromText('POINT(160 160)'),ST_GeomFromText('LINESTRING(140 140,150 150,160 160)'),
 ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'),
 ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'));
+ANALYZE TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
 SET @g1 = ST_GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrcontains(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
@@ -65,14 +68,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRContains(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRContains(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText('LINESTRING( 300 300,400 400)');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrcontains(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE  MBRContains(tab.c4, @g1) ORDER BY c1;
@@ -81,14 +84,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRContains(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRContains(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((30 30,40 40,50 50,30 50,30 40,30 30)) ');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrwithin(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c4, @g1) ORDER BY c1;
@@ -97,14 +100,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRWithin(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRWithin(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText('POLYGON((100 200,200 300,400 500,500 300,300 200,100 300,100 200))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE ST_Crosses(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where st_crosses(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE ST_Crosses(tab.c4, @g1) ORDER BY c1;
@@ -112,14 +115,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE ST_Crosses(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE ST_Crosses(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText('LINESTRING( 10 10,30 30,40 40)');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE ST_CRosses(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where st_crosses(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE  ST_Crosses(tab.c4, @g1) ORDER BY c1;
@@ -127,14 +130,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE ST_Crosses(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE ST_Crosses(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText('POLYGON((4 -2,5 -4,6 -5,7 -4,7 2,4 -2))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRDisjoint(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	index	idx3	PRIMARY	4	NULL	10	90.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrdisjoint(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBRDisjoint(tab.c4, @g1) ORDER BY c1;
@@ -151,14 +154,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRDisjoint(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	index	idx3	PRIMARY	4	NULL	10	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRDisjoint(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	ALL	idx3	NULL	NULL	NULL	10	100.00	Using where
 SET @g1 = ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrequals(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1) ORDER BY c1;
@@ -167,10 +170,10 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBREquals(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBREquals(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRIntersects(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -192,7 +195,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 SET @g1 = ST_GeomFromText('LINESTRING( 30 30,40 40,50 50)');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRIntersects(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrintersects(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE  MBRIntersects(tab.c4, @g1) ORDER BY c1;
@@ -202,14 +205,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRintersects(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRintersects(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 2,4 5,5 5,7 1,0 0 ))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBROverlaps(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbroverlaps(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBROverlaps(tab.c4, @g1) ORDER BY c1;
@@ -218,14 +221,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBROverlaps(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBROverlaps(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText('LINESTRING(7 1,30 30,1010 3010,1010 2010,3010 3010,4010 4010,5010 5010 )');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBROverlaps(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	index	idx3	PRIMARY	4	NULL	10	80.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbroverlaps(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE  MBROverlaps(tab.c4, @g1) ORDER BY c1;
@@ -234,10 +237,10 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBROverlaps(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	index	idx3	PRIMARY	4	NULL	10	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBROverlaps(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	ALL	idx3	NULL	NULL	NULL	10	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -257,7 +260,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 SET @g1 = ST_GeomFromText('LINESTRING( 100 100,200 200,300 300)');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where st_touches(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE  ST_Touches(tab.c4, @g1) ORDER BY c1;
@@ -266,14 +269,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE ST_Touches(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE ST_Touches(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrcontains(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
@@ -282,14 +285,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRContains(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRContains(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((30 30,40 40,50 50,30 50,30 40,30 30)) ');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrwithin(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c4, @g1) ORDER BY c1;
@@ -298,14 +301,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRWithin(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRWithin(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText('POLYGON((4 -2,5 -4,6 -5,7 -4,7 2,4 -2))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRDisjoint(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	index	idx3	PRIMARY	4	NULL	10	90.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrdisjoint(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBRDisjoint(tab.c4, @g1) ORDER BY c1;
@@ -322,14 +325,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRDisjoint(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	index	idx3	PRIMARY	4	NULL	10	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRDisjoint(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	ALL	idx3	NULL	NULL	NULL	10	100.00	Using where
 SET @g1 = ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrequals(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1) ORDER BY c1;
@@ -338,10 +341,10 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBREquals(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBREquals(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRIntersects(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -363,7 +366,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 SET @g1 = ST_GeomFromText('LINESTRING( 30 30,40 40,50 50)');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRIntersects(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrintersects(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE  MBRIntersects(tab.c4, @g1) ORDER BY c1;
@@ -373,14 +376,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRintersects(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRintersects(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 2,4 5,5 5,7 1,0 0 ))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBROverlaps(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbroverlaps(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBROverlaps(tab.c4, @g1) ORDER BY c1;
@@ -389,10 +392,10 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBROverlaps(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBROverlaps(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRTouches(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -419,11 +422,11 @@ EXPLAIN DELETE FROM tab WHERE MBRContains(tab.c4, @g1);
 END |
 CALL proc_wl6968();
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
 c1	ST_Astext(c4)
@@ -517,10 +520,13 @@ INSERT INTO tab(c1,c2,c3,c4,c5)
 VALUES(10,ST_GeomFromText('POINT(160 160)'),ST_GeomFromText('LINESTRING(140 140,150 150,160 160)'),
 ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'),
 ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'));
+ANALYZE TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
 SET @g1 = ST_GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrcontains(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
@@ -529,14 +535,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRContains(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRContains(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText('LINESTRING( 300 300,400 400)');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrcontains(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE  MBRContains(tab.c4, @g1) ORDER BY c1;
@@ -545,14 +551,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRContains(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRContains(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((30 30,40 40,50 50,30 50,30 40,30 30)) ');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrwithin(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c4, @g1) ORDER BY c1;
@@ -561,14 +567,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRWithin(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRWithin(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText('POLYGON((100 200,200 300,400 500,500 300,300 200,100 300,100 200))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE ST_Crosses(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where st_crosses(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE ST_Crosses(tab.c4, @g1) ORDER BY c1;
@@ -576,14 +582,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE ST_Crosses(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE ST_Crosses(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText('LINESTRING( 10 10,30 30,40 40)');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE ST_CRosses(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where st_crosses(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE  ST_Crosses(tab.c4, @g1) ORDER BY c1;
@@ -591,14 +597,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE ST_Crosses(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE ST_Crosses(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText('POLYGON((4 -2,5 -4,6 -5,7 -4,7 2,4 -2))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRDisjoint(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	ALL	idx3	NULL	NULL	NULL	10	90.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrdisjoint(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBRDisjoint(tab.c4, @g1) ORDER BY c1;
@@ -615,14 +621,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRDisjoint(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	ALL	idx3	NULL	NULL	NULL	10	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRDisjoint(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	ALL	idx3	NULL	NULL	NULL	10	100.00	Using where
 SET @g1 = ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrequals(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1) ORDER BY c1;
@@ -631,10 +637,10 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBREquals(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBREquals(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRIntersects(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -656,7 +662,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 SET @g1 = ST_GeomFromText('LINESTRING( 30 30,40 40,50 50)');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRIntersects(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrintersects(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE  MBRIntersects(tab.c4, @g1) ORDER BY c1;
@@ -666,14 +672,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRintersects(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRintersects(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 2,4 5,5 5,7 1,0 0 ))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBROverlaps(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbroverlaps(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBROverlaps(tab.c4, @g1) ORDER BY c1;
@@ -682,14 +688,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBROverlaps(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBROverlaps(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText('LINESTRING(7 1,30 30,1010 3010,1010 2010,3010 3010,4010 4010,5010 5010 )');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBROverlaps(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	ALL	idx3	NULL	NULL	NULL	10	80.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbroverlaps(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE  MBROverlaps(tab.c4, @g1) ORDER BY c1;
@@ -698,10 +704,10 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBROverlaps(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	ALL	idx3	NULL	NULL	NULL	10	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBROverlaps(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	ALL	idx3	NULL	NULL	NULL	10	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -721,7 +727,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 SET @g1 = ST_GeomFromText('LINESTRING( 100 100,200 200,300 300)');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where st_touches(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE  ST_Touches(tab.c4, @g1) ORDER BY c1;
@@ -730,14 +736,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE ST_Touches(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE ST_Touches(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrcontains(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
@@ -746,14 +752,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRContains(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRContains(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((30 30,40 40,50 50,30 50,30 40,30 30)) ');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrwithin(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c4, @g1) ORDER BY c1;
@@ -762,14 +768,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRWithin(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRWithin(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText('POLYGON((4 -2,5 -4,6 -5,7 -4,7 2,4 -2))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRDisjoint(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	ALL	idx3	NULL	NULL	NULL	10	90.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrdisjoint(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBRDisjoint(tab.c4, @g1) ORDER BY c1;
@@ -786,14 +792,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRDisjoint(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	ALL	idx3	NULL	NULL	NULL	10	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRDisjoint(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	ALL	idx3	NULL	NULL	NULL	10	100.00	Using where
 SET @g1 = ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrequals(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1) ORDER BY c1;
@@ -802,10 +808,10 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBREquals(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBREquals(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRIntersects(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -827,7 +833,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 SET @g1 = ST_GeomFromText('LINESTRING( 30 30,40 40,50 50)');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRIntersects(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrintersects(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE  MBRIntersects(tab.c4, @g1) ORDER BY c1;
@@ -837,14 +843,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRintersects(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRintersects(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 2,4 5,5 5,7 1,0 0 ))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBROverlaps(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbroverlaps(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBROverlaps(tab.c4, @g1) ORDER BY c1;
@@ -853,10 +859,10 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBROverlaps(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBROverlaps(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRTouches(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -883,11 +889,11 @@ EXPLAIN DELETE FROM tab WHERE MBREquals(tab.c4, @g1);
 END |
 CALL proc_wl6968();
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((30 30,40 40,50 50,30 50,30 40,30 30)) ');
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c4, @g1) ORDER BY c1;
 c1	ST_Astext(c4)
@@ -970,10 +976,13 @@ INSERT INTO tab(c2,c3,c4,c5)
 VALUES(ST_GeomFromText('POINT(160 160)'),ST_GeomFromText('LINESTRING(140 140,150 150,160 160)'),
 ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'),
 ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'));
+ANALYZE TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
 SET @g1 = ST_GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrcontains(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
@@ -982,14 +991,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRContains(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRContains(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText('LINESTRING( 300 300,400 400)');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrcontains(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE  MBRContains(tab.c4, @g1) ORDER BY c1;
@@ -998,14 +1007,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRContains(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRContains(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((30 30,40 40,50 50,30 50,30 40,30 30)) ');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrwithin(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c4, @g1) ORDER BY c1;
@@ -1014,14 +1023,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRWithin(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRWithin(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText('POLYGON((100 200,200 300,400 500,500 300,300 200,100 300,100 200))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE ST_Crosses(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where st_crosses(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE ST_Crosses(tab.c4, @g1) ORDER BY c1;
@@ -1029,14 +1038,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE ST_Crosses(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE ST_Crosses(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText('LINESTRING( 10 10,30 30,40 40)');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE ST_CRosses(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where st_crosses(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE  ST_Crosses(tab.c4, @g1) ORDER BY c1;
@@ -1044,14 +1053,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE ST_Crosses(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE ST_Crosses(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText('POLYGON((4 -2,5 -4,6 -5,7 -4,7 2,4 -2))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRDisjoint(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	index	idx3	PRIMARY	4	NULL	10	90.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrdisjoint(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBRDisjoint(tab.c4, @g1) ORDER BY c1;
@@ -1068,14 +1077,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRDisjoint(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	index	idx3	PRIMARY	4	NULL	10	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRDisjoint(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	ALL	idx3	NULL	NULL	NULL	10	100.00	Using where
 SET @g1 = ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrequals(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1) ORDER BY c1;
@@ -1084,10 +1093,10 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBREquals(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBREquals(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRIntersects(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1109,7 +1118,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 SET @g1 = ST_GeomFromText('LINESTRING( 30 30,40 40,50 50)');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRIntersects(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrintersects(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE  MBRIntersects(tab.c4, @g1) ORDER BY c1;
@@ -1119,14 +1128,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRintersects(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRintersects(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 2,4 5,5 5,7 1,0 0 ))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBROverlaps(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbroverlaps(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBROverlaps(tab.c4, @g1) ORDER BY c1;
@@ -1135,14 +1144,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBROverlaps(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBROverlaps(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText('LINESTRING(7 1,30 30,1010 3010,1010 2010,3010 3010,4010 4010,5010 5010 )');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBROverlaps(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	index	idx3	PRIMARY	4	NULL	10	80.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbroverlaps(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE  MBROverlaps(tab.c4, @g1) ORDER BY c1;
@@ -1151,10 +1160,10 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBROverlaps(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	index	idx3	PRIMARY	4	NULL	10	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBROverlaps(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	ALL	idx3	NULL	NULL	NULL	10	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1174,7 +1183,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 SET @g1 = ST_GeomFromText('LINESTRING( 100 100,200 200,300 300)');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where st_touches(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE  ST_Touches(tab.c4, @g1) ORDER BY c1;
@@ -1183,14 +1192,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE ST_Touches(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE ST_Touches(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrcontains(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
@@ -1199,14 +1208,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRContains(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRContains(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((30 30,40 40,50 50,30 50,30 40,30 30)) ');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrwithin(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c4, @g1) ORDER BY c1;
@@ -1215,14 +1224,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRWithin(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRWithin(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText('POLYGON((4 -2,5 -4,6 -5,7 -4,7 2,4 -2))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRDisjoint(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	index	idx3	PRIMARY	4	NULL	10	90.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrdisjoint(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBRDisjoint(tab.c4, @g1) ORDER BY c1;
@@ -1239,14 +1248,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRDisjoint(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	index	idx3	PRIMARY	4	NULL	10	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRDisjoint(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	ALL	idx3	NULL	NULL	NULL	10	100.00	Using where
 SET @g1 = ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrequals(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1) ORDER BY c1;
@@ -1255,10 +1264,10 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBREquals(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBREquals(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRIntersects(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1280,7 +1289,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 SET @g1 = ST_GeomFromText('LINESTRING( 30 30,40 40,50 50)');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRIntersects(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbrintersects(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE  MBRIntersects(tab.c4, @g1) ORDER BY c1;
@@ -1290,14 +1299,14 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBRintersects(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBRintersects(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 2,4 5,5 5,7 1,0 0 ))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBROverlaps(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	tab	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c4`) AS `ST_Astext(c4)` from `test`.`tab` where mbroverlaps(`test`.`tab`.`c4`,(@`g1`)) order by `test`.`tab`.`c1`
 SELECT c1,ST_Astext(c4) FROM tab WHERE MBROverlaps(tab.c4, @g1) ORDER BY c1;
@@ -1306,10 +1315,10 @@ c1	ST_Astext(c4)
 EXPLAIN UPDATE tab SET C2 = ST_GeomFromText('POINT(0 0)') 
 WHERE MBROverlaps(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	UPDATE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 EXPLAIN DELETE FROM tab WHERE MBROverlaps(tab.c4, @g1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3	idx3	34	const	2	100.00	Using where
+1	DELETE	tab	NULL	range	idx3	idx3	34	const	1	100.00	Using where
 SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
 EXPLAIN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRTouches(tab.c4, @g1) ORDER BY c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1360,7 +1369,7 @@ tab	CREATE TABLE `tab` (
 SHOW INDEX FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
 tab	1	idx1	1	c1	A	0	32	NULL		SPATIAL		
-set @g1 = ST_GeomFromText('POINT(-1 -2))');
+set @g1 = ST_GeomFromText('POINT(-1 -2)');
 SELECT ST_AsText(c1) FROM tab;
 ST_AsText(c1)
 DROP table tab;

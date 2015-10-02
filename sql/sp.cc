@@ -292,8 +292,8 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
   {
     sql_print_warning("Stored routine '%s'.'%s': invalid value "
                       "in column mysql.proc.character_set_client.",
-                      (const char *) db_name,
-                      (const char *) sr_name);
+                      db_name,
+                      sr_name);
 
     invalid_creation_ctx= TRUE;
   }
@@ -305,8 +305,8 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
   {
     sql_print_warning("Stored routine '%s'.'%s': invalid value "
                       "in column mysql.proc.collation_connection.",
-                      (const char *) db_name,
-                      (const char *) sr_name);
+                      db_name,
+                      sr_name);
 
     invalid_creation_ctx= TRUE;
   }
@@ -318,8 +318,8 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
   {
     sql_print_warning("Stored routine '%s'.'%s': invalid value "
                       "in column mysql.proc.db_collation.",
-                      (const char *) db_name,
-                      (const char *) sr_name);
+                      db_name,
+                      sr_name);
 
     invalid_creation_ctx= TRUE;
   }
@@ -330,8 +330,8 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
                         Sql_condition::SL_WARNING,
                         ER_SR_INVALID_CREATION_CTX,
                         ER(ER_SR_INVALID_CREATION_CTX),
-                        (const char *) db_name,
-                        (const char *) sr_name);
+                        db_name,
+                        sr_name);
   }
 
   /*
@@ -1610,7 +1610,7 @@ sp_drop_db_routines(THD *thd, const char *db)
   }
 
   if (! table->file->ha_index_read_map(table->record[0],
-                                       (uchar *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
+                                       table->field[MYSQL_PROC_FIELD_DB]->ptr,
                                        (key_part_map)1, HA_READ_KEY_EXACT))
   {
     int nxtres;
@@ -1641,7 +1641,7 @@ sp_drop_db_routines(THD *thd, const char *db)
 	break;
       }
     } while (! (nxtres= table->file->ha_index_next_same(table->record[0],
-                                (uchar *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
+                                table->field[MYSQL_PROC_FIELD_DB]->ptr,
 						     key_len)));
     if (nxtres != HA_ERR_END_OF_FILE)
       ret= SP_KEY_NOT_FOUND;
@@ -1921,7 +1921,8 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
 {
   my_hash_init_opt(&prelocking_ctx->sroutines, system_charset_info,
                    Query_tables_list::START_SROUTINES_HASH_SIZE,
-                   0, 0, sp_sroutine_key, 0, 0);
+                   0, 0, sp_sroutine_key, 0, 0,
+                   PSI_INSTRUMENT_ME);
 
   if (!my_hash_search(&prelocking_ctx->sroutines, key->ptr(), key->length()))
   {

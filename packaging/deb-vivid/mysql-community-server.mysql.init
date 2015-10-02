@@ -40,13 +40,22 @@ STOPTIMEOUT=60
 
 VERSION=$(mysqld --version | grep mysqld | cut -d' ' -f4)
 
-get_path () {
-	my_print_defaults mysqld | grep ${1} | cut -d= -f2
+get_mysql_option() {
+	RESULT=$(my_print_defaults "$1" | sed -n "s/^--$2=//p" | tail -n 1)
+	if [ -z "$RESULT" ];
+	then
+		RESULT="$3"
+	fi
+	echo $RESULT
 }
 
-get_pcount () {
-	PIDFILE=$(get_path pid-file)
-	if [ -e "${PIDFILE}" ];
+get_running () {
+	PIDFILE=$(get_mysql_option mysqld_safe pid-file "")
+	if [ -z "$PIDFILE" ];
+	then
+		PIDFILE=$(get_mysql_option mysqld pid-file "$MYSQLDATA/$(hostname).pid")
+	fi
+	if [ -e "$PIDFILE" ] && [ -d "/proc/$(cat "$PIDFILE")" ];
 	then
 		echo 1
 	else
@@ -69,7 +78,7 @@ verify_server () {
 	do
 		COUNT=$(( COUNT+1 ))
 		echo -n .
-		if [ "${1}" = "start" ] && [ "$(get_pcount)" = 1 ];
+		if [ "${1}" = "start" ] && [ "$(get_running)" = 1 ];
 		then
 			if [ -z ${2} ];
 			then
@@ -77,7 +86,7 @@ verify_server () {
 			fi
 			return 0
 		fi
-		if [ "${1}" = "stop" ] && [ "$(get_pcount)" = 0 ];
+		if [ "${1}" = "stop" ] && [ "$(get_running)" = 0 ];
 		then
 			if [ -z ${2} ];
 			then
@@ -92,12 +101,12 @@ verify_server () {
 
 case "$1" in
   'start')
-	if [ "$(get_pcount)" -eq 1 ];
+	if [ "$(get_running)" -eq 1 ];
 	then
 		log_action_msg "A MySQL Server is already started"
 	else
 		MYSQLRUN=/var/run/mysqld
-		MYSQLDATA=$(get_path datadir)
+		MYSQLDATA=$(get_mysql_option mysqld datadir "/var/lib/mysql")
 		MYSQLFILES=/var/lib/mysql-files
 		MYSQLLOG=/var/log/mysql
 
@@ -123,6 +132,11 @@ case "$1" in
 			mysql -e "INSTALL PLUGIN auth_socket SONAME 'auth_socket.so'"
 			mysql -e "USE mysql; UPDATE user SET plugin='auth_socket' WHERE user='root'"
 			mysqladmin shutdown
+		fi
+
+		if [ -x /usr/bin/mysql_ssl_rsa_setup -a ! -e "${MYSQLDATA}/server-key.pem" ];
+		then
+			/usr/bin/mysql_ssl_rsa_setup --datadir="${MYSQLDATA}" --uid=mysql >/dev/null 2>&1
 		fi
 
 		if [ ! -d ${MYSQLLOG} -a ! -L ${MYSQLLOG} ];
@@ -156,7 +170,7 @@ case "$1" in
 	;;
 
   'stop')
-	if [ "$(get_pcount)" -eq 1 ];
+	if [ "$(get_running)" -eq 1 ];
 	then
 		killall -u mysql
 		verify_server stop
@@ -179,7 +193,7 @@ case "$1" in
 	;;
 
   'status')
-	if [ "$(get_pcount)" -eq 1 ];
+	if [ "$(get_running)" -eq 1 ];
 	then
 		log_action_msg "MySQL Community Server ${VERSION} is running"
 	else

@@ -8,7 +8,7 @@ USE mysql;
 FLUSH TABLES;
 RENAME TABLE general_log TO renamed_general_log;
 RENAME TABLE test.bug49823 TO general_log;
-mysql_upgrade: [Error] 1194: Table 'general_log' is marked as crashed and should be repaired
+mysql_upgrade: (non fatal) [ERROR] 1194: Table 'general_log' is marked as crashed and should be repaired
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK

@@ -4775,12 +4775,9 @@ Warning	1292	Truncated incorrect INTEGER value: ''
 # Test error message for conversion using different charset
 # 
 CREATE TABLE t1 (a DECIMAL(2,0));
-SET sql_mode='strict_all_tables';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SET sql_mode=default;
 INSERT INTO t1 VALUES (CONVERT('9e99999999' USING ucs2));
 ERROR HY000: Incorrect decimal value: '9e99999999' for column 'a' at row 1
-SET sql_mode=DEFAULT;
 INSERT IGNORE INTO t1 VALUES (CONVERT('aaa' USING ucs2));
 Warnings:
 Warning	1366	Incorrect decimal value: 'aaa' for column 'a' at row 1

@@ -18,6 +18,9 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <m_string.h>
+#include "mysys_err.h"
+
+static inline my_bool is_mem_available(MEM_ROOT *mem_root, size_t size);
 
 /*
   For instrumented code: don't preallocate memory in alloc_root().
@@ -63,6 +66,9 @@ void init_alloc_root(PSI_memory_key key,
   mem_root->block_num= 4;			/* We shift this with >>2 */
   mem_root->first_block_usage= 0;
   mem_root->m_psi_key= key;
+  mem_root->max_capacity= 0;
+  mem_root->allocated_size= 0;
+  mem_root->error_for_capacity_exceeded= FALSE;
 
 #if defined(PREALLOCATE_MEMORY_CHUNKS)
   if (pre_alloc_size)
@@ -75,6 +81,7 @@ void init_alloc_root(PSI_memory_key key,
       mem_root->free->size= (uint)(pre_alloc_size+ALIGN_SIZE(sizeof(USED_MEM)));
       mem_root->free->left= (uint)pre_alloc_size;
       mem_root->free->next= 0;
+      mem_root->allocated_size+= pre_alloc_size+ ALIGN_SIZE(sizeof(USED_MEM));
     }
   }
 #endif
@@ -134,6 +141,7 @@ void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
           *prev= mem->next;
           {
             mem->left= mem->size;
+            mem_root->allocated_size-= mem->size;
             TRASH_MEM(mem);
             my_free(mem);
           }
@@ -142,13 +150,15 @@ void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
           prev= &mem->next;
       }
       /* Allocate new prealloc block and add it to the end of free list */
-      if ((mem= (USED_MEM *) my_malloc(mem_root->m_psi_key,
+      if (is_mem_available(mem_root, size) &&
+          (mem= (USED_MEM *) my_malloc(mem_root->m_psi_key,
                                        size, MYF(0))))
       {
         mem->size= (uint)size;
         mem->left= (uint)pre_alloc_size;
         mem->next= *prev;
-        *prev= mem_root->pre_alloc= mem; 
+        *prev= mem_root->pre_alloc= mem;
+        mem_root->allocated_size+= size;
       }
       else
       {
@@ -161,6 +171,22 @@ void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
     mem_root->pre_alloc= 0;
 }
 
+
+/**
+  Function allocates the requested memory in the mem_root specified.
+  If max_capacity is defined for the mem_root, it only allocates
+  if the requested size can be allocated without exceeding the limit.
+  However, when error_for_capacity_exceeded is set, an error is flagged
+  (see set_error_reporting), but allocation is still performed.
+
+  @param mem_root           memory root to allocate memory from
+  @length                   size to be allocated
+
+  @retval
+  void *                    Pointer to the memory thats been allocated
+  @retval
+  NULL                      Memory is not available.
+*/
 
 void *alloc_root(MEM_ROOT *mem_root, size_t length)
 {
@@ -180,6 +206,14 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
                   });
 
   length+=ALIGN_SIZE(sizeof(USED_MEM));
+  if (!is_mem_available(mem_root, length))
+  {
+    if (mem_root->error_for_capacity_exceeded)
+      my_error(EE_CAPACITY_EXCEEDED, MYF(0),
+               (ulonglong) mem_root->max_capacity);
+    else
+      DBUG_RETURN(NULL);
+  }
   if (!(next = (USED_MEM*) my_malloc(mem_root->m_psi_key,
                                      length,MYF(MY_WME | ME_FATALERROR))))
   {
@@ -187,6 +221,7 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
       (*mem_root->error_handler)();
     DBUG_RETURN((uchar*) 0);			/* purecov: inspected */
   }
+  mem_root->allocated_size+= length;
   next->next= mem_root->used;
   next->size= (uint)length;
   next->left= (uint)(length - ALIGN_SIZE(sizeof(USED_MEM)));
@@ -233,6 +268,14 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
     get_size= length+ALIGN_SIZE(sizeof(USED_MEM));
     get_size= MY_MAX(get_size, block_size);
 
+    if (!is_mem_available(mem_root, get_size))
+    {
+      if (mem_root->error_for_capacity_exceeded)
+        my_error(EE_CAPACITY_EXCEEDED, MYF(0),
+                 (ulonglong) mem_root->max_capacity);
+      else
+        DBUG_RETURN(NULL);
+    }
     if (!(next = (USED_MEM*) my_malloc(mem_root->m_psi_key,
                                        get_size,MYF(MY_WME | ME_FATALERROR))))
     {
@@ -240,6 +283,7 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
 	(*mem_root->error_handler)();
       DBUG_RETURN((void*) 0);                      /* purecov: inspected */
     }
+    mem_root->allocated_size+= get_size;
     mem_root->block_num++;
     next->next= *prev;
     next->size= (uint)get_size;
@@ -422,9 +466,12 @@ void free_root(MEM_ROOT *root, myf MyFlags)
   {
     root->free=root->pre_alloc;
     root->free->left=root->pre_alloc->size-(uint)ALIGN_SIZE(sizeof(USED_MEM));
+    root->allocated_size= root->pre_alloc->size;
     TRASH_MEM(root->pre_alloc);
     root->free->next=0;
   }
+  else
+    root->allocated_size= 0;
   root->block_num= 4;
   root->first_block_usage= 0;
   DBUG_VOID_RETURN;
@@ -456,3 +503,55 @@ void *memdup_root(MEM_ROOT *root, const void *str, size_t len)
     memcpy(pos,str,len);
   return pos;
 }
+
+/**
+  Check if the set max_capacity is exceeded if the requested
+  size is allocated
+
+  @param mem_root           memory root to check for allocation
+  @param size               requested size to be allocated
+
+  @retval
+  1 Memory is available
+  @retval
+  0 Memory is not available
+*/
+static inline my_bool is_mem_available(MEM_ROOT *mem_root, size_t size)
+{
+  if (mem_root->max_capacity)
+  {
+    if ((mem_root->allocated_size + size) > mem_root->max_capacity)
+      return 0;
+  }
+  return 1;
+}
+
+/**
+  set max_capacity for this mem_root. Should be called after init_alloc_root.
+  If the max_capacity specified is less than what is already pre_alloced
+  in init_alloc_root, only the future allocations are affected.
+
+  @param mem_root         memory root to set the max capacity
+  @param max_value        Maximum capacity this mem_root can hold
+*/
+void set_memroot_max_capacity(MEM_ROOT *mem_root, size_t max_value)
+{
+  DBUG_ASSERT(alloc_root_inited(mem_root));
+  mem_root->max_capacity= max_value;
+}
+
+/**
+  Enable/disable error reporting for exceeding max_capacity. If error
+  reporting is enabled, an error is flagged to indicate that the capacity
+  is exceeded. However allocation will still happen for the requested memory.
+
+  @param mem_root        memory root
+  @param report_eroor    set to true if error should be reported
+                         else set to false
+*/
+void set_memroot_error_reporting(MEM_ROOT *mem_root, my_bool report_error)
+{
+  DBUG_ASSERT(alloc_root_inited(mem_root));
+  mem_root->error_for_capacity_exceeded= report_error;
+}
+

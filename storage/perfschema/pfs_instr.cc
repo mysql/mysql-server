@@ -558,7 +558,9 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
     pfs->m_stage_progress= NULL;
     pfs->m_processlist_info[0]= '\0';
     pfs->m_processlist_info_length= 0;
+    pfs->m_connection_type= NO_VIO_TYPE;
 
+    pfs->m_thd= NULL;
     pfs->m_host= NULL;
     pfs->m_user= NULL;
     pfs->m_account= NULL;
@@ -867,6 +869,7 @@ search:
     pfs->m_file_stat.m_open_count= 1;
     pfs->m_file_stat.m_io_stat.reset();
     pfs->m_identity= (const void *)pfs;
+    pfs->m_temporary= false;
 
     int res;
     pfs->m_lock.dirty_to_allocated(& dirty_state);
@@ -1584,13 +1587,6 @@ void aggregate_thread_status(PFS_thread *thread,
   {
     safe_host->aggregate_status_stats(&thd->status_var);
   }
-#if 0
-  else
-  {
-    /* TODO: Requires LOCK_status. global_status_var updated by server on THD disconnect. */
-    add_to_status(&global_status_var, &thd->status_var, false, false);
-  }
-#endif
   return;
 }
 

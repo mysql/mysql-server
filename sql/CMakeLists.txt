@@ -71,6 +71,7 @@ SET(SQL_SHARED_SOURCES
   auth/password.c
   auth/password_policy_service.cc
   auth/sql_security_ctx.cc
+  auth/service_security_context.cc
   bootstrap.cc
   conn_handler/connection_handler_manager.cc 
   datadict.cc
@@ -82,8 +83,6 @@ SET(SQL_SHARED_SOURCES
   filesort.cc
   filesort_utils.cc
   aggregate_check.cc
-  gcalc_slicescan.cc
-  gcalc_tools.cc
   gstream.cc
   handler.cc
   hostname.cc
@@ -98,6 +97,7 @@ SET(SQL_SHARED_SOURCES
   item_geofunc_relchecks.cc
   item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
+  item_json_func.cc
   item_row.cc 
   item_strfunc.cc
   item_subselect.cc
@@ -105,6 +105,9 @@ SET(SQL_SHARED_SOURCES
   item_timefunc.cc 
   item_xmlfunc.cc 
   item_inetfunc.cc
+  json_dom.cc
+  json_binary.cc
+  json_path.cc
   key.cc
   keycaches.cc
   lock.cc
@@ -158,7 +161,6 @@ SET(SQL_SHARED_SOURCES
   sql_alloc_error_handler.cc
   sql_alter.cc
   sql_analyse.cc
-  sql_audit.cc
   sql_base.cc 
   sql_bootstrap.cc
   sql_initialize.cc
@@ -209,6 +211,7 @@ SET(SQL_SHARED_SOURCES
   sql_table.cc
   sql_tablespace.cc
   sql_test.cc
+  sql_thd_internal_api.cc
   sql_time.cc
   sql_timer.cc
   sql_tmp_table.cc
@@ -224,6 +227,7 @@ SET(SQL_SHARED_SOURCES
   table.cc
   table_cache.cc
   table_trigger_dispatcher.cc
+  tc_log.cc
   thr_malloc.cc 
   transaction.cc
   transaction_info.cc
@@ -252,6 +256,7 @@ SET(SQL_SOURCE
   ../sql-common/pack.c
   ../sql-common/client_authentication.cc
   ../sql-common/sql_string.cc 
+  command_service.cc
   conn_handler/channel_info.cc
   conn_handler/connection_handler_per_thread.cc
   conn_handler/connection_handler_one_thread.cc
@@ -266,8 +271,13 @@ SET(SQL_SOURCE
   mf_iocache.cc
   mysqld.cc
   mysqld_thd_manager.cc
+  protocol_callback.cc
   signal_handler.cc
+  sql_audit.cc
   sql_client.cc
+  srv_session.cc
+  srv_session_info_service.cc
+  srv_session_service.cc
   )
 
 IF(NOT WIN32)
@@ -284,23 +294,27 @@ ENDIF()
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 ADD_COMPILE_FLAGS(
+  handler.cc
   item_geofunc.cc
   item_geofunc_buffer.cc
   item_geofunc_relchecks.cc
   item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
+  item_json_func.cc
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
 
-# Boost Geometry source has unused local typedefs.
+# Boost source has unused local typedefs.
 MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
 IF(HAVE_NO_UNUSED_TYPEDEFS)
   ADD_COMPILE_FLAGS(
+    handler.cc
     item_geofunc.cc
     item_geofunc_buffer.cc
     item_geofunc_relchecks.cc
     item_geofunc_relchecks_bgwrap.cc
     item_geofunc_setops.cc
+    item_json_func.cc
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
   )
 ENDIF()

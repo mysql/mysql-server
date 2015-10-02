@@ -195,6 +195,7 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
 
   DBUG_ASSERT(!thd->is_error());
 
+  thd->update_previous_found_rows();
   THD_STAGE_INFO(thd, stage_end);
 
   // Do partial cleanup (preserve plans for EXPLAIN).
@@ -867,12 +868,8 @@ void JOIN::reset()
 
   if (select_lex->has_ft_funcs())
   {
-#ifdef DBUG_OFF
+    /* TODO: move the code to JOIN::exec */
     (void)init_ftfuncs(thd, select_lex);
-#else
-    // Should not return an error on second execution
-    DBUG_ASSERT(!init_ftfuncs(thd, select_lex));
-#endif
   }
 
   DBUG_VOID_RETURN;
@@ -1202,7 +1199,7 @@ void calc_length_and_keyparts(Key_use *keyuse, JOIN_TAB *tab, const uint key,
     }
     keyuse++;
   } while (keyuse->table_ref == tab->table_ref && keyuse->key == key);
-  DBUG_ASSERT(length > 0 && keyparts != 0);
+  DBUG_ASSERT(keyparts > 0);
   *length_out= length;
   *keyparts_out= keyparts;
 }
@@ -1694,6 +1691,11 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab,
       tbl->s->tmp_table != NO_TMP_TABLE &&
       tbl->s->tmp_table != TRANSACTIONAL_TMP_TABLE)
     DBUG_VOID_RETURN;
+
+  // TODO: Currently, index on virtual generated column doesn't support ICP
+  if (tbl->vfield && tbl->index_contains_some_virtual_gcol(keyno))
+    DBUG_VOID_RETURN;
+
   /*
     Fields of other non-const tables aren't allowed in following cases:
        type is:
@@ -1736,6 +1738,7 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab,
        of pushing an index condition on a clustered key is much lower 
        than on a non-clustered key. This restriction should be 
        re-evaluated when WL#6061 is implemented.
+    7. The index on virtual generated columns is not supported for ICP.
   */
   if (condition() &&
       tbl->file->index_flags(keyno, 0, 1) &
@@ -3343,6 +3346,80 @@ bool SELECT_LEX::change_query_result(Query_result_interceptor *new_result,
   }
 }
 
+/**
+  Add having condition as a filter condition, which is applied when reading
+  from the temp table.
+
+  @param    curr_tmp_table  Table number to which having conds are added.
+  @returns  false if success, true if error.
+*/
+
+bool JOIN::add_having_as_tmp_table_cond(uint curr_tmp_table)
+{
+  having_cond->update_used_tables();
+  QEP_TAB *const curr_table= &qep_tab[curr_tmp_table];
+  table_map used_tables;
+  Opt_trace_context *const trace= &thd->opt_trace;
+
+  DBUG_ENTER("JOIN::add_having_as_tmp_table_cond");
+
+  if (curr_table->table_ref)
+    used_tables= curr_table->table_ref->map();
+  else
+  {
+    /*
+      Pushing parts of HAVING to an internal temporary table.
+      Fields in HAVING condition may have been replaced with fields in an
+      internal temporary table. This table has map=1, hence we check that
+      we have no fields from other tables (outer references are fine).
+      Unfortunaly, update_used_tables() is not reliable for subquery
+      items, which could thus still have other tables in their
+      used_tables() information.
+    */
+    DBUG_ASSERT(having_cond->has_subquery() ||
+                !(having_cond->used_tables() & ~(1 | PSEUDO_TABLE_BITS)));
+    used_tables= 1;
+  }
+
+  /*
+    All conditions which can be applied after reading from used_tables are
+    added as filter conditions of curr_tmp_table. If condition's used_tables is
+    not read yet for example subquery in having, then it will be kept as it is
+    in original having_cond of join.
+  */
+  Item* sort_table_cond= make_cond_for_table(having_cond, used_tables,
+                                             (table_map) 0, false);
+  if (sort_table_cond)
+  {
+    if (!curr_table->condition())
+      curr_table->set_condition(sort_table_cond);
+    else
+    {
+      curr_table->set_condition(new Item_cond_and(curr_table->condition(),
+                                                  sort_table_cond));
+      if (curr_table->condition()->fix_fields(thd, 0))
+        DBUG_RETURN(true);
+    }
+    curr_table->condition()->top_level_item();
+    DBUG_EXECUTE("where",print_where(curr_table->condition(),
+				 "select and having",
+                                     QT_ORDINARY););
+
+    having_cond= make_cond_for_table(having_cond, ~ (table_map) 0,
+                                     ~used_tables, false);
+    DBUG_EXECUTE("where",
+                 print_where(having_cond, "having after sort",
+                 QT_ORDINARY););
+
+    Opt_trace_object trace_wrapper(trace);
+    Opt_trace_object(trace, "sort_using_internal_table")
+                .add("condition_for_sort", sort_table_cond)
+                .add("having_after_sort", having_cond);
+  }
+
+  DBUG_RETURN(false);
+}
+
 
 /**
   Init tmp tables usage info.
@@ -3395,8 +3472,6 @@ bool JOIN::make_tmp_tables_info()
   having_for_explain= having_cond;
 
   const bool has_group_by= this->grouped;
-
-  Opt_trace_context *const trace= &thd->opt_trace;
 
   /*
     Setup last table to provide fields and all_fields lists to the next
@@ -3464,24 +3539,6 @@ bool JOIN::make_tmp_tables_info()
         qep_tab[const_tables].position()->sj_strategy != SJ_OPT_LOOSE_SCAN &&
         qep_tab[const_tables].use_order()));
 
-    /*
-      We don't have to store rows in temp table that doesn't match HAVING if:
-      - we are sorting the table and writing complete group rows to the
-        temp table.
-      - We are using DISTINCT without resolving the distinct as a GROUP BY
-        on all columns.
-
-      If having is not handled here, it will be checked before the row
-      is sent to the client.
-    */
-    if (having_cond &&
-        (sort_and_group || (exec_tmp_table->distinct && !group_list)))
-    {
-      // Attach HAVING to tmp table's condition
-      qep_tab[curr_tmp_table].having= having_cond;
-      having_cond= NULL; // Already done
-    }
-
     /* Change sum_fields reference to calculated fields in tmp_table */
     DBUG_ASSERT(items1.is_null());
     items1= select_lex->ref_ptr_array_slice(2);
@@ -3508,7 +3565,33 @@ bool JOIN::make_tmp_tables_info()
     qep_tab[curr_tmp_table].all_fields= &tmp_all_fields1;
     qep_tab[curr_tmp_table].fields= &tmp_fields_list1;
     setup_tmptable_write_func(&qep_tab[curr_tmp_table]);
- 
+
+    /*
+      If having is not handled here, it will be checked before the row is sent
+      to the client.
+    */
+    if (having_cond &&
+        (sort_and_group || (exec_tmp_table->distinct && !group_list)))
+    {
+      /*
+        If there is no select distinct then move the having to table conds of
+        tmp table.
+        NOTE : We cannot apply having after distinct. If columns of having are
+               not part of select distinct, then distinct may remove rows
+               which can satisfy having.
+      */
+      if (!select_distinct && add_having_as_tmp_table_cond(curr_tmp_table))
+        DBUG_RETURN(true);
+
+      /*
+        Having condition which we are not able to add as tmp table conds are
+        kept as before. And, this will be applied before storing the rows in
+        tmp table.
+      */
+      qep_tab[curr_tmp_table].having= having_cond;
+      having_cond= NULL; // Already done
+    }
+
     tmp_table_param.func_count= 0;
     tmp_table_param.field_count+= tmp_table_param.func_count;
     if (sort_and_group || qep_tab[curr_tmp_table].table()->group)
@@ -3705,56 +3788,8 @@ bool JOIN::make_tmp_tables_info()
     /* If we have already done the group, add HAVING to sorted table */
     if (having_cond && !group_list && !sort_and_group)
     {
-      having_cond->update_used_tables();
-      QEP_TAB *const curr_table= &qep_tab[curr_tmp_table];
-      table_map used_tables;
-
-      if (curr_table->table_ref)
-        used_tables= curr_table->table_ref->map();
-      else
-      {
-        /*
-          Pushing parts of HAVING to an internal temporary table.
-          Fields in HAVING condition may have been replaced with fields in an
-          internal temporary table. This table has map=1, hence we check that
-          we have no fields from other tables (outer references are fine).
-          Unfortunaly, update_used_tables() is not reliable for subquery
-          items, which could thus still have other tables in their
-          used_tables() information.
-        */
-        DBUG_ASSERT(having_cond->has_subquery() ||
-                    !(having_cond->used_tables() & ~(1 | PSEUDO_TABLE_BITS)));
-        used_tables= 1;
-      }
-
-      Item* sort_table_cond= make_cond_for_table(having_cond, used_tables,
-                                                 (table_map) 0, false);
-      if (sort_table_cond)
-      {
-        if (!curr_table->condition())
-          curr_table->set_condition(sort_table_cond);
-        else
-        {
-          curr_table->set_condition(new Item_cond_and(curr_table->condition(),
-                                                      sort_table_cond));
-          curr_table->condition()->fix_fields(thd, 0);
-        }
-        curr_table->condition()->top_level_item();
-	DBUG_EXECUTE("where",print_where(curr_table->condition(),
-					 "select and having",
-                                         QT_ORDINARY););
-
-        having_cond= make_cond_for_table(having_cond, ~ (table_map) 0,
-                                         ~used_tables, false);
-        DBUG_EXECUTE("where",
-                     print_where(having_cond, "having after sort",
-                     QT_ORDINARY););
-
-        Opt_trace_object trace_wrapper(trace);
-        Opt_trace_object(trace, "sort_using_internal_table")
-                    .add("condition_for_sort", sort_table_cond)
-                    .add("having_after_sort", having_cond);
-      }
+      if (add_having_as_tmp_table_cond(curr_tmp_table))
+        DBUG_RETURN(true);
     }
 
     if (grouped)
@@ -3867,7 +3902,7 @@ JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order)
   explain_flags.set(sort_order->src, ESP_USING_FILESORT);
   QEP_TAB *const tab= &qep_tab[idx]; 
   tab->filesort=
-    new (thd->mem_root) Filesort(*sort_order, HA_POS_ERROR);
+    new (thd->mem_root) Filesort(tab, *sort_order, HA_POS_ERROR);
   if (!tab->filesort)
     return true;
   {
@@ -4129,7 +4164,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
         */
         const Cost_estimate table_scan_time= table->file->table_scan_cost();
         const double index_scan_time= select_limit / rec_per_key *
-          min<double>(table->cost_model()->io_block_read_cost(rec_per_key),
+          min<double>(table->cost_model()->page_read_cost(rec_per_key),
                       table_scan_time.total_cost());
 
         /*
@@ -4290,8 +4325,7 @@ uint get_index_for_order(ORDER *order, QEP_TAB *tab,
     if (test_if_cheaper_ordering(NULL, order, table,
                                  table->keys_in_use_for_order_by, -1,
                                  limit,
-                                 &key, &direction, &limit) &&
-        !is_key_used(table, key, table->write_set))
+                                 &key, &direction, &limit))
     {
       *need_sort= FALSE;
       *reverse= (direction < 0);

@@ -33,7 +33,7 @@ class THD;
   @param lock_timeout    Number of seconds to wait before giving up.
 
   @retval 1              Acquisition failed, error has been reported.
-  @retval 0              Acquisition sucessfull, all locks acquired.
+  @retval 0              Acquisition successful, all locks acquired.
 
   @note both lock_namespace and lock_names are limited to 64 characters max.
   Names are compared using binary comparison.
@@ -51,7 +51,7 @@ int acquire_locking_service_locks(MYSQL_THD opaque_thd, const char* lock_namespa
   @param lock_namespace  Namespace of the locks to release.
 
   @retval 1              Release failed, error has been reported.
-  @retval 0              Release sucessfull, all locks acquired.
+  @retval 0              Release successful, all locks acquired.
 */
 int release_locking_service_locks(MYSQL_THD opaque_thd, const char* lock_namespace);
 

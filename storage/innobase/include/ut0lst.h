@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -44,6 +44,13 @@ struct ut_list_node {
 						node, NULL if start of list */
 	Type*		next;			/*!< pointer to next node,
 						NULL if end of list */
+
+	void reverse()
+	{
+		Type*	tmp = prev;
+		prev = next;
+		next = tmp;
+	}
 };
 
 /** Macro used for legacy reasons */
@@ -74,6 +81,13 @@ struct ut_list_base {
 						the list was initialised with
 						UT_LIST_INIT() */
 #endif /* UNIV_DEBUG */
+
+	void reverse()
+	{
+		Type*	tmp = start;
+		start = end;
+		end = tmp;
+	}
 };
 
 #define UT_LIST_BASE_NODE_T(t)	ut_list_base<t, ut_list_node<t> t::*>
@@ -398,6 +412,23 @@ ut_list_map(
 	ut_a(count == list.count);
 }
 
+template <typename List>
+void
+ut_list_reverse(List& list)
+{
+	UT_LIST_IS_INITIALISED(list);
+
+	for (typename List::elem_type* elem = list.start;
+	     elem != 0;
+	     elem = (elem->*list.node).prev) {
+		(elem->*list.node).reverse();
+	}
+
+	list.reverse();
+}
+
+#define UT_LIST_REVERSE(LIST)	ut_list_reverse(LIST)
+
 /********************************************************************//**
 Checks the consistency of a two-way list.
 @param[in]		list base node (not a pointer to it)
@@ -428,5 +459,48 @@ ut_list_validate(
 	NullValidate nullV;			\
 	ut_list_validate(LIST, nullV);		\
 } while (0)
+
+/** Move the given element to the beginning of the list.
+@param[in,out]	list	the list object
+@param[in]	elem	the element of the list which will be moved
+			to the beginning of the list. */
+template <typename List>
+void
+ut_list_move_to_front(
+	List&				list,
+	typename List::elem_type*	elem)
+{
+	ut_ad(ut_list_exists(list, elem));
+
+	if (UT_LIST_GET_FIRST(list) != elem) {
+		ut_list_remove(list, elem);
+		ut_list_prepend(list, elem);
+	}
+}
+
+#ifdef UNIV_DEBUG
+/** Check if the given element exists in the list.
+@param[in,out]	list	the list object
+@param[in]	elem	the element of the list which will be checked */
+template <typename List>
+bool
+ut_list_exists(
+	List&				list,
+	typename List::elem_type*	elem)
+{
+	typename List::elem_type*	e1;
+
+	for (e1 = UT_LIST_GET_FIRST(list); e1 != NULL;
+	     e1 = (e1->*list.node).next) {
+		if (elem == e1) {
+			return(true);
+		}
+	}
+	return(false);
+}
+#endif
+
+#define UT_LIST_MOVE_TO_FRONT(LIST, ELEM) \
+   ut_list_move_to_front(LIST, ELEM)
 
 #endif /* ut0lst.h */

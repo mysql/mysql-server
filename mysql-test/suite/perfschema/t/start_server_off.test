@@ -48,4 +48,21 @@ truncate performance_schema.events_waits_history_long;
 truncate performance_schema.setup_objects;
 truncate performance_schema.setup_actors;
 
+#
+# Verify SHOW STATUS and SHOW VARIABLES with show_compatibility_56=OFF
+#
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set global show_compatibility_56 = OFF;
 
+--disable_warnings
+# Expect that status variables are still accessible
+show global status like "performance_schema%";
+show session status like "performance_schema%";
+
+# Expect that system variables are still accessible
+show global variables like "show_compatibility_56";
+show session variables like "show_compatibility_56";
+--enable_warnings
+
+# Cleanup
+set @@global.show_compatibility_56 = @show_compatibility_56_save;

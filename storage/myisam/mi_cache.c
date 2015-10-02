@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,9 +97,9 @@ int _mi_read_cache(IO_CACHE *info, uchar *buff, my_off_t pos, uint length,
   {
     DBUG_PRINT("error",
                ("Error %d reading next-multi-part block (Got %d bytes)",
-                my_errno, (int) read_length));
-    if (!my_errno || my_errno == -1)
-      my_errno=HA_ERR_WRONG_IN_RECORD;
+                my_errno(), (int) read_length));
+    if (!my_errno() || my_errno() == -1)
+      set_my_errno(HA_ERR_WRONG_IN_RECORD);
     DBUG_RETURN(1);
   }
   memset(buff+read_length, 0,

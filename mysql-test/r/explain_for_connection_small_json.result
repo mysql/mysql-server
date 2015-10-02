@@ -307,7 +307,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -49,4 +50,3 @@
              "s1"
 -          ],
--          "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t1`.`id` = `test`.`t2`.`id`), true)"
+-          "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t2`.`id` = `test`.`t1`.`id`), true)"
 +          ]
          }
 QUERY: SELECT * from t1 where a = 1 and b is null order by a desc, b desc 
@@ -409,18 +409,18 @@ SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -50,4 +50,5 @@
            "rows_examined_per_scan": 6,
--          "rows_produced_per_join": 2,
--          "filtered": "9.26",
+-          "rows_produced_per_join": 4,
+-          "filtered": "16.67",
 +          "rows_produced_per_join": 25,
 +          "filtered": "83.33",
 +          "using_where": true,
            "using_join_buffer": "Block Nested Loop",
 @@ -55,5 +56,5 @@
              "read_cost": "2.34",
--            "eval_cost": "0.56",
+-            "eval_cost": "1.00",
 +            "eval_cost": "5.00",
              "prefix_cost": "10.34",
--            "data_read_per_join": "311"
+-            "data_read_per_join": "559"
 +            "data_read_per_join": "2K"
            },
 @@ -63,4 +64,3 @@
@@ -709,7 +709,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -38,2 +38,3 @@
-             "filtered": "25.00",
+             "filtered": "50.00",
 +            "using_where": true,
              "cost_info": {
 @@ -47,4 +48,3 @@

@@ -16,7 +16,12 @@
 #ifndef MY_THREAD_LOCAL_INCLUDED
 #define MY_THREAD_LOCAL_INCLUDED
 
-#include "mysql/psi/mysql_thread.h"
+#ifndef _WIN32
+#include <pthread.h>
+#endif
+
+struct _db_code_state_;
+typedef uint32 my_thread_id;
 
 C_MODE_START
 
@@ -65,39 +70,37 @@ static inline int my_set_thread_local(thread_local_key_t key,
 #endif
 }
 
+/**
+  Retrieve the MySQL thread-local storage variant of errno.
+*/
+int my_errno();
 
-/* All thread specific variables are in the following struct */
-struct st_my_thread_var
-{
-  int thr_errno;
-#if defined(_WIN32)
+/**
+  Set the MySQL thread-local storage variant of errno.
+*/
+void set_my_errno(int my_errno);
+
+#ifdef _WIN32
 /*
   thr_winerr is used for returning the original OS error-code in Windows,
   my_osmaperr() returns EINVAL for all unknown Windows errors, hence we
   preserve the original Windows Error code in thr_winerr.
 */
-  int thr_winerr;
-#endif
-  mysql_cond_t suspend;
-  my_thread_id id;
-  int volatile abort;
-  struct st_my_thread_var *next,**prev;
-  void *opt_info;
-#ifndef DBUG_OFF
-  void *dbug;
-#endif
-};
+int thr_winerr();
 
-struct st_my_thread_var *mysys_thread_var();
+void set_thr_winerr(int winerr);
 
-int set_mysys_thread_var(struct st_my_thread_var *mysys_var);
+#endif
 
 #ifndef DBUG_OFF
 /* Return pointer to DBUG for holding current state */
-void **my_thread_var_dbug();
-#endif
+struct _db_code_state_ **my_thread_var_dbug();
 
-#define my_errno mysys_thread_var()->thr_errno
+my_thread_id my_thread_var_id();
+
+void set_my_thread_var_id(my_thread_id id);
+
+#endif
 
 C_MODE_END
 

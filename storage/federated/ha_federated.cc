@@ -444,7 +444,7 @@ static PSI_mutex_info all_federated_mutexes[]=
 
 static PSI_memory_info all_federated_memory[]=
 {
-  { &fe_key_memory_federated_share, "FEDERATED_SHARE", 0}
+  { &fe_key_memory_federated_share, "FEDERATED_SHARE", PSI_FLAG_GLOBAL}
 };
 
 static void init_federated_psi_keys(void)
@@ -499,7 +499,8 @@ int federated_db_init(void *p)
                        &federated_mutex, MY_MUTEX_INIT_FAST))
     goto error;
   if (!my_hash_init(&federated_open_tables, &my_charset_bin, 32, 0, 0,
-                    (my_hash_get_key) federated_get_key, 0, 0))
+                    (my_hash_get_key) federated_get_key, 0, 0,
+                    fe_key_memory_federated_share))
   {
     DBUG_RETURN(FALSE);
   }
@@ -2013,8 +2014,9 @@ int ha_federated::end_bulk_insert()
   }
 
   dynstr_free(&bulk_insert);
-  
-  DBUG_RETURN(my_errno= error);
+
+  set_my_errno(error);
+  DBUG_RETURN(error);
 }
 
 
@@ -3190,7 +3192,9 @@ int ha_federated::real_connect()
   mysql_options(mysql,MYSQL_SET_CHARSET_NAME,
                 this->table->s->table_charset->csname);
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
-                 "program_name", "federated");
+                "program_name", "mysqld");
+  mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
+                "_client_role", "federated_storage");
   sql_query.length(0);
 
   if (!mysql_real_connect(mysql,

@@ -1073,16 +1073,6 @@ struct trx_t {
 	bool		has_search_latch;
 					/*!< TRUE if this trx has latched the
 					search system latch in S-mode */
-	ulint		search_latch_timeout;
-					/*!< If we notice that someone is
-					waiting for our S-lock on the search
-					latch to be released, we wait in
-					row0sel.cc for BTR_SEA_TIMEOUT new
-					searches until we try to keep
-					the search latch again over
-					calls from MySQL; this is intended
-					to reduce contention on the search
-					latch */
 	trx_dict_op_t	dict_operation;	/**< @see enum trx_dict_op_t */
 
 	/* Fields protected by the srv_conc_mutex. */
@@ -1155,11 +1145,6 @@ struct trx_t {
 	ulint		error_key_num;	/*!< if the index creation fails to a
 					duplicate key error, a mysql key
 					number of that index is stored here */
-	const dict_index_t*
-			last_upd_sp_index;
-					/*!< For last updated spatial index.
-					It's for avoiding set un-delete mark on
-					wrong rec in rollback. */
 	sess_t*		sess;		/*!< session of the trx, NULL if none */
 	que_t*		graph;		/*!< query currently run in the session,
 					or NULL if none; NOTE that the query
@@ -1457,8 +1442,12 @@ private:
 
 		/* Avoid excessive mutex acquire/release */
 
+		ut_ad(!is_async_rollback(trx));
+
 		++trx->in_depth;
 
+		/* If trx->in_depth is greater than 1 then
+		transaction is already in InnoDB. */
 		if (trx->in_depth > 1) {
 
 			return;
@@ -1481,8 +1470,7 @@ private:
 		if (!is_forced_rollback(trx)
 		    && disable
 		    && is_started(trx)
-		    && !trx_is_autocommit_non_locking(trx)
-		    && !is_async_rollback(trx)) {
+		    && !trx_is_autocommit_non_locking(trx)) {
 
 			ut_ad(trx->killed_by == 0);
 
@@ -1548,7 +1536,7 @@ private:
 
 		while (is_forced_rollback(trx)) {
 
-			if (is_async_rollback(trx) || !is_started(trx)) {
+			if (!is_started(trx)) {
 
 				return;
 			}

@@ -269,14 +269,15 @@ table_replication_applier_status_by_worker.cc
 table_replication_group_member_stats.cc
 )
 
-MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES} STORAGE_ENGINE DEFAULT STATIC_ONLY NOT_FOR_EMBEDDED)
+MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES} STORAGE_ENGINE MANDATORY STATIC_ONLY NOT_FOR_EMBEDDED)
 IF(WITH_PERFSCHEMA_STORAGE_ENGINE AND WITH_UNIT_TESTS)
   ENABLE_TESTING()
   ADD_SUBDIRECTORY(unittest)
 ENDIF()
 
-# Note: there is no DISABLE_PSI_THREAD option,
-# because the thread instrumentation is not optional
+# Only disable threads when building without *any* instrumentation,
+# as other instrumentations have a dependency on threads.
+OPTION(DISABLE_PSI_THREAD "Exclude the performance schema thread instrumentation" OFF)
 
 OPTION(DISABLE_PSI_MUTEX "Exclude the performance schema mutex instrumentation" OFF)
 OPTION(DISABLE_PSI_RWLOCK "Exclude the performance schema rwlock instrumentation" OFF)
@@ -293,6 +294,8 @@ OPTION(DISABLE_PSI_STATEMENT_DIGEST "Exclude the performance schema statement di
 OPTION(DISABLE_PSI_METADATA "Exclude the performance schema metadata instrumentation" OFF)
 OPTION(DISABLE_PSI_MEMORY "Exclude the performance schema memory instrumentation" OFF)
 OPTION(DISABLE_PSI_TRANSACTION "Exclude the performance schema transaction instrumentation" OFF)
+
+MARK_AS_ADVANCED(DISABLE_PSI_THREAD)
 
 MARK_AS_ADVANCED(DISABLE_PSI_MUTEX)
 MARK_AS_ADVANCED(DISABLE_PSI_RWLOCK)

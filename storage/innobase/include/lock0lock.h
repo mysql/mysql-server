@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -899,25 +899,6 @@ lock_trx_has_rec_x_lock(
 	const buf_block_t*	block,	/*!< in: buffer block of the record */
 	ulint			heap_no)/*!< in: record heap number */
 	__attribute__((warn_unused_result));
-/*********************************************************************//**
-Checks if some other transaction has a lock request in the queue.
-@return lock or NULL */
-const lock_t*
-lock_rec_other_has_expl_req(
-/*========================*/
-	lock_mode		mode,	/*!< in: LOCK_S or LOCK_X */
-	ulint			gap,	/*!< in: LOCK_GAP if also gap
-					locks are taken into account,
-					or 0 if not */
-	ulint			wait,	/*!< in: LOCK_WAIT if also
-					waiting locks are taken into
-					account, or 0 if not */
-	const buf_block_t*	block,	/*!< in: buffer block containing
-					the record */
-	ulint			heap_no,/*!< in: heap number of the record */
-	const trx_t*		trx);	/*!< in: transaction, or NULL if
-					requests by all transactions
-					are taken into account */
 #endif /* UNIV_DEBUG */
 
 /**
@@ -993,6 +974,10 @@ typedef ib_mutex_t LockMutex;
 
 /** The lock system struct */
 struct lock_sys_t{
+	char		pad1[CACHE_LINE_SIZE];	/*!< padding to prevent other
+						memory update hotspots from
+						residing on the same memory
+						cache line */
 	LockMutex	mutex;			/*!< Mutex protecting the
 						locks */
 	hash_table_t*	rec_hash;		/*!< hash table of the record
@@ -1001,6 +986,8 @@ struct lock_sys_t{
 						lock */
 	hash_table_t*	prdt_page_hash;		/*!< hash table of the page
 						lock */
+
+	char		pad2[CACHE_LINE_SIZE];	/*!< Padding */
 	LockMutex	wait_mutex;		/*!< Mutex protecting the
 						next two fields */
 	srv_slot_t*	waiting_threads;	/*!< Array  of user threads

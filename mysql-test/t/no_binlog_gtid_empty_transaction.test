@@ -1,0 +1,60 @@
+# ==== Purpose ====
+#
+# Verify that gtid_next with empty transaction works fine
+# inside/outside stored procedure when binlog is disabled.
+#
+# ==== References ====
+#
+# BUG#19774317 GTID_NEXT WITH EMPTY TRANSACTIONS DOES NOT WORK INSIDE STORED PROCEDURES
+# mysql-test/suite/rpl/t/rpl_gtid_empty_transaction.test
+
+# Test is not required to run against embedded server
+--source include/not_embedded.inc
+# Should be tested against "binlog disabled" server
+--source include/not_log_bin.inc
+--source include/gtid_utils.inc
+
+# Clean gtid_executed so that test can execute after other tests
+RESET MASTER;
+
+--source include/gtid_step_reset.inc
+eval SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+COMMIT;
+SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
+
+# Verify exactly one GTID was generated
+--let $gtid_step_count= 1
+--let $gtid_step_only_count= 1
+--source include/gtid_step_assert.inc
+
+CREATE TABLE t1 (a INT);
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+  START TRANSACTION;
+  COMMIT;
+  SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:3';
+  START TRANSACTION;
+  COMMIT;
+END|
+
+delimiter ;|
+
+--source include/gtid_step_reset.inc
+CALL p1();
+SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
+
+# Verify exactly two GTIDs were generated
+--let $gtid_step_count= 2
+--let $gtid_step_only_count= 1
+--source include/gtid_step_assert.inc
+--let $gtid_step_only_count= 0
+
+DROP TABLE t1;
+DROP PROCEDURE IF EXISTS p1;
+
+# Cleanup
+--source include/gtid_utils_end.inc

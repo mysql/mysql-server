@@ -174,4 +174,16 @@ Warning	1287	Using GRANT statement to modify existing user's properties other th
 current_user()
 wl7699_sha256@%
 drop user wl7699_sha256;
+#
+# Bug#21108296 : --SSL-CIPHER OPTION CAUSES SSL INITIALIZATION FAILURE
+#
+# Restarting mysqld with :
+#       --auto_generate_certs=ON
+#       --ssl-cipher=DHE-RSA-AES256-SHA
+#       --skip-sha256_password_auto_generate_rsa_keys
+# Restart completed.
+# Search for : Auto generated SSL certificates are placed in data directory.
+# Search completed.
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-SHA
 # Clean-up

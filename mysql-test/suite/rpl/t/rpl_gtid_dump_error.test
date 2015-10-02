@@ -14,6 +14,7 @@
 # To fix it, master will check if all gtids are in the set of (gtid_executed,
 # owned_gtids).
 ################################################################################
+--source include/not_group_replication_plugin.inc
 --source include/have_debug_sync.inc
 --source include/have_gtid.inc
 --source include/have_binlog_format_row.inc

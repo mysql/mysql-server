@@ -325,13 +325,15 @@ bool init_read_record(READ_RECORD *info,THD *thd,
   }
 
 skip_caching:
-  /* 
+  /*
     Do condition pushdown for UPDATE/DELETE.
-    TODO: Remove this from here as it causes two condition pushdown calls 
+    TODO: Remove this from here as it causes two condition pushdown calls
     when we're running a SELECT and the condition cannot be pushed down.
+    Some temporary tables do not have a TABLE_LIST object, and it is never
+    needed to push down conditions (ECP) for such tables.
   */
   if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) &&
-      qep_tab && qep_tab->condition() &&
+      qep_tab && qep_tab->condition() && table->pos_in_table_list &&
       (qep_tab->condition()->used_tables() & table->pos_in_table_list->map()) &&
       !table->file->pushed_cond)
     table->file->cond_push(qep_tab->condition());
@@ -401,6 +403,7 @@ static int rr_quick(READ_RECORD *info)
       break;
     }
   }
+
   return tmp;
 }
 
@@ -786,7 +789,7 @@ static int rr_from_cache(READ_RECORD *info)
 	record_pos[info->error_offset]=1;
 	shortstore(record_pos,error);
 	DBUG_PRINT("error",("Got error: %d:%d when reading row",
-			    my_errno, (int) error));
+			    my_errno(), (int) error));
       }
       else
 	record_pos[info->error_offset]=0;

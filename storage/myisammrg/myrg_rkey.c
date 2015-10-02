@@ -1,5 +1,4 @@
-/* Copyright (c) 2000-2003, 2005-2008 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,7 +47,7 @@ int myrg_rkey(MYRG_INFO *info,uchar *buf,int inx, const uchar *key,
   DBUG_ENTER("myrg_rkey");
 
   if (_myrg_init_queue(info,inx,search_flag))
-    DBUG_RETURN(my_errno);
+    DBUG_RETURN(my_errno());
 
   for (table=info->open_tables ; table != info->end_table ; table++)
   {

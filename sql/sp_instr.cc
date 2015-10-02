@@ -16,6 +16,7 @@
 #include "my_global.h"    // NO_EMBEDDED_ACCESS_CHECKS
 #include "sp_instr.h"
 #include "item.h"         // Item_splocal
+#include "log.h"          // query_logger
 #include "opt_trace.h"    // opt_trace_disable_etc
 #include "probes_mysql.h" // MYSQL_QUERY_EXEC_START
 #include "sp_head.h"      // sp_head
@@ -443,6 +444,13 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
   thd->get_transaction()->add_unsafe_rollback_flags(
     Transaction_ctx::STMT,
     parent_unsafe_rollback_flags);
+
+  if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
+  {
+    ((Transaction_state_tracker *)
+     thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER))
+      ->add_trx_state_from_thd(thd);
+  }
 
   /* Restore original lex. */
 

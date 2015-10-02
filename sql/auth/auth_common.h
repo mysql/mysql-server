@@ -560,9 +560,9 @@ int check_change_password(THD *thd, const char *host, const char *user,
                           const char *password, size_t password_len);
 bool change_password(THD *thd, const char *host, const char *user,
                      char *password);
-bool mysql_create_user(THD *thd, List <LEX_USER> &list);
-bool mysql_alter_user(THD *thd, List <LEX_USER> &list);
-bool mysql_drop_user(THD *thd, List <LEX_USER> &list);
+bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists);
+bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists);
+bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists);
 bool mysql_rename_user(THD *thd, List <LEX_USER> &list);
 
 bool set_and_validate_user_attributes(THD *thd,
@@ -645,6 +645,10 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
 bool check_fk_parent_table_access(THD *thd,
                                   HA_CREATE_INFO *create_info,
                                   Alter_info *alter_info);
+bool check_readonly(THD *thd, bool err_if_readonly);
+void err_readonly(THD *thd);
+
+bool is_secure_transport(int vio_type);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 

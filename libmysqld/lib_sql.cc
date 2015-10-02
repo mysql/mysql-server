@@ -114,7 +114,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   THD *thd=(THD *) mysql->thd;
   NET *net= &mysql->net;
   my_bool stmt_skip= stmt ? stmt->state != MYSQL_STMT_INIT_DONE : FALSE;
-  COM_DATA com_data;
+  union COM_DATA com_data;
 
   if (!thd)
   {
@@ -167,12 +167,9 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
                                               (uchar *) arg, arg_length);
   result= dispatch_command(thd, &com_data, command);
   thd->cur_data= 0;
-  thd->mysys_var= NULL;
 
   if (!skip_check)
     result= thd->is_error() ? -1 : 0;
-
-  thd->mysys_var= 0;
 
 #if defined(ENABLED_PROFILING)
   thd->profiling.finish_current_query();
@@ -561,11 +558,8 @@ int init_embedded_server(int argc, char **argv, char **groups)
   system_charset_info= &my_charset_utf8_general_ci;
   sys_var_init();
 
-  int ho_error= handle_early_options();
-  if (ho_error != 0)
+  if (handle_early_options() != 0)
   {
-    buffered_logs.print();
-    buffered_logs.cleanup();
     return 1;
   }
 
@@ -733,7 +727,6 @@ void *create_embedded_thd(int client_flag)
   thd->data_tail= &thd->first_data;
   thd->get_protocol_classic()->wipe_net();
   Global_THD_manager::get_instance()->add_thd(thd);
-  thd->mysys_var= 0;
   return thd;
 err:
   delete(thd);
@@ -1373,4 +1366,10 @@ bool Protocol_classic::net_store_data(const uchar *from, size_t length,
   ++next_field;
   ++next_mysql_field;
   return false;
+}
+
+bool Protocol_classic::connection_alive()
+{
+  //for embedded protocol connection is always on
+  return true;
 }

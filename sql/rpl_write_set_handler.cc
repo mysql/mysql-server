@@ -259,6 +259,11 @@ void add_pke(TABLE *table, THD *thd)
   {
     for (uint key_number=0; key_number < table->s->keys; key_number++)
     {
+      // Skip non unique or null key.
+      if (!((table->key_info[key_number].flags & (HA_NOSAME | HA_NULL_PART_KEY))
+            == HA_NOSAME))
+        continue;
+
       std::string unhashed_string;
       if (key_number == 0)
         unhashed_string.append("P");

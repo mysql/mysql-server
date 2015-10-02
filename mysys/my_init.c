@@ -477,14 +477,13 @@ static PSI_rwlock_info all_mysys_rwlocks[]=
 };
 
 PSI_cond_key key_IO_CACHE_SHARE_cond,
-  key_IO_CACHE_SHARE_cond_writer, key_my_thread_var_suspend,
+  key_IO_CACHE_SHARE_cond_writer,
   key_THR_COND_threads;
 
 static PSI_cond_info all_mysys_conds[]=
 {
   { &key_IO_CACHE_SHARE_cond, "IO_CACHE_SHARE::cond", 0},
   { &key_IO_CACHE_SHARE_cond_writer, "IO_CACHE_SHARE::cond_writer", 0},
-  { &key_my_thread_var_suspend, "my_thread_var::suspend", 0},
   { &key_THR_COND_threads, "THR_COND_threads", 0}
 };
 
@@ -516,7 +515,6 @@ static PSI_memory_info all_mysys_memory[]=
 #endif
 
   { &key_memory_max_alloca, "max_alloca", 0},
-  { &key_memory_array_buffer, "array_buffer", 0},
   { &key_memory_charset_file, "charset_file", 0},
   { &key_memory_charset_loader, "charset_loader", 0},
   { &key_memory_lf_node, "lf_node", 0},

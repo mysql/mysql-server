@@ -172,7 +172,8 @@ table_events_transactions_current::m_share=
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 THR_LOCK table_events_transactions_history::m_table_lock;
@@ -189,7 +190,8 @@ table_events_transactions_history::m_share=
   sizeof(pos_events_transactions_history), /* ref length */
   &m_table_lock,
   &table_events_transactions_current::m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 THR_LOCK table_events_transactions_history_long::m_table_lock;
@@ -206,7 +208,8 @@ table_events_transactions_history_long::m_share=
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &table_events_transactions_current::m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 table_events_transactions_common::table_events_transactions_common
@@ -223,6 +226,7 @@ void table_events_transactions_common::make_row(PFS_events_transactions *transac
 {
   const char *base;
   const char *safe_source_file;
+  ulonglong timer_end;
 
   m_row_exists= false;
 
@@ -237,7 +241,16 @@ void table_events_transactions_common::make_row(PFS_events_transactions *transac
   m_row.m_nesting_event_id= transaction->m_nesting_event_id;
   m_row.m_nesting_event_type= transaction->m_nesting_event_type;
 
-  m_normalizer->to_pico(transaction->m_timer_start, transaction->m_timer_end,
+  if (m_row.m_end_event_id == 0)
+  {
+    timer_end= get_timer_raw_value(transaction_timer);
+  }
+  else
+  {
+    timer_end= transaction->m_timer_end;
+  }
+
+  m_normalizer->to_pico(transaction->m_timer_start, timer_end,
                         &m_row.m_timer_start, &m_row.m_timer_end, &m_row.m_timer_wait);
   m_row.m_name= klass->m_name;
   m_row.m_name_length= klass->m_name_length;

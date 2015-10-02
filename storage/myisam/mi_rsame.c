@@ -1,5 +1,4 @@
-/* Copyright (c) 2000, 2001, 2005-2007 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,17 +31,19 @@ int mi_rsame(MI_INFO *info, uchar *record, int inx)
 
   if (inx != -1 && ! mi_is_key_active(info->s->state.key_map, inx))
   {
-    DBUG_RETURN(my_errno=HA_ERR_WRONG_INDEX);
+    set_my_errno(HA_ERR_WRONG_INDEX);
+    DBUG_RETURN(HA_ERR_WRONG_INDEX);
   }
   if (info->lastpos == HA_OFFSET_ERROR || info->update & HA_STATE_DELETED)
   {
-    DBUG_RETURN(my_errno=HA_ERR_KEY_NOT_FOUND);	/* No current record */
+    set_my_errno(HA_ERR_KEY_NOT_FOUND);
+    DBUG_RETURN(HA_ERR_KEY_NOT_FOUND);	/* No current record */
   }
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
 
   /* Read row from data file */
   if (fast_mi_readinfo(info))
-    DBUG_RETURN(my_errno);
+    DBUG_RETURN(my_errno());
 
   if (inx >= 0)
   {
@@ -60,7 +61,7 @@ int mi_rsame(MI_INFO *info, uchar *record, int inx)
 
   if (!(*info->read_record)(info,info->lastpos,record))
     DBUG_RETURN(0);
-  if (my_errno == HA_ERR_RECORD_DELETED)
-    my_errno=HA_ERR_KEY_NOT_FOUND;
-  DBUG_RETURN(my_errno);
+  if (my_errno() == HA_ERR_RECORD_DELETED)
+    set_my_errno(HA_ERR_KEY_NOT_FOUND);
+  DBUG_RETURN(my_errno());
 } /* mi_rsame */

@@ -662,6 +662,15 @@ ID	FOR_COL_NAME	REF_COL_NAME	POS
 DROP TABLE tt, t1o, sys_tables, sys_indexes, sys_foreign;
 CREATE TABLE t (t TEXT, FULLTEXT(t)) ENGINE=InnoDB;
 DROP INDEX t ON t;
+SELECT SUBSTRING(name, LOCATE('_', name) - 3, 5) AS prefix, name
+FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE name LIKE '%FTS_%' ORDER BY 1, 2;
+prefix	name
+FTS_0	test/FTS_AUX_BEING_DELETED
+FTS_0	test/FTS_AUX_BEING_DELETED_CACHE
+FTS_0	test/FTS_AUX_CONFIG
+FTS_0	test/FTS_AUX_DELETED
+FTS_0	test/FTS_AUX_DELETED_CACHE
 SELECT sc.pos, sc.NAME FROM information_schema.innodb_sys_columns sc
 INNER JOIN information_schema.innodb_sys_tables st
 ON sc.TABLE_ID=st.TABLE_ID
@@ -670,14 +679,20 @@ pos	NAME
 0	t
 1	FTS_DOC_ID
 ALTER TABLE t ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB presently supports one FULLTEXT index creation at a time. Try ALGORITHM=COPY.
-ALTER TABLE t ROW_FORMAT=REDUNDANT;
+SELECT SUBSTRING(name, LOCATE('_', name) - 3, 5) AS prefix, name
+FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE name LIKE '%FTS_%' ORDER BY 1, 2;
+prefix	name
+ALTER TABLE t ADD FULLTEXT INDEX(t);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 SELECT sc.pos, sc.NAME FROM information_schema.innodb_sys_columns sc
 INNER JOIN information_schema.innodb_sys_tables st
 ON sc.TABLE_ID=st.TABLE_ID
 WHERE st.NAME='test/t';
 pos	NAME
 0	t
+1	FTS_DOC_ID
 DROP TABLE t;
 #
 # Bug #19465984 INNODB DATA DICTIONARY IS NOT UPDATED WHILE

@@ -2167,7 +2167,8 @@ TEST(ut0crc32, perf)
 {
 	init();
 
-	static const size_t	n_megabytes_to_checksum = 128;
+	// Change to e.g. 128 and build optimized when doing perf analysis:
+	static const size_t	n_megabytes_to_checksum = 1;
 
 	static const size_t	n_bytes = n_megabytes_to_checksum * 1024 * 1024;
 

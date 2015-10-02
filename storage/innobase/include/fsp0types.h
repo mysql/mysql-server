@@ -286,31 +286,31 @@ it is for a single client and should be deleted upon startup if it exists. */
 
 /** Bit mask of the POST_ANTELOPE field */
 #define FSP_FLAGS_MASK_POST_ANTELOPE				\
-		((~(~0 << FSP_FLAGS_WIDTH_POST_ANTELOPE))	\
+		((~(~0U << FSP_FLAGS_WIDTH_POST_ANTELOPE))	\
 		<< FSP_FLAGS_POS_POST_ANTELOPE)
 /** Bit mask of the ZIP_SSIZE field */
 #define FSP_FLAGS_MASK_ZIP_SSIZE				\
-		((~(~0 << FSP_FLAGS_WIDTH_ZIP_SSIZE))		\
+		((~(~0U << FSP_FLAGS_WIDTH_ZIP_SSIZE))		\
 		<< FSP_FLAGS_POS_ZIP_SSIZE)
 /** Bit mask of the ATOMIC_BLOBS field */
 #define FSP_FLAGS_MASK_ATOMIC_BLOBS				\
-		((~(~0 << FSP_FLAGS_WIDTH_ATOMIC_BLOBS))	\
+		((~(~0U << FSP_FLAGS_WIDTH_ATOMIC_BLOBS))	\
 		<< FSP_FLAGS_POS_ATOMIC_BLOBS)
 /** Bit mask of the PAGE_SSIZE field */
 #define FSP_FLAGS_MASK_PAGE_SSIZE				\
-		((~(~0 << FSP_FLAGS_WIDTH_PAGE_SSIZE))		\
+		((~(~0U << FSP_FLAGS_WIDTH_PAGE_SSIZE))		\
 		<< FSP_FLAGS_POS_PAGE_SSIZE)
 /** Bit mask of the DATA_DIR field */
 #define FSP_FLAGS_MASK_DATA_DIR					\
-		((~(~0 << FSP_FLAGS_WIDTH_DATA_DIR))		\
+		((~(~0U << FSP_FLAGS_WIDTH_DATA_DIR))		\
 		<< FSP_FLAGS_POS_DATA_DIR)
 /** Bit mask of the SHARED field */
 #define FSP_FLAGS_MASK_SHARED					\
-		((~(~0 << FSP_FLAGS_WIDTH_SHARED))		\
+		((~(~0U << FSP_FLAGS_WIDTH_SHARED))		\
 		<< FSP_FLAGS_POS_SHARED)
 /** Bit mask of the TEMPORARY field */
 #define FSP_FLAGS_MASK_TEMPORARY				\
-		((~(~0 << FSP_FLAGS_WIDTH_TEMPORARY))		\
+		((~(~0U << FSP_FLAGS_WIDTH_TEMPORARY))		\
 		<< FSP_FLAGS_POS_TEMPORARY)
 
 /** Return the value of the POST_ANTELOPE field */

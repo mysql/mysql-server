@@ -97,7 +97,8 @@ table_replication_applier_status_by_worker::m_share=
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 PFS_engine_table* table_replication_applier_status_by_worker::create(void)
@@ -108,7 +109,8 @@ PFS_engine_table* table_replication_applier_status_by_worker::create(void)
 table_replication_applier_status_by_worker
   ::table_replication_applier_status_by_worker()
   : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(), m_next_pos()
+    m_row_exists(false), m_pos(), m_next_pos(),
+    m_applier_pos(0), m_applier_next_pos(0)
 {}
 
 table_replication_applier_status_by_worker
@@ -119,6 +121,8 @@ void table_replication_applier_status_by_worker::reset_position(void)
 {
   m_pos.reset();
   m_next_pos.reset();
+  m_applier_pos.m_index=0;
+  m_applier_next_pos.m_index=0;
 }
 
 ha_rows table_replication_applier_status_by_worker::get_row_count()
@@ -126,7 +130,7 @@ ha_rows table_replication_applier_status_by_worker::get_row_count()
   /*
     Return an estimate, number of master info's multipled by worker threads
   */
- return msr_map.get_max_channels()*32;
+ return channel_map.get_max_channels()*32;
 }
 
 
@@ -134,63 +138,183 @@ int table_replication_applier_status_by_worker::rnd_next(void)
 {
   Slave_worker *worker;
   Master_info *mi;
+  int res= HA_ERR_END_OF_FILE;
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.rdlock();
+
+  /*
+    For each SQL Thread in all channels get the respective Master_info and
+    construct a row to display its status in
+    'replication_applier_status_by_worker' table in case of single threaded
+    slave mode.
+  */
+  for(m_applier_pos.set_at(&m_applier_next_pos);
+      m_applier_pos.m_index < channel_map.get_max_channels();
+      m_applier_pos.next())
+  {
+    mi= channel_map.get_mi_at_pos(m_applier_pos.m_index);
+
+    if (mi && mi->host[0] && mi->rli && mi->rli->get_worker_count()==0)
+    {
+      make_row(mi);
+      m_applier_next_pos.set_after(&m_applier_pos);
+
+      channel_map.unlock();
+      return 0;
+    }
+  }
 
   for (m_pos.set_at(&m_next_pos);
-       m_pos.has_more_channels(msr_map.get_max_channels());
+       m_pos.has_more_channels(channel_map.get_max_channels()) && res != 0;
        m_pos.next_channel())
   {
-    mi= msr_map.get_mi_at_pos(m_pos.m_index_1);
+    mi= channel_map.get_mi_at_pos(m_pos.m_index_1);
 
-    if (mi && mi->host[0] )
+    if (mi && mi->host[0])
     {
       worker= mi->rli->get_worker(m_pos.m_index_2);
       if (worker)
       {
         make_row(worker);
         m_next_pos.set_after(&m_pos);
-        mysql_mutex_unlock(&LOCK_msr_map);
-        return 0;
+        res= 0;
       }
     }
   }
 
-  mysql_mutex_unlock(&LOCK_msr_map);
-  return HA_ERR_END_OF_FILE;
+  channel_map.unlock();
+  return res;
 }
 
 int table_replication_applier_status_by_worker::rnd_pos(const void *pos)
 {
   Slave_worker *worker;
   Master_info *mi;
+  int res= HA_ERR_RECORD_DELETED;
 
   set_position(pos);
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.rdlock();
 
-  mi= msr_map.get_mi_at_pos(m_pos.m_index_1);
+  mi= channel_map.get_mi_at_pos(m_pos.m_index_1);
 
   if (!mi || !mi->rli || !mi->host[0])
-  {
-    mysql_mutex_unlock(&LOCK_msr_map);
-    return HA_ERR_RECORD_DELETED;
-  }
+    goto end;
 
   DBUG_ASSERT(m_pos.m_index_1 < mi->rli->get_worker_count());
-
+  /*
+    Display SQL Thread's status only in the case of single threaded mode.
+  */
+  if (mi->rli->get_worker_count() == 0)
+  {
+    make_row(mi);
+    res= 0;
+    goto end;
+  }
   worker= mi->rli->get_worker(m_pos.m_index_2);
 
-  if(worker != NULL)
+  if (worker != NULL)
   {
     make_row(worker);
-    mysql_mutex_unlock(&LOCK_msr_map);
-    return 0;
+    res= 0;
   }
 
-  mysql_mutex_unlock(&LOCK_msr_map);
+end:
+  channel_map.unlock();
+  return res;
+}
 
-  return HA_ERR_RECORD_DELETED;
+/**
+   Function to display SQL Thread's status as part of
+   'replication_applier_status_by_worker' in single threaded slave mode.
+
+   @param[in] Master_info
+
+   @retval void
+*/
+void table_replication_applier_status_by_worker::make_row(Master_info *mi)
+{
+  m_row_exists= false;
+
+  m_row.worker_id= 0;
+
+  m_row.thread_id= 0;
+
+  DBUG_ASSERT(mi != NULL);
+  DBUG_ASSERT(mi->rli != NULL);
+
+  mysql_mutex_lock(&mi->rli->data_lock);
+
+  m_row.channel_name_length= strlen(mi->get_channel());
+  memcpy(m_row.channel_name, (char*)mi->get_channel(), m_row.channel_name_length);
+
+  if (mi->rli->slave_running)
+  {
+    PSI_thread *psi= thd_get_psi(mi->rli->info_thd);
+    PFS_thread *pfs= reinterpret_cast<PFS_thread *> (psi);
+    if(pfs)
+    {
+      m_row.thread_id= pfs->m_thread_internal_id;
+      m_row.thread_id_is_null= false;
+    }
+    else
+      m_row.thread_id_is_null= true;
+  }
+  else
+    m_row.thread_id_is_null= true;
+
+  if (mi->rli->slave_running)
+    m_row.service_state= PS_RPL_YES;
+  else
+    m_row.service_state= PS_RPL_NO;
+
+  if (mi->rli->currently_executing_gtid.type == GTID_GROUP)
+  {
+    global_sid_lock->rdlock();
+    m_row.last_seen_transaction_length=
+      mi->rli->currently_executing_gtid.to_string(global_sid_map,
+                                            m_row.last_seen_transaction);
+    global_sid_lock->unlock();
+  }
+  else if (mi->rli->currently_executing_gtid.type == ANONYMOUS_GROUP)
+  {
+    m_row.last_seen_transaction_length=
+      mi->rli->currently_executing_gtid.to_string((rpl_sid *)NULL,
+                                            m_row.last_seen_transaction);
+  }
+  else
+  {
+    /*
+      For SQL thread currently_executing_gtid, type is set to
+      AUTOMATIC_GROUP when the SQL thread is not executing any
+      transaction.  For this case, the field should be empty.
+    */
+    DBUG_ASSERT(mi->rli->currently_executing_gtid.type == AUTOMATIC_GROUP);
+    m_row.last_seen_transaction_length= 0;
+    memcpy(m_row.last_seen_transaction, "", 1);
+  }
+
+  mysql_mutex_lock(&mi->rli->err_lock);
+
+  m_row.last_error_number= (long int) mi->rli->last_error().number;
+  m_row.last_error_message_length= 0;
+  m_row.last_error_timestamp= 0;
+
+  /** if error, set error message and timestamp */
+  if (m_row.last_error_number)
+  {
+    char *temp_store= (char*) mi->rli->last_error().message;
+    m_row.last_error_message_length= strlen(temp_store);
+    memcpy(m_row.last_error_message, temp_store,
+           m_row.last_error_message_length);
+
+    /** time in millisecond since epoch */
+    m_row.last_error_timestamp= (ulonglong)mi->rli->last_error().skr*1000000;
+  }
+
+  mysql_mutex_unlock(&mi->rli->err_lock);
+  mysql_mutex_unlock(&mi->rli->data_lock);
+  m_row_exists= true;
 }
 
 void table_replication_applier_status_by_worker::make_row(Slave_worker *w)

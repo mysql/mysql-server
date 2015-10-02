@@ -1,0 +1,145 @@
+/*first*/SELECT * FROM information_schema.processlist;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+<ID>	root	<HOST_NAME>	test	Query	<TIME>	executing	/*first*/SELECT * FROM information_schema.processlist
+##########################################
+# Run plugin
+##########################################
+INSTALL PLUGIN test_sql_processlist SONAME 'TEST_SQL_PROCESSLIST';
+##########################################
+# Plugin log
+##########################################
+========================================================================
+Test in a server thread
+Opening Session 1
+-----------------------------------------------------------------
+Session 1 : 
+-----------------------------------------------------------------
+/*Session_1*/ SELECT user,db,command,info FROM information_schema.processlist WHERE info LIKE 'PLUGIN%' order by id
+num_cols : 4
+nb rows  : 1
+-----------------------------------------------------------------
+user VARCHAR(15)	db VARCHAR(15)	command VARCHAR(15)	info BLOB(252)	
+root			[NULL]			Query			PLUGIN: /*Session_1*/ SELECT user,db,command,info FROM information_schema.processlist WHERE info LIKE 'PLUGIN%' order by id			
+
+affected rows : 0
+server status : 34
+warn count    : 0
+
+Opening Session 2
+-----------------------------------------------------------------
+Session 1 : 
+-----------------------------------------------------------------
+/*Session_1*/ SELECT user,db,command,info FROM information_schema.processlist WHERE info LIKE 'PLUGIN%' order by id
+num_cols : 4
+nb rows  : 2
+-----------------------------------------------------------------
+user VARCHAR(15)	db VARCHAR(15)	command VARCHAR(15)	info BLOB(252)	
+root			[NULL]			Query			PLUGIN: /*Session_1*/ SELECT user,db,command,info FROM information_schema.processlist WHERE info LIKE 'PLUGIN%' order by id			
+root			[NULL]			Sleep			PLUGIN			
+
+affected rows : 0
+server status : 34
+warn count    : 0
+-----------------------------------------------------------------
+Session 2 : 
+-----------------------------------------------------------------
+/*Session_2*/ SELECT user,db,command,info FROM information_schema.processlist WHERE info LIKE 'PLUGIN%' order by id
+num_cols : 4
+nb rows  : 2
+-----------------------------------------------------------------
+user VARCHAR(15)	db VARCHAR(15)	command VARCHAR(15)	info BLOB(252)	
+root			[NULL]			Sleep			PLUGIN			
+root			[NULL]			Query			PLUGIN: /*Session_2*/ SELECT user,db,command,info FROM information_schema.processlist WHERE info LIKE 'PLUGIN%' order by id			
+
+affected rows : 0
+server status : 34
+warn count    : 0
+
+Close Session 1
+-----------------------------------------------------------------
+Session 2 : 
+-----------------------------------------------------------------
+/*Session_2*/ SELECT user,db,command,info FROM information_schema.processlist WHERE info LIKE 'PLUGIN%' order by id
+num_cols : 4
+nb rows  : 1
+-----------------------------------------------------------------
+user VARCHAR(15)	db VARCHAR(15)	command VARCHAR(15)	info BLOB(252)	
+root			[NULL]			Query			PLUGIN: /*Session_2*/ SELECT user,db,command,info FROM information_schema.processlist WHERE info LIKE 'PLUGIN%' order by id			
+
+affected rows : 0
+server status : 34
+warn count    : 0
+
+Close Session 2
+Follows threaded run
+========================================================================
+init thread
+Opening Session 1
+-----------------------------------------------------------------
+Session 1 : 
+-----------------------------------------------------------------
+/*Session_1*/ SELECT user,db,command,info FROM information_schema.processlist WHERE info LIKE 'PLUGIN%' order by id
+num_cols : 4
+nb rows  : 1
+-----------------------------------------------------------------
+user VARCHAR(15)	db VARCHAR(15)	command VARCHAR(15)	info BLOB(252)	
+root			[NULL]			Query			PLUGIN: /*Session_1*/ SELECT user,db,command,info FROM information_schema.processlist WHERE info LIKE 'PLUGIN%' order by id			
+
+affected rows : 0
+server status : 34
+warn count    : 0
+
+Opening Session 2
+-----------------------------------------------------------------
+Session 1 : 
+-----------------------------------------------------------------
+/*Session_1*/ SELECT user,db,command,info FROM information_schema.processlist WHERE info LIKE 'PLUGIN%' order by id
+num_cols : 4
+nb rows  : 2
+-----------------------------------------------------------------
+user VARCHAR(15)	db VARCHAR(15)	command VARCHAR(15)	info BLOB(252)	
+root			[NULL]			Query			PLUGIN: /*Session_1*/ SELECT user,db,command,info FROM information_schema.processlist WHERE info LIKE 'PLUGIN%' order by id			
+root			[NULL]			Sleep			PLUGIN			
+
+affected rows : 0
+server status : 34
+warn count    : 0
+-----------------------------------------------------------------
+Session 2 : 
+-----------------------------------------------------------------
+/*Session_2*/ SELECT user,db,command,info FROM information_schema.processlist WHERE info LIKE 'PLUGIN%' order by id
+num_cols : 4
+nb rows  : 2
+-----------------------------------------------------------------
+user VARCHAR(15)	db VARCHAR(15)	command VARCHAR(15)	info BLOB(252)	
+root			[NULL]			Sleep			PLUGIN			
+root			[NULL]			Query			PLUGIN: /*Session_2*/ SELECT user,db,command,info FROM information_schema.processlist WHERE info LIKE 'PLUGIN%' order by id			
+
+affected rows : 0
+server status : 34
+warn count    : 0
+
+Close Session 1
+-----------------------------------------------------------------
+Session 2 : 
+-----------------------------------------------------------------
+/*Session_2*/ SELECT user,db,command,info FROM information_schema.processlist WHERE info LIKE 'PLUGIN%' order by id
+num_cols : 4
+nb rows  : 1
+-----------------------------------------------------------------
+user VARCHAR(15)	db VARCHAR(15)	command VARCHAR(15)	info BLOB(252)	
+root			[NULL]			Query			PLUGIN: /*Session_2*/ SELECT user,db,command,info FROM information_schema.processlist WHERE info LIKE 'PLUGIN%' order by id			
+
+affected rows : 0
+server status : 34
+warn count    : 0
+
+Close Session 2
+deinit thread
+##########################################
+# Stop plugin
+##########################################
+UNINSTALL PLUGIN test_sql_processlist;
+/*second*/SELECT * FROM information_schema.processlist;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+<ID>	root	<HOST_NAME>	test	Query	<TIME>	executing	/*second*/SELECT * FROM information_schema.processlist

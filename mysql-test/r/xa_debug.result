@@ -74,3 +74,18 @@ XA START 'xid1';
 ERROR XAE08: XAER_DUPID: The XID already exists
 XA COMMIT 'xid1';
 DROP TABLE t1;
+#
+# Bug#20538956 - XA PREPARE ERROR BRANCH LEAVES THE TRANSACTION IN SCREWED STATE
+#
+CREATE TABLE t1 (a INT);
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+SET @@session.debug = '+d,simulate_xa_failure_prepare';
+XA PREPARE 'xid1';
+ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
+SET @@session.debug = '-d,simulate_xa_failure_prepare';
+XA ROLLBACK 'xid1';
+ERROR XAE04: XAER_NOTA: Unknown XID
+XA START 'trx_another_one';
+DROP TABLE t1;

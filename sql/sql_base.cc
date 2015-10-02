@@ -52,6 +52,7 @@
 #include "table_cache.h" // Table_cache_manager, Table_cache
 #include "log.h"
 #include "binlog.h"
+#include "rpl_rli.h"    //Relay_log_information
 
 #include "pfs_table_provider.h"
 #include "mysql/psi/mysql_table.h"
@@ -222,6 +223,8 @@ bool Strict_error_handler::handle_condition(THD *thd,
   case ER_DATETIME_FUNCTION_OVERFLOW:
   case ER_WARN_TOO_FEW_RECORDS:
   case ER_INVALID_ARGUMENT_FOR_LOGARITHM:
+  case ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE:
+  case ER_INVALID_JSON_VALUE_FOR_CAST:
   case ER_WARN_ALLOWED_PACKET_OVERFLOWED:
     if ((*level == Sql_condition::SL_WARNING) &&
         (!thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT)
@@ -394,19 +397,6 @@ static void init_tdc_psi_keys(void)
 }
 #endif /* HAVE_PSI_INTERFACE */
 
-static void modify_slave_open_temp_tables(THD *thd, int inc)
-{
-  if (thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER)
-  {
-    my_atomic_add32(&slave_open_temp_tables, inc);
-  }
-  else
-  {
-    slave_open_temp_tables += inc;
-  }
-}
-
-
 HASH table_def_cache;
 static TABLE_SHARE *oldest_unused_share, end_of_unused_share;
 static bool table_def_inited= false;
@@ -561,7 +551,8 @@ bool table_def_init(void)
 
   return my_hash_init(&table_def_cache, &my_charset_bin, table_def_size,
                       0, 0, table_def_key,
-                      (my_hash_free_key) table_def_free_entry, 0) != 0;
+                      (my_hash_free_key) table_def_free_entry, 0,
+                      key_memory_table_share) != 0;
 }
 
 
@@ -1069,8 +1060,8 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
       continue;
 
     /* Check if user has SELECT privilege for any column in the table */
-    table_list.db=         const_cast<char*>(share->db.str);
-    table_list.table_name= const_cast<char*>(share->table_name.str);
+    table_list.db=         share->db.str;
+    table_list.table_name= share->table_name.str;
     table_list.grant.privilege=0;
 
     if (check_table_access(thd,SELECT_ACL,&table_list, TRUE, 1, TRUE))
@@ -1344,7 +1335,10 @@ static void mark_temp_tables_as_free_for_reuse(THD *thd)
   for (TABLE *table= thd->temporary_tables ; table ; table= table->next)
   {
     if ((table->query_id == thd->query_id) && ! table->open_by_handler)
+    {
       mark_tmp_table_for_reuse(table);
+      table->cleanup_gc_items(thd);
+    }
   }
 }
 
@@ -1573,6 +1567,7 @@ void close_thread_tables(THD *thd)
     {
       DBUG_ASSERT(table->file);
       table->file->extra(HA_EXTRA_DETACH_CHILDREN);
+      table->cleanup_gc_items(thd);
     }
   }
 
@@ -1711,7 +1706,7 @@ void close_thread_table(THD *thd, TABLE **table_ptr)
     /* Avoid having MERGE tables with attached children in unused_tables. */
     table->file->extra(HA_EXTRA_DETACH_CHILDREN);
     /* Free memory and reset for next loop. */
-    free_field_buffers_larger_than(table, MAX_TDC_BLOB_SIZE);
+    free_blob_buffers_and_reset(table, MAX_TDC_BLOB_SIZE);
     table->file->ha_reset();
   }
 
@@ -1751,7 +1746,7 @@ static inline uint  tmpkeyval(THD *thd, TABLE *table)
   creates one DROP TEMPORARY TABLE binlog event for each pseudo-thread.
 
   TODO: In future, we should have temporary_table= 0 and
-        modify_slave_open_temp_tables() at one place instead of repeating
+        slave_open_temp_tables.atomic_add() at one place instead of repeating
         it all across the function. An alternative would be to use
         close_temporary_table() instead of close_temporary() that maintains
         the correct invariant regarding empty list of temporary tables
@@ -1767,6 +1762,7 @@ bool close_temporary_tables(THD *thd)
   /* Assume thd->variables.option_bits has OPTION_QUOTE_SHOW_CREATE */
   bool was_quote_show= TRUE;
   bool error= 0;
+  int slave_closed_temp_tables= 0;
 
   if (!thd->temporary_tables)
     DBUG_RETURN(FALSE);
@@ -1788,11 +1784,15 @@ bool close_temporary_tables(THD *thd)
       tmp_next= t->next;
       mysql_lock_remove(thd, thd->lock, t);
       close_temporary(t, 1, 1);
+      slave_closed_temp_tables++;
     }
 
     thd->temporary_tables= 0;
     if (thd->slave_thread)
-      modify_slave_open_temp_tables(thd, -slave_open_temp_tables);
+    {
+      slave_open_temp_tables.atomic_add(-slave_closed_temp_tables);
+      thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(-slave_closed_temp_tables);
+    }
 
     DBUG_RETURN(FALSE);
   }
@@ -1922,6 +1922,7 @@ bool close_temporary_tables(THD *thd)
         next= table->next;
         mysql_lock_remove(thd, thd->lock, table);
         close_temporary(table, 1, 1);
+        slave_closed_temp_tables++;
       }
       thd->clear_error();
       const CHARSET_INFO *cs_save= thd->variables.character_set_client;
@@ -1999,6 +2000,7 @@ bool close_temporary_tables(THD *thd)
     {
       next= table->next;
       close_temporary(table, 1, 1);
+      slave_closed_temp_tables++;
     }
   }
   if (!was_quote_show)
@@ -2006,7 +2008,10 @@ bool close_temporary_tables(THD *thd)
 
   thd->temporary_tables=0;
   if (thd->slave_thread)
-    modify_slave_open_temp_tables(thd, -slave_open_temp_tables);
+  {
+    slave_open_temp_tables.atomic_add(-slave_closed_temp_tables);
+    thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(-slave_closed_temp_tables);
+  }
 
   DBUG_RETURN(error);
 }
@@ -2420,8 +2425,9 @@ void close_temporary_table(THD *thd, TABLE *table,
   if (thd->slave_thread)
   {
     /* natural invariant of temporary_tables */
-    DBUG_ASSERT(slave_open_temp_tables || !thd->temporary_tables);
-    modify_slave_open_temp_tables(thd, -1);
+    DBUG_ASSERT(thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_get() || !thd->temporary_tables);
+    slave_open_temp_tables.atomic_add(-1);
+    thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(-1);
   }
   close_temporary(table, free_share, delete_table);
   DBUG_VOID_RETURN;
@@ -3709,6 +3715,14 @@ Locked_tables_list::init_locked_tables(THD *thd)
       return TRUE;
     }
   }
+
+  if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
+  {
+    ((Transaction_state_tracker *)
+     thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER))
+      ->add_trx_state(thd, TX_LOCKED_TABLES);
+  }
+
   thd->enter_locked_tables_mode(LTM_LOCK_TABLES);
 
   return FALSE;
@@ -3750,6 +3764,13 @@ Locked_tables_list::unlock_locked_tables(THD *thd)
       table_list->table->pos_in_locked_tables= NULL;
     }
     thd->leave_locked_tables_mode();
+
+    if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
+    {
+      ((Transaction_state_tracker *)
+       thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER))
+        ->clear_trx_state(thd, TX_LOCKED_TABLES);
+    }
 
     DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
     close_thread_tables(thd);
@@ -4232,7 +4253,7 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
 
   /*
     If we are here, there was no fatal error (but error may be still
-    unitialized).
+    uninitialized).
   */
   if (unlikely(entry->file->implicit_emptied))
   {
@@ -4246,10 +4267,8 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
       error= temp_buf.append(".");
       append_identifier(thd, &temp_buf, share->table_name.str,
                         strlen(share->table_name.str));
-      int errcode= query_error_code(thd, TRUE);
-      if (thd->binlog_query(THD::STMT_QUERY_TYPE,
-                            temp_buf.c_ptr_safe(), temp_buf.length(),
-                            FALSE, TRUE, FALSE, errcode))
+      if (mysql_bin_log.write_dml_directly(thd, temp_buf.c_ptr_safe(),
+                                           temp_buf.length()))
         return TRUE;
       if (error)
       {
@@ -4496,6 +4515,26 @@ bool
 Open_table_context::
 recover_from_failed_open()
 {
+  if (m_action == OT_REPAIR)
+  {
+    DEBUG_SYNC(m_thd, "recover_ot_repair");
+  }
+
+  /*
+    Skip repair and discovery in IS-queries as they require X lock
+    which could lead to delays or deadlock. Instead set
+    ER_WARN_I_S_SKIPPED_TABLE which will be converted to a warning
+    later.
+   */
+  if ((m_action == OT_REPAIR || m_action == OT_DISCOVER)
+      && (m_flags & MYSQL_OPEN_FAIL_ON_MDL_CONFLICT))
+  {
+    my_error(ER_WARN_I_S_SKIPPED_TABLE, MYF(0),
+             m_failed_table->mdl_request.key.db_name(),
+             m_failed_table->mdl_request.key.name());
+    return true;
+  }
+
   bool result= FALSE;
   MDL_deadlock_discovery_repair_handler handler;
   /*
@@ -4709,7 +4748,7 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
         the binlog as only the statements in the called procedure show
         up there, not the CALL itself.
       */
-      if (rt != (Sroutine_hash_entry*)prelocking_ctx->sroutines_list.first ||
+      if (rt != prelocking_ctx->sroutines_list.first ||
           mdl_type != MDL_key::PROCEDURE)
       {
         /*
@@ -5125,14 +5164,6 @@ extern "C" uchar *schema_set_get_key(const uchar *record, size_t *length,
   return (uchar*) table->db;
 }
 
-extern "C" uchar *tablespace_set_get_key(const uchar *record, size_t *length,
-                                     my_bool not_used __attribute__((unused)))
-{
-  const char *tblspace_name= reinterpret_cast<const char *>(record);
-  *length= strlen(tblspace_name);
-  return reinterpret_cast<uchar*>(const_cast<char*>(tblspace_name));
-}
-
 
 /**
   Run the server hook called "before_dml". This is a hook originated from
@@ -5156,6 +5187,128 @@ int run_before_dml_hook(THD *thd)
     my_error(ER_BEFORE_DML_VALIDATION_ERROR, MYF(0));
 
   return out_value;
+}
+
+/**
+  Acquire IX metadata locks on tablespace names used by LOCK
+  TABLES or by a DDL statement.
+
+  @note That the tablespace MDL locks are taken only after locks
+  on tables are acquired. So it is recommended to maintain this
+  same lock order across the server. It is very easy to break the
+  this lock order if we invoke acquire_locks() with list of MDL
+  requests which contain both MDL_key::TABLE and
+  MDL_key::TABLESPACE. We would end-up in deadlock then.
+
+  @param thd               Thread context.
+  @param tables_start      Start of list of tables on which locks
+                           should be acquired.
+  @param tables_end        End of list of tables.
+  @param lock_wait_timeout Seconds to wait before timeout.
+  @param flags             Bitmap of flags to modify how the
+                           tables will be open, see open_table()
+                           description for details.
+
+  @retval true   Failure (e.g. connection was killed)
+  @retval false  Success.
+*/
+static bool
+get_and_lock_tablespace_names(THD *thd,
+                              TABLE_LIST *tables_start,
+                              TABLE_LIST *tables_end,
+                              ulong lock_wait_timeout,
+                              uint flags)
+{
+
+  // If this is a DISCARD or IMPORT TABLESPACE command (indicated by
+  // the THD:: tablespace_op flag), we skip this phase, because these
+  // commands are only used for file-per-table tablespaces, which we
+  // do not lock.  We also skip this phase if we are within the
+  // context of a FLUSH TABLE WITH READ LOCK or FLUSH TABLE FOR EXPORT
+  // statement, indicated by the MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK flag.
+  if (flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK || thd_tablespace_op(thd))
+    return false;
+
+  // Add tablespace names used under partition/subpartition definitions.
+  Tablespace_hash_set tablespace_set(PSI_INSTRUMENT_ME);
+  if ((thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
+       thd->lex->sql_command == SQLCOM_ALTER_TABLE) &&
+      fill_partition_tablespace_names(thd->work_part_info, &tablespace_set))
+    return true;
+
+  // The first step is to loop over the tables, make sure we have
+  // locked the names, and then get hold of the tablespace names from
+  // the .FRM file.
+  TABLE_LIST *table;
+  for (table= tables_start; table && table != tables_end;
+       table= table->next_global)
+  {
+    // Consider only non-temporary tables. The if clauses below have the
+    // following meaning:
+    //
+    // !MDL_SHARED_READ_ONLY                   Not a LOCK TABLE ... READ.
+    //                                         In that case, tables will not
+    //                                         be altered, created or dropped,
+    //                                         so no need to IX lock the
+    //                                         tablespace.
+    // is_ddl_or...request() || ...FOR_CREATE  Request for a strong DDL or
+    //                                         LOCK TABLES type lock, or a
+    //                                         table to be created.
+    // !OT_TEMPORARY_ONLY                      Not a user defined tmp table.
+    // !(OT_TEMPORARY_OR_BASE && is_temp...()) Not a pre-opened tmp table.
+    if (table->mdl_request.type != MDL_SHARED_READ_ONLY            &&
+        (table->mdl_request.is_ddl_or_lock_tables_lock_request() ||
+         table->open_strategy == TABLE_LIST::OPEN_FOR_CREATE)      &&
+        table->open_type != OT_TEMPORARY_ONLY                      &&
+        !(table->open_type == OT_TEMPORARY_OR_BASE &&
+          is_temporary_table(table)))
+    {
+      // We have basically three situations here:
+      //
+      // 1. Lock only the target tablespace name and tablespace
+      //    names that are used by partitions (e.g. CREATE TABLE
+      //    explicitly specifying the tablespace names).
+      // 2. Lock only the existing tablespace name and tablespace
+      //    names that are used by partitions (e.g. ALTER TABLE t
+      //    ADD COLUMN ... where t is defined in some tablespace s.
+      // 3. Lock both the target and the existing tablespace names
+      //    along with tablespace names used by partitions. (e.g.
+      //    ALTER TABLE t TABLESPACE s2, where t is defined in
+      //    some tablespace s)
+      if (table->target_tablespace_name.length > 0 &&
+          tablespace_set.insert(
+            const_cast<char*>(table->target_tablespace_name.str)))
+        return true;
+
+      // No need to try this for tables to be created since they are not
+      // yet present in the dictionary.
+      if (table->open_strategy != TABLE_LIST::OPEN_FOR_CREATE)
+      {
+        // Assert that we have an MDL lock on the table name. Needed to read
+        // the dictionary safely.
+        DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
+                MDL_key::TABLE, table->db, table->table_name, MDL_SHARED));
+
+        /*
+          Add names of tablespaces used by table or by its
+          partitions/subpartitions. Read FRM file and get
+          the information.
+        */
+        if (get_table_and_parts_tablespace_names(thd, table, &tablespace_set))
+            return true;
+      }
+    }
+
+  } // End of for(;;)
+
+  /*
+    After we have identified the tablespace names, we iterate
+    over the names and acquire IX locks on each of them.
+  */
+  if (lock_tablespace_names(thd, &tablespace_set, lock_wait_timeout))
+    return true;
+
+  return false;
 }
 
 /**
@@ -5187,7 +5340,7 @@ lock_table_names(THD *thd,
   MDL_request_list mdl_requests;
   TABLE_LIST *table;
   MDL_request global_request;
-  Hash_set<TABLE_LIST, schema_set_get_key> schema_set;
+  Hash_set<TABLE_LIST, schema_set_get_key> schema_set(PSI_INSTRUMENT_ME);
   bool need_global_read_lock_protection= false;
 
   DBUG_ASSERT(!thd->locked_tables_mode);
@@ -5265,108 +5418,14 @@ lock_table_names(THD *thd,
   if (thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout))
     return true;
 
-  // Phase 4: Lock tablespace names. This cannot be done as part of the
-  //          previous phases, because we need to read the .FRM file to
-  //          get hold of the tablespace name, and in order to do this,
-  //          we must have acquired a lock on the table. If this is a
-  //          DISCARD or IMPORT TABLESPACE command (indicated by the THD::
-  //          tablespace_op flag), we skip this phase, because these commands
-  //          are only used for file-per-table tablespaces, which we do
-  //          not lock. We also skip this phase if we are within the context
-  //          of a FLUSH TABLE WITH READ LOCK or FLUSH TABLE FOR EXPORT
-  //          statement, indicated by the MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK flag.
-  if (!(flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) && !thd->tablespace_op)
-  {
-    MDL_request_list mdl_tablespace_requests;
-
-    // The first step is to loop over the tables, make sure we have
-    // locked the names, and then peek into the .FRM files to get hold of
-    // the tablespace names.
-    Hash_set<char, tablespace_set_get_key> tablespace_set;
-    for (table= tables_start; table && table != tables_end;
-         table= table->next_global)
-    {
-      // Consider only non-temporary tables. The if clauses below have the
-      // following meaning:
-      //
-      // !MDL_SHARED_READ_ONLY                   Not a LOCK TABLE ... READ.
-      //                                         In that case, tables will not
-      //                                         be altered, created or dropped,
-      //                                         so no need to IX lock the
-      //                                         tablespace.
-      // is_ddl_or...request() || ...FOR_CREATE  Request for a strong DDL or
-      //                                         LOCK TABLES type lock, or a
-      //                                         table to be created.
-      // !OT_TEMPORARY_ONLY                      Not a user defined tmp table.
-      // !(OT_TEMPORARY_OR_BASE && is_temp...()) Not a pre-opened tmp table.
-      if (table->mdl_request.type != MDL_SHARED_READ_ONLY            &&
-          (table->mdl_request.is_ddl_or_lock_tables_lock_request() ||
-           table->open_strategy == TABLE_LIST::OPEN_FOR_CREATE)      &&
-          table->open_type != OT_TEMPORARY_ONLY                      &&
-          !(table->open_type == OT_TEMPORARY_OR_BASE &&
-            is_temporary_table(table)))
-      {
-        // We have basically three situations here:
-        //
-        // 1. Lock only the target tablespace name (e.g. CREATE TABLE
-        //    explicitly specifying the tablespace name).
-        // 2. Lock only the existing tablespace name (e.g. ALTER TABLE t
-        //    ADD COLUMN ... where t is defined in some tablespace s.
-        // 3. Lock both the target and the existing tablespace names
-        //    (e.g. ALTER TABLE t TABLESPACE s2, where t is defined in
-        //    some tablespace s)
-        //
-        // Please note that for partitioned tables assigning different
-        // partitions to different tablespaces, MDL locks for the different
-        // partition tablespaces are not acquired. The reason is that this
-        // is not supported by the SEs.
-        if (table->target_tablespace_name.length > 0)
-          tablespace_set.insert(const_cast<char*>(
-                                  table->target_tablespace_name.str));
-
-        // No need to try this for tables to be created since they do not
-        // have an .FRM file.
-        if (table->open_strategy != TABLE_LIST::OPEN_FOR_CREATE)
-        {
-          // Assert that we have an MDL lock on the table name. Needed to read
-          // the .FRM file safely.
-          DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
-                  MDL_key::TABLE, table->db, table->table_name, MDL_SHARED));
-
-          // Get the tablespace name from the .FRM file of the table.
-          const char *target_tablespace_name= get_tablespace_name(thd, table);
-          if (target_tablespace_name && strlen(target_tablespace_name))
-            tablespace_set.insert(const_cast<char*>(target_tablespace_name));
-        }
-      }
-    }
-
-    // After we have identified the tablespace names, we iterate over the
-    // names and add lock requests for each of them.
-    if (!tablespace_set.is_empty())
-    {
-      Hash_set<char, tablespace_set_get_key>::Iterator it(tablespace_set);
-      char *tablespace= NULL;
-      while ((tablespace= it++))
-      {
-        MDL_request *tablespace_request= new (thd->mem_root) MDL_request;
-        if (tablespace_request == NULL)
-          return true;
-        MDL_REQUEST_INIT(tablespace_request, MDL_key::TABLESPACE,
-                         "", tablespace, MDL_INTENTION_EXCLUSIVE,
-                         MDL_TRANSACTION);
-        mdl_tablespace_requests.push_front(tablespace_request);
-      }
-
-      // Finally, the requests are acquired.
-      if (thd->mdl_context.acquire_locks(&mdl_tablespace_requests,
-                                         lock_wait_timeout))
-        return true;
-
-      DEBUG_SYNC(thd, "after_wait_locked_tablespace_name_for_table");
-    }
-  }
-  return false;
+  /*
+    Phase 4: Lock tablespace names. This cannot be done as part
+    of the previous phases, because we need to read the
+    dictionary to get hold of the tablespace name, and in order
+    to do this, we must have acquired a lock on the table.
+  */
+  return get_and_lock_tablespace_names(
+           thd, tables_start, tables_end, lock_wait_timeout, flags);
 }
 
 
@@ -5499,7 +5558,7 @@ restart:
 
   has_prelocking_list= thd->lex->requires_prelocking();
   table_to_open= start;
-  sroutine_to_open= (Sroutine_hash_entry**) &thd->lex->sroutines_list.first;
+  sroutine_to_open= &thd->lex->sroutines_list.first;
   *counter= 0;
   THD_STAGE_INFO(thd, stage_opening_tables);
 
@@ -5793,7 +5852,7 @@ handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
     parser.
   */
 
-  if (rt != (Sroutine_hash_entry*)prelocking_ctx->sroutines_list.first ||
+  if (rt != prelocking_ctx->sroutines_list.first ||
       rt->mdl_request.key.mdl_namespace() != MDL_key::PROCEDURE)
   {
     *need_prelocking= TRUE;
@@ -6030,6 +6089,21 @@ static bool check_lock_and_start_stmt(THD *thd,
     table_list->table->file->print_error(error, MYF(0));
     DBUG_RETURN(1);
   }
+
+  /*
+    Record in transaction state tracking
+  */
+  if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
+  {
+    Transaction_state_tracker *tst= (Transaction_state_tracker *)
+      thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER);
+    enum enum_tx_state       s;
+
+    s= tst->calc_trx_state(thd, lock_type,
+                           table_list->table->file->has_transactions());
+    tst->add_trx_state(thd, s);
+  }
+
   DBUG_RETURN(0);
 }
 
@@ -6631,8 +6705,7 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
     *tables= 0;
   thd->lex->chop_off_not_own_tables();
   /* Reset MDL tickets for procedures/functions */
-  for (Sroutine_hash_entry *rt=
-         (Sroutine_hash_entry*)thd->lex->sroutines_list.first;
+  for (Sroutine_hash_entry *rt= thd->lex->sroutines_list.first;
        rt; rt= rt->next)
     rt->mdl_request.ticket= NULL;
   sp_remove_not_own_routines(thd->lex);
@@ -6766,7 +6839,10 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
     thd->temporary_tables= tmp_table;
     thd->temporary_tables->prev= 0;
     if (thd->slave_thread)
-      modify_slave_open_temp_tables(thd, 1);
+    {
+      slave_open_temp_tables.atomic_add(1);
+      thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(1);
+    }
   }
   tmp_table->pos_in_table_list= NULL;
 
@@ -6804,7 +6880,7 @@ bool rm_temporary_table(handlerton *base, const char *path)
   {
     error=1;
     sql_print_warning("Could not remove temporary table: '%s', error: %d",
-                      path, my_errno);
+                      path, my_errno());
   }
   delete file;
   DBUG_RETURN(error);
@@ -6818,6 +6894,11 @@ bool rm_temporary_table(handlerton *base, const char *path)
 * for each table reference. In turn, depending on the type of table reference,
 * 'find_field_in_table_ref' calls one of the 'find_field_in_XXX' procedures
 * below specific for the type of table reference.
+*
+* @todo: Refactor the error handling system used by these functions, so that
+*        it is clear when an error is reported and when an empty reference
+*        is returned.
+*
 ******************************************************************************/
 
 /* Special Field pointers as return values of find_field_in_XXX functions. */
@@ -7039,7 +7120,7 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
         thd->change_item_tree(ref, item);
       else
         *ref= item;
-      DBUG_RETURN((Field*) view_ref_found);
+      DBUG_RETURN(view_ref_found);
     }
   }
   DBUG_RETURN(0);
@@ -7153,7 +7234,7 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
       thd->change_item_tree(ref, item);
     else
       *ref= item;
-    found_field= (Field*) view_ref_found;
+    found_field= view_ref_found;
   }
   else
   {
@@ -7630,6 +7711,9 @@ find_field_in_tables(THD *thd, Item_ident *item,
                               &(item->cached_field_index),
                               register_tree_change,
                               &actual_table);
+    if (cur_field == NULL && thd->is_error())
+      return NULL;
+
     if (cur_field)
     {
       if (cur_field == WRONG_GRANT)
@@ -7981,7 +8065,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
     return (Item **) 0;
   }
   else
-    return (Item **) not_found_item;
+    return not_found_item;
 }
 
 
@@ -8682,13 +8766,16 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
                                 will also decide inclusion in read/write maps.
   @param sum_func_list
   @param allow_sum_func         true if set operations are allowed in context.
+  @param column_update          if true, reject expressions that do not resolve
+                                to a base table column
 
   @returns false if success, true if error
 */
 
 bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
                   List<Item> &fields, ulong want_privilege,
-                  List<Item> *sum_func_list, bool allow_sum_func)
+                  List<Item> *sum_func_list,
+                  bool allow_sum_func, bool column_update)
 {
   DBUG_ENTER("setup_fields");
 
@@ -8702,13 +8789,13 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
               want_privilege == SELECT_ACL ||
               want_privilege == INSERT_ACL ||
               want_privilege == UPDATE_ACL);
+  DBUG_ASSERT(! (column_update && (want_privilege & SELECT_ACL)));
   if (want_privilege & SELECT_ACL)
     thd->mark_used_columns= MARK_COLUMNS_READ;
   else if (want_privilege & (INSERT_ACL | UPDATE_ACL))
     thd->mark_used_columns= MARK_COLUMNS_WRITE;
   else
     thd->mark_used_columns= MARK_COLUMNS_NONE;
-
 
   DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
   if (allow_sum_func)
@@ -8767,6 +8854,11 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
     {
       ref[0]= item;
       ref.pop_front();
+    }
+    if (column_update && item->field_for_view_update() == NULL)
+    {
+      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->item_name.ptr());
+      DBUG_RETURN(true);
     }
     if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
 	sum_func_list)
@@ -9041,8 +9133,7 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
             MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap)
 {
   List_iterator_fast<Item> f(fields),v(values);
-  Item *value, *fld;
-  Item_field *field;
+  Item *fld;
   TABLE *table= 0;
   TABLE *tbl_set[MAX_TABLES];
   uint tab_count= 0;
@@ -9060,24 +9151,19 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
       thus we safely can take table from the first field.
     */
     fld= (Item_field*)f++;
-    if (!(field= fld->field_for_view_update()))
-    {
-      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), fld->item_name.ptr());
-      goto err;
-    }
+    Item_field *const field= fld->field_for_view_update();
+    DBUG_ASSERT(field != NULL);
     table= field->field->table;
     table->auto_increment_field_not_null= FALSE;
     f.rewind();
   }
   while ((fld= f++))
   {
-    if (!(field= fld->field_for_view_update()))
-    {
-      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), fld->item_name.ptr());
-      goto err;
-    }
-    value=v++;
-    Field *rfield= field->field;
+    Item_field *const field= fld->field_for_view_update();
+    DBUG_ASSERT(field != NULL);
+
+    Field *const rfield= field->field;
+    Item *const value= v++;
     /* If bitmap over wanted fields are set, skip non marked fields. */
     if (bitmap && !bitmap_is_set(bitmap, rfield->field_index))
       continue;
@@ -9104,14 +9190,17 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
   for (uint i= 0; i < tab_count; i++)
   {
     table= tbl_set[i];
-    if (table->vfield && update_generated_write_fields(table))
+    // We only need update wanted fields
+    if (table->vfield && update_generated_write_fields(bitmap ? bitmap :
+                                                 table->write_set, table))
       goto err;
   }
   DBUG_RETURN(thd->is_error());
+
 err:
   if (table)
     table->auto_increment_field_not_null= FALSE;
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 
@@ -9293,7 +9382,7 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
     DBUG_ASSERT(table->pos_in_table_list &&
                 !table->pos_in_table_list->is_view());
     if (!rc && table->vfield)
-        rc= update_generated_write_fields(table);
+        rc= update_generated_write_fields(table->write_set, table);
 
     table->triggers->disable_fields_temporary_nullability();
 
@@ -9384,7 +9473,9 @@ fill_record(THD *thd, Field **ptr, List<Item> &values,
   for (uint i= 0; i < tab_count; i++)
   {
     table= tbl_set[i];
-    if (table->vfield && update_generated_write_fields(table))
+    // We only need update wanted fields
+    if (table->vfield && update_generated_write_fields(bitmap ? bitmap :
+                                                 table->write_set, table))
       goto err;
   }
 
@@ -9458,7 +9549,7 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
     {
       TABLE *table= (*ptr)->table;
       if (table->vfield)
-        rc= update_generated_write_fields(table);
+        rc= update_generated_write_fields(table->write_set, table);
     }
     bitmap_free(&insert_into_fields_bitmap);
     table->triggers->disable_fields_temporary_nullability();
@@ -9497,7 +9588,7 @@ my_bool mysql_rm_tmp_tables(void)
 
     /* Remove all SQLxxx tables from directory */
 
-    for (idx=0 ; idx < (uint) dirp->number_off_files ; idx++)
+    for (idx=0 ; idx < dirp->number_off_files ; idx++)
     {
       file=dirp->dir_entry+idx;
 

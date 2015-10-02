@@ -42,6 +42,7 @@ Created 9/11/1995 Heikki Tuuri
 #include "mem0mem.h"
 #include "srv0srv.h"
 #include "os0event.h"
+#include "srv0mon.h"
 #include "sync0debug.h"
 #include "ha_prototypes.h"
 #include <my_sys.h>
@@ -169,20 +170,7 @@ rw_lock_stats_t		rw_lock_stats;
 rw_lock_list_t		rw_lock_list;
 ib_mutex_t		rw_lock_list_mutex;
 
-#ifdef UNIV_SYNC_DEBUG
-/* The global mutex which protects debug info lists of all rw-locks.
-To modify the debug info list of an rw-lock, this mutex has to be
-acquired in addition to the mutex protecting the lock. */
-
-ib_mutex_t		rw_lock_debug_mutex;
-
-/* If deadlock detection does not get immediately the mutex,
-it may wait for this event */
-os_event_t		rw_lock_debug_event;
-
-/* This is set to TRUE, if there may be waiters for the event */
-ibool			rw_lock_debug_waiters;
-
+#ifdef UNIV_DEBUG
 /******************************************************************//**
 Creates a debug info struct. */
 static
@@ -218,7 +206,7 @@ rw_lock_debug_free(
 {
 	ut_free(info);
 }
-#endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */
 
 /******************************************************************//**
 Creates, or rather, initializes an rw-lock object in a specified memory
@@ -230,19 +218,22 @@ rw_lock_create_func(
 /*================*/
 	rw_lock_t*	lock,		/*!< in: pointer to memory */
 #ifdef UNIV_DEBUG
-# ifdef UNIV_SYNC_DEBUG
 	latch_level_t	level,		/*!< in: level */
-# endif /* UNIV_SYNC_DEBUG */
 	const char*	cmutex_name,	/*!< in: rw-lock name */
 #endif /* UNIV_DEBUG */
 	const char*	cfile_name,	/*!< in: file name where created */
 	ulint		cline)		/*!< in: file line where created */
 {
+#if defined(UNIV_DEBUG) && !defined(UNIV_PFS_RWLOCK)
+	/* It should have been created in pfs_rw_lock_create_func() */
+	new(lock) rw_lock_t();
+#endif /* UNIV_DEBUG */
+
 	/* If this is the very first time a synchronization object is
 	created, then the following call initializes the sync system. */
 
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	mutex_create("rw_lock_mutex", rw_lock_get_mutex(lock));
+	mutex_create(LATCH_ID_RW_LOCK_MUTEX, rw_lock_get_mutex(lock));
 #else /* INNODB_RW_LOCKS_USE_ATOMICS */
 # ifdef UNIV_DEBUG
 	UT_NOT_USED(cmutex_name);
@@ -261,18 +252,23 @@ rw_lock_create_func(
 	memset((void*) &lock->writer_thread, 0, sizeof lock->writer_thread);
 	UNIV_MEM_INVALID(&lock->writer_thread, sizeof lock->writer_thread);
 
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 	lock->m_rw_lock = true;
 
 	UT_LIST_INIT(lock->debug_list, &rw_lock_debug_t::list);
 
-	lock->m_name = cmutex_name;
-	lock->m_level = lock->level = level;
-#endif /* UNIV_SYNC_DEBUG */
+	lock->m_id = sync_latch_get_id(sync_latch_get_name(level));
+	ut_a(lock->m_id != LATCH_ID_NONE);
 
-	ut_d(lock->magic_n = RW_LOCK_MAGIC_N);
+	lock->level = level;
+#endif /* UNIV_DEBUG */
 
 	lock->cfile_name = cfile_name;
+
+	/* This should hold in practice. If it doesn't then we need to
+	split the source file anyway. Or create the locks on lines
+	less than 8192. cline is unsigned:13. */
+	ut_ad(cline <= 8192);
 	lock->cline = (unsigned int) cline;
 
 	lock->count_os_wait = 0;
@@ -282,6 +278,8 @@ rw_lock_create_func(
 	lock->last_x_line = 0;
 	lock->event = os_event_create(0);
 	lock->wait_ex_event = os_event_create(0);
+
+	lock->is_block_lock = 0;
 
 	mutex_enter(&rw_lock_list_mutex);
 
@@ -320,35 +318,9 @@ rw_lock_free_func(
 
 	mutex_exit(&rw_lock_list_mutex);
 
-	ut_d(lock->magic_n = 0);
+	/* We did an in-place new in rw_lock_create_func() */
+	ut_d(lock->~rw_lock_t());
 }
-
-#ifdef UNIV_DEBUG
-/******************************************************************//**
-Checks that the rw-lock has been initialized and that there are no
-simultaneous shared and exclusive locks.
-@return TRUE */
-ibool
-rw_lock_validate(
-/*=============*/
-	const rw_lock_t*	lock)	/*!< in: rw-lock */
-{
-	ulint	waiters;
-	lint	lock_word;
-
-	ut_ad(lock);
-
-	waiters = rw_lock_get_waiters(lock);
-	lock_word = lock->lock_word;
-
-	ut_ad(lock->magic_n == RW_LOCK_MAGIC_N);
-	ut_ad(waiters == 0 || waiters == 1);
-	ut_ad(lock_word > -(2 * X_LOCK_DECR));
-	ut_ad(lock_word <= X_LOCK_DECR);
-
-	return(TRUE);
-}
-#endif /* UNIV_DEBUG */
 
 /******************************************************************//**
 Lock an rw-lock in shared mode for the current thread. If the rw-lock is
@@ -366,13 +338,14 @@ rw_lock_s_lock_spin(
 {
 	ulint		i = 0;	/* spin round count */
 	sync_array_t*	sync_arr;
+	ulint		spin_count = 0;
+	ulint		count_os_wait = 0;
 
 	/* We reuse the thread id to index into the counter, cache
 	it here for efficiency. */
 
 	ut_ad(rw_lock_validate(lock));
 
-	rw_lock_stats.rw_s_spin_wait_count.inc();
 lock_loop:
 
 	/* Spin waiting for the writer field to become free */
@@ -389,9 +362,17 @@ lock_loop:
 		os_thread_yield();
 	}
 
+	++spin_count;
+
 	/* We try once again to obtain the lock */
-	if (TRUE == rw_lock_s_lock_low(lock, pass, file_name, line)) {
-		rw_lock_stats.rw_s_spin_round_count.inc();
+	if (rw_lock_s_lock_low(lock, pass, file_name, line)) {
+
+		if (count_os_wait > 0) {
+			lock->count_os_wait += count_os_wait;
+			rw_lock_stats.rw_s_os_wait_count.add(count_os_wait);
+		}
+
+		rw_lock_stats.rw_s_spin_round_count.add(spin_count);
 
 		return; /* Success */
 	} else {
@@ -400,7 +381,8 @@ lock_loop:
 			goto lock_loop;
 		}
 
-		rw_lock_stats.rw_s_spin_round_count.inc();
+
+		++count_os_wait;
 
 		sync_cell_t*	cell;
 
@@ -411,20 +393,29 @@ lock_loop:
 		signal is sent. This may lead to some unnecessary signals. */
 		rw_lock_set_waiter_flag(lock);
 
-		if (TRUE == rw_lock_s_lock_low(lock, pass, file_name, line)) {
+		if (rw_lock_s_lock_low(lock, pass, file_name, line)) {
+
 			sync_array_free_cell(sync_arr, cell);
+
+			if (count_os_wait > 0) {
+
+				lock->count_os_wait += count_os_wait;
+
+				rw_lock_stats.rw_s_os_wait_count.add(
+					count_os_wait);
+			}
+
+			rw_lock_stats.rw_s_spin_round_count.add(spin_count);
+
 			return; /* Success */
 		}
 
-		/* these stats may not be accurate */
-		lock->count_os_wait++;
-		rw_lock_stats.rw_s_os_wait_count.inc();
 		/* see comments in trx_commit_low() to
 		before_trx_state_committed_in_memory explaining
 		this care to invoke the following sync check.*/
 #ifndef DBUG_OFF
-#ifdef UNIV_SYNC_DEBUG
-		if (lock->m_level != SYNC_DICT_OPERATION) {
+#ifdef UNIV_DEBUG
+		if (lock->get_level() != SYNC_DICT_OPERATION) {
 			DEBUG_SYNC_C("rw_s_lock_waiting");
 		}
 #endif
@@ -432,6 +423,7 @@ lock_loop:
 		sync_array_wait_event(sync_arr, cell);
 
 		i = 0;
+
 		goto lock_loop;
 	}
 }
@@ -463,7 +455,7 @@ void
 rw_lock_x_lock_wait_func(
 /*=====================*/
 	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 	ulint		pass,	/*!< in: pass value; != 0, if the lock will
 				be passed to another thread to unlock */
 #endif
@@ -472,12 +464,15 @@ rw_lock_x_lock_wait_func(
 	ulint		line)	/*!< in: line where requested */
 {
 	ulint		i = 0;
+	ulint		n_spins = 0;
 	sync_array_t*	sync_arr;
+	ulint		count_os_wait = 0;
 
 	os_rmb;
 	ut_ad(lock->lock_word <= threshold);
 
 	while (lock->lock_word < threshold) {
+
 		if (srv_spin_wait_delay) {
 			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
 		}
@@ -489,50 +484,56 @@ rw_lock_x_lock_wait_func(
 		}
 
 		/* If there is still a reader, then go to sleep.*/
-		rw_lock_stats.rw_x_spin_round_count.inc();
+		++n_spins;
 
 		sync_cell_t*	cell;
 
 		sync_arr = sync_array_get_and_reserve_cell(
-				lock, RW_LOCK_X_WAIT, file_name, line, &cell);
+			lock, RW_LOCK_X_WAIT, file_name, line, &cell);
 
 		i = 0;
 
 		/* Check lock_word to ensure wake-up isn't missed.*/
 		if (lock->lock_word < threshold) {
 
-			/* these stats may not be accurate */
-			lock->count_os_wait++;
-			rw_lock_stats.rw_x_os_wait_count.inc();
+			++count_os_wait;
 
 			/* Add debug info as it is needed to detect possible
 			deadlock. We must add info for WAIT_EX thread for
 			deadlock detection to work properly. */
-#ifdef UNIV_SYNC_DEBUG
-			rw_lock_add_debug_info(lock, pass, RW_LOCK_X_WAIT,
-					       file_name, line);
-#endif /* UNIV_SYNC_DEBUG */
+			ut_d(rw_lock_add_debug_info(
+					lock, pass, RW_LOCK_X_WAIT,
+					file_name, line));
 
 			sync_array_wait_event(sync_arr, cell);
-#ifdef UNIV_SYNC_DEBUG
-			rw_lock_remove_debug_info(
-				lock, pass, RW_LOCK_X_WAIT);
-#endif /* UNIV_SYNC_DEBUG */
+
+			ut_d(rw_lock_remove_debug_info(
+					lock, pass, RW_LOCK_X_WAIT));
+
 			/* It is possible to wake when lock_word < 0.
 			We must pass the while-loop check to proceed.*/
+
 		} else {
 			sync_array_free_cell(sync_arr, cell);
+			break;
 		}
 	}
-	rw_lock_stats.rw_x_spin_round_count.inc();
+
+	rw_lock_stats.rw_x_spin_round_count.add(n_spins);
+
+	if (count_os_wait > 0) {
+		lock->count_os_wait += count_os_wait;
+		rw_lock_stats.rw_x_os_wait_count.add(count_os_wait);
+	}
 }
-#ifdef UNIV_SYNC_DEBUG
+
+#ifdef UNIV_DEBUG
 # define rw_lock_x_lock_wait(L, P, T, F, O)		\
 	rw_lock_x_lock_wait_func(L, P, T, F, O)
 #else
 # define rw_lock_x_lock_wait(L, P, T, F, O)		\
 	rw_lock_x_lock_wait_func(L, T, F, O)
-#endif
+#endif /* UNIV_DBEUG */
 
 /******************************************************************//**
 Low-level function for acquiring an exclusive lock.
@@ -559,8 +560,7 @@ rw_lock_x_lock_low(
 		rw_lock_set_writer_id_and_recursion_flag(
 			lock, !pass);
 
-		rw_lock_x_lock_wait(lock, pass,
-				    0, file_name, line);
+		rw_lock_x_lock_wait(lock, pass, 0, file_name, line);
 
 	} else {
 		os_thread_id_t	thread_id = os_thread_get_curr_id();
@@ -585,9 +585,10 @@ rw_lock_x_lock_low(
 
 				/* Wait for any the other S-locks to be
 				released. */
-				rw_lock_x_lock_wait(lock, pass,
-						    -X_LOCK_HALF_DECR,
-						    file_name, line);
+				rw_lock_x_lock_wait(
+					lock, pass, -X_LOCK_HALF_DECR,
+					file_name, line);
+
 			} else {
 				/* At least one X lock by this thread already
 				exists. Add another. */
@@ -605,9 +606,9 @@ rw_lock_x_lock_low(
 			return(FALSE);
 		}
 	}
-#ifdef UNIV_SYNC_DEBUG
-	rw_lock_add_debug_info(lock, pass, RW_LOCK_X, file_name, line);
-#endif
+
+	ut_d(rw_lock_add_debug_info(lock, pass, RW_LOCK_X, file_name, line));
+
 	lock->last_x_file_name = file_name;
 	lock->last_x_line = (unsigned int) line;
 
@@ -685,9 +686,9 @@ rw_lock_sx_lock_low(
 			return(FALSE);
 		}
 	}
-#ifdef UNIV_SYNC_DEBUG
-	rw_lock_add_debug_info(lock, pass, RW_LOCK_SX, file_name, line);
-#endif /* UNIV_SYNC_DEBUG */
+
+	ut_d(rw_lock_add_debug_info(lock, pass, RW_LOCK_SX, file_name, line));
+
 	lock->last_x_file_name = file_name;
 	lock->last_x_line = (unsigned int) line;
 
@@ -712,33 +713,29 @@ rw_lock_x_lock_func(
 	const char*	file_name,/*!< in: file name where lock requested */
 	ulint		line)	/*!< in: line where requested */
 {
-	ulint		i;
+	ulint		i = 0;
 	sync_array_t*	sync_arr;
-	bool		spinning = false;
+	ulint		spin_count = 0;
+	ulint		count_os_wait = 0;
 
 	ut_ad(rw_lock_validate(lock));
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(lock, RW_LOCK_S));
-#endif /* UNIV_SYNC_DEBUG */
-
-	i = 0;
 
 lock_loop:
 
 	if (rw_lock_x_lock_low(lock, pass, file_name, line)) {
 
-		rw_lock_stats.rw_x_spin_round_count.inc();
+		if (count_os_wait > 0) {
+			lock->count_os_wait += count_os_wait;
+			rw_lock_stats.rw_x_os_wait_count.add(count_os_wait);
+		}
+
+		rw_lock_stats.rw_x_spin_round_count.add(spin_count);
 
 		/* Locking succeeded */
 		return;
 
 	} else {
-
-		if (!spinning) {
-			spinning = true;
-
-			rw_lock_stats.rw_x_spin_wait_count.inc();
-		}
 
 		/* Spin waiting for the lock_word to become free */
 		os_rmb;
@@ -753,14 +750,17 @@ lock_loop:
 			i++;
 		}
 
+		spin_count += i;
+
 		if (i >= srv_n_spin_wait_rounds) {
+
 			os_thread_yield();
+
 		} else {
+
 			goto lock_loop;
 		}
 	}
-
-	rw_lock_stats.rw_x_spin_round_count.inc();
 
 	sync_cell_t*	cell;
 
@@ -774,17 +774,23 @@ lock_loop:
 	if (rw_lock_x_lock_low(lock, pass, file_name, line)) {
 		sync_array_free_cell(sync_arr, cell);
 
+		if (count_os_wait > 0) {
+			lock->count_os_wait += count_os_wait;
+			rw_lock_stats.rw_x_os_wait_count.add(count_os_wait);
+		}
+
+		rw_lock_stats.rw_x_spin_round_count.add(spin_count);
+
 		/* Locking succeeded */
 		return;
 	}
 
-	/* these stats may not be accurate */
-	lock->count_os_wait++;
-	rw_lock_stats.rw_x_os_wait_count.inc();
+	++count_os_wait;
 
 	sync_array_wait_event(sync_arr, cell);
 
 	i = 0;
+
 	goto lock_loop;
 }
 
@@ -807,40 +813,33 @@ rw_lock_sx_lock_func(
 	ulint		line)	/*!< in: line where requested */
 
 {
-	ulint		i;	/*!< spin round count */
+	ulint		i = 0;
 	sync_array_t*	sync_arr;
-	ibool		spinning = false;
-	size_t		counter_index;
-
-	/* We reuse the thread id to index into the counter, cache
-	it here for efficiency. */
-
-	counter_index = (size_t) os_thread_get_curr_id();
+	ulint		spin_count = 0;
+	ulint		count_os_wait = 0;
+	ulint		spin_wait_count = 0;
 
 	ut_ad(rw_lock_validate(lock));
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(lock, RW_LOCK_S));
-#endif /* UNIV_SYNC_DEBUG */
-
-	i = 0;
 
 lock_loop:
 
 	if (rw_lock_sx_lock_low(lock, pass, file_name, line)) {
 
-		rw_lock_stats.rw_sx_spin_round_count.add(counter_index, i);
+		if (count_os_wait > 0) {
+			lock->count_os_wait += count_os_wait;
+			rw_lock_stats.rw_sx_os_wait_count.add(count_os_wait);
+		}
+
+		rw_lock_stats.rw_sx_spin_round_count.add(spin_count);
+		rw_lock_stats.rw_sx_spin_wait_count.add(spin_wait_count);
 
 		/* Locking succeeded */
 		return;
 
 	} else {
 
-		if (!spinning) {
-			spinning = true;
-
-			rw_lock_stats.rw_sx_spin_wait_count.add(
-				counter_index, 1);
-		}
+		++spin_wait_count;
 
 		/* Spin waiting for the lock_word to become free */
 		os_rmb;
@@ -855,14 +854,17 @@ lock_loop:
 			i++;
 		}
 
+		spin_count += i;
+
 		if (i >= srv_n_spin_wait_rounds) {
+
 			os_thread_yield();
+
 		} else {
+
 			goto lock_loop;
 		}
 	}
-
-	rw_lock_stats.rw_sx_spin_round_count.add(counter_index, i);
 
 	sync_cell_t*	cell;
 
@@ -874,63 +876,83 @@ lock_loop:
 	rw_lock_set_waiter_flag(lock);
 
 	if (rw_lock_sx_lock_low(lock, pass, file_name, line)) {
+
 		sync_array_free_cell(sync_arr, cell);
+
+		if (count_os_wait > 0) {
+			lock->count_os_wait += count_os_wait;
+			rw_lock_stats.rw_sx_os_wait_count.add(count_os_wait);
+		}
+
+		rw_lock_stats.rw_sx_spin_round_count.add(spin_count);
+		rw_lock_stats.rw_sx_spin_wait_count.add(spin_wait_count);
 
 		/* Locking succeeded */
 		return;
 	}
 
-	/* these stats may not be accurate */
-	++lock->count_os_wait;
-	rw_lock_stats.rw_sx_os_wait_count.add(counter_index, 1);
+	++count_os_wait;
 
 	sync_array_wait_event(sync_arr, cell);
 
 	i = 0;
+
 	goto lock_loop;
 }
 
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
+
 /******************************************************************//**
-Acquires the debug mutex. We cannot use the mutex defined in sync0sync,
-because the debug mutex is also acquired in sync0arr while holding the OS
-mutex protecting the sync array, and the ordinary mutex_enter might
-recursively call routines in sync0arr, leading to a deadlock on the OS
-mutex. */
-void
-rw_lock_debug_mutex_enter(void)
-/*===========================*/
+Checks that the rw-lock has been initialized and that there are no
+simultaneous shared and exclusive locks.
+@return true */
+bool
+rw_lock_validate(
+/*=============*/
+	const rw_lock_t*	lock)	/*!< in: rw-lock */
 {
-loop:
-	if (0 == mutex_enter_nowait(&rw_lock_debug_mutex)) {
-		return;
-	}
+	ulint	waiters;
+	lint	lock_word;
 
-	os_event_reset(rw_lock_debug_event);
+	ut_ad(lock);
 
-	rw_lock_debug_waiters = TRUE;
+	waiters = rw_lock_get_waiters(lock);
+	lock_word = lock->lock_word;
 
-	if (0 == mutex_enter_nowait(&rw_lock_debug_mutex)) {
-		return;
-	}
+	ut_ad(lock->magic_n == RW_LOCK_MAGIC_N);
+	ut_ad(waiters == 0 || waiters == 1);
+	ut_ad(lock_word > -(2 * X_LOCK_DECR));
+	ut_ad(lock_word <= X_LOCK_DECR);
 
-	os_event_wait(rw_lock_debug_event);
-
-	goto loop;
+	return(true);
 }
 
 /******************************************************************//**
-Releases the debug mutex. */
-void
-rw_lock_debug_mutex_exit(void)
-/*==========================*/
+Checks if somebody has locked the rw-lock in the specified mode.
+@return true if locked */
+bool
+rw_lock_is_locked(
+/*==============*/
+	rw_lock_t*	lock,		/*!< in: rw-lock */
+	ulint		lock_type)	/*!< in: lock type: RW_LOCK_S,
+					RW_LOCK_X or RW_LOCK_SX */
 {
-	mutex_exit(&rw_lock_debug_mutex);
+	ut_ad(rw_lock_validate(lock));
 
-	if (rw_lock_debug_waiters) {
-		rw_lock_debug_waiters = FALSE;
-		os_event_set(rw_lock_debug_event);
+	switch (lock_type) {
+	case RW_LOCK_S:
+		return(rw_lock_get_reader_count(lock) > 0);
+
+	case RW_LOCK_X:
+		return(rw_lock_get_writer(lock) == RW_LOCK_X);
+
+	case RW_LOCK_SX:
+		return(rw_lock_get_sx_lock_count(lock) > 0);
+
+	default:
+		ut_error;
 	}
+	return(false);	/* avoid compiler warnings */
 }
 
 /******************************************************************//**
@@ -971,7 +993,8 @@ rw_lock_add_debug_info(
 		    || (lock_type == RW_LOCK_SX
 		       && (lock->lock_word < 0 || lock->sx_recursive == 1))) {
 
-			sync_check_lock(lock);
+			sync_check_lock_validate(lock);
+			sync_check_lock_granted(lock);
 		} else {
 			sync_check_relock(lock);
 		}
@@ -1020,9 +1043,7 @@ rw_lock_remove_debug_info(
 
 	ut_error;
 }
-#endif /* UNIV_SYNC_DEBUG */
 
-#ifdef UNIV_SYNC_DEBUG
 /******************************************************************//**
 Checks if the thread has locked the rw-lock in the specified mode, with
 the pass value == 0.
@@ -1058,88 +1079,88 @@ rw_lock_own(
 	return(FALSE);
 }
 
-/******************************************************************//**
-Checks if the thread has locked the rw-lock in the specified mode, with
-the pass value == 0.
-@return true if locked */
-bool
-rw_lock_own_flagged(
-/*================*/
-	const rw_lock_t*	lock,	/*!< in: rw-lock */
-	rw_lock_flags_t		flags)	/*!< in: specify lock types with
-					OR of the rw_lock_flag_t values */
+/** For collecting the debug information for a thread's rw-lock */
+typedef std::vector<rw_lock_debug_t*> Infos;
+
+/** Get the thread debug info
+@param[in]	infos		The rw-lock mode owned by the threads
+@param[in]	lock		rw-lock to check
+@return the thread debug info or NULL if not found */
+void
+rw_lock_get_debug_info(const rw_lock_t* lock, Infos* infos)
 {
-	ut_ad(lock);
+	rw_lock_debug_t*	info = NULL;
+
 	ut_ad(rw_lock_validate(lock));
 
 	rw_lock_debug_mutex_enter();
 
-	for (rw_lock_debug_t* info = UT_LIST_GET_FIRST(lock->debug_list);
+	for (info = UT_LIST_GET_FIRST(lock->debug_list);
 	     info != NULL;
 	     info = UT_LIST_GET_NEXT(list, info)) {
 
-		if (os_thread_eq(info->thread_id, os_thread_get_curr_id())
-		    && info->pass == 0) {
+		if (os_thread_eq(info->thread_id, os_thread_get_curr_id())) {
 
-			ulint	flag = 0;
+			infos->push_back(info);
+		}
+	}
 
-			switch (info->lock_type) {
-			case RW_LOCK_S:
-				flag = RW_LOCK_FLAG_S;
-				break;
-			case RW_LOCK_X:
-				flag = RW_LOCK_FLAG_X;
-				break;
-			case RW_LOCK_SX:
-				flag = RW_LOCK_FLAG_SX;
+	rw_lock_debug_mutex_exit();
+}
+
+/** Checks if the thread has locked the rw-lock in the specified mode, with
+the pass value == 0.
+@param[in]	lock		rw-lock
+@param[in]	flags		specify lock types with OR of the
+				rw_lock_flag_t values
+@return true if locked */
+bool
+rw_lock_own_flagged(
+	const rw_lock_t*	lock,
+	rw_lock_flags_t		flags)
+{
+	Infos	infos;
+
+	rw_lock_get_debug_info(lock, &infos);
+
+	Infos::const_iterator	end = infos.end();
+
+	for (Infos::const_iterator it = infos.begin(); it != end; ++it) {
+
+		const rw_lock_debug_t*	info = *it;
+
+		ut_ad(os_thread_eq(info->thread_id, os_thread_get_curr_id()));
+
+		if (info->pass != 0) {
+			continue;
+		}
+
+		switch (info->lock_type) {
+		case RW_LOCK_S:
+
+			if (flags & RW_LOCK_FLAG_S) {
+				return(true);
 			}
+			break;
 
-			if (flags & flag) {
+		case RW_LOCK_X:
 
-				/* Found! */
+			if (flags & RW_LOCK_FLAG_X) {
+				return(true);
+			}
+			break;
 
-				rw_lock_debug_mutex_exit();
+		case RW_LOCK_SX:
 
+			if (flags & RW_LOCK_FLAG_SX) {
 				return(true);
 			}
 		}
 	}
 
-	rw_lock_debug_mutex_exit();
-
 	return(false);
 }
-#endif /* UNIV_SYNC_DEBUG */
 
-/******************************************************************//**
-Checks if somebody has locked the rw-lock in the specified mode.
-@return true if locked */
-bool
-rw_lock_is_locked(
-/*==============*/
-	rw_lock_t*	lock,		/*!< in: rw-lock */
-	ulint		lock_type)	/*!< in: lock type: RW_LOCK_S,
-					RW_LOCK_X or RW_LOCK_SX */
-{
-	ut_ad(rw_lock_validate(lock));
-
-	switch (lock_type) {
-	case RW_LOCK_S:
-		return(rw_lock_get_reader_count(lock) > 0);
-
-	case RW_LOCK_X:
-		return(rw_lock_get_writer(lock) == RW_LOCK_X);
-
-	case RW_LOCK_SX:
-		return(rw_lock_get_sx_lock_count(lock) > 0);
-
-	default:
-		ut_error;
-	}
-	return(false);	/* avoid compiler warnings */
-}
-
-#ifdef UNIV_SYNC_DEBUG
 /***************************************************************//**
 Prints debug info of currently locked rw-locks. */
 void
@@ -1214,7 +1235,7 @@ rw_lock_print(
 
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
 	/* We used to acquire lock->mutex here, but it would cause a
-	recursive call to sync_thread_add_level() if UNIV_SYNC_DEBUG
+	recursive call to sync_thread_add_level() if UNIV_DEBUG
 	is defined.  Since this function is only invoked from
 	sync_thread_levels_g(), let us choose the smaller evil:
 	performing dirty reads instead of causing bogus deadlocks or
@@ -1253,8 +1274,9 @@ rw_lock_debug_print(
 	ulint	rwt = info->lock_type;
 
 	fprintf(f, "Locked: thread %lu file %s line %lu  ",
-		(ulong) os_thread_pf(info->thread_id), info->file_name,
-		(ulong) info->line);
+		static_cast<ulong>(os_thread_pf(info->thread_id)),
+		sync_basename(info->file_name),
+		static_cast<ulong>(info->line));
 
 	switch (rwt) {
 	case RW_LOCK_S:
@@ -1306,49 +1328,51 @@ rw_lock_n_locked(void)
 	return(count);
 }
 
-#endif /* UNIV_SYNC_DEBUG */
-
-#ifdef UNIV_DEBUG
-/**
-Print the rw-lock information. */
-
-void
-rw_lock_t::print(FILE* stream) const
+/** Print where it was locked from
+@return the string representation */
+std::string
+rw_lock_t::locked_from() const
 {
-	fprintf(stream,
-		"-------------\n"
-		"RW-LATCH INFO\n"
-		"RW-LATCH: %p ", (void*) this);
+	/* Note: For X locks it can be locked form multiple places because
+	the same thread can call X lock recursively. */
 
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	/* We used to acquire lock->mutex here, but it would cause a
-	recursive call to sync_thread_add_level() if UNIV_SYNC_DEBUG
-	is defined.  Since this function is only invoked from
-	sync_thread_levels_g(), let us choose the smaller evil:
-	performing dirty reads instead of causing bogus deadlocks or
-	assertion failures. */
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
+	std::ostringstream	msg;
+	Infos			infos;
 
-	if (lock_word != X_LOCK_DECR) {
+	rw_lock_get_debug_info(this, &infos);
 
-		if (rw_lock_get_waiters(this)) {
-			fprintf(stream, " Waiters for the lock exist\n");
-		} else {
-			fprintf(stream, "\n");
+	ulint			i = 0;
+	Infos::const_iterator	end = infos.end();
+
+	for (Infos::const_iterator it = infos.begin(); it != end; ++it, ++i) {
+
+		const rw_lock_debug_t*	info = *it;
+
+		ut_ad(os_thread_eq(info->thread_id, os_thread_get_curr_id()));
+
+		if (i > 0) {
+			msg << ", ";
 		}
 
-#ifdef UNIV_SYNC_DEBUG
-		rw_lock_debug_mutex_enter();
-
-		for (const rw_lock_debug_t* dbg = UT_LIST_GET_FIRST(debug_list);
-		     dbg !=0;
-		     dbg = UT_LIST_GET_NEXT(list, dbg)) {
-
-			rw_lock_debug_print(stream, dbg);
-		}
-
-		rw_lock_debug_mutex_exit();
-#endif /* UNIV_SYNC_DEBUG */
+		msg << info->file_name << ":" << info->line;
 	}
+
+	return(msg.str());
+
+}
+
+/** Print the rw-lock information.
+@return the string representation */
+std::string
+rw_lock_t::to_string() const
+{
+	std::ostringstream	msg;
+
+	msg << "RW-LATCH: "
+	    << "thread id " << os_thread_pf(os_thread_get_curr_id())
+	    << " addr: " << this
+	    << " Locked from: " << locked_from().c_str();
+
+	return(msg.str());
 }
 #endif /* UNIV_DEBUG */

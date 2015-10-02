@@ -18,6 +18,7 @@
 
 #include "dynamic_ids.h"        // Server_ids
 #include "log.h"                // sql_print_error
+#include "rpl_msr.h"            // channel_map
 #include "rpl_slave.h"          // master_retry_count
 
 
@@ -138,10 +139,22 @@ Master_info::Master_info(
              " for channel '%s'", channel);
   my_snprintf(for_channel_uppercase_str, sizeof(for_channel_uppercase_str)-1,
              " FOR CHANNEL '%s'", channel);
+
+  m_channel_lock= new Checkable_rwlock(
+#ifdef HAVE_PSI_INTERFACE
+                                       key_rwlock_channel_lock
+#endif
+                                      );
 }
 
 Master_info::~Master_info()
 {
+  /* No one else is using this master_info */
+  m_channel_lock->assert_some_wrlock();
+  /* No other administrative task is able to get this master_info */
+  channel_map.assert_some_wrlock();
+  m_channel_lock->unlock();
+  delete m_channel_lock;
   delete ignore_server_ids;
   delete mi_description_event;
 }
@@ -163,33 +176,6 @@ bool Master_info::shall_ignore_server_id(ulong s_id)
 {
   return std::binary_search(ignore_server_ids->dynamic_ids.begin(),
                             ignore_server_ids->dynamic_ids.end(), s_id);
-}
-
-/**
-   Initialize master log position and reset master info.
-   -- Used by RESET SLAVE and RESET SLAVE ALL commands.
-
-   @param all Reset master info if true,
-              otherwise, just initialize master log position.
-*/
-void Master_info::clear_in_memory_info(bool all)
-{
-  init_master_log_pos();
-  if (all)
-  {
-    start_user_configured= false; ssl= 0; port= MYSQL_PORT;
-    connect_retry= DEFAULT_CONNECT_RETRY; clock_diff_with_master= 0;
-    heartbeat_period= 0; received_heartbeats= 0; last_heartbeat= 0;
-    master_id= 0;
-    checksum_alg_before_fd= binary_log::BINLOG_CHECKSUM_ALG_UNDEF;
-    retry_count= master_retry_count;
-    auto_position= false; host[0]= 0; user[0]= 0;
-    password[0]= 0; bind_addr[0]= 0; start_password[0]= 0; ssl_ca[0]= 0;
-    ssl_capath[0]= 0; ssl_cert[0]= 0; ssl_cipher[0]= 0; ssl_key[0]= 0;
-    ssl_crl[0]= 0; ssl_crlpath[0]= 0; master_uuid[0]= 0;
-    start_plugin_auth[0]= 0; start_plugin_dir[0]= 0; start_user[0]= 0;
-    ignore_server_ids->dynamic_ids.clear();
-  }
 }
 
 void Master_info::init_master_log_pos()
@@ -414,7 +400,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
   */
   if (lines >= LINE_FOR_MASTER_SSL_VERIFY_SERVER_CERT)
   { 
-    if (from->get_info(&temp_ssl_verify_server_cert, (int) 0))
+    if (from->get_info(&temp_ssl_verify_server_cert, 0))
       DBUG_RETURN(true);
   }
 
@@ -472,7 +458,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
 
   if (lines >= LINE_FOR_AUTO_POSITION)
   {
-    if (from->get_info(&temp_auto_position, (int) 0))
+    if (from->get_info(&temp_auto_position, 0))
       DBUG_RETURN(true);
   }
 
@@ -592,5 +578,17 @@ void Master_info::reset_start_info()
   start_user[0]= 0;
   start_password[0]= 0;
   DBUG_VOID_RETURN;
+}
+
+void Master_info::channel_rdlock()
+{
+  channel_map.assert_some_lock();
+  m_channel_lock->rdlock();
+}
+
+void Master_info::channel_wrlock()
+{
+  channel_map.assert_some_lock();
+  m_channel_lock->wrlock();
 }
 #endif /* HAVE_REPLICATION */

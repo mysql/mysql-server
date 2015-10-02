@@ -50,14 +50,24 @@ ERROR HY000: Query execution was interrupted, maximum statement execution time e
 CREATE TABLE t2 (i INT);
 INSERT /*+ MAX_EXECUTION_TIME(1) */ INTO t2 SELECT 1;
 Warnings:
-Warning	3125	MAX_EXECUTION_TIME hint is supported by SELECT statements only
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
 REPLACE /*+ MAX_EXECUTION_TIME(1) */ INTO t2 SELECT 1;
 Warnings:
-Warning	3125	MAX_EXECUTION_TIME hint is supported by SELECT statements only
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
 UPDATE /*+ MAX_EXECUTION_TIME(1) */ t2 SET i = 1;
 Warnings:
-Warning	3125	MAX_EXECUTION_TIME hint is supported by SELECT statements only
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
 DELETE /*+ MAX_EXECUTION_TIME(1) */ FROM t2 WHERE i = 1;
 Warnings:
-Warning	3125	MAX_EXECUTION_TIME hint is supported by SELECT statements only
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
 DROP TABLE t1, t2;
+SELECT 1 FROM (SELECT /*+ MAX_EXECUTION_TIME(10) */ 1) a;
+1
+1
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
+CREATE FUNCTION f1() RETURNS INT BEGIN SELECT /*+ MAX_EXECUTION_TIME(10) */ 1
+INTO @a; RETURN 1; END|
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
+DROP FUNCTION f1;

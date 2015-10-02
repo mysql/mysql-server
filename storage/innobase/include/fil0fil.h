@@ -229,11 +229,6 @@ struct fil_node_t {
 /** Value of fil_node_t::magic_n */
 #define	FIL_NODE_MAGIC_N	89389
 
-/** When mysqld is run, the default directory "." is the mysqld datadir,
-but in the MySQL Embedded Server Library and mysqlbackup it is not the default
-directory, and we must set the base file path explicitly */
-extern const char*	fil_path_to_mysql_datadir;
-
 /** Common InnoDB file extentions */
 enum ib_extention {
 	NO_EXT = 0,
@@ -245,6 +240,102 @@ extern const char* dot_ext[];
 #define DOT_IBD dot_ext[IBD]
 #define DOT_ISL dot_ext[ISL]
 #define DOT_CFG dot_ext[CFG]
+
+/** Wrapper for a path to a directory.
+This folder may or may not yet esist.  Since not all directory paths
+end in "/", we should only use this for a directory path or a filepath
+that has a ".ibd" extension. */
+class Folder
+{
+public:
+	/** Default constructor */
+	Folder() : m_folder(NULL) {}
+
+	/** Constructor
+	@param[in]	path	pathname (not necessarily NUL-terminated)
+	@param[in]	len	length of the path, in bytes */
+	Folder(const char* path, size_t len);
+
+	/** Assignment operator
+	@param[in]	folder	folder string provided */
+	class Folder& operator=(const char* path);
+
+	/** Destructor */
+	~Folder()
+	{
+		ut_free(m_folder);
+	}
+
+	/** Implicit type conversion
+	@return the wrapped object */
+	operator const char*() const
+	{
+		return(m_folder);
+	}
+
+	/** Explicit type conversion
+	@return the wrapped object */
+	const char* operator()() const
+	{
+		return(m_folder);
+	}
+
+	/** return the length of m_folder
+	@return the length of m_folder */
+	size_t len()
+	{
+		return m_folder_len;
+	}
+
+	/** Determine if two folders are equal
+	@param[in]	other	folder to compare to
+	@return whether the folders are equal */
+	bool operator==(const Folder& other) const;
+
+	/** Determine if the left folder is the same or an ancestor of
+	(contains) the right folder.
+	@param[in]	other	folder to compare to
+	@return whether this is the same or an ancestor or the other folder. */
+	bool operator>=(const Folder& other) const;
+
+	/** Determine if the left folder is an ancestor of (contains)
+	the right folder.
+	@param[in]	other	folder to compare to
+	@return whether this is an ancestor of the other folder */
+	bool operator>(const Folder& other) const;
+
+	/** Determine if the directory referenced by m_folder exists.
+	@return whether the directory exists */
+	bool exists();
+
+private:
+	/** Build the basic folder name from the path and length provided
+	@param[in]	path	pathname (not necessarily NUL-terminated)
+	@param[in]	len	length of the path, in bytes */
+	void	make_path(const char* path, size_t len);
+
+	/** Resolve a relative path in m_folder to an absolute path
+	in m_abs_path setting m_abs_len. */
+	void	make_abs_path();
+
+	/** The wrapped folder string */
+	char*	m_folder;
+
+	/** Length of m_folder */
+	size_t	m_folder_len;
+
+	/** A full absolute path to the same file. */
+	char	m_abs_path[FN_REFLEN + 2];
+
+	/** Length of m_abs_path to the deepest folder */
+	size_t	m_abs_len;
+};
+
+/** When mysqld is run, the default directory "." is the mysqld datadir,
+but in the MySQL Embedded Server Library and mysqlbackup it is not the default
+directory, and we must set the base file path explicitly */
+extern const char*	fil_path_to_mysql_datadir;
+extern Folder   	folder_mysql_datadir;
 
 /** Initial size of a single-table tablespace in pages */
 #define FIL_IBD_FILE_INITIAL_SIZE	4
@@ -897,13 +988,14 @@ a remote tablespace is found it will be changed to true.
 If the fix_dict boolean is set, then it is safe to use an internal SQL
 statement to update the dictionary tables if they are incorrect.
 
-@param[in] validate True if we should validate the tablespace.
-@param[in] fix_dict True if the dictionary is available to be fixed.
-@param[in] purpose FIL_TYPE_TABLESPACE or FIL_TYPE_TEMPORARY
-@param[in] id Tablespace ID
-@param[in] flags Tablespace flags
-@param[in] tablename Table name in the databasename/tablename format.
-@param[in] path_in Tablespace filepath if found in SYS_DATAFILES
+@param[in]	validate	true if we should validate the tablespace
+@param[in]	fix_dict	true if the dictionary is available to be fixed
+@param[in]	purpose		FIL_TYPE_TABLESPACE or FIL_TYPE_TEMPORARY
+@param[in]	id		tablespace ID
+@param[in]	flags		tablespace flags
+@param[in]	space_name	tablespace name of the datafile
+If file-per-table, it is the table name in the databasename/tablename format
+@param[in]	path_in		expected filepath, usually read from dictionary
 @return DB_SUCCESS or error code */
 dberr_t
 fil_ibd_open(
@@ -930,14 +1022,12 @@ enum fil_load_status {
 /** Open a single-file tablespace and add it to the InnoDB data structures.
 @param[in]	space_id	tablespace ID
 @param[in]	filename	path/to/databasename/tablename.ibd
-@param[in]	filename_len	the length of the filename, in bytes
 @param[out]	space		the tablespace, or NULL on error
 @return status of the operation */
 enum fil_load_status
 fil_ibd_load(
 	ulint		space_id,
 	const char*	filename,
-	ulint		filename_len,
 	fil_space_t*&	space)
 	__attribute__((warn_unused_result));
 
@@ -1111,7 +1201,7 @@ fil_page_set_type(
 /** Reset the page type.
 Data files created before MySQL 5.1 may contain garbage in FIL_PAGE_TYPE.
 In MySQL 3.23.53, only undo log pages and index pages were tagged.
-Any other pages were written with unitialized bytes in FIL_PAGE_TYPE.
+Any other pages were written with uninitialized bytes in FIL_PAGE_TYPE.
 @param[in]	page_id	page number
 @param[in,out]	page	page with invalid FIL_PAGE_TYPE
 @param[in]	type	expected page type
@@ -1136,7 +1226,7 @@ fil_page_get_type(
 Data files created before MySQL 5.1 may contain
 garbage in the FIL_PAGE_TYPE field.
 In MySQL 3.23.53, only undo log pages and index pages were tagged.
-Any other pages were written with unitialized bytes in FIL_PAGE_TYPE.
+Any other pages were written with uninitialized bytes in FIL_PAGE_TYPE.
 @param[in]	page_id	page number
 @param[in,out]	page	page with possibly invalid FIL_PAGE_TYPE
 @param[in]	type	expected page type
@@ -1160,7 +1250,7 @@ fil_page_check_type(
 Data files created before MySQL 5.1 may contain
 garbage in the FIL_PAGE_TYPE field.
 In MySQL 3.23.53, only undo log pages and index pages were tagged.
-Any other pages were written with unitialized bytes in FIL_PAGE_TYPE.
+Any other pages were written with uninitialized bytes in FIL_PAGE_TYPE.
 @param[in,out]	block	block with possibly invalid FIL_PAGE_TYPE
 @param[in]	type	expected page type
 @param[in,out]	mtr	mini-transaction */
@@ -1461,9 +1551,9 @@ fil_fusionio_enable_atomic_write(os_file_t file);
 @param[in,out]	node		Node to set */
 void fil_no_punch_hole(fil_node_t* node);
 
-#ifdef UNIV_COMPILE_TEST_FUNCS
+#ifdef UNIV_ENABLE_UNIT_TEST_MAKE_FILEPATH
 void test_make_filepath();
-#endif /* UNIV_COMPILE_TEST_FUNCS */
+#endif /* UNIV_ENABLE_UNIT_TEST_MAKE_FILEPATH */
 
 #endif /* !UNIV_INNOCHECKSUM */
 

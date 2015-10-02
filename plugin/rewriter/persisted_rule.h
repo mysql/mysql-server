@@ -105,7 +105,6 @@ public:
   {
     c->make_writeable();
 
-    c->set(c->enabled_column(), is_enabled ? "Y" : "N", 1);
     set_if_present(c, c->message_column(), message);
     set_if_present(c, c->pattern_digest_column(), pattern_digest);
     set_if_present(c, c->normalized_pattern_column(), normalized_pattern);

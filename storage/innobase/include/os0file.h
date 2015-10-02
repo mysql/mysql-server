@@ -59,11 +59,6 @@ typedef ib_uint64_t os_offset_t;
 #ifdef _WIN32
 
 /**
-Normalizes a directory path for Windows: converts slashes to backslashes.
-@param[in,out] str A null-terminated Windows directory and file path */
-void os_normalize_path_for_win(char* str);
-
-/**
 Gets the operating system version. Currently works only on Windows.
 @return OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000, OS_WINXP, OS_WINVISTA,
 OS_WIN7. */
@@ -99,8 +94,6 @@ typedef int	os_file_t;
 @param fd file descriptor
 @return native file handle */
 # define OS_FILE_FROM_FD(fd) fd
-
-# define os_normalize_path_for_win(str)
 
 #endif /* _WIN32 */
 
@@ -1462,38 +1455,6 @@ os_file_status(
 	bool*		exists,
 	os_file_type_t* type);
 
-/** The function os_file_dirname returns a directory component of a
-null-terminated pathname string.  In the usual case, dirname returns
-the string up to, but not including, the final '/', and basename
-is the component following the final '/'.  Trailing '/' characters
-are not counted as part of the pathname.
-
-If path does not contain a slash, dirname returns the string ".".
-
-Concatenating the string returned by dirname, a "/", and the basename
-yields a complete pathname.
-
-The return value is a copy of the directory component of the pathname.
-The copy is allocated from heap. It is the caller responsibility
-to free it after it is no longer needed.
-
-The following list of examples (taken from SUSv2) shows the strings
-returned by dirname and basename for different paths:
-
-       path	      dirname	     basename
-       "/usr/lib"     "/usr"	     "lib"
-       "/usr/"	      "/"	     "usr"
-       "usr"	      "."	     "usr"
-       "/"	      "/"	     "/"
-       "."	      "."	     "."
-       ".."	      "."	     ".."
-
-@param[in]	path		pathname
-@return own: directory component of the pathname */
-char*
-os_file_dirname(
-	const char*	path);
-
 /** This function returns a new path name after replacing the basename
 in an old path with a new basename.  The old_path is a full path
 name including the extension.  The tablename is in the normal
@@ -1522,18 +1483,22 @@ This function manipulates that path in place.
 
 If the path format is not as expected, just return.  The result is used
 to inform a SHOW CREATE TABLE command.
-
-@praam[out]	data_dir_path	full path/data_dir_path */
+@param[in,out]	data_dir_path		Full path/data_dir_path */
 void
 os_file_make_data_dir_path(
 	char*	data_dir_path);
 
-/**
-Creates all missing subdirectories along the given path.
+/** Create all missing subdirectories along the given path.
 @return DB_SUCCESS if OK, otherwise error code. */
 dberr_t
 os_file_create_subdirs_if_needed(
 	const char*	path);
+
+#ifdef UNIV_ENABLE_UNIT_TEST_GET_PARENT_DIR
+/* Test the function os_file_get_parent_dir. */
+void
+unit_test_os_file_get_parent_dir();
+#endif /* UNIV_ENABLE_UNIT_TEST_GET_PARENT_DIR */
 
 /** Initializes the asynchronous io system. Creates one array each for ibuf
 and log i/o. Also creates one array each for read and write where each
@@ -1609,8 +1574,7 @@ are not left sleeping! */
 void
 os_aio_simulated_put_read_threads_to_sleep();
 
-/**
-This is the generic AIO handler interface function.
+/** This is the generic AIO handler interface function.
 Waits for an aio operation to complete. This function is used to wait the
 for completed requests. The AIO array of pending requests is divided
 into segments. The thread specifies which segment or slot it wants to wait
@@ -1748,6 +1712,41 @@ os_file_decompress_page(
 	byte*		dst,
 	ulint		dst_len)
 	__attribute__((warn_unused_result));
+
+/** Normalizes a directory path for the current OS:
+On Windows, we convert '/' to '\', else we convert '\' to '/'.
+@param[in,out] str A null-terminated directory and file path */
+void os_normalize_path(char*	str);
+
+/** Normalizes a directory path for Windows: converts '/' to '\'.
+@param[in,out] str A null-terminated Windows directory and file path */
+#ifdef _WIN32
+#define os_normalize_path_for_win(str)	os_normalize_path(str)
+#else
+#define os_normalize_path_for_win(str)
+#endif
+
+/* Determine if a path is an absolute path or not.
+@param[in]	OS directory or file path to evaluate
+@retval true if an absolute path
+@retval false if a relative path */
+UNIV_INLINE
+bool
+is_absolute_path(
+	const char*	path)
+{
+	if (path[0] == OS_PATH_SEPARATOR) {
+		return(true);
+	}
+
+#ifdef _WIN32
+	if (path[1] == ':' && path[2] == OS_PATH_SEPARATOR) {
+		return(true);
+	}
+#endif /* _WIN32 */
+
+	return(false);
+}
 
 #ifndef UNIV_NONINL
 #include "os0file.ic"

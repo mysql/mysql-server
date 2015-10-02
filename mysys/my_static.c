@@ -21,7 +21,6 @@
 #include "mysys_priv.h"
 #include "my_static.h"
 
-PSI_memory_key key_memory_array_buffer;
 PSI_memory_key key_memory_charset_file;
 PSI_memory_key key_memory_charset_loader;
 PSI_memory_key key_memory_lf_node;
@@ -99,12 +98,17 @@ static void enter_cond_dummy(void *a __attribute__((unused)),
                              int h __attribute__((unused)))
 { };
 
-static void exid_cond_dummy(void *a __attribute__((unused)),
+static void exit_cond_dummy(void *a __attribute__((unused)),
                             const PSI_stage_info *b __attribute__((unused)),
                             const char *c __attribute__((unused)),
                             const char *d __attribute__((unused)),
                             int e __attribute__((unused)))
 { };
+
+static int is_killed_dummy(const void *a __attribute__((unused)))
+{
+  return 0;
+}
 
 /*
   Initialize these hooks to dummy implementations. The real server
@@ -116,7 +120,9 @@ void (*enter_cond_hook)(void *, mysql_cond_t *, mysql_mutex_t *,
                         const char *, const char *, int)= enter_cond_dummy;
 
 void (*exit_cond_hook)(void *, const PSI_stage_info *,
-                       const char *, const char *, int)= exid_cond_dummy;
+                       const char *, const char *, int)= exit_cond_dummy;
+
+int (*is_killed_hook)(const void *)= is_killed_dummy;
 
 #if defined(ENABLED_DEBUG_SYNC)
 /**

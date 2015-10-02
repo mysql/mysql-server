@@ -131,22 +131,24 @@ private:
     EVENT_BOUNDARY_TYPE_ERROR= -1,
     /* Gtid_log_event */
     EVENT_BOUNDARY_TYPE_GTID= 0,
-    /* Query_log_event(BEGIN) */
+    /* Query_log_event(BEGIN), Query_log_event(XA START) */
     EVENT_BOUNDARY_TYPE_BEGIN_TRX= 1,
-    /* Xid, Query_log_event(COMMIT), Query_log_event(ROLLBACK) */
+    /* Xid, Query_log_event(COMMIT), Query_log_event(ROLLBACK), XA_Prepare_log_event */
     EVENT_BOUNDARY_TYPE_END_TRX= 2,
+    /* Query_log_event(XA ROLLBACK) */
+    EVENT_BOUNDARY_TYPE_END_XA_TRX= 3,
     /* User_var, Intvar and Rand */
-    EVENT_BOUNDARY_TYPE_PRE_STATEMENT= 3,
+    EVENT_BOUNDARY_TYPE_PRE_STATEMENT= 4,
     /*
       All other Query_log_events and all other DML events
       (Rows, Load_data, etc.)
     */
-    EVENT_BOUNDARY_TYPE_STATEMENT= 4,
+    EVENT_BOUNDARY_TYPE_STATEMENT= 5,
     /*
       All non DDL/DML events: Format_desc, Rotate, Incident,
       Previous_gtids, Stop, etc.
     */
-    EVENT_BOUNDARY_TYPE_IGNORE= 5
+    EVENT_BOUNDARY_TYPE_IGNORE= 6
   };
 
   /*
@@ -161,7 +163,7 @@ private:
       DML-1: [GTID]
       DML-2: Query(BEGIN)
       DML-3: Statements
-      DML-4: (Query(COMMIT) | Query(ROLLBACK) | Xid)
+      DML-4: (Query(COMMIT) | Query([XA] ROLLBACK) | Xid | Xa_prepare)
   */
   enum enum_event_parser_state {
     /* NONE is set after DDL-3 or DML-4 */

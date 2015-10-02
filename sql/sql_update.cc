@@ -142,13 +142,6 @@ static bool check_fields(THD *thd, List<Item> &items,
 
   while ((item= it++))
   {
-    Item_field *const base_table_field= item->field_for_view_update();
-    if (!base_table_field)
-    {
-      // item has name, because it comes from VIEW SELECT list
-      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->item_name.ptr());
-      return true;
-    }
     // Save original item for later privilege checking
     if (original_columns && original_columns->push_back(item))
       return true;                   /* purecov: inspected */
@@ -157,6 +150,9 @@ static bool check_fields(THD *thd, List<Item> &items,
       we make temporary copy of Item_field, to avoid influence of changing
       result_field on Item_ref which refer on this field
     */
+    Item_field *const base_table_field= item->field_for_view_update();
+    DBUG_ASSERT(base_table_field != NULL);
+
     Item_field *const cloned_field= new Item_field(thd, base_table_field);
     if (!cloned_field)
       return true;                  /* purecov: inspected */
@@ -325,8 +321,8 @@ bool mysql_update(THD *thd,
     This must be done before partitioning pruning, since prune_partitions()
     uses the table->write_set to determine may prune locks too.
   */
-  if (table->triggers)
-    table->triggers->mark_fields(TRG_EVENT_UPDATE);
+  if (table->triggers && table->triggers->mark_fields(TRG_EVENT_UPDATE))
+    DBUG_RETURN(true);
 
   QEP_TAB_standalone qep_tab_st;
   QEP_TAB &qep_tab= qep_tab_st.as_QEP_TAB();
@@ -400,16 +396,18 @@ bool mysql_update(THD *thd,
         const replacement. However, at the moment there is no such
         thing as Item::clone().
       */
-      conds= build_equal_items(thd, conds, NULL, false,
-                               select_lex->join_list, &cond_equal);
-      conds= remove_eq_conds(thd, conds, &result);
+      if (build_equal_items(thd, conds, &conds, NULL, false,
+                            select_lex->join_list, &cond_equal))
+        goto exit_without_my_ok;
+      if (remove_eq_conds(thd, conds, &conds, &result))
+        goto exit_without_my_ok;
     }
     else
-      conds= optimize_cond(thd, conds, &cond_equal, select_lex->join_list,
-                           true, &result);
-
-    if (thd->is_error())
+    {
+      if (optimize_cond(thd, &conds, &cond_equal, select_lex->join_list,
+                        &result))
         goto exit_without_my_ok;
+    }
 
     if (result == Item::COND_FALSE)
     {
@@ -425,6 +423,11 @@ bool mysql_update(THD *thd,
     if (conds)
     {
       conds= substitute_for_best_equal_field(conds, cond_equal, 0);
+      if (conds == NULL)
+      {
+        error= true;
+        goto exit_without_my_ok;
+      }
       conds->update_used_tables();
     }
   }
@@ -506,7 +509,7 @@ bool mysql_update(THD *thd,
 
       char buff[MYSQL_ERRMSG_SIZE];
       my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), 0, 0,
-                  (ulong) thd->get_stmt_da()->current_statement_cond_count());
+                  (long) thd->get_stmt_da()->current_statement_cond_count());
       my_ok(thd, 0, 0, buff);
 
       DBUG_PRINT("info",("0 records updated"));
@@ -553,7 +556,7 @@ bool mysql_update(THD *thd,
 
   used_key_is_modified|= partition_key_modified(table, table->write_set);
 
-  using_filesort= order && (need_sort||used_key_is_modified);
+  using_filesort= order && need_sort;
 
   {
     ha_rows rows;
@@ -599,21 +602,19 @@ bool mysql_update(THD *thd,
           to update
           NOTE: filesort will call table->prepare_for_position()
         */
-        ha_rows examined_rows;
-        ha_rows found_rows;
-        Filesort fsort(order, limit);
+        ha_rows examined_rows, found_rows, returned_rows;
+        Filesort fsort(&qep_tab, order, limit);
 
         DBUG_ASSERT(table->sort.io_cache == NULL);
         table->sort.io_cache= (IO_CACHE*) my_malloc(key_memory_TABLE_sort_io_cache,
                                                     sizeof(IO_CACHE),
                                                     MYF(MY_FAE | MY_ZEROFILL));
 
-        if ((table->sort.found_records= filesort(thd, &qep_tab, &fsort, true,
-                                                 &examined_rows, &found_rows))
-            == HA_POS_ERROR)
-        {
+        if (filesort(thd, &fsort, true,
+                     &examined_rows, &found_rows, &returned_rows))
           goto exit_without_my_ok;
-        }
+
+        table->sort.found_records= returned_rows;
         thd->inc_examined_row_count(examined_rows);
         /*
           Filesort has already found and selected the rows we want to update,
@@ -1064,9 +1065,9 @@ bool mysql_update(THD *thd,
   if (error < 0)
   {
     char buff[MYSQL_ERRMSG_SIZE];
-    my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found,
-                (ulong) updated,
-                (ulong) thd->get_stmt_da()->current_statement_cond_count());
+    my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (long) found,
+                (long) updated,
+                (long) thd->get_stmt_da()->current_statement_cond_count());
     my_ok(thd, thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS) ?
           found : updated, id, buff);
     DBUG_PRINT("info",("%ld records updated", (long) updated));
@@ -1144,7 +1145,8 @@ bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table_list->set_want_privilege(UPDATE_ACL);
 #endif
-  if (setup_fields(thd, Ref_ptr_array(), select->item_list, UPDATE_ACL, 0, 0))
+  if (setup_fields(thd, Ref_ptr_array(), select->item_list, UPDATE_ACL, NULL,
+                   false, true))
     DBUG_RETURN(true);                     /* purecov: inspected */
 
   if (check_fields(thd, select->item_list, NULL))
@@ -1160,8 +1162,8 @@ bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,
 
   table_list->set_want_privilege(SELECT_ACL);
 
-  if (setup_fields(thd, Ref_ptr_array(), update_value_list,
-                   SELECT_ACL, 0, 0))
+  if (setup_fields(thd, Ref_ptr_array(), update_value_list, SELECT_ACL, NULL,
+                   false, false))
     DBUG_RETURN(true);                          /* purecov: inspected */
 
   thd->mark_used_columns= mark_used_columns_saved;
@@ -1454,10 +1456,15 @@ int Sql_cmd_update::mysql_multi_update_prepare(THD *thd)
     DBUG_RETURN(true);
 
   /*
-    Proper table privileges have not been determined yet, so do not perform
-    column checking yet.
+    In multi-table UPDATE, tables to be updated are determined based on
+    which fields are updated. Hence, tables that need to be checked
+    for update have not been established yet, and thus 0 is supplied
+    for want_privilege argument below.
+    Later, the combined used_tables information for these columns are used
+    to determine updatable tables, those tables are prepared for update,
+    and finally the columns can be checked for proper update privileges.
   */
-  if (setup_fields(thd, Ref_ptr_array(), *fields, 0, 0, 0))
+  if (setup_fields(thd, Ref_ptr_array(), *fields, 0, NULL, false, true))
     DBUG_RETURN(true);
 
   List<Item> original_update_fields;
@@ -1555,7 +1562,7 @@ int Sql_cmd_update::mysql_multi_update_prepare(THD *thd)
   if (thd->stmt_arena->is_stmt_prepare())
   {
     if (setup_fields(thd, Ref_ptr_array(), update_value_list, SELECT_ACL,
-                     NULL, false))
+                     NULL, false, false))
       DBUG_RETURN(true);
   }
 
@@ -1734,8 +1741,8 @@ int Query_result_update::prepare(List<Item> &not_used_values,
     reference tables
   */
 
-  int error= setup_fields(thd, Ref_ptr_array(),
-                          *values, SELECT_ACL, 0, 0);
+  int error= setup_fields(thd, Ref_ptr_array(), *values, SELECT_ACL, NULL,
+                          false, false);
 
   for (table_ref= leaves; table_ref; table_ref= table_ref->next_leaf)
   {
@@ -1863,8 +1870,8 @@ int Query_result_update::prepare(List<Item> &not_used_values,
         bitmap_union(table->read_set, table->write_set);
       }
       /* All needed columns must be marked before prune_partitions(). */
-      if (table->triggers)
-        table->triggers->mark_fields(TRG_EVENT_UPDATE);
+      if (table->triggers && table->triggers->mark_fields(TRG_EVENT_UPDATE))
+        DBUG_RETURN(true);
     }
   }
 
@@ -2139,7 +2146,7 @@ loop_end:
     /* Make an unique key over the first field to avoid duplicated updates */
     memset(&group, 0, sizeof(group));
     group.direction= ORDER::ORDER_ASC;
-    group.item= (Item**) temp_fields.head_ref();
+    group.item= temp_fields.head_ref();
 
     tmp_param->quick_group=1;
     tmp_param->field_count=temp_fields.elements;
@@ -2149,8 +2156,12 @@ loop_end:
     my_bool save_big_tables= thd->variables.big_tables; 
     thd->variables.big_tables= FALSE;
     tmp_tables[cnt]=create_tmp_table(thd, tmp_param, temp_fields,
-                                     (ORDER*) &group, 0, 0,
+                                     &group, 0, 0,
                                      TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR, "");
+    thd->variables.big_tables= save_big_tables;
+    if (!tmp_tables[cnt])
+      DBUG_RETURN(1);
+
     /*
       Pass a table triggers pointer (Table_trigger_dispatcher *) from
       the original table to the new temporary table. This pointer will be used
@@ -2159,9 +2170,6 @@ loop_end:
       calling fill_record() to assign values to the temporary table's fields.
     */
     tmp_tables[cnt]->triggers= table->triggers;
-    thd->variables.big_tables= save_big_tables;
-    if (!tmp_tables[cnt])
-      DBUG_RETURN(1);
     tmp_tables[cnt]->file->extra(HA_EXTRA_WRITE_CACHE);
   }
   DBUG_RETURN(0);
@@ -2592,10 +2600,20 @@ int Query_result_update::do_updates()
 	   copy_field_ptr++)
         copy_field_ptr->invoke_do_copy(copy_field_ptr);
 
+      // The above didn't update generated columns
+      if (table->vfield &&
+          update_generated_write_fields(table->write_set, table))
+        goto err;
+
       if (table->triggers)
       {
         bool rc= table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
                                                    TRG_ACTION_BEFORE, true);
+
+        // Trigger might have changed dependencies of generated columns
+        if (!rc && table->vfield &&
+            update_generated_write_fields(table->write_set, table))
+          goto err;
 
         table->triggers->disable_fields_temporary_nullability();
 
@@ -2760,8 +2778,8 @@ bool Query_result_update::send_eof()
   id= thd->arg_of_last_insert_id_function ?
     thd->first_successful_insert_id_in_prev_stmt : 0;
   my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO),
-              (ulong) found, (ulong) updated,
-              (ulong) thd->get_stmt_da()->current_statement_cond_count());
+              (long) found, (long) updated,
+              (long) thd->get_stmt_da()->current_statement_cond_count());
   ::my_ok(thd, thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS) ?
           found : updated, id, buff);
   DBUG_RETURN(FALSE);
@@ -2902,11 +2920,10 @@ bool Sql_cmd_update::execute_multi_table_update(THD *thd)
 #endif /* HAVE_REPLICATION */
     if (res)
       return res;
-    if (opt_readonly &&
-        !(thd->security_context()->check_access(SUPER_ACL)) &&
+    if (check_readonly(thd, false) &&
         some_non_temp_table_to_be_updated(thd, all_tables))
     {
-      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+      err_readonly(thd);
       return res;
     }
 #ifdef HAVE_REPLICATION

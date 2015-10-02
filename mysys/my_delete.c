@@ -27,7 +27,7 @@ int my_delete(const char *name, myf MyFlags)
 
   if ((err = unlink(name)) == -1)
   {
-    my_errno=errno;
+    set_my_errno(errno);
     if (MyFlags & (MY_FAE+MY_WME))
     {
       char errbuf[MYSYS_STRERROR_SIZE];
@@ -101,7 +101,7 @@ int nt_share_delete(const char *name, myf MyFlags)
 
   if (errno == ERROR_FILE_NOT_FOUND)
   {
-    my_errno= ENOENT;    // marking, that `name' doesn't exist 
+    set_my_errno(ENOENT);    // marking, that `name' doesn't exist 
   }
   else if (errno == 0)
   {
@@ -115,18 +115,18 @@ int nt_share_delete(const char *name, myf MyFlags)
     */
     errno= GetLastError();
     if (errno == 0)
-      my_errno= ENOENT; // marking, that `buf' doesn't exist
+      set_my_errno(ENOENT); // marking, that `buf' doesn't exist
     else
-      my_errno= errno;
+      set_my_errno(errno);
   }
   else
-    my_errno= errno;
+    set_my_errno(errno);
 
   if (MyFlags & (MY_FAE+MY_WME))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     my_error(EE_DELETE, MYF(0),
-             name, my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+             name, my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
   }
   DBUG_RETURN(-1);
 }

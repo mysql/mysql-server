@@ -91,9 +91,9 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
   if ((file= my_open(to,  (mode & ~O_EXCL), MyFlags)) < 0)
   {
     /* Open failed, remove the file created by GetTempFileName */
-    int tmp= my_errno;
+    int tmp= my_errno();
     (void) my_delete(to, MYF(0));
-    my_errno= tmp;
+    set_my_errno(tmp);
   }
 
 #else /* mkstemp() is available on all non-Windows supported platforms. */
@@ -110,7 +110,8 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
       dir= DEFAULT_TMPDIR;
     if (strlen(dir)+ pfx_len > FN_REFLEN-2)
     {
-      errno=my_errno= ENAMETOOLONG;
+      errno=ENAMETOOLONG;
+      set_my_errno(ENAMETOOLONG);
       DBUG_RETURN(file);
     }
     my_stpcpy(convert_dirname(to,dir,NullS),prefix_buff);
@@ -122,10 +123,10 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     /* If we didn't manage to register the name, remove the temp file */
     if (org_file >= 0 && file < 0)
     {
-      int tmp=my_errno;
+      int tmp=my_errno();
       close(org_file);
       (void) my_delete(to, MYF(MY_WME));
-      my_errno=tmp;
+      set_my_errno(tmp);
     }
   }
 #endif

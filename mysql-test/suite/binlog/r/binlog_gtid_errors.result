@@ -1,3 +1,4 @@
+RESET MASTER;
 ==== Conditions for gtid_executed ====
 # Readable.
 SELECT @@GLOBAL.GTID_EXECUTED;
@@ -7,7 +8,6 @@ SELECT @@SESSION.GTID_EXECUTED;
 @@SESSION.GTID_EXECUTED
 
 Warnings:
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 # Read-only.
 SET @@GLOBAL.GTID_EXECUTED= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
@@ -215,7 +215,17 @@ BEGIN;
 CREATE TABLE t2 (a INT);
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 ROLLBACK;
-SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:15';
+SET @@SESSION.GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:15';
+BEGIN;
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (a INT);
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
+COMMIT;
+SET @@SESSION.GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:16';
+CREATE TABLE t2 AS SELECT * FROM t1;
+ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+COMMIT;
+SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:17';
 # can't do implicit commit while gtid_next=SID:GNO
 SET AUTOCOMMIT = 0;
 INSERT INTO t1 VALUES (1);
@@ -224,7 +234,7 @@ ERROR HY000: Cannot execute statements with implicit commit inside a transaction
 ROLLBACK;
 SELECT @@SESSION.GTID_NEXT;
 @@SESSION.GTID_NEXT
-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:15
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:17
 SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 DROP TABLE t1;
 DROP FUNCTION f;

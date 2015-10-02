@@ -74,13 +74,8 @@ public:
   {}
   const char *func_name() const { return "updatexml"; }
   String *val_str(String *);
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item_func_xml_update::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
+  bool check_gcol_func_processor(uchar *int_arg)
+  { return true; }
 };
 
 #endif /* ITEM_XMLFUNC_INCLUDED */

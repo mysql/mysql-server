@@ -158,7 +158,10 @@ enum dberr_t {
 
 	DB_TABLE_CORRUPT,		/*!< Table/clustered index is
 					corrupted */
+
 	DB_WRONG_FILE_NAME,		/*!< Invalid Filename */
+
+	DB_COMPUTE_VALUE_FAILED,	/*!< Compute generated value failed */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,
@@ -168,10 +171,6 @@ enum dberr_t {
 	DB_ZIP_OVERFLOW,
 	DB_RECORD_NOT_FOUND = 1500,
 	DB_END_OF_INDEX,
-	DB_DICT_CHANGED,		/*!< Some part of table dictionary has
-					changed. Such as index dropped or
-					foreign key dropped */
-
 	DB_NOT_FOUND,			/*!< Generic error code for "Not found"
 					type of errors */
 

@@ -1001,6 +1001,5 @@ void Mysqld_socket_listener::close_listener()
   }
 #endif
 
-  if (!m_socket_map.empty())
-    m_socket_map.clear();
+  m_socket_map.clear();
 }

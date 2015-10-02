@@ -246,7 +246,8 @@ table_tiws_by_index_usage::m_share=
   sizeof(pos_tiws_by_index_usage),
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 PFS_engine_table*

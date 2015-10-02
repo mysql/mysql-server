@@ -19,17 +19,9 @@ LET $data_directory_clause = DATA DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
 LET $index_directory_clause = INDEX DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
 
 --echo #
---echo # CREATE TABLE ... DATA DIRECTORY
---echo # Innodb does not support INDEX DIRECTORY.
---echo #
-SET SESSION innodb_strict_mode = ON;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
---error ER_ILLEGAL_HA
-eval CREATE TABLE t1 (a int KEY, b text) $index_directory_clause;
-SHOW WARNINGS;
-
---echo #
---echo # Without strict mode, INDEX DIRECTORY is just ignored
+--echo # CREATE TABLE ... INDEX DIRECTORY
+--echo # In non-strict mode INDEX DIRECTORY is ignored.
+--echo # In strict mode INDEX DIRECTORY is rejected.
 --echo #
 SET SESSION innodb_strict_mode = OFF;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
@@ -38,24 +30,35 @@ SHOW WARNINGS;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
+SET SESSION innodb_strict_mode = ON;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_ILLEGAL_HA
+eval CREATE TABLE t1 (a int KEY, b text) $index_directory_clause;
+SHOW WARNINGS;
+
 --echo #
 --echo # Innodb does not support DATA DIRECTORY without innodb_file_per_table=ON.
+--echo # In non-strict mode DATA DIRECTORY is ignored.
+--echo # In strict mode DATA DIRECTORY without innodb_file_per_table=ON is rejected.
+--echo # TABLESPACE='innodb_file_per_table' overrides the innodb_file_per_table=OFF setting.
 --echo #
-SET SESSION innodb_strict_mode = ON;
 SET GLOBAL innodb_file_per_table=OFF;
+SET SESSION innodb_strict_mode = OFF;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t1 (a int KEY, b text) $data_directory_clause;
+SHOW WARNINGS;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+SET SESSION innodb_strict_mode = ON;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --error ER_ILLEGAL_HA
 eval CREATE TABLE t1 (a int KEY, b text) $data_directory_clause;
 SHOW WARNINGS;
 
---echo #
---echo # Without strict mode, DATA DIRECTORY without innodb_file_per_table=ON
---echo # is just ignored.
---echo #
-SET SESSION innodb_strict_mode = OFF;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval CREATE TABLE t1 (a int KEY, b text) $data_directory_clause;
-SHOW WARNINGS;
+eval CREATE TABLE t1 (a int KEY, b text) TABLESPACE=`innodb_file_per_table` $data_directory_clause;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
@@ -180,29 +183,47 @@ DROP TABLE t1;
 set @@sql_mode=@org_mode;
 
 --echo #
---echo # MySQL engine does not allow DATA DIRECTORY to be
---echo # within --datadir for any engine, including InnoDB
+--echo # The server does not allow any DATA DIRECTORY name to be a relative path
+--echo # or to be located in or under MYSQLD_DATADIR. 
 --echo #
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
---error ER_WRONG_ARGUMENTS
-eval CREATE TABLE t1 (a int KEY, b text) DATA DIRECTORY '$MYSQLD_DATADIR/test';
-
---echo # TEMPORARY tables are incompatible with DATA DIRECTORY
-SET SESSION innodb_strict_mode = ON;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
---error ER_ILLEGAL_HA
-eval CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB $data_directory_clause;
+--error ER_WRONG_TABLE_NAME
+eval CREATE TABLE t1 (a int KEY, b text) DATA DIRECTORY './';
 SHOW WARNINGS;
+
+--error ER_WRONG_TABLE_NAME
+eval CREATE TABLE t1 (a int KEY, b text) DATA DIRECTORY '../';
+SHOW WARNINGS;
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--error ER_WRONG_ARGUMENTS
+eval CREATE TABLE t1 (a int KEY, b text) DATA DIRECTORY '$MYSQLD_DATADIR';
+SHOW WARNINGS;
+
+--mkdir $MYSQLD_DATADIR/under
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--error ER_WRONG_ARGUMENTS
+eval CREATE TABLE t1 (a int KEY, b text) DATA DIRECTORY '$MYSQLD_DATADIR/under';
+SHOW WARNINGS;
+--rmdir $MYSQLD_DATADIR/under
+
+--echo #
+--echo # TEMPORARY tables are incompatible with DATA DIRECTORY
+--echo # In strict mode DATA DIRECTORY is rejected. In non-strict mode it
+--echo # is ignored.
+--echo #
 SET SESSION innodb_strict_mode = OFF;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB $data_directory_clause;
 SHOW WARNINGS;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
---echo ---- MYSQLD_DATADIR/test
---list_files $MYSQLD_DATADIR/test
---echo ---- MYSQL_TMP_DIR/alt_dir/test
---list_files $MYSQL_TMP_DIR/alt_dir/test
+
+SET SESSION innodb_strict_mode = ON;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_ILLEGAL_HA
+eval CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB $data_directory_clause;
+SHOW WARNINGS;
 
 --echo #
 --echo # Create the remote table via static DDL statements in a stored procedure

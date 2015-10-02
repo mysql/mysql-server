@@ -119,13 +119,27 @@ bool Partition_share::init_auto_inc_mutex(TABLE_SHARE *table_share)
 }
 
 
+/**
+  Release reserved auto increment values not used.
+  @param thd             Thread.
+  @param table_share     Table Share
+  @param next_insert_id  Next insert id (first non used auto inc value).
+  @param max_reserved    End of reserved auto inc range.
+*/
 void
-Partition_share::release_auto_inc_if_possible(THD *thd,
+Partition_share::release_auto_inc_if_possible(THD *thd, TABLE_SHARE *table_share,
                                               const ulonglong next_insert_id,
                                               const ulonglong max_reserved)
 {
   DBUG_ASSERT(auto_inc_mutex);
-  mysql_mutex_assert_owner(auto_inc_mutex);
+
+#ifndef DBUG_OFF
+  if (table_share->tmp_table == NO_TMP_TABLE)
+  {
+    mysql_mutex_assert_owner(auto_inc_mutex);
+  }
+#endif /* DBUG_OFF */
+
   /*
     If the current auto_increment values is lower than the reserved value (1)
     and the reserved value was reserved by this thread (2), then we can
@@ -207,7 +221,8 @@ bool Partition_share::populate_partition_name_hash(partition_info *part_info)
   if (my_hash_init(&partition_name_hash,
                    system_charset_info, tot_names, 0, 0,
                    (my_hash_get_key) get_part_name_from_def,
-                   my_free, HASH_UNIQUE))
+                   my_free, HASH_UNIQUE,
+                   key_memory_Partition_share))
   {
     my_free(partition_names);
     partition_names= NULL;
@@ -843,7 +858,7 @@ void Partition_helper::ph_release_auto_increment()
   {
     ulonglong max_reserved= m_handler->auto_inc_interval_for_cur_row.maximum();
     lock_auto_increment();
-    m_part_share->release_auto_inc_if_possible(get_thd(),
+    m_part_share->release_auto_inc_if_possible(get_thd(), m_table->s,
                                                m_handler->next_insert_id,
                                                max_reserved);
     DBUG_PRINT("info", ("part_share->next_auto_inc_val: %lu",
@@ -1706,7 +1721,7 @@ bool Partition_helper::print_admin_msg(THD* thd,
   msgbuf[len - 1] = 0; // healthy paranoia
 
 
-  if (!thd->vio_ok())
+  if (!thd->get_protocol()->connection_alive())
   {
     sql_print_error("%s", msgbuf);
     goto err;
@@ -1777,6 +1792,12 @@ void Partition_helper::set_partition_read_set()
         calculate the partition id to place updated and deleted records.
       */
       bitmap_union(m_table->read_set, &m_part_info->full_part_field_set);
+    }
+    // Mark virtual generated columns writable
+    for (Field **vf= m_table->vfield; vf && *vf; vf++)
+    {
+      if (bitmap_is_set(m_table->read_set, (*vf)->field_index))
+        bitmap_set_bit(m_table->write_set, (*vf)->field_index);
     }
   }
 }

@@ -249,7 +249,7 @@ mysql_event_fill_row(THD *thd,
   */
   if (!is_update || et->status_changed)
     rs|= fields[ET_FIELD_STATUS]->store((longlong)et->status, TRUE);
-  rs|= fields[ET_FIELD_ORIGINATOR]->store((longlong)et->originator, TRUE);
+  rs|= fields[ET_FIELD_ORIGINATOR]->store(et->originator, TRUE);
 
   /*
     Change the SQL_MODE only if body was present in an ALTER EVENT and of course
@@ -280,7 +280,7 @@ mysql_event_fill_row(THD *thd,
     }
 
     fields[ET_FIELD_INTERVAL_EXPR]->set_notnull();
-    rs|= fields[ET_FIELD_INTERVAL_EXPR]->store((longlong)et->expression, TRUE);
+    rs|= fields[ET_FIELD_INTERVAL_EXPR]->store(et->expression, TRUE);
 
     fields[ET_FIELD_TRANSIENT_INTERVAL]->set_notnull();
 

@@ -20,11 +20,13 @@
 #ifndef _mysql_com_h
 #define _mysql_com_h
 #include "binary_log_types.h"
+#include "my_command.h"
 #define HOSTNAME_LENGTH 60
 #define SYSTEM_CHARSET_MBMAXLEN 3
 #define FILENAME_CHARSET_MBMAXLEN 5
 #define NAME_CHAR_LEN	64              /* Field/table name length */
-#define USERNAME_CHAR_LENGTH 16
+#define USERNAME_CHAR_LENGTH 32
+#define USERNAME_CHAR_LENGTH_STR "32"
 #ifndef NAME_LEN
 #define NAME_LEN                (NAME_CHAR_LEN*SYSTEM_CHARSET_MBMAXLEN)
 #endif
@@ -68,27 +70,6 @@
 #define MYSQL_NAMEDPIPE "MySQL"
 #define MYSQL_SERVICENAME "MySQL"
 #endif /* _WIN32 */
-
-/*
-  You should add new commands to the end of this list, otherwise old
-  servers won't be able to handle them as 'unsupported'.
-*/
-
-enum enum_server_command
-{
-  COM_SLEEP, COM_QUIT, COM_INIT_DB, COM_QUERY, COM_FIELD_LIST,
-  COM_CREATE_DB, COM_DROP_DB, COM_REFRESH, COM_SHUTDOWN, COM_STATISTICS,
-  COM_PROCESS_INFO, COM_CONNECT, COM_PROCESS_KILL, COM_DEBUG, COM_PING,
-  COM_TIME, COM_DELAYED_INSERT, COM_CHANGE_USER, COM_BINLOG_DUMP,
-  COM_TABLE_DUMP, COM_CONNECT_OUT, COM_REGISTER_SLAVE,
-  COM_STMT_PREPARE, COM_STMT_EXECUTE, COM_STMT_SEND_LONG_DATA, COM_STMT_CLOSE,
-  COM_STMT_RESET, COM_SET_OPTION, COM_STMT_FETCH, COM_DAEMON,
-  COM_BINLOG_DUMP_GTID, COM_RESET_CONNECTION,
-  /* don't forget to update const char *command_name[] in sql_parse.cc */
-
-  /* Must be last */
-  COM_END
-};
 
 /* The length of the header part for each generated column in the .frm file. */
 #define FRM_GCOL_HEADER_SIZE 4
@@ -488,12 +469,14 @@ enum enum_session_state_type
   SESSION_TRACK_SYSTEM_VARIABLES,                       /* Session system variables */
   SESSION_TRACK_SCHEMA,                          /* Current schema */
   SESSION_TRACK_STATE_CHANGE,                  /* track session state changes */
-  SESSION_TRACK_GTIDS
+  SESSION_TRACK_GTIDS,
+  SESSION_TRACK_TRANSACTION_CHARACTERISTICS,  /* Transaction chistics */
+  SESSION_TRACK_TRANSACTION_STATE             /* Transaction state */
 };
 
 #define SESSION_TRACK_BEGIN SESSION_TRACK_SYSTEM_VARIABLES
 
-#define SESSION_TRACK_END SESSION_TRACK_GTIDS
+#define SESSION_TRACK_END SESSION_TRACK_TRANSACTION_STATE
 
 #define IS_SESSION_STATE_TYPE(T) \
   (((int)(T) >= SESSION_TRACK_BEGIN) && ((T) <= SESSION_TRACK_END))

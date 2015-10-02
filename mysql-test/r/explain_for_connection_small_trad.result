@@ -118,7 +118,7 @@ SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -2,2 +2,2 @@
  1	SIMPLE	v	NULL	ref	OXLEFT,OXRIGHT,OXROOTID	OXROOTID	34	const	5	100.00	NULL
--1	SIMPLE	s	NULL	ALL	OXLEFT,OXROOTID	NULL	NULL	NULL	6	9.26	Using where; Using join buffer (Block Nested Loop)
+-1	SIMPLE	s	NULL	ALL	OXLEFT,OXROOTID	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
 +1	SIMPLE	s	NULL	ALL	OXLEFT,OXROOTID	NULL	NULL	NULL	6	83.33	Using where; Using join buffer (Block Nested Loop)
 QUERY: SELECT * from t1 where b = (select b from t2 where t1.a = t2.a) 
 STATUS: EQUAL

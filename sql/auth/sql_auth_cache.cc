@@ -269,7 +269,6 @@ ACL_PROXY_USER::check_validity(bool check_no_resolve)
                       proxied_host.get_host() ? proxied_host.get_host() : "",
                       user ? user : "",
                       host.get_host() ? host.get_host() : "");
-    return TRUE;
   }
   return FALSE;
 }
@@ -544,22 +543,12 @@ ulong get_sort(uint count,...)
 
 bool hostname_requires_resolving(const char *hostname)
 {
+
+  /* called only for --skip-name-resolve */
+  DBUG_ASSERT(specialflag & SPECIAL_NO_RESOLVE);
+
   if (!hostname)
     return FALSE;
-
-  /* Check if hostname is the localhost. */
-
-  size_t hostname_len= strlen(hostname);
-  size_t localhost_len= strlen(my_localhost);
-
-  if (hostname == my_localhost ||
-      (hostname_len == localhost_len &&
-       !my_strnncoll(system_charset_info,
-                     (const uchar *) hostname,  hostname_len,
-                     (const uchar *) my_localhost, strlen(my_localhost))))
-  {
-    return FALSE;
-  }
 
   /*
     If the string contains any of {':', '%', '_', '/'}, it is definitely
@@ -658,7 +647,8 @@ GRANT_TABLE::GRANT_TABLE(const char *h, const char *d,const char *u,
   :GRANT_NAME(h,d,u,t,p, FALSE), cols(c)
 {
   (void) my_hash_init2(&hash_columns,4,system_charset_info,
-                   0,0,0, (my_hash_get_key) get_key_column,0,0);
+                   0,0,0, (my_hash_get_key) get_key_column,0,0,
+                   key_memory_acl_memex);
 }
 
 
@@ -706,7 +696,8 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form)
   cols =  fix_rights_for_column(cols);
 
   (void) my_hash_init2(&hash_columns,4,system_charset_info,
-                   0,0,0, (my_hash_get_key) get_key_column,0,0);
+                   0,0,0, (my_hash_get_key) get_key_column,0,0,
+                   key_memory_acl_memex);
 }
 
 
@@ -987,10 +978,10 @@ ulong acl_get(const char *host, const char *ip,
   acl_entry *entry;
   DBUG_ENTER("acl_get");
 
-  copy_length= (size_t) (strlen(ip ? ip : "") +
-                 strlen(user ? user : "") +
-                 strlen(db ? db : "")) + 2; /* Added 2 at the end to avoid  
-                                               buffer overflow at strmov()*/
+  copy_length= (strlen(ip ? ip : "") +
+                strlen(user ? user : "") +
+                strlen(db ? db : "")) + 2; /* Added 2 at the end to avoid
+                                              buffer overflow at strmov()*/
   /*
     Make sure that my_stpcpy() operations do not result in buffer overflow.
   */
@@ -1039,7 +1030,9 @@ ulong acl_get(const char *host, const char *ip,
 exit:
   /* Save entry in cache for quick retrieval */
   if (!db_is_pattern &&
-      (entry= (acl_entry*) malloc(sizeof(acl_entry)+key_length)))
+      (entry= (acl_entry*) my_malloc(key_memory_acl_cache,
+                                     sizeof(acl_entry)+key_length,
+                                     MYF(0))))
   {
     entry->access=(db_access & host_access);
     entry->length=key_length;
@@ -1084,10 +1077,13 @@ static void init_check_host(void)
     acl_wild_hosts=
       new Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE>(key_memory_acl_mem);
 
+  size_t acl_users_size= acl_users ? acl_users->size() : 0;
+
   (void) my_hash_init(&acl_check_hosts,system_charset_info,
-                      acl_users->size(), 0, 0,
-                      (my_hash_get_key) check_get_key, 0, 0);
-  if (!allow_all_hosts)
+                      acl_users_size, 0, 0,
+                      (my_hash_get_key) check_get_key, 0, 0,
+                      key_memory_acl_mem);
+  if (acl_users_size && !allow_all_hosts)
   {
     for (ACL_USER *acl_user= acl_users->begin();
          acl_user != acl_users->end(); ++acl_user)
@@ -1376,9 +1372,10 @@ my_bool acl_init(bool dont_read_acl_tables)
   my_bool return_val;
   DBUG_ENTER("acl_init");
 
-  acl_cache= new hash_filo(ACL_CACHE_SIZE, 0, 0,
+  acl_cache= new hash_filo(key_memory_acl_cache,
+                           ACL_CACHE_SIZE, 0, 0,
                            (my_hash_get_key) acl_entry_get_key,
-                           (my_hash_free_key) free,
+                           (my_hash_free_key) my_free,
                            &my_charset_utf8_bin);
 
   LOCK_grant.init(LOCK_GRANT_PARTITIONS
@@ -1510,7 +1507,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                         "ignored in --skip-name-resolve mode.",
                         user.user ? user.user : "",
                         user.host.get_host() ? user.host.get_host() : "");
-      continue;
     }
 
     /* Read password from authentication_string field */
@@ -1522,6 +1518,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     {
       sql_print_error("Fatal error: mysql.user table is damaged. "
                       "Please run mysql_upgrade.");
+
+      end_read_record(&read_record_info);
       goto end;
     }
     if(user.auth_string.str)
@@ -1717,7 +1715,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
         if (plugin)
         {
           st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
-          if (auth->validate_authentication_string((char*)user.auth_string.str,
+          if (auth->validate_authentication_string(user.auth_string.str,
                                                    user.auth_string.length))
           {
             sql_print_warning("Found invalid password for user: '%s@%s'; "
@@ -1878,7 +1876,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                         db.db,
                         db.user ? db.user : "",
                         db.host.get_host() ? db.host.get_host() : "");
-      continue;
     }
     db.access=get_access(table,3,0);
     db.access=fix_rights_for_db(db.access);
@@ -2238,10 +2235,10 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
   DBUG_ENTER("grant_load_procs_priv");
   (void) my_hash_init(&proc_priv_hash, &my_charset_utf8_bin,
                       0,0,0, (my_hash_get_key) get_grant_table,
-                      0,0);
+                      0, 0, key_memory_acl_memex);
   (void) my_hash_init(&func_priv_hash, &my_charset_utf8_bin,
                       0,0,0, (my_hash_get_key) get_grant_table,
-                      0,0);
+                      0, 0, key_memory_acl_memex);
   error= p_table->file->ha_index_init(0, 1);
   if (error)
   {
@@ -2283,7 +2280,6 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
                             mem_check->tname, mem_check->user,
                             mem_check->host.get_host() ?
                             mem_check->host.get_host() : "");
-          continue;
         }
       }
       if (p_table->field[4]->val_int() == SP_TYPE_PROCEDURE)
@@ -2363,7 +2359,8 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
 
   (void) my_hash_init(&column_priv_hash, &my_charset_utf8_bin,
                       0,0,0, (my_hash_get_key) get_grant_table,
-                      (my_hash_free_key) free_grant_table,0);
+                      (my_hash_free_key) free_grant_table,0,
+                      key_memory_acl_memex);
 
   t_table = tables[0].table;
   c_table = tables[1].table;
@@ -2417,7 +2414,6 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
                             mem_check->user ? mem_check->user : "",
                             mem_check->host.get_host() ?
                             mem_check->host.get_host() : "");
-          continue;
         }
       }
 

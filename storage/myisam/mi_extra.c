@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -66,7 +66,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
 	(share->options & HA_OPTION_PACK_RECORD))
     {
       error=1;			/* Not possibly if not locked */
-      my_errno=EACCES;
+      set_my_errno(EACCES);
       break;
     }
     if (info->s->file_map) /* Don't use cache if mmap */
@@ -263,7 +263,8 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     break;
   case HA_EXTRA_FLUSH:
     if (!share->temporary)
-      flush_key_blocks(share->key_cache, share->kfile, FLUSH_KEEP);
+      flush_key_blocks(share->key_cache, keycache_thread_var(),
+                       share->kfile, FLUSH_KEEP);
 #ifndef _WIN32
     _mi_decrement_open_count(info);
 #endif
@@ -271,9 +272,9 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     {
       share->not_flushed=0;
       if (mysql_file_sync(share->kfile, MYF(0)))
-	error= my_errno;
+	error= my_errno();
       if (mysql_file_sync(info->dfile, MYF(0)))
-	error= my_errno;
+	error= my_errno();
       if (error)
       {
 	share->changed=1;
@@ -315,7 +316,8 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
       if (mi_dynmap_file(info, share->state.state.data_file_length))
       {
         DBUG_PRINT("warning",("mmap failed: errno: %d",errno));
-        error= my_errno= errno;
+        error= errno;
+        set_my_errno(error);
       }
     }
     mysql_mutex_unlock(&share->intern_lock);

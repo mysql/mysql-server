@@ -516,7 +516,7 @@ ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POLYGON((0 0))'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POLYGON((0 0,2 2,4 4))'));
-ERROR 22023: Invalid GIS data provided to function st_issimple.
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POLYGON((0 0,2 2,0 0))'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'));
@@ -528,7 +528,7 @@ ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5)),((0 0)))'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5)),((0 0,2 2,3 3)))'));
-ERROR 22023: Invalid GIS data provided to function st_issimple.
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ISSIMPLE(0x000000000200000000000000000000000000000000);
 ERROR HY000: Geometry byte string must be little endian.
 SELECT ST_ISSIMPLE(0x010100000001000000010100000000000000000000);

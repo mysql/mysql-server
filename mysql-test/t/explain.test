@@ -412,4 +412,17 @@ DROP TABLE t1, t2;
 
 --echo # End WL#4897
 
+--echo #
+--echo # Bug#21139522 PREPARED STATEMENT EXPLAIN DELETE .. WITH STRICT
+--echo #              MODE VIOLATION FLATLINES
+--echo #
+CREATE TABLE t1(a INT);
+PREPARE s FROM "EXPLAIN DELETE FROM t1 WHERE a || 'a' LIMIT 1";
+--error ER_TRUNCATED_WRONG_VALUE
+EXECUTE s;
+--error ER_TRUNCATED_WRONG_VALUE
+EXECUTE s;
+DROP TABLE t1;
+
+--echo # End of test Bug#21139522
 --echo End of 6.0 tests.

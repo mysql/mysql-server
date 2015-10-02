@@ -2914,20 +2914,24 @@ call avg ()|
 drop procedure avg|
 drop procedure if exists bug6129|
 set @old_mode= @@sql_mode;
-set @@sql_mode= "STRICT_ALL_TABLES";
+set @@sql_mode= "ERROR_FOR_DIVISION_BY_ZERO";
 create procedure bug6129()
 select @@sql_mode|
 call bug6129()|
 @@sql_mode
-STRICT_ALL_TABLES
-set @@sql_mode= "STRICT_ALL_TABLES"|
+ERROR_FOR_DIVISION_BY_ZERO
+set @@sql_mode= "STRICT_ALL_TABLES,NO_ZERO_DATE"|
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 call bug6129()|
 @@sql_mode
-STRICT_ALL_TABLES
-set @@sql_mode= "STRICT_ALL_TABLES"|
+ERROR_FOR_DIVISION_BY_ZERO
+set @@sql_mode= "NO_ZERO_IN_DATE"|
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 call bug6129()|
 @@sql_mode
-STRICT_ALL_TABLES
+ERROR_FOR_DIVISION_BY_ZERO
 set @@sql_mode=@old_mode;
 drop procedure bug6129|
 drop procedure if exists bug9856|
@@ -5270,11 +5274,11 @@ use test|
 drop table t3|
 DROP PROCEDURE IF EXISTS bug16899_p1|
 DROP FUNCTION IF EXISTS bug16899_f1|
-CREATE DEFINER=1234567890abcdefGHIKL@localhost PROCEDURE bug16899_p1()
+CREATE DEFINER=1234567890abcdefGHIKLsdafdsjakfhkshfkshsndvkjsddngjhasdkjghskahfdksjhcnsndkhjkghskjfjsdhfkhskfdhksjdhfkjshfksh@localhost PROCEDURE bug16899_p1()
 BEGIN
 SET @a = 1;
 END|
-ERROR HY000: String '1234567890abcdefGHIKL' is too long for user name (should be no longer than 16)
+ERROR HY000: String '1234567890abcdefGHIKLsdafdsjakfhkshfkshsndvkjsddngjhasdkjghskahfdksjhc' is too long for user name (should be no longer than 32)
 CREATE DEFINER=some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY
 FUNCTION bug16899_f1() RETURNS INT
 BEGIN
@@ -6896,9 +6900,6 @@ drop procedure if exists p;
 set @old_mode= @@sql_mode;
 set @@sql_mode= cast(pow(2,32)-1 as unsigned integer);
 Warnings:
-Warning	3027	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
-Warning	3027	'NO_ZERO_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
-Warning	3027	'NO_ZERO_IN_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select @@sql_mode into @full_mode;
 create procedure p() begin end;
@@ -7814,6 +7815,8 @@ DROP TABLE t1;
 #
 SET @org_mode= @@sql_mode;
 SET sql_mode= 'STRICT_TRANS_TABLES';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 CREATE TABLE t1(a INT) ENGINE= InnoDB;
 INSERT INTO t1 VALUES (123456);
 CREATE PROCEDURE p1() 
@@ -7855,3 +7858,33 @@ PREPARE s FROM
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 DROP TABLE t1, t2;
 SET sql_mode = DEFAULT;
+#
+# ASSERTION FAILED: FALSE IN CREATE_TMP_FIELD WITH UNKNOWN OUTER FIELD
+#
+CREATE TABLE t1 ( a INT );
+SET @v = 1;
+PREPARE stmt FROM 'SELECT 1 FROM ( SELECT ? FROM t1 GROUP BY a ) al;';
+EXECUTE stmt USING @v;
+1
+PREPARE stmt FROM 'CREATE TABLE t2 AS SELECT ? FROM t1';
+EXECUTE stmt USING @v;
+DROP TABLE t1, t2;
+#
+# Bug #18599181: CALLING A ROUTINE WITHOUT SPECIFYING DATABASE PREFIX
+#                MAY RETURN ERROR 1370
+#
+CREATE DATABASE db1;
+CREATE FUNCTION f1() RETURNS INT RETURN 1;
+CREATE FUNCTION db1.f2() RETURNS INT RETURN test.f1();
+CREATE USER myuser@'localhost';
+GRANT ALL ON db1.* TO myuser@'localhost';
+SELECT f2();
+f2()
+1
+SELECT f2();
+f2()
+1
+DROP DATABASE db1;
+DROP USER myuser@localhost;
+DROP FUNCTION f1;
+#

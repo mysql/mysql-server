@@ -69,16 +69,12 @@ Variable_name	Value
 
 SHOW VARIABLES WHERE VARIABLE_NAME LIKE "foo";
 Variable_name	Value
-Warnings:
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 
 SHOW GLOBAL VARIABLES WHERE VARIABLE_NAME LIKE "foo";
 Variable_name	Value
 
 SHOW SESSION VARIABLES WHERE VARIABLE_NAME LIKE "foo";
 Variable_name	Value
-Warnings:
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 
 # TEST 5
 # Confirm FLUSH STATUS resets counters for all threads.

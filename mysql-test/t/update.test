@@ -594,3 +594,109 @@ UPDATE (SELECT 1 AS a FROM t1 NATURAL JOIN t1 AS t2) AS x, t1
 SET t1.e= x.a;
 
 DROP TABLE t1;
+
+--echo # Bug #21143080: UPDATE ON VARCHAR AND TEXT COLUMNS PRODUCE INCORRECT
+--echo #                RESULTS
+
+CREATE TABLE t1 (a VARCHAR(50), b TEXT, c CHAR(50)) ENGINE=INNODB;
+
+INSERT INTO t1 (a, b, c) VALUES ('start trail', '', 'even longer string');
+UPDATE t1 SET b = a, a = 'inject';
+SELECT a, b FROM t1;
+UPDATE t1 SET b = c, c = 'inject';
+SELECT c, b FROM t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#18698556: UPDATE ORDER BY DOES A FILESORT IF UPDATING
+--echo #               A COLUMN IN THE INDEX
+--echo #
+
+CREATE TABLE t1 (
+a INTEGER,
+b INTEGER,
+c INTEGER,
+d INTEGER,
+KEY key1 (a,b,c)
+);
+
+INSERT INTO t1 (a,b,c,d) VALUES (1, 1, 1, 4), (2, 2, 2, 5), (2, 3, 4, 7),
+(3, 3, 3, 9), (4, 4, 4, 0), (5, 5, 5, 1), (5, 6, 7, 3), (5, 7, 9, 9);
+
+# Updating part of index, should still use the index for the order by (no
+# filesort)
+let $query=UPDATE t1 SET c = 72 WHERE a = 2 ORDER BY b ASC LIMIT 1;
+eval explain $query;
+eval $query;
+SELECT * FROM t1;
+
+# Updating field not included in index, should use index for order by (no file
+# sort) 
+let $query=UPDATE t1 SET d = 72 WHERE a = 2 ORDER BY b ASC LIMIT 1;
+eval explain $query;
+eval $query;
+SELECT * FROM t1;
+
+# Checking if we are updating three different rows when limit is increased.
+# Updating field included in index, should use index for order by (no file
+#sort).
+INSERT INTO t1 (a,b,c,d) VALUES (5, 5, 1, 1), (5, 5, 2, 1), (5, 5, 4, 1);
+let $query=UPDATE t1 SET c = 3 WHERE a = 5 ORDER BY b ASC LIMIT 3;
+eval explain $query;
+eval $query;
+SELECT * FROM t1;
+
+# Must use file sort since the index can not be used for order by as range on
+# "a" is not constant
+let $query=UPDATE t1 SET c = 62 WHERE a > 1 ORDER BY b ASC LIMIT 3;
+eval explain $query;
+eval $query;
+SELECT * FROM t1;
+
+# To make the cost model for order by limit to pick index for ordering, we need
+# to insert some more data
+INSERT INTO t1 (a,b,c,d) VALUES (1, 1, 1, 4), (2, 2, 2, 5), (2, 3, 4, 7),
+(3, 3, 3, 9), (4, 4, 4, 0), (5, 5, 5, 1), (5, 6, 7, 3), (5, 7, 9, 9);
+
+ANALYZE TABLE t1;
+
+# Updating part of index, should still use the index for the order by (no file
+# sort)
+let $query=UPDATE t1 SET c = 82 ORDER BY a ASC LIMIT 1;
+eval explain $query;
+eval $query;
+SELECT * FROM t1;
+
+# Must use file sort since the index can not be used for order by
+let $query=UPDATE t1 SET a = 82 ORDER BY b ASC LIMIT 1;
+eval explain $query;
+eval $query;
+SELECT * FROM t1;
+
+# Must use file sort since the index can not be used for order by
+let $query=UPDATE t1 SET b = 82 ORDER BY d ASC LIMIT 1;
+eval explain $query;
+eval $query;
+SELECT * FROM t1;
+
+# Checking if we are updating two different rows when limit is increased.  Cost
+# model will choose index for ordering for increased limit only when some more
+# dats is inserted
+INSERT INTO t1 (a,b,c,d) VALUES (1, 1, 1, 4), (2, 2, 2, 5), (2, 3, 4, 7),
+(3, 3, 3, 9), (4, 4, 4, 0), (5, 5, 5, 1), (5, 6, 7, 3), (5, 7, 9, 9);
+INSERT INTO t1 (a,b,c,d) VALUES (1, 1, 1, 4), (2, 2, 2, 5), (2, 3, 4, 7),
+(3, 3, 3, 9), (4, 4, 4, 0), (5, 5, 5, 1), (5, 6, 7, 3), (5, 7, 9, 9);
+
+ANALYZE TABLE t1;
+
+# Updating part of index, should still use the index for the order by (no file
+# sort)
+let $query=UPDATE t1 SET c = 82 ORDER BY a ASC LIMIT 2;
+eval explain $query;
+eval $query;
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+--echo # End of test for Bug#18698556

@@ -38,7 +38,6 @@ override_dh_auto_configure:
 		-DINSTALL_PLUGINDIR=lib/mysql/plugin \
 		-DINSTALL_SBINDIR=sbin \
 		-DINSTALL_SCRIPTDIR=bin \
-		-DINSTALL_SQLBENCHDIR=lib/mysql \
 		-DINSTALL_SUPPORTFILESDIR=share/mysql \
 		-DSYSCONFDIR=/etc/mysql \
 		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \
@@ -46,6 +45,7 @@ override_dh_auto_configure:
 		-DWITH_ZLIB=system \
 		-DWITH_EXTRA_CHARSETS=all \
 		-DWITH_INNODB_MEMCACHED=1 \
+		-DWITH_MECAB=system \
 		-DDOWNLOAD_BOOST=1 \
 		-DCOMPILATION_COMMENT="MySQL Community Server (GPL)" \
 		-DINSTALL_LAYOUT=DEB
@@ -68,8 +68,7 @@ override_dh_auto_install:
 	@echo "RULES.$@"
 	# complete install first
 	$(MAKE) install DESTDIR=debian/tmp
-	# remove all redundant files and links
-	rm debian/tmp/usr/lib/*/*_r*
+	# remove all redundant files
 	rm debian/tmp/usr/lib/mysql-test/cmake_install.cmake
 	rm debian/tmp/usr/lib/mysql-test/CTestTestfile.cmake
 	rm debian/tmp/usr/lib/mysql-test/Makefile
@@ -96,7 +95,6 @@ override_dh_auto_install:
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/libmysqlclient20
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/libmysqlclient-dev
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/libmysqld-dev
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-community-bench
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-testsuite
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-community-test
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-community-source
@@ -109,7 +107,6 @@ override_dh_auto_install:
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/COPYING debian/tmp/usr/share/doc/libmysqlclient20/COPYING
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/COPYING debian/tmp/usr/share/doc/libmysqlclient-dev/COPYING
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/COPYING debian/tmp/usr/share/doc/libmysqld-dev/COPYING
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/COPYING debian/tmp/usr/share/doc/mysql-community-bench/COPYING
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/COPYING debian/tmp/usr/share/doc/mysql-testsuite/COPYING
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/COPYING debian/tmp/usr/share/doc/mysql-community-test/COPYING
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/COPYING debian/tmp/usr/share/doc/mysql-community-source/COPYING
@@ -122,7 +119,6 @@ override_dh_auto_install:
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/libmysqlclient20/README
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/libmysqlclient-dev/README
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/libmysqld-dev/README
-	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-community-bench/README
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-testsuite/README
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-community-test/README
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-community-source/README

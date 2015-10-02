@@ -432,9 +432,8 @@ latin1_general_cs
 latin1_spanish_ci
 show keys from v4;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-select * from information_schema.views where TABLE_NAME like "v%";
+select * from information_schema.views where TABLE_SCHEMA != 'sys' and TABLE_NAME like "v%";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-def	sys	version	select '1.4.0' AS `sys_version`,version() AS `mysql_version`	NONE	NO	root@localhost	INVOKER	utf8	utf8_general_ci
 def	test	v0	select `information_schema`.`schemata`.`SCHEMA_NAME` AS `c` from `information_schema`.`schemata`	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
 def	test	v1	select `information_schema`.`tables`.`TABLE_NAME` AS `c` from `information_schema`.`tables` where (`information_schema`.`tables`.`TABLE_NAME` = 'v1')	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
 def	test	v2	select `information_schema`.`columns`.`COLUMN_NAME` AS `c` from `information_schema`.`columns` where (`information_schema`.`columns`.`TABLE_NAME` = 'v2')	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
@@ -542,10 +541,10 @@ def	test	v3	select `test`.`t1`.`a` AS `c` from `test`.`t1`	CASCADED	YES	root@loc
 grant select (a) on test.t1 to joe@localhost with grant option;
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-select * from INFORMATION_SCHEMA.COLUMN_PRIVILEGES;
+select * from INFORMATION_SCHEMA.COLUMN_PRIVILEGES WHERE table_schema != 'sys';
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'joe'@'localhost'	def	test	t1	a	SELECT	YES
-select * from INFORMATION_SCHEMA.TABLE_PRIVILEGES;
+select * from INFORMATION_SCHEMA.TABLE_PRIVILEGES WHERE table_schema != 'sys';
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 drop view v1, v2, v3;
 drop table t1;
@@ -814,8 +813,8 @@ count(*)
 drop view a2, a1;
 drop table t_crashme;
 select table_schema, table_name, column_name from information_schema.columns
-where table_schema not like 'performance_schema'
-  and data_type = 'longtext';
+where table_schema not in ('performance_schema', 'sys')
+and data_type = 'longtext';
 table_schema	table_name	column_name
 information_schema	COLUMNS	COLUMN_DEFAULT
 information_schema	COLUMNS	COLUMN_TYPE
@@ -835,27 +834,9 @@ information_schema	ROUTINES	ROUTINE_COMMENT
 information_schema	TRIGGERS	ACTION_CONDITION
 information_schema	TRIGGERS	ACTION_STATEMENT
 information_schema	VIEWS	VIEW_DEFINITION
-sys	innodb_lock_waits	waiting_query
-sys	innodb_lock_waits	blocking_query
-sys	processlist	current_statement
-sys	processlist	last_statement
-sys	statement_analysis	query
-sys	statements_with_errors_or_warnings	query
-sys	statements_with_full_table_scans	query
-sys	statements_with_runtimes_in_95th_percentile	query
-sys	statements_with_sorting	query
-sys	statements_with_temp_tables	query
-sys	x$processlist	current_statement
-sys	x$processlist	last_statement
-sys	x$statement_analysis	query
-sys	x$statements_with_errors_or_warnings	query
-sys	x$statements_with_full_table_scans	query
-sys	x$statements_with_runtimes_in_95th_percentile	query
-sys	x$statements_with_sorting	query
-sys	x$statements_with_temp_tables	query
 select table_name, column_name, data_type from information_schema.columns
-where table_schema not like 'performance_schema'
-  and data_type = 'datetime'
+where table_schema not in ('performance_schema', 'sys')
+and data_type = 'datetime'
   and table_name not like 'innodb_%';
 table_name	column_name	data_type
 EVENTS	EXECUTE_AT	datetime
@@ -883,9 +864,6 @@ event	execute_at	datetime
 event	last_executed	datetime
 event	starts	datetime
 event	ends	datetime
-x$innodb_lock_waits	wait_started	datetime
-x$innodb_lock_waits	waiting_trx_started	datetime
-x$innodb_lock_waits	blocking_trx_started	datetime
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES A
 WHERE NOT EXISTS
 (SELECT * FROM INFORMATION_SCHEMA.COLUMNS B
@@ -1228,13 +1206,13 @@ INSERT INTO t1 SET f1 = 1, f2 = 'Schoenenbourg', f3 = 1;
 CREATE FUNCTION func2() RETURNS BIGINT RETURN 1;
 CREATE FUNCTION func1() RETURNS BIGINT
 BEGIN
-RETURN ( SELECT COUNT(*) FROM INFORMATION_SCHEMA.VIEWS);
+RETURN ( SELECT COUNT(*) FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA != 'sys');
 END//
 CREATE VIEW v1 AS SELECT 1 FROM t1
 WHERE f3 = (SELECT func2 ());
 SELECT func1();
 func1()
-92
+1
 DROP TABLE t1;
 DROP VIEW v1;
 DROP FUNCTION func1;
@@ -2277,6 +2255,23 @@ LIMIT 1)
 LIMIT 1;
 F1
 1
+#
+# WL#2284: Increase the length of a user name
+#
+set names utf8;
+CREATE USER user_name_len_22_01234@localhost;
+GRANT SELECT ON *.* TO user_name_len_22_01234@localhost;
+SELECT user,db FROM information_schema.processlist;
+user	db
+user_name_len_22_01234	test
+CREATE USER очень_очень_очень_длинный_юзер__@localhost;
+GRANT SELECT ON *.* TO очень_очень_очень_длинный_юзер__@localhost;
+SELECT user,db FROM information_schema.processlist;
+user	db
+очень_очень_очень_длинный_юзер__	test
+DROP USER user_name_len_22_01234@localhost;
+DROP USER очень_очень_очень_длинный_юзер__@localhost;
+set names default;
 set sql_mode= @orig_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.

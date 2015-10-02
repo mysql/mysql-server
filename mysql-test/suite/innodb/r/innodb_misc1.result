@@ -664,15 +664,8 @@ CREATE TABLE t2 (a INT, INDEX(a)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 ALTER TABLE t2 ADD FOREIGN KEY (a) REFERENCES t1 (a) ON DELETE SET NULL;
-SET @old_sql_mode = @@sql_mode;
-SET @@sql_mode = 'STRICT_TRANS_TABLES';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER TABLE t2 MODIFY a INT NOT NULL;
 ERROR HY000: Column 'a' cannot be NOT NULL: needed in a foreign key constraint 'test/t2_ibfk_1' SET NULL
-SET @@sql_mode = @old_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DELETE FROM t1;
 DROP TABLE t2,t1;
 CREATE TABLE t1 (a VARCHAR(5) COLLATE utf8_unicode_ci PRIMARY KEY)
@@ -720,7 +713,7 @@ c21 CHAR(255), c22 CHAR(255), c23 CHAR(255), c24 CHAR(255),
 c25 CHAR(255), c26 CHAR(255), c27 CHAR(255), c28 CHAR(255),
 c29 CHAR(255), c30 CHAR(255), c31 CHAR(255), c32 CHAR(255)
 ) ENGINE = InnoDB;
-ERROR 42000: Row size too large (> {checked_valid}). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
+ERROR 42000: Row size too large (> {checked_valid}). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
 SET innodb_strict_mode=OFF;
 DROP TABLE IF EXISTS t1;
 Warnings:

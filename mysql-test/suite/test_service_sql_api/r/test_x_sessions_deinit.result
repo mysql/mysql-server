@@ -1,0 +1,25 @@
+##########################################
+# Run plugin
+##########################################
+INSTALL PLUGIN test_x_sessions_deinit SONAME 'TEST_X_SESSIONS_DEINIT';
+##########################################
+# Stop plugin
+##########################################
+UNINSTALL PLUGIN test_x_sessions_deinit;
+##########################################
+# Plugin log
+##########################################
+========================================================================
+Test in a server thread
+nb_sessions = 1
+srv_session_open 1 - Success
+srv_session_close 1 - Success
+srv_session_close 1 - Failed
+Follows threaded run
+========================================================================
+init thread
+nb_sessions = 1
+srv_session_open 1 - Success
+srv_session_close 1 - Success
+srv_session_close 1 - Failed
+deinit thread

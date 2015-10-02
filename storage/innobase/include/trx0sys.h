@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -36,7 +36,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "ut0byte.h"
 #include "mem0mem.h"
-#include "sync0mutex.h"
 #include "ut0lst.h"
 #include "read0types.h"
 #include "page0types.h"
@@ -597,7 +596,14 @@ struct trx_sys_t {
 					transactions that have not yet been
 					started in InnoDB. */
 
-	trx_ids_t	rw_trx_ids;	/*!< Read write transaction IDs */
+	trx_ids_t	rw_trx_ids;	/*!< Array of Read write transaction IDs
+					for MVCC snapshot. A ReadView would take
+					a snapshot of these transactions whose
+					changes are not visible to it. We should
+					remove transactions from the list before
+					committing in memory and releasing locks
+					to ensure right order of removal and
+					consistent snapshot. */
 
 	char		pad3[64];	/*!< To avoid false sharing */
 	trx_rseg_t*	rseg_array[TRX_SYS_N_RSEGS];

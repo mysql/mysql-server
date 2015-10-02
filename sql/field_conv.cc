@@ -28,6 +28,27 @@
 #include "sql_time.h"
 #include <m_ctype.h>
 #include "item_timefunc.h"               // Item_func_now_local
+#include "template_utils.h"              // down_cast
+
+
+/**
+  Check if geometry type sub is a subtype of super.
+
+  @param sub The type to check
+  @param super The supertype
+
+  @return True if sub is a subtype of super
+ */
+inline static bool is_subtype_of(Field::geometry_type sub,
+                                 Field::geometry_type super)
+{
+  return (super == Field::GEOM_GEOMETRY ||
+          (super == Field::GEOM_GEOMETRYCOLLECTION &&
+           (sub == Field::GEOM_MULTIPOINT ||
+            sub == Field::GEOM_MULTILINESTRING ||
+            sub == Field::GEOM_MULTIPOLYGON)));
+}
+
 
 static void do_field_eq(Copy_field *copy)
 {
@@ -251,9 +272,11 @@ static void do_copy_not_null(Copy_field *copy)
   if (*copy->null_row ||
       (copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit)))
   {
-    copy->to_field()->set_warning(Sql_condition::SL_WARNING,
-                                  WARN_DATA_TRUNCATED, 1);
-    copy->to_field()->reset();
+    if (copy->to_field()->reset() == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
+      my_error(ER_INVALID_USE_OF_NULL, MYF(0));
+    else
+      copy->to_field()->set_warning(Sql_condition::SL_WARNING,
+                                    WARN_DATA_TRUNCATED, 1);
   }
   else
     copy->invoke_do_copy2(copy);
@@ -319,6 +342,17 @@ static void do_save_blob(Copy_field *copy)
   ((Field_blob *) copy->to_field())->store(copy->tmp.ptr(),
                                            copy->tmp.length(),
                                            copy->tmp.charset());
+}
+
+
+/**
+  Copy the contents of one Field_json into another Field_json.
+*/
+static void do_save_json(Copy_field *copy)
+{
+  Field_json *from= down_cast<Field_json *>(copy->from_field());
+  Field_json *to= down_cast<Field_json *>(copy->to_field());
+  to->store(from);
 }
 
 
@@ -603,7 +637,7 @@ void Copy_field::set(uchar *to,Field *from)
     from_null_ptr=from->get_null_ptr();
     from_bit=	  from->null_bit;
     to_ptr[0]=	  1;				// Null as default value
-    to_null_ptr=  (uchar*) to_ptr++;
+    to_null_ptr=  to_ptr++;
     to_bit=	  1;
     m_do_copy=    do_field_to_null_str;
   }
@@ -676,7 +710,13 @@ void Copy_field::set(Field *to,Field *from,bool save)
    m_do_copy=           NULL;
 
   if ((to->flags & BLOB_FLAG) && save)
-    m_do_copy2= do_save_blob;
+  {
+    if (to->real_type() == MYSQL_TYPE_JSON &&
+        from->real_type() == MYSQL_TYPE_JSON)
+      m_do_copy2= do_save_json;
+    else
+      m_do_copy2= do_save_blob;
+  }
   else
     m_do_copy2= get_copy_func(to,from);
 
@@ -690,7 +730,24 @@ Copy_field::get_copy_func(Field *to,Field *from)
 {
   bool compatible_db_low_byte_first= (to->table->s->db_low_byte_first ==
                                      from->table->s->db_low_byte_first);
-  if (to->flags & BLOB_FLAG)
+  if (to->type() == MYSQL_TYPE_GEOMETRY)
+  {
+    if (from->type() != MYSQL_TYPE_GEOMETRY ||
+        to->maybe_null() != from->maybe_null())
+      return do_conv_blob;
+
+    Field_geom *to_geom= down_cast<Field_geom*>(to);
+    Field_geom *from_geom= down_cast<Field_geom*>(from);
+
+    // to is same as or a wider type than from
+    if (to_geom->get_geometry_type() == from_geom->get_geometry_type() ||
+        is_subtype_of(from_geom->get_geometry_type(),
+                      to_geom->get_geometry_type()))
+      return do_field_eq;
+
+    return do_conv_blob;
+  }
+  else if (to->flags & BLOB_FLAG)
   {
     if (!(from->flags & BLOB_FLAG) || from->charset() != to->charset())
       return do_conv_blob;
@@ -744,8 +801,7 @@ Copy_field::get_copy_func(Field *to,Field *from)
           to->decimals() != from->decimals() /* e.g. TIME vs TIME(6) */ ||
           !compatible_db_low_byte_first ||
           (((to->table->in_use->variables.sql_mode &
-            (MODE_STRICT_ALL_TABLES | MODE_STRICT_TRANS_TABLES |
-             MODE_INVALID_DATES)) &&
+            (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) &&
            to->type() == MYSQL_TYPE_DATE) ||
            to->type() == MYSQL_TYPE_DATETIME))
       {
@@ -834,6 +890,16 @@ static inline bool is_blob_type(Field *to)
 
 type_conversion_status field_conv(Field *to,Field *from)
 {
+  const int from_type= from->type();
+  const int to_type= to->type();
+
+  if ((to_type == MYSQL_TYPE_JSON) && (from_type == MYSQL_TYPE_JSON))
+  {
+    Field_json *to_json= down_cast<Field_json*>(to);
+    Field_json *from_json= down_cast<Field_json*>(from);
+    return to_json->store(from_json);
+  }
+
   if (to->real_type() == from->real_type() &&
       !((is_blob_type(to)) &&
         to->table->copy_blobs) && to->charset() == from->charset())
@@ -861,8 +927,7 @@ type_conversion_status field_conv(Field *to,Field *from)
           (((Field_num*)to)->dec == ((Field_num*)from)->dec))) &&
 	to->table->s->db_low_byte_first == from->table->s->db_low_byte_first &&
         (!(to->table->in_use->variables.sql_mode &
-           (MODE_STRICT_ALL_TABLES | MODE_STRICT_TRANS_TABLES |
-            MODE_INVALID_DATES)) ||
+           (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) ||
          (to->type() != MYSQL_TYPE_DATE &&
           to->type() != MYSQL_TYPE_DATETIME &&
           (!to->table->in_use->variables.explicit_defaults_for_timestamp ||
@@ -878,15 +943,10 @@ type_conversion_status field_conv(Field *to,Field *from)
   {						// Be sure the value is stored
     Field_blob *blob=(Field_blob*) to;
     from->val_str(&blob->value);
-    /*
-      Copy value if copy_blobs is set, or source is not a string and
-      we have a pointer to its internal string conversion buffer.
-    */
-    if (to->table->copy_blobs ||
-        (!blob->value.is_alloced() &&
-         from->real_type() != MYSQL_TYPE_STRING &&
-         from->real_type() != MYSQL_TYPE_VARCHAR))
+
+    if (!blob->value.is_alloced() && from->is_updatable())
       blob->value.copy();
+
     return blob->store(blob->value.ptr(),blob->value.length(),from->charset());
   }
   if (from->real_type() == MYSQL_TYPE_ENUM &&
@@ -927,6 +987,35 @@ type_conversion_status field_conv(Field *to,Field *from)
   else if (from->is_temporal() && to->is_temporal())
   {
     return copy_time_to_time(from, to);
+  }
+  else if (from_type == MYSQL_TYPE_JSON &&
+           (to_type == MYSQL_TYPE_TINY ||
+            to_type == MYSQL_TYPE_SHORT ||
+            to_type == MYSQL_TYPE_INT24 ||
+            to_type == MYSQL_TYPE_LONG ||
+            to_type == MYSQL_TYPE_LONGLONG))
+  {
+    return to->store(from->val_int(), from->flags & UNSIGNED_FLAG);
+  }
+  else if (from_type == MYSQL_TYPE_JSON &&
+           to_type == MYSQL_TYPE_NEWDECIMAL)
+  {
+    my_decimal buff;
+    return to->store_decimal(from->val_decimal(&buff));
+  }
+  else if (from_type == MYSQL_TYPE_JSON &&
+           (to_type == MYSQL_TYPE_FLOAT ||
+            to_type == MYSQL_TYPE_DOUBLE))
+  {
+    return to->store(from->val_real());
+  }
+  else if (from_type == MYSQL_TYPE_JSON &&
+           to->is_temporal())
+  {
+    MYSQL_TIME ltime;
+    if (from->get_time(&ltime))
+      return TYPE_ERR_BAD_VALUE;
+    return to->store_time(&ltime);
   }
   else if ((from->result_type() == STRING_RESULT &&
             (to->result_type() == STRING_RESULT ||

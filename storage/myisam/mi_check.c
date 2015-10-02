@@ -290,6 +290,7 @@ static int check_k_link(MI_CHECK *param, MI_INFO *info, uint nr)
       avoid unecessary eviction of cache block.
     */
     if (!(buff=key_cache_read(info->s->key_cache,
+                              keycache_thread_var(),
                               info->s->kfile, next_link, DFLT_INIT_HITS,
                               (uchar*) info->buff, MI_MIN_KEY_BLOCK_LENGTH,
                               MI_MIN_KEY_BLOCK_LENGTH, 1)))
@@ -327,7 +328,7 @@ int chk_size(MI_CHECK *param, MI_INFO *info)
   if (!(param->testflag & T_SILENT)) puts("- check file-size");
 
   /* The following is needed if called externally (not from myisamchk) */
-  flush_key_blocks(info->s->key_cache,
+  flush_key_blocks(info->s->key_cache, keycache_thread_var(),
 		   info->s->kfile, FLUSH_FORCE_WRITE);
 
   size= mysql_file_seek(info->s->kfile, 0L, MY_SEEK_END, MYF(MY_THREADSAFE));
@@ -1355,7 +1356,8 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
   my_free(mi_get_rec_buff_ptr(info, record));
   DBUG_RETURN (error);
  err:
-  mi_check_print_error(param,"got error: %d when reading datafile at record: %s",my_errno, llstr(records,llbuff));
+  mi_check_print_error(param,"got error: %d when reading datafile at record: %s",
+                       my_errno(), llstr(records,llbuff));
  err2:
   my_free(mi_get_rec_buff_ptr(info, record));
   param->testflag|=T_RETRY_WITHOUT_QUICK;
@@ -1459,7 +1461,8 @@ static int mi_drop_all_indexes(MI_CHECK *param, MI_INFO *info, my_bool force)
         all blocks of this index file from key cache.
       */
       DBUG_PRINT("repair", ("all disabled are empty: create missing"));
-      error= flush_key_blocks(share->key_cache, share->kfile,
+      error= flush_key_blocks(share->key_cache, keycache_thread_var(),
+                              share->kfile,
                               FLUSH_FORCE_WRITE);
       goto end;
     }
@@ -1473,7 +1476,8 @@ static int mi_drop_all_indexes(MI_CHECK *param, MI_INFO *info, my_bool force)
   }
 
   /* Remove all key blocks of this index file from key cache. */
-  if ((error= flush_key_blocks(share->key_cache, share->kfile,
+  if ((error= flush_key_blocks(share->key_cache, keycache_thread_var(),
+                               share->kfile,
                                FLUSH_IGNORE_CHANGED)))
     goto end; /* purecov: inspected */
 
@@ -1617,7 +1621,7 @@ int mi_repair(MI_CHECK *param, MI_INFO *info,
   {
     if (writekeys(&sort_param))
     {
-      if (my_errno != HA_ERR_FOUND_DUPP_KEY)
+      if (my_errno() != HA_ERR_FOUND_DUPP_KEY)
 	goto err;
       DBUG_DUMP("record",(uchar*) sort_param.record,share->base.pack_reclength);
       mi_check_print_info(param,"Duplicate key %2d for record at %10s against new record at %10s",
@@ -1655,7 +1659,7 @@ int mi_repair(MI_CHECK *param, MI_INFO *info,
   {
     mi_check_print_warning(param,
 			   "Can't change size of indexfile, error: %d",
-			   my_errno);
+			   my_errno());
     goto err;
   }
 
@@ -1743,7 +1747,7 @@ err:
   if (got_error)
   {
     if (! param->error_printed)
-      mi_check_print_error(param,"%d for record at pos %s",my_errno,
+      mi_check_print_error(param,"%d for record at pos %s",my_errno(),
 		  llstr(sort_param.start_recpos,llbuff));
     if (new_file >= 0)
     {
@@ -1811,7 +1815,7 @@ static int writekeys(MI_SORT_PARAM *sort_param)
   DBUG_RETURN(0);
 
  err:
-  if (my_errno == HA_ERR_FOUND_DUPP_KEY)
+  if (my_errno() == HA_ERR_FOUND_DUPP_KEY)
   {
     info->errkey=(int) i;			/* This key was found */
     while ( i-- > 0 )
@@ -1835,7 +1839,7 @@ static int writekeys(MI_SORT_PARAM *sort_param)
   /* Remove checksum that was added to glob_crc in sort_get_next_record */
   if (sort_param->calc_checksum)
     sort_param->sort_info->param->glob_crc-= info->checksum;
-  DBUG_PRINT("error",("errno: %d",my_errno));
+  DBUG_PRINT("error",("errno: %d",my_errno()));
   DBUG_RETURN(-1);
 } /* writekeys */
 
@@ -1906,9 +1910,10 @@ void lock_memory(MI_CHECK *param __attribute__((unused)))
 
 int flush_blocks(MI_CHECK *param, KEY_CACHE *key_cache, File file)
 {
-  if (flush_key_blocks(key_cache, file, FLUSH_RELEASE))
+  if (flush_key_blocks(key_cache, keycache_thread_var(),
+                       file, FLUSH_RELEASE))
   {
-    mi_check_print_error(param,"%d when trying to write bufferts",my_errno);
+    mi_check_print_error(param,"%d when trying to write bufferts",my_errno());
     return(1);
   }
   if (!param->using_global_keycache)
@@ -1981,7 +1986,8 @@ int mi_sort_index(MI_CHECK *param, MI_INFO *info, char * name)
   }
 
   /* Flush key cache for this file if we are calling this outside myisamchk */
-  flush_key_blocks(share->key_cache,share->kfile, FLUSH_IGNORE_CHANGED);
+  flush_key_blocks(share->key_cache, keycache_thread_var(),
+                   share->kfile, FLUSH_IGNORE_CHANGED);
 
   share->state.version=(ulong) time((time_t*) 0);
   old_state= share->state;			/* save state if not stored */
@@ -2104,7 +2110,7 @@ static int sort_one_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
   if (mysql_file_pwrite(new_file, (uchar*) buff, (uint) keyinfo->block_length,
                         new_page_pos, MYF(MY_NABP | MY_WAIT_IF_FULL)))
   {
-    mi_check_print_error(param,"Can't write indexblock, error: %d",my_errno);
+    mi_check_print_error(param,"Can't write indexblock, error: %d",my_errno());
     goto err;
   }
   DBUG_RETURN(0);
@@ -2144,7 +2150,7 @@ int lock_file(MI_CHECK *param, File file, my_off_t start, int lock_type,
 	      param->testflag & T_WAIT_FOREVER ? MYF(MY_SEEK_NOT_DONE) :
 	      MYF(MY_SEEK_NOT_DONE |  MY_DONT_WAIT)))
   {
-    mi_check_print_error(param," %d when locking %s '%s'",my_errno,filetype,filename);
+    mi_check_print_error(param," %d when locking %s '%s'",my_errno(),filetype,filename);
     param->error_printed=2;		/* Don't give that data is crashed */
     return 1;
   }
@@ -2186,7 +2192,7 @@ err:
   if (buff != tmp_buff)
     my_free(buff);
   mi_check_print_error(param,"Can't copy %s to tempfile, error %d",
-		       type,my_errno);
+		       type,my_errno());
   DBUG_RETURN(1);
 }
 
@@ -2498,7 +2504,7 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info,
       if (mysql_file_chsize(info->dfile, skr, 0, MYF(0)))
 	mi_check_print_warning(param,
 			       "Can't change size of datafile,  error: %d",
-			       my_errno);
+			       my_errno());
   }
   if (param->testflag & T_CALC_CHECKSUM)
     info->state->checksum=param->glob_crc;
@@ -2506,7 +2512,7 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info,
   if (mysql_file_chsize(share->kfile, info->state->key_file_length, 0, MYF(0)))
     mi_check_print_warning(param,
 			   "Can't change size of indexfile, error: %d",
-			   my_errno);
+			   my_errno());
 
   if (!(param->testflag & T_SILENT))
   {
@@ -2542,7 +2548,7 @@ err:
   if (got_error)
   {
     if (! param->error_printed)
-      mi_check_print_error(param,"%d when fixing table",my_errno);
+      mi_check_print_error(param,"%d when fixing table",my_errno());
     if (new_file >= 0)
     {
       (void) mysql_file_close(new_file, MYF(0));
@@ -2638,6 +2644,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
   int error;
   DBUG_ENTER("mi_repair_parallel");
 
+  memset(&new_data_cache, 0, sizeof(IO_CACHE));
   start_records=info->state->records;
   got_error=1;
   new_file= -1;
@@ -3008,14 +3015,14 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
       if (mysql_file_chsize(info->dfile, skr, 0, MYF(0)))
 	mi_check_print_warning(param,
 			       "Can't change size of datafile,  error: %d",
-			       my_errno);
+			       my_errno());
   }
   if (param->testflag & T_CALC_CHECKSUM)
     info->state->checksum=param->glob_crc;
 
   if (mysql_file_chsize(share->kfile, info->state->key_file_length, 0, MYF(0)))
     mi_check_print_warning(param,
-			   "Can't change size of indexfile, error: %d", my_errno);
+			   "Can't change size of indexfile, error: %d", my_errno());
 
   if (!(param->testflag & T_SILENT))
   {
@@ -3064,7 +3071,7 @@ err:
   if (got_error)
   {
     if (! param->error_printed)
-      mi_check_print_error(param,"%d when fixing table",my_errno);
+      mi_check_print_error(param,"%d when fixing table",my_errno());
     if (new_file >= 0)
     {
       (void) mysql_file_close(new_file, MYF(0));
@@ -3493,7 +3500,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	{
 	  mi_check_print_info(param,
 			      "Read error for block at: %s (error: %d); Skipped",
-			      llstr(block_info.filepos,llbuff),my_errno);
+			      llstr(block_info.filepos,llbuff),my_errno());
 	  goto try_next;
 	}
 	left_length-=block_info.data_len;
@@ -3650,7 +3657,7 @@ int sort_write_record(MI_SORT_PARAM *sort_param)
       if (my_b_write(&info->rec_cache,sort_param->record,
 		     share->base.pack_reclength))
       {
-	mi_check_print_error(param,"%d when writing to datafile",my_errno);
+	mi_check_print_error(param,"%d when writing to datafile",my_errno());
 	DBUG_RETURN(1);
       }
       sort_param->filepos+=share->base.pack_reclength;
@@ -3697,7 +3704,7 @@ int sort_write_record(MI_SORT_PARAM *sort_param)
 				  sort_param->filepos+block_length,
 				  &from,&reclength,&flag))
 	{
-	  mi_check_print_error(param,"%d when writing to datafile",my_errno);
+	  mi_check_print_error(param,"%d when writing to datafile",my_errno());
 	  DBUG_RETURN(1);
 	}
 	sort_param->filepos+=block_length;
@@ -3715,7 +3722,7 @@ int sort_write_record(MI_SORT_PARAM *sort_param)
       if (my_b_write(&info->rec_cache,block_buff,length) ||
 	  my_b_write(&info->rec_cache,(uchar*) sort_param->rec_buff,reclength))
       {
-	mi_check_print_error(param,"%d when writing to datafile",my_errno);
+	mi_check_print_error(param,"%d when writing to datafile",my_errno());
 	DBUG_RETURN(1);
       }
       /* sort_info->param->glob_crc+=info->checksum; */
@@ -4314,7 +4321,7 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
 		&create_info,
 		HA_DONT_TOUCH_DATA))
   {
-    mi_check_print_error(param,"Got error %d when trying to recreate indexfile",my_errno);
+    mi_check_print_error(param,"Got error %d when trying to recreate indexfile",my_errno());
     goto end;
   }
   *org_info=mi_open(filename,O_RDWR,
@@ -4324,7 +4331,7 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
   if (!*org_info)
   {
     mi_check_print_error(param,"Got error %d when trying to open re-created indexfile",
-		my_errno);
+                         my_errno());
     goto end;
   }
   /* We are modifing */
@@ -4362,7 +4369,7 @@ int write_data_suffix(SORT_INFO *sort_info, my_bool fix_datafile)
     if (my_b_write(&info->rec_cache,buff,sizeof(buff)))
     {
       mi_check_print_error(sort_info->param,
-			   "%d when writing to datafile",my_errno);
+			   "%d when writing to datafile",my_errno());
       return 1;
     }
     sort_info->param->read_cache.end_of_file+=sizeof(buff);
@@ -4427,7 +4434,7 @@ int update_state_info(MI_CHECK *param, MI_INFO *info,uint update)
       return 0;
   }
 err:
-  mi_check_print_error(param,"%d when updating keyfile",my_errno);
+  mi_check_print_error(param,"%d when updating keyfile",my_errno());
   return 1;
 }
 
@@ -4475,11 +4482,11 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
   mi_extra(info,HA_EXTRA_KEYREAD,0);
   if (mi_rlast(info, record, info->s->base.auto_key-1))
   {
-    if (my_errno != HA_ERR_END_OF_FILE)
+    if (my_errno() != HA_ERR_END_OF_FILE)
     {
       mi_extra(info,HA_EXTRA_NO_KEYREAD,0);
       my_free(mi_get_rec_buff_ptr(info, record));
-      mi_check_print_error(param,"%d when reading last record",my_errno);
+      mi_check_print_error(param,"%d when reading last record",my_errno());
       DBUG_VOID_RETURN;
     }
     if (!repair_only)

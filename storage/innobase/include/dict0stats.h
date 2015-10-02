@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -206,8 +206,8 @@ dict_stats_rename_index(
 #include "dict0stats.ic"
 #endif
 
-#ifdef UNIV_COMPILE_TEST_FUNCS
+#ifdef UNIV_ENABLE_UNIT_TEST_DICT_STATS
 void test_dict_stats_all();
-#endif /* UNIV_COMPILE_TEST_FUNCS */
+#endif /* UNIV_ENABLE_UNIT_TEST_DICT_STATS */
 
 #endif /* dict0stats_h */

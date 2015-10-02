@@ -3268,7 +3268,7 @@ Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`b` = 1)
 explain partitions select * from t2 where a=1 and b=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0	ALL	NULL	NULL	NULL	NULL	#	25.00	Using where
+1	SIMPLE	t2	p0	ALL	NULL	NULL	NULL	NULL	#	50.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` = 1) and (`test`.`t2`.`a` = 1))
@@ -3366,33 +3366,33 @@ Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`t
 explain partitions select * from t5 where (a=10 and b=2) or (a=10 and b=3)
 or (a=10 and b = 4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t5	p0_p0sp0,p0_p0sp1,p1_p1sp0,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	#	17.60	Using where
+1	SIMPLE	t5	p0_p0sp0,p0_p0sp1,p1_p1sp0,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	#	25.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t5`.`c` AS `c`,`test`.`t5`.`d` AS `d` from `test`.`t5` where (((`test`.`t5`.`b` = 2) and (`test`.`t5`.`a` = 10)) or ((`test`.`t5`.`b` = 3) and (`test`.`t5`.`a` = 10)) or ((`test`.`t5`.`b` = 4) and (`test`.`t5`.`a` = 10)))
 explain partitions select * from t5 where (c=1 and d=1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t5	p0_p0sp0,p1_p1sp0	ALL	NULL	NULL	NULL	NULL	#	25.00	Using where
+1	SIMPLE	t5	p0_p0sp0,p1_p1sp0	ALL	NULL	NULL	NULL	NULL	#	50.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t5`.`c` AS `c`,`test`.`t5`.`d` AS `d` from `test`.`t5` where ((`test`.`t5`.`d` = 1) and (`test`.`t5`.`c` = 1))
 explain partitions select * from t5 where (c=2 and d=1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t5	p0_p0sp1,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	#	25.00	Using where
+1	SIMPLE	t5	p0_p0sp1,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	#	50.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t5`.`c` AS `c`,`test`.`t5`.`d` AS `d` from `test`.`t5` where ((`test`.`t5`.`d` = 1) and (`test`.`t5`.`c` = 2))
 explain partitions select * from t5 where (a=10 and b=2 and c=1 and d=1) or
 (c=2 and d=1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t5	p0_p0sp0,p0_p0sp1,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	#	12.21	Using where
+1	SIMPLE	t5	p0_p0sp0,p0_p0sp1,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	#	33.33	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t5`.`c` AS `c`,`test`.`t5`.`d` AS `d` from `test`.`t5` where (((`test`.`t5`.`d` = 1) and (`test`.`t5`.`c` = 1) and (`test`.`t5`.`b` = 2) and (`test`.`t5`.`a` = 10)) or ((`test`.`t5`.`d` = 1) and (`test`.`t5`.`c` = 2)))
 explain partitions select * from t5 where (a=10 and b=2 and c=1 and d=1) or
 (b=2 and c=2 and d=1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t5	p0_p0sp0,p0_p0sp1,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	#	4.89	Using where
+1	SIMPLE	t5	p0_p0sp0,p0_p0sp1,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	#	33.33	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t5`.`c` AS `c`,`test`.`t5`.`d` AS `d` from `test`.`t5` where (((`test`.`t5`.`d` = 1) and (`test`.`t5`.`c` = 1) and (`test`.`t5`.`b` = 2) and (`test`.`t5`.`a` = 10)) or ((`test`.`t5`.`d` = 1) and (`test`.`t5`.`c` = 2) and (`test`.`t5`.`b` = 2)))
@@ -3430,7 +3430,7 @@ Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t6`.`a` AS `a` from `test`.`t6` where (`test`.`t6`.`a` >= 9)
 explain partitions select * from t6 where a > 0 and a < 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t6	p1,p3	ALL	NULL	NULL	NULL	NULL	#	25.00	Using where
+1	SIMPLE	t6	p1,p3	ALL	NULL	NULL	NULL	NULL	#	50.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t6`.`a` AS `a` from `test`.`t6` where ((`test`.`t6`.`a` > 0) and (`test`.`t6`.`a` < 5))
@@ -3448,7 +3448,7 @@ Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t6`.`a` AS `a` from `test`.`t6` where ((`test`.`t6`.`a` > 3) and (`test`.`t6`.`a` < 8))
 explain partitions select * from t6 where a >= 0 and a <= 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t6	p1,p3,p5	ALL	NULL	NULL	NULL	NULL	#	11.11	Using where
+1	SIMPLE	t6	p1,p3,p5	ALL	NULL	NULL	NULL	NULL	#	33.33	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t6`.`a` AS `a` from `test`.`t6` where ((`test`.`t6`.`a` >= 0) and (`test`.`t6`.`a` <= 5))
@@ -3460,7 +3460,7 @@ Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t6`.`a` AS `a` from `test`.`t6` where ((`test`.`t6`.`a` >= 5) and (`test`.`t6`.`a` <= 12))
 explain partitions select * from t6 where a >= 3 and a <= 8;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t6	p3,p5,p7	ALL	NULL	NULL	NULL	NULL	#	25.00	Using where
+1	SIMPLE	t6	p3,p5,p7	ALL	NULL	NULL	NULL	NULL	#	50.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t6`.`a` AS `a` from `test`.`t6` where ((`test`.`t6`.`a` >= 3) and (`test`.`t6`.`a` <= 8))
@@ -3505,7 +3505,7 @@ Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t6`.`a` AS `a` from `test`.`t6` where (`test`.`t6`.`a` >= 9)
 explain partitions select * from t6 where a > 0 and a < 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t6	p1,p3	ALL	NULL	NULL	NULL	NULL	#	25.00	Using where
+1	SIMPLE	t6	p1,p3	ALL	NULL	NULL	NULL	NULL	#	50.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t6`.`a` AS `a` from `test`.`t6` where ((`test`.`t6`.`a` > 0) and (`test`.`t6`.`a` < 5))
@@ -3523,7 +3523,7 @@ Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t6`.`a` AS `a` from `test`.`t6` where ((`test`.`t6`.`a` > 3) and (`test`.`t6`.`a` < 8))
 explain partitions select * from t6 where a >= 0 and a <= 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t6	p1,p3,p5	ALL	NULL	NULL	NULL	NULL	#	11.11	Using where
+1	SIMPLE	t6	p1,p3,p5	ALL	NULL	NULL	NULL	NULL	#	33.33	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t6`.`a` AS `a` from `test`.`t6` where ((`test`.`t6`.`a` >= 0) and (`test`.`t6`.`a` <= 5))
@@ -3535,7 +3535,7 @@ Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t6`.`a` AS `a` from `test`.`t6` where ((`test`.`t6`.`a` >= 5) and (`test`.`t6`.`a` <= 12))
 explain partitions select * from t6 where a >= 3 and a <= 8;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t6	p3,p5,p7	ALL	NULL	NULL	NULL	NULL	#	25.00	Using where
+1	SIMPLE	t6	p3,p5,p7	ALL	NULL	NULL	NULL	NULL	#	50.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t6`.`a` AS `a` from `test`.`t6` where ((`test`.`t6`.`a` >= 3) and (`test`.`t6`.`a` <= 8))
@@ -3970,19 +3970,19 @@ Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` > 1) and (`test`.`t1`.`a` < 3))
 explain partitions select * from t1 where a >= 1 and a < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p1,p2	ALL	NULL	NULL	NULL	NULL	#	25.00	Using where
+1	SIMPLE	t1	p1,p2	ALL	NULL	NULL	NULL	NULL	#	50.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` >= 1) and (`test`.`t1`.`a` < 3))
 explain partitions select * from t1 where a >  1 and a <= 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p2,p3	ALL	NULL	NULL	NULL	NULL	#	25.00	Using where
+1	SIMPLE	t1	p2,p3	ALL	NULL	NULL	NULL	NULL	#	50.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` > 1) and (`test`.`t1`.`a` <= 3))
 explain partitions select * from t1 where a >= 1 and a <= 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p1,p2,p3	ALL	NULL	NULL	NULL	NULL	#	11.11	Using where
+1	SIMPLE	t1	p1,p2,p3	ALL	NULL	NULL	NULL	NULL	#	33.33	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` >= 1) and (`test`.`t1`.`a` <= 3))
@@ -4769,7 +4769,7 @@ insert into t1 values (1,1),(1,2),(1,3),(1,4),
 (2,1),(2,2),(2,3),(2,4);
 explain partitions select * from t1 where a=1 AND (b=1 OR b=2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0_p0sp1,p0_p0sp2	ALL	NULL	NULL	NULL	NULL	#	37.50	Using where
+1	SIMPLE	t1	p0_p0sp1,p0_p0sp2	ALL	NULL	NULL	NULL	NULL	#	50.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` = 1) and ((`test`.`t1`.`b` = 1) or (`test`.`t1`.`b` = 2)))
@@ -4799,13 +4799,13 @@ Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((isnull(`test`.`t1`.`a`) or (`test`.`t1`.`a` < 1)) and ((`test`.`t1`.`b` = 1) or (`test`.`t1`.`b` = 2)))
 explain partitions select * from t1 where (a IS NULL or a < 2) AND (b=1 OR b=2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0_p0sp0,p0_p0sp1,pn_pnsp0,pn_pnsp1	ALL	NULL	NULL	NULL	NULL	#	16.80	Using where
+1	SIMPLE	t1	p0_p0sp0,p0_p0sp1,pn_pnsp0,pn_pnsp1	ALL	NULL	NULL	NULL	NULL	#	20.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((isnull(`test`.`t1`.`a`) or (`test`.`t1`.`a` < 2)) and ((`test`.`t1`.`b` = 1) or (`test`.`t1`.`b` = 2)))
 explain partitions select * from t1 where (a IS NULL or a <= 1) AND (b=1 OR b=2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0_p0sp0,p0_p0sp1,pn_pnsp0,pn_pnsp1	ALL	NULL	NULL	NULL	NULL	#	16.80	Using where
+1	SIMPLE	t1	p0_p0sp0,p0_p0sp1,pn_pnsp0,pn_pnsp1	ALL	NULL	NULL	NULL	NULL	#	20.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((isnull(`test`.`t1`.`a`) or (`test`.`t1`.`a` <= 1)) and ((`test`.`t1`.`b` = 1) or (`test`.`t1`.`b` = 2)))
@@ -4916,7 +4916,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`
 explain partitions select * from t1
 where a >= 18446744073709551000-1 and a <= 18446744073709551000+1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p3,p4	ALL	NULL	NULL	NULL	NULL	#	11.11	Using where
+1	SIMPLE	t1	p3,p4	ALL	NULL	NULL	NULL	NULL	#	33.33	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` >= 18446744073709550999) and (`test`.`t1`.`a` <= 18446744073709551001))
@@ -4998,37 +4998,37 @@ Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where ((`test`.`t2`.`a` > 0xfe) and (`test`.`t2`.`a` <= 0xff))
 explain partitions select * from t1 where a >= 0xFE AND a <= 0xFF;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p2	ALL	NULL	NULL	NULL	NULL	#	25.00	Using where
+1	SIMPLE	t1	p2	ALL	NULL	NULL	NULL	NULL	#	50.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` >= 0xfe) and (`test`.`t1`.`a` <= 0xff))
 explain partitions select * from t2 where a >= 0xFE AND a <= 0xFF;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p2	ALL	NULL	NULL	NULL	NULL	#	25.00	Using where
+1	SIMPLE	t2	p2	ALL	NULL	NULL	NULL	NULL	#	50.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where ((`test`.`t2`.`a` >= 0xfe) and (`test`.`t2`.`a` <= 0xff))
 explain partitions select * from t1 where a < 64 AND a >= 63;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	#	25.00	Using where
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	#	50.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` < 64) and (`test`.`t1`.`a` >= 63))
 explain partitions select * from t2 where a < 64 AND a >= 63;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0	ALL	NULL	NULL	NULL	NULL	#	25.00	Using where
+1	SIMPLE	t2	p0	ALL	NULL	NULL	NULL	NULL	#	50.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where ((`test`.`t2`.`a` < 64) and (`test`.`t2`.`a` >= 63))
 explain partitions select * from t1 where a <= 64 AND a >= 63;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	#	11.11	Using where
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	#	25.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` <= 64) and (`test`.`t1`.`a` >= 63))
 explain partitions select * from t2 where a <= 64 AND a >= 63;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1	ALL	NULL	NULL	NULL	NULL	#	11.11	Using where
+1	SIMPLE	t2	p0,p1	ALL	NULL	NULL	NULL	NULL	#	25.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where ((`test`.`t2`.`a` <= 64) and (`test`.`t2`.`a` >= 63))
@@ -5045,7 +5045,7 @@ insert into t1 values (9),(19),(0xFFFF0000FFFF000-1), (0xFFFF0000FFFFFFF-1);
 explain partitions select * from t1 where
 a >= 2305561538531885056-10 and a <= 2305561538531885056-8;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p3	ALL	NULL	NULL	NULL	NULL	#	11.11	Using where
+1	SIMPLE	t1	p3	ALL	NULL	NULL	NULL	NULL	#	25.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` >= 2305561538531885046) and (`test`.`t1`.`a` <= 2305561538531885048))
@@ -5058,7 +5058,7 @@ Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` > 18446744073709551596) and (`test`.`t1`.`a` < 18446744073709551598))
 explain partitions select * from t1 where a>=0 and a <= 0xFFFFFFFFFFFFFFFF;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	#	11.11	Using where
+1	SIMPLE	t1	p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	#	12.50	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` >= 0) and (`test`.`t1`.`a` <= 18446744073709551615))
@@ -5072,7 +5072,7 @@ partition p4 values less than (1000)
 insert into t1 values (-15),(-5),(5),(15),(-15),(-5),(5),(15);
 explain partitions select * from t1 where a>-2 and a <=0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p3	ALL	NULL	NULL	NULL	NULL	#	11.11	Using where
+1	SIMPLE	t1	p3	ALL	NULL	NULL	NULL	NULL	#	25.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` > -2) and (`test`.`t1`.`a` <= 0))

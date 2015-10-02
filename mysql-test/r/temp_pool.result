@@ -18,4 +18,4 @@ a
 2
 #cleanup
 DROP TABLE t1, pid_table;
-set global internal_tmp_disk_storage_engine = INNODB;
+set global internal_tmp_disk_storage_engine = InnoDB;

@@ -20,7 +20,7 @@
 #include "rewriter.h"
 
 #include <my_global.h>
-#include <mysql/plugin_query_rewrite.h>
+#include <mysql/plugin_audit.h>
 #include <mysql/psi/mysql_thread.h>
 #include <mysql/service_my_plugin_log.h>
 #include <my_atomic.h>
@@ -149,32 +149,41 @@ MYSQL_PLUGIN get_rewriter_plugin_info() { return plugin_info; }
 /// @name Plugin declaration.
 ///@{
 
-static int rewrite_query_post_parse(Mysql_rewrite_post_parse_param *param);
-
-static struct st_mysql_rewrite_post_parse rewriter_descriptor= {
-  MYSQL_REWRITE_POST_PARSE_INTERFACE_VERSION,  /* Interface version.         */
-  1,                                           /* We need query digests.     */
-  rewrite_query_post_parse                     /* The rewriting function.    */
-};
-
+static int rewrite_query_notify(MYSQL_THD thd,
+                                mysql_event_class_t event_class,
+                                const void *event);
 static int rewriter_plugin_init(MYSQL_PLUGIN plugin_ref);
 static int rewriter_plugin_deinit(void*);
 
-mysql_declare_plugin(rewriter)
+/* Audit plugin descriptor */
+static struct st_mysql_audit rewrite_query_descriptor=
 {
-  MYSQL_REWRITE_POST_PARSE_PLUGIN,
-  &rewriter_descriptor,
-  PLUGIN_NAME,
-  "Charly Molter",
-  "A query rewrite plugin that rewrites queries using the parse tree.",
-  PLUGIN_LICENSE_GPL,
-  rewriter_plugin_init,
-  rewriter_plugin_deinit,
-  0x0001,                                       /* version 0.0.1      */
-  rewriter_plugin_status_vars,                  /* status variables   */
-  rewriter_plugin_sys_vars,                     /* system variables   */
-  NULL,                                         /* config options     */
-  0,                                            /* flags              */
+  MYSQL_AUDIT_INTERFACE_VERSION,                    /* interface version */
+  NULL,                                             /* release_thd()     */
+  rewrite_query_notify,                             /* event_notify()    */
+  { 0,
+    0,
+    (unsigned long) MYSQL_AUDIT_PARSE_ALL, }        /* class mask        */
+};
+
+/* Plugin descriptor */
+mysql_declare_plugin(audit_log)
+{
+    MYSQL_AUDIT_PLUGIN,             /* plugin type                   */
+    &rewrite_query_descriptor,      /* type specific descriptor      */
+    PLUGIN_NAME,                    /* plugin name                   */
+    "Oracle",                       /* author                        */
+    "A query rewrite plugin that"
+    " rewrites queries using the"
+    " parse tree.",                 /* description                   */
+    PLUGIN_LICENSE_GPL,             /* license                       */
+    rewriter_plugin_init,           /* plugin initializer            */
+    rewriter_plugin_deinit,         /* plugin deinitializer          */
+    0x0002,                         /* version                       */
+    rewriter_plugin_status_vars,    /* status variables              */
+    rewriter_plugin_sys_vars,       /* system variables              */
+    NULL,                           /* reserverd                     */
+    0                               /* flags                         */
 }
 mysql_declare_plugin_end;
 
@@ -326,16 +335,22 @@ static void log_nonrewritten_query(MYSQL_THD thd, const uchar *digest_buf,
   query when the plugin is active. The function extracts the digest of the
   query. If the digest matches an existing rewrite rule, it is executed.
 */
-static int rewrite_query_post_parse(Mysql_rewrite_post_parse_param *param)
+static int rewrite_query_notify(MYSQL_THD thd, mysql_event_class_t event_class,
+                                 const void *event)
 {
-  if (!sys_var_enabled)
+  DBUG_ASSERT(event_class == MYSQL_AUDIT_PARSE_CLASS);
+
+  const struct mysql_event_parse *event_parse=
+    static_cast<const struct mysql_event_parse *>(event);
+
+  if (event_parse->event_subclass != MYSQL_AUDIT_PARSE_POSTPARSE ||
+      !sys_var_enabled)
     return 0;
 
-  MYSQL_THD thd= param->thd;
   uchar digest[PARSER_SERVICE_DIGEST_LENGTH];
 
   if (mysql_parser_get_statement_digest(thd, digest))
-    return 1;
+    return 0;
 
   if (needs_initial_load)
     lock_and_reload(thd);
@@ -359,9 +374,10 @@ static int rewrite_query_post_parse(Mysql_rewrite_post_parse_param *param)
     log_nonrewritten_query(thd, digest, rewrite_result);
   else
   {
-    param->flags|= FLAG_REWRITE_PLUGIN_QUERY_REWRITTEN;
+    *((int *)event_parse->flags)|=
+                        (int)MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_QUERY_REWRITTEN;
     bool is_prepared=
-      (param->flags & FLAG_REWRITE_PLUGIN_IS_PREPARED_STATEMENT) != 0;
+      (*(event_parse->flags) & MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_IS_PREPARED_STATEMENT) != 0;
 
     parse_error= services::parse(thd, rewrite_result.new_query, is_prepared);
     if (parse_error != 0)
@@ -372,5 +388,5 @@ static int rewrite_query_post_parse(Mysql_rewrite_post_parse_param *param)
     my_atomic_add64(&status_var_number_rewritten_queries, 1);
   }
 
-  return parse_error;
+  return 0;
 }

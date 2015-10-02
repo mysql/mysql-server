@@ -272,7 +272,7 @@ row_fts_psort_info_init(
 		psort_info[j].psort_common = common_info;
 		psort_info[j].error = DB_SUCCESS;
 		psort_info[j].memory_used = 0;
-		mutex_create("fts_pll_tokenize", &psort_info[j].mutex);
+		mutex_create(LATCH_ID_FTS_PLL_TOKENIZE, &psort_info[j].mutex);
 	}
 
 	/* Initialize merge_info structures parallel merge and insert

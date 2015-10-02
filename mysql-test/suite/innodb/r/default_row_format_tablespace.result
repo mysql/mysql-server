@@ -1,0 +1,218 @@
+SELECT @@innodb_default_row_format;
+@@innodb_default_row_format
+dynamic
+SELECT @@innodb_file_per_table;
+@@innodb_file_per_table
+1
+#Create table with no tablespace
+CREATE TABLE tab(c1  TEXT, c2 BLOB);
+INSERT INTO tab VALUES('Check with no tablespace','Check with no tablespace');
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	test/tab	33	5	Dynamic	0	Single
+ALTER TABLE tab ROW_FORMAT=COMPACT;
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	test/tab	1	5	Compact	0	Single
+CHECK TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	check	status	OK
+ALTER TABLE tab ROW_FORMAT=DYNAMIC;
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	test/tab	33	5	Dynamic	0	Single
+CHECK TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	check	status	OK
+ALTER TABLE tab ROW_FORMAT=REDUNDANT;
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	test/tab	0	5	Redundant	0	Single
+CHECK TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	check	status	OK
+ALTER TABLE tab ROW_FORMAT=COMPRESSED;
+SELECT NAME,FILE_FORMAT,ROW_FORMAT FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE NAME='test/tab';
+NAME	FILE_FORMAT	ROW_FORMAT
+test/tab	Barracuda	Compressed
+CHECK TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	check	status	OK
+ALTER TABLE tab ROW_FORMAT=Dynamic;
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	test/tab	33	5	Dynamic	0	Single
+CHECK TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	check	status	OK
+DROP TABLE tab;
+SET GLOBAL innodb_file_per_table=Default;
+SELECT @@innodb_default_row_format;
+@@innodb_default_row_format
+dynamic
+#Create table with tablespace
+CREATE TABLESPACE $tablespace ADD DATAFILE '$tablespace.ibd'
+ENGINE=InnoDB;
+CREATE TABLE tab(c1  TEXT, c2 BLOB) TABLESPACE $tablespace;
+CREATE TABLESPACE tblsp1 ADD DATAFILE 'tblsp1.ibd' FILE_BLOCK_SIZE=1k
+ENGINE=InnoDB;
+CREATE TABLE tab1(c1  TEXT, c2 BLOB) KEY_BLOCK_SIZE=1 TABLESPACE tblsp1;
+INSERT INTO tab VALUES('Check with General tablespace',
+'Check with General tablespace');
+INSERT INTO tab1 VALUES('tablsp File Block size',
+'tablsp File Block size');
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	$tablespace	161	5	Dynamic	0	General
+test/tab1	tblsp1	163	5	Compressed	1024	General
+ALTER TABLE tab ROW_FORMAT=COMPACT;
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	$tablespace	129	5	Compact	0	General
+test/tab1	tblsp1	163	5	Compressed	1024	General
+CHECK TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	check	status	OK
+ALTER TABLE tab ROW_FORMAT=DYNAMIC;
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	$tablespace	161	5	Dynamic	0	General
+test/tab1	tblsp1	163	5	Compressed	1024	General
+CHECK TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	check	status	OK
+ALTER TABLE tab ROW_FORMAT=REDUNDANT;
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	$tablespace	128	5	Redundant	0	General
+test/tab1	tblsp1	163	5	Compressed	1024	General
+CHECK TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	check	status	OK
+ALTER TABLE tab ROW_FORMAT=COMPRESSED;
+ERROR HY000: InnoDB: Tablespace `$tablespace` cannot contain a COMPRESSED table
+ALTER TABLE tab1 ROW_FORMAT=DYNAMIC;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'KEY_BLOCK_SIZE'
+SELECT NAME,FILE_FORMAT,ROW_FORMAT FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE NAME='test/tab';
+NAME	FILE_FORMAT	ROW_FORMAT
+test/tab	Antelope	Redundant
+CHECK TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	check	status	OK
+CHECK TABLE tab1;
+Table	Op	Msg_type	Msg_text
+test.tab1	check	status	OK
+ALTER TABLE tab ROW_FORMAT=Dynamic;
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	$tablespace	161	5	Dynamic	0	General
+test/tab1	tblsp1	163	5	Compressed	1024	General
+CHECK TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	check	status	OK
+DROP TABLE tab;
+DROP TABLE tab1;
+DROP TABLESPACE $tablespace;
+DROP TABLESPACE tblsp1;
+SET GLOBAL innodb_file_per_table=Default;
+SELECT @@innodb_default_row_format;
+@@innodb_default_row_format
+dynamic
+#Create table with innodb system tablespace
+CREATE TABLE tab(c1  TEXT, c2 BLOB) TABLESPACE innodb_system;
+INSERT INTO tab VALUES('Check with InnoDB system tablespace',
+'Check with InnoDB system tablespace');
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	innodb_system	161	5	Dynamic	0	System
+ALTER TABLE tab ROW_FORMAT=COMPACT;
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	innodb_system	129	5	Compact	0	System
+CHECK TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	check	status	OK
+ALTER TABLE tab ROW_FORMAT=DYNAMIC;
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	innodb_system	161	5	Dynamic	0	System
+CHECK TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	check	status	OK
+ALTER TABLE tab ROW_FORMAT=REDUNDANT;
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	innodb_system	128	5	Redundant	0	System
+CHECK TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	check	status	OK
+SELECT NAME,FILE_FORMAT,ROW_FORMAT FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE NAME='test/tab';
+NAME	FILE_FORMAT	ROW_FORMAT
+test/tab	Antelope	Redundant
+CHECK TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	check	status	OK
+ALTER TABLE tab ROW_FORMAT=Dynamic;
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	innodb_system	161	5	Dynamic	0	System
+CHECK TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	check	status	OK
+DROP TABLE tab;
+SET GLOBAL innodb_file_per_table=Default;
+SELECT @@innodb_default_row_format;
+@@innodb_default_row_format
+dynamic
+SET GLOBAL innodb_file_per_table=0;
+SELECT @@innodb_file_per_table;
+@@innodb_file_per_table
+0
+#Create table with file_per_table=0
+CREATE TABLE tab(c1  TEXT, c2 BLOB);
+INSERT INTO tab VALUES('File per table off','File per table off');
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	innodb_system	33	5	Dynamic	0	System
+ALTER TABLE tab ROW_FORMAT=COMPACT;
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	innodb_system	1	5	Compact	0	System
+CHECK TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	check	status	OK
+ALTER TABLE tab ROW_FORMAT=DYNAMIC;
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	innodb_system	33	5	Dynamic	0	System
+CHECK TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	check	status	OK
+ALTER TABLE tab ROW_FORMAT=REDUNDANT;
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	innodb_system	0	5	Redundant	0	System
+CHECK TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	check	status	OK
+ALTER TABLE tab ROW_FORMAT=COMPRESSED;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'ROW_FORMAT'
+SELECT NAME,FILE_FORMAT,ROW_FORMAT FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE NAME='test/tab';
+NAME	FILE_FORMAT	ROW_FORMAT
+test/tab	Antelope	Redundant
+CHECK TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	check	status	OK
+ALTER TABLE tab ROW_FORMAT=Dynamic;
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	innodb_system	33	5	Dynamic	0	System
+CHECK TABLE tab;
+Table	Op	Msg_type	Msg_text
+test.tab	check	status	OK
+DROP TABLE tab;
+SET GLOBAL innodb_file_per_table=Default;

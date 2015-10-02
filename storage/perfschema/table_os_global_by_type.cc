@@ -90,7 +90,8 @@ table_os_global_by_type::m_share=
   sizeof(pos_os_global_by_type),
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 PFS_engine_table*

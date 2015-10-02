@@ -49,27 +49,27 @@ INSERT INTO gis_linestring VALUES
 (215, ST_LINESTRINGFROMWKB(ST_ASWKB(ST_LINESTRINGFROMTEXT('LINESTRING(10 10,10 -10,-10 -10,-10 10,10 10)'))));
 # Inserting POLYGON Geometry Values 
 INSERT INTO gis_polygon VALUES
-(301, ST_POLYFROMTEXT('POLYGON((0 0,0 5,5 5))')),
+(301, ST_POLYFROMTEXT('POLYGON((0 0,0 5,5 5,0 0))')),
 (302, ST_POLYFROMTEXT('POLYGON((0 0,0 5,5 5,5 0,0 0))')),
 (303, ST_POLYFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
 INSERT INTO gis_polygon VALUES
 (304, ST_POLYGONFROMTEXT('POLYGON((0 0,0 50,50 50,50 0,0 0))')),
-(305, ST_POLYGONFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))')),
-(306, ST_POLYGONFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(2 2,2 4,4 4,4 2,2 2),(6 6,6 8,8 8,8 6,6 6))'));
+(305, ST_POLYGONFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0,0 0),(4 4,4 6,6 6,6 4,4 4))')),
+(306, ST_POLYGONFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0,0 0),(2 2,2 4,4 4,4 2,2 2),(6 6,6 8,8 8,8 6,6 6))'));
 INSERT INTO gis_polygon VALUES
-(307, ST_POLYFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,5), POINT(5,5))))),
+(307, ST_POLYFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,5), POINT(5,5), POINT(0,0))))),
 (308, ST_POLYFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0))))),
 (309, ST_POLYFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,10), POINT(10,10), POINT(10,0), POINT(0,0)),
 LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4)))));
 INSERT INTO gis_polygon VALUES
-(310, ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,5), POINT(5,5))))),
+(310, ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,5), POINT(5,5), POINT(0,0))))),
 (311, ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(10,10), POINT(10,15), POINT(15,15), POINT(15,10), POINT(10,10))))),
 (312, ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(10,10), POINT(10,20), POINT(20,20), POINT(20,10), POINT(10,10)),
 LINESTRING(POINT(14,14), POINT(14,16), POINT(16,16), POINT(16,14), POINT(14,14)))));
 INSERT INTO gis_polygon VALUES
-(313, ST_POLYFROMWKB(ST_ASWKB(ST_POLYFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,5 5,0 0))')))),
+(313, ST_POLYFROMWKB(ST_ASWKB(ST_POLYFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0,5 5,0 0))')))),
 (314, ST_POLYFROMWKB(ST_ASWKB(ST_POLYGONFROMTEXT('POLYGON((10 0,10 10,0 10,-10 10,-10 0,-10 -10,0 10,10 -10,10 0))')))),
-(315, ST_POLYGONFROMWKB(ST_ASWKB(ST_POLYGONFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(2 2,2 4,4 4,4 2,2 2),(6 6,6 8,8 8,8 6,6 6))'))));
+(315, ST_POLYGONFROMWKB(ST_ASWKB(ST_POLYGONFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0,0 0),(2 2,2 4,4 4,4 2,2 2),(6 6,6 8,8 8,8 6,6 6))'))));
 # Inserting MULTIPOINT Geometry Values 
 INSERT INTO gis_multi_point VALUES
 (401, ST_GEOMFROMTEXT('MULTIPOINT(0 0)')),
@@ -118,10 +118,10 @@ INSERT INTO gis_multi_linestring VALUES
 INSERT INTO gis_multi_polygon VALUES
 (601, ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,0 0)))')),
 (602, ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,0 0)),((5 5,5 10,10 10,5 5)))')),
-(603, ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
+(603, ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0,0 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
 INSERT INTO gis_multi_polygon VALUES
-(604, ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5)))')),
-(605, ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),((0 0,0 -2,-2 -2)))')),
+(604, ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,0 0)))')),
+(605, ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0,0 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,0 -2,-2 -2,0 0)))')),
 (606, ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5,-5 5,0 0)),((0 0,-5 -5,5 -5,0 0)))'));
 INSERT INTO gis_multi_polygon VALUES
 (607, ST_GEOMFROMWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(5,0), POINT(5,5), POINT(0,5), POINT(0,0)))))),
@@ -149,7 +149,7 @@ INSERT INTO gis_geometrycollection VALUES
 (704, ST_GEOMETRYCOLLECTIONFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))')),
 (705, ST_GEOMETRYCOLLECTIONFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0),'
                                                            'LINESTRING(0 0,10 10),'
-                                                           'POLYGON((0 0,0 10,10 10,10 0, 0 0)))')),
+                                                           'POLYGON((0 0,0 10,10 10,10 0,0 0,0 0, 0 0)))')),
 (706, ST_GEOMETRYCOLLECTIONFROMTEXT('GEOMETRYCOLLECTION(MULTIPOINT(0 0,5 5,10 10),'
                                                            'MULTILINESTRING((0 0,10 10),(0 10,10 0)),'
                                                            'MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),'
@@ -183,7 +183,7 @@ INSERT INTO gis_geometrycollection VALUES
 (713, ST_GEOMCOLLFROMWKB(ST_ASWKB(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION('
                                                                 'POINT(0 0),'
                                                                 'LINESTRING(0 0,10 10),'
-                                                                'POLYGON((0 0,0 10,10 10,10 0)),'
+                                                                'POLYGON((0 0,0 10,10 10,10 0,0 0)),'
                                                                 'MULTIPOINT(0 0,2 2,4 4,6 6,8 8,10 10),'
                                                                 'MULTILINESTRING((0 0,10 10),(0 10,10 0)),'
                                                                 'MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5))))')))),
@@ -193,7 +193,7 @@ INSERT INTO gis_geometrycollection VALUES
                                                                 'GEOMETRYCOLLECTION('
                                                                       'LINESTRING(0 0,10 10)),'
                                                                 'GEOMETRYCOLLECTION('
-                                                                      'POLYGON((0 0,0 10,10 10,10 0))),'
+                                                                      'POLYGON((0 0,0 10,10 10,10 0,0 0))),'
                                                                 'GEOMETRYCOLLECTION('
                                                                        'MULTIPOINT(0 0,2 2,4 4,6 6,8 8,10 10)),'
                                                                 'GEOMETRYCOLLECTION('
@@ -210,7 +210,7 @@ INSERT INTO gis_geometrycollection VALUES
                                                                 'GEOMETRYCOLLECTION(),'
                                                                 'GEOMETRYCOLLECTION('
                                                                        'GEOMETRYCOLLECTION()),'
-                                                                'POLYGON((0 0,0 10,10 10,10 0)),'
+                                                                'POLYGON((0 0,0 10,10 10,10 0,0 0)),'
                                                                 'MULTIPOINT(0 0,2 2,4 4,6 6,8 8,10 10),'
                                                                 'MULTILINESTRING((0 0,10 10),(0 10,10 0)),'
                                                                 'MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5))))'))));

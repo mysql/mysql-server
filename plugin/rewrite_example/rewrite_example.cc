@@ -17,60 +17,92 @@
 #include <ctype.h>
 #include <string.h>
 
+#include <my_global.h>
 #include <mysql/plugin.h>
-#include <mysql/plugin_query_rewrite.h>
+#include <mysql/plugin_audit.h>
+#include <mysql/service_mysql_alloc.h>
+#include <my_thread.h> // my_thread_handle needed by mysql_memory.h
+#include <mysql/psi/mysql_memory.h>
 
-static MYSQL_PLUGIN plugin_info_ptr;
+/* instrument the memory allocation */
+#ifdef HAVE_PSI_INTERFACE
+static PSI_memory_key key_memory_rewrite_example;
 
-static int rewrite_plugin_init(MYSQL_PLUGIN plugin_ref)
+static PSI_memory_info all_rewrite_memory[]=
 {
-  plugin_info_ptr= plugin_ref;
-  return 0;
-}
-
-static int rewrite_lower(Mysql_rewrite_pre_parse_param *param)
-{
-  size_t query_length= param->query_length;
-  char *rewritten_query= new char[query_length + 1];
-
-  for (unsigned i= 0; i < param->query_length + 1; i++)
-    rewritten_query[i]= tolower(param->query[i]);
-
-  param->rewritten_query= rewritten_query;
-  param->rewritten_query_length= param->query_length;
-  param->flags|= FLAG_REWRITE_PLUGIN_QUERY_REWRITTEN;
-  return 0;
-}
-
-static int free_rewritten_query(Mysql_rewrite_pre_parse_param *param)
-{
-  delete [] param->rewritten_query;
-  param->rewritten_query= NULL;
-  param->rewritten_query_length= 0;
-  return 0;
-}
-
-static st_mysql_rewrite_pre_parse rewrite_example_descriptor= {
-  MYSQL_REWRITE_PRE_PARSE_INTERFACE_VERSION,    /* interface version          */
-  rewrite_lower,                                /* rewrite raw query function */
-  free_rewritten_query,                         /* free allocated query       */
+  { &key_memory_rewrite_example, "rewrite_example", 0 }
 };
 
-mysql_declare_plugin(rewrite_example)
+static int plugin_init(MYSQL_PLUGIN)
 {
-  MYSQL_REWRITE_PRE_PARSE_PLUGIN,
-  &rewrite_example_descriptor,
-  "rewrite_example",
-  "Padraig O'Sullivan",
-  "An example of a query rewrite plugin that rewrites all queries to lower "
-  "case",
-  PLUGIN_LICENSE_GPL,
-  rewrite_plugin_init,
-  NULL,
-  0x0001,                                       /* version 0.0.1      */
-  NULL,                                         /* status variables   */
-  NULL,                                         /* system variables   */
-  NULL,                                         /* config options     */
-  0,                                            /* flags              */
+  const char* category= "sql";
+  int count;
+
+  count= array_elements(all_rewrite_memory);
+  mysql_memory_register(category, all_rewrite_memory, count);
+  return 0; /* success */
+}
+#else
+#define plugin_init NULL
+#define key_memory_rewrite_example PSI_NOT_INSTRUMENTED
+#endif /* HAVE_PSI_INTERFACE */
+
+
+static int rewrite_lower(MYSQL_THD thd, mysql_event_class_t event_class,
+                         const void *event)
+{
+  if (event_class == MYSQL_AUDIT_PARSE_CLASS)
+  {
+    const struct mysql_event_parse *event_parse=
+      static_cast<const struct mysql_event_parse *>(event);
+    if (event_parse->event_subclass == MYSQL_AUDIT_PARSE_PREPARSE)
+    {
+      size_t query_length= event_parse->query.length;
+      char *rewritten_query=
+        static_cast<char *>(my_malloc(key_memory_rewrite_example,
+                                       query_length + 1, MYF(0)));
+
+      for (unsigned i= 0; i < query_length + 1; i++)
+        rewritten_query[i]= tolower(event_parse->query.str[i]);
+
+      event_parse->rewritten_query->str= rewritten_query;
+      event_parse->rewritten_query->length= query_length;
+      *((int *)event_parse->flags)|=
+                        (int)MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_QUERY_REWRITTEN;
+    }
+  }
+
+  return 0;
+}
+
+/* Audit plugin descriptor */
+static struct st_mysql_audit rewrite_example_descriptor=
+{
+  MYSQL_AUDIT_INTERFACE_VERSION,                    /* interface version */
+  NULL,                                             /* release_thd()     */
+  rewrite_lower,                                    /* event_notify()    */
+  { 0,
+    0,
+    (unsigned long) MYSQL_AUDIT_PARSE_ALL, }        /* class mask        */
+};
+
+/* Plugin descriptor */
+mysql_declare_plugin(audit_log)
+{
+  MYSQL_AUDIT_PLUGIN,             /* plugin type                   */
+  &rewrite_example_descriptor,    /* type specific descriptor      */
+  "rewrite_example",              /* plugin name                   */
+  "Oracle",                       /* author                        */
+  "An example of a query rewrite"
+  " plugin that rewrites all queries"
+  " to lower case",               /* description                   */
+  PLUGIN_LICENSE_GPL,             /* license                       */
+  plugin_init,                    /* plugin initializer            */
+  NULL,                           /* plugin deinitializer          */
+  0x0002,                         /* version                       */
+  NULL,                           /* status variables              */
+  NULL,                           /* system variables              */
+  NULL,                           /* reserverd                     */
+  0                               /* flags                         */
 }
 mysql_declare_plugin_end;

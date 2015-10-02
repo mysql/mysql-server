@@ -1,5 +1,5 @@
 #
-# Test of disabled rules ('N' in enabled column.)
+# Test of disabled rules ('NO' in enabled column.)
 #
 CREATE TABLE t1 ( c1 VARCHAR(10), c2 VARCHAR(10) );
 INSERT INTO t1 VALUES ( 'abc', 'def' ), ( 'ghi', 'klm' ), ( 'nop', 'qrs' );
@@ -8,8 +8,9 @@ INSERT INTO t2 VALUES ( 'abc' ), ( 'klm' );
 # Query rewrite plugin was installed.
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement, enabled )
 VALUES ( 'SELECT * FROM test.t2',
-'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = test.t2.c1', 'N'
+'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = test.t2.c1', 'NO'
          );
+CALL query_rewrite.flush_rewrite_rules();
 # Check that the rewrite rule is not executed.
 SELECT * FROM test.t2;
 c1
@@ -18,10 +19,10 @@ klm
 # Check that the rule is indeed disabled.
 SELECT pattern, replacement, enabled FROM query_rewrite.rewrite_rules;
 pattern	replacement	enabled
-SELECT * FROM test.t2	SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = test.t2.c1	N
+SELECT * FROM test.t2	SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = test.t2.c1	NO
 # Enable the previously disabled rule.
 UPDATE query_rewrite.rewrite_rules
-SET enabled = 'Y'
+SET enabled = 'YES'
 WHERE pattern = 'SELECT * FROM test.t2';
 CALL query_rewrite.flush_rewrite_rules();
 # Verify that the rewrite rule is enabled.
@@ -29,10 +30,10 @@ SELECT * FROM test.t2;
 c1	c2	c1
 abc	def	abc
 Warnings:
-Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = test.t2.c1' by plugin: Rewriter.
+Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = test.t2.c1' by a query rewrite plugin
 # Disable via UPDATE...
 UPDATE query_rewrite.rewrite_rules
-SET enabled = 'N'
+SET enabled = 'NO'
 WHERE pattern = 'SELECT * FROM test.t2';
 CALL query_rewrite.flush_rewrite_rules();
 # Verify that the rewrite rule is disabled again.
@@ -41,4 +42,6 @@ c1
 abc
 klm
 DROP TABLE t1, t2;
-# Query rewrite plugin was uninstalled.
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

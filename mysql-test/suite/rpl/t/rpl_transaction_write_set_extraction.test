@@ -46,7 +46,7 @@ DROP TABLE t1;
 # updates.
 
 --connection master
-CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT UNIQUE KEY, c3 INT UNIQUE KEY);
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT NOT NULL UNIQUE, c3 INT NOT NULL UNIQUE);
 SET @@GLOBAL.DEBUG= @debug_saved;
 SET @@GLOBAL.DEBUG= '+d,PKE_assert_single_primary_unique_key_generated_insert';
 INSERT INTO t1 VALUES (1, 2, 3);
@@ -60,7 +60,7 @@ DROP TABLE t1;
 # Table with multi valued primary key and multiple unique key with insert and
 # updates.
 
-CREATE TABLE t1 (a INT, d INT, b INT unique key, c int unique key, PRIMARY KEY(a, d));
+CREATE TABLE t1 (a INT, d INT, b INT NOT NULL UNIQUE, c INT NOT NULL UNIQUE, PRIMARY KEY(a, d));
 SET @@GLOBAL.DEBUG= @debug_saved;
 SET @@GLOBAL.DEBUG= '+d,PKE_assert_multi_primary_unique_key_generated_insert';
 INSERT INTO t1 VALUES(1, 2, 3, 4);
@@ -78,7 +78,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (a INT PRIMARY KEY);
 CREATE TABLE t2 (b INT PRIMARY KEY);
-CREATE TABLE t3 (c1 INT, c2 INT UNIQUE KEY, PRIMARY KEY(c1, c2), FOREIGN KEY(c1) REFERENCES t1(a), FOREIGN KEY(c2) REFERENCES t2(b));
+CREATE TABLE t3 (c1 INT, c2 INT NOT NULL UNIQUE, PRIMARY KEY(c1, c2), FOREIGN KEY(c1) REFERENCES t1(a), FOREIGN KEY(c2) REFERENCES t2(b));
 
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (5);

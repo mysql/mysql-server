@@ -1,0 +1,551 @@
+call mtr.add_suppression("Event 'MYSQL_AUDIT_COMMAND_END' cannot be aborted.");
+call mtr.add_suppression("Event 'MYSQL_AUDIT_CONNECTION_DISCONNECT' cannot be aborted.");
+call mtr.add_suppression("Command 'Ping' cannot be aborted.");
+INSTALL PLUGIN null_audit SONAME 'adt_null.<expected_extension>';
+################
+## CONNECTION ##
+################
+CREATE USER user1@localhost IDENTIFIED BY 'pass';
+SET GLOBAL null_audit_event_order_check = "MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE;;ABORT_RET";
+connect(localhost,user1,pass,test,MASTER_PORT,MASTER_SOCKET);
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE';1).
+SET GLOBAL null_audit_event_order_check = "MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE;;;"
+                                          "MYSQL_AUDIT_GENERAL_LOG;;;"
+                                          "MYSQL_AUDIT_CONNECTION_CONNECT;;ABORT_RET";
+connect(localhost,user1,pass,test,MASTER_PORT,MASTER_SOCKET);
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_CONNECTION_CONNECT';1).
+SET GLOBAL null_audit_event_order_check = NULL;
+SET GLOBAL null_audit_event_order_check = "MYSQL_AUDIT_CONNECTION_DISCONNECT;;ABORT_RET";
+# mysql_audit_connection_disconnect result does not have any significance
+SET GLOBAL null_audit_event_order_check = NULL;
+#############
+## COMMAND ##
+#############
+# Command start abort
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";ABORT_RET';
+SELECT 1;
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_COMMAND_START';1).
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+SELECT 1;
+1
+1
+SET @@GLOBAL.null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"14\";ABORT_RET';
+mysqld is alive
+SET @@GLOBAL.null_audit_event_order_check = NULL;
+###########
+## QUERY ##
+###########
+SET @@null_audit_event_order_check_exact = <expected_check_exact>;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;;ABORT_RET';
+SELECT 1;
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_QUERY_START';1).
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+SELECT 1;
+1
+1
+SET @@null_audit_event_order_check_exact = <expected_check_exact>;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;;;'
+                                          'MYSQL_AUDIT_QUERY_STATUS_END;;ABORT_RET';
+SELECT 1;
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_QUERY_STATUS_END';1).
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+SELECT 1;
+1
+1
+##############
+## VARIABLE ##
+##############
+SET @@null_audit_event_order_check_exact = <expected_check_exact>;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;value="1";ABORT_RET';
+SELECT @@GLOBAL.null_audit_abort_value;
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_GLOBAL_VARIABLE_GET';1).
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+SELECT @@GLOBAL.null_audit_abort_value;
+@@GLOBAL.null_audit_abort_value
+1
+## SESSION variable access should not be blocked.
+SET @@null_audit_event_order_check_exact = <expected_check_exact>;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;;;'
+                                          'MYSQL_AUDIT_QUERY_STATUS_END;;';
+SELECT @@null_audit_abort_value;
+@@null_audit_abort_value
+1
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-OK
+# SHOW GLOBAL VARIABLE
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                     'MYSQL_AUDIT_QUERY_START;;;'
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;value=\"1\";ABORT_RET',
+@@null_audit_event_order_check_exact = 1;
+SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_GLOBAL_VARIABLE_GET';1).
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
+Variable_name	Value
+null_audit_abort_value	1
+# SHOW GLOBAL VARIABLE
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;;;'
+                                          'MYSQL_AUDIT_QUERY_STATUS_END;;';
+SHOW SESSION VARIABLES LIKE 'null_audit_abort_value';
+Variable_name	Value
+null_audit_abort_value	1
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-OK
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                     'MYSQL_AUDIT_QUERY_START;;;'
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_SET;value=\"NULL\";ABORT_RET',
+@@null_audit_event_order_check_exact = 1;
+SET @@GLOBAL.null_audit_event_order_check = NULL;
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_GLOBAL_VARIABLE_SET';1).
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+SET @@GLOBAL.null_audit_event_order_check = NULL;
+# Global variables through virtual tables
+SET @@null_audit_event_order_check_exact = <expected_check_exact>;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;;;'
+                                          'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;value="1";ABORT_RET';
+SELECT * FROM information_schema.global_variables WHERE VARIABLE_NAME = 'null_audit_abort_value';
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_GLOBAL_VARIABLE_GET';1).
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+###############################
+## QUERY - FIRST LEVEL ABORT ##
+###############################
+CREATE DATABASE super_test;
+USE super_test;
+CREATE TABLE test_table (a INT);
+SET @@null_audit_event_order_check_exact = <expected_check_exact>;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;;;'
+                                          'MYSQL_AUDIT_QUERY_STATUS_END;;ABORT_RET';
+INSERT INTO test_table VALUES(1);
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_QUERY_STATUS_END';1).
+SELECT * FROM test_table;
+a
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+INSERT INTO test_table VALUES(2);
+SELECT * FROM test_table;
+a
+2
+DELETE FROM test_table;
+SET @@null_audit_event_order_check_exact = <expected_check_exact>;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;;ABORT_RET';
+INSERT INTO test_table VALUES(1);
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_QUERY_START';1).
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+SELECT * FROM test_table;
+a
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                     'MYSQL_AUDIT_QUERY_START;;;'
+                                     'MYSQL_AUDIT_QUERY_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                     'MYSQL_AUDIT_QUERY_START;;;'
+                                     'MYSQL_AUDIT_QUERY_STATUS_END;;ABORT_RET',
+@@null_audit_event_order_check_exact = 1;
+INSERT INTO test_table VALUES(3); INSERT INTO test_table VALUES(4); |;
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_QUERY_STATUS_END';1).
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+SELECT * FROM test_table;
+a
+3
+DELETE FROM test_table;
+CREATE PROCEDURE simple_proc()
+BEGIN
+INSERT INTO test_table VALUES(1);
+INSERT INTO test_table VALUES(2);
+END|;
+CREATE PROCEDURE simple_proc2()
+BEGIN
+INSERT INTO test_table VALUES(1);
+INSERT INTO test_table VALUES('a');
+END|;
+CALL simple_proc();
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+SELECT * FROM test_table;
+a
+1
+2
+DELETE FROM test_table;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                     'MYSQL_AUDIT_QUERY_START;;;'
+                                     'MYSQL_AUDIT_STORED_PROGRAM_EXECUTE;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_STATUS_END;;ABORT_RET',
+@@null_audit_event_order_check_exact = 1;
+CALL simple_proc();
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_QUERY_STATUS_END';1).
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+SELECT * FROM test_table;
+a
+1
+2
+DELETE FROM test_table;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                     'MYSQL_AUDIT_QUERY_START;;;'
+                                     'MYSQL_AUDIT_STORED_PROGRAM_EXECUTE;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_RESULT;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
+                                     'MYSQL_AUDIT_COMMAND_END;command_id=\"3\";',
+@@null_audit_event_order_check_exact = 1;
+CALL simple_proc();
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-OK
+SELECT * FROM test_table;
+a
+1
+2
+DELETE FROM test_table;
+call simple_proc2();
+ERROR HY000: Incorrect integer value: 'a' for column 'a' at row 1
+SELECT * FROM test_table;
+a
+1
+DELETE FROM test_table;
+CREATE TABLE test_table_2 (a INT) ENGINE=InnoDB;
+CREATE PROCEDURE proc()
+BEGIN
+DECLARE EXIT HANDLER FOR SQLEXCEPTION ROLLBACK;
+START TRANSACTION;
+insert into test_table_2 values(1);
+insert into test_table_2 values(2);
+COMMIT WORK;
+END|
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                     'MYSQL_AUDIT_QUERY_START;;;'
+                                     'MYSQL_AUDIT_STORED_PROGRAM_EXECUTE;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_RESULT;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
+                                     'MYSQL_AUDIT_COMMAND_END;command_id=\"3\";',
+@@null_audit_event_order_check_exact = 1;
+CALL proc();
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-OK
+SELECT * FROM test_table_2 ORDER BY a;
+a
+1
+2
+DELETE FROM test_table_2;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                     'MYSQL_AUDIT_QUERY_START;;;'
+                                     'MYSQL_AUDIT_STORED_PROGRAM_EXECUTE;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;ABORT_RET',
+@@null_audit_event_order_check_exact = 1;
+CALL proc();
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+SELECT * FROM test_table_2;
+a
+DELETE FROM test_table_2;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                     'MYSQL_AUDIT_QUERY_START;;;'
+                                     'MYSQL_AUDIT_STORED_PROGRAM_EXECUTE;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;ABORT_RET',
+@@null_audit_event_order_check_exact = 1;
+CALL proc();
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+SELECT * FROM test_table_2;
+a
+1
+2
+DELETE FROM test_table_2;
+INSERT INTO test_table VALUES(1),(2),(3);
+INSERT INTO test_table_2 VALUES(1),(2),(3);
+SET @@null_audit_event_order_check_exact = <expected_check_exact>;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_id>";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;;;'
+                                          'MYSQL_AUDIT_QUERY_STATUS_END;;;'
+                                          'MYSQL_AUDIT_GENERAL_RESULT;;;'
+                                          'MYSQL_AUDIT_GENERAL_STATUS;;;'
+                                          'MYSQL_AUDIT_COMMAND_END;command_id="<expected_command_id>";';
+SELECT test_table.a FROM test_table WHERE EXISTS (SELECT test_table_2.a from test_table_2 WHERE test_table.a = test_table_2.a) ORDER BY test_table.a;
+a
+1
+2
+3
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-OK
+DELETE FROM test_table;
+DELETE FROM test_table_2;
+SET @@null_audit_event_order_check_exact = 1;
+DROP TABLE test_table_2;
+DROP TABLE test_table;
+USE mysql;
+DROP DATABASE super_test;
+DROP USER user1@localhost;
+########################
+## CONNECTION - CLEAN ##
+########################
+CREATE USER user1;
+CREATE USER user2;
+SELECT USER(), CURRENT_USER();
+USER()	CURRENT_USER()
+user1@localhost	user1@%
+mysqltest: At line 1: change user failed: Access denied for user 'user2'@'%' to database 'mysql'
+SELECT USER(), CURRENT_USER();
+USER()	CURRENT_USER()
+user1@localhost	user1@%
+GRANT ALL ON mysql.* TO user2;
+SELECT USER(), CURRENT_USER();
+USER()	CURRENT_USER()
+user2@localhost	user2@%
+SELECT USER(), CURRENT_USER();
+USER()	CURRENT_USER()
+user1@localhost	user1@%
+## Reset connection ##
+SELECT USER(), CURRENT_USER();
+USER()	CURRENT_USER()
+user1@localhost	user1@%
+DROP USER user1;
+DROP USER user2;
+###############################
+## CONNECTION - INSTRUMENTED ##
+###############################
+CREATE USER user1;
+CREATE USER user2;
+SET @@GLOBAL.null_audit_event_order_check = 'MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE;;;'
+                                                 'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                                 'MYSQL_AUDIT_CONNECTION_CONNECT;;ABORT_RET';
+connect(localhost,user1,,test,MASTER_PORT,MASTER_SOCKET);
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_CONNECTION_CONNECT';1).
+SET @@GLOBAL.null_audit_event_order_check = NULL,
+@@GLOBAL.null_audit_event_order_check_exact = 1;
+SET @@GLOBAL.null_audit_event_order_check = "MYSQL_AUDIT_COMMAND_START;command_id=\"17\";ABORT_RET";
+mysqltest: At line 1: change user failed: Aborted by Audit API ('MYSQL_AUDIT_COMMAND_START';1).
+GRANT ALL ON mysql.* TO user2;
+SELECT USER(), CURRENT_USER();
+USER()	CURRENT_USER()
+user2@localhost	user2@%
+# Reset connection
+SET @@GLOBAL.null_audit_event_order_check = "MYSQL_AUDIT_COMMAND_START;command_id=\"31\";ABORT_RET";
+SELECT USER(), CURRENT_USER();
+USER()	CURRENT_USER()
+user2@localhost	user2@%
+## Should no take any effect. COM_QUIT should be possible.
+SET @@GLOBAL.null_audit_event_order_check = "MYSQL_AUDIT_COMMAND_START;command_id=\"1\";ABORT_RET";
+SET @@GLOBAL.null_audit_event_order_check = NULL;
+DROP USER user1;
+DROP USER user2;
+## CONNECTION - INSTRUMENTED - END ##
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;;ABORT_RET';
+USE mysql;
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_QUERY_START';1).
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+USE mysql;
+SET @@null_audit_event_order_check_exact = <expected_check_exact>;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;;ABORT_RET';
+SELECT 1;
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_QUERY_START';1).
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+SELECT 1;
+1
+1
+##########################
+## CUSTOM ERROR MESSAGE ##
+##########################
+SET @@null_audit_abort_message = "Custom error text.";
+SET @@null_audit_event_order_check_exact = <expected_check_exact>;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;;ABORT_RET';
+SELECT 1;
+ERROR HY000: Custom error text.
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+## CUSTOM ERROR MESSAGE - END ##
+#########################
+## CUSTOM ERROR RESULT ##
+#########################
+SET @@null_audit_abort_value = 123;
+SET @@null_audit_event_order_check_exact = <expected_check_exact>;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;;ABORT_RET';
+SELECT 1;
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_QUERY_START';123).
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+## CUSTOM ERROR RESULT - END ##
+###########
+## PARSE ##
+###########
+SET @@null_audit_event_order_check_exact = <expected_check_exact>;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;ABORT_RET';
+SELECT 1;
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_PARSE_POSTPARSE';1).
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+###############################
+## TEST CHECK - INVALID DATA ##
+###############################
+SET @@null_audit_event_order_check_exact = 1;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_END;command_id="<expected_command_end_id>";;'
+                                          'MYSQL_AUDIT_COMMAND_START;command_id="4";';
+SELECT 1;
+ERROR HY000: Invalid data for 'MYSQL_AUDIT_COMMAND_START'
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-INVALID-DATA
+#########################
+## COMMAND_END - ABORT ##
+#########################
+SET @@null_audit_abort_message = "Abort with my_message.";
+SET @@null_audit_event_order_check_exact = 1;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_END;command_id="<expected_command_end_id>";ABORT_RET';
+SELECT 1;
+1
+1
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+SET @@null_audit_event_order_check_exact = 1;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_END;command_id="<expected_command_end_id>";ABORT_RET';
+SELECT 1;
+1
+1
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+## CUSTOM ERROR MESSAGE - END ##
+UNINSTALL PLUGIN null_audit;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown

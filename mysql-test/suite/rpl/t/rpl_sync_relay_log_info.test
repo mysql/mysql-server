@@ -1,0 +1,115 @@
+# ==== Purpose ====
+#
+# This test case will verify the behavior of the SQL thread writing the relay
+# log info into the mysql.slave_relay_log_info system table.
+#
+# It will run a set of sub-tests varying the storage engine used in the
+# replicated statements (transactional (InnoDB) and non-transactional (MyISAM),
+# and also varying the sync_relay_log_info global variable between 1 (sync for
+# every transaction) an 0 (never sync).
+#
+# The expected behavior for the update of the relay log positions in the
+# include file sourced by this test case are defined by a string containing
+# sequences of two possible letters:
+#   "N": No update to the relay log info is expected;
+#   "U": The update to the relay log info is expected;
+#
+# The sub tests are divided into 25 steps (18 for non-transactional tables).
+#
+# Below is a list of the steps and the expected behavior for each tested
+# configuration:
+#
+# We used MyISAM for non-transactional (NT) and InnoDB for transactional (T)
+# storage engines.
+#
+#                                    sync_relay_log_info=  0   1   0   1
+#                                         storage engine=  NT  NT  T   T
+#                                                         --- --- --- ---
+# 1 - Stop/Start the slave ----------------------------->  U   U   U   U
+# 2 - Simple DDL - CREATE TABLE ------------------------>  N   U   N   U
+# 3 - Simple DML - INSERT ------------------------------>  N   U   U   U
+# 4 - Master flushed the binary log -------------------->  U   U   U   U
+# 5 - Simple DDL - DROP TABLE -------------------------->  N   U   N   U
+# 6 - Stop/Start the slave ----------------------------->  U   U   U   U
+# 7 - The GTID of a simple DDL ------------------------->  N   N   N   N
+# 8 - Flushed the relay log in the middle of the DDL --->  N   N   N   N
+# 9 - The rest of the simple DDL ----------------------->  U   U   U   U
+# 10 - Stop/Start the slave ---------------------------->  U   U   U   U
+# 11 - The GTID of a simple DML ------------------------>  N   N   N   N
+# 12 - Flushed the relay log after the GTID of the DML ->  N   N   N   N
+# 13 - The rest of the simple DML ---------------------->  U   U   U   U
+# 14 - Stop/Start the slave ---------------------------->  U   U   U   U
+# 15 - The first part of a simple DML up to a User var ->  N   N   N   N
+# 16 - Flushed the relay log in the middle of the DML -->  N   N   N   N
+# 17 - The rest of the simple DML ---------------------->  U   U   U   U
+# 18 - Simple DDL -------------------------------------->  N   U   N   U
+#   Transactional tables only:
+# 19 - Simple DDL - CREATE TABLE -----------------------> N/A N/A  N   U
+# 20 - Stop/Start the slave ----------------------------> N/A N/A  U   U
+# 21 - The first half of a multi statement DML ---------> N/A N/A  N   N
+# 22 - Flushed the relay log in the middle of the DML --> N/A N/A  N   N
+# 23 - The multi statement DML should be rolled back ---> N/A N/A  N   N
+# 24 - The retry of the multi statement DML ------------> N/A N/A  U   U
+# 25 - Simple DDL - DROP TABLE -------------------------> N/A N/A  N   U
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#20451386 SQL THREAD CRASH: LOG-SLAVE-UPDATES OFF, RELAY LOG ENDS WITH
+#              GTID_LOG_EVENT
+
+# This test should run only on debug build
+--source include/have_debug.inc
+# This test uses debug sync to stop the IO thread in the middle of a transaction
+--source include/have_debug_sync.inc
+--source include/have_myisam.inc
+--source include/have_innodb.inc
+--source include/not_mts_slave_parallel_workers.inc
+--source include/have_binlog_format_statement.inc
+--source include/have_gtid.inc
+--let $rpl_gtid_utils= 1
+--source include/master-slave.inc
+
+# Known errors that will be logged
+CALL mtr.add_suppression('Duplicate entry');
+--let $master_uuid=`SELECT @@GLOBAL.server_uuid`
+
+# Save global variables that will be changed during the test
+--source include/rpl_connection_slave.inc
+SET @saved_sync_relay_log_info= @@GLOBAL.sync_relay_log_info;
+
+--echo #
+--echo # sync_relay_log_info= 0, non-transactional (MyISAM) storage engine
+--echo #
+SET @@GLOBAL.sync_relay_log_info= 0;
+--let $storage_engine= MyISAM
+--let $rpl_relay_log_info_expected_update= UNNUNUNNUUNNUUNNUN
+--source extra/rpl_tests/rpl_sync_relay_log_info.inc
+
+--echo #
+--echo # sync_relay_log_info= 1, non-transactional (MyISAM) storage engine
+--echo #
+SET @@GLOBAL.sync_relay_log_info= 1;
+--let $storage_engine= MyISAM
+--let $rpl_relay_log_info_expected_update= UUUUUUNNUUNNUUNNUU
+--source extra/rpl_tests/rpl_sync_relay_log_info.inc
+
+--echo #
+--echo # sync_relay_log_info= 0, transactional (InnoDB) storage engine
+--echo #
+SET @@GLOBAL.sync_relay_log_info= 0;
+--let $storage_engine= InnoDB
+--let $rpl_relay_log_info_expected_update= UNUUNUNNUUNNUUNNUNNUNNNUN
+--source extra/rpl_tests/rpl_sync_relay_log_info.inc
+
+--echo #
+--echo # sync_relay_log_info= 1, transactional (InnoDB) storage engine
+--echo #
+SET @@GLOBAL.sync_relay_log_info= 1;
+--let $storage_engine= InnoDB
+--let $rpl_relay_log_info_expected_update= UUUUUUNNUUNNUUNNUUUUNNNUU
+--source extra/rpl_tests/rpl_sync_relay_log_info.inc
+
+# Cleanup
+--source include/rpl_connection_slave.inc
+SET @@GLOBAL.sync_relay_log_info= @saved_sync_relay_log_info;
+--source include/rpl_end.inc

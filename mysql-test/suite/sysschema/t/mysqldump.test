@@ -1,0 +1,33 @@
+-- source include/not_embedded.inc
+
+# Dump all databases
+--exec $MYSQL_DUMP -uroot --all-databases > $MYSQLTEST_VARDIR/tmp/bug20902791.sql
+
+# Save a copy of the user/tables_priv, to restore later
+# Otherwise the final mysql_upgrade will REPLACE and update timestamps etc.
+CREATE TEMPORARY TABLE tmp_user AS SELECT * FROM mysql.user;
+CREATE TEMPORARY TABLE tmp_tables_priv AS SELECT * FROM mysql.tables_priv;
+
+# Remove the sys schema
+DROP DATABASE sys;
+
+# Reload the dump
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug20902791.sql
+
+# The sys schema should not exist
+SHOW DATABASES;
+
+# Finally reload the sys schema to return to normal
+--exec $MYSQL_UPGRADE --skip-verbose --force
+SHOW DATABASES;
+
+# Restore the saved privileges
+TRUNCATE TABLE mysql.user;
+INSERT INTO mysql.user (SELECT * FROM tmp_user);
+DROP TEMPORARY TABLE tmp_user;
+
+TRUNCATE TABLE mysql.tables_priv;
+INSERT INTO mysql.tables_priv (SELECT * FROM tmp_tables_priv);
+DROP TEMPORARY TABLE tmp_tables_priv;
+
+FLUSH PRIVILEGES;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -296,7 +296,7 @@ void
 os_thread_init()
 /*============*/
 {
-	mutex_create("thread_mutex", &thread_mutex);
+	mutex_create(LATCH_ID_THREAD_MUTEX, &thread_mutex);
 }
 
 /**

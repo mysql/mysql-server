@@ -13,7 +13,7 @@ connection con1;
 connection ssl_con;
 disconnect con1;
 DROP USER 'kristofer';
-GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password';
+GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password' BY '123';
 ALTER USER 'kristofer'@'localhost' IDENTIFIED BY 'secret2';
 connect(con2,localhost,kristofer,secret2,,,,SSL);
 connection con2;
@@ -22,7 +22,7 @@ SHOW GRANTS FOR 'kristofer'@'localhost';
 connection ssl_con;
 disconnect con2;
 DROP USER 'kristofer'@'localhost';
-GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password';
+GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password' BY '123';
 ALTER USER 'kristofer'@'localhost' IDENTIFIED BY '';
 connect(con3,localhost,kristofer,,,,,SSL);
 connection con3;
@@ -32,7 +32,7 @@ connection ssl_con;
 disconnect con3;
 DROP USER 'kristofer'@'localhost';
 
-GRANT ALL ON *.* TO 'kristofer'@'33.33.33.33' IDENTIFIED WITH 'sha256_password';
+GRANT ALL ON *.* TO 'kristofer'@'33.33.33.33' IDENTIFIED WITH 'sha256_password' BY '123';
 ALTER USER 'kristofer'@'33.33.33.33' IDENTIFIED BY '';
 --echo Connection should fail for localhost
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK

@@ -33,6 +33,7 @@ insert into t1 select * from t1;
 
 connect (a,localhost,root,,);
 connection a;
+SET SESSION debug="+d,rtr_pcur_move_to_next_return";
 
 set session transaction isolation level serializable;
 set @g1 = ST_GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
@@ -293,6 +294,7 @@ select sleep(2);
 commit;
 
 connection a;
+SET SESSION debug="-d,rtr_pcur_move_to_next_return";
 disconnect a;
 --source include/wait_until_disconnected.inc
 
@@ -320,6 +322,7 @@ INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(8 8, 210 210)'));
 
 connect (a,localhost,root,,);
 connection a;
+SET SESSION debug="+d,rtr_pcur_move_to_next_return";
 
 set transaction isolation level serializable;
 start transaction;
@@ -436,6 +439,7 @@ drop procedure insert_t1;
 DROP TABLE t1;
 
 connection a;
+SET SESSION debug="-d,rtr_pcur_move_to_next_return";
 disconnect a;
 --source include/wait_until_disconnected.inc
 

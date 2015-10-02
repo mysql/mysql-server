@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -81,11 +81,21 @@ static const char *command_name[]=
  "delete-all", NullS};
 
 
+extern st_keycache_thread_var *keycache_thread_var()
+{
+  return &main_thread_keycache_var;
+}
+
+
 int main(int argc, char **argv)
 {
   int error,i,first;
   ulong total_count,total_error,total_recover;
   MY_INIT(argv[0]);
+
+  memset(&main_thread_keycache_var, 0, sizeof(st_keycache_thread_var));
+  mysql_cond_init(PSI_NOT_INSTRUMENTED,
+                  &main_thread_keycache_var.suspend);
 
   log_filename=myisam_log_filename;
   get_options(&argc,&argv);
@@ -124,6 +134,7 @@ int main(int argc, char **argv)
   (void) mi_panic(HA_PANIC_CLOSE);
   my_free_open_file_info();
   my_end(test_info ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
+  mysql_cond_destroy(&main_thread_keycache_var.suspend);
   exit(error);
   return 0;				/* No compiler warning */
 } /* main */
@@ -494,9 +505,9 @@ static int examine_log(char * file_name, char **table_names)
 	{
 	  fflush(stdout);
 	  (void) fprintf(stderr,
-		       "Warning: error %d, expected %d on command %s at %s\n",
-		       my_errno,result,command_name[command],
-		       llstr(isamlog_filepos,llbuff));
+                         "Warning: error %d, expected %d on command %s at %s\n",
+                         my_errno(),result,command_name[command],
+                         llstr(isamlog_filepos,llbuff));
 	  fflush(stderr);
 	}
       }
@@ -523,7 +534,7 @@ static int examine_log(char * file_name, char **table_names)
 	}
 	mi_result=mi_delete(curr_file_info->isam,curr_file_info->record);
 	if ((mi_result == 0 && result) ||
-	    (mi_result && (uint) my_errno != result))
+	    (mi_result && (uint) my_errno() != result))
 	{
 	  if (!recover)
 	    goto com_err;
@@ -582,7 +593,7 @@ static int examine_log(char * file_name, char **table_names)
 	  mi_result=mi_update(curr_file_info->isam,curr_file_info->record,
 			      buff);
 	  if ((mi_result == 0 && result) ||
-	      (mi_result && (uint) my_errno != result))
+	      (mi_result && (uint) my_errno() != result))
 	  {
 	    if (!recover)
 	      goto com_err;
@@ -597,7 +608,7 @@ static int examine_log(char * file_name, char **table_names)
 	{
 	  mi_result=mi_write(curr_file_info->isam,buff);
 	  if ((mi_result == 0 && result) ||
-	      (mi_result && (uint) my_errno != result))
+	      (mi_result && (uint) my_errno() != result))
 	  {
 	    if (!recover)
 	      goto com_err;
@@ -658,14 +669,14 @@ static int examine_log(char * file_name, char **table_names)
 
  err:
   fflush(stdout);
-  (void) fprintf(stderr,"Got error %d when reading from logfile\n",my_errno);
+  (void) fprintf(stderr,"Got error %d when reading from logfile\n",my_errno());
   fflush(stderr);
   goto end;
  com_err:
   fflush(stdout);
   (void) fprintf(stderr,"Got error %d, expected %d on command %s at %s\n",
-	       my_errno,result,command_name[command],
-	       llstr(isamlog_filepos,llbuff));
+                 my_errno(),result,command_name[command],
+                 llstr(isamlog_filepos,llbuff));
   fflush(stderr);
  end:
   end_key_cache(dflt_key_cache, 1);

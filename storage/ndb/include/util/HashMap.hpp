@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -91,7 +91,8 @@ public:
                       sizeof(K),       // key_length
                       G == HashMap__get_key ? NULL : _get_key, // get_key,
                       free_element,    // free_element
-                      HASH_UNIQUE      // flags
+                      HASH_UNIQUE,     // flags
+                      PSI_INSTRUMENT_ME
                       ))
       abort();
   }

@@ -1,0 +1,107 @@
+SELECT @@internal_tmp_disk_storage_engine;
+@@internal_tmp_disk_storage_engine
+InnoDB
+CREATE TABLE tab
+(col1 TEXT, col2 TEXT, col3 TEXT, col4 TEXT, col5 TEXT,
+col6 TEXT, col7 TEXT, col8 TEXT, col9 TEXT, col10 TEXT,
+col11 TEXT) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	test/tab	33	14	Dynamic	0	Single
+INSERT INTO tab SET
+col1=REPEAT('a',1000),col2=REPEAT('b',1000),col3=REPEAT('c',1000),
+col4=REPEAT('d',1000),col5=REPEAT('e',1000),col6=REPEAT('f',1000),
+col7=REPEAT('g',1000),col8=REPEAT('h',1000),col9=REPEAT('i',1000),
+col10=REPEAT('j',1000),col11=REPEAT('k',1000);
+INSERT INTO tab SELECT * FROM tab;
+ALTER TABLE tab ROW_FORMAT=COMPACT;
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+DROP TABLE tab;
+# ###########################################################
+# Check with Import/Export tablespace with Default_row_format
+SET GLOBAL innodb_default_row_format=Compact;
+SELECT @@innodb_default_row_format;
+@@innodb_default_row_format
+compact
+SELECT @@innodb_file_per_table;
+@@innodb_file_per_table
+1
+CREATE TABLE tab(a INT);
+INSERT INTO tab VALUES(1);
+INSERT INTO tab VALUES(2);
+SELECT * FROM tab;
+a
+1
+2
+FLUSH TABLE tab FOR EXPORT;
+UNLOCK TABLES;
+DROP TABLE tab;
+SET GLOBAL innodb_default_row_format=Dynamic;
+CREATE TABLE tab(a INT);
+ALTER TABLE tab DISCARD TABLESPACE;
+ALTER TABLE tab IMPORT TABLESPACE;
+ERROR HY000: Schema mismatch (Table flags don't match, server table has 0x4 and the meta-data file has 0x1)
+DROP TABLE tab;
+SET GLOBAL innodb_default_row_format=Compact;
+SELECT @@innodb_default_row_format;
+@@innodb_default_row_format
+compact
+CREATE TABLE tab(a INT);
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	test/tab	1	4	Compact	0	Single
+ALTER TABLE tab DISCARD TABLESPACE;
+ALTER TABLE tab IMPORT TABLESPACE;
+SELECT * FROM tab;
+a
+1
+2
+DROP TABLE tab;
+# ###########################################################
+SET GLOBAL innodb_default_row_format=Dynamic;
+SELECT @@innodb_default_row_format;
+@@innodb_default_row_format
+dynamic
+CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000), KEY idx1(b(3070))) ENGINE= InnoDB;
+INSERT INTO tab(a,b) VALUES(1,'Check with max column size');
+SELECT * FROM tab;
+a	b
+1	Check with max column size
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	test/tab	33	5	Dynamic	0	Single
+SET GLOBAL innodb_default_row_format=COMPACT;
+ALTER TABLE tab ROW_FORMAT=COMPACT;
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+DROP TABLE tab;
+SET GLOBAL innodb_default_row_format=Default;
+SELECT @@innodb_default_row_format;
+@@innodb_default_row_format
+dynamic
+CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000), KEY idx1(b(767))) ENGINE= InnoDB;
+INSERT INTO tab(a,b) VALUES(1,'Check with max column size');
+SELECT * FROM tab;
+a	b
+1	Check with max column size
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	test/tab	33	5	Dynamic	0	Single
+ALTER TABLE tab ROW_FORMAT=COMPACT;
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	test/tab	1	5	Compact	0	Single
+SELECT * FROM tab;
+a	b
+1	Check with max column size
+ALTER TABLE tab ROW_FORMAT=COMPRESSED;
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	test/tab	41	5	Compressed	8192	Single
+SELECT * FROM tab;
+a	b
+1	Check with max column size
+ALTER TABLE tab ROW_FORMAT=Dynamic;
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tab	test/tab	33	5	Dynamic	0	Single
+DROP TABLE tab;

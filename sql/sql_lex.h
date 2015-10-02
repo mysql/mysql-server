@@ -43,6 +43,7 @@
 #include "xa.h"                       // xa_option_words
 #include "select_lex_visitor.h"
 #include "parse_tree_hints.h"
+#include <map>
 
 #ifdef MYSQL_SERVER
 #include "item_func.h"                // Cast_target
@@ -1434,6 +1435,15 @@ public:
                 Used to access optimizer_switch
   */
   void update_semijoin_strategies(THD *thd);
+
+  /**
+    Add item to the hidden part of select list
+
+    @param item  item to add
+
+    @return Pointer to ref_ptr for the added item
+  */
+  Item **add_hidden_item(Item *item);
 };
 typedef class st_select_lex SELECT_LEX;
 
@@ -1469,7 +1479,6 @@ struct Limit_options
 struct Query_options {
   ulonglong query_spec_options;
   enum SELECT_LEX::e_sql_cache sql_cache;
-  ulong max_statement_time;
 
   bool merge(const Query_options &a, const Query_options &b);
   bool save_to(Parse_context *);
@@ -2808,6 +2817,25 @@ public:
   /** LALR(2) resolution, value of the look ahead token.*/
   LEX_YYSTYPE lookahead_yylval;
 
+  /// Skip adding of the current token's digest since it is already added
+  ///
+  /// Usually we calculate a digest token by token at the top-level function
+  /// of the lexer: MYSQLlex(). However, some complex ("hintable") tokens break
+  /// that data flow: for example, the `SELECT /*+ HINT(t) */` is the single
+  /// token from the main parser's point of view, and we add the "SELECT"
+  /// keyword to the digest buffer right after the lex_one_token() call,
+  /// but the "/*+ HINT(t) */" is a sequence of separate tokens from the hint
+  /// parser's point of view, and we add those tokens to the digest buffer
+  /// *inside* the lex_one_token() call. Thus, the usual data flow adds
+  /// tokens from the "/*+ HINT(t) */" string first, and only than it appends
+  /// the "SELECT" keyword token to that stream: "/*+ HINT(t) */ SELECT".
+  /// This is not acceptable, since we use the digest buffer to restore
+  /// query strings in their normalized forms, so the order of added tokens is
+  /// important. Thus, we add tokens of "hintable" keywords to a digest buffer
+  /// right in the hint parser and skip adding of them at the caller with the
+  /// help of skip_digest flag.
+  bool skip_digest;
+
   void add_digest_token(uint token, LEX_YYSTYPE yylval);
 
   void reduce_digest_token(uint token_left, uint token_right);
@@ -3055,6 +3083,7 @@ public:
   List<Item_func_set_user_var> set_var_list; // in-query assignment list
   List<Item_param>    param_list;
   List<LEX_STRING>    view_list; // view list (list of field names in view)
+  std::map<Field *,Field *> insert_update_values_map;
   /*
     A stack of name resolution contexts for the query. This stack is used
     at parse time to set local name resolution contexts for various parts
@@ -3291,8 +3320,12 @@ public:
   class Explain_format *explain_format;
 
   // Maximum execution time for a statement.
-  ulong max_statement_time;
-
+  ulong max_execution_time;
+  /*
+    To flag the current statement as dependent for binary logging
+    on explicit_defaults_for_timestamp
+  */
+  bool binlog_need_explicit_defaults_ts;
   LEX();
 
   virtual ~LEX();
@@ -3608,7 +3641,7 @@ struct st_lex_local: public LEX
   }
   static void *operator new(size_t size, MEM_ROOT *mem_root) throw()
   {
-    return (void*) alloc_root(mem_root, (uint) size);
+    return alloc_root(mem_root, size);
   }
   static void operator delete(void *ptr,size_t size)
   { TRASH(ptr, size); }

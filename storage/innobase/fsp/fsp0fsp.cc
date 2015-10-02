@@ -40,7 +40,6 @@ Created 11/29/1995 Heikki Tuuri
 #ifdef UNIV_HOTBACKUP
 # include "fut0lst.h"
 #else /* UNIV_HOTBACKUP */
-# include "sync0mutex.h"
 # include "fut0fut.h"
 # include "srv0srv.h"
 # include "srv0start.h"
@@ -146,7 +145,7 @@ fseg_alloc_free_page_low(
 	mtr_t*			init_mtr
 #ifdef UNIV_DEBUG
 	, ibool			has_done_reservation
-#endif
+#endif /* UNIV_DEBUG */
 )
 	__attribute__((warn_unused_result));
 
@@ -573,7 +572,7 @@ xdes_get_descriptor_with_space_hdr(
 #ifdef UNIV_DEBUG
 	const fil_space_t*	fspace = fil_space_get(space);
 	ut_ad(fspace != NULL);
-#endif
+#endif /* UNIV_DEBUG */
 	ut_ad(mtr_memo_contains(mtr, &fspace->latch, MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains_page(mtr, sp_header, MTR_MEMO_PAGE_SX_FIX));
 	ut_ad(page_offset(sp_header) == FSP_HEADER_OFFSET);
@@ -850,15 +849,17 @@ fsp_header_init_fields(
 }
 
 #ifndef UNIV_HOTBACKUP
-/**********************************************************************//**
-Initializes the space header of a new created space and creates also the
-insert buffer tree root if space == 0. */
-void
+/** Initializes the space header of a new created space and creates also the
+insert buffer tree root if space == 0.
+@param[in]	space_id	space id
+@param[in]	size		current size in blocks
+@param[in,out]	mtr		min-transaction
+@return	true on success, otherwise false. */
+bool
 fsp_header_init(
-/*============*/
-	ulint	space_id,	/*!< in: space id */
-	ulint	size,		/*!< in: current size in blocks */
-	mtr_t*	mtr)		/*!< in/out: mini-transaction */
+	ulint	space_id,
+	ulint	size,
+	mtr_t*	mtr)
 {
 	fsp_header_t*	header;
 	buf_block_t*	block;
@@ -910,10 +911,14 @@ fsp_header_init(
 			   space, header, mtr);
 
 	if (space_id == srv_sys_space.space_id()) {
-		btr_create(DICT_CLUSTERED | DICT_IBUF,
-			   0, univ_page_size, DICT_IBUF_ID_MIN + space_id,
-			   dict_ind_redundant, NULL, mtr);
+		if (btr_create(DICT_CLUSTERED | DICT_IBUF,
+			       0, univ_page_size, DICT_IBUF_ID_MIN + space_id,
+			       dict_ind_redundant, NULL, mtr) == FIL_NULL) {
+			return(false);
+		}
 	}
+
+	return(true);
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1475,12 +1480,12 @@ fsp_page_create(
 {
 	buf_block_t*	block = buf_page_create(page_id, page_size, init_mtr);
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX)
 	      == rw_lock_own(&block->lock, RW_LOCK_X));
+
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_SX_FIX)
 	      == rw_lock_own(&block->lock, RW_LOCK_SX));
-#endif /* UNIV_SYNC_DEBUG */
+
 	ut_ad(rw_latch == RW_X_LATCH || rw_latch == RW_SX_LATCH);
 
 	/* Mimic buf_page_get(), but avoid the buf_pool->page_hash lookup. */
@@ -2294,7 +2299,7 @@ fseg_create_general(
 						 mtr, mtr
 #ifdef UNIV_DEBUG
 						 , has_done_reservation
-#endif
+#endif /* UNIV_DEBUG */
 						 );
 
 		/* The allocation cannot fail if we have already reserved a
@@ -2571,7 +2576,7 @@ fseg_alloc_free_page_low(
 	mtr_t*			init_mtr
 #ifdef UNIV_DEBUG
 	, ibool			has_done_reservation
-#endif
+#endif /* UNIV_DEBUG */
 )
 {
 	fsp_header_t*	space_header;
@@ -2864,7 +2869,7 @@ fseg_alloc_free_page_general(
 					 RW_X_LATCH, mtr, init_mtr
 #ifdef UNIV_DEBUG
 					 , has_done_reservation
-#endif
+#endif /* UNIV_DEBUG */
 					 );
 
 	/* The allocation cannot fail if we have already reserved a
@@ -3311,9 +3316,7 @@ fseg_free_page(
 
 	fseg_free_page_low(seg_inode, page_id, page_size, ahi, mtr);
 
-#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
-	buf_page_set_file_page_was_freed(page_id);
-#endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
+	ut_d(buf_page_set_file_page_was_freed(page_id));
 }
 
 /**********************************************************************//**
@@ -3424,13 +3427,13 @@ fseg_free_extent(
 
 	fsp_free_extent(page_id_t(space, page), page_size, mtr);
 
-#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
+#ifdef UNIV_DEBUG
 	for (i = 0; i < FSP_EXTENT_SIZE; i++) {
 
 		buf_page_set_file_page_was_freed(
 			page_id_t(space, first_page_in_extent + i));
 	}
-#endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
+#endif /* UNIV_DEBUG */
 }
 
 /**********************************************************************//**

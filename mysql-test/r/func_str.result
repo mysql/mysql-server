@@ -4701,3 +4701,55 @@ SELECT (SELECT (SELECT 1 FROM t1 a WHERE t1.a <_ucs2'a')) AS d5 FROM t1 GROUP BY
 d5
 NULL
 DROP TABLE t1;
+#
+# Bug#21317406 TRUNCATED DATA WITH SUBQUERY & UTF8
+#
+SELECT length(rpad(_utf8 0xD0B1, 65536, _utf8 0xD0B2)) AS data;
+data
+131072
+SELECT length(data) AS len FROM (
+SELECT rpad(_utf8 0xD0B1, 65536, _utf8 0xD0B2) AS data
+) AS sub;
+len
+131072
+SELECT length(rpad(_utf8 0xD0B1, 65535, _utf8 0xD0B2)) AS data;
+data
+131070
+SELECT length(data) AS len FROM (
+SELECT rpad(_utf8 0xD0B1, 65535, _utf8 0xD0B2) AS data
+) AS sub;
+len
+131070
+SELECT length(repeat(_utf8mb4 0xE29883, 21844)) AS data;
+data
+65532
+SELECT length(data) AS len
+FROM ( SELECT repeat(_utf8mb4 0xE29883, 21844) AS data ) AS sub;
+len
+65532
+SELECT length(repeat(_utf8mb4 0xE29883, 21846)) AS data;
+data
+65538
+SELECT length(data) AS len
+FROM ( SELECT repeat(_utf8mb4 0xE29883, 21846) AS data ) AS sub;
+len
+65538
+#
+# Bug#21447969 FILTER USING TRIM RESULTS IN CORRECT
+#
+CREATE TABLE t1 (COUNTRY char(100));
+INSERT INTO t1 VALUES ("Norway"), ("Australia");
+SELECT COUNTRY FROM t1 
+WHERE trim(leading 'A' FROM  COUNTRY) = 'ustralia';
+COUNTRY
+Australia
+SELECT  COUNTRY  FROM t1 
+WHERE  trim(trailing 'a' FROM COUNTRY)= 'Australi';
+COUNTRY
+Australia
+SELECT COUNTRY FROM t1 
+WHERE trim(leading  'A' FROM COUNTRY) = 'ustralia'  
+AND trim(trailing 'a' FROM COUNTRY) = 'Australi';
+COUNTRY
+Australia
+DROP TABLE t1;

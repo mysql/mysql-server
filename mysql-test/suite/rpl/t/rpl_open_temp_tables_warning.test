@@ -1,0 +1,60 @@
+#
+# ==== Purpose ====
+#
+# This test checks if the variable Slave_open_temp_tables is set
+# to the correct number of temporary tables open in the slave and if
+# the corresponding warning is correctly issued.
+#
+# ==== Implementation ====
+# A temporary table is first created. The slave replication thread is
+# stopped so that the corresponding warning is generated. Finally, the
+# temporary table is dropped to verify that the number of open tables
+# decreased to zero and, consequently, that no warning is issued when
+# stopping the slave's replication thread again.
+#
+#
+# ==== References ====
+#
+# Bug#21357008: SLAVE_OPEN_TEMP_TABLES WRONG AFTER RESET SLAVE WHEN
+#               USING MULTI-SOURCE
+
+
+
+--source include/have_binlog_format_mixed.inc
+--source include/master-slave.inc
+
+# Create temporary table.
+CREATE TEMPORARY TABLE t1 (a INT);
+--source include/sync_slave_sql_with_master.inc
+
+--let $status= SHOW STATUS LIKE 'Slave_open_temp_tables'
+--let $num_open_tables= query_get_value($status, Value, 1)
+--let $correct_num_open_tables= 1
+--let $assert_cond= $correct_num_open_tables = $num_open_tables
+--let $assert_text= Slave_open_temp_tables is correctly set to $correct_num_open_tables after creating a temp table
+--source include/assert.inc
+
+# Stopping the replication thread does not delete tables and does not
+# affect the status variable. It also generates a warning because there
+# are open temporary tables in the slave.
+--source include/stop_slave.inc
+--let $num_open_tables= query_get_value($status, Value, 1)
+--let $assert_cond= $correct_num_open_tables = $num_open_tables
+--let $assert_text= Slave_open_temp_tables is correctly set to $correct_num_open_tables after stopping the replication thread
+--source include/assert.inc
+
+# Dropping the table that is still open will decrease the value to zero.
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+DROP TEMPORARY TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+--let $num_open_tables= query_get_value($status, Value, 1)
+--let $correct_num_open_tables= 0
+--let $assert_cond= $correct_num_open_tables = $num_open_tables
+--let $assert_text= Slave_open_temp_tables is correctly set to $correct_num_open_tables after dropping the temporary table
+--source include/assert.inc
+
+# Stopping the slave will not generate a warning because there are no open tables.
+--source include/stop_slave.inc
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

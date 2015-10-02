@@ -199,6 +199,10 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`where_subselect_19379`",
@@ -279,6 +283,10 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -776,6 +784,10 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t4`",
@@ -1014,6 +1026,10 @@ FROM t1
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -1599,6 +1615,10 @@ ON table2 .col_int_key = table1 .col_int_key
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -2890,6 +2910,10 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                   } /* condition_processing */
                                 },
                                 {
+                                  "substitute_generated_columns": {
+                                  } /* substitute_generated_columns */
+                                },
+                                {
                                   "table_dependencies": [
                                     {
                                       "table": "`t1`",
@@ -2965,7 +2989,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                               "using_mrr": true,
                                               "index_only": false,
                                               "rows": 1,
-                                              "cost": 2.1031,
+                                              "cost": 2.2,
                                               "chosen": false,
                                               "cause": "cost"
                                             },
@@ -3124,7 +3148,7 @@ WHERE t1.a <=> (SELECT 22 FROM t1 GROUP BY (SELECT 1 FROM t1));
 ERROR 21000: Subquery returns more than 1 row
 SELECT TRACE LIKE "%select had some error%" FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 TRACE LIKE "%select had some error%"
-1
+0
 DROP TABLE t1;
 #
 # Bug#18791851 CRASH IN ST_SELECT_LEX::PRINT WITH OPTIMIZER_TRACE ON SUBQUERY

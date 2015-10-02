@@ -16,6 +16,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "lock.h"                             // Tablespace_hash_set
 #include "partition_element.h"
 #include "mysqld.h"                           // key_map
 #include "sql_bitmap.h"                       // Bitmap
@@ -409,7 +410,7 @@ public:
   }
   ~partition_info() {}
 
-  partition_info *get_clone();
+  partition_info *get_clone(bool reset = false);
   partition_info *get_full_clone();
   bool set_named_partition_bitmap(const char *part_name, size_t length);
   bool set_partition_bitmaps(TABLE_LIST *table_list);
@@ -551,5 +552,11 @@ void init_all_partitions_iterator(partition_info *part_info,
   part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
   part_iter->get_next= get_next_partition_id_range;
 }
+
+bool fill_partition_tablespace_names(
+       partition_info *part_info,
+       Tablespace_hash_set *tablespace_set);
+
+bool check_partition_tablespace_names(partition_info *part_info);
 
 #endif /* PARTITION_INFO_INCLUDED */

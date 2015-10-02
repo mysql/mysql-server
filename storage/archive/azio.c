@@ -120,7 +120,7 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
     {
       my_close(s->file, MYF(0));
       s->file= -1;
-      my_errno= EMFILE;
+      set_my_errno(EMFILE);
     }
   });
 

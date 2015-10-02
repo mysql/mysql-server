@@ -1,0 +1,146 @@
+############ mysql-test\t\super_read_only_func.test ############################
+#                                                                              #
+#Variable Name: super_read_only                                                #
+#Scope: GLOBAL                                                                 #
+#Access Type: Dynamic                                                          #
+#Data Type: BOOLEAN                                                            #
+#Default Value: OFF                                                            #
+#Values:      ON, OFF                                                          #
+#                                                                              #
+#                                                                              #
+#Creation Date: 2015-05-20                                                     #
+#Author:  Todd Farmer                                                          #
+#                                                                              #
+#Description: Test Cases of Dynamic System Variable "super_read_only"          #
+#             that checks behavior of this variable in the following ways      #
+#             * Functionality based on different values                        #
+#                                                                              #
+#Reference: http://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#
+# option_mysqld_super_read_only                                                #
+#                                                                              #
+################################################################################
+
+--echo ** Setup **
+--echo
+#
+# Setup
+#
+
+# --source include/not_embedded.inc
+
+SET @default_read_only = @@global.read_only;
+SET @default_super_read_only = @@global.super_read_only;
+
+SET @@global.read_only = OFF;
+SET @@global.super_read_only = OFF;
+
+CREATE TABLE t1
+(
+id INT NOT NULL auto_increment,
+PRIMARY KEY (id),
+name BLOB
+);
+
+INSERT INTO t1 VALUES (1, 'good');
+
+########################################
+# Checking super_read_only interaction #
+# with read_only.                      #
+########################################
+
+SET @@global.super_read_only = OFF;
+SET @@global.read_only = OFF;
+
+SELECT IF(@@global.super_read_only, 'FAIL', 'OK') AS sro, IF(@@global.read_only, 'FAIL', 'OK') AS ro;
+
+SET @@global.super_read_only = ON;
+
+SELECT IF(@@global.super_read_only, 'OK', 'FAIL') AS sro, IF(@@global.read_only, 'OK', 'FAIL') AS ro;
+
+SET @@global.super_read_only = OFF;
+
+SELECT IF(@@global.super_read_only, 'FAIL', 'OK') AS sro, IF(@@global.read_only, 'OK', 'FAIL') AS ro;
+
+SET @@global.super_read_only = ON;
+
+SELECT IF(@@global.super_read_only, 'OK', 'FAIL') AS sro, IF(@@global.read_only, 'OK', 'FAIL') AS ro;
+
+SET @@global.read_only = OFF;
+
+SELECT IF(@@global.super_read_only, 'FAIL', 'OK') AS sro, IF(@@global.read_only, 'FAIL', 'OK') AS ro;
+
+--echo ** Creating new user with explicit super privilege**
+CREATE user sameea;
+GRANT SUPER ON *.* TO sameea;
+
+SET @@global.super_read_only = ON;
+
+--echo ** Connecting connn using username 'sameea' **
+CONNECT (connn,localhost,sameea,,);
+
+--Error ER_OPTION_PREVENTS_STATEMENT
+CREATE TABLE t2
+(
+id INT NOT NULL auto_increment,
+PRIMARY KEY (id),
+name BLOB
+);
+
+# With ps-protocol the error is ER_NO_SUCH_TABLE
+--echo not updating values
+--Error ER_OPTION_PREVENTS_STATEMENT,ER_NO_SUCH_TABLE
+INSERT into t1(name) values("aaassssssssddddddddffffff");
+
+
+--Error ER_OPTION_PREVENTS_STATEMENT,ER_NO_SUCH_TABLE
+UPDATE t1 SET name="samia" where id=1;
+
+SELECT * FROM t1;
+
+--echo '#--------------------FN_DYNVARS_140_03-------------------------#'
+
+###########################
+# Testing temporary table #
+###########################
+CREATE TEMPORARY TABLE t3(a int);
+
+--echo '#--------------------FN_DYNVARS_140_04-------------------------#'
+###########################
+# Turning super_read_only OFF   #
+###########################
+--echo ** Connection default **
+connection default;
+
+SET Global super_read_only=OFF;
+--echo ** Connection connn **
+connection connn;
+
+CREATE TABLE t2
+(
+id INT NOT NULL auto_increment,
+PRIMARY KEY (id),
+name BLOB
+);
+--echo updating values
+INSERT into t2(name) values("aaassssssssdddddddd");
+
+UPDATE t2 SET name="samia" where id=1;
+
+#
+# Cleanup
+#
+--echo ** Connection default **
+connection default;
+
+--echo ** Disconnecting connn **
+DISCONNECT connn;
+
+DROP USER sameea;
+
+DROP TABLE t1;
+DROP TABLE t2;
+SET global super_read_only = @default_super_read_only;
+SET global read_only = @default_read_only;
+
+--disable_info
+--enable_warnings

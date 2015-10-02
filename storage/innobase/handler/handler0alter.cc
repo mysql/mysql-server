@@ -27,9 +27,11 @@ Smart ALTER TABLE
 #include <log.h>
 #include <sql_lex.h>
 #include <sql_class.h>
+#include <sql_table.h>
 #include <mysql/plugin.h>
 
 /* Include necessary InnoDB headers */
+#include "btr0sea.h"
 #include "dict0crea.h"
 #include "dict0dict.h"
 #include "dict0priv.h"
@@ -70,12 +72,12 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ALTER_REBUILD
 	/* CHANGE_CREATE_OPTION needs to check innobase_need_rebuild() */
 	| Alter_inplace_info::ALTER_COLUMN_NULLABLE
 	| Alter_inplace_info::ALTER_COLUMN_NOT_NULLABLE
-	| Alter_inplace_info::ALTER_COLUMN_ORDER
-	| Alter_inplace_info::DROP_COLUMN
-	| Alter_inplace_info::ADD_COLUMN
+	| Alter_inplace_info::ALTER_STORED_COLUMN_ORDER
+	| Alter_inplace_info::DROP_STORED_COLUMN
+	| Alter_inplace_info::ADD_STORED_COLUMN
 	| Alter_inplace_info::RECREATE_TABLE
 	/*
-	| Alter_inplace_info::ALTER_COLUMN_TYPE
+	| Alter_inplace_info::ALTER_STORED_COLUMN_TYPE
 	*/
 	;
 
@@ -104,14 +106,18 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ALTER_NOREBUILD
 	| Alter_inplace_info::RENAME_INDEX
 	| Alter_inplace_info::ALTER_COLUMN_NAME
 	| Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH
-	| Alter_inplace_info::ALTER_INDEX_COMMENT;
+	| Alter_inplace_info::ALTER_INDEX_COMMENT
+	| Alter_inplace_info::ADD_VIRTUAL_COLUMN
+	| Alter_inplace_info::DROP_VIRTUAL_COLUMN
+	| Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER;
+	/* | Alter_inplace_info::ALTER_VIRTUAL_COLUMN_TYPE; */
 
 struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 {
 	/** Dummy query graph */
 	que_thr_t*	thr;
 	/** The prebuilt struct of the creating instance */
-	row_prebuilt_t*	prebuilt;
+	row_prebuilt_t*&	prebuilt;
 	/** InnoDB indexes being created */
 	dict_index_t**	add_index;
 	/** MySQL key numbers for the InnoDB indexes that are being created */
@@ -160,10 +166,20 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 	const char*	tmp_name;
 	/** whether the order of the clustered index is unchanged */
 	bool		skip_pk_sort;
+	/** number of virtual columns to be added */
+	ulint		num_to_add_vcol;
+	/** virtual columns to be added */
+	dict_v_col_t*	add_vcol;
+	const char**	add_vcol_name;
+	/** number of virtual columns to be dropped */
+	ulint		num_to_drop_vcol;
+	/** virtual columns to be dropped */
+	dict_v_col_t*	drop_vcol;
+	const char**	drop_vcol_name;
 	/** ALTER TABLE stage progress recorder */
 	ut_stage_alter_t* m_stage;
 
-	ha_innobase_inplace_ctx(row_prebuilt_t* prebuilt_arg,
+	ha_innobase_inplace_ctx(row_prebuilt_t*& prebuilt_arg,
 				dict_index_t** drop_arg,
 				ulint num_to_drop_arg,
 				dict_index_t** rename_arg,
@@ -178,7 +194,8 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 				const char** col_names_arg,
 				ulint add_autoinc_arg,
 				ulonglong autoinc_col_min_value_arg,
-				ulonglong autoinc_col_max_value_arg) :
+				ulonglong autoinc_col_max_value_arg,
+				ulint num_to_drop_vcol_arg) :
 		inplace_alter_handler_ctx(),
 		prebuilt (prebuilt_arg),
 		add_index (0), add_key_numbers (0), num_to_add_index (0),
@@ -197,6 +214,12 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 		max_autoinc (0),
 		tmp_name (0),
 		skip_pk_sort(false),
+		num_to_add_vcol(0),
+		add_vcol(0),
+		add_vcol_name(0),
+		num_to_drop_vcol(0),
+		drop_vcol(0),
+		drop_vcol_name(0),
 		m_stage(NULL)
 	{
 #ifdef UNIV_DEBUG
@@ -366,6 +389,88 @@ innobase_need_rebuild(
 
 	return(!!(ha_alter_info->handler_flags & INNOBASE_ALTER_REBUILD));
 }
+/** Check if virtual column in old and new table are in order, excluding
+those dropped column. This is needed because when we drop a virtual column,
+ALTER_VIRTUAL_COLUMN_ORDER is also turned on, so we can't decide if this
+is a real ORDER change or just DROP COLUMN
+@param[in]	table		old TABLE
+@param[in]	altered_table	new TABLE
+@param[in]	ha_alter_info	Structure describing changes to be done
+by ALTER TABLE and holding data used during in-place alter.
+@return	true is all columns in order, false otherwise. */
+static
+bool
+check_v_col_in_order(
+	const TABLE*		table,
+	const TABLE*		altered_table,
+	Alter_inplace_info*	ha_alter_info)
+{
+	ulint	j = 0;
+
+	/* directly return true if ALTER_VIRTUAL_COLUMN_ORDER is not on */
+	if (!(ha_alter_info->handler_flags
+              & Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER)) {
+		return(true);
+	}
+
+	for (ulint i = 0; i < table->s->fields; i++) {
+		Field*		field = table->s->field[i];
+		bool		dropped = false;
+		Alter_drop*	drop;
+
+		if (field->stored_in_db) {
+			continue;
+		}
+
+		ut_ad(innobase_is_v_fld(field));
+
+		/* Check if this column is in drop list */
+		List_iterator_fast<Alter_drop> cf_it(
+			ha_alter_info->alter_info->drop_list);
+
+		while ((drop = (cf_it++)) != NULL) {
+			if (my_strcasecmp(system_charset_info,
+					  field->field_name, drop->name) == 0) {
+				dropped = true;
+				break;
+			}
+		}
+
+		if (dropped) {
+			continue;
+		}
+
+		/* Now check if the next virtual column in altered table
+		matches this column */
+		while (j < altered_table->s->fields) {
+			 Field*  new_field = altered_table->s->field[j];
+
+			if (new_field->stored_in_db) {
+				j++;
+				continue;
+			}
+
+			if (my_strcasecmp(system_charset_info,
+					  field->field_name,
+					  new_field->field_name) != 0) {
+				/* different column */
+				return(false);
+			} else {
+				j++;
+				break;
+			}
+		}
+
+		if (j > altered_table->s->fields) {
+			/* there should not be less column in new table
+			without them being in drop list */
+			ut_ad(0);
+			return(false);
+		}
+	}
+
+	return(true);
+}
 
 /** Check if InnoDB supports a particular alter table in-place
 @param altered_table TABLE object for new version of table.
@@ -390,7 +495,7 @@ ha_innobase::check_if_supported_inplace_alter(
 {
 	DBUG_ENTER("check_if_supported_inplace_alter");
 
-	if (srv_read_only_mode
+	if (high_level_read_only
 	    || srv_sys_space.created_new_raw()
 	    || srv_force_recovery) {
 		ha_alter_info->unsupported_reason = (srv_force_recovery)?
@@ -419,9 +524,10 @@ ha_innobase::check_if_supported_inplace_alter(
 		| INNOBASE_ALTER_REBUILD)) {
 
 		if (ha_alter_info->handler_flags
-		    & Alter_inplace_info::ALTER_COLUMN_TYPE)
+		    & Alter_inplace_info::ALTER_STORED_COLUMN_TYPE) {
 			ha_alter_info->unsupported_reason = innobase_get_err_msg(
 				ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_COLUMN_TYPE);
+		}
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
@@ -480,6 +586,54 @@ ha_innobase::check_if_supported_inplace_alter(
 		    && !row_table_got_default_clust_index(m_prebuilt->table)) {
 			ha_alter_info->unsupported_reason = innobase_get_err_msg(
 				ER_PRIMARY_CANT_HAVE_NULL);
+			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+		}
+	}
+
+	/* If there is add or drop virtual columns, we will support operations
+	with these 2 options alone with inplace interface for now */
+	if (ha_alter_info->handler_flags
+	    & (Alter_inplace_info::ADD_VIRTUAL_COLUMN
+	       | Alter_inplace_info::DROP_VIRTUAL_COLUMN
+	       | Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER)) {
+		ulint	flags = ha_alter_info->handler_flags;
+
+		/* TODO: uncomment the flags below, once we start to
+		support them */
+		flags &= ~(Alter_inplace_info::ADD_VIRTUAL_COLUMN
+			   | Alter_inplace_info::DROP_VIRTUAL_COLUMN
+			   | Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER
+			   /*
+			   | Alter_inplace_info::ALTER_STORED_COLUMN_ORDER
+			   | Alter_inplace_info::ADD_STORED_COLUMN
+			   | Alter_inplace_info::DROP_STORED_COLUMN
+			   | Alter_inplace_info::ALTER_STORED_COLUMN_ORDER
+			   | Alter_inplace_info::ADD_UNIQUE_INDEX
+			   */
+			   | Alter_inplace_info::ADD_INDEX
+			   | Alter_inplace_info::DROP_INDEX);
+
+		if (flags != 0
+		    || (altered_table->s->partition_info_str
+			&& altered_table->s->partition_info_str_len)
+		    || (!check_v_col_in_order(
+			this->table, altered_table, ha_alter_info))) {
+			ha_alter_info->unsupported_reason =
+				innobase_get_err_msg(
+				ER_UNSUPPORTED_ALTER_INPLACE_ON_VIRTUAL_COLUMN);
+			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+		}
+
+		/* Do not support inplace alter table drop virtual
+		columns and add index together yet */
+		if ((ha_alter_info->handler_flags
+		     & Alter_inplace_info::ADD_INDEX)
+		    && (ha_alter_info->handler_flags
+			& Alter_inplace_info::DROP_VIRTUAL_COLUMN)) {
+
+			ha_alter_info->unsupported_reason =
+				innobase_get_err_msg(
+				ER_UNSUPPORTED_ALTER_INPLACE_ON_VIRTUAL_COLUMN);
 			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 		}
 	}
@@ -560,6 +714,10 @@ ha_innobase::check_if_supported_inplace_alter(
 					ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_AUTOINC);
 				online = false;
 			}
+
+			if (innobase_is_v_fld(key_part->field)) {
+				online = false;
+			}
 		}
 	}
 
@@ -570,6 +728,13 @@ ha_innobase::check_if_supported_inplace_alter(
 
 	if (ha_alter_info->handler_flags
 	    & Alter_inplace_info::ADD_SPATIAL_INDEX) {
+		online = false;
+	}
+
+	if ((ha_alter_info->handler_flags
+	     & Alter_inplace_info::ADD_VIRTUAL_COLUMN)
+	    && (ha_alter_info->handler_flags
+	        & Alter_inplace_info::ADD_INDEX)) {
 		online = false;
 	}
 
@@ -618,13 +783,10 @@ ha_innobase::check_if_supported_inplace_alter(
 	} else if (((ha_alter_info->handler_flags
 		     & Alter_inplace_info::ADD_PK_INDEX)
 		    || innobase_need_rebuild(ha_alter_info))
-		   && ((innobase_fulltext_exist(altered_table)
-		        || (m_prebuilt->table->flags2
-			    & DICT_TF2_FTS_HAS_DOC_ID))
+		   && (innobase_fulltext_exist(altered_table)
 		       || innobase_spatial_exist(altered_table))) {
 		/* Refuse to rebuild the table online, if
-		fulltext indexes are to survive the rebuild,
-		or if the table contains a hidden FTS_DOC_ID column. */
+		FULLTEXT OR SPATIAL indexes are to survive the rebuild. */
 		online = false;
 		/* If the table already contains fulltext indexes,
 		refuse to rebuild the table natively altogether. */
@@ -867,6 +1029,12 @@ no_match:
 			uint32			col_len
 				= key_part.field->pack_length();
 
+			/* Any index on virtual columns cannot be used
+			for reference constaint */
+			if (innobase_is_v_fld(key_part.field)) {
+				goto no_match;
+			}
+
 			/* The MySQL pack length contains 1 or 2 bytes
 			length field for a true VARCHAR. */
 
@@ -922,6 +1090,7 @@ innobase_find_fk_index(
 
 	while (index != NULL) {
 		if (!(index->type & DICT_FTS)
+		    && !dict_index_has_virtual(index)
 		    && dict_foreign_qualify_index(
 			    table, col_names, columns, n_cols,
 			    index, NULL, true, 0)) {
@@ -993,10 +1162,8 @@ innobase_get_foreign_key_info(
 		char*		tbl_namep = NULL;
 		ulint		db_name_len = 0;
 		ulint		tbl_name_len = 0;
-#ifdef _WIN32
 		char		db_name[MAX_DATABASE_NAME_LEN];
 		char		tbl_name[MAX_TABLE_NAME_LEN];
-#endif
 
 		fk_key = static_cast<Foreign_key*>(key);
 
@@ -1049,24 +1216,29 @@ innobase_get_foreign_key_info(
 		add_fk[num_fk] = dict_mem_foreign_create();
 
 #ifndef _WIN32
-		tbl_namep = const_cast<char*>(fk_key->ref_table.str);
-		tbl_name_len = fk_key->ref_table.length;
-		db_namep = const_cast<char*>(fk_key->ref_db.str);
-		db_name_len = fk_key->ref_db.length;
+		if(fk_key->ref_db.str) {
+			tablename_to_filename(fk_key->ref_db.str, db_name,
+					      MAX_DATABASE_NAME_LEN);
+			db_namep = db_name;
+			db_name_len = strlen(db_name);
+		}
+		if (fk_key->ref_table.str) {
+			tablename_to_filename(fk_key->ref_table.str, tbl_name,
+					      MAX_TABLE_NAME_LEN);
+			tbl_namep = tbl_name;
+			tbl_name_len = strlen(tbl_name);
+		}
 #else
 		ut_ad(fk_key->ref_table.str);
-
-		memcpy(tbl_name, fk_key->ref_table.str,
-		       fk_key->ref_table.length);
-		tbl_name[fk_key->ref_table.length] = 0;
+		tablename_to_filename(fk_key->ref_table.str, tbl_name,
+				      MAX_TABLE_NAME_LEN);
 		innobase_casedn_str(tbl_name);
 		tbl_name_len = strlen(tbl_name);
 		tbl_namep = &tbl_name[0];
 
 		if (fk_key->ref_db.str != NULL) {
-			memcpy(db_name, fk_key->ref_db.str,
-			       fk_key->ref_db.length);
-			db_name[fk_key->ref_db.length] = 0;
+			tablename_to_filename(fk_key->ref_db.str, db_name,
+					      MAX_DATABASE_NAME_LEN);
 			innobase_casedn_str(db_name);
 			db_name_len = strlen(db_name);
 			db_namep = &db_name[0];
@@ -1308,7 +1480,8 @@ innobase_rec_to_mysql(
 
 		field->reset();
 
-		ipos = dict_index_get_nth_col_or_prefix_pos(index, i, TRUE);
+		ipos = dict_index_get_nth_col_or_prefix_pos(
+			index, i, true, false);
 
 		if (ipos == ULINT_UNDEFINED
 		    || rec_offs_nth_extern(offsets, ipos)) {
@@ -1344,18 +1517,29 @@ innobase_fields_to_mysql(
 	const dfield_t*		fields)	/*!< in: InnoDB index fields */
 {
 	uint	n_fields	= table->s->fields;
+	ulint	num_v = 0;
 
 	ut_ad(n_fields == dict_table_get_n_user_cols(index->table)
+	      + dict_table_get_n_v_cols(index->table)
 	      - !!(DICT_TF2_FLAG_IS_SET(index->table,
 					DICT_TF2_FTS_HAS_DOC_ID)));
 
 	for (uint i = 0; i < n_fields; i++) {
 		Field*		field	= table->field[i];
 		ulint		ipos;
+		ulint		col_n;
 
 		field->reset();
 
-		ipos = dict_index_get_nth_col_or_prefix_pos(index, i, TRUE);
+		if (innobase_is_v_fld(field)) {
+			col_n = num_v;
+			num_v++;
+		} else {
+			col_n = i - num_v;
+		}
+
+		ipos = dict_index_get_nth_col_or_prefix_pos(
+			index, col_n, true, innobase_is_v_fld(field));
 
 		if (ipos == ULINT_UNDEFINED
 		    || dfield_is_ext(&fields[ipos])
@@ -1390,6 +1574,7 @@ innobase_row_to_mysql(
 	/* The InnoDB row may contain an extra FTS_DOC_ID column at the end. */
 	ut_ad(row->n_fields == dict_table_get_n_cols(itab));
 	ut_ad(n_fields == row->n_fields - DATA_N_SYS_COLS
+	      + dict_table_get_n_v_cols(itab)
 	      - !!(DICT_TF2_FLAG_IS_SET(itab, DICT_TF2_FTS_HAS_DOC_ID)));
 
 	for (uint i = 0; i < n_fields; i++) {
@@ -1579,34 +1764,50 @@ name_ok:
 
 /** Create index field definition for key part
 @param[in]	altered_table		MySQL table that is being altered,
-or NULL if a new clustered index is not being created
+					or NULL if a new clustered index
+					is not being created
 @param[in]	key_part		MySQL key definition
-@param[out]	index_field		index field */
+@param[in,out]	index_field		index field
+@param[in]	new_clustered		new cluster */
 static
 void
 innobase_create_index_field_def(
 	const TABLE*		altered_table,
 	const KEY_PART_INFO*	key_part,
-	index_field_t*		index_field)
+	index_field_t*		index_field,
+	bool			new_clustered)
 {
 	const Field*	field;
 	ibool		is_unsigned;
 	ulint		col_type;
+	ulint		num_v = 0;
 
 	DBUG_ENTER("innobase_create_index_field_def");
 
 	ut_ad(key_part);
 	ut_ad(index_field);
 
-	field = altered_table
+	field = new_clustered
 		? altered_table->field[key_part->fieldnr]
 		: key_part->field;
 	ut_a(field);
 
-	index_field->col_no = key_part->fieldnr;
+	for (ulint i = 0; i < key_part->fieldnr; i++) {
+		if (innobase_is_v_fld(altered_table->field[i])) {
+			num_v++;
+		}
+	}
 
 	col_type = get_innobase_type_from_mysql_type(
 		&is_unsigned, field);
+
+	if (!field->stored_in_db && field->gcol_info) {
+		index_field->is_v_col = true;
+		index_field->col_no = num_v;
+	} else {
+		index_field->is_v_col = false;
+		index_field->col_no = key_part->fieldnr - num_v;
+	}
 
 	if (DATA_LARGE_MTYPE(col_type)
 	    || (key_part->length < field->pack_length()
@@ -1706,21 +1907,41 @@ innobase_create_index_def(
 		DBUG_ASSERT(!(key->flags & HA_NOSAME));
 		index->ind_type = DICT_SPATIAL;
 		ut_ad(n_fields == 1);
-		index->fields[0].col_no = key->key_part[0].fieldnr;
+		ulint	num_v = 0;
+
+		/* Need to count the virtual fields before this spatial
+		indexed field */
+		for (ulint i = 0; i < key->key_part->fieldnr; i++) {
+			if (innobase_is_v_fld(altered_table->field[i])) {
+				num_v++;
+			}
+		}
+		index->fields[0].col_no = key->key_part[0].fieldnr - num_v;
 		index->fields[0].prefix_len = 0;
+		index->fields[0].is_v_col = false;
+		if (!key->key_part[0].field->stored_in_db
+		    && key->key_part[0].field->gcol_info) {
+			/* Currently, the spatial index cannot be created
+			on virtual columns. It is blocked in server
+			layer */
+			ut_ad(0);
+			index->fields[0].is_v_col = true;
+		} else {
+			index->fields[0].is_v_col = false;
+		}
 	} else {
 		index->ind_type = (key->flags & HA_NOSAME) ? DICT_UNIQUE : 0;
-	}
-
-	if (!new_clustered) {
-		altered_table = NULL;
 	}
 
 	if (!(key->flags & HA_SPATIAL)) {
 		for (i = 0; i < n_fields; i++) {
 			innobase_create_index_field_def(
 				altered_table, &key->key_part[i],
-				&index->fields[i]);
+				&index->fields[i], new_clustered);
+
+			if (index->fields[i].is_v_col) {
+				index->ind_type |= DICT_VIRTUAL;
+			}
 		}
 	}
 
@@ -1739,18 +1960,25 @@ innobase_fts_check_doc_id_col(
 	const TABLE*		altered_table,
 					/*!< in: MySQL table with
 					fulltext index */
-	ulint*			fts_doc_col_no)
+	ulint*			fts_doc_col_no,
 					/*!< out: The column number for
 					Doc ID, or ULINT_UNDEFINED
 					if it is of wrong type */
+	ulint*			num_v)	/*!< out: number of virtual column */
 {
 	*fts_doc_col_no = ULINT_UNDEFINED;
 
 	const uint n_cols = altered_table->s->fields;
-	uint i;
+	ulint	i;
+
+	*num_v = 0;
 
 	for (i = 0; i < n_cols; i++) {
 		const Field*	field = altered_table->field[i];
+
+		if (innobase_is_v_fld(field)) {
+			(*num_v)++;
+		}
 
 		if (my_strcasecmp(system_charset_info,
 				  field->field_name, FTS_DOC_ID_COL_NAME)) {
@@ -1763,11 +1991,12 @@ innobase_fts_check_doc_id_col(
 		} else if (field->type() != MYSQL_TYPE_LONGLONG
 			   || field->pack_length() != 8
 			   || field->real_maybe_null()
-			   || !(field->flags & UNSIGNED_FLAG)) {
+			   || !(field->flags & UNSIGNED_FLAG)
+			   || innobase_is_v_fld(field)) {
 			my_error(ER_INNODB_FT_WRONG_DOCID_COLUMN, MYF(0),
 				 field->field_name);
 		} else {
-			*fts_doc_col_no = i;
+			*fts_doc_col_no = i - *num_v;
 		}
 
 		return(true);
@@ -1776,6 +2005,9 @@ innobase_fts_check_doc_id_col(
 	if (!table) {
 		return(false);
 	}
+
+	/* Not to count the virtual columns */
+	i -= *num_v;
 
 	for (; i + DATA_N_SYS_COLS < (uint) table->n_cols; i++) {
 		const char*     name = dict_table_get_col_name(table, i);
@@ -1874,7 +2106,8 @@ innobase_fts_check_doc_id_index(
 		if (strcmp(field->name, FTS_DOC_ID_COL_NAME) == 0
 		    && field->col->mtype == DATA_INT
 		    && field->col->len == 8
-		    && field->col->prtype & DATA_NOT_NULL) {
+		    && field->col->prtype & DATA_NOT_NULL
+		    && !dict_col_is_virtual(field->col)) {
 			if (fts_doc_col_no) {
 				*fts_doc_col_no = dict_col_get_no(field->col);
 			}
@@ -2000,11 +2233,14 @@ innobase_create_key_defs(
 			const uint	maybe_null
 				= key_info[*add].key_part[key_part].key_type
 				& FIELDFLAG_MAYBE_NULL;
+			bool		is_v
+				= innobase_is_v_fld(
+					key_info[*add].key_part[key_part].field);
 			DBUG_ASSERT(!maybe_null
 				    == !key_info[*add].key_part[key_part].
 				    field->real_maybe_null());
 
-			if (maybe_null) {
+			if (maybe_null || is_v) {
 				new_primary = false;
 				break;
 			}
@@ -2013,6 +2249,8 @@ innobase_create_key_defs(
 
 	const bool rebuild = new_primary || add_fts_doc_id
 		|| innobase_need_rebuild(ha_alter_info);
+
+
 	/* Reserve one more space if new_primary is true, and we might
 	need to add the FTS_DOC_ID_INDEX */
 	indexdef = indexdefs = static_cast<index_def_t*>(
@@ -2070,11 +2308,13 @@ created_clustered:
 		}
 
 		if (n_fts_add > 0) {
+			ulint	num_v = 0;
+
 			if (!add_fts_doc_id
 			    && !innobase_fts_check_doc_id_col(
 				    NULL, altered_table,
-				    &fts_doc_id_col)) {
-				fts_doc_id_col = altered_table->s->fields;
+				    &fts_doc_id_col, &num_v)) {
+				fts_doc_id_col = altered_table->s->fields - num_v;
 				add_fts_doc_id = true;
 			}
 
@@ -2123,10 +2363,11 @@ created_clustered:
 		index->n_fields = 1;
 		index->fields->col_no = fts_doc_id_col;
 		index->fields->prefix_len = 0;
+		index->fields->is_v_col = false;
 		index->ind_type = DICT_UNIQUE;
 		ut_ad(!rebuild
 		      || !add_fts_doc_id
-		      || fts_doc_id_col == altered_table->s->fields);
+		      || fts_doc_id_col <= altered_table->s->fields);
 
 		index->name = FTS_DOC_ID_INDEX_NAME;
 		index->rebuild = rebuild;
@@ -2209,12 +2450,10 @@ online_retry_drop_indexes(
 		trx_free_for_mysql(trx);
 	}
 
-#ifdef UNIV_DEBUG
-	mutex_enter(&dict_sys->mutex);
-	dict_table_check_for_dup_indexes(table, CHECK_ALL_COMPLETE);
-	mutex_exit(&dict_sys->mutex);
-	ut_a(!table->drop_aborted);
-#endif /* UNIV_DEBUG */
+	ut_d(mutex_enter(&dict_sys->mutex));
+	ut_d(dict_table_check_for_dup_indexes(table, CHECK_ALL_COMPLETE));
+	ut_d(mutex_exit(&dict_sys->mutex));
+	ut_ad(!table->drop_aborted);
 }
 
 /********************************************************************//**
@@ -2508,8 +2747,10 @@ innobase_build_col_map(
 	DBUG_ASSERT(altered_table != table);
 	DBUG_ASSERT(new_table != old_table);
 	DBUG_ASSERT(dict_table_get_n_cols(new_table)
+		    + dict_table_get_n_v_cols(new_table)
 		    >= altered_table->s->fields + DATA_N_SYS_COLS);
 	DBUG_ASSERT(dict_table_get_n_cols(old_table)
+		    + dict_table_get_n_v_cols(old_table)
 		    >= table->s->fields + DATA_N_SYS_COLS);
 	DBUG_ASSERT(!!add_cols == !!(ha_alter_info->handler_flags
 				     & Alter_inplace_info::ADD_COLUMN));
@@ -2517,11 +2758,14 @@ innobase_build_col_map(
 		    == dict_table_get_n_cols(new_table));
 
 	ulint*	col_map = static_cast<ulint*>(
-		mem_heap_alloc(heap, old_table->n_cols * sizeof *col_map));
+		mem_heap_alloc(
+			heap, (old_table->n_cols + old_table->n_v_cols)
+			* sizeof *col_map));
 
 	List_iterator_fast<Create_field> cf_it(
 		ha_alter_info->alter_info->create_list);
-	uint i = 0;
+	uint	i = 0;
+	uint	num_v = 0;
 
 	/* Any dropped columns will map to ULINT_UNDEFINED. */
 	for (uint old_i = 0; old_i + DATA_N_SYS_COLS < old_table->n_cols;
@@ -2529,26 +2773,54 @@ innobase_build_col_map(
 		col_map[old_i] = ULINT_UNDEFINED;
 	}
 
+	for (uint old_i = 0; old_i < old_table->n_v_cols; old_i++) {
+		col_map[old_i + old_table->n_cols] = ULINT_UNDEFINED;
+	}
+
 	while (const Create_field* new_field = cf_it++) {
+		bool	is_v = false;
+
+		if (innobase_is_v_fld(new_field)) {
+			is_v = true;
+		}
+
+		ulint	num_old_v = 0;
+
 		for (uint old_i = 0; table->field[old_i]; old_i++) {
 			const Field* field = table->field[old_i];
+			if (innobase_is_v_fld(field)) {
+				if (is_v && new_field->field == field) {
+					col_map[old_table->n_cols + num_v]
+						= num_old_v;
+					num_old_v++;
+					goto found_col;
+				}
+				num_old_v++;
+				continue;
+			}
+
 			if (new_field->field == field) {
-				col_map[old_i] = i;
+				col_map[old_i - num_old_v] = i;
 				goto found_col;
 			}
 		}
 
+		ut_ad(!is_v);
 		innobase_build_col_map_add(
 			heap, dtuple_get_nth_field(add_cols, i),
-			altered_table->field[i],
+			altered_table->field[i + num_v],
 			dict_table_is_comp(new_table));
 found_col:
-		i++;
+		if (is_v) {
+			num_v++;
+		} else {
+			i++;
+		}
 	}
 
-	DBUG_ASSERT(i == altered_table->s->fields);
+	DBUG_ASSERT(i == altered_table->s->fields - num_v);
 
-	i = table->s->fields;
+	i = table->s->fields - old_table->n_v_cols;
 
 	/* Add the InnoDB hidden FTS_DOC_ID column, if any. */
 	if (i + DATA_N_SYS_COLS < old_table->n_cols) {
@@ -2558,9 +2830,10 @@ found_col:
 						 DICT_TF2_FTS_HAS_DOC_ID));
 		DBUG_ASSERT(i + DATA_N_SYS_COLS + 1 == old_table->n_cols);
 		DBUG_ASSERT(!strcmp(dict_table_get_col_name(
-					    old_table, table->s->fields),
+					    old_table, i),
 				    FTS_DOC_ID_COL_NAME));
 		if (altered_table->s->fields + DATA_N_SYS_COLS
+		    - new_table->n_v_cols
 		    < new_table->n_cols) {
 			DBUG_ASSERT(DICT_TF2_FLAG_IS_SET(
 					    new_table,
@@ -2568,7 +2841,8 @@ found_col:
 			DBUG_ASSERT(altered_table->s->fields
 				    + DATA_N_SYS_COLS + 1
 				    == new_table->n_cols);
-			col_map[i] = altered_table->s->fields;
+			col_map[i] = altered_table->s->fields
+				     - new_table->n_v_cols;
 		} else {
 			DBUG_ASSERT(!DICT_TF2_FLAG_IS_SET(
 					    new_table,
@@ -2622,7 +2896,7 @@ innobase_drop_fts_index_table(
 	return(ret_err);
 }
 
-/** Get the new column names if any columns were renamed
+/** Get the new non-virtual column names if any columns were renamed
 @param ha_alter_info	Data used during in-place alter
 @param altered_table	MySQL table that is being altered
 @param table		MySQL table as it is before the ALTER operation
@@ -2642,7 +2916,7 @@ innobase_get_col_names(
 	uint			i;
 
 	DBUG_ENTER("innobase_get_col_names");
-	DBUG_ASSERT(user_table->n_def > table->s->fields);
+	DBUG_ASSERT(user_table->n_t_def > table->s->fields);
 	DBUG_ASSERT(ha_alter_info->handler_flags
 		    & Alter_inplace_info::ALTER_COLUMN_NAME);
 
@@ -2653,11 +2927,20 @@ innobase_get_col_names(
 	List_iterator_fast<Create_field> cf_it(
 		ha_alter_info->alter_info->create_list);
 	while (const Create_field* new_field = cf_it++) {
+		ulint	num_v = 0;
 		DBUG_ASSERT(i < altered_table->s->fields);
 
+		if (innobase_is_v_fld(new_field)) {
+			continue;
+		}
+
 		for (uint old_i = 0; table->field[old_i]; old_i++) {
+			if (innobase_is_v_fld(table->field[old_i])) {
+				num_v++;
+			}
+
 			if (new_field->field == table->field[old_i]) {
-				cols[old_i] = new_field->field_name;
+				cols[old_i - num_v] = new_field->field_name;
 				break;
 			}
 		}
@@ -2666,7 +2949,7 @@ innobase_get_col_names(
 	}
 
 	/* Copy the internal column names. */
-	i = table->s->fields;
+	i = table->s->fields - user_table->n_v_def;
 	cols[i] = dict_table_get_col_name(user_table, i);
 
 	while (++i < user_table->n_def) {
@@ -2676,8 +2959,72 @@ innobase_get_col_names(
 	DBUG_RETURN(cols);
 }
 
+/** Check whether the column prefix is increased, decreased, or unchanged.
+@param[in]	new_prefix_len	new prefix length
+@param[in]	old_prefix_len	new prefix length
+@retval	1	prefix is increased
+@retval	0	prefix is unchanged
+@retval	-1	prefix is decreased */
+static inline
+lint
+innobase_pk_col_prefix_compare(
+	ulint	new_prefix_len,
+	ulint	old_prefix_len)
+{
+	ut_ad(new_prefix_len < REC_MAX_DATA_SIZE);
+	ut_ad(old_prefix_len < REC_MAX_DATA_SIZE);
+
+	if (new_prefix_len == old_prefix_len) {
+		return(0);
+	}
+
+	if (new_prefix_len == 0) {
+		new_prefix_len = ULINT_MAX;
+	}
+
+	if (old_prefix_len == 0) {
+		old_prefix_len = ULINT_MAX;
+	}
+
+	if (new_prefix_len > old_prefix_len) {
+		return(1);
+	} else {
+		return(-1);
+	}
+}
+
+/** Check whether the column is existing in old table.
+@param[in]	new_col_no	new column no
+@param[in]	col_map		mapping of old column numbers to new ones
+@param[in]	col_map_size	the column map size
+@return true if the column is existing, otherwise false. */
+static inline
+bool
+innobase_pk_col_is_existing(
+	const ulint	new_col_no,
+	const ulint*	col_map,
+	const ulint	col_map_size)
+{
+	for (ulint i = 0; i < col_map_size; i++) {
+		if (col_map[i] == new_col_no) {
+			return(true);
+		}
+	}
+
+	return(false);
+}
+
 /** Determine whether both the indexes have same set of primary key
 fields arranged in the same order.
+
+Rules when we cannot skip sorting:
+(1) Removing existing PK columns somewhere else than at the end of the PK;
+(2) Adding existing columns to the PK, except at the end of the PK when no
+columns are removed from the PK;
+(3) Changing the order of existing PK columns;
+(4) Decreasing the prefix length just like removing existing PK columns
+follows rule(1), Increasing the prefix length just like adding existing
+PK columns follows rule(2).
 @param[in]	col_map		mapping of old column numbers to new ones
 @param[in]	ha_alter_info	Data used during in-place alter
 @param[in]	old_clust_index	index to be compared
@@ -2691,10 +3038,10 @@ innobase_pk_order_preserved(
 	const dict_index_t*	old_clust_index,
 	const dict_index_t*	new_clust_index)
 {
-	ulint	old_n_fields
+	ulint	old_n_uniq
 		= dict_index_get_n_ordering_defined_by_user(
 			old_clust_index);
-	ulint	new_n_fields
+	ulint	new_n_uniq
 		= dict_index_get_n_ordering_defined_by_user(
 			new_clust_index);
 
@@ -2703,74 +3050,87 @@ innobase_pk_order_preserved(
 	ut_ad(old_clust_index->table != new_clust_index->table);
 	ut_ad(col_map != NULL);
 
-	if (old_n_fields == 0) {
+	if (old_n_uniq == 0) {
 		/* There was no PRIMARY KEY in the table.
 		If there is no PRIMARY KEY after the ALTER either,
 		no sorting is needed. */
-		return(new_n_fields == old_n_fields);
+		return(new_n_uniq == old_n_uniq);
 	}
 
 	/* DROP PRIMARY KEY is only allowed in combination with
 	ADD PRIMARY KEY. */
-	ut_ad(new_n_fields > 0 || old_n_fields == 0);
+	ut_ad(new_n_uniq > 0);
 
-	ulint old_field = 0;
-	ulint new_field = 0;
-	ulint old_n_cols = dict_table_get_n_cols(old_clust_index->table);
-	bool pk_col_dropped = false;
-
-	/* Sorting will not be needed when the PRIMARY KEY
-	column list is being appended to or newly added columns
-	are being added to the PRIMARY KEY. */
-	while (old_field < old_n_fields && new_field < new_n_fields) {
-		ulint old_col_no =
-			old_clust_index->fields[old_field].col->ind;
-		ulint new_col_no =
+	/* The order of the last processed new_clust_index key field,
+	not counting ADD COLUMN, which are constant. */
+	lint	last_field_order = -1;
+	ulint	existing_field_count = 0;
+	ulint	old_n_cols = dict_table_get_n_cols(old_clust_index->table);
+	for (ulint new_field = 0; new_field < new_n_uniq; new_field++) {
+		ulint	new_col_no =
 			new_clust_index->fields[new_field].col->ind;
 
-		ut_ad(new_col_no != ULINT_UNDEFINED);
+		/* Check if there is a match in old primary key. */
+		ulint	old_field = 0;
+		while (old_field < old_n_uniq) {
+			ulint	old_col_no =
+				old_clust_index->fields[old_field].col->ind;
 
-		old_col_no = col_map[old_col_no];
-
-		if (old_col_no == new_col_no) {
-			if (pk_col_dropped) {
-				/* Dropping columns in the middle
-				requires sorting. */
-				return(false);
-			}
-
-			if (old_clust_index->fields[old_field].prefix_len
-			    != new_clust_index->fields[new_field].prefix_len) {
-				/* Prefix length of the field
-				is changed. */
-				return(false);
+			if (col_map[old_col_no] == new_col_no) {
+				break;
 			}
 
 			old_field++;
-			new_field++;
-		} else if (old_col_no == ULINT_UNDEFINED) {
+		}
 
-			if (old_n_fields == 1) {
-				/* Dropping single column primary key
-				requires sorting. */
-				return(false);
-			}
+		/* The order of key field in the new primary key.
+		1. old PK column:      idx in old primary key
+		2. existing column:    old_n_uniq + sequence no
+		3. newly added column: no order */
+		lint		new_field_order;
+		const bool	old_pk_column = old_field < old_n_uniq;
 
-			pk_col_dropped = true;
-			old_field++;
+		if (old_pk_column) {
+			new_field_order = old_field;
+		} else if (innobase_pk_col_is_existing(new_col_no, col_map,
+						       old_n_cols)) {
+			new_field_order = old_n_uniq + existing_field_count++;
 		} else {
-			/* Check whether column in new table is
-			an existing column or newly added */
-			for (ulint k = 0; k < old_n_cols; k++) {
-				if (col_map[k] == new_col_no) {
-				/* Changing the order of existing
-				columns in the PRIMARY KEY requires
-				sorting. */
-					return(false);
-				}
-			}
+			/* Skip newly added column. */
+			continue;
+		}
 
-			new_field++;
+		if (last_field_order + 1 != new_field_order) {
+			/* Old PK order is not kept, or existing column
+			is not added at the end of old PK. */
+			return(false);
+		}
+
+		last_field_order = new_field_order;
+
+		if (!old_pk_column) {
+			continue;
+		}
+
+		/* Check prefix length change. */
+		const lint	prefix_change = innobase_pk_col_prefix_compare(
+			new_clust_index->fields[new_field].prefix_len,
+			old_clust_index->fields[old_field].prefix_len);
+
+		if (prefix_change < 0) {
+			/* If a column's prefix length is decreased, it should
+			be the last old PK column in new PK.
+			Note: we set last_field_order to -2, so that if	there
+			are any old PK colmns or existing columns after it in
+			new PK, the comparison to new_field_order will fail in
+			the next round.*/
+			last_field_order = -2;
+		} else if (prefix_change > 0) {
+			/* If a column's prefix length is increased, it	should
+			be the last PK column in old PK. */
+			if (old_field != old_n_uniq - 1) {
+				return(false);
+			}
 		}
 	}
 
@@ -2801,9 +3161,7 @@ innobase_update_gis_column_type(
 	DBUG_ASSERT(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(mutex_own(&dict_sys->mutex));
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
 	info = pars_info_create();
 
@@ -2863,6 +3221,11 @@ innobase_check_gis_columns(
 		ut_ad(key.user_defined_key_parts == 1);
 		const KEY_PART_INFO&    key_part = key.key_part[0];
 
+		/* Does not support spatial index on virtual columns */
+		if (innobase_is_v_fld(key_part.field)) {
+			DBUG_RETURN(DB_UNSUPPORTED);
+		}
+
 		ulint col_nr = dict_table_has_column(
 			table,
 			key_part.field->field_name,
@@ -2893,6 +3256,692 @@ innobase_check_gis_columns(
 	}
 
 	DBUG_RETURN(DB_SUCCESS);
+}
+
+/** Collect virtual column info for its addition
+@param[in] ha_alter_info	Data used during in-place alter
+@param[in] altered_table	MySQL table that is being altered to
+@param[in] table		MySQL table as it is before the ALTER operation
+@retval true Failure
+@retval false Success */
+static
+bool
+prepare_inplace_add_virtual(
+	Alter_inplace_info*	ha_alter_info,
+	const TABLE*		altered_table,
+	const TABLE*		table)
+{
+	ha_innobase_inplace_ctx*	ctx;
+	ulint				i = 0;
+	ulint				j = 0;
+	const Create_field*		new_field;
+
+	ctx = static_cast<ha_innobase_inplace_ctx*>
+		(ha_alter_info->handler_ctx);
+
+	ctx->num_to_add_vcol = altered_table->s->fields
+			       + ctx->num_to_drop_vcol - table->s->fields;
+
+	ctx->add_vcol = static_cast<dict_v_col_t*>(
+		 mem_heap_zalloc(ctx->heap, ctx->num_to_add_vcol
+				 * sizeof *ctx->add_vcol));
+	ctx->add_vcol_name = static_cast<const char**>(
+		 mem_heap_alloc(ctx->heap, ctx->num_to_add_vcol
+				* sizeof *ctx->add_vcol_name));
+
+	List_iterator_fast<Create_field> cf_it(
+		ha_alter_info->alter_info->create_list);
+
+	while ((new_field = (cf_it++)) != NULL) {
+		const Field* field = new_field->field;
+		ulint	old_i;
+
+		for (old_i = 0; table->field[old_i]; old_i++) {
+			const Field* n_field = table->field[old_i];
+			if (field == n_field) {
+				break;
+			}
+		}
+
+		i++;
+
+		if (table->field[old_i]) {
+			continue;
+		}
+
+		ut_ad(!field);
+
+		ulint	col_len;
+		ulint	is_unsigned;
+		ulint	field_type;
+		ulint	charset_no;
+
+		field =  altered_table->field[i - 1];
+
+		ulint           col_type
+                                = get_innobase_type_from_mysql_type(
+                                        &is_unsigned, field);
+
+		if (!field->gcol_info || field->stored_in_db) {
+			my_error(ER_WRONG_KEY_COLUMN, MYF(0),
+				 field->field_name);
+			return(true);
+		}
+
+		col_len = field->pack_length();
+		field_type = (ulint) field->type();
+
+		if (!field->real_maybe_null()) {
+			field_type |= DATA_NOT_NULL;
+		}
+
+		if (field->binary()) {
+			field_type |= DATA_BINARY_TYPE;
+		}
+
+		if (is_unsigned) {
+			field_type |= DATA_UNSIGNED;
+		}
+
+		if (dtype_is_string_type(col_type)) {
+			charset_no = (ulint) field->charset()->number;
+
+			DBUG_EXECUTE_IF(
+				"ib_alter_add_virtual_fail",
+				charset_no += MAX_CHAR_COLL_NUM;);
+
+			if (charset_no > MAX_CHAR_COLL_NUM) {
+				my_error(ER_WRONG_KEY_COLUMN, MYF(0),
+					 field->field_name);
+				return(true);
+			}
+		} else {
+			charset_no = 0;
+		}
+
+		if (field->type() == MYSQL_TYPE_VARCHAR) {
+			uint32  length_bytes
+				= static_cast<const Field_varstring*>(
+					field)->length_bytes;
+
+			col_len -= length_bytes;
+
+			if (length_bytes == 2) {
+				field_type |= DATA_LONG_TRUE_VARCHAR;
+			}
+		}
+
+
+		ctx->add_vcol[j].m_col.prtype = dtype_form_prtype(
+						field_type, charset_no);
+
+		ctx->add_vcol[j].m_col.prtype |= DATA_VIRTUAL;
+
+		ctx->add_vcol[j].m_col.mtype = col_type;
+
+		ctx->add_vcol[j].m_col.len = col_len;
+
+		ctx->add_vcol[j].m_col.ind = i - 1;
+		ctx->add_vcol[j].num_base =
+		  field->gcol_info->non_virtual_base_columns();
+		ctx->add_vcol_name[j] = field->field_name;
+		ctx->add_vcol[j].base_col = static_cast<dict_col_t**>(
+			mem_heap_alloc(ctx->heap, ctx->add_vcol[j].num_base
+				       * sizeof *(ctx->add_vcol[j].base_col)));
+		ctx->add_vcol[j].v_pos = ctx->old_table->n_v_cols
+					 - ctx->num_to_drop_vcol + j;
+
+		innodb_base_col_setup(ctx->old_table, field, &ctx->add_vcol[j]);
+		j++;
+	}
+
+	return(false);
+}
+
+/** Collect virtual column info for its addition
+@param[in] ha_alter_info	Data used during in-place alter
+@param[in] altered_table	MySQL table that is being altered to
+@param[in] table		MySQL table as it is before the ALTER operation
+@retval true Failure
+@retval false Success */
+static
+bool
+prepare_inplace_drop_virtual(
+	Alter_inplace_info*	ha_alter_info,
+	const TABLE*		altered_table,
+	const TABLE*		table)
+{
+	ha_innobase_inplace_ctx*	ctx;
+	ulint				i = 0;
+	ulint				j = 0;
+	Alter_drop *drop;
+
+	ctx = static_cast<ha_innobase_inplace_ctx*>
+		(ha_alter_info->handler_ctx);
+
+	ctx->num_to_drop_vcol = ha_alter_info->alter_info->drop_list.elements;
+
+	ctx->drop_vcol = static_cast<dict_v_col_t*>(
+		 mem_heap_alloc(ctx->heap, ctx->num_to_drop_vcol
+				* sizeof *ctx->drop_vcol));
+	ctx->drop_vcol_name = static_cast<const char**>(
+		 mem_heap_alloc(ctx->heap, ctx->num_to_drop_vcol
+				* sizeof *ctx->drop_vcol_name));
+
+	List_iterator_fast<Alter_drop> cf_it(
+		ha_alter_info->alter_info->drop_list);
+
+	while ((drop = (cf_it++)) != NULL) {
+		const Field* field;
+		ulint	old_i;
+
+		ut_ad(drop->type == Alter_drop::COLUMN);
+
+		for (old_i = 0; table->field[old_i]; old_i++) {
+			const Field* n_field = table->field[old_i];
+			if (!my_strcasecmp(system_charset_info,
+					   n_field->field_name, drop->name)) {
+				break;
+			}
+		}
+
+		i++;
+
+		if (!table->field[old_i]) {
+			continue;
+		}
+
+		ulint	col_len;
+		ulint	is_unsigned;
+		ulint	field_type;
+		ulint	charset_no;
+
+		field =  table->field[old_i];
+
+		ulint           col_type
+                                = get_innobase_type_from_mysql_type(
+                                        &is_unsigned, field);
+
+		if (!field->gcol_info || field->stored_in_db) {
+			my_error(ER_WRONG_KEY_COLUMN, MYF(0),
+				 field->field_name);
+			return(true);
+		}
+
+		col_len = field->pack_length();
+		field_type = (ulint) field->type();
+
+		if (!field->real_maybe_null()) {
+			field_type |= DATA_NOT_NULL;
+		}
+
+		if (field->binary()) {
+			field_type |= DATA_BINARY_TYPE;
+		}
+
+		if (is_unsigned) {
+			field_type |= DATA_UNSIGNED;
+		}
+
+		if (dtype_is_string_type(col_type)) {
+			charset_no = (ulint) field->charset()->number;
+
+			DBUG_EXECUTE_IF(
+				"ib_alter_add_virtual_fail",
+				charset_no += MAX_CHAR_COLL_NUM;);
+
+			if (charset_no > MAX_CHAR_COLL_NUM) {
+				my_error(ER_WRONG_KEY_COLUMN, MYF(0),
+					 field->field_name);
+				return(true);
+			}
+		} else {
+			charset_no = 0;
+		}
+
+		if (field->type() == MYSQL_TYPE_VARCHAR) {
+			uint32  length_bytes
+				= static_cast<const Field_varstring*>(
+					field)->length_bytes;
+
+			col_len -= length_bytes;
+
+			if (length_bytes == 2) {
+				field_type |= DATA_LONG_TRUE_VARCHAR;
+			}
+		}
+
+
+		ctx->drop_vcol[j].m_col.prtype = dtype_form_prtype(
+						field_type, charset_no);
+
+		ctx->drop_vcol[j].m_col.prtype |= DATA_VIRTUAL;
+
+		ctx->drop_vcol[j].m_col.mtype = col_type;
+
+		ctx->drop_vcol[j].m_col.len = col_len;
+
+		ctx->drop_vcol[j].m_col.ind = old_i;
+
+		ctx->drop_vcol_name[j] = field->field_name;
+
+		dict_v_col_t*	v_col = dict_table_get_nth_v_col_mysql(
+					ctx->old_table, old_i);
+		ctx->drop_vcol[j].v_pos = v_col->v_pos;
+		j++;
+	}
+
+	return(false);
+}
+
+/** Insert a new record to INNODB SYS_VIRTUAL
+@param[in] table	InnoDB table
+@param[in] pos		virtual column column no
+@param[in] base_pos	base column pos
+@param[in] trx		transaction
+@return DB_SUCCESS if successful, otherwise error code */
+static
+dberr_t
+innobase_insert_sys_virtual(
+	const dict_table_t*	table,
+	ulint			pos,
+	ulint			base_pos,
+	trx_t*			trx)
+{
+	pars_info_t*    info = pars_info_create();
+
+	pars_info_add_ull_literal(info, "id", table->id);
+
+	pars_info_add_int4_literal(info, "pos", pos);
+
+	pars_info_add_int4_literal(info, "base_pos", base_pos);
+
+	dberr_t error = que_eval_sql(
+			info,
+			"PROCEDURE P () IS\n"
+			"BEGIN\n"
+			"INSERT INTO SYS_VIRTUAL VALUES"
+			"(:id, :pos, :base_pos);\n"
+			"END;\n",
+			FALSE, trx);
+
+	return(error);
+}
+
+/** Update INNODB SYS_COLUMNS on new virtual columns
+@param[in] table	InnoDB table
+@param[in] col_name	column name
+@param[in] vcol		virtual column
+@param[in] trx		transaction
+@return DB_SUCCESS if successful, otherwise error code */
+static
+dberr_t
+innobase_add_one_virtual(
+	const dict_table_t*	table,
+	const char*		col_name,
+	dict_v_col_t*		vcol,
+	trx_t*			trx)
+{
+	ulint		pos = dict_create_v_col_pos(vcol->v_pos,
+						    vcol->m_col.ind);
+	ulint		mtype =	vcol->m_col.mtype;
+	ulint		prtype = vcol->m_col.prtype;
+	ulint		len = vcol->m_col.len;
+	pars_info_t*    info = pars_info_create();
+
+	pars_info_add_ull_literal(info, "id", table->id);
+
+	pars_info_add_int4_literal(info, "pos", pos);
+
+	pars_info_add_str_literal(info, "name", col_name);
+	pars_info_add_int4_literal(info, "mtype", mtype);
+	pars_info_add_int4_literal(info, "prtype", prtype);
+	pars_info_add_int4_literal(info, "len", len);
+	pars_info_add_int4_literal(info, "prec", vcol->num_base);
+
+	dberr_t error = que_eval_sql(
+			info,
+			"PROCEDURE P () IS\n"
+			"BEGIN\n"
+			"INSERT INTO SYS_COLUMNS VALUES"
+			"(:id, :pos, :name, :mtype, :prtype, :len, :prec);\n"
+			"END;\n",
+			FALSE, trx);
+
+	if (error != DB_SUCCESS) {
+		return(error);
+	}
+
+	for (ulint i = 0; i < vcol->num_base; i++) {
+		error = innobase_insert_sys_virtual(
+			table, pos, vcol->base_col[i]->ind, trx);
+		if (error != DB_SUCCESS) {
+			return(error);
+		}
+	}
+
+	return(error);
+}
+
+/** Update INNODB SYS_TABLES on number of virtual columns
+@param[in] user_table	InnoDB table
+@param[in] n_col	number of columns
+@param[in] trx		transaction
+@return DB_SUCCESS if successful, otherwise error code */
+static
+dberr_t
+innobase_update_n_virtual(
+	const dict_table_t*	table,
+	ulint			n_col,
+	trx_t*			trx)
+{
+	dberr_t		err = DB_SUCCESS;
+	pars_info_t*    info = pars_info_create();
+
+	pars_info_add_int4_literal(info, "num_col", n_col);
+	pars_info_add_ull_literal(info, "id", table->id);
+
+        err = que_eval_sql(
+                info,
+                "PROCEDURE RENUMBER_TABLE_ID_PROC () IS\n"
+                "BEGIN\n"
+                "UPDATE SYS_TABLES"
+                " SET N_COLS = :num_col\n"
+                " WHERE ID = :id;\n"
+		"END;\n", FALSE, trx);
+
+	return(err);
+}
+
+/** Update system table for adding virtual column(s)
+@param[in]	ha_alter_info	Data used during in-place alter
+@param[in]	altered_table	MySQL table that is being altered
+@param[in]	table		MySQL table as it is before the ALTER operation
+@param[in]	user_table	InnoDB table
+@param[in]	trx		transaction
+@retval true Failure
+@retval false Success */
+static
+bool
+innobase_add_virtual_try(
+	Alter_inplace_info*	ha_alter_info,
+	const TABLE*		altered_table,
+	const TABLE*		table,
+	const dict_table_t*     user_table,
+	trx_t*			trx)
+{
+	ha_innobase_inplace_ctx*	ctx;
+	dberr_t				err = DB_SUCCESS;
+
+	ctx = static_cast<ha_innobase_inplace_ctx*>(
+		ha_alter_info->handler_ctx);
+
+	for (ulint i = 0; i < ctx->num_to_add_vcol; i++) {
+
+		err = innobase_add_one_virtual(
+			user_table, ctx->add_vcol_name[i],
+			&ctx->add_vcol[i], trx);
+
+		if (err != DB_SUCCESS) {
+			my_error(ER_INTERNAL_ERROR, MYF(0),
+				 "InnoDB: ADD COLUMN...VIRTUAL");
+			return(true);
+		}
+	}
+
+
+	ulint	n_col = user_table->n_cols;
+	ulint	n_v_col = user_table->n_v_cols;
+
+	n_v_col +=  ctx->num_to_add_vcol;
+
+	n_col -= dict_table_get_n_sys_cols(user_table);
+
+	n_v_col -= ctx->num_to_drop_vcol;
+
+	ulint	new_n = dict_table_encode_n_col(n_col, n_v_col)
+			+ ((user_table->flags & DICT_TF_COMPACT) << 31);
+
+	err = innobase_update_n_virtual(user_table, new_n, trx);
+
+	if (err != DB_SUCCESS) {
+		my_error(ER_INTERNAL_ERROR, MYF(0),
+			 "InnoDB: ADD COLUMN...VIRTUAL");
+		return(true);
+	}
+
+	return(false);
+}
+
+/** Update INNODB SYS_COLUMNS on new virtual column's position
+@param[in]	table	InnoDB table
+@param[in]	old_pos	old position
+@param[in]	new_pos	new position
+@param[in]	trx	transaction
+@return DB_SUCCESS if successful, otherwise error code */
+static
+dberr_t
+innobase_update_v_pos_sys_columns(
+	const dict_table_t*	table,
+	ulint			old_pos,
+	ulint			new_pos,
+	trx_t*			trx)
+{
+	pars_info_t*    info = pars_info_create();
+
+	pars_info_add_int4_literal(info, "pos", old_pos);
+	pars_info_add_int4_literal(info, "val", new_pos);
+	pars_info_add_ull_literal(info, "id", table->id);
+
+	dberr_t error = que_eval_sql(
+			info,
+			"PROCEDURE P () IS\n"
+			"BEGIN\n"
+			"UPDATE SYS_COLUMNS\n"
+			"SET POS = :val\n"
+			"WHERE POS = :pos\n"
+			"AND TABLE_ID = :id;\n"
+			"END;\n",
+			FALSE, trx);
+
+	return(error);
+}
+
+/** Update INNODB SYS_VIRTUAL table with new virtual column position
+@param[in]	table		InnoDB table
+@param[in]	old_pos		old position
+@param[in]	new_pos		new position
+@param[in]	trx		transaction
+@return DB_SUCCESS if successful, otherwise error code */
+static
+dberr_t
+innobase_update_v_pos_sys_virtual(
+	const dict_table_t*	table,
+	ulint			old_pos,
+	ulint			new_pos,
+	trx_t*			trx)
+{
+	pars_info_t*    info = pars_info_create();
+
+	pars_info_add_int4_literal(info, "pos", old_pos);
+	pars_info_add_int4_literal(info, "val", new_pos);
+	pars_info_add_ull_literal(info, "id", table->id);
+
+	dberr_t error = que_eval_sql(
+			info,
+			"PROCEDURE P () IS\n"
+			"BEGIN\n"
+			"UPDATE SYS_VIRTUAL\n"
+			"SET POS = :val\n"
+			"WHERE POS = :pos\n"
+			"AND TABLE_ID = :id;\n"
+			"END;\n",
+			FALSE, trx);
+
+	return(error);
+}
+
+/** Update InnoDB system tables on dropping a virtual column
+@param[in]	table		InnoDB table
+@param[in]	col_name	column name of the dropping column
+@param[in]	drop_col	col information for the dropping column
+@param[in]	n_prev_dropped	number of previously dropped columns in the
+				same alter clause
+@param[in]	trx		transaction
+@return DB_SUCCESS if successful, otherwise error code */
+static
+dberr_t
+innobase_drop_one_virtual_sys_columns(
+	const dict_table_t*	table,
+	const char*		col_name,
+	dict_col_t*		drop_col,
+	ulint			n_prev_dropped,
+	trx_t*			trx)
+{
+	pars_info_t*    info = pars_info_create();
+	pars_info_add_ull_literal(info, "id", table->id);
+
+	pars_info_add_str_literal(info, "name", col_name);
+
+	dberr_t error = que_eval_sql(
+			info,
+			"PROCEDURE P () IS\n"
+			"BEGIN\n"
+			"DELETE FROM SYS_COLUMNS\n"
+			"WHERE TABLE_ID = :id\n"
+			"AND NAME = :name;\n"
+			"END;\n",
+			FALSE, trx);
+
+	if (error != DB_SUCCESS) {
+		return(error);
+	}
+
+	dict_v_col_t*	v_col = dict_table_get_nth_v_col_mysql(
+				table, drop_col->ind);
+
+	/* Adjust column positions for all subsequent columns */
+	for (ulint i = v_col->v_pos + 1; i < table->n_v_cols; i++) {
+		dict_v_col_t*   t_col = dict_table_get_nth_v_col(table, i);
+		ulint		old_p = dict_create_v_col_pos(
+					t_col->v_pos - n_prev_dropped,
+					t_col->m_col.ind - n_prev_dropped);
+		ulint		new_p = dict_create_v_col_pos(
+					t_col->v_pos - 1 - n_prev_dropped,
+					t_col->m_col.ind - 1 - n_prev_dropped);
+
+		error = innobase_update_v_pos_sys_columns(
+			table, old_p, new_p, trx);
+		if (error != DB_SUCCESS) {
+			return(error);
+		}
+		error = innobase_update_v_pos_sys_virtual(
+			table, old_p, new_p, trx);
+		if (error != DB_SUCCESS) {
+			return(error);
+		}
+	}
+
+	return(error);
+}
+
+/** Delete virtual column's info from INNODB SYS_VIRTUAL
+@param[in]	table	InnoDB table
+@param[in]	pos	position of the virtual column to be deleted
+@param[in]	trx	transaction
+@return DB_SUCCESS if successful, otherwise error code */
+static
+dberr_t
+innobase_drop_one_virtual_sys_virtual(
+	const dict_table_t*	table,
+	ulint			pos,
+	trx_t*			trx)
+{
+	pars_info_t*    info = pars_info_create();
+	pars_info_add_ull_literal(info, "id", table->id);
+
+	pars_info_add_int4_literal(info, "pos", pos);
+
+	dberr_t error = que_eval_sql(
+			info,
+			"PROCEDURE P () IS\n"
+			"BEGIN\n"
+			"DELETE FROM SYS_VIRTUAL\n"
+			"WHERE TABLE_ID = :id\n"
+			"AND POS = :pos;\n"
+			"END;\n",
+			FALSE, trx);
+
+	return(error);
+}
+
+/** Update system table for dropping virtual column(s)
+@param[in]	ha_alter_info	Data used during in-place alter
+@param[in]	altered_table	MySQL table that is being altered
+@param[in]	table		MySQL table as it is before the ALTER operation
+@param[in]	user_table	InnoDB table
+@param[in]	trx		transaction
+@retval true Failure
+@retval false Success */
+static
+bool
+innobase_drop_virtual_try(
+	Alter_inplace_info*	ha_alter_info,
+	const TABLE*		altered_table,
+	const TABLE*		table,
+	const dict_table_t*     user_table,
+	trx_t*			trx)
+{
+	ha_innobase_inplace_ctx*	ctx;
+	dberr_t				err = DB_SUCCESS;
+
+	ctx = static_cast<ha_innobase_inplace_ctx*>
+		(ha_alter_info->handler_ctx);
+
+	for (ulint i = 0; i < ctx->num_to_drop_vcol; i++) {
+
+		ulint	pos = dict_create_v_col_pos(
+			ctx->drop_vcol[i].v_pos - i,
+			ctx->drop_vcol[i].m_col.ind - i);
+		err = innobase_drop_one_virtual_sys_virtual(
+			user_table, pos, trx);
+
+		if (err != DB_SUCCESS) {
+			my_error(ER_INTERNAL_ERROR, MYF(0),
+				 "InnoDB: DROP COLUMN...VIRTUAL");
+			return(true);
+		}
+
+		err = innobase_drop_one_virtual_sys_columns(
+			user_table, ctx->drop_vcol_name[i],
+			&(ctx->drop_vcol[i].m_col), i, trx);
+
+		if (err != DB_SUCCESS) {
+			my_error(ER_INTERNAL_ERROR, MYF(0),
+				 "InnoDB: DROP COLUMN...VIRTUAL");
+			return(true);
+		}
+	}
+
+
+	ulint	n_col = user_table->n_cols;
+	ulint	n_v_col = user_table->n_v_cols;
+
+	n_v_col -=  ctx->num_to_drop_vcol;
+
+	n_col -= dict_table_get_n_sys_cols(user_table);
+
+	ulint	new_n = dict_table_encode_n_col(n_col, n_v_col)
+			+ ((user_table->flags & DICT_TF_COMPACT) << 31);
+
+	err = innobase_update_n_virtual(user_table, new_n, trx);
+
+	if (err != DB_SUCCESS) {
+		my_error(ER_INTERNAL_ERROR, MYF(0),
+			 "InnoDB: DROP COLUMN...VIRTUAL");
+	}
+
+	return(false);
 }
 
 /** Update internal structures with concurrent writes blocked,
@@ -2933,6 +3982,7 @@ prepare_inplace_alter_table_dict(
 	ulint			new_clustered	= 0;
 	dberr_t			error;
 	ulint			num_fts_index;
+	dict_add_v_col_t*	add_v = NULL;
 	ha_innobase_inplace_ctx*ctx;
 
 	DBUG_ENTER("prepare_inplace_alter_table_dict");
@@ -2955,6 +4005,37 @@ prepare_inplace_alter_table_dict(
 	user_table = ctx->new_table;
 
 	trx_start_if_not_started_xa(ctx->prebuilt->trx, true);
+
+	if (ha_alter_info->handler_flags
+	    & Alter_inplace_info::DROP_VIRTUAL_COLUMN) {
+		if (prepare_inplace_drop_virtual(
+			    ha_alter_info, altered_table, old_table)) {
+			DBUG_RETURN(true);
+		}
+	}
+
+	if (ha_alter_info->handler_flags
+	    & Alter_inplace_info::ADD_VIRTUAL_COLUMN) {
+		if (prepare_inplace_add_virtual(
+			    ha_alter_info, altered_table, old_table)) {
+			DBUG_RETURN(true);
+		}
+
+		/* Need information for newly added virtual columns
+		for create index */
+		if (ha_alter_info->handler_flags
+		    & Alter_inplace_info::ADD_INDEX) {
+			add_v = static_cast<dict_add_v_col_t*>(
+				mem_heap_alloc(ctx->heap, sizeof *add_v));
+			add_v->n_v_col = ctx->num_to_add_vcol;
+			add_v->v_col = ctx->add_vcol;
+			add_v->v_col_name = ctx->add_vcol_name;
+		}
+	}
+
+	/* There should be no order change for virtual columns coming in
+	here */
+	ut_ad(check_v_col_in_order(old_table, altered_table, ha_alter_info));
 
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */
@@ -3061,9 +4142,11 @@ prepare_inplace_alter_table_dict(
 				ctx->heap,
 				ctx->new_table->name.m_name,
 				ctx->new_table->id);
-		ulint		n_cols;
+		ulint		n_cols = 0;
+		ulint		n_v_cols = 0;
 		dtuple_t*	add_cols;
 		ulint		space_id = 0;
+		ulint		z = 0;
 
 		if (innobase_check_foreigns(
 			    ha_alter_info, altered_table, old_table,
@@ -3071,7 +4154,17 @@ prepare_inplace_alter_table_dict(
 			goto new_clustered_failed;
 		}
 
-		n_cols = altered_table->s->fields;
+		for (uint i = 0; i < altered_table->s->fields; i++) {
+			const Field*	field = altered_table->field[i];
+
+			if (innobase_is_v_fld(field)) {
+				n_v_cols++;
+			} else {
+				n_cols++;
+			}
+		}
+
+		ut_ad(n_cols + n_v_cols == altered_table->s->fields);
 
 		if (add_fts_doc_id) {
 			n_cols++;
@@ -3109,7 +4202,8 @@ prepare_inplace_alter_table_dict(
 		/* The initial space id 0 may be overridden later if this
 		table is going to be a file_per_table tablespace. */
 		ctx->new_table = dict_mem_table_create(
-			new_table_name, space_id, n_cols, flags, flags2);
+			new_table_name, space_id, n_cols + n_v_cols, n_v_cols,
+			flags, flags2);
 		/* The rebuilt indexed_table will use the renamed
 		column names. */
 		ctx->col_names = NULL;
@@ -3130,6 +4224,7 @@ prepare_inplace_alter_table_dict(
 					&is_unsigned, field);
 			ulint		charset_no;
 			ulint		col_len;
+			bool		is_virtual = innobase_is_v_fld(field);
 
 			/* we assume in dtype_form_prtype() that this
 			fits in two bytes */
@@ -3195,18 +4290,48 @@ prepare_inplace_alter_table_dict(
 				goto new_clustered_failed;
 			}
 
-			dict_mem_table_add_col(
-				ctx->new_table, ctx->heap,
-				field->field_name,
-				col_type,
-				dtype_form_prtype(field_type, charset_no),
-				col_len);
+			if (is_virtual) {
+				dict_mem_table_add_v_col(
+					ctx->new_table, ctx->heap,
+					field->field_name,
+					col_type,
+					dtype_form_prtype(
+						field_type, charset_no)
+					| DATA_VIRTUAL,
+					col_len, i,
+					field->gcol_info->non_virtual_base_columns());
+			} else {
+				dict_mem_table_add_col(
+					ctx->new_table, ctx->heap,
+					field->field_name,
+					col_type,
+					dtype_form_prtype(
+						field_type, charset_no),
+					col_len);
+			}
+		}
+
+		if (n_v_cols) {
+			for (uint i = 0; i < altered_table->s->fields; i++) {
+				dict_v_col_t*	v_col;
+				const Field*	field = altered_table->field[i];
+
+				if (!innobase_is_v_fld(field)) {
+					continue;
+				}
+				v_col = dict_table_get_nth_v_col(
+					ctx->new_table, z);
+				z++;
+				innodb_base_col_setup(
+					ctx->new_table, field, v_col);
+			}
 		}
 
 		if (add_fts_doc_id) {
 			fts_add_doc_id_column(ctx->new_table, ctx->heap);
 			ctx->new_table->fts->doc_col = fts_doc_id_col;
-			ut_ad(fts_doc_id_col == altered_table->s->fields);
+			ut_ad(fts_doc_id_col
+			      == altered_table->s->fields - n_v_cols);
 		} else if (ctx->new_table->fts) {
 			ctx->new_table->fts->doc_col = fts_doc_id_col;
 		}
@@ -3267,7 +4392,7 @@ prepare_inplace_alter_table_dict(
 			goto new_clustered_failed;
 		default:
 			my_error_innodb(error, table_name, flags);
-		new_clustered_failed:
+new_clustered_failed:
 			DBUG_ASSERT(ctx->trx != ctx->prebuilt->trx);
 			trx_rollback_to_savepoint(ctx->trx, NULL);
 
@@ -3280,9 +4405,10 @@ prepare_inplace_alter_table_dict(
 
 		if (ha_alter_info->handler_flags
 		    & Alter_inplace_info::ADD_COLUMN) {
-			add_cols = dtuple_create(
+			add_cols = dtuple_create_with_vcol(
 				ctx->heap,
-				dict_table_get_n_cols(ctx->new_table));
+				dict_table_get_n_cols(ctx->new_table),
+				dict_table_get_n_v_cols(ctx->new_table));
 
 			dict_table_copy_types(add_cols, ctx->new_table);
 		} else {
@@ -3339,7 +4465,7 @@ prepare_inplace_alter_table_dict(
 
 		ctx->add_index[a] = row_merge_create_index(
 			ctx->trx, ctx->new_table,
-			&index_defs[a]);
+			&index_defs[a], add_v);
 
 		add_key_nums[a] = index_defs[a].key_number;
 
@@ -3404,6 +4530,9 @@ prepare_inplace_alter_table_dict(
 		ctx->skip_pk_sort = innobase_pk_order_preserved(
 			ctx->col_map, clust_index, new_clust_index);
 
+		DBUG_EXECUTE_IF("innodb_alter_table_pk_assert_no_sort",
+			DBUG_ASSERT(ctx->skip_pk_sort););
+
 		if (ctx->online) {
 			/* Allocate a log for online table rebuild. */
 			rw_lock_x_lock(&clust_index->lock);
@@ -3445,9 +4574,7 @@ op_ok:
 #endif /* UNIV_DEBUG */
 		ut_ad(ctx->trx->dict_operation_lock_mode == RW_X_LATCH);
 		ut_ad(mutex_own(&dict_sys->mutex));
-#ifdef UNIV_SYNC_DEBUG
-		ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
+		ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
 		DICT_TF2_FLAG_SET(ctx->new_table, DICT_TF2_FTS);
 		if (new_clustered) {
@@ -3734,9 +4861,7 @@ rename_index_in_data_dictionary(
 	DBUG_ENTER("rename_index_in_data_dictionary");
 
 	ut_ad(mutex_own(&dict_sys->mutex));
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 
 	pars_info_t*	pinfo;
@@ -3840,9 +4965,7 @@ rename_index_in_cache(
 	DBUG_ENTER("rename_index_in_cache");
 
 	ut_ad(mutex_own(&dict_sys->mutex));
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
 	size_t	old_name_len = strlen(index->name);
 	size_t	new_name_len = strlen(new_name);
@@ -4095,7 +5218,9 @@ check_if_ok_to_rename:
 			MySQL should have checked these already.
 			We want to allow renaming of c1 to c2, c2 to c1. */
 			for (j = 0; j < table->s->fields; j++) {
-				s += strlen(s) + 1;
+				if (!innobase_is_v_fld(table->field[j])) {
+					s += strlen(s) + 1;
+				}
 			}
 
 			for (; j < m_prebuilt->table->n_def; j++) {
@@ -4257,6 +5382,7 @@ found_fk:
 		}
 
 		DBUG_ASSERT(n_drop_fk > 0);
+
 		DBUG_ASSERT(n_drop_fk
 			    == ha_alter_info->alter_info->drop_list.elements);
 	} else {
@@ -4466,14 +5592,14 @@ err_exit:
 		if (heap) {
 			ha_alter_info->handler_ctx
 				= new ha_innobase_inplace_ctx(
-					m_prebuilt,
+					(*m_prebuilt_ptr),
 					drop_index, n_drop_index,
 					rename_index, n_rename_index,
 					drop_fk, n_drop_fk,
 					add_fk, n_add_fk,
 					ha_alter_info->online,
 					heap, indexed_table,
-					col_names, ULINT_UNDEFINED, 0, 0);
+					col_names, ULINT_UNDEFINED, 0, 0, 0);
 		}
 
 		DBUG_ASSERT(m_prebuilt->trx->dict_operation_lock_mode == 0);
@@ -4483,6 +5609,21 @@ err_exit:
 				m_prebuilt->table, m_user_thd);
 
 		}
+
+		if ((ha_alter_info->handler_flags
+		     & Alter_inplace_info::DROP_VIRTUAL_COLUMN)
+		    && prepare_inplace_drop_virtual(
+			    ha_alter_info, altered_table, table)) {
+			DBUG_RETURN(true);
+		}
+
+		if ((ha_alter_info->handler_flags
+		     & Alter_inplace_info::ADD_VIRTUAL_COLUMN)
+		    && prepare_inplace_add_virtual(
+			    ha_alter_info, altered_table, table)) {
+			DBUG_RETURN(true);
+		}
+
 		DBUG_RETURN(false);
 	}
 
@@ -4491,12 +5632,13 @@ err_exit:
 	add a Doc ID hidden column and rebuild the primary index */
 	if (innobase_fulltext_exist(altered_table)) {
 		ulint	doc_col_no;
+		ulint	num_v = 0;
 
 		if (!innobase_fts_check_doc_id_col(
 			    m_prebuilt->table,
-			    altered_table, &fts_doc_col_no)) {
+			    altered_table, &fts_doc_col_no, &num_v)) {
 
-			fts_doc_col_no = altered_table->s->fields;
+			fts_doc_col_no = altered_table->s->fields - num_v;
 			add_fts_doc_id = true;
 			add_fts_doc_id_idx = true;
 
@@ -4521,12 +5663,13 @@ err_exit:
 				 FTS_DOC_ID_INDEX_NAME);
 			goto err_exit;
 		case FTS_EXIST_DOC_ID_INDEX:
-			DBUG_ASSERT(doc_col_no == fts_doc_col_no
-				    || doc_col_no == ULINT_UNDEFINED
-				    || (ha_alter_info->handler_flags
-					& (Alter_inplace_info::ALTER_COLUMN_ORDER
-					   | Alter_inplace_info::DROP_COLUMN
-					   | Alter_inplace_info::ADD_COLUMN)));
+			DBUG_ASSERT(
+				doc_col_no == fts_doc_col_no
+				|| doc_col_no == ULINT_UNDEFINED
+				|| (ha_alter_info->handler_flags
+				    & (Alter_inplace_info::ALTER_STORED_COLUMN_ORDER
+				       | Alter_inplace_info::DROP_STORED_COLUMN
+				       | Alter_inplace_info::ADD_STORED_COLUMN)));
 		}
 	}
 
@@ -4577,7 +5720,7 @@ found_col:
 	DBUG_ASSERT(!ha_alter_info->handler_ctx);
 
 	ha_alter_info->handler_ctx = new ha_innobase_inplace_ctx(
-		m_prebuilt,
+		(*m_prebuilt_ptr),
 		drop_index, n_drop_index,
 		rename_index, n_rename_index,
 		drop_fk, n_drop_fk, add_fk, n_add_fk,
@@ -4585,7 +5728,7 @@ found_col:
 		heap, m_prebuilt->table, col_names,
 		add_autoinc_col_no,
 		ha_alter_info->create_info->auto_increment_value,
-		autoinc_col_max_value);
+		autoinc_col_max_value, 0);
 
 	DBUG_RETURN(prepare_inplace_alter_table_dict(
 			    ha_alter_info, altered_table, table,
@@ -4614,15 +5757,17 @@ ha_innobase::inplace_alter_table(
 	TABLE*			altered_table,
 	Alter_inplace_info*	ha_alter_info)
 {
-	dberr_t	error;
+	dberr_t			error;
+	dict_add_v_col_t*	add_v = NULL;
+	innodb_col_templ_t*	s_templ = NULL;
+	innodb_col_templ_t*	old_templ = NULL;
+
 
 	DBUG_ENTER("inplace_alter_table");
 	DBUG_ASSERT(!srv_read_only_mode);
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_S));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(!rw_lock_own(dict_operation_lock, RW_LOCK_X));
+	ut_ad(!rw_lock_own(dict_operation_lock, RW_LOCK_S));
 
 	DEBUG_SYNC(m_user_thd, "innodb_inplace_alter_table_enter");
 
@@ -4660,6 +5805,42 @@ ok_exit:
 		goto all_done;
 	}
 
+	/* If we are doing a table rebuilding or having added virtual
+	columns in the same clause, we will need to build a table template
+	that carries translation information between MySQL TABLE and InnoDB
+	table, which indicates the virtual columns and their base columns
+	info. This is used to do the computation callback, so that the
+	data in base columns can be extracted send to server */
+	if (ctx->need_rebuild() && ctx->new_table->n_v_cols) {
+		s_templ = static_cast<innodb_col_templ_t*>(
+			mem_heap_alloc(ctx->heap, sizeof *s_templ));
+		s_templ->vtempl = NULL;
+
+		innobase_build_v_templ(
+			altered_table, ctx->new_table, s_templ,
+			NULL, false, NULL);
+
+		ctx->new_table->vc_templ = s_templ;
+	} else if (ctx->num_to_add_vcol) {
+		ut_ad(!ctx->online);
+		s_templ = static_cast<innodb_col_templ_t*>(
+				mem_heap_alloc(ctx->heap, sizeof *s_templ));
+
+		add_v = static_cast<dict_add_v_col_t*>(
+			mem_heap_alloc(ctx->heap, sizeof *add_v));
+		add_v->n_v_col = ctx->num_to_add_vcol;
+		add_v->v_col = ctx->add_vcol;
+		add_v->v_col_name = ctx->add_vcol_name;
+
+		s_templ->vtempl = NULL;
+
+		innobase_build_v_templ(
+			altered_table, ctx->new_table, s_templ,
+			add_v, false, NULL);
+		old_templ = ctx->new_table->vc_templ;
+		ctx->new_table->vc_templ = s_templ;
+	}
+
 	/* Read the clustered index of the table and build
 	indexes based on this information using temporary
 	files and merge sort. */
@@ -4672,7 +5853,16 @@ ok_exit:
 		ctx->add_index, ctx->add_key_numbers, ctx->num_to_add_index,
 		altered_table, ctx->add_cols, ctx->col_map,
 		ctx->add_autoinc, ctx->sequence, ctx->skip_pk_sort,
-		ctx->m_stage);
+		ctx->m_stage, add_v);
+
+	if (s_templ) {
+		ut_ad(ctx->need_rebuild() || ctx->new_table->n_v_cols);
+		free_vc_templ(s_templ);
+
+		if (old_templ) {
+			ctx->new_table->vc_templ = old_templ;
+		}
+	}
 
 #ifndef DBUG_OFF
 oom:
@@ -4760,9 +5950,7 @@ innobase_online_rebuild_log_free(
 	dict_index_t* clust_index = dict_table_get_first_index(table);
 
 	ut_ad(mutex_own(&dict_sys->mutex));
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
 	rw_lock_x_lock(&clust_index->lock);
 
@@ -4952,9 +6140,7 @@ innobase_drop_foreign_try(
 	DBUG_ASSERT(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(mutex_own(&dict_sys->mutex));
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
 	/* Drop the constraint from the data dictionary. */
 	static const char sql[] =
@@ -4987,26 +6173,27 @@ innobase_drop_foreign_try(
 }
 
 /** Rename a column in the data dictionary tables.
-@param user_table InnoDB table that was being altered
-@param trx data dictionary transaction
-@param table_name Table name in MySQL
-@param nth_col 0-based index of the column
-@param from old column name
-@param to new column name
-@param new_clustered whether the table has been rebuilt
+@param[in] user_table	InnoDB table that was being altered
+@param[in] trx		data dictionary transaction
+@param[in] table_name	Table name in MySQL
+@param[in] nth_col	0-based index of the column
+@param[in] from		old column name
+@param[in] to		new column name
+@param[in] new_clustered whether the table has been rebuilt
+@param[in] is_virtual	whether it is a virtual column
 @retval true Failure
 @retval false Success */
 static __attribute__((nonnull, warn_unused_result))
 bool
 innobase_rename_column_try(
-/*=======================*/
 	const dict_table_t*	user_table,
 	trx_t*			trx,
 	const char*		table_name,
 	ulint			nth_col,
 	const char*		from,
 	const char*		to,
-	bool			new_clustered)
+	bool			new_clustered,
+	bool			is_virtual)
 {
 	pars_info_t*	info;
 	dberr_t		error;
@@ -5016,9 +6203,7 @@ innobase_rename_column_try(
 	DBUG_ASSERT(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(mutex_own(&dict_sys->mutex));
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
 	if (new_clustered) {
 		goto rename_foreign;
@@ -5217,25 +6402,35 @@ innobase_rename_columns_try(
 {
 	List_iterator_fast<Create_field> cf_it(
 		ha_alter_info->alter_info->create_list);
-	uint i = 0;
+	uint	i = 0;
+	ulint	num_v = 0;
 
 	DBUG_ASSERT(ctx);
 	DBUG_ASSERT(ha_alter_info->handler_flags
 		    & Alter_inplace_info::ALTER_COLUMN_NAME);
 
 	for (Field** fp = table->field; *fp; fp++, i++) {
+		bool	is_virtual = innobase_is_v_fld(*fp);
+
 		if (!((*fp)->flags & FIELD_IS_RENAMED)) {
-			continue;
+			goto processed_field;
 		}
 
 		cf_it.rewind();
 		while (Create_field* cf = cf_it++) {
 			if (cf->field == *fp) {
+				ulint	col_n = is_virtual
+						? dict_create_v_col_pos(
+							num_v, i)
+						: i - num_v;
+
 				if (innobase_rename_column_try(
-					    ctx->old_table, trx, table_name, i,
+					    ctx->old_table, trx, table_name,
+					    col_n,
 					    cf->field->field_name,
 					    cf->field_name,
-					    ctx->need_rebuild())) {
+					    ctx->need_rebuild(),
+					    is_virtual)) {
 					return(true);
 				}
 				goto processed_field;
@@ -5244,6 +6439,10 @@ innobase_rename_columns_try(
 
 		ut_error;
 processed_field:
+		if (is_virtual) {
+			num_v++;
+		}
+
 		continue;
 	}
 
@@ -5276,9 +6475,7 @@ innobase_enlarge_column_try(
 	DBUG_ASSERT(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(mutex_own(&dict_sys->mutex));
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 	ut_ad(dict_table_get_nth_col(user_table, nth_col)->len < new_len);
 #ifdef UNIV_DEBUG
 	switch (dict_table_get_nth_col(user_table, nth_col)->mtype) {
@@ -5392,27 +6589,44 @@ innobase_rename_or_enlarge_columns_cache(
 
 	List_iterator_fast<Create_field> cf_it(
 		ha_alter_info->alter_info->create_list);
-	uint i = 0;
+	uint	i = 0;
+	ulint	num_v = 0;
 
 	for (Field** fp = table->field; *fp; fp++, i++) {
+		bool	is_virtual = innobase_is_v_fld(*fp);
+
 		cf_it.rewind();
 		while (Create_field* cf = cf_it++) {
 			if (cf->field != *fp) {
 				continue;
 			}
 
+			ulint	col_n = is_virtual ? num_v : i - num_v;
+
 			if ((*fp)->is_equal(cf) == IS_EQUAL_PACK_LENGTH) {
-				dict_table_get_nth_col(
-					user_table, i)->len = cf->length;
+				if (is_virtual) {
+					dict_table_get_nth_v_col(
+						user_table, col_n)->m_col.len
+					= cf->length;
+				} else {
+					dict_table_get_nth_col(
+						user_table, col_n)->len
+					= cf->length;
+				}
 			}
 
 			if ((*fp)->flags & FIELD_IS_RENAMED) {
 				dict_mem_table_col_rename(
-					user_table, i,
-					cf->field->field_name, cf->field_name);
+					user_table, col_n,
+					cf->field->field_name,
+					cf->field_name, is_virtual);
 			}
 
 			break;
+		}
+
+		if (is_virtual) {
+			num_v++;
 		}
 	}
 }
@@ -5721,8 +6935,6 @@ commit_try_rebuild(
 	DBUG_ASSERT(!(ha_alter_info->handler_flags
 		      & Alter_inplace_info::DROP_FOREIGN_KEY)
 		    || ctx->num_to_drop_fk > 0);
-	DBUG_ASSERT(ctx->num_to_drop_fk
-		    == ha_alter_info->alter_info->drop_list.elements);
 
 	for (dict_index_t* index = dict_table_get_first_index(rebuilt_table);
 	     index;
@@ -5875,6 +7087,7 @@ commit_cache_rebuild(
 	dberr_t		error;
 
 	DBUG_ENTER("commit_cache_rebuild");
+	DEBUG_SYNC_C("commit_cache_rebuild");
 	DBUG_ASSERT(ctx->need_rebuild());
 	DBUG_ASSERT(dict_table_is_discarded(ctx->old_table)
 		    == dict_table_is_discarded(ctx->new_table));
@@ -5912,6 +7125,7 @@ commit_try_norebuild(
 /*=================*/
 	Alter_inplace_info*	ha_alter_info,
 	ha_innobase_inplace_ctx*ctx,
+	TABLE*			altered_table,
 	const TABLE*		old_table,
 	trx_t*			trx,
 	const char*		table_name)
@@ -5923,7 +7137,9 @@ commit_try_norebuild(
 		      & Alter_inplace_info::DROP_FOREIGN_KEY)
 		    || ctx->num_to_drop_fk > 0);
 	DBUG_ASSERT(ctx->num_to_drop_fk
-		    == ha_alter_info->alter_info->drop_list.elements);
+		    == ha_alter_info->alter_info->drop_list.elements
+		    || ctx->num_to_drop_vcol
+		       == ha_alter_info->alter_info->drop_list.elements);
 
 	for (ulint i = 0; i < ctx->num_to_add_index; i++) {
 		dict_index_t*	index = ctx->add_index[i];
@@ -6024,6 +7240,22 @@ commit_try_norebuild(
 	if ((ha_alter_info->handler_flags
 	     & Alter_inplace_info::RENAME_INDEX)
 	    && rename_indexes_in_data_dictionary(ctx, ha_alter_info, trx)) {
+		DBUG_RETURN(true);
+	}
+
+	if ((ha_alter_info->handler_flags
+	     & Alter_inplace_info::DROP_VIRTUAL_COLUMN)
+	    && innobase_drop_virtual_try(
+		    ha_alter_info, altered_table, old_table,
+		    ctx->old_table, trx)) {
+		DBUG_RETURN(true);
+	}
+
+	if ((ha_alter_info->handler_flags
+	     & Alter_inplace_info::ADD_VIRTUAL_COLUMN)
+	    && innobase_add_virtual_try(
+		    ha_alter_info, altered_table, old_table,
+		    ctx->old_table, trx)) {
 		DBUG_RETURN(true);
 	}
 
@@ -6497,7 +7729,7 @@ ha_innobase::commit_inplace_alter_table(
 				trx, table_share->table_name.str);
 		} else {
 			fail = commit_try_norebuild(
-				ha_alter_info, ctx, table, trx,
+				ha_alter_info, ctx, altered_table, table, trx,
 				table_share->table_name.str);
 		}
 		DBUG_INJECT_CRASH("ib_commit_inplace_crash",
@@ -6749,6 +7981,29 @@ foreign_fail:
 		DBUG_RETURN(true);
 	}
 
+	if (ctx0->num_to_drop_vcol || ctx0->num_to_add_vcol) {
+
+		trx_commit_for_mysql(m_prebuilt->trx);
+
+		if (btr_search_enabled) {
+			btr_search_disable(false);
+			btr_search_enable();
+		}
+
+		char	tb_name[FN_REFLEN];
+		ut_strcpy(tb_name, m_prebuilt->table->name.m_name);
+
+		tb_name[strlen(m_prebuilt->table->name.m_name)] = 0;
+
+		dict_table_close(m_prebuilt->table, true, false);
+		dict_table_remove_from_cache(m_prebuilt->table);
+		m_prebuilt->table = dict_table_open_on_name(
+			tb_name, TRUE, TRUE, DICT_ERR_IGNORE_NONE);
+		row_mysql_unlock_data_dictionary(trx);
+		trx_free_for_mysql(trx);
+		MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
+		DBUG_RETURN(false);
+	}
 	/* Release the table locks. */
 	trx_commit_for_mysql(m_prebuilt->trx);
 
@@ -6847,6 +8102,12 @@ foreign_fail:
 
 			row_prebuilt_free(ctx->prebuilt, TRUE);
 
+			if (ctx->new_table->n_v_cols
+			    && ctx->old_table->vc_templ) {
+				refresh_share_vtempl(
+					altered_table, ctx->new_table,
+					ctx->old_table->vc_templ->share_name);
+			}
 			/* Drop the copy of the old table, which was
 			renamed to ctx->tmp_name at the atomic DDL
 			transaction commit.  If the system crashes
@@ -6930,7 +8191,6 @@ foreign_fail:
 		DBUG_ASSERT(!index->to_be_dropped);
 	}
 #endif /* DBUG_OFF */
-
 	MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
 	DBUG_RETURN(false);
 }
@@ -7022,7 +8282,7 @@ ha_innopart::check_if_supported_inplace_alter(
 	}
 	/* We cannot allow INPLACE to change order of KEY partitioning fields! */
 	if ((ha_alter_info->handler_flags
-	     & Alter_inplace_info::ALTER_COLUMN_ORDER)
+	     & Alter_inplace_info::ALTER_STORED_COLUMN_ORDER)
 	    && !m_part_info->same_key_column_order(
 				&ha_alter_info->alter_info->create_list)) {
 
@@ -7129,6 +8389,7 @@ ha_innopart::prepare_inplace_alter_table(
 
 	for (uint i = 0; i < m_tot_parts; i++) {
 		m_prebuilt = ctx_parts->prebuilt_array[i];
+		m_prebuilt_ptr = ctx_parts->prebuilt_array + i;
 		ha_alter_info->handler_ctx = ctx_parts->ctx_array[i];
 		set_partition(i);
 		res = ha_innobase::prepare_inplace_alter_table(altered_table,
@@ -7140,6 +8401,7 @@ ha_innopart::prepare_inplace_alter_table(
 		}
 	}
 	m_prebuilt = ctx_parts->prebuilt_array[0];
+	m_prebuilt_ptr = &m_prebuilt;
 	ha_alter_info->handler_ctx = ctx_parts;
 	ha_alter_info->group_commit_ctx = ctx_parts->ctx_array;
 	DBUG_RETURN(res);
@@ -7256,6 +8518,25 @@ end:
 	return(res);
 }
 
+/** Notify the storage engine that the table structure (.frm) has
+been updated.
+
+ha_partition allows inplace operations that also upgrades the engine
+if it supports partitioning natively. So if this is the case then
+we will remove the .par file since it is not used with ha_innopart
+(we use the internal data dictionary instead). */
+void
+ha_innopart::notify_table_changed()
+{
+	char	tmp_par_path[FN_REFLEN + 1];
+	strxnmov(tmp_par_path, FN_REFLEN, table->s->normalized_path.str,
+		".par", NullS);
+
+	if (my_access(tmp_par_path, W_OK) == 0)
+	{
+		my_delete(tmp_par_path, MYF(0));
+	}
+}
 
 /**
 @param thd the session

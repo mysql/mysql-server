@@ -1899,3 +1899,29 @@ HANDLER t1 READ ab LAST;
 HANDLER t1 READ b PREV;
 HANDLER t1 CLOSE;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#21650603 ASSERT `0' FAILED AT THD::SEND_STATEMENT_STATUS() ON
+--echo #              HANDLER READ + INVALID DATE
+--echo #
+CREATE TABLE t (
+  col_date DATE
+  , col_datetime DATETIME
+  , col_time TIME
+  , col_year YEAR
+  , KEY col_date_key (col_date)
+  , KEY col_datetime_key (col_datetime)
+  , KEY col_year_key (col_year));
+
+HANDLER t OPEN;
+
+--error ER_WRONG_ARGUMENTS
+HANDLER t READ col_date_key <= ('p');
+
+--error ER_WRONG_ARGUMENTS
+HANDLER t READ col_datetime_key <= ('p');
+
+--error ER_WRONG_ARGUMENTS
+HANDLER t READ col_year_key <= ('p');
+
+DROP TABLE t;

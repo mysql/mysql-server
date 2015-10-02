@@ -846,7 +846,7 @@ call populate_t1();
 select count(*) from t1;
 count(*)
 200
-set session debug = "+d,ib_trunc_crash_before_log_checkpoint";
+set session debug = "+d,ib_trunc_crash_before_log_removal";
 truncate table t1;
 ERROR HY000: Lost connection to MySQL server during query
 # Restart the MySQL server
@@ -871,7 +871,7 @@ call populate_t1();
 select count(*) from t1;
 count(*)
 200
-set session debug = "+d,ib_trunc_crash_before_log_checkpoint";
+set session debug = "+d,ib_trunc_crash_before_log_removal";
 truncate table t1;
 ERROR HY000: Lost connection to MySQL server during query
 # Restart the MySQL server
@@ -912,7 +912,7 @@ select count(*) from t1;
 count(*)
 200
 SET sql_mode = default;
-set session debug = "+d,ib_trunc_crash_before_log_checkpoint";
+set session debug = "+d,ib_trunc_crash_before_log_removal";
 truncate table t1;
 ERROR HY000: Lost connection to MySQL server during query
 # Restart the MySQL server
@@ -943,7 +943,7 @@ commit;
 select count(*) from t1;
 count(*)
 200
-set session debug = "+d,ib_trunc_crash_before_log_checkpoint";
+set session debug = "+d,ib_trunc_crash_before_log_removal";
 truncate table t1;
 ERROR HY000: Lost connection to MySQL server during query
 # Restart the MySQL server
@@ -1157,4 +1157,144 @@ i
 set DEBUG_SYNC='RESET';
 drop table t1;
 drop table t2;
+use test;
+set global innodb_file_per_table = 1;
+create table t1 (a int, b char(100), c char(100)) engine = innodb;
+create procedure populate_t1()
+begin
+declare i int default 1;
+while (i <= 2000) DO
+insert into t1 values (i, 'a', 'b');
+set i = i + 1;
+end while;
+end|
+begin;
+call populate_t1();
+commit;
+set session debug="+d,ib_trunc_crash_after_truncate_done";
+begin;
+update t1 set a = a + 1000;
+commit;
+truncate table t1;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the MySQL server
+select count(*) from t1;
+count(*)
+0
+drop procedure populate_t1;
+drop table t1;
+use test;
+set global innodb_file_per_table = 1;
+create table t1 (a int, b char(100), c char(100)) engine = innodb;
+create table t2 (a int, b char(100), c char(100)) engine = innodb;
+create table t3 (a int, b char(100), c char(100)) engine = innodb;
+create procedure populate_t1()
+begin
+declare i int default 1;
+while (i <= 2000) DO
+insert into t1 values (i, 'a', 'b');
+set i = i + 1;
+end while;
+end|
+create procedure populate_t2()
+begin
+declare i int default 1;
+while (i <= 2000) DO
+insert into t2 values (i, 'a', 'b');
+set i = i + 1;
+end while;
+end|
+create procedure populate_t3()
+begin
+declare i int default 1;
+while (i <= 2000) DO
+insert into t3 values (i, 'a', 'b');
+set i = i + 1;
+end while;
+end|
+begin;
+call populate_t1();
+call populate_t2();
+call populate_t3();
+commit;
+select count(*) from t1;
+count(*)
+2000
+truncate table t1;
+select count(*) from t1;
+count(*)
+0
+select count(*) from t2;
+count(*)
+2000
+truncate table t2;
+select count(*) from t2;
+count(*)
+0
+select count(*) from t3;
+count(*)
+2000
+set session debug="+d,ib_trunc_crash_after_truncate_done";
+truncate table t3;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the MySQL server
+select count(*) from t1;
+count(*)
+0
+select count(*) from t2;
+count(*)
+0
+select count(*) from t3;
+count(*)
+0
+begin;
+call populate_t1();
+call populate_t2();
+call populate_t3();
+commit;
+select count(*) from t1;
+count(*)
+2000
+select count(*) from t2;
+count(*)
+2000
+select count(*) from t3;
+count(*)
+2000
+truncate table t1;
+truncate table t1;
+set session debug="+d,ib_trunc_crash_after_truncate_done";
+truncate table t1;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the MySQL server
+select count(*) from t1;
+count(*)
+0
+drop procedure populate_t1;
+drop procedure populate_t2;
+drop procedure populate_t3;
+drop table t1, t2, t3;
+create table ibstd_33 (
+a int not null,
+d varchar(40) not null,
+b text not null,
+c text,
+index(d),
+index(a),
+primary key (b(16), a, d),
+fulltext ftsic(c)) engine=InnoDB row_format=dynamic;
+insert into ibstd_33 (a,d,b,c) values ('1','6',
+repeat('0.350557460150547arrclolullcocuraalaulloooclrcoulrccaoocourcrorooruruooauuauarrouccuoucrooaaouullrularcoarclloraaac','367'),
+repeat('0.0836047279001129oaalolrllcoulaoococrolooullocuaacocoaoloclouallruaalolaruucaloluraocorrlouuoaorloarrluaaorucu','534'));
+select count(*) from ibstd_33;
+count(*)
+1
+set session debug = "+d,ib_truncate_crash_while_fts_cleanup";
+truncate table ibstd_33;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the MySQL server
+select count(*) from ibstd_33;
+ERROR 42S02: Table 'test.ibstd_33' doesn't exist
+drop table ibstd_33;
 set global innodb_file_per_table = default;
+set global innodb_strict_mode = default;

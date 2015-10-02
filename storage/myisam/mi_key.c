@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -455,13 +455,13 @@ int _mi_read_key_record(MI_INFO *info, my_off_t filepos, uchar *buf)
       if (_mi_put_key_in_record(info, (uint)info->lastinx, TRUE, buf))
       {
         mi_print_error(info->s, HA_ERR_CRASHED);
-	my_errno=HA_ERR_CRASHED;
+	set_my_errno(HA_ERR_CRASHED);
 	return -1;
       }
       info->update|= HA_STATE_AKTIV; /* We should find a record */
       return 0;
     }
-    my_errno=HA_ERR_WRONG_INDEX;
+    set_my_errno(HA_ERR_WRONG_INDEX);
   }
   return(-1);				/* Wrong data to read */
 }
@@ -489,7 +489,7 @@ int mi_check_index_cond(MI_INFO *info, uint keynr, uchar *record)
   if (_mi_put_key_in_record(info, keynr, FALSE, record))
   {
     mi_print_error(info->s, HA_ERR_CRASHED);
-    my_errno=HA_ERR_CRASHED;
+    set_my_errno(HA_ERR_CRASHED);
     return -1;
   }
   return info->index_cond_func(info->index_cond_func_arg);

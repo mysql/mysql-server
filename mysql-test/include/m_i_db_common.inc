@@ -4,8 +4,8 @@ if ($passwd != ""){
   SELECT user FROM mysql.user;
   set password='abc';
 }
-# Below two statement should show 1
-SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
+# Below two statement should show 2 (root + sys schema user)
+SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 SELECT count(*) FROM mysql.user;
 CREATE USER 'u1'@'localhost';
 GRANT ALL ON *.* TO 'u1'@'localhost';

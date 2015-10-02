@@ -35,7 +35,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 {
   {
     { C_STRING_WITH_LEN("USER") },
-    { C_STRING_WITH_LEN("char(16)") },
+    { C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")") },
     { NULL, 0}
   },
   {
@@ -186,7 +186,8 @@ table_esms_by_account_by_event_name::m_share=
   sizeof(pos_esms_by_account_by_event_name),
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 PFS_engine_table*

@@ -24,6 +24,7 @@ usr/bin/mysqlcheck
 usr/bin/mysqldump
 usr/bin/mysqldumpslow
 usr/bin/mysqlimport
+usr/bin/mysqlpump
 usr/bin/mysqlshow
 usr/bin/mysqlslap
 # man pages
@@ -38,6 +39,7 @@ usr/share/man/man1/mysqldump.1
 usr/share/man/man1/mysqldumpslow.1
 usr/share/man/man1/mysqlimport.1
 usr/share/man/man1/mysqlman.1
+usr/share/man/man1/mysqlpump.1
 usr/share/man/man1/mysqlshow.1
 usr/share/man/man1/mysqlslap.1
 # legal

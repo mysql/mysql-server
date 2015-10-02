@@ -239,3 +239,15 @@ t1	CREATE TABLE `t1` (
   `r` int(11) /*!50606 STORAGE DISK */ DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 DROP TABLE t1;
+#
+# Bug#21347001   SEGMENTATION FAULT WHILE CREATING GENERAL
+#                  TABLESPACE IN DISK FULL LINUX
+#
+SET SESSION debug="+d,out_of_tablespace_disk";
+CREATE TABLESPACE `ts6` ADD DATAFILE 'ts6.ibd' ENGINE=INNODB;
+ERROR HY000: Failed to create TABLESPACE ts6
+SHOW WARNINGS;
+Level	Code	Message
+Error	1528	Failed to create TABLESPACE ts6
+Error	1114	The table 'ts6' is full
+SET SESSION debug="-d,out_of_tablespace_disk";

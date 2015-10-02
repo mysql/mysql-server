@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -176,6 +176,12 @@ ulonglong my_timer_cycles(void)
       } result;
     __asm __volatile__ ("rd %%tick,%1; srlx %1,32,%0" : "=r" (result.splitresult.high), "=r" (result.splitresult.low));
     return result.wholeresult;
+  }
+#elif defined(__GNUC__) && defined(__aarch64__)
+  {
+    ulonglong result;
+    __asm __volatile__ ("mrs %[rt],cntvct_el0" : [rt] "=r" (result));
+    return result;
   }
 #elif defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
   /* gethrtime may appear as either cycle or nanosecond counter */
@@ -479,6 +485,8 @@ void my_timer_init(MY_TIMER_INFO *mti)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_GCC_SPARC64;
 #elif defined(__GNUC__) && defined(__sparc__) && !defined(_LP64)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_GCC_SPARC32;
+#elif defined(__GNUC__) && defined(__aarch64__)
+  mti->cycles.routine= MY_TIMER_ROUTINE_ASM_AARCH64;
 #elif defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
   mti->cycles.routine= MY_TIMER_ROUTINE_GETHRTIME;
 #else

@@ -125,6 +125,6 @@ void my_osmaperr( unsigned long oserrno)
     set thr_winerr so that we could return the Windows Error Code
     when it is EINVAL.
   */
-  mysys_thread_var()->thr_winerr= oserrno;
+  set_thr_winerr(oserrno);
   errno= get_errno_from_oserr(oserrno);
 }

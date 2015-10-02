@@ -644,6 +644,19 @@ EOF
 --error 5
 --exec $MYSQL -P "" -e "SELECT 1" 2>&1
 
+--echo #
+--echo # Bug #21464621: MYSQL CLI SHOULD SUGGEST CONNECT-EXPIRED-PASSWORD WHEN ERROR 1862 OCCURS
+--echo #
+
+CREATE USER bug21464621 IDENTIFIED BY 'password' PASSWORD EXPIRE;
+--error 1
+--exec $MYSQL -u bug21464621 --password="password" -e "SET PASSWORD='123';" 2>&1
+# change the password using set password
+--exec $MYSQL -u bug21464621 --password="password" -e "SET PASSWORD='123';" --connect-expired-password 2>&1
+--exec $MYSQL -u bug21464621 --password="123" -e "SELECT user();" 2>&1
+
+#cleanup
+DROP USER bug21464621;
 
 --echo
 --echo End of tests

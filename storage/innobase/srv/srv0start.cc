@@ -77,7 +77,6 @@ Created 2/16/1996 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "trx0rseg.h"
 # include "os0proc.h"
-# include "sync0mutex.h"
 # include "buf0flu.h"
 # include "buf0rea.h"
 # include "dict0boot.h"
@@ -1248,7 +1247,9 @@ srv_shutdown_all_bg_threads()
 					os_event_set(recv_sys->flush_end);
 				}
 			}
+
 			os_event_set(buf_flush_event);
+
 			if (!buf_page_cleaner_is_active
 			    && os_aio_all_slots_free()) {
 				os_aio_wake_all_threads_at_shutdown();
@@ -1308,11 +1309,17 @@ srv_init_abort_low(
 	if (create_new_db) {
 		ib::error() << "InnoDB Database creation was aborted"
 #ifdef UNIV_DEBUG
-			" at " << file << "[" << line << "]"
+			" at " << innobase_basename(file) << "[" << line << "]"
 #endif /* UNIV_DEBUG */
 			" with error " << ut_strerr(err) << ". You may need"
 			" to delete the ibdata1 file before trying to start"
 			" up again.";
+	} else {
+		ib::error() << "Plugin initialization aborted"
+#ifdef UNIV_DEBUG
+			" at " << innobase_basename(file) << "[" << line << "]"
+#endif /* UNIV_DEBUG */
+			" with error " << ut_strerr(err);
 	}
 
 	srv_shutdown_all_bg_threads();
@@ -1344,10 +1351,19 @@ srv_prepare_to_delete_redo_log_files(
 
 		flushed_lsn = log_sys->lsn;
 
-		ib::warn() << "Resizing redo log from " << n_files << "*"
-			<< srv_log_file_size << " to " << srv_n_log_files
-			<< "*" << srv_log_file_size_requested << " pages"
-			", LSN=" << flushed_lsn;
+		{
+			ib::warn	warning;
+			if (srv_log_file_size == 0) {
+				warning << "Upgrading redo log: ";
+			} else {
+				warning << "Resizing redo log from "
+					<< n_files << "*"
+					<< srv_log_file_size << " to ";
+			}
+			warning << srv_n_log_files << "*"
+				<< srv_log_file_size_requested
+				<< " pages, LSN=" << flushed_lsn;
+		}
 
 		/* Flush the old log files. */
 		log_mutex_exit();
@@ -1406,9 +1422,8 @@ innobase_start_or_create_for_mysql(void)
 	/* Reset the start state. */
 	srv_start_state = SRV_START_STATE_NONE;
 
-	if (srv_force_recovery > SRV_FORCE_NO_TRX_UNDO) {
-		srv_read_only_mode = true;
-	}
+	high_level_read_only = srv_read_only_mode
+		|| srv_force_recovery > SRV_FORCE_NO_TRX_UNDO;
 
 	if (srv_read_only_mode) {
 		ib::info() << "Started in read only mode";
@@ -1454,10 +1469,6 @@ innobase_start_or_create_for_mysql(void)
 	ib::info() << "!!!!!!!! UNIV_IBUF_COUNT_DEBUG switched on !!!!!!!!!";
 	ib::error() << "Crash recovery will fail with UNIV_IBUF_COUNT_DEBUG";
 # endif
-#endif
-
-#ifdef UNIV_SYNC_DEBUG
-	ib::info() << "!!!!!!!! UNIV_SYNC_DEBUG switched on !!!!!!!!!";
 #endif
 
 #ifdef UNIV_LOG_LSN_DEBUG
@@ -1666,7 +1677,8 @@ innobase_start_or_create_for_mysql(void)
 
 	if (!srv_read_only_mode) {
 
-		mutex_create("srv_monitor_file", &srv_monitor_file_mutex);
+		mutex_create(LATCH_ID_SRV_MONITOR_FILE,
+			     &srv_monitor_file_mutex);
 
 		if (srv_innodb_status) {
 
@@ -1697,7 +1709,8 @@ innobase_start_or_create_for_mysql(void)
 			}
 		}
 
-		mutex_create("srv_dict_tmpfile", &srv_dict_tmpfile_mutex);
+		mutex_create(LATCH_ID_SRV_DICT_TMPFILE,
+			     &srv_dict_tmpfile_mutex);
 
 		srv_dict_tmpfile = os_file_create_tmpfile();
 
@@ -1705,7 +1718,8 @@ innobase_start_or_create_for_mysql(void)
 			return(srv_init_abort(DB_ERROR));
 		}
 
-		mutex_create("srv_misc_tmpfile", &srv_misc_tmpfile_mutex);
+		mutex_create(LATCH_ID_SRV_MISC_TMPFILE,
+			     &srv_misc_tmpfile_mutex);
 
 		srv_misc_tmpfile = os_file_create_tmpfile();
 
@@ -1796,11 +1810,6 @@ innobase_start_or_create_for_mysql(void)
 	lock_sys_create(srv_lock_table_size);
 	srv_start_state_set(SRV_START_STATE_LOCK_SYS);
 
-#ifdef UNIV_SYNC_DEBUG
-	/* Switch latching order checks on in sync0debug.cc */
-	sync_check_enable();
-#endif /* UNIV_SYNC_DEBUG */
-
 	/* Create i/o-handler threads: */
 
 	for (ulint t = 0; t < srv_n_file_io_threads; ++t) {
@@ -1820,6 +1829,11 @@ innobase_start_or_create_for_mysql(void)
 	for (i = 1; i < srv_n_page_cleaners; ++i) {
 		os_thread_create(buf_flush_page_cleaner_worker,
 				 NULL, NULL);
+	}
+
+	/* Make sure page cleaner is active. */
+	while (!buf_page_cleaner_is_active) {
+		os_thread_sleep(10000);
 	}
 
 	srv_start_state_set(SRV_START_STATE_IO);
@@ -1849,7 +1863,7 @@ innobase_start_or_create_for_mysql(void)
 		return(srv_init_abort(DB_ERROR));
 	}
 
-	os_normalize_path_for_win(srv_data_home);
+	os_normalize_path(srv_data_home);
 
 	/* Check if the data files exist or not. */
 	err = srv_sys_space.check_file_spec(
@@ -2086,9 +2100,13 @@ files_checked:
 
 		mtr_start(&mtr);
 
-		fsp_header_init(0, sum_of_new_sizes, &mtr);
+		bool ret = fsp_header_init(0, sum_of_new_sizes, &mtr);
 
 		mtr_commit(&mtr);
+
+		if (!ret) {
+			return(srv_init_abort(DB_ERROR));
+		}
 
 		/* To maintain backward compatibility we create only
 		the first rollback segment before the double write buffer.
@@ -2159,6 +2177,8 @@ files_checked:
 		been shut down normally: this is the normal startup path */
 
 		err = recv_recovery_from_checkpoint_start(flushed_lsn);
+
+		recv_sys->dblwr.pages.clear();
 
 		if (err == DB_SUCCESS) {
 			/* Initialize the change buffer. */
@@ -2391,6 +2411,12 @@ files_checked:
 		/* Can only happen if server is read only. */
 		ut_a(srv_read_only_mode);
 		srv_undo_logs = ULONG_UNDEFINED;
+	} else if (srv_available_undo_logs < srv_undo_logs
+		   && !srv_force_recovery && !recv_needed_recovery) {
+		ib::error() << "System or UNDO tablespace is running of out"
+			    << " of space";
+		/* Should due to out of file space. */
+		return(srv_init_abort(DB_ERROR));
 	}
 
 	srv_startup_is_before_trx_rollback_phase = false;
@@ -2427,6 +2453,12 @@ files_checked:
 		return(srv_init_abort(err));
 	}
 	srv_sys_tablespaces_open = true;
+
+	/* Create the SYS_VIRTUAL system table */
+	err = dict_create_or_check_sys_virtual();
+	if (err != DB_SUCCESS) {
+		return(srv_init_abort(err));
+	}
 
 	srv_is_being_started = false;
 
@@ -2672,7 +2704,7 @@ innobase_shutdown_for_mysql(void)
 
 	/* This must be disabled before closing the buffer pool
 	and closing the data dictionary.  */
-	btr_search_disable();
+	btr_search_disable(true);
 
 	ibuf_close();
 	log_shutdown();

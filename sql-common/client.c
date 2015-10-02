@@ -36,10 +36,6 @@
 #include "hash.h"
 #include "mysql/client_authentication.h"
 
-/* Remove client convenience wrappers */
-#undef max_allowed_packet
-#undef net_buffer_length
-
 #ifdef EMBEDDED_LIBRARY
 
 #undef MYSQL_SERVER
@@ -165,6 +161,9 @@ const char	*cant_connect_sqlstate= "08001";
 char		 *shared_memory_base_name= 0;
 const char 	*def_shared_memory_base_name= default_shared_memory_base_name;
 #endif
+
+ulong g_net_buffer_length= 8192;
+ulong g_max_allowed_packet= 1024L*1024L*1024L;
 
 void mysql_close_free_options(MYSQL *mysql);
 void mysql_close_free(MYSQL *mysql);
@@ -841,6 +840,8 @@ void read_ok_ex(MYSQL *mysql, ulong length)
               }
             }
             break;
+          case SESSION_TRACK_TRANSACTION_STATE:
+          case SESSION_TRACK_TRANSACTION_CHARACTERISTICS:
           case SESSION_TRACK_SCHEMA:
 
             if (!my_multi_malloc(key_memory_MYSQL_state_change_info,
@@ -867,21 +868,24 @@ void read_ok_ex(MYSQL *mysql, ulong length)
             pos += len;
 
             element->data= data;
-            ADD_INFO(info, element, SESSION_TRACK_SCHEMA);
+            ADD_INFO(info, element, type);
 
-            if (!(db= (char *) my_malloc(key_memory_MYSQL_state_change_info,
-              data->length + 1, MYF(MY_WME))))
+            if (type == SESSION_TRACK_SCHEMA)
             {
-              set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-              return;
+              if (!(db= (char *) my_malloc(key_memory_MYSQL_state_change_info,
+                                           data->length + 1, MYF(MY_WME))))
+              {
+                set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+                return;
+              }
+
+              if (mysql->db)
+                my_free(mysql->db);
+
+              memcpy(db, data->str, data->length);
+              db[data->length]= '\0';
+              mysql->db= db;
             }
-
-            if (mysql->db)
-              my_free(mysql->db);
-
-            memcpy(db, data->str, data->length);
-            db[data->length]= '\0';
-            mysql->db= db;
 
             break;
           case SESSION_TRACK_GTIDS:
@@ -4687,7 +4691,10 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     goto error;
 
   if (scramble_buffer_allocated == TRUE)
+  {
+    scramble_buffer_allocated= FALSE;
     my_free(scramble_buffer);
+  }
 
   MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
 
@@ -4764,6 +4771,8 @@ error:
     mysql_close_free(mysql);
     if (!(client_flag & CLIENT_REMEMBER_OPTIONS))
       mysql_close_free_options(mysql);
+    if (scramble_buffer_allocated)
+      my_free(scramble_buffer);
   }
   DBUG_RETURN(0);
 }
@@ -5090,7 +5099,10 @@ get_info:
   MYSQL_TRACE_STAGE(mysql, WAIT_FOR_FIELD_DEF);
 
   if (!(mysql->fields=cli_read_metadata(mysql, field_count, protocol_41(mysql) ? 7:5)))
+  {
+    free_root(&mysql->field_alloc,MYF(0));
     DBUG_RETURN(1);
+  }
   mysql->status= MYSQL_STATUS_GET_RESULT;
   mysql->field_count= (uint) field_count;
 
@@ -5484,6 +5496,17 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
       mysql->options.client_flag&= ~CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS;
     break;
 
+  case MYSQL_OPT_MAX_ALLOWED_PACKET:
+    if (mysql)
+      mysql->options.max_allowed_packet= (*(ulong *) arg);
+    else
+      g_max_allowed_packet= (*(ulong *) arg);
+    break;
+
+  case MYSQL_OPT_NET_BUFFER_LENGTH:
+    g_net_buffer_length= (*(ulong *) arg);
+    break;
+
   default:
     DBUG_RETURN(1);
   }
@@ -5661,6 +5684,17 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
                        CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS) ? TRUE : FALSE;
     break;
 
+  case MYSQL_OPT_MAX_ALLOWED_PACKET:
+    if (mysql)
+      *((ulong*)arg)= mysql->options.max_allowed_packet;
+    else
+      *((ulong*)arg)= g_max_allowed_packet;
+    break;
+
+  case MYSQL_OPT_NET_BUFFER_LENGTH:
+    *((ulong*)arg)= g_net_buffer_length;
+    break;
+
   case MYSQL_OPT_NAMED_PIPE:			/* This option is depricated */
   case MYSQL_INIT_COMMAND:                      /* Cumulative */
   case MYSQL_OPT_CONNECT_ATTR_RESET:            /* Cumulative */
@@ -5729,7 +5763,8 @@ mysql_options4(MYSQL *mysql,enum mysql_option option,
       {
         if (my_hash_init(&mysql->options.extension->connection_attributes,
                      &my_charset_bin, 0, 0, 0, (my_hash_get_key) get_attr_key,
-                     my_free, HASH_UNIQUE))
+                     my_free, HASH_UNIQUE,
+                     key_memory_mysql_options))
         {
           set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
           DBUG_RETURN(1);

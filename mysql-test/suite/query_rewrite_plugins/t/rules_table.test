@@ -8,7 +8,8 @@
 CREATE DATABASE query_rewrite;
 CREATE TABLE IF NOT EXISTS query_rewrite.rewrite_rules (
   pattern_database VARCHAR(20),
-  enabled CHAR(1) DEFAULT 'Y',
+  enabled ENUM('YES', 'NO') CHARACTER SET utf8 COLLATE utf8_bin NOT NULL
+    DEFAULT 'YES',
   replacement VARCHAR(10000),
   message VARCHAR(1000),
   pattern VARCHAR(10000)

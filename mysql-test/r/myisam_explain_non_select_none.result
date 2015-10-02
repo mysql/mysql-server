@@ -306,14 +306,14 @@ EXPLAIN UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT b FROM t2 WHERE t2.b 
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT b FROM t2 WHERE t2.b < 3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
@@ -324,7 +324,7 @@ EXPLAIN EXTENDED SELECT * FROM t1, t2            WHERE a IN (SELECT b FROM t2 WH
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`b` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))
@@ -933,13 +933,13 @@ SET @save_optimizer_switch= @@optimizer_switch;
 EXPLAIN DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	6.67	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	6.67	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
@@ -949,7 +949,7 @@ FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	6.67	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
@@ -973,13 +973,13 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 EXPLAIN DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	6.67	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	6.67	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
@@ -989,7 +989,7 @@ FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	6.67	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
@@ -1580,7 +1580,7 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 (i) VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35),(36),(37),(38),(39),
-(40),(41),(42);
+(40),(41),(42),(43),(44);
 CREATE TABLE t2 (i INT, key1 INT, key2 INT, INDEX (key1), INDEX (key2));
 INSERT INTO t2 (key1, key2) SELECT i, i FROM t1;
 #
@@ -2054,7 +2054,7 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35),(36),(37),(38),(39),
-(40),(41),(42);
+(40),(41),(42),(43),(44);
 CREATE TABLE t2 (i INT, key1 INT, key2 INT, INDEX (key1), INDEX (key2));
 INSERT INTO t2 (key1, key2) SELECT i, i FROM t1;
 #

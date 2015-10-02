@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,15 +26,21 @@ C_MODE_START
 
 struct st_block_link;
 typedef struct st_block_link BLOCK_LINK;
-struct st_keycache_page;
-typedef struct st_keycache_page KEYCACHE_PAGE;
 struct st_hash_link;
 typedef struct st_hash_link HASH_LINK;
+
+/* Thread specific variables */
+typedef struct st_keycache_thread_var
+{
+  mysql_cond_t suspend;
+  struct st_keycache_thread_var *next,**prev;
+  void *opt_info;
+} st_keycache_thread_var;
 
 /* info about requests in a waiting queue */
 typedef struct st_keycache_wqueue
 {
-  struct st_my_thread_var *last_thread;  /* circular list of waiting threads */
+  st_keycache_thread_var *last_thread;  /* circular list of waiting threads */
 } KEYCACHE_WQUEUE;
 
 #define CHANGED_BLOCKS_HASH 128             /* must be power of 2 */
@@ -112,23 +118,27 @@ extern KEY_CACHE dflt_key_cache_var, *dflt_key_cache;
 extern int init_key_cache(KEY_CACHE *keycache, ulonglong key_cache_block_size,
 			  size_t use_mem, ulonglong division_limit,
 			  ulonglong age_threshold);
-extern int resize_key_cache(KEY_CACHE *keycache, ulonglong key_cache_block_size,
+extern int resize_key_cache(KEY_CACHE *keycache,
+                            st_keycache_thread_var *thread_var,
+                            ulonglong key_cache_block_size,
 			    size_t use_mem, ulonglong division_limit,
 			    ulonglong age_threshold);
-extern void change_key_cache_param(KEY_CACHE *keycache, ulonglong division_limit,
-				   ulonglong age_threshold);
 extern uchar *key_cache_read(KEY_CACHE *keycache,
-                            File file, my_off_t filepos, int level,
-                            uchar *buff, uint length,
-			    uint block_length,int return_buffer);
+                             st_keycache_thread_var *thread_var,
+                             File file, my_off_t filepos, int level,
+                             uchar *buff, uint length,
+                             uint block_length,int return_buffer);
 extern int key_cache_insert(KEY_CACHE *keycache,
+                            st_keycache_thread_var *thread_var,
                             File file, my_off_t filepos, int level,
                             uchar *buff, uint length);
 extern int key_cache_write(KEY_CACHE *keycache,
+                           st_keycache_thread_var *thread_var,
                            File file, my_off_t filepos, int level,
                            uchar *buff, uint length,
 			   uint block_length,int force_write);
 extern int flush_key_blocks(KEY_CACHE *keycache,
+                            st_keycache_thread_var *thread_var,
                             int file, enum flush_type type);
 extern void end_key_cache(KEY_CACHE *keycache, my_bool cleanup);
 

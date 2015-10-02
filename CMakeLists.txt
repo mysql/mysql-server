@@ -415,9 +415,15 @@ IF(SYSCONFDIR)
   SET(DEFAULT_SYSCONFDIR "${SYSCONFDIR}")
 ENDIF()
 
-SET(TMPDIR "P_tmpdir"
-  CACHE PATH
-  "PATH to MySQL TMP dir. Defaults to the P_tmpdir macro in <stdio.h>")
+IF(WIN32) # P_tmpdir is not defined on Windows as of VS2015.
+  SET(TMPDIR "" # So we use empty path as default. In practice TMP/TEMP is used
+    CACHE PATH
+    "PATH to MySQL TMP dir")
+ELSE()
+  SET(TMPDIR "P_tmpdir"
+    CACHE PATH
+    "PATH to MySQL TMP dir. Defaults to the P_tmpdir macro in <stdio.h>")
+ENDIF()
 IF(TMPDIR STREQUAL "P_tmpdir")
   # Do not quote it, to refer to the P_tmpdir macro.
   SET(DEFAULT_TMPDIR "P_tmpdir")
@@ -524,7 +530,7 @@ IF(UNIX)
 ENDIF()
 
 IF(NOT WITHOUT_SERVER)
-  ADD_SUBDIRECTORY(tests)
+  ADD_SUBDIRECTORY(testclients)
   ADD_SUBDIRECTORY(sql)
   OPTION (WITH_EMBEDDED_SERVER "Compile MySQL with embedded server" OFF)
   IF(WITH_EMBEDDED_SERVER) 
@@ -541,13 +547,13 @@ IF(NOT WITHOUT_SERVER)
   ADD_SUBDIRECTORY(mysql-test)
   ADD_SUBDIRECTORY(mysql-test/lib/My/SafeProcess)
   ADD_SUBDIRECTORY(support-files)
-  ADD_SUBDIRECTORY(sql-bench)
   IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
     ADD_SUBDIRECTORY(internal)
   ENDIF()
   ADD_SUBDIRECTORY(packaging/rpm-oel)
   ADD_SUBDIRECTORY(packaging/rpm-fedora)
   ADD_SUBDIRECTORY(packaging/rpm-sles)
+  ADD_SUBDIRECTORY(packaging/rpm-docker)
 ENDIF()
 
 INCLUDE(cmake/abi_check.cmake)

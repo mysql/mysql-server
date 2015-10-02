@@ -18,7 +18,6 @@
 
 #include "my_global.h"
 #include "mysql/mysql_lex_string.h"     // LEX_STRING
-#include "gcalc_tools.h"
 #include "mysqld.h"
 #include "sql_string.h"                 // String
 
@@ -590,10 +589,6 @@ public:
   virtual uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
                              String *res) { return 0; }
 
-  virtual uint init_from_opresult(String *bin,
-                                  const char *opres, uint opres_length)
-  { return init_from_wkb(opres + 4, UINT_MAX32, wkb_ndr, bin) + 4; }
-
   virtual bool get_data_as_wkt(String *txt, wkb_parser *wkb) const
   { return true;}
   virtual bool get_mbr(MBR *mbr, wkb_parser *wkb) const
@@ -634,27 +629,6 @@ public:
   virtual int get_x(double *x) const { return -1; }
   virtual int get_y(double *y) const { return -1; }
   virtual int geom_length(double *len) const  { return -1; }
-  /**
-    Calculate area of a Geometry.
-    This default implementation returns 0 for the types that have zero area:
-    Point, LineString, MultiPoint, MultiLineString.
-    The over geometry types (Polygon, MultiPolygon, GeometryCollection)
-    override the default method.
-  */
-  virtual bool area(double *ar, wkb_parser *wkb) const
-  {
-    uint32 data_size= get_data_size();
-    if (data_size == GET_SIZE_ERROR || wkb->no_data(data_size))
-      return true;
-    wkb->skip_unsafe(data_size);
-    *ar= 0;
-    return false;
-  }
-  bool area(double *ar) const
-  {
-    wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
-    return area(ar, &wkb);
-  }
   virtual int is_closed(int *closed) const { return -1; }
   virtual int num_interior_ring(uint32 *n_int_rings) const { return -1; }
   virtual int num_points(uint32 *n_points) const { return -1; }
@@ -664,32 +638,12 @@ public:
   virtual int start_point(String *point) const { return -1; }
   virtual int end_point(String *point) const { return -1; }
   virtual int exterior_ring(String *ring) const { return -1; }
-  virtual int centroid(String *point) const { return -1; }
   virtual int point_n(uint32 num, String *result) const { return -1; }
   virtual int interior_ring_n(uint32 num, String *result) const { return -1; }
   virtual int geometry_n(uint32 num, String *result) const { return -1; }
 
-  virtual int store_shapes(Gcalc_shape_transporter *trn,
-                           Gcalc_shape_status *st) const { return -1;}
-  int store_shapes(Gcalc_shape_transporter *trn) const
-  {
-    Gcalc_shape_status dummy;
-    return store_shapes(trn, &dummy);
-  }
-
 public:
   static Geometry *create_by_typeid(Geometry_buffer *buffer, int type_id);
-  static Geometry *scan_header_and_create(wkb_parser *wkb, Geometry_buffer *buffer)
-  {
-    Geometry *geom;
-    wkb_header header;
-
-    if (wkb->scan_wkb_header(&header) ||
-        !(geom= create_by_typeid(buffer, header.wkb_type)))
-      return NULL;
-    geom->set_data_ptr(wkb->data(), wkb->length());
-    return geom;
-  }
 
   static Geometry *construct(Geometry_buffer *buffer,
                              const char *data, uint32 data_len,
@@ -701,12 +655,11 @@ public:
                      static_cast<uint32>(str->length()), has_srid);
   }
   static Geometry *create_from_wkt(Geometry_buffer *buffer,
-				   Gis_read_stream *trs, String *wkt,
-				   bool init_stream=1);
+                                   Gis_read_stream *trs, String *wkt,
+                                   bool init_stream= true,
+                                   bool check_trailing= true);
   static Geometry *create_from_wkb(Geometry_buffer *buffer, const char *wkb,
                                    uint32 len, String *res, bool init);
-  static int create_from_opresult(Geometry_buffer *g_buf,
-                                  String *res, Gcalc_result_receiver &rr);
   bool as_wkt(String *wkt, wkb_parser *wkb) const
   {
     uint32 len= (uint) get_class_info()->m_name.length;
@@ -832,42 +785,6 @@ protected:
     else
       m_flags.props &= ~GEOM_LENGTH_VERIFIED;
   }
-
-  /**
-    Store shapes of a collection:
-    GeometryCollection, MultiPoint, MultiLineString or MultiPolygon.
-
-    In case when collection is GeometryCollection, NULL should be passed as
-    "collection_item" argument. Proper collection item objects will be
-    created inside collection_store_shapes, according to the geometry type of
-    every item in the collection.
-
-    For MultiPoint, MultiLineString or MultiPolygon, an address of a
-    pre-allocated item object of Gis_point, Gis_line_string or Gis_polygon
-    can be passed for better performance.
-  */
-  int collection_store_shapes(Gcalc_shape_transporter *trn,
-                              Gcalc_shape_status *st,
-                              Geometry *collection_item) const;
-  /**
-    Calculate area of a collection:
-    GeometryCollection, MultiPoint, MultiLineString or MultiPolygon.
-
-    The meaning of the "collection_item" is the same to
-    the similar argument in collection_store_shapes().
-  */
-  bool collection_area(double *ar, wkb_parser *wkb, Geometry *it) const;
-
-  /**
-    Initialize a collection from an operation result.
-    Share between: GeometryCollection, MultiLineString, MultiPolygon.
-    The meaning of the "collection_item" is the same to
-    the similare agument in collection_store_shapes().
-  */
-  uint collection_init_from_opresult(String *bin,
-                                     const char *opres, uint opres_length,
-                                     Geometry *collection_item);
-
 
   /***************************** Boost Geometry Adapter Interface ************/
 public:
@@ -1387,7 +1304,6 @@ public:
     return wkb.skip_coord() || wkb.scan_coord(y);
   }
   uint32 feature_dimension() const { return 0; }
-  int store_shapes(Gcalc_shape_transporter *trn, Gcalc_shape_status *st) const;
   const Class_info *get_class_info() const;
 
 
@@ -1495,6 +1411,11 @@ public:
   bool operator==(const Gis_point &pt) const
   {
     return (get<0>() == pt.get<0>() && get<1>() == pt.get<1>());
+  }
+
+  bool operator!=(const Gis_point &pt) const
+  {
+    return !(operator==(pt));
   }
 };
 
@@ -2498,7 +2419,7 @@ Gis_wkb_vector(const Gis_wkb_vector<T> &v) :Geometry(v), m_geo_vect(NULL)
   DBUG_ASSERT((v.get_ptr() != NULL && v.get_nbytes() > 0) ||
               (v.get_ptr() == NULL && !v.get_ownmem() &&
                v.get_nbytes() == 0));
-  if (v.is_bg_adapter() == false || v.get_ptr() == NULL)
+  if (!v.is_bg_adapter() || (v.get_ptr() == NULL && v.m_geo_vect == NULL))
     return;
   m_geo_vect= new Geo_vector();
   std::auto_ptr<Geo_vector> guard(m_geo_vect);
@@ -3366,7 +3287,6 @@ public:
   int end_point(String *point) const;
   int point_n(uint32 n, String *result) const;
   uint32 feature_dimension() const { return 1; }
-  int store_shapes(Gcalc_shape_transporter *trn, Gcalc_shape_status *st) const;
   const Class_info *get_class_info() const;
 
   /**** Boost Geometry Adapter Interface ******/
@@ -3441,17 +3361,12 @@ public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
-  uint init_from_opresult(String *bin, const char *opres, uint opres_length);
   bool get_data_as_wkt(String *txt, wkb_parser *wkb) const;
   bool get_mbr(MBR *mbr, wkb_parser *wkb) const;
-  bool area(double *ar, wkb_parser *wkb) const;
   int exterior_ring(String *result) const;
   int num_interior_ring(uint32 *n_int_rings) const;
   int interior_ring_n(uint32 num, String *result) const;
-  bool centroid_xy(point_xy *p) const;
-  int centroid(String *result) const;
   uint32 feature_dimension() const { return 2; }
-  int store_shapes(Gcalc_shape_transporter *trn, Gcalc_shape_status *st) const;
   const Class_info *get_class_info() const;
 
 
@@ -3560,13 +3475,11 @@ public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
-  uint init_from_opresult(String *bin, const char *opres, uint opres_length);
   bool get_data_as_wkt(String *txt, wkb_parser *wkb) const;
   bool get_mbr(MBR *mbr, wkb_parser *wkb) const;
   int num_geometries(uint32 *num) const;
   int geometry_n(uint32 num, String *result) const;
   uint32 feature_dimension() const { return 0; }
-  int store_shapes(Gcalc_shape_transporter *trn, Gcalc_shape_status *st) const;
   const Class_info *get_class_info() const;
 
 
@@ -3601,7 +3514,6 @@ public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
-  uint init_from_opresult(String *bin, const char *opres, uint opres_length);
   bool get_data_as_wkt(String *txt, wkb_parser *wkb) const;
   bool get_mbr(MBR *mbr, wkb_parser *wkb) const;
   int num_geometries(uint32 *num) const;
@@ -3609,7 +3521,6 @@ public:
   int geom_length(double *len) const;
   int is_closed(int *closed) const;
   uint32 feature_dimension() const { return 1; }
-  int store_shapes(Gcalc_shape_transporter *trn, Gcalc_shape_status *st) const;
   const Class_info *get_class_info() const;
 
   /**** Boost Geometry Adapter Interface ******/
@@ -3647,12 +3558,8 @@ public:
   bool get_mbr(MBR *mbr, wkb_parser *wkb) const;
   int num_geometries(uint32 *num) const;
   int geometry_n(uint32 num, String *result) const;
-  bool area(double *ar, wkb_parser *wkb) const;
-  int centroid(String *result) const;
   uint32 feature_dimension() const { return 2; }
-  int store_shapes(Gcalc_shape_transporter *trn, Gcalc_shape_status *st) const;
   const Class_info *get_class_info() const;
-  uint init_from_opresult(String *bin, const char *opres, uint opres_length);
 
 
   /**** Boost Geometry Adapter Interface ******/
@@ -3678,6 +3585,9 @@ public:
 /*********************** GeometryCollection *******************************/
 class Gis_geometry_collection: public Geometry
 {
+private:
+  static Geometry *scan_header_and_create(wkb_parser *wkb,
+                                          Geometry_buffer *buffer);
 public:
   Gis_geometry_collection()
     :Geometry(NULL, 0, Flags_t(wkb_geometrycollection, 0), default_srid)
@@ -3694,10 +3604,8 @@ public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
-  uint init_from_opresult(String *bin, const char *opres, uint opres_length);
   bool get_data_as_wkt(String *txt, wkb_parser *wkb) const;
   bool get_mbr(MBR *mbr, wkb_parser *wkb) const;
-  bool area(double *ar, wkb_parser *wkb) const;
   int num_geometries(uint32 *num) const;
   int geometry_n(uint32 num, String *result) const;
   bool dimension(uint32 *dim, wkb_parser *wkb) const;
@@ -3706,7 +3614,6 @@ public:
     DBUG_ASSERT(0);
     return 0;
   }
-  int store_shapes(Gcalc_shape_transporter *trn, Gcalc_shape_status *st) const;
   const Class_info *get_class_info() const;
 };
 

@@ -300,8 +300,6 @@ protected:
   my_off_t master_log_pos;
 
 public:
-  void clear_in_memory_info(bool all);
-
   inline const char* get_master_log_name() { return master_log_name; }
   inline ulonglong get_master_log_pos() { return master_log_pos; }
   inline void set_master_log_name(const char *log_file_name)
@@ -377,8 +375,8 @@ public:
                                           : for_channel_str);
   }
 
-private:
   void init_master_log_pos();
+private:
 
   bool read_info(Rpl_info_handler *from);
   bool write_info(Rpl_info_handler *to);
@@ -425,6 +423,49 @@ public:
     of fully retrieved transactions.
   */
   Transaction_boundary_parser transaction_parser;
+
+private:
+  /*
+    This is the channel lock. It is a rwlock used to serialize all replication
+    administrative commands that cannot be performed concurrently for a given
+    replication channel:
+    - START SLAVE;
+    - STOP SLAVE;
+    - CHANGE MASTER;
+    - RESET SLAVE;
+    - end_slave() (when mysqld stops)).
+    Any of these commands must hold the wrlock from the start till the end.
+  */
+  Checkable_rwlock *m_channel_lock;
+
+public:
+  /**
+    Acquire the channel read lock.
+  */
+  void channel_rdlock();
+
+  /**
+    Acquire the channel write lock.
+  */
+  void channel_wrlock();
+
+  /**
+    Release the channel lock (whether it is a write or read lock).
+  */
+  inline void channel_unlock()
+  { m_channel_lock->unlock(); }
+
+  /**
+    Assert that some thread holds either the read or the write lock.
+  */
+  inline void channel_assert_some_lock() const
+  { m_channel_lock->assert_some_lock(); }
+
+  /**
+    Assert that some thread holds the write lock.
+  */
+  inline void channel_assert_some_wrlock() const
+  { m_channel_lock->assert_some_wrlock(); }
 };
 int change_master_server_id_cmp(ulong *id1, ulong *id2);
 

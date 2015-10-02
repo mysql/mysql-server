@@ -1,0 +1,18 @@
+CREATE TABLE `t` (
+`a` VARCHAR(100),
+`b` VARCHAR(100),
+`c` VARCHAR(200) GENERATED ALWAYS AS (CONCAT(a,b)) VIRTUAL,
+`h` VARCHAR(10) DEFAULT NULL,
+`i` int
+) ENGINE=InnoDB;
+INSERT INTO t VALUES (REPEAT('g', 100), REPEAT('x', 10), DEFAULT, "kk", 1);
+INSERT INTO t VALUES (REPEAT('a', 100), REPEAT('b', 100), DEFAULT, "mm", 2);
+CREATE INDEX idx ON t(c(100));
+SET session debug="+d,ib_alter_add_virtual_fail";
+ALTER TABLE t ADD COLUMN x VARCHAR(200) GENERATED ALWAYS AS (a) VIRTUAL,
+ALGORITHM = INPLACE;
+ERROR 42000: The used storage engine can't index column 'x'
+ALTER TABLE t DROP COLUMN c, ALGORITHM = INPLACE;
+ERROR 42000: The used storage engine can't index column 'c'
+SET session debug="-d,ib_alter_add_virtual_fail";
+DROP TABLE t;

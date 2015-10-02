@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -372,7 +372,7 @@ int ha_myisammrg::open(const char *name, int mode __attribute__((unused)),
   children_l= NULL;
   children_last_l= NULL;
   child_def_list.empty();
-  my_errno= 0;
+  set_my_errno(0);
 
   /* retrieve children table list. */
   if (is_cloned)
@@ -387,8 +387,8 @@ int ha_myisammrg::open(const char *name, int mode __attribute__((unused)),
     */
     if (!(file= myrg_open(name, table->db_stat,  HA_OPEN_IGNORE_IF_LOCKED)))
     {
-      DBUG_PRINT("error", ("my_errno %d", my_errno));
-      DBUG_RETURN(my_errno ? my_errno : -1); 
+      DBUG_PRINT("error", ("my_errno %d", my_errno()));
+      DBUG_RETURN(my_errno() ? my_errno() : -1); 
     }
 
     file->children_attached= TRUE;
@@ -398,8 +398,8 @@ int ha_myisammrg::open(const char *name, int mode __attribute__((unused)),
   else if (!(file= myrg_parent_open(name, myisammrg_parent_open_callback, this)))
   {
     /* purecov: begin inspected */
-    DBUG_PRINT("error", ("my_errno %d", my_errno));
-    DBUG_RETURN(my_errno ? my_errno : -1);
+    DBUG_PRINT("error", ("my_errno %d", my_errno()));
+    DBUG_RETURN(my_errno() ? my_errno() : -1);
     /* purecov: end */
   }
   DBUG_PRINT("myrg", ("MYRG_INFO: 0x%lx  child tables: %u",
@@ -822,7 +822,7 @@ int ha_myisammrg::attach_children(void)
                            myisammrg_attach_children_callback, &param,
                            (my_bool *) &param.need_compat_check))
   {
-    error= my_errno;
+    error= my_errno();
     goto err;
   }
   DBUG_PRINT("myrg", ("calling myrg_extrafunc"));
@@ -924,7 +924,8 @@ err:
   DBUG_PRINT("error", ("attaching MERGE children failed: %d", error));
   print_error(error, MYF(0));
   detach_children();
-  DBUG_RETURN(my_errno= error);
+  set_my_errno(error);
+  DBUG_RETURN(error);
 }
 
 
@@ -1032,8 +1033,8 @@ int ha_myisammrg::detach_children(void)
   if (myrg_detach_children(this->file))
   {
     /* purecov: begin inspected */
-    print_error(my_errno, MYF(0));
-    DBUG_RETURN(my_errno ? my_errno : -1);
+    print_error(my_errno(), MYF(0));
+    DBUG_RETURN(my_errno() ? my_errno() : -1);
     /* purecov: end */
   }
 

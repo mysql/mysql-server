@@ -284,9 +284,9 @@ SysTablespace::parse_params(
 			}
 		}
 
-		m_files.push_back(Datafile(filepath, size, order));
+		m_files.push_back(Datafile(filepath, flags(), size, order));
 		Datafile* datafile = &m_files.back();
-		datafile->make_filepath_no_ext(path());
+		datafile->make_filepath(path(), filepath, NO_EXT);
 
 		if (::strlen(str) >= 6
 		    && *str == 'n'

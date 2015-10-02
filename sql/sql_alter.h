@@ -198,11 +198,8 @@ public:
   // Set for RENAME INDEX
   static const uint ALTER_RENAME_INDEX          = 1L << 27;
 
-  // Set for adding/altering stored generated columns
-  static const uint ALTER_STORED_GCOLUMN        = 1L << 28;
-
-  // Set for adding/altering virtual generated columns
-  static const uint ALTER_VIRTUAL_GCOLUMN       = 1L << 29;
+  // Set for UPGRADE PARTITIONING
+  static const uint ALTER_UPGRADE_PARTITIONING  = 1L << 30;
 
   enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 
@@ -243,7 +240,12 @@ public:
   };
 
 
-  // Columns and keys to be dropped.
+  /**
+     Columns and keys to be dropped.
+     After mysql_prepare_alter_table() it contains only foreign keys and
+     virtual generated columns to be dropped. This information is necessary
+     for the storage engine to do in-place alter.
+  */
   List<Alter_drop>              drop_list;
   // Columns for ALTER_COLUMN_CHANGE_DEFAULT.
   List<Alter_column>            alter_list;
@@ -397,8 +399,13 @@ public:
   { return tmp_path; }
 
 public:
+  typedef uint error_if_not_empty_mask;
+  static const error_if_not_empty_mask DATETIME_WITHOUT_DEFAULT= 1 << 0;
+  static const error_if_not_empty_mask GEOMETRY_WITHOUT_DEFAULT= 1 << 1;
+
   Create_field *datetime_field;
-  bool         error_if_not_empty;
+  error_if_not_empty_mask error_if_not_empty;
+  bool         requires_generated_column_server_evaluation;
   uint         tables_opened;
   const char   *db;
   const char   *table_name;

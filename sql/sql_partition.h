@@ -19,6 +19,7 @@
 #include "my_global.h"
 
 #include "partition_element.h"       // partition_state
+#include "lock.h"                    // Tablespace_hash_set
 
 class Alter_info;
 class Alter_table_ctx;
@@ -116,6 +117,11 @@ void get_full_part_id_from_key(const TABLE *table, uchar *buf,
                                KEY *key_info,
                                const key_range *key_spec,
                                part_id_range *part_spec);
+bool get_partition_tablespace_names(
+       THD *thd,
+       const char *partition_info_str,
+       uint partition_info_len,
+       Tablespace_hash_set *tablespace_set);
 bool mysql_unpack_partition(THD *thd, char *part_buf,
                             uint part_info_len,
                             TABLE *table, bool is_create_table_ind,

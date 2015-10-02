@@ -273,7 +273,10 @@ int archive_discover(handlerton *hton, THD* thd, const char *db,
   if (!(azopen(&frm_stream, az_file, O_RDONLY|O_BINARY)))
   {
     if (errno == EROFS || errno == EACCES)
-      DBUG_RETURN(my_errno= errno);
+    {
+      set_my_errno(errno);
+      DBUG_RETURN(errno);
+    }
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
   }
 
@@ -290,7 +293,7 @@ int archive_discover(handlerton *hton, THD* thd, const char *db,
 
   DBUG_RETURN(0);
 err:
-  my_errno= 0;
+  set_my_errno(0);
   DBUG_RETURN(1);
 }
 
@@ -491,7 +494,7 @@ Archive_share *ha_archive::get_share(const char *table_name, int *rc)
     if (!(azopen(&archive_tmp, tmp_share->data_file_name, O_RDONLY|O_BINARY)))
     {
       delete tmp_share;
-      *rc= my_errno ? my_errno : HA_ERR_CRASHED;
+      *rc= my_errno() ? my_errno() : HA_ERR_CRASHED;
       tmp_share= NULL;
       goto err;
     }
@@ -733,7 +736,7 @@ int ha_archive::frm_copy(azio_stream *src, azio_stream *dst)
   /* Write file offset is set to the end of the file. */
   if (azread_frm(src, frm_ptr) ||
       azwrite_frm(dst, frm_ptr, src->frm_length))
-    rc= my_errno ? my_errno : HA_ERR_INTERNAL_ERROR;
+    rc= my_errno() ? my_errno() : HA_ERR_INTERNAL_ERROR;
 
   my_free(frm_ptr);
 
@@ -828,7 +831,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   */
   if (!(mysql_file_stat(arch_key_file_data, name_buff, &file_stat, MYF(0))))
   {
-    my_errno= 0;
+    set_my_errno(0);
     if (!(azopen(&create_stream, name_buff, O_CREAT|O_RDWR|O_BINARY)))
     {
       error= errno;
@@ -857,7 +860,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
     }
   }
   else
-    my_errno= 0;
+    set_my_errno(0);
 
   DBUG_PRINT("ha_archive", ("Creating File %s", name_buff));
   DBUG_PRINT("ha_archive", ("Creating Link %s", linkname));

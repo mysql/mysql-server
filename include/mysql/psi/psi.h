@@ -56,6 +56,9 @@ typedef int opaque_mdl_duration;
 /** @sa MDL_wait::enum_wait_status. */
 typedef int opaque_mdl_status;
 
+/** @sa enum_vio_type. */
+typedef int opaque_vio_type;
+
 struct TABLE_SHARE;
 
 struct sql_digest_storage;
@@ -288,6 +291,10 @@ typedef struct PSI_bootstrap PSI_bootstrap;
 #ifdef HAVE_PSI_INTERFACE
 
 #ifdef DISABLE_ALL_PSI
+
+#ifndef DISABLE_PSI_THREAD
+#define DISABLE_PSI_THREAD
+#endif
 
 #ifndef DISABLE_PSI_MUTEX
 #define DISABLE_PSI_MUTEX
@@ -791,7 +798,10 @@ typedef unsigned int PSI_thread_key;
   To instrument a file, a file key must be obtained using @c register_file.
   Using a zero key always disable the instrumentation.
 */
+#ifndef PSI_FILE_KEY_DEFINED
 typedef unsigned int PSI_file_key;
+#define PSI_FILE_KEY_DEFINED
+#endif
 
 /**
   Instrumented stage key.
@@ -1234,6 +1244,8 @@ struct PSI_statement_locker_state_v1
   char m_schema_name[PSI_SCHEMA_NAME_LEN];
   /** Length in bytes of @c m_schema_name. */
   uint m_schema_name_length;
+  /** Statement character set number. */
+  uint m_cs_number;
   PSI_sp_share *m_parent_sp_share;
   PSI_prepared_stmt *m_parent_prepared_stmt;
 };
@@ -1616,6 +1628,13 @@ typedef void (*set_thread_db_v1_t)(const char* db, int db_len);
 typedef void (*set_thread_command_v1_t)(int command);
 
 /**
+  Assign a connection type to the instrumented thread.
+  @param conn_type the connection type
+*/
+typedef void (*set_connection_type_v1_t)(opaque_vio_type conn_type);
+
+
+/**
   Assign a start time to the instrumented thread.
   @param start_time the thread start time
 */
@@ -1882,6 +1901,15 @@ typedef struct PSI_file* (*end_file_open_wait_v1_t)
 */
 typedef void (*end_file_open_wait_and_bind_to_descriptor_v1_t)
   (struct PSI_file_locker *locker, File file);
+
+/**
+  End a file instrumentation open operation, for non stream temporary files.
+  @param locker the file locker.
+  @param file the file number assigned by open() or create() for this file.
+  @param filename the file name generated during temporary file creation.
+*/
+typedef void (*end_temp_file_open_wait_and_bind_to_descriptor_v1_t)
+  (struct PSI_file_locker *locker, File file, const char *filename);
 
 /**
   Record a file instrumentation start event.
@@ -2461,6 +2489,8 @@ struct PSI_v1
   set_thread_db_v1_t set_thread_db;
   /** @sa set_thread_command_v1_t. */
   set_thread_command_v1_t set_thread_command;
+  /** @sa set_connection_type_v1_t. */
+  set_connection_type_v1_t set_connection_type;
   /** @sa set_thread_start_time_v1_t. */
   set_thread_start_time_v1_t set_thread_start_time;
   /** @sa set_thread_state_v1_t. */
@@ -2522,6 +2552,9 @@ struct PSI_v1
   /** @sa end_file_open_wait_and_bind_to_descriptor_v1_t. */
   end_file_open_wait_and_bind_to_descriptor_v1_t
     end_file_open_wait_and_bind_to_descriptor;
+  /** @sa end_temp_file_open_wait_and_bind_to_descriptor_v1_t. */
+  end_temp_file_open_wait_and_bind_to_descriptor_v1_t
+    end_temp_file_open_wait_and_bind_to_descriptor;
   /** @sa start_file_wait_v1_t. */
   start_file_wait_v1_t start_file_wait;
   /** @sa end_file_wait_v1_t. */

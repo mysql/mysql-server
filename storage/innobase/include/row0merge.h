@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -95,6 +95,7 @@ struct index_field_t {
 	ulint		col_no;		/*!< column offset */
 	ulint		prefix_len;	/*!< column prefix length, or 0
 					if indexing the whole column */
+	bool		is_v_col;	/*!< whether this is a virtual column */
 };
 
 /** Definition of an index being created */
@@ -235,16 +236,19 @@ row_merge_rename_index_to_drop(
 	table_id_t	table_id,	/*!< in: table identifier */
 	index_id_t	index_id)	/*!< in: index identifier */
 	__attribute__((nonnull));
-/*********************************************************************//**
-Create the index and load in to the dictionary.
+/** Create the index and load in to the dictionary.
+@param[in,out]	trx		trx (sets error_state)
+@param[in,out]	table		the index is on this table
+@param[in]	index_def	the index definition
+@param[in]	add_v		new virtual columns added along with add
+				index call
 @return index, or NULL on error */
 dict_index_t*
 row_merge_create_index(
-/*===================*/
-	trx_t*			trx,	/*!< in/out: trx (sets error_state) */
-	dict_table_t*		table,	/*!< in: the index is on this table */
-	const index_def_t*	index_def);
-					/*!< in: the index definition */
+	trx_t*			trx,
+	dict_table_t*		table,
+	const index_def_t*	index_def,
+	const dict_add_v_col_t*	add_v);
 /*********************************************************************//**
 Check if a transaction can use an index.
 @return TRUE if index can be used by the transaction else FALSE */
@@ -290,6 +294,7 @@ existing order
 @param[in,out]	stage		performance schema accounting object, used by
 ALTER TABLE. stage->begin_phase_read_pk() will be called at the beginning of
 this function and it will be passed to other functions for further accounting.
+@param[in]	add_v		new virtual columns added along with indexes
 @return DB_SUCCESS or error code */
 dberr_t
 row_merge_build_indexes(
@@ -306,7 +311,8 @@ row_merge_build_indexes(
 	ulint			add_autoinc,
 	ib_sequence_t&		sequence,
 	bool			skip_pk_sort,
-	ut_stage_alter_t*	stage)
+	ut_stage_alter_t*	stage,
+	const dict_add_v_col_t*	add_v)
 __attribute__((warn_unused_result));
 
 /********************************************************************//**

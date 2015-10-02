@@ -5274,15 +5274,18 @@ ha_partition::check_if_supported_inplace_alter(TABLE *altered_table,
 
   DBUG_ENTER("ha_partition::check_if_supported_inplace_alter");
   /*
-    Support inplace change of KEY () -> KEY ALGORITHM = N ().
+    Support inplace change of KEY () -> KEY ALGORITHM = N ()
+    and UPGRADE PARTITIONING.
     Any other change would set partition_changed in
     prep_alter_part_table() in mysql_alter_table().
   */
-  if (ha_alter_info->alter_info->flags == Alter_info::ALTER_PARTITION)
+  if (ha_alter_info->alter_info->flags == Alter_info::ALTER_PARTITION ||
+      ha_alter_info->alter_info->flags ==
+        Alter_info::ALTER_UPGRADE_PARTITIONING)
     DBUG_RETURN(HA_ALTER_INPLACE_NO_LOCK);
 
   /* We cannot allow INPLACE to change order of KEY partitioning fields! */
-  if (ha_alter_info->handler_flags & Alter_inplace_info::ALTER_COLUMN_ORDER)
+  if (ha_alter_info->handler_flags & Alter_inplace_info::ALTER_STORED_COLUMN_ORDER)
   {
     if (!m_part_info->same_key_column_order(
            &ha_alter_info->alter_info->create_list))
@@ -5354,7 +5357,9 @@ bool ha_partition::prepare_inplace_alter_table(TABLE *altered_table,
     Changing to similar partitioning, only update metadata.
     Non allowed changes would be catched in prep_alter_part_table().
   */
-  if (ha_alter_info->alter_info->flags == Alter_info::ALTER_PARTITION)
+  if (ha_alter_info->alter_info->flags == Alter_info::ALTER_PARTITION ||
+      ha_alter_info->alter_info->flags ==
+        Alter_info::ALTER_UPGRADE_PARTITIONING)
     DBUG_RETURN(false);
 
   part_inplace_ctx=
@@ -5387,7 +5392,9 @@ bool ha_partition::inplace_alter_table(TABLE *altered_table,
     Changing to similar partitioning, only update metadata.
     Non allowed changes would be catched in prep_alter_part_table().
   */
-  if (ha_alter_info->alter_info->flags == Alter_info::ALTER_PARTITION)
+  if (ha_alter_info->alter_info->flags == Alter_info::ALTER_PARTITION ||
+      ha_alter_info->alter_info->flags ==
+        Alter_info::ALTER_UPGRADE_PARTITIONING)
     DBUG_RETURN(false);
 
   part_inplace_ctx=
@@ -5427,7 +5434,9 @@ bool ha_partition::commit_inplace_alter_table(TABLE *altered_table,
     Changing to similar partitioning, only update metadata.
     Non allowed changes would be catched in prep_alter_part_table().
   */
-  if (ha_alter_info->alter_info->flags == Alter_info::ALTER_PARTITION)
+  if (ha_alter_info->alter_info->flags == Alter_info::ALTER_PARTITION ||
+      ha_alter_info->alter_info->flags ==
+        Alter_info::ALTER_UPGRADE_PARTITIONING)
     DBUG_RETURN(false);
 
   part_inplace_ctx=
@@ -6013,7 +6022,12 @@ int ha_partition::check_for_upgrade(HA_CHECK_OPT *check_opt)
     In that case return that it needs checking!
   */
   if (!(check_opt->sql_flags & TT_FOR_UPGRADE))
+  {
+    if (m_file[0]->ht->partition_flags)
+      DBUG_RETURN(HA_ADMIN_NEEDS_UPG_PART);
+
     DBUG_RETURN(error);
+  }
 
   /*
     Partitions will be checked for during their ha_check!
@@ -6111,6 +6125,12 @@ int ha_partition::check_for_upgrade(HA_CHECK_OPT *check_opt)
         ;
       }
     }
+  }
+
+  if (m_file[0]->ht->partition_flags)
+  {
+    /* No longer needs ha_partition. */
+    error= HA_ADMIN_NEEDS_UPG_PART;
   }
 
   DBUG_RETURN(error);

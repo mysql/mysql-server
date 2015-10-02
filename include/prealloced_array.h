@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -312,6 +312,18 @@ public:
   }
 
   /**
+    Similar to std::set<>::count()
+
+    @note   Assumes that array is maintained with insert_unique/erase_unique.
+
+    @retval 1 if element is found, 0 otherwise.
+  */
+  size_type count_unique(const value_type& val) const
+  {
+    return std::binary_search(begin(), end(), val);
+  }
+
+  /**
     Removes a single element from the array.
     The removed element is destroyed.
     This effectively reduces the container size by one.
@@ -427,7 +439,7 @@ public:
     Notice that this function changes the actual content of the
     container by inserting or erasing elements from it.
    */
-  void resize(size_t n, Element_type val= Element_type())
+  void resize(size_t n, const Element_type &val= Element_type())
   {
     if (n == m_size)
       return;

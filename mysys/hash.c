@@ -94,7 +94,8 @@ _my_hash_init(HASH *hash, uint growth_size, CHARSET_INFO *charset,
               my_hash_function hash_function,
               ulong size, size_t key_offset, size_t key_length,
               my_hash_get_key get_key,
-              void (*free_element)(void*), uint flags)
+              void (*free_element)(void*), uint flags,
+              PSI_memory_key psi_key)
 {
   my_bool retval;
 
@@ -110,7 +111,10 @@ _my_hash_init(HASH *hash, uint growth_size, CHARSET_INFO *charset,
   hash->flags=flags;
   hash->charset=charset;
   hash->hash_function= hash_function ? hash_function : cset_hash_sort_adapter;
-  retval= my_init_dynamic_array(&hash->array, sizeof(HASH_LINK),
+  hash->m_psi_key= psi_key;
+  retval= my_init_dynamic_array(&hash->array,
+                                psi_key,
+                                sizeof(HASH_LINK),
                                 NULL,  /* init_buffer */
                                 size, growth_size);
   DBUG_RETURN(retval);

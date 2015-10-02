@@ -1,0 +1,54 @@
+#
+# Basic test for range_optimizer_max_mem_size
+#
+
+--source include/load_sysvars.inc
+
+--echo # Display the DEFAULT value of range_optimizer_max_mem_size
+
+SET @@session.range_optimizer_max_mem_size = DEFAULT;
+SELECT @@session.range_optimizer_max_mem_size;
+
+--echo # Change the value of range_optimizer_max_mem_size to a valid
+--echo # value for SESSION Scope
+
+SET @@session.range_optimizer_max_mem_size = 4000;
+SELECT @@session.range_optimizer_max_mem_size;
+
+--echo # Change the value of the range_optimizer_max_mem_size to a 
+--echo # value greater than --maximum-range-optimizer-max-mem-size
+SET session range_optimizer_max_mem_size = 20000;
+SELECT @@session.range_optimizer_max_mem_size;
+
+--echo # Change the value of range_optimizer_max_mem_size to an invalid value
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.range_optimizer_max_mem_size= 'NOT_CHAR_TYPE';
+
+SET @@session.range_optimizer_max_mem_size = -10;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.range_optimizer_max_mem_size = 0.5;
+
+--echo # Check if the value in session Table matches value in variable
+
+--disable_warnings
+SET @@session.range_optimizer_max_mem_size = DEFAULT;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+WHERE VARIABLE_NAME='range_optimizer_max_mem_size';
+--enable_warnings
+
+--echo # Check if TRUE and FALSE values can be used on variable
+
+SET @@session.range_optimizer_max_mem_size = TRUE;
+SELECT @@session.range_optimizer_max_mem_size;
+
+SET @@session.range_optimizer_max_mem_size = FALSE;
+SELECT @@session.range_optimizer_max_mem_size;
+
+--echo # Restore initial value
+
+SET @@session.range_optimizer_max_mem_size = DEFAULT;
+SELECT @@session.range_optimizer_max_mem_size;
+
+--echo # END OF range_optimizer_max_mem_size TESTS

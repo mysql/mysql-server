@@ -51,7 +51,7 @@ EXPLAIN EXTENDED SELECT DATE'2010-01-01';
 --echo #
 --echo # Testing DATE literals in non-default sql_mode
 --echo #
-SET sql_mode='STRICT_ALL_TABLES';
+SET sql_mode='NO_ZERO_IN_DATE';
 --error ER_WRONG_VALUE
 SELECT DATE'2001-00-00';
 --error ER_WRONG_VALUE

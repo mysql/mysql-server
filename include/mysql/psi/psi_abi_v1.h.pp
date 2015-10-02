@@ -28,6 +28,7 @@ typedef struct MDL_key MDL_key;
 typedef int opaque_mdl_type;
 typedef int opaque_mdl_duration;
 typedef int opaque_mdl_status;
+typedef int opaque_vio_type;
 struct TABLE_SHARE;
 struct sql_digest_storage;
   struct opaque_THD
@@ -351,6 +352,7 @@ struct PSI_statement_locker_state_v1
   const struct sql_digest_storage *m_digest;
   char m_schema_name[(64 * 3)];
   uint m_schema_name_length;
+  uint m_cs_number;
   PSI_sp_share *m_parent_sp_share;
   PSI_prepared_stmt *m_parent_prepared_stmt;
 };
@@ -455,6 +457,7 @@ typedef void (*set_thread_account_v1_t)(const char *user, int user_len,
                                         const char *host, int host_len);
 typedef void (*set_thread_db_v1_t)(const char* db, int db_len);
 typedef void (*set_thread_command_v1_t)(int command);
+typedef void (*set_connection_type_v1_t)(opaque_vio_type conn_type);
 typedef void (*set_thread_start_time_v1_t)(time_t start_time);
 typedef void (*set_thread_state_v1_t)(const char* state);
 typedef void (*set_thread_info_v1_t)(const char* info, uint info_len);
@@ -535,6 +538,8 @@ typedef struct PSI_file* (*end_file_open_wait_v1_t)
   (struct PSI_file_locker *locker, void *result);
 typedef void (*end_file_open_wait_and_bind_to_descriptor_v1_t)
   (struct PSI_file_locker *locker, File file);
+typedef void (*end_temp_file_open_wait_and_bind_to_descriptor_v1_t)
+  (struct PSI_file_locker *locker, File file, const char *filename);
 typedef void (*start_file_wait_v1_t)
   (struct PSI_file_locker *locker, size_t count,
    const char *src_file, uint src_line);
@@ -719,6 +724,7 @@ struct PSI_v1
   set_thread_account_v1_t set_thread_account;
   set_thread_db_v1_t set_thread_db;
   set_thread_command_v1_t set_thread_command;
+  set_connection_type_v1_t set_connection_type;
   set_thread_start_time_v1_t set_thread_start_time;
   set_thread_state_v1_t set_thread_state;
   set_thread_info_v1_t set_thread_info;
@@ -750,6 +756,8 @@ struct PSI_v1
   end_file_open_wait_v1_t end_file_open_wait;
   end_file_open_wait_and_bind_to_descriptor_v1_t
     end_file_open_wait_and_bind_to_descriptor;
+  end_temp_file_open_wait_and_bind_to_descriptor_v1_t
+    end_temp_file_open_wait_and_bind_to_descriptor;
   start_file_wait_v1_t start_file_wait;
   end_file_wait_v1_t end_file_wait;
   start_file_close_wait_v1_t start_file_close_wait;

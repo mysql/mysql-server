@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -88,7 +88,7 @@ hash_table_t*
 ib_create(
 /*======*/
 	ulint		n,	/*!< in: number of array cells */
-	const char*	name,	/*!< in: mutex name */
+	latch_id_t	id,	/*!< in: latch ID */
 	ulint		n_mutexes,/*!< in: number of mutexes to protect the
 				hash table: must be a power of 2, or 0 */
 	ulint		type);	/*!< in: type of datastructure for which

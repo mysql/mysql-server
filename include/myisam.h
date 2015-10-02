@@ -257,10 +257,15 @@ extern mysql_mutex_t THR_LOCK_myisam_mmap;
 
 	/* Prototypes for myisam-functions */
 
-extern int mi_close(struct st_myisam_info *file);
+extern int mi_close_share(struct st_myisam_info *file, my_bool *closed_share);
+#define mi_close(file) mi_close_share(file, NULL)
 extern int mi_delete(struct st_myisam_info *file,const uchar *buff);
-extern struct st_myisam_info *mi_open(const char *name,int mode,
-				      uint wait_if_locked);
+extern struct st_myisam_info *mi_open_share(const char *name,
+                                            struct st_mi_isam_share *old_share,
+                                            int mode,
+                                            uint wait_if_locked);
+#define mi_open(name, mode, wait_if_locked) \
+  mi_open_share(name, NULL, mode, wait_if_locked)
 extern int mi_panic(enum ha_panic_function function);
 extern int mi_rfirst(struct st_myisam_info *file,uchar *buf,int inx);
 extern int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
@@ -457,6 +462,8 @@ void mi_change_key_cache(KEY_CACHE *old_key_cache,
 			 KEY_CACHE *new_key_cache);
 int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves);
 
+extern st_keycache_thread_var main_thread_keycache_var;
+st_keycache_thread_var *keycache_thread_var();
 #ifdef	__cplusplus
 }
 #endif

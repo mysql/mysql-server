@@ -285,6 +285,13 @@ END|
 --echo
 CREATE PROCEDURE show_vars()
 BEGIN
+  -- select on information_schema.global_variables
+  -- will fail, still need to cover execution of the code
+  -- to verify potential dead locks.
+  declare continue handler for sqlexception
+  begin
+  end;
+
   SELECT COUNT(*) FROM information_schema.global_variables;
   SELECT COUNT(*) FROM performance_schema.global_variables;
 END|

@@ -485,17 +485,12 @@ public:
                                                 args[0]->datetime_precision());
   }
   bool val_timeval(struct timeval *tm);
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
+  bool check_gcol_func_processor(uchar *int_arg)
     /*
       TODO: Allow UNIX_TIMESTAMP called with an argument to be a part
       of the expression for a generated column
     */
-    DBUG_ENTER("Item_func_unix_timestamp::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
+  { return true; }
 
 };
 
@@ -585,6 +580,7 @@ protected:
     @retval     true        On error.
   */
   virtual bool val_datetime(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)= 0;
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
 
 public:
   Item_temporal_hybrid_func(Item *a, Item *b) :Item_str_func(a, b),
@@ -615,7 +611,6 @@ public:
   longlong val_int() { return val_int_from_decimal(); }
   double val_real() { return val_real_from_decimal(); }
   my_decimal *val_decimal(my_decimal *decimal_value);
-  type_conversion_status save_in_field(Field *field, bool no_conversions);
   /**
     Return string value in ASCII character set.
   */
@@ -641,6 +636,11 @@ public:
 */
 class Item_date_func :public Item_temporal_func
 {
+protected:
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+  {
+    return save_date_in_field(field);
+  }
 public:
   Item_date_func() :Item_temporal_func()
   { }
@@ -680,10 +680,6 @@ public:
     DBUG_ASSERT(fixed == 1);
     return  val_decimal_from_date(decimal_value);
   }
-  type_conversion_status save_in_field(Field *field, bool no_conversions)
-  {
-    return save_date_in_field(field);
-  }
   // All date functions must implement get_date()
   // to avoid use of generic Item::get_date()
   // which converts to string and then parses the string as DATE.
@@ -696,6 +692,11 @@ public:
 */
 class Item_datetime_func :public Item_temporal_func
 {
+protected:
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+  {
+    return save_date_in_field(field);
+  }
 public:
   Item_datetime_func() :Item_temporal_func()
   { }
@@ -733,10 +734,6 @@ public:
     DBUG_ASSERT(fixed == 1);
     return  val_decimal_from_date(decimal_value);
   }
-  type_conversion_status save_in_field(Field *field, bool no_conversions)
-  {
-    return save_date_in_field(field);
-  }
   bool get_time(MYSQL_TIME *ltime)
   {
     return get_time_from_datetime(ltime);
@@ -753,6 +750,11 @@ public:
 */
 class Item_time_func :public Item_temporal_func
 {
+protected:
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+  {
+    return save_time_in_field(field);
+  }
 public:
   Item_time_func() :Item_temporal_func() {}
   explicit Item_time_func(const POS &pos) :Item_temporal_func(pos) {}
@@ -772,10 +774,6 @@ public:
   {
     DBUG_ASSERT(fixed == 1);
     return  val_decimal_from_time(decimal_value);
-  }
-  type_conversion_status save_in_field(Field *field, bool no_conversions)
-  {
-    return save_time_in_field(field);
   }
   longlong val_int()
   {
@@ -1132,13 +1130,8 @@ public:
     DBUG_ASSERT(fixed == 1);
     return cached_time.val_str(&str_value);
   }
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item_func_curtime::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
+  bool check_gcol_func_processor(uchar *int_arg)
+  { return true; }
 };
 
 
@@ -1196,13 +1189,8 @@ public:
     DBUG_ASSERT(fixed == 1);
     return cached_time.val_str(&str_value);
   }
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item_func_curdate::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
+  bool check_gcol_func_processor(uchar *int_arg)
+  { return true; }
 };
 
 
@@ -1233,6 +1221,7 @@ class Item_func_now :public Item_datetime_func
   MYSQL_TIME_cache cached_time; 
 protected:
   virtual Time_zone *time_zone()= 0;
+  type_conversion_status save_in_field_inner(Field *to, bool no_conversions);
 public:
   /**
     Constructor for Item_func_now.
@@ -1244,7 +1233,6 @@ public:
   { decimals= dec_arg; }
 
   void fix_length_and_dec();
-  type_conversion_status save_in_field(Field *to, bool no_conversions);
   longlong val_date_temporal()
   {
     DBUG_ASSERT(fixed == 1);
@@ -1260,13 +1248,8 @@ public:
     DBUG_ASSERT(fixed == 1);
     return cached_time.val_str(&str_value);
   }
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item_func_now::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
+  bool check_gcol_func_processor(uchar *int_arg)
+  { return true; }
 };
 
 
@@ -1513,6 +1496,7 @@ public:
 
   void print(String *str, enum_query_type query_type);
   const char *func_name() const { return "cast_as_date"; }
+  enum Functype functype() const { return TYPECAST_FUNC; }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date);
   const char *cast_type() const { return "date"; }
 };
@@ -1539,6 +1523,7 @@ public:
   }
   void print(String *str, enum_query_type query_type);
   const char *func_name() const { return "cast_as_time"; }
+  enum Functype functype() const { return TYPECAST_FUNC; }
   bool get_time(MYSQL_TIME *ltime);
   const char *cast_type() const { return "time"; }
   void fix_length_and_dec()
@@ -1573,6 +1558,7 @@ public:
   }
   void print(String *str, enum_query_type query_type);
   const char *func_name() const { return "cast_as_datetime"; }
+  enum Functype functype() const { return TYPECAST_FUNC; }
   const char *cast_type() const { return "datetime"; }
   void fix_length_and_dec()
   {

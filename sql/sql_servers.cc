@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -141,7 +141,8 @@ bool servers_init(bool dont_read_servers_table)
 
   /* initialise our servers cache */
   if (my_hash_init(&servers_cache, system_charset_info, 32, 0, 0,
-                   (my_hash_get_key) servers_cache_get_key, 0, 0))
+                   (my_hash_get_key) servers_cache_get_key, 0, 0,
+                   key_memory_servers))
   {
     return_val= TRUE; /* we failed, out of memory? */
     goto end;
@@ -680,7 +681,7 @@ bool Sql_cmd_create_server::execute(THD *thd)
   /* read index until record is that specified in server_name */
   error= table->file->ha_index_read_idx_map(
     table->record[0], 0,
-    (uchar *)table->field[SERVERS_FIELD_NAME]->ptr,
+    table->field[SERVERS_FIELD_NAME]->ptr,
     HA_WHOLE_KEY,
     HA_READ_KEY_EXACT);
 
@@ -761,7 +762,7 @@ bool Sql_cmd_alter_server::execute(THD *thd)
 
   error= table->file->ha_index_read_idx_map(
     table->record[0], 0,
-    (uchar *)table->field[SERVERS_FIELD_NAME]->ptr,
+    table->field[SERVERS_FIELD_NAME]->ptr,
     ~(longlong)0,
     HA_READ_KEY_EXACT);
   if (error)
@@ -835,7 +836,7 @@ bool Sql_cmd_drop_server::execute(THD *thd)
 
   error= table->file->ha_index_read_idx_map(
     table->record[0], 0,
-    (uchar *)table->field[SERVERS_FIELD_NAME]->ptr,
+    table->field[SERVERS_FIELD_NAME]->ptr,
     HA_WHOLE_KEY, HA_READ_KEY_EXACT);
   if (error)
   {

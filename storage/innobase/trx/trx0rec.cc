@@ -44,6 +44,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0rseg.h"
 #include "row0row.h"
 #include "fsp0sysspace.h"
+#include "row0mysql.h"
 
 /*=========== UNDO LOG RECORD CREATION AND DECODING ====================*/
 
@@ -203,6 +204,77 @@ trx_undo_page_set_next_prev_and_add(
 	return(first_free);
 }
 
+/** Reports in the undo log of an insert of virtual columns.
+@param[in]	undo_page	undo log page
+@param[in]	table		the table
+@param[in]	row		dtuple contains the virtual columns
+@param[in,out]	ptr		log ptr
+@return true if write goes well, false if out of space */
+static
+bool
+trx_undo_report_insert_virtual(
+	page_t*		undo_page,
+	dict_table_t*	table,
+	const dtuple_t*	row,
+	byte**		ptr)
+{
+	byte*	start = *ptr;
+
+	/* Reserve 2 bytes to write the number
+	of bytes the stored fields take in this
+	undo record */
+	*ptr += 2;
+
+	for (ulint col_no = 0; col_no < dict_table_get_n_v_cols(table);
+	     col_no++) {
+		dfield_t*       vfield = NULL;
+
+		const dict_v_col_t*     col
+			= dict_table_get_nth_v_col(table, col_no);
+
+		if (col->m_col.ord_part) {
+
+			/* make sure enought space to write the length */
+			if (trx_undo_left(undo_page, *ptr) < 10) {
+				return(false);
+			}
+
+			ulint   pos = col_no;
+			pos += REC_MAX_N_FIELDS;
+			*ptr += mach_write_compressed(*ptr, pos);
+
+			vfield = dtuple_get_nth_v_field(row, col->v_pos);
+			ulint	flen = vfield->len;
+
+			if (flen != UNIV_SQL_NULL) {
+				ulint	max_len
+					= dict_max_v_field_len_store_undo(
+						table, col_no);
+
+				if (flen > max_len) {
+					flen = max_len;
+				}
+
+				if (trx_undo_left(undo_page, *ptr) < flen) {
+
+					return(false);
+				}
+				*ptr += mach_write_compressed(*ptr, flen);
+
+				ut_memcpy(*ptr, vfield->data, flen);
+				*ptr += flen;
+			} else {
+				*ptr += mach_write_compressed(*ptr, flen);
+			}
+		}
+	}
+
+	/* Always mark the end of the log with 2 bytes length field */
+	mach_write_to_2(start, *ptr - start);
+
+	return(true);
+}
+
 /**********************************************************************//**
 Reports in the undo log of an insert of a clustered index record.
 @return offset of the inserted entry on the page if succeed, 0 if fail */
@@ -272,6 +344,13 @@ trx_undo_page_report_insert(
 		}
 	}
 
+	if (index->table->n_v_cols) {
+		if (!trx_undo_report_insert_virtual(
+			undo_page, index->table, clust_entry, &ptr)) {
+			return(0);
+		}
+	}
+
 	return(trx_undo_page_set_next_prev_and_add(undo_page, ptr, mtr));
 }
 
@@ -311,17 +390,15 @@ trx_undo_rec_get_pars(
 	return(const_cast<byte*>(ptr));
 }
 
-/** Read from an undo log record a stored column value.
+/** Read from an undo log record a non-virtual column value.
 @param[in,out]	ptr		pointer to remaining part of the undo record
-@param[out]	field		stored field
-@param[out]	len		length of the field, or UNIV_SQL_NULL
-@param[out]	orig_len	original length of the locally stored part
+@param[in,out]	field		stored field
+@param[in,out]	len		length of the field, or UNIV_SQL_NULL
+@param[in,out]	orig_len	original length of the locally stored part
 of an externally stored column, or 0
 @return remaining part of undo log record after reading these values */
-static
 byte*
 trx_undo_rec_get_col_val(
-/*=====================*/
 	const byte*	ptr,
 	const byte**	field,
 	ulint*		len,
@@ -480,6 +557,8 @@ size, or NULL when should not fetch a longer prefix
 @param[in,out]	field		the locally stored part of the externally
 stored column
 @param[in,out]	len		length of field, in bytes
+@param[in]	spatial_statis	whether the column is used by spatial index or
+				regular index
 @return undo log position */
 static
 byte*
@@ -490,9 +569,28 @@ trx_undo_page_report_modify_ext(
 	const page_size_t&	page_size,
 	const byte**		field,
 	ulint*			len,
-	bool			is_spatial)
+	col_spatial_status	spatial_status)
 {
-	ulint	spatial_len = is_spatial ? DATA_MBR_LEN : 0;
+	ulint	spatial_len= 0;
+
+	switch (spatial_status) {
+	case SPATIAL_NONE:
+		break;
+
+	case SPATIAL_MIXED:
+		spatial_len = DATA_MBR_LEN;
+		break;
+
+	case SPATIAL_ONLY:
+		spatial_len = DATA_MBR_LEN;
+
+		/* If the column is only used by gis index, log its
+		MBR is enough.*/
+		ptr += mach_write_compressed(ptr, UNIV_EXTERN_STORAGE_FIELD
+					     + spatial_len);
+
+		return(ptr);
+	}
 
 	if (ext_buf) {
 		ut_a(prefix_len > 0);
@@ -574,6 +672,8 @@ trx_undo_page_report_modify(
 					a delete, this should be set to NULL */
 	ulint		cmpl_info,	/*!< in: compiler info on secondary
 					index updates */
+	const dtuple_t*	row,		/*!< in: clustered index row contains
+					virtual column info */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	dict_table_t*	table;
@@ -715,8 +815,12 @@ trx_undo_page_report_modify(
 		ptr += mach_write_compressed(ptr, upd_get_n_fields(update));
 
 		for (i = 0; i < upd_get_n_fields(update); i++) {
+			upd_field_t*	fld = upd_get_nth_field(update, i);
 
-			ulint	pos = upd_get_nth_field(update, i)->field_no;
+			bool	is_virtual = upd_fld_is_virtual_col(fld);
+			ulint	max_v_log_len = 0;
+
+			ulint	pos = fld->field_no;
 
 			/* Write field number to undo log */
 			if (trx_undo_left(undo_page, ptr) < 5) {
@@ -724,17 +828,40 @@ trx_undo_page_report_modify(
 				return(0);
 			}
 
+			/* add REC_MAX_N_FIELDS to mark this is a virtaul col */
+			if (is_virtual) {
+				pos += REC_MAX_N_FIELDS;
+			}
+
 			ptr += mach_write_compressed(ptr, pos);
 
 			/* Save the old value of field */
-			field = rec_get_nth_field(rec, offsets, pos, &flen);
+			if (is_virtual) {
+				max_v_log_len
+					= dict_max_v_field_len_store_undo(
+						table, fld->field_no);
+
+				field = static_cast<byte*>(
+					fld->old_v_val->data);
+				flen = fld->old_v_val->len;
+
+				/* Only log sufficient bytes for index
+				record update */
+				if (flen != UNIV_SQL_NULL) {
+					flen = ut_min(
+						flen, max_v_log_len);
+				}
+			} else {
+				field = rec_get_nth_field(rec, offsets,
+							  pos, &flen);
+			}
 
 			if (trx_undo_left(undo_page, ptr) < 15) {
 
 				return(0);
 			}
 
-			if (rec_offs_nth_extern(offsets, pos)) {
+			if (!is_virtual && rec_offs_nth_extern(offsets, pos)) {
 				const dict_col_t*	col
 					= dict_index_get_nth_col(index, pos);
 				ulint			prefix_len
@@ -751,7 +878,7 @@ trx_undo_page_report_modify(
 					&& flen < REC_ANTELOPE_MAX_INDEX_COL_LEN
 					? ext_buf : NULL, prefix_len,
 					dict_table_page_size(table),
-					&field, &flen, false);
+					&field, &flen, SPATIAL_NONE);
 
 				/* Notify purge that it eventually has to
 				free the old externally stored field */
@@ -772,6 +899,33 @@ trx_undo_page_report_modify(
 				ut_memcpy(ptr, field, flen);
 				ptr += flen;
 			}
+
+			/* Also record the new value for virtual column */
+			if (is_virtual) {
+				field = static_cast<byte*>(fld->new_val.data);
+				flen = fld->new_val.len;
+				if (flen != UNIV_SQL_NULL) {
+					flen = ut_min(
+						flen, max_v_log_len);
+				}
+
+				if (trx_undo_left(undo_page, ptr) < 15) {
+
+					return(0);
+				}
+
+				ptr += mach_write_compressed(ptr, flen);
+
+				if (flen != UNIV_SQL_NULL) {
+					if (trx_undo_left(undo_page, ptr) < flen) {
+
+						return(0);
+					}
+
+					ut_memcpy(ptr, field, flen);
+					ptr += flen;
+				}
+			}
 		}
 	}
 
@@ -790,8 +944,9 @@ trx_undo_page_report_modify(
 	(including BLOBs) are recovered before anything is rolled back. */
 
 	if (!update || !(cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
-		byte*	old_ptr = ptr;
-		double	mbr[SPDIMS * 2];
+		byte*		old_ptr = ptr;
+		double		mbr[SPDIMS * 2];
+		mem_heap_t*	row_heap = NULL;
 
 		undo_ptr->update_undo->del_marks = TRUE;
 
@@ -812,8 +967,10 @@ trx_undo_page_report_modify(
 				= dict_table_get_nth_col(table, col_no);
 
 			if (col->ord_part) {
-				ulint	pos;
-				bool	is_spatial = false;
+				ulint			pos;
+				col_spatial_status	spatial_status;
+
+				spatial_status = SPATIAL_NONE;
 
 				/* Write field number to undo log */
 				if (trx_undo_left(undo_page, ptr) < 5 + 15) {
@@ -840,12 +997,15 @@ trx_undo_page_report_modify(
 					ut_a(prefix_len < sizeof ext_buf);
 
 
-					/* If prefix is 0, and this GEOMETRY
-					col is ord entry, then there is a
-					spatial index on it, log its MBR */
-					if (DATA_GEOMETRY_MTYPE(col->mtype)
-					    && col->max_prefix == 0) {
-						is_spatial = true;
+					spatial_status =
+						dict_col_get_spatial_status(
+							col);
+
+					/* If there is a spatial index on it,
+					log its MBR */
+					if (spatial_status != SPATIAL_NONE) {
+						ut_ad(DATA_GEOMETRY_MTYPE(
+								col->mtype));
 
 						trx_undo_get_mbr_from_ext(
 							mbr,
@@ -861,13 +1021,14 @@ trx_undo_page_report_modify(
 						? ext_buf : NULL, prefix_len,
 						dict_table_page_size(table),
 						&field, &flen,
-						is_spatial);
+						spatial_status);
 				} else {
 					ptr += mach_write_compressed(
 						ptr, flen);
 				}
 
-				if (flen != UNIV_SQL_NULL) {
+				if (flen != UNIV_SQL_NULL
+				    && spatial_status != SPATIAL_ONLY) {
 					if (trx_undo_left(undo_page, ptr)
 					    < flen) {
 
@@ -878,7 +1039,7 @@ trx_undo_page_report_modify(
 					ptr += flen;
 				}
 
-				if (is_spatial) {
+				if (spatial_status != SPATIAL_NONE) {
 					if (trx_undo_left(undo_page, ptr)
 					    < DATA_MBR_LEN) {
 						return(0);
@@ -894,7 +1055,68 @@ trx_undo_page_report_modify(
 			}
 		}
 
+		for (col_no = 0; col_no < dict_table_get_n_v_cols(table);
+		     col_no++) {
+			dfield_t*	vfield = NULL;
+
+			const dict_v_col_t*     col
+				= dict_table_get_nth_v_col(table, col_no);
+
+			if (col->m_col.ord_part) {
+				ulint   pos = col_no;
+				ulint	max_v_log_len
+					= dict_max_v_field_len_store_undo(
+						table, pos);
+
+				/* Write field number to undo log.
+				Make sure there is enought space in log */
+				if (trx_undo_left(undo_page, ptr) < 5) {
+
+					return(0);
+				}
+
+				pos += REC_MAX_N_FIELDS;
+				ptr += mach_write_compressed(ptr, pos);
+
+				if (update && update->old_vrow) {
+					ut_ad(!row);
+					vfield = dtuple_get_nth_v_field(
+						update->old_vrow, col->v_pos);
+				} else if (row) {
+					vfield = dtuple_get_nth_v_field(
+						row, col->v_pos);
+				} else {
+					ut_ad(0);
+				}
+
+				field = static_cast<byte*>(vfield->data);
+				flen = vfield->len;
+
+				if (flen != UNIV_SQL_NULL) {
+					flen = ut_min(
+						flen, max_v_log_len);
+				}
+
+				ptr += mach_write_compressed(ptr, flen);
+
+				if (flen != UNIV_SQL_NULL) {
+					if (trx_undo_left(undo_page, ptr)
+					    < flen) {
+
+						return(0);
+					}
+
+					ut_memcpy(ptr, field, flen);
+					ptr += flen;
+				}
+			}
+		}
+
 		mach_write_to_2(old_ptr, ptr - old_ptr);
+
+		if (row_heap) {
+			mem_heap_free(row_heap);
+		}
 	}
 
 	/*----------------------------------------*/
@@ -1021,10 +1243,14 @@ trx_undo_update_rec_get_update(
 		ulint		len;
 		ulint		field_no;
 		ulint		orig_len;
+		bool		is_virtual = false;
 
 		field_no = mach_read_next_compressed(&ptr);
 
-		if (field_no >= dict_index_get_n_fields(index)) {
+		if (field_no >= REC_MAX_N_FIELDS) {
+			is_virtual = true;
+			field_no -= REC_MAX_N_FIELDS;
+		} else if (field_no >= dict_index_get_n_fields(index)) {
 			ib::error() << "Trying to access update undo rec"
 				" field " << field_no
 				<< " in index " << index->name
@@ -1044,7 +1270,12 @@ trx_undo_update_rec_get_update(
 
 		upd_field = upd_get_nth_field(update, i);
 
-		upd_field_set_field_no(upd_field, field_no, index, trx);
+		if (is_virtual) {
+			upd_field_set_v_field_no(
+				upd_field, field_no, index);
+		} else {
+			upd_field_set_field_no(upd_field, field_no, index, trx);
+		}
 
 		ptr = trx_undo_rec_get_col_val(ptr, &field, &len, &orig_len);
 
@@ -1059,6 +1290,22 @@ trx_undo_update_rec_get_update(
 
 			dfield_set_data(&upd_field->new_val, field, len);
 			dfield_set_ext(&upd_field->new_val);
+		}
+
+		if (is_virtual) {
+			upd_field->old_v_val = static_cast<dfield_t*>(
+				mem_heap_alloc(
+					heap, sizeof *upd_field->old_v_val));
+			ptr = trx_undo_rec_get_col_val(
+				ptr, &field, &len, &orig_len);
+	                if (len == UNIV_SQL_NULL) {
+				dfield_set_null(upd_field->old_v_val);
+			} else if (len < UNIV_EXTERN_STORAGE_FIELD) {
+				dfield_set_data(
+					upd_field->old_v_val, field, len);
+			} else {
+				ut_ad(0);
+			}
 		}
 	}
 
@@ -1091,7 +1338,6 @@ trx_undo_rec_get_partial_row(
 				needed is allocated */
 {
 	const byte*	end_ptr;
-	ulint		row_len;
 
 	ut_ad(index);
 	ut_ad(ptr);
@@ -1099,16 +1345,18 @@ trx_undo_rec_get_partial_row(
 	ut_ad(heap);
 	ut_ad(dict_index_is_clust(index));
 
-	row_len = dict_table_get_n_cols(index->table);
-
-	*row = dtuple_create(heap, row_len);
+	*row = dtuple_create_with_vcol(
+		heap, dict_table_get_n_cols(index->table),
+		dict_table_get_n_v_cols(index->table));
 
 	/* Mark all columns in the row uninitialized, so that
 	we can distinguish missing fields from fields that are SQL NULL. */
-	for (ulint i = 0; i < row_len; i++) {
+	for (ulint i = 0; i < dict_table_get_n_cols(index->table); i++) {
 		dfield_get_type(dtuple_get_nth_field(*row, i))
 			->mtype = DATA_MISSING;
 	}
+
+	dtuple_init_v_fld(*row);
 
 	end_ptr = ptr + mach_read_from_2(ptr);
 	ptr += 2;
@@ -1124,37 +1372,63 @@ trx_undo_rec_get_partial_row(
 
 		field_no = mach_read_next_compressed(&ptr);
 
-		col = dict_index_get_nth_col(index, field_no);
-		col_no = dict_col_get_no(col);
-
 		ptr = trx_undo_rec_get_col_val(ptr, &field, &len, &orig_len);
 
-		dfield = dtuple_get_nth_field(*row, col_no);
-		dict_col_copy_type(
-			dict_table_get_nth_col(index->table, col_no),
-			dfield_get_type(dfield));
+		if (field_no >= REC_MAX_N_FIELDS) {
+			field_no -= REC_MAX_N_FIELDS;
+			dict_v_col_t* vcol = dict_table_get_nth_v_col(
+						index->table, field_no);
+			col = &vcol->m_col;
+			col_no = dict_col_get_no(col);
+			dfield = dtuple_get_nth_v_field(*row, vcol->v_pos);
+			dict_col_copy_type(
+				&vcol->m_col,
+				dfield_get_type(dfield));
+		} else {
+			col = dict_index_get_nth_col(index, field_no);
+			col_no = dict_col_get_no(col);
+			dfield = dtuple_get_nth_field(*row, col_no);
+			dict_col_copy_type(
+				dict_table_get_nth_col(index->table, col_no),
+				dfield_get_type(dfield));
+		}
+
 		dfield_set_data(dfield, field, len);
 
 		if (len != UNIV_SQL_NULL
 		    && len >= UNIV_EXTERN_STORAGE_FIELD) {
-			if (DATA_GEOMETRY_MTYPE(col->mtype)
-			    && col->max_prefix == 0
-			    && col->ord_part) {
+			col_spatial_status spatial_status;
+			spatial_status = dict_col_get_spatial_status(col);
+
+			switch (spatial_status) {
+			case SPATIAL_ONLY:
+				ut_ad(len - UNIV_EXTERN_STORAGE_FIELD
+				      == DATA_MBR_LEN);
+				dfield_set_len(
+					dfield,
+					len - UNIV_EXTERN_STORAGE_FIELD);
+				break;
+
+			case SPATIAL_MIXED:
 				dfield_set_len(
 					dfield,
 					len - UNIV_EXTERN_STORAGE_FIELD
 					- DATA_MBR_LEN);
-			} else {
+				break;
+
+			case SPATIAL_NONE:
 				dfield_set_len(
 					dfield,
 					len - UNIV_EXTERN_STORAGE_FIELD);
+				break;
 			}
 
 			dfield_set_ext(dfield);
 			/* If the prefix of this column is indexed,
 			ensure that enough prefix is stored in the
 			undo log record. */
-			if (!ignore_prefix && col->ord_part) {
+			if (!ignore_prefix && col->ord_part
+			    && spatial_status != SPATIAL_ONLY) {
 				ut_a(dfield_get_len(dfield)
 				     >= BTR_EXTERN_FIELD_REF_SIZE);
 				ut_a(dict_table_get_format(index->table)
@@ -1377,7 +1651,7 @@ trx_undo_report_row_operation(
 			ut_ad(op_type == TRX_UNDO_MODIFY_OP);
 			offset = trx_undo_page_report_modify(
 				undo_page, trx, index, rec, offsets, update,
-				cmpl_info, &mtr);
+				cmpl_info, clust_entry, &mtr);
 		}
 
 		if (UNIV_UNLIKELY(offset == 0)) {
@@ -1570,7 +1844,7 @@ hold a latch on the index page of the clustered index record.
 @retval true if previous version was built, or if it was an insert
 or the table has been rebuilt
 @retval false if the previous version is earlier than purge_view,
-which means that it may have been removed */
+or being purged, which means that it may have been removed */
 bool
 trx_undo_prev_version_build(
 /*========================*/
@@ -1585,11 +1859,22 @@ trx_undo_prev_version_build(
 	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
 	mem_heap_t*	heap,	/*!< in: memory heap from which the memory
 				needed is allocated */
-	rec_t**		old_vers)/*!< out, own: previous version, or NULL if
+	rec_t**		old_vers,/*!< out, own: previous version, or NULL if
 				rec is the first inserted version, or if
 				history data has been deleted (an error),
 				or if the purge COULD have removed the version
 				though it has not yet done so */
+	mem_heap_t*	v_heap,	/* !< in: memory heap used to create vrow
+				dtuple if it is not yet created. This heap
+				diffs from "heap" above in that it could be
+				prebuilt->old_vers_heap for selection */
+	const dtuple_t**vrow,	/*!< out: virtual column info, if any */
+	ulint		v_status)
+				/*!< in: status determine if it is going
+				into this function by purge thread or not.
+				And if we read "after image" of undo log */
+
+
 {
 	trx_undo_rec_t*	undo_rec	= NULL;
 	dtuple_t*	entry;
@@ -1605,9 +1890,8 @@ trx_undo_prev_version_build(
 	ulint		cmpl_info;
 	bool		dummy_extern;
 	byte*		buf;
-#ifdef UNIV_SYNC_DEBUG
+
 	ut_ad(!rw_lock_own(&purge_sys->latch, RW_LOCK_S));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mtr_memo_contains_page(index_mtr, index_rec, MTR_MEMO_PAGE_S_FIX)
 	      || mtr_memo_contains_page(index_mtr, index_rec,
 					MTR_MEMO_PAGE_X_FIX));
@@ -1630,11 +1914,17 @@ trx_undo_prev_version_build(
 	bool is_redo_rseg =
 		dict_table_is_temporary(index->table) ? false : true;
 	if (trx_undo_get_undo_rec(
-		    roll_ptr, rec_trx_id, heap, is_redo_rseg,
-		    index->table->name, &undo_rec)) {
-		/* The undo record may already have been purged,
-		during purge or semi-consistent read. */
-		return(false);
+		roll_ptr, rec_trx_id, heap, is_redo_rseg,
+		index->table->name, &undo_rec)) {
+		if (v_status & TRX_UNDO_PREV_IN_PURGE) {
+			/* We are fetching the record being purged */
+			undo_rec = trx_undo_get_undo_rec_low(
+				roll_ptr, heap, is_redo_rseg);
+		} else {
+			/* The undo record may already have been purged,
+			during purge or semi-consistent read. */
+			return(false);
+		}
 	}
 
 	ptr = trx_undo_rec_get_pars(undo_rec, &type, &cmpl_info,
@@ -1730,20 +2020,25 @@ trx_undo_prev_version_build(
 		following call is safe. */
 		row_upd_index_replace_new_col_vals(entry, index, update, heap);
 
-		buf = static_cast<byte*>(
-			mem_heap_alloc(
-				heap,
-				rec_get_converted_size(index, entry, n_ext)));
+		buf = static_cast<byte*>(mem_heap_alloc(
+			heap, rec_get_converted_size(index, entry, n_ext)));
 
 		*old_vers = rec_convert_dtuple_to_rec(buf, index,
 						      entry, n_ext);
 	} else {
-		buf = static_cast<byte*>(
-			mem_heap_alloc(heap, rec_offs_size(offsets)));
+		buf = static_cast<byte*>(mem_heap_alloc(
+			heap, rec_offs_size(offsets)));
 
 		*old_vers = rec_copy(buf, rec, offsets);
 		rec_offs_make_valid(*old_vers, index, offsets);
 		row_upd_rec_in_place(*old_vers, index, offsets, update, NULL);
+	}
+
+	/* Set the old value (which is the after image of an update) in the
+	update vector to dtuple vrow */
+	if (v_status & TRX_UNDO_GET_OLD_V_VALUE) {
+		row_upd_replace_vcol((dtuple_t*)*vrow, index->table, update,
+				     false, NULL, NULL);
 	}
 
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
@@ -1752,6 +2047,83 @@ trx_undo_prev_version_build(
 			*old_vers, index, NULL, ULINT_UNDEFINED, &heap)));
 #endif // defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 
+	if (vrow && type != TRX_UNDO_DEL_MARK_REC
+	    && !(cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
+		if (!(*vrow)) {
+			*vrow = dtuple_create_with_vcol(
+				v_heap ? v_heap : heap,
+				dict_table_get_n_cols(index->table),
+				dict_table_get_n_v_cols(index->table));
+			dtuple_init_v_fld(*vrow);
+		}
+
+		ut_ad(index->table->n_v_cols);
+		trx_undo_read_v_cols(index->table, ptr, *vrow,
+				     v_status & TRX_UNDO_PREV_IN_PURGE, NULL);
+	}
+
 	return(true);
+}
+
+/** Read virtual column value from undo log
+@param[in]	table		the table
+@param[in]	ptr		undo log pointer
+@param[in,out]	row		the row struct to fill
+@param[in]	in_purge	called by purge thread
+@param[in]	col_map		online rebuild column map */
+void
+trx_undo_read_v_cols(
+	const dict_table_t*	table,
+	byte*			ptr,
+	const dtuple_t*		row,
+	bool			in_purge,
+	const ulint*		col_map)
+{
+	const byte*     end_ptr;
+
+	end_ptr = ptr + mach_read_from_2(ptr);
+	ptr += 2;
+	while (ptr < end_ptr) {
+		dfield_t*               dfield;
+		const byte*             field;
+		ulint                   field_no;
+		ulint                   len;
+		ulint                   orig_len;
+
+		field_no = mach_read_next_compressed(
+				const_cast<const byte**>(&ptr));
+
+		ptr = trx_undo_rec_get_col_val(
+			ptr, &field, &len, &orig_len);
+
+		if (field_no >= REC_MAX_N_FIELDS) {
+			ulint	col_no;
+			field_no -= REC_MAX_N_FIELDS;
+			dict_v_col_t* vcol = dict_table_get_nth_v_col(
+						table, field_no);
+
+			if (!col_map) {
+				col_no = vcol->v_pos;
+			} else {
+				col_no = col_map[vcol->v_pos];
+			}
+
+			if (col_no == ULINT_UNDEFINED) {
+				continue;
+			}
+
+			dfield = dtuple_get_nth_v_field(row, col_no);
+
+			if (!in_purge
+			    || dfield_get_type(dfield)->mtype == DATA_MISSING) {
+				dict_col_copy_type(
+					&vcol->m_col,
+					dfield_get_type(dfield));
+				dfield_set_data(dfield, field, len);
+			}
+		}
+	}
+
+	ut_ad(ptr == end_ptr);
 }
 #endif /* !UNIV_HOTBACKUP */

@@ -237,7 +237,6 @@ mach_write_compressed(
 	}
 }
 
-#ifdef UNIV_LOG_LSN_DEBUG
 /*********************************************************//**
 Returns the size of a ulint when written in the compressed form.
 @return compressed size in bytes */
@@ -264,7 +263,6 @@ mach_get_compressed_size(
 		return(5);
 	}
 }
-#endif /* UNIV_LOG_LSN_DEBUG */
 
 /*********************************************************//**
 Reads a ulint in a compressed form.

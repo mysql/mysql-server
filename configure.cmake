@@ -555,7 +555,7 @@ set(CMAKE_REQUIRED_DEFINITIONS ${CMAKE_REQUIRED_DEFINITIONS}
         -D_LARGEFILE_SOURCE -D_LARGE_FILES -D_FILE_OFFSET_BITS=64
         -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS)
 
-SET(CMAKE_EXTRA_INCLUDE_FILES stdint.h stdio.h sys/types.h)
+SET(CMAKE_EXTRA_INCLUDE_FILES stdint.h stdio.h sys/types.h time.h)
 
 CHECK_TYPE_SIZE("void *"    SIZEOF_VOIDP)
 CHECK_TYPE_SIZE("char *"    SIZEOF_CHARP)
@@ -565,6 +565,7 @@ CHECK_TYPE_SIZE("int"       SIZEOF_INT)
 CHECK_TYPE_SIZE("long long" SIZEOF_LONG_LONG)
 CHECK_TYPE_SIZE("off_t"     SIZEOF_OFF_T)
 CHECK_TYPE_SIZE("time_t"    SIZEOF_TIME_T)
+CHECK_TYPE_SIZE("struct timespec" STRUCT_TIMESPEC)
 
 # If finds the size of a type, set SIZEOF_<type> and HAVE_<type>
 FUNCTION(MY_CHECK_TYPE_SIZE type defbase)
@@ -796,7 +797,6 @@ CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in" sin_len
 CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in6" sin6_len
   "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_SOCKADDR_IN6_SIN6_LEN)
 
-
 CHECK_CXX_SOURCE_COMPILES(
   "
   #include <vector>
@@ -826,3 +826,21 @@ CHECK_CXX_SOURCE_COMPILES(
 SET(CMAKE_EXTRA_INCLUDE_FILES)
 
 CHECK_FUNCTION_EXISTS(chown HAVE_CHOWN)
+CHECK_INCLUDE_FILES (numaif.h HAVE_NUMAIF_H)
+OPTION(WITH_NUMA "Explicitly set NUMA memory allocation policy" ON)
+IF(HAVE_NUMAIF_H AND WITH_NUMA)
+    SET(SAVE_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
+    SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} numa)
+    CHECK_C_SOURCE_COMPILES(
+    "
+    #include <numa.h>
+    #include <numaif.h>
+    int main()
+    {
+       struct bitmask *all_nodes= numa_all_nodes_ptr;
+       set_mempolicy(MPOL_DEFAULT, 0, 0);
+       return all_nodes != NULL;
+    }"
+    HAVE_LIBNUMA)
+    SET(CMAKE_REQUIRED_LIBRARIES ${SAVE_CMAKE_REQUIRED_LIBRARIES})
+ENDIF()

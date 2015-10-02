@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,11 +50,11 @@ public:
   /**
     Aggregates all options from itsself and all contained providers.
    */
-  virtual vector<my_option> generate_options();
+  virtual std::vector<my_option> generate_options();
 
 
 private:
-  vector<I_options_provider*> m_options_providers;
+  std::vector<I_options_provider*> m_options_providers;
 };
 
 }

@@ -111,10 +111,10 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT(@star_bottom_points), 2));
 --replace_regex /([0-9]*\.[0-9]{2})[0-9]+(e.+)/\1\2/ /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 0,0 0,0 0)'), 5));
 
---replace_regex /([0-9]*\.[0-9]{2})[0-9]+(e.+)/\1\2/ /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
+--replace_regex /([0-9]*\.[0-9]{2})[0-9]+(e.+)/\1\2/ /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/ /(2.4999)/2.5000/
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 5,5 5,5 0,0 0)'), 5));
 
---replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/  /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
+--replace_regex /([0-9]+\.[0-9]{3})[0-9]*/\1/  /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT(1 -1,1000 -1000,0.0001 0.000)'), 100));
 
 --replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/  /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
@@ -158,10 +158,10 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,-0.00 0),(0.0 0
 --replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))'), 50));
 
---replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
+--replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/ /(4.9999)/5.0000/
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((0 10,10 0),(10 0,0 0),(0 0,10 10))'), 100));
 
---replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
+--replace_regex /([0-9]+\.[0-9]{2})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((1 -1,1000 -1000,0.0001 0.000),(2 2,4 -9.002))'), 1000));
 
 --replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
@@ -249,7 +249,7 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 10,10 0,0 0,0 10)),
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,0 0)),((10 10,10 15,15 15,10 10)))'), 20));
 
 --replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
-SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4)))'), 4));
+SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4, 4 4)))'), 4));
 
 --replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'), 4));
@@ -271,7 +271,7 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0
 
 --replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),'
-                                                        '((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6)))'), 1000));
+                                                        '((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6, 4 4)))'), 1000));
 
 --replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
 SELECT ST_ASTEXT(ST_BUFFER(g, 20)) FROM gis_geometrycollection WHERE fid=103;
@@ -335,13 +335,15 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTIO
 --replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'), 100));
 
---replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
-SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))'), 10));
+# area check used because of the differences on various platforms
+#--replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
+#SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))'), 10));
+SELECT ST_AREA(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))'), 10)) BETWEEN 568.21 AND 568.22; 
 
 --replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))'), 5));
 
---replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]+)\.(0+)([^0-9])/\1\3/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
+--replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]+)\.(0+)([^0-9])/\1\3/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/ /(4.9999)/5/
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
                                                               'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))'), 50));
 
@@ -358,14 +360,14 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),'
                                                               'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))'), 0));
 
 --replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
-SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))'), 5));
+SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0, 0 0)))'), 5));
 
 --replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
-SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))))'), 5));
+SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0, 0 0)))))'), 5));
 
 --replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
-SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),'
-                                                              'MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10))))'), 10));
+SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4, 4 4)),'
+                                                              'MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0)),((10 10,10 15,15 15,15 10,10 10))))'), 10));
 
 # On osx10.8-x86-64bit platform, this test case produces a polygon that's
 # equivalent to the expected result but it starts with a different point,
@@ -383,8 +385,8 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTIO
                                                                                  'MULTIPOINT(0 0,10 10)),'
                                                               'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
                                                                                  'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),'
-                                                              'GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),'
-                                                                                 'MULTIPOLYGON(((0 0,0 10,10 10,10 0)),'
+                                                              'GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4, 4 4)),'
+                                                                                 'MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0)),'
                                                                                               '((10 10,10 15,15 15,15 10,10 10)))))'),1000));
 
 --replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
@@ -534,7 +536,7 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0
 --replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((0 10,10 0),(10 0,0 0),(0 0,10 10))'), 100, ST_BUFFER_STRATEGY('end_round', 10)));
 
---replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
+--replace_regex /([0-9]+\.[0-9]{2})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((1 -1,1000 -1000,0.0001 0.000),(2 2,4 -9.002))'), 1000, ST_BUFFER_STRATEGY('end_round', 50)));
 
 --replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
@@ -547,7 +549,7 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTILINESTRING((
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,5 5,10 10),'
                                                               'MULTILINESTRING((0 0,10 10)))'), 10, ST_BUFFER_STRATEGY('end_round', 10)));
 
---replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
+--replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/ /(4.9999)/5.0000/
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,5 5,10 10),'
                                                               'LINESTRING(0 0,-5 -5,-10 -10),'
                                                               'MULTILINESTRING((0 0,5 5,10 10)),'
@@ -597,7 +599,7 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTILINESTRING((
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,5 5,10 10),'
                                                               'MULTILINESTRING((0 0,10 10)))'), 10, ST_BUFFER_STRATEGY('end_flat')));
 
---replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
+--replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/ /(4.9999)/5.0000/
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,5 5,10 10),'
                                                               'LINESTRING(0 0,-5 -5,-10 -10),'
                                                               'MULTILINESTRING((0 0,5 5,10 10)),'
@@ -625,10 +627,10 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,-0.00 0),(0.0 0
 --replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))'), 50, ST_BUFFER_STRATEGY('join_round', 5)));
 
---replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
+--replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/ /(4.9999)/5.0000/
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((0 10,10 0),(10 0,0 0),(0 0,10 10))'), 100, ST_BUFFER_STRATEGY('join_round', 10)));
 
---replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
+--replace_regex /([0-9]+\.[0-9]{2})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((1 -1,1000 -1000,0.0001 0.000),(2 2,4 -9.002))'), 1000, ST_BUFFER_STRATEGY('join_round', 50)));
 
 --replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
@@ -659,7 +661,7 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 10,10 0,0 0,0 10)),
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,0 0)),((10 10,10 15,15 15,10 10)))'), 20, ST_BUFFER_STRATEGY('join_round', 10)));
 
 --replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
-SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4)))'), 4, ST_BUFFER_STRATEGY('join_round', 50)));
+SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4, 4 4)))'), 4, ST_BUFFER_STRATEGY('join_round', 50)));
 
 --replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/ /11\.9999/12/
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'), 4, ST_BUFFER_STRATEGY('join_round', 60)));
@@ -680,7 +682,7 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOLYGON(((0 
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,5 5,10 10),'
                                                               'MULTILINESTRING((0 0,10 10)))'), 10, ST_BUFFER_STRATEGY('join_round', 10)));
 
---replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
+--replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/ /(4.9999)/5.0000/
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,5 5,10 10),'
                                                               'LINESTRING(0 0,-5 -5,-10 -10),'
                                                               'MULTILINESTRING((0 0,5 5,10 10)),'
@@ -718,10 +720,10 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,-0.00 0),(0.0 0
 --replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))'), 50, ST_BUFFER_STRATEGY('join_miter', 5)));
 
---replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
+--replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/ /(4.9999)/5.0000/
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((0 10,10 0),(10 0,0 0),(0 0,10 10))'), 100, ST_BUFFER_STRATEGY('join_miter', 10)));
 
---replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
+--replace_regex /([0-9]+\.[0-9]{1})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((1 -1,1000 -1000,0.0001 0.000),(2 2,4 -9.002))'), 1000, ST_BUFFER_STRATEGY('join_miter', 50)));
 
 --replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
@@ -752,7 +754,7 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 10,10 0,0 0,0 10)),
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,0 0)),((10 10,10 15,15 15,10 10)))'), 20, ST_BUFFER_STRATEGY('join_miter', 10)));
 
 --replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
-SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4)))'), 4, ST_BUFFER_STRATEGY('join_miter', 50)));
+SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4, 4 4)))'), 4, ST_BUFFER_STRATEGY('join_miter', 50)));
 
 --replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'), 4, ST_BUFFER_STRATEGY('join_miter', 60)));
@@ -773,7 +775,7 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOLYGON(((0 
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,5 5,10 10),'
                                                               'MULTILINESTRING((0 0,10 10)))'), 10, ST_BUFFER_STRATEGY('join_miter', 10)));
 
---replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
+--replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/ /(4.9999)/5.0000/
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,5 5,10 10),'
                                                               'LINESTRING(0 0,-5 -5,-10 -10),'
                                                               'MULTILINESTRING((0 0,5 5,10 10)),'
@@ -1329,6 +1331,10 @@ SELECT ST_ASTEXT(ST_BUFFER(0x010300000002000000010300000002000000050000, 1));
 
 --error ER_GIS_DATA_WRONG_ENDIANESS
 SELECT ST_ASTEXT(ST_BUFFER(0x010400000002000000010100000000000000000000, 1));
+
+set session max_points_in_geometry=1024*1024;
+do
+st_buffer(point(-5,0),8772,st_buffer_strategy('point_circle',8*1024));
 
 --echo # Clean up
 DROP TABLE gis_geometrycollection;

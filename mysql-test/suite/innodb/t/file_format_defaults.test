@@ -31,9 +31,10 @@ DROP table tab0;
 
 SET GLOBAL innodb_file_format=Antelope;
 
-# check the ERROR 1031 (HY000): Table storage engine for 'tab0' doesn't have this option
---error ER_ILLEGAL_HA
+# WL#8307 Make ROW_FORMAT=DYNAMIC the default
+# will allow ROW_FORMAT=DYNAMIC even if innodb_file_format=Antelope.
 CREATE TABLE tab0(c1 INT,c2 LONGBLOB ) ENGINE=InnoDB ROW_FORMAT=Dynamic;
+DROP TABLE tab0;
 
 SET GLOBAL innodb_file_format=Default;
 

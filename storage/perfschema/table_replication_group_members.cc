@@ -28,6 +28,65 @@
 #include "log.h"
 #include "rpl_group_replication.h"
 
+/*
+  Callbacks implementation for GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS.
+*/
+static void set_channel_name(void* const context, const char& value,
+                             size_t length)
+{
+  struct st_row_group_members* row=
+      static_cast<struct st_row_group_members*>(context);
+  const size_t max= CHANNEL_NAME_LENGTH;
+  length= std::min(length, max);
+
+  row->channel_name_length= length;
+  memcpy(row->channel_name, &value, length);
+}
+
+static void set_member_id(void* const context, const char& value,
+                          size_t length)
+{
+  struct st_row_group_members* row=
+      static_cast<struct st_row_group_members*>(context);
+  const size_t max= UUID_LENGTH;
+  length= std::min(length, max);
+
+  row->member_id_length= length;
+  memcpy(row->member_id, &value, length);
+}
+
+static void set_member_host(void* const context, const char& value,
+                            size_t length)
+{
+  struct st_row_group_members* row=
+      static_cast<struct st_row_group_members*>(context);
+  const size_t max= HOSTNAME_LENGTH;
+  length= std::min(length, max);
+
+  row->member_host_length= length;
+  memcpy(row->member_host, &value, length);
+}
+
+static void set_member_port(void* const context, unsigned int value)
+{
+  struct st_row_group_members* row=
+      static_cast<struct st_row_group_members*>(context);
+  row->member_port= value;
+}
+
+static void set_member_state(void* const context, const char& value,
+                             size_t length)
+{
+  struct st_row_group_members* row=
+      static_cast<struct st_row_group_members*>(context);
+  const size_t max= NAME_LEN;
+  length= std::min(length, max);
+
+  row->member_state_length= length;
+  memcpy(row->member_state, &value, length);
+}
+
+
 THR_LOCK table_replication_group_members::m_table_lock;
 
 /* Numbers in varchar count utf8 characters. */
@@ -55,7 +114,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     {C_STRING_WITH_LEN("MEMBER_STATE")},
-    {C_STRING_WITH_LEN("enum('ONLINE','OFFLINE','RECOVERING')")},
+    {C_STRING_WITH_LEN("char(64)")},
     {NULL, 0}
   }
 };
@@ -76,7 +135,8 @@ table_replication_group_members::m_share=
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 PFS_engine_table* table_replication_group_members::create(void)
@@ -135,61 +195,34 @@ int table_replication_group_members::rnd_pos(const void *pos)
 void table_replication_group_members::make_row(uint index)
 {
   DBUG_ENTER("table_replication_group_members::make_row");
+  // Set default values.
   m_row_exists= false;
+  m_row.channel_name_length= 0;
+  m_row.member_id_length= 0;
+  m_row.member_host_length= 0;
+  m_row.member_port= 0;
+  m_row.member_state_length= 0;
 
-  GROUP_REPLICATION_GROUP_MEMBERS_INFO* group_replication_info;
-  if(!(group_replication_info= (GROUP_REPLICATION_GROUP_MEMBERS_INFO*)my_malloc(PSI_NOT_INSTRUMENTED,
-                                                  sizeof(GROUP_REPLICATION_GROUP_MEMBERS_INFO),
-                                                  MYF(MY_WME))))
+  // Set callbacks on GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS.
+  const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS callbacks=
   {
-    sql_print_error("Unable to allocate memory on"
-                    " table_replication_group_members::make_row");
-    DBUG_VOID_RETURN;
-  }
+    &m_row,
+    &set_channel_name,
+    &set_member_id,
+    &set_member_host,
+    &set_member_port,
+    &set_member_state,
+  };
 
-  bool stats_not_available= get_group_replication_group_members_info(index, group_replication_info);
-  if (stats_not_available)
+  // Query plugin and let callbacks do their job.
+  if (get_group_replication_group_members_info(index, callbacks))
+  {
     DBUG_PRINT("info", ("Group Replication stats not available!"));
+  }
   else
   {
-    m_row.channel_name_length= 0;
-    if (group_replication_info->channel_name != NULL)
-    {
-      m_row.channel_name_length= strlen(group_replication_info->channel_name);
-      memcpy(m_row.channel_name, group_replication_info->channel_name,
-             m_row.channel_name_length);
-
-      my_free((void*)group_replication_info->channel_name);
-    }
-
-    m_row.member_id_length= 0;
-    if (group_replication_info->member_id != NULL)
-    {
-      m_row.member_id_length= strlen(group_replication_info->member_id);
-      memcpy(m_row.member_id, group_replication_info->member_id,
-             m_row.member_id_length);
-
-      my_free((void*)group_replication_info->member_id);
-    }
-
-    m_row.member_host_length= 0;
-    if (group_replication_info->member_host != NULL)
-    {
-      m_row.member_host_length= strlen(group_replication_info->member_host);
-      memcpy(m_row.member_host, group_replication_info->member_host,
-             m_row.member_host_length);
-
-      my_free((void*)group_replication_info->member_host);
-    }
-
-    m_row.member_port= group_replication_info->member_port;
-
-    m_row.member_state= group_replication_info->member_state;
-
     m_row_exists= true;
   }
-
-  my_free((void*)group_replication_info);
 
   DBUG_VOID_RETURN;
 }
@@ -230,7 +263,7 @@ int table_replication_group_members::read_row_values(TABLE *table,
           f->set_null();
         break;
       case 4: /** member_state */
-        set_field_enum(f, m_row.member_state);
+        set_field_char_utf8(f, m_row.member_state, m_row.member_state_length);
         break;
       default:
         DBUG_ASSERT(false);

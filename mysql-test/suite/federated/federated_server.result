@@ -278,6 +278,45 @@ call p1();
 drop procedure p1;
 drop table t1;
 drop server if exists s;
+create database db_remote;
+use db_remote;
+CREATE TABLE db_remote.t1 (
+`id` int(20) NOT NULL,
+`name` varchar(64) NOT NULL default ''
+    );
+INSERT INTO db_remote.t1 VALUES ('1','this is remote');
+SET NAMES utf8;
+CREATE USER очень_очень_очень_длинный_юзер__@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
+grant all on *.* to очень_очень_очень_длинный_юзер__@localhost;
+SET NAMES utf8;
+create server 's1' foreign data wrapper 'mysql' options
+(HOST '127.0.0.1',
+DATABASE 'db_remote',
+USER 'очень_очень_очень_длинный_юзер__',
+PASSWORD 'auth_string',
+PORT SLAVE_PORT,
+SOCKET '',
+OWNER 'очень_очень_очень_длинный_юзер__');
+create user user_name_len_32_012345678901234@localhost;
+grant select on federated.* to user_name_len_32_012345678901234@localhost;
+CREATE TABLE federated.t1 (
+`id` int(20) NOT NULL,
+`name` varchar(64) NOT NULL default ''
+    ) ENGINE = FEDERATED CONNECTION = 's1' CHARACTER SET utf8;
+select * from federated.t1;
+id	name
+1	this is remote
+SET NAMES utf8;
+select * from federated.t1;
+id	name
+1	this is remote
+drop database db_remote;
+drop user очень_очень_очень_длинный_юзер__@localhost;
+SET NAMES default;
+drop user user_name_len_32_012345678901234@localhost;
+drop table federated.t1;
+drop server 's1';
+SET NAMES default;
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE federated;
 DROP TABLE IF EXISTS federated.t1;

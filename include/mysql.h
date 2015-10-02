@@ -163,7 +163,8 @@ enum mysql_option
   MYSQL_SERVER_PUBLIC_KEY,
   MYSQL_ENABLE_CLEARTEXT_PLUGIN,
   MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
-  MYSQL_OPT_SSL_ENFORCE
+  MYSQL_OPT_SSL_ENFORCE,
+  MYSQL_OPT_MAX_ALLOWED_PACKET, MYSQL_OPT_NET_BUFFER_LENGTH
 };
 
 /**
@@ -315,19 +316,6 @@ typedef struct st_mysql_res {
 #define MYSQL_CLIENT
 #endif
 
-
-typedef struct st_mysql_parameters
-{
-  unsigned long *p_max_allowed_packet;
-  unsigned long *p_net_buffer_length;
-  void *extension;
-} MYSQL_PARAMETERS;
-
-#if !defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
-#define max_allowed_packet (*mysql_get_parameters()->p_max_allowed_packet)
-#define net_buffer_length (*mysql_get_parameters()->p_net_buffer_length)
-#endif
-
 /*
   Set up and bring down the server; to ensure that applications will
   work when linked against either the standard client library or the
@@ -348,7 +336,6 @@ void STDCALL mysql_server_end(void);
 #define mysql_library_init mysql_server_init
 #define mysql_library_end mysql_server_end
 
-MYSQL_PARAMETERS *STDCALL mysql_get_parameters(void);
 
 /*
   Set up and bring down a thread; these function should be called

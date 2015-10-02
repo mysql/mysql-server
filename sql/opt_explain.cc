@@ -995,7 +995,7 @@ bool Explain_table_base::explain_extra_common(int quick_type,
       StringBuffer<64> str(STRING_WITH_LEN("index map: 0x"), cs);
       /* 4 bits per 1 hex digit + terminating '\0' */
       char buf[MAX_KEY / 4 + 1];
-      str.append(const_cast<QEP_TAB*>(tab)->keys().print(buf));
+      str.append(tab->keys().print(buf));
       if (push_extra(ET_RANGE_CHECKED_FOR_EACH_RECORD, str))
         return true;
     }
@@ -1081,11 +1081,11 @@ bool Explain_table_base::explain_extra_common(int quick_type,
       {
         case FT_OP_GT:
           len= my_snprintf(buf, sizeof(buf) - 1,
-                           "rank > %f", ft_hints->get_op_value());
+                           "rank > %g", ft_hints->get_op_value());
           break;
         case FT_OP_GE:
           len= my_snprintf(buf, sizeof(buf) - 1,
-                           "rank >= %f", ft_hints->get_op_value());
+                           "rank >= %g", ft_hints->get_op_value());
           break;
         default:
           DBUG_ASSERT(0);
@@ -2045,8 +2045,6 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
     {
       ret= explain_no_table(ethd, select_lex, join->zero_result_cause,
                             ctx);
-      /* Single select (without union) always returns 0 or 1 row */
-      ethd->limit_found_rows= join->send_records;
       break;
     }
     case JOIN::NO_TABLES:
@@ -2069,11 +2067,7 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
       }
       else
         ret= explain_no_table(ethd, select_lex, "No tables used", CTX_JOIN);
-      if (join->tables || !select_lex->with_sum_func)
-      {                                           // Only test of functions
-        /* Single select (without union) always returns 0 or 1 row */
-        ethd->limit_found_rows= join->send_records;
-      }
+
       break;
     }
     case JOIN::PLAN_READY:
@@ -2085,13 +2079,6 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
       */
       if (!other && !join->is_executed() && join->prepare_result())
         return true; /* purecov: inspected */
-
-      /*
-        Don't reset the found rows count if there're no tables as
-        FOUND_ROWS() may be called. Never reset the examined row count here.
-        It must be accumulated from all join iterations of all join parts.
-      */
-      ethd->limit_found_rows= 0;
 
       const Explain_format_flags *flags= &join->explain_flags;
       const bool need_tmp_table= flags->any(ESP_USING_TMPTABLE);
@@ -2335,8 +2322,8 @@ void mysql_explain_other(THD *thd)
 
   qp= &query_thd->query_plan;
 
-  if (query_thd->vio_ok() && !query_thd->system_thread &&
-      qp->get_command() != SQLCOM_END)
+  if (query_thd->get_protocol()->connection_alive() &&
+      !query_thd->system_thread && qp->get_command() != SQLCOM_END)
   {
     /*
       Don't explain:

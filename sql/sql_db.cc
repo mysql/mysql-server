@@ -167,7 +167,8 @@ bool my_dboptions_cache_init(void)
     error= my_hash_init(&dboptions, lower_case_table_names ?
                         system_charset_info : &my_charset_bin,
                         32, 0, 0, (my_hash_get_key) dboptions_get_key,
-                        free_dbopt,0);
+                        free_dbopt, 0,
+                        key_memory_dboptions_hash);
   }
   return error;
 }
@@ -204,7 +205,8 @@ void my_dbopt_cleanup(void)
   my_hash_init(&dboptions, lower_case_table_names ? 
                system_charset_info : &my_charset_bin,
                32, 0, 0, (my_hash_get_key) dboptions_get_key,
-               free_dbopt,0);
+               free_dbopt, 0,
+               key_memory_dboptions_hash);
   mysql_rwlock_unlock(&LOCK_dboptions);
 }
 
@@ -603,11 +605,11 @@ int mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info,
   }
   else
   {
-    if (my_errno != ENOENT)
+    if (my_errno() != ENOENT)
     {
       char errbuf[MYSYS_STRERROR_SIZE];
       my_error(EE_STAT, MYF(0), path,
-               my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+               my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
       goto exit;
     }
     if (my_mkdir(path,0777,MYF(0)) < 0)
@@ -1108,7 +1110,7 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
   tot_list_next_local= tot_list_next_global= &tot_list;
 
   for (uint idx=0 ;
-       idx < (uint) dirp->number_off_files && !thd->killed ;
+       idx < dirp->number_off_files && !thd->killed ;
        idx++)
   {
     FILEINFO *file=dirp->dir_entry+idx;
@@ -1198,11 +1200,11 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
         by concurrently running statement like REAPIR TABLE ...
       */
       if (my_delete_with_symlink(filePath, MYF(0)) &&
-          my_errno != ENOENT)
+          my_errno() != ENOENT)
       {
         char errbuf[MYSYS_STRERROR_SIZE];
         my_error(EE_DELETE, MYF(0), filePath,
-                 my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+                 my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
         DBUG_RETURN(true);
       }
     }
@@ -1291,7 +1293,7 @@ long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path)
   DBUG_PRINT("enter", ("path: %s", org_path));
 
   for (uint idx=0 ;
-       idx < (uint) dirp->number_off_files && !thd->killed ;
+       idx < dirp->number_off_files && !thd->killed ;
        idx++)
   {
     FILEINFO *file=dirp->dir_entry+idx;

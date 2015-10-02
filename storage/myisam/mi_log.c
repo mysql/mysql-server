@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,8 +24,7 @@
 #include <process.h>
 #endif
 
-#undef GETPID					/* For HPUX */
-#define GETPID() (log_type == 1 ? (long) myisam_pid : (long) mysys_thread_var()->id)
+#define GETPID() (log_type == 1 ? (long) myisam_pid : (long) my_thread_self())
 
 	/* Activate logging if flag is 1 and reset logging if flag is 0 */
 
@@ -52,12 +51,12 @@ int mi_log(int activate_log)
                                               0,
                                               (O_RDWR | O_BINARY | O_APPEND),
                                               MYF(0))) < 0)
-	DBUG_RETURN(my_errno);
+	DBUG_RETURN(my_errno());
     }
   }
   else if (myisam_log_file >= 0)
   {
-    error= mysql_file_close(myisam_log_file, MYF(0)) ? my_errno : 0 ;
+    error= mysql_file_close(myisam_log_file, MYF(0)) ? my_errno() : 0 ;
     myisam_log_file= -1;
   }
   DBUG_RETURN(error);
@@ -73,7 +72,7 @@ void _myisam_log(enum myisam_log_commands command, MI_INFO *info,
   uchar buff[11];
   int error,old_errno;
   ulong pid=(ulong) GETPID();
-  old_errno=my_errno;
+  old_errno=my_errno();
   memset(buff, 0, sizeof(buff));
   buff[0]=(char) command;
   mi_int2store(buff+1,info->dfile);
@@ -87,7 +86,7 @@ void _myisam_log(enum myisam_log_commands command, MI_INFO *info,
   if (!error)
     error=my_lock(myisam_log_file,F_UNLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE));
   mysql_mutex_unlock(&THR_LOCK_myisam);
-  my_errno=old_errno;
+  set_my_errno(old_errno);
 }
 
 
@@ -98,7 +97,7 @@ void _myisam_log_command(enum myisam_log_commands command, MI_INFO *info,
   int error,old_errno;
   ulong pid=(ulong) GETPID();
 
-  old_errno=my_errno;
+  old_errno=my_errno();
   buff[0]=(char) command;
   mi_int2store(buff+1,info->dfile);
   mi_int4store(buff+3,pid);
@@ -111,7 +110,7 @@ void _myisam_log_command(enum myisam_log_commands command, MI_INFO *info,
   if (!error)
     error=my_lock(myisam_log_file,F_UNLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE));
   mysql_mutex_unlock(&THR_LOCK_myisam);
-  my_errno=old_errno;
+  set_my_errno(old_errno);
 }
 
 
@@ -123,7 +122,7 @@ void _myisam_log_record(enum myisam_log_commands command, MI_INFO *info,
   uint length;
   ulong pid=(ulong) GETPID();
 
-  old_errno=my_errno;
+  old_errno=my_errno();
   if (!info->s->base.blobs)
     length=info->s->base.reclength;
   else
@@ -154,5 +153,5 @@ void _myisam_log_record(enum myisam_log_commands command, MI_INFO *info,
   if (!error)
     error=my_lock(myisam_log_file,F_UNLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE));
   mysql_mutex_unlock(&THR_LOCK_myisam);
-  my_errno=old_errno;
+  set_my_errno(old_errno);
 }

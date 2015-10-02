@@ -244,7 +244,7 @@ NDB_COMMAND(printSchemafile,
     MY_STAT sbuf,*st;
     if(!(st=my_stat(filename, &sbuf,0)))
     {
-      ndbout << filename << ": not found my_errno=" << my_errno << endl;
+      ndbout << filename << ": not found my_errno=" << my_errno() << endl;
       exitcode = 1;
       continue;
     }

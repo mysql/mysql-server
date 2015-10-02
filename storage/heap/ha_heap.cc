@@ -97,7 +97,7 @@ const char **ha_heap::bas_ext() const
 int ha_heap::open(const char *name, int mode, uint test_if_locked)
 {
   internal_table= MY_TEST(test_if_locked & HA_OPEN_INTERNAL_TABLE);
-  if (internal_table || (!(file= heap_open(name, mode)) && my_errno == ENOENT))
+  if (internal_table || (!(file= heap_open(name, mode)) && my_errno() == ENOENT))
   {
     HP_CREATE_INFO create_info;
     my_bool created_new_share;
@@ -664,7 +664,7 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
                                        keys * sizeof(HP_KEYDEF) +
 				       parts * sizeof(HA_KEYSEG),
 				       MYF(MY_WME))))
-    return my_errno;
+    return my_errno();
   seg= reinterpret_cast<HA_KEYSEG*>(keydef + keys);
   for (key= 0; key < keys; key++)
   {

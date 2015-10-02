@@ -87,6 +87,8 @@ my_bool disconnect_on_expired_password= TRUE;
 #define DEFAULT_SSL_CLIENT_CERT "client-cert.pem"
 #define DEFAULT_SSL_CLIENT_KEY  "client-key.pem"
 
+#define MAX_CN_NAME_LENGTH 64
+
 my_bool opt_auto_generate_certs= TRUE;
 
 char *auth_rsa_private_key_path;
@@ -2032,20 +2034,26 @@ acl_log_connect(const char *user,
                 THD *thd,
                 enum enum_server_command command)
 {
+  const char *vio_name_str= NULL;
+  int len= 0;
+  get_vio_type_name(thd->get_vio_type(), & vio_name_str, & len);
+
   if (strcmp(auth_as, user) && (PROXY_FLAG != *auth_as))
   {
-    query_logger.general_log_print(thd, command, "%s@%s as %s on %s",
+    query_logger.general_log_print(thd, command, "%s@%s as %s on %s using %s",
       user,
       host,
       auth_as,
-      db ? db : (char*) "");
+      db ? db : (char*) "",
+      vio_name_str);
   }
   else
   {
-    query_logger.general_log_print(thd, command, (char*) "%s@%s on %s",
+    query_logger.general_log_print(thd, command, "%s@%s on %s using %s",
       user,
       host,
-      db ? db : (char*) "");
+      db ? db : (char*) "",
+      vio_name_str);
   }
 }
 
@@ -2144,6 +2152,9 @@ acl_authenticate(THD *thd, enum_server_command command)
   }
 
   server_mpvio_update_thd(thd, &mpvio);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_THREAD_CALL(set_connection_type)(thd->get_vio_type());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   Security_context *sctx= thd->security_context();
   const ACL_USER *acl_user= mpvio.acl_user;
@@ -2323,6 +2334,14 @@ acl_authenticate(THD *thd, enum_server_command command)
       DBUG_RETURN(1);
     }
 
+    if (opt_require_secure_transport &&
+        !is_secure_transport(thd->active_vio->type))
+    {
+      my_error(ER_SECURE_TRANSPORT_REQUIRED, MYF(0));
+      DBUG_RETURN(1);
+    }
+
+
     /* checking password_time_expire for connecting user */
     password_time_expired= check_password_lifetime(thd, mpvio.acl_user);
 
@@ -2447,6 +2466,18 @@ acl_authenticate(THD *thd, enum_server_command command)
 
   /* Ready to handle queries */
   DBUG_RETURN(0);
+}
+
+bool is_secure_transport(int vio_type)
+{
+  switch (vio_type)
+  {
+    case VIO_TYPE_SSL:
+    case VIO_TYPE_SHARED_MEMORY:
+    case VIO_TYPE_SOCKET:
+      return TRUE;
+  }
+  return FALSE;
 }
 
 int generate_native_password(char *outbuf, unsigned int *buflen,
@@ -2931,7 +2962,7 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
                      CRYPT_MAX_PASSWORD_SIZE,
                      (char *) pkt,
                      pkt_len-1, 
-                     (char *) user_salt_begin,
+                     user_salt_begin,
                      (const char **) 0);
 
   /* Compare the newly created hash digest with the password record */
@@ -3320,6 +3351,7 @@ public:
                     EVP_PKEY *ca_pkey= NULL)
   {
     X509 *x509= X509_new();
+    DBUG_ASSERT(cn.length() <= MAX_CN_NAME_LENGTH);
     ASN1_INTEGER_set(X509_get_serialNumber(x509), serial);
     X509_gmtime_adj(X509_get_notBefore(x509), notbefore);
     X509_gmtime_adj(X509_get_notAfter(x509), notafter);
@@ -3494,6 +3526,8 @@ bool create_x509_certificate(RSA_generator_func &rsa_gen,
   File_IO *x509_ca_key_file_istream= NULL;
   File_IO *x509_ca_cert_file_istream= NULL;
   X509_gen x509_gen;
+  MY_MODE file_creation_mode= get_file_perm(USER_READ | USER_WRITE);
+  MY_MODE saved_umask= umask(~(file_creation_mode));
 
   x509_key_file_ostream= filecr(key_filename);
 
@@ -3625,6 +3659,8 @@ end:
     X509_free(x509);
   if (ca_x509)
     X509_free(ca_x509);
+
+  umask(saved_umask);
   return ret_val;
 }
 
@@ -3655,6 +3691,8 @@ bool create_RSA_key_pair(RSA_generator_func &rsa_gen,
   bool ret_val= true;
   File_IO * priv_key_file_ostream= NULL;
   File_IO * pub_key_file_ostream= NULL;
+  MY_MODE file_creation_mode= get_file_perm(USER_READ | USER_WRITE);
+  MY_MODE saved_umask= umask(~(file_creation_mode));
 
   DBUG_ASSERT(priv_key_filename.size() && pub_key_filename.size());
 
@@ -3720,6 +3758,8 @@ bool create_RSA_key_pair(RSA_generator_func &rsa_gen,
 end:
   if (rsa)
     RSA_free(rsa);
+
+  umask(saved_umask);
   return ret_val;
 }
 
@@ -3803,12 +3843,30 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status)
       Sql_string_t server_name= "MySQL_Server_";
       Sql_string_t client_name= "MySQL_Server_";
 
-      ca_name.append(server_version);
+      ca_name.append(MYSQL_SERVER_VERSION);
       ca_name.append("_Auto_Generated_CA_Certificate");
-      server_name.append(server_version);
+      server_name.append(MYSQL_SERVER_VERSION);
       server_name.append("_Auto_Generated_Server_Certificate");
-      client_name.append(server_version);
+      client_name.append(MYSQL_SERVER_VERSION);
       client_name.append("_Auto_Generated_Client_Certificate");
+
+      /*
+        Maximum length of X509 certificate subject is 64.
+        Make sure that constructed strings are within valid
+        bounds or change them to minimal default strings
+      */
+      if (ca_name.length() > MAX_CN_NAME_LENGTH ||
+          server_name.length() > MAX_CN_NAME_LENGTH ||
+          client_name.length() > MAX_CN_NAME_LENGTH)
+      {
+        ca_name.clear();
+        ca_name.append("MySQL_Server_Auto_Generated_CA_Certificate");
+        server_name.clear();
+        server_name.append("MySQL_Server_Auto_Generated_Server_Certificate");
+        client_name.clear();
+        client_name.append("MySQL_Server_Auto_Generated_Client_Certificate");
+      }
+
       /* Create and write the certa and keys on disk */
       if ((create_x509_certificate(rsa_gen, ca_name, 1, DEFAULT_SSL_CA_CERT,
                                    DEFAULT_SSL_CA_KEY, fcr) == false) ||

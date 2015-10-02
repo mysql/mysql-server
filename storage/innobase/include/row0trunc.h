@@ -238,6 +238,16 @@ public:
 		byte*		start_ptr,
 		const byte*	end_ptr);
 
+	/** Parse MLOG_TRUNCATE log record from REDO log file during recovery.
+	@param[in,out]	start_ptr	buffer containing log body to parse
+	@param[in]	end_ptr		buffer end
+	@param[in]	space_id	tablespace identifier
+	@return parsed upto or NULL. */
+	static byte* parse_redo_entry(
+		byte*		start_ptr,
+		const byte*	end_ptr,
+		ulint		space_id);
+
 	/**
 	Write a log record for truncating a single-table tablespace.
 
@@ -302,6 +312,18 @@ public:
 	@return true if the tablespace was truncated */
 	static bool is_tablespace_truncated(ulint space_id);
 
+	/** Was tablespace truncated (on crash before checkpoint).
+	If the MLOG_TRUNCATE redo-record is still available then tablespace
+	was truncated and checkpoint is yet to happen.
+	@param[in]	space_id	tablespace id to check.
+	@return true if tablespace was truncated. */
+	static bool was_tablespace_truncated(ulint space_id);
+
+	/** Get the lsn associated with space.
+	@param[in]	space_id	tablespace id to check.
+	@return associated lsn. */
+	static lsn_t get_truncated_tablespace_init_lsn(ulint space_id);
+
 private:
 	typedef std::vector<index_t, ut_allocator<index_t> >	indexes_t;
 
@@ -341,8 +363,13 @@ private:
 
 	/** Information about tables to truncate post recovery */
 	static	tables_t	s_tables;
-public:
 
+	/** Information about truncated table
+	This is case when truncate is complete but checkpoint hasn't. */
+	typedef std::map<ulint, lsn_t>	truncated_tables_t;
+	static truncated_tables_t	s_truncated_tables;
+
+public:
 	/** If true then fix-up of table is active and so while creating
 	index instead of grabbing information from dict_index_t, grab it
 	from parsed truncate log record. */

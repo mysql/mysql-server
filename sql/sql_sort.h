@@ -43,6 +43,7 @@ struct st_sort_field {
   uint	 length;			/* Length of sort field */
   uint   suffix_length;                 /* Length suffix (0-4) */
   Item_result result_type;		/* Type of item */
+  enum_field_types field_type;          /* Field type of the field or item */
   bool reverse;				/* if descending sort */
   bool need_strxnfrm;			/* If we have to use strxnfrm() */
 };
@@ -296,6 +297,7 @@ public:
   ha_rows max_rows;           // Select limit, or HA_POS_ERROR if unlimited.
   ha_rows examined_rows;      // Number of examined rows.
   TABLE *sort_form;           // For quicker make_sortkey.
+  bool use_hash;              // Whether to use hash to distinguish cut JSON
 
   /**
     ORDER BY list with some precalculated info for filesort.

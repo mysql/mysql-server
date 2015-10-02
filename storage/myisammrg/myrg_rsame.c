@@ -1,5 +1,4 @@
-/* Copyright (c) 2000-2002, 2005-2007 MySQL AB
-   Use is subject to license terms
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,10 +18,16 @@
 int myrg_rsame(MYRG_INFO *info,uchar *record,int inx)
 {
   if (inx)					/* not yet used, should be 0 */
-    return (my_errno=HA_ERR_WRONG_INDEX);
+  {
+    set_my_errno(HA_ERR_WRONG_INDEX);
+    return HA_ERR_WRONG_INDEX;
+  }
 
   if (!info->current_table)
-    return (my_errno=HA_ERR_NO_ACTIVE_RECORD);
+  {
+    set_my_errno(HA_ERR_NO_ACTIVE_RECORD);
+    return HA_ERR_NO_ACTIVE_RECORD;
+  }
 
   return mi_rsame(info->current_table->table,record,inx);
 }

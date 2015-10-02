@@ -806,9 +806,7 @@ DROP TABLE t1;
 #
 CREATE TABLE table_11757486 (field1 tinyint) ENGINE=MYISAM;
 INSERT INTO table_11757486 VALUES (0),(0);
-SET SESSION SQL_MODE='STRICT_ALL_TABLES';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SET SESSION SQL_MODE=default;
 UPDATE IGNORE (SELECT 128 as col1) x, table_11757486 SET field1=x.col1;
 Warnings:
 Warning	1264	Out of range value for column 'field1' at row 1
@@ -816,6 +814,8 @@ Warning	1264	Out of range value for column 'field1' at row 2
 UPDATE (SELECT 128 as col1) x, table_11757486 SET field1=x.col1;
 ERROR 22003: Out of range value for column 'field1' at row 1
 SET SESSION SQL_MODE='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE IGNORE (SELECT 128 as col1) x, table_11757486 SET field1=x.col1;
 Warnings:
 Warning	1264	Out of range value for column 'field1' at row 1

@@ -92,6 +92,10 @@ select * from t1 order by c1	{
         "select#": 1,
         "steps": [
           {
+            "substitute_generated_columns": {
+            }
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -229,6 +233,10 @@ select * from t1 order by c1	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "substitute_generated_columns": {
+            }
+          },
           {
             "table_dependencies": [
               {
@@ -368,6 +376,10 @@ select * from t1 order by c1	{
         "select#": 1,
         "steps": [
           {
+            "substitute_generated_columns": {
+            }
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -505,6 +517,10 @@ select * from t1 order by c1	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "substitute_generated_columns": {
+            }
+          },
           {
             "table_dependencies": [
               {
@@ -883,7 +899,7 @@ c254 CHAR(255) NOT NULL DEFAULT '',
 c255 CHAR(255) NOT NULL DEFAULT '',
 c256 CHAR(255) NOT NULL DEFAULT '',
 c257 CHAR(254) NOT NULL DEFAULT ''
-) ENGINE = INNODB;
+) ENGINE = INNODB ROW_FORMAT=COMPACT;
 Warnings:
 Warning	139	Row size too large (> 8126). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
 SELECT * FROM t1 ORDER BY c1;
@@ -906,6 +922,10 @@ SELECT * FROM t1 ORDER BY c1	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "substitute_generated_columns": {
+            }
+          },
           {
             "table_dependencies": [
               {

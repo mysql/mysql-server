@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,17 +19,16 @@
 #define ABSTRACT_PROGRAM_INCLUDED
 
 #include <string>
+
 #include "i_options_provider.h"
 #include "composite_options_provider.h"
 #include "debug_options.h"
 #include "help_options.h"
+#include "message_data.h"
 
 namespace Mysql{
 namespace Tools{
 namespace Base{
-
-using std::string;
-using std::vector;
 
 /**
   Base class for all MySQL client tools.
@@ -42,7 +41,7 @@ public:
   /**
     Returns null-terminated string with name of current program.
    */
-  const string get_name();
+  const std::string get_name();
 
   /**
     Returns pointer to array of options for usage in handle_options.
@@ -58,7 +57,7 @@ public:
   /**
     Returns string describing current version of this program.
    */
-  virtual string get_version()= 0;
+  virtual std::string get_version()= 0;
 
   /**
     Returns year of first release of this program.
@@ -68,22 +67,22 @@ public:
   /**
     Returns string describing shortly current program
    */
-  virtual string get_description()= 0;
+  virtual std::string get_description()= 0;
 
   /**
     Handles general errors.
    */
-  virtual void error(int error_code)= 0;
+  virtual void error(const Message_data& message)= 0;
 
   /**
     Runs main program code.
    */
-  virtual int execute(vector<string> positional_options)= 0;
+  virtual int execute(std::vector<std::string> positional_options)= 0;
 
   /**
-   Prints usage message. Does not end the program execution.
+   Prints program invocation message.
   */
-  void print_usage();
+  virtual void short_usage()= 0;
 
 protected:
   Abstract_program();
@@ -114,9 +113,9 @@ private:
 
   Options::Debug_options m_debug_options;
   Options::Help_options m_help_options;
-  vector<my_option> m_options;
+  std::vector<my_option> m_options;
   char **m_defaults_argv;
-  string m_name;
+  std::string m_name;
 
   friend class Abstract_connection_program;
 };

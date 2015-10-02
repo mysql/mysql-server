@@ -2951,6 +2951,16 @@ SHOW WARNINGS;
 --error ER_VIEW_INVALID
 UPDATE IGNORE test1.v1_all SET cn='x';
 SHOW WARNINGS;
+
+--echo
+--echo # Bug21338077 HANDLE_FATAL_SIGNAL (SIG=11) IN __STPCPY_SSE2_UNALIGNED FROM MY_STPCPY
+--echo
+CREATE VIEW v1 AS SELECT 1 FROM (SELECT 1) AS d1;
+PREPARE stmt FROM 'SELECT * FROM v1';
+EXECUTE stmt;
+DROP PREPARE stmt;
+DROP VIEW v1;
+
 --connection default
 disconnect con1;
 DROP USER 'user1'@'localhost';
@@ -2961,3 +2971,62 @@ set SESSION sql_mode= @orig_sql_mode_session;
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
+
+
+--echo #
+--echo # WL#2284: Increase the length of a user name
+--echo #
+
+
+CREATE DATABASE test1;
+CREATE TABLE test1.t1 (
+  int_field INTEGER UNSIGNED NOT NULL,
+  char_field CHAR(10),
+  INDEX(`int_field`)
+);
+
+use test;
+
+CREATE USER user_name_len_22_01234@localhost;
+CREATE USER user_name_len_32_012345678901234@localhost;
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user_name_len_22_01234@localhost;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user_name_len_32_012345678901234@localhost;
+
+--echo # Check that user_name_len_22_01234 has no SELECT permission ON t1
+connect (con_user_22,localhost,user_name_len_22_01234,,test);
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM test1.t1;
+
+--echo # Check that user_name_len_32_012345678901234 has no SELECT permission ON t1
+connect (con_user_32,localhost,user_name_len_32_012345678901234,,test);
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM test1.t1;
+
+connection default;
+
+GRANT ALL ON test1.* TO user_name_len_32_012345678901234@localhost;
+
+CREATE DEFINER=user_name_len_32_012345678901234@localhost
+  VIEW test1.v1 AS SELECT int_field FROM test1.t1;
+
+GRANT SELECT ON test1.v1 TO user_name_len_22_01234@localhost;
+
+--echo # Now user_name_len_22_01234 should be able to SELECT int_field FROM
+--echo # test1.t1 by using test1.v1
+
+connection con_user_22;
+SELECT * FROM test1.v1;
+
+connection default;
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=user_name_len_33_0123456789012345@localhost
+  VIEW test1.v2 AS SELECT int_field FROM test1.t1;
+
+#Cleanup
+DROP DATABASE test1;
+
+DROP USER user_name_len_22_01234@localhost;
+DROP USER user_name_len_32_012345678901234@localhost;
+

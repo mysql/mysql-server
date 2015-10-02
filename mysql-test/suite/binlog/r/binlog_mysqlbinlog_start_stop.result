@@ -26,7 +26,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -58,7 +58,6 @@ COMMIT/*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -72,7 +71,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -104,7 +103,6 @@ COMMIT/*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -118,7 +116,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -142,7 +140,6 @@ COMMIT/*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -157,7 +154,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -178,10 +175,9 @@ SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog *//*!*/;
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -195,7 +191,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -208,10 +204,9 @@ SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog *//*!*/;
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -225,7 +220,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -257,7 +252,6 @@ COMMIT/*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -272,7 +266,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -285,10 +279,9 @@ SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog *//*!*/;
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -302,7 +295,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -315,10 +308,9 @@ SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog *//*!*/;
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -335,7 +327,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -385,7 +377,6 @@ COMMIT/*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -399,7 +390,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -449,7 +440,6 @@ COMMIT/*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -463,7 +453,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -505,7 +495,6 @@ COMMIT/*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -520,7 +509,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -559,10 +548,9 @@ SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog *//*!*/;
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -576,7 +564,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -607,10 +595,9 @@ SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog *//*!*/;
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -624,7 +611,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -674,7 +661,6 @@ COMMIT/*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -689,7 +675,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -728,10 +714,9 @@ SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog *//*!*/;
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -745,7 +730,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -784,10 +769,9 @@ SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog *//*!*/;
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -804,7 +788,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -836,7 +820,6 @@ COMMIT/*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -850,7 +833,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -882,7 +865,6 @@ COMMIT/*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -895,7 +877,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -919,7 +901,6 @@ COMMIT/*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -934,7 +915,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -955,10 +936,9 @@ SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog *//*!*/;
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -971,7 +951,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -984,10 +964,9 @@ SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog *//*!*/;
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -1001,7 +980,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -1033,7 +1012,6 @@ COMMIT/*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -1048,7 +1026,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -1061,10 +1039,9 @@ SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog *//*!*/;
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -1078,7 +1055,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -1091,10 +1068,9 @@ SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog *//*!*/;
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -1111,7 +1087,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -1161,7 +1137,6 @@ COMMIT/*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -1175,7 +1150,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -1225,7 +1200,6 @@ COMMIT/*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -1238,7 +1212,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -1280,7 +1254,6 @@ COMMIT/*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -1295,7 +1268,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -1334,10 +1307,9 @@ SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog *//*!*/;
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -1350,7 +1322,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -1381,10 +1353,9 @@ SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog *//*!*/;
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -1398,7 +1369,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -1448,7 +1419,6 @@ COMMIT/*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -1463,7 +1433,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -1502,10 +1472,9 @@ SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog *//*!*/;
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -1519,7 +1488,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -1558,10 +1527,9 @@ SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog *//*!*/;
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
@@ -1576,7 +1544,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -1625,9 +1593,9 @@ INSERT INTO t1 VALUES(5)
 COMMIT/*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 # [empty]
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 

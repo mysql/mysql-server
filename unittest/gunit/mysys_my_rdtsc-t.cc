@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -114,8 +114,14 @@ TEST_F(RDTimeStampCounter, TestCycle)
     t1= t2;
   }
 
+#if defined(__aarch64__)
+  /* The ARM cycle timer has low resolution */
+  EXPECT_EQ(LOOP_COUNT, nonzero);
+  EXPECT_NE(0, backward);
+#else
   /* Expect at most 1 backward, the cycle value can overflow */
   EXPECT_TRUE((backward <= 1)) << "The cycle timer is strictly increasing";
+#endif
 
   if (myt.cycles.routine != 0)
     EXPECT_TRUE((nonzero != 0)) << "The cycle timer is implemented";

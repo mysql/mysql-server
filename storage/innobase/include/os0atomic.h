@@ -1,5 +1,5 @@
 /*****************************************************************************
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -34,8 +34,53 @@ Created 2012-09-23 Sunny Bains (Split from os0sync.h)
 
 #include "univ.i"
 
+#ifdef _WIN32
+
+/** On Windows, InterlockedExchange operates on LONG variable */
+typedef LONG	lock_word_t;
+
+#elif defined(MUTEX_FUTEX)
+
+typedef int	lock_word_t;
+
+# else
+
+typedef ulint	lock_word_t;
+
+#endif /* _WIN32 */
+
+#if defined __i386__ || defined __x86_64__ || defined _M_IX86 \
+    || defined _M_X64 || defined __WIN__
+
+#define IB_STRONG_MEMORY_MODEL
+
+#endif /* __i386__ || __x86_64__ || _M_IX86 || _M_X64 || __WIN__ */
+
 /**********************************************************//**
 Atomic compare-and-swap and increment for InnoDB. */
+
+/** Do an atomic test and set.
+@param[in/out]	ptr	Memory location to set
+@param[in]	new_val	new value
+@return	old value of memory location. */
+UNIV_INLINE
+lock_word_t
+os_atomic_test_and_set(
+	volatile lock_word_t*	ptr,
+	lock_word_t		new_val);
+
+
+/** Do an atomic compare and set
+@param[in/out]	ptr	Memory location to set
+@param[in]	old_val	old value to compare
+@param[in]	new_val	new value to set
+@return the value of ptr before the operation. */
+UNIV_INLINE
+lock_word_t
+os_atomic_val_compare_and_swap(
+	volatile lock_word_t*	ptr,
+	lock_word_t		old_val,
+	lock_word_t		new_val);
 
 #ifdef _WIN32
 
@@ -84,13 +129,6 @@ win_cmp_and_xchg_dword(
 	volatile DWORD*	ptr,		/*!< in/out: source/destination */
 	DWORD		new_val,	/*!< in: exchange value */
 	DWORD		old_val);	/*!< in: value to compare to */
-
-/**********************************************************//**
-Returns old value, ptr is pointer to target, old_val is value to
-compare to, new_val is the value to swap in. */
-
-# define os_val_compare_and_swap_ulint(ptr, old_val, new_val) \
-	win_cmp_and_xchg_ulint(ptr, new_val, old_val)
 
 /**********************************************************//**
 Returns true if swapped, ptr is pointer to target, old_val is value to
@@ -163,22 +201,8 @@ amount to decrement. There is no atomic substract function on Windows */
 		-(static_cast<LONGLONG>(amount))))		\
 	- static_cast<ib_uint64_t>(amount))
 
-/**********************************************************//**
-Returns the old value of *ptr, atomically sets *ptr to new_val.
-InterlockedExchange() operates on LONG, and the LONG will be
-clobbered */
-
-# define os_atomic_test_and_set_u32(ptr, new_val) \
-	InterlockedExchange(ptr, new_val)
 #else
 /* Fall back to GCC-style atomic builtins. */
-
-/**********************************************************//**
-Returns old value,  ptr is pointer to target, old_val is value to
-compare to, new_val is the value to swap in. */
-
-# define os_val_compare_and_swap_ulint(ptr, old_val, new_val) \
-	__sync_val_compare_and_swap(ptr, old_val, new_val)
 
 /**********************************************************//**
 Returns true if swapped, ptr is pointer to target, old_val is value to
@@ -193,7 +217,7 @@ compare to, new_val is the value to swap in. */
 # define os_compare_and_swap_lint(ptr, old_val, new_val) \
 	os_compare_and_swap(ptr, old_val, new_val)
 
-#  define os_compare_and_swap_uint32(ptr, old_val, new_val) \
+# define os_compare_and_swap_uint32(ptr, old_val, new_val) \
 	os_compare_and_swap(ptr, old_val, new_val)
 
 # ifdef HAVE_IB_ATOMIC_PTHREAD_T_GCC
@@ -244,21 +268,12 @@ amount to decrement. */
 # define os_atomic_decrement_uint64(ptr, amount) \
 	os_atomic_decrement(ptr, amount)
 
-/**********************************************************//**
-Returns the old value of *ptr, atomically sets *ptr to new_val */
-
-# define os_atomic_test_and_set_ulint(ptr, new_val) \
-	__sync_lock_test_and_set(ptr, new_val)
 #endif
 
 #define os_atomic_inc_ulint(m,v,d)	os_atomic_increment_ulint(v, d)
 #define os_atomic_dec_ulint(m,v,d)	os_atomic_decrement_ulint(v, d)
-#ifdef _WIN32
-# define TAS(l, n)			os_atomic_test_and_set_u32((l), (n))
-#else
-# define TAS(l, n)			os_atomic_test_and_set_ulint((l), (n))
-#endif /* _WIN32 */
-#define CAS(l, o, n)		os_val_compare_and_swap_ulint((l), (o), (n))
+#define TAS(l, n)			os_atomic_test_and_set((l), (n))
+#define CAS(l, o, n)		os_atomic_val_compare_and_swap((l), (o), (n))
 
 /** barrier definitions for memory ordering */
 #ifdef HAVE_IB_GCC_ATOMIC_THREAD_FENCE

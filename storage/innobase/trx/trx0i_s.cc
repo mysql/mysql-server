@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -50,7 +50,6 @@ Created July 17, 2007 Vasil Dimov
 #include "row0row.h"
 #include "srv0srv.h"
 #include "sync0rw.h"
-#include "sync0mutex.h"
 #include "sync0sync.h"
 #include "trx0i_s.h"
 #include "trx0sys.h"
@@ -148,7 +147,7 @@ struct i_s_table_cache_t {
 
 /** This structure describes the intermediate buffer */
 struct trx_i_s_cache_t {
-	rw_lock_t	rw_lock;	/*!< read-write lock protecting
+	rw_lock_t*	rw_lock;	/*!< read-write lock protecting
 					the rest of this structure */
 	uintmax_t	last_read;	/*!< last time the cache was read;
 					measured in microseconds since
@@ -590,8 +589,6 @@ thd_done:
 	}
 
 	row->trx_has_search_latch = (ibool) trx->has_search_latch;
-
-	row->trx_search_latch_timeout = trx->search_latch_timeout;
 
 	row->trx_is_read_only = trx->read_only;
 
@@ -1222,9 +1219,7 @@ can_cache_be_updated(
 	So it is not possible for last_read to be updated while we are
 	reading it. */
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_X));
-#endif
+	ut_ad(rw_lock_own(cache->rw_lock, RW_LOCK_X));
 
 	now = ut_time_us(NULL);
 	if (now - cache->last_read > CACHE_MIN_IDLE_TIME_US) {
@@ -1407,12 +1402,15 @@ trx_i_s_cache_init(
 	release trx_i_s_cache_t::last_read_mutex
 	release trx_i_s_cache_t::rw_lock */
 
-	rw_lock_create(trx_i_s_cache_lock_key, &cache->rw_lock,
+	cache->rw_lock = static_cast<rw_lock_t*>(
+		ut_malloc_nokey(sizeof(*cache->rw_lock)));
+
+	rw_lock_create(trx_i_s_cache_lock_key, cache->rw_lock,
 		       SYNC_TRX_I_S_RWLOCK);
 
 	cache->last_read = 0;
 
-	mutex_create("cache_last_read", &cache->last_read_mutex);
+	mutex_create(LATCH_ID_CACHE_LAST_READ, &cache->last_read_mutex);
 
 	table_cache_init(&cache->innodb_trx, sizeof(i_s_trx_row_t));
 	table_cache_init(&cache->innodb_locks, sizeof(i_s_locks_row_t));
@@ -1436,7 +1434,10 @@ trx_i_s_cache_free(
 /*===============*/
 	trx_i_s_cache_t*	cache)	/*!< in, own: cache to free */
 {
-	rw_lock_free(&cache->rw_lock);
+	rw_lock_free(cache->rw_lock);
+	ut_free(cache->rw_lock);
+	cache->rw_lock = NULL;
+
 	mutex_free(&cache->last_read_mutex);
 
 	hash_table_free(cache->locks_hash);
@@ -1453,7 +1454,7 @@ trx_i_s_cache_start_read(
 /*=====================*/
 	trx_i_s_cache_t*	cache)	/*!< in: cache */
 {
-	rw_lock_s_lock(&cache->rw_lock);
+	rw_lock_s_lock(cache->rw_lock);
 }
 
 /*******************************************************************//**
@@ -1465,9 +1466,7 @@ trx_i_s_cache_end_read(
 {
 	uintmax_t	now;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_S));
-#endif
+	ut_ad(rw_lock_own(cache->rw_lock, RW_LOCK_S));
 
 	/* update cache last read time */
 	now = ut_time_us(NULL);
@@ -1475,7 +1474,7 @@ trx_i_s_cache_end_read(
 	cache->last_read = now;
 	mutex_exit(&cache->last_read_mutex);
 
-	rw_lock_s_unlock(&cache->rw_lock);
+	rw_lock_s_unlock(cache->rw_lock);
 }
 
 /*******************************************************************//**
@@ -1485,7 +1484,7 @@ trx_i_s_cache_start_write(
 /*======================*/
 	trx_i_s_cache_t*	cache)	/*!< in: cache */
 {
-	rw_lock_x_lock(&cache->rw_lock);
+	rw_lock_x_lock(cache->rw_lock);
 }
 
 /*******************************************************************//**
@@ -1495,11 +1494,9 @@ trx_i_s_cache_end_write(
 /*====================*/
 	trx_i_s_cache_t*	cache)	/*!< in: cache */
 {
-#ifdef UNIV_SYNC_DEBUG
-	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_X));
-#endif
+	ut_ad(rw_lock_own(cache->rw_lock, RW_LOCK_X));
 
-	rw_lock_x_unlock(&cache->rw_lock);
+	rw_lock_x_unlock(cache->rw_lock);
 }
 
 /*******************************************************************//**
@@ -1514,10 +1511,8 @@ cache_select_table(
 {
 	i_s_table_cache_t*	table_cache;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_S)
-	     || rw_lock_own(&cache->rw_lock, RW_LOCK_X));
-#endif
+	ut_ad(rw_lock_own(cache->rw_lock, RW_LOCK_S)
+	      || rw_lock_own(cache->rw_lock, RW_LOCK_X));
 
 	switch (table) {
 	case I_S_INNODB_TRX:

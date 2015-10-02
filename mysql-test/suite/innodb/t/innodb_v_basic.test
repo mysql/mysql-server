@@ -1,0 +1,1095 @@
+--source include/have_innodb.inc
+--source include/have_debug_sync.inc
+--source include/have_innodb_max_16k.inc
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] InnoDB: Compute virtual");
+--enable_query_log
+
+CREATE TABLE t (a INT, b INT GENERATED ALWAYS AS (a), c CHAR(10), d CHAR(20), e CHAR(10) GENERATED ALWAYS AS (c), g INT);
+INSERT INTO t VALUES(10, DEFAULT, "aa", "bb", DEFAULT, 20);
+INSERT INTO t VALUES(11, DEFAULT, "jj", "kk", DEFAULT, 21);
+
+CREATE INDEX idx ON t(e) algorithm=inplace;
+INSERT INTO t VALUES(12, DEFAULT, 'mm', "nn", DEFAULT, 22);
+
+SELECT e FROM t;
+
+DROP TABLE t;
+
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10));
+
+INSERT INTO t VALUES (11, 3, DEFAULT, 'mm');
+INSERT INTO t VALUES (18, 1, DEFAULT, 'mm');
+INSERT INTO t VALUES (28, 1, DEFAULT, 'mm');
+INSERT INTO t VALUES (null, null, DEFAULT, 'mm');
+
+CREATE INDEX idx ON t(c);
+SELECT c FROM t;
+
+UPDATE t SET a = 10 WHERE a = 11;
+SELECT c FROM t;
+
+SELECT * FROM t;
+
+DELETE FROM t WHERE a = 18;
+
+SELECT c FROM t;
+
+START TRANSACTION;
+
+INSERT INTO t VALUES (128, 22, DEFAULT, "xx");
+INSERT INTO t VALUES (1290, 212, DEFAULT, "xmx");
+ROLLBACK;
+
+SELECT c FROM t;
+SELECT * FROM t;
+
+DROP TABLE t;
+
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10), j INT, m INT  GENERATED ALWAYS AS(b + j), n VARCHAR(10), p VARCHAR(20) GENERATED ALWAYS AS(CONCAT(n, h)), INDEX idx1(c), INDEX idx2 (m), INDEX idx3(p));
+
+INSERT INTO t VALUES(11, 22, DEFAULT, "AAA", 8, DEFAULT, "XXX", DEFAULT);
+INSERT INTO t VALUES(1, 2, DEFAULT, "uuu", 9, DEFAULT, "uu", DEFAULT);
+INSERT INTO t VALUES(3, 4, DEFAULT, "uooo", 1, DEFAULT, "umm", DEFAULT);
+
+SELECT c FROM t;
+SELECT m FROM t;
+SELECT p FROM t;
+SELECT * FROM t;
+
+update t set a = 13 where a =11;
+
+delete from t where a =13;
+
+DROP INDEX idx1 ON t;
+DROP INDEX idx2 ON t;
+DROP TABLE t;
+
+/* Test large BLOB data */
+CREATE TABLE `t` (
+  `a` BLOB,
+  `b` BLOB,
+  `c` BLOB GENERATED ALWAYS AS (CONCAT(a,b)) VIRTUAL,
+  `h` VARCHAR(10) DEFAULT NULL
+) ENGINE=InnoDB;
+
+INSERT INTO t VALUES (REPEAT('g', 16000), REPEAT('x', 16000), DEFAULT, "kk");
+
+CREATE INDEX idx ON t(c(100));
+
+SELECT length(c) FROM t;
+
+START TRANSACTION;
+
+INSERT INTO t VALUES (REPEAT('a', 16000), REPEAT('b', 16000), DEFAULT, 'mm');
+
+ROLLBACK;
+
+INSERT INTO t VALUES (REPEAT('a', 16000), REPEAT('b', 16000), DEFAULT, 'mm');
+
+START TRANSACTION;
+
+UPDATE t SET a = REPEAT('m', 16000) WHERE a like "aaa%";
+
+ROLLBACK;
+
+# This SELECT did not give correct answer, even though InnoDB return
+# all qualified rows
+SELECT COUNT(*) FROM t WHERE c like "aaa%";
+
+DROP TABLE t;
+
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10));
+
+INSERT INTO t VALUES (11, 3, DEFAULT, 'mm');
+INSERT INTO t VALUES (18, 1, DEFAULT, 'mm');
+INSERT INTO t VALUES (28, 1, DEFAULT, 'mm');
+CREATE INDEX idx ON t(c);
+
+START TRANSACTION;
+
+UPDATE t SET a = 100 WHERE a = 11;
+
+UPDATE t SET a =22 WHERE a = 18;
+
+UPDATE t SET a = 33 WHERE a = 22;
+
+SELECT c FROM t;
+
+ROLLBACK;
+
+SELECT c FROM t;
+DROP TABLE t;
+
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10));
+
+INSERT INTO t VALUES (11, 3, DEFAULT, 'mm');
+INSERT INTO t VALUES (18, 1, DEFAULT, 'mm');
+INSERT INTO t VALUES (28, 1, DEFAULT, 'mm');
+CREATE INDEX idx ON t(c);
+SELECT c FROM t;
+
+CONNECT(con1,localhost,root,,test);
+START TRANSACTION;
+SELECT c FROM t;
+
+CONNECTION default;
+UPDATE t SET a = 19 WHERE a = 11;
+
+# this should report the same value as previous ONe (14, 19, 29).
+CONNECTiON con1;
+SELECT c FROM t;
+
+ROLLBACK;
+
+SELECT c FROM t;
+
+CONNECTION default;
+DISCONNECT con1;
+
+DROP TABLE t;
+
+# CREATE a more complex TABLE
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10), j INT, m INT  GENERATED ALWAYS AS(b + x), n VARCHAR(10), p VARCHAR(20) GENERATED ALWAYS AS(CONCAT(n, y)), x INT, y CHAR(20), z INT, INDEX idx1(c), INDEX idx2 (m), INDEX idx3(p));
+
+INSERT INTO t VALUES(1, 2, DEFAULT, "hhh", 3, DEFAULT, "nnn", DEFAULT, 4, "yyy", 5);
+
+
+INSERT INTO t VALUES(2, 3, DEFAULT, "hhha", 4, DEFAULT, "nnna", DEFAULT, 5, "yyya", 6);
+
+
+INSERT INTO t VALUES(12, 13, DEFAULT, "hhhb", 14, DEFAULT, "nnnb", DEFAULT, 15, "yyyb", 16);
+
+# CREATE an INDEX ON multiple virtual COLUMN
+CREATE INDEX idx6 ON t(p, c);
+
+SELECT p, c FROM t;
+
+START TRANSACTION;
+INSERT INTO t VALUES(32, 33, DEFAULT, "hhhb", 34, DEFAULT, "nnnb", DEFAULT, 35, "yyyb", 36);
+ROLLBACK;
+
+UPDATE t SET a = 100 WHERE a = 1;
+
+START TRANSACTION;
+UPDATE t SET a = 1 WHERE a = 100;
+ROLLBACK;
+
+
+Drop TABLE t;
+
+CREATE TABLE t1(a INT);
+ALTER TABLE t1 add COLUMN (b INT generated always as (a+1) virtual, c INT as(5) virtual);
+ALTER TABLE t1 add COLUMN (d INT generated always as (a+1) virtual, e INT as(5) virtual);
+
+SELECT pos, base_pos FROM informatiON_schema.innodb_sys_virtual;
+
+#--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+ALTER TABLE t1 add COLUMN (f INT generated always as (a+1) virtual, g INT as(5) virtual), DROP COLUMN e;
+
+SELECT pos, base_pos FROM informatiON_schema.innodb_sys_virtual;
+
+DROP TABLE t1;
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
+
+ALTER TABLE t1 add COLUMN (f INT generated always as (a+1) virtual, g INT );
+
+# Inplace ADD/DROP virtual COLUMNs can only go with their own for
+# inplace algorithm, not to combine with other operations, except create index
+ALTER TABLE t1 add COLUMN (h INT generated always as (a+1) virtual), add INDEX idx (h), algorithm=inplace;
+
+--enable_info
+ALTER TABLE t1 add COLUMN (h1 INT generated always as (a+1) virtual), add INDEX idx1 (h1);
+--disable_info
+
+ALTER TABLE t1 DROP COLUMN h1, DROP INDEX idx;
+
+DROP TABLE t1;
+
+# Virtual COLUMN cannot be INDEXed
+CREATE TABLE t1(a INT);
+CREATE INDEX idx ON t1(a);
+CREATE TABLE t3(a INT, b INT , INDEX(b), CONSTRAINT x FOREIGN KEY(b) REFERENCES t1(a));
+#--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+--error ER_CANNOT_ADD_FOREIGN
+CREATE TABLE t2(a INT, b INT generated always as (a+1) virtual, INDEX(b), CONSTRAINT x FOREIGN KEY(b) REFERENCES t1(a));
+CREATE TABLE t2(a INT, b INT generated always as (a+1) virtual, INDEX(b));
+DROP TABLE t3;
+DROP TABLE t2;
+DROP TABLE t1;
+
+
+CREATE TABLE t1(a INT);
+ALTER TABLE t1 add COLUMN (b INT generated always as (a+1) virtual, c INT as(5) virtual);
+
+ALTER TABLE t1 change b x INT generated always as (a+1) virtual;
+
+SELECT pos, base_pos FROM informatiON_schema.innodb_sys_virtual;
+
+DROP TABLE t1;
+
+# We do not support Fulltext or Spatial INDEX ON Virtual Columns
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+CREATE TABLE t (a TEXT, b TEXT GENERATED ALWAYS AS (a), fulltext INDEX idx (b));
+CREATE TABLE t (a TEXT, b TEXT GENERATED ALWAYS AS (a));
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+ALTER TABLE t ADD FULLTEXT INDEX (b);
+DROP TABLE t;
+
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+CREATE TABLE t (a geometry not null, b geometry GENERATED ALWAYS AS (a) not null, spatial INDEX idx (b));
+CREATE TABLE t (a geometry not null, b geometry GENERATED ALWAYS AS (a) not null);
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+ALTER TABLE t ADD SPATIAL INDEX (b);
+DROP TABLE t;
+
+#test DEFAULT value
+CREATE TABLE t (a INT DEFAULT 1, b INT DEFAULT 2, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10));
+CREATE INDEX idx ON t(c);
+INSERT INTO t(h)VALUES ('mm');
+SELECT c FROM t;
+
+CREATE unique INDEX idx1 ON t(c);
+
+--error ER_DUP_ENTRY
+INSERT INTO t(h)VALUES ('mm');
+
+DROP TABLE t;
+
+
+CREATE TABLE `t1` ( `a` INT(11) DEFAULT NULL,   `b` INT(11) DEFAULT NULL,   `c` INT(11) GENERATED ALWAYS AS (a+b) VIRTUAL,   `x` INT(11) NOT NULL,   `h` VARCHAR(10) DEFAULT NULL,   PRIMARY KEY (`x`),   KEY `idx` (`c`) ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+INSERT INTO t1 VALUES (1, 2, DEFAULT, 3, 'mm');
+INSERT INTO t1 VALUES (11, 22, DEFAULT, 23, 'mm');
+
+CONNECT(con1,localhost,root,,test);
+UPDATE t1 SET x = 4 WHERE x =3;
+DROP TABLE t1;
+
+CREATE TABLE `t1` ( `a` INT(11) DEFAULT NULL,   `b` INT(11) DEFAULT NULL,   `c` INT(11) GENERATED ALWAYS AS (a+b) VIRTUAL,   `x` INT(11) NOT NULL,   `h` VARCHAR(10) DEFAULT NULL,   KEY `idx` (`c`) ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+INSERT INTO t1 VALUES (1, 2, DEFAULT, 3, 'mm');
+INSERT INTO t1 VALUES (11, 22, DEFAULT, 23, 'mm');
+
+START TRANSACTION;
+SELECT * FROM t1;
+
+CONNECTiON con1;
+START TRANSACTION;
+UPDATE t1 SET x = 15 WHERE x = 3;
+
+UPDATE t1 SET b = 10 WHERE b=2;
+ROLLBACK;
+
+CONNECTION default;
+SELECT c FROM t1;
+
+DISCONNECT con1;
+
+DROP TABLE t1;
+
+CREATE TABLE `t` (
+  `a` INT(11) DEFAULT NULL,
+  `b` INT(11) DEFAULT NULL,
+  `c` INT(11) GENERATED ALWAYS AS (a+b) VIRTUAL,
+  `d` INT(11) GENERATED ALWAYS AS (a) VIRTUAL,
+  `h` INT(11) NOT NULL,
+  PRIMARY KEY (`h`),
+  KEY `idx` (`c`)
+) ENGINE=InnoDB;
+
+INSERT INTO t VALUES (11, 3, DEFAULT, DEFAULT, 1);
+INSERT INTO t VALUES (18, 1, DEFAULT, DEFAULT, 2);
+INSERT INTO t VALUES (28, 1, DEFAULT, DEFAULT, 3);
+INSERT INTO t VALUES (null, null, DEFAULT, DEFAULT, 4);
+
+
+delimiter |;
+CREATE PROCEDURE UPDATE_t()
+begin
+        DECLARE i INT DEFAULT 1;
+        WHILE (i <= 2000) DO
+		UPDATE t SET a = 100 + i WHERE h = 1;
+                SET i = i + 1;
+        END WHILE;
+END|
+
+CREATE PROCEDURE DELETE_insert_t()
+begin
+        DECLARE i INT DEFAULT 1;
+        WHILE (i <= 2000) DO
+		UPDATE t SET a = 100 + i WHERE h = 1;
+                SET i = i + 1;
+        END WHILE;
+END|
+delimiter ;|
+
+CALL UPDATE_t();
+SELECT c FROM t;
+
+CALL DELETE_insert_t();
+SELECT c FROM t;
+
+DROP INDEX idx ON t;
+CALL UPDATE_t();
+SELECT c FROM t;
+
+DROP PROCEDURE DELETE_insert_t;
+DROP PROCEDURE UPDATE_t;
+
+DROP TABLE t;
+
+--echo # Bug#20767937: WL8149:ASSERTION FAILED IN ROW_UPD_SEC_INDEX_ENTRY
+CREATE TABLE b (
+col_INT_nokey INTEGER NOT NULL,
+col_INT_key INTEGER GENERATED ALWAYS AS (col_INT_nokey) VIRTUAL,
+col_date_nokey DATE,
+col_date_key DATE GENERATED ALWAYS AS (DATE_ADD(col_date_nokey,
+        INTerval 30 day)) VIRTUAL,
+
+col_datetime_nokey DATETIME NOT NULL,
+col_time_nokey TIME NOT NULL,
+
+col_datetime_key DATETIME GENERATED ALWAYS AS (ADDTIME(col_datetime_nokey,
+      col_time_nokey)),
+col_time_key TIME GENERATED ALWAYS AS (ADDTIME(col_datetime_nokey,
+      col_time_nokey)),
+
+col_VARCHAR_nokey VARCHAR(1) NOT NULL,
+col_VARCHAR_key VARCHAR(2) GENERATED ALWAYS AS(CONCAT(col_VARCHAR_nokey,
+      col_VARCHAR_nokey)),
+
+KEY (col_INT_key),
+KEY (col_VARCHAR_key),
+KEY (col_date_key),
+KEY (col_time_key),
+KEY (col_datetime_key),
+KEY (col_INT_key, col_VARCHAR_key),
+KEY (col_INT_key, col_VARCHAR_key, col_date_key,
+col_time_key, col_datetime_key)
+);
+INSERT INTO b (
+  col_INT_nokey,
+  col_date_nokey,
+  col_time_nokey,
+  col_datetime_nokey,
+  col_VARCHAR_nokey
+) VALUES
+(0, NULL, '21:22:34.025509', '2002-02-13 17:30:06.013935', 'j'),
+(8, '2004-09-18', '10:50:38.059966', '2008-09-27
+00:34:58.026613', 'v');
+
+EXPLAIN SELECT col_INT_key FROM b;
+SELECT col_INT_key FROM b;
+SELECT col_INT_nokey, col_INT_key FROM b;
+DELETE FROM b;
+
+DROP TABLE b;
+
+
+LET $row_format=COMPACT;
+--source suite/innodb/include/innodb_v_large_col.inc
+
+CREATE TABLE `t` (
+  `a` BLOB,
+  `b` BLOB,
+  `c` BLOB GENERATED ALWAYS AS (CONCAT(a,b)) VIRTUAL,
+  `d` BLOB GENERATED ALWAYS AS (b) VIRTUAL,
+  `e` INT(11) GENERATED ALWAYS AS (10) VIRTUAL,
+  `h` INT(11) NOT NULL,
+  PRIMARY KEY (`h`)
+) ENGINE=InnoDB;
+
+INSERT INTO t VALUES (REPEAT('g', 16000), REPEAT('x', 16000), DEFAULT, DEFAULT, DEFAULT, 1);
+INSERT INTO t VALUES (REPEAT('a', 32000), REPEAT('b', 11000), DEFAULT, DEFAULT, DEFAULT, 2);
+INSERT INTO t VALUES (REPEAT('m', 18000), REPEAT('n', 46000), DEFAULT, DEFAULT, DEFAULT, 3);
+
+CREATE INDEX idx ON t(c(100), d(20));
+
+UPDATE t SET a = NULL WHERE h=1;
+
+UPDATE t SET a = REPEAT(CAST(1 AS CHAR), 2000) WHERE h = 1;
+
+UPDATE t SET a = REPEAT(CAST(1 AS CHAR), 1000) WHERE h = 1;
+
+delimiter |;
+
+CREATE PROCEDURE UPDATE_t()
+begin
+        DECLARE i INT DEFAULT 1;
+        WHILE (i <= 200) DO
+                UPDATE t SET a = REPEAT(CAST(i AS CHAR), 2000) WHERE h = 1;
+                SET i = i + 1;
+        END WHILE;
+END|
+
+CREATE PROCEDURE DELETE_insert_t()
+begin
+        DECLARE i INT DEFAULT 1;
+        WHILE (i <= 200) DO
+                DELETE FROM t WHERE h = 1;
+                INSERT INTO t VALUES (REPEAT(CAST(i AS CHAR), 2000) ,  REPEAT('b', 2000), DEFAULT, DEFAULT, DEFAULT, 1);
+                SET i = i + 1;
+        END WHILE;
+END|
+delimiter ;|
+
+CALL UPDATE_t();
+CALL DELETE_insert_t();
+
+UPDATE t SET a = NULL WHERE h=1;
+
+
+DROP PROCEDURE DELETE_insert_t;
+DROP PROCEDURE UPDATE_t;
+DROP TABLE t;
+
+CREATE TABLE `t` (
+  `m1` INT(11) DEFAULT NULL,
+  `m2` INT(11) DEFAULT NULL,
+  `m3` INT(11) GENERATED ALWAYS AS (m1 + m2) VIRTUAL,
+  `m4` INT(11) DEFAULT NULL,
+  `m5` CHAR(10) DEFAULT NULL,
+  `m6` CHAR(12) GENERATED ALWAYS AS (m5) VIRTUAL,
+  `a` VARCHAR(10000) DEFAULT NULL,
+  `b` VARCHAR(3000) DEFAULT NULL,
+  `c` VARCHAR(14000) GENERATED ALWAYS AS (CONCAT(a,b)) VIRTUAL,
+  `d` VARCHAR(5000) GENERATED ALWAYS AS (b) VIRTUAL,
+  `e` INT(11) GENERATED ALWAYS AS (10) VIRTUAL,
+  `h` INT(11) NOT NULL,
+  PRIMARY KEY (`h`),
+  KEY `m3` (`m3`),
+  KEY `c` (`c`(100)),
+  KEY `e` (`e`,`d`(20))
+) ENGINE=InnoDB;
+
+INSERT INTO t VALUES (1, 2, DEFAULT, 3, "aaa", DEFAULT, REPEAT('g', 10000), REPEAT('x', 2800), DEFAULT, DEFAULT, DEFAULT, 1);
+
+INSERT INTO t VALUES (11, 21, DEFAULT, 31, "bbb", DEFAULT, REPEAT('a', 9000), REPEAT('b', 2000), DEFAULT, DEFAULT, DEFAULT, 2);
+
+INSERT INTO t VALUES (21, 31, DEFAULT, 41, "zzz", DEFAULT, REPEAT('m', 8000), REPEAT('n', 3000), DEFAULT, DEFAULT, DEFAULT, 3);
+
+ALTER TABLE t DROP COLUMN c;
+
+DELETE FROM t;
+
+DROP TABLE t;
+
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10));
+
+INSERT INTO t VALUES (11, 3, DEFAULT, 'mm');
+INSERT INTO t VALUES (18, 1, DEFAULT, 'mm');
+INSERT INTO t VALUES (28, 1, DEFAULT, 'mm');
+INSERT INTO t VALUES (null, null, DEFAULT, 'mm');
+
+CREATE INDEX idx ON t(a, c);
+SELECT a, c FROM t;
+
+START TRANSACTION;
+
+UPDATE t SET a = 13 where a = 11;
+
+ROLLBACK;
+DELETE FROM t;
+
+DROP TABLE t;
+
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10), m int);
+
+INSERT INTO t VALUES (11, 3, DEFAULT, "a", 1);
+INSERT INTO t VALUES (18, 1, DEFAULT, "b", 2);
+INSERT INTO t VALUES (28, 1, DEFAULT, "c", 3 );
+INSERT INTO t VALUES (null, null, DEFAULT, "d", 4);
+
+CREATE INDEX idx ON t(a, c, h);
+SELECT a, c FROM t;
+
+START TRANSACTION;
+UPDATE t SET m =10 WHERE m = 1;
+UPDATE t SET h = "e" WHERE h="a";
+ROLLBACK;
+SELECT a, c, h FROM t;
+
+DROP TABLE t;
+
+#online test
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10));
+
+INSERT INTO t VALUES (11, 3, DEFAULT, 'mm');
+INSERT INTO t VALUES (18, 1, DEFAULT, 'mm');
+INSERT INTO t VALUES (28, 1, DEFAULT, 'mm');
+INSERT INTO t VALUES (null, null, DEFAULT, "mx");
+
+SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create WAIT_FOR go_ahead';
+--send CREATE INDEX idx ON t(c);
+
+connect (con1,localhost,root,,);
+connection con1;
+
+SET DEBUG_SYNC = 'now WAIT_FOR start_create';
+update t set a=0 where a = 11;
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+
+connection default;
+reap;
+
+SELECT c FROM t;
+SHOW CREATE TABLE t;
+SELECT * FROM t;
+
+SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create WAIT_FOR go_ahead';
+--send ALTER TABLE t ADD COLUMN x INT;
+
+connection con1;
+
+SET DEBUG_SYNC = 'now WAIT_FOR start_create';
+start transaction;
+update t set a=1 where a = 0;
+ROLLBACK;
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+
+connection default;
+reap;
+
+SELECT c FROM t;
+
+SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create WAIT_FOR go_ahead';
+--send ALTER TABLE t ADD COLUMN x2 INT;
+
+connection con1;
+
+SET DEBUG_SYNC = 'now WAIT_FOR start_create';
+start transaction;
+DELETE FROM t WHERE a = 0;
+ROLLBACK;
+DELETE FROM t WHERE a = 0;
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+
+connection default;
+reap;
+
+SELECT c FROM t;
+
+disconnect con1;
+DROP TABLE t;
+
+SET DEBUG_SYNC = 'RESET';
+
+# bug#21065137 - WL8149:FAILING ASSERTION: NAME_OFS < FULL_LEN 
+CREATE TABLE `t1` (
+  `col1` int(11) NOT NULL,
+  `col2` int(11) NOT NULL,
+  `col3` int(11) NOT NULL,
+  `col4` int(11) DEFAULT NULL,
+  `col5` int(11) GENERATED ALWAYS AS (col2 % col3) VIRTUAL,
+  `col7` int(11) GENERATED ALWAYS AS (col5 * col5) VIRTUAL,
+  `col8` int(11) GENERATED ALWAYS AS (col5 % col5) VIRTUAL,
+  `col9` text,
+  `extra` int(11) DEFAULT NULL,
+  UNIQUE KEY `uidx` (`col5`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+ALTER TABLE t1 CHANGE COLUMN extra col6 INT;
+
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+# No spatial and FTS index on virtual columns
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+CREATE TABLE t (a INT, b INT GENERATED ALWAYS AS (a), c point, d point GENERATED ALWAYS AS (c), spatial index idx (d));
+
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+CREATE TABLE t (a INT, b INT GENERATED ALWAYS AS (a), c CHAR(10), d char(20) GENERATED ALWAYS AS (c), fulltext index idx (d));
+
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10), j INT, m INT  GENERATED ALWAYS AS(b + j), n VARCHAR(10), p VARCHAR(20) GENERATED ALWAYS AS(CONCAT(n, h)), INDEX idx1(c), INDEX idx2 (m), INDEX idx3(p));
+
+INSERT INTO t VALUES(11, 22, DEFAULT, "AAA", 8, DEFAULT, "XXX", DEFAULT);
+INSERT INTO t VALUES(1, 2, DEFAULT, "uuu", 9, DEFAULT, "uu", DEFAULT);
+INSERT INTO t VALUES(3, 4, DEFAULT, "uooo", 1, DEFAULT, "umm", DEFAULT);
+
+alter table t add  x int, add xx int generated ALWAYS AS(x);
+
+DROP TABLE t;
+
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10), j INT, m INT  GENERATED ALWAYS AS(b + j), n VARCHAR(10), p VARCHAR(20) GENERATED ALWAYS AS(CONCAT(n, h)), INDEX idx1(c), INDEX idx2 (m), INDEX idx3(p));
+
+INSERT INTO t VALUES(11, 22, DEFAULT, "AAA", 8, DEFAULT, "XXX", DEFAULT);
+INSERT INTO t VALUES(1, 2, DEFAULT, "uuu", 9, DEFAULT, "uu", DEFAULT);
+INSERT INTO t VALUES(3, 4, DEFAULT, "uooo", 1, DEFAULT, "umm", DEFAULT);
+
+ALTER TABLE t DROP COLUMN c, algorithm=inplace;
+ALTER TABLE t DROP COLUMN p, ADD COLUMN s VARCHAR(20) GENERATED ALWAYS AS(CONCAT(n, h)), algorithm=inplace;
+
+# This should fail
+#ALTER TABLE t ADD  x INT, DROP COLUMN m, algorithm=inplace;
+SELECT s FROM t;
+
+ALTER TABLE t ADD  x VARCHAR(20) GENERATED ALWAYS AS(CONCAT(n, h)), ADD INDEX idx (x), algorithm=inplace;
+DROP TABLE t;
+
+
+CREATE TABLE `t1` (
+  `col1` int(11) DEFAULT NULL,
+  `col2` int(11) DEFAULT NULL,
+  `col3` int(11) DEFAULT NULL,
+  `col4` int(11) DEFAULT NULL,
+  `col5` int(11) GENERATED ALWAYS AS (col4 * col2) VIRTUAL,
+  `col6` int(11) GENERATED ALWAYS AS (col2 % col4) VIRTUAL,
+  `col7` int(11) GENERATED ALWAYS AS (col5 / col6) VIRTUAL,
+  `col8` int(11) GENERATED ALWAYS AS (col5 + col5) VIRTUAL,
+  `col9` text,
+  `extra` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+ALTER TABLE t1 DROP COLUMN col7;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+  col1 INTEGER NOT NULL,
+  gv_col INTEGER GENERATED ALWAYS AS (col1) VIRTUAL,
+  txt1 TEXT,
+  FULLTEXT INDEX fi(txt1)
+);
+
+select * from t1; 
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+  col1 INTEGER NOT NULL,
+  col2 INTEGER NOT NULL,
+  col3 INTEGER DEFAULT NULL,
+  col4 INTEGER DEFAULT NULL,
+  col5 INTEGER DEFAULT NULL,
+  col6 INTEGER DEFAULT NULL,
+  col7 INTEGER DEFAULT NULL,
+  col8 INTEGER DEFAULT NULL,
+  col9 INTEGER DEFAULT NULL,
+  col10 INTEGER DEFAULT NULL,
+  col11 INTEGER DEFAULT NULL,
+  col12 INTEGER DEFAULT NULL,
+  col13 INTEGER DEFAULT NULL,
+  col14 INTEGER DEFAULT NULL,
+  col15 INTEGER DEFAULT NULL,
+  col16 INTEGER DEFAULT NULL,
+  col17 INTEGER DEFAULT NULL,
+  col18 INTEGER DEFAULT NULL,
+  col19 INTEGER DEFAULT NULL,
+  col20 INTEGER DEFAULT NULL,
+  col21 INTEGER DEFAULT NULL,
+  col22 INTEGER DEFAULT NULL,
+  col23 INTEGER DEFAULT NULL,
+  col24 INTEGER DEFAULT NULL,
+  col25 INTEGER DEFAULT NULL,
+  col26 INTEGER DEFAULT NULL,
+  col27 INTEGER DEFAULT NULL,
+  col28 INTEGER DEFAULT NULL,
+  col29 INTEGER DEFAULT NULL,
+  col30 INTEGER DEFAULT NULL,
+  col31 INTEGER DEFAULT NULL,
+  col32 INTEGER DEFAULT NULL,
+  col33 INTEGER DEFAULT NULL,
+  gcol1 INTEGER GENERATED ALWAYS AS (col1 + col2) VIRTUAL,
+  KEY idx1 (gcol1)
+);
+
+INSERT INTO t1 (col1, col2)
+  VALUES (0,1), (1,2), (2,3), (3,4), (4,5);
+
+SELECT gcol1 FROM t1 FORCE INDEX(idx1);
+
+ALTER TABLE t1 ADD COLUMN extra INTEGER;
+
+SELECT gcol1 FROM t1 FORCE INDEX(idx1);
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+    id INT NOT NULL,
+    store_id INT NOT NULL,
+    x INT GENERATED ALWAYS AS (id + store_id)
+)
+PARTITION BY RANGE (store_id) (
+    PARTITION p0 VALUES LESS THAN (6),
+    PARTITION p1 VALUES LESS THAN (11),
+    PARTITION p2 VALUES LESS THAN (16),
+    PARTITION p3 VALUES LESS THAN (21)
+);
+
+INSERT INTO t1 VALUES(1, 2, default);
+INSERT INTO t1 VALUES(3, 4, default);
+
+INSERT INTO t1 VALUES(3, 12, default);
+INSERT INTO t1 VALUES(4, 18, default);
+
+CREATE INDEX idx ON t1(x);
+
+SELECT x FROM t1;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+    id INT NOT NULL,
+    store_id INT NOT NULL,
+    x INT GENERATED ALWAYS AS (id + store_id)
+)
+PARTITION BY RANGE (x) (
+    PARTITION p0 VALUES LESS THAN (6),
+    PARTITION p1 VALUES LESS THAN (11),
+    PARTITION p2 VALUES LESS THAN (16),
+    PARTITION p3 VALUES LESS THAN (21)
+);
+
+insert into t1 values(1, 2, default);
+insert into t1 values(3, 4, default);
+
+insert into t1 values(3, 12, default);
+--error ER_NO_PARTITION_FOR_GIVEN_VALUE
+insert into t1 values(4, 18, default);
+
+CREATE INDEX idx ON t1(x);
+SELECT x FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a INT, b INT GENERATED ALWAYS AS (a+1) ,c int) PARTITION BY RANGE (b) (
+PARTITION p0 VALUES LESS THAN (6),
+PARTITION p1 VALUES LESS THAN (11),
+PARTITION p2 VALUES LESS THAN (16),
+PARTITION p3 VALUES LESS THAN (21) );
+
+INSERT INTO t1 VALUES (10,DEFAULT,2);
+INSERT INTO t1 VALUES (19,DEFAULT,8);
+
+CREATE INDEX idx ON t1 (b);
+
+INSERT INTO t1 VALUES (5,DEFAULT,9);
+
+SELECT * FROM t1;
+
+ALTER TABLE t1 REMOVE PARTITIONING;
+
+DROP TABLE t1;
+
+CREATE TABLE `t#P#1` (a INT, bt INT GENERATED ALWAYS AS (a+1) ,c int)
+PARTITION BY RANGE (bt)
+subpartition by hash (bt)
+ (
+    PARTITION p0 VALUES LESS THAN (6) (
+        SUBPARTITION s0,
+        SUBPARTITION s1),
+    PARTITION p1 VALUES LESS THAN (11) (
+        SUBPARTITION s2,
+        SUBPARTITION s3),
+    PARTITION p2 VALUES LESS THAN (16) (
+        SUBPARTITION s4,
+        SUBPARTITION s5),
+    PARTITION p3 VALUES LESS THAN (21) (
+        SUBPARTITION s6,
+        SUBPARTITION s7)
+ );
+insert into `t#P#1` values (10,DEFAULT,2);
+insert into `t#P#1` values (19,DEFAULT,8);
+create index idx on `t#P#1` (bt);
+insert into `t#P#1` values (5,DEFAULT,9);
+select * from `t#P#1`;
+alter table `t#P#1` remove partitioning;
+drop table `t#P#1`;
+
+LET $row_format=DYNAMIC;
+--source suite/innodb/include/innodb_v_large_col.inc
+
+LET $row_format=REDUNDANT;
+--source suite/innodb/include/innodb_v_large_col.inc
+
+LET $row_format=COMPRESSED;
+--source suite/innodb/include/innodb_v_large_col.inc
+
+# Make sure FTS_DOC_ID for FULLTEXT index set with correct column id with
+# virtual columns
+CREATE TABLE t(a TEXT CHARSET UTF8)ENGINE=INNODB;
+ALTER TABLE t ADD COLUMN b BLOB GENERATED ALWAYS AS (a) VIRTUAL ;
+ALTER TABLE t ADD FULLTEXT INDEX (a) ;
+ALTER TABLE t ADD INDEX (b(1)) ;
+
+DROP TABLE t;
+
+CREATE TABLE t(a TEXT CHARSET UTF8, FULLTEXT INDEX(a))ENGINE=INNODB;
+ALTER TABLE t ADD COLUMN b BLOB GENERATED ALWAYS AS (a) VIRTUAL ;
+ALTER TABLE t ADD INDEX (b(1)) ;
+DROP TABLE t;
+
+# Virtual column cannot be used as DOC ID column for FULLTEXT index
+CREATE TABLE t(a TEXT CHARSET UTF8)ENGINE=INNODB;
+ALTER TABLE t ADD COLUMN FTS_DOC_ID BLOB GENERATED ALWAYS AS (a) VIRTUAL ;
+--error ER_INNODB_FT_WRONG_DOCID_COLUMN
+ALTER TABLE t ADD FULLTEXT INDEX (a) ;
+DROP TABLE t;
+
+# Test uses ICP on column h and d
+create table t (a int,b int,c int,d int,e int,
+f int generated always as (a+b) virtual,
+g int,h blob,i int,unique key (d,h(25))) engine=innodb;
+
+select h from t where d is null;
+drop table t;
+
+# Test Add virtual column of MySQL long true type
+create table t(a blob not null) engine=innodb;
+alter table t add column b int;
+alter table t add column c varbinary (1000) generated always as (a) virtual;
+alter table t add unique index (c(39));
+replace into t set a = 'a',b =1;
+replace into t set a = 'a',b =1;
+drop table t;
+
+# Test on dropping multiple virtual columns
+CREATE TABLE t1 (doc JSON);
+ALTER TABLE t1
+  ADD COLUMN $col_varchar VARCHAR(10) GENERATED ALWAYS AS
+(JSON_UNQUOTE(JSON_EXTRACT(doc, '$.col_varchar'))),
+  ADD COLUMN $col_int INT GENERATED ALWAYS AS (JSON_EXTRACT(doc,
+'$.col_int'));
+ALTER TABLE t1 ADD COLUMN $col_1 INT GENERATED ALWAYS AS (JSON_EXTRACT(doc,
+'$.col_1'));
+
+ALTER TABLE t1 DROP COLUMN $col_varchar, DROP COLUMN $col_int;
+
+DROP TABLE t1;
+
+CREATE TABLE t (a INT, b INT,  h VARCHAR(10));
+
+INSERT INTO t VALUES (12, 3,  "ss");
+
+INSERT INTO t VALUES (13, 4,  "ss");
+
+INSERT INTO t VALUES (14, 0,  "ss");
+
+alter table t add  c INT GENERATED ALWAYS AS(a/b);
+
+--error ER_DIVISION_BY_ZERO
+create index idx on t(c);
+
+DROP TABLE t;
+
+CREATE TABLE t (
+                        pk INTEGER AUTO_INCREMENT,
+                        col_int_nokey INTEGER /*! NULL */,
+                        col_int INT GENERATED ALWAYS AS (col_int_nokey +
+col_int_nokey) STORED not null,
+                        col_int_key INTEGER GENERATED ALWAYS AS (col_int +
+col_int_nokey) VIRTUAL not null,
+
+                        col_date_nokey DATE /*! NULL */,
+                        col_date DATE GENERATED ALWAYS AS
+(DATE_ADD(col_date_nokey,interval 30 day)) STORED not null,
+                        col_date_key DATE GENERATED ALWAYS AS
+(DATE_ADD(col_date,interval 30 day)) VIRTUAL not null,
+
+                        col_datetime_nokey DATETIME /*! NULL */,
+                        col_time_nokey TIME /*! NULL */,
+
+                        col_datetime DATETIME GENERATED ALWAYS AS
+(ADDTIME(col_datetime_nokey, col_time_nokey)) STORED not null,
+                        col_time TIME GENERATED ALWAYS AS
+(ADDTIME(col_datetime_nokey, col_time_nokey)) STORED not null,
+
+                        col_datetime_key DATETIME GENERATED ALWAYS AS
+(ADDTIME(col_datetime, col_time_nokey)) VIRTUAL not null,
+                        col_time_key TIME GENERATED ALWAYS AS
+(ADDTIME(col_datetime_nokey, col_time)) VIRTUAL not null,
+
+                        col_varchar_nokey VARCHAR(1) /*! NULL */,
+                        col_varchar VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey,col_varchar_nokey)) STORED not null,
+                        col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar, 'x')) VIRTUAL not null,
+
+                        unique KEY (pk,col_int_key),
+                        KEY(col_int),
+                        KEY(col_date),
+                        KEY(col_datetime),
+                        KEY(col_time),
+                        KEY(col_varchar),
+                        UNIQUE KEY (col_int_key),
+                        KEY (col_time_key),
+                        KEY (col_datetime_key),
+                        UNIQUE KEY (col_int_key, col_varchar_key),
+                        KEY (col_int_key, col_int_nokey),
+                        KEY(col_int_key,col_date_key),
+                        KEY(col_int_key, col_time_key),
+                        KEY(col_int_key, col_datetime_key),
+                        KEY(col_date_key,col_time_key,col_datetime_key),
+                        KEY (col_varchar_key, col_varchar_nokey),
+                        UNIQUE KEY (col_int_key, col_varchar_key,
+col_date_key, col_time_key, col_datetime_key)
+                )  AUTO_INCREMENT=10 ENGINE=INNODB PARTITION BY
+KEY(col_int_key) PARTITIONS 3;
+
+ALTER TABLE t DROP COLUMN `pk`;
+
+SHOW CREATE TABLE t;
+
+DROP TABLE t;
+
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10));
+
+INSERT INTO t VALUES (11, 3, DEFAULT, 'mm');
+INSERT INTO t VALUES (18, 1, DEFAULT, 'mm');
+INSERT INTO t VALUES (28, 1, DEFAULT, 'mm');
+INSERT INTO t VALUES (null, null, DEFAULT, 'mm');
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t ADD COLUMN xs INT GENERATED ALWAYS AS(a+b), ADD COLUMN mm INT
+GENERATED ALWAYS AS(a+b) STORED, ALGORITHM = INPLACE;
+
+ALTER TABLE t ADD COLUMN x INT GENERATED ALWAYS AS(a+b), ALGORITHM = INPLACE;
+
+ALTER TABLE t DROP COLUMN x,  ALGORITHM = INPLACE;
+
+ALTER TABLE t ADD COLUMN x1 INT GENERATED ALWAYS AS(a+b), DROP COLUMN c,
+ALGORITHM = INPLACE;
+
+DROP TABLE t;
+
+# Some test on virtual/stored column numbering for spatial indexing
+CREATE TABLE `t` (
+  `a` INT GENERATED ALWAYS AS (1) VIRTUAL,
+  `b` INT GENERATED ALWAYS AS (1) VIRTUAL,
+  `c` INT GENERATED ALWAYS AS (1) VIRTUAL,
+  `d` INT GENERATED ALWAYS AS (1) VIRTUAL,
+  `e` POINT GENERATED ALWAYS AS (1) STORED NOT NULL
+) ENGINE=INNODB;
+ALTER TABLE t ADD SPATIAL INDEX (`e`);
+DROP TABLE t;
+CREATE TABLE `t` (
+  `a` INT GENERATED ALWAYS AS (1) VIRTUAL,
+  `b` INT GENERATED ALWAYS AS (1) VIRTUAL,
+  `c` INT GENERATED ALWAYS AS (1) VIRTUAL,
+  `d` INT GENERATED ALWAYS AS (1) VIRTUAL,
+  `e` POINT GENERATED ALWAYS AS (1) STORED NOT NULL,
+   SPATIAL INDEX (`e`)
+) ENGINE=INNODB;
+DROP TABLE t;
+CREATE TABLE `t` (
+  `a` INT GENERATED ALWAYS AS (1) VIRTUAL,
+  `b` INT GENERATED ALWAYS AS (1) VIRTUAL,
+  `c` INT GENERATED ALWAYS AS (1) VIRTUAL,
+  `d` INT GENERATED ALWAYS AS (1) VIRTUAL,
+  `e2` POINT GENERATED ALWAYS AS (1) STORED NOT NULL,
+  `e` POINT GENERATED ALWAYS AS (1) STORED NOT NULL
+) ENGINE=INNODB;
+ALTER TABLE t ADD SPATIAL INDEX (`e`);
+DROP TABLE t;
+CREATE TABLE `t` (
+  `a` INT GENERATED ALWAYS AS (1) VIRTUAL,
+  `b` INT GENERATED ALWAYS AS (1) VIRTUAL,
+  `c` INT GENERATED ALWAYS AS (1) VIRTUAL,
+  `d` INT GENERATED ALWAYS AS (1) VIRTUAL,
+  `e2` POINT GENERATED ALWAYS AS (1) STORED NOT NULL,
+  `d2` INT GENERATED ALWAYS AS (1) VIRTUAL,
+  `e` POINT GENERATED ALWAYS AS (1) STORED NOT NULL
+) ENGINE=INNODB;
+ALTER TABLE t ADD SPATIAL INDEX (`e`);
+DROP TABLE t;
+CREATE TABLE `t` (
+  `a` INT GENERATED ALWAYS AS (1) VIRTUAL,
+  `b` INT GENERATED ALWAYS AS (1) VIRTUAL,
+  `c` INT GENERATED ALWAYS AS (1) VIRTUAL,
+  `d` INT GENERATED ALWAYS AS (1) VIRTUAL,
+  `e2` POINT GENERATED ALWAYS AS (1) STORED NOT NULL,
+  `d2` INT GENERATED ALWAYS AS (1) VIRTUAL,
+  `e` int
+) ENGINE=INNODB;
+ALTER TABLE t ADD INDEX (`e`);
+DROP TABLE t;
+
+CREATE TABLE t (a INT GENERATED ALWAYS AS(1) VIRTUAL,KEY(a)) ENGINE=INNODB;
+INSERT INTO t VALUES(default);
+SELECT a FROM t FOR UPDATE;
+DROP TABLE t;
+
+# Test add virtual column and add index at the same time
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10));
+
+INSERT INTO t VALUES (11, 3, DEFAULT, 'mm');
+
+INSERT INTO t VALUES (18, 1, DEFAULT, 'mm');
+
+INSERT INTO t VALUES (28, 1, DEFAULT, 'mm');
+
+INSERT INTO t VALUES (null, null, DEFAULT, 'mm');
+
+--enable_info
+ALTER TABLE t ADD COLUMN x INT GENERATED ALWAYS AS(a+b), ADD INDEX idx (x);
+--disable_info
+
+SELECT x FROM t;
+
+DROP TABLE t;
+
+# introduce some error
+
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10));
+
+INSERT INTO t VALUES (11, 3, DEFAULT, 'mm');
+
+INSERT INTO t VALUES (18, 1, DEFAULT, 'mm');
+
+INSERT INTO t VALUES (28, 1, DEFAULT, 'mm');
+
+INSERT INTO t VALUES (null, null, DEFAULT, 'mm');
+
+CREATE INDEX idx_1 on t(c);
+
+SET SESSION debug="+d,create_index_fail";
+
+--enable_info
+--error ER_DUP_ENTRY
+ALTER TABLE t ADD COLUMN x INT GENERATED ALWAYS AS(a+b), ADD INDEX idx (x);
+SET SESSION debug="-d,create_index_fail";
+--disable_info
+
+SHOW CREATE TABLE t;
+
+SELECT c FROM t;
+
+DROP TABLE t;
+
+CREATE TABLE t1 (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10));
+
+INSERT INTO t1 VALUES (11, 3, DEFAULT, 'mm');
+
+INSERT INTO t1 VALUES (18, 1, DEFAULT, 'mm');
+
+INSERT INTO t1 VALUES (28, 1, DEFAULT, 'mm');
+
+ALTER TABLE t1 ADD INDEX idx12 (c) , FORCE, LOCK=NONE;
+ALTER TABLE t1 DROP COLUMN h,  ADD INDEX idx (c) , FORCE, LOCK=NONE;
+
+DROP TABLE t1 ;
+
+# Check ALTER TABLE CHANGE VIRTUAL COLUMN TYPE and ORDER
+CREATE TABLE t1 (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), d INT GENERATED ALWAYS AS(a+b), h VARCHAR(10));
+
+INSERT INTO t1 VALUES (11, 3, DEFAULT, DEFAULT, 'mm');
+
+INSERT INTO t1 VALUES (18, 1, DEFAULT, DEFAULT, 'mm');
+
+INSERT INTO t1 VALUES (28, 1, DEFAULT, DEFAULT, 'mm');
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 CHANGE  d d INT GENERATED ALWAYS AS(a+b) FIRST, ALGORITHM = INPLACE;
+
+# Change column type is not allow for inplace also
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 CHANGE  d d VARCHAR(10) GENERATED ALWAYS AS(h), ALGORITHM = INPLACE;
+
+ALTER TABLE t1 CHANGE  d d INT GENERATED ALWAYS AS(a+b) FIRST;
+
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;

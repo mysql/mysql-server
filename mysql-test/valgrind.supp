@@ -866,7 +866,16 @@
    fun:_my_b_write
    fun:_Z*10write_keysP10Sort_paramP13Filesort_infojP11st_io_cacheS4_
    fun:_Z*13find_all_keysP10Sort_paramP7QEP_TABP13Filesort_infoP11st_io_cacheS6_P13Bounded_queueIPhS8_S_N12_GLOBAL__N_111Mem_compareEEPy
-   fun:_Z8filesortP3THDP7QEP_TABP8FilesortbPyS5_
+   fun:_Z8filesortP3THDP8FilesortbPyS3_S3_
+}
+
+{
+   Bug#12856915 VALGRIND FAILURE IN FILESORT/CREATE_SORT_INDEX / three
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:my_b_flush_io_cache
+   fun:_Z8filesortP3THDP8FilesortbPyS3_S3_
 }
 
 {
@@ -918,7 +927,7 @@
    fun:_ZL10plugin_delP13st_plugin_int
    fun:_ZL12reap_pluginsv
    fun:_Z15plugin_shutdownv
-   fun:_ZL8clean_upb*
+   fun:_Z*8clean_upb*
 }
 
 {
@@ -949,46 +958,3 @@
    fun:mi_arena.*
    fun:malloc_info
 }
-
-# Supress Corosync leaks
-{
-   Corosync leak when we start Group Replication on server start
-   Memcheck:Leak
-   fun:malloc
-   ...
-   fun:_ZN25Group_replication_handler5startEv
-   fun:_Z23group_replication_startv
-   obj:*
-   fun:_ZL17plugin_initializeP13st_plugin_int
-   fun:_Z11plugin_initPiPPci
-   ...
-}
-
-{
-   Corosync leak when we start Group Replication on server start
-   Memcheck:Leak
-   fun:calloc
-   ...
-   fun:_ZN25Group_replication_handler5startEv
-   fun:_Z23group_replication_startv
-   obj:*
-   fun:_ZL17plugin_initializeP13st_plugin_int
-   fun:_Z11plugin_initPiPPci
-   fun:_ZL22init_server_componentsv
-   fun:_Z11mysqld_mainiPPc
-   ...
-}
-
-{
-   Corosync leak when we start Group Replication manually
-   Memcheck:Leak
-   fun:*
-   ...
-   fun:_ZN25Group_replication_handler5startEv
-   fun:_Z23group_replication_startv
-   fun:_Z21mysql_execute_commandP3THD
-   fun:_Z11mysql_parseP3THDP12Parser_state
-   fun:_Z16dispatch_command19enum_server_commandP3THDPcm
-   ...
-}
-

@@ -88,7 +88,8 @@ table_replication_applier_status_by_coordinator::m_share=
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 PFS_engine_table* table_replication_applier_status_by_coordinator::create(void)
@@ -114,56 +115,60 @@ void table_replication_applier_status_by_coordinator::reset_position(void)
 
 ha_rows table_replication_applier_status_by_coordinator::get_row_count()
 {
- return msr_map.get_max_channels();
+ return channel_map.get_max_channels();
 }
 
 
 int table_replication_applier_status_by_coordinator::rnd_next(void)
 {
   Master_info *mi;
+  int res= HA_ERR_END_OF_FILE;
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.rdlock();
 
-  for(m_pos.set_at(&m_next_pos); m_pos.m_index < msr_map.get_max_channels();
+  for(m_pos.set_at(&m_next_pos);
+      m_pos.m_index < channel_map.get_max_channels() && res != 0;
       m_pos.next())
   {
-    mi= msr_map.get_mi_at_pos(m_pos.m_index);
+    mi= channel_map.get_mi_at_pos(m_pos.m_index);
 
-    if (mi && mi->host[0])
+    /*
+      Construct and display SQL Thread's (Coordinator) information in
+      'replication_applier_status_by_coordinator' table only in the case of
+      multi threaded slave mode. Code should do nothing in the case of single
+      threaded slave mode. In case of single threaded slave mode SQL Thread's
+      status will be reported as part of
+      'replication_applier_status_by_worker' table.
+    */
+    if (mi && mi->host[0] && mi->rli && mi->rli->get_worker_count() > 0)
     {
       make_row(mi);
       m_next_pos.set_after(&m_pos);
-
-      mysql_mutex_unlock(&LOCK_msr_map);
-      return 0;
+      res= 0;
     }
   }
 
-  mysql_mutex_unlock(&LOCK_msr_map);
-
-  return HA_ERR_END_OF_FILE;
-
+  channel_map.unlock();
+  return res;
 }
 
 int table_replication_applier_status_by_coordinator::rnd_pos(const void *pos)
 {
   Master_info *mi=NULL;
+  int res= HA_ERR_RECORD_DELETED;
 
   set_position(pos);
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.rdlock();
 
-  if ((mi= msr_map.get_mi_at_pos(m_pos.m_index)))
+  if ((mi= channel_map.get_mi_at_pos(m_pos.m_index)))
   {
     make_row(mi);
-    mysql_mutex_unlock(&LOCK_msr_map);
-    return 0;
+    res= 0;
   }
 
-  mysql_mutex_unlock(&LOCK_msr_map);
-
-  return HA_ERR_RECORD_DELETED;
-
+  channel_map.unlock();
+  return res;
 }
 
 void table_replication_applier_status_by_coordinator::make_row(Master_info *mi)

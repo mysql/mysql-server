@@ -17,12 +17,11 @@
 #define REPLICATION_H
 
 #include "my_global.h"
-#include "my_thread.h"                // my_thread_id
+#include "my_thread_local.h"          // my_thread_id
 #include "mysql/psi/mysql_thread.h"   // mysql_mutex_t
 
 typedef struct st_mysql MYSQL;
 typedef struct st_io_cache IO_CACHE;
-
 
 #ifdef __cplusplus
 class THD;
@@ -75,6 +74,9 @@ typedef struct Trans_context_info {
   ulong transaction_write_set_extraction;
   ulong mi_repository_type;     //enum values in enum_info_repository
   ulong rli_repository_type;    //enum values in enum_info_repository
+  // enum values in enum_mts_parallel_type
+  ulong parallel_applier_type;
+  ulong parallel_applier_workers;
 } Trans_context_info;
 
 /**
@@ -130,6 +132,11 @@ typedef struct Trans_param {
   Trans_context_info trans_ctx_info;
 
 } Trans_param;
+
+/**
+   Transaction observer parameter initialization.
+*/
+#define TRANS_PARAM_ZERO { 0, 0, 0, 0, 0, 0, {0, 0, 0}, 0, 0, 0, 0, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0} }
 
 /**
    Observes and extends transaction execution

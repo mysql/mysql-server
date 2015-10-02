@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -306,12 +306,6 @@ void thd_unlock_thread_count(THD *)
   Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   mysql_cond_broadcast(&thd_manager->COND_thd_list);
   mysql_mutex_unlock(&thd_manager->LOCK_thd_list);
-}
-
-
-void remove_global_thread(THD *thd)
-{
-  Global_THD_manager::get_instance()->remove_thd(thd);
 }
 
 

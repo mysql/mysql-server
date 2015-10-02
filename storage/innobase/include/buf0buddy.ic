@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,7 +30,6 @@ Created December 2006 by Marko Makela
 
 #include "buf0buf.h"
 #include "buf0buddy.h"
-#include "sync0mutex.h"
 
 /**********************************************************************//**
 Allocate a block.  The thread calling this function must hold

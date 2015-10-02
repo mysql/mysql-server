@@ -169,7 +169,7 @@ bool SELECT_LEX::prepare(THD *thd)
     DBUG_RETURN(true); /* purecov: inspected */
   
   if (setup_fields(thd, ref_ptrs, fields_list, thd->want_privilege,
-                   &all_fields, true))
+                   &all_fields, true, false))
     DBUG_RETURN(true);
 
   resolve_place= RESOLVE_NONE;
@@ -319,16 +319,13 @@ bool SELECT_LEX::prepare(THD *thd)
       converted to a LONG field. Original field will remain of the
       BIT type and will be returned to a client.
     */
-    for (ORDER *ord= (ORDER *)group_list.first; ord; ord= ord->next)
+    for (ORDER *ord= group_list.first; ord; ord= ord->next)
     {
       if ((*ord->item)->type() == Item::FIELD_ITEM &&
           (*ord->item)->field_type() == MYSQL_TYPE_BIT)
       {
         Item_field *field= new Item_field(thd, *(Item_field**)ord->item);
-        int el= all_fields.elements;
-        ref_ptrs[el]= field;
-        all_fields.push_front(field);
-        ord->item= &ref_ptrs[el];
+        ord->item= add_hidden_item(field);
       }
     }
   }
@@ -1193,7 +1190,7 @@ bool SELECT_LEX::setup_conds(THD *thd)
       {
         if (view->prepare_check_option(thd))
           DBUG_RETURN(true);        /* purecov: inspected */
-        thd->change_item_tree(&table->check_option, view->check_option);
+        table->check_option= view->check_option;
       }
     }
   }
@@ -1481,13 +1478,10 @@ SELECT_LEX::simplify_joins(THD *thd,
           while ((arg= lit++))
           {
             /*
-              The join condition isn't necessarily the second argument anymore,
-              since fix_fields may have merged it into an existing AND expr.
+              Check whether the arguments to AND need substitution
+              of rollback location.
             */
-            if (arg == table->join_cond())
-              thd->change_item_tree_place(table->join_cond_ref(), lit.ref());
-            else if (arg == *cond)
-              thd->change_item_tree_place(cond, lit.ref());
+            thd->replace_rollback_place(lit.ref());
           }
           *cond= new_cond;
         }
@@ -1495,7 +1489,7 @@ SELECT_LEX::simplify_joins(THD *thd,
         {
           *cond= table->join_cond();
           /* If join condition has a pending rollback in THD::change_list */
-          thd->change_item_tree_place(table->join_cond_ref(), cond);
+          thd->replace_rollback_place(cond);
         }
         table->set_join_cond(NULL);
       }
@@ -2114,15 +2108,24 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
     {
       for (uint i= 0; i < in_subq_pred->left_expr->cols(); i++)
       {
-        nested_join->sj_outer_exprs.push_back(in_subq_pred->left_expr->
-                                              element_index(i));
+        Item *const li= in_subq_pred->left_expr->element_index(i);
+        nested_join->sj_outer_exprs.push_back(li);
         nested_join->sj_inner_exprs.push_back(subq_select->ref_pointer_array[i]);
 
         Item_func_eq *item_eq= 
-          new Item_func_eq(in_subq_pred->left_expr->element_index(i), 
-                           subq_select->ref_pointer_array[i]);
+          new Item_func_eq(li, subq_select->ref_pointer_array[i]);
+
         if (item_eq == NULL)
           DBUG_RETURN(true);      /* purecov: inspected */
+
+        /*
+          li [left_expr->element_index(i)] can be a transient Item_outer_ref,
+          whose usage has already been marked for rollback, but we need to roll
+          back this location (inside Item_func_eq) in stead, since this is the
+          place that matters after this semijoin transformation. arguments()
+          gets the address of li as stored in item_eq ("place").
+        */
+        thd->replace_rollback_place(item_eq->arguments());
 
         sj_cond= and_items(sj_cond, item_eq);
         if (sj_cond == NULL)
@@ -2840,15 +2843,12 @@ bool SELECT_LEX::fix_inner_refs(THD *thd)
     */
     if (!ref_ptrs.is_null() && !ref->found_in_select_list)
     {
-      int el= all_fields.elements;
-      ref_ptrs[el]= item;
-      /* Add the field item to the select list of the current select. */
-      all_fields.push_front(item);
-      /*
+      /* 
+        Add the field item to the select list of the current select.
         If it's needed reset each Item_ref item that refers this field with
         a new reference taken from ref_pointer_array.
       */
-      item_ref= &ref_ptrs[el];
+      item_ref= add_hidden_item(item);
     }
 
     if (ref->in_sum_func)
@@ -3118,7 +3118,7 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array,
 
     /* Lookup the current GROUP field in the FROM clause. */
     order_item_type= order_item->type();
-    from_field= (Field*) not_found_field;
+    from_field= not_found_field;
     if ((is_group_field &&
         order_item_type == Item::FIELD_ITEM) ||
         order_item_type == Item::REF_ITEM)
@@ -3130,7 +3130,7 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array,
         return true;
 
       if (!from_field)
-        from_field= (Field*) not_found_field;
+        from_field= not_found_field;
     }
 
     if (from_field == not_found_field ||
@@ -3381,7 +3381,7 @@ bool SELECT_LEX::setup_order_final(THD *thd, int hidden_order_field_count)
     return false;
   }
 
-  for (ORDER *ord= (ORDER *)order_list.first; ord; ord= ord->next)
+  for (ORDER *ord= order_list.first; ord; ord= ord->next)
   {
     Item *const item= *ord->item;
 
@@ -3478,7 +3478,7 @@ bool SELECT_LEX::change_group_ref(THD *thd, Item_func *expr, bool *changed)
     Item *const item= *arg;
     if (item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM)
     {
-      for (ORDER *group= (ORDER *)group_list.first; group; group= group->next)
+      for (ORDER *group= group_list.first; group; group= group->next)
       {
         if (item->eq(*group->item, 0))
         {
@@ -3522,7 +3522,7 @@ bool SELECT_LEX::resolve_rollup(THD *thd)
   {
     bool found_in_group= false;
 
-    for (ORDER *group= (ORDER *)group_list.first; group; group= group->next)
+    for (ORDER *group= group_list.first; group; group= group->next)
     {
       if (*group->item == item)
       {
@@ -3651,6 +3651,22 @@ void SELECT_LEX::delete_unused_merged_columns(List<TABLE_LIST> *tables)
   DBUG_VOID_RETURN;
 }
 
+
+/**
+  Add item to the hidden part of select list.
+
+  @param item  item to add
+
+  @return Pointer to ref_ptr for the added item
+*/
+
+Item **SELECT_LEX::add_hidden_item(Item *item)
+{
+  uint el= all_fields.elements;
+  ref_ptrs[el]= item;
+  all_fields.push_front(item);
+  return &ref_ptrs[el];
+}
 
 /**
   @} (end of group Query_Resolver)

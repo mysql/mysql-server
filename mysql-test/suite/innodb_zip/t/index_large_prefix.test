@@ -371,9 +371,11 @@ drop table worklog5743;
 -- echo ### Test 6 ###
 # Create a table with old format, and the limit is 768 bytes.
 -- error ER_INDEX_COLUMN_TOO_LONG
-create table worklog5743(a TEXT not null, primary key (a(1000)));
+create table worklog5743(a TEXT not null, primary key (a(1000)))
+row_format=compact;
 
-create table worklog5743(a TEXT);
+create table worklog5743(a TEXT)
+row_format=compact;
 
 # Excercise the column length check in ha_innobase::add_index()
 -- error ER_INDEX_COLUMN_TOO_LONG

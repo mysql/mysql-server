@@ -173,3 +173,13 @@ CREATE TABLE t1(c1 INT) KEY_BLOCK_SIZE=1 COMPRESSION='LZ4';
 CREATE TABLE t1(c1 INT) KEY_BLOCK_SIZE=1 COMPRESSION='BLAH';
 
 eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
+
+--echo #
+--echo #Bug#21557723 CAN'T USE OUTPUT OF "SHOW CREATE TABLE" TO CREATE A NEW TABLE
+--echo #
+CREATE TABLE t1 (a INT, b BLOB, c BLOB) COMPRESSION='zlib';
+let $create1 = query_get_value(SHOW CREATE TABLE t1, Create Table, 1);
+DROP TABLE t1;
+# Create table from the SHOW CREATE TABLE output
+eval $create1;
+DROP TABLE t1;

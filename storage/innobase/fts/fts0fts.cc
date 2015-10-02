@@ -606,11 +606,11 @@ fts_cache_create(
 		fts_cache_init_rw_lock_key, &cache->init_lock,
 		SYNC_FTS_CACHE_INIT);
 
-	mutex_create("fts_delete", &cache->deleted_lock);
+	mutex_create(LATCH_ID_FTS_DELETE, &cache->deleted_lock);
 
-	mutex_create("fts_optimize", &cache->optimize_lock);
+	mutex_create(LATCH_ID_FTS_OPTIMIZE, &cache->optimize_lock);
 
-	mutex_create("fts_doc_id", &cache->doc_id_lock);
+	mutex_create(LATCH_ID_FTS_DOC_ID, &cache->doc_id_lock);
 
 	/* This is the heap used to create the cache itself. */
 	cache->self_heap = ib_heap_allocator_create(heap);
@@ -680,9 +680,8 @@ fts_reset_get_doc(
 	fts_get_doc_t*  get_doc;
 	ulint		i;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&cache->init_lock, RW_LOCK_X));
-#endif
+
 	ib_vector_reset(cache->get_docs);
 
 	for (i = 0; i < ib_vector_size(cache->indexes); i++) {
@@ -962,9 +961,7 @@ fts_cache_index_cache_create(
 
 	ut_a(cache != NULL);
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&cache->init_lock, RW_LOCK_X));
-#endif
 
 	/* Must not already exist in the cache vector. */
 	ut_a(fts_find_index_cache(cache, index) == NULL);
@@ -1102,10 +1099,8 @@ fts_get_index_cache(
 {
 	ulint			i;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own((rw_lock_t*) &cache->lock, RW_LOCK_X)
 	      || rw_lock_own((rw_lock_t*) &cache->init_lock, RW_LOCK_X));
-#endif
 
 	for (i = 0; i < ib_vector_size(cache->indexes); ++i) {
 		fts_index_cache_t*	index_cache;
@@ -1135,9 +1130,7 @@ fts_get_index_get_doc(
 {
 	ulint			i;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own((rw_lock_t*) &cache->init_lock, RW_LOCK_X));
-#endif
 
 	for (i = 0; i < ib_vector_size(cache->get_docs); ++i) {
 		fts_get_doc_t*	get_doc;
@@ -1194,9 +1187,7 @@ fts_tokenizer_word_get(
 	fts_tokenizer_word_t*	word;
 	ib_rbt_bound_t		parent;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&cache->lock, RW_LOCK_X));
-#endif
 
 	/* If it is a stopword, do not index it */
 	if (!fts_check_token(text,
@@ -1255,11 +1246,12 @@ fts_cache_node_add_positions(
 	byte*		ptr_start;
 	ulint		doc_id_delta;
 
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 	if (cache) {
 		ut_ad(rw_lock_own(&cache->lock, RW_LOCK_X));
 	}
-#endif
+#endif /* UNIV_DEBUG */
+
 	ut_ad(doc_id >= node->last_doc_id);
 
 	/* Calculate the space required to store the ilist. */
@@ -1369,9 +1361,7 @@ fts_cache_add_doc(
 		return;
 	}
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&cache->lock, RW_LOCK_X));
-#endif
 
 	n_words = rbt_size(tokens);
 
@@ -1781,7 +1771,7 @@ fts_create_in_mem_aux_table(
 	ulint			n_cols)
 {
 	dict_table_t*	new_table = dict_mem_table_create(
-		aux_table_name, table->space, n_cols, table->flags,
+		aux_table_name, table->space, n_cols, 0, table->flags,
 		fts_get_table_flags2_for_aux_tables(table->flags2));
 
 	if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
@@ -3294,9 +3284,7 @@ fts_doc_free(
 		rbt_free(doc->tokens);
 	}
 
-#ifdef UNIV_DEBUG
-	memset(doc, 0, sizeof(*doc));
-#endif /* UNIV_DEBUG */
+	ut_d(memset(doc, 0, sizeof(*doc)));
 
 	mem_heap_free(heap);
 }
@@ -4702,7 +4690,7 @@ fts_check_token(
 }
 
 /** Add the token and its start position to the token's list of positions.
-@param[in/out]	result_doc	result doc rb tree
+@param[in,out]	result_doc	result doc rb tree
 @param[in]	str		token string
 @param[in]	position	token position */
 static
@@ -5022,19 +5010,16 @@ fts_get_docs_create(
 						fts_get_doc_t instances */
 	fts_cache_t*	cache)			/*!< in: fts cache */
 {
-	ulint		i;
 	ib_vector_t*	get_docs;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&cache->init_lock, RW_LOCK_X));
-#endif
+
 	/* We need one instance of fts_get_doc_t per index. */
-	get_docs = ib_vector_create(
-		cache->self_heap, sizeof(fts_get_doc_t), 4);
+	get_docs = ib_vector_create(cache->self_heap, sizeof(fts_get_doc_t), 4);
 
 	/* Create the get_doc instance, we need one of these
 	per FTS index. */
-	for (i = 0; i < ib_vector_size(cache->indexes); ++i) {
+	for (ulint i = 0; i < ib_vector_size(cache->indexes); ++i) {
 
 		dict_index_t**	index;
 		fts_get_doc_t*	get_doc;
@@ -5477,12 +5462,12 @@ fts_cache_find_word(
 {
 	ib_rbt_bound_t		parent;
 	const ib_vector_t*	nodes = NULL;
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 	dict_table_t*		table = index_cache->index->table;
 	fts_cache_t*		cache = table->fts->cache;
 
-	ut_ad(rw_lock_own((rw_lock_t*) &cache->lock, RW_LOCK_X));
-#endif
+	ut_ad(rw_lock_own(&cache->lock, RW_LOCK_X));
+#endif /* UNIV_DEBUG */
 
 	/* Lookup the word in the rb tree */
 	if (rbt_search(index_cache->words, &parent, text) == 0) {
@@ -5505,13 +5490,9 @@ fts_cache_is_deleted_doc_id(
 	const fts_cache_t*	cache,		/*!< in: cache ito search */
 	doc_id_t		doc_id)		/*!< in: doc id to search for */
 {
-	ulint			i;
-
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&cache->deleted_lock));
-#endif
 
-	for (i = 0; i < ib_vector_size(cache->deleted_doc_ids); ++i) {
+	for (ulint i = 0; i < ib_vector_size(cache->deleted_doc_ids); ++i) {
 		const fts_update_t*	update;
 
 		update = static_cast<const fts_update_t*>(
@@ -5534,9 +5515,7 @@ fts_cache_append_deleted_doc_ids(
 	const fts_cache_t*	cache,		/*!< in: cache to use */
 	ib_vector_t*		vector)		/*!< in: append to this vector */
 {
-	ulint			i;
-
-	mutex_enter((ib_mutex_t*) &cache->deleted_lock);
+	mutex_enter(const_cast<ib_mutex_t*>(&cache->deleted_lock));
 
 	if (cache->deleted_doc_ids == NULL) {
 		mutex_exit((ib_mutex_t*) &cache->deleted_lock);
@@ -5544,7 +5523,7 @@ fts_cache_append_deleted_doc_ids(
 	}
 
 
-	for (i = 0; i < ib_vector_size(cache->deleted_doc_ids); ++i) {
+	for (ulint i = 0; i < ib_vector_size(cache->deleted_doc_ids); ++i) {
 		fts_update_t*	update;
 
 		update = static_cast<fts_update_t*>(
@@ -5636,15 +5615,23 @@ fts_add_doc_id_column(
 	DICT_TF2_FLAG_SET(table, DICT_TF2_FTS_HAS_DOC_ID);
 }
 
-/*********************************************************************//**
-Update the query graph with a new document id.
-@return Doc ID used */
+/** Add new fts doc id to the update vector.
+@param[in]	table		the table that contains the FTS index.
+@param[in,out]	ufield		the fts doc id field in the update vector.
+				No new memory is allocated for this in this
+				function.
+@param[in,out]	next_doc_id	the fts doc id that has been added to the
+				update vector.  If 0, a new fts doc id is
+				automatically generated.  The memory provided
+				for this argument will be used by the update
+				vector. Ensure that the life time of this
+				memory matches that of the update vector.
+@return the fts doc id used in the update vector */
 doc_id_t
 fts_update_doc_id(
-/*==============*/
-	dict_table_t*	table,		/*!< in: table */
-	upd_field_t*	ufield,		/*!< out: update node */
-	doc_id_t*	next_doc_id)	/*!< in/out: buffer for writing */
+	dict_table_t*	table,
+	upd_field_t*	ufield,
+	doc_id_t*	next_doc_id)
 {
 	doc_id_t	doc_id;
 	dberr_t		error = DB_SUCCESS;
@@ -5710,7 +5697,7 @@ fts_t::fts_t(
 {
 	ut_a(table->fts == NULL);
 
-	mutex_create("fts_bg_threads", &bg_threads_mutex);
+	mutex_create(LATCH_ID_FTS_BG_THREADS, &bg_threads_mutex);
 
 	ib_alloc_t*	heap_alloc = ib_heap_allocator_create(fts_heap);
 
@@ -6378,7 +6365,7 @@ fts_update_hex_format_flag(
 
 	ut_a(flags2 != ULINT32_UNDEFINED);
 
-	return (err);
+	return(err);
 }
 
 /*********************************************************************//**
@@ -6459,7 +6446,7 @@ fts_rename_one_aux_table_to_hex_format(
 			<< "' to '" << new_name << "'.";
 	}
 
-	return (error);
+	return(error);
 }
 
 /**********************************************************************//**
@@ -6491,7 +6478,7 @@ fts_rename_aux_tables_to_hex_format_low(
 		ib::warn() << "Setting parent table " << parent_table->name
 			<< " to hex format failed.";
 		fts_sql_rollback(trx);
-		return (error);
+		return(error);
 	}
 
 	DICT_TF2_FLAG_SET(parent_table, DICT_TF2_FTS_AUX_HEX_NAME);
@@ -6610,7 +6597,7 @@ fts_rename_aux_tables_to_hex_format_low(
 		DICT_TF2_FLAG_UNSET(parent_table, DICT_TF2_FTS_AUX_HEX_NAME);
 	}
 
-	return (error);
+	return(error);
 }
 
 /**********************************************************************//**
@@ -6627,12 +6614,12 @@ fts_fake_hex_to_dec(
 
 #ifdef UNIV_DEBUG
 	int		ret =
-#endif
+#endif /* UNIV_DEBUG */
 	sprintf(tmp_id, UINT64PFx, id);
 	ut_ad(ret == 16);
 #ifdef UNIV_DEBUG
 	ret =
-#endif
+#endif /* UNIV_DEBUG */
 #ifdef _WIN32
 	sscanf(tmp_id, "%016llu", &dec_id);
 #else
@@ -7837,4 +7824,62 @@ func_exit:
 	}
 
 	return(TRUE);
+}
+
+/** Check if the all the auxillary tables associated with FTS index are in
+consistent state. For now consistency is check only by ensuring
+index->page_no != FIL_NULL
+@param[out]	base_table	table has host fts index
+@param[in,out]	trx		trx handler
+@return true if check certifies auxillary tables are sane false otherwise. */
+bool
+fts_is_corrupt(
+	dict_table_t*	base_table,
+	trx_t*		trx)
+{
+	bool		sane = true;
+	fts_table_t	fts_table;
+
+	/* Iterate over the common table and check for their sanity. */
+	FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, base_table);
+
+	for (ulint i = 0; fts_common_tables[i] != NULL && sane; ++i) {
+
+		char	table_name[MAX_FULL_NAME_LEN];
+
+		fts_table.suffix = fts_common_tables[i];
+		fts_get_table_name(&fts_table, table_name);
+
+		dict_table_t*	aux_table = dict_table_open_on_name(
+			table_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+
+		if (aux_table == NULL) {
+			dict_set_corrupted(
+				dict_table_get_first_index(base_table),
+				trx, "FTS_SANITY_CHECK");
+			ut_ad(base_table->corrupted == TRUE);
+			sane = false;
+			continue;
+		}
+
+		for (dict_index_t*	aux_table_index =
+			UT_LIST_GET_FIRST(aux_table->indexes);
+		     aux_table_index != NULL;
+		     aux_table_index =
+			UT_LIST_GET_NEXT(indexes, aux_table_index)) {
+
+			/* Check if auxillary table needed for FTS is sane. */
+			if (aux_table_index->page == FIL_NULL) {
+				dict_set_corrupted(
+					dict_table_get_first_index(base_table),
+					trx, "FTS_SANITY_CHECK");
+				ut_ad(base_table->corrupted == TRUE);
+				sane = false;
+			}
+		}
+
+		dict_table_close(aux_table, FALSE, FALSE);
+	}
+
+	return(sane);
 }

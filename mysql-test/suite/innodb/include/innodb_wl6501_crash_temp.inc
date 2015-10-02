@@ -59,14 +59,11 @@ select * from t;
 check table t;
 #
 set session debug = "+d,ib_trunc_crash_drop_reinit_done_create_to_start";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 --error 2013
 truncate table t;
 #
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
+--source include/start_mysqld.inc
 check table t;
 
 #-----------------------------------------------------------------------------
@@ -90,14 +87,11 @@ select * from t;
 check table t;
 #
 set session debug = "+d,ib_trunc_crash_on_updating_dict_sys_info";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 --error 2013
 truncate table t;
 #
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
+--source include/start_mysqld.inc
 check table t;
 
 #-----------------------------------------------------------------------------

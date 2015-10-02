@@ -69,23 +69,25 @@ typedef struct st_hash {
   void (*free)(void *);
   CHARSET_INFO *charset;
   my_hash_function hash_function;
+  PSI_memory_key m_psi_key;
 } HASH;
 
 /* A search iterator state */
 typedef uint HASH_SEARCH_STATE;
 
-#define my_hash_init(A,B,C,D,E,F,G,H) \
-          _my_hash_init(A,0,B,NULL,C,D,E,F,G,H)
-#define my_hash_init2(A,B,C,D,E,F,G,H,I) \
-          _my_hash_init(A,B,C,NULL,D,E,F,G,H,I)
-#define my_hash_init3(A,B,C,D,E,F,G,H,I,J) \
-          _my_hash_init(A,B,C,D,E,F,G,H,I,J)
+#define my_hash_init(A,B,C,D,E,F,G,H,I) \
+          _my_hash_init(A,0,B,NULL,C,D,E,F,G,H,I)
+#define my_hash_init2(A,B,C,D,E,F,G,H,I,J) \
+          _my_hash_init(A,B,C,NULL,D,E,F,G,H,I,J)
+#define my_hash_init3(A,B,C,D,E,F,G,H,I,J,K) \
+          _my_hash_init(A,B,C,D,E,F,G,H,I,J,K)
 my_bool _my_hash_init(HASH *hash, uint growth_size, CHARSET_INFO *charset,
                       my_hash_function hash_function,
                       ulong default_array_elements, size_t key_offset,
                       size_t key_length, my_hash_get_key get_key,
                       void (*free_element)(void*),
-                      uint flags);
+                      uint flags,
+                      PSI_memory_key psi_key);
 void my_hash_claim(HASH *tree);
 void my_hash_free(HASH *tree);
 void my_hash_reset(HASH *hash);
@@ -114,8 +116,8 @@ my_bool my_hash_check(HASH *hash); /* Only in debug library */
 
 #define my_hash_clear(H) memset((H), 0, sizeof(*(H)))
 #define my_hash_inited(H) ((H)->blength != 0)
-#define my_hash_init_opt(A,B,C,D,E,F,G,H) \
-          (!my_hash_inited(A) && _my_hash_init(A,0,B,NULL,C,D,E,F,G,H))
+#define my_hash_init_opt(A,B,C,D,E,F,G,H,I) \
+          (!my_hash_inited(A) && _my_hash_init(A,0,B,NULL,C,D,E,F,G,H,I))
 
 #ifdef	__cplusplus
 }
