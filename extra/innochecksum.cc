@@ -1087,11 +1087,11 @@ int main(
 	/* our input filename. */
 	char*		filename;
 	/* Buffer to store pages read. */
-	byte* buf = (uchar*) malloc(
-			sizeof(uchar) * (UNIV_PAGE_SIZE_MAX));
-
+	byte*		buf = NULL;
 	/* bytes read count */
 	ulong		bytes;
+	/* Buffer to decompress page.*/
+	byte*		tbuf = NULL;
 	/* current time */
 	time_t		now;
 	/* last time */
@@ -1165,6 +1165,10 @@ int main(
 	if (verbose) {
 		my_print_variables_ex(innochecksum_options, stderr);
 	}
+
+
+	buf = (byte*) malloc(UNIV_PAGE_SIZE_MAX * 2);
+	tbuf = buf + UNIV_PAGE_SIZE_MAX;
 
 	/* The file name is not optional. */
 	for (int i = 0; i < argc; ++i) {
@@ -1243,6 +1247,7 @@ int main(
 			fprintf(stderr, "of %d bytes.  Bytes read was %lu\n",
 				UNIV_ZIP_SIZE_MIN, bytes);
 
+			free(buf);
 			DBUG_RETURN(1);
 		}
 
@@ -1301,12 +1306,15 @@ int main(
 					perror("Error: Unable to seek to "
 						"necessary offset");
 
+					free(buf);
 					DBUG_RETURN(1);
 				}
 				/* Save the current file pointer in
 				pos variable. */
 				if (0 != fgetpos(fil_in, &pos)) {
 					perror("fgetpos");
+
+					free(buf);
 					DBUG_RETURN(1);
 				}
 			} else {
@@ -1338,6 +1346,7 @@ int main(
 							"to seek to necessary "
 							"offset");
 
+						free(buf);
 						DBUG_RETURN(1);
 					}
 				}
@@ -1358,8 +1367,6 @@ int main(
 				"======================================\n");
 		}
 
-		byte*	tbuf = (byte*) malloc(UNIV_PAGE_SIZE_MAX);
-
 		/* main checksumming loop */
 		cur_page_num = start_page;
 		lastt = 0;
@@ -1379,8 +1386,7 @@ int main(
 					page_size.physical());
 				perror(" ");
 
-				free(tbuf);
-
+				free(buf);
 				DBUG_RETURN(1);
 			}
 
@@ -1388,7 +1394,7 @@ int main(
 				fprintf(stderr, "Error: bytes read (%lu) "
 					"doesn't match page size (%lu)\n",
 					bytes, page_size.physical());
-				free(tbuf);
+				free(buf);
 				DBUG_RETURN(1);
 			}
 
@@ -1403,7 +1409,7 @@ int main(
 					fprintf(stderr,
 						"Page decompress failed");
 
-					free(tbuf);
+					free(buf);
 					DBUG_RETURN(1);
 				}
 			}
@@ -1431,7 +1437,7 @@ int main(
 								"count::%" PRIuMAX "\n",
 								allow_mismatches);
 
-							free(tbuf);
+							free(buf);
 							DBUG_RETURN(1);
 						}
 					}
@@ -1444,7 +1450,7 @@ int main(
 					   page_size.is_compressed(), &pos,
 					   static_cast<ulong>(page_size.physical()))) {
 
-				free(tbuf);
+				free(buf);
 				DBUG_RETURN(1);
 			}
 
@@ -1477,8 +1483,6 @@ int main(
 			}
 		}
 
-		free(tbuf);
-
 		if (!read_from_stdin) {
 			/* flcose() will flush the data and release the lock if
 			any acquired. */
@@ -1500,5 +1504,6 @@ int main(
 		fclose(log_file);
 	}
 
+	free(buf);
 	DBUG_RETURN(0);
 }

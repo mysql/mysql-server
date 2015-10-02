@@ -1,0 +1,23 @@
+--source include/not_embedded.inc
+
+--echo #
+--echo # Bug #20763179 SEGV WHEN CREATE TABLESPACE IS EXECUTED IN READ ONLY MODE
+--echo #
+--echo # Check CREATE TABLESPACE is handled properly in read-only mode
+
+CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;
+
+let $restart_parameters = restart: --innodb_read_only;
+--source include/restart_mysqld.inc
+--error ER_CREATE_FILEGROUP_FAILED
+CREATE TABLESPACE s2 ADD DATAFILE 's2.ibd' ENGINE InnoDB;
+SHOW WARNINGS;
+--error ER_DROP_FILEGROUP_FAILED
+DROP TABLESPACE s1;
+SHOW WARNINGS;
+
+--echo # Restart in normal mode for cleanup.
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
+DROP TABLESPACE s1;
+

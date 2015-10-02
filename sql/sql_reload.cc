@@ -30,6 +30,7 @@
 #include "debug_sync.h"
 #include "connection_handler_impl.h"
 #include "opt_costconstantcache.h"     // reload_optimizer_cost_constants
+#include "log.h"         // query_logger
 
 
 /**
@@ -120,15 +121,8 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   }
 
   if (options & REFRESH_ERROR_LOG)
-    if (flush_error_log())
-    {
-      /*
-        When flush_error_log() failed, my_error() has not been called.
-        So, we have to do it here to keep the protocol.
-      */
-      my_error(ER_UNKNOWN_ERROR, MYF(0));
+    if (reopen_error_log())
       result= 1;
-    }
 
   if ((options & REFRESH_SLOW_LOG) && opt_slow_log)
     query_logger.reopen_log_file(QUERY_LOG_SLOW);
@@ -195,7 +189,8 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   DBUG_ASSERT(!thd || thd->locked_tables_mode ||
               !thd->mdl_context.has_locks() ||
               thd->handler_tables_hash.records ||
-              thd->ull_hash.records ||
+              thd->mdl_context.has_locks(MDL_key::USER_LEVEL_LOCK) ||
+              thd->mdl_context.has_locks(MDL_key::LOCKING_SERVICE) ||
               thd->global_read_lock.is_acquired());
 
   /*

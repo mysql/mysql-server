@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,8 +27,6 @@ namespace Tools{
 namespace Base{
 namespace Options{
 
-using std::string;
-
 /**
   Abstract option to handle options accepting value argument.
  */
@@ -53,13 +51,13 @@ protected:
     @param default_value default value to be supplied to internal option
       data structure.
    */
-  Abstract_value_option(void* value, ulong var_type, string name,
-    string description, uint64 default_value);
+  Abstract_value_option(void* value, ulong var_type, std::string name,
+    std::string description, uint64 default_value);
 };
 
 
 template<typename T_type> Abstract_value_option<T_type>::Abstract_value_option(
-    void* value, ulong var_type, string name, string description,
+    void* value, ulong var_type, std::string name, std::string description,
     uint64 default_value)
   : Abstract_option<T_type>(value, var_type, name, description, default_value)
 {}

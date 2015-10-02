@@ -81,6 +81,12 @@ Field *create_tmp_field_from_field(THD *thd, Field *org_field,
       new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
     if (org_field->type() == FIELD_TYPE_DOUBLE)
       ((Field_double *) new_field)->not_fixed= TRUE;
+    /*
+      This field will belong to an internal temporary table, it cannot be
+      generated.
+    */
+    new_field->gcol_info= NULL;
+    new_field->stored_in_db= true;
   }
   return new_field;
 }
@@ -137,13 +143,19 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     DBUG_ASSERT(item->collation.collation);
   
     /*
-      DATE/TIME and GEOMETRY fields have STRING_RESULT result type. 
+      DATE/TIME, GEOMETRY and JSON fields have STRING_RESULT result type.
       To preserve type they needed to be handled separately.
     */
-    if (item->is_temporal() || item->field_type() == MYSQL_TYPE_GEOMETRY)
+    if (item->is_temporal() ||
+        item->field_type() == MYSQL_TYPE_GEOMETRY ||
+        item->field_type() == MYSQL_TYPE_JSON)
+    {
       new_field= item->tmp_table_field_from_field_type(table, 1);
+    }
     else
+    {
       new_field= item->make_string_field(table);
+    }
     new_field->set_derivation(item->collation.derivation);
     break;
   case DECIMAL_RESULT:
@@ -198,7 +210,8 @@ static Field *create_tmp_field_for_schema(THD *thd, Item *item, TABLE *table)
     Field *field;
     if (item->max_length > MAX_FIELD_VARCHARLENGTH)
       field= new Field_blob(item->max_length, item->maybe_null,
-                            item->item_name.ptr(), item->collation.collation);
+                            item->item_name.ptr(),
+                            item->collation.collation, false);
     else
     {
       field= new Field_varstring(item->max_length, item->maybe_null,
@@ -235,10 +248,10 @@ static Field *create_tmp_field_for_schema(THD *thd, Item *item, TABLE *table)
                        If modify_item is 0 then fill_record() will update
                        the temporary table
 
-  @retval
-    NULL		on error
-  @retval
-    new_created field
+  @retval NULL On error. This also happens if the item is a prepared statement
+  parameter.
+
+  @retval new_created field
 */
 
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
@@ -383,6 +396,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       break;
     result->set_derivation(item->collation.derivation);
     break;
+  case Item::PARAM_ITEM:
+    return NULL;
   default:					// Dosen't have to be stored
     DBUG_ASSERT(false);
     break;
@@ -468,13 +483,13 @@ void Cache_temp_engine_properties::init(THD *thd)
     For ha_innobase::max_supported_key_part_length(), the returned value
     relies on innodb_large_prefix. However, in innodb itself, the limitation
     on key_part length is up to the ROW_FORMAT. In current trunk, internal
-    temp table's ROW_FORMAT is COMPACT. In order to keep the consistence
-    between server and innodb, here we hard-coded 767 as the maximum of 
+    temp table's ROW_FORMAT is DYNAMIC. In order to keep the consistence
+    between server and innodb, here we hard-coded 3072 as the maximum of
     key_part length supported by innodb until bug#20629014 is fixed.
 
     TODO: Remove the hard-code here after bug#20629014 is fixed.
   */
-  INNODB_MAX_KEY_PART_LENGTH= 767;
+  INNODB_MAX_KEY_PART_LENGTH= 3072;
   INNODB_MAX_KEY_PARTS= handler->max_key_parts();
   delete handler;
   plugin_unlock(0, db_plugin);
@@ -624,6 +639,9 @@ static void register_hidden_field(TABLE *table,
           MAX_FIELDS columns. This prevents any MyISAM temp table
           made when materializing the view from hitting the 64k
           MyISAM header size limit.
+
+  @remark We may actually end up with a table without any columns at all.
+          See comment below: We don't have to store this.
 */
 
 #define STRING_TOTAL_LENGTH_TO_PACK_ROWS 128
@@ -808,6 +826,8 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   table->covering_keys.init();
   table->merge_keys.init();
   table->keys_in_use_for_query.init();
+  table->keys_in_use_for_group_by.init();
+  table->keys_in_use_for_order_by.init();
 
   table->s= share;
   init_tmp_table_share(thd, share, "", 0, tmpname, tmpname);
@@ -942,6 +962,8 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
 
       if (!new_field)
       {
+        if (type == Item::PARAM_ITEM)
+          goto update_hidden;
         DBUG_ASSERT(thd->is_fatal_error);
         goto err;				// Got OOM
       }
@@ -1264,7 +1286,7 @@ update_hidden:
   setup_tmp_table_column_bitmaps(table, bitmaps);
 
   recinfo=param->start_recinfo;
-  null_flags=(uchar*) table->record[0];
+  null_flags= table->record[0];
   pos= table->record[0] + null_pack_length;
   if (null_pack_length)
   {
@@ -1274,7 +1296,7 @@ update_hidden:
     recinfo++;
     memset(null_flags, 255, null_pack_length);	// Set null fields
 
-    table->null_flags= (uchar*) table->record[0];
+    table->null_flags= table->record[0];
     share->null_fields= null_count+ hidden_null_count;
     share->null_bytes= null_pack_length;
   }
@@ -1744,7 +1766,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   setup_tmp_table_column_bitmaps(table, bitmaps);
 
   recinfo= start_recinfo;
-  null_flags=(uchar*) table->record[0];
+  null_flags= table->record[0];
 
   pos= table->record[0] + null_pack_length;
   if (null_pack_length)
@@ -1755,7 +1777,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     recinfo++;
     memset(null_flags, 255, null_pack_length);	// Set null fields
 
-    table->null_flags= (uchar*) table->record[0];
+    table->null_flags= table->record[0];
     share->null_fields= null_count;
     share->null_bytes= null_pack_length;
   }
@@ -1981,7 +2003,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
 
   if (null_pack_length)
   {
-    table->null_flags= (uchar*) table->record[0];
+    table->null_flags= table->record[0];
     share->null_fields= null_count;
     share->null_bytes= null_pack_length;
   }
@@ -2000,7 +2022,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
         cur_field->move_field(field_pos);
       else
       {
-        cur_field->move_field(field_pos, (uchar*) null_pos, null_bit);
+        cur_field->move_field(field_pos, null_pos, null_bit);
         null_bit<<= 1;
         if (null_bit == (uint8)1 << 8)
         {
@@ -2318,6 +2340,11 @@ bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
                            ulonglong options, my_bool big_tables,
                            Opt_trace_context *trace)
 {
+#ifndef DBUG_OFF
+  for (uint i= 0; i < table->s->fields; i++)
+    DBUG_ASSERT(table->field[i]->gcol_info== NULL && table->field[i]->stored_in_db);
+#endif
+
   if (table->s->db_type() == innodb_hton)
   {
     if (create_innodb_tmp_table(table, keyinfo))

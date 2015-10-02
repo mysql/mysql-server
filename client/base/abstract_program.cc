@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015  Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,8 @@
 #include <algorithm>
 
 using namespace Mysql::Tools::Base;
+using std::string;
+using std::vector;
 
 extern const char *load_default_groups[];
 
@@ -69,7 +71,8 @@ void Abstract_program::run(int argc, char **argv)
 
   my_getopt_use_args_separator= TRUE;
   if (load_defaults("my",load_default_groups,&argc,&argv))
-    this->error(1);
+    this->error(Message_data(
+    1, "Error during loading default options", Message_type_error));
   my_getopt_use_args_separator= FALSE;
 
   this->m_defaults_argv= argv;
@@ -78,7 +81,8 @@ void Abstract_program::run(int argc, char **argv)
     Abstract_program::callback_option_parsed);
   if (ho_error != 0)
   {
-    this->error(ho_error);
+    this->error(Message_data(
+      ho_error, "Error during handling options", Message_type_error));
   }
 
   // Let providers handle their parsed options.
@@ -147,11 +151,6 @@ void Abstract_program::aggregate_options()
   my_option sentinel=
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0};
   this->m_options.push_back(sentinel);
-}
-
-void Abstract_program::print_usage()
-{
-  this->m_help_options.print_usage();
 }
 
 bool Abstract_program::options_by_name_comparer(const my_option& a, const my_option& b)

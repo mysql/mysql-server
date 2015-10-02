@@ -87,8 +87,9 @@ int my_sync(File fd, myf my_flags)
   if (res)
   {
     int er= errno;
-    if (!(my_errno= er))
-      my_errno= -1;                             /* Unknown error */
+    set_my_errno(er);
+    if (!er)
+      set_my_errno(-1);                             /* Unknown error */
     if (after_sync_wait)
       (*after_sync_wait)();
     if ((my_flags & MY_IGNORE_BADFD) &&
@@ -105,7 +106,7 @@ int my_sync(File fd, myf my_flags)
     {
       char errbuf[MYSYS_STRERROR_SIZE];
       my_error(EE_SYNC, MYF(0), my_filename(fd),
-               my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+               my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
     }
   }
   else

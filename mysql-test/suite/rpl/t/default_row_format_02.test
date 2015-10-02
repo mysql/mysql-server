@@ -1,0 +1,59 @@
+# **************************************************************
+# wl8307 : Check default_row_format functionality by cross
+#          Replication Master (M) 5.7 and Slave (S) 5.6. But the
+#          problem is that MTR does not support cross version.
+#          Hence this testcase assumes slave version is 5.6 by
+#          setting the Default_row_format=compact,which is same
+#          in mysql-5.6.
+# case 1 : The main aim of this testcase is to check the DDL
+#          failure on slave side, when user try to create a table
+#          with index column size is greater than 767 bytes on
+#          master which will (DDL) fail on slave side.
+#          Master (M) : *.opt file no need to set as default is
+#          row_format=Dynamic.(mysql-5.7).
+#          Slave  (S) : *.opt file will be set with default
+#          row_format=Compact (mysql-5.6).
+# **************************************************************
+--source include/have_innodb.inc
+--source include/not_group_replication_plugin.inc
+--source include/master-slave.inc
+# This test should not run with GTID=on
+--source include/not_gtid_enabled.inc
+
+# Set expected error nos on slave side
+connection slave;
+stop slave;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=4;
+start slave;
+
+connection master;
+USE test;
+
+# Check Dynamic (default)
+SELECT @@innodb_default_row_format;
+
+# Create Index prefix greater than 767 bytes
+CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000),KEY idx1(b(3070)))
+ENGINE= InnoDB;
+
+# Insert a record
+INSERT INTO tab(a,b) VALUES(1,'Check with max prefix');
+
+# Connect to slave
+--source include/sync_slave_sql_with_master.inc
+
+# Check Compact (default)
+SELECT @@innodb_default_row_format;
+
+# Check DDL should fail on slave
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE tab;
+
+# Cleanup
+connection master;
+DROP TABLE tab;
+
+# Before closing sync slave
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc

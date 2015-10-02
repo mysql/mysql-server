@@ -404,11 +404,84 @@ WHERE OUTR1.pk = 1
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	OUTR1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
-1	UPDATE	INNR1	NULL	ALL	NULL	NULL	NULL	NULL	2	25.00	Using where; FirstMatch(OUTR1)
+1	UPDATE	INNR1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(OUTR1)
 1	SIMPLE	OUTR2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
 Warnings:
 Note	1276	Field or reference 'test.OUTR1.pk' of SELECT #2 was resolved in SELECT #1
 DROP TABLE IF EXISTS b,bb,d;
+#
+# Bug#21216067 ASSERTION FAILED ROW_UPD_SEC_INDEX_ENTRY (INNOBASE/ROW/ROW0UPD.CC:2103)
+#
+CREATE TABLE t (
+x INT, y INT, gc INT GENERATED ALWAYS AS (x+1) STORED
+);
+INSERT INTO t VALUES ();
+UPDATE t t1, t t2 SET t2.y = 1, t1.x = 2;
+SELECT * FROM t;
+x	y	gc
+2	1	3
+DROP TABLE t;
+# stored
+CREATE TABLE C (
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) STORED
+);
+INSERT INTO C (col_varchar_nokey) VALUES ('c');
+EXPLAIN UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	OUTR1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	UPDATE	OUTR2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+SELECT * from C;
+col_varchar_nokey	col_varchar_key
+a	aa
+DROP TABLE C;
+# stored, indexed
+CREATE TABLE C (
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) STORED,
+KEY (col_varchar_key, col_varchar_nokey)
+);
+INSERT INTO C (col_varchar_nokey) VALUES ('c');
+EXPLAIN UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	OUTR1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	UPDATE	OUTR2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+SELECT * from C;
+col_varchar_nokey	col_varchar_key
+a	aa
+DROP TABLE C;
+# virtual
+CREATE TABLE C (
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) VIRTUAL
+);
+INSERT INTO C (col_varchar_nokey) VALUES ('c');
+EXPLAIN UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	OUTR1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	UPDATE	OUTR2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+SELECT * from C;
+col_varchar_nokey	col_varchar_key
+a	aa
+DROP TABLE C;
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
 DROP PROCEDURE IF EXISTS p1;

@@ -29,7 +29,8 @@ Sid_map::Sid_map(Checkable_rwlock *_sid_lock)
   DBUG_ENTER("Sid_map::Sid_map");
   my_hash_init(&_sid_to_sidno, &my_charset_bin, 20,
                offsetof(Node, sid.bytes), binary_log::Uuid::BYTE_LENGTH, NULL,
-               my_free, 0);
+               my_free, 0,
+               key_memory_Sid_map_Node);
   DBUG_VOID_RETURN;
 }
 

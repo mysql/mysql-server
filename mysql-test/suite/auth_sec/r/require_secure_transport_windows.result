@@ -1,0 +1,53 @@
+CREATE USER 'user_tcp'@'127.0.0.1';
+GRANT ALL PRIVILEGES ON *.* TO 'user_tcp'@'127.0.0.1';
+CREATE USER 'user_ssl'@'127.0.0.1';
+GRANT ALL PRIVILEGES ON *.* TO 'user_ssl'@'127.0.0.1';
+CREATE USER 'user_requiressl'@'localhost' REQUIRE SSL;
+GRANT ALL PRIVILEGES ON *.* TO 'user_requiressl'@'localhost';
+
+# Connection type testing for TCP/IP  protocol
+
+1
+1
+# Testing TCP/IP connections over SSL/TLS
+2
+2
+
+# Testing TCP/IP connections over SSL/TLS having user with REQUIRE SSL clause
+2.5
+2.5
+
+SET @@global.require_secure_transport = ON;
+ERROR HY000: Connections using insecure transport are prohibited while --require_secure_transport=ON.
+
+# Connection type testing for TCP/IP protocol, secure transport required.
+
+# Testing TCP/IP connections over SSL/TLS, secure transport required.
+4
+4
+
+# Testing TCP/IP connections over SSL/TLS with an user created with REQUIRE SSL
+4.5
+4.5
+
+# Shutdown server
+# Ensure that server does not start and aborts when there is no
+# SHM support, --require-secure-transport=on and ssl is disabled
+# Now start server normally without ssl support, with MEM and require-secure-transport=on
+# Connection type testing for TCP/IP protocol, secure transport required, should fail
+ERROR HY000: Connections using insecure transport are prohibited while --require_secure_transport=ON.
+# Rebooting to start without ssl support and require-secure-transport=off, disabled SHM
+# Change the dynamic variable from OFF to ON. it should throw error
+SET @@global.require_secure_transport = ON;
+ERROR HY000: No secure transports (SSL or Shared Memory) are configured, unable to set --require_secure_transport=ON.
+# TCP/IP connection should succeed
+6
+6
+ERROR HY000: Can't open shared memory; client could not create request event (2)
+# Rebooting to start ssl support and require-secure-transport=off, disabled with SHM
+# Change the dynamic variable from OFF to ON. it should not throw error
+SET @@global.require_secure_transport = ON;
+# Connection type testing for TCP/IP protocol, secure transport required, should fail.
+#Cleanup
+DROP USER 'user_tcp'@'127.0.0.1', 'user_ssl'@'127.0.0.1';
+SET @@global.require_secure_transport = OFF;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -121,7 +121,7 @@ hash_assert_can_modify(
 	if (table->type == HASH_TABLE_SYNC_MUTEX) {
 		ut_ad(mutex_own(hash_get_mutex(table, fold)));
 	} else if (table->type == HASH_TABLE_SYNC_RW_LOCK) {
-# ifdef UNIV_SYNC_DEBUG
+# ifdef UNIV_DEBUG
 		rw_lock_t* lock = hash_get_lock(table, fold);
 		ut_ad(rw_lock_own(lock, RW_LOCK_X));
 # endif
@@ -144,7 +144,7 @@ hash_assert_can_search(
 	if (table->type == HASH_TABLE_SYNC_MUTEX) {
 		ut_ad(mutex_own(hash_get_mutex(table, fold)));
 	} else if (table->type == HASH_TABLE_SYNC_RW_LOCK) {
-# ifdef UNIV_SYNC_DEBUG
+# ifdef UNIV_DEBUG
 		rw_lock_t* lock = hash_get_lock(table, fold);
 		ut_ad(rw_lock_own(lock, RW_LOCK_X)
 		      || rw_lock_own(lock, RW_LOCK_S));

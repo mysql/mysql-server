@@ -18,231 +18,8 @@
 
 #include "my_global.h"
 #include "auth/sql_security_ctx.h"  // Security_context
-#include "handler.h"                // ha_commit_low
 
-typedef ulonglong my_xid;
-
-
-/**
-  Transaction Coordinator Log.
-
-  A base abstract class for three different implementations of the
-  transaction coordinator.
-
-  The server uses the transaction coordinator to order transactions
-  correctly and there are three different implementations: one using
-  an in-memory structure, one dummy that does not do anything, and one
-  using the binary log for transaction coordination.
-*/
-class TC_LOG
-{
-  public:
-  int using_heuristic_recover();
-  TC_LOG() {}
-  virtual ~TC_LOG() {}
-
-  enum enum_result {
-    RESULT_SUCCESS,
-    RESULT_ABORTED,
-    RESULT_INCONSISTENT
-  };
-
-  virtual int open(const char *opt_name)=0;
-  virtual void close()=0;
-
-  /**
-     Log a commit record of the transaction to the transaction
-     coordinator log.
-
-     When the function returns, the transaction commit is properly
-     logged to the transaction coordinator log and can be committed in
-     the storage engines.
-
-     @param thd Session to log transaction for.
-     @param all @c True if this is a "real" commit, @c false if it is a "statement" commit.
-
-     @return Error code on failure, zero on success.
-   */
-  virtual enum_result commit(THD *thd, bool all) = 0;
-
-  /**
-     Log a rollback record of the transaction to the transaction
-     coordinator log.
-
-     When the function returns, the transaction have been aborted in
-     the transaction coordinator log.
-
-     @param thd Session to log transaction record for.
-
-     @param all @c true if an explicit commit or an implicit commit
-     for a statement, @c false if an internal commit of the statement.
-
-     @return Error code on failure, zero on success.
-   */
-  virtual int rollback(THD *thd, bool all) = 0;
-  /**
-     Log a prepare record of the transaction to the storage engines.
-
-     @param thd Session to log transaction record for.
-
-     @param all @c true if an explicit commit or an implicit commit
-     for a statement, @c false if an internal commit of the statement.
-
-     @return Error code on failure, zero on success.
-   */
-  virtual int prepare(THD *thd, bool all) = 0;
-};
-
-
-class TC_LOG_DUMMY: public TC_LOG // use it to disable the logging
-{
-public:
-  TC_LOG_DUMMY() {}
-  int open(const char *opt_name)        { return 0; }
-  void close()                          { }
-  enum_result commit(THD *thd, bool all) {
-    return ha_commit_low(thd, all) ? RESULT_ABORTED : RESULT_SUCCESS;
-  }
-  int rollback(THD *thd, bool all) {
-    return ha_rollback_low(thd, all);
-  }
-  int prepare(THD *thd, bool all) {
-    return ha_prepare_low(thd, all);
-  }
-};
-
-class TC_LOG_MMAP: public TC_LOG
-{
-public:                // only to keep Sun Forte on sol9x86 happy
-  typedef enum {
-    PS_POOL,                 // page is in pool
-    PS_ERROR,                // last sync failed
-    PS_DIRTY                 // new xids added since last sync
-  } PAGE_STATE;
-
-private:
-  typedef struct st_page {
-    struct st_page *next; // pages are linked in a fifo queue
-    my_xid *start, *end;  // usable area of a page
-    my_xid *ptr;          // next xid will be written here
-    int size, free;       // max and current number of free xid slots on the page
-    int waiters;          // number of waiters on condition
-    PAGE_STATE state;     // see above
-    /**
-      Signalled when syncing of this page is done or when
-      this page is in "active" slot and syncing slot just
-      became free.
-    */
-    mysql_cond_t  cond;
-  } PAGE;
-
-  char logname[FN_REFLEN];
-  File fd;
-  my_off_t file_length;
-  uint npages, inited;
-  uchar *data;
-  struct st_page *pages, *syncing, *active, *pool, **pool_last_ptr;
-  /*
-    LOCK_tc is used to protect access both to data members 'syncing',
-    'active', 'pool' and to the content of PAGE objects.
-  */
-  mysql_mutex_t LOCK_tc;
-  /**
-    Signalled when active PAGE is moved to syncing state,
-    thus member "active" becomes 0.
-  */
-  mysql_cond_t COND_active;
-  /**
-    Signalled when one more page becomes available in the
-    pool which we might select as active.
-  */
-  mysql_cond_t COND_pool;
-
-public:
-  TC_LOG_MMAP(): inited(0) {}
-  int open(const char *opt_name);
-  void close();
-  enum_result commit(THD *thd, bool all);
-  int rollback(THD *thd, bool all)      { return ha_rollback_low(thd, all); }
-  int prepare(THD *thd, bool all)       { return ha_prepare_low(thd, all); }
-  int recover();
-  uint size() const;
-
-private:
-  ulong log_xid(my_xid xid);
-  void unlog(ulong cookie, my_xid xid);
-  PAGE* get_active_from_pool();
-  bool sync();
-  void overflow();
-
-protected:
-  // We want to mock away syncing to disk in unit tests.
-  virtual int do_msync_and_fsync(int fd_arg, void *addr, size_t len, int flags)
-  {
-    return my_msync(fd_arg, addr, len, flags);
-  }
-
-private:
-  /**
-    Find empty slot in the page and write xid value there.
-
-    @param   xid    value of xid to store in the page
-    @param   p      pointer to the page where to store xid
-    @param   data   pointer to the top of the mapped to memory file
-                    to calculate offset value (cookie)
-
-    @return  offset value from the top of the page where the xid was stored.
-  */
-  ulong store_xid_in_empty_slot(my_xid xid, PAGE *p, uchar *data_arg)
-  {
-    /* searching for an empty slot */
-    while (*p->ptr)
-    {
-      p->ptr++;
-      DBUG_ASSERT(p->ptr < p->end);               // because p->free > 0
-    }
-
-    /* found! store xid there and mark the page dirty */
-    ulong cookie= (ulong)((uchar *)p->ptr - data_arg);      // can never be zero
-    *p->ptr++= xid;
-    p->free--;
-    p->state= PS_DIRTY;
-
-    return cookie;
-  }
-
-  /**
-    Wait for until page data will be written to the disk.
-
-    @param   p   pointer to the PAGE to store to the disk
-
-    @return
-      @retval false   Success
-      @retval true    Failure
-  */
-  bool wait_sync_completion(PAGE *p)
-  {
-    p->waiters++;
-    while (p->state == PS_DIRTY && syncing)
-    {
-      mysql_cond_wait(&p->cond, &LOCK_tc);
-    }
-    p->waiters--;
-
-    return p->state == PS_ERROR;
-  }
-
-  /*
-    the following friend declaration is to grant access from TCLogMMapTest
-    to methods log_xid()/unlog() that are private.
-  */
-  friend class TCLogMMapTest;
-};
-
-extern TC_LOG *tc_log;
-extern TC_LOG_MMAP tc_log_mmap;
-extern TC_LOG_DUMMY tc_log_dummy;
-
+struct TABLE_LIST;
 
 ////////////////////////////////////////////////////////////
 //
@@ -1087,26 +864,70 @@ void sql_print_information(const char *format, ...)
   __attribute__((format(printf, 1, 2)));
 
 /**
-   Prints a printf style message to the error log and, under NT, to the
-   Windows event log.
-
-   This function prints the message into a buffer and then sends that buffer
-   to other functions to write that message to other logging sources.
+   Prints a printf style message to the error log.
+   The message is also sent to syslog and to the
+   Windows event log if appropriate.
 
    @param level          The level of the msg significance
    @param format         Printf style format of message
    @param args           va_list list of arguments for the message
 */
-void error_log_print(enum loglevel level, const char *format, va_list args);
+void error_log_print(enum loglevel level, const char *format, va_list args)
+  __attribute__((format(printf, 2, 0)));
 
 /**
-  Change the file associated with two output streams. Used to
-  redirect stdout and stderr to a file. The streams are reopened
-  only for appending (writing at end of file).
-*/
-bool reopen_fstreams(const char *filename, FILE *outstream, FILE *errstream);
+  Initialize structures (e.g. mutex) needed by the error log.
 
-bool flush_error_log();
+  @note This function accesses shared resources without protection, so
+  it should only be called while the server is running single-threaded.
+
+  @note The error log can still be used before this function is called,
+  but that should only be done single-threaded.
+*/
+void init_error_log();
+
+/**
+  Open the error log and redirect stderr and optionally stdout
+  to the error log file. The streams are reopened only for
+  appending (writing at end of file).
+
+  @note This function also writes any error log messages that
+  have been buffered by calling flush_error_log_messages().
+
+  @param filename        Name of error log file
+*/
+bool open_error_log(const char *filename);
+
+/**
+  Free any error log resources.
+
+  @note This function accesses shared resources without protection, so
+  it should only be called while the server is running single-threaded.
+
+  @note The error log can still be used after this function is called,
+  but that should only be done single-threaded. All buffered messages
+  should be flushed before calling this function.
+*/
+void destroy_error_log();
+
+/**
+  Flush any pending data to disk and reopen the error log.
+*/
+bool reopen_error_log();
+
+/**
+  We buffer all error log messages that have been printed before the
+  error log has been opened. This allows us to write them to the
+  correct file once the error log has been opened.
+
+  This function will explicitly flush buffered messages to stderr.
+  It is only needed in cases where open_error_log() is not called
+  as it otherwise will be done there.
+
+  This function also turns buffering off (there is no way to turn
+  buffering back on).
+*/
+void flush_error_log_messages();
 
 ////////////////////////////////////////////////////////////
 //

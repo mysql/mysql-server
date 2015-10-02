@@ -66,7 +66,7 @@ select product, country , year, sum(profit) from t1,t2 where t1.country_id=t2.co
 select product, `sum` from (select product, sum(profit) as 'sum' from t1 group by product with rollup) as tmp where product is null;
 select product from t1 where exists (select product, country_id , sum(profit) from t1 as t2 where t1.product=t2.product group by product, country_id with rollup having sum(profit) > 6000);
 
-# The following doesn't return the expected answer, but this is a limitation
+# The following does not return the expected answer, but this is a limitation
 # in the implementation so we should just document it
 select product, country_id , year, sum(profit) from t1 group by product, country_id, year having country_id is NULL;
 select concat(':',product,':'), sum(profit),avg(profit) from t1 group by product with rollup;
@@ -464,4 +464,15 @@ DROP TABLE t1;
 
 CREATE TABLE t1(a INTEGER) engine=innodb;
 SELECT RELEASE_ALL_LOCKS() FROM t1 GROUP BY a WITH ROLLUP;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#21143151 ASSERTION FAILED: BITMAP_IS_CLEAR_ALL(&SORT_FORM->TMP_SET)
+--echo #
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(0);
+INSERT INTO t1 VALUES(1);
+SELECT NOT EXISTS (SELECT 1) FROM t1 JOIN t1 a USING(a)
+GROUP BY 1 DESC WITH ROLLUP;
 DROP TABLE t1;

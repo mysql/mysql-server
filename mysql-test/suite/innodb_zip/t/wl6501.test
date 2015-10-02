@@ -6,6 +6,7 @@
 --source include/have_innodb_zip.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
+--source include/not_windows.inc
 
 # Valgrind would complain about memory leaks when we crash on purpose.
 --source include/not_valgrind.inc
@@ -28,6 +29,9 @@
 # 8. OOM error/File writing error while writing truncate log.
 # 9. Failure before flushing the truncate log but immediate after writing it.
 # 10. Test for concurrent truncate.
+# 11. Crash after truncate is complete.
+# 12. Multiple MLOG_TRUNCATE log records.
+# 13. Crash during truncate of fts should help mark fts table corrupt.
 #
 ################################################################################
 
@@ -43,6 +47,18 @@ let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
 # suppress expected warnings.
 call mtr.add_suppression("Have you deleted or moved.*");
 call mtr.add_suppression("Failed to open truncate log file");
+call mtr.add_suppression("Parent table of FTS auxiliary table");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number .* in a file operation");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means that another program is using InnoDB's files");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: File .*s_def.ibd: 'delete' returned OS error [0-9]*");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Attempted to open a previously opened tablespace. Previous tablespace innodb_general_[0-9]* at filepath: .*s1.ibd uses space ID: [0-9]*. Cannot open filepath: .*s1.ibd which uses the same space ID.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace ");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Flagged corruption of .* in FTS_SANITY_CHECK");
 --enable_query_log
 
 #-----------------------------------------------------------------------------
@@ -162,7 +178,7 @@ create table t1 (a int not null, d int not null, b blob not null, c text,
 call populate_t1();
 select count(*) from t1;
 #
-set session debug = "+d,ib_trunc_crash_before_log_checkpoint";
+set session debug = "+d,ib_trunc_crash_before_log_removal";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 truncate table t1;
@@ -188,7 +204,7 @@ set innodb_strict_mode=default;
 call populate_t1();
 select count(*) from t1;
 #
-set session debug = "+d,ib_trunc_crash_before_log_checkpoint";
+set session debug = "+d,ib_trunc_crash_before_log_removal";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 truncate table t1;
@@ -236,7 +252,7 @@ commit;
 select count(*) from t1;
 SET sql_mode = default;
 #
-set session debug = "+d,ib_trunc_crash_before_log_checkpoint";
+set session debug = "+d,ib_trunc_crash_before_log_removal";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 truncate table t1;
@@ -266,7 +282,7 @@ call populate_t1();
 commit;
 select count(*) from t1;
 #
-set session debug = "+d,ib_trunc_crash_before_log_checkpoint";
+set session debug = "+d,ib_trunc_crash_before_log_removal";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 truncate table t1;
@@ -471,6 +487,159 @@ drop table t2;
 
 #-----------------------------------------------------------------------------
 #
+# 11. Crash after truncate is complete.
+#
+use test;
+set global innodb_file_per_table = 1;
+create table t1 (a int, b char(100), c char(100)) engine = innodb;
+delimiter |;
+create procedure populate_t1()
+begin
+        declare i int default 1;
+        while (i <= 2000) DO
+                insert into t1 values (i, 'a', 'b');
+                set i = i + 1;
+        end while;
+end|
+delimiter ;|
+begin; call populate_t1(); commit;
+#
+set session debug="+d,ib_trunc_crash_after_truncate_done";
+begin; update t1 set a = a + 1000; commit;
+# Statement above will generate redo and for crash post truncate
+# recovery should avoid applying these redo records.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 2013
+truncate table t1;
+#
+--enable_reconnect
+--echo # Restart the MySQL server
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+#
+select count(*) from t1;
+#
+drop procedure populate_t1;
+drop table t1;
+
+#-----------------------------------------------------------------------------
+#
+# 12. Multiple MLOG_TRUNCATE log records.
+#
+use test;
+set global innodb_file_per_table = 1;
+create table t1 (a int, b char(100), c char(100)) engine = innodb;
+create table t2 (a int, b char(100), c char(100)) engine = innodb;
+create table t3 (a int, b char(100), c char(100)) engine = innodb;
+delimiter |;
+create procedure populate_t1()
+begin
+        declare i int default 1;
+        while (i <= 2000) DO
+                insert into t1 values (i, 'a', 'b');
+                set i = i + 1;
+        end while;
+end|
+create procedure populate_t2()
+begin
+        declare i int default 1;
+        while (i <= 2000) DO
+                insert into t2 values (i, 'a', 'b');
+                set i = i + 1;
+        end while;
+end|
+create procedure populate_t3()
+begin
+        declare i int default 1;
+        while (i <= 2000) DO
+                insert into t3 values (i, 'a', 'b');
+                set i = i + 1;
+        end while;
+end|
+delimiter ;|
+#
+begin; call populate_t1(); call populate_t2(); call populate_t3(); commit;
+#
+select count(*) from t1;
+truncate table t1;
+select count(*) from t1;
+select count(*) from t2;
+truncate table t2;
+select count(*) from t2;
+select count(*) from t3;
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+set session debug="+d,ib_trunc_crash_after_truncate_done";
+--error 2013
+truncate table t3;
+#
+--enable_reconnect
+--echo # Restart the MySQL server
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+#
+select count(*) from t1;
+select count(*) from t2;
+select count(*) from t3;
+begin; call populate_t1(); call populate_t2(); call populate_t3(); commit;
+select count(*) from t1;
+select count(*) from t2;
+select count(*) from t3;
+#
+truncate table t1;
+truncate table t1;
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+set session debug="+d,ib_trunc_crash_after_truncate_done";
+--error 2013
+truncate table t1;
+#
+--enable_reconnect
+--echo # Restart the MySQL server
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+#
+select count(*) from t1;
+#
+drop procedure populate_t1;
+drop procedure populate_t2;
+drop procedure populate_t3;
+drop table t1, t2, t3;
+
+#-----------------------------------------------------------------------------
+#
+# 13. Crash during truncate of fts should help mark fts table corrupt.
+#
+create table ibstd_33 (
+	a int not null,
+	d varchar(40) not null,
+	b text not null,
+	c text,
+	index(d),
+	index(a),
+	primary key (b(16), a, d),
+	fulltext ftsic(c)) engine=InnoDB row_format=dynamic;
+#
+insert into ibstd_33 (a,d,b,c) values ('1','6',
+repeat('0.350557460150547arrclolullcocuraalaulloooclrcoulrccaoocourcrorooruruooauuauarrouccuoucrooaaouullrularcoarclloraaac','367'),
+repeat('0.0836047279001129oaalolrllcoulaoococrolooullocuaacocoaoloclouallruaalolaruucaloluraocorrlouuoaorloarrluaaorucu','534'));
+select count(*) from ibstd_33;
+#
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+set session debug = "+d,ib_truncate_crash_while_fts_cleanup";
+--error 2013
+truncate table ibstd_33;
+#
+--enable_reconnect
+--echo # Restart the MySQL server
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+#
+--error ER_NO_SUCH_TABLE
+select count(*) from ibstd_33;
+drop table ibstd_33;
+
+#-----------------------------------------------------------------------------
+#
 # remove test-bed
 #
 set global innodb_file_per_table = default;
+set global innodb_strict_mode = default;

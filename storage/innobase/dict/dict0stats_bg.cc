@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -237,7 +237,7 @@ dict_stats_thread_init()
 	   (thus a level <SYNC_DICT && <SYNC_DICT_OPERATION would do)
 	So we choose SYNC_STATS_AUTO_RECALC to be about below SYNC_DICT. */
 
-	mutex_create("recalc_pool", &recalc_pool_mutex);
+	mutex_create(LATCH_ID_RECALC_POOL, &recalc_pool_mutex);
 
 	dict_stats_recalc_pool_init();
 }

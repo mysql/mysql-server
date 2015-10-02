@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -199,6 +199,11 @@ static HUFF_COUNTS *global_count;
 static char zero_string[]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 static const char *load_default_groups[]= { "myisampack",0 };
 
+extern st_keycache_thread_var *keycache_thread_var()
+{
+  return &main_thread_keycache_var;
+}
+
 	/* The main program */
 
 int main(int argc, char **argv)
@@ -207,6 +212,10 @@ int main(int argc, char **argv)
   PACK_MRG_INFO merge;
   char **default_argv;
   MY_INIT(argv[0]);
+
+  memset(&main_thread_keycache_var, 0, sizeof(st_keycache_thread_var));
+  mysql_cond_init(PSI_NOT_INSTRUMENTED,
+                  &main_thread_keycache_var.suspend);
 
   if (load_defaults("my",load_default_groups,&argc,&argv))
     exit(1);
@@ -248,6 +257,7 @@ int main(int argc, char **argv)
   (void) fflush(stderr);
   free_defaults(default_argv);
   my_end(verbose ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
+  mysql_cond_destroy(&main_thread_keycache_var.suspend);
   exit(error ? 2 : 0);
   return 0;					/* No compiler warning */
 }
@@ -303,7 +313,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts("Copyright 2002-2014 Oracle and/or its affiliates.");
+  puts("Copyright 2002-2015 Oracle and/or its affiliates.");
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,");
   puts("and you are welcome to modify and redistribute it under the GPL license\n");
 
@@ -404,7 +414,7 @@ static MI_INFO *open_isam_file(char *name,int mode)
 			  (opt_wait ? HA_OPEN_WAIT_IF_LOCKED :
 			   HA_OPEN_ABORT_IF_LOCKED))))
   {
-    (void) fprintf(stderr, "%s gave error %d on open\n", name, my_errno);
+    (void) fprintf(stderr, "%s gave error %d on open\n", name, my_errno());
     DBUG_RETURN(0);
   }
   share=isam_file->s;

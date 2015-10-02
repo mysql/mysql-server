@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@ int _myrg_init_queue(MYRG_INFO *info,int inx,enum ha_rkey_function search_flag)
 		     (myisam_readnext_vec[search_flag] == SEARCH_SMALLER),
 		     queue_key_cmp,
 		     info->open_tables->table->s->keyinfo[inx].seg))
-	error=my_errno;
+	error=my_errno();
     }
     else
     {
@@ -61,7 +61,7 @@ int _myrg_init_queue(MYRG_INFO *info,int inx,enum ha_rkey_function search_flag)
 		       (myisam_readnext_vec[search_flag] == SEARCH_SMALLER),
 		       queue_key_cmp,
 		       info->open_tables->table->s->keyinfo[inx].seg))
-	error=my_errno;
+	error=my_errno();
     }
   }
   else
@@ -74,7 +74,8 @@ int _myrg_init_queue(MYRG_INFO *info,int inx,enum ha_rkey_function search_flag)
       have.
     */
     DBUG_ASSERT(!info->tables);
-    error= my_errno= HA_ERR_END_OF_FILE;
+    error= HA_ERR_END_OF_FILE;
+    set_my_errno(error);
   }
   return error;
 }
@@ -86,5 +87,5 @@ int _myrg_mi_read_record(MI_INFO *info, uchar *buf)
     info->update|= HA_STATE_AKTIV;		/* Record is read */
     return 0;
   }
-  return my_errno;
+  return my_errno();
 }

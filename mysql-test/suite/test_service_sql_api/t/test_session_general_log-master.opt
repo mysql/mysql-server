@@ -1,0 +1,1 @@
+$TEST_SESSION_IN_THD_OPT --loose-test-session-in-thd-nb-sessions=9

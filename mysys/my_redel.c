@@ -84,7 +84,7 @@ int my_copystat(const char *from, const char *to, int MyFlags)
   /* Copy modes */
   if (chmod(to, statbuf.st_mode & 07777))
   {
-    my_errno= errno;
+    set_my_errno(errno);
     if (MyFlags & (MY_FAE+MY_WME))
     {
       char errbuf[MYSYS_STRERROR_SIZE];
@@ -103,7 +103,7 @@ int my_copystat(const char *from, const char *to, int MyFlags)
   /* Copy ownership */
   if (chown(to, statbuf.st_uid, statbuf.st_gid))
   {
-    my_errno= errno;
+    set_my_errno(errno);
     if (MyFlags & (MY_FAE+MY_WME))
     {
       char errbuf[MYSYS_STRERROR_SIZE];

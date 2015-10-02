@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -29,9 +29,7 @@ Created 5/20/1997 Heikki Tuuri
 #include "univ.i"
 #include "mem0mem.h"
 #ifndef UNIV_HOTBACKUP
-# include "sync0mutex.h"
 # include "sync0rw.h"
-# include "sync0mutex.h"
 #endif /* !UNIV_HOTBACKUP */
 
 struct hash_table_t;
@@ -71,9 +69,9 @@ void
 hash_create_sync_obj(
 /*=================*/
 	hash_table_t*		table,	/*!< in: hash table */
-	enum hash_table_sync_t	type,	/*!< in: HASH_TABLE_SYNC_MUTEX
+	hash_table_sync_t	type,	/*!< in: HASH_TABLE_SYNC_MUTEX
 					or HASH_TABLE_SYNC_RW_LOCK */
-	const char*		name,	/*!< in: mutex/rw_lock name */
+	latch_id_t		id,	/*!< in: mutex/rw_lock ID */
 	ulint			n_sync_obj);/*!< in: number of sync objects,
 					must be a power of 2 */
 #endif /* !UNIV_HOTBACKUP */

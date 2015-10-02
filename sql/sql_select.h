@@ -923,8 +923,7 @@ public:
     THD *thd= to_field->table->in_use;
     enum_check_fields saved_count_cuted_fields= thd->count_cuted_fields;
     sql_mode_t sql_mode= thd->variables.sql_mode;
-    thd->variables.sql_mode&= ~(MODE_STRICT_ALL_TABLES |
-                                MODE_STRICT_TRANS_TABLES);
+    thd->variables.sql_mode&= ~(MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE);
 
     thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 
@@ -957,6 +956,7 @@ type_conversion_status_to_store_key (type_conversion_status ts)
   case TYPE_NOTE_TIME_TRUNCATED:
     return store_key::STORE_KEY_CONV;
   case TYPE_WARN_OUT_OF_RANGE:
+  case TYPE_WARN_ALL_TRUNCATED:
   case TYPE_ERR_NULL_CONSTRAINT_VIOLATION:
   case TYPE_ERR_BAD_VALUE:
   case TYPE_ERR_OOM:

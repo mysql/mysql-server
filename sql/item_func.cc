@@ -31,10 +31,11 @@
 #include <mysql/service_thd_wait.h>
 #include "parse_tree_helpers.h"  // PT_item_list
 #include "rpl_mi.h"              // Master_info
-#include "rpl_msr.h"             // msr_map
+#include "rpl_msr.h"             // channel_map
 #include "rpl_rli.h"             // Relay_log_info
 #include "sp.h"                  // sp_find_routine
 #include "sp_head.h"             // sp_name
+#include "sql_audit.h"           // audit_global_variable
 #include "sql_base.h"            // Internal_error_handler_holder
 #include "sql_class.h"           // THD
 #include "sql_optimizer.h"       // JOIN
@@ -42,6 +43,7 @@
 #include "sql_show.h"            // append_identifier
 #include "sql_time.h"            // TIME_from_longlong_packed
 #include "strfunc.h"             // find_type
+#include "item_json_func.h"      // Item_func_json_quote
 
 using std::min;
 using std::max;
@@ -57,14 +59,20 @@ bool check_reserved_words(LEX_STRING *name)
 
 
 /**
-  @return
-    TRUE if item is a constant
+  Evaluate a constant condition, represented by an Item tree
+
+  @param      thd   Thread handler
+  @param      cond  The constant condition to evaluate
+  @param[out] value Returned value, either true or false
+
+  @returns false if evaluation is successful, true otherwise
 */
 
-bool
-eval_const_cond(Item *cond)
+bool eval_const_cond(THD *thd, Item *cond, bool *value)
 {
-  return ((Item_func*) cond)->val_int() ? TRUE : FALSE;
+  DBUG_ASSERT(cond->const_item());
+  *value= cond->val_int();
+  return thd->is_error();
 }
 
 
@@ -274,6 +282,16 @@ bool Item_func::fix_func_arg(THD *thd, Item **arg)
 void Item_func::fix_after_pullout(st_select_lex *parent_select,
                                   st_select_lex *removed_select)
 {
+  if (const_item())
+  {
+    /*
+      Pulling out a const item changes nothing to it. Moreover, some items may
+      have decided that they're const by some other logic than the generic
+      one below, and we must preserve that decision.
+    */
+    return;
+  }
+
   Item **arg,**arg_end;
 
   used_tables_cache= get_initial_pseudo_tables();
@@ -577,6 +595,29 @@ my_decimal *Item_func::val_decimal(my_decimal *decimal_value)
 }
 
 
+type_conversion_status Item_func::save_possibly_as_json(Field *field,
+                                                        bool no_conversions)
+{
+  if (field->type() == MYSQL_TYPE_JSON)
+  {
+    // Store the value in the JSON binary format.
+    Field_json *f= down_cast<Field_json *>(field);
+    Json_wrapper wr;
+    val_json(&wr);
+
+    if (null_value)
+      return set_field_to_null(field);
+
+    field->set_notnull();
+    return f->store_json(&wr);
+  }
+  else
+  {
+    // TODO Convert the JSON value to text.
+    return Item_func::save_in_field_inner(field, no_conversions);
+  }
+}
+
 String *Item_real_func::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
@@ -765,7 +806,7 @@ bool Item_func::count_string_result_length(enum_field_types field_type,
 void Item_func::signal_divide_by_null()
 {
   THD *thd= current_thd;
-  if (thd->is_strict_mode())
+  if (thd->variables.sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
     push_warning(thd, Sql_condition::SL_WARNING, ER_DIVISION_BY_ZERO,
                  ER(ER_DIVISION_BY_ZERO));
   null_value= 1;
@@ -891,6 +932,174 @@ Item_func::contributes_to_filter(table_map read_tables,
   }
   return (found_comparable ? usable_field : NULL);
 }
+
+/**
+  Return new Item_field if given expression matches GC
+
+  @see JOIN::substitute_gc()
+
+  @param func           Expression to be replaced
+  @param fld            GCs field
+  @param type           Result type to match with Field
+
+  @returns
+    item new Item_field for matched GC
+    NULL otherwise
+*/
+
+Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type)
+{
+  Item_func *expr= down_cast<Item_func*>(fld->gcol_info->expr_item);
+  /*
+    Skip unquoting function. This is needed to address JSON string
+    comparison issue. All JSON_* functions return quoted strings. In
+    order to create usable index, GC column expression has to include
+    JSON_UNQUOTE function, e.g JSON_UNQUOTE(JSON_EXTRACT(..)).
+    Hence, the unquoting function in column expression have to be
+    skipped in order to correctly match GC expr to expr in
+    WHERE condition.  The exception is if user has explicitly used
+    JSON_QUOTE in WHERE condition.
+  */
+  if (!strcmp(expr->func_name(),"json_unquote") &&
+      strcmp((*func)->func_name(),"json_unquote"))
+  {
+    if (!expr->arguments()[0]->can_be_substituted_for_gc())
+      return NULL;
+    expr= down_cast<Item_func*>(expr->arguments()[0]);
+  }
+  DBUG_ASSERT(expr->can_be_substituted_for_gc());
+
+  if (type == fld->result_type() && (*func)->eq(expr, false))
+  {
+    Item_field *field= new Item_field(fld);
+    // Mark field for read
+    fld->table->mark_column_used(fld->table->in_use, fld, MARK_COLUMNS_READ);
+    return field;
+  }
+  return NULL;
+}
+
+
+/**
+  Transformer function for GC substitution.
+
+  @param arg  List of indexed GC field
+
+  @return this item 
+
+  @details This function transforms the WHERE condition. It doesn't change
+  'this' item but rather changes its arguments. It takes list of GC fields
+  and checks whether arguments of 'this' item matches them and index over
+  the GC field isn't disabled with hints. If so, it replaces
+  the argument with newly created Item_field which uses the matched GC
+  field. Following functions' arguments could be transformed:
+  - EQ_FUNC, LT_FUNC, LE_FUNC, GE_FUNC, GT_FUNC
+    - Left _or_ right argument if the opposite argument is a constant.
+  - IN_FUNC, BETWEEN
+    - Left argument if all other arguments are constant and of the same type.
+
+  After transformation comparators are updated to take into account the new
+  field.
+*/
+
+Item *Item_func::gc_subst_transformer(uchar *arg)
+{
+  switch(functype()) {
+  case EQ_FUNC:
+  case LT_FUNC:
+  case LE_FUNC:
+  case GE_FUNC:
+  case GT_FUNC:
+  {
+    Item_func **func= NULL;
+    Item **val= NULL;
+    List<Field> *gc_fields= (List<Field> *)arg;
+    List_iterator<Field> li(*gc_fields);
+    // Check if we can substitute a function with a GC
+    if (args[0]->can_be_substituted_for_gc() && args[1]->const_item())
+    {
+      func= (Item_func**)args;
+      val= args + 1;
+    }
+    else if (args[1]->can_be_substituted_for_gc() && args[0]->const_item())
+    {
+      func= (Item_func**)args + 1;
+      val= args;
+    }
+    if (func)
+    {
+      Field *fld;
+      while((fld= li++))
+      {
+        // Check whether field has usable keys
+        key_map tkm= fld->part_of_key;
+        tkm.intersect(fld->table->keys_in_use_for_query);
+        Item_field *field;
+
+        if (!tkm.is_clear_all() &&
+            (field= get_gc_for_expr(func, fld, (*val)->result_type())))
+        {
+          // Matching expression is found, substutite arg with the new
+          // field
+          fld->table->in_use->change_item_tree(pointer_cast<Item**>(func),
+                                               field);
+          // Adjust comparator
+          ((Item_bool_func2*)this)->set_cmp_func();
+          break;
+        }
+      }
+    }
+    break;
+  }
+  case BETWEEN:
+  case IN_FUNC:
+  {
+    List<Field> *gc_fields= (List<Field> *)arg;
+    List_iterator<Field> li(*gc_fields);
+    if (!args[0]->can_be_substituted_for_gc())
+      break;
+    Item_result type= args[1]->result_type();
+    bool can_do_subst= args[1]->const_item();
+    for (uint i= 2; i < arg_count && can_do_subst; i++)
+      if (!args[i]->const_item() || args[i]->result_type() != type)
+      {
+        can_do_subst= false;
+        break;
+      }
+    if (can_do_subst)
+    {
+      Field *fld;
+      while ((fld= li++))
+      {
+        // Check whether field has usable keys
+        key_map tkm= fld->part_of_key;
+        tkm.intersect(fld->table->keys_in_use_for_query);
+        Item_field *field;
+
+        if (!tkm.is_clear_all() &&
+            (field= get_gc_for_expr(pointer_cast<Item_func**>(args), fld,
+                                    type)))
+        {
+          // Matching expression is found, substutite arg[0] with the new
+          // field
+          fld->table->in_use->change_item_tree(pointer_cast<Item**>(args),
+                                               field);
+          // Adjust comparators
+          if (functype() == IN_FUNC)
+            ((Item_func_in*)this)->cleanup_arrays();
+          fix_length_and_dec();
+          break;
+        }
+      }
+    }
+    break;
+  }
+  default:
+    break;
+  }
+  return this;
+}
+
 
 double Item_int_func::val_real()
 {
@@ -1222,7 +1431,7 @@ my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value)
   }
   case REAL_RESULT:
   {
-    double result= (double)real_op();
+    double result= real_op();
     double2my_decimal(E_DEC_FATAL_ERROR, result, decimal_value);
     break;
   }
@@ -3026,10 +3235,11 @@ double my_double_round(double value, longlong dec, bool dec_unsigned,
 
 double Item_func_round::real_op()
 {
-  double value= args[0]->val_real();
+  const double value= args[0]->val_real();
+  const longlong decimal_places= args[1]->val_int();
 
   if (!(null_value= args[0]->null_value || args[1]->null_value))
-    return my_double_round(value, args[1]->val_int(), args[1]->unsigned_flag,
+    return my_double_round(value, decimal_places, args[1]->unsigned_flag,
                            truncate);
 
   return 0.0;
@@ -3688,6 +3898,16 @@ my_decimal *Item_func_rollup_const::val_decimal(my_decimal *dec)
   return res;
 }
 
+
+bool Item_func_rollup_const::val_json(Json_wrapper *result)
+{
+  DBUG_ASSERT(fixed == 1);
+  bool res= args[0]->val_json(result);
+  null_value= args[0]->null_value;
+  return res;
+}
+
+
 longlong Item_func_length::val_int()
 {
   DBUG_ASSERT(fixed == 1);
@@ -4153,7 +4373,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
       f_args.args[i]= NULL;         /* Non-const unless updated below. */
 
       f_args.lengths[i]= arguments[i]->max_length;
-      f_args.maybe_null[i]= (char) arguments[i]->maybe_null;
+      f_args.maybe_null[i]= arguments[i]->maybe_null;
       f_args.attributes[i]= (char*) arguments[i]->item_name.ptr();
       f_args.attribute_lengths[i]= arguments[i]->item_name.length();
 
@@ -4167,7 +4387,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
           String *res= arguments[i]->val_str(&buffers[i]);
           if (arguments[i]->null_value)
             continue;
-          f_args.args[i]= (char*) res->c_ptr_safe();
+          f_args.args[i]= res->c_ptr_safe();
           f_args.lengths[i]= res->length();
           break;
         }
@@ -4538,7 +4758,7 @@ longlong Item_master_pos_wait::val_int()
   longlong pos = (ulong)args[1]->val_int();
   longlong timeout = (arg_count>=3) ? args[2]->val_int() : 0 ;
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.rdlock();
 
   if (arg_count == 4)
   {
@@ -4549,21 +4769,21 @@ longlong Item_master_pos_wait::val_int()
       return 0;
     }
 
-    mi= msr_map.get_mi(channel_str->ptr());
+    mi= channel_map.get_mi(channel_str->ptr());
 
   }
   else
   {
-    if (msr_map.get_num_instances() > 1)
+    if (channel_map.get_num_instances() > 1)
     {
       mi = NULL;
       my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
     }
     else
-      mi= msr_map.get_mi(msr_map.get_default_channel());
+      mi= channel_map.get_default_channel_mi();
   }
 
-   mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
 
   if (mi == NULL ||
       (event_count = mi->rli->wait_for_pos(thd, log_name, pos, timeout)) == -2)
@@ -4597,26 +4817,28 @@ bool Item_wait_for_executed_gtid_set::itemize(Parse_context *pc, Item **res)
 */
 longlong Item_wait_for_executed_gtid_set::val_int()
 {
+  DBUG_ENTER("Item_wait_for_executed_gtid_set::val_int");
   DBUG_ASSERT(fixed == 1);
   THD* thd= current_thd;
-  String *gtid= args[0]->val_str(&value);
+  String *gtid_text= args[0]->val_str(&value);
 
   null_value= 0;
 
-  if (gtid == NULL)
+  if (gtid_text == NULL)
   {
     my_error(ER_MALFORMED_GTID_SET_SPECIFICATION, MYF(0), "NULL");
-    null_value= 1;
-    return 0;
+    DBUG_RETURN(0);
   }
 
-  // Since the function is independent of the slave threads we need to return
-  // with null value being set to 1.
+  // Waiting for a GTID in a slave thread could cause the slave to
+  // hang/deadlock.
   if (thd->slave_thread)
   {
     null_value= 1;
-    return 0;
+    DBUG_RETURN(0);
   }
+
+  Gtid_set wait_for_gtid_set(global_sid_map, NULL);
 
   global_sid_lock->rdlock();
   if (get_gtid_mode(GTID_MODE_LOCK_SID) == GTID_MODE_OFF)
@@ -4624,18 +4846,39 @@ longlong Item_wait_for_executed_gtid_set::val_int()
     global_sid_lock->unlock();
     my_error(ER_GTID_MODE_OFF, MYF(0), "use WAIT_FOR_EXECUTED_GTID_SET");
     null_value= 1;
-    return 0;
+    DBUG_RETURN(0);
   }
+
+  if (wait_for_gtid_set.add_gtid_text(gtid_text->c_ptr_safe()) !=
+      RETURN_STATUS_OK)
+  {
+    global_sid_lock->unlock();
+    // Error has already been generated.
+    DBUG_RETURN(1);
+  }
+
+  // Cannot wait for a GTID that the thread owns since that would
+  // immediately deadlock.
+  if (thd->owned_gtid.sidno > 0 &&
+      wait_for_gtid_set.contains_gtid(thd->owned_gtid))
+  {
+    char buf[Gtid::MAX_TEXT_LENGTH + 1];
+    thd->owned_gtid.to_string(global_sid_map, buf);
+    global_sid_lock->unlock();
+    my_error(ER_CANT_WAIT_FOR_EXECUTED_GTID_SET_WHILE_OWNING_A_GTID, MYF(0),
+             buf);
+    DBUG_RETURN(0);
+  }
+
   gtid_state->begin_gtid_wait(GTID_MODE_LOCK_SID);
-  global_sid_lock->unlock();
 
   longlong timeout= (arg_count== 2) ? args[1]->val_int() : 0;
-  int result= gtid_state->wait_for_gtid_set(thd, gtid, timeout);
-  if (result == -1)
-    null_value= 1;
+
+  bool result= gtid_state->wait_for_gtid_set(thd, &wait_for_gtid_set, timeout);
+  global_sid_lock->unlock();
   gtid_state->end_gtid_wait();
 
-  return result;
+  DBUG_RETURN(result);
 }
 
 bool Item_master_gtid_set_wait::itemize(Parse_context *pc, Item **res)
@@ -4670,7 +4913,7 @@ longlong Item_master_gtid_set_wait::val_int()
     DBUG_RETURN(0);
   }
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.rdlock();
 
   /* If replication channel is mentioned */
   if (arg_count == 3)
@@ -4678,34 +4921,34 @@ longlong Item_master_gtid_set_wait::val_int()
     String *channel_str;
     if (!(channel_str= args[2]->val_str(&value)))
     {
-      mysql_mutex_unlock(&LOCK_msr_map);
+      channel_map.unlock();
       null_value= 1;
       DBUG_RETURN(0);
     }
-    mi= msr_map.get_mi(channel_str->ptr());
+    mi= channel_map.get_mi(channel_str->ptr());
   }
   else
   {
-    if (msr_map.get_num_instances() > 1)
+    if (channel_map.get_num_instances() > 1)
     {
-      mysql_mutex_unlock(&LOCK_msr_map);
+      channel_map.unlock();
       mi = NULL;
       my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
       DBUG_RETURN(0);
     }
     else
-      mi= msr_map.get_mi(msr_map.get_default_channel());
+      mi= channel_map.get_default_channel_mi();
   }
 
-  if (get_gtid_mode(GTID_MODE_LOCK_MSR_MAP) == GTID_MODE_OFF)
+  if (get_gtid_mode(GTID_MODE_LOCK_CHANNEL_MAP) == GTID_MODE_OFF)
   {
     null_value= 1;
-    mysql_mutex_unlock(&LOCK_msr_map);
+    channel_map.unlock();
     DBUG_RETURN(0);
   }
-  gtid_state->begin_gtid_wait(GTID_MODE_LOCK_MSR_MAP);
+  gtid_state->begin_gtid_wait(GTID_MODE_LOCK_CHANNEL_MAP);
 
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
 
   if (mi && mi->rli)
   {
@@ -5115,7 +5358,8 @@ longlong Item_func_get_lock::val_int()
   /* HASH entries are of type User_level_lock. */
   if (! my_hash_inited(&thd->ull_hash) &&
       my_hash_init(&thd->ull_hash, &my_charset_bin,
-                   16 /* small hash */, 0, 0, ull_get_key, NULL, 0))
+                   16 /* small hash */, 0, 0, ull_get_key, NULL, 0,
+                   key_memory_User_level_lock))
   {
     DBUG_RETURN(0);
   }
@@ -5817,8 +6061,7 @@ bool user_var_entry::store(const void *from, size_t length, Item_result type)
   if (type == DECIMAL_RESULT)
   {
     DBUG_ASSERT(length == sizeof(my_decimal));
-    const my_decimal* dec=
-      static_cast<const my_decimal*>(static_cast<const void*>(from));
+    const my_decimal* dec= static_cast<const my_decimal*>(from);
     dec->sanity_check();
     new (m_ptr) my_decimal(*dec);
   }
@@ -7467,12 +7710,12 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
   const_item_cache=0;
   for (uint i= 0 ; i < arg_count ; i++)
   {
-    item=args[i];
-    if (item->type() == Item::REF_ITEM)
-      args[i]= item= *((Item_ref *)item)->ref;
-    if (item->type() != Item::FIELD_ITEM)
+    item= args[i]= args[i]->real_item(); 
+    if (item->type() != Item::FIELD_ITEM ||
+        /* Cannot use FTS index with outer table field */
+        (item->used_tables() & OUTER_REF_TABLE_BIT))
     {
-      my_error(ER_WRONG_ARGUMENTS, MYF(0), "AGAINST");
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "MATCH");
       return TRUE;
     }
     allows_multi_table_search &= 
@@ -7529,7 +7772,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
       is made later by JOIN::fts_index_access() function.
     */
     else
-      table->no_keyread= true;
+      table->covering_keys.clear_all();
   }
   else
   {
@@ -7777,6 +8020,24 @@ longlong Item_func_bit_xor::val_int()
 ****************************************************************************/
 
 /**
+  @class Silence_deprecation_warnings
+
+  @brief Disable deprecation warnings handler class
+*/
+class Silence_deprecation_warnings : public Internal_error_handler
+{
+public:
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+  {
+    return sql_errno == ER_WARN_DEPRECATED_SYNTAX;
+  }
+};
+
+/**
   Return value of an system variable base[.name] as a constant item.
 
   @param pc                     Current parse context
@@ -7828,8 +8089,40 @@ Item *get_system_var(Parse_context *pc,
   
   var->do_deprecated_warning(thd);
 
-  return new Item_func_get_system_var(var, var_type, component_name,
-                                      NULL, 0);
+  Item_func_get_system_var *item= new Item_func_get_system_var(var, var_type,
+                                                               component_name,
+                                                               NULL, 0);
+#ifndef EMBEDDED_LIBRARY
+  if (var_type == OPT_GLOBAL && var->check_scope(OPT_GLOBAL))
+  {
+    String str;
+    String *outStr;
+    /* This object is just created for variable to string conversion.
+       item object cannot be used after the conversion of the variable
+       to string. It caches the data. */
+    Item_func_get_system_var *si= new Item_func_get_system_var(var, var_type,
+                                                               component_name,
+                                                               NULL, 0);
+
+    /* Disable deprecation warning during var to string conversion. */
+    Silence_deprecation_warnings silencer;
+    thd->push_internal_handler(&silencer);
+
+    outStr= si ? si->val_str(&str) : &str;
+
+    thd->pop_internal_handler();
+
+    if (mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_GET),
+                           var->name.str,
+                           outStr ? outStr->ptr() : NULL,
+                           outStr ? outStr->length() : 0))
+      {
+        return 0;
+      }
+  }
+#endif
+
+  return item;
 }
 
 
@@ -7894,6 +8187,7 @@ bool Item_func_sp::itemize(Parse_context *pc, Item **res)
       return true;
     }
     m_name->m_db= thd->db();
+    m_name->m_db.str= thd->strmake(m_name->m_db.str, m_name->m_db.length);
   }
 
   m_name->init_qname(thd);
@@ -8057,6 +8351,34 @@ void Item_func_sp::fix_length_and_dec()
   unsigned_flag= MY_TEST(sp_result_field->flags & UNSIGNED_FLAG);
 
   DBUG_VOID_RETURN;
+}
+
+
+bool Item_func_sp::val_json(Json_wrapper *result)
+{
+  if (sp_result_field->type() == MYSQL_TYPE_JSON)
+  {
+    if (execute())
+    {
+      return true;
+    }
+
+    Field_json *json_value= down_cast<Field_json *>(sp_result_field);
+    return json_value->val_json(result);
+  }
+
+  /* purecov: begin deadcode */
+  DBUG_ABORT();
+  my_error(ER_INVALID_CAST_TO_JSON, MYF(0));
+  return error_json();
+  /* purecov: end */
+}
+
+
+type_conversion_status
+Item_func_sp::save_in_field_inner(Field *field, bool no_conversions)
+{
+  return save_possibly_as_json(field, no_conversions);
 }
 
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1490,6 +1490,8 @@ TEST_F(OptRangeTest, CopyMin)
 */
 TEST_F(OptRangeTest, KeyOr1)
 {
+  Fake_RANGE_OPT_PARAM opt_param(thd(), &m_alloc, 0, false);
+
   Fake_TABLE fake_table(new Item_int(3), new Item_int(4));
   Field *field_long3= fake_table.field[0];
   Field *field_long4= fake_table.field[1];
@@ -1542,7 +1544,7 @@ TEST_F(OptRangeTest, KeyOr1)
     sel_arg_lt4:       [--------------------->
   */
 
-  SEL_ARG *tmp= key_or(NULL, &sel_arg_lt3, &sel_arg_gt3);
+  SEL_ARG *tmp= key_or(&opt_param, &sel_arg_lt3, &sel_arg_gt3);
 
   /*
     Ranges now:
@@ -1557,7 +1559,7 @@ TEST_F(OptRangeTest, KeyOr1)
     "3 < field_1";
   EXPECT_STREQ(expected_merged, range_string.c_ptr());
 
-  SEL_ARG *tmp2= key_or(NULL, tmp, &sel_arg_lt4);
+  SEL_ARG *tmp2= key_or(&opt_param, tmp, &sel_arg_lt4);
   EXPECT_EQ(null_arg, tmp2);
 }
 
@@ -1686,6 +1688,17 @@ public:
   {
     next_key_part= next_key_part_ptr;
     make_root();
+  }
+
+  Mock_SEL_ARG(Type type_arg, int initial_use_count, int expected_use_count)
+    : m_expected_use_count(expected_use_count)
+  {
+    make_root();
+    type= type_arg;
+    part= 1;
+    left= NULL;
+    use_count= initial_use_count;
+    min_flag= 0;
   }
 
   // Verify that use_count is as expected on destruction
@@ -1922,6 +1935,126 @@ TEST_F(OptRangeTest, IncrementUseCount2)
  
    */
   kp11.increment_use_count(1);
+}
+
+TEST_F(OptRangeTest, CombineAlways)
+{
+  // Gets decremented in key_or() before being compared > 0, triggering
+  // a DBUG_ASSERT in SEL_ARG::SEL_ARG(Type) unless the ALWAYS type is
+  // handled.
+  static const int INITIAL_USE_COUNT= 3;
+
+  RANGE_OPT_PARAM param; // Not really used
+  {
+    Mock_SEL_ARG always(SEL_ARG::ALWAYS, INITIAL_USE_COUNT, INITIAL_USE_COUNT),
+      key_range(SEL_ARG::KEY_RANGE, INITIAL_USE_COUNT, INITIAL_USE_COUNT - 1);
+    EXPECT_TRUE(key_or(&param, &always, &key_range) == &always);
+  }
+  {
+    Mock_SEL_ARG always(SEL_ARG::ALWAYS, INITIAL_USE_COUNT, INITIAL_USE_COUNT),
+      key_range(SEL_ARG::KEY_RANGE, INITIAL_USE_COUNT, INITIAL_USE_COUNT - 1);
+    EXPECT_TRUE(key_or(&param, &key_range, &always) == &always);
+  }
+  {
+    Mock_SEL_ARG always1(SEL_ARG::ALWAYS, INITIAL_USE_COUNT, INITIAL_USE_COUNT),
+      always2(SEL_ARG::KEY_RANGE, INITIAL_USE_COUNT, INITIAL_USE_COUNT - 1);
+    EXPECT_TRUE(key_or(&param, &always1, &always2) == &always1);
+  }
+  {
+    Mock_SEL_ARG always(SEL_ARG::ALWAYS, INITIAL_USE_COUNT, INITIAL_USE_COUNT),
+      key_range(SEL_ARG::KEY_RANGE, INITIAL_USE_COUNT, INITIAL_USE_COUNT);
+    EXPECT_TRUE(key_and(&param, &key_range, &always, 0) == &key_range);
+  }
+  {
+    Mock_SEL_ARG always(SEL_ARG::ALWAYS, INITIAL_USE_COUNT, INITIAL_USE_COUNT),
+      key_range(SEL_ARG::KEY_RANGE, INITIAL_USE_COUNT, INITIAL_USE_COUNT);
+    EXPECT_TRUE(key_and(&param, &always, &key_range, 0) == &key_range);
+  }
+}
+
+TEST_F(OptRangeTest, CombineAlways2)
+{
+  class Fake_sel_arg : public SEL_ARG
+  {
+  public:
+    Fake_sel_arg(Type type_arg)
+    {
+      type= type_arg;
+      part= 0;
+      left= NULL;
+      next= NULL;
+      min_flag= max_flag= 0;
+      set_endpoints(1, 2);
+      next_key_part= NULL;
+      make_root();
+      // Gets decremented in key_or() before being compared > 0, triggering
+      // a DBUG_ASSERT in SEL_ARG::SEL_ARG(Type) unless the ALWAYS type is
+      // handled.
+      use_count= 3;
+    }
+
+    void add_next_key_part(SEL_ARG *next)
+    {
+      next_key_part= next;
+      next->part= part + 1;
+    }
+  private:
+    void set_endpoints(int min, int max)
+    {
+      set_endpoint(min, min_value_buff, &min_value);
+      set_endpoint(max, max_value_buff, &max_value);
+    }
+    void set_endpoint(int value, char *buff, uchar **variable)
+    {
+      buff[0]= value;
+      buff[1]= 0;
+      *variable= reinterpret_cast<uchar*>(buff);
+    }
+    char min_value_buff[10], max_value_buff[10];
+  };
+
+  class Fake_key_part_info : public KEY_PART_INFO
+  {
+  public:
+    Fake_key_part_info(Mock_field_long *field_arg)
+    {
+      field= field_arg;
+      length= 1;
+    }
+  };
+
+  RANGE_OPT_PARAM param;
+  Fake_sel_arg always(SEL_ARG::ALWAYS), key_range(SEL_ARG::KEY_RANGE),
+               other(SEL_ARG::KEY_RANGE);
+  Mock_field_long field1("col_1");
+  Mock_field_long field2("col_2");
+  Fake_TABLE table(&field1, &field2);
+  String res(1000), so_far(1000);
+  Fake_key_part_info key_part_info[]= { Fake_key_part_info(&field1),
+                                        Fake_key_part_info(&field2) };
+
+  always.add_next_key_part(&key_range);
+  append_range_all_keyparts(NULL, &res, &so_far, &always, key_part_info,true);
+
+  // Let's make sure we built the expression we expected ...
+  EXPECT_STREQ("(1 <= col_1 <= 2 AND 1 <= col_2 <= 2)", res.ptr());
+
+  EXPECT_TRUE(key_or(&param, &always, &other) ==  &always);
+  EXPECT_EQ((ulong) 2, other.use_count);
+  EXPECT_EQ((ulong) 3, always.use_count);
+}
+
+TEST_F(OptRangeTest, AppendRange)
+{
+  String out(100);
+  Mock_field_long field("my_field");
+  Fake_TABLE table(&field);
+  KEY_PART_INFO kp;
+  kp.field= &field;
+  kp.length= 1;
+  uchar value= 42;
+  append_range(&out, &kp, &value, &value, NEAR_MIN | NEAR_MAX);
+  EXPECT_STREQ("42 < my_field < 42", out.c_ptr());
 }
 
 }

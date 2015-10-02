@@ -31,7 +31,6 @@ Created 11/5/1995 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "ut0byte.h"
 #include "ut0rnd.h"
-#include "sync0mutex.h"
 #include "sync0rw.h"
 #include "hash0hash.h"
 #include "os0event.h"
@@ -238,6 +237,14 @@ buf_LRU_drop_page_hash_batch(
 	ut_ad(count <= BUF_LRU_DROP_SEARCH_SIZE);
 
 	for (ulint i = 0; i < count; ++i, ++arr) {
+		/* While our only caller
+		buf_LRU_drop_page_hash_for_tablespace()
+		is being executed for DROP TABLE or similar,
+		the table cannot be evicted from the buffer pool.
+		Note: this should not be executed for DROP TABLESPACE,
+		because DROP TABLESPACE would be refused if tables existed
+		in the tablespace, and a previous DROP TABLE would have
+		already removed the AHI entries. */
 		btr_search_drop_page_hash_when_freed(
 			page_id_t(space_id, *arr), page_size);
 	}
@@ -294,12 +301,16 @@ next_page:
 		mutex_enter(&((buf_block_t*) bpage)->mutex);
 
 		{
-			bool	is_fixed = bpage->buf_fix_count > 0
+			bool	skip = bpage->buf_fix_count > 0
 				|| !((buf_block_t*) bpage)->index;
 
 			mutex_exit(&((buf_block_t*) bpage)->mutex);
 
-			if (is_fixed) {
+			if (skip) {
+				/* Skip this block, because there are
+				no adaptive hash index entries
+				pointing to it, or because we cannot
+				drop them due to the buffer-fix. */
 				goto next_page;
 			}
 		}
@@ -790,7 +801,10 @@ scan_again:
 			mutex_exit(block_mutex);
 
 			/* Note that the following call will acquire
-			and release block->lock X-latch. */
+			and release block->lock X-latch.
+			Note that the table cannot be evicted during
+			the execution of ALTER TABLE...DISCARD TABLESPACE
+			because MySQL is keeping the table handle open. */
 
 			btr_search_drop_page_hash_when_freed(
 				bpage->id, bpage->size);
@@ -814,11 +828,10 @@ scan_again:
 		}
 
 		ut_ad(!mutex_own(block_mutex));
-#ifdef UNIV_SYNC_DEBUG
+
 		/* buf_LRU_block_remove_hashed() releases the hash_lock */
 		ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X));
 		ut_ad(!rw_lock_own(hash_lock, RW_LOCK_S));
-#endif /* UNIV_SYNC_DEBUG */
 
 next_page:
 		bpage = prev_bpage;
@@ -1030,7 +1043,7 @@ buf_LRU_free_from_common_LRU_list(
 	     ++scanned, bpage = buf_pool->lru_scan_itr.get()) {
 
 		buf_page_t*	prev = UT_LIST_GET_PREV(LRU, bpage);
-		ib_mutex_t*	mutex = buf_page_get_mutex(bpage);
+		BPageMutex*	mutex = buf_page_get_mutex(bpage);
 
 		buf_pool->lru_scan_itr.set(prev);
 
@@ -1882,20 +1895,16 @@ func_exit:
 	DBUG_PRINT("ib_buf", ("free page " UINT32PF ":" UINT32PF,
 			      bpage->id.space(), bpage->id.page_no()));
 
-#ifdef UNIV_SYNC_DEBUG
         ut_ad(rw_lock_own(hash_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(buf_page_can_relocate(bpage));
 
 	if (!buf_LRU_block_remove_hashed(bpage, zip)) {
 		return(true);
 	}
 
-#ifdef UNIV_SYNC_DEBUG
 	/* buf_LRU_block_remove_hashed() releases the hash_lock */
 	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X)
 	      && !rw_lock_own(hash_lock, RW_LOCK_S));
-#endif /* UNIV_SYNC_DEBUG */
 
 	/* We have just freed a BUF_BLOCK_FILE_PAGE. If b != NULL
 	then it was a compressed page with an uncompressed frame and
@@ -2177,9 +2186,8 @@ buf_LRU_block_remove_hashed(
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 
 	hash_lock = buf_page_hash_lock_get(buf_pool, bpage->id);
-#ifdef UNIV_SYNC_DEBUG
+
         ut_ad(rw_lock_own(hash_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(buf_page_get_io_fix(bpage) == BUF_IO_NONE);
 	ut_a(bpage->buf_fix_count == 0);
@@ -2433,10 +2441,9 @@ buf_LRU_free_one_page(
 	}
 
 	/* buf_LRU_block_remove_hashed() releases hash_lock and block_mutex */
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X)
 	      && !rw_lock_own(hash_lock, RW_LOCK_S));
-#endif /* UNIV_SYNC_DEBUG */
+
 	ut_ad(!mutex_own(block_mutex));
 }
 

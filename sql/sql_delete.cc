@@ -210,8 +210,9 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
     COND_EQUAL *cond_equal= NULL;
     Item::cond_result result;
 
-    conds= optimize_cond(thd, conds, &cond_equal, select_lex->join_list, 
-                         true, &result);
+    if (optimize_cond(thd, &conds, &cond_equal, select_lex->join_list,
+                      &result))
+      DBUG_RETURN(true);
     if (result == Item::COND_FALSE)             // Impossible where
     {
       limit= 0;
@@ -227,6 +228,11 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
     if (conds)
     {
       conds= substitute_for_best_equal_field(conds, cond_equal, 0);
+      if (conds == NULL)
+      {
+        err= true;
+        goto exit_without_my_ok;
+      }
       conds->update_used_tables();
     }
   }
@@ -353,23 +359,22 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
 
     if (need_sort)
     {
-      ha_rows examined_rows;
-      ha_rows found_rows;
+      ha_rows examined_rows, found_rows, returned_rows;
 
       {
-        Filesort fsort(order, HA_POS_ERROR);
+        Filesort fsort(&qep_tab, order, HA_POS_ERROR);
         DBUG_ASSERT(usable_index == MAX_KEY);
         table->sort.io_cache= (IO_CACHE *) my_malloc(key_memory_TABLE_sort_io_cache,
                                                      sizeof(IO_CACHE),
                                                      MYF(MY_FAE | MY_ZEROFILL));
 
-        if ((table->sort.found_records= filesort(thd, &qep_tab, &fsort, true,
-                                                 &examined_rows, &found_rows))
-            == HA_POS_ERROR)
+        if (filesort(thd, &fsort, true,
+                     &examined_rows, &found_rows, &returned_rows))
         {
           err= true;
           goto exit_without_my_ok;
         }
+        table->sort.found_records= returned_rows;
         thd->inc_examined_row_count(examined_rows);
         free_underlaid_joins(thd, select_lex);
         /*
@@ -425,6 +430,8 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
       will_batch= !table->file->start_bulk_delete();
 
     table->mark_columns_needed_for_delete();
+    if (thd->is_error())
+      goto exit_without_my_ok;
 
     if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL) &&
         !using_limit &&
@@ -896,6 +903,8 @@ bool Query_result_delete::initialize_tables(JOIN *join)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
     table->prepare_for_position();
     table->mark_columns_needed_for_delete();
+    if (thd->is_error())
+      DBUG_RETURN(true);
   }
   /*
     In some cases, rows may be deleted from the first table(s) in the join order

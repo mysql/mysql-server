@@ -122,6 +122,7 @@ SYS_DATAFILES
 SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
+SYS_VIRTUAL
 mysql/engine_cost
 mysql/gtid_executed
 mysql/help_category
@@ -329,6 +330,7 @@ SYS_DATAFILES
 SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
+SYS_VIRTUAL
 mysql/engine_cost
 mysql/gtid_executed
 mysql/help_category
@@ -370,6 +372,7 @@ SYS_DATAFILES
 SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
+SYS_VIRTUAL
 mysql/engine_cost
 mysql/gtid_executed
 mysql/help_category
@@ -422,6 +425,7 @@ SYS_DATAFILES
 SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
+SYS_VIRTUAL
 mysql/engine_cost
 mysql/gtid_executed
 mysql/help_category
@@ -474,6 +478,7 @@ SYS_DATAFILES
 SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
+SYS_VIRTUAL
 mysql/engine_cost
 mysql/gtid_executed
 mysql/help_category

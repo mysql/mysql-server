@@ -212,7 +212,7 @@ class ErrConvString
   char err_buffer[MYSQL_ERRMSG_SIZE];
   size_t buf_length;
 public:
-  ErrConvString(String *str)
+  explicit ErrConvString(String *str)
   {
     buf_length= err_conv(err_buffer, sizeof(err_buffer), str->ptr(),
                          str->length(), str->charset());

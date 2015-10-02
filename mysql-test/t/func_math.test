@@ -584,7 +584,7 @@ select 5.9 div 2, 1.23456789e3 DIV 2, 1.23456789e9 DIV 2, 1.23456789e19 DIV 2;
 
 CREATE TABLE t1(a DOUBLE);
 
-SET sql_mode='';
+SET sql_mode='NO_AUTO_CREATE_USER';
 INSERT INTO t1 VALUES (ln(1));
 INSERT INTO t1 VALUES (ln(0));
 INSERT INTO t1 VALUES (ln(-1));
@@ -594,7 +594,7 @@ INSERT INTO t1 VALUES (log2(0));
 INSERT INTO t1 VALUES (log10(0));
 SELECT * FROM t1 ORDER BY a;
 
-SET sql_mode='STRICT_ALL_TABLES';
+SET sql_mode=default;
 INSERT INTO t1 VALUES (ln(1));
 --error ER_INVALID_ARGUMENT_FOR_LOGARITHM
 INSERT INTO t1 VALUES (ln(0));
@@ -610,29 +610,76 @@ INSERT INTO t1 VALUES (log2(0));
 INSERT INTO t1 VALUES (log10(0));
 SELECT * FROM t1 ORDER BY a;
 
-SET sql_mode='STRICT_ALL_TABLES';
 --error ER_INVALID_ARGUMENT_FOR_LOGARITHM
 UPDATE t1 SET a = ln(0);
 SELECT * FROM t1 ORDER BY a;
 
-SET sql_mode='';
+SET sql_mode='NO_AUTO_CREATE_USER';
 UPDATE t1 SET a = ln(0);
 SELECT * FROM t1 ORDER BY a;
 
-SET sql_mode='STRICT_ALL_TABLES';
+SET sql_mode=default;
 --error ER_INVALID_ARGUMENT_FOR_LOGARITHM
 DELETE FROM t1 WHERE a <=> ln(0);
 SELECT * FROM t1 ORDER BY a;
 
-SET sql_mode='';
+SET sql_mode='NO_AUTO_CREATE_USER';
 DELETE FROM t1 WHERE a <=> ln(0);
 SELECT * FROM t1 ORDER BY a;
 
 DROP TABLE t1;
-SET sql_mode='';
+SET sql_mode=default;
 
 --echo #
 --echo # Bug#19047527 SQRT() : UNINITIALISED VALUE IN MY_STRTOD
 --echo #
 
 do sqrt(weight_string(_eucjpms "0E+"));
+
+
+--echo #
+--echo # Bug#21279005 - ROUND FUNCTION INCORRECT IN WHERE-CLAUSE
+--echo #                USING LOCAL VARIABLE
+
+DELIMITER |;
+CREATE PROCEDURE test_round_fn()
+BEGIN
+  DECLARE num_digits int;
+  SET num_digits := 3;
+
+  CREATE TEMPORARY TABLE tmp_test (
+    number double
+  );
+  INSERT INTO tmp_test
+  VALUES (1),(0);
+
+  SELECT
+    number,
+    Round(number, num_digits) > 0,
+    Round(number, 3) > 0
+  FROM
+    tmp_test;
+
+  SELECT
+    number,
+    Round(number, num_digits) > 0,
+    Round(number, 3) > 0
+  FROM
+    tmp_test
+  WHERE
+    Round(number, 3) >= 0;
+
+  SELECT
+    number,
+    Round(number, num_digits) > 0,
+    Round(number, 3) > 0
+  FROM
+    tmp_test
+  WHERE
+    Round(number, num_digits) >= 0;
+
+END|
+DELIMITER ;|
+
+CALL test_round_fn();
+DROP PROCEDURE test_round_fn;

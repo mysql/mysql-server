@@ -402,6 +402,9 @@ using std::max;
 #define QC_DEBUG_SYNC(name)
 #endif
 
+// Max aligned size for ulong type query_cache_min_res_unit.
+static const ulong max_aligned_min_res_unit_size= ((ULONG_MAX) &
+                                                   (~(sizeof(double) - 1)));
 
 /**
   Thread state to be used when the query cache lock needs to be acquired.
@@ -779,7 +782,7 @@ uchar *query_cache_table_get_key(const uchar *record, size_t *length,
   Query_cache_block* table_block = (Query_cache_block*) record;
   *length = (table_block->used - table_block->headers_len() -
 	     ALIGN_SIZE(sizeof(Query_cache_table)));
-  return (((uchar *) table_block->data()) +
+  return (table_block->data() +
 	  ALIGN_SIZE(sizeof(Query_cache_table)));
 }
 }
@@ -877,7 +880,7 @@ uchar *query_cache_query_get_key(const uchar *record, size_t *length,
   Query_cache_block *query_block = (Query_cache_block*) record;
   *length = (query_block->used - query_block->headers_len() -
 	     ALIGN_SIZE(sizeof(Query_cache_query)));
-  return (((uchar *) query_block->data()) +
+  return (query_block->data() +
 	  ALIGN_SIZE(sizeof(Query_cache_query)));
 }
 }
@@ -1045,7 +1048,7 @@ void Query_cache::end_of_result(THD *thd)
 {
   Query_cache_block *query_block;
   Query_cache_tls *query_cache_tls= &thd->query_cache_tls;
-  ulonglong limit_found_rows= thd->limit_found_rows;
+  ulonglong current_found_rows= thd->current_found_rows;
   DBUG_ENTER("Query_cache::end_of_result");
 
   /* See the comment on double-check locking usage above. */
@@ -1105,7 +1108,7 @@ void Query_cache::end_of_result(THD *thd)
     if (last_result_block->length >= query_cache.min_allocation_unit + len)
       query_cache.split_block(last_result_block,len);
 
-    header->found_rows(limit_found_rows);
+    header->found_rows(current_found_rows);
     header->result()->type= Query_cache_block::RESULT;
 
     /* Drop the writer. */
@@ -1239,6 +1242,9 @@ ulong Query_cache::set_min_res_unit(ulong size)
 {
   if (size < min_allocation_unit)
     size= min_allocation_unit;
+  else if (size > max_aligned_min_res_unit_size)
+    size= max_aligned_min_res_unit_size;
+
   return (min_result_data_size= ALIGN_SIZE(size));
 }
 
@@ -1258,6 +1264,23 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
   if (thd->locked_tables_mode || query_cache_size == 0)
     DBUG_VOID_RETURN;
 
+  /*
+    Do not store queries while tracking transaction state.
+    The tracker already flags queries that actually have
+    transaction tracker items, but this will make behavior
+    more straight forward.
+  */
+  if (thd->variables.session_track_transaction_info != TX_TRACK_NONE)
+    DBUG_VOID_RETURN;
+
+  /*
+    The query cache is only supported for the classic protocols.
+    Although protocol_callback.cc is not compiled in embedded, there
+    are other protocols. A check outside the non-embedded block is
+    better.
+  */
+  if (!thd->is_classic_protocol())
+    DBUG_VOID_RETURN;
 #ifndef EMBEDDED_LIBRARY
   /*
     Without active vio, net_write_packet() will not be called and
@@ -1265,7 +1288,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     complete query result in this case, it does not make sense to
     register the query in the first place.
   */
-  if (!thd->get_protocol_classic()->vio_ok())
+  if (!thd->get_protocol()->connection_alive())
     DBUG_VOID_RETURN;
 #endif
 
@@ -1408,6 +1431,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 	  my_hash_delete(&queries, (uchar *) query_block);
 	  header->unlock_n_destroy();
 	  free_memory_block(query_block);
+
           unlock();
 	  goto end;
 	}
@@ -1417,7 +1441,6 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 	thd->query_cache_tls.first_query_block= query_block;
 	header->writer(&thd->query_cache_tls);
 	header->tables_type(tables_type);
-
         unlock();
 
 	// init_n_lock make query block locked
@@ -1549,6 +1572,14 @@ int Query_cache::send_result_to_client(THD *thd, const LEX_CSTRING &sql)
     this moment to operate on an InnoDB table.
   */
   if (thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(false))
+    goto err;
+
+  /*
+    Don't allow serving from Query_cache while tracking transaction
+    state. This is a safeguard in case an otherwise matching query
+    was added to the cache before tracking was turned on.
+  */
+  if (thd->variables.session_track_transaction_info != TX_TRACK_NONE)
     goto err;
 
   if (!thd->lex->safe_to_cache_query)
@@ -1874,8 +1905,10 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
   }
 #endif /*!EMBEDDED_LIBRARY*/
 
-  thd->limit_found_rows = query->found_rows();
-  thd->status_var.last_query_cost= 0.0;
+  thd->current_found_rows= query->found_rows();
+  thd->update_previous_found_rows();
+  thd->clear_current_query_costs();
+  thd->save_current_query_costs();
 
   {
     Opt_trace_start ots(thd, NULL, SQLCOM_SELECT, NULL,
@@ -1898,7 +1931,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 
   BLOCK_UNLOCK_RD(query_block);
   MYSQL_QUERY_CACHE_HIT(const_cast<char*>(thd->query().str),
-                        (ulong) thd->limit_found_rows);
+                        (ulong) thd->current_found_rows);
   DBUG_RETURN(1);				// Result sent to client
 
 err_unlock:
@@ -2398,7 +2431,8 @@ ulong Query_cache::init_cache()
   DUMP(this);
 
   (void) my_hash_init(&queries, &my_charset_bin, def_query_hash_size, 0, 0,
-                      query_cache_query_get_key, 0, 0);
+                      query_cache_query_get_key, 0, 0,
+                      key_memory_Query_cache);
 #ifndef FN_NO_CASE_SENSE
   /*
     If lower_case_table_names!=0 then db and table names are already 
@@ -2409,7 +2443,8 @@ ulong Query_cache::init_cache()
     and MY_TABLE cases and so again can use binary collation.
   */
   (void) my_hash_init(&tables, &my_charset_bin, def_table_hash_size, 0, 0,
-                      query_cache_table_get_key, 0, 0);
+                      query_cache_table_get_key, 0, 0,
+                      key_memory_Query_cache);
 #else
   /*
     On windows, OS/2, MacOS X with HFS+ or any other case insensitive
@@ -2423,7 +2458,8 @@ ulong Query_cache::init_cache()
                       lower_case_table_names ? &my_charset_bin :
                       files_charset_info,
                       def_table_hash_size, 0, 0,query_cache_table_get_key,
-                      0, 0);
+                      0, 0,
+                      key_memory_Query_cache);
 #endif
 
   queries_in_cache = 0;
@@ -2735,7 +2771,7 @@ Query_cache::append_result_data(Query_cache_block **current_block,
 			data_len-last_block_free_space));
     Query_cache_block *new_block = 0;
     success = write_result_data(&new_block, data_len-last_block_free_space,
-				(uchar*)(((uchar*)data)+last_block_free_space),
+				(uchar*)(data+last_block_free_space),
 				query_block,
 				Query_cache_block::RES_CONT);
     /*
@@ -4000,7 +4036,7 @@ my_bool Query_cache::move_by_type(uchar **border,
     uchar *key;
     size_t key_length;
     key=query_cache_table_get_key((uchar*) block, &key_length, 0);
-    my_hash_first(&tables, (uchar*) key, key_length, &record_idx);
+    my_hash_first(&tables, key, key_length, &record_idx);
 
     block->destroy();
     new_block->init(len);
@@ -4060,7 +4096,7 @@ my_bool Query_cache::move_by_type(uchar **border,
     uchar *key;
     size_t key_length;
     key=query_cache_query_get_key((uchar*) block, &key_length, 0);
-    my_hash_first(&queries, (uchar*) key, key_length, &record_idx);
+    my_hash_first(&queries, key, key_length, &record_idx);
     // Move table of used tables 
     memmove((char*) new_block->table(0), (char*) block->table(0),
 	   ALIGN_SIZE(n_tables*sizeof(Query_cache_block_table)));
@@ -4262,7 +4298,7 @@ my_bool Query_cache::join_results(ulong join_limit)
 
 	  Query_cache_result *new_result = new_result_block->result();
 	  new_result->parent(block);
-	  uchar *write_to = (uchar*) new_result->data();
+	  uchar *write_to = new_result->data();
 	  Query_cache_block *result_block = first_result;
 	  do
 	  {

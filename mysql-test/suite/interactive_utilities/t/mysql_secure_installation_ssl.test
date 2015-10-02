@@ -45,7 +45,7 @@ sub initial_commands()
 {
    $texp[$i] = new Expect();
    $texp[$i]->raw_pty(1);
-   $texp[$i]->spawn("$ENV{MYSQL_SECURE_INSTALLATION}  -S $ENV{MASTER_MYSOCK} --password='123' --ssl-ca=$ENV{MYSQL_TEST_DIR}/std_data/ca-sha512.pem --ssl-key=$ENV{MYSQL_TEST_DIR}/std_data/server-key-sha512.pem --ssl-cert=$ENV{MYSQL_TEST_DIR}/std_data/server-cert-sha512.pem");
+   $texp[$i]->spawn("$ENV{MYSQL_SECURE_INSTALLATION}  -S $ENV{MASTER_MYSOCK} --password='123' --ssl-ca=$ENV{MYSQL_TEST_DIR}/std_data/ca-sha512.pem --ssl");
 }
 
 # Aggregating the commands which are executed post the password is input to 
@@ -80,7 +80,8 @@ $i++;
 
 initial_commands();
 after_effects();
-$i++;
+
+$texp[$i]->soft_close();
 
 EOF
 INSERT INTO mysql.user SELECT LOWER(@@hostname),'root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',NULL,NULL,'N';

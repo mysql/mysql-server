@@ -164,9 +164,23 @@ bool Explain_format_traditional::push_select_type(List<Item> *items)
   return item == NULL || items->push_back(item);
 }
 
+class Buffer_cleanup
+{
+public:
+  explicit Buffer_cleanup(qep_row *row)
+    : m_row(row)
+  {}
+  ~Buffer_cleanup()
+  {
+    m_row->cleanup();
+  }
+private:
+  qep_row *m_row;
+};
 
 bool Explain_format_traditional::flush_entry()
 {
+  Buffer_cleanup bc(&column_buffer); // release column_buffer
   List<Item> items;
   if (push(&items, column_buffer.col_id, nil) ||
       push_select_type(&items) ||
@@ -240,7 +254,5 @@ bool Explain_format_traditional::flush_entry()
 
   if (output->send_data(items))
     return true;
-
-  column_buffer.cleanup();
   return false;
 }

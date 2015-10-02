@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,12 +16,12 @@
 /* See http://code.google.com/p/googletest/wiki/Primer */
 
 // First include (the generated) my_config.h, to get correct platform defines.
+#include "my_global.h"
 #include "my_config.h"
 
 #include <gtest/gtest.h>
 
 #include "univ.i"
-
 #include "ut0mem.h"
 
 namespace innodb_ut0mem_unittest {

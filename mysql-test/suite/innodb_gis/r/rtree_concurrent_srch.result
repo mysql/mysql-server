@@ -14,6 +14,7 @@ insert into t1 select * from t1;
 insert into t1 select * from t1;
 insert into t1 select * from t1;
 insert into t1 select * from t1;
+SET SESSION debug="+d,rtr_pcur_move_to_next_return";
 set session transaction isolation level serializable;
 set @g1 = ST_GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
 SET DEBUG_SYNC = 'RESET';
@@ -217,6 +218,7 @@ select sleep(2);
 sleep(2)
 0
 commit;
+SET SESSION debug="-d,rtr_pcur_move_to_next_return";
 drop table t1;
 drop procedure insert_t1;
 create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
@@ -227,6 +229,7 @@ INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(5 5, 180 180)'));
 INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(6 6, 190 190)'));
 INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(7 7, 200 200)'));
 INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(8 8, 210 210)'));
+SET SESSION debug="+d,rtr_pcur_move_to_next_return";
 set transaction isolation level serializable;
 start transaction;
 set @g1 = ST_GeomFromText('Polygon((100 100, 100 110, 110 110, 110 100, 100 100))');
@@ -305,4 +308,5 @@ count(*)
 0
 drop procedure insert_t1;
 DROP TABLE t1;
+SET SESSION debug="-d,rtr_pcur_move_to_next_return";
 SET DEBUG_SYNC = 'RESET';

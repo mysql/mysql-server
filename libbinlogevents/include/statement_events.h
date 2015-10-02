@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -473,7 +473,14 @@ public:
     /*
      A code for Query_log_event status, similar to G_COMMIT_TS2.
    */
-    Q_COMMIT_TS2
+    Q_COMMIT_TS2,
+    /*
+      The master connection @@session.explicit_defaults_for_timestamp which
+      is recorded for queries, CREATE and ALTER table that is defined with
+      a TIMESTAMP column, that are dependent on that feature.
+      For pre-WL6292 master's the associated with this code value is zero.
+    */
+    Q_EXPLICIT_DEFAULTS_FOR_TIMESTAMP
   };
   const char* query;
   const char* db;
@@ -574,7 +581,20 @@ public:
     Q_MASTER_DATA_WRITTEN_CODE to the slave's server binlog.
   */
   size_t master_data_written;
-
+  /*
+    The following member gets set to OFF or ON value when the
+    Query-log-event is marked as dependent on
+    @@explicit_defaults_for_timestamp. That is the member is relevant
+    to queries that declare TIMESTAMP column attribute, like CREATE
+    and ALTER.
+    The value is set to @c TERNARY_OFF when @@explicit_defaults_for_timestamp
+    encoded value is zero, otherwise TERNARY_ON.
+  */
+  enum enum_ternary {
+    TERNARY_UNSET,
+    TERNARY_OFF,
+    TERNARY_ON
+  } explicit_defaults_ts;
   /*
     number of updated databases by the query and their names. This info
     is requested by both Coordinator and Worker.

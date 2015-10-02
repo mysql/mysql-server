@@ -327,7 +327,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
         if ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME)
         {
           cur_read_cost= prev_record_reads(join, idx, table_deps) *
-                         table->cost_model()->io_block_read_cost();
+                         table->cost_model()->page_read_cost(1.0);
           cur_fanout= 1.0;
         }
         else
@@ -418,7 +418,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
           }
           else
             cur_read_cost= prefix_rowcount *
-              min(table->cost_model()->io_block_read_cost(tmp_fanout),
+              min(table->cost_model()->page_read_cost(tmp_fanout),
                   tab->worst_seeks);
         }
       }
@@ -612,7 +612,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
         }
         else
           cur_read_cost= prefix_rowcount *
-            min(table->cost_model()->io_block_read_cost(tmp_fanout),
+            min(table->cost_model()->page_read_cost(tmp_fanout),
                 tab->worst_seeks);
       }
       else
@@ -638,7 +638,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
       }
       // Actually it should be cur_fanout=0.0 (yes!) but 1.0 is probably safer
       cur_read_cost= prev_record_reads(join, idx, table_deps) *
-                     table->cost_model()->io_block_read_cost();
+                     table->cost_model()->page_read_cost(1.0);
       cur_fanout= 1.0;
     }
 
@@ -914,7 +914,7 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
 
   float filter_effect= 1.0;
 
-  thd->status_var.last_query_partial_plans++;
+  thd->m_current_query_partial_plans++;
 
   /*
     Cannot use join buffering if either
@@ -1394,9 +1394,23 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
 
   /*
     Cost calculations and picking the right join order assumes that a
-    positive number of output rows from each joined table. The code
-    below makes sure that even in the case of heavy filtering, the
-    number of rows output from a joined table is more than zero.
+    positive number of output rows from each joined table. We assume
+    that at least one row in the table match the condition.  Not all
+    code is able to cope with estimates of less than one row.  (For
+    example, DupsWeedout may include extra tables in its
+    duplicate-eliminating range in such cases.)
+  */
+  filter= max(filter, 1.0f / tab->records());
+
+  /*
+    For large tables, the restriction above may still give very small
+    numbers when calculating fan-out.  The code below makes sure that
+    there is a lower limit on fan-out.
+    TODO: Should evaluate whether this restriction makes sense.  It
+          can cause the estimated size of the result set to be
+          different for different join orders. However, some unwanted
+          effects on DBT-3 was observed when removing it, so keeping
+          it for now.
   */
   if ((filter * fanout) < 0.05f)
     filter= 0.05f/static_cast<float>(fanout);
@@ -1868,7 +1882,7 @@ bool Optimize_table_order::choose_table_order()
       best_access_path() et al. when no filtering effect is possible.
     */
     join->where_cond->walk(&Item::add_field_to_cond_set_processor,
-                           Item::enum_walk(Item::WALK_POSTFIX), NULL);
+                           Item::WALK_POSTFIX, NULL);
   }
 
   if (straight_join)
@@ -3906,7 +3920,8 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
       inner fanout so that inner_fanout * outer_fanout is still
       the same (dups weedout runs a complete join internally).
     */
-    inner_fanout*= outer_fanout / max_outer_fanout;
+    if (max_outer_fanout > 0.0)
+      inner_fanout*= outer_fanout / max_outer_fanout;
     outer_fanout= max_outer_fanout;
   }
 

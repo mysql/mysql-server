@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,9 +34,11 @@ struct dict_field_t;
 struct dict_index_t;
 struct dict_table_t;
 struct dict_foreign_t;
+struct dict_v_col_t;
 
 struct ind_node_t;
 struct tab_node_t;
+struct dict_add_v_col_t;
 
 /* Space id and page no where the dictionary header resides */
 #define	DICT_HDR_SPACE		0	/* the SYSTEM tablespace */

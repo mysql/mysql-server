@@ -112,7 +112,7 @@ EXPLAIN
               "a",
               "b"
             ],
-            "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t1`.`b` = `test`.`t2`.`b`), true)"
+            "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t2`.`b` = `test`.`t1`.`b`), true)"
           }
         }
       ]
@@ -120,7 +120,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t1`.`b` = `test`.`t2`.`b`)) where 1 order by `test`.`t1`.`a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`b` = `test`.`t1`.`b`)) where 1 order by `test`.`t1`.`a`
 select * from t1 left join t2 on t1.b = t2.b order by t1.a;
 a	b	a	b
 1	a	NULL	NULL
@@ -1593,7 +1593,7 @@ EXPLAIN
               "a",
               "b"
             ],
-            "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t1`.`a` = `test`.`t2`.`a`), true)"
+            "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t2`.`a` = `test`.`t1`.`a`), true)"
           }
         }
       ]
@@ -1601,7 +1601,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t1`.`a` = `test`.`t2`.`a`)) where 1 order by `test`.`t1`.`b`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1 order by `test`.`t1`.`b`
 select * from t1 left join t2 on t1.a = t2.a order by t1.b;
 a	b	a	b
 1	ababab	NULL	NULL
@@ -3116,6 +3116,14 @@ select distinct least(1,count(distinct a)) from t1 group by a;
 least(1,count(distinct a))
 0
 drop table t1;
+#
+# Bug#21461026: INCONSISTEND CASING ON STORAGE ENGINE VARIABLE VALUE
+#
+SHOW GLOBAL VARIABLES LIKE '%\_storage\_engine';
+Variable_name	Value
+default_storage_engine	InnoDB
+default_tmp_storage_engine	InnoDB
+internal_tmp_disk_storage_engine	InnoDB
 SET GLOBAL innodb_large_prefix=default;
 Warnings:
 Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html

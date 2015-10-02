@@ -113,6 +113,10 @@ SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -298,6 +302,10 @@ SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -626,6 +634,10 @@ WHERE NOT EXISTS
                                       }
                                     ] /* steps */
                                   } /* condition_processing */
+                                },
+                                {
+                                  "substitute_generated_columns": {
+                                  } /* substitute_generated_columns */
                                 },
                                 {
                                   "table_dependencies": [
@@ -1029,6 +1041,10 @@ field4,field5,field6	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t5` `alias1`",
@@ -1204,6 +1220,10 @@ field4,field5,field6	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t3` `sq4_alias1`",
@@ -1335,6 +1355,10 @@ field4,field5,field6	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -1509,6 +1533,10 @@ field4,field5,field6	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -1695,6 +1723,10 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -2080,6 +2112,10 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t2`",
@@ -2160,7 +2196,7 @@ Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`t
 explain select * from t2 where (b,a,filler) in (select a,b,a*3 from t1) and filler='abc';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	a	a	10	NULL	100	100.00	Using index; LooseScan
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	0.05	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	1.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t1`.`a`) and (`test`.`t2`.`filler` = 'abc') and (`test`.`t2`.`filler` = (`test`.`t1`.`a` * 3)))
 SELECT show_json_object('"recalculate_access_paths_and_cost": {', TRACE)
@@ -2244,7 +2280,7 @@ where t2.filler=t3.filler and
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	NULL
 1	SIMPLE	t1	NULL	index	a	a	10	NULL	100	100.00	Using where; Using index; LooseScan
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	0.05	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	1.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` `t3` semi join (`test`.`t1`) join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t1`.`a`) and (`test`.`t2`.`filler` = `test`.`t3`.`filler`) and (`test`.`t3`.`filler` = (`test`.`t1`.`a` * 3)))
 SELECT show_json_object('"recalculate_access_paths_and_cost": {', TRACE)

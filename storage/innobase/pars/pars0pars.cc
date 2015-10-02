@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1929,7 +1929,7 @@ pars_create_table(
 	n_cols = que_node_list_get_len(column_defs);
 
 	table = dict_mem_table_create(
-		table_sym->name, 0, n_cols, flags, flags2);
+		table_sym->name, 0, n_cols, 0, flags, flags2);
 
 #ifdef UNIV_DEBUG
 	if (not_fit_in_memory != NULL) {
@@ -2003,7 +2003,7 @@ pars_create_index(
 		column = static_cast<sym_node_t*>(que_node_get_next(column));
 	}
 
-	node = ind_create_graph_create(index, pars_sym_tab_global->heap);
+	node = ind_create_graph_create(index, pars_sym_tab_global->heap, NULL);
 
 	table_sym->resolved = TRUE;
 	table_sym->token_type = SYM_TABLE;

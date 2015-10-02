@@ -655,7 +655,7 @@ FLUSH STATUS;
 EXPLAIN EXTENDED 
 SELECT * FROM (SELECT * FROM t1 WHERE f1 IN (2,3)) tt WHERE f11=2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	5.56	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where ((`test`.`t1`.`f11` = 2) and (`test`.`t1`.`f1` in (2,3)))
@@ -687,7 +687,7 @@ SELECT * FROM (SELECT * FROM t1 WHERE f1 IN (2,3)) tt JOIN
 (SELECT * FROM t1 WHERE f1 IN (1,2)) aa ON tt.f1=aa.f1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	5.56	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` join `test`.`t1` where ((`test`.`t1`.`f1` = `test`.`t1`.`f1`) and (`test`.`t1`.`f1` in (1,2)) and (`test`.`t1`.`f1` in (2,3)))
@@ -731,7 +731,7 @@ f1	f11	f2	f22
 explain for views with where
 EXPLAIN EXTENDED SELECT * FROM v3 WHERE f11 IN (1,3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	11.11	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where ((`test`.`t1`.`f11` in (1,3)) and (`test`.`t1`.`f1` in (2,3)))
@@ -743,7 +743,7 @@ EXPLAIN EXTENDED
 SELECT * FROM v3 JOIN v4 ON f1=f2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	5.56	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` = `test`.`t1`.`f1`) and (`test`.`t1`.`f1` in (2,3)) and (`test`.`t1`.`f1` in (2,3)))
@@ -754,7 +754,7 @@ f1	f11	f2	f22
 FLUSH STATUS;
 EXPLAIN EXTENDED SELECT * FROM v4 WHERE f2 IN (1,3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	11.11	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t2` where ((`test`.`t2`.`f2` in (1,3)) and (`test`.`t2`.`f2` in (2,3)))
@@ -1145,7 +1145,7 @@ merged derived in merged derived
 EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM 
 (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2) zz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	11.11	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where ((`test`.`t1`.`f1` > 2) and (`test`.`t1`.`f1` < 7))
@@ -1173,7 +1173,7 @@ EXPLAIN  extended SELECT * FROM (SELECT * FROM
 (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2 GROUP BY f1) zz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	11.11	Using where; Using temporary; Using filesort
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using temporary; Using filesort
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `zz`.`f1` AS `f1`,`zz`.`f11` AS `f11` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where ((`test`.`t1`.`f1` > 2) and (`test`.`t1`.`f1` < 7)) group by `test`.`t1`.`f1`) `zz`
@@ -1239,8 +1239,8 @@ JOIN
 (SELECT * FROM t1 WHERE f1 < 7 ) tt WHERE f1 > 2 ) z
 ON x.f1 = z.f1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	11.11	Using where
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	1.85	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`t1`.`f1` AS `f1`,`t1`.`f11` AS `f11` from `test`.`t1` join `test`.`t1` where ((`t1`.`f1` = `test`.`t1`.`f1`) and (`t1`.`f1` > 2) and (`test`.`t1`.`f1` < 7) and (`test`.`t1`.`f1` > 2) and (`test`.`t1`.`f1` < 7))
@@ -1315,7 +1315,7 @@ merged view in a merged view in a merged derived
 CREATE VIEW v6 AS SELECT * FROM v4 WHERE f2 < 7;
 EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM v6) tt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	11.11	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t2` where ((`test`.`t2`.`f2` < 7) and (`test`.`t2`.`f2` in (2,3)))
@@ -1344,7 +1344,7 @@ f1	f11
 JOIN of above two
 EXPLAIN EXTENDED SELECT * FROM v6 JOIN v7 ON f2=f1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	11.11	Using where
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 1	PRIMARY	<derived5>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t2.f2	2	100.00	NULL
 5	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
 Warnings:
@@ -2210,12 +2210,12 @@ ON dt1.a=dt2.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	25.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` join `test`.`t1` join `test`.`t2` join `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`b` = `test`.`t2`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t1`.`a`))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` join `test`.`t1` join `test`.`t2` join `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`b` = `test`.`t2`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t1`.`a`))
 SELECT *
 FROM t1 JOIN (SELECT t2.a, t2.b FROM t1 JOIN t2 USING (a)
 WHERE t1.b > 15) AS dt ON t1.a=dt.a;
@@ -3048,7 +3048,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 4	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select `test`.`sq1_t1`.`pk` AS `field1`,`test`.`sq2_t1`.`pk` AS `field2` from `test`.`t2` `table3` left join (`test`.`t2` `sq2_t1`) on(((NULL = `test`.`sq2_t1`.`col_varchar_key`) and (not(<in_optimizer>(`test`.`sq2_t1`.`col_int_key`,<exists>(/* select#4 */ select 1 from `test`.`t2` `child_sq1_t1` where <if>(outer_field_is_not_null, ((<cache>(`test`.`sq2_t1`.`col_int_key`) = NULL) or isnull(NULL)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(NULL), true))))))) left join (`test`.`t1` `sq1_t1`) on((NULL = `test`.`sq2_t1`.`col_varchar_key`))
+Note	1003	/* select#1 */ select `test`.`sq1_t1`.`pk` AS `field1`,`test`.`sq2_t1`.`pk` AS `field2` from `test`.`t2` `table3` left join (`test`.`t2` `sq2_t1`) on(((not(<in_optimizer>(`test`.`sq2_t1`.`col_int_key`,<exists>(/* select#4 */ select 1 from `test`.`t2` `child_sq1_t1` where <if>(outer_field_is_not_null, ((<cache>(`test`.`sq2_t1`.`col_int_key`) = NULL) or isnull(NULL)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(NULL), true))))) and multiple equal(NULL, `test`.`sq2_t1`.`col_varchar_key`))) left join (`test`.`t1` `sq1_t1`) on(multiple equal(NULL, `test`.`sq2_t1`.`col_varchar_key`))
 SELECT table1.pk AS field1,
 table2.pk field2
 FROM (SELECT sq1_t1.*
@@ -3454,9 +3454,9 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	q	NULL	range	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	Using join buffer (Block Nested Loop)
 2	DERIVED	t	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary; Using filesort
-2	DERIVED	t	NULL	ref	c2	c2	5	func	2	100.00	Using where; Using index
+2	DERIVED	t	NULL	ref	c2	c2	5	const	2	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `p`.`a` AS `a`,`test`.`q`.`id` AS `id`,`test`.`q`.`c1` AS `c1`,`test`.`q`.`c2` AS `c2` from (/* select#2 */ select `test`.`t`.`c1` AS `a` from `test`.`t` left join (`test`.`t`) on(((`test`.`t`.`c1` = `test`.`t`.`c2`) and (`test`.`t`.`c1` = 10) and (`test`.`t`.`c2` > 3))) where 1 group by `test`.`t`.`c1`) `p` join `test`.`t` `q` where (`test`.`q`.`id` between 1 and 10)
+Note	1003	/* select#1 */ select `p`.`a` AS `a`,`test`.`q`.`id` AS `id`,`test`.`q`.`c1` AS `c1`,`test`.`q`.`c2` AS `c2` from (/* select#2 */ select `test`.`t`.`c1` AS `a` from `test`.`t` left join (`test`.`t`) on(((`test`.`t`.`c1` = 10) and (`test`.`t`.`c2` = 10) and (10 > 3))) where 1 group by `test`.`t`.`c1`) `p` join `test`.`t` `q` where (`test`.`q`.`id` between 1 and 10)
 EXPLAIN SELECT * FROM (SELECT v1.a
 FROM v1 LEFT OUTER JOIN v2 ON v1.a = v2.b
 WHERE v1.a = 3
@@ -3523,3 +3523,183 @@ NATURAL JOIN t1 AS t3;
 1
 1
 DROP TABLE t1, t2;
+# Bug#21512842: Sig 11 in check_column_grant_in_table_ref
+CREATE TABLE t1 (
+pk INTEGER,
+col_varchar JSON NOT NULL,
+PRIMARY KEY (pk)
+);
+CREATE TABLE t2 (
+pk INTEGER,
+col_date_key DATE NOT NULL,
+PRIMARY KEY (pk)
+);
+set sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SELECT *
+FROM (SELECT alias2.pk AS field1
+FROM t1 AS alias1
+LEFT OUTER JOIN t2 AS alias2
+ON JSON_UNQUOTE(JSON_EXTRACT(alias1.col_varchar,'$.varc'))
+COLLATE utf8mb4_general_ci = alias2.col_date_key
+GROUP BY JSON_QUOTE(JSON_EXTRACT(field1,'$.intc'))
+) AS dt;
+field1
+set sql_mode=default;
+DROP TABLE t1, t2;
+# Bug#21350125: Wrong results when ORDER BY is removed
+CREATE TABLE t1 (
+c1n varchar(1) NOT NULL,
+c1k varchar(2) DEFAULT NULL,
+KEY c1k (c1k)
+);
+INSERT INTO t1 VALUES ('j','jj'),('r','rr');
+CREATE TABLE t2 (
+c2k varchar(1) NOT NULL,
+c2n varchar(2) DEFAULT NULL,
+KEY c2k (c2k)
+);
+INSERT INTO t2 VALUES
+('f','ff'),('t','tt'),('c','cc'),('c','cc'),('r','rr'),('k','kk');
+CREATE TABLE empty (dummy INTEGER);
+CREATE VIEW vr AS
+SELECT t2.c2n AS v_field
+FROM t1 RIGHT JOIN t2
+ON t2.c2k = t1.c1k;
+CREATE VIEW vl AS
+SELECT t2.c2n AS v_field
+FROM t2 LEFT JOIN t1
+ON t2.c2k = t1.c1k;
+SELECT alias1.dt_field AS field1
+FROM (SELECT t2.c2n AS dt_field
+FROM t1 RIGHT JOIN t2
+ON t2.c2k = t1.c1k
+) AS alias1
+RIGHT JOIN t2 AS alias2
+ON alias2.c2n = alias1.dt_field;
+field1
+ff
+tt
+cc
+cc
+cc
+cc
+rr
+kk
+prepare s from 'SELECT alias1.dt_field AS field1
+FROM (SELECT t2.c2n AS dt_field
+FROM t1 RIGHT JOIN t2
+ON t2.c2k = t1.c1k
+) AS alias1
+RIGHT JOIN t2 AS alias2
+ON alias2.c2n = alias1.dt_field';
+execute s;
+field1
+ff
+tt
+cc
+cc
+cc
+cc
+rr
+kk
+deallocate prepare s;
+SELECT alias1.dt_field AS field1
+FROM (SELECT t2.c2n AS dt_field
+FROM t2 LEFT JOIN t1
+ON t2.c2k = t1.c1k
+) AS alias1
+RIGHT JOIN t2 AS alias2
+ON alias2.c2n = alias1.dt_field;
+field1
+ff
+tt
+cc
+cc
+cc
+cc
+rr
+kk
+prepare s from 'SELECT alias1.dt_field AS field1
+FROM (SELECT t2.c2n AS dt_field
+FROM t2 LEFT JOIN t1
+ON t2.c2k = t1.c1k
+) AS alias1
+RIGHT JOIN t2 AS alias2
+ON alias2.c2n = alias1.dt_field';
+execute s;
+field1
+ff
+tt
+cc
+cc
+cc
+cc
+rr
+kk
+deallocate prepare s;
+SELECT alias1.v_field AS field1
+FROM vl AS alias1
+RIGHT JOIN t2 AS alias2
+ON alias2.c2n = alias1.v_field;
+field1
+ff
+tt
+cc
+cc
+cc
+cc
+rr
+kk
+SELECT alias1.v_field AS field1
+FROM vr AS alias1
+RIGHT JOIN t2 AS alias2
+ON alias2.c2n = alias1.v_field;
+field1
+ff
+tt
+cc
+cc
+cc
+cc
+rr
+kk
+SELECT alias1.dt_field AS field1
+FROM (SELECT t2.c2n AS dt_field
+FROM t1 RIGHT JOIN
+(empty RIGHT JOIN t2
+ON TRUE)
+ON t2.c2k = t1.c1k
+) AS alias1
+RIGHT JOIN t2 AS alias2
+ON alias2.c2n = alias1.dt_field;
+field1
+ff
+tt
+cc
+cc
+cc
+cc
+rr
+kk
+SELECT alias1.dt_field AS field1
+FROM (SELECT t2.c2n AS dt_field
+FROM t1 RIGHT JOIN
+(t2 LEFT JOIN empty
+ON TRUE)
+ON t2.c2k = t1.c1k
+) AS alias1
+RIGHT JOIN t2 AS alias2
+ON alias2.c2n = alias1.dt_field;
+field1
+ff
+tt
+cc
+cc
+cc
+cc
+rr
+kk
+DROP VIEW vl, vr;
+DROP TABLE t1, t2, empty;

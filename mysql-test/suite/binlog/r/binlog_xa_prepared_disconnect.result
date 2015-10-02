@@ -36,21 +36,18 @@ formatID	gtrid_length	bqual_length	data
 XA COMMIT 'trx1tmp';
 KILL connection CONN_ID;
 XA COMMIT 'trx3tmp';
-XA START   'trx1ro';
+XA START   'trx1ro1';
 SELECT * from t ORDER BY a;
-a
-XA END     'trx1ro';
-XA PREPARE 'trx1ro';
-XA START   'trx2ro';
+XA END     'trx1ro1';
+XA PREPARE 'trx1ro1';
+XA START   'trx2ro1';
 SELECT * from t ORDER BY a;
-a
-XA END     'trx2ro';
-XA PREPARE 'trx2ro';
-XA START   'trx3ro';
+XA END     'trx2ro1';
+XA PREPARE 'trx2ro1';
+XA START   'trx3ro1';
 SELECT * from t ORDER BY a;
-a
-XA END     'trx3ro';
-XA PREPARE 'trx3ro';
+XA END     'trx3ro1';
+XA PREPARE 'trx3ro1';
 *** 4 prepared transactions must be in the list ***
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
@@ -58,18 +55,21 @@ formatID	gtrid_length	bqual_length	data
 1	LEN1	LEN2	TRX_N
 1	LEN1	LEN2	TRX_N
 1	LEN1	LEN2	TRX_N
-XA ROLLBACK 'trx1ro';
+XA COMMIT 'trx1ro1';
 KILL connection CONN_ID;
-XA ROLLBACK 'trx3ro';
-XA START   'trx1empty';
-XA END     'trx1empty';
-XA PREPARE 'trx1empty';
-XA START   'trx2empty';
-XA END     'trx2empty';
-XA PREPARE 'trx2empty';
-XA START   'trx3empty';
-XA END     'trx3empty';
-XA PREPARE 'trx3empty';
+XA COMMIT 'trx3ro1';
+XA START   'trx1ro2';
+SELECT * from t ORDER BY a;
+XA END     'trx1ro2';
+XA PREPARE 'trx1ro2';
+XA START   'trx2ro2';
+SELECT * from t ORDER BY a;
+XA END     'trx2ro2';
+XA PREPARE 'trx2ro2';
+XA START   'trx3ro2';
+SELECT * from t ORDER BY a;
+XA END     'trx3ro2';
+XA PREPARE 'trx3ro2';
 *** 5 prepared transactions must be in the list ***
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
@@ -78,9 +78,52 @@ formatID	gtrid_length	bqual_length	data
 1	LEN1	LEN2	TRX_N
 1	LEN1	LEN2	TRX_N
 1	LEN1	LEN2	TRX_N
-XA COMMIT 'trx1empty';
+XA ROLLBACK 'trx1ro2';
 KILL connection CONN_ID;
-XA COMMIT 'trx3empty';
+XA ROLLBACK 'trx3ro2';
+XA START   'trx1empty1';
+XA END     'trx1empty1';
+XA PREPARE 'trx1empty1';
+XA START   'trx2empty1';
+XA END     'trx2empty1';
+XA PREPARE 'trx2empty1';
+XA START   'trx3empty1';
+XA END     'trx3empty1';
+XA PREPARE 'trx3empty1';
+*** 6 prepared transactions must be in the list ***
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+XA COMMIT 'trx1empty1';
+KILL connection CONN_ID;
+XA COMMIT 'trx3empty1';
+XA START   'trx1empty2';
+XA END     'trx1empty2';
+XA PREPARE 'trx1empty2';
+XA START   'trx2empty2';
+XA END     'trx2empty2';
+XA PREPARE 'trx2empty2';
+XA START   'trx3empty2';
+XA END     'trx3empty2';
+XA PREPARE 'trx3empty2';
+*** 7 prepared transactions must be in the list ***
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+XA ROLLBACK 'trx1empty2';
+KILL connection CONN_ID;
+XA ROLLBACK 'trx3empty2';
 XA START   'trx1unprepared';
 INSERT INTO t set a=0;
 XA END     'trx1unprepared';
@@ -373,81 +416,18 @@ formatID	gtrid_length	bqual_length	data
 XA COMMIT 'trx1tmp';
 KILL connection CONN_ID;
 XA COMMIT 'trx3tmp';
-XA START   'trx1ro';
+XA START   'trx1ro1';
 SELECT * from t ORDER BY a;
-a
-0
-1
-2
-3
-4
-5
-5
-6
-6
-7
-7
-8
-8
-9
-9
-10
-11
-12
-13
-14
-XA END     'trx1ro';
-XA PREPARE 'trx1ro';
-XA START   'trx2ro';
+XA END     'trx1ro1';
+XA PREPARE 'trx1ro1';
+XA START   'trx2ro1';
 SELECT * from t ORDER BY a;
-a
-0
-1
-2
-3
-4
-5
-5
-6
-6
-7
-7
-8
-8
-9
-9
-10
-11
-12
-13
-14
-XA END     'trx2ro';
-XA PREPARE 'trx2ro';
-XA START   'trx3ro';
+XA END     'trx2ro1';
+XA PREPARE 'trx2ro1';
+XA START   'trx3ro1';
 SELECT * from t ORDER BY a;
-a
-0
-1
-2
-3
-4
-5
-5
-6
-6
-7
-7
-8
-8
-9
-9
-10
-11
-12
-13
-14
-XA END     'trx3ro';
-XA PREPARE 'trx3ro';
+XA END     'trx3ro1';
+XA PREPARE 'trx3ro1';
 *** 4 prepared transactions must be in the list ***
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
@@ -455,18 +435,21 @@ formatID	gtrid_length	bqual_length	data
 1	LEN1	LEN2	TRX_N
 1	LEN1	LEN2	TRX_N
 1	LEN1	LEN2	TRX_N
-XA ROLLBACK 'trx1ro';
+XA COMMIT 'trx1ro1';
 KILL connection CONN_ID;
-XA ROLLBACK 'trx3ro';
-XA START   'trx1empty';
-XA END     'trx1empty';
-XA PREPARE 'trx1empty';
-XA START   'trx2empty';
-XA END     'trx2empty';
-XA PREPARE 'trx2empty';
-XA START   'trx3empty';
-XA END     'trx3empty';
-XA PREPARE 'trx3empty';
+XA COMMIT 'trx3ro1';
+XA START   'trx1ro2';
+SELECT * from t ORDER BY a;
+XA END     'trx1ro2';
+XA PREPARE 'trx1ro2';
+XA START   'trx2ro2';
+SELECT * from t ORDER BY a;
+XA END     'trx2ro2';
+XA PREPARE 'trx2ro2';
+XA START   'trx3ro2';
+SELECT * from t ORDER BY a;
+XA END     'trx3ro2';
+XA PREPARE 'trx3ro2';
 *** 5 prepared transactions must be in the list ***
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
@@ -475,9 +458,52 @@ formatID	gtrid_length	bqual_length	data
 1	LEN1	LEN2	TRX_N
 1	LEN1	LEN2	TRX_N
 1	LEN1	LEN2	TRX_N
-XA COMMIT 'trx1empty';
+XA ROLLBACK 'trx1ro2';
 KILL connection CONN_ID;
-XA COMMIT 'trx3empty';
+XA ROLLBACK 'trx3ro2';
+XA START   'trx1empty1';
+XA END     'trx1empty1';
+XA PREPARE 'trx1empty1';
+XA START   'trx2empty1';
+XA END     'trx2empty1';
+XA PREPARE 'trx2empty1';
+XA START   'trx3empty1';
+XA END     'trx3empty1';
+XA PREPARE 'trx3empty1';
+*** 6 prepared transactions must be in the list ***
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+XA COMMIT 'trx1empty1';
+KILL connection CONN_ID;
+XA COMMIT 'trx3empty1';
+XA START   'trx1empty2';
+XA END     'trx1empty2';
+XA PREPARE 'trx1empty2';
+XA START   'trx2empty2';
+XA END     'trx2empty2';
+XA PREPARE 'trx2empty2';
+XA START   'trx3empty2';
+XA END     'trx3empty2';
+XA PREPARE 'trx3empty2';
+*** 7 prepared transactions must be in the list ***
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+1	LEN1	LEN2	TRX_N
+XA ROLLBACK 'trx1empty2';
+KILL connection CONN_ID;
+XA ROLLBACK 'trx3empty2';
 XA START   'trx1unprepared';
 INSERT INTO t set a=0;
 XA END     'trx1unprepared';

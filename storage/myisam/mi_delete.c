@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,20 +46,24 @@ int mi_delete(MI_INFO *info,const uchar *record)
 
   DBUG_EXECUTE_IF("myisam_pretend_crashed_table_on_usage",
                   mi_print_error(info->s, HA_ERR_CRASHED);
-                  DBUG_RETURN(my_errno= HA_ERR_CRASHED););
+                  set_my_errno(HA_ERR_CRASHED);
+                  DBUG_RETURN(HA_ERR_CRASHED););
   DBUG_EXECUTE_IF("my_error_test_undefined_error",
                   mi_print_error(info->s, INT_MAX);
-                  DBUG_RETURN(my_errno= INT_MAX););
+                  set_my_errno(INT_MAX);
+                  DBUG_RETURN(INT_MAX););
   if (!(info->update & HA_STATE_AKTIV))
   {
-    DBUG_RETURN(my_errno=HA_ERR_KEY_NOT_FOUND);	/* No database read */
+    set_my_errno(HA_ERR_KEY_NOT_FOUND);
+    DBUG_RETURN(HA_ERR_KEY_NOT_FOUND);	/* No database read */
   }
   if (share->options & HA_OPTION_READ_ONLY_DATA)
   {
-    DBUG_RETURN(my_errno=EACCES);
+    set_my_errno(EACCES);
+    DBUG_RETURN(EACCES);
   }
   if (_mi_readinfo(info,F_WRLCK,1))
-    DBUG_RETURN(my_errno);
+    DBUG_RETURN(my_errno());
   if (info->s->calc_checksum)
     info->checksum=(*info->s->calc_checksum)(info,record);
   if ((*share->compare_record)(info,record))
@@ -110,7 +114,7 @@ int mi_delete(MI_INFO *info,const uchar *record)
   DBUG_RETURN(0);
 
 err:
-  save_errno=my_errno;
+  save_errno=my_errno();
   mi_sizestore(lastpos,info->lastpos);
   myisam_log_command(MI_LOG_DELETE,info,(uchar*) lastpos, sizeof(lastpos),0);
   if (save_errno != HA_ERR_RECORD_CHANGED)
@@ -120,14 +124,14 @@ err:
   }
   (void) _mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
   info->update|=HA_STATE_WRITTEN;	/* Buffer changed */
-  my_errno=save_errno;
+  set_my_errno(save_errno);
   if (save_errno == HA_ERR_KEY_NOT_FOUND)
   {
     mi_print_error(info->s, HA_ERR_CRASHED);
-    my_errno=HA_ERR_CRASHED;
+    set_my_errno(HA_ERR_CRASHED);
   }
 
-  DBUG_RETURN(my_errno);
+  DBUG_RETURN(my_errno());
 } /* mi_delete */
 
 
@@ -153,13 +157,15 @@ static int _mi_ck_real_delete(MI_INFO *info, MI_KEYDEF *keyinfo,
   if ((old_root=*root) == HA_OFFSET_ERROR)
   {
     mi_print_error(info->s, HA_ERR_CRASHED);
-    DBUG_RETURN(my_errno=HA_ERR_CRASHED);
+    set_my_errno(HA_ERR_CRASHED);
+    DBUG_RETURN(HA_ERR_CRASHED);
   }
   if (!(root_buff= (uchar*) my_alloca((uint) keyinfo->block_length+
 				      MI_MAX_KEY_BUFF*2)))
   {
     DBUG_PRINT("error",("Couldn't allocate memory"));
-    DBUG_RETURN(my_errno=ENOMEM);
+    set_my_errno(ENOMEM);
+    DBUG_RETURN(ENOMEM);
   }
   DBUG_PRINT("info",("root_page: %ld", (long) old_root));
   if (!_mi_fetch_keypage(info,keyinfo,old_root,DFLT_INIT_HITS,root_buff,0))
@@ -270,7 +276,7 @@ static int d_search(MI_INFO *info, MI_KEYDEF *keyinfo,
       if (!(tmp_key_length=(*keyinfo->get_key)(keyinfo,nod_flag,&kpos,lastkey)))
       {
         mi_print_error(info->s, HA_ERR_CRASHED);
-        my_errno= HA_ERR_CRASHED;
+        set_my_errno(HA_ERR_CRASHED);
         DBUG_RETURN(-1);
       }
       root=_mi_dpos(info,nod_flag,kpos);
@@ -309,7 +315,7 @@ static int d_search(MI_INFO *info, MI_KEYDEF *keyinfo,
 					MI_MAX_KEY_BUFF*2)))
     {
       DBUG_PRINT("error",("Couldn't allocate memory"));
-      my_errno=ENOMEM;
+      set_my_errno(ENOMEM);
       DBUG_PRINT("exit",("Return: %d",-1));
       DBUG_RETURN(-1);
     }
@@ -323,7 +329,7 @@ static int d_search(MI_INFO *info, MI_KEYDEF *keyinfo,
     {
       DBUG_PRINT("error",("Didn't find key"));
       mi_print_error(info->s, HA_ERR_CRASHED);
-      my_errno=HA_ERR_CRASHED;		/* This should newer happend */
+      set_my_errno(HA_ERR_CRASHED);		/* This should newer happend */
       goto err;
     }
     save_flag=0;
@@ -387,7 +393,7 @@ static int d_search(MI_INFO *info, MI_KEYDEF *keyinfo,
   DBUG_RETURN(ret_value);
 
 err:
-  DBUG_PRINT("exit",("Error: %d",my_errno));
+  DBUG_PRINT("exit",("Error: %d",my_errno()));
   DBUG_RETURN (-1);
 } /* d_search */
 

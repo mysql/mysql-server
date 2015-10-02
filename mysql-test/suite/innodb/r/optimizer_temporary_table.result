@@ -465,7 +465,7 @@ EXPLAIN
               "a",
               "b"
             ],
-            "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t1`.`b` = `test`.`t2`.`b`), true)"
+            "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t2`.`b` = `test`.`t1`.`b`), true)"
           }
         }
       ]
@@ -473,7 +473,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t1`.`b` = `test`.`t2`.`b`)) where 1 order by `test`.`t1`.`a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`b` = `test`.`t1`.`b`)) where 1 order by `test`.`t1`.`a`
 select * from t1 left join t2 on t1.b = t2.b order by t1.a;
 a	b	a	b
 1	a	NULL	NULL
@@ -2219,7 +2219,7 @@ b	1	2	2.0000	0	2	2	2	2
 c	3	10	3.3333	0.4714045207910316	3	4	0	7
 select sql_big_result * from information_schema.global_variables where variable_name like 'internal_tmp_disk_storage_engine';
 VARIABLE_NAME	VARIABLE_VALUE
-INTERNAL_TMP_DISK_STORAGE_ENGINE	TMP_TABLE_ENGINE
+INTERNAL_TMP_DISK_STORAGE_ENGINE	InnoDB
 select 1 union distinct select 1 union all select 1;
 1
 1
@@ -2400,7 +2400,7 @@ EXPLAIN
               "a",
               "b"
             ],
-            "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t1`.`b` = `test`.`t2`.`b`), true)"
+            "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t2`.`b` = `test`.`t1`.`b`), true)"
           }
         }
       ]
@@ -2408,7 +2408,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t1`.`b` = `test`.`t2`.`b`)) where 1 order by `test`.`t1`.`a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`b` = `test`.`t1`.`b`)) where 1 order by `test`.`t1`.`a`
 select * from t1 left join t2 on t1.b = t2.b order by t1.a;
 a	b	a	b
 2	b	NULL	NULL
@@ -4072,7 +4072,7 @@ b	1	2	2.0000	0	2	2	2	2
 c	3	10	3.3333	0.4714045207910316	3	4	0	7
 select sql_big_result * from information_schema.global_variables where variable_name like 'internal_tmp_disk_storage_engine';
 VARIABLE_NAME	VARIABLE_VALUE
-INTERNAL_TMP_DISK_STORAGE_ENGINE	TMP_TABLE_ENGINE
+INTERNAL_TMP_DISK_STORAGE_ENGINE	InnoDB
 select 1 union distinct select 1 union all select 1;
 1
 1

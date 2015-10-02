@@ -178,6 +178,10 @@ innobase_start_or_create_for_mysql() has executed using the call
 command. */
 /*
 #define UNIV_COMPILE_TEST_FUNCS
+#define UNIV_ENABLE_UNIT_TEST_GET_PARENT_DIR
+#define UNIV_ENABLE_UNIT_TEST_MAKE_FILEPATH
+#define UNIV_ENABLE_UNIT_TEST_DICT_STATS
+#define UNIV_ENABLE_UNIT_TEST_ROW_RAW_FORMAT_INT
 */
 
 #if defined HAVE_VALGRIND
@@ -199,8 +203,6 @@ command. */
 #define UNIV_DEBUG_LOCK_VALIDATE		/* Enable
 						ut_ad(lock_rec_validate_page())
 						assertions. */
-#define UNIV_DEBUG_FILE_ACCESSES		/* Enable freed block access
-						debugging without UNIV_DEBUG */
 #define UNIV_LRU_DEBUG				/* debug the buffer pool LRU */
 #define UNIV_HASH_DEBUG				/* debug HASH_ macros */
 #define UNIV_LOG_LSN_DEBUG			/* write LSN to the redo log;
@@ -213,10 +215,6 @@ and the insert buffer must be empty when the database is started */
 #define UNIV_PERF_DEBUG                         /* debug flag that enables
                                                 light weight performance
                                                 related stuff. */
-#define UNIV_SYNC_DEBUG				/* debug mutex and latch
-operations (very slow); also UNIV_DEBUG must be defined */
-#define UNIV_SYNC_PERF_STAT			/* operation counts for
-						rw-locks and mutexes */
 #define UNIV_SEARCH_PERF_STAT			/* statistics for the
 						adaptive hash index */
 #define UNIV_SRV_PRINT_LATCH_WAITS		/* enable diagnostic output
@@ -578,12 +576,14 @@ functions. */
 
 #ifdef _WIN32
 typedef ulint os_thread_ret_t;
-#define OS_THREAD_DUMMY_RETURN return(0)
-#define OS_PATH_SEPARATOR '\\'
+# define OS_THREAD_DUMMY_RETURN		return(0)
+# define OS_PATH_SEPARATOR		'\\'
+# define OS_PATH_SEPARATOR_ALT		'/'
 #else
 typedef void* os_thread_ret_t;
-#define OS_THREAD_DUMMY_RETURN return(NULL)
-#define OS_PATH_SEPARATOR '/'
+# define OS_THREAD_DUMMY_RETURN		return(NULL)
+# define OS_PATH_SEPARATOR		'/'
+# define OS_PATH_SEPARATOR_ALT		'\\'
 #endif
 
 #include <stdio.h>

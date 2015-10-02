@@ -309,10 +309,11 @@ public:
 		return(insert(tuple, 0));
 	}
 
-	/** Finish bulk load. We commit last page in each level and copy last
-	page in top level to root page of the index if no error occurs.
-	@param[in]	err	error code of insert.
-	@return	error code */
+	/** Btree bulk load finish. We commit the last page in each level
+	and copy the last page in top level to the root page of the index
+	if no error occurs.
+	@param[in]	err	whether bulk load was successful until now
+	@return error code  */
 	dberr_t finish(dberr_t	err);
 
 	/** Release all latches */

@@ -26,6 +26,7 @@
 #include "sql_class.h"                   // THD
 #include "sql_connect.h"                 // close_connection
 #include "sql_parse.h"                   // do_command
+#include "sql_thd_internal_api.h"        // thd_set_thread_stack
 #include "log.h"                         // Error_log_throttle
 
 
@@ -205,7 +206,7 @@ static THD* init_new_thd(Channel_info *channel_info)
     need to know the start of the stack so that we could check for
     stack overruns.
   */
-  thd->thread_stack= (char*) &thd;
+  thd_set_thread_stack(thd, (char*) &thd);
   if (thd->store_globals())
   {
     close_connection(thd, ER_OUT_OF_RESOURCES);
@@ -214,12 +215,6 @@ static THD* init_new_thd(Channel_info *channel_info)
     return NULL;
   }
 
-  /*
-    THD::mysys_var::abort is associated with physical thread rather
-    than with THD object. So we need to reset this flag before using
-    this thread for handling of new THD object/connection.
-  */
-  thd->mysys_var->abort= 0;
   return thd;
 }
 
@@ -293,7 +288,7 @@ extern "C" void *handle_connection(void *arg)
       handler_manager->inc_aborted_connects();
     else
     {
-      while (thd_is_connection_alive(thd))
+      while (thd_connection_alive(thd))
       {
         mysql_audit_release(thd);
         if (do_command(thd))

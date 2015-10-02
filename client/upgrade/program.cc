@@ -26,25 +26,26 @@
 #include "mysqld_error.h"
 #include "my_default.h"
 #include "check/mysqlcheck.h"
-#include "mysql_version.h"
 #include "../scripts/mysql_fix_privilege_tables_sql.c"
 #include "../scripts/sql_commands_sys_schema.h"
 
 #include "base/abstract_connection_program.h"
 #include "base/abstract_options_provider.h"
-#include "show_variable_query_extractor.h"
+#include "base/show_variable_query_extractor.h"
+#include "base/mysql_query_runner.h"
 
 using std::string;
 using std::vector;
+using namespace Mysql::Tools::Base;
 using std::stringstream;
 
 int mysql_check_errors;
 
 const int SYS_TABLE_COUNT = 1;
-const int SYS_VIEW_COUNT = 91;
+const int SYS_VIEW_COUNT = 100;
 const int SYS_TRIGGER_COUNT = 2;
-const int SYS_FUNCTION_COUNT = 14;
-const int SYS_PROCEDURE_COUNT = 22;
+const int SYS_FUNCTION_COUNT = 21;
+const int SYS_PROCEDURE_COUNT = 26;
 
 /**
   Error callback to be called from mysql_check functionality.
@@ -78,6 +79,23 @@ enum exit_codes
   EXIT_UPGRADING_QUERIES_ERROR = 5,
 };
 
+
+class Mysql_connection_holder
+{
+  MYSQL* m_mysql_connection;
+
+public:
+  explicit Mysql_connection_holder(MYSQL *mysql_connection)
+    : m_mysql_connection(mysql_connection)
+  { }
+
+  ~Mysql_connection_holder()
+  {
+    mysql_close(this->m_mysql_connection);
+  }
+};
+
+
 class Program : public Base::Abstract_connection_program
 {
 public:
@@ -102,6 +120,11 @@ public:
     return "MySQL utility for upgrading databases to new MySQL versions.";
   }
 
+  void short_usage()
+  {
+    std::cout << "Usage: " << get_name() <<" [OPTIONS]" << std::endl;
+  }
+
   /**
     Error codes:
     EXIT_INIT_ERROR - Initialization error.
@@ -119,9 +142,11 @@ public:
     setbuf(stdout, NULL);
 
     this->m_mysql_connection= this->create_connection();
+    // Remember to call mysql_close()
+    Mysql_connection_holder connection_holder(m_mysql_connection);
     this->m_query_runner= new Mysql_query_runner(this->m_mysql_connection);
     this->m_query_runner->add_message_callback(new Instance_callback
-      <int, Mysql_message, Program>(this, &Program::print_error));
+      <int64, const Message_data&, Program>(this, &Program::process_error));
 
     /*
       Master and slave should be upgraded separately. All statements executed
@@ -135,13 +160,13 @@ public:
     }
     if (!this->m_write_binlog)
     {
-      if (mysql_query(this->m_mysql_connection, "SET SQL_LOG_BIN=0;") != 0)
+      if (mysql_query(this->m_mysql_connection, "SET SQL_LOG_BIN=0") != 0)
       {
         return this->print_error(1, "Cannot setup server variables.");
       }
     }
 
-    if (mysql_query(this->m_mysql_connection, "USE mysql;") != 0)
+    if (mysql_query(this->m_mysql_connection, "USE mysql") != 0)
     {
       return this->print_error(1, "Cannot select database.");
     }
@@ -473,39 +498,44 @@ public:
       ->set_value(false);
   }
 
-  void error(int error_code)
+  void error(const Message_data& message)
   {
     std::cerr << "Upgrade process encountered error and will not continue."
       << std::endl;
 
-    exit(error_code);
+    exit(message.get_code());
   }
 
 private:
   /**
-    Prints errors, warnings and notes to standard error.
+    Process messages and decides if to prints them.
    */
-  int print_error(Mysql_message message)
+  int64 process_error(const Message_data& message)
   {
-    String error;
-    uint dummy_errors;
-    error.copy("error", 5, &my_charset_latin1,
-      this->m_mysql_connection->charset, &dummy_errors);
-
-    bool is_error = my_strcasecmp(this->m_mysql_connection->charset,
-      message.severity.c_str(), error.c_ptr()) == 0;
-    if (this->m_temporary_verbose || is_error)
+    if (this->m_temporary_verbose
+      || message.get_message_type() == Message_type_error)
     {
-      std::cerr << this->get_name() << ": [" << message.severity << "] "
-        << message.code << ": " << message.message << std::endl;
+      message.print_error(this->get_name());
     }
-    if (this->m_ignore_errors == false && is_error)
+    if (this->m_ignore_errors == false
+      && message.get_message_type() == Message_type_error)
     {
-      return message.code;
+      return message.get_code();
     }
     return 0;
   }
 
+  /**
+    Process warning messages during upgrades.
+   */
+  void process_warning(const Message_data& message)
+  {
+    if (this->m_temporary_verbose &&
+        message.get_message_type() == Message_type_warning)
+    {
+      message.print_error(this->get_name());
+    }
+  }
   /**
     Prints error occurred in main routine.
    */
@@ -520,18 +550,19 @@ private:
     version executing all the SQL commands
     compiled into the mysql_fix_privilege_tables array
    */
-  int run_sql_fix_privilege_tables()
+  int64 run_sql_fix_privilege_tables()
   {
     const char **query_ptr;
-    int result;
+    int64 result;
 
     Mysql_query_runner runner(*this->m_query_runner);
-    runner.add_result_callback(
-      new Instance_callback<int, vector<string>, Program>(
-      this, &Program::result_callback));
-    runner.add_message_callback(
-      new Instance_callback<int, Mysql_message, Program>(
-      this, &Program::fix_privilage_tables_error));
+    Instance_callback<int64, const Mysql_query_runner::Row&, Program>
+      result_cb(this, &Program::result_callback);
+    Instance_callback<int64, const Message_data&, Program>
+      message_cb(this, &Program::fix_privilage_tables_error);
+
+    runner.add_result_callback(&result_cb);
+    runner.add_message_callback(&message_cb);
 
     this->print_verbose_message("Running queries to upgrade MySQL server.");
 
@@ -566,12 +597,13 @@ private:
     int result;
 
     Mysql_query_runner runner(*this->m_query_runner);
-    runner.add_result_callback(
-      new Instance_callback<int, vector<string>, Program>(
-      this, &Program::result_callback));
-    runner.add_message_callback(
-      new Instance_callback<int, Mysql_message, Program>(
-      this, &Program::fix_privilage_tables_error));
+    Instance_callback<int64, const Mysql_query_runner::Row&, Program>
+      result_cb(this, &Program::result_callback);
+    Instance_callback<int64, const Message_data&, Program>
+      message_cb(this, &Program::fix_privilage_tables_error);
+
+    runner.add_result_callback(&result_cb);
+    runner.add_message_callback(&message_cb);
 
     this->print_verbose_message("Upgrading the sys schema.");
 
@@ -594,11 +626,15 @@ private:
     Gets path to file to write upgrade info into. Path is based on datadir of
     server.
    */
-  int get_upgrade_info_file_name(char* name)
+  int64 get_upgrade_info_file_name(char* name)
   {
     string datadir;
-    int res= Show_variable_query_extractor::get_variable_value(
-      this->m_query_runner, "datadir", &datadir);
+    bool exists;
+
+    int64 res= Show_variable_query_extractor::get_variable_value(
+      this->m_query_runner, "datadir", datadir, exists);
+
+    res |= !exists;
     if (res != 0)
     {
       return res;
@@ -705,11 +741,12 @@ private:
   bool is_version_matching()
   {
     string version;
+    bool exists;
 
     this->print_verbose_message("Checking server version.");
 
     if (Show_variable_query_extractor::get_variable_value(
-      this->m_query_runner, "version", &version) != 0)
+      this->m_query_runner, "version", version, exists) != 0)
     {
       return false;
     }
@@ -742,61 +779,52 @@ private:
   /**
     Server message callback to be called during execution of upgrade queries.
    */
-  int fix_privilage_tables_error(Mysql_message message)
+  int64 fix_privilage_tables_error(const Message_data& message)
   {
-    String error;
-    uint dummy_errors;
-    error.copy("error", 5, &my_charset_latin1,
-      this->m_mysql_connection->charset, &dummy_errors);
-
-    bool is_error = my_strcasecmp(this->m_mysql_connection->charset,
-      message.severity.c_str(), error.c_ptr()) == 0;
-
     // This if it is error message and if it is not expected one.
-    if (this->m_temporary_verbose ||
-      (is_error && is_expected_error(message.code) == false))
+    if (message.get_message_type() == Message_type_error
+        && is_expected_error(message.get_code()) == false)
     {
       // Pass this message to other callbacks, i.e. print_error to be printed out.
       return 0;
     }
+    process_warning(message);
     // Do not pass filtered out messages to other callbacks, i.e. print_error.
     return -1;
   }
 
-  int result_callback(vector<string> result_row)
+  int64 result_callback(const Mysql_query_runner::Row& result_row)
   {
     /*
      This is an old hacky way used in upgrade queries to show warnings from
      executed queries in fix_privilege_tables. It is not result from
-     "SHOW WARNINGS;" query.
+     "SHOW WARNINGS" query.
      */
-    for (vector<string>::iterator it= result_row.begin();
-      it != result_row.end();
-      it++)
+    if (result_row.size() == 1 && !(result_row.is_value_null(0)))
     {
       String error;
       uint dummy_errors;
       error.copy("warning:", 8, &my_charset_latin1,
         this->m_mysql_connection->charset, &dummy_errors);
-      String result((*it).c_str(), (*it).length(),
-        this->m_mysql_connection->charset);
+      std::string result= result_row[0];
       result= result.substr(0, 8);
 
       if (my_strcasecmp(this->m_mysql_connection->charset,
-        result.c_ptr(), error.c_ptr()) == 0)
+        result.c_str(), error.c_ptr()) == 0)
       {
-        std::cerr << *it << std::endl;
+        std::cerr << result_row[0] << std::endl;
       }
     }
+    Mysql_query_runner::cleanup_result(result_row);
     return 0;
   }
 
   /**
     Checks if given error code is expected during upgrade queries execution.
    */
-  bool is_expected_error(int error_no)
+  bool is_expected_error(int64 error_no)
   {
-    static const int expected_errors[]=
+    static const int64 expected_errors[]=
     {
       ER_DUP_FIELDNAME, /* Duplicate column name */
       ER_DUP_KEYNAME, /* Duplicate key name */
@@ -804,7 +832,7 @@ private:
       0
     };
 
-    const int* expected_error= expected_errors;
+    const int64* expected_error= expected_errors;
     while (*expected_error)
     {
       if (*expected_error == error_no)

@@ -1,5 +1,4 @@
-/* Copyright (c) 2000, 2001, 2005-2007 MySQL AB
-   Use is subject to license terms
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,15 +35,16 @@ int mi_rsame_with_pos(MI_INFO *info, uchar *record, int inx, my_off_t filepos)
   if (inx < -1 ||
       (inx >= 0 && ! mi_is_key_active(info->s->state.key_map, inx)))
   {
-    DBUG_RETURN(my_errno=HA_ERR_WRONG_INDEX);
+    set_my_errno(HA_ERR_WRONG_INDEX);
+    DBUG_RETURN(HA_ERR_WRONG_INDEX);
   }
 
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   if ((*info->s->read_rnd)(info,record,filepos,0))
   {
-    if (my_errno == HA_ERR_RECORD_DELETED)
-      my_errno=HA_ERR_KEY_NOT_FOUND;
-    DBUG_RETURN(my_errno);
+    if (my_errno() == HA_ERR_RECORD_DELETED)
+      set_my_errno(HA_ERR_KEY_NOT_FOUND);
+    DBUG_RETURN(my_errno());
   }
   info->lastpos=filepos;
   info->lastinx=inx;

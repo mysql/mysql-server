@@ -22,6 +22,8 @@
 
 #define MAX_DIGEST_STORAGE_SIZE (1024*1024)
 
+ulong get_max_digest_length();
+
 /**
   Structure to store token count/array for a statement
   on which digest is to be calculated.
@@ -41,6 +43,9 @@ struct sql_digest_storage
     For Example:
     SELECT * FROM T1;
     &lt;SELECT_TOKEN&gt; &lt;*&gt; &lt;FROM_TOKEN&gt; &lt;ID_TOKEN&gt; &lt;2&gt; &lt;T1&gt;
+
+    @note Only the first @c m_byte_count bytes are initialized,
+      out of @c m_token_array_length.
   */
   unsigned char *m_token_array;
   /* Length of the token array to be considered for DIGEST_TEXT calculation. */
@@ -63,10 +68,6 @@ struct sql_digest_storage
     m_full= false;
     m_byte_count= 0;
     m_charset_number= 0;
-    if (m_token_array_length > 0)
-    {
-      memset(m_token_array, 0, m_token_array_length);
-    }
     memset(m_md5, 0, MD5_HASH_SIZE);
   }
 

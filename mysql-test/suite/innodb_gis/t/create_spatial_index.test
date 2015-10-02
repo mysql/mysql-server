@@ -86,6 +86,8 @@ VALUES(10,ST_GeomFromText('POINT(160 160)'),ST_GeomFromText('LINESTRING(140 140,
 ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'),
 ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'));
 
+ANALYZE TABLE tab;
+
 # Check the spatial relationship between 2 GIS shapes
 
 # Test the MBRContains
@@ -468,6 +470,8 @@ VALUES(10,ST_GeomFromText('POINT(160 160)'),ST_GeomFromText('LINESTRING(140 140,
 ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'),
 ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'));
 
+ANALYZE TABLE tab;
+
 # Check the spatial relationship between 2 GIS shapes
 
 # Test the MBRContains
@@ -838,6 +842,8 @@ VALUES(ST_GeomFromText('POINT(160 160)'),ST_GeomFromText('LINESTRING(140 140,150
 ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'),
 ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'));
 
+ANALYZE TABLE tab;
+
 # Check the spatial relationship between 2 GIS shapes
 
 # Test the MBRContains
@@ -1120,7 +1126,7 @@ SHOW CREATE TABLE tab;
 
 SHOW INDEX FROM tab;
 
-set @g1 = ST_GeomFromText('POINT(-1 -2))');
+set @g1 = ST_GeomFromText('POINT(-1 -2)');
 
 SELECT ST_AsText(c1) FROM tab;
 

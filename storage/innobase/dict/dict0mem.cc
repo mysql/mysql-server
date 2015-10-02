@@ -99,7 +99,9 @@ dict_mem_table_create(
 	const char*	name,	/*!< in: table name */
 	ulint		space,	/*!< in: space where the clustered index of
 				the table is placed */
-	ulint		n_cols,	/*!< in: number of columns */
+	ulint		n_cols,	/*!< in: total number of columns including
+				virtual and non-virtual columns */
+	ulint		n_v_cols,/*!< in: number of virtual columns */
 	ulint		flags,	/*!< in: table flags */
 	ulint		flags2)	/*!< in: table flags2 */
 {
@@ -127,13 +129,15 @@ dict_mem_table_create(
 	table->flags2 = (unsigned int) flags2;
 	table->name.m_name = mem_strdup(name);
 	table->space = (unsigned int) space;
-	table->n_cols = (unsigned int) (n_cols +
+	table->n_t_cols = (unsigned int) (n_cols +
 			dict_table_get_n_sys_cols(table));
+	table->n_v_cols = (unsigned int) (n_v_cols);
+	table->n_cols = table->n_t_cols - table->n_v_cols;
 
 	table->cols = static_cast<dict_col_t*>(
-		mem_heap_alloc(heap,
-			       (n_cols + dict_table_get_n_sys_cols(table))
-				* sizeof(dict_col_t)));
+		mem_heap_alloc(heap, table->n_cols * sizeof(dict_col_t)));
+	table->v_cols = static_cast<dict_v_col_t*>(
+		mem_heap_alloc(heap, n_v_cols * sizeof(*table->v_cols)));
 
 	/* true means that the stats latch will be enabled -
 	dict_table_stats_lock() will not be noop. */
@@ -277,13 +281,17 @@ dict_mem_table_add_col(
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 	ut_ad(!heap == !name);
 
+	ut_ad(!(prtype & DATA_VIRTUAL));
+
 	i = table->n_def++;
 
+	table->n_t_def++;
+
 	if (name) {
-		if (UNIV_UNLIKELY(table->n_def == table->n_cols)) {
+		if (table->n_def == table->n_cols) {
 			heap = table->heap;
 		}
-		if (UNIV_LIKELY(i) && UNIV_UNLIKELY(!table->col_names)) {
+		if (i && !table->col_names) {
 			/* All preceding column names are empty. */
 			char* s = static_cast<char*>(
 				mem_heap_zalloc(heap, table->n_def));
@@ -300,6 +308,79 @@ dict_mem_table_add_col(
 	dict_mem_fill_column_struct(col, i, mtype, prtype, len);
 }
 
+/** Adds a virtual column definition to a table.
+@param[in,out]	table		table
+@param[in,out]	heap		temporary memory heap, or NULL. It is
+				used to store name when we have not finished
+				adding all columns. When all columns are
+				added, the whole name will copy to memory from
+				table->heap
+@param[in]	name		column name
+@param[in]	mtype		main datatype
+@param[in]	prtype		precise type
+@param[in]	len		length
+@param[in]	pos		position in a table
+@param[in]	num_base	number of base columns
+@return the virtual column definition */
+dict_v_col_t*
+dict_mem_table_add_v_col(
+	dict_table_t*	table,
+	mem_heap_t*	heap,
+	const char*	name,
+	ulint		mtype,
+	ulint		prtype,
+	ulint		len,
+	ulint		pos,
+	ulint		num_base)
+{
+	dict_v_col_t*	v_col;
+	ulint		i;
+
+	ut_ad(table);
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+	ut_ad(!heap == !name);
+
+	ut_ad(prtype & DATA_VIRTUAL);
+
+	i = table->n_v_def++;
+
+	table->n_t_def++;
+
+	if (name != NULL) {
+		if (table->n_v_def == table->n_v_cols) {
+			heap = table->heap;
+		}
+
+		if (i && !table->v_col_names) {
+			/* All preceding column names are empty. */
+			char* s = static_cast<char*>(
+				mem_heap_zalloc(heap, table->n_v_def));
+
+			table->v_col_names = s;
+		}
+
+		table->v_col_names = dict_add_col_name(table->v_col_names,
+						       i, name, heap);
+	}
+
+	v_col = dict_table_get_nth_v_col(table, i);
+
+	dict_mem_fill_column_struct(&v_col->m_col, pos, mtype, prtype, len);
+	v_col->v_pos = i;
+
+	if (num_base != 0) {
+		v_col->base_col = static_cast<dict_col_t**>(mem_heap_zalloc(
+					table->heap, num_base * sizeof(
+						*v_col->base_col)));
+	} else {
+		v_col->base_col = NULL;
+	}
+
+	v_col->num_base = num_base;
+
+	return(v_col);
+}
+
 /**********************************************************************//**
 Renames a column of a table in the data dictionary cache. */
 static __attribute__((nonnull))
@@ -309,8 +390,14 @@ dict_mem_table_col_rename_low(
 	dict_table_t*	table,	/*!< in/out: table */
 	unsigned	i,	/*!< in: column offset corresponding to s */
 	const char*	to,	/*!< in: new column name */
-	const char*	s)	/*!< in: pointer to table->col_names */
+	const char*	s,	/*!< in: pointer to table->col_names */
+	bool		is_virtual)
+				/*!< in: if this is a virtual column */
 {
+	char*	t_col_names = const_cast<char*>(
+		is_virtual ? table->v_col_names : table->col_names);
+	ulint	n_col = is_virtual ? table->n_v_def : table->n_def;
+
 	size_t from_len = strlen(s), to_len = strlen(to);
 
 	ut_ad(i < table->n_def);
@@ -325,13 +412,13 @@ dict_mem_table_col_rename_low(
 		/* We need to adjust all affected index->field
 		pointers, as in dict_index_add_col(). First, copy
 		table->col_names. */
-		ulint	prefix_len	= s - table->col_names;
+		ulint	prefix_len	= s - t_col_names;
 
-		for (; i < table->n_def; i++) {
+		for (; i < n_col; i++) {
 			s += strlen(s) + 1;
 		}
 
-		ulint	full_len	= s - table->col_names;
+		ulint	full_len	= s - t_col_names;
 		char*	col_names;
 
 		if (to_len > from_len) {
@@ -340,14 +427,14 @@ dict_mem_table_col_rename_low(
 					table->heap,
 					full_len + to_len - from_len));
 
-			memcpy(col_names, table->col_names, prefix_len);
+			memcpy(col_names, t_col_names, prefix_len);
 		} else {
-			col_names = const_cast<char*>(table->col_names);
+			col_names = const_cast<char*>(t_col_names);
 		}
 
 		memcpy(col_names + prefix_len, to, to_len);
 		memmove(col_names + prefix_len + to_len,
-			table->col_names + (prefix_len + from_len),
+			t_col_names + (prefix_len + from_len),
 			full_len - (prefix_len + from_len));
 
 		/* Replace the field names in every index. */
@@ -360,8 +447,16 @@ dict_mem_table_col_rename_low(
 				dict_field_t*	field
 					= dict_index_get_nth_field(
 						index, i);
+
+				/* if is_virtual and that in field->col does
+				not match, continue */
+				if ((!is_virtual) !=
+				    (!dict_col_is_virtual(field->col))) {
+					continue;
+				}
+
 				ulint		name_ofs
-					= field->name - table->col_names;
+					= field->name - t_col_names;
 				if (name_ofs <= prefix_len) {
 					field->name = col_names + name_ofs;
 				} else {
@@ -372,7 +467,16 @@ dict_mem_table_col_rename_low(
 			}
 		}
 
-		table->col_names = col_names;
+		if (is_virtual) {
+			table->v_col_names = col_names;
+		} else {
+			table->col_names = col_names;
+		}
+	}
+
+	/* Virtual columns are not allowed for foreign key */
+	if (is_virtual) {
+		return;
 	}
 
 	dict_foreign_t*	foreign;
@@ -438,11 +542,14 @@ dict_mem_table_col_rename(
 	dict_table_t*	table,	/*!< in/out: table */
 	unsigned	nth_col,/*!< in: column index */
 	const char*	from,	/*!< in: old column name */
-	const char*	to)	/*!< in: new column name */
+	const char*	to,	/*!< in: new column name */
+	bool		is_virtual)
+				/*!< in: if this is a virtual column */
 {
-	const char*	s = table->col_names;
+	const char*	s = is_virtual ? table->v_col_names : table->col_names;
 
-	ut_ad(nth_col < table->n_def);
+	ut_ad((!is_virtual && nth_col < table->n_def)
+	       || (is_virtual && nth_col < table->n_v_def));
 
 	for (unsigned i = 0; i < nth_col; i++) {
 		size_t	len = strlen(s);
@@ -454,7 +561,7 @@ dict_mem_table_col_rename(
 	Proceed with the renaming anyway. */
 	ut_ad(!strcmp(from, s));
 
-	dict_mem_table_col_rename_low(table, nth_col, to, s);
+	dict_mem_table_col_rename_low(table, nth_col, to, s, is_virtual);
 }
 
 /**********************************************************************//**
@@ -518,12 +625,12 @@ dict_mem_index_create(
 	dict_index_zip_pad_mutex_create_lazy(index);
 
 	if (type & DICT_SPATIAL) {
-		mutex_create("rtr_ssn_mutex", &index->rtr_ssn.mutex);
+		mutex_create(LATCH_ID_RTR_SSN_MUTEX, &index->rtr_ssn.mutex);
 		index->rtr_track = static_cast<rtr_info_track_t*>(
 					mem_heap_alloc(
 						heap,
 						sizeof(*index->rtr_track)));
-		mutex_create("rtr_active_mutex",
+		mutex_create(LATCH_ID_RTR_ACTIVE_MUTEX,
 			     &index->rtr_track->rtr_active_mutex);
 		index->rtr_track->rtr_active = UT_NEW_NOKEY(rtr_info_active());
 	}

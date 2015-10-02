@@ -47,7 +47,7 @@ ERROR 55555: Message
 drop procedure p;
 drop procedure p2;
 drop procedure p3;
-SET sql_mode='STRICT_ALL_TABLES';
+SET sql_mode=default;
 create procedure p()
 begin
 declare utf8_var VARCHAR(128) CHARACTER SET UTF8;
@@ -87,5 +87,3 @@ drop procedure p;
 drop procedure p2;
 drop procedure p3;
 SET @@sql_mode=@save_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.

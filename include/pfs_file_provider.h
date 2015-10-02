@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
   Performance schema instrumentation (declarations).
 */
 
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+#ifdef HAVE_PSI_FILE_INTERFACE
 #ifdef MYSQL_SERVER
 #ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_DYNAMIC_PLUGIN
@@ -61,6 +61,9 @@ PSI_file* pfs_end_file_open_wait_v1(PSI_file_locker *locker, void *result);
 void pfs_end_file_open_wait_and_bind_to_descriptor_v1
   (PSI_file_locker *locker, File file);
 
+void pfs_end_temp_file_open_wait_and_bind_to_descriptor_v1
+  (PSI_file_locker *locker, File file, const char *filename);
+
 void pfs_start_file_wait_v1(PSI_file_locker *locker,
                             size_t count,
                             const char *src_file,
@@ -80,7 +83,7 @@ C_MODE_END
 #endif /* EMBEDDED_LIBRARY */
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */
-#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+#endif /* HAVE_PSI_FILE_INTERFACE */
 
 #endif
 

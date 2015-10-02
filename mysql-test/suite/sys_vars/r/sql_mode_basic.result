@@ -1,11 +1,11 @@
 SET @global_start_value = @@global.sql_mode;
 SELECT @global_start_value;
 @global_start_value
-ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 SET @session_start_value = @@session.sql_mode;
 SELECT @session_start_value;
 @session_start_value
-ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 '#--------------------FN_DYNVARS_152_01------------------------#'
 SET @@global.sql_mode = ANSI;
 Warnings:
@@ -13,14 +13,14 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 SET @@global.sql_mode = DEFAULT;
 SELECT @@global.sql_mode;
 @@global.sql_mode
-ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 SET @@session.sql_mode = ANSI;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET @@session.sql_mode = DEFAULT;
 SELECT @@session.sql_mode;
 @@session.sql_mode
-ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 '#---------------------FN_DYNVARS_152_02-------------------------#'
 SET @@global.sql_mode = NULL;
 ERROR 42000: Variable 'sql_mode' can't be set to the value of 'NULL'
@@ -54,6 +54,8 @@ SELECT @@global.sql_mode;
 @@global.sql_mode
 REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
 SET @@global.sql_mode = STRICT_TRANS_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 STRICT_TRANS_TABLES
@@ -62,7 +64,7 @@ Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
-STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 SET @@global.sql_mode = ALLOW_INVALID_DATES;
 SELECT @@global.sql_mode;
 @@global.sql_mode
@@ -73,10 +75,10 @@ SELECT @@global.sql_mode;
 ANSI_QUOTES
 SET @@global.sql_mode = ERROR_FOR_DIVISION_BY_ZERO;
 Warnings:
-Warning	3027	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
-
+ERROR_FOR_DIVISION_BY_ZERO
 SET @@global.sql_mode = HIGH_NOT_PRECEDENCE;
 SELECT @@global.sql_mode;
 @@global.sql_mode
@@ -125,16 +127,16 @@ SELECT @@global.sql_mode;
 NO_UNSIGNED_SUBTRACTION
 SET @@global.sql_mode = NO_ZERO_DATE;
 Warnings:
-Warning	3027	'NO_ZERO_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
-
+NO_ZERO_DATE
 SET @@global.sql_mode = NO_ZERO_IN_DATE;
 Warnings:
-Warning	3027	'NO_ZERO_IN_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
-
+NO_ZERO_IN_DATE
 SET @@global.sql_mode = ONLY_FULL_GROUP_BY;
 SELECT @@global.sql_mode;
 @@global.sql_mode
@@ -148,10 +150,14 @@ SELECT @@global.sql_mode;
 @@global.sql_mode
 REAL_AS_FLOAT
 SET @@global.sql_mode = STRICT_ALL_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 STRICT_ALL_TABLES
 SET @@global.sql_mode = STRICT_TRANS_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 STRICT_TRANS_TABLES
@@ -192,7 +198,7 @@ Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
-STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 SET @@global.sql_mode = OFF;
 ERROR 42000: Variable 'sql_mode' can't be set to the value of 'OFF'
 SET @@session.sql_mode = ANSI;
@@ -200,6 +206,8 @@ SELECT @@session.sql_mode;
 @@session.sql_mode
 REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
 SET @@session.sql_mode = STRICT_TRANS_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 STRICT_TRANS_TABLES
@@ -208,7 +216,7 @@ Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
-STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 SET @@session.sql_mode = ALLOW_INVALID_DATES;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
@@ -221,10 +229,10 @@ SELECT @@session.sql_mode;
 ANSI_QUOTES
 SET @@session.sql_mode = ERROR_FOR_DIVISION_BY_ZERO;
 Warnings:
-Warning	3027	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
-
+ERROR_FOR_DIVISION_BY_ZERO
 SET @@session.sql_mode = HIGH_NOT_PRECEDENCE;
 SELECT @@session.sql_mode;
 @@session.sql_mode
@@ -275,16 +283,16 @@ SELECT @@session.sql_mode;
 NO_UNSIGNED_SUBTRACTION
 SET @@session.sql_mode = NO_ZERO_DATE;
 Warnings:
-Warning	3027	'NO_ZERO_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
-
+NO_ZERO_DATE
 SET @@session.sql_mode = NO_ZERO_IN_DATE;
 Warnings:
-Warning	3027	'NO_ZERO_IN_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
-
+NO_ZERO_IN_DATE
 SET @@session.sql_mode = ONLY_FULL_GROUP_BY;
 SELECT @@session.sql_mode;
 @@session.sql_mode
@@ -298,10 +306,14 @@ SELECT @@session.sql_mode;
 @@session.sql_mode
 REAL_AS_FLOAT
 SET @@session.sql_mode = STRICT_ALL_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 STRICT_ALL_TABLES
 SET @@session.sql_mode = STRICT_TRANS_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 STRICT_TRANS_TABLES
@@ -346,14 +358,14 @@ Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
-STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 SET @@session.sql_mode = OFF;
 ERROR 42000: Variable 'sql_mode' can't be set to the value of 'OFF'
 SET @@global.sql_mode = '?';
 ERROR 42000: Variable 'sql_mode' can't be set to the value of '?'
 SELECT @@global.sql_mode;
 @@global.sql_mode
-STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 '#--------------------FN_DYNVARS_152_04-------------------------#'
 SET @@global.sql_mode = -1;
 ERROR 42000: Variable 'sql_mode' can't be set to the value of '-1'
@@ -423,13 +435,9 @@ SELECT @@global.sql_mode;
 @@global.sql_mode
 REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,POSTGRESQL,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,MYSQL323,MYSQL40,ANSI,HIGH_NOT_PRECEDENCE
 SET @@global.sql_mode = 4294967295;
-Warnings:
-Warning	3027	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
-Warning	3027	'NO_ZERO_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
-Warning	3027	'NO_ZERO_IN_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
 SELECT @@global.sql_mode;
 @@global.sql_mode
-REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,,,ONLY_FULL_GROUP_BY,NO_UNSIGNED_SUBTRACTION,NO_DIR_IN_CREATE,POSTGRESQL,ORACLE,MSSQL,DB2,MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,MYSQL323,MYSQL40,ANSI,NO_AUTO_VALUE_ON_ZERO,NO_BACKSLASH_ESCAPES,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,ALLOW_INVALID_DATES,TRADITIONAL,NO_AUTO_CREATE_USER,HIGH_NOT_PRECEDENCE,NO_ENGINE_SUBSTITUTION,PAD_CHAR_TO_FULL_LENGTH
+REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,,,ONLY_FULL_GROUP_BY,NO_UNSIGNED_SUBTRACTION,NO_DIR_IN_CREATE,POSTGRESQL,ORACLE,MSSQL,DB2,MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,MYSQL323,MYSQL40,ANSI,NO_AUTO_VALUE_ON_ZERO,NO_BACKSLASH_ESCAPES,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ALLOW_INVALID_DATES,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,HIGH_NOT_PRECEDENCE,NO_ENGINE_SUBSTITUTION,PAD_CHAR_TO_FULL_LENGTH
 SET @@global.sql_mode = 4294967296;
 ERROR 42000: Variable 'sql_mode' can't be set to the value of '4294967296'
 SET @@global.sql_mode = 0.4;
@@ -469,7 +477,7 @@ Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
-ANSI_QUOTES,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,ALLOW_INVALID_DATES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+ANSI_QUOTES,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ALLOW_INVALID_DATES,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 SET @@global.sql_mode = 'ONLY_FULL_GROUP_BY,PIPES_AS_CONCAT,REAL_AS_FLOAT,ORACLE,POSTGRESQL';
 SELECT @@global.sql_mode;
 @@global.sql_mode
@@ -496,10 +504,10 @@ Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
-ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 SET @@session.sql_mode = @session_start_value;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
-ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION

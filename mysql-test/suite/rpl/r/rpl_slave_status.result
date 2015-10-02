@@ -5,13 +5,14 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 ==== Create new replication user ====
 [on master]
-GRANT REPLICATION SLAVE ON *.* TO rpl@127.0.0.1 IDENTIFIED BY 'rpl';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+CREATE USER rpluser_with_length_32_123456789@127.0.0.1 IDENTIFIED BY 'rpl';
+CREATE USER rpluser_with_length_32_1234567890@127.0.0.1 IDENTIFIED BY 'rpl';
+ERROR HY000: String 'rpluser_with_length_32_1234567890' is too long for user name (should be no longer than 32)
+GRANT REPLICATION SLAVE ON *.* TO rpluser_with_length_32_123456789@127.0.0.1;
 [on slave]
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
-CHANGE MASTER TO master_user='rpl', master_password='rpl';
+CHANGE MASTER TO master_user='rpluser_with_length_32_123456789', master_password='rpl';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -27,7 +28,7 @@ n
 1
 ==== Delete new replication user ====
 [on master]
-DROP USER rpl@127.0.0.1;
+DROP USER rpluser_with_length_32_123456789@127.0.0.1;
 FLUSH PRIVILEGES;
 [on slave]
 include/sync_slave_sql_with_master.inc
@@ -38,8 +39,28 @@ include/wait_for_slave_sql_to_start.inc
 include/wait_for_slave_io_to_stop.inc
 ==== Verify that Slave IO thread stopped with error ====
 include/wait_for_slave_io_error.inc [errno=1045]
+[on master]
+SET @save_show_compatibility_56=@@global.show_compatibility_56;
+SET @@global.show_compatibility_56=off;
+CREATE USER rpluser_plain@127.0.0.1 IDENTIFIED BY 'rpl';
+GRANT REPLICATION SLAVE ON *.* TO rpluser_plain@127.0.0.1;
+[on slave]
+include/stop_slave.inc
+CHANGE MASTER TO master_user='rpluser_plain', master_password='rpl';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
+[on master]
+SET @@global.show_compatibility_56=@save_show_compatibility_56;
+DROP USER rpluser_plain@127.0.0.1;
+FLUSH PRIVILEGES;
+[on slave]
+include/stop_slave.inc
 ==== Cleanup (Note that slave IO thread is not running) ====
 include/stop_slave_sql.inc
+Warnings:
+Note	3084	Replication thread(s) for channel '' are already stopped.
 CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.

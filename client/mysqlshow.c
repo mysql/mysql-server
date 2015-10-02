@@ -113,6 +113,7 @@ int main(int argc, char **argv)
   if (argc > 2)
   {
     fprintf(stderr,"%s: Too many arguments\n",my_progname);
+    free_defaults(argv);
     exit(1);
   }
   mysql_init(&mysql);
@@ -168,6 +169,8 @@ int main(int argc, char **argv)
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   my_free(shared_memory_base_name);
 #endif
+  mysql_server_end();
+  free_defaults(argv);
   my_end(my_end_arg);
   exit(error ? 1 : 0);
   return 0;				/* No compiler warnings */
@@ -759,6 +762,7 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
   while ((row=mysql_fetch_row(result)))
     print_res_row(result,row);
   print_res_top(result);
+  mysql_free_result(result);
   if (opt_show_keys)
   {
     my_snprintf(query, sizeof(query), "show keys from `%s`", table);
@@ -777,8 +781,8 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
     }
     else
       puts("Table has no keys");
+    mysql_free_result(result);
   }
-  mysql_free_result(result);
   return 0;
 }
 

@@ -139,7 +139,7 @@ longlong Item_func_spatial_mbr_rel::val_int()
 
 Item_func_spatial_rel::Item_func_spatial_rel(const POS &pos, Item *a,Item *b,
                                              enum Functype sp_rel) :
-    Item_bool_func2(pos, a,b), collector()
+    Item_bool_func2(pos, a,b)
 {
   spatial_rel= sp_rel;
 }
@@ -184,13 +184,10 @@ longlong Item_func_spatial_rel::val_int()
   String *res2= NULL;
   Geometry_buffer buffer1, buffer2;
   Geometry *g1= NULL, *g2= NULL;
-  int result= 0;
-  int mask= 0;
   int tres= 0;
   bool had_except= false;
   my_bool had_error= false;
   String wkt1, wkt2;
-  Gcalc_operation_transporter trn(&func, &collector);
 
   res1= args[0]->val_str(&tmp_value1);
   res2= args[1]->val_str(&tmp_value2);
@@ -232,79 +229,17 @@ longlong Item_func_spatial_rel::val_int()
     else
       tres= geocol_relation_check<double, bgcs::cartesian>(g1, g2);
   }
-  CATCH_ALL(func_name(), { had_except= true; })
+  catch (...)
+  {
+    had_except= true;
+    handle_gis_exception(func_name());
+  }
 
   if (had_except || had_error || null_value)
     DBUG_RETURN(error_int());
 
-  DBUG_RETURN(tres);
-
-  // Start of old GIS algorithms for geometry relationship checks.
-  if (spatial_rel == SP_TOUCHES_FUNC)
-    DBUG_RETURN(func_touches());
-
-  if (func.reserve_op_buffer(1))
-    DBUG_RETURN(0);
-
-  switch (spatial_rel) {
-    case SP_CONTAINS_FUNC:
-      mask= 1;
-      func.add_operation(Gcalc_function::op_backdifference, 2);
-      break;
-    case SP_WITHIN_FUNC:
-      mask= 1;
-      func.add_operation(Gcalc_function::op_difference, 2);
-      break;
-    case SP_EQUALS_FUNC:
-      break;
-    case SP_DISJOINT_FUNC:
-      mask= 1;
-      func.add_operation(Gcalc_function::op_intersection, 2);
-      break;
-    case SP_INTERSECTS_FUNC:
-      func.add_operation(Gcalc_function::op_intersection, 2);
-      break;
-    case SP_OVERLAPS_FUNC:
-      func.add_operation(Gcalc_function::op_backdifference, 2);
-      break;
-    case SP_CROSSES_FUNC:
-      func.add_operation(Gcalc_function::op_intersection, 2);
-      break;
-    default:
-      DBUG_ASSERT(FALSE);
-      break;
-  }
-  if ((null_value= (g1->store_shapes(&trn) || g2->store_shapes(&trn))))
-    goto exit;
-
-#ifndef DBUG_OFF
-  func.debug_print_function_buffer();
-#endif
-
-  collector.prepare_operation();
-  scan_it.init(&collector);
-  /* Note: other functions might be checked here as well. */
-  if (spatial_rel == SP_EQUALS_FUNC ||
-      spatial_rel == SP_WITHIN_FUNC ||
-      spatial_rel == SP_CONTAINS_FUNC)
-  {
-    result= (g1->get_class_info()->m_type_id ==
-             g1->get_class_info()->m_type_id) && func_equals();
-    if (spatial_rel == SP_EQUALS_FUNC ||
-        result) // for SP_WITHIN_FUNC and SP_CONTAINS_FUNC
-      goto exit;
-  }
-
-  if (func.alloc_states())
-    goto exit;
-
-  result= func.find_function(scan_it) ^ mask;
-
 exit:
-  collector.reset();
-  func.reset();
-  scan_it.reset();
-  DBUG_RETURN(result);
+  DBUG_RETURN(tres);
 }
 
 
@@ -478,7 +413,11 @@ geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
         tres= bg_geo_relation_check<Coord_type, Coordsys>
           (*i, (*gvr)[j->second], spatial_rel, &had_error);
       }
-      CATCH_ALL(func_name(), {had_except= true;})
+      catch (...)
+      {
+        had_except= true;
+        handle_gis_exception(func_name());
+      }
 
       if (had_except || had_error)
         return error_int();
@@ -749,7 +688,11 @@ geocol_relcheck_within(const typename BG_geometry_collection::
         tres= bg_geo_relation_check<Coord_type, Coordsys>
           (*i, (*gv2)[j->second], SP_WITHIN_FUNC, &had_error);
       }
-      CATCH_ALL(func_name(), {had_except= true;})
+      catch (...)
+      {
+        had_except= true;
+        handle_gis_exception(func_name());
+      }
 
       if (had_except || had_error || null_value)
         return error_int();

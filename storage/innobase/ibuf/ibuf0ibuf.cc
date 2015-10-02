@@ -57,7 +57,6 @@ my_bool	srv_ibuf_disable_background_merge;
 #include "btr0pcur.h"
 #include "btr0btr.h"
 #include "row0upd.h"
-#include "sync0mutex.h"
 #include "dict0boot.h"
 #include "fut0lst.h"
 #include "lock0lock.h"
@@ -511,11 +510,12 @@ ibuf_init_at_db_start(void)
 	ibuf->max_size = ((buf_pool_get_curr_size() / UNIV_PAGE_SIZE)
 			  * CHANGE_BUFFER_DEFAULT_SIZE) / 100;
 
-	mutex_create("ibuf", &ibuf_mutex);
+	mutex_create(LATCH_ID_IBUF, &ibuf_mutex);
 
-	mutex_create("ibuf_bitmap", &ibuf_bitmap_mutex);
+	mutex_create(LATCH_ID_IBUF_BITMAP, &ibuf_bitmap_mutex);
 
-	mutex_create("ibuf_pessimistic_insert", &ibuf_pessimistic_insert_mutex);
+	mutex_create(LATCH_ID_IBUF_PESSIMISTIC_INSERT,
+		     &ibuf_pessimistic_insert_mutex);
 
 	mtr_start(&mtr);
 
@@ -556,7 +556,7 @@ ibuf_init_at_db_start(void)
 		IBUF_SPACE_ID, DICT_CLUSTERED | DICT_IBUF, 1);
 	ibuf->index->id = DICT_IBUF_ID_MIN + IBUF_SPACE_ID;
 	ibuf->index->table = dict_mem_table_create(
-		"innodb_change_buffer", IBUF_SPACE_ID, 1, 0, 0);
+		"innodb_change_buffer", IBUF_SPACE_ID, 1, 0, 0, 0);
 	ibuf->index->n_uniq = REC_MAX_N_FIELDS;
 	rw_lock_create(index_tree_rw_lock_key, &ibuf->index->lock,
 		       SYNC_IBUF_INDEX_TREE);
@@ -1469,7 +1469,7 @@ ibuf_dummy_index_create(
 	dict_index_t*	index;
 
 	table = dict_mem_table_create("IBUF_DUMMY",
-				      DICT_HDR_SPACE, n,
+				      DICT_HDR_SPACE, n, 0,
 				      comp ? DICT_TF_COMPACT : 0, 0);
 
 	index = dict_mem_index_create("IBUF_DUMMY", "IBUF_DUMMY",
@@ -2133,9 +2133,7 @@ ibuf_remove_free_page(void)
 
 	const page_id_t	page_id(IBUF_SPACE_ID, page_no);
 
-#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
-	buf_page_reset_file_page_was_freed(page_id);
-#endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
+	ut_d(buf_page_reset_file_page_was_freed(page_id));
 
 	ibuf_enter(&mtr);
 
@@ -2177,9 +2175,8 @@ ibuf_remove_free_page(void)
 		bitmap_page, page_id, page_size, IBUF_BITMAP_IBUF, FALSE,
 		&mtr);
 
-#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
-	buf_page_set_file_page_was_freed(page_id);
-#endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
+	ut_d(buf_page_set_file_page_was_freed(page_id));
+
 	ibuf_mtr_commit(&mtr);
 }
 
@@ -2191,12 +2188,7 @@ void
 ibuf_free_excess_pages(void)
 /*========================*/
 {
-	ulint		i;
-
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(fil_space_get_latch(IBUF_SPACE_ID, NULL),
-			  RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(rw_lock_own(fil_space_get_latch(IBUF_SPACE_ID, NULL), RW_LOCK_X));
 
 	ut_ad(rw_lock_get_x_lock_count(
 		fil_space_get_latch(IBUF_SPACE_ID, NULL)) == 1);
@@ -2215,7 +2207,7 @@ ibuf_free_excess_pages(void)
 	/* Free at most a few pages at a time, so that we do not delay the
 	requested service too much */
 
-	for (i = 0; i < 4; i++) {
+	for (ulint i = 0; i < 4; i++) {
 
 		ibool	too_much_free;
 
@@ -2625,9 +2617,9 @@ ibuf_merge_space(
 
 		ut_a(*n_pages > 0 || sum_sizes == 1);
 
-#ifdef UNIV_DEBUG
 		ut_ad(*n_pages <= UT_ARR_SIZE(pages));
 
+#ifdef UNIV_DEBUG
 		for (ulint i = 0; i < *n_pages; ++i) {
 			ut_ad(spaces[i] == space);
 		}
@@ -2839,7 +2831,8 @@ ibuf_get_volume_buffered_hash(
 #else /* UNIV_DEBUG */
 # define ibuf_get_volume_buffered_count(mtr,rec,hash,size,n_recs)	\
 	ibuf_get_volume_buffered_count_func(rec,hash,size,n_recs)
-#endif
+#endif /* UNIV_DEBUG */
+
 /*********************************************************************//**
 Update the estimate of the number of records on a page, and
 get the space taken by merging the buffered record to the index page.
@@ -3286,7 +3279,7 @@ ibuf_get_entry_counter_low_func(
 #else /* UNIV_DEBUG */
 # define ibuf_get_entry_counter(space,page_no,rec,mtr,exact_leaf) \
 	ibuf_get_entry_counter_func(space,page_no,rec,exact_leaf)
-#endif
+#endif /* UNIV_DEBUG */
 
 /****************************************************************//**
 Calculate the counter field for an entry based on the current
@@ -4364,7 +4357,8 @@ ibuf_delete_rec(
 			<< ibuf_count_get(page_id) << " by 1";
 
 		ibuf_count_set(page_id, ibuf_count_get(page_id) - 1);
-#endif
+#endif /* UNIV_IBUF_COUNT_DEBUG */
+
 		return(FALSE);
 	}
 
@@ -4402,7 +4396,8 @@ ibuf_delete_rec(
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
 	ibuf_count_set(page_id, ibuf_count_get(page_id) - 1);
-#endif
+#endif /* UNIV_IBUF_COUNT_DEBUG */
+
 	ibuf_size_update(root);
 	mutex_exit(&ibuf_mutex);
 
@@ -4440,7 +4435,7 @@ ibuf_merge_or_delete_for_page(
 	dtuple_t*	search_tuple;
 #ifdef UNIV_IBUF_DEBUG
 	ulint		volume			= 0;
-#endif
+#endif /* UNIV_IBUF_DEBUG */
 	page_zip_des_t*	page_zip		= NULL;
 	fil_space_t*	space			= NULL;
 	bool		corruption_noticed	= false;
@@ -4995,6 +4990,27 @@ ibuf_check_bitmap_on_import(
 
 		bitmap_page = ibuf_bitmap_get_map_page(
 			page_id_t(space_id, page_no), page_size, &mtr);
+
+		if (buf_page_is_zeroes(bitmap_page, page_size)) {
+			/* This means we got all-zero page instead of
+			ibuf bitmap page. The subsequent page should be
+			all-zero pages. */
+#ifdef UNIV_DEBUG
+			for (ulint curr_page = page_no + 1;
+			     curr_page < page_size.physical(); curr_page++) {
+
+				buf_block_t* block = buf_page_get(
+						page_id_t(space_id, curr_page),
+						page_size,
+						RW_S_LATCH, &mtr);
+	                        page_t*	page = buf_block_get_frame(block);
+				ut_ad(buf_page_is_zeroes(page, page_size));
+			}
+#endif /* UNIV_DEBUG */
+			ibuf_exit(&mtr);
+			mtr_commit(&mtr);
+			continue;
+		}
 
 		for (i = FSP_IBUF_BITMAP_OFFSET + 1;
 		     i < page_size.physical();

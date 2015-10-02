@@ -3481,8 +3481,8 @@ CREATE VIEW v1 AS SELECT f1, f2, f3, 'HELLO' AS my_greeting FROM t1;
 INSERT INTO v1 SET f1 = 1;
 SELECT * from t1;
 DELETE FROM t1;
-# The next INSERTs should never work, because my_greeting is a constant.
---error ER_NON_INSERTABLE_TABLE
+# The next INSERTs should never work, because my_greeting is not a column.
+--error ER_NONUPDATEABLE_COLUMN
 INSERT INTO v1 SET f1 = 1, my_greeting = 'HELLO';
 SELECT * from t1;
 DELETE FROM t1;

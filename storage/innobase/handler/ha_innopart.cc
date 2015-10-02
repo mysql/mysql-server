@@ -63,6 +63,11 @@ const char* sub_sep = "#sp#";
 const char* part_sep = "#P#";
 const char* sub_sep = "#SP#";
 #endif /* _WIN32 */
+
+/* Partition separator for *nix platforms */
+const char* part_sep_nix = "#P#";
+const char* sub_sep_nix = "#SP#";
+
 extern char*	innobase_file_format_max;
 
 Ha_innopart_share::Ha_innopart_share(
@@ -74,7 +79,8 @@ Ha_innopart_share::Ha_innopart_share(
 	m_tot_parts(),
 	m_index_count(),
 	m_ref_count(),
-	m_table_share(table_share)
+	m_table_share(table_share),
+	m_s_templ()
 {}
 
 Ha_innopart_share::~Ha_innopart_share()
@@ -87,6 +93,11 @@ Ha_innopart_share::~Ha_innopart_share()
 	if (m_index_mapping != NULL) {
 		ut_free(m_index_mapping);
 		m_index_mapping = NULL;
+	}
+	if (m_s_templ != NULL) {
+		free_vc_templ(m_s_templ);
+		ut_free(m_s_templ);
+		m_s_templ = NULL;
 	}
 }
 
@@ -116,6 +127,7 @@ Ha_innopart_share::append_sep_and_name(
 {
 	size_t	ret;
 	size_t	sep_len = strlen(sep);
+
 	ut_ad(len > sep_len + strlen(from));
 	ut_ad(to != NULL);
 	ut_ad(from != NULL);
@@ -124,7 +136,14 @@ Ha_innopart_share::append_sep_and_name(
 
 	ret = tablename_to_filename(from, to + sep_len,
 		len - sep_len);
-	partition_name_casedn_str(to);
+
+	/* Don't convert to lower case for nix style name. */
+	if (strcmp(sep, part_sep_nix) != 0
+	    && strcmp(sep, sub_sep_nix) != 0) {
+
+		partition_name_casedn_str(to);
+	}
+
 	return(ret + sep_len);
 }
 
@@ -155,18 +174,26 @@ Ha_innopart_share::open_one_table_part(
 	uint		part_id,
 	const char*	partition_name)
 {
-	m_table_parts[part_id] = dict_table_open_on_name(partition_name,
-					FALSE, TRUE, DICT_ERR_IGNORE_NONE);
+	char	norm_name[FN_REFLEN];
+
+	normalize_table_name(norm_name, partition_name);
+	m_table_parts[part_id] =
+		ha_innobase::open_dict_table(partition_name, norm_name,
+					     TRUE, DICT_ERR_IGNORE_NONE);
+
 	if (m_table_parts[part_id] == NULL) {
 		return(true);
 	}
 
 	dict_table_t *ib_table = m_table_parts[part_id];
 	if ((!DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID)
-	     && m_table_share->fields != dict_table_get_n_user_cols(ib_table))
+	     && m_table_share->fields
+		 != (dict_table_get_n_user_cols(ib_table)
+		     + dict_table_get_n_v_cols(ib_table)))
 	    || (DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID)
 		&& (m_table_share->fields
-		    != dict_table_get_n_user_cols(ib_table) - 1))) {
+		    != dict_table_get_n_user_cols(ib_table)
+		       + dict_table_get_n_v_cols(ib_table) - 1))) {
 		ib::warn() << "Partition `" << get_partition_name(part_id)
 			<< "` contains " << dict_table_get_n_user_cols(ib_table)
 			<< " user defined columns in InnoDB, but "
@@ -189,6 +216,39 @@ Ha_innopart_share::open_one_table_part(
 	the column names etc. in the internal InnoDB meta-data cache. */
 
 	return(false);
+}
+
+/** Set up the virtual column template for partition table, and points
+all m_table_parts[]->vc_templ to it.
+@param[in]	table		MySQL TABLE object
+@param[in]	ib_table	InnoDB dict_table_t
+@param[in]	table_name	Table name (db/table_name) */
+void
+Ha_innopart_share::set_v_templ(
+	TABLE*		table,
+	dict_table_t*	ib_table,
+	const char*	name)
+{
+#ifndef DBUG_OFF
+	if (m_table_share->tmp_table == NO_TMP_TABLE) {
+		mysql_mutex_assert_owner(&m_table_share->LOCK_ha_data);
+	}
+#endif /* DBUG_OFF */
+
+	if (ib_table->n_v_cols > 0) {
+		if (!m_s_templ) {
+			m_s_templ = static_cast<innodb_col_templ_t*>(
+				ut_zalloc_nokey( sizeof *m_s_templ));
+			innobase_build_v_templ(table, ib_table,
+					       m_s_templ, NULL, false, name);
+
+			for (ulint i = 0; i < m_tot_parts; i++) {
+				m_table_parts[i]->vc_templ = m_s_templ;
+			}
+		}
+	} else {
+		ut_ad(!m_s_templ);
+	}
 }
 
 /** Initialize the share with table and indexes per partition.
@@ -250,7 +310,7 @@ Ha_innopart_share::open_table_parts(
 		len = append_sep_and_name(
 				partition_name + table_name_len,
 				part_elem->partition_name,
-				part_sep,
+				part_sep_nix,
 				FN_REFLEN - table_name_len);
 		if (part_info->is_sub_partitioned()) {
 			List_iterator<partition_element>
@@ -261,7 +321,7 @@ Ha_innopart_share::open_table_parts(
 					partition_name
 					+ table_name_len + len,
 					sub_elem->partition_name,
-					sub_sep,
+					sub_sep_nix,
 					FN_REFLEN - table_name_len - len);
 				if (open_one_table_part(i, partition_name)) {
 					goto err;
@@ -406,6 +466,13 @@ Ha_innopart_share::close_table_parts()
 		ut_free(m_index_mapping);
 		m_index_mapping = NULL;
 	}
+
+	if (m_s_templ != NULL) {
+		free_vc_templ(m_s_templ);
+		ut_free(m_s_templ);
+		m_s_templ = NULL;
+	}
+
 	m_tot_parts = 0;
 	m_index_count = 0;
 }
@@ -967,7 +1034,7 @@ share_error:
 		}
 		set_ha_share_ptr(static_cast<Handler_share*>(m_part_share));
 	}
-	if (m_part_share->open_table_parts(m_part_info, norm_name)
+	if (m_part_share->open_table_parts(m_part_info, name)
 	    || m_part_share->populate_partition_name_hash(m_part_info)) {
 		goto share_error;
 	}
@@ -1046,7 +1113,7 @@ share_error:
 	}
 
 	if (!thd_tablespace_op(thd) && no_tablespace) {
-		my_errno = ENOENT;
+                set_my_errno(ENOENT);
 
 		lock_shared_ha_data();
 		m_part_share->close_table_parts();
@@ -1060,6 +1127,12 @@ share_error:
 
 	m_prebuilt->default_rec = table->s->default_values;
 	ut_ad(m_prebuilt->default_rec);
+
+	if (ib_table->n_v_cols > 0) {
+		lock_shared_ha_data();
+		m_part_share->set_v_templ(table, ib_table, name);
+		unlock_shared_ha_data();
+	}
 
 	/* Looks like MySQL-3.23 sometimes has primary key number != 0. */
 	m_primary_key = table->s->primary_key;
@@ -1665,6 +1738,8 @@ ha_innopart::index_init(
 	int	error;
 	uint	part_id = m_part_info->get_first_used_partition();
 	DBUG_ENTER("ha_innopart::index_init");
+
+	active_index = keynr;
 	if (part_id == MY_BIT_NONE) {
 		DBUG_RETURN(0);
 	}
@@ -2606,8 +2681,7 @@ create_table_info_t::set_remote_path_flags()
 			m_remote_path[len] = OS_PATH_SEPARATOR;
 			m_remote_path[len + 1] = '\0';
 		}
-	}
-	else {
+	} else {
 		ut_ad(DICT_TF_HAS_DATA_DIR(m_flags) == 0);
 	}
 }
@@ -2980,7 +3054,7 @@ ha_innopart::truncate()
 
 	DBUG_ENTER("ha_innopart::truncate");
 
-	if (srv_read_only_mode) {
+	if (high_level_read_only) {
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
 

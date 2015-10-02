@@ -42,9 +42,54 @@ typedef struct st_vio Vio;
 
 enum enum_vio_type
 {
-  VIO_TYPE_TCPIP, VIO_TYPE_SOCKET, VIO_TYPE_NAMEDPIPE, VIO_TYPE_SSL, 
-  VIO_TYPE_SHARED_MEMORY
+  /**
+    Type of the connection is unknown.
+  */
+  NO_VIO_TYPE= 0,
+  /**
+    Used in case of TCP/IP connections.
+  */
+  VIO_TYPE_TCPIP= 1,
+  /**
+    Used for Unix Domain socket connections. Unix only.
+  */
+  VIO_TYPE_SOCKET= 2,
+  /**
+    Used for named pipe connections. Windows only.
+  */
+  VIO_TYPE_NAMEDPIPE= 3,
+  /**
+    Used in case of SSL connections.
+  */
+  VIO_TYPE_SSL= 4,
+  /**
+    Used for shared memory connections. Windows only.
+  */
+  VIO_TYPE_SHARED_MEMORY= 5,
+  /**
+    Used internally by the prepared statements
+  */
+  VIO_TYPE_LOCAL= 6,
+  /**
+    Implicitly used by plugins that doesn't support any other VIO_TYPE.
+  */
+  VIO_TYPE_PLUGIN= 7,
+
+  FIRST_VIO_TYPE= VIO_TYPE_TCPIP,
+  /*
+    If a new type is added, please update LAST_VIO_TYPE. In addition, please
+    change get_vio_type_name() in vio/vio.c to return correct name for it.
+  */
+  LAST_VIO_TYPE= VIO_TYPE_PLUGIN
 };
+
+/**
+  Convert a vio type to a printable string.
+  @param vio_type the type
+  @param[out] str the string
+  @param[out] len the string length
+*/
+void get_vio_type_name(enum enum_vio_type vio_type, const char ** str, int * len);
 
 /**
   VIO I/O events.

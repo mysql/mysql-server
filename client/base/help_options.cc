@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 
 using namespace Mysql::Tools::Base::Options;
 using Mysql::Tools::Base::Abstract_program;
+using std::string;
 
 extern const char *load_default_groups[];
 
@@ -38,6 +39,11 @@ void Help_options::create_options()
     ->set_short_character('?')
     ->add_callback(new Instance_callback<void, char*, Help_options>(
     this, &Help_options::help_callback));
+
+  this->create_new_option("version", "Output version information and exit.")
+    ->set_short_character('V')
+    ->add_callback(new Instance_callback<void, char*, Help_options>(
+    this, &Help_options::version_callback));
 }
 
 void Help_options::help_callback(char* argument __attribute__((unused)))
@@ -46,11 +52,31 @@ void Help_options::help_callback(char* argument __attribute__((unused)))
   exit(0);
 }
 
+void Help_options::version_callback(char* argument __attribute__((unused)))
+{
+  this->print_version_line();
+  exit(0);
+}
+
+
+/** A helper function. Prints the program version line. */
+void Help_options::print_version_line()
+{
+  printf("%s  Ver %s Distrib %s, for %s (%s)\n",
+         this->m_program->get_name().c_str(),
+         this->m_program->get_version().c_str(),
+         MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+}
+
+
 void Mysql::Tools::Base::Options::Help_options::print_usage()
 {
+
+  this->print_version_line();
+
   std::string first_year_str=
     (static_cast<std::ostringstream*>(&(
-      std::ostringstream() << this->m_program->get_first_release_year()))
+    std::ostringstream() << this->m_program->get_first_release_year()))
     ->str());
   string copyright;
 
@@ -65,15 +91,12 @@ void Mysql::Tools::Base::Options::Help_options::print_usage()
 
     copyright= ORACLE_WELCOME_COPYRIGHT_NOTICE(FIRST_YEAR_CONSTANT);
     copyright= copyright.replace(copyright.find(first_year_constant_str),
-      first_year_constant_str.length(), first_year_str);
+                                 first_year_constant_str.length(), first_year_str);
   }
 
-  printf("%s  Ver %s Distrib %s, for %s (%s)\n%s\n%s\n",
-    this->m_program->get_name().c_str(),
-    this->m_program->get_version().c_str(),
-    MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE,
-    copyright.c_str(),
-    this->m_program->get_description().c_str());
+  printf("%s\n%s\n",
+         copyright.c_str(),
+         this->m_program->get_description().c_str());
   /*
     Turn default for zombies off so that the help on how to 
     turn them off text won't show up.
@@ -88,7 +111,8 @@ void Mysql::Tools::Base::Options::Help_options::print_usage()
       break;
     }
   }
-  my_print_help(this->m_program->get_options_array());
+  this->m_program->short_usage();
   print_defaults("my", load_default_groups);
+  my_print_help(this->m_program->get_options_array());
   my_print_variables(this->m_program->get_options_array());
 }

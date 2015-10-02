@@ -1,4 +1,4 @@
-/* Copyright (c) 2014 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,6 +48,7 @@ typedef enum enum_field_types {
   MYSQL_TYPE_TIMESTAMP2,
   MYSQL_TYPE_DATETIME2,
   MYSQL_TYPE_TIME2,
+  MYSQL_TYPE_JSON=245,
   MYSQL_TYPE_NEWDECIMAL=246,
   MYSQL_TYPE_ENUM=247,
   MYSQL_TYPE_SET=248,

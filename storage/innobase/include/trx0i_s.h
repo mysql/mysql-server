@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -164,8 +164,6 @@ struct i_s_trx_row_t {
 					/*!< detailed_error in trx_t */
 	ibool		trx_has_search_latch;
 					/*!< has_search_latch in trx_t */
-	ulint		trx_search_latch_timeout;
-					/*!< search_latch_timeout in trx_t */
 	ulint		trx_is_read_only;
 					/*!< trx_t::read_only */
 	ulint		trx_is_autocommit_non_locking;

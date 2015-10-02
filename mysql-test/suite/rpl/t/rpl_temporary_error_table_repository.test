@@ -1,0 +1,89 @@
+# ==== Purpose ====
+# Testing that temporary error is processed
+# when the slave info repository type is TABLE.
+#
+# ==== Implementation ====
+# At applying a transaction the slave applier thread is made blocked
+# to time out. Upon a few retries, zero included,
+# the temporary error gets escalated to the regular and the slave applier stops.
+# After the blocking condition is removed the restarted applier
+# succeeds.
+#
+# ==== References ====
+# BUG#21095969 RPL+LOCK_WAIT_TIMEOUT: BOOL TRANS_CHECK_STATE ASSERTS
+# `THD->GET_TRANSACTION()..`
+
+# This test case is binary log format agnostic though.
+--source include/have_binlog_format_row.inc
+--source include/not_mts_slave_parallel_workers.inc
+--source include/not_group_replication_plugin.inc
+
+--source include/master-slave.inc
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT) ENGINE= InnoDB;
+
+--sync_slave_with_master
+--source include/stop_slave.inc
+SET @saved_slave_transaction_retries = @@GLOBAL.slave_transaction_retries;
+SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
+SET @saved_master_info_repository = @@GLOBAL.master_info_repository;
+SET @saved_relay_log_info_repository = @@GLOBAL.relay_log_info_repository;
+SET @@GLOBAL.innodb_lock_wait_timeout = 1;
+--let $repo_type_name = 'TABLE'
+--replace_result $repo_type_name TYPE
+--eval SET @@GLOBAL.master_info_repository = $repo_type_name
+--replace_result $repo_type_name TYPE
+--eval SET @@GLOBAL.relay_log_info_repository = $repo_type_name
+
+# To block the SQL thread
+--source include/rpl_connection_slave1.inc
+BEGIN;
+INSERT INTO t1 VALUES (7,0);
+
+# Generate data at the master to be replicated
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES (7,7);
+
+# Retry 0 and 1 time to test both execution branches.
+
+--let $retry_counted = 0
+--let $retry_number = 0
+while ($retry_number < 2)
+{
+  --source include/rpl_connection_slave.inc
+  --eval SET @@GLOBAL.slave_transaction_retries = $retry_number
+  --source include/start_slave.inc
+
+  --echo ### Specified retry number is expected ###
+
+  # Notice the status var accumulates retries over the loop
+  --let $retry_counted = `SELECT $retry_counted + $retry_number`
+  --let $status_var = Slave_retried_transactions
+  --let $status_var_value = $retry_counted
+  --source include/wait_for_status_var.inc
+
+  --echo ### Timeout error is expected ###
+
+  --let $slave_sql_errno= convert_error(ER_LOCK_WAIT_TIMEOUT)
+  --source include/wait_for_slave_sql_error.inc
+
+  --inc $retry_number
+}
+
+--source include/rpl_connection_slave1.inc
+ROLLBACK;
+
+--echo #### Cleanup ####
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+SET @@GLOBAL.slave_transaction_retries = @saved_slave_transaction_retries;
+SET @@GLOBAL.master_info_repository = @saved_master_info_repository;
+SET @@GLOBAL.relay_log_info_repository = @saved_relay_log_info_repository;
+SET @@GLOBAL.innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout ;
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc

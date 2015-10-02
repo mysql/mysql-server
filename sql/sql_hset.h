@@ -1,6 +1,6 @@
 #ifndef SQL_HSET_INCLUDED
 #define SQL_HSET_INCLUDED
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,8 +33,9 @@ public:
     Constructs an empty hash. Does not allocate memory, it is done upon
     the first insert. Thus does not cause or return errors.
   */
-  Hash_set()
+  Hash_set(PSI_memory_key psi_key)
   {
+    m_psi_key= psi_key;
     my_hash_clear(&m_hash);
   }
   /**
@@ -56,7 +57,8 @@ public:
   */
   bool insert(T *value)
   {
-    my_hash_init_opt(&m_hash, &my_charset_bin, START_SIZE, 0, 0, K, 0, MYF(0));
+    my_hash_init_opt(&m_hash, &my_charset_bin, START_SIZE, 0, 0, K, 0, MYF(0),
+                     m_psi_key);
     size_t key_len;
     const uchar *key= K(reinterpret_cast<uchar*>(value), &key_len, FALSE);
     if (my_hash_search(&m_hash, key, key_len) == NULL)
@@ -92,6 +94,7 @@ public:
   };
 private:
   HASH m_hash;
+  PSI_memory_key m_psi_key;
 };
 
 #endif // SQL_HSET_INCLUDED

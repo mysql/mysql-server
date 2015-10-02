@@ -15,7 +15,7 @@ FROM information_schema.files WHERE file_id = 0;
 --replace_result ./ MYSQLD_DATADIR/  $MYSQLD_DATADIR/ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR/
 SELECT "==I_S.FILES==", FILE_ID, TABLESPACE_NAME, FILE_NAME, FILE_TYPE, STATUS,
        ENGINE, EXTENT_SIZE, MAXIMUM_SIZE
-FROM information_schema.files WHERE file_id >= 1 and file_id <= 2;
+FROM information_schema.files WHERE file_id >= 1 and file_id <= 2 ORDER BY file_id;
 
 --replace_result ./ MYSQLD_DATADIR/  $MYSQLD_DATADIR/ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR/
 SELECT "==I_S.FILES==", TABLESPACE_NAME, FILE_NAME, FILE_TYPE, STATUS,

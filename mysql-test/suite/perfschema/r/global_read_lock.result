@@ -29,11 +29,13 @@ lock tables performance_schema.setup_instruments write;
 connection default;
 select event_name,
 left(source, locate(":", source)) as short_source,
-timer_end, timer_wait, operation
+if(timer_end IS NULL, NULL, "SET") as timer_end,
+if(timer_wait IS NULL, NULL, "SET") as timer_wait,
+operation
 from performance_schema.events_waits_current
 where event_name like "wait/synch/cond/sql/MDL_context::COND_wait_status";
 event_name	short_source	timer_end	timer_wait	operation
-wait/synch/cond/sql/MDL_context::COND_wait_status	mdl.cc:	NULL	NULL	timed_wait
+wait/synch/cond/sql/MDL_context::COND_wait_status	mdl.cc:	SET	SET	timed_wait
 unlock tables;
 update performance_schema.setup_instruments set enabled='NO';
 update performance_schema.setup_instruments set enabled='YES';

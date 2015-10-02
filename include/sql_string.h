@@ -177,7 +177,7 @@ public:
      m_is_alloced(false)
   { }
   static void *operator new(size_t size, MEM_ROOT *mem_root) throw ()
-  { return (void*) alloc_root(mem_root, size); }
+  { return alloc_root(mem_root, size); }
   static void operator delete(void *ptr_arg, size_t size)
   {
     (void) ptr_arg;
@@ -443,6 +443,7 @@ public:
   bool append(const char *s, size_t arg_length);
   bool append(const char *s, size_t arg_length, const CHARSET_INFO *cs);
   bool append_ulonglong(ulonglong val);
+  bool append_longlong(longlong val);
   bool append(IO_CACHE* file, size_t arg_length);
   bool append_with_prefill(const char *s, size_t arg_length, 
 			   size_t full_length, char fill_char);
@@ -653,4 +654,8 @@ inline LEX_CSTRING to_lex_cstring(const char *s)
   LEX_CSTRING cstr= { s, s != NULL ? strlen(s) : 0 };
   return cstr;
 }
+
+bool
+validate_string(const CHARSET_INFO *cs, const char *str, uint32 length,
+                size_t *valid_length, bool *length_error);
 #endif /* SQL_STRING_INCLUDED */

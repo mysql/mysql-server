@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef _decimal_h
-#define _decimal_h
+#ifndef DECIMAL_INCLUDED
+#define DECIMAL_INCLUDED
 
 typedef enum
 {TRUNCATE=0, HALF_EVEN, HALF_UP, CEILING, FLOOR}
@@ -36,6 +36,7 @@ typedef struct st_decimal_t {
   decimal_digit_t *buf;
 } decimal_t;
 
+#ifndef MYSQL_ABI_CHECK
 int internal_str2dec(const char *from, decimal_t *to, char **end,
                      my_bool fixed);
 int decimal2string(const decimal_t *from, char *to, int *to_len,
@@ -111,9 +112,6 @@ void max_decimal(int precision, int frac, decimal_t *to);
 #define decimal_string_size(dec) (((dec)->intg ? (dec)->intg : 1) + \
 				  (dec)->frac + ((dec)->frac > 0) + 2)
 
-/* negate a decimal */
-#define decimal_neg(dec) do { (dec)->sign^=1; } while(0)
-
 /*
   conventions:
 
@@ -134,5 +132,6 @@ void max_decimal(int precision, int frac, decimal_t *to);
 #define E_DEC_ERROR            31
 #define E_DEC_FATAL_ERROR      30
 
-#endif
+#endif // !MYSQL_ABI_CHECK
 
+#endif

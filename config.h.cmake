@@ -180,6 +180,7 @@
 #cmakedefine HAVE_UINT 1
 #cmakedefine HAVE_ULONG 1
 #cmakedefine HAVE_U_INT32_T 1
+#cmakedefine HAVE_STRUCT_TIMESPEC
 
 /* Code tests*/
 #cmakedefine STACK_DIRECTION @STACK_DIRECTION@
@@ -251,7 +252,6 @@
 #cmakedefine INSTALL_PLUGINTESTDIR "@INSTALL_PLUGINTESTDIR@"
 #cmakedefine INSTALL_INFODIR "@default_prefix@/@INSTALL_INFODIR@"
 #cmakedefine INSTALL_MYSQLTESTDIR "@default_prefix@/@INSTALL_MYSQLTESTDIR@"
-#cmakedefine INSTALL_SQLBENCHDIR "@default_prefix@/@INSTALL_SQLBENCHDIR@"
 #cmakedefine INSTALL_DOCREADMEDIR "@default_prefix@/@INSTALL_DOCREADMEDIR@"
 #cmakedefine INSTALL_DOCDIR "@default_prefix@/@INSTALL_DOCDIR@"
 #cmakedefine INSTALL_MANDIR "@default_prefix@/@INSTALL_MANDIR@"
@@ -337,6 +337,7 @@
  * Performance schema
  */
 #cmakedefine WITH_PERFSCHEMA_STORAGE_ENGINE 1
+#cmakedefine DISABLE_PSI_THREAD 1
 #cmakedefine DISABLE_PSI_MUTEX 1
 #cmakedefine DISABLE_PSI_RWLOCK 1
 #cmakedefine DISABLE_PSI_COND 1
@@ -420,5 +421,7 @@
 
 /* For --secure-file-priv */
 #cmakedefine DEFAULT_SECURE_FILE_PRIV_DIR @DEFAULT_SECURE_FILE_PRIV_DIR@
+#cmakedefine DEFAULT_SECURE_FILE_PRIV_EMBEDDED_DIR @DEFAULT_SECURE_FILE_PRIV_EMBEDDED_DIR@
+#cmakedefine HAVE_LIBNUMA 1
 
 #endif

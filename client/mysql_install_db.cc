@@ -65,7 +65,7 @@ using namespace std;
 #define MYSQL_CERT_SETUP_EXECUTABLE "mysql_ssl_rsa_setup"
 #endif /* HAVE_YASSL */
 #define MAX_MYSQLD_ARGUMENTS 10
-#define MAX_USER_NAME_LEN 16
+#define MAX_USER_NAME_LEN 32
 
 char *opt_euid= 0;
 char *opt_basedir= 0;
@@ -1344,6 +1344,22 @@ static int real_get_defaults_options(int argc, char **argv,
 }
 
 
+class Resource_releaser
+{
+  char **m_argv;
+
+public:
+  explicit Resource_releaser(char **argv)
+    : m_argv(argv) { }
+
+  ~Resource_releaser()
+  {
+    free_defaults(m_argv);
+    my_cleanup_options(my_connection_options);
+  }
+};
+
+
 int main(int argc,char *argv[])
 {
   /*
@@ -1368,6 +1384,9 @@ int main(int argc,char *argv[])
   my_getopt_use_args_separator= TRUE;
   if (load_defaults("my", load_default_groups, &argc, &argv))
     return 1;
+
+  // Remember to call free_defaults() and my_cleanup_options()
+  Resource_releaser resource_releaser(argv);
 
   // Assert that the help messages are in sorted order
   // except that --help must be the first element and 0 must indicate the end.

@@ -300,3 +300,70 @@ let SEARCH_PATTERN= MySQL_Server_.*_Auto_Generated_Client_Certificate;
 
 
 #------------------------------------------------------------------------------
+
+
+--echo #
+--echo # Bug#21025377: CAN'T CONNECT TO SSL ENABLED SERVER FIRST 30 SEC AFTER
+--echo # INITIAL STARTUP
+--echo #
+
+let mysqladmin_log=$MYSQLTEST_VARDIR/log/mysqladmin_log.txt;
+--error 0, 1
+--remove_file $mysqladmin_log
+let CADIR_LOCATION=$MYSQLTEST_VARDIR/tmp/certs;
+
+--error 0, 1
+--rmdir $CADIR_LOCATION
+--mkdir $CADIR_LOCATION
+--exec $MYSQL_SSL_RSA_SETUP --datadir=$CADIR_LOCATION  > /dev/null 2>&1
+
+--echo # Restart the server
+
+let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+--exec echo "wait" > $restart_file
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+
+--remove_file $server_log
+
+--exec echo "restart: --ssl-capath=$CADIR_LOCATION --ssl-ca=$CADIR_LOCATION/ca.pem --ssl-cert=$CADIR_LOCATION/server-cert.pem --ssl-key=$CADIR_LOCATION/server-key.pem" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+--echo # Restart completed.
+
+--exec $MYSQLADMIN --no-defaults --host=127.0.0.1 -P $MASTER_MYPORT --user=unknown_mysql_user ping --ssl > $mysqladmin_log 2>&1
+
+--perl
+  my $file= $ENV{'mysqladmin_log'};
+  my $pattern= "SSL connection error";
+  open(FILE, "$file") or die("unable to open $file: $!\n");
+  my $count = 0;
+  while (<FILE>) {
+    if ($_ =~ m/$pattern/) {
+      $count++;
+      break;
+    }
+  }
+  if ($count == 0){
+    print "No ssl errors found after running mysql server with newely created certs.\n";
+  } else {
+    print "test failed.\n";
+  }
+  close(file);
+EOF
+
+# cleanup
+
+--remove_file $mysqladmin_log
+--remove_file $CADIR_LOCATION/ca.pem
+--remove_file $CADIR_LOCATION/ca-key.pem
+--remove_file $CADIR_LOCATION/server-cert.pem
+--remove_file $CADIR_LOCATION/server-key.pem
+--remove_file $CADIR_LOCATION/client-cert.pem
+--remove_file $CADIR_LOCATION/client-key.pem
+--remove_file $CADIR_LOCATION/private_key.pem
+--remove_file $CADIR_LOCATION/public_key.pem
+
+#------------------------------------------------------------------------------

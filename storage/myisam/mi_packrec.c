@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -147,17 +147,17 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
     myisam_quick_table_bits=MAX_QUICK_TABLE_BITS;
 
   file=info->dfile;
-  my_errno=0;
+  set_my_errno(0);
   if (mysql_file_read(file, (uchar*) header, sizeof(header), MYF(MY_NABP)))
   {
-    if (!my_errno)
-      my_errno=HA_ERR_END_OF_FILE;
+    if (!my_errno())
+      set_my_errno(HA_ERR_END_OF_FILE);
     goto err0;
   }
   /* Only the first three bytes of magic number are independent of version. */
   if (memcmp((uchar*) header, (uchar*) myisam_pack_file_magic, 3))
   {
-    my_errno=HA_ERR_WRONG_IN_RECORD;
+    set_my_errno(HA_ERR_WRONG_IN_RECORD);
     goto err0;
   }
   share->pack.version= header[3]; /* fourth byte of magic number */
@@ -297,7 +297,7 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
   DBUG_RETURN(0);
 
 err3:
-  my_errno=HA_ERR_WRONG_IN_RECORD;
+  set_my_errno(HA_ERR_WRONG_IN_RECORD);
 err2:
   my_free(share->decode_tables);
 err1:
@@ -725,7 +725,7 @@ int _mi_read_pack_record(MI_INFO *info, my_off_t filepos, uchar *buf)
   DBUG_RETURN(_mi_pack_rec_unpack(info, &info->bit_buff, buf,
                                   info->rec_buff, block_info.rec_len));
 panic:
-  my_errno=HA_ERR_WRONG_IN_RECORD;
+  set_my_errno(HA_ERR_WRONG_IN_RECORD);
 err:
   DBUG_RETURN(-1);
 }
@@ -755,7 +755,8 @@ int _mi_pack_rec_unpack(MI_INFO *info, MI_BIT_BUFF *bit_buff,
       bit_buff->pos - bit_buff->bits / 8 == bit_buff->end)
     DBUG_RETURN(0);
   info->update&= ~HA_STATE_AKTIV;
-  DBUG_RETURN(my_errno=HA_ERR_WRONG_IN_RECORD);
+  set_my_errno(HA_ERR_WRONG_IN_RECORD);
+  DBUG_RETURN(HA_ERR_WRONG_IN_RECORD);
 } /* _mi_pack_rec_unpack */
 
 
@@ -1304,7 +1305,7 @@ int _mi_read_rnd_pack_record(MI_INFO *info, uchar *buf,
 
   if (filepos >= info->state->data_file_length)
   {
-    my_errno= HA_ERR_END_OF_FILE;
+    set_my_errno(HA_ERR_END_OF_FILE);
     goto err;
   }
 
@@ -1325,7 +1326,7 @@ int _mi_read_rnd_pack_record(MI_INFO *info, uchar *buf,
 #ifndef DBUG_OFF
   if (block_info.rec_len > share->max_pack_length)
   {
-    my_errno=HA_ERR_WRONG_IN_RECORD;
+    set_my_errno(HA_ERR_WRONG_IN_RECORD);
     goto err;
   }
 #endif
@@ -1352,7 +1353,7 @@ int _mi_read_rnd_pack_record(MI_INFO *info, uchar *buf,
   DBUG_RETURN (_mi_pack_rec_unpack(info, &info->bit_buff, buf,
                                    info->rec_buff, block_info.rec_len));
  err:
-  DBUG_RETURN(my_errno);
+  DBUG_RETURN(my_errno());
 }
 
 
@@ -1614,7 +1615,7 @@ static int _mi_read_rnd_mempack_record(MI_INFO *info, uchar *buf,
 
   if (filepos >= share->state.state.data_file_length)
   {
-    my_errno=HA_ERR_END_OF_FILE;
+    set_my_errno(HA_ERR_END_OF_FILE);
     goto err;
   }
   if (!(pos= (uchar*) _mi_mempack_get_block_info(info, &info->bit_buff,
@@ -1626,7 +1627,7 @@ static int _mi_read_rnd_mempack_record(MI_INFO *info, uchar *buf,
 #ifndef DBUG_OFF
   if (block_info.rec_len > info->s->max_pack_length)
   {
-    my_errno=HA_ERR_WRONG_IN_RECORD;
+    set_my_errno(HA_ERR_WRONG_IN_RECORD);
     goto err;
   }
 #endif
@@ -1638,7 +1639,7 @@ static int _mi_read_rnd_mempack_record(MI_INFO *info, uchar *buf,
   DBUG_RETURN (_mi_pack_rec_unpack(info, &info->bit_buff, buf,
                                    pos, block_info.rec_len));
  err:
-  DBUG_RETURN(my_errno);
+  DBUG_RETURN(my_errno());
 }
 
 

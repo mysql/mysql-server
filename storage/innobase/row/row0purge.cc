@@ -46,6 +46,8 @@ Created 3/14/1997 Heikki Tuuri
 #include "log0log.h"
 #include "srv0mon.h"
 #include "srv0start.h"
+#include "handler.h"
+#include "ha_innodb.h"
 
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
@@ -136,9 +138,7 @@ row_purge_remove_clust_if_poss_low(
 	ulint			offsets_[REC_OFFS_NORMAL_SIZE];
 	rec_offs_init(offsets_);
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_S));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_S));
 
 	index = dict_table_get_first_index(node->table);
 
@@ -260,7 +260,8 @@ row_purge_poss_sec(
 	can_delete = !row_purge_reposition_pcur(BTR_SEARCH_LEAF, node, &mtr)
 		|| !row_vers_old_has_index_entry(TRUE,
 						 btr_pcur_get_rec(&node->pcur),
-						 &mtr, index, entry);
+						 &mtr, index, entry,
+						 node->roll_ptr, node->trx_id);
 
 	/* Persistent cursor is closed if reposition fails. */
 	if (node->found_clust) {
@@ -502,7 +503,9 @@ row_purge_remove_sec_if_poss_leaf(
 			}
 
 			if (dict_index_is_spatial(index)) {
-				const page_t*   page = btr_cur_get_page(btr_cur);
+				const page_t*   page;
+
+				page = btr_cur_get_page(btr_cur);
 
 				if (!lock_test_prdt_page_lock(
 					page_get_space_id(page),
@@ -519,7 +522,7 @@ row_purge_remove_sec_if_poss_leaf(
 						" record on page "
 						<< page_get_page_no(page)
 						<< ".";
-#endif
+#endif /* UNIV_DEBUG */
 
 					btr_pcur_close(&pcur);
 					mtr_commit(&mtr);
@@ -649,9 +652,7 @@ row_purge_upd_exist_or_extern_func(
 {
 	mem_heap_t*	heap;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_S));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_S));
 
 	if (node->rec_type == TRX_UNDO_UPD_DEL_REC
 	    || (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
@@ -820,11 +821,13 @@ row_purge_parse_undo_rec(
 	ptr = trx_undo_update_rec_get_sys_cols(ptr, &trx_id, &roll_ptr,
 					       &info_bits);
 	node->table = NULL;
+	node->trx_id = trx_id;
 
 	/* Prevent DROP TABLE etc. from running when we are doing the purge
 	for this row */
 
-	rw_lock_s_lock_inline(&dict_operation_lock, 0, __FILE__, __LINE__);
+try_again:
+	rw_lock_s_lock_inline(dict_operation_lock, 0, __FILE__, __LINE__);
 
 	node->table = dict_table_open_on_id(
 		table_id, FALSE, DICT_TABLE_OP_NORMAL);
@@ -832,6 +835,24 @@ row_purge_parse_undo_rec(
 	if (node->table == NULL) {
 		/* The table has been dropped: no need to do purge */
 		goto err_exit;
+	}
+
+	if (node->table->n_v_cols && !node->table->vc_templ
+	    && dict_table_has_indexed_v_cols(node->table)) {
+		/* Need server fully up for virtual column computation */
+		if (!mysqld_server_started) {
+
+			dict_table_close(node->table, FALSE, FALSE);
+			rw_lock_s_unlock(dict_operation_lock);
+			if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+				return(false);
+			}
+			os_thread_sleep(1000000);
+			goto try_again;
+		}
+
+		/* Initialize the template for the table */
+		innobase_init_vc_templ(node->table);
 	}
 
 	/* Disable purging for temp-tables as they are short-lived
@@ -860,7 +881,7 @@ row_purge_parse_undo_rec(
 close_exit:
 		dict_table_close(node->table, FALSE, FALSE);
 err_exit:
-		rw_lock_s_unlock(&dict_operation_lock);
+		rw_lock_s_unlock(dict_operation_lock);
 		return(false);
 	}
 
@@ -979,7 +1000,7 @@ row_purge(
 			bool purged = row_purge_record(
 				node, undo_rec, thr, updated_extern);
 
-			rw_lock_s_unlock(&dict_operation_lock);
+			rw_lock_s_unlock(dict_operation_lock);
 
 			if (purged
 			    || srv_shutdown_state != SRV_SHUTDOWN_NONE) {

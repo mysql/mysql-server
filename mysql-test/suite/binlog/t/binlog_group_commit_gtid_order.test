@@ -37,7 +37,7 @@ CREATE TABLE t2 (c1 INT) Engine=InnoDB;
 SET @free_intervals_mutex_before= (
   SELECT COUNT_STAR
   FROM performance_schema.events_waits_summary_global_by_event_name WHERE
-  EVENT_NAME='wait/synch/mutex/sql/Gtid_state::gtid_executed::free_intervals_mutex');
+  EVENT_NAME='wait/synch/mutex/sql/Gtid_set::gtid_executed::free_intervals_mutex');
 
 # Set group commit parameters
 --eval SET GLOBAL binlog_group_commit_sync_delay=$delay
@@ -110,7 +110,7 @@ SET DEBUG_SYNC='now SIGNAL go_con1';
 SET @free_intervals_mutex_after= (
   SELECT COUNT_STAR
   FROM performance_schema.events_waits_summary_global_by_event_name WHERE
-  EVENT_NAME='wait/synch/mutex/sql/Gtid_state::gtid_executed::free_intervals_mutex');
+  EVENT_NAME='wait/synch/mutex/sql/Gtid_set::gtid_executed::free_intervals_mutex');
 --let $assert_text= "gtid_executed::free_intervals_mutex wasn't used"
 --let $assert_cond= @free_intervals_mutex_before = @free_intervals_mutex_after
 --source include/assert.inc

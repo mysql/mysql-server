@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -38,11 +38,22 @@ Wait in the sync array.
 
 template <template <typename> class Policy>
 bool
-TTASEventMutex<Policy>::wait(const char* filename, ulint line) UNIV_NOTHROW
+TTASEventMutex<Policy>::wait(
+	const char*	filename,
+	uint32_t	line,
+	uint32_t	spin)
+	UNIV_NOTHROW
 {
 	sync_cell_t*	cell;
-	sync_array_t*	sync_arr = sync_array_get_and_reserve_cell(
-				this, SYNC_MUTEX, filename, line, &cell);
+	sync_array_t*	sync_arr;
+
+	sync_arr = sync_array_get_and_reserve_cell(
+		this,
+		(m_policy.get_id() == LATCH_ID_BUF_BLOCK_MUTEX
+		 || m_policy.get_id() == LATCH_ID_BUF_POOL_ZIP)
+		? SYNC_BUF_BLOCK
+		: SYNC_MUTEX,
+		filename, line, &cell);
 
 	/* The memory order of the array reservation and
 	the change in the waiters field is important: when
@@ -55,7 +66,7 @@ TTASEventMutex<Policy>::wait(const char* filename, ulint line) UNIV_NOTHROW
 
 	/* Try to reserve still a few times. */
 
-	for (ulint i = 0; i < 4; ++i) {
+	for (uint32_t i = 0; i < spin; ++i) {
 
 		if (try_lock()) {
 

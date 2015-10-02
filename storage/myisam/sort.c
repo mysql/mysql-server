@@ -163,7 +163,9 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
                                        keys*(sort_length+sizeof(char*))+
 				       HA_FT_MAXBYTELEN, MYF(0))))
     {
-      if (my_init_dynamic_array(&buffpek, sizeof(BUFFPEK),
+      if (my_init_dynamic_array(&buffpek,
+                                PSI_NOT_INSTRUMENTED,
+                                sizeof(BUFFPEK),
                                 NULL,
                                 maxbuffer,
                                 maxbuffer/2))
@@ -318,11 +320,17 @@ void *thr_find_all_keys(void *arg)
   uint keys= 0, sort_length;
   uint idx, maxbuffer;
   uchar **sort_keys=0;
+  st_keycache_thread_var thread_keycache_var;
 
   error=1;
 
   if (my_thread_init())
     goto err;
+
+  memset(&thread_keycache_var, 0, sizeof(st_keycache_thread_var));
+  mysql_cond_init(PSI_NOT_INSTRUMENTED,
+                  &thread_keycache_var.suspend);
+  my_set_thread_local(keycache_tls_key, &thread_keycache_var);
 
   { /* Add extra block since DBUG_ENTER declare variables */
     DBUG_ENTER("thr_find_all_keys");
@@ -387,7 +395,9 @@ void *thr_find_all_keys(void *arg)
                      ((sort_param->keyinfo->flag & HA_FULLTEXT) ?
                       HA_FT_MAXBYTELEN : 0), MYF(0))))
       {
-        if (my_init_dynamic_array(&sort_param->buffpek, sizeof(BUFFPEK),
+        if (my_init_dynamic_array(&sort_param->buffpek,
+                                  PSI_NOT_INSTRUMENTED,
+                                  sizeof(BUFFPEK),
                                   NULL,
                                   maxbuffer, maxbuffer/2))
         {
@@ -490,6 +500,7 @@ ok:
     mysql_mutex_unlock(&sort_param->sort_info->mutex);
     DBUG_PRINT("exit", ("======== ending thread ========"));
   }
+  mysql_cond_destroy(&thread_keycache_var.suspend);
   my_thread_end();
   return NULL;
 }

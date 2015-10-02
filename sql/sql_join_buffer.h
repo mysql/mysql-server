@@ -3,7 +3,7 @@
 
 #include "sql_executor.h"
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -285,6 +285,8 @@ protected:
   /** Cached value of calc_check_only_first_match(join_tab) */
   bool check_only_first_match;
 
+  void filter_virtual_gcol_base_cols();
+  void restore_virtual_gcol_base_cols();
   void calc_record_fields();     
   int alloc_fields(uint external_fields);
   void create_flag_fields();

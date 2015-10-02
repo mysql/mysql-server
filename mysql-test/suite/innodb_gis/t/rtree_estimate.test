@@ -1,0 +1,79 @@
+#
+# BUG#21245805 HA_INNOBASE::RECORDS_IN_RANGE() RETURNS CONSTANT FOR SPATIAL INDEXES
+#
+
+--source include/have_innodb.inc
+--source include/have_debug.inc
+
+CREATE TABLE t1 (
+  g GEOMETRY NOT NULL
+) ENGINE=InnoDB;
+
+ALTER TABLE t1 ADD SPATIAL(g);
+
+SET @g1 = ST_GeomFromText('POINT(10 10)');
+SET @g2 = ST_GeomFromText('POLYGON((5 5, 20 5, 20 21, 5 21, 5 5))');
+SET @g3 = ST_GeomFromText('POLYGON((1.79769e+308 1.79769e+308, 20 5, -1.79769e+308 -1.79769e+308, 1.79769e+308 1.79769e+308))');
+
+# Test empty table
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRContains(g, @g1);
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g1);
+
+# Insert gis data
+INSERT INTO t1 VALUES(@g1);
+INSERT INTO t1 VALUES(@g2);
+INSERT INTO t1 VALUES(@g3);
+
+SELECT ST_AsText(g) FROM t1;
+
+ANALYZE TABLE t1;
+
+# Test g1
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRContains(g, @g1);
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g1);
+
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRDisjoint(g, @g1);
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g1);
+
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBREquals(g, @g1);
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g1);
+
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRIntersects(g, @g1);
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g1);
+
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g1);
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g1);
+
+# Test g2
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRContains(g, @g2);
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g2);
+
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRDisjoint(g, @g2);
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g2);
+
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBREquals(g, @g2);
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g2);
+
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRIntersects(g, @g2);
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g2);
+
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g2);
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g2);
+
+# Test g3
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRContains(g, @g3);
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g3);
+
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRDisjoint(g, @g3);
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g3);
+
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBREquals(g, @g3);
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g3);
+
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRIntersects(g, @g3);
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g3);
+
+EXPLAIN SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g3);
+SELECT ST_AsText(g) FROM t1 WHERE MBRWithin(g, @g3);
+
+DROP TABLE t1;

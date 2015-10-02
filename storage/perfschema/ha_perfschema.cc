@@ -37,6 +37,8 @@
 
 handlerton *pfs_hton= NULL;
 
+#define PFS_ENABLED() (pfs_initialized && (pfs_enabled || m_table_share->m_perpetual))
+
 static handler* pfs_create_handler(handlerton *hton,
                                    TABLE_SHARE *table,
                                    MEM_ROOT *mem_root)
@@ -247,7 +249,7 @@ int ha_perfschema::write_row(uchar *buf)
   int result;
 
   DBUG_ENTER("ha_perfschema::write_row");
-  if (!pfs_initialized)
+  if (!PFS_ENABLED())
     DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 
   DBUG_ASSERT(m_table_share);
@@ -270,7 +272,7 @@ void ha_perfschema::use_hidden_primary_key(void)
 int ha_perfschema::update_row(const uchar *old_data, uchar *new_data)
 {
   DBUG_ENTER("ha_perfschema::update_row");
-  if (!pfs_initialized)
+  if (!PFS_ENABLED())
     DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 
   if (is_executed_by_slave())
@@ -285,7 +287,7 @@ int ha_perfschema::update_row(const uchar *old_data, uchar *new_data)
 int ha_perfschema::delete_row(const uchar *buf)
 {
   DBUG_ENTER("ha_perfschema::delete_row");
-  if (!pfs_initialized)
+  if (!PFS_ENABLED())
     DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 
   DBUG_ASSERT(m_table);
@@ -327,7 +329,7 @@ int ha_perfschema::rnd_end(void)
 int ha_perfschema::rnd_next(uchar *buf)
 {
   DBUG_ENTER("ha_perfschema::rnd_next");
-  if (!pfs_initialized)
+  if (!PFS_ENABLED())
   {
     table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(HA_ERR_END_OF_FILE);
@@ -359,7 +361,7 @@ void ha_perfschema::position(const uchar *record)
 int ha_perfschema::rnd_pos(uchar *buf, uchar *pos)
 {
   DBUG_ENTER("ha_perfschema::rnd_pos");
-  if (!pfs_initialized)
+  if (!PFS_ENABLED())
   {
     table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(HA_ERR_END_OF_FILE);
@@ -390,7 +392,7 @@ int ha_perfschema::delete_all_rows(void)
   int result;
 
   DBUG_ENTER("ha_perfschema::delete_all_rows");
-  if (!pfs_initialized)
+  if (!PFS_ENABLED())
     DBUG_RETURN(0);
 
   if (is_executed_by_slave())

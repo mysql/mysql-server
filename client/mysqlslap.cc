@@ -251,7 +251,7 @@ void print_conclusions_csv(conclusions *con);
 void generate_stats(conclusions *con, option_string *eng, stats *sptr);
 uint parse_comma(const char *string, uint **range);
 uint parse_delimiter(const char *script, statement **stmt, char delm);
-uint parse_option(const char *origin, option_string **stmt, char delm);
+int parse_option(const char *origin, option_string **stmt, char delm);
 static int drop_schema(MYSQL *mysql, const char *db);
 size_t get_random_string(char *buf);
 static statement *build_table_string(void);
@@ -265,7 +265,7 @@ static int create_schema(MYSQL *mysql, const char *db, statement *stmt,
 static void set_sql_mode(MYSQL *mysql);
 static int run_scheduler(stats *sptr, statement *stmts, uint concur, 
                          ulonglong limit);
-void *run_task(void *p);
+extern "C" void *run_task(void *p);
 void statement_cleanup(statement *stmt);
 void option_cleanup(option_string *stmt);
 void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr);
@@ -304,7 +304,7 @@ static int gettimeofday(struct timeval *tp, void *tzp)
 
 int main(int argc, char **argv)
 {
-  MYSQL mysql;
+  MYSQL mysql= MYSQL();
   option_string *eptr;
 
   MY_INIT(argv[0]);
@@ -367,6 +367,7 @@ int main(int argc, char **argv)
     {
       fprintf(stderr,"%s: Error when connecting to server: %s\n",
               my_progname,mysql_error(&mysql));
+      mysql_close(&mysql);
       free_defaults(defaults_argv);
       my_end(0);
       exit(1);
@@ -413,8 +414,7 @@ int main(int argc, char **argv)
   native_mutex_destroy(&sleeper_mutex);
   native_cond_destroy(&sleep_threshold);
 
-  if (!opt_only_print) 
-    mysql_close(&mysql); /* Close & free connection */
+  mysql_close(&mysql); /* Close & free connection */
 
   /* now free all the strings we created */
   my_free(opt_password);
@@ -429,6 +429,7 @@ int main(int argc, char **argv)
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   my_free(shared_memory_base_name);
 #endif
+  mysql_server_end();
   free_defaults(defaults_argv);
   my_end(my_end_arg);
 
@@ -1291,7 +1292,13 @@ get_options(int *argc,char ***argv)
   if (num_int_cols_opt)
   {
     option_string *str;
-    parse_option(num_int_cols_opt, &str, ',');
+    if(parse_option(num_int_cols_opt, &str, ',') == -1)
+    {
+      fprintf(stderr, "Invalid value specified for the option "
+              "'number-int-cols'\n");
+      option_cleanup(str);
+      DBUG_RETURN(1);
+    }
     num_int_cols= atoi(str->string);
     if (str->option)
       num_int_cols_index= atoi(str->option);
@@ -1301,7 +1308,13 @@ get_options(int *argc,char ***argv)
   if (num_char_cols_opt)
   {
     option_string *str;
-    parse_option(num_char_cols_opt, &str, ',');
+    if(parse_option(num_char_cols_opt, &str, ',') == -1)
+    {
+      fprintf(stderr, "Invalid value specified for the option "
+              "'number-char-cols'\n");
+      option_cleanup(str);
+      DBUG_RETURN(1);
+    }
     num_char_cols= atoi(str->string);
     if (str->option)
       num_char_cols_index= atoi(str->option);
@@ -1541,7 +1554,13 @@ get_options(int *argc,char ***argv)
     printf("Parsing engines to use.\n");
 
   if (default_engine)
-    parse_option(default_engine, &engine_options, ',');
+  {
+    if(parse_option(default_engine, &engine_options, ',') == -1)
+    {
+      fprintf(stderr, "Invalid value specified for the option 'engine'\n");
+      DBUG_RETURN(1);
+    }
+  }
 
   if (tty_password)
     opt_password= get_tty_password(NullS);
@@ -1869,7 +1888,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
 }
 
 
-void *run_task(void *p)
+extern "C" void *run_task(void *p)
 {
   ulonglong counter= 0, queries;
   ulonglong detach_counter;
@@ -1901,6 +1920,7 @@ void *run_task(void *p)
   {
     fprintf(stderr,"%s: mysql_thread_init() failed ERROR : %s\n",
             my_progname, mysql_error(mysql));
+    mysql_close(mysql);
     exit(0);
   }
 
@@ -1974,6 +1994,7 @@ limit_not_met:
           {
             fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
                     my_progname, (uint)length, buffer, mysql_error(mysql));
+            mysql_close(mysql);
             exit(0);
           }
         }
@@ -1984,6 +2005,7 @@ limit_not_met:
         {
           fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
                   my_progname, (uint)ptr->length, ptr->string, mysql_error(mysql));
+          mysql_close(mysql);
           exit(0);
         }
       }
@@ -2022,8 +2044,7 @@ end:
   if (commit_rate)
     run_query(mysql, "COMMIT", strlen("COMMIT"));
 
-  if (!opt_only_print) 
-    mysql_close(mysql);
+  mysql_close(mysql);
 
   mysql_thread_end();
 
@@ -2032,10 +2053,12 @@ end:
   native_cond_signal(&count_threshold);
   native_mutex_unlock(&counter_mutex);
 
-  DBUG_RETURN(0);
+  DBUG_LEAVE;
+  my_thread_exit(0);
+  return 0;
 }
 
-uint
+int
 parse_option(const char *origin, option_string **stmt, char delm)
 {
   char *retstr;
@@ -2057,8 +2080,16 @@ parse_option(const char *origin, option_string **stmt, char delm)
     char buffer[HUGE_STRING_LENGTH];
     char *buffer_ptr;
 
+    /*
+      Return an error if the length of the any of the comma seprated value
+      exceeds HUGE_STRING_LENGTH.
+    */
+    if ((size_t)(retstr - ptr) > HUGE_STRING_LENGTH)
+      return -1;
+
     count++;
     strncpy(buffer, ptr, (size_t)(retstr - ptr));
+    buffer[retstr - ptr]= 0;
     if ((buffer_ptr= strchr(buffer, ':')))
     {
       char *option_ptr;
@@ -2092,6 +2123,13 @@ parse_option(const char *origin, option_string **stmt, char delm)
   {
     char *origin_ptr;
 
+    /*
+      Return an error if the length of the any of the comma seprated value
+      exceeds HUGE_STRING_LENGTH.
+    */
+    if (strlen(ptr) > HUGE_STRING_LENGTH)
+      return -1;
+
     if ((origin_ptr= strchr(ptr, ':')))
     {
       char *option_ptr;
@@ -2103,14 +2141,14 @@ parse_option(const char *origin, option_string **stmt, char delm)
       option_ptr= (char *)ptr + 1 + tmp->length;
 
       /* Move past the : and the first string */
-      tmp->option_length= (size_t)((ptr + length) - option_ptr);
+      tmp->option_length= strlen(option_ptr);
       tmp->option= my_strndup(PSI_NOT_INSTRUMENTED,
                               option_ptr, tmp->option_length,
                               MYF(MY_FAE));
     }
     else
     {
-      tmp->length= (size_t)((ptr + length) - ptr);
+      tmp->length= strlen(ptr);
       tmp->string= my_strndup(PSI_NOT_INSTRUMENTED,
                               ptr, tmp->length, MYF(MY_FAE));
     }

@@ -124,7 +124,7 @@ ST_astext(ST_Intersection(ST_GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), 
 POLYGON((21.951219512195124 27.4390243902439,26.470588235294116 23.823529411764707,29.28994082840237 26.36094674556213,23.855421686746986 29.819277108433734,21.951219512195124 27.4390243902439))
 select ST_astext(ST_Intersection(ST_GeomFromText('LINESTRING(0 0, 50 45, 40 50, 0 0)'), ST_GeomFromText('LINESTRING(50 5, 55 10, 0 45, 50 5)')));
 ST_astext(ST_Intersection(ST_GeomFromText('LINESTRING(0 0, 50 45, 40 50, 0 0)'), ST_GeomFromText('LINESTRING(50 5, 55 10, 0 45, 50 5)')))
-MULTIPOINT(26.470588235294116 23.823529411764707,29.28994082840237 26.36094674556213,23.855421686746986 29.819277108433734,21.951219512195124 27.4390243902439)
+MULTIPOINT(21.951219512195124 27.4390243902439,23.855421686746986 29.819277108433734,26.470588235294116 23.823529411764707,29.28994082840237 26.36094674556213)
 select ST_astext(ST_Intersection(ST_GeomFromText('LINESTRING(0 0, 50 45, 40 50)'), ST_GeomFromText('LINESTRING(50 5, 55 10, 0 45)')));
 ST_astext(ST_Intersection(ST_GeomFromText('LINESTRING(0 0, 50 45, 40 50)'), ST_GeomFromText('LINESTRING(50 5, 55 10, 0 45)')))
 POINT(29.28994082840237 26.36094674556213)
@@ -230,12 +230,14 @@ END|
 #
 # Testing ST_BUFFER with positive distance
 #
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 -----
-POINT(0 0))
+POINT(0 0)
 dist	buffer	buf_area
 1	POLYGON	3.12
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 -----
-LineString(0 1, 1 1))
+LineString(0 1, 1 1)
 dist	buffer	buf_area
 1	POLYGON	5.12
 -----
@@ -290,12 +292,14 @@ dist	buffer	buf_area
 GeometryCollection(Point(0 0))
 dist	buffer	buf_area
 1	POLYGON	3.12
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 -----
-GeometryCollection(LineString(0 0, 2 2)))
+GeometryCollection(LineString(0 0, 2 2))
 dist	buffer	buf_area
 1	POLYGON	8.78
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 -----
-GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2))))
+GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2)))
 dist	buffer	buf_area
 1	POLYGON	63.12
 -----
@@ -317,12 +321,14 @@ dist	buffer	buf_area
 #
 # Testing ST_BUFFER with zero distance
 #
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 -----
-POINT(0 0))
+POINT(0 0)
 dist	buffer	buf_area
 0	POINT	0.00
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 -----
-LineString(0 1, 1 1))
+LineString(0 1, 1 1)
 dist	buffer	buf_area
 0	LINESTRING	0.00
 -----
@@ -373,12 +379,14 @@ dist	buffer	buf_area
 GeometryCollection(Point(0 0))
 dist	buffer	buf_area
 0	POINT	0.00
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 -----
-GeometryCollection(LineString(0 0, 2 2)))
+GeometryCollection(LineString(0 0, 2 2))
 dist	buffer	buf_area
 0	LINESTRING	0.00
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 -----
-GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2))))
+GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2)))
 dist	buffer	buf_area
 0	POLYGON	36.00
 -----
@@ -448,10 +456,12 @@ dist	buffer	buf_area
 GeometryCollection(Point(0 0))
 ERROR HY000: Incorrect arguments to st_buffer
 -----
-GeometryCollection(LineString(0 0, 2 2)))
+GeometryCollection(LineString(0 0, 2 2))
 ERROR HY000: Incorrect arguments to st_buffer
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 -----
-GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2))))
+GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2)))
 dist	buffer	buf_area
 -1	POLYGON	16.00
 -----

@@ -21,49 +21,43 @@
 #include <my_dir.h>
 #include "my_thread_local.h"
 
-#ifdef _WIN32
-typedef int MY_MODE;
-#else
-typedef mode_t MY_MODE;
-#endif /* _WIN32 */
-
 /*
-  Generate MY_MODE representation from PermFlags.
+  Generate MY_MODE representation from perm_flags.
 
-  @param PermFlags Permission information
+  @param perm_flags Permission information
 
   @return Permission in MY_STAT format
 */
-static
-MY_MODE get_file_perm(ulong PermFlags)
+
+MY_MODE get_file_perm(ulong perm_flags)
 {
   MY_MODE file_perm= 0;
-  if (PermFlags <= 0)
+  if (perm_flags <= 0)
     return file_perm;
 
 #if defined _WIN32
-  if (PermFlags & (USER_READ | GROUP_READ | OTHERS_READ))
+  if (perm_flags & (USER_READ | GROUP_READ | OTHERS_READ))
     file_perm|= _S_IREAD;
-  if (PermFlags & (USER_WRITE | GROUP_WRITE | OTHERS_WRITE))
+  if (perm_flags & (USER_WRITE | GROUP_WRITE | OTHERS_WRITE))
     file_perm|= _S_IWRITE;
 #else
-  if (PermFlags & USER_READ)
+  if (perm_flags & USER_READ)
     file_perm|= S_IRUSR;
-  if (PermFlags & USER_WRITE)
+  if (perm_flags & USER_WRITE)
     file_perm|= S_IWUSR;
-  if (PermFlags & USER_EXECUTE)
+  if (perm_flags & USER_EXECUTE)
     file_perm|= S_IXUSR;
-  if (PermFlags & GROUP_READ)
+  if (perm_flags & GROUP_READ)
     file_perm|= S_IRGRP;
-  if (PermFlags & GROUP_WRITE)
+  if (perm_flags & GROUP_WRITE)
     file_perm|= S_IWGRP;
-  if (PermFlags & GROUP_EXECUTE)
+  if (perm_flags & GROUP_EXECUTE)
     file_perm|= S_IXGRP;
-  if (PermFlags & OTHERS_READ)
+  if (perm_flags & OTHERS_READ)
     file_perm|= S_IROTH;
-  if (PermFlags & OTHERS_WRITE)
+  if (perm_flags & OTHERS_WRITE)
     file_perm|= S_IWOTH;
-  if (PermFlags & OTHERS_EXECUTE)
+  if (perm_flags & OTHERS_EXECUTE)
     file_perm|= S_IXOTH;
 #endif
 
@@ -74,7 +68,7 @@ MY_MODE get_file_perm(ulong PermFlags)
   my_chmod : Change permission on a file
 
   @param filename : Name of the file
-  @param PermFlags : Permission information
+  @param perm_flags : Permission information
   @param my_flags : Error handling
 
   @return
@@ -82,14 +76,14 @@ MY_MODE get_file_perm(ulong PermFlags)
     @retval FALSE : File permission changed successfully
 */
 
-my_bool my_chmod(const char *filename, ulong PermFlags, myf my_flags)
+my_bool my_chmod(const char *filename, ulong perm_flags, myf my_flags)
 {
   int ret_val;
   MY_MODE file_perm;
   DBUG_ENTER("my_chmod");
   DBUG_ASSERT(filename && filename[0]);
 
-  file_perm= get_file_perm(PermFlags);
+  file_perm= get_file_perm(perm_flags);
 #ifdef _WIN32
   ret_val= _chmod(filename, file_perm);
 #else
@@ -99,7 +93,7 @@ my_bool my_chmod(const char *filename, ulong PermFlags, myf my_flags)
   if (ret_val && (my_flags & (MY_FAE+MY_WME)))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
-    my_errno= errno;
+    set_my_errno(errno);
     my_error(EE_CHANGE_PERMISSIONS, MYF(0), filename,
              errno, my_strerror(errbuf, sizeof(errbuf), errno));
   }

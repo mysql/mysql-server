@@ -27,9 +27,7 @@
 #include "gis_bg_traits.h"
 
 #include "parse_tree_helpers.h"
-#include <rapidjson/document.h>
 #include "item_geofunc_internal.h"
-
 
 static int check_geometry_valid(Geometry *geom);
 
@@ -187,8 +185,14 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
     Geometry::create_from_wkb(), and consequently such WKB data must be
     MySQL standard (little) endian. Note that users can pass via client
     any WKB/Geometry byte string, including those of big endianess.
+
+    For the functions that return WKB data(i.e. SP_WKB_FUNC), their field type
+    is also MYSQL_TYPE_GEOMETRY to other part of MySQL, but to GIS we must
+    distinguish them, and here is the only place where we have to do so.
   */
-  if (args[0]->field_type() == MYSQL_TYPE_GEOMETRY)
+  if (args[0]->field_type() == MYSQL_TYPE_GEOMETRY &&
+      !(args[0]->type() == Item::FUNC_ITEM &&
+        down_cast<Item_func *>(args[0])->functype() == SP_WKB_FUNC))
   {
     Geometry_buffer buff;
     if (Geometry::construct(&buff, wkb->ptr(), wkb->length()) == NULL)
@@ -281,11 +285,6 @@ GEOMETRYCOLLECTION_TYPE= "GeometryCollection";
 */
 String *Item_func_geomfromgeojson::val_str(String *buf)
 {
-  String arg_val;
-  String *json_string= args[0]->val_str_ascii(&arg_val);
-  if ((null_value= args[0]->null_value))
-    return NULL;
-
   if (arg_count > 1)
   {
     // Check and parse the OPTIONS parameter.
@@ -356,17 +355,19 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
     }
   }
 
-  /*
-    If this parsing fails, the document is not a valid JSON document.
-    The root element must be a object, according to GeoJSON specification.
-  */
-  if (m_document.ParseInsitu<0>(json_string->c_ptr_safe()).HasParseError() ||
-      !m_document.IsObject())
+  Json_wrapper wr;
+  if (get_json_wrapper(args, 0, buf, func_name(), &wr, true))
+    return error_str();
+  if ((null_value= args[0]->null_value))
+    return NULL;
+
+  // The root element must be a object, according to GeoJSON specification.
+  if (wr.type() != Json_dom::J_OBJECT)
   {
-    my_error(ER_INVALID_JSON_DATA, MYF(0), func_name(),
-             m_document.GetParseError());
+    my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
     return error_str();
   }
+  const Json_object *root_obj= down_cast<const Json_object*>(wr.to_dom());
 
   /*
     Set the default SRID to 4326. This will be overwritten if a valid CRS is
@@ -401,7 +402,7 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
   Geometry *result_geometry= NULL;
 
   m_srid_found_in_document = -1;
-  if (parse_object(&m_document, &rollback, &collection_buffer, false,
+  if (parse_object(root_obj, &rollback, &collection_buffer, false,
                    &result_geometry))
   {
     // Do a delete here, to be sure that we have no memory leaks.
@@ -437,39 +438,38 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
 
 
 /**
-  Case insentitive lookup of a member in a rapidjson object.
+  Case insensitive lookup of a member in a JSON object.
 
-  This is needed since the rapidjson library doesn't have a case insensitive
-  variant of the method FindMember().
+  This is needed since the get()-method of the JSON object is case
+  sensitive.
 
   @param v The object to look for the member in.
   @param member_name Name of the member to look after
 
   @return The member if one was found, NULL otherwise.
 */
-rapidjson::Value::ConstMemberIterator
-Item_func_geomfromgeojson::my_find_member_ncase(const rapidjson::Value *value,
-                                                const char *member_name)
+const Json_dom *Item_func_geomfromgeojson::
+my_find_member_ncase(const Json_object *object, const char *member_name)
 {
-  DBUG_ASSERT(value->IsObject());
-  rapidjson::Value::ConstMemberIterator itr;
-  for (itr= value->MemberBegin(); itr != value->MemberEnd(); ++itr)
+  Json_object::const_iterator itr;
+  for (itr= object->begin(); itr != object->end(); ++itr)
   {
-    if (native_strcasecmp(member_name, itr->name.GetString()) == 0)
-      return itr;
+    if (native_strcasecmp(member_name, itr->first.c_str()) == 0)
+      return itr->second;
   }
+
   return NULL;
 }
 
 
 /**
-  Takes a rapidjson object as input, and parses the data to a Geometry object.
+  Takes a JSON object as input, and parses the data to a Geometry object.
 
   The call stack will be no larger than the maximum depth of the GeoJSON
   document, which is more or less equivalent to the number of nested
   collections in the document.
 
-  @param object A rapidjson object to parse.
+  @param object A JSON object object to parse.
   @param rollback Pointer to a boolean indicating if parsed data should
          be reverted/rolled back.
   @param buffer A string buffer to be used by GeometryCollection
@@ -482,34 +482,45 @@ Item_func_geomfromgeojson::my_find_member_ncase(const rapidjson::Value *value,
           Geometry data could be parsed.
 */
 bool Item_func_geomfromgeojson::
-parse_object(const rapidjson::Value *object, bool *rollback, String *buffer,
+parse_object(const Json_object *object, bool *rollback, String *buffer,
              bool is_parent_featurecollection, Geometry **geometry)
 {
-  DBUG_ASSERT(object->IsObject());
-
   /*
     A GeoJSON object MUST have a type member, which MUST
     be of string type.
   */
-  const rapidjson::Value::Member *type_member=
-    my_find_member_ncase(object, TYPE_MEMBER);
-  if (!is_member_valid(type_member, TYPE_MEMBER,
-                       rapidjson::kStringType, false, NULL))
+  const Json_dom *type_member= my_find_member_ncase(object, TYPE_MEMBER);
+  if (!is_member_valid(type_member, TYPE_MEMBER, Json_dom::J_STRING, false,
+                       NULL))
   {
     return true;
   }
 
-  // Check if this object has a CRS member.
-  const rapidjson::Value::Member *crs_member=
-    my_find_member_ncase(object, CRS_MEMBER);
+  /*
+    Check if this object has a CRS member.
+    We allow the CRS member to be JSON NULL.
+  */
+  const Json_dom *crs_member= my_find_member_ncase(object, CRS_MEMBER);
   if (crs_member != NULL)
   {
-    if (parse_crs_object(&crs_member->value))
+    if (crs_member->json_type() == Json_dom::J_OBJECT)
+    {
+      const Json_object *crs_obj= down_cast<const Json_object *>(crs_member);
+      if (parse_crs_object(crs_obj))
+        return true;
+    }
+    else if (crs_member->json_type() != Json_dom::J_NULL)
+    {
+      my_error(ER_INVALID_GEOJSON_WRONG_TYPE, MYF(0), func_name(),
+               CRS_MEMBER, "object");
       return true;
+    }
   }
 
   // Handle feature objects and feature collection objects.
-  if (strcmp(type_member->value.GetString(), FEATURE_TYPE) == 0)
+  const Json_string *type_member_str=
+    down_cast<const Json_string*>(type_member);
+  if (strcmp(type_member_str->value().c_str(), FEATURE_TYPE) == 0)
   {
     /*
       Check if this feature object has the required "geometry" and "properties"
@@ -517,22 +528,24 @@ parse_object(const rapidjson::Value *object, bool *rollback, String *buffer,
       than checking for valid GeoJSON document.
     */
     bool dummy;
-    const rapidjson::Value::Member *geometry_member=
-      my_find_member_ncase(object, GEOMETRY_MEMBER);
-    const rapidjson::Value::Member *properties_member=
-      my_find_member_ncase(object, PROPERTIES_MEMBER);
-    if (!is_member_valid(geometry_member, GEOMETRY_MEMBER,
-                         rapidjson::kObjectType, true, rollback) ||
+    const Json_dom *geometry_member= my_find_member_ncase(object,
+                                                          GEOMETRY_MEMBER);
+    const Json_dom *properties_member= my_find_member_ncase(object,
+                                                            PROPERTIES_MEMBER);
+    if (!is_member_valid(geometry_member, GEOMETRY_MEMBER, Json_dom::J_OBJECT,
+                         true, rollback) ||
         !is_member_valid(properties_member, PROPERTIES_MEMBER,
-                         rapidjson::kObjectType, true, &dummy) || *rollback)
+                         Json_dom::J_OBJECT, true, &dummy) || *rollback)
     {
       return true;
     }
-    return parse_object(&geometry_member->value, rollback, buffer, false,
-                        geometry);
+
+    const Json_object *geometry_member_obj=
+      down_cast<const Json_object*>(geometry_member);
+
+    return parse_object(geometry_member_obj, rollback, buffer, false, geometry);
   }
-  else if (strcmp(type_member->value.GetString(),
-                  FEATURECOLLECTION_TYPE) == 0)
+  else if (strcmp(type_member_str->value().c_str(), FEATURECOLLECTION_TYPE) == 0)
   {
     // FeatureCollections cannot be nested according to GeoJSON spec.
     if (is_parent_featurecollection)
@@ -542,20 +555,20 @@ parse_object(const rapidjson::Value *object, bool *rollback, String *buffer,
     }
 
     // We will handle a FeatureCollection as a GeometryCollection.
-    const rapidjson::Value::Member *features=
-      my_find_member_ncase(object, FEATURES_MEMBER);
-    if (!is_member_valid(features, FEATURES_MEMBER,
-                         rapidjson::kArrayType, false, NULL))
+    const Json_dom *features= my_find_member_ncase(object, FEATURES_MEMBER);
+    if (!is_member_valid(features, FEATURES_MEMBER, Json_dom::J_ARRAY, false,
+                         NULL))
     {
       return true;
     }
-    return parse_object_array(&features->value,
-                              Geometry::wkb_geometrycollection, rollback,
-                              buffer, true, geometry);
+
+    const Json_array *features_array= down_cast<const Json_array*>(features);
+    return parse_object_array(features_array, Geometry::wkb_geometrycollection,
+                              rollback, buffer, true, geometry);
   }
   else
   {
-    Geometry::wkbType wkbtype= get_wkbtype(type_member->value.GetString());
+    Geometry::wkbType wkbtype= get_wkbtype(type_member_str->value().c_str());
     if (wkbtype == Geometry::wkb_invalid_type)
     {
       // An invalid GeoJSON type was found.
@@ -575,21 +588,25 @@ parse_object(const rapidjson::Value *object, bool *rollback, String *buffer,
       else
         member_name= COORDINATES_MEMBER;
 
-      const rapidjson::Value::Member *array_member=
-        my_find_member_ncase(object, member_name);
-      if (!is_member_valid(array_member, member_name, rapidjson::kArrayType,
-                           false, NULL))
+      const Json_dom *array_member= my_find_member_ncase(object, member_name);
+      if (!is_member_valid(array_member, member_name, Json_dom::J_ARRAY, false,
+                           NULL))
       {
         return true;
       }
-      return parse_object_array(&array_member->value, wkbtype, rollback,
-                                buffer, false, geometry);
+
+      const Json_array *array_member_array=
+        down_cast<const Json_array*>(array_member);
+      return parse_object_array(array_member_array, wkbtype, rollback, buffer,
+                                false, geometry);
     }
   }
 
   // Defensive code. This should never be reached.
+  /* purecov: begin inspected */
   DBUG_ASSERT(false);
   return true;
+  /* purecov: end inspected */
 }
 
 
@@ -603,20 +620,19 @@ parse_object(const rapidjson::Value *object, bool *rollback, String *buffer,
   According to the specification, a position array must have at least two
   elements, but there is no upper limit.
 
-  @param coordinates rapidjson array of coordinates.
+  @param coordinates A JSON array of coordinates.
   @param[out] point A pointer to the parsed Gis_point.
 
   @return true if the parsing failed, false otherwise.
 */
 bool Item_func_geomfromgeojson::
-get_positions(const rapidjson::Value *coordinates, Gis_point *point)
+get_positions(const Json_array *coordinates, Gis_point *point)
 {
-  DBUG_ASSERT(coordinates->IsArray());
   /*
     According to GeoJSON specification, a position array must have at least
     two positions.
   */
-  if (coordinates->Size() < 2)
+  if (coordinates->size() < 2)
   {
     my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
     return true;
@@ -625,10 +641,10 @@ get_positions(const rapidjson::Value *coordinates, Gis_point *point)
   switch (m_handle_coordinate_dimension)
   {
   case Item_func_geomfromgeojson::reject_document:
-    if (coordinates->Size() > GEOM_DIM)
+    if (coordinates->size() > GEOM_DIM)
     {
       my_error(ER_DIMENSION_UNSUPPORTED, MYF(0), func_name(),
-               coordinates->Size(), GEOM_DIM);
+               coordinates->size(), GEOM_DIM);
       return true;
     }
     break;
@@ -637,10 +653,10 @@ get_positions(const rapidjson::Value *coordinates, Gis_point *point)
       The version in development as of writing, only supports 2 dimensions.
       When dimension count is increased beyond 2, we want the function to fail.
     */
-    if (GEOM_DIM > 2 && coordinates->Size() > 2)
+    if (GEOM_DIM > 2 && coordinates->size() > 2)
     {
       my_error(ER_DIMENSION_UNSUPPORTED, MYF(0), func_name(),
-               coordinates->Size(), GEOM_DIM);
+               coordinates->size(), GEOM_DIM);
       return true;
     }
     break;
@@ -656,11 +672,9 @@ get_positions(const rapidjson::Value *coordinates, Gis_point *point)
   }
 
   // Check if all array members are numbers.
-  int counter= 0;
-  rapidjson::Value::ConstValueIterator itr;
-  for (itr= coordinates->Begin(); itr != coordinates->End(); itr++)
+  for (size_t i= 0; i < coordinates->size(); ++i)
   {
-    if (!itr->IsNumber())
+    if (!(*coordinates)[i]->is_number())
     {
       my_error(ER_INVALID_GEOJSON_WRONG_TYPE, MYF(0), func_name(),
                "array coordinate", "number");
@@ -670,26 +684,31 @@ get_positions(const rapidjson::Value *coordinates, Gis_point *point)
     /*
       Even though we only need the two first coordinates, we check the rest of
       them to ensure that the GeoJSON is valid.
+
+      Remember to call set_alias(), so that this wrapper does not take ownership
+      of the data.
     */
-    if (counter == 0)
-      point->set<0>(itr->GetDouble());
-    else if (counter == 1)
-      point->set<1>(itr->GetDouble());
-    counter++;
+    Json_wrapper coord((*coordinates)[i]);
+    coord.set_alias();
+    if (i == 0)
+      point->set<0>(coord.coerce_real(""));
+    else if (i == 1)
+      point->set<1>(coord.coerce_real(""));
   }
+
   return false;
 }
 
 
 /**
-  Takes a rapidjson array as input, does a recursive parsing and returns a
+  Takes a JSON array as input, does a recursive parsing and returns a
   Geometry object.
 
   This function differs from parse_object() in that it takes an array as input
   instead of a object. This is one of the members "coordinates" or "geometries"
   of a GeoJSON object.
 
-  @param data_array A rapidjson array to parse.
+  @param data_array A JSON array to parse.
   @param type The type of the GeoJSON object this array belongs to.
   @param rollback Pointer to a boolean indicating if parsed data should
          be reverted/rolled back.
@@ -699,11 +718,10 @@ get_positions(const rapidjson::Value *coordinates, Gis_point *point)
   @return true on failure, false otherwise.
 */
 bool Item_func_geomfromgeojson::
-parse_object_array(const rapidjson::Value *data_array, Geometry::wkbType type,
+parse_object_array(const Json_array *data_array, Geometry::wkbType type,
                    bool *rollback, String *buffer,
                    bool is_parent_featurecollection, Geometry **geometry)
 {
-  DBUG_ASSERT(data_array->IsArray());
   switch (type)
   {
   case Geometry::wkb_geometrycollection:
@@ -722,20 +740,23 @@ parse_object_array(const rapidjson::Value *data_array, Geometry::wkbType type,
 
       collection->set_data_ptr(buffer->ptr() + GEOM_HEADER_SIZE, 4);
       collection->has_geom_header_space(true);
-      for (rapidjson::Value::ConstValueIterator itr = data_array->Begin();
-           itr != data_array->End(); ++itr)
+
+      for (size_t i= 0; i < data_array->size(); ++i)
       {
-        if (!itr->IsObject())
+        if ((*data_array)[i]->json_type() != Json_dom::J_OBJECT)
         {
           my_error(ER_INVALID_GEOJSON_WRONG_TYPE, MYF(0), func_name(),
                    GEOMETRIES_MEMBER, "object array");
           return true;
         }
 
+        const Json_object *object=
+          down_cast<const Json_object*>((*data_array)[i]);
+
         String geo_buffer;
         Geometry *parsed_geometry= NULL;
-        if (parse_object(itr, rollback, &geo_buffer,
-            is_parent_featurecollection, &parsed_geometry))
+        if (parse_object(object, rollback, &geo_buffer,
+                         is_parent_featurecollection, &parsed_geometry))
         {
           /*
             This will happen if a feature object contains a NULL geometry
@@ -776,13 +797,6 @@ parse_object_array(const rapidjson::Value *data_array, Geometry::wkbType type,
     }
   case Geometry::wkb_linestring:
     {
-      // Ensure that the LineString has at least one position.
-      if (data_array->Empty())
-      {
-        my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
-        return true;
-      }
-
       Gis_line_string *linestring= new Gis_line_string(false);
       *geometry= linestring;
 
@@ -792,8 +806,8 @@ parse_object_array(const rapidjson::Value *data_array, Geometry::wkbType type,
     }
   case Geometry::wkb_multipoint:
     {
-      // Ensure that the MultiPoing has at least one Point.
-      if (data_array->Empty())
+      // Ensure that the MultiPoint has at least one Point.
+      if (data_array->size() == 0)
       {
         my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
         return true;
@@ -802,18 +816,19 @@ parse_object_array(const rapidjson::Value *data_array, Geometry::wkbType type,
       Gis_multi_point *multipoint= new Gis_multi_point(false);
       *geometry= multipoint;
 
-      for (rapidjson::Value::ConstValueIterator itr = data_array->Begin();
-           itr != data_array->End(); ++itr)
+      for (size_t i= 0; i < data_array->size(); ++i)
       {
-        if (!itr->IsArray())
+        if ((*data_array)[i]->json_type() != Json_dom::J_ARRAY)
         {
           my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
           return true;
         }
         else
         {
+          const Json_array *coords=
+            down_cast<const Json_array*>((*data_array)[i]);
           Gis_point point;
-          if (get_positions(itr, &point))
+          if (get_positions(coords, &point))
             return true;
           multipoint->push_back(point);
         }
@@ -823,7 +838,7 @@ parse_object_array(const rapidjson::Value *data_array, Geometry::wkbType type,
   case Geometry::wkb_multilinestring:
     {
       // Ensure that the MultiLineString has at least one LineString.
-      if (data_array->Empty())
+      if (data_array->size() == 0)
       {
         my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
         return true;
@@ -831,17 +846,18 @@ parse_object_array(const rapidjson::Value *data_array, Geometry::wkbType type,
 
       Gis_multi_line_string *multilinestring= new Gis_multi_line_string(false);
       *geometry= multilinestring;
-      for (rapidjson::Value::ConstValueIterator itr = data_array->Begin();
-           itr != data_array->End(); ++itr)
+      for (size_t i= 0; i < data_array->size(); ++i)
       {
-        if (!itr->IsArray())
+        if ((*data_array)[i]->json_type() != Json_dom::J_ARRAY)
         {
           my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
           return true;
         }
 
+        const Json_array *coords=
+          down_cast<const Json_array*>((*data_array)[i]);
         Gis_line_string linestring;
-        if (get_linestring(itr, &linestring))
+        if (get_linestring(coords, &linestring))
           return true;
         multilinestring->push_back(linestring);
       }
@@ -856,7 +872,7 @@ parse_object_array(const rapidjson::Value *data_array, Geometry::wkbType type,
   case Geometry::wkb_multipolygon:
     {
       // Ensure that the MultiPolygon has at least one Polygon.
-      if (data_array->Empty())
+      if (data_array->size() == 0)
       {
         my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
         return true;
@@ -865,16 +881,18 @@ parse_object_array(const rapidjson::Value *data_array, Geometry::wkbType type,
       Gis_multi_polygon *multipolygon= new Gis_multi_polygon(false);
       *geometry= multipolygon;
 
-      for (rapidjson::Value::ConstValueIterator itr = data_array->Begin();
-           itr != data_array->End(); ++itr)
+      for (size_t i= 0; i < data_array->size(); ++i)
       {
-        if (!itr->IsArray())
+        if ((*data_array)[i]->json_type() != Json_dom::J_ARRAY)
         {
           my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
           return true;
         }
+
+        const Json_array *coords=
+          down_cast<const Json_array*>((*data_array)[i]);
         Gis_polygon polygon;
-        if (get_polygon(itr, &polygon))
+        if (get_polygon(coords, &polygon))
           return true;
         multipolygon->push_back(polygon);
       }
@@ -890,30 +908,27 @@ parse_object_array(const rapidjson::Value *data_array, Geometry::wkbType type,
 
 
 /**
-  Create a Gis_line_string from a rapidjson array.
+  Create a Gis_line_string from a JSON array.
 
-  @param data_array A rapidjson array containing the coordinates.
+  @param data_array A JSON array containing the coordinates.
   @param linestring Pointer to a linestring to be filled with data.
 
   @return true on failure, false otherwise.
 */
 bool
-Item_func_geomfromgeojson::get_linestring(const rapidjson::Value *data_array,
+Item_func_geomfromgeojson::get_linestring(const Json_array *data_array,
                                           Gis_line_string *linestring)
 {
-  DBUG_ASSERT(data_array->IsArray());
-
   // Ensure that the linestring has at least one point.
-  if (data_array->Size() < 2)
+  if (data_array->size() < 2)
   {
     my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
     return true;
   }
 
-  for (rapidjson::Value::ConstValueIterator itr = data_array->Begin();
-       itr != data_array->End(); ++itr)
+  for (size_t i= 0; i < data_array->size(); ++i)
   {
-    if (!itr->IsArray())
+    if ((*data_array)[i]->json_type() != Json_dom::J_ARRAY)
     {
       my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
       return true;
@@ -921,7 +936,8 @@ Item_func_geomfromgeojson::get_linestring(const rapidjson::Value *data_array,
     else
     {
       Gis_point point;
-      if (get_positions(itr, &point))
+      const Json_array *coords= down_cast<const Json_array*>((*data_array)[i]);
+      if (get_positions(coords, &point))
         return true;
       linestring->push_back(point);
     }
@@ -932,48 +948,53 @@ Item_func_geomfromgeojson::get_linestring(const rapidjson::Value *data_array,
 
 
 /**
-  Create a Gis_polygon from a rapidjson array.
+  Create a Gis_polygon from a JSON array.
 
-  @param data_array A rapidjson array containing the coordinates.
+  @param data_array A JSON array containing the coordinates.
   @param polygon A pointer to a Polygon to be filled with data.
 
   @return true on failure, false otherwise.
 */
-bool Item_func_geomfromgeojson::get_polygon(const rapidjson::Value *data_array,
+bool Item_func_geomfromgeojson::get_polygon(const Json_array *data_array,
                                             Gis_polygon *polygon)
 {
-  DBUG_ASSERT(data_array->IsArray());
-
   // Ensure that the Polygon has at least one ring.
-  if (data_array->Empty())
+  if (data_array->size() == 0)
   {
     my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
     return true;
   }
 
-  int ring_count= 0;
-  for (rapidjson::Value::ConstValueIterator ring_itr = data_array->Begin();
-       ring_itr != data_array->End(); ++ring_itr)
+  for (size_t ring_count= 0; ring_count < data_array->size(); ++ring_count)
   {
     // Polygon rings must have at least four points, according to GeoJSON spec.
-    if (!ring_itr->IsArray() || ring_itr->Size() < 4)
+    if ((*data_array)[ring_count]->json_type() != Json_dom::J_ARRAY)
+    {
+      my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
+      return true;
+    }
+
+    const Json_array *polygon_ring=
+      down_cast<const Json_array*>((*data_array)[ring_count]);
+    if (polygon_ring->size() < 4)
     {
       my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
       return true;
     }
 
     polygon->inners().resize(ring_count);
-    for (rapidjson::Value::ConstValueIterator point_itr= ring_itr->Begin();
-         point_itr != ring_itr->End(); ++point_itr)
+    for (size_t i= 0; i < polygon_ring->size(); ++i)
     {
-      if (!point_itr->IsArray())
+      if ((*polygon_ring)[i]->json_type() != Json_dom::J_ARRAY)
       {
         my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
         return true;
       }
 
       Gis_point point;
-      if (get_positions(point_itr, &point))
+      const Json_array *coords=
+        down_cast<const Json_array*>((*polygon_ring)[i]);
+      if (get_positions(coords, &point))
         return true;
 
       if (ring_count == 0)
@@ -1001,7 +1022,6 @@ bool Item_func_geomfromgeojson::get_polygon(const rapidjson::Value *data_array,
       my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
       return true;
     }
-    ring_count++;
   }
   return false;
 }
@@ -1066,41 +1086,30 @@ Geometry::wkbType Item_func_geomfromgeojson::get_wkbtype(const char *typestring)
           the CRS object provided.
 */
 bool Item_func_geomfromgeojson::
-parse_crs_object(const rapidjson::Value *crs_object)
+parse_crs_object(const Json_object *crs_object)
 {
   if (m_user_provided_srid)
     return false;
-
-  if (crs_object->IsNull())
-  {
-    return false;
-  }
-  else if (!crs_object->IsObject())
-  {
-    my_error(ER_INVALID_GEOJSON_WRONG_TYPE, MYF(0), func_name(),
-             CRS_MEMBER, "object");
-    return true;
-  }
 
   /*
     Check if required CRS members "type" and "properties" exists, and that they
     are of correct type according to GeoJSON specification.
   */
-  const rapidjson::Value::Member *type_member=
-    my_find_member_ncase(crs_object, TYPE_MEMBER);
-  const rapidjson::Value::Member *properties_member=
-    my_find_member_ncase(crs_object, PROPERTIES_MEMBER);
-  if (!is_member_valid(type_member, TYPE_MEMBER,
-                       rapidjson::kStringType, false, NULL) ||
-      !is_member_valid(properties_member, PROPERTIES_MEMBER,
-                       rapidjson::kObjectType, false, NULL))
+  const Json_dom *type_member= my_find_member_ncase(crs_object, TYPE_MEMBER);
+  const Json_dom *properties_member= my_find_member_ncase(crs_object,
+                                                          PROPERTIES_MEMBER);
+  if (!is_member_valid(type_member, TYPE_MEMBER, Json_dom::J_STRING, false,
+                       NULL) ||
+      !is_member_valid(properties_member, PROPERTIES_MEMBER, Json_dom::J_OBJECT,
+                       false, NULL))
   {
     return true;
   }
 
   // Check that this CRS is a named CRS, and not a linked CRS.
-  if (native_strcasecmp(type_member->value.GetString(),
-                        NAMED_CRS) != 0)
+  const Json_string *type_member_str=
+    down_cast<const Json_string*>(type_member);
+  if (native_strcasecmp(type_member_str->value().c_str(), NAMED_CRS) != 0)
   {
     // CRS object is not a named CRS.
     my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
@@ -1111,10 +1120,12 @@ parse_crs_object(const rapidjson::Value *crs_object)
     Check that CRS properties member has the required member "name"
     of type "string".
   */
-  const rapidjson::Value::Member *crs_name_member=
-    my_find_member_ncase(&properties_member->value, CRS_NAME_MEMBER);
-  if (!is_member_valid(crs_name_member, CRS_NAME_MEMBER,
-                       rapidjson::kStringType, false, NULL))
+  const Json_object *properties_member_obj=
+    down_cast<const Json_object*>(properties_member);
+  const Json_dom *crs_name_member= my_find_member_ncase(properties_member_obj,
+                                                        CRS_NAME_MEMBER);
+  if (!is_member_valid(crs_name_member, CRS_NAME_MEMBER, Json_dom::J_STRING,
+                       false, NULL))
   {
     return true;
   }
@@ -1135,16 +1146,18 @@ parse_crs_object(const rapidjson::Value *crs_object)
 
     If any of these fail, an error is returned to the user.
   */
+  const Json_string *crs_name_member_str=
+    down_cast<const Json_string*>(crs_name_member);
   longlong parsed_srid= -1;
-  if (native_strcasecmp(crs_name_member->value.GetString(), CRS84_URN) == 0)
+  if (native_strcasecmp(crs_name_member_str->value().c_str(), CRS84_URN) == 0)
   {
     parsed_srid= 4326;
   }
   else
   {
     size_t start_index;
-    size_t name_length= crs_name_member->value.GetStringLength();
-    const char *crs_name= crs_name_member->value.GetString();
+    size_t name_length= crs_name_member_str->size();
+    const char *crs_name= crs_name_member_str->value().c_str();
     if (native_strncasecmp(crs_name, SHORT_EPSG_PREFIX, 5) == 0)
     {
       start_index= 5;
@@ -1213,8 +1226,9 @@ parse_crs_object(const rapidjson::Value *crs_object)
   @return true if the member is valid, false otherwise.
 */
 bool Item_func_geomfromgeojson::
-is_member_valid(const rapidjson::Value::Member *member, const char *member_name,
-                rapidjson::Type expected_type, bool allow_null, bool *was_null)
+is_member_valid(const Json_dom *member, const char *member_name,
+                Json_dom::enum_json_type expected_type, bool allow_null,
+                bool *was_null)
 {
   if (member == NULL)
   {
@@ -1226,34 +1240,32 @@ is_member_valid(const rapidjson::Value::Member *member, const char *member_name,
   if (allow_null)
   {
     DBUG_ASSERT(was_null != NULL);
-    *was_null= member->value.IsNull();
+    *was_null= member->json_type() == Json_dom::J_NULL;
     if (*was_null)
       return true;
   }
 
-  bool fail;
   const char *type_name;
-  switch (expected_type)
+  if (member->json_type() != expected_type)
   {
-  case rapidjson::kObjectType:
-    type_name= "object";
-    fail= !member->value.IsObject();
-    break;
-  case rapidjson::kArrayType:
-    type_name= "array";
-    fail= !member->value.IsArray();
-    break;
-  case rapidjson::kStringType:
-    type_name= "string";
-    fail= !member->value.IsString();
-    break;
-  default:
-    DBUG_ASSERT(false);
-    return false;
-  }
+    switch (expected_type)
+    {
+    case Json_dom::J_OBJECT:
+      type_name= "object";
+      break;
+    case Json_dom::J_ARRAY:
+      type_name= "array";
+      break;
+    case Json_dom::J_STRING:
+      type_name= "string";
+      break;
+    default:
+      /* purecov: begin deadcode */
+      DBUG_ASSERT(false);
+      return false;
+      /* purecov: end */
+    }
 
-  if (fail)
-  {
     my_error(ER_INVALID_GEOJSON_WRONG_TYPE, MYF(0), func_name(), member_name,
              type_name);
     return false;
@@ -1347,6 +1359,7 @@ bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref)
       {
       case MYSQL_TYPE_NULL:
         break;
+      case MYSQL_TYPE_JSON:
       case MYSQL_TYPE_VARCHAR:
       case MYSQL_TYPE_VAR_STRING:
       case MYSQL_TYPE_BLOB:
@@ -1365,6 +1378,760 @@ bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref)
       }
       maybe_null= args[0]->maybe_null;
       break;
+    }
+  }
+  return false;
+}
+
+
+/**
+  Converts a wkbType to the corresponding GeoJSON type.
+
+  @param type The WKB Type to convert.
+
+  @return The corresponding GeoJSON type, or NULL if no such type exists.
+*/
+const char *
+wkbtype_to_geojson_type(Geometry::wkbType type)
+{
+  switch (type)
+  {
+  case Geometry::wkb_geometrycollection:
+    return Item_func_geomfromgeojson::GEOMETRYCOLLECTION_TYPE;
+  case Geometry::wkb_point:
+    return Item_func_geomfromgeojson::POINT_TYPE;
+  case Geometry::wkb_multipoint:
+    return Item_func_geomfromgeojson::MULTIPOINT_TYPE;
+  case Geometry::wkb_linestring:
+    return Item_func_geomfromgeojson::LINESTRING_TYPE;
+  case Geometry::wkb_multilinestring:
+    return Item_func_geomfromgeojson::MULTILINESTRING_TYPE;
+  case Geometry::wkb_polygon:
+    return Item_func_geomfromgeojson::POLYGON_TYPE;
+  case Geometry::wkb_multipolygon:
+    return Item_func_geomfromgeojson::MULTIPOLYGON_TYPE;
+  case Geometry::wkb_invalid_type:
+  case Geometry::wkb_polygon_inner_rings:
+  default:
+    return NULL;
+  }
+}
+
+
+/**
+  Append a GeoJSON array with coordinates to the writer at the current position.
+
+  The WKB parser must be positioned at the beginning of the coordinates.
+  There must exactly two coordinates in the array (x and y). The coordinates are
+  rounded to the number of decimals specified in the variable
+  max_decimal_digits.:
+
+  max_decimal_digits == 2: 12.789 => 12.79
+                           10     => 10.00
+
+  @param parser WKB parser with position set to the beginning of the
+         coordinates.
+  @param array JSON array to append the result to.
+  @param mbr A bounding box, which will be updated with data from the
+         coordinates.
+  @param calling_function Name of user-invoked function
+  @param max_decimal_digits Max length of decimal numbers
+  @param add_bounding_box True if a bounding box should be added
+  @param add_short_crs_urn True if we should add short format CRS URN
+  @param add_long_crs_urn True if we should add long format CRS URN
+  @param geometry_srid Spacial Reference System Identifier being used
+
+  @return false on success, true otherwise.
+*/
+bool
+append_coordinates(Geometry::wkb_parser *parser, Json_array *array, MBR *mbr,
+                   const char *calling_function,
+                   int max_decimal_digits,
+                   bool add_bounding_box,
+                   bool add_short_crs_urn,
+                   bool add_long_crs_urn,
+                   uint32 geometry_srid)
+{
+  point_xy coordinates;
+  if (parser->scan_xy(&coordinates))
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), calling_function);
+    return true;
+  }
+
+  double x_value=
+    my_double_round(coordinates.x, max_decimal_digits, true, false);
+  double y_value=
+    my_double_round(coordinates.y, max_decimal_digits, true, false);
+
+  if (array->append_alias(new (std::nothrow) Json_double(x_value)) ||
+      array->append_alias(new (std::nothrow) Json_double(y_value)))
+  {
+    return true;
+  }
+
+  if (add_bounding_box)
+    mbr->add_xy(x_value, y_value);
+  return false;
+}
+
+
+/**
+  Append a GeoJSON LineString object to the writer at the current position.
+
+  The parser must be positioned after the LineString header, and there must be
+  at least one coordinate array in the linestring.
+
+  @param parser WKB parser with position set to after the LineString header.
+  @param points JSON array to append the result to.
+  @param mbr A bounding box, which will be updated with data from the
+             LineString.
+  @param calling_function Name of user-invoked function
+  @param max_decimal_digits Max length of decimal numbers
+  @param add_bounding_box True if a bounding box should be added
+  @param add_short_crs_urn True if we should add short format CRS URN
+  @param add_long_crs_urn True if we should add long format CRS URN
+  @param geometry_srid Spacial Reference System Identifier being used
+
+  @return false on success, true otherwise.
+*/
+bool
+append_linestring(Geometry::wkb_parser *parser, Json_array *points, MBR *mbr,
+                  const char *calling_function,
+                  int max_decimal_digits,
+                  bool add_bounding_box,
+                  bool add_short_crs_urn,
+                  bool add_long_crs_urn,
+                  uint32 geometry_srid)
+{
+  uint32 num_points= 0;
+  if (parser->scan_non_zero_uint4(&num_points))
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), calling_function);
+    return true;
+  }
+
+  while (num_points--)
+  {
+    Json_array *point= new (std::nothrow) Json_array();
+    if (point == NULL || points->append_alias(point) ||
+        append_coordinates(parser, point, mbr, calling_function,
+                           max_decimal_digits,
+                           add_bounding_box,
+                           add_short_crs_urn,
+                           add_long_crs_urn,
+                           geometry_srid))
+    {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+/**
+  Append a GeoJSON Polygon object to the writer at the current position.
+
+  The parser must be positioned after the Polygon header, and all coordinate
+  arrays must contain at least one value.
+
+  @param parser WKB parser with position set to after the Polygon header.
+  @param polygon_rings JSON array to append the result to.
+  @param mbr A bounding box, which will be updated with data from the Polygon.
+  @param calling_function Name of user-invoked function
+  @param max_decimal_digits Max length of decimal numbers
+  @param add_bounding_box True if a bounding box should be added
+  @param add_short_crs_urn True if we should add short format CRS URN
+  @param add_long_crs_urn True if we should add long format CRS URN
+  @param geometry_srid Spacial Reference System Identifier being used
+
+  @return false on success, true otherwise.
+*/
+bool append_polygon(Geometry::wkb_parser *parser,
+                    Json_array *polygon_rings, MBR *mbr, const char *calling_function,
+                    int max_decimal_digits,
+                    bool add_bounding_box,
+                    bool add_short_crs_urn,
+                    bool add_long_crs_urn,
+                    uint32 geometry_srid)
+{
+  uint32 num_inner_rings= 0;
+  if (parser->scan_non_zero_uint4(&num_inner_rings))
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), calling_function);
+    return true;
+  }
+
+  while (num_inner_rings--)
+  {
+    Json_array *polygon_ring= new (std::nothrow) Json_array();
+    if (polygon_ring == NULL || polygon_rings->append_alias(polygon_ring))
+      return true;
+
+    uint32 num_points= 0;
+    if (parser->scan_non_zero_uint4(&num_points))
+    {
+      my_error(ER_GIS_INVALID_DATA, MYF(0), calling_function);
+      return true;
+    }
+
+    while (num_points--)
+    {
+      Json_array *point = new (std::nothrow) Json_array();
+      if (point == NULL || polygon_ring->append_alias(point) ||
+          append_coordinates(parser, point, mbr, calling_function,
+                             max_decimal_digits,
+                             add_bounding_box,
+                             add_short_crs_urn,
+                             add_long_crs_urn,
+                             geometry_srid))
+      {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+
+/**
+  Appends a GeoJSON bounding box to the rapidjson output buffer.
+
+  @param mbr Bounding box to write.
+  @param geometry The JSON object to append the bounding box to.
+
+  @return false on success, true otherwise.
+*/
+bool append_bounding_box(MBR *mbr, Json_object *geometry)
+{
+  DBUG_ASSERT(GEOM_DIM == 2);
+
+  Json_array *bbox_array= new (std::nothrow) Json_array();
+  if (bbox_array == NULL ||
+      geometry->add_alias("bbox", bbox_array) ||
+      bbox_array->append_alias(new (std::nothrow) Json_double(mbr->xmin)) ||
+      bbox_array->append_alias(new (std::nothrow) Json_double(mbr->ymin)) ||
+      bbox_array->append_alias(new (std::nothrow) Json_double(mbr->xmax)) ||
+      bbox_array->append_alias(new (std::nothrow) Json_double(mbr->ymax)))
+  {
+    return true;
+  }
+
+  return false;
+}
+
+
+/**
+  Appends a GeoJSON CRS object to the rapidjson output buffer.
+
+  If both add_long_crs_urn and add_short_crs_urn is specified, the long CRS URN
+  is preferred as mentioned in the GeoJSON specification:
+
+  "OGC CRS URNs such as "urn:ogc:def:crs:OGC:1.3:CRS84" shall be preferred
+  over legacy identifiers such as "EPSG:4326""
+
+  @param geometry The JSON object to append the CRS object to.
+  @param max_decimal_digits Max length of decimal numbers
+  @param add_bounding_box True if a bounding box should be added
+  @param add_short_crs_urn True if we should add short format CRS URN
+  @param add_long_crs_urn True if we should add long format CRS URN
+  @param geometry_srid Spacial Reference System Identifier being used
+
+  @return false on success, true otherwise.
+*/
+bool append_crs(Json_object *geometry,
+                int max_decimal_digits,
+                bool add_bounding_box,
+                bool add_short_crs_urn,
+                bool add_long_crs_urn,
+                uint32 geometry_srid)
+{
+  DBUG_ASSERT(add_long_crs_urn || add_short_crs_urn);
+  DBUG_ASSERT(geometry_srid > 0);
+
+  Json_object *crs_object= new (std::nothrow) Json_object();
+  if (crs_object == NULL || geometry->add_alias("crs", crs_object) ||
+      crs_object->add_alias("type", new (std::nothrow) Json_string("name")))
+  {
+    return true;
+  }
+
+  Json_object *crs_properties= new (std::nothrow) Json_object();
+  if (crs_properties == NULL ||
+      crs_object->add_alias("properties", crs_properties))
+  {
+    return true;
+  }
+
+  // Max width of SRID + '\0'
+  char srid_string[MAX_INT_WIDTH + 1];
+  llstr(geometry_srid, srid_string);
+
+  char crs_name[MAX_CRS_WIDTH];
+  if (add_long_crs_urn)
+    strcpy(crs_name, Item_func_geomfromgeojson::LONG_EPSG_PREFIX);
+  else if (add_short_crs_urn)
+    strcpy(crs_name, Item_func_geomfromgeojson::SHORT_EPSG_PREFIX);
+
+  strcat(crs_name, srid_string);
+  if (crs_properties->add_alias("name",
+                                new (std::nothrow) Json_string(crs_name)))
+  {
+    return true;
+  }
+
+  return false;
+}
+
+
+/**
+  Reads a WKB GEOMETRY from input and writes the equivalent GeoJSON to the
+  output. If a GEOMETRYCOLLECTION is found, this function will call itself for
+  each GEOMETRY in the collection.
+
+  @param parser The WKB input to read from, positioned at the start of
+         GEOMETRY header.
+  @param geometry JSON object to append the result to.
+  @param is_root_object Indicating if the current GEOMETRY is the root object
+         in the output GeoJSON.
+  @param mbr A bounding box, which will be updated with data from all the
+         GEOMETRIES found in the input.
+  @param calling_function Name of the user-invoked function
+  @param max_decimal_digits Max length of decimal numbers
+  @param add_bounding_box True if a bounding box should be added
+  @param add_short_crs_urn True if we should add short format CRS URN
+  @param add_long_crs_urn True if we should add long format CRS URN
+  @param geometry_srid Spacial Reference System Identifier being used
+
+  @return false on success, true otherwise.
+*/
+bool
+append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
+                bool is_root_object, MBR *mbr, const char *calling_function,
+                int max_decimal_digits,
+                bool add_bounding_box,
+                bool add_short_crs_urn,
+                bool add_long_crs_urn,
+                uint32 geometry_srid)
+{
+  // Check of wkb_type is within allowed range.
+  wkb_header header;
+  if (parser->scan_wkb_header(&header) ||
+      header.wkb_type < Geometry::wkb_first ||
+      header.wkb_type > Geometry::wkb_geometrycollection)
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), calling_function);
+    return true;
+  }
+
+  const char *geojson_type=
+    wkbtype_to_geojson_type(static_cast<Geometry::wkbType>(header.wkb_type));
+  if (geometry->add_alias("type", new (std::nothrow) Json_string(geojson_type)))
+    return true;
+
+  /*
+    Use is_mbr_empty to check if we encounter any empty GEOMETRY collections.
+    In that case, we don't want to write a bounding box to the GeoJSON output.
+  */
+  bool is_mbr_empty= false;
+
+  switch (header.wkb_type)
+  {
+  case Geometry::wkb_point:
+    {
+      Json_array *point= new (std::nothrow) Json_array();
+      if (point == NULL || geometry->add_alias("coordinates", point) ||
+          append_coordinates(parser, point, mbr, calling_function,
+                             max_decimal_digits,
+                             add_bounding_box,
+                             add_short_crs_urn,
+                             add_long_crs_urn,
+                             geometry_srid))
+      {
+        return true;
+      }
+      break;
+    }
+  case Geometry::wkb_linestring:
+    {
+      Json_array *points= new (std::nothrow) Json_array();
+      if (points == NULL || geometry->add_alias("coordinates", points) ||
+          append_linestring(parser, points, mbr, calling_function,
+                            max_decimal_digits,
+                            add_bounding_box,
+                            add_short_crs_urn,
+                            add_long_crs_urn,
+                            geometry_srid))
+      {
+        return true;
+      }
+      break;
+    }
+  case Geometry::wkb_polygon:
+    {
+      Json_array *polygon_rings= new (std::nothrow) Json_array();
+      if (polygon_rings == NULL ||
+          geometry->add_alias("coordinates", polygon_rings) ||
+          append_polygon(parser, polygon_rings, mbr, calling_function,
+                         max_decimal_digits,
+                         add_bounding_box,
+                         add_short_crs_urn,
+                         add_long_crs_urn,
+                         geometry_srid))
+      {
+        return true;
+      }
+      break;
+    }
+  case Geometry::wkb_multipoint:
+  case Geometry::wkb_multipolygon:
+  case Geometry::wkb_multilinestring:
+    {
+      uint32 num_items= 0;
+      if (parser->scan_non_zero_uint4(&num_items))
+      {
+        my_error(ER_GIS_INVALID_DATA, MYF(0), calling_function);
+        return true;
+      }
+
+      Json_array *collection= new (std::nothrow) Json_array();
+      if (collection == NULL || geometry->add_alias("coordinates", collection))
+        return true;
+
+      while (num_items--)
+      {
+        if (parser->skip_wkb_header())
+        {
+          my_error(ER_GIS_INVALID_DATA, MYF(0), calling_function);
+          return true;
+        }
+        else
+        {
+          bool result;
+          Json_array *points= new (std::nothrow) Json_array();
+          if (points == NULL || collection->append_alias(points))
+            return true;
+
+          if (header.wkb_type == Geometry::wkb_multipoint)
+            result= append_coordinates(parser, points, mbr, calling_function,
+                                       max_decimal_digits,
+                                       add_bounding_box,
+                                       add_short_crs_urn,
+                                       add_long_crs_urn,
+                                       geometry_srid);
+          else if (header.wkb_type == Geometry::wkb_multipolygon)
+            result= append_polygon(parser, points, mbr, calling_function,
+                                   max_decimal_digits,
+                                   add_bounding_box,
+                                   add_short_crs_urn,
+                                   add_long_crs_urn,
+                                   geometry_srid);
+          else if (Geometry::wkb_multilinestring)
+            result= append_linestring(parser, points, mbr, calling_function,
+                                      max_decimal_digits,
+                                      add_bounding_box,
+                                      add_short_crs_urn,
+                                      add_long_crs_urn,
+                                      geometry_srid);
+          else
+            DBUG_ASSERT(false);
+
+          if (result)
+            return true;
+        }
+      }
+      break;
+    }
+  case Geometry::wkb_geometrycollection:
+    {
+      uint32 num_geometries= 0;
+      if (parser->scan_uint4(&num_geometries))
+      {
+        my_error(ER_GIS_INVALID_DATA, MYF(0), calling_function);
+        return true;
+      }
+
+      is_mbr_empty= (num_geometries == 0);
+
+      Json_array *collection= new (std::nothrow) Json_array();
+      if (collection == NULL || geometry->add_alias("geometries", collection))
+        return true;
+
+      while (num_geometries--)
+      {
+        // Create a new MBR for the collection.
+        MBR subcollection_mbr;
+        Json_object *sub_geometry= new (std::nothrow) Json_object();
+        if (sub_geometry == NULL || collection->append_alias(sub_geometry) ||
+            append_geometry(parser, sub_geometry, false, &subcollection_mbr, calling_function,
+                            max_decimal_digits,
+                            add_bounding_box,
+                            add_short_crs_urn,
+                            add_long_crs_urn,
+                            geometry_srid))
+        {
+          return true;
+        }
+
+        if (add_bounding_box)
+          mbr->add_mbr(&subcollection_mbr);
+      }
+      break;
+    }
+  default:
+    {
+      // This should not happen, since we did a check on wkb_type earlier.
+      /* purecov: begin inspected */
+      DBUG_ASSERT(false);
+      return true;
+      /* purecov: end inspected */
+    }
+  }
+
+  // Only add a CRS object if the SRID of the GEOMETRY is not 0.
+  if (is_root_object && (add_long_crs_urn || add_short_crs_urn) &&
+      geometry_srid > 0)
+  {
+    append_crs(geometry,
+               max_decimal_digits,
+               add_bounding_box,
+               add_short_crs_urn,
+               add_long_crs_urn,
+               geometry_srid);
+  }
+
+  if (add_bounding_box && !is_mbr_empty)
+    append_bounding_box(mbr, geometry);
+
+  return false;
+}
+
+/** The contract for this function is found in item_json_func.h */
+bool geometry_to_json(Json_wrapper *wr, Item *geometry_arg, const char *calling_function,
+                      int max_decimal_digits,
+                      bool add_bounding_box,
+                      bool add_short_crs_urn,
+                      bool add_long_crs_urn,
+                      uint32 *geometry_srid)
+{
+  String arg_val;
+  String *swkb= geometry_arg->val_str(&arg_val);
+  if ((geometry_arg->null_value))
+    return false;
+
+  Geometry::wkb_parser parser(swkb->ptr(), swkb->ptr() + swkb->length());
+  if (parser.scan_uint4(geometry_srid))
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), calling_function);
+    return true;
+  }
+
+  /*
+    append_geometry() will go through the WKB and call itself recursivly if
+    geometry collections are encountered. For each recursive call, a new MBR
+    is created. The function will fail if it encounters invalid data in the
+    WKB input.
+  */
+  MBR mbr;
+  Json_object *geojson_object= new (std::nothrow) Json_object();
+
+  if (geojson_object == NULL ||
+      append_geometry(&parser, geojson_object, true, &mbr, calling_function,
+                      max_decimal_digits,
+                      add_bounding_box,
+                      add_short_crs_urn,
+                      add_long_crs_urn,
+                      *geometry_srid))
+  {
+    delete geojson_object;
+    return true;
+  }
+
+  Json_wrapper w(geojson_object);
+  wr->steal(&w);
+  return false;
+}
+
+/**
+  Create a GeoJSON object, according to GeoJSON specification revison 1.0.
+*/
+bool Item_func_as_geojson::val_json(Json_wrapper *wr)
+{
+  DBUG_ASSERT(fixed == TRUE);
+
+  if ((arg_count > 1 && parse_maxdecimaldigits_argument()) ||
+      (arg_count > 2 && parse_options_argument()))
+  {
+    if (null_value && !current_thd->is_error())
+      return false;
+    else
+      return error_json();
+  }
+
+  /*
+    Set maximum number of decimal digits. If maxdecimaldigits argument was not
+    specified, set unlimited number of decimal digits.
+  */
+  if (arg_count < 2)
+    m_max_decimal_digits= INT_MAX32;
+
+  if (geometry_to_json(wr, args[0], func_name(),
+                       m_max_decimal_digits,
+                       m_add_bounding_box,
+                       m_add_short_crs_urn,
+                       m_add_long_crs_urn,
+                       &m_geometry_srid))
+  {
+    if (null_value && !current_thd->is_error())
+      return false;
+    else
+      return error_json();
+  }
+
+  null_value= args[0]->null_value;
+  return false;
+}
+
+
+/**
+  Parse the value in options argument.
+
+  Options is a 3-bit bitmask with the following options:
+
+  0  No options (default values).
+  1  Add a bounding box to the output.
+  2  Add a short CRS URN to the output. The default format is a
+     short format ("EPSG:<srid>").
+  4  Add a long format CRS URN ("urn:ogc:def:crs:EPSG::<srid>"). This
+     will override option 2. E.g., bitmask 5 and 7 mean the
+     same: add a bounding box and a long format CRS URN.
+
+  If value is out of range (below zero or greater than seven), an error will be
+  raised. This function expects that the options argument is the third argument
+  in the function call.
+
+  @return false on success, true otherwise (value out of range or similar).
+*/
+bool Item_func_as_geojson::parse_options_argument()
+{
+  DBUG_ASSERT(arg_count > 2);
+  longlong options_argument= args[2]->val_int();
+  if ((null_value= args[2]->null_value))
+    return true;
+
+  if (options_argument < 0 || options_argument > 7)
+  {
+    char options_string[MAX_BIGINT_WIDTH + 1];
+    if (args[2]->unsigned_flag)
+      ullstr(options_argument, options_string);
+    else
+      llstr(options_argument, options_string);
+
+    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "options", options_string,
+             func_name());
+    return true;
+  }
+
+  m_add_bounding_box= options_argument & (1 << 0);
+  m_add_short_crs_urn= options_argument & (1 << 1);
+  m_add_long_crs_urn= options_argument & (1 << 2);
+
+  if (m_add_long_crs_urn)
+    m_add_short_crs_urn= false;
+  return false;
+}
+
+
+/**
+  Parse the value in maxdecimaldigits argument.
+
+  This value MUST be a positive integer. If value is out of range (negative
+  value or greater than INT_MAX), an error will be raised. This function expects
+  that the maxdecimaldigits argument is the second argument in the function
+  call.
+
+  @return false on success, true otherwise (negative value or similar).
+*/
+bool Item_func_as_geojson::parse_maxdecimaldigits_argument()
+{
+  DBUG_ASSERT(arg_count > 1);
+  longlong max_decimal_digits_argument = args[1]->val_int();
+  if ((null_value= args[1]->null_value))
+    return true;
+
+  if (max_decimal_digits_argument < 0 ||
+      max_decimal_digits_argument > INT_MAX32)
+  {
+    char max_decimal_digits_string[MAX_BIGINT_WIDTH + 1];
+    if (args[1]->unsigned_flag)
+      ullstr(max_decimal_digits_argument, max_decimal_digits_string);
+    else
+      llstr(max_decimal_digits_argument, max_decimal_digits_string);
+
+    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "max decimal digits",
+             max_decimal_digits_string, func_name());
+    return true;
+  }
+
+  m_max_decimal_digits= static_cast<int>(max_decimal_digits_argument);
+  return false;
+}
+
+
+/**
+  Perform type checking on all arguments:
+
+    <geometry> argument must be a geometry.
+    <maxdecimaldigits> must be an integer value.
+    <options> must be an integer value.
+
+  Set maybe_null to the correct value.
+*/
+bool Item_func_as_geojson::fix_fields(THD *thd, Item **ref)
+{
+  if (Item_json_func::fix_fields(thd, ref))
+    return true;
+
+  /*
+    We must set maybe_null to true, since the GeoJSON string may be longer than
+    the packet size.
+  */
+  maybe_null= true;
+
+  // Check if geometry argument is a geometry type.
+  bool is_parameter_marker= (args[0]->type() == PARAM_ITEM);
+  switch (args[0]->field_type())
+  {
+  case MYSQL_TYPE_GEOMETRY:
+  case MYSQL_TYPE_NULL:
+    break;
+  default:
+    {
+      if (!is_parameter_marker)
+      {
+        my_error(ER_INCORRECT_TYPE, MYF(0), "geojson", func_name());
+        return true;
+      }
+    }
+  }
+
+  if (arg_count > 1)
+  {
+    if (!Item_func_geomfromgeojson::check_argument_valid_integer(args[1]))
+    {
+      my_error(ER_INCORRECT_TYPE, MYF(0), "max decimal digits", func_name());
+      return true;
+    }
+  }
+
+  if (arg_count > 2)
+  {
+    if (!Item_func_geomfromgeojson::check_argument_valid_integer(args[2]))
+    {
+      my_error(ER_INCORRECT_TYPE, MYF(0), "options", func_name());
+      return true;
     }
   }
   return false;
@@ -1472,7 +2239,11 @@ String *Item_func_validate::val_str(String *str)
   {
     isvalid= check_geometry_valid(geom);
   }
-  CATCH_ALL("ST_Validate", null_value= true)
+  catch (...)
+  {
+    null_value= true;
+    handle_gis_exception("ST_Validate");
+  }
 
   return isvalid ? swkb : error_str();
 }
@@ -1574,7 +2345,7 @@ String *Item_func_make_envelope::val_str(String *str)
   if (str->reserve(GEOM_HEADER_SIZE + 4 + 4 + 5 * POINT_DATA_SIZE, 128))
     return error_str();
 
-  str->q_append(static_cast<uint32>(srid));
+  str->q_append(srid);
   str->q_append(static_cast<char>(Geometry::wkb_ndr));
 
   if (dim == 0)
@@ -1991,7 +2762,11 @@ bool Item_func_centroid::bg_centroid(const Geometry *geom, String *ptwkb)
     if (!null_value)
       bg_resbuf_mgr.set_result_buffer(const_cast<char *>(ptwkb->ptr()));
   }
-  CATCH_ALL("st_centroid", null_value= true)
+  catch (...)
+  {
+    null_value= true;
+    handle_gis_exception("st_centroid");
+  }
 
   return null_value;
 }
@@ -2198,7 +2973,11 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
     if (!null_value)
       bg_resbuf_mgr.set_result_buffer(const_cast<char *>(res_hull->ptr()));
   }
-  CATCH_ALL("st_convexhull", null_value= true)
+  catch (...)
+  {
+    null_value= true;
+    handle_gis_exception("st_convexhull");
+  }
 
   return null_value;
 }
@@ -2257,7 +3036,11 @@ String *Item_func_simplify::val_str(String *str)
         bg_resbuf_mgr.set_result_buffer(const_cast<char *>(str->ptr()));
     }
   }
-  CATCH_ALL("ST_Simplify", null_value= true)
+  catch (...)
+  {
+    null_value= true;
+    handle_gis_exception("ST_Simplify");
+  }
 
   return str;
 }
@@ -2740,23 +3523,20 @@ String *Item_func_spatial_collection::val_str(String *str)
 	uint32 n_points;
 	double x1, y1, x2, y2;
 	const char *org_data= data;
-        const char *firstpt= NULL;
-        char *p_npts= NULL;
 
 	if (len < 4)
 	  goto err;
 
 	n_points= uint4korr(data);
-        p_npts= const_cast<char *>(data);
 	data+= 4;
 
-        if (n_points < 3 || len < 4 + n_points * POINT_DATA_SIZE)
+        // A ring must have at least 4 points.
+        if (n_points < 4 || len != 4 + n_points * POINT_DATA_SIZE)
         {
           my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
           return error_str();
         }
 
-        firstpt= data;
 	float8get(&x1, data);
 	data+= SIZEOF_STORED_DOUBLE;
 	float8get(&y1, data);
@@ -2767,20 +3547,14 @@ String *Item_func_spatial_collection::val_str(String *str)
 	float8get(&x2, data);
 	float8get(&y2, data + SIZEOF_STORED_DOUBLE);
 
+        // A ring must be closed.
         if ((x1 != x2) || (y1 != y2))
-        {
-          n_points++;
-          int4store(p_npts, n_points);
-        }
-        else if (n_points == 3)
         {
           my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
           return error_str();
         }
 
-	if (str->append(org_data, len, 512) ||
-            (((x1 != x2) || (y1 != y2)) &&
-             str->append(firstpt, POINT_DATA_SIZE, 512)))
+	if (str->append(org_data, len, 512))
 	  goto err;
       }
       break;
@@ -2830,298 +3604,6 @@ err:
   null_value= 1;
   return 0;
 }
-
-
-static double count_edge_t(const Gcalc_heap::Info *ea,
-                           const Gcalc_heap::Info *eb,
-                           const Gcalc_heap::Info *v,
-                           double &ex, double &ey, double &vx, double &vy,
-                           double &e_sqrlen)
-{
-  ex= eb->x - ea->x;
-  ey= eb->y - ea->y;
-  vx= v->x - ea->x;
-  vy= v->y - ea->y;
-  e_sqrlen= ex * ex + ey * ey;
-  return (ex * vx + ey * vy) / e_sqrlen;
-}
-
-
-static double distance_to_line(double ex, double ey, double vx, double vy,
-                               double e_sqrlen)
-{
-  return fabs(vx * ey - vy * ex) / sqrt(e_sqrlen);
-}
-
-
-static double distance_points(const Gcalc_heap::Info *a,
-                              const Gcalc_heap::Info *b)
-{
-  double x= a->x - b->x;
-  double y= a->y - b->y;
-  return sqrt(x * x + y * y);
-}
-
-
-/*
-  Calculates the distance between objects.
-*/
-
-static int calc_distance(double *result, Gcalc_heap *collector, uint obj2_si,
-                         Gcalc_function *func, Gcalc_scan_iterator *scan_it)
-{
-  bool cur_point_edge;
-  const Gcalc_scan_iterator::point *evpos;
-  const Gcalc_heap::Info *cur_point, *dist_point;
-  Gcalc_scan_events ev;
-  double t, distance, cur_distance;
-  double ex, ey, vx, vy, e_sqrlen;
-
-  DBUG_ENTER("calc_distance");
-
-  distance= DBL_MAX;
-
-  while (scan_it->more_points())
-  {
-    if (scan_it->step())
-      goto mem_error;
-    evpos= scan_it->get_event_position();
-    ev= scan_it->get_event();
-    cur_point= evpos->pi;
-
-    /*
-       handling intersection we only need to check if it's the intersecion
-       of objects 1 and 2. In this case distance is 0
-    */
-    if (ev == scev_intersection)
-    {
-      if ((evpos->get_next()->pi->shape >= obj2_si) !=
-            (cur_point->shape >= obj2_si))
-      {
-        distance= 0;
-        goto exit;
-      }
-      continue;
-    }
-
-    /*
-       if we get 'scev_point | scev_end | scev_two_ends' we don't need
-       to check for intersection of objects.
-       Though we need to calculate distances.
-    */
-    if (ev & (scev_point | scev_end | scev_two_ends))
-      goto calculate_distance;
-
-    goto calculate_distance;
-    /*
-       having these events we need to check for possible intersection
-       of objects
-       scev_thread | scev_two_threads | scev_single_point
-    */
-    DBUG_ASSERT(ev & (scev_thread | scev_two_threads | scev_single_point));
-
-    func->clear_state();
-    for (Gcalc_point_iterator pit(scan_it); pit.point() != evpos; ++pit)
-    {
-      gcalc_shape_info si= pit.point()->get_shape();
-      if ((func->get_shape_kind(si) == Gcalc_function::shape_polygon))
-        func->invert_state(si);
-    }
-    func->invert_state(evpos->get_shape());
-    if (func->count())
-    {
-      /* Point of one object is inside the other - intersection found */
-      distance= 0;
-      goto exit;
-    }
-
-
-calculate_distance:
-    if (cur_point->shape >= obj2_si)
-      continue;
-    cur_point_edge= !cur_point->is_bottom();
-
-    for (dist_point= collector->get_first(); dist_point;
-         dist_point= dist_point->get_next())
-    {
-      /* We only check vertices of object 2 */
-      if (dist_point->shape < obj2_si)
-        continue;
-
-      /* if we have an edge to check */
-      if (dist_point->left)
-      {
-        t= count_edge_t(dist_point, dist_point->left, cur_point,
-                        ex, ey, vx, vy, e_sqrlen);
-        if ((t > 0.0) && (t < 1.0))
-        {
-          cur_distance= distance_to_line(ex, ey, vx, vy, e_sqrlen);
-          if (distance > cur_distance)
-            distance= cur_distance;
-        }
-      }
-      if (cur_point_edge)
-      {
-        t= count_edge_t(cur_point, cur_point->left, dist_point,
-                        ex, ey, vx, vy, e_sqrlen);
-        if ((t > 0.0) && (t < 1.0))
-        {
-          cur_distance= distance_to_line(ex, ey, vx, vy, e_sqrlen);
-          if (distance > cur_distance)
-            distance= cur_distance;
-        }
-      }
-      cur_distance= distance_points(cur_point, dist_point);
-      if (distance > cur_distance)
-        distance= cur_distance;
-    }
-  }
-
-exit:
-  *result= distance;
-  DBUG_RETURN(0);
-
-mem_error:
-  DBUG_RETURN(1);
-}
-
-
-int Item_func_spatial_rel::func_touches()
-{
-  double distance= GIS_ZERO;
-  int result= 0;
-  int cur_func= 0;
-
-  Gcalc_operation_transporter trn(&func, &collector);
-
-  String *res1= args[0]->val_str(&tmp_value1);
-  String *res2= args[1]->val_str(&tmp_value2);
-  Geometry_buffer buffer1, buffer2;
-  Geometry *g1, *g2;
-  int obj2_si;
-
-  DBUG_ENTER("Item_func_spatial_rel::func_touches");
-  DBUG_ASSERT(fixed == 1);
-
-  if ((null_value= (!res1 || args[0]->null_value ||
-                    !res2 || args[1]->null_value)))
-    goto mem_error;
-  if (!(g1= Geometry::construct(&buffer1, res1)) ||
-      !(g2= Geometry::construct(&buffer2, res2)))
-  {
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    result= error_int();
-    goto exit;
-  }
-
-  if ((g1->get_class_info()->m_type_id == Geometry::wkb_point) &&
-      (g2->get_class_info()->m_type_id == Geometry::wkb_point))
-  {
-    point_xy p1, p2, e;
-    if (((Gis_point *) g1)->get_xy(&p1) ||
-        ((Gis_point *) g2)->get_xy(&p2))
-      goto mem_error;
-    e.x= p2.x - p1.x;
-    e.y= p2.y - p1.y;
-    DBUG_RETURN((e.x * e.x + e.y * e.y) < GIS_ZERO);
-  }
-
-  if (func.reserve_op_buffer(1))
-    goto mem_error;
-  func.add_operation(Gcalc_function::op_intersection, 2);
-
-  if (g1->store_shapes(&trn))
-    goto mem_error;
-  obj2_si= func.get_nshapes();
-
-  if (g2->store_shapes(&trn) || func.alloc_states())
-    goto mem_error;
-
-#ifndef DBUG_OFF
-  func.debug_print_function_buffer();
-#endif
-
-  collector.prepare_operation();
-  scan_it.init(&collector);
-
-  if (calc_distance(&distance, &collector, obj2_si, &func, &scan_it))
-    goto mem_error;
-  if (distance > GIS_ZERO)
-    goto exit;
-
-  scan_it.reset();
-  scan_it.init(&collector);
-
-  distance= DBL_MAX;
-
-  while (scan_it.more_trapezoids())
-  {
-    if (scan_it.step())
-      goto mem_error;
-
-    func.clear_state();
-    for (Gcalc_trapezoid_iterator ti(&scan_it); ti.more(); ++ti)
-    {
-      gcalc_shape_info si= ti.lb()->get_shape();
-      if ((func.get_shape_kind(si) == Gcalc_function::shape_polygon))
-      {
-        func.invert_state(si);
-        cur_func= func.count();
-      }
-      if (cur_func)
-      {
-        double area= scan_it.get_h() *
-              ((ti.rb()->x - ti.lb()->x) + (ti.rt()->x - ti.lt()->x));
-        if (area > GIS_ZERO)
-        {
-          result= 0;
-          goto exit;
-        }
-      }
-    }
-  }
-  result= 1;
-
-exit:
-  collector.reset();
-  func.reset();
-  scan_it.reset();
-  DBUG_RETURN(result);
-mem_error:
-  null_value= 1;
-  DBUG_RETURN(0);
-}
-
-
-int Item_func_spatial_rel::func_equals()
-{
-  Gcalc_heap::Info *pi_s1, *pi_s2;
-  Gcalc_heap::Info *cur_pi= collector.get_first();
-  double d;
-
-  if (!cur_pi)
-    return 1;
-
-  do {
-    pi_s1= cur_pi;
-    pi_s2= 0;
-    while ((cur_pi= cur_pi->get_next()))
-    {
-      d= fabs(pi_s1->x - cur_pi->x) + fabs(pi_s1->y - cur_pi->y);
-      if (d > GIS_ZERO)
-        break;
-      if (!pi_s2 && pi_s1->shape != cur_pi->shape)
-        pi_s2= cur_pi;
-    }
-
-    if (!pi_s2)
-      return 0;
-  } while (cur_pi);
-
-  return 1;
-}
-
-
 
 
 /**
@@ -3411,7 +3893,11 @@ bool Item_func_issimple::issimple(Geometry *g)
       break;
     }
   }
-  CATCH_ALL(func_name(), res= error_bool())
+  catch (...)
+  {
+    res= error_bool();
+    handle_gis_exception(func_name());
+  }
 
   return res;
 }
@@ -3636,7 +4122,11 @@ longlong Item_func_isvalid::val_int()
   {
     ret= check_geometry_valid(geom);
   }
-  CATCH_ALL("ST_IsValid", null_value= true)
+  catch (...)
+  {
+    null_value= true;
+    handle_gis_exception("ST_IsValid");
+  }
 
   return ret;
 }
@@ -3830,7 +4320,11 @@ double Item_func_area::bg_area(const Geometry *geom)
       break;
     }
   }
-  CATCH_ALL("st_area", null_value= true)
+  catch (...)
+  {
+    null_value= true;
+    handle_gis_exception("st_area");
+  }
 
   /*
     Given a polygon whose rings' points are in counter-clockwise order,
@@ -4431,7 +4925,11 @@ bg_distance_spherical(const Geometry *g1, const Geometry *g2)
       break;
     }
   }
-  CATCH_ALL("st_distance_sphere", null_value= true)
+  catch (...)
+  {
+    null_value= true;
+    handle_gis_exception("st_distance_sphere");
+  }
 
   return res;
 }
@@ -4569,7 +5067,11 @@ double Item_func_distance::bg_distance(const Geometry *g1, const Geometry *g2)
       break;
     }
   }
-  CATCH_ALL("st_distance", had_except= true)
+  catch (...)
+  {
+    had_except= true;
+    handle_gis_exception("st_distance");
+  }
 
   if (had_except)
     return error_real();

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,13 +30,13 @@ int _mi_check_index(MI_INFO *info, int inx)
     inx=info->lastinx;
   if (inx < 0)
   {
-    my_errno= HA_ERR_WRONG_INDEX;
+    set_my_errno(HA_ERR_WRONG_INDEX);
     return -1;
   }
   if (!mi_is_key_active(info->s->state.key_map, inx))
   {
-    my_errno= info->s->state.state.records ? HA_ERR_WRONG_INDEX :
-                                             HA_ERR_END_OF_FILE;
+    set_my_errno(info->s->state.state.records ? HA_ERR_WRONG_INDEX :
+                 HA_ERR_END_OF_FILE);
     return -1;
   }
   if (info->lastinx != inx)             /* Index changed */
@@ -74,7 +74,7 @@ int _mi_search(MI_INFO *info, MI_KEYDEF *keyinfo,
 
   if (pos == HA_OFFSET_ERROR)
   {
-    my_errno=HA_ERR_KEY_NOT_FOUND;                      /* Didn't find key */
+    set_my_errno(HA_ERR_KEY_NOT_FOUND);                      /* Didn't find key */
     info->lastpos= HA_OFFSET_ERROR;
     if (!(nextflag & (SEARCH_SMALLER | SEARCH_BIGGER | SEARCH_LAST)))
       DBUG_RETURN(-1);                          /* Not found ; return error */
@@ -116,7 +116,7 @@ int _mi_search(MI_INFO *info, MI_KEYDEF *keyinfo,
     {
       if ((error=_mi_search(info,keyinfo,key,key_len,SEARCH_FIND,
                             _mi_kpos(nod_flag,keypos))) >= 0 ||
-          my_errno != HA_ERR_KEY_NOT_FOUND)
+          my_errno() != HA_ERR_KEY_NOT_FOUND)
         DBUG_RETURN(error);
       info->last_keypage= HA_OFFSET_ERROR;              /* Buffer not in mem */
     }
@@ -141,7 +141,7 @@ int _mi_search(MI_INFO *info, MI_KEYDEF *keyinfo,
         ha_key_cmp(keyinfo->seg, info->lastkey, key, key_len, SEARCH_FIND,
                    not_used))
     {
-      my_errno=HA_ERR_KEY_NOT_FOUND;                    /* Didn't find key */
+      set_my_errno(HA_ERR_KEY_NOT_FOUND);                    /* Didn't find key */
       goto err;
     }
   }
@@ -166,7 +166,7 @@ int _mi_search(MI_INFO *info, MI_KEYDEF *keyinfo,
   DBUG_RETURN(0);
 
 err:
-  DBUG_PRINT("exit",("Error: %d",my_errno));
+  DBUG_PRINT("exit",("Error: %d",my_errno()));
   info->lastpos= HA_OFFSET_ERROR;
   info->page_changed=1;
   DBUG_RETURN (-1);
@@ -261,7 +261,7 @@ int _mi_seq_search(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
     if (length == 0 || page > end)
     {
       mi_print_error(info->s, HA_ERR_CRASHED);
-      my_errno=HA_ERR_CRASHED;
+      set_my_errno(HA_ERR_CRASHED);
       DBUG_PRINT("error",
                  ("Found wrong key:  length: %u  page: 0x%lx  end: 0x%lx",
                   length, (long) page, (long) end));
@@ -413,7 +413,7 @@ int _mi_prefix_search(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
     if (page > end)
     {
       mi_print_error(info->s, HA_ERR_CRASHED);
-      my_errno=HA_ERR_CRASHED;
+      set_my_errno(HA_ERR_CRASHED);
       DBUG_PRINT("error",
                  ("Found wrong key:  length: %u  page: 0x%lx  end: %lx",
                   length, (long) page, (long) end));
@@ -800,7 +800,7 @@ uint _mi_get_pack_key(MI_KEYDEF *keyinfo, uint nod_flag,
 	if (length > (uint) keyseg->length)
 	{
           mi_print_error(keyinfo->share, HA_ERR_CRASHED);
-	  my_errno=HA_ERR_CRASHED;
+	  set_my_errno(HA_ERR_CRASHED);
 	  return 0;				/* Error */
 	}
 	if (length == 0)			/* Same key */
@@ -816,7 +816,7 @@ uint _mi_get_pack_key(MI_KEYDEF *keyinfo, uint nod_flag,
                         length, keyseg->length, (long) *page_pos));
 	    DBUG_DUMP("key", *page_pos, 16);
             mi_print_error(keyinfo->share, HA_ERR_CRASHED);
-	    my_errno=HA_ERR_CRASHED;
+	    set_my_errno(HA_ERR_CRASHED);
 	    return 0;
 	  }
 	  continue;
@@ -873,7 +873,7 @@ uint _mi_get_pack_key(MI_KEYDEF *keyinfo, uint nod_flag,
                             length, keyseg->length, (long) *page_pos));
         DBUG_DUMP("key", *page_pos, 16);
         mi_print_error(keyinfo->share, HA_ERR_CRASHED);
-        my_errno=HA_ERR_CRASHED;
+        set_my_errno(HA_ERR_CRASHED);
         return 0;                               /* Error */
       }
       store_key_length_inc(key,length);
@@ -1038,7 +1038,7 @@ uint _mi_get_binary_pack_key(MI_KEYDEF *keyinfo, uint nod_flag,
 
   crashed:
     mi_print_error(keyinfo->share, HA_ERR_CRASHED);
-    my_errno= HA_ERR_CRASHED;
+    set_my_errno(HA_ERR_CRASHED);
     DBUG_RETURN(0);
 }
 
@@ -1068,7 +1068,7 @@ uchar *_mi_get_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
       if (*return_key_length == 0)
       {
         mi_print_error(info->s, HA_ERR_CRASHED);
-        my_errno=HA_ERR_CRASHED;
+        set_my_errno(HA_ERR_CRASHED);
         DBUG_RETURN(0);
       }
     }
@@ -1107,7 +1107,7 @@ static my_bool _mi_get_prev_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
       if (*return_key_length == 0)
       {
         mi_print_error(info->s, HA_ERR_CRASHED);
-        my_errno=HA_ERR_CRASHED;
+        set_my_errno(HA_ERR_CRASHED);
         DBUG_RETURN(1);
       }
     }
@@ -1151,7 +1151,7 @@ uchar *_mi_get_last_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
         DBUG_PRINT("error",("Couldn't find last key:  page: 0x%lx",
                             (long) page));
         mi_print_error(info->s, HA_ERR_CRASHED);
-        my_errno=HA_ERR_CRASHED;
+        set_my_errno(HA_ERR_CRASHED);
         DBUG_RETURN(0);
       }
     }
@@ -1326,7 +1326,7 @@ int _mi_search_first(MI_INFO *info, MI_KEYDEF *keyinfo,
 
   if (pos == HA_OFFSET_ERROR)
   {
-    my_errno=HA_ERR_KEY_NOT_FOUND;
+    set_my_errno(HA_ERR_KEY_NOT_FOUND);
     info->lastpos= HA_OFFSET_ERROR;
     DBUG_RETURN(-1);
   }
@@ -1370,7 +1370,7 @@ int _mi_search_last(MI_INFO *info, MI_KEYDEF *keyinfo,
 
   if (pos == HA_OFFSET_ERROR)
   {
-    my_errno=HA_ERR_KEY_NOT_FOUND;                      /* Didn't find key */
+    set_my_errno(HA_ERR_KEY_NOT_FOUND);                      /* Didn't find key */
     info->lastpos= HA_OFFSET_ERROR;
     DBUG_RETURN(-1);
   }

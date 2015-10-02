@@ -764,7 +764,8 @@ uint my_mbcharlen_ptr(const CHARSET_INFO *cs, const char *s, const char *e);
   @param[in] a first byte of gb18030 code
   @param[in] b second byte of gb18030 code
   @return    the length of gb18030 code starting with given two bytes,
-             the length would be 2 or 4
+             the length would be 2 or 4 for valid gb18030 code,
+             or 0 for invalid gb18030 code
 */
 #define my_mbcharlen_2(s, a, b)       ((s)->cset->mbcharlen((s),((((a) & 0xFF) << 8) + ((b) & 0xFF))))
 /**

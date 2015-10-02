@@ -1,0 +1,74 @@
+"Default connection"
+select NAME, PROCESSLIST_USER, PROCESSLIST_HOST, CONNECTION_TYPE
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+NAME	thread/sql/one_connection
+PROCESSLIST_USER	root
+PROCESSLIST_HOST	localhost
+CONNECTION_TYPE	TCP/IP
+create user 'root'@'santa.claus.ipv4.example.com';
+grant select on *.* to 'root'@'santa.claus.ipv4.example.com';
+create user 'rootssl'@'santa.claus.ipv4.example.com'
+  require SSL;
+grant select on *.* to 'rootssl'@'santa.claus.ipv4.example.com';
+set global debug= "+d,vio_peer_addr_fake_ipv4,getnameinfo_fake_ipv4,getaddrinfo_fake_good_ipv4";
+TRUNCATE TABLE mysql.general_log;
+SET @old_log_output=          @@global.log_output;
+SET @old_general_log=         @@global.general_log;
+SET @old_general_log_file=    @@global.general_log_file;
+SET GLOBAL general_log_file = '.../log/rewrite_general_con.log';
+SET GLOBAL log_output =       'FILE,TABLE';
+SET GLOBAL general_log=       'ON';
+"Connection con1"
+select NAME, PROCESSLIST_USER, PROCESSLIST_HOST, CONNECTION_TYPE
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+NAME	thread/sql/one_connection
+PROCESSLIST_USER	root
+PROCESSLIST_HOST	santa.claus.ipv4.example.com
+CONNECTION_TYPE	TCP/IP
+"Connection con2"
+select NAME, PROCESSLIST_USER, PROCESSLIST_HOST, CONNECTION_TYPE
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+NAME	thread/sql/one_connection
+PROCESSLIST_USER	root
+PROCESSLIST_HOST	santa.claus.ipv4.example.com
+CONNECTION_TYPE	TCP/IP
+"Connection con3"
+select NAME, PROCESSLIST_USER, PROCESSLIST_HOST, CONNECTION_TYPE
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+NAME	thread/sql/one_connection
+PROCESSLIST_USER	rootssl
+PROCESSLIST_HOST	santa.claus.ipv4.example.com
+CONNECTION_TYPE	SSL/TLS
+SET GLOBAL general_log=       'OFF';
+CREATE TABLE test_log (argument TEXT);
+LOAD DATA LOCAL INFILE '.../log/rewrite_general_con.log'
+     INTO TABLE test_log FIELDS TERMINATED BY '\n' LINES TERMINATED BY '\n';
+select user_host, command_type, argument from mysql.general_log
+where command_type = "Connect";
+user_host	[root] @ santa.claus.ipv4.example.com [192.0.2.4]
+command_type	Connect
+argument	root@santa.claus.ipv4.example.com on test using TCP/IP
+user_host	[root] @ santa.claus.ipv4.example.com [192.0.2.4]
+command_type	Connect
+argument	root@santa.claus.ipv4.example.com on test using TCP/IP
+user_host	[rootssl] @ santa.claus.ipv4.example.com [192.0.2.4]
+command_type	Connect
+argument	rootssl@santa.claus.ipv4.example.com on test using SSL/TLS
+select substring(argument, locate("Connect", argument)) from test_log
+where argument like "%Connect%on test%";
+substring(argument, locate("Connect", argument))	Connect	root@santa.claus.ipv4.example.com on test using TCP/IP
+substring(argument, locate("Connect", argument))	Connect	root@santa.claus.ipv4.example.com on test using TCP/IP
+substring(argument, locate("Connect", argument))	Connect	rootssl@santa.claus.ipv4.example.com on test using SSL/TLS
+DROP TABLE test_log;
+SET GLOBAL general_log_file=  @old_general_log_file;
+SET GLOBAL general_log=       @old_general_log;
+SET GLOBAL log_output=        @old_log_output;
+set global debug= default;
+revoke select on *.* from 'root'@'santa.claus.ipv4.example.com';
+drop user 'root'@'santa.claus.ipv4.example.com';
+revoke select on *.* from 'rootssl'@'santa.claus.ipv4.example.com';
+drop user 'rootssl'@'santa.claus.ipv4.example.com';

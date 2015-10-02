@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,6 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#ifndef MY_DECIMAL_INCLUDED
+#define MY_DECIMAL_INCLUDED
+
 /**
   @file
 
@@ -24,9 +27,6 @@
 
   Most function are just inline wrappers around library calls
 */
-
-#ifndef my_decimal_h
-#define my_decimal_h
 
 #if defined(MYSQL_SERVER) || defined(EMBEDDED_LIBRARY)
 #include "sql_string.h"                         /* String */
@@ -230,6 +230,12 @@ inline int check_result_and_overflow(uint mask, int result, my_decimal *val)
     max_internal_decimal(val);
     val->sign(sign);
   }
+  /*
+    Avoid returning negative zero, cfr. decimal_cmp()
+    For result == E_DEC_DIV_ZERO *val has not been assigned.
+  */
+  if (result != E_DEC_DIV_ZERO && val->sign() && decimal_is_zero(val))
+    val->sign(false);
   return result;
 }
 
@@ -438,12 +444,13 @@ int int2my_decimal(uint mask, longlong i, my_bool unsigned_flag, my_decimal *d)
 inline
 void my_decimal_neg(decimal_t *arg)
 {
+  // Avoid returning negative zero, cfr. decimal_cmp()
   if (decimal_is_zero(arg))
   {
     arg->sign= 0;
     return;
   }
-  decimal_neg(arg);
+  arg->sign^= 1;
 }
 
 
@@ -528,6 +535,4 @@ int my_decimal_intg(const my_decimal *a)
 
 void my_decimal_trim(ulong *precision, uint *scale);
 
-
-#endif /*my_decimal_h*/
-
+#endif  // MY_DECIMAL_INCLUDED

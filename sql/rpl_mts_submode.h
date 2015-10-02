@@ -17,7 +17,7 @@
 
 #include "my_global.h"
 #include "my_atomic.h"         // my_atomic_load64
-#include "my_thread.h"         // my_thread_id
+#include "my_thread_local.h"   // my_thread_id
 #include "prealloced_array.h"  // Prealloced_array
 #include "binlog_event.h"      // SEQ_UNINIT
 
@@ -30,7 +30,6 @@ class Slave_worker;
 class THD;
 struct TABLE;
 typedef Prealloced_array<Slave_worker*, 4> Slave_worker_array;
-
 
 enum enum_mts_parallel_type {
   /* Parallel slave based on Database name */

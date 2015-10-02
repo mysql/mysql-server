@@ -2385,3 +2385,24 @@ eval EXPLAIN $query;
 eval $query;
 
 DROP TABLE t0, t1;
+
+--echo # Bug#21753180: handle_fatal_signal (sig=11) in my_strtod_int
+
+CREATE TABLE t1(
+ a INTEGER,
+ b BLOB(1),
+ c BLOB(1),
+ PRIMARY KEY(a,b(1)),
+ UNIQUE KEY (a,c(1))
+);
+
+INSERT INTO t1 VALUES(1,2,1),(2,4,1);
+
+let $query=
+SELECT a, (SELECT SUM(a + c) FROM (SELECT b as c FROM t1) AS v1) FROM t1;
+
+eval explain $query;
+
+eval $query;
+
+DROP TABLE t1;

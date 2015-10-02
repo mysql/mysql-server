@@ -228,21 +228,17 @@ extern char *longlong10_to_str(longlong val,char *dst,int radix);
 /*
   LEX_STRING -- a pair of a C-string and its length.
   (it's part of the plugin API as a MYSQL_LEX_STRING)
+  Ditto LEX_CSTRING/MYSQL_LEX_CSTRING.
 */
 
 #include <mysql/mysql_lex_string.h>
 typedef struct st_mysql_lex_string LEX_STRING;
-
-#define STRING_WITH_LEN(X) (X), ((size_t) (sizeof(X) - 1))
-#define USTRING_WITH_LEN(X) ((uchar*) X), ((size_t) (sizeof(X) - 1))
-#define C_STRING_WITH_LEN(X) ((char *) (X)), ((size_t) (sizeof(X) - 1))
-
-struct st_mysql_const_lex_string
-{
-  const char *str;
-  size_t length;
-};
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
+
+#define STRING_WITH_LEN(X) (X), ((sizeof(X) - 1))
+#define USTRING_WITH_LEN(X) ((uchar*) X), ((sizeof(X) - 1))
+#define C_STRING_WITH_LEN(X) ((char *) (X)), ((sizeof(X) - 1))
+
 
 /**
   Skip trailing space.
@@ -333,6 +329,12 @@ static inline const uchar *skip_trailing_space(const uchar *ptr, size_t len)
 static inline void lex_string_set(LEX_STRING *lex_str, const char *c_str)
 {
   lex_str->str= (char *) c_str;
+  lex_str->length= strlen(c_str);
+}
+
+static inline void lex_cstring_set(LEX_CSTRING *lex_str, const char *c_str)
+{
+  lex_str->str= c_str;
   lex_str->length= strlen(c_str);
 }
 

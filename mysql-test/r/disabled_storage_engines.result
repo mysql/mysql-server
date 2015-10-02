@@ -1,0 +1,71 @@
+CALL mtr.add_suppression("default_storage_engine is set to a disabled storage engine .*");
+CALL mtr.add_suppression("default_tmp_storage_engine is set to a disabled storage engine .*");
+CREATE TABLE t1(c1 int) ENGINE=HEAP;
+ERROR HY000: Storage engine MEMORY is disabled (Table creation is disallowed).
+CREATE TABLE t1 (c1 int) ENGINE=MYISAM;
+INSERT INTO t1 VALUES(1);
+CREATE TABLESPACE tb1 ADD DATAFILE 't1.ibd' ENGINE=INNODB;
+CREATE TABLE tp1 (c1 int) PARTITION BY KEY (c1) PARTITIONS 1;
+SHOW VARIABLES LIKE 'disabled_storage_engines';
+Variable_name	Value
+disabled_storage_engines	innodb,myisam,heap,example
+SELECT * FROM t1;
+c1
+1
+ALTER TABLE t1 ENGINE=MyISAM, ADD COLUMN c2 INT;
+ALTER TABLE t1 ADD COLUMN c3 INT;
+DROP TABLESPACE tb1;
+CREATE TABLE t2 LIKE t1;
+ERROR HY000: Storage engine MyISAM is disabled (Table creation is disallowed).
+CREATE TABLE t2 AS SELECT * FROM t1;
+ERROR HY000: Storage engine InnoDB is disabled (Table creation is disallowed).
+ALTER TABLE t1 ENGINE=InnoDB;
+ERROR HY000: Storage engine InnoDB is disabled (Table creation is disallowed).
+ALTER TABLE t1 ENGINE=HEAP;
+ERROR HY000: Storage engine MEMORY is disabled (Table creation is disallowed).
+CREATE TABLE t2(c1 int) ENGINE=INNODB SELECT c1 FROM t1;
+ERROR HY000: Storage engine InnoDB is disabled (Table creation is disallowed).
+CREATE TABLE t2(c1 int) ENGINE=HEAP SELECT c1 FROM t1;
+ERROR HY000: Storage engine MEMORY is disabled (Table creation is disallowed).
+TRUNCATE TABLE t1;
+DROP TABLE t1;
+CREATE TABLESPACE t1 ADD DATAFILE 't1.ibd' ENGINE=INNODB;
+ERROR HY000: Storage engine InnoDB is disabled (Table creation is disallowed).
+CREATE TABLESPACE t1 ADD DATAFILE 't1.ibd' ENGINE=HEAP;
+ERROR HY000: Storage engine MEMORY is disabled (Table creation is disallowed).
+ALTER TABLESPACE ts ADD DATAFILE 'ts.ibd' ENGINE=INNODB;
+ERROR HY000: Storage engine InnoDB is disabled (Table creation is disallowed).
+ALTER TABLESPACE ts ADD DATAFILE 'ts.ibd' ENGINE=HEAP;
+ERROR HY000: Storage engine MEMORY is disabled (Table creation is disallowed).
+ALTER TABLESPACE ts ADD DATAFILE 'ts.ibd';
+ERROR HY000: Storage engine InnoDB is disabled (Table creation is disallowed).
+CREATE TEMPORARY TABLE t1 (c1 int) ENGINE=INNODB;
+ERROR HY000: Storage engine InnoDB is disabled (Table creation is disallowed).
+CREATE TEMPORARY TABLE t1 (c1 int) ENGINE=HEAP;
+ERROR HY000: Storage engine MEMORY is disabled (Table creation is disallowed).
+CREATE PROCEDURE p1()
+BEGIN
+CREATE TABLE t1 (c1 int) ENGINE=MYISAM; 
+END |
+CALL p1();
+ERROR HY000: Storage engine MyISAM is disabled (Table creation is disallowed).
+DROP PROCEDURE p1;
+CREATE TABLE t1 (c1 int) PARTITION BY KEY (c1) PARTITIONS 1;
+ERROR HY000: Storage engine InnoDB is disabled (Table creation is disallowed).
+INSERT INTO tp1 VALUES(1);
+DROP TABLE tp1;
+INSTALL PLUGIN example SONAME 'ha_example.so';
+CREATE TABLE t1(a int) ENGINE=EXAMPLE;
+ERROR HY000: Storage engine EXAMPLE is disabled (Table creation is disallowed).
+UNINSTALL PLUGIN example;
+INSTALL PLUGIN example SONAME 'ha_example.so';
+CREATE TABLE t1(a int) ENGINE=EXAMPLE;
+ERROR HY000: Storage engine EXAMPLE is disabled (Table creation is disallowed).
+UNINSTALL PLUGIN example;
+SET default_storage_engine=MyISAM;
+SET default_tmp_storage_engine=MyISAM;
+SET default_storage_engine=default;
+SET default_tmp_storage_engine=default;
+CREATE TABLE t1(a int) ENGINE=MYISAM;
+DROP TABLE t1;
+# restart

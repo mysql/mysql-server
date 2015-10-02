@@ -1,0 +1,39 @@
+--source include/not_embedded.inc
+
+CREATE TABLE t1(id INT NOT NULL);
+
+--echo ##########################################
+--echo # Shutdown
+--echo ##########################################
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--echo ##########################################
+--echo # Restart
+--echo ##########################################
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo ##########################################
+--echo # Run plugin
+--echo ##########################################
+--replace_result $TEST_SESSION_INFO TEST_SESSION_INFO
+eval INSTALL PLUGIN test_session_info SONAME '$TEST_SESSION_INFO';
+
+--echo ##########################################
+--echo # Stop plugin
+--echo ##########################################
+UNINSTALL PLUGIN test_session_info;
+
+--echo ##########################################
+--echo # Plugin log
+--echo ##########################################
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_session_info.log;
+remove_file $MYSQLD_DATADIR/test_session_info.log;
+
+--echo ##########################################
+--echo # Cleanup
+--echo ##########################################
+DROP TABLE t1;

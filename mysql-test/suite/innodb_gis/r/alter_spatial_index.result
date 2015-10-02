@@ -105,15 +105,18 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 ALTER TABLE tab ADD SPATIAL INDEX idx6(c2 ASC) USING HASH;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USING HASH' at line 1
 ALTER TABLE tab CHANGE c2 c2 MULTIPOINT NOT NULL FIRST, ALGORITHM=COPY;
+ERROR 22004: Invalid use of NULL value
 ALTER TABLE tab MODIFY COLUMN c3 MULTILINESTRING NOT NULL,ALGORITHM=COPY;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 ALTER TABLE tab MODIFY COLUMN c4 MULTIPOLYGON NOT NULL;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
-  `c2` multipoint NOT NULL,
   `c1` int(11) NOT NULL,
-  `c3` multilinestring NOT NULL,
-  `c4` multipolygon NOT NULL,
+  `c2` point NOT NULL,
+  `c3` linestring NOT NULL,
+  `c4` polygon NOT NULL,
   `c5` geometry NOT NULL,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `idx2` (`c2`),
@@ -144,8 +147,8 @@ ALTER TABLE tab CHANGE COLUMN c4 c44 POLYGON NOT NULL;
 SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
-  `c22` point NOT NULL,
   `c1` int(11) NOT NULL,
+  `c22` point NOT NULL,
   `c33` linestring NOT NULL,
   `c44` polygon NOT NULL,
   `c5` geometry NOT NULL,
@@ -170,8 +173,8 @@ ALTER TABLE tab CHANGE COLUMN c44 c4 POLYGON NOT NULL;
 SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
-  `c2` point NOT NULL,
   `c1` int(11) NOT NULL,
+  `c2` point NOT NULL,
   `c3` linestring NOT NULL,
   `c4` polygon NOT NULL,
   `c5` geometry NOT NULL,
@@ -269,8 +272,8 @@ CREATE SPATIAL INDEX idx5 ON temp_tab(c5);
 SHOW CREATE TABLE temp_tab;
 Table	Create Table
 temp_tab	CREATE TEMPORARY TABLE `temp_tab` (
-  `c2` point NOT NULL,
   `c1` int(11) NOT NULL,
+  `c2` point NOT NULL,
   `c3` linestring NOT NULL,
   `c4` polygon NOT NULL,
   `c5` geometry NOT NULL,
@@ -292,8 +295,8 @@ c1	ST_Astext(c2)	ST_Astext(c4)
 SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
-  `c2` point NOT NULL,
   `c1` int(11) NOT NULL,
+  `c2` point NOT NULL,
   `c3` linestring NOT NULL,
   `c4` polygon NOT NULL,
   `c5` geometry NOT NULL,
@@ -315,8 +318,8 @@ ALTER TABLE tab ADD CONSTRAINT const_1 UNIQUE(c2);
 SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
-  `c2` point NOT NULL,
   `c1` int(11) NOT NULL,
+  `c2` point NOT NULL,
   `c3` linestring NOT NULL,
   `c4` polygon NOT NULL,
   `c5` geometry NOT NULL,
@@ -349,8 +352,8 @@ ALTER TABLE tab ADD CONSTRAINT const_1 UNIQUE(c5(10));
 SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
-  `c2` point NOT NULL,
   `c1` int(11) NOT NULL,
+  `c2` point NOT NULL,
   `c3` linestring NOT NULL,
   `c4` polygon NOT NULL,
   `c5` geometry NOT NULL,
@@ -429,7 +432,9 @@ ALTER TABLE tab ADD SPATIAL KEY idx5(c5 ASC) COMMENT 'testing spatial index on G
 ALTER TABLE tab ADD INDEX idx6(c4(10)) USING BTREE;
 ALTER TABLE tab MODIFY COLUMN c2 GEOMETRY NOT NULL;
 ALTER TABLE tab MODIFY COLUMN c3 POLYGON NOT NULL;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 ALTER TABLE tab add COLUMN c7 POINT NOT NULL;
+ERROR 22004: Invalid use of NULL value
 ALTER TABLE tab add COLUMN c8 POINT NOT NULL, ALGORITHM = INPLACE, LOCK=NONE;
 ERROR 0A000: LOCK=NONE is not supported. Reason: Do not support online operation on table with GIS index. Try LOCK=SHARED.
 SHOW CREATE TABLE tab;
@@ -437,10 +442,9 @@ Table	Create Table
 tab	CREATE TABLE `tab` (
   `c1` int(11) NOT NULL,
   `c2` geometry NOT NULL,
-  `c3` polygon NOT NULL,
+  `c3` linestring NOT NULL,
   `c4` polygon NOT NULL,
   `c5` geometry NOT NULL,
-  `c7` point NOT NULL,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `idx2` (`c2`),
   SPATIAL KEY `idx3` (`c3`),
@@ -466,16 +470,16 @@ DELETE FROM tab WHERE MBRContains(tab.c4, @g1);
 SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
 c1	ST_Astext(c2)	ST_Astext(c4)
 ALTER TABLE tab MODIFY COLUMN c2 POLYGON NOT NULL;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 ALTER TABLE tab MODIFY COLUMN c4 GEOMETRY NOT NULL;
 SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
   `c1` int(11) NOT NULL,
-  `c2` polygon NOT NULL,
-  `c3` polygon NOT NULL,
+  `c2` geometry NOT NULL,
+  `c3` linestring NOT NULL,
   `c4` geometry NOT NULL,
   `c5` geometry NOT NULL,
-  `c7` point NOT NULL,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `idx2` (`c2`),
   SPATIAL KEY `idx3` (`c3`),
@@ -502,11 +506,10 @@ c1	ST_Astext(c2)	ST_AsText(c3)	ST_Astext(c4)
 10	POINT(160 160)	LINESTRING(140 140,150 150,160 160)	POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))
 UPDATE tab SET C2 = ST_GeomFromText('POINT(2000 2000)')
 WHERE MBREquals(tab.c4, @g1) AND MBREquals(tab.c3,@g2);
-ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1) 
 AND MBREquals(tab.c3,@g2) ORDER BY c1;
 c1	ST_Astext(c2)	ST_AsText(c3)	ST_Astext(c4)
-10	POINT(160 160)	LINESTRING(140 140,150 150,160 160)	POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))
+10	POINT(2000 2000)	LINESTRING(140 140,150 150,160 160)	POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))
 DELETE FROM tab WHERE MBREquals(tab.c4, @g1) AND MBREquals(tab.c3,@g2);
 SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1)
 AND MBREquals(tab.c3,@g2) ORDER BY c1;
@@ -527,7 +530,6 @@ tab	CREATE TABLE `tab` (
   `c3` linestring NOT NULL,
   `c4` polygon NOT NULL,
   `c5` geometry NOT NULL,
-  `c7` point NOT NULL,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `idx2` (`c2`),
   SPATIAL KEY `idx3` (`c3`),
@@ -659,9 +661,10 @@ create table t1 (c1 int) engine=innodb;
 insert into t1 values(NULL);
 alter table t1 add b geometry, add spatial index(b), algorithm=inplace;
 ERROR 42000: All parts of a SPATIAL index must be NOT NULL
-alter table t1 add b geometry not null, algorithm=inplace;
+alter table t1 add b geometry, algorithm=inplace;
 update t1 set b = st_geomfromtext('point(0 0)');
 alter table t1 add spatial index(b), algorithm=inplace;
+ERROR 42000: All parts of a SPATIAL index must be NOT NULL
 delete from t1;
 DROP table t1;
 create table t1 (c1 int) engine=innodb;
@@ -669,9 +672,12 @@ insert into t1 values(NULL);
 alter table t1 add b geometry, add spatial index(b), algorithm=copy;
 ERROR 42000: All parts of a SPATIAL index must be NOT NULL
 alter table t1 add b geometry not null, add spatial index(b), algorithm=copy;
-ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+ERROR 22004: Invalid use of NULL value
 alter table t1 add b geometry not null, algorithm=copy;
+ERROR 22004: Invalid use of NULL value
 update t1 set b = st_geomfromtext('point(0 0)');
+ERROR 42S22: Unknown column 'b' in 'field list'
 alter table t1 add spatial index(b), algorithm=copy;
+ERROR 42000: Key column 'b' doesn't exist in table
 delete from t1;
 DROP table t1;

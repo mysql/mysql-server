@@ -1139,7 +1139,7 @@ t77_restart.frm
 # restart
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/new_dir/test/t4_restart.ibd
+test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t4_restart.ibd
 test/t55_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t55_restart.ibd
 test/t66_restart#p#p0	Single	DEFAULT	2048	Compressed	MYSQLD_DATADIR/test/t66_restart#p#p0.ibd
 test/t66_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQLD_DATADIR/test/t66_restart#p#p1.ibd

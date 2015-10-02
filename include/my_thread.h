@@ -153,8 +153,6 @@ int my_thread_cancel(my_thread_handle *thread);
 void my_thread_exit(void *value_ptr);
 
 
-typedef uint32 my_thread_id;
-
 extern my_bool my_thread_global_init();
 extern void my_thread_global_reinit();
 extern void my_thread_global_end();

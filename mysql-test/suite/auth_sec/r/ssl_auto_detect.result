@@ -38,4 +38,13 @@ SHOW VARIABLES LIKE 'have_ssl';
 Variable_name	Value
 have_ssl	DISABLED
 # Try creating SSL connection using mysql connection. It should fail.
+#
+# Bug#21108296 : --SSL-CIPHER OPTION CAUSES SSL INITIALIZATION FAILURE
+#
+# Restart completed.
+# Search for : Found ca.pem, server-cert.pem and server-key.pem in data directory. Trying to enable SSL support using them.
+# Search for : CA certificate is self signed.;
+# Try creating SSL connection
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-SHA
 # Global Cleanup

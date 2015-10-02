@@ -895,17 +895,21 @@ BtrBulk::insert(
 	return(DB_SUCCESS);
 }
 
-/** Btree bulk load finish. We commit last page in each level and copy last
-page in top level to root page of the index if no error occurs.
-@param[in]	success		whether bulk load is successful
+/** Btree bulk load finish. We commit the last page in each level
+and copy the last page in top level to the root page of the index
+if no error occurs.
+@param[in]	err	whether bulk load was successful until now
 @return error code  */
 dberr_t
-BtrBulk::finish(
-	dberr_t		err)
+BtrBulk::finish(dberr_t	err)
 {
 	ulint		last_page_no = FIL_NULL;
 
+	ut_ad(!dict_table_is_temporary(m_index->table));
+
 	if (m_page_bulks->size() == 0) {
+		/* The table is empty. The root page of the index tree
+		is already in a consistent state. No need to flush. */
 		return(err);
 	}
 
@@ -977,11 +981,8 @@ BtrBulk::finish(
 	dict_sync_check check(true);
 
 	ut_ad(!sync_check_iterate(check));
-
-	if (err == DB_SUCCESS) {
-		ut_ad(btr_validate_index(m_index, NULL, false));
-	}
 #endif /* UNIV_DEBUG */
 
+	ut_ad(err != DB_SUCCESS || btr_validate_index(m_index, NULL, false));
 	return(err);
 }

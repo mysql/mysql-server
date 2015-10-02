@@ -27,8 +27,6 @@ innodb_compress_debug	none
 select * from performance_schema.session_variables where variable_name='innodb_compress_debug';
 VARIABLE_NAME	VARIABLE_VALUE
 innodb_compress_debug	none
-Warnings:
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 set global innodb_compress_debug="lz4";
 select @@global.innodb_compress_debug;
 @@global.innodb_compress_debug
@@ -39,8 +37,6 @@ innodb_compress_debug	lz4
 select * from performance_schema.session_variables where variable_name='innodb_compress_debug';
 VARIABLE_NAME	VARIABLE_VALUE
 innodb_compress_debug	lz4
-Warnings:
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 set session innodb_compress_debug="none";
 ERROR HY000: Variable 'innodb_compress_debug' is a GLOBAL variable and should be set with SET GLOBAL
 set global innodb_compress_debug=1.1;

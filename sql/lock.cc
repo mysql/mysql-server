@@ -78,6 +78,7 @@
 #include "sql_base.h"                       // close_tables_for_reopen
 #include "sql_parse.h"                     // is_log_table_write_query
 #include "auth_common.h"                   // SUPER_ACL
+#include "session_tracker.h"
 #include <hash.h>
 #include <assert.h>
 #include "my_atomic.h"
@@ -114,7 +115,6 @@ static int
 lock_tables_check(THD *thd, TABLE **tables, size_t count, uint flags)
 {
   uint system_count= 0, i= 0;
-  bool is_superuser= false;
   /*
     Identifies if the executed sql command can updated either a log
     or rpl info table.
@@ -123,7 +123,6 @@ lock_tables_check(THD *thd, TABLE **tables, size_t count, uint flags)
 
   DBUG_ENTER("lock_tables_check");
 
-  is_superuser= thd->security_context()->check_access(SUPER_ACL);
   log_table_write_query=
      is_log_table_write_query(thd->lex->sql_command);
 
@@ -189,11 +188,8 @@ lock_tables_check(THD *thd, TABLE **tables, size_t count, uint flags)
     if (!(flags & MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY) && !t->s->tmp_table)
     {
       if (t->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE &&
-          !is_superuser && opt_readonly && !thd->slave_thread)
-      {
-        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
-        DBUG_RETURN(1);
-      }
+        check_readonly(thd, true))
+          DBUG_RETURN(1);
     }
   }
 
@@ -246,6 +242,35 @@ static void reset_lock_data(MYSQL_LOCK *sql_lock)
     (*ldata)->type= TL_UNLOCK;
   }
   DBUG_VOID_RETURN;
+}
+
+
+/**
+  Scan array of tables for access types; update transaction tracker
+  accordingly.
+
+   @param thd          The current thread.
+   @param tables       An array of pointers to the tables to lock.
+   @param count        The number of tables to lock.
+*/
+
+static void track_table_access(THD *thd, TABLE **tables, size_t count)
+{
+  Transaction_state_tracker *tst= (Transaction_state_tracker *)
+    thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER);
+  enum enum_tx_state         s;
+
+  while (count--)
+  {
+    TABLE *t= tables[count];
+
+    if (t)
+    {
+      s= tst->calc_trx_state(thd, t->reginfo.lock_type,
+                             t->file->has_transactions());
+      tst->add_trx_state(thd, s);
+    }
+  }
 }
 
 
@@ -310,8 +335,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, size_t count, uint flags
   rc= thr_lock_errno_to_mysql[(int) thr_multi_lock(sql_lock->locks +
                                                    sql_lock->lock_count,
                                                    sql_lock->lock_count,
-                                                   &thd->lock_info, timeout,
-                                                   thd->mysys_var)];
+                                                   &thd->lock_info, timeout)];
 
   DBUG_EXECUTE_IF("mysql_lock_tables_kill_query",
                   thd->killed= THD::KILL_QUERY;);
@@ -324,6 +348,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, size_t count, uint flags
     if (! thd->killed)
       my_error(rc, MYF(0));
   }
+
 end:
   if (!(flags & MYSQL_OPEN_IGNORE_KILLED) && thd->killed)
   {
@@ -334,6 +359,9 @@ end:
       sql_lock= 0;
     }
   }
+
+  if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
+    track_table_access(thd, tables, count);
 
   thd->set_time_after_lock();
   DBUG_RETURN(sql_lock);
@@ -848,6 +876,61 @@ bool lock_tablespace_name(THD *thd, const char *tablespace)
   return false;
 }
 
+// Function generating hash key for Tablespace_hash_set.
+extern "C" uchar *tablespace_set_get_key(const uchar *record,
+                                         size_t *length,
+                                         my_bool not_used __attribute__((unused)))
+{
+  const char *tblspace_name= reinterpret_cast<const char *>(record);
+  *length= strlen(tblspace_name);
+  return reinterpret_cast<uchar*>(const_cast<char*>(tblspace_name));
+}
+
+/**
+  Acquire IX MDL lock each tablespace name from the given set.
+
+  @param thd               - Thread invoking this function.
+  @param tablespace_set    - Set of tablespace names to be lock.
+  @param lock_wait_timeout - Lock timeout.
+
+  @return true - On failure
+  @return false - On Success.
+*/
+bool lock_tablespace_names(
+       THD *thd,
+       Tablespace_hash_set *tablespace_set,
+       ulong lock_wait_timeout)
+{
+  // Stop if we have nothing to lock
+  if (tablespace_set->is_empty())
+    return false;
+
+  // Prepare MDL_request's for all tablespace names.
+  MDL_request_list mdl_tablespace_requests;
+  Tablespace_hash_set::Iterator it(*tablespace_set);
+  char *tablespace= NULL;
+  while ((tablespace= it++))
+  {
+    DBUG_ASSERT(strlen(tablespace));
+
+    MDL_request *tablespace_request= new (thd->mem_root) MDL_request;
+    if (tablespace_request == NULL)
+      return true;
+    MDL_REQUEST_INIT(tablespace_request, MDL_key::TABLESPACE,
+                     "", tablespace, MDL_INTENTION_EXCLUSIVE,
+                     MDL_TRANSACTION);
+    mdl_tablespace_requests.push_front(tablespace_request);
+  }
+
+  // Finally, acquire IX MDL locks.
+  if (thd->mdl_context.acquire_locks(&mdl_tablespace_requests,
+                                     lock_wait_timeout))
+    return true;
+
+  DEBUG_SYNC(thd, "after_wait_locked_tablespace_name_for_table");
+
+  return false;
+}
 
 /**
   Obtain an exclusive metadata lock on an object name.

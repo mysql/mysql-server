@@ -148,11 +148,11 @@ SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star)));
 
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_elem_vertical)));
 
-SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5))')));
+SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5, 0 0))')));
 
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))')));
 
-SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10))')));
+SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,-10 0,-10 -10,0 -10, 0 0))')));
 
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))')));
 
@@ -170,15 +170,15 @@ SELECT ST_ASTEXT(ST_CENTROID(g)) FROM gis_geometrycollection WHERE fid=100;
 
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_of_elems)));
 
-SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5)))')));
+SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5, 0 0)))')));
 
-SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))')));
+SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 10,10 0,0 0, 0 10)),((0 0,10 10,10 0, 0 0)))')));
 
-SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10)),((10 10,10 15,15 15,10 10)))')));
+SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10, 0 0)),((10 10,10 15,15 15,10 10)))')));
 
-SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4)))')));
+SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4,4 4)))')));
 
-SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)))')));
+SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0),(4 4,4 6,6 6,6 4,4 4)))')));
 
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)))')));
 
@@ -192,7 +192,7 @@ SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0
                                                           '((0 0,0 10,10 10,10 0,0 0)))')));
 
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),'
-                                                          '((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6)))')));
+                                                          '((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6, 4 4)))')));
 
 SELECT ST_ASTEXT(ST_CENTROID(g)) FROM gis_geometrycollection WHERE fid=103;
 
@@ -215,16 +215,16 @@ SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),MU
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))')));
 
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
-                                                                'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')));
+                                                                'MULTILINESTRING((0 0,0 10,10 10,10 0, 0 0),(10 10,10 15,15 15,10 10)))')));
 
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),'
                                                                 'MULTIPOINT(0 0,10 10),'
                                                                 'LINESTRING(1 1,2 2,3 3),'
-                                                                'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')));
+                                                                'MULTILINESTRING((0 0,0 10,10 10,10 0, 0 0),(10 10,10 15,15 15,10 10)))')));
 
-SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))')));
+SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0, 0 0)))')));
 
-SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))))')));
+SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0, 0 0)))))')));
 
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10,10 0),LINESTRING(0 0,10 0,10 -10,0 -10))')));
 
@@ -236,8 +236,8 @@ SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 
 
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10,10 0,0 0),LINESTRING(0 0,10 0,10 -10,0 -10,0 0))')));
 
-SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),'
-                                                                'MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10))))')));
+SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                'MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0)),((10 10,10 15,15 15,15 10,10 10))))')));
 
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),POLYGON((0 0,0 10,10 10,10 0,0 0)))')));
 
@@ -246,20 +246,20 @@ SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
                                                                                    'MULTIPOINT(0 0,10 10)),'
                                                                 'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
-                                                                                   'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))))')));
+                                                                                   'MULTILINESTRING((0 0,0 10,10 10,10 0, 0 0),(10 10,10 15,15 15,10 10))))')));
 
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
                                                                                    'MULTIPOINT(0 0,10 10)),'
                                                                 'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
-                                                                                   'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),'
-                                                                'GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4)),'
-                                                                                   'MULTIPOLYGON(((0 0,0 10,10 10,10 0)),'
+                                                                                   'MULTILINESTRING((0 0,0 10,10 10,10 0, 0 0),(10 10,10 15,15 15,10 10))),'
+                                                                'GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
+                                                                                   'MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0)),'
                                                                                                 '((10 10,10 15,15 15,15 10,10 10)))))')));
 
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
                                                                                    'MULTIPOINT(0 0,10 10)),'
                                                                 'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
-                                                                                   'MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10))),'
+                                                                                   'MULTILINESTRING((0 0,0 10,10 10,10 0, 0 0),(10 10,10 15,15 15,10 10))),'
                                              'GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')));
 
 SELECT ST_ASTEXT(ST_CENTROID(g)) FROM gis_geometrycollection WHERE fid=115;

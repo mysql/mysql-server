@@ -77,7 +77,8 @@ void append_user(THD *thd, String *str, LEX_USER *user, bool comma= true,
     else if (user->auth.str)
     {
       str->append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
-      if (user->uses_identified_by_password_clause)
+      if (user->uses_identified_by_password_clause ||
+          user->uses_authentication_string_clause)
       {
         str->append(user->auth.str, user->auth.length);
         str->append("'");
@@ -197,20 +198,28 @@ enum enum_acl_lists
 int check_change_password(THD *thd, const char *host, const char *user,
                           const char *new_password, size_t new_password_len)
 {
+  Security_context *sctx;
   if (!initialized)
   {
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
     return(1);
   }
+
+  sctx= thd->security_context();
   if (!thd->slave_thread &&
-      (strcmp(thd->security_context()->user().str, user) ||
+      (strcmp(sctx->user().str, user) ||
        my_strcasecmp(system_charset_info, host,
-                     thd->security_context()->priv_host().str)))
+                     sctx->priv_host().str)))
   {
+    if (sctx->password_expired())
+    {
+      my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+      return(1);
+    }
     if (check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 0))
       return(1);
   }
-  if (!thd->slave_thread &&
+  if (!thd->slave_thread && !opt_bootstrap &&
       !strcmp(thd->security_context()->priv_user().str,""))
   {
     my_message(ER_PASSWORD_ANONYMOUS_USER, ER(ER_PASSWORD_ANONYMOUS_USER),
@@ -297,8 +306,9 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name)
   lex->alter_password.update_password_expired_column= acl_user->password_expired;
   lex->alter_password.use_default_password_lifetime= acl_user->use_default_password_lifetime;
   lex->alter_password.expire_after_days= acl_user->password_lifetime;
-  lex->alter_password.update_account_locked_column= acl_user->account_locked;
+  lex->alter_password.update_account_locked_column= true;
   lex->alter_password.account_locked= acl_user->account_locked;
+  lex->alter_password.update_password_expired_fields= true;
 
   /* send the metadata to client */
   field=new Item_string("",0,&my_charset_latin1);
@@ -702,7 +712,7 @@ bool change_password(THD *thd, const char *host, const char *user,
     and its a slave thread, then the password is already hashed. So
     do not generate another hash.
   */
-  if (opt_log_backward_compatible_user_definitions &&
+  if (opt_log_builtin_as_identified_by_password &&
       thd->slave_thread)
     combo->uses_identified_by_clause= false;
     
@@ -737,7 +747,7 @@ bool change_password(THD *thd, const char *host, const char *user,
     Based on @@log-backward-compatible-user-definitions variable
     rewrite SET PASSWORD
   */
-  if (opt_log_backward_compatible_user_definitions)
+  if (opt_log_builtin_as_identified_by_password)
   {
     memcpy(hash_str, combo->auth.str, combo->auth.length);
     query_length= sprintf(buff, "SET PASSWORD FOR '%-.120s'@'%-.120s'='%s'",
@@ -1219,7 +1229,7 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
     TRUE        Error.
 */
 
-bool mysql_create_user(THD *thd, List <LEX_USER> &list)
+bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists)
 {
   int result;
   String wrong_users;
@@ -1290,16 +1300,28 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
         (ret2= replace_user_table(thd, tables[0].table, user_name, 0,
                                   false, true, what_to_update)))
     {
-      result= true;
       if (ret1 < 0 || ret2 < 0)
       {
         rollback_whole_statement= true;
+        result= true;
         break;
       }
-      else
+      else if (if_not_exists &&
+               (opt_general_log_raw
+               || !user_name->uses_identified_by_clause))
+      {
+        String warn_user;
+        append_user(thd, &warn_user, user_name, FALSE, FALSE);
+        push_warning_printf(thd, Sql_condition::SL_NOTE,
+                            ER_USER_ALREADY_EXISTS,
+                            ER_THD(thd, ER_USER_ALREADY_EXISTS),
+                            warn_user.c_ptr_safe());
+      }
+     else
       {
         append_user(thd, &wrong_users, user_name, wrong_users.length() > 0,
                     false);
+        result= true;
         continue;
       }
     }
@@ -1317,7 +1339,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
       my_error(ER_CANNOT_USER, MYF(0), "CREATE USER", wrong_users.c_ptr_safe());
   }
 
-  if (some_users_created)
+  if (some_users_created || if_not_exists)
   {
     String *rlb= &thd->rewritten_query;
     rlb->mem_free();
@@ -1363,7 +1385,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     TRUE        Error.
 */
 
-bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
+bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
 {
   int result;
   String wrong_users;
@@ -1410,14 +1432,26 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     int ret= handle_grant_data(tables, 1, user_name, NULL);
     if (ret <= 0)
     {
-      result= true;
-
       if (ret < 0)
       {
         rollback_whole_statement= true;
+        result= true;
         break;
       }
-      append_user(thd, &wrong_users, user_name, wrong_users.length() > 0, FALSE);
+      if (if_exists)
+      {
+        String warn_user;
+        append_user(thd, &warn_user, user_name, FALSE, FALSE);
+        push_warning_printf(thd, Sql_condition::SL_NOTE,
+                            ER_USER_DOES_NOT_EXIST,
+                            ER_THD(thd, ER_USER_DOES_NOT_EXIST),
+                            warn_user.c_ptr_safe());
+      }
+      else
+      {
+        result= true;
+        append_user(thd, &wrong_users, user_name, wrong_users.length() > 0, FALSE);
+      }
     }
     else
       some_users_deleted= true;
@@ -1431,7 +1465,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   if (result && !rollback_whole_statement)
     my_error(ER_CANNOT_USER, MYF(0), "DROP USER", wrong_users.c_ptr_safe());
 
-  if (some_users_deleted)
+  if (some_users_deleted || if_exists)
     result |= write_bin_log(thd, FALSE, thd->query().str, thd->query().length,
                             transactional_tables);
 
@@ -1599,7 +1633,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     TRUE        Error.
 */
 
-bool mysql_alter_user(THD *thd, List <LEX_USER> &list)
+bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
 {
   bool result= false;
   bool is_anonymous_user= false;
@@ -1680,9 +1714,23 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list)
     if (!(acl_user= find_acl_user(user_from->host.str,
                                    user_from->user.str, TRUE)))
     {
-      result= true;
-      append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
-                  false);
+      if (if_exists && (opt_general_log_raw
+          || !user_from->uses_identified_by_clause))
+      {
+        String warn_user;
+        append_user(thd, &warn_user, user_from, FALSE, FALSE);
+        push_warning_printf(thd, Sql_condition::SL_NOTE,
+          ER_USER_DOES_NOT_EXIST,
+          ER_THD(thd, ER_USER_DOES_NOT_EXIST),
+          warn_user.c_ptr_safe());
+      }
+      else
+      {
+        result= TRUE;
+        append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
+          false);
+      }
+
       continue;
     }
 
@@ -1750,17 +1798,17 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list)
       my_error(ER_CANNOT_USER, MYF(0), "ALTER USER", wrong_users.c_ptr_safe());
   }
 
-  if (!result && some_user_altered)
+  if (some_user_altered || if_exists)
   {
     /* do query rewrite for ALTER USER */
     String *rlb= &thd->rewritten_query;
     rlb->mem_free();
     mysql_rewrite_create_alter_user(thd, rlb);
 
-    result= (write_bin_log(thd, false,
-                           thd->rewritten_query.c_ptr_safe(),
-                           thd->rewritten_query.length(),
-                           table->file->has_transactions()) != 0);
+    result|= (write_bin_log(thd, false,
+                            thd->rewritten_query.c_ptr_safe(),
+                            thd->rewritten_query.length(),
+                            table->file->has_transactions()) != 0);
   }
 
   lock.unlock();

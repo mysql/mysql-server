@@ -1821,6 +1821,26 @@ a	b
 HANDLER t1 CLOSE;
 DROP TABLE t1;
 #
+# Bug#21650603 ASSERT `0' FAILED AT THD::SEND_STATEMENT_STATUS() ON
+#              HANDLER READ + INVALID DATE
+#
+CREATE TABLE t (
+col_date DATE
+, col_datetime DATETIME
+, col_time TIME
+, col_year YEAR
+, KEY col_date_key (col_date)
+, KEY col_datetime_key (col_datetime)
+, KEY col_year_key (col_year));
+HANDLER t OPEN;
+HANDLER t READ col_date_key <= ('p');
+ERROR HY000: Incorrect arguments to HANDLER ... READ
+HANDLER t READ col_datetime_key <= ('p');
+ERROR HY000: Incorrect arguments to HANDLER ... READ
+HANDLER t READ col_year_key <= ('p');
+ERROR HY000: Incorrect arguments to HANDLER ... READ
+DROP TABLE t;
+#
 # BUG #46456: HANDLER OPEN + TRUNCATE + DROP (temporary) TABLE, crash 
 #
 CREATE TABLE t1 AS SELECT 1 AS f1;

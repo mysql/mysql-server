@@ -23,7 +23,6 @@ Full Text Search plugin tokenizer refer to MyISAM
 Created 2014/11/17 Shaohua Wang
 ***********************************************************************/
 
-#include "ha_prototypes.h"
 #include "ft_global.h"
 #include "mysql/plugin_ftparser.h"
 #include "m_ctype.h"

@@ -827,11 +827,6 @@ example_double_thdvar	300.000000
 example_double_thdvar	300.111100
 example_double_thdvar	300.222200
 example_double_thdvar	300.333300
-Warnings:
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 
 ================================================================================
 3.5 - DISCONNECT CLIENTS
@@ -984,8 +979,6 @@ SELECT variable_name, variable_value FROM performance_schema.variables_by_thread
 WHERE variable_name LIKE "example_%" ORDER BY variable_value;
 variable_name	variable_value
 example_double_thdvar	300.000000
-Warnings:
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 
 ================================================================================
 3.7 - RECONNECT 3 CLIENTS, SET SESSION VARS FOR EACH
@@ -1147,11 +1140,6 @@ example_double_thdvar	300.000000
 example_double_thdvar	311.111100
 example_double_thdvar	322.222200
 example_double_thdvar	333.333300
-Warnings:
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 
 ================================================================================
 3.9 - UNINSTALL PLUGIN, LEAVE CLIENTS CONNECTED
@@ -1219,11 +1207,6 @@ variable_name	variable_value
 SELECT variable_name, variable_value FROM performance_schema.variables_by_thread
 WHERE variable_name LIKE "example_%" ORDER BY variable_value;
 variable_name	variable_value
-Warnings:
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 
 ================================================================================
 3.11 - DISCONNECT CLIENTS
@@ -1294,8 +1277,6 @@ variable_name	variable_value
 SELECT variable_name, variable_value FROM performance_schema.variables_by_thread
 WHERE variable_name LIKE "example_%" ORDER BY variable_value;
 variable_name	variable_value
-Warnings:
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 
 ================================================================================
 TEST 4 - BUG#18008907: DEADLOCK WITH CHANGE_USER, SHOW VARIABLES, INSTALL PLUGIN
@@ -1312,6 +1293,12 @@ END|
 
 CREATE PROCEDURE show_vars()
 BEGIN
+-- select on information_schema.global_variables
+-- will fail, still need to cover execution of the code
+-- to verify potential dead locks.
+declare continue handler for sqlexception
+begin
+end;
 SELECT COUNT(*) FROM information_schema.global_variables;
 SELECT COUNT(*) FROM performance_schema.global_variables;
 END|
@@ -1331,8 +1318,6 @@ call install_no_such_plugin();;
 connection con1;
 
 # Without fix, reap will hang.
-COUNT(*)
-#
 COUNT(*)
 #
 SET DEBUG_SYNC='RESET';
@@ -1365,8 +1350,6 @@ ERROR HY000: Can't open shared library
 connection default;
 COUNT(*)
 #
-COUNT(*)
-#
 
 disconnect con2;
 
@@ -1394,8 +1377,6 @@ connection default;
 SET DEBUG_SYNC='now SIGNAL go';
 # Connect con1 - reap
 connection con1;
-COUNT(*)
-#
 COUNT(*)
 #
 # Connect con2 - reap

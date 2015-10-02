@@ -1,0 +1,12 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+
+prefix=@CMAKE_INSTALL_PREFIX@
+includedir=${prefix}/@INSTALL_INCLUDEDIR@
+libdir=${prefix}/@INSTALL_LIBDIR@
+
+Name: @LIBMYSQL_OS_OUTPUT_NAME@
+Description: MySQL client library
+Version: @LIBMYSQL_OS_SHLIB_VERSION@
+Cflags: -I${includedir} @CFLAGS@
+Libs: -L${libdir} -l@LIBMYSQL_OS_OUTPUT_NAME@
+Libs.private: @CONFIG_CLIENT_LIBS@

@@ -25,7 +25,7 @@ SELECT * FROM mydb.mytable WHERE mycol = 'xxx';
 rule1
 rule1
 Warnings:
-Note	1105	Query 'SELECT * FROM mydb.mytable WHERE mycol = 'xxx'' rewritten to 'select "rule1"' by plugin: Rewriter.
+Note	1105	Query 'SELECT * FROM mydb.mytable WHERE mycol = 'xxx'' rewritten to 'select "rule1"' by a query rewrite plugin
 DROP DATABASE mydb;
 # We now set the global value of the variable, this should not affect
 # the plugin. It should copy the session value from our session.
@@ -34,14 +34,14 @@ SELECT * FROM mydb.mytable WHERE mycol = 'xxx';
 rule1
 rule1
 Warnings:
-Note	1105	Query 'SELECT * FROM mydb.mytable WHERE mycol = 'xxx'' rewritten to 'select "rule1"' by plugin: Rewriter.
+Note	1105	Query 'SELECT * FROM mydb.mytable WHERE mycol = 'xxx'' rewritten to 'select "rule1"' by a query rewrite plugin
 # Regenerating the digests should still work.
 CALL query_rewrite.flush_rewrite_rules();
 SELECT * FROM mydb.mytable WHERE mycol = 'xxx';
 rule1
 rule1
 Warnings:
-Note	1105	Query 'SELECT * FROM mydb.mytable WHERE mycol = 'xxx'' rewritten to 'select "rule1"' by plugin: Rewriter.
+Note	1105	Query 'SELECT * FROM mydb.mytable WHERE mycol = 'xxx'' rewritten to 'select "rule1"' by a query rewrite plugin
 # We now repeat the above test with a character set where the digests
 # are known to differ. If we were lucky the last time, it will show now.
 # The global setting should still be ignored.
@@ -50,14 +50,14 @@ SELECT * FROM mydb.mytable WHERE mycol = 'xxx';
 rule1
 rule1
 Warnings:
-Note	1105	Query 'SELECT * FROM mydb.mytable WHERE mycol = 'xxx'' rewritten to 'select "rule1"' by plugin: Rewriter.
+Note	1105	Query 'SELECT * FROM mydb.mytable WHERE mycol = 'xxx'' rewritten to 'select "rule1"' by a query rewrite plugin
 # Regenerating the digests should still work.
 CALL query_rewrite.flush_rewrite_rules();
 SELECT * FROM mydb.mytable WHERE mycol = 'xxx';
 rule1
 rule1
 Warnings:
-Note	1105	Query 'SELECT * FROM mydb.mytable WHERE mycol = 'xxx'' rewritten to 'select "rule1"' by plugin: Rewriter.
+Note	1105	Query 'SELECT * FROM mydb.mytable WHERE mycol = 'xxx'' rewritten to 'select "rule1"' by a query rewrite plugin
 SET @@global.character_set_client = DEFAULT;
 #
 # This is perhaps an unwanted result, but the rules table-reading
@@ -75,7 +75,9 @@ SELECT * FROM mydb.mytable WHERE mycol = 'xxx';
 rule1
 rule1
 Warnings:
-Note	1105	Query 'SELECT * FROM mydb.mytable WHERE mycol = 'xxx'' rewritten to 'select "rule1"' by plugin: Rewriter.
+Note	1105	Query 'SELECT * FROM mydb.mytable WHERE mycol = 'xxx'' rewritten to 'select "rule1"' by a query rewrite plugin
 DROP DATABASE mydb;
 SET @@session.character_set_client = DEFAULT;
-# Query rewrite plugin was uninstalled.
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

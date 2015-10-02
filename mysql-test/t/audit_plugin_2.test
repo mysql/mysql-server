@@ -1,0 +1,633 @@
+--source include/have_null_audit_plugin.inc
+--source include/not_embedded.inc
+
+call mtr.add_suppression("Event 'MYSQL_AUDIT_COMMAND_END' cannot be aborted.");
+call mtr.add_suppression("Event 'MYSQL_AUDIT_CONNECTION_DISCONNECT' cannot be aborted.");
+call mtr.add_suppression("Command 'Ping' cannot be aborted.");
+
+connection default;
+let $expected_extension= so;
+if(`SELECT CONVERT(@@version_compile_os USING latin1)
+           IN ("Win32","Win64","Windows")`)
+{
+   let $expected_extension= dll;
+}
+--replace_result $expected_extension <expected_extension>
+eval INSTALL PLUGIN null_audit SONAME 'adt_null.$expected_extension';
+
+let $event_order_exact= 1;
+let $command_start_id= 3;
+let $command_end_id= 3;
+if(`SELECT $PS_PROTOCOL > 0`)
+{
+  let $event_order_exact= 0;
+  let $command_start_id= 22;
+  let $command_end_id= 25;
+}
+
+--echo ################
+--echo ## CONNECTION ##
+--echo ################
+
+connection default;
+CREATE USER user1@localhost IDENTIFIED BY 'pass';
+
+SET GLOBAL null_audit_event_order_check = "MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE;;ABORT_RET";
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+--connect(user1_con, localhost, user1, pass)
+
+SET GLOBAL null_audit_event_order_check = "MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE;;;"
+                                          "MYSQL_AUDIT_GENERAL_LOG;;;"
+                                          "MYSQL_AUDIT_CONNECTION_CONNECT;;ABORT_RET";
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+--connect(user1_con, localhost, user1, pass)
+
+connection default;
+SET GLOBAL null_audit_event_order_check = NULL;
+
+--connect(user1_con, localhost, user1, pass)
+disconnect user1_con;
+
+connection default;
+SET GLOBAL null_audit_event_order_check = "MYSQL_AUDIT_CONNECTION_DISCONNECT;;ABORT_RET";
+--connect(user1_con, localhost, user1, pass)
+--echo # mysql_audit_connection_disconnect result does not have any significance
+disconnect user1_con;
+
+connection default;
+SET GLOBAL null_audit_event_order_check = NULL;
+
+--echo #############
+--echo ## COMMAND ##
+--echo #############
+
+--echo # Command start abort
+--replace_result $command_start_id <expected_command_start_id>
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"$command_start_id\";ABORT_RET';
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+SELECT 1;
+SELECT @@null_audit_event_order_check;
+SELECT 1;
+
+SET @@GLOBAL.null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"14\";ABORT_RET';
+--exec $MYSQLADMIN --no-defaults --default-character-set=latin1 -S $MASTER_MYSOCK -P $MASTER_MYPORT -u root ping 2>&1
+SET @@GLOBAL.null_audit_event_order_check = NULL;
+
+--echo ###########
+--echo ## QUERY ##
+--echo ###########
+
+connection default;
+
+--replace_result $event_order_exact <expected_check_exact>
+eval SET @@null_audit_event_order_check_exact = $event_order_exact;
+--replace_result $command_start_id <expected_command_start_id>
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"$command_start_id\";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;;ABORT_RET';
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+SELECT 1;
+SELECT @@null_audit_event_order_check;
+SELECT 1;
+
+--replace_result $event_order_exact <expected_check_exact>
+eval SET @@null_audit_event_order_check_exact = $event_order_exact;
+--replace_result $command_start_id <expected_command_start_id>
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"$command_start_id\";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;;;'
+                                          'MYSQL_AUDIT_QUERY_STATUS_END;;ABORT_RET';
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+SELECT 1;
+SELECT @@null_audit_event_order_check;
+SELECT 1;
+
+--echo ##############
+--echo ## VARIABLE ##
+--echo ##############
+
+connection default;
+--replace_result $event_order_exact <expected_check_exact>
+eval SET @@null_audit_event_order_check_exact = $event_order_exact;
+--replace_result $command_start_id <expected_command_start_id>
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"$command_start_id\";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;value=\"1\";ABORT_RET';
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+SELECT @@GLOBAL.null_audit_abort_value;
+SELECT @@null_audit_event_order_check;
+SELECT @@GLOBAL.null_audit_abort_value;
+
+--echo ## SESSION variable access should not be blocked.
+--replace_result $event_order_exact <expected_check_exact>
+eval SET @@null_audit_event_order_check_exact = $event_order_exact;
+--replace_result $command_start_id <expected_command_start_id>
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"$command_start_id\";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;;;'
+                                          'MYSQL_AUDIT_QUERY_STATUS_END;;';
+SELECT @@null_audit_abort_value;
+SELECT @@null_audit_event_order_check;
+
+--echo # SHOW GLOBAL VARIABLE
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                     'MYSQL_AUDIT_QUERY_START;;;'
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;value=\"1\";ABORT_RET',
+         @@null_audit_event_order_check_exact = 1;
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
+SELECT @@null_audit_event_order_check;
+SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
+
+--echo # SHOW GLOBAL VARIABLE
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;;;'
+                                          'MYSQL_AUDIT_QUERY_STATUS_END;;';
+SHOW SESSION VARIABLES LIKE 'null_audit_abort_value';
+SELECT @@null_audit_event_order_check;
+
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                     'MYSQL_AUDIT_QUERY_START;;;'
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_SET;value=\"NULL\";ABORT_RET',
+    @@null_audit_event_order_check_exact = 1;
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+SET @@GLOBAL.null_audit_event_order_check = NULL;
+SELECT @@null_audit_event_order_check;
+SET @@GLOBAL.null_audit_event_order_check = NULL;
+
+--echo # Global variables through virtual tables
+--replace_result $event_order_exact <expected_check_exact>
+eval SET @@null_audit_event_order_check_exact = $event_order_exact;
+--replace_result $command_start_id <expected_command_start_id>
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"$command_start_id\";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;;;'
+                                          'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;value=\"1\";ABORT_RET';
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+SELECT * FROM information_schema.global_variables WHERE VARIABLE_NAME = 'null_audit_abort_value';
+SELECT @@null_audit_event_order_check;
+
+--echo ###############################
+--echo ## QUERY - FIRST LEVEL ABORT ##
+--echo ###############################
+
+CREATE DATABASE super_test;
+USE super_test;
+CREATE TABLE test_table (a INT);
+--replace_result $event_order_exact <expected_check_exact>
+eval SET @@null_audit_event_order_check_exact = $event_order_exact;
+--replace_result $command_start_id <expected_command_start_id>
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"$command_start_id\";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;;;'
+                                          'MYSQL_AUDIT_QUERY_STATUS_END;;ABORT_RET';
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+INSERT INTO test_table VALUES(1);
+SELECT * FROM test_table;
+SELECT @@null_audit_event_order_check;
+INSERT INTO test_table VALUES(2);
+SELECT * FROM test_table;
+DELETE FROM test_table;
+
+--replace_result $event_order_exact <expected_check_exact>
+eval SET @@null_audit_event_order_check_exact = $event_order_exact;
+--replace_result $command_start_id <expected_command_start_id>
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"$command_start_id\";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;;ABORT_RET';
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+INSERT INTO test_table VALUES(1);
+SELECT @@null_audit_event_order_check;
+SELECT * FROM test_table;
+
+### Two queries sent as a single query. They are treated and executed
+### separately by the server. If the second execution query fails the
+### first one succeedes.
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                     'MYSQL_AUDIT_QUERY_START;;;'
+                                     'MYSQL_AUDIT_QUERY_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                     'MYSQL_AUDIT_QUERY_START;;;'
+                                     'MYSQL_AUDIT_QUERY_STATUS_END;;ABORT_RET',
+    @@null_audit_event_order_check_exact = 1;
+--delimiter |;
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+INSERT INTO test_table VALUES(3); INSERT INTO test_table VALUES(4); |;
+--delimiter ;
+SELECT @@null_audit_event_order_check;
+SELECT * FROM test_table;
+DELETE FROM test_table;
+
+--delimiter |;
+CREATE PROCEDURE simple_proc()
+BEGIN
+INSERT INTO test_table VALUES(1);
+INSERT INTO test_table VALUES(2);
+END|;
+CREATE PROCEDURE simple_proc2()
+BEGIN
+INSERT INTO test_table VALUES(1);
+INSERT INTO test_table VALUES('a');
+END|;
+--delimiter ;
+CALL simple_proc();
+SELECT @@null_audit_event_order_check;
+SELECT * FROM test_table;
+DELETE FROM test_table;
+
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                     'MYSQL_AUDIT_QUERY_START;;;'
+                                     'MYSQL_AUDIT_STORED_PROGRAM_EXECUTE;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_STATUS_END;;ABORT_RET',
+    @@null_audit_event_order_check_exact = 1;
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+CALL simple_proc();
+SELECT @@null_audit_event_order_check;
+SELECT * FROM test_table;
+DELETE FROM test_table;
+
+# Check event order flow
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                     'MYSQL_AUDIT_QUERY_START;;;'
+                                     'MYSQL_AUDIT_STORED_PROGRAM_EXECUTE;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_RESULT;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
+                                     'MYSQL_AUDIT_COMMAND_END;command_id=\"3\";',
+    @@null_audit_event_order_check_exact = 1;
+CALL simple_proc();
+SELECT @@null_audit_event_order_check;
+SELECT * FROM test_table;
+DELETE FROM test_table;
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+call simple_proc2();
+SELECT * FROM test_table;
+DELETE FROM test_table;
+
+--delimiter |
+CREATE TABLE test_table_2 (a INT) ENGINE=InnoDB;
+CREATE PROCEDURE proc()
+BEGIN
+DECLARE EXIT HANDLER FOR SQLEXCEPTION ROLLBACK;
+START TRANSACTION;
+insert into test_table_2 values(1);
+insert into test_table_2 values(2);
+COMMIT WORK;
+END| 
+--delimiter ;
+
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                     'MYSQL_AUDIT_QUERY_START;;;'
+                                     'MYSQL_AUDIT_STORED_PROGRAM_EXECUTE;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_RESULT;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
+                                     'MYSQL_AUDIT_COMMAND_END;command_id=\"3\";',
+    @@null_audit_event_order_check_exact = 1;
+CALL proc();
+SELECT @@null_audit_event_order_check;
+SELECT * FROM test_table_2 ORDER BY a;
+DELETE FROM test_table_2;
+
+## ABORT ON COMMIT START
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                     'MYSQL_AUDIT_QUERY_START;;;'
+                                     'MYSQL_AUDIT_STORED_PROGRAM_EXECUTE;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;ABORT_RET',
+    @@null_audit_event_order_check_exact = 1;
+CALL proc();
+SELECT @@null_audit_event_order_check;
+SELECT * FROM test_table_2;
+DELETE FROM test_table_2;
+
+## ABORT ON COMMIT
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                     'MYSQL_AUDIT_QUERY_START;;;'
+                                     'MYSQL_AUDIT_STORED_PROGRAM_EXECUTE;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_START;;;'
+                                     'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;ABORT_RET',
+    @@null_audit_event_order_check_exact = 1;
+CALL proc();
+SELECT @@null_audit_event_order_check;
+SELECT * FROM test_table_2;
+DELETE FROM test_table_2;
+
+## Not nested queries
+# Check event order flow
+INSERT INTO test_table VALUES(1),(2),(3);
+INSERT INTO test_table_2 VALUES(1),(2),(3);
+--replace_result $event_order_exact <expected_check_exact>
+eval SET @@null_audit_event_order_check_exact = $event_order_exact;
+--replace_regex /[0-9]+/<expected_command_id>/
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"$command_start_id\";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;;;'
+                                          'MYSQL_AUDIT_QUERY_STATUS_END;;;'
+                                          'MYSQL_AUDIT_GENERAL_RESULT;;;'
+                                          'MYSQL_AUDIT_GENERAL_STATUS;;;'
+                                          'MYSQL_AUDIT_COMMAND_END;command_id=\"$command_end_id\";';
+SELECT test_table.a FROM test_table WHERE EXISTS (SELECT test_table_2.a from test_table_2 WHERE test_table.a = test_table_2.a) ORDER BY test_table.a;
+SELECT @@null_audit_event_order_check;
+DELETE FROM test_table;
+DELETE FROM test_table_2;
+
+connection default;
+SET @@null_audit_event_order_check_exact = 1;
+DROP TABLE test_table_2;
+DROP TABLE test_table;
+USE mysql;
+DROP DATABASE super_test;
+DROP USER user1@localhost;
+
+--echo ########################
+--echo ## CONNECTION - CLEAN ##
+--echo ########################
+
+CREATE USER user1;
+CREATE USER user2;
+--connect(user1_con, localhost, user1,)
+SELECT USER(), CURRENT_USER();
+
+# Try to change user for a given connection (user and database specified)
+--error 1
+--exec echo "--change_user user2,,mysql" | $MYSQL_TEST 2>&1
+SELECT USER(), CURRENT_USER();
+
+connection default;
+# Allow 'user2' to use 'mysql' database.
+GRANT ALL ON mysql.* TO user2;
+connection user1_con;
+
+# Change user with 'mysql' as initial database
+--change_user user2,,mysql
+SELECT USER(), CURRENT_USER();
+
+# Bring back user1 (no database specified)
+--change_user user1,,
+SELECT USER(), CURRENT_USER();
+
+--echo ## Reset connection ##
+--reset_connection
+SELECT USER(), CURRENT_USER();
+
+disconnect user1_con;
+
+connection default;
+DROP USER user1;
+DROP USER user2;
+
+## END ##
+
+--echo ###############################
+--echo ## CONNECTION - INSTRUMENTED ##
+--echo ###############################
+
+CREATE USER user1;
+CREATE USER user2;
+
+eval SET @@GLOBAL.null_audit_event_order_check = 'MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE;;;'
+                                                 'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                                 'MYSQL_AUDIT_CONNECTION_CONNECT;;ABORT_RET';
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+--connect(user1_con, localhost, user1,)
+SET @@GLOBAL.null_audit_event_order_check = NULL,
+    @@GLOBAL.null_audit_event_order_check_exact = 1;
+--connect(user1_con, localhost, user1,)
+
+connection default;
+#--COM_CHANGE_USER
+SET @@GLOBAL.null_audit_event_order_check = "MYSQL_AUDIT_COMMAND_START;command_id=\"17\";ABORT_RET";
+connection user1_con;
+# Try to change user for a given connection (user and database specified)
+--error 1
+--exec echo "--change_user user2,,mysql" | $MYSQL_TEST 2>&1
+
+
+connection default;
+# Allow 'user2' to use 'mysql' database.
+GRANT ALL ON mysql.* TO user2;
+connection user1_con;
+
+# Change user with 'mysql' as initial database
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+--change_user user2,,mysql
+SELECT USER(), CURRENT_USER();
+
+--echo # Reset connection
+connection default;
+#--COM_RESET_CONNECTION
+SET @@GLOBAL.null_audit_event_order_check = "MYSQL_AUDIT_COMMAND_START;command_id=\"31\";ABORT_RET";
+connection user1_con;
+--reset_connection
+SELECT USER(), CURRENT_USER();
+
+--echo ## Should no take any effect. COM_QUIT should be possible.
+connection default;
+#--COM_QUIT
+SET @@GLOBAL.null_audit_event_order_check = "MYSQL_AUDIT_COMMAND_START;command_id=\"1\";ABORT_RET";
+connection user1_con;
+disconnect user1_con;
+
+connection default;
+SET @@GLOBAL.null_audit_event_order_check = NULL;
+DROP USER user1;
+DROP USER user2;
+
+--echo ## CONNECTION - INSTRUMENTED - END ##
+
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;;ABORT_RET';
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+USE mysql;
+SELECT @@null_audit_event_order_check;
+USE mysql;
+
+--replace_result $event_order_exact <expected_check_exact>
+eval SET @@null_audit_event_order_check_exact = $event_order_exact;
+--replace_result $command_start_id <expected_command_start_id>
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"$command_start_id\";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;;ABORT_RET';
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+SELECT 1;
+SELECT @@null_audit_event_order_check;
+SELECT 1;
+
+--echo ##########################
+--echo ## CUSTOM ERROR MESSAGE ##
+--echo ##########################
+SET @@null_audit_abort_message = "Custom error text.";
+--replace_result $event_order_exact <expected_check_exact>
+eval SET @@null_audit_event_order_check_exact = $event_order_exact;
+--replace_result $command_start_id <expected_command_start_id>
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"$command_start_id\";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;;ABORT_RET';
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+SELECT 1;
+SELECT @@null_audit_event_order_check;
+--echo ## CUSTOM ERROR MESSAGE - END ##
+
+--echo #########################
+--echo ## CUSTOM ERROR RESULT ##
+--echo #########################
+SET @@null_audit_abort_value = 123;
+--replace_result $event_order_exact <expected_check_exact>
+eval SET @@null_audit_event_order_check_exact = $event_order_exact;
+--replace_result $command_start_id <expected_command_start_id>
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"$command_start_id\";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;;ABORT_RET';
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+SELECT 1;
+SELECT @@null_audit_event_order_check;
+--echo ## CUSTOM ERROR RESULT - END ##
+
+--echo ###########
+--echo ## PARSE ##
+--echo ###########
+--replace_result $event_order_exact <expected_check_exact>
+eval SET @@null_audit_event_order_check_exact = $event_order_exact;
+--replace_result $command_start_id <expected_command_start_id>
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"$command_start_id\";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;ABORT_RET';
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+SELECT 1;
+SELECT @@null_audit_event_order_check;
+
+--echo ###############################
+--echo ## TEST CHECK - INVALID DATA ##
+--echo ###############################
+SET @@null_audit_event_order_check_exact = 1;
+--replace_result $command_end_id <expected_command_end_id>
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_END;command_id=\"$command_end_id\";;'
+                                          'MYSQL_AUDIT_COMMAND_START;command_id=\"4\";';
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+SELECT 1;
+SELECT @@null_audit_event_order_check;
+
+--echo #########################
+--echo ## COMMAND_END - ABORT ##
+--echo #########################
+# Abort the MYSQL_AUDIT_COMMAND_END event with the my_message function - should be disabled
+SET @@null_audit_abort_message = "Abort with my_message.";
+SET @@null_audit_event_order_check_exact = 1;
+--replace_result $command_end_id <expected_command_end_id>
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_END;command_id=\"$command_end_id\";ABORT_RET';
+SELECT 1;
+SELECT @@null_audit_event_order_check;
+
+# Abort the MYSQL_AUDIT_COMMAND_END event by returning a non-zero value - should be disabled
+SET @@null_audit_event_order_check_exact = 1;
+--replace_result $command_end_id <expected_command_end_id>
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_END;command_id=\"$command_end_id\";ABORT_RET';
+SELECT 1;
+SELECT @@null_audit_event_order_check;
+--echo ## CUSTOM ERROR MESSAGE - END ##
+
+eval UNINSTALL PLUGIN null_audit;

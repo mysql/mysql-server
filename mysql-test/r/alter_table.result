@@ -1,8 +1,6 @@
 drop table if exists t1,t2;
 drop database if exists mysqltest;
-SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_CREATE_USER';
 create table t1 (
 col1 int not null auto_increment primary key,
 col2 varchar(30) not null,
@@ -853,8 +851,7 @@ id
 50
 51
 drop table t1;
-set @orig_sql_mode = @@sql_mode;
-set sql_mode="STRICT_ALL_TABLES";
+set sql_mode= default;
 create table t1(f1 int);
 alter table t1 add column f2 datetime not null, add column f21 date not null;
 insert into t1 values(1,'2000-01-01','2000-01-01');
@@ -871,7 +868,6 @@ select * from t1;
 f1	f2	f21	f4	f41
 1	2000-01-01 00:00:00	2000-01-01	2002-02-02 00:00:00	2002-02-02
 drop table t1;
-set sql_mode= @orig_sql_mode;
 create table t1 (v varchar(32));
 insert into t1 values ('def'),('abc'),('hij'),('3r4f');
 select * from t1;
@@ -1722,8 +1718,8 @@ ALTER TABLE tm1 DROP INDEX im3;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 DROP COLUMN d2;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 DROP COLUMN d2;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
@@ -1781,12 +1777,9 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 MODIFY COLUMN e INT FIRST;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
-SET @orig_sql_mode = @@sql_mode;
-SET @@sql_mode = 'STRICT_TRANS_TABLES';
 ALTER TABLE ti1 MODIFY COLUMN c INT NOT NULL;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-SET @@sql_mode = @orig_sql_mode;
 ALTER TABLE tm1 MODIFY COLUMN c INT NOT NULL;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
@@ -3365,3 +3358,57 @@ ALTER TABLE t TABLESPACE s;
 # Drop table and tablespace.
 DROP TABLE t;
 DROP TABLESPACE s ENGINE InnoDB;
+#
+# BUG#20106837: ALTER TABLE WHICH DROPS AND ADDS THE SAME FULLTEXT
+#               INDEX IS NOT INPLACE/FAST.
+CREATE TABLE t1(fld1 varchar(200), FULLTEXT(fld1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES('ABCD');
+#Without patch, it was not fast a INPLACE ALTER.
+ALTER TABLE t1 DROP INDEX fld1, ADD FULLTEXT INDEX fld1(fld1);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+#Without patch, reports an error 'ER_ALTER_OPERATION_NOT_SUPPORTED'.
+ALTER TABLE t1 ALGORITHM=INPLACE, DROP INDEX fld1,
+ADD FULLTEXT INDEX fld1(fld1);
+DROP TABLE t1;
+#Test with InnoDB engine.
+CREATE TABLE t1(fld1 varchar(200), FULLTEXT(fld1)) ENGINE=INNODB;
+INSERT INTO t1 VALUES('ABCD');
+#Without patch, it was not fast a INPLACE ALTER.
+ALTER TABLE t1 DROP INDEX fld1, ADD FULLTEXT INDEX fld1(fld1);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+#Without patch, reports an error 'ER_ALTER_OPERATION_NOT_SUPPORTED'.
+ALTER TABLE t1 ALGORITHM=INPLACE, DROP INDEX fld1,
+ADD FULLTEXT INDEX fld1(fld1);
+DROP TABLE t1;
+#
+# Bug#20146455: FIND_KEY_CI RETURNS NULL, CAUSES CRASH IN
+#               FILL_ALTER_INPLACE_INFO
+#
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT,
+FOREIGN KEY (b) REFERENCES t1(a)) ENGINE= MyISAM;
+ALTER TABLE t1 RENAME INDEX b TO w, ADD FOREIGN KEY (b) REFERENCES t1(a);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `w` (`b`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT,
+FOREIGN KEY (b) REFERENCES t1(a)) ENGINE= InnoDB;
+ALTER TABLE t1 RENAME INDEX b TO w, ADD FOREIGN KEY (b) REFERENCES t1(a);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `w` (`b`),
+  CONSTRAINT `t1_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`),
+  CONSTRAINT `t1_ibfk_2` FOREIGN KEY (`b`) REFERENCES `t1` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t1;

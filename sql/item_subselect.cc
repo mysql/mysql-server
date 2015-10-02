@@ -188,7 +188,7 @@ bool Item_in_subselect::finalize_exists_transform(SELECT_LEX *select_lex)
     Note that if the subquery is "SELECT1 UNION SELECT2" then this is not
     working optimally (Bug#14215895).
   */
-  unit->global_parameters()->select_limit= new Item_int((int32) 1);
+  unit->global_parameters()->select_limit= new Item_int(1);
   unit->set_limit(unit->global_parameters());
 
   select_lex->join->allow_outer_refs= true;   // for JOIN::set_prefix_tables()
@@ -628,12 +628,12 @@ void Item_subselect::fix_after_pullout(st_select_lex *parent_select,
 
     /* Re-resolve ORDER BY and GROUP BY fields */
 
-    for (ORDER *order= (ORDER*) sel->order_list.first;
+    for (ORDER *order= sel->order_list.first;
          order;
          order= order->next)
       (*order->item)->fix_after_pullout(parent_select, removed_select);
 
-    for (ORDER *group= (ORDER*) sel->group_list.first;
+    for (ORDER *group= sel->group_list.first;
          group;
          group= group->next)
       (*group->item)->fix_after_pullout(parent_select, removed_select);
@@ -717,7 +717,7 @@ void Item_subselect::fix_length_and_dec()
 
 table_map Item_subselect::used_tables() const
 {
-  return (table_map) (engine->uncacheable() ? used_tables_cache : 0L);
+  return (engine->uncacheable() ? used_tables_cache : 0ULL);
 }
 
 
@@ -1269,6 +1269,21 @@ my_decimal *Item_singlerow_subselect::val_decimal(my_decimal *decimal_value)
 }
 
 
+bool Item_singlerow_subselect::val_json(Json_wrapper *result)
+{
+  if (!no_rows && !exec() && !value->null_value)
+  {
+    null_value= false;
+    return value->val_json(result);
+  }
+  else
+  {
+    reset();
+    return false;
+  }
+}
+
+
 bool Item_singlerow_subselect::get_date(MYSQL_TIME *ltime,
                                         my_time_flags_t fuzzydate)
 {
@@ -1458,7 +1473,7 @@ void Item_exists_subselect::fix_length_and_dec()
        Note that if the subquery is "SELECT1 UNION SELECT2" then this is not
        working optimally (Bug#14215895).
      */
-     unit->global_parameters()->select_limit= new Item_int((int32) 1);
+     unit->global_parameters()->select_limit= new Item_int(1);
    }
 }
 
@@ -1771,7 +1786,7 @@ Item_in_subselect::single_value_transformer(SELECT_LEX *select,
           transformation (like Item_field to Item_ref), make sure we
           are rolling it back based on location inside Item_sum arg list.
         */
-        thd->change_item_tree_place(it.ref(), item->get_arg_ptr(0));
+        thd->replace_rollback_place(item->get_arg_ptr(0));
       }
 
       DBUG_EXECUTE("where",
@@ -2695,16 +2710,30 @@ bool Item_in_subselect::init_left_expr_cache()
 
 
 /**
-   Tells an Item that it is in the condition of a JOIN_TAB
+  Tells an Item that it is in the condition of a JOIN_TAB of a query block.
 
-  @param 'join_tab_index'  index of JOIN_TAB in JOIN's array
+  @param arg  A std::pair: first argument is the query block, second is the
+  index of JOIN_TAB in JOIN's array.
 
-   The Item records this fact and can deduce from it the estimated number of
-   times that it will be evaluated.
+  The Item records this fact and can deduce from it the estimated number of
+  times that it will be evaluated.
+  If the JOIN_TAB doesn't belong to the query block owning this
+  Item_subselect, it must belong to a more inner query block (not a more
+  outer, as the walk() doesn't dive into subqueries); in that case, it must be
+  that Item_subselect is the left-hand-side of a subquery transformed with
+  IN-to-EXISTS and has been wrapped in Item_cache and then injected into the
+  WHERE/HAVING of that subquery; but then the Item_subselect will not be
+  evaluated when the JOIN_TAB's condition is evaluated (Item_cache will
+  short-circuit it); it will be evaluated when the IN(subquery)
+  (Item_in_optimizer) is - that's when the Item_cache is updated. Thus, we
+  will ignore JOIN_TAB in this case.
 */
-bool Item_subselect::inform_item_in_cond_of_tab(uchar *join_tab_index)
+bool Item_subselect::inform_item_in_cond_of_tab(uchar *arg)
 {
-  in_cond_of_tab= *reinterpret_cast<int *>(join_tab_index);
+  std::pair<SELECT_LEX *, int> *pair_object=
+    pointer_cast<std::pair<SELECT_LEX *, int> * >(arg);
+  if (pair_object->first == unit->outer_select())
+    in_cond_of_tab= pair_object->second;
   return false;
 }
 
@@ -3019,14 +3048,15 @@ bool subselect_single_select_engine::exec()
               DBUG_ASSERT(!(tab->op && tab->op->type() == QEP_operation::OT_CACHE &&
                             static_cast<JOIN_CACHE*>(tab->op)->is_key_access()));
 
+              TABLE *table= tab->table();
               /* Change the access method to full table scan */
               tab->save_read_first_record= tab->read_first_record;
               tab->save_read_record= tab->read_record.read_record;
               tab->read_record.read_record= rr_sequential;
               tab->read_first_record= read_first_record_seq;
-              tab->read_record.record= tab->table()->record[0];
+              tab->read_record.record= table->record[0];
               tab->read_record.thd= join->thd;
-              tab->read_record.ref_length= tab->table()->file->ref_length;
+              tab->read_record.ref_length= table->file->ref_length;
               tab->read_record.unlock_row= rr_unlock_row;
               *(last_changed_tab++)= tab;
               break;
@@ -3761,7 +3791,8 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     DBUG_RETURN(TRUE);
   THD * const thd= item->unit->thd;
   if (tmp_result_sink->create_result_table(
-                         thd, tmp_columns, true,
+                         thd, tmp_columns,
+                         true,                  // Eliminate duplicates
                          thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
                          "materialized-subquery", true, true))
     DBUG_RETURN(TRUE);
@@ -3772,6 +3803,11 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
   {
     tmp_key_parts= tmp_columns->elements;
     key_length= ALIGN_SIZE(tmp_table->s->reclength);
+    /*
+      This index over hash_field is not unique (two rows of the temporary
+      table may have a same hash value with different values of tmp_columns).
+    */
+    unique= false;
   }
   else
   {
@@ -3818,10 +3854,13 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
   /*
     Like semijoin-materialization-lookup (see create_subquery_equalities()),
     create an artificial condition to post-filter those rows matched by index
-    lookups that cannot be distinguished by the index lookup procedure, e.g.
-    because of truncation (if the outer column type's length is bigger than
+    lookups that cannot be distinguished by the index lookup procedure, for
+    example:
+    - because of truncation (if the outer column type's length is bigger than
     the inner column type's, index lookup will use a truncated outer
     value as search key, yielding false positives).
+    - because the index is over hash_field and thus not unique.
+
     Prepared statements execution requires that fix_fields is called
     for every execution. In order to call fix_fields we need to create a
     Name_resolution_context and a corresponding TABLE_LIST for the temporary

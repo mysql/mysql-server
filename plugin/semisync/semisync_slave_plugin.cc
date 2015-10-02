@@ -18,6 +18,7 @@
 
 #include "semisync_slave.h"
 #include <mysql.h>
+#include <mysqld_error.h>
 
 ReplSemiSyncSlave repl_semisync;
 
@@ -43,23 +44,39 @@ int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
 {
   MYSQL *mysql= param->mysql;
   MYSQL_RES *res= 0;
-  MYSQL_ROW row;
+#ifndef DBUG_OFF
+  MYSQL_ROW row= NULL;
+#endif
   const char *query;
+  uint mysql_error= 0;
 
   if (!repl_semisync.getSlaveEnabled())
     return 0;
 
   /* Check if master server has semi-sync plugin installed */
-  query= "SHOW VARIABLES LIKE 'rpl_semi_sync_master_enabled'";
+  query= "SELECT @@global.rpl_semi_sync_master_enabled";
   if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query))) ||
       !(res= mysql_store_result(mysql)))
   {
-    sql_print_error("Execution failed on master: %s", query);
-    return 1;
+    mysql_error= mysql_errno(mysql);
+    if (mysql_error != ER_UNKNOWN_SYSTEM_VARIABLE)
+    {
+      sql_print_error("Execution failed on master: %s; error %d", query, mysql_error);
+      return 1;
+    }
+  }
+  else
+  {
+#ifndef DBUG_OFF
+    row=
+#endif
+      mysql_fetch_row(res);
   }
 
-  row= mysql_fetch_row(res);
-  if (!row)
+  DBUG_ASSERT(mysql_error == ER_UNKNOWN_SYSTEM_VARIABLE ||
+              strtoul(row[0], 0, 10) == 0 || strtoul(row[0], 0, 10) == 1);
+
+  if (mysql_error == ER_UNKNOWN_SYSTEM_VARIABLE)
   {
     /* Master does not support semi-sync */
     sql_print_warning("Master server does not support semi-sync, "

@@ -111,6 +111,7 @@ public:
   typedef typename Geom_types::Point Point;
   typedef typename Geom_types::Linestring Linestring;
   typedef typename Geom_types::Polygon Polygon;
+  typedef typename Geom_types::Polygon::ring_type Polygon_ring;
   typedef typename Geom_types::Multipoint Multipoint;
   typedef typename Geom_types::Multilinestring Multilinestring;
   typedef typename Geom_types::Multipolygon Multipolygon;
@@ -139,15 +140,13 @@ public:
     @param g1 First geometry operand, must be a point.
     @param g2 Second geometry operand, must be a point.
     @param[out] result Holds WKB data of the result.
-    @param[out] pdone Whether the operation is performed successfully.
     @return the result Geometry whose WKB data is in result.
     */
   Geometry *point_intersection_point(Geometry *g1, Geometry *g2,
-                                     String *result, bool *pdone)
+                                     String *result)
   {
     Geometry *retgeo= NULL;
 
-    *pdone= false;
     Point pt1(g1->get_data_ptr(),
               g1->get_data_size(), g1->get_flags(), g1->get_srid());
     Point pt2(g2->get_data_ptr(),
@@ -163,8 +162,6 @@ public:
       retgeo= m_ifso->empty_result(result, g1->get_srid());
       copy_ifso_state();
     }
-    if (!null_value)
-      *pdone= true;
     return retgeo;
   }
 
@@ -176,11 +173,10 @@ public:
     here or for the rest of the functions in this class.
   */
   Geometry *point_intersection_multipoint(Geometry *g1, Geometry *g2,
-                                          String *result, bool *pdone)
+                                          String *result)
   {
     Geometry *retgeo= NULL;
 
-    *pdone= false;
     Point pt(g1->get_data_ptr(),
              g1->get_data_size(), g1->get_flags(), g1->get_srid());
     Multipoint mpts(g2->get_data_ptr(),
@@ -197,20 +193,17 @@ public:
       retgeo= m_ifso->empty_result(result, g1->get_srid());
       copy_ifso_state();
     }
-    if (!null_value)
-      *pdone= true;
     return retgeo;
   }
 
 
   Geometry *point_intersection_geometry(Geometry *g1, Geometry *g2,
-                                        String *result, bool *pdone)
+                                        String *result)
   {
 #if !defined(DBUG_OFF)
     Geometry::wkbType gt2= g2->get_type();
 #endif
     Geometry *retgeo= NULL;
-    *pdone= false;
 
     bool is_out= !Ifsr::bg_geo_relation_check<Coord_type, Coordsys>
       (g1, g2, Ifsr::SP_DISJOINT_FUNC, &null_value);
@@ -231,21 +224,19 @@ public:
         retgeo= m_ifso->empty_result(result, g1->get_srid());
         copy_ifso_state();
       }
-      *pdone= true;
     }
     return retgeo;
   }
 
 
   Geometry *multipoint_intersection_multipoint(Geometry *g1, Geometry *g2,
-                                               String *result, bool *pdone)
+                                               String *result)
   {
     Geometry *retgeo= NULL;
     Point_set ptset1, ptset2;
     Multipoint *mpts= new Multipoint();
     auto_ptr<Multipoint> guard(mpts);
 
-    *pdone= false;
     mpts->set_srid(g1->get_srid());
 
     Multipoint mpts1(g1->get_data_ptr(),
@@ -277,14 +268,12 @@ public:
       copy_ifso_state();
     }
 
-    if (!null_value)
-      *pdone= true;
     return retgeo;
   }
 
 
   Geometry *multipoint_intersection_geometry(Geometry *g1, Geometry *g2,
-                                             String *result, bool *pdone)
+                                             String *result)
   {
     Geometry *retgeo= NULL;
 #if !defined(DBUG_OFF)
@@ -296,7 +285,6 @@ public:
     Multipoint *mpts2= new Multipoint();
     auto_ptr<Multipoint> guard(mpts2);
 
-    *pdone= false;
     mpts2->set_srid(g1->get_srid());
 
     DBUG_ASSERT(gt2 == Geometry::wkb_linestring ||
@@ -330,18 +318,15 @@ public:
       copy_ifso_state();
     }
 
-    if (!null_value)
-      *pdone= true;
     return retgeo;
   }
 
 
   Geometry *linestring_intersection_linestring(Geometry *g1, Geometry *g2,
-                                               String *result, bool *pdone)
+                                               String *result)
   {
     Multilinestring *res= NULL;
     Geometry *retgeo= NULL;
-    *pdone= true;
 
     // BG will return all intersection lines and points in a
     // multilinestring. Intersection points are represented as lines
@@ -359,11 +344,10 @@ public:
 
 
   Geometry *linestring_intersection_polygon(Geometry *g1, Geometry *g2,
-                                            String *result, bool *pdone)
+                                            String *result)
   {
     Geometry::wkbType gt2= g2->get_type();
     Geometry *retgeo= NULL, *tmp1= NULL, *tmp2= NULL;
-    *pdone= false;
     // It is likely for there to be discrete intersection Points.
     if (gt2 == Geometry::wkb_multipolygon)
     {
@@ -385,18 +369,15 @@ public:
       (tmp1, tmp2, result);
     copy_ifso_state();
 
-    if (!null_value)
-      *pdone= true;
     return retgeo;
   }
 
 
   Geometry *linestring_intersection_multilinestring(Geometry *g1, Geometry *g2,
-                                                    String *result, bool *pdone)
+                                                    String *result)
   {
     Multilinestring *res= NULL;
     Geometry *retgeo= NULL;
-    *pdone= true;
 
     // BG will return all intersection lines and points in a
     // multilinestring. Intersection points are represented as lines
@@ -414,13 +395,12 @@ public:
 
 
   Geometry *polygon_intersection_multilinestring(Geometry *g1, Geometry *g2,
-                                                 String *result, bool *pdone)
+                                                 String *result)
   {
     Geometry *retgeo= NULL, *tmp1= NULL;
     Multipoint *tmp2= NULL;
     auto_ptr<Geometry> guard1;
 
-    *pdone= false;
 
     BGOPCALL(Multilinestring, tmp1, intersection,
              Polygon, g1, Multilinestring, g2, NULL, null_value);
@@ -466,52 +446,156 @@ public:
       (guard1.release(), guard2.release(), result);
     copy_ifso_state();
 
-    if (!null_value)
-      *pdone= true;
     return retgeo;
   }
 
 
-  Geometry *polygon_intersection_polygon(Geometry *g1, Geometry *g2,
-                                         String *result, bool *pdone)
+  /**
+    Compute the multilinestring result if any for intersection of two polygons.
+    First get the multilinestrings mls1 and mls2 from polygons, then compute
+    mls3 = mls1 intersection mls2, and finally return mls3 - mls4 as result,
+    where mls4 is got from rings of the multipolygon intersection result of
+    plgn1 and plgn2.
+
+    @param plgn1 the 1st polygon operand
+    @param plgn2 the 2nd polygon operand
+    @param mplgn the areal intersection result of plgn1 and plgn2
+    @param [out] mls the result multilinestring
+   */
+  template<typename Polygon_type1, typename Polygon_type2>
+  void plgn_intersection_plgn_mls(const Polygon_type1 &plgn1,
+                                  const Polygon_type2 &plgn2,
+                                  const Multipolygon &mplgn,
+                                  Multilinestring &mls)
   {
-    *pdone= false;
+    if (mplgn.size() > 0)
+    {
+      /*
+        Remove the linestring parts that are part of the result polygon rings.
+        The discrete intersection points that are also removed here.
+      */
+      Multilinestring mls3;
+      bg::intersection(plgn1, plgn2, mls3);
+      bg::detail::boundary_view<Multipolygon const> view(mplgn);
+      bg::difference(mls3, view, mls);
+    }
+    else
+      bg::intersection(plgn1, plgn2, mls);
+  }
+
+
+  Geometry *polygon_intersection_polygon(Geometry *g1, Geometry *g2,
+                                         String *result)
+  {
     Geometry::wkbType gt2= g2->get_type();
-    Geometry *retgeo= NULL, *tmp1= NULL, *tmp2= NULL;
+    Geometry *retgeo= NULL;
+
+    const void *pg1= g1->normalize_ring_order();
+    const void *pg2= g2->normalize_ring_order();
+    if (pg1 == NULL || pg2 == NULL)
+    {
+      null_value= true;
+      my_error(ER_GIS_INVALID_DATA, MYF(0), "st_intersection");
+      return NULL;
+    }
+
+    Multilinestring mls;
+    Polygon plgn1(pg1, g1->get_data_size(), g1->get_flags(),
+                  g1->get_srid());
+
+    auto_ptr<Multipolygon> mplgn_result(new Multipolygon());
+    mplgn_result->set_srid(g1->get_srid());
 
     if (gt2 == Geometry::wkb_polygon)
     {
-      BGOPCALL(Multipolygon, tmp1, intersection,
-               Polygon, g1, Polygon, g2, NULL, null_value);
-      BGOPCALL(Multipoint, tmp2, intersection,
-               Polygon, g1, Polygon, g2, NULL, null_value);
+      Polygon plgn2(pg2, g2->get_data_size(), g2->get_flags(),
+                    g2->get_srid());
+      bg::intersection(plgn1, plgn2, *mplgn_result);
+      plgn_intersection_plgn_mls(plgn1, plgn2, *mplgn_result, mls);
     }
     else
     {
-      BGOPCALL(Multipolygon, tmp1, intersection,
-               Polygon, g1, Multipolygon, g2, NULL, null_value);
-      BGOPCALL(Multipoint, tmp2, intersection,
-               Polygon, g1, Multipolygon, g2, NULL, null_value);
+      Multipolygon mplgn2(pg2, g2->get_data_size(), g2->get_flags(),
+                          g2->get_srid());
+      bg::intersection(plgn1, mplgn2, *mplgn_result);
+      plgn_intersection_plgn_mls(plgn1, mplgn2, *mplgn_result, mls);
     }
 
-    retgeo= m_ifso->combine_sub_results<Coord_type, Coordsys>
-      (tmp1, tmp2, result);
+    retgeo= combine_mls_mplgn_results(&mls, mplgn_result, result);
     copy_ifso_state();
 
-    if (!null_value)
-      *pdone= true;
+    return retgeo;
+  }
+
+  Geometry *combine_mls_mplgn_results(Multilinestring *mls,
+                                      auto_ptr<Multipolygon> mplgn_result,
+                                      String *result)
+  {
+    Geometry *geom= NULL, *retgeo= NULL;
+    DBUG_ASSERT(mls != NULL);
+
+    if (mls->size() > 0)
+      geom= m_ifso->simplify_multilinestring(mls, result);
+
+    if (mplgn_result->size() > 0)
+    {
+      if (mls->size() == 0)
+      {
+        // The multipolygon is the only result.
+        DBUG_ASSERT(result->length() == 0);
+        null_value= post_fix_result(&(m_ifso->bg_resbuf_mgr),
+                                    *mplgn_result, result);
+        if (null_value)
+          return NULL;
+        else
+          retgeo= mplgn_result.release();
+      }
+      else
+      {
+        String mplgn_resbuf;
+        null_value= post_fix_result(&(m_ifso->bg_resbuf_mgr),
+                                    *mplgn_result, &mplgn_resbuf);
+        if (null_value)
+          return NULL;
+        if (geom->get_type() == Geometry::wkb_geometrycollection)
+        {
+          down_cast<Gis_geometry_collection *>(geom)->
+            append_geometry(&(*mplgn_result), result);
+          retgeo= geom;
+        }
+        else
+        {
+          /*
+            The geom created from mls isn't a GC, so we have to create a GC to
+            hole both geom and mplgn_result.
+           */
+          String tmp_mls_resbuf;
+          tmp_mls_resbuf.takeover(*result);
+
+          Gis_geometry_collection *tmp_gc=
+            new Gis_geometry_collection(&(*mplgn_result), result);
+          tmp_gc->append_geometry(geom, result);
+          retgeo= tmp_gc;
+          delete geom;
+        }
+      }
+    }
+    else
+      retgeo= geom;
+
+    if (retgeo == NULL)
+      retgeo= m_ifso->empty_result(result, mplgn_result->get_srid());
+
     return retgeo;
   }
 
 
   Geometry *multilinestring_intersection_multilinestring(Geometry *g1,
                                                          Geometry *g2,
-                                                         String *result,
-                                                         bool *pdone)
+                                                         String *result)
   {
     Multilinestring *res= NULL;
     Geometry *retgeo= NULL;
-    *pdone= true;
 
     // BG will return all intersection lines and points in a
     // multilinestring. Intersection points are represented as lines
@@ -530,10 +614,8 @@ public:
 
   Geometry *multilinestring_intersection_multipolygon(Geometry *g1,
                                                       Geometry *g2,
-                                                      String *result,
-                                                      bool *pdone)
+                                                      String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL, *tmp1= NULL;
     Multipoint *tmp2= NULL;
 
@@ -583,38 +665,45 @@ public:
       (guard1.release(), guard2.release(), result);
     copy_ifso_state();
 
-    if (!null_value)
-      *pdone= true;
     return retgeo;
   }
 
 
   Geometry *multipolygon_intersection_multipolygon(Geometry *g1, Geometry *g2,
-                                                   String *result,
-                                                   bool *pdone)
+                                                   String *result)
   {
-    *pdone= false;
-    Geometry *retgeo= NULL, *tmp1= NULL, *tmp2= NULL;
-    BGOPCALL(Multipolygon, tmp1, intersection,
-             Multipolygon, g1, Multipolygon, g2, NULL, null_value);
+    Geometry *retgeo= NULL;
 
-    BGOPCALL(Multipoint, tmp2, intersection,
-             Multipolygon, g1, Multipolygon, g2, NULL, null_value);
+    const void *pg1= g1->normalize_ring_order();
+    const void *pg2= g2->normalize_ring_order();
+    if (pg1 == NULL || pg2 == NULL)
+    {
+      null_value= true;
+      my_error(ER_GIS_INVALID_DATA, MYF(0), "st_intersection");
+      return NULL;
+    }
 
-    retgeo= m_ifso->combine_sub_results<Coord_type, Coordsys>
-      (tmp1, tmp2, result);
+    Multilinestring mls;
+    Multipolygon mplgn1(pg1, g1->get_data_size(), g1->get_flags(),
+                        g1->get_srid());
+
+    auto_ptr<Multipolygon> mplgn_result(new Multipolygon());
+    mplgn_result->set_srid(g1->get_srid());
+
+    Multipolygon mplgn2(pg2, g2->get_data_size(), g2->get_flags(),
+                        g2->get_srid());
+    bg::intersection(mplgn1, mplgn2, *mplgn_result);
+    plgn_intersection_plgn_mls(mplgn1, mplgn2, *mplgn_result, mls);
+    retgeo= combine_mls_mplgn_results(&mls, mplgn_result, result);
+
     copy_ifso_state();
 
-    if (!null_value)
-      *pdone= true;
     return retgeo;
   }
 
 
-  Geometry *point_union_point(Geometry *g1, Geometry *g2,
-                              String *result, bool *pdone)
+  Geometry *point_union_point(Geometry *g1, Geometry *g2, String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
     Geometry::wkbType gt2= g2->get_type();
     Point_set ptset;// Use set to make Points unique.
@@ -654,16 +743,12 @@ public:
         copy_ifso_state();
       }
     }
-    if (!null_value)
-      *pdone= true;
     return retgeo;
   }
 
 
-  Geometry *point_union_geometry(Geometry *g1, Geometry *g2,
-                                 String *result, bool *pdone)
+  Geometry *point_union_geometry(Geometry *g1, Geometry *g2, String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
 #if !defined(DBUG_OFF)
     Geometry::wkbType gt2= g2->get_type();
@@ -690,16 +775,13 @@ public:
       null_value= retgeo->as_geometry(result, true);
     }
 
-    if (!null_value)
-      *pdone= true;
     return retgeo;
   }
 
 
   Geometry *linestring_union_linestring(Geometry *g1, Geometry *g2,
-                                        String *result, bool *pdone)
+                                        String *result)
   {
-    *pdone= false;
     Linestring ls1(g1->get_data_ptr(), g1->get_data_size(),
                    g1->get_flags(), g1->get_srid());
     Linestring ls2(g2->get_data_ptr(), g2->get_data_size(),
@@ -713,27 +795,23 @@ public:
     if (post_fix_result(&m_ifso->bg_resbuf_mgr, *res, result))
     {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-      *pdone= false;
       null_value= TRUE;
       return NULL;
     }
 
-    *pdone= true;
     return res.release();
   }
 
 
   Geometry *linestring_union_polygon(Geometry *g1, Geometry *g2,
-                                     String *result, bool *pdone)
+                                     String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
     const void *g2_wkb= g2->normalize_ring_order();
     if (g2_wkb == NULL)
     {
       // Invalid polygon
       my_error(ER_GIS_INVALID_DATA, MYF(0), m_ifso->func_name());
-      *pdone= false;
       null_value= TRUE;
       return NULL;
     }
@@ -754,7 +832,6 @@ public:
         linestrings->size() > 0)
     {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-      *pdone= false;
       null_value= TRUE;
       return NULL;
     }
@@ -785,15 +862,13 @@ public:
       retgeo= collection;
     }
 
-    *pdone= true;
     return retgeo;
   }
 
 
   Geometry *linestring_union_multilinestring(Geometry *g1, Geometry *g2,
-                                             String *result, bool *pdone)
+                                             String *result)
   {
-    *pdone= false;
     Linestring ls1(g1->get_data_ptr(), g1->get_data_size(),
                    g1->get_flags(), g1->get_srid());
     Multilinestring mls2(g2->get_data_ptr(), g2->get_data_size(),
@@ -807,27 +882,23 @@ public:
     if (post_fix_result(&m_ifso->bg_resbuf_mgr, *res, result))
     {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-      *pdone= false;
       null_value= TRUE;
       return NULL;
     }
 
-    *pdone= true;
     return res.release();
   }
 
 
   Geometry *linestring_union_multipolygon(Geometry *g1, Geometry *g2,
-                                          String *result, bool *pdone)
+                                          String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
     const void *g2_wkb= g2->normalize_ring_order();
     if (g2_wkb == NULL)
     {
       // Invalid polygon
       my_error(ER_GIS_INVALID_DATA, MYF(0), m_ifso->func_name());
-      *pdone= false;
       null_value= TRUE;
       return NULL;
     }
@@ -848,7 +919,6 @@ public:
         linestrings->size() > 0)
     {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-      *pdone= false;
       null_value= TRUE;
       return NULL;
     }
@@ -889,22 +959,19 @@ public:
       retgeo= collection;
     }
 
-    *pdone= true;
     return retgeo;
   }
 
 
   Geometry *polygon_union_multilinestring(Geometry *g1, Geometry *g2,
-                                          String *result, bool *pdone)
+                                          String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
     const void *g1_wkb= g1->normalize_ring_order();
     if (g1_wkb == NULL)
     {
       // Invalid polygon
       my_error(ER_GIS_INVALID_DATA, MYF(0), m_ifso->func_name());
-      *pdone= false;
       null_value= TRUE;
       return NULL;
     }
@@ -925,7 +992,6 @@ public:
         linestrings->size() > 0)
     {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-      *pdone= false;
       null_value= TRUE;
       return NULL;
     }
@@ -956,15 +1022,13 @@ public:
       retgeo= collection;
     }
 
-    *pdone= true;
     return retgeo;
   }
 
 
   Geometry *multipoint_union_multipoint(Geometry *g1, Geometry *g2,
-                                        String *result, bool *pdone)
+                                        String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
     Point_set ptset;
     Multipoint *mpts= new Multipoint();
@@ -994,16 +1058,13 @@ public:
         copy_ifso_state();
       }
     }
-    if (!null_value)
-      *pdone= true;
     return retgeo;
   }
 
 
   Geometry *multipoint_union_geometry(Geometry *g1, Geometry *g2,
-                                      String *result, bool *pdone)
+                                      String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
 #if !defined(DBUG_OFF)
     Geometry::wkbType gt2= g2->get_type();
@@ -1049,16 +1110,13 @@ public:
       null_value= g2->as_geometry(result, true);
     }
 
-    if (!null_value)
-      *pdone= true;
     return retgeo;
   }
 
 
   Geometry *multilinestring_union_multilinestring(Geometry *g1, Geometry *g2,
-                                                  String *result, bool *pdone)
+                                                  String *result)
   {
-    *pdone= false;
     Multilinestring mls1(g1->get_data_ptr(), g1->get_data_size(),
                          g1->get_flags(), g1->get_srid());
     Multilinestring mls2(g2->get_data_ptr(), g2->get_data_size(),
@@ -1072,27 +1130,23 @@ public:
     if (post_fix_result(&m_ifso->bg_resbuf_mgr, *res, result))
     {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-      *pdone= false;
       null_value= TRUE;
       return NULL;
     }
 
-    *pdone= true;
     return res.release();
   }
 
 
   Geometry *multilinestring_union_multipolygon(Geometry *g1, Geometry *g2,
-                                               String *result, bool *pdone)
+                                               String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
     const void *g2_wkb= g2->normalize_ring_order();
     if (g2_wkb == NULL)
     {
       // Invalid polygon
       my_error(ER_GIS_INVALID_DATA, MYF(0), m_ifso->func_name());
-      *pdone= false;
       null_value= TRUE;
       return NULL;
     }
@@ -1113,7 +1167,6 @@ public:
         linestrings->size() > 0)
     {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-      *pdone= false;
       null_value= TRUE;
       return NULL;
     }
@@ -1154,15 +1207,12 @@ public:
       retgeo= collection;
     }
 
-    *pdone= true;
     return retgeo;
   }
 
 
-  Geometry *polygon_union_polygon(Geometry *g1, Geometry *g2,
-                                  String *result, bool *pdone)
+  Geometry *polygon_union_polygon(Geometry *g1, Geometry *g2, String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
     const void *g1_wkb= g1->normalize_ring_order();
     const void *g2_wkb= g2->normalize_ring_order();
@@ -1170,7 +1220,6 @@ public:
     {
       // Invalid polygon
       my_error(ER_GIS_INVALID_DATA, MYF(0), m_ifso->func_name());
-      *pdone= false;
       null_value= TRUE;
       return NULL;
     }
@@ -1187,7 +1236,6 @@ public:
         res->size() > 0)
     {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-      *pdone= false;
       null_value= TRUE;
       return NULL;
     }
@@ -1196,50 +1244,41 @@ public:
     {
       // Invalid polygon
       my_error(ER_GIS_INVALID_DATA, MYF(0), m_ifso->func_name());
-      *pdone= false;
       null_value= TRUE;
       return NULL;
     }
 
-    *pdone= true;
     retgeo= res.release();
     return retgeo;
   }
 
 
   Geometry *polygon_union_multipolygon(Geometry *g1, Geometry *g2,
-                                       String *result, bool *pdone)
+                                       String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
 
     BGOPCALL(Multipolygon, retgeo, union_,
              Polygon, g1, Multipolygon, g2, result, null_value);
-    if (retgeo && !null_value)
-      *pdone= true;
     return retgeo;
   }
 
 
   Geometry *multipolygon_union_multipolygon(Geometry *g1, Geometry *g2,
-                                            String *result, bool *pdone)
+                                            String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
 
     BGOPCALL(Multipolygon, retgeo, union_,
              Multipolygon, g1, Multipolygon, g2, result, null_value);
 
-    if (retgeo && !null_value)
-      *pdone= true;
     return retgeo;
   }
 
 
   Geometry *point_difference_geometry(Geometry *g1, Geometry *g2,
-                                      String *result, bool *pdone)
+                                      String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
     bool is_out= Ifsr::bg_geo_relation_check<Coord_type, Coordsys>
       (g1, g2, Ifsr::SP_DISJOINT_FUNC, &null_value);
@@ -1256,17 +1295,14 @@ public:
         retgeo= m_ifso->empty_result(result, g1->get_srid());
         copy_ifso_state();
       }
-      if (!null_value)
-        *pdone= true;
     }
     return retgeo;
   }
 
 
   Geometry *multipoint_difference_geometry(Geometry *g1, Geometry *g2,
-                                           String *result, bool *pdone)
+                                           String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
     Multipoint *mpts= new Multipoint();
     auto_ptr<Multipoint> guard(mpts);
@@ -1303,14 +1339,12 @@ public:
         copy_ifso_state();
       }
     }
-    if (!null_value)
-      *pdone= true;
     return retgeo;
   }
 
 
   Geometry *linestring_difference_linestring(Geometry *g1, Geometry *g2,
-                                             String *result, bool *pdone)
+                                             String *result)
   {
     Geometry *retgeo= NULL;
     Linestring ls1(g1->get_data_ptr(), g1->get_data_size(),
@@ -1337,7 +1371,6 @@ public:
       if (post_fix_result(&m_ifso->bg_resbuf_mgr, *res, NULL))
       {
         my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-        *pdone= false;
         null_value= TRUE;
         return NULL;
       }
@@ -1353,22 +1386,19 @@ public:
       if (post_fix_result(&m_ifso->bg_resbuf_mgr, *res, result))
       {
         my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-        *pdone= false;
         null_value= TRUE;
         return NULL;
       }
       retgeo= res.release();
     }
 
-    *pdone= true;
     return retgeo;
   }
 
 
   Geometry *linestring_difference_polygon(Geometry *g1, Geometry *g2,
-                                          String *result, bool *pdone)
+                                          String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
 
     BGOPCALL(Multilinestring, retgeo, difference,
@@ -1380,14 +1410,12 @@ public:
       copy_ifso_state();
     }
 
-    if (!null_value)
-      *pdone= true;
     return retgeo;
   }
 
 
   Geometry *linestring_difference_multilinestring(Geometry *g1, Geometry *g2,
-                                                  String *result, bool *pdone)
+                                                  String *result)
   {
     Geometry *retgeo= NULL;
     Linestring ls1(g1->get_data_ptr(), g1->get_data_size(),
@@ -1414,7 +1442,6 @@ public:
       if (post_fix_result(&m_ifso->bg_resbuf_mgr, *res, NULL))
       {
         my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-        *pdone= false;
         null_value= TRUE;
         return NULL;
       }
@@ -1430,22 +1457,19 @@ public:
       if (post_fix_result(&m_ifso->bg_resbuf_mgr, *res, result))
       {
         my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-        *pdone= false;
         null_value= TRUE;
         return NULL;
       }
       retgeo= res.release();
     }
 
-    *pdone= true;
     return retgeo;
   }
 
 
   Geometry *linestring_difference_multipolygon(Geometry *g1, Geometry *g2,
-                                               String *result, bool *pdone)
+                                               String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
 
     BGOPCALL(Multilinestring, retgeo, difference,
@@ -1456,16 +1480,13 @@ public:
       retgeo= m_ifso->empty_result(result, g1->get_srid());
       copy_ifso_state();
     }
-    if (!null_value)
-      *pdone= true;
     return retgeo;
   }
 
 
   Geometry *polygon_difference_polygon(Geometry *g1, Geometry *g2,
-                                       String *result, bool *pdone)
+                                       String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
 
     BGOPCALL(Multipolygon, retgeo, difference,
@@ -1476,16 +1497,13 @@ public:
       retgeo= m_ifso->empty_result(result, g1->get_srid());
       copy_ifso_state();
     }
-    if (!null_value)
-      *pdone= true;
     return retgeo;
   }
 
 
   Geometry *polygon_difference_multipolygon(Geometry *g1, Geometry *g2,
-                                            String *result, bool *pdone)
+                                            String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
 
     BGOPCALL(Multipolygon, retgeo, difference,
@@ -1496,14 +1514,12 @@ public:
       retgeo= m_ifso->empty_result(result, g1->get_srid());
       copy_ifso_state();
     }
-    if (!null_value)
-      *pdone= true;
     return retgeo;
   }
 
 
   Geometry *multilinestring_difference_linestring(Geometry *g1, Geometry *g2,
-                                                  String *result, bool *pdone)
+                                                  String *result)
   {
     Geometry *retgeo= NULL;
     Multilinestring mls1(g1->get_data_ptr(), g1->get_data_size(),
@@ -1530,7 +1546,6 @@ public:
       if (post_fix_result(&m_ifso->bg_resbuf_mgr, *res, NULL))
       {
         my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-        *pdone= false;
         null_value= TRUE;
         return NULL;
       }
@@ -1546,22 +1561,19 @@ public:
       if (post_fix_result(&m_ifso->bg_resbuf_mgr, *res, result))
       {
         my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-        *pdone= false;
         null_value= TRUE;
         return NULL;
       }
       retgeo= res.release();
     }
 
-    *pdone= true;
     return retgeo;
   }
 
 
   Geometry *multilinestring_difference_polygon(Geometry *g1, Geometry *g2,
-                                               String *result, bool *pdone)
+                                               String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
 
     BGOPCALL(Multilinestring, retgeo, difference,
@@ -1572,16 +1584,13 @@ public:
       retgeo= m_ifso->empty_result(result, g1->get_srid());
       copy_ifso_state();
     }
-    if (!null_value)
-      *pdone= true;
     return retgeo;
   }
 
 
   Geometry *multilinestring_difference_multilinestring(Geometry *g1,
                                                        Geometry *g2,
-                                                       String *result,
-                                                       bool *pdone)
+                                                       String *result)
   {
     Geometry *retgeo= NULL;
     Multilinestring mls1(g1->get_data_ptr(), g1->get_data_size(),
@@ -1608,7 +1617,6 @@ public:
       if (post_fix_result(&m_ifso->bg_resbuf_mgr, *res, NULL))
       {
         my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-        *pdone= false;
         null_value= TRUE;
         return NULL;
       }
@@ -1624,23 +1632,19 @@ public:
       if (post_fix_result(&m_ifso->bg_resbuf_mgr, *res, result))
       {
         my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-        *pdone= false;
         null_value= TRUE;
         return NULL;
       }
       retgeo= res.release();
     }
 
-    *pdone= true;
     return retgeo;
   }
 
 
   Geometry *multilinestring_difference_multipolygon(Geometry *g1, Geometry *g2,
-                                                    String *result,
-                                                    bool *pdone)
+                                                    String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
 
     BGOPCALL(Multilinestring, retgeo, difference,
@@ -1651,16 +1655,13 @@ public:
       retgeo= m_ifso->empty_result(result, g1->get_srid());
       copy_ifso_state();
     }
-    if (!null_value)
-      *pdone= true;
     return retgeo;
   }
 
 
   Geometry *multipolygon_difference_polygon(Geometry *g1, Geometry *g2,
-                                            String *result, bool *pdone)
+                                            String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
 
     BGOPCALL(Multipolygon, retgeo, difference,
@@ -1671,16 +1672,13 @@ public:
       retgeo= m_ifso->empty_result(result, g1->get_srid());
       copy_ifso_state();
     }
-    if (!null_value)
-      *pdone= true;
     return retgeo;
   }
 
 
   Geometry *multipolygon_difference_multipolygon(Geometry *g1, Geometry *g2,
-                                                 String *result, bool *pdone)
+                                                 String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
 
     BGOPCALL(Multipolygon, retgeo, difference,
@@ -1691,16 +1689,13 @@ public:
       retgeo= m_ifso->empty_result(result, g1->get_srid());
       copy_ifso_state();
     }
-    if (!null_value)
-      *pdone= true;
     return retgeo;
   }
 
 
   Geometry *linestring_symdifference_linestring(Geometry *g1, Geometry *g2,
-                                                String *result, bool *pdone)
+                                                String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
     Linestring ls1(g1->get_data_ptr(), g1->get_data_size(),
                    g1->get_flags(), g1->get_srid());
@@ -1715,7 +1710,6 @@ public:
         res->size() > 0)
     {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-      *pdone= false;
       null_value= TRUE;
       return NULL;
     }
@@ -1729,16 +1723,13 @@ public:
       retgeo= res.release();
     }
 
-    *pdone= true;
     return retgeo;
   }
 
 
   Geometry *linestring_symdifference_multilinestring(Geometry *g1, Geometry *g2,
-                                                     String *result,
-                                                     bool *pdone)
+                                                     String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
     Linestring ls1(g1->get_data_ptr(), g1->get_data_size(),
                    g1->get_flags(), g1->get_srid());
@@ -1753,7 +1744,6 @@ public:
         res->size() > 0)
     {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-      *pdone= false;
       null_value= TRUE;
       return NULL;
     }
@@ -1767,15 +1757,13 @@ public:
       retgeo= res.release();
     }
 
-    *pdone= true;
     return retgeo;
   }
 
 
   Geometry *polygon_symdifference_polygon(Geometry *g1, Geometry *g2,
-                                          String *result, bool *pdone)
+                                          String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
 
     BGOPCALL(Multipolygon, retgeo, sym_difference,
@@ -1786,16 +1774,13 @@ public:
       retgeo= m_ifso->empty_result(result, g1->get_srid());
       copy_ifso_state();
     }
-    if (!null_value)
-      *pdone= true;
     return retgeo;
   }
 
 
   Geometry *polygon_symdifference_multipolygon(Geometry *g1, Geometry *g2,
-                                               String *result, bool *pdone)
+                                               String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
 
     BGOPCALL(Multipolygon, retgeo, sym_difference,
@@ -1806,18 +1791,14 @@ public:
       retgeo= m_ifso->empty_result(result, g1->get_srid());
       copy_ifso_state();
     }
-    if (!null_value)
-      *pdone= true;
     return retgeo;
   }
 
 
   Geometry *multilinestring_symdifference_multilinestring(Geometry *g1,
                                                           Geometry *g2,
-                                                          String *result,
-                                                          bool *pdone)
+                                                          String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
     Multilinestring mls1(g1->get_data_ptr(), g1->get_data_size(),
                          g1->get_flags(), g1->get_srid());
@@ -1832,7 +1813,6 @@ public:
         res->size() > 0)
     {
       my_error(ER_GIS_UNKNOWN_ERROR, MYF(0), m_ifso->func_name());
-      *pdone= false;
       null_value= TRUE;
       return NULL;
     }
@@ -1846,15 +1826,13 @@ public:
       retgeo= res.release();
     }
 
-    *pdone= true;
     return retgeo;
   }
 
 
   Geometry *multipolygon_symdifference_polygon(Geometry *g1, Geometry *g2,
-                                               String *result, bool *pdone)
+                                               String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
 
     BGOPCALL(Multipolygon, retgeo, sym_difference,
@@ -1865,17 +1843,13 @@ public:
       retgeo= m_ifso->empty_result(result, g1->get_srid());
       copy_ifso_state();
     }
-    if (!null_value)
-      *pdone= true;
     return retgeo;
   }
 
 
   Geometry *multipolygon_symdifference_multipolygon(Geometry *g1, Geometry *g2,
-                                                    String *result,
-                                                    bool *pdone)
+                                                    String *result)
   {
-    *pdone= false;
     Geometry *retgeo= NULL;
 
     BGOPCALL(Multipolygon, retgeo, sym_difference,
@@ -1886,8 +1860,6 @@ public:
       retgeo= m_ifso->empty_result(result, g1->get_srid());
       copy_ifso_state();
     }
-    if (!null_value)
-      *pdone= true;
     return retgeo;
   }
 };
@@ -1902,13 +1874,12 @@ public:
   @param g1 First Geometry operand, not a geometry collection.
   @param g2 Second Geometry operand, not a geometry collection.
   @param[out] result Holds WKB data of the result.
-  @param[out] pdone Whether the operation is performed successfully.
   @return The result geometry whose WKB data is held in result.
  */
 template <typename Geom_types>
 Geometry *Item_func_spatial_operation::
 intersection_operation(Geometry *g1, Geometry *g2,
-                       String *result, bool *pdone)
+                       String *result)
 {
   typedef typename Geom_types::Coordinate_type Coord_type;
   typedef typename Geom_types::Coordinate_system Coordsys;
@@ -1917,7 +1888,6 @@ intersection_operation(Geometry *g1, Geometry *g2,
   Geometry *retgeo= NULL;
   Geometry::wkbType gt1= g1->get_type();
   Geometry::wkbType gt2= g2->get_type();
-  *pdone= false;
 
   switch (gt1)
   {
@@ -1925,16 +1895,16 @@ intersection_operation(Geometry *g1, Geometry *g2,
     switch (gt2)
     {
     case Geometry::wkb_point:
-      retgeo= wrap.point_intersection_point(g1, g2, result, pdone);
+      retgeo= wrap.point_intersection_point(g1, g2, result);
       break;
     case Geometry::wkb_multipoint:
-      retgeo= wrap.point_intersection_multipoint(g1, g2, result, pdone);
+      retgeo= wrap.point_intersection_multipoint(g1, g2, result);
       break;
     case Geometry::wkb_linestring:
     case Geometry::wkb_polygon:
     case Geometry::wkb_multilinestring:
     case Geometry::wkb_multipolygon:
-      retgeo= wrap.point_intersection_geometry(g1, g2, result, pdone);
+      retgeo= wrap.point_intersection_geometry(g1, g2, result);
       break;
     default:
       break;
@@ -1945,17 +1915,17 @@ intersection_operation(Geometry *g1, Geometry *g2,
     switch (gt2)
     {
     case Geometry::wkb_point:
-      retgeo= wrap.point_intersection_multipoint(g2, g1, result, pdone);
+      retgeo= wrap.point_intersection_multipoint(g2, g1, result);
       break;
 
     case Geometry::wkb_multipoint:
-      retgeo= wrap.multipoint_intersection_multipoint(g1, g2, result, pdone);
+      retgeo= wrap.multipoint_intersection_multipoint(g1, g2, result);
       break;
     case Geometry::wkb_linestring:
     case Geometry::wkb_polygon:
     case Geometry::wkb_multilinestring:
     case Geometry::wkb_multipolygon:
-      retgeo= wrap.multipoint_intersection_geometry(g1, g2, result, pdone);
+      retgeo= wrap.multipoint_intersection_geometry(g1, g2, result);
       break;
     default:
       break;
@@ -1966,17 +1936,17 @@ intersection_operation(Geometry *g1, Geometry *g2,
     {
     case Geometry::wkb_point:
     case Geometry::wkb_multipoint:
-      retgeo= intersection_operation<Geom_types>(g2, g1, result, pdone);
+      retgeo= intersection_operation<Geom_types>(g2, g1, result);
       break;
     case Geometry::wkb_linestring:
-      retgeo= wrap.linestring_intersection_linestring(g1, g2, result, pdone);
+      retgeo= wrap.linestring_intersection_linestring(g1, g2, result);
       break;
     case Geometry::wkb_multilinestring:
-      retgeo= wrap.linestring_intersection_multilinestring(g1, g2, result, pdone);
+      retgeo= wrap.linestring_intersection_multilinestring(g1, g2, result);
       break;
     case Geometry::wkb_polygon:
     case Geometry::wkb_multipolygon:
-      retgeo= wrap.linestring_intersection_polygon(g1, g2, result, pdone);
+      retgeo= wrap.linestring_intersection_polygon(g1, g2, result);
       break;
     default:
       break;
@@ -1988,17 +1958,16 @@ intersection_operation(Geometry *g1, Geometry *g2,
     case Geometry::wkb_point:
     case Geometry::wkb_multipoint:
     case Geometry::wkb_linestring:
-      retgeo= intersection_operation<Geom_types>(g2, g1, result, pdone);
+      retgeo= intersection_operation<Geom_types>(g2, g1, result);
       break;
     case Geometry::wkb_multilinestring:
-      retgeo= wrap.polygon_intersection_multilinestring(g1, g2,
-                                                        result, pdone);
+      retgeo= wrap.polygon_intersection_multilinestring(g1, g2, result);
       break;
     case Geometry::wkb_polygon:
     case Geometry::wkb_multipolygon:
       // Note: for now BG's set operations don't allow returning a
       // Multilinestring, thus this result isn't complete.
-      retgeo= wrap.polygon_intersection_polygon(g1, g2, result, pdone);
+      retgeo= wrap.polygon_intersection_polygon(g1, g2, result);
       break;
     default:
       break;
@@ -2011,16 +1980,14 @@ intersection_operation(Geometry *g1, Geometry *g2,
     case Geometry::wkb_multipoint:
     case Geometry::wkb_linestring:
     case Geometry::wkb_polygon:
-      retgeo= intersection_operation<Geom_types>(g2, g1, result, pdone);
+      retgeo= intersection_operation<Geom_types>(g2, g1, result);
       break;
     case Geometry::wkb_multilinestring:
-      retgeo= wrap.multilinestring_intersection_multilinestring(g1, g2, result,
-                                                                pdone);
+      retgeo= wrap.multilinestring_intersection_multilinestring(g1, g2, result);
       break;
 
     case Geometry::wkb_multipolygon:
-      retgeo= wrap.multilinestring_intersection_multipolygon(g1, g2,
-                                                             result, pdone);
+      retgeo= wrap.multilinestring_intersection_multipolygon(g1, g2, result);
       break;
     default:
       break;
@@ -2034,11 +2001,10 @@ intersection_operation(Geometry *g1, Geometry *g2,
     case Geometry::wkb_linestring:
     case Geometry::wkb_multilinestring:
     case Geometry::wkb_polygon:
-      retgeo= intersection_operation<Geom_types>(g2, g1, result, pdone);
+      retgeo= intersection_operation<Geom_types>(g2, g1, result);
       break;
     case Geometry::wkb_multipolygon:
-      retgeo= wrap.multipolygon_intersection_multipolygon(g1, g2,
-                                                          result, pdone);
+      retgeo= wrap.multipolygon_intersection_multipolygon(g1, g2, result);
       break;
     default:
       break;
@@ -2063,12 +2029,11 @@ intersection_operation(Geometry *g1, Geometry *g2,
   @param g1 First Geometry operand, not a geometry collection.
   @param g2 Second Geometry operand, not a geometry collection.
   @param[out] result Holds WKB data of the result.
-  @param[out] pdone Whether the operation is performed successfully.
   @return The result geometry whose WKB data is held in result.
  */
 template <typename Geom_types>
 Geometry *Item_func_spatial_operation::
-union_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
+union_operation(Geometry *g1, Geometry *g2, String *result)
 {
   typedef typename Geom_types::Coordinate_type Coord_type;
   typedef typename Geom_types::Coordinate_system Coordsys;
@@ -2077,7 +2042,6 @@ union_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
   Geometry *retgeo= NULL;
   Geometry::wkbType gt1= g1->get_type();
   Geometry::wkbType gt2= g2->get_type();
-  *pdone= false;
 
   // Note that union can't produce empty point set unless given two empty
   // point set arguments.
@@ -2088,13 +2052,13 @@ union_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
     {
     case Geometry::wkb_point:
     case Geometry::wkb_multipoint:
-      retgeo= wrap.point_union_point(g1, g2, result, pdone);
+      retgeo= wrap.point_union_point(g1, g2, result);
       break;
     case Geometry::wkb_linestring:
     case Geometry::wkb_multilinestring:
     case Geometry::wkb_polygon:
     case Geometry::wkb_multipolygon:
-      retgeo= wrap.point_union_geometry(g1, g2, result, pdone);
+      retgeo= wrap.point_union_geometry(g1, g2, result);
       break;
     default:
       break;
@@ -2104,16 +2068,16 @@ union_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
     switch (gt2)
     {
     case Geometry::wkb_point:
-      retgeo= wrap.point_union_point(g2, g1, result, pdone);
+      retgeo= wrap.point_union_point(g2, g1, result);
       break;
     case Geometry::wkb_multipoint:
-      retgeo= wrap.multipoint_union_multipoint(g1, g2, result, pdone);
+      retgeo= wrap.multipoint_union_multipoint(g1, g2, result);
       break;
     case Geometry::wkb_linestring:
     case Geometry::wkb_multilinestring:
     case Geometry::wkb_polygon:
     case Geometry::wkb_multipolygon:
-      retgeo= wrap.multipoint_union_geometry(g1, g2, result, pdone);
+      retgeo= wrap.multipoint_union_geometry(g1, g2, result);
       break;
     default:
       break;
@@ -2124,19 +2088,19 @@ union_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
     {
     case Geometry::wkb_point:
     case Geometry::wkb_multipoint:
-      retgeo= union_operation<Geom_types>(g2, g1, result, pdone);
+      retgeo= union_operation<Geom_types>(g2, g1, result);
       break;
     case Geometry::wkb_linestring:
-      retgeo= wrap.linestring_union_linestring(g1, g2, result, pdone);
+      retgeo= wrap.linestring_union_linestring(g1, g2, result);
       break;
     case Geometry::wkb_multilinestring:
-      retgeo= wrap.linestring_union_multilinestring(g1, g2, result, pdone);
+      retgeo= wrap.linestring_union_multilinestring(g1, g2, result);
       break;
     case Geometry::wkb_polygon:
-      retgeo= wrap.linestring_union_polygon(g1, g2, result, pdone);
+      retgeo= wrap.linestring_union_polygon(g1, g2, result);
       break;
     case Geometry::wkb_multipolygon:
-      retgeo= wrap.linestring_union_multipolygon(g1, g2, result, pdone);
+      retgeo= wrap.linestring_union_multipolygon(g1, g2, result);
       break;
     default:
       break;
@@ -2148,16 +2112,16 @@ union_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
     case Geometry::wkb_point:
     case Geometry::wkb_multipoint:
     case Geometry::wkb_linestring:
-      retgeo= union_operation<Geom_types>(g2, g1, result, pdone);
+      retgeo= union_operation<Geom_types>(g2, g1, result);
       break;
     case Geometry::wkb_multilinestring:
-      retgeo= wrap.polygon_union_multilinestring(g1, g2, result, pdone);
+      retgeo= wrap.polygon_union_multilinestring(g1, g2, result);
       break;
     case Geometry::wkb_polygon:
-      retgeo= wrap.polygon_union_polygon(g1, g2, result, pdone);
+      retgeo= wrap.polygon_union_polygon(g1, g2, result);
       break;
     case Geometry::wkb_multipolygon:
-      retgeo= wrap.polygon_union_multipolygon(g1, g2, result, pdone);
+      retgeo= wrap.polygon_union_multipolygon(g1, g2, result);
       break;
     default:
       break;
@@ -2170,14 +2134,14 @@ union_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
     case Geometry::wkb_multipoint:
     case Geometry::wkb_linestring:
     case Geometry::wkb_polygon:
-      retgeo= union_operation<Geom_types>(g2, g1, result, pdone);
+      retgeo= union_operation<Geom_types>(g2, g1, result);
       break;
       break;
     case Geometry::wkb_multilinestring:
-      retgeo= wrap.multilinestring_union_multilinestring(g1, g2, result, pdone);
+      retgeo= wrap.multilinestring_union_multilinestring(g1, g2, result);
       break;
     case Geometry::wkb_multipolygon:
-      retgeo= wrap.multilinestring_union_multipolygon(g1, g2, result, pdone);
+      retgeo= wrap.multilinestring_union_multipolygon(g1, g2, result);
       break;
     default:
       break;
@@ -2191,10 +2155,10 @@ union_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
     case Geometry::wkb_linestring:
     case Geometry::wkb_polygon:
     case Geometry::wkb_multilinestring:
-      retgeo= union_operation<Geom_types>(g2, g1, result, pdone);
+      retgeo= union_operation<Geom_types>(g2, g1, result);
       break;
     case Geometry::wkb_multipolygon:
-      retgeo= wrap.multipolygon_union_multipolygon(g1, g2, result, pdone);
+      retgeo= wrap.multipolygon_union_multipolygon(g1, g2, result);
       break;
     default:
       break;
@@ -2206,6 +2170,12 @@ union_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
 
   if (!null_value)
     null_value= wrap.get_null_value() && maybe_null;
+  if (!null_value && retgeo == NULL)
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    error_str();
+    return NULL;
+  }
   return retgeo;
 }
 
@@ -2219,18 +2189,16 @@ union_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
   @param g1 First Geometry operand, not a geometry collection.
   @param g2 Second Geometry operand, not a geometry collection.
   @param[out] result Holds WKB data of the result.
-  @param[out] pdone Whether the operation is performed successfully.
   @return The result geometry whose WKB data is held in result.
  */
 template <typename Geom_types>
 Geometry *Item_func_spatial_operation::
-difference_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
+difference_operation(Geometry *g1, Geometry *g2, String *result)
 {
   BG_setop_wrapper<Geom_types> wrap(this);
   Geometry *retgeo= NULL;
   Geometry::wkbType gt1= g1->get_type();
   Geometry::wkbType gt2= g2->get_type();
-  *pdone= false;
 
   /*
     Given two geometries g1 and g2, where g1.dimension < g2.dimension, then
@@ -2248,7 +2216,7 @@ difference_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
     case Geometry::wkb_polygon:
     case Geometry::wkb_multilinestring:
     case Geometry::wkb_multipolygon:
-      retgeo= wrap.point_difference_geometry(g1, g2, result, pdone);
+      retgeo= wrap.point_difference_geometry(g1, g2, result);
       break;
     default:
       break;
@@ -2263,7 +2231,7 @@ difference_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
     case Geometry::wkb_polygon:
     case Geometry::wkb_multilinestring:
     case Geometry::wkb_multipolygon:
-      retgeo= wrap.multipoint_difference_geometry(g1, g2, result, pdone);
+      retgeo= wrap.multipoint_difference_geometry(g1, g2, result);
       break;
     default:
       break;
@@ -2276,20 +2244,18 @@ difference_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
     case Geometry::wkb_multipoint:
       retgeo= g1;
       null_value= g1->as_geometry(result, true);
-      if (!null_value)
-        *pdone= true;
       break;
     case Geometry::wkb_linestring:
-      retgeo= wrap.linestring_difference_linestring(g1, g2, result, pdone);
+      retgeo= wrap.linestring_difference_linestring(g1, g2, result);
       break;
     case Geometry::wkb_polygon:
-      retgeo= wrap.linestring_difference_polygon(g1, g2, result, pdone);
+      retgeo= wrap.linestring_difference_polygon(g1, g2, result);
       break;
     case Geometry::wkb_multilinestring:
-      retgeo= wrap.linestring_difference_multilinestring(g1, g2, result, pdone);
+      retgeo= wrap.linestring_difference_multilinestring(g1, g2, result);
       break;
     case Geometry::wkb_multipolygon:
-      retgeo= wrap.linestring_difference_multipolygon(g1, g2, result, pdone);
+      retgeo= wrap.linestring_difference_multipolygon(g1, g2, result);
       break;
     default:
       break;
@@ -2304,16 +2270,12 @@ difference_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
     case Geometry::wkb_multilinestring:
       retgeo= g1;
       null_value= g1->as_geometry(result, true);
-
-      if (!null_value)
-        *pdone= true;
-
       break;
     case Geometry::wkb_polygon:
-      retgeo= wrap.polygon_difference_polygon(g1, g2, result, pdone);
+      retgeo= wrap.polygon_difference_polygon(g1, g2, result);
       break;
     case Geometry::wkb_multipolygon:
-      retgeo= wrap.polygon_difference_multipolygon(g1, g2, result, pdone);
+      retgeo= wrap.polygon_difference_multipolygon(g1, g2, result);
       break;
     default:
       break;
@@ -2326,24 +2288,19 @@ difference_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
     case Geometry::wkb_multipoint:
       retgeo= g1;
       null_value= g1->as_geometry(result, true);
-
-      if (!null_value)
-        *pdone= true;
-
       break;
     case Geometry::wkb_linestring:
-      retgeo= wrap.multilinestring_difference_linestring(g1, g2, result, pdone);
+      retgeo= wrap.multilinestring_difference_linestring(g1, g2, result);
       break;
     case Geometry::wkb_polygon:
-      retgeo= wrap.multilinestring_difference_polygon(g1, g2, result, pdone);
+      retgeo= wrap.multilinestring_difference_polygon(g1, g2, result);
       break;
     case Geometry::wkb_multilinestring:
-      retgeo= wrap.multilinestring_difference_multilinestring(g1, g2, result,
-                                                              pdone);
+      retgeo= wrap.multilinestring_difference_multilinestring(g1, g2, result);
       break;
     case Geometry::wkb_multipolygon:
       retgeo= wrap.multilinestring_difference_multipolygon(g1, g2,
-                                                           result, pdone);
+                                                           result);
       break;
     default:
       break;
@@ -2358,17 +2315,12 @@ difference_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
     case Geometry::wkb_multilinestring:
       retgeo= g1;
       null_value= g1->as_geometry(result, true);
-
-      if (!null_value)
-        *pdone= true;
-
       break;
     case Geometry::wkb_polygon:
-      retgeo= wrap.multipolygon_difference_polygon(g1, g2, result, pdone);
+      retgeo= wrap.multipolygon_difference_polygon(g1, g2, result);
       break;
     case Geometry::wkb_multipolygon:
-      retgeo= wrap.multipolygon_difference_multipolygon(g1, g2,
-                                                        result, pdone);
+      retgeo= wrap.multipolygon_difference_multipolygon(g1, g2, result);
       break;
     default:
       break;
@@ -2393,12 +2345,11 @@ difference_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
   @param g1 First Geometry operand, not a geometry collection.
   @param g2 Second Geometry operand, not a geometry collection.
   @param[out] result Holds WKB data of the result.
-  @param[out] pdone Whether the operation is performed successfully.
   @return The result geometry whose WKB data is held in result.
  */
 template <typename Geom_types>
 Geometry *Item_func_spatial_operation::
-symdifference_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
+symdifference_operation(Geometry *g1, Geometry *g2, String *result)
 {
   typedef typename Geom_types::Coordinate_type Coord_type;
   typedef typename Geom_types::Coordinate_system Coordsys;
@@ -2429,16 +2380,16 @@ symdifference_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
     switch (gt2)
     {
     case Geometry::wkb_linestring:
-      retgeo= wrap.linestring_symdifference_linestring(g1, g2, result, pdone);
+      retgeo= wrap.linestring_symdifference_linestring(g1, g2, result);
       break;
     case Geometry::wkb_polygon:
-      retgeo= wrap.linestring_union_polygon(g1, g2, result, pdone);
+      retgeo= wrap.linestring_union_polygon(g1, g2, result);
       break;
     case Geometry::wkb_multilinestring:
-      retgeo= wrap.linestring_symdifference_multilinestring(g1, g2, result, pdone);
+      retgeo= wrap.linestring_symdifference_multilinestring(g1, g2, result);
       break;
     case Geometry::wkb_multipolygon:
-      retgeo= wrap.linestring_union_multipolygon(g1, g2, result, pdone);
+      retgeo= wrap.linestring_union_multipolygon(g1, g2, result);
       break;
     default:
       do_geocol_setop= true;
@@ -2450,16 +2401,16 @@ symdifference_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
     switch (gt2)
     {
     case Geometry::wkb_linestring:
-      retgeo= wrap.linestring_union_polygon(g2, g1, result, pdone);
+      retgeo= wrap.linestring_union_polygon(g2, g1, result);
       break;
     case Geometry::wkb_polygon:
-      retgeo= wrap.polygon_symdifference_polygon(g1, g2, result, pdone);
+      retgeo= wrap.polygon_symdifference_polygon(g1, g2, result);
       break;
     case Geometry::wkb_multilinestring:
-      retgeo= wrap.polygon_union_multilinestring(g1, g2, result, pdone);
+      retgeo= wrap.polygon_union_multilinestring(g1, g2, result);
       break;
     case Geometry::wkb_multipolygon:
-      retgeo= wrap.polygon_symdifference_multipolygon(g1, g2, result, pdone);
+      retgeo= wrap.polygon_symdifference_multipolygon(g1, g2, result);
       break;
     default:
       do_geocol_setop= true;
@@ -2470,18 +2421,17 @@ symdifference_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
     switch (gt2)
     {
     case Geometry::wkb_linestring:
-      retgeo= wrap.linestring_symdifference_multilinestring(g2, g1, result,
-                                                            pdone);
+      retgeo= wrap.linestring_symdifference_multilinestring(g2, g1, result);
       break;
     case Geometry::wkb_polygon:
-      retgeo= wrap.polygon_union_multilinestring(g2, g1, result, pdone);
+      retgeo= wrap.polygon_union_multilinestring(g2, g1, result);
       break;
     case Geometry::wkb_multilinestring:
-      retgeo= wrap.multilinestring_symdifference_multilinestring(g1, g2, result,
-                                                                 pdone);
+      retgeo= wrap.multilinestring_symdifference_multilinestring(g1, g2,
+                                                                 result);
       break;
     case Geometry::wkb_multipolygon:
-      retgeo= wrap.multilinestring_union_multipolygon(g1, g2, result, pdone);
+      retgeo= wrap.multilinestring_union_multipolygon(g1, g2, result);
       break;
     default:
       do_geocol_setop= true;
@@ -2492,17 +2442,16 @@ symdifference_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
     switch (gt2)
     {
     case Geometry::wkb_linestring:
-      retgeo= wrap.linestring_union_multipolygon(g2, g1, result, pdone);
+      retgeo= wrap.linestring_union_multipolygon(g2, g1, result);
       break;
     case Geometry::wkb_polygon:
-      retgeo= wrap.multipolygon_symdifference_polygon(g1, g2, result, pdone);
+      retgeo= wrap.multipolygon_symdifference_polygon(g1, g2, result);
       break;
     case Geometry::wkb_multilinestring:
-      retgeo= wrap.multilinestring_union_multipolygon(g2, g1, result, pdone);
+      retgeo= wrap.multilinestring_union_multipolygon(g2, g1, result);
       break;
     case Geometry::wkb_multipolygon:
-      retgeo= wrap.multipolygon_symdifference_multipolygon(g1, g2,
-                                                           result, pdone);
+      retgeo= wrap.multipolygon_symdifference_multipolygon(g1, g2, result);
       break;
     default:
       do_geocol_setop= true;
@@ -2516,7 +2465,7 @@ symdifference_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
 
   if (do_geocol_setop)
     retgeo= geometry_collection_set_operation<Coord_type,
-      Coordsys>(g1, g2, result, pdone);
+      Coordsys>(g1, g2, result);
   else if (!null_value)
     null_value= wrap.get_null_value();
   return retgeo;
@@ -2533,26 +2482,17 @@ symdifference_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
           boost::geometry::cs.
   @param g1 First Geometry operand, not a geometry collection.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param opdone takes back whether the set operation is successfully completed,
-  failures include:
-    1. boost geometry doesn't support a type combination for a set operation.
-    2. gis computation(not mysql code) got error, null_value isn't set to true.
-    3. the relation check called isn't completed successfully, unable to proceed
-       the set operation, and null_value isn't true.
-  It is used in order to distinguish the types of errors above. And when caller
-  got an false 'opdone', it should fallback to old gis set operation.
-
   @param[out] result buffer containing the GEOMETRY byte string of
   the returned geometry.
 
   @return If the set operation results in an empty point set, return a
-  geometry collection containing 0 objects. If opdone or null_value is set to
+  geometry collection containing 0 objects. If null_value is set to
   true, always returns 0. The returned geometry object can be used in the same
   val_str call.
  */
 template<typename Coord_type, typename Coordsys>
 Geometry *Item_func_spatial_operation::
-bg_geo_set_op(Geometry *g1, Geometry *g2, String *result, bool *pdone)
+bg_geo_set_op(Geometry *g1, Geometry *g2, String *result)
 {
   typedef BG_models<Coord_type, Coordsys> Geom_types;
 
@@ -2561,21 +2501,20 @@ bg_geo_set_op(Geometry *g1, Geometry *g2, String *result, bool *pdone)
   if (g1->get_coordsys() != g2->get_coordsys())
     return 0;
 
-  *pdone= false;
 
   switch (spatial_op)
   {
-  case Gcalc_function::op_intersection:
-    retgeo= intersection_operation<Geom_types>(g1, g2, result, pdone);
+  case op_intersection:
+    retgeo= intersection_operation<Geom_types>(g1, g2, result);
     break;
-  case Gcalc_function::op_union:
-    retgeo= union_operation<Geom_types>(g1, g2, result, pdone);
+  case op_union:
+    retgeo= union_operation<Geom_types>(g1, g2, result);
     break;
-  case Gcalc_function::op_difference:
-    retgeo= difference_operation<Geom_types>(g1, g2, result, pdone);
+  case op_difference:
+    retgeo= difference_operation<Geom_types>(g1, g2, result);
     break;
-  case Gcalc_function::op_symdifference:
-    retgeo= symdifference_operation<Geom_types>(g1, g2, result, pdone);
+  case op_symdifference:
+    retgeo= symdifference_operation<Geom_types>(g1, g2, result);
     break;
   default:
     // Other operations are not set operations.
@@ -2589,7 +2528,6 @@ bg_geo_set_op(Geometry *g1, Geometry *g2, String *result, bool *pdone)
   if (null_value)
   {
     error_str();
-    *pdone= false;
     DBUG_ASSERT(retgeo == NULL);
   }
 
@@ -2742,24 +2680,50 @@ simplify_multilinestring(Gis_multi_line_string *mls, String *result)
   auto_ptr<Gis_multi_point> points(new Gis_multi_point());
   linestrings->set_srid(mls->get_srid());
   points->set_srid(mls->get_srid());
+  // BG may return duplicate points, so use a point set to get unique
+  // points before storing them into 'points'.
+  typedef std::set<Gis_point, bgpt_lt> Point_set;
+  Point_set point_set(points->begin(), points->end());
+  Gis_point prev_point;
+  bool has_prev_point= false;
+
   for (Gis_multi_line_string::iterator i= mls->begin();
        i != mls->end();
        ++i)
   {
     if (i->size() != 2)
     {
+      DBUG_ASSERT(i->size() > 2);
       linestrings->push_back(*i);
       continue;
     }
 
     const Gis_point &start= (*i)[0];
     const Gis_point &end= (*i)[1];
-
     if (start == end)
-      points->push_back(start);
+    {
+      if (!has_prev_point || prev_point != start)
+      {
+        has_prev_point= true;
+        prev_point= start;
+        point_set.insert(start);
+      }
+    }
     else
       linestrings->push_back(*i);
   }
+
+  for (Point_set::iterator i= point_set.begin();
+       i != point_set.end(); ++i)
+  {
+    /*
+      When computing [m]ls intersection [m]ls, BG may return points that are
+      on the linestrings, so here we have to exclude such points.
+    */
+    if (bg::disjoint(*i, *linestrings))
+      points->push_back(*i);
+  }
+
   String dummy;
   post_fix_result(&bg_resbuf_mgr, *linestrings, &dummy);
   post_fix_result(&bg_resbuf_mgr, *points, &dummy);
@@ -2995,9 +2959,15 @@ public:
   If str contains a nested geometry collection, the effective concrete geometry
   object is returned.
   @param str A string buffer containing a GEOMETRY byte string.
+  @param [out] result_buffer if not NULL and if a simplification is to be done,
+               we will copy the GEOMETRY byte string from str into result_buffer
+               and simplify the one stored in result_buffer, and the one in str
+               is intact. If there is any data in result_buffer before calling
+               this function, it is overwritten; If no simplification done, the
+               result_buffer is intact if it is provided.
   @return whether the geometry is simplified or not.
  */
-bool simplify_multi_geometry(String *str)
+bool simplify_multi_geometry(String *str, String *result_buffer)
 {
   if (str->length() < GEOM_HEADER_SIZE)
     return false;
@@ -3012,6 +2982,13 @@ bool simplify_multi_geometry(String *str)
   {
     if (uint4korr(p + GEOM_HEADER_SIZE) == 1)
     {
+      if (result_buffer)
+      {
+        result_buffer->length(0);
+        result_buffer->append(*str);
+        p= const_cast<char *>(result_buffer->ptr());
+        str= result_buffer;
+      }
       DBUG_ASSERT((str->length() - GEOM_HEADER_SIZE - 4 - WKB_HEADER_SIZE) > 0);
       int4store(p + 5, static_cast<uint32>(base_type(gtype)));
       memmove(p + GEOM_HEADER_SIZE, p + GEOM_HEADER_SIZE + 4 + WKB_HEADER_SIZE,
@@ -3028,6 +3005,13 @@ bool simplify_multi_geometry(String *str)
                 Geometry::wkb_geometrycollection, false, &ex);
     if (ex.has_single_component())
     {
+      if (result_buffer)
+      {
+        result_buffer->length(0);
+        result_buffer->append(*str);
+        p= const_cast<char *>(result_buffer->ptr());
+        str= result_buffer;
+      }
       p= write_wkb_header(p + 4, ex.get_type());
       ptrdiff_t len= ex.get_end() - ex.get_start();
       DBUG_ASSERT(len > 0);
@@ -3056,10 +3040,8 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg)
   String *res2= args[1]->val_str(&tmp_value2);
   Geometry_buffer buffer1, buffer2;
   Geometry *g1= NULL, *g2= NULL, *gres= NULL;
-  uint32 srid= 0;
-  Gcalc_operation_transporter trn(&func, &collector);
-  bool opdone= false;
   bool had_except1= false, had_except2= false;
+  bool result_is_args= false;
 
   // Release last call's result buffer.
   bg_resbuf_mgr.free_result_buffer();
@@ -3067,10 +3049,6 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg)
   // Clean up the result first, since caller may give us one with non-NULL
   // buffer, we don't need it here.
   str_value_arg->set(NullS, 0, &my_charset_bin);
-
-  if (func.reserve_op_buffer(1))
-    DBUG_RETURN(0);
-  func.add_operation(spatial_op, 2);
 
   if ((null_value= (!res1 || args[0]->null_value ||
                     !res2 || args[1]->null_value)))
@@ -3104,14 +3082,17 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg)
   {
     if (g1->get_type() != Geometry::wkb_geometrycollection &&
         g2->get_type() != Geometry::wkb_geometrycollection)
-      gres= bg_geo_set_op<double, bgcs::cartesian>(g1, g2, str_value_arg,
-                                                   &opdone);
+      gres= bg_geo_set_op<double, bgcs::cartesian>(g1, g2, str_value_arg);
     else
       gres= geometry_collection_set_operation<double, bgcs::cartesian>
-        (g1, g2, str_value_arg, &opdone);
+        (g1, g2, str_value_arg);
 
   }
-  CATCH_ALL(func_name(), had_except1= true)
+  catch (...)
+  {
+    had_except1= true;
+    handle_gis_exception(func_name());
+  }
 
   try
   {
@@ -3135,11 +3116,14 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg)
       bg_resbuf_mgr.set_result_buffer(const_cast<char *>(str_value_arg->ptr()));
     bg_resbuf_mgr.free_intermediate_result_buffers();
   }
-  CATCH_ALL(func_name(), had_except2= true)
+  catch (...)
+  {
+    had_except2= true;
+    handle_gis_exception(func_name());
+  }
 
   if (had_except1 || had_except2 || null_value)
   {
-    opdone= false;
     if (gres != NULL && gres != g1 && gres != g2)
     {
       delete gres;
@@ -3148,105 +3132,62 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg)
     DBUG_RETURN(error_str());
   }
 
-  if (gres != NULL)
-  {
-    DBUG_ASSERT(!null_value && opdone && str_value_arg->length() > 0);
-
-    /*
-      There are 4 ways to create the result geometry object and allocate
-      memory for the result String object:
-      1. Created in BGOPCALL and allocated by BG code using gis_wkb_alloc
-         functions; The geometry result object's memory is took over by
-         str_value_arg, thus not allocated by str_value_arg.
-      2. Created as a new geometry object and allocated by
-         str_value_arg's String member functions.
-      3. One of g1 or g2 used as result and g1/g2's String object is used as
-         final result without duplicating their byte strings. Also, g1 and/or
-         g2 may be used as intermediate result and their byte strings are
-         assigned to intermediate String objects without giving the ownerships
-         to them, so they are always owned by tmp_value1 and/or tmp_value2.
-      4. A geometry duplicated from a component of BG_geometry_collection.
-         when both GCs have 1 member, we do set operation for the two members
-         directly, and if such a component is the result we have to duplicate
-         it and its WKB String buffer.
-
-      Among above 4 ways, #1, #2 and #4 write the byte string only once without
-      any data copying, #3 doesn't write any byte strings.
-
-      And here we always have a GEOMETRY byte string in str_value_arg, although
-      in some cases gres->has_geom_header_space() is false.
-     */
-    if (!str_value_arg->is_alloced() && gres != g1 && gres != g2)
-    {
-      DBUG_ASSERT(gres->has_geom_header_space() || gres->is_bg_adapter());
-    }
-    else
-    {
-      DBUG_ASSERT(gres->has_geom_header_space() || (gres == g1 || gres == g2));
-      if (gres == g1)
-        str_value_arg= res1;
-      else if (gres == g2)
-        str_value_arg= res2;
-    }
-    simplify_multi_geometry(str_value_arg);
-
-    goto exit;
-  }
-  else if (opdone)
-  {
-    /*
-      It's impossible to arrive here because the code calling BG features only
-      returns NULL if not done, otherwise if result is empty, it returns an
-      empty geometry collection whose pointer isn't NULL.
-     */
-    DBUG_ASSERT(false);
-    goto exit;
-  }
-
-  DBUG_ASSERT(!opdone && gres == NULL);
-  // We caught error, don't proceed with old GIS algorithm but error out.
-  if (null_value)
-    goto exit;
-
-  /* Fall back to old GIS algorithm. */
-  null_value= true;
-
-  str_value_arg->set(NullS, 0U, &my_charset_bin);
-  if (str_value_arg->reserve(SRID_SIZE, 512))
-    goto exit;
-  str_value_arg->q_append(srid);
-
-  if (g1->store_shapes(&trn) || g2->store_shapes(&trn))
-    goto exit;
-#ifndef DBUG_OFF
-  func.debug_print_function_buffer();
-#endif
-
-  collector.prepare_operation();
-  if (func.alloc_states())
-    goto exit;
-
-  operation.init(&func);
-
-  if (operation.count_all(&collector) ||
-      operation.get_result(&res_receiver))
-    goto exit;
-
-
-  if (!Geometry::create_from_opresult(&buffer1, str_value_arg, res_receiver))
-    goto exit;
+  DBUG_ASSERT(gres != NULL && !null_value && str_value_arg->length() > 0);
 
   /*
-    If got some result, it's not NULL, note that we prepended an
-    srid above(4 bytes).
+    There are 4 ways to create the result geometry object and allocate
+    memory for the result String object:
+    1. Created in BGOPCALL and allocated by BG code using gis_wkb_alloc
+       functions; The geometry result object's memory is took over by
+       str_value_arg, thus not allocated by str_value_arg.
+    2. Created as a new geometry object and allocated by
+       str_value_arg's String member functions.
+    3. One of g1 or g2 used as result and g1/g2's String object is used as
+       final result without duplicating their byte strings. Also, g1 and/or
+       g2 may be used as intermediate result and their byte strings are
+       assigned to intermediate String objects without giving the ownerships
+       to them, so they are always owned by tmp_value1 and/or tmp_value2.
+    4. A geometry duplicated from a component of BG_geometry_collection.
+       when both GCs have 1 member, we do set operation for the two members
+       directly, and if such a component is the result we have to duplicate
+       it and its WKB String buffer.
+
+    Among above 4 ways, #1, #2 and #4 write the byte string only once without
+    any data copying, #3 doesn't write any byte strings.
+
+    And here we always have a GEOMETRY byte string in str_value_arg, although
+    in some cases gres->has_geom_header_space() is false.
+   */
+  if (!str_value_arg->is_alloced() && gres != g1 && gres != g2)
+  {
+    DBUG_ASSERT(gres->has_geom_header_space() || gres->is_bg_adapter());
+  }
+  else
+  {
+    DBUG_ASSERT(gres->has_geom_header_space() || (gres == g1 || gres == g2));
+    if (gres == g1)
+    {
+      str_value_arg= res1;
+      result_is_args= true;
+    }
+    else if (gres == g2)
+    {
+      str_value_arg= res2;
+      result_is_args= true;
+    }
+  }
+
+  /*
+    We can not modify the geometry argument because it is assumed to be stable.
+    So if returning one of the arguments as result directly, make sure the
+    simplification is done in a separate buffer.
   */
-  if (str_value_arg->length() > 4)
-    null_value= false;
+  if (simplify_multi_geometry(str_value_arg,
+                              (result_is_args ? &m_result_buffer : NULL)) &&
+      result_is_args)
+    str_value_arg= &m_result_buffer;
 
 exit:
-  collector.reset();
-  func.reset();
-  res_receiver.reset();
   if (gres != g1 && gres != g2 && gres != NULL)
     delete gres;
   DBUG_RETURN(null_value ? NULL : str_value_arg);
@@ -3270,23 +3211,16 @@ exit:
   @param g2 Second geometry operand, a geometry collection.
   @param[out] result Holds WKB data of the result, which must be a
                 geometry collection.
-  @param[out] pdone Returns whether the set operation is performed for the
-  two geometry collections. We rely on some Boost Geometry functions to do
-  geometry relation checks and set operations to the components of g1 and g2,
-  and since BG now doesn't support some type combinations for each type of
-  operaton, we may not be able to perform the operation. If so, old GIS
-  algorithm is called to do so.
   @return The set operation result, whose WKB data is stored in 'result'.
  */
 template<typename Coord_type, typename Coordsys>
 Geometry *Item_func_spatial_operation::
 geometry_collection_set_operation(Geometry *g1, Geometry *g2,
-                                  String *result, bool *pdone)
+                                  String *result)
 {
   Geometry *gres= NULL;
   BG_geometry_collection bggc1, bggc2;
 
-  *pdone= false;
   bggc1.set_srid(g1->get_srid());
   bggc2.set_srid(g2->get_srid());
   bool empty1= is_empty_geocollection(g1);
@@ -3295,21 +3229,19 @@ geometry_collection_set_operation(Geometry *g1, Geometry *g2,
   /* Short cut for either one operand being empty. */
   if (empty1 || empty2)
   {
-    if (spatial_op == Gcalc_function::op_intersection ||
-        (empty1 && empty2 && (spatial_op == Gcalc_function::op_symdifference ||
-                              spatial_op == Gcalc_function::op_union)) ||
-        (empty1 && spatial_op == Gcalc_function::op_difference))
+    if (spatial_op == op_intersection ||
+        (empty1 && empty2 && (spatial_op == op_symdifference ||
+                              spatial_op == op_union)) ||
+        (empty1 && spatial_op == op_difference))
     {
-      *pdone= true;
       return empty_result(result, g1->get_srid());
     }
 
     // If spatial_op is op_union or op_symdifference and one of g1/g2 is empty,
     // we will continue in order to merge components in the argument.
 
-    if (empty2 && spatial_op == Gcalc_function::op_difference)
+    if (empty2 && spatial_op == op_difference)
     {
-      *pdone= true;
       null_value= g1->as_geometry(result, true/* shallow copy */);
       return g1;
     }
@@ -3317,7 +3249,7 @@ geometry_collection_set_operation(Geometry *g1, Geometry *g2,
 
   bggc1.fill(g1);
   bggc2.fill(g2);
-  if (spatial_op != Gcalc_function::op_union)
+  if (spatial_op != op_union)
   {
     bggc1.merge_components<Coord_type, Coordsys>(&null_value);
     if (null_value)
@@ -3334,19 +3266,17 @@ geometry_collection_set_operation(Geometry *g1, Geometry *g2,
     If there is only one component in one argument and the other is empty,
     no merge is possible.
   */
-  if (spatial_op == Gcalc_function::op_union ||
-      spatial_op == Gcalc_function::op_symdifference)
+  if (spatial_op == op_union ||
+      spatial_op == op_symdifference)
   {
     if (gv1.size() == 0 && gv2.size() == 1)
     {
-      *pdone= true;
       null_value= g2->as_geometry(result, true/* shallow copy */);
       return g2;
     }
 
     if (gv1.size() == 1 && gv2.size() == 0)
     {
-      *pdone= true;
       null_value= g1->as_geometry(result, true/* shallow copy */);
       return g1;
     }
@@ -3359,14 +3289,14 @@ geometry_collection_set_operation(Geometry *g1, Geometry *g2,
     perform symdifference for the two basic components.
    */
   if (gv1.size() == 1 && gv2.size() == 1 &&
-      (spatial_op != Gcalc_function::op_symdifference ||
+      (spatial_op != op_symdifference ||
        (is_areal(*(gv1.begin())) && is_areal(*(gv2.begin())))))
   {
     gres= bg_geo_set_op<Coord_type, Coordsys>(*(gv1.begin()), *(gv2.begin()),
-                                              result, pdone);
+                                              result);
     if (null_value)
       return NULL;
-    if (gres == NULL && *pdone && !null_value)
+    if (gres == NULL && !null_value)
     {
       gres= empty_result(result, g1->get_srid());
       return gres;
@@ -3433,19 +3363,17 @@ geometry_collection_set_operation(Geometry *g1, Geometry *g2,
 
   switch (this->spatial_op)
   {
-  case Gcalc_function::op_intersection:
-    gres= geocol_intersection<Coord_type, Coordsys>(bggc1, bggc2,
-                                                    result, pdone);
+  case op_intersection:
+    gres= geocol_intersection<Coord_type, Coordsys>(bggc1, bggc2, result);
     break;
-  case Gcalc_function::op_union:
-    gres= geocol_union<Coord_type, Coordsys>(bggc1, bggc2, result, pdone);
+  case op_union:
+    gres= geocol_union<Coord_type, Coordsys>(bggc1, bggc2, result);
     break;
-  case Gcalc_function::op_difference:
-    gres= geocol_difference<Coord_type, Coordsys>(bggc1, bggc2, result, pdone);
+  case op_difference:
+    gres= geocol_difference<Coord_type, Coordsys>(bggc1, bggc2, result);
     break;
-  case Gcalc_function::op_symdifference:
-    gres= geocol_symdifference<Coord_type, Coordsys>(bggc1, bggc2,
-                                                     result, pdone);
+  case op_symdifference:
+    gres= geocol_symdifference<Coord_type, Coordsys>(bggc1, bggc2, result);
     break;
   default:
     /* Only above four supported. */
@@ -3453,7 +3381,7 @@ geometry_collection_set_operation(Geometry *g1, Geometry *g2,
     break;
   }
 
-  if (gres == NULL && *pdone && !null_value)
+  if (gres == NULL && !null_value)
     gres= empty_result(result, g1->get_srid());
   return gres;
 }
@@ -3473,29 +3401,24 @@ geometry_collection_set_operation(Geometry *g1, Geometry *g2,
   @param g2 Second geometry operand, a geometry collection.
   @param[out] result Holds WKB data of the result, which must be a
                 geometry collection.
-  @param[out] pdone Returns whether the set operation is performed for the
-                two geometry collections.
   @return The intersection result, whose WKB data is stored in 'result'.
  */
 template<typename Coord_type, typename Coordsys>
 Geometry *Item_func_spatial_operation::
 geocol_intersection(const BG_geometry_collection &bggc1,
                     const BG_geometry_collection &bggc2,
-                    String *result, bool *pdone)
+                    String *result)
 {
   Geometry *gres= NULL;
   String wkbres;
-  bool opdone= false;
   Geometry *g0= NULL;
   BG_geometry_collection bggc;
   const BG_geometry_collection::Geometry_list &gv1= bggc1.get_geometries();
   const BG_geometry_collection::Geometry_list &gv2= bggc2.get_geometries();
-  *pdone= false;
   bggc.set_srid(bggc1.get_srid());
 
   if (gv1.size() == 0 || gv2.size() == 0)
   {
-    *pdone= true;
     return empty_result(result, bggc1.get_srid());
   }
 
@@ -3532,10 +3455,9 @@ geocol_intersection(const BG_geometry_collection &bggc1,
       // Free before using it, wkbres may have WKB data from last execution.
       wkbres.mem_free();
       wkbres.length(0);
-      opdone= false;
-      g0= bg_geo_set_op<Coord_type, Coordsys>(*i, geom, &wkbres, &opdone);
+      g0= bg_geo_set_op<Coord_type, Coordsys>(*i, geom, &wkbres);
 
-      if (!opdone || null_value)
+      if (null_value)
       {
         if (g0 != NULL && g0 != *i && g0 != geom)
           delete g0;
@@ -3564,8 +3486,6 @@ geocol_intersection(const BG_geometry_collection &bggc1,
   if (null_value)
     return NULL;
   gres= bggc.as_geometry_collection(result);
-  if (!null_value)
-    *pdone= true;
 
   return gres;
 }
@@ -3586,15 +3506,13 @@ geocol_intersection(const BG_geometry_collection &bggc1,
   @param g2 Second geometry operand, a geometry collection.
   @param[out] result Holds WKB data of the result, which must be a
                 geometry collection.
-  @param[out] pdone Returns whether the set operation is performed for the
-                two geometry collections.
   @return The union result, whose WKB data is stored in 'result'.
  */
 template<typename Coord_type, typename Coordsys>
 Geometry *Item_func_spatial_operation::
 geocol_union(const BG_geometry_collection &bggc1,
              const BG_geometry_collection &bggc2,
-             String *result, bool *pdone)
+             String *result)
 {
   Geometry *gres= NULL;
   BG_geometry_collection bggc;
@@ -3604,7 +3522,6 @@ geocol_union(const BG_geometry_collection &bggc1,
   gv.insert(gv.end(), bggc2.get_geometries().begin(),
             bggc2.get_geometries().end());
   bggc.set_srid(bggc1.get_srid());
-  *pdone= true;
 
   // It's likely that there are overlapping components in bggc because it
   // has components from both bggc1 and bggc2.
@@ -3631,25 +3548,21 @@ geocol_union(const BG_geometry_collection &bggc1,
   @param g2 Second geometry operand, a geometry collection.
   @param[out] result Holds WKB data of the result, which must be a
                 geometry collection.
-  @param[out] pdone Returns whether the set operation is performed for the
-                two geometry collections.
   @return The difference result, whose WKB data is stored in 'result'.
  */
 template<typename Coord_type, typename Coordsys>
 Geometry *Item_func_spatial_operation::
 geocol_difference(const BG_geometry_collection &bggc1,
                   const BG_geometry_collection &bggc2,
-                  String *result, bool *pdone)
+                  String *result)
 {
   Geometry *gres= NULL;
-  bool opdone= false;
   String *wkbres= NULL;
   BG_geometry_collection bggc;
   const BG_geometry_collection::Geometry_list *gv1= &(bggc1.get_geometries());
   const BG_geometry_collection::Geometry_list *gv2= &(bggc2.get_geometries());
 
   bggc.set_srid(bggc1.get_srid());
-  *pdone= false;
 
   // Difference isn't symetric so we have to always build rtree tndex on gv2.
   Rtree_index rtree;
@@ -3681,12 +3594,11 @@ geocol_difference(const BG_geometry_collection &bggc1,
       wkbres= wkbstrs.append_object();
       if (wkbres == NULL)
         return NULL;
-      opdone= false;
       Geometry *g0= bg_geo_set_op<Coord_type, Coordsys>(g11, geom,
-                                                        wkbres, &opdone);
+                                                        wkbres);
       auto_ptr<Geometry> guard0(g0);
 
-      if (!opdone || null_value)
+      if (null_value)
       {
         if (!(g0 != NULL && g0 != *i && g0 != geom))
           guard0.release();
@@ -3727,8 +3639,6 @@ geocol_difference(const BG_geometry_collection &bggc1,
   if (null_value)
     return NULL;
   gres= bggc.as_geometry_collection(result);
-  if (!null_value)
-    *pdone= true;
 
   return gres;
 }
@@ -3749,52 +3659,48 @@ geocol_difference(const BG_geometry_collection &bggc1,
   @param g2 Second geometry operand, a geometry collection.
   @param[out] result Holds WKB data of the result, which must be a
                 geometry collection.
-  @param[out] pdone Returns whether the set operation is performed for the
-                two geometry collections.
   @return The symdifference result, whose WKB data is stored in 'result'.
  */
 template<typename Coord_type, typename Coordsys>
 Geometry *Item_func_spatial_operation::
 geocol_symdifference(const BG_geometry_collection &bggc1,
                      const BG_geometry_collection &bggc2,
-                     String *result, bool *pdone)
+                     String *result)
 {
   Geometry *gres= NULL;
   String wkbres;
-  bool isdone1= false, isdone2= false, isdone3= false;
   String union_res, dif_res, isct_res;
   Geometry *gc_union= NULL, *gc_isct= NULL;
 
-  *pdone= false;
-  Var_resetter<Gcalc_function::op_type>
-    var_reset(&spatial_op, Gcalc_function::op_symdifference);
+  Var_resetter<op_type>
+    var_reset(&spatial_op, op_symdifference);
 
-  spatial_op= Gcalc_function::op_union;
+  spatial_op= op_union;
   gc_union= geocol_union<Coord_type, Coordsys>(bggc1, bggc2,
-                                               &union_res, &isdone1);
+                                               &union_res);
   auto_ptr<Geometry> guard_union(gc_union);
 
-  if (!isdone1 || null_value)
+  if (null_value)
     return NULL;
   DBUG_ASSERT(gc_union != NULL);
 
-  spatial_op= Gcalc_function::op_intersection;
+  spatial_op= op_intersection;
   gc_isct= geocol_intersection<Coord_type, Coordsys>(bggc1, bggc2,
-                                                     &isct_res, &isdone2);
+                                                     &isct_res);
   auto_ptr<Geometry> guard_isct(gc_isct);
 
-  if (!isdone2 || null_value)
+  if (null_value)
     return NULL;
 
   auto_ptr<Geometry> guard_dif;
   if (gc_isct != NULL && !is_empty_geocollection(isct_res))
   {
-    spatial_op= Gcalc_function::op_difference;
+    spatial_op= op_difference;
     gres= geometry_collection_set_operation<Coord_type, Coordsys>
-      (gc_union, gc_isct, result, &isdone3);
+      (gc_union, gc_isct, result);
     guard_dif.reset(gres);
 
-    if (!isdone3 || null_value)
+    if (null_value)
       return NULL;
   }
   else
@@ -3804,7 +3710,6 @@ geocol_symdifference(const BG_geometry_collection &bggc1,
     guard_union.release();
   }
 
-  *pdone= true;
   guard_dif.release();
   return gres;
 }
@@ -3826,13 +3731,13 @@ bool Item_func_spatial_operation::assign_result(Geometry *geo, String *result)
 const char *Item_func_spatial_operation::func_name() const
 {
   switch (spatial_op) {
-    case Gcalc_function::op_intersection:
+    case op_intersection:
       return "st_intersection";
-    case Gcalc_function::op_difference:
+    case op_difference:
       return "st_difference";
-    case Gcalc_function::op_union:
+    case op_union:
       return "st_union";
-    case Gcalc_function::op_symdifference:
+    case op_symdifference:
       return "st_symdifference";
     default:
       DBUG_ASSERT(0);  // Should never happen

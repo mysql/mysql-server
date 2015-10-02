@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -397,7 +397,7 @@ char *metaphon(UDF_INIT *initid __attribute__((unused)),
 		  *result++ = (( n == n_start &&
 				 !ISVOWEL ( n[2])) ||
 			       *( n - 1 ) == 'S' ) ?
-		    (char)'K' : (char)'X';
+		    'K' : 'X';
 		else
 		  *result++ = 'K';
 	  }
@@ -407,7 +407,7 @@ char *metaphon(UDF_INIT *initid __attribute__((unused)),
 	  *result++ =
 	    ( n[1] == 'G' &&
 	      MAKESOFT ( n[2])) ?
-	    (char)'J' : (char)'T';
+	    'J' : 'T';
 	  break;
 
 	case 'G':   /* complicated, see table in text */
@@ -430,7 +430,7 @@ char *metaphon(UDF_INIT *initid __attribute__((unused)),
 	    *result++ =
 	      ( MAKESOFT ( *( n  + 1 )) &&
 		n[2] != 'G' ) ?
-	      (char)'J' : (char)'K';
+	      'J' : 'K';
 	  else
 	    if ( n[1] == 'H'   &&
 		!NOGHTOF( *( n - 3 )) &&
@@ -454,7 +454,7 @@ char *metaphon(UDF_INIT *initid __attribute__((unused)),
 
 	case 'P':    /* PH = F, else P = P */
 	  *result++ = *( n +  1 ) == 'H'
-	    ? (char)'F' : (char)'P';
+	    ? 'F' : 'P';
 	  break;
 	case 'Q':   /* Q = K (U after Q is already gone */
 	  *result++ = 'K';
@@ -465,7 +465,7 @@ char *metaphon(UDF_INIT *initid __attribute__((unused)),
 			( *(n  + 1) == 'I' &&
 			  ( n[2] == 'O' ||
 			    n[2] == 'A')))  ?
-	    (char)'X' : (char)'S';
+	    'X' : 'S';
 	  break;
 
 	case 'T':  /* TIO, TIA = X ("sh" sound) */

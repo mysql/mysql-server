@@ -1,0 +1,42 @@
+--source include/not_embedded.inc
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+CREATE TABLE t_int (c1  TINYINT,
+                    c2  SMALLINT,
+                    c3  MEDIUMINT,
+                    c4  INT,
+                    c5  INTEGER,
+                    c6  SMALLINT UNSIGNED,
+                    c7  MEDIUMINT UNSIGNED,
+                    c8  INT UNSIGNED,
+                    c9  INTEGER);
+
+INSERT INTO t_int VALUES (91,92,93,94,95,96,97,98,99);
+INSERT INTO t_int VALUES (81,82,83,84,85,86,87,88,89);
+INSERT INTO t_int VALUES (71,72,73,74,75,76,77,78,79);
+
+SELECT * FROM t_int order by c1;
+
+--echo ##########################################
+--echo # Run plugin
+--echo ##########################################
+--replace_result $TEST_SESSION_DETACH TEST_SESSION_DETACH
+eval INSTALL PLUGIN test_session_detach SONAME '$TEST_SESSION_DETACH';
+
+sleep 2;
+
+--echo ##########################################
+--echo # Stop plugin
+--echo ##########################################
+UNINSTALL PLUGIN test_session_detach;
+
+--echo ##########################################
+--echo # Plugin log
+--echo ##########################################
+cat_file $MYSQLD_DATADIR/test_session_detach.log;
+remove_file $MYSQLD_DATADIR/test_session_detach.log;
+
+--echo ##########################################
+--echo # Cleanup
+--echo ##########################################
+DROP TABLE IF EXISTS t_int;

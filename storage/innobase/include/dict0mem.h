@@ -71,8 +71,9 @@ combination of types */
 				other flags */
 #define	DICT_SPATIAL	64	/* SPATIAL index; can't be combined with the
 				other flags */
+#define	DICT_VIRTUAL	128	/* Index on Virtual column */
 
-#define	DICT_IT_BITS	7	/*!< number of bits used for
+#define	DICT_IT_BITS	8	/*!< number of bits used for
 				SYS_INDEXES.TYPE */
 /* @} */
 
@@ -170,23 +171,23 @@ to open the table and allows InnoDB to quickly find the tablespace. */
 
 /** Bit mask of the COMPACT field */
 #define DICT_TF_MASK_COMPACT				\
-		((~(~0 << DICT_TF_WIDTH_COMPACT))	\
+		((~(~0U << DICT_TF_WIDTH_COMPACT))	\
 		<< DICT_TF_POS_COMPACT)
 /** Bit mask of the ZIP_SSIZE field */
 #define DICT_TF_MASK_ZIP_SSIZE				\
-		((~(~0 << DICT_TF_WIDTH_ZIP_SSIZE))	\
+		((~(~0U << DICT_TF_WIDTH_ZIP_SSIZE))	\
 		<< DICT_TF_POS_ZIP_SSIZE)
 /** Bit mask of the ATOMIC_BLOBS field */
 #define DICT_TF_MASK_ATOMIC_BLOBS			\
-		((~(~0 << DICT_TF_WIDTH_ATOMIC_BLOBS))	\
+		((~(~0U << DICT_TF_WIDTH_ATOMIC_BLOBS))	\
 		<< DICT_TF_POS_ATOMIC_BLOBS)
 /** Bit mask of the DATA_DIR field */
 #define DICT_TF_MASK_DATA_DIR				\
-		((~(~0 << DICT_TF_WIDTH_DATA_DIR))	\
+		((~(~0U << DICT_TF_WIDTH_DATA_DIR))	\
 		<< DICT_TF_POS_DATA_DIR)
 /** Bit mask of the SHARED_SPACE field */
 #define DICT_TF_MASK_SHARED_SPACE			\
-		((~(~0 << DICT_TF_WIDTH_SHARED_SPACE))	\
+		((~(~0U << DICT_TF_WIDTH_SHARED_SPACE))	\
 		<< DICT_TF_POS_SHARED_SPACE)
 
 /** Return the value of the COMPACT field */
@@ -224,7 +225,7 @@ for unknown bits in order to protect backward incompatibility. */
 /* @{ */
 /** Total number of bits in table->flags2. */
 #define DICT_TF2_BITS			8
-#define DICT_TF2_UNUSED_BIT_MASK	(~0 << DICT_TF2_BITS)
+#define DICT_TF2_UNUSED_BIT_MASK	(~0U << DICT_TF2_BITS)
 #define DICT_TF2_BIT_MASK		~DICT_TF2_UNUSED_BIT_MASK
 
 /** TEMPORARY; TRUE for tables from CREATE TEMPORARY TABLE. */
@@ -293,7 +294,10 @@ dict_mem_table_create(
 	const char*	name,		/*!< in: table name */
 	ulint		space,		/*!< in: space where the clustered index
 					of the table is placed */
-	ulint		n_cols,		/*!< in: number of columns */
+	ulint		n_cols,		/*!< in: total number of columns
+					including virtual and non-virtual
+					columns */
+	ulint		n_v_cols,	/*!< in: number of virtual columns */
 	ulint		flags,		/*!< in: table flags */
 	ulint		flags2);	/*!< in: table flags2 */
 /****************************************************************//**
@@ -314,6 +318,30 @@ dict_mem_table_add_col(
 	ulint		prtype,	/*!< in: precise type */
 	ulint		len)	/*!< in: precision */
 	__attribute__((nonnull(1)));
+/** Adds a virtual column definition to a table.
+@param[in,out]	table		table
+@param[in]	heap		temporary memory heap, or NULL. It is
+				used to store name when we have not finished
+				adding all columns. When all columns are
+				added, the whole name will copy to memory from
+				table->heap
+@param[in]	name		column name
+@param[in]	mtype		main datatype
+@param[in]	prtype		precise type
+@param[in]	len		length
+@param[in]	pos		position in a table
+@param[in]	num_base	number of base columns
+@return the virtual column definition */
+dict_v_col_t*
+dict_mem_table_add_v_col(
+	dict_table_t*	table,
+	mem_heap_t*	heap,
+	const char*	name,
+	ulint		mtype,
+	ulint		prtype,
+	ulint		len,
+	ulint		pos,
+	ulint		num_base);
 /**********************************************************************//**
 Renames a column of a table in the data dictionary cache. */
 void
@@ -322,8 +350,9 @@ dict_mem_table_col_rename(
 	dict_table_t*	table,	/*!< in/out: table */
 	unsigned	nth_col,/*!< in: column index */
 	const char*	from,	/*!< in: old column name */
-	const char*	to)	/*!< in: new column name */
-	__attribute__((nonnull));
+	const char*	to,	/*!< in: new column name */
+	bool		is_virtual);
+				/*!< in: if this is a virtual column */
 /**********************************************************************//**
 This function populates a dict_col_t memory structure with
 supplied information. */
@@ -529,6 +558,33 @@ struct dict_col_t{
 	unsigned	max_prefix:12;	/*!< maximum index prefix length on
 					this column. Our current max limit is
 					3072 for Barracuda table */
+};
+
+/** Data structure for a virtual column in a table */
+struct dict_v_col_t{
+	/** column structure */
+	dict_col_t		m_col;
+
+	/** array of base column ptr */
+	dict_col_t**		base_col;
+
+	/** number of base column */
+	ulint			num_base;
+
+	/** column pos in table */
+	ulint			v_pos;
+};
+
+/** Data structure for newly added virtual column in a table */
+struct dict_add_v_col_t{
+	/** number of new virtual column */
+	ulint			n_v_col;
+
+	/** column structures */
+	const dict_v_col_t*	v_col;
+
+	/** new col names */
+	const char**		v_col_name;
 };
 
 /** @brief DICT_ANTELOPE_MAX_INDEX_COL_LEN is measured in bytes and
@@ -1145,6 +1201,7 @@ if table->memcached_sync_count == DICT_TABLE_IN_DDL means there's DDL running on
 the table, DML from memcached will be blocked. */
 #define DICT_TABLE_IN_DDL -1
 
+struct innodb_col_templ_t;
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
 struct dict_table_t {
@@ -1228,11 +1285,23 @@ struct dict_table_t {
 	dict_operation_lock. */
 	unsigned				to_be_dropped:1;
 
-	/** Number of columns defined so far. */
+	/** Number of non-virtual columns defined so far. */
 	unsigned				n_def:10;
 
-	/** Number of columns. */
+	/** Number of non-virtual columns. */
 	unsigned				n_cols:10;
+
+	/** Number of total columns (inlcude virtual and non-virtual) */
+	unsigned				n_t_cols:10;
+
+	/** Number of total columns defined so far. */
+	unsigned                                n_t_def:10;
+
+	/** Number of virtual columns defined so far. */
+	unsigned                                n_v_def:10;
+
+	/** Number of virtual columns. */
+	unsigned                                n_v_cols:10;
 
 	/** TRUE if it's not an InnoDB system table or a table that has no FK
 	relationships. */
@@ -1248,11 +1317,17 @@ struct dict_table_t {
 	/** Array of column descriptions. */
 	dict_col_t*				cols;
 
+	/** Array of virtual column descriptions. */
+	dict_v_col_t*				v_cols;
+
 	/** Column names packed in a character string
 	"name1\0name2\0...nameN\0". Until the string contains n_cols, it will
 	be allocated from a temporary heap. The final string will be allocated
 	from table->heap. */
 	const char*				col_names;
+
+	/** Virtual column names */
+	const char*				v_col_names;
 
 #ifndef UNIV_HOTBACKUP
 	/** Hash chain node. */
@@ -1516,6 +1591,12 @@ public:
 	/** Magic number. */
 	ulint					magic_n;
 #endif /* UNIV_DEBUG */
+	/** mysql_row_templ_t for base columns used for compute the virtual
+	columns */
+	innodb_col_templ_t*			vc_templ;
+
+	/** whether above vc_templ comes from purge allocation */
+	bool					vc_templ_purge;
 };
 
 /*******************************************************************//**
@@ -1618,6 +1699,43 @@ dict_table_autoinc_own(
 	return(mutex_own(table->autoinc_mutex));
 }
 #endif /* UNIV_DEBUG */
+
+/** whether a col is used in spatial index or regular index */
+enum col_spatial_status {
+	/** Not used in gis index. */
+	SPATIAL_NONE	= 0,
+
+	/** Used in both spatial index and regular index. */
+	SPATIAL_MIXED	= 1,
+
+	/** Only used in spatial index. */
+	SPATIAL_ONLY	= 2
+};
+
+/** Check whether the col is used in spatial index or regular index.
+@param[in]	col	column to check
+@return col_spatial_status */
+inline
+col_spatial_status
+dict_col_get_spatial_status(
+	const dict_col_t*	col)
+{
+	col_spatial_status	spatial_status = SPATIAL_NONE;
+
+	ut_ad(col->ord_part);
+
+	if (DATA_GEOMETRY_MTYPE(col->mtype)) {
+		if (col->max_prefix == 0) {
+			spatial_status = SPATIAL_ONLY;
+		} else {
+			/* Any regular index on a geometry column
+			should have a prefix. */
+			spatial_status = SPATIAL_MIXED;
+		}
+	}
+
+	return(spatial_status);
+}
 
 #ifndef UNIV_NONINL
 #include "dict0mem.ic"

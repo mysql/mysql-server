@@ -1,4 +1,4 @@
-
+--source include/have_debug.inc
 #
 # BUG#60111 storage type for table not saved in .frm
 #
@@ -190,3 +190,13 @@ SHOW CREATE TABLE t1;
 
 DROP TABLE t1;
 
+
+--echo #
+--echo # Bug#21347001   SEGMENTATION FAULT WHILE CREATING GENERAL
+--echo #                  TABLESPACE IN DISK FULL LINUX
+--echo #
+SET SESSION debug="+d,out_of_tablespace_disk";
+--error ER_CREATE_FILEGROUP_FAILED
+CREATE TABLESPACE `ts6` ADD DATAFILE 'ts6.ibd' ENGINE=INNODB;
+SHOW WARNINGS;
+SET SESSION debug="-d,out_of_tablespace_disk";

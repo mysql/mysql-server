@@ -23,6 +23,7 @@
 #include "binlog.h"                     /* mysql_bin_log */
 #include "sp.h"                         /* sp_exist_routines */
 #include "sql_insert.h"                 /* Sql_cmd_insert_base */
+#include "log.h"                        /* sql_print_warning */
 
 #include "sql_update.h"
 #include "auth_internal.h"
@@ -490,6 +491,64 @@ err:
   DBUG_RETURN(error);
 }
 
+/**
+  @brief Performs standardized check whether to prohibit (TRUE)
+    or allow (FALSE) operations based on read_only and super_read_only
+    state.
+  @param thd              Thread handler
+  @param err_if_readonly  Boolean indicating whether or not
+    to add the error to the thread context if read-only is
+    violated.
+
+  @returns Status code
+    @retval TRUE The operation should be prohibited.
+@   retval FALSE The operation should be allowed.
+*/
+bool check_readonly(THD *thd, bool err_if_readonly)
+{
+  DBUG_ENTER("check_readonly");
+
+  /* read_only=OFF, do not prohibit operation: */
+  if (!opt_readonly)
+    DBUG_RETURN(FALSE);
+
+  /* thread is replication slave, do not prohibit operation: */
+  if (thd->slave_thread)
+    DBUG_RETURN(FALSE);
+
+  bool is_super = thd->security_context()->check_access(SUPER_ACL);
+
+  /* super_read_only=OFF and user has SUPER privilege,
+  do not prohibit operation:
+  */
+  if (is_super && !opt_super_readonly)
+
+    DBUG_RETURN(FALSE);
+
+  /* throw error in standardized way if requested: */
+  if (err_if_readonly)
+    err_readonly(thd);
+
+
+  /* in all other cases, prohibit operation: */
+  DBUG_RETURN(TRUE);
+}
+
+/**
+  @brief Generates appropriate error messages for read-only state
+    depending on whether user has SUPER privilege or not.
+
+  @param thd              Thread handler
+
+*/
+void err_readonly(THD *thd)
+{
+  my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
+    thd->security_context()->check_access(SUPER_ACL) ?
+    "--super-read-only" : "--read-only");
+
+}
+
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 
@@ -701,6 +760,7 @@ bool check_some_routine_access(THD *thd, const char *db, const char *name,
     return FALSE;
   return check_routine_level_acl(thd, db, name, is_proc);
 }
+
 
 
 /**
@@ -2472,8 +2532,8 @@ bool check_grant_db(THD *thd,const char *db)
   size_t copy_length;
 
   /* Added 1 at the end to avoid buffer overflow at strmov()*/
-  copy_length= size_t((priv_user.str ? strlen(priv_user.str) : 0) +
-                      (db ? strlen(db) : 0)) + 1;
+  copy_length= ((priv_user.str ? strlen(priv_user.str) : 0) +
+                (db ? strlen(db) : 0)) + 1;
 
   /*
     Make sure that my_stpcpy() operations do not result in buffer overflow.
@@ -3722,6 +3782,11 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
                        sctx->ip().str : "(NULL)"),
                        (priv_user.str ? priv_user.str : "(NULL)"),
                        db, table));
+  /*
+    This function is not intended for derived tables which doesn't have a 
+    name. If this happens something is wrong.
+  */
+  DBUG_ASSERT(table != 0);
   /* --skip-grants */
   if (!initialized)
   {
@@ -3844,7 +3909,7 @@ int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
   int error= 0;
   ACL_USER *acl_user;
   ulong want_access;
-  char buff[100];
+  char buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 3];
   TABLE *table= tables->table;
   bool no_global_access= check_access(thd, SELECT_ACL, "mysql",
                                       NULL, NULL, 1, 1);
@@ -3917,7 +3982,7 @@ int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
   int error= 0;
   ACL_DB *acl_db;
   ulong want_access;
-  char buff[100];
+  char buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 3];
   TABLE *table= tables->table;
   bool no_global_access= check_access(thd, SELECT_ACL, "mysql",
                                       NULL, NULL, 1, 1);
@@ -3992,7 +4057,7 @@ int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   int error= 0;
   uint index;
-  char buff[100];
+  char buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 3];
   TABLE *table= tables->table;
   bool no_global_access= check_access(thd, SELECT_ACL, "mysql",
                                       NULL, NULL, 1, 1);
@@ -4075,7 +4140,7 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   int error= 0;
   uint index;
-  char buff[100];
+  char buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 3];
   TABLE *table= tables->table;
   bool no_global_access= check_access(thd, SELECT_ACL, "mysql",
                                       NULL, NULL, 1, 1);

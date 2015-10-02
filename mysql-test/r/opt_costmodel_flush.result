@@ -935,7 +935,7 @@ UPDATE mysql.server_cost
 SET cost_value=DEFAULT;
 set max_heap_table_size= @max_heap_table_size_save;
 #
-# Test effect of changing the io_block_read_cost
+# Test effect of changing the memory_block_read_cost
 #
 # Result from running query with default cost constants:
 #
@@ -974,7 +974,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`c4` AS `c4` from `test`.`t1`
 UPDATE mysql.engine_cost
 SET cost_value=2.0
-WHERE cost_name="io_block_read_cost";
+WHERE cost_name="memory_block_read_cost";
 FLUSH OPTIMIZER_COSTS;
 #
 # Verify that the cost estimate for read cost has doubled

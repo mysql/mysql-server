@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,7 +42,6 @@ public:
 
   ~Connection_acceptor()
   {
-    m_listener->close_listener();
     delete m_listener;
   }
 
@@ -69,5 +68,14 @@ public:
         mgr->process_new_connection(channel_info);
     }
   }
+
+  /**
+    Close the listener.
+  */
+  void close_listener()
+  {
+    m_listener->close_listener();
+  }
+
 };
 #endif // CONNECTION_ACCEPTOR_INCLUDED

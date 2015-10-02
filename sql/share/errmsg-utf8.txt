@@ -6165,7 +6165,7 @@ ER_NO_FORMAT_DESCRIPTION_EVENT_BEFORE_BINLOG_STATEMENT
 ER_SLAVE_CORRUPT_EVENT
   eng "Corrupted replication event was detected"
   ger "Beschädigtes Replikationsereignis entdeckt"
-ER_LOAD_DATA_INVALID_COLUMN
+ER_LOAD_DATA_INVALID_COLUMN_UNUSED
   eng "Invalid column reference (%-.64s) in LOAD DATA"
   ger "Ungültige Spaltenreferenz (%-.64s) bei LOAD DATA"
 ER_LOG_PURGE_NO_FILE
@@ -7385,8 +7385,8 @@ ER_TRANSACTION_ROLLBACK_DURING_COMMIT
 ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
   eng "Expression of generated column '%s' contains a disallowed function."
 
-ER_KEY_BASED_ON_GENERATED_COLUMN
-  eng "Key/Index cannot be defined on a virtual generated column."
+ER_UNSUPPORTED_ALTER_INPLACE_ON_VIRTUAL_COLUMN
+  eng "INPLACE ADD or DROP of virtual columns cannot be combined with other ALTER TABLE actions"
 
 ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN
   eng "Cannot define foreign key with %s clause on a generated column."
@@ -7404,7 +7404,7 @@ ER_DEPENDENT_BY_GENERATED_COLUMN
   eng "Column '%s' has a generated column dependency."
 
 ER_GENERATED_COLUMN_REF_AUTO_INC,
-  eng "Stored generated column '%s' cannot refer auto-increment column."
+  eng "Generated column '%s' cannot refer to auto-increment column."
 
 ER_FEATURE_NOT_AVAILABLE
   eng "The '%-.64s' feature is not available; you need to remove '%-.64s' or use MySQL built with '%-.64s'"
@@ -7413,7 +7413,7 @@ ER_CANT_SET_GTID_MODE
   eng "SET @@GLOBAL.GTID_MODE = %-.64s is not allowed because %-.384s."
 
 ER_CANT_USE_AUTO_POSITION_WITH_GTID_MODE_OFF
-  eng "The replication receiver thread for channel '%s' cannot start in AUTO_POSITION mode: this server uses @@GLOBAL.GTID_MODE = OFF."
+  eng "The replication receiver thread%-.192s cannot start in AUTO_POSITION mode: this server uses @@GLOBAL.GTID_MODE = OFF."
 
 ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION
   eng "Cannot replicate anonymous transaction when AUTO_POSITION = 1, at file %.512s, position %lld."
@@ -7453,7 +7453,7 @@ ER_WARN_BAD_MAX_EXECUTION_TIME
   eng "Unsupported MAX_EXECUTION_TIME"
 
 ER_WARN_UNSUPPORTED_MAX_EXECUTION_TIME
-  eng "MAX_EXECUTION_TIME hint is supported by SELECT statements only"
+  eng "MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only"
 
 ER_WARN_CONFLICTING_HINT
   eng "Hint %s is ignored as conflicting/duplicated"
@@ -7483,6 +7483,125 @@ ER_LOCKING_SERVICE_TIMEOUT
 
 ER_GIS_MAX_POINTS_IN_GEOMETRY_OVERFLOWED
   eng "Parameter %s exceeds the maximum number of points in a geometry (%lu) in function %s."
+
+ER_SQL_MODE_MERGED
+  eng "'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release."
+
+ER_VTOKEN_PLUGIN_TOKEN_MISMATCH
+  eng "Version token mismatch for %.*s. Correct value %.*s"
+  bg "Клеймото за версия %.*s не съвпада. Правилната стойност е %.*s"
+
+ER_VTOKEN_PLUGIN_TOKEN_NOT_FOUND
+  eng "Version token %.*s not found."
+  bg "Не е намерено клеймо за версия %.*s"
+
+ER_CANT_SET_VARIABLE_WHEN_OWNING_GTID
+  eng "Variable %-.192s cannot be changed by a client that owns a GTID. The client owns %s. Ownership is released on COMMIT or ROLLBACK."
+
+ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+   eng "%-.192s cannot be performed on channel '%-.192s'."
+
+ER_INVALID_JSON_TEXT 22032
+  eng "Invalid JSON text: \"%s\" at position %u in value (or column) '%-.200s'."
+
+ER_INVALID_JSON_TEXT_IN_PARAM 22032
+  eng "Invalid JSON text in argument %u to function %s: \"%s\" at position %u in '%-.200s'."
+
+ER_INVALID_JSON_BINARY_DATA
+  eng "The JSON binary value contains invalid data."
+
+ER_INVALID_JSON_PATH 42000
+  eng "Invalid JSON path expression. The error is around character position %u in '%-.200s'."
+
+ER_INVALID_JSON_CHARSET 22032
+  eng "Cannot create a JSON value from a string with CHARACTER SET '%s'."
+
+ER_INVALID_JSON_CHARSET_IN_FUNCTION 22032
+  eng "Invalid JSON character data provided to function %s: '%s'; utf8 is required."
+
+ER_INVALID_TYPE_FOR_JSON 22032
+  eng "Invalid data type for JSON data in argument %u to function %s; a JSON string or JSON type is required."
+
+ER_INVALID_CAST_TO_JSON 22032
+  eng "Cannot CAST value to JSON."
+
+ER_INVALID_JSON_PATH_CHARSET 42000
+  eng "A path expression must be encoded in the utf8 character set. The path expression '%-.200s' is encoded in character set '%-.200s'."
+
+ER_INVALID_JSON_PATH_WILDCARD 42000
+  eng "In this situation, path expressions may not contain the * and ** tokens."
+
+ER_JSON_VALUE_TOO_BIG 22032
+  eng "The JSON value is too big to be stored in a JSON column."
+
+ER_JSON_KEY_TOO_BIG 22032
+  eng "The JSON object contains a key name that is too long."
+
+ER_JSON_USED_AS_KEY 42000
+  eng "JSON column '%-.192s' cannot be used in key specification."
+
+ER_JSON_VACUOUS_PATH 42000
+  eng "The path expression '$' is not allowed in this context."
+
+ER_JSON_BAD_ONE_OR_ALL_ARG 42000
+  eng "The oneOrAll argument to %s may take these values: 'one' or 'all'."
+
+ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE 22003
+  eng "Out of range JSON value for CAST to %s: '%-.192s' from %s at row %ld"
+
+ER_INVALID_JSON_VALUE_FOR_CAST 22018
+  eng "Invalid JSON value for CAST to %s: '%-.192s' from %s at row %ld"
+
+ER_JSON_DOCUMENT_TOO_DEEP 22032
+  eng "The JSON document exceeds the maximum depth."
+
+ER_JSON_DOCUMENT_NULL_KEY 22032
+  eng "JSON documents may not contain NULL member names."
+
+ER_SECURE_TRANSPORT_REQUIRED
+  eng "Connections using insecure transport are prohibited while --require_secure_transport=ON."
+
+ER_NO_SECURE_TRANSPORTS_CONFIGURED
+  eng "No secure transports (SSL or Shared Memory) are configured, unable to set --require_secure_transport=ON."
+
+ER_DISABLED_STORAGE_ENGINE
+  eng "Storage engine %s is disabled (Table creation is disallowed)."
+
+ER_USER_DOES_NOT_EXIST
+  eng "User %s does not exist."
+
+ER_USER_ALREADY_EXISTS
+  eng "User %s already exists."
+
+ER_AUDIT_API_ABORT
+  eng "Aborted by Audit API ('%-.48s';%d)."
+
+ER_INVALID_JSON_PATH_ARRAY_CELL 42000
+  eng "A path expression is not a path to a cell in an array."
+
+ER_BUFPOOL_RESIZE_INPROGRESS
+  eng "Another buffer pool resize is already in progress."
+
+ER_FEATURE_DISABLED_SEE_DOC
+  eng "The '%s' feature is disabled; see the documentation for '%s'"
+
+ER_SERVER_ISNT_AVAILABLE
+  eng "Server isn't available"
+
+ER_SESSION_WAS_KILLED
+  eng "Session was killed"
+
+ER_CAPACITY_EXCEEDED
+  eng "Memory capacity of %llu bytes for '%s' exceeded. %s"
+
+ER_CAPACITY_EXCEEDED_IN_RANGE_OPTIMIZER
+  eng "Range optimization was not done for this query."
+
+ER_TABLE_NEEDS_UPG_PART
+  eng "Partitioning upgrade required. Please dump/reload to fix it or do: ALTER TABLE `%-.192s`.`%-.192s` UPGRADE PARTITIONING"
+
+ER_CANT_WAIT_FOR_EXECUTED_GTID_SET_WHILE_OWNING_A_GTID
+  eng "The client holds ownership of the GTID %s. Therefore, WAIT_FOR_EXECUTED_GTID_SET cannot wait for this GTID."
 
 
 #

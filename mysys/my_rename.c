@@ -38,13 +38,13 @@ int my_rename(const char *from, const char *to, myf MyFlags)
   if (rename(from,to))
   {
 #endif
-    my_errno=errno;
+    set_my_errno(errno);
     error = -1;
     if (MyFlags & (MY_FAE+MY_WME))
     {
       char errbuf[MYSYS_STRERROR_SIZE];
       my_error(EE_LINK, MYF(0), from, to,
-               my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+               my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
     }
   }
   else if (MyFlags & MY_SYNC_DIR)

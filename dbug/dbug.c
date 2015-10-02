@@ -369,7 +369,7 @@ static CODE_STATE *code_state(void)
     init_settings.flags=OPEN_APPEND;
   }
 
-  if (!(cs_ptr= (CODE_STATE**) my_thread_var_dbug()))
+  if (!(cs_ptr= my_thread_var_dbug()))
     return 0;                                   /* Thread not initialised */
   if (!(cs= *cs_ptr))
   {
@@ -2064,7 +2064,7 @@ static void DoPrefix(CODE_STATE *cs, uint _line_)
   cs->lineno++;
   if (cs->stack->flags & PID_ON)
   {
-    (void) fprintf(cs->stack->out_file, "T@%u: ", mysys_thread_var()->id);
+    (void) fprintf(cs->stack->out_file, "T@%u: ", my_thread_var_id());
   }
   if (cs->stack->flags & NUMBER_ON)
     (void) fprintf(cs->stack->out_file, "%5d: ", cs->lineno);

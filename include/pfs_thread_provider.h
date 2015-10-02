@@ -21,7 +21,7 @@
   Performance schema instrumentation (declarations).
 */
 
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+#ifdef HAVE_PSI_THREAD_INTERFACE
 #ifdef MYSQL_SERVER
 #ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_DYNAMIC_PLUGIN
@@ -92,6 +92,8 @@ void pfs_set_thread_start_time_v1(time_t start_time);
 
 void pfs_set_thread_state_v1(const char* state);
 
+void pfs_set_connection_type_v1(opaque_vio_type conn_type);
+
 void pfs_set_thread_info_v1(const char* info, uint info_len);
 
 void pfs_set_thread_v1(PSI_thread* thread);
@@ -161,7 +163,7 @@ C_MODE_END
 #endif /* EMBEDDED_LIBRARY */
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */
-#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
 #endif
 

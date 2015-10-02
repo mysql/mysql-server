@@ -88,7 +88,7 @@ int Rpl_info_file::do_init_info()
     if ((info_fd = my_open(info_fname, O_CREAT|O_RDWR|O_BINARY, MYF(MY_WME))) < 0)
     {
       sql_print_error("Failed to create a new info file (\
-file '%s', errno %d)", info_fname, my_errno);
+file '%s', errno %d)", info_fname, my_errno());
       error= 1;
     }
     else if (init_io_cache(&info_file, info_fd, IO_SIZE*2, READ_CACHE, 0L,0,
@@ -115,7 +115,7 @@ file '%s')", info_fname);
       if ((info_fd = my_open(info_fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0 )
       {
         sql_print_error("Failed to open the existing info file (\
-file '%s', errno %d)", info_fname, my_errno);
+file '%s', errno %d)", info_fname, my_errno());
         error= 1;
       }
       else if (init_io_cache(&info_file, info_fd, IO_SIZE*2, READ_CACHE, 0L,
@@ -427,7 +427,7 @@ bool Rpl_info_file::do_get_info(const int pos, ulong *value,
 bool Rpl_info_file::do_get_info(const int pos, int *value,
                                 const int default_value)
 {
-  return (init_intvar_from_file((int *) value, &info_file, 
+  return (init_intvar_from_file(value, &info_file,
                                 (int) default_value));
 }
 

@@ -72,12 +72,26 @@ static int sort_record_index(MI_SORT_PARAM *sort_param, MI_INFO *info,
 
 MI_CHECK check_param;
 
+/* myisamchk can create multiple threads (see sort.c) */
+extern st_keycache_thread_var *keycache_thread_var()
+{
+  return (st_keycache_thread_var*)my_get_thread_local(keycache_tls_key);
+}
+
 	/* Main program */
 
 int main(int argc, char **argv)
 {
   int error;
   MY_INIT(argv[0]);
+
+  memset(&main_thread_keycache_var, 0, sizeof(st_keycache_thread_var));
+  mysql_cond_init(PSI_NOT_INSTRUMENTED,
+                  &main_thread_keycache_var.suspend);
+
+  (void)my_create_thread_local_key(&keycache_tls_key, NULL);
+  my_set_thread_local(keycache_tls_key, &main_thread_keycache_var);
+
   my_progname_short= my_progname+dirname_length(my_progname);
 
   myisamchk_init(&check_param);
@@ -127,6 +141,8 @@ int main(int argc, char **argv)
   free_tmpdir(&myisamchk_tmpdir);
   ft_free_stopwords();
   my_end(check_param.testflag & T_INFO ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
+  mysql_cond_destroy(&main_thread_keycache_var.suspend);
+  my_delete_thread_local_key(keycache_tls_key);
   exit(error);
   return 0;				/* No compiler warning */
 } /* main */
@@ -803,7 +819,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
   {
     /* Avoid twice printing of isam file name */
     param->error_printed=1;
-    switch (my_errno) {
+    switch (my_errno()) {
     case HA_ERR_CRASHED:
       mi_check_print_error(param,"'%s' doesn't have a correct index definition. You need to recreate it before you can do a repair",filename);
       break;
@@ -833,7 +849,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
       break;
     default:
       mi_check_print_error(param,"%d when opening MyISAM-table '%s'",
-		  my_errno,filename);
+                           my_errno(),filename);
       break;
     }
     DBUG_RETURN(1);
@@ -881,7 +897,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
       if (mi_close(info))
       {
 	mi_check_print_error(param,"%d when closing MyISAM-table '%s'",
-			     my_errno,filename);
+			     my_errno(),filename);
 	DBUG_RETURN(1);
       }
       DBUG_RETURN(0);
@@ -946,7 +962,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
     if (_mi_readinfo(info,lock_type,0))
     {
       mi_check_print_error(param,"Can't lock indexfile of '%s', error: %d",
-		  filename,my_errno);
+                           filename,my_errno());
       param->error_printed=0;
       goto end2;
     }
@@ -1135,7 +1151,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
 end2:
   if (mi_close(info))
   {
-    mi_check_print_error(param,"%d when closing MyISAM-table '%s'",my_errno,filename);
+    mi_check_print_error(param,"%d when closing MyISAM-table '%s'",my_errno(),filename);
     DBUG_RETURN(1);
   }
   if (error == 0)
@@ -1658,7 +1674,7 @@ static int sort_record_index(MI_SORT_PARAM *sort_param,MI_INFO *info,
 
     if ((*info->s->read_rnd)(info,sort_param->record,rec_pos,0))
     {
-      mi_check_print_error(param,"%d when reading datafile",my_errno);
+      mi_check_print_error(param,"%d when reading datafile",my_errno());
       goto err;
     }
     if (rec_pos != sort_param->filepos && update_index)
@@ -1668,7 +1684,7 @@ static int sort_record_index(MI_SORT_PARAM *sort_param,MI_INFO *info,
       if (movepoint(info,sort_param->record,rec_pos,sort_param->filepos,
 		    sort_key))
       {
-	mi_check_print_error(param,"%d when updating key-pointers",my_errno);
+	mi_check_print_error(param,"%d when updating key-pointers",my_errno());
 	goto err;
       }
     }
@@ -1680,7 +1696,7 @@ static int sort_record_index(MI_SORT_PARAM *sort_param,MI_INFO *info,
   if (my_pwrite(info->s->kfile,(uchar*) buff,(uint) keyinfo->block_length,
 		page,param->myf_rw))
   {
-    mi_check_print_error(param,"%d when updating keyblock",my_errno);
+    mi_check_print_error(param,"%d when updating keyblock",my_errno());
     goto err;
   }
   DBUG_RETURN(0);

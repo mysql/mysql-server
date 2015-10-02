@@ -91,6 +91,11 @@ struct PFS_events_statements : public PFS_events
   /** Optimizer metric, number of 'no good index used'. */
   ulonglong m_no_good_index_used;
 
+  /** True if sqltext was truncated. */
+  bool m_sqltext_truncated;
+  /** Statement character set number. */
+  uint m_sqltext_cs_number;
+
   /**
     SQL_TEXT.
     This pointer is immutable,

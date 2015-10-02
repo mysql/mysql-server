@@ -1146,7 +1146,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` fr
 DROP TABLE t1, t2, t3, t4;
 # semi-join materialization (if enabled)
 CREATE TABLE t1 (a INT);
-INSERT INTO t1 VALUES (1), (1), (1);
+INSERT INTO t1 VALUES (1), (1), (1), (1), (1), (1), (1), (1), (1), (1), (1), (1);
 CREATE TABLE t2 (a INT) SELECT * FROM t1;
 CREATE TABLE t3 (a INT) SELECT * FROM t1;
 CREATE TABLE t4 (a INT) SELECT * FROM t1;
@@ -1160,96 +1160,125 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "11.89"
+      "query_cost": "35.44"
     } /* cost_info */,
-    "duplicates_removal": {
-      "using_temporary_table": true,
-      "nested_loop": [
-        {
-          "table": {
-            "table_name": "t4",
-            "access_type": "ALL",
-            "rows_examined_per_scan": 3,
-            "rows_produced_per_join": 1,
-            "filtered": "33.33",
-            "cost_info": {
-              "read_cost": "2.41",
-              "eval_cost": "0.20",
-              "prefix_cost": "2.61",
-              "data_read_per_join": "8"
-            } /* cost_info */,
-            "used_columns": [
-              "a"
-            ] /* used_columns */,
-            "attached_condition": "((`test`.`t4`.`a` > 0) and (`test`.`t4`.`a` > 0))"
-          } /* table */
-        },
-        {
-          "table": {
-            "table_name": "t2",
-            "access_type": "ALL",
-            "rows_examined_per_scan": 3,
-            "rows_produced_per_join": 0,
-            "filtered": "11.11",
-            "using_join_buffer": "Block Nested Loop",
-            "cost_info": {
-              "read_cost": "2.41",
-              "eval_cost": "0.07",
-              "prefix_cost": "5.21",
-              "data_read_per_join": "2"
-            } /* cost_info */,
-            "used_columns": [
-              "a"
-            ] /* used_columns */,
-            "attached_condition": "(`test`.`t2`.`a` = `test`.`t4`.`a`)"
-          } /* table */
-        },
-        {
-          "table": {
-            "table_name": "t1",
-            "access_type": "ALL",
-            "rows_examined_per_scan": 3,
-            "rows_produced_per_join": 1,
-            "filtered": "33.33",
-            "using_join_buffer": "Block Nested Loop",
-            "cost_info": {
-              "read_cost": "2.01",
-              "eval_cost": "0.20",
-              "prefix_cost": "10.22",
-              "data_read_per_join": "8"
-            } /* cost_info */,
-            "used_columns": [
-              "a"
-            ] /* used_columns */,
-            "attached_condition": "(`test`.`t1`.`a` = `test`.`t4`.`a`)"
-          } /* table */
-        },
-        {
-          "table": {
-            "table_name": "t3",
-            "access_type": "ALL",
-            "rows_examined_per_scan": 3,
-            "rows_produced_per_join": 1,
-            "filtered": "33.33",
-            "using_join_buffer": "Block Nested Loop",
-            "cost_info": {
-              "read_cost": "2.01",
-              "eval_cost": "0.20",
-              "prefix_cost": "11.89",
-              "data_read_per_join": "8"
-            } /* cost_info */,
-            "used_columns": [
-              "a"
-            ] /* used_columns */,
-            "attached_condition": "(`test`.`t3`.`a` = `test`.`t4`.`a`)"
-          } /* table */
-        }
-      ] /* nested_loop */
-    } /* duplicates_removal */
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "t1",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 12,
+          "rows_produced_per_join": 12,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "2.02",
+            "eval_cost": "2.40",
+            "prefix_cost": "4.42",
+            "data_read_per_join": "96"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */,
+          "attached_condition": "((`test`.`t1`.`a` is not null) and (`test`.`t1`.`a` is not null))"
+        } /* table */
+      },
+      {
+        "table": {
+          "table_name": "<subquery3>",
+          "access_type": "eq_ref",
+          "key": "<auto_key>",
+          "key_length": "5",
+          "ref": [
+            "test.t1.a"
+          ] /* ref */,
+          "rows_examined_per_scan": 1,
+          "materialized_from_subquery": {
+            "using_temporary_table": true,
+            "query_block": {
+              "nested_loop": [
+                {
+                  "table": {
+                    "table_name": "t4",
+                    "access_type": "ALL",
+                    "rows_examined_per_scan": 12,
+                    "rows_produced_per_join": 3,
+                    "filtered": "33.33",
+                    "cost_info": {
+                      "read_cost": "3.62",
+                      "eval_cost": "0.80",
+                      "prefix_cost": "4.42",
+                      "data_read_per_join": "31"
+                    } /* cost_info */,
+                    "used_columns": [
+                      "a"
+                    ] /* used_columns */,
+                    "attached_condition": "(`test`.`t4`.`a` > 0)"
+                  } /* table */
+                },
+                {
+                  "table": {
+                    "table_name": "t3",
+                    "access_type": "ALL",
+                    "rows_examined_per_scan": 12,
+                    "rows_produced_per_join": 4,
+                    "filtered": "10.00",
+                    "using_join_buffer": "Block Nested Loop",
+                    "cost_info": {
+                      "read_cost": "2.02",
+                      "eval_cost": "0.96",
+                      "prefix_cost": "16.04",
+                      "data_read_per_join": "38"
+                    } /* cost_info */,
+                    "used_columns": [
+                      "a"
+                    ] /* used_columns */,
+                    "attached_condition": "(`test`.`t3`.`a` = `test`.`t4`.`a`)"
+                  } /* table */
+                }
+              ] /* nested_loop */
+            } /* query_block */
+          } /* materialized_from_subquery */
+        } /* table */
+      },
+      {
+        "table": {
+          "table_name": "<subquery2>",
+          "access_type": "eq_ref",
+          "key": "<auto_key>",
+          "key_length": "5",
+          "ref": [
+            "test.t1.a"
+          ] /* ref */,
+          "rows_examined_per_scan": 1,
+          "materialized_from_subquery": {
+            "using_temporary_table": true,
+            "query_block": {
+              "table": {
+                "table_name": "t2",
+                "access_type": "ALL",
+                "rows_examined_per_scan": 12,
+                "rows_produced_per_join": 3,
+                "filtered": "33.33",
+                "cost_info": {
+                  "read_cost": "3.62",
+                  "eval_cost": "0.80",
+                  "prefix_cost": "4.42",
+                  "data_read_per_join": "31"
+                } /* cost_info */,
+                "used_columns": [
+                  "a"
+                ] /* used_columns */,
+                "attached_condition": "(`test`.`t2`.`a` > 0)"
+              } /* table */
+            } /* query_block */
+          } /* materialized_from_subquery */
+        } /* table */
+      }
+    ] /* nested_loop */
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t4` join `test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t4`.`a`) and (`test`.`t1`.`a` = `test`.`t4`.`a`) and (`test`.`t3`.`a` = `test`.`t4`.`a`) and (`test`.`t4`.`a` > 0) and (`test`.`t4`.`a` > 0))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t4` join `test`.`t3`) semi join (`test`.`t2`) where ((`<subquery3>`.`a` = `test`.`t1`.`a`) and (`<subquery2>`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t4`.`a`) and (`test`.`t4`.`a` > 0) and (`test`.`t2`.`a` > 0))
 DROP TABLE t1, t2, t3, t4;
 # the same subquery is associated with two different JOIN_TABs
 CREATE TABLE t1 (
@@ -2463,7 +2492,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,group_concat(`test`.`t2`.`b` separator ',') AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t1`.`a` = `test`.`t2`.`a`)) where 1 group by `test`.`t1`.`a` order by `test`.`t1`.`b`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,group_concat(`test`.`t2`.`b` separator ',') AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1 group by `test`.`t1`.`a` order by `test`.`t1`.`b`
 DROP TABLE t1;
 DROP TABLE t2;
 #

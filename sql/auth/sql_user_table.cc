@@ -32,6 +32,8 @@
 #include "tztime.h"
 #include "sql_time.h"
 #include "crypt_genhash_impl.h"         /* CRYPT_MAX_PASSWORD_SIZE */
+#include "../table.h"
+#include "../../include/m_string.h"
 
 #define DEBUG_SE_WRITE_ERROR_PRE(debug_flag)       \
   DBUG_EXECUTE_IF(debug_flag,  \
@@ -83,7 +85,7 @@ TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
   }, 
   {
     { C_STRING_WITH_LEN("User") },
-    { C_STRING_WITH_LEN("char(16)") },
+    { C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")") },
     {NULL, 0}
   },
   {
@@ -533,10 +535,11 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     {
       /*
         If NO_AUTO_CREATE_USER SQL mode is set and GRANT is not specified
-        with authentication information then report error
+        with authentication information or the authentication_string
+        is empty then report error
       */
       if ((thd->variables.sql_mode & MODE_NO_AUTO_CREATE_USER) &&
-          (what_to_replace & DEFAULT_AUTH_ATTR))
+          ((what_to_replace & DEFAULT_AUTH_ATTR) || !combo->auth.length))
       {
         my_error(ER_PASSWORD_NO_MATCH, MYF(0), combo->user.str, combo->host.str);
         error= 1;
@@ -1530,7 +1533,7 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   store_record(table,record[1]);                        // store at pos 1
 
   error= table->file->ha_index_read_idx_map(table->record[0], 0,
-                                            (uchar*) table->field[0]->ptr,
+                                            table->field[0]->ptr,
                                             HA_WHOLE_KEY,
                                             HA_READ_KEY_EXACT);
 

@@ -217,6 +217,20 @@ row_undo_search_clust_to_pcur(
 		node->row = row_build(ROW_COPY_DATA, clust_index, rec,
 				      offsets, NULL,
 				      NULL, NULL, ext, node->heap);
+
+		/* We will need to parse out virtual column info from undo
+		log, first mark them DATA_MISSING. So we will know if the
+		value gets updated */
+		if (node->table->n_v_cols
+		    && node->state != UNDO_NODE_INSERT
+		    && !(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
+			for (ulint i = 0;
+			     i < dict_table_get_n_v_cols(node->table); i++) {
+				dfield_get_type(dtuple_get_nth_v_field(
+					node->row, i))->mtype = DATA_MISSING;
+			}
+		}
+
 		if (node->rec_type == TRX_UNDO_UPD_EXIST_REC) {
 			node->undo_row = dtuple_copy(node->row, node->heap);
 			row_upd_replace(node->undo_row, &node->undo_ext,

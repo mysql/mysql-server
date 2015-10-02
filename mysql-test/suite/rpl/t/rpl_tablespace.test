@@ -1,0 +1,55 @@
+--echo #########################################################################
+--echo #
+--echo # REPLICATION TABLESPACE RELATED TESTS.
+--echo #
+--echo #########################################################################
+--echo #
+--echo # Bug#21081898 INNODB: TABLESPACE RELATED DDLS ARE NOT COMMITTING ONGOING
+--echo # TRANSACTION
+--echo #
+--echo # Patch for this bug also fixes Bug#21082728: ASSERT
+--echo # `THD->VARIABLES.GTID_NEXT.TYPE != UNDEFINED_GROUP'
+--echo # FOR DML+TABLESPACE DDL
+--echo #
+--echo # #######################################################################
+
+--source include/have_gtid.inc
+--source include/master-slave.inc
+
+--connection master
+--echo [On MASTER]
+
+--echo # TEST Bug#21082728: Execute CREATE TABLESPACE inside active transaction
+--echo # with GTID_NEXT set. Check for proper error code and transaction state
+--echo # by verifying table content after issuing a ROLLBACK.
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=INNODB;
+SET @saved_gtid_next= @@session.gtid_next;
+SET GTID_NEXT='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+BEGIN;
+INSERT INTO t1 VALUES (1);
+--error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
+CREATE TABLESPACE ts1 ADD DATAFILE './ts1.ibd' ENGINE=INNODB;
+ROLLBACK;
+SET GTID_NEXT='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+--echo # Select should return Empty result
+SELECT * FROM t1;
+--echo # Issue ROLLBACK to release GTID
+ROLLBACK;
+
+--echo # TEST Bug#21081898: Execute CREATE TABLESPACE inside active transaction
+--echo # with GTID_NEXT=automatic. Check table content for impliciti commit.
+SET GTID_NEXT = 'AUTOMATIC';
+BEGIN;
+INSERT INTO t1 VALUES (1);
+CREATE TABLESPACE ts1 ADD DATAFILE './ts1.ibd' ENGINE=INNODB;
+ROLLBACK;
+--echo # Select should return one row inserted above
+SELECT * FROM t1;
+
+--echo # Cleanup
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+SET GTID_NEXT= @saved_gtid_next;
+--echo # "STOP SLAVE" and verify that the SQL thread was properly stopped and
+--echo # left no gaps.
+--source include/rpl_end.inc

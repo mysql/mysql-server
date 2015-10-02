@@ -196,7 +196,8 @@ bool Sql_cmd_handler_open::execute(THD *thd)
     if (my_hash_init(&thd->handler_tables_hash, &my_charset_latin1,
                      HANDLER_TABLES_HASH_SIZE, 0, 0,
                      (my_hash_get_key) mysql_ha_hash_get_key,
-                     (my_hash_free_key) mysql_ha_hash_free, 0))
+                     (my_hash_free_key) mysql_ha_hash_free, 0,
+                     key_memory_THD_handler_tables_hash))
     {
       DBUG_PRINT("exit",("ERROR"));
       DBUG_RETURN(TRUE);
@@ -773,8 +774,11 @@ retry:
           is not stored into record buffer, so we can't proceed with the
           index search.
         */
-	if (conv_status == TYPE_ERR_BAD_VALUE)
+        if (conv_status == TYPE_ERR_BAD_VALUE)
+        {
+          my_error(ER_WRONG_ARGUMENTS, MYF(0), "HANDLER ... READ");
           goto err;
+        }
 
 	key_len+=key_part->store_length;
         keypart_map= (keypart_map << 1) | 1;

@@ -244,6 +244,24 @@ static bool xa_trans_force_rollback(THD *thd)
 
 
 /**
+  Reset some transaction state information and delete corresponding
+  Transaction_ctx object from cache.
+
+  @param thd    Current thread
+*/
+
+static void cleanup_trans_state(THD *thd)
+{
+  thd->variables.option_bits&= ~OPTION_BEGIN;
+  thd->server_status&=
+    ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
+  thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::SESSION);
+  DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
+  transaction_cache_delete(thd->get_transaction());
+}
+
+
+/**
   Commit and terminate a XA transaction.
 
   @param thd    Current thread
@@ -376,15 +394,11 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
     DBUG_RETURN(true);
   }
 
-  thd->variables.option_bits&= ~OPTION_BEGIN;
-  thd->get_transaction()->reset_unsafe_rollback_flags(
-    Transaction_ctx::SESSION);
-  thd->server_status&=
-    ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
-  DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
-  transaction_cache_delete(thd->get_transaction());
+  cleanup_trans_state(thd);
+
   xid_state->set_state(XID_STATE::XA_NOTR);
   xid_state->unset_binlogged();
+  trans_track_end_trx(thd);
   /* The transaction should be marked as complete in P_S. */
   DBUG_ASSERT(thd->m_transaction_psi == NULL || res);
   DBUG_RETURN(res);
@@ -401,9 +415,8 @@ bool Sql_cmd_xa_commit::execute(THD *thd)
     /*
         We've just done a commit, reset transaction
         isolation level and access mode to the session default.
-     */
-    thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
-    thd->tx_read_only= thd->variables.tx_read_only;
+    */
+    trans_reset_one_shot_chistics(thd);
 
     my_ok(thd);
   }
@@ -463,15 +476,11 @@ bool Sql_cmd_xa_rollback::trans_xa_rollback(THD *thd)
 
   bool res= xa_trans_force_rollback(thd);
 
-  thd->variables.option_bits&= ~OPTION_BEGIN;
-  thd->get_transaction()->reset_unsafe_rollback_flags(
-    Transaction_ctx::SESSION);
-  thd->server_status&=
-    ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
-  DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
-  transaction_cache_delete(thd->get_transaction());
+  cleanup_trans_state(thd);
+
   xid_state->set_state(XID_STATE::XA_NOTR);
   xid_state->unset_binlogged();
+  trans_track_end_trx(thd);
   /* The transaction should be marked as complete in P_S. */
   DBUG_ASSERT(thd->m_transaction_psi == NULL);
   DBUG_RETURN(res);
@@ -489,8 +498,7 @@ bool Sql_cmd_xa_rollback::execute(THD *thd)
       We've just done a rollback, reset transaction
       isolation level and access mode to the session default.
     */
-    thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
-    thd->tx_read_only= thd->variables.tx_read_only;
+    trans_reset_one_shot_chistics(thd);
     my_ok(thd);
   }
 
@@ -645,14 +653,13 @@ bool Sql_cmd_xa_prepare::trans_xa_prepare(THD *thd)
     my_error(ER_XAER_NOTA, MYF(0));
   else if (ha_prepare(thd))
   {
-    /*
-      todo: simulate a failure that sustains
-      Bug 20538956.
-    */
-    transaction_cache_delete(thd->get_transaction());
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+    DBUG_ASSERT(thd->m_transaction_psi == NULL);
+#endif
+
+    cleanup_trans_state(thd);
     xid_state->set_state(XID_STATE::XA_NOTR);
-    MYSQL_SET_TRANSACTION_XA_STATE(thd->m_transaction_psi,
-                                   (int)xid_state->get_state());
+    thd->get_transaction()->cleanup();
     my_error(ER_XA_RBROLLBACK, MYF(0));
   }
   else
@@ -974,7 +981,8 @@ bool transaction_cache_init()
   mysql_mutex_init(key_LOCK_transaction_cache, &LOCK_transaction_cache,
                    MY_MUTEX_INIT_FAST);
   return my_hash_init(&transaction_cache, &my_charset_bin, 100, 0, 0,
-                      transaction_get_hash_key, transaction_free_hash, 0) != 0;
+                      transaction_get_hash_key, transaction_free_hash, 0,
+                      key_memory_XID) != 0;
 }
 
 void transaction_cache_free()

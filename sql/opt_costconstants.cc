@@ -140,6 +140,11 @@ cost_constant_error Server_cost_constants::set(const LEX_CSTRING &name,
   the server administrator has not added new values in the engine_cost
   table.
 */
+
+// The cost of reading a block from a main memory buffer pool
+const double SE_cost_constants::MEMORY_BLOCK_READ_COST= 1.0;
+
+// The cost of reading a block from an IO device (disk)
 const double SE_cost_constants::IO_BLOCK_READ_COST= 1.0;
 
 
@@ -159,6 +164,14 @@ cost_constant_error SE_cost_constants::set(const LEX_CSTRING &name,
   if (value <= 0.0)
     return INVALID_COST_VALUE;
 
+  // MEMORY_BLOCK_READ_COST
+  if (my_strcasecmp(&my_charset_utf8_general_ci, "MEMORY_BLOCK_READ_COST",
+                    name.str) == 0)
+  {
+    update_cost_value(&m_memory_block_read_cost,
+                      &m_memory_block_read_cost_default, value, default_value);
+    return COST_CONSTANT_OK;
+  }
   // IO_BLOCK_READ_COST
   if (my_strcasecmp(&my_charset_utf8_general_ci, "IO_BLOCK_READ_COST",
                     name.str) == 0)

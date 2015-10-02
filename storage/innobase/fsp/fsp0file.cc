@@ -26,34 +26,29 @@ Created 2013-7-26 by Kevin Lewis
 #include "ha_prototypes.h"
 
 #include "fil0fil.h"
+#include "fsp0types.h"
 #include "fsp0sysspace.h"
 #include "os0file.h"
 #include "page0page.h"
 #include "srv0start.h"
 #include "ut0new.h"
 
-/** Initialize the name, size and order of this datafile
+/** Initialize the name and flags of this datafile.
 @param[in]	name	tablespace name, will be copied
-@param[in]	size	size in database pages
-@param[in]	order	ordinal position or the datafile
-in the tablespace */
-
+@param[in]	flags	tablespace flags */
 void
 Datafile::init(
 	const char*	name,
-	ulint		size,
-	ulint		order)
+	ulint		flags)
 {
 	ut_ad(m_name == NULL);
 	ut_ad(name != NULL);
 
 	m_name = mem_strdup(name);
-	m_size = size;
-	m_order = order;
+	m_flags = flags;
 }
 
 /** Release the resources. */
-
 void
 Datafile::shutdown()
 {
@@ -113,6 +108,8 @@ Datafile::open_read_only(bool strict)
 
 	if (success) {
 		m_exists = true;
+		init_file_info();
+
 		return(DB_SUCCESS);
 	}
 
@@ -155,13 +152,24 @@ Datafile::open_read_write(bool read_only_mode)
 
 	m_exists = true;
 
+	init_file_info();
+
 	return(DB_SUCCESS);
 }
 
+/** Initialize OS specific file info. */
+void
+Datafile::init_file_info()
+{
+#ifdef _WIN32
+	GetFileInformationByHandle(m_handle, &m_file_info);
+#else
+	fstat(m_handle, &m_file_info);
+#endif	/* WIN32 */
+}
 
 /** Close a data file.
 @return DB_SUCCESS or error code */
-
 dberr_t
 Datafile::close()
 {
@@ -175,36 +183,26 @@ Datafile::close()
 	return(DB_SUCCESS);
 }
 
-/** Make physical filename from the Tablespace::m_path
-plus the Datafile::m_name and store it in Datafile::m_filepath.
-@param path	NULL or full path for this datafile.
-@param suffix	File extension for this tablespace datafile. */
+/** Make a full filepath from a directory path and a filename.
+Prepend the dirpath to filename using the extension given.
+If dirpath is NULL, prepend the default datadir to filepath.
+Store the result in m_filepath.
+@param[in]	dirpath		directory path
+@param[in]	filename	filename or filepath
+@param[in]	ext		filename extension */
 void
 Datafile::make_filepath(
-	const char*	path)
+	const char*	dirpath,
+	const char*	filename,
+	ib_extention	ext)
 {
-	ut_ad(m_name != NULL);
+	ut_ad(dirpath != NULL || filename != NULL);
 
 	free_filepath();
-	m_filepath = fil_make_filepath(path, m_name, IBD, false);
 
-	if (m_filepath != NULL) {
-		set_filename();
-	}
-}
+	m_filepath = fil_make_filepath(dirpath, filename, ext, false);
 
-/** Make physical filename from the Tablespace::m_path
-plus the Datafile::m_name and store it in Datafile::m_filepath.
-@param path	NULL or full path for this datafile.
-@param suffix	File extension for this tablespace datafile. */
-void
-Datafile::make_filepath_no_ext(
-	const char*	path)
-{
-	ut_ad(m_name != NULL);
-
-	free_filepath();
-	m_filepath = fil_make_filepath(path, m_name, NO_EXT, false);
+	ut_ad(m_filepath != NULL);
 
 	set_filename();
 }
@@ -212,7 +210,6 @@ Datafile::make_filepath_no_ext(
 /** Set the filepath by duplicating the filepath sent in. This is the
 name of the file with its extension and absolute or relative path.
 @param[in]	filepath	filepath to set */
-
 void
 Datafile::set_filepath(const char* filepath)
 {
@@ -223,7 +220,6 @@ Datafile::set_filepath(const char* filepath)
 }
 
 /** Free the filepath buffer. */
-
 void
 Datafile::free_filepath()
 {
@@ -234,15 +230,50 @@ Datafile::free_filepath()
 	}
 }
 
+/** Do a quick test if the filepath provided looks the same as this filepath
+byte by byte. If they are two different looking paths to the same file,
+same_as() will be used to show that after the files are opened.
+@param[in]	other	filepath to compare with
+@retval true if it is the same filename by byte comparison
+@retval false if it looks different */
+bool
+Datafile::same_filepath_as(
+	const char* other) const
+{
+	return(0 == strcmp(m_filepath, other));
+}
+
+/** Test if another opened datafile is the same file as this object.
+@param[in]	other	Datafile to compare with
+@return true if it is the same file, else false */
+bool
+Datafile::same_as(
+	const Datafile&	other) const
+{
+#ifdef _WIN32
+	return(m_file_info.dwVolumeSerialNumber
+	       == other.m_file_info.dwVolumeSerialNumber
+	       && m_file_info.nFileIndexHigh
+	          == other.m_file_info.nFileIndexHigh
+	       && m_file_info.nFileIndexLow
+	          == other.m_file_info.nFileIndexLow);
+#else
+	return(m_file_info.st_ino == other.m_file_info.st_ino
+	       && m_file_info.st_dev == other.m_file_info.st_dev);
+#endif /* WIN32 */
+}
+
 /** Allocate and set the datafile or tablespace name in m_name.
 If a name is provided, use it; else if the datafile is file-per-table,
 extract a file-per-table tablespace name from m_filepath; else it is a
 general tablespace, so just call it that for now. The value of m_name
 will be freed in the destructor.
-@param[in]	name	Tablespace Name if known, NULL if not */
+@param[in]	name	tablespace name if known, NULL if not */
 void
 Datafile::set_name(const char*	name)
 {
+	ut_free(m_name);
+
 	if (name != NULL) {
 		m_name = mem_strdup(name);
 	} else if (fsp_is_file_per_table(m_space_id, m_flags)) {
@@ -258,7 +289,7 @@ Datafile::set_name(const char*	name)
 
 /** Reads a few significant fields from the first page of the first
 datafile.  The Datafile must already be open.
-@param[in]	read_only_mode	if true, then readonly mode checks are enforced.
+@param[in]	read_only_mode	If true, then readonly mode checks are enforced.
 @return DB_SUCCESS or DB_IO_ERROR if page cannot be read */
 dberr_t
 Datafile::read_first_page(bool read_only_mode)
@@ -326,7 +357,6 @@ Datafile::read_first_page(bool read_only_mode)
 }
 
 /** Free the first page from memory when it is no longer needed. */
-
 void
 Datafile::free_first_page()
 {
@@ -344,7 +374,6 @@ in order for this function to validate it.
 @param[in]	flags	The expected tablespace flags.
 @retval DB_SUCCESS if tablespace is valid, DB_ERROR if not.
 m_is_valid is also set true on success, else false. */
-
 dberr_t
 Datafile::validate_to_dd(
 	ulint	space_id,
@@ -395,7 +424,6 @@ corrupt and needs to be restored from the doublewrite buffer, we will
 reopen it in write mode and ry to restore that page.
 @retval DB_SUCCESS if tablespace is valid, DB_ERROR if not.
 m_is_valid is also set true on success, else false. */
-
 dberr_t
 Datafile::validate_for_recovery()
 {
@@ -546,9 +574,16 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 
 		return(DB_CORRUPTION);
 
-	} else if (fil_space_read_name_and_filepath(
-			   m_space_id, &prev_name, &prev_filepath)
-		   && (0 != strcmp(m_filepath, prev_filepath))) {
+	}
+
+	if (fil_space_read_name_and_filepath(
+		m_space_id, &prev_name, &prev_filepath)) {
+
+		if (0 == strcmp(m_filepath, prev_filepath)) {
+			ut_free(prev_name);
+			ut_free(prev_filepath);
+			return(DB_SUCCESS);
+		}
 
 		/* Make sure the space_id has not already been opened. */
 		ib::error() << "Attempted to open a previously opened"
@@ -576,7 +611,6 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 /** Determine the space id of the given file descriptor by reading a few
 pages from the beginning of the .ibd file.
 @return DB_SUCCESS if space id was successfully identified, else DB_ERROR. */
-
 dberr_t
 Datafile::find_space_id()
 {
@@ -753,7 +787,6 @@ Datafile::find_space_id()
 and copies it to the corresponding .ibd file.
 @param[in]	page_no		Page number to restore
 @return DB_SUCCESS if page was restored from doublewrite, else DB_ERROR */
-
 dberr_t
 Datafile::restore_from_doublewrite(
 	ulint	restore_page_no)
@@ -802,20 +835,27 @@ Datafile::restore_from_doublewrite(
 			m_filepath, m_handle, page, 0, page_size.physical()));
 }
 
+/** Create a link filename based on the contents of m_name,
+open that file, and read the contents into m_filepath.
+@retval DB_SUCCESS if remote linked tablespace file is opened and read.
+@retval DB_CANNOT_OPEN_FILE if the link file does not exist. */
+dberr_t
+RemoteDatafile::open_link_file()
+{
+	set_link_filepath(NULL);
+	m_filepath = read_link_file(m_link_filepath);
+
+	return(m_filepath == NULL ? DB_CANNOT_OPEN_FILE : DB_SUCCESS);
+}
+
 /** Opens a handle to the file linked to in an InnoDB Symbolic Link file
 in read-only mode so that it can be validated.
 @param[in]	strict	whether to issue error messages
 @return DB_SUCCESS if remote linked tablespace file is found and opened. */
-
 dberr_t
 RemoteDatafile::open_read_only(bool strict)
 {
-	ut_ad(m_filepath == NULL);
-
-	read_link_file(name(), &m_link_filepath, &m_filepath);
-
-	if (m_filepath == NULL) {
-		/* There is no remote file */
+	if (m_filepath == NULL && open_link_file() == DB_CANNOT_OPEN_FILE) {
 		return(DB_ERROR);
 	}
 
@@ -834,19 +874,13 @@ RemoteDatafile::open_read_only(bool strict)
 
 /** Opens a handle to the file linked to in an InnoDB Symbolic Link file
 in read-write mode so that it can be restored from doublewrite and validated.
-@param[in]	read_only_mode	if true, then readonly mode checks are enforced.
+@param[in]	read_only_mode	If true, then readonly mode checks are enforced.
 @return DB_SUCCESS if remote linked tablespace file is found and opened. */
-
 dberr_t
 RemoteDatafile::open_read_write(bool read_only_mode)
 {
-	if (m_filepath == NULL) {
-		read_link_file(name(), &m_link_filepath, &m_filepath);
-
-		if (m_filepath == NULL) {
-			/* There is no remote file */
-			return(DB_ERROR);
-		}
+	if (m_filepath == NULL && open_link_file() == DB_CANNOT_OPEN_FILE) {
+		return(DB_ERROR);
 	}
 
 	dberr_t err = Datafile::open_read_write(read_only_mode);
@@ -863,7 +897,6 @@ RemoteDatafile::open_read_write(bool read_only_mode)
 }
 
 /** Release the resources. */
-
 void
 RemoteDatafile::shutdown()
 {
@@ -875,17 +908,43 @@ RemoteDatafile::shutdown()
 	}
 }
 
+/** Set the link filepath. Use default datadir, the base name of
+the path provided without its suffix, plus DOT_ISL.
+@param[in]	path	filepath which contains a basename to use.
+			If NULL, use m_name as the basename. */
+void
+RemoteDatafile::set_link_filepath(const char* path)
+{
+	if (m_link_filepath != NULL) {
+		return;
+	}
+
+	if (path != NULL && FSP_FLAGS_GET_SHARED(flags())) {
+		/* Make the link_filepath based on the basename. */
+		ut_ad(strcmp(&path[strlen(path) - strlen(DOT_IBD)],
+		      DOT_IBD) == 0);
+
+		m_link_filepath = fil_make_filepath(NULL, base_name(path),
+						    ISL, false);
+	} else {
+		/* Make the link_filepath based on the m_name. */
+		m_link_filepath = fil_make_filepath(NULL, name(), ISL, false);
+	}
+}
+
 /** Creates a new InnoDB Symbolic Link (ISL) file.  It is always created
 under the 'datadir' of MySQL. The datadir is the directory of a
 running mysqld program. We can refer to it by simply using the path ".".
-@param[in] name Tablespace Name
-@param[in] filepath Remote filepath of tablespace datafile
+@param[in]	name		tablespace name
+@param[in]	filepath	remote filepath of tablespace datafile
+@param[in]	is_shared	true for general tablespace,
+				false for file-per-table
 @return DB_SUCCESS or error code */
-
 dberr_t
 RemoteDatafile::create_link_file(
 	const char*	name,
-	const char*	filepath)
+	const char*	filepath,
+	bool		is_shared)
 {
 	os_file_t	file;
 	bool		success;
@@ -893,10 +952,39 @@ RemoteDatafile::create_link_file(
 	char*		link_filepath = NULL;
 	char*		prev_filepath = NULL;
 
-	read_link_file(name, &link_filepath, &prev_filepath);
-
 	ut_ad(!srv_read_only_mode);
+	ut_ad(0 == strcmp(&filepath[strlen(filepath) - 4], DOT_IBD));
 
+	if (is_shared) {
+		/* The default location for a shared tablespace is the
+		datadir. We previously made sure that this filepath is
+		not under the datadir.  If it is in the datadir there
+		is no need for a link file. */
+
+		size_t	len = dirname_length(filepath);
+		if (len == 0) {
+			/* File is in the datadir. */
+			return(DB_SUCCESS);
+		}
+
+		Folder	folder(filepath, len);
+
+		if (folder_mysql_datadir == folder) {
+			/* File is in the datadir. */
+			return(DB_SUCCESS);
+		}
+
+		/* Use the file basename to build the ISL filepath. */
+		link_filepath = fil_make_filepath(NULL, base_name(filepath),
+						  ISL, false);
+	} else {
+		link_filepath = fil_make_filepath(NULL, name, ISL, false);
+	}
+	if (link_filepath == NULL) {
+		return(DB_ERROR);
+	}
+
+	prev_filepath = read_link_file(link_filepath);
 	if (prev_filepath) {
 		/* Truncate will call this with an existing
 		link file which contains the same filepath. */
@@ -908,22 +996,19 @@ RemoteDatafile::create_link_file(
 		}
 	}
 
-	if (link_filepath == NULL) {
-		return(DB_ERROR);
-	}
-
 	file = os_file_create_simple_no_error_handling(
 		innodb_data_file_key, link_filepath,
 		OS_FILE_CREATE, OS_FILE_READ_WRITE,
 		srv_read_only_mode, &success);
 
 	if (!success) {
-		/* The following call will print an error message */
+		/* This call will print its own error message */
 		ulint	error = os_file_get_last_error(true);
+
 		ib::error() << "Cannot create file " << link_filepath << ".";
 
 		if (error == OS_FILE_ALREADY_EXISTS) {
-			ib::error() << "The link file: " << filepath
+			ib::error() << "The link file: " << link_filepath
 				<< " already exists.";
 			err = DB_TABLESPACE_EXISTS;
 
@@ -947,7 +1032,7 @@ RemoteDatafile::create_link_file(
 	request.disable_compression();
 
 	err = os_file_write(
-		request, link_filepath, file, filepath, 0, ::strlen(filepath));
+		request, link_filepath, file, filepath, 0, strlen(filepath));
 
 	/* Close the file, we only need it at startup */
 	os_file_close(file);
@@ -957,9 +1042,20 @@ RemoteDatafile::create_link_file(
 	return(err);
 }
 
-/** Deletes an InnoDB Symbolic Link (ISL) file.
-@param[in] name Tablespace name */
+/** Delete an InnoDB Symbolic Link (ISL) file. */
+void
+RemoteDatafile::delete_link_file(void)
+{
+	ut_ad(m_link_filepath != NULL);
 
+	if (m_link_filepath != NULL) {
+		os_file_delete_if_exists(innodb_data_file_key,
+					 m_link_filepath, NULL);
+	}
+}
+
+/** Delete an InnoDB Symbolic Link (ISL) file by name.
+@param[in]	name	tablespace name */
 void
 RemoteDatafile::delete_link_file(
 	const char*	name)
@@ -974,50 +1070,41 @@ RemoteDatafile::delete_link_file(
 	}
 }
 
-/** Reads an InnoDB Symbolic Link (ISL) file.
-It is always created under the 'datadir' of MySQL.  The name is of the
-form {databasename}/{tablename}. and the isl file is expected to be in a
-'{databasename}' directory called '{tablename}.isl'. The caller must free
-the memory of the null-terminated path returned if it is not null.
-@param[in] name  The tablespace name
-@param[out] link_filepath Filepath of the ISL file
-@param[out] ibd_filepath Filepath of the IBD file read from the ISL file */
-
-void
+/** Read an InnoDB Symbolic Link (ISL) file by name.
+It is always created under the datadir of MySQL.
+For file-per-table tablespaces, the isl file is expected to be
+in a 'database' directory and called 'tablename.isl'.
+For general tablespaces, there will be no 'database' directory.
+The 'basename.isl' will be in the datadir.
+The caller must free the memory returned if it is not null.
+@param[in]	link_filepath	filepath of the ISL file
+@return Filepath of the IBD file read from the ISL file */
+char*
 RemoteDatafile::read_link_file(
-	const char*	name,
-	char**		link_filepath,
-	char**		ibd_filepath)
+	const char*	link_filepath)
 {
-	char*		filepath;
+	char*		filepath = NULL;
 	FILE*		file = NULL;
 
-	*link_filepath = NULL;
-	*ibd_filepath = NULL;
-
-	/* The .isl file is in the 'normal' tablespace location. */
-	*link_filepath = fil_make_filepath(NULL, name, ISL, false);
-	if (*link_filepath == NULL) {
-		return;
+	file = fopen(link_filepath, "r+b");
+	if (file == NULL) {
+		return(NULL);
 	}
 
-	file = fopen(*link_filepath, "r+b");
-	if (file) {
-		filepath = static_cast<char*>(
-			ut_malloc_nokey(OS_FILE_MAX_PATH));
+	filepath = static_cast<char*>(
+		ut_malloc_nokey(OS_FILE_MAX_PATH));
 
-		os_file_read_string(file, filepath, OS_FILE_MAX_PATH);
-		fclose(file);
+	os_file_read_string(file, filepath, OS_FILE_MAX_PATH);
+	fclose(file);
 
-		if (::strlen(filepath)) {
-			/* Trim whitespace from end of filepath */
-			ulint lastch = ::strlen(filepath) - 1;
-			while (lastch > 4 && filepath[lastch] <= 0x20) {
-				filepath[lastch--] = 0x00;
-			}
-			os_normalize_path_for_win(filepath);
+	if (filepath[0] != '\0') {
+		/* Trim whitespace from end of filepath */
+		ulint last_ch = strlen(filepath) - 1;
+		while (last_ch > 4 && filepath[last_ch] <= 0x20) {
+			filepath[last_ch--] = 0x00;
 		}
-
-		*ibd_filepath = filepath;
+		os_normalize_path(filepath);
 	}
+
+	return(filepath);
 }

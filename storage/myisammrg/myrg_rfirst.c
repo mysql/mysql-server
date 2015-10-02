@@ -1,5 +1,4 @@
-/* Copyright (c) 2000, 2001, 2003, 2005-2007 MySQL AB
-   Use is subject to license terms
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +24,7 @@ int myrg_rfirst(MYRG_INFO *info, uchar *buf, int inx)
   int err;
 
   if (_myrg_init_queue(info,inx,HA_READ_KEY_OR_NEXT))
-    return my_errno;
+    return my_errno();
 
   for (table=info->open_tables ; table != info->end_table ; table++)
   {

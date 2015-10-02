@@ -1,0 +1,26 @@
+--source include/not_embedded.inc
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+--source include/master-slave.inc
+--connection master
+
+SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
+
+--echo #
+--echo # WL#8540: Support IF [NOT] EXISTS clause in CREATE/DROP USER
+--echo #
+
+CREATE USER u1@localhost;
+CREATE USER IF NOT EXISTS u1@localhost, u2@localhost;
+ALTER USER IF EXISTS u1@localhost ACCOUNT LOCK;
+DROP USER u1@localhost;
+DROP USER IF EXISTS u2@localhost;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [On Slave]
+--source include/show_binlog_events.inc
+--source include/rpl_end.inc
+
+--echo
+--echo End of 5.7 tests!
+--echo

@@ -270,7 +270,7 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
 
     for (i= 0; i < sp->timecnt; i++)
     {
-      sp->types[i]= (uchar) *p++;
+      sp->types[i]= *p++;
       if (sp->types[i] >= sp->typecnt)
         return 1;
     }
@@ -281,10 +281,10 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
       ttisp= &sp->ttis[i];
       ttisp->tt_gmtoff= int4net(p);
       p+= 4;
-      ttisp->tt_isdst= (uchar) *p++;
+      ttisp->tt_isdst= *p++;
       if (ttisp->tt_isdst != 0 && ttisp->tt_isdst != 1)
         return 1;
-      ttisp->tt_abbrind= (uchar) *p++;
+      ttisp->tt_abbrind= *p++;
       if (ttisp->tt_abbrind > sp->charcnt)
         return 1;
     }
@@ -1635,13 +1635,15 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
 
   /* Init all memory structures that require explicit destruction */
   if (my_hash_init(&tz_names, &my_charset_latin1, 20,
-                   0, 0, (my_hash_get_key) my_tz_names_get_key, 0, 0))
+                   0, 0, (my_hash_get_key) my_tz_names_get_key, 0, 0,
+                   key_memory_tz_storage))
   {
     sql_print_error("Fatal error: OOM while initializing time zones");
     goto end;
   }
   if (my_hash_init(&offset_tzs, &my_charset_latin1, 26, 0, 0,
-                   (my_hash_get_key)my_offset_tzs_get_key, 0, 0))
+                   (my_hash_get_key)my_offset_tzs_get_key, 0, 0,
+                   key_memory_tz_storage))
   {
     sql_print_error("Fatal error: OOM while initializing time zones");
     my_hash_free(&tz_names);

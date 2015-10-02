@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -129,6 +129,7 @@ TEST_F(CostModelTest, CostModelTable)
 {
   const uint rows= 3;
   const double blocks= 4.0;
+  const uint key= 0;
 
   // A table is needed in order to initialize the table cost model
   Fake_TABLE table(1, false);
@@ -142,6 +143,7 @@ TEST_F(CostModelTest, CostModelTable)
   // Create and initialize a cost constant object that will be used
   // for verifying default values for cost constants
   const Server_cost_constants default_server_cost;
+  const SE_cost_constants default_engine_cost;
 
   // Test row evaluate cost
   EXPECT_EQ(cm.row_evaluate_cost(1.0), default_server_cost.row_evaluate_cost());
@@ -154,13 +156,41 @@ TEST_F(CostModelTest, CostModelTable)
             rows * cm.key_compare_cost(1.0));
 
   // Test io block read cost
-  EXPECT_EQ(cm.io_block_read_cost(), 1.0);
+  EXPECT_EQ(cm.io_block_read_cost(1.0),
+            default_engine_cost.io_block_read_cost());
   EXPECT_EQ(cm.io_block_read_cost(blocks),
-            blocks * cm.io_block_read_cost());
+            blocks * cm.io_block_read_cost(1.0));
+
+  // Test page_read_cost() with table in memory buffer
+  EXPECT_EQ(cm.page_read_cost(1.0),
+            default_engine_cost.memory_block_read_cost());
+  EXPECT_EQ(cm.page_read_cost(blocks),
+            blocks * cm.page_read_cost(1.0));
+
+  // Test page_read_cost() with table data on disk
+  table.file->stats.table_in_mem_estimate= 0.0; // Table is on disk
+  EXPECT_EQ(cm.page_read_cost(1.0),
+            default_engine_cost.io_block_read_cost());
+  EXPECT_EQ(cm.page_read_cost(blocks),
+            blocks * cm.page_read_cost(1.0));
+
+  // Test page_read_cost_index() with index data in memory
+  table.key_info[key].set_in_memory_estimate(1.0); // Index is in memory
+  EXPECT_EQ(cm.page_read_cost_index(key, 1.0),
+            default_engine_cost.memory_block_read_cost());
+  EXPECT_EQ(cm.page_read_cost_index(key, blocks),
+            blocks * cm.page_read_cost_index(key, 1.0));
+
+  // Test page_read_oost_index() with index data on disk
+  table.key_info[key].set_in_memory_estimate(0.0); // Index is on disk
+  EXPECT_EQ(cm.page_read_cost_index(key, 1.0),
+            default_engine_cost.io_block_read_cost());
+  EXPECT_EQ(cm.page_read_cost_index(key, blocks),
+            blocks * cm.page_read_cost_index(key, 1.0));
 
   // Test disk seek base cost
   EXPECT_EQ(cm.disk_seek_base_cost(),
-            DISK_SEEK_BASE_COST * cm.io_block_read_cost());
+            DISK_SEEK_BASE_COST * cm.io_block_read_cost(1.0));
 
   // Test disk seek cost
   EXPECT_GT(cm.disk_seek_cost(2.0), cm.disk_seek_cost(1.0));

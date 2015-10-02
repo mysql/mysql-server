@@ -35,6 +35,7 @@
 #include "protocol.h"                       // Protocol
 #include "sp.h"                             // MYSQL_PROC_FIELD_DB
 #include "sp_head.h"                        // sp_head
+#include "sql_audit.h"                      // audit_global_variable_get
 #include "sql_base.h"                       // close_thread_tables
 #include "sql_class.h"                      // THD
 #include "sql_db.h"                         // check_db_dir_existence
@@ -62,6 +63,9 @@
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
+#ifndef EMBEDDED_LIBRARY
+#include "srv_session.h"
+#endif
 
 #include <algorithm>
 #include <functional>
@@ -483,7 +487,8 @@ ignore_db_dirs_process_additions()
                      character_set_filesystem : &my_charset_bin,
                    0, 0, 0, db_dirs_hash_get_key,
                    my_free,
-                   HASH_UNIQUE))
+                   HASH_UNIQUE,
+                   key_memory_ignored_db))
     return true;
 
   /* len starts from 1 because of the terminating zero. */
@@ -626,13 +631,13 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 
   if (!(dirp = my_dir(path,MYF(dir ? MY_WANT_STAT : 0))))
   {
-    if (my_errno == ENOENT)
+    if (my_errno() == ENOENT)
       my_error(ER_BAD_DB_ERROR, MYF(0), db);
     else
     {
       char errbuf[MYSYS_STRERROR_SIZE];
       my_error(ER_CANT_READ_DIR, MYF(0), path,
-               my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+               my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
     }
     DBUG_RETURN(FIND_FILES_DIR);
   }
@@ -644,7 +649,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
     *root_ptr= tmp_mem_root;
   }
 
-  for (i=0 ; i < (uint) dirp->number_off_files  ; i++)
+  for (i=0 ; i < dirp->number_off_files  ; i++)
   {
     char uname[NAME_LEN + 1];                   /* Unencoded name */
     FILEINFO *file;
@@ -1155,68 +1160,14 @@ static const char *require_quotes(const char *name, size_t name_length)
 }
 
 
-/*
-  Quote the given identifier if needed and append it to the target string.
-  If the given identifier is empty, it will be quoted.
-
-  SYNOPSIS
-  append_identifier()
-  thd                   thread handler
-  packet                target string
-  name                  the identifier to be appended
-  name_length           length of the appending identifier
-*/
-
-void
-append_identifier(THD *thd, String *packet, const char *name, size_t length)
-{
-  const char *name_end;
-  char quote_char;
-  int q;
-  q= thd ? get_quote_char_for_identifier(thd, name, length) : '`';
-
-  if (q == EOF)
-  {
-    packet->append(name, length, packet->charset());
-    return;
-  }
-
-  /*
-    The identifier must be quoted as it includes a quote character or
-   it's a keyword
-  */
-
-  (void) packet->reserve(length*2 + 2);
-  quote_char= (char) q;
-  packet->append(&quote_char, 1, system_charset_info);
-
-  for (name_end= name+length ; name < name_end ; name+= length)
-  {
-    uchar chr= (uchar) *name;
-    length= my_mbcharlen(system_charset_info, chr);
-    /*
-      my_mbcharlen can return 0 on a wrong multibyte
-      sequence. It is possible when upgrading from 4.0,
-      and identifier contains some accented characters.
-      The manual says it does not work. So we'll just
-      change length to 1 not to hang in the endless loop.
-    */
-    if (!length)
-      length= 1;
-    if (length == 1 && chr == (uchar) quote_char)
-      packet->append(&quote_char, 1, system_charset_info);
-    packet->append(name, length, system_charset_info);
-  }
-  packet->append(&quote_char, 1, system_charset_info);
-}
-
 /**
-  Convert the given identifier into to_charset if needed
-  and append it to target string.
-  @param thd                   thread handler
-  @param packet                target string
-  @param name                  the identifier to be appended
-  @param length                length of the input identifier
+  Convert and quote the given identifier if needed and append it to the
+  target string. If the given identifier is empty, it will be quoted.
+
+  @thd                         thread handler
+  @packet                      target string
+  @name                        the identifier to be appended
+  @length                      length of the appending identifier
   @param from_cs               Charset information about the input string
   @param to_cs                 Charset information about the target string
 */
@@ -1225,10 +1176,61 @@ void
 append_identifier(THD *thd, String *packet, const char *name, size_t length,
                   const CHARSET_INFO *from_cs, const CHARSET_INFO *to_cs)
 {
-        String to_name(name,length, from_cs);
-        if (from_cs != to_cs)
-            thd->convert_string(&to_name, from_cs, to_cs);
-        append_identifier(thd, packet, to_name.c_ptr(), to_name.length());
+  const char *name_end;
+  char quote_char;
+  int q;
+
+  const CHARSET_INFO *cs_info= system_charset_info;
+  const char *to_name= name;
+  size_t to_length= length;
+  String to_string(name,length, from_cs);
+
+  if (from_cs != NULL && to_cs != NULL && from_cs != to_cs)
+    thd->convert_string(&to_string, from_cs, to_cs);
+
+  if (to_cs != NULL)
+  {
+    to_name= to_string.c_ptr();
+    to_length= to_string.length();
+    cs_info= to_cs;
+  }
+
+  q= thd != NULL ? get_quote_char_for_identifier(thd, to_name, to_length) :
+                   '`';
+
+  if (q == EOF)
+  {
+    packet->append(to_name, to_length, packet->charset());
+    return;
+  }
+
+  /*
+    The identifier must be quoted as it includes a quote character or
+   it's a keyword
+  */
+
+  (void) packet->reserve(to_length*2 + 2);
+  quote_char= (char) q;
+  packet->append(&quote_char, 1, system_charset_info);
+
+  for (name_end= to_name+to_length ; to_name < name_end ; to_name+= to_length)
+  {
+    uchar chr= static_cast<uchar>(*to_name);
+    to_length= my_mbcharlen(cs_info, chr);
+    /*
+      my_mbcharlen can return 0 on a wrong multibyte
+      sequence. It is possible when upgrading from 4.0,
+      and identifier contains some accented characters.
+      The manual says it does not work. So we'll just
+      change length to 1 not to hang in the endless loop.
+    */
+    if (!to_length)
+      to_length= 1;
+    if (to_length == 1 && chr == static_cast<uchar>(quote_char))
+      packet->append(&quote_char, 1, system_charset_info);
+    packet->append(to_name, to_length, system_charset_info);
+  }
+  packet->append(&quote_char, 1, system_charset_info);
 }
 
 /*
@@ -1854,7 +1856,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     }
     if (table->s->compress.length)
     {
-      packet->append(STRING_WITH_LEN(" COMPRESS="));
+      packet->append(STRING_WITH_LEN(" COMPRESSION="));
       append_unescaped(packet, share->compress.str, share->compress.length);
     }
     table->file->append_create_info(packet);
@@ -2090,7 +2092,6 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
   Return info about all processes
   returns for each thread: thread id, user, host, db, command, info
 ****************************************************************************/
-
 class thread_info : public Sql_alloc
 {
 public:
@@ -2172,7 +2173,8 @@ public:
     LEX_CSTRING inspect_sctx_host= inspect_sctx->host();
     LEX_CSTRING inspect_sctx_host_or_ip= inspect_sctx->host_or_ip();
 
-    if ((!inspect_thd->vio_ok() && !inspect_thd->system_thread) ||
+    if ((!inspect_thd->get_protocol()->connection_alive() &&
+         !inspect_thd->system_thread) ||
         (m_user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
                     strcmp(inspect_sctx_user.str, m_user))))
       return;
@@ -2232,14 +2234,31 @@ public:
 
     /* INFO */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_query);
-    if (inspect_thd->query().str)
     {
-      const size_t width= min(m_max_query_length,
-                              inspect_thd->query().length);
-      char *q= m_client_thd->strmake(inspect_thd->query().str, width);
-      /* Safety: in case strmake failed, we set length to 0. */
-      thd_info->query_string=
-        CSET_STRING(q, q ? width : 0, inspect_thd->charset());
+      const char *query_str= inspect_thd->query().str;
+      size_t query_length= inspect_thd->query().length;
+#ifndef EMBEDDED_LIBRARY
+      String buf;
+      if (inspect_thd->is_a_srv_session())
+      {
+        buf.append(query_length? "PLUGIN: ":"PLUGIN");
+
+        if (query_length)
+          buf.append(query_str, query_length);
+
+        query_str= buf.c_ptr();
+        query_length= buf.length();
+      }
+      /* No else. We need fall-through */
+#endif
+      if (query_str)
+      {
+        const size_t width= min<size_t>(m_max_query_length, query_length);
+        const char *q= m_client_thd->strmake(query_str, width);
+        /* Safety: in case strmake failed, we set length to 0. */
+        thd_info->query_string=
+          CSET_STRING(q, q ? width : 0, inspect_thd->charset());
+      }
     }
     mysql_mutex_unlock(&inspect_thd->LOCK_thd_query);
 
@@ -2262,7 +2281,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 
   field_list.push_back(new Item_int(NAME_STRING("Id"),
                                     0, MY_INT64_NUM_DECIMAL_DIGITS));
-  field_list.push_back(new Item_empty_string("User",16));
+  field_list.push_back(new Item_empty_string("User",USERNAME_CHAR_LENGTH));
   field_list.push_back(new Item_empty_string("Host",LIST_PROCESS_HOST_LEN));
   field_list.push_back(field=new Item_empty_string("db",NAME_CHAR_LEN));
   field->maybe_null=1;
@@ -2344,7 +2363,8 @@ public:
       m_client_thd->security_context()->check_access(PROCESS_ACL) ?
         NullS : client_priv_user;
 
-    if ((!inspect_thd->vio_ok() && !inspect_thd->system_thread) ||
+    if ((!inspect_thd->get_protocol()->connection_alive() &&
+         !inspect_thd->system_thread) ||
         (user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
                   strcmp(inspect_sctx_user.str, user))))
       return;
@@ -2419,13 +2439,29 @@ public:
 
     /* INFO */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_query);
-    if (inspect_thd->query().str)
     {
-      const size_t width= min<size_t>(PROCESS_LIST_INFO_WIDTH,
-                                      inspect_thd->query().length);
-      table->field[7]->store(inspect_thd->query().str, width,
-                             inspect_thd->charset());
-      table->field[7]->set_notnull();
+      const char *query_str= inspect_thd->query().str;
+      size_t query_length= inspect_thd->query().length;
+#ifndef EMBEDDED_LIBRARY
+      String buf;
+      if (inspect_thd->is_a_srv_session())
+      {
+        buf.append(query_length? "PLUGIN: ":"PLUGIN");
+
+        if (query_length)
+          buf.append(query_str, query_length);
+
+        query_str= buf.c_ptr();
+        query_length= buf.length();
+      }
+      /* No else. We need fall-through */
+#endif
+      if (query_str)
+      {
+        const size_t width= min<size_t>(PROCESS_LIST_INFO_WIDTH, query_length);
+        table->field[7]->store(query_str, width, inspect_thd->charset());
+        table->field[7]->set_notnull();
+      }
     }
     mysql_mutex_unlock(&inspect_thd->LOCK_thd_query);
 
@@ -2696,17 +2732,17 @@ inline void make_upper(char *buf)
 /**
   @brief Returns the value of a system or a status variable.
 
-  @param thd        [IN]    The thd handle.
-  @param variable   [IN]    Details of the variable.
-  @param value_type [IN]    Variable type.
-  @param show_type  [IN]    Variable show type.
-  @param charset    [OUT]   Character set of the value.
-  @param buff       [INOUT] Buffer to store the value.
-                            (Needs to have enough memory
-			     to hold the value of variable.)
-  @param length     [OUT]   Length of the value.
+  @param thd        [in]     The handle of the current THD.
+  @param variable   [in]     Details of the variable.
+  @param value_type [in]     Variable type.
+  @param show_type  [in]     Variable show type.
+  @param charset    [out]    Character set of the value.
+  @param buff       [in,out] Buffer to store the value.
+                             (Needs to have enough memory
+                             to hold the value of variable.)
+  @param length     [out]    Length of the value.
 
-  @return                   Pointer to the value buffer.
+  @return                    Pointer to the value buffer.
 */
 
 const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
@@ -2714,6 +2750,34 @@ const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
                              system_status_var *status_var,
                              const CHARSET_INFO **charset, char *buff,
                              size_t *length)
+{
+  return get_one_variable_ext(thd, thd, variable, value_type, show_type,
+                              status_var, charset, buff, length);
+}
+
+/**
+  @brief Returns the value of a system or a status variable.
+
+  @param running_thd [in]     The handle of the current THD.
+  @param target_thd  [in]     The handle of the remote THD.
+  @param variable    [in]     Details of the variable.
+  @param value_type  [in]     Variable type.
+  @param show_type   [in]     Variable show type.
+  @param charset     [out]    Character set of the value.
+  @param buff        [in,out] Buffer to store the value.
+                              (Needs to have enough memory
+                              to hold the value of variable.)
+  @param length      [out]    Length of the value.
+
+  @return                     Pointer to the value buffer.
+*/
+
+const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
+                                 const SHOW_VAR *variable,
+                                 enum_var_type value_type, SHOW_TYPE show_type,
+                                 system_status_var *status_var,
+                                 const CHARSET_INFO **charset, char *buff,
+                                 size_t *length)
 {
   const char *value;
 
@@ -2724,8 +2788,8 @@ const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
     null_lex_str.length= 0;
     sys_var *var= ((sys_var *) variable->value);
     show_type= var->show_type();
-    value= (char*) var->value_ptr(current_thd, thd, value_type, &null_lex_str);
-    *charset= var->charset(thd);
+    value= (char*) var->value_ptr(running_thd, target_thd, value_type, &null_lex_str);
+    *charset= var->charset(running_thd);
   }
   else
   {
@@ -2922,6 +2986,17 @@ static bool show_status_array(THD *thd, const char *wild,
           res= TRUE;
           goto end;
         }
+
+#ifndef EMBEDDED_LIBRARY
+        if (variables->type != SHOW_FUNC && value_type == OPT_GLOBAL &&
+            mysql_audit_notify(thd,
+                               AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_GET),
+                               var->name, pos, length))
+        {
+          res= TRUE;
+          goto end;
+        }
+#endif
       }
     }
   }
@@ -2941,7 +3016,7 @@ public:
   virtual void operator()(THD *thd)
   {
     if (!thd->status_var_aggregated)
-      add_to_status(m_stat_var, &thd->status_var, true, false);
+      add_to_status(m_stat_var, &thd->status_var, false);
   }
 private:
   /* Status of all threads are summed into this. */
@@ -3645,14 +3720,15 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
   @retval TRUE  - Failure.
 */
 static bool
-fill_schema_table_by_open(THD *thd, bool is_show_fields_or_keys,
+fill_schema_table_by_open(THD *thd, MEM_ROOT *mem_root, 
+                          bool is_show_fields_or_keys,
                           TABLE *table, ST_SCHEMA_TABLE *schema_table,
                           LEX_STRING *orig_db_name,
                           LEX_STRING *orig_table_name,
                           Open_tables_backup *open_tables_state_backup,
                           bool can_deadlock)
 {
-  Query_arena i_s_arena(thd->mem_root,
+  Query_arena i_s_arena(mem_root,
                         Query_arena::STMT_CONVENTIONAL_EXECUTION),
               backup_arena, *old_arena;
   LEX *old_lex= thd->lex, temp_lex, *lex;
@@ -4266,6 +4342,23 @@ public:
   }
 };
 
+class Silence_deprecation_no_replacement_warnings : public Internal_error_handler
+{
+public:
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+  {
+    if (sql_errno == ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT)
+      return true;
+
+    return false;
+  }
+};
+
+
 
 
 /**
@@ -4352,7 +4445,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
     table_name.str= const_cast<char*>(lsel->table_list.first->table_name);
     table_name.length= lsel->table_list.first->table_name_length;
 
-    error= fill_schema_table_by_open(thd, TRUE,
+    error= fill_schema_table_by_open(thd, &tmp_mem_root, TRUE,
                                      table, schema_table,
                                      &db_name, &table_name,
                                      &open_tables_state_backup,
@@ -4494,7 +4587,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
 
             DEBUG_SYNC(thd, "before_open_in_get_all_tables");
 
-            if (fill_schema_table_by_open(thd, FALSE,
+            if (fill_schema_table_by_open(thd, &tmp_mem_root, FALSE,
                                           table, schema_table,
                                           db_name, table_name,
                                           &open_tables_state_backup,
@@ -4764,7 +4857,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
       /* In the .frm file this option has a max length of 2K. Currently,
       InnoDB uses only the first 5 bytes and the only supported values
       are (ZLIB | LZ4 | NONE). */
-      ptr= my_stpcpy(ptr, " COMPRESS=\"");
+      ptr= my_stpcpy(ptr, " COMPRESSION=\"");
       ptr= strxnmov(ptr, 7, share->compress.str, NullS);
       ptr= my_stpcpy(ptr, "\"");
     }
@@ -4963,7 +5056,7 @@ void store_column_type(THD *thd, TABLE *table, Field *field, CHARSET_INFO *cs,
       field->real_type() == MYSQL_TYPE_STRING)     // For binary type
   {
     uint32 octet_max_length= field->max_display_length();
-    if (is_blob && octet_max_length != (uint32) 4294967295U)
+    if (is_blob && octet_max_length != 4294967295U)
       octet_max_length /= field->charset()->mbmaxlen;
     longlong char_max_len= is_blob ? 
       (longlong) octet_max_length / field->charset()->mbminlen :
@@ -5704,6 +5797,8 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
   Open_tables_backup open_tables_state_backup;
   enum enum_schema_tables schema_table_idx=
     get_schema_table_idx(tables->schema_table);
+  sql_mode_t old_sql_mode= thd->variables.sql_mode;
+
   DBUG_ENTER("fill_schema_proc");
 
   strxmov(definer, thd->security_context()->priv_user().str, "@",
@@ -5721,6 +5816,9 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
   {
     DBUG_RETURN(1);
   }
+
+  thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
+
   if ((error= proc_table->file->ha_index_init(0, 1)))
   {
     proc_table->file->print_error(error, MYF(0));
@@ -5756,6 +5854,7 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
 err:
   if (proc_table->file->inited)
     (void) proc_table->file->ha_index_end();
+  thd->variables.sql_mode= old_sql_mode;
   close_nontrans_system_tables(thd, &open_tables_state_backup);
   DBUG_RETURN(res);
 }
@@ -6215,7 +6314,7 @@ void store_key_column_usage(TABLE *table, LEX_STRING *db_name,
   table->field[4]->store(db_name->str, db_name->length, cs);
   table->field[5]->store(table_name->str, table_name->length, cs);
   table->field[6]->store(con_type, con_len, cs);
-  table->field[7]->store((longlong) idx, TRUE);
+  table->field[7]->store(idx, TRUE);
 }
 
 
@@ -6662,7 +6761,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
         else
         {
           if (part_elem->range_value != LLONG_MAX)
-            table->field[11]->store((longlong) part_elem->range_value, FALSE);
+            table->field[11]->store(part_elem->range_value, FALSE);
           else
             table->field[11]->store(partition_keywords[PKW_MAXVALUE].str,
                                  partition_keywords[PKW_MAXVALUE].length, cs);
@@ -6984,6 +7083,25 @@ void push_select_warning(THD *thd, enum enum_var_type option_type, bool status)
                       old_name, new_name);
 }
 
+/**
+  Issue an error for SELECT commands for status and system variables.
+*/
+void push_select_error(THD *thd, enum enum_var_type option_type, bool status)
+{
+  const char *old_name;
+  const char *doc= "show_compatibility_56";
+  if (option_type == OPT_GLOBAL)
+  {
+    old_name= (status ? "INFORMATION_SCHEMA.GLOBAL_STATUS" : "INFORMATION_SCHEMA.GLOBAL_VARIABLES");
+  }
+  else
+  {
+    old_name= (status ? "INFORMATION_SCHEMA.SESSION_STATUS" : "INFORMATION_SCHEMA.SESSION_VARIABLES");
+  }
+
+  thd->raise_error_printf(ER_FEATURE_DISABLED_SEE_DOC, old_name, doc);
+}
+
 int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_variables");
@@ -7013,30 +7131,39 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
   }
 
 #ifndef EMBEDDED_LIBRARY
-  /* Issue deprecation warning. */
+  /* I_S: Raise error with SHOW_COMPATIBILITY_56=OFF */
+  if (! show_compatibility_56)
+  {
+    push_select_error(thd, option_type, false);
+    DBUG_RETURN(1);
+  }
+  /* I_S: Raise deprecation warning with SHOW_COMPATIBILITY_56=ON */
   if (lex->sql_command != SQLCOM_SHOW_VARIABLES)
   {
     push_select_warning(thd, option_type, false);
   }
-  if (!show_compatibility_56)
-    DBUG_RETURN(res);
 #endif /* EMBEDDED_LIBRARY */
 
 
   /*
-    Some system variables, for example sql_log_bin,
-    have special behavior because of deprecation.
-    - SELECT @@global.sql_log_bin
+    Some system variables, for example sql_log_bin
+    and gtid_executed, have special behavior because
+    of deprecation.
+    - SELECT @@global.sql_log_bin and
+      SELECT @@session.gtid_executed
       MUST print a deprecation warning,
       because such usage needs to be abandoned.
     - SELECT * from INFORMATION_SCHEMA.GLOBAL_VARIABLES
+      and SELECT * from INFORMATION_SCHEMA.SESSION_VARIABLES
       MUST NOT print a deprecation warning,
       since the application may not be looking for
-      the 'sql_log_bin' row anyway,
+      the 'sql_log_bin' or the 'gtid_executed' row anyway,
       and we do not want to create spurious warning noise.
   */
   Silence_deprecation_warnings silencer;
+  Silence_deprecation_no_replacement_warnings silencer_no_replacement;
   thd->push_internal_handler(&silencer);
+  thd->push_internal_handler(&silencer_no_replacement);
 
   /*
     Lock LOCK_plugin_delete to avoid deletion of any plugins while creating
@@ -7061,6 +7188,7 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
     mysql_mutex_unlock(&LOCK_plugin_delete);
   }
 
+  thd->pop_internal_handler();
   thd->pop_internal_handler();
 
   DBUG_RETURN(res);
@@ -7102,7 +7230,13 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
   }
 
 #ifndef EMBEDDED_LIBRARY
-  /* Issue deprecation warning. */
+  /* I_S: Raise error with SHOW_COMPATIBILITY_56=OFF */
+  if (! show_compatibility_56)
+  {
+    push_select_error(thd, option_type, true);
+    DBUG_RETURN(1);
+  }
+  /* I_S: Raise deprecation warning with SHOW_COMPATIBILITY_56=ON */
   if (lex->sql_command != SQLCOM_SHOW_STATUS)
   {
     push_select_warning(thd, option_type, true);
@@ -7425,7 +7559,7 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
     DBUG_RETURN(0);
   my_bitmap_map* bitmaps=
     (my_bitmap_map*) thd->alloc(bitmap_buffer_size(field_count));
-  bitmap_init(&table->def_read_set, (my_bitmap_map*) bitmaps, field_count,
+  bitmap_init(&table->def_read_set, bitmaps, field_count,
               FALSE);
   table->read_set= &table->def_read_set;
   bitmap_clear_all(table->read_set);
@@ -8461,7 +8595,7 @@ ST_FIELD_INFO variables_fields_info[]=
 ST_FIELD_INFO processlist_fields_info[]=
 {
   {"ID", 21, MYSQL_TYPE_LONGLONG, 0, MY_I_S_UNSIGNED, "Id", SKIP_OPEN_TABLE},
-  {"USER", 16, MYSQL_TYPE_STRING, 0, 0, "User", SKIP_OPEN_TABLE},
+  {"USER", USERNAME_CHAR_LENGTH, MYSQL_TYPE_STRING, 0, 0, "User", SKIP_OPEN_TABLE},
   {"HOST", LIST_PROCESS_HOST_LEN,  MYSQL_TYPE_STRING, 0, 0, "Host",
    SKIP_OPEN_TABLE},
   {"DB", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, "Db", SKIP_OPEN_TABLE},
@@ -8997,8 +9131,8 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
                   MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))
   {
     my_error(ER_TRG_CANT_OPEN_TABLE, MYF(0),
-             (const char *) trg_name->m_db.str,
-             (const char *) lst->table_name);
+             trg_name->m_db.str,
+             lst->table_name);
 
     goto exit;
 
@@ -9018,8 +9152,8 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
   if (!trigger)
   {
     my_error(ER_TRG_CORRUPTED_FILE, MYF(0),
-             (const char *) trg_name->m_db.str,
-             (const char *) lst->table_name);
+             trg_name->m_db.str,
+             lst->table_name);
 
     goto exit;
   }

@@ -141,8 +141,6 @@ trx_init(
 
 	trx->lock.n_rec_locks = 0;
 
-	trx->search_latch_timeout = BTR_SEA_TIMEOUT;
-
 	trx->dict_operation = TRX_DICT_OP_NONE;
 
 	trx->table_id = 0;
@@ -150,8 +148,6 @@ trx_init(
 	trx->error_state = DB_SUCCESS;
 
 	trx->error_key_num = ULINT_UNDEFINED;
-
-	trx->last_upd_sp_index = NULL;
 
 	trx->undo_no = 0;
 
@@ -253,8 +249,8 @@ struct TrxFactory {
 			trx->trx_savepoints,
 			&trx_named_savept_t::trx_savepoints);
 
-		mutex_create("trx", &trx->mutex);
-		mutex_create("trx_undo", &trx->undo_mutex);
+		mutex_create(LATCH_ID_TRX, &trx->mutex);
+		mutex_create(LATCH_ID_TRX_UNDO, &trx->undo_mutex);
 
 		lock_trx_alloc_locks(trx);
 	}
@@ -367,7 +363,7 @@ struct TrxPoolLock {
 	/** Create the mutex */
 	void create()
 	{
-		mutex_create("trx_pool", &m_mutex);
+		mutex_create(LATCH_ID_TRX_POOL, &m_mutex);
 	}
 
 	/** Acquire the mutex */
@@ -390,7 +386,7 @@ struct TrxPoolManagerLock {
 	/** Create the mutex */
 	void create()
 	{
-		mutex_create("trx_pool_manager", &m_mutex);
+		mutex_create(LATCH_ID_TRX_POOL_MANAGER, &m_mutex);
 	}
 
 	/** Acquire the mutex */
@@ -1859,29 +1855,49 @@ trx_update_mod_tables_timestamp(
 }
 
 /**
-Erase the transaction from the write set.
+Erase the transaction from running transaction lists and serialization
+list. Active RW transaction list of a MVCC snapshot(ReadView::prepare)
+won't include this transaction after this call. All implicit locks are
+also released by this call as trx is removed from rw_trx_list.
 @param[in] trx		Transaction to erase, must have an ID > 0
 @param[in] serialised	true if serialisation log was written */
 static
 void
-trx_erase_from_write_set(trx_t* trx, bool serialised)
+trx_erase_lists(
+	trx_t*	trx,
+	bool	serialised)
 {
-	ut_ad(trx_sys_mutex_own());
+	ut_ad(trx->id > 0);
+	trx_sys_mutex_enter();
 
 	if (serialised) {
 		UT_LIST_REMOVE(trx_sys->serialisation_list, trx);
 	}
 
-	trx_sys->rw_trx_set.erase(TrxTrack(trx->id));
-
 	trx_ids_t::iterator	it = std::lower_bound(
 		trx_sys->rw_trx_ids.begin(),
 		trx_sys->rw_trx_ids.end(),
 		trx->id);
-
 	ut_ad(*it == trx->id);
-
 	trx_sys->rw_trx_ids.erase(it);
+
+	if (trx->read_only || trx->rsegs.m_redo.rseg == NULL) {
+
+		ut_ad(!trx->in_rw_trx_list);
+	} else {
+
+		UT_LIST_REMOVE(trx_sys->rw_trx_list, trx);
+		ut_d(trx->in_rw_trx_list = false);
+		ut_ad(trx_sys_validate_trx_list());
+
+		if (trx->read_view != NULL) {
+			trx_sys->mvcc->view_close(trx->read_view, true);
+		}
+	}
+
+	trx_sys->rw_trx_set.erase(TrxTrack(trx->id));
+
+	trx_sys_mutex_exit();
 }
 
 /****************************************************************//**
@@ -1938,57 +1954,32 @@ trx_commit_in_memory(
 
 	} else {
 
+		if (trx->id > 0) {
+			/* For consistent snapshot, we need to remove current
+			transaction from running transaction id list for mvcc
+			before doing commit and releasing locks. */
+			trx_erase_lists(trx, serialised);
+		}
+
 		lock_trx_release_locks(trx);
 
 		/* Remove the transaction from the list of active
 		transactions now that it no longer holds any user locks. */
 
 		ut_ad(trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
+		DEBUG_SYNC_C("after_trx_committed_in_memory");
 
-		if (trx->read_only || trx->rsegs.m_redo.rseg == 0) {
-
-			ut_ad(!trx->in_rw_trx_list);
+		if (trx->read_only || trx->rsegs.m_redo.rseg == NULL) {
 
 			MONITOR_INC(MONITOR_TRX_RO_COMMIT);
-
 			if (trx->read_view != NULL) {
 				trx_sys->mvcc->view_close(
 					trx->read_view, false);
 			}
 
-			/* Only RO transactions that write to temporary tables
-			are assigned a transaction ID. */
-			if (trx->id > 0) {
-				trx_sys_mutex_enter();
-
-				trx_erase_from_write_set(trx, serialised);
-
-				trx_sys_mutex_exit();
-			}
-
 		} else {
-
 			ut_ad(trx->id > 0);
-
-			trx_sys_mutex_enter();
-
-			check_trx_state(trx);
-
-			UT_LIST_REMOVE(trx_sys->rw_trx_list, trx);
-
-			ut_d(trx->in_rw_trx_list = false);
-
 			MONITOR_INC(MONITOR_TRX_RW_COMMIT);
-
-			ut_ad(trx_sys_validate_trx_list());
-
-			if (trx->read_view != NULL) {
-				trx_sys->mvcc->view_close(trx->read_view, true);
-			}
-
-			trx_erase_from_write_set(trx, serialised);
-
-			trx_sys_mutex_exit();
 		}
 	}
 
@@ -2188,6 +2179,7 @@ trx_commit_low(
 		DEBUG_SYNC_C("before_trx_state_committed_in_memory");
 	}
 #endif
+
 	trx_commit_in_memory(trx, mtr, serialised);
 }
 
@@ -3275,6 +3267,8 @@ trx_kill_blocking(trx_t* trx)
 	if (trx->hit_list.empty()) {
 		return;
 	}
+
+	DEBUG_SYNC_C("trx_kill_blocking_enter");
 
 	ulint	had_dict_lock = trx->dict_operation_lock_mode;
 

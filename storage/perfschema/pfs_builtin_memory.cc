@@ -104,8 +104,8 @@ PFS_builtin_memory_class builtin_memory_scalable_buffer;
 static void init_builtin_memory_class(PFS_builtin_memory_class *klass, const char* name)
 {
   klass->m_class.m_type= PFS_CLASS_MEMORY;
-  klass->m_class.m_enabled= true; // FIXME: config from my.cnf ?
-  klass->m_class.m_timed= false;
+  klass->m_class.m_enabled= true; /* Immutable */
+  klass->m_class.m_timed= false; /* Immutable */
   klass->m_class.m_flags= PSI_FLAG_GLOBAL;
   klass->m_class.m_event_name_index= 0;
   strncpy(klass->m_class.m_name, name, sizeof(klass->m_class.m_name));

@@ -2264,12 +2264,13 @@ use `test`/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
 SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
+SET @@session.explicit_defaults_for_timestamp=0/*!*/;
 CREATE TABLE t1 (
 c01 BIT,
 c02 BIT(64),
@@ -3818,12 +3819,11 @@ BEGIN
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Rotate to master-bin.000002  pos: 4
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 #
@@ -3927,7 +3927,7 @@ use `test`/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
 SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=8/*!*/;
@@ -4127,12 +4127,11 @@ BEGIN
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Rotate to master-bin.000002  pos: 4
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 #
@@ -4324,7 +4323,7 @@ use `test`/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
 SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=8/*!*/;
@@ -4862,12 +4861,11 @@ BEGIN
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Rotate to master-bin.000002  pos: 4
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 #
@@ -4939,7 +4937,7 @@ use `test`/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
 SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=8/*!*/;
@@ -4981,12 +4979,11 @@ BEGIN
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Rotate to master-bin.000002  pos: 4
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 #

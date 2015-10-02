@@ -77,7 +77,8 @@ table_setup_objects::m_share=
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 int update_derived_flags()

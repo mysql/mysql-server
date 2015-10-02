@@ -2398,3 +2398,131 @@ FROM (SELECT b FROM t1 WHERE a) AS dt1
      NATURAL JOIN t1 AS t3;
 
 DROP TABLE t1, t2;
+
+--echo # Bug#21512842: Sig 11 in check_column_grant_in_table_ref
+
+CREATE TABLE t1 (
+ pk INTEGER,
+ col_varchar JSON NOT NULL,
+ PRIMARY KEY (pk)
+);
+
+CREATE TABLE t2 (
+ pk INTEGER,
+ col_date_key DATE NOT NULL,
+ PRIMARY KEY (pk)
+);
+
+set sql_mode='';
+SELECT *
+FROM (SELECT alias2.pk AS field1
+      FROM t1 AS alias1
+           LEFT OUTER JOIN t2 AS alias2
+           ON JSON_UNQUOTE(JSON_EXTRACT(alias1.col_varchar,'$.varc'))
+              COLLATE utf8mb4_general_ci = alias2.col_date_key
+      GROUP BY JSON_QUOTE(JSON_EXTRACT(field1,'$.intc'))
+     ) AS dt;
+set sql_mode=default;
+
+DROP TABLE t1, t2;
+
+--echo # Bug#21350125: Wrong results when ORDER BY is removed
+
+CREATE TABLE t1 (
+  c1n varchar(1) NOT NULL,
+  c1k varchar(2) DEFAULT NULL,
+  KEY c1k (c1k)
+);
+
+INSERT INTO t1 VALUES ('j','jj'),('r','rr');
+
+CREATE TABLE t2 (
+  c2k varchar(1) NOT NULL,
+  c2n varchar(2) DEFAULT NULL,
+  KEY c2k (c2k)
+);
+
+INSERT INTO t2 VALUES
+('f','ff'),('t','tt'),('c','cc'),('c','cc'),('r','rr'),('k','kk');
+
+CREATE TABLE empty (dummy INTEGER);
+
+CREATE VIEW vr AS
+SELECT t2.c2n AS v_field
+FROM t1 RIGHT JOIN t2
+     ON t2.c2k = t1.c1k;
+
+CREATE VIEW vl AS
+SELECT t2.c2n AS v_field
+FROM t2 LEFT JOIN t1
+     ON t2.c2k = t1.c1k;
+
+# Check with derived tables, and that LEFT JOIN and RIGHT JOIN are equivalent.
+# Check prepared statements too.
+
+let $query=
+SELECT alias1.dt_field AS field1
+FROM (SELECT t2.c2n AS dt_field
+      FROM t1 RIGHT JOIN t2
+           ON t2.c2k = t1.c1k
+     ) AS alias1
+     RIGHT JOIN t2 AS alias2
+     ON alias2.c2n = alias1.dt_field;
+
+eval $query;
+eval prepare s from '$query';
+
+execute s;
+deallocate prepare s;
+
+let $query=
+SELECT alias1.dt_field AS field1
+FROM (SELECT t2.c2n AS dt_field
+      FROM t2 LEFT JOIN t1
+           ON t2.c2k = t1.c1k
+     ) AS alias1
+     RIGHT JOIN t2 AS alias2
+     ON alias2.c2n = alias1.dt_field;
+
+eval $query;
+eval prepare s from '$query';
+
+execute s;
+deallocate prepare s;
+
+# Check that use of views give same result as derived tables.
+
+SELECT alias1.v_field AS field1
+FROM vl AS alias1
+     RIGHT JOIN t2 AS alias2
+     ON alias2.c2n = alias1.v_field;
+
+SELECT alias1.v_field AS field1
+FROM vr AS alias1
+     RIGHT JOIN t2 AS alias2
+     ON alias2.c2n = alias1.v_field;
+
+# Check more complicated join nests
+
+SELECT alias1.dt_field AS field1
+FROM (SELECT t2.c2n AS dt_field
+      FROM t1 RIGHT JOIN
+             (empty RIGHT JOIN t2
+              ON TRUE)
+           ON t2.c2k = t1.c1k
+     ) AS alias1
+     RIGHT JOIN t2 AS alias2
+     ON alias2.c2n = alias1.dt_field;
+
+SELECT alias1.dt_field AS field1
+FROM (SELECT t2.c2n AS dt_field
+      FROM t1 RIGHT JOIN
+             (t2 LEFT JOIN empty
+              ON TRUE)
+           ON t2.c2k = t1.c1k
+     ) AS alias1
+     RIGHT JOIN t2 AS alias2
+     ON alias2.c2n = alias1.dt_field;
+
+DROP VIEW vl, vr;
+DROP TABLE t1, t2, empty;

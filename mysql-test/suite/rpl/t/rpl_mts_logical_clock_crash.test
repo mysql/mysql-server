@@ -72,7 +72,7 @@ LOCK TABLE t1 WRITE;
 # Wait unti coordinator enters the wait status.
 --let $show_statement= SHOW PROCESSLIST
 --let $field= State
---let $condition= = 'Waiting for slave workers to finish.'
+--let $condition= = 'Waiting for slave workers to process their queues'
 --source include/wait_show_condition.inc
 
 # Release metadata lock on t1, so workers can go ahead.
