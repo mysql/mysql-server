@@ -145,6 +145,8 @@ select count(*) from t1 where b is null;
 count(*)
 0
 drop table t1;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 create table t1 (
 a int primary key,
 b timestamp not null default '0000-00-00 00:00:00',
