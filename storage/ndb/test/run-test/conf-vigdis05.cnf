@@ -60,7 +60,6 @@ TimeBetweenWatchDogCheckInitial=60000
 ndb_mgmd = CHOOSE_host1
 ndbd = CHOOSE_host2,CHOOSE_host3
 ndbapi= CHOOSE_host1,CHOOSE_host1,CHOOSE_host1
-mysqld = CHOOSE_host1
 Checksum=1
 
 NoOfReplicas = 2
