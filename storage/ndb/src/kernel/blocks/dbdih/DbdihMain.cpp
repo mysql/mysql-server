@@ -12010,9 +12010,10 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
       while (replicaPtr.i != RNIL)
       {
         ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
-        g_eventLogger->info("frag %u, replica %u, node %u, lastCompletedGCI %u, replicaLastGci %u",
+        g_eventLogger->info("frag %u, replica %u, node %u, lastCompletedGCI %u, replicaLastGci %u,%u",
           fragPtr.i, replicaPtr.i, replicaPtr.p->procNode,
-          SYSFILE->lastCompletedGCI[replicaPtr.p->procNode], replicaPtr.p->replicaLastGci);
+          SYSFILE->lastCompletedGCI[replicaPtr.p->procNode],
+          replicaPtr.p->replicaLastGci[0], replicaPtr.p->replicaLastGci[1]);
         replicaPtr.i = replicaPtr.p->nextReplica;
       }
 #endif
