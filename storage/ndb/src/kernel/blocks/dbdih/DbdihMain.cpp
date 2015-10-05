@@ -16446,6 +16446,9 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
 	    else
 	    {
 	      jam();
+	      g_eventLogger->info("Forcing take-over of node %d due to unsufficient REDO"
+			" for table %d fragment: %d",
+			nodePtr.i, tabPtr.i, i);
 	      infoEvent("Forcing take-over of node %d due to unsufficient REDO"
 			" for table %d fragment: %d",
 			nodePtr.i, tabPtr.i, i);
@@ -16468,6 +16471,20 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
     if (fragPtr.p->storedReplicas == RNIL)
     {
       // This should have been caught in Dbdih::execDIH_RESTARTREQ
+#ifdef ERROR_INSERT
+      // Extra printouts for debugging
+      g_eventLogger->info("newestRestorableGCI %u", newestRestorableGCI);
+      ReplicaRecordPtr replicaPtr;
+      replicaPtr.i = fragPtr.p->oldStoredReplicas;
+      while (replicaPtr.i != RNIL)
+      {
+        ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
+        g_eventLogger->info("frag %u, replica %u, node %u, lastCompletedGCI %u, replicaLastGci %u",
+          fragPtr.i, replicaPtr.i, replicaPtr.p->procNode,
+          SYSFILE->lastCompletedGCI[replicaPtr.p->procNode], replicaPtr.p->replicaLastGci);
+        replicaPtr.i = replicaPtr.p->nextReplica;
+      }
+#endif
       char buf[255];
       BaseString::snprintf
         (buf, sizeof(buf),
