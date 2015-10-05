@@ -2164,12 +2164,6 @@ dict_table_remove_from_cache_low(
 		trx_free_for_background(trx);
 	}
 
-	/* Free virtual column template if any */
-	if (table->vc_templ != NULL) {
-		dict_free_vc_templ(table->vc_templ);
-		UT_DELETE(table->vc_templ);
-	}
-
 	size = mem_heap_get_size(table->heap) + strlen(table->name.m_name) + 1;
 
 	ut_ad(dict_sys->size >= size);

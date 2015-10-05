@@ -72,7 +72,8 @@ Ha_innopart_share::Ha_innopart_share(
 	m_tot_parts(),
 	m_index_count(),
 	m_ref_count(),
-	m_table_share(table_share)
+	m_table_share(table_share),
+	m_s_templ()
 {}
 
 Ha_innopart_share::~Ha_innopart_share()
@@ -85,6 +86,11 @@ Ha_innopart_share::~Ha_innopart_share()
 	if (m_index_mapping != NULL) {
 		ut_free(m_index_mapping);
 		m_index_mapping = NULL;
+	}
+	if (m_s_templ != NULL) {
+		free_vc_templ(m_s_templ);
+		ut_free(m_s_templ);
+		m_s_templ = NULL;
 	}
 }
 
@@ -214,20 +220,18 @@ Ha_innopart_share::set_v_templ(
 #endif /* DBUG_OFF */
 
 	if (ib_table->n_v_cols > 0) {
-		for (ulint i = 0; i < m_tot_parts; i++) {
-			if (m_table_parts[i]->vc_templ != NULL) {
-				/* Clean and refresh the template */
-				dict_free_vc_templ(m_table_parts[i]->vc_templ);
-			} else {
-				m_table_parts[i]->vc_templ
-					= UT_NEW_NOKEY(dict_vcol_templ_t());
-			}
-
+		if (!m_s_templ) {
+			m_s_templ = static_cast<innodb_col_templ_t*>(
+				ut_zalloc_nokey( sizeof *m_s_templ));
 			innobase_build_v_templ(table, ib_table,
-					       m_table_parts[i]->vc_templ,
-					       NULL, false, name);
+					       m_s_templ, NULL, false, name);
 
+			for (ulint i = 0; i < m_tot_parts; i++) {
+				m_table_parts[i]->vc_templ = m_s_templ;
+			}
 		}
+	} else {
+		ut_ad(!m_s_templ);
 	}
 }
 
@@ -445,6 +449,12 @@ Ha_innopart_share::close_table_parts()
 	if (m_index_mapping != NULL) {
 		ut_free(m_index_mapping);
 		m_index_mapping = NULL;
+	}
+
+	if (m_s_templ != NULL) {
+		free_vc_templ(m_s_templ);
+		ut_free(m_s_templ);
+		m_s_templ = NULL;
 	}
 
 	m_tot_parts = 0;
