@@ -790,20 +790,20 @@ struct TABLE_SHARE
     set_table_cache_key(key_buff, key_length);
   }
 
-  inline bool honor_global_locks()
+  bool honor_global_locks() const
   {
     return ((table_category == TABLE_CATEGORY_USER)
             || (table_category == TABLE_CATEGORY_SYSTEM));
   }
 
-  inline ulonglong get_table_def_version()
+  ulonglong get_table_def_version() const
   {
     return table_map_id;
   }
 
 
   /** Is this table share being expelled from the table definition cache?  */
-  inline bool has_old_version() const
+  bool has_old_version() const
   {
     return version != refresh_version;
   }
@@ -886,6 +886,13 @@ struct TABLE_SHARE
     return (tmp_table == SYSTEM_TMP_TABLE) ? 0 : table_map_id.id();
   }
 
+  /** Determine if the table is missing a PRIMARY KEY. */
+  bool is_missing_primary_key() const
+  {
+    DBUG_ASSERT(primary_key <= MAX_KEY);
+    return primary_key == MAX_KEY;
+  }
+
   bool visit_subgraph(Wait_for_flush *waiting_ticket,
                       MDL_wait_for_graph_visitor *gvisitor);
 
@@ -938,7 +945,7 @@ public:
   {
     truncated_value= is_truncated_value;
   }
-  bool is_truncated_value() { return truncated_value; }
+  bool is_truncated_value() const { return truncated_value; }
 };
 
 

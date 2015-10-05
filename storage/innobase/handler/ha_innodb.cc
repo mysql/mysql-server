@@ -5552,17 +5552,12 @@ free_vc_templ(
 	}
 }
 
-/*****************************************************************//**
-Creates and opens a handle to a table which already exists in an InnoDB
-database.
-@return 1 if error, 0 if success */
-
+/** Open an InnoDB table.
+@param[in]	name	table name
+@retval 1 if error
+@retval 0 if success */
 int
-ha_innobase::open(
-/*==============*/
-	const char*		name,		/*!< in: table name */
-	int			mode,		/*!< in: not used */
-	uint			test_if_locked)	/*!< in: not used */
+ha_innobase::open(const char* name, int, uint)
 {
 	dict_table_t*		ib_table;
 	char			norm_name[FN_REFLEN];
@@ -5571,9 +5566,7 @@ ha_innobase::open(
 	dict_err_ignore_t	ignore_err = DICT_ERR_IGNORE_NONE;
 
 	DBUG_ENTER("ha_innobase::open");
-
-	UT_NOT_USED(mode);
-	UT_NOT_USED(test_if_locked);
+	DBUG_ASSERT(table_share == table->s);
 
 	thd = ha_thd();
 
@@ -5738,10 +5731,7 @@ ha_innobase::open(
 	m_prebuilt->default_rec = table->s->default_values;
 	ut_ad(m_prebuilt->default_rec);
 
-	/* Looks like MySQL-3.23 sometimes has primary key number != 0 */
-	m_primary_key = table->s->primary_key;
-
-	key_used_on_scan = m_primary_key;
+	key_used_on_scan = table_share->primary_key;
 
 	if (ib_table->n_v_cols) {
 		if (!m_share->s_templ.vtempl) {
@@ -5777,7 +5767,7 @@ ha_innobase::open(
 
 		m_prebuilt->clust_index_was_generated = FALSE;
 
-		if (m_primary_key >= MAX_KEY) {
+		if (table_share->is_missing_primary_key()) {
 			sql_print_error("Table %s has a primary key in"
 					" InnoDB data dictionary, but not"
 					" in MySQL!", name);
@@ -5793,7 +5783,8 @@ ha_innobase::open(
 					    " dictionary, but not in"
 					    " MySQL!", name);
 
-			/* If m_primary_key >= MAX_KEY, its (m_primary_key)
+			/* If table_share->is_missing_primary_key(),
+			the table_share->primary_key
 			value could be out of bound if continue to index
 			into key_info[] array. Find InnoDB primary index,
 			and assign its key_length to ref_length.
@@ -5834,10 +5825,11 @@ ha_innobase::open(
 			save space, because all row reference buffers are
 			allocated based on ref_length. */
 
-			ref_length = table->key_info[m_primary_key].key_length;
+			ref_length = table->key_info[table_share->primary_key]
+				.key_length;
 		}
 	} else {
-		if (m_primary_key != MAX_KEY) {
+		if (!table_share->is_missing_primary_key()) {
 			sql_print_error(
 				"Table %s has no primary key in InnoDB data"
 				" dictionary, but has one in MySQL! If you"
@@ -8845,44 +8837,29 @@ ha_innobase::index_last(
 	DBUG_RETURN(error);
 }
 
-/****************************************************************//**
-Initialize a table scan.
+/** Initialize a table scan.
+@param[in]	scan	whether this is a second call to rnd_init()
+			without rnd_end() in between
 @return 0 or error number */
-
 int
 ha_innobase::rnd_init(
-/*==================*/
-	bool	scan)	/*!< in: true if table/index scan FALSE otherwise */
+	bool	scan)
 {
-	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
+	DBUG_ENTER("ha_innobase::rnd_init");
+	DBUG_ASSERT(table_share->is_missing_primary_key()
+		    == m_prebuilt->clust_index_was_generated);
 
-	if (!dict_table_is_intrinsic(m_prebuilt->table)
-	    && trx_in_innodb.is_aborted()) {
-
-		return(innobase_rollback(ht, m_user_thd, false));
-	}
-
-	int	err;
-
-	/* Store the active index value so that we can restore the original
-	value after a scan */
-
-	if (m_prebuilt->clust_index_was_generated) {
-		err = change_active_index(MAX_KEY);
-	} else {
-		err = change_active_index(m_primary_key);
-	}
+	int	err = change_active_index(table_share->primary_key);
 
 	/* Don't use semi-consistent read in random row reads (by position).
 	This means we must disable semi_consistent_read if scan is false */
 
 	if (!scan) {
-		try_semi_consistent_read(0);
+		m_prebuilt->row_read_type = ROW_READ_WITH_LOCKS;
 	}
 
 	m_start_of_scan = true;
-
-	return(err);
+	DBUG_RETURN(err);
 }
 
 /*****************************************************************//**
@@ -9341,23 +9318,25 @@ ha_innobase::ft_end()
 	rnd_end();
 }
 
-/*********************************************************************//**
-Stores a reference to the current row to 'ref' field of the handle. Note
-that in the case where we have generated the clustered index for the
+/**
+Store a reference to the current row to 'ref' field of the handle.
+Note that in the case where we have generated the clustered index for the
 table, the function parameter is illogical: we MUST ASSUME that 'record'
 is the current 'position' of the handle, because if row ref is actually
 the row id internally generated in InnoDB, then 'record' does not contain
 it. We just guess that the row id must be for the record where the handle
-was positioned the last time. */
-
+was positioned the last time.
+@param[in]	record	row in MySQL format */
 void
 ha_innobase::position(
-/*==================*/
-	const uchar*	record)	/*!< in: row in MySQL format */
+	const uchar*	record)
 {
 	uint		len;
 
-	ut_a(m_prebuilt->trx == thd_to_trx(ha_thd()));
+	DBUG_ENTER("ha_innobase::position");
+	DBUG_ASSERT(m_prebuilt->trx == thd_to_trx(ha_thd()));
+	DBUG_ASSERT(table_share->is_missing_primary_key()
+		    == m_prebuilt->clust_index_was_generated);
 
 	if (m_prebuilt->clust_index_was_generated) {
 		/* No primary key was defined for the table and we
@@ -9371,7 +9350,7 @@ ha_innobase::position(
 	} else {
 
 		/* Copy primary key as the row reference */
-		KEY*	key_info = table->key_info + m_primary_key;
+		KEY*	key_info = table->key_info + table_share->primary_key;
 		key_copy(ref, (uchar*)record, key_info, key_info->key_length);
 		len = key_info->key_length;
 	}
@@ -9383,6 +9362,8 @@ ha_innobase::position(
 		sql_print_error("Stored ref len is %lu, but table ref len is"
 				" %lu", (ulong) len, (ulong) ref_length);
 	}
+
+	DBUG_VOID_RETURN;
 }
 
 /*****************************************************************//**
@@ -11262,21 +11243,21 @@ int
 create_table_info_t::create_table()
 {
 	int		error;
-	int		primary_key_no;
+	uint		primary_key_no;
 	uint		i;
 	dict_table_t*	innobase_table = NULL;
 	const char*	stmt;
 	size_t		stmt_len;
 
 	DBUG_ENTER("create_table");
+	DBUG_ASSERT(m_form->s->keys <= MAX_KEY);
 
 	/* Look for a primary key */
-	primary_key_no = (m_form->s->primary_key != MAX_KEY ?
-			  (int) m_form->s->primary_key : -1);
+	primary_key_no = m_form->s->primary_key;
 
 	/* Our function innobase_get_mysql_key_number_for_index assumes
 	the primary key is always number 0, if it exists */
-	ut_a(primary_key_no == -1 || primary_key_no == 0);
+	ut_a(primary_key_no == MAX_KEY || primary_key_no == 0);
 
 	error = create_table_def();
 	if (error) {
@@ -11285,7 +11266,7 @@ create_table_info_t::create_table()
 
 	/* Create the keys */
 
-	if (m_form->s->keys == 0 || primary_key_no == -1) {
+	if (m_form->s->keys == 0 || primary_key_no == MAX_KEY) {
 		/* Create an index which is used as the clustered index;
 		order the rows by their row id which is internally generated
 		by InnoDB */
@@ -11297,11 +11278,11 @@ create_table_info_t::create_table()
 		}
 	}
 
-	if (primary_key_no != -1) {
+	if (primary_key_no != MAX_KEY) {
 		/* In InnoDB the clustered index must always be created
 		first */
 		if ((error = create_index(m_trx, m_form, m_flags, m_table_name,
-					  (uint) primary_key_no))) {
+					  primary_key_no))) {
 			DBUG_RETURN(error);
 		}
 	}
@@ -11371,7 +11352,7 @@ create_table_info_t::create_table()
 
 	for (i = 0; i < m_form->s->keys; i++) {
 
-		if (i != static_cast<uint>(primary_key_no)) {
+		if (i != primary_key_no) {
 
 			if ((error = create_index(m_trx, m_form, m_flags,
 						  m_table_name, i))) {

@@ -124,7 +124,7 @@ public:
 
 	const Key_map* keys_to_use_for_scanning();
 
-	int open(const char *name, int mode, uint test_if_locked);
+	int open(const char *name, int, uint);
 
 	/** Opens dictionary table object using table name. For partition, we need to
 	try alternative lower/upper case names to support moving data files across
@@ -512,9 +512,6 @@ protected:
 
 	/** Flags that specificy the handler instance (table) capability. */
 	Table_flags		m_int_table_flags;
-
-	/** Index into the server's primkary keye meta-data table->key_info{} */
-	uint			m_primary_key;
 
 	/** this is set to 1 when we are starting a table scan but have
 	not yet fetched any row, else false */

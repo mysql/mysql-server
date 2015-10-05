@@ -966,26 +966,20 @@ done:
 	return(error);
 }
 
-/** Opens a partitioned InnoDB table.
-Initializes needed data and opens the table which already exists
-in an InnoDB database.
-@param[in]	name		Table name (db/tablename)
-@param[in]	mode		Not used
-@param[in]	test_if_locked	Not used
-@return	0 or error number. */
+/** Open a partitioned InnoDB table.
+@param[in]	name	table name
+@retval 1 if error
+@retval 0 if success */
 int
-ha_innopart::open(
-	const char*	name,
-	int		/*mode*/,
-	uint		/*test_if_locked*/)
+ha_innopart::open(const char* name, int, uint)
 {
 	dict_table_t*	ib_table;
 	char		norm_name[FN_REFLEN];
 	THD*		thd;
 
 	DBUG_ENTER("ha_innopart::open");
+	DBUG_ASSERT(table_share == table->s);
 
-	ut_ad(table);
 	if (m_part_info == NULL) {
 		/* Must be during ::clone()! */
 		ut_ad(table->part_info != NULL);
@@ -1118,9 +1112,7 @@ share_error:
 		unlock_shared_ha_data();
 	}
 
-	/* Looks like MySQL-3.23 sometimes has primary key number != 0. */
-	m_primary_key = table->s->primary_key;
-	key_used_on_scan = m_primary_key;
+	key_used_on_scan = table_share->primary_key;
 
 	/* Allocate a buffer for a 'row reference'. A row reference is
 	a string of bytes of length ref_length which uniquely specifies
@@ -1132,7 +1124,7 @@ share_error:
 
 		m_prebuilt->clust_index_was_generated = FALSE;
 
-		if (UNIV_UNLIKELY(m_primary_key >= MAX_KEY)) {
+		if (table_share->is_missing_primary_key()) {
 			table_name_t table_name;
 			table_name.m_name = const_cast<char*>(name);
 			ib::error() << "Table " << table_name
@@ -1151,7 +1143,8 @@ share_error:
 					    " dictionary, but not in"
 					    " MySQL!", name);
 
-			/* If m_primary_key >= MAX_KEY, its (m_primary_key)
+			/* If table_share->is_missing_primary_key(),
+			the table_share->primary_key
 			value could be out of bound if continue to index
 			into key_info[] array. Find InnoDB primary index,
 			and assign its key_length to ref_length.
@@ -1196,11 +1189,12 @@ share_error:
 			save space, because all row reference buffers are
 			allocated based on ref_length. */
 
-			ref_length = table->key_info[m_primary_key].key_length;
+			ref_length = table->key_info[table_share->primary_key]
+				.key_length;
 			ref_length += PARTITION_BYTES_IN_POS;
 		}
 	} else {
-		if (m_primary_key != MAX_KEY) {
+		if (!table_share->is_missing_primary_key()) {
 			table_name_t table_name;
 			table_name.m_name = const_cast<char*>(name);
 			ib::error() << "Table " << table_name
@@ -2351,24 +2345,21 @@ ha_innopart::rnd_init_in_part(
 	uint	part_id,
 	bool	scan)
 {
-	int	err;
+	DBUG_ENTER("ha_innopart::rnd_init_in_part");
+	DBUG_ASSERT(table_share->is_missing_primary_key()
+		    == m_prebuilt->clust_index_was_generated);
 
-	if (m_prebuilt->clust_index_was_generated) {
-		err = change_active_index(part_id, MAX_KEY);
-	} else {
-		err = change_active_index(part_id, m_primary_key);
-	}
-
-	m_start_of_scan = 1;
+	int	err = change_active_index(part_id, table_share->primary_key);
 
 	/* Don't use semi-consistent read in random row reads (by position).
 	This means we must disable semi_consistent_read if scan is false. */
 
 	if (!scan) {
-		try_semi_consistent_read(false);
+		m_prebuilt->row_read_type = ROW_READ_WITH_LOCKS;
 	}
 
-	return(err);
+	m_start_of_scan = true;
+	DBUG_RETURN(err);
 }
 
 /** Ends a table scan.
@@ -2471,6 +2462,10 @@ ha_innopart::position_in_last_part(
 	uchar*		ref_arg,
 	const uchar*	record)
 {
+	DBUG_ENTER("ha_innopart::position_in_last_part");
+	DBUG_ASSERT(table_share->is_missing_primary_key()
+		    == m_prebuilt->clust_index_was_generated);
+
 	if (m_prebuilt->clust_index_was_generated) {
 		/* No primary key was defined for the table and we
 		generated the clustered index from row id: the
@@ -2481,10 +2476,12 @@ ha_innopart::position_in_last_part(
 	} else {
 
 		/* Copy primary key as the row reference */
-		KEY*	key_info = table->key_info + m_primary_key;
+		KEY*	key_info = table->key_info + table_share->primary_key;
 		key_copy(ref_arg, (uchar*)record, key_info,
 			 key_info->key_length);
 	}
+
+	DBUG_VOID_RETURN;
 }
 
 /** Fill in data_dir_path and tablespace name from internal data
