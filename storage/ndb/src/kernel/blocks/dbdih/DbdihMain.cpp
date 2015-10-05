@@ -11977,10 +11977,10 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
 	    else
 	    {
 	      jam();
-	      g_eventLogger->info("Forcing take-over of node %d due to unsufficient REDO"
+	      g_eventLogger->info("Forcing take-over of node %d due to insufficient REDO"
 			" for table %d fragment: %d",
 			nodePtr.i, tabPtr.i, i);
-	      infoEvent("Forcing take-over of node %d due to unsufficient REDO"
+	      infoEvent("Forcing take-over of node %d due to insufficient REDO"
 			" for table %d fragment: %d",
 			nodePtr.i, tabPtr.i, i);
 	      
