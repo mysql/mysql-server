@@ -1305,28 +1305,32 @@ int runBug20185(NDBT_Context* ctx, NDBT_Step* step)
   for (int i = 0; i<restarter.getNumDbNodes(); i++)
     nodes.push_back(restarter.getDbNodeId(i));
   
-retry:
-  if(hugoOps.startTransaction(pNdb) != 0)
+  if(hugoOps.startTransaction(pNdb, masterNode, 0) != 0)
+  {
+    g_err << "ERR: Failed to start transaction at master node " << masterNode << endl;
     return NDBT_FAILED;
-  
+  }
+
   if(hugoOps.pkUpdateRecord(pNdb, 1, 1) != 0)
     return NDBT_FAILED;
-  
+
   if (hugoOps.execute_NoCommit(pNdb) != 0)
     return NDBT_FAILED;
-  
+
   const int node = hugoOps.getTransaction()->getConnectedNodeId();
   if (node != masterNode)
   {
-    hugoOps.closeTransaction(pNdb);
-    goto retry;
+    g_err << "ERR: Transaction did not end up at master node " << masterNode << " but at node " << node << endl;
+    return NDBT_FAILED;
   } 
-  
-  int nodeId;
-  do {
-    nodeId = restarter.getDbNodeId(rand() % restarter.getNumDbNodes());
-  } while (nodeId == node);
-  
+
+  const int nodeId = restarter.getRandomNotMasterNodeId(rand());
+  if (nodeId == -1)
+  {
+    g_err << "ERR: Could not find any node but master node " << masterNode << endl;
+    return NDBT_FAILED;
+  }
+
   ndbout_c("7031 to %d", nodeId);
   if (restarter.insertErrorInNode(nodeId, 7031))
     return NDBT_FAILED;
@@ -3633,8 +3637,8 @@ loop1:
 
   int err = 0;
   HugoOperations hugoOps(*ctx->getTab());
-loop2:
-  if((err = hugoOps.startTransaction(pNdb)) != 0)
+
+  if((err = hugoOps.startTransaction(pNdb, master, 0)) != 0)
   {
     ndbout_c("failed to start transaction: %u", err);
     return NDBT_FAILED;
@@ -3643,10 +3647,10 @@ loop2:
   int victim = hugoOps.getTransaction()->getConnectedNodeId();
   if (victim != master)
   {
-    ndbout_c("transnode: %u != master: %u -> loop",
+    ndbout_c("ERR: transnode: %u != master: %u -> loop",
              victim, master);
     hugoOps.closeTransaction(pNdb);
-    goto loop2;
+    return NDBT_FAILED;
   }
 
   if((err = hugoOps.pkUpdateRecord(pNdb, 1)) != 0)
