@@ -16482,7 +16482,7 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
         g_eventLogger->info("frag %u, replica %u, node %u, lastCompletedGCI %u, replicaLastGci %u",
           fragPtr.i, replicaPtr.i, replicaPtr.p->procNode,
           SYSFILE->lastCompletedGCI[replicaPtr.p->procNode], replicaPtr.p->replicaLastGci);
-        replicaPtr.i = replicaPtr.p->nextReplica;
+        replicaPtr.i = replicaPtr.p->nextPool;
       }
 #endif
       char buf[255];
