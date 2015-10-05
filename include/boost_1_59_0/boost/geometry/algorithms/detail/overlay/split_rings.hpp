@@ -30,6 +30,7 @@
 #include <boost/geometry/algorithms/detail/signed_size_type.hpp>
 
 #include <boost/geometry/algorithms/detail/overlay/get_turn_info.hpp>
+#include <boost/geometry/algorithms/detail/overlay/inconsistent_turns_exception.hpp>
 #include <boost/geometry/algorithms/detail/overlay/overlay_type.hpp>
 #include <boost/geometry/algorithms/detail/overlay/self_turn_points.hpp>
 #include <boost/geometry/algorithms/detail/overlay/turn_info.hpp>
@@ -214,15 +215,30 @@ class split_ring<overlay_union, Ring, RobustPolicy>
     {
         bool operator()(MAA_Turn const& t1, MAA_Turn const& t2) const
         {
+#if ! defined(BOOST_GEOMETRY_OVERLAY_NO_THROW)
+            if (t1.method != method_touch_interior
+                ||
+                (! t1.both(operation_union)
+                 && ! t1.both(operation_intersection))
+                ||
+                t2.method != method_touch_interior
+                ||
+                (! t2.both(operation_union)
+                 && ! t2.both(operation_intersection))
+                )
+            {
+                throw inconsistent_turns_exception();
+            }
+#else
             BOOST_GEOMETRY_ASSERT(t1.method == method_touch_interior);
             BOOST_GEOMETRY_ASSERT(t1.both(operation_union)
                                   ||
                                   t1.both(operation_intersection));
-
             BOOST_GEOMETRY_ASSERT(t2.method == method_touch_interior);
             BOOST_GEOMETRY_ASSERT(t2.both(operation_union)
                                   ||
                                   t2.both(operation_intersection));
+#endif
 
             typename MAA_Turn::turn_operation_type op1 = get_correct_op(t1);
             typename MAA_Turn::turn_operation_type op2 = get_correct_op(t2);
@@ -383,10 +399,18 @@ public:
         {
             if (it->method == method_touch_interior)
             {
+#if ! defined(BOOST_GEOMETRY_OVERLAY_NO_THROW)
+                if (! it->both(operation_union)
+                    &&
+                    ! it->both(operation_intersection))
+                {
+                    throw inconsistent_turns_exception();
+                }
+#else
                 BOOST_GEOMETRY_ASSERT(it->both(operation_union)
                                       ||
                                       it->both(operation_intersection));
-
+#endif
                 maa_turns.insert(*it);
             }
         }
