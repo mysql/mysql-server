@@ -3458,7 +3458,8 @@ int handler::update_auto_increment()
     /*
       first test if the query was aborted due to strict mode constraints
     */
-    if (thd->killed == THD::KILL_BAD_DATA)
+    if (thd->is_error() &&
+        thd->get_stmt_da()->mysql_errno() == ER_WARN_DATA_OUT_OF_RANGE)
       DBUG_RETURN(HA_ERR_AUTOINC_ERANGE);
 
     /*

@@ -155,9 +155,6 @@ extern "C" void handle_fatal_signal(int sig)
     case THD::NOT_KILLED:
       kreason= "NOT_KILLED";
       break;
-    case THD::KILL_BAD_DATA:
-      kreason= "KILL_BAD_DATA";
-      break;
     case THD::KILL_CONNECTION:
       kreason= "KILL_CONNECTION";
       break;

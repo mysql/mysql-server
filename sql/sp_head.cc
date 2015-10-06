@@ -818,7 +818,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
       errors are not catchable by SQL handlers) or the connection has been
       killed during execution.
     */
-    if (!thd->is_fatal_error && !thd->killed_errno() &&
+    if (!thd->is_fatal_error && !thd->killed &&
         thd->sp_runtime_ctx->handle_sql_condition(thd, &ip, i))
     {
       err_status= FALSE;

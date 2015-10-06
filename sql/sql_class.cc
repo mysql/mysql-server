@@ -2265,7 +2265,7 @@ void THD::set_status_var_init()
 
 void THD::send_kill_message() const
 {
-  int err= killed_errno();
+  int err= killed;
   if (err && !get_stmt_da()->is_set())
   {
     if ((err == KILL_CONNECTION) && !connection_events_loop_aborted())

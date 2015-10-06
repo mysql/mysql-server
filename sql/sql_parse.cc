@@ -1663,7 +1663,7 @@ done:
   query_cache.end_of_result(thd);
 
 #ifndef EMBEDDED_LIBRARY
-  if (!thd->is_error() && !thd->killed_errno())
+  if (!thd->is_error() && !thd->killed)
     mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_RESULT, 0, 0);
 
   mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_STATUS,
@@ -4736,7 +4736,7 @@ finish:
 #endif /* !EMBEDDED_LIBRARY */
 
     /* report error issued during command execution */
-    if (thd->killed_errno())
+    if (thd->killed)
       thd->send_kill_message();
     if (thd->is_error() || (thd->variables.option_bits & OPTION_MASTER_SQL_ERROR))
       trans_rollback_stmt(thd);
@@ -4748,8 +4748,7 @@ finish:
       thd->get_stmt_da()->set_overwrite_status(false);
     }
     if (thd->killed == THD::KILL_QUERY ||
-        thd->killed == THD::KILL_TIMEOUT ||
-        thd->killed == THD::KILL_BAD_DATA)
+        thd->killed == THD::KILL_TIMEOUT)
     {
       thd->killed= THD::NOT_KILLED;
     }

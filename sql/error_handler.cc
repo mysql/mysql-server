@@ -216,7 +216,6 @@ bool Strict_error_handler::handle_condition(THD *thd,
          || (thd->variables.sql_mode & MODE_STRICT_ALL_TABLES)))
     {
       (*level)= Sql_condition::SL_ERROR;
-      thd->killed= THD::KILL_BAD_DATA;
     }
     break;
   default:

@@ -526,9 +526,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   }
   if (error)
   {
-    int kill_errno= thd->killed_errno();
-
-    DBUG_ASSERT(thd->is_error() || kill_errno);
+    DBUG_ASSERT(thd->is_error() || thd->killed);
 
     /*
       We replace the table->sort at the end.
@@ -541,11 +539,11 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
       Guard against Bug#11745656 -- KILL QUERY should not send "server shutdown"
       to client!
     */
-    const char *cause= kill_errno
-                       ? ((kill_errno == THD::KILL_CONNECTION
+    const char *cause= thd->killed
+                       ? ((thd->killed == THD::KILL_CONNECTION
                          && !connection_events_loop_aborted())
                           ? ER_THD(thd, THD::KILL_QUERY)
-                          : ER_THD(thd, kill_errno))
+                          : ER_THD(thd, thd->killed))
                        : thd->get_stmt_da()->message_text();
     const char *msg=   ER_THD(thd, ER_FILSORT_ABORT);
 

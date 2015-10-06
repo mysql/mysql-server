@@ -2768,7 +2768,7 @@ int query_error_code(THD *thd, bool not_killed)
 {
   int error;
   
-  if (not_killed || (thd->killed == THD::KILL_BAD_DATA))
+  if (not_killed)
   {
     error= thd->is_error() ? thd->get_stmt_da()->mysql_errno() : 0;
 
@@ -2781,7 +2781,7 @@ int query_error_code(THD *thd, bool not_killed)
       error= 0;
   }
   else
-    error= thd->killed_errno();
+    error= thd->killed;
 
   return error;
 }

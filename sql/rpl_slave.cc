@@ -1774,8 +1774,7 @@ bool start_slave_thread(
       mysql_mutex_lock(cond_lock); // re-acquire it
       if (thd->killed)
       {
-        int error= thd->killed_errno();
-        my_error(error, MYF(0));
+        my_error(thd->killed, MYF(0));
         goto err;
       }
     }

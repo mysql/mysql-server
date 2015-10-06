@@ -2009,7 +2009,6 @@ public:
   enum killed_state
   {
     NOT_KILLED=0,
-    KILL_BAD_DATA=1,
     KILL_CONNECTION=ER_SERVER_SHUTDOWN,
     KILL_QUERY=ER_QUERY_INTERRUPTED,
     KILL_TIMEOUT=ER_QUERY_TIMEOUT,
@@ -2716,11 +2715,6 @@ public:
     state after execution of a non-prepared SQL statement.
   */
   void end_statement();
-  inline int killed_errno() const
-  {
-    killed_state killed_val; /* to cache the volatile 'killed' */
-    return (killed_val= killed) != KILL_BAD_DATA ? killed_val : 0;
-  }
   void send_kill_message() const;
 
   void set_status_var_init();
