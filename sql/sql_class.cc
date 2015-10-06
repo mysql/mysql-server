@@ -492,17 +492,34 @@ void thd_set_scheduler_data(THD *thd, void *data)
   thd->scheduler.data= data;
 }
 
+PSI_thread* THD::get_psi()
+{
+  void *addr= & m_psi;
+  void * volatile * typed_addr= static_cast<void * volatile *>(addr);
+  void *ptr;
+  ptr= my_atomic_loadptr(typed_addr);
+  return static_cast<PSI_thread*>(ptr);
+}
+
+void THD::set_psi(PSI_thread *psi)
+{
+  void *addr= & m_psi;
+  void * volatile * typed_addr= static_cast<void * volatile *>(addr);
+  my_atomic_storeptr(typed_addr, psi);
+}
+
 /**
   Get reference to Performance Schema object for THD object
 
   @param thd            THD object
 
-  @retval               Performance schema object for thread on THD
+  @return               Performance schema object for thread on THD
 */
 PSI_thread *thd_get_psi(THD *thd)
 {
-  return thd->scheduler.m_psi;
+  return thd->get_psi();
 }
+
 
 /**
   Get net_wait_timeout for THD object
@@ -524,7 +541,7 @@ ulong thd_get_net_wait_timeout(THD* thd)
 */
 void thd_set_psi(THD *thd, PSI_thread *psi)
 {
-  thd->scheduler.m_psi= psi;
+  thd->set_psi(psi);
 }
 
 /**
@@ -1180,6 +1197,7 @@ THD::THD(bool enable_plugins)
    duplicate_slave_uuid(false),
    is_a_srv_session_thd(false)
 {
+  set_psi(NULL);
   mdl_context.init(this);
   init_sql_alloc(key_memory_thd_main_mem_root,
                  &main_mem_root,
