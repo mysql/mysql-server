@@ -1519,22 +1519,11 @@ main(int argc, char** argv)
   for(i = 0; i<metaData.getNoOfObjects(); i++)
   {
     for(Uint32 j= 0; j < g_consumers.size(); j++)
-    {
-      if(!checkDbAndTableName(metaData[i]))
-      {
-        /*
-         skip restoring the foreign key
-         its table/db is not in the include/exclude list
-        */
-        continue;
-      }
       if (!g_consumers[j]->fk(metaData.getObjType(i),
 			      metaData.getObjPtr(i)))
       {
-        // no error is possible 
-        assert(false);
+        exitHandler(NDBT_FAILED);
       } 
-    }
   }
 
   debug << "Close tables" << endl; 

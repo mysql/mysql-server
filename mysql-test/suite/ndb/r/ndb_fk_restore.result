@@ -449,13 +449,10 @@ create database db2;
 create table db2.t1 (
 a1 int primary key
 ) engine ndb;
-# take backup and drop the databases
-drop database db1;
-drop database db2;
+# take backup and drop the tables
+drop table db1.t2, db1.t1, db2.t1;
 # now try restoring only the database db2
 # verify the tables present
-# create database db2 since ndb_restore doesn't trigger auto discovery
-create database db2;
 show tables from db2;
 Tables_in_db2
 t1
@@ -465,12 +462,9 @@ t1	CREATE TABLE `t1` (
   `a1` int(11) NOT NULL,
   PRIMARY KEY (`a1`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
-drop database db2;
+drop table db2.t1;
 # restore particular table and check for fk problem
 # verify the tables present
-# create database db2,db1 since ndb_restore doesn't trigger auto discovery
-create database db1;
-create database db2;
 show tables from db1;
 Tables_in_db1
 t1
@@ -489,5 +483,8 @@ t1	CREATE TABLE `t1` (
   `a1` int(11) NOT NULL,
   PRIMARY KEY (`a1`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+drop table db1.t1, db2.t1;
+# verify that restoring table with FK whose parent doesn't exist, fails
+# cleanup
 drop database db1;
 drop database db2;
