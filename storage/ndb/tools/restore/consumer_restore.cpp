@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2821,8 +2821,47 @@ BackupRestore::fk(Uint32 type, const void * ptr)
   {
     const NdbDictionary::ForeignKey* fk_ptr =
       (const NdbDictionary::ForeignKey*)ptr;
-    m_fks.push_back(fk_ptr);
-    info << "Save FK " << fk_ptr->getName() << endl;
+    const NdbDictionary::Table *child = NULL, *parent=NULL;
+    BaseString db_name, dummy, table_name;
+    //check if the child table is a part of the restoration
+    if (!dissect_table_name(fk_ptr->getChildTable(),
+                       db_name, dummy, table_name))
+      return false;
+    for(unsigned i = 0; i < m_new_tables.size(); i++)
+    {
+      if(m_new_tables[i] == NULL)
+        continue;
+      BaseString new_table_name(m_new_tables[i]->getMysqlName());
+      //table name in format db-name/table-name
+      Vector<BaseString> split;
+      if (new_table_name.split(split, "/") != 2) {
+        continue;
+      }
+      if(db_name == split[0] && table_name == split[1])
+      {
+        child = m_new_tables[i];
+        break;
+      }
+    }
+    if(child)
+    {
+      //check if parent exists
+      if (!dissect_table_name(fk_ptr->getParentTable(),
+                              db_name, dummy, table_name))
+        return false;
+      m_ndb->setDatabaseName(db_name.c_str());
+      NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
+      parent = dict->getTable(table_name.c_str());
+      if (parent == 0)
+      {
+        err << "Foreign key " << fk_ptr->getName() << " parent table "
+            << db_name.c_str() << "." << table_name.c_str()
+            << " not found: " << dict->getNdbError() << endl;
+        return false;
+      }
+      m_fks.push_back(fk_ptr);
+      info << "Save FK " << fk_ptr->getName() << endl;
+    }
     return true;
     break;
   }
