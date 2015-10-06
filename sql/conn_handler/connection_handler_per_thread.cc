@@ -278,6 +278,12 @@ extern "C" void *handle_connection(void *arg)
     }
 #endif
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    /* Find the instrumented thread */
+    PSI_thread *psi= PSI_THREAD_CALL(get_thread)();
+    /* Save it within THD, so it can be inspected */
+    thd->set_psi(psi);
+#endif /* HAVE_PSI_THREAD_INTERFACE */
     mysql_thread_set_psi_id(thd->thread_id());
     mysql_thread_set_psi_THD(thd);
     mysql_socket_set_thread_owner(
@@ -312,8 +318,9 @@ extern "C" void *handle_connection(void *arg)
     /*
       Delete the instrumentation for the job that just completed.
     */
+    thd->set_psi(NULL);
     PSI_THREAD_CALL(delete_current_thread)();
-#endif
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
     delete thd;
 
