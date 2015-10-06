@@ -2195,7 +2195,7 @@ public:
   MDL_request grl_protection;
 
   /** Creates a new delayed insert handler. */
-  Delayed_insert()
+  Delayed_insert(SELECT_LEX *current_select)
     :locks_in_memory(0), table(0),tables_in_use(0),stacked_inserts(0),
      status(0), handler_thread_initialized(FALSE), group_count(0)
   {
@@ -2206,7 +2206,7 @@ public:
             USERNAME_LENGTH);
     thd.current_tablenr=0;
     thd.set_command(COM_DELAYED_INSERT);
-    thd.lex->current_select= 0; 		// for my_message_sql
+    thd.lex->current_select= current_select;
     thd.lex->sql_command= SQLCOM_INSERT;        // For innodb::store_lock()
 
     /*
@@ -2388,7 +2388,7 @@ bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
     */
     if (! (di= find_handler(thd, table_list)))
     {
-      if (!(di= new Delayed_insert()))
+      if (!(di= new Delayed_insert(thd->lex->current_select)))
         goto end_create;
       di->table_list= *table_list;			// Needed to open table
       /* Replace volatile strings with local copies */
@@ -2937,6 +2937,16 @@ pthread_handler_t handle_delayed_insert(void *arg)
 
     if (di->open_and_lock_table())
       goto err;
+
+    /*
+      INSERT DELAYED generally expects thd->lex->current_select to be NULL,
+      since this is not an attribute of the current thread. This can lead to
+      problems if the thread that spawned the current one disconnects.
+      current_select will then point to freed memory. But current_select is
+      required to resolve the partition function. So, after fulfilling that
+      requirement, we set the current_select to 0.
+    */
+    thd->lex->current_select= NULL;
 
     /* Tell client that the thread is initialized */
     mysql_cond_signal(&di->cond_client);
