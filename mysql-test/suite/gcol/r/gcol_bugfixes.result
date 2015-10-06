@@ -517,3 +517,12 @@ ERROR 42S22: Unknown column 'q' in 't'
 ALTER TABLE t CHANGE COLUMN q w INT;
 ERROR 42S22: Unknown column 'q' in 't'
 DROP TABLE t;
+#
+# Bug#21940542 TOO MUCH SPAM: INNODB: COMPUTE VIRTUAL COLUMN VALUES FAILED
+#
+CREATE TABLE t(b BLOB);
+ALTER TABLE t ADD COLUMN c INT GENERATED ALWAYS AS ((1,1)) VIRTUAL;
+ERROR HY000: Expression of generated column 'c' contains a disallowed function.
+DROP TABLE t;
+CREATE TABLE t(b BLOB, c INT GENERATED ALWAYS AS ((1,1)) VIRTUAL);
+ERROR HY000: Expression of generated column 'c' contains a disallowed function.

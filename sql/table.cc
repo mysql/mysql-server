@@ -2634,18 +2634,21 @@ static bool validate_generated_expr(Field *field)
   DBUG_ASSERT(expr);
 
   /**
-    1) SP/UDF is not allowed
-    2) System variables and parameters are not allowed
-    3) Subquery is not allowed(already checked, assert the condition)
+    These are not allowed:
+    1) SP/UDF
+    2) System variables and parameters
+    3) ROW values
+    4) Subquery (already checked by parser, assert the condition)
    */
-  if (expr->has_stored_program() ||        // 1)
+  if (expr->has_stored_program() ||             // 1)
       (expr->used_tables() &
-       (RAND_TABLE_BIT | PARAM_TABLE_BIT)))// 2)
+       (RAND_TABLE_BIT | PARAM_TABLE_BIT)) ||   // 2)
+      (expr->cols() != 1))                      // 3)
   {
     my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0), field_name);
     DBUG_RETURN(TRUE);
   }
-  DBUG_ASSERT(!expr->has_subquery());      // 3)
+  DBUG_ASSERT(!expr->has_subquery());           // 4)
   /*
     Walk through the Item tree, checking the validity of items
     belonging to the generated column.
