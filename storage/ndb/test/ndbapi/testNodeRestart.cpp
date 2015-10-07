@@ -1239,6 +1239,7 @@ runBug18612SR(NDBT_Context* ctx, NDBT_Step* step){
     
     ndbout_c("done");
 
+    g_err << "Restarting all" << endl;
     if (restarter.restartAll(false, true, false))
       return NDBT_FAILED;
 
@@ -1257,31 +1258,38 @@ runBug18612SR(NDBT_Context* ctx, NDBT_Step* step){
 
     int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
     
+    g_err << "DumpState all nodes" << endl;
     if (restarter.dumpStateAllNodes(val2, 2))
       return NDBT_FAILED;
     
     if (restarter.insertErrorInAllNodes(932))
       return NDBT_FAILED;
     
+    g_err << "Starting all" << endl;
     if (restarter.startAll())
       return NDBT_FAILED;
     
-    if (restarter.waitClusterStartPhase(2))
+    g_err << "Waiting for phase 2" << endl;
+    if (restarter.waitClusterStartPhase(2, 300))
       return NDBT_FAILED;
     
+    g_err << "DumpState all nodes" << endl;
     dump[0] = 9001;
     for (Uint32 i = 0; i<cnt/2; i++)
       if (restarter.dumpStateAllNodes(dump, 2))
 	return NDBT_FAILED;
 
+    g_err << "Waiting cluster/nodes no-start" << endl;
     if (restarter.waitClusterNoStart(30))
       if (restarter.waitNodesNoStart(partition0, cnt/2, 10))
 	if (restarter.waitNodesNoStart(partition1, cnt/2, 10))
 	  return NDBT_FAILED;
     
+    g_err << "Starting all" << endl;
     if (restarter.startAll())
       return NDBT_FAILED;
     
+    g_err << "Waiting for the cluster to start" << endl;
     if (restarter.waitClusterStarted())
       return NDBT_FAILED;
   }
