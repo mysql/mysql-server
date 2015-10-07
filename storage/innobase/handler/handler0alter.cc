@@ -7153,6 +7153,9 @@ commit_cache_rebuild(
 	DBUG_VOID_RETURN;
 }
 
+/** Set of column numbers */
+typedef std::set<ulint, std::less<ulint>, ut_allocator<ulint> >	col_set;
+
 /** Store the column number of the columns in a list belonging
 to indexes which are not being dropped.
 @param[in]	ctx		In-place ALTER TABLE context
@@ -7165,12 +7168,12 @@ static
 void
 get_col_list_to_be_dropped(
 	const ha_innobase_inplace_ctx*	ctx,
-	std::set<ulint>&		drop_col_list,
-	std::set<ulint>&		drop_v_col_list)
+	col_set&			drop_col_list,
+	col_set&			drop_v_col_list)
 {
 	for (ulint index_count = 0; index_count < ctx->num_to_drop_index;
 	     index_count++) {
-		const dict_index_t* index = ctx->drop_index[index_count];
+		const dict_index_t*	index = ctx->drop_index[index_count];
 
 		for (ulint col = 0; col < index->n_user_defined_cols; col++) {
 			const dict_col_t*	idx_col
@@ -7183,7 +7186,7 @@ get_col_list_to_be_dropped(
 				drop_v_col_list.insert(v_col->v_pos);
 
 			} else {
-				ulint col_no = dict_col_get_no(idx_col);
+				ulint	col_no = dict_col_get_no(idx_col);
 				drop_col_list.insert(col_no);
 			}
 		}
@@ -7266,31 +7269,6 @@ commit_try_norebuild(
 		    == ha_alter_info->alter_info->drop_list.elements
 		    || ctx->num_to_drop_vcol
 		       == ha_alter_info->alter_info->drop_list.elements);
-
-
-	std::set<ulint> drop_list;
-	std::set<ulint> v_drop_list;
-	std::set<ulint>::iterator col_no;
-
-	/* Check if the column, part of an index to be dropped is part of any
-	other index which is not being dropped. If it so, then set the ord_part
-	of the column to 0. */
-        get_col_list_to_be_dropped(ctx, drop_list, v_drop_list);
-
-	for (col_no = drop_list.begin(); col_no != drop_list.end(); ++col_no) {
-		if (!check_col_exists_in_indexes(ctx->new_table,
-						 *col_no, false)) {
-			ctx->new_table->cols[*col_no].ord_part = 0;
-		}
-	}
-
-        for (col_no = v_drop_list.begin();
-	     col_no != v_drop_list.end(); ++col_no) {
-                if (!check_col_exists_in_indexes(ctx->new_table,
-						 *col_no, true)) {
-			ctx->new_table->v_cols[*col_no].m_col.ord_part = 0;
-                }
-	}
 
 	for (ulint i = 0; i < ctx->num_to_add_index; i++) {
 		dict_index_t*	index = ctx->add_index[i];
@@ -7433,6 +7411,30 @@ commit_cache_norebuild(
 	bool	found = true;
 
 	DBUG_ASSERT(!ctx->need_rebuild());
+
+	col_set			drop_list;
+	col_set			v_drop_list;
+	col_set::const_iterator col_it;
+
+	/* Check if the column, part of an index to be dropped is part of any
+	other index which is not being dropped. If it so, then set the ord_part
+	of the column to 0. */
+	get_col_list_to_be_dropped(ctx, drop_list, v_drop_list);
+
+	for (col_it = drop_list.begin(); col_it != drop_list.end(); ++col_it) {
+		if (!check_col_exists_in_indexes(ctx->new_table,
+						 *col_it, false)) {
+			ctx->new_table->cols[*col_it].ord_part = 0;
+		}
+	}
+
+	for (col_it = v_drop_list.begin();
+	     col_it != v_drop_list.end(); ++col_it) {
+		if (!check_col_exists_in_indexes(ctx->new_table,
+						 *col_it, true)) {
+			ctx->new_table->v_cols[*col_it].m_col.ord_part = 0;
+		}
+	}
 
 	for (ulint i = 0; i < ctx->num_to_add_index; i++) {
 		dict_index_t*	index = ctx->add_index[i];
