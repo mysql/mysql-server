@@ -676,11 +676,6 @@ get_field_offset(
 
 static const char innobase_hton_name[]= "InnoDB";
 
-static MYSQL_THDVAR_BOOL(support_xa, PLUGIN_VAR_OPCMDARG,
-  "Enable InnoDB support for the XA two-phase commit",
-  /* check_func */ NULL, /* update_func */ NULL,
-  /* default */ TRUE);
-
 static MYSQL_THDVAR_BOOL(table_locks, PLUGIN_VAR_OPCMDARG,
   "Enable InnoDB locking in LOCK TABLES",
   /* check_func */ NULL, /* update_func */ NULL,
@@ -1475,19 +1470,6 @@ thd_is_select(
 	const THD*	thd)	/*!< in: thread handle */
 {
 	return(thd_sql_command(thd) == SQLCOM_SELECT);
-}
-
-/******************************************************************//**
-Returns true if the thread supports XA,
-global value of innodb_supports_xa if thd is NULL.
-@return true if thd has XA support */
-ibool
-thd_supports_xa(
-/*============*/
-	THD*	thd)	/*!< in: thread handle, or NULL to query
-			the global innodb_supports_xa */
-{
-	return(THDVAR(thd, support_xa));
 }
 
 /******************************************************************//**
@@ -16437,14 +16419,6 @@ innobase_xa_prepare(
 
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
-	/* we use support_xa value as it was seen at transaction start
-	time, not the current session variable value. Any possible changes
-	to the session variable take effect only in the next transaction */
-	if (!trx->support_xa) {
-
-		return(0);
-	}
-
 	thd_get_xid(thd, (MYSQL_XID*) trx->xid);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
@@ -19169,7 +19143,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(replication_delay),
   MYSQL_SYSVAR(status_file),
   MYSQL_SYSVAR(strict_mode),
-  MYSQL_SYSVAR(support_xa),
   MYSQL_SYSVAR(sort_buffer_size),
   MYSQL_SYSVAR(online_alter_log_max_size),
   MYSQL_SYSVAR(sync_spin_loops),

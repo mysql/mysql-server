@@ -1622,10 +1622,7 @@ trx_undo_create(
 
 	offset = trx_undo_header_create(undo_page, trx_id, mtr);
 
-	if (trx->support_xa) {
-		trx_undo_header_add_space_for_xid(undo_page,
-						  undo_page + offset, mtr);
-	}
+	trx_undo_header_add_space_for_xid(undo_page, undo_page + offset, mtr);
 
 	*undo = trx_undo_mem_create(rseg, id, type, trx_id, xid,
 				   page_no, offset);
@@ -1696,10 +1693,8 @@ trx_undo_reuse_cached(
 	if (type == TRX_UNDO_INSERT) {
 		offset = trx_undo_insert_header_reuse(undo_page, trx_id, mtr);
 
-		if (trx->support_xa) {
-			trx_undo_header_add_space_for_xid(
-				undo_page, undo_page + offset, mtr);
-		}
+		trx_undo_header_add_space_for_xid(
+			undo_page, undo_page + offset, mtr);
 	} else {
 		ut_a(mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
 				      + TRX_UNDO_PAGE_TYPE)
@@ -1707,10 +1702,8 @@ trx_undo_reuse_cached(
 
 		offset = trx_undo_header_create(undo_page, trx_id, mtr);
 
-		if (trx->support_xa) {
-			trx_undo_header_add_space_for_xid(
-				undo_page, undo_page + offset, mtr);
-		}
+		trx_undo_header_add_space_for_xid(
+			undo_page, undo_page + offset, mtr);
 	}
 
 	trx_undo_mem_init_for_reuse(undo, trx_id, xid, offset);
