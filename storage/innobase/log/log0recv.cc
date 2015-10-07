@@ -2122,7 +2122,7 @@ recv_recover_page_func(
 		Note: We can't skip complete recv_addr as same page may have
 		valid REDO records post truncate those needs to be applied. */
 		bool	skip_recv = false;
-		if (srv_was_tablespace_truncated(recv_addr->space)) {
+		if (srv_was_tablespace_truncated(fil_space_get(recv_addr->space))) {
 			lsn_t	init_lsn =
 				truncate_t::get_truncated_tablespace_init_lsn(
 				recv_addr->space);

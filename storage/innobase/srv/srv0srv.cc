@@ -2814,17 +2814,24 @@ srv_is_tablespace_truncated(ulint space_id)
 }
 
 /** Check if tablespace was truncated.
-@param	space_id	space_id to check for truncate action
+@param[in]	space	space object to check for truncate action
 @return true if tablespace was truncated and we still have an active
 MLOG_TRUNCATE REDO log record. */
 bool
-srv_was_tablespace_truncated(ulint space_id)
+srv_was_tablespace_truncated(const fil_space_t* space)
 {
-	if (is_system_tablespace(space_id)) {
+	if (space == NULL) {
+		ut_ad(0);
 		return(false);
 	}
 
-	return(truncate_t::was_tablespace_truncated(space_id));
+	bool	has_shared_space = FSP_FLAGS_GET_SHARED(space->flags);
+
+	if (is_system_tablespace(space->id) || has_shared_space) {
+		return(false);
+	}
+
+	return(truncate_t::was_tablespace_truncated(space->id));
 }
 
 /** Call exit(3) */
