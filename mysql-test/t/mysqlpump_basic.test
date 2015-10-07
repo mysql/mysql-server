@@ -78,6 +78,19 @@ ALTER TABLE t10 ADD COLUMN v_id INT NOT NULL AFTER c_id;
 ALTER TABLE t10 ADD FOREIGN KEY fk_t9(v_id) REFERENCES
       t9(v_id) ON DELETE NO ACTION ON UPDATE CASCADE;
 
+CREATE TABLE t12 (
+  ID bigint NOT NULL DEFAULT '0',
+  v bigint NOT NULL,
+  PRIMARY KEY (ID,v)
+);
+
+CREATE TABLE t13 (
+  ID bigint NOT NULL DEFAULT '0',
+  k varchar(30) NOT NULL DEFAULT '',
+  v bigint NOT NULL,
+  PRIMARY KEY (ID, v, k),
+  CONSTRAINT relation_tags_ibfk_1 FOREIGN KEY (ID, v) REFERENCES t12 (ID,v)
+);
 
 INSERT INTO t4  (name) VALUES ('disk_temptable_create_cost');
 INSERT INTO t4  (name) VALUES ('disk_temptable_row_cost');
