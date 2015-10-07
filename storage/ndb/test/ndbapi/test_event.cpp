@@ -4723,6 +4723,7 @@ runInjectClusterFailure(NDBT_Context* ctx, NDBT_Step* step)
   restarter.startAll();
   g_err << "wait started" << endl;
   restarter.waitClusterStarted();
+  CHK(pNdb->waitUntilReady(300) == 0, "Cluster failed to start");
 
   if (!keepSomeEvOpOnClusterFailure)
   {
