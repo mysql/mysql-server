@@ -286,16 +286,6 @@ innobase_get_at_most_n_mbchars(
 	const char* str);	/*!< in: character string */
 
 /******************************************************************//**
-Returns true if the thread supports XA,
-global value of innodb_supports_xa if thd is NULL.
-@return true if thd supports XA */
-ibool
-thd_supports_xa(
-/*============*/
-	THD*	thd);	/*!< in: thread handle, or NULL to query
-			the global innodb_supports_xa */
-
-/******************************************************************//**
 Returns the lock wait timeout for the current connection.
 @return the lock wait timeout, in seconds */
 ulong
