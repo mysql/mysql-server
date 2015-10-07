@@ -8,15 +8,12 @@ select variable_name from information_schema.session_variables where variable_na
 (select variable_name from information_schema.session_variables where variable_name = 'basedir');
 
 #
-# information_schema tables inside subqueries, they should not be re-populated
-# (i_s.columns needs to scan i_s itself, creating a tmp table for every i_s
-# table. if it's re-populated, it'll do that multiple times)
+# MDEV-8796 Delete with sub query with information_schema.TABLES deletes too many rows
 #
-create table t1 (a char);
-insert t1 values ('a'),('t'),('z');
-flush status;
-select a, exists (select 1 from information_schema.columns where table_schema=concat('tes',a)) from t1;
-# fix the result in ps-protocol
---replace_result 39 38
-show status like 'created_tmp_tables';
-drop table t1;
+create table t1 (x int);
+create table t2 (x int);
+create table t3 (x int);
+create table t4 AS select table_name from information_schema.TABLES where table_schema = database() and table_type = 'BASE TABLE' ;
+delete from t4 where table_name not in (select table_name from information_schema.TABLES where table_schema = database() and table_type = 'BASE TABLE');
+select * from t4;
+drop table t1, t2, t3, t4;
