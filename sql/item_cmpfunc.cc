@@ -517,7 +517,13 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
   Field *field= field_item->field;
   int result= 0;
 
-  if ((*item)->const_item())
+  if ((*item)->const_item() &&
+      /*
+        In case of GC it's possible that this func will be called on an
+        already converted constant. Don't convert it again.
+      */
+      !((*item)->field_type() == field_item->field_type() &&
+        (*item)->basic_const_item()))
   {
     TABLE *table= field->table;
     sql_mode_t orig_sql_mode= thd->variables.sql_mode;
