@@ -85,6 +85,7 @@ Source91:       filter-requires.sh
 BuildRequires:  cmake
 BuildRequires:  perl
 BuildRequires:  libaio-devel
+BuildRequires:  libnuma-devel
 BuildRequires:  ncurses-devel
 BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel

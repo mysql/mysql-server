@@ -169,12 +169,12 @@ create_instance(
 	}
 
 	innodb_eng = malloc(sizeof(struct innodb_engine));
-	memset(innodb_eng, 0, sizeof(*innodb_eng));
 
 	if (innodb_eng == NULL) {
 		return(ENGINE_ENOMEM);
 	}
 
+	memset(innodb_eng, 0, sizeof(*innodb_eng));
 	innodb_eng->engine.interface.interface = 1;
 	innodb_eng->engine.get_info = innodb_get_info;
 	innodb_eng->engine.initialize = innodb_initialize;
@@ -887,20 +887,44 @@ innodb_conn_init(
 
 		memset(conn_data, 0, sizeof(*conn_data));
 		conn_data->result = malloc(sizeof(mci_item_t));
-		conn_data->conn_cookie = (void*) cookie;
-		UT_LIST_ADD_LAST(conn_list, engine->conn_data, conn_data);
-		engine->server.cookie->store_engine_specific(
-			cookie, conn_data);
+                if (!conn_data->result) {
+			UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
+			free(conn_data);
+			conn_data = NULL;
+			return(NULL);
+		}
 		conn_data->conn_meta = new_meta_info
 					 ? new_meta_info
 					 : engine->meta_info;
 		conn_data->row_buf = malloc(1024);
+                if (!conn_data->row_buf) {
+			UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
+			free(conn_data->result);
+			free(conn_data);
+			conn_data = NULL;
+			return(NULL);
+               }
 		conn_data->row_buf_len = 1024;
 
 		conn_data->cmd_buf = malloc(1024);
+                if (!conn_data->cmd_buf) {
+			UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
+			free(conn_data->row_buf);
+			free(conn_data->result);
+			free(conn_data);
+			conn_data = NULL;
+			return(NULL);
+               }
 		conn_data->cmd_buf_len = 1024;
 
 		conn_data->is_flushing = false;
+
+		conn_data->conn_cookie = (void*) cookie;
+
+		/* Add connection to the list after all memory allocations */
+		UT_LIST_ADD_LAST(conn_list, engine->conn_data, conn_data);
+		engine->server.cookie->store_engine_specific(
+			cookie, conn_data);
 
 		pthread_mutex_init(&conn_data->curr_conn_mutex, NULL);
 		UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
@@ -957,9 +981,11 @@ have_conn:
 					conn_data->crsr_trx);
 			}
 
-			assert(ib_cb_trx_start(conn_data->crsr_trx,
-					       engine->trx_level,
-					       true, false, NULL));
+			err = ib_cb_trx_start(conn_data->crsr_trx,
+					      engine->trx_level,
+					      true, false, NULL);
+			assert(err == DB_SUCCESS);
+
 		}
 
 		err = innodb_api_begin(

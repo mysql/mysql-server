@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -74,17 +74,13 @@ Performs an atomic test-and-set instruction to the lock_word field of a
 mutex.
 @return	the previous value of lock_word: 0 or 1 */
 UNIV_INLINE
-byte
+lock_word_t
 ib_mutex_test_and_set(
-/*===============*/
+/*==================*/
 	ib_mutex_t*	mutex)	/*!< in: mutex */
 {
 #if defined(HAVE_ATOMIC_BUILTINS)
-# if defined(HAVE_ATOMIC_BUILTINS_BYTE)
-	return(os_atomic_test_and_set_byte(&mutex->lock_word, 1));
-# else
-	return(os_atomic_test_and_set_ulint(&mutex->lock_word, 1));
-# endif
+	return(os_atomic_test_and_set(&mutex->lock_word));
 #else
 	ibool	ret;
 
@@ -100,7 +96,7 @@ ib_mutex_test_and_set(
 	}
 
 	return((byte) ret);
-#endif
+#endif /* HAVE_ATOMIC_BUILTINS */
 }
 
 /******************************************************************//**
@@ -113,19 +109,12 @@ mutex_reset_lock_word(
 	ib_mutex_t*	mutex)	/*!< in: mutex */
 {
 #if defined(HAVE_ATOMIC_BUILTINS)
-	/* In theory __sync_lock_release should be used to release the lock.
-	Unfortunately, it does not work properly alone. The workaround is
-	that more conservative __sync_lock_test_and_set is used instead. */
-# if defined(HAVE_ATOMIC_BUILTINS_BYTE)
-	os_atomic_test_and_set_byte(&mutex->lock_word, 0);
-# else
-	os_atomic_test_and_set_ulint(&mutex->lock_word, 0);
-# endif
+	os_atomic_clear(&mutex->lock_word);
 #else
 	mutex->lock_word = 0;
 
 	os_fast_mutex_unlock(&(mutex->os_fast_mutex));
-#endif
+#endif /* HAVE_ATOMIC_BUILTINS */
 }
 
 /******************************************************************//**

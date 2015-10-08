@@ -385,10 +385,6 @@ Item_sum::Item_sum(List<Item> &list) :next(NULL), arg_count(list.elements),
       args[i++]= item;
     }
   }
-  if (!(orig_args= (Item **) sql_alloc(sizeof(Item *) * arg_count)))
-  {
-    args= NULL;
-  }
   mark_as_sum_func();
   init_aggregator();
   list.empty();					// Fields are used
@@ -405,24 +401,15 @@ Item_sum::Item_sum(THD *thd, Item_sum *item):
   aggr_sel(item->aggr_sel),
   nest_level(item->nest_level), aggr_level(item->aggr_level),
   quick_group(item->quick_group),
-  arg_count(item->arg_count), orig_args(NULL),
+  arg_count(item->arg_count),
   used_tables_cache(item->used_tables_cache),
   forced_const(item->forced_const) 
 {
   if (arg_count <= 2)
-  {
-    args=tmp_args;
-    orig_args=tmp_orig_args;
-  }
-  else
-  {
-    if (!(args= (Item**) thd->alloc(sizeof(Item*)*arg_count)))
-      return;
-    if (!(orig_args= (Item**) thd->alloc(sizeof(Item*)*arg_count)))
-      return;
-  }
+    args= tmp_args;
+  else if (!(args= (Item**) thd->alloc(sizeof(Item*)*arg_count)))
+    return;
   memcpy(args, item->args, sizeof(Item*)*arg_count);
-  memcpy(orig_args, item->orig_args, sizeof(Item*)*arg_count);
   init_aggregator();
   with_distinct= item->with_distinct;
   if (item->aggr)
@@ -441,14 +428,12 @@ void Item_sum::mark_as_sum_func()
 
 void Item_sum::print(String *str, enum_query_type query_type)
 {
-  /* orig_args is not filled with valid values until fix_fields() */
-  Item **pargs= fixed ? orig_args : args;
   str->append(func_name());
   for (uint i=0 ; i < arg_count ; i++)
   {
     if (i)
       str->append(',');
-    pargs[i]->print(str, query_type);
+    args[i]->print(str, query_type);
   }
   str->append(')');
 }
@@ -1215,7 +1200,6 @@ Item_sum_num::fix_fields(THD *thd, Item **ref)
   if (check_sum_func(thd, ref))
     return TRUE;
 
-  memcpy (orig_args, args, sizeof (Item *) * arg_count);
   fixed= 1;
   return FALSE;
 }
@@ -1266,7 +1250,6 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
   if (check_sum_func(thd, ref))
     return TRUE;
 
-  orig_args[0]= args[0];
   fixed= 1;
   return FALSE;
 }
@@ -3212,12 +3195,6 @@ Item_func_group_concat(Name_resolution_context *context_arg,
                                  sizeof(ORDER*)*arg_count_order)))
     return;
 
-  if (!(orig_args= (Item **) sql_alloc(sizeof(Item *) * arg_count)))
-  {
-    args= NULL;
-    return;
-  }
-
   order= (ORDER**)(args + arg_count);
 
   /* fill args items of show and sort */
@@ -3238,7 +3215,6 @@ Item_func_group_concat(Name_resolution_context *context_arg,
       order_item->item= arg_ptr++;
     }
   }
-  memcpy(orig_args, args, sizeof(Item*) * arg_count);
 }
 
 
@@ -3672,7 +3648,7 @@ void Item_func_group_concat::print(String *str, enum_query_type query_type)
   {
     if (i)
       str->append(',');
-    orig_args[i]->print(str, query_type);
+    args[i]->print(str, query_type);
   }
   if (arg_count_order)
   {
@@ -3681,7 +3657,7 @@ void Item_func_group_concat::print(String *str, enum_query_type query_type)
     {
       if (i)
         str->append(',');
-      orig_args[i + arg_count_field]->print(str, query_type);
+      args[i + arg_count_field]->print(str, query_type);
       if (order[i]->direction == ORDER::ORDER_ASC)
         str->append(STRING_WITH_LEN(" ASC"));
       else

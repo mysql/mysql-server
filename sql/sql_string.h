@@ -322,7 +322,7 @@ public:
     return real_alloc(arg_length);
   }
   bool real_alloc(uint32 arg_length);			// Empties old string
-  bool realloc(uint32 arg_length);
+  bool realloc(uint32 arg_length, bool force_on_heap= false);
 
   // Shrink the buffer, but only if it is allocated on the heap.
   inline void shrink(uint32 arg_length)

@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -663,7 +663,7 @@ public:
   int find_log_pos(LOG_INFO* linfo, const char* log_name,
                    bool need_lock_index);
   int find_next_log(LOG_INFO* linfo, bool need_lock_index);
-  int get_current_log(LOG_INFO* linfo);
+  int get_current_log(LOG_INFO* linfo, bool need_lock_log= true);
   int raw_get_current_log(LOG_INFO* linfo);
   uint next_file_id();
   inline char* get_index_fname() { return index_file_name;}

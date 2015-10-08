@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ char * my_load_path(char * to, const char *path,
       (void) strnmov(buff, path, FN_REFLEN);			/* Return org file name */
   }
   else
-    (void) strxnmov(buff, FN_REFLEN, own_path_prefix, path, NullS);
+    (void) strxnmov(buff, sizeof(buff)-1, own_path_prefix, path, NullS);
   strnmov(to, buff, FN_REFLEN);
   to[FN_REFLEN-1]= '\0';
   DBUG_PRINT("exit",("to: %s",to));

@@ -4799,6 +4799,76 @@ disconnect con1;
 disconnect con2;
 
 
+--echo #
+--echo # Bug#21021848 ASSERTION `M_STATUS == DA_ERROR' FAILED.
+--echo #
+CREATE TABLE t1(c1 INT NOT NULL) ENGINE = csv;
+CREATE TABLE t2(c1 INT NOT NULL);
+
+--echo # Emulate corruption of t1
+LOCK TABLES t1 WRITE;
+INSERT INTO t1 VALUES(0);
+CHECK TABLE t1;
+UNLOCK TABLES;
+
+--echo # Start XA txn on default
+XA START 'test2';
+--echo # Acquire SR on t2
+SELECT * FROM t2;
+--echo # Block IS query just before calling lock_table_names() (before X on t1)
+SET DEBUG_SYNC='recover_ot_repair SIGNAL parked WAIT_FOR go';
+--send SELECT COUNT(*)FROM information_schema.key_column_usage
+
+--echo # Create a new conncection which will compete for MDL lock
+--connect (con1,localhost,root,,)
+--echo # Wait until default becomes blocked
+SET DEBUG_SYNC='now WAIT_FOR parked';
+--echo # Try to acquire X on t1 and t2, which will block while default
+--echo # holds SR on t2
+--send DROP TABLES t1, t2
+
+--echo # Create control connection
+--connect (con2,localhost,root,,)
+
+--echo # Wait until con1 is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "DROP TABLES t1, t2";
+--source include/wait_condition.inc
+--echo # Wake up XA txn/IS query on default
+SET DEBUG_SYNC='now SIGNAL go';
+--echo # Disconnect control connection
+--disconnect con2
+--source include/wait_until_disconnected.inc
+
+--echo # Switch to default connection
+--connection default
+--echo # Wait for IS query which will try repair t1 which requires X.
+--echo # Previously that resulted in deadlock with con1 over t1,
+--echo # but now t1 is skipped and a warning is issued
+--reap
+
+--echo # Finish XA txn 'test2' to release SR on t2 so that con1
+--echo # becomes unblocked
+XA END 'test2';
+XA PREPARE 'test2';
+XA COMMIT 'test2';
+
+--echo # Cleanup
+SET DEBUG_SYNC= 'RESET';
+
+--echo # Clean up con1 now that the XA txn has finished
+--connection con1
+--echo # Wait for the now unblocked DROP t1, t2 to complete
+--reap
+--echo # Disconnecting con1
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--echo # Switching to back to default at end of test case
+--connection default
+
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc
