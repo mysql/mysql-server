@@ -79,8 +79,7 @@ Ha_innopart_share::Ha_innopart_share(
 	m_tot_parts(),
 	m_index_count(),
 	m_ref_count(),
-	m_table_share(table_share),
-	m_s_templ()
+	m_table_share(table_share)
 {}
 
 Ha_innopart_share::~Ha_innopart_share()
@@ -93,11 +92,6 @@ Ha_innopart_share::~Ha_innopart_share()
 	if (m_index_mapping != NULL) {
 		ut_free(m_index_mapping);
 		m_index_mapping = NULL;
-	}
-	if (m_s_templ != NULL) {
-		free_vc_templ(m_s_templ);
-		ut_free(m_s_templ);
-		m_s_templ = NULL;
 	}
 }
 
@@ -229,25 +223,29 @@ Ha_innopart_share::set_v_templ(
 	dict_table_t*	ib_table,
 	const char*	name)
 {
-#ifndef DBUG_OFF
-	if (m_table_share->tmp_table == NO_TMP_TABLE) {
-		mysql_mutex_assert_owner(&m_table_share->LOCK_ha_data);
-	}
-#endif /* DBUG_OFF */
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	if (ib_table->n_v_cols > 0) {
-		if (!m_s_templ) {
-			m_s_templ = static_cast<innodb_col_templ_t*>(
-				ut_zalloc_nokey( sizeof *m_s_templ));
-			innobase_build_v_templ(table, ib_table,
-					       m_s_templ, NULL, false, name);
-
-			for (ulint i = 0; i < m_tot_parts; i++) {
-				m_table_parts[i]->vc_templ = m_s_templ;
+		for (ulint i = 0; i < m_tot_parts; i++) {
+			if (m_table_parts[i]->vc_templ != NULL
+			    && m_table_parts[i]->get_ref_count() == 1) {
+				/* Clean and refresh the template */
+				dict_free_vc_templ(m_table_parts[i]->vc_templ);
+				m_table_parts[i]->vc_templ->vtempl = NULL;
+			} else {
+				m_table_parts[i]->vc_templ
+					= UT_NEW_NOKEY(dict_vcol_templ_t());
+				m_table_parts[i]->vc_templ->vtempl = NULL;
 			}
+
+			if (m_table_parts[i]->vc_templ->vtempl == NULL) {
+				innobase_build_v_templ(
+					table, ib_table,
+					m_table_parts[i]->vc_templ,
+					NULL, true, name);
+			}
+
 		}
-	} else {
-		ut_ad(!m_s_templ);
 	}
 }
 
@@ -465,12 +463,6 @@ Ha_innopart_share::close_table_parts()
 	if (m_index_mapping != NULL) {
 		ut_free(m_index_mapping);
 		m_index_mapping = NULL;
-	}
-
-	if (m_s_templ != NULL) {
-		free_vc_templ(m_s_templ);
-		ut_free(m_s_templ);
-		m_s_templ = NULL;
 	}
 
 	m_tot_parts = 0;
@@ -1129,9 +1121,9 @@ share_error:
 	ut_ad(m_prebuilt->default_rec);
 
 	if (ib_table->n_v_cols > 0) {
-		lock_shared_ha_data();
+		mutex_enter(&dict_sys->mutex);
 		m_part_share->set_v_templ(table, ib_table, name);
-		unlock_shared_ha_data();
+		mutex_exit(&dict_sys->mutex);
 	}
 
 	/* Looks like MySQL-3.23 sometimes has primary key number != 0. */

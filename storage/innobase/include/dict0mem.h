@@ -1216,12 +1216,42 @@ generate a specific template for it. */
 typedef ut_list_base<lock_t, ut_list_node<lock_t> lock_table_t::*>
 	table_lock_list_t;
 
+/** mysql template structure defined in row0mysql.cc */
+struct mysql_row_templ_t;
+
+/** Structure defines template related to virtual columns and
+their base columns */
+struct dict_vcol_templ_t {
+	/** number of regular columns */
+	ulint			n_col;
+
+	/** number of virtual columns */
+	ulint			n_v_col;
+
+	/** array of templates for virtual col and their base columns */
+	mysql_row_templ_t**	vtempl;
+
+	/** table's database name */
+	std::string		db_name;
+
+	/** table name */
+	std::string		tb_name;
+
+	/** share->table_name */
+	std::string		share_name;
+
+	/** MySQL record length */
+	ulint			rec_len;
+
+	/** default column value if any */
+	const byte*		default_rec;
+};
+
 /* This flag is for sync SQL DDL and memcached DML.
 if table->memcached_sync_count == DICT_TABLE_IN_DDL means there's DDL running on
 the table, DML from memcached will be blocked. */
 #define DICT_TABLE_IN_DDL -1
 
-struct innodb_col_templ_t;
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
 struct dict_table_t {
@@ -1613,7 +1643,7 @@ public:
 #endif /* UNIV_DEBUG */
 	/** mysql_row_templ_t for base columns used for compute the virtual
 	columns */
-	innodb_col_templ_t*			vc_templ;
+	dict_vcol_templ_t*			vc_templ;
 
 	/** whether above vc_templ comes from purge allocation */
 	bool					vc_templ_purge;
