@@ -3705,7 +3705,8 @@ TESTCASE("DeferredMixedLoad",
   FINALIZER(createPkIndex_Drop);
 }
 TESTCASE("DeferredMixedLoadError",
-         "Test mixed load of DML with deferred indexes")
+         "Test mixed load of DML with deferred indexes. "
+         "Need --skip-ndb-optimized-node-selection")
 {
   TC_PROPERTY("LoggedIndexes", Uint32(0));
   TC_PROPERTY("OrderedIndex", Uint32(0));
