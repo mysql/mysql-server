@@ -22,7 +22,7 @@ args: -n DeferredMixedLoad T1 T6 T13
 
 max-time: 2000
 cmd: testIndex
-args: -n DeferredMixedLoadError T1 T6 T13
+args: -n DeferredMixedLoadError --skip-ndb-optimized-node-selection T1 T6 T13
 
 max-time: 900
 cmd: testIndex
