@@ -503,3 +503,16 @@ UPDATE v1 SET pk = 7 WHERE pk > 0;
 DROP VIEW v1;
 DROP FUNCTION f1;
 DROP TABLE t1;
+
+--echo # Bug #21143080: UPDATE ON VARCHAR AND TEXT COLUMNS PRODUCE INCORRECT
+--echo #                RESULTS
+
+CREATE TABLE t1 (a VARCHAR(50), b TEXT, c CHAR(50)) ENGINE=INNODB;
+
+INSERT INTO t1 (a, b, c) VALUES ('start trail', '', 'even longer string');
+UPDATE t1 SET b = a, a = 'inject';
+SELECT a, b FROM t1;
+UPDATE t1 SET b = c, c = 'inject';
+SELECT c, b FROM t1;
+
+DROP TABLE t1;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,5 +32,6 @@ void mysql_ha_flush_tables(THD *thd, TABLE_LIST *all_tables);
 void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables);
 void mysql_ha_cleanup(THD *thd);
 void mysql_ha_set_explicit_lock_duration(THD *thd);
+void mysql_ha_rm_temporary_tables(THD *thd);
 
 #endif /* SQL_HANDLER_INCLUDED */
