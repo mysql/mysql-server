@@ -385,24 +385,26 @@ bool mysql_prepare_blob_values(THD *thd, List<Item> &fields, MEM_ROOT *mem_root)
   // Traverse through thd->lex->insert_update_values_map
   // and make copy of BLOB values in RHS_FIELD, if the same field is
   // modified (present in above 'set' prepared).
-  std::map<Field *, Field *>::iterator iter=
-    thd->lex->insert_update_values_map.begin();
-  for(iter= thd->lex->insert_update_values_map.begin();
-      iter != thd->lex->insert_update_values_map.end();
-      ++iter)
+  if (thd->lex->has_values_map())
   {
-    // Retrieve the Field_blob pointers from the map.
-    // and initialize newly declared variables immediately.
-    Field_blob *lhs_field= down_cast<Field_blob *>(iter->first);
-    Field_blob *rhs_field= down_cast<Field_blob *>(iter->second);
+    std::map<Field *, Field *>::iterator iter;
+    for(iter= thd->lex->begin_values_map();
+        iter != thd->lex->end_values_map();
+        ++iter)
+    {
+      // Retrieve the Field_blob pointers from the map.
+      // and initialize newly declared variables immediately.
+      Field_blob *lhs_field= down_cast<Field_blob *>(iter->first);
+      Field_blob *rhs_field= down_cast<Field_blob *>(iter->second);
 
-    // Check if the Field_blob object is updated before making a copy.
-    if (blob_update_field_set.count_unique(lhs_field) == 0)
-      continue;
+      // Check if the Field_blob object is updated before making a copy.
+      if (blob_update_field_set.count_unique(lhs_field) == 0)
+        continue;
 
-    // Copy blob value
-    if(rhs_field->copy_blob_value(mem_root))
-      DBUG_RETURN(true);
+      // Copy blob value
+      if(rhs_field->copy_blob_value(mem_root))
+        DBUG_RETURN(true);
+    }
   }
 
   DBUG_RETURN(false);

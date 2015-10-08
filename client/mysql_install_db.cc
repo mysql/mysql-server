@@ -543,7 +543,7 @@ bool locate_file(const string &filename, vector<Path > *search_paths,
 void add_standard_search_paths(vector<Path > *spaths)
 {
   Path p;
-  if (!p.getcwd())
+  if (!p.path_getcwd())
     warning << "Can't determine current working directory." << endl;
 
   spaths->push_back(p);
