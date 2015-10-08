@@ -2,7 +2,7 @@
 "ndb_desc -pb with tinyblob column"
 CREATE TABLE test.t1 (a int primary key, b tinyblob)engine=ndbcluster;
 -- t1 --
-Version: VERSION_NUMBER
+Version: Any
 Fragment type: HashMapPartition
 K Value: 6
 Min load factor: 78
@@ -10,7 +10,7 @@ Max load factor: 80
 Temporary table: no
 Number of attributes: 2
 Number of primary keys: 1
-Length of frm data: 279
+Length of frm data: XXX
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
@@ -38,7 +38,7 @@ CREATE TABLE test.t2 (a int primary key, b tinyblob, c mediumblob,
 d blob, e longblob,f tinytext, g text, h mediumtext, i longtext)
 engine=ndbcluster;
 -- t2 --
-Version: VERSION_NUMBER
+Version: Any
 Fragment type: HashMapPartition
 K Value: 6
 Min load factor: 78
@@ -46,7 +46,7 @@ Max load factor: 80
 Temporary table: no
 Number of attributes: 9
 Number of primary keys: 1
-Length of frm data: 376
+Length of frm data: XXX
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
@@ -59,13 +59,13 @@ HashMap: DEFAULT-HASHMAP-3840-2
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Blob(256,0,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=<none>
-c Blob(256,4000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_ID_2
-d Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_ID_3
-e Blob(256,13948,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_ID_4
+c Blob(256,4000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_2
+d Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_3
+e Blob(256,13948,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_4
 f Text(256,0,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=<none>
-g Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_ID_6
-h Text(256,4000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_ID_7
-i Text(256,13948,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_ID_8
+g Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_6
+h Text(256,4000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_7
+i Text(256,13948,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_8
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
@@ -73,23 +73,23 @@ PRIMARY(a) - OrderedIndex
 Partition	Row count	Commit count	Frag fixed memory	Frag varsized memory	Extent_space	Free extent_space	
 
 
--- Per partition info for NDB$BLOB_ID_2 -- 
+-- Per partition info for NDB$BLOB_XX_2 -- 
 Partition	Row count	Commit count	Frag fixed memory	Frag varsized memory	Extent_space	Free extent_space	
 
--- Per partition info for NDB$BLOB_ID_3 -- 
+-- Per partition info for NDB$BLOB_XX_3 -- 
 Partition	Row count	Commit count	Frag fixed memory	Frag varsized memory	Extent_space	Free extent_space	
 
--- Per partition info for NDB$BLOB_ID_4 -- 
+-- Per partition info for NDB$BLOB_XX_4 -- 
 Partition	Row count	Commit count	Frag fixed memory	Frag varsized memory	Extent_space	Free extent_space	
 
 
--- Per partition info for NDB$BLOB_ID_6 -- 
+-- Per partition info for NDB$BLOB_XX_6 -- 
 Partition	Row count	Commit count	Frag fixed memory	Frag varsized memory	Extent_space	Free extent_space	
 
--- Per partition info for NDB$BLOB_ID_7 -- 
+-- Per partition info for NDB$BLOB_XX_7 -- 
 Partition	Row count	Commit count	Frag fixed memory	Frag varsized memory	Extent_space	Free extent_space	
 
--- Per partition info for NDB$BLOB_ID_8 -- 
+-- Per partition info for NDB$BLOB_XX_8 -- 
 Partition	Row count	Commit count	Frag fixed memory	Frag varsized memory	Extent_space	Free extent_space	
 
 
