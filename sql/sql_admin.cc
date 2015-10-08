@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -429,28 +429,15 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           if (!table->table->part_info)
           {
             my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
-            if (gtid_rollback_must_be_skipped)
-              thd->skip_gtid_rollback= false;
-            DBUG_RETURN(TRUE);
+            result_code= HA_ADMIN_FAILED;
+            goto send_result;
           }
 
           if (set_part_state(alter_info, table->table->part_info, PART_ADMIN))
           {
-            char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
-            size_t length;
-            DBUG_PRINT("admin", ("sending non existent partition error"));
-            protocol->prepare_for_resend();
-            protocol->store(table_name, system_charset_info);
-            protocol->store(operator_name, system_charset_info);
-            protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-            length= my_snprintf(buff, sizeof(buff),
-                                ER(ER_DROP_PARTITION_NON_EXISTENT),
-                                table_name);
-            protocol->store(buff, length, system_charset_info);
-            if(protocol->write())
-              goto err;
-            my_eof(thd);
-            goto err;
+            my_error(ER_DROP_PARTITION_NON_EXISTENT, MYF(0), table_name);
+            result_code= HA_ADMIN_FAILED;
+            goto send_result;
           }
         }
       }

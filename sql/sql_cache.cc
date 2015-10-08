@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, 2015, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -404,6 +405,9 @@ using std::max;
 #define QC_DEBUG_SYNC(name)
 #endif
 
+// Max aligned size for ulong type query_cache_min_res_unit.
+static const ulong max_aligned_min_res_unit_size= ((ULONG_MAX) &
+                                                   (~(sizeof(double) - 1)));
 
 /**
   Thread state to be used when the query cache lock needs to be acquired.
@@ -1168,6 +1172,9 @@ ulong Query_cache::set_min_res_unit(ulong size)
 {
   if (size < min_allocation_unit)
     size= min_allocation_unit;
+  else if (size > max_aligned_min_res_unit_size)
+    size= max_aligned_min_res_unit_size;
+
   return (min_result_data_size= ALIGN_SIZE(size));
 }
 

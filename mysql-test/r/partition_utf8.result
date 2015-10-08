@@ -2,6 +2,10 @@ set names utf8;
 create table t1 (a varchar(2) character set cp1250)
 partition by list columns (a)
 ( partition p0 values in (0x81));
+Warnings:
+Warning	1300	Invalid cp1250 character string: '81'
+Warning	1300	Invalid cp1250 character string: '81'
+Warning	1300	Invalid cp1250 character string: '81'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -9,6 +13,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50500 PARTITION BY LIST  COLUMNS(a)
 (PARTITION p0 VALUES IN (_cp1250 0x81) ENGINE = MyISAM) */
+Warnings:
+Warning	1300	Invalid cp1250 character string: '81'
 drop table t1;
 create table t1 (a varchar(2) character set cp1250)
 partition by list columns (a)

@@ -34,6 +34,7 @@ show status like "Qcache_hits";
 
 select spins from performance_schema.events_waits_current order by event_name limit 1;
 
+--replace_result CYCLE {CYCLE_OR_NANOSECOND} NANOSECOND {CYCLE_OR_NANOSECOND}
 select * from performance_schema.setup_timers where name='wait';
 
 show status like "Qcache_queries_in_cache";
@@ -42,6 +43,7 @@ show status like "Qcache_hits";
 
 select spins from performance_schema.events_waits_current order by event_name limit 1;
 
+--replace_result CYCLE {CYCLE_OR_NANOSECOND} NANOSECOND {CYCLE_OR_NANOSECOND}
 select * from performance_schema.setup_timers where name='wait';
 
 show status like "Qcache_queries_in_cache";

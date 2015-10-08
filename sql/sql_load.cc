@@ -2043,8 +2043,15 @@ int READ_INFO::read_xml()
       break;
       
     case '/': /* close tag */
-      level--;
       chr= my_tospace(GET);
+      /* Decrease the 'level' only when (i) It's not an */
+      /* (without space) empty tag i.e. <tag/> or, (ii) */
+      /* It is of format <row col="val" .../>           */
+      if(chr != '>' || in_tag)
+      {
+        level--;
+        in_tag= false;
+      }
       if(chr != '>')   /* if this is an empty tag <tag   /> */
         tag.length(0); /* we should keep tag value          */
       while(chr != '>' && chr != my_b_EOF)

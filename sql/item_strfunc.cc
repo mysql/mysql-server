@@ -751,8 +751,17 @@ String *Item_func_concat::val_str(String *str)
 	  str->replace(0,0,*res);
 	else
 	{
-	  str->copy(*res);
-	  str->append(*res2);
+          // If res2 is a substring of str, then clone it first.
+          char buff[STRING_BUFFER_USUAL_SIZE];
+          String res2_clone(buff, sizeof(buff), system_charset_info);
+          if (res2->uses_buffer_owned_by(str))
+          {
+            if (res2_clone.copy(*res2))
+              goto null;
+            res2= &res2_clone;
+          }
+          str->copy(*res);
+          str->append(*res2);
 	}
         res= str;
         use_as_buff= &tmp_value;
@@ -1097,9 +1106,18 @@ String *Item_func_concat_ws::val_str(String *str)
       }
       else
       {
-	str->copy(*res);
-	str->append(*sep_str);
-	str->append(*res2);
+        // If res2 is a substring of str, then clone it first.
+        char buff[STRING_BUFFER_USUAL_SIZE];
+        String res2_clone(buff, sizeof(buff), system_charset_info);
+        if (res2->uses_buffer_owned_by(str))
+        {
+          if (res2_clone.copy(*res2))
+            goto null;
+          res2= &res2_clone;
+        }
+        str->copy(*res);
+        str->append(*sep_str);
+        str->append(*res2);
       }
       res=str;
       use_as_buff= &tmp_value;
@@ -1345,7 +1363,15 @@ redo:
           if (!alloced)
           {
             alloced=1;
-            res=copy_if_not_alloced(str,res,res->length()+to_length);
+            if (res->uses_buffer_owned_by(str))
+            {
+              if (tmp_value_res.alloc(res->length() + to_length) ||
+                  tmp_value_res.copy(*res))
+                goto null;
+              res= &tmp_value_res;
+            }
+            else
+              res= copy_if_not_alloced(str, res, res->length() + to_length);
           }
           res->replace((uint) offset,from_length,*res3);
 	  offset+=(int) to_length;
@@ -1372,7 +1398,15 @@ skip:
       if (!alloced)
       {
         alloced=1;
-        res=copy_if_not_alloced(str,res,res->length()+to_length);
+        if (res->uses_buffer_owned_by(str))
+        {
+          if (tmp_value_res.alloc(res->length() + to_length) ||
+              tmp_value_res.copy(*res))
+            goto null;
+          res= &tmp_value_res;
+        }
+        else
+          res= copy_if_not_alloced(str, res, res->length() + to_length);
       }
       res->replace((uint) offset,from_length,*res3);
       offset+=(int) to_length;
@@ -1406,22 +1440,27 @@ String *Item_func_insert::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *res,*res2;
-  longlong start, length;  /* must be longlong to avoid truncation */
+  longlong start, length, orig_len;  /* must be longlong to avoid truncation */
 
   null_value=0;
   res=args[0]->val_str(str);
   res2=args[3]->val_str(&tmp_value);
-  start= args[1]->val_int() - 1;
+  start= args[1]->val_int();
   length= args[2]->val_int();
 
   if (args[0]->null_value || args[1]->null_value || args[2]->null_value ||
       args[3]->null_value)
     goto null; /* purecov: inspected */
 
-  if ((start < 0) || (start > res->length()))
+  orig_len= static_cast<longlong>(res->length());
+
+  if ((start < 1) || (start > orig_len))
     return res;                                 // Wrong param; skip insert
-  if ((length < 0) || (length > res->length()))
-    length= res->length();
+
+  --start;    // Internal start from '0'
+
+  if ((length < 0) || (length > orig_len))
+    length= orig_len;
 
   /*
     There is one exception not handled (intentionaly) by the character set
@@ -1442,12 +1481,12 @@ String *Item_func_insert::val_str(String *str)
    length= res->charpos((int) length, (uint32) start);
 
   /* Re-testing with corrected params */
-  if (start > res->length())
+  if (start > orig_len)
     return res; /* purecov: inspected */        // Wrong param; skip insert
-  if (length > res->length() - start)
-    length= res->length() - start;
+  if (length > orig_len - start)
+    length= orig_len - start;
 
-  if ((ulonglong) (res->length() - length + res2->length()) >
+  if ((ulonglong) (orig_len - length + res2->length()) >
       (ulonglong) current_thd->variables.max_allowed_packet)
   {
     push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
@@ -1456,7 +1495,16 @@ String *Item_func_insert::val_str(String *str)
 			func_name(), current_thd->variables.max_allowed_packet);
     goto null;
   }
-  res=copy_if_not_alloced(str,res,res->length());
+  if (res->uses_buffer_owned_by(str))
+  {
+    if (tmp_value_res.alloc(orig_len) ||
+        tmp_value_res.copy(*res))
+      goto null;
+    res= &tmp_value_res;
+  }
+  else
+    res= copy_if_not_alloced(str, res, orig_len);
+
   res->replace((uint32) start,(uint32) length,*res2);
   return res;
 null:
@@ -1491,7 +1539,15 @@ String *Item_str_conv::val_str(String *str)
   if (multiply == 1)
   {
     uint len;
-    res= copy_if_not_alloced(str,res,res->length());
+    if (res->uses_buffer_owned_by(str))
+    {
+       if (tmp_value.copy(*res))
+         goto null;
+       res= &tmp_value;
+    }
+    else
+      res= copy_if_not_alloced(str, res, res->length());
+
     len= converter(collation.collation, (char*) res->ptr(), res->length(),
                                         (char*) res->ptr(), res->length());
     DBUG_ASSERT(len <= res->length());
@@ -1508,6 +1564,9 @@ String *Item_str_conv::val_str(String *str)
     res= &tmp_value;
   }
   return res;
+null:
+  null_value= maybe_null;
+  return 0;
 }
 
 
@@ -2363,11 +2422,22 @@ String *Item_func_encode::val_str(String *str)
   }
 
   null_value= 0;
-  res= copy_if_not_alloced(str, res, res->length());
+  if (res->uses_buffer_owned_by(str))
+  {
+    if (tmp_value_res.copy(*res))
+      goto null;
+    res= &tmp_value_res;
+  }
+  else
+    res= copy_if_not_alloced(str, res, res->length());
+
   crypto_transform(res);
   sql_crypt.reinit();
 
   return res;
+null:
+  null_value= maybe_null;
+  return 0;
 }
 
 void Item_func_encode::crypto_transform(String *res)
@@ -3017,7 +3087,9 @@ String *Item_func_char::val_str(String *str)
     }
   }
   str->realloc(str->length());			// Add end 0 (for Purify)
-  return check_well_formed_result(str);
+  return check_well_formed_result(str,
+                                  false,  // send warning
+                                  true);  // truncate
 }
 
 
@@ -3257,7 +3329,9 @@ String *Item_func_rpad::val_str(String *str)
   if (use_mb(rpad->charset()))
   {
     // This will chop off any trailing illegal characters from rpad.
-    String *well_formed_pad= args[2]->check_well_formed_result(rpad, false);
+    String *well_formed_pad= args[2]->check_well_formed_result(rpad,
+                                                               false, //send warning
+                                                               true); //truncate
     if (!well_formed_pad)
       goto err;
   }
@@ -3372,7 +3446,9 @@ String *Item_func_lpad::val_str(String *str)
   if (use_mb(pad->charset()))
   {
     // This will chop off any trailing illegal characters from pad.
-    String *well_formed_pad= args[2]->check_well_formed_result(pad, false);
+    String *well_formed_pad= args[2]->check_well_formed_result(pad,
+                                                               false, // send warning
+                                                               true); // truncate
     if (!well_formed_pad)
       goto err;
   }
@@ -3488,7 +3564,9 @@ String *Item_func_conv_charset::val_str(String *str)
   }
   null_value= tmp_value.copy(arg->ptr(), arg->length(), arg->charset(),
                              conv_charset, &dummy_errors);
-  return null_value ? 0 : check_well_formed_result(&tmp_value);
+  return null_value ? 0 : check_well_formed_result(&tmp_value,
+                                                   false, // send warning
+                                                   true); // truncate
 }
 
 void Item_func_conv_charset::fix_length_and_dec()
@@ -4599,6 +4677,9 @@ String *Item_func_uuid::val_str(String *str)
   tohex(s+9, time_mid, 4);
   tohex(s+14, time_hi_and_version, 4);
   strmov(s+18, clock_seq_and_node_str);
+  DBUG_EXECUTE_IF("force_fake_uuid",
+                  strmov(s, "a2d00942-b69c-11e4-a696-0020ff6fcbe6");
+                  );
   return str;
 }
 

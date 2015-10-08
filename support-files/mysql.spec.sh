@@ -145,7 +145,7 @@
       %if "%elver" == "6" || "%elver" == "7"
         %define distro_description      Oracle Linux %elver
         %define distro_releasetag       el%elver
-        %define distro_buildreq         gcc-c++ ncurses-devel perl time zlib-devel cmake libaio-devel
+        %define distro_buildreq         gcc-c++ ncurses-devel perl time zlib-devel cmake libaio-devel numactl-devel
         %define distro_requires         chkconfig coreutils grep procps shadow-utils net-tools
       %else
         %{error:Oracle Linux %{elver} is unsupported}
@@ -168,7 +168,7 @@
             %if "%rhelver" == "6"
               %define distro_description    Red Hat Enterprise Linux 6
               %define distro_releasetag     rhel6
-              %define distro_buildreq       gcc-c++ ncurses-devel perl time zlib-devel cmake libaio-devel
+              %define distro_buildreq       gcc-c++ ncurses-devel perl time zlib-devel cmake libaio-devel numactl-devel
               %define distro_requires       chkconfig coreutils grep procps shadow-utils net-tools
             %else
               %{error:Red Hat Enterprise Linux %{rhelver} is unsupported}
@@ -187,7 +187,7 @@
             %if "%susever" == "11"
               %define distro_description  SUSE Linux Enterprise Server 11
               %define distro_releasetag   sles11
-              %define distro_buildreq     gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils zlib-devel cmake libaio-devel
+              %define distro_buildreq     gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils zlib-devel cmake libaio-devel libnuma-devel
               %define distro_requires     aaa_base coreutils grep procps pwdutils
             %else
               %{error:SuSE %{susever} is unsupported}
@@ -609,7 +609,7 @@ install -m 644 "%{malloc_lib_source}" \
 # Check local settings to support them.
 if [ -x %{_bindir}/my_print_defaults ]
 then
-  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p'`
+  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | tail -1 | sed -n 's/--datadir=//p'`
   PID_FILE_PATT=`%{_bindir}/my_print_defaults server mysqld | grep '^--pid-file=' | sed -n 's/--pid-file=//p'`
 fi
 if [ -z "$mysql_datadir" ]
@@ -714,7 +714,7 @@ esac
 
 STATUS_FILE=$mysql_datadir/RPM_UPGRADE_MARKER
 
-if [ -f $STATUS_FILE ]; then
+if [ -f "$STATUS_FILE" ]; then
 	echo "Some previous upgrade was not finished:"
 	ls -ld $STATUS_FILE
 	echo "Please check its status, then do"
@@ -787,7 +787,7 @@ fi
 # Check local settings to support them.
 if [ -x %{_bindir}/my_print_defaults ]
 then
-  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p'`
+  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | tail -1 | sed -n 's/--datadir=//p'`
 fi
 if [ -z "$mysql_datadir" ]
 then
@@ -800,8 +800,8 @@ STATUS_FILE=$mysql_datadir/RPM_UPGRADE_MARKER
 # ----------------------------------------------------------------------
 # Create data directory if needed, check whether upgrade or install
 # ----------------------------------------------------------------------
-if [ ! -d $mysql_datadir ] ; then mkdir -m 755 $mysql_datadir; fi
-if [ -f $STATUS_FILE ] ; then
+if [ ! -d "$mysql_datadir" ] ; then mkdir -m 755 "$mysql_datadir" ; fi
+if [ -f "$STATUS_FILE" ] ; then
 	SERVER_TO_START=`grep '^SERVER_TO_START=' $STATUS_FILE | cut -c17-`
 else
 	SERVER_TO_START=''
@@ -985,7 +985,7 @@ fi
 # Check local settings to support them.
 if [ -x %{_bindir}/my_print_defaults ]
 then
-  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p'`
+  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | tail -1 | sed -n 's/--datadir=//p'`
 fi
 if [ -z "$mysql_datadir" ]
 then
@@ -996,7 +996,7 @@ NEW_VERSION=%{mysql_version}-%{release}
 STATUS_FILE=$mysql_datadir/RPM_UPGRADE_MARKER-LAST  # Note the difference!
 STATUS_HISTORY=$mysql_datadir/RPM_UPGRADE_HISTORY
 
-if [ -f $STATUS_FILE ] ; then
+if [ -f "$STATUS_FILE" ] ; then
 	SERVER_TO_START=`grep '^SERVER_TO_START=' $STATUS_FILE | cut -c17-`
 else
 	# This should never happen, but let's be prepared

@@ -1766,6 +1766,16 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   }
   // Otherwise, we truncate the cache
   cache_mngr->trx_cache.restore_savepoint(pos);
+  /*
+    When a SAVEPOINT is executed inside a stored function/trigger we force the
+    pending event to be flushed with a STMT_END_F flag and clear the table maps
+    as well to ensure that following DMLs will have a clean state to start
+    with. ROLLBACK inside a stored routine has to finalize possibly existing
+    current row-based pending event with cleaning up table maps. That ensures
+    that following DMLs will have a clean state to start with.
+   */
+  if (thd->in_sub_stmt)
+    thd->clear_binlog_table_maps();
   if (cache_mngr->trx_cache.is_binlog_empty())
     cache_mngr->trx_cache.group_cache.clear();
   DBUG_RETURN(0);
@@ -2282,14 +2292,31 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
     if ((file=open_binlog_file(&log, linfo.log_file_name, &errmsg)) < 0)
       goto err;
 
+    my_off_t end_pos;
+    /*
+      Acquire LOCK_log only for the duration to calculate the
+      log's end position. LOCK_log should be acquired even while
+      we are checking whether the log is active log or not.
+    */
+    mysql_mutex_lock(log_lock);
+    if (binary_log->is_active(linfo.log_file_name))
+    {
+      LOG_INFO li;
+      binary_log->get_current_log(&li, false /*LOCK_log is already acquired*/);
+      end_pos= li.pos;
+    }
+    else
+    {
+      end_pos= my_b_filelength(&log);
+    }
+    mysql_mutex_unlock(log_lock);
+
     /*
       to account binlog event header size
     */
     thd->variables.max_allowed_packet += MAX_LOG_EVENT_HEADER;
 
     DEBUG_SYNC(thd, "after_show_binlog_event_found_file");
-
-    mysql_mutex_lock(log_lock);
 
     /*
       open_binlog_file() sought to position 4.
@@ -2325,6 +2352,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
                                          description_event,
                                          opt_master_verify_checksum)); )
     {
+      DEBUG_SYNC(thd, "wait_in_show_binlog_events_loop");
       if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
         description_event->checksum_alg= ev->checksum_alg;
 
@@ -2333,25 +2361,22 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
       {
 	errmsg = "Net error";
 	delete ev;
-        mysql_mutex_unlock(log_lock);
 	goto err;
       }
 
       pos = my_b_tell(&log);
       delete ev;
 
-      if (++event_count >= limit_end)
+      if (++event_count >= limit_end || pos >= end_pos)
 	break;
     }
 
     if (event_count < limit_end && log.error)
     {
       errmsg = "Wrong offset or I/O error";
-      mysql_mutex_unlock(log_lock);
       goto err;
     }
 
-    mysql_mutex_unlock(log_lock);
   }
   // Check that linfo is still on the function scope.
   DEBUG_SYNC(thd, "after_show_binlog_events");
@@ -3501,18 +3526,20 @@ err:
   DBUG_RETURN(-1);
 }
 
-int MYSQL_BIN_LOG::get_current_log(LOG_INFO* linfo)
+int MYSQL_BIN_LOG::get_current_log(LOG_INFO* linfo, bool need_lock_log/*true*/)
 {
-  mysql_mutex_lock(&LOCK_log);
+  if (need_lock_log)
+    mysql_mutex_lock(&LOCK_log);
   int ret = raw_get_current_log(linfo);
-  mysql_mutex_unlock(&LOCK_log);
+  if (need_lock_log)
+    mysql_mutex_unlock(&LOCK_log);
   return ret;
 }
 
 int MYSQL_BIN_LOG::raw_get_current_log(LOG_INFO* linfo)
 {
   strmake(linfo->log_file_name, log_file_name, sizeof(linfo->log_file_name)-1);
-  linfo->pos = my_b_tell(&log_file);
+  linfo->pos = my_b_safe_tell(&log_file);
   return 0;
 }
 
@@ -4081,9 +4108,17 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
     rli->set_group_relay_log_name(rli->linfo.log_file_name);
     rli->notify_group_relay_log_name_update();
   }
-
-  /* Store where we are in the new file for the execution thread */
-  rli->flush_info(TRUE);
+  /*
+    Store where we are in the new file for the execution thread.
+    If we are in the middle of a group), then we should not store
+    the position in the repository, instead in that case set a flag
+    to true which indicates that a 'forced flush' is postponed due
+    to transaction split across the relaylogs.
+  */
+  if (!rli->is_in_group())
+    rli->flush_info(TRUE);
+  else
+    rli->force_flush_postponed_due_to_split_trans= true;
 
   DBUG_EXECUTE_IF("crash_before_purge_logs", DBUG_SUICIDE(););
 
@@ -4879,19 +4914,22 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
   mysql_mutex_assert_owner(&LOCK_log);
   mysql_mutex_assert_owner(&LOCK_index);
 
-  /* Reuse old name if not binlog and not update log */
-  new_name_ptr= name;
 
   /*
     If user hasn't specified an extension, generate a new log name
     We have to do this here and not in open as we want to store the
     new file name in the current binary log file.
   */
+  new_name_ptr= new_name;
   if ((error= generate_new_name(new_name, name)))
+  {
+    // Use the old name if generation of new name fails.
+    strcpy(new_name, name);
+    close_on_error= TRUE;
     goto end;
+  }
   else
   {
-    new_name_ptr=new_name;
     /*
       We log the whole file name for log file as the user may decide
       to change base names at some point.
@@ -5056,11 +5094,19 @@ bool MYSQL_BIN_LOG::after_append_to_relay_log(Master_info *mi)
   bool error= false;
   if (flush_and_sync(0) == 0)
   {
+    DBUG_EXECUTE_IF ("set_max_size_zero",
+                     {max_size=0;});
     // If relay log is too big, rotate
     if ((uint) my_b_append_tell(&log_file) >
         DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size))
     {
       error= new_file_without_locking(mi->get_mi_description_event());
+      DBUG_EXECUTE_IF ("set_max_size_zero",
+                       {
+                       max_size=1073741824;
+                       DBUG_SET("-d,set_max_size_zero");
+                       DBUG_SET("-d,flush_after_reading_gtid_event");
+                       });
     }
   }
 
@@ -5243,10 +5289,17 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
   /*
     We only end the statement if we are in a top-level statement.  If
     we are inside a stored function, we do not end the statement since
-    this will close all tables on the slave.
+    this will close all tables on the slave. But there can be a special case
+    where we are inside a stored function/trigger and a SAVEPOINT is being
+    set in side the stored function/trigger. This SAVEPOINT execution will
+    force the pending event to be flushed without an STMT_END_F flag. This
+    will result in a case where following DMLs will be considered as part of
+    same statement and result in data loss on slave. Hence in this case we
+    force the end_stmt to be true.
   */
-  bool const end_stmt=
-    thd->locked_tables_mode && thd->lex->requires_prelocking();
+  bool const end_stmt= (thd->in_sub_stmt && thd->lex->sql_command ==
+                        SQLCOM_SAVEPOINT)? true:
+    (thd->locked_tables_mode && thd->lex->requires_prelocking());
   if (thd->binlog_flush_pending_rows_event(end_stmt,
                                            event_info->is_using_trans_cache()))
     DBUG_RETURN(error);
@@ -5411,30 +5464,7 @@ int MYSQL_BIN_LOG::rotate(bool force_rotate, bool* check_purge)
 
   if (force_rotate || (my_b_tell(&log_file) >= (my_off_t) max_size))
   {
-    if ((error= new_file_without_locking(NULL)))
-      /** 
-        Be conservative... There are possible lost events (eg, 
-        failing to log the Execute_load_query_log_event
-        on a LOAD DATA while using a non-transactional
-        table)!
-
-        We give it a shot and try to write an incident event anyway
-        to the current log. 
-      */
-      if (!write_incident(current_thd, false/*need_lock_log=false*/,
-                          false/*do_flush_and_sync==false*/))
-      {
-        /*
-          Write an error to log. So that user might have a chance
-          to be alerted and explore incident details before its
-          slave servers would stop.
-        */
-        sql_print_error("The server was unable to create a new log file. "
-                        "An incident event has been written to the binary "
-                        "log which will stop the slaves.");
-        flush_and_sync(0);
-      }
-
+    error= new_file_without_locking(NULL);
     *check_purge= true;
   }
   DBUG_RETURN(error);

@@ -92,3 +92,18 @@ object_schema	object_name	index_name	count_fetch	count_insert	count_update	count
 test	t_60905	i	2	0	0	1
 test	t_60905	NULL	5	5	0	1
 DROP TABLE t_60905;
+use test;
+truncate performance_schema.events_statements_history;
+truncate performance_schema.events_statements_history_long;
+select * from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+
+select mysql_errno, returned_sqlstate, message_text, errors, warnings
+from performance_schema.events_statements_history where errors > 0;
+mysql_errno	returned_sqlstate	message_text	errors	warnings
+1146	42S02	Table 'test.t1' doesn't exist	1	0
+
+select mysql_errno, returned_sqlstate, message_text, errors, warnings from 
+performance_schema.events_statements_history_long where errors > 0;
+mysql_errno	returned_sqlstate	message_text	errors	warnings
+1146	42S02	Table 'test.t1' doesn't exist	1	0

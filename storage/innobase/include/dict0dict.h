@@ -309,6 +309,21 @@ dict_table_autoinc_initialize(
 	dict_table_t*	table,	/*!< in/out: table */
 	ib_uint64_t	value)	/*!< in: next value to assign to a row */
 	__attribute__((nonnull));
+
+/** Store autoinc value when the table is evicted.
+@param[in]	table	table evicted */
+UNIV_INTERN
+void
+dict_table_autoinc_store(
+	const dict_table_t*	table);
+
+/** Restore autoinc value when the table is loaded.
+@param[in]	table	table loaded */
+UNIV_INTERN
+void
+dict_table_autoinc_restore(
+	dict_table_t*	table);
+
 /********************************************************************//**
 Reads the next autoinc value (== autoinc counter value), 0 if not yet
 initialized.
@@ -367,6 +382,15 @@ dict_table_remove_from_cache(
 /*=========================*/
 	dict_table_t*	table)	/*!< in, own: table */
 	__attribute__((nonnull));
+/**********************************************************************//**
+Removes a table object from the dictionary cache. */
+UNIV_INTERN
+void
+dict_table_remove_from_cache_low(
+/*=============================*/
+	dict_table_t*	table,		/*!< in, own: table */
+	ibool		lru_evict);	/*!< in: TRUE if table being evicted
+					to make room in the table LRU list */
 /**********************************************************************//**
 Renames a table object.
 @return	TRUE if success */
@@ -1543,6 +1567,8 @@ extern dict_sys_t*	dict_sys;
 /** the data dictionary rw-latch protecting dict_sys */
 extern rw_lock_t	dict_operation_lock;
 
+typedef std::map<table_id_t, ib_uint64_t> autoinc_map_t;
+
 /* Dictionary system struct */
 struct dict_sys_t{
 	ib_mutex_t		mutex;		/*!< mutex protecting the data
@@ -1577,6 +1603,8 @@ struct dict_sys_t{
 	UT_LIST_BASE_NODE_T(dict_table_t)
 			table_non_LRU;	/*!< List of tables that can't be
 					evicted from the cache */
+	autoinc_map_t*	autoinc_map;	/*!< Map to store table id and autoinc
+					when table is evicted */
 };
 #endif /* !UNIV_HOTBACKUP */
 

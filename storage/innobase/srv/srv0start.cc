@@ -1545,9 +1545,8 @@ innobase_start_or_create_for_mysql(void)
 	char*		logfile0	= NULL;
 	size_t		dirnamelen;
 
-	if (srv_force_recovery > SRV_FORCE_NO_TRX_UNDO) {
-		srv_read_only_mode = true;
-	}
+	high_level_read_only = srv_read_only_mode
+		|| srv_force_recovery > SRV_FORCE_NO_TRX_UNDO;
 
 	if (srv_read_only_mode) {
 		ib_logf(IB_LOG_LEVEL_INFO, "Started in read only mode");

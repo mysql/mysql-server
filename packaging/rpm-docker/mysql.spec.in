@@ -53,6 +53,7 @@ BuildRequires:  perl(Env)
 BuildRequires:  time
 BuildRequires:  libaio-devel
 BuildRequires:  ncurses-devel
+BuildRequires:  numactl-devel
 BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)

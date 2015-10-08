@@ -165,5 +165,50 @@ DROP table t1;
 SET SESSION debug="-d,simulate_error_during_flush_cache_to_file";
 --source include/restart_mysqld.inc
 
+###############################################################################
+# Bug#20805298: BINLOG_ERROR_ACTION DOESN'T HANDLE SOME
+# FAILURES DURING BINLOG ROTATION
+#
+# Problem:
+# ========
+# Hardware errors in binlog partition during binlog rotate are not handled by
+# binlog_error_action.
+#
+# Test:
+# =====
+# Simulate failure during creation of new binary log file name. Set
+# binlog_error_action to "IGNORE_ERROR" and observe that the binary log gets
+# disabled and the server continues by logging an appropriate error message in
+# error log file. Set binlog_error_action to "ABORT_ERROR" and observe that
+# the
+# server aborts when creation of new binarylog file name fails.
+###############################################################################
+echo "Test case10";
+# Test error scenario with binlog_error_action=IGNORE_ERROR
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+SET SESSION debug='+d,error_unique_log_filename';
+--error ER_NO_UNIQUE_LOGFILE
+FLUSH LOGS;
+DROP TABLE t1;
+eval SET SESSION debug="$debug_save";
+# Test to prove that binary log is disabled
+--error ER_NO_BINARY_LOGGING
+SHOW BINARY LOGS;
+--source include/restart_mysqld.inc
+
+echo "Test case11";
+# Test error scenario with binlog_error_action=ABORT_SERVER
+
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+SET GLOBAL binlog_error_action=ABORT_SERVER;
+SET SESSION debug='+d,error_unique_log_filename';
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error ER_BINLOG_LOGGING_IMPOSSIBLE
+FLUSH LOGS;
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+DROP TABLE t1;
+
 # Cleanup
 eval SET SESSION debug="$old";

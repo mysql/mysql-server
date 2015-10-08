@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2623,36 +2623,39 @@ const char *Item_ident::full_name() const
   return tmp;
 }
 
-void Item_ident::print(String *str, enum_query_type query_type)
+
+void Item_ident::print(String *str, enum_query_type query_type,
+                       const char *db_name_arg,
+                       const char *table_name_arg) const
 {
   THD *thd= current_thd;
   char d_name_buff[MAX_ALIAS_NAME], t_name_buff[MAX_ALIAS_NAME];
-  const char *d_name= db_name, *t_name= table_name;
+  const char *d_name= db_name_arg, *t_name= table_name_arg;
   if (lower_case_table_names== 1 ||
       (lower_case_table_names == 2 && !alias_name_used))
   {
-    if (table_name && table_name[0])
+    if (table_name_arg && table_name_arg[0])
     {
-      strmov(t_name_buff, table_name);
+      strmov(t_name_buff, table_name_arg);
       my_casedn_str(files_charset_info, t_name_buff);
       t_name= t_name_buff;
     }
-    if (db_name && db_name[0])
+    if (db_name_arg && db_name_arg[0])
     {
-      strmov(d_name_buff, db_name);
+      strmov(d_name_buff, db_name_arg);
       my_casedn_str(files_charset_info, d_name_buff);
       d_name= d_name_buff;
     }
   }
 
-  if (!table_name || !field_name || !field_name[0])
+  if (!table_name_arg || !field_name || !field_name[0])
   {
     const char *nm= (field_name && field_name[0]) ?
                       field_name : item_name.is_set() ? item_name.ptr() : "tmp_field";
     append_identifier(thd, str, nm, (uint) strlen(nm));
     return;
   }
-  if (db_name && db_name[0] && !alias_name_used)
+  if (db_name_arg && db_name_arg[0] && !alias_name_used)
   {
     if (!(cached_table && cached_table->belong_to_view &&
           cached_table->belong_to_view->compact_view_format))
@@ -2671,7 +2674,7 @@ void Item_ident::print(String *str, enum_query_type query_type)
   }
   else
   {
-    if (table_name[0])
+    if (table_name_arg[0])
     {
       append_identifier(thd, str, t_name, (uint) strlen(t_name));
       str->append('.');
@@ -5900,44 +5903,54 @@ enum_field_types Item::field_type() const
 /**
   Verifies that the input string is well-formed according to its character set.
   @param send_error   If true, call my_error if string is not well-formed.
-
-  Will truncate input string if it is not well-formed.
+  @param truncate     If true, set to null/truncate if not well-formed.
 
   @return
   If well-formed: input string.
   If not well-formed:
-    if strict mode: NULL pointer and we set this Item's value to NULL
-    if not strict mode: input string truncated up to last good character
+    if truncate is true and strict mode:     NULL pointer and we set this
+                                             Item's value to NULL.
+    if truncate is true and not strict mode: input string truncated up to
+                                             last good character.
+    if truncate is false:                    input string is returned.
  */
-String *Item::check_well_formed_result(String *str, bool send_error)
+String *Item::check_well_formed_result(String *str,
+                                       bool send_error,
+                                       bool truncate)
 {
   /* Check whether we got a well-formed string */
   const CHARSET_INFO *cs= str->charset();
-  int well_formed_error;
-  uint wlen= cs->cset->well_formed_len(cs,
-                                       str->ptr(), str->ptr() + str->length(),
-                                       str->length(), &well_formed_error);
-  if (wlen < str->length())
+
+  size_t valid_length;
+  bool length_error;
+
+  if (validate_string(cs, str->ptr(), str->length(),
+                      &valid_length, &length_error))
   {
+    const char *str_end= str->ptr() + str->length();
+    const char *print_byte= str->ptr() + valid_length;
     THD *thd= current_thd;
     char hexbuf[7];
-    uint diff= str->length() - wlen;
+    uint diff= str_end - print_byte;
     set_if_smaller(diff, 3);
-    octet2hex(hexbuf, str->ptr() + wlen, diff);
-    if (send_error)
+    octet2hex(hexbuf, print_byte, diff);
+    if (send_error && length_error)
     {
       my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
                cs->csname,  hexbuf);
       return 0;
     }
-    if (thd->is_strict_mode())
+    if (truncate && length_error)
     {
-      null_value= 1;
-      str= 0;
-    }
-    else
-    {
-      str->length(wlen);
+      if (thd->is_strict_mode())
+      {
+        null_value= 1;
+        str= 0;
+      }
+      else
+      {
+        str->length(valid_length);
+      }
     }
     push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, ER_INVALID_CHARACTER_STRING,
                         ER(ER_INVALID_CHARACTER_STRING), cs->csname, hexbuf);
@@ -7113,7 +7126,11 @@ void Item_field::print(String *str, enum_query_type query_type)
     }
     return;
   }
-  Item_ident::print(str, query_type);
+  if ((table_name == NULL || table_name[0] == 0) && field && field->orig_table)
+    Item_ident::print(str, query_type, field->orig_table->s->db.str,
+                      field->orig_table->alias);
+  else
+    Item_ident::print(str, query_type);
 }
 
 
