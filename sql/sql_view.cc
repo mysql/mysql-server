@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -164,18 +164,14 @@ err:
   possibly generate a conforming name for them if not.
 
   @param lex  Lex for this thread.
-
-  @retval false Operation was a success.
-  @retval true  An error occurred.
 */
 
-static bool make_valid_column_names(LEX *lex)
+static void make_valid_column_names(LEX *lex)
 {
   Item *item;
   uint name_len;
   char buff[NAME_LEN];
   uint column_no= 1;
-  DBUG_ENTER("make_valid_column_names");
 
   for (SELECT_LEX *sl= &lex->select_lex; sl; sl= sl->next_select())
   {
@@ -187,37 +183,7 @@ static bool make_valid_column_names(LEX *lex)
       item->orig_name= item->name;
       item->set_name(buff, name_len, system_charset_info);
     }
-
-    /*
-      There is a possibility of generating same name for column in more than
-      one SELECT_LEX. For Example:
-
-       CREATE TABLE t1 (Name_exp_1 INT, Name_exp_2 INT, Name_exp_3 INT);
-       CREATE TABLE t2 (Name_exp_1 INT, Name_exp_2 INT, Name_exp_3 INT);
-
-       CREATE VIEW v1 AS SELECT '', t1.Name_exp_2 AS Name_exp_2 FROM t1
-                         UNION
-                         SELECT '', t2.Name_exp_1 AS Name_exp_1 from t2;
-
-      But, column names of the first SELECT_LEX is considered
-      for the output.
-
-        mysql> SELECT * FROM v1;
-        +------------+------------+
-        | Name_exp_1 | Name_exp_2 |
-        +------------+------------+
-        |            |          2 |
-        |            |          3 |
-        +------------+------------+
-
-      So, checking for duplicate names in only "sl", current
-      SELECT_LEX.
-    */
-    if (check_duplicate_names(sl->item_list, 1))
-      DBUG_RETURN(true);
   }
-
-  DBUG_RETURN(false);
 }
 
 
@@ -624,7 +590,14 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   }
 
   /* Check if the auto generated column names are conforming. */
-  if (make_valid_column_names(lex))
+  make_valid_column_names(lex);
+
+  /*
+    Only column names of the first select_lex should be checked for
+    duplication; any further UNION-ed part isn't used for determining
+    names of the view's columns.
+  */
+  if (check_duplicate_names(select_lex->item_list, 1))
   {
     res= TRUE;
     goto err;

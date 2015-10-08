@@ -1172,6 +1172,8 @@ void sendCertificateVerify(SSL& ssl, BufferOutput buffer)
 
     CertificateVerify  verify;
     verify.Build(ssl);
+    if (ssl.GetError()) return;
+
     RecordLayerHeader  rlHeader;
     HandShakeHeader    hsHeader;
     mySTL::auto_ptr<output_buffer> out(NEW_YS output_buffer);

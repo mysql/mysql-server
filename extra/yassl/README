@@ -12,6 +12,35 @@ before calling SSL_new();
 
 *** end Note ***
 
+yaSSL Release notes, version 2.3.8 (9/17/2015)
+    This release of yaSSL fixes a high security vulnerability.  All users
+    SHOULD update.  If using yaSSL for TLS on the server side with private
+    RSA keys allowing ephemeral key exchange you MUST update and regenerate
+    the RSA private keys.  This report is detailed in:
+    https://people.redhat.com/~fweimer/rsa-crt-leaks.pdf
+    yaSSL now detects RSA signature faults and returns an error.
+
+yaSSL Patch notes, version 2.3.7e (6/26/2015)
+    This release of yaSSL includes a fix for Date less than comparison.
+    Previously yaSSL would return true on less than comparisons if the Dates
+    were equal. Reported by Oracle. No security problem, but if a cert was
+    generated right now, a server started using it in the same second, and a
+    client tried to verify it in the same second it would report not yet valid.
+
+yaSSL Patch notes, version 2.3.7d (6/22/2015)
+    This release of yaSSL includes a fix for input_buffer set_current with
+    index 0.  SSL_peek() at front of waiting data could trigger.  Robert
+    Golebiowski of Oracle identified and suggested a fix, thanks!
+
+yaSSL Patch notes, version 2.3.7c (6/12/2015)
+    This release of yaSSL does certificate DATE comparisons to the second
+    instead of to the minute, helpful when using freshly generated certs.
+    Though keep in mind that time sync differences could still show up.
+
+yaSSL Patch notes, version 2.3.7b (3/18/2015)
+    This release of yaSSL fixes a potential crash with corrupted private keys.
+    Also detects bad keys earlier for user.
+
 yaSSL Release notes, version 2.3.7 (12/10/2014)
     This release of yaSSL fixes the potential to process duplicate handshake
     messages by explicitly marking/checking received handshake messages.

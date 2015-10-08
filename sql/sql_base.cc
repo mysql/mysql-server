@@ -1653,13 +1653,20 @@ bool close_temporary_tables(THD *thd)
   if (!thd->temporary_tables)
     DBUG_RETURN(FALSE);
 
+  /*
+    Ensure we don't have open HANDLERs for tables we are about to close.
+    This is necessary when close_temporary_tables() is called as part
+    of execution of BINLOG statement (e.g. for format description event).
+  */
+  mysql_ha_rm_temporary_tables(thd);
   if (!mysql_bin_log.is_open())
   {
     TABLE *tmp_next;
-    for (table= thd->temporary_tables; table; table= tmp_next)
+    for (TABLE *t= thd->temporary_tables; t; t= tmp_next)
     {
-      tmp_next= table->next;
-      close_temporary(table, 1, 1);
+      tmp_next= t->next;
+      mysql_lock_remove(thd, thd->lock, t);
+      close_temporary(t, 1, 1);
     }
     thd->temporary_tables= 0;
     DBUG_RETURN(FALSE);
@@ -1749,6 +1756,7 @@ bool close_temporary_tables(THD *thd)
                           strlen(table->s->table_name.str));
         s_query.append(',');
         next= table->next;
+        mysql_lock_remove(thd, thd->lock, table);
         close_temporary(table, 1, 1);
       }
       thd->clear_error();
