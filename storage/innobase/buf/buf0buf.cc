@@ -53,6 +53,10 @@ Created 11/5/1995 Heikki Tuuri
 #include "page0zip.h"
 #include "srv0mon.h"
 #include "buf0checksum.h"
+#ifdef HAVE_LIBNUMA
+#include <numa.h>
+#include <numaif.h>
+#endif // HAVE_LIBNUMA
 
 /*
 		IMPLEMENTATION OF THE BUFFER POOL
@@ -1112,6 +1116,22 @@ buf_chunk_init(
 		return(NULL);
 	}
 
+#ifdef HAVE_LIBNUMA
+	if (srv_numa_interleave) {
+		int	st = mbind(chunk->mem, chunk->mem_size,
+				   MPOL_INTERLEAVE,
+				   numa_all_nodes_ptr->maskp,
+				   numa_all_nodes_ptr->size,
+				   MPOL_MF_MOVE);
+		if (st != 0) {
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Failed to set NUMA memory policy of buffer"
+				" pool page frames to MPOL_INTERLEAVE"
+				" (error: %s).", strerror(errno));
+		}
+	}
+#endif // HAVE_LIBNUMA
+
 	/* Allocate the block descriptors from
 	the start of the memory block. */
 	chunk->blocks = (buf_block_t*) chunk->mem;
@@ -1442,6 +1462,21 @@ buf_pool_init(
 	ut_ad(n_instances <= MAX_BUFFER_POOLS);
 	ut_ad(n_instances == srv_buf_pool_instances);
 
+#ifdef HAVE_LIBNUMA
+	if (srv_numa_interleave) {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Setting NUMA memory policy to MPOL_INTERLEAVE");
+		if (set_mempolicy(MPOL_INTERLEAVE,
+				  numa_all_nodes_ptr->maskp,
+				  numa_all_nodes_ptr->size) != 0) {
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Failed to set NUMA memory policy to"
+				" MPOL_INTERLEAVE (error: %s).",
+				strerror(errno));
+		}
+	}
+#endif // HAVE_LIBNUMA
+
 	buf_pool_ptr = (buf_pool_t*) mem_zalloc(
 		n_instances * sizeof *buf_pool_ptr);
 
@@ -1461,6 +1496,18 @@ buf_pool_init(
 	buf_LRU_old_ratio_update(100 * 3/ 8, FALSE);
 
 	btr_search_sys_create(buf_pool_get_curr_size() / sizeof(void*) / 64);
+
+#ifdef HAVE_LIBNUMA
+	if (srv_numa_interleave) {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Setting NUMA memory policy to MPOL_DEFAULT");
+		if (set_mempolicy(MPOL_DEFAULT, NULL, 0) != 0) {
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Failed to set NUMA memory policy to"
+				" MPOL_DEFAULT (error: %s).", strerror(errno));
+		}
+	}
+#endif // HAVE_LIBNUMA
 
 	return(DB_SUCCESS);
 }

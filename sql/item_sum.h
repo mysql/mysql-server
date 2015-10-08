@@ -1,7 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved. reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved. reserved.
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -361,12 +361,6 @@ public:
 protected:  
   uint arg_count;
   Item **args, *tmp_args[2];
-  /* 
-    Copy of the arguments list to hold the original set of arguments.
-    Used in EXPLAIN EXTENDED instead of the current argument list because 
-    the current argument list can be altered by usage of temporary tables.
-  */
-  Item **orig_args, *tmp_orig_args[2];
   table_map used_tables_cache;
   bool forced_const;
   static ulonglong ram_limitation(THD *thd);
@@ -380,14 +374,14 @@ public:
     init_aggregator();
   }
   Item_sum(Item *a) :next(NULL), quick_group(1), arg_count(1), args(tmp_args),
-    orig_args(tmp_orig_args), forced_const(FALSE)
+   forced_const(FALSE)
   {
     args[0]=a;
     mark_as_sum_func();
     init_aggregator();
   }
   Item_sum( Item *a, Item *b ) :next(NULL), quick_group(1), arg_count(2), args(tmp_args),
-    orig_args(tmp_orig_args), forced_const(FALSE)
+    forced_const(FALSE)
   {
     args[0]=a; args[1]=b;
     mark_as_sum_func();
@@ -1196,7 +1190,6 @@ public:
     if (udf.fix_fields(thd, this, this->arg_count, this->args))
       return TRUE;
 
-    memcpy (orig_args, args, sizeof (Item *) * arg_count);
     return check_sum_func(thd, ref);
   }
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }

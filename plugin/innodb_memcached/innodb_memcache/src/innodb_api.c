@@ -731,6 +731,11 @@ innodb_api_fill_value(
 		if (col_id == col_info[CONTAINER_VALUE].field_id) {
 
 			if (alloc_mem) {
+
+				/* when using innodb memcache the
+				code  will never come here becasue
+				we do not allocate memory for column
+				objects */
 				innodb_api_copy_mci(
 					read_tpl, col_id,
 					&item->col_value[MCI_COL_VALUE]);

@@ -1249,6 +1249,10 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
                                               log_file_name,
                                               &is_active_binlog)))
     {
+      DBUG_EXECUTE_IF("simulate_dump_thread_kill",
+                      {
+                        thd->killed= THD::KILL_CONNECTION;
+                      });
       DBUG_EXECUTE_IF("hold_dump_thread_inside_inner_loop",
                     {
                       const char act[]= "now "
@@ -1532,6 +1536,10 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
         GOTO_ERR;
     }
 
+    /* If the above while is killed due to thd->killed flag and not
+      due to read_log_event error, then do nothing.*/
+    if (thd->killed)
+      goto end;
     DBUG_EXECUTE_IF("wait_after_binlog_EOF",
                     {
                       const char act[]= "now wait_for signal.rotate_finished no_clear_event";

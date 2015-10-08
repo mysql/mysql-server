@@ -2126,9 +2126,10 @@ bool THD::convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
     char printable_buff[32];
     convert_to_printable(printable_buff, sizeof(printable_buff),
                          from, from_length, from_cs, 6);
-    push_warning_printf(this, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
-        "Can't convert the character string from %s to %s: '%.64s'",
-        from_cs->csname, to_cs->csname, printable_buff);
+    push_warning_printf(this, Sql_condition::WARN_LEVEL_WARN,
+                        ER_INVALID_CHARACTER_STRING,
+                        ER_THD(this, ER_INVALID_CHARACTER_STRING),
+                        from_cs->csname, printable_buff);
   }
 
   DBUG_RETURN(0);

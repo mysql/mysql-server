@@ -876,13 +876,8 @@ select * from t1;
 create  view v1 as
 select * from v3 where b in (1, 2, 3, 4, 5, 6, 7);
 
-# Disable warnings since LIMIT warning for unsafe statement if
-# binlog_format = STATEMENT. Note: after BUG#45832, the warning should
-# not be issued.
---disable_warnings
 create  view v2 as
 select v3.a from v3, v1 where v1.a=v3.a and v3.b=3 limit 1;
---enable_warnings
 
 --exec $MYSQL_DUMP --skip-comments test
 
@@ -2500,3 +2495,31 @@ SELECT HEX(a) FROM t1;
 --exec $MYSQL_DUMP -necqt --compact --hex-blob dump_gis
 DROP DATABASE dump_gis;
 
+--echo #
+--echo # Bug #20772273 : MYSQLIMPORT --USE-THREADS DOESN'T USE MULTIPLE THREADS
+--echo #
+
+CREATE DATABASE db_20772273;
+USE db_20772273;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1), (2);
+CREATE TABLE t2(a INT);
+INSERT INTO t2 VALUES (3), (4);
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+--exec $MYSQL_DUMP --tab=$MYSQLTEST_VARDIR/tmp/ db_20772273
+--exec $MYSQL db_20772273 < $MYSQLTEST_VARDIR/tmp/t1.sql
+--exec $MYSQL db_20772273 < $MYSQLTEST_VARDIR/tmp/t2.sql
+
+# Test mysqlimport with multiple threads
+--exec $MYSQL_IMPORT --silent --use-threads=2 db_20772273 $MYSQLTEST_VARDIR/tmp/t1.txt $MYSQLTEST_VARDIR/tmp/t2.txt
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+#Cleanup
+DROP TABLE t1;
+DROP TABLE t2;
+DROP DATABASE db_20772273;

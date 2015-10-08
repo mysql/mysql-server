@@ -110,6 +110,9 @@ BuildRequires:  perl
 BuildRequires:  time
 BuildRequires:  libaio-devel
 BuildRequires:  ncurses-devel
+%if 0%{?rhel} > 5
+BuildRequires:  numactl-devel
+%endif
 BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
 %if 0%{?systemd}

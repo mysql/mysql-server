@@ -168,3 +168,23 @@ SELECT object_schema,
 
 DROP TABLE t_60905;
 
+
+#
+# Bug#11929832 - EVENTS_STATEMENTS_HISTORY HAS ERRORS=0 WHEN THERE ARE ERRORS
+#
+# Verify that SQL errors are properly counted.
+
+use test;
+truncate performance_schema.events_statements_history;
+truncate performance_schema.events_statements_history_long;
+
+--error ER_NO_SUCH_TABLE
+select * from t1;
+
+--echo 
+select mysql_errno, returned_sqlstate, message_text, errors, warnings
+  from performance_schema.events_statements_history where errors > 0;
+  
+--echo
+select mysql_errno, returned_sqlstate, message_text, errors, warnings from 
+  performance_schema.events_statements_history_long where errors > 0;

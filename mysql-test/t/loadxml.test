@@ -116,3 +116,17 @@ LOAD XML INFILE '../../std_data/loadxml.dat' INTO TABLE t1
 ROWS IDENTIFIED BY '<row>' (a,@b) SET b=concat('!',@b);
 SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#16171518 LOAD XML DOES NOT HANDLE EMPTY ELEMENTS
+--echo #
+CREATE TABLE t1 (col1 VARCHAR(3), col2 VARCHAR(3), col3 VARCHAR(3), col4 VARCHAR(4));
+LOAD XML INFILE '../../std_data/bug16171518_1.dat' INTO TABLE t1;
+SELECT * FROM t1 ORDER BY col1, col2, col3, col4;
+DROP TABLE t1;
+
+CREATE TABLE t1 (col1 VARCHAR(3), col2 VARCHAR(3), col3 INTEGER);
+LOAD XML INFILE '../../std_data/bug16171518_2.dat' INTO TABLE t1;
+SELECT * FROM t1 ORDER BY col1, col2, col3;
+DROP TABLE t1;

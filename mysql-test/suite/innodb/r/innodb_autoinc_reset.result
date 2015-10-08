@@ -1,0 +1,13 @@
+CREATE TABLE t1 (
+id    INT AUTO_INCREMENT PRIMARY KEY,
+name  VARCHAR(100)
+) ENGINE=InnoDB AUTO_INCREMENT=99;
+SET GLOBAL debug="+d,innodb_evict_autoinc_table";
+SET GLOBAL innodb_ft_aux_table="test/t1";
+ERROR 42000: Variable 'innodb_ft_aux_table' can't be set to the value of 'test/t1'
+SET GLOBAL debug="-d,innodb_evict_autoinc_table";
+INSERT INTO t1(name) VALUES('mysql');
+SELECT * FROM t1;
+id	name
+99	mysql
+DROP TABLE t1;

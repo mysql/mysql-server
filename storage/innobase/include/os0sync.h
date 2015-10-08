@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -37,6 +37,26 @@ Created 9/6/1995 Heikki Tuuri
 #include "univ.i"
 #include "ut0lst.h"
 #include "sync0types.h"
+
+#if defined __i386__ || defined __x86_64__ || defined _M_IX86 \
+    || defined _M_X64 || defined __WIN__
+
+#define IB_STRONG_MEMORY_MODEL
+
+#endif /* __i386__ || __x86_64__ || _M_IX86 || _M_X64 || __WIN__ */
+
+#ifdef HAVE_WINDOWS_ATOMICS
+typedef LONG lock_word_t;	/*!< On Windows, InterlockedExchange operates
+				on LONG variable */
+#elif defined(HAVE_ATOMIC_BUILTINS) && !defined(HAVE_ATOMIC_BUILTINS_BYTE)
+typedef ulint lock_word_t;
+#else
+
+#define IB_LOCK_WORD_IS_BYTE
+
+typedef byte lock_word_t;
+
+#endif /* HAVE_WINDOWS_ATOMICS */
 
 #ifdef __WIN__
 /** Native event (slow)*/
@@ -429,14 +449,61 @@ amount to decrement. */
 # define os_atomic_decrement_uint64(ptr, amount) \
 	os_atomic_decrement(ptr, amount)
 
-/**********************************************************//**
-Returns the old value of *ptr, atomically sets *ptr to new_val */
+# if defined(HAVE_IB_GCC_ATOMIC_TEST_AND_SET)
 
-# define os_atomic_test_and_set_byte(ptr, new_val) \
-	__sync_lock_test_and_set(ptr, (byte) new_val)
+/** Do an atomic test-and-set.
+@param[in,out]	ptr		Memory location to set to non-zero
+@return the previous value */
+inline
+lock_word_t
+os_atomic_test_and_set(volatile lock_word_t* ptr)
+{
+       return(__atomic_test_and_set(ptr, __ATOMIC_ACQUIRE));
+}
 
-# define os_atomic_test_and_set_ulint(ptr, new_val) \
-	__sync_lock_test_and_set(ptr, new_val)
+/** Do an atomic clear.
+@param[in,out]	ptr		Memory location to set to zero */
+inline
+void
+os_atomic_clear(volatile lock_word_t* ptr)
+{
+	__atomic_clear(ptr, __ATOMIC_RELEASE);
+}
+
+# elif defined(IB_STRONG_MEMORY_MODEL)
+
+/** Do an atomic test and set.
+@param[in,out]	ptr		Memory location to set to non-zero
+@return the previous value */
+inline
+lock_word_t
+os_atomic_test_and_set(volatile lock_word_t* ptr)
+{
+	return(__sync_lock_test_and_set(ptr, 1));
+}
+
+/** Do an atomic release.
+
+In theory __sync_lock_release should be used to release the lock.
+Unfortunately, it does not work properly alone. The workaround is
+that more conservative __sync_lock_test_and_set is used instead.
+
+Performance regression was observed at some conditions for Intel
+architecture. Disable release barrier on Intel architecture for now.
+@param[in,out]	ptr		Memory location to write to
+@return the previous value */
+inline
+lock_word_t
+os_atomic_clear(volatile lock_word_t* ptr)
+{
+	return(__sync_lock_test_and_set(ptr, 0));
+}
+
+# else
+
+#  error "Unsupported platform"
+
+# endif /* HAVE_IB_GCC_ATOMIC_TEST_AND_SET */
 
 #elif defined(HAVE_IB_SOLARIS_ATOMICS)
 
@@ -511,14 +578,51 @@ amount to decrement. */
 # define os_atomic_decrement_uint64(ptr, amount) \
 	os_atomic_increment_uint64(ptr, -(amount))
 
-/**********************************************************//**
-Returns the old value of *ptr, atomically sets *ptr to new_val */
+# ifdef IB_LOCK_WORD_IS_BYTE
 
-# define os_atomic_test_and_set_byte(ptr, new_val) \
-	atomic_swap_uchar(ptr, new_val)
+/** Do an atomic xchg and set to non-zero.
+@param[in,out]	ptr		Memory location to set to non-zero
+@return the previous value */
+inline
+lock_word_t
+os_atomic_test_and_set(volatile lock_word_t* ptr)
+{
+	return(atomic_swap_uchar(ptr, 1));
+}
 
-# define os_atomic_test_and_set_ulint(ptr, new_val) \
-	atomic_swap_ulong(ptr, new_val)
+/** Do an atomic xchg and set to zero.
+@param[in,out]	ptr		Memory location to set to zero
+@return the previous value */
+inline
+lock_word_t
+os_atomic_clear(volatile lock_word_t* ptr)
+{
+	return(atomic_swap_uchar(ptr, 0));
+}
+
+# else
+
+/** Do an atomic xchg and set to non-zero.
+@param[in,out]	ptr		Memory location to set to non-zero
+@return the previous value */
+inline
+lock_word_t
+os_atomic_test_and_set(volatile lock_word_t* ptr)
+{
+	return(atomic_swap_ulong(ptr, 1));
+}
+
+/** Do an atomic xchg and set to zero.
+@param[in,out]	ptr		Memory location to set to zero
+@return the previous value */
+inline
+lock_word_t
+os_atomic_clear(volatile lock_word_t* ptr)
+{
+	return(atomic_swap_ulong(ptr, 0));
+}
+
+# endif /* IB_LOCK_WORD_IS_BYTE */
 
 #elif defined(HAVE_WINDOWS_ATOMICS)
 
@@ -633,16 +737,27 @@ amount to decrement. There is no atomic substract function on Windows */
 				(ib_int64_t*) ptr,		\
 				-(ib_int64_t) amount) - amount))
 
-/**********************************************************//**
-Returns the old value of *ptr, atomically sets *ptr to new_val.
-InterlockedExchange() operates on LONG, and the LONG will be
-clobbered */
+/** Do an atomic test and set.
+InterlockedExchange() operates on LONG, and the LONG will be clobbered
+@param[in,out]	ptr		Memory location to set to non-zero
+@return the previous value */
+inline
+lock_word_t
+os_atomic_test_and_set(volatile lock_word_t* ptr)
+{
+	return(InterlockedExchange(ptr, 1));
+}
 
-# define os_atomic_test_and_set_byte(ptr, new_val) \
-	((byte) InterlockedExchange(ptr, new_val))
-
-# define os_atomic_test_and_set_ulong(ptr, new_val) \
-	InterlockedExchange(ptr, new_val)
+/** Do an atomic release.
+InterlockedExchange() operates on LONG, and the LONG will be clobbered
+@param[in,out]	ptr		Memory location to set to zero
+@return the previous value */
+inline
+lock_word_t
+os_atomic_clear(volatile lock_word_t* ptr)
+{
+	return(InterlockedExchange(ptr, 0));
+}
 
 #else
 # define IB_ATOMICS_STARTUP_MSG \
@@ -692,7 +807,7 @@ for synchronization */
 	} while (0);
 
 /** barrier definitions for memory ordering */
-#if defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64 || defined __WIN__
+#ifdef IB_STRONG_MEMORY_MODEL
 /* Performance regression was observed at some conditions for Intel
 architecture. Disable memory barrier for Intel architecture for now. */
 # define os_rmb

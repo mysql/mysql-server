@@ -1795,3 +1795,45 @@ eval $query_ba;
 
 --echo
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug #20229614: OR CONDITIONS ON MULTI-COLUMN INDEX MAY NOT USE ALL
+--echo #                INDEX COLUMNS TO FILTER ROWS
+--echo #
+
+CREATE TABLE t1 (
+  c1 INT,
+  c2 INT,
+  c3 INT,
+  PRIMARY KEY(c1, c2, c3)
+) ENGINE=INNODB;
+
+INSERT INTO t1 VALUES (1, 1, 1), (1, 1, 2), (1, 1, 3),
+                      (1, 1, 4), (1, 1, 5);
+INSERT INTO t1 SELECT c1, 2, c3 FROM t1;
+INSERT INTO t1 SELECT c1, 3, c3 FROM t1 WHERE c2 = 1;
+
+SELECT COUNT(*) FROM t1;
+
+EXPLAIN SELECT c1, c2, c3
+        FROM t1
+        WHERE (c1 = 1 AND c2 = 1 AND c3 = 1) OR
+              (c1 = 1 AND c2 = 2 AND c3 = 2) OR
+              (c1 = 1 AND c2 = 2 AND c3 = 3);
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#21139683: ASSERTION FAILED: TYPE_ARG == MAYBE_KEY ||
+--echo #               TYPE_ARG == IMPOSSIBLE
+--echo #
+
+CREATE TABLE t1 (
+  a BLOB,
+  PRIMARY KEY(a(1)),
+  KEY(a(1))
+) ENGINE=INNODB;
+
+SELECT 1 FROM t1 WHERE a <> 'a' OR a <> "";
+
+DROP TABLE t1;

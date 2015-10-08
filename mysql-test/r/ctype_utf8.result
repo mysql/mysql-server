@@ -113,7 +113,7 @@ hex(a)	STRCMP(a,'a')	STRCMP(a,'a ')
 DROP TABLE t1;
 select insert('txs',2,1,'hi'),insert('is ',4,0,'a'),insert('txxxxt',2,4,'es');
 insert('txs',2,1,'hi')	insert('is ',4,0,'a')	insert('txxxxt',2,4,'es')
-this	is a	test
+this	is 	test
 select insert("aa",100,1,"b"),insert("aa",1,3,"b");
 insert("aa",100,1,"b")	insert("aa",1,3,"b")
 aa	b
@@ -5141,7 +5141,8 @@ CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (0), (0), (1), (0), (0);
 SELECT COUNT(*) FROM t1, t1 t2 
 GROUP BY INSERT('', t2.a, t1.a, (@@global.max_binlog_size));
-ERROR 23000: Duplicate entry '107374182410737418241' for key 'group_key'
+COUNT(*)
+25
 DROP TABLE t1;
 #
 # Bug#11764503 (Bug#57341) Query in EXPLAIN EXTENDED shows wrong characters

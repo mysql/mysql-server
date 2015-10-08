@@ -84,12 +84,15 @@ eval SET GLOBAL debug=IF(LENGTH('$old_debug') > 0, CONCAT('$old_debug', ":d,erro
 -- error ER_NO_UNIQUE_LOGFILE
 FLUSH LOGS;
 -- echo # assert: must show one binlog
--- source include/show_binary_logs.inc
+--list_files $MYSQLD_DATADIR *master-bin.0*
 
 ### ACTION: clean up and move to next test
 --disable_query_log
 eval SET GLOBAL debug='$old_debug';
 --enable_query_log
+# Restart the server to enable binary log.
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
 RESET MASTER;
 
 -- echo ###################### TEST #3
@@ -145,6 +148,9 @@ SELECT count(*) FROM t2;
 eval SET GLOBAL debug='$old_debug';
 --enable_query_log
 DELETE FROM t2;
+# Restart the server to enable binary log.
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
 RESET MASTER;
 
 -- echo ###################### TEST #5
@@ -199,6 +205,9 @@ SET AUTOCOMMIT= 1;
 eval SET GLOBAL debug='$old_debug';
 --enable_query_log
 DELETE FROM t2;
+# Restart the server to enable binary log.
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
 RESET MASTER;
 
 -- echo ###################### TEST #7
@@ -218,15 +227,15 @@ SELECT count(*) FROM t4;
 -- echo # assert: must show 1 entry
 SELECT count(*) FROM t4;
 
--- echo ### check that the incident event is written to the current log
 --disable_query_log
 eval SET GLOBAL debug='$old_debug';
 --enable_query_log
--- let $binlog_limit= 1
--- source include/show_binlog_events.inc
 
 # clean up and move to next test
 DELETE FROM t4;
+# Restart the server to enable binary log.
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
 RESET MASTER;
 
 -- echo ###################### TEST #8
@@ -252,9 +261,26 @@ SELECT count(*) FROM t2;
 -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 -- error ER_NO_UNIQUE_LOGFILE
 -- eval LOAD DATA INFILE '$load_file' INTO TABLE t4
+
+# Restart the server to enable binary log.
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
+
+--disable_query_log
+eval SET GLOBAL debug=IF(LENGTH('$old_debug') > 0, CONCAT('$old_debug', ":d,error_unique_log_filename"), 'd,error_unique_log_filename');
+--enable_query_log
+
 -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 -- error ER_NO_UNIQUE_LOGFILE
 -- eval LOAD DATA INFILE '$load_file' INTO TABLE t2
+
+# Restart the server to enable binary log.
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
+
+--disable_query_log
+eval SET GLOBAL debug=IF(LENGTH('$old_debug') > 0, CONCAT('$old_debug', ":d,error_unique_log_filename"), 'd,error_unique_log_filename');
+--enable_query_log
 set @aaa = repeat('aaa',1000);
 set @bbb = repeat('bbb',1000);
 set @ccc = repeat('ccc',1000);
@@ -269,8 +295,30 @@ SELECT count(*) FROM t4;
 -- echo # original rows remain
 SELECT count(*) FROM t2;
 
+# Restart the server to enable binary log.
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
+
+--disable_query_log
+eval SET GLOBAL debug=IF(LENGTH('$old_debug') > 0, CONCAT('$old_debug', ":d,error_unique_log_filename"), 'd,error_unique_log_filename');
+--enable_query_log
+
+SET @xxx = REPEAT('xxx', 1000);
+SET @yyy = REPEAT('yyy', 1000);
 -- error ER_NO_UNIQUE_LOGFILE
 DELETE FROM t4 WHERE a IN (@xxx, @yyy) OR 1;
+
+# Restart the server to enable binary log.
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
+
+--disable_query_log
+eval SET GLOBAL debug=IF(LENGTH('$old_debug') > 0, CONCAT('$old_debug', ":d,error_unique_log_filename"), 'd,error_unique_log_filename');
+--enable_query_log
+
+set @aaa = repeat('aaa',1000);
+set @bbb = repeat('bbb',1000);
+set @ccc = repeat('ccc',1000);
 -- error ER_NO_UNIQUE_LOGFILE
 DELETE FROM t2 WHERE a IN (@aaa, @bbb, @ccc) OR 1;
 
@@ -320,6 +368,9 @@ eval SET GLOBAL debug='$old_debug';
 call mtr.add_suppression("MYSQL_BIN_LOG::open failed to sync the index file.");
 call mtr.add_suppression("Could not open .*");
 
+# Restart the server to enable binary log.
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
 RESET MASTER;
 SHOW WARNINGS;
 
@@ -477,6 +528,8 @@ call mtr.add_suppression("Can't generate a unique log-filename .*");
 --disable_query_log
 eval SET GLOBAL debug='$old_debug';
 --enable_query_log
+-- remove_file $MYSQLTEST_VARDIR/tmp/bug_46166.data
+-- remove_file $MYSQLTEST_VARDIR/tmp/bug_46166-2.data
 RESET SLAVE;
 RESET MASTER;
 --let $rpl_only_running_threads= 1

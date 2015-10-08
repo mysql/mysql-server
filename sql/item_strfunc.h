@@ -1,7 +1,7 @@
 #ifndef ITEM_STRFUNC_INCLUDED
 #define ITEM_STRFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -209,6 +209,8 @@ public:
 class Item_func_replace :public Item_str_func
 {
   String tmp_value,tmp_value2;
+  /** Holds result in case we need to allocate our own result buffer.*/
+  String tmp_value_res;
 public:
   Item_func_replace(Item *org,Item *find,Item *replace)
     :Item_str_func(org,find,replace) {}
@@ -221,6 +223,8 @@ public:
 class Item_func_insert :public Item_str_func
 {
   String tmp_value;
+  /** Holds result in case we need to allocate our own result buffer.*/
+  String tmp_value_res;
 public:
   Item_func_insert(Item *org,Item *start,Item *length,Item *new_str)
     :Item_str_func(org,start,length,new_str) {}
@@ -456,6 +460,8 @@ class Item_func_encode :public Item_str_func
 private:
   /** Whether the PRNG has already been seeded. */
   bool seeded;
+  /** Holds result in case we need to allocate our own result buffer.*/
+  String tmp_value_res;
 protected:
   SQL_CRYPT sql_crypt;
 public:
