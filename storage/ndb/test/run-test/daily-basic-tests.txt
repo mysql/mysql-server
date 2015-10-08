@@ -639,7 +639,7 @@ args: -n Bug36124 T1
 
 max-time: 500
 cmd: testScan
-args: -n Bug54945 T1
+args: -n Bug54945 --skip-ndb-optimized-node-selection T1
 
 # Bug18408745 added on 17.04.2014
 #max-time: 600
