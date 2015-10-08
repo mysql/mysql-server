@@ -6324,6 +6324,7 @@ gcol_attribute:
           }
         | COMMENT_SYM TEXT_STRING_sys { Lex->comment= $2; }
         | not NULL_SYM { Lex->type|= NOT_NULL_FLAG; }
+        | NULL_SYM
         | opt_primary KEY_SYM
           {
             LEX *lex=Lex;

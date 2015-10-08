@@ -1,7 +1,6 @@
 SET @@session.default_storage_engine = 'MyISAM';
 #
 # Section 1. Wrong column definition options
-#            - NULL
 #            - DEFAULT <value>
 #            - AUTO_INCREMENT
 # NOT NULL
@@ -26,10 +25,9 @@ alter table t1 add column b int generated always as (a+1) virtual not null;
 drop table t1;
 # NULL  
 create table t1 (a int, b int generated always as (a+1) virtual null);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'null)' at line 1
+drop table t1;
 create table t1 (a int);
 alter table t1 add column b int generated always as (a+1) virtual null;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'null' at line 1
 drop table t1;
 # Added columns mixed with virtual GC and other columns
 create table t1 (a int);
@@ -526,6 +524,24 @@ ALTER TABLE t CHANGE dd d varchar(10);
 affected rows: 1
 info: Records: 1  Duplicates: 0  Warnings: 0
 DROP TABLE t;
+#
+# Bug#21900170: CAN'T CREATE TABLE WITH NULLABLE GENERATED COLUMNS
+#
+CREATE TABLE t1 (
+a INT,
+b INT GENERATED ALWAYS AS (-a) VIRTUAL NULL,
+c INT GENERATED ALWAYS AS (a + b) STORED NULL);
+SHOW FULL COLUMNS FROM t1;
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+a	int(11)	NULL	YES		NULL		select,insert,update,references	
+b	int(11)	NULL	YES		NULL	VIRTUAL GENERATED	select,insert,update,references	
+c	int(11)	NULL	YES		NULL	STORED GENERATED	select,insert,update,references	
+INSERT INTO t1 (a) VALUES (NULL), (1);
+SELECT * FROM t1;
+a	b	c
+NULL	NULL	NULL
+1	-1	0
+DROP TABLE t1;
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
 DROP PROCEDURE IF EXISTS p1;
