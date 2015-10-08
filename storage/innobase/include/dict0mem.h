@@ -1742,7 +1742,10 @@ dict_col_get_spatial_status(
 {
 	col_spatial_status	spatial_status = SPATIAL_NONE;
 
-	ut_ad(col->ord_part);
+	/* Column is not a part of any index. */
+	if (!col->ord_part) {
+		return(spatial_status);
+	}
 
 	if (DATA_GEOMETRY_MTYPE(col->mtype)) {
 		if (col->max_prefix == 0) {
