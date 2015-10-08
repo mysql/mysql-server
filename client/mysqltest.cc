@@ -10235,7 +10235,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
   {
     /* find the match */
     err_code= my_regexec(&r,str_p, r.re_nsub+1, subs,
-                         (str_p == string) ? MY_REG_NOTBOL : 0);
+                         (str_p != string) ? MY_REG_NOTBOL : 0);
 
     /* if regular expression error (eg. bad syntax, or out of memory) */
     if (err_code && err_code != MY_REG_NOMATCH)
