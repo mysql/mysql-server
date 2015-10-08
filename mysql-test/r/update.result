@@ -593,3 +593,16 @@ Variable_name	Value
 Handler_update	5
 ROLLBACK;
 DROP TABLE t1, t2;
+# Bug #21143080: UPDATE ON VARCHAR AND TEXT COLUMNS PRODUCE INCORRECT
+#                RESULTS
+CREATE TABLE t1 (a VARCHAR(50), b TEXT, c CHAR(50)) ENGINE=INNODB;
+INSERT INTO t1 (a, b, c) VALUES ('start trail', '', 'even longer string');
+UPDATE t1 SET b = a, a = 'inject';
+SELECT a, b FROM t1;
+a	b
+inject	start trail
+UPDATE t1 SET b = c, c = 'inject';
+SELECT c, b FROM t1;
+c	b
+inject	even longer string
+DROP TABLE t1;

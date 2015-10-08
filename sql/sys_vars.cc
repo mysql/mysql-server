@@ -830,13 +830,12 @@ static Sys_var_mybool Sys_explicit_defaults_for_timestamp(
 static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TYPE thread_mask)
 {
   bool ret= FALSE;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (!(thd->security_ctx->master_access & SUPER_ACL))
+  if (thd->in_active_multi_stmt_transaction())
   {
-    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
-    return TRUE;
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
+             var->var->name.str);
+    return true;
   }
-#endif
 #ifdef HAVE_REPLICATION
   int running= 0;
   const char *msg= NULL;

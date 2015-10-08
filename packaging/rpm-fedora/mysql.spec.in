@@ -76,6 +76,7 @@ BuildRequires:  perl
 BuildRequires:  time
 BuildRequires:  libaio-devel
 BuildRequires:  ncurses-devel
+BuildRequires:  numactl-devel
 BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
 BuildRequires:  systemd

@@ -162,18 +162,14 @@ err:
   possibly generate a conforming name for them if not.
 
   @param lex  Lex for this thread.
-
-  @retval false Operation was a success.
-  @retval true  An error occurred.
 */
 
-static bool make_valid_column_names(LEX *lex)
+static void make_valid_column_names(LEX *lex)
 {
   Item *item;
   uint name_len;
   char buff[NAME_LEN];
   uint column_no= 1;
-  DBUG_ENTER("make_valid_column_names");
 
   for (SELECT_LEX *sl= &lex->select_lex; sl; sl= sl->next_select())
   {
@@ -186,37 +182,7 @@ static bool make_valid_column_names(LEX *lex)
       item->orig_name= item->item_name;
       item->item_name.copy(buff, name_len);
     }
-
-    /*
-      There is a possibility of generating same name for column in more than
-      one SELECT_LEX. For Example:
-
-       CREATE TABLE t1 (Name_exp_1 INT, Name_exp_2 INT, Name_exp_3 INT);
-       CREATE TABLE t2 (Name_exp_1 INT, Name_exp_2 INT, Name_exp_3 INT);
-
-       CREATE VIEW v1 AS SELECT '', t1.Name_exp_2 AS Name_exp_2 FROM t1
-                         UNION
-                         SELECT '', t2.Name_exp_1 AS Name_exp_1 from t2;
-
-      But, column names of the first SELECT_LEX is considered
-      for the output.
-
-        mysql> SELECT * FROM v1;
-        +------------+------------+
-        | Name_exp_1 | Name_exp_2 |
-        +------------+------------+
-        |            |          2 |
-        |            |          3 |
-        +------------+------------+
-
-      So, checking for duplicate names in only "sl", current
-      SELECT_LEX.
-    */
-    if (check_duplicate_names(sl->item_list, 1))
-      DBUG_RETURN(true);
   }
-
-  DBUG_RETURN(false);
 }
 
 
@@ -635,7 +601,14 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   }
 
   /* Check if the auto generated column names are conforming. */
-  if (make_valid_column_names(lex))
+  make_valid_column_names(lex);
+
+  /*
+    Only column names of the first select_lex should be checked for
+    duplication; any further UNION-ed part isn't used for determining
+    names of the view's columns.
+  */
+  if (check_duplicate_names(select_lex->item_list, 1))
   {
     res= TRUE;
     goto err;
@@ -719,53 +692,53 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   */
 
   if (!res)
-    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->db, view->table_name, false);
-
-  if (mysql_bin_log.is_open())
   {
-    String buff;
-    const LEX_STRING command[3]=
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->db, view->table_name, false);
+    if (mysql_bin_log.is_open())
+    {
+      String buff;
+      const LEX_STRING command[3]=
       {{ C_STRING_WITH_LEN("CREATE ") },
-       { C_STRING_WITH_LEN("ALTER ") },
-       { C_STRING_WITH_LEN("CREATE OR REPLACE ") }};
+        { C_STRING_WITH_LEN("ALTER ") },
+        { C_STRING_WITH_LEN("CREATE OR REPLACE ") }};
 
-    buff.append(command[thd->lex->create_view_mode].str,
-                command[thd->lex->create_view_mode].length);
-    view_store_options(thd, views, &buff);
-    buff.append(STRING_WITH_LEN("VIEW "));
-    /* Test if user supplied a db (ie: we did not use thd->db) */
-    if (views->db && views->db[0] &&
-        (thd->db == NULL || strcmp(views->db, thd->db)))
-    {
-      append_identifier(thd, &buff, views->db,
-                        views->db_length);
-      buff.append('.');
-    }
-    append_identifier(thd, &buff, views->table_name,
-                      views->table_name_length);
-    if (lex->view_list.elements)
-    {
-      List_iterator_fast<LEX_STRING> names(lex->view_list);
-      LEX_STRING *name;
-      int i;
-      
-      for (i= 0; (name= names++); i++)
+      buff.append(command[thd->lex->create_view_mode].str,
+                  command[thd->lex->create_view_mode].length);
+      view_store_options(thd, views, &buff);
+      buff.append(STRING_WITH_LEN("VIEW "));
+      /* Test if user supplied a db (ie: we did not use thd->db) */
+      if (views->db && views->db[0] &&
+          (thd->db == NULL || strcmp(views->db, thd->db)))
       {
-        buff.append(i ? ", " : "(");
-        append_identifier(thd, &buff, name->str, name->length);
+        append_identifier(thd, &buff, views->db,
+                          views->db_length);
+        buff.append('.');
       }
-      buff.append(')');
+      append_identifier(thd, &buff, views->table_name,
+                        views->table_name_length);
+      if (lex->view_list.elements)
+      {
+        List_iterator_fast<LEX_STRING> names(lex->view_list);
+        LEX_STRING *name;
+        int i;
+
+        for (i= 0; (name= names++); i++)
+        {
+          buff.append(i ? ", " : "(");
+          append_identifier(thd, &buff, name->str, name->length);
+        }
+        buff.append(')');
+      }
+      buff.append(STRING_WITH_LEN(" AS "));
+      buff.append(views->source.str, views->source.length);
+
+      int errcode= query_error_code(thd, TRUE);
+      thd->add_to_binlog_accessed_dbs(views->db);
+      if (thd->binlog_query(THD::STMT_QUERY_TYPE,
+                            buff.ptr(), buff.length(), FALSE, FALSE, FALSE, errcode))
+        res= TRUE;
     }
-    buff.append(STRING_WITH_LEN(" AS "));
-    buff.append(views->source.str, views->source.length);
-
-    int errcode= query_error_code(thd, TRUE);
-    thd->add_to_binlog_accessed_dbs(views->db);
-    if (thd->binlog_query(THD::STMT_QUERY_TYPE,
-                          buff.ptr(), buff.length(), FALSE, FALSE, FALSE, errcode))
-      res= TRUE;
   }
-
   if (mode != VIEW_CREATE_NEW)
     query_cache_invalidate3(thd, view, 0);
   if (res)

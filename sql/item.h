@@ -1653,7 +1653,9 @@ public:
   }
   virtual Field::geometry_type get_geometry_type() const
     { return Field::GEOM_GEOMETRY; };
-  String *check_well_formed_result(String *str, bool send_error= 0);
+  String *check_well_formed_result(String *str,
+                                   bool send_error,
+                                   bool truncate);
   bool eq_by_collation(Item *item, bool binary_cmp, const CHARSET_INFO *cs); 
 
   /*
@@ -2110,7 +2112,37 @@ public:
                                  st_select_lex *removed_select);
   void cleanup();
   bool remove_dependence_processor(uchar * arg);
-  virtual void print(String *str, enum_query_type query_type);
+  virtual void print(String *str, enum_query_type query_type)
+  {
+    print(str, query_type, db_name, table_name);
+  }
+protected:
+  /**
+    Function to print column name for a table
+
+    To print a column for a permanent table (picks up database and table from
+    Item_ident object):
+
+       item->print(str, qt)
+
+    To print a column for a temporary table:
+
+       item->print(str, qt, specific_db, specific_table)
+
+    Items of temporary table fields have empty/NULL values of table_name and
+    db_name. To print column names in a 3D form (`database`.`table`.`column`),
+    this function prints db_name_arg and table_name_arg parameters instead of
+    this->db_name and this->table_name respectively.
+
+    @param [out] str            Output string buffer.
+    @param       query_type     Bitmap to control printing details.
+    @param       db_name_arg    String to output as a column database name.
+    @param       table_name_arg String to output as a column table name.
+  */
+  void print(String *str, enum_query_type query_type,
+             const char *db_name_arg,
+             const char *table_name_arg) const;
+public:
   virtual bool change_context_processor(uchar *cntx)
     { context= (Name_resolution_context *)cntx; return FALSE; }
   friend bool insert_fields(THD *thd, Name_resolution_context *context,
@@ -2841,6 +2873,11 @@ public:
     decimals=NOT_FIXED_DEC;
     // it is constant => can be used without fix_fields (and frequently used)
     fixed= 1;
+    /*
+      Check if the string has any character that can't be
+      interpreted using the relevant charset.
+    */
+    check_well_formed_result(&str_value, false, false);
   }
   /* Just create an item and do not fill string representation */
   Item_string(const CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)

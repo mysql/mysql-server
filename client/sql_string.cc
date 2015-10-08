@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -59,12 +59,19 @@ bool String::real_alloc(uint32 length)
 ** (for C functions)
 */
 
-bool String::realloc(uint32 alloc_length)
+bool String::realloc(uint32 alloc_length, bool force_on_heap)
 {
   uint32 len=ALIGN_SIZE(alloc_length+1);
   DBUG_ASSERT(len > alloc_length);
   if (len <= alloc_length)
     return TRUE;                                 /* Overflow */
+
+  if (force_on_heap && !alloced)
+  {
+    /* Bytes will be allocated on the heap.*/
+    Alloced_length= 0;
+  }
+
   if (Alloced_length < len)
   {
     char *new_ptr;
@@ -690,14 +697,14 @@ int stringcmp(const String *s,const String *t)
 
 String *copy_if_not_alloced(String *to,String *from,uint32 from_length)
 {
-  if (from->Alloced_length >= from_length)
+  if (from->alloced && from->Alloced_length >= from_length)
     return from;
   if ((from->alloced && (from->Alloced_length != 0)) || !to || from == to)
   {
-    (void) from->realloc(from_length);
+    (void) from->realloc(from_length, true);
     return from;
   }
-  if (to->realloc(from_length))
+  if (to->realloc(from_length, true))
     return from;				// Actually an error
   if ((to->str_length=min(from->str_length,from_length)))
     memcpy(to->Ptr,from->Ptr,to->str_length);

@@ -4191,6 +4191,26 @@ bool
 Open_table_context::
 recover_from_failed_open()
 {
+  if (m_action == OT_REPAIR)
+  {
+    DEBUG_SYNC(m_thd, "recover_ot_repair");
+  }
+
+  /*
+    Skip repair and discovery in IS-queries as they require X lock
+    which could lead to delays or deadlock. Instead set
+    ER_WARN_I_S_SKIPPED_TABLE which will be converted to a warning
+    later.
+   */
+  if ((m_action == OT_REPAIR || m_action == OT_DISCOVER)
+      && (m_flags & MYSQL_OPEN_FAIL_ON_MDL_CONFLICT))
+  {
+    my_error(ER_WARN_I_S_SKIPPED_TABLE, MYF(0),
+             m_failed_table->mdl_request.key.db_name(),
+             m_failed_table->mdl_request.key.name());
+    return true;
+  }
+
   bool result= FALSE;
   MDL_deadlock_discovery_repair_handler handler;
   /*
