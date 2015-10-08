@@ -3385,20 +3385,9 @@ err:
   log_state= LOG_CLOSED;
   if (binlog_error_action == ABORT_SERVER)
   {
-    THD *thd= current_thd;
-    /*
-      On fatal error when code enters here we should forcefully clear the
-      previous errors so that a new critical error message can be pushed
-      to the client side.
-     */
-    thd->clear_error();
-    my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disk is full or "
-             "file system is read only while opening the binlog. Aborting the "
-             "server");
-    sql_print_error("Either disk is full or file system is read only while "
-                    "opening the binlog. Aborting the server");
-    thd->protocol->end_statement();
-    _exit(EXIT_FAILURE);
+    exec_binlog_error_action_abort("Either disk is full or file system is read "
+                                   "only while opening the binlog. Aborting the"
+                                   " server.");
   }
   else
     sql_print_error("Could not use %s for logging (error %d). "
@@ -5041,20 +5030,9 @@ end:
     close(LOG_CLOSE_INDEX);
     if (binlog_error_action == ABORT_SERVER)
     {
-      THD *thd= current_thd;
-      /*
-        On fatal error when code enters here we should forcefully clear the
-        previous errors so that a new critical error message can be pushed
-        to the client side.
-       */
-      thd->clear_error();
-      my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disk is full or "
-               "file system is read only while rotating the binlog. Aborting "
-               "the server");
-      sql_print_error("Either disk is full or file system is read only while "
-                      "rotating the binlog. Aborting the server");
-      thd->protocol->end_statement();
-      _exit(EXIT_FAILURE);
+      exec_binlog_error_action_abort("Either disk is full or file system is"
+                                     " read only while rotating the binlog."
+                                     " Aborting the server.");
     }
     else
       sql_print_error("Could not open %s for logging (error %d). "
@@ -6965,22 +6943,13 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
 {
   char errmsg[MYSQL_ERRMSG_SIZE];
   sprintf(errmsg, "An error occurred during %s stage of the commit. "
-          "'binlog_error_action' is set to '%s'. ",
+          "'binlog_error_action' is set to '%s'.",
           thd->commit_error== THD::CE_FLUSH_ERROR ? "flush" : "sync",
           binlog_error_action == ABORT_SERVER ? "ABORT_SERVER" : "IGNORE_ERROR");
   if (binlog_error_action == ABORT_SERVER)
   {
-    sprintf(errmsg, "%s. Hence aborting the server.", errmsg);
-    /*
-      On fatal error when code enters here we should forcefully clear the
-      previous errors so that a new critical error message can be pushed
-      to the client side.
-    */
-    thd->clear_error();
-    my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), errmsg);
-    sql_print_error("%s", errmsg);
-    thd->protocol->end_statement();
-    _exit(EXIT_FAILURE);
+    sprintf(errmsg, "%s Hence aborting the server.", errmsg);
+    exec_binlog_error_action_abort(errmsg);
   }
   else
   {
@@ -6998,7 +6967,7 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
     */
     if (is_open())
     {
-      sql_print_error("%s. Hence turning logging off for the whole duration "
+      sql_print_error("%s Hence turning logging off for the whole duration "
                       "of the MySQL server process. To turn it on again: fix "
                       "the cause, shutdown the MySQL server and restart it.",
                       errmsg);

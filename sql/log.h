@@ -549,6 +549,7 @@ enum enum_binlog_format {
   BINLOG_FORMAT_UNSPEC=3  ///< thd_binlog_format() returns it when binlog is closed
 };
 
+void exec_binlog_error_action_abort(const char* err_string);
 int query_error_code(THD *thd, bool not_killed);
 uint purge_log_get_error_code(int res);
 
