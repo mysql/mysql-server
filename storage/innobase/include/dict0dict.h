@@ -2091,6 +2091,13 @@ bool
 dict_tablespace_is_empty(
 	ulint	space_id);
 
+/** Free the virtual column template
+@param[in,out]	vc_templ	virtual column template */
+UNIV_INLINE
+void
+dict_free_vc_templ(
+	dict_vcol_templ_t*	vc_templ);
+
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL
