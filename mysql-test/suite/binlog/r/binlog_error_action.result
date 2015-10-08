@@ -9,26 +9,27 @@ call mtr.add_suppression("The server was unable to create a new log file *");
 call mtr.add_suppression("An error occurred during flush stage of the commit");
 call mtr.add_suppression("An error occurred during sync stage of the commit");
 call mtr.add_suppression("Either disk is full or file system is read only");
+call mtr.add_suppression("Attempting backtrace. You can use the following information to find out");
 RESET MASTER;
 Test case1
 SET GLOBAL binlog_error_action= ABORT_SERVER;
 flush logs;
-ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while rotating the binlog. Aborting the server
+ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while rotating the binlog. Aborting the server.
 Test case2
 SET SESSION debug="+d,fault_injection_updating_index";
 SET GLOBAL binlog_error_action= ABORT_SERVER;
 flush logs;
-ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while opening the binlog. Aborting the server
+ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while opening the binlog. Aborting the server.
 Test case3
 SET SESSION debug="+d,simulate_disk_full_on_open_binlog";
 SET GLOBAL binlog_error_action= ABORT_SERVER;
 flush logs;
-ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while opening the binlog. Aborting the server
+ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while opening the binlog. Aborting the server.
 Test case4
 SET SESSION debug="+d,fault_injection_init_name";
 SET GLOBAL binlog_error_action= ABORT_SERVER;
 flush logs;
-ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while opening the binlog. Aborting the server
+ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while opening the binlog. Aborting the server.
 Test case5
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 flush logs;
@@ -87,7 +88,7 @@ CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 SET GLOBAL binlog_error_action=ABORT_SERVER;
 SET SESSION debug='+d,error_unique_log_filename';
 FLUSH LOGS;
-ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while rotating the binlog. Aborting the server
+ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while rotating the binlog. Aborting the server.
 DROP TABLE t1;
 Test case11
 # restart
@@ -96,7 +97,7 @@ CREATE TABLE t1(i INT);
 SET SESSION debug = "+d,simulate_error_during_flush_cache_to_file";
 SET GLOBAL binlog_error_action = ABORT_SERVER;
 INSERT INTO t1 VALUES (1);
-ERROR HY000: Binary logging not possible. Message: An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. . Hence aborting the server.
+ERROR HY000: Binary logging not possible. Message: An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. Hence aborting the server.
 include/assert.inc [Count of elements in t1 should be 0.]
 include/assert.inc [Query is not binlogged as expected.]
 RESET MASTER;
@@ -114,7 +115,7 @@ CREATE TABLE t1(i INT);
 SET SESSION debug = "+d,simulate_error_during_sync_binlog_file";
 SET GLOBAL binlog_error_action = ABORT_SERVER;
 INSERT INTO t1 VALUES (1);
-ERROR HY000: Binary logging not possible. Message: An error occurred during sync stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. . Hence aborting the server.
+ERROR HY000: Binary logging not possible. Message: An error occurred during sync stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. Hence aborting the server.
 DELETE FROM t1;
 RESET MASTER;
 SET SESSION debug = "+d,simulate_error_during_sync_binlog_file";
@@ -130,7 +131,7 @@ CREATE TABLE t1(i INT);
 SET SESSION debug = "+d,simulate_do_write_cache_failure";
 SET GLOBAL binlog_error_action = ABORT_SERVER;
 INSERT INTO t1 VALUES (1);
-ERROR HY000: Binary logging not possible. Message: An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. . Hence aborting the server.
+ERROR HY000: Binary logging not possible. Message: An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. Hence aborting the server.
 include/assert.inc [Count of elements in t1 should be 0.]
 include/assert.inc [Query is not binlogged as expected.]
 RESET MASTER;
@@ -180,7 +181,7 @@ SET DEBUG_SYNC = "before_binlog_closed_due_to_error SIGNAL another_group_encount
 SET SESSION debug ="+d,simulate_error_during_flush_cache_to_file";
 INSERT INTO t2 values (2);;
 Matching lines are:
---TIME-- [ERROR] An error occurred during flush_or_sync stage stage of the commit. 'binlog_error_action' is set to 'IGNORE_ERROR'. . Hence turning logging off for the whole duration of the MySQL server process. To turn it on again: fix the cause, shutdown the MySQL server and restart it.
+--TIME-- [ERROR] An error occurred during flush_or_sync stage stage of the commit. 'binlog_error_action' is set to 'IGNORE_ERROR'. Hence turning logging off for the whole duration of the MySQL server process. To turn it on again: fix the cause, shutdown the MySQL server and restart it.
 Occurrences of 'An error occurred during' in the input file: 1
 DROP table t1, t2;
 # restart
