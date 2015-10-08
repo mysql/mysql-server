@@ -230,6 +230,11 @@ bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables);
 */
 #define CF_DISALLOW_IN_RO_TRANS   (1U << 15)
 
+/**
+  Identifies statements and commands that can be used with Protocol Plugin
+*/
+#define CF_ALLOW_PROTOCOL_PLUGIN (1U << 16)
+
 /* Bits in server_command_flags */
 
 /**
@@ -250,9 +255,8 @@ bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables);
 #define CF_SKIP_QUESTIONS       (1U << 1)
 
 /**
-  Used to mark commands that can be used with Protocol Plugin
+  1U << 16 is reserved for Protocol Plugin statements and commands
 */
-#define CF_ALLOW_PROTOCOL_PLUGIN (1U << 2)
 
 /**
   @} (end of group GROUP_PARSER)
