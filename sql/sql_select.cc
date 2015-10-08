@@ -10789,6 +10789,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   }
   case Item::FIELD_ITEM:
   case Item::DEFAULT_VALUE_ITEM:
+  case Item::TRIGGER_FIELD_ITEM:
   {
     Item_field *field= (Item_field*) item;
     bool orig_modify= modify_item;
@@ -12624,6 +12625,11 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       join->thd->warning_info->inc_current_row_for_warning();
       if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
         return rc;
+
+      /* check for errors evaluating the condition */
+      if (join->thd->is_error())
+        return NESTED_LOOP_ERROR;
+
       if (join->return_tab < join_tab)
         return NESTED_LOOP_OK;
       /*
