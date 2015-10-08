@@ -598,6 +598,147 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_REVOKE_ALL]|=       CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_INSTALL_PLUGIN]|=   CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_UNINSTALL_PLUGIN]|= CF_DISALLOW_IN_RO_TRANS;
+
+  /*
+    Mark statements that are allowed to be executed by the plugins.
+  */
+  sql_command_flags[SQLCOM_SELECT]|=                  CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_CREATE_TABLE]|=            CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_CREATE_INDEX]|=            CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_ALTER_TABLE]|=             CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_UPDATE]|=                  CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_INSERT]|=                  CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_INSERT_SELECT]|=           CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_DELETE]|=                  CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_TRUNCATE]|=                CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_DROP_TABLE]|=              CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_DROP_INDEX]|=              CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_DATABASES]|=          CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_TABLES]|=             CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_FIELDS]|=             CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_KEYS]|=               CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_VARIABLES]|=          CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_STATUS]|=             CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_ENGINE_LOGS]|=        CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_ENGINE_STATUS]|=      CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_ENGINE_MUTEX]|=       CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_PROCESSLIST]|=        CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_MASTER_STAT]|=        CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_SLAVE_STAT]|=         CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_GRANTS]|=             CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_CREATE]|=             CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_CHARSETS]|=           CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_COLLATIONS]|=         CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_CREATE_DB]|=          CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_TABLE_STATUS]|=       CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_TRIGGERS]|=           CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_LOAD]|=                    CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SET_OPTION]|=              CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_LOCK_TABLES]|=             CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_UNLOCK_TABLES]|=           CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_GRANT]|=                   CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_CHANGE_DB]|=               CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_CREATE_DB]|=               CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_DROP_DB]|=                 CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_ALTER_DB]|=                CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_REPAIR]|=                  CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_REPLACE]|=                 CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_REPLACE_SELECT]|=          CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_CREATE_FUNCTION]|=         CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_DROP_FUNCTION]|=           CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_REVOKE]|=                  CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_OPTIMIZE]|=                CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_CHECK]|=                   CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_ASSIGN_TO_KEYCACHE]|=      CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_PRELOAD_KEYS]|=            CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_FLUSH]|=                   CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_KILL]|=                    CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_ANALYZE]|=                 CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_ROLLBACK]|=                CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_ROLLBACK_TO_SAVEPOINT]|=   CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_COMMIT]|=                  CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SAVEPOINT]|=               CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_RELEASE_SAVEPOINT]|=       CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SLAVE_START]|=             CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SLAVE_STOP]|=              CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_START_GROUP_REPLICATION]|= CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_STOP_GROUP_REPLICATION]|=  CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_BEGIN]|=                   CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_CHANGE_MASTER]|=           CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_CHANGE_REPLICATION_FILTER]|= CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_RENAME_TABLE]|=            CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_RESET]|=                   CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_PURGE]|=                   CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_PURGE_BEFORE]|=            CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_BINLOGS]|=            CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_OPEN_TABLES]|=        CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_HA_OPEN]|=                 CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_HA_CLOSE]|=                CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_HA_READ]|=                 CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_SLAVE_HOSTS]|=        CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_DELETE_MULTI]|=            CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_UPDATE_MULTI]|=            CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_BINLOG_EVENTS]|=      CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_DO]|=                      CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_WARNS]|=              CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_EMPTY_QUERY]|=             CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_ERRORS]|=             CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_STORAGE_ENGINES]|=    CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_PRIVILEGES]|=         CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_HELP]|=                    CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_CREATE_USER]|=             CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_DROP_USER]|=               CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_RENAME_USER]|=             CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_REVOKE_ALL]|=              CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_CHECKSUM]|=                CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_CREATE_PROCEDURE]|=        CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_CREATE_SPFUNCTION]|=       CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_CALL]|=                    CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_DROP_PROCEDURE]|=          CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_ALTER_PROCEDURE]|=         CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_ALTER_FUNCTION]|=          CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_CREATE_PROC]|=        CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]|=        CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_STATUS_PROC]|=        CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_STATUS_FUNC]|=        CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_PREPARE]|=                 CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_EXECUTE]|=                 CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_DEALLOCATE_PREPARE]|=      CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_CREATE_VIEW]|=             CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_DROP_VIEW]|=               CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_CREATE_TRIGGER]|=          CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_DROP_TRIGGER]|=            CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_XA_START]|=                CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_XA_END]|=                  CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_XA_PREPARE]|=              CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_XA_COMMIT]|=               CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_XA_ROLLBACK]|=             CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_XA_RECOVER]|=              CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_PROC_CODE]|=          CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_FUNC_CODE]|=          CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_ALTER_TABLESPACE]|=        CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_BINLOG_BASE64_EVENT]|=     CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_PLUGINS]|=            CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_CREATE_SERVER]|=           CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_DROP_SERVER]|=             CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_ALTER_SERVER]|=            CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_CREATE_EVENT]|=            CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_ALTER_EVENT]|=             CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_DROP_EVENT]|=              CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_CREATE_EVENT]|=       CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_EVENTS]|=             CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_CREATE_TRIGGER]|=     CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_ALTER_DB_UPGRADE]|=        CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_PROFILE]|=            CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_PROFILES]|=           CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SIGNAL]|=                  CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_RESIGNAL]|=                CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_RELAYLOG_EVENTS]|=    CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_GET_DIAGNOSTICS]|=         CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_ALTER_USER]|=              CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_EXPLAIN_OTHER]|=           CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_CREATE_USER]|=        CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_END]|=                     CF_ALLOW_PROTOCOL_PLUGIN;
 }
 
 bool sqlcom_can_generate_row_events(const THD *thd)
@@ -2523,6 +2664,16 @@ mysql_execute_command(THD *thd, bool first_level)
   */
   if (sql_command_flags[lex->sql_command] & CF_HA_CLOSE)
     mysql_ha_rm_tables(thd, all_tables);
+
+  /*
+    Check that the command is allowed on the PROTOCOL_PLUGIN
+  */
+  if (thd->get_protocol()->type() == Protocol::PROTOCOL_PLUGIN &&
+      !(sql_command_flags[lex->sql_command] & CF_ALLOW_PROTOCOL_PLUGIN))
+  {
+    my_error(ER_PLUGGABLE_PROTOCOL_COMMAND_NOT_SUPPORTED, MYF(0));
+    goto error;
+  }
 
   /*
     Pre-open temporary tables to simplify privilege checking
