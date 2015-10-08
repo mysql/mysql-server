@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -50,10 +50,12 @@ IF(CMAKE_C_COMPILER MATCHES "icl")
  SET(MSVC TRUE)
 ENDIF()
 
-ADD_DEFINITIONS("-D_WINDOWS -D__WIN__ -D_CRT_SECURE_NO_DEPRECATE")
-ADD_DEFINITIONS("-D_WIN32_WINNT=0x0501")
+ADD_DEFINITIONS(-D_WINDOWS -D__WIN__ -D_CRT_SECURE_NO_DEPRECATE)
+ADD_DEFINITIONS(-D_WIN32_WINNT=0x0501)
+# We do not want the windows.h macros min/max
+ADD_DEFINITIONS(-DNOMINMAX)
 # Speed up build process excluding unused header files
-ADD_DEFINITIONS("-DWIN32_LEAN_AND_MEAN")
+ADD_DEFINITIONS(-DWIN32_LEAN_AND_MEAN)
   
 # Adjust compiler and linker flags
 IF(MINGW AND CMAKE_SIZEOF_VOID_P EQUAL 4)

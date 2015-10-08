@@ -148,6 +148,10 @@ void SetErrorString(YasslError error, char* buffer)
         strncpy(buffer, "sanity check on cipher text size error", max);
         break;
 
+    case rsaSignFault_error:
+        strncpy(buffer, "rsa signature fault error", max);
+        break;
+
         // openssl errors
     case SSL_ERROR_WANT_READ :
         strncpy(buffer, "the read operation would block", max);

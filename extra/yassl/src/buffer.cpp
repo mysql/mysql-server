@@ -165,7 +165,7 @@ void input_buffer::set_error()
 
 void input_buffer::set_current(uint i) 
 {
-    if (error_ == 0 && (i == 0 || check(i - 1, size_) == 0))
+    if (error_ == 0 && check(i ? i - 1 : 0, size_) == 0)
         current_ = i;
     else
         error_ = -1;

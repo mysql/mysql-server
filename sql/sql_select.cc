@@ -14702,6 +14702,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::FIELD_ITEM:
   case Item::DEFAULT_VALUE_ITEM:
   case Item::INSERT_VALUE_ITEM:
+  case Item::TRIGGER_FIELD_ITEM:
   {
     Item_field *field= (Item_field*) item;
     bool orig_modify= modify_item;
@@ -17149,6 +17150,10 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
         DBUG_RETURN(rc);
       if (return_tab < join->return_tab)
         join->return_tab= return_tab;
+
+      /* check for errors evaluating the condition */
+      if (join->thd->is_error())
+        DBUG_RETURN(NESTED_LOOP_ERROR);
 
       if (join->return_tab < join_tab)
         DBUG_RETURN(NESTED_LOOP_OK);

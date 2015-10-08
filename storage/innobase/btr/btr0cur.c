@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -2085,6 +2085,7 @@ btr_cur_optimistic_update(
 	ulint		max_size;
 	ulint		new_rec_size;
 	ulint		old_rec_size;
+	ulint		max_ins_size = 0;
 	dtuple_t*	new_entry;
 	roll_ptr_t	roll_ptr;
 	trx_t*		trx;
@@ -2195,6 +2196,11 @@ any_extern:
 		: (old_rec_size
 		   + page_get_max_insert_size_after_reorganize(page, 1));
 
+	if (!page_zip) {
+		max_ins_size = page_get_max_insert_size_after_reorganize(
+					page, 1);
+	}
+
 	if (!(((max_size >= BTR_CUR_PAGE_REORGANIZE_LIMIT)
 	       && (max_size >= new_rec_size))
 	      || (page_get_n_recs(page) <= 1))) {
@@ -2246,10 +2252,14 @@ any_extern:
 	rec = btr_cur_insert_if_possible(cursor, new_entry, 0/*n_ext*/, mtr);
 	ut_a(rec); /* <- We calculated above the insert would fit */
 
-	if (page_zip && !dict_index_is_clust(index)
+	if (!dict_index_is_clust(index)
 	    && page_is_leaf(page)) {
 		/* Update the free bits in the insert buffer. */
-		ibuf_update_free_bits_zip(block, mtr);
+		if (page_zip) {
+			ibuf_update_free_bits_zip(block, mtr);
+		} else {
+			ibuf_update_free_bits_low(block, max_ins_size, mtr);
+		}
 	}
 
 	/* Restore the old explicit lock state on the record */
@@ -2358,6 +2368,7 @@ btr_cur_pessimistic_update(
 	ulint		n_reserved;
 	ulint		n_ext;
 	ulint*		offsets		= NULL;
+	ulint		max_ins_size	= 0;
 
 	*big_rec = NULL;
 
@@ -2495,6 +2506,11 @@ make_external:
 		ut_ad(flags & BTR_KEEP_POS_FLAG);
 	}
 
+	if (!page_zip) {
+		max_ins_size = page_get_max_insert_size_after_reorganize(
+					page, 1);
+	}
+
 	/* Store state of explicit locks on rec on the page infimum record,
 	before deleting rec. The page infimum acts as a dummy carrier of the
 	locks, taking care also of lock releases, before we can move the locks
@@ -2540,10 +2556,15 @@ make_external:
 			big_rec_vec != NULL && (flags & BTR_KEEP_POS_FLAG),
 			mtr);
 
-		if (page_zip && !dict_index_is_clust(index)
+		if (!dict_index_is_clust(index)
 		    && page_is_leaf(page)) {
 			/* Update the free bits in the insert buffer. */
-			ibuf_update_free_bits_zip(block, mtr);
+			if (page_zip) {
+				ibuf_update_free_bits_zip(block, mtr);
+			} else {
+				ibuf_update_free_bits_low(block, max_ins_size,
+							  mtr);
+			}
 		}
 
 		err = DB_SUCCESS;

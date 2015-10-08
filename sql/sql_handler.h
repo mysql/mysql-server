@@ -1,6 +1,8 @@
 #ifndef SQL_HANDLER_INCLUDED
 #define SQL_HANDLER_INCLUDED
-/* Copyright (C) 2010 Monty Program Ab
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates.
+   Copyright (C) 2010, 2015, MariaDB
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -73,6 +75,7 @@ void mysql_ha_flush_tables(THD *thd, TABLE_LIST *all_tables);
 void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables);
 void mysql_ha_cleanup(THD *thd);
 void mysql_ha_set_explicit_lock_duration(THD *thd);
+void mysql_ha_rm_temporary_tables(THD *thd);
 
 SQL_HANDLER *mysql_ha_read_prepare(THD *thd, TABLE_LIST *tables,
                                    enum enum_ha_read_modes mode, char *keyname,

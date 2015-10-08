@@ -4010,6 +4010,12 @@ static bool check_if_created_table_can_be_opened(THD *thd,
   result= (open_table_def(thd, &share, 0) ||
            open_table_from_share(thd, &share, "", 0, (uint) READ_ALL,
                                  0, &table, TRUE));
+  /*
+    Assert that the change list is empty as no partition function currently
+    needs to modify item tree. May need call THD::rollback_item_tree_changes
+    later before calling closefrm if the change list is not empty.
+  */
+  DBUG_ASSERT(thd->change_list.is_empty());
   if (! result)
     (void) closefrm(&table, 0);
 

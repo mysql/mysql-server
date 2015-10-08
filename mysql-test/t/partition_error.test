@@ -1146,7 +1146,7 @@ subpartition by hash (rand(a+b));
 #
 # Subpartition by hash, wrong subpartition function
 #
---error ER_SUBPARTITION_ERROR
+--error ER_PARTITION_FUNCTION_IS_NOT_ALLOWED
 CREATE TABLE t1 (
 a int not null,
 b int not null,

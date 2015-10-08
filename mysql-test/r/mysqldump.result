@@ -4292,7 +4292,6 @@ Abernathy
 aberrant
 aberration
 drop table words;
-mysqlimport: Error: 1146, Table 'test.words' doesn't exist, when using table: words
 drop table t1;
 drop table t2;
 drop table words2;
@@ -5281,6 +5280,34 @@ drop table t1, t2;
 #
 # End of 5.1 tests
 #
+#
+# Bug #20772273 : MYSQLIMPORT --USE-THREADS DOESN'T USE MULTIPLE THREADS
+#
+CREATE DATABASE db_20772273;
+USE db_20772273;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1), (2);
+CREATE TABLE t2(a INT);
+INSERT INTO t2 VALUES (3), (4);
+SELECT * FROM t1;
+a
+1
+2
+SELECT * FROM t2;
+a
+3
+4
+SELECT * FROM t1;
+a
+1
+2
+SELECT * FROM t2;
+a
+3
+4
+DROP TABLE t1;
+DROP TABLE t2;
+DROP DATABASE db_20772273;
 Usage: mysqldump [OPTIONS] database [tables]
 OR     mysqldump [OPTIONS] --databases [OPTIONS] DB1 [DB2 DB3...]
 OR     mysqldump [OPTIONS] --all-databases [OPTIONS]

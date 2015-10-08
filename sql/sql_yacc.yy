@@ -10612,8 +10612,20 @@ procedure_clause:
             if (add_proc_to_list(lex->thd, item))
               MYSQL_YYABORT;
             Lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+
+            /*
+              PROCEDURE CLAUSE cannot handle subquery as one of its parameter,
+              so set expr_allows_subselect as false to disallow any subqueries
+              further. Reset expr_allows_subselect back to true once the
+              parameters are reduced.
+            */
+            Lex->expr_allows_subselect= false;
           }
           '(' procedure_list ')'
+          {
+            /* Subqueries are allowed from now.*/
+            Lex->expr_allows_subselect= true;
+          }
         ;
 
 procedure_list:

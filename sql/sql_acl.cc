@@ -4652,16 +4652,19 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
        tl && number-- && tl != first_not_own_table;
        tl= tl->next_global)
   {
-    sctx = test(tl->security_ctx) ? tl->security_ctx : thd->security_ctx;
+    TABLE_LIST *const t_ref=
+      tl->correspondent_table ? tl->correspondent_table : tl;
+    sctx = test(t_ref->security_ctx) ? t_ref->security_ctx :
+                                       thd->security_ctx;
 
     const ACL_internal_table_access *access=
-      get_cached_table_access(&tl->grant.m_internal,
-                              tl->get_db_name(),
-                              tl->get_table_name());
+      get_cached_table_access(&t_ref->grant.m_internal,
+                              t_ref->get_db_name(),
+                              t_ref->get_table_name());
 
     if (access)
     {
-      switch(access->check(orig_want_access, &tl->grant.privilege))
+      switch(access->check(orig_want_access, &t_ref->grant.privilege))
       {
       case ACL_INTERNAL_ACCESS_GRANTED:
         /*
@@ -4685,33 +4688,33 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     if (!want_access)
       continue;                                 // ok
 
-    if (!(~tl->grant.privilege & want_access) ||
-        tl->is_anonymous_derived_table() || tl->schema_table)
+    if (!(~t_ref->grant.privilege & want_access) ||
+        t_ref->is_anonymous_derived_table() || t_ref->schema_table)
     {
       /*
-        It is subquery in the FROM clause. VIEW set tl->derived after
+        It is subquery in the FROM clause. VIEW set t_ref->derived after
         table opening, but this function always called before table opening.
       */
-      if (!tl->referencing_view)
+      if (!t_ref->referencing_view)
       {
         /*
           If it's a temporary table created for a subquery in the FROM
           clause, or an INFORMATION_SCHEMA table, drop the request for
           a privilege.
         */
-        tl->grant.want_privilege= 0;
+        t_ref->grant.want_privilege= 0;
       }
       continue;
     }
     GRANT_TABLE *grant_table= table_hash_search(sctx->host, sctx->ip,
-                                                tl->get_db_name(),
+                                                t_ref->get_db_name(),
                                                 sctx->priv_user,
-                                                tl->get_table_name(),
+                                                t_ref->get_table_name(),
                                                 FALSE);
 
     if (!grant_table)
     {
-      want_access &= ~tl->grant.privilege;
+      want_access &= ~t_ref->grant.privilege;
       goto err;					// No grants
     }
 
@@ -4722,17 +4725,17 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     if (any_combination_will_do)
       continue;
 
-    tl->grant.grant_table= grant_table; // Remember for column test
-    tl->grant.version= grant_version;
-    tl->grant.privilege|= grant_table->privs;
-    tl->grant.want_privilege= ((want_access & COL_ACLS) & ~tl->grant.privilege);
+    t_ref->grant.grant_table= grant_table; // Remember for column test
+    t_ref->grant.version= grant_version;
+    t_ref->grant.privilege|= grant_table->privs;
+    t_ref->grant.want_privilege= ((want_access & COL_ACLS) & ~t_ref->grant.privilege);
 
-    if (!(~tl->grant.privilege & want_access))
+    if (!(~t_ref->grant.privilege & want_access))
       continue;
 
-    if (want_access & ~(grant_table->cols | tl->grant.privilege))
+    if (want_access & ~(grant_table->cols | t_ref->grant.privilege))
     {
-      want_access &= ~(grant_table->cols | tl->grant.privilege);
+      want_access &= ~(grant_table->cols | t_ref->grant.privilege);
       goto err;					// impossible
     }
   }

@@ -196,9 +196,16 @@ void DH_Server::build(SSL& ssl)
     sha.update(tmp.get_buffer(), tmp.get_size());
     sha.get_digest(&hash[MD5_LEN]);
 
-    if (ssl.getSecurity().get_parms().sig_algo_ == rsa_sa_algo)
+    if (ssl.getSecurity().get_parms().sig_algo_ == rsa_sa_algo) {
         auth->sign(signature_, hash, sizeof(hash),
                    ssl.getCrypto().get_random());
+        // check for rsa signautre fault
+        if (!auth->verify(hash, sizeof(hash), signature_,
+                                              auth->get_signatureLength())) {
+            ssl.SetError(rsaSignFault_error);
+            return;
+        }
+    }
     else {
         auth->sign(signature_, &hash[MD5_LEN], SHA_LEN,
                    ssl.getCrypto().get_random());
@@ -2159,6 +2166,12 @@ void CertificateVerify::Build(SSL& ssl)
         memcpy(sig.get(), len, VERIFY_HEADER);
         rsa.sign(sig.get() + VERIFY_HEADER, hashes_.md5_, sizeof(Hashes),
                  ssl.getCrypto().get_random());
+        // check for rsa signautre fault
+        if (!rsa.verify(hashes_.md5_, sizeof(Hashes), sig.get() + VERIFY_HEADER,
+                                                      rsa.get_cipherLength())) {
+            ssl.SetError(rsaSignFault_error);
+            return;
+        }
     }
     else {  // DSA
         DSS dss(cert.get_privateKey(), cert.get_privateKeyLength(), false);

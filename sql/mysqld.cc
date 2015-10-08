@@ -3884,13 +3884,24 @@ static int init_common_variables()
   {
     if (lower_case_table_names_used)
     {
+#if MYSQL_VERSION_ID < 100100
       if (global_system_variables.log_warnings)
-	sql_print_warning("\
-You have forced lower_case_table_names to 0 through a command-line \
-option, even though your file system '%s' is case insensitive.  This means \
-that you can corrupt a MyISAM table by accessing it with different cases. \
-You should consider changing lower_case_table_names to 1 or 2",
-			mysql_real_data_home);
+        sql_print_warning("You have forced lower_case_table_names to 0 through "
+                          "a command-line option, even though your file system "
+                          "'%s' is case insensitive.  This means that you can "
+                          "corrupt your tables if you access them using names "
+                          "with different letter case. You should consider "
+                          "changing lower_case_table_names to 1 or 2",
+                          mysql_real_data_home);
+#else
+      sql_print_error("The server option 'lower_case_table_names' is "
+                      "configured to use case sensitive table names but the "
+                      "data directory resides on a case-insensitive file system. "
+                      "Please use a case sensitive file system for your data "
+                      "directory or switch to a case-insensitive table name "
+                      "mode.");
+#endif
+      return 1;
     }
     else
     {

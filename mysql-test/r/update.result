@@ -561,6 +561,21 @@ ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function
 DROP VIEW v1;
 DROP FUNCTION f1;
 DROP TABLE t1;
+# Bug #21143080: UPDATE ON VARCHAR AND TEXT COLUMNS PRODUCE INCORRECT
+#                RESULTS
+CREATE TABLE t1 (a VARCHAR(50), b TEXT, c CHAR(50)) ENGINE=INNODB;
+INSERT INTO t1 (a, b, c) VALUES ('start trail', '', 'even longer string');
+UPDATE t1 SET b = a, a = 'inject';
+SELECT a, b FROM t1;
+a	b
+inject	start trail
+UPDATE t1 SET b = c, c = 'inject';
+SELECT c, b FROM t1;
+c	b
+inject	even longer string
+DROP TABLE t1;
+#
+# MDEV-3948 Assertion `records_are_comparable(table)' fails in compare_record(const TABLE*) on UPDATE with simple AND condition, index_merge+index_merge_intersection, InnoDB
 #
 # Verify that UPDATE does the same number of handler_update
 # operations, no matter if there is ORDER BY or not.

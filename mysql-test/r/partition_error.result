@@ -1089,7 +1089,7 @@ partition by key (a)
 subpartition by hash (sin(a+b))
 (partition x1 (subpartition x11, subpartition x12),
 partition x2 (subpartition x21, subpartition x22));
-ERROR HY000: It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning
+ERROR HY000: This partition function is not allowed
 select load_file('$MYSQLD_DATADIR/test/t1.par');
 load_file('$MYSQLD_DATADIR/test/t1.par')
 NULL

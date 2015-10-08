@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -89,6 +89,18 @@ IF(NOT CMAKE_CROSSCOMPILING)
   "#include<stdint.h>
   int main()
   {
+    unsigned char	c;
+
+    __atomic_test_and_set(&c, __ATOMIC_ACQUIRE);
+    __atomic_clear(&c, __ATOMIC_RELEASE);
+    return(0);
+  }"
+  HAVE_IB_GCC_ATOMIC_TEST_AND_SET
+  )
+  CHECK_C_SOURCE_RUNS(
+  "#include<stdint.h>
+  int main()
+  {
     __sync_synchronize();
     return(0);
   }"
@@ -108,6 +120,10 @@ ENDIF()
 
 IF(HAVE_IB_GCC_ATOMIC_BUILTINS)
  ADD_DEFINITIONS(-DHAVE_IB_GCC_ATOMIC_BUILTINS=1)
+ENDIF()
+
+IF(HAVE_IB_GCC_ATOMIC_TEST_AND_SET)
+ ADD_DEFINITIONS(-DHAVE_IB_GCC_ATOMIC_TEST_AND_SET=1)
 ENDIF()
 
 IF(HAVE_IB_GCC_SYNC_SYNCHRONISE)
