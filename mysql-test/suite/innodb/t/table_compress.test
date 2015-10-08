@@ -65,6 +65,8 @@ SELECT * FROM t1;
 --echo #
 --echo # Bug#21687636 COMPRESSION COLUMN IN INNODB_SYS_TABLESPACES IS NOT CORRECT
 --echo #
+# Restart not supported in embedded server
+-- source include/not_embedded.inc
 -- source include/restart_mysqld.inc
 SHOW CREATE TABLE t1;
 
