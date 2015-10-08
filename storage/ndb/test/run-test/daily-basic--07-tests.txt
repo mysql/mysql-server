@@ -92,7 +92,7 @@ args: -n PkUpdate WIDE_MAXKEY_HUGO WIDE_MAXATTR_HUGO WIDE_MAXKEYMAXCOLS_HUGO WID
 max-time: 540
 
 cmd: testScan
-args: -n Bug54945 T1
+args: -n Bug54945 --skip-ndb-optimized-node-selection T1
 max-time: 720
 
 cmd: testNodeRestart
