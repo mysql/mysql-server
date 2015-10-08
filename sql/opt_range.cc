@@ -8913,6 +8913,7 @@ SEL_ARG::insert(SEL_ARG *key)
 {
   SEL_ARG *element, **par= NULL, *last_element= NULL;
 
+  DBUG_ASSERT(this != &null_element);
   for (element= this; element != &null_element ; )
   {
     last_element=element;
