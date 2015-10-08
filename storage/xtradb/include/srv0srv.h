@@ -264,7 +264,6 @@ extern ulint	srv_ibuf_active_contract;
 extern ulint	srv_ibuf_accel_rate;
 extern ulint	srv_checkpoint_age_target;
 extern ulint	srv_flush_neighbor_pages;
-extern ulint	srv_enable_unsafe_group_commit;
 extern ulint	srv_read_ahead;
 extern ulint	srv_adaptive_flushing_method;
 
