@@ -33,8 +33,9 @@ call mtr.add_suppression("Could not open .*");
 call mtr.add_suppression("Could not use .*");
 call mtr.add_suppression("Can't generate a unique log-filename master-bin");
 call mtr.add_suppression("The server was unable to create a new log file *");
-call mtr.add_suppression("An error occured during flushing cache to file.");
+call mtr.add_suppression("An error occurred during flushing cache to file.");
 call mtr.add_suppression("Either disk is full or file system is read only");
+call mtr.add_suppression("Attempting backtrace. You can use the following information to find out");
 let $old=`select @@debug`;
 
 --let $saved_binlog_error_action=`SELECT @@GLOBAL.binlog_error_action`

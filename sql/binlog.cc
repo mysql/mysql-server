@@ -89,7 +89,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all);
 static int binlog_prepare(handlerton *hton, THD *thd, bool all);
 static int binlog_xa_commit(handlerton *hton,  XID *xid);
 static int binlog_xa_rollback(handlerton *hton,  XID *xid);
-
+static void exec_binlog_error_action_abort(const char* err_string);
 
 /**
   Helper class to hold a mutex for the duration of the
@@ -1661,6 +1661,52 @@ static int binlog_xa_rollback(handlerton *hton,  XID *xid)
 
   return 0;
 }
+
+
+/**
+  When a fatal error occurs due to which binary logging becomes impossible and
+  the user specified binlog_error_action= ABORT_SERVER the following function is
+  invoked. This function pushes the appropriate error message to client and logs
+  the same to server error log and then aborts the server.
+
+  @param err_string          Error string which specifies the exact error
+                             message from the caller.
+
+  @retval
+    none
+*/
+static void exec_binlog_error_action_abort(const char* err_string)
+{
+  THD *thd= current_thd;
+  /*
+    When the code enters here it means that there was an error at higher layer
+    and my_error function could have been invoked to let the client know what
+    went wrong during the execution.
+
+    But these errors will not let the client know that the server is going to
+    abort. Even if we add an additional my_error function call at this point
+    client will be able to see only the first error message that was set
+    during the very first invocation of my_error function call.
+
+    The advantage of having multiple my_error function calls are visible when
+    the server is up and running and user issues SHOW WARNINGS or SHOW ERROR
+    calls. In this special scenario server will be immediately aborted and
+    user will not be able execute the above SHOW commands.
+
+    Hence we clear the previous errors and push one critical error message to
+    clients.
+   */
+  thd->clear_error();
+  /*
+    Adding ME_ERRORLOG flag will ensure that the error is sent to both
+    client and to the server error log as well.
+   */
+  my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(ME_ERRORLOG + ME_FATALERROR),
+           err_string);
+  thd->send_statement_status();
+  abort();
+}
+
 
 
 /**
@@ -3366,20 +3412,9 @@ bool MYSQL_BIN_LOG::open(
 err:
   if (binlog_error_action == ABORT_SERVER)
   {
-    THD *thd= current_thd;
-    /*
-      On fatal error when code enters here we should forcefully clear the
-      previous errors so that a new critical error message can be pushed
-      to the client side.
-     */
-    thd->clear_error();
-    my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disk is full or "
-             "file system is read only while opening the binlog. Aborting the "
-             "server");
-    sql_print_error("Either disk is full or file system is read only while "
-                    "opening the binlog. Aborting the server");
-    thd->send_statement_status();
-    _exit(MYSQLD_FAILURE_EXIT);
+    exec_binlog_error_action_abort("Either disk is full or file system is read "
+                                   "only while opening the binlog. Aborting the"
+                                   " server.");
   }
   else
     sql_print_error("Could not open %s for logging (error %d). "
@@ -4780,20 +4815,9 @@ err:
   log_state.atomic_set(LOG_CLOSED);
   if (binlog_error_action == ABORT_SERVER)
   {
-    THD *thd= current_thd;
-    /*
-      On fatal error when code enters here we should forcefully clear the
-      previous errors so that a new critical error message can be pushed
-      to the client side.
-     */
-    thd->clear_error();
-    my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disk is full or "
-             "file system is read only while opening the binlog. Aborting the "
-             "server");
-    sql_print_error("Either disk is full or file system is read only while "
-                    "opening the binlog. Aborting the server");
-    thd->send_statement_status();
-    _exit(MYSQLD_FAILURE_EXIT);
+    exec_binlog_error_action_abort("Either disk is full or file system is read "
+                                   "only while opening the binlog. Aborting the"
+                                   " server.");
   }
   else
     sql_print_error("Could not use %s for logging (error %d). "
@@ -6509,20 +6533,9 @@ end:
     close(LOG_CLOSE_INDEX);
     if (binlog_error_action == ABORT_SERVER)
     {
-      THD *thd= current_thd;
-      /*
-        On fatal error when code enters here we should forcefully clear the
-        previous errors so that a new critical error message can be pushed
-        to the client side.
-       */
-      thd->clear_error();
-      my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disk is full or "
-               "file system is read only while rotating the binlog. Aborting "
-               "the server");
-      sql_print_error("Either disk is full or file system is read only while "
-                      "rotating the binlog. Aborting the server");
-      thd->send_statement_status();
-      _exit(MYSQLD_FAILURE_EXIT);
+      exec_binlog_error_action_abort("Either disk is full or file system is"
+                                     " read only while rotating the binlog."
+                                     " Aborting the server.");
     }
     else
       sql_print_error("Could not open %s for logging (error %d). "
@@ -8366,25 +8379,14 @@ MYSQL_BIN_LOG::flush_cache_to_file(my_off_t *end_pos_var)
   {
     if (binlog_error_action == ABORT_SERVER)
     {
-      THD *thd= current_thd;
-      /*
-        On fatal error when code enters here we should forcefully clear the
-        previous errors so that a new critical error message can be pushed
-        to the client side.
-       */
-      thd->clear_error();
-      my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "An error occured during "
-                "flushing cache to file. 'binlog_error_action' is set to "
-                "'ABORT_SERVER'. Hence aborting the server");
-      sql_print_error("An error occured during flushing cache to file. "
-                      "'binlog_error_action' is set to 'ABORT_SERVER'. "
-                      "Hence aborting the server");
-      thd->send_statement_status();
-      _exit(MYSQLD_FAILURE_EXIT);
+      exec_binlog_error_action_abort("An error occurred during flushing cache "
+                                     "to file. 'binlog_error_action' is set to "
+                                     "'ABORT_SERVER'. Hence aborting the "
+                                     "server.");
     }
     else
     {
-      sql_print_error("An error occured during flushing cache to file. "
+      sql_print_error("An error occurred during flushing cache to file. "
                       "'binlog_error_action' is set to 'IGNORE_ERROR'. "
                       "Hence turning logging off for the whole duration "
                       "of the MySQL server process. To turn it on "
