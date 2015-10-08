@@ -595,7 +595,7 @@ void lex_end(LEX *lex)
 
   delete lex->sphead;
   lex->sphead= NULL;
-  lex->insert_update_values_map.clear();
+  lex->clear_values_map();
 
   DBUG_VOID_RETURN;
 }
@@ -3533,6 +3533,7 @@ LEX::LEX()
   :result(0), thd(NULL), opt_hints_global(NULL),
    // Quite unlikely to overflow initial allocation, so no instrumentation.
    plugins(PSI_NOT_INSTRUMENTED),
+   insert_update_values_map(NULL),
    option_type(OPT_DEFAULT),
    is_set_password_sql(false),
    // Initialize here to avoid uninitialized variable warnings.

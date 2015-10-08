@@ -9077,8 +9077,7 @@ bool Item_insert_value::fix_fields(THD *thd, Item **reference)
     {
       try
       {
-        thd->lex->insert_update_values_map.
-          insert(std::make_pair(field_arg->field, def_field));
+        thd->lex->insert_values_map(field_arg->field, def_field);
       }
       catch(std::bad_alloc const &)
       {
