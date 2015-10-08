@@ -267,6 +267,7 @@ int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2)
   BG_geometry_collection bggc1, bggc2;
   bool empty1= is_empty_geocollection(g1);
   bool empty2= is_empty_geocollection(g2);
+  Var_resetter<enum Functype> resetter;
 
   /*
     An empty geometry collection is an empty point set, according to OGC
@@ -287,6 +288,7 @@ int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2)
     g2= g1;
     g1= tmpg;
     spatial_rel= SP_WITHIN_FUNC;
+    resetter.set(&spatial_rel, SP_CONTAINS_FUNC);
   }
 
   bggc1.fill(g1);
@@ -345,7 +347,6 @@ int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2)
   if (tmpg)
   {
     DBUG_ASSERT(spatial_rel == SP_WITHIN_FUNC);
-    spatial_rel= SP_CONTAINS_FUNC;
     tmpg= g2;
     g2= g1;
     g1= tmpg;
