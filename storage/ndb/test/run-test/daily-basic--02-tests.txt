@@ -96,7 +96,7 @@ args: -n Bug21384
 max-time: 360
 
 cmd: testScan
-args: -n Bug54945 T1
+args: -n Bug54945 --skip-ndb-optimized-node-selection T1
 max-time: 360
 
 cmd: testNdbApi
