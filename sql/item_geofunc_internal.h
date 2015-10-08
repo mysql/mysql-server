@@ -507,16 +507,28 @@ private:
   Valtype oldval;
 
   // Forbid use, to eliminate a warning: oldval may be used uninitialized.
-  Var_resetter();
   Var_resetter(const Var_resetter &o);
   Var_resetter &operator=(const Var_resetter&);
 public:
-  Var_resetter(Valtype *v, Valtype oldval) : valref(v)
+  Var_resetter() : valref(NULL)
   {
-    this->oldval= oldval;
   }
 
-  ~Var_resetter() { *valref= oldval; }
+  Var_resetter(Valtype *v, const Valtype &oval) : valref(v), oldval(oval)
+  {
+  }
+
+  ~Var_resetter()
+  {
+    if (valref)
+      *valref= oldval;
+  }
+
+  void set(Valtype *v, const Valtype &oldval)
+  {
+    valref= v;
+    this->oldval= oldval;
+  }
 };
 
 
