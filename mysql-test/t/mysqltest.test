@@ -2967,3 +2967,17 @@ connection default;
 
 # To test \r\n in cat_file
 --cat_file std_data/cat_file.txt
+
+--echo
+--echo Bug#21963113 MYSQLTESTS REPLACE_REGEX CANNOT
+--echo              MATCH ^ (BEGINNING OF LINE) ATOM
+--echo
+
+--replace_regex /^a/R/
+select "a" as a;
+
+--replace_regex /a/R/
+select "a" as a;
+
+--replace_regex /a$/R/
+select "a" as a;

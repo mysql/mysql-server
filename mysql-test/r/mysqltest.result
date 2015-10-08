@@ -979,3 +979,16 @@ End of tests
 # just a random carriage return and line feed
 
 # just a random carriage return only
+
+Bug#21963113 MYSQLTESTS REPLACE_REGEX CANNOT
+MATCH ^ (BEGINNING OF LINE) ATOM
+
+select "a" as a;
+R
+R
+select "R" Rs R;
+R
+R
+select "a" as R;
+R
+R
