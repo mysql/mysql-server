@@ -2101,6 +2101,10 @@ args: -n Cascade1 T1
 #cmd: testFK
 #args: -n CascadeError T1
 #
+max-time : 600
+cmd: testFK
+args: -n DropTableWithFKDuringRestart T1
+
 # Bug18379566 added on 17.04.2014
 #max-time : 600
 #cmd: testNodeRestart
