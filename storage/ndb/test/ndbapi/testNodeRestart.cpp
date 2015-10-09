@@ -1239,6 +1239,7 @@ runBug18612SR(NDBT_Context* ctx, NDBT_Step* step){
     
     ndbout_c("done");
 
+    g_err << "Restarting all" << endl;
     if (restarter.restartAll(false, true, false))
       return NDBT_FAILED;
 
@@ -1257,31 +1258,38 @@ runBug18612SR(NDBT_Context* ctx, NDBT_Step* step){
 
     int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
     
+    g_err << "DumpState all nodes" << endl;
     if (restarter.dumpStateAllNodes(val2, 2))
       return NDBT_FAILED;
     
     if (restarter.insertErrorInAllNodes(932))
       return NDBT_FAILED;
     
+    g_err << "Starting all" << endl;
     if (restarter.startAll())
       return NDBT_FAILED;
     
-    if (restarter.waitClusterStartPhase(2))
+    g_err << "Waiting for phase 2" << endl;
+    if (restarter.waitClusterStartPhase(2, 300))
       return NDBT_FAILED;
     
+    g_err << "DumpState all nodes" << endl;
     dump[0] = 9001;
     for (Uint32 i = 0; i<cnt/2; i++)
       if (restarter.dumpStateAllNodes(dump, 2))
 	return NDBT_FAILED;
 
+    g_err << "Waiting cluster/nodes no-start" << endl;
     if (restarter.waitClusterNoStart(30))
       if (restarter.waitNodesNoStart(partition0, cnt/2, 10))
 	if (restarter.waitNodesNoStart(partition1, cnt/2, 10))
 	  return NDBT_FAILED;
     
+    g_err << "Starting all" << endl;
     if (restarter.startAll())
       return NDBT_FAILED;
     
+    g_err << "Waiting for the cluster to start" << endl;
     if (restarter.waitClusterStarted())
       return NDBT_FAILED;
   }
@@ -1305,28 +1313,32 @@ int runBug20185(NDBT_Context* ctx, NDBT_Step* step)
   for (int i = 0; i<restarter.getNumDbNodes(); i++)
     nodes.push_back(restarter.getDbNodeId(i));
   
-retry:
-  if(hugoOps.startTransaction(pNdb) != 0)
+  if(hugoOps.startTransaction(pNdb, masterNode, 0) != 0)
+  {
+    g_err << "ERR: Failed to start transaction at master node " << masterNode << endl;
     return NDBT_FAILED;
-  
+  }
+
   if(hugoOps.pkUpdateRecord(pNdb, 1, 1) != 0)
     return NDBT_FAILED;
-  
+
   if (hugoOps.execute_NoCommit(pNdb) != 0)
     return NDBT_FAILED;
-  
+
   const int node = hugoOps.getTransaction()->getConnectedNodeId();
   if (node != masterNode)
   {
-    hugoOps.closeTransaction(pNdb);
-    goto retry;
+    g_err << "ERR: Transaction did not end up at master node " << masterNode << " but at node " << node << endl;
+    return NDBT_FAILED;
   } 
-  
-  int nodeId;
-  do {
-    nodeId = restarter.getDbNodeId(rand() % restarter.getNumDbNodes());
-  } while (nodeId == node);
-  
+
+  const int nodeId = restarter.getRandomNotMasterNodeId(rand());
+  if (nodeId == -1)
+  {
+    g_err << "ERR: Could not find any node but master node " << masterNode << endl;
+    return NDBT_FAILED;
+  }
+
   ndbout_c("7031 to %d", nodeId);
   if (restarter.insertErrorInNode(nodeId, 7031))
     return NDBT_FAILED;
@@ -3633,8 +3645,8 @@ loop1:
 
   int err = 0;
   HugoOperations hugoOps(*ctx->getTab());
-loop2:
-  if((err = hugoOps.startTransaction(pNdb)) != 0)
+
+  if((err = hugoOps.startTransaction(pNdb, master, 0)) != 0)
   {
     ndbout_c("failed to start transaction: %u", err);
     return NDBT_FAILED;
@@ -3643,10 +3655,10 @@ loop2:
   int victim = hugoOps.getTransaction()->getConnectedNodeId();
   if (victim != master)
   {
-    ndbout_c("transnode: %u != master: %u -> loop",
+    ndbout_c("ERR: transnode: %u != master: %u -> loop",
              victim, master);
     hugoOps.closeTransaction(pNdb);
-    goto loop2;
+    return NDBT_FAILED;
   }
 
   if((err = hugoOps.pkUpdateRecord(pNdb, 1)) != 0)
@@ -7448,6 +7460,52 @@ int runLCPandRestart(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int runLCP(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+
+  NdbSleep_MilliSleep(6000);
+
+  while(ctx->isTestStopped() == false)
+  {
+    ndbout << "Triggering LCP..." << endl;
+    int lcpDumpCode = 7099;
+    restarter.dumpStateAllNodes(&lcpDumpCode, 1);
+    
+    /* TODO : Proper 'wait for LCP completion' here */
+    NdbSleep_MilliSleep(2000);
+  }
+
+  return NDBT_OK;
+}
+
+int snapshotLMBUsage(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  
+  int code = DumpStateOrd::CmvmiLongSignalMemorySnapshotStart;
+  restarter.dumpStateAllNodes(&code, 1);
+  code = DumpStateOrd::CmvmiLongSignalMemorySnapshot;
+  restarter.dumpStateAllNodes(&code, 1);
+  
+  return NDBT_OK;
+}
+
+int waitAndCheckLMBUsage(NDBT_Context* ctx, NDBT_Step* step)
+{
+  ndbout_c("Waiting for some time (and LCPs) to pass...");
+  NdbSleep_MilliSleep(120000);
+  
+  NdbRestarter restarter;
+  
+  ndbout_c("Checking growth not excessive...");
+  int code = DumpStateOrd::CmvmiLongSignalMemorySnapshotCheck2;
+  restarter.dumpStateAllNodes(&code, 1);
+  NdbSleep_MilliSleep(5000);
+  
+  ctx->stopTest();
+  return NDBT_OK;
+}
 
 
 NDBT_TESTSUITE(testNodeRestart);
@@ -8115,6 +8173,15 @@ TESTCASE("GcpStopIsolation",
   INITIALIZER(runCreateEvent);
   STEP(runGcpStop);
   FINALIZER(runDropEvent);
+}
+TESTCASE("LCPLMBLeak",
+         "Check for Long message buffer leaks during LCP");
+{
+  INITIALIZER(createManyTables);
+  INITIALIZER(snapshotLMBUsage);
+  STEP(runLCP);
+  STEP(waitAndCheckLMBUsage);
+  FINALIZER(dropManyTables);
 }
 
 NDBT_TESTSUITE_END(testNodeRestart);

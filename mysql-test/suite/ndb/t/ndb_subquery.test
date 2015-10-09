@@ -157,7 +157,7 @@ set ndb_join_pushdown = off;
 set optimizer_switch= 'firstmatch=off';
 set optimizer_switch= 'materialization=off';
 
-explain extended
+explain
 SELECT pk, col_int_key
   FROM v AS table1 
   WHERE table1.col_int_key IN (SELECT col_int_key AS field2 FROM i as table1s)

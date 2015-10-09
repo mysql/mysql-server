@@ -2249,6 +2249,13 @@ Ndb::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
       }
       // Event queue is scanned and no regular event data is found
       assert(data==NULL);
+
+      /* This is intentional: Return with 'no data' even
+       * if this epoch did not contain any data-events - Even
+       * if the specified wait time didn't expire. Reason is
+       * to give the client a chance to observe, and act on,
+       * possibly new epoch which has completed.
+       */
       return 0;
     }
 

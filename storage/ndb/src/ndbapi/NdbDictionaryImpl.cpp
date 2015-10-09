@@ -5432,7 +5432,6 @@ NdbDictInterface::execSUB_STOP_CONF(const NdbApiSignal * signal,
   DBUG_ENTER("NdbDictInterface::execSUB_STOP_CONF");
   const SubStopConf * const subStopConf=
     CAST_CONSTPTR(SubStopConf, signal->getDataPtr());
-  const Uint32 sigLen = signal->getLength();
 
   DBUG_PRINT("info",("subscriptionId=%d,subscriptionKey=%d,subscriberData=%d",
 		     subStopConf->subscriptionId,
@@ -5452,12 +5451,6 @@ NdbDictInterface::execSUB_STOP_CONF(const NdbApiSignal * signal,
   data[0] = gci_hi;
   data[1] = gci_lo;
 
-  /*
-   * If this is the last subscription stopped NdbEventBuffer needs
-   * to be notified.  NdbEventBuffer will clear eventbuffer and
-   * start ignoring Suma signals such as SUB_GCP_COMPLETE_REP.
-   */
-  m_impl->m_ndb.theEventBuffer->execSUB_STOP_CONF(subStopConf, sigLen);
   m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
@@ -5469,7 +5462,6 @@ NdbDictInterface::execSUB_STOP_REF(const NdbApiSignal * signal,
   DBUG_ENTER("NdbDictInterface::execSUB_STOP_REF");
   const SubStopRef * const subStopRef=
     CAST_CONSTPTR(SubStopRef, signal->getDataPtr());
-  const Uint32 sigLen = signal->getLength();
 
   m_error.code= subStopRef->errorCode;
 
@@ -5483,12 +5475,6 @@ NdbDictInterface::execSUB_STOP_REF(const NdbApiSignal * signal,
   {
     m_masterNodeId = subStopRef->m_masterNodeId;
   }
-  /*
-   * If this is the last subscription stopped NdbEventBuffer needs
-   * to be notified.  NdbEventBuffer will clear eventbuffer and
-   * start ignoring Suma signals such as SUB_GCP_COMPLETE_REP.
-   */
-  m_impl->m_ndb.theEventBuffer->execSUB_STOP_REF(subStopRef, sigLen);
   m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }

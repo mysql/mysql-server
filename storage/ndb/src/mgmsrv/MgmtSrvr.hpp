@@ -284,6 +284,7 @@ public:
   /**
    *   Dump State 
    */
+  int dumpStateSelf(const Uint32 args[], Uint32 no);
   int dumpState(int processId, const Uint32 args[], Uint32 argNo);
   int dumpState(int processId, const char* args);
 

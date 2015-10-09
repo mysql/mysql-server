@@ -167,6 +167,14 @@ TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
   bzero(secPtr, sizeof(secPtr));
   secPtr[0].p = secPtr[1].p = secPtr[2].p = 0;
 
+#ifdef NDB_DEBUG_RES_OWNERSHIP
+  /**
+   * Track sections seized as part of receiving signal with
+   * 1 as 'special' block number for receiver
+   */
+  setResOwner(0x1 << 16 | header->theVerId_signalNumber);
+#endif
+
   ErrorImportActive = true;
   switch(secCount){
   case 3:

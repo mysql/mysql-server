@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -307,6 +307,7 @@ int main(int argc, char** argv){
 #ifndef DBUG_OFF
   opt_debug= "d:t:O,/tmp/ndb_show_tables.trace";
 #endif
+  bool using_default_database = false;
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
 			       ndb_std_get_one_option)))
     return NDBT_ProgramExit(NDBT_WRONGARGS);
@@ -339,12 +340,24 @@ int main(int argc, char** argv){
   if (ndb->init() != 0)
     fatal("init");
   if (_dbname == 0 && _tabname != 0)
+  {
     _dbname = "TEST_DB";
+    using_default_database = true;
+  }
   ndb->setDatabaseName(_dbname);
   dic = ndb->getDictionary();
   if( argc >0){
     if(!dic->getTable(_tabname)){
-      ndbout << _tabname << ": not found -" << dic->getNdbError() << endl;
+      if( using_default_database )
+      {
+        ndbout << "Please specify database name using the -d option. "
+               << "Use option --help for more details." << endl;
+      }
+      else
+      {
+        ndbout << "Table " << _tabname << ": not found - "
+               << dic->getNdbError() << endl;
+      }
       return NDBT_ProgramExit(NDBT_FAILED);
     }
   }

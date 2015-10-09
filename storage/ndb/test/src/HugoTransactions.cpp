@@ -540,7 +540,9 @@ restart:
       if( check == -1 ) {
 	closeTransaction(pNdb);
 	NDB_ERR(err);
-	if (err.status == NdbError::TemporaryError){
+        if (err.code == 499 || err.code == 631 ||   // Scan lock take over errors
+            err.status == NdbError::TemporaryError) // Other temporary errors
+        {
 	  NdbSleep_MilliSleep(50);
 	  goto restart;
 	}
@@ -553,7 +555,9 @@ restart:
     if( check == -1 ) {
       closeTransaction(pNdb);
       NDB_ERR(err);
-      if (err.status == NdbError::TemporaryError){
+      if (err.code == 499 || err.code == 631 ||   // Scan lock take over errors
+          err.status == NdbError::TemporaryError) // Other temporary errors
+      {
 	NdbSleep_MilliSleep(50);
 	goto restart;
       }

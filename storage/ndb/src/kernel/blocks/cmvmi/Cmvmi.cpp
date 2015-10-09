@@ -50,6 +50,8 @@
 #include <SectionReader.hpp>
 #include <vm/WatchDog.hpp>
 
+#include <DebuggerNames.hpp>
+
 #define JAM_FILE_ID 380
 
 
@@ -1515,6 +1517,151 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 
     ndbrequire(false);
 #endif
+  }
+
+  if (arg == DumpStateOrd::CmvmiLongSignalMemorySnapshotCheck2)
+  {
+    ndbout_c("CmvmiLongSignalMemorySnapshotCheck2");
+
+#if defined VM_TRACE || defined ERROR_INSERT
+    Uint32 orig_idx = (f_free_segment_pos - 1) % 
+      NDB_ARRAY_SIZE(f_free_segments);
+
+    Uint32 poolsize = g_sectionSegmentPool.getSize();    
+    Uint32 orig_level = f_free_segments[orig_idx];
+    Uint32 orig_used = poolsize - orig_level;
+    Uint32 curr_level = g_sectionSegmentPool.getNoOfFree();
+    Uint32 curr_used = poolsize - curr_level;
+
+    ndbout_c("  Total : %u", poolsize);
+    ndbout_c("  Orig free level : %u (%u pct)", 
+             orig_level, orig_level * 100 / poolsize);
+    ndbout_c("  Curr free level : %u (%u pct)", 
+             curr_level, curr_level * 100 / poolsize);
+    ndbout_c("  Orig in-use : %u (%u pct)",
+             orig_used, orig_used * 100 / poolsize);
+    ndbout_c("  Curr in-use : %u (%u pct)",
+             curr_used, curr_used * 100 / poolsize);
+    
+    if (curr_used > 2 * orig_used)
+    {
+      ndbout_c("  ERROR : in-use has grown by more than a factor of 2");
+      ndbrequire(false);
+    }
+    else
+    {
+      ndbout_c("  Snapshot ok");
+    }
+#endif
+  }
+
+  if (arg == DumpStateOrd::CmvmiShowLongSignalOwnership)
+  {
+#ifdef NDB_DEBUG_RES_OWNERSHIP
+    ndbout_c("CMVMI dump LSB usage");
+    Uint32 buffs = g_sectionSegmentPool.getSize();
+    Uint32* buffOwners = (Uint32*) malloc(buffs * sizeof(Uint32));
+    Uint64* buffOwnersCount = (Uint64*) malloc(buffs * sizeof(Uint64));
+    
+    memset(buffOwnersCount, 0, buffs * sizeof(Uint64));
+
+    ndbout_c("  Filling owners list");
+    Uint32 zeroOwners = 0;
+    lock_global_ssp();
+    {
+      /* Fill owners list */
+      Ptr<SectionSegment> tmp;
+      for (tmp.i=0; tmp.i<buffs; tmp.i++)
+      {
+        g_sectionSegmentPool.getPtrIgnoreAlloc(tmp);
+        buffOwners[tmp.i] = tmp.p->m_ownerRef;
+        if (buffOwners[tmp.i] == 0)
+          zeroOwners++;
+        
+        /* Expensive, ideally find a hacky way to iterate the freelist */
+        if (!g_sectionSegmentPool.findId(tmp.i))
+        {
+          buffOwners[tmp.i] = 0;
+        }
+      }
+    }
+    unlock_global_ssp();
+
+    ndbout_c("  Summing by owner");
+    /* Use a linear hash to find items */
+    
+    Uint32 free = 0;
+    Uint32 numOwners = 0;
+    for (Uint32 i=0; i < buffs; i++)
+    {
+      Uint32 owner = buffOwners[i];
+      if (owner == 0)
+      {
+        free++;
+      }
+      else
+      {
+        Uint32 ownerHash = 17 + 37 * owner;
+        Uint32 start=ownerHash % buffs;
+
+        Uint32 y=0;
+        for (; y < buffs; y++)
+        {
+          Uint32 pos = (start + y) % buffs;
+          if (buffOwnersCount[pos] == 0)
+          {
+            numOwners++;
+            buffOwnersCount[pos] = (Uint64(owner) << 32 | 1);
+            break;
+          }
+          else if ((buffOwnersCount[pos] >> 32) == owner)
+          {
+            buffOwnersCount[pos] ++;
+            break;
+          }
+        }
+        ndbrequire(y != buffs);
+      }
+    }
+
+    ndbout_c("  Summary");
+    ndbout_c("    Warning, free buffers in thread caches considered used here");
+    ndbout_c("    ndbd avoids this problem");
+    ndbout_c("    Zero owners : %u", zeroOwners);
+    ndbout_c("    Num free : %u", free);
+    ndbout_c("    Num owners : %u", numOwners);
+    
+    for (Uint32 i=0; i < buffs; i++)
+    {
+      Uint64 entry = buffOwnersCount[i];
+      if (entry != 0)
+      {
+        /* Breakdown assuming Block ref + GSN format */
+        Uint32 count = Uint32(entry & 0xffffffff);
+        Uint32 ownerId = Uint32(entry >> 32);
+        Uint32 block = (ownerId >> 16) & 0x1ff;
+        Uint32 instance = ownerId >> 25;
+        Uint32 gsn = ownerId & 0xffff;
+        ndbout_c("      Count : %u : OwnerId : 0x%x (0x%x:%u/%u) %s %s",
+                 count,
+                 ownerId,
+                 block,
+                 instance,
+                 gsn,
+                 block == 1 ? "RECV" : getBlockName(block, "Unknown"),
+                 getSignalName(gsn, "Unknown"));
+      }
+    }
+
+    ndbout_c("Done");
+ 
+    ::free(buffOwners);
+    ::free(buffOwnersCount);
+#else
+    ndbout_c("CMVMI :: ShowLongSignalOwnership.  Not compiled "
+             "with NDB_DEBUG_RES_OWNERSHIP");
+#endif
+
   }
 
   if (dumpState->args[0] == DumpStateOrd::DumpPageMemory)
