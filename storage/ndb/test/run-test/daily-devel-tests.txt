@@ -203,6 +203,10 @@ max-time : 300
 cmd: testFK
 args: -n Cascade10 T1
 
+max-time : 300
+cmd: testFK
+args: -n DropTableWithFKDuringRestart T1
+
 # Bug18408671 added on 17.04.2014
 max-time : 500
 cmd: testDict
