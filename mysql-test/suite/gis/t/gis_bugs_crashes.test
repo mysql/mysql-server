@@ -6524,3 +6524,16 @@ do st_symdifference(
   st_makeenvelope(point(16781,8388611),point(-15032,-2251799813685244)),
   st_makeenvelope(point(-21087,31851),point(18514,20243))
 );
+
+--echo #####################################################################################################
+--echo # BUG#21890717 ASSERTION FAILED: GEOMETRY::LESS<SEGMENTPOINT>()(P0, P1)
+--echo #####################################################################################################
+
+--error ER_GIS_INVALID_DATA
+do st_symdifference(
+  st_linefromtext( multilinestring( linestring(point(1,1),point(1,1)), linestring(point(1,1),point(1,1)) ) ),
+  st_distance(
+     multipoint( point(1,1),point(1,1),point(1,1),point(1,1), point(1,1),point(1,1),point(1,1),point(1,1), point(1,1) ) ,
+    st_intersection(
+      multilinestring( linestring(point(2,4),point(10,1)) ),
+      linestring(point(1,1),point(1e+308,1) ) )));
