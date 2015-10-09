@@ -3,6 +3,7 @@ SET @start_global_value = @@global.gtid_purged;
 SELECT @start_global_value;
 @start_global_value
 
+SET @sql_log_bin_start_value = @@session.sql_log_bin;
 select @@global.gtid_purged;
 @@global.gtid_purged
 
@@ -39,6 +40,11 @@ ERROR HY000: @@GLOBAL.GTID_PURGED can only be set when @@GLOBAL.GTID_EXECUTED is
 SELECT @@global.gtid_purged;
 @@global.gtid_purged
 11111111-1111-1111-1111-111111111111:1-2
+RESET MASTER;
+SET AUTOCOMMIT= OFF;
+SET @@global.gtid_purged= '11111111-1111-1111-1111-111111111111:4-5';
+SET @@session.sql_log_bin= @sql_log_bin_start_value;
+SET AUTOCOMMIT= ON;
 RESET MASTER;
 SELECT @@global.gtid_purged;
 @@global.gtid_purged
