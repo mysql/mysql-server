@@ -788,6 +788,7 @@ dfield_t::clone(
 	obj->ext  = ext;
 	obj->len  = len;
 	obj->type = type;
+	obj->spatial_status = spatial_status;
 
 	if (len != UNIV_SQL_NULL) {
 		obj->data = obj + 1;

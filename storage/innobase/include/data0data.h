@@ -114,6 +114,23 @@ void
 dfield_set_ext(
 /*===========*/
 	dfield_t*	field);	/*!< in/out: field */
+
+/** Gets spatial status for "external storage"
+@param[in,out]	field		field */
+UNIV_INLINE
+spatial_status_t
+dfield_get_spatial_status(
+	const dfield_t*	field);
+
+/** Sets spatial status for "external storage"
+@param[in,out]	field		field
+@param[in]	spatial_status	spatial status */
+UNIV_INLINE
+void
+dfield_set_spatial_status(
+	dfield_t*		field,
+	spatial_status_t	spatial_status);
+
 /*********************************************************************//**
 Sets pointer to the data and length in a field. */
 UNIV_INLINE
@@ -544,7 +561,10 @@ dtuple_big_rec_free(
 /** Structure for an SQL data field */
 struct dfield_t{
 	void*		data;	/*!< pointer to data */
-	unsigned	ext;	/*!< TRUE=externally stored, FALSE=local */
+	unsigned	ext:1;	/*!< TRUE=externally stored, FALSE=local */
+	unsigned	spatial_status:2;
+				/*!< spatial status of externally stored field
+				in undo log for purge */
 	unsigned	len;	/*!< data length; UNIV_SQL_NULL if SQL null */
 	dtype_t		type;	/*!< type of data */
 

@@ -1989,27 +1989,15 @@ dict_table_autoinc_own(
 }
 #endif /* UNIV_DEBUG */
 
-/** whether a col is used in spatial index or regular index */
-enum col_spatial_status {
-	/** Not used in gis index. */
-	SPATIAL_NONE	= 0,
-
-	/** Used in both spatial index and regular index. */
-	SPATIAL_MIXED	= 1,
-
-	/** Only used in spatial index. */
-	SPATIAL_ONLY	= 2
-};
-
 /** Check whether the col is used in spatial index or regular index.
 @param[in]	col	column to check
-@return col_spatial_status */
+@return spatial status */
 inline
-col_spatial_status
+spatial_status_t
 dict_col_get_spatial_status(
 	const dict_col_t*	col)
 {
-	col_spatial_status	spatial_status = SPATIAL_NONE;
+	spatial_status_t	spatial_status = SPATIAL_NONE;
 
 	/* Column is not a part of any index. */
 	if (!col->ord_part) {
