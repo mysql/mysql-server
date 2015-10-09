@@ -36,7 +36,7 @@
 
 
 /* Global Thread counter */
-uint counter;
+uint counter= 0;
 pthread_mutex_t counter_mutex;
 pthread_cond_t count_threshhold;
 
@@ -482,6 +482,11 @@ static void safe_exit(int error, MYSQL *mysql)
 {
   if (error && ignore_errors)
     return;
+
+  /* in multi-threaded mode protect from concurrent safe_exit's */
+  if (counter)
+    pthread_mutex_lock(&counter_mutex);
+
   if (mysql)
     mysql_close(mysql);
 

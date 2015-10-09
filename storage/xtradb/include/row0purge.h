@@ -118,6 +118,7 @@ references to the clustered index record - one via the ref member, and the
 other via the persistent cursor.  These two references must match each
 other if the found_clust flag is set.
 @return true if the persistent cursor is consistent with the ref member.*/
+UNIV_INTERN
 ibool
 row_purge_validate_pcur(purge_node_t* node);
 #endif /* UNIV_DEBUG */
