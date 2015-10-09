@@ -386,6 +386,16 @@ struct touches<Linear, Areal, Tag1, Tag2, linear_tag, areal_tag, true>
 
 template <typename Areal1, typename Areal2, typename Tag1, typename Tag2>
 struct touches<Areal1, Areal2, Tag1, Tag2, areal_tag, areal_tag, false>
+    : detail::relate::relate_impl
+        <
+            detail::de9im::static_mask_touches_type,
+            Areal1,
+            Areal2
+        >
+{};
+
+template <typename Areal1, typename Areal2>
+struct touches<Areal1, Areal2, ring_tag, ring_tag, areal_tag, areal_tag, false>
     : detail::touches::areal_areal<Areal1, Areal2>
 {};
 
