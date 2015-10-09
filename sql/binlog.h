@@ -692,6 +692,7 @@ private:
   int process_flush_stage_queue(my_off_t *total_bytes_var, bool *rotate_var,
                                 THD **out_queue_var);
   int ordered_commit(THD *thd, bool all, bool skip_commit = false);
+  void handle_binlog_flush_or_sync_error(THD *thd, bool need_lock_log);
 public:
   int open_binlog(const char *opt_name);
   void close();

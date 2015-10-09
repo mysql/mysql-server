@@ -155,10 +155,6 @@ row_build_index_entry_low(
 		which is for store MBR. */
 		if (dict_index_is_spatial(index) && i == 0) {
 			double*			mbr;
-			col_spatial_status	spatial_status;
-
-			spatial_status = dict_col_get_spatial_status(col);
-			ut_ad(spatial_status != SPATIAL_NONE);
 
 			dfield_copy(dfield, dfield2);
 			dfield->type.prtype |= DATA_GIS_MBR;
@@ -181,6 +177,11 @@ row_build_index_entry_low(
 					if (flag == ROW_BUILD_FOR_PURGE) {
 						byte*	ptr = NULL;
 
+						spatial_status_t spatial_status;
+						spatial_status =
+							dfield_get_spatial_status(
+								dfield2);
+
 						switch (spatial_status) {
 						case SPATIAL_ONLY:
 						ptr = static_cast<byte*>(
@@ -199,6 +200,11 @@ row_build_index_entry_low(
 						break;
 
 						case SPATIAL_NONE:
+						/* Undo record is logged before
+						spatial index is created.*/
+						return(NULL);
+
+						case SPATIAL_UNKNOWN:
 						ut_ad(0);
 						}
 

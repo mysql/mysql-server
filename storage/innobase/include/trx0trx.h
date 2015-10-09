@@ -1052,11 +1052,6 @@ struct trx_t {
 					for secondary indexes when we decide
 					if we can use the insert buffer for
 					them, we set this FALSE */
-	bool		support_xa;	/*!< normally we do the XA two-phase
-					commit steps, but by setting this to
-					FALSE, one can save CPU time and about
-					150 bytes in the undo log size as then
-					we skip XA steps */
 	bool		flush_log_later;/* In 2PC, we hold the
 					prepare_commit mutex across
 					both phases. In that case, we

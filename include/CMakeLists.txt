@@ -43,6 +43,7 @@ SET(HEADERS
   my_xml.h
   mysql_embed.h
   my_thread.h
+  my_thread_local.h
   decimal.h
   errmsg.h
   my_global.h
@@ -61,6 +62,9 @@ SET(HEADERS
   byte_order_generic_x86.h
   little_endian.h
   big_endian.h
+  thr_cond.h
+  thr_mutex.h
+  thr_rwlock.h
   ${HEADERS_GEN_CONFIGURE}
 )
 

@@ -1289,6 +1289,8 @@ row_upd_replace_vcol(
 		}
 	}
 
+	bool	first_v_col = true;
+
 	/* We will read those unchanged (but indexed) virtual columns in */
 	if (ptr != NULL) {
 		const byte*	end_ptr;
@@ -1301,14 +1303,27 @@ row_upd_replace_vcol(
 			ulint                   field_no;
 			ulint                   len;
 			ulint                   orig_len;
+			bool			is_v;
 
 			field_no = mach_read_next_compressed(&ptr);
+
+			is_v = (field_no >= REC_MAX_N_FIELDS);
+
+			if (is_v) {
+				ptr = trx_undo_read_v_idx(
+					table, ptr, first_v_col, &field_no);
+				first_v_col = false;
+			}
 
 			ptr = trx_undo_rec_get_col_val(
 				ptr, &field, &len, &orig_len);
 
-			if (field_no >= REC_MAX_N_FIELDS) {
-				field_no -= REC_MAX_N_FIELDS;
+			if (field_no == ULINT_UNDEFINED) {
+				ut_ad(is_v);
+				continue;
+			}
+
+			if (is_v) {
 				dict_v_col_t* vcol = dict_table_get_nth_v_col(
 							table, field_no);
 
@@ -1892,12 +1907,20 @@ row_upd_store_v_row(
 				/* If this is an update, then the value
 				should be in update->old_vrow */
 				if (update) {
-					ut_ad(update->old_vrow);
-					dfield_t*       vfield
-						= dtuple_get_nth_v_field(
-							update->old_vrow,
-							col_no);
-					dfield_copy_data(dfield, vfield);
+					if (update->old_vrow == NULL) {
+						/* This only happens in
+						cascade update. And virtual
+						column can't be affected,
+						so it is Ok to set it to NULL */
+						ut_ad(!node->cascade_top);
+						dfield_set_null(dfield);
+					} else {
+						dfield_t*       vfield
+							= dtuple_get_nth_v_field(
+								update->old_vrow,
+								col_no);
+						dfield_copy_data(dfield, vfield);
+					}
 				} else {
 					/* Need to compute, this happens when
 					deleting row */

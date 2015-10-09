@@ -16,7 +16,6 @@
 
 --echo #
 --echo # Section 1. Wrong column definition options
---echo #            - NULL
 --echo #            - DEFAULT <value>
 --echo #            - AUTO_INCREMENT
 
@@ -38,10 +37,9 @@ alter table t1 add column b int generated always as (a+1) virtual not null;
 drop table t1;
 
 --echo # NULL  
---error 1064
 create table t1 (a int, b int generated always as (a+1) virtual null);
+drop table t1;
 create table t1 (a int);
---error 1064
 alter table t1 add column b int generated always as (a+1) virtual null;
 drop table t1;
 
@@ -439,3 +437,20 @@ ALTER TABLE t DROP INDEX idx, DROP INDEX idx1;
 }
 --disable_info
 DROP TABLE t;
+
+--echo #
+--echo # Bug#21900170: CAN'T CREATE TABLE WITH NULLABLE GENERATED COLUMNS
+--echo #
+
+CREATE TABLE t1 (
+  a INT,
+  b INT GENERATED ALWAYS AS (-a) VIRTUAL NULL,
+  c INT GENERATED ALWAYS AS (a + b) STORED NULL);
+
+--replace_column 8 #
+SHOW FULL COLUMNS FROM t1;
+
+INSERT INTO t1 (a) VALUES (NULL), (1);
+SELECT * FROM t1;
+
+DROP TABLE t1;

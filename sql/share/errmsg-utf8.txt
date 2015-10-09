@@ -2365,7 +2365,7 @@ ER_BLOB_CANT_HAVE_DEFAULT 42000
         cze "Blob položka '%-.192s' nemůže mít defaultní hodnotu"
         dan "BLOB feltet '%-.192s' kan ikke have en standard værdi"
         nla "Blob veld '%-.192s' can geen standaardwaarde bevatten"
-        eng "BLOB/TEXT column '%-.192s' can't have a default value"
+        eng "BLOB, TEXT, GEOMETRY or JSON column '%-.192s' can't have a default value"
         est "BLOB-tüüpi tulp '%-.192s' ei saa omada vaikeväärtust"
         fre "BLOB '%-.192s' ne peut avoir de valeur par défaut"
         ger "BLOB/TEXT-Feld '%-.192s' darf keinen Vorgabewert (DEFAULT) haben"
@@ -7603,7 +7603,11 @@ ER_TABLE_NEEDS_UPG_PART
 ER_CANT_WAIT_FOR_EXECUTED_GTID_SET_WHILE_OWNING_A_GTID
   eng "The client holds ownership of the GTID %s. Therefore, WAIT_FOR_EXECUTED_GTID_SET cannot wait for this GTID."
 
+ER_CANNOT_ADD_FOREIGN_BASE_COL_VIRTUAL
+  eng "Cannot add foreign key on the base column of indexed virtual column."
 
+ER_CANNOT_CREATE_VIRTUAL_INDEX_CONSTRAINT
+  eng "Cannot create index on virtual column whose base column has foreign constraint."
 #
 #  End of 5.7 error messages.
 #

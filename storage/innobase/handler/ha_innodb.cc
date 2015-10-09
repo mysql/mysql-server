@@ -482,6 +482,7 @@ static PSI_thread_info	all_innodb_threads[] = {
 	PSI_KEY(srv_master_thread),
 	PSI_KEY(srv_monitor_thread),
 	PSI_KEY(srv_purge_thread),
+	PSI_KEY(srv_worker_thread),
 	PSI_KEY(trx_rollback_clean_thread),
 };
 # endif /* UNIV_PFS_THREAD */
@@ -618,9 +619,38 @@ get_field_offset(
 
 static const char innobase_hton_name[]= "InnoDB";
 
+static const char*	deprecated_innodb_support_xa
+	= "Using innodb_support_xa is deprecated and the"
+	" parameter may be removed in future releases.";
+static const char*	deprecated_innodb_support_xa_off
+	= "Using innodb_support_xa is deprecated and the"
+	" parameter may be removed in future releases."
+	" Only innodb_support_xa=ON is allowed.";
+
+/** Update the session variable innodb_support_xa.
+@param[in]	thd	current session
+@param[in]	var	the system variable innodb_support_xa
+@param[in,out]	var_ptr	the contents of the variable
+@param[in]	save	the to-be-updated value */
+static
+void
+innodb_support_xa_update(
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				var_ptr,
+	const void*			save)
+{
+	my_bool	innodb_support_xa = *static_cast<const my_bool*>(save);
+	push_warning(thd, Sql_condition::SL_WARNING,
+		     HA_ERR_WRONG_COMMAND,
+		     innodb_support_xa
+		     ? deprecated_innodb_support_xa
+		     : deprecated_innodb_support_xa_off);
+}
+
 static MYSQL_THDVAR_BOOL(support_xa, PLUGIN_VAR_OPCMDARG,
   "Enable InnoDB support for the XA two-phase commit",
-  /* check_func */ NULL, /* update_func */ NULL,
+  /* check_func */ NULL, innodb_support_xa_update,
   /* default */ TRUE);
 
 static MYSQL_THDVAR_BOOL(table_locks, PLUGIN_VAR_OPCMDARG,
@@ -1451,19 +1481,6 @@ thd_is_select(
 }
 
 /******************************************************************//**
-Returns true if the thread supports XA,
-global value of innodb_supports_xa if thd is NULL.
-@return true if thd has XA support */
-ibool
-thd_supports_xa(
-/*============*/
-	THD*	thd)	/*!< in: thread handle, or NULL to query
-			the global innodb_supports_xa */
-{
-	return(THDVAR(thd, support_xa));
-}
-
-/******************************************************************//**
 Returns the lock wait timeout for the current connection.
 @return the lock wait timeout, in seconds */
 ulong
@@ -1697,6 +1714,7 @@ convert_error_code_to_mysql(
 	case DB_ROW_IS_REFERENCED:
 		return(HA_ERR_ROW_IS_REFERENCED);
 
+	case DB_NO_FK_ON_V_BASE_COL:
 	case DB_CANNOT_ADD_CONSTRAINT:
 	case DB_CHILD_NO_INDEX:
 	case DB_PARENT_NO_INDEX:
@@ -3390,7 +3408,7 @@ innobase_init(
 		srv_undo_dir = default_path;
 	}
 
-	os_normalize_path_for_win(srv_undo_dir);
+	os_normalize_path(srv_undo_dir);
 
 	if (strchr(srv_undo_dir, ';')) {
 		sql_print_error("syntax error in innodb_undo_directory");
@@ -3414,6 +3432,11 @@ innobase_init(
 
 	if (!innobase_large_prefix) {
 		ib::warn() << deprecated_large_prefix;
+	}
+
+	if (!THDVAR(NULL, support_xa)) {
+		ib::warn() << deprecated_innodb_support_xa_off;
+		THDVAR(NULL, support_xa) = TRUE;
 	}
 
 	if (innobase_file_format_name != innodb_file_format_default) {
@@ -5034,13 +5057,13 @@ is done when the table first opened.
 @param[in,out]	s_templ		InnoDB template structure
 @param[in]	add_v		new virtual columns added along with
 				add index call
-@param[in]	locked		true if innobase_share_mutex is held
+@param[in]	locked		true if dict_sys mutex is held
 @param[in]	share_tbl_name	original MySQL table name */
 void
 innobase_build_v_templ(
 	const TABLE*		table,
 	const dict_table_t*	ib_table,
-	innodb_col_templ_t*	s_templ,
+	dict_vcol_templ_t*	s_templ,
 	const dict_add_v_col_t*	add_v,
 	bool			locked,
 	const char*		share_tbl_name)
@@ -5058,12 +5081,12 @@ innobase_build_v_templ(
 	ut_ad(n_v_col > 0);
 
 	if (!locked) {
-		mysql_mutex_lock(&innobase_share_mutex);
+		mutex_enter(&dict_sys->mutex);
 	}
 
 	if (s_templ->vtempl) {
 		if (!locked) {
-			mysql_mutex_unlock(&innobase_share_mutex);
+			mutex_exit(&dict_sys->mutex);
 		}
 		return;
 	}
@@ -5171,22 +5194,14 @@ innobase_build_v_templ(
 	}
 
 	if (!locked) {
-		mysql_mutex_unlock(&innobase_share_mutex);
+		mutex_exit(&dict_sys->mutex);
 	}
 
-	ut_strlcpy(s_templ->db_name, table->s->db.str,
-		   table->s->db.length + 1);
-	s_templ->db_name[table->s->db.length] = 0;
-
-	ut_strlcpy(s_templ->tb_name, table->s->table_name.str,
-		   table->s->table_name.length + 1);
-	s_templ->tb_name[table->s->table_name.length] = 0;
+	s_templ->db_name = table->s->db.str;
+	s_templ->tb_name = table->s->table_name.str;
 
 	if (share_tbl_name) {
-		ulint	s_len = strlen(share_tbl_name);
-		ut_strlcpy(s_templ->share_name, share_tbl_name,
-			   s_len + 1);
-		s_templ->tb_name[s_len] = 0;
+		s_templ->share_name = share_tbl_name;
 	}
 }
 
@@ -5452,25 +5467,6 @@ ha_innobase::innobase_initialize_autoinc()
 	dict_table_autoinc_initialize(m_prebuilt->table, auto_inc);
 }
 
-/** Free the virtual column template
-@param[in,out]	vc_templ	virtual column template */
-void
-free_vc_templ(
-	innodb_col_templ_t*	vc_templ)
-{
-	if (vc_templ->vtempl) {
-		ut_ad(vc_templ->n_v_col);
-		for (ulint i = 0; i < vc_templ->n_col
-		     + vc_templ->n_v_col ; i++) {
-			if (vc_templ->vtempl[i]) {
-				ut_free(vc_templ->vtempl[i]);
-			}
-		}
-		ut_free(vc_templ->vtempl);
-		vc_templ->vtempl = NULL;
-	}
-}
-
 /*****************************************************************//**
 Creates and opens a handle to a table which already exists in an InnoDB
 database.
@@ -5659,22 +5655,24 @@ ha_innobase::open(
 	key_used_on_scan = m_primary_key;
 
 	if (ib_table->n_v_cols) {
-		if (!m_share->s_templ.vtempl) {
-			innobase_build_v_templ(
-				table, ib_table, &(m_share->s_templ), NULL,
-				false, m_share->table_name);
-
-			mysql_mutex_lock(&innobase_share_mutex);
-			if (ib_table->vc_templ
-			    && ib_table->vc_templ_purge) {
-				free_vc_templ(ib_table->vc_templ);
-				ut_free(ib_table->vc_templ);
-			}
-			mysql_mutex_unlock(&innobase_share_mutex);
+		mutex_enter(&dict_sys->mutex);
+		if (ib_table->vc_templ == NULL) {
+			ib_table->vc_templ = UT_NEW_NOKEY(dict_vcol_templ_t());
+			ib_table->vc_templ->vtempl = NULL;
+		} else if (ib_table->get_ref_count() == 1) {
+			/* Clean and refresh the template if no one else
+			get hold on it */
+			dict_free_vc_templ(ib_table->vc_templ);
+			ib_table->vc_templ->vtempl = NULL;
 		}
-		ib_table->vc_templ = &m_share->s_templ;
-	} else {
-		ib_table->vc_templ = NULL;
+
+		if (ib_table->vc_templ->vtempl == NULL) {
+			innobase_build_v_templ(
+				table, ib_table, ib_table->vc_templ, NULL,
+				true, m_share->table_name);
+		}
+
+		mutex_exit(&dict_sys->mutex);
 	}
 
 	if (!innobase_build_index_translation(table, ib_table, m_share)) {
@@ -6863,6 +6861,26 @@ ha_innobase::build_template(
 			const Field*	field;
 
 			if (whole_row) {
+				/* Even this is whole_row, if the seach is
+				on a virtual column, and read_just_key is
+				set, and field is not in this index, we
+				will not try to fill the value since they
+				are not stored in such index nor in the
+				cluster index. */
+				if (innobase_is_v_fld(table->field[i])
+				    && m_prebuilt->read_just_key
+				    && !dict_index_contains_col_or_prefix(
+					m_prebuilt->index, num_v, true))
+				{
+					ut_ad(!bitmap_is_set(
+						table->read_set, i));
+					ut_ad(!bitmap_is_set(
+						table->write_set, i));
+
+					num_v++;
+					continue;
+				}
+
 				field = table->field[i];
 			} else {
 				ibool	contain;
@@ -11353,6 +11371,15 @@ create_table_info_t::create_table()
 				" table where referencing columns appear"
 				" as the first columns.\n", m_table_name);
 			break;
+		case DB_NO_FK_ON_V_BASE_COL:
+			push_warning_printf(
+				m_thd, Sql_condition::SL_WARNING,
+				HA_ERR_CANNOT_ADD_FOREIGN,
+				"Create table '%s' with foreign key constraint"
+				" failed. Cannot add foreign key constraint"
+				" placed on the base column of indexed"
+				" virtual column.\n", m_table_name);
+			break;
 		default:
 			break;
 		}
@@ -15532,56 +15559,6 @@ innobase_show_status(
 	return(false);
 }
 
-/** Refresh template for the virtual columns and their base columns if
-the share structure exists
-@param[in]      table           MySQL TABLE
-@param[in]      ib_table        InnoDB dict_table_t
-@param[in]	table_name	table_name used to find the share structure */
-void
-refresh_share_vtempl(
-	const TABLE*		mysql_table,
-	const dict_table_t*	ib_table,
-	const char*		table_name)
-{
-	INNOBASE_SHARE*	share;
-
-	ulint	fold = ut_fold_string(table_name);
-
-	mysql_mutex_lock(&innobase_share_mutex);
-
-	HASH_SEARCH(table_name_hash, innobase_open_tables, fold,
-		    INNOBASE_SHARE*, share,
-		    ut_ad(share->use_count > 0),
-		    !strcmp(share->table_name, table_name));
-
-	if (share == NULL) {
-		/* Partition table does not have "share" structure
-		instantiated, no need to refresh it */
-#ifdef UNIV_DEBUG
- #ifdef _WIN32
-		char*   is_part = strstr(ib_table->name.m_name, "#p#");
- #else
-		char*   is_part = strstr(ib_table->name.m_name, "#P#");
- #endif /* _WIN32 */
-
-		ut_ad(is_part != NULL);
-#endif /* UNIV_DEBUG */
-
-		mysql_mutex_unlock(&innobase_share_mutex);
-		return;
-	}
-
-	free_share_vtemp(share);
-
-	innobase_build_v_templ(
-		mysql_table, ib_table, &(share->s_templ), NULL, true,
-		share->table_name);
-
-	mysql_mutex_unlock(&innobase_share_mutex);
-
-	return;
-}
-
 /************************************************************************//**
 Handling the shared INNOBASE_SHARE structure that is needed to provide table
 locking. Register the table name if it doesn't exist in the hash table. */
@@ -15624,8 +15601,6 @@ get_share(
 		share->idx_trans_tbl.index_mapping = NULL;
 		share->idx_trans_tbl.index_count = 0;
 		share->idx_trans_tbl.array_size = 0;
-		share->s_templ.vtempl = NULL;
-		share->s_templ.n_col = 0;
 	}
 
 	++share->use_count;
@@ -15633,15 +15608,6 @@ get_share(
 	mysql_mutex_unlock(&innobase_share_mutex);
 
 	return(share);
-}
-
-/** Free a virtual template in INNOBASE_SHARE structure
-@param[in,out]	share	table share holds the template to free */
-void
-free_share_vtemp(
-	INNOBASE_SHARE*	share)
-{
-	free_vc_templ(&share->s_templ);
 }
 
 /************************************************************************//**
@@ -15676,8 +15642,6 @@ free_share(
 
 		/* Free any memory from index translation table */
 		ut_free(share->idx_trans_tbl.index_mapping);
-
-		free_share_vtemp(share);
 
 		my_free(share);
 
@@ -16352,14 +16316,6 @@ innobase_xa_prepare(
 	trx_t*		trx = check_trx_exists(thd);
 
 	DBUG_ASSERT(hton == innodb_hton_ptr);
-
-	/* we use support_xa value as it was seen at transaction start
-	time, not the current session variable value. Any possible changes
-	to the session variable take effect only in the next transaction */
-	if (!trx->support_xa) {
-
-		return(0);
-	}
 
 	thd_get_xid(thd, (MYSQL_XID*) trx->xid);
 
@@ -18143,12 +18099,31 @@ innobase_fts_find_ranking(
 }
 
 #ifdef UNIV_DEBUG
+static my_bool	innodb_background_drop_list_empty = TRUE;
 static my_bool	innodb_purge_run_now = TRUE;
 static my_bool	innodb_purge_stop_now = TRUE;
 static my_bool	innodb_log_checkpoint_now = TRUE;
 static my_bool	innodb_buf_flush_list_now = TRUE;
 static uint	innodb_merge_threshold_set_all_debug
 	= DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
+
+/** Wait for the background drop list to become empty. */
+static
+void
+wait_background_drop_list_empty(
+	THD*				thd	/*!< in: thread handle */
+					__attribute__((unused)),
+	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+						variable */
+					__attribute__((unused)),
+	void*				var_ptr	/*!< out: where the formal
+						string goes */
+					__attribute__((unused)),
+	const void*			save)	/*!< in: immediate result from
+						check function */
+{
+	row_wait_for_background_drop_list_empty();
+}
 
 /****************************************************************//**
 Set the purge state to RUN. If purge is disabled then it
@@ -18577,6 +18552,12 @@ static MYSQL_SYSVAR_ULONG(io_capacity_max, srv_max_io_capacity,
   SRV_MAX_IO_CAPACITY_LIMIT, 0);
 
 #ifdef UNIV_DEBUG
+static MYSQL_SYSVAR_BOOL(background_drop_list_empty,
+  innodb_background_drop_list_empty,
+  PLUGIN_VAR_OPCMDARG,
+  "Wait for the background drop list to become empty",
+  NULL, wait_background_drop_list_empty, FALSE);
+
 static MYSQL_SYSVAR_BOOL(purge_run_now, innodb_purge_run_now,
   PLUGIN_VAR_OPCMDARG,
   "Set purge state to RUN",
@@ -19554,6 +19535,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(purge_threads),
   MYSQL_SYSVAR(purge_batch_size),
 #ifdef UNIV_DEBUG
+  MYSQL_SYSVAR(background_drop_list_empty),
   MYSQL_SYSVAR(purge_run_now),
   MYSQL_SYSVAR(purge_stop_now),
   MYSQL_SYSVAR(log_checkpoint_now),
@@ -19774,12 +19756,10 @@ innobase_init_vc_templ(
 	char    t_dbname[MAX_DATABASE_NAME_LEN + 1];
 	char    t_tbname[MAX_TABLE_NAME_LEN + 1];
 
-	/* Acquire innobase_share_mutex to see if table->vc_templ
-	is assigned with its counter part in the share structure */
-	mysql_mutex_lock(&innobase_share_mutex);
+	mutex_enter(&dict_sys->mutex);
 
-	if (table->vc_templ) {
-		mysql_mutex_unlock(&innobase_share_mutex);
+	if (table->vc_templ != NULL) {
+		mutex_exit(&dict_sys->mutex);
 
 		return;
 	}
@@ -19802,8 +19782,8 @@ innobase_init_vc_templ(
 		tbnamelen = is_part - tbname;
 	}
 
-	table->vc_templ = static_cast<innodb_col_templ_t*>(
-		ut_zalloc_nokey(sizeof *(table->vc_templ)));
+	table->vc_templ = UT_NEW_NOKEY(dict_vcol_templ_t());
+	table->vc_templ->vtempl = NULL;
 
 	dbnamelen = filename_to_tablename(dbname, t_dbname,
 					  MAX_DATABASE_NAME_LEN + 1);
@@ -19819,7 +19799,7 @@ innobase_init_vc_templ(
 		static_cast<void*>(table));
 	ut_ad(!ret);
 	table->vc_templ_purge = true;
-	mysql_mutex_unlock(&innobase_share_mutex);
+	mutex_exit(&dict_sys->mutex);
 }
 
 /** Get the computed value by supplying the base column values.
@@ -19858,6 +19838,7 @@ innobase_get_computed_value(
 	const mysql_row_templ_t*
 			vctempl =  index->table->vc_templ->vtempl[
 				index->table->vc_templ->n_col + col->v_pos];
+
 	if (!heap || index->table->vc_templ->rec_len
 		     >= REC_VERSION_56_MAX_INDEX_COL_LEN) {
 		if (*local_heap == NULL) {
@@ -19954,13 +19935,14 @@ innobase_get_computed_value(
                 }
 
 		ret = handler::my_eval_gcolumn_expr(
-			current_thd, false, index->table->vc_templ->db_name,
-			index->table->vc_templ->tb_name, &column_map,
+			current_thd, false,
+			index->table->vc_templ->db_name.c_str(),
+			index->table->vc_templ->tb_name.c_str(), &column_map,
 			(uchar *)mysql_rec);
         } else {
 		ret = handler::my_eval_gcolumn_expr(
-			current_thd, index->table->vc_templ->db_name,
-			index->table->vc_templ->tb_name, &column_map,
+			current_thd, index->table->vc_templ->db_name.c_str(),
+			index->table->vc_templ->tb_name.c_str(), &column_map,
 			(uchar *)mysql_rec);
 	}
 

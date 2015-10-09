@@ -1337,7 +1337,7 @@ static void mark_temp_tables_as_free_for_reuse(THD *thd)
     if ((table->query_id == thd->query_id) && ! table->open_by_handler)
     {
       mark_tmp_table_for_reuse(table);
-      table->cleanup_gc_items(thd);
+      table->cleanup_gc_items();
     }
   }
 }
@@ -1567,7 +1567,7 @@ void close_thread_tables(THD *thd)
     {
       DBUG_ASSERT(table->file);
       table->file->extra(HA_EXTRA_DETACH_CHILDREN);
-      table->cleanup_gc_items(thd);
+      table->cleanup_gc_items();
     }
   }
 
@@ -9114,6 +9114,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
   Fill fields with given items.
 
   @param thd                        thread handler
+  @param table                      table reference
   @param fields                     Item_fields list to be filled
   @param values                     values to fill with
   @param bitmap                     Bitmap over fields to fill
@@ -9128,46 +9129,32 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
     @retval true    Error occured
 */
 
-bool
-fill_record(THD * thd, List<Item> &fields, List<Item> &values,
-            MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap)
+bool fill_record(THD *thd, TABLE *table, List<Item> &fields,
+                 List<Item> &values, MY_BITMAP *bitmap,
+                 MY_BITMAP *insert_into_fields_bitmap)
 {
-  List_iterator_fast<Item> f(fields),v(values);
-  Item *fld;
-  TABLE *table= 0;
-  TABLE *tbl_set[MAX_TABLES];
-  uint tab_count= 0;
-  table_map used_table_map= 0;
   DBUG_ENTER("fill_record");
+
   DBUG_ASSERT(fields.elements == values.elements);
   /*
     Reset the table->auto_increment_field_not_null as it is valid for
     only one row.
   */
   if (fields.elements)
-  {
-    /*
-      On INSERT or UPDATE fields are checked to be from the same table,
-      thus we safely can take table from the first field.
-    */
-    fld= (Item_field*)f++;
-    Item_field *const field= fld->field_for_view_update();
-    DBUG_ASSERT(field != NULL);
-    table= field->field->table;
-    table->auto_increment_field_not_null= FALSE;
-    f.rewind();
-  }
+    table->auto_increment_field_not_null= false;
+
+  Item *fld;
+  List_iterator_fast<Item> f(fields), v(values);
   while ((fld= f++))
   {
     Item_field *const field= fld->field_for_view_update();
-    DBUG_ASSERT(field != NULL);
+    DBUG_ASSERT(field != NULL && field->table_ref->table == table);
 
     Field *const rfield= field->field;
     Item *const value= v++;
     /* If bitmap over wanted fields are set, skip non marked fields. */
     if (bitmap && !bitmap_is_set(bitmap, rfield->field_index))
       continue;
-    table= rfield->table;
     if (rfield == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
     if (value->save_in_field(rfield, false) < 0)
@@ -9178,28 +9165,17 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
     bitmap_set_bit(table->fields_set_during_insert, rfield->field_index);
     if (insert_into_fields_bitmap)
       bitmap_set_bit(insert_into_fields_bitmap, rfield->field_index);
-    // Record the distinct table so that update the generate columns
-    if (table->pos_in_table_list &&
-        !(used_table_map & table->pos_in_table_list->map()))
-    {
-      used_table_map|= table->pos_in_table_list->map();
-      tbl_set[tab_count++]= table;
-    }
   }
-  /* Update generated fields*/
-  for (uint i= 0; i < tab_count; i++)
-  {
-    table= tbl_set[i];
-    // We only need update wanted fields
-    if (table->vfield && update_generated_write_fields(bitmap ? bitmap :
-                                                 table->write_set, table))
-      goto err;
-  }
+
+  if (table->has_gcol() &&
+      update_generated_write_fields(bitmap ? bitmap : table->write_set,
+                                    table))
+    goto err;
+
   DBUG_RETURN(thd->is_error());
 
 err:
-  if (table)
-    table->auto_increment_field_not_null= FALSE;
+  table->auto_increment_field_not_null= false;
   DBUG_RETURN(true);
 }
 
@@ -9361,7 +9337,7 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
       MY_BITMAP insert_into_fields_bitmap;
       bitmap_init(&insert_into_fields_bitmap, NULL, num_fields, false);
 
-      rc= fill_record(thd, fields, values, NULL,
+      rc= fill_record(thd, table, fields, values, NULL,
                       &insert_into_fields_bitmap);
 
       if (!rc)
@@ -9372,8 +9348,9 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
     }
     else
     {
-      rc= fill_record(thd, fields, values, NULL, NULL) ||
-          table->triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true);
+      rc= fill_record(thd, table, fields, values, NULL, NULL) ||
+          table->triggers->process_triggers(thd, event, TRG_ACTION_BEFORE,
+                                            true);
     }
     /* 
       Re-calculate generated fields to cater for cases when base columns are 
@@ -9381,7 +9358,7 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
     */
     DBUG_ASSERT(table->pos_in_table_list &&
                 !table->pos_in_table_list->is_view());
-    if (!rc && table->vfield)
+    if (!rc && table->has_gcol())
         rc= update_generated_write_fields(table->write_set, table);
 
     table->triggers->disable_fields_temporary_nullability();
@@ -9390,9 +9367,8 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
   }
   else
   {
-    return
-        fill_record(thd, fields, values, NULL, NULL) ||
-        check_record(thd, fields);
+    return fill_record(thd, table, fields, values, NULL, NULL) ||
+                       check_record(thd, fields);
   }
 }
 
@@ -9401,6 +9377,7 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
   Fill field buffer with values from Field list.
 
   @param thd                        thread handler
+  @param table                      table reference
   @param ptr                        pointer on pointer to record
   @param values                     list of fields
   @param bitmap                     Bitmap over fields to fill
@@ -9416,36 +9393,24 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
     @retval true    Error occured
 */
 
-bool
-fill_record(THD *thd, Field **ptr, List<Item> &values,
-            MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap)
+bool fill_record(THD *thd, TABLE *table, Field **ptr, List<Item> &values,
+                 MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap)
 {
-  List_iterator_fast<Item> v(values);
-  Item *value;
-  TABLE *table= 0;
-  TABLE *tbl_set[MAX_TABLES];
-  uint tab_count= 0;
-  table_map used_table_map= 0;
   DBUG_ENTER("fill_record");
 
-  Field *field;
   /*
     Reset the table->auto_increment_field_not_null as it is valid for
     only one row.
   */
   if (*ptr)
+    table->auto_increment_field_not_null= false;
+
+  Field *field;
+  List_iterator_fast<Item> v(values);
+  while ((field= *ptr++) && ! thd->is_error())
   {
-    /*
-      On INSERT or UPDATE fields are checked to be from the same table,
-      thus we safely can take table from the first field.
-    */
-    table= (*ptr)->table;
-    table->auto_increment_field_not_null= FALSE;
-  }
-  while ((field = *ptr++) && ! thd->is_error())
-  {
-    value=v++;
-    table= field->table;
+    Item *const value= v++;
+    DBUG_ASSERT(field->table == table);
     /* If bitmap over wanted fields are set, skip non marked fields. */
     if (bitmap && !bitmap_is_set(bitmap, field->field_index))
       continue;
@@ -9461,31 +9426,18 @@ fill_record(THD *thd, Field **ptr, List<Item> &values,
       bitmap_set_bit(table->fields_set_during_insert, field->field_index);
     if (insert_into_fields_bitmap)
       bitmap_set_bit(insert_into_fields_bitmap, field->field_index);
-    // Record the distinct table so that update the generate columns
-    if (table->pos_in_table_list &&
-        !(used_table_map & table->pos_in_table_list->map()))
-    {
-      used_table_map|= table->pos_in_table_list->map();
-      tbl_set[tab_count++]= table;
-    }
   }
-  /* Update generated fields*/
-  for (uint i= 0; i < tab_count; i++)
-  {
-    table= tbl_set[i];
-    // We only need update wanted fields
-    if (table->vfield && update_generated_write_fields(bitmap ? bitmap :
-                                                 table->write_set, table))
-      goto err;
-  }
+
+  if (table->has_gcol() &&
+      update_generated_write_fields(bitmap ? bitmap : table->write_set, table))
+    goto err;
 
   DBUG_ASSERT(thd->is_error() || !v++);      // No extra value!
   DBUG_RETURN(thd->is_error());
 
 err:
-  if (table)
-    table->auto_increment_field_not_null= FALSE;
-  DBUG_RETURN(TRUE);
+  table->auto_increment_field_not_null= false;
+  DBUG_RETURN(true);
 }
 
 
@@ -9534,8 +9486,7 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
     MY_BITMAP insert_into_fields_bitmap;
     bitmap_init(&insert_into_fields_bitmap, NULL, num_fields, false);
 
-    rc= fill_record(thd, ptr, values, NULL,
-                    &insert_into_fields_bitmap);
+    rc= fill_record(thd, table, ptr, values, NULL, &insert_into_fields_bitmap);
 
     if (!rc)
       rc= call_before_insert_triggers(thd, table, event,
@@ -9548,14 +9499,14 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
     if (!rc && *ptr)
     {
       TABLE *table= (*ptr)->table;
-      if (table->vfield)
+      if (table->has_gcol())
         rc= update_generated_write_fields(table->write_set, table);
     }
     bitmap_free(&insert_into_fields_bitmap);
     table->triggers->disable_fields_temporary_nullability();
   }
   else
-    rc= fill_record(thd, ptr, values, NULL, NULL);
+    rc= fill_record(thd, table, ptr, values, NULL, NULL);
 
   if (rc)
     return true;

@@ -502,12 +502,12 @@ bool partition_info::set_used_partition(List<Item> &fields,
 
   if (fields.elements || !values.elements)
   {
-    if (fill_record(thd, fields, values, &full_part_field_set, NULL))
+    if (fill_record(thd, table, fields, values, &full_part_field_set, NULL))
       goto err;
   }
   else
   {
-    if (fill_record(thd, table->field, values, &full_part_field_set,
+    if (fill_record(thd, table, table->field, values, &full_part_field_set,
                     NULL))
       goto err;
   }

@@ -560,6 +560,20 @@ struct dict_col_t{
 					3072 for Barracuda table */
 };
 
+/** Index information put in a list of virtual column structure. Index
+id and virtual column position in the index will be logged.
+There can be multiple entries for a given index, with a different position. */
+struct dict_v_idx_t {
+	/** active index on the column */
+	dict_index_t*	index;
+
+	/** position in this index */
+	ulint		nth_field;
+};
+
+/** Index list to put in dict_v_col_t */
+typedef	std::list<dict_v_idx_t, ut_allocator<dict_v_idx_t> >	dict_v_idx_list;
+
 /** Data structure for a virtual column in a table */
 struct dict_v_col_t{
 	/** column structure */
@@ -573,6 +587,12 @@ struct dict_v_col_t{
 
 	/** column pos in table */
 	ulint			v_pos;
+
+	/** Virtual index list, and column position in the index,
+	the allocated memory is not from table->heap, nor it is
+	tracked by dict_sys->size */
+	dict_v_idx_list*	v_indexes;
+
 };
 
 /** Data structure for newly added virtual column in a table */
@@ -1196,12 +1216,42 @@ generate a specific template for it. */
 typedef ut_list_base<lock_t, ut_list_node<lock_t> lock_table_t::*>
 	table_lock_list_t;
 
+/** mysql template structure defined in row0mysql.cc */
+struct mysql_row_templ_t;
+
+/** Structure defines template related to virtual columns and
+their base columns */
+struct dict_vcol_templ_t {
+	/** number of regular columns */
+	ulint			n_col;
+
+	/** number of virtual columns */
+	ulint			n_v_col;
+
+	/** array of templates for virtual col and their base columns */
+	mysql_row_templ_t**	vtempl;
+
+	/** table's database name */
+	std::string		db_name;
+
+	/** table name */
+	std::string		tb_name;
+
+	/** share->table_name */
+	std::string		share_name;
+
+	/** MySQL record length */
+	ulint			rec_len;
+
+	/** default column value if any */
+	const byte*		default_rec;
+};
+
 /* This flag is for sync SQL DDL and memcached DML.
 if table->memcached_sync_count == DICT_TABLE_IN_DDL means there's DDL running on
 the table, DML from memcached will be blocked. */
 #define DICT_TABLE_IN_DDL -1
 
-struct innodb_col_templ_t;
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
 struct dict_table_t {
@@ -1593,7 +1643,7 @@ public:
 #endif /* UNIV_DEBUG */
 	/** mysql_row_templ_t for base columns used for compute the virtual
 	columns */
-	innodb_col_templ_t*			vc_templ;
+	dict_vcol_templ_t*			vc_templ;
 
 	/** whether above vc_templ comes from purge allocation */
 	bool					vc_templ_purge;
@@ -1700,29 +1750,20 @@ dict_table_autoinc_own(
 }
 #endif /* UNIV_DEBUG */
 
-/** whether a col is used in spatial index or regular index */
-enum col_spatial_status {
-	/** Not used in gis index. */
-	SPATIAL_NONE	= 0,
-
-	/** Used in both spatial index and regular index. */
-	SPATIAL_MIXED	= 1,
-
-	/** Only used in spatial index. */
-	SPATIAL_ONLY	= 2
-};
-
 /** Check whether the col is used in spatial index or regular index.
 @param[in]	col	column to check
-@return col_spatial_status */
+@return spatial status */
 inline
-col_spatial_status
+spatial_status_t
 dict_col_get_spatial_status(
 	const dict_col_t*	col)
 {
-	col_spatial_status	spatial_status = SPATIAL_NONE;
+	spatial_status_t	spatial_status = SPATIAL_NONE;
 
-	ut_ad(col->ord_part);
+	/* Column is not a part of any index. */
+	if (!col->ord_part) {
+		return(spatial_status);
+	}
 
 	if (DATA_GEOMETRY_MTYPE(col->mtype)) {
 		if (col->max_prefix == 0) {

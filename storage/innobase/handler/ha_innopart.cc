@@ -79,8 +79,7 @@ Ha_innopart_share::Ha_innopart_share(
 	m_tot_parts(),
 	m_index_count(),
 	m_ref_count(),
-	m_table_share(table_share),
-	m_s_templ()
+	m_table_share(table_share)
 {}
 
 Ha_innopart_share::~Ha_innopart_share()
@@ -93,11 +92,6 @@ Ha_innopart_share::~Ha_innopart_share()
 	if (m_index_mapping != NULL) {
 		ut_free(m_index_mapping);
 		m_index_mapping = NULL;
-	}
-	if (m_s_templ != NULL) {
-		free_vc_templ(m_s_templ);
-		ut_free(m_s_templ);
-		m_s_templ = NULL;
 	}
 }
 
@@ -229,25 +223,29 @@ Ha_innopart_share::set_v_templ(
 	dict_table_t*	ib_table,
 	const char*	name)
 {
-#ifndef DBUG_OFF
-	if (m_table_share->tmp_table == NO_TMP_TABLE) {
-		mysql_mutex_assert_owner(&m_table_share->LOCK_ha_data);
-	}
-#endif /* DBUG_OFF */
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	if (ib_table->n_v_cols > 0) {
-		if (!m_s_templ) {
-			m_s_templ = static_cast<innodb_col_templ_t*>(
-				ut_zalloc_nokey( sizeof *m_s_templ));
-			innobase_build_v_templ(table, ib_table,
-					       m_s_templ, NULL, false, name);
-
-			for (ulint i = 0; i < m_tot_parts; i++) {
-				m_table_parts[i]->vc_templ = m_s_templ;
+		for (ulint i = 0; i < m_tot_parts; i++) {
+			if (m_table_parts[i]->vc_templ != NULL
+			    && m_table_parts[i]->get_ref_count() == 1) {
+				/* Clean and refresh the template */
+				dict_free_vc_templ(m_table_parts[i]->vc_templ);
+				m_table_parts[i]->vc_templ->vtempl = NULL;
+			} else {
+				m_table_parts[i]->vc_templ
+					= UT_NEW_NOKEY(dict_vcol_templ_t());
+				m_table_parts[i]->vc_templ->vtempl = NULL;
 			}
+
+			if (m_table_parts[i]->vc_templ->vtempl == NULL) {
+				innobase_build_v_templ(
+					table, ib_table,
+					m_table_parts[i]->vc_templ,
+					NULL, true, name);
+			}
+
 		}
-	} else {
-		ut_ad(!m_s_templ);
 	}
 }
 
@@ -465,12 +463,6 @@ Ha_innopart_share::close_table_parts()
 	if (m_index_mapping != NULL) {
 		ut_free(m_index_mapping);
 		m_index_mapping = NULL;
-	}
-
-	if (m_s_templ != NULL) {
-		free_vc_templ(m_s_templ);
-		ut_free(m_s_templ);
-		m_s_templ = NULL;
 	}
 
 	m_tot_parts = 0;
@@ -1129,9 +1121,9 @@ share_error:
 	ut_ad(m_prebuilt->default_rec);
 
 	if (ib_table->n_v_cols > 0) {
-		lock_shared_ha_data();
+		mutex_enter(&dict_sys->mutex);
 		m_part_share->set_v_templ(table, ib_table, name);
-		unlock_shared_ha_data();
+		mutex_exit(&dict_sys->mutex);
 	}
 
 	/* Looks like MySQL-3.23 sometimes has primary key number != 0. */
@@ -1787,6 +1779,7 @@ ha_innopart::index_end()
 
 	if (part_id == MY_BIT_NONE) {
 		/* Never initialized any index. */
+		active_index = MAX_KEY;
 		DBUG_RETURN(0);
 	}
 	if (m_ordered) {
@@ -2119,7 +2112,7 @@ ha_innopart::index_next_in_part(
 	ut_ad(m_ordered_scan_ongoing
 	      || m_ordered_rec_buffer == NULL
 	      || m_prebuilt->used_in_HANDLER
-	      || m_part_info->num_partitions_used() <= 1);
+	      || m_part_spec.start_part >= m_part_spec.end_part);
 
 	DBUG_RETURN(error);
 }
@@ -2182,7 +2175,7 @@ ha_innopart::index_prev_in_part(
 	ut_ad(m_ordered_scan_ongoing
 	      || m_ordered_rec_buffer == NULL
 	      || m_prebuilt->used_in_HANDLER
-	      || m_part_info->num_partitions_used() <= 1);
+	      || m_part_spec.start_part >= m_part_spec.end_part);
 
 	return(error);
 }
@@ -4085,6 +4078,39 @@ ha_innopart::start_stmt(
 	return(error);
 }
 
+/** Function to store lock for all partitions in native partitioned table. Also
+look at ha_innobase::store_lock for more details.
+@param[in]	thd		user thread handle
+@param[in]	to		pointer to the current element in an array of
+pointers to lock structs
+@param[in]	lock_type	lock type to store in 'lock'; this may also be
+TL_IGNORE
+@retval	to	pointer to the current element in the 'to' array */
+THR_LOCK_DATA**
+ha_innopart::store_lock(
+	THD*			thd,
+	THR_LOCK_DATA**		to,
+	thr_lock_type		lock_type)
+{
+	trx_t*  trx = m_prebuilt->trx;
+	const uint sql_command = thd_sql_command(thd);
+
+	ha_innobase::store_lock(thd, to, lock_type);
+
+	if (sql_command == SQLCOM_FLUSH
+	    && lock_type == TL_READ_NO_INSERT) {
+		for (uint i = 1; i < m_tot_parts; i++) {
+			dict_table_t* table = m_part_share->get_table_part(i);
+
+			dberr_t err = row_quiesce_set_state(
+				table, QUIESCE_START, trx);
+			ut_a(err == DB_SUCCESS || err == DB_UNSUPPORTED);
+		}
+	}
+
+	return to;
+}
+
 /** Lock/prepare to lock table.
 As MySQL will execute an external lock for every new table it uses when it
 starts to process an SQL statement (an exception is when MySQL calls
@@ -4102,8 +4128,6 @@ ha_innopart::external_lock(
 	int	lock_type)
 {
 	int	error = 0;
-	bool	is_quiesce_set = false;
-	bool	is_quiesce_start = false;
 
 	if (m_part_info->get_first_used_partition() == MY_BIT_NONE
 		&& !(m_mysql_has_locked
@@ -4116,63 +4140,55 @@ ha_innopart::external_lock(
 	ut_ad(m_mysql_has_locked || lock_type != F_UNLCK);
 
 	m_prebuilt->table = m_part_share->get_table_part(0);
-	switch (m_prebuilt->table->quiesce) {
-	case QUIESCE_START:
-		/* Check for FLUSH TABLE t WITH READ LOCK; */
-		if (!srv_read_only_mode
-		    && thd_sql_command(thd) == SQLCOM_FLUSH
-		    && lock_type == F_RDLCK) {
-
-			is_quiesce_set = true;
-			is_quiesce_start = true;
-		}
-		break;
-
-	case QUIESCE_COMPLETE:
-		/* Check for UNLOCK TABLES; implicit or explicit
-		or trx interruption. */
-		if (m_prebuilt->trx->flush_tables > 0
-		    && (lock_type == F_UNLCK
-			|| trx_is_interrupted(m_prebuilt->trx))) {
-
-			is_quiesce_set = true;
-		}
-
-		break;
-
-	case QUIESCE_NONE:
-		break;
-	default:
-		ut_ad(0);
-	}
-
 	error = ha_innobase::external_lock(thd, lock_type);
 
-	/* FLUSH FOR EXPORT is done above only for the first partition,
-	so complete it for all the other partitions. */
-	if (is_quiesce_set) {
-		for (uint i = 1; i < m_tot_parts; i++) {
-			dict_table_t* table = m_part_share->get_table_part(i);
-			if (is_quiesce_start) {
-				table->quiesce = QUIESCE_START;
-				row_quiesce_table_start(table, m_prebuilt->trx);
+        for (uint i = 0; i < m_tot_parts; i++) {
+		dict_table_t* table = m_part_share->get_table_part(i);
 
-				/* Use the transaction instance to track UNLOCK
-				TABLES. It can be done via START TRANSACTION;
-				too implicitly. */
+		switch (table->quiesce) {
+		case QUIESCE_START:
+			/* Check for FLUSH TABLE t WITH READ LOCK */
+			if (!srv_read_only_mode
+			    && thd_sql_command(thd) == SQLCOM_FLUSH
+			    && lock_type == F_RDLCK) {
+
+				ut_ad(table->quiesce == QUIESCE_START);
+
+				row_quiesce_table_start(table,
+							m_prebuilt->trx);
+
+				/* Use the transaction instance to track
+				UNLOCK TABLES. It can be done via START
+				TRANSACTION; too implicitly. */
 
 				++m_prebuilt->trx->flush_tables;
-			} else {
+			}
+			break;
+
+		case QUIESCE_COMPLETE:
+			/* Check for UNLOCK TABLES; implicit or explicit
+			or trx interruption. */
+			if (m_prebuilt->trx->flush_tables > 0
+			    && (lock_type == F_UNLCK
+				|| trx_is_interrupted(m_prebuilt->trx))) {
+
 				ut_ad(table->quiesce == QUIESCE_COMPLETE);
 				row_quiesce_table_complete(table,
-					m_prebuilt->trx);
+							   m_prebuilt->trx);
 
 				ut_a(m_prebuilt->trx->flush_tables > 0);
 				--m_prebuilt->trx->flush_tables;
 			}
+			break;
+
+		case QUIESCE_NONE:
+			break;
+
+		default:
+			ut_ad(0);
 		}
-		m_prebuilt->table = m_part_share->get_table_part(0);
 	}
+
 	ut_ad(!m_auto_increment_lock);
 	ut_ad(!m_auto_increment_safe_stmt_log_lock);
 

@@ -27,12 +27,15 @@ while ($i < $n)
   --connect(con$i,127.0.0.1,root,,test,$MASTER_MYPORT,)
   --inc $i
 }
---let $i= 1
-while ($i < $connections)
+if ($error_simulation)
 {
-  --connection con$i
-  set session debug="+d,simulate_binlog_flush_error";
-  --inc $i
+  --let $i= 1
+    while ($i < $connections)
+    {
+      --connection con$i
+      set session debug="+d,simulate_binlog_flush_error";
+      --inc $i
+    }
 }
 --enable_result_log
 --enable_query_log
@@ -63,13 +66,15 @@ while ($j < $m)
   }
   --inc $j
 }
-
---let $i= 1
-while ($i < $connections)
+if ($error_simulation)
 {
-  --connection con$i
-  set session debug="-d,simulate_binlog_flush_error";
-  --inc $i
+  --let $i= 1
+    while ($i < $connections)
+    {
+      --connection con$i
+      set session debug="-d,simulate_binlog_flush_error";
+      --inc $i
+    }
 }
 --enable_result_log
 --enable_query_log

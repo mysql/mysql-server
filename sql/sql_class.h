@@ -2668,6 +2668,7 @@ public:
   {
     CE_NONE= 0,
     CE_FLUSH_ERROR,
+    CE_SYNC_ERROR,
     CE_COMMIT_ERROR,
     CE_ERROR_COUNT
   } commit_error;
@@ -5287,6 +5288,11 @@ public:
 */
 #define CF_DISALLOW_IN_RO_TRANS   (1U << 15)
 
+/**
+  Identifies statements and commands that can be used with Protocol Plugin
+*/
+#define CF_ALLOW_PROTOCOL_PLUGIN (1U << 16)
+
 /* Bits in server_command_flags */
 
 /**
@@ -5306,10 +5312,9 @@ public:
 */
 #define CF_SKIP_QUESTIONS       (1U << 1)
 
-/**
-  Used to mark commands that can be used with Protocol Plugin
+/*
+  1U << 16 is reserved for Protocol Plugin statements and commands
 */
-#define CF_ALLOW_PROTOCOL_PLUGIN (1U << 2)
 
 void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var);

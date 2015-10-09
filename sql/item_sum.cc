@@ -3422,7 +3422,8 @@ void Item_func_group_concat::cleanup()
    */
   for (uint i= 0; i < arg_count_order; i++)
   {
-    order_array[i].item= &args[arg_count_field + i];
+    if (order_array[i].is_position)
+      args[arg_count_field + i]= order_array[i].item_ptr;
   }
   DBUG_VOID_RETURN;
 }

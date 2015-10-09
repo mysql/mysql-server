@@ -2316,6 +2316,10 @@ write_buffers:
 						clust_btr_bulk->release();
 					}
 
+					if (err != DB_SUCCESS) {
+						break;
+					}
+
 					if (row != NULL) {
 						/* Restore the cursor on the
 						previous clustered index record,
@@ -2407,6 +2411,14 @@ write_buffers:
 						-1, NULL, buf, &btr_bulk);
 
 					err = btr_bulk.finish(err);
+
+					DBUG_EXECUTE_IF(
+						"row_merge_insert_big_row",
+						err = DB_TOO_BIG_RECORD;);
+
+					if (err != DB_SUCCESS) {
+						break;
+					}
 				} else {
 					if (row_merge_file_create_if_needed(
 						file, tmpfd,
@@ -2480,7 +2492,11 @@ write_buffers:
 	}
 
 func_exit:
-	mtr_commit(&mtr);
+	/* row_merge_spatial_rows may have committed
+	the mtr	before an error occurs. */
+	if (mtr.is_active()) {
+		mtr_commit(&mtr);
+	}
 	mem_heap_free(row_heap);
 	ut_free(nonnull);
 
@@ -4175,9 +4191,28 @@ row_merge_create_index(
 			} else {
 				name = dict_table_get_v_col_name(
 					table, ifield->col_no);
+
+				if (dict_table_has_base_in_foreign(
+					    table, ifield->col_no)) {
+					my_error(ER_CANNOT_CREATE_VIRTUAL_INDEX_CONSTRAINT,
+						 MYF(0));
+					trx->error_state = DB_NO_VIRTUAL_INDEX_ON_FK;
+					DBUG_RETURN(NULL);
+				}
 			}
 		} else {
 			name = dict_table_get_col_name(table, ifield->col_no);
+
+			/* If this is a virtual index, we need to block
+			any non-virtual column (in this virtual index) that is
+			also part of some foreign constraint */
+			if ((index_def->ind_type & DICT_VIRTUAL)
+			    && dict_foreigns_has_this_col(table, name)) {
+				my_error(ER_CANNOT_CREATE_VIRTUAL_INDEX_CONSTRAINT,
+					 MYF(0));
+				trx->error_state = DB_NO_VIRTUAL_INDEX_ON_FK;
+				DBUG_RETURN(NULL);
+			}
 		}
 
 		dict_mem_index_add_field(index, name, ifield->prefix_len);

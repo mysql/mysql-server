@@ -563,7 +563,7 @@ buf_dblwr_process(void)
 			MLOG_TRUNCATE record in redo. */
 			bool	skip_warning =
 				srv_is_tablespace_truncated(space_id)
-				|| srv_was_tablespace_truncated(space_id);
+				|| srv_was_tablespace_truncated(space);
 
 			if (!skip_warning) {
 				ib::warn() << "Page " << page_no_dblwr

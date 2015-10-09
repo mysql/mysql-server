@@ -991,7 +991,7 @@ CREATE TABLE federated.t1 (
 PRIMARY KEY (blurb_id))
 DEFAULT CHARSET=latin1;
 Warnings:
-Warning	1101	BLOB/TEXT column 'blurb' can't have a default value
+Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'blurb' can't have a default value
 SET sql_mode = default;
 DROP TABLE IF EXISTS federated.t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
@@ -1005,7 +1005,7 @@ ENGINE="FEDERATED"
   DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
 Warnings:
-Warning	1101	BLOB/TEXT column 'blurb' can't have a default value
+Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'blurb' can't have a default value
 SET sql_mode = default;
 INSERT INTO federated.t1 VALUES (1, " MySQL supports a number of column types in several categories: numeric types, date and time types, and string (character) types.  This chapter first gives an overview of these column types, and then provides a more detailed description of the properties of the types in each category, and a summary of the column type storage requirements.  The overview is intentionally brief.  The more detailed descriptions should be consulted for additional information about particular column types, such as the allowable formats in which you can specify values.");
 INSERT INTO federated.t1 VALUES (2, "All arithmetic is done using signed BIGINT or DOUBLE values, so you should not use unsigned big integers larger than 9223372036854775807 (63 bits) except with bit functions! If you do that, some of the last digits in the result may be wrong because of rounding errors when converting a BIGINT value to a DOUBLE.");

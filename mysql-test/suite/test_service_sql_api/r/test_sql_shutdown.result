@@ -2,6 +2,9 @@
 # Run plugin
 ##########################################
 INSTALL PLUGIN test_sql_shutdown SONAME 'TEST_SQL_SHUTDOWN';
+SELECT count(*) FROM information_schema.processlist WHERE info LIKE 'PLUGIN%';
+count(*)
+1
 ##########################################
 # Shutdown
 ##########################################

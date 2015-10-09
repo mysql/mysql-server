@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -128,6 +128,8 @@ void Shared_mem_listener::close_shared_mem()
   my_security_attr_free(m_sa_mapping);
   if (m_connect_map)
     UnmapViewOfFile(m_connect_map);
+  if (m_connect_named_mutex)
+    CloseHandle(m_connect_named_mutex);
   if (m_connect_file_map)
     CloseHandle(m_connect_file_map);
   if (m_event_connect_answer)
@@ -178,6 +180,20 @@ bool Shared_mem_listener::setup_listener()
     errmsg="Could not create answer event";
     goto error;
   }
+
+  my_stpcpy(m_suffix_pos, "CONNECT_NAMED_MUTEX");
+  m_connect_named_mutex= CreateMutex(NULL, FALSE, m_temp_buffer);
+  if (m_connect_named_mutex == NULL)
+  {
+    errmsg="Unable to create connect named mutex.";
+    goto error;
+  }
+  if ( GetLastError() == ERROR_ALREADY_EXISTS)
+  {
+    errmsg="Another instance of application already running.";
+    goto error;
+  }
+
   my_stpcpy(m_suffix_pos, "CONNECT_DATA");
   if ((m_connect_file_map=
        CreateFileMapping(INVALID_HANDLE_VALUE, m_sa_mapping, PAGE_READWRITE, 0,

@@ -250,14 +250,14 @@ public:
 
             while ((row = mysql_fetch_row(result)))
             {
-                ulong sys_version = calc_server_version(row[0]);
-                if (sys_version >= calc_server_version(SYS_SCHEMA_VERSION))
+                stringstream ss;
+                ulong installed_sys_version = calc_server_version(row[0]);
+                ulong expected_sys_version = calc_server_version(SYS_SCHEMA_VERSION);
+                if (installed_sys_version >= expected_sys_version)
                 {
-                  stringstream ss;
                   ss << "The sys schema is already up to date (version " << row[0] << ").";
                   this->print_verbose_message(ss.str());
                 } else {
-                  stringstream ss;
                   ss << "Found outdated sys schema version " << row[0] << ".";
                   this->print_verbose_message(ss.str());
                   if (this->run_sys_schema_upgrade() != 0)
@@ -294,7 +294,7 @@ public:
 
             while ((row = mysql_fetch_row(result)))
             {
-                if (SYS_TABLE_COUNT != atoi(row[0]))
+                if (SYS_TABLE_COUNT > atoi(row[0]))
                 {
                   stringstream ss;
                   ss << "Found "  << row[0] <<  " sys tables, but expected " << SYS_TABLE_COUNT << "."
@@ -324,7 +324,7 @@ public:
 
             while ((row = mysql_fetch_row(result)))
             {
-                if (SYS_VIEW_COUNT != atoi(row[0]))
+                if (SYS_VIEW_COUNT > atoi(row[0]))
                 {
                   stringstream ss;
                   ss << "Found "  << row[0] <<  " sys views, but expected " << SYS_VIEW_COUNT << "."
@@ -354,7 +354,7 @@ public:
 
             while ((row = mysql_fetch_row(result)))
             {
-                if (SYS_TRIGGER_COUNT != atoi(row[0]))
+                if (SYS_TRIGGER_COUNT > atoi(row[0]))
                 {
                   stringstream ss;
                   ss << "Found "  << row[0] <<  " sys triggers, but expected " << SYS_TRIGGER_COUNT << "."
@@ -384,7 +384,7 @@ public:
 
             while ((row = mysql_fetch_row(result)))
             {
-                if (SYS_FUNCTION_COUNT != atoi(row[0]))
+                if (SYS_FUNCTION_COUNT > atoi(row[0]))
                 {
                   stringstream ss;
                   ss << "Found "  << row[0] <<  " sys functions, but expected " << SYS_FUNCTION_COUNT << "."
@@ -414,7 +414,7 @@ public:
 
             while ((row = mysql_fetch_row(result)))
             {
-                if (SYS_PROCEDURE_COUNT != atoi(row[0]))
+                if (SYS_PROCEDURE_COUNT > atoi(row[0]))
                 {
                   stringstream ss;
                   ss << "Found "  << row[0] <<  " sys procedures, but expected " << SYS_PROCEDURE_COUNT << "."

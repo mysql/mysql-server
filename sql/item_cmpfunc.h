@@ -319,6 +319,7 @@ public:
   Item_cache **get_cache() { return &cache; }
   void keep_top_level_cache();
   Item *transform(Item_transformer transformer, uchar *arg);
+  void replace_argument(THD *thd, Item **oldpp, Item *newp);
 };
 
 /// Abstract factory interface for creating comparison predicates.
@@ -1429,7 +1430,7 @@ public:
   virtual void store_value(Item *item)
   {
     String *res= item->val_str(&value);
-    if(res && (res != &value))
+    if (res && (res != &value || !res->is_alloced()))
     {
       // 'res' may point in item's transient internal data, so make a copy
       value.copy(*res);

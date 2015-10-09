@@ -634,7 +634,7 @@ BtrBulk::pageSplit(
 
 	/* 1. Check if we have only one user record on the page. */
 	if (page_bulk->getRecNo() <= 1) {
-		return DB_TOO_BIG_RECORD;
+		return(DB_TOO_BIG_RECORD);
 	}
 
 	/* 2. create a new page. */

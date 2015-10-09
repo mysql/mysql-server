@@ -162,7 +162,6 @@ public:
   virtual void start_row();
   virtual bool end_row();
   virtual void abort_row(){};
-  virtual void free();
   virtual uint get_rw_status();
   virtual bool get_compression();
 
@@ -4572,8 +4571,6 @@ bool Protocol_local::end_row()
   DBUG_ENTER("Protocol_local::end_row");
   DBUG_RETURN(FALSE);
 }
-
-void Protocol_local::free() {}
 
 uint Protocol_local::get_rw_status()
 {

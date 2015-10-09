@@ -3220,3 +3220,13 @@ a	(SELECT SUM(a + c) FROM (SELECT b as c FROM t1) AS v1)
 1	8
 2	10
 DROP TABLE t1;
+#
+# Bug#21761044 CONDITIONAL JUMP AT TEST_IF_ORDER_BY_KEY IN SQL_OPTIMIZER.CC
+#
+# Used to give ASAN error on the SELECT: addressing beyond allocated memory
+#
+CREATE TABLE cc (pk int,  i int, c varchar(1),
+PRIMARY KEY (pk, i), KEY c_key(c)) ENGINE=InnoDB;
+SELECT c, i, pk FROM cc WHERE (cc.pk = 1)  GROUP BY c, i, pk;
+c	i	pk
+DROP TABLE cc;

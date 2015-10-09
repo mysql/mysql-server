@@ -1207,10 +1207,13 @@ bool Geometry::create_point(String *result, point_xy p) const
   @param     n_points   Number of points
   @param     wkb        Packed data
   @param     offset     Offset between points
+  @param     bracket_pt whether to bracket the point coordinate with (),
+                        multipoint need so.
 */
 
 void Geometry::append_points(String *txt, uint32 n_points,
-                             wkb_parser *wkb, uint32 offset) const
+                             wkb_parser *wkb, uint32 offset,
+                             bool bracket_pt) const
 {
   DBUG_ASSERT(0.0 == 0 && 0 == -0 && -0.0 == 0.0);
 
@@ -1220,9 +1223,13 @@ void Geometry::append_points(String *txt, uint32 n_points,
     wkb->skip_unsafe(offset);
     wkb->scan_xy_unsafe(&p);
     txt->reserve(MAX_DIGITS_IN_DOUBLE * 2 + 1);
+    if (bracket_pt)
+      txt->qs_append('(');
     txt->qs_append(p.x, MAX_DIGITS_IN_DOUBLE);
     txt->qs_append(' ');
     txt->qs_append(p.y, MAX_DIGITS_IN_DOUBLE);
+    if (bracket_pt)
+      txt->qs_append(')');
     txt->qs_append(',');
   }
 }
@@ -2556,14 +2563,34 @@ bool Gis_multi_point::init_from_wkt(Gis_read_stream *trs, String *wkb)
     return true;
   wkb->length(wkb->length()+4);			// Reserve space for points
 
+  /*
+    According to OGC, the WKT for a multipoint is something like:
+    MULTIPOINT((1 1), (2 2))
+    and to be backward compatible with older versions of MySQL, we still
+    support the MySQL format:
+    MULTIPOINT(1 1, 2 2)
+    But we don't allow the mixture of both formats in the same multipoint
+    geometry.
+  */
+  const bool match_pt_lbra=
+    (trs->get_next_toc_type() == Gis_read_stream::l_bra);
+
   for (;;)
   {
     if (wkb->reserve(1 + 4, 512))
       return 1;
     wkb->q_append((char) wkb_ndr);
     wkb->q_append((uint32) wkb_point);
+
+    if (match_pt_lbra && trs->check_next_symbol('('))
+      return true;
+
     if (p.init_from_wkt(trs, wkb))
       return true;
+
+    if (match_pt_lbra && trs->check_next_symbol(')'))
+      return true;
+
     n_points++;
     if (trs->skip_char(','))			// Didn't find ','
       break;
@@ -2612,7 +2639,12 @@ bool Gis_multi_point::get_data_as_wkt(String *txt, wkb_parser *wkb) const
       txt->reserve(((MAX_DIGITS_IN_DOUBLE + 1) * 2 + 1) * n_points))
     return true;
 
-  append_points(txt, n_points, wkb, WKB_HEADER_SIZE);
+
+  /*
+    Now we will output multipoint in OGC format, i.e. for each of its point,
+    bracket its coordinates with ().
+  */
+  append_points(txt, n_points, wkb, WKB_HEADER_SIZE, true);
   txt->length(txt->length()-1);			// Remove end ','
   return false;
 }

@@ -1444,8 +1444,9 @@ int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
       Skip key parts that are constants in the WHERE clause.
       These are already skipped in the ORDER BY by const_expression_in_where()
     */
-    for (; const_key_parts & 1 ; const_key_parts>>= 1)
-      key_part++; 
+    for (; const_key_parts & 1 && key_part < key_part_end ;
+         const_key_parts>>= 1)
+      key_part++;
 
     if (key_part == key_part_end)
     {
@@ -6844,6 +6845,17 @@ add_key_field(Key_field **key_fields, uint and_level, Item_func *cond,
   Field *const field= item_field->field;
   TABLE_LIST *const tl= item_field->table_ref;
 
+  if (tl->table->reginfo.join_tab == NULL)
+  {
+    /*
+       Due to a bug in IN-to-EXISTS (grep for real_item() in item_subselect.cc
+       for more info), an index over a field from an outer query might be
+       considered here, which is incorrect. Their query has been fully
+       optimized already so their reginfo.join_tab is NULL and we reject them.
+    */
+    return;
+  }
+
   DBUG_PRINT("info", ("add_key_field for field %s", field->field_name));
   uint exists_optimize= 0;
   if (!tl->derived_keys_ready && tl->uses_materialization() &&
@@ -6878,7 +6890,7 @@ add_key_field(Key_field **key_fields, uint and_level, Item_func *cond,
         return; // Can't use left join optimize
       exists_optimize= KEY_OPTIMIZE_EXISTS;
     }
-    else if (tl->table->reginfo.join_tab)
+    else
     {
       JOIN_TAB *stat= tl->table->reginfo.join_tab;
       key_map possible_keys=field->key_start;
@@ -8161,17 +8173,6 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
     for (i=0 ; i < keyuse->size()-1 ; i++,use++)
     {
       TABLE *const table= use->table_ref->table;
-      if (!table->reginfo.join_tab)
-      {
-        /*
-          Due to a bug in IN-to-EXISTS (grep for real_item() in
-          item_subselect.cc for more info), an index over a field from an
-          outer query might be considered here, which is incorrect. Their
-          query has been fully optimized already so their reginfo.join_tab is
-          NULL and we reject them.
-        */
-        continue;
-      }
       if (!use->used_tables && use->optimize != KEY_OPTIMIZE_REF_OR_NULL)
         table->const_key_parts[use->key]|= use->keypart_map;
       if (use->keypart != FT_KEYPART)

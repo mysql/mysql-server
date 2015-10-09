@@ -320,10 +320,25 @@ trx_undo_rec_get_col_val(
 void
 trx_undo_read_v_cols(
 	const dict_table_t*	table,
-	byte*			ptr,
+	const byte*		ptr,
 	const dtuple_t*		row,
 	bool			in_purge,
 	const ulint*		col_map);
+
+/** Read virtual column index from undo log if the undo log contains such
+info, and verify the column is still indexed, and output its position
+@param[in]	table		the table
+@param[in]	ptr		undo log pointer
+@param[in]	first_v_col	if this is the first virtual column, which
+				has the version marker
+@param[out]	field_no	the column number
+@return remaining part of undo log record after reading these values */
+const byte*
+trx_undo_read_v_idx(
+	const dict_table_t*	table,
+	const byte*		ptr,
+	bool			first_v_col,
+	ulint*			field_no);
 
 #ifndef UNIV_HOTBACKUP
 

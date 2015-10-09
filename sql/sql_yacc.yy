@@ -6355,6 +6355,7 @@ gcol_attribute:
           }
         | COMMENT_SYM TEXT_STRING_sys { Lex->comment= $2; }
         | not NULL_SYM { Lex->type|= NOT_NULL_FLAG; }
+        | NULL_SYM
         | opt_primary KEY_SYM
           {
             LEX *lex=Lex;
@@ -7955,10 +7956,18 @@ alter_commands:
 
 opt_validation:
           /* empty */
-        | WITH VALIDATION_SYM
+        | alter_opt_validation
+        ;
+
+alter_opt_validation:
+        WITH VALIDATION_SYM
+          {
+            Lex->alter_info.with_validation= Alter_info::ALTER_WITH_VALIDATION;
+          }
         | WITHOUT_SYM VALIDATION_SYM
           {
-            Lex->alter_info.with_validation= false;
+            Lex->alter_info.with_validation=
+              Alter_info::ALTER_WITHOUT_VALIDATION;
           }
 	    ;
 
@@ -8277,6 +8286,7 @@ alter_list_item:
           {
             Lex->alter_info.flags|= Alter_info::ALTER_UPGRADE_PARTITIONING;
           }
+        | alter_opt_validation
         ;
 
 opt_index_lock_algorithm:
@@ -9911,7 +9921,15 @@ fulltext_options:
           opt_natural_language_mode opt_query_expansion
           { $$= $1 | $2; }
         | IN_SYM BOOLEAN_SYM MODE_SYM
-          { $$= FT_BOOL; }
+          {
+            $$= FT_BOOL;
+            DBUG_EXECUTE_IF("simulate_bug18831513",
+                            {
+                              THD *thd= YYTHD;
+                              if (thd->sp_runtime_ctx)
+                                MYSQLerror(NULL,thd,"syntax error");
+                            });
+          }
         ;
 
 opt_natural_language_mode:
@@ -10764,6 +10782,7 @@ alter_order_item:
               MYSQL_YYABORT;
             order->item_ptr= $1;
             order->direction= ($2 == 1) ? ORDER::ORDER_ASC : ORDER::ORDER_DESC;
+            order->is_position= false;
             add_order_to_list(thd, order);
           }
         ;

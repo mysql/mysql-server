@@ -109,7 +109,35 @@
  * when choosing which matcher to call.  Also, by this point the matchers
  * have been prototyped.
  */
-int				/* 0 success, MY_REG_NOMATCH failure */
+
+/**
+  my_regexec matches the compiled RE pointed to by preg against the
+  string, subject to the flags in eflags, and reports results using
+  nmatch, pmatch, and the returned value.  The RE must have been
+  compiled by a previous invocation of my_regcomp.
+
+  By default, the NULL-terminated string pointed to by string is
+  considered to be the text of an entire line, minus any terminating
+  newline.  The eflags argument is the bitwise OR of zero or more of
+  the following flags:
+
+  MY_REG_NOTBOL   The first character of the string is not the beginning of
+                  a line, so the `^' anchor should not match before it.
+                  This does not affect the behavior of newlines under
+                  MY_REG_NEWLINE.
+
+  MY_REG_NOTEOL   The NULL terminating the string does not end a line, so the
+                  `$' anchor should not match before it. This does not affect
+                  the behavior of newlines under MY_REG_NEWLINE.
+
+  MY_REG_STARTEND The string is considered to start at string +
+                  pmatch[0].rm_so and to have a terminating NUL located
+                  at string + pmatch[0].rm_eo (there need not actually be
+                  a NUL at that location), regardless of the value of nmatch.
+
+  @return 0 success, MY_REG_NOMATCH failure
+ */
+int
 my_regexec(preg, str, nmatch, pmatch, eflags)
 const my_regex_t *preg;
 const char *str;

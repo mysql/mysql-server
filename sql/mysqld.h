@@ -474,7 +474,6 @@ extern PSI_thread_key key_thread_bootstrap,
   key_thread_compress_gtid_table, key_thread_parser_service;
 extern PSI_thread_key key_thread_daemon_plugin;
 extern PSI_thread_key key_thread_timer_notifier;
-extern PSI_thread_key key_thread_background;
 
 extern PSI_file_key key_file_map;
 extern PSI_file_key key_file_binlog, key_file_binlog_cache,
@@ -810,6 +809,7 @@ extern mysql_mutex_t
        LOCK_sql_slave_skip_counter, LOCK_slave_net_timeout,
        LOCK_offline_mode, LOCK_default_password_lifetime;
 #ifdef HAVE_OPENSSL
+extern char* des_key_file;
 extern mysql_mutex_t LOCK_des_key_file;
 #endif
 extern mysql_mutex_t LOCK_server_started;

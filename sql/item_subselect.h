@@ -386,7 +386,7 @@ class Item_in_subselect :public Item_exists_subselect
 public:
   Item *left_expr;
 protected:
-  /*
+  /**
     Cache of the left operand of the subquery predicate. Allocated in the
     runtime memory root, for each execution, thus need not be freed.
   */
@@ -395,13 +395,34 @@ protected:
   /** The need for expr cache may be optimized away, @sa init_left_expr_cache. */
   bool need_expr_cache;
 
-  /*
-    expr & optimizer used in subselect rewriting to store Item for
-    all JOIN in UNION
+private:
+  /**
+    In the case of
+
+       x COMP_OP (SELECT1 UNION SELECT2 ...)
+
+    - the subquery transformation is done on SELECT1; this requires wrapping
+      'x' with more Item layers, and injecting that in a condition in SELECT1.
+
+    - the same transformation is done on SELECT2; but the wrapped 'x' doesn't
+      need to be created again, the one created for SELECT1 could be reused
+
+    - to achieve this, the wrapped 'x' is stored in member
+      'm_injected_left_expr' when it is created for SELECT1, and is later
+      reused for SELECT2.
+
+    This will refer to a cached value which is reevaluated once for each
+    candidate row, cf. setup in ::single_value_transformer.
   */
-  Item *expr;
+  Item_direct_ref *m_injected_left_expr;
+
+  /**
+    Pointer to the created Item_in_optimizer; it is stored for the same
+    reasons as 'm_injected_left_expr'.
+  */
   Item_in_optimizer *optimizer;
   bool was_null;
+protected:
   bool abort_on_null;
 private:
   /**
@@ -471,7 +492,8 @@ public:
 
   Item_in_subselect()
     :Item_exists_subselect(), left_expr(NULL), left_expr_cache(NULL),
-    left_expr_cache_filled(false), need_expr_cache(TRUE), expr(NULL),
+    left_expr_cache_filled(false), need_expr_cache(TRUE),
+    m_injected_left_expr(NULL),
     optimizer(NULL), was_null(FALSE), abort_on_null(FALSE),
     in2exists_info(NULL), pushed_cond_guards(NULL), upper_item(NULL)
   {}
