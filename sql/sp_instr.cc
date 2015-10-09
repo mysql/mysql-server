@@ -622,6 +622,7 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd,
 
   while (true)
   {
+    DBUG_EXECUTE_IF("simulate_bug18831513", { invalidate(); });
     if (is_invalid())
     {
       LEX *lex= parse_expr(thd, thd->sp_runtime_ctx->sp);
