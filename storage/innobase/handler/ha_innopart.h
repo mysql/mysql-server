@@ -60,8 +60,6 @@ private:
 	/** Pointer back to owning TABLE_SHARE. */
 	TABLE_SHARE*		m_table_share;
 
-	/** Virtual column template */
-	innodb_col_templ_t*	m_s_templ;
 public:
 	Ha_innopart_share(
 		TABLE_SHARE*	table_share);
@@ -1119,6 +1117,12 @@ private:
 	external_lock(
 		THD*	thd,
 		int	lock_type);
+
+	THR_LOCK_DATA**
+	store_lock(
+		THD*			thd,
+		THR_LOCK_DATA**		to,
+		thr_lock_type		lock_type);
 
 	int
 	write_row(

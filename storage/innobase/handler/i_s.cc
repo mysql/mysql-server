@@ -2088,45 +2088,52 @@ i_s_cmpmem_fill_low(
 	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
-		buf_pool_t*	buf_pool;
+		buf_pool_t*		buf_pool;
+		ulint			zip_free_len_local[BUF_BUDDY_SIZES_MAX + 1];
+		buf_buddy_stat_t	buddy_stat_local[BUF_BUDDY_SIZES_MAX + 1];
 
 		status	= 0;
 
 		buf_pool = buf_pool_from_array(i);
 
+		/* Save buddy stats for buffer pool in local variables. */
 		buf_pool_mutex_enter(buf_pool);
+		for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
+
+			zip_free_len_local[x] = (x < BUF_BUDDY_SIZES) ?
+				UT_LIST_GET_LEN(buf_pool->zip_free[x]) : 0;
+
+			buddy_stat_local[x] = buf_pool->buddy_stat[x];
+
+			if (reset) {
+				/* This is protected by buf_pool->mutex. */
+				buf_pool->buddy_stat[x].relocated = 0;
+				buf_pool->buddy_stat[x].relocated_usec = 0;
+			}
+		}
+		buf_pool_mutex_exit(buf_pool);
 
 		for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
 			buf_buddy_stat_t*	buddy_stat;
 
-			buddy_stat = &buf_pool->buddy_stat[x];
+			buddy_stat = &buddy_stat_local[x];
 
 			table->field[0]->store(BUF_BUDDY_LOW << x);
 			table->field[1]->store(static_cast<double>(i));
 			table->field[2]->store(static_cast<double>(
 				buddy_stat->used));
 			table->field[3]->store(static_cast<double>(
-				(x < BUF_BUDDY_SIZES)
-				? UT_LIST_GET_LEN(buf_pool->zip_free[x])
-				: 0));
+				zip_free_len_local[x]));
 			table->field[4]->store(
 				(longlong) buddy_stat->relocated, true);
 			table->field[5]->store(
 				static_cast<double>(buddy_stat->relocated_usec / 1000000));
-
-			if (reset) {
-				/* This is protected by buf_pool->mutex. */
-				buddy_stat->relocated = 0;
-				buddy_stat->relocated_usec = 0;
-			}
 
 			if (schema_table_store_record(thd, table)) {
 				status = 1;
 				break;
 			}
 		}
-
-		buf_pool_mutex_exit(buf_pool);
 
 		if (status) {
 			break;
@@ -6760,7 +6767,7 @@ i_s_sys_tables_fill_table_stats(
 	while (rec) {
 		const char*	err_msg;
 		dict_table_t*	table_rec;
-		ulint		ref_count;
+		ulint		ref_count = 0;
 
 		/* Fetch the dict_table_t structure corresponding to
 		this SYS_TABLES record */
@@ -6768,10 +6775,24 @@ i_s_sys_tables_fill_table_stats(
 			heap, rec, &table_rec,
 			DICT_TABLE_LOAD_FROM_CACHE, &mtr);
 
-		ref_count = table_rec->get_ref_count();
+		if (table_rec != NULL) {
+			ut_ad(err_msg == NULL);
+
+			ref_count = table_rec->get_ref_count();
+
+			/* Protect the dict_table_t object by incrementing
+			the reference count. */
+			table_rec->acquire();
+		}
+
 		mutex_exit(&dict_sys->mutex);
 
-		if (!err_msg) {
+		DBUG_EXECUTE_IF("test_sys_tablestats", {
+			if (strcmp("test/t1", table_rec->name.m_name) == 0 ) {
+				DEBUG_SYNC_C("dict_table_not_protected");
+			}});
+
+		if (table_rec != NULL) {
 			i_s_dict_fill_sys_tablestats(thd, table_rec, ref_count,
 						     tables->table);
 		} else {
@@ -6784,6 +6805,11 @@ i_s_sys_tables_fill_table_stats(
 
 		/* Get the next record */
 		mutex_enter(&dict_sys->mutex);
+
+		if (table_rec != NULL) {
+			table_rec->release();
+		}
+
 		mtr_start(&mtr);
 		rec = dict_getnext_system(&pcur, &mtr);
 	}
@@ -8364,15 +8390,6 @@ static ST_FIELD_INFO	innodb_sys_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,           ""),
 	 STRUCT_FLD(open_method,        SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESPACES_COMPRESSION	11
-	{STRUCT_FLD(field_name,		"COMPRESSION"),
-	 STRUCT_FLD(field_length,	MAX_COMPRESSION_LEN + 1),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
 	END_OF_ST_FIELD_INFO
 
 };
@@ -8488,12 +8505,6 @@ i_s_dict_fill_sys_tablespaces(
 	OK(fields[SYS_TABLESPACES_FILE_SIZE]->store(file.m_total_size, true));
 
 	OK(fields[SYS_TABLESPACES_ALLOC_SIZE]->store(file.m_alloc_size, true));
-
-	Compression::Type	type = fil_get_compression(space);
-
-	OK(field_store_string(
-			fields[SYS_TABLESPACES_COMPRESSION],
-			Compression::to_string(type)));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@ class Shared_mem_listener
   std::string m_shared_mem_name;
   HANDLE m_connect_file_map;
   char* m_connect_map;
+  HANDLE m_connect_named_mutex;
   HANDLE m_event_connect_request;
   HANDLE m_event_connect_answer;
   SECURITY_ATTRIBUTES *m_sa_event;
@@ -64,6 +65,7 @@ public:
   : m_shared_mem_name(*shared_memory_base_name),
     m_connect_file_map(0),
     m_connect_map(0),
+    m_connect_named_mutex(NULL),
     m_event_connect_request(0),
     m_event_connect_answer(0),
     m_sa_event(0),

@@ -2084,6 +2084,12 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
   Ha_global_schema_lock_guard global_schema_lock(thd);
 #endif
 
+  // DROP table is not allowed in the XA_IDLE or XA_PREPARED transaction states.
+  if (thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
+  {
+    DBUG_RETURN(true);
+  }
+
   /* Disable drop of enabled log tables, must be done before name locking */
   for (table= tables; table; table= table->next_local)
   {
@@ -6331,6 +6337,8 @@ static bool fill_alter_inplace_info(THD *thd,
   if (alter_info->flags & Alter_info::ALTER_UPGRADE_PARTITIONING)
     ha_alter_info->handler_flags|=
       Alter_inplace_info::ALTER_UPGRADE_PARTITIONING;
+  if (alter_info->with_validation == Alter_info::ALTER_WITH_VALIDATION)
+    ha_alter_info->handler_flags|= Alter_inplace_info::VALIDATE_VIRTUAL_COLUMN;
 
   /*
     If we altering table with old VARCHAR fields we will be automatically
@@ -6474,6 +6482,21 @@ static bool fill_alter_inplace_info(THD *thd,
       if (new_field->column_format() != field->column_format())
         ha_alter_info->handler_flags|=
           Alter_inplace_info::ALTER_COLUMN_COLUMN_FORMAT;
+
+      /*
+        We don't have easy way to detect change in generation expression.
+        So we always assume that it has changed if generated column was
+        mentioned in CHANGE/MODIFY COLUMN clause of ALTER TABLE.
+      */
+      if (new_field->change)
+      {
+        if (new_field->is_virtual_gcol())
+            ha_alter_info->handler_flags|=
+              Alter_inplace_info::ALTER_VIRTUAL_GCOL_EXPR;
+        else if (new_field->gcol_info)
+            ha_alter_info->handler_flags|=
+              Alter_inplace_info::ALTER_STORED_GCOL_EXPR;
+      }
     }
     else
     {
@@ -6506,15 +6529,19 @@ static bool fill_alter_inplace_info(THD *thd,
         if (new_field->is_virtual_gcol())
           ha_alter_info->handler_flags|=
             Alter_inplace_info::ADD_VIRTUAL_COLUMN;
+        else if (new_field->gcol_info)
+          ha_alter_info->handler_flags|=
+            Alter_inplace_info::ADD_STORED_GENERATED_COLUMN;
         else
           ha_alter_info->handler_flags|=
-            Alter_inplace_info::ADD_STORED_COLUMN;
+            Alter_inplace_info::ADD_STORED_BASE_COLUMN;
       }
     }
     /* One of these should be set since Alter_info::ALTER_ADD_COLUMN was set. */
     DBUG_ASSERT(ha_alter_info->handler_flags &
                 (Alter_inplace_info::ADD_VIRTUAL_COLUMN |
-                 Alter_inplace_info::ADD_STORED_COLUMN));
+                 Alter_inplace_info::ADD_STORED_BASE_COLUMN |
+                 Alter_inplace_info::ADD_STORED_GENERATED_COLUMN));
   }
 
   /*
@@ -7029,9 +7056,8 @@ static bool is_inplace_alter_impossible(TABLE *table,
     Stored generated columns are evaluated in server, thus can't be added/changed
     inplace.
   */
-  if ((alter_info->flags & (Alter_info::ALTER_ORDER |
-                            Alter_info::ALTER_KEYS_ONOFF)) ||
-      alter_ctx->requires_generated_column_server_evaluation)
+  if (alter_info->flags & (Alter_info::ALTER_ORDER |
+                           Alter_info::ALTER_KEYS_ONOFF))
     DBUG_RETURN(true);
 
   /*
@@ -7757,8 +7783,6 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
                  "Changing the STORED status");
         goto err;
       }
-      if (field->is_gcol() && field->stored_in_db)
-        alter_ctx->requires_generated_column_server_evaluation= true;
       /*
         Add column being updated to the list of new columns.
         Note that columns with AFTER clauses are added to the end
@@ -7812,7 +7836,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       {
 	if (def->flags & BLOB_FLAG)
 	{
-	  my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0), def->change);
+	  my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0), field->field_name);
           goto err;
 	}
 
@@ -7847,9 +7871,6 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       my_error(ER_BAD_FIELD_ERROR, MYF(0), def->change, table->s->table_name.str);
       goto err;
     }
-
-    if (!def->change && def->gcol_info && def->gcol_info->get_field_stored())
-      alter_ctx->requires_generated_column_server_evaluation= true;
 
     /*
       Check that the DATE/DATETIME not null field we are going to add is
@@ -8706,6 +8727,14 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       my_error(ER_WRONG_USAGE, MYF(0), "PARTITION", "log table");
       DBUG_RETURN(true);
     }
+  }
+
+  if (alter_info->with_validation != Alter_info::ALTER_VALIDATION_DEFAULT &&
+      !(alter_info->flags & 
+        (Alter_info::ALTER_ADD_COLUMN | Alter_info::ALTER_CHANGE_COLUMN)))
+  {
+    my_error(ER_WRONG_USAGE, MYF(0), "ALTER","WITH VALIDATION");
+    DBUG_RETURN(true);
   }
 
   THD_STAGE_INFO(thd, stage_init);

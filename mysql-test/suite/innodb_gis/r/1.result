@@ -93,9 +93,9 @@ fid	ST_AsText(g)
 110	POLYGON((0 0,30 0,30 30,0 0))
 SELECT fid, ST_AsText(g) FROM gis_multi_point;
 fid	ST_AsText(g)
-111	MULTIPOINT(0 0,10 10,10 20,20 20)
-112	MULTIPOINT(1 1,11 11,11 21,21 21)
-113	MULTIPOINT(3 6,4 10)
+111	MULTIPOINT((0 0),(10 10),(10 20),(20 20))
+112	MULTIPOINT((1 1),(11 11),(11 21),(21 21))
+113	MULTIPOINT((3 6),(4 10))
 SELECT fid, ST_AsText(g) FROM gis_multi_line;
 fid	ST_AsText(g)
 114	MULTILINESTRING((10 48,10 21,10 0),(16 0,16 23,16 48))
@@ -122,9 +122,9 @@ fid	ST_AsText(g)
 108	POLYGON((10 10,20 10,20 20,10 20,10 10))
 109	POLYGON((0 0,50 0,50 50,0 50,0 0),(10 10,20 10,20 20,10 20,10 10))
 110	POLYGON((0 0,30 0,30 30,0 0))
-111	MULTIPOINT(0 0,10 10,10 20,20 20)
-112	MULTIPOINT(1 1,11 11,11 21,21 21)
-113	MULTIPOINT(3 6,4 10)
+111	MULTIPOINT((0 0),(10 10),(10 20),(20 20))
+112	MULTIPOINT((1 1),(11 11),(11 21),(21 21))
+113	MULTIPOINT((3 6),(4 10))
 114	MULTILINESTRING((10 48,10 21,10 0),(16 0,16 23,16 48))
 115	MULTILINESTRING((10 48,10 21,10 0))
 116	MULTILINESTRING((1 2,3 5),(2 5,5 8,21 7))
@@ -599,7 +599,7 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 CREATE TABLE `t1` (`object_id` bigint(20) unsigned NOT NULL default '0', `geo`
 geometry NOT NULL default '') ENGINE=InnoDB ;
 Warnings:
-Warning	1101	BLOB/TEXT column 'geo' can't have a default value
+Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'geo' can't have a default value
 SET sql_mode = default;
 insert into t1 values ('85984',ST_GeomFromText('MULTIPOLYGON(((-115.006363
 36.305435,-114.992394 36.305202,-114.991219 36.305975,-114.991163

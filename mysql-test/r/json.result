@@ -280,6 +280,8 @@ i	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13	c14	c15	c16	c17	c18	c19
 31	0	0	0	0	NULL	NULL	0	0	0	0	0	NULL	NULL	0	0	0	0	0	NULL
 100	0	0	0	1	NULL	NULL	0	0	0	0	0	NULL	NULL	0	0	0	0	0	NULL
 Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the IN operator'
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the IN operator'
 Warning	3156	Invalid JSON value for CAST to DOUBLE: '{"a": 2}' from j at row 2
 Warning	3156	Invalid JSON value for CAST to DOUBLE: '[1, 2]' from j at row 35
 Warning	3156	Invalid JSON value for CAST to DOUBLE: '{"a": "b", "c": "d", "ab": "abc", "bc": ["x", "y"]}' from j at row 36
@@ -10978,6 +10980,8 @@ insert into tt(j) values (cast(1 as json)), (null);
 select sum( distinct j ) from tt group by j having j in ( avg( 1 ), 1 + j);
 sum( distinct j )
 1
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the IN operator'
 SELECT JSON_ARRAY(j), COUNT(*) FROM tt GROUP BY j, i WITH ROLLUP;
 JSON_ARRAY(j)	COUNT(*)
 [null]	1
@@ -13387,3 +13391,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select json_object('c',json_extract(`test`.`t1`.`f1`,'$.b')) AS `f2` from `test`.`t1` having (json_type(json_extract(`f2`,'$.c')) <> 'NULL')
 DROP TABLE t1;
+#
+# Bug#21828321: JSON FUNCS CALL DBUG_ABORT OR EXIT() ON WINDOWS!
+#
+SELECT JSON_ARRAY(LEAST(NULL, NULL), GREATEST(NULL, NULL), LEAST(j1, NULL),
+GREATEST(NULL, j2), LEAST(j1, j2), GREATEST(j1, j2)) AS j
+FROM (SELECT CAST('1' AS JSON) AS j1, CAST('2' AS JSON) AS j2) t;
+j
+[null, null, null, null, "1", "2"]
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the LEAST and GREATEST operators'
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the LEAST and GREATEST operators'
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the LEAST and GREATEST operators'
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the LEAST and GREATEST operators'

@@ -212,7 +212,7 @@ fil_name_process(
 	further checks can ensure that a MLOG_FILE_NAME record was
 	scanned before applying any page records for the space_id. */
 
-	os_normalize_path_for_win(name);
+	os_normalize_path(name);
 	file_name_t	fname(std::string(name, len - 1), deleted);
 	std::pair<recv_spaces_t::iterator,bool> p = recv_spaces.insert(
 		std::make_pair(space_id, fname));
@@ -1958,7 +1958,7 @@ recv_recover_page_func(
 		Note: We can't skip complete recv_addr as same page may have
 		valid REDO records post truncate those needs to be applied. */
 		bool	skip_recv = false;
-		if (srv_was_tablespace_truncated(recv_addr->space)) {
+		if (srv_was_tablespace_truncated(fil_space_get(recv_addr->space))) {
 			lsn_t	init_lsn =
 				truncate_t::get_truncated_tablespace_init_lsn(
 				recv_addr->space);

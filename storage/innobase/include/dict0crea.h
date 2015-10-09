@@ -207,6 +207,60 @@ dict_create_add_foreigns_to_dictionary(
 	const dict_table_t*	table,
 	trx_t*			trx)
 	__attribute__((nonnull, warn_unused_result));
+
+/** Check whether the foreign constraint could be on a column that is
+a base column of some virtual column.
+@param[in]	col_name	column name for the column to be checked
+@param[in]	table		the table
+@return true if this column is a base column, otherwise, false */
+bool
+dict_foreign_has_col_as_base_col(
+	const char*		col_name,
+	const dict_table_t*	table);
+
+/** Check whether the foreign constraint could be on a column that is
+part of a virtual index in the table
+@param[in]	fk_col_name	FK column name for the column to be checked
+@param[in]	table		the table
+@return true if this column is indexed with other virtual columns */
+bool
+dict_foreign_has_col_in_v_index(
+	const char*		fk_col_name,
+	const dict_table_t*	table);
+
+/** Check if a foreign constraint is on columns served as based columns
+of some virtual column. This is to prevent creating SET NULL or CASCADE
+constrainst on such columns
+@param[in]	local_fk_set	set of foreign key objects, to be added to
+the dictionary tables
+@param[in]	table		table to which the foreign key objects in
+local_fk_set belong to
+@return true if yes, otherwise, false */
+bool
+dict_foreigns_has_v_base_col(
+        const dict_foreign_set& local_fk_set,
+        const dict_table_t*     table);
+
+/** Check if a virtual column could have base columns in foreign constraints,
+this is to prevent creating virtual index on such column
+@param[in]      table   table
+@param[in]      v_col_n virtual column number for the virtual column to check
+@return true if the virtual column could have base columns in constraint */
+bool
+dict_table_has_base_in_foreign(
+        const dict_table_t*     table,
+        ulint                   v_col_n);
+
+/** Check if a column is in foreign constraint with CASCADE properties or
+SET NULL
+@param[in]	table		table
+@param[in]	col_name	name for the column to be checked
+@return true if the column is in foreign constraint, otherwise, false */
+bool
+dict_foreigns_has_this_col(
+	const dict_table_t*	table,
+	const char*		col_name);
+
 /****************************************************************//**
 Creates the tablespaces and datafiles system tables inside InnoDB
 at server bootstrap or server start if they are not found or are

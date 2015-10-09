@@ -4,7 +4,12 @@
 --source include/not_embedded.inc
 --source include/not_windows.inc
 
-SELECT password_last_changed into @password from mysql.user where host='localhost';
+SELECT plugin into @plugin from mysql.user where user= 'root' and host='localhost';
+SELECT password_last_changed into @plc from mysql.user where user= 'root' and host='localhost';
+SELECT authentication_string into @auth_str from mysql.user where user= 'root' and host='localhost';
+SELECT plugin into @sys_plugin from mysql.user where user= 'mysql.sys' and host='localhost';
+SELECT password_last_changed into @sys_plc from mysql.user where user= 'mysql.sys' and host='localhost';
+SELECT authentication_string into @sys_auth_str from mysql.user where user= 'mysql.sys' and host='localhost';
 call mtr.add_suppression("Dictionary file not specified");
 SET PASSWORD for root@localhost = '';
 # The execution of mysql_secure_installation using perl which uses the
@@ -18,8 +23,8 @@ require Expect;
 my @texp;
 my $i;
 
-# Aggregating the commands which are executed post the password is input to 
-# mysql_secure_installation into a function with the values no. 
+# Aggregating the commands which are executed post the password is input to
+# mysql_secure_installation into a function with the values no.
 sub after_commands()
 {
    $texp[$i]->expect(15,' -re ',[ 'anonymous users' => sub {
@@ -39,7 +44,7 @@ sub initial_commands()
    $texp[$i]->raw_pty(1);
 }
 
-# Aggregating the commands which are executed post the password is input to 
+# Aggregating the commands which are executed post the password is input to
 # mysql_secure_installation into a function with the values yes.
 sub after_effects()
 {
@@ -78,7 +83,7 @@ $texp[$i]->expect(15,' -re ',[ 'password' => sub {
 $texp[$i]->send("1\n");}]);
 $texp[$i]->expect(15,' -re ',[ 'any other key for No' => sub {
 $texp[$i]->send("n\n");}]);
-$texp[$i]->expect(15,' -re ',[ 'Change the root password' => sub {
+$texp[$i]->expect(15,' -re ',[ 'Change the password for root' => sub {
 $texp[$i]->send("y\n");}]);
 $texp[$i]->expect(15,' -re ',[ 'New password' => sub {
 $texp[$i]->send("null\n");}]);
@@ -97,7 +102,7 @@ $texp[$i]->expect(15,' -re ',[ 'any other key for No' => sub {
 $texp[$i]->send("y\n");}]);
 $texp[$i]->expect(15,' -re ',[ 'Please enter' => sub {
 $texp[$i]->send("1\n");}]);
-$texp[$i]->expect(15,' -re ',[ 'root password' => sub {
+$texp[$i]->expect(15,' -re ',[ 'Change the password for root' => sub {
 $texp[$i]->send("y\n");}]);
 $texp[$i]->expect(15,' -re ',[ 'New password' => sub {
 $texp[$i]->send("passPASS1234!@#\n");}]);
@@ -121,9 +126,9 @@ $texp[$i]->expect(15,' -re ',[ 'Re-enter new password' => sub {
 $texp[$i]->send("secure\n");}]);
 $texp[$i]->expect(15,' -re ',[ 'Do you' => sub { $texp[$i]->send("y\n");}]);
 $texp[$i]->expect(15,' -re ',[ 'New password' => sub {
-$texp[$i]->send("secureINSTALL09)(\n");}]);
+$texp[$i]->send("secureINSTALL09#)(\n");}]);
 $texp[$i]->expect(15,' -re ',[ 'Re-enter new password' => sub {
-$texp[$i]->send("secureINSTALL09)(\n");}]);
+$texp[$i]->send("secureINSTALL09#)(\n");}]);
 $texp[$i]->expect(15,' -re ',[ 'Do you' => sub { $texp[$i]->send("y\n");}]);
 after_effects();
 $i++;
@@ -133,7 +138,7 @@ if (-e $ENV{MASTER_MYSOCK} ){
    $texp[$i]->spawn("$ENV{MYSQL_SECURE_INSTALLATION} -S $ENV{MASTER_MYSOCK } -D -p");
 }
 $texp[$i]->expect(15,' -re ',[ 'password' => sub {
-$texp[$i]->send("secureINSTALL09)(\n");}]);
+$texp[$i]->send("secureINSTALL09#)(\n");}]);
 print("Execution ".$i." was successful\n");
 $i++;
 
@@ -145,10 +150,11 @@ UNINSTALL PLUGIN validate_password;
 # Restoring the server to the state prior to this test.
 SET PASSWORD for root@localhost = '';
 CREATE DATABASE test;
-INSERT INTO mysql.user SELECT LOWER(@@hostname),'root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',@password,NULL,'N';
-REPLACE INTO mysql.user VALUES ('localhost','root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',@password,NULL,'N');
-REPLACE INTO mysql.user VALUES ('127.0.0.1','root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',@password,NULL,'N');
-REPLACE INTO mysql.user VALUES ('::1','root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',@password,NULL,'N');
+INSERT INTO mysql.user SELECT LOWER(@@hostname),'root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',NULL,NULL,'N';
+REPLACE INTO mysql.user VALUES ('localhost','root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',NULL,NULL,'N');
+REPLACE INTO mysql.user VALUES ('localhost','mysql.sys','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','','','','',0,0,0,0,'mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE','N',NULL,NULL,'Y');
 INSERT INTO mysql.db VALUES ('%','test','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y','Y');
 INSERT INTO mysql.db VALUES ('%','test\_%','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y','Y');
+UPDATE mysql.user SET password_last_changed=@plc, authentication_string=@auth_str, plugin= @plugin where user='root';
+UPDATE mysql.user SET password_last_changed=@sys_plc, authentication_string=@sys_auth_str, plugin= @sys_plugin where user='mysql.sys';
 FLUSH PRIVILEGES;

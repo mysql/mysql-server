@@ -1309,31 +1309,16 @@ dict_sys_tables_rec_read(
 
 	*flags = dict_sys_tables_type_to_tf(type, *n_cols);
 
-	/* For tables created with old versions of InnoDB, there may be
-	garbage in SYS_TABLES.MIX_LEN where flags2 are found. Such tables
-	would always be in ROW_FORMAT=REDUNDANT which do not have the
-	high bit set in n_cols, and flags would be zero. */
-	if (*flags != 0 || *n_cols & DICT_N_COLS_COMPACT) {
+	/* Get flags2 from SYS_TABLES.MIX_LEN */
+	field = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_TABLES__MIX_LEN, &len);
+	*flags2 = mach_read_from_4(field);
 
-		/* Get flags2 from SYS_TABLES.MIX_LEN */
-		field = rec_get_nth_field_old(
-			rec, DICT_FLD__SYS_TABLES__MIX_LEN, &len);
-		*flags2 = mach_read_from_4(field);
+	/* DICT_TF2_FTS will be set when indexes are being loaded */
+	*flags2 &= ~DICT_TF2_FTS;
 
-		if (!dict_tf2_is_valid(*flags, *flags2)) {
-			ib::error() << "Table " << table_name << " in InnoDB"
-				" data dictionary contains invalid flags."
-				" SYS_TABLES.MIX_LEN=" << *flags2;
-			*flags2 = ULINT_UNDEFINED;
-			return(false);
-		}
-
-		/* DICT_TF2_FTS will be set when indexes are being loaded */
-		*flags2 &= ~DICT_TF2_FTS;
-
-		/* Now that we have used this bit, unset it. */
-		*n_cols &= ~DICT_N_COLS_COMPACT;
-	}
+	/* Now that we have used this bit, unset it. */
+	*n_cols &= ~DICT_N_COLS_COMPACT;
 
 	return(true);
 }
@@ -2587,7 +2572,7 @@ dict_load_indexes(
 				dictionary cache for such metadata corruption,
 				since we would always be able to set it
 				when loading the dictionary cache */
-				ut_ad(index->table == table);
+				index->table = table;
 				dict_set_corrupted_index_cache_only(index);
 
 				ib::info() << "Index is corrupt but forcing"
@@ -3161,6 +3146,32 @@ err_exit:
 				table->corrupted = TRUE;
 			}
 		}
+	}
+
+	/* We don't trust the table->flags2(retrieved from SYS_TABLES.MIX_LEN
+	field) if the datafiles are from 3.23.52 version. To identify this
+	version, we do the below check and reset the flags. */
+	if (!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
+	    && table->space == srv_sys_space.space_id()
+	    && table->flags == 0) {
+		table->flags2 = 0;
+	}
+
+	DBUG_EXECUTE_IF("ib_table_invalid_flags",
+			if(strcmp(table->name.m_name, "test/t1") == 0) {
+				table->flags2 = 255;
+				table->flags = 255;
+			});
+
+	if (!dict_tf2_is_valid(table->flags, table->flags2)) {
+		ib::error() << "Table " << table->name << " in InnoDB"
+			" data dictionary contains invalid flags."
+			" SYS_TABLES.MIX_LEN=" << table->flags2;
+		table->flags2 &= ~(DICT_TF2_TEMPORARY|DICT_TF2_INTRINSIC);
+		dict_table_remove_from_cache(table);
+		table = NULL;
+		err = DB_FAIL;
+		goto func_exit;
 	}
 
 	/* Initialize table foreign_child value. Its value could be

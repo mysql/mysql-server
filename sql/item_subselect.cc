@@ -299,6 +299,7 @@ bool Item_in_subselect::finalize_materialization_transform(JOIN *join)
       For some reason we cannot use materialization for this IN predicate.
       Delete all materialization-related objects, and return error.
     */
+    new_engine->cleanup();
     delete new_engine;
     return true;
   }
@@ -1072,6 +1073,7 @@ Item_singlerow_subselect::select_transformer(SELECT_LEX *select)
 
   THD * const thd= unit->thd;
   Query_arena *arena= thd->stmt_arena;
+  SELECT_LEX *outer= select->outer_select();
  
   if (!unit->is_union() &&
       !select->table_list.elements &&
@@ -1110,12 +1112,11 @@ Item_singlerow_subselect::select_transformer(SELECT_LEX *select)
       Item_subselect *subs= (Item_subselect*)substitution;
       subs->unit->set_explain_marker_from(unit);
     }
-    /*
-      as far as we moved content to upper level, field which depend of
-      'upper' select is not really dependent => we remove this dependence
-    */
-    substitution->walk(&Item::remove_dependence_processor, WALK_POSTFIX,
-		       (uchar *) select->outer_select());
+    // Merge subquery's name resolution contexts into parent's
+    outer->merge_contexts(select);
+
+    // Fix query block contexts after merging the subquery
+    substitution->fix_after_pullout(outer, select);
     DBUG_RETURN(RES_REDUCE);
   }
   DBUG_RETURN(RES_OK);
@@ -1397,7 +1398,7 @@ bool Item_in_subselect::test_limit()
 Item_in_subselect::Item_in_subselect(Item * left_exp,
 				     st_select_lex *select):
   Item_exists_subselect(), left_expr(left_exp), left_expr_cache(NULL),
-  left_expr_cache_filled(false), need_expr_cache(TRUE), expr(NULL),
+  left_expr_cache_filled(false), need_expr_cache(TRUE), m_injected_left_expr(NULL),
   optimizer(NULL), was_null(FALSE), abort_on_null(FALSE),
   in2exists_info(NULL), pushed_cond_guards(NULL), upper_item(NULL)
 {
@@ -1415,7 +1416,7 @@ Item_in_subselect::Item_in_subselect(Item * left_exp,
 Item_in_subselect::Item_in_subselect(const POS &pos, Item * left_exp,
 				     PT_subselect *pt_subselect_arg)
 : super(pos), left_expr(left_exp), left_expr_cache(NULL),
-  left_expr_cache_filled(false), need_expr_cache(TRUE), expr(NULL),
+  left_expr_cache_filled(false), need_expr_cache(TRUE), m_injected_left_expr(NULL),
   optimizer(NULL), was_null(FALSE), abort_on_null(FALSE),
   in2exists_info(NULL), pushed_cond_guards(NULL), upper_item(NULL),
   pt_subselect(pt_subselect_arg)
@@ -1873,7 +1874,7 @@ Item_in_subselect::single_value_transformer(SELECT_LEX *select,
       As far as  Item_ref_in_optimizer do not substitute itself on fix_fields
       we can use same item for all selects.
     */
-    Item_ref *const left=
+    Item_direct_ref *const left=
       new Item_direct_ref(&select->context, (Item**)optimizer->get_cache(),
 			 (char *)"<no matter>", (char *)in_left_expr_name);
     if (left == NULL)
@@ -1883,7 +1884,7 @@ Item_in_subselect::single_value_transformer(SELECT_LEX *select,
     if (!left_expr->const_item())
       left->depended_from= select->outer_select();
 
-    expr= left;
+    m_injected_left_expr= left;
 
     DBUG_ASSERT(in2exists_info == NULL);
     in2exists_info= new In2exists_info;
@@ -1952,6 +1953,8 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
   THD * const thd= unit->thd;
   DBUG_ENTER("Item_in_subselect::single_value_in_to_exists_transformer");
 
+  SELECT_LEX *outer= select->outer_select();
+
   OPT_TRACE_TRANSFORM(&thd->opt_trace, oto0, oto1, select->select_number,
                       "IN (SELECT)", "EXISTS (CORRELATED SELECT)");
   oto1.add("chosen", true);
@@ -1965,7 +1968,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
       select->group_list.elements)
   {
     bool tmp;
-    Item_bool_func *item= func->create(expr,
+    Item_bool_func *item= func->create(m_injected_left_expr,
                              new Item_ref_null_helper(&select->context,
                                                       this,
                                                       &select->ref_ptrs[0],
@@ -2007,12 +2010,15 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
   }
   else
   {
+    /*
+      Grep for "WL#6570" to see the relevant comment about real_item.
+    */
     Item *orig_item= select->item_list.head()->real_item();
 
     if (select->table_list.elements || select->where_cond())
     {
       bool tmp;
-      Item_bool_func *item= func->create(expr, orig_item);
+      Item_bool_func *item= func->create(m_injected_left_expr, orig_item);
       /*
         We may soon add a 'OR inner IS NULL' to 'item', but that may later be
         removed if 'inner' is not nullable, so the in2exists mark must be on
@@ -2104,7 +2110,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
           argument (reference) to fix_fields()
 	*/
         Item_bool_func *new_having=
-          func->create(expr,
+          func->create(m_injected_left_expr,
                        new Item_ref_null_helper(&select->context, this,
                                             &select->ref_ptrs[0],
                                             (char *)"<no matter>",
@@ -2144,8 +2150,9 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
           The expression is moved to the immediately outer query block, so it
           may no longer contain outer references.
         */
-        orig_item->walk(&Item::remove_dependence_processor, WALK_POSTFIX,
-                        (uchar *) select->outer_select());
+        outer->merge_contexts(select);
+        orig_item->fix_after_pullout(outer, select);
+
         /*
           fix_field of substitution item will be done in time of
           substituting.
@@ -3837,19 +3844,19 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
   QEP_TAB_standalone *tmp_tab_st= new (thd->mem_root) QEP_TAB_standalone;
   if (tmp_tab_st == NULL)
     DBUG_RETURN(TRUE);
-  QEP_TAB *const tmp_tab= &tmp_tab_st->as_QEP_TAB();
-  tmp_tab->set_table(tmp_table);
-  tmp_tab->ref().key= 0; /* The only temp table index. */
-  tmp_tab->ref().key_length= tmp_key->key_length;
-  if (!(tmp_tab->ref().key_buff=
+  tab= &tmp_tab_st->as_QEP_TAB();
+  tab->set_table(tmp_table);
+  tab->ref().key= 0; /* The only temp table index. */
+  tab->ref().key_length= tmp_key->key_length;
+  if (!(tab->ref().key_buff=
         (uchar*) thd->mem_calloc(key_length)) ||
-      !(tmp_tab->ref().key_copy=
+      !(tab->ref().key_copy=
         (store_key**) thd->alloc((sizeof(store_key*) * tmp_key_parts))) ||
-      !(tmp_tab->ref().items=
+      !(tab->ref().items=
         (Item**) thd->alloc(sizeof(Item*) * tmp_key_parts)))
     DBUG_RETURN(TRUE);
 
-  uchar *cur_ref_buff= tmp_tab->ref().key_buff;
+  uchar *cur_ref_buff= tab->ref().key_buff;
 
   /*
     Like semijoin-materialization-lookup (see create_subquery_equalities()),
@@ -3897,11 +3904,11 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     Item_field *right_col_item;
     Field *field= tmp_table->visible_field_ptr()[part_no];
     const bool nullable= field->real_maybe_null();
-    tmp_tab->ref().items[part_no]= item_in->left_expr->element_index(part_no);
+    tab->ref().items[part_no]= item_in->left_expr->element_index(part_no);
 
     if (!(right_col_item= new Item_field(thd, context, 
                                          field)) ||
-        !(eq_cond= new Item_func_eq(tmp_tab->ref().items[part_no],
+        !(eq_cond= new Item_func_eq(tab->ref().items[part_no],
                                     right_col_item)) ||
         ((Item_cond_and*)cond)->add(eq_cond))
     {
@@ -3911,15 +3918,15 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     }
 
     if (tmp_table->hash_field)
-      tmp_tab->ref().key_copy[part_no]= 
+      tab->ref().key_copy[part_no]=
         new store_key_hash_item(thd, field,
                            cur_ref_buff,
                            0,
                            field->pack_length(),
-                           tmp_tab->ref().items[part_no],
+                           tab->ref().items[part_no],
                            &hash);
     else
-      tmp_tab->ref().key_copy[part_no]= 
+      tab->ref().key_copy[part_no]=
         new store_key_item(thd, field,
                            /* TODO:
                               the NULL byte is taken into account in
@@ -3930,7 +3937,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
                            cur_ref_buff + (nullable ? 1 : 0),
                            nullable ? cur_ref_buff : 0,
                            key_parts[part_no].length,
-                           tmp_tab->ref().items[part_no]);
+                           tab->ref().items[part_no]);
     if (nullable &&          // nullable column in tmp table,
         // and UNKNOWN should not be interpreted as FALSE
         !item_in->is_top_level_item())
@@ -3938,12 +3945,12 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
       // It must be the single column, or we wouldn't be here
       DBUG_ASSERT(tmp_key_parts == 1);
       // Be ready to search for NULL into inner column:
-      tmp_tab->ref().null_ref_key= cur_ref_buff;
+      tab->ref().null_ref_key= cur_ref_buff;
       mat_table_has_nulls= NEX_UNKNOWN;
     }
     else
     {
-      tmp_tab->ref().null_ref_key= NULL;
+      tab->ref().null_ref_key= NULL;
       mat_table_has_nulls= NEX_IRRELEVANT_OR_FALSE;
     }
 
@@ -3952,14 +3959,11 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     else
       cur_ref_buff+= key_parts[part_no].store_length;
   }
-  tmp_tab->ref().key_err= 1;
-  tmp_tab->ref().key_parts= tmp_key_parts;
+  tab->ref().key_err= 1;
+  tab->ref().key_parts= tmp_key_parts;
 
   if (cond->fix_fields(thd, &cond))
     DBUG_RETURN(TRUE);
-
-  // Set 'tab' only when function cannot fail, because of assert in destructor
-  tab= tmp_tab;
 
   /*
     Create and optimize the JOIN that will be used to materialize

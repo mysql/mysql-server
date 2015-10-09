@@ -45,36 +45,6 @@ struct innodb_idx_translate_t {
 					array index */
 };
 
-
-/** Structure defines template related to virtual columns and
-their base columns */
-struct innodb_col_templ_t {
-	/** number of regular columns */
-	ulint			n_col;
-
-	/** number of virtual columns */
-	ulint			n_v_col;
-
-	/** array of templates for virtual col and their base columns */
-	mysql_row_templ_t**	vtempl;
-
-	/** table's database name */
-	char			db_name[MAX_DATABASE_NAME_LEN];
-
-	/** table name */
-	char			tb_name[MAX_TABLE_NAME_LEN];
-
-	/** share->table_name */
-	char			share_name[MAX_DATABASE_NAME_LEN
-					   + MAX_TABLE_NAME_LEN];
-
-	/** MySQL record length */
-	ulint			rec_len;
-
-	/** default column value if any */
-	const byte*		default_rec;
-};
-
 /** InnoDB table share */
 typedef struct st_innobase_share {
 	const char*	table_name;	/*!< InnoDB table name */
@@ -87,9 +57,6 @@ typedef struct st_innobase_share {
 	innodb_idx_translate_t
 			idx_trans_tbl;	/*!< index translation table between
 					MySQL and InnoDB */
-	innodb_col_templ_t
-			s_templ;	/*!< table virtual column template
-					info */
 } INNOBASE_SHARE;
 
 /** Prebuilt structures in an InnoDB table handle used within MySQL */
@@ -1062,27 +1029,10 @@ void
 innobase_build_v_templ(
 	const TABLE*		table,
 	const dict_table_t*	ib_table,
-	innodb_col_templ_t*	s_templ,
+	dict_vcol_templ_t*	s_templ,
 	const dict_add_v_col_t*	add_v,
 	bool			locked,
 	const char*		share_tbl_name);
-
-/** Free a virtual template in INNOBASE_SHARE structure
-@param[in,out]  share   table share holds the template to free */
-void
-free_share_vtemp(
-	INNOBASE_SHARE* share);
-
-/** Refresh template for the virtual columns and their base columns if
-the share structure exists
-@param[in]	table		MySQL TABLE
-@param[in]	ib_table	InnoDB dict_table_t
-@param[in]	table_name	table_name used to find the share structure */
-void
-refresh_share_vtempl(
-	const TABLE*		mysql_table,
-	const dict_table_t*	ib_table,
-	const char*	table_name);
 
 /** callback used by MySQL server layer to initialized
 the table virtual columns' template
@@ -1102,9 +1052,3 @@ typedef void (*my_gcolumn_templatecallback_t)(const TABLE*, void*);
 void
 innobase_init_vc_templ(
         dict_table_t*   table);
-
-/** Free the virtual column template
-@param[in,out]  vc_templ        virtual column template */
-void
-free_vc_templ(
-	innodb_col_templ_t*	vc_templ);

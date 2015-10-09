@@ -1399,6 +1399,9 @@ public:
   void reset_nj_counters(List<TABLE_LIST> *join_list= NULL);
   bool check_only_full_group_by(THD *thd);
 
+  /// Merge name resolution context objects of a subquery into its parent
+  void merge_contexts(SELECT_LEX *inner);
+
   /**
     Returns which subquery execution strategies can be used for this query block.
 
@@ -3083,7 +3086,45 @@ public:
   List<Item_func_set_user_var> set_var_list; // in-query assignment list
   List<Item_param>    param_list;
   List<LEX_STRING>    view_list; // view list (list of field names in view)
-  std::map<Field *,Field *> insert_update_values_map;
+
+  void insert_values_map(Field *f1, Field *f2)
+  {
+    if (!insert_update_values_map)
+      insert_update_values_map= new std::map<Field*, Field*>;
+    insert_update_values_map->insert(std::make_pair(f1, f2));
+  }
+  void clear_values_map()
+  {
+    if (insert_update_values_map)
+    {
+      insert_update_values_map->clear();
+      delete insert_update_values_map;
+      insert_update_values_map= NULL;
+    }
+  }
+  bool has_values_map() const
+  {
+    return insert_update_values_map != NULL;
+  }
+  std::map<Field *, Field *>::iterator begin_values_map()
+  {
+    return insert_update_values_map->begin();
+  }
+  std::map<Field *, Field *>::iterator end_values_map()
+  {
+    return insert_update_values_map->end();
+  }
+
+private:
+  /*
+    With Visual Studio, an std::map will always allocate two small objects
+    on the heap. Sometimes we put LEX objects in a MEM_ROOT, and never run
+    the LEX DTOR. To avoid memory leaks, put this std::map on the heap,
+    and call clear_values_map() in lex_end()
+   */
+  std::map<Field *,Field *> *insert_update_values_map;
+public:
+
   /*
     A stack of name resolution contexts for the query. This stack is used
     at parse time to set local name resolution contexts for various parts

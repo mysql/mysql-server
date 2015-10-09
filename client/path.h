@@ -36,7 +36,7 @@ public:
 
   Path(const Path &p);
 
-  bool getcwd();
+  bool path_getcwd();
 
   void trim();
 

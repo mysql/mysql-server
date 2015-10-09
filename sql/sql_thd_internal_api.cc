@@ -19,7 +19,7 @@
 #include "sql_class.h"            // THD
 
 
-int thd_init(THD *thd, char *stack_start)
+int thd_init(THD *thd, char *stack_start, bool bound, PSI_thread_key psi_key)
 {
   DBUG_ENTER("thd_new_connection_setup");
   thd->set_time();
@@ -36,14 +36,13 @@ int thd_init(THD *thd, char *stack_start)
     thd_manager->add_thd(thd);
   }
 #ifdef HAVE_PSI_INTERFACE
-  PSI_thread_key key_thread;
-  if (thd->system_thread == SYSTEM_THREAD_BACKGROUND)
-    key_thread= key_thread_background;
-  else
-    key_thread= key_thread_one_connection;
-  thd_set_psi(thd,
-              PSI_THREAD_CALL(new_thread)
-              (key_thread, thd, thd->thread_id()));
+  PSI_thread *psi;
+  psi= PSI_THREAD_CALL(new_thread)(psi_key, thd, thd->thread_id());
+  if (bound)
+  {
+    PSI_THREAD_CALL(set_thread_os_id)(psi);
+  }
+  thd_set_psi(thd, psi);
 #endif
 
   if (!thd->system_thread)
@@ -59,12 +58,12 @@ int thd_init(THD *thd, char *stack_start)
 }
 
 
-THD *create_thd(bool enable_plugins, bool background_thread)
+THD *create_thd(bool enable_plugins, bool background_thread, bool bound, PSI_thread_key psi_key)
 {
   THD *thd= new THD(enable_plugins);
   if (background_thread)
     thd->system_thread= SYSTEM_THREAD_BACKGROUND;
-  (void)thd_init(thd, reinterpret_cast<char*>(&thd));
+  (void)thd_init(thd, reinterpret_cast<char*>(&thd), bound, psi_key);
   return thd;
 }
 

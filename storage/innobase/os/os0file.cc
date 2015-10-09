@@ -1925,7 +1925,7 @@ os_file_compress_page(
 
 	ulint	n_alloc = *n * 2;
 
-	ut_a(n_alloc < UNIV_PAGE_SIZE_MAX * 2);
+	ut_a(n_alloc <= UNIV_PAGE_SIZE_MAX * 2);
 	ut_a(type.compression_algorithm().m_type != Compression::LZ4
 	     || static_cast<ulint>(LZ4_COMPRESSBOUND(*n)) < n_alloc);
 
@@ -2675,7 +2675,7 @@ AIO::is_linux_native_aio_supported()
 		}
 	} else {
 
-		os_normalize_path_for_win(srv_log_group_home_dir);
+		os_normalize_path(srv_log_group_home_dir);
 
 		ulint	dirnamelen = strlen(srv_log_group_home_dir);
 

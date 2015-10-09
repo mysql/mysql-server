@@ -610,6 +610,28 @@ INSERT INTO t (a) VALUES (9);
 UPDATE t SET a = 10;
 DELETE FROM t WHERE a = 10;
 DROP TABLE t;
+# Bug#21807818: Generated columns not updated with empty insert list
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+CREATE TABLE t (
+a BLOB GENERATED ALWAYS AS ('') VIRTUAL,
+b TIMESTAMP(4) GENERATED ALWAYS AS ('') VIRTUAL NOT NULL,
+KEY (a(183),b)
+);
+INSERT INTO t VALUES(), (), ();
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+Warning	1265	Data truncated for column 'b' at row 2
+Warning	1265	Data truncated for column 'b' at row 3
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect datetime value: '' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '' for column 'b' at row 1
+DROP TABLE t;
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
 DROP PROCEDURE IF EXISTS p1;

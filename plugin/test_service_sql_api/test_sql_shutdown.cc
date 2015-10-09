@@ -649,16 +649,15 @@ static void test_sql(void *p)
     }
 
     while (!srv_session_server_is_available())
-      my_sleep(10000);
+      my_sleep(500);
     plugin_init_cycle= SECOND_INIT;
   }
 
   WRITE_SEP();
-
   if (plugin_init_cycle == FIRST_INIT)
   {
     while (srv_session_server_is_available())
-      my_sleep(10000);
+      my_sleep(500);
 
     WRITE_STR("Apparently the server is shutting down\n");
   }

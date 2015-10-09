@@ -3352,8 +3352,8 @@ void Item_func_make_set::update_used_tables()
   item->update_used_tables();
   used_tables_cache|=item->used_tables();
   const_item_cache&=item->const_item();
-  with_subselect= item->has_subquery();
-  with_stored_program= item->has_stored_program();
+  with_subselect|= item->has_subquery();
+  with_stored_program|= item->has_stored_program();
 }
 
 
@@ -4038,7 +4038,8 @@ void Item_func_set_collation::fix_length_and_dec()
   }
 
   if (!set_collation || 
-      !my_charset_same(args[0]->collation.collation,set_collation))
+      (!my_charset_same(args[0]->collation.collation,set_collation) &&
+      args[0]->collation.derivation != DERIVATION_NUMERIC))
   {
     my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0),
              colname, args[0]->collation.collation->csname);

@@ -74,7 +74,7 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ALTER_REBUILD
 	| Alter_inplace_info::ALTER_COLUMN_NOT_NULLABLE
 	| Alter_inplace_info::ALTER_STORED_COLUMN_ORDER
 	| Alter_inplace_info::DROP_STORED_COLUMN
-	| Alter_inplace_info::ADD_STORED_COLUMN
+	| Alter_inplace_info::ADD_STORED_BASE_COLUMN
 	| Alter_inplace_info::RECREATE_TABLE
 	/*
 	| Alter_inplace_info::ALTER_STORED_COLUMN_TYPE
@@ -90,6 +90,7 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INPLACE_IGNORE
 	= Alter_inplace_info::ALTER_COLUMN_DEFAULT
 	| Alter_inplace_info::ALTER_COLUMN_COLUMN_FORMAT
 	| Alter_inplace_info::ALTER_COLUMN_STORAGE_TYPE
+	| Alter_inplace_info::ALTER_VIRTUAL_GCOL_EXPR
 	| Alter_inplace_info::ALTER_RENAME;
 
 /** Operations on foreign key definitions (changing the schema only) */
@@ -603,9 +604,10 @@ ha_innobase::check_if_supported_inplace_alter(
 		flags &= ~(Alter_inplace_info::ADD_VIRTUAL_COLUMN
 			   | Alter_inplace_info::DROP_VIRTUAL_COLUMN
 			   | Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER
+			   | Alter_inplace_info::ALTER_VIRTUAL_GCOL_EXPR
 			   /*
 			   | Alter_inplace_info::ALTER_STORED_COLUMN_ORDER
-			   | Alter_inplace_info::ADD_STORED_COLUMN
+			   | Alter_inplace_info::ADD_STORED_BASE_COLUMN
 			   | Alter_inplace_info::DROP_STORED_COLUMN
 			   | Alter_inplace_info::ALTER_STORED_COLUMN_ORDER
 			   | Alter_inplace_info::ADD_UNIQUE_INDEX
@@ -948,6 +950,41 @@ innobase_check_fk_option(
 				/* It is not sensible to define
 				SET NULL if the column is not
 				allowed to be NULL! */
+				return(false);
+			}
+		}
+	}
+
+	return(true);
+}
+
+/** Check whether the foreign key options is legit
+@param[in]	foreign		foreign key
+@return true if it is */
+static __attribute__((warn_unused_result))
+bool
+innobase_check_v_base_col(
+	const dict_foreign_t*	foreign)
+{
+	ulint	type = foreign->type;
+
+	type &= ~(DICT_FOREIGN_ON_DELETE_NO_ACTION
+		  | DICT_FOREIGN_ON_UPDATE_NO_ACTION);
+
+
+	if (type != 0) {
+
+		for (ulint i = 0; i < foreign->n_fields; i++) {
+			if (dict_foreign_has_col_as_base_col(
+				    foreign->foreign_col_names[i],
+				    foreign->foreign_table)) {
+				return(false);
+			}
+
+			/* Check if the fk column is in any virtual index */
+			if (dict_foreign_has_col_in_v_index(
+				foreign->foreign_col_names[i],
+				foreign->foreign_table)) {
 				return(false);
 			}
 		}
@@ -1344,6 +1381,11 @@ innobase_get_foreign_key_info(
 				 MYF(0),
 				 table_share->table_name.str,
 				 add_fk[num_fk]->id);
+			goto err_exit;
+		}
+
+		if (!innobase_check_v_base_col(add_fk[num_fk])) {
+			my_error(ER_CANNOT_ADD_FOREIGN_BASE_COL_VIRTUAL, MYF(0));
 			goto err_exit;
 		}
 
@@ -3391,6 +3433,8 @@ prepare_inplace_add_virtual(
 		ctx->add_vcol[j].v_pos = ctx->old_table->n_v_cols
 					 - ctx->num_to_drop_vcol + j;
 
+		/* No need to track the list */
+		ctx->add_vcol[j].v_indexes = NULL;
 		innodb_base_col_setup(ctx->old_table, field, &ctx->add_vcol[j]);
 		j++;
 	}
@@ -4189,8 +4233,9 @@ prepare_inplace_alter_table_dict(
 		/* Use the old tablespace unless the tablespace
 		is changing. */
 		if (DICT_TF_HAS_SHARED_SPACE(user_table->flags)
-		    && (0 == strcmp(ha_alter_info->create_info->tablespace,
-				    user_table->tablespace))) {
+		    && (ha_alter_info->create_info->tablespace == NULL
+			|| (0 == strcmp(ha_alter_info->create_info->tablespace,
+				    user_table->tablespace)))) {
 			space_id = user_table->space;
 		} else if (tablespace_is_shared_space(
 				ha_alter_info->create_info)) {
@@ -5669,7 +5714,7 @@ err_exit:
 				|| (ha_alter_info->handler_flags
 				    & (Alter_inplace_info::ALTER_STORED_COLUMN_ORDER
 				       | Alter_inplace_info::DROP_STORED_COLUMN
-				       | Alter_inplace_info::ADD_STORED_COLUMN)));
+				       | Alter_inplace_info::ADD_STORED_BASE_COLUMN)));
 		}
 	}
 
@@ -5759,8 +5804,8 @@ ha_innobase::inplace_alter_table(
 {
 	dberr_t			error;
 	dict_add_v_col_t*	add_v = NULL;
-	innodb_col_templ_t*	s_templ = NULL;
-	innodb_col_templ_t*	old_templ = NULL;
+	dict_vcol_templ_t*	s_templ = NULL;
+	dict_vcol_templ_t*	old_templ = NULL;
 
 
 	DBUG_ENTER("inplace_alter_table");
@@ -5811,9 +5856,8 @@ ok_exit:
 	table, which indicates the virtual columns and their base columns
 	info. This is used to do the computation callback, so that the
 	data in base columns can be extracted send to server */
-	if (ctx->need_rebuild() && ctx->new_table->n_v_cols) {
-		s_templ = static_cast<innodb_col_templ_t*>(
-			mem_heap_alloc(ctx->heap, sizeof *s_templ));
+	if (ctx->need_rebuild() && ctx->new_table->n_v_cols > 0) {
+		s_templ = UT_NEW_NOKEY(dict_vcol_templ_t());
 		s_templ->vtempl = NULL;
 
 		innobase_build_v_templ(
@@ -5821,10 +5865,9 @@ ok_exit:
 			NULL, false, NULL);
 
 		ctx->new_table->vc_templ = s_templ;
-	} else if (ctx->num_to_add_vcol) {
+	} else if (ctx->num_to_add_vcol > 0) {
 		ut_ad(!ctx->online);
-		s_templ = static_cast<innodb_col_templ_t*>(
-				mem_heap_alloc(ctx->heap, sizeof *s_templ));
+		s_templ = UT_NEW_NOKEY(dict_vcol_templ_t());
 
 		add_v = static_cast<dict_add_v_col_t*>(
 			mem_heap_alloc(ctx->heap, sizeof *add_v));
@@ -5856,12 +5899,11 @@ ok_exit:
 		ctx->m_stage, add_v);
 
 	if (s_templ) {
-		ut_ad(ctx->need_rebuild() || ctx->new_table->n_v_cols);
-		free_vc_templ(s_templ);
+		ut_ad(ctx->need_rebuild() || ctx->num_to_add_vcol > 0);
+		dict_free_vc_templ(s_templ);
+		UT_DELETE(s_templ);
 
-		if (old_templ) {
-			ctx->new_table->vc_templ = old_templ;
-		}
+		ctx->new_table->vc_templ = old_templ;
 	}
 
 #ifndef DBUG_OFF
@@ -5967,6 +6009,50 @@ innobase_online_rebuild_log_free(
 	rw_lock_x_unlock(&clust_index->lock);
 }
 
+/** For each column, which is part of an index which is not going to be
+dropped, it checks if the column number of the column is same as col_no
+argument passed.
+@param[in]	table	table object
+@param[in]	col_no	column number of the column which is to be checked
+@param[in]	is_v	if this is a virtual column
+@retval true column exists
+@retval false column does not exist. */
+static
+bool
+check_col_exists_in_indexes(
+	const dict_table_t*	table,
+	ulint			col_no,
+	bool			is_v)
+{
+	for (dict_index_t* index = dict_table_get_first_index(table); index;
+	     index = dict_table_get_next_index(index)) {
+
+		if (index->to_be_dropped) {
+			continue;
+		}
+
+		for (ulint i = 0; i < index->n_user_defined_cols; i++) {
+			const dict_col_t* idx_col
+				= dict_index_get_nth_col(index, i);
+
+			if (is_v && dict_col_is_virtual(idx_col)) {
+				const dict_v_col_t*   v_col = reinterpret_cast<
+					const dict_v_col_t*>(idx_col);
+				if (v_col->v_pos == col_no) {
+					return(true);
+				}
+			}
+
+			if (!is_v && !dict_col_is_virtual(idx_col)
+			    && dict_col_get_no(idx_col) == col_no) {
+				return(true);
+			}
+		}
+	}
+
+	return(false);
+}
+
 /** Rollback a secondary index creation, drop the indexes with
 temparary index prefix
 @param user_table InnoDB table
@@ -5992,6 +6078,21 @@ innobase_rollback_sec_index(
 				     DICT_TF2_FTS_HAS_DOC_ID)
 	    && !innobase_fulltext_exist(table)) {
 		fts_free(user_table);
+	}
+
+	/* Reset dict_col_t::ord_part for those columns fail to be indexed,
+	we do this by checking every existing column, if any current
+	index would index them */
+	for (ulint i = 0; i < dict_table_get_n_cols(user_table); i++) {
+		if (!check_col_exists_in_indexes(user_table, i, false)) {
+			user_table->cols[i].ord_part = 0;
+		}
+	}
+
+	for (ulint i = 0; i < dict_table_get_n_v_cols(user_table); i++) {
+		if (!check_col_exists_in_indexes(user_table, i, true)) {
+			user_table->v_cols[i].m_col.ord_part = 0;
+		}
 	}
 }
 
@@ -7108,6 +7209,46 @@ commit_cache_rebuild(
 	DBUG_VOID_RETURN;
 }
 
+/** Set of column numbers */
+typedef std::set<ulint, std::less<ulint>, ut_allocator<ulint> >	col_set;
+
+/** Store the column number of the columns in a list belonging
+to indexes which are not being dropped.
+@param[in]	ctx		In-place ALTER TABLE context
+@param[in, out]	drop_col_list	list which will be set, containing columns
+				which is part of index being dropped
+@param[in, out]	drop_v_col_list	list which will be set, containing
+				virtual columns which is part of index
+				being dropped */
+static
+void
+get_col_list_to_be_dropped(
+	const ha_innobase_inplace_ctx*	ctx,
+	col_set&			drop_col_list,
+	col_set&			drop_v_col_list)
+{
+	for (ulint index_count = 0; index_count < ctx->num_to_drop_index;
+	     index_count++) {
+		const dict_index_t*	index = ctx->drop_index[index_count];
+
+		for (ulint col = 0; col < index->n_user_defined_cols; col++) {
+			const dict_col_t*	idx_col
+				= dict_index_get_nth_col(index, col);
+
+			if (dict_col_is_virtual(idx_col)) {
+				const dict_v_col_t*	v_col
+					= reinterpret_cast<
+						const dict_v_col_t*>(idx_col);
+				drop_v_col_list.insert(v_col->v_pos);
+
+			} else {
+				ulint	col_no = dict_col_get_no(idx_col);
+				drop_col_list.insert(col_no);
+			}
+		}
+	}
+}
+
 /** Commit the changes made during prepare_inplace_alter_table()
 and inplace_alter_table() inside the data dictionary tables,
 when not rebuilding the table.
@@ -7282,6 +7423,30 @@ commit_cache_norebuild(
 	bool	found = true;
 
 	DBUG_ASSERT(!ctx->need_rebuild());
+
+	col_set			drop_list;
+	col_set			v_drop_list;
+	col_set::const_iterator col_it;
+
+	/* Check if the column, part of an index to be dropped is part of any
+	other index which is not being dropped. If it so, then set the ord_part
+	of the column to 0. */
+	get_col_list_to_be_dropped(ctx, drop_list, v_drop_list);
+
+	for (col_it = drop_list.begin(); col_it != drop_list.end(); ++col_it) {
+		if (!check_col_exists_in_indexes(ctx->new_table,
+						 *col_it, false)) {
+			ctx->new_table->cols[*col_it].ord_part = 0;
+		}
+	}
+
+	for (col_it = v_drop_list.begin();
+	     col_it != v_drop_list.end(); ++col_it) {
+		if (!check_col_exists_in_indexes(ctx->new_table,
+						 *col_it, true)) {
+			ctx->new_table->v_cols[*col_it].m_col.ord_part = 0;
+		}
+	}
 
 	for (ulint i = 0; i < ctx->num_to_add_index; i++) {
 		dict_index_t*	index = ctx->add_index[i];
@@ -8102,12 +8267,6 @@ foreign_fail:
 
 			row_prebuilt_free(ctx->prebuilt, TRUE);
 
-			if (ctx->new_table->n_v_cols
-			    && ctx->old_table->vc_templ) {
-				refresh_share_vtempl(
-					altered_table, ctx->new_table,
-					ctx->old_table->vc_templ->share_name);
-			}
 			/* Drop the copy of the old table, which was
 			renamed to ctx->tmp_name at the atomic DDL
 			transaction commit.  If the system crashes

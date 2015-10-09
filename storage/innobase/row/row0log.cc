@@ -808,7 +808,7 @@ row_log_table_low_redundant(
 
 		if (o_ventry) {
 			mrec_size += rec_get_converted_size_temp(
-				index, NULL, 0, ventry, &v_extra);
+				index, NULL, 0, o_ventry, &v_extra);
 		}
 	} else if (index->table->n_v_cols) {
 		mrec_size += 2;
@@ -955,7 +955,7 @@ row_log_table_low(
 
 		if (o_ventry) {
 			mrec_size += rec_get_converted_size_temp(
-				index, NULL, 0, ventry, &v_extra);
+				index, NULL, 0, o_ventry, &v_extra);
 		}
 	} else if (index->table->n_v_cols) {
 		/* Always leave 2 bytes length marker for virtual column
@@ -1613,6 +1613,7 @@ row_log_table_apply_insert_low(
 	dtuple_t*	entry;
 	const row_log_t*log	= dup->index->online_log;
 	dict_index_t*	index	= dict_table_get_first_index(log->table);
+	ulint		n_index = 0;
 
 	ut_ad(dtuple_validate(row));
 	ut_ad(trx_id);
@@ -1658,6 +1659,12 @@ row_log_table_apply_insert_low(
 			flags, BTR_MODIFY_TREE,
 			index, offsets_heap, heap, entry, trx_id, thr,
 			false);
+
+		/* Report correct index name for duplicate key error. */
+		if (error == DB_DUPLICATE_KEY) {
+			thr_get_trx(thr)->error_key_num = n_index;
+		}
+
 	} while (error == DB_SUCCESS);
 
 	return(error);
@@ -1987,6 +1994,7 @@ row_log_table_apply_update(
 	mtr_t		mtr;
 	btr_pcur_t	pcur;
 	dberr_t		error;
+	ulint		n_index = 0;
 
 	ut_ad(dtuple_get_n_fields_cmp(old_pk)
 	      == dict_index_get_n_unique(index));
@@ -2307,6 +2315,11 @@ func_exit_committed:
 			| BTR_NO_UNDO_LOG_FLAG | BTR_KEEP_SYS_FLAG,
 			BTR_MODIFY_TREE, index, offsets_heap, heap,
 			entry, trx_id, thr, false);
+
+		/* Report correct index name for duplicate key error. */
+		if (error == DB_DUPLICATE_KEY) {
+			thr_get_trx(thr)->error_key_num = n_index;
+		}
 
 		mtr_start(&mtr);
 		mtr.set_named_space(index->space);

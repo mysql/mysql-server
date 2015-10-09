@@ -28,7 +28,8 @@ class PT_item_list;
 
 extern void reject_geometry_args(uint arg_count, Item **args,
                                  Item_result_field *me);
-
+void unsupported_json_comparison(size_t arg_count, Item **args,
+                                 const char *msg);
 
 class Item_func :public Item_result_field
 {
@@ -451,6 +452,12 @@ public:
     return functype() == *(Functype *) arg;
   }
   virtual Item *gc_subst_transformer(uchar *arg);
+
+  /**
+    Does essentially the same as THD::change_item_tree, plus
+    maintains any necessary any invariants.
+  */
+  virtual void replace_argument(THD *thd, Item **oldpp, Item *newp);
 
 protected:
   /**

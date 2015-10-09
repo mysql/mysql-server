@@ -1,5 +1,4 @@
-/* Copyright (c) 2000, 2002-2007 MySQL AB
-   Use is subject to license terms
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -111,8 +110,7 @@ static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
   for (i=found=max_links=seek=0 ; i < records ; i++)
   {
     hash_info=hp_find_hash(&keydef->block,i);
-    if (hp_mask(hp_rec_hashnr(keydef, hash_info->ptr_to_rec),
-		blength,records) == i)
+    if (hp_mask(hash_info->hash, blength,records) == i)
     {
       found++;
       seek++;
@@ -120,9 +118,7 @@ static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
       while ((hash_info=hash_info->next_key) && found < records + 1)
       {
 	seek+= ++links;
-	if ((rec_link = hp_mask(hp_rec_hashnr(keydef, hash_info->ptr_to_rec),
-			        blength, records))
-	    != i)
+	if (i != (rec_link= hp_mask(hash_info->hash, blength, records)))
 	{
 	  DBUG_PRINT("error",
                      ("Record in wrong link: Link %lu  Record: 0x%lx  Record-link %lu",

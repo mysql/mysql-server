@@ -157,6 +157,34 @@ dfield_set_ext(
 	field->ext = 1;
 }
 
+/** Gets spatial status for "external storage"
+@param[in,out]	field		field */
+UNIV_INLINE
+spatial_status_t
+dfield_get_spatial_status(
+	const dfield_t*	field)
+{
+	ut_ad(field);
+	ut_ad(dfield_is_ext(field));
+
+	return(static_cast<spatial_status_t>(field->spatial_status));
+}
+
+/** Sets spatial status for "external storage"
+@param[in,out]	field		field
+@param[in]	spatial_status	spatial status */
+UNIV_INLINE
+void
+dfield_set_spatial_status(
+	dfield_t*		field,
+	spatial_status_t	spatial_status)
+{
+	ut_ad(field);
+	ut_ad(dfield_is_ext(field));
+
+	field->spatial_status = spatial_status;
+}
+
 /*********************************************************************//**
 Sets pointer to the data and length in a field. */
 UNIV_INLINE
@@ -227,6 +255,7 @@ dfield_copy_data(
 	field1->data = field2->data;
 	field1->len = field2->len;
 	field1->ext = field2->ext;
+	field1->spatial_status = field2->spatial_status;
 }
 
 /*********************************************************************//**

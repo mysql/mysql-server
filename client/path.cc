@@ -39,7 +39,7 @@ Path::Path(const Path &p)
   m_path= p.m_path;
 }
 
-bool Path::getcwd()
+bool Path::path_getcwd()
 {
   char path[FN_REFLEN];
   if (my_getwd(path, FN_REFLEN-1, MYF(MY_WME)))

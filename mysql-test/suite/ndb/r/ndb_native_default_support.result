@@ -1531,7 +1531,7 @@ f02 varchar(255) NOT NULL DEFAULT '',
 f03 text NOT NULL DEFAULT '',
 PRIMARY KEY (fid)
 ) engine=ndb;
-ERROR 42000: BLOB/TEXT column 'f03' can't have a default value
+ERROR 42000: BLOB, TEXT, GEOMETRY or JSON column 'f03' can't have a default value
 set sql_mode=@save_sql_mode;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.

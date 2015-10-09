@@ -234,6 +234,7 @@ typedef struct st_order {
   Field  *field;                        /* If tmp-table group */
   char   *buff;                         /* If tmp-table group */
   table_map used, depend_map;
+  bool is_position;  /* An item expresses a position in a ORDER clause */
 } ORDER;
 
 /**
@@ -1426,10 +1427,8 @@ public:
   /**
     Clean any state in items associated with generated columns to be ready for
     the next statement.
-   
-    @param[in] thd    the current thread
   */
-  void cleanup_gc_items(THD *thd);
+  void cleanup_gc_items();
 };
 
 
@@ -1707,7 +1706,8 @@ struct TABLE_LIST
                              const char *table_name_arg,
                              size_t table_name_length_arg,
                              const char *alias_arg,
-                             enum thr_lock_type lock_type_arg)
+                             enum thr_lock_type lock_type_arg,
+                             enum enum_mdl_type mdl_type_arg)
   {
     memset(this, 0, sizeof(*this));
     m_map= 1;
@@ -1719,11 +1719,24 @@ struct TABLE_LIST
     lock_type= lock_type_arg;
     MDL_REQUEST_INIT(&mdl_request,
                      MDL_key::TABLE, db, table_name,
-                     mdl_type_for_dml(lock_type),
+                     mdl_type_arg,
                      MDL_TRANSACTION);
     callback_func= 0;
     opt_hints_table= NULL;
     opt_hints_qb= NULL;
+  }
+
+  inline void init_one_table(const char *db_name_arg,
+                             size_t db_length_arg,
+                             const char *table_name_arg,
+                             size_t table_name_length_arg,
+                             const char *alias_arg,
+                             enum thr_lock_type lock_type_arg)
+  {
+    init_one_table(db_name_arg, db_length_arg,
+                   table_name_arg, table_name_length_arg,
+                   alias_arg, lock_type_arg,
+                   mdl_type_for_dml(lock_type_arg));
   }
 
   /// Create a TABLE_LIST object representing a nested join

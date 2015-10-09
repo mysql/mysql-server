@@ -1,5 +1,3 @@
-set global innodb_support_xa=default;
-set session innodb_support_xa=default;
 set global innodb_large_prefix=off;
 Warnings:
 Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html

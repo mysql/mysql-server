@@ -8,7 +8,7 @@ Build-Depends: bison,
  cmake,
  debhelper (>= 9.0.0), dh-apparmor,
  fakeroot,
- libaio-dev[linux-any], libmecab-dev, libncurses5-dev (>= 5.0-6), lsb-release,
+ libaio-dev[linux-any], libmecab-dev, libncurses5-dev (>= 5.0-6), libnuma-dev, lsb-release,
  perl, po-debconf, psmisc,
  zlib1g-dev (>= 1:1.1.3-5)
 

@@ -1338,3 +1338,22 @@ st_buffer(point(-5,0),8772,st_buffer_strategy('point_circle',8*1024));
 
 --echo # Clean up
 DROP TABLE gis_geometrycollection;
+
+--echo #
+--echo # Bug #21841051 PREPARE STATEMENT RETURNS DIFFERENT NUMBER OF ROWS WHEN
+--echo # EXECUTED SECOND TIME
+--echo #
+
+CREATE TABLE t1 (id INT, a VARCHAR(20));
+INSERT INTO t1 VALUES (2, 'point_square');
+CREATE TABLE t2 (id INT);
+INSERT INTO t2 VALUES (1), (3);
+
+PREPARE stmt FROM 'SELECT COUNT(*) FROM (SELECT ST_Buffer_Strategy(a) AS a1
+FROM t1 RIGHT OUTER JOIN t2 ON (t1.id > t2.id) GROUP BY a1) AS a2';
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1, t2;

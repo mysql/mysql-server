@@ -2862,9 +2862,17 @@ int Partition_helper::ph_read_range_first(const key_range *start_key,
                                        bool eq_range_arg,
                                        bool sorted)
 {
-  int error;
+  int error= HA_ERR_END_OF_FILE;
   bool have_start_key= (start_key != NULL);
+  uint part_id= m_part_info->get_first_used_partition();
   DBUG_ENTER("Partition_helper::ph_read_range_first");
+
+  if (part_id == MY_BIT_NONE)
+  {
+    /* No partition to scan. */
+    m_table->status= STATUS_NOT_FOUND;
+    DBUG_RETURN(error);
+  }
 
   m_ordered= sorted;
   set_eq_range(eq_range_arg);

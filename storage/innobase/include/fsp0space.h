@@ -100,7 +100,7 @@ public:
 		m_path = mem_strdupl(path, len);
 		ut_ad(m_path != NULL);
 
-		os_normalize_path_for_win(m_path);
+		os_normalize_path(m_path);
 	}
 
 	/** Set tablespace path and filename members.

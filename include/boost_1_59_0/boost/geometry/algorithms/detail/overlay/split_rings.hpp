@@ -30,6 +30,7 @@
 #include <boost/geometry/algorithms/detail/signed_size_type.hpp>
 
 #include <boost/geometry/algorithms/detail/overlay/get_turn_info.hpp>
+#include <boost/geometry/algorithms/detail/overlay/inconsistent_turns_exception.hpp>
 #include <boost/geometry/algorithms/detail/overlay/overlay_type.hpp>
 #include <boost/geometry/algorithms/detail/overlay/self_turn_points.hpp>
 #include <boost/geometry/algorithms/detail/overlay/turn_info.hpp>
@@ -209,25 +210,38 @@ class split_ring<overlay_union, Ring, RobustPolicy>
             ;
     }
 
-    template <typename MUU_Turn>
-    struct muu_turn_less
+    template <typename MAA_Turn>
+    struct maa_turn_less
     {
-        bool operator()(MUU_Turn const& t1, MUU_Turn const& t2) const
+        bool operator()(MAA_Turn const& t1, MAA_Turn const& t2) const
         {
+#if ! defined(BOOST_GEOMETRY_OVERLAY_NO_THROW)
+            if (t1.method != method_touch_interior
+                ||
+                (! t1.both(operation_union)
+                 && ! t1.both(operation_intersection))
+                ||
+                t2.method != method_touch_interior
+                ||
+                (! t2.both(operation_union)
+                 && ! t2.both(operation_intersection))
+                )
+            {
+                throw inconsistent_turns_exception();
+            }
+#else
             BOOST_GEOMETRY_ASSERT(t1.method == method_touch_interior);
-            BOOST_GEOMETRY_ASSERT(t1.operations[0].operation
-                                  == operation_union);
-            BOOST_GEOMETRY_ASSERT(t1.operations[1].operation
-                                  == operation_union);
-
+            BOOST_GEOMETRY_ASSERT(t1.both(operation_union)
+                                  ||
+                                  t1.both(operation_intersection));
             BOOST_GEOMETRY_ASSERT(t2.method == method_touch_interior);
-            BOOST_GEOMETRY_ASSERT(t2.operations[0].operation
-                                  == operation_union);
-            BOOST_GEOMETRY_ASSERT(t2.operations[1].operation
-                                  == operation_union);
+            BOOST_GEOMETRY_ASSERT(t2.both(operation_union)
+                                  ||
+                                  t2.both(operation_intersection));
+#endif
 
-            typename MUU_Turn::turn_operation_type op1 = get_correct_op(t1);
-            typename MUU_Turn::turn_operation_type op2 = get_correct_op(t2);
+            typename MAA_Turn::turn_operation_type op1 = get_correct_op(t1);
+            typename MAA_Turn::turn_operation_type op2 = get_correct_op(t2);
 
             BOOST_GEOMETRY_ASSERT(! op1.fraction.is_zero()
                                   && ! op1.fraction.is_one());
@@ -262,19 +276,19 @@ class split_ring<overlay_union, Ring, RobustPolicy>
         get_self_turns(ring, turns, robust_policy, no_interrupt_policy());
     }
 
-    template <typename MUU_Turns, typename RingOut>
-    static inline void insert_muu_turns(Ring const& ring,
-                                        MUU_Turns const& muu_turns,
+    template <typename MAA_Turns, typename RingOut>
+    static inline void insert_maa_turns(Ring const& ring,
+                                        MAA_Turns const& maa_turns,
                                         RingOut& ring_out)
     {
         typedef typename boost::range_size<Ring>::type size_type;
         typedef typename boost::range_iterator
             <
-                MUU_Turns const
+                MAA_Turns const
             >::type iterator_type;
 
         size_type point_index = 0;
-        for (iterator_type it = muu_turns.begin(); it != muu_turns.end(); ++it)
+        for (iterator_type it = maa_turns.begin(); it != maa_turns.end(); ++it)
         {
             signed_size_type segment_index
                 = get_correct_op(*it).seg_id.segment_index;
@@ -361,7 +375,7 @@ public:
                              RingCollection& collection,
                              RobustPolicy const& robust_policy)
     {
-        typedef std::set<turn_type, muu_turn_less<turn_type> > muu_turn_set;
+        typedef std::set<turn_type, maa_turn_less<turn_type> > maa_turn_set;
         typedef ring_as_dcl
             <
                 typename point_type<Ring>::type, closure<Ring>::value
@@ -372,27 +386,38 @@ public:
         turns_container_type turns;
         get_self_turns(ring, turns, robust_policy);
 
-        // collect the ring's m:u/u turns;
+        // collect the ring's m:u/u and m:i/i turns (the latter can
+        // appear when we perform an intersection and the intersection
+        // result consists of a multipolygon whose polygons touch each
+        // other);
         // notice the use of std::set; we want to record coinciding
-        // m:u/u turns only once
-        muu_turn_set muu_turns;
+        // m:u/u and m:i/i turns only once
+        maa_turn_set maa_turns;
         for (typename turns_container_type::const_iterator it = turns.begin();
              it != turns.end();
              ++it)
         {
             if (it->method == method_touch_interior)
             {
-                BOOST_GEOMETRY_ASSERT(it->operations[0].operation
-                                      == operation_union);
-                BOOST_GEOMETRY_ASSERT(it->operations[1].operation
-                                      == operation_union);
-                muu_turns.insert(*it);
+#if ! defined(BOOST_GEOMETRY_OVERLAY_NO_THROW)
+                if (! it->both(operation_union)
+                    &&
+                    ! it->both(operation_intersection))
+                {
+                    throw inconsistent_turns_exception();
+                }
+#else
+                BOOST_GEOMETRY_ASSERT(it->both(operation_union)
+                                      ||
+                                      it->both(operation_intersection));
+#endif
+                maa_turns.insert(*it);
             }
         }
 
         // insert the m:u/u turns as points in the original ring
         ring_dcl_type output;
-        insert_muu_turns(ring, muu_turns, output);
+        insert_maa_turns(ring, maa_turns, output);
 
         // split the ring into simple rings
         split_one_ring<closure<Ring>::value>(output, collection);

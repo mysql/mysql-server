@@ -361,9 +361,7 @@ bool add_table_for_trigger(THD *thd,
   if (Trigger_loader::load_trn_file(thd, trigger_name, trn_path, &tbl_name))
     DBUG_RETURN(TRUE);
 
-  *table= sp_add_to_query_tables(thd, lex, db_name.str,
-                                 tbl_name.str, TL_IGNORE,
-                                 MDL_SHARED_NO_WRITE);
+  *table= sp_add_to_query_tables(thd, lex, db_name.str, tbl_name.str);
 
   DBUG_RETURN(*table ? FALSE : TRUE);
 }

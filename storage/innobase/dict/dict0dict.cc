@@ -2197,6 +2197,12 @@ dict_table_remove_from_cache_low(
 		trx_free_for_background(trx);
 	}
 
+	/* Free virtual column template if any */
+	if (table->vc_templ != NULL) {
+		dict_free_vc_templ(table->vc_templ);
+		UT_DELETE(table->vc_templ);
+	}
+
 	size = mem_heap_get_size(table->heap) + strlen(table->name.m_name) + 1;
 
 	ut_ad(dict_sys->size >= size);
@@ -2246,174 +2252,6 @@ dict_col_name_is_reserved(
 
 	return(FALSE);
 }
-
-#if 1	/* This function is not very accurate at determining
-	whether an UNDO record will be too big. See innodb_4k.test,
-	Bug 13336585, for a testcase that shows an index that can
-	be created but cannot be updated. */
-
-/****************************************************************//**
-If an undo log record for this table might not fit on a single page,
-return TRUE.
-@return TRUE if the undo log record could become too big */
-static
-ibool
-dict_index_too_big_for_undo(
-/*========================*/
-	const dict_table_t*	table,		/*!< in: table */
-	const dict_index_t*	new_index)	/*!< in: index */
-{
-	/* Make sure that all column prefixes will fit in the undo log record
-	in trx_undo_page_report_modify() right after trx_undo_page_init(). */
-
-	ulint			i;
-	ulint			is_spatial = false;
-
-	const dict_index_t*	clust_index
-		= dict_table_get_first_index(table);
-	ulint			undo_page_len
-		= TRX_UNDO_PAGE_HDR - TRX_UNDO_PAGE_HDR_SIZE
-		+ 2 /* next record pointer */
-		+ 1 /* type_cmpl */
-		+ 11 /* trx->undo_no */ + 11 /* table->id */
-		+ 1 /* rec_get_info_bits() */
-		+ 11 /* DB_TRX_ID */
-		+ 11 /* DB_ROLL_PTR */
-		+ 10 + FIL_PAGE_DATA_END /* trx_undo_left() */
-		+ 2/* pointer to previous undo log record */;
-
-	/* FTS index consists of auxiliary tables, they shall be excluded from
-	index row size check */
-	if (new_index->type & DICT_FTS) {
-		return(false);
-	}
-
-	if (!clust_index) {
-		ut_a(dict_index_is_clust(new_index));
-		clust_index = new_index;
-	}
-
-	/* Add the size of the ordering columns in the
-	clustered index. */
-	for (i = 0; i < clust_index->n_uniq; i++) {
-		const dict_col_t*	col
-			= dict_index_get_nth_col(clust_index, i);
-
-		/* Use the maximum output size of
-		mach_write_compressed(), although the encoded
-		length should always fit in 2 bytes. */
-		undo_page_len += 5 + dict_col_get_max_size(col);
-	}
-
-	/* Add the old values of the columns to be updated.
-	First, the amount and the numbers of the columns.
-	These are written by mach_write_compressed() whose
-	maximum output length is 5 bytes.  However, given that
-	the quantities are below REC_MAX_N_FIELDS (10 bits),
-	the maximum length is 2 bytes per item. */
-	undo_page_len += 2 * (dict_table_get_n_cols(table) + 1);
-
-	for (i = 0; i < static_cast<ulint>(clust_index->n_def + table->n_v_def);
-	     i++) {
-		bool			is_virtual = i >= clust_index->n_def;
-		const dict_col_t*	col
-			= (!is_virtual)
-				? dict_index_get_nth_col(clust_index, i)
-				: &dict_table_get_nth_v_col(
-					table, i - clust_index->n_def)->m_col;
-		ulint			max_size
-			= dict_col_get_max_size(col);
-		ulint			fixed_size
-			= dict_col_get_fixed_size(col,
-						  dict_table_is_comp(table));
-		ulint			max_prefix
-			= col->max_prefix;
-
-		if (fixed_size) {
-			/* Fixed-size columns are stored locally. */
-			max_size = fixed_size;
-		} else if (max_size <= BTR_EXTERN_LOCAL_STORED_MAX_SIZE) {
-			/* Short columns are stored locally. */
-		} else if (!col->ord_part
-			   || (col->max_prefix
-			       < (ulint) DICT_MAX_FIELD_LEN_BY_FORMAT(table))) {
-			/* See if col->ord_part would be set
-			because of new_index. Also check if the new
-			index could have longer prefix on columns
-			that already had ord_part set  */
-			ulint	j;
-
-			for (j = 0; j < new_index->n_uniq; j++) {
-				if (dict_index_get_nth_col(
-					    new_index, j) == col) {
-					const dict_field_t*     field
-						= dict_index_get_nth_field(
-							new_index, j);
-
-					if (field->prefix_len
-					    > col->max_prefix) {
-						max_prefix =
-							 field->prefix_len;
-					}
-
-					/* If this is spatial index field,
-					we will write at least its MBR to
-					redo log if needed */
-					if (dict_index_is_spatial(new_index)
-					    && j == 0) {
-						is_spatial = true;
-					}
-
-					goto is_ord_part;
-				}
-			}
-
-			if (col->ord_part) {
-				goto is_ord_part;
-			}
-
-			/* This is not an ordering column in any index.
-			Thus, it can be stored completely externally.
-			If it is a virtual column, nothing needs to be
-			stored. */
-			max_size = is_virtual ? 0 : BTR_EXTERN_FIELD_REF_SIZE;
-		} else {
-			ulint	max_field_len;
-is_ord_part:
-			max_field_len = DICT_MAX_FIELD_LEN_BY_FORMAT(table);
-
-			/* This is an ordering column in some index.
-			A long enough prefix must be written to the
-			undo log.  See trx_undo_page_fetch_ext(). */
-			max_size = ut_min(max_size, max_field_len);
-
-			/* We only store the needed prefix length in undo log */
-			if (max_prefix) {
-			     ut_ad(dict_table_get_format(table)
-				   >= UNIV_FORMAT_B);
-
-				max_size = ut_min(max_prefix, max_size);
-			}
-
-			max_size += BTR_EXTERN_FIELD_REF_SIZE;
-
-			if (is_spatial || DATA_GEOMETRY_MTYPE(col->mtype)) {
-				/* If the column is only used by gis index,
-				we log MBR; otherwise we log prefix + MBR. */
-				if (max_prefix == 0) {
-					max_size = DATA_MBR_LEN;
-				} else {
-					max_size += DATA_MBR_LEN;
-				}
-			}
-		}
-
-		undo_page_len += 5 + max_size;
-	}
-
-	return(undo_page_len >= UNIV_PAGE_SIZE);
-}
-#endif
 
 /****************************************************************//**
 Return maximum size of the node pointer record.
@@ -2610,7 +2448,7 @@ dict_index_too_big_for_tree(
 		REC_STATUS_ORDINARY records. */
 
 		field_max_size = dict_col_get_fixed_size(col, comp);
-		if (field_max_size) {
+		if (field_max_size && field->fixed_len != 0) {
 			/* dict_index_add_col() should guarantee this */
 			ut_ad(!field->prefix_len
 			      || field->fixed_len == field->prefix_len);
@@ -2764,7 +2602,6 @@ dict_index_add_to_cache_w_vcol(
 	if (dict_index_too_big_for_tree(table, new_index, strict)) {
 
 		if (strict) {
-too_big:
 			dict_mem_index_free(new_index);
 			dict_mem_index_free(index);
 			return(DB_TOO_BIG_RECORD);
@@ -2777,76 +2614,6 @@ too_big:
 
 	n_ord = new_index->n_uniq;
 
-#if 1	/* The following code predetermines whether to call
-	dict_index_too_big_for_undo().  This function is not
-	accurate. See innodb_4k.test, Bug 13336585, for a
-	testcase that shows an index that can be created but
-	cannot be updated. */
-
-	switch (dict_table_get_format(table)) {
-	case UNIV_FORMAT_A:
-		/* ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT store
-		prefixes of externally stored columns locally within
-		the record.  There are no special considerations for
-		the undo log record size. */
-		goto undo_size_ok;
-
-	case UNIV_FORMAT_B:
-		/* In ROW_FORMAT=DYNAMIC and ROW_FORMAT=COMPRESSED,
-		column prefix indexes require that prefixes of
-		externally stored columns are written to the undo log.
-		This may make the undo log record bigger than the
-		record on the B-tree page.  The maximum size of an
-		undo log record is the page size.  That must be
-		checked for below. */
-		break;
-
-#if UNIV_FORMAT_B != UNIV_FORMAT_MAX
-# error "UNIV_FORMAT_B != UNIV_FORMAT_MAX"
-#endif
-	}
-
-	for (i = 0; i < n_ord; i++) {
-		const dict_field_t*	field
-			= dict_index_get_nth_field(new_index, i);
-		const dict_col_t*	col
-			= dict_field_get_col(field);
-		bool	is_spatial = (dict_index_is_spatial(new_index)
-				      && (i == 0)
-				      && DATA_GEOMETRY_MTYPE(
-						field->col->mtype));
-
-		/* In dtuple_convert_big_rec(), variable-length columns
-		that are longer than BTR_EXTERN_LOCAL_STORED_MAX_SIZE
-		may be chosen for external storage.  If the column appears
-		in an ordering column of an index, a longer prefix determined
-		by dict_max_field_len_store_undo() will be copied to the undo
-		log by trx_undo_page_report_modify() and
-		trx_undo_page_fetch_ext().  It suffices to check the
-		capacity of the undo log whenever new_index includes
-		a column prefix on a column that may be stored externally. */
-
-		if ((field->prefix_len /* prefix index */
-		     && (!col->ord_part /* not yet ordering column */
-		 	 || field->prefix_len > col->max_prefix)
-		     && !dict_col_get_fixed_size(col, TRUE) /* variable-length */
-		     && dict_col_get_max_size(col)
-		     > BTR_EXTERN_LOCAL_STORED_MAX_SIZE /* long enough */)
-		    || is_spatial) {
-
-			if (dict_index_too_big_for_undo(table, new_index)) {
-				/* An undo log record might not fit in
-				a single page.  Refuse to create this index. */
-
-				goto too_big;
-			}
-
-			break;
-		}
-	}
-
-undo_size_ok:
-#endif
 	/* Flag the ordering columns and also set column max_prefix */
 
 	for (i = 0; i < n_ord; i++) {
@@ -3012,6 +2779,39 @@ dict_index_remove_from_cache_low(
 	/* Remove the index from the list of indexes of the table */
 	UT_LIST_REMOVE(table->indexes, index);
 
+	/* Remove the index from affected virtual column index list */
+	if (dict_index_has_virtual(index)) {
+		const dict_col_t*	col;
+		const dict_v_col_t*	vcol;
+
+		for (ulint i = 0; i < dict_index_get_n_fields(index); i++) {
+			col =  dict_index_get_nth_col(index, i);
+			if (dict_col_is_virtual(col)) {
+				vcol = reinterpret_cast<const dict_v_col_t*>(
+					col);
+
+				/* This could be NULL, when we do add virtual
+				column, add index together. We do not need to
+				track this virtual column's index */
+				if (vcol->v_indexes == NULL) {
+					continue;
+				}
+
+				dict_v_idx_list::iterator	it;
+
+				for (it = vcol->v_indexes->begin();
+				     it != vcol->v_indexes->end(); ++it) {
+					dict_v_idx_t	v_index = *it;
+					if (v_index.index == index) {
+						vcol->v_indexes->erase(it);
+						break;
+					}
+				}
+			}
+
+		}
+	}
+
 	size = mem_heap_get_size(index->heap);
 
 	ut_ad(!dict_table_is_intrinsic(table));
@@ -3149,6 +2949,22 @@ dict_index_add_col(
 	const char*	col_name;
 
 	if (dict_col_is_virtual(col)) {
+		dict_v_col_t*	v_col = reinterpret_cast<dict_v_col_t*>(col);
+
+		/* When v_col->v_indexes==NULL,
+		ha_innobase::commit_inplace_alter_table(commit=true)
+		will evict and reload the table definition, and
+		v_col->v_indexes will not be NULL for the new table. */
+		if (v_col->v_indexes != NULL) {
+			/* Register the index with the virtual column index
+			list */
+			struct dict_v_idx_t	new_idx
+				 = {index, index->n_def};
+
+			v_col->v_indexes->push_back(new_idx);
+
+		}
+
 		col_name = dict_table_get_v_col_name_mysql(
 			table, dict_col_get_no(col));
 	} else {
@@ -4765,6 +4581,10 @@ loop:
 		if (reject_fks && !local_fk_set.empty()) {
 
 			return(DB_CANNOT_ADD_CONSTRAINT);
+		}
+
+		if (dict_foreigns_has_v_base_col(local_fk_set, table)) {
+			return(DB_NO_FK_ON_V_BASE_COL);
 		}
 
 		/**********************************************************/

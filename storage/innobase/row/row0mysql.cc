@@ -131,6 +131,21 @@ row_add_table_to_background_drop_list(
 /*==================================*/
 	const char*	name);	/*!< in: table name */
 
+#ifdef UNIV_DEBUG
+/** Wait for the background drop list to become empty. */
+void
+row_wait_for_background_drop_list_empty()
+{
+	bool	empty = false;
+	while (!empty) {
+		mutex_enter(&row_drop_list_mutex);
+		empty = (UT_LIST_GET_LEN(row_mysql_drop_list) == 0);
+		mutex_exit(&row_drop_list_mutex);
+		os_thread_sleep(100000);
+	}
+}
+#endif /* UNIV_DEBUG */
+
 /*******************************************************************//**
 Delays an INSERT, DELETE or UPDATE operation if the purge is lagging. */
 static
@@ -827,7 +842,8 @@ row_create_prebuilt(
 	uint		srch_key_len = 0;
 	ulint		search_tuple_n_fields;
 
-	search_tuple_n_fields = 2 * dict_table_get_n_cols(table);
+	search_tuple_n_fields = 2 * (dict_table_get_n_cols(table)
+				     + dict_table_get_n_v_cols(table));
 
 	clust_index = dict_table_get_first_index(table);
 
@@ -867,7 +883,8 @@ row_create_prebuilt(
 	sure if this prebuilt instance is going to be \
 	used in inserts */ \
 	+ (mysql_row_len < 256 ? mysql_row_len : 0) \
-	+ DTUPLE_EST_ALLOC(dict_table_get_n_cols(table)) \
+	+ DTUPLE_EST_ALLOC(dict_table_get_n_cols(table) \
+			   + dict_table_get_n_v_cols(table)) \
 	+ sizeof(que_fork_t) \
 	+ sizeof(que_thr_t) \
 	+ sizeof(*prebuilt->pcur) \
@@ -3240,8 +3257,7 @@ row_create_index_for_mysql(
 		err = dict_index_add_to_cache(
 			table, index, FIL_NULL,
 			!dict_table_is_intrinsic(table)
-			&& (trx_is_strict(trx)
-			    || dict_table_get_format(table) >= UNIV_FORMAT_B));
+			&& trx_is_strict(trx));
 
 		if (err != DB_SUCCESS) {
 			goto error_handling;

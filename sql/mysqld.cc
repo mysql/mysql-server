@@ -4324,7 +4324,7 @@ int mysqld_main(int argc, char **argv)
 
   ho_error= handle_early_options();
 
-#if !defined(_WIN32) && !defined(EMBEDDED_LIBARARY)
+#if !defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
 
   if (opt_bootstrap && opt_daemonize)
   {
@@ -4413,6 +4413,7 @@ int mysqld_main(int argc, char **argv)
       init_server_psi_keys();
       /* Instrument the main thread */
       PSI_thread *psi= PSI_THREAD_CALL(new_thread)(key_thread_main, NULL, 0);
+      PSI_THREAD_CALL(set_thread_os_id)(psi);
       PSI_THREAD_CALL(set_thread)(psi);
 
       /*
@@ -6433,11 +6434,19 @@ show_ssl_get_server_not_before(THD *thd, SHOW_VAR *var, char *buff)
     X509 *cert= SSL_get_certificate(ssl_acceptor);
     ASN1_TIME *not_before= X509_get_notBefore(cert);
 
+    if (not_before == NULL)
+    {
+      var->value= empty_c_string;
+      return 0;
+    }
+
     var->value= my_asn1_time_to_string(not_before, buff,
                                        SHOW_VAR_FUNC_BUFF_SIZE);
-    if (!var->value)
+    if (var->value == NULL)
+    {
+      var->value= empty_c_string;
       return 1;
-    var->value= buff;
+    }
   }
   else
     var->value= empty_c_string;
@@ -6465,10 +6474,19 @@ show_ssl_get_server_not_after(THD *thd, SHOW_VAR *var, char *buff)
     X509 *cert= SSL_get_certificate(ssl_acceptor);
     ASN1_TIME *not_after= X509_get_notAfter(cert);
 
+    if (not_after == NULL)
+    {
+      var->value= empty_c_string;
+      return 0;
+    }
+
     var->value= my_asn1_time_to_string(not_after, buff,
                                        SHOW_VAR_FUNC_BUFF_SIZE);
-    if (!var->value)
+    if (var->value == NULL)
+    {
+      var->value= empty_c_string;
       return 1;
+    }
   }
   else
     var->value= empty_c_string;
@@ -8512,7 +8530,6 @@ PSI_thread_key key_thread_bootstrap, key_thread_handle_manager, key_thread_main,
   key_thread_compress_gtid_table, key_thread_parser_service;
 PSI_thread_key key_thread_daemon_plugin;
 PSI_thread_key key_thread_timer_notifier;
-PSI_thread_key key_thread_background;
 
 static PSI_thread_info all_server_threads[]=
 {
@@ -8530,7 +8547,6 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_signal_hand, "signal_handler", PSI_FLAG_GLOBAL},
   { &key_thread_compress_gtid_table, "compress_gtid_table", PSI_FLAG_GLOBAL},
   { &key_thread_parser_service, "parser_service", PSI_FLAG_GLOBAL},
-  { &key_thread_background, "background", PSI_FLAG_GLOBAL},
   { &key_thread_daemon_plugin, "daemon_plugin", PSI_FLAG_GLOBAL}
 };
 

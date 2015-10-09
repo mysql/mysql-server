@@ -88,7 +88,6 @@ bool Alter_info::set_requested_lock(const LEX_STRING *str)
 
 Alter_table_ctx::Alter_table_ctx()
   : datetime_field(NULL), error_if_not_empty(false),
-    requires_generated_column_server_evaluation(false),
     tables_opened(0),
     db(NULL), table_name(NULL), alias(NULL),
     new_db(NULL), new_name(NULL), new_alias(NULL)
@@ -104,7 +103,6 @@ Alter_table_ctx::Alter_table_ctx(THD *thd, TABLE_LIST *table_list,
                                  const char *new_db_arg,
                                  const char *new_name_arg)
   : datetime_field(NULL), error_if_not_empty(false),
-    requires_generated_column_server_evaluation(false),
     tables_opened(tables_opened_arg),
     new_db(new_db_arg), new_name(new_name_arg)
 #ifndef DBUG_OFF

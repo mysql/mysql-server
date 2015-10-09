@@ -32,8 +32,6 @@ Table::Table(uint64 id, const std::string& name, const std::string& schema,
   m_data_lenght(data_lenght)
 {
   using Detail::Pattern_matcher;
-  bool pk_present= false;
-  bool constraint_present= false;
 
   std::vector<std::string> definition_lines;
   boost::split(definition_lines, sql_formatted_definition,
@@ -42,6 +40,7 @@ Table::Table(uint64 id, const std::string& name, const std::string& schema,
     it != definition_lines.end(); ++it)
   {
     boost::trim_left(*it);
+    boost::trim_if(*it, boost::is_any_of(","));
     // TODO: Look up INFORMATION_SCHEMA and get the table details.
     if (boost::starts_with(*it, "KEY ")
       || boost::starts_with(*it, "INDEX ")
@@ -50,28 +49,20 @@ Table::Table(uint64 id, const std::string& name, const std::string& schema,
       || boost::starts_with(*it, "FULLTEXT KEY ")
       || boost::starts_with(*it, "FULLTEXT INDEX ")
       || boost::starts_with(*it, "SPATIAL KEY ")
-      || boost::starts_with(*it, "SPATIAL INDEX "))
+      || boost::starts_with(*it, "SPATIAL INDEX ")
+      || boost::starts_with(*it, "CONSTRAINT "))
     {
-      pk_present= true;
-      *it= boost::algorithm::replace_last_copy(*it, "),", ")");
-      m_indexes_sql_definition.push_back(*it);
-    }
-    else if (boost::starts_with(*it, "CONSTRAINT "))
-    {
-      constraint_present= true;
-      *it= boost::algorithm::replace_last_copy(*it, ",", "");
       m_indexes_sql_definition.push_back(*it);
     }
     else
     {
-      if (pk_present || constraint_present)
+      if ((it+1) == definition_lines.end())
       {
-        if ((it+1) == definition_lines.end())
-        {
-          std::string &sql_def = m_sql_definition_without_indexes;
-          sql_def = boost::algorithm::replace_last_copy(sql_def, ",", "");
-        }
+        std::string &sql_def = m_sql_definition_without_indexes;
+        sql_def = boost::algorithm::replace_last_copy(sql_def, ",", "");
       }
+      else if (it != definition_lines.begin())
+        *it+= ",";
       m_sql_definition_without_indexes+= *it + '\n';
     }
   }
