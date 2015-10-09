@@ -585,7 +585,7 @@ trx_undo_rec_get_col_val(
 		*orig_len = mach_read_next_compressed(&ptr);
 		*len = mach_read_next_compressed(&ptr);
 		*field = ptr;
-		ptr += *len;
+		ptr += *len & ~SPATIAL_STATUS_MASK;
 
 		ut_ad(*orig_len >= BTR_EXTERN_FIELD_REF_SIZE);
 		ut_ad(*len > *orig_len);
@@ -603,7 +603,8 @@ trx_undo_rec_get_col_val(
 	default:
 		*field = ptr;
 		if (*len >= UNIV_EXTERN_STORAGE_FIELD) {
-			ptr += *len - UNIV_EXTERN_STORAGE_FIELD;
+			ptr += (*len - UNIV_EXTERN_STORAGE_FIELD)
+				& ~SPATIAL_STATUS_MASK;
 		} else {
 			ptr += *len;
 		}
@@ -721,13 +722,14 @@ trx_undo_page_fetch_ext(
 @param[out]	ptr		undo log position, at least 15 bytes must be
 available
 @param[out]	ext_buf		a buffer of DICT_MAX_FIELD_LEN_BY_FORMAT()
-size, or NULL when should not fetch a longer prefix
+				size, or NULL when should not fetch a longer
+				prefix
 @param[in]	prefix_len	prefix size to store in the undo log
 @param[in]	page_size	page size
 @param[in,out]	field		the locally stored part of the externally
 stored column
 @param[in,out]	len		length of field, in bytes
-@param[in]	spatial_statis	whether the column is used by spatial index or
+@param[in]	spatial_status	whether the column is used by spatial index or
 				regular index
 @return undo log position */
 static
@@ -739,21 +741,25 @@ trx_undo_page_report_modify_ext(
 	const page_size_t&	page_size,
 	const byte**		field,
 	ulint*			len,
-	col_spatial_status	spatial_status)
+	spatial_status_t	spatial_status)
 {
 	ulint	spatial_len= 0;
 
 	switch (spatial_status) {
+	case SPATIAL_UNKNOWN:
 	case SPATIAL_NONE:
 		break;
 
 	case SPATIAL_MIXED:
-		spatial_len = DATA_MBR_LEN;
-		break;
-
 	case SPATIAL_ONLY:
 		spatial_len = DATA_MBR_LEN;
+		break;
+	}
 
+	/* Encode spatial status into length. */
+	spatial_len |= spatial_status << SPATIAL_STATUS_SHIFT;
+
+	if (spatial_status == SPATIAL_ONLY) {
 		/* If the column is only used by gis index, log its
 		MBR is enough.*/
 		ptr += mach_write_compressed(ptr, UNIV_EXTERN_STORAGE_FIELD
@@ -1059,7 +1065,7 @@ trx_undo_page_report_modify(
 					&& flen < REC_ANTELOPE_MAX_INDEX_COL_LEN
 					? ext_buf : NULL, prefix_len,
 					dict_table_page_size(table),
-					&field, &flen, SPATIAL_NONE);
+					&field, &flen, SPATIAL_UNKNOWN);
 
 				/* Notify purge that it eventually has to
 				free the old externally stored field */
@@ -1153,7 +1159,7 @@ trx_undo_page_report_modify(
 
 			if (col->ord_part) {
 				ulint			pos;
-				col_spatial_status	spatial_status;
+				spatial_status_t	spatial_status;
 
 				spatial_status = SPATIAL_NONE;
 
@@ -1661,8 +1667,19 @@ trx_undo_rec_get_partial_row(
 
 		if (len != UNIV_SQL_NULL
 		    && len >= UNIV_EXTERN_STORAGE_FIELD) {
-			col_spatial_status spatial_status;
-			spatial_status = dict_col_get_spatial_status(col);
+			spatial_status_t	spatial_status;
+
+			/* Decode spatial status. */
+			spatial_status = static_cast<spatial_status_t>(
+				(len & SPATIAL_STATUS_MASK)
+				>> SPATIAL_STATUS_SHIFT);
+			len &= ~SPATIAL_STATUS_MASK;
+
+			/* Keep compatible with 5.7.9 format. */
+			if (spatial_status == SPATIAL_UNKNOWN) {
+				spatial_status =
+					dict_col_get_spatial_status(col);
+			}
 
 			switch (spatial_status) {
 			case SPATIAL_ONLY:
@@ -1685,9 +1702,15 @@ trx_undo_rec_get_partial_row(
 					dfield,
 					len - UNIV_EXTERN_STORAGE_FIELD);
 				break;
+
+			case SPATIAL_UNKNOWN:
+				ut_ad(0);
+				break;
 			}
 
 			dfield_set_ext(dfield);
+			dfield_set_spatial_status(dfield, spatial_status);
+
 			/* If the prefix of this column is indexed,
 			ensure that enough prefix is stored in the
 			undo log record. */
