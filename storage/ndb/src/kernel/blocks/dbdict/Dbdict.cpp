@@ -4791,6 +4791,14 @@ Dbdict::restartDropObj(Signal* signal,
     opRecPtr.p->m_request.filegroup_version = entry->m_tableVersion;
     break;
   }
+  case DictTabInfo::ForeignKey:
+  {
+    DropFKRecPtr opRecPtr;
+    seizeSchemaOp(trans_ptr, op_ptr, opRecPtr);
+    opRecPtr.p->m_request.fkId = tableId;
+    opRecPtr.p->m_request.fkVersion = entry->m_tableVersion;
+    break;
+  }
   }
 
   ndbout_c("restartDropObj(%u)", tableId);
@@ -26721,8 +26729,19 @@ Dbdict::dropFK_complete(Signal* signal, SchemaOpPtr op_ptr)
    *   triggers are dropped...which they are in commit
    */
   Callback c =  { safe_cast(&Dbdict::dropFK_fromLocal), op_ptr.p->op_key };
-  op_ptr.p->m_callback = c;
 
+  /*
+    During NR/SR, the signal CREATE_FK_IMPL_REQ is skipped.
+    Thus the fk won't be created in the c_fk_hash during the create old pass.
+    So, DROP_FK_IMP_REQ signal need not be sent during the NR/SR.
+  */
+  if(op_ptr.p->m_restart){
+    jam();
+    execute(signal, c, 0);
+    return;
+  }
+
+  op_ptr.p->m_callback = c;
   send_drop_fk_req(signal, op_ptr);
 }
 
