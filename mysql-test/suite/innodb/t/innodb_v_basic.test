@@ -1291,3 +1291,16 @@ DELETE FROM ibstd_16 WHERE a = 1;
 
 DROP TABLE ibstd_16_fk;
 DROP TABLE ibstd_16;
+
+# Bug 21941320 - GCOLS: FAILING ASSERTION: N_IDX > 0
+create table t(a int) engine=innodb;
+insert into t set a=1;
+alter table t add column c int generated always as (1) virtual;
+insert into t set a=2;
+
+# Following will cause create index fail, we need to make sure the column
+# ord_part is reset
+--error ER_DUP_ENTRY
+alter table t add unique index(c);
+insert into t set a=1;
+drop table t;
