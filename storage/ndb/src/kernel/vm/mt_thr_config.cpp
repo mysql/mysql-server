@@ -782,10 +782,12 @@ parseUnsigned(char *& str, unsigned * dst)
   str = skipblank(str);
   char * endptr = 0;
   errno = 0;
-  long val = strtol(str, &endptr, 0);
-  if (errno == ERANGE)
+  unsigned long val = strtoul(str, &endptr, 0);
+  // Check value out of 'unsigned long' range
+  if (val == ULONG_MAX && errno == ERANGE)
     return -1;
-  if (val < 0 || Int64(val) > 0xFFFFFFFF)
+  // Check value out of 'unsigned' range
+  if (val > UINT_MAX)
     return -1;
   if (endptr == str)
     return -1;

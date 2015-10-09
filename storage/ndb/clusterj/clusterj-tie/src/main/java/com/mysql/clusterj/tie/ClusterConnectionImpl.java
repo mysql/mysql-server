@@ -353,19 +353,38 @@ public class ClusterConnectionImpl
 
     /** Remove the cached NdbRecord(s) associated with this table. This allows schema change to work.
      * All NdbRecords including any index NdbRecords will be removed. Index NdbRecords are named
-     * tableName+indexName.
+     * tableName+indexName. Cached schema objects in NdbDictionary are also removed.
+     * This method should be called by the application after receiving an exception that indicates
+     * that the table definition has changed since the metadata was loaded. Such changes as
+     * truncate table or dropping indexes, columns, or tables may cause errors reported
+     * to the application, including code 241 "Invalid schema object version" and
+     * code 284 "Unknown table error in transaction coordinator".
      * @param tableName the name of the table
      */
     public void unloadSchema(String tableName) {
         // synchronize to avoid multiple threads unloading schema simultaneously
         // it is possible although unlikely that another thread is adding an entry while 
         // we are removing entries; if this occurs an error will be signaled here
+        boolean haveCachedTable = false;
         synchronized(ndbRecordImplMap) {
             Iterator<Map.Entry<String, NdbRecordImpl>> iterator = ndbRecordImplMap.entrySet().iterator();
             while (iterator.hasNext()) {
                 Map.Entry<String, NdbRecordImpl> entry = iterator.next();
                 String key = entry.getKey();
                 if (key.startsWith(tableName)) {
+                    haveCachedTable = true;
+                    // entries are of the form:
+                    //   tableName or
+                    //   tableName+indexName
+                    // split tableName[+indexName] into one or two parts
+                    // the "\" character is escaped once for Java and again for regular expression to escape +
+                    String[] tablePlusIndex = key.split("\\+");
+                    if (tablePlusIndex.length >1) {
+                        String indexName = tablePlusIndex[1];
+                        if (logger.isDebugEnabled())logger.debug("Removing dictionary entry for cached index " +
+                                tableName + " " + indexName);
+                        dictionaryForNdbRecord.invalidateIndex(indexName, tableName);
+                    }
                     // remove all records whose key begins with the table name; this will remove index records also
                     if (logger.isDebugEnabled())logger.debug("Removing cached NdbRecord for " + key);
                     NdbRecordImpl record = entry.getValue();
@@ -375,8 +394,11 @@ public class ClusterConnectionImpl
                     }
                 }
             }
-            if (logger.isDebugEnabled())logger.debug("Removing dictionary entry for cached table " + tableName);
-            dictionaryForNdbRecord.removeCachedTable(tableName);
+            // invalidate cached dictionary table after invalidate cached indexes
+            if (haveCachedTable) {
+                if (logger.isDebugEnabled())logger.debug("Removing dictionary entry for cached table " + tableName);
+                dictionaryForNdbRecord.invalidateTable(tableName);
+            }
         }
     }
 

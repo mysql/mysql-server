@@ -39,6 +39,7 @@ typedef enum NDB_THREAD_TLS_ENUM {
   NDB_THREAD_TLS_JAM,           /* Jam buffer pointer. */
   NDB_THREAD_TLS_THREAD,        /* Thread self pointer. */
   NDB_THREAD_TLS_NDB_THREAD,    /* NDB thread pointer */
+  NDB_THREAD_TLS_RES_OWNER,     /* (Debug only) Shared resource owner */
   NDB_THREAD_TLS_MAX
 } NDB_THREAD_TLS;
 

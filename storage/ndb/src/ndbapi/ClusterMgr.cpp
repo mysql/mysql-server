@@ -963,7 +963,6 @@ void
 ClusterMgr::reportDisconnected(NodeId nodeId)
 {
   assert(nodeId > 0 && nodeId < MAX_NODES);
-  assert(noOfConnectedNodes > 0);
 
   /**
    * We know that we have trp_client lock
@@ -996,8 +995,20 @@ ClusterMgr::execDISCONNECT_REP(const NdbApiSignal* sig,
   trp_node & theNode = cm_node;
 
   bool node_failrep = theNode.m_node_fail_rep;
+  bool node_connected = theNode.is_connected();
   set_node_dead(theNode);
   theNode.set_connected(false);
+
+  /**
+   * Remaining processing should only be done if the node
+   * actually completed connecting...
+   */
+  if (!node_connected)
+  {
+    return;
+  }
+
+  assert(noOfConnectedNodes > 0);
 
   noOfConnectedNodes--;
   if (noOfConnectedNodes == 0)

@@ -3289,12 +3289,6 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-# Finally turn off offline mode
-SET @str=IF(@have_ndbinfo,'SET @@global.ndbinfo_offline=FALSE','SET @dummy = 0');
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
 # ndbinfo.operations_per_fragment
 # This is the end-user view of ndb$frag_operations. It adds some 
 # dictionary information such as the table name and type, and the name of the

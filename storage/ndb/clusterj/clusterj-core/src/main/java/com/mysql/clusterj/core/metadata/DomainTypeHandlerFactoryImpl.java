@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,12 +40,16 @@ public class DomainTypeHandlerFactoryImpl implements DomainTypeHandlerFactory {
     /** My logger */
     static final Logger logger = LoggerFactoryService.getFactory().getInstance(DomainTypeHandlerFactoryImpl.class);
 
+    /** My class loader */
+    static final ClassLoader DOMAIN_TYPE_HANDLER_FACTORY_IMPL_CLASS_LOADER =
+            DomainTypeHandlerFactoryImpl.class.getClassLoader();
+
     protected static List<DomainTypeHandlerFactory> domainTypeHandlerFactories;
     protected static StringBuffer domainTypeHandlerFactoryErrorMessages = new StringBuffer();
     static {
         domainTypeHandlerFactories = ClusterJHelper.getServiceInstances(
                 DomainTypeHandlerFactory.class, 
-                Thread.currentThread().getContextClassLoader(),
+                DOMAIN_TYPE_HANDLER_FACTORY_IMPL_CLASS_LOADER,
                 domainTypeHandlerFactoryErrorMessages);
         logger.info("Found " + domainTypeHandlerFactories.size() + " DomainTypeHandlerFactories");
         for (DomainTypeHandlerFactory factory: domainTypeHandlerFactories) {

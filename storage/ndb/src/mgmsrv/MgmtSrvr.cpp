@@ -2997,6 +2997,11 @@ MgmtSrvr::dumpState(int nodeId, const char* args)
 int
 MgmtSrvr::dumpState(int nodeId, const Uint32 args[], Uint32 no)
 {
+  if (nodeId == _ownNodeId)
+  {
+    return dumpStateSelf(args, no);
+  }
+
   INIT_SIGNAL_SENDER(ss,nodeId);
 
   const Uint32 len = no > 25 ? 25 : no;
@@ -3026,6 +3031,70 @@ MgmtSrvr::dumpState(int nodeId, const Uint32 args[], Uint32 no)
   return res;
 
 }
+
+int
+MgmtSrvr::dumpStateSelf(const Uint32 args[], Uint32 no)
+{
+  if (no < 1)
+    return -1;
+
+  switch(args[0])
+  {
+#ifdef ERROR_INSERT
+  case 9994:
+  {
+    /* Transporter send blocking */
+    if (no >= 2)
+    {
+      Uint32 nodeId = args[1];
+      ndbout_c("Blocking send to node %u",
+               nodeId);
+      TransporterRegistry* tr = theFacade->get_registry();
+      tr->blockSend(*theFacade, nodeId);
+    }
+    break;
+  }
+  case 9995:
+  {
+    /* Transporter send unblocking */
+    if (no >= 2)
+    {
+      Uint32 nodeId = args[1];
+      ndbout_c("Unblocking send to node %u",
+               nodeId);
+      TransporterRegistry* tr = theFacade->get_registry();
+      tr->unblockSend(*theFacade, nodeId);
+    }
+    break;
+  }
+
+  case 9996:
+  {
+    /* Sendbuffer consumption */
+    if (no >= 2)
+    {
+      Uint64 remain_bytes = args[1];
+      ndbout_c("Consuming sendbuffer except for %llu bytes",
+               remain_bytes);
+      theFacade->consume_sendbuffer(remain_bytes);
+    }
+    break;
+  }
+  case 9997:
+  {
+    /* Sendbuffer release */
+    ndbout_c("Releasing consumed sendbuffer");
+    theFacade->release_consumed_sendbuffer();
+    break;
+  }
+#endif
+  default:
+    ;
+  }
+
+  return 0;
+}
+
 
 
 //****************************************************************************

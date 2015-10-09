@@ -880,3 +880,38 @@ alter table t2 add constraint foreign key fk (c1,c4) references t1 (c2,c5);
 insert into t2 (c1,c4) values (4,40);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
 drop table t2, t1;
+#
+# BUG#21308928 :  CANNOT ADD UNIQUE CONSTRAINT ON SET OF FIELDS WITH EXISTING FOREIGN KEY
+#
+#Create the tables
+create table t1 (
+a int not null primary key
+) engine ndb;
+create table t2 (
+a int primary key,
+b int not null,
+c int,
+foreign key fk1 (a) references t1(a),
+foreign key fk2 (b) references t1(a),
+foreign key fk3 (c) references t1(a)
+) engine ndb;
+#Add a unique constraint to the foreign key column
+alter table t2 add constraint uniquet2a unique (a);
+alter table t2 add constraint uniquet2b unique (b);
+alter table t2 add constraint uniquet2c unique (c);
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `uniquet2a` (`a`),
+  UNIQUE KEY `uniquet2b` (`b`),
+  UNIQUE KEY `uniquet2c` (`c`),
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+#Drop tables
+drop table t2, t1;

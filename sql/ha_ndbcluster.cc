@@ -5287,12 +5287,23 @@ handle_conflict_op_error(NdbTransaction* trans,
 
     if (table_has_trans_conflict_detection)
     {
-      /* Mark this transaction as in-conflict, unless this is a 
-       * Delete-Delete conflict, which we can't currently handle
-       * in the normal way
+      /* Mark this transaction as in-conflict.
+       * For Delete-NoSuchRow (aka Delete-Delete) conflicts, we
+       * do not always mark the transaction as in-conflict, as
+       *  i) Row based algorithms cannot do so safely w.r.t batching
+       * ii) NDB$EPOCH_TRANS cannot avoid divergence in any case,
+       *     and so chooses to ignore such conflicts
+       * So only NDB$EPOCH_TRANS2 (controlled by the CF_DEL_DEL_CFT
+       * flag will mark the transaction as in-conflict due to a
+       * delete of a non-existent row.
        */
-      if (! ((causing_op_type == DELETE_ROW) &&
-             (conflict_cause == ROW_DOES_NOT_EXIST)))
+      bool is_del_del_cft = ((causing_op_type == DELETE_ROW) &&
+                             (conflict_cause == ROW_DOES_NOT_EXIST));
+      bool fn_treats_del_del_as_cft = 
+        (cfn_share->m_conflict_fn->flags & CF_DEL_DEL_CFT);
+      
+      if (!is_del_del_cft ||
+          fn_treats_del_del_as_cft)
       {
         /* Perform special transactional conflict-detected handling */
         int res = g_ndb_slave_state.atTransConflictDetected(ex_data.trans_id);
@@ -5881,7 +5892,11 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
         break;
       }
 
-      /* When a delete operation finds that the row does not exist, it indicates
+      /**
+       * Delete - NoSuchRow conflicts (aka Delete-Delete conflicts)
+       *
+       * Row based algorithms + batching :
+       * When a delete operation finds that the row does not exist, it indicates
        * a DELETE vs DELETE conflict.  If we refresh the row then we can get
        * non deterministic behaviour depending on slave batching as follows :
        *   Row is deleted
@@ -5903,6 +5918,23 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
        * DELETE vs DELETE conflicts by :
        *   NOT refreshing a row when a DELETE vs DELETE conflict is detected
        * This should map all batching scenarios onto Case1.
+       * 
+       * Transactional algorithms
+       * 
+       * For transactional algorithms, there are multiple passes over the
+       * epoch transaction.  Earlier passes 'mark' in-conflict transactions
+       * so that any row changes to in-conflict rows are automatically
+       * in-conflict.  Therefore the batching problem above is avoided.
+       *
+       * NDB$EPOCH_TRANS chooses to ignore DELETE-DELETE conflicts entirely
+       * and so skips refreshing rows with only DELETE-DELETE conflicts.
+       * NDB$EPOCH2_TRANS does not ignore them, and so refreshes them.
+       * This behaviour is controlled by the algorthm's CF_DEL_DEL_CFT 
+       * flag at conflict detection time.
+       * 
+       * For the final pass of the transactional algorithms, every conflict
+       * is a TRANS_IN_CONFLICT error here, so no need to adjust behaviour.
+       * 
        */
       if ((op_type == DELETE_ROW) &&
           (conflict_cause == ROW_DOES_NOT_EXIST))

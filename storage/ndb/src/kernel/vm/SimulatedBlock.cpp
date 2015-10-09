@@ -4618,6 +4618,26 @@ SimulatedBlock::releaseSegmentList(Uint32 firstSegmentIVal)
   ::releaseSection(SB_SP_ARG firstSegmentIVal);
 }
 
+#ifdef NDB_DEBUG_RES_OWNERSHIP
+void
+SimulatedBlock::lock_global_ssp()
+{
+#ifdef NDBD_MULTITHREADED
+  f_section_lock.lock();
+#endif
+}
+
+void
+SimulatedBlock::unlock_global_ssp()
+{
+#ifdef NDBD_MULTITHREADED
+  f_section_lock.unlock();
+#endif
+}
+
+#endif
+
+
 
 /** 
  * #undef is needed since this file is included by SimulatedBlock_nonmt.cpp
