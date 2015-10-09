@@ -11306,7 +11306,6 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
   unireg_check(old_field->unireg_check),
   charset(old_field->charset()),		// May be NULL ptr
   field(old_field),
-  pack_flag(0),
   gcol_info(old_field->gcol_info),
   stored_in_db(old_field->stored_in_db)
 {

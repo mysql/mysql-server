@@ -477,7 +477,7 @@ CREATE TABLE t1(a POINT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES();
 # Create table with BIT column by selecting data from the POINT column table
 # created earlier.
---ERROR ER_CANT_CREATE_TABLE
 CREATE TEMPORARY TABLE t2(a BIT(60)) ENGINE=InnoDB SELECT a FROM t1
 GROUP BY a DESC HAVING a IS NULL;
+DROP TEMPORARY TABLE t2;
 DROP TABLE t1;
