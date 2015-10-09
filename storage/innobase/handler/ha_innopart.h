@@ -60,8 +60,6 @@ private:
 	/** Pointer back to owning TABLE_SHARE. */
 	TABLE_SHARE*		m_table_share;
 
-	/** Virtual column template */
-	innodb_col_templ_t*	m_s_templ;
 public:
 	Ha_innopart_share(
 		TABLE_SHARE*	table_share);
