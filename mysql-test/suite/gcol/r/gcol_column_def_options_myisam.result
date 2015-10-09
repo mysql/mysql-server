@@ -533,9 +533,9 @@ b INT GENERATED ALWAYS AS (-a) VIRTUAL NULL,
 c INT GENERATED ALWAYS AS (a + b) STORED NULL);
 SHOW FULL COLUMNS FROM t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-a	int(11)	NULL	YES		NULL		select,insert,update,references	
-b	int(11)	NULL	YES		NULL	VIRTUAL GENERATED	select,insert,update,references	
-c	int(11)	NULL	YES		NULL	STORED GENERATED	select,insert,update,references	
+a	int(11)	NULL	YES		NULL		#	
+b	int(11)	NULL	YES		NULL	VIRTUAL GENERATED	#	
+c	int(11)	NULL	YES		NULL	STORED GENERATED	#	
 INSERT INTO t1 (a) VALUES (NULL), (1);
 SELECT * FROM t1;
 a	b	c
