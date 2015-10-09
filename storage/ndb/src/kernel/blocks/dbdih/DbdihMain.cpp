@@ -11160,7 +11160,11 @@ void Dbdih::invalidateLcpInfoAfterSr(Signal* signal)
     else
     {
       jam();
-      ndbassert(nodePtr.p->activeStatus == Sysfile::NS_Active);
+      /**
+       * It is possible to get here with a number of different activeStatus
+       * since the cluster crash could have occurred while a starting node
+       * was participating in an LCP to get the node to the NS_Active state.
+       */
     }
   }//for
   setNodeRestartInfoBits(signal);
