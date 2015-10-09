@@ -6537,3 +6537,15 @@ do st_symdifference(
     st_intersection(
       multilinestring( linestring(point(2,4),point(10,1)) ),
       linestring(point(1,1),point(1e+308,1) ) )));
+
+--echo #####################################################################################################
+--echo # BUG#21872795 ST_OVERLAPS(POLYGON, POLYGON) RETURNS WRONG RESULT
+--echo #####################################################################################################
+
+SELECT ST_OVERLAPS(
+  ST_GEOMFROMTEXT('POLYGON((2 2,2 8,8 8,8 2,2 2))'),
+  ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(8 8,4 4,4 6,8 8))'));
+
+SELECT ST_OVERLAPS(
+  ST_GEOMFROMTEXT('POLYGON((2 2,2 8,8 8,8 2,2 2))'),
+  ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(2 2,4 4,4 6,2 2))'));
