@@ -450,7 +450,7 @@ struct scaled_epsilon
 template <typename T>
 struct scaled_epsilon<T, false>
 {
-    static inline T apply(T const& val)
+    static inline T apply(T const&)
     {
         return T(0);
     }

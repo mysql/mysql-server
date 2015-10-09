@@ -208,11 +208,13 @@ struct intersection_of_linestring_with_areal
     class is_crossing_turn
     {
         // return true is the operation is intersection or blocked
-        template <std::size_t I, typename Turn>
+        template <std::size_t Index, typename Turn>
         static inline bool has_op_i_or_b(Turn const& t)
         {
-            return t.operations[I].operation == overlay::operation_intersection
-                || t.operations[I].operation == overlay::operation_blocked;
+            return
+                t.operations[Index].operation == overlay::operation_intersection
+                ||
+                t.operations[Index].operation == overlay::operation_blocked;
         }
 
         template <typename Turn>
@@ -238,7 +240,7 @@ struct intersection_of_linestring_with_areal
         }
 
         template <typename Turn>
-        static inline bool is_tab_or_mab(Turn const& t)
+        static inline bool has_i_or_b_ops(Turn const& t)
         {
             return
                 (t.method == overlay::method_touch
@@ -257,7 +259,7 @@ struct intersection_of_linestring_with_areal
         static inline bool apply(Turn const& t)
         {
             bool const is_crossing
-                = has_method_crosses(t) || is_cc(t) || is_tab_or_mab(t);
+                = has_method_crosses(t) || is_cc(t) || has_i_or_b_ops(t);
 #if defined(BOOST_GEOMETRY_DEBUG_FOLLOW)
             debug_turn(t, ! is_crossing);
 #endif

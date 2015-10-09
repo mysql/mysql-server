@@ -6685,3 +6685,48 @@ st_makeenvelope(point(16781,8388611),point(-15032,-2251799813685244)),
 st_makeenvelope(point(-21087,31851),point(18514,20243))
 );
 ERROR HY000: Inconsistent intersection points.
+#####################################################################################################
+# BUG#21890717 ASSERTION FAILED: GEOMETRY::LESS<SEGMENTPOINT>()(P0, P1)
+#####################################################################################################
+do st_symdifference(
+st_linefromtext( multilinestring( linestring(point(1,1),point(1,1)), linestring(point(1,1),point(1,1)) ) ),
+st_distance(
+multipoint( point(1,1),point(1,1),point(1,1),point(1,1), point(1,1),point(1,1),point(1,1),point(1,1), point(1,1) ) ,
+st_intersection(
+multilinestring( linestring(point(2,4),point(10,1)) ),
+linestring(point(1,1),point(1e+308,1) ) )));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+#####################################################################################################
+# BUG#21872795 ST_OVERLAPS(POLYGON, POLYGON) RETURNS WRONG RESULT
+#####################################################################################################
+SELECT ST_OVERLAPS(
+ST_GEOMFROMTEXT('POLYGON((2 2,2 8,8 8,8 2,2 2))'),
+ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(8 8,4 4,4 6,8 8))'));
+ST_OVERLAPS(
+ST_GEOMFROMTEXT('POLYGON((2 2,2 8,8 8,8 2,2 2))'),
+ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(8 8,4 4,4 6,8 8))'))
+1
+SELECT ST_OVERLAPS(
+ST_GEOMFROMTEXT('POLYGON((2 2,2 8,8 8,8 2,2 2))'),
+ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(2 2,4 4,4 6,2 2))'));
+ST_OVERLAPS(
+ST_GEOMFROMTEXT('POLYGON((2 2,2 8,8 8,8 2,2 2))'),
+ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(2 2,4 4,4 6,2 2))'))
+1
+#####################################################################################################
+# BUG#21873343 ST_TOUCHES(POLYGON, POLYGON) RETURNS INCORRECT RESULT
+#####################################################################################################
+SELECT ST_TOUCHES(
+ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(0 8,8 8,8 5,0 8))'),
+ST_GEOMFROMTEXT('POLYGON((0 8,-8 8,-8 5,0 8))'));
+ST_TOUCHES(
+ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(0 8,8 8,8 5,0 8))'),
+ST_GEOMFROMTEXT('POLYGON((0 8,-8 8,-8 5,0 8))'))
+1
+SELECT ST_TOUCHES(
+ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(0 6,6 6,6 3,0 6))'),
+ST_GEOMFROMTEXT('POLYGON((0 6,-6 6,-6 3,0 6))'));
+ST_TOUCHES(
+ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(0 6,6 6,6 3,0 6))'),
+ST_GEOMFROMTEXT('POLYGON((0 6,-6 6,-6 3,0 6))'))
+1
