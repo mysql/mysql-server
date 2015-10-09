@@ -170,7 +170,7 @@ public:
             if ( 0 != m_parent )
             {
                 rtree::elements(*m_parent)[m_current_child_index].first
-                    = rtree::elements_box<Box>(elements.begin(), elements.end(), m_translator);
+                    = rtree::values_box<Box>(elements.begin(), elements.end(), m_translator);
             }
         }
     }
