@@ -9877,7 +9877,15 @@ fulltext_options:
           opt_natural_language_mode opt_query_expansion
           { $$= $1 | $2; }
         | IN_SYM BOOLEAN_SYM MODE_SYM
-          { $$= FT_BOOL; }
+          {
+            $$= FT_BOOL;
+            DBUG_EXECUTE_IF("simulate_bug18831513",
+                            {
+                              THD *thd= YYTHD;
+                              if (thd->sp_runtime_ctx)
+                                MYSQLerror(NULL,thd,"syntax error");
+                            });
+          }
         ;
 
 opt_natural_language_mode:
