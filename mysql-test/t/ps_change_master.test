@@ -1,0 +1,45 @@
+--source include/not_embedded.inc
+--source include/have_log_bin.inc
+
+--echo #
+--echo # CHANGE MASTER TO doesn't work with prepared statements
+--echo #
+
+CHANGE MASTER TO MASTER_HOST='host1', MASTER_USER='user1';
+
+let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
+let $master_user= query_get_value(SHOW SLAVE STATUS, Master_User, 1);
+
+--echo # Master_Host : $master_host
+--echo # Master_User : $master_user
+
+SET @s := "CHANGE MASTER TO MASTER_HOST='host2'";
+PREPARE stmt FROM @s;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
+let $master_user= query_get_value(SHOW SLAVE STATUS, Master_User, 1);
+
+--echo # Master_Host : $master_host
+--echo # Master_User : $master_user
+
+SET @s := "CHANGE MASTER TO MASTER_USER='user2'";
+PREPARE stmt FROM @s;
+EXECUTE stmt;
+# Multiple executions should not hurt.
+EXECUTE stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
+let $master_user= query_get_value(SHOW SLAVE STATUS, Master_User, 1);
+
+--echo # Master_Host : $master_host
+--echo # Master_User : $master_user
+
+
+# Reset
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root';
+
+--echo # End of test
