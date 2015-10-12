@@ -1191,7 +1191,10 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
     set_cmp_context_for_datetime();
     return 0;
   }
-  else if (type == STRING_RESULT && (*a)->field_type() == MYSQL_TYPE_TIME &&
+  else if ((type == STRING_RESULT ||
+            // When comparing time field and cached/converted time constant
+            type == REAL_RESULT) &&
+           (*a)->field_type() == MYSQL_TYPE_TIME &&
            (*b)->field_type() == MYSQL_TYPE_TIME)
   {
     /* Compare TIME values as integers. */
