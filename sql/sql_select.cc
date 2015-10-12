@@ -2357,7 +2357,8 @@ void QEP_TAB::cleanup()
   {
     if (op->type() == QEP_operation::OT_TMP_TABLE)
     {
-      free_tmp_table(current_thd, t);
+      if (t) // Check tmp table is not yet freed.
+        free_tmp_table(current_thd, t);
       delete tmp_table_param;
       tmp_table_param= NULL;
     }
