@@ -6026,7 +6026,7 @@ check_col_exists_in_indexes(
 	bool			is_v)
 {
 	/* This function does not check system columns */
-	if (dict_table_get_nth_col(table, col_no)->mtype == DATA_SYS) {
+	if (!is_v && dict_table_get_nth_col(table, col_no)->mtype == DATA_SYS) {
 		return(true);
 	}
 
