@@ -111,10 +111,11 @@ NDB_SHARE::create_key(const char *new_key)
   // Check that writing has not occured beyond end of allocated memory
   assert(buf_ptr < reinterpret_cast<char*>(allocated_key) + size);
 
-  DBUG_PRINT("info", ("size: %lu, sizeof(NDB_SHARE_KEY): %lu",
-                      size, sizeof(NDB_SHARE_KEY)));
-  DBUG_PRINT("info", ("new_key: '%s', %lu", new_key, new_key_length));
-  DBUG_PRINT("info", ("db_name: '%s', %lu", db_name_buf, db_name_len));
+  DBUG_PRINT("info", ("size: %lu", (unsigned long)size));
+  DBUG_PRINT("info", ("new_key: '%s', %lu",
+                      new_key, (unsigned long)new_key_length));
+  DBUG_PRINT("info", ("db_name: '%s', %lu",
+                      db_name_buf, (unsigned long)db_name_len));
   DBUG_PRINT("info", ("table_name: '%s', %lu", table_name_buf, table_name_len));
   DBUG_DUMP("NDB_SHARE_KEY: ", (const uchar*)allocated_key->m_buffer, size);
 
@@ -255,7 +256,7 @@ void NDB_SHARE::print(const char* where, FILE* file) const
   fprintf(file, "%s %s.%s: use_count: %u\n",
           where, db, table_name, use_count);
   fprintf(file, "  - key: '%s', key_length: %lu\n",
-          key_string(), key_length());
+          key_string(), (unsigned long)key_length());
   fprintf(file, "  - commit_count: %llu\n", commit_count);
   if (event_data)
     fprintf(file, "  - event_data: %p\n", event_data);
