@@ -116,7 +116,8 @@ NDB_SHARE::create_key(const char *new_key)
                       new_key, (unsigned long)new_key_length));
   DBUG_PRINT("info", ("db_name: '%s', %lu",
                       db_name_buf, (unsigned long)db_name_len));
-  DBUG_PRINT("info", ("table_name: '%s', %lu", table_name_buf, table_name_len));
+  DBUG_PRINT("info", ("table_name: '%s', %lu", table_name_buf,
+                      (unsigned long)table_name_len));
   DBUG_DUMP("NDB_SHARE_KEY: ", (const uchar*)allocated_key->m_buffer, size);
 
   return allocated_key;
