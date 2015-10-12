@@ -10936,6 +10936,9 @@ DROP TABLE t1, t2;
 #               ON EXPLAIN SELECT JSON
 #
 create table t (pk int primary key, col_json json);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
 explain SELECT col_json FROM t WHERE pk = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
@@ -13332,6 +13335,9 @@ DROP TABLE t;
 CREATE TABLE t1(f1 JSON);
 INSERT INTO t1 VALUES('{"a":1}'),('{"a":3}'),('{"a":2}');
 INSERT INTO t1 VALUES('{"a":11, "b":3}'),('{"a":33, "b":1}'),('{"a":22,"b":2}');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT f1->"$.a" FROM t1;
 f1->"$.a"
 1
