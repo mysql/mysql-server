@@ -322,7 +322,10 @@ JOIN::create_intermediate_table(QEP_TAB *const tab,
 
 err:
   if (table != NULL)
+  {
     free_tmp_table(thd, table);
+    tab->set_table(NULL);
+  }
   DBUG_RETURN(true);
 }
 
