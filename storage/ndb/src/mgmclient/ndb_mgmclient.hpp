@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@ class CommandInterpreter;
 class Ndb_mgmclient
 {
 public:
-  Ndb_mgmclient(const char*,int verbose=0);
+  Ndb_mgmclient(const char*, int verbose, int connect_retry_delay);
   ~Ndb_mgmclient();
   bool execute(const char *line, int try_reconnect = -1,
                bool interactive = true, int *error = NULL);

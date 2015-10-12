@@ -323,7 +323,7 @@ static int mgmd_main(int argc, char** argv)
         con_str.appfmt("host=%s:%d", opts.bind_address, port);
       else
         con_str.appfmt("localhost:%d", port);
-      Ndb_mgmclient com(con_str.c_str(), 1);
+      Ndb_mgmclient com(con_str.c_str(), 1, 5);
       while(!g_StopServer){
         if (!read_and_execute(&com, "ndb_mgm> ", 1))
           g_StopServer = true;

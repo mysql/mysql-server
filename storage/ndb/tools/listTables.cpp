@@ -329,7 +329,7 @@ int main(int argc, char** argv){
     fatal("Unable to create cluster connection");
 
   ndb_cluster_connection->set_name("ndb_show_tables");
-  if (ndb_cluster_connection->connect(12,5,1))
+  if (ndb_cluster_connection->connect(opt_connect_retries, opt_connect_retry_delay, 1))
     fatal("Unable to connect to management server.\n - Error: '%d: %s'",
           ndb_cluster_connection->get_latest_error(),
           ndb_cluster_connection->get_latest_error_msg());

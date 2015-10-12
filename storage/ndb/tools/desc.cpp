@@ -95,7 +95,7 @@ int main(int argc, char** argv){
 
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   con.set_name("ndb_desc");
-  if(con.connect(12, 5, 1) != 0)
+  if(con.connect(opt_connect_retries, opt_connect_retry_delay, 1) != 0)
   {
     ndbout << "Unable to connect to management server." << endl;
     return NDBT_ProgramExit(NDBT_FAILED);
