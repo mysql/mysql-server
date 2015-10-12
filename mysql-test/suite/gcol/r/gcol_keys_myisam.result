@@ -11,7 +11,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS (a*2) STORED,
+  `b` int(11) GENERATED ALWAYS AS ((`a` * 2)) STORED,
   UNIQUE KEY `b` (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 describe t1;
@@ -24,7 +24,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS (a*2) STORED,
+  `b` int(11) GENERATED ALWAYS AS ((`a` * 2)) STORED,
   UNIQUE KEY `b` (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 describe t1;
@@ -46,7 +46,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS (a*2) STORED,
+  `b` int(11) GENERATED ALWAYS AS ((`a` * 2)) STORED,
   KEY `b` (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 describe t1;
@@ -59,7 +59,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS (a*2) STORED,
+  `b` int(11) GENERATED ALWAYS AS ((`a` * 2)) STORED,
   KEY `a` (`a`,`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 describe t1;
