@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/thr_lock.c
+  @file mysys/thr_lock.cc
 Read and write locks for Posix threads. All tread must acquire
 all locks it needs through thr_multi_lock() to avoid dead-locks.
 A lock consists of a master lock (THR_LOCK), and lock instances

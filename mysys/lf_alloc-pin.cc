@@ -15,7 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/lf_alloc-pin.c
+  @file mysys/lf_alloc-pin.cc
   wait-free concurrent allocator based on pinning addresses.
 
   It works as follows: every thread (strictly speaking - every CPU, but

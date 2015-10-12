@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/thr_rwlock.c
+  @file mysys/thr_rwlock.cc
   Synchronization - readers / writer thread locks
 */
 

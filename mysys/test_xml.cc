@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /**
-  @file mysys/test_xml.c
+  @file mysys/test_xml.cc
 */
 
 #include <stdio.h>

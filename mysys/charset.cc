@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/charset.c
+  @file mysys/charset.cc
 */
 
 #include "mysys_priv.h"

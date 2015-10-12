@@ -18,7 +18,7 @@
 #include <m_string.h>
 
 /**
-  @file mysys/mf_dirname.c
+  @file mysys/mf_dirname.cc
 */
 
 size_t dirname_length(const char *name)

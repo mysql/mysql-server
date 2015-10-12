@@ -15,7 +15,7 @@
    MA 02110-1301, USA */
 
 /**
-  @file mysys/my_chmod.c
+  @file mysys/my_chmod.cc
 */
 
 #include "mysys_priv.h"

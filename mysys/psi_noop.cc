@@ -14,7 +14,7 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
-  @file mysys/psi_noop.c
+  @file mysys/psi_noop.cc
   Always provide the noop performance interface, for plugins.
 */
 

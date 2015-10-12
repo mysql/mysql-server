@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /**
-  @file mysys/my_memmem.c
+  @file mysys/my_memmem.cc
 */
 
 #include <my_global.h>

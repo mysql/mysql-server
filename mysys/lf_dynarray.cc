@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/lf_dynarray.c
+  @file mysys/lf_dynarray.cc
   Analog of DYNAMIC_ARRAY that never reallocs
   (so no pointer into the array may ever become invalid).
 

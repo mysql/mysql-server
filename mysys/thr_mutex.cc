@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/thr_mutex.c
+  @file mysys/thr_mutex.cc
 */
 
 #include "thr_mutex.h"

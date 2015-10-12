@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/my_static.c
+  @file mysys/my_static.cc
   Static variables for mysys library. All defined here for easy making of
   a shared library.
 */

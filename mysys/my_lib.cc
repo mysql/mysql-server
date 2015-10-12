@@ -15,7 +15,7 @@
 */
 
 /**
-  @file mysys/my_lib.c
+  @file mysys/my_lib.cc
 */
 
 /* TODO: check for overun of memory for names. */

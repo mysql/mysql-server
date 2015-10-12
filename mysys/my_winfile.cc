@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/my_winfile.c
+  @file mysys/my_winfile.cc
   The purpose of this file is to provide implementation of file IO routines on 
   Windows that can be thought as drop-in replacement for corresponding C runtime
   functionality.

@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/my_alloc.c
+  @file mysys/my_alloc.cc
   Routines to handle mallocing of results which will be freed the same time.
 */
 

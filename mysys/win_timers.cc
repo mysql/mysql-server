@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/win_timers.c
+  @file mysys/win_timers.cc
 */
 
 #if defined (_WIN32)

@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /**
-  @file mysys/my_mkdir.c
+  @file mysys/my_mkdir.cc
 */
 
 #include "mysys_priv.h"

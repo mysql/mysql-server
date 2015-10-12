@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/posix_timers.c
+  @file mysys/posix_timers.cc
 */
 
 #include "my_global.h"

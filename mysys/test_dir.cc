@@ -17,7 +17,7 @@
    02110-1301  USA */
 
 /**
-  @file mysys/test_dir.c
+  @file mysys/test_dir.cc
 */
 
 /* TODO: Test all functions  */

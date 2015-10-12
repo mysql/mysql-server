@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/lf_hash.c
+  @file mysys/lf_hash.cc
   extensible hash
 
   @todo

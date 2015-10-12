@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/my_thr_init.c
+  @file mysys/my_thr_init.cc
   Functions to handle initialization and allocation of all mysys & debug
   thread variables.
 */

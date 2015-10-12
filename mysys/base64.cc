@@ -19,7 +19,7 @@
 #include <base64.h>
 
 /**
-  @file mysys/base64.c
+  @file mysys/base64.cc
 */
 
 #ifndef MAIN

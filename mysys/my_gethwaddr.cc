@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/my_gethwaddr.c
+  @file mysys/my_gethwaddr.cc
   Get hardware address for an interface.
   If there are many available, any non-zero one can be used.
 */

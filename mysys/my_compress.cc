@@ -16,7 +16,7 @@
 /* Written by Sinisa Milivojevic <sinisa@mysql.com> */
 
 /**
-  @file mysys/my_compress.c
+  @file mysys/my_compress.cc
 */
 
 #include <my_global.h>

@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/list.c
+  @file mysys/list.cc
   Code for handling double-linked lists in C.
 */
 

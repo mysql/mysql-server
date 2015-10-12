@@ -15,7 +15,7 @@
 */
 
 /**
-  @file mysys/mf_pack.c
+  @file mysys/mf_pack.cc
 */
 
 #include "mysys_priv.h"

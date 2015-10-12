@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/mf_cache.c
+  @file mysys/mf_cache.cc
   Open a temporary file and cache it with io_cache. Delete it on close.
 */
 

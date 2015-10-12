@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/mf_radix.c
+  @file mysys/mf_radix.cc
   Radixsort for pointers to fixed length strings.
   A very quick sort for not to long (< 20 char) strings.
   Neads a extra buffers of number_of_elements pointers but is

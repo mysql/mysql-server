@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/tree.c
+  @file mysys/tree.cc
   Code for handling red-black (balanced) binary trees.
   key in tree is allocated according to following:
 

@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /**
-  @file mysys/mf_same.c
+  @file mysys/mf_same.cc
 */
 
 #include "mysys_priv.h"

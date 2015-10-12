@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/mf_keycaches.c
+  @file mysys/mf_keycaches.cc
   Handling of multiple key caches.
 
   The idea is to have a thread safe hash on the table name,

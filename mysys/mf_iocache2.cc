@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/mf_iocache2.c
+  @file mysys/mf_iocache2.cc
   More functions to be used with IO_CACHE files
 */
 

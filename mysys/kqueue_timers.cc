@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/kqueue_timers.c
+  @file mysys/kqueue_timers.cc
 */
 
 #include "my_thread.h"   /* my_thread_init, my_thread_end */

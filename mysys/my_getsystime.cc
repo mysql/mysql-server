@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /**
-  @file mysys/my_getsystime.c
+  @file mysys/my_getsystime.cc
   Get time since epoch in 100 nanoseconds units.
   Thus to get the current time we should use the system function
   with the highest possible resolution

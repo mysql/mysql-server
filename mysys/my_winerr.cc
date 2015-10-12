@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/my_winerr.c
+  @file mysys/my_winerr.cc
   Convert Windows API error (GetLastError() to Posix equivalent (errno).
   The exported function  my_osmaperr() is modelled after and borrows
   heavily from undocumented _dosmaperr()(found of the static Microsoft C runtime).

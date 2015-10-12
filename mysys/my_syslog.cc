@@ -16,7 +16,7 @@
 */
 
 /**
-  @file mysys/my_syslog.c
+  @file mysys/my_syslog.cc
 */
 
 #include "mysys_priv.h"

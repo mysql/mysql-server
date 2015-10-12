@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/hash.c
+  @file mysys/hash.cc
 */
 
 /* The hash functions used for saveing keys */

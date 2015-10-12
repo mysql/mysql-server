@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/mf_keycache.c
+  @file mysys/mf_keycache.cc
   These functions handle keyblock caching for ISAM and MyISAM tables.
 
   One cache can handle many files.

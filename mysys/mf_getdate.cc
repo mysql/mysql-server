@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/mf_getdate.c
+  @file mysys/mf_getdate.cc
   Get date in a printable form: yyyy-mm-dd hh:mm:ss
 */
 

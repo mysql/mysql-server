@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /**
-  @file mysys/mf_qsort2.c
+  @file mysys/mf_qsort2.cc
   qsort that sends one extra argument to the compare subroutine
 */
 

@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/mf_qsort.c
+  @file mysys/mf_qsort.cc
   qsort implementation optimized for comparison of pointers
   Inspired by the qsort implementations by Douglas C. Schmidt,
   and Bentley & McIlroy's "Engineering a Sort Function".

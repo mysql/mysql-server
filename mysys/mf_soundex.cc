@@ -34,7 +34,7 @@
 ****************************************************************/
 
 /**
-  @file mysys/mf_soundex.c
+  @file mysys/mf_soundex.cc
 */
 
 #include "mysys_priv.h"

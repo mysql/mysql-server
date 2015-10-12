@@ -17,7 +17,7 @@
 #include "my_sys.h"
 
 /**
-  @file mysys/charset-def.c
+  @file mysys/charset-def.cc
 */
 
 /*

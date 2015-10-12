@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /**
-  @file mysys/typelib.c
+  @file mysys/typelib.cc
   Functions to handle typelib
 */
 

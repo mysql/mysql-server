@@ -15,6 +15,10 @@
 
 #include "my_global.h"
 
+/**
+  @file mysys/my_timespec.cc
+*/
+
 extern "C" void set_timespec_nsec(struct timespec *abstime, ulonglong nsec)
 {
 #ifdef HAVE_STRUCT_TIMESPEC
