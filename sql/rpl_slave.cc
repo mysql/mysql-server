@@ -5329,7 +5329,7 @@ extern "C" void *handle_slave_io(void *arg)
   mi->info_thd = thd;
 
   #ifdef HAVE_PSI_INTERFACE
-  // save the instrumentation for IO thread in mi->info_thd->scheduler
+  // save the instrumentation for IO thread in mi->info_thd
   struct PSI_thread *psi= PSI_THREAD_CALL(get_thread)();
   thd_set_psi(mi->info_thd, psi);
   #endif
@@ -5893,7 +5893,7 @@ extern "C" void *handle_slave_worker(void *arg)
   thd->thread_stack = (char*)&thd;
 
   #ifdef HAVE_PSI_INTERFACE
-  // save the instrumentation for worker thread in w->info_thd->scheduler
+  // save the instrumentation for worker thread in w->info_thd
   psi= PSI_THREAD_CALL(get_thread)();
   thd_set_psi(w->info_thd, psi);
   #endif
@@ -6882,7 +6882,7 @@ extern "C" void *handle_slave_sql(void *arg)
   rli->info_thd= thd;
 
   #ifdef HAVE_PSI_INTERFACE
-  // save the instrumentation for SQL thread in rli->info_thd->scheduler
+  // save the instrumentation for SQL thread in rli->info_thd
   struct PSI_thread *psi= PSI_THREAD_CALL(get_thread)();
   thd_set_psi(rli->info_thd, psi);
   #endif

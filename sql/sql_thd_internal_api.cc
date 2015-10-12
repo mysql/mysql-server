@@ -43,7 +43,7 @@ int thd_init(THD *thd, char *stack_start, bool bound, PSI_thread_key psi_key)
   {
     PSI_THREAD_CALL(set_thread_os_id)(psi);
   }
-  thd_set_psi(thd, psi);
+  thd->set_psi(psi);
 #endif
 
   if (!thd->system_thread)

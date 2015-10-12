@@ -72,7 +72,7 @@ void thd_set_scheduler_data(THD *thd, void *data)
 
 PSI_thread *thd_get_psi(THD *thd)
 {
-  return thd->scheduler.m_psi;
+  return thd->get_psi();
 }
 
 
@@ -99,7 +99,7 @@ ulong thd_get_net_wait_timeout(THD* thd)
 
 void thd_set_psi(THD *thd, PSI_thread *psi)
 {
-  thd->scheduler.m_psi= psi;
+  thd->set_psi(psi);
 }
 
 

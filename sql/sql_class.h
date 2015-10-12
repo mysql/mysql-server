@@ -77,27 +77,15 @@ LEX_CSTRING thd_query_unsafe(THD *thd);
 size_t thd_query_safe(THD *thd, char *buf, size_t buflen);
 
 /**
- To be used for pool-of-threads (implemeneted differently on various OSs)
+  To be used for pool-of-threads (implemented differently on various OSs)
 */
 class thd_scheduler
 {
 public:
-  /*
-    Thread instrumentation for the user job.
-    This member holds the instrumentation while the user job is not run
-    by a thread.
-
-    Note that this member is not conditionally declared
-    (ifdef HAVE_PSI_INTERFACE), because doing so will change the binary
-    layout of THD, which is exposed to plugin code that may be compiled
-    differently.
-  */
-  PSI_thread *m_psi;
-
   void *data;                  /* scheduler-specific data structure */
 
   thd_scheduler()
-  : m_psi(NULL), data(NULL)
+  : data(NULL)
   { }
 
   ~thd_scheduler() { }
@@ -3223,6 +3211,30 @@ public:
     return false;
   }
   thd_scheduler scheduler;
+
+public:
+  /**
+    Save the performance schema thread instrumentation
+    associated with this user session.
+    @param psi Performance schema thread instrumentation
+  */
+  void set_psi(PSI_thread *psi);
+  /**
+    Read the performance schema thread instrumentation
+    associated with this user session.
+    This method is safe to use from a different thread.
+  */
+  PSI_thread* get_psi();
+
+private:
+  /**
+    Performance schema thread instrumentation for this session.
+    This member is maintained using atomic operations,
+    do not access it directly.
+    @sa set_psi
+    @sa get_psi
+  */
+  PSI_thread* m_psi;
 
 public:
   inline Internal_error_handler *get_internal_handler()

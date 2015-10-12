@@ -307,6 +307,21 @@ extern "C" void free_user_var(user_var_entry *entry)
   entry->destroy();
 }
 
+PSI_thread* THD::get_psi()
+{
+  void *addr= & m_psi;
+  void * volatile * typed_addr= static_cast<void * volatile *>(addr);
+  void *ptr;
+  ptr= my_atomic_loadptr(typed_addr);
+  return static_cast<PSI_thread*>(ptr);
+}
+
+void THD::set_psi(PSI_thread *psi)
+{
+  void *addr= & m_psi;
+  void * volatile * typed_addr= static_cast<void * volatile *>(addr);
+  my_atomic_storeptr(typed_addr, psi);
+}
 
 void THD::enter_stage(const PSI_stage_info *new_stage,
                       PSI_stage_info *old_stage,
@@ -492,6 +507,7 @@ THD::THD(bool enable_plugins)
    duplicate_slave_uuid(false),
    is_a_srv_session_thd(false)
 {
+  set_psi(NULL);
   mdl_context.init(this);
   init_sql_alloc(key_memory_thd_main_mem_root,
                  &main_mem_root,
