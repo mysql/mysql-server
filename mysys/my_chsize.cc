@@ -23,6 +23,8 @@
 #include "m_string.h"
 #include "my_thread_local.h"
 
+#include <algorithm>
+
 /*
   Change size of file.
 
@@ -82,7 +84,7 @@ int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
     {
       goto err;
     }
-    swap_variables(my_off_t, newlength, oldsize);
+    std::swap(newlength, oldsize);
 #endif
   }
 

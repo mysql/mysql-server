@@ -26,6 +26,8 @@
 #include <zlib.h>
 #include "mysql/service_mysql_alloc.h"
 
+#include <algorithm>
+
 /*
    This replaces the packet with a compressed packet
 
@@ -89,7 +91,7 @@ uchar *my_compress_alloc(const uchar *packet, size_t *len, size_t *complen)
     return 0;
   }
   /* Store length of compressed packet in *len */
-  swap_variables(size_t, *len, *complen);
+  std::swap(*len, *complen);
   return compbuf;
 }
 

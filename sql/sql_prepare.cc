@@ -3716,7 +3716,7 @@ Prepared_statement::swap_prepared_statement(Prepared_statement *copy)
   Query_arena tmp_arena;
 
   /* Swap memory roots. */
-  swap_variables(MEM_ROOT, main_mem_root, copy->main_mem_root);
+  std::swap(main_mem_root, copy->main_mem_root);
 
   /* Swap the arenas */
   tmp_arena.set_query_arena(this);
@@ -3724,22 +3724,22 @@ Prepared_statement::swap_prepared_statement(Prepared_statement *copy)
   copy->set_query_arena(&tmp_arena);
 
   /* Swap the statement attributes */
-  swap_variables(LEX *, lex, copy->lex);
-  swap_variables(LEX_CSTRING, m_query_string, copy->m_query_string);
+  std::swap(lex, copy->lex);
+  std::swap(m_query_string, copy->m_query_string);
 
   /* Swap mem_roots back, they must continue pointing at the main_mem_roots */
-  swap_variables(MEM_ROOT *, mem_root, copy->mem_root);
+  std::swap(mem_root, copy->mem_root);
   /*
     Swap the old and the new parameters array. The old array
     is allocated in the old arena.
   */
-  swap_variables(Item_param **, param_array, copy->param_array);
+  std::swap(param_array, copy->param_array);
   /* Don't swap flags: the copy has IS_SQL_PREPARE always set. */
-  /* swap_variables(uint, flags, copy->flags); */
+  /* std::swap(flags, copy->flags); */
   /* Swap names, the old name is allocated in the wrong memory root */
-  swap_variables(LEX_CSTRING, m_name, copy->m_name);
+  std::swap(m_name, copy->m_name);
   /* Ditto */
-  swap_variables(LEX_CSTRING, m_db, copy->m_db);
+  std::swap(m_db, copy->m_db);
 
   DBUG_ASSERT(m_db.length == copy->m_db.length);
   DBUG_ASSERT(param_count == copy->param_count);

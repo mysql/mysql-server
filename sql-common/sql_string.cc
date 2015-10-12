@@ -1124,11 +1124,11 @@ void String::print(String *str)
 
 void String::swap(String &s)
 {
-  swap_variables(char *, m_ptr, s.m_ptr);
-  swap_variables(size_t, m_length, s.m_length);
-  swap_variables(uint32, m_alloced_length, s.m_alloced_length);
-  swap_variables(bool, m_is_alloced, s.m_is_alloced);
-  swap_variables(const CHARSET_INFO *, m_charset, s.m_charset);
+  std::swap(m_ptr, s.m_ptr);
+  std::swap(m_length, s.m_length);
+  std::swap(m_alloced_length, s.m_alloced_length);
+  std::swap(m_is_alloced, s.m_is_alloced);
+  std::swap(m_charset, s.m_charset);
 }
 
 

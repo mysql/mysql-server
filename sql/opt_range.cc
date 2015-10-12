@@ -5047,7 +5047,7 @@ static void find_intersect_order(ROR_SCAN_INFO **start,
      */
     bitmap_subtract(&fields_to_cover, &(*best)->covered_fields);
     if (best != place)
-      swap_variables(ROR_SCAN_INFO*, *best, *place);
+      std::swap(*best, *place);
 
     if (bitmap_is_clear_all(&fields_to_cover))
       return;                                   // No more fields to cover
@@ -7970,7 +7970,7 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
     {
       /* one tree is index merge tree and another is range tree */
       if (tree1->merges.is_empty())
-        swap_variables(SEL_TREE*, tree1, tree2);
+        std::swap(tree1, tree2);
       
       if (param->remove_jump_scans && remove_nonrange_trees(param, tree2))
          DBUG_RETURN(new (param->mem_root) SEL_TREE(SEL_TREE::ALWAYS));
@@ -8059,7 +8059,7 @@ key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
   {
     if (key1->part > key2->part)
     {
-      swap_variables(SEL_ARG *, key1, key2);
+      std::swap(key1, key2);
       clone_flag=swap_clone_flag(clone_flag);
     }
     // key1->part < key2->part
@@ -8075,7 +8075,7 @@ key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
        key2->type != SEL_ARG::MAYBE_KEY) ||
       key1->type == SEL_ARG::MAYBE_KEY)
   {						// Put simple key in key2
-    swap_variables(SEL_ARG *, key1, key2);
+    std::swap(key1, key2);
     clone_flag=swap_clone_flag(clone_flag);
   }
 
@@ -8292,7 +8292,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
   {
     if (key2->use_count == 0 || key1->elements > key2->elements)
     {
-      swap_variables(SEL_ARG *,key1,key2);
+      std::swap(key1,key2);
     }
     if (key1->use_count > 0 && (key1= key1->clone_tree(param)) == NULL)
       return 0;                                 // OOM

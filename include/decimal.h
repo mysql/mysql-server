@@ -103,25 +103,34 @@ int decimal_is_zero(const decimal_t *from);
 void max_decimal(int precision, int frac, decimal_t *to);
 int decimal_shift(decimal_t *dec, int shift);
 
-#define string2decimal(A,B,C) internal_str2dec((A), (B), (C), 0)
-#define string2decimal_fixed(A,B,C) internal_str2dec((A), (B), (C), 1)
+static inline int string2decimal(const char *from,
+                                 decimal_t *to,
+                                 char **end)
+{
+  return internal_str2dec(from, to, end, FALSE);
+}
 
 /* set a decimal_t to zero */
+static inline void decimal_make_zero(decimal_t *dec)
+{
+  dec->buf[0]= 0;
+  dec->intg= 1;
+  dec->frac= 0;
+  dec->sign= 0;
+}
 
-#define decimal_make_zero(dec)        do {                \
-                                        (dec)->buf[0]=0;    \
-                                        (dec)->intg=1;      \
-                                        (dec)->frac=0;      \
-                                        (dec)->sign=0;      \
-                                      } while(0)
-
-/*
-  returns the length of the buffer to hold string representation
+/**
+  Returns the length of the buffer to hold string representation
   of the decimal (including decimal dot, possible sign and \0)
 */
-
-#define decimal_string_size(dec) (((dec)->intg ? (dec)->intg : 1) + \
-				  (dec)->frac + ((dec)->frac > 0) + 2)
+static inline int decimal_string_size(const decimal_t *dec)
+{
+  return
+    (dec->intg ? dec->intg : 1) +
+    dec->frac +
+    (dec->frac > 0) +
+    2;
+}
 
 /*
   conventions:

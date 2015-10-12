@@ -32,6 +32,7 @@
 #include "sql_string.h"                         /* String */
 
 #include <decimal.h>
+#include <algorithm>
 
 typedef struct st_mysql_time MYSQL_TIME;
 
@@ -175,7 +176,7 @@ public:
   /** Swap two my_decimal values */
   void swap(my_decimal &rhs)
   {
-    swap_variables(my_decimal, *this, rhs);
+    std::swap(*this, rhs);
   }
 
   // Error reporting in server code only.

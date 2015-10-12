@@ -58,6 +58,7 @@
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
 
+#include <algorithm>
 
 /**
   This internal handler is used to trap ER_NO_SUCH_TABLE and
@@ -8404,7 +8405,7 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
       {
         /* This can happen only for JOIN ... ON. */
         DBUG_ASSERT(table_ref->nested_join->join_list.elements == 2);
-        swap_variables(TABLE_LIST*, same_level_left_neighbor, cur_table_ref);
+        std::swap(same_level_left_neighbor, cur_table_ref);
       }
 
       /*
@@ -8449,7 +8450,7 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
       back for 'mark_common_columns'.
     */
     if (table_ref_2->outer_join & JOIN_TYPE_RIGHT)
-      swap_variables(TABLE_LIST*, table_ref_1, table_ref_2);
+      std::swap(table_ref_1, table_ref_2);
     if (mark_common_columns(thd, table_ref_1, table_ref_2,
                             using_fields, &found_using_fields))
       DBUG_RETURN(true);
@@ -8460,7 +8461,7 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
       same as of an equivalent LEFT JOIN.
     */
     if (table_ref_1->outer_join & JOIN_TYPE_RIGHT)
-      swap_variables(TABLE_LIST*, table_ref_1, table_ref_2);
+      std::swap(table_ref_1, table_ref_2);
     if (store_natural_using_join_columns(thd, table_ref, table_ref_1,
                                          table_ref_2, using_fields,
                                          found_using_fields))

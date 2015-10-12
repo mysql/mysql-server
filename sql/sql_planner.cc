@@ -2618,7 +2618,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
       be uncond. swapped to maintain '#rows-ordered' best_ref[].
       This is critical for early pruning of bad plans.
     */
-    swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
+    std::swap(join->best_ref[idx], *pos);
 
     if ((remaining_tables & real_table_bit) && 
         !(eq_ref_extended & real_table_bit) &&
@@ -2964,7 +2964,7 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
       should be swapped to maintain '#rows' ordered tables.
       This is critical for early pruning of bad plans.
     */
-    swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
+    std::swap(join->best_ref[idx], *pos);
 
     /*
       Consider table for 'eq_ref' heuristic if:

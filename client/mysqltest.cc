@@ -10119,7 +10119,7 @@ int multi_reg_replace(struct st_replace_regex* r,char* val)
       if (in_buf == val)
         in_buf= r->odd_buf;
 
-      swap_variables(char*,in_buf,out_buf);
+      std::swap(in_buf,out_buf);
 
       buf_len_p= (out_buf == r->even_buf) ? &r->even_buf_len :
         &r->odd_buf_len;

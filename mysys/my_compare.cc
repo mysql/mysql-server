@@ -23,6 +23,8 @@
 #include <my_compare.h>
 #include <my_sys.h>
 
+#include <algorithm>
+
 #define CMP_NUM(a,b)    (((a) < (b)) ? -1 : ((a) == (b)) ? 0 : 1)
 
 int ha_compare_text(const CHARSET_INFO *charset_info, uchar *a, uint a_length,
@@ -366,7 +368,7 @@ int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a,
 
       if (keyseg->flag & HA_REVERSE_SORT)
       {
-        swap_variables(uchar*, a, b);
+        std::swap(a, b);
         swap_flag=1;                            /* Remember swap of a & b */
         end= a+ (int) (end-b);
       }
@@ -391,8 +393,8 @@ int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a,
 	  if (*b != '-')
 	    return -1;
 	  a++; b++;
-	  swap_variables(uchar*, a, b);
-	  swap_variables(int, alength, blength);
+          std::swap(a, b);
+          std::swap(alength, blength);
 	  swap_flag=1-swap_flag;
 	  alength--; blength--;
 	  end=a+alength;
@@ -420,7 +422,7 @@ int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a,
       }
 
       if (swap_flag)                            /* Restore pointers */
-        swap_variables(uchar*, a, b);
+        std::swap(a, b);
       break;
     }
     case HA_KEYTYPE_LONGLONG:

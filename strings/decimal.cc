@@ -97,12 +97,15 @@
       implementation-defined.
 */
 
+#include <decimal.h>
+
 #include <my_global.h>
 #include <m_ctype.h>
 #include <myisampack.h>
 #include <my_sys.h> /* for my_alloca */
 #include <m_string.h>
-#include <decimal.h>
+
+#include <algorithm>
 
 /*
   Internally decimal numbers are stored base 10^9 (see DIG_BASE below)
@@ -2034,10 +2037,10 @@ static int do_sub(const decimal_t *from1, const decimal_t *from2, decimal_t *to)
   /* ensure that always from1 > from2 (and intg1 >= intg2) */
   if (carry)
   {
-    swap_variables(const decimal_t *, from1, from2);
-    swap_variables(dec1 *,start1, start2);
-    swap_variables(int,intg1,intg2);
-    swap_variables(int,frac1,frac2);
+    std::swap(from1, from2);
+    std::swap(start1, start2);
+    std::swap(intg1,intg2);
+    std::swap(frac1,frac2);
     to->sign= 1 - to->sign;
   }
 
