@@ -6014,14 +6014,15 @@ innobase_online_rebuild_log_free(
 	rw_lock_x_unlock(&clust_index->lock);
 }
 
-/** For each column, which is part of an index which is not going to be
+/** For each user column, which is part of an index which is not going to be
 dropped, it checks if the column number of the column is same as col_no
 argument passed.
 @param[in]	table	table object
 @param[in]	col_no	column number of the column which is to be checked
 @param[in]	is_v	if this is a virtual column
 @retval true column exists
-@retval false column does not exist. */
+@retval false column does not exist, true if column is system column or
+it is in the index. */
 static
 bool
 check_col_exists_in_indexes(
@@ -6029,6 +6030,11 @@ check_col_exists_in_indexes(
 	ulint			col_no,
 	bool			is_v)
 {
+	/* This function does not check system columns */
+	if (dict_table_get_nth_col(table, col_no)->mtype == DATA_SYS) {
+		return(true);
+	}
+
 	for (dict_index_t* index = dict_table_get_first_index(table); index;
 	     index = dict_table_get_next_index(index)) {
 
