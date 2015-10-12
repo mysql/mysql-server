@@ -631,7 +631,9 @@ o verify nodegroup mapping
                                              opt_nodegroup_map,
                                              opt_nodegroup_map_len,
                                              ga_nodeId,
-                                             ga_nParallelism);
+                                             ga_nParallelism,
+                                             opt_connect_retry_delay,
+                                             opt_connect_retries);
   if (restore == NULL) 
   {
     delete g_printer;

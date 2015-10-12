@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,7 +45,6 @@ const char *load_default_groups[]= { "mysql_cluster","ndb_mgm",0 };
 static Ndb_mgmclient* com;
 
 static const char default_prompt[]= "ndb_mgm> ";
-static unsigned opt_try_reconnect;
 static const char *prompt= default_prompt;
 static char *opt_execute_str= 0;
 static unsigned opt_verbose = 1;
@@ -58,8 +57,8 @@ static struct my_option my_long_options[] =
     (uchar**) &opt_execute_str, (uchar**) &opt_execute_str, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "try-reconnect", 't',
-    "Specify number of tries for connecting to ndb_mgmd (0 = infinite)", 
-    (uchar**) &opt_try_reconnect, (uchar**) &opt_try_reconnect, 0,
+    "Same as --ndb-connect-retries",
+    (uchar**) &opt_connect_retries, (uchar**) &opt_connect_retries, 0,
     GET_UINT, REQUIRED_ARG, 3, 0, 0, 0, 0, 0 },
   { "verbose", 'v',
     "Control the amount of printout",
@@ -136,7 +135,7 @@ int main(int argc, char** argv){
     prompt= 0;
   }
 
-  com = new Ndb_mgmclient(connect_str.c_str(), opt_verbose);
+  com = new Ndb_mgmclient(connect_str.c_str(), opt_verbose, opt_connect_retry_delay);
   int ret= 0;
   BaseString histfile;
   if (!opt_execute_str)
@@ -155,7 +154,7 @@ int main(int argc, char** argv){
 #endif
 
     ndbout << "-- NDB Cluster -- Management Client --" << endl;
-    while(read_and_execute(opt_try_reconnect))
+    while(read_and_execute(opt_connect_retries))
       ;
 
 #ifdef HAVE_READLINE
@@ -171,7 +170,7 @@ int main(int argc, char** argv){
   }
   else
   {
-    com->execute(opt_execute_str, opt_try_reconnect, 0, &ret);
+    com->execute(opt_execute_str, opt_connect_retries, 0, &ret);
   }
   delete com;
 
