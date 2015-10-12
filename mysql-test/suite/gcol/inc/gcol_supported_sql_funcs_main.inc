@@ -613,6 +613,7 @@ let $rows = 1;
 let $cols = a varchar(5), b varchar(10) generated always as (weight_string(a as char(4))) virtual;
 let $values1 = 'MySQL',default;
 let $rows = 1;
+--echo THIS IS WRONG, see Bug#78783
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo #
