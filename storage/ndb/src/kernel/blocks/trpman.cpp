@@ -426,7 +426,7 @@ Trpman::execDBINFO_SCANREQ(Signal *signal)
             char *addr_str = Ndb_inet_ntop(AF_INET,
                                            static_cast<void*>(&conn_addr),
                                            addr_buf,
-                                           (socklen_t)sizeof(addr_buf));
+                                           sizeof(addr_buf));
             row.write_string(addr_str);
           }
           else
