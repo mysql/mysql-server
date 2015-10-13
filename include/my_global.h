@@ -197,7 +197,6 @@ typedef SSIZE_T   ssize_t;
 #else
 typedef socklen_t socket_len_t;
 #endif
-typedef socket_len_t SOCKET_SIZE_TYPE; /* Used by NDB */
 
 /* file create flags */
 
