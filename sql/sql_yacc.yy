@@ -6369,9 +6369,7 @@ generated_column_func:
             }
             ITEMIZE($1, &$1);
             uint expr_len= (uint)@1.cpp.length();
-            Lex->gcol_info->expr_str.str=
-              (char* ) sql_memdup(@1.cpp.start, expr_len);
-            Lex->gcol_info->expr_str.length= expr_len;
+            Lex->gcol_info->dup_expr_str(YYTHD->mem_root, @1.cpp.start, expr_len);
             Lex->gcol_info->expr_item= $1;
             /*
               @todo: problems:

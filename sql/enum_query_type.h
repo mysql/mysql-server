@@ -36,13 +36,15 @@ enum enum_query_type
   QT_DERIVED_TABLE_ONLY_ALIAS= (1 << 4),
   /// Print in charset of Item::print() argument (typically thd->charset()).
   QT_TO_ARGUMENT_CHARSET= (1 << 5),
-  /// Print identifiers in compact format, omitting schema names.
-  QT_COMPACT_FORMAT= (1 << 6),
+  /// Print identifiers without database's name
+  QT_NO_DB= (1 << 6),
+  /// Print identifiers without table's name
+  QT_NO_TABLE= (1 << 7),
   /**
     Change all Item_basic_constant to ? (used by query rewrite to compute
     digest.) Un-resolved hints will also be printed in this format.
   */
-  QT_NORMALIZED_FORMAT= (1 << 7)
+  QT_NORMALIZED_FORMAT= (1 << 8)
 };
 
 
