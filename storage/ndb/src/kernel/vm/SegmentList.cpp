@@ -585,7 +585,7 @@ SegmentSubPool::checkInvariants()
   return true;
 }
 
-#ifdef TAP_TEST
+#ifdef TEST_SEGMENTLIST
 
 #undef JAM_FILE_ID
 
