@@ -1292,9 +1292,43 @@ count(*)
 set session debug = "+d,ib_truncate_crash_while_fts_cleanup";
 truncate table ibstd_33;
 ERROR HY000: Lost connection to MySQL server during query
-# Restart the MySQL server
+# restart
 select count(*) from ibstd_33;
 ERROR 42S02: Table 'test.ibstd_33' doesn't exist
 drop table ibstd_33;
+CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT INDEX ft1(a,b(200))) ENGINE = InnoDB;
+INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
+('Full-text indexes', 'are called collections'),
+('Only MyISAM tables','support collections'),
+('Function MATCH ... AGAINST()','is used to do a search'),
+('Full-text search in MySQL', 'implements vector space model');
+select * from t1 where MATCH(a,b) AGAINST ("collections");
+a	b
+Full-text indexes	are called collections
+Only MyISAM tables	support collections
+select * from t1 where MATCH(a,b) AGAINST ("indexes");
+a	b
+Full-text indexes	are called collections
+select * from t1 where MATCH(a,b) AGAINST ("indexes collections");
+a	b
+Full-text indexes	are called collections
+Only MyISAM tables	support collections
+select * from t1 where MATCH(a,b) AGAINST ("only");
+a	b
+Only MyISAM tables	support collections
+ALTER TABLE t1 DROP INDEX ft1;
+set session debug = "+d,ib_truncate_crash_while_fts_cleanup";
+truncate table t1;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
+('Full-text indexes', 'are called collections'),
+('Only MyISAM tables','support collections'),
+('Function MATCH ... AGAINST()','is used to do a search'),
+('Full-text search in MySQL', 'implements vector space model');
+ERROR 42S02: Table 'test.t1' doesn't exist
+select * from t1 where MATCH(a,b) AGAINST ("collections");
+ERROR 42S02: Table 'test.t1' doesn't exist
+drop table t1;
 set global innodb_file_per_table = default;
 set global innodb_strict_mode = default;

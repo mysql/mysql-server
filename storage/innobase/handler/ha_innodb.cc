@@ -5615,26 +5615,6 @@ ha_innobase::open(
 		no_tablespace = false;
 	}
 
-	if (dict_table_has_fts_index(ib_table)) {
-
-		/* Check if table is in a consistent state.
-		Crash during truncate can put table in an inconsistent state. */
-		trx_t*	trx = innobase_trx_allocate(ha_thd());
-		bool	sane = fts_is_corrupt(ib_table, trx);
-		innobase_commit_low(trx);
-		trx_free_for_mysql(trx);
-		trx = NULL;
-
-		if (!sane) {
-			/* In-consistent fts index found. */
-			free_share(m_share);
-			set_my_errno(ENOENT);
-
-			dict_table_close(ib_table, FALSE, FALSE);
-			DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
-		}
-	}
-
 	if (!thd_tablespace_op(thd) && no_tablespace) {
 		free_share(m_share);
 		set_my_errno(ENOENT);

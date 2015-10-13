@@ -59,6 +59,7 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, reme
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace ");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Flagged corruption of .* in FTS_SANITY_CHECK");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot open table .* from the internal data dictionary of InnoDB though the .frm file for the table exists.*");
 --enable_query_log
 
 #-----------------------------------------------------------------------------
@@ -623,20 +624,50 @@ repeat('0.350557460150547arrclolullcocuraalaulloooclrcoulrccaoocourcrorooruruooa
 repeat('0.0836047279001129oaalolrllcoulaoococrolooullocuaacocoaoloclouallruaalolaruucaloluraocorrlouuoaorloarrluaaorucu','534'));
 select count(*) from ibstd_33;
 #
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 set session debug = "+d,ib_truncate_crash_while_fts_cleanup";
 --error 2013
 truncate table ibstd_33;
 #
---enable_reconnect
---echo # Restart the MySQL server
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/start_mysqld.inc
 #
 --error ER_NO_SUCH_TABLE
 select count(*) from ibstd_33;
 drop table ibstd_33;
 
+# Test with internal FTS_DOC_ID Index and then the truncate crash
+CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT INDEX ft1(a,b(200))) ENGINE = InnoDB;
+INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
+                       ('Full-text indexes', 'are called collections'),
+                          ('Only MyISAM tables','support collections'),
+             ('Function MATCH ... AGAINST()','is used to do a search'),
+        ('Full-text search in MySQL', 'implements vector space model');
+
+select * from t1 where MATCH(a,b) AGAINST ("collections");
+select * from t1 where MATCH(a,b) AGAINST ("indexes");
+select * from t1 where MATCH(a,b) AGAINST ("indexes collections");
+select * from t1 where MATCH(a,b) AGAINST ("only");
+
+ALTER TABLE t1 DROP INDEX ft1;
+--source include/expect_crash.inc
+set session debug = "+d,ib_truncate_crash_while_fts_cleanup";
+
+--error 2013
+truncate table t1;
+
+--source include/start_mysqld.inc
+
+--error ER_NO_SUCH_TABLE
+INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
+                       ('Full-text indexes', 'are called collections'),
+                          ('Only MyISAM tables','support collections'),
+             ('Function MATCH ... AGAINST()','is used to do a search'),
+        ('Full-text search in MySQL', 'implements vector space model');
+
+--error ER_NO_SUCH_TABLE
+select * from t1 where MATCH(a,b) AGAINST ("collections");
+
+drop table t1;
 #-----------------------------------------------------------------------------
 #
 # remove test-bed
