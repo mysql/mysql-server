@@ -3489,11 +3489,11 @@ static int
 match_hostname(const struct sockaddr *clnt_addr,
                const char *config_hostname)
 {
-  struct in_addr config_addr= {0};
   if (clnt_addr)
   {
     const struct in_addr *clnt_in_addr = &((sockaddr_in*)clnt_addr)->sin_addr;
 
+    struct in_addr config_addr;
     if (Ndb_getInAddr(&config_addr, config_hostname) != 0
         || memcmp(&config_addr, clnt_in_addr, sizeof(config_addr)) != 0)
     {
