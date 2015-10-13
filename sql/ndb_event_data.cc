@@ -80,7 +80,7 @@ void Ndb_event_data::print(const char* where, FILE* file) const
       mem_root_used += block_used;
       mem_root_size += mem_block->size;
     }
-    fprintf(file, "  - mem_root size: %lu\n", mem_root_size);
-    fprintf(file, "  - mem_root used: %lu\n", mem_root_used);
+    fprintf(file, "  - mem_root size: %lu\n", (unsigned long)mem_root_size);
+    fprintf(file, "  - mem_root used: %lu\n", (unsigned long)mem_root_used);
   }
 }
