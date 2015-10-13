@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -15,6 +15,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
+
+#ifdef TEST_MGMCONFIG
 
 #include <ndb_global.h>
 #include "InitConfigFileParser.hpp"
@@ -482,3 +484,5 @@ TAPTEST(MgmConfig)
   ndb_end(0);
   return 1; // OK
 }
+
+#endif
