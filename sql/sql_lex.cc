@@ -3036,7 +3036,7 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type) const
     if (view_name.str)
     {
       // A view
-      if (!(query_type & QT_COMPACT_FORMAT) &&
+      if (!(query_type & QT_NO_DB) &&
           !((query_type & QT_NO_DEFAULT_DB) &&
             db_is_default_db(view_db.str, view_db.length, thd)))
       {
@@ -3061,7 +3061,7 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type) const
     {
       // A normal table
 
-      if (!(query_type & QT_COMPACT_FORMAT) &&
+      if (!(query_type & QT_NO_DB) &&
           !((query_type & QT_NO_DEFAULT_DB) &&
             db_is_default_db(db, db_length, thd)))
       {
