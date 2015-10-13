@@ -5250,7 +5250,7 @@ void TABLE_LIST::set_want_privilege(ulong want_privilege)
 /**
   Load security context information for this view
 
-  @param thd                  [in] thread handler
+  @param thd                  thread handler
 
   @retval FALSE OK
   @retval TRUE Error
@@ -5312,7 +5312,7 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
 /**
   Find security context of current view
 
-  @param thd                  [in] thread handler
+  @param thd                  thread handler
 
 */
 
@@ -5349,7 +5349,7 @@ Security_context *TABLE_LIST::find_view_security_context(THD *thd)
 /**
   Prepare security context and load underlying tables priveleges for view
 
-  @param thd                  [in] thread handler
+  @param thd                  thread handler
 
   @retval FALSE OK
   @retval TRUE Error

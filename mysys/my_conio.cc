@@ -66,10 +66,10 @@ my_win_is_console(FILE *file)
   Unicode console input, and then convert it to "cs" in a single shot.
   String is terminated with '\0' character.
 
-  @param cs          [IN]  Character string to convert to.
-  @param mbbuf       [OUT] Write input data here.
-  @param mbbufsize   [IN]  Number of bytes available in mbbuf.
-  @param nread       [OUT] Number of bytes read.
+  @param cs           Character string to convert to.
+  @param [out] mbbuf  Write input data here.
+  @param mbbufsize    Number of bytes available in mbbuf.
+  @param [out] nread  Number of bytes read.
 
   @retval           Pointer to mbbuf, or NULL on I/0 error.
 */
@@ -132,7 +132,7 @@ my_win_console_readline(const CHARSET_INFO *cs, char *mbbuf, size_t mbbufsize,
   @param cs           Character set of the input string
   @param from         Input string
   @param from_length  Length of the input string
-  @param to[OUT]      Write Unicode data here
+  @param [out] to     Write Unicode data here
   @param to_chars     Number of characters available in "to"
 */
 static size_t
@@ -267,8 +267,8 @@ my_win_console_vfprintf(const CHARSET_INFO *cs, const char *fmt, va_list args)
   Translated parameters are allocated using my_once_alloc().
 
   @param      tocs    Character set to convert parameters to.
-  @param[OUT] argc    Write number of parameters here
-  @param[OUT] argv    Write pointer to allocated parameters here.
+  @param[out] argc    Write number of parameters here
+  @param[out] argv    Write pointer to allocated parameters here.
 */
 int
 my_win_translate_command_line_args(const CHARSET_INFO *cs, int *argc, char ***argv)

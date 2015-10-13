@@ -1347,11 +1347,11 @@ static bool consume_comment(Lex_input_stream *lip,
 }
 
 
-/*
+/**
   yylex() function implementation for the main parser
 
-  @param yylval         [out]  semantic value of the token being parsed (yylval)
-  @param yylloc         [out]  "location" of the token being parsed (yylloc)
+  @param [out] yylval   semantic value of the token being parsed (yylval)
+  @param [out] yylloc   "location" of the token being parsed (yylloc)
   @param thd            THD
 
   @return               token number

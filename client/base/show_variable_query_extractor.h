@@ -40,7 +40,7 @@ public:
     @param[in] query_runner MySQL query runner to use.
     @param[in] variable Name of variable to get value of.
     @param[out] value reference to String to store variable value to.
-    @param[out] value reference to bool to store if variable was found.
+    @param[out] exists reference to bool to store if variable was found.
     @return nonzero if error was encountered.
    */
   static int64 get_variable_value(

@@ -1658,13 +1658,8 @@ my_decimal *Item_in_subselect::val_decimal(my_decimal *decimal_value)
 }
 
 
-/* 
+/**
   Rewrite a single-column IN/ALL/ANY subselect
-
-  SYNOPSIS
-    Item_in_subselect::single_value_transformer()
-      select Query block of the subquery
-      func  Subquery comparison creator
 
   DESCRIPTION
     Rewrite a single-column subquery using rule-based approach. The subquery
@@ -1675,21 +1670,23 @@ my_decimal *Item_in_subselect::val_decimal(my_decimal *decimal_value)
     the forms:
     
        - oe $cmp$ (SELECT MAX(...) )  // handled by Item_singlerow_subselect
-       - oe $cmp$ <max>(SELECT ...)   // handled by Item_maxmin_subselect
+       - oe $cmp$ \<max\>(SELECT ...)   // handled by Item_maxmin_subselect
    
     If that fails, the subquery will be handled with class Item_in_optimizer.
-    There are two possibilites:
+    There are two possibilities:
     - If the subquery execution method is materialization, then the subquery is
       not transformed any further.
     - Otherwise the IN predicates is transformed into EXISTS by injecting
       equi-join predicates and possibly other helper predicates. For details
       see method single_value_in_like_transformer().
 
-  RETURN
-    RES_OK     Either subquery was transformed, or appopriate
+  @param select Query block of the subquery
+  @param func   Subquery comparison creator
+
+  @retval RES_OK     Either subquery was transformed, or appropriate
                        predicates where injected into it.
-    RES_REDUCE The subquery was reduced to non-subquery
-    RES_ERROR  Error
+  @retval RES_REDUCE The subquery was reduced to non-subquery
+  @retval RES_ERROR  Error
 */
 
 Item_subselect::trans_res

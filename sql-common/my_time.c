@@ -1281,8 +1281,9 @@ TIME_to_datetime_str(char *to, const MYSQL_TIME *ltime)
 /**
   Print a datetime value with an optional fractional part.
 
-  @param l_time       The MYSQL_TIME value to print.
-  @param [out] to      The string pointer to print at.
+  @param l_time       The MYSQL_TIME value to print
+  @param [out] to     The string pointer to print at
+  @param dec          Precision, in the range 0..6
   @return       The length of the result string.  
 */
 int my_datetime_to_str(const MYSQL_TIME *l_time, char *to, uint dec)

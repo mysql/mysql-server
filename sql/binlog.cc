@@ -455,7 +455,7 @@ public:
     DBUG_ASSERT(is_binlog_empty());
   }
 
-  /*
+  /**
     Sets the write position to point at the position given. If the
     cache has swapped to a file, it reinitializes it, so that the
     proper data is added to the IO_CACHE buffer. Otherwise, it just
@@ -464,8 +464,8 @@ public:
     my_b_seek will not work if the cache has swapped, that's why
     we do this workaround.
 
-    @param[IN]  pos the new write position.
-    @param[IN]  use_reinit if the position should be reset resorting
+    @param  pos the new write position.
+    @param  use_reinit if the position should be reset resorting
                 to reset_io_cache (which may issue a flush_io_cache 
                 inside)
 

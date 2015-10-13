@@ -7632,7 +7632,7 @@ bool Item::evaluate(THD *thd, String *buffer)
 /**
   Check if an item is a constant one and can be cached.
 
-  @param arg [out] != NULL <=> Cache this item.
+  @param [out] arg If != NULL <=> Cache this item.
 
   @return TRUE  Go deeper in item tree.
   @return FALSE Don't go deeper in item tree.

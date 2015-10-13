@@ -15,7 +15,7 @@
 
 
 /**
-  @file
+  @file sql/item_cmpfunc.cc
 
   @brief
   This file defines all compare functions
@@ -128,12 +128,6 @@ static int cmp_row_type(Item* item1, Item* item2)
 
 /**
   Aggregates result types from the array of items.
-
-  SYNOPSIS:
-    agg_cmp_type()
-    type   [out] the aggregated type
-    items        array of items to aggregate the type from
-    nitems       number of items in the array
 
   DESCRIPTION
     This function aggregates result types from the array of items. Found type
@@ -1049,16 +1043,14 @@ Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
 }
 
 
-/*
+/**
   Retrieves correct TIME value from the given item.
 
-  SYNOPSIS
-    get_time_value()
-    thd                 thread handle
-    item_arg   [in/out] item to retrieve TIME value from
-    cache_arg  [in/out] pointer to place to store the cache item to
-    warn_item  [in]     unused
-    is_null    [out]    TRUE <=> the item_arg is null
+  @param thd                  thread handle
+  @param [in,out] item_arg    item to retrieve TIME value from
+  @param [in,out] cache_arg   pointer to place to store the cache item to
+  @param warn_item            unused
+  @param [out] is_null        TRUE <=> the item_arg is null
 
   DESCRIPTION
     Retrieves the correct TIME value from given item for comparison by the
@@ -1300,9 +1292,9 @@ bool Arg_comparator::try_year_cmp_func(Item_result type)
 /**
   Convert and cache a constant.
 
-  @param value      [in]  An item to cache
-  @param cache_item [out] Placeholder for the cache item
-  @param type       [in]  Comparison type
+  @param value       An item to cache
+  @param [out] cache_item Placeholder for the cache item
+  @param type        Comparison type
 
   @details
     When given item is a constant and its type differs from comparison type
@@ -2793,9 +2785,9 @@ void Item_func_interval::fix_length_and_dec()
     print_args calls print function of "Item_row" class. Item_row::print
     function append "(", "argument_list" and ")" to String str.
 
-  @param str          [in/out]  String to which the func_name and argument list
-                                should be appeneded. 
-  @param query_type   [in]      Query type
+  @param [in,out] str      String to which the func_name and argument list
+                                should be appended. 
+  @param query_type        Query type
 */
 
 void Item_func_interval::print(String *str, enum_query_type query_type)
@@ -3122,7 +3114,7 @@ Item_func_between::get_filtering_effect(table_map filter_for_table,
   @param  compare_as_temporal_times copy of Item_func_between member variable
   @param  negated                   copy of Item_func_between member variable
   @param  args                      copy of Item_func_between member variable
-  @param  null_value [out]          set to true if result is not true/false
+  @param [out] null_value           set to true if result is not true/false
 
   @retval true if: args[1] <= args[0] <= args[2]
  */

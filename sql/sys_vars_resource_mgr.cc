@@ -20,8 +20,8 @@
 /**
   Returns the member that contains the given key (address).
 
-  @param key    [IN]        Key (address) to look for in the list.
-  @param length [IN]        Length of the key.
+  @param key           Key (address) to look for in the list.
+  @param length        Length of the key.
 
   @return
     Success - Address of the member containing the specified key (address).
@@ -39,8 +39,8 @@ uchar *Session_sysvar_resource_manager::find(void *key, size_t length)
   Allocates memory for Sys_var_charptr session variable during session
   initialization.
 
-  @param var     [IN]     The variable.
-  @param charset [IN]     Character set information.
+  @param var         The variable.
+  @param charset     Character set information.
 
   @return
   Success - false
@@ -82,9 +82,9 @@ bool Session_sysvar_resource_manager::init(char **var, const CHARSET_INFO * char
   Frees the old alloced memory, memdup()'s the given val to a new memory
   address & updated the session variable pointer.
 
-  @param var     [IN]     The variable.
-  @param val     [IN]     The new value.
-  @param val_len [IN]     Length of the new value.
+  @param var         The variable.
+  @param val         The new value.
+  @param val_len     Length of the new value.
 
   @return
   Success - false

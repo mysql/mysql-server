@@ -4524,7 +4524,7 @@ thr_lock_type read_lock_type_for_table(THD *thd,
 }
 
 
-/*
+/**
   Handle element of prelocking set other than table. E.g. cache routine
   and, if prelocking strategy prescribes so, extend the prelocking set
   with tables and routines used by it.
@@ -6960,20 +6960,18 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
 }
 
 
-/*
+/**
   Find field by name in a NATURAL/USING join table reference.
 
-  SYNOPSIS
-    find_field_in_natural_join()
-    thd			 [in]  thread handler
-    table_ref            [in]  table reference to search
-    name		 [in]  name of field
-    length		 [in]  length of name
-    ref                  [in/out] if 'name' is resolved to a view field, ref is
+  @param thd thread handler
+  @param table_ref table reference to search
+  @param name name of field
+  @param length	length of name
+  @param [in,out] ref if 'name' is resolved to a view field, ref is
                                set to point to the found view field
-    register_tree_change [in]  TRUE if ref is not stack variable and we
+  @param register_tree_change TRUE if ref is not stack variable and we
                                need register changes in item tree
-    actual_table         [out] the original table reference where the field
+  @param [out] actual_table    The original table reference where the field
                                belongs - differs from 'table_list' only for
                                NATURAL/USING joins
 
@@ -6983,7 +6981,7 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
     names. In the case of qualified fields, we search directly the base
     tables of a natural join.
 
-    Sometimes when a field is found, it is checked for priviliges according to
+    Sometimes when a field is found, it is checked for privileges according to
     THD::want_privilege and marked according to THD::mark_used_columns.
     But it is unclear when, so caller generally has to do the same.
 
@@ -9977,7 +9975,7 @@ open_system_table_for_update(THD *thd, TABLE_LIST *one_table)
   when calling close_log_table().
   @param thd The current thread
   @param one_table Log table to open
-  @param backup [out] Temporary storage used to save the thread context
+  @param [out] backup Temporary storage used to save the thread context
 */
 TABLE *
 open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup)
@@ -10013,7 +10011,7 @@ open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup)
   The last table opened by open_log_table()
   is closed, then the thread context is restored.
   @param thd The current thread
-  @param backup [in] the context to restore.
+  @param backup The context to restore.
 */
 void close_log_table(THD *thd, Open_tables_backup *backup)
 {

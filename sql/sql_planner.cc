@@ -122,7 +122,7 @@ Optimize_table_order::Optimize_table_order(THD *thd_arg, JOIN *join_arg,
                                     is added to the partial plan.
   @param prefix_rowcount            estimate for the number of records returned
                                     by the partial plan
-  @param found_condition [out]      whether or not there exists a condition
+  @param [out] found_condition      whether or not there exists a condition
                                     that filters away rows for this table.
                                     Always true when the function finds a
                                     usable 'ref' access, but also if it finds
@@ -133,9 +133,9 @@ Optimize_table_order::Optimize_table_order(THD *thd_arg, JOIN *join_arg,
                                     condition in question must be in the plan
                                     prefix for this to be 'true'. Unmodified
                                     if no relevant condition is found.
-  @param ref_depend_map [out]       tables the best ref access depends on.
+  @param [out] ref_depend_map       tables the best ref access depends on.
                                     Unmodified if no 'ref' access is found.
-  @param used_key_parts [out]       Number of keyparts 'ref' access uses.
+  @param [out] used_key_parts       Number of keyparts 'ref' access uses.
                                     Unmodified if no 'ref' access is found.
 
   @return pointer to Key_use for the index with best 'ref' access, NULL if

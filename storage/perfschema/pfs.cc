@@ -114,7 +114,7 @@ static void report_memory_accounting_error(
 #endif /* PFS_PARANOID */
 
 /**
-  @page PAGE_PFS Performance Schema: main page
+  @page PAGE_PFS Performance Schema
   MySQL PERFORMANCE_SCHEMA implementation.
 
   @section PFS_MAIN_INTRO Introduction
@@ -379,10 +379,16 @@ static void report_memory_accounting_error(
   that is not instrumented
   - a server not supporting the performance schema + a storage engine
   that is instrumented
+
+  @subpage PAGE_PFS_PSI
+
+  @subpage PAGE_PFS_AGGREGATES
+
+  @subpage PAGE_PFS_NEW_TABLE
 */
 
 /**
-  @page PAGE_PFS_PSI Performance Schema: instrumentation interface page
+  @page PAGE_PFS_PSI Instrumentation interface
   MySQL performance schema instrumentation interface.
 
   @section PFS_PSI_INTRO Introduction
@@ -543,7 +549,7 @@ static inline int mysql_mutex_lock(...)
 */
 
 /**
-  @page PAGE_PFS_AGGREGATES Performance Schema: the aggregates page
+  @page PAGE_PFS_AGGREGATES Aggregates
   Performance schema aggregates.
 
   @section PFS_AGG_INTRO Introduction

@@ -974,6 +974,7 @@ extern "C" void transaction_free_hash(void *);
 
   @param ptr  pointer to the record
   @param length  length of the record
+  @param not_used Unused
 
   @return  pointer to a record stored in cache
 */
@@ -1236,6 +1237,7 @@ bool applier_reset_xa_trans(THD *thd)
 
   @param[in,out]     thd     Thread context
   @param             plugin  Reference to handlerton
+  @param             unused  Unused
 
   @return    FALSE   on success, TRUE otherwise.
 */

@@ -248,9 +248,9 @@ public:
   If successful, fills in a struct with the facility ID and
   the facility's canonical name.
 
-  @param f   [in]   Name of the faciltiy we're trying to look up.
+  @param f     Name of the facility we're trying to look up.
                     Lookup is case-insensitive; leading "log_" is ignored.
-  @param rsf [out]  A buffer in which to return the ID and canonical name.
+  @param [out] rsf  A buffer in which to return the ID and canonical name.
 
   @return
     false           No errors; buffer contains valid result

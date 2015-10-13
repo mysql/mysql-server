@@ -891,6 +891,7 @@ bool thd_prepare_connection(THD *thd)
 
   @param thd        Thread handle.
   @param sql_errno  The error code to send before disconnect.
+  @param server_shutdown True for a server shutdown
 
   @note
     For the connection that is doing shutdown, this is called twice

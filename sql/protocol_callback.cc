@@ -19,7 +19,7 @@
 #include "current_thd.h"
 
 /**
-@file
+  @file sql/protocol_callback.cc
   Implementation of the Protocol_callback class, which is used by the Command
   service as proxy protocol.
 */

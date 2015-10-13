@@ -1627,7 +1627,7 @@ ulong Slave_committed_queue::move_queue_head(Slave_worker_array *ws)
    A mutex protecting from concurrent LWM change by
    move_queue_head() (by Coordinator) should be taken by the caller.
 
-   @param arg_g [out]  a double pointer to Slave job descriptor item
+   @param [out] arg_g  a double pointer to Slave job descriptor item
                        last marked with done-as-true boolean.
    @param start_index  a GAQ index to start/resume searching.
                        Caller is to make sure the index points into

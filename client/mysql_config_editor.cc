@@ -1299,9 +1299,10 @@ error:
 /**
   Encrypt the given plain text.
 
-  @param plain     [in]   Plain text to be encrypted.
-  @param plain_len [in]   Length of the plain text.
-  @param cipher    [out]  Encrypted cipher text.
+  @param plain            Plain text to be encrypted
+  @param plain_len        Length of the plain text
+  @param [out] cipher     Encrypted cipher text
+  @param aes_len          Length of the cypher
 
   @return                 -1 if error encountered,
                           length encrypted, otherwise.

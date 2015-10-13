@@ -66,9 +66,9 @@ static  HANDLE hEventLog= NULL;                  // global
   internally converted to UCS-2 encoding, while on other platforms, no
   conversion takes place and the string is passed to the syslog API as it is.
 
-  @param cs    [in]                Character set info of the message string
-  @param level [in]                Log level
-  @param msg   [in]                Message to be logged
+  @param cs                   Character set info of the message string
+  @param level                Log level
+  @param msg                  Message to be logged
 
   @return
      0 Success
@@ -139,8 +139,8 @@ err:
    should be unprivileged; modifying will fail on insufficient
    privileges, but that is non-fatal.
 
-  @param key [in]         Name of the event generator.
-                          (Only last part of the key, e.g. "MySQL")
+  @param key          Name of the event generator.
+                      (Only last part of the key, e.g. "MySQL")
 
   @return
      0 Success
@@ -216,7 +216,7 @@ static int windows_eventlog_create_registry_entry(const char *key)
   be invoked from the main thread or some extra thread
   safety measures need to be taken.
 
-  @param name [in]   Name of the event source / syslog ident
+  @param name    Name of the event source / syslog ident
 
   @return
      0 Success

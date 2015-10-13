@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,11 +30,12 @@
 #define ALL_OK 0 // Reporting success and good fortune
 
 /**
- Trivial parser for the login.cnf file which assumes that first entry
- is a [client] header followed by some attribute/value -pairs
+ Trivial parser for the login.cnf file which scans for a
+ [section] header followed by some attribute/value -pairs
 
   @param sin Input stream
   @param[out] options Output map
+  @param header the section name to look for
   @return success rate
   @retval ALL_OK Reporting success and good fortune
   @retval ERR_SYNTAX Failed to parse the stream

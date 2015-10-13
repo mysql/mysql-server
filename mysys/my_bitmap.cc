@@ -293,10 +293,8 @@ uint bitmap_set_next(MY_BITMAP *map)
 /**
   Set the specified number of bits in the bitmap buffer.
 
-  @param map         [IN]       Bitmap
-  @param prefix_size [IN]       Number of bits to be set
-
-  @return                       void
+  @param map                Bitmap
+  @param prefix_size        Number of bits to be set
 */
 void bitmap_set_prefix(MY_BITMAP *map, uint prefix_size)
 {

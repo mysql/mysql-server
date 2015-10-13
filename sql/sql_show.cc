@@ -2076,15 +2076,10 @@ view_store_options(THD *thd, TABLE_LIST *table, String *buff)
 }
 
 
-/*
-  Append DEFINER clause to the given buffer.
+/**
+  Append ALGORITHM clause to the given buffer.
   
-  SYNOPSIS
-    append_definer()
-    thd           [in] thread handle
-    buffer        [inout] buffer to hold DEFINER clause
-    definer_user  [in] user name part of definer
-    definer_host  [in] host name part of definer
+  @param [in,out] buff      buffer to hold ALGORITHM clause
 */
 
 static void append_algorithm(TABLE_LIST *table, String *buff)
@@ -2105,15 +2100,13 @@ static void append_algorithm(TABLE_LIST *table, String *buff)
   }
 }
 
-/*
+/**
   Append DEFINER clause to the given buffer.
   
-  SYNOPSIS
-    append_definer()
-    thd           [in] thread handle
-    buffer        [inout] buffer to hold DEFINER clause
-    definer_user  [in] user name part of definer
-    definer_host  [in] host name part of definer
+  @param thd           thread handle
+  @param [in,out] buffer        buffer to hold DEFINER clause
+  @param definer_user  user name part of definer
+  @param definer_host  host name part of definer
 */
 
 void append_definer(THD *thd, String *buffer, const LEX_CSTRING &definer_user,
@@ -2842,15 +2835,15 @@ inline void make_upper(char *buf)
 /**
   Returns the value of a system or a status variable.
 
-  @param thd        [in]     The handle of the current THD.
-  @param variable   [in]     Details of the variable.
-  @param value_type [in]     Variable type.
-  @param show_type  [in]     Variable show type.
-  @param charset    [out]    Character set of the value.
-  @param buff       [in,out] Buffer to store the value.
+  @param thd            The handle of the current THD.
+  @param variable       Details of the variable.
+  @param value_type     Variable type.
+  @param show_type      Variable show type.
+  @param [out] charset  Character set of the value.
+  @param [in,out] buff  Buffer to store the value.
                              (Needs to have enough memory
                              to hold the value of variable.)
-  @param length     [out]    Length of the value.
+  @param [out] length   Length of the value.
 
   @return                    Pointer to the value buffer.
 */
@@ -2868,16 +2861,16 @@ const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
 /**
   @brief Returns the value of a system or a status variable.
 
-  @param running_thd [in]     The handle of the current THD.
-  @param target_thd  [in]     The handle of the remote THD.
-  @param variable    [in]     Details of the variable.
-  @param value_type  [in]     Variable type.
-  @param show_type   [in]     Variable show type.
-  @param charset     [out]    Character set of the value.
-  @param buff        [in,out] Buffer to store the value.
+  @param running_thd     The handle of the current THD.
+  @param target_thd      The handle of the remote THD.
+  @param variable        Details of the variable.
+  @param value_type      Variable type.
+  @param show_type       Variable show type.
+  @param [out] charset   Character set of the value.
+  @param [in,out] buff   Buffer to store the value.
                               (Needs to have enough memory
                               to hold the value of variable.)
-  @param length      [out]    Length of the value.
+  @param [out] length    Length of the value.
 
   @return                     Pointer to the value buffer.
 */

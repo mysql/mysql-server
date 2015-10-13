@@ -38,12 +38,6 @@
 
   See @ref PAGE_PFS
 
-  See @ref PAGE_PFS_PSI
-
-  See @ref PAGE_PFS_AGGREGATES
-
-  See @ref PAGE_PFS_NEW_TABLE
-
   @section RPL Replication
 
   See @ref PAGE_RPL_FIELD_METADATA

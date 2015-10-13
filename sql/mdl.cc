@@ -2781,7 +2781,7 @@ MDL_context::find_ticket(MDL_request *mdl_request,
   Returns immediately without any side effect if encounters a lock
   conflict. Otherwise takes the lock.
 
-  @param mdl_request [in/out] Lock request object for lock to be acquired
+  @param [in,out] mdl_request Lock request object for lock to be acquired
 
   @retval  FALSE   Success. The lock may have not been acquired.
                    Check the ticket, if it's NULL, a conflicting lock
@@ -2902,8 +2902,8 @@ void MDL_context::materialize_fast_path_locks()
 /**
   Auxiliary method for acquiring lock without waiting.
 
-  @param mdl_request [in/out] Lock request object for lock to be acquired
-  @param out_ticket  [out]    Ticket for the request in case when lock
+  @param [in,out] mdl_request Lock request object for lock to be acquired
+  @param [out] out_ticket     Ticket for the request in case when lock
                               has not been acquired.
 
   @retval  FALSE   Success. The lock may have not been acquired.
@@ -3448,9 +3448,9 @@ void MDL_lock::object_lock_notify_conflicting_locks(MDL_context *ctx, MDL_lock *
 /**
   Acquire one lock with waiting for conflicting locks to go away if needed.
 
-  @param mdl_request [in/out] Lock request object for lock to be acquired
+  @param [in,out] mdl_request Lock request object for lock to be acquired
 
-  @param lock_wait_timeout [in] Seconds to wait before timeout.
+  @param lock_wait_timeout Seconds to wait before timeout.
 
   @retval  FALSE   Success. MDL_request::ticket points to the ticket
                    for the lock.

@@ -1834,8 +1834,7 @@ bool check_if_pq_applicable(Opt_trace_context *trace,
   @param param        Sort parameters.
   @param sort_buffer  The main memory buffer.
   @param chunk_array  Array of chunk descriptors to merge.
-  @param p_num_chunks [out]
-                      output: the number of chunks left in the output file.
+  @param [out] p_num_chunks The number of chunks left in the output file.
   @param t_file       Where to store the result.
 */
 int merge_many_buff(THD *thd, Sort_param *param, Sort_buffer sort_buffer,

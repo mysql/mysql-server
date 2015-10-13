@@ -661,7 +661,7 @@ const char *Json_path::parse_member_leg(const char *charptr,
 /**
    Return true if the character is a unicode combining mark.
 
-   @param codepoint [in] A unicode codepoint.
+   @param codepoint A unicode codepoint.
 
    @return True if the codepoint is a unicode combining mark.
 */
