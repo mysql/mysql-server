@@ -734,6 +734,23 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
       DBUG_RETURN(true);
     if (field->gcol_info)
     {
+      /*
+        It is important to normalize the expression's text into the FRM, to
+        make it independent from sql_mode. For example, 'a||b' means 'a OR b'
+        or 'CONCAT(a,b)', depending on if PIPES_AS_CONCAT is on. Using
+        Item::print(), we get self-sufficient text containing 'OR' or
+        'CONCAT'. If sql_mode later changes, it will not affect the column.
+       */
+      String s;
+      // Printing db and table name is useless
+      field->gcol_info->expr_item->
+        print(&s, enum_query_type(QT_NO_DB | QT_NO_TABLE));
+      /*
+        The new text must have exactly the same lifetime as the old text, it's
+        a replacement for it. So the same MEM_ROOT must be used: pass NULL.
+      */
+      field->gcol_info->dup_expr_str(NULL, s.ptr(), s.length());
+
       uint tmp_len= system_charset_info->cset->charpos(system_charset_info,
                                                        field->gcol_info->expr_str.str,
                                                        field->gcol_info->expr_str.str +

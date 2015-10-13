@@ -493,7 +493,8 @@ public:
   Generated_column()
     : expr_item(0), item_free_list(0),
     field_type(MYSQL_TYPE_LONG),
-    stored_in_db(false), num_non_virtual_base_cols(0)
+    stored_in_db(false), num_non_virtual_base_cols(0),
+    m_expr_str_mem_root(NULL)
   {
     expr_str.str= NULL;
     expr_str.length= 0;
@@ -525,6 +526,17 @@ public:
     @return number of non virtual base columns
   */
   uint non_virtual_base_columns() const { return num_non_virtual_base_cols; }
+
+  /**
+     Duplicates a string into expr_str.
+
+     @param root MEM_ROOT to use for allocation; if NULL, use the remembered
+     one; if non-NULL, remember it.
+     @param src  source string
+     @param len  length of 'src' in bytes
+  */
+  void dup_expr_str(MEM_ROOT *root, const char *src, size_t len);
+
 private:
   /*
     The following data is only updated by the parser and read
@@ -535,6 +547,9 @@ private:
                                     phisically stored in the database*/
   /// How many non-virtual base columns in base_columns_map
   uint num_non_virtual_base_cols;
+
+  /// MEM_ROOT which provides memory storage for expr_str.str
+  MEM_ROOT *m_expr_str_mem_root;
 };
 
 class Proto_field

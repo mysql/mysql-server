@@ -2075,7 +2075,7 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
   table->view_query()->unit->print(buff, 
                            enum_query_type(QT_TO_ARGUMENT_CHARSET | 
                                            (compact_view_format ?
-                                            QT_COMPACT_FORMAT : 0)));
+                                            QT_NO_DB : 0)));
 
   if (table->with_check != VIEW_CHECK_NONE)
   {
