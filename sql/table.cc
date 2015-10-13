@@ -1444,11 +1444,9 @@ static int make_field_from_frm(THD *thd,
 
       fld_stored_in_db= (bool) (uint) (*gcol_screen_pos)[3];
       gcol_info->set_field_stored(fld_stored_in_db);
-      gcol_info->expr_str.str= (char *)memdup_root(&share->mem_root,
-                                                   *gcol_screen_pos+
-                                                   (uint)FRM_GCOL_HEADER_SIZE,
-                                                   gcol_info_length);
-      gcol_info->expr_str.length= gcol_info_length;
+      gcol_info->dup_expr_str(&share->mem_root,
+                              *gcol_screen_pos + (uint)FRM_GCOL_HEADER_SIZE,
+                              gcol_info_length);
       (*gcol_screen_pos)+= gcol_info_length + FRM_GCOL_HEADER_SIZE;
       share->vfields++;
     }
@@ -2387,8 +2385,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
 	  if (table_field->real_maybe_null() ||
 	      table_field->key_length() != key_part[i].length ||
-        // Index on virtual generated columns is not allowed to be PK
-        table_field->is_virtual_gcol())
+              // Index on virtual generated columns is not allowed to be PK
+              table_field->is_virtual_gcol())
  	  {
 	    primary_key= MAX_KEY;		// Can't be used
 	    break;
@@ -2800,6 +2798,19 @@ bool Generated_column::register_base_columns(TABLE *table)
   }
   DBUG_RETURN(false);
 }
+
+
+void Generated_column::dup_expr_str(MEM_ROOT *root, const char *src,
+                                    size_t len)
+{
+  if (!root)
+    root= m_expr_str_mem_root;
+  else
+    m_expr_str_mem_root= root;
+  expr_str.str= pointer_cast<char*>(memdup_root(root, src, len));
+  expr_str.length= len;
+}
+
 
 /**
   @brief  unpack_gcol_info_from_frm

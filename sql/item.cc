@@ -2903,7 +2903,7 @@ void Item_ident::print(String *str, enum_query_type query_type,
   }
 
   if (db_name_arg && db_name_arg[0] &&
-      !(query_type & QT_COMPACT_FORMAT) &&
+      !(query_type & QT_NO_DB) &&
       !alias_name_used())
   {
     const size_t d_name_len= strlen(d_name);
@@ -2914,7 +2914,7 @@ void Item_ident::print(String *str, enum_query_type query_type,
       str->append('.');
     }
   }
-  if (table_name_arg[0])
+  if (table_name_arg[0] && !(query_type & QT_NO_TABLE))
   {
     append_identifier(thd, str, t_name, strlen(t_name));
     str->append('.');

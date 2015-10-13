@@ -90,7 +90,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS (a % 2) STORED
+  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) STORED
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 # Case 8. ALTER. Modify virtual non-stored -> virtual stored
@@ -101,7 +101,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS (a % 2) VIRTUAL
+  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 # Case 9. CREATE LIKE
@@ -182,7 +182,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS (dayofyear(b)) VIRTUAL,
+  `c` int(11) GENERATED ALWAYS AS (dayofyear(`b`)) VIRTUAL,
   `b` datetime DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
@@ -203,7 +203,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS (dayofyear(b)) STORED,
+  `c` int(11) GENERATED ALWAYS AS (dayofyear(`b`)) STORED,
   `b` datetime DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
@@ -225,7 +225,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` datetime DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS (week(b,1)) STORED
+  `c` int(11) GENERATED ALWAYS AS (week(`b`,1)) STORED
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 # Case 15. ALTER. Changing the expression of a virtual non-stored column.
@@ -246,7 +246,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` datetime DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS (week(b,1)) VIRTUAL
+  `c` int(11) GENERATED ALWAYS AS (week(`b`,1)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 DROP VIEW  IF EXISTS v1,v2;
