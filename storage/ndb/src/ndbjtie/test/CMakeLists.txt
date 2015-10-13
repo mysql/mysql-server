@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ CREATE_JAR(ndbjtie-test ${JAVA_SOURCES}
   CLASSPATH ${CLASSPATH}
   DEPENDENCIES ndbjtie.jar jtie.jar jtie-test-myjapi.jar)
 
-ADD_EXECUTABLE(ndbjtie_unit_tests-t ndbjtie_unit_tests-t.cpp)
+NDB_ADD_TEST(ndbjtie_unit_tests-t ndbjtie_unit_tests-t.cpp)
 
 IF(HAVE_JDK)
 

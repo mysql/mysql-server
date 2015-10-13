@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -70,47 +70,12 @@ IF(HAVE_MY_DEFAULT_H)
 ENDIF()
 TARGET_LINK_LIBRARIES(ndbgeneral ${NDBGENERAL_LIBS})
 
-ADD_EXECUTABLE(BaseString-t BaseString.cpp)
-SET_TARGET_PROPERTIES(BaseString-t
-                      PROPERTIES COMPILE_FLAGS "-DTEST_BASE_STRING")
-TARGET_LINK_LIBRARIES(BaseString-t ndbgeneral)
+FOREACH(tests BaseString Bitmask SparseBitmask Parser HashMap2 LinkedStack)
+  NDB_ADD_TEST("${tests}-t" "${tests}.cpp" LIBS ndbgeneral)
+ENDFOREACH(tests)
 
-ADD_EXECUTABLE(Bitmask-t Bitmask.cpp)
-SET_TARGET_PROPERTIES(Bitmask-t
-                      PROPERTIES COMPILE_FLAGS "-DTEST_BITMASK")
-TARGET_LINK_LIBRARIES(Bitmask-t ndbgeneral)
+NDB_ADD_TEST(ndb_version-t version.cpp LIBS ndbgeneral)
 
-ADD_EXECUTABLE(SparseBitmask-t SparseBitmask.cpp)
-SET_TARGET_PROPERTIES(SparseBitmask-t
-                      PROPERTIES COMPILE_FLAGS "-DTEST_SPARSEBITMASK")
-TARGET_LINK_LIBRARIES(SparseBitmask-t ndbgeneral)
-
-ADD_EXECUTABLE(Parser-t Parser.cpp)
-SET_TARGET_PROPERTIES(Parser-t
-                      PROPERTIES COMPILE_FLAGS "-DTEST_PARSER")
-TARGET_LINK_LIBRARIES(Parser-t ndbgeneral)
-
-ADD_EXECUTABLE(ndb_version-t version.cpp)
-SET_TARGET_PROPERTIES(ndb_version-t
-                      PROPERTIES COMPILE_FLAGS "-DTEST_VERSION")
-TARGET_LINK_LIBRARIES(ndb_version-t ndbgeneral)
-
-ADD_EXECUTABLE(NdbPack-t NdbPack.cpp)
-SET_TARGET_PROPERTIES(NdbPack-t
-                      PROPERTIES COMPILE_FLAGS "-DTEST_NDB_PACK")
-TARGET_LINK_LIBRARIES(NdbPack-t ndbgeneral ndbportlib)
-
-ADD_EXECUTABLE(HashMap2-t HashMap2.cpp)
-SET_TARGET_PROPERTIES(HashMap2-t
-                      PROPERTIES COMPILE_FLAGS "-DTEST_HASHMAP2")
-TARGET_LINK_LIBRARIES(HashMap2-t ndbgeneral)
-
-ADD_EXECUTABLE(LinkedStack-t LinkedStack.cpp)
-SET_TARGET_PROPERTIES(LinkedStack-t
-                      PROPERTIES COMPILE_FLAGS "-DTEST_LINKEDSTACK")
-TARGET_LINK_LIBRARIES(LinkedStack-t ndbgeneral)
-
-ADD_EXECUTABLE(mysql_utils_test-t mysql_utils_test.cpp)
-SET_TARGET_PROPERTIES(mysql_utils_test-t
-                      PROPERTIES COMPILE_FLAGS "-DTEST_MYSQL_UTILS")
-TARGET_LINK_LIBRARIES(mysql_utils_test-t ndbgeneral  ndbportlib)
+FOREACH(tests NdbPack mysql_utils_test)
+  NDB_ADD_TEST("${tests}-t" "${tests}.cpp" LIBS ndbgeneral ndbportlib)
+ENDFOREACH(tests)
