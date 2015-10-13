@@ -1133,6 +1133,7 @@ bool Protocol_classic::start_result_metadata(uint num_cols, uint flags,
     DBUG_RETURN(true);
 
   send_metadata= true;
+  sending_flags= flags;
   data= m_thd->cur_data;
   data->fields= field_count= num_cols;
   field_alloc= &data->alloc;
