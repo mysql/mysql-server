@@ -18,6 +18,7 @@ SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
     ${CMAKE_SOURCE_DIR}/cmake
     ${CMAKE_SOURCE_DIR}/storage/ndb/cmake)
 INCLUDE(ndb_add_target_property)
+INCLUDE(ndb_add_test)
 
 MESSAGE(STATUS "Using cmake version ${CMAKE_VERSION}")
 
