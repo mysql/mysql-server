@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1572,7 +1572,7 @@ NdbSqlUtil::pack_timestamp2(const Timestamp2& s, uchar* d, uint prec)
   pack_bigendian(f, &d[4], flen);
 }
 
-#ifdef TEST_NDB_SQL_UTIL
+#ifdef TEST_NDBSQLUTIL
 
 /*
  * Before using the pack/unpack test one must verify correctness
