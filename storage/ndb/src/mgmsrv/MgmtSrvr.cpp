@@ -1123,7 +1123,7 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
       *address= Ndb_inet_ntop(AF_INET,
                               static_cast<void*>(&in),
                               addr_buf,
-                              (socklen_t)addr_buf_size);
+                              addr_buf_size);
 
       return 0;
     }
@@ -2168,7 +2168,7 @@ MgmtSrvr::status_mgmd(NodeId node_id,
         *address = Ndb_inet_ntop(AF_INET,
                                  static_cast<void*>(&addr),
                                  addr_buf,
-                                 (socklen_t)addr_buf_size);
+                                 addr_buf_size);
       }
     }
 
@@ -3245,7 +3245,7 @@ MgmtSrvr::get_connect_address(NodeId node_id,
   return Ndb_inet_ntop(AF_INET,
                        static_cast<void*>(&m_connect_address[node_id]),
                        addr_buf,
-                       (socklen_t)addr_buf_size);
+                       addr_buf_size);
 }
 
 
@@ -3620,24 +3620,31 @@ MgmtSrvr::find_node_type(NodeId node_id,
     if (found_config_hostname)
     {
       char addr_buf[NDB_ADDR_STRLEN];
-      char *addr_str;
-      struct in_addr config_addr= {0};
-      struct in_addr conn_addr =
-        ((struct sockaddr_in*)(client_addr))->sin_addr;
-      int r_config_addr= Ndb_getInAddr(&config_addr, found_config_hostname);
-      addr_str = Ndb_inet_ntop(AF_INET,
-                               static_cast<void*>(&conn_addr),
-                               addr_buf,
-                               (socklen_t)sizeof(addr_buf));
-      error_string.appfmt("Connection with id %d done from wrong host ip %s,",
-                          node_id, addr_str);
-      addr_str = Ndb_inet_ntop(AF_INET,
-                               static_cast<void*>(&config_addr),
-                               addr_buf,
-                               (socklen_t)sizeof(addr_buf));
-      error_string.appfmt(" expected %s(%s).", found_config_hostname,
-                          r_config_addr ?
-                          "lookup failed" : addr_str);
+      {
+        // Append error describing which host the faulty connection was from
+        struct in_addr conn_addr =
+          ((struct sockaddr_in*)(client_addr))->sin_addr;
+        char* addr_str =
+            Ndb_inet_ntop(AF_INET,
+                          static_cast<void*>(&conn_addr),
+                          addr_buf,
+                          sizeof(addr_buf));
+        error_string.appfmt("Connection with id %d done from wrong host ip %s,",
+                            node_id, addr_str);
+      }
+      {
+        // Append error describing which was the expected host
+        struct in_addr config_addr;
+        int r_config_addr= Ndb_getInAddr(&config_addr, found_config_hostname);
+        char* addr_str =
+            Ndb_inet_ntop(AF_INET,
+                          static_cast<void*>(&config_addr),
+                          addr_buf,
+                          sizeof(addr_buf));
+        error_string.appfmt(" expected %s(%s).", found_config_hostname,
+                            r_config_addr ?
+                            "lookup failed" : addr_str);
+      }
       return -1;
     }
     error_string.appfmt("No node defined with id=%d in config file.", node_id);
@@ -3653,7 +3660,7 @@ MgmtSrvr::find_node_type(NodeId node_id,
     char *addr_str = Ndb_inet_ntop(AF_INET,
                                    static_cast<void*>(&conn_addr),
                                    addr_buf,
-                                   (socklen_t)sizeof(addr_buf));
+                                   sizeof(addr_buf));
     error_string.appfmt("Connection done from wrong host ip %s.",
                         (client_addr) ? addr_str : "");
     return -1;
@@ -3959,7 +3966,7 @@ MgmtSrvr::alloc_node_id(NodeId& nodeid,
   char* addr_str = Ndb_inet_ntop(AF_INET,
                                  static_cast<void*>(&conn_addr),
                                  addr_buf,
-                                 (socklen_t)sizeof(addr_buf));
+                                 sizeof(addr_buf));
 
   g_eventLogger->debug("Trying to allocate nodeid for %s" \
                        "(nodeid: %u, type: %s)",
