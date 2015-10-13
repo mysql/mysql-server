@@ -68,20 +68,11 @@ ADD_CONVENIENCE_LIBRARY(ndbtest
     ../blocks/dbtup/tuppage.cpp
 )
 
-ADD_EXECUTABLE(mt_thr_config-t mt_thr_config.cpp)
-SET_TARGET_PROPERTIES(mt_thr_config-t
-                      PROPERTIES COMPILE_FLAGS "-DTEST_MT_THR_CONFIG")
-TARGET_LINK_LIBRARIES(mt_thr_config-t ndbgeneral)
 
 FOREACH(testprog CountingPool DynArr256 IntrusiveList LHLevel SegmentList)
-  ADD_EXECUTABLE(${testprog}-t ${testprog}.cpp)
-  SET_TARGET_PROPERTIES(${testprog}-t PROPERTIES COMPILE_FLAGS "-DTAP_TEST")
-  TARGET_LINK_LIBRARIES(${testprog}-t ndbtest ndbkernel ndbsched ndberror
-                ndbtransport ndbmgmcommon ndbmgmapi ndbportlib ndbgeneral)
+  NDB_ADD_TEST("${testprog}-t" "${testprog}.cpp" LIBS ndbtest ndbkernel ndbsched ndberror ndbtransport ndbmgmcommon ndbmgmapi ndbportlib ndbgeneral)
 ENDFOREACH(testprog)
 
 IF(WITH_NDBMTD)
-  ADD_EXECUTABLE(mt-send-t mt-send-t.cpp)
-  TARGET_LINK_LIBRARIES(mt-send-t ndbtest ndbkernel ndbsched ndberror
-                 ndbtransport ndbmgmcommon ndbmgmapi ndbportlib ndbgeneral)
+  NDB_ADD_TEST(mt-send-t mt-send-t.cpp LIBS ndbtest ndbkernel ndbsched ndberror ndbtransport ndbmgmcommon ndbmgmapi ndbportlib ndbgeneral)
 ENDIF()

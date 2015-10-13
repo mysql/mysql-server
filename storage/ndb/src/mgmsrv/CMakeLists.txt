@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -59,13 +59,4 @@ IF(UNIX)
   TARGET_LINK_LIBRARIES(ndb_mgmd ${READLINE_LIBRARY})
 ENDIF(UNIX)
 
-ADD_EXECUTABLE(MgmConfig-t
-               testConfig.cpp)
-TARGET_LINK_LIBRARIES(MgmConfig-t
-                      ndbmgmapi
-                      ndbtrace
-                      ndbconf
-                      ndblogger
-                      ndbgeneral
-                      ndbportlib)
-
+NDB_ADD_TEST(MgmConfig-t testConfig.cpp LIBS ndbmgmapi ndbtrace ndbconf ndblogger ndbgeneral ndbportlib)
