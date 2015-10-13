@@ -382,6 +382,10 @@ trx_undo_report_insert_virtual(
 	byte*	start = *ptr;
 	bool	first_v_col = true;
 
+	if (trx_undo_left(undo_page, *ptr) < 2) {
+		return(false);
+	}
+
 	/* Reserve 2 bytes to write the number
 	of bytes the stored fields take in this
 	undo record */
@@ -434,6 +438,11 @@ trx_undo_report_insert_virtual(
 				ut_memcpy(*ptr, vfield->data, flen);
 				*ptr += flen;
 			} else {
+				if (trx_undo_left(undo_page, *ptr) < 5) {
+
+					return(false);
+				}
+
 				*ptr += mach_write_compressed(*ptr, flen);
 			}
 		}

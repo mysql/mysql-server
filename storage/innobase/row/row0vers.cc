@@ -53,16 +53,20 @@ Created 2/6/1997 Heikki Tuuri
 the cluster index
 @param[in]	index		the secondary index
 @param[in]	row		the cluster index row in dtuple form
+@param[in]	ext		externally stored column prefix or NULL
 @param[in]	ientry		the secondary index entry
+@param[in,out]	heap		heap used to build virtual dtuple
 @param[in,out]	n_non_v_col	number of non-virtual columns in the index
 @return true if all matches, false otherwise */
 static
 bool
 row_vers_non_vc_match(
-	dict_index_t*	index,
-	const dtuple_t*	row,
-	const dtuple_t* ientry,
-	ulint*		n_non_v_col);
+	dict_index_t*		index,
+	const dtuple_t*		row,
+	const row_ext_t*	ext,
+	const dtuple_t*		ientry,
+	mem_heap_t*		heap,
+	ulint*			n_non_v_col);
 /*****************************************************************//**
 Finds out if an active transaction has inserted or modified a secondary
 index record.
@@ -219,7 +223,8 @@ row_vers_impl_x_locked_low(
 				ulint	n_non_v_col = 0;
 
 				if (!row_vers_non_vc_match(
-					index, row, ientry, &n_non_v_col)) {
+					index, row, ext, ientry, heap,
+					&n_non_v_col)) {
 					if (!rec_del) {
 						break;
 					}
@@ -394,16 +399,20 @@ row_vers_must_preserve_del_marked(
 the cluster index
 @param[in]	index		the secondary index
 @param[in]	row		the cluster index row in dtuple form
+@param[in]	ext		externally stored column prefix or NULL
 @param[in]	ientry		the secondary index entry
+@param[in,out]	heap		heap used to build virtual dtuple
 @param[in,out]	n_non_v_col	number of non-virtual columns in the index
 @return true if all matches, false otherwise */
 static
 bool
 row_vers_non_vc_match(
-	dict_index_t*	index,
-	const dtuple_t*	row,
-	const dtuple_t* ientry,
-	ulint*		n_non_v_col)
+	dict_index_t*		index,
+	const dtuple_t*		row,
+	const row_ext_t*	ext,
+	const dtuple_t*		ientry,
+	mem_heap_t*		heap,
+	ulint*			n_non_v_col)
 {
 	const dfield_t* field1;
 	dfield_t*	field2;
@@ -412,20 +421,23 @@ row_vers_non_vc_match(
 
 	*n_non_v_col = 0;
 
+	/* Build index entry out of row */
+	dtuple_t* nentry = row_build_index_entry(row, ext, index, heap);
+
 	for (ulint i = 0; i < n_fields; i++) {
 		const dict_field_t*	ind_field = dict_index_get_nth_field(
 							index, i);
 
 		const dict_col_t*	col = ind_field->col;
 
+		/* Only check non-virtual columns */
 		if (dict_col_is_virtual(col)) {
 			continue;
 		}
 
 		if (ret) {
 			field1  = dtuple_get_nth_field(ientry, i);
-			field2  = dtuple_get_nth_field(
-				row, dict_col_get_no(col));
+			field2  = dtuple_get_nth_field(nentry, i);
 
 			if (cmp_dfield_dfield(field1, field2) != 0) {
 				ret = false;
@@ -479,6 +491,7 @@ stored in undo log
 @param[in]	in_purge	called by purge thread
 @param[in]	rec		record in the clustered index
 @param[in]	row		the cluster index row in dtuple form
+@param[in]	ext		externally stored column prefix or NULL
 @param[in]	clust_index	cluster index
 @param[in]	clust_offsets	offsets on the cluster record
 @param[in]	index		the secondary index
@@ -495,6 +508,7 @@ row_vers_vc_matches_cluster(
 	bool		in_purge,
 	const rec_t*	rec,
 	const dtuple_t*	row,
+	row_ext_t*	ext,
 	dict_index_t*	clust_index,
 	ulint*		clust_offsets,
 	dict_index_t*	index,
@@ -519,14 +533,16 @@ row_vers_vc_matches_cluster(
 	dfield_t*	field2;
 	ulint		i;
 
+	tuple_heap = mem_heap_create(1024);
+
 	/* First compare non-virtual columns (primary keys) */
-	if (!row_vers_non_vc_match(index, row, ientry, &n_non_v_col)) {
+	if (!row_vers_non_vc_match(index, row, ext, ientry, tuple_heap,
+				   &n_non_v_col)) {
+		mem_heap_free(tuple_heap);
 		return(false);
 	}
 
 	ut_ad(n_fields > n_non_v_col);
-
-	tuple_heap = mem_heap_create(1024);
 
 	*vrow = dtuple_create_with_vcol(v_heap ? v_heap : tuple_heap, 0, num_v);
 	dtuple_init_v_fld(*vrow);
@@ -681,7 +697,7 @@ row_vers_build_cur_vrow(
 		dtuple_dup_v_fld(cur_vrow, v_heap);
 	} else {
 		row_vers_vc_matches_cluster(
-			in_purge, rec, row, clust_index, *clust_offsets,
+			in_purge, rec, row, ext, clust_index, *clust_offsets,
 			index, ientry, roll_ptr,
 			trx_id, v_heap, &cur_vrow, mtr);
 	}
@@ -803,7 +819,7 @@ row_vers_old_has_index_entry(
 				}
 			} else {
 				if (row_vers_vc_matches_cluster(
-					also_curr, rec, row, clust_index,
+					also_curr, rec, row, ext, clust_index,
 					clust_offsets, index, ientry, roll_ptr,
 					trx_id, NULL, &vrow, mtr)) {
 					mem_heap_free(heap);
