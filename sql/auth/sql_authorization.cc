@@ -35,6 +35,7 @@
 #include "sql_authentication.h"
 #include "sql_authorization.h"
 #include "template_utils.h"
+#include "debug_sync.h"
 
 const char *command_array[]=
 {
@@ -4008,10 +4009,13 @@ acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
     DBUG_RETURN(FALSE);
   }
 
+  mysql_mutex_lock(&acl_cache->lock);
+
   /* check for matching WITH PROXY rights */
   for (ACL_PROXY_USER *proxy= acl_proxy_users->begin();
        proxy != acl_proxy_users->end(); ++proxy)
   {
+    DEBUG_SYNC(thd, "before_proxy_matches");
     if (proxy->matches(thd->security_context()->host().str,
                        thd->security_context()->user().str,
                        thd->security_context()->ip().str,
@@ -4019,10 +4023,12 @@ acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
         proxy->get_with_grant())
     {
       DBUG_PRINT("info", ("found"));
+      mysql_mutex_unlock(&acl_cache->lock);
       DBUG_RETURN(FALSE);
     }
   }
 
+  mysql_mutex_unlock(&acl_cache->lock);
   my_error(ER_ACCESS_DENIED_NO_PASSWORD_ERROR, MYF(0),
            thd->security_context()->user().str,
            thd->security_context()->host_or_ip().str);
