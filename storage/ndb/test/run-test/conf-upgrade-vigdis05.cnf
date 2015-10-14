@@ -22,6 +22,7 @@ mysqld = CHOOSE_host1
 [ndb_mgmd]
 
 [mysqld]
+socket=mysql.sock
 skip-grant-tables
 
 [client]
