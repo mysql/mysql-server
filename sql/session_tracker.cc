@@ -724,7 +724,8 @@ bool Session_sysvars_tracker::store(THD *thd, String &buf)
 
 /**
   @brief Mark the system variable with the specified name as changed.
-
+ 
+  @param thd               Current thread
   @param tracked_item_name Name of the system variable which got changed.
 */
 
@@ -853,6 +854,7 @@ bool Current_schema_tracker::store(THD *thd, String &buf)
 /**
   @brief Mark the tracker as changed.
 
+  @param thd               Current thread
   @param tracked_item_name Always null (unused).
 */
 

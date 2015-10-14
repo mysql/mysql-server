@@ -2371,6 +2371,7 @@ check_enough_stack_size(int recurse_level)
   Initialize one of the global date/time format variables.
 
   @param format_type    What kind of format should be supported
+  @param [in,out] format Format variable to initialize
 
   @retval
     0 ok
@@ -2630,6 +2631,7 @@ void init_com_statement_info()
 /**
   Create a replication file name or base for file names.
 
+  @param     key Instrumentation key used to track allocations
   @param[in] opt Value of option, or NULL
   @param[in] def Default value if option value is not set.
   @param[in] ext Extension to use for the path

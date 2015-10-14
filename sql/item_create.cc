@@ -6989,6 +6989,7 @@ create_func_cast(THD *thd, const POS &pos, Item *a, const Cast_type *type)
   @param thd          The current thread
   @param str          Character literal
   @param length       Length of str
+  @param cs           Character set of str
   @param type         Type of literal (TIME, DATE or DATETIME)
   @param send_error   Whether to generate an error on failure
 */

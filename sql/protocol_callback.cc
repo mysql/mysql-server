@@ -43,7 +43,7 @@ int Protocol_callback::read_packet()
 }
 
 /**
-  Practically does nothing. See the comment of ::read_packet().
+  Practically does nothing. See the comment of #read_packet().
   Always returns -1.
 
   @return

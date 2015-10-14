@@ -1123,7 +1123,7 @@ private:
 
 public:
   /**
-    Create an empty wrapper. Cf ::empty().
+    Create an empty wrapper. Cf #empty().
   */
   Json_wrapper() : m_is_dom(true), m_dom_alias(true), m_value(),
                    m_id(NULL), m_dom_value(NULL)
@@ -1255,7 +1255,7 @@ public:
   Json_dom::enum_json_type type() const;
 
   /**
-    Return the MYSQL type of the opaque value, see ::type(). Valid for
+    Return the MYSQL type of the opaque value, see #type(). Valid for
     J_OPAQUE.  Calling this method if the type is not J_OPAQUE will give
     undefined results.
 
@@ -1377,7 +1377,7 @@ public:
     have to turn each cell into a dom and then add the doms to a
     dom array.
 
-    Calling this if ::empty() returns true is an error.
+    Calling this if #empty() returns true is an error.
 
     Special care must be taken when the path expression contains more than one
     ellipsis (**) token. That is because multiple paths with ellipses may

@@ -80,6 +80,7 @@
   generates a single event for the batch.
   @param OP the table operation to be performed
   @param INDEX the table index used if any, or MAX_KEY.
+  @param RESULT the result of the table operation performed
   @param PAYLOAD instrumented code to execute
   @sa handler::end_psi_batch_mode.
 */

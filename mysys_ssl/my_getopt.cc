@@ -45,8 +45,7 @@ static void init_one_value(const struct my_option *, void *, longlong);
 static void fini_one_value(const struct my_option *, void *, longlong);
 static int setval(const struct my_option *, void *, char *, my_bool);
 static char *check_struct_option(char *cur_arg, char *key_name);
-static my_bool get_bool_argument(const struct my_option *opts,
-                                 const char *argument,
+static my_bool get_bool_argument(const char *argument,
                                  bool *error);
 
 /*
@@ -420,7 +419,7 @@ int my_handle_options(int *argc, char ***argv,
             {
               my_bool ret= 0;
               bool error= 0;
-              ret= get_bool_argument(optp, optend, &error);
+              ret= get_bool_argument(optend, &error);
               if(error)
               {
                 my_getopt_error_reporter(WARNING_LEVEL,
@@ -686,23 +685,24 @@ static char *check_struct_option(char *cur_arg, char *key_name)
    "ON", "TRUE" and "1" will return true,
    other values will return false.
 
-   @param[in] argument The value argument
+   @param argument The value argument
+   @param [out] error Error indicator
    @return boolean value
 */
-static my_bool get_bool_argument(const struct my_option *opts,
-                                 const char *argument,
+static my_bool get_bool_argument(const char *argument,
                                  bool *error)
 {
   if (!my_strcasecmp(&my_charset_latin1, argument, "true") ||
       !my_strcasecmp(&my_charset_latin1, argument, "on") ||
       !my_strcasecmp(&my_charset_latin1, argument, "1"))
     return 1;
-  else if (!my_strcasecmp(&my_charset_latin1, argument, "false") ||
+
+  if (!my_strcasecmp(&my_charset_latin1, argument, "false") ||
       !my_strcasecmp(&my_charset_latin1, argument, "off") ||
       !my_strcasecmp(&my_charset_latin1, argument, "0"))
     return 0;
-  else
-    *error= 1;
+
+  *error= true;
   return 0;
 }
 

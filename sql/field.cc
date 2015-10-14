@@ -1217,7 +1217,7 @@ static void push_numerical_conversion_warning(THD* thd, const char* str,
   Emits a warning for the decimal conversion error. May modify
   dec_value if there was conversion overflow or bad number.
 
-
+  @param field             Field to operate on
   @param dec_error         decimal library return code
                            (E_DEC_* see include/decimal.h)
   @param [in,out] dec_value Decimal value returned by conversion function.
@@ -1381,10 +1381,11 @@ void Field_num::prepend_zeros(String *value)
   @todo
     Make this multi-byte-character safe
 
-  @param str		String to test
-  @param length        Length of 'str'
-  @param int_end	Pointer to char after last used digit
   @param cs		Character set
+  @param str		String to test
+  @param length         Length of 'str'
+  @param int_end	Pointer to char after last used digit
+  @param error          Return code from strntoull10rnd()
 
   @note
     This is called after one has called strntoull10rnd() function.

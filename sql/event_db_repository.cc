@@ -194,6 +194,7 @@ static Event_db_intact table_intact;
   @param   table      The row to fill out
   @param   et         Event's data
   @param   sp         Event stored routine
+  @param   sql_mode   Event SQL_MODE
   @param   is_update  CREATE EVENT or ALTER EVENT
 
   @retval  FALSE success

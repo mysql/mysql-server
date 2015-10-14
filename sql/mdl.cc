@@ -1521,6 +1521,9 @@ bool MDL_context::fix_pins()
   @param  db_arg         Name of database to which the object belongs
   @param  name_arg       Name of of the object
   @param  mdl_type_arg   The MDL lock type for the request.
+  @param  mdl_duration_arg   The MDL duration for the request.
+  @param  src_file       Source file name issuing the request.
+  @param  src_line       Source line number issuing the request.
 */
 
 void MDL_request::init_with_source(MDL_key::enum_mdl_namespace mdl_namespace,
@@ -1547,6 +1550,9 @@ void MDL_request::init_with_source(MDL_key::enum_mdl_namespace mdl_namespace,
 
   @param key_arg       The pre-built MDL key for the request.
   @param mdl_type_arg  The MDL lock type for the request.
+  @param mdl_duration_arg   The MDL duration for the request.
+  @param src_file      Source file name issuing the request.
+  @param src_line      Source line number issuing the request.
 */
 
 void MDL_request::init_by_key_with_source(const MDL_key *key_arg,

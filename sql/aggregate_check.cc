@@ -220,6 +220,7 @@ err:
 
 /**
    Validates one expression (this forms one step of check_query()).
+   @param  thd   current thread
    @param  expr  expression
    @param  in_select_list  whether this expression is coming from the SELECT
    list.

@@ -413,7 +413,7 @@ private:
       reused for SELECT2.
 
     This will refer to a cached value which is reevaluated once for each
-    candidate row, cf. setup in ::single_value_transformer.
+    candidate row, cf. setup in #single_value_transformer.
   */
   Item_direct_ref *m_injected_left_expr;
 
