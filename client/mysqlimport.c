@@ -50,6 +50,8 @@ static char	*opt_password=0, *current_user=0,
 		*lines_terminated=0, *enclosed=0, *opt_enclosed=0,
 		*escaped=0, *opt_columns=0, 
 		*default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME;
+static uint opt_enable_cleartext_plugin= 0;
+static my_bool using_opt_enable_cleartext_plugin= 0;
 static uint     opt_mysql_port= 0, opt_protocol= 0;
 static char *opt_bind_addr = NULL;
 static char * opt_mysql_unix_port=0;
@@ -103,6 +105,10 @@ static struct my_option my_long_options[] =
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"delete", 'd', "First delete all rows from table.", &opt_delete,
    &opt_delete, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"enable_cleartext_plugin", OPT_ENABLE_CLEARTEXT_PLUGIN,
+   "Enable/disable the clear text authentication plugin.",
+   &opt_enable_cleartext_plugin, &opt_enable_cleartext_plugin,
+   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"fields-terminated-by", OPT_FTB,
    "Fields in the input file are terminated by the given string.", 
    &fields_terminated, &fields_terminated, 0, 
@@ -265,6 +271,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_local_file=1;
     break;
 #endif
+  case OPT_ENABLE_CLEARTEXT_PLUGIN:
+    using_opt_enable_cleartext_plugin= TRUE;
+    break;
   case OPT_MYSQL_PROTOCOL:
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
@@ -467,6 +476,10 @@ static MYSQL *db_connect(char *host, char *database,
 
   if (opt_default_auth && *opt_default_auth)
     mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
+
+  if (using_opt_enable_cleartext_plugin)
+    mysql_options(mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN,
+                  (char*)&opt_enable_cleartext_plugin);
 
   mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset);
   mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);

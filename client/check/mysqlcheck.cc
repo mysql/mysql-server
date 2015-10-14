@@ -44,6 +44,8 @@ static my_bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
                opt_fix_table_names= 0, opt_fix_db_names= 0, opt_upgrade= 0,
                opt_write_binlog= 1, opt_secure_auth=TRUE;
 static uint verbose = 0, opt_mysql_port=0;
+static uint opt_enable_cleartext_plugin= 0;
+static my_bool using_opt_enable_cleartext_plugin= 0;
 static int my_end_arg;
 static char * opt_mysql_unix_port = 0;
 static char *opt_password = 0, *current_user = 0,
@@ -118,6 +120,10 @@ static struct my_option my_long_options[] =
    "Default authentication client-side plugin to use.",
    &opt_default_auth, &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"enable_cleartext_plugin", OPT_ENABLE_CLEARTEXT_PLUGIN,
+   "Enable/disable the clear text authentication plugin.",
+   &opt_enable_cleartext_plugin, &opt_enable_cleartext_plugin,
+   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"fast",'F', "Check only tables that haven't been closed properly.",
    &opt_fast, &opt_fast, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
@@ -345,6 +351,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     verbose++;
     break;
   case 'V': print_version(); exit(0);
+  case OPT_ENABLE_CLEARTEXT_PLUGIN:
+    using_opt_enable_cleartext_plugin= TRUE;
+    break;
   case OPT_MYSQL_PROTOCOL:
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
@@ -470,6 +479,10 @@ static int dbConnect(char *host, char *user, char *passwd)
 
   if (opt_default_auth && *opt_default_auth)
     mysql_options(&mysql_connection, MYSQL_DEFAULT_AUTH, opt_default_auth);
+
+  if (using_opt_enable_cleartext_plugin)
+    mysql_options(&mysql_connection, MYSQL_ENABLE_CLEARTEXT_PLUGIN,
+                  (char *) &opt_enable_cleartext_plugin);
 
   mysql_options(&mysql_connection, MYSQL_SET_CHARSET_NAME, default_charset);
   mysql_options(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
