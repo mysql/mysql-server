@@ -3863,6 +3863,7 @@ public:
     return get_time_from_string(ltime);
   }
   enum Item_result result_type () const { return STRING_RESULT; }
+  Item_result numeric_context_result_type() const { return INT_RESULT; }
   enum Item_result cast_to_int_type() const { return INT_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
   virtual void print(String *str, enum_query_type query_type);

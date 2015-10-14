@@ -7181,7 +7181,7 @@ LEX_STRING Item_hex_string::make_hex_str(const char *str, size_t str_length)
     *ptr++= (char) (char_val(str[0])*16+char_val(str[1]));
     str+=2;
   }
-  *ptr=0;					// Keep purify happy
+  *ptr=0;                                // needed if printed in error message
   return ret;
 }
 
@@ -7200,9 +7200,42 @@ longlong Item_hex_string::val_int()
 {
   // following assert is redundant, because fixed=1 assigned in constructor
   DBUG_ASSERT(fixed == 1);
-  char *end=(char*) str_value.ptr()+str_value.length(),
-       *ptr= end - min<size_t>(str_value.length(), sizeof(longlong));
+  const char *end= str_value.ptr() + str_value.length();
+  const char *ptr;
 
+  if (str_value.length() > sizeof(longlong))
+  {
+    /*
+      Too many bytes for longlong; lost bytes are [start, lost_end[ ; there is
+      no loss of data in conversion only if they are all zeroes.
+    */
+    const char *lost_end= end - sizeof(longlong);
+    for (ptr= str_value.ptr(); ptr < lost_end; ++ptr)
+      if (*ptr != 0)
+      {
+        // Human-readable, size-limited printout of the hex:
+        char errbuff[MYSQL_ERRMSG_SIZE], *errptr= errbuff;
+        *errptr++ = 'x';
+        *errptr++ = '\'';
+        for (ptr= str_value.ptr(); ptr < end ; ++ptr)
+        {
+          if (errptr > errbuff + sizeof(errbuff) - 4)
+            break;
+          *errptr++= _dig_vec_lower[((uchar) *ptr) >> 4];
+          *errptr++= _dig_vec_lower[((uchar) *ptr) & 0x0F];
+        }
+        *errptr++ = '\'';
+        *errptr++ = 0;
+        THD *thd= current_thd;
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            ER_TRUNCATED_WRONG_VALUE,
+                            ER_THD(thd, ER_TRUNCATED_WRONG_VALUE),
+                            "BINARY", errbuff);
+        return -1;
+      }
+  }
+
+  ptr= end - str_value.length();
   ulonglong value=0;
   for (; ptr != end ; ptr++)
     value=(value << 8)+ (ulonglong) (uchar) *ptr;
