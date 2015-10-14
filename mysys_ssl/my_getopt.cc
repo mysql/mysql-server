@@ -765,7 +765,7 @@ static int setval(const struct my_option *opts, void *value, char *argument,
 
     switch (var_type) {
     case GET_BOOL: /* If argument differs from 0, enable option, else disable */
-      *((my_bool*) value)= get_bool_argument(opts, argument, &error);
+      *((my_bool*) value)= get_bool_argument(argument, &error);
       if(error)
         my_getopt_error_reporter(WARNING_LEVEL,
             "option '%s': boolean value '%s' wasn't recognized. Set to OFF.",
