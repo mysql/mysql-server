@@ -24,6 +24,7 @@
 #include "sql_authentication.h"
 #include "sql_time.h"
 #include "sql_plugin.h"                         // lock_plugin_data etc.
+#include "debug_sync.h"
 
 #define INVALID_DATE "0000-00-00 00:00:00"
 
@@ -2096,6 +2097,8 @@ my_bool acl_reload(THD *thd)
     mysql_mutex_unlock(&acl_cache->lock);
 
   close_acl_tables(thd);
+
+  DEBUG_SYNC(thd, "after_acl_reload");
   DBUG_RETURN(return_val);
 }
 
