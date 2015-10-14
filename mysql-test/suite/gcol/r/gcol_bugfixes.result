@@ -526,3 +526,50 @@ ERROR HY000: Expression of generated column 'c' contains a disallowed function.
 DROP TABLE t;
 CREATE TABLE t(b BLOB, c INT GENERATED ALWAYS AS ((1,1)) VIRTUAL);
 ERROR HY000: Expression of generated column 'c' contains a disallowed function.
+#
+# Bug#21929967 GCOLS: GCOL VALUE CHANGES WHEN SESSION CHANGES SQL_MODE
+#
+CREATE TABLE t1(a CHAR(1), b CHAR(1), c CHAR(2) AS (a || b));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(1) DEFAULT NULL,
+  `b` char(1) DEFAULT NULL,
+  `c` char(2) GENERATED ALWAYS AS ((`a` or `b`)) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSERT INTO t1 (a,b) VALUES('1','1');
+SELECT * FROM t1;
+a	b	c
+1	1	1
+SET SQL_MODE=PIPES_AS_CONCAT;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SELECT * FROM t1;
+a	b	c
+1	1	1
+FLUSH TABLES;
+SELECT * FROM t1;
+a	b	c
+1	1	1
+DROP TABLE t1;
+CREATE TABLE t1(a CHAR(1), b CHAR(1), c CHAR(2) AS (a || b));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(1) DEFAULT NULL,
+  `b` char(1) DEFAULT NULL,
+  `c` char(2) GENERATED ALWAYS AS (concat(`a`,`b`)) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSERT INTO t1 (a,b) VALUES('1','1');
+SELECT * FROM t1;
+a	b	c
+1	1	11
+SET SQL_MODE=DEFAULT;
+SELECT * FROM t1;
+a	b	c
+1	1	11
+FLUSH TABLES;
+SELECT * FROM t1;
+a	b	c
+1	1	11
+DROP TABLE t1;
