@@ -13185,6 +13185,11 @@ void ha_ndbcluster::print_error(int error, myf errflag)
     m_part_info->print_no_partition_found(table);
   else
   {
+    if (error == HA_ERR_NO_CONNECTION)
+    {
+      handler::print_error(4009, errflag);
+      DBUG_VOID_RETURN;
+    }
     if (error == HA_ERR_FOUND_DUPP_KEY &&
         (table == NULL || table->file == NULL))
     {

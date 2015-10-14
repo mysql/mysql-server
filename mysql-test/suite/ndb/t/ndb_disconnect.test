@@ -1,0 +1,33 @@
+--source include/have_ndb.inc
+
+--echo "testing the bug#21837074"
+
+--disable_warnings
+DROP TABLE IF EXISTS test.t1;
+--enable_warnings
+
+create table test.t1(i int primary key) engine=ndb;
+
+# Restarting all the nodes with 'no start'
+--source ndb_restart_nostart.inc
+
+--error 1296
+show create table test.t1;
+--echo "show create table failed as expected. Now starting the nodes again"
+
+# Start NDB nodes back up again.
+--source ndb_restart_start.inc
+
+# Wait until mysqld has connected properly to cluster
+--disable_result_log
+--disable_query_log
+source include/ndb_not_readonly.inc;
+--enable_query_log
+--enable_result_log
+
+--echo "Mysqld connected to cluster. Now executing the show create table again."
+show create table test.t1;
+
+#Clean Up
+Drop table test.t1;
+--echo "End of test the bug#21837074"
