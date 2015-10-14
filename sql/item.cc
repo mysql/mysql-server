@@ -2903,7 +2903,7 @@ void Item_ident::print(String *str, enum_query_type query_type,
   }
 
   if (db_name_arg && db_name_arg[0] &&
-      !(query_type & QT_COMPACT_FORMAT) &&
+      !(query_type & QT_NO_DB) &&
       !alias_name_used())
   {
     const size_t d_name_len= strlen(d_name);
@@ -2914,7 +2914,7 @@ void Item_ident::print(String *str, enum_query_type query_type,
       str->append('.');
     }
   }
-  if (table_name_arg[0])
+  if (table_name_arg[0] && !(query_type & QT_NO_TABLE))
   {
     append_identifier(thd, str, t_name, strlen(t_name));
     str->append('.');
@@ -4998,8 +4998,12 @@ longlong Item_copy_decimal::val_int()
 bool Item_copy_decimal::copy(const THD *thd)
 {
   my_decimal *nr= item->val_decimal(&cached_value);
-  if (nr && nr != &cached_value)
-    my_decimal2decimal (nr, &cached_value);
+  if (nr)
+  {
+    my_decimal_round(E_DEC_FATAL_ERROR, nr, decimals, FALSE, nr);
+    if (nr != &cached_value)
+      my_decimal2decimal (nr, &cached_value);
+  }
   null_value= item->null_value;
   return thd->is_error();
 }

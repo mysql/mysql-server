@@ -117,14 +117,6 @@ void PFS_connection_iterator::visit_global(bool with_hosts, bool with_users,
   }
 }
 
-bool match_host(THD *thd, PFS_host *host)
-{
-  const LEX_CSTRING thd_host= thd->m_main_security_ctx.host();
-  return ((thd_host.length > 0) &&
-          (host->m_hostname_length == thd_host.length) &&
-          (strncmp(host->m_hostname, thd_host.str, host->m_hostname_length) == 0));
-}
-
 class All_host_THD_visitor_adapter : public Do_THD_Impl
 {
 public:
@@ -134,8 +126,21 @@ public:
 
   virtual void operator()(THD *thd)
   {
-    if (match_host(thd, m_host))
-      m_visitor->visit_THD(thd);
+    PSI_thread *psi= thd->get_psi();
+    PFS_thread *pfs= reinterpret_cast<PFS_thread*>(psi);
+    pfs= sanitize_thread(pfs);
+    if (pfs != NULL)
+    {
+      PFS_account *account= sanitize_account(pfs->m_account);
+      if (account->m_host == m_host)
+      {
+        m_visitor->visit_THD(thd);
+      }
+      else if (pfs->m_host == m_host)
+      {
+        m_visitor->visit_THD(thd);
+      }
+    }
   }
 
 private:
@@ -198,14 +203,6 @@ void PFS_connection_iterator::visit_host(PFS_host *host,
   }
 }
 
-bool match_user(THD *thd, PFS_user *user)
-{
-  const LEX_CSTRING thd_user= thd->m_main_security_ctx.user();
-  return ((thd_user.length > 0) &&
-          (user->m_username_length == thd_user.length) &&
-          (strncmp(user->m_username, thd_user.str, user->m_username_length) == 0));
-}
-
 class All_user_THD_visitor_adapter : public Do_THD_Impl
 {
 public:
@@ -215,8 +212,21 @@ public:
 
   virtual void operator()(THD *thd)
   {
-    if (match_user(thd, m_user))
-      m_visitor->visit_THD(thd);
+    PSI_thread *psi= thd->get_psi();
+    PFS_thread *pfs= reinterpret_cast<PFS_thread*>(psi);
+    pfs= sanitize_thread(pfs);
+    if (pfs != NULL)
+    {
+      PFS_account *account= sanitize_account(pfs->m_account);
+      if (account->m_user == m_user)
+      {
+        m_visitor->visit_THD(thd);
+      }
+      else if (pfs->m_user == m_user)
+      {
+        m_visitor->visit_THD(thd);
+      }
+    }
   }
 
 private:
@@ -279,17 +289,6 @@ void PFS_connection_iterator::visit_user(PFS_user *user,
   }
 }
 
-bool match_account(THD *thd, PFS_account *account)
-{
-  const LEX_CSTRING thd_host= thd->m_main_security_ctx.host();
-  const LEX_CSTRING thd_user= thd->m_main_security_ctx.user();
-  return ((account->m_hostname_length == thd_host.length) &&
-          (account->m_username_length > 0) &&
-          (account->m_username_length == thd_user.length) &&
-          (strncmp(account->m_hostname, thd_host.str, account->m_hostname_length) == 0) &&
-          (strncmp(account->m_username, thd_user.str, account->m_username_length) == 0));
-}
-
 class All_account_THD_visitor_adapter : public Do_THD_Impl
 {
 public:
@@ -299,8 +298,16 @@ public:
 
   virtual void operator()(THD *thd)
   {
-    if (match_account(thd, m_account))
-      m_visitor->visit_THD(thd);
+    PSI_thread *psi= thd->get_psi();
+    PFS_thread *pfs= reinterpret_cast<PFS_thread*>(psi);
+    pfs= sanitize_thread(pfs);
+    if (pfs != NULL)
+    {
+      if (pfs->m_account == m_account)
+      {
+        m_visitor->visit_THD(thd);
+      }
+    }
   }
 
 private:
