@@ -6155,9 +6155,9 @@ t1.t1_id;
 t1_id	total_amount
 1	100.00
 2	200.00
-3	0
+3	0.00
 4	400.00
-5	0
+5	0.00
 SELECT * FROM (the same inner query), now with indexes on the LEFT JOIN
 SELECT * FROM (
 SELECT

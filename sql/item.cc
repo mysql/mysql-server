@@ -5006,8 +5006,12 @@ longlong Item_copy_decimal::val_int()
 bool Item_copy_decimal::copy(const THD *thd)
 {
   my_decimal *nr= item->val_decimal(&cached_value);
-  if (nr && nr != &cached_value)
-    my_decimal2decimal (nr, &cached_value);
+  if (nr)
+  {
+    my_decimal_round(E_DEC_FATAL_ERROR, nr, decimals, FALSE, nr);
+    if (nr != &cached_value)
+      my_decimal2decimal (nr, &cached_value);
+  }
   null_value= item->null_value;
   return thd->is_error();
 }
