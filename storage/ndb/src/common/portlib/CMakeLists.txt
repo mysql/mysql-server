@@ -33,5 +33,3 @@ TARGET_LINK_LIBRARIES(ndbportlib mysys ${LIBSOCKET})
 
 NDB_ADD_TEST(NdbDir-t NdbDir.cpp ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/util/basestring_vsnprintf.c
              LIBS ndbportlib)
-
-NDB_ADD_TEST(NdbGetInAddr-t NdbTCP.cpp LIBS ${LIBSOCKET} ${LIBSNL})
