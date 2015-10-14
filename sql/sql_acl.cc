@@ -50,6 +50,7 @@
 #include "hostname.h"
 #include "sql_db.h"
 #include "sql_array.h"
+#include "debug_sync.h"
 
 bool mysql_user_table_is_in_short_password_format= false;
 
@@ -1194,6 +1195,8 @@ my_bool acl_reload(THD *thd)
     mysql_mutex_unlock(&acl_cache->lock);
 end:
   close_mysql_tables(thd);
+
+  DEBUG_SYNC(thd, "after_acl_reload");
   DBUG_RETURN(return_val);
 }
 
@@ -7346,11 +7349,14 @@ acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
     DBUG_RETURN(FALSE);
   }
 
+  mysql_mutex_lock(&acl_cache->lock);
+
   /* check for matching WITH PROXY rights */
   for (uint i=0; i < acl_proxy_users.elements; i++)
   {
     ACL_PROXY_USER *proxy= dynamic_element(&acl_proxy_users, i, 
                                            ACL_PROXY_USER *);
+    DEBUG_SYNC(thd, "before_proxy_matches");
     if (proxy->matches(thd->security_ctx->get_host()->ptr(),
                        thd->security_ctx->user,
                        thd->security_ctx->get_ip()->ptr(),
@@ -7358,10 +7364,12 @@ acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
         proxy->get_with_grant())
     {
       DBUG_PRINT("info", ("found"));
+      mysql_mutex_unlock(&acl_cache->lock);
       DBUG_RETURN(FALSE);
     }
   }
 
+  mysql_mutex_unlock(&acl_cache->lock);
   my_error(ER_ACCESS_DENIED_NO_PASSWORD_ERROR, MYF(0),
            thd->security_ctx->user,
            thd->security_ctx->host_or_ip);
