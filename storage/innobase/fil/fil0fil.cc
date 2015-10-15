@@ -6706,3 +6706,14 @@ test_make_filepath()
 }
 #endif /* UNIV_ENABLE_UNIT_TEST_MAKE_FILEPATH */
 /* @} */
+
+/** Release the reserved free extents.
+@param[in]	n_reserved	number of reserved extents */
+void
+fil_space_t::release_free_extents(ulint	n_reserved)
+{
+	ut_ad(rw_lock_own(&latch, RW_LOCK_X));
+
+	ut_a(n_reserved_extents >= n_reserved);
+	n_reserved_extents -= n_reserved;
+}

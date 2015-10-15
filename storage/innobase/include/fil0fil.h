@@ -167,6 +167,10 @@ struct fil_space_t {
 	/** Compression algorithm */
 	Compression::Type	compression_type;
 
+	/** Release the reserved free extents.
+	@param[in]	n_reserved	number of reserved extents */
+	void release_free_extents(ulint n_reserved);
+
 	ulint		magic_n;/*!< FIL_SPACE_MAGIC_N */
 };
 
