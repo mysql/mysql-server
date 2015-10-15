@@ -378,12 +378,14 @@ public:
   PFS_buffer_scalable_container(allocator_type *allocator)
   {
     m_allocator= allocator;
+    m_initialized= false;
   }
 
   int init(long max_size)
   {
     int i;
 
+    m_initialized= true;
     m_full= true;
     m_max= PFS_PAGE_COUNT * PFS_PAGE_SIZE;
     m_max_page_count= PFS_PAGE_COUNT;
@@ -421,6 +423,8 @@ public:
       /* max_size = -1 means unbounded allocation */
       m_full= false;
     }
+
+    native_mutex_init(& m_critical_section, NULL);
     return 0;
   }
 
@@ -428,6 +432,11 @@ public:
   {
     int i;
     array_type *page;
+
+    if (! m_initialized)
+      return;
+
+    native_mutex_lock(& m_critical_section);
 
     for (i=0 ; i < PFS_PAGE_COUNT; i++)
     {
@@ -439,6 +448,11 @@ public:
         m_pages[i]= NULL;
       }
     }
+    native_mutex_unlock(& m_critical_section);
+
+    native_mutex_destroy(& m_critical_section);
+
+    m_initialized= false;
   }
 
   ulong get_row_count()
@@ -473,12 +487,10 @@ public:
     uint page_logical_size;
     value_type *pfs;
     array_type *array;
-    array_type *old_array;
 
     void *addr;
     void * volatile * typed_addr;
     void *ptr;
-    void *old_ptr;
 
     /*
       1: Try to find an available record within the existing pages
@@ -549,44 +561,72 @@ public:
 
       if (array == NULL)
       {
-        /* (2-b) Found no page, allocate a new one */
-        array= new array_type();
-        builtin_memory_scalable_buffer.count_alloc(sizeof (array_type));
+        // ==================================================================
+        // BEGIN CRITICAL SECTION -- buffer expand
+        // ==================================================================
 
-        int rc= m_allocator->alloc_array(array, PFS_PAGE_SIZE);
-        if (rc != 0)
-        {
-          m_allocator->free_array(array, PFS_PAGE_SIZE);
-          delete array;
-          builtin_memory_scalable_buffer.count_free(sizeof (array_type));
-          m_lost++;
-          return NULL;
-        }
+        /*
+          On a fresh started server, buffers are typically empty.
+          When a sudden load spike is seen by the server,
+          multiple threads may want to expand the buffer at the same time.
 
-        /* (2-c) Atomic CAS, array <==> (m_pages[current_page_count] if NULL)  */
-        old_ptr= NULL;
-        ptr= array;
-        if (my_atomic_casptr(typed_addr, & old_ptr, ptr))
+          Using a compare and swap to allow multiple pages to be added,
+          possibly freeing duplicate pages on collisions,
+          does not work well because the amount of code involved
+          when creating a new page can be significant (PFS_thread),
+          causing MANY collisions between (2-b) and (2-d).
+
+          A huge number of collisions (which can happen when thousands
+          of new connections hits the server after a restart)
+          leads to a huge memory consumption, and to OOM.
+
+          To mitigate this, we use here a mutex,
+          to enforce that only ONE page is added at a time,
+          so that scaling the buffer happens in a predictable
+          and controlled manner.
+        */
+        native_mutex_lock(& m_critical_section);
+
+        /*
+          Peek again for pages added by collaborating threads,
+          this time as the only thread allowed to expand the buffer
+        */
+
+        /* (2-b) Atomic Load, array= m_pages[current_page_count] */
+
+        ptr= my_atomic_loadptr(typed_addr);
+        array= static_cast<array_type *>(ptr);
+
+        if (array == NULL)
         {
-          /* CAS: Ok */
+          /* (2-c) Found no page, allocate a new one */
+          array= new array_type();
+          builtin_memory_scalable_buffer.count_alloc(sizeof (array_type));
+
+          int rc= m_allocator->alloc_array(array, PFS_PAGE_SIZE);
+          if (rc != 0)
+          {
+            m_allocator->free_array(array, PFS_PAGE_SIZE);
+            delete array;
+            builtin_memory_scalable_buffer.count_free(sizeof (array_type));
+            m_lost++;
+            native_mutex_unlock(& m_critical_section);
+            return NULL;
+          }
+
+          /* (2-d) Atomic STORE, m_pages[current_page_count] = array  */
+          ptr= array;
+          my_atomic_storeptr(typed_addr, ptr);
 
           /* Advertise the new page */
           PFS_atomic::add_u32(& m_max_page_index.m_u32, 1);
         }
-        else
-        {
-          /* CAS: Race condition with another thread */
 
-          old_array= static_cast<array_type *>(old_ptr);
+        native_mutex_unlock(& m_critical_section);
 
-          /* Delete the page */
-          m_allocator->free_array(array, PFS_PAGE_SIZE);
-          delete array;
-          builtin_memory_scalable_buffer.count_free(sizeof (array_type));
-
-          /* Use the new page added concurrently instead */
-          array= old_array;
-        }
+        // ==================================================================
+        // END CRITICAL SECTION -- buffer expand
+        // ==================================================================
       }
 
       DBUG_ASSERT(array != NULL);
@@ -885,6 +925,7 @@ private:
     return NULL;
   }
 
+  bool m_initialized;
   bool m_full;
   size_t m_max;
   PFS_cacheline_uint32 m_monotonic;
@@ -893,6 +934,7 @@ private:
   ulong m_last_page_size;
   array_type * m_pages[PFS_PAGE_COUNT];
   allocator_type *m_allocator;
+  native_mutex_t m_critical_section;
 };
 
 template <class T, class U, class V>
