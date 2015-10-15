@@ -2301,6 +2301,7 @@ runBug54986(NDBT_Context* ctx, NDBT_Step* step)
     CHK1(restarter.dumpStateAllNodes(&vall, 1) == 0);
     CHK1(restarter.startAll() == 0);
     CHK1(restarter.waitClusterStarted() == 0);
+    CHK1(pNdb->waitUntilReady() == 0);
     CHK1(hugoOps.closeTransaction(pNdb) == 0);
   }
 
@@ -2311,6 +2312,7 @@ runBug54986(NDBT_Context* ctx, NDBT_Step* step)
   restarter.waitClusterNoStart();
   restarter.startAll();
   restarter.waitClusterStarted();
+  pNdb->waitUntilReady();
   return result;
 }
 
