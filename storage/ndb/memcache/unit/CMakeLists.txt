@@ -42,5 +42,5 @@ set(libs)
 if(LIBRT) 
   set(libs rt)
 endif()
-NDB_ADD_TEST(test_workqueue-t "${TEST_WORKQUEUE_SOURCES}" LIBS "${libs}")
+# NDB_ADD_TEST(test_workqueue-t "${TEST_WORKQUEUE_SOURCES}" LIBS "${libs}")
 ##########################################
