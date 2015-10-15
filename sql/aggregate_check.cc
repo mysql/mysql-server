@@ -27,23 +27,15 @@
 #include "sql_select.h"
 #include "derror.h"
 
-
 /**
-  We need to search for items inside subqueries, in case subqueries contain
-  outer references to tables of a query block having DISTINCT or GROUP BY.
-  We also need to sometimes skip parts of item trees, so the walk processor
-  must be called prefix (to enable skipping) and postfix (to disable
-  skipping).
-*/
-static const Item::enum_walk walk_options=
-  Item::enum_walk(Item::WALK_PREFIX | Item::WALK_POSTFIX | Item::WALK_SUBQUERY);
+  @addtogroup AGGREGATE_CHECKS
 
-/*
-  About the usage of resolved_used_tables() and used_tables().
+  @section USED_TABLES Implementation note: used_tables_for_level() vs used_tables()
+
   - When we are looking for items to validate, we must enter scalar/row
   subqueries; if we find an item of our SELECT_LEX inside such subquery, for
   example an Item_field with depended_from equal to our SELECT_LEX, we
-  must use resolved_used_tables(). Example: when validating t1.a in
+  must use used_tables_for_level(). Example: when validating t1.a in
   select (select t1.a from t1 as t2 limit 1) from t1 group by t1.pk;
   we need t1.a's map in the grouped query; used_tables() would return
   OUTER_REF_TABLE_BIT.
@@ -55,13 +47,21 @@ static const Item::enum_walk walk_options=
   Or:
   select (select t2.a from t1 as t2 where t2.a=t1.a group by t2.b) from t1
   when validating the subq, t1.a is an outer reference, kind of a constant, so
-  tells us that t2.a is FD on {} ; using resolved_used_tables() on t1.a would
+  tells us that t2.a is FD on {} ; using used_tables_for_level() on t1.a would
   be nonsense - we are validating the subquery.
 
-  To be allowed to use of resolved_used_tables(), caller should be sure that
-  'item' is resolved in our 'sl'; caller does that by testing local_column() or
-  item->local_column().
+  @{
 */
+
+/**
+  We need to search for items inside subqueries, in case subqueries contain
+  outer references to tables of a query block having DISTINCT or GROUP BY.
+  We also need to sometimes skip parts of item trees, so the walk processor
+  must be called prefix (to enable skipping) and postfix (to disable
+  skipping).
+*/
+static const Item::enum_walk walk_options=
+  Item::enum_walk(Item::WALK_PREFIX | Item::WALK_POSTFIX | Item::WALK_SUBQUERY);
 
 /**
    Rejects the query if it has a combination of DISTINCT and ORDER BY which
@@ -397,7 +397,7 @@ bool Group_check::is_fd_on_source(Item *item)
           /*
             We just found that intersect(En,table.*) contains all columns of
             the key, so intersect(En,table.*) -> table.* in 'table'.
-            This is key-based so is a NFFD, so it propagates to the result of
+            This is key-based so is an NFFD, so it propagates to the result of
             the WHERE clause. Thus, intersect(En,table.*) -> table.* in this
             result, so En -> table.* in this result.
             We knew that E1 -> En in this result.
@@ -434,12 +434,11 @@ bool Group_check::is_fd_on_source(Item *item)
     }
     else
     {
-      // (1) already searched in derived tables, (2) no derived tables
-      if (search_in_underlying ||               // (1)
-          select->derived_table_count == 0)     // (2)
+      // If already searched in expressions underlying identifiers.
+      if (search_in_underlying)
         return false;
 
-      // Iterate once more, now drilling in underlying query expressions
+      // Otherwise, iterate once more and dig deeper.
       search_in_underlying= true;
 
       if (is_in_fd(item))
@@ -665,7 +664,7 @@ bool Group_check::is_in_fd(Item *item)
     /*
       If all group expressions are FD on the source, this set function also is
       (one single value per group).
-     */
+    */
     return group_in_fd == ~0ULL;
   }
 
@@ -673,16 +672,17 @@ bool Group_check::is_in_fd(Item *item)
   Used_tables ut(select);
   (void) item->walk(&Item::used_tables_for_level, Item::WALK_POSTFIX,
                     pointer_cast<uchar *>(&ut));
-  if ((ut.used_tables & ~whole_tables_fd) == 0 &&
-      (!select->outer_join || item->type() == Item::FIELD_ITEM))
+  if ((ut.used_tables & ~whole_tables_fd) == 0)
   {
     /*
       The item is a column from a table whose all columns are FD.
       If the table is a view, the item wraps an expression, which
       uses columns of underlying tables which are all FD; we don't even have
-      to walk the underlying expression; however, expression-based FDs in
-      views are not necessarily NFFD, so if we have an outer join, they may
-      not propagate, then we fallback to walking it later, for safety.
+      to walk the underlying expression.
+      An expression-based FD in a view is not necessarily an NFFD, but here it
+      is, as the bits in whole_tables_fd are on only if the determinant
+      columns are non-NULLable or there is no weak side upwards (see calls to
+      add_to_fd(table_map)).
     */
     return true;
   }
@@ -714,6 +714,9 @@ bool Group_check::is_in_fd(Item *item)
 
 
 /**
+   See if we can derive a FD from a column which has an underlying expression.
+
+   For a generated column, see if we can derive a FD from its expression.
    For a column of a view or derived table, see if we can derive a FD from the
    underlying query block.
 
@@ -722,12 +725,8 @@ bool Group_check::is_in_fd(Item *item)
 */
 bool Group_check::is_in_fd_of_underlying(Item_ident *item)
 {
-  if (item->type() == Item::REF_ITEM &&
-      !(item->used_tables() & RAND_TABLE_BIT))
+  if (item->type() == Item::REF_ITEM)
   {
-    DBUG_ASSERT(static_cast<const Item_ref *>(item)->ref_type() ==
-                Item_ref::VIEW_REF);
-
     /*
       It's a merged view's item.
       Consider
@@ -735,20 +734,25 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item)
         select v1.b from v1 group by v1.a;
       we have this->fd={v1.a}, and we search if v1.b is FD on v1.a. We'll look
       if t1.a*2 is FD on t1.a.
-
-      Why we refuse RAND_TABLE_BIT above:
+    */
+    DBUG_ASSERT(static_cast<const Item_ref *>(item)->ref_type() ==
+                Item_ref::VIEW_REF);
+    /*
+      Refuse RAND_TABLE_BIT because:
       - FDs in a view are those of the underlying query expression.
       - For FDs in a query expression, expressions in the SELECT list must be
       deterministic.
       Same is true for materialized tables further down.
     */
+    if (item->used_tables() & RAND_TABLE_BIT)
+      return false;
+
     Item *const real_it= item->real_item();
     Used_tables ut(select);
     (void) item->walk(&Item::used_tables_for_level, Item::WALK_POSTFIX,
                       pointer_cast<uchar *>(&ut));
-    const table_map used_tables= ut.used_tables;
     /*
-      @todo When we eliminate all uses of cached_table, we can probably add a
+      todo When we eliminate all uses of cached_table, we can probably add a
       derived_table_ref field to Item_direct_view_ref objects and use it here.
     */
     TABLE_LIST *const tl= item->cached_table;
@@ -769,18 +773,41 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item)
       NFFD).
     */
     if ((!weak_side_upwards ||                  // (1)
-         (used_tables & real_it->not_null_tables())) && // (2)
-        !real_it->walk(&Item::is_column_not_in_fd, walk_options, (uchar*)this)) // (3)
+         (ut.used_tables & real_it->not_null_tables())) && // (2)
+        !real_it->walk(&Item::is_column_not_in_fd, walk_options,
+                       pointer_cast<uchar*>(this))) // (3)
     {
       add_to_fd(item, true);
       return true;
     }
   }
-  if (item->type() == Item::FIELD_ITEM)
+
+  else if (item->type() == Item::FIELD_ITEM)
   {
-    Item_field *const item_field= (Item_field*)item;
+    Item_field *const item_field= down_cast<Item_field*>(item);
+    /**
+      @todo make table_ref non-NULL for gcols, then use it for 'tl'.
+      Do the same in Item_field::used_tables_for_level().
+    */
     TABLE_LIST *const tl= item_field->field->table->pos_in_table_list;
-    if (tl->uses_materialization()) // materialized table
+    if (item_field->field->is_gcol())         // Generated column
+    {
+      DBUG_ASSERT(!tl->uses_materialization());
+      Item *const expr= item_field->field->gcol_info->expr_item;
+      DBUG_ASSERT(expr->fixed);
+      Used_tables ut(select);
+      item_field->used_tables_for_level(pointer_cast<uchar *>(&ut));
+      const bool weak_side_upwards= tl->is_inner_table_of_outer_join();
+      if ((!weak_side_upwards ||
+           (ut.used_tables & expr->not_null_tables())) &&
+          !expr->walk(&Item::is_column_not_in_fd, walk_options,
+                         pointer_cast<uchar*>(this)))
+      {
+        add_to_fd(item, true);
+        return true;
+      }
+    }
+    else if (tl->uses_materialization()) // Materialized derived table
     {
       SELECT_LEX *const mat_select= tl->derived_unit()->first_select();
       uint j;
@@ -815,7 +842,8 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item)
             (!(mat_gc->table->map() & select->outer_join) ||      // (2)
              mat_gc->non_null_in_source) &&                       // (3)
             !expr_under->walk(&Item::aggregate_check_group,       // (4)
-                              walk_options, (uchar*)mat_gc))
+                              walk_options,
+                              pointer_cast<uchar*>(mat_gc)))
         {
           /*
             We pass add_to_mat_table==false otherwise add_to_fd() may add
@@ -829,6 +857,7 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item)
       }
     }
   }
+
   return false;
 }
 
@@ -937,7 +966,7 @@ void Group_check::analyze_scalar_eq(Item *cond,
       /*
         It cannot be an inner join, due to transformations done in
         simplify_joins(). So it is WHERE, so right_item is strong.
-        This may be constant=right_item and thus not be a NFFD, but WHERE is
+        This may be constant=right_item and thus not be an NFFD, but WHERE is
         exterior to join nests so propagation is not needed.
       */
       DBUG_ASSERT(!weak_side_upwards);          // cannot be inner join
@@ -1181,3 +1210,5 @@ ignore_children:
     stop_at(i);
     return false;
 }
+
+/// @} (end of group AGGREGATE_CHECKS ONLY_FULL_GROUP_BY)
