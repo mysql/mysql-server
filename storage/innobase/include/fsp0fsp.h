@@ -445,8 +445,8 @@ fseg_alloc_free_page_general(
 				If init_mtr!=mtr, but the page is already
 				latched in mtr, do not initialize the page. */
 	__attribute__((warn_unused_result, nonnull));
-/**********************************************************************//**
-Reserves free pages from a tablespace. All mini-transactions which may
+
+/** Reserves free pages from a tablespace. All mini-transactions which may
 use several pages from the tablespace should call this function beforehand
 and reserve enough free extents so that they certainly will be able
 to do their operation, like a B-tree page split, fully. Reservations
@@ -465,23 +465,33 @@ The purpose is to avoid dead end where the database is full but the
 user cannot free any space because these freeing operations temporarily
 reserve some space.
 
-Single-table tablespaces whose size is < 32 pages are a special case. In this
-function we would liberally reserve several 64 page extents for every page
-split or merge in a B-tree. But we do not want to waste disk space if the table
-only occupies < 32 pages. That is why we apply different rules in that special
-case, just ensuring that there are 3 free pages available.
-@return TRUE if we were able to make the reservation */
+Single-table tablespaces whose size is < FSP_EXTENT_SIZE pages are a special
+case. In this function we would liberally reserve several extents for
+every page split or merge in a B-tree. But we do not want to waste disk space
+if the table only occupies < FSP_EXTENT_SIZE pages. That is why we apply
+different rules in that special case, just ensuring that there are n_pages
+free pages available.
+
+@param[out]	n_reserved	number of extents actually reserved; if we
+				return true and the tablespace size is <
+				FSP_EXTENT_SIZE pages, then this can be 0,
+				otherwise it is n_ext
+@param[in]	space_id	tablespace identifier
+@param[in]	n_ext		number of extents to reserve
+@param[in]	alloc_type	page reservation type (FSP_BLOB, etc)
+@param[in,out]	mtr		the mini transaction
+@param[in]	n_pages		for small tablespaces (tablespace size is
+				less than FSP_EXTENT_SIZE), number of free
+				pages to reserve.
+@return true if we were able to make the reservation */
 bool
 fsp_reserve_free_extents(
-/*=====================*/
-	ulint*	n_reserved,/*!< out: number of extents actually reserved; if we
-			return TRUE and the tablespace size is < 64 pages,
-			then this can be 0, otherwise it is n_ext */
-	ulint	space_id,/*!< in: space id */
-	ulint	n_ext,	/*!< in: number of extents to reserve */
+	ulint*		n_reserved,
+	ulint		space_id,
+	ulint		n_ext,
 	fsp_reserve_t	alloc_type,
-			/*!< in: page reservation type */
-	mtr_t*	mtr);	/*!< in/out: mini-transaction */
+	mtr_t*		mtr,
+	ulint		n_pages = 2);
 
 /** Calculate how many KiB of new data we will be able to insert to the
 tablespace without running out of space.
