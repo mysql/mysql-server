@@ -959,6 +959,43 @@
    fun:malloc_info
 }
 
+#supress warnings from openssl random generator
+
+{
+   OpenSSL conditional jump in ssl3_ctx_ctrl
+   Memcheck:Cond
+   ...
+   fun:ssl3_ctx_ctrl
+   fun:new_VioSSLFd
+}
+
+{
+   OpenSSL uninitialised value of size 8 in new_VioSSLFd
+   Memcheck:Value8
+   fun:BN_num_bits_word
+   fun:BN_num_bits
+   ...
+   fun:new_VioSSLFd
+}
+
+{
+   OpenSSL uninitialised value of size 8 in new_VioSSLFd
+   Memcheck:Value8
+   fun:BN_mod_exp_mont_consttime
+   ...
+   fun:new_VioSSLFd
+}
+
+
+# supress uninitialized because some SSL libraries do random like that
+{
+   OpenSSL conditional jump in generate_user_salt due to randomness
+   Memcheck:Cond
+   fun:generate_user_salt
+   fun:native_password_authenticate
+}
+
+
 # Remove the NUMA ones below when https://github.com/numactl/numactl/issues/3
 # is resolved.
 
@@ -983,3 +1020,4 @@
    fun:*
    fun:numa_node_to_cpus
 }
+
