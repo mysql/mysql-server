@@ -3145,8 +3145,9 @@ table_map Item_field::used_tables() const
 
 bool Item_field::used_tables_for_level(uchar *arg)
 {
+  TABLE_LIST *tr= field->table->pos_in_table_list;
   // Used by resolver only, so can never reach a "const" table.
-  DBUG_ASSERT(!table_ref->table->const_table);
+  DBUG_ASSERT(!tr->table->const_table);
   Used_tables *const ut= pointer_cast<Used_tables *>(arg);
   /*
     When the qualifying query for the field (table_ref->select_lex) is the same
@@ -3154,9 +3155,9 @@ bool Item_field::used_tables_for_level(uchar *arg)
     When the qualifying query for the field is outer relative to the
     requested level, add an outer reference.
   */
-  if (ut->select == table_ref->select_lex)
-    ut->used_tables|= table_ref->map();
-  else if (ut->select->nest_level > table_ref->select_lex->nest_level)
+  if (ut->select == tr->select_lex)
+    ut->used_tables|= tr->map();
+  else if (ut->select->nest_level > tr->select_lex->nest_level)
     ut->used_tables|= OUTER_REF_TABLE_BIT;
 
   return false;
