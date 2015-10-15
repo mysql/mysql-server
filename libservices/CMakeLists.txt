@@ -33,5 +33,5 @@ SET(MYSQLSERVICES_SOURCES
   rpl_transaction_write_set_service.c
   security_context_service.c)
 
-ADD_LIBRARY(mysqlservices ${MYSQLSERVICES_SOURCES})
+ADD_CONVENIENCE_LIBRARY(mysqlservices ${MYSQLSERVICES_SOURCES})
 INSTALL(TARGETS mysqlservices DESTINATION ${INSTALL_LIBDIR} COMPONENT Development)
