@@ -214,13 +214,6 @@ yield(struct thr_wait* wait, const Uint32 nsec,
 
 static inline
 int
-try_wakeup(struct thr_wait* wait)
-{
-  return wakeup(wait);
-}
-
-static inline
-int
 wakeup(struct thr_wait* wait)
 {
   volatile unsigned * val = &wait->m_futex_state;
@@ -234,6 +227,13 @@ wakeup(struct thr_wait* wait)
     return futex_wake(val);
   }
   return 0;
+}
+
+static inline
+int
+try_wakeup(struct thr_wait* wait)
+{
+  return wakeup(wait);
 }
 #else
 
