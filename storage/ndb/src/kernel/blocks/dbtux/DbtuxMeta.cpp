@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -316,7 +316,7 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     fragPtr.p->m_tupTableFragPtrI = req->tupTableFragPtrI;
     fragPtr.p->m_accTableFragPtrI = req->accTableFragPtrI;
     // add the fragment to the index
-    Uint32 fragNo = indexPtr.p->m_numFrags;
+    const Uint32 fragNo = indexPtr.p->m_numFrags;
     indexPtr.p->m_fragId[indexPtr.p->m_numFrags] = req->fragId;
     indexPtr.p->m_fragPtrI[indexPtr.p->m_numFrags] = fragPtr.i;
     indexPtr.p->m_numFrags++;
@@ -657,8 +657,8 @@ Dbtux::execDROP_FRAG_REQ(Signal* signal)
 
   IndexPtr indexPtr;
   c_indexPool.getPtr(indexPtr, req->tableId);
-  Uint32 i = 0;
-  for (i = 0; i < indexPtr.p->m_numFrags; i++)
+
+  for (Uint32 i = 0; i < indexPtr.p->m_numFrags; i++)
   {
     jam();
     if (indexPtr.p->m_fragId[i] == req->fragId)
@@ -671,6 +671,9 @@ Dbtux::execDROP_FRAG_REQ(Signal* signal)
       for (i++; i < indexPtr.p->m_numFrags; i++)
       {
         jam();
+        /* Check array bounds to silence gcc 4.8.2 false warning bug */
+        ndbrequire(i < NDB_ARRAY_SIZE(indexPtr.p->m_fragPtrI) &&
+                   i < NDB_ARRAY_SIZE(indexPtr.p->m_fragId));
         indexPtr.p->m_fragPtrI[i-1] = indexPtr.p->m_fragPtrI[i];
         indexPtr.p->m_fragId[i-1] = indexPtr.p->m_fragId[i];
       }
