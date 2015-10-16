@@ -1,6 +1,8 @@
 
 # This tests not performed with embedded server
 -- source include/not_embedded.inc
+# This test calls flush privileges. Restart to clean up
+-- source include/force_restart.inc
 
 FLUSH PRIVILEGES;
 
