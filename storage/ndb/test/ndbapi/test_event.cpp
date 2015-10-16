@@ -4165,7 +4165,7 @@ int runPollBCNoWaitConsumer(NDBT_Context* ctx, NDBT_Step* step)
   }
   CHK(retries > 0, "No epoch has received in 10 secs");
 
-  CHK_NDB_READY(pNdb);
+  CHK_NDB_READY(ndb);
 
   g_err << "Node started" << endl;
 
