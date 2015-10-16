@@ -1,4 +1,7 @@
 #
+# Show what happens during ALTER TABLE when an existing file
+# exists in the target location.
+#
 # Bug #19218794: IF TABLESPACE EXISTS, CAN'T CREATE TABLE,
 #                BUT CAN ALTER ENGINE=INNODB
 #
@@ -72,13 +75,6 @@ ALTER TABLE t1 TABLESPACE s1;
 #
 # Try to move t1 from a general tablespace to a file-per-table
 # while a blocking t1.ibd file exists.
-#
-ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=INPLACE;
-ERROR HY000: Tablespace 'test/t1' exists.
-ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=COPY;
-ERROR HY000: Error on rename of 'OLD_FILE_NAME' to 'NEW_FILE_NAME' (errno: 184 - Tablespace already exists)
-#
-# Try again while a READ-ONLY t1.ibd file exists.
 #
 ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=INPLACE;
 ERROR HY000: Tablespace 'test/t1' exists.
