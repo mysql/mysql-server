@@ -332,6 +332,11 @@ still indexed, and output its position
 @param[in]	ptr		undo log pointer
 @param[in]	first_v_col	if this is the first virtual column, which
 				has the version marker
+@param[in,out]	is_undo_log	this function is used to parse both undo log,
+				and online log for virtual columns. So
+				check to see if this is undo log. When
+				first_v_col is true, is_undo_log is output,
+				when first_v_col is false, is_undo_log is input
 @param[in,out]	field_no	the column number
 @return remaining part of undo log record after reading these values */
 const byte*
@@ -339,24 +344,21 @@ trx_undo_read_v_idx(
 	const dict_table_t*	table,
 	const byte*		ptr,
 	bool			first_v_col,
+	bool*			is_undo_log,
 	ulint*			field_no)
 {
-	/* this function is used to parse both undo log, and online log
-	for virtual columns. So check to see if this is undo log */
-	bool	is_undo_log = true;
-
 	/* Version marker only put on the first virtual column */
 	if (first_v_col) {
 		/* Undo log has the virtual undo log marker */
-		is_undo_log = (mach_read_from_1(ptr)
-			       == VIRTUAL_COL_UNDO_FORMAT_1);
+		*is_undo_log = (mach_read_from_1(ptr)
+				== VIRTUAL_COL_UNDO_FORMAT_1);
 
-		if (is_undo_log) {
+		if (*is_undo_log) {
 			ptr += 1;
 		}
 	}
 
-	if (is_undo_log) {
+	if (*is_undo_log) {
 		ptr = trx_undo_read_v_idx_low(table, ptr, field_no);
 	} else {
 		*field_no -= REC_MAX_N_FIELDS;
@@ -1419,6 +1421,7 @@ trx_undo_update_rec_get_update(
 	byte*		buf;
 	ulint		i;
 	bool		first_v_col = true;
+	bool		is_undo_log = true;
 	ulint		n_skip_field = 0;
 
 	ut_a(dict_index_is_clust(index));
@@ -1475,7 +1478,8 @@ trx_undo_update_rec_get_update(
 			/* If new version, we need to check index list to figure
 			out the correct virtual column position */
 			ptr = trx_undo_read_v_idx(
-				index->table, ptr, first_v_col, &field_no);
+				index->table, ptr, first_v_col, &is_undo_log,
+				&field_no);
 			first_v_col = false;
 		} else if (field_no >= dict_index_get_n_fields(index)) {
 			ib::error() << "Trying to access update undo rec"
@@ -1604,6 +1608,7 @@ trx_undo_rec_get_partial_row(
 {
 	const byte*	end_ptr;
 	bool		first_v_col = true;
+	bool		is_undo_log = true;
 
 	ut_ad(index);
 	ut_ad(ptr);
@@ -1643,7 +1648,8 @@ trx_undo_rec_get_partial_row(
 
 		if (is_virtual) {
 			ptr = trx_undo_read_v_idx(
-				index->table, ptr, first_v_col, &field_no);
+				index->table, ptr, first_v_col, &is_undo_log,
+				&field_no);
 			first_v_col = false;
 		}
 
@@ -2391,6 +2397,7 @@ trx_undo_read_v_cols(
 {
 	const byte*     end_ptr;
 	bool		first_v_col = true;
+	bool		is_undo_log = true;
 
 	end_ptr = ptr + mach_read_from_2(ptr);
 	ptr += 2;
@@ -2409,7 +2416,8 @@ trx_undo_read_v_cols(
 
 		if (is_virtual) {
 			ptr = trx_undo_read_v_idx(
-				table, ptr, first_v_col, &field_no);
+				table, ptr, first_v_col, &is_undo_log,
+				&field_no);
 			first_v_col = false;
 		}
 

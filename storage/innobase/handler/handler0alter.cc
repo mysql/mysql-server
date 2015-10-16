@@ -1621,7 +1621,8 @@ innobase_row_to_mysql(
 	const dict_table_t*	itab,	/*!< in: InnoDB table */
 	const dtuple_t*		row)	/*!< in: InnoDB row */
 {
-	uint  n_fields	= table->s->fields;
+	uint	n_fields = table->s->fields;
+	ulint	num_v = 0;
 
 	/* The InnoDB row may contain an extra FTS_DOC_ID column at the end. */
 	ut_ad(row->n_fields == dict_table_get_n_cols(itab));
@@ -1631,9 +1632,17 @@ innobase_row_to_mysql(
 
 	for (uint i = 0; i < n_fields; i++) {
 		Field*		field	= table->field[i];
-		const dfield_t*	df	= dtuple_get_nth_field(row, i);
 
 		field->reset();
+
+		if (innobase_is_v_fld(field)) {
+			/* Virtual column are not stored in InnoDB table, so
+			skip it */
+			num_v++;
+			continue;
+		}
+
+		const dfield_t*	df	= dtuple_get_nth_field(row, i - num_v);
 
 		if (dfield_is_ext(df) || dfield_is_null(df)) {
 			field->set_null();
@@ -1641,7 +1650,7 @@ innobase_row_to_mysql(
 			field->set_notnull();
 
 			innobase_col_to_mysql(
-				dict_table_get_nth_col(itab, i),
+				dict_table_get_nth_col(itab, i - num_v),
 				static_cast<const uchar*>(dfield_get_data(df)),
 				dfield_get_len(df), field);
 		}

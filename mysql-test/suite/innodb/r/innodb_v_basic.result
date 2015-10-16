@@ -1367,3 +1367,72 @@ alter table t add unique index(c);
 ERROR 23000: Duplicate entry '1' for key 'c'
 insert into t set a=1;
 drop table t;
+#
+# Bug#22018532 ASSERTION WHEN ONLINE REAPPLY REBUILD LOG ON
+# MULTIPLE INDEXED VIRTUAL COLUMNS
+#
+create table t (
+a int as (1) virtual,
+b int,
+c int as (1) virtual,
+unique(b),
+unique(c),
+key(a)
+) engine=innodb;
+insert ignore into t values();
+SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create WAIT_FOR go_ahead';
+optimize table t;
+SET DEBUG_SYNC = 'now WAIT_FOR start_create';
+insert ignore into t values();
+Warnings:
+Warning	1062	Duplicate entry '1' for key 'c'
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+/* connection default */ optimize table t;
+Table	Op	Msg_type	Msg_text
+test.t	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t	optimize	error	Duplicate entry 'NULL' for key 'b'
+test.t	optimize	status	Operation failed
+Warnings:
+Error	1062	Duplicate entry 'NULL' for key 'b'
+SELECT c FROM t;
+c
+1
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) GENERATED ALWAYS AS (1) VIRTUAL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) GENERATED ALWAYS AS (1) VIRTUAL,
+  UNIQUE KEY `b` (`b`),
+  UNIQUE KEY `c` (`c`),
+  KEY `a` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT * FROM t;
+a	b	c
+1	NULL	1
+DROP TABLE t;
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10));
+INSERT INTO t VALUES (11, 3, DEFAULT, 'mm');
+INSERT INTO t VALUES (18, 1, DEFAULT, 'mm');
+INSERT INTO t VALUES (28, 1, DEFAULT, 'mm');
+INSERT INTO t VALUES (null, null, DEFAULT, 'mm');
+CREATE INDEX idx ON t(c);
+SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_rebuild WAIT_FOR go_ahead';
+optimize table t;
+SET DEBUG_SYNC = 'now WAIT_FOR start_rebuild';
+INSERT INTO t VALUES (48, 2, DEFAULT, 'xx');
+INSERT INTO t VALUES (68, 3, DEFAULT, 'sx');
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+/* connection default */ optimize table t;
+Table	Op	Msg_type	Msg_text
+test.t	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t	optimize	status	OK
+SELECT c FROM t;
+c
+NULL
+14
+19
+29
+50
+71
+DROP TABLE t;
