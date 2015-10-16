@@ -1999,6 +1999,7 @@ static int runCreateDropNR(NDBT_Context* ctx, NDBT_Step* step)
     ndbout << "Restarting with dropped events with subscribers" << endl;
     if (restartAllNodes())
       break;
+    CHK_NDB_READY(ndb);
     if (ndb->getDictionary()->dropTable(pTab->getName()) != 0){
       g_err << "Failed to drop " << pTab->getName() <<" in db" << endl;
       break;
@@ -2007,6 +2008,7 @@ static int runCreateDropNR(NDBT_Context* ctx, NDBT_Step* step)
            << "table with subscribers" << endl;
     if (restartAllNodes())
       break;
+    CHK_NDB_READY(ndb);
     if (ndb->dropEventOperation(pOp))
     {
       g_err << "Failed dropEventOperation" << endl;
@@ -2163,6 +2165,7 @@ runBug31701(NDBT_Context* ctx, NDBT_Step* step)
   if (restarter.waitClusterStarted())
     return NDBT_FAILED;
 
+  CHK_NDB_READY(GETNDB(step));
   
   int records = ctx->getNumRecords();
   HugoTransactions hugoTrans(*ctx->getTab());
@@ -2396,9 +2399,7 @@ errorInjectStalling(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
 
-  if (ndb->waitUntilReady() != 0){
-    return NDBT_FAILED;
-  }
+  CHK_NDB_READY(ndb);
 
   pOp= createEventOperation(ndb, *pTab);
 
@@ -2604,6 +2605,8 @@ runBug34853(NDBT_Context* ctx, NDBT_Step* step)
   res.startNodes(&nodeId, 1);
   ndbout_c("waiting cluster");
   res.waitClusterStarted();
+
+  CHK_NDB_READY(xndb);
 
   if (pOp->execute())
   { // This starts changes to "start flowing"
@@ -2990,6 +2993,8 @@ runBug37279(NDBT_Context* ctx, NDBT_Step* step)
   {
     return NDBT_FAILED;
   }
+
+  CHK_NDB_READY(pNdb);
   
   pNdb->dropEventOperation(pOp0);
   runDropEvent(ctx, step);
@@ -3054,6 +3059,8 @@ runBug37338(NDBT_Context* ctx, NDBT_Step* step)
       return NDBT_FAILED;
     }
     
+    CHK_NDB_READY(ndb0);
+  
     ndb0->dropEventOperation(pOp0);
     
     delete ndb0;
@@ -3102,6 +3109,7 @@ runBug37442(NDBT_Context* ctx, NDBT_Step* step)
     {
       return NDBT_FAILED;
     }
+    CHK_NDB_READY(GETNDB(step));
   }
 
   runDropEvent(ctx, step);
@@ -3718,6 +3726,8 @@ runBug12598496(NDBT_Context* ctx, NDBT_Step* step)
   if (restarter.waitClusterStarted() != 0)
     return NDBT_FAILED;
 
+  CHK_NDB_READY(pNdb);
+
   pNdb->dropEventOperation(op);
   dropEvent(pNdb, tab);
 
@@ -3830,6 +3840,9 @@ int runCreateDropEventOperation_NF(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "Cluster failed to start" << endl;
     return NDBT_FAILED;
   }
+
+  CHK_NDB_READY(pNdb);
+
   g_err << "Node started" << endl;
 
 // g_err << "Dropping ev op:"

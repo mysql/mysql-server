@@ -354,6 +354,7 @@ int runManyTransactions(NDBT_Context* ctx, NDBT_Step* step)
     result = NDBT_FAILED;
     goto end;
   }
+  CHK_NDB_READY(pNdb);
   ndbout << "Cluster restarted" << endl;
 end:
   ctx->setProperty("restartsDone", (Uint32)1);
@@ -751,6 +752,7 @@ done:
     
     i++;
     restarter.waitClusterStarted(60) ;
+    CHK_NDB_READY(pNdb);
   }
   return result;
 err:
@@ -1071,7 +1073,7 @@ runBug18414(NDBT_Context* ctx, NDBT_Step* step){
     
     if (restarter.waitClusterStarted() != 0)
       goto err;
-    
+    CHK_NDB_READY(pNdb);
     if (hugoTrans.scanUpdateRecords(pNdb, 128) != 0)
       goto err;
 
@@ -1381,6 +1383,7 @@ int runBug24717(NDBT_Context* ctx, NDBT_Step* step)
     restarter.startNodes(&nodeId, 1);
     
     do {
+      CHK_NDB_READY(pNdb);
       for (Uint32 i = 0; i < 100; i++)
       {
         hugoTrans.pkReadRecords(pNdb, 100, 1, NdbOperation::LM_CommittedRead);
@@ -1426,7 +1429,7 @@ runBug29364(NDBT_Context* ctx, NDBT_Step* step)
     restarter.startNodes(&node1, 1);    
     
     do {
-      
+      CHK_NDB_READY(pNdb);
       for (Uint32 i = 0; i < 100; i++)
       {
         hugoTrans.pkReadRecords(pNdb, 100, 1, NdbOperation::LM_CommittedRead);
@@ -1507,7 +1510,6 @@ runBug21271(NDBT_Context* ctx, NDBT_Step* step)
   if (restarter.waitClusterStarted() != 0)
     return NDBT_FAILED;
 
-  return NDBT_OK;
   return NDBT_OK;
 }
 
@@ -1669,6 +1671,8 @@ int runBug25984(NDBT_Context* ctx, NDBT_Step* step)
   if (restarter.waitClusterStarted())
     return NDBT_FAILED;
 
+  CHK_NDB_READY(pNdb);
+
   int res = pDict->createTable(tab);
   if (res)
   {
@@ -1713,6 +1717,8 @@ int runBug25984(NDBT_Context* ctx, NDBT_Step* step)
 
   if (restarter.waitClusterStarted())
     return NDBT_FAILED;
+
+  CHK_NDB_READY(pNdb);
 
   trans.scanUpdateRecords(pNdb, ctx->getNumRecords());
 
@@ -1844,6 +1850,8 @@ runBug26450(NDBT_Context* ctx, NDBT_Step* step)
 
   if (res.waitClusterStarted())
     return NDBT_FAILED;
+
+  CHK_NDB_READY(GETNDB(step));
 
   ndbout_c("node: %d", node);
   if (res.restartOneDbNode(node, false, true, true))
@@ -2071,6 +2079,8 @@ runBug28023(NDBT_Context* ctx, NDBT_Step* step)
     res.startNodes(&node1, 1);
     if (res.waitClusterStarted())
       return NDBT_FAILED;
+
+    CHK_NDB_READY(pNdb);
 
     if (hugoTrans.loadTable(pNdb, records) != 0){
       return NDBT_FAILED;
@@ -2851,6 +2861,8 @@ runBug34216(NDBT_Context* ctx, NDBT_Step* step)
     if (i > 0 && ctx->closeToTimeout(100 / loops))
       break;
 
+    CHK_NDB_READY(pNdb);
+
     int id = lastId % restarter.getNumDbNodes();
     int nodeId = restarter.getDbNodeId(id);
     int err = 5048 + ((i+offset) % 2);
@@ -3304,6 +3316,7 @@ runBug36246(NDBT_Context* ctx, NDBT_Step* step)
 
   HugoOperations hugoOps(*ctx->getTab());
 restartloop:
+  CHK_NDB_READY(pNdb);
   int tryloop = 0;
   int master = res.getMasterNodeId();
   int nextMaster = res.getNextMasterNodeId(master);
@@ -3373,6 +3386,8 @@ loop:
   if (res.waitClusterStarted())
     return NDBT_FAILED;
 
+  CHK_NDB_READY(pNdb);
+
   hugoOps.execute_Rollback(pNdb);
   hugoOps.closeTransaction(pNdb);
 
@@ -3393,6 +3408,7 @@ runBug36247(NDBT_Context* ctx, NDBT_Step* step)
   HugoOperations hugoOps(*ctx->getTab());
 
 restartloop:
+  CHK_NDB_READY(pNdb);
   int tryloop = 0;
   int master = res.getMasterNodeId();
   int nextMaster = res.getNextMasterNodeId(master);
@@ -3463,7 +3479,7 @@ loop:
   
   if (res.waitClusterStarted())
     return NDBT_FAILED;
-  
+  CHK_NDB_READY(pNdb);
   hugoOps.execute_Rollback(pNdb);
   hugoOps.closeTransaction(pNdb);
   
@@ -3530,6 +3546,7 @@ runBug36245(NDBT_Context* ctx, NDBT_Step* step)
    * Make sure master and nextMaster is in different node groups
    */
 loop1:
+  CHK_NDB_READY(pNdb);
   int master = res.getMasterNodeId();
   int nextMaster = res.getNextMasterNodeId(master);
   
@@ -4469,6 +4486,7 @@ runBug58453(NDBT_Context* ctx, NDBT_Step* step)
     res.waitNodesNoStart(&node, 1);
     res.startNodes(&node, 1);
     res.waitClusterStarted();
+    CHK_NDB_READY(pNdb);
     hugoOps.clearTable(pNdb);
   }
 
@@ -5399,6 +5417,7 @@ runDeleteRestart(NDBT_Context* ctx, NDBT_Step* step)
    */
   res.startNodes(&node, 1);
   res.waitClusterStarted();
+  CHK_NDB_READY(GETNDB(step));
 
   /**
    * Get memory usage
@@ -5958,6 +5977,7 @@ runBug16834416(NDBT_Context* ctx, NDBT_Step* step)
     restarter.waitNodesNoStart(&victim, 1);
     restarter.startAll();
     restarter.waitClusterStarted();
+    CHK_NDB_READY(pNdb);
 
     ops.closeTransaction(pNdb);
     ops.clearTable(pNdb);
@@ -6284,6 +6304,7 @@ runBug16944817(NDBT_Context* ctx, NDBT_Step* step)
     restarter.startNodes(&nodeId, 1);
     ndbout_c("  wait nodes started");
     restarter.waitClusterStarted();
+    CHK_NDB_READY(pNdb);
   }
 
   bool checkMarkers = true;
@@ -6382,6 +6403,7 @@ runBug16766493(NDBT_Context* ctx, NDBT_Step* step)
 #endif
         const int timeout = 5;
         CHK2(restarter.waitClusterStarted(timeout) == 0, "-");
+        CHK_NDB_READY(pNdb);
         g_info << "assume UNDO overloaded..." << endl;
         NdbSleep_MilliSleep(1000);
       }
@@ -6401,6 +6423,7 @@ runBug16766493(NDBT_Context* ctx, NDBT_Step* step)
     g_info << "nostart done" << endl;
     CHK2(restarter.startAll() == 0, "-");
     CHK2(restarter.waitClusterStarted() == 0, "-");
+    CHK_NDB_READY(pNdb);
     g_info << "restart done" << endl;
 
     g_info << "verify records" << endl;
@@ -7176,6 +7199,7 @@ runGcpStop(NDBT_Context* ctx, NDBT_Step* step)
         g_err << "Timed out waiting for cluster to fully start" << endl;
         break;
       }
+      CHK_NDB_READY(pNdb);
       
       g_err << "Cluster recovered..." << endl;
 

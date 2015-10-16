@@ -916,6 +916,7 @@ runDropTakeoverTest(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "One or more cluster nodes are not up." << endl;
     return NDBT_FAILED;
   }
+  CHK_NDB_READY(ndb);
 
   /**
    * The 'drop table' operation should have been rolled forward, since the
@@ -1761,6 +1762,7 @@ runTableRenameSR(NDBT_Context* ctx, NDBT_Step* step){
     
     CHECK2(restarter.waitClusterStarted() == 0,
 	   "waitClusterStarted failed");
+    CHK_NDB_READY(pNdb);
     
     // Verify table contents
     NdbDictionary::Table pNewTab(pTabNewName.c_str());
@@ -2545,6 +2547,7 @@ runRestarts(NDBT_Context* ctx, NDBT_Step* step)
 
     g_info << "1: wait cluster started" << endl;
     CHECK(restarter.waitClusterStarted(timeout) == 0);
+    CHK_NDB_READY(GETNDB(step));
     NdbSleep_MilliSleep(myRandom48(maxsleep));
 
     g_info << "1: restart done" << endl;
@@ -2830,6 +2833,7 @@ runBug21755(NDBT_Context* ctx, NDBT_Step* step)
   {
     return NDBT_FAILED;
   }
+  CHK_NDB_READY(pNdb);
   
   if (pDic->dropTable(pTab0.getName()))
   {
@@ -2968,6 +2972,7 @@ runBug24631(NDBT_Context* ctx, NDBT_Step* step)
   res.startNodes(&node, 1);
   if (res.waitClusterStarted())
     return NDBT_FAILED;
+  CHK_NDB_READY(pNdb);
   
   if (create_tablespace(pDict, lgname, tsname, dfname))
     return NDBT_FAILED;
@@ -3056,6 +3061,7 @@ runBug29186(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "waitClusterStarted failed"<< endl;
     return NDBT_FAILED;
   }
+  CHK_NDB_READY(pNdb);
  
   if(restarter.insertErrorInAllNodes(lgError) != 0){
     g_err << "failed to set error insert"<< endl;
@@ -3097,6 +3103,7 @@ runBug29186(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "waitClusterStarted failed"<< endl;
     return NDBT_FAILED;
   }
+  CHK_NDB_READY(pNdb);
 
   if(restarter.insertErrorInAllNodes(tsError) != 0){
     g_err << "failed to set error insert"<< endl;
@@ -3652,6 +3659,7 @@ runBug29501(NDBT_Context* ctx, NDBT_Step* step) {
   	<< endl << pDict->getNdbError() << endl;
       return NDBT_FAILED;
   }
+  CHK_NDB_READY(pNdb);
 
   if (pDict->dropLogfileGroup(pDict->getLogfileGroup(lg.getName())) != 0){
   	g_err << "Drop of LFG Failed"
@@ -3764,6 +3772,7 @@ runWaitStarted(NDBT_Context* ctx, NDBT_Step* step){
 
   NdbRestarter restarter;
   restarter.waitClusterStarted(300);
+  CHK_NDB_READY(GETNDB(step));
 
   NdbSleep_SecSleep(3);
   return NDBT_OK;
@@ -3872,6 +3881,7 @@ runBug36072(NDBT_Context* ctx, NDBT_Step* step)
     res.startAll();
     if (res.waitClusterStarted())
       return NDBT_FAILED;
+    CHK_NDB_READY(pNdb);
 
     if (code == 6016)
     {
@@ -3940,6 +3950,7 @@ restartClusterInitial(NDBT_Context* ctx, NDBT_Step* step)
   res.startAll();
   if (res.waitClusterStarted())
     return NDBT_FAILED;
+  CHK_NDB_READY(GETNDB(step));
 
   return NDBT_OK;
 }
@@ -6714,6 +6725,7 @@ st_test_snf_parse(ST_Con& c, int arg = -1)
 
   g_info << "wait for node " << node_id << " to come up" << endl;
   chk1(c.restarter->waitClusterStarted() == 0);
+  CHK_NDB_READY(c.ndb);
   g_info << "verify all" << endl;
   chk1(st_verify_all(c) == 0);
   return NDBT_OK;
@@ -6754,6 +6766,7 @@ st_test_mnf_parse(ST_Con& c, int arg = -1)
 
   g_info << "wait for node " << node_id << " to come up" << endl;
   chk1(c.restarter->waitClusterStarted() == 0);
+  CHK_NDB_READY(c.ndb);
   g_info << "verify all" << endl;
   for (i = 0; i < c.tabcount; i++) {
     ST_Tab& tab = c.tab(i);
@@ -6792,6 +6805,7 @@ st_test_mnf_prepare(ST_Con& c, int arg = -1)
   else
     chk1(st_end_trans_aborted(c, errins, ST_CommitFlag) == 0);
   chk1(c.restarter->waitClusterStarted() == 0);
+  CHK_NDB_READY(c.ndb);
   //st_wait_db_node_up(c, master);
   for (i = 0; i < c.tabcount; i++) {
     ST_Tab& tab = c.tab(i);
@@ -6827,6 +6841,7 @@ st_test_mnf_commit1(ST_Con& c, int arg = -1)
   else
     chk1(st_end_trans(c, errins, ST_CommitFlag) == 0);
   chk1(c.restarter->waitClusterStarted() == 0);
+  CHK_NDB_READY(c.ndb);
   //st_wait_db_node_up(c, master);
   for (i = 0; i < c.tabcount; i++) {
     ST_Tab& tab = c.tab(i);
@@ -6859,6 +6874,7 @@ st_test_mnf_commit2(ST_Con& c, int arg = -1)
   else
     chk1(st_end_trans(c, errins, ST_CommitFlag) == 0);
   chk1(c.restarter->waitClusterStarted() == 0);
+  CHK_NDB_READY(c.ndb);
   //st_wait_db_node_up(c, master);
   chk1(st_verify_all(c) == 0);
   for (i = 0; i < c.tabcount; i++) {
@@ -6909,6 +6925,7 @@ st_test_mnf_run_commit(ST_Con& c, int arg = -1)
 verify:
   g_info << "wait for master node to come up" << endl;
   chk1(c.restarter->waitClusterStarted() == 0);
+  CHK_NDB_READY(c.ndb);
   //st_wait_db_node_up(c, master);
   g_info << "verify all" << endl;
   for (i = 0; i < c.tabcount; i++) {
@@ -6956,6 +6973,7 @@ st_test_mnf_run_abort(ST_Con& c, int arg = -1)
 
   g_info << "wait for master node to come up" << endl;
   chk1(c.restarter->waitClusterStarted() == 0);
+  CHK_NDB_READY(c.ndb);
   //st_wait_db_node_up(c, master);
   g_info << "verify all" << endl;
   for (i = 0; i < c.tabcount; i++) {
@@ -7110,6 +7128,7 @@ st_test_sr_parse(ST_Con& c, int arg = -1)
   chk1(c.restarter->waitClusterNoStart() == 0);
   chk1(c.restarter->startAll() == 0);
   chk1(c.restarter->waitClusterStarted() == 0);
+  CHK_NDB_READY(c.ndb);
   g_info << "verify all" << endl;
   chk1(st_verify_all(c) == 0);
   return NDBT_OK;
@@ -8047,6 +8066,7 @@ runBug46552(NDBT_Context* ctx, NDBT_Step* step)
   res.waitNodesNoStart(group2.getBase(), (int)group2.size());
   res.startNodes(group2.getBase(), (int)group2.size());
   res.waitClusterStarted();
+  CHK_NDB_READY(pNdb);
 
   if (pDic->dropTable(tab0.getName()))
   {
@@ -8067,6 +8087,7 @@ runBug46552(NDBT_Context* ctx, NDBT_Step* step)
   res.waitClusterNoStart();
   res.startAll();
   res.waitClusterStarted();
+  CHK_NDB_READY(pNdb);
 
   if (pDic->dropTable(tab0.getName()))
   {
@@ -8235,6 +8256,7 @@ runBug46585(NDBT_Context* ctx, NDBT_Step* step)
     }
     CHECK2(res.waitClusterStarted() == 0,
            "wait cluster started failed");
+    CHK_NDB_READY(pNdb);
 
     Uint32 restartGCI = 0;
     CHECK2(pDic->getRestartGCI(&restartGCI) == 0,
@@ -8308,6 +8330,7 @@ runBug53944(NDBT_Context* ctx, NDBT_Step* step)
   res.waitClusterNoStart();
   res.startAll();
   res.waitClusterStarted();
+  CHK_NDB_READY(pNdb);
 
   for (unsigned i = 0; i< 25; i++)
   {
@@ -9100,6 +9123,7 @@ runBug58277(NDBT_Context* ctx, NDBT_Step* step)
 
       g_info << "check cluster is up" << endl;
       CHK2(restarter.waitClusterStarted() == 0, "failed");
+      CHK_NDB_READY(pNdb);
     }
 
     if (++loop == loops)
@@ -9172,6 +9196,7 @@ runBug57057(NDBT_Context* ctx, NDBT_Step* step)
 
       g_info << "check cluster is up" << endl;
       CHK2(restarter.waitClusterStarted() == 0, "failed");
+      CHK_NDB_READY(pNdb);
     }
 
     if (++loop == loops)
@@ -9354,6 +9379,7 @@ runBug13416603(NDBT_Context* ctx, NDBT_Step* step)
       res.startNodes(partitions[i].getBase(),
                      partitions[i].size());
       res.waitClusterStarted();
+      CHK_NDB_READY(pNdb);
     }
   }
 
@@ -9403,6 +9429,7 @@ runBug13416603(NDBT_Context* ctx, NDBT_Step* step)
 
     res.startNodes(&down, 1);
     res.waitClusterStarted();
+    CHK_NDB_READY(pNdb);
     res.insertErrorInAllNodes(0);
   }
 
@@ -11094,6 +11121,7 @@ runDictTO_1(NDBT_Context* ctx, NDBT_Step* step)
     restarter.waitNodesNoStart(&master, 1);
     restarter.startNodes(&master, 1);
     restarter.waitClusterStarted();
+    CHK_NDB_READY(pNdb);
   }
 
   return NDBT_OK;
