@@ -10878,6 +10878,7 @@ runFK_SRNR(NDBT_Context* ctx, NDBT_Step* step)
       }
 
       CHK1(restarter.waitClusterStarted() == 0);
+      CHK_NDB_READY(pNdb);
       g_info << "cluster is started" << endl;
 
       CHK1(fk_verify_ddl(d, pNdb) == NDBT_OK);
