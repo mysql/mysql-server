@@ -214,6 +214,13 @@ yield(struct thr_wait* wait, const Uint32 nsec,
 
 static inline
 int
+try_wakeup(struct thr_wait* wait)
+{
+  return wakeup(wait);
+}
+
+static inline
+int
 wakeup(struct thr_wait* wait)
 {
   volatile unsigned * val = &wait->m_futex_state;
@@ -276,6 +283,24 @@ yield(struct thr_wait* wait, const Uint32 nsec,
   return (waits > 0);
 }
 
+
+static inline
+int
+try_wakeup(struct thr_wait* wait)
+{
+  int success = NdbMutex_Trylock(wait->m_mutex);
+  if (success != 0)
+    return success;
+
+  // We should avoid signaling when not waiting for wakeup
+  if (wait->m_need_wakeup)
+  {
+    wait->m_need_wakeup = false;
+    NdbCondition_Signal(wait->m_cond);
+  }
+  NdbMutex_Unlock(wait->m_mutex);
+  return 0;
+}
 
 static inline
 int
@@ -5636,6 +5661,7 @@ sendprioa_STOP_FOR_CRASH(const struct thr_data *selfptr, Uint32 dst)
      not matter which buffer we use in case the current buffer is filled up by
      the STOP_FOR_CRASH signal; the data in it will never be read.
   */
+  static Uint32 MAX_WAIT = 3000;
   static thr_job_buffer dummy_buffer;
 
   /**
@@ -5659,7 +5685,25 @@ sendprioa_STOP_FOR_CRASH(const struct thr_data *selfptr, Uint32 dst)
   thr_job_queue_head *h = &(dstptr->m_jba_head);
   thr_jb_write_state w;
 
-  lock(&dstptr->m_jba_write_lock);
+  /**
+   * Ensure that a crash while holding m_jba_write_lock won't block
+   * dump process forever.
+   */
+  Uint64 loop_count = 0;
+  const NDB_TICKS start_try_lock = NdbTick_getCurrentTicks();
+  while (trylock(&dstptr->m_jba_write_lock) != 0)
+  {
+    if (++loop_count >= 10000)
+    {
+      const NDB_TICKS now = NdbTick_getCurrentTicks();
+      if (NdbTick_Elapsed(start_try_lock, now).milliSec() > MAX_WAIT)
+      {
+        return;
+      }
+      NdbSleep_MilliSleep(1);
+      loop_count = 0;
+    }
+  }
 
   Uint32 index = h->m_write_index;
   w.m_write_index = index;
@@ -5673,7 +5717,25 @@ sendprioa_STOP_FOR_CRASH(const struct thr_data *selfptr, Uint32 dst)
   unlock(&dstptr->m_jba_write_lock);
   if (w.has_any_pending_signals())
   {
-    wakeup(&(dstptr->m_waiter));
+    loop_count = 0;
+    /**
+     * Ensure that a crash while holding wakeup lock won't block
+     * dump process forever. We will wait at most 3 seconds.
+     */
+    const NDB_TICKS start_try_wakeup = NdbTick_getCurrentTicks();
+    while (try_wakeup(&(dstptr->m_waiter)) != 0)
+    {
+      if (++loop_count >= 10000)
+      {
+        const NDB_TICKS now = NdbTick_getCurrentTicks();
+        if (NdbTick_Elapsed(start_try_wakeup, now).milliSec() > MAX_WAIT)
+        {
+          return;
+        }
+        NdbSleep_MilliSleep(1);
+        loop_count = 0;
+      }
+    }
   }
 }
 
@@ -6359,6 +6421,7 @@ FastScheduler::traceDumpPrepare(NdbShutdownType& nst)
   Uint32 waitFor_count = 0;
   NdbMutex_Lock(&g_thr_repository->stop_for_crash_mutex);
   g_thr_repository->stopped_threads = 0;
+  NdbMutex_Unlock(&g_thr_repository->stop_for_crash_mutex);
 
   for (Uint32 thr_no = 0; thr_no < num_threads; thr_no++)
   {
@@ -6375,6 +6438,7 @@ FastScheduler::traceDumpPrepare(NdbShutdownType& nst)
 
   static const Uint32 max_wait_seconds = 2;
   const NDB_TICKS start = NdbTick_getCurrentTicks();
+  NdbMutex_Lock(&g_thr_repository->stop_for_crash_mutex);
   while (g_thr_repository->stopped_threads < waitFor_count)
   {
     NdbCondition_WaitTimeout(&g_thr_repository->stop_for_crash_cond,
