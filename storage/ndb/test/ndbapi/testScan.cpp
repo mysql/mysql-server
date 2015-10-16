@@ -551,6 +551,7 @@ int runScanReadErrorOneNode(NDBT_Context* ctx, NDBT_Step* step){
       g_err << "Cluster failed to restart" << endl;
       result = NDBT_FAILED;
     }
+    CHK_NDB_READY(GETNDB(step));
     restarter.insertErrorInAllNodes(0);
     
     i++;
