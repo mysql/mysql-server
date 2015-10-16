@@ -470,6 +470,7 @@ bool Sql_cmd_handler_read::execute(THD *thd)
   Item          *cond= select_lex->where_cond();
   ha_rows select_limit_cnt, offset_limit_cnt;
   MDL_savepoint mdl_savepoint;
+  bool res;
   DBUG_ENTER("Sql_cmd_handler_read::execute");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'",
                       tables->db, tables->table_name, tables->alias));
@@ -663,8 +664,14 @@ retry:
                     tables->db, tables->alias, &it, 0))
     goto err;
 
-  thd->send_result_metadata(&list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
+  DBUG_EXECUTE_IF("simulate_handler_read_failure",
+                  DBUG_SET("+d,simulate_net_write_failure"););
+  res= thd->send_result_metadata(&list,
+                                      Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
+  DBUG_EXECUTE_IF("simulate_handler_read_failure",
+                  DBUG_SET("-d,simulate_net_write_failure"););
+  if (res)
+    goto err;
 
   /*
     In ::external_lock InnoDB resets the fields which tell it that
@@ -825,7 +832,9 @@ retry:
       protocol->start_row();
       if (thd->send_result_set_row(&list))
         goto err;
-      protocol->end_row();
+
+      if (protocol->end_row())
+	goto err;
     }
     num_rows++;
     thd->inc_sent_row_count(1);
