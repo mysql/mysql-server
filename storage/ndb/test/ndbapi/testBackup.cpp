@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -459,6 +459,7 @@ int runRestoreBankAndVerify(NDBT_Context* ctx, NDBT_Step* step){
 
     if (restarter.waitClusterStarted() != 0)
       return NDBT_FAILED;
+    CHK_NDB_READY(GETNDB(step));
 
     ndbout << "Dropping " << tabname << endl;
     NdbDictionary::Dictionary* pDict = GETNDB(step)->getDictionary();
