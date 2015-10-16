@@ -3024,7 +3024,7 @@ fil_rename_tablespace_check(
 			"Cannot rename '%s' to '%s' for space ID %lu"
 			" because the target file exists."
 			" Remove the target file and try again.",
-			old_path, new_path, space_id, new_path);
+			old_path, new_path, space_id);
 
 		return(DB_TABLESPACE_EXISTS);
 	}
