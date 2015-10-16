@@ -792,7 +792,10 @@ drop table t1;
 #
 create table t1 (a bigint not null)engine=myisam;
 insert into t1 set a = 1024*1024*1024*4;
+SET @orig_sql_mode = @@SQL_MODE;
+SET SQL_MODE='';
 delete from t1 order by (inet_ntoa(a)) desc limit 10;
+SET SQL_MODE=@orig_sql_mode;
 drop table t1;
 create table t1 (a char(36) not null)engine=myisam;
 insert ignore into t1 set a = ' ';

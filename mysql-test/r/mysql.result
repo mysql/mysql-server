@@ -116,13 +116,13 @@ i	s1
 |    2 | NULL |
 |    3 |      |
 +------+------+
-unhex('zz')
+concat(null)
 NULL
-+-------------+
-| unhex('zz') |
-+-------------+
-| NULL        |
-+-------------+
++--------------+
+| concat(null) |
++--------------+
+| NULL         |
++--------------+
 create table t1(a int, b varchar(255), c int);
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	

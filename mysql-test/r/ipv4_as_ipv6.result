@@ -87,6 +87,8 @@ inet6_ntoa(CAST(c1 AS BINARY(16)))
 SELECT inet6_ntoa(c2) FROM t1;
 inet6_ntoa(c2)
 NULL
+Warnings:
+Warning	1411	Incorrect string value: '' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c2 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c2 AS BINARY(16)))
 7f00:1::
@@ -99,18 +101,24 @@ inet6_ntoa(CAST(c3 AS BINARY(16)))
 SELECT inet6_ntoa(c4) FROM t1;
 inet6_ntoa(c4)
 NULL
+Warnings:
+Warning	1411	Incorrect string value: '' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c4 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c4 AS BINARY(16)))
 7f00:1::
 SELECT inet6_ntoa(c5) FROM t1;
 inet6_ntoa(c5)
 NULL
+Warnings:
+Warning	1411	Incorrect string value: '' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c5 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c5 AS BINARY(16)))
 7f00:1::
 SELECT inet6_ntoa(c6) FROM t1;
 inet6_ntoa(c6)
 NULL
+Warnings:
+Warning	1411	Incorrect string value: '0' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c6 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c6 AS BINARY(16)))
 3000::
@@ -141,6 +149,8 @@ USER()
 root@localhost
 DROP USER testuser1@'0:0:0:0:0:FFFF:127.0.0.1';
 SET @nip= inet_aton('0:0:0:0:0:FFFF:127.0.0.1');
+Warnings:
+Warning	1411	Incorrect string value: '0:0:0:0:0:FFFF:127.0.0.1' for function inet_aton
 CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
 INSERT INTO t1 VALUES (@nip,@nip,@nip,@nip,@nip,@nip);
 SELECT inet_ntoa(c1) FROM t1;
@@ -197,6 +207,8 @@ inet6_ntoa(CAST(c1 AS BINARY(16)))
 SELECT inet6_ntoa(c2) FROM t1;
 inet6_ntoa(c2)
 NULL
+Warnings:
+Warning	1411	Incorrect string value: '' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c2 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c2 AS BINARY(16)))
 ::ffff:127.0.0.1
@@ -209,18 +221,24 @@ inet6_ntoa(CAST(c3 AS BINARY(16)))
 SELECT inet6_ntoa(c4) FROM t1;
 inet6_ntoa(c4)
 NULL
+Warnings:
+Warning	1411	Incorrect string value: '' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c4 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c4 AS BINARY(16)))
 ::ffff:127.0.0.1
 SELECT inet6_ntoa(c5) FROM t1;
 inet6_ntoa(c5)
 NULL
+Warnings:
+Warning	1411	Incorrect string value: '' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c5 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c5 AS BINARY(16)))
 ::ffff:127.0.0.1
 SELECT inet6_ntoa(c6) FROM t1;
 inet6_ntoa(c6)
 NULL
+Warnings:
+Warning	1411	Incorrect string value: '0' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c6 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c6 AS BINARY(16)))
 3000::
@@ -251,6 +269,8 @@ USER()
 root@localhost
 DROP USER testuser1@'0000:0000:0000:0000:0000:FFFF:127.0.0.1';
 SET @nip= inet_aton('0000:0000:0000:0000:0000:FFFF:127.0.0.1');
+Warnings:
+Warning	1411	Incorrect string value: '0000:0000:0000:0000:0000:FFFF:127.0.0.1' for function inet_aton
 CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
 INSERT INTO t1 VALUES (@nip,@nip,@nip,@nip,@nip,@nip);
 SELECT inet_ntoa(c1) FROM t1;
@@ -307,6 +327,8 @@ inet6_ntoa(CAST(c1 AS BINARY(16)))
 SELECT inet6_ntoa(c2) FROM t1;
 inet6_ntoa(c2)
 NULL
+Warnings:
+Warning	1411	Incorrect string value: '' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c2 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c2 AS BINARY(16)))
 ::ffff:127.0.0.1
@@ -319,18 +341,24 @@ inet6_ntoa(CAST(c3 AS BINARY(16)))
 SELECT inet6_ntoa(c4) FROM t1;
 inet6_ntoa(c4)
 NULL
+Warnings:
+Warning	1411	Incorrect string value: '' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c4 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c4 AS BINARY(16)))
 ::ffff:127.0.0.1
 SELECT inet6_ntoa(c5) FROM t1;
 inet6_ntoa(c5)
 NULL
+Warnings:
+Warning	1411	Incorrect string value: '' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c5 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c5 AS BINARY(16)))
 ::ffff:127.0.0.1
 SELECT inet6_ntoa(c6) FROM t1;
 inet6_ntoa(c6)
 NULL
+Warnings:
+Warning	1411	Incorrect string value: '0' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c6 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c6 AS BINARY(16)))
 3000::
@@ -361,6 +389,8 @@ USER()
 root@localhost
 DROP USER testuser1@'0:0000:0000:0:0000:FFFF:127.0.0.1';
 SET @nip= inet_aton('0:0000:0000:0:0000:FFFF:127.0.0.1');
+Warnings:
+Warning	1411	Incorrect string value: '0:0000:0000:0:0000:FFFF:127.0.0.1' for function inet_aton
 CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
 INSERT INTO t1 VALUES (@nip,@nip,@nip,@nip,@nip,@nip);
 SELECT inet_ntoa(c1) FROM t1;
@@ -417,6 +447,8 @@ inet6_ntoa(CAST(c1 AS BINARY(16)))
 SELECT inet6_ntoa(c2) FROM t1;
 inet6_ntoa(c2)
 NULL
+Warnings:
+Warning	1411	Incorrect string value: '' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c2 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c2 AS BINARY(16)))
 ::ffff:127.0.0.1
@@ -429,18 +461,24 @@ inet6_ntoa(CAST(c3 AS BINARY(16)))
 SELECT inet6_ntoa(c4) FROM t1;
 inet6_ntoa(c4)
 NULL
+Warnings:
+Warning	1411	Incorrect string value: '' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c4 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c4 AS BINARY(16)))
 ::ffff:127.0.0.1
 SELECT inet6_ntoa(c5) FROM t1;
 inet6_ntoa(c5)
 NULL
+Warnings:
+Warning	1411	Incorrect string value: '' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c5 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c5 AS BINARY(16)))
 ::ffff:127.0.0.1
 SELECT inet6_ntoa(c6) FROM t1;
 inet6_ntoa(c6)
 NULL
+Warnings:
+Warning	1411	Incorrect string value: '0' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c6 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c6 AS BINARY(16)))
 3000::
@@ -471,6 +509,8 @@ USER()
 root@localhost
 DROP USER testuser1@'0::0000:FFFF:127.0.0.1';
 SET @nip= inet_aton('0::0000:FFFF:127.0.0.1');
+Warnings:
+Warning	1411	Incorrect string value: '0::0000:FFFF:127.0.0.1' for function inet_aton
 CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
 INSERT INTO t1 VALUES (@nip,@nip,@nip,@nip,@nip,@nip);
 SELECT inet_ntoa(c1) FROM t1;
@@ -527,6 +567,8 @@ inet6_ntoa(CAST(c1 AS BINARY(16)))
 SELECT inet6_ntoa(c2) FROM t1;
 inet6_ntoa(c2)
 NULL
+Warnings:
+Warning	1411	Incorrect string value: '' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c2 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c2 AS BINARY(16)))
 ::ffff:127.0.0.1
@@ -539,18 +581,24 @@ inet6_ntoa(CAST(c3 AS BINARY(16)))
 SELECT inet6_ntoa(c4) FROM t1;
 inet6_ntoa(c4)
 NULL
+Warnings:
+Warning	1411	Incorrect string value: '' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c4 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c4 AS BINARY(16)))
 ::ffff:127.0.0.1
 SELECT inet6_ntoa(c5) FROM t1;
 inet6_ntoa(c5)
 NULL
+Warnings:
+Warning	1411	Incorrect string value: '' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c5 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c5 AS BINARY(16)))
 ::ffff:127.0.0.1
 SELECT inet6_ntoa(c6) FROM t1;
 inet6_ntoa(c6)
 NULL
+Warnings:
+Warning	1411	Incorrect string value: '0' for function inet6_ntoa
 SELECT inet6_ntoa(CAST(c6 AS BINARY(16))) FROM t1;
 inet6_ntoa(CAST(c6 AS BINARY(16)))
 3000::
@@ -560,6 +608,8 @@ inet6_ntoa(@nip6)
 ::ffff:127.0.0.1
 =============Test of '0:0:0:0:0:FFFF:127.0.0.1/96' ================
 SET @nip= inet_aton('0:0:0:0:0:FFFF:127.0.0.1/96');
+Warnings:
+Warning	1411	Incorrect string value: '0:0:0:0:0:FFFF:127.0.0.1/96' for function inet_aton
 CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
 INSERT INTO t1 VALUES (@nip,@nip,@nip,@nip,@nip,@nip);
 SELECT inet_ntoa(c1) FROM t1;
@@ -603,6 +653,8 @@ SELECT inet_ntoa(@nip);
 inet_ntoa(@nip)
 NULL
 SET @nip6= inet6_aton('0:0:0:0:0:FFFF:127.0.0.1/96');
+Warnings:
+Warning	1411	Incorrect string value: '0:0:0:0:0:FFFF:127.0.0.1/96' for function inet6_aton
 CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
 INSERT IGNORE INTO t1 VALUES (@nip6,@nip6,@nip6,@nip6,@nip6,@nip6);
 SELECT inet6_ntoa(c1) FROM t1;
@@ -669,6 +721,8 @@ root@localhost
 DROP USER testuser1@'::FFFF:127.0.0.1';
 =============Test of '::FFFF:127.0.0.1/96' ========================
 SET @nip= inet_aton('::FFFF:127.0.0.1/96');
+Warnings:
+Warning	1411	Incorrect string value: '::FFFF:127.0.0.1/96' for function inet_aton
 CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
 INSERT INTO t1 VALUES (@nip,@nip,@nip,@nip,@nip,@nip);
 SELECT inet_ntoa(c1) FROM t1;
@@ -712,6 +766,8 @@ SELECT inet_ntoa(@nip);
 inet_ntoa(@nip)
 NULL
 SET @nip6= inet6_aton('::FFFF:127.0.0.1/96');
+Warnings:
+Warning	1411	Incorrect string value: '::FFFF:127.0.0.1/96' for function inet6_aton
 CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
 INSERT IGNORE INTO t1 VALUES (@nip6,@nip6,@nip6,@nip6,@nip6,@nip6);
 SELECT inet6_ntoa(c1) FROM t1;
