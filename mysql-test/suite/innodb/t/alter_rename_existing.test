@@ -1,14 +1,17 @@
+--echo #
+--echo # Show what happens during ALTER TABLE when an existing file
+--echo # exists in the target location.
+--echo #
+--echo # Bug #19218794: IF TABLESPACE EXISTS, CAN'T CREATE TABLE,
+--echo #                BUT CAN ALTER ENGINE=INNODB
+--echo #
+
 --source include/have_innodb.inc
 
 --disable_query_log
 LET $MYSQLD_DATADIR = `select @@datadir`;
 SET @old_innodb_file_per_table = @@innodb_file_per_table;
 --enable_query_log
-
---echo #
---echo # Bug #19218794: IF TABLESPACE EXISTS, CAN'T CREATE TABLE,
---echo #                BUT CAN ALTER ENGINE=INNODB
---echo #
 
 CREATE TABLE t1 (a SERIAL, b CHAR(10)) ENGINE=Memory;
 INSERT INTO t1(b) VALUES('one'), ('two'), ('three');
@@ -88,20 +91,9 @@ ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=INPLACE;
 --error ER_ERROR_ON_RENAME
 ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=COPY;
 
---echo #
---echo # Try again while a READ-ONLY t1.ibd file exists.
---echo #
---exec chmod a-w $MYSQLD_DATADIR/test/t1.ibd
---replace_regex /$MYSQLD_DATADIR/MYSQLD_DATADIR/
---error ER_TABLESPACE_EXISTS
-ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=INPLACE;
---replace_regex  /Error on rename of '.*' to '.*'/Error on rename of 'OLD_FILE_NAME' to 'NEW_FILE_NAME'/
---error ER_ERROR_ON_RENAME
-ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=COPY;
 
 --echo #
 --echo # Delete the blocking file called MYSQLD_DATADIR/test/t1.ibd
---exec chmod a+w $MYSQLD_DATADIR/test/t1.ibd
 --remove_file $MYSQLD_DATADIR/test/t1.ibd
 
 --echo # Move t1 to file-per-table using ALGORITHM=INPLACE with no blocking t1.ibd.
