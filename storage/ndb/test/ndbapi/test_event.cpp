@@ -5128,6 +5128,9 @@ int runCreateDropEventOperation_NF(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "Cluster failed to start" << endl;
     return NDBT_FAILED;
   }
+
+  CHK_NDB_READY(pNdb);
+
   g_err << "Node started" << endl;
 
 // g_err << "Dropping ev op:"

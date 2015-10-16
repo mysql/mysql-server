@@ -2773,6 +2773,7 @@ int runAlterTableAndOptimize(NDBT_Context* ctx, NDBT_Step* step)
             g_err << "Cluster went down during reorganize partition" << endl;
             return NDBT_FAILED;
           }
+          CHK_NDB_READY(GETNDB(step));
           /* retry the query for same table */
           i--;
           nodesKilledDuringStep= false;
