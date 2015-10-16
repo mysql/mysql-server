@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 #
@@ -177,10 +177,7 @@ echo "$DATE $RUN" > $LOCK
 # trap them, and remove the #
 # Lock file before exit     #
 #############################
-if [ `uname -s` != "SunOS" ]
-then
-	trap "rm -f $LOCK" ERR
-fi
+trap "rm -f $LOCK" EXIT
 
 # You can add more to this path#
 ################################
@@ -332,5 +329,3 @@ then
 	rm -rf $dst_place1
     fi
 fi
-
-rm -f $LOCK

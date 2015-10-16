@@ -1,7 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright (C) 2007 MySQL AB
-# Use is subject to license terms
+# Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -168,10 +167,7 @@ echo "$DATE $RUN" > $LOCK
 # trap them, and remove the #
 # Lock file before exit     #
 #############################
-if [ `uname -s` != "SunOS" ]
-then
-	trap "rm -f $LOCK" ERR
-fi
+trap "rm -f $LOCK" EXIT
 
 # You can add more to this path#
 ################################
@@ -243,4 +239,3 @@ if [ "$build" ]
 then
     rm -rf $dst_place0 $dst_place1
 fi
-rm -f $LOCK
