@@ -1896,10 +1896,16 @@ check_real_time_break(NDB_TICKS now,
 }
 
 static bool
-check_yield(NDB_TICKS now,
-            NDB_TICKS *start_spin_ticks,
+check_yield(NDB_TICKS *start_spin_ticks,
             Uint64 min_spin_timer) //microseconds
 {
+  /**
+   * We add a timer call to ensure that we spin correct amount of time.
+   * We are not worried over the overhead here since we are per definition
+   * spinning when coming here. So no need to worry what we do with the
+   * CPU while spinning.
+   */
+  NDB_TICKS now = NdbTick_getCurrentTicks();
   assert(min_spin_timer > 0);
 
   if (!NdbTick_IsValid(*start_spin_ticks))
@@ -2120,6 +2126,7 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
         this_send_thread->m_watchdog_counter = 3;
         this_send_thread->m_send_buffer_pool.
           release_chunk(g_thr_repository->m_mm, RG_TRANSPORTER_BUFFERS);
+        NdbTick_Invalidate(&start_spin_ticks);
       }
 
       /**
@@ -2161,8 +2168,7 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
 
 
     if (min_spin_timer == 0 ||
-        check_yield(now,
-                    &start_spin_ticks,
+        check_yield(&start_spin_ticks,
                     min_spin_timer))
     {
       Uint32 max_wait_usec;
@@ -2180,8 +2186,14 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
       else
         max_wait_usec = 50*1000;  //50ms, has to wakeup before 100ms watchdog alert.
 
-      yield(&this_send_thread->m_waiter_struct, max_wait_usec*1000,
-            check_available_send_data, (struct thr_data*)NULL);
+      bool waited = yield(&this_send_thread->m_waiter_struct,
+                          max_wait_usec*1000,
+                          check_available_send_data,
+                          (struct thr_data*)NULL);
+      if (waited)
+      {
+        NdbTick_Invalidate(&start_spin_ticks);
+      }
     }
   }
 
@@ -4970,8 +4982,7 @@ mt_receiver_thread_main(void *thr_arg)
     if (lagging_timers == 0 &&       // 1)
         pending_send   <= 0 &&       // 2)
         (min_spin_timer == 0 ||      // 3)
-         check_yield(now,
-                     &start_spin_ticks,
+         check_yield(&start_spin_ticks,
                      min_spin_timer)))
     {
       delay = 1; // 1ms
@@ -5007,6 +5018,10 @@ mt_receiver_thread_main(void *thr_arg)
                                     wait_queue);
           (void)waited;
         }
+      }
+      else
+      {
+        NdbTick_Invalidate(&start_spin_ticks);
       }
     }
     selfptr->m_stat.m_loop_cnt++;
@@ -5313,8 +5328,7 @@ mt_job_thread_main(void *thr_arg)
       if (pending_send <= 0) /* Nothing pending, or no progress made */
       {
         if (min_spin_timer == 0 ||
-            check_yield(now,
-                        &start_spin_ticks,
+            check_yield(&start_spin_ticks,
                         min_spin_timer))
         {
           /**
