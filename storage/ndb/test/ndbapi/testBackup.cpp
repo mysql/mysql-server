@@ -741,6 +741,7 @@ int runRestoreBankAndVerify(NDBT_Context* ctx, NDBT_Step* step){
 
     if (restarter.waitClusterStarted() != 0)
       return NDBT_FAILED;
+    CHK_NDB_READY(GETNDB(step));
 
     ndbout << "Dropping " << tabname << endl;
     NdbDictionary::Dictionary* pDict = GETNDB(step)->getDictionary();

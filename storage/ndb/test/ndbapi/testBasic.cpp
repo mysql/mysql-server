@@ -3544,6 +3544,7 @@ runBug16834333(NDBT_Context* ctx, NDBT_Step* step)
     restarter.startAll();
     ndbout_c("wait started");
     restarter.waitClusterStarted();
+    CHK_NDB_READY(pNdb);
 
     ndbout_c("create tab");
     CHK2(pDic->createTable(tab) == 0, pDic->getNdbError());
