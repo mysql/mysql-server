@@ -25,8 +25,10 @@ explain extended select 2 between null and 1,2 between 3 AND NULL,NULL between 1
 SELECT NULL AND NULL, 1 AND NULL, NULL AND 1, NULL OR NULL, 0 OR NULL, NULL OR 0;
 SELECT (NULL OR NULL) IS NULL;
 select NULL AND 0, 0 and NULL;
-select inet_ntoa(null),inet_aton(null),inet_aton("122.256"),inet_aton("122.226."),inet_aton("");
-explain extended select inet_ntoa(null),inet_aton(null),inet_aton("122.256"),inet_aton("122.226."),inet_aton("");
+select inet_ntoa(null),inet_aton(null);
+explain extended select inet_ntoa(null),inet_aton(null);
+select inet6_ntoa(null),inet6_aton(null);
+explain extended select inet6_ntoa(null), inet6_aton(null);
 
 create table t1 (x int);
 insert into t1 values (null);

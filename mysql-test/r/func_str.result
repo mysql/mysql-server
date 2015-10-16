@@ -1385,7 +1385,16 @@ Note	1003	/* select#1 */ select decode(NULL,'zxcv') AS `enc` from `test`.`t1`
 drop table t1;
 create table t1 (a bigint not null)engine=myisam;
 insert into t1 set a = 1024*1024*1024*4;
+SET @orig_sql_mode = @@SQL_MODE;
+SET SQL_MODE='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 delete from t1 order by (inet_ntoa(a)) desc limit 10;
+Warnings:
+Warning	1411	Incorrect integer value: '4294967296' for function inet_ntoa
+SET SQL_MODE=@orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table t1;
 create table t1 (a char(36) not null)engine=myisam;
 insert ignore into t1 set a = ' ';
@@ -2427,9 +2436,13 @@ DROP TABLE t1;
 SELECT UNHEX('G');
 UNHEX('G')
 NULL
+Warnings:
+Warning	1411	Incorrect string value: 'G' for function unhex
 SELECT UNHEX('G') IS NULL;
 UNHEX('G') IS NULL
 1
+Warnings:
+Warning	1411	Incorrect string value: 'G' for function unhex
 SELECT INSERT('abc', 3, 3, '1234');
 INSERT('abc', 3, 3, '1234')
 ab1234
