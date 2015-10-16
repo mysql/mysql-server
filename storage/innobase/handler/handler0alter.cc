@@ -323,10 +323,13 @@ my_error_innodb(
 	case DB_CANT_CREATE_GEOMETRY_OBJECT:
 		my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
 		break;
+	case DB_TABLESPACE_EXISTS:
+		my_error(ER_TABLESPACE_EXISTS, MYF(0), table);
+		break;
+
 #ifdef UNIV_DEBUG
 	case DB_SUCCESS:
 	case DB_DUPLICATE_KEY:
-	case DB_TABLESPACE_EXISTS:
 	case DB_ONLINE_LOG_TOO_BIG:
 		/* These codes should not be passed here. */
 		ut_error;
@@ -4392,10 +4395,10 @@ prepare_inplace_alter_table_dict(
 
 		compression = ha_alter_info->create_info->compress.str;
 
-                if (Compression::validate(compression) != DB_SUCCESS) {
+		if (Compression::validate(compression) != DB_SUCCESS) {
 
-                        compression = NULL;
-                }
+			compression = NULL;
+		}
 
 		error = row_create_table_for_mysql(
 			ctx->new_table, compression, ctx->trx, false);
@@ -7715,6 +7718,7 @@ ha_innobase::commit_inplace_alter_table(
 	Alter_inplace_info*	ha_alter_info,
 	bool			commit)
 {
+	dberr_t	error;
 	ha_innobase_inplace_ctx*ctx0;
 	struct mtr_buf_copy_t	logs;
 
@@ -7804,7 +7808,7 @@ ha_innobase::commit_inplace_alter_table(
 		transactions collected during crash recovery could be
 		holding InnoDB locks only, not MySQL locks. */
 
-		dberr_t error = row_merge_lock_table(
+		error = row_merge_lock_table(
 			m_prebuilt->trx, ctx->old_table, LOCK_X);
 
 		if (error != DB_SUCCESS) {
@@ -7957,17 +7961,19 @@ ha_innobase::commit_inplace_alter_table(
 				= static_cast<ha_innobase_inplace_ctx*>(*pctx);
 
 			DBUG_ASSERT(ctx->need_rebuild());
-			/* Generate the redo log for the file
-			operations that will be performed in
-			commit_cache_rebuild(). */
-			if (!fil_mtr_rename_log(ctx->old_table,
-						ctx->new_table,
-						ctx->tmp_name, &mtr)) {
-				/* Out of memory. */
-				mtr.set_log_mode(MTR_LOG_NO_REDO);
-				mtr_commit(&mtr);
-				trx_rollback_for_mysql(trx);
+			/* Check for any possible problems for any
+			file operations that will be performed in
+			commit_cache_rebuild(), and if none, generate
+			the redo log for these operations. */
+			error = fil_mtr_rename_log(ctx->old_table,
+						   ctx->new_table,
+						   ctx->tmp_name, &mtr);
+			if (error != DB_SUCCESS) {
+				/* Out of memory or a problem will occur
+				when renaming files. */
 				fail = true;
+				my_error_innodb(error, ctx->old_table->name.m_name,
+						ctx->old_table->flags);
 			}
 			DBUG_INJECT_CRASH("ib_commit_inplace_crash",
 					  crash_inject_count++);
@@ -7983,14 +7989,11 @@ ha_innobase::commit_inplace_alter_table(
 				DBUG_SUICIDE(););
 		ut_ad(!trx->fts_trx);
 
-		/* The following call commits the
-		mini-transaction, making the data dictionary
-		transaction committed at mtr.end_lsn. The
-		transaction becomes 'durable' by the time when
-		log_buffer_flush_to_disk() returns. In the
-		logical sense the commit in the file-based
-		data structures happens here. */
-		if (!fail) {
+		if (fail) {
+			mtr.set_log_mode(MTR_LOG_NO_REDO);
+			mtr_commit(&mtr);
+			trx_rollback_for_mysql(trx);
+		} else {
 			ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
 			ut_ad(trx_is_rseg_updated(trx));
 
@@ -8011,6 +8014,13 @@ ha_innobase::commit_inplace_alter_table(
 				log_append_on_checkpoint(&logs.m_buf);
 			}
 
+			/* The following call commits the
+			mini-transaction, making the data dictionary
+			transaction committed at mtr.end_lsn. The
+			transaction becomes 'durable' by the time when
+			log_buffer_flush_to_disk() returns. In the
+			logical sense the commit in the file-based
+			data structures happens here. */
 			trx_commit_low(trx, &mtr);
 		}
 
@@ -8035,8 +8045,6 @@ ha_innobase::commit_inplace_alter_table(
 	update the in-memory structures, close some handles, release
 	temporary files, and (unless we rolled back) update persistent
 	statistics. */
-	dberr_t	error		= DB_SUCCESS;
-
 	for (inplace_alter_handler_ctx** pctx = ctx_array;
 	     *pctx; pctx++) {
 		ha_innobase_inplace_ctx*	ctx

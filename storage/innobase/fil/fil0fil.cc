@@ -2436,15 +2436,10 @@ fil_op_replay_rename(
 	ut_free(dir);
 
 	/* New path must not exist. */
-	bool		exists;
-	os_file_type_t	ftype;
-
-	if (!os_file_status(new_name, &exists, &ftype)
-	    || exists) {
-		ib::error() << "Cannot replay rename '" << name
-			<< "' to '" << new_name << "'"
-			" for space ID " << space_id
-			<< " because the target file exists."
+	dberr_t		err = fil_rename_tablespace_check(
+		space_id, name, new_name, false);
+	if (err != DB_SUCCESS) {
+		ib::error() << " Cannot replay file rename."
 			" Remove either file and try again.";
 		return(false);
 	}
@@ -3328,6 +3323,47 @@ fil_make_filepath(
 	}
 
 	return(full_name);
+}
+
+/** Test if a tablespace file can be renamed to a new filepath by checking
+if that the old filepath exists and the new filepath does not exist.
+@param[in]	space_id	tablespace id
+@param[in]	old_path	old filepath
+@param[in]	new_path	new filepath
+@param[in]	is_discarded	whether the tablespace is discarded
+@return innodb error code */
+dberr_t
+fil_rename_tablespace_check(
+	ulint		space_id,
+	const char*	old_path,
+	const char*	new_path,
+	bool		is_discarded)
+{
+	bool	exists = false;
+	os_file_type_t	ftype;
+
+	if (!is_discarded
+	    && os_file_status(old_path, &exists, &ftype)
+	    && !exists) {
+		ib::error() << "Cannot rename '" << old_path
+			<< "' to '" << new_path
+			<< "' for space ID " << space_id
+			<< " because the source file"
+			<< " does not exist.";
+		return(DB_TABLESPACE_NOT_FOUND);
+	}
+
+	exists = false;
+	if (!os_file_status(new_path, &exists, &ftype) || exists) {
+		ib::error() << "Cannot rename '" << old_path
+			<< "' to '" << new_path
+			<< "' for space ID " << space_id
+			<< " because the target file exists."
+			" Remove the target file and try again.";
+		return(DB_TABLESPACE_EXISTS);
+	}
+
+	return(DB_SUCCESS);
 }
 
 /** Rename a single-table tablespace.
@@ -6151,49 +6187,98 @@ fil_node_next(
 @param[in]	new_table	new table
 @param[in]	tmp_name	temporary table name
 @param[in,out]	mtr		mini-transaction
-@return	whether the operation succeeded */
-bool
+@return innodb error code */
+dberr_t
 fil_mtr_rename_log(
 	const dict_table_t*	old_table,
 	const dict_table_t*	new_table,
 	const char*		tmp_name,
 	mtr_t*			mtr)
 {
+	dberr_t	err;
+
+	bool	old_is_file_per_table =
+		!is_system_tablespace(old_table->space)
+		&& !DICT_TF_HAS_SHARED_SPACE(old_table->flags);
+
+	bool	new_is_file_per_table =
+		!is_system_tablespace(new_table->space)
+		&& !DICT_TF_HAS_SHARED_SPACE(new_table->flags);
+
+	/* If neither table is file-per-table,
+	there will be no renaming of files. */
+	if (!old_is_file_per_table && !new_is_file_per_table) {
+		return(DB_SUCCESS);
+	}
+
 	const char*	old_dir = DICT_TF_HAS_DATA_DIR(old_table->flags)
 		? old_table->data_dir_path
 		: NULL;
-	const char*	new_dir = DICT_TF_HAS_DATA_DIR(new_table->flags)
-		? new_table->data_dir_path
-		: NULL;
 
-	char*		old_path = fil_make_filepath(
-		new_dir, old_table->name.m_name, IBD, false);
-	char*		new_path = fil_make_filepath(
-		new_dir, new_table->name.m_name, IBD, false);
-	char*		tmp_path = fil_make_filepath(
-		old_dir, tmp_name, IBD, false);
-
-	if (!old_path || !new_path || !tmp_path) {
-		ut_free(old_path);
-		ut_free(new_path);
-		ut_free(tmp_path);
-		return(false);
+	char*	old_path = fil_make_filepath(
+		old_dir, old_table->name.m_name, IBD, (old_dir != NULL));
+	if (old_path == NULL) {
+		return(DB_OUT_OF_MEMORY);
 	}
 
-	if (!is_system_tablespace(old_table->space)) {
+	if (old_is_file_per_table) {
+		char*	tmp_path = fil_make_filepath(
+			old_dir, tmp_name, IBD, (old_dir != NULL));
+		if (tmp_path == NULL) {
+			ut_free(old_path);
+			return(DB_OUT_OF_MEMORY);
+		}
+
+		/* Temp filepath must not exist. */
+		err = fil_rename_tablespace_check(
+			old_table->space, old_path, tmp_path,
+			dict_table_is_discarded(old_table));
+		if (err != DB_SUCCESS) {
+			ut_free(old_path);
+			ut_free(tmp_path);
+			return(err);
+		}
+
 		fil_name_write_rename(
 			old_table->space, 0, old_path, tmp_path, mtr);
+
+		ut_free(tmp_path);
 	}
 
-	if (!is_system_tablespace(new_table->space)) {
+	if (new_is_file_per_table) {
+		const char*	new_dir = DICT_TF_HAS_DATA_DIR(new_table->flags)
+			? new_table->data_dir_path
+			: NULL;
+		char*	new_path = fil_make_filepath(
+				new_dir, new_table->name.m_name,
+				IBD, (new_dir != NULL));
+		if (new_path == NULL) {
+			ut_free(old_path);
+			return(DB_OUT_OF_MEMORY);
+		}
+
+		/* Destination filepath must not exist unless this ALTER
+		TABLE starts and ends with a file_per-table tablespace. */
+		if (!old_is_file_per_table) {
+			err = fil_rename_tablespace_check(
+				new_table->space, new_path, old_path,
+				dict_table_is_discarded(new_table));
+			if (err != DB_SUCCESS) {
+				ut_free(old_path);
+				ut_free(new_path);
+				return(err);
+			}
+		}
+
 		fil_name_write_rename(
 			new_table->space, 0, new_path, old_path, mtr);
+
+		ut_free(new_path);
 	}
 
 	ut_free(old_path);
-	ut_free(new_path);
-	ut_free(tmp_path);
-	return(true);
+
+	return(DB_SUCCESS);
 }
 
 #ifdef UNIV_DEBUG

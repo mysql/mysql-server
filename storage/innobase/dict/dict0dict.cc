@@ -1658,10 +1658,13 @@ dict_table_rename_in_cache(
 					to preserve the original table name
 					in constraints which reference it */
 {
+	dberr_t		err;
 	dict_foreign_t*	foreign;
 	dict_index_t*	index;
 	ulint		fold;
 	char		old_name[MAX_FULL_NAME_LEN + 1];
+	os_file_type_t	ftype;
+	bool		exists;
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -1696,8 +1699,6 @@ dict_table_rename_in_cache(
 	rename the tablespace file. */
 
 	if (dict_table_is_discarded(table)) {
-		os_file_type_t	type;
-		bool		exists;
 		char*		filepath;
 
 		ut_ad(dict_table_is_file_per_table(table));
@@ -1724,7 +1725,7 @@ dict_table_rename_in_cache(
 		fil_delete_tablespace(table->space, BUF_REMOVE_ALL_NO_WRITE);
 
 		/* Delete any temp file hanging around. */
-		if (os_file_status(filepath, &exists, &type)
+		if (os_file_status(filepath, &exists, &ftype)
 		    && exists
 		    && !os_file_delete_if_exists(innodb_temp_file_key,
 						 filepath, NULL)) {
@@ -1743,6 +1744,18 @@ dict_table_rename_in_cache(
 		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 			new_path = os_file_make_new_pathname(
 				old_path, new_name);
+		} else {
+			new_path = fil_make_filepath(
+				NULL, new_name, IBD, false);
+		}
+
+		/* New filepath must not exist. */
+		err = fil_rename_tablespace_check(
+			table->space, old_path, new_path, false);
+		if (err != DB_SUCCESS) {
+			ut_free(old_path);
+			ut_free(new_path);
+			return(err);
 		}
 
 		bool	success = fil_rename_tablespace(

@@ -5228,7 +5228,7 @@ row_rename_table_for_mysql(
 			"               IF (INSTR(foreign_id,\n"
 			"                         gen_constr_prefix) > 0)\n"
 			"               THEN\n"
-                        "                offset := INSTR(foreign_id, '_ibfk_') - 1;\n"
+			"                offset := INSTR(foreign_id, '_ibfk_') - 1;\n"
 			"                new_foreign_id :=\n"
 			"                CONCAT(:new_table_utf8,\n"
 			"                SUBSTR(foreign_id, offset,\n"

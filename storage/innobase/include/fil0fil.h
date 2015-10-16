@@ -872,6 +872,20 @@ fil_discard_tablespace(
 	__attribute__((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 
+/** Test if a tablespace file can be renamed to a new filepath by checking
+if that the old filepath exists and the new filepath does not exist.
+@param[in]	space_id	tablespace id
+@param[in]	old_path	old filepath
+@param[in]	new_path	new filepath
+@param[in]	is_discarded	whether the tablespace is discarded
+@return innodb error code */
+dberr_t
+fil_rename_tablespace_check(
+	ulint		space_id,
+	const char*	old_path,
+	const char*	new_path,
+	bool		is_discarded);
+
 /** Rename a single-table tablespace.
 The tablespace must exist in the memory cache.
 @param[in]	id		tablespace identifier
@@ -1371,8 +1385,8 @@ fil_node_next(
 @param[in]	new_table	new table
 @param[in]	tmp_name	temporary table name
 @param[in,out]	mtr		mini-transaction
-@return	whether the operation succeeded */
-bool
+@return innodb error code */
+dberr_t
 fil_mtr_rename_log(
 	const dict_table_t*	old_table,
 	const dict_table_t*	new_table,
