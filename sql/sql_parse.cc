@@ -3825,7 +3825,7 @@ end_with_restore_list:
       DBUG_ASSERT(0);
     }
     DBUG_PRINT("info",("DDL error code=%d", res));
-    if (!res)
+    if (!res && !thd->killed)
       my_ok(thd);
 
   } while (0);

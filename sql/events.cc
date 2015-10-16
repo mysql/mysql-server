@@ -318,6 +318,10 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
   bool save_binlog_row_based, event_already_exists;
   DBUG_ENTER("Events::create_event");
 
+  DBUG_EXECUTE_IF("thd_killed_injection",
+                   thd->killed= THD::KILL_QUERY;
+                   DBUG_RETURN(FALSE););
+
   if (check_if_system_tables_error())
     DBUG_RETURN(TRUE);
 
