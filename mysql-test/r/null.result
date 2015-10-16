@@ -51,15 +51,24 @@ SELECT (NULL OR NULL) IS NULL;
 select NULL AND 0, 0 and NULL;
 NULL AND 0	0 and NULL
 0	0
-select inet_ntoa(null),inet_aton(null),inet_aton("122.256"),inet_aton("122.226."),inet_aton("");
-inet_ntoa(null)	inet_aton(null)	inet_aton("122.256")	inet_aton("122.226.")	inet_aton("")
-NULL	NULL	NULL	NULL	NULL
-explain extended select inet_ntoa(null),inet_aton(null),inet_aton("122.256"),inet_aton("122.226."),inet_aton("");
+select inet_ntoa(null),inet_aton(null);
+inet_ntoa(null)	inet_aton(null)
+NULL	NULL
+explain extended select inet_ntoa(null),inet_aton(null);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select inet_ntoa(NULL) AS `inet_ntoa(null)`,inet_aton(NULL) AS `inet_aton(null)`,inet_aton('122.256') AS `inet_aton("122.256")`,inet_aton('122.226.') AS `inet_aton("122.226.")`,inet_aton('') AS `inet_aton("")`
+Note	1003	/* select#1 */ select inet_ntoa(NULL) AS `inet_ntoa(null)`,inet_aton(NULL) AS `inet_aton(null)`
+select inet6_ntoa(null),inet6_aton(null);
+inet6_ntoa(null)	inet6_aton(null)
+NULL	NULL
+explain extended select inet6_ntoa(null), inet6_aton(null);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select inet6_ntoa(NULL) AS `inet6_ntoa(null)`,inet6_aton(NULL) AS `inet6_aton(null)`
 create table t1 (x int);
 insert into t1 values (null);
 select * from t1 where x != 0;
