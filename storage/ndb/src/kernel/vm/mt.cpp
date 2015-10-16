@@ -2796,8 +2796,10 @@ flush_write_state_self(thr_job_queue_head *q_head, thr_jb_write_state *w)
 
 static inline
 void
-flush_write_state_other(thr_data *dstptr, thr_job_queue_head *q_head,
-                        thr_jb_write_state *w)
+flush_write_state_other(thr_data *dstptr,
+                        thr_job_queue_head *q_head,
+                        thr_jb_write_state *w,
+                        bool prioa_flag)
 {
   Uint32 pending_signals_saved;
   /*
@@ -2818,7 +2820,8 @@ flush_write_state_other(thr_data *dstptr, thr_job_queue_head *q_head,
   pending_signals_saved = w->get_pending_signals_wakeup();
   pending_signals_saved += w->get_pending_signals();
 
-  if (pending_signals_saved >= MAX_SIGNALS_BEFORE_WAKEUP)
+  if (pending_signals_saved >= MAX_SIGNALS_BEFORE_WAKEUP &&
+      (!prioa_flag))
   {
     w->init_pending_signals();
     wakeup(&(dstptr->m_waiter));
@@ -2837,8 +2840,11 @@ flush_write_state_other(thr_data *dstptr, thr_job_queue_head *q_head,
 */
 static inline
 void
-flush_write_state(const thr_data *selfptr, thr_data *dstptr,
-                  thr_job_queue_head *q_head, thr_jb_write_state *w)
+flush_write_state(const thr_data *selfptr,
+                  thr_data *dstptr,
+                  thr_job_queue_head *q_head,
+                  thr_jb_write_state *w,
+                  bool prioa_flag)
 {
   if (dstptr == selfptr)
   {
@@ -2846,7 +2852,7 @@ flush_write_state(const thr_data *selfptr, thr_data *dstptr,
   }
   else
   {
-    flush_write_state_other(dstptr, q_head, w);
+    flush_write_state_other(dstptr, q_head, w, prioa_flag);
   }
 }
 
@@ -5467,7 +5473,7 @@ sendlocal(Uint32 self, const SignalHeader *s, const Uint32 *data,
   }
   if (w->get_pending_signals() >= MAX_SIGNALS_BEFORE_FLUSH)
   {
-    flush_write_state(selfptr, dstptr, h, w);
+    flush_write_state(selfptr, dstptr, h, w, false);
   }
 }
 
@@ -5510,7 +5516,7 @@ sendprioa(Uint32 self, const SignalHeader *s, const uint32 *data,
   w.m_write_pos = buffer->m_len;
   bool buf_used = insert_signal(q, h, &w, true, s, data, secPtr,
                                 selfptr->m_next_buffer);
-  flush_write_state(selfptr, dstptr, h, &w);
+  flush_write_state(selfptr, dstptr, h, &w, true);
 
   unlock(&dstptr->m_jba_write_lock);
   if (w.has_any_pending_signals())
@@ -5610,7 +5616,7 @@ sendprioa_STOP_FOR_CRASH(const struct thr_data *selfptr, Uint32 dst)
   w.m_write_pos = buffer->m_len;
   insert_signal(q, h, &w, true, &signalT.header, signalT.theData, NULL,
                 &dummy_buffer);
-  flush_write_state(selfptr, dstptr, h, &w);
+  flush_write_state(selfptr, dstptr, h, &w, true);
 
   unlock(&dstptr->m_jba_write_lock);
   if (w.has_any_pending_signals())
