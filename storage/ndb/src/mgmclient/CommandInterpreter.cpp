@@ -1413,6 +1413,7 @@ CommandInterpreter::analyseAfterFirstToken(int processId,
   } else {
     retval = (this->*fun)(processId, allAfterSecondToken, false);
   }
+  ndbout << endl;
   return retval;
 }
 
