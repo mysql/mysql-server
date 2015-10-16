@@ -1,6 +1,7 @@
 --source include/have_innodb.inc
 --source include/have_debug_sync.inc
 --source include/have_innodb_max_16k.inc
+--source include/count_sessions.inc
 
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] InnoDB: Compute virtual");
@@ -1304,3 +1305,67 @@ insert into t set a=2;
 alter table t add unique index(c);
 insert into t set a=1;
 drop table t;
+
+--echo #
+--echo # Bug#22018532 ASSERTION WHEN ONLINE REAPPLY REBUILD LOG ON
+--echo # MULTIPLE INDEXED VIRTUAL COLUMNS
+--echo #
+
+create table t (
+  a int as (1) virtual,
+  b int,
+  c int as (1) virtual,
+  unique(b),
+  unique(c),
+  key(a)
+) engine=innodb;
+
+insert ignore into t values();
+
+SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create WAIT_FOR go_ahead';
+--send optimize table t
+
+connect (con1,localhost,root,,);
+
+SET DEBUG_SYNC = 'now WAIT_FOR start_create';
+insert ignore into t values();
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+
+connection default;
+--echo /* connection default */ optimize table t;
+reap;
+SELECT c FROM t;
+SHOW CREATE TABLE t;
+SELECT * FROM t;
+DROP TABLE t;
+
+# Do another test without duplicate error
+
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10));
+
+INSERT INTO t VALUES (11, 3, DEFAULT, 'mm');
+INSERT INTO t VALUES (18, 1, DEFAULT, 'mm');
+INSERT INTO t VALUES (28, 1, DEFAULT, 'mm');
+INSERT INTO t VALUES (null, null, DEFAULT, 'mm');
+
+CREATE INDEX idx ON t(c);
+
+SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_rebuild WAIT_FOR go_ahead';
+--send optimize table t
+
+connection con1;
+SET DEBUG_SYNC = 'now WAIT_FOR start_rebuild';
+INSERT INTO t VALUES (48, 2, DEFAULT, 'xx');
+INSERT INTO t VALUES (68, 3, DEFAULT, 'sx');
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+
+connection default;
+--echo /* connection default */ optimize table t;
+reap;
+
+SELECT c FROM t;
+
+disconnect con1;
+
+DROP TABLE t;
+--source include/wait_until_count_sessions.inc
