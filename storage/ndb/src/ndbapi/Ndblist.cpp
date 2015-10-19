@@ -132,7 +132,6 @@ Ndb::getNdbCon()
 {
   NdbTransaction* tNdbCon = theImpl->theConIdleList.seize(this);
   tNdbCon->theMagicNumber = tNdbCon->getMagicNumber();
-  assert(tNdbCon->Status() != NdbTransaction::Connected);
   return tNdbCon;
 }
 
@@ -302,8 +301,6 @@ Remark:         Add a Connection object into the signal idlelist.
 void
 Ndb::releaseNdbCon(NdbTransaction* aNdbCon)
 {
-  assert(aNdbCon->Status() != NdbTransaction::Connected);
-  aNdbCon->theReleaseOnClose = false;
   aNdbCon->theMagicNumber = 0xFE11DD;
   theImpl->theConIdleList.release(aNdbCon);
 }
