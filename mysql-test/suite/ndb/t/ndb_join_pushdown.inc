@@ -4306,6 +4306,12 @@ insert into t1 values (2, 2, 'Dole');
 insert into t1 values (3, 3, 'Doffen');
 insert into t1 values (4, 4, 'row# 999');
 
+# These queries with large IN clauses exceeds the default memory limit of the
+# range optimizer on 64 bit but not on 32 bit, thus cauing different result.
+# Fix by setting a fairly low value in order to get consistent behaviour
+set @save_range_opt_max = @@session.range_optimizer_max_mem_size;
+set range_optimizer_max_mem_size = 512*1024;
+
 # Build SPJ query with 2000 IN values
 # This used to result in buffer overflow, but will now
 # pass as buffer size is incresed from 32K -> 64K
@@ -4353,6 +4359,8 @@ let $query = $query );
 
 eval explain $query;
 eval $query;
+
+set range_optimizer_max_mem_size = @save_range_opt_max;
 
 drop table t1;
 
