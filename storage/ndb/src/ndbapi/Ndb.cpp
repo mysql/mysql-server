@@ -990,6 +990,7 @@ Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId, Uint32 instance)
 void
 Ndb::appendConnectionArray(NdbTransaction *aCon, Uint32 nodeId)
 {
+  assert(aCon->Status() == NdbTransaction::Connected);
   NdbTransaction *last = theConnectionArrayLast[nodeId];
   if (last)
   {
@@ -1006,6 +1007,7 @@ Ndb::appendConnectionArray(NdbTransaction *aCon, Uint32 nodeId)
 void
 Ndb::prependConnectionArray(NdbTransaction *aCon, Uint32 nodeId)
 {
+  assert(aCon->Status() == NdbTransaction::Connected);
   NdbTransaction *first = theConnectionArray[nodeId];
   aCon->theNext = first;
   if (!first)
@@ -1018,6 +1020,7 @@ Ndb::prependConnectionArray(NdbTransaction *aCon, Uint32 nodeId)
 void
 Ndb::removeConnectionArray(NdbTransaction *first, Uint32 nodeId)
 {
+  assert(first->Status() == NdbTransaction::Connected);
   NdbTransaction *next = first->theNext;
   if (!next)
   {

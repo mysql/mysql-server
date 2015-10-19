@@ -2035,13 +2035,13 @@ NdbScanOperation::send_next_scan(Uint32 cnt, bool stopScanFlag)
       Uint32 nodeId = theNdbCon->theDBnode;
       NdbImpl* impl = theNdb->theImpl;
       if(cnt > 21){
-        tSignal.setLength(4);
+        tSignal.setLength(ScanNextReq::SignalLength);
         LinearSectionPtr ptr[3];
         ptr[0].p = prep_array;
         ptr[0].sz = sent;
         ret = impl->sendSignal(&tSignal, nodeId, ptr, 1);
       } else {
-        tSignal.setLength(4+sent);
+        tSignal.setLength(ScanNextReq::SignalLength+sent);
         ret = impl->sendSignal(&tSignal, nodeId);
       }
     }
@@ -2138,7 +2138,7 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
     assert(ret);
   }
   
-  tCon->theScanningOp = 0;
+  // Close Txn and release all NdbOps owner by it
   tNdb->closeTransaction(tCon);
   tNdb->theImpl->decClientStat(Ndb::TransCloseCount, 1); /* Correct stats */
   tNdb->theRemainingStartTransactions--;
@@ -3908,7 +3908,7 @@ NdbIndexScanOperation::send_next_scan_ordered(Uint32 idx)
   
   Uint32 nodeId = theNdbCon->theDBnode;
   NdbImpl * impl = theNdb->theImpl;
-  tSignal.setLength(4+1);
+  tSignal.setLength(ScanNextReq::SignalLength+1);
   int ret= impl->sendSignal(&tSignal, nodeId);
   return ret;
 }
@@ -3921,6 +3921,23 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
   Uint32 seq = theNdbCon->theNodeSequence;
   Uint32 nodeId = theNdbCon->theDBnode;
   
+  /* Rather nasty way to clean up IndexScan resources if
+   * any 
+   */
+  if (theOperationType == OpenRangeScanRequest)
+  {
+    NdbIndexScanOperation *isop= 
+      reinterpret_cast<NdbIndexScanOperation*> (this);
+
+    /* Release any Index Bound resources */
+    isop->releaseIndexBoundsOldApi();
+  }
+
+  /* Free any scan-owned ScanFilter generated InterpretedCode
+   * object (old Api only)
+   */
+  freeInterpretedCodeOldApi();
+
   if (seq != impl->getNodeSequence(nodeId))
   {
     theNdbCon->theReleaseOnClose = true;
@@ -4018,23 +4035,6 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
       return -1;
     }
   }
-
-  /* Rather nasty way to clean up IndexScan resources if
-   * any 
-   */
-  if (theOperationType == OpenRangeScanRequest)
-  {
-    NdbIndexScanOperation *isop= 
-      reinterpret_cast<NdbIndexScanOperation*> (this);
-
-    /* Release any Index Bound resources */
-    isop->releaseIndexBoundsOldApi();
-  }
-
-  /* Free any scan-owned ScanFilter generated InterpretedCode
-   * object (old Api only)
-   */
-  freeInterpretedCodeOldApi();
 
   return 0;
 }
