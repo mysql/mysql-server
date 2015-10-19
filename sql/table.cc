@@ -2361,6 +2361,15 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           // Table field corresponding to the i'th key part.
           Field *table_field= share->field[key_part[i].fieldnr - 1];
 
+          // Index on virtual generated columns is not allowed to be PK
+          // even when the conditions below are true, so this case must be
+          // rejected here.
+          if (table_field->is_virtual_gcol())
+          {
+            primary_key= MAX_KEY;		// Can't be used
+            break;
+          }
+
           /*
             If the key column is of NOT NULL BLOB type, then it
             will definitly have key prefix. And if key part prefix size
@@ -2384,9 +2393,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
             continue;
 
 	  if (table_field->real_maybe_null() ||
-	      table_field->key_length() != key_part[i].length ||
-              // Index on virtual generated columns is not allowed to be PK
-              table_field->is_virtual_gcol())
+	      table_field->key_length() != key_part[i].length)
  	  {
 	    primary_key= MAX_KEY;		// Can't be used
 	    break;
