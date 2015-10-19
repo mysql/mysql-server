@@ -46,6 +46,8 @@ struct version_token_st {
 
 #define VTOKEN_LOCKS_NAMESPACE "version_token_locks"
 
+#define LONG_TIMEOUT ((ulong) 3600L*24L*365L)
+
 static HASH version_tokens_hash;
 
 static MYSQL_THDVAR_ULONG(session_number,
@@ -337,9 +339,10 @@ static int parse_vtokens(char *input, enum command type)
       {
 	version_token_st *token_obj;
         char error_str[MYSQL_ERRMSG_SIZE];
-        if (!mysql_acquire_locking_service_locks(NULL, VTOKEN_LOCKS_NAMESPACE,
+        if (!mysql_acquire_locking_service_locks(thd, VTOKEN_LOCKS_NAMESPACE,
 	                                         (const char **) &(token_name.str), 1,
-					         LOCKING_SERVICE_READ, 1) && !vtokens_unchanged)
+					         LOCKING_SERVICE_READ, LONG_TIMEOUT) &&
+            !vtokens_unchanged)
 	{
 	  if ((token_obj= (version_token_st *)my_hash_search(&version_tokens_hash,
 							     (const uchar*) token_name.str,
