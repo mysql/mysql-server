@@ -6401,7 +6401,6 @@ runBug16944817(NDBT_Context* ctx, NDBT_Step* step)
     restarter.startNodes(&nodeId, 1);
     ndbout_c("  wait nodes started");
     restarter.waitClusterStarted();
-    CHK_NDB_READY(pNdb);
   }
 
   bool checkMarkers = true;
