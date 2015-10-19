@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -132,6 +132,7 @@ Ndb::getNdbCon()
 {
   NdbTransaction* tNdbCon = theImpl->theConIdleList.seize(this);
   tNdbCon->theMagicNumber = tNdbCon->getMagicNumber();
+  assert(tNdbCon->Status() != NdbTransaction::Connected);
   return tNdbCon;
 }
 
@@ -301,6 +302,8 @@ Remark:         Add a Connection object into the signal idlelist.
 void
 Ndb::releaseNdbCon(NdbTransaction* aNdbCon)
 {
+  assert(aNdbCon->Status() != NdbTransaction::Connected);
+  aNdbCon->theReleaseOnClose = false;
   aNdbCon->theMagicNumber = 0xFE11DD;
   theImpl->theConIdleList.release(aNdbCon);
 }
