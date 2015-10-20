@@ -9152,6 +9152,11 @@ bool fill_record(THD *thd, TABLE *table, List<Item> &fields,
 
     Field *const rfield= field->field;
     Item *const value= v++;
+
+    /* Generated columns will be filled after all base columns are done. */
+    if (rfield->is_gcol())
+      continue;
+
     /* If bitmap over wanted fields are set, skip non marked fields. */
     if (bitmap && !bitmap_is_set(bitmap, rfield->field_index))
       continue;
@@ -9411,6 +9416,11 @@ bool fill_record(THD *thd, TABLE *table, Field **ptr, List<Item> &values,
   {
     Item *const value= v++;
     DBUG_ASSERT(field->table == table);
+
+    /* Generated columns will be filled after all base columns are done. */
+    if (field->is_gcol())
+      continue;
+
     /* If bitmap over wanted fields are set, skip non marked fields. */
     if (bitmap && !bitmap_is_set(bitmap, field->field_index))
       continue;
