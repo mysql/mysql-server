@@ -150,6 +150,7 @@ select *
 from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d procedure analyse();
 
+--replace_result p0,p1,p2,p3,p4,p5,p6,p7 pXYZ p0 pX p5 pX
 explain
 select *
 from t1
@@ -189,6 +190,7 @@ where t1.a = 2 and t1.b = 3;
 # ... and is a much simpler testcase..... 
 LOCK TABLES t1 read, t1 as t2 read;
 
+--replace_result p0,p1,p2,p3,p4,p5,p6,p7 pXYZ p0 pX p5 pX
 explain
 select *
 from t1
@@ -208,6 +210,7 @@ join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.a = 3 and t1.b = 3;
 UNLOCK TABLES;
 
+--replace_result p0,p1,p2,p3,p4,p5,p6,p7 pXYZ p0 pX p5 pX
 explain
 select *
 from t1
@@ -218,6 +221,7 @@ from t1
 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.a = 2 and t1.b = 3;
 
+--replace_result p0,p1,p2,p3,p4,p5,p6,p7 pXYZ p0 pX p5 pX
 explain
 select *
 from t1
@@ -231,6 +235,7 @@ where t1.a = 2 and t1.b = 3
 order by t1.c;
 
 set ndb_join_pushdown=false;
+--replace_result p0,p1,p2,p3,p4,p5,p6,p7 pXYZ p0 pX p5 pX
 explain
 select *
 from t1
@@ -241,6 +246,7 @@ from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.a = 2 and t1.b = 3;
 
+--replace_result p0,p1,p2,p3,p4,p5,p6,p7 pXYZ p0 pX p5 pX
 explain
 select *
 from t1
@@ -1097,6 +1103,7 @@ join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 group by t1.b;
 
+--replace_result p0,p1,p2,p3,p4,p5,p6,p7 pXYZ p1 pX p2 pX
 explain
 select t2.c, count(distinct t2.a)
 from t1
@@ -1123,6 +1130,7 @@ join t1 as t2 on t1.a = t2.c and t1.b = t2.d
 where t2.a = 4
 group by t2.c;
 
+--replace_result p0,p1,p2,p3,p4,p5,p6,p7 pXYZ p1 pX p2 pX
 explain
 select t2.c, count(distinct t2.a)
 from t1
