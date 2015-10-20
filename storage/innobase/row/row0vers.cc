@@ -94,6 +94,8 @@ row_vers_impl_x_locked_low(
 	ulint*		clust_offsets;
 	mem_heap_t*	heap;
 	dtuple_t*	ientry = NULL;
+	mem_heap_t*	v_heap = NULL;
+	const dtuple_t*	cur_vrow = NULL;
 
 	DBUG_ENTER("row_vers_impl_x_locked_low");
 
@@ -130,7 +132,14 @@ row_vers_impl_x_locked_low(
 
 	if (dict_index_has_virtual(index)) {
 		ulint	n_ext;
-		ientry = row_rec_to_index_entry(rec, index, offsets, &n_ext, heap);
+		ulint	est_size = DTUPLE_EST_ALLOC(index->n_fields);
+
+		/* Allocate the dtuple for virtual columns extracted from undo
+		log with its own heap, so to avoid it being freed as we
+		iterating in the version loop below. */
+		v_heap = mem_heap_create(est_size);
+		ientry = row_rec_to_index_entry(
+			rec, index, offsets, &n_ext, v_heap);
 	}
 
 	/* We look up if some earlier version, which was modified by
@@ -152,7 +161,6 @@ row_vers_impl_x_locked_low(
 		trx_id_t	prev_trx_id;
 		mem_heap_t*	old_heap = heap;
 		const dtuple_t*	vrow = NULL;
-		bool		skip_cmp = false;
 
 		/* We keep the semaphore in mtr on the clust_rec page, so
 		that no other transaction can update it and get an
@@ -219,29 +227,34 @@ row_vers_impl_x_locked_low(
 				NULL, NULL, NULL, &ext, heap);
 
 		if (dict_index_has_virtual(index)) {
-			if (!vrow) {
-				ulint	n_non_v_col = 0;
+			if (vrow) {
+				/* Keep the virtual row info for the next
+				version */
+				cur_vrow = dtuple_copy(vrow, v_heap);
+				dtuple_dup_v_fld(cur_vrow, v_heap);
+			}
 
-				if (!row_vers_non_vc_match(
-					index, row, ext, ientry, heap,
-					&n_non_v_col)) {
-					if (!rec_del) {
-						break;
-					}
-				}
+			if (!cur_vrow) {
+				ulint	n_non_v_col = 0;
 
 				/* If the indexed virtual columns has changed,
 				there must be log record to generate vrow.
 				Otherwise, it is not changed, so no need
 				to compare */
-				skip_cmp = true;
-				if (rec_del != vers_del) {
+				if (row_vers_non_vc_match(
+					index, row, ext, ientry, heap,
+					&n_non_v_col) == 0) {
+					if (rec_del != vers_del) {
+						break;
+					}
+				} else if (!rec_del) {
 					break;
 				}
+
 				goto result_check;
 			} else {
-				ut_ad(row->n_v_fields == vrow->n_v_fields);
-				dtuple_copy_v_fields(row, vrow);
+				ut_ad(row->n_v_fields == cur_vrow->n_v_fields);
+				dtuple_copy_v_fields(row, cur_vrow);
 			}
 		}
 
@@ -265,7 +278,7 @@ row_vers_impl_x_locked_low(
 
 		/* We check if entry and rec are identified in the alphabetical
 		ordering */
-		if (!skip_cmp && 0 == cmp_dtuple_rec(entry, rec, offsets)) {
+		if (0 == cmp_dtuple_rec(entry, rec, offsets)) {
 			/* The delete marks of rec and prev_version should be
 			equal for rec to be in the state required by
 			prev_version */
@@ -307,6 +320,10 @@ result_check:
 	}
 
 	DBUG_PRINT("info", ("Implicit lock is held by trx:" TRX_ID_FMT, trx_id));
+
+	if (v_heap != NULL) {
+		mem_heap_free(v_heap);
+	}
 
 	mem_heap_free(heap);
 	DBUG_RETURN(trx);

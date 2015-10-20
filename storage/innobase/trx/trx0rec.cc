@@ -2363,8 +2363,7 @@ trx_undo_prev_version_build(
 			*old_vers, index, NULL, ULINT_UNDEFINED, &heap)));
 #endif // defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 
-	if (vrow && type != TRX_UNDO_DEL_MARK_REC
-	    && !(cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
+	if (vrow && !(cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
 		if (!(*vrow)) {
 			*vrow = dtuple_create_with_vcol(
 				v_heap ? v_heap : heap,
