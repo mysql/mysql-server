@@ -16,6 +16,7 @@
 INCLUDE_DIRECTORIES(
 ${CMAKE_SOURCE_DIR}/include 
 ${ZLIB_INCLUDE_DIR}
+${LZ4_INCLUDE_DIR}
 # Following is for perror, in case NDB is compiled in.
 ${CMAKE_SOURCE_DIR}/storage/ndb/include
 ${CMAKE_BINARY_DIR}/storage/ndb/include
@@ -94,6 +95,12 @@ ENDIF()
 
 MYSQL_ADD_EXECUTABLE(replace replace.c)
 TARGET_LINK_LIBRARIES(replace mysys)
+
+MYSQL_ADD_EXECUTABLE(lz4_decompress lz4_decompress.cc)
+TARGET_LINK_LIBRARIES(lz4_decompress ${LZ4_LIBRARY})
+
+MYSQL_ADD_EXECUTABLE(zlib_decompress zlib_decompress.cc)
+TARGET_LINK_LIBRARIES(zlib_decompress ${ZLIB_LIBRARY})
 
 IF(WITH_INNOBASE_STORAGE_ENGINE)
 

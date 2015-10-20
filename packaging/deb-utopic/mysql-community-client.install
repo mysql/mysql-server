@@ -27,6 +27,8 @@ usr/bin/mysqlimport
 usr/bin/mysqlpump
 usr/bin/mysqlshow
 usr/bin/mysqlslap
+usr/bin/lz4_decompress
+usr/bin/zlib_decompress
 # man pages
 usr/share/man/man1/innochecksum.1
 usr/share/man/man1/myisam_ftdump.1
