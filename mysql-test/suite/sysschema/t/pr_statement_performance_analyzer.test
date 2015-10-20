@@ -48,17 +48,36 @@ CALL sys.ps_truncate_all_tables(FALSE);
 # digest for each of the three queries by getting the last event from performance_schema.events_statements_current
 # for the con1 connection.
 connection con1;
-INSERT INTO t1 VALUES (1, SLEEP(0.2));
+INSERT INTO t1 VALUES (1, 0);
 connection default;
+#--let $wait_condition= SELECT COUNT(*) = 1 FROM t1
+--let $wait_condition= SELECT SUBSTRING(SQL_TEXT, 1, 7) = 'INSERT ' FROM performance_schema.events_statements_current WHERE THREAD_ID = $con1_thread_id AND DIGEST IS NOT NULL
+--source include/wait_condition.inc
 --let $digest_insert= `SELECT DIGEST FROM performance_schema.events_statements_current WHERE THREAD_ID = $con1_thread_id ORDER BY EVENT_ID DESC LIMIT 1`
+--let $query_insert= `SELECT sys.format_statement(DIGEST_TEXT) FROM performance_schema.events_statements_current WHERE THREAD_ID = $con1_thread_id ORDER BY EVENT_ID DESC LIMIT 1`
 connection con1;
-UPDATE t1 SET val = 1+SLEEP(1.6) WHERE id = 1;
+UPDATE t1 SET val = 1 WHERE id = 1;
 connection default;
+#--let $wait_condition= SELECT val = 1 FROM t1 WHERE id = 1;
+--let $wait_condition= SELECT SUBSTRING(SQL_TEXT, 1, 7) = 'UPDATE ' FROM performance_schema.events_statements_current WHERE THREAD_ID = $con1_thread_id AND DIGEST IS NOT NULL
+--source include/wait_condition.inc
 --let $digest_update= `SELECT DIGEST FROM performance_schema.events_statements_current WHERE THREAD_ID = $con1_thread_id ORDER BY EVENT_ID DESC LIMIT 1`
+--let $query_update= `SELECT sys.format_statement(DIGEST_TEXT) FROM performance_schema.events_statements_current WHERE THREAD_ID = $con1_thread_id ORDER BY EVENT_ID DESC LIMIT 1`
 connection con1;
-SELECT t1a.* FROM t1 AS t1a LEFT OUTER JOIN (SELECT * FROM t1 AS t1b1 INNER JOIN t1 AS t1b2 USING (id, val)) AS t1b ON t1b.id > t1a.id ORDER BY t1a.val, t1a.id+SLEEP(1.2);
+SELECT t1a.* FROM t1 AS t1a LEFT OUTER JOIN (SELECT * FROM t1 AS t1b1 INNER JOIN t1 AS t1b2 USING (id, val)) AS t1b ON t1b.id > t1a.id ORDER BY t1a.val, t1a.id;
 connection default;
+--let $wait_condition= SELECT SUBSTRING(SQL_TEXT, 1, 7) = 'SELECT ' FROM performance_schema.events_statements_current WHERE THREAD_ID = $con1_thread_id AND DIGEST IS NOT NULL
+--source include/wait_condition.inc
 --let $digest_select= `SELECT DIGEST FROM performance_schema.events_statements_current WHERE THREAD_ID = $con1_thread_id ORDER BY EVENT_ID DESC LIMIT 1`
+--let $query_select= `SELECT sys.format_statement(DIGEST_TEXT) FROM performance_schema.events_statements_current WHERE THREAD_ID = $con1_thread_id ORDER BY EVENT_ID DESC LIMIT 1`
+
+# Enable to debug if some digests are not found
+# --output /tmp/digest
+# --eval SELECT '$digest_insert' AS DigestInsert, '$digest_update' AS DigestUpdate, '$digest_select' AS DigestSelect
+# --output /tmp/digest_text
+# --eval SELECT '$query_insert' AS DigestInsert, '$query_update' AS DigestUpdate, '$query_select' AS DigestSelect
+# --output /tmp/ps_history
+# SELECT THREAD_ID, EVENT_ID, END_EVENT_ID, DIGEST, SQL_TEXT FROM performance_schema.events_statements_history_long ORDER BY EVENT_ID;
 
 # Start collecting data
 CALL sys.statement_performance_analyzer('create_tmp', 'test.tmp_digests_ini', NULL);
@@ -70,83 +89,87 @@ DO SLEEP(1.2);
 
 # Make some more changes
 connection con1;
-INSERT INTO t1 VALUES (2, SLEEP(0.6));
-UPDATE t1 SET val = 1+SLEEP(3.0) WHERE id = 2;
-SELECT t1a.* FROM t1 AS t1a LEFT OUTER JOIN (SELECT * FROM t1 AS t1b1 INNER JOIN t1 AS t1b2 USING (id, val)) AS t1b ON t1b.id > t1a.id ORDER BY t1a.val, t1a.id+SLEEP(0.8);
+INSERT INTO t1 VALUES (2, 0);
+UPDATE t1 SET val = 1 WHERE id = 2;
+SELECT t1a.* FROM t1 AS t1a LEFT OUTER JOIN (SELECT * FROM t1 AS t1b1 INNER JOIN t1 AS t1b2 USING (id, val)) AS t1b ON t1b.id > t1a.id ORDER BY t1a.val, t1a.id;
 disconnect con1;
 
 # Make the second collection of data and create the output
 connection default;
+# Make sure all of the queries executing in con1 has been recorded in performance_schema.events_statements_summary_by_digest
+# before continuing with the actual tests of pr_statement_performance_analyzer()
+--let $wait_condition= SELECT COUNT_STAR = 2 FROM performance_schema.events_statements_summary_by_digest WHERE DIGEST = '$digest_select'
+--source include/wait_condition.inc
 CALL sys.statement_performance_analyzer('snapshot', NULL, NULL);
 
 # Do a sanity check to ensure we are assuming the queries has the digests they have and that there is nothing else in the events_statements_summary_by_digest than there actually is.
 --replace_result $digest_insert DIGEST_INSERT $digest_update DIGEST_UPDATE $digest_select DIGEST_SELECT
-SELECT DIGEST, COUNT_STAR FROM performance_schema.events_statements_summary_by_digest ORDER BY first_seen;
+--sorted_result
+SELECT DIGEST, COUNT_STAR FROM performance_schema.events_statements_summary_by_digest;
 
 # with_runtimes_in_95th_percentile
---let $o_upd_total_latency= `SELECT total_latency FROM sys.statements_with_runtimes_in_95th_percentile WHERE db = 'test' AND digest = '$digest_update'`
---let $o_upd_max_latency= `SELECT max_latency FROM sys.statements_with_runtimes_in_95th_percentile WHERE db = 'test' AND digest = '$digest_update'`
---let $o_upd_avg_latency= `SELECT avg_latency FROM sys.statements_with_runtimes_in_95th_percentile WHERE db = 'test' AND digest = '$digest_update'`
---let $o_upd_first_seen= `SELECT first_seen FROM sys.statements_with_runtimes_in_95th_percentile WHERE db = 'test' AND digest = '$digest_update'`
---let $o_upd_last_seen= `SELECT last_seen FROM sys.statements_with_runtimes_in_95th_percentile WHERE db = 'test' AND digest = '$digest_update'`
---replace_result $digest_update DIGEST_UPDATE $o_upd_total_latency O_UPD_TOTAL_LATENCY $o_upd_max_latency O_UPD_MAX_LATENCY $o_upd_avg_latency O_UPD_AVG_LATENCY $o_upd_first_seen O_UPD_FIRST_SEEN $o_upd_last_seen O_UPD_LAST_SEEN
---query_vertical CALL sys.statement_performance_analyzer('overall', NULL, 'with_runtimes_in_95th_percentile');
-
---let $d_upd_total_latency= `SELECT sys.format_time(TIMER_WAIT) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_update' ORDER BY EVENT_ID DESC LIMIT 1`
---replace_result $digest_update DIGEST_UPDATE $d_upd_total_latency D_UPD_LATENCY $o_upd_max_latency D_UPD_LATENCY $o_upd_first_seen O_UPD_FIRST_SEEN $o_upd_last_seen O_UPD_LAST_SEEN
---query_vertical CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_runtimes_in_95th_percentile');
+# It is unknown what the result will be since the execution times for each query are unknown
+# So just check that no warning or error occurs
+--disable_result_log
+CALL sys.statement_performance_analyzer('overall', NULL, 'with_runtimes_in_95th_percentile');
+CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_runtimes_in_95th_percentile');
+--enable_result_log
 
 # analysis - as there's no control of the lock time, it may be the same for two or more of the queries.
 # So replace_result cannot be used to give it a unique value. Instead just use LOCK_LATENCY for all rows.
 --let $o_upd_total_latency= `SELECT total_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_update'`
 --let $o_upd_max_latency= `SELECT max_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_update'`
 --let $o_upd_avg_latency= `SELECT avg_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_update'`
---let $o_upd_lock_latency= `SELECT lock_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_update'`
 --let $o_upd_first_seen= `SELECT first_seen FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_update'`
 --let $o_upd_last_seen= `SELECT last_seen FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_update'`
 --let $o_sel_total_latency= `SELECT total_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_select'`
 --let $o_sel_max_latency= `SELECT max_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_select'`
 --let $o_sel_avg_latency= `SELECT avg_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_select'`
---let $o_sel_lock_latency= `SELECT lock_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_select'`
 --let $o_sel_first_seen= `SELECT first_seen FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_select'`
 --let $o_sel_last_seen= `SELECT last_seen FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_select'`
 --let $o_ins_total_latency= `SELECT total_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_insert'`
 --let $o_ins_max_latency= `SELECT max_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_insert'`
 --let $o_ins_avg_latency= `SELECT avg_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_insert'`
---let $o_ins_lock_latency= `SELECT lock_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_insert'`
 --let $o_ins_first_seen= `SELECT first_seen FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_insert'`
 --let $o_ins_last_seen= `SELECT last_seen FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_insert'`
---replace_result $digest_insert DIGEST_INSERT $digest_update DIGEST_UPDATE $digest_select DIGEST_SELECT $o_upd_total_latency O_UPD_TOTAL_LATENCY $o_upd_max_latency O_UPD_MAX_LATENCY $o_upd_avg_latency O_UPD_AVG_LATENCY $o_upd_lock_latency LOCK_LATENCY $o_upd_first_seen O_UPD_FIRST_SEEN $o_upd_last_seen O_UPD_LAST_SEEN $o_sel_total_latency O_SEL_TOTAL_LATENCY $o_sel_max_latency O_SEL_MAX_LATENCY $o_sel_avg_latency O_SEL_AVG_LATENCY $o_sel_lock_latency LOCK_LATENCY $o_sel_first_seen O_SEL_FIRST_SEEN $o_sel_last_seen O_SEL_LAST_SEEN $o_ins_total_latency O_INS_TOTAL_LATENCY $o_ins_max_latency O_INS_MAX_LATENCY $o_ins_avg_latency O_INS_AVG_LATENCY $o_ins_lock_latency LOCK_LATENCY $o_ins_first_seen O_INS_FIRST_SEEN $o_ins_last_seen O_INS_LAST_SEEN
---query_vertical CALL sys.statement_performance_analyzer('overall', NULL, 'analysis');
+--let $o_upd_lock_latency= `SELECT lock_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_update'`
+--let $o_sel_lock_latency= `SELECT lock_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_select'`
+--let $o_ins_lock_latency= `SELECT lock_latency FROM sys.statement_analysis WHERE db = 'test' AND digest = '$digest_insert'`
+--replace_result $query_insert QUERY_INSERT $query_select QUERY_SELECT $query_update QUERY_UPDATE $digest_insert DIGEST_INSERT $digest_update DIGEST_UPDATE $digest_select DIGEST_SELECT $o_upd_total_latency LATENCY $o_upd_max_latency LATENCY $o_upd_avg_latency LATENCY $o_upd_lock_latency LATENCY $o_upd_first_seen FIRST_SEEN $o_upd_last_seen LAST_SEEN $o_sel_total_latency LATENCY $o_sel_max_latency LATENCY $o_sel_avg_latency LATENCY $o_sel_lock_latency LATENCY $o_sel_first_seen FIRST_SEEN $o_sel_last_seen LAST_SEEN $o_ins_total_latency LATENCY $o_ins_max_latency LATENCY $o_ins_avg_latency LATENCY $o_ins_lock_latency LATENCY $o_ins_first_seen FIRST_SEEN $o_ins_last_seen LAST_SEEN
+--sorted_result
+CALL sys.statement_performance_analyzer('overall', NULL, 'analysis');
 
+--let $d_upd_total_latency= `SELECT sys.format_time(TIMER_WAIT) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_update' ORDER BY EVENT_ID DESC LIMIT 1`
 --let $d_sel_total_latency= `SELECT sys.format_time(TIMER_WAIT) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_select' ORDER BY EVENT_ID DESC LIMIT 1`
 --let $d_ins_total_latency= `SELECT sys.format_time(TIMER_WAIT) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_insert' ORDER BY EVENT_ID DESC LIMIT 1`
 --let $d_upd_tock_latency= `SELECT sys.format_time(LOCK_TIME) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_update' ORDER BY EVENT_ID DESC LIMIT 1`
 --let $d_sel_tock_latency= `SELECT sys.format_time(LOCK_TIME) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_select' ORDER BY EVENT_ID DESC LIMIT 1`
 --let $d_ins_tock_latency= `SELECT sys.format_time(LOCK_TIME) FROM performance_schema.events_statements_history_long WHERE CURRENT_SCHEMA = 'test' AND DIGEST = '$digest_insert' ORDER BY EVENT_ID DESC LIMIT 1`
---replace_result $digest_insert DIGEST_INSERT $digest_update DIGEST_UPDATE $digest_select DIGEST_SELECT $d_upd_total_latency D_UPD_LATENCY $o_upd_max_latency D_UPD_LATENCY $o_upd_first_seen O_UPD_FIRST_SEEN $o_upd_last_seen O_UPD_LAST_SEEN $d_upd_tock_latency LOCK_LATENCY $d_sel_total_latency D_SEL_LATENCY $o_sel_max_latency D_SEL_LATENCY $o_sel_first_seen O_SEL_FIRST_SEEN $o_sel_last_seen O_SEL_LAST_SEEN $d_sel_tock_latency LOCK_LATENCY $d_ins_total_latency D_INS_LATENCY $o_ins_max_latency D_INS_LATENCY $o_ins_first_seen O_INS_FIRST_SEEN $o_ins_last_seen O_INS_LAST_SEEN $d_ins_tock_latency LOCK_LATENCY
---query_vertical CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'analysis');
+--replace_result $query_insert QUERY_INSERT $query_select QUERY_SELECT $query_update QUERY_UPDATE $digest_insert DIGEST_INSERT $digest_update DIGEST_UPDATE $digest_select DIGEST_SELECT $d_upd_total_latency LATENCY $o_upd_max_latency LATENCY $o_upd_first_seen FIRST_SEEN $o_upd_last_seen LAST_SEEN $d_upd_tock_latency LATENCY $d_sel_total_latency LATENCY $o_sel_max_latency LATENCY $o_sel_first_seen FIRST_SEEN $o_sel_last_seen LAST_SEEN $d_sel_tock_latency LATENCY $d_ins_total_latency LATENCY $o_ins_max_latency LATENCY $o_ins_first_seen FIRST_SEEN $o_ins_last_seen LAST_SEEN $d_ins_tock_latency LATENCY
+--sorted_result
+CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'analysis');
 
 # Should give an empty result except for the banner generated by the procedure
---query_vertical CALL sys.statement_performance_analyzer('overall', NULL, 'with_errors_or_warnings');
---query_vertical CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_errors_or_warnings');
+CALL sys.statement_performance_analyzer('overall', NULL, 'with_errors_or_warnings');
+CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_errors_or_warnings');
 
---replace_result $digest_select DIGEST_SELECT $o_sel_total_latency O_SEL_TOTAL_LATENCY $o_sel_first_seen O_SEL_FIRST_SEEN $o_sel_last_seen O_SEL_LAST_SEEN
---query_vertical CALL sys.statement_performance_analyzer('overall', NULL, 'with_full_table_scans');
---replace_result $digest_select DIGEST_SELECT $d_sel_total_latency D_SEL_TOTAL_LATENCY $o_sel_first_seen O_SEL_FIRST_SEEN $o_sel_last_seen O_SEL_LAST_SEEN
---query_vertical CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_full_table_scans');
+--replace_result $query_select QUERY_SELECT $digest_select DIGEST_SELECT $o_sel_total_latency LATENCY $o_sel_first_seen FIRST_SEEN $o_sel_last_seen LAST_SEEN
+CALL sys.statement_performance_analyzer('overall', NULL, 'with_full_table_scans');
+--replace_result $query_select QUERY_SELECT $digest_select DIGEST_SELECT $d_sel_total_latency LATENCY $o_sel_first_seen FIRST_SEEN $o_sel_last_seen LAST_SEEN
+CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_full_table_scans');
 
---replace_result $digest_select DIGEST_SELECT $o_sel_total_latency O_SEL_TOTAL_LATENCY $o_sel_first_seen O_SEL_FIRST_SEEN $o_sel_last_seen O_SEL_LAST_SEEN
---query_vertical CALL sys.statement_performance_analyzer('overall', NULL, 'with_sorting');
---replace_result $digest_select DIGEST_SELECT $d_sel_total_latency D_SEL_TOTAL_LATENCY $o_sel_first_seen O_SEL_FIRST_SEEN $o_sel_last_seen O_SEL_LAST_SEEN
---query_vertical CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_sorting');
+--replace_result $query_select QUERY_SELECT $digest_select DIGEST_SELECT $o_sel_total_latency LATENCY $o_sel_first_seen FIRST_SEEN $o_sel_last_seen LAST_SEEN
+CALL sys.statement_performance_analyzer('overall', NULL, 'with_sorting');
+--replace_result $query_select QUERY_SELECT $digest_select DIGEST_SELECT $d_sel_total_latency LATENCY $o_sel_first_seen FIRST_SEEN $o_sel_last_seen LAST_SEEN
+CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_sorting');
 
---replace_result $digest_select DIGEST_SELECT $o_sel_total_latency O_SEL_TOTAL_LATENCY $o_sel_first_seen O_SEL_FIRST_SEEN $o_sel_last_seen O_SEL_LAST_SEEN
---query_vertical CALL sys.statement_performance_analyzer('overall', NULL, 'with_temp_tables');
---replace_result $digest_select DIGEST_SELECT $d_sel_total_latency D_SEL_TOTAL_LATENCY $o_sel_first_seen O_SEL_FIRST_SEEN $o_sel_last_seen O_SEL_LAST_SEEN
---query_vertical CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_temp_tables');
+--replace_result $query_select QUERY_SELECT $digest_select DIGEST_SELECT $o_sel_total_latency LATENCY $o_sel_first_seen FIRST_SEEN $o_sel_last_seen LAST_SEEN
+CALL sys.statement_performance_analyzer('overall', NULL, 'with_temp_tables');
+--replace_result $query_select QUERY_SELECT $digest_select DIGEST_SELECT $d_sel_total_latency LATENCY $o_sel_first_seen FIRST_SEEN $o_sel_last_seen LAST_SEEN
+CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_temp_tables');
 
 # Try a custom view
+# Sort by the query, then we know the order will be INSERT, SELECT, UPDATE
 CREATE VIEW test.view_digests AS
 SELECT sys.format_statement(DIGEST_TEXT) AS query,
        SCHEMA_NAME AS db,
@@ -158,17 +181,17 @@ SELECT sys.format_statement(DIGEST_TEXT) AS query,
        ROUND(IFNULL(SUM_ROWS_AFFECTED / NULLIF(COUNT_STAR, 0), 0)) AS rows_affected_avg,
        DIGEST AS digest
   FROM performance_schema.events_statements_summary_by_digest
- ORDER BY SUM_TIMER_WAIT DESC;
+ ORDER BY SUBSTRING(query, 1, 6);
 SET @sys.statement_performance_analyzer.view = 'test.view_digests';
---replace_result $digest_insert DIGEST_INSERT $digest_update DIGEST_UPDATE $digest_select DIGEST_SELECT $o_upd_total_latency O_UPD_TOTAL_LATENCY $o_upd_avg_latency O_UPD_AVG_LATENCY $o_sel_total_latency O_SEL_TOTAL_LATENCY $o_sel_avg_latency O_SEL_AVG_LATENCY $o_ins_total_latency O_INS_TOTAL_LATENCY $o_ins_avg_latency O_INS_AVG_LATENCY
---query_vertical CALL sys.statement_performance_analyzer('overall', NULL, 'custom');
---replace_result $digest_insert DIGEST_INSERT $digest_update DIGEST_UPDATE $digest_select DIGEST_SELECT $d_upd_total_latency D_UPD_TOTAL_LATENCY $d_sel_total_latency D_SEL_TOTAL_LATENCY $d_ins_total_latency D_INS_TOTAL_LATENCY
---query_vertical CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'custom');
+--replace_result $query_insert QUERY_INSERT $query_select QUERY_SELECT $query_update QUERY_UPDATE $digest_insert DIGEST_INSERT $digest_update DIGEST_UPDATE $digest_select DIGEST_SELECT $o_upd_total_latency LATENCY $o_upd_avg_latency LATENCY $o_sel_total_latency LATENCY $o_sel_avg_latency LATENCY $o_ins_total_latency LATENCY $o_ins_avg_latency LATENCY
+CALL sys.statement_performance_analyzer('overall', NULL, 'custom');
+--replace_result $query_insert QUERY_INSERT $query_select QUERY_SELECT $query_update QUERY_UPDATE $digest_insert DIGEST_INSERT $digest_update DIGEST_UPDATE $digest_select DIGEST_SELECT $d_upd_total_latency LATENCY $d_sel_total_latency LATENCY $d_ins_total_latency LATENCY
+CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'custom');
 
 # Verify that setting a limit works
 SET @sys.statement_performance_analyzer.limit = 2;
---replace_result $digest_update DIGEST_UPDATE $digest_select DIGEST_SELECT $o_upd_total_latency O_UPD_TOTAL_LATENCY $o_upd_avg_latency O_UPD_AVG_LATENCY $o_sel_total_latency O_SEL_TOTAL_LATENCY $o_sel_avg_latency O_SEL_AVG_LATENCY
---query_vertical CALL sys.statement_performance_analyzer('overall', NULL, 'custom');
+--replace_result $query_insert QUERY_INSERT $query_select QUERY_SELECT $digest_insert DIGEST_INSERT $digest_select DIGEST_SELECT $o_ins_total_latency LATENCY $o_ins_avg_latency LATENCY $o_sel_total_latency LATENCY $o_sel_avg_latency LATENCY
+CALL sys.statement_performance_analyzer('overall', NULL, 'custom');
 
 # Test for error conditions - some of the errors depend on the sql_mode so set it explicitly
 # Which sql_modes are deprecated depends on the release, so disable warnings while setting the sql_mode

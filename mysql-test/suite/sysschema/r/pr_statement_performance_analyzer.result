@@ -7,297 +7,81 @@ use test;
 CALL sys.ps_setup_disable_thread(CONNECTION_ID());
 CALL sys.ps_setup_enable_consumer('events_statements_history_long');
 CALL sys.ps_truncate_all_tables(FALSE);
-INSERT INTO t1 VALUES (1, SLEEP(0.2));
-UPDATE t1 SET val = 1+SLEEP(1.6) WHERE id = 1;
-SELECT t1a.* FROM t1 AS t1a LEFT OUTER JOIN (SELECT * FROM t1 AS t1b1 INNER JOIN t1 AS t1b2 USING (id, val)) AS t1b ON t1b.id > t1a.id ORDER BY t1a.val, t1a.id+SLEEP(1.2);
+INSERT INTO t1 VALUES (1, 0);
+UPDATE t1 SET val = 1 WHERE id = 1;
+SELECT t1a.* FROM t1 AS t1a LEFT OUTER JOIN (SELECT * FROM t1 AS t1b1 INNER JOIN t1 AS t1b2 USING (id, val)) AS t1b ON t1b.id > t1a.id ORDER BY t1a.val, t1a.id;
 id	val
 1	1
 CALL sys.statement_performance_analyzer('create_tmp', 'test.tmp_digests_ini', NULL);
 CALL sys.statement_performance_analyzer('snapshot', NULL, NULL);
 CALL sys.statement_performance_analyzer('save', 'test.tmp_digests_ini', NULL);
 DO SLEEP(1.2);
-INSERT INTO t1 VALUES (2, SLEEP(0.6));
-UPDATE t1 SET val = 1+SLEEP(3.0) WHERE id = 2;
-SELECT t1a.* FROM t1 AS t1a LEFT OUTER JOIN (SELECT * FROM t1 AS t1b1 INNER JOIN t1 AS t1b2 USING (id, val)) AS t1b ON t1b.id > t1a.id ORDER BY t1a.val, t1a.id+SLEEP(0.8);
+INSERT INTO t1 VALUES (2, 0);
+UPDATE t1 SET val = 1 WHERE id = 2;
+SELECT t1a.* FROM t1 AS t1a LEFT OUTER JOIN (SELECT * FROM t1 AS t1b1 INNER JOIN t1 AS t1b2 USING (id, val)) AS t1b ON t1b.id > t1a.id ORDER BY t1a.val, t1a.id;
 id	val
 1	1
 2	1
 CALL sys.statement_performance_analyzer('snapshot', NULL, NULL);
-SELECT DIGEST, COUNT_STAR FROM performance_schema.events_statements_summary_by_digest ORDER BY first_seen;
+SELECT DIGEST, COUNT_STAR FROM performance_schema.events_statements_summary_by_digest;
 DIGEST	COUNT_STAR
 DIGEST_INSERT	2
-DIGEST_UPDATE	2
 DIGEST_SELECT	2
-CALL sys.statement_performance_analyzer('overall', NULL, 'with_runtimes_in_95th_percentile');;
-Next Output	Queries with Runtime in 95th Percentile
-query	UPDATE `t1` SET `val` = ? + `SLEEP` (?) WHERE `id` = ? 
-db	test
-full_scan	
-exec_count	2
-err_count	0
-warn_count	0
-total_latency	O_UPD_TOTAL_LATENCY
-max_latency	O_UPD_MAX_LATENCY
-avg_latency	O_UPD_AVG_LATENCY
-rows_sent	0
-rows_sent_avg	0
-rows_examined	2
-rows_examined_avg	1
-first_seen	O_UPD_FIRST_SEEN
-last_seen	O_UPD_LAST_SEEN
-digest	DIGEST_UPDATE
-CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_runtimes_in_95th_percentile');;
-Next Output	Queries with Runtime in 95th Percentile
-query	UPDATE `t1` SET `val` = ? + `SLEEP` (?) WHERE `id` = ? 
-db	test
-full_scan	
-exec_count	1
-err_count	0
-warn_count	0
-total_latency	D_UPD_LATENCY
-max_latency	D_UPD_LATENCY
-avg_latency	D_UPD_LATENCY
-rows_sent	0
-rows_sent_avg	0
-rows_examined	1
-rows_examined_avg	1
-first_seen	O_UPD_FIRST_SEEN
-last_seen	O_UPD_LAST_SEEN
-digest	DIGEST_UPDATE
-CALL sys.statement_performance_analyzer('overall', NULL, 'analysis');;
-Next Output	Top 100 Queries Ordered by Total Latency
-query	UPDATE `t1` SET `val` = ? + `SLEEP` (?) WHERE `id` = ? 
-db	test
-full_scan	
-exec_count	2
-err_count	0
-warn_count	0
-total_latency	O_UPD_TOTAL_LATENCY
-max_latency	O_UPD_MAX_LATENCY
-avg_latency	O_UPD_AVG_LATENCY
-lock_latency	LOCK_LATENCY
-rows_sent	0
-rows_sent_avg	0
-rows_examined	2
-rows_examined_avg	1
-rows_affected	2
-rows_affected_avg	1
-tmp_tables	0
-tmp_disk_tables	0
-rows_sorted	0
-sort_merge_passes	0
-digest	DIGEST_UPDATE
-first_seen	O_UPD_FIRST_SEEN
-last_seen	O_UPD_LAST_SEEN
-query	SELECT `t1a` . * FROM `t1` AS  ...  , `t1a` . `id` + `SLEEP` (?) 
-db	test
-full_scan	*
-exec_count	2
-err_count	0
-warn_count	0
-total_latency	O_SEL_TOTAL_LATENCY
-max_latency	O_SEL_MAX_LATENCY
-avg_latency	O_SEL_AVG_LATENCY
-lock_latency	LOCK_LATENCY
-rows_sent	3
-rows_sent_avg	2
-rows_examined	15
-rows_examined_avg	8
-rows_affected	0
-rows_affected_avg	0
-tmp_tables	2
-tmp_disk_tables	0
-rows_sorted	3
-sort_merge_passes	0
-digest	DIGEST_SELECT
-first_seen	O_SEL_FIRST_SEEN
-last_seen	O_SEL_LAST_SEEN
-query	INSERT INTO `t1` VALUES ( ? , `SLEEP` (?) ) 
-db	test
-full_scan	
-exec_count	2
-err_count	0
-warn_count	0
-total_latency	O_INS_TOTAL_LATENCY
-max_latency	O_INS_MAX_LATENCY
-avg_latency	O_INS_AVG_LATENCY
-lock_latency	LOCK_LATENCY
-rows_sent	0
-rows_sent_avg	0
-rows_examined	0
-rows_examined_avg	0
-rows_affected	2
-rows_affected_avg	1
-tmp_tables	0
-tmp_disk_tables	0
-rows_sorted	0
-sort_merge_passes	0
-digest	DIGEST_INSERT
-first_seen	O_INS_FIRST_SEEN
-last_seen	O_INS_LAST_SEEN
-CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'analysis');;
-Next Output	Top 100 Queries Ordered by Total Latency
-query	UPDATE `t1` SET `val` = ? + `SLEEP` (?) WHERE `id` = ? 
-db	test
-full_scan	
-exec_count	1
-err_count	0
-warn_count	0
-total_latency	D_UPD_LATENCY
-max_latency	D_UPD_LATENCY
-avg_latency	D_UPD_LATENCY
-lock_latency	LOCK_LATENCY
-rows_sent	0
-rows_sent_avg	0
-rows_examined	1
-rows_examined_avg	1
-rows_affected	1
-rows_affected_avg	1
-tmp_tables	0
-tmp_disk_tables	0
-rows_sorted	0
-sort_merge_passes	0
-digest	DIGEST_UPDATE
-first_seen	O_UPD_FIRST_SEEN
-last_seen	O_UPD_LAST_SEEN
-query	SELECT `t1a` . * FROM `t1` AS  ...  , `t1a` . `id` + `SLEEP` (?) 
-db	test
-full_scan	*
-exec_count	1
-err_count	0
-warn_count	0
-total_latency	D_SEL_LATENCY
-max_latency	D_SEL_LATENCY
-avg_latency	D_SEL_LATENCY
-lock_latency	LOCK_LATENCY
-rows_sent	2
-rows_sent_avg	2
-rows_examined	10
-rows_examined_avg	10
-rows_affected	0
-rows_affected_avg	0
-tmp_tables	1
-tmp_disk_tables	0
-rows_sorted	2
-sort_merge_passes	0
-digest	DIGEST_SELECT
-first_seen	O_SEL_FIRST_SEEN
-last_seen	O_SEL_LAST_SEEN
-query	INSERT INTO `t1` VALUES ( ? , `SLEEP` (?) ) 
-db	test
-full_scan	
-exec_count	1
-err_count	0
-warn_count	0
-total_latency	D_INS_LATENCY
-max_latency	D_INS_LATENCY
-avg_latency	D_INS_LATENCY
-lock_latency	LOCK_LATENCY
-rows_sent	0
-rows_sent_avg	0
-rows_examined	0
-rows_examined_avg	0
-rows_affected	1
-rows_affected_avg	1
-tmp_tables	0
-tmp_disk_tables	0
-rows_sorted	0
-sort_merge_passes	0
-digest	DIGEST_INSERT
-first_seen	O_INS_FIRST_SEEN
-last_seen	O_INS_LAST_SEEN
-CALL sys.statement_performance_analyzer('overall', NULL, 'with_errors_or_warnings');;
-Next Output	Top 100 Queries with Errors
-CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_errors_or_warnings');;
-Next Output	Top 100 Queries with Errors
-CALL sys.statement_performance_analyzer('overall', NULL, 'with_full_table_scans');;
-Next Output	Top 100 Queries with Full Table Scan
-query	SELECT `t1a` . * FROM `t1` AS  ...  , `t1a` . `id` + `SLEEP` (?) 
-db	test
-exec_count	2
-total_latency	O_SEL_TOTAL_LATENCY
-no_index_used_count	2
-no_good_index_used_count	0
-no_index_used_pct	100
-rows_sent	3
-rows_examined	15
-rows_sent_avg	2
-rows_examined_avg	8
-first_seen	O_SEL_FIRST_SEEN
-last_seen	O_SEL_LAST_SEEN
-digest	DIGEST_SELECT
-CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_full_table_scans');;
-Next Output	Top 100 Queries with Full Table Scan
-query	SELECT `t1a` . * FROM `t1` AS  ...  , `t1a` . `id` + `SLEEP` (?) 
-db	test
-exec_count	1
-total_latency	D_SEL_TOTAL_LATENCY
-no_index_used_count	1
-no_good_index_used_count	0
-no_index_used_pct	100
-rows_sent	2
-rows_examined	10
-rows_sent_avg	2
-rows_examined_avg	10
-first_seen	O_SEL_FIRST_SEEN
-last_seen	O_SEL_LAST_SEEN
-digest	DIGEST_SELECT
-CALL sys.statement_performance_analyzer('overall', NULL, 'with_sorting');;
-Next Output	Top 100 Queries with Sorting
-query	SELECT `t1a` . * FROM `t1` AS  ...  , `t1a` . `id` + `SLEEP` (?) 
-db	test
-exec_count	2
-total_latency	O_SEL_TOTAL_LATENCY
-sort_merge_passes	0
-avg_sort_merges	0
-sorts_using_scans	2
-sort_using_range	0
-rows_sorted	3
-avg_rows_sorted	2
-first_seen	O_SEL_FIRST_SEEN
-last_seen	O_SEL_LAST_SEEN
-digest	DIGEST_SELECT
-CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_sorting');;
-Next Output	Top 100 Queries with Sorting
-query	SELECT `t1a` . * FROM `t1` AS  ...  , `t1a` . `id` + `SLEEP` (?) 
-db	test
-exec_count	1
-total_latency	D_SEL_TOTAL_LATENCY
-sort_merge_passes	0
-avg_sort_merges	0
-sorts_using_scans	1
-sort_using_range	0
-rows_sorted	2
-avg_rows_sorted	2
-first_seen	O_SEL_FIRST_SEEN
-last_seen	O_SEL_LAST_SEEN
-digest	DIGEST_SELECT
-CALL sys.statement_performance_analyzer('overall', NULL, 'with_temp_tables');;
-Next Output	Top 100 Queries with Internal Temporary Tables
-query	SELECT `t1a` . * FROM `t1` AS  ...  , `t1a` . `id` + `SLEEP` (?) 
-db	test
-exec_count	2
-total_latency	O_SEL_TOTAL_LATENCY
-memory_tmp_tables	2
-disk_tmp_tables	0
-avg_tmp_tables_per_query	1
-tmp_tables_to_disk_pct	0
-first_seen	O_SEL_FIRST_SEEN
-last_seen	O_SEL_LAST_SEEN
-digest	DIGEST_SELECT
-CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_temp_tables');;
-Next Output	Top 100 Queries with Internal Temporary Tables
-query	SELECT `t1a` . * FROM `t1` AS  ...  , `t1a` . `id` + `SLEEP` (?) 
-db	test
-exec_count	1
-total_latency	D_SEL_TOTAL_LATENCY
-memory_tmp_tables	1
-disk_tmp_tables	0
-avg_tmp_tables_per_query	1
-tmp_tables_to_disk_pct	0
-first_seen	O_SEL_FIRST_SEEN
-last_seen	O_SEL_LAST_SEEN
-digest	DIGEST_SELECT
+DIGEST_UPDATE	2
+CALL sys.statement_performance_analyzer('overall', NULL, 'with_runtimes_in_95th_percentile');
+CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_runtimes_in_95th_percentile');
+CALL sys.statement_performance_analyzer('overall', NULL, 'analysis');
+Next Output
+QUERY_INSERT	test		2	0	0	LATENCY	LATENCY	LATENCY	LATENCY	0	0	0	0	2	1	0	0	0	0	DIGEST_INSERT	FIRST_SEEN	LAST_SEEN
+QUERY_SELECT	test	*	2	0	0	LATENCY	LATENCY	LATENCY	LATENCY	3	2	15	8	0	0	2	0	3	0	DIGEST_SELECT	FIRST_SEEN	LAST_SEEN
+QUERY_UPDATE	test		2	0	0	LATENCY	LATENCY	LATENCY	LATENCY	0	0	2	1	2	1	0	0	0	0	DIGEST_UPDATE	FIRST_SEEN	LAST_SEEN
+Top 100 Queries Ordered by Total Latency
+query	db	full_scan	exec_count	err_count	warn_count	total_latency	max_latency	avg_latency	lock_latency	rows_sent	rows_sent_avg	rows_examined	rows_examined_avg	rows_affected	rows_affected_avg	tmp_tables	tmp_disk_tables	rows_sorted	sort_merge_passes	digest	first_seen	last_seen
+CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'analysis');
+Next Output
+QUERY_INSERT	test		1	0	0	LATENCY	LATENCY	LATENCY	LATENCY	0	0	0	0	1	1	0	0	0	0	DIGEST_INSERT	FIRST_SEEN	LAST_SEEN
+QUERY_SELECT	test	*	1	0	0	LATENCY	LATENCY	LATENCY	LATENCY	2	2	10	10	0	0	1	0	2	0	DIGEST_SELECT	FIRST_SEEN	LAST_SEEN
+QUERY_UPDATE	test		1	0	0	LATENCY	LATENCY	LATENCY	LATENCY	0	0	1	1	1	1	0	0	0	0	DIGEST_UPDATE	FIRST_SEEN	LAST_SEEN
+Top 100 Queries Ordered by Total Latency
+query	db	full_scan	exec_count	err_count	warn_count	total_latency	max_latency	avg_latency	lock_latency	rows_sent	rows_sent_avg	rows_examined	rows_examined_avg	rows_affected	rows_affected_avg	tmp_tables	tmp_disk_tables	rows_sorted	sort_merge_passes	digest	first_seen	last_seen
+CALL sys.statement_performance_analyzer('overall', NULL, 'with_errors_or_warnings');
+Next Output
+Top 100 Queries with Errors
+query	db	exec_count	errors	error_pct	warnings	warning_pct	first_seen	last_seen	digest
+CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_errors_or_warnings');
+Next Output
+Top 100 Queries with Errors
+query	db	exec_count	errors	error_pct	warnings	warning_pct	first_seen	last_seen	digest
+CALL sys.statement_performance_analyzer('overall', NULL, 'with_full_table_scans');
+Next Output
+Top 100 Queries with Full Table Scan
+query	db	exec_count	total_latency	no_index_used_count	no_good_index_used_count	no_index_used_pct	rows_sent	rows_examined	rows_sent_avg	rows_examined_avg	first_seen	last_seen	digest
+QUERY_SELECT	test	2	LATENCY	2	0	100	3	15	2	8	FIRST_SEEN	LAST_SEEN	DIGEST_SELECT
+CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_full_table_scans');
+Next Output
+Top 100 Queries with Full Table Scan
+query	db	exec_count	total_latency	no_index_used_count	no_good_index_used_count	no_index_used_pct	rows_sent	rows_examined	rows_sent_avg	rows_examined_avg	first_seen	last_seen	digest
+QUERY_SELECT	test	1	LATENCY	1	0	100	2	10	2	10	FIRST_SEEN	LAST_SEEN	DIGEST_SELECT
+CALL sys.statement_performance_analyzer('overall', NULL, 'with_sorting');
+Next Output
+Top 100 Queries with Sorting
+query	db	exec_count	total_latency	sort_merge_passes	avg_sort_merges	sorts_using_scans	sort_using_range	rows_sorted	avg_rows_sorted	first_seen	last_seen	digest
+QUERY_SELECT	test	2	LATENCY	0	0	2	0	3	2	FIRST_SEEN	LAST_SEEN	DIGEST_SELECT
+CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_sorting');
+Next Output
+Top 100 Queries with Sorting
+query	db	exec_count	total_latency	sort_merge_passes	avg_sort_merges	sorts_using_scans	sort_using_range	rows_sorted	avg_rows_sorted	first_seen	last_seen	digest
+QUERY_SELECT	test	1	LATENCY	0	0	1	0	2	2	FIRST_SEEN	LAST_SEEN	DIGEST_SELECT
+CALL sys.statement_performance_analyzer('overall', NULL, 'with_temp_tables');
+Next Output
+Top 100 Queries with Internal Temporary Tables
+query	db	exec_count	total_latency	memory_tmp_tables	disk_tmp_tables	avg_tmp_tables_per_query	tmp_tables_to_disk_pct	first_seen	last_seen	digest
+QUERY_SELECT	test	2	LATENCY	2	0	1	0	FIRST_SEEN	LAST_SEEN	DIGEST_SELECT
+CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_temp_tables');
+Next Output
+Top 100 Queries with Internal Temporary Tables
+query	db	exec_count	total_latency	memory_tmp_tables	disk_tmp_tables	avg_tmp_tables_per_query	tmp_tables_to_disk_pct	first_seen	last_seen	digest
+QUERY_SELECT	test	1	LATENCY	1	0	1	0	FIRST_SEEN	LAST_SEEN	DIGEST_SELECT
 CREATE VIEW test.view_digests AS
 SELECT sys.format_statement(DIGEST_TEXT) AS query,
 SCHEMA_NAME AS db,
@@ -309,87 +93,29 @@ ROUND(IFNULL(SUM_ROWS_EXAMINED / NULLIF(COUNT_STAR, 0), 0)) AS rows_examined_avg
 ROUND(IFNULL(SUM_ROWS_AFFECTED / NULLIF(COUNT_STAR, 0), 0)) AS rows_affected_avg,
 DIGEST AS digest
 FROM performance_schema.events_statements_summary_by_digest
-ORDER BY SUM_TIMER_WAIT DESC;
+ORDER BY SUBSTRING(query, 1, 6);
 SET @sys.statement_performance_analyzer.view = 'test.view_digests';
-CALL sys.statement_performance_analyzer('overall', NULL, 'custom');;
-Next Output	Top 100 Queries Using Custom View
-query	UPDATE `t1` SET `val` = ? + `SLEEP` (?) WHERE `id` = ? 
-db	test
-exec_count	2
-total_latency	O_UPD_TOTAL_LATENCY
-avg_latency	O_UPD_AVG_LATENCY
-rows_sent_avg	0
-rows_examined_avg	1
-rows_affected_avg	1
-digest	DIGEST_UPDATE
-query	SELECT `t1a` . * FROM `t1` AS  ...  , `t1a` . `id` + `SLEEP` (?) 
-db	test
-exec_count	2
-total_latency	O_SEL_TOTAL_LATENCY
-avg_latency	O_SEL_AVG_LATENCY
-rows_sent_avg	2
-rows_examined_avg	8
-rows_affected_avg	0
-digest	DIGEST_SELECT
-query	INSERT INTO `t1` VALUES ( ? , `SLEEP` (?) ) 
-db	test
-exec_count	2
-total_latency	O_INS_TOTAL_LATENCY
-avg_latency	O_INS_AVG_LATENCY
-rows_sent_avg	0
-rows_examined_avg	0
-rows_affected_avg	1
-digest	DIGEST_INSERT
-CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'custom');;
-Next Output	Top 100 Queries Using Custom View
-query	UPDATE `t1` SET `val` = ? + `SLEEP` (?) WHERE `id` = ? 
-db	test
-exec_count	1
-total_latency	D_UPD_TOTAL_LATENCY
-avg_latency	D_UPD_TOTAL_LATENCY
-rows_sent_avg	0
-rows_examined_avg	1
-rows_affected_avg	1
-digest	DIGEST_UPDATE
-query	SELECT `t1a` . * FROM `t1` AS  ...  , `t1a` . `id` + `SLEEP` (?) 
-db	test
-exec_count	1
-total_latency	D_SEL_TOTAL_LATENCY
-avg_latency	D_SEL_TOTAL_LATENCY
-rows_sent_avg	2
-rows_examined_avg	10
-rows_affected_avg	0
-digest	DIGEST_SELECT
-query	INSERT INTO `t1` VALUES ( ? , `SLEEP` (?) ) 
-db	test
-exec_count	1
-total_latency	D_INS_TOTAL_LATENCY
-avg_latency	D_INS_TOTAL_LATENCY
-rows_sent_avg	0
-rows_examined_avg	0
-rows_affected_avg	1
-digest	DIGEST_INSERT
+CALL sys.statement_performance_analyzer('overall', NULL, 'custom');
+Next Output
+Top 100 Queries Using Custom View
+query	db	exec_count	total_latency	avg_latency	rows_sent_avg	rows_examined_avg	rows_affected_avg	digest
+QUERY_INSERT	test	2	LATENCY	LATENCY	0	0	1	DIGEST_INSERT
+QUERY_SELECT	test	2	LATENCY	LATENCY	2	8	0	DIGEST_SELECT
+QUERY_UPDATE	test	2	LATENCY	LATENCY	0	1	1	DIGEST_UPDATE
+CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'custom');
+Next Output
+Top 100 Queries Using Custom View
+query	db	exec_count	total_latency	avg_latency	rows_sent_avg	rows_examined_avg	rows_affected_avg	digest
+QUERY_INSERT	test	1	LATENCY	LATENCY	0	0	1	DIGEST_INSERT
+QUERY_SELECT	test	1	LATENCY	LATENCY	2	10	0	DIGEST_SELECT
+QUERY_UPDATE	test	1	LATENCY	LATENCY	0	1	1	DIGEST_UPDATE
 SET @sys.statement_performance_analyzer.limit = 2;
-CALL sys.statement_performance_analyzer('overall', NULL, 'custom');;
-Next Output	Top 2 Queries Using Custom View
-query	UPDATE `t1` SET `val` = ? + `SLEEP` (?) WHERE `id` = ? 
-db	test
-exec_count	2
-total_latency	O_UPD_TOTAL_LATENCY
-avg_latency	O_UPD_AVG_LATENCY
-rows_sent_avg	0
-rows_examined_avg	1
-rows_affected_avg	1
-digest	DIGEST_UPDATE
-query	SELECT `t1a` . * FROM `t1` AS  ...  , `t1a` . `id` + `SLEEP` (?) 
-db	test
-exec_count	2
-total_latency	O_SEL_TOTAL_LATENCY
-avg_latency	O_SEL_AVG_LATENCY
-rows_sent_avg	2
-rows_examined_avg	8
-rows_affected_avg	0
-digest	DIGEST_SELECT
+CALL sys.statement_performance_analyzer('overall', NULL, 'custom');
+Next Output
+Top 2 Queries Using Custom View
+query	db	exec_count	total_latency	avg_latency	rows_sent_avg	rows_examined_avg	rows_affected_avg	digest
+QUERY_INSERT	test	2	LATENCY	LATENCY	0	0	1	DIGEST_INSERT
+QUERY_SELECT	test	2	LATENCY	LATENCY	2	8	0	DIGEST_SELECT
 SET SESSION sql_mode = 'NO_AUTO_CREATE_USER';
 CALL sys.statement_performance_analyzer('do magic', NULL, NULL);
 ERROR 45000: Unknown action. Supported actions are: cleanup, create_table, create_tmp, delta, overall, save, snapshot
