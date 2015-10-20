@@ -357,8 +357,14 @@ SysTablespace::check_size(
 	os_offset_t	size = os_file_get_size(file.m_handle);
 	ut_a(size != (os_offset_t) -1);
 
-	/* Round size downward to megabytes */
-	ulint	rounded_size_pages = (ulint) (size >> UNIV_PAGE_SIZE_SHIFT);
+	/* Under some error conditions like disk full scenarios
+	or file size reaching filesystem limit the data file
+	could contain an incomplete extent at the end. When we
+	extend a data file and if some failure happens, then
+	also the data file could contain an incomplete extent.
+	So we need to round the size downward to a  megabyte.*/
+
+	ulint	rounded_size_pages = get_pages_from_size(size);
 
 	/* If last file */
 	if (&file == &m_files.back() && m_auto_extend_last_file) {
