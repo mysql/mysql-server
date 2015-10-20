@@ -2661,6 +2661,21 @@ sub environment_setup {
                                  "$path_client_bindir/replace");
   $ENV{'REPLACE'}= native_path($exe_replace);
 
+  # ----------------------------------------------------
+  # lz4_decompress
+  # ----------------------------------------------------
+  my $exe_lz4_decompress= mtr_exe_exists(vs_config_dirs('extra', 'lz4_decompress'),
+                                 "$basedir/extra/lz4_decompress",
+                                 "$path_client_bindir/lz4_decompress");
+  $ENV{'LZ4_DECOMPRESS'}= native_path($exe_lz4_decompress);
+
+  # ----------------------------------------------------
+  # zlib_decompress
+  # ----------------------------------------------------
+  my $exe_zlib_decompress= mtr_exe_exists(vs_config_dirs('extra', 'zlib_decompress'),
+                                 "$basedir/extra/zlib_decompress",
+                                 "$path_client_bindir/zlib_decompress");
+  $ENV{'ZLIB_DECOMPRESS'}= native_path($exe_zlib_decompress);
 
   # Create an environment variable to make it possible
   # to detect that valgrind is being used from test cases
