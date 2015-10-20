@@ -383,7 +383,7 @@ SET(SQL_GUNIT_LIB_SOURCE
 IF(WIN32)
   LIST(APPEND SQL_GUNIT_LIB_SOURCE ${CMAKE_SOURCE_DIR}/sql/named_pipe.cc)
 ENDIF()
-ADD_LIBRARY(sqlgunitlib ${SQL_GUNIT_LIB_SOURCE})
+ADD_CONVENIENCE_LIBRARY(sqlgunitlib ${SQL_GUNIT_LIB_SOURCE})
 ADD_DEPENDENCIES(sqlgunitlib GenError)
 
 ## Merging tests into fewer executables saves *a lot* of
