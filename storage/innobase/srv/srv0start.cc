@@ -147,6 +147,9 @@ static const ulint SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
 #define SRV_N_PENDING_IOS_PER_THREAD	OS_AIO_N_PENDING_IOS_PER_THREAD
 #define SRV_MAX_N_PENDING_SYNC_IOS	100
 
+/** The round off to MB is similar as done in srv_parse_megabytes() */
+#define CALC_NUMBER_OF_PAGES(size)  ((size) / (1024 * 1024)) * \
+				  ((1024 * 1024) / (UNIV_PAGE_SIZE))
 #ifdef UNIV_PFS_THREAD
 /* Keys to register InnoDB threads with performance schema */
 UNIV_INTERN mysql_pfs_key_t	io_handler_thread_key;
@@ -958,10 +961,16 @@ open_or_create_data_files(
 size_check:
 			size = os_file_get_size(files[i]);
 			ut_a(size != (os_offset_t) -1);
-			/* Round size downward to megabytes */
 
-			rounded_size_pages = (ulint)
-				(size >> UNIV_PAGE_SIZE_SHIFT);
+			/* Under some error conditions like disk full
+			narios or file size reaching filesystem
+			limit the data file could contain an incomplete
+			extent at the end. When we extend a data file
+			and if some failure happens, then also the data
+			file could contain an incomplete extent.  So we
+			need to round the size downward to a megabyte.*/
+
+			rounded_size_pages = (ulint) CALC_NUMBER_OF_PAGES(size);
 
 			if (i == srv_n_data_files - 1
 			    && srv_auto_extend_last_data_file) {
