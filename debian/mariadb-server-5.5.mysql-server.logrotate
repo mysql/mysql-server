@@ -2,7 +2,7 @@
 #   flush-logs'd only once.
 #   Else the binary logs would automatically increase by n times every day.
 # - The error log is obsolete, messages go to syslog now.
-/var/log/mysql.log /var/log/mysql/mysql.log /var/log/mysql/mysql-slow.log {
+/var/log/mysql.log /var/log/mysql/mysql.log /var/log/mysql/mariadb-slow.log {
 	daily
 	rotate 7
 	missingok
