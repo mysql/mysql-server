@@ -247,7 +247,7 @@
 
   CREATE TABLE t1 ( OXID varchar(32) COLLATE latin1_german2_ci NOT NULL DEFAULT '', OXPARENTID varchar(32) COLLATE latin1_german2_ci NOT NULL DEFAULT 'oxrootid', OXLEFT int NOT NULL DEFAULT '0', OXRIGHT int NOT NULL DEFAULT '0', OXROOTID varchar(32) COLLATE latin1_german2_ci NOT NULL DEFAULT '', PRIMARY KEY  (OXID), KEY OXNID (OXID), KEY OXLEFT (OXLEFT), KEY OXRIGHT (OXRIGHT), KEY OXROOTID (OXROOTID) ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_german2_ci ;
   INSERT INTO t1 VALUES ('d8c4177d09f8b11f5.52725521','oxrootid',1,40,'d8c4177d09f8b11f5.52725521'), ('d8c4177d151affab2.81582770','d8c4177d09f8b11f5.52725521',2,3, 'd8c4177d09f8b11f5.52725521'), ('d8c4177d206a333d2.74422679','d8c4177d09f8b11f5.52725521',4,5, 'd8c4177d09f8b11f5.52725521'), ('d8c4177d225791924.30714720','d8c4177d09f8b11f5.52725521',6,7, 'd8c4177d09f8b11f5.52725521'), ('d8c4177d2380fc201.39666693','d8c4177d09f8b11f5.52725521',8,9, 'd8c4177d09f8b11f5.52725521'), ('d8c4177d24ccef970.14957924','d8c4177d09f8b11f5.52725521',10,11, 'd8c4177d09f8b11f5.52725521') ;
-  let $replace=/"rows_produced_per_join": 24/"rows_produced_per_join": 25/ ;
+  let $replace=/"rows_produced_per_join": 5/"rows_produced_per_join": 4/ /"data_read_per_join": "560"/"data_read_per_join": "559"/;
   let $point=   before_reset_query_plan;let $query=  SELECT s.oxid FROM t1 v, t1 s  WHERE s.oxrootid = 'd8c4177d09f8b11f5.52725521' AND v.oxrootid ='d8c4177d09f8b11f5.52725521' AND s.oxleft > v.oxleft AND s.oxleft < v.oxright ;
   --source include/explain_for_connection.inc
   let $replace=;
