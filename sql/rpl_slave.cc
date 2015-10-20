@@ -200,6 +200,7 @@ static int process_io_rotate(Master_info* mi, Rotate_log_event* rev);
 static int process_io_create_file(Master_info* mi, Create_file_log_event* cev);
 static bool wait_for_relay_log_space(Relay_log_info* rli);
 static inline bool io_slave_killed(THD* thd,Master_info* mi);
+static inline bool is_autocommit_off_and_infotables(THD* thd);
 static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type);
 static void print_slave_skip_errors(void);
 static int safe_connect(THD* thd, MYSQL* mysql, Master_info* mi);
@@ -1140,14 +1141,14 @@ int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
     transaction start to avoid table access deadlocks when START SLAVE
     is executed after RESET SLAVE.
   */
-  if (thd && thd->in_multi_stmt_transaction_mode() &&
-      (opt_mi_repository_id == INFO_REPOSITORY_TABLE ||
-       opt_rli_repository_id == INFO_REPOSITORY_TABLE))
+  if (is_autocommit_off_and_infotables(thd))
+  {
     if (trans_begin(thd))
     {
       init_error= 1;
       goto end;
     }
+  }
 
   /*
     This takes care of the startup dependency between the master_info
@@ -1176,15 +1177,15 @@ int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
       init_error= 1;
   }
 
+  DBUG_EXECUTE_IF("enable_mts_worker_failure_init",
+                  {DBUG_SET("+d,mts_worker_thread_init_fails");});
 end:
   /*
     When info tables are used and autocommit= 0 we force transaction
     commit to avoid table access deadlocks when START SLAVE is executed
     after RESET SLAVE.
   */
-  if (thd && thd->in_multi_stmt_transaction_mode() &&
-      (opt_mi_repository_id == INFO_REPOSITORY_TABLE ||
-       opt_rli_repository_id == INFO_REPOSITORY_TABLE))
+  if (is_autocommit_off_and_infotables(thd))
     if (trans_commit(thd))
       init_error= 1;
 
@@ -1966,6 +1967,24 @@ void delete_slave_info_objects()
   channel_map.unlock();
 
   DBUG_VOID_RETURN;
+}
+
+/**
+   Check if multi-statement transaction mode and master and slave info
+   repositories are set to table.
+
+   @param THD    THD object
+
+   @retval true  Success
+   @retval false Failure
+*/
+static bool is_autocommit_off_and_infotables(THD* thd)
+{
+  DBUG_ENTER("is_autocommit_off_and_infotables");
+  DBUG_RETURN((thd && thd->in_multi_stmt_transaction_mode() &&
+               (opt_mi_repository_id == INFO_REPOSITORY_TABLE ||
+                opt_rli_repository_id == INFO_REPOSITORY_TABLE))?
+              true : false);
 }
 
 static bool io_slave_killed(THD* thd, Master_info* mi)
@@ -6060,6 +6079,7 @@ bool mts_recovery_groups(Relay_log_info *rli)
   LOG_INFO linfo;
   my_off_t offset= 0;
   MY_BITMAP *groups= &rli->recovery_groups;
+  THD *thd= current_thd;
 
   DBUG_ENTER("mts_recovery_groups");
 
@@ -6112,13 +6132,26 @@ bool mts_recovery_groups(Relay_log_info *rli)
     above_lwm_jobs(PSI_NOT_INSTRUMENTED);
   above_lwm_jobs.reserve(rli->recovery_parallel_workers);
 
+  /*
+    When info tables are used and autocommit= 0 we force a new
+    transaction start to avoid table access deadlocks when START SLAVE
+    is executed after STOP SLAVE with MTS enabled.
+  */
+  if (is_autocommit_off_and_infotables(thd))
+    if (trans_begin(thd))
+      goto err;
+
   for (uint id= 0; id < rli->recovery_parallel_workers; id++)
   {
     Slave_worker *worker=
       Rpl_info_factory::create_worker(opt_rli_repository_id, id, rli, true);
 
     if (!worker)
+    {
+      if (is_autocommit_off_and_infotables(thd))
+        trans_rollback(thd);
       goto err;
+    }
 
     LOG_POS_COORD w_last= { const_cast<char*>(worker->get_group_master_log_name()),
                             worker->get_group_master_log_pos() };
@@ -6144,6 +6177,15 @@ bool mts_recovery_groups(Relay_log_info *rli)
       delete worker;
     }
   }
+
+  /*
+    When info tables are used and autocommit= 0 we force transaction
+    commit to avoid table access deadlocks when START SLAVE is executed
+    after STOP SLAVE with MTS enabled.
+  */
+  if (is_autocommit_off_and_infotables(thd))
+    if (trans_commit(thd))
+      goto err;
 
   /*
     In what follows, the group Recovery Bitmap is constructed.
