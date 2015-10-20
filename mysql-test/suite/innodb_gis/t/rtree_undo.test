@@ -10,7 +10,7 @@ connect (con1,localhost,root,,);
 connection default;
 
 let $row_format = DYNAMIC;
-let $prefix_size = 3072;
+let $prefix_size = 767;
 
 let $index = spatial_none;
 --source include/innodb_gis_undo.inc
