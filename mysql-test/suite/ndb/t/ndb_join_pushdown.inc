@@ -2971,7 +2971,6 @@ connection ddl;
 create index i1 on t1(c,a);
 
 connection spj;
-explain select count(*) from t1 t1, t1 t2 where t1.c = 12 and t1.a = 11 and t2.a = t1.d and t2.b = t1.d;
 
 select count(*) from t1 t1, t1 t2 where t1.c = 12 and t1.a = 11 and t2.a = t1.d and t2.b = t1.d; 
 
@@ -2992,7 +2991,6 @@ connection ddl;
 create index i2 on t1(a,b);
 
 connection spj;
-explain select count(*) from t1 t1, t1 t2 where t1.a = 11 and t1.b<13 and t2.a = t1.c and t2.b = t1.c;
 select count(*) from t1 t1, t1 t2 where t1.a = 11 and t1.b<13 and t2.a = t1.c and t2.b = t1.c; 
 
 --disable_query_log
@@ -3002,7 +3000,6 @@ let $old_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_c
 --enable_query_log
 
 # Should give pruned scan. Upper and lower bounds for t1.a are the sane. 
-explain select count(*) from t1 t1, t1 t2 where t1.a >= 12 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c;
 select count(*) from t1 t1, t1 t2 where t1.a >= 12 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c; 
 
 --disable_query_log
@@ -3012,7 +3009,6 @@ let $old_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_c
 --enable_query_log
 
 # Should not give pruned scan. Upper and lower bounds for t1.a are different. 
-explain select count(*) from t1 t1, t1 t2 where t1.a >= 11 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c;
 select count(*) from t1 t1, t1 t2 where t1.a >= 11 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c; 
 
 --disable_query_log
@@ -3023,8 +3019,6 @@ let $old_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_c
 
 # Should not give pruned scan. There will be two sets of bounds that have
 # different distribution keys (t1.a=10 and t1.a=12). 
---replace_column 10 # 11 #
-explain select count(*) from t1 t1, t1 t2 where (t1.a = 10 or t1.a=12) and t1.b<13 and t2.a = t1.c and t2.b = t1.c;
 select count(*) from t1 t1, t1 t2 where (t1.a = 10 or t1.a=12) and t1.b<13 and t2.a = t1.c and t2.b = t1.c; 
 
 --disable_query_log
@@ -3036,7 +3030,6 @@ let $old_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_c
 # Should give pruned scan. There will be two sets of bounds, but they have the
 # same distribution key.
 
-explain select count(*) from t1 t1, t1 t2 where t1.a = 10 and (t1.b<11 or t1.b>11) and t2.a = t1.c and t2.b = t1.c;
 select count(*) from t1 t1, t1 t2 where t1.a = 10 and (t1.b<11 or t1.b>11) and t2.a = t1.c and t2.b = t1.c; 
 
 --disable_query_log

@@ -4467,12 +4467,6 @@ insert into t1(a,b,c,d) values (10, 10, 11, 11);
 insert into t1(a,b,c,d) values (11, 11, 12, 12);
 insert into t1(a,b,c,d) values (12, 12, 13, 13);
 create index i1 on t1(c,a);
-explain select count(*) from t1 t1, t1 t2 where t1.c = 12 and t1.a = 11 and t2.a = t1.d and t2.b = t1.d;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p3	ref	PRIMARY,i1	i1	8	const,const	3	100.00	Parent of 2 pushed join@1
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t1.d,test.t1.d	1	100.00	Child of 't1' in pushed join@1
-Warnings:
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`a` = `test`.`t1`.`d`) and (`test`.`t2`.`b` = `test`.`t1`.`d`) and (`test`.`t1`.`a` = 11) and (`test`.`t1`.`c` = 12))
 select count(*) from t1 t1, t1 t2 where t1.c = 12 and t1.a = 11 and t2.a = t1.d and t2.b = t1.d;
 count(*)
 1
@@ -4480,56 +4474,26 @@ drop index i1 on t1;
 pruned_scan_count
 1
 create index i2 on t1(a,b);
-explain select count(*) from t1 t1, t1 t2 where t1.a = 11 and t1.b<13 and t2.a = t1.c and t2.b = t1.c;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p3	range	PRIMARY,i2	i2	8	NULL	3	100.00	Parent of 2 pushed join@1; Using where with pushed condition ((`test`.`t1`.`a` = 11) and (`test`.`t1`.`b` < 13))
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY,i2	PRIMARY	8	test.t1.c,test.t1.c	1	100.00	Child of 't1' in pushed join@1
-Warnings:
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`a` = `test`.`t1`.`c`) and (`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t1`.`a` = 11) and (`test`.`t1`.`b` < 13))
 select count(*) from t1 t1, t1 t2 where t1.a = 11 and t1.b<13 and t2.a = t1.c and t2.b = t1.c;
 count(*)
 1
 pruned_scan_count
 1
-explain select count(*) from t1 t1, t1 t2 where t1.a >= 12 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p3	range	PRIMARY,i2	i2	4	NULL	3	100.00	Parent of 2 pushed join@1; Using where with pushed condition ((`test`.`t1`.`a` >= 12) and (`test`.`t1`.`a` <= 12))
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY,i2	PRIMARY	8	test.t1.c,test.t1.c	1	100.00	Child of 't1' in pushed join@1
-Warnings:
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`a` = `test`.`t1`.`c`) and (`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t1`.`a` >= 12) and (`test`.`t1`.`a` <= 12))
 select count(*) from t1 t1, t1 t2 where t1.a >= 12 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c;
 count(*)
 0
 pruned_scan_count
 1
-explain select count(*) from t1 t1, t1 t2 where t1.a >= 11 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p3	range	PRIMARY,i2	i2	4	NULL	3	100.00	Parent of 2 pushed join@1; Using where with pushed condition ((`test`.`t1`.`a` >= 11) and (`test`.`t1`.`a` <= 12))
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY,i2	PRIMARY	8	test.t1.c,test.t1.c	1	100.00	Child of 't1' in pushed join@1
-Warnings:
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`a` = `test`.`t1`.`c`) and (`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t1`.`a` >= 11) and (`test`.`t1`.`a` <= 12))
 select count(*) from t1 t1, t1 t2 where t1.a >= 11 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c;
 count(*)
 1
 pruned_scan_count
 0
-explain select count(*) from t1 t1, t1 t2 where (t1.a = 10 or t1.a=12) and t1.b<13 and t2.a = t1.c and t2.b = t1.c;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p3	range	PRIMARY,i2	i2	8	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition (((`test`.`t1`.`a` = 10) or (`test`.`t1`.`a` = 12)) and (`test`.`t1`.`b` < 13))
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY,i2	PRIMARY	8	test.t1.c,test.t1.c	#	#	Child of 't1' in pushed join@1
-Warnings:
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`a` = `test`.`t1`.`c`) and (`test`.`t2`.`b` = `test`.`t1`.`c`) and ((`test`.`t1`.`a` = 10) or (`test`.`t1`.`a` = 12)) and (`test`.`t1`.`b` < 13))
 select count(*) from t1 t1, t1 t2 where (t1.a = 10 or t1.a=12) and t1.b<13 and t2.a = t1.c and t2.b = t1.c;
 count(*)
 1
 pruned_scan_count
 2
-explain select count(*) from t1 t1, t1 t2 where t1.a = 10 and (t1.b<11 or t1.b>11) and t2.a = t1.c and t2.b = t1.c;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0	range	PRIMARY,i2	i2	8	NULL	6	100.00	Parent of 2 pushed join@1; Using where with pushed condition ((`test`.`t1`.`a` = 10) and ((`test`.`t1`.`b` < 11) or (`test`.`t1`.`b` > 11)))
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY,i2	PRIMARY	8	test.t1.c,test.t1.c	1	100.00	Child of 't1' in pushed join@1
-Warnings:
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`a` = `test`.`t1`.`c`) and (`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t1`.`a` = 10) and ((`test`.`t1`.`b` < 11) or (`test`.`t1`.`b` > 11)))
 select count(*) from t1 t1, t1 t2 where t1.a = 10 and (t1.b<11 or t1.b>11) and t2.a = t1.c and t2.b = t1.c;
 count(*)
 1
@@ -6282,7 +6246,7 @@ where new.variable_name = old.variable_name
 order by new.variable_name;
 variable_name	new.variable_value - old.variable_value
 NDB_PRUNED_SCAN_COUNT	11
-NDB_PUSHED_QUERIES_DEFINED	428
+NDB_PUSHED_QUERIES_DEFINED	422
 NDB_PUSHED_QUERIES_DROPPED	13
 NDB_SORTED_SCAN_COUNT	93
 drop table server_counts_at_startup;
