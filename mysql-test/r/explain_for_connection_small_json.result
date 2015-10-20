@@ -411,7 +411,7 @@ Diff: EXPLAIN NORMAL vs OTHER
            "rows_examined_per_scan": 6,
 -          "rows_produced_per_join": 4,
 -          "filtered": "16.67",
-+          "rows_produced_per_join": 25,
++          "rows_produced_per_join": 24,
 +          "filtered": "83.33",
 +          "using_where": true,
            "using_join_buffer": "Block Nested Loop",
