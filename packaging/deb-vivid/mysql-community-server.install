@@ -32,6 +32,8 @@ usr/bin/perror
 usr/bin/replace
 usr/bin/resolveip
 usr/bin/resolve_stack_dump
+usr/bin/lz4_decompress
+usr/bin/zlib_decompress
 usr/sbin/mysqld
 # debug binary
 usr/sbin/mysqld-debug

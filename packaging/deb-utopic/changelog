@@ -1,3 +1,11 @@
+mysql-community (5.7.10-1ubuntu14.10) utopic; urgency=low
+
+  * new upstream release
+  * Added new decompression utilities lz4_decompress and zlib_decompress binaries.
+    (Closes: #21644479)
+
+ -- Bharathy Satish <bharathy.x.satish@oracle.com>  Mon, 19 Oct 2015 15:20:12 +0530
+
 mysql-community (5.7.9-1ubuntu14.10) utopic; urgency=low
 
   [ Akhil Mohan ]
