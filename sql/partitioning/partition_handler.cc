@@ -1533,6 +1533,12 @@ int Partition_helper::check_misplaced_rows(uint read_part_id, bool repair)
   {
     /* Only need to read the partitioning fields. */
     bitmap_union(m_table->read_set, &m_part_info->full_part_field_set);
+    /* Fill the base columns of virtual generated columns if necessary */
+    for (Field **ptr= m_part_info->full_part_field_array; *ptr; ptr++)
+    {
+      if ((*ptr)->is_virtual_gcol())
+        m_table->mark_gcol_in_maps(*ptr);
+    }
   }
 
   if ((result= rnd_init_in_part(read_part_id, true)))
@@ -1540,7 +1546,7 @@ int Partition_helper::check_misplaced_rows(uint read_part_id, bool repair)
 
   while (true)
   {
-    if ((result= rnd_next_in_part(read_part_id, m_table->record[0])))
+    if ((result= ph_rnd_next_in_part(read_part_id, m_table->record[0])))
     {
       if (result == HA_ERR_RECORD_DELETED)
         continue;
@@ -1707,6 +1713,31 @@ int Partition_helper::check_misplaced_rows(uint read_part_id, bool repair)
 
   int tmp_result= rnd_end_in_part(read_part_id, true);
   DBUG_RETURN(result ? result : tmp_result);
+}
+
+/**
+  Read next row during full partition scan (scan in random row order).
+
+  This function can evaluate the virtual generated columns. If virtual
+  generated columns are involved, you should not call rnd_next_in_part
+  directly but this one.
+
+  @param         part_id  Partition to read from.
+  @param[in,out] buf      buffer that should be filled with data.
+
+  @return Operation status.
+    @retval    0  Success
+    @retval != 0  Error code
+*/
+
+int Partition_helper::ph_rnd_next_in_part(uint part_id, uchar *buf)
+{
+  int result= rnd_next_in_part(part_id, buf);
+
+  if (!result && m_table->has_gcol())
+    result= update_generated_read_fields(buf, m_table);
+
+  return result;
 }
 
 
