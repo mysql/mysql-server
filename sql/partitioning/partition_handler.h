@@ -896,6 +896,7 @@ private:
     @see class handler.
   */
   virtual int rnd_init_in_part(uint part_id, bool table_scan) = 0;
+  int ph_rnd_next_in_part(uint part_id, uchar *buf);
   virtual int rnd_next_in_part(uint part_id, uchar *buf) = 0;
   virtual int rnd_end_in_part(uint part_id, bool scan) = 0;
   virtual void position_in_last_part(uchar *ref, const uchar *row) = 0;
