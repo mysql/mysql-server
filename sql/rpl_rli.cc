@@ -354,15 +354,32 @@ bool Relay_log_info::mts_finalize_recovery()
     even temporary holes. Therefore stale records are deleted
     from the tail.
   */
+  DBUG_EXECUTE_IF("enable_mts_wokrer_failure_in_recovery_finalize",
+                  {DBUG_SET("+d,mts_worker_thread_init_fails");});
   for (i= recovery_parallel_workers; i > workers.size() && !ret; i--)
   {
     Slave_worker *w=
       Rpl_info_factory::create_worker(repo_type, i - 1, this, true);
-    ret= w->remove_info();
-    delete w;
+    /*
+      If an error occurs during the above create_worker call, the newly created
+      worker object gets deleted within the above function call itself and only
+      NULL is returned. Hence the following check has been added to verify
+      that a valid worker object exists.
+    */
+    if (w)
+    {
+      ret= w->remove_info();
+      delete w;
+    }
+    else
+    {
+      ret= true;
+      goto err;
+    }
   }
   recovery_parallel_workers= slave_parallel_workers;
 
+err:
   DBUG_RETURN(ret);
 }
 

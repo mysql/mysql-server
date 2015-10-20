@@ -447,8 +447,19 @@ Slave_worker *Rpl_info_factory::create_worker(uint rli_option, uint worker_id,
   if (decide_repository(worker, rli_option, &handler_src, &handler_dest, &msg))
     goto err;
 
-  if (worker->rli_init_info(is_gaps_collecting_phase))
+  if (DBUG_EVALUATE_IF("mts_worker_thread_init_fails", 1, 0) ||
+      worker->rli_init_info(is_gaps_collecting_phase))
   {
+    DBUG_EXECUTE_IF("enable_mts_worker_failure_init",
+                    {
+                      DBUG_SET("-d,mts_worker_thread_init_fails");
+                      DBUG_SET("-d,enable_mts_worker_failure_init");
+                    });
+    DBUG_EXECUTE_IF("enable_mts_wokrer_failure_in_recovery_finalize",
+                    {
+                      DBUG_SET("-d,mts_worker_thread_init_fails");
+                      DBUG_SET("-d,enable_mts_wokrer_failure_in_recovery_finalize");
+                    });
     msg= "Failed to initialize the worker info structure";
     goto err;
   }
