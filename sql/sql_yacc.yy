@@ -423,7 +423,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %lex-param { class THD *YYTHD }
 %pure-parser                                    /* We have threads */
 /* We should not introduce new conflicts any more. */
-%expect 126
+%expect 125
 
 /*
    Comments for TOKENS.
@@ -1116,6 +1116,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %left SUBQUERY_AS_EXPR
 %left '(' ')'
 
+%left EMPTY_FROM_CLAUSE
+%right INTO
+
 %type <lex_str>
         IDENT IDENT_QUOTED TEXT_STRING DECIMAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM
         LEX_HOSTNAME ULONGLONG_NUM field_ident select_alias ident ident_or_text
@@ -1470,7 +1473,7 @@ END_OF_INPUT
 
 %type <select_options_and_item_list> select_options_and_item_list
 
-%type <select_part2> select_part2 query_specification select_statement_single_row
+%type <select_part2> select_part2 query_specification
 
 %type <query_primary> query_primary
 
@@ -1484,7 +1487,7 @@ END_OF_INPUT
 
 %type <derived_table> derived_table
 
-%type <select> select do_stmt
+%type <select> select do_stmt select_into
 
 %type <param_marker> param_marker
 
@@ -8908,55 +8911,53 @@ select:
             $1->set_parentheses();
             $$= NEW_PTN PT_select($1);
           }
-        | query_expression into
-          {
-            if ($1->has_procedure() && $2 != NULL)
-            {
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "INTO");
-              MYSQL_YYABORT;
-            }
-            $$= NEW_PTN PT_select($1, $2);
-          }
-        | select_statement_single_row
-          opt_order_clause
-          opt_limit_clause
-          opt_procedure_analyse_clause
-          opt_select_lock_type
-          {
-            if ($1->has_into_clause() && $4 != NULL)
-            {
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "INTO");
-              MYSQL_YYABORT;
-            }
-            PT_query_specification *qs= NEW_PTN PT_query_specification($1);
-            PT_query_expression_body *qeb=
-              NEW_PTN PT_query_expression_body_primary(qs);
-            PT_query_expression *qe=
-              NEW_PTN PT_query_expression(qeb, $2, @$, $3, $4, $5);
-            $$= NEW_PTN PT_select(qe);
-          }
+        | select_into
         ;
 
-select_statement_single_row:
-          SELECT_SYM
-          select_options_and_item_list
-          into
-          opt_from_clause
-          opt_where_clause
-          opt_group_clause
-          opt_having_clause
+/*
+  MySQL has a legacy syntax that allows multiple into clauses. They may appear
+  either before the from clause or at the end. All in a top-level select
+  statement. This makes the grammar ambiguous, because in a from-clause-less
+  select statement with into clause, it is not clear whether the into clause
+  is the leading or the trailing one.
+
+  While it's possible to write an unambiguous grammar, it would force us to
+  duplicate the entire <select statement> syntax all the way down to the <into
+  clause>. So instead we solve it by writing an ambiguous grammar and use
+  precedence rules to sort out the shift/reduce conflict.
+
+  The problem is when the parser has seen SELECT <select list>, and sees an
+  INTO token. It can now either shift it or reduce what it has to a table-less
+  query expression. If it shifts the token, it will accept seeing a FROM token
+  next and hence the INTO will be interpreted as the leading INTO. If it
+  reduces what it has seen to a table-less select, however, it will interpret
+  INTO as the trailing into. But what if the next token is FROM? Obviously,
+  we want to always shift INTO. We do this by two precedence declarations: We
+  make the INTO token right-associative, and we give it higher precedence than
+  an empty from clause, using the artificial token EMPTY_FROM_CLAUSE.
+
+  The remaining problem is that now we allow the leading INTO anywhere, when
+  it should be allowed on the top level only. We solve this by manually
+  throwing parse errors whenever we reduce a nested query expression if it
+  contains an into clause.
+*/
+select_into:
+          '(' select_into ')'
           {
-            $$= NEW_PTN PT_select_part2($2, // select_options_and_item_list
-                                        $3, // into
-                                        $4, // opt_from_clause
-                                        $5, // opt_where_clause
-                                        $6, // opt_group_clause
-                                        $7, // opt_having_clause
-                                        NULL, // opt_order_clause
-                                        NULL, // opt_limit_clause
-                                        NULL, // opt_procedure_analyse_clause
-                                        NULL, // second into
-                                        Select_lock_type()); // opt_select_lock_type
+            $$= $2;
+          }
+        | query_expression into
+          {
+            if ($1->has_into_clause())
+              YYTHD->parse_error_at(@2, ER_THD(YYTHD, ER_SYNTAX_ERROR));
+
+            if ($1->has_procedure())
+            {
+              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "INTO");
+              MYSQL_YYABORT;
+            }
+
+            $$= NEW_PTN PT_select($1, $2);
           }
         ;
 
@@ -8981,6 +8982,13 @@ query_expression:
           {
             if ($1->is_union() && $4 != NULL)
               my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
+
+            if ($1->has_into_clause() && $4 != NULL)
+            {
+              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "INTO");
+              MYSQL_YYABORT;
+            }
+
             $$= NEW_PTN PT_query_expression($1, $2, @$, $3, $4, $5);
           }
         | query_expression_parens order_clause opt_limit_clause
@@ -9121,24 +9129,26 @@ select_part2:
 // todo: consolidate
 query_specification:
           select_options_and_item_list
-          opt_where_clause              /* $3 */
-          opt_group_clause              /* $4 */
-          opt_having_clause             /* $5 */
+          into
+          opt_from_clause
+          opt_where_clause              /* $4 */
+          opt_group_clause              /* $5 */
+          opt_having_clause             /* $6 */
           {
             $$= NEW_PTN PT_select_part2($1,   // 1 select_options_and_item_list
-                                        NULL, // 2 into
-                                        NULL, // 3 from
-                                        $2, // 4 where
-                                        $3, // 5 group
-                                        $4, // 6 having
-                                        NULL,   // 7 order
-                                        NULL,   // 8 limit
+                                        $2,   // 2 into
+                                        $3,   // 3 from
+                                        $4,   // 4 where
+                                        $5,   // 5 group
+                                        $6,   // 6 having
+                                        NULL, // 7 order
+                                        NULL, // 8 limit
                                         NULL, // 9 procedure
                                         NULL, // 10 into
                                         Select_lock_type());// 11 lock type
           }
         | select_options_and_item_list  /* $1 */
-          from_clause                   /* $2 */
+          opt_from_clause               /* $2 */
           opt_where_clause              /* $3 */
           opt_group_clause              /* $4 */
           opt_having_clause             /* $5 */
@@ -9149,8 +9159,8 @@ query_specification:
                                         $3,   // 3 where
                                         $4,   // 4 group
                                         $5,   // 5 having
-                                        NULL,   // 6 order
-                                        NULL,   // 7 limit
+                                        NULL, // 6 order
+                                        NULL, // 7 limit
                                         NULL, //   procedure
                                         NULL, //   into
                                         Select_lock_type());//   lock type
@@ -9196,7 +9206,7 @@ from_clause:
         ;
 
 opt_from_clause:
-          /* empty */ { $$= NULL; }
+          /* empty */ %prec EMPTY_FROM_CLAUSE { $$= NULL; }
         | from_clause
         ;
 
@@ -14803,6 +14813,9 @@ table_subquery:
 subquery:
           query_expression_parens %prec SUBQUERY_AS_EXPR
           {
+            if ($1->has_into_clause())
+              YYTHD->parse_error_at(@1, ER_THD(YYTHD, ER_SYNTAX_ERROR));
+
             $$= NEW_PTN PT_subquery(@$, $1);
           }
         ;

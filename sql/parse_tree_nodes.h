@@ -900,6 +900,7 @@ class PT_query_expression_body : public Parse_tree_node
 public:
   virtual bool is_union() const = 0;
   virtual void set_containing_qe(PT_query_expression *qe) {}
+  virtual bool has_into_clause() const = 0;
 };
 
 
@@ -1917,8 +1918,6 @@ public:
   PT_limit_clause *limit_clause() const { return opt_limit_clause; }
   PT_order *order_clause() const { return opt_order_clause; }
 
-  bool has_into_clause() const { return opt_into1 != NULL; }
-
   virtual PT_order *remove_order_clause()
   {
     PT_order *order= opt_order_clause;
@@ -1934,6 +1933,8 @@ public:
   }
 
   virtual bool contextualize(Parse_context *pc);
+
+  virtual bool has_into_clause() const { return opt_into1 != NULL; }
 };
 
 
@@ -2029,6 +2030,8 @@ public:
   bool has_limit() const { return m_limit != NULL; }
 
   bool is_union() const { return m_body->is_union(); }
+
+  bool has_into_clause() const { return m_body->has_into_clause(); }
 
   /**
     Callback for deeper nested query expressions.
@@ -2166,6 +2169,8 @@ private:
 
 class PT_query_primary : public Parse_tree_node
 {
+public:
+  virtual bool has_into_clause() const = 0;
 };
 
 class PT_query_specification : public PT_query_primary
@@ -2202,6 +2207,11 @@ public:
     return m_select_part2->remove_limit_clause();
   }
 
+  virtual bool has_into_clause() const
+  {
+    return m_select_part2->has_into_clause();
+  }
+
 private:
   PT_hint_list *m_hints;
   PT_select_part2 *m_select_part2;
@@ -2223,6 +2233,11 @@ public:
   }
 
   virtual bool is_union() const { return false; }
+
+  virtual bool has_into_clause() const
+  {
+    return m_query_primary->has_into_clause();
+  }
 
 private:
   PT_query_primary *m_query_primary;
@@ -2283,6 +2298,11 @@ public:
 
   virtual bool is_nested() const { return false; }
 
+  virtual bool has_into_clause() const
+  {
+    return m_lhs->has_into_clause() || m_rhs->has_into_clause();
+  }
+
 private:
   PT_query_expression *m_lhs;
   bool m_is_distinct;
@@ -2308,6 +2328,8 @@ public:
 
     return result;
   }
+
+  bool has_into_clause() const { return m_qe->has_into_clause(); }
 
 private:
   PT_query_expression *m_qe;

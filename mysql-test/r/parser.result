@@ -817,7 +817,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT 1 FROM t1 INTO @var17727401 UNION SELECT 1 FROM t1 INTO t1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 FROM t1 INTO t1' at line 1
 (SELECT 1 FROM t1 INTO @var17727401) UNION (SELECT 1 FROM t1 INTO t1);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var17727401) UNION (SELECT 1 FROM t1 INTO t1)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION (SELECT 1 FROM t1 INTO t1)' at line 1
 SELECT 1 FROM t1 UNION SELECT 1 FROM t1 INTO @var17727401;
 Warnings:
 Warning	1329	No data - zero rows fetched, selected, or processed
@@ -1615,7 +1615,7 @@ DROP TABLE t1, t2, t3, t4;
 CREATE TABLE t1 (a INT);
 EXPLAIN SELECT 1 FROM (SELECT 1 FROM t1) t;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1`
 DROP TABLE t1;
@@ -1667,3 +1667,61 @@ ERROR HY000: View's SELECT contains a 'INTO' clause
 CREATE VIEW v1 AS SELECT 1 FROM ( SELECT 1 FROM t1 ) my_table;
 DROP TABLE t1, t2, t3, t4, t5;
 DROP VIEW v1;
+CREATE TABLE t1( a INT );
+INSERT INTO t1 VALUES (1);
+SELECT 1 INTO @v;
+(SELECT 1 INTO @v);
+((SELECT 1 INTO @v));
+SELECT 1 FROM t1 INTO @v;
+(SELECT 1 FROM t1 INTO @v);
+((SELECT 1 FROM t1 INTO @v));
+SELECT 1 FROM t1 INTO @v UNION SELECT 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1' at line 1
+(SELECT 1 FROM t1 INTO @v) UNION SELECT 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1' at line 1
+SELECT 1 FROM t1 INTO @v UNION (SELECT 1);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION (SELECT 1)' at line 1
+((SELECT 1 FROM t1 INTO @v) UNION (SELECT 1));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION (SELECT 1))' at line 1
+SELECT 1 INTO @v UNION SELECT 1;
+ERROR HY000: Incorrect usage of UNION and INTO
+(SELECT 1 INTO @v) UNION SELECT 1;
+ERROR HY000: Incorrect usage of UNION and INTO
+SELECT 1 INTO @v UNION (SELECT 1);
+ERROR HY000: Incorrect usage of UNION and INTO
+((SELECT 1 INTO @v) UNION (SELECT 1));
+ERROR HY000: Incorrect usage of UNION and INTO
+SELECT 1 UNION SELECT 2 INTO @v;
+ERROR 42000: Result consisted of more than one row
+(SELECT 1) UNION SELECT 2 INTO @v;
+ERROR 42000: Result consisted of more than one row
+(SELECT 1) UNION (SELECT 2 INTO @v);
+ERROR 42000: Result consisted of more than one row
+((SELECT 1) UNION (SELECT 2 INTO @v));
+ERROR 42000: Result consisted of more than one row
+SELECT 1 UNION SELECT 2 INTO @v FROM t1;
+ERROR 42000: Result consisted of more than one row
+(SELECT 1) UNION SELECT 2 INTO @v FROM t1;
+ERROR 42000: Result consisted of more than one row
+(SELECT 1) UNION (SELECT 2 INTO @v FROM t1);
+ERROR 42000: Result consisted of more than one row
+((SELECT 1) UNION (SELECT 2 INTO @v FROM t1));
+ERROR 42000: Result consisted of more than one row
+SELECT 1 UNION SELECT 1 INTO @v FROM t1;
+(SELECT 1) UNION SELECT 1 INTO @v FROM t1;
+(SELECT 1) UNION (SELECT 1 INTO @v FROM t1);
+((SELECT 1) UNION (SELECT 1 INTO @v FROM t1));
+SELECT 1 UNION SELECT 2 INTO OUTFILE 'parser.test.file1';
+SELECT 1 UNION (SELECT 2 INTO OUTFILE 'parser.test.file2');
+(SELECT 1) UNION SELECT 2 INTO OUTFILE 'parser.test.file3';
+(SELECT 1) UNION (SELECT 2 INTO OUTFILE 'parser.test.file4');
+((SELECT 1) UNION (SELECT 2 INTO OUTFILE 'parser.test.file5'));
+SELECT * FROM (SELECT a INTO @v FROM t1) t1a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT a INTO @v FROM t1) t1a' at line 1
+SELECT * FROM (SELECT a INTO @v) t1a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT a INTO @v) t1a' at line 1
+SELECT 1 PROCEDURE ANALYSE() INTO @v;
+ERROR HY000: Incorrect usage of PROCEDURE and INTO
+(SELECT 1 PROCEDURE ANALYSE() INTO @v);
+ERROR HY000: Incorrect usage of PROCEDURE and INTO
+DROP TABLE t1;

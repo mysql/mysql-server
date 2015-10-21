@@ -161,6 +161,8 @@ BEGIN
 SELECT /*+ MAX_EXECUTION_TIME(1) */ SLEEP(1.5) INTO @a;
 RETURN 1;
 END|
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
 DROP FUNCTION f1|
 CREATE FUNCTION f1() RETURNS INT
 BEGIN
@@ -216,6 +218,8 @@ SELECT /*+ MAX_EXECUTION_TIME(1) */ SLEEP(2) into @b;
 INSERT INTO t2 VALUES(@a);
 INSERT INTO t2 VALUES(@b);
 END|
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
 # Wait until at least one instance of event is executed.
 SELECT /*+ MAX_EXECUTION_TIME(3600000) */ * FROM t2;
 f1
@@ -232,6 +236,8 @@ SELECT /*+ MAX_EXECUTION_TIME(1) */ SLEEP(2) into @b;
 INSERT INTO t3 VALUES(@a);
 INSERT INTO t3 VALUES(@b);
 END|
+Warnings:
+Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
 DROP TRIGGER t1_before_trigger|
 CREATE TRIGGER t1_before_trigger BEFORE INSERT ON t1 FOR EACH ROW
 BEGIN
