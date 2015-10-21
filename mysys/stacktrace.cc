@@ -485,15 +485,24 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
 void my_write_core(int unused)
 {
   char path[MAX_PATH];
-  char dump_fname[MAX_PATH]= "core.dmp";
+  // See comment below for clarification about size of dump_fname
+  char dump_fname[MAX_PATH + 1 + 10 + 4 + 1]= "core.dmp";
 
   if(!exception_ptrs)
     return;
 
   if(GetModuleFileName(NULL, path, sizeof(path)))
   {
-    _splitpath(path, NULL, NULL,dump_fname,NULL);
-    strncat(dump_fname, ".dmp", sizeof(dump_fname));
+    char module_name[MAX_PATH];
+    _splitpath(path, NULL, NULL, module_name,NULL);
+    // max length of a value being placed to dump_fname is
+    // MAX_PATH + 1 byte for '.' + up to 10 bytes for string
+    // representation of DWORD value + 4 bytes for .dmp suffix +
+    // 1 byte for termitated \0. Such size of output buffer guarantees
+    // that there is enough space to place a result of string formatting
+    // performed by _snprintf().
+    _snprintf(dump_fname, sizeof(dump_fname), "%s.%u.dmp",
+              module_name, GetCurrentProcessId());
   }
   my_create_minidump(dump_fname, 0, 0);
 }
