@@ -8978,7 +8978,7 @@ query_expression:
           query_expression_body opt_order_clause opt_limit_clause
           {
             $$= NEW_PTN PT_query_expression($1, $2, $3);
-          } 
+          }
         ;
 
 query_expression_body:
