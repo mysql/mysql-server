@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -98,9 +98,8 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
 ENDIF()
 
 IF(UNIX)
-  MYSQL_ADD_EXECUTABLE(resolve_stack_dump resolve_stack_dump.c)
+  MYSQL_ADD_EXECUTABLE(resolve_stack_dump resolve_stack_dump.cc)
   TARGET_LINK_LIBRARIES(resolve_stack_dump mysys mysys_ssl)
-  SET_TARGET_PROPERTIES(resolve_stack_dump PROPERTIES LINKER_LANGUAGE CXX)
 
   MYSQL_ADD_EXECUTABLE(mysql_waitpid mysql_waitpid.c)
   TARGET_LINK_LIBRARIES(mysql_waitpid mysys mysys_ssl)
