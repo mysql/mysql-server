@@ -1,0 +1,14 @@
+#
+# Bug #21968191 FAILING ASSERTION: !FIELD->PREFIX_LEN ||
+# FIELD->FIXED_LEN == FIELD->PREFIX_LEN
+#
+create table t(
+a char(236) character set utf32,
+b blob,
+c blob,
+d int,
+e int,
+key (a(229),c(190),e,d,b(167))
+) engine=innodb;
+insert into t values();
+drop table t;
