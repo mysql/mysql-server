@@ -4604,16 +4604,36 @@ int mysqld_main(int argc, char **argv)
 #ifndef _WIN32
   if ((user_info= check_user(mysqld_user)))
   {
-    /* need to change the owner of the freshly created data directory */
-    if (unlikely(opt_initialize)
 #if HAVE_CHOWN
-        && chown(mysql_real_data_home, user_info->pw_uid, user_info->pw_gid)
-#endif
-       )
+    if (unlikely(opt_initialize))
     {
-      sql_print_error("Can't change data directory owner to %s", mysqld_user);
-      unireg_abort(1);
+      /* need to change the owner of the freshly created data directory */
+      MY_STAT stat;
+      char errbuf[MYSYS_STRERROR_SIZE];
+      bool must_chown= true;
+
+      /* fetch the directory's owner */
+      if (!my_stat(mysql_real_data_home, &stat, MYF(0)))
+      {
+        sql_print_information("Can't read data directory's stats (%d): %s."
+                              "Assuming that it's not owned by the same user/group",
+                              my_errno(),
+                              my_strerror(errbuf, sizeof(errbuf), my_errno()));
+      }
+      /* Don't change it if it's already the same as SElinux stops this */
+      else if(stat.st_uid == user_info->pw_uid &&
+              stat.st_gid == user_info->pw_gid)
+        must_chown= false;
+
+      if (must_chown &&
+          chown(mysql_real_data_home, user_info->pw_uid, user_info->pw_gid)
+         )
+      {
+        sql_print_error("Can't change data directory owner to %s", mysqld_user);
+        unireg_abort(1);
+      }
     }
+#endif
 
 
 #if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
