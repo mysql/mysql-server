@@ -121,13 +121,27 @@ bool Partition_share::init_auto_inc_mutex(TABLE_SHARE *table_share)
 }
 
 
+/**
+  Release reserved auto increment values not used.
+  @param thd             Thread.
+  @param table_share     Table Share
+  @param next_insert_id  Next insert id (first non used auto inc value).
+  @param max_reserved    End of reserved auto inc range.
+*/
 void
-Partition_share::release_auto_inc_if_possible(THD *thd,
+Partition_share::release_auto_inc_if_possible(THD *thd, TABLE_SHARE *table_share,
                                               const ulonglong next_insert_id,
                                               const ulonglong max_reserved)
 {
   DBUG_ASSERT(auto_inc_mutex);
-  mysql_mutex_assert_owner(auto_inc_mutex);
+
+#ifndef DBUG_OFF
+  if (table_share->tmp_table == NO_TMP_TABLE)
+  {
+    mysql_mutex_assert_owner(auto_inc_mutex);
+  }
+#endif /* DBUG_OFF */
+
   /*
     If the current auto_increment values is lower than the reserved value (1)
     and the reserved value was reserved by this thread (2), then we can
@@ -209,7 +223,8 @@ bool Partition_share::populate_partition_name_hash(partition_info *part_info)
   if (my_hash_init(&partition_name_hash,
                    system_charset_info, tot_names, 0, 0,
                    (my_hash_get_key) get_part_name_from_def,
-                   my_free, HASH_UNIQUE))
+                   my_free, HASH_UNIQUE,
+                   key_memory_Partition_share))
   {
     my_free(partition_names);
     partition_names= NULL;
@@ -896,7 +911,7 @@ void Partition_helper::ph_release_auto_increment()
   {
     ulonglong max_reserved= m_handler->auto_inc_interval_for_cur_row.maximum();
     lock_auto_increment();
-    m_part_share->release_auto_inc_if_possible(get_thd(),
+    m_part_share->release_auto_inc_if_possible(get_thd(), m_table->s,
                                                m_handler->next_insert_id,
                                                max_reserved);
     DBUG_PRINT("info", ("part_share->next_auto_inc_val: %lu",
@@ -1488,7 +1503,7 @@ error:
 /**
   Check/fix misplaced rows.
 
-  @param part_id  Partition to check/fix.
+  @param read_part_id  Partition to check/fix.
   @param repair   If true, move misplaced rows to correct partition.
 
   @return Operation status.
@@ -1518,6 +1533,12 @@ int Partition_helper::check_misplaced_rows(uint read_part_id, bool repair)
   {
     /* Only need to read the partitioning fields. */
     bitmap_union(m_table->read_set, &m_part_info->full_part_field_set);
+    /* Fill the base columns of virtual generated columns if necessary */
+    for (Field **ptr= m_part_info->full_part_field_array; *ptr; ptr++)
+    {
+      if ((*ptr)->is_virtual_gcol())
+        m_table->mark_gcol_in_maps(*ptr);
+    }
   }
 
   if ((result= rnd_init_in_part(read_part_id, true)))
@@ -1525,7 +1546,7 @@ int Partition_helper::check_misplaced_rows(uint read_part_id, bool repair)
 
   while (true)
   {
-    if ((result= rnd_next_in_part(read_part_id, m_table->record[0])))
+    if ((result= ph_rnd_next_in_part(read_part_id, m_table->record[0])))
     {
       if (result == HA_ERR_RECORD_DELETED)
         continue;
@@ -1694,6 +1715,31 @@ int Partition_helper::check_misplaced_rows(uint read_part_id, bool repair)
   DBUG_RETURN(result ? result : tmp_result);
 }
 
+/**
+  Read next row during full partition scan (scan in random row order).
+
+  This function can evaluate the virtual generated columns. If virtual
+  generated columns are involved, you should not call rnd_next_in_part
+  directly but this one.
+
+  @param         part_id  Partition to read from.
+  @param[in,out] buf      buffer that should be filled with data.
+
+  @return Operation status.
+    @retval    0  Success
+    @retval != 0  Error code
+*/
+
+int Partition_helper::ph_rnd_next_in_part(uint part_id, uchar *buf)
+{
+  int result= rnd_next_in_part(part_id, buf);
+
+  if (!result && m_table->has_gcol())
+    result= update_generated_read_fields(buf, m_table);
+
+  return result;
+}
+
 
 /** Set used partitions bitmap from Alter_info.
 
@@ -1760,7 +1806,7 @@ bool Partition_helper::print_admin_msg(THD* thd,
   msgbuf[len - 1] = 0; // healthy paranoia
 
 
-  if (!thd->vio_ok())
+  if (!thd->get_protocol()->connection_alive())
   {
     sql_print_error("%s", msgbuf);
     goto err;
@@ -1797,8 +1843,6 @@ err:
 
 /**
   Set table->read_set taking partitioning expressions into account.
-
-  @param[in]	rnd_init	True if called from rnd_init (else index_init).
 */
 
 inline
@@ -1831,6 +1875,12 @@ void Partition_helper::set_partition_read_set()
         calculate the partition id to place updated and deleted records.
       */
       bitmap_union(m_table->read_set, &m_part_info->full_part_field_set);
+    }
+    // Mark virtual generated columns writable
+    for (Field **vf= m_table->vfield; vf && *vf; vf++)
+    {
+      if (bitmap_is_set(m_table->read_set, (*vf)->field_index))
+        bitmap_set_bit(m_table->write_set, (*vf)->field_index);
     }
   }
 }
@@ -2895,9 +2945,17 @@ int Partition_helper::ph_read_range_first(const key_range *start_key,
                                        bool eq_range_arg,
                                        bool sorted)
 {
-  int error;
+  int error= HA_ERR_END_OF_FILE;
   bool have_start_key= (start_key != NULL);
+  uint part_id= m_part_info->get_first_used_partition();
   DBUG_ENTER("Partition_helper::ph_read_range_first");
+
+  if (part_id == MY_BIT_NONE)
+  {
+    /* No partition to scan. */
+    m_table->status= STATUS_NOT_FOUND;
+    DBUG_RETURN(error);
+  }
 
   m_ordered= sorted;
   set_eq_range(eq_range_arg);
@@ -3031,7 +3089,7 @@ int Partition_helper::partition_scan_set_up(uchar * buf, bool idx_read_flag)
   perform any sort.
 
   @param[out] buf        Read row in MySQL Row Format.
-  @param[in]  next_same  Called from index_next_same.
+  @param[in]  is_next_same  Called from index_next_same.
 
   @return Operation status.
     @retval HA_ERR_END_OF_FILE  End of scan
@@ -3467,7 +3525,7 @@ int Partition_helper::handle_ordered_index_scan_key_not_found()
   Common routine to handle index_next with ordered results.
 
   @param[out] buf        Read row in MySQL Row Format.
-  @param[in]  next_same  Called from index_next_same.
+  @param[in]  is_next_same  Called from index_next_same.
 
   @return Operation status.
     @retval HA_ERR_END_OF_FILE  End of scan

@@ -184,8 +184,9 @@ btr_cur_search_to_nth_level(
 				to protect the record! */
 	btr_cur_t*	cursor, /*!< in/out: tree cursor; the cursor page is
 				s- or x-latched, but see also above! */
-	ulint		has_search_latch,/*!< in: latch mode the caller
-				currently has on btr_search_latch:
+	ulint		has_search_latch,
+				/*!< in: latch mode the caller
+				currently has on search system:
 				RW_S_LATCH, or 0 */
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line where called */
@@ -204,7 +205,7 @@ should be used only for cases where-in latching is not needed.
 			to search the position.
 @param[in,out]	cursor	tree cursor; points to record of interest.
 @param[in]	file	file name
-@param[in[	line	line where called from
+@param[in]	line	line where called from
 @param[in,out]	mtr	mtr
 @param[in]	mark_dirty
 			if true then mark the block as dirty */
@@ -391,7 +392,11 @@ btr_cur_update_in_place(
 	const upd_t*	update,	/*!< in: update vector */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
-	que_thr_t*	thr,	/*!< in: query thread */
+	que_thr_t*	thr,	/*!< in: query thread, or NULL if
+				flags & (BTR_NO_LOCKING_FLAG
+				| BTR_NO_UNDO_LOG_FLAG
+				| BTR_CREATE_FLAG
+				| BTR_KEEP_SYS_FLAG) */
 	trx_id_t	trx_id,	/*!< in: transaction id */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction; if this
 				is a secondary index, the caller must
@@ -434,7 +439,11 @@ btr_cur_optimistic_update(
 				contain trx id and roll ptr fields */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
-	que_thr_t*	thr,	/*!< in: query thread */
+	que_thr_t*	thr,	/*!< in: query thread, or NULL if
+				flags & (BTR_NO_UNDO_LOG_FLAG
+				| BTR_NO_LOCKING_FLAG
+				| BTR_CREATE_FLAG
+				| BTR_KEEP_SYS_FLAG) */
 	trx_id_t	trx_id,	/*!< in: transaction id */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction; if this
 				is a secondary index, the caller must
@@ -470,7 +479,11 @@ btr_cur_pessimistic_update(
 				be appended to this. */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
-	que_thr_t*	thr,	/*!< in: query thread */
+	que_thr_t*	thr,	/*!< in: query thread, or NULL if
+				flags & (BTR_NO_UNDO_LOG_FLAG
+				| BTR_NO_LOCKING_FLAG
+				| BTR_CREATE_FLAG
+				| BTR_KEEP_SYS_FLAG) */
 	trx_id_t	trx_id,	/*!< in: transaction id */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction; must be committed
 				before latching any further pages */
@@ -490,6 +503,7 @@ btr_cur_del_mark_set_clust_rec(
 	dict_index_t*	index,	/*!< in: clustered index of the record */
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec) */
 	que_thr_t*	thr,	/*!< in: query thread */
+	const dtuple_t*	entry,	/*!< in: dtuple for the deleting record */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 	__attribute__((warn_unused_result));
 /***********************************************************//**
@@ -941,6 +955,10 @@ struct btr_cur_t {
 					record if that record is on a
 					different leaf page! (See the note in
 					row_ins_duplicate_error_in_clust.) */
+	ulint		up_bytes;	/*!< number of matched bytes to the
+					right at the time cursor positioned;
+					only used internally in searches: not
+					defined after the search */
 	ulint		low_match;	/*!< if search mode was PAGE_CUR_LE,
 					the number of matched fields to the
 					first user record AT THE CURSOR or
@@ -949,6 +967,10 @@ struct btr_cur_t {
 					NOT defined for PAGE_CUR_GE or any
 					other search modes; see also the NOTE
 					in up_match! */
+	ulint		low_bytes;	/*!< number of matched bytes to the
+					left at the time cursor positioned;
+					only used internally in searches: not
+					defined after the search */
 	ulint		n_fields;	/*!< prefix length used in a hash
 					search if hash_node != NULL */
 	ulint		n_bytes;	/*!< hash prefix bytes if hash_node !=
@@ -1015,6 +1037,182 @@ it means that the externally stored field was inherited from an
 earlier version of the row.  In rollback we are not allowed to free an
 inherited external field. */
 #define BTR_EXTERN_INHERITED_FLAG	64
+
+/** The struct 'blobref_t' represents an external field reference. The
+reference in a field for which data is stored on a different page.  The
+reference is at the end of the 'locally' stored part of the field.  'Locally'
+means storage in the index record. We store locally a long enough prefix of
+each column so that we can determine the ordering parts of each index record
+without looking into the externally stored part. */
+struct blobref_t {
+
+	/** Constructor.
+	@param[in]	ptr	Pointer to the external field reference. */
+	blobref_t(byte*	ptr): m_ref(ptr) {
+	}
+
+	/** Check whether the stored external field reference is equal to the
+	given field reference.
+	@param[in]	ptr	supplied external field reference. */
+	bool equals(const byte*	ptr) const {
+		return(m_ref == ptr);
+	}
+
+	/** Set the external field reference to the given memory location.
+	@param[in]	ptr	the new external field reference. */
+	void set_blobref(byte* ptr) {
+		m_ref = ptr;
+	}
+
+	/** The maximum size possible for an externally stored field data */
+	static const ulint MAX_BLOB_SIZE = UINT32_MAX;
+
+	/** Initialize the external field reference to zeroes. */
+	void zero() {
+		memset(m_ref, 0x00, BTR_EXTERN_FIELD_REF_SIZE);
+	}
+
+	/** Check if the field reference is make of zeroes.
+	@return true if field reference is made of zeroes, false otherwise. */
+	bool is_zero() const {
+		return(memcmp(field_ref_zero, m_ref, BTR_EXTERN_FIELD_REF_SIZE) == 0);
+	}
+
+	/** Set the ownership flag in the blob reference.
+	@param[in]	owner	whether to own or disown.  if owner, unset
+				the owner flag.
+	@param[in]	mtr	the mini-transaction or NULL.
+	*/
+	void set_owner(bool owner, mtr_t* mtr = NULL)
+	{
+		ulint byte_val = mach_read_from_1(m_ref + BTR_EXTERN_LEN);
+
+		if (owner) {
+			// owns the blob
+			byte_val &= ~BTR_EXTERN_OWNER_FLAG;
+		} else {
+			byte_val |= BTR_EXTERN_OWNER_FLAG;
+		}
+
+		mlog_write_ulint(m_ref + BTR_EXTERN_LEN,
+				 byte_val, MLOG_1BYTE, mtr);
+	}
+
+	/** Set the inherited flag in the field reference. */
+	void set_inherited(bool inherited, mtr_t* mtr = NULL)
+	{
+		ulint byte_val = mach_read_from_1(m_ref + BTR_EXTERN_LEN);
+
+		if (inherited) {
+			byte_val |= BTR_EXTERN_INHERITED_FLAG;
+		} else {
+			byte_val &= ~BTR_EXTERN_INHERITED_FLAG;
+		}
+
+		mlog_write_ulint(m_ref + BTR_EXTERN_LEN,
+				 byte_val, MLOG_1BYTE, mtr);
+	}
+
+	/** Check if the current row is the owner of the blob.
+	@return true if owner, false otherwise. */
+	bool is_owner() const
+	{
+		const ulint byte_val = mach_read_from_1(
+			m_ref + BTR_EXTERN_LEN);
+		return !(byte_val & BTR_EXTERN_OWNER_FLAG);
+	}
+
+	/** Check if the current row inherited the blob from parent row.
+	@return true if inherited, false otherwise. */
+	bool is_inherited() const
+	{
+		const ulint byte_val = mach_read_from_1(
+			m_ref + BTR_EXTERN_LEN);
+		return (byte_val & BTR_EXTERN_INHERITED_FLAG);
+	}
+
+	/** Read the space id from the blob reference.
+	@return the space id */
+	ulint space_id() const
+	{
+		return(mach_read_from_4(m_ref));
+	}
+
+	/** Read the page no from the blob reference.
+	@return the page no */
+	ulint page_no() const
+	{
+		return(mach_read_from_4(m_ref + BTR_EXTERN_PAGE_NO));
+	}
+
+	/** Read the offset of blob header from the blob reference.
+	@return the offset of the blob header */
+	ulint offset() const
+	{
+		return(mach_read_from_4(m_ref + BTR_EXTERN_OFFSET));
+	}
+
+	/** Read the length from the blob reference.
+	@return length of the blob */
+	ulint length() const
+	{
+		return(mach_read_from_4(m_ref + BTR_EXTERN_LEN + 4));
+	}
+
+	/** Update the information stored in the external field reference.
+	@param[in]	space_id	the space identifier.
+	@param[in]	page_no		the page number.
+	@param[in]	offset		the offset within the page_no
+	@param[in]	mtr		the mini trx or NULL. */
+	void update(ulint space_id, ulint page_no, ulint offset,
+		    mtr_t* mtr = NULL)
+	{
+		set_space_id(space_id, mtr);
+		set_page_no(page_no, mtr);
+		set_offset(offset, mtr);
+	}
+
+	/** Set the space_id in the external field reference.
+	@param[in]	space_id	the space identifier.
+	@param[in]	mtr		mini-trx or NULL. */
+	void set_space_id(const ulint space_id, mtr_t* mtr = NULL)
+	{
+		mlog_write_ulint(m_ref + BTR_EXTERN_SPACE_ID,
+				 space_id, MLOG_4BYTES, mtr);
+	}
+
+	/** Set the page number in the external field reference.
+	@param[in]	page_no	the page number .
+	@param[in]	mtr	mini-trx or NULL. */
+	void set_page_no(const ulint page_no, mtr_t* mtr = NULL)
+	{
+		mlog_write_ulint(m_ref + BTR_EXTERN_PAGE_NO,
+				 page_no, MLOG_4BYTES, mtr);
+	}
+
+	/** Set the offset information in the external field reference.
+	@param[in]	offset	the offset.
+	@param[in]	mtr	mini-trx or NULL. */
+	void set_offset(const ulint offset, mtr_t* mtr = NULL)
+	{
+		mlog_write_ulint(m_ref + BTR_EXTERN_OFFSET,
+				 offset, MLOG_4BYTES, mtr);
+	}
+
+	/** Set the length of blob in the external field reference.
+	@param[in]	len	the blob length .
+	@param[in]	mtr	mini-trx or NULL. */
+	void set_length(const ulint len, mtr_t* mtr = NULL)
+	{
+		ut_ad(len <= MAX_BLOB_SIZE);
+		mlog_write_ulint(m_ref + BTR_EXTERN_LEN + 4,
+				 len, MLOG_4BYTES, mtr);
+	}
+
+private:
+	/** Pointing to a memory of size BTR_EXTERN_FIELD_REF_SIZE */
+	byte	*m_ref;
+};
 
 /** Number of searches down the B-tree in btr_cur_search_to_nth_level(). */
 extern ulint	btr_cur_n_non_sea;

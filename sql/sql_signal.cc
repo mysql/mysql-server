@@ -18,7 +18,6 @@
 #include "mysqld_error.h"      // ER_*
 #include "derror.h"            // ER_THD
 #include "item.h"              // Item
-#include "mysqld.h"            // error_message_charset_info
 #include "sp_pcontext.h"       // sp_condition_value
 #include "sp_rcontext.h"       // sp_rcontext
 #include "sql_class.h"         // THD

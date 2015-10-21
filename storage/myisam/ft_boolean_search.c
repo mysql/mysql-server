@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -827,13 +827,16 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
 
   /* black magic ON */
   if ((int) _mi_check_index(info, ftb->keynr) < 0)
-    return my_errno;
+    return my_errno();
   if (_mi_readinfo(info, F_RDLCK, 1))
-    return my_errno;
+    return my_errno();
   /* black magic OFF */
 
   if (!ftb->queue.elements)
-    return my_errno=HA_ERR_END_OF_FILE;
+  {
+    set_my_errno(HA_ERR_END_OF_FILE);
+    return HA_ERR_END_OF_FILE;
+  }
 
   /* Attention!!! Address of a local variable is used here! See err: label */
   ftb->queue.first_cmp_arg=(void *)&curdoc;
@@ -846,7 +849,7 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
     {
       if (unlikely(_ftb_climb_the_tree(ftb, ftbw, 0)))
       {
-        my_errno= HA_ERR_OUT_OF_MEM;
+        set_my_errno(HA_ERR_OUT_OF_MEM);
         goto err;
       }
 
@@ -876,17 +879,17 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
         if (ftb->with_scan &&
             ft_boolean_find_relevance(ftb,(uchar*) record,0)==0)
             continue; /* no match */
-        my_errno=0;
+        set_my_errno(0);
         goto err;
       }
       goto err;
     }
   }
   ftb->state=INDEX_DONE;
-  my_errno=HA_ERR_END_OF_FILE;
+  set_my_errno(HA_ERR_END_OF_FILE);
 err:
   ftb->queue.first_cmp_arg=(void *)0;
-  return my_errno;
+  return my_errno();
 }
 
 

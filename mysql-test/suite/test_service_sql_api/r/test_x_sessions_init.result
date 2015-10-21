@@ -1,0 +1,81 @@
+##########################################
+# Run plugin
+##########################################
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+ID	root	HOST_NAME	test	Query	TIME	starting	SHOW PROCESSLIST
+INSTALL PLUGIN test_x_sessions_init SONAME 'libtest_x_sessions_init.so';
+SHOW VARIABLES LIKE '%test_x_session%';
+Variable_name	Value
+test_x_sessions_init_nb_sessions	5
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+ID	root	HOST_NAME	test	Query	TIME	starting	SHOW PROCESSLIST
+##########################################
+# Stop plugin
+##########################################
+UNINSTALL PLUGIN test_x_sessions_init;
+##########################################
+# Plugin log
+##########################################
+========================================================================
+Test in a server thread
+srv_session_open 0
+srv_session_open 1
+srv_session_open 2
+srv_session_open 3
+srv_session_open 4
+Number of threads of this plugin: 0
+Number of threads of all (NULL) plugins: 0
+srv_session_close 4
+srv_session_close 3
+srv_session_close 2
+srv_session_close 1
+srv_session_close 0
+srv_session_open 0
+srv_session_open 1
+srv_session_open 2
+srv_session_open 3
+srv_session_open 4
+Number of open sessions: 5
+srv_session_close 0
+srv_session_close 1
+srv_session_close 2
+srv_session_close 3
+srv_session_close 4
+Number of open sessions: 0
+Number of threads: 0
+Follows threaded run
+========================================================================
+init thread
+srv_session_open 0
+srv_session_open 1
+srv_session_open 2
+srv_session_open 3
+srv_session_open 4
+Number of threads of this plugin: 1
+Number of threads of all (NULL) plugins: 1
+srv_session_close 4
+srv_session_close 3
+srv_session_close 2
+srv_session_close 1
+srv_session_close 0
+deinit thread
+========================================================================
+init thread
+srv_session_open 0
+srv_session_open 1
+srv_session_open 2
+srv_session_open 3
+srv_session_open 4
+Number of open sessions: 5
+srv_session_close 0
+srv_session_close 1
+srv_session_close 2
+srv_session_close 3
+srv_session_close 4
+Number of open sessions: 0
+deinit thread
+========================================================================
+init thread
+deinit thread

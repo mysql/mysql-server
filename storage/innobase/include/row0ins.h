@@ -93,7 +93,10 @@ row_ins_clust_index_entry_low(
 	ulint		n_uniq,	/*!< in: 0 or index->n_uniq */
 	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
-	que_thr_t*	thr,	/*!< in: query thread or NULL */
+	que_thr_t*	thr,	/*!< in: query thread,  or NULL if
+				flags & (BTR_NO_LOCKING_FLAG
+				| BTR_NO_UNDO_LOG_FLAG) and a duplicate
+				can't occur */
 	bool		dup_chk_only)
 				/*!< in: if true, just do duplicate check
 				and return. don't execute actual insert. */
@@ -137,31 +140,6 @@ row_ins_index_entry_set_vals(
 	dtuple_t*		entry,
 	const dtuple_t*		row);
 
-/***************************************************************//**
-Tries to insert the externally stored fields (off-page columns)
-of a clustered index entry.
-@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-dberr_t
-row_ins_index_entry_big_rec_func(
-/*=============================*/
-	const dtuple_t*		entry,	/*!< in/out: index entry to insert */
-	const big_rec_t*	big_rec,/*!< in: externally stored fields */
-	ulint*			offsets,/*!< in/out: rec offsets */
-	mem_heap_t**		heap,	/*!< in/out: memory heap */
-	dict_index_t*		index,	/*!< in: index */
-	const char*		file,	/*!< in: file name of caller */
-#ifndef DBUG_OFF
-	const void*		thd,	/*!< in: connection, or NULL */
-#endif /* DBUG_OFF */
-	ulint			line)	/*!< in: line number of caller */
-	__attribute__((warn_unused_result));
-#ifdef DBUG_OFF
-# define row_ins_index_entry_big_rec(e,big,ofs,heap,index,thd,file,line) \
-	row_ins_index_entry_big_rec_func(e,big,ofs,heap,index,file,line)
-#else /* DBUG_OFF */
-# define row_ins_index_entry_big_rec(e,big,ofs,heap,index,thd,file,line) \
-	row_ins_index_entry_big_rec_func(e,big,ofs,heap,index,file,thd,line)
-#endif /* DBUG_OFF */
 /***************************************************************//**
 Inserts an entry into a clustered index. Tries first optimistic,
 then pessimistic descent down the tree. If the entry matches enough

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 
 #include "my_atomic.h"
 #include "sp_head.h"
+#include "psi_memory_key.h"
 
 
 /*
@@ -49,7 +50,8 @@ public:
   sp_cache()
   {
     my_hash_init(&m_hashtable, system_charset_info, 0, 0, 0,
-                 hash_get_key_for_sp_head, hash_free_sp_head, 0);
+                 hash_get_key_for_sp_head, hash_free_sp_head, 0,
+                 key_memory_sp_cache);
   }
 
   ~sp_cache()

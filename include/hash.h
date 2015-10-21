@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* Dynamic hashing of record with different key-length */
+/**
+  @file include/hash.h
+  Dynamic hashing of record with different key-length.
+*/
 
 #ifndef _hash_h
 #define _hash_h
@@ -69,23 +72,26 @@ typedef struct st_hash {
   void (*free)(void *);
   CHARSET_INFO *charset;
   my_hash_function hash_function;
+  PSI_memory_key m_psi_key;
 } HASH;
 
 /* A search iterator state */
 typedef uint HASH_SEARCH_STATE;
 
-#define my_hash_init(A,B,C,D,E,F,G,H) \
-          _my_hash_init(A,0,B,NULL,C,D,E,F,G,H)
-#define my_hash_init2(A,B,C,D,E,F,G,H,I) \
-          _my_hash_init(A,B,C,NULL,D,E,F,G,H,I)
-#define my_hash_init3(A,B,C,D,E,F,G,H,I,J) \
-          _my_hash_init(A,B,C,D,E,F,G,H,I,J)
+#define my_hash_init(A,B,C,D,E,F,G,H,I) \
+          _my_hash_init(A,0,B,NULL,C,D,E,F,G,H,I)
+#define my_hash_init2(A,B,C,D,E,F,G,H,I,J) \
+          _my_hash_init(A,B,C,NULL,D,E,F,G,H,I,J)
+#define my_hash_init3(A,B,C,D,E,F,G,H,I,J,K) \
+          _my_hash_init(A,B,C,D,E,F,G,H,I,J,K)
 my_bool _my_hash_init(HASH *hash, uint growth_size, CHARSET_INFO *charset,
                       my_hash_function hash_function,
                       ulong default_array_elements, size_t key_offset,
                       size_t key_length, my_hash_get_key get_key,
                       void (*free_element)(void*),
-                      uint flags);
+                      uint flags,
+                      PSI_memory_key psi_key);
+void my_hash_claim(HASH *tree);
 void my_hash_free(HASH *tree);
 void my_hash_reset(HASH *hash);
 uchar *my_hash_element(HASH *hash, ulong idx);
@@ -113,8 +119,8 @@ my_bool my_hash_check(HASH *hash); /* Only in debug library */
 
 #define my_hash_clear(H) memset((H), 0, sizeof(*(H)))
 #define my_hash_inited(H) ((H)->blength != 0)
-#define my_hash_init_opt(A,B,C,D,E,F,G,H) \
-          (!my_hash_inited(A) && _my_hash_init(A,0,B,NULL,C,D,E,F,G,H))
+#define my_hash_init_opt(A,B,C,D,E,F,G,H,I) \
+          (!my_hash_inited(A) && _my_hash_init(A,0,B,NULL,C,D,E,F,G,H,I))
 
 #ifdef	__cplusplus
 }

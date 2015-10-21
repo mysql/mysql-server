@@ -13,6 +13,11 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+/**
+  @file storage/perfschema/table_threads.cc
+  TABLE THREADS.
+*/
+
 #include "my_global.h"
 #include "my_thread.h"
 #include "table_threads.h"
@@ -47,7 +52,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     { C_STRING_WITH_LEN("PROCESSLIST_USER") },
-    { C_STRING_WITH_LEN("varchar(16)") },
+    { C_STRING_WITH_LEN("varchar(" USERNAME_CHAR_LENGTH_STR ")") },
     { NULL, 0}
   },
   {
@@ -99,12 +104,22 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("HISTORY") },
     { C_STRING_WITH_LEN("enum(\'YES\',\'NO\')") },
     { NULL, 0}
-  }
+  },
+  {
+    { C_STRING_WITH_LEN("CONNECTION_TYPE") },
+    { C_STRING_WITH_LEN("varchar(16)") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("THREAD_OS_ID") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
 };
 
 TABLE_FIELD_DEF
 table_threads::m_field_def=
-{ 15, field_types };
+{ 17, field_types };
 
 PFS_engine_table_share
 table_threads::m_share=
@@ -118,7 +133,8 @@ table_threads::m_share=
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 PFS_engine_table* table_threads::create()
@@ -151,6 +167,7 @@ void table_threads::make_row(PFS_thread *pfs)
   m_row.m_thread_internal_id= pfs->m_thread_internal_id;
   m_row.m_parent_thread_internal_id= pfs->m_parent_thread_internal_id;
   m_row.m_processlist_id= pfs->m_processlist_id;
+  m_row.m_thread_os_id= pfs->m_thread_os_id;
   m_row.m_name= safe_class->m_name;
   m_row.m_name_length= safe_class->m_name_length;
 
@@ -228,6 +245,8 @@ void table_threads::make_row(PFS_thread *pfs)
   {
     m_row.m_processlist_state_length= 0;
   }
+  m_row.m_connection_type = pfs->m_connection_type;
+
 
   m_row.m_enabled= pfs->m_enabled;
   m_row.m_history= pfs->m_history;
@@ -243,6 +262,8 @@ int table_threads::read_row_values(TABLE *table,
                                    bool read_all)
 {
   Field *f;
+  const char *str= NULL;
+  int len= 0;
 
   if (unlikely(! m_row_exists))
     return HA_ERR_RECORD_DELETED;
@@ -350,6 +371,19 @@ int table_threads::read_row_values(TABLE *table,
       case 14: /* HISTORY */
         set_field_enum(f, m_row.m_history ? ENUM_YES : ENUM_NO);
         break;
+      case 15: /* CONNECTION_TYPE */
+        get_vio_type_name(m_row.m_connection_type, & str, & len);
+        if (len > 0)
+          set_field_varchar_utf8(f, str, len);
+        else
+          f->set_null();
+        break;
+      case 16: /* THREAD_OS_ID */
+        if (m_row.m_thread_os_id > 0)
+          set_field_ulonglong(f, m_row.m_thread_os_id);
+        else
+          f->set_null();
+        break;
       default:
         DBUG_ASSERT(false);
       }
@@ -394,6 +428,9 @@ int table_threads::update_row_values(TABLE *table,
         value= (enum_yes_no) get_field_enum(f);
         m_row.m_psi->set_history((value == ENUM_YES) ? true : false);
         break;
+      case 15: /* CONNECTION_TYPE */
+      case 16: /* THREAD_OS_ID */
+        return HA_ERR_WRONG_COMMAND;
       default:
         DBUG_ASSERT(false);
       }

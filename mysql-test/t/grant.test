@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Store the time of password_last_changed column from mysql.user table
 # to restore it back later.
 let $date_to_restore=`SELECT password_last_changed from mysql.user where host='localhost'`;
@@ -456,12 +451,14 @@ CREATE TABLE mysqltest.dummytable (dummyfield INT);
 CREATE VIEW mysqltest.dummyview AS SELECT dummyfield FROM mysqltest.dummytable;
 GRANT ALL PRIVILEGES ON mysqltest.dummytable TO dummy@localhost;
 GRANT ALL PRIVILEGES ON mysqltest.dummyview TO dummy@localhost;
+--sorted_result
 SHOW GRANTS FOR dummy@localhost;
 use INFORMATION_SCHEMA;
 SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
 PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
 = '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
 FLUSH PRIVILEGES;
+--sorted_result
 SHOW GRANTS FOR dummy@localhost;
 SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
 PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
@@ -478,12 +475,14 @@ CREATE TABLE mysqltest.dummytable (dummyfield INT);
 CREATE VIEW mysqltest.dummyview AS SELECT dummyfield FROM mysqltest.dummytable;
 GRANT CREATE VIEW ON mysqltest.dummytable TO dummy@localhost;
 GRANT CREATE VIEW ON mysqltest.dummyview TO dummy@localhost;
+--sorted_result
 SHOW GRANTS FOR dummy@localhost;
 use INFORMATION_SCHEMA;
 SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
 PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
 = '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
 FLUSH PRIVILEGES;
+--sorted_result
 SHOW GRANTS FOR dummy@localhost;
 SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
 PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
@@ -498,12 +497,14 @@ CREATE TABLE mysqltest.dummytable (dummyfield INT);
 CREATE VIEW mysqltest.dummyview AS SELECT dummyfield FROM mysqltest.dummytable;
 GRANT SHOW VIEW ON mysqltest.dummytable TO dummy@localhost;
 GRANT SHOW VIEW ON mysqltest.dummyview TO dummy@localhost;
+--sorted_result
 SHOW GRANTS FOR dummy@localhost;
 use INFORMATION_SCHEMA;
 SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
 PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
 = '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
 FLUSH PRIVILEGES;
+--sorted_result
 SHOW GRANTS FOR dummy@localhost;
 SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
 PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
@@ -626,6 +627,7 @@ grant select on mysqltest.* to mysqltest_8@;
 show grants for mysqltest_8@;
 grant select on mysqltest.* to mysqltest_8;
 show grants for mysqltest_8;
+--sorted_result
 select * from  information_schema.schema_privileges
 where grantee like "'mysqltest_8'%";
 connect (conn3,localhost,mysqltest_8,,);
@@ -636,6 +638,7 @@ revoke select on mysqltest.* from mysqltest_8@'';
 revoke select on mysqltest.* from mysqltest_8;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
+--sorted_result
 select * from  information_schema.schema_privileges
 where grantee like "'mysqltest_8'%";
 flush privileges;
@@ -655,6 +658,7 @@ show grants for mysqltest_8;
 flush privileges;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
+--sorted_result
 select * from  information_schema.column_privileges;
 connect (conn4,localhost,mysqltest_8,,);
 select * from t1;
@@ -664,6 +668,7 @@ revoke update (a) on t1 from mysqltest_8@'';
 revoke update (a) on t1 from mysqltest_8;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
+--sorted_result
 select * from  information_schema.column_privileges;
 flush privileges;
 show grants for mysqltest_8@'';
@@ -677,7 +682,8 @@ show grants for mysqltest_8;
 flush privileges;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
-select * from  information_schema.table_privileges;
+--sorted_result
+select * from  information_schema.table_privileges where table_schema NOT IN ('sys');
 connect (conn5,localhost,mysqltest_8,,);
 select * from t1;
 disconnect conn5;
@@ -686,7 +692,8 @@ revoke update on t1 from mysqltest_8@'';
 revoke update on t1 from mysqltest_8;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
-select * from  information_schema.table_privileges;
+--sorted_result
+select * from  information_schema.table_privileges where table_schema NOT IN ('sys');
 flush privileges;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
@@ -699,6 +706,7 @@ grant update (a) on t1 to mysqltest_8@'';
 grant all privileges on mysqltest.* to mysqltest_8;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
+--sorted_result
 select * from  information_schema.user_privileges
 where grantee like "'mysqltest_8'%";
 connect (conn5,localhost,mysqltest_8,,);
@@ -712,6 +720,7 @@ drop user mysqltest_8@'';
 --error ER_NONEXISTING_GRANT
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
+--sorted_result
 select * from  information_schema.user_privileges
 where grantee like "'mysqltest_8'%";
 drop user mysqltest_8;
@@ -842,7 +851,7 @@ disconnect master;
 # Bug#10668 CREATE USER does not enforce username length limit
 #
 --error ER_WRONG_STRING_LENGTH
-create user mysqltest1_thisisreallytoolong;
+create user mysqltest1_thisisreallyreallyreallyreallyreallyireallyreallytoolong;
 
 #
 # Test for Bug#16899 Possible buffer overflow in handling of DEFINER-clause.
@@ -932,13 +941,13 @@ USE test;
 # Working with database-level privileges.
 
 --error ER_WRONG_STRING_LENGTH
-GRANT CREATE ON mysqltest.* TO 1234567890abcdefGHIKL@localhost;
+GRANT CREATE ON mysqltest.* TO 1234567890abcdefGHIKL1234567890abcdefGHIKL@localhost;
 
 --error ER_WRONG_STRING_LENGTH
 GRANT CREATE ON mysqltest.* TO some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
 
 --error ER_WRONG_STRING_LENGTH
-REVOKE CREATE ON mysqltest.* FROM 1234567890abcdefGHIKL@localhost;
+REVOKE CREATE ON mysqltest.* FROM 1234567890abcdefGHIKL1234567890abcdefGHIKL@localhost;
 
 --error ER_WRONG_STRING_LENGTH
 REVOKE CREATE ON mysqltest.* FROM some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
@@ -946,13 +955,13 @@ REVOKE CREATE ON mysqltest.* FROM some_user_name@1234567890abcdefghij1234567890a
 # Working with table-level privileges.
 
 --error ER_WRONG_STRING_LENGTH
-GRANT CREATE ON t1 TO 1234567890abcdefGHIKL@localhost;
+GRANT CREATE ON t1 TO 1234567890abcdefGHIKL1234567890abcdefGHIKL@localhost;
 
 --error ER_WRONG_STRING_LENGTH
 GRANT CREATE ON t1 TO some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
 
 --error ER_WRONG_STRING_LENGTH
-REVOKE CREATE ON t1 FROM 1234567890abcdefGHIKL@localhost;
+REVOKE CREATE ON t1 FROM 1234567890abcdefGHIKL1234567890abcdefGHIKL@localhost;
 
 --error ER_WRONG_STRING_LENGTH
 REVOKE CREATE ON t1 FROM some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
@@ -960,13 +969,13 @@ REVOKE CREATE ON t1 FROM some_user_name@1234567890abcdefghij1234567890abcdefghij
 # Working with routine-level privileges.
 
 --error ER_WRONG_STRING_LENGTH
-GRANT EXECUTE ON PROCEDURE p1 TO 1234567890abcdefGHIKL@localhost;
+GRANT EXECUTE ON PROCEDURE p1 TO 1234567890abcdefGHIKL1234567890abcdefGHIKL@localhost;
 
 --error ER_WRONG_STRING_LENGTH
 GRANT EXECUTE ON PROCEDURE p1 TO some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
 
 --error ER_WRONG_STRING_LENGTH
-REVOKE EXECUTE ON PROCEDURE p1 FROM 1234567890abcdefGHIKL@localhost;
+REVOKE EXECUTE ON PROCEDURE p1 FROM 1234567890abcdefGHIKL1234567890abcdefGHIKL@localhost;
 
 --error ER_WRONG_STRING_LENGTH
 REVOKE EXECUTE ON PROCEDURE t1 FROM some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
@@ -1606,7 +1615,7 @@ grant select on test.* to юзер_юзер@localhost;
 revoke all on test.* from юзер_юзер@localhost;
 drop user юзер_юзер@localhost;
 --error ER_WRONG_STRING_LENGTH
-grant select on test.* to очень_длинный_юзер@localhost;
+grant select on test.* to очень_длинный_юзер_very_long_user@localhost;
 set names default;
 
 #
@@ -2428,3 +2437,279 @@ set SESSION sql_mode= @orig_sql_mode_session;
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
 
+--echo #
+--echo # WL#2284: Increase the length of a user name
+--echo #
+
+CREATE TABLE t1 (
+  int_field INTEGER UNSIGNED NOT NULL,
+  char_field CHAR(10),
+  INDEX(`int_field`)
+);
+
+CREATE PROCEDURE p1() SELECT b FROM t1;
+
+CREATE USER user_name_len_16@localhost;
+CREATE USER user_name_len_22_01234@localhost;
+CREATE USER user_name_len_32_012345678901234@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+CREATE USER user_name_len_33_0123456789012345@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+CREATE USER user_name_len_40_01234567890123456789012@localhost;
+
+# Working with database-level privileges.
+
+GRANT CREATE ON mysqltest.* TO user_name_len_16@localhost;
+GRANT CREATE ON mysqltest.* TO user_name_len_22_01234@localhost;
+GRANT CREATE ON mysqltest.* TO user_name_len_32_012345678901234@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+GRANT CREATE ON mysqltest.* TO user_name_len_33_0123456789012345@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+GRANT CREATE ON mysqltest.* TO user_name_len_40_01234567890123456789012@localhost;
+
+REVOKE CREATE ON mysqltest.* FROM user_name_len_16@localhost;
+REVOKE CREATE ON mysqltest.* FROM user_name_len_22_01234@localhost;
+REVOKE CREATE ON mysqltest.* FROM user_name_len_32_012345678901234@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+REVOKE CREATE ON mysqltest.* FROM user_name_len_33_0123456789012345@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+REVOKE CREATE ON mysqltest.* FROM user_name_len_40_01234567890123456789012@localhost;
+
+# Working with table-level privileges.
+
+GRANT CREATE ON t1 TO user_name_len_16@localhost;
+GRANT CREATE ON t1 TO user_name_len_22_01234@localhost;
+GRANT CREATE ON t1 TO user_name_len_32_012345678901234@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+GRANT CREATE ON t1 TO user_name_len_33_0123456789012345@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+GRANT CREATE ON t1 TO user_name_len_40_01234567890123456789012@localhost;
+
+REVOKE CREATE ON t1 FROM user_name_len_16@localhost;
+REVOKE CREATE ON t1 FROM user_name_len_22_01234@localhost;
+REVOKE CREATE ON t1 FROM user_name_len_32_012345678901234@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+REVOKE CREATE ON t1 FROM user_name_len_33_0123456789012345@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+REVOKE CREATE ON t1 FROM user_name_len_40_01234567890123456789012@localhost;
+
+GRANT SELECT ON t1 TO user_name_len_16@localhost;
+GRANT SELECT ON t1 TO user_name_len_22_01234@localhost;
+GRANT SELECT ON t1 TO user_name_len_32_012345678901234@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+GRANT SELECT ON t1 TO user_name_len_33_0123456789012345@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+GRANT SELECT ON t1 TO user_name_len_40_01234567890123456789012@localhost;
+
+REVOKE SELECT ON t1 FROM user_name_len_16@localhost;
+REVOKE SELECT ON t1 FROM user_name_len_22_01234@localhost;
+REVOKE SELECT ON t1 FROM user_name_len_32_012345678901234@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+REVOKE SELECT ON t1 FROM user_name_len_33_0123456789012345@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+REVOKE SELECT ON t1 FROM user_name_len_40_01234567890123456789012@localhost;
+
+# Working with routine-level privileges.
+
+GRANT EXECUTE ON PROCEDURE p1 TO user_name_len_16@localhost;
+GRANT EXECUTE ON PROCEDURE p1 TO user_name_len_22_01234@localhost;
+GRANT EXECUTE ON PROCEDURE p1 TO user_name_len_32_012345678901234@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+GRANT EXECUTE ON PROCEDURE p1 TO user_name_len_33_0123456789012345@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+GRANT EXECUTE ON PROCEDURE p1 TO user_name_len_40_01234567890123456789012@localhost;
+
+REVOKE EXECUTE ON PROCEDURE p1 FROM user_name_len_16@localhost;
+REVOKE EXECUTE ON PROCEDURE p1 FROM user_name_len_22_01234@localhost;
+REVOKE EXECUTE ON PROCEDURE p1 FROM user_name_len_32_012345678901234@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+REVOKE EXECUTE ON PROCEDURE p1 FROM user_name_len_33_0123456789012345@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+REVOKE EXECUTE ON PROCEDURE p1 FROM user_name_len_40_01234567890123456789012@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+DROP USER user_name_len_40_01234567890123456789012@localhost;
+
+--character_set utf8
+set names utf8;
+
+# 16 characters user name
+CREATE USER очень_длинный_юз@localhost;
+# 24 characters user name
+CREATE USER очень_очень_длинный_юзер@localhost;
+# 32 characters user name
+CREATE USER очень_очень_очень_длинный_юзер__@localhost;
+# 36 characters user name
+--error ER_WRONG_STRING_LENGTH
+CREATE USER очень_очень_очень_очень_длинный_юзер@localhost;
+
+GRANT CREATE ON mysqltest.* TO очень_длинный_юз@localhost;
+GRANT CREATE ON mysqltest.* TO очень_очень_длинный_юзер@localhost;
+GRANT CREATE ON mysqltest.* TO очень_очень_очень_длинный_юзер__@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+GRANT CREATE ON mysqltest.* TO очень_очень_очень_очень_длинный_юзер@localhost;
+
+REVOKE CREATE ON mysqltest.* FROM очень_длинный_юз@localhost;
+REVOKE CREATE ON mysqltest.* FROM очень_очень_длинный_юзер@localhost;
+REVOKE CREATE ON mysqltest.* FROM очень_очень_очень_длинный_юзер__@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+REVOKE CREATE ON mysqltest.* FROM очень_очень_очень_очень_длинный_юзер@localhost;
+
+GRANT CREATE ON t1 TO очень_длинный_юз@localhost;
+GRANT CREATE ON t1 TO очень_очень_длинный_юзер@localhost;
+GRANT CREATE ON t1 TO очень_очень_очень_длинный_юзер__@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+GRANT CREATE ON t1 TO очень_очень_очень_очень_длинный_юзер@localhost;
+
+REVOKE CREATE ON t1 FROM очень_длинный_юз@localhost;
+REVOKE CREATE ON t1 FROM очень_очень_длинный_юзер@localhost;
+REVOKE CREATE ON t1 FROM очень_очень_очень_длинный_юзер__@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+REVOKE CREATE ON t1 FROM очень_очень_очень_очень_длинный_юзер@localhost;
+
+GRANT SELECT ON t1 TO очень_длинный_юз@localhost;
+GRANT SELECT ON t1 TO очень_очень_длинный_юзер@localhost;
+GRANT SELECT ON t1 TO очень_очень_очень_длинный_юзер__@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+GRANT SELECT ON t1 TO очень_очень_очень_очень_длинный_юзер@localhost;
+
+REVOKE SELECT ON t1 FROM очень_длинный_юз@localhost;
+REVOKE SELECT ON t1 FROM очень_очень_длинный_юзер@localhost;
+REVOKE SELECT ON t1 FROM очень_очень_очень_длинный_юзер__@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+REVOKE SELECT ON t1 FROM очень_очень_очень_очень_длинный_юзер@localhost;
+
+GRANT EXECUTE ON PROCEDURE p1 TO очень_длинный_юз@localhost;
+GRANT EXECUTE ON PROCEDURE p1 TO очень_очень_длинный_юзер@localhost;
+GRANT EXECUTE ON PROCEDURE p1 TO очень_очень_очень_длинный_юзер__@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+GRANT EXECUTE ON PROCEDURE p1 TO очень_очень_очень_очень_длинный_юзер@localhost;
+
+REVOKE EXECUTE ON PROCEDURE p1 FROM очень_длинный_юз@localhost;
+REVOKE EXECUTE ON PROCEDURE p1 FROM очень_очень_длинный_юзер@localhost;
+REVOKE EXECUTE ON PROCEDURE p1 FROM очень_очень_очень_длинный_юзер__@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+REVOKE EXECUTE ON PROCEDURE p1 FROM очень_очень_очень_очень_длинный_юзер@localhost;
+
+
+--echo # Create a user, assign privileges, try to connect and use the granted
+--echo # privileges. Trying out different connections (socket/TCP/SSL).
+
+
+CREATE USER user_name_len_25_01234567@localhost;
+GRANT CREATE ON * . * TO user_name_len_25_01234567@localhost;
+
+--echo # Connecting via socket
+connect (con_grant,localhost,user_name_len_25_01234567,,);
+
+CREATE DATABASE db_1;
+
+CREATE TABLE db_1.test_table (name varchar(15) not null, surname varchar(20) not null, 
+email varchar(50) null, street varchar(50) null, city varchar(50) null, 
+is_active int default 1 );
+
+connection con_grant;
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO db_1.test_table values('rob', 'g', 'robg@oracle.com', 'couldbeworse_street',
+'couldbeworse_city', 1);
+
+connection default;
+GRANT INSERT ON db_1.test_table TO user_name_len_25_01234567@localhost;
+
+disconnect con_grant;
+--echo # Connecting via TCP/IP
+connect (con_grant,127.0.0.1,user_name_len_25_01234567,,db_1,$MASTER_MYPORT);
+INSERT INTO db_1.test_table values('rob', 'g', 'robg@oracle.com', 'couldbeworse_street',
+'couldbeworse_city', 1);
+
+INSERT INTO db_1.test_table values('kam', 'g', 'kamg@oracle.com', 'couldbeworse_street',
+'couldbeworse_city', 1);
+
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM db_1.test_table;
+
+connection default;
+GRANT SELECT ON db_1.test_table TO user_name_len_25_01234567@localhost;
+
+disconnect con_grant;
+--echo # Connecting via socket/SSL
+connect (con_grant,localhost,user_name_len_25_01234567,,,,,SSL);
+SELECT * FROM db_1.test_table;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE db_1.test_table SET street='couldbemuchworse_street' WHERE name='rob'; 
+
+connection default;
+GRANT UPDATE ON db_1.test_table TO user_name_len_25_01234567@localhost;
+
+connection con_grant;
+UPDATE db_1.test_table SET street='couldbemuchworse_street' WHERE name='rob'; 
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM db_1.test_table WHERE name='rob';
+
+connection default;
+GRANT DELETE ON db_1.test_table TO user_name_len_25_01234567@localhost;
+
+connection con_grant;
+DELETE FROM db_1.test_table WHERE name='rob';
+--error ER_TABLEACCESS_DENIED_ERROR
+DROP TABLE db_1.test_table;
+
+connection default;
+GRANT DROP ON db_1.* TO user_name_len_25_01234567@localhost;
+
+disconnect con_grant;
+--echo # Connecting via TCP/IP/SSL
+connect (con_grant,127.0.0.1,user_name_len_25_01234567,,db_1,$MASTER_MYPORT,,SSL);
+
+DROP TABLE db_1.test_table;
+DROP DATABASE db_1;
+
+connection default;
+disconnect con_grant;
+
+# cleanup
+
+DROP USER очень_длинный_юз@localhost;
+DROP USER очень_очень_длинный_юзер@localhost;
+DROP USER очень_очень_очень_длинный_юзер__@localhost;
+--error ER_WRONG_STRING_LENGTH
+DROP USER очень_очень_очень_очень_длинный_юзер@localhost;
+
+set names default;
+
+DROP USER user_name_len_16@localhost;
+DROP USER user_name_len_22_01234@localhost;
+DROP USER user_name_len_32_012345678901234@localhost;
+DROP USER user_name_len_25_01234567@localhost;
+
+DROP TABLE t1;
+DROP PROCEDURE p1;
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

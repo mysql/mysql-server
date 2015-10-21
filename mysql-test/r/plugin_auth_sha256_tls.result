@@ -10,7 +10,7 @@ Warnings:
 Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 ALTER USER 'kristofer' IDENTIFIED BY 'secret';
 DROP USER 'kristofer';
-GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password';
+GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password' BY '123';
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 ALTER USER 'kristofer'@'localhost' IDENTIFIED BY 'secret2';
@@ -21,7 +21,7 @@ SHOW GRANTS FOR 'kristofer'@'localhost';
 Grants for kristofer@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'kristofer'@'localhost'
 DROP USER 'kristofer'@'localhost';
-GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password';
+GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password' BY '123';
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 ALTER USER 'kristofer'@'localhost' IDENTIFIED BY '';
@@ -32,7 +32,7 @@ SHOW GRANTS FOR 'kristofer'@'localhost';
 Grants for kristofer@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'kristofer'@'localhost'
 DROP USER 'kristofer'@'localhost';
-GRANT ALL ON *.* TO 'kristofer'@'33.33.33.33' IDENTIFIED WITH 'sha256_password';
+GRANT ALL ON *.* TO 'kristofer'@'33.33.33.33' IDENTIFIED WITH 'sha256_password' BY '123';
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 ALTER USER 'kristofer'@'33.33.33.33' IDENTIFIED BY '';
@@ -46,7 +46,7 @@ CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'sha256_password';
 ALTER USER 'u1'@'localhost' IDENTIFIED BY 'pass';
 ALTER USER 'u1'@'localhost' PASSWORD EXPIRE;
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 ALTER USER 'u1'@'localhost' IDENTIFIED BY 'pass2';
 SELECT USER();
 USER()

@@ -98,6 +98,7 @@
     LOCK_plugin_delete              (block plugin delete)
      LOCK_system_variables_hash
      LOCK_thd_data                  (block THD delete)
+     LOCK_thd_sysvar                (block system variable updates, alloc_and_copy_thd_dynamic_variables)
        LOCK_global_system_variables (very briefly held)
 
   Status Variables
@@ -652,6 +653,9 @@ private:
 
   /* Build status variable name with prefix. Return copy of the string. */
   char *make_show_var_name(const char* prefix, const char* name);
+
+  /* For the current THD, use initial_status_vars taken from before the query start. */
+  System_status_var *set_status_vars(void);
 
   /* Build the list of status variables from SHOW_VAR array. */
   void manifest(THD *thd, const SHOW_VAR *show_var_array,

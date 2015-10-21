@@ -709,7 +709,7 @@ remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 
 # Too many errorcodes specified
 --error 1
---exec echo "--error 1,2,3,4,5,6,7,8,9,10,11" | $MYSQL_TEST 2>&1
+--exec echo "--error 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21" | $MYSQL_TEST 2>&1
 
 
 # ----------------------------------------------------------------------------
@@ -2967,3 +2967,17 @@ connection default;
 
 # To test \r\n in cat_file
 --cat_file std_data/cat_file.txt
+
+--echo
+--echo Bug#21963113 MYSQLTESTS REPLACE_REGEX CANNOT
+--echo              MATCH ^ (BEGINNING OF LINE) ATOM
+--echo
+
+--replace_regex /^a/R/
+select "a" as a;
+
+--replace_regex /a/R/
+select "a" as a;
+
+--replace_regex /a$/R/
+select "a" as a;

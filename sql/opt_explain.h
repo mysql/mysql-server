@@ -17,7 +17,9 @@
 #ifndef OPT_EXPLAIN_INCLUDED
 #define OPT_EXPLAIN_INCLUDED
 
-/** @file "EXPLAIN <command>" 
+/**
+  @file sql/opt_explain.h
+  EXPLAIN @<command@>.
 
 Single table UPDATE/DELETE commands are explained by the 
 explain_single_table_modification() function.
@@ -52,8 +54,8 @@ SELECT_LEX), by calling explain_unit() for each of them.
 class JOIN;
 struct TABLE;
 class THD;
-typedef class st_select_lex_unit SELECT_LEX_UNIT;
-typedef class st_select_lex SELECT_LEX;
+class SELECT_LEX_UNIT;
+class SELECT_LEX;
 
 extern const char *join_type_str[];
 
@@ -136,7 +138,7 @@ protected:
   Query_result *interceptor;
 
 public:
-  Query_result_explain(THD *thd, st_select_lex_unit *unit_arg,
+  Query_result_explain(THD *thd, SELECT_LEX_UNIT *unit_arg,
                        Query_result *interceptor_arg)
   : Query_result_send(thd),
     prepared(false), prepared2(false), initialized(false),

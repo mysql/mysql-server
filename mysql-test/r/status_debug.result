@@ -1,0 +1,53 @@
+#
+# Bug#18591145 - SOME MONOTONICALLY INCREASING STATUS VARIABLES DECREASES UNEXPECTEDLY
+#
+show variables like "show_COMPATIBILITY_56";
+Variable_name	Value
+show_compatibility_56	ON
+set global SHOW_COMPATIBILITY_56 = 1;
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(64), val VARCHAR(1024));
+# Insert 1 tuple to increment com_insert status.
+INSERT INTO t1(name, val) VALUES ('dummy', 0);
+connect  con1, localhost, root,,;
+SET DEBUG_SYNC='before_preparing_global_status_array SIGNAL change_user WAIT_FOR continue';
+SET DEBUG_SYNC='after_preparing_global_status_array SIGNAL continue_change_user';
+INSERT INTO t1(name, val) SELECT * FROM INFORMATION_SCHEMA.global_status WHERE variable_name='com_insert';;
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR change_user';
+SET DEBUG_SYNC='thd_cleanup_start SIGNAL continue WAIT_FOR continue_change_user';
+connection con1;
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
+SET DEBUG_SYNC='RESET';
+connection default;
+INSERT INTO t1(name, val)
+SELECT * FROM INFORMATION_SCHEMA.global_status WHERE variable_name='com_insert';
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
+# With fix, difference of com_insert status should be "0" here.
+SELECT (SELECT val FROM t1 WHERE id = 2) - (SELECT val FROM t1 WHERE id = 3);
+(SELECT val FROM t1 WHERE id = 2) - (SELECT val FROM t1 WHERE id = 3)
+0
+# Testing the same scenario with performance_schema.
+set global SHOW_COMPATIBILITY_56 = 0;
+truncate t1;
+# Insert 1 tuple to increment com_insert status.
+INSERT INTO t1(name, val) VALUES ('dummy', 0);
+connection con1;
+SET DEBUG_SYNC='before_materialize_global_status_array SIGNAL change_user WAIT_FOR continue';
+SET DEBUG_SYNC='after_materialize_global_status_array SIGNAL continue_change_user';
+INSERT INTO t1(name, val) SELECT * FROM performance_schema.global_status WHERE variable_name='Handler_commit';;
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR change_user';
+SET DEBUG_SYNC='thd_cleanup_start SIGNAL continue WAIT_FOR continue_change_user';
+connection con1;
+SET DEBUG_SYNC='RESET';
+connection default;
+INSERT INTO t1(name, val) SELECT * FROM performance_schema.global_status WHERE variable_name='Handler_commit';
+# With fix, Handler_commit status should be 1 (select insert during switch user).
+SELECT (SELECT val FROM t1 WHERE id = 3) - (SELECT val FROM t1 WHERE id = 2);
+(SELECT val FROM t1 WHERE id = 3) - (SELECT val FROM t1 WHERE id = 2)
+1
+set global SHOW_COMPATIBILITY_56=1;
+disconnect con1;
+DROP TABLE t1;

@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file ut/ut0new.h
+@file include/ut0new.h
 Instrumented memory allocator.
 
 Created May 26, 2014 Vasil Dimov
@@ -158,7 +158,9 @@ ut_allocator::get_mem_key()):
   mem_key_other will be used. Generally this should not happen and if it
   happens then that means that the list of predefined names must be extended.
 Keep this list alphabetically sorted. */
+extern PSI_memory_key	mem_key_ahi;
 extern PSI_memory_key	mem_key_buf_buf_pool;
+extern PSI_memory_key	mem_key_buf_stat_per_index_t;
 extern PSI_memory_key	mem_key_dict_stats_bg_recalc_pool_t;
 extern PSI_memory_key	mem_key_dict_stats_index_map_t;
 extern PSI_memory_key	mem_key_dict_stats_n_diff_on_level;
@@ -167,8 +169,8 @@ extern PSI_memory_key	mem_key_partitioning;
 extern PSI_memory_key	mem_key_row_log_buf;
 extern PSI_memory_key	mem_key_row_merge_sort;
 extern PSI_memory_key	mem_key_std;
-extern PSI_memory_key	mem_key_sync_debug_latches;
 extern PSI_memory_key	mem_key_trx_sys_t_rw_trx_ids;
+extern PSI_memory_key	mem_key_ut_lock_free_hash_t;
 /* Please obey alphabetical order in the definitions above. */
 
 /** Setup the internal objects needed for UT_NEW() to operate.
@@ -201,9 +203,18 @@ struct ut_new_pfx_t {
 	/** Performance schema key. Assigned to a name at startup via
 	PSI_MEMORY_CALL(register_memory)() and later used for accounting
 	allocations and deallocations with
-	PSI_MEMORY_CALL(memory_alloc)(key, size) and
-	PSI_MEMORY_CALL(memory_free)(key, size). */
+	PSI_MEMORY_CALL(memory_alloc)(key, size, owner) and
+	PSI_MEMORY_CALL(memory_free)(key, size, owner). */
 	PSI_memory_key	m_key;
+
+        /**
+          Thread owner.
+          Instrumented thread that owns the allocated memory.
+          This state is used by the performance schema to maintain
+          per thread statistics,
+          when memory is given from thread A to thread B.
+        */
+        struct PSI_thread *m_owner;
 
 #endif /* UNIV_PFS_MEMORY */
 
@@ -233,10 +244,11 @@ public:
 	explicit
 	ut_allocator(
 		PSI_memory_key	key = PSI_NOT_INSTRUMENTED)
-#ifdef UNIV_PFS_MEMORY
 		:
-		m_key(key)
+#ifdef UNIV_PFS_MEMORY
+		m_key(key),
 #endif /* UNIV_PFS_MEMORY */
+		m_oom_fatal(true)
 	{
 	}
 
@@ -244,6 +256,7 @@ public:
 	template <class U>
 	ut_allocator(
 		const ut_allocator<U>&	other)
+		: m_oom_fatal(other.is_oom_fatal())
 	{
 #ifdef UNIV_PFS_MEMORY
 		const PSI_memory_key	other_key = other.get_mem_key(NULL);
@@ -252,6 +265,21 @@ public:
 			? other_key
 			: PSI_NOT_INSTRUMENTED;
 #endif /* UNIV_PFS_MEMORY */
+	}
+
+	/** When out of memory (OOM) happens, report error and do not
+	make it fatal.
+	@return a reference to the allocator. */
+	ut_allocator&
+	set_oom_not_fatal() {
+		m_oom_fatal = false;
+		return(*this);
+	}
+
+	/** Check if allocation failure is a fatal error.
+	@return true if allocation failure is fatal, false otherwise. */
+	bool is_oom_fatal() const {
+		return(m_oom_fatal);
 	}
 
 	/** Return the maximum number of objects that can be allocated by
@@ -325,14 +353,13 @@ public:
 		}
 
 		if (ptr == NULL) {
-			ib::fatal()
+			ib::fatal_or_error(m_oom_fatal)
 				<< "Cannot allocate " << total_bytes
 				<< " bytes of memory after "
 				<< alloc_max_retries << " retries over "
 				<< alloc_max_retries << " seconds. OS error: "
 				<< strerror(errno) << " (" << errno << "). "
 				<< OUT_OF_MEMORY_MSG;
-			/* not reached */
 			if (throw_on_error) {
 				throw(std::bad_alloc());
 			} else {
@@ -465,7 +492,7 @@ public:
 		}
 
 		if (pfx_new == NULL) {
-			ib::fatal()
+			ib::fatal_or_error(m_oom_fatal)
 				<< "Cannot reallocate " << total_bytes
 				<< " bytes of memory after "
 				<< alloc_max_retries << " retries over "
@@ -680,7 +707,7 @@ private:
 	{
 		const PSI_memory_key	key = get_mem_key(file);
 
-		pfx->m_key = PSI_MEMORY_CALL(memory_alloc)(key, size);
+		pfx->m_key = PSI_MEMORY_CALL(memory_alloc)(key, size, & pfx->m_owner);
 		pfx->m_size = size;
 	}
 
@@ -690,7 +717,7 @@ private:
 	deallocate_trace(
 		const ut_new_pfx_t*	pfx)
 	{
-		PSI_MEMORY_CALL(memory_free)(pfx->m_key, pfx->m_size);
+		PSI_MEMORY_CALL(memory_free)(pfx->m_key, pfx->m_size, pfx->m_owner);
 	}
 
 	/** Performance schema key. */
@@ -705,6 +732,10 @@ private:
 	void
 	operator=(
 		const ut_allocator<U>&);
+
+	/** A flag to indicate whether out of memory (OOM) error is considered
+	fatal.  If true, it is fatal. */
+	bool	m_oom_fatal;
 };
 
 /** Compare two allocators of the same type.
@@ -843,6 +874,11 @@ ut_delete_array(
 	ut_allocator<byte>(PSI_NOT_INSTRUMENTED).allocate( \
 		n_bytes, NULL, __FILE__, true, false))
 
+#define ut_zalloc_nokey_nofatal(n_bytes)	static_cast<void*>( \
+	ut_allocator<byte>(PSI_NOT_INSTRUMENTED). \
+		set_oom_not_fatal(). \
+		allocate(n_bytes, NULL, __FILE__, true, false))
+
 #define ut_realloc(ptr, n_bytes)	static_cast<void*>( \
 	ut_allocator<byte>(PSI_NOT_INSTRUMENTED).reallocate( \
 		ptr, n_bytes, __FILE__))
@@ -873,6 +909,8 @@ ut_delete_array(
 #define ut_malloc_nokey(n_bytes)	::malloc(n_bytes)
 
 #define ut_zalloc_nokey(n_bytes)	::calloc(1, n_bytes)
+
+#define ut_zalloc_nokey_nofatal(n_bytes)	::calloc(1, n_bytes)
 
 #define ut_realloc(ptr, n_bytes)	::realloc(ptr, n_bytes)
 

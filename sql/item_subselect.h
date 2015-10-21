@@ -20,8 +20,8 @@
 
 #include "item.h"   // Item_result_field
 
-class st_select_lex;
-class st_select_lex_unit;
+class SELECT_LEX;
+class SELECT_LEX_UNIT;
 class JOIN;
 class Query_result_interceptor;
 class Query_result_subquery;
@@ -34,8 +34,6 @@ class PT_subquery;
 class PT_query_expression;
 class Item_in_optimizer;
 class Item_func_not_all;
-
-typedef class st_select_lex SELECT_LEX;
 
 /**
   Convenience typedef used in this file, and further used by any files
@@ -75,7 +73,7 @@ public:
   Item *substitution;
 public:
   /* unit of subquery */
-  st_select_lex_unit *unit;
+  SELECT_LEX_UNIT *unit;
   /**
      If !=NO_PLAN_IDX: this Item is in the condition attached to the JOIN_TAB
      having this index in the parent JOIN.
@@ -119,7 +117,7 @@ public:
     pointer in constructor initialization list, but we need to pass a pointer
     to subselect Item class to Query_result_interceptor's constructor.
   */
-  void init(st_select_lex *select, Query_result_subquery *result);
+  void init(SELECT_LEX *select, Query_result_subquery *result);
 
   ~Item_subselect();
   virtual void cleanup();
@@ -127,7 +125,7 @@ public:
   {
     null_value= 1;
   }
-  virtual trans_res select_transformer(st_select_lex *select) = 0;
+  virtual trans_res select_transformer(SELECT_LEX *select) = 0;
   bool assigned() const { return value_assigned; }
   void assigned(bool a) { value_assigned= a; }
   enum Type type() const;
@@ -137,8 +135,8 @@ public:
     return null_value;
   }
   bool fix_fields(THD *thd, Item **ref);
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select);
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select);
   virtual bool exec();
   virtual void fix_length_and_dec();
   table_map used_tables() const;
@@ -173,7 +171,7 @@ public:
   bool walk_body(Item_processor processor, enum_walk walk, uchar *arg);
   bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   virtual bool explain_subquery_checker(uchar **arg);
-  bool inform_item_in_cond_of_tab(uchar *join_tab_index);
+  bool inform_item_in_cond_of_tab(uchar *arg);
   virtual bool clean_up_after_removal(uchar *arg);
 
   const char *func_name() const { DBUG_ASSERT(0); return "subselect"; }
@@ -183,11 +181,14 @@ public:
   friend bool Item_field::fix_fields(THD *, Item **);
   friend int  Item_field::fix_outer_field(THD *, Field **, Item **);
   friend bool Item_ref::fix_fields(THD *, Item **);
-  friend void Item_ident::fix_after_pullout(st_select_lex *parent_select,
-                                            st_select_lex *removed_selec);
-  friend void mark_select_range_as_dependent(THD*,
-                                             st_select_lex*, st_select_lex*,
-                                             Field*, Item*, Item_ident*);
+  friend void Item_ident::fix_after_pullout(SELECT_LEX *parent_select,
+                                            SELECT_LEX *removed_selec);
+  friend void mark_select_range_as_dependent(THD *thd,
+                                             SELECT_LEX *last_select,
+                                             SELECT_LEX *current_sel,
+                                             Field *found_field,
+                                             Item *found_item,
+                                             Item_ident *resolved_item);
 private:
   virtual bool subq_opt_away_processor(uchar *arg);
 };
@@ -201,7 +202,7 @@ protected:
   Item_cache *value, **row;
   bool no_rows;                              ///< @c no_rows_in_result
 public:
-  Item_singlerow_subselect(st_select_lex *select_lex);
+  Item_singlerow_subselect(SELECT_LEX *select_lex);
   Item_singlerow_subselect() :
     Item_subselect(), value(0), row (0), no_rows(false) {}
 
@@ -209,12 +210,13 @@ public:
   subs_type substype() { return SINGLEROW_SUBS; }
 
   virtual void reset();
-  trans_res select_transformer(st_select_lex *select);
+  trans_res select_transformer(SELECT_LEX *select);
   void store(uint i, Item* item);
   double val_real();
   longlong val_int ();
   String *val_str (String *);
   my_decimal *val_decimal(my_decimal *);
+  bool val_json(Json_wrapper *result);
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   bool val_bool();
@@ -254,7 +256,7 @@ public:
     object, as it is now invalid.
     @return the SELECT_LEX structure that was given in the constructor.
   */
-  st_select_lex* invalidate_and_restore_select_lex();
+  SELECT_LEX* invalidate_and_restore_select_lex();
 
   friend class Query_result_scalar_subquery;
 };
@@ -267,7 +269,7 @@ protected:
   bool was_values;  // Set if we have found at least one row
 public:
   Item_maxmin_subselect(THD *thd, Item_subselect *parent,
-			st_select_lex *select_lex, bool max, bool ignore_nulls);
+			SELECT_LEX *select_lex, bool max, bool ignore_nulls);
   virtual void print(String *str, enum_query_type query_type);
   virtual void cleanup();
   bool any_value() { return was_values; }
@@ -332,7 +334,7 @@ public:
      sj_convert_priority(0), sj_chosen(false), embedding_join_nest(NULL)
   {}
 
-  virtual trans_res select_transformer(st_select_lex *select)
+  virtual trans_res select_transformer(SELECT_LEX *select)
   {
     exec_method= EXEC_EXISTS;
     return RES_OK;
@@ -369,7 +371,7 @@ public:
   Representation of IN subquery predicates of the form
   "left_expr IN (SELECT ...)".
 
-  @detail
+  @details
   This class has: 
    - A "subquery execution engine" (as a subclass of Item_subselect) that allows
      it to evaluate subqueries. (and this class participates in execution by
@@ -386,7 +388,7 @@ class Item_in_subselect :public Item_exists_subselect
 public:
   Item *left_expr;
 protected:
-  /*
+  /**
     Cache of the left operand of the subquery predicate. Allocated in the
     runtime memory root, for each execution, thus need not be freed.
   */
@@ -395,13 +397,34 @@ protected:
   /** The need for expr cache may be optimized away, @sa init_left_expr_cache. */
   bool need_expr_cache;
 
-  /*
-    expr & optimizer used in subselect rewriting to store Item for
-    all JOIN in UNION
+private:
+  /**
+    In the case of
+
+       x COMP_OP (SELECT1 UNION SELECT2 ...)
+
+    - the subquery transformation is done on SELECT1; this requires wrapping
+      'x' with more Item layers, and injecting that in a condition in SELECT1.
+
+    - the same transformation is done on SELECT2; but the wrapped 'x' doesn't
+      need to be created again, the one created for SELECT1 could be reused
+
+    - to achieve this, the wrapped 'x' is stored in member
+      'm_injected_left_expr' when it is created for SELECT1, and is later
+      reused for SELECT2.
+
+    This will refer to a cached value which is reevaluated once for each
+    candidate row, cf. setup in #single_value_transformer.
   */
-  Item *expr;
+  Item_direct_ref *m_injected_left_expr;
+
+  /**
+    Pointer to the created Item_in_optimizer; it is stored for the same
+    reasons as 'm_injected_left_expr'.
+  */
   Item_in_optimizer *optimizer;
   bool was_null;
+protected:
   bool abort_on_null;
 private:
   /**
@@ -474,7 +497,8 @@ public:
 
   Item_in_subselect()
     :Item_exists_subselect(), left_expr(NULL), left_expr_cache(NULL),
-    left_expr_cache_filled(false), need_expr_cache(TRUE), expr(NULL),
+    left_expr_cache_filled(false), need_expr_cache(TRUE),
+    m_injected_left_expr(NULL),
     optimizer(NULL), was_null(FALSE), abort_on_null(FALSE),
     in2exists_info(NULL), pushed_cond_guards(NULL), upper_item(NULL)
   {}
@@ -489,14 +513,14 @@ public:
     null_value= 0;
     was_null= 0;
   }
-  trans_res select_transformer(st_select_lex *select);
-  trans_res select_in_like_transformer(st_select_lex *select,
+  trans_res select_transformer(SELECT_LEX *select);
+  trans_res select_in_like_transformer(SELECT_LEX *select,
                                        Comp_creator *func);
-  trans_res single_value_transformer(st_select_lex *select, Comp_creator *func);
-  trans_res row_value_transformer(st_select_lex *select);
-  trans_res single_value_in_to_exists_transformer(st_select_lex *select,
+  trans_res single_value_transformer(SELECT_LEX *select, Comp_creator *func);
+  trans_res row_value_transformer(SELECT_LEX *select);
+  trans_res single_value_in_to_exists_transformer(SELECT_LEX *select,
                                                   Comp_creator *func);
-  trans_res row_value_in_to_exists_transformer(st_select_lex *select);
+  trans_res row_value_in_to_exists_transformer(SELECT_LEX *select);
   bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   virtual bool exec();
   longlong val_int();
@@ -511,15 +535,15 @@ public:
   bool test_limit();
   virtual void print(String *str, enum_query_type query_type);
   bool fix_fields(THD *thd, Item **ref);
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select);
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select);
   bool init_left_expr_cache();
 
   /**
      Once the decision to use IN->EXISTS has been taken, performs some last
      steps of this transformation.
   */
-  bool finalize_exists_transform(st_select_lex *select);
+  bool finalize_exists_transform(SELECT_LEX *select);
   /**
      Once the decision to use materialization has been taken, performs some
      last steps of this transformation.
@@ -543,11 +567,11 @@ public:
   bool all;
 
   Item_allany_subselect(Item * left_expr, chooser_compare_func_creator fc,
-                        st_select_lex *select, bool all);
+                        SELECT_LEX *select, bool all);
 
   // only ALL subquery has upper not
   subs_type substype() { return all?ALL_SUBS:ANY_SUBS; }
-  trans_res select_transformer(st_select_lex *select);
+  trans_res select_transformer(SELECT_LEX *select);
   virtual void print(String *str, enum_query_type query_type);
 };
 
@@ -626,9 +650,9 @@ protected:
 class subselect_single_select_engine: public subselect_engine
 {
 private:
-  st_select_lex *select_lex; /* corresponding select_lex */
+  SELECT_LEX *select_lex; /* corresponding select_lex */
 public:
-  subselect_single_select_engine(st_select_lex *select,
+  subselect_single_select_engine(SELECT_LEX *select,
 				 Query_result_interceptor *result,
 				 Item_subselect *item);
   virtual void cleanup();
@@ -654,7 +678,7 @@ public:
 class subselect_union_engine: public subselect_engine
 {
 public:
-  subselect_union_engine(st_select_lex_unit *u,
+  subselect_union_engine(SELECT_LEX_UNIT *u,
 			 Query_result_interceptor *result,
 			 Item_subselect *item);
   virtual void cleanup();
@@ -672,7 +696,7 @@ public:
   virtual enum_engine_type engine_type() const { return UNION_ENGINE; }
 
 private:
-  st_select_lex_unit *unit;  /* corresponding unit structure */
+  SELECT_LEX_UNIT *unit;  /* corresponding unit structure */
 };
 
 
@@ -701,6 +725,11 @@ protected:
   QEP_TAB *tab;
   Item *cond; /* The WHERE condition of subselect */
   ulonglong hash; /* Hash value calculated by copy_ref_key, when needed. */
+  /**
+     Whether a lookup for key value (x0,y0) (x0 and/or y0 being NULL or not
+     NULL) will find at most one row.
+  */
+  bool unique;
 private:
   /* FALSE for 'ref', TRUE for 'ref-or-null'. */
   bool check_null;
@@ -715,11 +744,6 @@ private:
     was a row such that t.no_key IS NULL.
   */
   Item *having;
-  /**
-     Whether a lookup for key value (x0,y0) (x0 and/or y0 being NULL or not
-     NULL) will find at most one row.
-  */
-  bool unique;
 public:
 
   /*
@@ -731,7 +755,7 @@ public:
                                  Item *having_arg, bool chk_null,
                                  bool unique_arg)
     :subselect_engine(subs, 0), tab(tab_arg), cond(where),
-    check_null(chk_null), having(having_arg), unique(unique_arg)
+    unique(unique_arg), check_null(chk_null), having(having_arg)
   {};
   virtual bool exec();
   virtual void print (String *str, enum_query_type query_type);
@@ -758,7 +782,7 @@ public:
 Item * all_any_subquery_creator(Item *left_expr,
                                 chooser_compare_func_creator cmp,
                                 bool all,
-                                st_select_lex *select);
+                                SELECT_LEX *select);
 
 
 inline bool Item_subselect::is_uncacheable() const

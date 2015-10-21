@@ -17,12 +17,11 @@
 #define REPLICATION_H
 
 #include "my_global.h"
-#include "my_thread.h"                // my_thread_id
+#include "my_thread_local.h"          // my_thread_id
 #include "mysql/psi/mysql_thread.h"   // mysql_mutex_t
 
 typedef struct st_mysql MYSQL;
 typedef struct st_io_cache IO_CACHE;
-
 
 #ifdef __cplusplus
 class THD;
@@ -75,6 +74,9 @@ typedef struct Trans_context_info {
   ulong transaction_write_set_extraction;
   ulong mi_repository_type;     //enum values in enum_info_repository
   ulong rli_repository_type;    //enum values in enum_info_repository
+  // enum values in enum_mts_parallel_type
+  ulong parallel_applier_type;
+  ulong parallel_applier_workers;
 } Trans_context_info;
 
 /**
@@ -130,6 +132,11 @@ typedef struct Trans_param {
   Trans_context_info trans_ctx_info;
 
 } Trans_param;
+
+/**
+   Transaction observer parameter initialization.
+*/
+#define TRANS_PARAM_ZERO { 0, 0, 0, 0, 0, 0, {0, 0, 0}, 0, 0, 0, 0, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0} }
 
 /**
    Observes and extends transaction execution
@@ -685,10 +692,10 @@ int unregister_binlog_relay_io_observer(Binlog_relay_IO_observer *observer, void
    Set thread entering a condition
 
    This function should be called before putting a thread to wait for
-   a condition. @a mutex should be held before calling this
-   function. After being waken up, @f thd_exit_cond should be called.
+   a condition. @p mutex should be held before calling this
+   function. After being waken up, @c thd_exit_cond should be called.
 
-   @param thd      The thread entering the condition, NULL means current thread
+   @param opaque_thd      The thread entering the condition, NULL means current thread
    @param cond     The condition the thread is going to wait for
    @param mutex    The mutex associated with the condition, this must be
                    held before call this function
@@ -712,9 +719,9 @@ void thd_enter_cond(void *opaque_thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
    This function should be called after a thread being waken up for a
    condition.
 
-   @param thd      The thread entering the condition, NULL means current thread
-   @param stage    The process message, ususally this should be the old process
-                   message before calling @f thd_enter_cond
+   @param opaque_thd      The thread entering the condition, NULL means current thread
+   @param stage    The process message, usually this should be the old process
+                   message before calling @c thd_enter_cond
    @param src_function The caller source function name
    @param src_file The caller source file name
    @param src_line The caller source line number
@@ -780,7 +787,7 @@ int get_user_var_real(const char *name,
    @retval 1 Variable not found
 */
 int get_user_var_str(const char *name,
-                     char *value, unsigned long len,
+                     char *value, size_t len,
                      unsigned int precision, int *null_value);
 
 

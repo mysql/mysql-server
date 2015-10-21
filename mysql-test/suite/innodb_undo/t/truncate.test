@@ -2,7 +2,7 @@
 # WL#6965: Truncate UNDO logs.
 #
 
---source include/have_innodb.inc
+--source include/have_innodb_max_16k.inc
 --source include/have_undo_tablespaces.inc
 
 # The test is restarting the server to force undo truncation.

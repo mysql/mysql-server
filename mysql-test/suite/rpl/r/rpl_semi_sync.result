@@ -326,6 +326,8 @@ Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 flush privileges;
 set sql_log_bin=1;
+SET @save_show_compatibility_56=@@global.show_compatibility_56;
+SET @@global.show_compatibility_56=OFF;
 [ on slave ]
 grant replication slave on *.* to rpl@127.0.0.1 identified by 'rpl';
 Warnings:
@@ -340,6 +342,15 @@ show status like 'Rpl_semi_sync_slave_status';
 Variable_name	Value
 Rpl_semi_sync_slave_status	ON
 [ on master ]
+SET @@global.show_compatibility_56=ON;
+[ on slave ]
+include/stop_slave.inc
+include/start_slave.inc
+show status like 'Rpl_semi_sync_slave_status';
+Variable_name	Value
+Rpl_semi_sync_slave_status	ON
+[ on master ]
+SET @@global.show_compatibility_56=@save_show_compatibility_56;
 [ master semi-sync should be ON ]
 show status like 'Rpl_semi_sync_master_clients';
 Variable_name	Value

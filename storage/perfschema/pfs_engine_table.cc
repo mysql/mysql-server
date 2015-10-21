@@ -132,6 +132,254 @@
 #include "derror.h"
 
 /**
+  @page PAGE_PFS_NEW_TABLE Implementing a new performance_schema table
+
+  @section NEW_TABLE_INTERFACE Storage engine interface
+
+  @startuml
+
+  actor mon as "Monitoring Client"
+  participant server as "MySQL server"
+  participant pfs as "Performance schema\n engine"
+  participant pfs_table as "Performance schema\n table"
+
+  == query start ==
+  mon -> server : performance_schema query
+
+  == opening table ==
+  server -> pfs : ha_perfschema::open()
+  activate pfs_table
+  pfs -> pfs_table : create()
+  server -> pfs : ha_perfschema::rnd_init()
+  pfs -> pfs_table : rnd_init()
+
+  == for each row ==
+  server -> pfs : rnd_next()
+  pfs -> pfs_table : rnd_next()
+  server -> pfs : ha_perfschema::read_row_values()
+  pfs -> pfs_table : read_row_values()
+  mon <-- server : result set row
+
+  == closing table ==
+  server -> pfs : ha_perfschema::rnd_end()
+  pfs -> pfs_table : rnd_end()
+  server -> pfs : ha_perfschema::close()
+  pfs -> pfs_table : destroy()
+  deactivate pfs_table
+
+  == query end ==
+  mon <-- server : query end
+
+  @enduml
+
+  @section NEW_TABLE_APPLICATION Application query
+
+  @startuml
+
+  actor client as "Application Client"
+  participant server as "MySQL server"
+
+  == query start ==
+  client -> server : application query
+
+  == server implementation ==
+
+  server -> server : ...
+
+  == query end ==
+  client <-- server : query end
+
+  @enduml
+
+  @section NEW_TABLE_STATIC Table exposing static data
+
+  @startuml
+
+  participant server as "MySQL server"
+  participant pfs as "Performance schema\n engine"
+  participant pfs_table as "Performance schema\n table"
+  participant buffer as "Performance schema\n static data"
+
+  == opening table ==
+  server -> pfs : ha_perfschema::open()
+  activate pfs_table
+  pfs -> pfs_table : create()
+  server -> pfs : ha_perfschema::rnd_init()
+  pfs -> pfs_table : rnd_init()
+
+  == for each row ==
+  server -> pfs : rnd_next()
+  pfs -> pfs_table : rnd_next()
+  pfs_table -> pfs_table : make_row()
+  activate pfs_table
+  pfs_table -> buffer : read()
+  deactivate pfs_table
+
+  server -> pfs : ha_perfschema::read_row_values()
+  pfs -> pfs_table : read_row_values()
+
+  == closing table ==
+  server -> pfs : ha_perfschema::rnd_end()
+  pfs -> pfs_table : rnd_end()
+  server -> pfs : ha_perfschema::close()
+  pfs -> pfs_table : destroy()
+  deactivate pfs_table
+
+  @enduml
+
+  @section NEW_TABLE_COLLECTED Table exposing collected data
+
+  @startuml
+
+  actor client as "Application Client"
+  participant server_c as "MySQL server\n (application thread)"
+  participant psi as "Performance schema\n instrumentation point"
+  participant pfs_table as "Performance schema\n table"
+  participant pfs as "Performance schema\n engine"
+  participant server_m as "MySQL server\n (monitoring thread)"
+  actor mon as "Monitoring Client"
+
+  box "Application thread"
+  actor client
+  participant server_c
+  participant psi
+  end box
+
+  participant buffer as "Performance schema\n collected data"
+
+  box "Monitoring thread"
+  participant pfs_table
+  participant pfs
+  participant server_m
+  actor mon
+  end box
+
+  == application query start ==
+  client -> server_c : application query
+
+  == server implementation ==
+
+  server_c -> psi : instrumentation call()
+  psi -> buffer : write()
+
+  == application query end ==
+  client <-- server_c : application query end
+
+  == monitoring query start ==
+  mon -> server_m : performance schema query
+
+  == opening table ==
+  server_m -> pfs : ha_perfschema::open()
+  activate pfs_table
+  pfs -> pfs_table : create()
+  server_m -> pfs : ha_perfschema::rnd_init()
+  pfs -> pfs_table : rnd_init()
+
+  == for each row ==
+  server_m -> pfs : rnd_next()
+  pfs -> pfs_table : rnd_next()
+  pfs_table -> pfs_table : make_row()
+  activate pfs_table
+  pfs_table -> buffer : read()
+  deactivate pfs_table
+  server_m -> pfs : ha_perfschema::read_row_values()
+  pfs -> pfs_table : read_row_values()
+  mon <-- server_m : result set row
+
+  == closing table ==
+  server_m -> pfs : ha_perfschema::rnd_end()
+  pfs -> pfs_table : rnd_end()
+  server_m -> pfs : ha_perfschema::close()
+  pfs -> pfs_table : destroy()
+  deactivate pfs_table
+
+  == monitoring query end ==
+  mon <-- server_m : performance schema query end
+
+  @enduml
+
+  @section NEW_TABLE_INTERNAL Table exposing server internal data
+
+  @startuml
+
+  box "Application thread"
+  actor client as "Application Client"
+  participant server_c as "MySQL server\n (application thread)"
+  participant server_state as "MySQL server\n internal state"
+  end box
+
+  == application query start ==
+  client -> server_c : application query
+
+  == server implementation ==
+
+  server_c -> server_state : lock()
+  server_c -> server_state : write()
+  server_c -> server_state : unlock()
+
+  == application query end ==
+  client <-- server_c : application query end
+
+  @enduml
+
+  @startuml
+
+  participant server_state as "MySQL server\n internal state"
+
+  box "Monitoring thread"
+  participant materialized as "Performance schema\n materialized data"
+  participant pfs_table as "Performance schema\n table"
+  participant pfs as "Performance schema\n engine"
+  participant server_m as "MySQL server\n (monitoring thread)"
+  actor mon as "Monitoring Client"
+  end box
+
+  == monitoring query start ==
+  mon -> server_m : performance schema query
+
+  == opening table ==
+  server_m -> pfs : ha_perfschema::open()
+  activate pfs_table
+  pfs -> pfs_table : create()
+  server_m -> pfs : ha_perfschema::rnd_init()
+  pfs -> pfs_table : rnd_init()
+
+  == materialize table ==
+
+  pfs_table -> materialized : create()
+  activate materialized
+  pfs_table -> server_state : lock()
+  pfs_table -> server_state : read()
+  pfs_table -> materialized : write()
+  pfs_table -> server_state : unlock()
+
+  == for each row ==
+  server_m -> pfs : rnd_next()
+  pfs -> pfs_table : rnd_next()
+  pfs_table -> pfs_table : make_row()
+  activate pfs_table
+  pfs_table -> materialized : read()
+  deactivate pfs_table
+  server_m -> pfs : ha_perfschema::read_row_values()
+  pfs -> pfs_table : read_row_values()
+  mon <-- server_m : result set row
+
+  == closing table ==
+  server_m -> pfs : ha_perfschema::rnd_end()
+  pfs -> pfs_table : rnd_end()
+  server_m -> pfs : ha_perfschema::close()
+  pfs -> pfs_table : destroy()
+  pfs_table -> materialized : destroy()
+  deactivate materialized
+  deactivate pfs_table
+
+  == monitoring query end ==
+  mon <-- server_m : performance schema query end
+
+  @enduml
+*/
+
+/**
   @addtogroup Performance_schema_engine
   @{
 */
@@ -846,6 +1094,19 @@ PFS_readonly_acl::check(ulong want_access, ulong *save_priv) const
   return ACL_INTERNAL_ACCESS_CHECK_GRANT;
 }
 
+
+PFS_readonly_world_acl pfs_readonly_world_acl;
+
+ACL_internal_access_result
+PFS_readonly_world_acl::check(ulong want_access, ulong *save_priv) const
+{
+  ACL_internal_access_result res= PFS_readonly_acl::check(want_access, save_priv);
+  if (res == ACL_INTERNAL_ACCESS_CHECK_GRANT)
+    res= ACL_INTERNAL_ACCESS_GRANTED;
+  return res;
+}
+
+
 PFS_truncatable_acl pfs_truncatable_acl;
 
 ACL_internal_access_result
@@ -860,6 +1121,19 @@ PFS_truncatable_acl::check(ulong want_access, ulong *save_priv) const
 
   return ACL_INTERNAL_ACCESS_CHECK_GRANT;
 }
+
+
+PFS_truncatable_world_acl pfs_truncatable_world_acl;
+
+ACL_internal_access_result
+PFS_truncatable_world_acl::check(ulong want_access, ulong *save_priv) const
+{
+  ACL_internal_access_result res= PFS_truncatable_acl::check(want_access, save_priv);
+  if (res == ACL_INTERNAL_ACCESS_CHECK_GRANT)
+    res= ACL_INTERNAL_ACCESS_GRANTED;
+  return res;
+}
+
 
 PFS_updatable_acl pfs_updatable_acl;
 

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -75,6 +75,12 @@ public class ClusterConnectionImpl
     /** The map of table name to NdbRecordImpl */
     private ConcurrentMap<String, NdbRecordImpl> ndbRecordImplMap = new ConcurrentHashMap<String, NdbRecordImpl>();
 
+    /** The sizes of the byte buffer pool. Set from SessionFactoryImpl after construction, before connect. */
+    private int[] byteBufferPoolSizes;
+
+    /** The byte buffer pool */
+    private VariableByteBufferPoolImpl byteBufferPool;
+
     /** The dictionary used to create NdbRecords */
     Dictionary dictionaryForNdbRecord = null;
 
@@ -102,6 +108,7 @@ public class ClusterConnectionImpl
     }
 
     public void connect(int connectRetries, int connectDelay, boolean verbose) {
+        byteBufferPool = new VariableByteBufferPoolImpl(byteBufferPoolSizes);
         checkConnection();
         int returnCode = clusterConnection.connect(connectRetries, connectDelay, verbose?1:0);
         handleError(returnCode, clusterConnection, connectString, nodeId);
@@ -363,6 +370,14 @@ public class ClusterConnectionImpl
 
     public void initializeAutoIncrement(long[] autoIncrement) {
         this.autoIncrement = autoIncrement;
+    }
+
+    public VariableByteBufferPoolImpl getByteBufferPool() {
+        return byteBufferPool;
+    }
+
+    public void setByteBufferPoolSizes(int[] poolSizes) {
+        this.byteBufferPoolSizes = poolSizes;
     }
 
 }

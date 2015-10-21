@@ -173,7 +173,7 @@ Cost_constant_cache::update_current_cost_constants(Cost_model_constants *new_cos
 
   @param cost_name  name of the cost constant
   @param value      value it was attempted set to
-  @param err        error status
+  @param error      error status
 */
 
 static void report_server_cost_warnings(const LEX_CSTRING &cost_name,
@@ -205,7 +205,7 @@ static void report_server_cost_warnings(const LEX_CSTRING &cost_name,
   @param storage_category device type
   @param cost_name        name of the cost constant
   @param value            value it was attempted set to
-  @param err              error status
+  @param error            error status
 */
 
 static void report_engine_cost_warnings(const LEX_CSTRING &se_name,
@@ -246,7 +246,7 @@ static void report_engine_cost_warnings(const LEX_CSTRING &se_name,
 
   @param thd                    the THD
   @param table                  the table to read from
-  @param cost_constants[in,out] cost constant object
+  @param [in,out] cost_constants cost constant object
 */
 
 static void read_server_cost_constants(THD *thd, TABLE *table,
@@ -321,7 +321,7 @@ static void read_server_cost_constants(THD *thd, TABLE *table,
 
   @param thd                    the THD
   @param table                  the table to read from
-  @param cost_constants[in,out] cost constant object
+  @param [in,out] cost_constants cost constant object
 */
 
 static void read_engine_cost_constants(THD *thd, TABLE *table,

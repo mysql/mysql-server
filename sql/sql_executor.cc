@@ -28,6 +28,7 @@
 
 #include "debug_sync.h"       // DEBUG_SYNC
 #include "item_sum.h"         // Item_sum
+#include "json_dom.h"         // Json_wrapper
 #include "key.h"              // key_cmp
 #include "log.h"              // sql_print_error
 #include "filesort.h"         // Filesort
@@ -86,6 +87,7 @@ static int join_read_linked_first(QEP_TAB *tab);
 static int join_read_linked_next(READ_RECORD *info);
 static int do_sj_reset(SJ_TMP_TABLE *sj_tbl);
 static bool cmp_buffer_with_ref(THD *thd, TABLE *table, TABLE_REF *tab_ref);
+static bool alloc_group_fields(JOIN *join, ORDER *group);
 
 
 void Temp_table_param::cleanup(void)
@@ -139,6 +141,8 @@ JOIN::exec()
 
   Query_result *const query_result= select_lex->query_result();
 
+  do_send_rows = unit->select_limit_cnt > 0;
+
   if (!tables_list && (tables || !select_lex->with_sum_func))
   {                                           // Only test of functions
     /*
@@ -174,7 +178,7 @@ JOIN::exec()
         send_records= calc_found_rows ? 1 : thd->get_sent_row_count();
       }
       /* Query block (without union) always returns 0 or 1 row */
-      thd->limit_found_rows= send_records;
+      thd->current_found_rows= send_records;
     }
     else
     {
@@ -318,7 +322,10 @@ JOIN::create_intermediate_table(QEP_TAB *const tab,
 
 err:
   if (table != NULL)
+  {
     free_tmp_table(thd, table);
+    tab->set_table(NULL);
+  }
   DBUG_RETURN(true);
 }
 
@@ -375,7 +382,7 @@ int JOIN::rollup_send_data(uint idx)
                                - 0 = Total sum level
                                - 1 = First group changed  (a)
                                - 2 = Second group changed (a,b)
-  @param table               reference to temp table
+  @param table_arg           Reference to temp table
 
   @retval
     0   ok
@@ -461,7 +468,7 @@ bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct)
 
 
 /**
-  Call ::setup for all sum functions.
+  Call @c setup() for all sum functions.
 
   @param thd           thread handler
   @param func_ptr      sum function list
@@ -512,7 +519,7 @@ static void
 copy_sum_funcs(Item_sum **func_ptr, Item_sum **end_ptr)
 {
   for (; func_ptr != end_ptr ; func_ptr++)
-    (void) (*func_ptr)->save_in_result_field(1);
+    (*func_ptr)->save_in_result_field(1);
   return;
 }
 
@@ -539,7 +546,7 @@ static bool
 update_sum_func(Item_sum **func_ptr)
 {
   Item_sum *func;
-  for (; (func= (Item_sum*) *func_ptr) ; func_ptr++)
+  for (; (func= *func_ptr) ; func_ptr++)
     if (func->aggregator_add())
       return 1;
   return 0;
@@ -622,7 +629,7 @@ end_sj_materialize(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
       if (item->is_null())
         DBUG_RETURN(NESTED_LOOP_OK);
     }
-    fill_record(thd, table->visible_field_ptr(),
+    fill_record(thd, table, table->visible_field_ptr(),
                 sjm->sj_nest->nested_join->sj_inner_exprs,
                 NULL, NULL);
     if (thd->is_error())
@@ -644,8 +651,6 @@ end_sj_materialize(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
 }
 
 
-
-
 /**
   Check appearance of new constant items in multiple equalities
   of a condition after reading a constant table.
@@ -655,14 +660,15 @@ end_sj_materialize(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
     reading the constant (single row) table tab. If so it adjusts
     the multiple equality appropriately.
 
+  @param thd        thread handler
   @param cond       condition whose multiple equalities are to be checked
-  @param table      constant table that has been read
+  @param tab        constant table that has been read
 */
 
-static void update_const_equal_items(Item *cond, JOIN_TAB *tab)
+static bool update_const_equal_items(THD *thd, Item *cond, JOIN_TAB *tab)
 {
   if (!(cond->used_tables() & tab->table_ref->map()))
-    return;
+    return false;
 
   if (cond->type() == Item::COND_ITEM)
   {
@@ -670,14 +676,18 @@ static void update_const_equal_items(Item *cond, JOIN_TAB *tab)
     List_iterator_fast<Item> li(*cond_list);
     Item *item;
     while ((item= li++))
-      update_const_equal_items(item, tab);
+    {
+      if (update_const_equal_items(thd, item, tab))
+        return true;
+    }
   }
   else if (cond->type() == Item::FUNC_ITEM && 
            ((Item_cond*) cond)->functype() == Item_func::MULT_EQUAL_FUNC)
   {
     Item_equal *item_equal= (Item_equal *) cond;
     bool contained_const= item_equal->get_const() != NULL;
-    item_equal->update_const();
+    if (item_equal->update_const(thd))
+      return true;
     if (!contained_const && item_equal->get_const())
     {
       /* Update keys for range analysis */
@@ -712,6 +722,7 @@ static void update_const_equal_items(Item *cond, JOIN_TAB *tab)
       }
     }
   }
+  return false;
 }
 
 /**
@@ -739,7 +750,7 @@ return_zero_rows(JOIN *join, List<Item> &fields)
   /* Update results for FOUND_ROWS */
   if (!join->send_row_on_empty_set())
   {
-    join->thd->limit_found_rows= 0;
+    join->thd->current_found_rows= 0;
   }
 
   SELECT_LEX *const select= join->select_lex;
@@ -781,7 +792,7 @@ return_zero_rows(JOIN *join, List<Item> &fields)
 /**
   @brief Setup write_func of QEP_tmp_table object
 
-  @param join_tab JOIN_TAB of a tmp table
+  @param tab QEP_TAB of a tmp table
 
   @details
   Function sets up write_func according to how QEP_tmp_table object that
@@ -950,7 +961,7 @@ do_select(JOIN *join)
       error= join->first_select(join,qep_tab,1);
   }
 
-  join->thd->limit_found_rows= join->send_records;
+  join->thd->current_found_rows= join->send_records;
   /*
     For "order by with limit", we cannot rely on send_records, but need
     to use the rowcount read originally into the join_tab applying the
@@ -977,7 +988,7 @@ do_select(JOIN *join)
         sort_tab->filesort->sortorder &&
         sort_tab->filesort->limit != HA_POS_ERROR)
     {
-      join->thd->limit_found_rows= sort_tab->records();
+      join->thd->current_found_rows= sort_tab->records();
     }
   }
 
@@ -1016,8 +1027,8 @@ do_select(JOIN *join)
   operation's result further.
 
   @param join  pointer to the structure providing all context info for the query
-  @param join_tab the JOIN_TAB object to which the operation is attached
-  @param end_records  TRUE <=> all records were accumulated, send them further
+  @param qep_tab the QEP_TAB object to which the operation is attached
+  @param end_of_records  TRUE <=> all records were accumulated, send them further
 
   @details
   This function accumulates records, one by one, in QEP operation's buffer by
@@ -1087,13 +1098,6 @@ sub_select_op(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
 /**
   Retrieve records ends with a given beginning from the result of a join.
 
-  SYNPOSIS
-    sub_select()
-    join      pointer to the structure providing all context info for the query
-    join_tab  the first next table of the execution plan to be retrieved
-    end_records  true when we need to perform final steps of retrival   
-
-  DESCRIPTION
     For a given partial join record consisting of records from the tables 
     preceding the table join_tab in the execution plan, the function
     retrieves all matching full records from the result set and
@@ -1204,8 +1208,8 @@ sub_select_op(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
 
   @param join      pointer to the structure providing all context info for
                    the query
-  @param join_tab  the first next table of the execution plan to be retrieved
-  @param end_records  true when we need to perform final steps of retrival   
+  @param qep_tab  the first next table of the execution plan to be retrieved
+  @param end_of_records  true when we need to perform final steps of retreival   
 
   @return
     return one of enum_nested_loop_state, except NESTED_LOOP_NO_MORE_ROWS.
@@ -1465,8 +1469,8 @@ static int do_sj_reset(SJ_TMP_TABLE *sj_tbl)
   join_tab->return_tab may be modified to cause a return to a previous
   join_tab.
 
-  @param  join     - The join object
-  @param  join_tab - The most inner join_tab being processed
+  @param  join     The join object
+  @param  qep_tab The most inner qep_tab being processed
 
   @return Nested loop state
 */
@@ -1641,6 +1645,10 @@ evaluate_join_record(JOIN *join, QEP_TAB *const qep_tab)
       join->thd->get_stmt_da()->inc_current_row_for_condition();
       if (rc != NESTED_LOOP_OK)
         DBUG_RETURN(rc);
+
+      /* check for errors evaluating the condition */
+      if (join->thd->is_error())
+        DBUG_RETURN(NESTED_LOOP_ERROR);
 
       if (qep_tab->do_loosescan() &&
           QEP_AT(qep_tab,match_tab).found_match)
@@ -1864,6 +1872,9 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
         the reading now, so we must read all columns.
       */
       bitmap_set_all(table->read_set);
+      /* Virtual generated columns must be writable */
+      for (Field **vfield_ptr= table->vfield; vfield_ptr && *vfield_ptr; vfield_ptr++)
+        bitmap_set_bit(table->write_set, (*vfield_ptr)->field_index);
       table->file->column_bitmaps_signal();
     }
   }
@@ -1904,8 +1915,10 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
 
   /* Check appearance of new constant items in Item_equal objects */
   JOIN *const join= tab->join();
-  if (join->where_cond)
-    update_const_equal_items(join->where_cond, tab);
+  THD *const thd= join->thd;
+  if (join->where_cond &&
+      update_const_equal_items(thd, join->where_cond, tab))
+    DBUG_RETURN(1);
   TABLE_LIST *tbl;
   for (tbl= join->select_lex->leaf_tables; tbl; tbl= tbl->next_leaf)
   {
@@ -1914,8 +1927,9 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
     do
     {
       embedded= embedding;
-      if (embedded->join_cond_optim())
-        update_const_equal_items(embedded->join_cond_optim(), tab);
+      if (embedded->join_cond_optim() &&
+          update_const_equal_items(thd, embedded->join_cond_optim(), tab))
+        DBUG_RETURN(1);
       embedding= embedded->embedding;
     }
     while (embedding &&
@@ -1989,7 +2003,7 @@ static int read_const(TABLE *table, TABLE_REF *ref)
     else
     {
       error=table->file->ha_index_read_idx_map(table->record[0],ref->key,
-                                               (uchar*) ref->key_buff,
+                                               ref->key_buff,
                                                make_prev_keypart_map(ref->key_parts),
                                                HA_READ_KEY_EXACT);
     }
@@ -2101,7 +2115,7 @@ join_read_key(QEP_TAB *tab)
   @sa join_read_key()
 */
 
-void
+static void
 join_read_key_unlock_row(QEP_TAB *tab)
 {
   DBUG_ASSERT(tab->ref().use_count);
@@ -2121,7 +2135,7 @@ join_read_key_unlock_row(QEP_TAB *tab)
 
   However, there may be situations where the prepared pushed join was not
   executed as assumed. It is the responsibility of the handler to handle
-  these situation by letting ::index_read_pushed() then effectively do a 
+  these situation by letting @c index_read_pushed() then effectively do a 
   plain old' index_read_map(..., HA_READ_KEY_EXACT);
   
   @param tab			Table to read
@@ -2870,19 +2884,6 @@ end_send(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
   {
     int error;
 
-    /*
-      If group ref array exist then set it as current ref array. Result values
-      of non-deterministic expressions are saved here and corresponding Item_ref
-      should look for their values here rather than re-evaluation of the same.
-      Example : Loose index scan with having, where having refers to
-                non-deterministic function like rand() in select.
-    */
-    if (!join->items3.is_null() && !join->set_group_rpa)
-    {
-      join->set_group_rpa= true;
-      join->set_items_ref_array(join->items3);
-    }
-
     if (join->tables &&
         // In case filesort has been used and zeroed quick():
         (join->qep_tab[0].quick_optim() &&
@@ -3108,6 +3109,32 @@ static bool cmp_field_value(Field *field, my_ptrdiff_t diff)
 
   const size_t src_len= field->data_length();
   const size_t dst_len= field->data_length(diff);
+
+  if (field->type() == MYSQL_TYPE_JSON)
+  {
+    if (field->is_real_null())
+    {
+      return false;
+    }
+
+    Field_json *json_field= down_cast<Field_json *>(field);
+
+    // Fetch the JSON value on the left side of the comparison.
+    Json_wrapper left_wrapper;
+    if (json_field->val_json(&left_wrapper))
+      return true;                            /* purecov: inspected */
+
+    // Fetch the JSON value on the right side of the comparison.
+    Json_wrapper right_wrapper;
+    json_field->ptr+= diff;
+    bool err= json_field->val_json(&right_wrapper);
+    json_field->ptr-= diff;
+    if (err)
+      return true;                            /* purecov: inspected */
+
+    return (left_wrapper.compare(right_wrapper) != 0);
+  }
+
   // Trailing space can't be skipped and length is different
   if (!field->is_text_key_type() && src_len != dst_len)     // 2
     return true;
@@ -3127,7 +3154,7 @@ static bool cmp_field_value(Field *field, my_ptrdiff_t diff)
     false records are the same
 */
 
-bool group_rec_cmp(ORDER *group, uchar *rec0, uchar *rec1)
+static bool group_rec_cmp(ORDER *group, uchar *rec0, uchar *rec1)
 {
   my_ptrdiff_t diff= rec1 - rec0;
 
@@ -3150,7 +3177,7 @@ bool group_rec_cmp(ORDER *group, uchar *rec0, uchar *rec1)
     false records are the same
 */
 
-bool table_rec_cmp(TABLE *table)
+static bool table_rec_cmp(TABLE *table)
 {
   my_ptrdiff_t diff= table->record[1] - table->record[0];
   Field **fields= table->visible_field_ptr();
@@ -3191,7 +3218,14 @@ ulonglong unique_hash(Field *field, ulonglong *hash_val)
 
   field->get_ptr(&pos);
   end= pos + field->data_length();
-  if (field->key_type() == HA_KEYTYPE_TEXT ||
+
+  if (field->type() == MYSQL_TYPE_JSON)
+  {
+    Field_json *json_field= down_cast<Field_json *>(field);
+
+    crc= json_field->make_hash_key(hash_val);
+  }
+  else if (field->key_type() == HA_KEYTYPE_TEXT ||
       field->key_type() == HA_KEYTYPE_VARTEXT1 ||
       field->key_type() == HA_KEYTYPE_VARTEXT2)
   {
@@ -3212,7 +3246,7 @@ finish:
 
 /* Generate hash for unique constraint according to group-by list */
 
-ulonglong unique_hash_group(ORDER *group)
+static ulonglong unique_hash_group(ORDER *group)
 {
   ulonglong crc= 0;
   Field *field;
@@ -3231,7 +3265,7 @@ ulonglong unique_hash_group(ORDER *group)
 
 /* Generate hash for unique_constraint for all visible fields of a table */
 
-ulonglong unique_hash_fields(TABLE *table)
+static ulonglong unique_hash_fields(TABLE *table)
 {
   ulonglong crc= 0;
   Field **fields= table->visible_field_ptr();
@@ -3249,9 +3283,9 @@ ulonglong unique_hash_fields(TABLE *table)
   @details Calculates record's hash and checks whether the record given in
   table->record[0] is already present in the tmp table.
 
-  @param tab JOIN_TAB of tmp table to check
+  @param table JOIN_TAB of tmp table to check
 
-  @notes This function assumes record[0] is already filled by the caller.
+  @note This function assumes record[0] is already filled by the caller.
   Depending on presence of table->group, it's or full list of table's fields
   are used to calculate hash.
 
@@ -3276,7 +3310,7 @@ bool check_unique_constraint(TABLE *table)
     hash= unique_hash_fields(table);
   table->hash_field->store(hash, true);
   int res= table->file->ha_index_read_map(table->record[1],
-                                          (uchar*)table->hash_field->ptr,
+                                          table->hash_field->ptr,
                                           HA_WHOLE_KEY,
                                           HA_READ_KEY_EXACT);
   while (!res)
@@ -3287,7 +3321,7 @@ bool check_unique_constraint(TABLE *table)
           group_rec_cmp(table->group, table->record[0], table->record[1])))
       return false; // skip it
     res= table->file->ha_index_next_same(table->record[1],
-                                         (uchar*)table->hash_field->ptr,
+                                         table->hash_field->ptr,
                                          sizeof(hash));
   }
   return true;
@@ -3308,14 +3342,6 @@ end_write(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
   }
   if (!end_of_records)
   {
-    /*
-      Set the ref_ptrs to current temp table ref_array. Below we evaluate
-      having, Item_ref of non-deterministic expressions in having should refer
-      to their result values in temp table instead of re-evaluating the same.
-    */
-    if (join->current_ref_ptrs != *(qep_tab->ref_array))
-      join->set_items_ref_array(*(qep_tab->ref_array));
-
     Temp_table_param *const tmp_tbl= qep_tab->tmp_table_param;
     if (copy_fields(tmp_tbl, join->thd))
       DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
@@ -3548,13 +3574,6 @@ end_write_group(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
 	DBUG_RETURN(NESTED_LOOP_OK);
       join->first_record=1;
 
-      /*
-        Set the ref_ptrs to current temp table ref_array. Below we evaluate
-        having, Item_ref of non-deterministic expressions in having should refer
-        to their result values in temp table instead of re-evaluating the same.
-      */
-      join->set_items_ref_array(*(qep_tab->ref_array));
-
       (void)(test_if_item_cache_changed(join->group_fields));
     }
     if (idx < (int) join->send_group_parts)
@@ -3602,10 +3621,9 @@ end_write_group(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
 static int
 create_sort_index(THD *thd, JOIN *join, QEP_TAB *tab)
 {
-  ha_rows examined_rows;
-  ha_rows found_rows;
-  ha_rows filesort_retval= HA_POS_ERROR;
+  ha_rows examined_rows, found_rows, returned_rows;
   TABLE *table;
+  bool status;
   Filesort *fsort= tab->filesort;
   DBUG_ENTER("create_sort_index");
 
@@ -3637,9 +3655,9 @@ create_sort_index(THD *thd, JOIN *join, QEP_TAB *tab)
 
   if (table->s->tmp_table)
     table->file->info(HA_STATUS_VARIABLE);	// Get record count
-  filesort_retval= filesort(thd, tab, fsort, tab->keep_current_rowid,
-                            &examined_rows, &found_rows);
-  table->sort.found_records= filesort_retval;
+  status= filesort(thd, fsort, tab->keep_current_rowid,
+                   &examined_rows, &found_rows, &returned_rows);
+  table->sort.found_records= returned_rows;
   tab->set_records(found_rows);                     // For SQL_CALC_ROWS
   tab->join()->examined_rows+=examined_rows;
   table->set_keyread(FALSE); // Restore if we used indexes
@@ -3647,7 +3665,7 @@ create_sort_index(THD *thd, JOIN *join, QEP_TAB *tab)
     table->file->ft_end();
   else
     table->file->ha_index_or_rnd_end();
-  DBUG_RETURN(filesort_retval == HA_POS_ERROR);
+  DBUG_RETURN(status);
 err:
   DBUG_RETURN(-1);
 }
@@ -3887,7 +3905,8 @@ static bool remove_dup_with_hash_index(THD *thd, TABLE *table,
   }
 
   if (my_hash_init(&hash, &my_charset_bin, (uint) file->stats.records, 0, 
-                   key_length, (my_hash_get_key) 0, 0, 0))
+                   key_length, (my_hash_get_key) 0, 0, 0,
+                   key_memory_hash_index_key_buffer))
   {
     my_free(key_buffer);
     DBUG_RETURN(true);
@@ -4070,7 +4089,7 @@ make_group_fields(JOIN *main_join, JOIN *curr_join)
   Groups are saved in reverse order for easyer check loop.
 */
 
-bool
+static bool
 alloc_group_fields(JOIN *join, ORDER *group)
 {
   if (group)
@@ -4594,7 +4613,7 @@ QEP_tmp_table::prepare_tmp_table()
 /**
   @brief Prepare table if necessary and call write_func to save record
 
-  @param end_of_record  the end_of_record signal to pass to the writer
+  @param end_of_records The end_of_record signal to pass to the writer
 
   @return return one of enum_nested_loop_state.
 */

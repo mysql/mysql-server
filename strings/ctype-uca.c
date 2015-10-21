@@ -19494,7 +19494,7 @@ static uint16 nochar[]= {0,0};
 /**
   Mark a character as a contraction part
   
-  @param uca      Pointer to UCA data
+  @param list     Pointer to UCA data
   @param wc       Unicode code point
   @param flag     flag: "is contraction head", "is contraction tail"
 */
@@ -19509,7 +19509,7 @@ my_uca_add_contraction_flag(MY_CONTRACTIONS *list, my_wc_t wc, int flag)
 /**
   Add a new contraction into contraction list
   
-  @param uca      Pointer to UCA data
+  @param list     Pointer to UCA data
   @param wc       Unicode code points of the characters
   @param len      Number of characters
   
@@ -19549,8 +19549,7 @@ my_uca_add_contraction(MY_CONTRACTIONS *list, my_wc_t *wc, size_t len,
 /**
   Allocate and initialize memory for contraction list and flags
   
-  @param uca      Pointer to UCA data
-  @param alloc    Memory allocation function (typically points to my_alloc_once)
+  @param contractions      Pointer to UCA data
   @param n        Number of contractions
   
   @return   Error code
@@ -19707,7 +19706,7 @@ my_uca_can_be_previous_context_head(const MY_CONTRACTIONS *list, my_wc_t wc)
 /**
   Check if a character can be previois context tail
 
-  @param uca      Pointer to UCA contraction data
+  @param list     Pointer to UCA contraction data
   @param wc       Code point
 
   @return
@@ -19777,11 +19776,11 @@ my_uca_contraction_weight(const MY_CONTRACTIONS *list, my_wc_t *wc, size_t len)
   candidates, starting from the longest.
 
   @param scanner  Pointer to UCA scanner
-  @param[OUT] *wc Where to store the scanned string
+  @param[out] wc Where to store the scanned string
 
   @return         Weight array
-  @retval         NULL - no contraction found
-  @retval         ptr  - contraction weight array
+  @retval         NULL no contraction found
+  @retval         ptr  contraction weight array
 */
 
 static uint16 *
@@ -20068,9 +20067,8 @@ my_space_weight(const CHARSET_INFO *cs) /* W3-TODO */
   Helper function:
   Find address of weights of the given character.
   
-  @param weights  UCA weight array
-  @param lengths  UCA length array
-  @param ch       character Unicode code point
+  @param level    Pointer to UCA level data
+  @param wc       character Unicode code point
   
   @return Weight array
     @retval  pointer to weight array for the given character,
@@ -20945,7 +20943,7 @@ my_coll_rule_expand(my_wc_t *wc, size_t limit, my_wc_t code)
 /**
   Initialize collation customization rule
 
-  @param  wc     Rule
+  @param  r     Rule
 */
 
 static void
@@ -21389,7 +21387,7 @@ my_coll_parser_scan_logical_position(MY_COLL_RULE_PARSER *p,
 /**
   Scan character list
 
-    <character list> ::= CHAR [ CHAR... ]
+    @<character list@> ::= CHAR [ CHAR... ]
 
   @param  p        Collation customization parser
   @param  pwc      Character string to add code to
@@ -21428,9 +21426,9 @@ my_coll_parser_scan_character_list(MY_COLL_RULE_PARSER *p,
 /**
   Scan reset sequence
 
-  <reset sequence> ::=
-    [ <reset before option> ] <character list>
-  | [ <reset before option> ] <logical reset position>
+  @<reset sequence@> ::=
+    [ @<reset before option@> ] @<character list@>
+  | [ @<reset before option@> ] @<logical reset position@>
 
   @param  p        Collation customization parser
 
@@ -21504,9 +21502,9 @@ my_coll_parser_scan_reset_sequence(MY_COLL_RULE_PARSER *p)
 /**
   Scan shift sequence
 
-  <shift sequence> ::=
-    <character list>  [ / <character list> ]
-  | <character list>  [ | <character list> ]
+  @<shift sequence@> ::=
+    @<character list@>  [ / @<character list@> ]
+  | @<character list@>  [ | @<character list@> ]
 
   @param  p        Collation customization parser
 
@@ -21565,7 +21563,7 @@ my_coll_parser_scan_shift_sequence(MY_COLL_RULE_PARSER *p)
 /**
   Scan shift operator
 
-  <shift> ::=  <  | <<  | <<<  | <<<<  | =
+  @<shift@> ::=  <  | <<  | <<<  | <<<<  | =
 
   @param  p        Collation customization parser
 
@@ -21588,10 +21586,10 @@ my_coll_parser_scan_shift(MY_COLL_RULE_PARSER *p)
 /**
   Scan one rule: reset followed by a number of shifts
 
-  <rule> ::=
-    & <reset sequence>
-    <shift> <shift sequence>
-    [ { <shift> <shift sequence> }... ]
+  @<rule@> ::=
+    & @<reset sequence@>
+    @<shift@> @<shift sequence@>
+    [ { @<shift@> @<shift sequence@> }... ]
 
   @param  p        Collation customization parser
 
@@ -21627,14 +21625,14 @@ my_coll_parser_scan_rule(MY_COLL_RULE_PARSER *p)
 /**
   Scan collation customization: settings followed by rules
 
-  <collation customization> ::=
-    [ <setting> ... ]
-    [ <rule>... ]
+  @<collation customization@> ::=
+    [ @<setting@> ... ]
+    [ @<rule@>... ]
 
   @param  p        Collation customization parser
 
   @return
-  @retval          0 if collation customozation expression was not scanned.
+  @retval          0 if collation customization expression was not scanned.
   @retval          1 if collation customization expression was scanned.
 */
 
@@ -21693,12 +21691,11 @@ my_coll_rule_parse(MY_COLL_RULES *rules,
   Copies UCA weights for a given "uint" string
   to the given location.
   
-  @src_uca    source UCA weight data
-  @dst_uca    destination UCA weight data
-  @to         destination address
-  @to_length  size of destination
-  @str        qide string
-  @len        string length
+  @param dst        destination UCA weight data
+  @param to         destination address
+  @param to_length  size of destination
+  @param str        qide string
+  @param len        string length
   
   @return    number of weights put
 */
@@ -21749,10 +21746,10 @@ my_char_weight_put(MY_UCA_WEIGHT_LEVEL *dst,
 
 /**
   Alloc new page and copy the default UCA weights
-  @param loader   - Character set loader
-  @param src_uca  - Default UCA data to copy from
-  @param dst_uca  - UCA data to copy weights to
-  @param page     - page number
+  @param loader   Character set loader
+  @param src      Default UCA data to copy from
+  @param dst      UCA data to copy weights to
+  @param page     page number
 
   @return
   @retval         FALSE on success

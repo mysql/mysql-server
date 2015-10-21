@@ -16,13 +16,12 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "my_global.h"
-#include <mysql/plugin_query_rewrite.h>
 #include <mysql/service_parser.h>
 #include <string>
 #include <vector>
 
 /**
-  @file services.h
+  @file plugin/rewriter/services.h
 
   Conversion layer between the parser service and this plugin. This plugin is
   written in C++, while the parser service is written in C.
@@ -72,6 +71,7 @@ public:
 class Literal_visitor
 {
 public:
+  virtual ~Literal_visitor() {}
   virtual bool visit(MYSQL_ITEM item) = 0;
 };
 

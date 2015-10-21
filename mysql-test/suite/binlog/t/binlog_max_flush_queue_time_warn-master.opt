@@ -1,0 +1,1 @@
+--binlog_max_flush_queue_time=0

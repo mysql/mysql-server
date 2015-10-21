@@ -1997,7 +1997,8 @@ create table t2 (a int, b int);
 # that the outer query's ORDER BY depends on a non-aggregated column,
 # which itself is not in GROUP BY.
 --error ER_WRONG_FIELD_WITH_GROUP
-select a from t2 group by a order by (select a from t1 order by t2.b);
+select a from t2 group by a
+                 order by (select a from t1 order by t2.b limit 1);
 SET @@sql_mode = @old_sql_mode;
 DROP TABLE t1,t2;
 
@@ -2383,3 +2384,37 @@ eval EXPLAIN $query;
 eval $query;
 
 DROP TABLE t0, t1;
+
+--echo # Bug#21753180: handle_fatal_signal (sig=11) in my_strtod_int
+
+CREATE TABLE t1(
+ a INTEGER,
+ b BLOB(1),
+ c BLOB(1),
+ PRIMARY KEY(a,b(1)),
+ UNIQUE KEY (a,c(1))
+);
+
+INSERT INTO t1 VALUES(1,2,1),(2,4,1);
+
+let $query=
+SELECT a, (SELECT SUM(a + c) FROM (SELECT b as c FROM t1) AS v1) FROM t1;
+
+eval explain $query;
+
+eval $query;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#21761044 CONDITIONAL JUMP AT TEST_IF_ORDER_BY_KEY IN SQL_OPTIMIZER.CC
+--echo #
+--echo # Used to give ASAN error on the SELECT: addressing beyond allocated memory
+--echo #
+
+CREATE TABLE cc (pk int,  i int, c varchar(1),
+                 PRIMARY KEY (pk, i), KEY c_key(c)) ENGINE=InnoDB;
+
+SELECT c, i, pk FROM cc WHERE (cc.pk = 1)  GROUP BY c, i, pk;
+
+DROP TABLE cc;

@@ -26,6 +26,7 @@
 #include "sql_connect.h"                 // close_connection
 #include "sql_class.h"                   // THD
 #include "sql_parse.h"                   // do_command
+#include "sql_thd_internal_api.h"        // thd_set_thread_stack
 
 
 bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
@@ -59,7 +60,7 @@ bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
     need to know the start of the stack so that we could check for
     stack overruns.
   */
-  thd->thread_stack= (char*) &thd;
+  thd_set_thread_stack(thd, (char*) &thd);
   if (thd->store_globals())
   {
     close_connection(thd, ER_OUT_OF_RESOURCES);
@@ -82,7 +83,7 @@ bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
   else
   {
     delete channel_info;
-    while (thd_is_connection_alive(thd))
+    while (thd_connection_alive(thd))
     {
       mysql_audit_release(thd);
       if (do_command(thd))

@@ -26,7 +26,7 @@
 class JOIN;
 class sp_name;
 struct System_status_var;
-typedef class st_select_lex SELECT_LEX;
+class SELECT_LEX;
 // TODO: allocator based on my_malloc.
 typedef std::vector<st_mysql_show_var> Status_var_array;
 
@@ -85,9 +85,13 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 
 int copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table);
 
-void append_identifier(THD *thd, String *packet, const char *name, size_t length);
 void append_identifier(THD *thd, String *packet, const char *name, size_t length,
                        const CHARSET_INFO *from_cs, const CHARSET_INFO *to_cs);
+
+inline void append_identifier(THD *thd, String *packet, const char *name, size_t length)
+{
+  append_identifier(thd, packet, name, length, NULL, NULL);
+}
 inline void append_identifier(THD *thd, String *packet, Simple_cstring str)
 {
   append_identifier(thd, packet, str.ptr(), str.length());
@@ -130,6 +134,14 @@ const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
                              const CHARSET_INFO **charset, char *buff,
                              size_t *length);
 
+const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
+                                 const SHOW_VAR *variable,
+                                 enum_var_type value_type, SHOW_TYPE show_type,
+                                 System_status_var *status_var,
+                                 const CHARSET_INFO **charset, char *buff,
+                                 size_t *length);
+
+/* These functions were under INNODB_COMPATIBILITY_HOOKS */
 int get_quote_char_for_identifier(THD *thd, const char *name, size_t length);
 
 /* Handle the ignored database directories list for SHOW/I_S. */

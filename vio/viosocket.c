@@ -324,7 +324,7 @@ int vio_socket_timeout(Vio *vio,
 }
 
 
-int vio_fastsend(Vio * vio __attribute__((unused)))
+int vio_fastsend(Vio * vio)
 {
   int r=0;
   DBUG_ENTER("vio_fastsend");
@@ -467,8 +467,8 @@ my_socket vio_fd(Vio* vio)
   addresses may be written in a form of IPv4-mapped or IPv4-compatible IPv6
   addresses. That means, one address (a.b.c.d) can be written in three forms:
     - IPv4: a.b.c.d;
-    - IPv4-compatible IPv6: ::a.b.c.d;
-    - IPv4-mapped IPv4: ::ffff:a.b.c.d;
+    - IPv4-compatible IPv6: @code ::a.b.c.d @endcode;
+    - IPv4-mapped IPv4: @code ::ffff:a.b.c.d @endcode;
 
   Having three forms of one address makes it a little difficult to compare
   addresses with each other (the IPv4-compatible IPv6-address of foo.bar
@@ -670,7 +670,7 @@ my_bool vio_peer_addr(Vio *vio, char *ip_buffer, uint16 *port,
   Retrieve the amount of data that can be read from a socket.
 
   @param vio          A VIO object.
-  @param bytes[out]   The amount of bytes available.
+  @param [out] bytes  The amount of bytes available.
 
   @retval FALSE   Success.
   @retval TRUE    Failure.

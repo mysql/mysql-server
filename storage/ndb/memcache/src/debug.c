@@ -1,5 +1,6 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
+ reserved.
  
  This program is free software; you can redistribute it and/or
  modify it under the terms of the GNU General Public License
@@ -32,15 +33,15 @@
 FILE *debug_outfile;
 int do_debug = 0;
 
-void ndbmc_debug_init(const char *filename, int enable) {
-  if(! enable) return;
-  
-  do_debug = 1;
-  if(filename) 
-    debug_outfile = fopen(filename, "w");
-  else 
-    debug_outfile = fdopen(STDERR_FILENO, "a");
-  assert(debug_outfile);
+void ndbmc_debug_init(const char *filename, int level) {
+  do_debug = level;
+  if(level) {
+    if(filename)
+      debug_outfile = fopen(filename, "w");
+    else
+      debug_outfile = fdopen(STDERR_FILENO, "a");
+    assert(debug_outfile);
+  }
 }
 
 
@@ -76,6 +77,9 @@ void ndbmc_debug_enter(const char *func) {
 
 
 void ndbmc_debug_flush() {
+  const thread_identifier *thread = get_thread_id();
+  const char * name = thread ? thread->name : "main";
+  fprintf(debug_outfile, "thread %s: flushed log file.\n", name);
   fflush(debug_outfile);
 }
 

@@ -101,12 +101,18 @@ Opt_hints* Opt_hints::find_by_name(const LEX_CSTRING *name_arg,
 }
 
 
-void Opt_hints::print(THD *thd, String *str)
+void Opt_hints::print(THD *thd, String *str, enum_query_type query_type)
 {
   for (uint i= 0; i < MAX_HINT_ENUM; i++)
   {
     opt_hints_enum hint= static_cast<opt_hints_enum>(i);
-    if (is_specified(hint) && is_resolved())
+    /*
+       If printing a normalized query, also unresolved hints will be printed.
+       (This is needed by query rewrite plugins which request
+       normalized form before resolving has been performed.)
+    */
+    if (is_specified(hint) &&
+        (is_resolved() || query_type == QT_NORMALIZED_FORMAT))
     {
       append_hint_type(str, hint);
       str->append(STRING_WITH_LEN("("));
@@ -118,7 +124,7 @@ void Opt_hints::print(THD *thd, String *str)
   }
 
   for (uint i= 0; i < child_array.size(); i++)
-    child_array[i]->print(thd, str);
+    child_array[i]->print(thd, str, query_type);
 }
 
 
@@ -276,8 +282,13 @@ void Opt_hints_table::adjust_key_hints(TABLE *table)
     return;
   }
 
-  /* Make sure that adjustement is called only once. */
-  DBUG_ASSERT(keyinfo_array.size() == 0);
+  /*
+    Make sure that adjustement is done only once.
+    Table has already been processed if keyinfo_array is not empty.
+  */
+  if (keyinfo_array.size())
+    return;
+
   keyinfo_array.resize(table->s->keys, NULL);
 
   for (Opt_hints** hint= child_array_ptr()->begin();
@@ -316,7 +327,7 @@ void Opt_hints_table::adjust_key_hints(TABLE *table)
   @param parent_hint       Pointer to the parent hint object,
                            should never be NULL
   @param type_arg          hint type
-  @param OUT ret_val       hint value depending on
+  @param [out] ret_val     hint value depending on
                            what hint level is used
 
   @return true if hint is specified, false otherwise

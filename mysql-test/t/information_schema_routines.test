@@ -295,3 +295,23 @@ INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA='i_s_routines_test';
 
 # final clean up
 DROP DATABASE i_s_routines_test;
+USE test;
+
+
+--echo #
+--echo # Bug #21632425: SHOW FUNCTION STATUS ASSERTS WITH
+--echo #   PAD_CHAR_TO_FULL_LENGTH
+--echo #
+
+SELECT @@sql_mode INTO @old_sql_mode;
+SET sql_mode = 'pad_char_to_full_length';
+CREATE FUNCTION f() RETURNS INT RETURN 1;
+--echo # Must not assert
+--disable_result_log
+SHOW FUNCTION STATUS;
+--enable_result_log
+DROP FUNCTION IF EXISTS f;
+SET sql_mode = @old_sql_mode;
+
+
+--echo # End of 5.7 tests

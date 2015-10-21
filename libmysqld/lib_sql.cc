@@ -18,25 +18,26 @@
   This code was modified by the MySQL team
 */
 
-/*
-  The following is needed to not cause conflicts when we include mysqld.cc
-*/
-
-extern "C"
-{
-  extern unsigned long max_allowed_packet, net_buffer_length;
-}
-
-#include "../sql/mysqld.cc"
-
-extern "C" {
-
-#include <mysql.h>
-#undef ER
+#include "my_global.h"
+#include "mysql.h"
 #include "errmsg.h"
 #include "embedded_priv.h"
+#include "client_settings.h"
+#include "my_default.h"
 
-} // extern "C"
+#include "current_thd.h"
+#include "log.h"
+#include "mysqld.h"
+#include "mysqld_embedded.h"
+#include "mysqld_thd_manager.h"
+#include "rpl_filter.h"
+#include "sql_class.h"
+#include "sql_db.h"
+#include "sql_manager.h"
+#include "sql_parse.h"
+#include "sql_table.h"
+#include "sql_thd_internal_api.h"
+#include "tztime.h"
 
 #include <algorithm>
 
@@ -49,14 +50,6 @@ extern unsigned int mysql_server_last_errno;
 extern char mysql_server_last_error[MYSQL_ERRMSG_SIZE];
 static my_bool emb_read_query_result(MYSQL *mysql);
 
-
-void unireg_clear(int exit_code)
-{
-  DBUG_ENTER("unireg_clear");
-  clean_up(!opt_help && (exit_code || !opt_bootstrap)); /* purecov: inspected */
-  my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
-  DBUG_VOID_RETURN;
-}
 
 /*
   Wrapper error handler for embedded server to call client/server error 
@@ -93,7 +86,7 @@ static void embedded_error_handler(uint error, const char *str, myf MyFlags)
     most of the data is stored in data->embedded_info structure
 */
 
-void embedded_get_error(MYSQL *mysql, MYSQL_DATA *data)
+static void embedded_get_error(MYSQL *mysql, MYSQL_DATA *data)
 {
   NET *net= &mysql->net;
   struct embedded_query_result *ei= data->embedded_info;
@@ -114,7 +107,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   THD *thd=(THD *) mysql->thd;
   NET *net= &mysql->net;
   my_bool stmt_skip= stmt ? stmt->state != MYSQL_STMT_INIT_DONE : FALSE;
-  COM_DATA com_data;
+  union COM_DATA com_data;
 
   if (!thd)
   {
@@ -167,12 +160,9 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
                                               (uchar *) arg, arg_length);
   result= dispatch_command(thd, &com_data, command);
   thd->cur_data= 0;
-  thd->mysys_var= NULL;
 
   if (!skip_check)
     result= thd->is_error() ? -1 : 0;
-
-  thd->mysys_var= 0;
 
 #if defined(ENABLED_PROFILING)
   thd->profiling.finish_current_query();
@@ -360,7 +350,7 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
   DBUG_RETURN(0);
 }
 
-int emb_read_binary_rows(MYSQL_STMT *stmt)
+static int emb_read_binary_rows(MYSQL_STMT *stmt)
 {
   MYSQL_DATA *data;
   if (!(data= emb_read_rows(stmt->mysql, 0, 0)))
@@ -374,7 +364,7 @@ int emb_read_binary_rows(MYSQL_STMT *stmt)
   return 0;
 }
 
-int emb_read_rows_from_cursor(MYSQL_STMT *stmt)
+static int emb_read_rows_from_cursor(MYSQL_STMT *stmt)
 {
   MYSQL *mysql= stmt->mysql;
   THD *thd= (THD*) mysql->thd;
@@ -396,7 +386,7 @@ int emb_read_rows_from_cursor(MYSQL_STMT *stmt)
   return emb_read_binary_rows(stmt);
 }
 
-int emb_unbuffered_fetch(MYSQL *mysql, char **row)
+static int emb_unbuffered_fetch(MYSQL *mysql, char **row)
 {
   THD *thd= (THD*) mysql->thd;
   MYSQL_DATA *data= thd->cur_data;
@@ -447,7 +437,7 @@ static MYSQL_RES * emb_store_result(MYSQL *mysql)
   return mysql_store_result(mysql);
 }
 
-int emb_read_change_user_result(MYSQL *mysql)
+static int emb_read_change_user_result(MYSQL *mysql)
 {
   mysql->net.read_pos= (uchar*)""; // fake an OK packet
   return mysql_errno(mysql) ? static_cast<int>packet_error :
@@ -474,33 +464,6 @@ MYSQL_METHODS embedded_methods=
   emb_read_rows_from_cursor,
   free_rows
 };
-
-/*
-  Make a copy of array and the strings array points to
-*/
-
-char **copy_arguments(int argc, char **argv)
-{
-  size_t length= 0;
-  char **from, **res, **end= argv+argc;
-
-  for (from=argv ; from != end ; from++)
-    length+= strlen(*from);
-
-  if ((res= (char**) my_malloc(PSI_NOT_INSTRUMENTED,
-                               sizeof(argv)*(argc+1)+length+argc,
-			       MYF(MY_WME))))
-  {
-    char **to= res, *to_str= (char*) (res+argc+1);
-    for (from=argv ; from != end ;)
-    {
-      *to++= to_str;
-      to_str= my_stpcpy(to_str, *from++)+1;
-    }
-    *to= 0;					// Last ptr should be null
-  }
-  return res;
-}
 
 char **		copy_arguments_ptr= 0;
 
@@ -561,11 +524,8 @@ int init_embedded_server(int argc, char **argv, char **groups)
   system_charset_info= &my_charset_utf8_general_ci;
   sys_var_init();
 
-  int ho_error= handle_early_options();
-  if (ho_error != 0)
+  if (handle_early_options() != 0)
   {
-    buffered_logs.print();
-    buffered_logs.cleanup();
     return 1;
   }
 
@@ -617,9 +577,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   acl_error= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (!(acl_error= acl_init(opt_noacl)) &&
-      !opt_noacl)
-    (void) grant_init();
+  acl_error= acl_init(opt_noacl) || grant_init(opt_noacl);
 #endif
   if (acl_error || my_tz_init((THD *)0, default_tz_name, opt_bootstrap))
   {
@@ -733,7 +691,6 @@ void *create_embedded_thd(int client_flag)
   thd->data_tail= &thd->first_data;
   thd->get_protocol_classic()->wipe_net();
   Global_THD_manager::get_instance()->add_thd(thd);
-  thd->mysys_var= 0;
   return thd;
 err:
   delete(thd);
@@ -1140,6 +1097,7 @@ bool Protocol_classic::start_result_metadata(uint num_cols, uint flags,
     DBUG_RETURN(true);
 
   send_metadata= true;
+  sending_flags= flags;
   data= m_thd->cur_data;
   data->fields= field_count= num_cols;
   field_alloc= &data->alloc;
@@ -1373,4 +1331,10 @@ bool Protocol_classic::net_store_data(const uchar *from, size_t length,
   ++next_field;
   ++next_mysql_field;
   return false;
+}
+
+bool Protocol_classic::connection_alive()
+{
+  //for embedded protocol connection is always on
+  return true;
 }

@@ -36,6 +36,7 @@ Created 10/21/1995 Heikki Tuuri
 #define os0file_h
 
 #include "univ.i"
+#include "os/file.h"
 
 #ifndef _WIN32
 #include <dirent.h>
@@ -57,11 +58,6 @@ extern ulint	os_n_pending_writes;
 typedef ib_uint64_t os_offset_t;
 
 #ifdef _WIN32
-
-/**
-Normalizes a directory path for Windows: converts slashes to backslashes.
-@param[in,out] str A null-terminated Windows directory and file path */
-void os_normalize_path_for_win(char* str);
 
 /**
 Gets the operating system version. Currently works only on Windows.
@@ -99,8 +95,6 @@ typedef int	os_file_t;
 @param fd file descriptor
 @return native file handle */
 # define OS_FILE_FROM_FD(fd) fd
-
-# define os_normalize_path_for_win(str)
 
 #endif /* _WIN32 */
 
@@ -172,130 +166,6 @@ static const ulint OS_FILE_OPERATION_ABORTED = 80;
 static const ulint OS_FILE_ACCESS_VIOLATION = 81;
 static const ulint OS_FILE_ERROR_MAX = 100;
 /* @} */
-
-/** Compression algorithm. */
-struct Compression {
-
-	/** Algorithm types supported */
-	enum Type {
-		/* Note: During recovery we don't have the compression type
-		because the .frm file has not been read yet. Therefore
-		we write the recovered pages out without compression. */
-
-		/** No compression */
-		NONE = 0,
-
-		/** Use ZLib */
-		ZLIB = 1,
-
-		/** Use LZ4 faster variant, usually lower compression. */
-		LZ4 = 2
-	};
-
-	/** Compressed page meta-data */
-	struct meta_t {
-
-		/** Version number */
-		uint8_t		m_version;
-
-		/** Algorithm type */
-		Type		m_algorithm;
-
-		/** Original page type */
-		uint16_t	m_original_type;
-
-		/** Original page size, before compression */
-		uint16_t	m_original_size;
-
-		/** Size after compression */
-		uint16_t	m_compressed_size;
-	};
-
-	/** Default constructor */
-	Compression() : m_type(NONE) { };
-
-	/** Specific constructor
-	@param[in]	type		Algorithm type */
-	explicit Compression(Type type)
-		:
-		m_type(type)
-	{
-#ifdef UNIV_DEBUG
-		switch (m_type) {
-		case NONE:
-		case ZLIB:
-		case LZ4:
-
-		default:
-			ut_error;
-		}
-#endif /* UNIV_DEBUG */
-	}
-
-	/** Check the page header type field.
-	@param[in]	page		Page contents
-	@return true if it is a compressed page */
-	static bool is_compressed_page(const byte* page)
-		__attribute__((warn_unused_result));
-
-        /** Check wether the compression algorithm is supported.
-        @param[in]      algorithm       Compression algorithm to check
-        @param[out]     type            The type that algorithm maps to
-        @return DB_SUCCESS or error code */
-	static dberr_t check(const char* algorithm, Compression* type)
-		__attribute__((warn_unused_result));
-
-        /** Validate the algorithm string.
-        @param[in]      algorithm       Compression algorithm to check
-        @return DB_SUCCESS or error code */
-	static dberr_t validate(const char* algorithm)
-		__attribute__((warn_unused_result));
-
-        /** Convert to a "string".
-        @param[in]      type            The compression type
-        @return the string representation */
-        static const char* to_string(Type type)
-		__attribute__((warn_unused_result));
-
-        /** Convert the meta data to a std::string.
-        @param[in]      meta		Page Meta data
-        @return the string representation */
-        static std::string to_string(const meta_t& meta)
-		__attribute__((warn_unused_result));
-
-	/** Deserizlise the page header compression meta-data
-	@param[in]	header		Pointer to the page header
-	@param[out]	control		Deserialised data */
-	static void deserialize_header(
-		const byte*	page,
-		meta_t*		control);
-
-        /** Check if the string is "empty" or "none".
-        @param[in]      algorithm       Compression algorithm to check
-        @return true if no algorithm requested */
-	static bool is_none(const char* algorithm)
-		__attribute__((warn_unused_result));
-
-	/** Decompress the page data contents. Page type must be
-	FIL_PAGE_COMPRESSED, if not then the source contents are
-	left unchanged and DB_SUCCESS is returned.
-	@param[in]	dblwr_recover	true of double write recovery
-					in progress
-	@param[in,out]	src		Data read from disk, decompressed
-					data will be copied to this page
-	@param[in,out]	dst		Scratch area to use for decompression
-	@param[in]	dst_len		Size of the scratch area in bytes
-	@return DB_SUCCESS or error code */
-	static dberr_t deserialize(
-		bool		dblwr_recover,
-		byte*		src,
-		byte*		dst,
-		ulint		dst_len)
-		__attribute__((warn_unused_result));
-
-	/** Compression type */
-	Type		m_type;
-};
 
 /** Types for AIO operations @{ */
 
@@ -498,7 +368,7 @@ public:
 	}
 
 	/** Compare two requests
-	@reutrn true if the are equal */
+	@return true if the are equal */
 	bool operator==(const IORequest& rhs) const
 	{
 		return(m_type == rhs.m_type);
@@ -630,8 +500,12 @@ enum os_file_type_t {
 /* Maximum path string length in bytes when referring to tables with in the
 './databasename/tablename.ibd' path format; we can allocate at least 2 buffers
 of this size from the thread stack; that is why this should not be made much
-bigger than 4000 bytes */
+bigger than 4000 bytes.  The maximum path length used by any storage engine
+in the server must be at least this big. */
 #define OS_FILE_MAX_PATH	4000
+#if (FN_REFLEN_SE < OS_FILE_MAX_PATH)
+# error "(FN_REFLEN_SE < OS_FILE_MAX_PATH)"
+#endif
 
 /** Struct used in fetching information of a file in a directory */
 struct os_file_stat_t {
@@ -1339,7 +1213,7 @@ os_file_set_size(
 	__attribute__((warn_unused_result));
 
 /** Truncates a file at its current position.
-@param[in/out]	file	file to be truncated
+@param[in,out]	file	file to be truncated
 @return true if success */
 bool
 os_file_set_eof(
@@ -1458,38 +1332,6 @@ os_file_status(
 	bool*		exists,
 	os_file_type_t* type);
 
-/** The function os_file_dirname returns a directory component of a
-null-terminated pathname string.  In the usual case, dirname returns
-the string up to, but not including, the final '/', and basename
-is the component following the final '/'.  Trailing '/' characters
-are not counted as part of the pathname.
-
-If path does not contain a slash, dirname returns the string ".".
-
-Concatenating the string returned by dirname, a "/", and the basename
-yields a complete pathname.
-
-The return value is a copy of the directory component of the pathname.
-The copy is allocated from heap. It is the caller responsibility
-to free it after it is no longer needed.
-
-The following list of examples (taken from SUSv2) shows the strings
-returned by dirname and basename for different paths:
-
-       path	      dirname	     basename
-       "/usr/lib"     "/usr"	     "lib"
-       "/usr/"	      "/"	     "usr"
-       "usr"	      "."	     "usr"
-       "/"	      "/"	     "/"
-       "."	      "."	     "."
-       ".."	      "."	     ".."
-
-@param[in]	path		pathname
-@return own: directory component of the pathname */
-char*
-os_file_dirname(
-	const char*	path);
-
 /** This function returns a new path name after replacing the basename
 in an old path with a new basename.  The old_path is a full path
 name including the extension.  The tablename is in the normal
@@ -1518,18 +1360,22 @@ This function manipulates that path in place.
 
 If the path format is not as expected, just return.  The result is used
 to inform a SHOW CREATE TABLE command.
-
-@praam[out]	data_dir_path	full path/data_dir_path */
+@param[in,out]	data_dir_path	full path/data_dir_path */
 void
 os_file_make_data_dir_path(
 	char*	data_dir_path);
 
-/**
-Creates all missing subdirectories along the given path.
+/** Create all missing subdirectories along the given path.
 @return DB_SUCCESS if OK, otherwise error code. */
 dberr_t
 os_file_create_subdirs_if_needed(
 	const char*	path);
+
+#ifdef UNIV_ENABLE_UNIT_TEST_GET_PARENT_DIR
+/* Test the function os_file_get_parent_dir. */
+void
+unit_test_os_file_get_parent_dir();
+#endif /* UNIV_ENABLE_UNIT_TEST_GET_PARENT_DIR */
 
 /** Initializes the asynchronous io system. Creates one array each for ibuf
 and log i/o. Also creates one array each for read and write where each
@@ -1605,8 +1451,7 @@ are not left sleeping! */
 void
 os_aio_simulated_put_read_threads_to_sleep();
 
-/**
-This is the generic AIO handler interface function.
+/** This is the generic AIO handler interface function.
 Waits for an aio operation to complete. This function is used to wait the
 for completed requests. The AIO array of pending requests is divided
 into segments. The thread specifies which segment or slot it wants to wait
@@ -1635,7 +1480,7 @@ os_aio_handler(
 	IORequest*	type);
 
 /** Prints info of the aio arrays.
-@param[in/out]	file		file where to print */
+@param[in,out]	file		file where to print */
 void
 os_aio_print(FILE* file);
 
@@ -1744,6 +1589,33 @@ os_file_decompress_page(
 	byte*		dst,
 	ulint		dst_len)
 	__attribute__((warn_unused_result));
+
+/** Normalizes a directory path for the current OS:
+On Windows, we convert '/' to '\', else we convert '\' to '/'.
+@param[in,out] str A null-terminated directory and file path */
+void os_normalize_path(char*	str);
+
+/* Determine if a path is an absolute path or not.
+@param[in]	OS directory or file path to evaluate
+@retval true if an absolute path
+@retval false if a relative path */
+UNIV_INLINE
+bool
+is_absolute_path(
+	const char*	path)
+{
+	if (path[0] == OS_PATH_SEPARATOR) {
+		return(true);
+	}
+
+#ifdef _WIN32
+	if (path[1] == ':' && path[2] == OS_PATH_SEPARATOR) {
+		return(true);
+	}
+#endif /* _WIN32 */
+
+	return(false);
+}
 
 #ifndef UNIV_NONINL
 #include "os0file.ic"

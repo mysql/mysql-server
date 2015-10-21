@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -501,10 +501,9 @@ struct que_fork_t{
 #define QUE_NODE_COL_ASSIGNMENT	26
 #define QUE_NODE_FOR		(27 + QUE_NODE_CONTROL_STAT)
 #define QUE_NODE_RETURN		28
-#define QUE_NODE_ROW_PRINTF	29
-#define QUE_NODE_ELSIF		30
-#define QUE_NODE_CALL		31
-#define QUE_NODE_EXIT		32
+#define QUE_NODE_ELSIF		29
+#define QUE_NODE_CALL		30
+#define QUE_NODE_EXIT		31
 
 #ifndef UNIV_NONINL
 #include "que0que.ic"

@@ -1,6 +1,6 @@
 DESC sys.user_summary_by_statement_latency;
 Field	Type	Null	Key	Default	Extra
-user	varchar(16)	YES		NULL	
+user	varchar(32)	YES		NULL	
 total	decimal(42,0)	YES		NULL	
 total_latency	text	YES		NULL	
 max_latency	text	YES		NULL	
@@ -12,7 +12,7 @@ full_scans	decimal(43,0)	YES		NULL
 SELECT * FROM sys.user_summary_by_statement_latency;
 DESC sys.x$user_summary_by_statement_latency;
 Field	Type	Null	Key	Default	Extra
-user	varchar(16)	YES		NULL	
+user	varchar(32)	YES		NULL	
 total	decimal(42,0)	YES		NULL	
 total_latency	decimal(42,0)	YES		NULL	
 max_latency	decimal(42,0)	YES		NULL	

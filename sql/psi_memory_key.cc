@@ -38,7 +38,7 @@ PSI_memory_key key_memory_Gis_read_stream_err_msg;
 PSI_memory_key key_memory_Gtid_state_to_string;
 PSI_memory_key key_memory_HASH_ROW_ENTRY;
 PSI_memory_key key_memory_JOIN_CACHE;
-PSI_memory_key key_memory_KEY_CACHE;
+PSI_memory_key key_memory_JSON;
 PSI_memory_key key_memory_LOG_POS_COORD;
 PSI_memory_key key_memory_LOG_name;
 PSI_memory_key key_memory_MPVIO_EXT_auth_info;
@@ -87,6 +87,7 @@ PSI_memory_key key_memory_XID;
 PSI_memory_key key_memory_XID_STATE;
 PSI_memory_key key_memory_acl_mem;
 PSI_memory_key key_memory_acl_memex;
+PSI_memory_key key_memory_acl_cache;
 PSI_memory_key key_memory_binlog_cache_mngr;
 PSI_memory_key key_memory_binlog_pos;
 PSI_memory_key key_memory_binlog_recover_exec;
@@ -94,12 +95,12 @@ PSI_memory_key key_memory_binlog_statement_buffer;
 PSI_memory_key key_memory_binlog_ver_1_event;
 PSI_memory_key key_memory_bison_stack;
 PSI_memory_key key_memory_blob_mem_storage;
-PSI_memory_key key_memory_buffered_logs;
 PSI_memory_key key_memory_db_worker_hash_entry;
 PSI_memory_key key_memory_dboptions_hash;
 PSI_memory_key key_memory_delegate;
 PSI_memory_key key_memory_errmsgs;
 PSI_memory_key key_memory_fill_schema_schemata;
+PSI_memory_key key_memory_native_functions;
 PSI_memory_key key_memory_frm;
 PSI_memory_key key_memory_frm_extra_segment_buff;
 PSI_memory_key key_memory_frm_form_pos;
@@ -120,6 +121,7 @@ PSI_memory_key key_memory_my_str_malloc;
 PSI_memory_key key_memory_new_frm_mem;
 PSI_memory_key key_memory_opt_bin_logname;
 PSI_memory_key key_memory_partition_syntax_buffer;
+PSI_memory_key key_memory_prepared_statement_map;
 PSI_memory_key key_memory_prepared_statement_main_mem_root;
 PSI_memory_key key_memory_protocol_rset_root;
 PSI_memory_key key_memory_prune_partitions_exec;
@@ -151,6 +153,7 @@ PSI_memory_key key_memory_user_conn;
 PSI_memory_key key_memory_user_var_entry;
 PSI_memory_key key_memory_user_var_entry_value;
 PSI_memory_key key_memory_warning_info_warn_root;
+PSI_memory_key key_memory_sp_cache;
 PSI_memory_key key_memory_write_set_extraction;
 
 }
@@ -159,23 +162,25 @@ PSI_memory_key key_memory_write_set_extraction;
 
 static PSI_memory_info all_server_memory[]=
 {
-  { &key_memory_buffered_logs, "buffered_logs", PSI_FLAG_GLOBAL},
   { &key_memory_locked_table_list, "Locked_tables_list::m_locked_tables_root", 0},
   { &key_memory_locked_thread_list, "display_table_locks", PSI_FLAG_THREAD},
   { &key_memory_thd_transactions, "THD::transactions::mem_root", PSI_FLAG_THREAD},
   { &key_memory_delegate, "Delegate::memroot", 0},
   { &key_memory_acl_mem, "sql_acl_mem", PSI_FLAG_GLOBAL},
   { &key_memory_acl_memex, "sql_acl_memex", PSI_FLAG_GLOBAL},
+  { &key_memory_acl_cache, "acl_cache", PSI_FLAG_GLOBAL},
   { &key_memory_thd_main_mem_root, "thd::main_mem_root", PSI_FLAG_THREAD},
   { &key_memory_help, "help", 0},
   { &key_memory_new_frm_mem, "new_frm_mem", 0},
-  { &key_memory_table_share, "TABLE_SHARE::mem_root", 0},
+  { &key_memory_table_share, "TABLE_SHARE::mem_root", PSI_FLAG_GLOBAL},
   { &key_memory_gdl, "gdl", 0},
   { &key_memory_table_triggers_list, "Table_triggers_list", 0},
   { &key_memory_servers, "servers", 0},
+  { &key_memory_prepared_statement_map, "Prepared_statement_map", PSI_FLAG_THREAD},
   { &key_memory_prepared_statement_main_mem_root, "Prepared_statement::main_mem_root", PSI_FLAG_THREAD},
   { &key_memory_protocol_rset_root, "Protocol_local::m_rset_root", PSI_FLAG_THREAD},
   { &key_memory_warning_info_warn_root, "Warning_info::m_warn_root", PSI_FLAG_THREAD},
+  { &key_memory_sp_cache, "THD::sp_cache", 0},
   { &key_memory_sp_head_main_root, "sp_head::main_mem_root", 0},
   { &key_memory_sp_head_execute_root, "sp_head::execute_mem_root", PSI_FLAG_THREAD},
   { &key_memory_sp_head_call_root, "sp_head::call_mem_root", PSI_FLAG_THREAD},
@@ -233,7 +238,6 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_Gcalc_dyn_list_block, "Gcalc_dyn_list::block", 0},
   { &key_memory_Gis_read_stream_err_msg, "Gis_read_stream::err_msg", 0},
   { &key_memory_Geometry_objects_data, "Geometry::ptr_and_wkb_data", 0},
-  { &key_memory_KEY_CACHE, "KEY_CACHE", 0},
   { &key_memory_MYSQL_LOCK, "MYSQL_LOCK", 0},
   { &key_memory_NET_buff, "NET::buff", 0},
   { &key_memory_NET_compress_packet, "NET::compress_packet", 0},
@@ -261,7 +265,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_frm, "frm", 0},
   { &key_memory_Unique_sort_buffer, "Unique::sort_buffer", 0},
   { &key_memory_Unique_merge_buffer, "Unique::merge_buffer", 0},
-  { &key_memory_TABLE, "TABLE", 0},
+  { &key_memory_TABLE, "TABLE", PSI_FLAG_GLOBAL},
   { &key_memory_frm_extra_segment_buff, "frm::extra_segment_buff", 0},
   { &key_memory_frm_form_pos, "frm::form_pos", 0},
   { &key_memory_frm_string, "frm::string", 0},
@@ -284,7 +288,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_XID_STATE, "XID_STATE", 0},
   { &key_memory_MPVIO_EXT_auth_info, "MPVIO_EXT::auth_info", 0},
   { &key_memory_opt_bin_logname, "opt_bin_logname", 0},
-  { &key_memory_Query_cache, "Query_cache", 0},
+  { &key_memory_Query_cache, "Query_cache", PSI_FLAG_GLOBAL},
   { &key_memory_READ_RECORD_cache, "READ_RECORD_cache", 0},
   { &key_memory_Quick_ranges, "Quick_ranges", 0},
   { &key_memory_File_query_log_name, "File_query_log::name", 0},
@@ -295,7 +299,8 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_show_slave_status_io_gtid_set, "show_slave_status_io_gtid_set", 0},
   { &key_memory_write_set_extraction, "write_set_extraction", 0},
   { &key_memory_get_all_tables, "get_all_tables", 0},
-  { &key_memory_fill_schema_schemata, "fill_schema_schemata", 0}
+  { &key_memory_fill_schema_schemata, "fill_schema_schemata", 0},
+  { &key_memory_native_functions, "native_functions", PSI_FLAG_GLOBAL}
 };
 
 void register_server_memory_keys()

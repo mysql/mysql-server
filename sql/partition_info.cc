@@ -27,9 +27,9 @@
 #include "partitioning/partition_handler.h"   // PART_DEF_NAME, Partition_share
 #include "sql_class.h"                        // THD
 #include "derror.h"
+#include "sql_tablespace.h"                   // check_tablespace_name
 
-
-partition_info *partition_info::get_clone()
+partition_info *partition_info::get_clone(bool reset /* = false */)
 {
   DBUG_ENTER("partition_info::get_clone");
   List_iterator<partition_element> part_it(partitions);
@@ -58,6 +58,26 @@ partition_info *partition_info::get_clone()
       DBUG_RETURN(NULL);
     }
     memcpy(part_clone, part, sizeof(partition_element));
+
+    /*
+      Mark that RANGE and LIST values needs to be fixed so that we don't
+      use old values. fix_column_value_functions would evaluate the values
+      from Item expression.
+    */
+    if (reset)
+    {
+      clone->defined_max_value = false;
+      List_iterator<part_elem_value> list_it(part_clone->list_val_list);
+      while (part_elem_value *list_value= list_it++)
+      {
+        part_column_list_val *col_val= list_value->col_val_array;
+        for (uint i= 0; i < num_columns; col_val++, i++)
+        {
+          col_val->fixed= 0;
+        }
+      }
+    }
+
     part_clone->subpartitions.empty();
     while ((subpart= (subpart_it++)))
     {
@@ -147,8 +167,6 @@ bool partition_info::add_named_partition(const char *part_name,
 
 /**
   Mark named [sub]partition to be used/locked.
-
-  @param part_elem  Partition element that matched.
 */
 
 bool partition_info::set_named_partition_bitmap(const char *part_name,
@@ -167,8 +185,6 @@ bool partition_info::set_named_partition_bitmap(const char *part_name,
 /**
   Prune away partitions not mentioned in the PARTITION () clause,
   if used.
-
-    @param table_list  Table list pointing to table to prune.
 
   @return Operation status
     @retval false Success
@@ -482,12 +498,12 @@ bool partition_info::set_used_partition(List<Item> &fields,
 
   if (fields.elements || !values.elements)
   {
-    if (fill_record(thd, fields, values, &full_part_field_set, NULL))
+    if (fill_record(thd, table, fields, values, &full_part_field_set, NULL))
       goto err;
   }
   else
   {
-    if (fill_record(thd, table->field, values, &full_part_field_set,
+    if (fill_record(thd, table, table->field, values, &full_part_field_set,
                     NULL))
       goto err;
   }
@@ -899,9 +915,12 @@ char* partition_info::find_duplicate_field()
   @brief Get part_elem and part_id from partition name
 
   @param partition_name Name of partition to search for.
-  @param file_name[out] Partition file name (part after table name,
-                        #P#<part>[#SP#<subpart>]), skipped if NULL.
-  @param part_id[out]   Id of found partition or NOT_A_PARTITION_ID.
+  @param [out] file_name Partition file name (part after table name,
+                        @code
+                        #P#<part>[#SP#<subpart>]
+                        @endcode
+                        ), skipped if NULL.
+  @param [out] part_id   Id of found partition or NOT_A_PARTITION_ID.
 
   @retval Pointer to part_elem of [sub]partition, if not found NULL
 
@@ -1008,7 +1027,8 @@ char *partition_info::find_duplicate_name()
   if (is_sub_partitioned())
     max_names+= num_parts * num_subparts;
   if (my_hash_init(&partition_names, system_charset_info, max_names, 0, 0,
-                   (my_hash_get_key) get_part_name_from_elem, 0, HASH_UNIQUE))
+                   (my_hash_get_key) get_part_name_from_elem, 0, HASH_UNIQUE,
+                   PSI_INSTRUMENT_ME))
   {
     DBUG_ASSERT(0);
     curr_name= (const uchar*) "Internal failure";
@@ -1647,15 +1667,22 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
   {
     int err= 0;
 
+    /* Check for partition expression. */
     if (!list_of_part_fields)
     {
       DBUG_ASSERT(part_expr);
       err= part_expr->walk(&Item::check_partition_func_processor,
                            Item::WALK_POSTFIX, NULL);
-      if (!err && is_sub_partitioned() && !list_of_subpart_fields)
-        err= subpart_expr->walk(&Item::check_partition_func_processor,
-                                Item::WALK_POSTFIX, NULL);
     }
+
+    /* Check for sub partition expression. */
+    if (!err && is_sub_partitioned() && !list_of_subpart_fields)
+    {
+      DBUG_ASSERT(subpart_expr);
+      err= subpart_expr->walk(&Item::check_partition_func_processor,
+                              Item::WALK_POSTFIX, NULL);
+    }
+
     if (err)
     {
       my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
@@ -2566,7 +2593,7 @@ bool partition_info::reorganize_into_single_field_col_val()
   code.
 
   @param thd        Thread object
-  @param col_val    Array of one value
+  @param val        Array of one value
   @param part_elem  The partition instance
   @param part_id    Id of partition instance
 
@@ -2677,7 +2704,7 @@ Item* partition_info::get_column_item(Item *item, Field *field)
   Evaluate VALUES functions for column list values.
 
   @param thd      Thread object
-  @param col_val  List of column values
+  @param val      List of column values
   @param part_id  Partition id we are fixing
 
   @return Operation status
@@ -3204,3 +3231,93 @@ void partition_info::print_debug(const char *str, uint *value)
     DBUG_PRINT("info", ("parser: %s", str));
   DBUG_VOID_RETURN;
 }
+
+/**
+  Fill the Tablespace_hash_set with the tablespace names
+  used by the partitions on the table.
+
+  @param part_info      - Partition info that could be using tablespaces.
+  @param tablespace_set - (OUT) Tablespace_hash_set where tablespace
+                          names are collected.
+
+  @return true - On failure.
+  @return false - On success.
+*/
+bool fill_partition_tablespace_names(
+       partition_info *part_info,
+       Tablespace_hash_set *tablespace_set)
+{
+  // Do nothing if table is not partitioned.
+  if (!part_info)
+    return false;
+
+  // Traverse through all partitions.
+  List_iterator<partition_element> part_it(part_info->partitions);
+  partition_element *part_elem;
+  while ((part_elem= part_it++))
+  {
+    // Add tablespace name from partition elements, if used.
+    if (part_elem->tablespace_name &&
+        strlen(part_elem->tablespace_name) &&
+        tablespace_set->insert(const_cast<char*>(part_elem->tablespace_name)))
+      return true;
+
+    // Traverse through all subpartitions.
+    List_iterator<partition_element> sub_it(part_elem->subpartitions);
+    partition_element *sub_elem;
+    while ((sub_elem= sub_it++))
+    {
+      // Add tablespace name from sub-partition elements, if used.
+      if (sub_elem->tablespace_name &&
+          strlen(sub_elem->tablespace_name) &&
+          tablespace_set->insert(const_cast<char*>(sub_elem->tablespace_name)))
+      return true;
+
+    }
+  }
+
+  return false;
+}
+
+/**
+  Check if all tablespace names specified for partitions
+  are valid.
+
+  @param part_info  - Partition info that could be using tablespaces.
+
+  @return true  - One of tablespace names specified is invalid and
+                  a error is reported.
+  @return false - All the tablespace names specified for
+                  partitions are valid.
+*/
+bool check_partition_tablespace_names(partition_info *part_info)
+{
+  // Do nothing if table is not partitioned.
+  if (!part_info)
+    return false;
+
+  // Traverse through all partitions.
+  List_iterator<partition_element> part_it(part_info->partitions);
+  partition_element *part_elem;
+  while ((part_elem= part_it++))
+  {
+    // Check tablespace names from partition elements, if used.
+    if (part_elem->tablespace_name &&
+        check_tablespace_name(part_elem->tablespace_name))
+      return true;
+
+    // Traverse through all subpartitions.
+    List_iterator<partition_element> sub_it(part_elem->subpartitions);
+    partition_element *sub_elem;
+    while ((sub_elem= sub_it++))
+    {
+      // Add tablespace name from sub-partition elements, if used.
+      if (sub_elem->tablespace_name &&
+          check_tablespace_name(sub_elem->tablespace_name))
+        return true;
+    }
+  }
+
+  return false;
+}
+

@@ -71,7 +71,6 @@ LIST(APPEND EXCLUDE_DIRS
      lib/plugin/debug
      mysql-test
      scripts
-     sql-bench
 )
 
 LIST(APPEND EXCLUDE_FILES

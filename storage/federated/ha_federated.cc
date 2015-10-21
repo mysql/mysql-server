@@ -444,7 +444,7 @@ static PSI_mutex_info all_federated_mutexes[]=
 
 static PSI_memory_info all_federated_memory[]=
 {
-  { &fe_key_memory_federated_share, "FEDERATED_SHARE", 0}
+  { &fe_key_memory_federated_share, "FEDERATED_SHARE", PSI_FLAG_GLOBAL}
 };
 
 static void init_federated_psi_keys(void)
@@ -472,7 +472,7 @@ static void init_federated_psi_keys(void)
     TRUE        Error
 */
 
-int federated_db_init(void *p)
+static int federated_db_init(void *p)
 {
   DBUG_ENTER("federated_db_init");
 
@@ -499,7 +499,8 @@ int federated_db_init(void *p)
                        &federated_mutex, MY_MUTEX_INIT_FAST))
     goto error;
   if (!my_hash_init(&federated_open_tables, &my_charset_bin, 32, 0, 0,
-                    (my_hash_get_key) federated_get_key, 0, 0))
+                    (my_hash_get_key) federated_get_key, 0, 0,
+                    fe_key_memory_federated_share))
   {
     DBUG_RETURN(FALSE);
   }
@@ -520,7 +521,7 @@ error:
     FALSE       OK
 */
 
-int federated_done(void *p)
+static int federated_done(void *p)
 {
   my_hash_free(&federated_open_tables);
   mysql_mutex_destroy(&federated_mutex);
@@ -602,7 +603,7 @@ static int parse_url_error(FEDERATED_SHARE *share, TABLE *table, int error_num)
   from the system table given a server's name, set share
   connection parameter members
 */
-int get_connection(MEM_ROOT *mem_root, FEDERATED_SHARE *share)
+static int get_connection(MEM_ROOT *mem_root, FEDERATED_SHARE *share)
 {
   int error_num= ER_FOREIGN_SERVER_DOESNT_EXIST;
   FOREIGN_SERVER *server, server_buffer;
@@ -2013,8 +2014,9 @@ int ha_federated::end_bulk_insert()
   }
 
   dynstr_free(&bulk_insert);
-  
-  DBUG_RETURN(my_errno= error);
+
+  set_my_errno(error);
+  DBUG_RETURN(error);
 }
 
 
@@ -2980,7 +2982,7 @@ int ha_federated::extra(ha_extra_function operation)
 /**
   @brief Reset state of file to after 'open'.
 
-  @detail This function is called after every statement for all tables
+  @details This function is called after every statement for all tables
     used by that statement.
 
   @return Operation status
@@ -3190,7 +3192,9 @@ int ha_federated::real_connect()
   mysql_options(mysql,MYSQL_SET_CHARSET_NAME,
                 this->table->s->table_charset->csname);
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
-                 "program_name", "federated");
+                "program_name", "mysqld");
+  mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
+                "_client_role", "federated_storage");
   sql_query.length(0);
 
   if (!mysql_real_connect(mysql,

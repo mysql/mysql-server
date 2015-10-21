@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,10 @@
 
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code */
 
-/* some definitions for full-text indices */
+/**
+  @file storage/myisam/ftdefs.h
+  Some definitions for full-text indices.
+*/
 
 #include "fulltext.h"
 #include <m_ctype.h>

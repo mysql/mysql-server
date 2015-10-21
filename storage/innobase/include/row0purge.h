@@ -114,6 +114,7 @@ struct purge_node_t{
 	btr_pcur_t	pcur;	/*!< persistent cursor used in searching the
 				clustered index record */
 	ibool		done;	/* Debug flag */
+	trx_id_t	trx_id;	/*!< trx id for this purging record */
 
 #ifdef UNIV_DEBUG
 	/***********************************************************//**

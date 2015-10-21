@@ -2476,13 +2476,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	a	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` left join `test`.`t2` USE INDEX (`a`) on((`test`.`t1`.`a` = `test`.`t2`.`a`)) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` left join `test`.`t2` USE INDEX (`a`) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 FORCE INDEX (a) ON t1.a=t2.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t2	NULL	ref	a	a	23	test.t1.a	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` left join `test`.`t2` FORCE INDEX (`a`) on((`test`.`t1`.`a` = `test`.`t2`.`a`)) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` left join `test`.`t2` FORCE INDEX (`a`) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( city char(30) );
 INSERT INTO t1 VALUES ('London');
@@ -2503,7 +2503,7 @@ city
 London
 EXPLAIN SELECT * FROM t1 WHERE city LIKE '%london%' AND city='London';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	25.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`city` AS `city` from `test`.`t1` where ((`test`.`t1`.`city` = 'London') and (`test`.`t1`.`city` like '%london%'))
 SELECT * FROM t1 WHERE city LIKE '%london%' AND city='London';
@@ -2806,7 +2806,7 @@ t2.b like '%%' order by t2.b limit 0,1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	b,c	b	5	const	1	100.00	Using temporary; Using filesort
 1	SIMPLE	t3	NULL	index	PRIMARY,a,b	PRIMARY	8	NULL	2	100.00	Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	2	37.50	Range checked for each record (index map: 0x1)
+1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	2	50.00	Range checked for each record (index map: 0x1)
 Warnings:
 Note	1003	/* select#1 */ select straight_join distinct `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` join `test`.`t3` join `test`.`t2` where ((`test`.`t1`.`b` = 556476786) and ((`test`.`t2`.`a` = `test`.`t1`.`c`) or ((`test`.`t2`.`a` = `test`.`t3`.`b`) and (`test`.`t3`.`a` = `test`.`t1`.`c`))) and (`test`.`t2`.`b` like '%%')) order by `test`.`t2`.`b` limit 0,1
 DROP TABLE t1,t2,t3;
@@ -4043,7 +4043,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	name	NULL	NULL	NULL	7	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`n` AS `n` from `test`.`t1` left join `test`.`t2` on((`test`.`t1`.`name` = `test`.`t2`.`name`)) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`n` AS `n` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`name` = `test`.`t1`.`name`)) where 1
 SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 name	name	n
 bb	bb	1
@@ -4125,7 +4125,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	name	NULL	NULL	NULL	7	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`n` AS `n` from `test`.`t1` left join `test`.`t2` on((`test`.`t1`.`name` = `test`.`t2`.`name`)) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`n` AS `n` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`name` = `test`.`t1`.`name`)) where 1
 SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 name	name	n
 bb	bb	1
@@ -4615,7 +4615,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	a	NULL	NULL	NULL	2	100.00	Range checked for each record (index map: 0x1)
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join `test`.`t1` `t2` on((`test`.`t1`.`a` = `test`.`t2`.`a`)) where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join `test`.`t1` `t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1
 SELECT 1 FROM t1 NATURAL LEFT JOIN t1 AS t2;
 1
 1
@@ -4627,7 +4627,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	a	NULL	NULL	NULL	2	100.00	Range checked for each record (index map: 0x1)
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join `test`.`t1` `t2` FORCE INDEX (`a`) on((`test`.`t1`.`a` = `test`.`t2`.`a`)) where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join `test`.`t1` `t2` FORCE INDEX (`a`) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1
 SELECT 1 FROM t1 NATURAL LEFT JOIN t1 AS t2 FORCE INDEX(a);
 1
 1

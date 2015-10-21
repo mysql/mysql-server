@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -15,6 +15,10 @@
 
 #ifndef included_sha2_h
 #define included_sha2_h
+
+/**
+  @file include/sha2.h
+*/
 
 #include <my_config.h>
 
@@ -53,10 +57,10 @@ extern "C" {
 unsigned char* SHA##size(const unsigned char *input_ptr, size_t input_length, \
                char unsigned *output_ptr);
 
-GEN_YASSL_SHA2_BRIDGE(512);
-GEN_YASSL_SHA2_BRIDGE(384);
-GEN_YASSL_SHA2_BRIDGE(256);
-GEN_YASSL_SHA2_BRIDGE(224);
+GEN_YASSL_SHA2_BRIDGE(512)
+GEN_YASSL_SHA2_BRIDGE(384)
+GEN_YASSL_SHA2_BRIDGE(256)
+GEN_YASSL_SHA2_BRIDGE(224)
 
 #undef GEN_YASSL_SHA2_BRIDGE
 

@@ -89,6 +89,17 @@ dict_col_copy_type(
 	type->len = col->len;
 	type->mbminmaxlen = col->mbminmaxlen;
 }
+/** Check if a column is a virtual column
+@param[in]      col     column
+@return true if it is a virtual column, false otherwise */
+UNIV_INLINE
+bool
+dict_col_is_virtual(
+	const dict_col_t*	col)
+{
+	return(col->prtype & DATA_VIRTUAL);
+}
+
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
@@ -208,6 +219,31 @@ dict_col_get_clust_pos(
 	return(ULINT_UNDEFINED);
 }
 
+/** Gets the column position in the given index.
+@param[in]	col	table column
+@param[in]	index	index to be searched for column
+@return position of column in the given index. */
+UNIV_INLINE
+ulint
+dict_col_get_index_pos(
+	const dict_col_t*	col,
+	const dict_index_t*	index)
+{
+	ulint	i;
+
+	ut_ad(col);
+
+	for (i = 0; i < index->n_def; i++) {
+		const dict_field_t*	field = &index->fields[i];
+
+		if (!field->prefix_len && field->col == col) {
+			return(i);
+		}
+	}
+
+	return(ULINT_UNDEFINED);
+}
+
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 /********************************************************************//**
@@ -315,6 +351,20 @@ dict_index_is_spatial(
 	return(index->type & DICT_SPATIAL);
 }
 
+/** Check whether the index contains a virtual column
+@param[in]	index	index
+@return	nonzero for the index has virtual column, zero for other indexes */
+UNIV_INLINE
+ulint
+dict_index_has_virtual(
+	const dict_index_t*	index)
+{
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+
+	return(index->type & DICT_VIRTUAL);
+}
+
 /********************************************************************//**
 Check whether the index is the insert buffer tree.
 @return nonzero for insert buffer, zero for other indexes */
@@ -350,9 +400,10 @@ dict_index_is_sec_or_ibuf(
 }
 
 /********************************************************************//**
-Gets the number of user-defined columns in a table in the dictionary
-cache.
-@return number of user-defined (e.g., not ROW_ID) columns of a table */
+Gets the number of user-defined non-virtual columns in a table in the
+dictionary cache.
+@return number of user-defined (e.g., not ROW_ID) non-virtual
+columns of a table */
 UNIV_INLINE
 ulint
 dict_table_get_n_user_cols(
@@ -365,6 +416,21 @@ dict_table_get_n_user_cols(
 	return(table->n_cols - dict_table_get_n_sys_cols(table));
 }
 
+/** Gets the number of user-defined virtual and non-virtual columns in a table
+in the dictionary cache.
+@param[in]	table	table
+@return number of user-defined (e.g., not ROW_ID) columns of a table */
+UNIV_INLINE
+ulint
+dict_table_get_n_tot_u_cols(
+	const dict_table_t*	table)
+{
+	ut_ad(table);
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
+	return(dict_table_get_n_user_cols(table)
+	       + dict_table_get_n_v_cols(table));
+}
 /********************************************************************//**
 Gets the number of system columns in a table.
 For intrinsic table on ROW_ID column is added for all other
@@ -384,9 +450,9 @@ dict_table_get_n_sys_cols(
 }
 
 /********************************************************************//**
-Gets the number of all columns (also system) in a table in the dictionary
-cache.
-@return number of columns of a table */
+Gets the number of all non-virtual columns (also system) in a table
+in the dictionary cache.
+@return number of non-virtual columns of a table */
 UNIV_INLINE
 ulint
 dict_table_get_n_cols(
@@ -397,6 +463,39 @@ dict_table_get_n_cols(
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	return(table->n_cols);
+}
+
+/** Gets the number of virtual columns in a table in the dictionary cache.
+@param[in]	table	the table to check
+@return number of virtual columns of a table */
+UNIV_INLINE
+ulint
+dict_table_get_n_v_cols(
+	const dict_table_t*	table)
+{
+	ut_ad(table);
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
+	return(table->n_v_cols);
+}
+
+/** Check if a table has indexed virtual columns
+@param[in]	table	the table to check
+@return true is the table has indexed virtual columns */
+UNIV_INLINE
+bool
+dict_table_has_indexed_v_cols(
+	const dict_table_t*	table)
+{
+
+	for (ulint i = 0; i < table->n_v_cols; i++) {
+		const dict_v_col_t*     col = dict_table_get_nth_v_col(table, i);
+		if (col->m_col.ord_part) {
+			return(true);
+		}
+	}
+
+	return(false);
 }
 
 /********************************************************************//**
@@ -465,6 +564,23 @@ dict_table_get_nth_col(
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	return((dict_col_t*) (table->cols) + pos);
+}
+
+/** Gets the nth virtual column of a table.
+@param[in]	table	table
+@param[in]	pos	position of virtual column
+@return pointer to virtual column object */
+UNIV_INLINE
+dict_v_col_t*
+dict_table_get_nth_v_col(
+	const dict_table_t*	table,
+	ulint			pos)
+{
+	ut_ad(table);
+	ut_ad(pos < table->n_v_def);
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
+	return(static_cast<dict_v_col_t*>(table->v_cols) + pos);
 }
 
 /********************************************************************//**
@@ -1192,7 +1308,7 @@ dict_index_get_nth_col_pos(
 	const dict_index_t*	index,	/*!< in: index */
 	ulint			n)	/*!< in: column number */
 {
-	return(dict_index_get_nth_col_or_prefix_pos(index, n, FALSE));
+	return(dict_index_get_nth_col_or_prefix_pos(index, n, false, false));
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -1332,9 +1448,8 @@ dict_index_set_online_status(
 	enum online_index_status	status)	/*!< in: status */
 {
 	ut_ad(!(index->type & DICT_FTS));
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
+
 #ifdef UNIV_DEBUG
 	switch (dict_index_get_online_status(index)) {
 	case ONLINE_INDEX_COMPLETE:
@@ -1394,7 +1509,8 @@ ulint
 dict_table_is_fts_column(
 /*=====================*/
 	ib_vector_t*	indexes,/*!< in: vector containing only FTS indexes */
-	ulint		col_no)	/*!< in: col number to search for */
+	ulint		col_no,	/*!< in: col number to search for */
+	bool		is_virtual) /*!< in: whether it is a virtual column */
 
 {
 	ulint		i;
@@ -1404,7 +1520,8 @@ dict_table_is_fts_column(
 
 		index = (dict_index_t*) ib_vector_getp(indexes, i);
 
-		if (dict_index_contains_col_or_prefix(index, col_no)) {
+		if (dict_index_contains_col_or_prefix(
+			index, col_no, is_virtual)) {
 
 			return(i);
 		}
@@ -1437,6 +1554,37 @@ dict_max_field_len_store_undo(
 	return(REC_VERSION_56_MAX_INDEX_COL_LEN);
 }
 
+/** Determine maximum bytes of a virtual column need to be stored
+in the undo log.
+@param[in]	table		dict_table_t for the table
+@param[in]	col_no		virtual column number
+@return maximum bytes of virtual column to be stored in the undo log */
+UNIV_INLINE
+ulint
+dict_max_v_field_len_store_undo(
+	dict_table_t*		table,
+	ulint			col_no)
+{
+	const dict_col_t*	col
+		= &dict_table_get_nth_v_col(table, col_no)->m_col;
+	ulint			max_log_len;
+
+	/* This calculation conforms to the non-virtual column
+	maximum log length calculation:
+	1) if No atomic BLOB, upto REC_ANTELOPE_MAX_INDEX_COL_LEN
+	2) if atomic BLOB, upto col->max_prefix or
+	REC_VERSION_56_MAX_INDEX_COL_LEN, whichever is less */
+	if (dict_table_has_atomic_blobs(table)) {
+		max_log_len = (col->max_prefix > 0)
+			? col->max_prefix
+			: DICT_MAX_FIELD_LEN_BY_FORMAT(table);
+	} else {
+		max_log_len = REC_ANTELOPE_MAX_INDEX_COL_LEN;
+	}
+
+	return(max_log_len);
+}
+
 /**********************************************************************//**
 Prevent table eviction by moving a table to the non-LRU list from the
 LRU list if it is not already there. */
@@ -1452,35 +1600,37 @@ dict_table_prevent_eviction(
 	}
 }
 
-/********************************************************************//**
-Check whether the table is corrupted.
-@return nonzero for corrupted table, zero for valid tables */
+/** Check whether the table is corrupted.
+@param[in]	table	table object
+@return true if the table is corrupted, otherwise false */
 UNIV_INLINE
-ulint
+bool
 dict_table_is_corrupted(
-/*====================*/
-	const dict_table_t*	table)	/*!< in: table */
+	const dict_table_t*	table)
 {
-	ut_ad(table);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
-	return(table->corrupted);
+	dict_index_t*		index = dict_table_get_first_index(table);
+
+	/* If we can't get the index, it must be a table in a half created
+        state, because we only load table with clustered index into memory.
+	And we don't consider it as a corrupted table */
+	ut_ad(index == NULL || dict_index_is_clust(index));
+
+	return(index != NULL && index->type & DICT_CORRUPT);
 }
 
-/********************************************************************//**
-Check whether the index is corrupted.
-@return nonzero for corrupted index, zero for valid indexes */
+/** Check whether the index is corrupted.
+@param[in]	index	index object
+@return true if index is corrupted, otherwise false */
 UNIV_INLINE
-ulint
+bool
 dict_index_is_corrupted(
-/*====================*/
-	const dict_index_t*	index)	/*!< in: index */
+	const dict_index_t*	index)
 {
-	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	return((index->type & DICT_CORRUPT)
-	       || (index->table && index->table->corrupted));
+	return(index->type & DICT_CORRUPT);
 }
 
 /********************************************************************//**
@@ -1532,9 +1682,23 @@ dict_table_is_intrinsic(
 	return(false);
 }
 
+/** Check whether the table is DDTableBuffer. See class DDTableBuffer
+@param[in]	table	table to check
+@return true if this is a DDTableBuffer table. */
+UNIV_INLINE
+bool
+dict_table_is_table_buffer(
+	const dict_table_t*	table)
+{
+	const dict_index_t*	index = dict_table_get_first_index(table);
+
+	return(index != NULL && index->id == DICT_TBL_BUFFER_ID);
+}
+
 /** Check whether locking is disabled for this table.
 Currently this is done for intrinsic table as their visibility is limited
-to the connection only.
+to the connection and the DDTableBuffer as it's protected by
+dict_persist->mutex.
 
 @param[in]	table	table to check
 @return true if locking is disabled. */
@@ -1543,7 +1707,8 @@ bool
 dict_table_is_locking_disabled(
 	const dict_table_t*	table)
 {
-	return(dict_table_is_intrinsic(table));
+	return(dict_table_is_intrinsic(table)
+	       || dict_table_is_table_buffer(table));
 }
 
 /********************************************************************//**
@@ -1681,6 +1846,72 @@ dict_table_t::release()
 	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(this));
 	ut_ad(n_ref_count > 0);
 	--n_ref_count;
+}
+
+/** Check if tablespace name is "innodb_general".
+@param[in]	tablespace_name	tablespace name
+@retval		true		if name is "innodb_general"
+@retval		false		if name is not "innodb_general" */
+inline
+bool
+dict_table_has_temp_general_tablespace_name(
+	const char*	tablespace_name) {
+
+	return(tablespace_name != NULL
+	       && strncmp(tablespace_name, general_space_name,
+			  strlen(general_space_name)) == 0);
+}
+
+/** Encode the number of columns and number of virtual columns in a
+4 bytes value. We could do this because the number of columns in
+InnoDB is limited to 1017
+@param[in]      n_col   number of non-virtual column
+@param[in]      n_v_col number of virtual column
+@return encoded value */
+UNIV_INLINE
+ulint
+dict_table_encode_n_col(
+                ulint   n_col,
+                ulint   n_v_col)
+{
+	return(n_col + (n_v_col<<16));
+}
+
+/** decode number of virtual and non-virtual columns in one 4 bytes value.
+@param[in]      encoded encoded value
+@param[in,out]     n_col   number of non-virtual column
+@param[in,out]     n_v_col number of virtual column */
+UNIV_INLINE
+void
+dict_table_decode_n_col(
+                ulint   encoded,
+                ulint*  n_col,
+                ulint*  n_v_col)
+{
+
+	ulint	num = encoded & ~DICT_N_COLS_COMPACT;
+	*n_v_col = num >> 16;
+	*n_col = num & 0xFFFF;
+}
+
+/** Free the virtual column template
+@param[in,out]	vc_templ	virtual column template */
+UNIV_INLINE
+void
+dict_free_vc_templ(
+	dict_vcol_templ_t*	vc_templ)
+{
+	if (vc_templ->vtempl != NULL) {
+		ut_ad(vc_templ->n_v_col > 0);
+		for (ulint i = 0; i < vc_templ->n_col
+		     + vc_templ->n_v_col; i++) {
+			if (vc_templ->vtempl[i] != NULL) {
+				ut_free(vc_templ->vtempl[i]);
+			}
+		}
+		ut_free(vc_templ->vtempl);
+		vc_templ->vtempl = NULL;
+	}
 }
 
 #endif /* !UNIV_HOTBACKUP */

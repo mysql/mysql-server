@@ -16,7 +16,11 @@
    along with this program; if not, write to the Free Software Foundation,
    Inc., 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-/*
+/**
+  @file mysys/my_handler_errors.h
+*/
+
+/**
   Errors a handler can give you
 */
 
@@ -103,7 +107,8 @@ static const char *handler_error_messages[]=
   "Tablespace cannot be accessed",
   "Tablespace is not empty",
   "Incorrect file name",
-  "Operation is not allowed"
+  "Operation is not allowed",
+  "Compute generate value failed"
 };
 
 extern void my_handler_error_register(void);

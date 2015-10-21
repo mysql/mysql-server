@@ -26,8 +26,9 @@ Created 11/17/1995 Heikki Tuuri
 #ifndef buf0types_h
 #define buf0types_h
 
-#include "os0event.h"
 #include "ut0mutex.h"
+#include "sync0rw.h"
+#include "os0event.h"
 #include "ut0ut.h"
 
 /** Magic value to use instead of checksums when they are disabled */
@@ -140,9 +141,11 @@ this must be equal to UNIV_PAGE_SIZE */
 #define BUF_BUDDY_HIGH	(BUF_BUDDY_LOW << BUF_BUDDY_SIZES)
 /* @} */
 
-typedef ib_mutex_t BPageMutex;
+typedef ib_bpmutex_t BPageMutex;
 typedef ib_mutex_t BufPoolMutex;
 typedef ib_mutex_t FlushListMutex;
+typedef BPageMutex BufPoolZipMutex;
+typedef rw_lock_t BPageLock;
 
 /** Page identifier. */
 class page_id_t {

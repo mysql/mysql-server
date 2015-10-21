@@ -68,7 +68,7 @@ int sha256_password_deinit(void)
   @return Pointer to the RSA public key storage buffer
 */
 
-RSA *rsa_init(MYSQL *mysql)
+static RSA *rsa_init(MYSQL *mysql)
 {
   static RSA *g_public_key= NULL;
   RSA *key= NULL;
@@ -184,7 +184,7 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
   {
     /* We're not using a password */
     static const unsigned char zero_byte= '\0'; 
-    if (vio->write_packet(vio, (const unsigned char *) &zero_byte, 1))
+    if (vio->write_packet(vio, &zero_byte, 1))
       DBUG_RETURN(CR_ERROR);
   }
   else

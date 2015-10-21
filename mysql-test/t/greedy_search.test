@@ -1,8 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
 --source include/no_valgrind_without_big.inc
---source include/force_myisam_default.inc
 
 --echo #
 --echo # TEST 1
@@ -266,6 +262,8 @@ while ($i<$vehicles)
                                     $i, $i%2, $i%3, $i%4, $i%5, $i%6, $i%7, 
                                     $i );
 }
+
+ANALYZE TABLE models, subtypes, colors, heating, windows, fuels, transmissions, steerings, interiors, drives, wheels, engine, price_ranges, countries, brands;
 --enable_result_log
 --enable_query_log
 

@@ -54,17 +54,6 @@ enum dict_stats_upd_option_t {
 };
 
 /*********************************************************************//**
-Calculates new estimates for table and index statistics. This function
-is relatively quick and is used to calculate transient statistics that
-are not saved on disk.
-This was the only way to calculate statistics before the
-Persistent Statistics feature was introduced. */
-void
-dict_stats_update_transient(
-/*========================*/
-	dict_table_t*	table);	/*!< in/out: table */
-
-/*********************************************************************//**
 Set the persistent statistics flag for a given table. This is set only
 in the in-memory table object and is not saved on disk. It will be read
 from the .frm file upon first open from MySQL after a server restart. */
@@ -203,8 +192,8 @@ dict_stats_rename_index(
 #include "dict0stats.ic"
 #endif
 
-#ifdef UNIV_COMPILE_TEST_FUNCS
+#ifdef UNIV_ENABLE_UNIT_TEST_DICT_STATS
 void test_dict_stats_all();
-#endif /* UNIV_COMPILE_TEST_FUNCS */
+#endif /* UNIV_ENABLE_UNIT_TEST_DICT_STATS */
 
 #endif /* dict0stats_h */

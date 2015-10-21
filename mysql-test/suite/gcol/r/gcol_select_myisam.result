@@ -355,6 +355,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select sum(`test`.`t1`.`c`) AS `sum(c)` from `test`.`t1` group by `test`.`t1`.`b`
+drop table t1;
 #
 # Bug#20241655: WL411:FAILING ASSERTION ASSERTION 
 # 
@@ -446,9 +447,107 @@ field1	field2
 NULL	0
 DROP TABLE A,C;
 #
-# Bug#20797941: WL8149:ASSERTION `!TABLE ||
+# Bug#20566325: WL8149: INNODB: FAILING ASSERTION:
+#               COL_NR < TABLE->N_DEF
+#
+CREATE TABLE A (
+pk INTEGER AUTO_INCREMENT,
+col_varchar_nokey VARCHAR(1) NOT NULL,
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)),
+PRIMARY KEY (pk)
+);
+INSERT /*! IGNORE */ INTO A (col_varchar_nokey) VALUES ('k');
+CREATE TABLE CC (
+pk INTEGER AUTO_INCREMENT,
+col_datetime_nokey DATETIME /*! NULL */,
+col_time_nokey TIME /*! NULL */,
+col_time_key TIME GENERATED ALWAYS AS
+(ADDTIME(col_datetime_nokey, col_time_nokey)),
+col_varchar_nokey VARCHAR(1) /*! NULL */,
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)),
+PRIMARY KEY (pk));
+INSERT INTO CC (col_time_nokey,col_datetime_nokey,col_varchar_nokey) VALUES
+('13:06:13.033877','1900-01-01 00:00:00', 'p'),
+(NULL, '2007-05-25 11:58:54.015689', 'g');
+SELECT
+table1.col_time_key AS field1,
+'z' AS field2
+FROM
+(CC AS table1 LEFT OUTER JOIN (A AS table2 STRAIGHT_JOIN CC AS table3 ON
+(table3.col_varchar_key = table2.col_varchar_nokey)) ON
+(table3.col_varchar_key = table2.col_varchar_nokey))
+WHERE
+table2.pk != 6
+AND table1.col_varchar_key IN ('l', 's' , 'b' )
+AND table3.col_varchar_key != table1.col_varchar_key
+ORDER BY table1.col_varchar_key , field1 , field2;
+field1	field2
+DROP TABLE A,CC;
+CREATE TABLE cc (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int_nokey int(11) NOT NULL,
+col_int_key int(11) GENERATED ALWAYS AS (col_int_nokey) STORED,
+col_date_nokey date NOT NULL,
+col_date_key date GENERATED ALWAYS AS (col_date_nokey) STORED,
+col_datetime_nokey datetime NOT NULL,
+col_time_nokey time NOT NULL,
+col_datetime_key datetime GENERATED ALWAYS AS (col_datetime_nokey)STORED,
+col_time_key time GENERATED ALWAYS AS (col_time_nokey) STORED,
+col_varchar_nokey varchar(1) NOT NULL,
+col_varchar_key varchar(1) GENERATED ALWAYS AS (col_varchar_nokey)STORED,
+PRIMARY KEY (pk),
+KEY gc_idx1 (col_int_key),
+KEY gc_idx2 (col_varchar_key),
+KEY gc_idx3 (col_date_key),
+KEY gc_idx4 (col_time_key),
+KEY gc_idx5 (col_datetime_key),
+KEY gc_idx6 (col_varchar_key,col_int_key),
+KEY gc_idx7 (col_date_key,col_datetime_key,col_time_key),
+KEY gc_idx8(col_int_key,col_varchar_key,col_date_key,col_time_key,
+col_datetime_key)
+);
+INSERT INTO cc (
+col_int_nokey,
+col_date_nokey,
+col_time_nokey,
+col_datetime_nokey,
+col_varchar_nokey
+) VALUES (1, '2009-12-01', '00:21:38.058143', '2007-05-28 00:00:00', 'c'),
+(8, '2004-12-17', '04:08:02.046897', '2009-07-25 09:21:20.064099', 'm'),
+(9, '2000-03-14', '16:25:11.040240', '2002-01-16 00:00:00', 'd'),
+(24, '2000-10-08', '10:14:58.018534', '2006-10-12 04:32:53.031976', 'd'),
+(6, '2006-05-25', '19:47:59.011283', '2001-02-15 03:08:38.035426', 'y'),
+(1, '2008-01-23', '11:14:24.032949', '2004-10-02 20:31:15.022553', 't');
+SET @save_old_sql_mode= @@sql_mode;
+SET sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SELECT DISTINCT alias1.col_varchar_key AS field1
+FROM ( cc AS alias1 STRAIGHT_JOIN
+(( cc AS alias2 STRAIGHT_JOIN cc AS alias3 ON
+(alias3.col_varchar_key > alias2.col_varchar_key ) ) ) ON
+(( alias3 .pk >= alias2.col_int_nokey ) AND
+(alias3 .pk >= alias2.col_int_nokey ) ))
+WHERE alias1.col_varchar_key <= 'v'
+GROUP BY field1 HAVING field1 = 91
+ORDER BY field1, alias1.col_date_key, field1 ASC, field1 DESC,
+alias1.col_time_key ASC, field1;
+field1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 't'
+Warning	1292	Truncated incorrect DOUBLE value: 'm'
+Warning	1292	Truncated incorrect DOUBLE value: 'd'
+DROP TABLE cc;
+SET sql_mode=@save_old_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+#
+# Bug#20797941: WL8149:ASSERTION !TABLE ||
 #  (!TABLE->READ_SET || BITMAP_IS_SET(TABLE->READ_SET
-# 
+#
 CREATE TABLE t(a int, b int as(a+1));
 INSERT INTO t(a) values(1),(2);
 SELECT * FROM t ORDER BY b;
@@ -456,6 +555,65 @@ a	b
 1	2
 2	3
 DROP TABLE t;
+#
+# Bug#21317507:GC: STORED COLUMN REJECTED, BUT VIRTUAL IS ACCEPTED
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(2147483647);
+ALTER TABLE t1 ADD INDEX idx(a), WITH VALIDATION;
+ERROR HY000: Incorrect usage of ALTER and WITH VALIDATION
+Should fail and column shouldn't be added
+ALTER TABLE t1 ADD COLUMN b SMALLINT AS (a) VIRTUAL;
+ERROR 22003: Out of range value for column 'b' at row 1
+ALTER TABLE t1 ADD COLUMN c SMALLINT AS (a) VIRTUAL, WITH VALIDATION;
+ERROR 22003: Out of range value for column 'c' at row 1
+ALTER TABLE t1 ADD COLUMN d SMALLINT AS (a) VIRTUAL, WITHOUT VALIDATION;
+ERROR 22003: Out of range value for column 'd' at row 1
+ALTER TABLE t1 ADD COLUMN c INT AS(a) VIRTUAL;
+ALTER TABLE t1 CHANGE c c SMALLINT AS(a) VIRTUAL, WITH VALIDATION;
+ERROR 22003: Out of range value for column 'c' at row 1
+ALTER TABLE t1 CHANGE c c SMALLINT AS(a) VIRTUAL, WITHOUT VALIDATION;
+ERROR 22003: Out of range value for column 'c' at row 1
+ALTER TABLE t1 MODIFY c TINYINT AS(a) VIRTUAL, WITH VALIDATION;
+ERROR 22003: Out of range value for column 'c' at row 1
+ALTER TABLE t1 MODIFY c TINYINT AS(a) VIRTUAL, WITHOUT VALIDATION;
+ERROR 22003: Out of range value for column 'c' at row 1
+SELECT * FROM t1;
+a	c
+2147483647	2147483647
+DROP TABLE t1;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(2147483647);
+ALTER TABLE t1 ADD COLUMN h INT AS (a) VIRTUAL, WITHOUT VALIDATION;
+ALTER TABLE t1 CHANGE h i INT AS (a) VIRTUAL, WITH VALIDATION,
+ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 CHANGE h i INT AS (a) VIRTUAL, WITHOUT VALIDATION,
+ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 ADD COLUMN b SMALLINT AS (a) VIRTUAL, WITH VALIDATION,
+ALGORITHM=INPLACE, LOCK=NONE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 ADD COLUMN c SMALLINT AS (a) VIRTUAL, WITH VALIDATION,
+ALGORITHM=INPLACE, LOCK=SHARED;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 ADD COLUMN d SMALLINT AS (a) VIRTUAL, WITH VALIDATION,
+ALGORITHM=INPLACE, LOCK=EXCLUSIVE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+Shouldn't fail on Innodb
+ALTER TABLE t1 ADD COLUMN e SMALLINT AS (a) VIRTUAL, WITHOUT VALIDATION,
+ALGORITHM=INPLACE, LOCK=NONE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+Shouldn't fail on Innodb
+ALTER TABLE t1 ADD COLUMN f SMALLINT AS (a) VIRTUAL, WITHOUT VALIDATION,
+ALGORITHM=INPLACE, LOCK=SHARED;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+Shouldn't fail on Innodb
+ALTER TABLE t1 ADD COLUMN g SMALLINT AS (a) VIRTUAL, WITHOUT VALIDATION,
+ALGORITHM=INPLACE, LOCK=EXCLUSIVE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+DROP TABLE t1;
+#
 SET optimizer_switch='derived_merge=default';
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;

@@ -110,7 +110,7 @@ public:
 };
 
 
-class st_select_lex;
+class SELECT_LEX;
 
 /**
   Class Item_sum is the base class used for special expressions that SQL calls
@@ -294,7 +294,7 @@ class st_select_lex;
   and reports an error if it is illegal.
   The method register_sum_func serves to link the items for the set functions
   that are aggregated in the embedding (sub)queries. Circular chains of such
-  functions are attached to the corresponding st_select_lex structures
+  functions are attached to the corresponding SELECT_LEX structures
   through the field inner_sum_func_list.
 
   Exploiting the fact that the members mentioned above are used in one
@@ -351,7 +351,7 @@ public:
   Item **ref_by; /* pointer to a ref to the object used to register it */
   Item_sum *next; /* next in the circular chain of registered objects  */
   Item_sum *in_sum_func;  /* embedding set function if any */ 
-  st_select_lex * aggr_sel; /* select where the function is aggregated       */ 
+  SELECT_LEX * aggr_sel; /* select where the function is aggregated       */
   int8 nest_level;        /* number of the nesting level of the set function */
   int8 aggr_level;        /* nesting level of the aggregating subquery       */
   int8 max_arg_level;     /* max level of unbound column references          */
@@ -361,12 +361,6 @@ public:
 protected:  
   uint arg_count;
   Item **args, *tmp_args[2];
-  /* 
-    Copy of the arguments list to hold the original set of arguments.
-    Used in EXPLAIN EXTENDED instead of the current argument list because 
-    the current argument list can be altered by usage of temporary tables.
-  */
-  Item **orig_args, *tmp_orig_args[2];
   table_map used_tables_cache;
   bool forced_const;
   static ulonglong ram_limitation(THD *thd);
@@ -374,7 +368,7 @@ protected:
 public:  
 
   void mark_as_sum_func();
-  void mark_as_sum_func(st_select_lex *);
+  void mark_as_sum_func(SELECT_LEX *);
   Item_sum(const POS &pos)
     :super(pos), next(NULL), quick_group(1), arg_count(0), forced_const(FALSE)
   {
@@ -383,7 +377,7 @@ public:
 
 
   Item_sum(Item *a) :next(NULL), quick_group(1), arg_count(1), args(tmp_args),
-    orig_args(tmp_orig_args), forced_const(FALSE)
+   forced_const(FALSE)
   {
     args[0]=a;
     mark_as_sum_func();
@@ -391,7 +385,7 @@ public:
   }
   Item_sum(const POS &pos, Item *a)
     :super(pos), next(NULL), quick_group(1), arg_count(1), args(tmp_args),
-     orig_args(tmp_orig_args), forced_const(FALSE)
+     forced_const(FALSE)
   {
     args[0]=a;
     init_aggregator();
@@ -474,7 +468,7 @@ public:
   bool init_sum_func_check(THD *thd);
   bool check_sum_func(THD *thd, Item **ref);
   bool register_sum_func(THD *thd, Item **ref);
-  st_select_lex *depended_from() 
+  SELECT_LEX *depended_from()
     { return (nest_level == aggr_level ? 0 : aggr_sel); }
 
   Item *get_arg(uint i) { return args[i]; }
@@ -606,7 +600,9 @@ class Aggregator_distinct : public Aggregator
       If set deactivates creation and usage of the temporary table (in the
       'table' member) and the Unique instance (in the 'tree' member) as well as
       the calculation of the final value on the first call to
-      Item_[sum|avg|count]::val_xxx().
+      @c Item_sum::val_xxx(),
+      @c Item_avg::val_xxx(),
+      @c Item_count::val_xxx().
      */
     CONST_NULL,
     /**
@@ -1091,6 +1087,7 @@ protected:
   bool get_time(MYSQL_TIME *ltime);
   void reset_field();
   String *val_str(String *);
+  bool val_json(Json_wrapper *wr);
   bool keep_field_type(void) const { return 1; }
   enum Item_result result_type () const { return hybrid_type; }
   enum enum_field_types field_type() const { return hybrid_field_type; }
@@ -1238,7 +1235,6 @@ public:
     if (udf.fix_fields(thd, this, this->arg_count, this->args))
       return TRUE;
 
-    memcpy (orig_args, args, sizeof (Item *) * arg_count);
     return check_sum_func(thd, ref);
   }
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }

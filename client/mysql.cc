@@ -70,6 +70,8 @@
 #endif
 
 #include <algorithm>
+#include <sql_common.h>
+#include <mysqld_error.h>
 
 using std::min;
 using std::max;
@@ -197,6 +199,25 @@ static const CHARSET_INFO *charset_info= &my_charset_latin1;
 
 const char *default_dbug_option="d:t:o,/tmp/mysql.trace";
 
+/*
+  completion_hash is an auxiliary feature for mysql client to complete
+  an object name(db name, table name and field name) automatically.
+  e.g.
+  mysql> use my_d
+  then press <TAB>, it will check the hash and complete the db name
+  for users.
+  the result will be:
+  mysql> use my_dbname
+
+  In general, this feature is only on when it is an interactive mysql client.
+  It is not possible to use it in test case.
+
+  For using this feature in test case, we add the option in debug code.
+*/
+#ifndef DBUG_OFF
+static my_bool opt_build_completion_hash = FALSE;
+#endif
+
 #ifdef _WIN32
 /*
   A flag that indicates if --execute buffer has already been converted,
@@ -234,7 +255,8 @@ my_win_is_console_cached(FILE *file)
 #define MY_PRINT_CTRL 16  /* Replace TAB, NL, CR to "\t", "\n", "\r" */
 
 void tee_write(FILE *file, const char *s, size_t slen, int flags);
-void tee_fprintf(FILE *file, const char *fmt, ...);
+void tee_fprintf(FILE *file, const char *fmt, ...)
+  __attribute__((format(printf, 2, 3)));
 void tee_fputs(const char *s, FILE *file);
 void tee_puts(const char *s, FILE *file);
 void tee_putc(int c, FILE *file);
@@ -941,6 +963,24 @@ static COMMANDS commands[] = {
   { "ISNULL", 0, 0, 0, ""},
   { "IS_FREE_LOCK", 0, 0, 0, ""},
   { "IS_USED_LOCK", 0, 0, 0, ""},
+  { "JSON_ARRAY_APPEND", 0, 0, 0, ""},
+  { "JSON_ARRAY", 0, 0, 0, ""},
+  { "JSON_CONTAINS", 0, 0, 0, ""},
+  { "JSON_DEPTH", 0, 0, 0, ""},
+  { "JSON_EXTRACT", 0, 0, 0, ""},
+  { "JSON_INSERT", 0, 0, 0, ""},
+  { "JSON_KEYS", 0, 0, 0, ""},
+  { "JSON_LENGTH", 0, 0, 0, ""},
+  { "JSON_MERGE", 0, 0, 0, ""},
+  { "JSON_QUOTE", 0, 0, 0, ""},
+  { "JSON_REPLACE", 0, 0, 0, ""},
+  { "JSON_ROWOBJECT", 0, 0, 0, ""},
+  { "JSON_SEARCH", 0, 0, 0, ""},
+  { "JSON_SET", 0, 0, 0, ""},
+  { "JSON_TYPE", 0, 0, 0, ""},
+  { "JSON_UNQUOTE", 0, 0, 0, ""},
+  { "JSON_VALID", 0, 0, 0, ""},
+  { "JSON_CONTAINS_PATH", 0, 0, 0, ""},
   { "LAST_INSERT_ID", 0, 0, 0, ""},
   { "ISSIMPLE", 0, 0, 0, ""},
   { "LAST_DAY", 0, 0, 0, ""},
@@ -1391,6 +1431,12 @@ int main(int argc,char *argv[])
 	  "Type 'help;' or '\\h' for help. Type '\\c' to clear the current input "
     "statement.\n");
   put_info(buff,INFO_INFO);
+  if (mysql.options.protocol == MYSQL_PROTOCOL_SOCKET &&
+      mysql.options.extension->ssl_enforce == TRUE)
+  put_info("You are enforcing ssl conection via unix socket. Please consider\n"
+           "switching ssl off as it does not make connection via unix socket\n"
+           "any more secure.", INFO_INFO);
+
   status.exit_status= read_and_execute(!status.batch);
   if (opt_outfile)
     end_tee();
@@ -1468,12 +1514,11 @@ void mysql_end(int sig)
 /**
   SIGINT signal handler.
 
-  @description
     This function handles SIGINT (Ctrl - C). It sends a 'KILL [QUERY]' command
     to the server if a query is currently executing. On Windows, 'Ctrl - Break'
     is treated alike.
 
-  @param [IN]               Signal number
+  @param sig               Signal number
 */
 
 void handle_ctrlc_signal(int sig)
@@ -1494,12 +1539,11 @@ void handle_ctrlc_signal(int sig)
 /**
    Handler to perform a cleanup and quit the program.
 
-   @description
      This function would send a 'KILL [QUERY]' command to the server if a
      query is currently executing and then it invokes mysql_thread_end()/
      mysql_end() in order to terminate the mysql client process.
 
-  @param [IN]               Signal number
+  @param sig              Signal number
 */
 
 void handle_quit_signal(int sig)
@@ -1834,6 +1878,13 @@ static struct my_option my_long_options[] =
    "password sandbox mode.",
    &opt_connect_expired_password, &opt_connect_expired_password, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef DBUG_OFF
+  {"build-completion-hash", 0,
+   "Build completion hash even when it is in batch mode. It is used for "
+   "test purpose, so it is just built when DEBUG is on.",
+   &opt_build_completion_hash, &opt_build_completion_hash, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -2071,7 +2122,6 @@ static int get_options(int argc, char **argv)
 {
   char *tmp, *pagpoint;
   int ho_error;
-  MYSQL_PARAMETERS *mysql_params= mysql_get_parameters();
 
   tmp= (char *) getenv("MYSQL_HOST");
   if (tmp)
@@ -2088,14 +2138,20 @@ static int get_options(int argc, char **argv)
     my_stpcpy(pager, pagpoint);
   my_stpcpy(default_pager, pager);
 
-  opt_max_allowed_packet= *mysql_params->p_max_allowed_packet;
-  opt_net_buffer_length= *mysql_params->p_net_buffer_length;
+  if (mysql_get_option(NULL, MYSQL_OPT_MAX_ALLOWED_PACKET, &opt_max_allowed_packet) ||
+      mysql_get_option(NULL, MYSQL_OPT_NET_BUFFER_LENGTH, &opt_max_allowed_packet))
+  {
+    exit(1);
+  }
 
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
 
-  *mysql_params->p_max_allowed_packet= opt_max_allowed_packet;
-  *mysql_params->p_net_buffer_length= opt_net_buffer_length;
+  if (mysql_options(NULL, MYSQL_OPT_MAX_ALLOWED_PACKET, &opt_max_allowed_packet) ||
+      mysql_options(NULL, MYSQL_OPT_NET_BUFFER_LENGTH, &opt_net_buffer_length))
+  {
+    exit(1);
+  }
 
   if (status.batch) /* disable pager and outfile in this case */
   {
@@ -2349,7 +2405,7 @@ reset_prompt(char *in_string, bool *ml_comment)
 /**
    It checks if the input is a short form command. It returns the command's
    pointer if a command is found, else return NULL. Note that if binary-mode
-   is set, then only \C is searched for.
+   is set, then only @\C is searched for.
 
    @param cmd_char    A character of one byte.
 
@@ -2466,7 +2522,7 @@ static bool add_line(String &buffer, char *line, size_t line_length,
   char buff[80], *pos, *out;
   COMMANDS *com;
   bool need_space= 0;
-  bool ss_comment= 0;
+  enum { SSC_NONE= 0, SSC_CONDITIONAL, SSC_HINT } ss_comment= SSC_NONE;
   DBUG_ENTER("add_line");
 
   if (!line[0] && buffer.is_empty())
@@ -2563,7 +2619,8 @@ static bool add_line(String &buffer, char *line, size_t line_length,
 	continue;
       }
     }
-    else if (!*ml_comment && !*in_string && is_prefix(pos, delimiter))
+    else if (!*ml_comment && !*in_string && ss_comment != SSC_HINT &&
+             is_prefix(pos, delimiter))
     {
       // Found a statement. Continue parsing after the delimiter
       pos+= delimiter_length;
@@ -2646,7 +2703,7 @@ static bool add_line(String &buffer, char *line, size_t line_length,
       break;
     }
     else if (!*in_string && inchar == '/' && pos[1] == '*' &&
-	     pos[2] != '!' && pos[2] != '+')
+	     pos[2] != '!' && pos[2] != '+' && ss_comment != SSC_HINT)
     {
       if (preserve_comments)
       {
@@ -2683,14 +2740,18 @@ static bool add_line(String &buffer, char *line, size_t line_length,
     }      
     else
     {						// Add found char to buffer
-      if (!*in_string && inchar == '/' && pos[1] == '*' &&
-          (pos[2] == '!' || pos[2] == '+'))
-        ss_comment= 1;
+      if (!*in_string && inchar == '/' && pos[1] == '*')
+      {
+        if (pos[2] == '!')
+          ss_comment= SSC_CONDITIONAL;
+        else if (pos[2] == '+')
+          ss_comment= SSC_HINT;
+      }
       else if (!*in_string && ss_comment && inchar == '*' && *(pos + 1) == '/')
-        ss_comment= 0;
+        ss_comment= SSC_NONE;
       if (inchar == *in_string)
 	*in_string= 0;
-      else if (!*ml_comment && !*in_string &&
+      else if (!*ml_comment && !*in_string && ss_comment != SSC_HINT &&
 	       (inchar == '\'' || inchar == '"' || inchar == '`'))
 	*in_string= (char) inchar;
       if (!*ml_comment || preserve_comments)
@@ -2748,12 +2809,12 @@ C_MODE_END
 
 #if defined(USE_NEW_READLINE_INTERFACE) 
 static int fake_magic_space(int, int);
-extern "C" char *no_completion(const char*,int)
+char *no_completion(const char*,int)
 #elif defined(USE_LIBEDIT_INTERFACE)
 static int fake_magic_space(const char *, int);
-extern "C" int no_completion(const char*,int)
+int no_completion(const char*,int)
 #else
-extern "C" char *no_completion()
+char *no_completion()
 #endif
 {
   return 0;					/* No filename completion */
@@ -2922,8 +2983,14 @@ static void build_completion_hash(bool rehash, bool write_info)
   int i,j,num_fields;
   DBUG_ENTER("build_completion_hash");
 
-  if (status.batch || quick || !current_db)
-    DBUG_VOID_RETURN;			// We don't need completion in batches
+#ifndef DBUG_OFF
+  if (!opt_build_completion_hash)
+#endif
+  {
+    if (status.batch || quick || !current_db)
+      DBUG_VOID_RETURN;			// We don't need completion in batches
+  }
+
   if (!rehash)
     DBUG_VOID_RETURN;
 
@@ -3265,7 +3332,7 @@ static void get_current_db()
  The different commands
 ***************************************************************************/
 
-int mysql_real_query_for_lazy(const char *buf, size_t length)
+static int mysql_real_query_for_lazy(const char *buf, size_t length)
 {
   for (uint retry=0;; retry++)
   {
@@ -3281,7 +3348,7 @@ int mysql_real_query_for_lazy(const char *buf, size_t length)
   }
 }
 
-int mysql_store_result_for_lazy(MYSQL_RES **result)
+static int mysql_store_result_for_lazy(MYSQL_RES **result)
 {
   if ((*result=mysql_store_result(&mysql)))
     return 0;
@@ -3740,6 +3807,7 @@ static const char *fieldtype2str(enum enum_field_types type)
     case MYSQL_TYPE_FLOAT:       return "FLOAT";
     case MYSQL_TYPE_GEOMETRY:    return "GEOMETRY";
     case MYSQL_TYPE_INT24:       return "INT24";
+    case MYSQL_TYPE_JSON:        return "JSON";
     case MYSQL_TYPE_LONG:        return "LONG";
     case MYSQL_TYPE_LONGLONG:    return "LONGLONG";
     case MYSQL_TYPE_LONG_BLOB:   return "LONG_BLOB";
@@ -4903,6 +4971,12 @@ sql_real_connect(char *host,char *database,char *user,char *password,
                           database, opt_mysql_port, opt_mysql_unix_port,
                           connect_flag | CLIENT_MULTI_STATEMENTS))
   {
+    if(mysql_errno(&mysql) == ER_MUST_CHANGE_PASSWORD_LOGIN)
+    {
+      tee_fprintf(stdout, "Please use --connect-expired-password option or " \
+                           "invoke mysql in interactive mode.\n");
+      return ignore_errors ? -1 : 1;
+    }
     if (!silent ||
 	(mysql_errno(&mysql) != CR_CONN_HOST_ERROR &&
 	 mysql_errno(&mysql) != CR_CONNECTION_ERROR))
@@ -5316,7 +5390,7 @@ static void remove_cntrl(String &buffer)
   @param file   Stream to write to
   @param s      String to write
   @param slen   String length
-  @flags        Flags for --tab, --xml, --raw.
+  @param flags  Flags for --tab, --xml, --raw.
 */
 void tee_write(FILE *file, const char *s, size_t slen, int flags)
 {

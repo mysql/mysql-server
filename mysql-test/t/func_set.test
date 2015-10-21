@@ -162,3 +162,9 @@ trim( both(-8388607)
           )
     )
 ;
+
+--echo # Bug#21547779 Assertion failed: select_lex->leaf_table_count == 0
+
+CREATE TABLE t(a INTEGER) engine=innodb;
+SELECT 1 IN (SELECT MAKE_SET(-1, 1, (SELECT 1 FROM t)) FROM t);
+DROP TABLE t;

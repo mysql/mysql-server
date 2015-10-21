@@ -135,6 +135,11 @@ cost_constant_error Server_cost_constants::set(const LEX_CSTRING &name,
   the server administrator has not added new values in the engine_cost
   table.
 */
+
+// The cost of reading a block from a main memory buffer pool
+const double SE_cost_constants::MEMORY_BLOCK_READ_COST= 1.0;
+
+// The cost of reading a block from an IO device (disk)
 const double SE_cost_constants::IO_BLOCK_READ_COST= 1.0;
 
 
@@ -154,6 +159,14 @@ cost_constant_error SE_cost_constants::set(const LEX_CSTRING &name,
   if (value <= 0.0)
     return INVALID_COST_VALUE;
 
+  // MEMORY_BLOCK_READ_COST
+  if (my_strcasecmp(&my_charset_utf8_general_ci, "MEMORY_BLOCK_READ_COST",
+                    name.str) == 0)
+  {
+    update_cost_value(&m_memory_block_read_cost,
+                      &m_memory_block_read_cost_default, value, default_value);
+    return COST_CONSTANT_OK;
+  }
   // IO_BLOCK_READ_COST
   if (my_strcasecmp(&my_charset_utf8_general_ci, "IO_BLOCK_READ_COST",
                     name.str) == 0)
@@ -222,20 +235,21 @@ Cost_model_se_info::~Cost_model_se_info()
 
 
 Cost_model_constants::Cost_model_constants()
-  : m_ref_counter(0)
+  : m_engines(PSI_NOT_INSTRUMENTED, num_hton2plugins()),
+    m_ref_counter(0)
 {
   /**
     Create default cost constants for each storage engine.
   */
-  for (uint engine= 0; engine < MAX_HA; ++engine)
+  for (size_t engine= 0; engine < m_engines.size(); ++engine)
   {
     const handlerton *ht= NULL;
 
     // Check if the storage engine has been installed
-    if (hton2plugin[engine])
+    if (hton2plugin(engine))
     {
       // Find the handlerton for the storage engine
-      ht= static_cast<handlerton*>(hton2plugin[engine]->data);
+      ht= static_cast<handlerton*>(hton2plugin(engine)->data);
     }
 
     for (uint storage= 0; storage < MAX_STORAGE_CLASSES; ++storage)
@@ -275,8 +289,16 @@ const SE_cost_constants
   DBUG_ASSERT(table->file != NULL);
   DBUG_ASSERT(table->file->ht != NULL);
 
+  static SE_cost_constants default_cost;
+
+  /*
+    We do not see data for new htons loaded by the current session,
+    use default statistics.
+  */
+  const uint slot= table->file->ht->slot;
   const SE_cost_constants *se_cc=
-    m_engines[table->file->ht->slot].get_cost_constants(DEFAULT_STORAGE_CLASS);
+    slot < m_engines.size() ?
+    m_engines[slot].get_cost_constants(DEFAULT_STORAGE_CLASS) : &default_cost;
   DBUG_ASSERT(se_cc != NULL);
 
   return se_cc;
@@ -369,7 +391,7 @@ Cost_model_constants::update_engine_default_cost(const LEX_CSTRING &name,
   /*
     Update all constants for engines that have their own cost constants
   */
-  for (size_t i= 0; i < MAX_HA; ++i)
+  for (size_t i= 0; i < m_engines.size(); ++i)
   {
     SE_cost_constants *se_cc= m_engines[i].get_cost_constants(storage_category);
     if (se_cc)

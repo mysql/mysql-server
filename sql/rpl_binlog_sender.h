@@ -232,7 +232,6 @@ private:
     Previous_gtids_log_event) and the slave is connecting using
     the GTID protocol.
 
-    @param[in] packet         The buffer used to store the faked event.
     @param[in] next_log_file  The name of the binlog file will be sent after
                               the rotate event.
     @param[in] log_pos        The start position of the binlog file.
@@ -248,7 +247,7 @@ private:
      Format_description_log_event has to be set to 0. So the slave
      will not increment its master's binlog position.
 
-     @param[in] log_cache IO_CACHE of the binlog will be dumpped
+     @param[in] log       IO_CACHE of the binlog will be dumpped
      @param[in] start_pos Position requested by the slave's IO thread.
                           Only the events after the position are sent.
 
@@ -258,7 +257,6 @@ private:
   /**
      It sends a heartbeat to the client.
 
-     @param[in] packet   The buffer used to store the event.
      @param[in] log_pos  The log position that events before it are sent.
 
      @return It returns 0 if succeeds, otherwise 1 is returned.
@@ -417,7 +415,6 @@ private:
    * free bytes in the buffer, the buffer is extended by a constant factor
    * (@c PACKET_GROW_FACTOR).
    *
-   * @param packet  The buffer to resize if needed.
    * @param extra_size  The size in bytes that the caller wants to add to the buffer.
    * @return true if an error occurred, false otherwise.
    */
@@ -432,19 +429,17 @@ private:
    * (@c PACKET_SHRINK_FACTOR).
    *
    * The buffer is never shrunk less than a minimum size (@c PACKET_MIN_SIZE).
-   *
-   * @param packet  The buffer to shrink.
    */
   inline bool shrink_packet();
 
-  /*
+  /**
    * Helper function to recalculate a new size for the buffer.
    *
    * @param current_size The baseline (for instance, the current buffer size).
    * @param min_size The resulting buffer size, needs to be at least as large
    *                 as this parameter states.
    * @param factor The multiplier factor on the baseline.
-   * @param new_val[out] The placeholder where the new value will be stored.
+   * @param [out] new_val The placeholder where the new value will be stored.
    * @return true in case of an error.
    */
   inline bool calc_buffer_size(size_t current_size, size_t min_size,

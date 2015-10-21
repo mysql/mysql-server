@@ -21,14 +21,20 @@ memory_by_thread_by_current_bytes
 memory_by_user_by_current_bytes
 memory_global_by_current_bytes
 memory_global_total
+metrics
 processlist
 ps_check_lost_instrumentation
+schema_auto_increment_columns
 schema_index_statistics
 schema_object_overview
+schema_redundant_indexes
 schema_tables_with_full_table_scans
+schema_table_lock_waits
 schema_table_statistics
 schema_table_statistics_with_buffer
 schema_unused_indexes
+session
+session_ssl_status
 statements_with_errors_or_warnings
 statements_with_full_table_scans
 statements_with_runtimes_in_95th_percentile
@@ -72,10 +78,13 @@ x$processlist
 x$ps_digest_95th_percentile_by_avg_us
 x$ps_digest_avg_latency_distribution
 x$ps_schema_table_statistics_io
+x$schema_flattened_keys
 x$schema_index_statistics
 x$schema_tables_with_full_table_scans
+x$schema_table_lock_waits
 x$schema_table_statistics
 x$schema_table_statistics_with_buffer
+x$session
 x$statements_with_errors_or_warnings
 x$statements_with_full_table_scans
 x$statements_with_runtimes_in_95th_percentile
@@ -101,15 +110,24 @@ format_bytes	FUNCTION
 format_path	FUNCTION
 format_statement	FUNCTION
 format_time	FUNCTION
+list_add	FUNCTION
+list_drop	FUNCTION
 ps_is_account_enabled	FUNCTION
 ps_is_consumer_enabled	FUNCTION
 ps_is_instrument_default_enabled	FUNCTION
 ps_is_instrument_default_timed	FUNCTION
 ps_is_thread_instrumented	FUNCTION
+ps_thread_account	FUNCTION
 ps_thread_id	FUNCTION
 ps_thread_stack	FUNCTION
+ps_thread_trx_info	FUNCTION
 sys_get_config	FUNCTION
+version_major	FUNCTION
+version_minor	FUNCTION
+version_patch	FUNCTION
 create_synonym_db	PROCEDURE
+diagnostics	PROCEDURE
+execute_prepared_stmt	PROCEDURE
 ps_setup_disable_background_threads	PROCEDURE
 ps_setup_disable_consumer	PROCEDURE
 ps_setup_disable_instrument	PROCEDURE
@@ -131,10 +149,12 @@ ps_statement_avg_latency_histogram	PROCEDURE
 ps_trace_statement_digest	PROCEDURE
 ps_trace_thread	PROCEDURE
 ps_truncate_all_tables	PROCEDURE
+statement_performance_analyzer	PROCEDURE
+table_exists	PROCEDURE
 SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGGER_SCHEMA = 'sys' ORDER BY TRIGGER_NAME;
 TRIGGER_NAME
 sys_config_insert_set_user
 sys_config_update_set_user
 SELECT sys_version FROM sys.version;
 sys_version
-1.4.0
+1.5.0

@@ -41,7 +41,7 @@ template <class T> class List;
 template <class T> class List_iterator;
 typedef struct st_bitmap MY_BITMAP;
 typedef struct st_open_table_list OPEN_TABLE_LIST;
-typedef class st_select_lex SELECT_LEX;
+class SELECT_LEX;
 typedef Bounds_checked_array<Item*> Ref_ptr_array;
 
 
@@ -205,6 +205,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 			   const char *table_name,
                            bool add_to_temporary_tables_list,
                            bool open_in_engine);
+TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name);
 thr_lock_type read_lock_type_for_table(THD *thd,
                                        Query_tables_list *prelocking_ctx,
                                        TABLE_LIST *table_list,
@@ -232,10 +233,11 @@ bool insert_fields(THD *thd, Name_resolution_context *context,
                    List_iterator<Item> *it, bool any_privileges);
 bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
                   List<Item> &item, ulong privilege,
-                  List<Item> *sum_func_list, bool allow_sum_func);
-bool fill_record(THD * thd, List<Item> &fields, List<Item> &values,
+                  List<Item> *sum_func_list,
+                  bool allow_sum_func, bool column_update);
+bool fill_record(THD *thd, TABLE *table, List<Item> &fields, List<Item> &values,
                  MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap);
-bool fill_record(THD *thd, Field **field, List<Item> &values,
+bool fill_record(THD *thd, TABLE *table, Field **field, List<Item> &values,
                  MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap);
 
 bool check_record(THD *thd, Field **ptr);
@@ -274,7 +276,7 @@ void update_non_unique_table_error(TABLE_LIST *update,
                                    const char *operation,
                                    TABLE_LIST *duplicate);
 int setup_ftfuncs(SELECT_LEX* select);
-int init_ftfuncs(THD *thd, SELECT_LEX* select);
+bool init_ftfuncs(THD *thd, SELECT_LEX* select);
 int run_before_dml_hook(THD *thd);
 bool lock_table_names(THD *thd, TABLE_LIST *table_list,
                       TABLE_LIST *table_list_end, ulong lock_wait_timeout,

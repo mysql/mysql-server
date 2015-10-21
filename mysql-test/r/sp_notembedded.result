@@ -382,3 +382,74 @@ DROP EVENT e1;
 DROP TABLE t1, t2, t3;
 SET GLOBAL EVENT_SCHEDULER = OFF;
 set @@global.concurrent_insert= @old_concurrent_insert;
+#
+# WL#2284: Increase the length of a user name
+#
+CREATE DATABASE test1;
+CREATE TABLE test1.t1 (
+int_field INTEGER UNSIGNED NOT NULL,
+char_field CHAR(10),
+INDEX(`int_field`)
+);
+CREATE USER user_name_len_16@localhost;
+CREATE USER user_name_len_22_01234@localhost;
+CREATE USER user_name_len_32_012345678901234@localhost;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user_name_len_16@localhost;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user_name_len_22_01234@localhost;
+# Check that user_name_len16 has no SELECT permission ON t1
+SELECT * FROM test1.t1;
+ERROR 42000: SELECT command denied to user 'user_name_len_16'@'localhost' for table 't1'
+# Check that user_name_len_22_01234 has no SELECT permission ON t1
+SELECT * FROM test1.t1;
+ERROR 42000: SELECT command denied to user 'user_name_len_22_01234'@'localhost' for table 't1'
+GRANT SELECT ON test1.t1 TO user_name_len_22_01234@localhost;
+# Check that user_name_len_22_01234 has *now* SELECT permission ON t1
+SELECT * FROM test1.t1;
+int_field	char_field
+CREATE DEFINER=user_name_len_22_01234@localhost PROCEDURE test1.p1_len22()
+SELECT * FROM test1.t1;
+GRANT EXECUTE ON PROCEDURE test1.p1_len22 TO user_name_len_22_01234@localhost;
+GRANT EXECUTE ON PROCEDURE test1.p1_len22 TO user_name_len_16@localhost;
+# Now user_name_len_16 should be able to SELECT FROM t1 by calling
+# p1_len22 procedure
+CALL test1.p1_len22();
+int_field	char_field
+CREATE DEFINER=user_name_len_33_0123456789012345@localhost PROCEDURE test1.p1_len33()
+SELECT * FROM test1.t1;
+ERROR HY000: String 'user_name_len_33_0123456789012345' is too long for user name (should be no longer than 32)
+# REVOKE the SELECT permission from user_name_len_22_01234
+REVOKE SELECT ON test1.t1 FROM user_name_len_22_01234@localhost;
+# and GRANT it to user_name_len_32_012345678901234
+GRANT SELECT ON test1.t1 TO user_name_len_32_012345678901234@localhost;
+CREATE DEFINER = user_name_len_32_012345678901234@localhost FUNCTION test1.f1_len32() RETURNS INT
+RETURN (SELECT COUNT(*) FROM test1.t1);
+GRANT EXECUTE ON FUNCTION test1.f1_len32 TO user_name_len_32_012345678901234@localhost;
+GRANT EXECUTE ON FUNCTION test1.f1_len32 TO user_name_len_22_01234@localhost;
+GRANT SELECT ON test1.t1 TO user_name_len_22_01234@localhost;
+# Now user_name_len_22_01234 should be able to SELECT COUNT(*) FROM t1
+# by calling f1_len32 function
+SELECT test1.f1_len32();
+test1.f1_len32()
+0
+# Recreate test1.p1_len22, this time with Security Context set to INVOKER
+DROP PROCEDURE test1.p1_len22;
+# Make sure user_name_len_22_01234 has SELECT privileges on test.t1
+SELECT * FROM test1.t1;
+int_field	char_field
+CREATE DEFINER=user_name_len_22_01234@localhost PROCEDURE test1.p1_len22()
+SQL SECURITY INVOKER
+SELECT * FROM test1.t1;
+GRANT EXECUTE ON PROCEDURE test1.p1_len22 TO user_name_len_22_01234@localhost;
+GRANT EXECUTE ON PROCEDURE test1.p1_len22 TO user_name_len_16@localhost;
+# Now user_name_len_16 should *NOT* be able to SELECT COUNT(*) FROM t1
+# by calling f1_len22 function as this function is using the INVOKER
+# security context
+CALL test1.p1_len22();
+ERROR 42000: SELECT command denied to user 'user_name_len_16'@'localhost' for table 't1'
+CREATE DEFINER=user_name_len_33_0123456789012345@localhost FUNCTION test1.f1_len33() RETURNS INT
+RETURN (SELECT COUNT(*) FROM test1.t1);
+ERROR HY000: String 'user_name_len_33_0123456789012345' is too long for user name (should be no longer than 32)
+DROP DATABASE test1;
+DROP USER user_name_len_16@localhost;
+DROP USER user_name_len_22_01234@localhost;
+DROP USER user_name_len_32_012345678901234@localhost;

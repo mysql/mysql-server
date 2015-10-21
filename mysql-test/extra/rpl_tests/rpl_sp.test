@@ -309,6 +309,7 @@ end|
 
 delimiter ;|
 
+--error ER_DUP_ENTRY
 do fn1(100);
 
 --error ER_DUP_ENTRY

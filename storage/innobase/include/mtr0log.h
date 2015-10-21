@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -146,6 +146,20 @@ mlog_close(
 	byte*		ptr);	/*!< in: buffer space from ptr up was
 				not used */
 
+/** Writes a log record about a dictionary operation.
+@param[in]	type		redo log record type
+@param[in]	id		table id
+@param[in,out]	log_ptr		current end of mini-transaction log
+@param[in,out]	mtr		mini-transaction
+@return end of mini-transaction log */
+UNIV_INLINE
+byte*
+mlog_write_initial_dict_log_record(
+	mlog_id_t	type,
+	table_id_t	id,
+	byte*		log_ptr,
+	mtr_t*		mtr);
+
 /** Writes a log record about an operation.
 @param[in]	type		redo log record type
 @param[in]	space_id	tablespace identifier
@@ -182,6 +196,21 @@ mlog_write_initial_log_record_fast(
 # define mlog_write_initial_log_record(ptr,type,mtr) ((void) 0)
 # define mlog_write_initial_log_record_fast(ptr,type,log_ptr,mtr) ((byte*) 0)
 #endif /* !UNIV_HOTBACKUP */
+
+/** Parses an initial log record written by mlog_write_initial_dict_log_record.
+@param[in]	ptr		buffer
+@param[in]	end_ptr		buffer end
+@param[out]	type		log record type, should be
+				MLOG_TABLE_DYNAMIC_META
+@param[out]	id		table id
+@return parsed record end, NULL if not a complete record */
+byte*
+mlog_parse_initial_dict_log_record(
+	const byte*	ptr,
+	const byte*	end_ptr,
+	mlog_id_t*	type,
+	table_id_t*	id);
+
 /********************************************************//**
 Parses an initial log record written by mlog_write_initial_log_record.
 @return parsed record end, NULL if not a complete record */

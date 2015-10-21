@@ -30,7 +30,6 @@ Created December 2006 by Marko Makela
 
 #include "buf0buf.h"
 #include "buf0buddy.h"
-#include "sync0mutex.h"
 
 /**********************************************************************//**
 Allocate a block.  The thread calling this function must hold

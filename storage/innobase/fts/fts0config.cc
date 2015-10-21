@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -296,6 +296,7 @@ fts_config_set_index_value(
 	return(error);
 }
 
+#ifdef FTS_OPTIMIZE_DEBUG
 /******************************************************************//**
 Get an ulint value from the config table.
 @return DB_SUCCESS if all OK else error code */
@@ -367,6 +368,7 @@ fts_config_set_index_ulint(
 
 	return(error);
 }
+#endif /* FTS_OPTIMIZE_DEBUG */
 
 /******************************************************************//**
 Get an ulint value from the config table.
@@ -435,121 +437,6 @@ fts_config_set_ulint(
 	}
 
 	ut_free(value.f_str);
-
-	return(error);
-}
-
-/******************************************************************//**
-Increment the value in the config table for column name.
-@return DB_SUCCESS or error code */
-dberr_t
-fts_config_increment_value(
-/*=======================*/
-	trx_t*		trx,			/*!< transaction */
-	fts_table_t*	fts_table,		/*!< in: the indexed
-						FTS table */
-	const char*	name,			/*!< in: increment config value
-						for this parameter name */
-	ulint		delta)			/*!< in: increment by this
-						much */
-{
-	dberr_t		error;
-	fts_string_t	value;
-	que_t*		graph = NULL;
-	ulint		name_len = strlen(name);
-	pars_info_t*	info = pars_info_create();
-	char		table_name[MAX_FULL_NAME_LEN];
-
-	/* We set the length of value to the max bytes it can hold. This
-	information is used by the callback that reads the value.*/
-	value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
-	value.f_str = static_cast<byte*>(ut_malloc_nokey(value.f_len + 1));
-
-	*value.f_str = '\0';
-
-	pars_info_bind_varchar_literal(info, "name", (byte*) name, name_len);
-
-	pars_info_bind_function(
-		info, "my_func", fts_config_fetch_value, &value);
-
-	fts_table->suffix = "CONFIG";
-	fts_get_table_name(fts_table, table_name);
-	pars_info_bind_id(info, true, "config_table", table_name);
-
-	graph = fts_parse_sql(
-		fts_table, info,
-		"DECLARE FUNCTION my_func;\n"
-		"DECLARE CURSOR c IS SELECT value FROM $config_table"
-		" WHERE key = :name FOR UPDATE;\n"
-		"BEGIN\n"
-		""
-		"OPEN c;\n"
-		"WHILE 1 = 1 LOOP\n"
-		"  FETCH c INTO my_func();\n"
-		"  IF c % NOTFOUND THEN\n"
-		"    EXIT;\n"
-		"  END IF;\n"
-		"END LOOP;\n"
-		"CLOSE c;");
-
-	trx->op_info = "read  FTS config value";
-
-	error = fts_eval_sql(trx, graph);
-
-	fts_que_graph_free_check_lock(fts_table, NULL, graph);
-
-	if (UNIV_UNLIKELY(error == DB_SUCCESS)) {
-		ulint		int_value;
-
-		int_value = strtoul((char*) value.f_str, NULL, 10);
-
-		int_value += delta;
-
-		ut_a(FTS_MAX_CONFIG_VALUE_LEN > FTS_MAX_INT_LEN);
-
-		value.f_len = my_snprintf(
-			(char*) value.f_str, FTS_MAX_INT_LEN, "%lu", int_value);
-
-		fts_config_set_value(trx, fts_table, name, &value);
-	}
-
-	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
-
-		ib::error() << "(" << ut_strerr(error) << ") while"
-			" incrementing " << name << ".";
-	}
-
-	ut_free(value.f_str);
-
-	return(error);
-}
-
-/******************************************************************//**
-Increment the per index value in the config table for column name.
-@return DB_SUCCESS or error code */
-dberr_t
-fts_config_increment_index_value(
-/*=============================*/
-	trx_t*		trx,			/*!< transaction */
-	dict_index_t*	index,			/*!< in: FTS index */
-	const char*	param,			/*!< in: increment config value
-						for this parameter name */
-	ulint		delta)			/*!< in: increment by this
-						much */
-{
-	char*		name;
-	dberr_t		error;
-	fts_table_t	fts_table;
-
-	FTS_INIT_FTS_TABLE(&fts_table, "CONFIG", FTS_COMMON_TABLE,
-			   index->table);
-
-	/* We are responsible for free'ing name. */
-	name = fts_config_create_index_param_name(param, index);
-
-	error = fts_config_increment_value(trx, &fts_table, name, delta);
-
-	ut_free(name);
 
 	return(error);
 }

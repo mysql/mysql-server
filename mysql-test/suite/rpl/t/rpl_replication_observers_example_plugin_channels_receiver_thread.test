@@ -1,0 +1,63 @@
+# This test verifies the basic functionalities of the channel service interface.
+# Using the example plugin, we execute several of the interface methods on a
+# channel's receiver thread.
+
+--source include/have_replication_observers_example_plugin.inc
+--source include/not_group_replication_plugin.inc
+--source include/not_embedded.inc
+--source include/have_debug.inc
+--source include/have_binlog_format_mixed.inc
+--source include/have_gtid.inc
+--let $rpl_topology= 1->2
+--let $rpl_skip_change_master= 1
+--let $rpl_skip_start_slave= 1
+--source include/rpl_init.inc
+
+# Establish a connection to a slave with an example channel
+
+--connection server_2
+--replace_result $SERVER_MYPORT_1 SERVER_1_PORT
+--eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PASSWORD="", MASTER_PORT=$SERVER_MYPORT_1, MASTER_AUTO_POSITION=1 FOR CHANNEL "example_channel"
+--source include/start_slave.inc
+
+--let $assert_text= 'The example_channel is ON'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_status where CHANNEL_NAME="example_channel" and SERVICE_STATE="ON", count, 1] = 1
+--source include/assert.inc
+
+--connection server_1
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+
+--let $wait_for_executed_gtid_set= 1
+--let $rpl_channel_name= example_channel
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+# Install the replication observers example plugin on the slave
+
+--source include/install_replication_observers_example.inc
+
+# Execute a query that on a server hook will execute a test against the several
+# method of the channel interface on the receiver thread of the created channel
+
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,validate_replication_observers_plugin_server_channel_io_thread';
+--eval INSERT INTO t1 VALUES(1)
+
+# The tests will stop the channel.
+
+--let $assert_text= 'The example_channel is OFF'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_status where CHANNEL_NAME="example_channel" and SERVICE_STATE="OFF", count, 1] = 1
+--source include/assert.inc
+
+# Clean
+
+SET @@GLOBAL.DEBUG= @debug_saved;
+
+RESET SLAVE ALL;
+DROP TABLE t1;
+
+--source include/uninstall_replication_observers_example.inc
+
+--connection server_1
+DROP TABLE t1;

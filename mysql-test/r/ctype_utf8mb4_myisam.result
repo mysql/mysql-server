@@ -247,7 +247,7 @@ select hex(s1) from t1;
 hex(s1)
 41
 drop table t1;
-create table t1 (a text character set utf8mb4, primary key(a(371))) engine MyISAM;
+create table t1 (a text character set utf8mb4, primary key(a(371))) engine MyISAM ROW_FORMAT=COMPACT;
 Got one of the listed errors
 CREATE TABLE t1 ( a varchar(10) ) CHARACTER SET utf8mb4 ENGINE MyISAM;
 INSERT INTO t1 VALUES ( 'test' );

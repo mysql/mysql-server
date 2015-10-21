@@ -66,7 +66,7 @@ public:
                              keys. May be NULL.
      @param update_values    The values to be assigned in case of duplicate
                              keys. May be NULL.
-     @param duplicate        The policy for handling duplicates.
+     @param duplic           The policy for handling duplicates.
 
      @todo This constructor takes 8 arguments, 6 of which are used to
      immediately construct a COPY_INFO object. Obviously the constructor
@@ -96,7 +96,7 @@ public:
      @li Otherwise it is:
 @verbatim
      INSERT INTO a_table [(columns1)] SELECT ...
-@verbatim
+@endverbatim
      target_columns is columns1, if not empty then 'info' must manage defaults
      of other columns than columns1.
   */

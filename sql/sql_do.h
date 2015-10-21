@@ -17,11 +17,23 @@
 #define SQL_DO_INCLUDED
 
 #include "my_global.h"
-
+#include "query_result.h"
+ 
 class THD;
-class Item;
-template <class T> class List;
+struct LEX;
 
-bool mysql_do(THD *thd, List<Item> &values);
+class Query_result_do :public Query_result
+{
+public:
+  Query_result_do(THD *thd): Query_result(thd) {}
+  bool send_result_set_metadata(List<Item> &list, uint flags) { return false; }
+  bool send_data(List<Item> &items);
+  bool send_eof();
+  virtual bool check_simple_select() const { return false; }
+  void abort_result_set() {}
+  virtual void cleanup() {}
+};
+
+bool mysql_do(THD *thd, LEX *lex);
 
 #endif /* SQL_DO_INCLUDED */

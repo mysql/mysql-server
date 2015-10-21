@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,8 +27,6 @@ namespace Tools{
 namespace Base{
 namespace Options{
 
-using std::string;
-
 /**
   Simple boolean option. Does not accept value.
  */
@@ -39,9 +37,9 @@ public:
     Constructs new simple option.
     @param name Name of option. It is used in command-line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
-  Simple_option(string name, string description);
+  Simple_option(std::string name, std::string description);
 };
 
 }

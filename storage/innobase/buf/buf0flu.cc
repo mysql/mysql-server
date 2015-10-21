@@ -1002,7 +1002,7 @@ buf_flush_write_block_low(
 #ifdef UNIV_DEBUG
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 	ut_ad(!buf_pool_mutex_own(buf_pool));
-#endif
+#endif /* UNIV_DEBUG */
 
 	DBUG_PRINT("ib_buf", ("flush %s %u page " UINT32PF ":" UINT32PF,
 			      sync ? "sync" : "async", (unsigned) flush_type,
@@ -1023,7 +1023,8 @@ buf_flush_write_block_low(
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
 	ut_a(ibuf_count_get(bpage->id) == 0);
-#endif
+#endif /* UNIV_IBUF_COUNT_DEBUG */
+
 	ut_ad(bpage->newest_modification != 0);
 
 	/* Force the log to the disk before writing the modified block */
@@ -1146,7 +1147,7 @@ buf_flush_page(
 	ut_ad(is_uncompressed == (block_mutex != &buf_pool->zip_mutex));
 
 	ibool		flush;
-	rw_lock_t*	rw_lock;
+	rw_lock_t*	rw_lock = NULL;
 	bool		no_fix_count = bpage->buf_fix_count == 0;
 
 	if (!is_uncompressed) {
@@ -1831,12 +1832,14 @@ buf_flush_batch(
 {
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
 
+#ifdef UNIV_DEBUG
 	{
 		dict_sync_check	check(true);
 
 		ut_ad(flush_type != BUF_FLUSH_LIST
 		      || !sync_check_iterate(check));
 	}
+#endif /* UNIV_DEBUG */
 
 	buf_pool_mutex_enter(buf_pool);
 
@@ -2290,31 +2293,6 @@ buf_flush_LRU_list(
 }
 
 /*********************************************************************//**
-Clears up tail of the LRU lists:
-* Put replaceable pages at the tail of LRU to the free list
-* Flush dirty pages at the tail of LRU to the disk
-The depth to which we scan each buffer pool is controlled by dynamic
-config parameter innodb_LRU_scan_depth.
-@return total pages flushed */
-ulint
-buf_flush_LRU_lists(void)
-/*=====================*/
-{
-	ulint	n_flushed = 0;
-
-	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
-
-		n_flushed += buf_flush_LRU_list(buf_pool_from_array(i));
-	}
-
-	if (n_flushed) {
-		buf_flush_stats(0, n_flushed);
-	}
-
-	return(n_flushed);
-}
-
-/*********************************************************************//**
 Wait for any possible LRU flushes that are in progress to end. */
 void
 buf_flush_wait_LRU_batch_end(void)
@@ -2698,7 +2676,7 @@ buf_flush_page_cleaner_init(void)
 	page_cleaner = static_cast<page_cleaner_t*>(
 		ut_zalloc_nokey(sizeof(*page_cleaner)));
 
-	mutex_create("page_cleaner", &page_cleaner->mutex);
+	mutex_create(LATCH_ID_PAGE_CLEANER, &page_cleaner->mutex);
 
 	page_cleaner->is_requested = os_event_create("pc_is_requested");
 	page_cleaner->is_finished = os_event_create("pc_is_finished");
@@ -3554,6 +3532,7 @@ buf_pool_get_dirty_pages_count(
 /******************************************************************//**
 Check if there are any dirty pages that belong to a space id in the flush list.
 @return number of dirty pages present in all the buffer pools */
+static
 ulint
 buf_flush_get_dirty_pages_count(
 /*============================*/

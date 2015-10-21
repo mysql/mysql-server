@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -33,9 +33,6 @@ Created 12/29/1997 Heikki Tuuri
 #include "data0data.h"
 #include "row0sel.h"
 #include "rem0cmp.h"
-
-/** The RND function seed */
-static ulint	eval_rnd	= 128367121;
 
 /** Dummy adress used when we should allocate a buffer of size 0 in
 eval_node_alloc_val_buf */
@@ -341,93 +338,6 @@ eval_aggregate(
 }
 
 /*****************************************************************//**
-Evaluates a predefined function node where the function is not relevant
-in benchmarks. */
-static
-void
-eval_predefined_2(
-/*==============*/
-	func_node_t*	func_node)	/*!< in: predefined function node */
-{
-	que_node_t*	arg;
-	que_node_t*	arg1;
-	que_node_t*	arg2 = 0; /* remove warning (??? bug ???) */
-	lint		int_val;
-	byte*		data;
-	ulint		len1;
-	ulint		len2;
-	int		func;
-	ulint		i;
-
-	ut_ad(que_node_get_type(func_node) == QUE_NODE_FUNC);
-
-	arg1 = func_node->args;
-
-	if (arg1) {
-		arg2 = que_node_get_next(arg1);
-	}
-
-	func = func_node->func;
-
-	if (func == PARS_PRINTF_TOKEN) {
-
-		arg = arg1;
-
-		while (arg) {
-			dfield_print(que_node_get_val(arg));
-
-			arg = que_node_get_next(arg);
-		}
-
-		putc('\n', stderr);
-
-	} else if (func == PARS_ASSERT_TOKEN) {
-
-		if (!eval_node_get_ibool_val(arg1)) {
-			fputs("SQL assertion fails in a stored procedure!\n",
-			      stderr);
-		}
-
-		ut_a(eval_node_get_ibool_val(arg1));
-
-		/* This function, or more precisely, a debug procedure,
-		returns no value */
-
-	} else if (func == PARS_RND_TOKEN) {
-
-		len1 = (ulint) eval_node_get_int_val(arg1);
-		len2 = (ulint) eval_node_get_int_val(arg2);
-
-		ut_ad(len2 >= len1);
-
-		if (len2 > len1) {
-			int_val = (lint) (len1
-					  + (eval_rnd % (len2 - len1 + 1)));
-		} else {
-			int_val = (lint) len1;
-		}
-
-		eval_rnd = ut_rnd_gen_next_ulint(eval_rnd);
-
-		eval_node_set_int_val(func_node, int_val);
-
-	} else if (func == PARS_RND_STR_TOKEN) {
-
-		len1 = (ulint) eval_node_get_int_val(arg1);
-
-		data = eval_node_ensure_val_buf(func_node, len1);
-
-		for (i = 0; i < len1; i++) {
-			data[i] = (byte)(97 + (eval_rnd % 3));
-
-			eval_rnd = ut_rnd_gen_next_ulint(eval_rnd);
-		}
-	} else {
-		ut_error;
-	}
-}
-
-/*****************************************************************//**
 Evaluates a notfound-function node. */
 UNIV_INLINE
 void
@@ -495,46 +405,6 @@ eval_substr(
 	dfield = que_node_get_val(func_node);
 
 	dfield_set_data(dfield, str1 + len1, len2);
-}
-
-/*****************************************************************//**
-Evaluates a replstr-procedure node. */
-static
-void
-eval_replstr(
-/*=========*/
-	func_node_t*	func_node)	/*!< in: function node */
-{
-	que_node_t*	arg1;
-	que_node_t*	arg2;
-	que_node_t*	arg3;
-	que_node_t*	arg4;
-	byte*		str1;
-	byte*		str2;
-	ulint		len1;
-	ulint		len2;
-
-	arg1 = func_node->args;
-	arg2 = que_node_get_next(arg1);
-
-	ut_ad(que_node_get_type(arg1) == QUE_NODE_SYMBOL);
-
-	arg3 = que_node_get_next(arg2);
-	arg4 = que_node_get_next(arg3);
-
-	str1 = static_cast<byte*>(dfield_get_data(que_node_get_val(arg1)));
-	str2 = static_cast<byte*>(dfield_get_data(que_node_get_val(arg2)));
-
-	len1 = (ulint) eval_node_get_int_val(arg3);
-	len2 = (ulint) eval_node_get_int_val(arg4);
-
-	if ((dfield_get_len(que_node_get_val(arg1)) < len1 + len2)
-	    || (dfield_get_len(que_node_get_val(arg2)) < len2)) {
-
-		ut_error;
-	}
-
-	ut_memcpy(str1 + len1, str2, len2);
 }
 
 /*****************************************************************//**
@@ -607,44 +477,6 @@ eval_instr(
 
 match_found:
 	eval_node_set_int_val(func_node, int_val);
-}
-
-/*****************************************************************//**
-Evaluates a predefined function node. */
-UNIV_INLINE
-void
-eval_binary_to_number(
-/*==================*/
-	func_node_t*	func_node)	/*!< in: function node */
-{
-	que_node_t*	arg1;
-	dfield_t*	dfield;
-	byte*		str1;
-	byte*		str2;
-	ulint		len1;
-	ulint		int_val;
-
-	arg1 = func_node->args;
-
-	dfield = que_node_get_val(arg1);
-
-	str1 = static_cast<byte*>(dfield_get_data(dfield));
-	len1 = dfield_get_len(dfield);
-
-	if (len1 > 4) {
-		ut_error;
-	}
-
-	if (len1 == 4) {
-		str2 = str1;
-	} else {
-		int_val = 0;
-		str2 = (byte*) &int_val;
-
-		ut_memcpy(str2 + (4 - len1), str1, len1);
-	}
-
-	eval_node_copy_and_alloc_val(func_node, str2, 4);
 }
 
 /*****************************************************************//**
@@ -737,96 +569,16 @@ eval_to_binary(
 	dfield_set_data(dfield, str1 + (4 - len1), len1);
 }
 
-/*****************************************************************//**
-Evaluates a predefined function node. */
+/** Evaluate the predefined LENGTH function. */
 UNIV_INLINE
 void
-eval_predefined(
-/*============*/
+eval_length(
 	func_node_t*	func_node)	/*!< in: function node */
 {
-	que_node_t*	arg1;
-	lint		int_val;
-	byte*		data;
-	int		func;
-
-	func = func_node->func;
-
-	arg1 = func_node->args;
-
-	if (func == PARS_LENGTH_TOKEN) {
-
-		int_val = (lint) dfield_get_len(que_node_get_val(arg1));
-
-	} else if (func == PARS_TO_CHAR_TOKEN) {
-
-		/* Convert number to character string as a
-		signed decimal integer. */
-
-		ulint	uint_val;
-		int	int_len;
-
-		int_val = eval_node_get_int_val(arg1);
-
-		/* Determine the length of the string. */
-
-		if (int_val == 0) {
-			int_len = 1; /* the number 0 occupies 1 byte */
-		} else {
-			int_len = 0;
-			if (int_val < 0) {
-				uint_val = ((ulint) -int_val - 1) + 1;
-				int_len++; /* reserve space for minus sign */
-			} else {
-				uint_val = (ulint) int_val;
-			}
-			for (; uint_val > 0; int_len++) {
-				uint_val /= 10;
-			}
-		}
-
-		/* allocate the string */
-		data = eval_node_ensure_val_buf(func_node, int_len + 1);
-
-		/* add terminating NUL character */
-		data[int_len] = 0;
-
-		/* convert the number */
-
-		if (int_val == 0) {
-			data[0] = '0';
-		} else {
-			int tmp;
-			if (int_val < 0) {
-				data[0] = '-'; /* preceding minus sign */
-				uint_val = ((ulint) -int_val - 1) + 1;
-			} else {
-				uint_val = (ulint) int_val;
-			}
-			for (tmp = int_len; uint_val > 0; uint_val /= 10) {
-				data[--tmp] = (byte)
-					('0' + (byte)(uint_val % 10));
-			}
-		}
-
-		dfield_set_len(que_node_get_val(func_node), int_len);
-
-		return;
-
-	} else if (func == PARS_TO_NUMBER_TOKEN) {
-
-		int_val = atoi((char*)
-			       dfield_get_data(que_node_get_val(arg1)));
-
-	} else if (func == PARS_SYSDATE_TOKEN) {
-		int_val = (lint) ut_time();
-	} else {
-		eval_predefined_2(func_node);
-
-		return;
-	}
-
-	eval_node_set_int_val(func_node, int_val);
+	ut_ad(func_node->func == PARS_LENGTH_TOKEN);
+	eval_node_set_int_val(
+		func_node, (lint)
+		dfield_get_len(que_node_get_val(func_node->args)));
 }
 
 /*****************************************************************//**
@@ -856,8 +608,7 @@ eval_func(
 
 		if (dfield_is_null(que_node_get_val(arg))
 		    && (fclass != PARS_FUNC_CMP)
-		    && (func != PARS_NOTFOUND_TOKEN)
-		    && (func != PARS_PRINTF_TOKEN)) {
+		    && (func != PARS_NOTFOUND_TOKEN)) {
 			ut_error;
 		}
 
@@ -882,14 +633,8 @@ eval_func(
 		case PARS_SUBSTR_TOKEN:
 			eval_substr(func_node);
 			return;
-		case PARS_REPLSTR_TOKEN:
-			eval_replstr(func_node);
-			return;
 		case PARS_INSTR_TOKEN:
 			eval_instr(func_node);
-			return;
-		case PARS_BINARY_TO_NUMBER_TOKEN:
-			eval_binary_to_number(func_node);
 			return;
 		case PARS_CONCAT_TOKEN:
 			eval_concat(func_node);
@@ -897,10 +642,11 @@ eval_func(
 		case PARS_TO_BINARY_TOKEN:
 			eval_to_binary(func_node);
 			return;
-		default:
-			eval_predefined(func_node);
+		case PARS_LENGTH_TOKEN:
+			eval_length(func_node);
 			return;
 		}
+		break;
 	case PARS_FUNC_LOGICAL:
 		eval_logical(func_node);
 		return;

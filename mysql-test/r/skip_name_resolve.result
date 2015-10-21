@@ -14,10 +14,21 @@ GRANT USAGE ON *.* TO 'mysqltest_1'@'127.0.0.1/255.255.255.255'
 GRANT ALL PRIVILEGES ON `test`.* TO 'mysqltest_1'@'127.0.0.1/255.255.255.255'
 REVOKE ALL ON test.* FROM mysqltest_1@'127.0.0.1/255.255.255.255';
 DROP USER mysqltest_1@'127.0.0.1/255.255.255.255';
+DROP TABLE IF EXISTS mysql.user_bak;
+CREATE TABLE mysql.user_bak AS SELECT * FROM mysql.user;
+INSERT IGNORE INTO mysql.user VALUES ('127.0.0.1','root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y' ,'Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,@@default_authentication_plugin,'','N', CURRENT_TIMESTAMP,NULL,'N');
+INSERT IGNORE INTO mysql.user VALUES ('::1','root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y' ,'Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,@@default_authentication_plugin,'','N', CURRENT_TIMESTAMP,NULL,'N');
+COMMIT;
+FLUSH PRIVILEGES;
 SELECT USER();
 USER()
 #
 SHOW PROCESSLIST;
+TRUNCATE TABLE mysql.user;
+INSERT INTO mysql.user SELECT * FROM mysql.user_bak;
+COMMIT;
+FLUSH PRIVILEGES;
+DROP TABLE mysql.user_bak;
 #
 # Bug #37168: Missing variable - skip_name_resolve
 #
@@ -45,3 +56,15 @@ ERROR HY000: Variable 'skip_name_resolve' is a read only variable
 SET @@GLOBAL.skip_name_resolve=0;
 ERROR HY000: Variable 'skip_name_resolve' is a read only variable
 End of 5.1 tests
+#
+# Bug #20438524: 5.7.5 SKIP_NAME_RESOLVE STOPS ALL CONNECTION ATTEMPTS
+#
+CREATE USER b20438524@'%' IDENTIFIED BY 'pwd';
+# set some valid addresses
+UPDATE mysql.user SET host='localhost' WHERE user='b20438524';
+FLUSH PRIVILEGES;
+# cleanup
+DELETE FROM mysql.user WHERE user='b20438524';
+FLUSH PRIVILEGES;
+# must find the pattern
+End of 5.7 tests

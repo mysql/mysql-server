@@ -42,8 +42,8 @@ namespace messages = rewriter_messages;
 
 
 /** Functions used in the hash */
-uchar *get_rule_hash_code(const uchar *entry, size_t *length,
-                          my_bool __attribute__((unused)))
+static uchar *get_rule_hash_code(const uchar *entry, size_t *length,
+                                 my_bool __attribute__((unused)))
 {
   const Rule *rule= pointer_cast<const Rule*>(entry);
   *length= PARSER_SERVICE_DIGEST_LENGTH;
@@ -56,7 +56,7 @@ uchar *get_rule_hash_code(const uchar *entry, size_t *length,
 }
 
 
-void free_rule(void *entry) { delete pointer_cast<Rule*>(entry); }
+static void free_rule(void *entry) { delete pointer_cast<Rule*>(entry); }
 
 
 Rewriter::Rewriter()
@@ -64,7 +64,8 @@ Rewriter::Rewriter()
   my_hash_init(&m_digests, &my_charset_bin, 10, 0,
                PARSER_SERVICE_DIGEST_LENGTH,
                get_rule_hash_code,
-               free_rule, 0);
+               free_rule, 0,
+               PSI_INSTRUMENT_ME);
 }
 
 

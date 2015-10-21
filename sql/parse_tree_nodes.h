@@ -24,6 +24,7 @@
 #include "sql_lex.h"                 // LEX
 #include "sql_parse.h"               // add_join_natural
 #include "sql_update.h"              // Sql_cmd_update
+#include "sql_admin.h"               // Sql_cmd_shutdown etc.
 
 
 template<enum_parsing_context Context> class PTI_context;
@@ -109,6 +110,7 @@ public:
     order->item= &order->item_ptr;
     order->used_alias= false;
     order->used= 0;
+    order->is_position= false;
     value.link_in_list(order, &order->next);
   }
 };
@@ -486,7 +488,6 @@ public:
     if (select->validate_base_options(thd->lex, opt_query_spec_options))
       return true;
     select->set_base_options(opt_query_spec_options);
-    DBUG_ASSERT(!(opt_query_spec_options & SELECT_MAX_STATEMENT_TIME));
     if (opt_query_spec_options & SELECT_HIGH_PRIORITY)
     {
       Yacc_state *yyps= &thd->m_parser_state->m_yacc;
@@ -925,7 +926,7 @@ public:
 
 
 /**
-  Parse tree node class for 2-dimentional variable names (example: @global.x)
+  Parse tree node class for 2-dimentional variable names (example: \@global.x)
 */
 class PT_internal_variable_name_2d : public PT_internal_variable_name
 {
@@ -1233,8 +1234,7 @@ public:
     if (var == NULL)
       return true;
     lex->var_list.push_back(var);
-    lex->autocommit= TRUE;
-    lex->is_set_password_sql= true;
+    lex->sql_command= SQLCOM_SET_PASSWORD;
     if (lex->sphead)
       lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
     if (sp_create_assignment_instr(pc->thd, expr_pos.raw.end))
@@ -1899,6 +1899,20 @@ public:
     opt_into2(opt_into2_arg),
     opt_select_lock_type(opt_select_lock_type_arg)
   {}
+  explicit PT_select_part2(
+    PT_select_options_and_item_list *select_options_and_item_list_arg)
+  : select_options_and_item_list(select_options_and_item_list_arg),
+    opt_into1(NULL),
+    from_clause(NULL),
+    opt_where_clause(NULL),
+    opt_group_clause(NULL),
+    opt_having_clause(NULL),
+    opt_order_clause(NULL),
+    opt_limit_clause(NULL),
+    opt_procedure_analyse_clause(NULL),
+    opt_into2(NULL),
+    opt_select_lock_type()
+  {}
 
   PT_limit_clause *limit_clause() const { return opt_limit_clause; }
   PT_order *order_clause() const { return opt_order_clause; }
@@ -1969,6 +1983,17 @@ public:
       m_lock_type(lock_type),
       m_parentheses(false)
   {}
+
+  PT_query_expression(PT_query_expression_body *body)
+    : contextualized(false),
+      m_body(body),
+      m_order(NULL),
+      m_limit(NULL),
+      m_procedure_analyse(NULL),
+      m_parentheses(false)
+  {
+    m_lock_type.is_set= false;
+  }
 
   virtual bool contextualize(Parse_context *pc)
   {
@@ -2389,20 +2414,33 @@ class PT_select : public Parse_tree_node
 {
   typedef Parse_tree_node super;
 
-  PT_query_expression *select_init;
-
 public:
-  PT_select(PT_query_expression *select_init_arg)
-    : select_init(select_init_arg),
+  /**
+    @param qe The query expression.
+    @param sql_command The type of SQL command.
+  */
+  PT_select(enum_sql_command sql_command, PT_query_expression *qe)
+    : m_sql_command(sql_command),
+      m_select_init(qe),
       m_into(NULL)
   {}
 
   /**
-     @param into The trailing INTO destination.
-   */
-  PT_select(PT_query_expression *select_init_arg, PT_into_destination *into)
-    : select_init(select_init_arg),
+    Creates a SELECT command. Only SELECT commands can have into.
+
+    @param qe The query expression.
+    @param into The trailing INTO destination.
+  */
+  PT_select(PT_query_expression *qe, PT_into_destination *into)
+    : m_sql_command(SQLCOM_SELECT),
+      m_select_init(qe),
       m_into(into)
+  {}
+
+  PT_select(PT_query_expression *qe)
+    : m_sql_command(SQLCOM_SELECT),
+      m_select_init(qe),
+      m_into(NULL)
   {}
 
   virtual bool contextualize(Parse_context *pc)
@@ -2410,13 +2448,15 @@ public:
     if (super::contextualize(pc))
       return true;
 
-    pc->thd->lex->sql_command= SQLCOM_SELECT;
+    pc->thd->lex->sql_command= m_sql_command;
 
-    return select_init->contextualize(pc) ||
+    return m_select_init->contextualize(pc) ||
       ::contextualize(m_into, pc);
   }
 
 private:
+  enum_sql_command m_sql_command;
+  PT_query_expression *m_select_init;
   PT_into_destination *m_into;
 };
 
@@ -2657,5 +2697,13 @@ private:
   bool has_select() const { return insert_query_expression != NULL; }
 };
 
+
+class PT_shutdown : public PT_statement
+{
+  Sql_cmd_shutdown sql_cmd;
+
+public:
+  virtual Sql_cmd *make_cmd(THD *) { return &sql_cmd; }
+};
 
 #endif /* PARSE_TREE_NODES_INCLUDED */

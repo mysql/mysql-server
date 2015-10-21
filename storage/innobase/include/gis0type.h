@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /******************************************************************//**
-@file include gis0type.h
+@file include/gis0type.h
 R-tree header file
 
 Created 2013/03/27 Jimmy Yang

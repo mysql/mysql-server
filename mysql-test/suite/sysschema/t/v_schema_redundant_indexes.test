@@ -1,0 +1,39 @@
+-- source include/not_embedded.inc
+-- source ../include/ps_truncate_all_tables.inc
+# Tests for sys schema
+# Verify the sys.schema_redundant_indexes / x$schema_flattened_keys views
+
+# Ensure structure changes don't slip in
+DESC sys.schema_redundant_indexes;
+
+# Make sure view select does not error, but ignore results
+--disable_result_log
+SELECT * FROM sys.schema_redundant_indexes;
+--enable_result_log
+
+
+# Ensure structure changes don't slip in
+DESC sys.x$schema_flattened_keys;
+
+# Make sure view select does not error, but ignore results
+--disable_result_log
+SELECT * FROM sys.x$schema_flattened_keys;
+--enable_result_log
+
+# Test correctly identifies keys
+
+CREATE DATABASE rkey;
+
+CREATE TABLE rkey.rkey (
+  i INT,
+  j INT,
+  k INT,
+  PRIMARY KEY (i),
+  KEY (j),
+  KEY (j, k),
+  KEY (i, j, k)
+ );
+
+ SELECT * FROM sys.schema_redundant_indexes;
+
+ DROP DATABASE rkey;

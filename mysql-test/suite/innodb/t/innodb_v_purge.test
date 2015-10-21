@@ -1,0 +1,49 @@
+--source include/have_innodb.inc
+--source include/have_debug_sync.inc
+--source include/have_debug.inc
+
+
+CREATE TABLE `t` (
+  `a` BLOB,
+  `b` BLOB,
+  `c` BLOB GENERATED ALWAYS AS (CONCAT(a,b)) VIRTUAL,
+  `h` VARCHAR(10) DEFAULT NULL,
+  `i` int
+) ENGINE=InnoDB;
+
+INSERT INTO t VALUES (REPEAT('g', 16000), REPEAT('x', 16000), DEFAULT, "kk", 1);
+INSERT INTO t VALUES (REPEAT('a', 16000), REPEAT('b', 16000), DEFAULT, "mm", 2);
+
+CREATE INDEX idx ON t(c(100));
+
+SET global debug="+d,ib_purge_virtual_index_callback";
+UPDATE t SET a = REPEAT('m', 16000) WHERE a like "aaa%";
+select sleep(3);
+SET global debug="-d,ib_purge_virtual_index_callback";
+DROP TABLE t;
+
+CREATE TABLE t1 (
+    id INT NOT NULL,
+    store_id INT NOT NULL,
+    x INT GENERATED ALWAYS AS (id + store_id)
+)
+PARTITION BY RANGE (store_id) (
+    PARTITION p0 VALUES LESS THAN (6),
+    PARTITION p1 VALUES LESS THAN (11),
+    PARTITION p2 VALUES LESS THAN (16),
+    PARTITION p3 VALUES LESS THAN (21)
+);
+
+insert into t1 values(1, 2, default);
+insert into t1 values(3, 4, default);
+
+insert into t1 values(3, 12, default);
+insert into t1 values(4, 18, default);
+
+CREATE INDEX idx ON t1(x);
+
+SET global debug="+d,ib_purge_virtual_index_callback";
+UPDATE t1 SET id = 10 WHERE id = 1;
+select sleep(3);
+SET global debug="-d,ib_purge_virtual_index_callback";
+DROP TABLE t1;

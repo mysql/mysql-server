@@ -1156,6 +1156,11 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_SRV_DICT_LRU_MICROSECOND},
 
+	{"innodb_dict_lru_count", "server",
+	 "Number of tables evicted from DICT LRU list",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_SRV_DICT_LRU_EVICT_COUNT},
+
 	{"innodb_checkpoint_usec", "server",
 	 "Time (in microseconds) spent by master thread to do checkpoint",
 	 MONITOR_NONE,
@@ -1315,6 +1320,16 @@ static monitor_info_t	innodb_counter_info[] =
 	{"icp_match", "icp", "Index push-down condition matches",
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_ICP_MATCH},
+
+	/* ========== Mutex monitoring on/off ========== */
+	{"latch_status", "Latch counters",
+	 "Collect latch counters to display via SHOW ENGING INNODB MUTEX",
+	 MONITOR_MODULE,
+	 MONITOR_DEFAULT_START, MONITOR_MODULE_LATCHES},
+
+	{"latch", "sync", "Latch monitoring control",
+	 MONITOR_HIDDEN,
+	 MONITOR_DEFAULT_START, MONITOR_LATCHES},
 
 	/* ========== To turn on/off reset all counters ========== */
 	{"all", "All Counters", "Turn on/off and reset all counters",

@@ -18,10 +18,11 @@
 
 //Channel errors
 
-#define RPL_CHANNEL_SERVICE_RECEIVER_CONNECTION_ERROR -1
-#define RPL_CHANNEL_SERVICE_DEFAULT_CHANNEL_CREATION_ERROR -1
-#define RPL_CHANNEL_SERVICE_SLAVE_SKIP_COUNTER_ACTIVE -2
-//Error for the wait event consuption, equal to the server wait for gtid method
+#define RPL_CHANNEL_SERVICE_RECEIVER_CONNECTION_ERROR      -1
+#define RPL_CHANNEL_SERVICE_DEFAULT_CHANNEL_CREATION_ERROR -2
+#define RPL_CHANNEL_SERVICE_SLAVE_SKIP_COUNTER_ACTIVE      -3
+#define RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR  -4
+//Error for the wait event consumption, equal to the server wait for GTID method
 #define REPLICATION_THREAD_WAIT_TIMEOUT_ERROR -1
 #define REPLICATION_THREAD_WAIT_NO_INFO_ERROR -2
 
@@ -51,8 +52,28 @@ enum enum_multi_threaded_workers_type
 };
 
 /**
+ SSL information to be used when creating a channel.
+ It maps the SSL options present in a CHANGE MASTER.
+*/
+struct st_ssl_info
+{
+  int   use_ssl;                //use SSL
+  char* ssl_ca_file_name;       //SSL list of trusted certificate authorities
+  char* ssl_ca_directory;       //SSL certificate authorities directory
+  char* ssl_cert_file_name;     //SSL connection certificate
+  char* ssl_crl_file_name;      //SSL certificate revocation list
+  char* ssl_crl_directory;      //SSL certificate revocation list file directory
+  char* ssl_key;                //SSL key file for connections
+  char* ssl_cipher;             //list of permissible ciphers to use for SSL
+  int   ssl_verify_server_cert; //check the server's Common Name value
+};
+typedef struct st_ssl_info Channel_ssl_info;
+
+void initialize_channel_ssl_info(Channel_ssl_info* channel_ssl_info);
+
+/**
  Creation information for a channel.
- It includes the data that is usually associated to a change master comand
+ It includes the data that is usually associated to a change master command
 */
 struct st_channel_info
 {
@@ -61,6 +82,7 @@ struct st_channel_info
   int port;
   char* user;
   char* password;
+  Channel_ssl_info* ssl_info;
   int auto_position;
   int channel_mts_parallel_type;
   int channel_mts_parallel_workers;
@@ -158,7 +180,7 @@ int channel_start(const char* channel,
 
   @param channel              The channel name
   @param threads_to_stop      The types of threads to be stopped
-  @param timeout              The expected time in which the thread shouls stop
+  @param timeout              The expected time in which the thread should stop
   @return the operation status
     @retval 0      OK
     @retval !=0    Error
@@ -170,7 +192,7 @@ int channel_stop(const char* channel,
 /**
   Purges the channel logs
 
-  @param reset_all  If true, the method will purge logs and remove the cannel
+  @param reset_all  If true, the method will purge logs and remove the channel
                     If false, only the channel information will be reset.
 
   @return the operation status
@@ -194,18 +216,21 @@ int channel_purge_queue(const char* channel, bool reset_all);
 bool channel_is_active(const char* channel, enum_channel_thread_types type);
 
 /**
-  Returns the ids of the channel appliers.
-  If more than one applier exists, a channel is returned
+  Returns the id(s) of the channel threads: receiver or applier.
+  If more than one applier exists, an array is returned, on which first
+  index is coordinator thread id.
 
   @param[in]  channel      The channel name
-  @param[out] appliers_id  The array of id(s)
+  @param[in]  thread_type  The thread type (receiver or applier)
+  @param[out] thread_id    The array of id(s)
 
   @return the number of returned ids
-    @retval <=0  the channel does no exists, or the applier is not present
-    @retval >0 the number of applier ids returned.
+    @retval -1  the channel does no exists, or the thread is not present
+    @retval >0 the number of thread ids returned.
 */
-int channel_get_appliers_thread_id(const char* channel,
-                                   unsigned long** appliers_id);
+int channel_get_thread_id(const char* channel,
+                          enum_channel_thread_types thread_type,
+                          unsigned long** thread_id);
 
 /**
   Returns last GNO from applier from a given UUID.
@@ -223,7 +248,7 @@ long long channel_get_last_delivered_gno(const char* channel, int sidno);
   Queues a event packet into the current active channel.
 
   @param buf         the event buffer
-  @param event_len  the event buffer length
+  @param len         the event buffer length
 
   @return the operation status
     @retval 0      OK
@@ -236,7 +261,7 @@ int channel_queue_packet(const char* channel, const char* buf, unsigned long len
 
   @note This method assumes that the channel is not receiving any more events.
         If it is still receiving, then the method should wait for execution of
-        transactions that were waiting when this method was invocate
+        transactions that were present when this method was invoked.
 
   @param timeout  the time (seconds) after which the method returns if the
                   above condition was not satisfied
@@ -246,7 +271,46 @@ int channel_queue_packet(const char* channel, const char* buf, unsigned long len
     @retval REPLICATION_THREAD_WAIT_TIMEOUT_ERROR     A timeout occurred
     @retval REPLICATION_THREAD_WAIT_NO_INFO_ERROR     An error occurred
 */
-int channel_wait_until_apply_queue_empty(char* channel, long long timeout);
+int channel_wait_until_apply_queue_applied(char* channel, long long timeout);
+
+/**
+  Checks if the applier, and its workers when parallel applier is
+  enabled, has already consumed all relay log, that is, applier is
+  waiting for transactions to be queued.
+
+  @param channel  The channel name
+
+  @return the operation status
+    @retval <0  Error
+    @retval  0  Applier is not waiting
+    @retval  1  Applier is waiting
+*/
+int channel_is_applier_waiting(char* channel);
+
+/**
+  Checks if the applier thread, and its workers when parallel applier is
+  enabled, has already consumed all relay log, that is, applier thread
+  is waiting for transactions to be queued.
+
+  @param thread_id  the applier thread id to check
+  @param worker     flag to indicate if thread is a parallel worker
+
+  @return the operation status
+    @retval -1  Unable to find applier thread
+    @retval  0  Applier thread is not waiting
+    @retval  1  Applier thread is waiting
+*/
+int channel_is_applier_thread_waiting(unsigned long thread_id,
+                                      bool worker= false);
+
+/**
+  Flush the channel.
+
+  @return the operation status
+    @retval 0      OK
+    @retval != 0   Error on flush
+*/
+int channel_flush(const char* channel);
 
 /**
   Initializes channel structures if needed.
@@ -255,6 +319,6 @@ int channel_wait_until_apply_queue_empty(char* channel, long long timeout);
     @retval 0      OK
     @retval != 0   Error on queue
 */
-int intialize_channel_service_interface();
+int initialize_channel_service_interface();
 
 #endif //RPL_SERVICE_INTERFACE_INCLUDE

@@ -18,30 +18,40 @@ FROM	INFORMATION_SCHEMA.INNODB_SYS_TABLES  t,
 INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
 WHERE	t.table_id = i.table_id
 AND	t.name LIKE 'mysql%'
-	ORDER BY t.space, i.page_no;
+	ORDER BY t.name, i.index_id;
 table_name	n_cols	table_flags	index_name	root_page	type	n_fields	merge_threshold
-mysql/plugin	5	1	PRIMARY	3	3	1	50
-mysql/servers	12	1	PRIMARY	3	3	1	50
-mysql/help_topic	9	1	PRIMARY	3	3	1	50
-mysql/help_topic	9	1	name	4	2	1	50
-mysql/help_category	7	1	PRIMARY	3	3	1	50
-mysql/help_category	7	1	name	4	2	1	50
-mysql/help_relation	5	1	PRIMARY	3	3	2	50
-mysql/help_keyword	5	1	PRIMARY	3	3	1	50
-mysql/help_keyword	5	1	name	4	2	1	50
-mysql/time_zone_name	5	1	PRIMARY	3	3	1	50
-mysql/time_zone	5	1	PRIMARY	3	3	1	50
-mysql/time_zone_transition	6	1	PRIMARY	3	3	2	50
-mysql/time_zone_transition_type	8	1	PRIMARY	3	3	2	50
-mysql/time_zone_leap_second	5	1	PRIMARY	3	3	1	50
-mysql/innodb_table_stats	9	1	PRIMARY	3	3	2	50
-mysql/innodb_index_stats	11	1	PRIMARY	3	3	4	50
-mysql/slave_relay_log_info	12	1	PRIMARY	3	3	1	50
-mysql/slave_master_info	27	1	PRIMARY	3	3	1	50
-mysql/slave_worker_info	16	1	PRIMARY	3	3	2	50
-mysql/gtid_executed	6	1	PRIMARY	3	3	2	50
-mysql/server_cost	7	1	PRIMARY	3	3	1	50
-mysql/engine_cost	9	1	PRIMARY	3	3	3	50
+mysql/columns_priv	10	33	PRIMARY	3	3	5	50
+mysql/db	25	33	PRIMARY	3	3	3	50
+mysql/db	25	33	User	4	0	1	50
+mysql/engine_cost	9	33	PRIMARY	3	3	3	50
+mysql/gtid_executed	6	33	PRIMARY	3	3	2	50
+mysql/help_category	7	33	PRIMARY	3	3	1	50
+mysql/help_category	7	33	name	4	2	1	50
+mysql/help_keyword	5	33	PRIMARY	3	3	1	50
+mysql/help_keyword	5	33	name	4	2	1	50
+mysql/help_relation	5	33	PRIMARY	3	3	2	50
+mysql/help_topic	9	33	PRIMARY	3	3	1	50
+mysql/help_topic	9	33	name	4	2	1	50
+mysql/innodb_index_stats	11	33	PRIMARY	3	3	4	50
+mysql/innodb_table_stats	9	33	PRIMARY	3	3	2	50
+mysql/plugin	5	33	PRIMARY	3	3	1	50
+mysql/procs_priv	11	33	PRIMARY	3	3	5	50
+mysql/procs_priv	11	33	Grantor	4	0	1	50
+mysql/proxies_priv	10	33	PRIMARY	3	3	4	50
+mysql/proxies_priv	10	33	Grantor	4	0	1	50
+mysql/servers	12	33	PRIMARY	3	3	1	50
+mysql/server_cost	7	33	PRIMARY	3	3	1	50
+mysql/slave_master_info	27	33	PRIMARY	3	3	1	50
+mysql/slave_relay_log_info	12	33	PRIMARY	3	3	1	50
+mysql/slave_worker_info	16	33	PRIMARY	3	3	2	50
+mysql/tables_priv	11	33	PRIMARY	3	3	4	50
+mysql/tables_priv	11	33	Grantor	4	0	1	50
+mysql/time_zone	5	33	PRIMARY	3	3	1	50
+mysql/time_zone_leap_second	5	33	PRIMARY	3	3	1	50
+mysql/time_zone_name	5	33	PRIMARY	3	3	1	50
+mysql/time_zone_transition	6	33	PRIMARY	3	3	2	50
+mysql/time_zone_transition_type	8	33	PRIMARY	3	3	2	50
+mysql/user	48	33	PRIMARY	3	3	2	50
 CREATE TABLE t1 (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;
 CREATE TABLE t2 (a INT KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=innodb;
 CREATE TABLE t3 (a INT KEY, b TEXT) ROW_FORMAT=COMPRESSED ENGINE=innodb;
@@ -60,12 +70,17 @@ test/t2	5	1	PRIMARY	3	3	1	50
 test/t3	5	41	PRIMARY	3	3	1	50
 test/t4	5	33	PRIMARY	3	3	1	50
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
-Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
-test/t1	MYSQLD_DATADIR/test/t1.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t2	MYSQLD_DATADIR/test/t2.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t3	MYSQLD_DATADIR/test/t3.ibd	DEFAULT	8192	Compressed	Single
-test/t4	MYSQLD_DATADIR/test/t4.ibd	DEFAULT	0	Dynamic	Single
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+test/t1	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t1.ibd
+test/t2	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t2.ibd
+test/t3	Single	DEFAULT	8192	Compressed	MYSQLD_DATADIR/test/t3.ibd
+test/t4	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t4.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+test/t1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1.ibd
+test/t2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t2.ibd
+test/t3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3.ibd
+test/t4	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t4.ibd
 DROP TABLE t1, t2, t3, t4;
 # Test 4) The maximum row size is dependent upon the page size.
 #         Redundant: 8123, Compact: 8126.
@@ -368,14 +383,7 @@ DELETE FROM t1 WHERE a%2;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-SET @old_sql_mode = @@sql_mode;
-SET @@sql_mode = 'STRICT_TRANS_TABLES';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER TABLE t1 ADD PRIMARY KEY (a,b(255),c(255)), ADD KEY (b(767));
-SET @@sql_mode = @old_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT COUNT(*) FROM t1 WHERE a=44;
 COUNT(*)
 5
@@ -475,9 +483,7 @@ CREATE INDEX t1t ON t1 (t(767));
 UPDATE t1 SET t=@e;
 ERROR HY000: Undo log record is too big.
 CREATE INDEX t1u ON t1 (u(767));
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 CREATE INDEX t1ut ON t1 (u(767), t(767));
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 CREATE INDEX t1st ON t1 (s(767), t(767));
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -523,6 +529,8 @@ t1	CREATE TABLE `t1` (
   KEY `t1r` (`r`(767)),
   KEY `t1s` (`s`(767)),
   KEY `t1t` (`t`(767)),
+  KEY `t1u` (`u`(767)),
+  KEY `t1ut` (`u`(767),`t`(767)),
   KEY `t1st` (`s`(767),`t`(767))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 DROP TABLE t1;
@@ -661,12 +669,16 @@ CREATE TABLE t1(
 c text NOT NULL, d text NOT NULL,
 PRIMARY KEY (c(767),d(767)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
-ERROR 42000: Row size too large (> 8126). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
+Warnings:
+Warning	139	Row size too large (> 8126). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
+DROP TABLE t1;
 CREATE TABLE t1(
 c text NOT NULL, d text NOT NULL,
 PRIMARY KEY (c(767),d(767)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2 CHARSET=ASCII;
-ERROR 42000: Row size too large (> 8126). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
+Warnings:
+Warning	139	Row size too large (> 8126). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
+DROP TABLE t1;
 CREATE TABLE t1(
 c text NOT NULL, d text NOT NULL,
 PRIMARY KEY (c(767),d(767)))
@@ -674,7 +686,9 @@ ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4 CHARSET=ASCII;
 drop table t1;
 CREATE TABLE t1(c text, PRIMARY KEY (c(440)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
-ERROR 42000: Row size too large (> 8126). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
+Warnings:
+Warning	139	Row size too large (> 8126). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
+DROP TABLE t1;
 CREATE TABLE t1(c text, PRIMARY KEY (c(438)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
 INSERT INTO t1 VALUES(REPEAT('A',512)),(REPEAT('B',512));

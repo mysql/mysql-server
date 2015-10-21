@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ int heap_delete(HP_INFO *info, const uchar *record)
   test_active(info);
 
   if (info->opt_flag & READ_CHECK_USED && hp_rectest(info,record))
-    DBUG_RETURN(my_errno);			/* Record changed */
+    DBUG_RETURN(my_errno());			/* Record changed */
   share->changed=1;
 
   if ( --(share->records) < share->blength >> 1) share->blength>>=1;
@@ -56,7 +56,7 @@ int heap_delete(HP_INFO *info, const uchar *record)
 err:
   if (++(share->records) == share->blength)
     share->blength+= share->blength;
-  DBUG_RETURN(my_errno);
+  DBUG_RETURN(my_errno());
 }
 
 
@@ -128,7 +128,8 @@ int hp_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo,
     gpos=pos;
     if (!(pos=pos->next_key))
     {
-      DBUG_RETURN(my_errno=HA_ERR_CRASHED);	/* This shouldn't happend */
+      set_my_errno(HA_ERR_CRASHED);
+      DBUG_RETURN(HA_ERR_CRASHED);	/* This shouldn't happend */
     }
   }
 
@@ -148,8 +149,7 @@ int hp_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo,
   else if (pos->next_key)
   {
     empty=pos->next_key;
-    pos->ptr_to_rec=empty->ptr_to_rec;
-    pos->next_key=empty->next_key;
+    *pos= *empty;
   }
   else
     keyinfo->hash_buckets--;
@@ -158,7 +158,7 @@ int hp_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo,
     DBUG_RETURN (0);
 
   /* Move the last key (lastpos) */
-  lastpos_hashnr = hp_rec_hashnr(keyinfo, lastpos->ptr_to_rec);
+  lastpos_hashnr= lastpos->hash;
   /* pos is where lastpos should be */
   pos=hp_find_hash(&keyinfo->block, hp_mask(lastpos_hashnr, share->blength,
 					    share->records));
@@ -167,7 +167,7 @@ int hp_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo,
     empty[0]=lastpos[0];
     DBUG_RETURN(0);
   }
-  pos_hashnr = hp_rec_hashnr(keyinfo, pos->ptr_to_rec);
+  pos_hashnr= pos->hash;
   /* pos3 is where the pos should be */
   pos3= hp_find_hash(&keyinfo->block,
 		     hp_mask(pos_hashnr, share->blength, share->records));

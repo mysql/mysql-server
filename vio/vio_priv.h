@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,10 @@
 #ifndef VIO_PRIV_INCLUDED
 #define VIO_PRIV_INCLUDED
 
-/* Structures and functions private to the vio package */
+/**
+  @file vio/vio_priv.h
+  Structures and functions private to the vio package
+*/
 
 #define DONT_MAP_VIO
 #include <my_global.h>

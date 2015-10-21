@@ -28,6 +28,7 @@
 
 class Arg_comparator;
 class Item_sum_hybrid;
+struct Json_scalar_holder;
 
 typedef int (Arg_comparator::*arg_cmp_func)();
 
@@ -39,9 +40,9 @@ class Arg_comparator: public Sql_alloc
   arg_cmp_func func;
   Item_result_field *owner;
   Arg_comparator *comparators;   // used only for compare_row()
+  uint16 comparator_count;
   double precision;
   /* Fields used in DATE/DATETIME comparison. */
-  enum_field_types a_type, b_type; // Types of a and b items
   Item *a_cache, *b_cache;         // Cached values of a and b items
   bool is_nulls_eq;                // TRUE <=> compare for the EQUAL_FUNC
   bool set_null;                   // TRUE <=> set owner->null_value
@@ -53,16 +54,27 @@ class Arg_comparator: public Sql_alloc
   bool try_year_cmp_func(Item_result type);
   static bool get_date_from_const(Item *date_arg, Item *str_arg,
                                   ulonglong *value);
+  /**
+    Only used by compare_json() in the case where a JSON value is
+    compared to an SQL value. This member points to pre-allocated
+    memory that can be used instead of the heap when converting the
+    SQL value to a JSON value.
+  */
+  Json_scalar_holder *json_scalar;
 public:
   DTCollation cmp_collation;
   /* Allow owner function to use string buffers. */
   String value1, value2;
 
-  Arg_comparator(): comparators(0), a_cache(0), b_cache(0), set_null(TRUE),
-    get_value_a_func(0), get_value_b_func(0) {};
-  Arg_comparator(Item **a1, Item **a2): a(a1), b(a2), comparators(0),
+  Arg_comparator(): comparators(0), comparator_count(0),
     a_cache(0), b_cache(0), set_null(TRUE),
-    get_value_a_func(0), get_value_b_func(0) {};
+    get_value_a_func(0), get_value_b_func(0), json_scalar(0)
+  {}
+  Arg_comparator(Item **a1, Item **a2): a(a1), b(a2),
+    comparators(0), comparator_count(0),
+    a_cache(0), b_cache(0), set_null(TRUE),
+    get_value_a_func(0), get_value_b_func(0), json_scalar(0)
+  {}
 
   int set_compare_func(Item_result_field *owner, Item_result type);
   inline int set_compare_func(Item_result_field *owner_arg)
@@ -100,6 +112,7 @@ public:
   int compare_real_fixed();
   int compare_e_real_fixed();
   int compare_datetime();        // compare args[0] & args[1] as DATETIMEs
+  int compare_json();
 
   static bool can_compare_as_dates(Item *a, Item *b, ulonglong *const_val_arg);
 
@@ -112,11 +125,7 @@ public:
     return (owner->type() == Item::FUNC_ITEM &&
            ((Item_func*)owner)->functype() == Item_func::EQUAL_FUNC);
   }
-  void cleanup()
-  {
-    delete [] comparators;
-    comparators= 0;
-  }
+  void cleanup();
   /*
     Set correct cmp_context if items would be compared as INTs.
   */
@@ -301,8 +310,8 @@ public:
   { with_subselect= TRUE; }
   bool fix_fields(THD *, Item **);
   bool fix_left(THD *thd, Item **ref);
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select);
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select);
   bool is_null();
   longlong val_int();
   void cleanup();
@@ -310,6 +319,7 @@ public:
   Item_cache **get_cache() { return &cache; }
   void keep_top_level_cache();
   Item *transform(Item_transformer transformer, uchar *arg);
+  void replace_argument(THD *thd, Item **oldpp, Item *newp);
 };
 
 /// Abstract factory interface for creating comparison predicates.
@@ -601,7 +611,7 @@ private:
   enum_trig_type trig_type;
 public:
   /**
-     @param a             the item for <condition>
+     @param a             the item for @<condition@>
      @param f             pointer to trigger variable
      @param join          if a table's property is the source of 'f', JOIN
      which owns this table; NULL otherwise.
@@ -616,7 +626,7 @@ public:
   {}
   longlong val_int();
   enum Functype functype() const { return TRIG_COND_FUNC; };
-  /// '<if>', to distinguish from the if() SQL function
+  /// '@<if@>', to distinguish from the if() SQL function
   const char *func_name() const { return "<if>"; };
   bool const_item() const { return FALSE; }
   bool *get_trig_var() { return trig_var; }
@@ -708,6 +718,7 @@ public:
   Item *negated_item();
   virtual bool equality_substitution_analyzer(uchar **arg) { return true; }
   virtual Item* equality_substitution_transformer(uchar *arg);
+  bool gc_subst_analyzer(uchar **arg) { return true; }
 
   float get_filtering_effect(table_map filter_for_table,
                              table_map read_tables,
@@ -749,6 +760,7 @@ public:
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return ">="; }
   Item *negated_item();
+  bool gc_subst_analyzer(uchar **arg) { return true; }
 
   float get_filtering_effect(table_map filter_for_table,
                              table_map read_tables,
@@ -766,6 +778,7 @@ public:
   cond_result eq_cmp_result() const { return COND_FALSE; }
   const char *func_name() const { return ">"; }
   Item *negated_item();
+  bool gc_subst_analyzer(uchar **arg) { return true; }
 
   float get_filtering_effect(table_map filter_for_table,
                              table_map read_tables,
@@ -784,6 +797,8 @@ public:
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "<="; }
   Item *negated_item();
+  bool gc_subst_analyzer(uchar **arg) { return true; }
+
   float get_filtering_effect(table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
@@ -801,6 +816,8 @@ public:
   cond_result eq_cmp_result() const { return COND_FALSE; }
   const char *func_name() const { return "<"; }
   Item *negated_item();
+  bool gc_subst_analyzer(uchar **arg) { return true; }
+
   float get_filtering_effect(table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
@@ -890,13 +907,14 @@ public:
   enum Functype functype() const   { return BETWEEN; }
   const char *func_name() const { return "between"; }
   bool fix_fields(THD *, Item **);
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select);
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select);
   void fix_length_and_dec();
   virtual void print(String *str, enum_query_type query_type);
   bool is_bool_func() { return 1; }
   const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
+  bool gc_subst_analyzer(uchar **arg) { return true; }
 
   float get_filtering_effect(table_map filter_for_table,
                              table_map read_tables,
@@ -977,6 +995,11 @@ public:
   double real_op();
   longlong int_op();
   String *str_op(String *);
+  /**
+    Get the result of COALESCE as a JSON value.
+    @param[in,out] wr   the result value holder
+  */
+  bool val_json(Json_wrapper *wr);
   bool date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool time_op(MYSQL_TIME *ltime);
   my_decimal *decimal_op(my_decimal *);
@@ -1003,6 +1026,7 @@ public:
   bool date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool time_op(MYSQL_TIME *ltime);
   my_decimal *decimal_op(my_decimal *);
+  bool val_json(Json_wrapper *result);
   void fix_length_and_dec();
   const char *func_name() const { return "ifnull"; }
   Field *tmp_table_field(TABLE *table);
@@ -1041,14 +1065,15 @@ public:
   longlong val_int();
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
+  bool val_json(Json_wrapper *wr);
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   enum Item_result result_type () const { return cached_result_type; }
   enum_field_types field_type() const { return cached_field_type; }
   bool fix_fields(THD *, Item **);
   void fix_length_and_dec();
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select);
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select);
   uint decimal_precision() const;
   const char *func_name() const { return "if"; }
 private:
@@ -1180,8 +1205,7 @@ public:
   void value_to_item(uint pos, Item *item)
   {    
     String *str= base_pointers[pos];
-    Item_string *to= (Item_string*)item;
-    to->str_value= *str;
+    item->str_value= *str;
   }
   Item_result result_type() { return STRING_RESULT; }
 
@@ -1405,7 +1429,7 @@ public:
   virtual void store_value(Item *item)
   {
     String *res= item->val_str(&value);
-    if(res && (res != &value))
+    if (res && (res != &value || !res->is_alloced()))
     {
       // 'res' may point in item's transient internal data, so make a copy
       value.copy(*res);
@@ -1568,6 +1592,7 @@ public:
   longlong val_int();
   String *val_str(String *);
   my_decimal *val_decimal(my_decimal *);
+  bool val_json(Json_wrapper *wr);
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   bool fix_fields(THD *thd, Item **ref);
@@ -1604,7 +1629,7 @@ public:
   /// An array of values, created when the bisection lookup method is used
   in_vector *array;
   /**
-    If there is some NULL among <in value list>, during a val_int() call; for
+    If there is some NULL among @<in value list@>, during a val_int() call; for
     example
     IN ( (1,(3,'col')), ... ), where 'col' is a column which evaluates to
     NULL.
@@ -1629,15 +1654,20 @@ public:
   }
   longlong val_int();
   bool fix_fields(THD *, Item **);
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select);
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select);
   void fix_length_and_dec();
   uint decimal_precision() const { return 1; }
-  void cleanup()
+
+  /**
+    Cleanup data and comparator arrays.
+
+    @note Used during regular cleanup and to free arrays after GC substitution.
+    @see JOIN::substitute_gc().
+  */
+  void cleanup_arrays()
   {
     uint i;
-    DBUG_ENTER("Item_func_in::cleanup");
-    Item_int_func::cleanup();
     delete array;
     array= 0;
     for (i= 0; i <= (uint)DECIMAL_RESULT + 1; i++)
@@ -1645,6 +1675,13 @@ public:
       delete cmp_items[i];
       cmp_items[i]= 0;
     }
+  }
+
+  void cleanup()
+  {
+    DBUG_ENTER("Item_func_in::cleanup");
+    Item_int_func::cleanup();
+    cleanup_arrays();
     DBUG_VOID_RETURN;
   }
   optimize_type select_optimize() const
@@ -1654,6 +1691,7 @@ public:
   const char *func_name() const { return " IN "; }
   bool is_bool_func() { return 1; }
   const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
+  bool gc_subst_analyzer(uchar **arg) { return true; }
 
   float get_filtering_effect(table_map filter_for_table,
                              table_map read_tables,
@@ -1661,7 +1699,7 @@ public:
                              double rows_in_table);
 private:
   /**
-     Usable if <in value list> is made only of constants. Returns true if one
+     Usable if @<in value list@> is made only of constants. Returns true if one
      of these constants contains a NULL. Example:
      IN ( (-5, (12,NULL)), ... ).
   */
@@ -1991,11 +2029,12 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
 
   bool fix_fields(THD *, Item **ref);
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select);
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select);
 
   enum Type type() const { return COND_ITEM; }
   List<Item>* argument_list() { return &list; }
+  bool eq(const Item *item, bool binary_cmp) const;
   table_map used_tables() const { return used_tables_cache; }
   void update_used_tables();
   virtual void print(String *str, enum_query_type query_type);
@@ -2113,9 +2152,9 @@ public:
   }
 
   inline Item* get_const() { return const_item; }
-  void compare_const(Item *c);
-  void add(Item *c, Item_field *f);
-  void add(Item *c);
+  bool compare_const(THD *thd, Item *c);
+  bool add(THD *thd, Item *c, Item_field *f);
+  bool add(THD *thd, Item *c);
   void add(Item_field *f);
   uint members();
   bool contains(Field *field);
@@ -2126,8 +2165,8 @@ public:
   */
   Item_field* get_first() { return fields.head(); }
   Item_field* get_subst_item(const Item_field *field);
-  void merge(Item_equal *item);
-  void update_const();
+  bool merge(THD *thd, Item_equal *item);
+  bool update_const(THD *thd);
   enum Functype functype() const { return MULT_EQUAL_FUNC; }
   longlong val_int(); 
   const char *func_name() const { return "multiple equal"; }
@@ -2209,6 +2248,7 @@ public:
     return item;
   }
   Item *neg_transformer(THD *thd);
+  bool gc_subst_analyzer(uchar **arg) { return true; }
 
   float get_filtering_effect(table_map filter_for_table,
                              table_map read_tables,
@@ -2238,6 +2278,7 @@ public:
     return item;
   }
   Item *neg_transformer(THD *thd);
+  bool gc_subst_analyzer(uchar **arg) { return true; }
 
   float get_filtering_effect(table_map filter_for_table,
                              table_map read_tables,
@@ -2263,7 +2304,6 @@ longlong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
 
 bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
                              const char *warn_name, MYSQL_TIME *l_time);
-
 /*
   These need definitions from this file but the variables are defined
   in mysqld.h. The variables really belong in this component, but for

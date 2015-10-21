@@ -257,7 +257,7 @@ private:
     cleanup afterwards.
 
     @param thd           thread context
-    @param nextp[out]    next instruction pointer
+    @param [out] nextp   next instruction pointer
     @param open_tables   if TRUE then check read access to tables in LEX's table
                          list and open and lock them (used in instructions which
                          need to calculate some expression and don't execute
@@ -325,7 +325,7 @@ protected:
     (e.g. setting of proper LEX, saving part of the thread context).
 
     @param thd  Thread context.
-    @param nextp[out]    next instruction pointer
+    @param [out] nextp    next instruction pointer
 
     @return Error flag.
   */

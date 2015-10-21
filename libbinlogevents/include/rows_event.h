@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -394,7 +394,7 @@ public:
   +---------------------------------------------+
   </pre>
   @param buf                Contains the serialized event.
-  @param length             Length of the serialized event.
+  @param event_len             Length of the serialized event.
   @param description_event  An FDE event, used to get the following information
                             -binlog_version
                             -server_version
@@ -571,7 +571,7 @@ public:
           |  INSERT    |   NULL            |    Inserted row      |
           |  UPDATE    |   Old     row     |    Updated row       |
           +-------------------------------------------------------+
-        @end verbatim
+        @endverbatim
     </td>
   </tr>
 
@@ -669,7 +669,7 @@ public:
    </pre>
 
    @param buf                Contains the serialized event.
-   @param length             Length of the serialized event.
+   @param event_len          Length of the serialized event.
    @param description_event  An FDE event, used to get the following information
                              -binlog_version
                              -server_version
@@ -870,10 +870,11 @@ public:
     +------------------------------------+
     | The original query executed in RBR |
     +------------------------------------+
+    </pre>
 
     @param buf                Contains the serialized event.
-    @param length             Length of the serialized event.
-    @param description_event  An FDE event, used to get the
+    @param event_len          Length of the serialized event.
+    @param descr_event        An FDE event, used to get the
                               following information
                               -binlog_version
                               -server_version

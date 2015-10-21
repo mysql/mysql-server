@@ -1,0 +1,141 @@
+#
+# Test the limits of a file-per-table tablespace name.  MySQL combines
+# the database name with the table name to make a unique table name.
+#
+SET default_storage_engine=InnoDB;
+#
+# MySQL limits each database and tablename identifier to 64 characters
+# of up to 3 bytes per character, corresponding to 192 bytes.
+#
+CREATE DATABASE `this_sixty_five_byte_name_is_too_long____________________________`;
+ERROR 42000: Identifier name 'this_sixty_five_byte_name_is_too_long____________________________' is too long
+CREATE DATABASE `this_sixty_four_byte_name_is_not_too_long_______________________`;
+USE `this_sixty_four_byte_name_is_not_too_long_______________________`;
+#
+# A 64 character tablename can be created in a 64 character database name
+#
+CREATE TABLE `this_sixty_four_byte_name_is_not_too_long_______________________`.`this_sixty_four_byte_name_is_not_too_long_______________________` (a SERIAL);
+#
+# A 65 character tablename is too long.
+#
+CREATE TABLE `test`.`this_sixty_five_byte_name_is_too_long____________________________` (a SERIAL);
+ERROR 42000: Identifier name 'this_sixty_five_byte_name_is_too_long____________________________' is too long
+CREATE TABLE `this_sixty_four_byte_name_is_not_too_long_______________________`.`this_sixty_five_byte_name_is_too_long____________________________` (a SERIAL);
+ERROR 42000: Identifier name 'this_sixty_five_byte_name_is_too_long____________________________' is too long
+#
+# Non-non-filename-safe characters like '#' are expanded to '@0023'.
+# On many file systems, such as Linux extfs, you can create a database name
+# that expands to up to 255 bytes long.
+# `##################################################_long` is expanded to
+#                        (50 * 5) +                     5  = 255.
+#
+CREATE DATABASE `##################################################_long`;;
+USE `##################################################_long`;
+#
+# This 256-byte name is only one byte longer but fails with an error code
+# from the stat operation.
+# `##################################################_long_` is expanded to
+#                        (50 * 5) +                    6  = 256.
+#
+CREATE DATABASE `##################################################_long_`;
+ERROR HY000: Can't get stat of './##################################################_long_' (Errcode: ## - File name too long)
+#
+# This 300-byte name which is the longest name that gets an error code
+# from the stat operation.
+# `###########################################################_long` is expanded to
+#                        (59 * 5) +                             5  = 300.
+#
+CREATE DATABASE `###########################################################_long`;
+ERROR HY000: Can't get stat of './###########################################################_long' (Errcode: ## - File name too long)
+#
+# This 301-byte name which is only one byte longer but fails with ER_TOO_LONG_IDENT.
+# `###########################################################_long_` is expanded to
+#                        (59 * 5) +                             6  = 301.
+#
+CREATE DATABASE `###########################################################_long_`;
+ERROR 42000: Identifier name '###########################################################_long_' is too long
+USE test;
+#
+# An expanded table name is limited to 251 bytes
+#
+CREATE TABLE `test`.`#################################################_long_` (a SERIAL);
+#
+# A 252-byte tablename is too long
+#
+CREATE TABLE `test`.`#################################################_long___` (a SERIAL);
+ERROR HY000: Can't create table '#################################################_long___' (errno: ##)
+CREATE DATABASE twenty_byte_db_name_;
+USE `twenty_byte_db_name_`;
+#
+# A 251 byte expanded table name will fit with a longer database name
+#
+CREATE TABLE `twenty_byte_db_name_`.`#################################################_long_` (a SERIAL);
+#
+# A 252 byte expanded table name is also too long in a longer database name
+#
+CREATE TABLE `twenty_byte_db_name_`.`#################################################_long___` (a SERIAL);
+ERROR HY000: Can't create table '#################################################_long___' (errno: ##)
+#
+# Another limitation is a 512 byte length to an expanded path that includes
+# the datadir which is './' in this test, the expanded database name,
+# the directory separator '/', the expanded table name, and the file extension.
+# './long_db_name.long_250_byte_table_name.frm'
+#  2+    255    +1+       250            +1+3  = 512
+#
+CREATE TABLE `##################################################_long`.`#################################################_long` (a SERIAL);
+CREATE TABLE `##################################################_long`.`#################################################_long_` (a SERIAL);
+ERROR HY000: Long database name and identifier for object resulted in path length exceeding 512 characters. Path: './@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023_long/@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@
+SHOW WARNINGS;
+Level	Code	Message
+Error	1860	Long database name and identifier for object resulted in path length exceeding 512 characters. Path: './@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023_long/@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@
+#
+# Show the successfully created databases and tables
+#
+---- list_files MYSQLD_DATADIR/test
+#################################################_long_.frm
+#################################################_long_.ibd
+---- list_files MYSQLD_DATADIR/this_sixty_four_byte_name_is_not_too_long_______________________
+db.opt
+this_sixty_four_byte_name_is_not_too_long_______________________.frm
+this_sixty_four_byte_name_is_not_too_long_______________________.ibd
+---- list_files MYSQLD_DATADIR/##################################################_long
+#################################################_long.frm
+#################################################_long.ibd
+db.opt
+SELECT name FROM information_schema.innodb_sys_tables WHERE name LIKE '%long%';
+name
+##################################################_long/#################################################_long
+test/#################################################_long_
+this_sixty_four_byte_name_is_not_too_long_______________________/this_sixty_four_byte_name_is_not_too_long_______________________
+twenty_byte_db_name_/#################################################_long_
+SELECT name FROM information_schema.innodb_sys_tablespaces WHERE name LIKE '%long%';
+name
+this_sixty_four_byte_name_is_not_too_long_______________________/this_sixty_four_byte_name_is_not_too_long_______________________
+test/#################################################_long_
+twenty_byte_db_name_/#################################################_long_
+##################################################_long/#################################################_long
+SELECT path FROM information_schema.innodb_sys_datafiles WHERE path LIKE '%long%';
+path
+./this_sixty_four_byte_name_is_not_too_long_______________________/this_sixty_four_byte_name_is_not_too_long_______________________.ibd
+./test/#################################################_long_.ibd
+./twenty_byte_db_name_/#################################################_long_.ibd
+./##################################################_long/#################################################_long.ibd
+SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name LIKE '%long%';
+file_name	./this_sixty_four_byte_name_is_not_too_long_______________________/this_sixty_four_byte_name_is_not_too_long_______________________.ibd
+tablespace_name	innodb_file_per_table_##
+file_name	./test/#################################################_long_.ibd
+tablespace_name	innodb_file_per_table_##
+file_name	./twenty_byte_db_name_/#################################################_long_.ibd
+tablespace_name	innodb_file_per_table_##
+file_name	./##################################################_long/#################################################_long.ibd
+tablespace_name	innodb_file_per_table_##
+#
+# Cleanup
+#
+DROP TABLE `this_sixty_four_byte_name_is_not_too_long_______________________`.`this_sixty_four_byte_name_is_not_too_long_______________________`;
+DROP TABLE `test`.`#################################################_long_`;
+DROP TABLE `twenty_byte_db_name_`.`#################################################_long_`;
+DROP TABLE `##################################################_long`.`#################################################_long`;
+DROP DATABASE `this_sixty_four_byte_name_is_not_too_long_______________________`;
+DROP DATABASE `##################################################_long`;
+DROP DATABASE `twenty_byte_db_name_`;

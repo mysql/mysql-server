@@ -186,22 +186,14 @@ trx_rollback_for_mysql_low(
 	return(trx->error_state);
 }
 
-/*******************************************************************//**
-Rollback a transaction used in MySQL.
+/** Rollback a transaction used in MySQL
+@param[in, out]	trx	transaction
 @return error code or DB_SUCCESS */
+static
 dberr_t
-trx_rollback_for_mysql(
-/*===================*/
-	trx_t*	trx)	/*!< in/out: transaction */
+trx_rollback_low(
+	trx_t*	trx)
 {
-	TrxInInnoDB	trx_in_innodb(trx, true);
-
-	if (trx_in_innodb.is_aborted()
-	    && trx->killed_by != os_thread_get_curr_id()) {
-
-		return(DB_FORCED_ABORT);
-	}
-
 	/* We are reading trx->state without holding trx_sys->mutex
 	here, because the rollback should be invoked for a running
 	active MySQL transaction (or recovered prepared transaction)
@@ -277,6 +269,33 @@ trx_rollback_for_mysql(
 
 	ut_error;
 	return(DB_CORRUPTION);
+}
+
+/*******************************************************************//**
+Rollback a transaction used in MySQL.
+@return error code or DB_SUCCESS */
+dberr_t
+trx_rollback_for_mysql(
+/*===================*/
+	trx_t*	trx)	/*!< in/out: transaction */
+{
+	/* Avoid the tracking of async rollback killer
+	thread to enter into InnoDB. */
+	if (TrxInInnoDB::is_async_rollback(trx)) {
+
+		return(trx_rollback_low(trx));
+
+	} else {
+
+		TrxInInnoDB	trx_in_innodb(trx, true);
+
+		if (trx_in_innodb.is_aborted()) {
+
+			return(DB_FORCED_ABORT);
+		}
+
+		return(trx_rollback_low(trx));
+	}
 }
 
 /*******************************************************************//**
@@ -782,11 +801,7 @@ trx_rollback_or_clean_recovered(
 	trx_t*	trx;
 
 	ut_a(srv_force_recovery < SRV_FORCE_NO_TRX_UNDO);
-
-	if (trx_sys_get_n_rw_trx() == 0) {
-
-		return;
-	}
+	ut_ad(!all || trx_sys_need_rollback());
 
 	if (all) {
 		ib::info() << "Starting in background the rollback"
@@ -938,6 +953,7 @@ Pops the topmost record when the two undo logs of a transaction are seen
 as a single stack of records ordered by their undo numbers.
 @return undo log record copied to heap, NULL if none left, or if the
 undo number of the top record would be less than the limit */
+static
 trx_undo_rec_t*
 trx_roll_pop_top_rec_of_trx_low(
 /*============================*/

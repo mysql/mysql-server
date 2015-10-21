@@ -29,12 +29,15 @@ Created 9/20/1997 Heikki Tuuri
 #include "univ.i"
 #include "ut0byte.h"
 #include "buf0types.h"
+#include "dict0types.h"
 #include "hash0hash.h"
 #include "log0log.h"
 #include "mtr0types.h"
 #include "ut0new.h"
 
 #include <list>
+#include <vector>
+#include <map>
 
 #ifdef UNIV_HOTBACKUP
 extern bool	recv_replay_file_ops;
@@ -123,11 +126,6 @@ recv_recovery_from_checkpoint_start(
 /** Complete recovery from a checkpoint. */
 void
 recv_recovery_from_checkpoint_finish(void);
-/********************************************************//**
-Initiates the rollback of active transactions. */
-void
-recv_recovery_rollback_active(void);
-/*===============================*/
 /******************************************************//**
 Resets the logs. The contents of log files will be lost! */
 void
@@ -196,6 +194,12 @@ recv_apply_hashed_log_recs(
 				disk and invalidated in buffer pool: this
 				alternative means that no new log records
 				can be generated during the application */
+
+/** Apply the table persistent dynamic metadata collected during redo
+to in-memory tables */
+void
+recv_apply_table_dynamic_metadata(void);
+
 #ifdef UNIV_HOTBACKUP
 /*******************************************************************//**
 Applies log records in the hash table to a backup. */
@@ -256,25 +260,10 @@ struct recv_addr_t{
 	hash_node_t	addr_hash;/*!< hash node in the hash bucket chain */
 };
 
-template<typename F>
-struct ut_when_dtor {
-	ut_when_dtor(F& p) : f(p) {}
-	~ut_when_dtor() {
-		f();
-	}
-private:
-	F& f;
-};
-
 struct recv_dblwr_t {
 	/** Add a page frame to the doublewrite recovery buffer. */
 	void add(const byte* page) {
 		pages.push_back(page);
-	}
-
-	/** Clear the list of pages (invoked by ut_when_dtor) */
-	void operator() () {
-		pages.clear();
 	}
 
 	/** Find a doublewrite copy of a page.
@@ -288,6 +277,57 @@ struct recv_dblwr_t {
 
 	/** Recovered doublewrite buffer page frames */
 	list	pages;
+};
+
+/** Forward declaration */
+class PersistentTableMetadata;
+
+/** Class to parse persistent dynamic metadata redo log, store and
+merge them and apply them to in-memory table objects finally */
+class MetadataRecover {
+	typedef std::map<table_id_t, PersistentTableMetadata*,
+		std::less<table_id_t>,
+		ut_allocator<std::pair<
+			const table_id_t, PersistentTableMetadata*> > >
+	PersistentTables;
+
+public:
+	/** Default constructor */
+	MetadataRecover() UNIV_NOTHROW
+	{}
+
+	/** Destructor */
+	~MetadataRecover();
+
+	/** Parse a dynamic metadata redo log of a table and store
+	the metadata locally
+	@param[in]	id		table id
+	@param[in]	ptr		redo log start
+	@param[in]	end		end of redo log
+	@retval ptr to next redo log record, NULL if this log record
+	was truncated */
+	byte* parseMetadataLog(
+		table_id_t	id,
+		byte*		ptr,
+		byte*		end);
+
+	/** Apply the collected persistent dynamic metadata to in-memory
+	table objects */
+	void apply(void);
+
+private:
+
+	/** Get the dynamic metadata of a specified table,
+	create a new one if not exist
+	@param[in]	id	table id
+	@return the metadata of the specified table */
+	PersistentTableMetadata* getMetadata(
+		table_id_t	id);
+
+private:
+
+	/** Map used to store and merge persistent dynamic metadata */
+	PersistentTables	m_tables;
 };
 
 /** Recovery system data structure */
@@ -358,6 +398,10 @@ struct recv_sys_t{
 				addresses in the hash table */
 
 	recv_dblwr_t	dblwr;
+
+	MetadataRecover*	metadata_recover;
+				/*!< We store and merge all table persistent
+				data here during scanning redo logs */
 };
 
 /** The recovery system */
@@ -393,11 +437,6 @@ extern bool		recv_lsn_checks_on;
 /** TRUE when the redo log is being backed up */
 extern bool		recv_is_making_a_backup;
 #endif /* UNIV_HOTBACKUP */
-
-#ifndef UNIV_HOTBACKUP
-/** Flag indicating if recv_writer thread is active. */
-extern volatile bool	recv_writer_thread_active;
-#endif /* !UNIV_HOTBACKUP */
 
 /** Size of the parsing buffer; it must accommodate RECV_SCAN_SIZE many
 times! */

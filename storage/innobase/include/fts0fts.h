@@ -619,24 +619,36 @@ fts_get_doc_id_from_row(
 	dtuple_t*	row);			/*!< in: row whose FTS doc id we
 						want to extract.*/
 
-/******************************************************************//**
-Extract the doc id from the FTS hidden column. */
+/** Extract the doc id from the record that belongs to index.
+@param[in]	table	table
+@param[in]	rec	record contains FTS_DOC_ID
+@param[in]	index	index of rec
+@param[in]	heap	heap memory
+@return doc id that was extracted from rec */
 doc_id_t
 fts_get_doc_id_from_rec(
-/*====================*/
-	dict_table_t*	table,			/*!< in: table */
-	const rec_t*	rec,			/*!< in: rec */
-	mem_heap_t*	heap);			/*!< in: heap */
+        dict_table_t*           table,
+        const rec_t*            rec,
+        const dict_index_t*     index,
+        mem_heap_t*             heap);
 
-/******************************************************************//**
-Update the query graph with a new document id.
-@return Doc ID used */
+/** Add new fts doc id to the update vector.
+@param[in]	table		the table that contains the FTS index.
+@param[in,out]	ufield		the fts doc id field in the update vector.
+				No new memory is allocated for this in this
+				function.
+@param[in,out]	next_doc_id	the fts doc id that has been added to the
+				update vector.  If 0, a new fts doc id is
+				automatically generated.  The memory provided
+				for this argument will be used by the update
+				vector. Ensure that the life time of this
+				memory matches that of the update vector.
+@return the fts doc id used in the update vector */
 doc_id_t
 fts_update_doc_id(
-/*==============*/
-	dict_table_t*	table,			/*!< in: table */
-	upd_field_t*	ufield,			/*!< out: update node */
-	doc_id_t*	next_doc_id);		/*!< out: buffer for writing */
+	dict_table_t*	table,
+	upd_field_t*	ufield,
+	doc_id_t*	next_doc_id);
 
 /******************************************************************//**
 FTS initialize. */
@@ -644,6 +656,7 @@ void
 fts_startup(void);
 /*==============*/
 
+#if 0 // TODO: Enable this in WL#6608
 /******************************************************************//**
 Signal FTS threads to initiate shutdown. */
 void
@@ -663,6 +676,7 @@ fts_shutdown(
 						indexes */
 	fts_t*		fts);			/*!< in: fts instance to
 						shutdown */
+#endif
 
 /******************************************************************//**
 Create an instance of fts_t.
@@ -694,13 +708,6 @@ Startup the optimize thread and create the work queue. */
 void
 fts_optimize_init(void);
 /*====================*/
-
-/**********************************************************************//**
-Check whether the work queue is initialized.
-@return TRUE if optimze queue is initialized. */
-ibool
-fts_optimize_is_init(void);
-/*======================*/
 
 /****************************************************************//**
 Drops index ancillary tables for a FTS index
@@ -756,13 +763,6 @@ fts_savepoint_release(
 	trx_t*		trx,			/*!< in: transaction */
 	const char*	name);			/*!< in: savepoint name */
 
-/**********************************************************************//**
-Free the FTS cache. */
-void
-fts_cache_destroy(
-/*==============*/
-	fts_cache_t*	cache);			/*!< in: cache*/
-
 /*********************************************************************//**
 Clear cache. */
 void
@@ -798,17 +798,6 @@ table or FTS index defined on them. */
 void
 fts_drop_orphaned_tables(void);
 /*==========================*/
-
-/******************************************************************//**
-Since we do a horizontal split on the index table, we need to drop
-all the split tables.
-@return DB_SUCCESS or error code */
-dberr_t
-fts_drop_index_split_tables(
-/*========================*/
-	trx_t*		trx,			/*!< in: transaction */
-	dict_index_t*	index)			/*!< in: fts instance */
-	__attribute__((warn_unused_result));
 
 /****************************************************************//**
 Run SYNC on the table, i.e., write out data from the cache to the
@@ -954,14 +943,6 @@ fts_load_stopword(
 						reload of FTS table */
 
 /****************************************************************//**
-Create the vector of fts_get_doc_t instances.
-@return vector of fts_get_doc_t instances */
-ib_vector_t*
-fts_get_docs_create(
-/*================*/
-	fts_cache_t*	cache);			/*!< in: fts cache */
-
-/****************************************************************//**
 Read the rows from the FTS index
 @return DB_SUCCESS if OK */
 dberr_t
@@ -1019,5 +1000,17 @@ ibool
 fts_check_cached_index(
 /*===================*/
 	dict_table_t*	table);  /*!< in: Table where indexes are dropped */
+
+/** Check if the all the auxillary tables associated with FTS index are in
+consistent state. For now consistency is check only by ensuring
+index->page_no != FIL_NULL
+@param[out]	base_table	table has host fts index
+@param[in,out]	trx		trx handler
+@return true if check certifies auxillary tables are sane false otherwise. */
+bool
+fts_is_corrupt(
+	dict_table_t*	base_table,
+	trx_t*		trx);
+
 #endif /*!< fts0fts.h */
 

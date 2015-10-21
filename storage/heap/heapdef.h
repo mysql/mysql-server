@@ -17,6 +17,7 @@
 
 #include <my_base.h>			/* This includes global */
 #include <my_thread.h>
+#include "my_thread_local.h"
 #include "heap.h"			/* Structs & some defines */
 #include "my_tree.h"
 #include "m_string.h"
@@ -40,7 +41,7 @@ extern LIST *heap_open_list,*heap_share_list;
 
 #define test_active(info) \
 if (!(info->update & HA_STATE_AKTIV))\
-{ my_errno=HA_ERR_NO_ACTIVE_RECORD; DBUG_RETURN(-1); }
+{ set_my_errno(HA_ERR_NO_ACTIVE_RECORD); DBUG_RETURN(-1); }
 #define hp_find_hash(A,B) ((HASH_INFO*) hp_find_block((A),(B)))
 
 	/* Find pos for record and update it in info->current_ptr */
@@ -50,6 +51,7 @@ typedef struct st_hp_hash_info
 {
   struct st_hp_hash_info *next_key;
   uchar *ptr_to_rec;
+  ulong hash;                           /* Cached key hash value. */
 } HASH_INFO;
 
 typedef struct {

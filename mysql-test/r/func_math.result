@@ -192,7 +192,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `round(1, 6)` int(1) NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 select * from t1;
 round(1, 6)
 1
@@ -299,13 +299,13 @@ create table t1
 (f1 varchar(32) not null,
 f2 smallint(5) unsigned not null,
 f3 int(10) unsigned not null default '0')
-engine=myisam default charset=utf8;
+default charset=utf8;
 insert into t1 values ('zombie',0,0),('gold',1,10000),('silver',2,10000);
 create table t2
 (f1 int(10) unsigned not null,
 f2 int(10) unsigned not null,
 f3 smallint(5) unsigned not null)
-engine=myisam default charset=utf8;
+default charset=utf8;
 insert into t2 values (16777216,16787215,1),(33554432,33564431,2);
 select format(t2.f2-t2.f1+1,0) from t1,t2
 where t1.f2 = t2.f3 order by t1.f1;
@@ -474,7 +474,7 @@ a	ROUND(a)
 -1.0000000000000002e16	-10000000000000002
 1.0000000000000002e16	10000000000000002
 DROP TABLE t1;
-CREATE TABLE t1(f1 LONGTEXT) engine=myisam;
+CREATE TABLE t1(f1 LONGTEXT);
 INSERT INTO t1 VALUES ('a');
 SELECT 1 FROM (SELECT ROUND(f1) AS a FROM t1) AS s WHERE a LIKE 'a';
 1
@@ -544,7 +544,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `C` varchar(23) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t1;
 #
 # Bug#11764994  57900: CREATE TABLE .. SELECT ASSERTS SCALE >= 0 && PRECISION > 0 && SCALE <= PR
@@ -664,9 +664,9 @@ ERROR 22003: BIGINT UNSIGNED value is out of range in '(18446744073709551615 DIV
 CREATE TABLE t1(a BIGINT, b BIGINT UNSIGNED);
 INSERT INTO t1 VALUES(-9223372036854775808, 9223372036854775809);
 SELECT -a FROM t1;
-ERROR 22003: BIGINT value is out of range in '-('-9223372036854775808')'
+ERROR 22003: BIGINT value is out of range in '-(`test`.`t1`.`a`)'
 SELECT -b FROM t1;
-ERROR 22003: BIGINT value is out of range in '-('9223372036854775809')'
+ERROR 22003: BIGINT value is out of range in '-(`test`.`t1`.`b`)'
 DROP TABLE t1;
 SET @a:=999999999999999999999999999999999999999999999999999999999999999999999999999999999;
 SELECT @a + @a;
@@ -789,9 +789,7 @@ select 5.9 div 2, 1.23456789e3 DIV 2, 1.23456789e9 DIV 2, 1.23456789e19 DIV 2;
 # Bug#50507 Behavior of logarithmic functions depends on
 #              ERROR_FOR_DIVISION_BY_ZERO
 CREATE TABLE t1(a DOUBLE);
-SET sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SET sql_mode='NO_AUTO_CREATE_USER';
 INSERT INTO t1 VALUES (ln(1));
 INSERT INTO t1 VALUES (ln(0));
 Warnings:
@@ -820,7 +818,7 @@ NULL
 NULL
 NULL
 0
-SET sql_mode='STRICT_ALL_TABLES';
+SET sql_mode=default;
 INSERT INTO t1 VALUES (ln(1));
 INSERT INTO t1 VALUES (ln(0));
 ERROR 2201E: Invalid argument for logarithm
@@ -844,7 +842,6 @@ NULL
 NULL
 0
 0
-SET sql_mode='STRICT_ALL_TABLES';
 UPDATE t1 SET a = ln(0);
 ERROR 2201E: Invalid argument for logarithm
 SELECT * FROM t1 ORDER BY a;
@@ -857,7 +854,7 @@ NULL
 NULL
 0
 0
-SET sql_mode='';
+SET sql_mode='NO_AUTO_CREATE_USER';
 UPDATE t1 SET a = ln(0);
 Warnings:
 Warning	3020	Invalid argument for logarithm
@@ -878,7 +875,7 @@ NULL
 NULL
 NULL
 NULL
-SET sql_mode='STRICT_ALL_TABLES';
+SET sql_mode=default;
 DELETE FROM t1 WHERE a <=> ln(0);
 ERROR 2201E: Invalid argument for logarithm
 SELECT * FROM t1 ORDER BY a;
@@ -891,7 +888,7 @@ NULL
 NULL
 NULL
 NULL
-SET sql_mode='';
+SET sql_mode='NO_AUTO_CREATE_USER';
 DELETE FROM t1 WHERE a <=> ln(0);
 Warnings:
 Warning	3020	Invalid argument for logarithm
@@ -905,8 +902,54 @@ Warning	3020	Invalid argument for logarithm
 SELECT * FROM t1 ORDER BY a;
 a
 DROP TABLE t1;
-SET sql_mode='';
+SET sql_mode=default;
 #
 # Bug#19047527 SQRT() : UNINITIALISED VALUE IN MY_STRTOD
 #
 do sqrt(weight_string(_eucjpms "0E+"));
+#
+# Bug#21279005 - ROUND FUNCTION INCORRECT IN WHERE-CLAUSE
+#                USING LOCAL VARIABLE
+CREATE PROCEDURE test_round_fn()
+BEGIN
+DECLARE num_digits int;
+SET num_digits := 3;
+CREATE TEMPORARY TABLE tmp_test (
+number double
+);
+INSERT INTO tmp_test
+VALUES (1),(0);
+SELECT
+number,
+Round(number, num_digits) > 0,
+Round(number, 3) > 0
+FROM
+tmp_test;
+SELECT
+number,
+Round(number, num_digits) > 0,
+Round(number, 3) > 0
+FROM
+tmp_test
+WHERE
+Round(number, 3) >= 0;
+SELECT
+number,
+Round(number, num_digits) > 0,
+Round(number, 3) > 0
+FROM
+tmp_test
+WHERE
+Round(number, num_digits) >= 0;
+END|
+CALL test_round_fn();
+number	Round(number, num_digits) > 0	Round(number, 3) > 0
+1	1	1
+0	0	0
+number	Round(number, num_digits) > 0	Round(number, 3) > 0
+1	1	1
+0	0	0
+number	Round(number, num_digits) > 0	Round(number, 3) > 0
+1	1	1
+0	0	0
+DROP PROCEDURE test_round_fn;

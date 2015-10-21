@@ -25,6 +25,7 @@
 #include "m_string.h"
 #include "thr_malloc.h"                         /* sql_alloc */
 
+#include <algorithm>
 
 /**
   Simple intrusive linked list.
@@ -326,9 +327,9 @@ public:
   */
   inline void swap(base_list &rhs)
   {
-    swap_variables(list_node *, first, rhs.first);
-    swap_variables(list_node **, last, rhs.last);
-    swap_variables(uint, elements, rhs.elements);
+    std::swap(first, rhs.first);
+    std::swap(last, rhs.last);
+    std::swap(elements, rhs.elements);
   }
   inline list_node* last_node() { return *last; }
   inline list_node* first_node() { return first;}

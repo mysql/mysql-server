@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -224,7 +224,7 @@ trx_sys_is_noredo_rseg_slot(
 	ulint	slot_id)	/*!< in: slot_id to check */
 {
 	/* Slots allocated from temp-tablespace are no-redo slots. */
-	return (slot_id > 0 && slot_id < (srv_tmp_undo_logs + 1));
+	return(slot_id > 0 && slot_id < (srv_tmp_undo_logs + 1));
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -466,23 +466,23 @@ trx_sys_get_max_trx_id(void)
 #endif /* UNIV_WORD_SIZE < DATA_TRX_ID_LEN */
 }
 
-/*****************************************************************//**
-Get the number of transaction in the system, independent of their state.
-@return count of transactions in trx_sys_t::rw_trx_list */
+/** Determine if there are incomplete transactions in the system.
+@return whether incomplete transactions need rollback */
 UNIV_INLINE
-ulint
-trx_sys_get_n_rw_trx(void)
-/*======================*/
+bool
+trx_sys_need_rollback()
 {
 	ulint	n_trx;
 
 	trx_sys_mutex_enter();
 
 	n_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
+	ut_ad(n_trx >= trx_sys->n_prepared_trx);
+	n_trx -= trx_sys->n_prepared_trx;
 
 	trx_sys_mutex_exit();
 
-	return(n_trx);
+	return(n_trx > 0);
 }
 
 /**

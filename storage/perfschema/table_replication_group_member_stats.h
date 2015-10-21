@@ -38,7 +38,7 @@
 
 /**
   A row in node status table. The fields with string values have an additional
-  length field denoted by <field_name>_length.
+  length field denoted by \<field_name\>_length.
 */
 
 struct st_row_group_member_stats {
@@ -53,7 +53,7 @@ struct st_row_group_member_stats {
   ulonglong trx_conflicts;
   ulonglong trx_validating;
   char *trx_committed;
-  int trx_committed_length;
+  size_t trx_committed_length;
   char last_cert_trx[Gtid::MAX_TEXT_LENGTH+1];
   int last_cert_trx_length;
 };

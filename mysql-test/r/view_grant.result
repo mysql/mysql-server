@@ -139,9 +139,9 @@ grant select on mysqltest.t1 to mysqltest_1@localhost;
 revoke select on mysqltest.v5 from mysqltest_1@localhost;
 explain select c from mysqltest.v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select (NULL + 1) AS `c` from `mysqltest`.`t1`
+Note	1003	/* select#1 */ select (`mysqltest`.`t1`.`a` + 1) AS `c` from `mysqltest`.`t1`
 show create view mysqltest.v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest`.`v1` AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`	latin1	latin1_swedish_ci
@@ -162,18 +162,18 @@ ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table '
 grant show view on mysqltest.* to mysqltest_1@localhost;
 explain select c from mysqltest.v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select (NULL + 1) AS `c` from `mysqltest`.`t1`
+Note	1003	/* select#1 */ select (`mysqltest`.`t1`.`a` + 1) AS `c` from `mysqltest`.`t1`
 show create view mysqltest.v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest`.`v1` AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`	latin1	latin1_swedish_ci
 explain select c from mysqltest.v2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `c` from `mysqltest`.`v2`
+Note	1003	/* select#1 */ select `v2`.`c` AS `c` from `mysqltest`.`v2`
 show create view mysqltest.v2;
 View	Create View	character_set_client	collation_connection
 v2	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest`.`v2` AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`	latin1	latin1_swedish_ci
@@ -296,8 +296,8 @@ select * from t1;
 a	b
 1	2
 2	3
-5	6
 3	4
+5	6
 insert into v2 values (5,6);
 ERROR 42000: INSERT command denied to user 'mysqltest_1'@'localhost' for table 'v2'
 insert into v2 select x,y from t2;
@@ -1071,9 +1071,9 @@ select * from v1;
 i
 explain select * from v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `i` from `mysqltest1`.`t1`
+Note	1003	/* select#1 */ select `mysqltest1`.`t1`.`i` AS `i` from `mysqltest1`.`t1`
 ... as eugene
 select * from v1;
 i
@@ -1109,16 +1109,16 @@ select k from t3;
 k
 explain select k from t3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `k` from `mysqltest1`.`t3`
+Note	1003	/* select#1 */ select `mysqltest1`.`t3`.`k` AS `k` from `mysqltest1`.`t3`
 select * from v3;
 k
 explain select * from v3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `k` from `mysqltest1`.`t3`
+Note	1003	/* select#1 */ select `mysqltest1`.`t3`.`k` AS `k` from `mysqltest1`.`t3`
 ... as inga
 select * from v2;
 i	j
@@ -1144,9 +1144,10 @@ select * from v2;
 i	j
 explain select * from v2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `i`,NULL AS `j` from `mysqltest1`.`t1` join `mysqltest1`.`t2`
+Note	1003	/* select#1 */ select `mysqltest1`.`t1`.`i` AS `i`,`mysqltest1`.`t2`.`j` AS `j` from `mysqltest1`.`t1` join `mysqltest1`.`t2`
 ... as noam
 select * from v2;
 i	j
@@ -2613,6 +2614,8 @@ GRANT SELECT,INSERT,UPDATE,DELETE ON test1.v1_all TO user1@localhost;
 FLUSH PRIVILEGES;
 connect  con1,localhost,user1,,;
 SET sql_mode='STRICT_ALL_TABLES';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 UPDATE test1.v1_all SET cn='x';
 ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 SHOW WARNINGS;
@@ -2629,6 +2632,16 @@ ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or fun
 SHOW WARNINGS;
 Level	Code	Message
 Error	1356	View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+
+# Bug21338077 HANDLE_FATAL_SIGNAL (SIG=11) IN __STPCPY_SSE2_UNALIGNED FROM MY_STPCPY
+
+CREATE VIEW v1 AS SELECT 1 FROM (SELECT 1) AS d1;
+PREPARE stmt FROM 'SELECT * FROM v1';
+EXECUTE stmt;
+1
+1
+DROP PREPARE stmt;
+DROP VIEW v1;
 connection default;
 disconnect con1;
 DROP USER 'user1'@'localhost';
@@ -2639,3 +2652,42 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 set SESSION sql_mode= @orig_sql_mode_session;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+#
+# WL#2284: Increase the length of a user name
+#
+CREATE DATABASE test1;
+CREATE TABLE test1.t1 (
+int_field INTEGER UNSIGNED NOT NULL,
+char_field CHAR(10),
+INDEX(`int_field`)
+);
+use test;
+CREATE USER user_name_len_22_01234@localhost;
+CREATE USER user_name_len_32_012345678901234@localhost;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user_name_len_22_01234@localhost;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user_name_len_32_012345678901234@localhost;
+# Check that user_name_len_22_01234 has no SELECT permission ON t1
+connect  con_user_22,localhost,user_name_len_22_01234,,test;
+SELECT * FROM test1.t1;
+ERROR 42000: SELECT command denied to user 'user_name_len_22_01234'@'localhost' for table 't1'
+# Check that user_name_len_32_012345678901234 has no SELECT permission ON t1
+connect  con_user_32,localhost,user_name_len_32_012345678901234,,test;
+SELECT * FROM test1.t1;
+ERROR 42000: SELECT command denied to user 'user_name_len_32_012345678901234'@'localhost' for table 't1'
+connection default;
+GRANT ALL ON test1.* TO user_name_len_32_012345678901234@localhost;
+CREATE DEFINER=user_name_len_32_012345678901234@localhost
+VIEW test1.v1 AS SELECT int_field FROM test1.t1;
+GRANT SELECT ON test1.v1 TO user_name_len_22_01234@localhost;
+# Now user_name_len_22_01234 should be able to SELECT int_field FROM
+# test1.t1 by using test1.v1
+connection con_user_22;
+SELECT * FROM test1.v1;
+int_field
+connection default;
+CREATE DEFINER=user_name_len_33_0123456789012345@localhost
+VIEW test1.v2 AS SELECT int_field FROM test1.t1;
+ERROR HY000: String 'user_name_len_33_0123456789012345' is too long for user name (should be no longer than 32)
+DROP DATABASE test1;
+DROP USER user_name_len_22_01234@localhost;
+DROP USER user_name_len_32_012345678901234@localhost;

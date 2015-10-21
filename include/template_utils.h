@@ -19,6 +19,10 @@
 #include "my_dbug.h"
 
 /**
+  @file include/template_utils.h
+*/
+
+/**
   Clears a container, but deletes all objects that the elements point to first.
   @tparam Container of pointers.
  */

@@ -20,10 +20,6 @@
 /* This file defines all string functions */
 #include "crypt_genhash_impl.h"       // CRYPT_MAX_PASSWORD_SIZE
 #include "item_func.h"                // Item_func
-#include "spatial.h"                  // Geometry
-
-#include <rapidjson/writer.h>
-#include <rapidjson/stringbuffer.h>
 
 class MY_LOCALE;
 
@@ -173,89 +169,6 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "from_base64"; }
-};
-
-
-/**
-  This class handles the following function:
-
-    <string> = ST_ASGEOJSON(<geometry>[, <maxdecimaldigits>[, <options>]])
-
-  It converts a GEOMETRY into a valid GeoJSON string. If maxdecimaldigits is
-  specified, the coordinates written are rounded to the number of decimals
-  specified (e.g with decimaldigits = 3: 10.12399 => 10.124).
-
-  Options is a bitmask with the following flags:
-    0  No options (default values).
-    1  Add a bounding box to the output.
-    2  Add a short CRS URN to the output. The default format is a
-       short format ("EPSG:<srid>").
-    4  Add a long format CRS URN ("urn:ogc:def:crs:EPSG::<srid>"). This
-       implies 2. This means that, e.g., bitmask 5 and 7 mean the
-       same: add a bounding box and a long format CRS URN.
-*/
-class Item_func_as_geojson :public Item_str_ascii_func
-{
-private:
-  /// Maximum number of decimal digits in printed coordinates.
-  int m_max_decimal_digits;
-  /// If true, the output GeoJSON has a bounding box for each GEOMETRY.
-  bool m_add_bounding_box;
-  /**
-    If true, the output GeoJSON has a CRS object in the short
-    form (e.g "EPSG:4326").
-  */
-  bool m_add_short_crs_urn;
-  /**
-    If true, the output GeoJSON has a CRS object in the long
-    form (e.g "urn:ogc:def:crs:EPSG::4326").
-  */
-  bool m_add_long_crs_urn;
-  /// The SRID found in the input GEOMETRY.
-  uint32 m_geometry_srid;
-  /// Max width of long CRS URN supported + max width of SRID + '\0'.
-  static const int MAX_CRS_WIDTH= (22 + MAX_INT_WIDTH + 1);
-  /// Output buffer to be used by the rapidjson writer.
-  rapidjson::StringBuffer m_stringbuffer;
-public:
-  Item_func_as_geojson(const POS &pos, Item *geometry)
-    :Item_str_ascii_func(pos, geometry), m_add_bounding_box(false),
-    m_add_short_crs_urn(false), m_add_long_crs_urn(false)
-  {}
-  Item_func_as_geojson(const POS &pos, Item *geometry, Item *maxdecimaldigits)
-    :Item_str_ascii_func(pos, geometry, maxdecimaldigits),
-    m_add_bounding_box(false), m_add_short_crs_urn(false),
-    m_add_long_crs_urn(false)
-  {}
-  Item_func_as_geojson(const POS &pos, Item *geometry, Item *maxdecimaldigits,
-                       Item *options)
-    :Item_str_ascii_func(pos, geometry, maxdecimaldigits, options),
-    m_add_bounding_box(false), m_add_short_crs_urn(false),
-    m_add_long_crs_urn(false)
-  {}
-  bool fix_fields(THD *thd, Item **ref);
-  String *val_str_ascii(String *);
-  void fix_length_and_dec();
-  const char *func_name() const { return "st_asgeojson"; }
-  bool append_geometry(Geometry::wkb_parser *parser,
-                       rapidjson::Writer<rapidjson::StringBuffer> *writer,
-                       bool is_root_object, MBR *mbr);
-  const char *wkbtype_to_geojson_type(Geometry::wkbType type);
-  bool append_coordinates(Geometry::wkb_parser *parser,
-                          rapidjson::Writer<rapidjson::StringBuffer> *writer,
-                          MBR *mbr);
-  bool append_linestring(Geometry::wkb_parser *parser,
-                         rapidjson::Writer<rapidjson::StringBuffer> *writer,
-                         MBR *mbr);
-  bool append_polygon(Geometry::wkb_parser *parser,
-                      rapidjson::Writer<rapidjson::StringBuffer> *writer,
-                      MBR *mbr);
-  bool parse_options_argument();
-  bool parse_maxdecimaldigits_argument();
-  void append_bounding_box(MBR *mbr,
-                           rapidjson::Writer<rapidjson::StringBuffer> *writer);
-  void append_crs(rapidjson::Writer<rapidjson::StringBuffer> *writer);
-  bool check_argument_is_integer_type(Item *argument);
 };
 
 
@@ -541,10 +454,10 @@ public:
   const char *func_name() const
   {
     switch(m_trim_mode) {
-    case TRIM_BOTH_DEFAULT:
-    case TRIM_BOTH:
-    case TRIM_LEADING:
-    case TRIM_TRAILING:     return "trim";
+    case TRIM_BOTH_DEFAULT: return "trim";
+    case TRIM_BOTH:         return "trim";
+    case TRIM_LEADING:      return "ltrim";
+    case TRIM_TRAILING:     return "rtrim";
     case TRIM_LTRIM:        return "ltrim";
     case TRIM_RTRIM:        return "rtrim";
     }
@@ -644,14 +557,8 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() { maybe_null=1; max_length = 13; }
   const char *func_name() const { return "encrypt"; }
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item_func_encrypt::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
-
+  bool check_gcol_func_processor(uchar *int_arg)
+  { return true; }
 };
 
 #include "sql_crypt.h"
@@ -710,13 +617,8 @@ public:
     call
   */
   virtual const Name_string fully_qualified_func_name() const = 0;
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item_func_sysconst::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
+  bool check_gcol_func_processor(uchar *int_arg)
+  { return true; }
 };
 
 
@@ -747,6 +649,10 @@ class Item_func_user :public Item_func_sysconst
 
 protected:
   bool init (const char *user, const char *host);
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+  {
+    return save_str_value_in_field(field, &str_value);
+  }
 
 public:
   Item_func_user()
@@ -774,10 +680,6 @@ public:
   const char *func_name() const { return "user"; }
   const Name_string fully_qualified_func_name() const
   { return NAME_STRING("user()"); }
-  type_conversion_status save_in_field(Field *field, bool no_conversions)
-  {
-    return save_str_value_in_field(field, &str_value);
-  }
 };
 
 
@@ -814,11 +716,11 @@ public:
 /**
   This class handles two forms of the same function:
 
-  <string> = ST_GEOHASH(<point>, <maxlength>);
-  <string> = ST_GEOHASH(<longitude>, <latitude>, <maxlength>)
+  @<string@> = ST_GEOHASH(@<point@>, @<maxlength@>);
+  @<string@> = ST_GEOHASH(@<longitude@>, @<latitude@>, @<maxlength@>)
 
-  It returns an encoded geohash string, no longer than <maxlength> characters
-  long. Note that it might be shorter than <maxlength>.
+  It returns an encoded geohash string, no longer than @<maxlength@> characters
+  long. Note that it might be shorter than @<maxlength@>.
 */
 class Item_func_geohash :public Item_str_ascii_func
 {
@@ -1134,7 +1036,7 @@ public:
                      const CHARSET_INFO *cs_arg)
     :Item_str_func(pos, a), cast_length(length_arg), cast_cs(cs_arg) 
   {}
-  enum Functype functype() const { return CHAR_TYPECAST_FUNC; }
+  enum Functype functype() const { return TYPECAST_FUNC; }
   bool eq(const Item *item, bool binary_cmp) const;
   const char *func_name() const { return "cast_as_char"; }
   String *val_str(String *a);
@@ -1163,6 +1065,7 @@ public:
   }
   virtual void print(String *str, enum_query_type query_type);
   const char *func_name() const { return "cast_as_binary"; }
+  enum Functype functype() const { return TYPECAST_FUNC; }
 };
 
 
@@ -1183,13 +1086,8 @@ public:
     maybe_null=1;
     max_length=MAX_BLOB_WIDTH;
   }
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item_load_file::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
+  bool check_gcol_func_processor(uchar *int_arg)
+  { return true; }
 };
 
 
@@ -1240,7 +1138,8 @@ public:
   Item_func_conv_charset(Item *a, const CHARSET_INFO *cs,
                          bool cache_if_const) :Item_str_func(a)
   {
-    DBUG_ASSERT(args[0]->fixed);
+    DBUG_ASSERT(is_fixed_or_outer_ref(args[0]));
+
     conv_charset= cs;
     if (cache_if_const && args[0]->const_item())
     {
@@ -1378,12 +1277,6 @@ public:
   longlong val_int();
 };
 
-#ifdef HAVE_COMPRESS
-#define ZLIB_DEPENDED_FUNCTION ;
-#else
-#define ZLIB_DEPENDED_FUNCTION { null_value=1; return 0; }
-#endif
-
 class Item_func_compress: public Item_str_func
 {
   String buffer;
@@ -1391,7 +1284,7 @@ public:
   Item_func_compress(const POS &pos, Item *a):Item_str_func(pos, a){}
   void fix_length_and_dec(){max_length= (args[0]->max_length*120)/100+12;}
   const char *func_name() const{return "compress";}
-  String *val_str(String *) ZLIB_DEPENDED_FUNCTION
+  String *val_str(String *str);
 };
 
 class Item_func_uncompress: public Item_str_func
@@ -1401,7 +1294,7 @@ public:
   Item_func_uncompress(const POS &pos, Item *a): Item_str_func(pos, a) {}
   void fix_length_and_dec(){ maybe_null= 1; max_length= MAX_BLOB_WIDTH; }
   const char *func_name() const{return "uncompress";}
-  String *val_str(String *) ZLIB_DEPENDED_FUNCTION
+  String *val_str(String * str);
 };
 
 class Item_func_uuid: public Item_str_func
@@ -1416,13 +1309,8 @@ public:
   void fix_length_and_dec();
   const char *func_name() const{ return "uuid"; }
   String *val_str(String *);
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item_func_uuid::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
+  bool check_gcol_func_processor(uchar *int_arg)
+  { return true; }
 };
 
 class Item_func_gtid_subtract: public Item_str_ascii_func

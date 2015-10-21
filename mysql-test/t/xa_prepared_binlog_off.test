@@ -4,6 +4,7 @@
 # --xa-prepared-rollback-at-disconnect option.
 ###############################################################################
 
+--source include/not_valgrind.inc
 # Common part with XA binlogging testing
 call mtr.add_suppression("You need to use --log-bin to make --log-slave-updates work.");
 --source extra/binlog_tests/binlog_xa_prepared.test

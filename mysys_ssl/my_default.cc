@@ -13,28 +13,29 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-/****************************************************************************
- Add all options from files named "group".cnf from the default_directories
- before the command line arguments.
- On Windows defaults will also search in the Windows directory for a file
- called 'group'.ini
- As long as the program uses the last argument for conflicting
- options one only have to add a call to "load_defaults" to enable
- use of default values.
- pre- and end 'blank space' are removed from options and values. The
- following escape sequences are recognized in values:  \b \t \n \r \\
+/**
+  @file mysys_ssl/my_default.cc
+  Add all options from files named "group".cnf from the default_directories
+  before the command line arguments.
+  On Windows defaults will also search in the Windows directory for a file
+  called 'group'.ini
+  As long as the program uses the last argument for conflicting
+  options one only have to add a call to "load_defaults" to enable
+  use of default values.
+  pre- and end 'blank space' are removed from options and values. The
+  following escape sequences are recognized in values:  @code \b \t \n \r \\ @endcode
 
- The following arguments are handled automatically;  If used, they must be
- first argument on the command line!
- --no-defaults	; no options are read, except for the ones provided in the
-                  login file.
- --defaults-file=full-path-to-default-file	; Only this file will be read.
- --defaults-extra-file=full-path-to-default-file ; Read this file before ~/
- --defaults-group-suffix  ; Also read groups with concat(group, suffix)
- --print-defaults	  ; Print the modified command line and exit
- --login-path=login-path-name ; Read options under login-path-name from
+  The following arguments are handled automatically;  If used, they must be
+  first argument on the command line!
+  --no-defaults	; no options are read, except for the ones provided in the
+                   login file.
+  --defaults-file=full-path-to-default-file	; Only this file will be read.
+  --defaults-extra-file=full-path-to-default-file ; Read this file before ~/
+  --defaults-group-suffix  ; Also read groups with concat(group, suffix)
+  --print-defaults	  ; Print the modified command line and exit
+  --login-path=login-path-name ; Read options under login-path-name from
                                 the login file.
-****************************************************************************/
+*/
 
 #include "../mysys/mysys_priv.h"
 #include "my_default.h"
@@ -52,12 +53,10 @@
 
 #include "prealloced_array.h"
 
-C_MODE_START
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_file_key key_file_cnf;
 #endif
 PSI_memory_key key_memory_defaults;
-C_MODE_END
 
 /**
    arguments separator
@@ -130,10 +129,8 @@ static const char **default_directories = NULL;
 
 #ifdef _WIN32
 static const char *f_extensions[]= { ".ini", ".cnf", 0 };
-#define NEWLINE "\r\n"
 #else
 static const char *f_extensions[]= { ".cnf", 0 };
-#define NEWLINE "\n"
 #endif
 
 extern "C" {
@@ -168,9 +165,7 @@ static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file);
 /**
   Create the list of default directories.
 
-  @param alloc  MEM_ROOT where the list of directories is stored
-
-  @details
+  @verbatim
   The directories searched, in order, are:
   - Windows:     GetSystemWindowsDirectory()
   - Windows:     GetWindowsDirectory()
@@ -182,10 +177,13 @@ static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file);
   - ALL:         getenv("MYSQL_HOME")
   - ALL:         --defaults-extra-file=<path> (run-time option)
   - Unix:        ~/
+  @endverbatim
 
   On all systems, if a directory is already in the list, it will be moved
   to the end of the list.  This avoids reading defaults files multiple times,
   while ensuring the correct precedence.
+
+  @param alloc  MEM_ROOT where the list of directories is stored
 
   @retval NULL  Failure (out of memory, probably)
   @retval other Pointer to NULL-terminated array of default directories
@@ -724,7 +722,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
   res[my_args.size() + *argc + args_sep]= 0;  /* last null */
 
   (*argc)+= my_args.size() + args_sep;
-  *argv= (char**) res;
+  *argv= res;
   *(MEM_ROOT*) ptr= alloc;			/* Save alloc root for free */
 
   if (default_directories)
@@ -954,7 +952,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
         if (!(search_dir= my_dir(ptr, MYF(MY_WME))))
           goto err;
 
-        for (i= 0; i < (uint) search_dir->number_off_files; i++)
+        for (i= 0; i < search_dir->number_off_files; i++)
         {
           search_file= search_dir->dir_entry + i;
           ext= fn_ext(search_file->name);
@@ -996,7 +994,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
     if (*ptr == '[')				/* Group name */
     {
       found_group=1;
-      if (!(end=(char *) strchr(++ptr,']')))
+      if (!(end= strchr(++ptr,']')))
       {
         my_message_local(ERROR_LEVEL,
                          "Wrong group definition in config file %s at line %d!",

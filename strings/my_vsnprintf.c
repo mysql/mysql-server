@@ -302,12 +302,12 @@ static char *process_int_arg(char *to, char *end, size_t length,
 
 
 /**
-  Procesed positional arguments.
+  Processed positional arguments.
 
   @param cs         string charset
   @param to         buffer where processed string will be place
   @param end        end of buffer
-  @param par        format string
+  @param fmt        format string
   @param arg_index  arg index of the first occurrence of positional arg
   @param ap         list of parameters
 
@@ -527,7 +527,7 @@ start:
   @param cs         string charset
   @param to         buffer where processed string will be place
   @param n          size of buffer
-  @param par        format string
+  @param fmt        format string
   @param ap         list of parameters
 
   @retval

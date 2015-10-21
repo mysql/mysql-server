@@ -139,13 +139,8 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     */
     thd->lex->sql_command= backup.sql_command;
 
-    if (opt_readonly &&
-        !(thd->security_context()->check_access(SUPER_ACL)) &&
-        !thd->slave_thread)
-    {
-      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+    if (check_readonly(thd, true))
       goto end;
-    }
 
     if (add_table_for_trigger(thd,
                               thd->lex->spname->m_db,
@@ -321,8 +316,8 @@ end:
   the statement table list.
 
   @param[in] thd       Thread context.
-  @param[in] trg_name  Trigger name.
-  @param[in] if_exists TRUE if SQL statement contains "IF EXISTS" clause.
+  @param[in] trigger_name  Trigger name.
+  @param[in] continue_if_not_exist TRUE if SQL statement contains "IF EXISTS" clause.
                        That means a warning instead of error should be
                        thrown if trigger with given name does not exist.
   @param[out] table    Pointer to TABLE_LIST object for the
@@ -369,9 +364,7 @@ bool add_table_for_trigger(THD *thd,
   if (Trigger_loader::load_trn_file(thd, trigger_name, trn_path, &tbl_name))
     DBUG_RETURN(TRUE);
 
-  *table= sp_add_to_query_tables(thd, lex, db_name.str,
-                                 tbl_name.str, TL_IGNORE,
-                                 MDL_SHARED_NO_WRITE);
+  *table= sp_add_to_query_tables(thd, lex, db_name.str, tbl_name.str);
 
   DBUG_RETURN(*table ? FALSE : TRUE);
 }
@@ -380,7 +373,7 @@ bool add_table_for_trigger(THD *thd,
 /**
   Update .TRG and .TRN files after renaming triggers' subject table.
 
-  @param[i]] thd            Thread context
+  @param[in] thd            Thread context
   @param[in] db_name        Current database of subject table
   @param[in] table_alias    Current alias of subject table
   @param[in] table_name     Current name of subject table

@@ -39,8 +39,12 @@ mysql.user                                         OK
 sys.sys_config                                     OK
 mtr.global_suppressions                            Table is already up to date
 mtr.test_suppressions                              Table is already up to date
-mysql.columns_priv                                 OK
-mysql.db                                           OK
+mysql.columns_priv
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.db
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.engine_cost
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
@@ -75,8 +79,12 @@ mysql.plugin
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.proc                                         OK
-mysql.procs_priv                                   OK
-mysql.proxies_priv                                 OK
+mysql.procs_priv
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.proxies_priv
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.server_cost
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
@@ -94,7 +102,9 @@ note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.slow_log
 note     : The storage engine for the table doesn't support optimize
-mysql.tables_priv                                  OK
+mysql.tables_priv
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.time_zone
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
@@ -110,7 +120,9 @@ status   : OK
 mysql.time_zone_transition_type
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
-mysql.user                                         OK
+mysql.user
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 sys.sys_config
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
@@ -147,8 +159,12 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
-mysql.columns_priv                                 Table is already up to date
-mysql.db                                           Table is already up to date
+mysql.columns_priv
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.db
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.engine_cost
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
@@ -183,8 +199,12 @@ mysql.plugin
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.proc                                         Table is already up to date
-mysql.procs_priv                                   Table is already up to date
-mysql.proxies_priv                                 Table is already up to date
+mysql.procs_priv
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.proxies_priv
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.server_cost
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
@@ -202,7 +222,9 @@ note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.slow_log
 note     : The storage engine for the table doesn't support optimize
-mysql.tables_priv                                  Table is already up to date
+mysql.tables_priv
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.time_zone
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
@@ -218,7 +240,9 @@ status   : OK
 mysql.time_zone_transition_type
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
-mysql.user                                         Table is already up to date
+mysql.user
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 create table t1 (a int) engine=myisam;
 create view v1 as select * from t1;
 test.t1                                            OK
@@ -320,12 +344,12 @@ CHECK TABLE bug47205 FOR UPGRADE;
 Table	Op	Msg_type	Msg_text
 test.bug47205	check	error	Table rebuild required. Please do "ALTER TABLE `bug47205` FORCE" or dump/reload to fix it!
 # Running mysqlcheck to check and upgrade
-test.bug47205
-error    : Table rebuild required. Please do "ALTER TABLE `bug47205` FORCE" or dump/reload to fix it!
+test.bug47205                                      To be repaired, cause follows:
+Server issued error    : Table rebuild required. Please do "ALTER TABLE `bug47205` FORCE" or dump/reload to fix it!
 
 Repairing tables
-bug47205
-Running  : ALTER TABLE `bug47205` FORCE
+`test`.`bug47205`
+Running  : ALTER TABLE `test`.`bug47205` FORCE
 status   : OK
 # Table should now be ok
 CHECK TABLE bug47205 FOR UPGRADE;
@@ -340,8 +364,8 @@ CHECK TABLE bug47205 FOR UPGRADE;
 Table	Op	Msg_type	Msg_text
 test.bug47205	check	error	Table upgrade required. Please do "REPAIR TABLE `bug47205`" or dump/reload to fix it!
 # Running mysqlcheck to check and upgrade
-test.bug47205
-error    : Table upgrade required. Please do "REPAIR TABLE `bug47205`" or dump/reload to fix it!
+test.bug47205                                      To be repaired, cause follows:
+Server issued error    : Table upgrade required. Please do "REPAIR TABLE `bug47205`" or dump/reload to fix it!
 
 Repairing tables
 test.bug47205                                      OK
@@ -357,5 +381,31 @@ DROP DATABASE IF EXISTS b12688860_db;
 CREATE DATABASE b12688860_db;
 mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 DROP DATABASE b12688860_db;
+#
+# WL#2284: Increase the length of a user name
+#
+CREATE USER 'user_with_length_32_abcdefghijkl'@'localhost';
+GRANT ALL ON *.* TO 'user_with_length_32_abcdefghijkl'@'localhost';
+mysql.user                                         OK
+DROP USER 'user_with_length_32_abcdefghijkl'@'localhost';
+#
+# Bug#20868496: MYSQL_UPGRADE IN 5.7.7+ REPAIR LOOKS USER TABLES
+#               IN TEST WHEN LOAD FROM 50/51/55
+#
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+CREATE TABLE db1.t1 (a INT) ENGINE=MYISAM;
+CREATE TABLE db2.t2 (a INT);
+db1.t1                                             To be repaired, cause follows:
+Server issued Error    : Incorrect file format 't1'
+error    : Corrupt
+db2.t2                                             OK
+
+Repairing tables
+db1.t1
+Error    : Incorrect file format 't1'
+error    : Corrupt
+DROP DATABASE db1;
+DROP DATABASE db2;
 
 End of tests

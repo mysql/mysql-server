@@ -283,20 +283,20 @@ int str2my_decimal(uint mask, const char *from, size_t length,
 
   @param       lld  The lldiv_t variable to convert from.
   @param       neg  Sign flag (negative, 0 positive).
-  @param  OUT  dec  Decimal numbert to convert to.
+  @param [out] dec  Decimal numbert to convert to.
 */
 static my_decimal *lldiv_t2my_decimal(const lldiv_t *lld, bool neg,
                                       my_decimal *dec)
 {
   if (int2my_decimal(E_DEC_FATAL_ERROR, lld->quot, FALSE, dec))
     return dec;
-  if (neg)
-    decimal_neg((decimal_t *) dec);
   if (lld->rem)
   {
     dec->buf[(dec->intg-1) / 9 + 1]= static_cast<decimal_digit_t>(lld->rem);
     dec->frac= 6;
   }
+  if (neg)
+    my_decimal_neg(dec);
   return dec;
 }
 

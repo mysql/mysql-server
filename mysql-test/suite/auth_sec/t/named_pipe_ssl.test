@@ -12,7 +12,7 @@ if ($nmp != ON){
 --exec $MYSQL --user=root --host=localhost --protocol=pipe -e "SHOW STATUS like 'Ssl_cipher'"
 --echo # pipe protocol with ssl enforced.
 error 1;
---exec $MYSQL --user=root --host=localhost --ssl --protocol=pipe 2>&1
+--exec $MYSQL --user=root --host=localhost --ssl --protocol=pipe
 --echo # pipe protocol with ssl disabled.
 --exec $MYSQL --user=root --host=localhost --ssl=0 --protocol=pipe -e "SHOW STATUS like 'Ssl_cipher'"
 --echo # pipe protocol with ssl certificate option.

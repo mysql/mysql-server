@@ -432,7 +432,7 @@ static bool is_stmt_innocent(const THD *thd)
     (sql_command_flags[sql_command] & CF_STATUS_COMMAND) &&
     (sql_command != SQLCOM_BINLOG_BASE64_EVENT);
   bool is_set=
-    (sql_command == SQLCOM_SET_OPTION) && !lex->is_set_password_sql;
+    (sql_command == SQLCOM_SET_OPTION);
   bool is_select= (sql_command == SQLCOM_SELECT);
   bool is_do= (sql_command == SQLCOM_DO);
   return
@@ -602,44 +602,6 @@ bool gtid_pre_statement_post_implicit_commit_checks(THD *thd)
   DBUG_ASSERT(ret);
 
   DBUG_RETURN(false);
-}
-
-
-void gtid_post_statement_checks(THD *thd)
-{
-  DBUG_ENTER("gtid_post_statement_checks");
-  const enum_sql_command sql_command= thd->lex->sql_command;
-
-  /*
-    If transaction is terminated we set GTID_NEXT type to
-    UNDEFINED_GROUP, to prevent that the same GTID is used for another
-    transaction (same GTID here means that user only set
-    GTID_NEXT= GTID_GROUP once for two transactions).
-
-    If the current statement:
-      implict commits
-      OR
-      is SQLCOM_SET_OPTION AND is SET PASSWORD
-      OR
-      is commit
-      OR
-      is rollback
-    that means the transaction is terminated and we set GTID_NEXT type
-    to UNDEFINED_GROUP.
-
-    SET AUTOCOMMIT=1 statement is handled on Gtid_state::update_on_flush().
-  */
-  if (thd->variables.gtid_next.type == GTID_GROUP &&
-      thd->get_command() != COM_STMT_PREPARE &&
-      (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_BEGIN) ||
-       (sql_command == SQLCOM_SET_OPTION && thd->lex->is_set_password_sql) ||
-       sql_command == SQLCOM_COMMIT ||
-       sql_command == SQLCOM_ROLLBACK))
-  {
-    thd->variables.gtid_next.set_undefined();
-  }
-
-  DBUG_VOID_RETURN;
 }
 
 

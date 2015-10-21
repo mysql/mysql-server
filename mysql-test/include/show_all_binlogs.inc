@@ -63,4 +63,5 @@ while ($binlog_file != 'No such row')
 }
 
 
+--let $include_filename= show_all_binlogs.inc
 --source include/end_include_file.inc

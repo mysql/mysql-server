@@ -179,6 +179,9 @@ bool String::copy()
    before copying and the old buffer freed. Character set information is also
    copied.
 
+   If str is the same as this and str doesn't own its buffer, a
+   new buffer is allocated and it's owned by str.
+
    @param str The string whose internal buffer is to be copied.
 
    @retval false Success.
@@ -186,10 +189,27 @@ bool String::copy()
 */
 bool String::copy(const String &str)
 {
+  /*
+    If &str == this and it owns the buffer, this operation is a no-op, so skip
+    the meaningless copy. Otherwise if we do, we will read freed memory at
+    the memmove call below.
+  */
+  if (&str == this && str.is_alloced())
+    return false;
+
+  /*
+    If a String s doesn't own its buffer, here we should allocate
+    a new buffer owned by s and copy the contents there. But alloc()
+    will change this->m_ptr and this->m_length, and if this == &str, this
+    will also change str->m_ptr and str->m_length, so we need to save
+    these values first.
+  */
+  const size_t str_length= str.m_length;
+  const char *str_ptr= str.m_ptr;
   if (alloc(str.m_length))
     return true;
-  m_length= str.m_length;
-  memmove(m_ptr, str.m_ptr, m_length);		// May be overlapping
+  m_length= str_length;
+  memmove(m_ptr, str_ptr, m_length);		// May be overlapping
   m_ptr[m_length]= 0;
   m_charset= str.m_charset;
   return false;
@@ -498,7 +518,9 @@ bool String::append(const char *s)
 }
 
 
-
+/**
+  Append an unsigned longlong to the string.
+*/
 bool String::append_ulonglong(ulonglong val)
 {
   if (mem_realloc(m_length + MAX_BIGINT_WIDTH + 2))
@@ -507,6 +529,20 @@ bool String::append_ulonglong(ulonglong val)
   m_length= end - m_ptr;
   return false;
 }
+
+
+/**
+  Append a signed longlong to the string.
+*/
+bool String::append_longlong(longlong val)
+{
+  if (mem_realloc(m_length + MAX_BIGINT_WIDTH + 2))
+    return true;                              /* purecov: inspected */
+  char *end= longlong10_to_str(val, m_ptr + m_length, -10);
+  m_length= end - m_ptr;
+  return false;
+}
+
 
 /*
   Append a string in the given charset to the string
@@ -826,8 +862,8 @@ int stringcmp(const String *s,const String *t)
   'from', possibly re-allocated to be at least from_length bytes long.
   It is also the case if from==to or to==NULL.
   Otherwise, this function makes and returns a copy of "from" into "to"; the
-  buffer of "to" is heap-allocated; a pre-condition is that from->str and
-  to->str must point to non-overlapping buffers.
+  buffer of "to" is heap-allocated; a pre-condition is that \c from->str and
+  \c to->str must point to non-overlapping buffers.
   The logic behind this complex design, is that a caller, typically a
   val_str() function, sometimes has an input String ('from') which buffer it
   wants to modify; but this String's buffer may or not be heap-allocated; if
@@ -1088,11 +1124,11 @@ void String::print(String *str)
 
 void String::swap(String &s)
 {
-  swap_variables(char *, m_ptr, s.m_ptr);
-  swap_variables(size_t, m_length, s.m_length);
-  swap_variables(uint32, m_alloced_length, s.m_alloced_length);
-  swap_variables(bool, m_is_alloced, s.m_is_alloced);
-  swap_variables(const CHARSET_INFO *, m_charset, s.m_charset);
+  std::swap(m_ptr, s.m_ptr);
+  std::swap(m_length, s.m_length);
+  std::swap(m_alloced_length, s.m_alloced_length);
+  std::swap(m_is_alloced, s.m_is_alloced);
+  std::swap(m_charset, s.m_charset);
 }
 
 
@@ -1204,3 +1240,68 @@ size_t bin_to_hex_str(char *to, size_t to_len, char *from, size_t from_len)
   return out - to;
 }
 
+/**
+  Check if an input byte sequence is a valid character string of a given charset
+
+  @param cs                     The input character set.
+  @param str                    The input byte sequence to validate.
+  @param length                 A byte length of the str.
+  @param [out] valid_length     A byte length of a valid prefix of the str.
+  @param [out] length_error     True in the case of a character length error:
+                                some byte[s] in the input is not a valid
+                                prefix for a character, i.e. the byte length
+                                of that invalid character is undefined.
+
+  @retval true if the whole input byte sequence is a valid character string.
+               The length_error output parameter is undefined.
+
+  @return
+    if the whole input byte sequence is a valid character string
+    then
+        return false
+    else
+        if the length of some character in the input is undefined (MY_CS_ILSEQ)
+           or the last character is truncated (MY_CS_TOOSMALL)
+        then
+            *length_error= true; // fatal error!
+        else
+            *length_error= false; // non-fatal error: there is no wide character
+                                  // encoding for some input character
+        return true
+*/
+bool validate_string(const CHARSET_INFO *cs, const char *str, uint32 length,
+                     size_t *valid_length, bool *length_error)
+{
+  if (cs->mbmaxlen > 1)
+  {
+    int well_formed_error;
+    *valid_length= cs->cset->well_formed_len(cs, str, str + length,
+                                             length, &well_formed_error);
+    *length_error= well_formed_error;
+    return well_formed_error;
+  }
+
+  /*
+    well_formed_len() is not functional on single-byte character sets,
+    so use mb_wc() instead:
+  */
+  *length_error= false;
+
+  const uchar *from= reinterpret_cast<const uchar *>(str);
+  const uchar *from_end= from + length;
+  my_charset_conv_mb_wc mb_wc= cs->cset->mb_wc;
+
+  while (from < from_end)
+  {
+    my_wc_t wc;
+    int cnvres= (*mb_wc)(cs, &wc, (uchar*) from, from_end);
+    if (cnvres <= 0)
+    {
+      *valid_length= from - reinterpret_cast<const uchar *>(str);
+      return true;
+    }
+    from+= cnvres;
+  }
+  *valid_length= length;
+  return false;
+}

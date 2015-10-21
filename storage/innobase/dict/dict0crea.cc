@@ -101,7 +101,11 @@ dict_create_sys_tables_tuple(
 		entry, DICT_COL__SYS_TABLES__N_COLS);
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
-	mach_write_to_4(ptr, table->n_def
+
+	/* If there is any virtual column, encode it in N_COLS */
+	mach_write_to_4(ptr, dict_table_encode_n_col(
+				static_cast<ulint>(table->n_def),
+				static_cast<ulint>(table->n_v_def))
 			| ((table->flags & DICT_TF_COMPACT) << 31));
 	dfield_set_data(dfield, ptr, 4);
 
@@ -176,11 +180,23 @@ dict_create_sys_columns_tuple(
 	dfield_t*		dfield;
 	byte*			ptr;
 	const char*		col_name;
+	ulint			num_base = 0;
+	ulint			v_col_no = ULINT_UNDEFINED;
 
 	ut_ad(table);
 	ut_ad(heap);
 
-	column = dict_table_get_nth_col(table, i);
+	/* Any column beyond table->n_def would be virtual columns */
+        if (i >= table->n_def) {
+		dict_v_col_t*	v_col = dict_table_get_nth_v_col(
+					table, i - table->n_def);
+		column = &v_col->m_col;
+		num_base = v_col->num_base;
+		v_col_no = column->ind;
+	} else {
+		column = dict_table_get_nth_col(table, i);
+		ut_ad(!dict_col_is_virtual(column));
+	}
 
 	sys_columns = dict_sys->sys_columns;
 
@@ -200,7 +216,15 @@ dict_create_sys_columns_tuple(
 	dfield = dtuple_get_nth_field(entry, DICT_COL__SYS_COLUMNS__POS);
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
-	mach_write_to_4(ptr, i);
+
+	if (v_col_no != ULINT_UNDEFINED) {
+		/* encode virtual column's position in MySQL table and InnoDB
+		table in "POS" */
+		mach_write_to_4(ptr, dict_create_v_col_pos(
+				i - table->n_def, v_col_no));
+	} else {
+		mach_write_to_4(ptr, i);
+	}
 
 	dfield_set_data(dfield, ptr, 4);
 
@@ -209,7 +233,12 @@ dict_create_sys_columns_tuple(
 	/* 4: NAME ---------------------------*/
 	dfield = dtuple_get_nth_field(entry, DICT_COL__SYS_COLUMNS__NAME);
 
-	col_name = dict_table_get_col_name(table, i);
+        if (i >= table->n_def) {
+		col_name = dict_table_get_v_col_name(table, i - table->n_def);
+	} else {
+		col_name = dict_table_get_col_name(table, i);
+	}
+
 	dfield_set_data(dfield, col_name, ut_strlen(col_name));
 
 	/* 5: MTYPE --------------------------*/
@@ -240,11 +269,79 @@ dict_create_sys_columns_tuple(
 	dfield = dtuple_get_nth_field(entry, DICT_COL__SYS_COLUMNS__PREC);
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
-	mach_write_to_4(ptr, 0/* unused */);
+	mach_write_to_4(ptr, num_base);
 
 	dfield_set_data(dfield, ptr, 4);
 	/*---------------------------------*/
 
+	return(entry);
+}
+
+/** Based on a table object, this function builds the entry to be inserted
+in the SYS_VIRTUAL system table. Each row maps a virtual column to one of
+its base column.
+@param[in]	table	table
+@param[in]	v_col_n	virtual column number
+@param[in]	b_col_n	base column sequence num
+@param[in]	heap	memory heap
+@return the tuple which should be inserted */
+static
+dtuple_t*
+dict_create_sys_virtual_tuple(
+	const dict_table_t*	table,
+	ulint			v_col_n,
+	ulint			b_col_n,
+	mem_heap_t*		heap)
+{
+	dict_table_t*		sys_virtual;
+	dtuple_t*		entry;
+	const dict_col_t*	base_column;
+	dfield_t*		dfield;
+	byte*			ptr;
+
+	ut_ad(table);
+	ut_ad(heap);
+
+	ut_ad(v_col_n < table->n_v_def);
+	dict_v_col_t*	v_col = dict_table_get_nth_v_col(table, v_col_n);
+	base_column = v_col->base_col[b_col_n];
+
+	sys_virtual = dict_sys->sys_virtual;
+
+	entry = dtuple_create(heap, DICT_NUM_COLS__SYS_VIRTUAL
+			      + DATA_N_SYS_COLS);
+
+	dict_table_copy_types(entry, sys_virtual);
+
+	/* 0: TABLE_ID -----------------------*/
+	dfield = dtuple_get_nth_field(entry, DICT_COL__SYS_VIRTUAL__TABLE_ID);
+
+	ptr = static_cast<byte*>(mem_heap_alloc(heap, 8));
+	mach_write_to_8(ptr, table->id);
+
+	dfield_set_data(dfield, ptr, 8);
+
+	/* 1: POS ---------------------------*/
+	dfield = dtuple_get_nth_field(entry, DICT_COL__SYS_VIRTUAL__POS);
+
+	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
+	ulint	v_col_no = dict_create_v_col_pos(v_col_n, v_col->m_col.ind);
+	mach_write_to_4(ptr, v_col_no);
+
+	dfield_set_data(dfield, ptr, 4);
+
+	/* 2: BASE_POS ----------------------------*/
+	dfield = dtuple_get_nth_field(entry, DICT_COL__SYS_VIRTUAL__BASE_POS);
+
+	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
+	mach_write_to_4(ptr, base_column->ind);
+
+	dfield_set_data(dfield, ptr, 4);
+
+	/* 3: DB_TRX_ID added later */
+	/* 4: DB_ROLL_PTR added later */
+
+	/*---------------------------------*/
 	return(entry);
 }
 
@@ -293,6 +390,8 @@ dict_build_tablespace(
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(tablespace);
 
+        DBUG_EXECUTE_IF("out_of_tablespace_disk",
+                         return(DB_OUT_OF_FILE_SPACE););
 	/* Get a new space id. */
 	dict_hdr_get_new_id(NULL, NULL, &space, NULL, false);
 	if (space == ULINT_UNDEFINED) {
@@ -451,16 +550,8 @@ dict_build_tablespace_for_table(
 			table->space = static_cast<uint32_t>(
 				srv_tmp_space.space_id());
 		} else {
-			/* Create in the system tablespace.
-			Disallow ROW_FORMAT=DYNAMIC and ROW_FORMAT=COMPRESSED
-			page creation as they need file-per-table.
-			Update table flags accordingly */
-			rec_format_t rec_format = table->flags == 0
-						? REC_FORMAT_REDUNDANT
-						: REC_FORMAT_COMPACT;
-			ulint flags = 0;
-			dict_tf_set(&flags, rec_format, 0, 0, 0);
-			table->flags = static_cast<unsigned int>(flags);
+			/* Create in the system tablespace. */
+			ut_ad(table->space == srv_sys_space.space_id());
 		}
 
 		DBUG_EXECUTE_IF("ib_ddl_crash_during_tablespace_alloc",
@@ -483,6 +574,21 @@ dict_build_col_def_step(
 	row = dict_create_sys_columns_tuple(node->table, node->col_no,
 					    node->heap);
 	ins_node_set_new_row(node->col_def, row);
+}
+
+/** Builds a SYS_VIRTUAL row definition to insert.
+@param[in]	node	table create node */
+static
+void
+dict_build_v_col_def_step(
+	tab_node_t*	node)
+{
+	dtuple_t*	row;
+
+	row = dict_create_sys_virtual_tuple(node->table, node->col_no,
+					    node->base_col_no,
+					    node->heap);
+	ins_node_set_new_row(node->v_col_def, row);
 }
 
 /*****************************************************************//**
@@ -1025,6 +1131,13 @@ dict_drop_index_tree(
 		return(false);
 	}
 
+	/* If tablespace is scheduled for truncate, do not try to drop
+	the indexes in that tablespace. There is a truncate fixup action
+	which will take care of it. */
+	if (srv_is_tablespace_truncated(space)) {
+		return(false);
+	}
+
 	btr_free_if_exists(page_id_t(space, root_page_no), page_size,
 			   mach_read_from_8(ptr), mtr);
 
@@ -1246,18 +1359,24 @@ tab_create_graph_create(
 					heap);
 	node->col_def->common.parent = node;
 
+	node->v_col_def = ins_node_create(INS_DIRECT, dict_sys->sys_virtual,
+                                          heap);
+	node->v_col_def->common.parent = node;
+
 	return(node);
 }
 
-/*********************************************************************//**
-Creates an index create graph.
+/** Creates an index create graph.
+@param[in]	index	index to create, built as a memory data structure
+@param[in,out]	heap	heap where created
+@param[in]	add_v	new virtual columns added in the same clause with
+			add index
 @return own: index create node */
 ind_node_t*
 ind_create_graph_create(
-/*====================*/
-	dict_index_t*	index,	/*!< in: index to create, built as a memory data
-				structure */
-	mem_heap_t*	heap)	/*!< in: heap where created */
+	dict_index_t*		index,
+	mem_heap_t*		heap,
+	const dict_add_v_col_t*	add_v)
 {
 	ind_node_t*	node;
 
@@ -1267,6 +1386,8 @@ ind_create_graph_create(
 	node->common.type = QUE_NODE_CREATE_INDEX;
 
 	node->index = index;
+
+	node->add_v = add_v;
 
 	node->state = INDEX_BUILD_INDEX_DEF;
 	node->page_no = FIL_NULL;
@@ -1329,7 +1450,8 @@ dict_create_table_step(
 
 	if (node->state == TABLE_BUILD_COL_DEF) {
 
-		if (node->col_no < (node->table)->n_def) {
+		if (node->col_no < (static_cast<ulint>(node->table->n_def)
+				    + static_cast<ulint>(node->table->n_v_def))) {
 
 			dict_build_col_def_step(node);
 
@@ -1338,6 +1460,51 @@ dict_create_table_step(
 			thr->run_node = node->col_def;
 
 			return(thr);
+		} else {
+			/* Move on to SYS_VIRTUAL table */
+			node->col_no = 0;
+                        node->base_col_no = 0;
+                        node->state = TABLE_BUILD_V_COL_DEF;
+		}
+	}
+
+	if (node->state == TABLE_BUILD_V_COL_DEF) {
+
+		if (node->col_no < static_cast<ulint>(node->table->n_v_def)) {
+			dict_v_col_t*   v_col = dict_table_get_nth_v_col(
+						node->table, node->col_no);
+
+			/* If no base column */
+			while (v_col->num_base == 0) {
+				node->col_no++;
+				if (node->col_no == static_cast<ulint>(
+					(node->table)->n_v_def)) {
+					node->state = TABLE_ADD_TO_CACHE;
+					break;
+				}
+
+				v_col = dict_table_get_nth_v_col(
+					node->table, node->col_no);
+				node->base_col_no = 0;
+			}
+
+			if (node->state != TABLE_ADD_TO_CACHE) {
+				ut_ad(node->col_no == v_col->v_pos);
+				dict_build_v_col_def_step(node);
+
+				if (node->base_col_no < v_col->num_base - 1) {
+					/* move on to next base column */
+					node->base_col_no++;
+				} else {
+					/* move on to next virtual column */
+					node->col_no++;
+					node->base_col_no = 0;
+				}
+
+				thr->run_node = node->v_col_def;
+
+				return(thr);
+			}
 		} else {
 			node->state = TABLE_ADD_TO_CACHE;
 		}
@@ -1434,10 +1601,9 @@ dict_create_index_step(
 
 		space_index_t	index_id = node->index->id;
 
-		err = dict_index_add_to_cache(
-			node->table, node->index, FIL_NULL,
-			trx_is_strict(trx)
-			|| dict_table_has_atomic_blobs(node->table));
+		err = dict_index_add_to_cache_w_vcol(
+			node->table, node->index, node->add_v, FIL_NULL,
+			trx_is_strict(trx));
 
 		if (err != DB_SUCCESS) {
 			node->index = NULL;
@@ -1698,6 +1864,115 @@ dict_create_or_check_foreign_constraint_tables(void)
 	return(err);
 }
 
+/** Creates the virtual column system table (SYS_VIRTUAL) inside InnoDB
+at server bootstrap or server start if the table is not found or is
+not of the right form.
+@return DB_SUCCESS or error code */
+dberr_t
+dict_create_or_check_sys_virtual()
+{
+	trx_t*		trx;
+	my_bool		srv_file_per_table_backup;
+	dberr_t		err;
+
+	ut_a(srv_get_active_thread_type() == SRV_NONE);
+
+	/* Note: The master thread has not been started at this point. */
+	err = dict_check_if_system_table_exists(
+		"SYS_VIRTUAL", DICT_NUM_FIELDS__SYS_VIRTUAL + 1, 1);
+
+	if (err == DB_SUCCESS) {
+		mutex_enter(&dict_sys->mutex);
+		dict_sys->sys_virtual = dict_table_get_low("SYS_VIRTUAL");
+		mutex_exit(&dict_sys->mutex);
+		return(DB_SUCCESS);
+	}
+
+	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO
+	    || srv_read_only_mode) {
+		ib::error() << "Cannot create sys_virtual system tables;"
+			" running in read-only mode.";
+		return(DB_ERROR);
+	}
+
+	trx = trx_allocate_for_mysql();
+
+	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
+
+	trx->op_info = "creating sys_virtual tables";
+
+	row_mysql_lock_data_dictionary(trx);
+
+	/* Check which incomplete table definition to drop. */
+
+	if (err == DB_CORRUPTION) {
+		ib::warn() << "Dropping incompletely created"
+			" SYS_VIRTUAL table.";
+		row_drop_table_for_mysql("SYS_VIRTUAL", trx, TRUE);
+	}
+
+	ib::info() << "Creating sys_virtual system tables.";
+
+	srv_file_per_table_backup = srv_file_per_table;
+
+	/* We always want SYSTEM tables to be created inside the system
+	tablespace. */
+
+	srv_file_per_table = 0;
+
+	err = que_eval_sql(
+		NULL,
+		"PROCEDURE CREATE_SYS_VIRTUAL_TABLES_PROC () IS\n"
+		"BEGIN\n"
+		"CREATE TABLE\n"
+		"SYS_VIRTUAL(TABLE_ID BIGINT, POS INT,"
+		" BASE_POS INT);\n"
+		"CREATE UNIQUE CLUSTERED INDEX BASE_IDX"
+		" ON SYS_VIRTUAL(TABLE_ID, POS, BASE_POS);\n"
+		"END;\n",
+		FALSE, trx);
+
+	if (err != DB_SUCCESS) {
+
+		ib::error() << "Creation of SYS_VIRTUAL"
+			" failed: " << ut_strerr(err) << ". Tablespace is"
+			" full or too many transactions."
+			" Dropping incompletely created tables.";
+
+		ut_ad(err == DB_OUT_OF_FILE_SPACE
+		      || err == DB_TOO_MANY_CONCURRENT_TRXS);
+
+		row_drop_table_for_mysql("SYS_VIRTUAL", trx, TRUE);
+
+		if (err == DB_OUT_OF_FILE_SPACE) {
+			err = DB_MUST_GET_MORE_FILE_SPACE;
+		}
+	}
+
+	trx_commit_for_mysql(trx);
+
+	row_mysql_unlock_data_dictionary(trx);
+
+	trx_free_for_mysql(trx);
+
+	srv_file_per_table = srv_file_per_table_backup;
+
+	if (err == DB_SUCCESS) {
+		ib::info() << "sys_virtual table created";
+	}
+
+	/* Note: The master thread has not been started at this point. */
+	/* Confirm and move to the non-LRU part of the table LRU list. */
+	dberr_t sys_virtual_err = dict_check_if_system_table_exists(
+		"SYS_VIRTUAL", DICT_NUM_FIELDS__SYS_VIRTUAL + 1, 1);
+	ut_a(sys_virtual_err == DB_SUCCESS);
+	mutex_enter(&dict_sys->mutex);
+	dict_sys->sys_virtual = dict_table_get_low("SYS_VIRTUAL");
+	mutex_exit(&dict_sys->mutex);
+
+	return(err);
+}
+
 /****************************************************************//**
 Evaluate the given foreign key SQL statement.
 @return error code or DB_SUCCESS */
@@ -1854,6 +2129,194 @@ dict_create_add_foreign_to_dictionary(
 	}
 
 	DBUG_RETURN(error);
+}
+
+/** Check whether a column is in an index by the column name
+@param[in]	col_name	column name for the column to be checked
+@param[in]	index		the index to be searched
+@return	true if this column is in the index, otherwise, false */
+static
+bool
+dict_index_has_col_by_name(
+	const char*		col_name,
+	const dict_index_t*	index)
+{
+        for (ulint i = 0; i < index->n_fields; i++) {
+                dict_field_t*   field = dict_index_get_nth_field(index, i);
+
+		if (strcmp(field->name, col_name) == 0) {
+			return(true);
+		}
+	}
+	return(false);
+}
+
+/** Check whether the foreign constraint could be on a column that is
+part of a virtual index (index contains virtual column) in the table
+@param[in]	fk_col_name	FK column name to be checked
+@param[in]	table		the table
+@return	true if this column is indexed with other virtual columns */
+bool
+dict_foreign_has_col_in_v_index(
+	const char*		fk_col_name,
+	const dict_table_t*	table)
+{
+	/* virtual column can't be Primary Key, so start with secondary index */
+	for (dict_index_t* index = dict_table_get_next_index(
+		     dict_table_get_first_index(table));
+	     index;
+	     index = dict_table_get_next_index(index)) {
+
+		if (dict_index_has_virtual(index)) {
+			if (dict_index_has_col_by_name(fk_col_name, index)) {
+				return(true);
+			}
+		}
+	}
+
+	return(false);
+}
+
+
+/** Check whether the foreign constraint could be on a column that is
+a base column of some indexed virtual columns.
+@param[in]	col_name	column name for the column to be checked
+@param[in]	table		the table
+@return	true if this column is a base column, otherwise, false */
+bool
+dict_foreign_has_col_as_base_col(
+	const char*		col_name,
+	const dict_table_t*	table)
+{
+	/* Loop through each virtual column and check if its base column has
+	the same name as the column name being checked */
+	for (ulint i = 0; i < table->n_v_cols; i++) {
+		dict_v_col_t*	v_col = dict_table_get_nth_v_col(table, i);
+
+		/* Only check if the virtual column is indexed */
+		if (!v_col->m_col.ord_part) {
+			continue;
+		}
+
+		for (ulint j = 0; j < v_col->num_base; j++) {
+			if (strcmp(col_name, dict_table_get_col_name(
+					   table,
+					   v_col->base_col[j]->ind)) == 0) {
+				return(true);
+			}
+		}
+	}
+
+	return(false);
+}
+
+/** Check if a foreign constraint is on columns served as based columns
+of some virtual column, or the column is part of virtual index (index
+that contains virtual column). This is to prevent creating SET NULL or
+CASCADE constraint on such columns
+@param[in]	local_fk_set	set of foreign key objects, to be added to
+the dictionary tables
+@param[in]	table		table to which the foreign key objects in
+local_fk_set belong to
+@return true if yes, otherwise, false */
+bool
+dict_foreigns_has_v_base_col(
+	const dict_foreign_set&	local_fk_set,
+	const dict_table_t*	table)
+{
+	dict_foreign_t*	foreign;
+
+	for (dict_foreign_set::const_iterator it = local_fk_set.begin();
+	     it != local_fk_set.end();
+	     ++it) {
+
+		foreign = *it;
+		ulint	type = foreign->type;
+
+		type &= ~(DICT_FOREIGN_ON_DELETE_NO_ACTION
+			  | DICT_FOREIGN_ON_UPDATE_NO_ACTION);
+
+		if (type == 0) {
+			continue;
+		}
+
+		for (ulint i = 0; i < foreign->n_fields; i++) {
+			/* Check if the constraint is on a column that
+			is a base column of some virtual column */
+			if (dict_foreign_has_col_as_base_col(
+				    foreign->foreign_col_names[i], table)) {
+				return(true);
+			}
+
+			/* Check if the column is part of a virtual index (
+			index contains virtual columns) */
+			if (dict_foreign_has_col_in_v_index(
+				foreign->foreign_col_names[i], table)) {
+				return(true);
+			}
+		}
+	}
+	return(false);
+}
+
+/** Check if a column is in foreign constraint with CASCADE properties or
+SET NULL
+@param[in]	table		table
+@param[in]	fk_col_name	name for the column to be checked
+@return true if the column is in foreign constraint, otherwise, false */
+bool
+dict_foreigns_has_this_col(
+	const dict_table_t*	table,
+	const char*		col_name)
+{
+	dict_foreign_t*		foreign;
+	const dict_foreign_set*	local_fk_set = &table->foreign_set;
+
+	for (dict_foreign_set::const_iterator it = local_fk_set->begin();
+	     it != local_fk_set->end();
+	     ++it) {
+		foreign = *it;
+		ut_ad(foreign->id != NULL);
+		ulint	type = foreign->type;
+
+		type &= ~(DICT_FOREIGN_ON_DELETE_NO_ACTION
+			  | DICT_FOREIGN_ON_UPDATE_NO_ACTION);
+
+		if (type == 0) {
+			continue;
+		}
+
+		for (ulint i = 0; i < foreign->n_fields; i++) {
+			if (strcmp(foreign->foreign_col_names[i],
+				   col_name) == 0) {
+				return(true);
+			}
+		}
+	}
+	return(false);
+}
+
+/** Check if a virtual column could have base columns in foreign constraints,
+this is to prevent creating virtual index on such column
+@param[in]	table	table
+@param[in]	v_col_n	virtual column number for the virtual column to check
+@return true if the virtual column could have base columns in constraint */
+bool
+dict_table_has_base_in_foreign(
+	const dict_table_t*	table,
+	ulint			v_col_n)
+{
+	const dict_v_col_t*	v_col = dict_table_get_nth_v_col(table, v_col_n);
+
+	for (ulint j = 0; j < v_col->num_base; j++) {
+		if (dict_foreigns_has_this_col(
+			    table, dict_table_get_col_name(
+				    table, v_col->base_col[j]->ind))) {
+			return(true);
+		}
+	}
+
+	return(false);
 }
 
 /** Adds the given set of foreign key objects to the dictionary tables
@@ -2112,47 +2575,6 @@ dict_replace_tablespace_in_dictionary(
 	return(error);
 }
 
-/** Add another datafile to the data dictionary for a given space_id.
-@param[in]	space	Tablespace ID
-@param[in]	path	Tablespace path
-@param[in,out]	trx	Transaction**
-@return error code or DB_SUCCESS */
-dberr_t
-dict_add_datafile_to_dictionary(
-	ulint		space_id,
-	const char*	path,
-	trx_t*		trx)
-{
-	ut_ad(srv_sys_tablespaces_open);
-
-	dberr_t		error;
-
-	pars_info_t*	info = pars_info_create();
-
-	pars_info_add_int4_literal(info, "space", space_id);
-
-	pars_info_add_str_literal(info, "path", path);
-
-	error = que_eval_sql(info,
-			     "PROCEDURE P () IS\n"
-			     "BEGIN\n"
-			     "INSERT INTO SYS_DATAFILES VALUES"
-			     "(:space, :path);\n"
-			     "END;\n",
-			     FALSE, trx);
-
-	if (error != DB_SUCCESS) {
-		return(error);
-	}
-
-	trx->op_info = "committing datafile definition";
-	trx_commit(trx);
-
-	trx->op_info = "";
-
-	return(error);
-}
-
 /** Delete records from SYS_TABLESPACES and SYS_DATAFILES associated
 with a particular tablespace ID.
 @param[in]	space	Tablespace ID
@@ -2166,9 +2588,7 @@ dict_delete_tablespace_and_datafiles(
 {
 	dberr_t		err = DB_SUCCESS;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(srv_sys_tablespaces_open);
 

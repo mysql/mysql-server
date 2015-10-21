@@ -49,7 +49,6 @@ Created 10/10/1995 Heikki Tuuri
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
 #include "log0log.h"
-#include "sync0mutex.h"
 #include "os0event.h"
 #include "que0types.h"
 #include "trx0types.h"
@@ -57,6 +56,8 @@ Created 10/10/1995 Heikki Tuuri
 #include "buf0checksum.h"
 #include "ut0counter.h"
 #include "fil0fil.h"
+
+struct fil_space_t;
 
 /* Global counters used inside InnoDB. */
 struct srv_stats_t {
@@ -193,6 +194,9 @@ extern char*	srv_data_home;
 recovery and open all tables in RO mode instead of RW mode. We don't
 sync the max trx id to disk either. */
 extern my_bool	srv_read_only_mode;
+/** Set if InnoDB operates in read-only mode or innodb-force-recovery
+is greater than SRV_FORCE_NO_TRX_UNDO. */
+extern my_bool high_level_read_only;
 /** store to its own file each table created by an user; data
 dictionary tables are in the system tablespace 0 */
 extern my_bool	srv_file_per_table;
@@ -215,6 +219,7 @@ OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 extern my_bool	srv_use_native_aio;
+extern my_bool	srv_numa_interleave;
 #endif /* !UNIV_HOTBACKUP */
 
 /** Server undo tablespaces directory, can be absolute path. */
@@ -255,13 +260,22 @@ extern char*	srv_log_group_home_dir;
 /** Maximum number of srv_n_log_files, or innodb_log_files_in_group */
 #define SRV_N_LOG_FILES_MAX 100
 extern ulong	srv_n_log_files;
-extern ib_uint64_t	srv_log_file_size;
-extern ib_uint64_t	srv_log_file_size_requested;
-extern ulint	srv_log_buffer_size;
+/** At startup, this is the current redo log file size.
+During startup, if this is different from srv_log_file_size_requested
+(innodb_log_file_size), the redo log will be rebuilt and this size
+will be initialized to srv_log_file_size_requested.
+When upgrading from a previous redo log format, this will be set to 0,
+and writing to the redo log is not allowed.
+
+During startup, this is in bytes, and later converted to pages. */
+extern ulonglong	srv_log_file_size;
+/** The value of the startup parameter innodb_log_file_size */
+extern ulonglong	srv_log_file_size_requested;
+extern ulong	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
 extern uint	srv_flush_log_at_timeout;
 extern ulong	srv_log_write_ahead_size;
-extern char	srv_adaptive_flushing;
+extern my_bool	srv_adaptive_flushing;
 extern my_bool	srv_flush_sync;
 
 /* If this flag is TRUE, then we will load the indexes' (and tables') metadata
@@ -273,6 +287,8 @@ extern my_bool	srv_load_corrupted;
 extern ulint		srv_buf_pool_size;
 /** Minimum pool size in bytes */
 extern const ulint	srv_buf_pool_min_size;
+/** Default pool size in bytes */
+extern const ulint	srv_buf_pool_def_size;
 /** Requested buffer pool chunk size. Each buffer pool instance consists
 of one or more chunks. */
 extern ulong		srv_buf_pool_chunk_unit;
@@ -300,8 +316,8 @@ extern ulint	srv_lock_table_size;
 extern ulint	srv_n_file_io_threads;
 extern my_bool	srv_random_read_ahead;
 extern ulong	srv_read_ahead_threshold;
-extern ulint	srv_n_read_io_threads;
-extern ulint	srv_n_write_io_threads;
+extern ulong	srv_n_read_io_threads;
+extern ulong	srv_n_write_io_threads;
 
 extern uint	srv_change_buffer_max_size;
 
@@ -322,8 +338,6 @@ is 5% of the max where max is srv_io_capacity.  */
 to treat NULL value when collecting statistics. It is not defined
 as enum type because the configure option takes unsigned integer type. */
 extern ulong	srv_innodb_stats_method;
-
-extern char*	srv_file_flush_method_str;
 
 extern ulint	srv_max_n_open_files;
 
@@ -357,9 +371,6 @@ extern my_bool			srv_stats_auto_recalc;
 extern ibool	srv_use_doublewrite_buf;
 extern ulong	srv_doublewrite_batch_size;
 extern ulong	srv_checksum_algorithm;
-
-/* Checksum algorithm used for the redo log file blocks */
-extern ulong	srv_log_checksum_algorithm;
 
 extern double	srv_max_buf_pool_modified_pct;
 extern ulong	srv_max_purge_lag;
@@ -398,6 +409,7 @@ extern my_bool	srv_ibuf_disable_background_merge;
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 #ifdef UNIV_DEBUG
+extern my_bool	srv_sync_debug;
 extern my_bool	srv_purge_view_update_only_debug;
 #endif /* UNIV_DEBUG */
 
@@ -448,6 +460,7 @@ extern mysql_pfs_key_t	srv_lock_timeout_thread_key;
 extern mysql_pfs_key_t	srv_master_thread_key;
 extern mysql_pfs_key_t	srv_monitor_thread_key;
 extern mysql_pfs_key_t	srv_purge_thread_key;
+extern mysql_pfs_key_t	srv_worker_thread_key;
 extern mysql_pfs_key_t	trx_rollback_clean_thread_key;
 
 /* This macro register the current thread and its key with performance
@@ -455,6 +468,7 @@ schema */
 #  define pfs_register_thread(key)			\
 do {								\
 	struct PSI_thread* psi = PSI_THREAD_CALL(new_thread)(key, NULL, 0);\
+	PSI_THREAD_CALL(set_thread_os_id)(psi);			\
 	PSI_THREAD_CALL(set_thread)(psi);			\
 } while (0)
 
@@ -501,10 +515,10 @@ extern PSI_stage_info	srv_stage_buffer_pool_load;
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef _WIN32
-/** Alternatives for the file flush option in Unix; see the InnoDB manual
-about what these mean */
+/** Alternatives for the file flush option in Unix.
+@see innodb_flush_method_names */
 enum srv_unix_flush_t {
-	SRV_UNIX_FSYNC = 1,	/*!< fsync, the default */
+	SRV_UNIX_FSYNC = 0,	/*!< fsync, the default */
 	SRV_UNIX_O_DSYNC,	/*!< open log files in O_SYNC mode */
 	SRV_UNIX_LITTLESYNC,	/*!< do not call os_file_flush()
 				when writing data files, but do flush
@@ -526,10 +540,12 @@ enum srv_unix_flush_t {
 };
 extern enum srv_unix_flush_t	srv_unix_file_flush_method;
 #else
-/** Alternatives for file i/o in Windows */
+/** Alternatives for file i/o in Windows. @see innodb_flush_method_names. */
 enum srv_win_flush_t {
-	SRV_WIN_IO_NORMAL = 1,	/*!< buffered I/O */
-	SRV_WIN_IO_UNBUFFERED	/*!< unbuffered I/O; this is the default */
+	/** unbuffered I/O; this is the default */
+	SRV_WIN_IO_UNBUFFERED = 0,
+	/** buffered I/O */
+	SRV_WIN_IO_NORMAL,
 };
 extern enum srv_win_flush_t	srv_win_file_flush_method;
 #endif /* _WIN32 */
@@ -594,21 +610,10 @@ void
 srv_boot(void);
 /*==========*/
 /*********************************************************************//**
-Initializes the server. */
-void
-srv_init(void);
-/*==========*/
-/*********************************************************************//**
 Frees the data structures created in srv_init(). */
 void
 srv_free(void);
 /*==========*/
-/*********************************************************************//**
-Initializes the synchronization primitives, memory system, and the thread
-local storage. */
-void
-srv_general_init(void);
-/*==================*/
 /*********************************************************************//**
 Sets the info describing an i/o thread current state. */
 void
@@ -804,6 +809,13 @@ for independent tablespace are not applicable to system-tablespace).
 bool
 srv_is_tablespace_truncated(ulint space_id);
 
+/** Check if tablespace was truncated.
+@param[in]	space	space object to check for truncate action
+@return true if tablespace was truncated and we still have an active
+MLOG_TRUNCATE REDO log record. */
+bool
+srv_was_tablespace_truncated(const fil_space_t* space);
+
 /** Status variables to be passed to MySQL */
 struct export_var_t{
 	ulint innodb_data_pending_reads;	/*!< Pending reads */
@@ -814,8 +826,8 @@ struct export_var_t{
 	ulint innodb_data_writes;		/*!< I/O write requests */
 	ulint innodb_data_written;		/*!< Data bytes written */
 	ulint innodb_data_reads;		/*!< I/O read requests */
-	char  innodb_buffer_pool_dump_status[512];/*!< Buf pool dump status */
-	char  innodb_buffer_pool_load_status[512];/*!< Buf pool load status */
+	char  innodb_buffer_pool_dump_status[OS_FILE_MAX_PATH + 128];/*!< Buf pool dump status */
+	char  innodb_buffer_pool_load_status[OS_FILE_MAX_PATH + 128];/*!< Buf pool load status */
 	char  innodb_buffer_pool_resize_status[512];/*!< Buf pool resize status */
 	ulint innodb_buffer_pool_pages_total;	/*!< Buffer pool size */
 	ulint innodb_buffer_pool_pages_data;	/*!< Data pages */
@@ -902,6 +914,7 @@ struct srv_slot_t{
 #else /* !UNIV_HOTBACKUP */
 # define srv_use_adaptive_hash_indexes		FALSE
 # define srv_use_native_aio			FALSE
+# define srv_numa_interleave			FALSE
 # define srv_force_recovery			0UL
 # define srv_set_io_thread_op_info(t,info)	((void) 0)
 # define srv_reset_io_thread_op_info()		((void) 0)

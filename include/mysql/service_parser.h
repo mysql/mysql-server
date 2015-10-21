@@ -38,7 +38,7 @@ extern "C" {
 #endif
 
 /**
-  @file service_parser
+  @file include/mysql/service_parser.h
 
   Plugin service that provides access to the parser and some operations on the
   parse tree.

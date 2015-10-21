@@ -180,3 +180,23 @@ c1
 1
 10
 DROP TABLE t1;
+#
+# Bug#21075892 SHUTDOWN HANG, WAITING FOR ASYNC ROLLBACK TO FINISH
+#
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 INT) ENGINE=InnoDB;
+INSERT INTO t1 values(10, 10), (20, 20), (30, 30);
+#connection 0
+START TRANSACTION;
+#Lock record (col1 = 20)
+UPDATE t1 set col2 = 25 where col1 = 20;
+#connection 1
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+include/start_transaction_high_prio.inc
+START TRANSACTION /* HIGH PRIORITY */;
+#Semi-consistent read: Attempt lock (col1 = 20) and skip in SQL
+UPDATE t1 SET col2 = 20 where col1 > 10 and col1 <30 and col2 = 30;
+COMMIT WORK;
+#connection 0
+ROLLBACK WORK;
+ERROR HY000: Got error 149 during ROLLBACK
+DROP TABLE t1;

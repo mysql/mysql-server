@@ -2,6 +2,7 @@
 #include "psi_base.h"
 #include "psi_memory.h"
 #include "psi_base.h"
+struct PSI_thread;
 typedef unsigned int PSI_memory_key;
 C_MODE_START
 struct MDL_key;
@@ -9,6 +10,7 @@ typedef struct MDL_key MDL_key;
 typedef int opaque_mdl_type;
 typedef int opaque_mdl_duration;
 typedef int opaque_mdl_status;
+typedef int opaque_vio_type;
 struct TABLE_SHARE;
 struct sql_digest_storage;
   struct opaque_THD

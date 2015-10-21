@@ -764,6 +764,8 @@ c1
 2003
 2071
 SET SQL_MODE=STRICT_ALL_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 UPDATE t1 SET c1=NULL WHERE c2 < 1975;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t1 SET c1=NULL WHERE c2 < 1975;

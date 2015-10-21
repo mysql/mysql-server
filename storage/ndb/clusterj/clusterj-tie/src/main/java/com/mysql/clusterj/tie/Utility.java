@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -64,11 +64,8 @@ public class Utility {
     static final Logger logger = LoggerFactoryService.getFactory()
             .getInstance(Utility.class);
 
-    /** Standard Java charset encoder */
-    static CharsetEncoder charsetEncoder = Charset.forName("windows-1252").newEncoder();
-
-    /** Standard Java charset decoder */
-    static CharsetDecoder charsetDecoder = Charset.forName("windows-1252").newDecoder();
+    /** Standard Java charset */
+    static Charset charset = Charset.forName("windows-1252");
 
     static final long ooooooooooooooff = 0x00000000000000ffL;
     static final long ooooooooooooffoo = 0x000000000000ff00L;
@@ -107,6 +104,9 @@ public class Utility {
     }
 
     static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
+
+    /** Scratch buffer pool used for decimal conversions; 65 digits of precision, sign, decimal, null terminator */
+    static final FixedByteBufferPoolImpl decimalByteBufferPool = new FixedByteBufferPoolImpl(68, "Decimal Pool");
 
     /* Error codes that are not severe, and simply reflect expected conditions */
     private static Set<Integer> NonSevereErrorCodes = new HashSet<Integer>();
@@ -1103,6 +1103,39 @@ public class Utility {
     }
 
     /** Convert a BigDecimal value to the binary decimal form used by MySQL.
+     * Store the result in the given ByteBuffer that is already positioned.
+     * Use the precision and scale of the column to convert. Values that don't fit
+     * into the column throw a ClusterJUserException.
+     * @param result the buffer, positioned at the location to store the value
+     * @param storeColumn the column metadata
+     * @param value the value to be converted
+     * @return the ByteBuffer
+     */
+    public static void convertValue(ByteBuffer result, Column storeColumn, BigDecimal value) {
+        int precision = storeColumn.getPrecision();
+        int scale = storeColumn.getScale();
+        int bytesNeeded = getDecimalColumnSpace(precision, scale);
+        // TODO this should be a policy option, perhaps an annotation to fail on truncation
+        BigDecimal scaledValue = value.setScale(scale, RoundingMode.HALF_UP);
+        // the new value has the same scale as the column
+        String stringRepresentation = scaledValue.toPlainString();
+        int length = stringRepresentation.length();
+        ByteBuffer byteBuffer = decimalByteBufferPool.borrowBuffer();
+        CharBuffer charBuffer = CharBuffer.wrap(stringRepresentation);
+        // basic encoding
+        charset.newEncoder().encode(charBuffer, byteBuffer, true);
+        byteBuffer.flip();
+        int returnCode = Utils.decimal_str2bin(
+                byteBuffer, length, precision, scale, result, bytesNeeded);
+        decimalByteBufferPool.returnBuffer(byteBuffer);
+        if (returnCode != 0) {
+            throw new ClusterJUserException(
+                    local.message("ERR_String_To_Binary_Decimal",
+                    returnCode, scaledValue, storeColumn.getName(), precision, scale));
+        }
+    }
+
+    /** Convert a BigDecimal value to the binary decimal form used by MySQL.
      * Use the precision and scale of the column to convert. Values that don't fit
      * into the column throw a ClusterJUserException.
      * @param storeColumn the column metadata
@@ -1122,7 +1155,7 @@ public class Utility {
         ByteBuffer byteBuffer = ByteBuffer.allocateDirect(length);
         CharBuffer charBuffer = CharBuffer.wrap(stringRepresentation);
         // basic encoding
-        charsetEncoder.encode(charBuffer, byteBuffer, true);
+        charset.newEncoder().encode(charBuffer, byteBuffer, true);
         byteBuffer.flip();
         int returnCode = Utils.decimal_str2bin(
                 byteBuffer, length, precision, scale, result, bytesNeeded);
@@ -1131,6 +1164,38 @@ public class Utility {
             throw new ClusterJUserException(
                     local.message("ERR_String_To_Binary_Decimal", 
                     returnCode, scaledValue, storeColumn.getName(), precision, scale));
+        }
+        return result;
+    }
+
+    /** Convert a BigInteger value to the binary decimal form used by MySQL.
+     * Store the result in the given ByteBuffer that is already positioned.
+     * Use the precision and scale of the column to convert. Values that don't fit
+     * into the column throw a ClusterJUserException.
+     * @param result the buffer, positioned at the location to store the value
+     * @param storeColumn the column metadata
+     * @param value the value to be converted
+     * @return the ByteBuffer
+     */
+    public static ByteBuffer convertValue(ByteBuffer result, Column storeColumn, BigInteger value) {
+        int precision = storeColumn.getPrecision();
+        int scale = storeColumn.getScale();
+        int bytesNeeded = getDecimalColumnSpace(precision, scale);
+        String stringRepresentation = value.toString();
+        int length = stringRepresentation.length();
+        ByteBuffer byteBuffer = decimalByteBufferPool.borrowBuffer();
+        CharBuffer charBuffer = CharBuffer.wrap(stringRepresentation);
+        // basic encoding
+        charset.newEncoder().encode(charBuffer, byteBuffer, true);
+        byteBuffer.flip();
+        int returnCode = Utils.decimal_str2bin(
+                byteBuffer, length, precision, scale, result, bytesNeeded);
+        decimalByteBufferPool.returnBuffer(byteBuffer);
+        byteBuffer.flip();
+        if (returnCode != 0) {
+            throw new ClusterJUserException(
+                    local.message("ERR_String_To_Binary_Decimal",
+                    returnCode, stringRepresentation, storeColumn.getName(), precision, scale));
         }
         return result;
     }
@@ -1152,7 +1217,7 @@ public class Utility {
         ByteBuffer byteBuffer = ByteBuffer.allocateDirect(length);
         CharBuffer charBuffer = CharBuffer.wrap(stringRepresentation);
         // basic encoding
-        charsetEncoder.encode(charBuffer, byteBuffer, true);
+        charset.newEncoder().encode(charBuffer, byteBuffer, true);
         byteBuffer.flip();
         int returnCode = Utils.decimal_str2bin(
                 byteBuffer, length, precision, scale, result, bytesNeeded);
@@ -1698,9 +1763,10 @@ public class Utility {
     public static String getDecimalString(ByteBuffer byteBuffer, int length, int precision, int scale) {
         // allow for decimal point and sign and one more for trailing null
         int capacity = precision + 3;
-        ByteBuffer digits = ByteBuffer.allocateDirect(capacity);
+        ByteBuffer digits = decimalByteBufferPool.borrowBuffer();
         int returnCode = Utils.decimal_bin2str(byteBuffer, length, precision, scale, digits, capacity);
         if (returnCode != 0) {
+            decimalByteBufferPool.returnBuffer(digits);
             throw new ClusterJUserException(
                     local.message("ERR_Binary_Decimal_To_String", 
                     returnCode, precision, scale, dumpBytes(byteBuffer)));
@@ -1716,12 +1782,12 @@ public class Utility {
         }
         try {
             // use basic decoding
-            CharBuffer charBuffer = charsetDecoder.decode(digits);
+            CharBuffer charBuffer;
+            charBuffer = charset.decode(digits);
             string = charBuffer.toString();
             return string;
-        } catch (CharacterCodingException e) {
-            throw new ClusterJFatalInternalException(
-                    local.message("ERR_Character_Encoding", string));
+        } finally {
+            decimalByteBufferPool.returnBuffer(digits);
         }
         
     }

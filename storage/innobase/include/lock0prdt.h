@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -64,16 +64,6 @@ lock_place_prdt_page_lock(
 	ulint		pageno,	/*!< in: page number */
 	dict_index_t*	index,	/*!< in: secondary index */
 	que_thr_t*	thr);	/*!< in: query thread */
-
-/*********************************************************************//**
-Checks two predicate locks are compatible with each other
-@return true if conflicts */
-bool
-lock_prdt_consistent(
-/*=================*/
-	lock_prdt_t*	prdt1,	/*!< in: Predicate for the lock */
-	lock_prdt_t*	prdt2,	/*!< in: Predicate for the lock */
-	ulint		op);	/*!< in: Predicate comparison operator */
 
 /*********************************************************************//**
 Initiate a Predicate lock from a MBR */

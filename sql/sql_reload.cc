@@ -32,7 +32,8 @@
 #include "opt_costconstantcache.h"     // reload_optimizer_cost_constants
 #include "current_thd.h" // my_thread_set_THR_THD
 #include "sql_cache.h"   // query_cache
-
+#include "log.h"         // query_logger
+#include "des_key_file.h"
 
 /**
   Reload/resets privileges and the different caches.
@@ -95,6 +96,12 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
         */
         my_error(ER_UNKNOWN_ERROR, MYF(0));
       }
+      /*
+        Check storage engine type for every ACL table and output warning
+        message in case it's different from supported one (InnoDB).
+      */
+      if (check_engine_type_for_acl_table(thd))
+        result= 1;
     }
 
     if (tmp_thd)
@@ -122,15 +129,8 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   }
 
   if (options & REFRESH_ERROR_LOG)
-    if (flush_error_log())
-    {
-      /*
-        When flush_error_log() failed, my_error() has not been called.
-        So, we have to do it here to keep the protocol.
-      */
-      my_error(ER_UNKNOWN_ERROR, MYF(0));
+    if (reopen_error_log())
       result= 1;
-    }
 
   if ((options & REFRESH_SLOW_LOG) && opt_slow_log)
     query_logger.reopen_log_file(QUERY_LOG_SLOW);
@@ -197,7 +197,8 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   DBUG_ASSERT(!thd || thd->locked_tables_mode ||
               !thd->mdl_context.has_locks() ||
               thd->handler_tables_hash.records ||
-              thd->ull_hash.records ||
+              thd->mdl_context.has_locks(MDL_key::USER_LEVEL_LOCK) ||
+              thd->mdl_context.has_locks(MDL_key::LOCKING_SERVICE) ||
               thd->global_read_lock.is_acquired());
 
   /*
@@ -321,7 +322,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     }
   }
 #endif
-#ifdef OPENSSL
+#ifdef HAVE_OPENSSL
    if (options & REFRESH_DES_KEY_FILE)
    {
      if (des_key_file && load_des_key_file(des_key_file))
@@ -356,7 +357,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
 
 
 /**
-  Implementation of FLUSH TABLES <table_list> WITH READ LOCK.
+  Implementation of FLUSH TABLES @<table_list@> WITH READ LOCK.
 
   In brief: take exclusive locks, expel tables from the table
   cache, reopen the tables, enter the 'LOCKED TABLES' mode,
@@ -376,9 +377,9 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   ---------------------------------------
   We don't wait for the GRL, since neither the
   5.1 combination that this new statement is intended to
-  replace (LOCK TABLE <list> WRITE; FLUSH TABLES;),
+  replace (LOCK TABLE @<list@> WRITE; FLUSH TABLES;),
   nor FLUSH TABLES WITH READ LOCK do.
-  @todo: this is not implemented, Dmitry disagrees.
+  @todo This is not implemented, Dmitry disagrees.
   Currently we wait for GRL in another connection,
   but are compatible with a GRL in our own connection.
 
@@ -397,7 +398,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   new transactions will be able to read the tables, but not
   write to them.
 
-  Differences from FLUSH TABLES <list>
+  Differences from FLUSH TABLES @<list@>
   -------------------------------------
   - you can't flush WITH READ LOCK a non-existent table
   - you can't flush WITH READ LOCK under LOCK TABLES

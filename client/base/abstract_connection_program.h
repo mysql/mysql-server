@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,14 +31,11 @@ namespace Mysql{
 namespace Tools{
 namespace Base{
 
-using std::string;
-using std::vector;
-
 /**
   Base class for all programs that use connection to MySQL database server.
  */
 class Abstract_connection_program
-  : public Abstract_program, I_connection_factory
+  : public Abstract_program, public I_connection_factory
 {
 public:
   /**
@@ -46,6 +43,17 @@ public:
     Implementation of I_connection_factory interface.
    */
   virtual MYSQL* create_connection();
+
+  /**
+    Retrieves charset that will be used in new MySQL connections. Can be NULL
+    if none was set explicitly.
+   */
+  CHARSET_INFO* get_current_charset() const;
+
+  /**
+    Sets charset that will be used in new MySQL connections.
+   */
+  void set_current_charset(CHARSET_INFO* charset);
 
 protected:
   Abstract_connection_program();

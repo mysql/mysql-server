@@ -7,7 +7,8 @@ CREATE TABLE t1
 PARTITION BY KEY(a) PARTITIONS 3;
 ALTER TABLE t1 REPAIR PARTITION p2,p3,p1;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	error	Error in list of partitions to test.t1
+test.t1	repair	Error	Error in list of partitions to test.t1
+test.t1	repair	status	Operation failed
 ALTER TABLE t1 ORDER BY a;
 DROP TABLE t1;
 #

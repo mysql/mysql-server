@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 
 
 /**
-  @file
+  @file sql/log_event_old.h
 
   @brief This file contains classes handling old formats of row-based
   binlog events.
@@ -43,6 +43,8 @@
 
 /* These classes are based on the v1 RowsHeaderLen */
 #define ROWS_HEADER_LEN ROWS_HEADER_LEN_V1
+
+using binary_log::Format_description_event;
 
 /**
   @class Old_rows_log_event
@@ -156,10 +158,10 @@ protected:
      this class, not create instances of this class.
   */
 #ifndef MYSQL_CLIENT
-  Old_rows_log_event(THD*, TABLE*, ulong table_id,
-                     MY_BITMAP const *cols, bool is_transactional);
+  Old_rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
+                     MY_BITMAP const *cols, bool using_trans);
 #endif
-  Old_rows_log_event(const char *row_data, uint event_len,
+  Old_rows_log_event(const char *buf, uint event_len,
                      Log_event_type event_type,
                      const Format_description_event *description_event);
 
@@ -357,7 +359,7 @@ class Write_rows_log_event_old : public Old_rows_log_event
   /********** BEGIN CUT & PASTE FROM Write_rows_log_event **********/
 public:
 #if !defined(MYSQL_CLIENT)
-  Write_rows_log_event_old(THD*, TABLE*, ulong table_id,
+  Write_rows_log_event_old(THD *thd_arg, TABLE *tbl_arg, ulong tid_arg,
                            MY_BITMAP const *cols,
                            bool is_transactional);
 #endif
@@ -429,7 +431,7 @@ class Update_rows_log_event_old : public Old_rows_log_event
   /********** BEGIN CUT & PASTE FROM Update_rows_log_event **********/
 public:
 #ifndef MYSQL_CLIENT
-  Update_rows_log_event_old(THD*, TABLE*, ulong table_id,
+  Update_rows_log_event_old(THD *thd_arg, TABLE *tbl_arg, ulong tid,
                             MY_BITMAP const *cols,
                             bool is_transactional);
 #endif
@@ -503,7 +505,7 @@ class Delete_rows_log_event_old : public Old_rows_log_event
   /********** BEGIN CUT & PASTE FROM Update_rows_log_event **********/
 public:
 #ifndef MYSQL_CLIENT
-  Delete_rows_log_event_old(THD*, TABLE*, ulong,
+  Delete_rows_log_event_old(THD *thd_arg, TABLE *tbl_arg, ulong tid,
                             MY_BITMAP const *cols,
                             bool is_transactional);
 #endif
@@ -559,6 +561,5 @@ private:
   virtual int do_exec_row(TABLE *table);
 #endif
 };
-
 
 #endif

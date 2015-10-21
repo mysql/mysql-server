@@ -148,6 +148,10 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
         "select#": 1,
         "steps": [
           {
+            "substitute_generated_columns": {
+            }
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -326,6 +330,10 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
+            "substitute_generated_columns": {
+            }
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -471,7 +479,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 0	{
         "steps": [
         ],
         "empty_result": {
-          "cause": "Impossible WHERE"
+          "cause": "Zero limit"
         }
       }
     },
@@ -534,6 +542,10 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "substitute_generated_columns": {
+            }
+          },
           {
             "table_dependencies": [
               {
@@ -680,7 +692,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 0	{
         "steps": [
         ],
         "empty_result": {
-          "cause": "Impossible WHERE"
+          "cause": "Zero limit"
         }
       }
     },
@@ -751,6 +763,10 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
                   "resulting_condition": "(`t1`.`f1` > 10)"
                 }
               ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
             }
           },
           {
@@ -901,29 +917,9 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0	{
       "join_optimization": {
         "select#": 1,
         "steps": [
-          {
-            "condition_processing": {
-              "condition": "WHERE",
-              "original_condition": "(`t1`.`f1` > 10)",
-              "steps": [
-                {
-                  "transformation": "equality_propagation",
-                  "resulting_condition": "(`t1`.`f1` > 10)"
-                },
-                {
-                  "transformation": "constant_propagation",
-                  "resulting_condition": "(`t1`.`f1` > 10)"
-                },
-                {
-                  "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`t1`.`f1` > 10)"
-                }
-              ]
-            }
-          }
         ],
         "empty_result": {
-          "cause": "Impossible WHERE"
+          "cause": "Zero limit"
         }
       }
     },
@@ -984,6 +980,10 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
                   "resulting_condition": "(`t1`.`f1` > 10)"
                 }
               ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
             }
           },
           {
@@ -1155,6 +1155,10 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
             }
           },
           {
+            "substitute_generated_columns": {
+            }
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -1305,6 +1309,10 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
         "select#": 1,
         "steps": [
           {
+            "substitute_generated_columns": {
+            }
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -1438,6 +1446,10 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "substitute_generated_columns": {
+            }
+          },
           {
             "table_dependencies": [
               {
@@ -1618,6 +1630,10 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
+            "substitute_generated_columns": {
+            }
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -1763,7 +1779,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 0	{
         "steps": [
         ],
         "empty_result": {
-          "cause": "Impossible WHERE"
+          "cause": "Zero limit"
         }
       }
     },
@@ -1826,6 +1842,10 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "substitute_generated_columns": {
+            }
+          },
           {
             "table_dependencies": [
               {
@@ -1972,7 +1992,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 0	{
         "steps": [
         ],
         "empty_result": {
-          "cause": "Impossible WHERE"
+          "cause": "Zero limit"
         }
       }
     },
@@ -2043,6 +2063,10 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
                   "resulting_condition": "(`t1`.`f1` > 10)"
                 }
               ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
             }
           },
           {
@@ -2193,29 +2217,9 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0	{
       "join_optimization": {
         "select#": 1,
         "steps": [
-          {
-            "condition_processing": {
-              "condition": "WHERE",
-              "original_condition": "(`t1`.`f1` > 10)",
-              "steps": [
-                {
-                  "transformation": "equality_propagation",
-                  "resulting_condition": "(`t1`.`f1` > 10)"
-                },
-                {
-                  "transformation": "constant_propagation",
-                  "resulting_condition": "(`t1`.`f1` > 10)"
-                },
-                {
-                  "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`t1`.`f1` > 10)"
-                }
-              ]
-            }
-          }
         ],
         "empty_result": {
-          "cause": "Impossible WHERE"
+          "cause": "Zero limit"
         }
       }
     },
@@ -2276,6 +2280,10 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
                   "resulting_condition": "(`t1`.`f1` > 10)"
                 }
               ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
             }
           },
           {
@@ -2444,6 +2452,10 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
                   "resulting_condition": "(`t1`.`f1` > 10)"
                 }
               ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
             }
           },
           {
@@ -2633,6 +2645,10 @@ ORDER BY f1, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
+            "substitute_generated_columns": {
+            }
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -2781,6 +2797,10 @@ ORDER BY f1, f0 LIMIT 0	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "substitute_generated_columns": {
+            }
+          },
           {
             "table_dependencies": [
               {
@@ -2971,6 +2991,10 @@ ORDER BY f2, f0 LIMIT 20	{
             }
           },
           {
+            "substitute_generated_columns": {
+            }
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -3141,6 +3165,10 @@ ORDER BY f2, f0 LIMIT 0	{
                   "resulting_condition": "(`t1`.`f1` > 10)"
                 }
               ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
             }
           },
           {
@@ -3327,6 +3355,10 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             }
           },
           {
+            "substitute_generated_columns": {
+            }
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -3497,6 +3529,10 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
                   "resulting_condition": "(`t1`.`f1` > 10)"
                 }
               ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
             }
           },
           {
@@ -3714,6 +3750,10 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
                   "resulting_condition": "(`t1`.`f2` = `tmp`.`f2`)"
                 }
               ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
             }
           },
           {
@@ -4000,6 +4040,10 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                   "resulting_condition": "(`t1`.`f2` = `tmp`.`f2`)"
                 }
               ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
             }
           },
           {
@@ -4291,6 +4335,10 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                   "resulting_condition": "(`t1`.`f2` = `tmp`.`f2`)"
                 }
               ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
             }
           },
           {
@@ -4610,6 +4658,10 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                   "resulting_condition": "((`t1`.`f2` > 20) and (`t1`.`f2` = `tmp`.`f2`))"
                 }
               ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
             }
           },
           {
@@ -4945,6 +4997,10 @@ SELECT * FROM v1	{
               "select#": 2,
               "steps": [
                 {
+                  "substitute_generated_columns": {
+                  }
+                },
+                {
                   "table_dependencies": [
                     {
                       "table": "`t1`",
@@ -5230,6 +5286,10 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
               "select#": 2,
               "steps": [
                 {
+                  "substitute_generated_columns": {
+                  }
+                },
+                {
                   "table_dependencies": [
                     {
                       "table": "`t1`",
@@ -5312,6 +5372,10 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                   ]
                 }
               ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
             }
           },
           {
@@ -5588,6 +5652,10 @@ LIMIT 30	{
               "select#": 2,
               "steps": [
                 {
+                  "substitute_generated_columns": {
+                  }
+                },
+                {
                   "table_dependencies": [
                     {
                       "table": "`t1`",
@@ -5676,6 +5744,10 @@ LIMIT 30	{
             "join_optimization": {
               "select#": 3,
               "steps": [
+                {
+                  "substitute_generated_columns": {
+                  }
+                },
                 {
                   "table_dependencies": [
                     {
@@ -5779,6 +5851,10 @@ LIMIT 30	{
                   "resulting_condition": "multiple equal(`v1`.`f1`, `v2`.`f1`)"
                 }
               ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
             }
           },
           {
@@ -6220,6 +6296,10 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
         "select#": 1,
         "steps": [
           {
+            "substitute_generated_columns": {
+            }
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -6392,7 +6472,7 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 0	{
         "steps": [
         ],
         "empty_result": {
-          "cause": "Impossible WHERE"
+          "cause": "Zero limit"
         }
       }
     },
@@ -6485,6 +6565,10 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
                   "resulting_condition": "(`t1`.`f1` > 10)"
                 }
               ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
             }
           },
           {
@@ -6669,6 +6753,10 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
             }
           },
           {
+            "substitute_generated_columns": {
+            }
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -6848,6 +6936,10 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
                   "resulting_condition": "(`t1`.`f1` > 10)"
                 }
               ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
             }
           },
           {
@@ -7050,6 +7142,10 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
               "select#": 2,
               "steps": [
                 {
+                  "substitute_generated_columns": {
+                  }
+                },
+                {
                   "table_dependencies": [
                     {
                       "table": "`t1`",
@@ -7132,6 +7228,10 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                   ]
                 }
               ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
             }
           },
           {
@@ -7392,6 +7492,10 @@ ORDER BY d1.f2 DESC LIMIT 30	{
               "select#": 2,
               "steps": [
                 {
+                  "substitute_generated_columns": {
+                  }
+                },
+                {
                   "table_dependencies": [
                     {
                       "table": "`t1`",
@@ -7471,6 +7575,22 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                   ]
                 }
               ]
+            }
+          },
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": null,
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": null
+                }
+              ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
             }
           },
           {
@@ -7785,6 +7905,10 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
             }
           },
           {
+            "substitute_generated_columns": {
+            }
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -7861,6 +7985,10 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
       "join_optimization": {
         "select#": 2,
         "steps": [
+          {
+            "substitute_generated_columns": {
+            }
+          },
           {
             "table_dependencies": [
               {
@@ -11537,6 +11665,10 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
             }
           },
           {
+            "substitute_generated_columns": {
+            }
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -11613,6 +11745,10 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
       "join_optimization": {
         "select#": 2,
         "steps": [
+          {
+            "substitute_generated_columns": {
+            }
+          },
           {
             "table_dependencies": [
               {
@@ -11880,6 +12016,10 @@ SELECT * FROM t1 ORDER BY f2 LIMIT 100	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "substitute_generated_columns": {
+            }
+          },
           {
             "table_dependencies": [
               {

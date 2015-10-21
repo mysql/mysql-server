@@ -90,9 +90,8 @@ set i = i + 1;
 end while;
 end|
 set autocommit=0;
-select count(*) from t1;
-count(*)
-0
+select * from t1;
+keyc	c1	c2
 call populate_t1();
 select count(*) from t1;
 count(*)
@@ -111,9 +110,8 @@ keyc	c1	c2
 10	a	b
 set autocommit=1;
 truncate table t1;
-select count(*) from t1;
-count(*)
-0
+select * from t1;
+keyc	c1	c2
 drop table t1;
 create temporary table t1 (i int) engine = innodb;
 insert into t1 values (1), (2), (3), (4);
@@ -132,17 +130,15 @@ create temporary table t1
 primary key(keyc))
 engine = innodb;
 begin;
-select count(*) from t1;
-count(*)
-0
+select * from t1;
+keyc	c1	c2
 call populate_t1();
 select count(*) from t1;
 count(*)
 200
 rollback;
-select count(*) from t1;
-count(*)
-0
+select * from t1;
+keyc	c1	c2
 begin;
 call populate_t1();
 commit;
@@ -150,9 +146,8 @@ select count(*) from t1;
 count(*)
 200
 truncate table t1;
-select count(*) from t1;
-count(*)
-0
+select * from t1;
+keyc	c1	c2
 drop table t1;
 drop procedure populate_t1;
 create temporary table t1 (t1_i int, t1_f float) engine = innodb;
@@ -297,25 +292,27 @@ b blob not null,
 index sk (b(3021))
 ) row_format = dynamic engine=innodb;
 drop table t;
-CREATE TABLE t1 ( i INT ) ENGINE = Innodb;
-CREATE TEMPORARY TABLE t2 ( i INT ) ENGINE = Innodb;
-SELECT COUNT(*) FROM information_schema.INNODB_SYS_DATAFILES WHERE PATH LIKE '%test%t_';
-COUNT(*)
-0
-SELECT COUNT(*) FROM information_schema.INNODB_SYS_TABLES WHERE NAME LIKE '%test%t_';
-COUNT(*)
+DROP TABLE IF EXISTS t1,t2,t3;
+CREATE TABLE t6469_1 ( i INT ) ENGINE = Innodb;
+CREATE TEMPORARY TABLE t6469_2 ( i INT ) ENGINE = Innodb;
+CREATE TEMPORARY table t6469_3 ( i INT ) ENGINE = Innodb ROW_FORMAT=compressed;
+Warnings:
+Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED is ignored for TEMPORARY TABLE.
+Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
+SELECT count(*) FROM information_schema.files WHERE file_name LIKE '%t6469%';
+count(*)
 1
-CREATE TEMPORARY table t3 ( i INT ) ENGINE = Innodb;
-SELECT COUNT(*) FROM information_schema.INNODB_SYS_DATAFILES WHERE PATH LIKE '%test%t_';
-COUNT(*)
-0
-SELECT COUNT(*) FROM information_schema.INNODB_SYS_TABLES WHERE NAME LIKE '%test%t_';
-COUNT(*)
+SELECT count(*) FROM information_schema.INNODB_SYS_DATAFILES WHERE PATH LIKE '%t6469%';
+count(*)
 1
-DROP TABLE t1,t2,t3;
-SELECT COUNT(*) FROM information_schema.INNODB_SYS_DATAFILES WHERE PATH LIKE '%test%t_';
-COUNT(*)
-0
-SELECT COUNT(*) FROM information_schema.INNODB_SYS_TABLES WHERE NAME LIKE '%test%t_';
-COUNT(*)
-0
+SELECT count(*) FROM information_schema.INNODB_SYS_TABLES WHERE NAME LIKE '%t6469%';
+count(*)
+1
+DROP TABLE t6469_1,t6469_2,t6469_3;
+SELECT * FROM information_schema.files WHERE file_name LIKE '%t6469%';
+FILE_ID	FILE_NAME	FILE_TYPE	TABLESPACE_NAME	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	LOGFILE_GROUP_NAME	LOGFILE_GROUP_NUMBER	ENGINE	FULLTEXT_KEYS	DELETED_ROWS	UPDATE_COUNT	FREE_EXTENTS	TOTAL_EXTENTS	EXTENT_SIZE	INITIAL_SIZE	MAXIMUM_SIZE	AUTOEXTEND_SIZE	CREATION_TIME	LAST_UPDATE_TIME	LAST_ACCESS_TIME	RECOVER_TIME	TRANSACTION_COUNTER	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	CREATE_TIME	UPDATE_TIME	CHECK_TIME	CHECKSUM	STATUS	EXTRA
+SELECT * FROM information_schema.INNODB_SYS_DATAFILES WHERE PATH LIKE '%t6469%';
+SPACE	PATH
+SELECT * FROM information_schema.INNODB_SYS_TABLES WHERE NAME LIKE '%t6469%';
+TABLE_ID	NAME	FLAG	N_COLS	SPACE	ROW_FORMAT	ZIP_PAGE_SIZE	SPACE_TYPE
+SET sql_mode=default;

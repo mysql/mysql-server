@@ -74,8 +74,8 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
   ENDIF()
 ENDIF()
 
-# Enable InnoDB's UNIV_DEBUG and UNIV_SYNC_DEBUG in debug builds
-SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DUNIV_DEBUG -DUNIV_SYNC_DEBUG")
+# Enable InnoDB's UNIV_DEBUG in debug builds
+SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DUNIV_DEBUG")
 
 OPTION(WITH_INNODB_EXTRA_DEBUG "Enable extra InnoDB debug checks" OFF)
 IF(WITH_INNODB_EXTRA_DEBUG)
@@ -147,6 +147,21 @@ IF(NOT CMAKE_CROSSCOMPILING)
   }"
   HAVE_IB_GCC_ATOMIC_THREAD_FENCE
   )
+  CHECK_C_SOURCE_RUNS(
+  "#include<stdint.h>
+  int main()
+  {
+    unsigned char	a = 0;
+    unsigned char	b = 0;
+    unsigned char	c = 1;
+
+    __atomic_exchange(&a, &b,  &c, __ATOMIC_RELEASE);
+    __atomic_compare_exchange(&a, &b, &c, 0,
+			      __ATOMIC_RELEASE, __ATOMIC_ACQUIRE);
+    return(0);
+  }"
+  HAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE
+  )
 ENDIF()
 
 IF(HAVE_IB_GCC_SYNC_SYNCHRONISE)
@@ -155,6 +170,10 @@ ENDIF()
 
 IF(HAVE_IB_GCC_ATOMIC_THREAD_FENCE)
  ADD_DEFINITIONS(-DHAVE_IB_GCC_ATOMIC_THREAD_FENCE=1)
+ENDIF()
+
+IF(HAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE)
+ ADD_DEFINITIONS(-DHAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE=1)
 ENDIF()
 
  # either define HAVE_IB_ATOMIC_PTHREAD_T_GCC or not
@@ -255,8 +274,33 @@ ELSE()
    ADD_DEFINITIONS(-DMUTEX_SYS)
 ENDIF()
 
-# Include directories under innobase
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include
-		    ${CMAKE_SOURCE_DIR}/storage/innobase/handler
-                    ${CMAKE_SOURCE_DIR}/libbinlogevents/include )
+CHECK_INCLUDE_FILES(numa.h HAVE_NUMA_H)
+CHECK_INCLUDE_FILES(numaif.h HAVE_NUMAIF_H)
 
+OPTION(WITH_NUMA "Explicitly set NUMA memory allocation policy" ON)
+IF(WITH_NUMA AND HAVE_NUMA_H AND HAVE_NUMAIF_H)
+    SET(SAVE_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
+    SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} numa)
+    CHECK_C_SOURCE_COMPILES(
+    "
+    #include <numa.h>
+    #include <numaif.h>
+    int main()
+    {
+       struct bitmask *all_nodes= numa_all_nodes_ptr;
+       set_mempolicy(MPOL_DEFAULT, 0, 0);
+       return all_nodes != NULL;
+    }"
+    HAVE_LIBNUMA)
+    SET(CMAKE_REQUIRED_LIBRARIES ${SAVE_CMAKE_REQUIRED_LIBRARIES})
+ENDIF()
+
+IF(HAVE_LIBNUMA)
+    LINK_LIBRARIES(numa)
+ENDIF()
+
+# Include directories under innobase
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/
+		    ${CMAKE_SOURCE_DIR}/storage/innobase/include
+		    ${CMAKE_SOURCE_DIR}/storage/innobase/handler
+		    ${CMAKE_SOURCE_DIR}/libbinlogevents/include)

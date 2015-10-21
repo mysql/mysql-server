@@ -125,7 +125,7 @@ ut_usectime(
 	ulint*	ms)	/*!< out: microseconds since the Epoch+*sec */
 {
 	struct timeval	tv;
-	int		ret;
+	int		ret = 0;
 	int		errno_gettimeofday;
 	int		i;
 
@@ -203,86 +203,6 @@ ut_difftime(
 	ib_time_t	time1)	/*!< in: time */
 {
 	return(difftime(time2, time1));
-}
-
-/**********************************************************//**
-Prints a timestamp to a file. */
-void
-ut_print_timestamp(
-/*===============*/
-	FILE*  file) /*!< in: file where to print */
-{
-	ulint thread_id = 0;
-
-	thread_id = os_thread_pf(os_thread_get_curr_id());
-
-#ifdef _WIN32
-	SYSTEMTIME cal_tm;
-
-	GetLocalTime(&cal_tm);
-
-	fprintf(file, "%d-%02d-%02d %02d:%02d:%02d %#lx",
-		(int) cal_tm.wYear,
-		(int) cal_tm.wMonth,
-		(int) cal_tm.wDay,
-		(int) cal_tm.wHour,
-		(int) cal_tm.wMinute,
-		(int) cal_tm.wSecond,
-		thread_id);
-#else
-	struct tm* cal_tm_ptr;
-	time_t	   tm;
-
-	struct tm  cal_tm;
-	time(&tm);
-	localtime_r(&tm, &cal_tm);
-	cal_tm_ptr = &cal_tm;
-	fprintf(file, "%d-%02d-%02d %02d:%02d:%02d %#lx",
-		cal_tm_ptr->tm_year + 1900,
-		cal_tm_ptr->tm_mon + 1,
-		cal_tm_ptr->tm_mday,
-		cal_tm_ptr->tm_hour,
-		cal_tm_ptr->tm_min,
-		cal_tm_ptr->tm_sec,
-		thread_id);
-#endif
-}
-
-/**********************************************************//**
-Sprintfs a timestamp to a buffer, 13..14 chars plus terminating NUL. */
-void
-ut_sprintf_timestamp(
-/*=================*/
-	char*	buf) /*!< in: buffer where to sprintf */
-{
-#ifdef _WIN32
-	SYSTEMTIME cal_tm;
-
-	GetLocalTime(&cal_tm);
-
-	sprintf(buf, "%02d%02d%02d %2d:%02d:%02d",
-		(int) cal_tm.wYear % 100,
-		(int) cal_tm.wMonth,
-		(int) cal_tm.wDay,
-		(int) cal_tm.wHour,
-		(int) cal_tm.wMinute,
-		(int) cal_tm.wSecond);
-#else
-	struct tm* cal_tm_ptr;
-	time_t	   tm;
-
-	struct tm  cal_tm;
-	time(&tm);
-	localtime_r(&tm, &cal_tm);
-	cal_tm_ptr = &cal_tm;
-	sprintf(buf, "%02d%02d%02d %2d:%02d:%02d",
-		cal_tm_ptr->tm_year % 100,
-		cal_tm_ptr->tm_mon + 1,
-		cal_tm_ptr->tm_mday,
-		cal_tm_ptr->tm_hour,
-		cal_tm_ptr->tm_min,
-		cal_tm_ptr->tm_sec);
-#endif
 }
 
 #ifdef UNIV_HOTBACKUP
@@ -386,88 +306,6 @@ ut_delay(
 	return(j);
 }
 #endif /* UNIV_HOTBACKUP */
-
-/*************************************************************//**
-Prints the contents of a memory buffer in hex and ascii. */
-void
-ut_print_buf(
-/*=========*/
-	FILE*		file,	/*!< in: file where to print */
-	const void*	buf,	/*!< in: memory buffer */
-	ulint		len)	/*!< in: length of the buffer */
-{
-	const byte*	data;
-	ulint		i;
-
-	UNIV_MEM_ASSERT_RW(buf, len);
-
-	fprintf(file, " len %lu; hex ", len);
-
-	for (data = (const byte*) buf, i = 0; i < len; i++) {
-		fprintf(file, "%02lx", (ulong)*data++);
-	}
-
-	fputs("; asc ", file);
-
-	data = (const byte*) buf;
-
-	for (i = 0; i < len; i++) {
-		int	c = (int) *data++;
-		putc(isprint(c) ? c : ' ', file);
-	}
-
-	putc(';', file);
-}
-
-/*************************************************************//**
-Prints the contents of a memory buffer in hex. */
-void
-ut_print_buf_hex(
-/*=============*/
-	std::ostream&	o,	/*!< in/out: output stream */
-	const void*	buf,	/*!< in: memory buffer */
-	ulint		len)	/*!< in: length of the buffer */
-{
-	const byte*		data;
-	ulint			i;
-
-	static const char	hexdigit[16] = {
-		'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'
-	};
-
-	UNIV_MEM_ASSERT_RW(buf, len);
-
-	o << "(0x";
-
-	for (data = static_cast<const byte*>(buf), i = 0; i < len; i++) {
-		byte	b = *data++;
-		o << hexdigit[(int) b >> 16] << hexdigit[b & 15];
-	}
-
-	o << ")";
-}
-
-/*************************************************************//**
-Prints the contents of a memory buffer in hex and ascii. */
-void
-ut_print_buf(
-/*=========*/
-	std::ostream&	o,	/*!< in/out: output stream */
-	const void*	buf,	/*!< in: memory buffer */
-	ulint		len)	/*!< in: length of the buffer */
-{
-	const byte*	data;
-	ulint		i;
-
-	UNIV_MEM_ASSERT_RW(buf, len);
-
-	for (data = static_cast<const byte*>(buf), i = 0; i < len; i++) {
-		int	c = static_cast<int>(*data++);
-		o << (isprint(c) ? static_cast<char>(c) : ' ');
-	}
-
-	ut_print_buf_hex(o, buf, len);
-}
 
 /*************************************************************//**
 Calculates fast the number rounded up to the nearest power of 2.
@@ -789,8 +627,6 @@ ut_strerr(
 		return("not found");
 	case DB_ONLINE_LOG_TOO_BIG:
 		return("Log size exceeded during online index creation");
-	case DB_DICT_CHANGED:
-		return("Table dictionary has changed");
 	case DB_IDENTIFIER_TOO_LONG:
 		return("Identifier name is too long");
 	case DB_FTS_EXCEED_RESULT_CACHE_LIMIT:
@@ -800,7 +636,7 @@ ut_strerr(
 	case DB_CANT_CREATE_GEOMETRY_OBJECT:
 		return("Can't create specificed geometry data object");
 	case DB_CANNOT_OPEN_FILE:
-		return ("Cannot open a file");
+		return("Cannot open a file");
 	case DB_TABLE_CORRUPT:
 		return("Table is corrupted");
 	case DB_FTS_TOO_MANY_WORDS_IN_PHRASE:
@@ -820,6 +656,15 @@ ut_strerr(
 		       "transaction");
 	case DB_WRONG_FILE_NAME:
 		return("Invalid Filename");
+	case DB_NO_FK_ON_V_BASE_COL:
+		return("Cannot add foreign key on the base column "
+		       "of indexed virtual column");
+	case DB_NO_VIRTUAL_INDEX_ON_FK:
+		return("Cannot create index on virtual column whose base "
+		       "column has foreign constraint");
+
+	case DB_COMPUTE_VALUE_FAILED:
+		return("Compute generated column failed");
 
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */
@@ -915,6 +760,12 @@ error_or_warn::~error_or_warn()
 	} else {
 		sql_print_warning("InnoDB: %s", m_oss.str().c_str());
 	}
+}
+
+fatal_or_error::~fatal_or_error()
+{
+	sql_print_error("InnoDB: %s", m_oss.str().c_str());
+	ut_a(!m_fatal);
 }
 
 } // namespace ib

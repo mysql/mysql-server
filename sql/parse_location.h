@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ typedef struct YYLTYPE
   1. each time a rule is matched and
   2. to compute a syntax error location.
 
-  @param Current [out] location of the whole matched rule
+  @param [out] Current location of the whole matched rule
   @param Rhs           locations of all right hand side elements in the rule
   @param N             number of right hand side elements in the rule
 */

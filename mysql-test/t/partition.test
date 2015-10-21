@@ -2189,7 +2189,7 @@ drop table t1, t2;
 # Bug #38083 Error-causing row inserted into partitioned table despite error
 #
 SET @orig_sql_mode = @@SQL_MODE;
-SET SQL_MODE='STRICT_ALL_TABLES';
+SET SQL_MODE='STRICT_ALL_TABLES,ERROR_FOR_DIVISION_BY_ZERO';
 CREATE TABLE t1 (c1 INT)
        PARTITION BY LIST(1 DIV c1) (
        PARTITION p0 VALUES IN (NULL),
@@ -2541,3 +2541,12 @@ CREATE TABLE t1 (d TIME)
 # Before this fix, sql_mode would have been reset to 0.
 SELECT @@sql_mode;
 SET sql_mode= DEFAULT;
+
+--echo #
+--echo # ASSERTION FAILED: !THD->IS_ERROR() PARTITIONS + OUT OF RANGE VALUES
+--echo #
+CREATE TABLE t1 (a int PRIMARY KEY)
+PARTITION BY LINEAR KEY(a) PARTITIONS 2;
+--error ER_DATA_OUT_OF_RANGE
+SELECT 1 FROM t1 WHERE EXP(10000);
+DROP TABLE t1;

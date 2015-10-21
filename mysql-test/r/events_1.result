@@ -114,14 +114,11 @@ create table t_event3 (a int, b float);
 drop event if exists event3;
 Warnings:
 Note	1305	Event event3 does not exist
-create event event3 on schedule every 50 + 10 minute starts date_add("20100101", interval 5 minute) ends date_add("20151010", interval 5 day) comment "portokala_comment" DO insert into t_event3 values (unix_timestamp(), rand());
-Warnings:
-Note	1588	Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was dropped immediately after creation.
+create event event3 on schedule every 50 + 10 minute starts date_add("20100101", interval 5 minute) ends date_add("20251010", interval 5 day) comment "portokala_comment" DO insert into t_event3 values (unix_timestamp(), rand());
 select count(*) from t_event3;
 count(*)
 0
 drop event event3;
-ERROR HY000: Unknown event 'event3'
 drop table t_event3;
 set names utf8;
 CREATE EVENT root6 ON SCHEDULE EVERY '10:20' MINUTE_SECOND ON COMPLETION PRESERVE ENABLE COMMENT 'some comment' DO select 1;

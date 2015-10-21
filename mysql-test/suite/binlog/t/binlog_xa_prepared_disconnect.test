@@ -2,6 +2,7 @@
 # Bug#12161 Xa recovery and client disconnection
 # Testing new server options and binary logging prepared XA transaction.
 ###############################################################################
+--source include/not_valgrind.inc
 --source include/have_log_bin.inc
 
 #

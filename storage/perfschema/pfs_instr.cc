@@ -521,6 +521,7 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
       PFS_atomic::add_u64(&thread_internal_id_counter.m_u64, 1);
     pfs->m_parent_thread_internal_id= 0;
     pfs->m_processlist_id= static_cast<ulong>(processlist_id);
+    pfs->m_thread_os_id= 0;
     pfs->m_event_id= 1;
     pfs->m_stmt_lock.set_allocated();
     pfs->m_session_lock.set_allocated();
@@ -559,7 +560,9 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
     pfs->m_stage_progress= NULL;
     pfs->m_processlist_info[0]= '\0';
     pfs->m_processlist_info_length= 0;
+    pfs->m_connection_type= NO_VIO_TYPE;
 
+    pfs->m_thd= NULL;
     pfs->m_host= NULL;
     pfs->m_user= NULL;
     pfs->m_account= NULL;
@@ -715,7 +718,7 @@ void destroy_thread(PFS_thread *pfs)
   @param thread The running thread.
   @returns The LF_HASH pins for the thread.
 */
-LF_PINS* get_filename_hash_pins(PFS_thread *thread)
+static LF_PINS* get_filename_hash_pins(PFS_thread *thread)
 {
   if (unlikely(thread->m_filename_hash_pins == NULL))
   {
@@ -868,6 +871,7 @@ search:
     pfs->m_file_stat.m_open_count= 1;
     pfs->m_file_stat.m_io_stat.reset();
     pfs->m_identity= (const void *)pfs;
+    pfs->m_temporary= false;
 
     int res;
     pfs->m_lock.dirty_to_allocated(& dirty_state);
@@ -1585,20 +1589,14 @@ void aggregate_thread_status(PFS_thread *thread,
   {
     safe_host->aggregate_status_stats(&thd->status_var);
   }
-#if 0
-  else
-  {
-    /* TODO: Requires LOCK_status. global_status_var updated by server on THD disconnect. */
-    add_to_status(&global_status_var, &thd->status_var, false);
-  }
-#endif
+
   return;
 }
 
-void aggregate_thread_stats(PFS_thread *thread,
-                            PFS_account *safe_account,
-                            PFS_user *safe_user,
-                            PFS_host *safe_host)
+static void aggregate_thread_stats(PFS_thread *thread,
+                                   PFS_account *safe_account,
+                                   PFS_user *safe_user,
+                                   PFS_host *safe_host)
 {
   if (likely(safe_account != NULL))
   {
@@ -2106,7 +2104,7 @@ void update_file_derived_flags()
   global_file_container.apply_all(fct_update_file_derived_flags);
 }
 
-void fct_update_table_derived_flags(PFS_table *pfs)
+static void fct_update_table_derived_flags(PFS_table *pfs)
 {
   PFS_table_share *share= sanitize_table_share(pfs->m_share);
   if (likely(share != NULL))

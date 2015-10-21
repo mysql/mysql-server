@@ -28,7 +28,8 @@ class PT_item_list;
 
 extern void reject_geometry_args(uint arg_count, Item **args,
                                  Item_result_field *me);
-
+void unsupported_json_comparison(size_t arg_count, Item **args,
+                                 const char *msg);
 
 class Item_func :public Item_result_field
 {
@@ -49,6 +50,8 @@ protected:
 public:
   uint arg_count;
   //bool const_item_cache;
+  // When updating Functype with new spatial functions,
+  // is_spatial_operator() should also be updated.
   enum Functype { UNKNOWN_FUNC,EQ_FUNC,EQUAL_FUNC,NE_FUNC,LT_FUNC,LE_FUNC,
 		  GE_FUNC,GT_FUNC,FT_FUNC,
 		  LIKE_FUNC,ISNULL_FUNC,ISNOTNULL_FUNC,
@@ -58,13 +61,13 @@ public:
 		  SP_EQUALS_FUNC, SP_DISJOINT_FUNC,SP_INTERSECTS_FUNC,
 		  SP_TOUCHES_FUNC,SP_CROSSES_FUNC,SP_WITHIN_FUNC,
 		  SP_CONTAINS_FUNC,SP_COVEREDBY_FUNC,SP_COVERS_FUNC,
-                  SP_OVERLAPS_FUNC,
+                  SP_OVERLAPS_FUNC, SP_WKB_FUNC,
 		  SP_STARTPOINT,SP_ENDPOINT,SP_EXTERIORRING,
 		  SP_POINTN,SP_GEOMETRYN,SP_INTERIORRINGN,
                   NOT_FUNC, NOT_ALL_FUNC,
                   NOW_FUNC, TRIG_COND_FUNC,
                   SUSERVAR_FUNC, GUSERVAR_FUNC, COLLATE_FUNC,
-                  EXTRACT_FUNC, CHAR_TYPECAST_FUNC, FUNC_SP, UDF_FUNC,
+                  EXTRACT_FUNC, TYPECAST_FUNC, FUNC_SP, UDF_FUNC,
                   NEG_FUNC, GSYSVAR_FUNC };
   enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL,
                        OPTIMIZE_EQUAL };
@@ -190,8 +193,8 @@ public:
 
   bool fix_fields(THD *, Item **ref);
   bool fix_func_arg(THD *, Item **arg);
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select);
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select);
   table_map used_tables() const;
   /**
      Returns the pseudo tables depended upon in order to evaluate this
@@ -253,6 +256,24 @@ public:
   Item *get_tmp_table_item(THD *thd);
 
   my_decimal *val_decimal(my_decimal *);
+
+  /**
+    Same as save_in_field except that special logic is added
+    to handle JSON values. If the target field has JSON type,
+    then do NOT first serialize the JSON value into a string form.
+
+    A better solution might be to put this logic into
+    Item_func::save_in_field_inner() or even Item::save_in_field_inner().
+    But that would mean providing val_json() overrides for
+    more Item subclasses. And that feels like pulling on a
+    ball of yarn late in the release cycle for 5.7. FIXME.
+
+    @param[out] field  The field to set the value to.
+    @retval 0         On success.
+    @retval > 0       On error.
+  */
+  virtual type_conversion_status save_possibly_as_json(Field *field,
+                                                       bool no_conversions);
 
   bool agg_arg_charsets(DTCollation &c, Item **items, uint nitems,
                         uint flags, int item_sep)
@@ -430,6 +451,13 @@ public:
   {
     return functype() == *(Functype *) arg;
   }
+  virtual Item *gc_subst_transformer(uchar *arg);
+
+  /**
+    Does essentially the same as THD::change_item_tree, plus
+    maintains any necessary any invariants.
+  */
+  virtual void replace_argument(THD *thd, Item **oldpp, Item *newp);
 
 protected:
   /**
@@ -592,13 +620,13 @@ public:
      @brief Performs the operation that this functions implements when the
      result type is DECIMAL.
 
-     @param A pointer where the DECIMAL value will be allocated.
+     @param decimal_value A pointer where the DECIMAL value will be allocated.
      @return 
        - 0 If the result is NULL
        - The same pointer it was given, with the area initialized to the
          result of the operation.
   */
-  virtual my_decimal *decimal_op(my_decimal *)= 0;
+  virtual my_decimal *decimal_op(my_decimal *decimal_value)= 0;
 
   /**
      @brief Performs the operation that this functions implements when the
@@ -730,7 +758,7 @@ public:
   void fix_length_and_dec();
   bool fix_fields(THD *thd, Item **ref);
   longlong val_int() { DBUG_ASSERT(fixed == 1); return value; }
-  bool check_gcol_func_processor(uchar *int_arg) { return TRUE;}
+  bool check_gcol_func_processor(uchar *int_arg) { return true;}
 };
 
 
@@ -747,6 +775,7 @@ public:
   void fix_length_and_dec();
   virtual void print(String *str, enum_query_type query_type);
   uint decimal_precision() const { return args[0]->decimal_precision(); }
+  enum Functype functype() const { return TYPECAST_FUNC; }
 };
 
 
@@ -760,6 +789,7 @@ public:
   const char *func_name() const { return "cast_as_unsigned"; }
   longlong val_int();
   virtual void print(String *str, enum_query_type query_type);
+  enum Functype functype() const { return TYPECAST_FUNC; }
 };
 
 
@@ -791,6 +821,7 @@ public:
   enum_field_types field_type() const { return MYSQL_TYPE_NEWDECIMAL; }
   void fix_length_and_dec() {};
   const char *func_name() const { return "decimal_typecast"; }
+  enum Functype functype() const { return TYPECAST_FUNC; }
   virtual void print(String *str, enum_query_type query_type);
 };
 
@@ -998,7 +1029,7 @@ public:
 
 
 /**
-  This handles the <double> = ST_LATFROMGEOHASH(<string>) funtion.
+  This handles the @<double@> = ST_LATFROMGEOHASH(@<string@>) function.
   It returns the latitude-part of a geohash, in the range of [-90, 90].
 */
 class Item_func_latfromgeohash :public Item_func_latlongfromgeohash
@@ -1013,7 +1044,7 @@ public:
 
 
 /**
-  This handles the <double> = ST_LONGFROMGEOHASH(<string>) funtion.
+  This handles the @<double@> = ST_LONGFROMGEOHASH(@<string@>) function.
   It returns the longitude-part of a geohash, in the range of [-180, 180].
 */
 class Item_func_longfromgeohash :public Item_func_latlongfromgeohash
@@ -1369,6 +1400,7 @@ public:
   longlong val_int();
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *dec);
+  bool val_json(Json_wrapper *result);
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return (null_value= args[0]->get_date(ltime, fuzzydate));
@@ -1619,13 +1651,8 @@ public:
     if (arg_count)
       max_length= args[0]->max_length;
   }
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item_func_last_insert_id::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
+  bool check_gcol_func_processor(uchar *int_arg)
+  { return true; }
 };
 
 
@@ -1642,13 +1669,8 @@ public:
   const char *func_name() const { return "benchmark"; }
   void fix_length_and_dec() { max_length=1; maybe_null= true; }
   virtual void print(String *str, enum_query_type query_type);
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item_func_last_insert_id::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
+  bool check_gcol_func_processor(uchar *int_arg)
+  { return true; }
 };
 
 
@@ -1901,13 +1923,8 @@ class Item_func_get_lock :public Item_int_func
   longlong val_int();
   const char *func_name() const { return "get_lock"; }
   void fix_length_and_dec() { max_length=1; maybe_null=1;}
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item_func_get_lock::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
+  bool check_gcol_func_processor(uchar *int_arg)
+  { return true; }
   virtual uint decimal_precision() const { return max_length; }
 };
 
@@ -1923,13 +1940,8 @@ public:
   longlong val_int();
   const char *func_name() const { return "release_lock"; }
   void fix_length_and_dec() { max_length=1; maybe_null=1;}
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item_func_release_lock::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
+  bool check_gcol_func_processor(uchar *int_arg)
+  { return true; }
   virtual uint decimal_precision() const { return max_length; }
 };
 
@@ -1944,13 +1956,8 @@ public:
   longlong val_int();
   const char *func_name() const { return "release_all_locks"; }
   void fix_length_and_dec() { unsigned_flag= TRUE; }
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item_func_release_lock::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
+  bool check_gcol_func_processor(uchar *int_arg)
+  { return true; }
 };
 
 /* replication functions */
@@ -1974,13 +1981,8 @@ public:
   longlong val_int();
   const char *func_name() const { return "master_pos_wait"; }
   void fix_length_and_dec() { max_length=21; maybe_null=1;}
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item_func_master_pos_wait::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
+  bool check_gcol_func_processor(uchar *int_arg)
+  { return true; }
 };
 
 /**
@@ -2036,6 +2038,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "gtid_subset"; }
   void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
+  bool is_bool_func() { return true; }
 };
 
 
@@ -2064,7 +2067,7 @@ public:
   {
     return get_time_from_non_temporal(ltime);
   }
-  bool check_gcol_func_processor(uchar *int_arg) { return TRUE;}
+  bool check_gcol_func_processor(uchar *int_arg) { return true;}
 };
 
 
@@ -2138,8 +2141,8 @@ class user_var_entry
 
   /**
     Initialize all members
-    @param name - Name of the user_var_entry instance.
-    @cs         - charset information of the user_var_entry instance.
+    @param name    Name of the user_var_entry instance.
+    @param cs      charset information of the user_var_entry instance.
   */
   void init(THD *thd, const Simple_cstring &name, const CHARSET_INFO *cs);
 
@@ -2181,17 +2184,17 @@ public:
   /**
     Store a value of the given type and attributes (collation, sign)
     into a user_var_entry instance.
-    @param from         Value
+    @param ptr          Value
     @param length       Size of the value
     @param type         type
     @param cs           Character set and collation of the value
-    @param dv           Collationd erivation of the value
+    @param dv           Collation derivation of the value
     @param unsigned_arg Signess of the value
     @return
     @retval        false on success
     @retval        true on memory allocation error
   */
-  bool store(const void *from, size_t length, Item_result type,
+  bool store(const void *ptr, size_t length, Item_result type,
              const CHARSET_INFO *cs, Derivation dv, bool unsigned_arg);
   /**
     Set type of to the given value.
@@ -2217,7 +2220,7 @@ public:
 
   /**
     Allocate and initialize a user variable instance.
-    @param namec  Name of the variable.
+    @param name   Name of the variable.
     @param cs     Charset of the variable.
     @return
     @retval  Address of the allocated and initialized user_var_entry instance.
@@ -2340,14 +2343,14 @@ public:
   type_conversion_status save_in_field(Field *field, bool no_conversions,
                                        bool can_use_result_field);
 
-  type_conversion_status save_in_field(Field *field, bool no_conversions)
-  { return save_in_field(field, no_conversions, true); }
-
   void save_org_in_field(Field *field)
   { save_in_field(field, true, false); }
 
   bool set_entry(THD *thd, bool create_if_not_exists);
   void cleanup();
+protected:
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+  { return save_in_field(field, no_conversions, true); }
 };
 
 
@@ -2515,7 +2518,6 @@ public:
 
      @param a  List of arguments.
      @param b  FT Flags.
-     @param c  Parsing context.
   */
   Item_func_match(const POS &pos, PT_item_list *a, Item *against_arg, uint b):
     Item_real_func(pos, a), against(against_arg), key(0), flags(b),
@@ -2553,15 +2555,10 @@ public:
   virtual void print(String *str, enum_query_type query_type);
 
   bool fix_index();
-  void init_search();
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    /* TODO: consider adding in support for the MATCH-based generated columns */
-    DBUG_ENTER("Item_func_match::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
+  bool init_search(THD *thd);
+  bool check_gcol_func_processor(uchar *int_arg)
+  // TODO: consider adding in support for the MATCH-based generated columns
+  { return true; }
 
   /**
      Get number of matching rows from FT handler.
@@ -2659,7 +2656,7 @@ public:
      Set comparison operation type and and value for master MATCH function.
 
      @param type   comparison operation type
-     @param value  comparison operation value
+     @param value_arg  comparison operation value
   */
   void set_hints_op(enum ft_operation type, double value_arg)
   {
@@ -2746,17 +2743,17 @@ private:
      @retval true if BOOLEAN search on non-indexed columns is supported
      @retval false otherwise
    */
-  bool allows_search_on_non_indexed_columns(const TABLE_LIST *tr)
+  bool allows_search_on_non_indexed_columns(const TABLE *tr)
   {
     // Only Boolean search may support non_indexed columns
     if (!(flags & FT_BOOL))
       return false;
 
-    DBUG_ASSERT(tr && tr->table->file);
+    DBUG_ASSERT(tr && tr->file);
 
     // Assume that if extended fulltext API is not supported,
     // non-indexed columns are allowed.  This will be true for MyISAM.
-    if ((tr->table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
+    if ((tr->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
       return true;
 
     return false;
@@ -2785,13 +2782,8 @@ public:
   longlong val_int();
   const char *func_name() const { return "is_free_lock"; }
   void fix_length_and_dec() { max_length= 1; maybe_null= TRUE;}
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item_func_last_insert_id::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
+  bool check_gcol_func_processor(uchar *int_arg)
+  { return true; }
 };
 
 class Item_func_is_used_lock :public Item_int_func
@@ -2806,13 +2798,8 @@ public:
   longlong val_int();
   const char *func_name() const { return "is_used_lock"; }
   void fix_length_and_dec() { unsigned_flag= TRUE; maybe_null= TRUE; }
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item_func_last_insert_id::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
+  bool check_gcol_func_processor(uchar *int_arg)
+  { return true; }
 };
 
 
@@ -2828,13 +2815,8 @@ public:
   longlong val_int();
   const char *func_name() const { return "row_count"; }
   void fix_length_and_dec() { decimals= 0; maybe_null=0; }
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item_func_row_count::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
+  bool check_gcol_func_processor(uchar *int_arg)
+  { return true; }
 };
 
 
@@ -2868,6 +2850,7 @@ private:
   
 protected:
   bool is_expensive_processor(uchar *arg) { return true; }
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
 
 public:
 
@@ -2878,7 +2861,7 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
   /**
     Must not be called before the procedure is resolved,
-    i.e. ::init_result_field().
+    i.e. @c init_result_field().
   */
   table_map get_initial_pseudo_tables() const;
   void update_used_tables();
@@ -2949,6 +2932,8 @@ public:
     return str;
   }
 
+  bool val_json(Json_wrapper *result);
+
   virtual bool change_context_processor(uchar *cntx)
   {
     context= reinterpret_cast<Name_resolution_context *>(cntx);
@@ -2981,13 +2966,8 @@ public:
   longlong val_int();
   const char *func_name() const { return "found_rows"; }
   void fix_length_and_dec() { decimals= 0; maybe_null=0; }
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item_func_found_rows::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
+  bool check_gcol_func_processor(uchar *int_arg)
+  { return true; }
 };
 
 
@@ -3005,13 +2985,8 @@ public:
   void fix_length_and_dec()
   { max_length= 21; unsigned_flag=1; }
   bool check_partition_func_processor(uchar *int_arg) {return false;}
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item_func_found_rows::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
+  bool check_gcol_func_processor(uchar *int_arg)
+  { return true; }
 };
 
 
@@ -3031,7 +3006,8 @@ extern bool check_reserved_words(LEX_STRING *name);
 extern enum_field_types agg_field_type(Item **items, uint nitems);
 double my_double_round(double value, longlong dec, bool dec_unsigned,
                        bool truncate);
-bool eval_const_cond(Item *cond);
+bool eval_const_cond(THD *thd, Item *cond, bool *value);
+Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type);
 
 extern bool volatile  mqh_used;
 

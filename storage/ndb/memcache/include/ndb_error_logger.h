@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -38,8 +38,17 @@ enum {
   ERR_UR   = ndberror_st_unknown
 };
 
+/* In log_ndb_error() and log_app_error(), the error handler maintains
+   error statistics and takes care of writing messages to the error log.
+*/
 int log_ndb_error(const NdbError &);
 int log_app_error(ndberror_struct const *);
+
+/* In record_ndb_error(), the error handler maintains statistics without 
+   writing a log message.
+*/
+int record_ndb_error(const NdbError &);
+
 #endif
 
 

@@ -16,6 +16,11 @@
 #ifndef TABLE_SESSION_CONNECT_H
 #define TABLE_SESSION_CONNECT_H
 
+/**
+  @file storage/perfschema/table_session_connect.h
+  TABLE SESSION_CONNECT (abstract)
+*/
+
 #include "pfs_column_types.h"
 #include "cursor_by_thread_connect_attr.h"
 #include "table_helper.h"
@@ -76,6 +81,15 @@ protected:
   /** Safe copy of @c PFS_thread::m_session_connect_attrs_length. */
   uint m_copy_session_connect_attrs_length;
 };
+
+bool read_nth_attr(const char *connect_attrs,
+                   uint connect_attrs_length,
+                   const CHARSET_INFO *connect_attrs_cs,
+                   uint ordinal,
+                   char *attr_name, uint max_attr_name,
+                   uint *attr_name_length,
+                   char *attr_value, uint max_attr_value,
+                   uint *attr_value_length);
 
 /** @} */
 #endif

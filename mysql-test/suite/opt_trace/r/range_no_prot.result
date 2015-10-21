@@ -83,6 +83,10 @@ EXPLAIN SELECT * FROM t1 WHERE key2 < 5 OR key2 > 1020	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -304,6 +308,10 @@ EXPLAIN SELECT * FROM t1 WHERE key2 < 5 OR key2 > 1020	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -458,6 +466,10 @@ EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -584,9 +596,9 @@ EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020	{
                         }
                       ] /* indexes_to_merge */,
                       "cost_of_reading_ranges": 11.935,
-                      "cost_sort_rowid_and_read_disk": 8.0666,
+                      "cost_sort_rowid_and_read_disk": 8.9551,
                       "cost_duplicate_removal": 38.361,
-                      "total_cost": 58.363
+                      "total_cost": 59.251
                     }
                   ] /* analyzing_index_merge_union */,
                   "chosen_range_access_summary": {
@@ -612,7 +624,7 @@ EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020	{
                       ] /* index_merge_of */
                     } /* range_access_plan */,
                     "rows_for_plan": 45,
-                    "cost_for_plan": 58.363,
+                    "cost_for_plan": 59.251,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -634,14 +646,14 @@ EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020	{
                         "used_index": "sort_union(i1,i2)"
                       } /* range_details */,
                       "resulting_rows": 45,
-                      "cost": 67.363,
+                      "cost": 68.251,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 45,
-                "cost_for_plan": 67.363,
+                "cost_for_plan": 68.251,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -703,6 +715,10 @@ EXPLAIN SELECT key2, MIN(key2_1) FROM t2 GROUP BY key2	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
           {
             "table_dependencies": [
               {
@@ -1183,6 +1199,10 @@ GROUP BY key2	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t2`",
@@ -1492,6 +1512,10 @@ EXPLAIN SELECT * FROM t2 WHERE key2 = 1 AND (key2_1 = 1 OR key3 = 5)	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t2`",
@@ -1730,6 +1754,10 @@ EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -1891,7 +1919,7 @@ EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null	{
                           } /* analyzing_roworder_intersect */
                         }
                       ] /* analyzing_roworder_scans */,
-                      "index_roworder_union_cost": 4.327,
+                      "index_roworder_union_cost": 4.5089,
                       "members": 2,
                       "chosen": true
                     }
@@ -1919,7 +1947,7 @@ EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null	{
                       ] /* union_of */
                     } /* range_access_plan */,
                     "rows_for_plan": 2,
-                    "cost_for_plan": 4.327,
+                    "cost_for_plan": 4.5089,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -1941,14 +1969,14 @@ EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null	{
                         "used_index": "union(i2,i3)"
                       } /* range_details */,
                       "resulting_rows": 2,
-                      "cost": 4.727,
+                      "cost": 4.9089,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 2,
-                "cost_for_plan": 4.727,
+                "cost_for_plan": 4.9089,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -2029,6 +2057,10 @@ EXPLAIN SELECT * FROM t2 WHERE key2_1 < 79 OR key2 = 2	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -2194,6 +2226,10 @@ EXPLAIN SELECT * FROM t2 WHERE key1a = 5 and key1b < 10	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -2427,6 +2463,10 @@ EXPLAIN SELECT * FROM t2 WHERE (key1a = 5 and key1b < 10 and key1b > 2) or
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t2`",
@@ -2649,6 +2689,10 @@ EXPLAIN SELECT * FROM t2 WHERE (key1b < 10 and key1b > 7) and
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t2`",
@@ -2863,6 +2907,10 @@ EXPLAIN SELECT * FROM t1 WHERE (key1 > 1 OR key2  > 2)	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -3104,6 +3152,10 @@ WHERE t1.key1=t2.key1a AND t1.key2 > 1020	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -3402,6 +3454,10 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -3677,6 +3733,10 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no'	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -3902,6 +3962,10 @@ EXPLAIN SELECT 1 FROM
                       }
                     ] /* steps */
                   } /* condition_processing */
+                },
+                {
+                  "substitute_generated_columns": {
+                  } /* substitute_generated_columns */
                 },
                 {
                   "table_dependencies": [
@@ -4236,6 +4300,10 @@ EXPLAIN SELECT 1 FROM
                   } /* condition_processing */
                 },
                 {
+                  "substitute_generated_columns": {
+                  } /* substitute_generated_columns */
+                },
+                {
                   "table_dependencies": [
                     {
                       "table": "`t2`",
@@ -4517,6 +4585,10 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -4821,6 +4893,10 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -5088,7 +5164,7 @@ INSERT INTO t1 VALUES (1, 1, 9,'a'), (2, 2, 8,'b'), (3, 3, 7,'c'),
 # Covering ROR intersect not chosen: only one scan used
 EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	PRIMARY,i1_idx,v_idx	i1_idx	5	const	1	8.00	Using index condition; Using where
+1	SIMPLE	t1	NULL	ref	PRIMARY,i1_idx,v_idx	i1_idx	5	const	1	20.00	Using index condition; Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where ((`test`.`t1`.`v` = 'a') and (`test`.`t1`.`i1` = 1) and (`test`.`t1`.`pk` < 3))
 
@@ -5129,6 +5205,10 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -5326,8 +5406,8 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "condition_filtering_pct": 8,
-                "rows_for_plan": 0.08,
+                "condition_filtering_pct": 20,
+                "rows_for_plan": 0.2,
                 "cost_for_plan": 1.2,
                 "chosen": true
               }
@@ -5376,7 +5456,7 @@ test.t1	analyze	status	OK
 # Covering ROR intersect not chosen: cost
 EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	PRIMARY,v_idx,i1_i2_idx	v_idx	9	const,const	1	8.00	Using index condition; Using where
+1	SIMPLE	t1	NULL	ref	PRIMARY,v_idx,i1_i2_idx	v_idx	9	const,const	1	20.00	Using index condition; Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where ((`test`.`t1`.`v` = 'a') and (`test`.`t1`.`i2` = 1) and (`test`.`t1`.`i1` = 1) and (`test`.`t1`.`pk` < 3))
 
@@ -5417,6 +5497,10 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -5641,8 +5725,8 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "condition_filtering_pct": 8,
-                "rows_for_plan": 0.08,
+                "condition_filtering_pct": 20,
+                "rows_for_plan": 0.2,
                 "cost_for_plan": 1.2,
                 "chosen": true
               }
@@ -5731,6 +5815,10 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -6015,6 +6103,10 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -6279,6 +6371,10 @@ trace
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t`",
@@ -6474,6 +6570,10 @@ trace
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [

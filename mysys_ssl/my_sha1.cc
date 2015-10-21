@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,9 +15,7 @@
 
 
 /**
-  @file
-
-  @brief
+  @file mysys_ssl/my_sha1.cc
   Wrapper functions for OpenSSL, YaSSL implementations. Also provides a
   Compatibility layer to make available YaSSL's SHA1 implementation.
 */
@@ -37,7 +35,7 @@
 
   @return              void
 */
-void mysql_sha1_yassl(uint8 *digest, const char *buf, size_t len)
+static void mysql_sha1_yassl(uint8 *digest, const char *buf, size_t len)
 {
   TaoCrypt::SHA hasher;
   hasher.Update((const TaoCrypt::byte *) buf, (TaoCrypt::word32)len);
@@ -56,8 +54,8 @@ void mysql_sha1_yassl(uint8 *digest, const char *buf, size_t len)
 
   @return              void
 */
-void mysql_sha1_multi_yassl(uint8 *digest, const char *buf1, int len1,
-                            const char *buf2, int len2)
+static void mysql_sha1_multi_yassl(uint8 *digest, const char *buf1, int len1,
+                                   const char *buf2, int len2)
 {
   TaoCrypt::SHA hasher;
   hasher.Update((const TaoCrypt::byte *) buf1, len1);
@@ -68,21 +66,21 @@ void mysql_sha1_multi_yassl(uint8 *digest, const char *buf1, int len1,
 #elif defined(HAVE_OPENSSL)
 #include <openssl/sha.h>
 
-int mysql_sha1_reset(SHA_CTX *context)
+static int mysql_sha1_reset(SHA_CTX *context)
 {
     return SHA1_Init(context);
 }
 
 
-int mysql_sha1_input(SHA_CTX *context, const uint8 *message_array,
-                     unsigned length)
+static int mysql_sha1_input(SHA_CTX *context, const uint8 *message_array,
+                            unsigned length)
 {
     return SHA1_Update(context, message_array, length);
 }
 
 
-int mysql_sha1_result(SHA_CTX *context,
-                      uint8 Message_Digest[SHA1_HASH_SIZE])
+static int mysql_sha1_result(SHA_CTX *context,
+                             uint8 Message_Digest[SHA1_HASH_SIZE])
 {
     return SHA1_Final(Message_Digest, context);
 }

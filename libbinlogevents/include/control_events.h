@@ -131,7 +131,7 @@ public:
     </pre>
 
     @param buf                Contains the serialized event.
-    @param length             Length of the serialized event.
+    @param event_len          Length of the serialized event.
     @param description_event  An FDE event, used to get the
                               following information
                               -binlog_version
@@ -395,7 +395,7 @@ public:
           +=====================================+
     </pre>
     @param buf                Contains the serialized event.
-    @param length             Length of the serialized event.
+    @param event_len          Length of the serialized event.
     @param description_event  An FDE event, used to get the
                               following information
                               -binlog_version
@@ -563,7 +563,7 @@ public:
     databases to be resynchronized.
 
     @param buf                Contains the serialized event.
-    @param length             Length of the serialized event.
+    @param event_len          Length of the serialized event.
     @param description_event  An FDE event, used to get the
                               following information
                               -binlog_version
@@ -729,7 +729,7 @@ public:
     An XID event is generated for a commit of a transaction that modifies one or
     more tables of an XA-capable storage engine
     @param buf    Contains the serialized event.
-    @param fde    An FDE event, used to get the following information
+    @param description_event    An FDE event, used to get the following information
                      -binlog_version
                      -server_version
                      -post_header_len
@@ -737,7 +737,7 @@ public:
                      The content of this object
                      depends on the binlog-version currently in use.
   */
-  XA_prepare_event(const char *buf, const Format_description_event *fde);
+  XA_prepare_event(const char *buf, const Format_description_event *description_event);
 #ifndef HAVE_MYSYS
   /*
     todo: we need to find way how to exploit server's code of
@@ -962,7 +962,7 @@ public:
 
     @param buffer             Contains the serialized event.
     @param event_len          Length of the serialized event.
-    @param description_event  An FDE event, used to get the
+    @param descr_event        An FDE event, used to get the
                               following information
                               -binlog_version
                               -server_version
@@ -1059,9 +1059,9 @@ public:
     | Gtids executed in the last binary log file |
     +--------------------------------------------+
     </pre>
-    @param buffer             Contains the serialized event.
+    @param buf                Contains the serialized event.
     @param event_len          Length of the serialized event.
-    @param description_event  An FDE event, used to get the
+    @param descr_event        An FDE event, used to get the
                               following information
                               -binlog_version
                               -server_version
@@ -1156,9 +1156,9 @@ public:
     The buffer layout is as follows
     </pre>
 
-    @param buf                Contains the serialized event.
+    @param buffer             Contains the serialized event.
     @param event_len          Length of the serialized event.
-    @param descr_event        An FDE event, used to get the
+    @param description_event  An FDE event, used to get the
                               following information
                               -binlog_version
                               -server_version
@@ -1167,8 +1167,8 @@ public:
                               The content of this object
                               depends on the binlog-version currently in use.
   */
-  Transaction_context_event(const char *buf, unsigned int event_len,
-                            const Format_description_event *descr_event);
+  Transaction_context_event(const char *buffer, unsigned int event_len,
+                            const Format_description_event *description_event);
 
   Transaction_context_event(unsigned int thread_id_arg,
                             bool is_gtid_specified_arg)
@@ -1253,12 +1253,6 @@ protected:
     </td>
   </tr>
 
-  <tr>
-    <td>written_to_binlog</td>
-    <td>1 byte bool</td>
-    <td>Identifies if the event was already written to the binlog.</td>
-  </tr>
-
 */
 class View_change_event : public Binary_log_event
 {
@@ -1289,7 +1283,7 @@ public:
 
   virtual ~View_change_event();
 
-  static char *read_data_map(char *pos, unsigned int map_len,
+  static char *read_data_map(char *pos, uint32_t map_len,
                              std::map<std::string, std::string> *map);
 
 #ifndef HAVE_MYSYS
@@ -1307,17 +1301,14 @@ protected:
   static const int ENCODED_SEQ_NUMBER_OFFSET= 40;
   // 4 bytes length.
   static const int ENCODED_CERT_INFO_SIZE_OFFSET= 48;
-  // 1 bytes length
-  static const int ENCODED_WRITTEN_FLAG_OFFSET= 52;
 
 
   /*
     The layout of the buffer is as follows
-    +--------------------- -+-------------+----------+---------+
-    | View Id               | seq number  | map size | written |
-    +-----------------------+-------------+----------+---------+
+    +--------------------- -+-------------+----------+
+    | View Id               | seq number  | map size |
+    +-----------------------+-------------+----------+
    view id (40 bytes) + seq number (8 bytes) + map size (4 bytes)
-      + written flag (1 byte)
    Sum of the length of the values at the above OFFSETS.
   */
 
@@ -1327,15 +1318,13 @@ protected:
   //Field sizes on serialization
   static const int ENCODED_VIEW_ID_MAX_LEN= 40;
   static const int ENCODED_CERT_INFO_KEY_SIZE_LEN= 2;
-  static const int ENCODED_CERT_INFO_VALUE_LEN= 2;
+  static const int ENCODED_CERT_INFO_VALUE_LEN= 4;
 
   char view_id[ENCODED_VIEW_ID_MAX_LEN];
 
   long long int seq_number;
 
   std::map<std::string, std::string> certification_info;
-
-  bool written_to_binlog;
 };
 
 

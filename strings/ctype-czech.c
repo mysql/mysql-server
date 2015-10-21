@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -58,8 +58,6 @@
  *
  * .configure. strxfrm_multiply_czech=4
  */
-
-#define SKIP_TRAILING_SPACES 1
 
 #include <my_global.h>
 #include "m_string.h"
@@ -183,7 +181,7 @@ while (1)						\
     const uchar *runner = ++p;				\
     while (!(IS_END(runner, src, len)) && (CZ_SORT_TABLE[pass][*runner] == 2)) \
      runner++;	/* skip all spaces */			\
-    if (IS_END(runner, src, len) && SKIP_TRAILING_SPACES) \
+    if (IS_END(runner, src, len)) 			\
       p = runner;					\
     if ((pass <= 2) && !(IS_END(runner, src, len)))	\
       p = runner;					\
@@ -368,8 +366,7 @@ my_strnxfrm_czech(const CHARSET_INFO *cs __attribute__((unused)),
 #define max_sort_char '9'
 
 
-static my_bool my_like_range_czech(const CHARSET_INFO *cs
-                                   __attribute__((unused)),
+static my_bool my_like_range_czech(const CHARSET_INFO *cs,
 				   const char *ptr,size_t ptr_length,
 				   pbool escape, pbool w_one, pbool w_many,
 				   size_t res_length, char *min_str,

@@ -40,6 +40,7 @@
 #include "sp.h"                             // MYSQL_PROC_FIELD_DB
 #include "sp_head.h"                        // sp_head
 #include "sp_pcontext.h"                    // sp_pcontext
+#include "sql_audit.h"                      // audit_global_variable_get
 #include "sql_base.h"                       // close_thread_tables
 #include "sql_class.h"                      // THD
 #include "sql_db.h"                         // check_db_dir_existence
@@ -67,6 +68,9 @@
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
+#ifndef EMBEDDED_LIBRARY
+#include "srv_session.h"
+#endif
 
 #include <algorithm>
 #include <functional>
@@ -357,7 +361,7 @@ static my_bool show_plugins(THD *thd, plugin_ref plugin,
 }
 
 
-int fill_plugins(THD *thd, TABLE_LIST *tables, Item *cond)
+static int fill_plugins(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_plugins");
 
@@ -482,8 +486,7 @@ void ignore_db_dirs_init()
   Needed by hash_init().
 
   @param     data         the data element from the hash
-  @param out len_ret      Placeholder to return the length of the key
-  @param                  unused
+  @param [out] len_ret      Placeholder to return the length of the key
   @return                 a pointer to the key
 */
 
@@ -593,7 +596,8 @@ ignore_db_dirs_process_additions()
                      character_set_filesystem : &my_charset_bin,
                    0, 0, 0, db_dirs_hash_get_key,
                    my_free,
-                   HASH_UNIQUE))
+                   HASH_UNIQUE,
+                   key_memory_ignored_db))
     return true;
 
   /* len starts from 1 because of the terminating zero. */
@@ -736,13 +740,13 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 
   if (!(dirp = my_dir(path,MYF(dir ? MY_WANT_STAT : 0))))
   {
-    if (my_errno == ENOENT)
+    if (my_errno() == ENOENT)
       my_error(ER_BAD_DB_ERROR, MYF(0), db);
     else
     {
       char errbuf[MYSYS_STRERROR_SIZE];
       my_error(ER_CANT_READ_DIR, MYF(0), path,
-               my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+               my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
     }
     DBUG_RETURN(FIND_FILES_DIR);
   }
@@ -754,7 +758,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
     *root_ptr= tmp_mem_root;
   }
 
-  for (i=0 ; i < (uint) dirp->number_off_files  ; i++)
+  for (i=0 ; i < dirp->number_off_files  ; i++)
   {
     char uname[NAME_LEN + 1];                   /* Unencoded name */
     FILEINFO *file;
@@ -869,8 +873,8 @@ public:
      Creates a new Show_create_error_handler for the particular security
      context and view.
 
-     @thd Thread context, used for security context information if needed.
-     @top_view The view. We do not verify at this point that top_view is in
+     @param thd Thread context, used for security context information if needed.
+     @param top_view The view. We do not verify at this point that top_view is in
      fact a view since, alas, these things do not stay constant.
   */
   explicit Show_create_error_handler(THD *thd, TABLE_LIST *top_view) :
@@ -1266,68 +1270,14 @@ static const char *require_quotes(const char *name, size_t name_length)
 }
 
 
-/*
-  Quote the given identifier if needed and append it to the target string.
-  If the given identifier is empty, it will be quoted.
-
-  SYNOPSIS
-  append_identifier()
-  thd                   thread handler
-  packet                target string
-  name                  the identifier to be appended
-  name_length           length of the appending identifier
-*/
-
-void
-append_identifier(THD *thd, String *packet, const char *name, size_t length)
-{
-  const char *name_end;
-  char quote_char;
-  int q;
-  q= thd ? get_quote_char_for_identifier(thd, name, length) : '`';
-
-  if (q == EOF)
-  {
-    packet->append(name, length, packet->charset());
-    return;
-  }
-
-  /*
-    The identifier must be quoted as it includes a quote character or
-   it's a keyword
-  */
-
-  (void) packet->reserve(length*2 + 2);
-  quote_char= (char) q;
-  packet->append(&quote_char, 1, system_charset_info);
-
-  for (name_end= name+length ; name < name_end ; name+= length)
-  {
-    uchar chr= (uchar) *name;
-    length= my_mbcharlen(system_charset_info, chr);
-    /*
-      my_mbcharlen can return 0 on a wrong multibyte
-      sequence. It is possible when upgrading from 4.0,
-      and identifier contains some accented characters.
-      The manual says it does not work. So we'll just
-      change length to 1 not to hang in the endless loop.
-    */
-    if (!length)
-      length= 1;
-    if (length == 1 && chr == (uchar) quote_char)
-      packet->append(&quote_char, 1, system_charset_info);
-    packet->append(name, length, system_charset_info);
-  }
-  packet->append(&quote_char, 1, system_charset_info);
-}
-
 /**
-  Convert the given identifier into to_charset if needed
-  and append it to target string.
+  Convert and quote the given identifier if needed and append it to the
+  target string. If the given identifier is empty, it will be quoted.
+
   @param thd                   thread handler
   @param packet                target string
   @param name                  the identifier to be appended
-  @param length                length of the input identifier
+  @param length                length of the appending identifier
   @param from_cs               Charset information about the input string
   @param to_cs                 Charset information about the target string
 */
@@ -1336,10 +1286,61 @@ void
 append_identifier(THD *thd, String *packet, const char *name, size_t length,
                   const CHARSET_INFO *from_cs, const CHARSET_INFO *to_cs)
 {
-        String to_name(name,length, from_cs);
-        if (from_cs != to_cs)
-            thd->convert_string(&to_name, from_cs, to_cs);
-        append_identifier(thd, packet, to_name.c_ptr(), to_name.length());
+  const char *name_end;
+  char quote_char;
+  int q;
+
+  const CHARSET_INFO *cs_info= system_charset_info;
+  const char *to_name= name;
+  size_t to_length= length;
+  String to_string(name,length, from_cs);
+
+  if (from_cs != NULL && to_cs != NULL && from_cs != to_cs)
+    thd->convert_string(&to_string, from_cs, to_cs);
+
+  if (to_cs != NULL)
+  {
+    to_name= to_string.c_ptr();
+    to_length= to_string.length();
+    cs_info= to_cs;
+  }
+
+  q= thd != NULL ? get_quote_char_for_identifier(thd, to_name, to_length) :
+                   '`';
+
+  if (q == EOF)
+  {
+    packet->append(to_name, to_length, packet->charset());
+    return;
+  }
+
+  /*
+    The identifier must be quoted as it includes a quote character or
+   it's a keyword
+  */
+
+  (void) packet->reserve(to_length*2 + 2);
+  quote_char= (char) q;
+  packet->append(&quote_char, 1, system_charset_info);
+
+  for (name_end= to_name+to_length ; to_name < name_end ; to_name+= to_length)
+  {
+    uchar chr= static_cast<uchar>(*to_name);
+    to_length= my_mbcharlen(cs_info, chr);
+    /*
+      my_mbcharlen can return 0 on a wrong multibyte
+      sequence. It is possible when upgrading from 4.0,
+      and identifier contains some accented characters.
+      The manual says it does not work. So we'll just
+      change length to 1 not to hang in the endless loop.
+    */
+    if (!to_length)
+      to_length= 1;
+    if (to_length == 1 && chr == static_cast<uchar>(quote_char))
+      packet->append(&quote_char, 1, system_charset_info);
+    packet->append(to_name, to_length, system_charset_info);
+  }
+  packet->append(&quote_char, 1, system_charset_info);
 }
 
 /*
@@ -1411,9 +1412,9 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
 /**
   Print "ON UPDATE" clause of a field into a string.
 
-  @param timestamp_field   Pointer to timestamp field of a table.
   @param field             The field to generate ON UPDATE clause for.
-  @bool  lcase             Whether to print in lower case.
+  @param val
+  @param lcase             Whether to print in lower case.
   @return                  false on success, true on error.
 */
 static bool print_on_update_clause(Field *field, String *val, bool lcase)
@@ -1965,7 +1966,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     }
     if (table->s->compress.length)
     {
-      packet->append(STRING_WITH_LEN(" COMPRESS="));
+      packet->append(STRING_WITH_LEN(" COMPRESSION="));
       append_unescaped(packet, share->compress.str, share->compress.length);
     }
     table->file->append_create_info(packet);
@@ -2075,15 +2076,10 @@ view_store_options(THD *thd, TABLE_LIST *table, String *buff)
 }
 
 
-/*
-  Append DEFINER clause to the given buffer.
+/**
+  Append ALGORITHM clause to the given buffer.
   
-  SYNOPSIS
-    append_definer()
-    thd           [in] thread handle
-    buffer        [inout] buffer to hold DEFINER clause
-    definer_user  [in] user name part of definer
-    definer_host  [in] host name part of definer
+  @param [in,out] buff      buffer to hold ALGORITHM clause
 */
 
 static void append_algorithm(TABLE_LIST *table, String *buff)
@@ -2104,15 +2100,13 @@ static void append_algorithm(TABLE_LIST *table, String *buff)
   }
 }
 
-/*
+/**
   Append DEFINER clause to the given buffer.
   
-  SYNOPSIS
-    append_definer()
-    thd           [in] thread handle
-    buffer        [inout] buffer to hold DEFINER clause
-    definer_user  [in] user name part of definer
-    definer_host  [in] host name part of definer
+  @param thd           thread handle
+  @param [in,out] buffer        buffer to hold DEFINER clause
+  @param definer_user  user name part of definer
+  @param definer_host  host name part of definer
 */
 
 void append_definer(THD *thd, String *buffer, const LEX_CSTRING &definer_user,
@@ -2184,7 +2178,7 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
   table->view_query()->unit->print(buff, 
                            enum_query_type(QT_TO_ARGUMENT_CHARSET | 
                                            (compact_view_format ?
-                                            QT_COMPACT_FORMAT : 0)));
+                                            QT_NO_DB : 0)));
 
   if (table->with_check != VIEW_CHECK_NONE)
   {
@@ -2201,7 +2195,6 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
   Return info about all processes
   returns for each thread: thread id, user, host, db, command, info
 ****************************************************************************/
-
 class thread_info : public Sql_alloc
 {
 public:
@@ -2283,7 +2276,8 @@ public:
     LEX_CSTRING inspect_sctx_host= inspect_sctx->host();
     LEX_CSTRING inspect_sctx_host_or_ip= inspect_sctx->host_or_ip();
 
-    if ((!inspect_thd->vio_ok() && !inspect_thd->system_thread) ||
+    if ((!inspect_thd->get_protocol()->connection_alive() &&
+         !inspect_thd->system_thread) ||
         (m_user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
                     strcmp(inspect_sctx_user.str, m_user))))
       return;
@@ -2343,14 +2337,31 @@ public:
 
     /* INFO */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_query);
-    if (inspect_thd->query().str)
     {
-      const size_t width= min(m_max_query_length,
-                              inspect_thd->query().length);
-      char *q= m_client_thd->strmake(inspect_thd->query().str, width);
-      /* Safety: in case strmake failed, we set length to 0. */
-      thd_info->query_string=
-        CSET_STRING(q, q ? width : 0, inspect_thd->charset());
+      const char *query_str= inspect_thd->query().str;
+      size_t query_length= inspect_thd->query().length;
+#ifndef EMBEDDED_LIBRARY
+      String buf;
+      if (inspect_thd->is_a_srv_session())
+      {
+        buf.append(query_length? "PLUGIN: ":"PLUGIN");
+
+        if (query_length)
+          buf.append(query_str, query_length);
+
+        query_str= buf.c_ptr();
+        query_length= buf.length();
+      }
+      /* No else. We need fall-through */
+#endif
+      if (query_str)
+      {
+        const size_t width= min<size_t>(m_max_query_length, query_length);
+        const char *q= m_client_thd->strmake(query_str, width);
+        /* Safety: in case strmake failed, we set length to 0. */
+        thd_info->query_string=
+          CSET_STRING(q, q ? width : 0, inspect_thd->charset());
+      }
     }
     mysql_mutex_unlock(&inspect_thd->LOCK_thd_query);
 
@@ -2373,7 +2384,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 
   field_list.push_back(new Item_int(NAME_STRING("Id"),
                                     0, MY_INT64_NUM_DECIMAL_DIGITS));
-  field_list.push_back(new Item_empty_string("User",16));
+  field_list.push_back(new Item_empty_string("User",USERNAME_CHAR_LENGTH));
   field_list.push_back(new Item_empty_string("Host",LIST_PROCESS_HOST_LEN));
   field_list.push_back(field=new Item_empty_string("db",NAME_CHAR_LEN));
   field->maybe_null=1;
@@ -2455,7 +2466,8 @@ public:
       m_client_thd->security_context()->check_access(PROCESS_ACL) ?
         NullS : client_priv_user;
 
-    if ((!inspect_thd->vio_ok() && !inspect_thd->system_thread) ||
+    if ((!inspect_thd->get_protocol()->connection_alive() &&
+         !inspect_thd->system_thread) ||
         (user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
                   strcmp(inspect_sctx_user.str, user))))
       return;
@@ -2530,13 +2542,29 @@ public:
 
     /* INFO */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_query);
-    if (inspect_thd->query().str)
     {
-      const size_t width= min<size_t>(PROCESS_LIST_INFO_WIDTH,
-                                      inspect_thd->query().length);
-      table->field[7]->store(inspect_thd->query().str, width,
-                             inspect_thd->charset());
-      table->field[7]->set_notnull();
+      const char *query_str= inspect_thd->query().str;
+      size_t query_length= inspect_thd->query().length;
+#ifndef EMBEDDED_LIBRARY
+      String buf;
+      if (inspect_thd->is_a_srv_session())
+      {
+        buf.append(query_length? "PLUGIN: ":"PLUGIN");
+
+        if (query_length)
+          buf.append(query_str, query_length);
+
+        query_str= buf.c_ptr();
+        query_length= buf.length();
+      }
+      /* No else. We need fall-through */
+#endif
+      if (query_str)
+      {
+        const size_t width= min<size_t>(PROCESS_LIST_INFO_WIDTH, query_length);
+        table->field[7]->store(query_str, width, inspect_thd->charset());
+        table->field[7]->set_notnull();
+      }
     }
     mysql_mutex_unlock(&inspect_thd->LOCK_thd_query);
 
@@ -2551,7 +2579,7 @@ public:
   }
 };
 
-int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
+static int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
 {
   DBUG_ENTER("fill_schema_processlist");
 
@@ -2707,9 +2735,9 @@ void free_status_vars()
                               search
   @param[in]       name       name of the status variable
   @param[in]       var_type   Variable type
-  @param[in/out]   value      buffer in which value of the status variable
+  @param[in,out]   value      buffer in which value of the status variable
                               needs to be filled in
-  @param[in/out]   length     filled with buffer length
+  @param[in,out]   length     filled with buffer length
 
   @return          status
     @retval        FALSE      if variable is not found in the list
@@ -2805,19 +2833,19 @@ inline void make_upper(char *buf)
 }
 
 /**
-  @brief Returns the value of a system or a status variable.
+  Returns the value of a system or a status variable.
 
-  @param thd        [IN]    The thd handle.
-  @param variable   [IN]    Details of the variable.
-  @param value_type [IN]    Variable type.
-  @param show_type  [IN]    Variable show type.
-  @param charset    [OUT]   Character set of the value.
-  @param buff       [INOUT] Buffer to store the value.
-                            (Needs to have enough memory
-			     to hold the value of variable.)
-  @param length     [OUT]   Length of the value.
+  @param thd            The handle of the current THD.
+  @param variable       Details of the variable.
+  @param value_type     Variable type.
+  @param show_type      Variable show type.
+  @param [out] charset  Character set of the value.
+  @param [in,out] buff  Buffer to store the value.
+                             (Needs to have enough memory
+                             to hold the value of variable.)
+  @param [out] length   Length of the value.
 
-  @return                   Pointer to the value buffer.
+  @return                    Pointer to the value buffer.
 */
 
 const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
@@ -2825,6 +2853,34 @@ const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
                              System_status_var *status_var,
                              const CHARSET_INFO **charset, char *buff,
                              size_t *length)
+{
+  return get_one_variable_ext(thd, thd, variable, value_type, show_type,
+                              status_var, charset, buff, length);
+}
+
+/**
+  @brief Returns the value of a system or a status variable.
+
+  @param running_thd     The handle of the current THD.
+  @param target_thd      The handle of the remote THD.
+  @param variable        Details of the variable.
+  @param value_type      Variable type.
+  @param show_type       Variable show type.
+  @param [out] charset   Character set of the value.
+  @param [in,out] buff   Buffer to store the value.
+                              (Needs to have enough memory
+                              to hold the value of variable.)
+  @param [out] length    Length of the value.
+
+  @return                     Pointer to the value buffer.
+*/
+
+const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
+                                 const SHOW_VAR *variable,
+                                 enum_var_type value_type, SHOW_TYPE show_type,
+                                 System_status_var *status_var,
+                                 const CHARSET_INFO **charset, char *buff,
+                                 size_t *length)
 {
   const char *value;
 
@@ -2835,8 +2891,8 @@ const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
     null_lex_str.length= 0;
     sys_var *var= ((sys_var *) variable->value);
     show_type= var->show_type();
-    value= (char*) var->value_ptr(thd, thd, value_type, &null_lex_str);
-    *charset= var->charset(thd);
+    value= (char*) var->value_ptr(running_thd, target_thd, value_type, &null_lex_str);
+    *charset= var->charset(running_thd);
   }
   else
   {
@@ -2918,12 +2974,6 @@ const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
     {
       if (!(pos= *(char**) value))
         pos= "";
-
-      DBUG_EXECUTE_IF("alter_server_version_str",
-            if (!my_strcasecmp(system_charset_info, variable->name, "version"))
-            {
-              pos= "some-other-version";
-            });
 
       end= strend(pos);
       break;
@@ -3039,6 +3089,17 @@ static bool show_status_array(THD *thd, const char *wild,
           res= TRUE;
           goto end;
         }
+
+#ifndef EMBEDDED_LIBRARY
+        if (variables->type != SHOW_FUNC && value_type == OPT_GLOBAL &&
+            mysql_audit_notify(thd,
+                               AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_GET),
+                               var->name, pos, length))
+        {
+          res= TRUE;
+          goto end;
+        }
+#endif
       }
     }
   }
@@ -3057,8 +3118,8 @@ public:
   Add_status(System_status_var* value) : m_stat_var(value) {}
   virtual void operator()(THD *thd)
   {
-    System_status_var* stat = &(thd->status_var);
-    add_to_status(m_stat_var, stat, true);
+    if (!thd->status_var_aggregated)
+      add_to_status(m_stat_var, &thd->status_var, false);
   }
 private:
   /* Status of all threads are summed into this. */
@@ -3068,6 +3129,7 @@ private:
 void calc_sum_of_all_status(System_status_var *to)
 {
   DBUG_ENTER("calc_sum_of_all_status");
+  mysql_mutex_assert_owner(&LOCK_status);
   /* Get global values as base. */
   *to= global_status_var;
   Add_status add_status(to);
@@ -3172,9 +3234,9 @@ static int make_table_list(THD *thd, SELECT_LEX *sel,
     1             error, there can be no matching records for the condition
 */
 
-bool get_lookup_value(THD *thd, Item_func *item_func,
-                      TABLE_LIST *table, 
-                      LOOKUP_FIELD_VALUES *lookup_field_vals)
+static bool get_lookup_value(THD *thd, Item_func *item_func,
+                             TABLE_LIST *table,
+                             LOOKUP_FIELD_VALUES *lookup_field_vals)
 {
   ST_SCHEMA_TABLE *schema_table= table->schema_table;
   ST_FIELD_INFO *field_info= schema_table->fields_info;
@@ -3255,8 +3317,9 @@ bool get_lookup_value(THD *thd, Item_func *item_func,
     1             error, there can be no matching records for the condition
 */
 
-bool calc_lookup_values_from_cond(THD *thd, Item *cond, TABLE_LIST *table,
-                                  LOOKUP_FIELD_VALUES *lookup_field_vals)
+static bool calc_lookup_values_from_cond(THD *thd, Item *cond,
+                                         TABLE_LIST *table,
+                                         LOOKUP_FIELD_VALUES *lookup_field_vals)
 {
   if (!cond)
     return 0;
@@ -3290,7 +3353,7 @@ bool calc_lookup_values_from_cond(THD *thd, Item *cond, TABLE_LIST *table,
 }
 
 
-bool uses_only_table_name_fields(Item *item, TABLE_LIST *table)
+static bool uses_only_table_name_fields(Item *item, TABLE_LIST *table)
 {
   if (item->type() == Item::FUNC_ITEM)
   {
@@ -3404,8 +3467,8 @@ static Item * make_cond_for_info_schema(Item *cond, TABLE_LIST *table)
     1             error, there can be no matching records for the condition
 */
 
-bool get_lookup_field_values(THD *thd, Item *cond, TABLE_LIST *tables,
-                             LOOKUP_FIELD_VALUES *lookup_field_values)
+static bool get_lookup_field_values(THD *thd, Item *cond, TABLE_LIST *tables,
+                                    LOOKUP_FIELD_VALUES *lookup_field_values)
 {
   LEX *lex= thd->lex;
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
@@ -3484,9 +3547,9 @@ enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table)
     non-zero              error
 */
 
-int make_db_list(THD *thd, List<LEX_STRING> *files,
-                 LOOKUP_FIELD_VALUES *lookup_field_vals,
-                 bool *with_i_schema, MEM_ROOT *tmp_mem_root)
+static int make_db_list(THD *thd, List<LEX_STRING> *files,
+                        LOOKUP_FIELD_VALUES *lookup_field_vals,
+                        bool *with_i_schema, MEM_ROOT *tmp_mem_root)
 {
   LEX_STRING *i_s_name_copy= 0;
   i_s_name_copy= thd->make_lex_string(i_s_name_copy,
@@ -3598,7 +3661,8 @@ static my_bool add_schema_table(THD *thd, plugin_ref plugin,
 }
 
 
-int schema_tables_add(THD *thd, List<LEX_STRING> *files, const char *wild)
+static int schema_tables_add(THD *thd, List<LEX_STRING> *files,
+                             const char *wild)
 {
   LEX_STRING *file_name= 0;
   ST_SCHEMA_TABLE *tmp_schema_table= schema_tables;
@@ -3651,6 +3715,7 @@ int schema_tables_add(THD *thd, List<LEX_STRING> *files, const char *wild)
   @param[in]      lookup_field_vals     pointer to LOOKUP_FIELD_VALUE struct
   @param[in]      with_i_schema         TRUE means that we add I_S tables to list
   @param[in]      db_name               database name
+  @param          tmp_mem_root
 
   @return         Operation status
     @retval       0           ok
@@ -3761,14 +3826,15 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
   @retval TRUE  - Failure.
 */
 static bool
-fill_schema_table_by_open(THD *thd, bool is_show_fields_or_keys,
+fill_schema_table_by_open(THD *thd, MEM_ROOT *mem_root, 
+                          bool is_show_fields_or_keys,
                           TABLE *table, ST_SCHEMA_TABLE *schema_table,
                           LEX_STRING *orig_db_name,
                           LEX_STRING *orig_table_name,
                           Open_tables_backup *open_tables_state_backup,
                           bool can_deadlock)
 {
-  Query_arena i_s_arena(thd->mem_root,
+  Query_arena i_s_arena(mem_root,
                         Query_arena::STMT_CONVENTIONAL_EXECUTION),
               backup_arena, *old_arena;
   LEX *old_lex= thd->lex, temp_lex, *lex;
@@ -3951,6 +4017,7 @@ end:
   @param[in]      db_name                  database name
   @param[in]      table_name               table name
   @param[in]      with_i_schema            I_S table if TRUE
+  @param          need_table_type
 
   @return         Operation status
     @retval       0           success
@@ -3972,11 +4039,10 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
     }
     else
     {
-      enum legacy_db_type not_used;
       char path[FN_REFLEN + 1];
       (void) build_table_filename(path, sizeof(path) - 1, db_name->str, 
                                   table_name->str, reg_ext, 0);
-      switch (dd_frm_type(thd, path, &not_used)) {
+      switch (dd_frm_type(thd, path)) {
       case FRMTYPE_ERROR:
         table->field[3]->store(STRING_WITH_LEN("ERROR"),
                                system_charset_info);
@@ -4022,7 +4088,7 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
     @retval       SKIP_OPEN_TABLE | OPEN_FRM_ONLY | OPEN_FULL_TABLE
 */
 
-uint get_table_open_method(TABLE_LIST *tables,
+static uint get_table_open_method(TABLE_LIST *tables,
                                   ST_SCHEMA_TABLE *schema_table,
                                   enum enum_schema_tables schema_table_idx)
 {
@@ -4061,8 +4127,6 @@ uint get_table_open_method(TABLE_LIST *tables,
    optional wait for conflicting locks to go away).
 
    @param thd            Thread context.
-   @param mdl_request    Pointer to memory to be used for MDL_request
-                         object for a lock request.
    @param table          Table list element for the table
    @param can_deadlock   Indicates that deadlocks are possible due to
                          metadata locks, so to avoid them we should not
@@ -4116,7 +4180,7 @@ try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
   @brief          Fill I_S table with data from FRM file only
 
   @param[in]      thd                      thread handler
-  @param[in]      table                    TABLE struct for I_S table
+  @param[in]      tables                   TABLE struct for I_S table
   @param[in]      schema_table             I_S table struct
   @param[in]      db_name                  database name
   @param[in]      table_name               table name
@@ -4403,7 +4467,7 @@ public:
     @retval       1                        error
 */
 
-int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
+static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   LEX *lex= thd->lex;
   TABLE *table= tables->table;
@@ -4468,7 +4532,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
     table_name.str= const_cast<char*>(lsel->table_list.first->table_name);
     table_name.length= lsel->table_list.first->table_name_length;
 
-    error= fill_schema_table_by_open(thd, TRUE,
+    error= fill_schema_table_by_open(thd, &tmp_mem_root, TRUE,
                                      table, schema_table,
                                      &db_name, &table_name,
                                      &open_tables_state_backup,
@@ -4610,7 +4674,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
 
             DEBUG_SYNC(thd, "before_open_in_get_all_tables");
 
-            if (fill_schema_table_by_open(thd, FALSE,
+            if (fill_schema_table_by_open(thd, &tmp_mem_root, FALSE,
                                           table, schema_table,
                                           db_name, table_name,
                                           &open_tables_state_backup,
@@ -4636,8 +4700,8 @@ err:
 }
 
 
-bool store_schema_shemata(THD* thd, TABLE *table, LEX_STRING *db_name,
-                          const CHARSET_INFO *cs)
+static bool store_schema_shemata(THD* thd, TABLE *table, LEX_STRING *db_name,
+                                 const CHARSET_INFO *cs)
 {
   restore_record(table, s->default_values);
   table->field[0]->store(STRING_WITH_LEN("def"), system_charset_info);
@@ -4648,7 +4712,7 @@ bool store_schema_shemata(THD* thd, TABLE *table, LEX_STRING *db_name,
 }
 
 
-int fill_schema_schemata(THD *thd, TABLE_LIST *tables, Item *cond)
+static int fill_schema_schemata(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   /*
     TODO: fill_schema_shemata() is called when new client is connected.
@@ -4880,7 +4944,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
       /* In the .frm file this option has a max length of 2K. Currently,
       InnoDB uses only the first 5 bytes and the only supported values
       are (ZLIB | LZ4 | NONE). */
-      ptr= my_stpcpy(ptr, " COMPRESS=\"");
+      ptr= my_stpcpy(ptr, " COMPRESSION=\"");
       ptr= strxnmov(ptr, 7, share->compress.str, NullS);
       ptr= my_stpcpy(ptr, "\"");
     }
@@ -5028,8 +5092,8 @@ err:
   @return         void
 */
 
-void store_column_type(THD *thd, TABLE *table, Field *field, CHARSET_INFO *cs,
-                       uint offset)
+static void store_column_type(THD *thd, TABLE *table, Field *field,
+                              CHARSET_INFO *cs, uint offset)
 {
   bool is_blob;
   int decimals, field_length;
@@ -5079,7 +5143,7 @@ void store_column_type(THD *thd, TABLE *table, Field *field, CHARSET_INFO *cs,
       field->real_type() == MYSQL_TYPE_STRING)     // For binary type
   {
     uint32 octet_max_length= field->max_display_length();
-    if (is_blob && octet_max_length != (uint32) 4294967295U)
+    if (is_blob && octet_max_length != 4294967295U)
       octet_max_length /= field->charset()->mbmaxlen;
     longlong char_max_len= is_blob ? 
       (longlong) octet_max_length / field->charset()->mbminlen :
@@ -5295,7 +5359,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
 }
 
 
-int fill_schema_charsets(THD *thd, TABLE_LIST *tables, Item *cond)
+static int fill_schema_charsets(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   CHARSET_INFO **cs;
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
@@ -5392,7 +5456,7 @@ static my_bool iter_schema_engines(THD *thd, plugin_ref plugin,
   DBUG_RETURN(0);
 }
 
-int fill_schema_engines(THD *thd, TABLE_LIST *tables, Item *cond)
+static int fill_schema_engines(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_schema_engines");
   if (plugin_foreach_with_mask(thd, iter_schema_engines,
@@ -5403,7 +5467,7 @@ int fill_schema_engines(THD *thd, TABLE_LIST *tables, Item *cond)
 }
 
 
-int fill_schema_collation(THD *thd, TABLE_LIST *tables, Item *cond)
+static int fill_schema_collation(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   CHARSET_INFO **cs;
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
@@ -5449,7 +5513,8 @@ int fill_schema_collation(THD *thd, TABLE_LIST *tables, Item *cond)
 }
 
 
-int fill_schema_coll_charset_app(THD *thd, TABLE_LIST *tables, Item *cond)
+static int fill_schema_coll_charset_app(THD *thd, TABLE_LIST *tables,
+                                        Item *cond)
 {
   CHARSET_INFO **cs;
   TABLE *table= tables->table;
@@ -5502,16 +5567,16 @@ static inline void copy_field_as_string(Field *to_field, Field *from_field)
                                         will be useful
                                         if we add 'SHOW PARAMETERs'
   @param[in]      full_access           if 1 user has privileges on the routine
-  @param[in]      sp_user               user in 'user@host' format
+  @param[in]      sp_user               user in 'user\@host' format
 
   @return         Operation status
     @retval       0                     ok
     @retval       1                     error
 */
 
-bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
-                         const char *wild, bool full_access,
-                         const char *sp_user)
+static bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
+                                const char *wild, bool full_access,
+                                const char *sp_user)
 {
   TABLE_SHARE share;
   TABLE tbl;
@@ -5670,8 +5735,9 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
 }
 
 
-bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
-                       const char *wild, bool full_access, const char *sp_user)
+static bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
+                              const char *wild, bool full_access,
+                              const char *sp_user)
 {
   MYSQL_TIME time;
   LEX *lex= thd->lex;
@@ -5808,7 +5874,7 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
 }
 
 
-int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
+static int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   TABLE *proc_table;
   TABLE_LIST proc_tables;
@@ -5820,6 +5886,8 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
   Open_tables_backup open_tables_state_backup;
   enum enum_schema_tables schema_table_idx=
     get_schema_table_idx(tables->schema_table);
+  sql_mode_t old_sql_mode= thd->variables.sql_mode;
+
   DBUG_ENTER("fill_schema_proc");
 
   strxmov(definer, thd->security_context()->priv_user().str, "@",
@@ -5837,6 +5905,9 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
   {
     DBUG_RETURN(1);
   }
+
+  thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
+
   if ((error= proc_table->file->ha_index_init(0, 1)))
   {
     proc_table->file->print_error(error, MYF(0));
@@ -5872,6 +5943,7 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
 err:
   if (proc_table->file->inited)
     (void) proc_table->file->ha_index_end();
+  thd->variables.sql_mode= old_sql_mode;
   close_nontrans_system_tables(thd, &open_tables_state_backup);
   DBUG_RETURN(res);
 }
@@ -6122,9 +6194,10 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
 }
 
 
-bool store_constraints(THD *thd, TABLE *table, LEX_STRING *db_name,
-                       LEX_STRING *table_name, const char *key_name,
-                       size_t key_len, const char *con_type, size_t con_len)
+static bool store_constraints(THD *thd, TABLE *table, LEX_STRING *db_name,
+                              LEX_STRING *table_name, const char *key_name,
+                              size_t key_len, const char *con_type,
+                              size_t con_len)
 {
   CHARSET_INFO *cs= system_charset_info;
   restore_record(table, s->default_values);
@@ -6318,10 +6391,10 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
 }
 
 
-void store_key_column_usage(TABLE *table, LEX_STRING *db_name,
-                            LEX_STRING *table_name, const char *key_name,
-                            size_t key_len, const char *con_type, size_t con_len,
-                            longlong idx)
+static void store_key_column_usage(TABLE *table, LEX_STRING *db_name,
+                                   LEX_STRING *table_name, const char *key_name,
+                                   size_t key_len, const char *con_type,
+                                   size_t con_len, longlong idx)
 {
   CHARSET_INFO *cs= system_charset_info;
   table->field[0]->store(STRING_WITH_LEN("def"), cs);
@@ -6331,7 +6404,7 @@ void store_key_column_usage(TABLE *table, LEX_STRING *db_name,
   table->field[4]->store(db_name->str, db_name->length, cs);
   table->field[5]->store(table_name->str, table_name->length, cs);
   table->field[6]->store(con_type, con_len, cs);
-  table->field[7]->store((longlong) idx, TRUE);
+  table->field[7]->store(idx, TRUE);
 }
 
 
@@ -6778,7 +6851,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
         else
         {
           if (part_elem->range_value != LLONG_MAX)
-            table->field[11]->store((longlong) part_elem->range_value, FALSE);
+            table->field[11]->store(part_elem->range_value, FALSE);
           else
             table->field[11]->store(partition_keywords[PKW_MAXVALUE].str,
                                  partition_keywords[PKW_MAXVALUE].length, cs);
@@ -7052,7 +7125,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 }
 #endif
 
-int fill_open_tables(THD *thd, TABLE_LIST *tables, Item *cond)
+static int fill_open_tables(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_open_tables");
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
@@ -7076,10 +7149,11 @@ int fill_open_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   DBUG_RETURN(0);
 }
 
+#ifndef EMBEDDED_LIBRARY
 /**
   Issue a deprecation warning for SELECT commands for status and system variables.
 */
-void push_select_warning(THD *thd, enum enum_var_type option_type, bool status)
+static void push_select_warning(THD *thd, enum enum_var_type option_type, bool status)
 {
   const char *old_name;
   const char *new_name;
@@ -7099,8 +7173,28 @@ void push_select_warning(THD *thd, enum enum_var_type option_type, bool status)
                       ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX),
                       old_name, new_name);
 }
+#endif // EMBEDDED_LIBRARY
 
-int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
+/**
+  Issue an error for SELECT commands for status and system variables.
+*/
+void push_select_error(THD *thd, enum enum_var_type option_type, bool status)
+{
+  const char *old_name;
+  const char *doc= "show_compatibility_56";
+  if (option_type == OPT_GLOBAL)
+  {
+    old_name= (status ? "INFORMATION_SCHEMA.GLOBAL_STATUS" : "INFORMATION_SCHEMA.GLOBAL_VARIABLES");
+  }
+  else
+  {
+    old_name= (status ? "INFORMATION_SCHEMA.SESSION_STATUS" : "INFORMATION_SCHEMA.SESSION_VARIABLES");
+  }
+
+  thd->raise_error_printf(ER_FEATURE_DISABLED_SEE_DOC, old_name, doc);
+}
+
+static int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_variables");
   Show_var_array sys_var_array(PSI_INSTRUMENT_ME);
@@ -7129,13 +7223,17 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
   }
 
 #ifndef EMBEDDED_LIBRARY
-  /* Issue deprecation warning. */
+  /* I_S: Raise error with SHOW_COMPATIBILITY_56=OFF */
+  if (! show_compatibility_56)
+  {
+    push_select_error(thd, option_type, false);
+    DBUG_RETURN(1);
+  }
+  /* I_S: Raise deprecation warning with SHOW_COMPATIBILITY_56=ON */
   if (lex->sql_command != SQLCOM_SHOW_VARIABLES)
   {
     push_select_warning(thd, option_type, false);
   }
-  if (!show_compatibility_56)
-    DBUG_RETURN(res);
 #endif /* EMBEDDED_LIBRARY */
 
 
@@ -7183,14 +7281,15 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
 }
 
 
-int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
+static int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_status");
   LEX *lex= thd->lex;
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   int res= 0;
 
-  System_status_var *tmp1, tmp;
+  System_status_var *status_var_ptr;
+  System_status_var current_global_status_var;
   enum enum_schema_tables schema_table_idx=
     get_schema_table_idx(tables->schema_table);
   enum enum_var_type option_type;
@@ -7200,23 +7299,30 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
   {
     option_type= lex->option_type;
     if (option_type == OPT_GLOBAL)
-      tmp1= &tmp;
+      status_var_ptr= &current_global_status_var;
     else
-      tmp1= thd->initial_status_var;
+      status_var_ptr= thd->initial_status_var;
   }
   else if (schema_table_idx == SCH_GLOBAL_STATUS)
   {
     option_type= OPT_GLOBAL;
-    tmp1= &tmp;
+    status_var_ptr= &current_global_status_var;
   }
   else
   { 
+    DBUG_ASSERT(schema_table_idx == SCH_SESSION_STATUS);
     option_type= OPT_SESSION;
-    tmp1= &thd->status_var;
+    status_var_ptr= &thd->status_var;
   }
 
 #ifndef EMBEDDED_LIBRARY
-  /* Issue deprecation warning. */
+  /* I_S: Raise error with SHOW_COMPATIBILITY_56=OFF */
+  if (! show_compatibility_56)
+  {
+    push_select_error(thd, option_type, true);
+    DBUG_RETURN(1);
+  }
+  /* I_S: Raise deprecation warning with SHOW_COMPATIBILITY_56=ON */
   if (lex->sql_command != SQLCOM_SHOW_STATUS)
   {
     push_select_warning(thd, option_type, true);
@@ -7229,21 +7335,24 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
     Avoid recursive acquisition of LOCK_status in cases when WHERE clause
     represented by "cond" contains subquery on I_S.SESSION/GLOBAL_STATUS.
   */
+  DEBUG_SYNC(thd, "before_preparing_global_status_array");
+
   if (thd->fill_status_recursion_level++ == 0) 
     mysql_mutex_lock(&LOCK_status);
   if (option_type == OPT_GLOBAL)
-    calc_sum_of_all_status(&tmp);
+    calc_sum_of_all_status(status_var_ptr);
   // Push an empty tail element
   all_status_vars.push_back(st_mysql_show_var());
   res= show_status_array(thd, wild,
                          &all_status_vars[0],
-                         option_type, tmp1, "", tables,
+                         option_type, status_var_ptr, "", tables,
                          upper_case_names, cond);
   all_status_vars.pop_back(); // Pop the empty element.
 
   if (thd->fill_status_recursion_level-- == 1) 
     mysql_mutex_unlock(&LOCK_status);
 
+  DEBUG_SYNC(thd, "after_preparing_global_status_array");
   DBUG_RETURN(res);
 }
 
@@ -7417,17 +7526,16 @@ ST_SCHEMA_TABLE *get_schema_table(enum enum_schema_tables schema_table_idx)
     length.  Encode this value with  (decimals*100)+length  , where
     0<decimals<10 and 0<=length<100 .
 
-  @param
-    thd	       	          thread handler
+  @param thd	       	          thread handler
 
   @param table_list Used to pass I_S table information(fields info, tables
   parameters etc) and table name.
 
-  @retval  \#             Pointer to created table
+  @returns  Pointer to created table
   @retval  NULL           Can't create table
 */
 
-TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
+static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
 {
   int field_count= 0;
   Item *item;
@@ -7537,7 +7645,7 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
     DBUG_RETURN(0);
   my_bitmap_map* bitmaps=
     (my_bitmap_map*) thd->alloc(bitmap_buffer_size(field_count));
-  bitmap_init(&table->def_read_set, (my_bitmap_map*) bitmaps, field_count,
+  bitmap_init(&table->def_read_set, bitmaps, field_count,
               FALSE);
   table->read_set= &table->def_read_set;
   bitmap_clear_all(table->read_set);
@@ -7561,7 +7669,7 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
    0	success
 */
 
-int make_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
+static int make_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
   ST_FIELD_INFO *field_info= schema_table->fields_info;
   Name_resolution_context *context= &thd->lex->select_lex->context;
@@ -7583,7 +7691,7 @@ int make_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 }
 
 
-int make_schemata_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
+static int make_schemata_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
   char tmp[128];
   LEX *lex= thd->lex;
@@ -7612,7 +7720,7 @@ int make_schemata_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 }
 
 
-int make_table_names_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
+static int make_table_names_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
   char tmp[128];
   String buffer(tmp,sizeof(tmp), thd->charset());
@@ -7647,7 +7755,7 @@ int make_table_names_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 }
 
 
-int make_columns_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
+static int make_columns_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
   int fields_arr[]= {IS_COLUMNS_COLUMN_NAME,
                      IS_COLUMNS_COLUMN_TYPE,
@@ -7683,7 +7791,8 @@ int make_columns_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 }
 
 
-int make_character_sets_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
+static int make_character_sets_old_format(THD *thd,
+                                          ST_SCHEMA_TABLE *schema_table)
 {
   int fields_arr[]= {0, 2, 1, 3, -1};
   int *field_num= fields_arr;
@@ -7706,7 +7815,7 @@ int make_character_sets_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 }
 
 
-int make_proc_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
+static int make_proc_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
   int fields_arr[]= {IS_ROUTINES_ROUTINE_SCHEMA,
                      IS_ROUTINES_ROUTINE_NAME,
@@ -7891,7 +8000,7 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
   nature of fill_table().
 
   For example, SELECT ... FROM INFORMATION_SCHEMA.xxx WHERE TABLE_NAME = 'xxx'
-  results in a number of 'Table <db name>.xxx does not exist' errors,
+  results in a number of 'Table @<db name@>.xxx does not exist' errors,
   because fill_table() tries to open the 'xxx' table in every possible
   database.
 
@@ -7910,7 +8019,7 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
 
   @param thd            Thread context.
   @param table_list     I_S table.
-  @param join_table     JOIN/SELECT table.
+  @param qep_tab     JOIN/SELECT table.
 
   @return Error status.
   @retval TRUE Error.
@@ -8078,7 +8187,7 @@ static my_bool run_hton_fill_schema_table(THD *thd, plugin_ref plugin,
   return false;
 }
 
-int hton_fill_schema_table(THD *thd, TABLE_LIST *tables, Item *cond)
+static int hton_fill_schema_table(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("hton_fill_schema_table");
 
@@ -8573,7 +8682,7 @@ ST_FIELD_INFO variables_fields_info[]=
 ST_FIELD_INFO processlist_fields_info[]=
 {
   {"ID", 21, MYSQL_TYPE_LONGLONG, 0, MY_I_S_UNSIGNED, "Id", SKIP_OPEN_TABLE},
-  {"USER", 16, MYSQL_TYPE_STRING, 0, 0, "User", SKIP_OPEN_TABLE},
+  {"USER", USERNAME_CHAR_LENGTH, MYSQL_TYPE_STRING, 0, 0, "User", SKIP_OPEN_TABLE},
   {"HOST", LIST_PROCESS_HOST_LEN,  MYSQL_TYPE_STRING, 0, 0, "Host",
    SKIP_OPEN_TABLE},
   {"DB", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, "Db", SKIP_OPEN_TABLE},
@@ -8607,7 +8716,7 @@ ST_FIELD_INFO plugin_fields_info[]=
 ST_FIELD_INFO files_fields_info[]=
 {
   {"FILE_ID", 4, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
-  {"FILE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
+  {"FILE_NAME", FN_REFLEN_SE, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
   {"FILE_TYPE", 20, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
   {"TABLESPACE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0,
    SKIP_OPEN_TABLE},
@@ -8909,7 +9018,7 @@ int finalize_schema_table(st_plugin_int *plugin)
   Output trigger information (SHOW CREATE TRIGGER) to the client.
 
   @param thd          Thread context.
-  @param triggers     table trigger to dump.
+  @param trigger      table trigger to dump.
 
   @return Operation status
     @retval TRUE Error.
@@ -9109,8 +9218,8 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
                   MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))
   {
     my_error(ER_TRG_CANT_OPEN_TABLE, MYF(0),
-             (const char *) trg_name->m_db.str,
-             (const char *) lst->table_name);
+             trg_name->m_db.str,
+             lst->table_name);
 
     goto exit;
 
@@ -9130,8 +9239,8 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
   if (!trigger)
   {
     my_error(ER_TRG_CORRUPTED_FILE, MYF(0),
-             (const char *) trg_name->m_db.str,
-             (const char *) lst->table_name);
+             trg_name->m_db.str,
+             lst->table_name);
 
     goto exit;
   }

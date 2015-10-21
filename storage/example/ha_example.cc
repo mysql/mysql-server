@@ -32,7 +32,7 @@
   --with-example-storage-engine
 
   Once this is done, MySQL will let you create tables with:<br>
-  CREATE TABLE <table name> (...) ENGINE=EXAMPLE;
+  CREATE TABLE \<table name\> (...) ENGINE=EXAMPLE;
 
   The example storage engine is set up to use table locks. It
   implements an example "SHARE" that is inserted into a hash by table
@@ -213,7 +213,7 @@ const char* example_system_database()
 
   This array is optional, so every SE need not implement it.
 */
-static st_system_tablename ha_example_system_tables[]= {
+static st_handler_tablename ha_example_system_tables[]= {
   {(const char*)NULL, (const char*)NULL}
 };
 
@@ -233,7 +233,7 @@ static bool example_is_supported_system_table(const char *db,
                                               const char *table_name,
                                               bool is_sql_layer_system_table)
 {
-  st_system_tablename *systab;
+  st_handler_tablename *systab;
 
   // Does this SE support "ALL" SQL layer system tables ?
   if (is_sql_layer_system_table)
@@ -855,6 +855,26 @@ ha_rows ha_example::records_in_range(uint inx, key_range *min_key,
 }
 
 
+static MYSQL_THDVAR_STR(
+  last_create_thdvar,
+  PLUGIN_VAR_MEMALLOC,
+  NULL,
+  NULL,
+  NULL,
+  NULL);
+
+static MYSQL_THDVAR_UINT(
+  create_count_thdvar,
+  0,
+  NULL,
+  NULL,
+  NULL,
+  0,
+  0,
+  1000,
+  0);
+
+
 /**
   @brief
   create() is called to create a database. The variable name will have the name
@@ -882,6 +902,20 @@ int ha_example::create(const char *name, TABLE *table_arg,
     This is not implemented but we want someone to be able to see that it
     works.
   */
+
+  /*
+    It's just an example of THDVAR_SET() usage below.
+  */
+  THD *thd = ha_thd();
+  char *buf = (char *) my_malloc(PSI_NOT_INSTRUMENTED, SHOW_VAR_FUNC_BUFF_SIZE,
+                                 MYF(MY_FAE));
+  my_snprintf(buf, SHOW_VAR_FUNC_BUFF_SIZE, "Last creation '%s'", name);
+  THDVAR_SET(thd, last_create_thdvar, buf);
+  my_free(buf);
+
+  uint count= THDVAR(thd, create_count_thdvar) + 1;
+  THDVAR_SET(thd, create_count_thdvar, &count);
+
   DBUG_RETURN(0);
 }
 
@@ -954,6 +988,8 @@ static struct st_mysql_sys_var* example_system_variables[]= {
   MYSQL_SYSVAR(ulong_var),
   MYSQL_SYSVAR(double_var),
   MYSQL_SYSVAR(double_thdvar),
+  MYSQL_SYSVAR(last_create_thdvar),
+  MYSQL_SYSVAR(create_count_thdvar),
   NULL
 };
 

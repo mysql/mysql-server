@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,13 +54,15 @@ int mi_write(MI_INFO *info, uchar *record)
 
   DBUG_EXECUTE_IF("myisam_pretend_crashed_table_on_usage",
                   mi_print_error(info->s, HA_ERR_CRASHED);
-                  DBUG_RETURN(my_errno= HA_ERR_CRASHED););
+                  set_my_errno(HA_ERR_CRASHED);
+                  DBUG_RETURN(HA_ERR_CRASHED););
   if (share->options & HA_OPTION_READ_ONLY_DATA)
   {
-    DBUG_RETURN(my_errno=EACCES);
+    set_my_errno(EACCES);
+    DBUG_RETURN(EACCES);
   }
   if (_mi_readinfo(info,F_WRLCK,1))
-    DBUG_RETURN(my_errno);
+    DBUG_RETURN(my_errno());
 
   filepos= ((share->state.dellink != HA_OFFSET_ERROR &&
              !info->append_insert_at_end) ?
@@ -71,12 +73,12 @@ int mi_write(MI_INFO *info, uchar *record)
       share->base.records == (ha_rows) 1 &&
       info->state->records == (ha_rows) 1)
   {						/* System file */
-    my_errno=HA_ERR_RECORD_FILE_FULL;
+    set_my_errno(HA_ERR_RECORD_FILE_FULL);
     goto err2;
   }
   if (info->state->key_file_length >= share->base.margin_key_file_length)
   {
-    my_errno=HA_ERR_INDEX_FILE_FULL;
+    set_my_errno(HA_ERR_INDEX_FILE_FULL);
     goto err2;
   }
   if (_mi_mark_file_changed(info))
@@ -115,7 +117,7 @@ int mi_write(MI_INFO *info, uchar *record)
         {
 	  if (local_lock_tree)
             mysql_rwlock_unlock(&share->key_root_lock[i]);
-          DBUG_PRINT("error",("Got error: %d on write",my_errno));
+          DBUG_PRINT("error",("Got error: %d on write",my_errno()));
           goto err;
         }
       }
@@ -126,7 +128,7 @@ int mi_write(MI_INFO *info, uchar *record)
         {
           if (local_lock_tree)
             mysql_rwlock_unlock(&share->key_root_lock[i]);
-          DBUG_PRINT("error",("Got error: %d on write",my_errno));
+          DBUG_PRINT("error",("Got error: %d on write",my_errno()));
           goto err;
         }
       }
@@ -173,9 +175,9 @@ int mi_write(MI_INFO *info, uchar *record)
   DBUG_RETURN(0);
 
 err:
-  save_errno=my_errno;
-  if (my_errno == HA_ERR_FOUND_DUPP_KEY || my_errno == HA_ERR_RECORD_FILE_FULL ||
-      my_errno == HA_ERR_NULL_IN_SPATIAL || my_errno == HA_ERR_OUT_OF_MEM)
+  save_errno=my_errno();
+  if (my_errno() == HA_ERR_FOUND_DUPP_KEY || my_errno() == HA_ERR_RECORD_FILE_FULL ||
+      my_errno() == HA_ERR_NULL_IN_SPATIAL || my_errno() == HA_ERR_OUT_OF_MEM)
   {
     if (info->bulk_insert)
     {
@@ -223,12 +225,13 @@ err:
     mi_mark_crashed(info);
   }
   info->update= (HA_STATE_CHANGED | HA_STATE_WRITTEN | HA_STATE_ROW_CHANGED);
-  my_errno=save_errno;
+  set_my_errno(save_errno);
 err2:
-  save_errno=my_errno;
-  myisam_log_record(MI_LOG_WRITE,info,record,filepos,my_errno);
+  save_errno=my_errno();
+  myisam_log_record(MI_LOG_WRITE,info,record,filepos,my_errno());
   (void) _mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
-  DBUG_RETURN(my_errno=save_errno);
+  set_my_errno(save_errno);
+  DBUG_RETURN(save_errno);
 } /* mi_write */
 
 
@@ -403,7 +406,7 @@ static int w_search(MI_INFO *info, MI_KEYDEF *keyinfo,
     else /* not HA_FULLTEXT, normal HA_NOSAME key */
     {
       info->dupp_key_pos= dupp_key_pos;
-      my_errno=HA_ERR_FOUND_DUPP_KEY;
+      set_my_errno(HA_ERR_FOUND_DUPP_KEY);
       DBUG_RETURN(-1);
     }
   }
@@ -423,7 +426,7 @@ static int w_search(MI_INFO *info, MI_KEYDEF *keyinfo,
   }
   DBUG_RETURN(error);
 err:
-  DBUG_PRINT("exit",("Error: %d",my_errno));
+  DBUG_PRINT("exit",("Error: %d",my_errno()));
   DBUG_RETURN (-1);
 } /* w_search */
 
@@ -493,7 +496,7 @@ int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo,
     if (t_length >= keyinfo->maxlength*2+MAX_POINTER_LENGTH)
     {
       mi_print_error(info->s, HA_ERR_CRASHED);
-      my_errno=HA_ERR_CRASHED;
+      set_my_errno(HA_ERR_CRASHED);
       DBUG_RETURN(-1);
     }
     memmove(key_pos + t_length, key_pos, (size_t) (endpos - key_pos));
@@ -503,7 +506,7 @@ int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo,
     if (-t_length >= keyinfo->maxlength*2+MAX_POINTER_LENGTH)
     {
       mi_print_error(info->s, HA_ERR_CRASHED);
-      my_errno=HA_ERR_CRASHED;
+      set_my_errno(HA_ERR_CRASHED);
       DBUG_RETURN(-1);
     }
     memmove(key_pos, key_pos - t_length, (uint) (endpos - key_pos) + t_length);
@@ -527,7 +530,7 @@ int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo,
       uint alen, blen, ft2len=info->s->ft2_keyinfo.keylength;
       /* the very first key on the page is always unpacked */
       DBUG_ASSERT((*b & 128) == 0);
-#if HA_FT_MAXLEN >= 127
+#if HA_FT_MAXLEN >= 127 /* TODO: Undefined symbol */
       blen= mi_uint2korr(b); b+=2;
 #else
       blen= *b++;
@@ -541,7 +544,9 @@ int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo,
         info->ft1_to_ft2=(DYNAMIC_ARRAY *)
           my_malloc(mi_key_memory_MI_INFO_ft1_to_ft2,
                     sizeof(DYNAMIC_ARRAY), MYF(MY_WME));
-        my_init_dynamic_array(info->ft1_to_ft2, ft2len, NULL, 300, 50);
+        my_init_dynamic_array(info->ft1_to_ft2,
+                              mi_key_memory_MI_INFO_ft1_to_ft2,
+                              ft2len, NULL, 300, 50);
 
         /*
           now, adding all keys from the page to dynarray
@@ -557,7 +562,7 @@ int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo,
             if (insert_dynamic(info->ft1_to_ft2, b))
             {
               mi_print_error(info->s, HA_ERR_OUT_OF_MEM);
-              my_errno= HA_ERR_OUT_OF_MEM;
+              set_my_errno(HA_ERR_OUT_OF_MEM);
               DBUG_RETURN(-1);
             }
           }
@@ -734,7 +739,7 @@ static uchar *_mi_find_last_pos(MI_KEYDEF *keyinfo, uchar *page,
     if (!(length=(*keyinfo->get_key)(keyinfo,0,&page,key_buff)))
     {
       mi_print_error(keyinfo->share, HA_ERR_CRASHED);
-      my_errno=HA_ERR_CRASHED;
+      set_my_errno(HA_ERR_CRASHED);
       DBUG_RETURN(0);
     }
   }

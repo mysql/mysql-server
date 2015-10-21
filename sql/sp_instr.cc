@@ -447,6 +447,13 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
     Transaction_ctx::STMT,
     parent_unsafe_rollback_flags);
 
+  if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
+  {
+    ((Transaction_state_tracker *)
+     thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER))
+      ->add_trx_state_from_thd(thd);
+  }
+
   /* Restore original lex. */
 
   thd->lex= lex_saved;
@@ -617,6 +624,7 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd,
 
   while (true)
   {
+    DBUG_EXECUTE_IF("simulate_bug18831513", { invalidate(); });
     if (is_invalid())
     {
       LEX *lex= parse_expr(thd, thd->sp_runtime_ctx->sp);

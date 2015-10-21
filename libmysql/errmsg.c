@@ -91,7 +91,7 @@ const char *client_errors[]=
   ""
 };
 
-const char* get_client_errmsg(int nr)
+static const char* get_client_errmsg(int nr)
 {
   return client_errors[nr - CR_ERROR_FIRST];
 }

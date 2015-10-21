@@ -11,12 +11,12 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	User var	#	#	@`a b`=_latin1 0x68656C6C6F COLLATE latin1_swedish_ci
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES(@`a b`)
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	User var	#	#	@`var1`=_latin1 0x273B616161 COLLATE latin1_swedish_ci
 master-bin.000001	#	User var	#	#	@`var2`=_binary 0x61 COLLATE binary
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (@var1),(@var2)
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 flush logs;
 include/mysqlbinlog.inc
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -28,7 +28,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1344274464/*!*/;
+SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -41,9 +41,7 @@ use `test`/*!*/;
 SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(@`a b`)
 /*!*/;
-SET TIMESTAMP=#/*!*/;
-COMMIT
-/*!*/;
+COMMIT/*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 BEGIN
@@ -53,13 +51,10 @@ SET @`var2`:=_binary 0x61 COLLATE `binary`/*!*/;
 SET TIMESTAMP=#/*!*/;
 insert into t1 values (@var1),(@var2)
 /*!*/;
-SET TIMESTAMP=#/*!*/;
-COMMIT
-/*!*/;
+COMMIT/*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 drop table t1;

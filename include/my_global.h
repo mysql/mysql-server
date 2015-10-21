@@ -17,7 +17,8 @@
 #ifndef MY_GLOBAL_INCLUDED
 #define MY_GLOBAL_INCLUDED
 
-/*
+/**
+  @file include/my_global.h
   This include file should be included first in every header file.
 
   This makes sure my_config.h is included to get platform specific
@@ -104,7 +105,10 @@
 #undef SIZEOF_OFF_T
 #define SIZEOF_OFF_T 8
 
-#define sleep(a) Sleep((a)*1000)
+static inline void sleep(unsigned long seconds)
+{
+  Sleep(seconds * 1000);
+}
 
 /* Define missing access() modes. */
 #define F_OK 0
@@ -150,7 +154,6 @@ typedef unsigned int uint;
 typedef unsigned short ushort;
 #endif
 
-#define swap_variables(t, a, b) { t dummy; dummy= a; a= b; b= dummy; }
 #define MY_TEST(a)		((a) ? 1 : 0)
 #define MY_MAX(a, b)	((a) > (b) ? (a) : (b))
 #define MY_MIN(a, b)	((a) < (b) ? (a) : (b))
@@ -193,7 +196,6 @@ typedef SSIZE_T   ssize_t;
 #else
 typedef socklen_t socket_len_t;
 #endif
-typedef socket_len_t SOCKET_SIZE_TYPE; /* Used by NDB */
 
 /* file create flags */
 
@@ -234,6 +236,7 @@ typedef socket_len_t SOCKET_SIZE_TYPE; /* Used by NDB */
 #define FN_HEADLEN	253	/* Max length of filepart of file name */
 #define FN_EXTLEN	20	/* Max length of extension (part of FN_LEN) */
 #define FN_REFLEN	512	/* Max length of full path-name */
+#define FN_REFLEN_SE	4000	/* Max length of full path-name in SE */
 #define FN_EXTCHAR	'.'
 #define FN_HOMELIB	'~'	/* ~/ is used as abbrev for home dir */
 #define FN_CURLIB	'.'	/* ./ is used as abbrev for current dir */
@@ -599,8 +602,9 @@ static inline struct tm *gmtime_r(const time_t *clock, struct tm *res)
   gmtime_s(res, clock);
   return res;
 }
+#endif /* _WIN32 */
 
-
+#ifndef HAVE_STRUCT_TIMESPEC /* Windows before VS2015 */
 /*
   Declare a union to make sure FILETIME is properly aligned
   so it can be used directly as a 64 bit value. The value
@@ -617,40 +621,15 @@ struct timespec {
   long max_timeout_msec;
 };
 
-#endif /* _WIN32 */
+#endif /* !HAVE_STRUCT_TIMESPEC */
 
 C_MODE_START
-extern ulonglong my_getsystime(void);
+ulonglong my_getsystime(void);
+
+void set_timespec_nsec(struct timespec *abstime, ulonglong nsec);
+
+void set_timespec(struct timespec *abstime, ulonglong sec);
 C_MODE_END
-
-static inline void set_timespec_nsec(struct timespec *abstime, ulonglong nsec)
-{
-#ifndef _WIN32
-  ulonglong now= my_getsystime() + (nsec / 100);
-  ulonglong tv_sec= now / 10000000ULL;
-#if SIZEOF_TIME_T < SIZEOF_LONG_LONG
-  /* Ensure that the number of seconds don't overflow. */
-  tv_sec= MY_MIN(tv_sec, ((ulonglong)INT_MAX32));
-#endif
-  abstime->tv_sec=  (time_t)tv_sec;
-  abstime->tv_nsec= (now % 10000000ULL) * 100 + (nsec % 100);
-#else /* !_WIN32 */
-  ulonglong max_timeout_msec= (nsec / 1000000);
-  union ft64 tv;
-  GetSystemTimeAsFileTime(&tv.ft);
-  abstime->tv.i64= tv.i64 + (__int64)(nsec / 100);
-#if SIZEOF_LONG < SIZEOF_LONG_LONG
-  /* Ensure that the msec value doesn't overflow. */
-  max_timeout_msec= MY_MIN(max_timeout_msec, ((ulonglong)INT_MAX32));
-#endif
-  abstime->max_timeout_msec= (long)max_timeout_msec;
-#endif /* !_WIN32 */
-}
-
-static inline void set_timespec(struct timespec *abstime, ulonglong sec)
-{
-  set_timespec_nsec(abstime, sec * 1000000000ULL);
-}
 
 /**
    Compare two timespec structs.
@@ -661,7 +640,7 @@ static inline void set_timespec(struct timespec *abstime, ulonglong sec)
 */
 static inline int cmp_timespec(struct timespec *ts1, struct timespec *ts2)
 {
-#ifndef _WIN32
+#ifdef HAVE_STRUCT_TIMESPEC
   if (ts1->tv_sec > ts2->tv_sec ||
       (ts1->tv_sec == ts2->tv_sec && ts1->tv_nsec > ts2->tv_nsec))
     return 1;
@@ -679,13 +658,19 @@ static inline int cmp_timespec(struct timespec *ts1, struct timespec *ts2)
 
 static inline ulonglong diff_timespec(struct timespec *ts1, struct timespec *ts2)
 {
-#ifndef _WIN32
+#ifdef HAVE_STRUCT_TIMESPEC
   return (ts1->tv_sec - ts2->tv_sec) * 1000000000ULL +
     ts1->tv_nsec - ts2->tv_nsec;
 #else
   return (ts1->tv.i64 - ts2->tv.i64) * 100;
 #endif
 }
+
+#ifdef _WIN32
+typedef int MY_MODE;
+#else
+typedef mode_t MY_MODE;
+#endif /* _WIN32 */
 
 /* File permissions */
 #define USER_READ       (1L << 0)
@@ -707,4 +692,7 @@ static inline ulonglong diff_timespec(struct timespec *ts1, struct timespec *ts2
 #define DEFAULT_SSL_SERVER_CERT "server-cert.pem"
 #define DEFAULT_SSL_SERVER_KEY  "server-key.pem"
 
+#if defined(_WIN32) || defined(_WIN64)
+  #define strcasecmp _stricmp
+#endif
 #endif  // MY_GLOBAL_INCLUDED

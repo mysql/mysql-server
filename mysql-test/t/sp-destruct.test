@@ -212,7 +212,7 @@ DROP FUNCTION IF EXISTS f1;
 CREATE FUNCTION f1() RETURNS INT RETURN 1;
 
 --echo # Backup the procs_priv table
-RENAME TABLE mysql.procs_priv TO procs_priv_backup;
+RENAME TABLE mysql.procs_priv TO mysql.procs_priv_backup;
 FLUSH TABLE mysql.procs_priv;
 
 # DROP FUNCTION used to cause an assert.
@@ -221,7 +221,7 @@ DROP FUNCTION f1;
 SHOW WARNINGS;
 
 --echo # Restore the procs_priv table
-RENAME TABLE procs_priv_backup TO mysql.procs_priv;
+RENAME TABLE mysql.procs_priv_backup TO mysql.procs_priv;
 FLUSH TABLE mysql.procs_priv;
 
 

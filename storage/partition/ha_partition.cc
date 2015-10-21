@@ -303,7 +303,7 @@ ha_partition::ha_partition(handlerton *hton, TABLE_SHARE *share)
   @param share              Table share object
   @param part_info_arg      partition_info to use
   @param clone_arg          ha_partition to clone
-  @param clme_mem_root_arg  MEM_ROOT to use
+  @param clone_mem_root_arg MEM_ROOT to use
 
   @return New partition handler
 */
@@ -1074,14 +1074,14 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
 
 
 /**
-  @brief Check and repair the table if neccesary
+  @brief Check and repair the table if necessary.
 
   @param thd    Thread object
 
   @retval TRUE  Error/Not supported
   @retval FALSE Success
 
-  @note Called if open_table_from_share fails and ::is_crashed().
+  @note Called if open_table_from_share fails and is_crashed().
 */
 
 bool ha_partition::check_and_repair(THD *thd)
@@ -1099,7 +1099,7 @@ bool ha_partition::check_and_repair(THD *thd)
 
 
 /**
-  @breif Check if the table can be automatically repaired
+  Check if the table can be automatically repaired.
 
   @retval TRUE  Can be auto repaired
   @retval FALSE Cannot be auto repaired
@@ -1118,7 +1118,7 @@ bool ha_partition::auto_repair() const
 
 
 /**
-  @breif Check if the table is crashed
+  Check if the table is crashed.
 
   @retval TRUE  Crashed
   @retval FALSE Not crashed
@@ -1144,7 +1144,6 @@ bool ha_partition::is_crashed() const
   @param  num_partitions            Number of new partitions to be created.
   @param  only_create               True if only creating the partition
                                     (no open/lock is needed).
-  @param  disable_non_uniq_indexes  True if non unique indexes are disabled.
 
   @return Operation status.
     @retval    0  Success.
@@ -1176,7 +1175,7 @@ int ha_partition::prepare_for_new_partitions(uint num_partitions,
 
   Used during fast_alter_part_table (ALTER TABLE ... ADD/DROP... PARTITION).
 
-  @param  table        Table object.
+  @param  tbl          Table object.
   @param  create_info  Create info from CREATE TABLE.
   @param  part_name    Partition name.
   @param  new_part_id  Partition id in m_new_file array.
@@ -2828,15 +2827,14 @@ int ha_partition::start_stmt(THD *thd, thr_lock_type lock_type)
 
 
 /**
-  Get number of lock objects returned in store_lock
+  Get number of lock objects returned in store_lock.
+
+  Returns the number of store locks needed in call to store lock.
+  We return number of partitions we will lock multiplied with number of
+  locks needed by each partition. Assists the above functions in allocating
+  sufficient space for lock structures.
 
   @returns Number of locks returned in call to store_lock
-
-  @desc
-    Returns the number of store locks needed in call to store lock.
-    We return number of partitions we will lock multiplied with number of
-    locks needed by each partition. Assists the above functions in allocating
-    sufficient space for lock structures.
 */
 
 uint ha_partition::lock_count() const
@@ -3414,7 +3412,7 @@ void ha_partition::position_in_last_part(uchar *ref, const uchar *record)
 
   @param[in]     part_id  Partition to read from.
   @param[in,out] buf      Buffer to fill with record in MySQL format.
-  @param[in]     pos      Position (data pointed to from ::ref) from position().
+  @param[in]     pos      Position (data pointed to from @c ref) from position().
 
   @return Operation status.
     @retval    0  Success
@@ -3472,7 +3470,7 @@ static int key_and_ref_cmp(KEY** key_info, uchar *a, uchar *b)
   Initialize partition before start of index scan.
 
   @param part    Partition to initialize the index in.
-  @param inx     Index number.
+  @param keynr   Index number.
   @param sorted  Is rows to be returned in sorted order.
 
   @return Operation status
@@ -3659,7 +3657,7 @@ int ha_partition::index_next_in_part(uint part, uchar *buf)
   @param[in]     part    Partition to read from.
   @param[in,out] buf     Read row in MySQL Row Format.
   @param[in]     key     Key.
-  @param[in]     keylen  Length of key.
+  @param[in]     length  Length of key.
 
   @return Operation status.
     @retval    0  Success
@@ -4105,7 +4103,7 @@ void ha_partition::get_dynamic_partition_info(ha_statistics *stat_info,
     @retval     0               success
     @retval     >0              error code
 
-  @detail
+  @details
 
   extra() is called whenever the server wishes to send a hint to
   the storage engine. The MyISAM engine implements the most hints.
@@ -4280,7 +4278,7 @@ void ha_partition::get_dynamic_partition_info(ha_statistics *stat_info,
     this out. And we also ensure that all caches are disabled and no one
     is left by mistake.
     In the future this call will probably be deleted and we will instead call
-    ::reset();
+    @c reset();
 
   HA_EXTRA_WRITE_CACHE:
     See above, called from various places. It is mostly used when we
@@ -5285,7 +5283,7 @@ ha_partition::check_if_supported_inplace_alter(TABLE *altered_table,
     DBUG_RETURN(HA_ALTER_INPLACE_NO_LOCK);
 
   /* We cannot allow INPLACE to change order of KEY partitioning fields! */
-  if (ha_alter_info->handler_flags & Alter_inplace_info::ALTER_COLUMN_ORDER)
+  if (ha_alter_info->handler_flags & Alter_inplace_info::ALTER_STORED_COLUMN_ORDER)
   {
     if (!m_part_info->same_key_column_order(
            &ha_alter_info->alter_info->create_list))

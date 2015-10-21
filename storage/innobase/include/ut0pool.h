@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -95,7 +95,7 @@ struct Pool {
 	}
 
 	/** Get an object from the pool.
-	@retrun a free instance or NULL if exhausted. */
+	@return a free instance or NULL if exhausted. */
 	Type*	get()
 	{
 		Element*	elem;

@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Basic stored PROCEDURE tests
 #
@@ -27,6 +22,10 @@ use test;
 # t1 and t2 are reused throughout the file, and dropped at the end.
 # t3 and up are created and dropped when needed.
 #
+
+# Test needs MyISAM for disable warnings subtest which use engines other than innodb
+--source include/have_myisam.inc
+
 --disable_warnings
 drop table if exists t1,t2,t3,t4;
 drop view if exists v1;
@@ -38,12 +37,12 @@ drop function if exists f2;
 create table t1 (
 	id   char(16) not null default '',
         data int not null
-);
+) engine=myisam;
 create table t2 (
 	s   char(16),
         i   int,
 	d   double
-);
+) engine=myisam;
 
 
 # Single statement, no params.
@@ -3452,13 +3451,13 @@ drop procedure avg|
 --disable_warnings ONCE
 drop procedure if exists bug6129|
 set @old_mode= @@sql_mode;
-set @@sql_mode= "STRICT_ALL_TABLES";
+set @@sql_mode= "ERROR_FOR_DIVISION_BY_ZERO";
 create procedure bug6129()
   select @@sql_mode|
 call bug6129()|
-set @@sql_mode= "STRICT_ALL_TABLES"|
+set @@sql_mode= "STRICT_ALL_TABLES,NO_ZERO_DATE"|
 call bug6129()|
-set @@sql_mode= "STRICT_ALL_TABLES"|
+set @@sql_mode= "NO_ZERO_IN_DATE"|
 call bug6129()|
 set @@sql_mode=@old_mode;
 
@@ -4962,7 +4961,7 @@ drop procedure bug14376|
 drop procedure if exists bug5967|
 drop table if exists t3|
 --enable_warnings
-create table t3 (a varchar(255))|
+create table t3 (a varchar(255)) engine=myisam|
 insert into t3 (a) values ("a - table column")|
 create procedure bug5967(a varchar(255))
 begin
@@ -6052,7 +6051,7 @@ DROP FUNCTION IF EXISTS bug16899_f1|
 --enable_warnings
 
 --error ER_WRONG_STRING_LENGTH
-CREATE DEFINER=1234567890abcdefGHIKL@localhost PROCEDURE bug16899_p1()
+CREATE DEFINER=1234567890abcdefGHIKLsdafdsjakfhkshfkshsndvkjsddngjhasdkjghskahfdksjhcnsndkhjkghskjfjsdhfkhskfdhksjdhfkjshfksh@localhost PROCEDURE bug16899_p1()
 BEGIN
   SET @a = 1;
 END|
@@ -7235,6 +7234,7 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 
 CREATE VIEW v1 AS SELECT c1 FROM t1;
 
+analyze table t1;
 EXPLAIN SELECT * FROM t1 WHERE c1=1;
 EXPLAIN SELECT * FROM t1 WHERE c1=f1();
 
@@ -9097,3 +9097,42 @@ PREPARE s FROM
 
 DROP TABLE t1, t2;
 SET sql_mode = DEFAULT;
+
+--echo #
+--echo # ASSERTION FAILED: FALSE IN CREATE_TMP_FIELD WITH UNKNOWN OUTER FIELD
+--echo #
+CREATE TABLE t1 ( a INT );
+
+SET @v = 1;
+
+PREPARE stmt FROM 'SELECT 1 FROM ( SELECT ? FROM t1 GROUP BY a ) al;';
+EXECUTE stmt USING @v;
+
+PREPARE stmt FROM 'CREATE TABLE t2 AS SELECT ? FROM t1';
+EXECUTE stmt USING @v;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #18599181: CALLING A ROUTINE WITHOUT SPECIFYING DATABASE PREFIX
+--echo #                MAY RETURN ERROR 1370
+--echo #
+
+CREATE DATABASE db1;
+CREATE FUNCTION f1() RETURNS INT RETURN 1;
+CREATE FUNCTION db1.f2() RETURNS INT RETURN test.f1();
+CREATE USER myuser@'localhost';
+GRANT ALL ON db1.* TO myuser@'localhost';
+--disconnect default
+--source include/wait_until_disconnected.inc
+--connect(con1,localhost,myuser,,db1)
+SELECT f2();
+SELECT f2();
+--disconnect con1
+--source include/wait_until_disconnected.inc
+--connect(default,localhost,root)
+DROP DATABASE db1;
+DROP USER myuser@localhost;
+DROP FUNCTION f1;
+
+--echo #

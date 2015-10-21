@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights
+ * reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -410,7 +411,7 @@ scan_one_character(const char *s, const char *e, my_wc_t *wc)
     wc[0]= 0;
     return len;
   }
-  else if (s[0] > 0) /* 7-bit character */
+  else if ((s[0] & 0x80) == 0) /* 7-bit character */
   {
     wc[0]= 0;
     return 1;
@@ -451,7 +452,8 @@ static int cs_enter(MY_XML_PARSER *st,const char *attr, size_t len)
   
   switch (state) {
   case 0:
-    i->loader->reporter(WARNING_LEVEL, "Unknown LDML tag: '%.*s'", len, attr);
+    i->loader->reporter(WARNING_LEVEL, "Unknown LDML tag: '%.*s'",
+                        (int)len, attr);
     break;
 
   case _CS_CHARSET:
@@ -737,7 +739,7 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, size_t len)
 
   /* Rules: Context */
   case _CS_CONTEXT:
-    if (len < sizeof(i->context) + 1)
+    if (len < sizeof(i->context))
     {
       memcpy(i->context, attr, len);
       i->context[len]= '\0';

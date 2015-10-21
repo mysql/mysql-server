@@ -17,6 +17,10 @@
 #ifndef _typelib_h
 #define _typelib_h
 
+/**
+  @file include/typelib.h
+*/
+
 #include "my_alloc.h"
 
 #ifdef __cplusplus

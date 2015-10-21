@@ -17,8 +17,10 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-/* Header file for my_aes.c */
-/* Wrapper to give simple interface for MySQL to AES standard encryption */
+/**
+  @file include/my_aes.h
+  Wrapper to give simple interface for MySQL to AES standard encryption.
+*/
 
 C_MODE_START
 
@@ -102,21 +104,19 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
                    enum my_aes_opmode mode, const unsigned char *iv);
 
 /**
-  Calculate the size of a buffer large enough for encrypted data
+  Calculate the size of a buffer large enough for encrypted data.
 
   @param source_length  length of data to be encrypted
-  @param mode           encryption mode
+  @param opmode         encryption mode
   @return               size of buffer required to store encrypted data
 */
 
-int my_aes_get_size(uint32 source_length, enum my_aes_opmode mode);
+int my_aes_get_size(uint32 source_length, enum my_aes_opmode opmode);
 
 /**
-  Return true if the AES cipher and block mode requires an IV
+  Return true if the AES cipher and block mode requires an IV.
 
-  SYNOPSIS
-  my_aes_needs_iv()
-  @param mode           encryption mode
+  @param opmode           encryption mode
 
   @retval TRUE   IV needed
   @retval FALSE  IV not needed

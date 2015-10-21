@@ -61,10 +61,9 @@ Table_trigger_dispatcher::Table_trigger_dispatcher(TABLE *subject_table)
 {
   memset(m_trigger_map, 0, sizeof(m_trigger_map));
   m_parse_error_message[0]= 0;
-  m_db_name.str= const_cast<char*>(subject_table->s->db.str);
+  m_db_name.str= subject_table->s->db.str;
   m_db_name.length= subject_table->s->db.length;
-  m_subject_table_name.str=
-                       const_cast<char*>(subject_table->s->table_name.str);
+  m_subject_table_name.str= subject_table->s->table_name.str;
   m_subject_table_name.length= subject_table->s->table_name.length;
 }
 
@@ -417,9 +416,6 @@ bool Table_trigger_dispatcher::prepare_record1_accessors()
   @note If table object is fake, only its memory root can be used.
 
   @param thd          current thread context
-  @param db_name      table's database name
-  @param table_name   table's name
-  @param table        pointer to table object
   @param names_only   stop after loading trigger names
 
   @return Operation status.
@@ -824,7 +820,7 @@ bool Table_trigger_dispatcher::add_tables_and_routines_for_triggers(
   for (int i= 0; i < (int) TRG_EVENT_MAX; ++i)
   {
     if (table_list->trg_event_map &
-        static_cast<uint8>(1 << static_cast<int>(i)))
+        static_cast<uint8>(1 << i))
     {
       for (int j= 0; j < (int) TRG_ACTION_MAX; ++j)
       {
@@ -914,12 +910,14 @@ void Table_trigger_dispatcher::print_upgrade_warnings(THD *thd)
   retrieved/stored during execution of statement.
 
   @param event  Type of event triggers for which we are going to inspect
+
+  @returns false if success, true if error
 */
 
-void Table_trigger_dispatcher::mark_fields(enum_trigger_event_type event)
+bool Table_trigger_dispatcher::mark_fields(enum_trigger_event_type event)
 {
   if (check_for_broken_triggers())
-    return;
+    return true;
 
   DBUG_ASSERT(m_subject_table);
 
@@ -934,4 +932,5 @@ void Table_trigger_dispatcher::mark_fields(enum_trigger_event_type event)
   }
 
   m_subject_table->file->column_bitmaps_signal();
+  return false;
 }

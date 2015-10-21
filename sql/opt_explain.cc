@@ -13,7 +13,10 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-/** @file "EXPLAIN <command>" implementation */ 
+/**
+  @file sql/opt_explain.cc
+  "EXPLAIN <command>" implementation.
+*/
 
 #include "opt_explain.h"
 
@@ -548,8 +551,6 @@ Explain_no_table::get_subquery_context(SELECT_LEX_UNIT *unit) const
   Then goes though all children subqueries and produces their EXPLAIN
   output, attached to the proper clause's context.
 
-  @param        result  result stream
-
   @retval       false   Ok
   @retval       true    Error (OOM)
 */
@@ -1000,7 +1001,7 @@ bool Explain_table_base::explain_extra_common(int quick_type,
       StringBuffer<64> str(STRING_WITH_LEN("index map: 0x"), cs);
       /* 4 bits per 1 hex digit + terminating '\0' */
       char buf[MAX_KEY / 4 + 1];
-      str.append(const_cast<QEP_TAB*>(tab)->keys().print(buf));
+      str.append(tab->keys().print(buf));
       if (push_extra(ET_RANGE_CHECKED_FOR_EACH_RECORD, str))
         return true;
     }
@@ -1086,11 +1087,11 @@ bool Explain_table_base::explain_extra_common(int quick_type,
       {
         case FT_OP_GT:
           len= my_snprintf(buf, sizeof(buf) - 1,
-                           "rank > %f", ft_hints->get_op_value());
+                           "rank > %g", ft_hints->get_op_value());
           break;
         case FT_OP_GE:
           len= my_snprintf(buf, sizeof(buf) - 1,
-                           "rank >= %f", ft_hints->get_op_value());
+                           "rank >= %g", ft_hints->get_op_value());
           break;
         default:
           DBUG_ASSERT(0);
@@ -1393,7 +1394,7 @@ bool Explain_join::explain_table_name()
 bool Explain_join::explain_select_type()
 {
   if (tab && sj_is_materialize_strategy(tab->get_sj_strategy()))
-    fmt->entry()->col_select_type.set(st_select_lex::SLT_MATERIALIZED);
+    fmt->entry()->col_select_type.set(SELECT_LEX::SLT_MATERIALIZED);
   else
     return Explain::explain_select_type();
   return false;
@@ -1930,7 +1931,7 @@ static bool check_acl_for_explain(const TABLE_LIST *table_list)
   thus we deal with this single table in a special way and then call
   explain_unit() for subqueries (if any).
 
-  @param thd            current THD
+  @param ethd           current THD
   @param plan           table modification plan
   @param select         Query's select lex
 
@@ -2050,8 +2051,6 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
     {
       ret= explain_no_table(ethd, select_lex, join->zero_result_cause,
                             ctx);
-      /* Single select (without union) always returns 0 or 1 row */
-      ethd->limit_found_rows= join->send_records;
       break;
     }
     case JOIN::NO_TABLES:
@@ -2074,24 +2073,18 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
       }
       else
         ret= explain_no_table(ethd, select_lex, "No tables used", CTX_JOIN);
-      if (join->tables || !select_lex->with_sum_func)
-      {                                           // Only test of functions
-        /* Single select (without union) always returns 0 or 1 row */
-        ethd->limit_found_rows= join->send_records;
-      }
+
       break;
     }
     case JOIN::PLAN_READY:
     {
-      if (!other && join->prepare_result())
-        return true; /* purecov: inspected */
-
       /*
-        Don't reset the found rows count if there're no tables as
-        FOUND_ROWS() may be called. Never reset the examined row count here.
-        It must be accumulated from all join iterations of all join parts.
+        (1) If this connection is explaining its own query
+        (2) and it hasn't already prepared the JOIN's result,
+        then we need to prepare it (for example, to materialize I_S tables).
       */
-      ethd->limit_found_rows= 0;
+      if (!other && !join->is_executed() && join->prepare_result())
+        return true; /* purecov: inspected */
 
       const Explain_format_flags *flags= &join->explain_flags;
       const bool need_tmp_table= flags->any(ESP_USING_TMPTABLE);
@@ -2283,7 +2276,7 @@ private:
 /**
    Entry point for EXPLAIN CONNECTION: locates the connection by its ID, takes
    proper locks, explains its current statement, releases locks.
-   @param  THD executing this function (== the explainer)
+   @param  thd THD executing this function (== the explainer)
 */
 void mysql_explain_other(THD *thd)
 {
@@ -2335,8 +2328,8 @@ void mysql_explain_other(THD *thd)
 
   qp= &query_thd->query_plan;
 
-  if (query_thd->vio_ok() && !query_thd->system_thread &&
-      qp->get_command() != SQLCOM_END)
+  if (query_thd->get_protocol()->connection_alive() &&
+      !query_thd->system_thread && qp->get_command() != SQLCOM_END)
   {
     /*
       Don't explain:
@@ -2438,7 +2431,7 @@ void Modification_plan::register_in_thd()
                         string in the "extra" column.
   @param need_sort_arg  true if it requires filesort() -- "Using filesort"
                         string in the "extra" column.
-  @param used_key_is_modified   UPDATE updates used key column
+  @param used_key_is_modified_arg UPDATE updates used key column
   @param rows           How many rows we plan to modify in the table.
 */
 
@@ -2492,7 +2485,7 @@ Modification_plan::Modification_plan(THD *thd_arg,
   DBUG_ASSERT(current_thd == thd);
   if (!thd->in_sub_stmt)
     register_in_thd();
-};
+}
 
 
 Modification_plan::~Modification_plan()

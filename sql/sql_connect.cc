@@ -363,7 +363,8 @@ void init_max_user_conn(void)
   (void)
     my_hash_init(&hash_user_connections,system_charset_info,max_connections,
                  0,0, (my_hash_get_key) get_key_conn,
-                 (my_hash_free_key) free_user, 0);
+                 (my_hash_free_key) free_user, 0,
+                 key_memory_user_conn);
 #endif
 }
 
@@ -677,7 +678,19 @@ static int check_connection(THD *thd)
     return 1; /* The error is set by alloc(). */
   }
 
+  if (mysql_audit_notify(thd,
+                        AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE)))
+  {
+    return 1;
+  }
+
   auth_rc= acl_authenticate(thd, COM_CONNECT);
+
+  if (mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_CONNECT)))
+  {
+    return 1;
+  }
+
   if (auth_rc == 0 && connect_errors != 0)
   {
     /*
@@ -860,7 +873,7 @@ bool thd_prepare_connection(THD *thd)
   bool rc;
   lex_start(thd);
   rc= login_connection(thd);
-  MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd);
+
   if (rc)
     return rc;
 
@@ -878,19 +891,20 @@ bool thd_prepare_connection(THD *thd)
 
   @param thd        Thread handle.
   @param sql_errno  The error code to send before disconnect.
+  @param server_shutdown True for a server shutdown
 
   @note
     For the connection that is doing shutdown, this is called twice
 */
 
-void close_connection(THD *thd, uint sql_errno)
+void close_connection(THD *thd, uint sql_errno, bool server_shutdown)
 {
   DBUG_ENTER("close_connection");
 
   if (sql_errno)
     net_send_error(thd, sql_errno, ER_DEFAULT(sql_errno));
 
-  thd->disconnect();
+  thd->disconnect(server_shutdown);
 
   MYSQL_CONNECTION_DONE((int) sql_errno, thd->thread_id());
 
@@ -898,19 +912,21 @@ void close_connection(THD *thd, uint sql_errno)
   {
     sleep(0); /* Workaround to avoid tailcall optimisation */
   }
-  MYSQL_AUDIT_NOTIFY_CONNECTION_DISCONNECT(thd, sql_errno);
+
+  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_DISCONNECT),
+                     sql_errno);
   DBUG_VOID_RETURN;
 }
 
 
-bool thd_is_connection_alive(THD *thd)
+bool thd_connection_alive(THD *thd)
 {
   NET *net= thd->get_protocol_classic()->get_net();
   if (!net->error &&
       net->vio != 0 &&
       !(thd->killed == THD::KILL_CONNECTION))
-    return TRUE;
-  return FALSE;
+    return true;
+  return false;
 }
 
 #endif /* EMBEDDED_LIBRARY */

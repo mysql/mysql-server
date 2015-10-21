@@ -16,10 +16,15 @@
 
 /* This file is included by all internal myisam files */
 
+/**
+  @file storage/myisam/myisamdef.h
+*/
+
 #include "myisam.h"			/* Structs & some defines */
 #include "myisampack.h"			/* packing of keys */
 #include <my_tree.h>
 #include <my_thread.h>
+#include "my_thread_local.h"
 #include <thr_lock.h>
 #include <mysql/psi/mysql_file.h>
 #include <mysql/plugin_ftparser.h>
@@ -208,7 +213,8 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
     global_changed,			/* If changed since open */
     not_flushed,
     temporary,delay_key_write,
-    concurrent_insert;
+    concurrent_insert,
+    have_rtree;
 
   THR_LOCK lock;
   mysql_mutex_t intern_lock;            /* Locking for use with _locking */
@@ -568,8 +574,6 @@ extern void _mi_kpointer(MI_INFO *info,uchar *buff,my_off_t pos);
 extern my_off_t _mi_dpos(MI_INFO *info, uint nod_flag,uchar *after_key);
 extern my_off_t _mi_rec_pos(MYISAM_SHARE *info, uchar *ptr);
 extern void _mi_dpointer(MI_INFO *info, uchar *buff,my_off_t pos);
-extern int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a,uchar *b,
-		       uint key_length,uint nextflag,uint *diff_length);
 extern uint _mi_get_static_key(MI_KEYDEF *keyinfo,uint nod_flag,uchar * *page,
 			       uchar *key);
 extern uint _mi_get_pack_key(MI_KEYDEF *keyinfo,uint nod_flag,uchar * *page,
@@ -752,7 +756,6 @@ void mi_update_status(void* param);
 void mi_restore_status(void* param);
 void mi_copy_status(void* to,void *from);
 my_bool mi_check_status(void* param);
-void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows);
 
 extern MI_INFO *test_if_reopen(char *filename);
 my_bool check_table_is_closed(const char *name, const char *where);
@@ -771,9 +774,12 @@ int mi_check_index_cond(MI_INFO *info, uint keynr, uchar *record);
 
     /* Functions needed by mi_check */
 volatile int *killed_ptr(MI_CHECK *param);
-void mi_check_print_error(MI_CHECK *param, const char *fmt,...);
-void mi_check_print_warning(MI_CHECK *param, const char *fmt,...);
-void mi_check_print_info(MI_CHECK *param, const char *fmt,...);
+void mi_check_print_error(MI_CHECK *param, const char *fmt,...)
+  __attribute__((format(printf, 2, 3)));
+void mi_check_print_warning(MI_CHECK *param, const char *fmt,...)
+  __attribute__((format(printf, 2, 3)));
+void mi_check_print_info(MI_CHECK *param, const char *fmt,...)
+  __attribute__((format(printf, 2, 3)));
 int flush_pending_blocks(MI_SORT_PARAM *param);
 int sort_ft_buf_flush(MI_SORT_PARAM *sort_param);
 int thr_write_keys(MI_SORT_PARAM *sort_param);
@@ -785,6 +791,8 @@ int _create_index_by_sort(MI_SORT_PARAM *info, my_bool no_messages, ulonglong);
 
 extern void mi_set_index_cond_func(MI_INFO *info, index_cond_func_t func,
                                    void *func_arg);
+
+extern thread_local_key_t keycache_tls_key;
 #ifdef __cplusplus
 }
 #endif
@@ -797,7 +805,8 @@ extern PSI_mutex_key mi_key_mutex_MYISAM_SHARE_intern_lock,
 extern PSI_rwlock_key mi_key_rwlock_MYISAM_SHARE_key_root_lock,
   mi_key_rwlock_MYISAM_SHARE_mmap_lock;
 
-extern PSI_cond_key mi_key_cond_MI_SORT_INFO_cond;
+extern PSI_cond_key mi_key_cond_MI_SORT_INFO_cond,
+  mi_keycache_thread_var_suspend;
 
 extern PSI_file_key mi_key_file_datatmp, mi_key_file_dfile, mi_key_file_kfile,
   mi_key_file_log;
@@ -830,6 +839,7 @@ extern PSI_memory_key mi_key_memory_MI_DECODE_TREE;
 extern PSI_memory_key mi_key_memory_MYISAM_SHARE_decode_tables;
 extern PSI_memory_key mi_key_memory_preload_buffer;
 extern PSI_memory_key mi_key_memory_stPageList_pages;
+extern PSI_memory_key mi_key_memory_keycache_thread_var;
 
 C_MODE_END
 

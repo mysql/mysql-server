@@ -16,6 +16,11 @@
 #ifndef TABLE_HOSTS_H
 #define TABLE_HOSTS_H
 
+/**
+  @file storage/perfschema/table_hosts.h
+  TABLE HOSTS.
+*/
+
 #include "pfs_column_types.h"
 #include "cursor_by_host.h"
 #include "table_helper.h"
@@ -23,7 +28,7 @@
 struct PFS_host;
 
 /**
-  \addtogroup Performance_schema_tables
+  @addtogroup Performance_schema_tables
   @{
 */
 

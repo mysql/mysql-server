@@ -27,8 +27,6 @@ ENDIF()
 MYSQL_ADD_PLUGIN(rewriter ${REWRITER_SOURCES}
                  MODULE_ONLY MODULE_OUTPUT_NAME "rewriter")
 
-TARGET_LINK_LIBRARIES(rewriter mysys)
-
 IF(NOT DISABLE_SHARED)
   IF(WIN32)
     SET(DYNLIB_EXTENSION "dll")
@@ -51,7 +49,6 @@ ENDIF()
 #
 FOREACH(file
     install_rewriter
-    install_rewriter_with_optional_columns
     uninstall_rewriter)
 
   CONFIGURE_FILE(

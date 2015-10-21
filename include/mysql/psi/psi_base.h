@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@ extern "C" {
 #endif
 
 /**
-  @file mysql/psi/psi_base.h
+  @file include/mysql/psi/psi_base.h
   Performance schema instrumentation interface.
 
   @defgroup Instrumentation_interface Instrumentation Interface
@@ -56,13 +56,20 @@ extern "C" {
 */
 #define PSI_FLAG_STAGE_PROGRESS (1 << 3)
 
-#ifdef HAVE_PSI_INTERFACE
-
 /**
   Shared Exclusive flag.
   Indicates that rwlock support the shared exclusive state.
 */
 #define PSI_RWLOCK_FLAG_SX (1 << 4)
+
+/**
+  Transferable flag.
+  This flag indicate that an instrumented object can
+  be created by a thread and destroyed by another thread.
+*/
+#define PSI_FLAG_TRANSFER (1 << 5)
+
+#ifdef HAVE_PSI_INTERFACE
 
 /**
   @def PSI_VERSION_1
@@ -85,15 +92,21 @@ extern "C" {
 */
 #define PSI_CURRENT_VERSION 1
 
+#ifdef IN_DOXYGEN
 /**
   @def USE_PSI_1
   Define USE_PSI_1 to use the interface version 1.
 */
+#define USE_PSI_1
+#endif /* IN_DOXYGEN */
 
+#ifdef IN_DOXYGEN
 /**
   @def USE_PSI_2
   Define USE_PSI_2 to use the interface version 2.
 */
+#define USE_PSI_2
+#endif /* IN_DOXYGEN */
 
 /**
   @def HAVE_PSI_1

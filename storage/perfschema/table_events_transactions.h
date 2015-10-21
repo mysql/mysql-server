@@ -17,7 +17,7 @@
 #define TABLE_EVENTS_TRANSACTIONS_H
 
 /**
-  @file storage/perfschema/table_events_HA_ERR_WRONG_COMMAND.h
+  @file storage/perfschema/table_events_transactions.h
   Table EVENTS_TRANSACTIONS_xxx (declarations).
 */
 

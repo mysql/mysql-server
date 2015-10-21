@@ -41,7 +41,7 @@ static void init_deamon_example_psi_keys()
 
   count= array_elements(all_deamon_example_memory);
   mysql_memory_register(category, all_deamon_example_memory, count);
-};
+}
 #endif /* HAVE_PSI_INTERFACE */
 
 #define HEART_STRING_BUFFER 100
@@ -52,7 +52,7 @@ struct mysql_heartbeat_context
   File heartbeat_file;
 };
 
-void *mysql_heartbeat(void *p)
+static void *mysql_heartbeat(void *p)
 {
   DBUG_ENTER("mysql_heartbeat");
   struct mysql_heartbeat_context *con= (struct mysql_heartbeat_context *)p;

@@ -61,7 +61,8 @@ static int compare(size_t a, size_t b)
   @retval  0 The length of the source and target fields are the same.
   @retval  1 The length of the source field is greater than the target field.
  */
-int compare_lengths(Field *field, enum_field_types source_type, uint16 metadata)
+static int compare_lengths(Field *field, enum_field_types source_type,
+                           uint16 metadata)
 {
   DBUG_ENTER("compare_lengths");
   size_t const source_length=
@@ -257,6 +258,10 @@ static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
     str->set_ascii(STRING_WITH_LEN("geometry"));
     break;
 
+  case MYSQL_TYPE_JSON:
+    str->set_ascii(STRING_WITH_LEN("json"));
+    break;
+
   default:
     str->set_ascii(STRING_WITH_LEN("<unknown type>"));
   }
@@ -271,7 +276,7 @@ static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
    @param order  The computed order of the conversion needed.
    @param rli    The relay log info data structure: for error reporting.
  */
-bool is_conversion_ok(int order, Relay_log_info *rli)
+static bool is_conversion_ok(int order, Relay_log_info *rli)
 {
   DBUG_ENTER("is_conversion_ok");
   bool allow_non_lossy, allow_lossy;
@@ -363,11 +368,11 @@ inline bool time_cross_check(enum_field_types type1,
       than the target type and that conversion is potentially lossy.
 
    @param[in] field    Target field
-   @param[in] type     Source field type
+   @param[in] source_type Source field type
    @param[in] metadata Source field metadata
    @param[in] rli      Relay log info (for error reporting)
    @param[in] mflags   Flags from the table map event
-   @param[out] order   Order between source field and target field
+   @param[out] order_var Order between source field and target field
 
    @return @c true if conversion is possible according to the current
    settings, @c false if conversion is not possible according to the
@@ -557,6 +562,7 @@ can_convert_field_to(Field *field,
     break;
 
   case MYSQL_TYPE_GEOMETRY:
+  case MYSQL_TYPE_JSON:
   case MYSQL_TYPE_TIMESTAMP:
   case MYSQL_TYPE_DATE:
   case MYSQL_TYPE_TIME:
@@ -590,14 +596,11 @@ can_convert_field_to(Field *field,
   If tables are compatible, but no conversions are necessary, @c
   *tmp_table_var will be set to NULL.
 
-  @param rli_arg[in]
-  Relay log info, for error reporting.
+  @param [in] rli Relay log info, for error reporting.
 
-  @param table[in]
-  Table to compare with
+  @param [in] table Table to compare with
 
-  @param tmp_table_var[out]
-  Virtual temporary table for performing conversions, if necessary.
+  @param [out] conv_table_var Virtual temporary table for performing conversions, if necessary.
 
   @retval true Master table is compatible with slave table.
   @retval false Master table is not compatible with slave table.
@@ -778,6 +781,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_BLOB:
     case MYSQL_TYPE_GEOMETRY:
+    case MYSQL_TYPE_JSON:
       pack_length= field_metadata(col) & 0x00ff;
       break;
 
@@ -857,6 +861,7 @@ table_def::table_def(unsigned char *types, ulong size,
       case MYSQL_TYPE_DOUBLE:
       case MYSQL_TYPE_FLOAT:
       case MYSQL_TYPE_GEOMETRY:
+      case MYSQL_TYPE_JSON:
       {
         /*
           These types store a single byte.
@@ -978,7 +983,8 @@ bool Hash_slave_rows::init(void)
                    0,                              /* key length */
                    hash_slave_rows_get_key,                        /* get function pointer */
                    (my_hash_free_key) hash_slave_rows_free_entry,  /* freefunction pointer */
-                   MYF(0)))                        /* flags */
+                   MYF(0),                         /* flags */
+                   key_memory_HASH_ROW_ENTRY))     /* memory instrumentation key */
     return true;
   return false;
 }
@@ -1026,8 +1032,8 @@ HASH_ROW_ENTRY* Hash_slave_rows::make_entry(const uchar* bi_start, const uchar* 
   /**
      Filling in the positions.
    */
-  pos->bi_start= (const uchar *) bi_start;
-  pos->bi_ends= (const uchar *) bi_ends;
+  pos->bi_start= bi_start;
+  pos->bi_ends=  bi_ends;
 
   /**
     Filling in the entry
@@ -1221,13 +1227,14 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
     {
       /*
         BLOB and VARCHAR have pointers in their field, we must convert
-        to string; GEOMETRY is implemented on top of BLOB.
+        to string; GEOMETRY and JSON are implemented on top of BLOB.
         BIT may store its data among NULL bits, convert as well.
       */
       switch (f->type()) {
         case MYSQL_TYPE_BLOB:
         case MYSQL_TYPE_VARCHAR:
         case MYSQL_TYPE_GEOMETRY:
+        case MYSQL_TYPE_JSON:
         case MYSQL_TYPE_BIT:
         {
           String tmp;

@@ -20,7 +20,6 @@
 #include "mysqld_error.h"     // ER_*
 
 #ifndef MYSQL_CLIENT
-#include "mysqld.h"           // LOCK_msr_map
 #include "rpl_msr.h"
 #include "sql_class.h"        // THD
 #include "current_thd.h"
@@ -49,8 +48,10 @@ enum_gtid_mode get_gtid_mode(enum_gtid_mode_lock have_lock)
   case GTID_MODE_LOCK_SID:
     global_sid_lock->assert_some_lock();
     break;
-  case GTID_MODE_LOCK_MSR_MAP:
-    mysql_mutex_assert_owner(&LOCK_msr_map);
+  case GTID_MODE_LOCK_CHANNEL_MAP:
+#ifdef HAVE_REPLICATION
+    channel_map.assert_some_lock();
+#endif
     break;
   case GTID_MODE_LOCK_GTID_MODE:
     gtid_mode_lock->assert_some_lock();

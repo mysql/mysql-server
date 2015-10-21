@@ -1,5 +1,4 @@
-/* Copyright (c) 2000-2002, 2005-2007 MySQL AB
-   Use is subject to license terms
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,7 +43,8 @@ int myrg_rrnd(MYRG_INFO *info,uchar *buf,ulonglong filepos)
     {
       if (info->open_tables == info->end_table)
       {						/* No tables */
-	DBUG_RETURN(my_errno=HA_ERR_END_OF_FILE);
+        set_my_errno(HA_ERR_END_OF_FILE);
+	DBUG_RETURN(HA_ERR_END_OF_FILE);
       }
       isam_info=(info->current_table=info->open_tables)->table;
       if (info->cache_in_use)

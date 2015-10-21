@@ -128,10 +128,23 @@ public:
   virtual void abort_row() {}
   virtual enum enum_protocol_type type()= 0;
 
+  /**
+    Returns the type of the connection
+
+    @return
+      enum enum_vio_type
+  */
+  virtual enum enum_vio_type connection_type()
+  {
+    Vio *v=get_vio();
+    return v? vio_type(v): NO_VIO_TYPE;
+  }
+
   virtual my_socket get_socket();
   // NET interaction functions
   /* Initialize NET */
   bool init_net(Vio *vio);
+  void claim_memory_ownership();
   /* Deinitialize NET */
   void end_net();
   /* Flush NET buffer */
@@ -151,11 +164,11 @@ public:
   /* Return SSL descriptor, if any */
   SSL_handle get_ssl();
   /* Deinitialize VIO */
-  virtual int shutdown();
+  virtual int shutdown(bool server_shutdown= false);
   /* Wipe NET with zeros */
   void wipe_net();
   /* Check whether VIO is healhty */
-  bool vio_ok();
+  virtual bool connection_alive();
   /* Returns the client capabilities */
   virtual ulong get_client_capabilities() { return m_client_capabilities; }
   /* Sets the client capabilities */
@@ -215,7 +228,7 @@ public:
   virtual bool store_short(longlong from);
   virtual bool store_long(longlong from);
   virtual bool store_longlong(longlong from, bool unsigned_flag);
-  virtual bool store_decimal(const my_decimal *);
+  virtual bool store_decimal(const my_decimal *, uint, uint);
   virtual bool store(const char *from, size_t length, const CHARSET_INFO *cs)
   { return store(from, length, cs, result_cs); }
   virtual bool store(float nr, uint32 decimals, String *buffer);
@@ -255,7 +268,7 @@ public:
   virtual bool store_short(longlong from);
   virtual bool store_long(longlong from);
   virtual bool store_longlong(longlong from, bool unsigned_flag);
-  virtual bool store_decimal(const my_decimal *);
+  virtual bool store_decimal(const my_decimal *, uint, uint);
   virtual bool store(MYSQL_TIME *time, uint precision);
   virtual bool store_date(MYSQL_TIME *time);
   virtual bool store_time(MYSQL_TIME *time, uint precision);
@@ -282,4 +295,7 @@ uchar *net_store_data(uchar *to,const uchar *from, size_t length);
 uchar *net_store_data(uchar *to,int32 from);
 uchar *net_store_data(uchar *to,longlong from);
 bool store(Protocol *prot, I_List<i_string> *str_list);
+bool net_send_ok(THD *, uint, uint, ulonglong, ulonglong, const char *, bool);
+bool net_send_eof(THD *thd, uint server_status, uint statement_warn_count);
+bool net_send_error_packet(THD *, uint, const char *, const char *);
 #endif /* PROTOCOL_CLASSIC_INCLUDED */

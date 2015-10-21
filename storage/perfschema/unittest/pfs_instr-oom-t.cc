@@ -26,7 +26,6 @@
 #include <tap.h>
 
 #include "stub_pfs_global.h"
-#include "stub_global_status_var.h"
 
 #include <string.h> /* memset */
 
@@ -40,7 +39,7 @@ PSI_thread_info all_thread[]=
 
 /** Simulate initialize_performance_schema(). */
 
-PSI * initialize_performance_schema_helper(PFS_global_param *param)
+static PSI * initialize_performance_schema_helper(PFS_global_param *param)
 {
   PSI *psi;
 
@@ -94,7 +93,7 @@ PSI * initialize_performance_schema_helper(PFS_global_param *param)
   return (psi);
 }
 
-void test_oom()
+static void test_oom()
 {
   int rc;
   PSI *psi;
@@ -399,7 +398,7 @@ void test_oom()
   cleanup_memory_class();
 }
 
-void do_all_tests()
+static void do_all_tests()
 {
   test_oom();
 }

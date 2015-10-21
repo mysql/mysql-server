@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ MockWrite *mockfs= NULL;
   Include the source file, which will give us
   mysys_my_write_unittest::my_write() for testing.
 */
-#include "../../mysys/my_write.c"
+#include "../../mysys/my_write.cc"
 
 #undef write
 

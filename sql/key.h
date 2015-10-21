@@ -105,12 +105,13 @@ typedef struct st_key {
   char	*name;
 
   /**
-    Array of AVG(#records with the same field value) for 1st ... Nth key part.
+    Array of AVG(number of records with the same field value) for 1st ... Nth key part.
     0 means 'not known'.
     For internally created temporary tables this member is NULL.
   */
   ulong *rec_per_key;
 
+private:
   /**
     Estimate for how much of the index data that is currently
     available in a memory buffer. Valid range is [0..1]. This will be
@@ -120,9 +121,8 @@ typedef struct st_key {
   */
   double m_in_memory_estimate;
 
-private:
   /**
-    Array of AVG(#records with the same field value) for 1st ... Nth
+    Array of AVG(number of records with the same field value) for 1st ... Nth
     key part. For internally created temporary tables this member is
     NULL. This is the same information as stored in the above
     rec_per_key array but using float values instead of integer

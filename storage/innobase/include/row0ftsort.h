@@ -214,44 +214,17 @@ row_fts_free_pll_merge_buf(
 	fts_psort_t*	psort_info);	/*!< in: parallel sort info */
 
 /*********************************************************************//**
-Function performs parallel tokenization of the incoming doc strings.
-@return OS_THREAD_DUMMY_RETURN */
-os_thread_ret_t
-fts_parallel_tokenization(
-/*======================*/
-	void*		arg);		/*!< in: psort_info for the thread */
-/*********************************************************************//**
 Start the parallel tokenization and parallel merge sort */
 void
 row_fts_start_psort(
 /*================*/
 	fts_psort_t*	psort_info);	/*!< in: parallel sort info */
 /*********************************************************************//**
-Function performs the merge and insertion of the sorted records.
-@return OS_THREAD_DUMMY_RETURN */
-os_thread_ret_t
-fts_parallel_merge(
-/*===============*/
-	void*		arg);		/*!< in: parallel merge info */
-/*********************************************************************//**
 Kick off the parallel merge and insert thread */
 void
 row_fts_start_parallel_merge(
 /*=========================*/
 	fts_psort_t*	merge_info);	/*!< in: parallel sort info */
-/********************************************************************//**
-Read sorted FTS data files and insert data tuples to auxillary tables.
-@return DB_SUCCESS or error number */
-void
-row_fts_insert_tuple(
-/*=================*/
-	fts_psort_insert_t*
-			ins_ctx,        /*!< in: insert context */
-	fts_tokenizer_word_t* word,	/*!< in: last processed
-					tokenized word */
-	ib_vector_t*	positions,	/*!< in: word position */
-	doc_id_t*	in_doc_id,	/*!< in: last item doc id */
-	dtuple_t*	dtuple);	/*!< in: entry to insert */
 /********************************************************************//**
 Propagate a newly added record up one level in the selection tree
 @return parent where this value propagated to */

@@ -11,7 +11,7 @@ drop table if exists t1,t2;
 drop database if exists mysqltest;
 --enable_warnings
 
-SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_CREATE_USER';
 
 create table t1 (
 col1 int not null auto_increment primary key,
@@ -633,8 +633,7 @@ drop table t1;
 # Bug#27507: Wrong DATETIME value was allowed by ALTER TABLE in the
 #            NO_ZERO_DATE mode.
 #
-set @orig_sql_mode = @@sql_mode;
-set sql_mode="STRICT_ALL_TABLES";
+set sql_mode= default;
 create table t1(f1 int);
 alter table t1 add column f2 datetime not null, add column f21 date not null;
 insert into t1 values(1,'2000-01-01','2000-01-01');
@@ -649,7 +648,6 @@ alter table t1 add column f4 datetime not null default '2002-02-02',
   add column f41 date not null default '2002-02-02';
 select * from t1;
 drop table t1;
-set sql_mode= @orig_sql_mode;
 
 #
 # Some additional tests for new, faster alter table.  Note that most of the
@@ -1465,15 +1463,7 @@ ALTER TABLE tm1 MODIFY COLUMN e INT AFTER h;
 ALTER TABLE ti1 MODIFY COLUMN e INT FIRST;
 ALTER TABLE tm1 MODIFY COLUMN e INT FIRST;
 # This will set both ALTER_COLUMN_NOT_NULLABLE and COLUMN_DEFAULT_VALUE
---disable_info
-# NULL -> NOT NULL only allowed INPLACE if strict sql_mode is on.
-SET @orig_sql_mode = @@sql_mode;
-SET @@sql_mode = 'STRICT_TRANS_TABLES';
---enable_info
 ALTER TABLE ti1 MODIFY COLUMN c INT NOT NULL;
---disable_info
-SET @@sql_mode = @orig_sql_mode;
---enable_info
 ALTER TABLE tm1 MODIFY COLUMN c INT NOT NULL;
 # This will set both ALTER_COLUMN_NULLABLE and COLUMN_DEFAULT_VALUE
 ALTER TABLE ti1 MODIFY COLUMN c INT NULL;
@@ -1568,7 +1558,7 @@ DROP TABLE tm1;
 
 use mysql;
 --error ER_UNSUPPORTED_ENGINE
-ALTER TABLE db ENGINE=innodb;
+ALTER TABLE db ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE
 ALTER TABLE user ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE
@@ -1590,7 +1580,7 @@ ALTER TABLE time_zone ENGINE=merge;
 --error ER_UNSUPPORTED_ENGINE
 ALTER TABLE help_topic ENGINE=merge;
 --error ER_UNSUPPORTED_ENGINE
-CREATE TABLE db (dummy int) ENGINE=innodb;
+CREATE TABLE db (dummy int) ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE
 CREATE TABLE user (dummy int) ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE
@@ -2092,7 +2082,8 @@ SET @orig_sql_mode = @@sql_mode;
 SET sql_mode= '';
 
 --echo # Test with '767' as index size limit.
-CREATE TABLE t1(fld1 VARCHAR(767), KEY a(fld1)) ENGINE= INNODB;
+CREATE TABLE t1(fld1 VARCHAR(767), KEY a(fld1)) ENGINE= INNODB
+ROW_FORMAT=COMPACT;
 --error ER_INDEX_COLUMN_TOO_LONG
 ALTER TABLE t1 CHANGE fld1 fld1 VARCHAR(768), ALGORITHM= INPLACE;
 DROP TABLE t1;
@@ -2720,4 +2711,53 @@ ALTER TABLE t1 CONVERT TO CHARACTER SET utf8 COLLATE latin1_danish_ci;
 ALTER TABLE t1 CHARACTER SET latin1, CONVERT TO CHARACTER SET utf8 COLLATE latin1_danish_ci;
 
 # Clean-up
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#20106837: ALTER TABLE WHICH DROPS AND ADDS THE SAME FULLTEXT
+--echo #               INDEX IS NOT INPLACE/FAST.
+
+CREATE TABLE t1(fld1 varchar(200), FULLTEXT(fld1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES('ABCD');
+
+--enable_info
+--echo #Without patch, it was not fast a INPLACE ALTER.
+ALTER TABLE t1 DROP INDEX fld1, ADD FULLTEXT INDEX fld1(fld1);
+--disable_info
+
+--echo #Without patch, reports an error 'ER_ALTER_OPERATION_NOT_SUPPORTED'.
+ALTER TABLE t1 ALGORITHM=INPLACE, DROP INDEX fld1,
+ADD FULLTEXT INDEX fld1(fld1);
+DROP TABLE t1;
+
+--echo #Test with InnoDB engine.
+CREATE TABLE t1(fld1 varchar(200), FULLTEXT(fld1)) ENGINE=INNODB;
+INSERT INTO t1 VALUES('ABCD');
+
+--enable_info
+--echo #Without patch, it was not fast a INPLACE ALTER.
+ALTER TABLE t1 DROP INDEX fld1, ADD FULLTEXT INDEX fld1(fld1);
+--disable_info
+
+--echo #Without patch, reports an error 'ER_ALTER_OPERATION_NOT_SUPPORTED'.
+ALTER TABLE t1 ALGORITHM=INPLACE, DROP INDEX fld1,
+ADD FULLTEXT INDEX fld1(fld1);
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#20146455: FIND_KEY_CI RETURNS NULL, CAUSES CRASH IN
+--echo #               FILL_ALTER_INPLACE_INFO
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT,
+                 FOREIGN KEY (b) REFERENCES t1(a)) ENGINE= MyISAM;
+ALTER TABLE t1 RENAME INDEX b TO w, ADD FOREIGN KEY (b) REFERENCES t1(a);
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT,
+                 FOREIGN KEY (b) REFERENCES t1(a)) ENGINE= InnoDB;
+ALTER TABLE t1 RENAME INDEX b TO w, ADD FOREIGN KEY (b) REFERENCES t1(a);
+SHOW CREATE TABLE t1;
 DROP TABLE t1;

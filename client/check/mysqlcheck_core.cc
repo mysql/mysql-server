@@ -60,7 +60,7 @@ static int process_one_db(string database);
 static int use_db(string database);
 static int handle_request_for_tables(string tables);
 static void print_result();
-static string fix_table_name(string src);
+static string escape_table_name(string src);
 
 
 static int process_all_databases()
@@ -81,6 +81,7 @@ static int process_all_databases()
     if (process_one_db(row[0]))
       result = 1;
   }
+  mysql_free_result(tableres);
   return result;
 }
 /* process_all_databases */
@@ -105,35 +106,60 @@ static int process_selected_tables(string db, vector<string> table_names)
     return 1;
   vector<string>::iterator it;
 
-  if (opt_all_in_1)
-  {
-    for (it= table_names.begin(); it != table_names.end(); it++)
-    {
-      *it= fix_table_name(*it);
-    }
-  }
+  /*
+    TODO (a bug): properly handle all-in-1 option:
+    we should create and pass a table list to handle_request_for_tables().
+  */
   for (it= table_names.begin(); it != table_names.end(); it++)
+  {
+    *it= escape_table_name(*it);
     handle_request_for_tables(*it);
+  }
 
   return 0;
 } /* process_selected_tables */
 
-static string fix_table_name(string src)
+
+static inline void escape_str(string src, size_t start, size_t end, string &res)
 {
-  string res= "`";
-  for (size_t i= 0; i < src.length(); i++)
+  res+= '`';
+  for (size_t i= start; i < end; i++)
   {
     switch (src[i]) {
-    case '`':            /* escape backtick character */
+    case '`':            /* Escape backtick character. */
       res+= '`';
-      /* fall through */
+      /* Fall through. */
     default:
       res+= src[i];
     }
   }
   res+= '`';
+}
+
+
+static string escape_table_name(string src)
+{
+  string res= "";
+
+  escape_str(src, 0, src.length(), res);
   return res;
 }
+
+
+static string escape_db_table_name(string src, size_t dot_pos)
+{
+  string res= "";
+
+  /* Escape database name. */
+  escape_str(src, 0, dot_pos - 1, res);
+  /* Add a dot. */
+  res+= '.';
+  /* Escape table name. */
+  escape_str(src, dot_pos, src.length(), res);
+
+  return res;
+}
+
 
 static int process_all_tables_in_db(string database)
 {
@@ -186,7 +212,7 @@ static int run_query(string query)
 static int rebuild_table(string name)
 {
   int rc= 0;
-  string query= "ALTER TABLE " + fix_table_name(name) + " FORCE";
+  string query= "ALTER TABLE " + name + " FORCE";
   if (mysql_real_query(sock, query.c_str(), (uint)query.length()))
   {
     fprintf(stderr, "Failed to %s\n", query.c_str());
@@ -259,11 +285,6 @@ static int handle_request_for_tables(string tables)
     break;
   }
 
-  if (!opt_all_in_1)
-  {
-    tables= fix_table_name(tables);
-  }
-
   string query= operation + " TABLE " + tables + " " + options;
 
   if (mysql_real_query(sock, query.c_str(), query.length()))
@@ -284,16 +305,15 @@ static void print_result()
   char prev[NAME_LEN*3+2];
   char prev_alter[MAX_ALTER_STR_SIZE];
   uint i;
-  char *db_name;
-  size_t length_of_db;
+  size_t dot_pos;
   my_bool found_error=0, table_rebuild=0;
 
   res = mysql_use_result(sock);
-  db_name= sock->db;
-  length_of_db= strlen(db_name);
+  dot_pos= strlen(sock->db) + 1;
 
   prev[0] = '\0';
   prev_alter[0]= 0;
+
   for (i = 0; (row = mysql_fetch_row(res)); i++)
   {
     int changed = strcmp(prev, row[0]);
@@ -314,16 +334,12 @@ static void print_result()
           if (prev_alter[0])
             alter_table_cmds.push_back(prev_alter);
           else
-          {
-            char *table_name= prev + (length_of_db+1);
-            tables4rebuild.push_back(table_name);
-          }
+            tables4rebuild.push_back(escape_db_table_name(prev, dot_pos));
         }
-         else
-         {
-           char *table_name= prev + (length_of_db+1);
-           tables4repair.push_back(table_name);
-         }
+        else
+        {
+          tables4repair.push_back(escape_db_table_name(prev, dot_pos));
+        }
 
       }
       found_error=0;
@@ -336,7 +352,14 @@ static void print_result()
       printf("%-50s %s", row[0], row[3]);
     else if (!status && changed)
     {
-      printf("%s\n%-9s: %s", row[0], row[2], row[3]);
+      if (opt_auto_repair && what_to_do != DO_REPAIR)
+      {
+        printf("%-50s To be repaired, cause follows:\nServer issued %-9s: %s", row[0], row[2], row[3]);
+      }
+      else
+      {
+        printf("%s\n%-9s: %s", row[0], row[2], row[3]);
+      }
       if (opt_auto_repair && strcmp(row[2],"note"))
       {
         const char *alter_txt= strstr(row[3], "ALTER TABLE");
@@ -376,15 +399,11 @@ static void print_result()
       if (prev_alter[0])
         alter_table_cmds.push_back(prev_alter);
       else
-      {
-        char *table_name= prev + (length_of_db+1);
-        tables4rebuild.push_back(table_name);
-      }
+        tables4rebuild.push_back(escape_db_table_name(prev, dot_pos));
     }
     else
     {
-      char *table_name= prev + (length_of_db+1);
-      tables4repair.push_back(table_name);
+      tables4repair.push_back(escape_db_table_name(prev, dot_pos));
     }
   }
   mysql_free_result(res);
@@ -400,8 +419,9 @@ void Mysql::Tools::Check::mysql_check(MYSQL* connection, int what_to_do,
                 my_bool opt_frm, my_bool opt_fix_table_names,
                 my_bool opt_fix_db_names, my_bool opt_upgrade,
                 my_bool opt_write_binlog, uint verbose,
-                string opt_skip_database, vector<string> arguments,
-                void (*dberror)(MYSQL *mysql, string when))
+                std::string opt_skip_database,
+                std::vector<std::string> arguments,
+                void (*dberror)(MYSQL *mysql, std::string when))
 {
   ::sock= connection;
   ::what_to_do= what_to_do;

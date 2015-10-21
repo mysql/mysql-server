@@ -326,6 +326,23 @@ enum dict_fld_sys_datafiles_enum {
 	DICT_NUM_FIELDS__SYS_DATAFILES			= 4
 };
 
+/* The columns in SYS_VIRTUAL */
+enum dict_col_sys_virtual_enum {
+	DICT_COL__SYS_VIRTUAL__TABLE_ID		= 0,
+	DICT_COL__SYS_VIRTUAL__POS		= 1,
+	DICT_COL__SYS_VIRTUAL__BASE_POS		= 2,
+	DICT_NUM_COLS__SYS_VIRTUAL		= 3
+};
+/* The field numbers in the SYS_VIRTUAL clustered index */
+enum dict_fld_sys_virtual_enum {
+	DICT_FLD__SYS_VIRTUAL__TABLE_ID		= 0,
+	DICT_FLD__SYS_VIRTUAL__POS		= 1,
+	DICT_FLD__SYS_VIRTUAL__BASE_POS		= 2,
+	DICT_FLD__SYS_VIRTUAL__DB_TRX_ID	= 3,
+	DICT_FLD__SYS_VIRTUAL__DB_ROLL_PTR	= 4,
+	DICT_NUM_FIELDS__SYS_VIRTUAL		= 5
+};
+
 /* A number of the columns above occur in multiple tables.  These are the
 length of thos fields. */
 #define	DICT_FLD_LEN_SPACE	4

@@ -50,19 +50,16 @@ typedef enum {
 	IBUF_OP_COUNT = 3
 } ibuf_op_t;
 
-/** Combinations of operations that can be buffered.  Because the enum
-values are used for indexing innobase_change_buffering_values[], they
-should start at 0 and there should not be any gaps. */
-typedef enum {
+/** Combinations of operations that can be buffered.
+@see innodb_change_buffering_names */
+enum ibuf_use_t {
 	IBUF_USE_NONE = 0,
 	IBUF_USE_INSERT,	/* insert */
 	IBUF_USE_DELETE_MARK,	/* delete */
 	IBUF_USE_INSERT_DELETE_MARK,	/* insert+delete */
 	IBUF_USE_DELETE,	/* delete+purge */
-	IBUF_USE_ALL,		/* insert+delete+purge */
-
-	IBUF_USE_COUNT		/* number of entries in ibuf_use_t */
-} ibuf_use_t;
+	IBUF_USE_ALL		/* insert+delete+purge */
+};
 
 /** Operations that can currently be buffered. */
 extern ibuf_use_t	ibuf_use;
@@ -428,7 +425,7 @@ ibuf_check_bitmap_on_import(
 
 /** Updates free bits and buffered bits for bulk loaded page.
 @param[in]      block   index page
-@param]in]      reset   flag if reset free val */
+@param[in]      reset   flag if reset free val */
 void
 ibuf_set_bitmap_for_bulk_load(
 	buf_block_t*    block,
@@ -443,9 +440,6 @@ ibuf_set_bitmap_for_bulk_load(
 for the file segment from which the pages for the ibuf tree are allocated */
 #define IBUF_HEADER		PAGE_DATA
 #define	IBUF_TREE_SEG_HEADER	0	/* fseg header for ibuf tree */
-
-/* The insert buffer tree itself is always located in space 0. */
-#define IBUF_SPACE_ID		static_cast<ulint>(0)
 
 #ifndef UNIV_NONINL
 #include "ibuf0ibuf.ic"

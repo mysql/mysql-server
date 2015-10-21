@@ -18,8 +18,10 @@
 
 #include "my_global.h"
 #include "my_atomic.h"                 // my_atomic_load32
+#include "m_string.h"                  // llstr
+#include "mysql_com.h"                 // Item_result
 #include "binlog_event.h"              // enum_binlog_checksum_alg
-#include "log.h"                       // TC_LOG
+#include "tc_log.h"                    // TC_LOG
 #include "atomic_class.h"
 
 class Relay_log_info;
@@ -393,6 +395,10 @@ class MYSQL_BIN_LOG: public TC_LOG
   PSI_file_key m_key_file_log;
   /** The instrumentation key to use for opening the log index file. */
   PSI_file_key m_key_file_log_index;
+  /** The instrumentation key to use for opening a log cache file. */
+  PSI_file_key m_key_file_log_cache;
+  /** The instrumentation key to use for opening a log index cache file. */
+  PSI_file_key m_key_file_log_index_cache;
 #endif
   /* POSIX thread objects are inited by init_pthread_objects() */
   mysql_mutex_t LOCK_index;
@@ -559,7 +565,9 @@ public:
                     PSI_cond_key key_update_cond,
                     PSI_cond_key key_prep_xids_cond,
                     PSI_file_key key_file_log,
-                    PSI_file_key key_file_log_index)
+                    PSI_file_key key_file_log_index,
+                    PSI_file_key key_file_log_cache,
+                    PSI_file_key key_file_log_index_cache)
   {
     m_key_COND_done= key_COND_done;
 
@@ -578,6 +586,8 @@ public:
     m_key_prep_xids_cond= key_prep_xids_cond;
     m_key_file_log= key_file_log;
     m_key_file_log_index= key_file_log_index;
+    m_key_file_log_cache= key_file_log_cache;
+    m_key_file_log_index_cache= key_file_log_index_cache;
   }
 #endif
 
@@ -592,11 +602,11 @@ public:
     Find the oldest binary log that contains any GTID that
     is not in the given gtid set.
 
-    @param[out] binlog_file_name, the file name of oldest binary log found
-    @param[in]  gtid_set, the given gtid set
-    @param[out] first_gtid, the first GTID information from the binary log
+    @param[out] binlog_file_name the file name of oldest binary log found
+    @param[in]  gtid_set the given gtid set
+    @param[out] first_gtid the first GTID information from the binary log
                 file returned at binlog_file_name
-    @param[out] errmsg, the error message outputted, which is left untouched
+    @param[out] errmsg the error message outputted, which is left untouched
                 if the function returns false
     @return false on success, true on error.
   */
@@ -618,7 +628,7 @@ public:
     @param need_lock If true, LOCK_log, LOCK_index, and
     global_sid_lock->wrlock are acquired; otherwise they are asserted
     to be taken already.
-    @param trx_parser [out] This will be used to return the actual
+    @param [out] trx_parser  This will be used to return the actual
     relaylog transaction parser state because of the possibility
     of partial transactions.
     @param [out] gtid_partial_trx If a transaction was left incomplete
@@ -694,11 +704,11 @@ private:
   int process_flush_stage_queue(my_off_t *total_bytes_var, bool *rotate_var,
                                 THD **out_queue_var);
   int ordered_commit(THD *thd, bool all, bool skip_commit = false);
+  void handle_binlog_flush_or_sync_error(THD *thd, bool need_lock_log);
 public:
   int open_binlog(const char *opt_name);
   void close();
   enum_result commit(THD *thd, bool all);
-  enum_result write_binlog_and_commit_engine(THD *thd, bool all);
   int rollback(THD *thd, bool all);
   int prepare(THD *thd, bool all);
   int recover(IO_CACHE *log, Format_description_log_event *fdle,
@@ -777,8 +787,8 @@ public:
     @param log_name Name of binlog
     @param new_name Name of binlog, too. todo: what's the difference
     between new_name and log_name?
-    @param max_size The size at which this binlog will be rotated.
-    @param null_created If false, and a Format_description_log_event
+    @param max_size_arg The size at which this binlog will be rotated.
+    @param null_created_arg If false, and a Format_description_log_event
     is written, then the Format_description_log_event will have the
     timestamp 0. Otherwise, it the timestamp will be the time when the
     event was written to the log.
@@ -790,8 +800,8 @@ public:
   */
   bool open_binlog(const char *log_name,
                    const char *new_name,
-                   ulong max_size,
-                   bool null_created,
+                   ulong max_size_arg,
+                   bool null_created_arg,
                    bool need_lock_index, bool need_sid_lock,
                    Format_description_log_event *extra_description_event);
   bool open_index_file(const char *index_file_name_arg,
@@ -800,10 +810,26 @@ public:
   int new_file(Format_description_log_event *extra_description_event);
 
   bool write_event(Log_event* event_info);
-  bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data,
+  bool write_cache(THD *thd, class binlog_cache_data *cache_data,
                    class Binlog_event_writer *writer);
   bool write_gtid(THD *thd, binlog_cache_data *cache_data,
                   class Binlog_event_writer *writer);
+
+  /**
+     Write a dml into statement cache and then flush it into binlog. It writes
+     Gtid_log_event and BEGIN, COMMIT automatically.
+
+     It is aimed to handle cases of "background" logging where a statement is
+     logged indirectly, like "DELETE FROM a_memory_table". So don't use it on any
+     normal statement.
+
+     @param[in] thd  the THD object of current thread.
+     @param[in] stmt the DELETE statement.
+     @param[in] stmt_len the length of DELETE statement.
+
+     @return Returns false if succeeds, otherwise true is returned.
+  */
+  bool write_dml_directly(THD* thd, const char *stmt, size_t stmt_len);
 
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
@@ -840,7 +866,6 @@ public:
      variable 'sync_binlog'. If file is synchronized, @c synced will
      be set to 1, otherwise 0.
 
-     @param[out] synced if not NULL, set to 1 if file is synchronized, otherwise 0
      @param[in] force if TRUE, ignores the 'sync_binlog' and synchronizes the file.
 
      @retval 0 Success
@@ -876,7 +901,7 @@ public:
                    bool need_lock_index);
   int find_next_log(LOG_INFO* linfo, bool need_lock_index);
   int find_next_relay_log(char log_name[FN_REFLEN+1]);
-  int get_current_log(LOG_INFO* linfo);
+  int get_current_log(LOG_INFO* linfo, bool need_lock_log= true);
   int raw_get_current_log(LOG_INFO* linfo);
   uint next_file_id();
   inline char* get_index_fname() { return index_file_name;}

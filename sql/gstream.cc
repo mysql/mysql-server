@@ -23,6 +23,13 @@
 #include "m_string.h"                            // my_stpcpy
 #include "psi_memory_key.h"
 
+static inline bool is_numeric_beginning(const char *pc, const size_t len)
+{
+  return (pc != NULL &&
+          ((*pc >= '0' && *pc <= '9') || *pc == '-' || *pc == '+' ||
+           (*pc == '.' && len > 1 && pc[1] >= '0' && pc[1] <= '9')));
+}
+
 enum Gis_read_stream::enum_tok_types Gis_read_stream::get_next_toc_type()
 {
   skip_space();
@@ -30,7 +37,7 @@ enum Gis_read_stream::enum_tok_types Gis_read_stream::get_next_toc_type()
     return eostream;
   if (my_isvar_start(&my_charset_bin, *m_cur))
     return word;
-  if ((*m_cur >= '0' && *m_cur <= '9') || *m_cur == '-' || *m_cur == '+')
+  if (is_numeric_beginning(m_cur, m_limit - m_cur))
     return numeric;
   if (*m_cur == '(')
     return l_bra;
@@ -63,13 +70,7 @@ bool Gis_read_stream::get_next_word(LEX_STRING *res)
 }
 
 
-/*
-  Read a floating point number
-
-  NOTE: Number must start with a digit or sign. It can't start with a decimal
-  point
-*/
-
+/* Read a floating point number. */
 bool Gis_read_stream::get_next_number(double *d)
 {
   char *endptr;
@@ -77,8 +78,7 @@ bool Gis_read_stream::get_next_number(double *d)
 
   skip_space();
 
-  if ((m_cur >= m_limit) ||
-      ((*m_cur < '0' || *m_cur > '9') && *m_cur != '-' && *m_cur != '+'))
+  if ((m_cur >= m_limit) || !is_numeric_beginning(m_cur, m_limit - m_cur))
   {
     set_error_msg("Numeric constant expected");
     return 1;

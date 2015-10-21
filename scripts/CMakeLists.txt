@@ -64,21 +64,41 @@ ADD_CUSTOM_TARGET(GenFixPrivs
   ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_sys_schema.h
 )
 
-ADD_CUSTOM_COMMAND(
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_sys_schema.h
-  COMMAND comp_sql
-  mysql_sys_schema
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_sys_schema.sql
-  sql_commands_sys_schema.h
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-  DEPENDS comp_sql
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_sys_schema.sql
-)
+# If we do not have performance schema compiled in then sys will not work,
+# so only create an empty sys database with an auto-generated file,
+# otherwise, load the full schema file normally.
+IF(NOT WITH_PERFSCHEMA_STORAGE_ENGINE)
+  FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/mysql_sys_schema_empty.sql "CREATE DATABASE sys;")
 
-ADD_CUSTOM_TARGET(GenSysSchema
-  ALL
-  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_sys_schema.h
-)
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_sys_schema.h
+    COMMAND comp_sql
+    mysql_sys_schema
+    ${CMAKE_CURRENT_BINARY_DIR}/mysql_sys_schema_empty.sql
+    sql_commands_sys_schema.h
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS comp_sql
+    ${CMAKE_CURRENT_BINARY_DIR}/mysql_sys_schema_empty.sql
+  )
+ELSE()
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_sys_schema.h
+    COMMAND comp_sql
+    mysql_sys_schema
+    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_sys_schema.sql
+    sql_commands_sys_schema.h
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS comp_sql
+    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_sys_schema.sql
+  )
+ENDIF()
+
+IF(NOT WITHOUT_SERVER)
+  ADD_CUSTOM_TARGET(GenSysSchema
+    ALL
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_sys_schema.h
+  )
+ENDIF()
 
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_data.h
@@ -114,12 +134,14 @@ ADD_CUSTOM_COMMAND(
 )
 
 # Add target for the above to be built
-ADD_CUSTOM_TARGET(GenBootstrapPriv
-  ALL
-  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_data.h
-  ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_tables.h
-  ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_help_data.h
-)
+IF(NOT WITHOUT_SERVER)
+  ADD_CUSTOM_TARGET(GenBootstrapPriv
+    ALL
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_data.h
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_tables.h
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_help_data.h
+  )
+ENDIF()
 
 IF(UNIX)
  FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/make_binary_distribution 
@@ -129,18 +151,18 @@ IF(UNIX)
 )
 ENDIF()
 
-INSTALL(FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_data.sql
-  ${CMAKE_CURRENT_SOURCE_DIR}/fill_help_tables.sql
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_sys_schema.sql
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_test_data_timezone.sql
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_security_commands.sql
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_fix_for_downgrade.sql
-  ${FIX_PRIVILEGES_SQL}
-  DESTINATION ${INSTALL_MYSQLSHAREDIR} COMPONENT Server
-)
-
+IF(NOT WITHOUT_SERVER)
+  INSTALL(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
+    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_data.sql
+    ${CMAKE_CURRENT_SOURCE_DIR}/fill_help_tables.sql
+    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_sys_schema.sql
+    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_test_data_timezone.sql
+    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_security_commands.sql
+    ${FIX_PRIVILEGES_SQL}
+    DESTINATION ${INSTALL_MYSQLSHAREDIR} COMPONENT Server
+  )
+ENDIF()
 
 # TCMalloc hacks
 IF(MALLOC_LIB)
@@ -179,6 +201,7 @@ SET(REPLACE_OPTIONS
   "-fno-inline "
   "-fno-strict-aliasing "
   "-fstack-protector-strong "
+  "-g "
   "-grecord-gcc-switches "
   "-ip "
   "-mp "
@@ -284,9 +307,8 @@ SET(pkglibdir ${prefix}/${INSTALL_LIBDIR})
 SET(pkgplugindir ${prefix}/${INSTALL_PLUGINDIR})
 SET(localstatedir ${MYSQL_DATADIR})
 
-SET(RPATH_OPTION "")
 IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
-  SET(RPATH_OPTION "-R$pkglibdir")
+  SET(RPATH_OPTION " -R$pkglibdir")
 ENDIF()
 
 # some scripts use  @TARGET_LINUX@
@@ -317,7 +339,6 @@ MACRO(EXTRACT_LINK_LIBRARIES target var)
     LIST(REMOVE_DUPLICATES ${target}_LIB_DEPENDS)
     FOREACH(lib ${${target}_LIB_DEPENDS})
       # Filter out "general", it is not a library, just CMake hint
-      # Also, remove duplicates
       IF(NOT lib STREQUAL "general" AND NOT ${var}  MATCHES "-l${lib} ")
         IF (lib MATCHES "^\\-l")
           SET(${var} "${${var}} ${lib} ") 
@@ -335,10 +356,36 @@ MACRO(EXTRACT_LINK_LIBRARIES target var)
   IF(MSVC)
     STRING(REPLACE "-l" "" ${var} "${${var}}")
   ENDIF()
+  STRING(REGEX REPLACE "^[ ]+" "" ${var} "${${var}}")
+  STRING(REGEX REPLACE "[ ]+$" "" ${var} "${${var}}")
 ENDMACRO()
 
 EXTRACT_LINK_LIBRARIES(mysqlclient CLIENT_LIBS)
-EXTRACT_LINK_LIBRARIES(mysqlserver LIBS)
+IF(WITH_EMBEDDED_SERVER)
+  EXTRACT_LINK_LIBRARIES(mysqlserver EMBEDD_LIBS)
+ENDIF()
+
+IF(MSVC)
+  GET_TARGET_PROPERTY(LIBMYSQL_OS_SHLIB_VERSION mysqlclient VERSION)
+  GET_TARGET_PROPERTY(LIBMYSQL_OS_OUTPUT_NAME mysqlclient OUTPUT_NAME)
+ELSE()
+  GET_TARGET_PROPERTY(LIBMYSQL_OS_SHLIB_VERSION libmysql VERSION)
+  GET_TARGET_PROPERTY(LIBMYSQL_OS_OUTPUT_NAME libmysql OUTPUT_NAME)
+ENDIF()
+# See WITH_EMBEDDED_SHARED_LIBRARY, "mysqld" is generated from mysqlserver
+IF(WITH_EMBEDDED_SERVER)
+  GET_TARGET_PROPERTY(LIBEMBED_OS_OUTPUT_NAME mysqlserver OUTPUT_NAME)
+ENDIF()
+
+SET(CONFIG_CLIENT_LIBS "${CLIENT_LIBS}")
+IF(QUOTED_CMAKE_C_LINK_FLAGS)
+  SET(CONFIG_CLIENT_LIBS "${CONFIG_CLIENT_LIBS} ${QUOTED_CMAKE_C_LINK_FLAGS}")
+ENDIF()
+
+SET(CONFIG_EMBEDD_LIBS "${EMBEDD_LIBS}")
+IF(QUOTED_CMAKE_CXX_LINK_FLAGS)
+  SET(CONFIG_EMBEDD_LIBS "${CONFIG_EMBEDD_LIBS} ${QUOTED_CMAKE_CXX_LINK_FLAGS}")
+ENDIF()
 
 SET(LIBMYSQLD_LIBS_USAGE "
         --libmysqld-libs [$embedded_libs]")
@@ -394,6 +441,30 @@ ELSE()
       mysqldumpslow
       mysqld_multi
       mysqld_safe
+      )
+  ENDIF()
+
+  SET(PKGCONFIG_FILE ${LIBMYSQL_OS_OUTPUT_NAME}.pc)
+  STRING(REGEX REPLACE "/mysql$" "" PKGCONFIG_DIR "${INSTALL_LIBDIR}")
+  SET(PKGCONFIG_DIR "${PKGCONFIG_DIR}/pkgconfig")
+  # Update the cache, to make it visible in cmake-gui.
+  SET(INSTALL_PKGCONFIGDIR ${INSTALL_PKGCONFIGDIR} CACHE PATH
+    "Where to install ${PKGCONFIG_FILE}, defaults to ${PKGCONFIG_DIR}")
+  IF(NOT INSTALL_PKGCONFIGDIR)
+    SET(INSTALL_PKGCONFIGDIR "${PKGCONFIG_DIR}")
+  ENDIF()
+
+  CONFIGURE_FILE(mysqlclient.pc.in
+    ${CMAKE_CURRENT_BINARY_DIR}/${PKGCONFIG_FILE}
+    ESCAPE_QUOTES @ONLY)
+
+  IF(INSTALL_PKGCONFIGDIR)
+    MESSAGE(STATUS "INSTALL ${PKGCONFIG_FILE} ${INSTALL_PKGCONFIGDIR}")
+    INSTALL(FILES
+      ${CMAKE_CURRENT_BINARY_DIR}/${PKGCONFIG_FILE}
+      DESTINATION ${INSTALL_PKGCONFIGDIR}
+      PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
+      COMPONENT Development
       )
   ENDIF()
 

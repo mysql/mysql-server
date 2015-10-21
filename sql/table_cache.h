@@ -151,6 +151,9 @@ public:
   /** Maximum supported number of table cache instances. */
   static const int MAX_TABLE_CACHES= 64;
 
+  /** Default number of table cache instances */
+  static const int DEFAULT_MAX_TABLE_CACHES= 16;
+
   bool init();
   void destroy();
 

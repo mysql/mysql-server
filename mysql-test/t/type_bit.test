@@ -467,3 +467,17 @@ INSERT INTO t1 VALUES (b'');
 SELECT bin(f1) FROM t1;
 DROP TABLE t1;
 
+#
+# BUG#19930894 - HEAP CORRUPTION AND/OR VALGRIND ERROR IN
+# CREATE_LENGTH_TO_INTERNAL_LENGTH.
+#
+
+# Create table with POINT column and insert empty value in it.
+CREATE TABLE t1(a POINT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES();
+# Create table with BIT column by selecting data from the POINT column table
+# created earlier.
+CREATE TEMPORARY TABLE t2(a BIT(60)) ENGINE=InnoDB SELECT a FROM t1
+GROUP BY a DESC HAVING a IS NULL;
+DROP TEMPORARY TABLE t2;
+DROP TABLE t1;

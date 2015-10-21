@@ -23,6 +23,8 @@
 
 #include "my_bit.h"                   // my_count_bits
 #include "myisam.h"                   // TT_FOR_UPGRADE
+#include "mysql_version.h"            // MYSQL_VERSION_ID
+
 #include "binlog.h"                   // mysql_bin_log
 #include "current_thd.h"
 #include "debug_sync.h"               // DEBUG_SYNC
@@ -32,6 +34,7 @@
 #include "log.h"                      // sql_print_error
 #include "log_event.h"                // Write_rows_log_event
 #include "mysqld.h"                   // global_system_variables heap_hton ..
+#include "my_bitmap.h"                // MY_BITMAP
 #include "probes_mysql.h"             // MYSQL_HANDLER_WRLOCK_START
 #include "opt_costconstantcache.h"    // reload_optimizer_cost_constants
 #include "psi_memory_key.h"
@@ -44,6 +47,8 @@
 #include "trigger_def.h"              // TRG_EXT
 #include "sql_select.h"               // actual_key_parts
 #include "rpl_write_set_handler.h"    // add_pke
+#include "auth_common.h"              // check_readonly() and SUPER_ACL
+
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -56,6 +61,11 @@
 #include "opt_hints.h"
 
 #include <list>
+#include <cstring>
+#include <string>
+#include <boost/foreach.hpp>
+#include <boost/tokenizer.hpp>
+#include <boost/algorithm/string.hpp>
 
 /**
   @def MYSQL_TABLE_IO_WAIT
@@ -70,6 +80,7 @@
   generates a single event for the batch.
   @param OP the table operation to be performed
   @param INDEX the table index used if any, or MAX_KEY.
+  @param RESULT the result of the table operation performed
   @param PAYLOAD instrumented code to execute
   @sa handler::end_psi_batch_mode.
 */
@@ -173,33 +184,58 @@ inline double log2(double x)
 }
 #endif
 
-/*
+/**
   While we have legacy_db_type, we have this array to
   check for dups and to find handlerton from legacy_db_type.
   Remove when legacy_db_type is finally gone
 */
-st_plugin_int *hton2plugin[MAX_HA];
+static
+Prealloced_array<st_plugin_int*, PREALLOC_NUM_HA, true>
+se_plugin_array(PSI_NOT_INSTRUMENTED);
 
 /**
   Array allowing to check if handlerton is builtin without
   acquiring LOCK_plugin.
 */
-static bool builtin_htons[MAX_HA];
+static
+Prealloced_array<bool, PREALLOC_NUM_HA, true>
+builtin_htons(PSI_NOT_INSTRUMENTED);
+
+st_plugin_int *hton2plugin(uint slot)
+{
+  return se_plugin_array[slot];
+}
+
+size_t num_hton2plugins()
+{
+  return se_plugin_array.size();
+}
+
+st_plugin_int *insert_hton2plugin(uint slot, st_plugin_int* plugin)
+{
+  if (se_plugin_array.assign_at(slot, plugin))
+    return NULL;
+  return se_plugin_array[slot];
+}
+
+st_plugin_int *remove_hton2plugin(uint slot)
+{
+  st_plugin_int *retval= se_plugin_array[slot];
+  se_plugin_array[slot]= NULL;
+  return retval;
+}
+
 
 const char *ha_resolve_storage_engine_name(const handlerton *db_type)
 {
-  return db_type == NULL ? "UNKNOWN" : hton2plugin[db_type->slot]->name.str;
+  return db_type == NULL ? "UNKNOWN" : hton2plugin(db_type->slot)->name.str;
 }
 
 static handlerton *installed_htons[128];
 
-#define BITMAP_STACKBUF_SIZE (128/8)
-
 KEY_CREATE_INFO default_key_create_info=
   { HA_KEY_ALG_UNDEF, 0, {NullS, 0}, {NullS, 0}, true };
 
-/* number of entries in installed_htons[] */
-static ulong total_ha= 0;
 /* number of storage engines (from installed_htons[]) that support 2pc */
 ulong total_ha_2pc= 0;
 /* size of savepoint storage area (see ha_init) */
@@ -234,7 +270,7 @@ TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 static const char* mysqld_system_database= "mysql";
 
 // System tables that belong to mysqld_system_database.
-st_system_tablename mysqld_system_tables[]= {
+st_handler_tablename mysqld_system_tables[]= {
   {mysqld_system_database, "db"},
   {mysqld_system_database, "user"},
   {mysqld_system_database, "host"},
@@ -435,12 +471,60 @@ redo:
   return NULL;
 }
 
+std::string normalized_se_str= "";
+
+/*
+  Parse comma separated list of disabled storage engine names
+  and create a normalized string by appending storage names that
+  have aliases. This normalized string is used to disallow
+  table/tablespace creation under the storage engines specified.
+*/
+void ha_set_normalized_disabled_se_str(const std::string &disabled_se)
+{
+  boost::char_separator<char> sep(",");
+  boost::tokenizer< boost::char_separator<char> > tokens(disabled_se, sep);
+  normalized_se_str.append(",");
+  BOOST_FOREACH (std::string se_name, tokens)
+  {
+    const LEX_STRING *table_alias;
+    boost::algorithm::to_upper(se_name);
+    for (table_alias= sys_table_aliases; table_alias->str; table_alias+= 2)
+    {
+      if (!strcasecmp(se_name.c_str(), table_alias->str) ||
+          !strcasecmp(se_name.c_str(), (table_alias+1)->str))
+      {
+        normalized_se_str.append(std::string(table_alias->str) + "," +
+                                 std::string((table_alias+1)->str) + ",");
+        break;
+      }
+    }
+
+    if (table_alias->str == NULL)
+      normalized_se_str.append(se_name+",");
+  }
+}
+
+// Check if storage engine is disabled for table/tablespace creation.
+bool ha_is_storage_engine_disabled(handlerton *se_handle)
+{
+  if (normalized_se_str.size())
+  {
+    std::string se_name(",");
+    se_name.append(ha_resolve_storage_engine_name(se_handle));
+    se_name.append(",");
+    boost::algorithm::to_upper(se_name);
+    if(strstr(normalized_se_str.c_str(), se_name.c_str()))
+      return true;
+  }
+  return false;
+}
+
 
 plugin_ref ha_lock_engine(THD *thd, const handlerton *hton)
 {
   if (hton)
   {
-    st_plugin_int **plugin= hton2plugin + hton->slot;
+    st_plugin_int **plugin= &se_plugin_array[hton->slot];
 
 #ifdef DBUG_OFF
     /*
@@ -631,6 +715,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_TABLESPACE_IS_NOT_EMPTY,	ER_DEFAULT(ER_TABLESPACE_IS_NOT_EMPTY));
   SETMSG(HA_ERR_WRONG_FILE_NAME,		ER_DEFAULT(ER_WRONG_FILE_NAME));
   SETMSG(HA_ERR_NOT_ALLOWED_COMMAND,		ER_DEFAULT(ER_NOT_ALLOWED_COMMAND));
+  SETMSG(HA_ERR_COMPUTE_FAILED,		"Compute virtual column value failed");
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsg, HA_ERR_FIRST, HA_ERR_LAST);
 }
@@ -681,9 +766,9 @@ int ha_finalize_handlerton(st_plugin_int *plugin)
   if (hton->slot != HA_SLOT_UNDEF)
   {
     /* Make sure we are not unpluging another plugin */
-    DBUG_ASSERT(hton2plugin[hton->slot] == plugin);
-    DBUG_ASSERT(hton->slot < MAX_HA);
-    hton2plugin[hton->slot]= NULL;
+    DBUG_ASSERT(se_plugin_array[hton->slot] == plugin);
+    DBUG_ASSERT(hton->slot < se_plugin_array.size());
+    se_plugin_array[hton->slot]= NULL;
     builtin_htons[hton->slot]= false; /* Extra correctness. */
   }
 
@@ -759,30 +844,27 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
         reuse an array slot. Otherwise the number of uninstall/install
         cycles would be limited. So look for a free slot.
       */
-      DBUG_PRINT("plugin", ("total_ha: %lu", total_ha));
-      for (fslot= 0; fslot < total_ha; fslot++)
+      DBUG_PRINT("plugin", ("total_ha: %lu",
+                            static_cast<ulong>(se_plugin_array.size())));
+      for (fslot= 0; fslot < se_plugin_array.size(); fslot++)
       {
-        if (!hton2plugin[fslot])
+        if (!se_plugin_array[fslot])
           break;
       }
-      if (fslot < total_ha)
+      if (fslot < se_plugin_array.size())
         hton->slot= fslot;
       else
       {
-        if (total_ha >= MAX_HA)
-        {
-          sql_print_error("Too many plugins loaded. Limit is %lu. "
-                          "Failed on '%s'", (ulong) MAX_HA, plugin->name.str);
-          goto err_deinit;
-        }
-        hton->slot= total_ha++;
+        hton->slot= se_plugin_array.size();
       }
+      if (se_plugin_array.assign_at(hton->slot, plugin) ||
+          builtin_htons.assign_at(hton->slot, (plugin->plugin_dl == NULL)))
+        goto err_deinit;
+
       installed_htons[hton->db_type]= hton;
       tmp= hton->savepoint_offset;
       hton->savepoint_offset= savepoint_alloc_size;
       savepoint_alloc_size+= tmp;
-      hton2plugin[hton->slot]=plugin;
-      builtin_htons[hton->slot]= (plugin->plugin_dl == NULL);
       if (hton->prepare)
         total_ha_2pc++;
       break;
@@ -840,13 +922,12 @@ int ha_init()
   int error= 0;
   DBUG_ENTER("ha_init");
 
-  DBUG_ASSERT(total_ha < MAX_HA);
   /*
     Check if there is a transaction-capable storage engine besides the
-    binary log (which is considered a transaction-capable storage engine in
-    counting total_ha)
+    binary log.
   */
-  opt_using_transactions= total_ha>(ulong)opt_bin_log;
+  opt_using_transactions=
+    se_plugin_array.size() > static_cast<ulong>(opt_bin_log);
   savepoint_alloc_size+= sizeof(SAVEPOINT);
 
   /*
@@ -1314,14 +1395,16 @@ int ha_prepare(THD *thd)
 
     while (ha_info)
     {
-      int err;
       handlerton *ht= ha_info->ht();
       thd->status_var.ha_prepare_count++;
       if (ht->prepare)
       {
-        if ((err= ht->prepare(ht, thd, true)))
+        DBUG_EXECUTE_IF("simulate_xa_failure_prepare", {
+          ha_rollback_trans(thd, true);
+          DBUG_RETURN(1);
+        });
+        if (ht->prepare(ht, thd, true))
         {
-          my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
           ha_rollback_trans(thd, true);
           error=1;
           break;
@@ -1432,7 +1515,9 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
   */
   if ((!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates)) &&
       (all || !thd->in_multi_stmt_transaction_mode()) &&
-      thd->owned_gtid.sidno > 0 && !thd->is_operating_gtid_table_implicitly)
+      thd->owned_gtid.sidno > 0 &&
+      !thd->is_operating_gtid_table_implicitly &&
+      !thd->is_operating_substatement_implicitly)
   {
     error= gtid_state->save(thd);
     need_clear_owned_gtid= true;
@@ -1457,6 +1542,8 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
     all || !trn_ctx->is_active(Transaction_ctx::SESSION);
 
   Ha_trx_info *ha_info= trn_ctx->ha_trx_info(trx_scope);
+  XID_STATE *xid_state= trn_ctx->xid_state();
+
   DBUG_ENTER("ha_commit_trans");
 
   DBUG_PRINT("info", ("all=%d thd->in_sub_stmt=%d ha_info=%p is_real_trans=%d",
@@ -1537,12 +1624,8 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
       DEBUG_SYNC(thd, "ha_commit_trans_after_acquire_commit_lock");
     }
 
-    if (rw_trans &&
-        opt_readonly &&
-        !(thd->security_context()->check_access(SUPER_ACL)) &&
-        !thd->slave_thread)
+    if (rw_trans && check_readonly(thd, true))
     {
-      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
       ha_rollback_trans(thd, all);
       error= 1;
       goto end;
@@ -1550,6 +1633,19 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
 
     if (!trn_ctx->no_2pc(trx_scope) && (trn_ctx->rw_ha_count(trx_scope) > 1))
       error= tc_log->prepare(thd, all);
+  }
+  /*
+    The state of XA transaction is changed to Prepared, intermediately.
+    It's going to change to the regular NOTR at the end.
+    The fact of the Prepared state is of interest to binary logger.
+  */
+  if (!error && all && xid_state->has_state(XID_STATE::XA_IDLE))
+  {
+    DBUG_ASSERT(thd->lex->sql_command == SQLCOM_XA_COMMIT &&
+                static_cast<Sql_cmd_xa_commit*>(thd->lex->m_sql_cmd)->
+                get_xa_opt() == XA_ONE_PHASE);
+
+    xid_state->set_state(XID_STATE::XA_PREPARED);
   }
   if (error || (error= tc_log->commit(thd, all)))
   {
@@ -1839,6 +1935,80 @@ int ha_rollback_trans(THD *thd, bool all)
     trn_ctx->push_unsafe_rollback_warnings(thd);
 
   DBUG_RETURN(error);
+}
+
+
+/**
+  Commit the attachable transaction in storage engines.
+
+  @note This is slimmed down version of ha_commit_trans()/ha_commit_low()
+        which commits attachable transaction but skips code which is
+        unnecessary and unsafe for them (like dealing with GTIDs).
+        Since attachable transactions are read-only their commit only
+        needs to release resources and cleanup state in SE.
+
+  @param thd     Current thread
+
+  @retval 0      - Success
+  @retval non-0  - Failure
+*/
+int ha_commit_attachable(THD *thd)
+{
+  int error= 0;
+  Transaction_ctx *trn_ctx= thd->get_transaction();
+  Ha_trx_info *ha_info= trn_ctx->ha_trx_info(Transaction_ctx::STMT);
+  Ha_trx_info *ha_info_next;
+
+  /* This function only handles attachable transactions. */
+  DBUG_ASSERT(thd->is_attachable_transaction_active());
+  /*
+    Since the attachable transaction is AUTOCOMMIT we only need
+    to care about statement transaction.
+  */
+  DBUG_ASSERT(! trn_ctx->is_active(Transaction_ctx::SESSION));
+
+  if (ha_info)
+  {
+    for (; ha_info; ha_info= ha_info_next)
+    {
+      /* Attachable transaction is not supposed to modify anything. */
+      DBUG_ASSERT(! ha_info->is_trx_read_write());
+
+      handlerton *ht= ha_info->ht();
+      if (ht->commit(ht, thd, false))
+      {
+        /*
+          In theory this should not happen since attachable transactions
+          are read only and therefore commit is supposed to only release
+          resources/cleanup state. Even if this happens we will simply
+          continue committing attachable transaction in other SEs.
+        */
+        DBUG_ASSERT(false);
+        error= 1;
+      }
+      thd->status_var.ha_commit_count++;
+      ha_info_next= ha_info->next();
+
+      ha_info->reset(); /* keep it conveniently zero-filled */
+    }
+    trn_ctx->reset_scope(Transaction_ctx::STMT);
+  }
+
+  /*
+    Mark transaction as commited in PSI.
+  */
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  if (thd->m_transaction_psi != NULL)
+  {
+    MYSQL_COMMIT_TRANSACTION(thd->m_transaction_psi);
+    thd->m_transaction_psi= NULL;
+  }
+#endif
+
+  /* Free resources and perform other cleanup even for 'empty' transactions. */
+  trn_ctx->cleanup();
+
+  return (error);
 }
 
 
@@ -2428,7 +2598,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
   }
   if (error)
   {
-    my_errno= error;                            /* Safeguard */
+    set_my_errno(error);                            /* Safeguard */
     DBUG_PRINT("error",("error: %d  errno: %d",error,errno));
   }
   else
@@ -2602,10 +2772,16 @@ int handler::ha_rnd_next(uchar *buf)
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == RND);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, MAX_KEY, result,
     { result= rnd_next(buf); })
-  if (!result && table->vfield)
-    result= update_generated_read_fields(table);
+  if (!result && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(buf, table);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -2630,10 +2806,16 @@ int handler::ha_rnd_pos(uchar *buf, uchar *pos)
   /* TODO: Find out how to solve ha_rnd_pos when finding duplicate update. */
   /* DBUG_ASSERT(inited == RND); */
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, MAX_KEY, result,
     { result= rnd_pos(buf, pos); })
-  if (!result && table->vfield)
-    result= update_generated_read_fields(table);
+  if (!result && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(buf, table);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -2674,10 +2856,16 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_read_map(buf, key, keypart_map, find_flag); })
-  if (!result && table->vfield)
-    result= update_generated_read_fields(table);
+  if (!result && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(buf, table, active_index);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -2691,13 +2879,18 @@ int handler::ha_index_read_last_map(uchar *buf, const uchar *key,
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_read_last_map(buf, key, keypart_map); })
-  if (!result && table->vfield)
-    result= update_generated_read_fields(table);
+  if (!result && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(buf, table, active_index);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
-
 
 /**
   Initializes an index and read it.
@@ -2715,10 +2908,16 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
   DBUG_ASSERT(end_range == NULL);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, index, result,
     { result= index_read_idx_map(buf, index, key, keypart_map, find_flag); })
-  if (!result && table->vfield)
-    result= update_generated_read_fields(table);
+  if (!result && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(buf, table, index);
+    m_update_generated_read_fields= false;
+  }
   return result;
 }
 
@@ -2743,10 +2942,16 @@ int handler::ha_index_next(uchar * buf)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_next(buf); })
-  if (!result && table->vfield)
-    result= update_generated_read_fields(table);
+  if (!result && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(buf, table, active_index);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -2771,10 +2976,16 @@ int handler::ha_index_prev(uchar * buf)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_prev(buf); })
-  if (!result && table->vfield)
-    result= update_generated_read_fields(table);
+  if (!result && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(buf, table, active_index);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -2799,10 +3010,16 @@ int handler::ha_index_first(uchar * buf)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_first(buf); })
-  if (!result && table->vfield)
-    result= update_generated_read_fields(table);
+  if (!result && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(buf, table, active_index);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -2827,10 +3044,16 @@ int handler::ha_index_last(uchar * buf)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_last(buf); })
-  if (!result && table->vfield)
-    result= update_generated_read_fields(table);
+  if (!result && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(buf, table, active_index);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -2857,10 +3080,16 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_next_same(buf, key, keylen); })
-  if (!result && table->vfield)
-    result= update_generated_read_fields(table);
+  if (!result && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(buf, table, active_index);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -2888,7 +3117,7 @@ int handler::read_first_row(uchar * buf, uint primary_key)
   {
     if (!(error= ha_rnd_init(1)))
     {
-      while ((error= rnd_next(buf)) == HA_ERR_RECORD_DELETED)
+      while ((error= ha_rnd_next(buf)) == HA_ERR_RECORD_DELETED)
         /* skip deleted row */;
       const int end_error= ha_rnd_end();
       if (!error)
@@ -2906,8 +3135,6 @@ int handler::read_first_row(uchar * buf, uint primary_key)
         error= end_error;
     }
   }
-  if (!error && table->vfield)
-    error= update_generated_read_fields(table);
   DBUG_RETURN(error);
 }
 
@@ -3078,7 +3305,7 @@ prev_insert_id(ulonglong nr, struct System_variables *variables)
 
 int handler::update_auto_increment()
 {
-  ulonglong nr, nb_reserved_values;
+  ulonglong nr, nb_reserved_values= 0;
   bool append= FALSE;
   THD *thd= table->in_use;
   struct System_variables *variables= &thd->variables;
@@ -3232,7 +3459,8 @@ int handler::update_auto_increment()
     /*
       first test if the query was aborted due to strict mode constraints
     */
-    if (thd->killed == THD::KILL_BAD_DATA)
+    if (thd->is_error() &&
+        thd->get_stmt_da()->mysql_errno() == ER_WARN_DATA_OUT_OF_RANGE)
       DBUG_RETURN(HA_ERR_AUTOINC_ERANGE);
 
     /*
@@ -4038,15 +4266,15 @@ int handler::delete_table(const char *name)
     fn_format(buff, name, "", *ext, MY_UNPACK_FILENAME|MY_APPEND_EXT);
     if (mysql_file_delete_with_symlink(key_file_misc, buff, MYF(0)))
     {
-      if (my_errno != ENOENT)
+      if (my_errno() != ENOENT)
       {
         /*
           If error on the first existing file, return the error.
           Otherwise delete as much as possible.
         */
         if (enoent_or_zero)
-          return my_errno;
-	saved_error= my_errno;
+          return my_errno();
+	saved_error= my_errno();
       }
     }
     else
@@ -4066,7 +4294,8 @@ int handler::rename_table(const char * from, const char * to)
   {
     if (rename_file_ext(from, to, *ext))
     {
-      if ((error=my_errno) != ENOENT)
+      error= my_errno();
+      if (error != ENOENT)
 	break;
       error= 0;
     }
@@ -4424,7 +4653,6 @@ handler::check_if_supported_inplace_alter(TABLE *altered_table,
     Alter_inplace_info::CHANGE_CREATE_OPTION |
     Alter_inplace_info::ALTER_RENAME |
     Alter_inplace_info::RENAME_INDEX |
-    Alter_inplace_info::HA_ALTER_STORED_GCOL |
     Alter_inplace_info::ALTER_INDEX_COMMENT;
 
   /* Is there at least one operation that requires copy algorithm? */
@@ -4816,6 +5044,86 @@ ha_check_if_table_exists(THD* thd, const char *db, const char *name,
   DBUG_RETURN(FALSE);
 }
 
+
+
+/**
+  Check if a table specified by name is a system table.
+
+  @param db                    Database name for the table.
+  @param table_name            Table name to be checked.
+  @param [out] is_sql_layer_system_table  True if a system table belongs to sql_layer.
+
+  @return Operation status
+    @retval  true              If the table name is a system table.
+    @retval  false             If the table name is a user-level table.
+*/
+
+static bool check_if_system_table(const char *db,
+                                  const char *table_name,
+                                  bool *is_sql_layer_system_table)
+{
+  st_handler_tablename *systab;
+  const char **names;
+  bool is_system_database= false;
+  const char *found_db_name= NULL;
+
+  // Check if we have a system database name in the command.
+  DBUG_ASSERT(known_system_databases != NULL);
+  names= known_system_databases;
+  while (names && *names)
+  {
+    if (strcmp(*names, db) == 0)
+    {
+      /* Used to compare later, will be faster */
+      found_db_name= *names;
+      is_system_database= true;
+      break;
+    }
+    names++;
+  }
+  if (!is_system_database)
+    return false;
+
+  // Check if this is SQL layer system tables.
+  systab= mysqld_system_tables;
+  while (systab && systab->db)
+  {
+    if (systab->db == found_db_name &&
+        strcmp(systab->tablename, table_name) == 0)
+    {
+      *is_sql_layer_system_table= true;
+      break;
+    }
+
+    systab++;
+  }
+
+  return true;
+}
+
+
+/**
+  Check if a table specified by name is a sql layer system table.
+
+  @param db                    Database name.
+  @param table_name            Table name to be checked.
+
+  @return Operation status
+    @retval  true            If the table name is a sql-layer system table.
+    @retval  false           If the table name is not a sql-layer system table.
+*/
+
+bool check_if_sql_layer_system_table(const char *db,
+                                     const char *table_name)
+{
+  bool is_sql_layer_system_table= false;
+  return
+    check_if_system_table(db, table_name,
+                          &is_sql_layer_system_table) &&
+    is_sql_layer_system_table;
+}
+
+
 /**
   @brief Check if a given table is a system table.
 
@@ -4841,45 +5149,17 @@ ha_check_if_table_exists(THD* thd, const char *db, const char *name,
                                  and does not belong to engine specified
                                  in the command.
 */
+
 bool ha_check_if_supported_system_table(handlerton *hton, const char *db,
                                         const char *table_name)
 {
   DBUG_ENTER("ha_check_if_supported_system_table");
   st_sys_tbl_chk_params check_params;
-  bool is_system_database= false;
-  const char **names;
-  st_system_tablename *systab;
 
-  // Check if we have a system database name in the command.
-  DBUG_ASSERT(known_system_databases != NULL);
-  names= known_system_databases;
-  while (names && *names)
-  {
-    if (strcmp(*names, db) == 0)
-    {
-      /* Used to compare later, will be faster */
-      check_params.db= *names;
-      is_system_database= true;
-      break;
-    }
-    names++;
-  }
-  if (!is_system_database)
-    DBUG_RETURN(true); // It's a user table name.
-
-  // Check if this is SQL layer system tables.
-  systab= mysqld_system_tables;
   check_params.is_sql_layer_system_table= false;
-  while (systab && systab->db)
-  {
-    if (systab->db == check_params.db &&
-        strcmp(systab->tablename, table_name) == 0)
-    {
-      check_params.is_sql_layer_system_table= true;
-      break;
-    }
-    systab++;
-  }
+  if (!check_if_system_table(db, table_name,
+                             &check_params.is_sql_layer_system_table))
+    DBUG_RETURN(true); // It's a user table name
 
   // Check if this is a system table and if some engine supports it.
   check_params.status= check_params.is_sql_layer_system_table ?
@@ -4887,6 +5167,7 @@ bool ha_check_if_supported_system_table(handlerton *hton, const char *db,
     st_sys_tbl_chk_params::NOT_KNOWN_SYSTEM_TABLE;
   check_params.db_type= hton->db_type;
   check_params.table_name= table_name;
+  check_params.db= db;
   plugin_foreach(NULL, check_engine_system_table_handlerton,
                  MYSQL_STORAGE_ENGINE_PLUGIN, &check_params);
 
@@ -5086,9 +5367,12 @@ int ha_resize_key_cache(KEY_CACHE *key_cache)
     ulonglong division_limit= key_cache->param_division_limit;
     ulonglong age_threshold=  key_cache->param_age_threshold;
     mysql_mutex_unlock(&LOCK_global_system_variables);
-    DBUG_RETURN(!resize_key_cache(key_cache, tmp_block_size,
-				  tmp_buff_size,
-				  division_limit, age_threshold));
+    const int retval= resize_key_cache(key_cache,
+                                       keycache_thread_var(),
+                                       tmp_block_size,
+                                       tmp_buff_size,
+                                       division_limit, age_threshold);
+    DBUG_RETURN(!retval);
   }
   DBUG_RETURN(0);
 }
@@ -5210,8 +5494,6 @@ ha_find_files(THD *thd,const char *db,const char *path,
     HA_ERR_NO_SUCH_TABLE     Table does not exist
   @retval
     HA_ERR_TABLE_EXIST       Table exists
-  @retval
-    \#                  Error code
 */
 struct st_table_exists_in_engine_args
 {
@@ -5576,18 +5858,7 @@ Cost_estimate handler::table_scan_cost()
     and use of the copy constructor.
   */
 
-#ifndef DBUG_OFF
-  /*
-    The cost model does not currently take into account whether table
-    data is in memory or on disk. To test and to get coverage for the
-    code for estimating data in memory, a call for getting this
-    estimate is included here when compiled in debug mode.
-  */
-  const double in_mem= table_in_memory_estimate();
-  DBUG_ASSERT(in_mem >= 0.0 && in_mem <= 1.0);
-#endif
-
-  const double io_cost= scan_time() * table->cost_model()->io_block_read_cost();
+  const double io_cost= scan_time() * table->cost_model()->page_read_cost(1.0);
   Cost_estimate cost;
   cost.add_io(io_cost);
   return cost;
@@ -5606,19 +5877,8 @@ Cost_estimate handler::index_scan_cost(uint index, double ranges, double rows)
   DBUG_ASSERT(ranges >= 0.0);
   DBUG_ASSERT(rows >= 0.0);
 
-#ifndef DBUG_OFF
-  /*
-    The cost model does not currently take into account whether index
-    data is in memory or on disk. To test and to get coverage for the
-    code for estimating data in memory, a call for getting this
-    estimate is included here when compiled in debug mode.
-  */
-  const double in_mem= index_in_memory_estimate(index);
-  DBUG_ASSERT(in_mem >= 0.0 && in_mem <= 1.0);
-#endif
-
   const double io_cost= index_only_read_time(index, rows) *
-                        table->cost_model()->io_block_read_cost();
+    table->cost_model()->page_read_cost_index(index, 1.0);
   Cost_estimate cost;
   cost.add_io(io_cost);
   return cost;
@@ -5639,7 +5899,7 @@ Cost_estimate handler::read_cost(uint index, double ranges, double rows)
 
   const double io_cost= read_time(index, static_cast<uint>(ranges),
                                   static_cast<ha_rows>(rows)) *
-                        table->cost_model()->io_block_read_cost();
+                        table->cost_model()->page_read_cost(1.0);
   Cost_estimate cost;
   cost.add_io(io_cost);
   return cost;
@@ -5691,15 +5951,15 @@ static bool key_uses_partial_cols(TABLE *table, uint keyno)
   @param seq_init_param  First parameter for seq->init()
   @param n_ranges_arg    Number of ranges in the sequence, or 0 if the caller
                          can't efficiently determine it
-  @param bufsz[in,out]   IN:  Size of the buffer available for use
+  @param [in,out] bufsz  IN:  Size of the buffer available for use
                          OUT: Size of the buffer that is expected to be actually
                               used, or 0 if buffer is not needed.
-  @param flags[in,out]   A combination of HA_MRR_* flags
-  @param cost[out]       Estimated cost of MRR access
+  @param [in,out] flags  A combination of HA_MRR_* flags
+  @param [out] cost      Estimated cost of MRR access
 
   @note
     This method (or an overriding one in a derived class) must check for
-    thd->killed and return HA_POS_ERROR if it is not zero. This is required
+    \c thd->killed and return HA_POS_ERROR if it is not zero. This is required
     for a user to be able to interrupt the calculation by killing the
     connection/query.
 
@@ -5838,11 +6098,11 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                          range sequence.
   @param n_rows          Estimated total number of records contained within all
                          of the ranges
-  @param bufsz[in,out]   IN:  Size of the buffer available for use
+  @param [in,out] bufsz  IN:  Size of the buffer available for use
                          OUT: Size of the buffer that will be actually used, or
                               0 if buffer is not needed.
-  @param flags[in,out]   A combination of HA_MRR_* flags
-  @param cost[out]       Estimated cost of MRR access
+  @param [in,out] flags  A combination of HA_MRR_* flags
+  @param [out] cost      Estimated cost of MRR access
 
   @retval
     0     OK, *cost contains cost of the scan, *bufsz and *flags contain scan
@@ -5872,9 +6132,9 @@ ha_rows handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
 
 
 /**
-  Initialize the MRR scan
+  Initialize the MRR scan.
 
-  Initialize the MRR scan. This function may do heavyweight scan 
+  This function may do heavyweight scan 
   initialization like row prefetching/sorting/etc (NOTE: but better not do
   it here as we may not need it, e.g. if we never satisfy WHERE clause on
   previous tables. For many implementations it would be natural to do such
@@ -5883,7 +6143,7 @@ ha_rows handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
   mode is a combination of the following flags: HA_MRR_SORTED,
   HA_MRR_INDEX_ONLY, HA_MRR_NO_ASSOCIATION 
 
-  @param seq             Range sequence to be traversed
+  @param seq_funcs       Range sequence to be traversed
   @param seq_init_param  First parameter for seq->init()
   @param n_ranges        Number of ranges in the sequence
   @param mode            Flags, see the description section for the details
@@ -5941,8 +6201,11 @@ handler::multi_range_read_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param,
 int handler::multi_range_read_next(char **range_info)
 {
   int result= HA_ERR_END_OF_FILE;
-  int range_res;
+  int range_res= 0;
   DBUG_ENTER("handler::multi_range_read_next");
+
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
 
   if (!mrr_have_range)
   {
@@ -5984,6 +6247,14 @@ scan_it_again:
   while ((result == HA_ERR_END_OF_FILE) && !range_res);
 
   *range_info= mrr_cur_range.ptr;
+
+  /* Update virtual generated fields */
+  if (!result && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(table->record[0], table, active_index);
+    m_update_generated_read_fields= false;
+  }
+
   DBUG_PRINT("exit",("handler::multi_range_read_next result %d", result));
   DBUG_RETURN(result);
 }
@@ -6694,7 +6965,8 @@ void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, Cost_estimate *cost)
       that is more realistic. @todo: Replace this with
       key_compare_cost() when this has been given a realistic value.
     */
-    const double ROWID_COMPARE_SORT_COST = 0.01;
+    const double ROWID_COMPARE_SORT_COST=
+      table->cost_model()->key_compare_cost(1.0) / 10;
 
     /* Add cost of qsort call: n * log2(n) * cost(rowid_comparison) */
     
@@ -6715,7 +6987,10 @@ void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, Cost_estimate *cost)
   A disk sweep read is a sequence of handler->rnd_pos(rowid) calls that made
   for an ordered sequence of rowids.
 
-  We assume hard disk IO. The read is performed as follows:
+  We take into account that some of the records might be in a memory
+  buffer while others need to be read from a secondary storage
+  device. The model for this assumes hard disk IO. A disk read is
+  performed as follows:
 
    1. The disk head is moved to the needed cylinder
    2. The controller waits for the plate to rotate
@@ -6746,11 +7021,11 @@ void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, Cost_estimate *cost)
   We define half_rotation_cost as disk_seek_base_cost() (see
   Cost_model_server::disk_seek_base_cost()).
 
-  @param table             Table to be accessed
-  @param nrows             Number of rows to retrieve
-  @param interrupted       TRUE <=> Assume that the disk sweep will be
-                           interrupted by other disk IO. FALSE - otherwise.
-  @param cost         OUT  The cost.
+  @param      table        Table to be accessed
+  @param      nrows        Number of rows to retrieve
+  @param      interrupted  true <=> Assume that the disk sweep will be
+                           interrupted by other disk IO. false - otherwise.
+  @param[out] cost         the cost
 */
 
 void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted, 
@@ -6763,10 +7038,16 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
   {
     const Cost_model_table *const cost_model= table->cost_model();
 
+    // The total number of blocks used by this table
     double n_blocks=
       ceil(ulonglong2double(table->file->stats.data_file_length) / IO_SIZE);
     if (n_blocks < 1.0)                         // When data_file_length is 0
       n_blocks= 1.0;
+
+    /*
+      The number of blocks that in average need to be read given that
+      the records are uniformly distribution over the table.
+    */
     double busy_blocks=
       n_blocks * (1.0 - pow(1.0 - 1.0/n_blocks, rows2double(nrows)));
     if (busy_blocks < 1.0)
@@ -6775,11 +7056,34 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
     DBUG_PRINT("info",("sweep: nblocks=%g, busy_blocks=%g", n_blocks,
                        busy_blocks));
     if (interrupted)
-      cost->add_io(busy_blocks * cost_model->io_block_read_cost());
+      cost->add_io(cost_model->page_read_cost(busy_blocks));
     else
-      /* Assume reading is done in one 'sweep' */
-      cost->add_io(busy_blocks * 
-                   cost_model->disk_seek_cost(n_blocks / busy_blocks));
+    {
+      /*
+        Assume reading pages from disk is done in one 'sweep'. 
+
+        The cost model and cost estimate for pages already in a memory
+        buffer will be different from pages that needed to be read from
+        disk. Calculate the number of blocks that likely already are
+        in memory and the number of blocks that need to be read from
+        disk.
+      */
+      const double busy_blocks_mem=
+        busy_blocks * table->file->table_in_memory_estimate();
+      const double busy_blocks_disk= busy_blocks - busy_blocks_mem;
+      DBUG_ASSERT(busy_blocks_disk >= 0.0);
+
+      // Cost of accessing blocks in main memory buffer
+      cost->add_io(cost_model->buffer_block_read_cost(busy_blocks_mem));
+
+      // Cost of reading blocks from disk in a 'sweep'
+      const double seek_distance= (busy_blocks_disk > 1.0) ?
+        n_blocks / busy_blocks_disk : n_blocks;
+
+      const double disk_cost=
+        busy_blocks_disk * cost_model->disk_seek_cost(seek_distance);
+      cost->add_io(disk_cost);
+    }
   }
   DBUG_PRINT("info",("returning cost=%g", cost->total_cost()));
   DBUG_VOID_RETURN;
@@ -6806,8 +7110,6 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
     0			Found row
   @retval
     HA_ERR_END_OF_FILE	No rows in range
-  @retval
-    \#			Error code
 */
 int handler::read_range_first(const key_range *start_key,
 			      const key_range *end_key,
@@ -6860,8 +7162,6 @@ int handler::read_range_first(const key_range *start_key,
     0			Found row
   @retval
     HA_ERR_END_OF_FILE	No rows in range
-  @retval
-    \#			Error code
 */
 int handler::read_range_next()
 {
@@ -6918,7 +7218,7 @@ void handler::set_end_range(const key_range* range,
 
   @param range		range to compare to row. May be 0 for no range
 
-  @seealso
+  @sa
     key.cc::key_cmp()
 
   @return
@@ -6977,7 +7277,7 @@ int handler::index_read_idx_map(uchar * buf, uint index, const uchar * key,
                                 key_part_map keypart_map,
                                 enum ha_rkey_function find_flag)
 {
-  int error, error1;
+  int error, error1= 0;
   error= index_init(index, 0);
   if (!error)
   {
@@ -7126,7 +7426,7 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   {
     if (db_type->state != SHOW_OPTION_YES)
     {
-      const LEX_STRING *name=&hton2plugin[db_type->slot]->name;
+      const LEX_STRING *name= &se_plugin_array[db_type->slot]->name;
       result= stat_print(thd, name->str, name->length,
                          "", 0, "DISABLED", 8) ? 1 : 0;
     }
@@ -7265,13 +7565,10 @@ static int write_locked_table_maps(THD *thd)
 }
 
 
-typedef bool Log_func(THD*, TABLE*, bool,
-                      const uchar*, const uchar*);
-
 int binlog_log_row(TABLE* table,
-                          const uchar *before_record,
-                          const uchar *after_record,
-                          Log_func *log_func)
+                   const uchar *before_record,
+                   const uchar *after_record,
+                   Log_func *log_func)
 {
   bool error= 0;
   THD *const thd= table->in_use;
@@ -7451,7 +7748,8 @@ int handler::ha_write_row(uchar *buf)
 
   DBUG_EXECUTE_IF("handler_crashed_table_on_usage",
                   my_error(HA_ERR_CRASHED, MYF(ME_ERRORLOG), table_share->table_name.str);
-                  DBUG_RETURN(my_errno= HA_ERR_CRASHED););
+                  set_my_errno(HA_ERR_CRASHED);
+                  DBUG_RETURN(HA_ERR_CRASHED););
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_WRITE_ROW, MAX_KEY, error,
     { error= write_row(buf); })
@@ -7487,7 +7785,8 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
 
   DBUG_EXECUTE_IF("handler_crashed_table_on_usage",
                   my_error(HA_ERR_CRASHED, MYF(ME_ERRORLOG), table_share->table_name.str);
-                  return(my_errno= HA_ERR_CRASHED););
+                  set_my_errno(HA_ERR_CRASHED);
+                  return(HA_ERR_CRASHED););
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_UPDATE_ROW, active_index, error,
     { error= update_row(old_data, new_data);})
@@ -7516,7 +7815,8 @@ int handler::ha_delete_row(const uchar *buf)
 
   DBUG_EXECUTE_IF("handler_crashed_table_on_usage",
                   my_error(HA_ERR_CRASHED, MYF(ME_ERRORLOG), table_share->table_name.str);
-                  return(my_errno= HA_ERR_CRASHED););
+                  set_my_errno(HA_ERR_CRASHED);
+                  return(HA_ERR_CRASHED););
 
   MYSQL_DELETE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
@@ -7574,7 +7874,7 @@ Handler_share *handler::get_ha_share_ptr()
 /**
   Set ha_share to be used by all instances of the same table/partition.
 
-  @param ha_share    Handler_share to be shared.
+  @param arg_ha_share    Handler_share to be shared.
 
   @note
   If not a temp table, then LOCK_ha_data must be held.
@@ -7616,3 +7916,385 @@ void handler::unlock_shared_ha_data()
   if (table_share->tmp_table == NO_TMP_TABLE)
     mysql_mutex_unlock(&table_share->LOCK_ha_data);
 }
+
+
+/**
+  This structure is a helper structure for passing the length and pointer of
+  blob space allocated by storage engine.
+*/
+struct blob_len_ptr{
+  uint length;  // length of the blob
+  uchar *ptr;   // pointer of the value
+};
+
+
+/**
+  Get the blob length and pointer of allocated space from the record buffer.
+
+  During evaluating the blob virtual generated columns, the blob space will
+  be allocated by server. In order to keep the blob data after the table is
+  closed, we need write the data into a specified space allocated by storage
+  engine. Here, we have to extract the space pointer and length from the
+  record buffer.
+  After we get the value of virtual generated columns, copy the data into
+  the specified space and store it in the record buffer (@see copy_blob_data()).
+
+  @param table                    the pointer of table
+  @param fields                   bitmap of field index of evaluated
+                                  generated column
+  @param[out] blob_len_ptr_array  an array to record the length and pointer
+                                  of allocated space by storage engine.
+  @note The caller should provide the blob_len_ptr_array with a size of
+        MAX_FIELDS.
+*/
+
+static void extract_blob_space_and_length_from_record_buff(const TABLE *table,
+                                           const MY_BITMAP *const fields,
+                                           blob_len_ptr *blob_len_ptr_array)
+{
+  int num= 0;
+  for (Field **vfield= table->vfield; *vfield; vfield++)
+  {
+    // Check if this field should be included
+    if (bitmap_is_set(fields, (*vfield)->field_index) &&
+        (*vfield)->is_virtual_gcol() && (*vfield)->type() == MYSQL_TYPE_BLOB)
+    {
+      blob_len_ptr_array[num].length= (*vfield)->data_length();
+      // TODO: The following check is only for Innodb.
+      DBUG_ASSERT(blob_len_ptr_array[num].length == 768 ||
+                  blob_len_ptr_array[num].length == 3073);
+
+      uchar *ptr;
+      (*vfield)->get_ptr(&ptr);
+      blob_len_ptr_array[num].ptr= ptr;
+
+      // Let server allocate the space for BLOB virtual generated columns
+      (*vfield)->reset();
+
+      num++;
+      DBUG_ASSERT(num <= MAX_FIELDS);
+    }
+  }
+}
+
+
+/**
+  Copy the value of BLOB virtual generated columns into the space allocated
+  by storage engine.
+
+  This is because the table is closed after evaluating the value. In order to
+  keep the BLOB value after the table is closed, we have to copy the value into
+  the place where storage engine prepares for.
+
+  @param table              pointer of the table to be operated on
+  @param fields             bitmap of field index of evaluated generated column
+  @param blob_len_ptr_array array of length and pointer of allocated space by
+                            storage engine.
+*/
+
+static void copy_blob_data(const TABLE *table,
+                           const MY_BITMAP *const fields,
+                           blob_len_ptr *blob_len_ptr_array)
+{
+  uint  num= 0;
+  for (Field **vfield= table->vfield; *vfield; vfield++)
+  {
+    // Check if this field should be included
+    if (bitmap_is_set(fields, (*vfield)->field_index) &&
+        (*vfield)->is_virtual_gcol() && (*vfield)->type() == MYSQL_TYPE_BLOB)
+    {
+      DBUG_ASSERT(blob_len_ptr_array[num].length > 0);
+      DBUG_ASSERT(blob_len_ptr_array[num].ptr != NULL);
+
+      /*
+        Only copy as much of the blob as the storage engine has
+        allocated space for. This is sufficient since the only use of the
+        blob in the storage engine is for using a prefix of it in a
+        secondary index.
+      */
+      uint length= (*vfield)->data_length();
+      const uint alloc_len= blob_len_ptr_array[num].length;
+      length= length > alloc_len ? alloc_len : length;
+
+      uchar *ptr;
+      (*vfield)->get_ptr(&ptr);
+      memcpy(blob_len_ptr_array[num].ptr, ptr, length);
+      (down_cast<Field_blob *>(*vfield))->store_in_allocated_space(
+                            pointer_cast<char *>(blob_len_ptr_array[num].ptr),
+                            length);
+      num++;
+      DBUG_ASSERT(num <= MAX_FIELDS);
+    }
+  }
+}
+
+
+/*
+  Evaluate generated column's value. This is an internal helper reserved for
+  handler::my_eval_gcolumn_expr().
+
+  @param thd        pointer of THD
+  @param table      The pointer of table where evaluted generated
+                    columns are in
+  @param fields     bitmap of field index of evaluated generated column
+  @param[in,out] record record buff of base columns generated column depends.
+                        After calling this function, it will be used to return
+                        the value of generated column.
+  @param in_purge   whehter the function is called by purge thread
+
+  @return true in case of error, false otherwise.
+*/
+
+static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
+                                        const MY_BITMAP *const fields,
+                                        uchar *record,
+                                        bool in_purge)
+{
+  DBUG_ENTER("my_eval_gcolumn_expr_helper");
+  DBUG_ASSERT(table && table->vfield);
+
+  uchar *old_buf= table->record[0];
+  repoint_field_to_record(table, old_buf, record);
+
+  blob_len_ptr blob_len_ptr_array[MAX_FIELDS];
+  
+  /*
+    If it's purge thread, we need get the space allocated by storage engine
+    for blob.
+  */
+  if (in_purge)
+    extract_blob_space_and_length_from_record_buff(table, fields,
+                                                   blob_len_ptr_array);
+
+  bool res= false;
+  MY_BITMAP fields_to_evaluate;
+  my_bitmap_map bitbuf[bitmap_buffer_size(MAX_FIELDS) / sizeof(my_bitmap_map)];
+  bitmap_init(&fields_to_evaluate, bitbuf, table->s->fields, 0);
+  bitmap_set_all(&fields_to_evaluate);
+  bitmap_intersect(&fields_to_evaluate, fields);
+  /*
+    In addition to evaluating the value for the columns requested by
+    the caller we also need to evaluate any virtual columns that these
+    depend on.
+    This loop goes through the columns that should be evaluated and
+    adds all the base columns. If the base column is virtual, it has
+    to be evaluated.
+  */
+  for (Field **vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
+  {
+    Field *field= *vfield_ptr;
+    // Validate that the field number is less than the bit map size
+    DBUG_ASSERT(field->field_index < fields->n_bits);
+
+    if (bitmap_is_set(fields, field->field_index))
+      bitmap_union(&fields_to_evaluate, &field->gcol_info->base_columns_map);
+  }
+
+   /*
+     Evaluate all requested columns and all base columns these depends
+     on that are virtual.
+  */
+  for (Field **vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
+  {
+    Field *field= *vfield_ptr;
+
+    // Check if we should evaluate this field
+    if (bitmap_is_set(&fields_to_evaluate, field->field_index) &&
+        field->is_virtual_gcol())
+    {
+      DBUG_ASSERT(field->gcol_info && field->gcol_info->expr_item->fixed);
+      if (in_purge)
+      {
+        /*
+          Adding to read_set/write_set is normally done up-front by high-level
+          layers before calling any handler's read/delete/etc functions.
+          But, for the specific case of the purge thread, it has no high-level
+          layer to manage read_set/write_set.
+        */
+        table->mark_column_used(thd, field, MARK_COLUMNS_WRITE);
+      }
+
+      const type_conversion_status save_in_field_status=
+        field->gcol_info->expr_item->save_in_field(field, 0);
+      DBUG_ASSERT(!thd->is_error() || save_in_field_status != TYPE_OK);
+
+      /*
+        save_in_field() may return non-zero even if there was no
+        error. This happens if a warning is raised, such as an
+        out-of-range warning when converting the result to the target
+        type of the virtual column. We should stop only if the
+        non-zero return value was caused by an actual error.
+      */
+      if (save_in_field_status != TYPE_OK && thd->is_error())
+      {
+        res= true;
+        break;
+      }
+    }
+  }
+
+  /*
+    If it's a purge thread, we need copy the blob data into specified place
+    allocated by storage engine so that the blob data still can be accessed
+    after table is closed.
+  */
+  if (in_purge)
+    copy_blob_data(table, fields, blob_len_ptr_array);
+
+  repoint_field_to_record(table, record, old_buf);
+  DBUG_RETURN(res);
+}
+
+
+/**
+   Callback to allow InnoDB to prepare a template for generated
+   column processing. This function will open the table without
+   opening in the engine and call the provided function with
+   the TABLE object made. The function will then close the TABLE.
+
+   @param thd            Thread handle
+   @param db_name        Name of database containing the table
+   @param table_name     Name of table to open
+   @param myc            InnoDB function to call for processing TABLE
+   @param ib_table       Argument for InnoDB function
+
+   @return true in case of error, false otherwise.
+*/
+
+bool handler::my_prepare_gcolumn_template(THD *thd,
+                                          const char *db_name,
+                                          const char *table_name,
+                                          my_gcolumn_template_callback_t myc,
+                                          void* ib_table)
+{
+  /*
+    This is a background thread, so we can re-initialize the main LEX, its
+    current content is not important.
+  */
+  DBUG_ASSERT(thd->system_thread == SYSTEM_THREAD_BACKGROUND);
+  char path[FN_REFLEN + 1];
+  bool was_truncated;
+  build_table_filename(path, sizeof(path) - 1 - reg_ext_length,
+                       db_name, table_name, "", 0, &was_truncated);
+  DBUG_ASSERT(!was_truncated);
+  lex_start(thd);
+  bool rc= true;
+  TABLE *table= open_table_uncached(thd, path, db_name, table_name,
+                                    false, false);
+  if (table)
+  {
+    myc(table, ib_table);
+    intern_close_table(table);
+    rc= false;
+  }
+  lex_end(thd->lex);
+  return rc;
+}
+
+
+/**
+   Callback for generated columns processing. Will open the table
+   and call my_eval_gcolumn_expr_helper() to do the actual
+   processing. This function is a variant of the other
+   handler::my_eval_gcolumn_expr() but is intended for use when no TABLE
+   object already exists - e.g. from purge threads.
+
+   @param thd             Thread handle
+   @param open_in_engine  Should ha_open() be called?
+   @param db_name         Database containing the table to open
+   @param table_name      Name of table to open
+   @param fields          Bitmap of field index of evaluated generated column
+   @param record          Record buffer
+
+   @return true in case of error, false otherwise.
+*/
+
+bool handler::my_eval_gcolumn_expr(THD *thd,
+                                   bool open_in_engine,
+                                   const char *db_name,
+                                   const char *table_name,
+                                   const MY_BITMAP *const fields,
+                                   uchar *record)
+{
+  DBUG_ASSERT(thd->system_thread == SYSTEM_THREAD_BACKGROUND);
+  bool retval= true;
+  lex_start(thd);
+
+  if (open_in_engine)
+  {
+    TABLE_LIST table_list;
+    table_list.init_one_table(db_name, strlen(db_name),
+                              table_name, strlen(table_name),
+                              table_name, TL_READ);
+
+    TABLE *table= open_ltable(thd, &table_list, table_list.lock_type,
+                              MYSQL_LOCK_IGNORE_TIMEOUT);
+    if (table)
+    {
+      retval=
+        my_eval_gcolumn_expr_helper(thd, table_list.table, fields, record, true);
+      trans_commit_stmt(thd);
+      close_thread_tables(thd);
+    }
+  }
+  else
+  {
+    char path[FN_REFLEN + 1];
+    bool was_truncated;
+    build_table_filename(path, sizeof(path) - 1 - reg_ext_length,
+                         db_name, table_name, "", 0, &was_truncated);
+    DBUG_ASSERT(!was_truncated);
+
+    TABLE *table= open_table_uncached(thd, path, db_name, table_name,
+                                      false, false);
+    if (table)
+    {
+      retval= my_eval_gcolumn_expr_helper(thd, table, fields, record, true);
+      intern_close_table(table);
+    }
+  }
+
+  lex_end(thd->lex);
+  return retval;
+}
+
+
+/*
+  Evaluate generated Column's value. If the engine has to write an index entry
+  to its UNDO log (in a DELETE or UPDATE), and the index is on a virtual
+  generated column, engine needs to calculate the column's value. This variant
+  of handler::my_eval_gcolumn_expr() is used by client threads which have a
+  TABLE.
+
+  @param thd        Thread handle
+  @param db_name    name of database
+  @param table_name name of the opened table
+  @param fields     bitmap of field index of evaluated generated column
+  @param[in,out]    record buff of base columns generated column depends.
+                    After calling this function, it will be used to return
+                    the value of generated column.
+
+  @return true in case of error, false otherwise.
+*/
+
+bool handler::my_eval_gcolumn_expr(THD *thd,
+                                   const char *db_name,
+                                   const char *table_name,
+                                   const MY_BITMAP *const fields,
+                                   uchar *record)
+{
+  DBUG_ENTER("my_eval_gcolumn_expr");
+
+  TABLE *table= find_locked_table(thd->open_tables, db_name, table_name);
+  if (!table)
+  {
+    if (!(table= find_temporary_table(thd, db_name, table_name)))
+    {
+      my_error(ER_TABLE_NOT_LOCKED, MYF(0), table_name);
+      DBUG_RETURN(true);
+    }
+  }
+  const bool res= my_eval_gcolumn_expr_helper(thd, table, fields, record, false);
+  DBUG_RETURN(res);
+}
+

@@ -36,30 +36,6 @@ using std::min;
 //////////////////////////////////////////////////////////
 
 /**
-  Release resources of the THD, prior to destruction.
-
-  @param    THD   pointer to THD object.
-*/
-
-void thd_release_resources(THD *thd)
-{
-  thd->release_resources();
-}
-
-
-/**
-  Delete the THD object.
-
-  @param    THD   pointer to THD object.
-*/
-
-void destroy_thd(THD *thd)
-{
-  delete thd;
-}
-
-
-/**
   Get reference to scheduler data object
 
   @param thd            THD object
@@ -77,7 +53,7 @@ void *thd_get_scheduler_data(THD *thd)
   Set reference to Scheduler data object for THD object
 
   @param thd            THD object
-  @param psi            Scheduler data object to set on THD
+  @param data           Scheduler data object to set on THD
 */
 
 void thd_set_scheduler_data(THD *thd, void *data)
@@ -96,7 +72,7 @@ void thd_set_scheduler_data(THD *thd, void *data)
 
 PSI_thread *thd_get_psi(THD *thd)
 {
-  return thd->scheduler.m_psi;
+  return thd->get_psi();
 }
 
 
@@ -123,7 +99,7 @@ ulong thd_get_net_wait_timeout(THD* thd)
 
 void thd_set_psi(THD *thd, PSI_thread *psi)
 {
-  thd->scheduler.m_psi= psi;
+  thd->set_psi(psi);
 }
 
 
@@ -147,21 +123,7 @@ void thd_set_killed(THD *thd)
 
 void thd_clear_errors(THD *thd)
 {
-  my_errno= 0;
-  thd->mysys_var->abort= 0;
-}
-
-
-/**
-  Set thread stack in THD object
-
-  @param thd              Thread object
-  @param stack_start      Start of stack to set in THD object
-*/
-
-void thd_set_thread_stack(THD *thd, char *stack_start)
-{
-  thd->thread_stack= stack_start;
+  set_my_errno(0);
 }
 
 
@@ -198,39 +160,7 @@ THD *thd_get_current_thd()
 void reset_thread_globals(THD* thd)
 {
   thd->restore_globals();
-  thd->set_mysys_var(NULL);
-}
-
-
-/**
-  Set up various THD data for a new connection
-
-  thd_new_connection_setup
-
-  @param              thd            THD object
-  @param              stack_start    Start of stack for connection
-*/
-
-void thd_new_connection_setup(THD *thd, char *stack_start)
-{
-  DBUG_ENTER("thd_new_connection_setup");
-  thd->set_new_thread_id();
-#ifdef HAVE_PSI_INTERFACE
-  thd_set_psi(thd,
-              PSI_THREAD_CALL(new_thread)
-              (key_thread_one_connection, thd, thd->thread_id()));
-#endif
-  thd->set_time();
-  thd->thr_create_utime= thd->start_utime= my_micro_time();
-
-  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
-  thd_manager->add_thd(thd);
-
-  DBUG_PRINT("info", ("init new connection. thd: 0x%lx fd: %d",
-          (ulong)thd, mysql_socket_getfd(
-            thd->get_protocol_classic()->get_vio()->mysql_socket)));
-  thd_set_thread_stack(thd, stack_start);
-  DBUG_VOID_RETURN;
+  thd->set_is_killable(false);
 }
 
 
@@ -261,7 +191,7 @@ void thd_unlock_data(THD *thd)
 /**
   Support method to check if connection has already started transaction
 
-  @param client_cntx    Low level client context
+  @param thd Current thread
 
   @retval               TRUE if connection already started transaction
 */
@@ -312,15 +242,14 @@ void thd_set_net_read_write(THD *thd, uint val)
 
 
 /**
-  Set reference to mysys variable in THD object
+  Mark the THD as not killable as it is not currently used by a thread.
 
   @param thd             THD object
-  @param mysys_var       Reference to set
 */
 
-void thd_set_mysys_var(THD *thd, st_my_thread_var *mysys_var)
+void thd_set_not_killable(THD *thd)
 {
-  thd->set_mysys_var(mysys_var);
+  thd->set_is_killable(false);
 }
 
 
@@ -664,7 +593,7 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, size_t length,
     was reallocated to a larger buffer to be able to fit.
   */
   DBUG_ASSERT(buffer != NULL);
-  length= min(static_cast<size_t>(str.length()), length-1);
+  length= min(str.length(), length-1);
   memcpy(buffer, str.c_ptr_quick(), length);
   /* Make sure that the new string is null terminated */
   buffer[length]= '\0';
@@ -689,7 +618,9 @@ void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
 extern "C"
 int thd_killed(const MYSQL_THD thd)
 {
-  return(thd->killed);
+  if (thd == NULL)
+    return current_thd->killed;
+  return thd->killed;
 }
 
 

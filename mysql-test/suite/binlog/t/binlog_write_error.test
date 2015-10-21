@@ -90,11 +90,19 @@ source include/binlog_inject_error.inc;
 let $query= CREATE USER user1;
 source include/binlog_inject_error.inc;
 
+# Since the previous CREATE USER is failed due to an error while writing
+# to bilog and changes made by the statement has been rolled back
+# we have to create user1 to be able to test REVOKE ALL and DROP USER.
+CREATE USER user1;
+
 let $query= REVOKE ALL PRIVILEGES, GRANT OPTION FROM user1;
 source include/binlog_inject_error.inc;
 
 let $query= DROP USER user1;
 source include/binlog_inject_error.inc;
+
+# Since the previous DROP USER is failed we have to do a clean up explicitly.
+DROP USER user1;
 
 --echo #
 --echo # Cleanup

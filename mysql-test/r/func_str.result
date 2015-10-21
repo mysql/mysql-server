@@ -1385,7 +1385,16 @@ Note	1003	/* select#1 */ select decode(NULL,'zxcv') AS `enc` from `test`.`t1`
 drop table t1;
 create table t1 (a bigint not null)engine=myisam;
 insert into t1 set a = 1024*1024*1024*4;
+SET @orig_sql_mode = @@SQL_MODE;
+SET SQL_MODE='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 delete from t1 order by (inet_ntoa(a)) desc limit 10;
+Warnings:
+Warning	1411	Incorrect integer value: '4294967296' for function inet_ntoa
+SET SQL_MODE=@orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table t1;
 create table t1 (a char(36) not null)engine=myisam;
 insert ignore into t1 set a = ' ';
@@ -2427,9 +2436,13 @@ DROP TABLE t1;
 SELECT UNHEX('G');
 UNHEX('G')
 NULL
+Warnings:
+Warning	1411	Incorrect string value: 'G' for function unhex
 SELECT UNHEX('G') IS NULL;
 UNHEX('G') IS NULL
 1
+Warnings:
+Warning	1411	Incorrect string value: 'G' for function unhex
 SELECT INSERT('abc', 3, 3, '1234');
 INSERT('abc', 3, 3, '1234')
 ab1234
@@ -3023,9 +3036,7 @@ sha1('P'),
 )
 )
 );
-Warnings:
-Error	3037	Invalid GIS data provided to function st_geometryfromwkb.
-Warning	1292	Truncated incorrect DECIMAL value: '[.DC2.]'
+ERROR 22023: Invalid GIS data provided to function st_geometryfromwkb.
 SET @@global.max_allowed_packet:= @tmp_max;
 #
 # End of 5.5 tests
@@ -4694,3 +4705,64 @@ SET @@global.max_allowed_packet:= DEFAULT;
 do rpad(_utf16"33",1073741826,_latin1"44");
 Warnings:
 Warning	1301	Result of rpad() was larger than max_allowed_packet (4194304) - truncated
+#
+# Bug#13740934 ASSERTION FAILED: ARGS[0]->FIXED ITEM_FUNC_CONV_CHARSET::ITEM_FUNC_CONV_CHARSET
+#
+CREATE TABLE t1(a TIME);
+INSERT INTO t1 VALUES ();
+SELECT (SELECT (SELECT 1 FROM t1 a WHERE t1.a <_ucs2'a')) AS d5 FROM t1 GROUP BY 1;
+d5
+NULL
+DROP TABLE t1;
+#
+# Bug#21317406 TRUNCATED DATA WITH SUBQUERY & UTF8
+#
+SELECT length(rpad(_utf8 0xD0B1, 65536, _utf8 0xD0B2)) AS data;
+data
+131072
+SELECT length(data) AS len FROM (
+SELECT rpad(_utf8 0xD0B1, 65536, _utf8 0xD0B2) AS data
+) AS sub;
+len
+131072
+SELECT length(rpad(_utf8 0xD0B1, 65535, _utf8 0xD0B2)) AS data;
+data
+131070
+SELECT length(data) AS len FROM (
+SELECT rpad(_utf8 0xD0B1, 65535, _utf8 0xD0B2) AS data
+) AS sub;
+len
+131070
+SELECT length(repeat(_utf8mb4 0xE29883, 21844)) AS data;
+data
+65532
+SELECT length(data) AS len
+FROM ( SELECT repeat(_utf8mb4 0xE29883, 21844) AS data ) AS sub;
+len
+65532
+SELECT length(repeat(_utf8mb4 0xE29883, 21846)) AS data;
+data
+65538
+SELECT length(data) AS len
+FROM ( SELECT repeat(_utf8mb4 0xE29883, 21846) AS data ) AS sub;
+len
+65538
+#
+# Bug#21447969 FILTER USING TRIM RESULTS IN CORRECT
+#
+CREATE TABLE t1 (COUNTRY char(100));
+INSERT INTO t1 VALUES ("Norway"), ("Australia");
+SELECT COUNTRY FROM t1 
+WHERE trim(leading 'A' FROM  COUNTRY) = 'ustralia';
+COUNTRY
+Australia
+SELECT  COUNTRY  FROM t1 
+WHERE  trim(trailing 'a' FROM COUNTRY)= 'Australi';
+COUNTRY
+Australia
+SELECT COUNTRY FROM t1 
+WHERE trim(leading  'A' FROM COUNTRY) = 'ustralia'  
+AND trim(trailing 'a' FROM COUNTRY) = 'Australi';
+COUNTRY
+Australia
+DROP TABLE t1;

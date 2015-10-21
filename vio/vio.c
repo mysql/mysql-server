@@ -352,15 +352,15 @@ Vio *vio_new_win32shared_memory(HANDLE handle_file_map, HANDLE handle_map,
 /**
   Set timeout for a network send or receive operation.
 
-  @remark A non-infinite timeout causes the socket to be
+  @note A non-infinite timeout causes the socket to be
           set to non-blocking mode. On infinite timeouts,
           the socket is set to blocking mode.
 
-  @remark A negative timeout means an infinite timeout.
+  @note A negative timeout means an infinite timeout.
 
   @param vio      A VIO object.
   @param which    Whether timeout is for send (1) or receive (0).
-  @param timeout  Timeout interval in seconds.
+  @param timeout_sec  Timeout interval in seconds.
 
   @return FALSE on success, TRUE otherwise.
 */
@@ -417,3 +417,45 @@ void vio_end(void)
   vio_ssl_end();
 #endif
 }
+
+struct vio_string
+{
+  const char * m_str;
+  int m_len;
+};
+typedef struct vio_string vio_string;
+
+/**
+  Names for each VIO TYPE.
+  Indexed by enum_vio_type.
+  If you add more, please update audit_log.cc
+*/
+static const vio_string vio_type_names[] =
+{
+  { "", 0},
+  { C_STRING_WITH_LEN("TCP/IP") },
+  { C_STRING_WITH_LEN("Socket") },
+  { C_STRING_WITH_LEN("Named Pipe") },
+  { C_STRING_WITH_LEN("SSL/TLS") },
+  { C_STRING_WITH_LEN("Shared Memory") },
+  { C_STRING_WITH_LEN("Internal") },
+  { C_STRING_WITH_LEN("Plugin") }
+};
+
+void get_vio_type_name(enum enum_vio_type vio_type, const char ** str, int * len)
+{
+  int index;
+
+  if ((vio_type >= FIRST_VIO_TYPE) && (vio_type <= LAST_VIO_TYPE))
+  {
+    index= vio_type;
+  }
+  else
+  {
+    index= 0;
+  }
+  *str= vio_type_names[index].m_str;
+  *len= vio_type_names[index].m_len;
+  return;
+}
+

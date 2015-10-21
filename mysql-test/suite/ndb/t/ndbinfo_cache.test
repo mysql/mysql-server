@@ -6,8 +6,6 @@
 --source include/have_query_cache.inc
 --source include/have_ndb.inc
 
---source ndbinfo_create.inc
-
 USE ndbinfo;
 
 # BUG#59831 ndbinfo - counters not increasing after first query
@@ -30,5 +28,3 @@ show status like "Qcache_queries_in_cache";
 show status like "Qcache_inserts";
 
 SET GLOBAL query_cache_size=0;
-
---source ndbinfo_drop.inc

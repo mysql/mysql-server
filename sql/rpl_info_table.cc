@@ -163,6 +163,7 @@ int Rpl_info_table::do_flush_info(const bool force)
   sync_counter= 0;
   saved_mode= thd->variables.sql_mode;
   tmp_disable_binlog(thd);
+  thd->is_operating_substatement_implicitly= true;
 
   /*
     Opens and locks the rpl_info table before accessing it.
@@ -247,6 +248,7 @@ end:
     Unlocks and closes the rpl_info table.
   */
   access->close_table(thd, table, &backup, error);
+  thd->is_operating_substatement_implicitly= false;
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
   access->drop_thd(thd);
@@ -382,7 +384,7 @@ int Rpl_info_table::do_reset_info(uint nparam,
                                  strlen(channel_name),
                                  &my_charset_bin);
     uint key_len= key_info->key_part[0].store_length;
-    uchar *key_buf= (uchar*) table->field[fieldnr]->ptr;
+    uchar *key_buf= table->field[fieldnr]->ptr;
 
     if (!(handler_error= table->file->ha_index_read_map(table->record[0],
                                                         key_buf,
@@ -675,7 +677,7 @@ bool Rpl_info_table::do_get_info(const int pos, uchar *value, const size_t size,
                                  const uchar *default_value __attribute__((unused)))
 {
   if (field_values->value[pos].length() == size)
-    return (!memcpy((char *) value, (char *)
+    return (!memcpy((char *) value,
             field_values->value[pos].c_ptr_safe(), size));
   return TRUE;
 }

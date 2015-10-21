@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -129,7 +129,7 @@ uchar *hp_search(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *key,
 	case 2:					/* Search previous */
 	  if (pos->ptr_to_rec == info->current_ptr)
 	  {
-	    my_errno=HA_ERR_KEY_NOT_FOUND;	/* If gpos == 0 */
+	    set_my_errno(HA_ERR_KEY_NOT_FOUND);	/* If gpos == 0 */
 	    info->current_hash_ptr=prev_ptr;
 	    DBUG_RETURN(info->current_ptr=prev_ptr ? prev_ptr->ptr_to_rec : 0);
 	  }
@@ -154,7 +154,7 @@ uchar *hp_search(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *key,
     }
     while ((pos=pos->next_key));
   }
-  my_errno=HA_ERR_KEY_NOT_FOUND;
+  set_my_errno(HA_ERR_KEY_NOT_FOUND);
   if (nextflag == 2 && ! info->current_ptr)
   {
     /* Do a previous from end */
@@ -163,8 +163,8 @@ uchar *hp_search(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *key,
   }
 
   if (old_nextflag && nextflag)
-    my_errno=HA_ERR_RECORD_CHANGED;		/* Didn't find old record */
-  DBUG_PRINT("exit",("Error: %d",my_errno));
+    set_my_errno(HA_ERR_RECORD_CHANGED);		/* Didn't find old record */
+  DBUG_PRINT("exit",("Error: %d",my_errno()));
   info->current_hash_ptr=0;  
   DBUG_RETURN((info->current_ptr= 0));
 }
@@ -188,8 +188,8 @@ uchar *hp_search_next(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *key,
       DBUG_RETURN (info->current_ptr= pos->ptr_to_rec);
     }
   }
-  my_errno=HA_ERR_KEY_NOT_FOUND;
-  DBUG_PRINT("exit",("Error: %d",my_errno));
+  set_my_errno(HA_ERR_KEY_NOT_FOUND);
+  DBUG_PRINT("exit",("Error: %d",my_errno()));
   info->current_hash_ptr=0;
   DBUG_RETURN ((info->current_ptr= 0));
 }

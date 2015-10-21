@@ -36,6 +36,13 @@ where name in
 order by name;
 name
 wait/synch/sxlock/innodb/btr_search_latch
+wait/synch/sxlock/innodb/btr_search_latch
+wait/synch/sxlock/innodb/btr_search_latch
+wait/synch/sxlock/innodb/btr_search_latch
+wait/synch/sxlock/innodb/btr_search_latch
+wait/synch/sxlock/innodb/btr_search_latch
+wait/synch/sxlock/innodb/btr_search_latch
+wait/synch/sxlock/innodb/btr_search_latch
 wait/synch/sxlock/innodb/checkpoint_lock
 wait/synch/sxlock/innodb/dict_operation_lock
 wait/synch/sxlock/innodb/trx_i_s_cache_lock

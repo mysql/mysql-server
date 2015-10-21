@@ -33,6 +33,11 @@ INSERT INTO t3 VALUES (1, 2), (3, 4), (5, 6);
 # (NUM,NUM,NUM),(NUM,NUM,NUM),(NUM,NUM,NUM) => (#,#),(#,#)
 INSERT INTO t5 VALUES (1, 2, 3), (4, 5, 6), (7, 8, 9);
 
+# IN_SYM TOK_ROW_SINGLE_VALUE => TOK_IN_GENERIC_VALUE_EXPRESSION
+SELECT * FROM t1 WHERE a IN (1);
+# IN_SYM TOK_ROW_MULTIPLE_VALUE => TOK_IN_GENERIC_VALUE_EXPRESSION
+SELECT * FROM t1 WHERE a IN (1, 2, 3);
+
 # -----------------------------------------------------------------------
 # Test case to handle NULL. If alone, not normalized otherwise normalized. 
 # -----------------------------------------------------------------------

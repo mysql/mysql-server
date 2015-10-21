@@ -374,15 +374,25 @@ DROP TABLE tt, t1o, sys_tables, sys_indexes, sys_foreign;
 
 CREATE TABLE t (t TEXT, FULLTEXT(t)) ENGINE=InnoDB;
 DROP INDEX t ON t;
+LET $regexp=/FTS_([0-9a-f_]+)([A-Z_]+)/FTS_AUX_\2/;
+--replace_regex $regexp
+SELECT SUBSTRING(name, LOCATE('_', name) - 3, 5) AS prefix, name
+FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE name LIKE '%FTS_%' ORDER BY 1, 2;
 
 SELECT sc.pos, sc.NAME FROM information_schema.innodb_sys_columns sc
 INNER JOIN information_schema.innodb_sys_tables st
 ON sc.TABLE_ID=st.TABLE_ID
 WHERE st.NAME='test/t';
 
---error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE;
-ALTER TABLE t ROW_FORMAT=REDUNDANT;
+
+--replace_regex $regexp
+SELECT SUBSTRING(name, LOCATE('_', name) - 3, 5) AS prefix, name
+FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE name LIKE '%FTS_%' ORDER BY 1, 2;
+
+ALTER TABLE t ADD FULLTEXT INDEX(t);
 
 SELECT sc.pos, sc.NAME FROM information_schema.innodb_sys_columns sc
 INNER JOIN information_schema.innodb_sys_tables st
@@ -410,3 +420,33 @@ ALTER TABLE t1 CHANGE COLUMN C1 c5 INT;
 SHOW CREATE TABLE t1;
 SHOW CREATE TABLE t2;
 DROP TABLE t2, t1;
+
+--echo #
+--echo #BUG#21514135 SCHEMA MISMATCH ERROR WHEN IMPORTING TABLESPACE AFTER
+--echo #DROPPING AN INDEX
+--echo #
+let $source_db = source_db;
+let $dest_db = dest_db;
+
+eval CREATE DATABASE $source_db;
+eval CREATE DATABASE $dest_db;
+
+eval CREATE TABLE $source_db.t1 (
+   id int(11) NOT NULL,
+   age int(11) DEFAULT NULL,
+   name varchar(20),
+   PRIMARY KEY (id),
+   KEY index1 (age)
+   ) ENGINE=InnoDB;
+
+eval ALTER TABLE $source_db.t1 DROP INDEX index1, ADD INDEX index2(name, age), algorithm=inplace;
+
+--source suite/innodb/include/import.inc
+
+eval ALTER TABLE $source_db.t1 DROP INDEX index2, algorithm=inplace;
+
+--source suite/innodb/include/import.inc
+
+eval DROP TABLE $source_db.t1;
+eval DROP DATABASE $source_db;
+eval DROP DATABASE $dest_db;

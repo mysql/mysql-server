@@ -14,7 +14,7 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "keycaches.h"
-#include "psi_memory_key.h"
+#include "../mysys/mysys_priv.h"
 
 
 /****************************************************************************
@@ -23,8 +23,8 @@
 
 NAMED_ILIST key_caches;
 
-uchar* find_named(I_List<NAMED_ILINK> *list, const char *name, size_t length,
-                NAMED_ILINK **found)
+static uchar* find_named(I_List<NAMED_ILINK> *list, const char *name,
+                         size_t length, NAMED_ILINK **found)
 {
   I_List_iterator<NAMED_ILINK> it(*list);
   NAMED_ILINK *element;

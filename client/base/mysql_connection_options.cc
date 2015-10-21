@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,16 +15,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <sstream>
 #include <vector>
 #include "abstract_options_provider.h"
 #include "mysql_connection_options.h"
 #include "abstract_program.h"
 #include <mysys_err.h>
 
-using std::vector;
-
 using Mysql::Tools::Base::Abstract_program;
 using namespace Mysql::Tools::Base::Options;
+using Mysql::Nullable;
+using std::vector;
+using std::string;
 
 bool Mysql_connection_options::mysql_inited;
 
@@ -38,18 +40,28 @@ Mysql_connection_options::Mysql_connection_options(Abstract_program *program)
     m_program(program),
     m_protocol(0)
 {
+  if (Mysql_connection_options::mysql_inited == false)
+  {
+    Mysql_connection_options::mysql_inited= true;
+    mysql_library_init(0, NULL, NULL);
+    atexit(atexit_mysql_library_end);
+  }
+
   this->add_provider(&this->m_ssl_options_provider);
 }
 
 Mysql_connection_options::~Mysql_connection_options()
 {
+  my_boost::mutex::scoped_lock lock(m_connection_mutex);
   for (vector<MYSQL*>::iterator it= this->m_allocated_connections.begin();
     it != this->m_allocated_connections.end(); it++)
   {
-    delete *it;
+    if (*it)
+    {
+      mysql_close(*it);
+    }
   }
 }
-
 
 void Mysql_connection_options::create_options()
 {
@@ -61,7 +73,8 @@ void Mysql_connection_options::create_options()
       "Use compression in server/client protocol.")
     ->set_short_character('C');
   this->create_new_option(&this->m_default_charset, "default-character-set",
-    "Set the default character set.");
+    "Set the default character set.")
+    ->set_value("UTF8MB4");
   this->create_new_option(&this->m_host, "host", "Connect to host.")
     ->set_short_character('h');
   this->create_new_option(&this->m_max_allowed_packet, "max_allowed_packet",
@@ -101,7 +114,8 @@ void Mysql_connection_options::create_options()
     "The socket file to use for connection.")
     ->set_short_character('S');
   this->create_new_option(&this->m_secure_auth, "secure-auth",
-      "Refuse client connecting to server if it uses old (pre-4.1.1) protocol. Deprecated. Always TRUE")
+      "Refuse client connecting to server if it uses old (pre-4.1.1) "
+      "protocol. Deprecated. Always TRUE")
     ->add_callback(new Instance_callback<void, char*, Mysql_connection_options>
       (this, &Mysql_connection_options::secure_auth_callback));
   this->create_new_option(&this->m_user, "user",
@@ -113,20 +127,14 @@ void Mysql_connection_options::create_options()
     "Default authentication client-side plugin to use.");
 }
 
-
 MYSQL* Mysql_connection_options::create_connection()
 {
-  if (Mysql_connection_options::mysql_inited == false)
-  {
-    Mysql_connection_options::mysql_inited= true;
-    mysql_library_init(0, NULL, NULL);
-    atexit(atexit_mysql_library_end);
-  }
-
   MYSQL *connection = new MYSQL;
 
+  {
+  my_boost::mutex::scoped_lock lock(m_connection_mutex);
   this->m_allocated_connections.push_back(connection);
-
+  }
   mysql_init(connection);
   if (this->m_compress)
     mysql_options(connection, MYSQL_OPT_COMPRESS, NullS);
@@ -152,7 +160,10 @@ MYSQL* Mysql_connection_options::create_connection()
     mysql_options(connection, MYSQL_SET_CHARSET_NAME,
       this->m_default_charset.value().c_str());
   }
-
+  else
+  {
+    mysql_options(connection, MYSQL_SET_CHARSET_NAME, "utf8mb4");
+  }
   if (this->m_plugin_dir.has_value())
     mysql_options(connection, MYSQL_PLUGIN_DIR,
       this->m_plugin_dir.value().c_str());
@@ -172,14 +183,28 @@ MYSQL* Mysql_connection_options::create_connection()
     this->m_mysql_port,
     this->get_null_or_string(this->m_mysql_unix_port), 0))
   {
-    this->db_error(connection, "when trying to connect");
+    this->db_error(connection, "while connecting to the MySQL server");
     return NULL;
   }
 
   return connection;
 }
 
-const char* Mysql_connection_options::get_null_or_string(Nullable<string>& maybe_string)
+CHARSET_INFO* Mysql_connection_options::get_current_charset() const
+{
+  return m_default_charset.has_value()
+    ? get_charset_by_csname(
+      m_default_charset.value().c_str(), MY_CS_PRIMARY, MYF(MY_WME))
+    : NULL;
+}
+
+void Mysql_connection_options::set_current_charset(CHARSET_INFO* charset)
+{
+  m_default_charset= string(charset->csname);
+}
+
+const char* Mysql_connection_options::get_null_or_string(
+  Nullable<string>& maybe_string)
 {
   if (maybe_string.has_value())
   {
@@ -203,8 +228,8 @@ void Mysql_connection_options::protocol_callback(
   char* not_used __attribute__((unused)))
 {
   this->m_protocol=
-    find_type_or_exit(this->m_protocol_string.value().c_str(), &sql_protocol_typelib,
-    "protocol");
+    find_type_or_exit(this->m_protocol_string.value().c_str(),
+    &sql_protocol_typelib, "protocol");
 }
 
 void Mysql_connection_options::secure_auth_callback(
@@ -222,9 +247,10 @@ void Mysql_connection_options::secure_auth_callback(
 
 
 void Mysql_connection_options::db_error(
-  MYSQL* connection, const char* error_message)
+  MYSQL* connection, const char* when)
 {
   my_printf_error(0,"Got error: %d: %s %s", MYF(0),
-    mysql_errno(connection), mysql_error(connection), error_message);
-  this->m_program->error(EXIT_CANNOT_CONNECT_TO_SERVICE);
+    mysql_errno(connection), mysql_error(connection), when);
+  this->m_program->error(Mysql::Tools::Base::Message_data(
+    EXIT_CANNOT_CONNECT_TO_SERVICE, "", Message_type_error));
 }

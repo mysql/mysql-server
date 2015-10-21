@@ -44,6 +44,7 @@ struct st_sort_field {
   uint	 length;			/* Length of sort field */
   uint   suffix_length;                 /* Length suffix (0-4) */
   Item_result result_type;		/* Type of item */
+  enum_field_types field_type;          /* Field type of the field or item */
   bool reverse;				/* if descending sort */
   bool need_strxnfrm;			/* If we have to use strxnfrm() */
 };
@@ -261,27 +262,27 @@ private:
 
 /**
   There are two record formats for sorting:
-    |<key a><key b>...|<rowid>|
+    |@<key a@>@<key b@>...|@<rowid@>|
     /  sort_length    / ref_l /
 
   or with "addon fields"
-    |<key a><key b>...|<null bits>|<field a><field b>...|
+    |@<key a@>@<key b@>...|@<null bits@>|@<field a@>@<field b@>...|
     /  sort_length    /         addon_length            /
 
   The packed format for "addon fields"
-    |<key a><key b>...|<length>|<null bits>|<field a><field b>...|
+    |@<key a@>@<key b@>...|@<length@>|@<null bits@>|@<field a@>@<field b@>...|
     /  sort_length    /         addon_length                     /
 
-  <key>       Fields are fixed-size, specially encoded with
+  \@key@>     Fields are fixed-size, specially encoded with
               Field::make_sort_key() so we can do byte-by-byte compare.
-  <length>    Contains the *actual* packed length (after packing) of
+  \@length@>  Contains the *actual* packed length (after packing) of
               everything after the sort keys.
               The size of the length field is 2 bytes,
               which should cover most use cases: addon data <= 65535 bytes.
               This is the same as max record size in MySQL.
-  <null bits> One bit for each nullable field, indicating whether the field
+  \@null bits@> One bit for each nullable field, indicating whether the field
               is null or not. May have size zero if no fields are nullable.
-  <field xx>  Are stored with field->pack(), and retrieved with field->unpack().
+  \@field xx@>  Are stored with field->pack(), and retrieved with field->unpack().
               Addon fields within a record are stored consecutively, with no
               "holes" or padding. They will have zero size for NULL values.
 
@@ -297,6 +298,7 @@ public:
   ha_rows max_rows;           // Select limit, or HA_POS_ERROR if unlimited.
   ha_rows examined_rows;      // Number of examined rows.
   TABLE *sort_form;           // For quicker make_sortkey.
+  bool use_hash;              // Whether to use hash to distinguish cut JSON
 
   /**
     ORDER BY list with some precalculated info for filesort.
@@ -355,9 +357,9 @@ public:
 
   /**
     Stores key fields in *to.
-    Then appends either *ref_pos (the <rowid>) or the "addon fields".
+    Then appends either *ref_pos (the @<rowid@>) or the "addon fields".
     @param  to      out Where to store the result
-    @param  ref_pos in  Where to find the <rowid>
+    @param  ref_pos in  Where to find the @<rowid@>
     @returns Number of bytes stored.
    */
   uint make_sortkey(uchar *to, const uchar *ref_pos);

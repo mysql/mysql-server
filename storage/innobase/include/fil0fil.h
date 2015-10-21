@@ -167,6 +167,10 @@ struct fil_space_t {
 	/** Compression algorithm */
 	Compression::Type	compression_type;
 
+	/** Release the reserved free extents.
+	@param[in]	n_reserved	number of reserved extents */
+	void release_free_extents(ulint n_reserved);
+
 	ulint		magic_n;/*!< FIL_SPACE_MAGIC_N */
 };
 
@@ -187,6 +191,12 @@ struct fil_node_t {
 	ulint		size;	/*!< size of the file in database pages, 0 if
 				not known yet; the possible last incomplete
 				megabyte may be ignored if space == 0 */
+	ulint		init_size;
+				/*!< initial size of the file in database pages,
+				defaults to FIL_IBD_FILE_INITIAL_SIZE. */
+	ulint		max_size;
+				/*!< maximum size of the file in database pages;
+				0 if there is no maximum size. */
 	ulint		n_pending;
 				/*!< count of pending i/o's on this file;
 				closing of the file is not allowed if
@@ -222,22 +232,111 @@ struct fil_node_t {
 /** Value of fil_node_t::magic_n */
 #define	FIL_NODE_MAGIC_N	89389
 
-/** When mysqld is run, the default directory "." is the mysqld datadir,
-but in the MySQL Embedded Server Library and mysqlbackup it is not the default
-directory, and we must set the base file path explicitly */
-extern const char*	fil_path_to_mysql_datadir;
-
 /** Common InnoDB file extentions */
 enum ib_extention {
 	NO_EXT = 0,
 	IBD = 1,
-	ISL = 2,
-	CFG = 3
+	CFG = 2
 };
 extern const char* dot_ext[];
 #define DOT_IBD dot_ext[IBD]
-#define DOT_ISL dot_ext[ISL]
 #define DOT_CFG dot_ext[CFG]
+
+/** Wrapper for a path to a directory that may or may not exist. */
+class Folder
+{
+public:
+	/** Default constructor */
+	Folder() : m_folder(NULL), m_folder_len(0), m_abs_path(), m_abs_len(0)
+	{}
+
+	/** Constructor
+	@param[in]	path	pathname (not necessarily NUL-terminated)
+	@param[in]	len	length of the path, in bytes */
+	Folder(const char* path, size_t len);
+
+	/** Assignment operator
+	@param[in]	folder	folder string provided */
+	class Folder& operator=(const char* path);
+
+	/** Destructor */
+	~Folder()
+	{
+		ut_free(m_folder);
+	}
+
+	/** Implicit type conversion
+	@return the wrapped object */
+	operator const char*() const
+	{
+		return(m_folder);
+	}
+
+	/** Explicit type conversion
+	@return the wrapped object */
+	const char* operator()() const
+	{
+		return(m_folder);
+	}
+
+	/** return the length of m_folder
+	@return the length of m_folder */
+	size_t len()
+	{
+		return(m_folder_len);
+	}
+
+	/** Determine if this folder is equal to the other folder.
+	@param[in]	other	folder to compare to
+	@return whether the folders are equal */
+	bool operator==(const Folder& other) const
+	{
+		return(m_abs_len == other.m_abs_len
+		       && !memcmp(m_abs_path, other.m_abs_path, m_abs_len));
+	}
+
+	/** Determine if this folder is an ancestor of (contains)
+	the other folder.
+	@param[in]	other	folder to compare to
+	@return whether this is an ancestor of the other folder */
+	bool operator>(const Folder& other) const
+	{
+		return(m_abs_len < other.m_abs_len
+		       && (!memcmp(other.m_abs_path, m_abs_path, m_abs_len)));
+	}
+
+	/** Determine if the directory referenced by m_folder exists.
+	@return whether the directory exists */
+	bool exists();
+
+private:
+	/** Build the basic folder name from the path and length provided
+	@param[in]	path	pathname (not necessarily NUL-terminated)
+	@param[in]	len	length of the path, in bytes */
+	inline void make_path(const char* path, size_t len);
+
+	/** Resolve a relative path in m_folder to an absolute path
+	in m_abs_path setting m_abs_len. */
+	inline void make_abs_path();
+
+	/** The wrapped folder string */
+	char*	m_folder;
+
+	/** Length of m_folder */
+	size_t	m_folder_len;
+
+	/** A full absolute path to the same file. */
+	char	m_abs_path[FN_REFLEN + 2];
+
+	/** Length of m_abs_path to the deepest folder */
+	size_t	m_abs_len;
+};
+
+/** When mysqld is run, the default directory "." is the mysqld datadir,
+but in the MySQL Embedded Server Library and mysqlbackup it is not the default
+directory, and we must set the base file path explicitly */
+extern const char*	fil_path_to_mysql_datadir;
+extern Folder   	folder_mysql_datadir;
 
 /** Initial size of a single-table tablespace in pages */
 #define FIL_IBD_FILE_INITIAL_SIZE	4
@@ -363,19 +462,23 @@ __attribute__((warn_unused_result, pure));
 #endif /* !UNIV_HOTBACKUP */
 
 /** Append a file to the chain of files of a space.
-@param[in]	name	file name of a file that is not open
-@param[in]	size	file size in entire database blocks
-@param[in,out]	space	tablespace from fil_space_create()
-@param[in]	is_raw	whether this is a raw device or partition
-@param[in]	atomic_write true if atomic write enabled
-@return pointer to the file name, or NULL on error */
+@param[in]	name		file name of a file that is not open
+@param[in]	size		file size in entire database blocks
+@param[in,out]	space		tablespace from fil_space_create()
+@param[in]	is_raw		whether this is a raw device or partition
+@param[in]	atomic_write	true if atomic write enabled
+@param[in]	max_pages	maximum number of pages in file,
+ULINT_MAX means the file size is unlimited.
+@return pointer to the file name
+@retval NULL if error */
 char*
 fil_node_create(
 	const char*	name,
 	ulint		size,
 	fil_space_t*	space,
 	bool		is_raw,
-	bool		atomic_write)
+	bool		atomic_write,
+	ulint		max_pages = ULINT_MAX)
 	__attribute__((warn_unused_result));
 
 /** Create a space memory object and put it to the fil_system hash table.
@@ -533,6 +636,7 @@ fil_space_t*
 fil_space_acquire(
 	ulint	id)
 	__attribute__((warn_unused_result));
+
 /** Acquire a tablespace that may not exist.
 Used by background threads that do not necessarily hold proper locks
 for concurrency control.
@@ -542,11 +646,68 @@ fil_space_t*
 fil_space_acquire_silent(
 	ulint	id)
 	__attribute__((warn_unused_result));
+
 /** Release a tablespace acquired with fil_space_acquire().
 @param[in,out]	space	tablespace to release  */
 void
 fil_space_release(
 	fil_space_t*	space);
+
+/** Wrapper with reference-counting for a fil_space_t. */
+class FilSpace
+{
+public:
+	/** Default constructor: Use this when reference counting
+	is done outside this wrapper. */
+	FilSpace() : m_space(NULL) {}
+
+	/** Constructor: Look up the tablespace and increment the
+	referece count if found.
+	@param[in]	space_id	tablespace ID */
+	explicit FilSpace(ulint space_id)
+		: m_space(fil_space_acquire(space_id)) {}
+
+	/** Assignment operator: This assumes that fil_space_acquire()
+	has already been done for the fil_space_t. The caller must
+	assign NULL if it calls fil_space_release().
+	@param[in]	space	tablespace to assign */
+	class FilSpace& operator=(
+		fil_space_t*	space)
+	{
+		/* fil_space_acquire() must have been invoked. */
+		ut_ad(space == NULL || space->n_pending_ops > 0);
+		m_space = space;
+		return(*this);
+	}
+
+	/** Destructor - Decrement the reference count if a fil_space_t
+	is still assigned. */
+	~FilSpace()
+	{
+		if (m_space != NULL) {
+			fil_space_release(m_space);
+		}
+	}
+
+	/** Implicit type conversion
+	@return the wrapped object */
+	operator const fil_space_t*() const
+	{
+		return(m_space);
+	}
+
+	/** Explicit type conversion
+	@return the wrapped object */
+	const fil_space_t* operator()() const
+	{
+		return(m_space);
+	}
+
+private:
+	/** The wrapped pointer */
+	fil_space_t*	m_space;
+};
+
 #endif /* !UNIV_HOTBACKUP */
 /********************************************************//**
 Creates the database directory for a table if it does not exist yet. */
@@ -640,7 +801,9 @@ fil_space_system_check(
 	__attribute__((warn_unused_result));
 
 /** Check if an undo tablespace was opened during crash recovery.
+Change name to undo_name if already opened during recovery.
 @param[in]	name		tablespace name
+@param[in]	undo_name	undo tablespace name
 @param[in]	space_id	undo tablespace id
 @retval DB_SUCCESS		if it was already opened
 @retval DB_TABLESPACE_NOT_FOUND	if not yet opened
@@ -648,6 +811,7 @@ fil_space_system_check(
 dberr_t
 fil_space_undo_check_if_opened(
 	const char*	name,
+	const char*	undo_name,
 	ulint		space_id)
 	__attribute__((warn_unused_result));
 
@@ -708,6 +872,20 @@ fil_discard_tablespace(
 	__attribute__((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 
+/** Test if a tablespace file can be renamed to a new filepath by checking
+if that the old filepath exists and the new filepath does not exist.
+@param[in]	space_id	tablespace id
+@param[in]	old_path	old filepath
+@param[in]	new_path	new filepath
+@param[in]	is_discarded	whether the tablespace is discarded
+@return innodb error code */
+dberr_t
+fil_rename_tablespace_check(
+	ulint		space_id,
+	const char*	old_path,
+	const char*	new_path,
+	bool		is_discarded);
+
 /** Rename a single-table tablespace.
 The tablespace must exist in the memory cache.
 @param[in]	id		tablespace identifier
@@ -724,19 +902,19 @@ fil_rename_tablespace(
 	const char*	new_name,
 	const char*	new_path_in);
 
-/*******************************************************************//**
-Allocates and builds a file name from a path, a table or tablespace name
-and a suffix. The string must be freed by caller with ut_free().
-@param[in] path NULL or the direcory path or the full path and filename.
-@param[in] name NULL if path is full, or Table/Tablespace name
-@param[in] suffix NULL or the file extention to use.
-@return own: file name */
+/** Allocate and build a file name from a path, a table or tablespace name
+and a suffix.
+@param[in]	path	NULL or the direcory path or the full path and filename
+@param[in]	name	NULL if path is full, or Table/Tablespace name
+@param[in]	ext	the file extension to use
+@param[in]	trim	whether last name on the path should be trimmed
+@return own: file name; must be freed by ut_free() */
 char*
 fil_make_filepath(
 	const char*	path,
 	const char*	name,
 	ib_extention	suffix,
-	bool		strip_name);
+	bool		trim);
 
 /** Create a tablespace file.
 @param[in]	space_id	Tablespace ID
@@ -756,42 +934,33 @@ fil_ibd_create(
 	ulint		size)
 	__attribute__((warn_unused_result));
 #ifndef UNIV_HOTBACKUP
-/********************************************************************//**
-Tries to open a single-table tablespace and optionally checks the space id is
-right in it. If does not succeed, prints an error message to the .err log. This
+/** Open a single-table tablespace and optionally check the space id is
+right in it. If not successful, print an error message to the error log. This
 function is used to open a tablespace when we start up mysqld, and also in
 IMPORT TABLESPACE.
 NOTE that we assume this operation is used either at the database startup
 or under the protection of the dictionary mutex, so that two users cannot
-race here. This operation does not leave the file associated with the
-tablespace open, but closes it after we have looked at the space id in it.
+race here.
 
-If the validate boolean is set, we read the first page of the file and
-check that the space id in the file is what we expect. We assume that
-this function runs much faster if no check is made, since accessing the
-file inode probably is much faster (the OS caches them) than accessing
-the first page of the file.  This boolean may be initially false, but if
-a remote tablespace is found it will be changed to true.
+The fil_node_t::handle will not be left open.
 
-If the fix_dict boolean is set, then it is safe to use an internal SQL
-statement to update the dictionary tables if they are incorrect.
-
-@param[in] validate True if we should validate the tablespace.
-@param[in] fix_dict True if the dictionary is available to be fixed.
-@param[in] purpose FIL_TYPE_TABLESPACE or FIL_TYPE_TEMPORARY
-@param[in] id Tablespace ID
-@param[in] flags Tablespace flags
-@param[in] tablename Table name in the databasename/tablename format.
-@param[in] path_in Tablespace filepath if found in SYS_DATAFILES
+@param[in]	validate	whether we should validate the tablespace
+				(read the first page of the file and
+				check that the space id in it matches id)
+@param[in]	purpose		FIL_TYPE_TABLESPACE or FIL_TYPE_TEMPORARY
+@param[in]	id		tablespace ID
+@param[in]	flags		tablespace flags
+@param[in]	space_name	tablespace name of the datafile
+If file-per-table, it is the table name in the databasename/tablename format
+@param[in]	path_in		expected filepath, usually read from dictionary
 @return DB_SUCCESS or error code */
 dberr_t
 fil_ibd_open(
 	bool		validate,
-	bool		fix_dict,
 	fil_type_t	purpose,
 	ulint		id,
 	ulint		flags,
-	const char*	tablename,
+	const char*	space_name,
 	const char*	path_in)
 	__attribute__((warn_unused_result));
 
@@ -809,14 +978,12 @@ enum fil_load_status {
 /** Open a single-file tablespace and add it to the InnoDB data structures.
 @param[in]	space_id	tablespace ID
 @param[in]	filename	path/to/databasename/tablename.ibd
-@param[in]	filename_len	the length of the filename, in bytes
 @param[out]	space		the tablespace, or NULL on error
 @return status of the operation */
 enum fil_load_status
 fil_ibd_load(
 	ulint		space_id,
 	const char*	filename,
-	ulint		filename_len,
 	fil_space_t*&	space)
 	__attribute__((warn_unused_result));
 
@@ -990,7 +1157,7 @@ fil_page_set_type(
 /** Reset the page type.
 Data files created before MySQL 5.1 may contain garbage in FIL_PAGE_TYPE.
 In MySQL 3.23.53, only undo log pages and index pages were tagged.
-Any other pages were written with unitialized bytes in FIL_PAGE_TYPE.
+Any other pages were written with uninitialized bytes in FIL_PAGE_TYPE.
 @param[in]	page_id	page number
 @param[in,out]	page	page with invalid FIL_PAGE_TYPE
 @param[in]	type	expected page type
@@ -1015,7 +1182,7 @@ fil_page_get_type(
 Data files created before MySQL 5.1 may contain
 garbage in the FIL_PAGE_TYPE field.
 In MySQL 3.23.53, only undo log pages and index pages were tagged.
-Any other pages were written with unitialized bytes in FIL_PAGE_TYPE.
+Any other pages were written with uninitialized bytes in FIL_PAGE_TYPE.
 @param[in]	page_id	page number
 @param[in,out]	page	page with possibly invalid FIL_PAGE_TYPE
 @param[in]	type	expected page type
@@ -1039,7 +1206,7 @@ fil_page_check_type(
 Data files created before MySQL 5.1 may contain
 garbage in the FIL_PAGE_TYPE field.
 In MySQL 3.23.53, only undo log pages and index pages were tagged.
-Any other pages were written with unitialized bytes in FIL_PAGE_TYPE.
+Any other pages were written with uninitialized bytes in FIL_PAGE_TYPE.
 @param[in,out]	block	block with possibly invalid FIL_PAGE_TYPE
 @param[in]	type	expected page type
 @param[in,out]	mtr	mini-transaction */
@@ -1201,13 +1368,25 @@ fil_get_space_names(
 				/*!< in/out: Vector for collecting the names. */
 	__attribute__((warn_unused_result));
 
+/** Return the next fil_node_t in the current or next fil_space_t.
+Once started, the caller must keep calling this until it returns NULL.
+fil_space_acquire() and fil_space_release() are invoked here which
+blocks a concurrent operation from dropping the tablespace.
+@param[in]	prev_node	Pointer to the previous fil_node_t.
+If NULL, use the first fil_space_t on fil_system->space_list.
+@return pointer to the next fil_node_t.
+@retval NULL if this was the last file node */
+const fil_node_t*
+fil_node_next(
+	const fil_node_t*	prev_node);
+
 /** Generate redo log for swapping two .ibd files
 @param[in]	old_table	old table
 @param[in]	new_table	new table
 @param[in]	tmp_name	temporary table name
 @param[in,out]	mtr		mini-transaction
-@return	whether the operation succeeded */
-bool
+@return innodb error code */
+dberr_t
 fil_mtr_rename_log(
 	const dict_table_t*	old_table,
 	const dict_table_t*	new_table,
@@ -1326,8 +1505,8 @@ fil_fusionio_enable_atomic_write(os_file_t file);
 @param[in,out]	node		Node to set */
 void fil_no_punch_hole(fil_node_t* node);
 
-#ifdef UNIV_COMPILE_TEST_FUNCS
+#ifdef UNIV_ENABLE_UNIT_TEST_MAKE_FILEPATH
 void test_make_filepath();
-#endif /* UNIV_COMPILE_TEST_FUNCS */
+#endif /* UNIV_ENABLE_UNIT_TEST_MAKE_FILEPATH */
 
 #endif /* fil0fil_h */

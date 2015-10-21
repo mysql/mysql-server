@@ -1,4 +1,4 @@
-/*  Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
     
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -15,7 +15,7 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
 
 /**
-  @file
+  @file include/mysql/service_my_plugin_log.h
   This service provides functions to report error conditions and log to 
   mysql error log.
 */
@@ -25,6 +25,10 @@
 
 #ifndef MYSQL_ABI_CHECK
 #include <stdarg.h>
+#endif
+
+#if defined __SUNPRO_C || defined __SUNPRO_CC || defined _MSC_VER
+# define __attribute__(A)
 #endif
 
 /* keep in sync with the loglevel enum in my_sys.h */
@@ -43,7 +47,8 @@ extern "C" {
 extern struct my_plugin_log_service
 {
   /** write a message to the log */
-  int (*my_plugin_log_message)(MYSQL_PLUGIN *, enum plugin_log_level, const char *, ...);
+  int (*my_plugin_log_message)(MYSQL_PLUGIN *, enum plugin_log_level, const char *, ...)
+    __attribute__((format(printf, 3, 4)));
 } *my_plugin_log_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
@@ -53,7 +58,8 @@ extern struct my_plugin_log_service
 #else
 
 int my_plugin_log_message(MYSQL_PLUGIN *plugin, enum plugin_log_level level,
-                          const char *format, ...);
+                          const char *format, ...)
+  __attribute__((format(printf, 3, 4)));
 
 #endif
 

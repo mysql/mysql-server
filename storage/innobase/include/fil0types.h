@@ -21,7 +21,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 The low-level file system page header & trailer offsets
 
 Created 10/25/1995 Heikki Tuuri
-Refactored 03/30/2015 Satya Bodapati
 *******************************************************/
 
 #ifndef fil0types_h

@@ -23,6 +23,7 @@
 
 #include "sql_class.h"          // THD
 #include "item.h"               // Cached_item, Cached_item_field, ...
+#include "json_dom.h"           // Json_wrapper
 
 using std::min;
 using std::max;
@@ -45,6 +46,8 @@ Cached_item *new_Cached_item(THD *thd, Item *item, bool use_result_field)
   case STRING_RESULT:
     if (item->is_temporal())
       return new Cached_item_temporal((Item_field *) item);
+    if (item->field_type() == MYSQL_TYPE_JSON)
+      return new Cached_item_json(item);
     return new Cached_item_str(thd, (Item_field *) item);
   case INT_RESULT:
     return new Cached_item_int((Item_field *) item);
@@ -81,6 +84,7 @@ bool Cached_item_str::cmp(void)
 
   DBUG_ENTER("Cached_item_str::cmp");
   DBUG_ASSERT(!item->is_temporal());
+  DBUG_ASSERT(item->field_type() != MYSQL_TYPE_JSON);
   if ((res=item->val_str(&tmp_value)))
     res->length(min(res->length(), static_cast<size_t>(value_max_length)));
   DBUG_PRINT("info", ("old: %s, new: %s",
@@ -104,6 +108,64 @@ Cached_item_str::~Cached_item_str()
 {
   item=0;					// Safety
 }
+
+
+Cached_item_json::Cached_item_json(Item *item)
+  : m_item(item), m_value(new Json_wrapper())
+{}
+
+
+Cached_item_json::~Cached_item_json()
+{
+  delete m_value;
+}
+
+
+/**
+  Compare the new JSON value in m_item with the previous value.
+  @retval true   if the new value is different from the previous value,
+                 or if there is no previously cached value
+  @retval false  if the new value is the same as the already cached value
+*/
+bool Cached_item_json::cmp()
+{
+  Json_wrapper wr;
+  if (m_item->val_json(&wr))
+  {
+    null_value= true;                         /* purecov: inspected */
+    return true;                              /* purecov: inspected */
+  }
+  if (null_value != m_item->null_value)
+  {
+    null_value= m_item->null_value;
+    if (null_value)
+      return true;                              // New value is null.
+  }
+  else if (null_value)
+  {
+    return false;                               // New and old are null.
+  }
+  else if (!m_value->empty() && m_value->compare(wr) == 0)
+  {
+    return false;                               // New and old are equal.
+  }
+
+  /*
+    Otherwise, old and new are not equal, and new is not null.
+    Remember the current value till the next time we're called.
+  */
+  m_value->steal(&wr);
+
+  /*
+    The row buffer may change, which would garble the JSON binary
+    representation pointed to by m_value. Convert to DOM so that we
+    own the copy.
+  */
+  m_value->to_dom();
+
+  return true;
+}
+
 
 bool Cached_item_real::cmp(void)
 {

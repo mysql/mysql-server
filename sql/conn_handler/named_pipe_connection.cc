@@ -24,6 +24,7 @@
 #include "mysqld.h"                     // global_system_variables
 #include "named_pipe.h"                 // create_server_named_pipe.
 #include "sql_class.h"                  // THD
+#include "init_net_server_extension.h"  // init_net_server_extension
 
 
 ///////////////////////////////////////////////////////////////////////////
@@ -60,7 +61,10 @@ public:
     THD* thd= Channel_info::create_thd();
 
     if (thd != NULL)
+    {
+      init_net_server_extension(thd);
       thd->security_context()->set_host_ptr(my_localhost, strlen(my_localhost));
+    }
     return thd;
   }
 

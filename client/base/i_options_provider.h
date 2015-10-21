@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,8 +27,6 @@ namespace Tools{
 namespace Base{
 namespace Options{
 
-using std::vector;
-
 /**
   Interface for basic options providers functionality.
  */
@@ -39,7 +37,7 @@ public:
     Creates list of options provided by this provider.
     @returns list of my_getopt internal option data structures.
    */
-  virtual vector<my_option> generate_options()= 0;
+  virtual std::vector<my_option> generate_options()= 0;
   /**
     Callback to be called when command-line options parsing have finished.
    */

@@ -287,9 +287,8 @@ dict_stats_exec_sql(
 {
 	dberr_t	err;
 	bool	trx_started = false;
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
+
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	if (!dict_stats_persistent_storage_check(true)) {
@@ -421,8 +420,6 @@ dict_stats_table_clone_create(
 	t->heap = heap;
 
 	t->name.m_name = mem_heap_strdup(heap, table->name.m_name);
-
-	t->corrupted = table->corrupted;
 
 	/* This private object "t" is not shared with other threads, so
 	we do not need the stats_latch (thus we pass false below). The
@@ -868,6 +865,7 @@ is relatively quick and is used to calculate transient statistics that
 are not saved on disk.
 This was the only way to calculate statistics before the
 Persistent Statistics feature was introduced. */
+static
 void
 dict_stats_update_transient(
 /*========================*/
@@ -2275,9 +2273,7 @@ dict_stats_save_index_stat(
 	char		db_utf8[MAX_DB_UTF8_LEN];
 	char		table_utf8[MAX_TABLE_UTF8_LEN];
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	dict_fs2utf8(index->table->name.m_name, db_utf8, sizeof(db_utf8),
@@ -2365,7 +2361,7 @@ dict_stats_save(
 	dict_fs2utf8(table->name.m_name, db_utf8, sizeof(db_utf8),
 		     table_utf8, sizeof(table_utf8));
 
-	rw_lock_x_lock(&dict_operation_lock);
+	rw_lock_x_lock(dict_operation_lock);
 	mutex_enter(&dict_sys->mutex);
 
 	/* MySQL's timestamp is 4 byte, so we use
@@ -2411,7 +2407,7 @@ dict_stats_save(
 			<< table->name << ": " << ut_strerr(ret);
 
 		mutex_exit(&dict_sys->mutex);
-		rw_lock_x_unlock(&dict_operation_lock);
+		rw_lock_x_unlock(dict_operation_lock);
 
 		dict_stats_snapshot_free(table);
 
@@ -2527,7 +2523,7 @@ end:
 	trx_free_for_background(trx);
 
 	mutex_exit(&dict_sys->mutex);
-	rw_lock_x_unlock(&dict_operation_lock);
+	rw_lock_x_unlock(dict_operation_lock);
 
 	dict_stats_snapshot_free(table);
 
@@ -3305,7 +3301,7 @@ dict_stats_drop_index(
 
 	pars_info_add_str_literal(pinfo, "index_name", iname);
 
-	rw_lock_x_lock(&dict_operation_lock);
+	rw_lock_x_lock(dict_operation_lock);
 	mutex_enter(&dict_sys->mutex);
 
 	ret = dict_stats_exec_sql(
@@ -3319,7 +3315,7 @@ dict_stats_drop_index(
 		"END;\n", NULL);
 
 	mutex_exit(&dict_sys->mutex);
-	rw_lock_x_unlock(&dict_operation_lock);
+	rw_lock_x_unlock(dict_operation_lock);
 
 	if (ret == DB_STATS_DO_NOT_EXIST) {
 		ret = DB_SUCCESS;
@@ -3367,9 +3363,7 @@ dict_stats_delete_from_table_stats(
 	pars_info_t*	pinfo;
 	dberr_t		ret;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	pinfo = pars_info_create();
@@ -3405,9 +3399,7 @@ dict_stats_delete_from_index_stats(
 	pars_info_t*	pinfo;
 	dberr_t		ret;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	pinfo = pars_info_create();
@@ -3444,9 +3436,7 @@ dict_stats_drop_table(
 	char		table_utf8[MAX_TABLE_UTF8_LEN];
 	dberr_t		ret;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	/* skip tables that do not contain a database name
@@ -3522,9 +3512,7 @@ dict_stats_rename_table_in_table_stats(
 	pars_info_t*	pinfo;
 	dberr_t		ret;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	pinfo = pars_info_create();
@@ -3568,9 +3556,7 @@ dict_stats_rename_table_in_index_stats(
 	pars_info_t*	pinfo;
 	dberr_t		ret;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	pinfo = pars_info_create();
@@ -3614,9 +3600,7 @@ dict_stats_rename_table(
 	char		new_table_utf8[MAX_TABLE_UTF8_LEN];
 	dberr_t		ret;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(!rw_lock_own(dict_operation_lock, RW_LOCK_X));
 	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	/* skip innodb_table_stats and innodb_index_stats themselves */
@@ -3634,7 +3618,7 @@ dict_stats_rename_table(
 	dict_fs2utf8(new_name, new_db_utf8, sizeof(new_db_utf8),
 		     new_table_utf8, sizeof(new_table_utf8));
 
-	rw_lock_x_lock(&dict_operation_lock);
+	rw_lock_x_lock(dict_operation_lock);
 	mutex_enter(&dict_sys->mutex);
 
 	ulint	n_attempts = 0;
@@ -3656,9 +3640,9 @@ dict_stats_rename_table(
 
 		if (ret != DB_SUCCESS) {
 			mutex_exit(&dict_sys->mutex);
-			rw_lock_x_unlock(&dict_operation_lock);
+			rw_lock_x_unlock(dict_operation_lock);
 			os_thread_sleep(200000 /* 0.2 sec */);
-			rw_lock_x_lock(&dict_operation_lock);
+			rw_lock_x_lock(dict_operation_lock);
 			mutex_enter(&dict_sys->mutex);
 		}
 	} while ((ret == DB_DEADLOCK
@@ -3688,7 +3672,7 @@ dict_stats_rename_table(
 			    new_db_utf8, new_table_utf8,
 			    old_db_utf8, old_table_utf8);
 		mutex_exit(&dict_sys->mutex);
-		rw_lock_x_unlock(&dict_operation_lock);
+		rw_lock_x_unlock(dict_operation_lock);
 		return(ret);
 	}
 	/* else */
@@ -3712,9 +3696,9 @@ dict_stats_rename_table(
 
 		if (ret != DB_SUCCESS) {
 			mutex_exit(&dict_sys->mutex);
-			rw_lock_x_unlock(&dict_operation_lock);
+			rw_lock_x_unlock(dict_operation_lock);
 			os_thread_sleep(200000 /* 0.2 sec */);
-			rw_lock_x_lock(&dict_operation_lock);
+			rw_lock_x_lock(dict_operation_lock);
 			mutex_enter(&dict_sys->mutex);
 		}
 	} while ((ret == DB_DEADLOCK
@@ -3723,7 +3707,7 @@ dict_stats_rename_table(
 		 && n_attempts < 5);
 
 	mutex_exit(&dict_sys->mutex);
-	rw_lock_x_unlock(&dict_operation_lock);
+	rw_lock_x_unlock(dict_operation_lock);
 
 	if (ret != DB_SUCCESS) {
 		ut_snprintf(errstr, errstr_sz,
@@ -3764,12 +3748,12 @@ dict_stats_rename_index(
 	const char*		old_index_name,	/*!< in: old index name */
 	const char*		new_index_name)	/*!< in: new index name */
 {
-	rw_lock_x_lock(&dict_operation_lock);
+	rw_lock_x_lock(dict_operation_lock);
 	mutex_enter(&dict_sys->mutex);
 
 	if (!dict_stats_persistent_storage_check(true)) {
 		mutex_exit(&dict_sys->mutex);
-		rw_lock_x_unlock(&dict_operation_lock);
+		rw_lock_x_unlock(dict_operation_lock);
 		return(DB_STATS_DO_NOT_EXIST);
 	}
 
@@ -3803,13 +3787,13 @@ dict_stats_rename_index(
 		"END;\n", NULL);
 
 	mutex_exit(&dict_sys->mutex);
-	rw_lock_x_unlock(&dict_operation_lock);
+	rw_lock_x_unlock(dict_operation_lock);
 
 	return(ret);
 }
 
 /* tests @{ */
-#ifdef UNIV_COMPILE_TEST_FUNCS
+#ifdef UNIV_ENABLE_UNIT_TEST_DICT_STATS
 
 /* The following unit tests test some of the functions in this file
 individually, such testing cannot be performed by the mysql-test framework
@@ -3981,7 +3965,7 @@ test_dict_stats_save()
 	dberr_t		ret;
 
 	/* craft a dummy dict_table_t */
-	table.name = (char*) (TEST_DATABASE_NAME "/" TEST_TABLE_NAME);
+	table.name.m_name = (char*) (TEST_DATABASE_NAME "/" TEST_TABLE_NAME);
 	table.stat_n_rows = TEST_N_ROWS;
 	table.stat_clustered_index_size = TEST_CLUSTERED_INDEX_SIZE;
 	table.stat_sum_of_other_index_sizes = TEST_SUM_OF_OTHER_INDEX_SIZES;
@@ -4133,7 +4117,7 @@ test_dict_stats_fetch_from_ps()
 	dberr_t		ret;
 
 	/* craft a dummy dict_table_t */
-	table.name = (char*) (TEST_DATABASE_NAME "/" TEST_TABLE_NAME);
+	table.name.m_name = (char*) (TEST_DATABASE_NAME "/" TEST_TABLE_NAME);
 	UT_LIST_INIT(table.indexes, &dict_index_t::indexes);
 	UT_LIST_ADD_LAST(table.indexes, &index1);
 	UT_LIST_ADD_LAST(table.indexes, &index2);
@@ -4194,7 +4178,7 @@ test_dict_stats_all()
 }
 /* @} */
 
-#endif /* UNIV_COMPILE_TEST_FUNCS */
+#endif /* UNIV_ENABLE_UNIT_TEST_DICT_STATS */
 /* @} */
 
 #endif /* UNIV_HOTBACKUP */

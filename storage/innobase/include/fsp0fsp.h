@@ -253,6 +253,33 @@ ulint
 fsp_header_get_tablespace_size(void);
 /*================================*/
 
+/** Calculate the number of pages to extend a datafile.
+We extend single-table and general tablespaces first one extent at a time,
+but 4 at a time for bigger tablespaces. It is not enough to extend always
+by one extent, because we need to add at least one extent to FSP_FREE.
+A single extent descriptor page will track many extents. And the extent
+that uses its extent descriptor page is put onto the FSP_FREE_FRAG list.
+Extents that do not use their extent descriptor page are added to FSP_FREE.
+The physical page size is used to determine how many extents are tracked
+on one extent descriptor page. See xdes_calc_descriptor_page().
+@param[in]	page_size	page_size of the datafile
+@param[in]	size		current number of pages in the datafile
+@return number of pages to extend the file. */
+ulint
+fsp_get_pages_to_extend_ibd(
+	const page_size_t&	page_size,
+	ulint			size);
+
+/** Calculate the number of physical pages in an extent for this file.
+@param[in]	page_size	page_size of the datafile
+@return number of pages in an extent for this file. */
+UNIV_INLINE
+ulint
+fsp_get_extent_size_in_pages(const page_size_t&	page_size)
+{
+	return(FSP_EXTENT_SIZE * UNIV_PAGE_SIZE / page_size.physical());
+}
+
 /**********************************************************************//**
 Reads the space id from the first page of a tablespace.
 @return space id, ULINT UNDEFINED if error */
@@ -300,15 +327,19 @@ fsp_header_init_fields(
 	ulint	space_id,	/*!< in: space id */
 	ulint	flags);		/*!< in: tablespace flags (FSP_SPACE_FLAGS):
 				0, or table->flags if newer than COMPACT */
-/**********************************************************************//**
-Initializes the space header of a new created space and creates also the
-insert buffer tree root if space == 0. */
-void
+
+/** Initializes the space header of a new created space and creates also the
+insert buffer tree root if space == 0.
+@param[in]	space_id	space id
+@param[in]	size		current size in blocks
+@param[in,out]	mtr		min-transaction
+@return	true on success, otherwise false. */
+bool
 fsp_header_init(
-/*============*/
-	ulint	space_id,	/*!< in: space id */
-	ulint	size,		/*!< in: current size in blocks */
-	mtr_t*	mtr);		/*!< in/out: mini-transaction */
+	ulint	space_id,
+	ulint	size,
+	mtr_t*	mtr);
+
 /**********************************************************************//**
 Increases the space size field of a space. */
 void
@@ -409,8 +440,8 @@ fseg_alloc_free_page_general(
 				If init_mtr!=mtr, but the page is already
 				latched in mtr, do not initialize the page. */
 	__attribute__((warn_unused_result));
-/**********************************************************************//**
-Reserves free pages from a tablespace. All mini-transactions which may
+
+/** Reserves free pages from a tablespace. All mini-transactions which may
 use several pages from the tablespace should call this function beforehand
 and reserve enough free extents so that they certainly will be able
 to do their operation, like a B-tree page split, fully. Reservations
@@ -429,33 +460,52 @@ The purpose is to avoid dead end where the database is full but the
 user cannot free any space because these freeing operations temporarily
 reserve some space.
 
-Single-table tablespaces whose size is < 32 pages are a special case. In this
-function we would liberally reserve several 64 page extents for every page
-split or merge in a B-tree. But we do not want to waste disk space if the table
-only occupies < 32 pages. That is why we apply different rules in that special
-case, just ensuring that there are 3 free pages available.
-@return TRUE if we were able to make the reservation */
+Single-table tablespaces whose size is < FSP_EXTENT_SIZE pages are a special
+case. In this function we would liberally reserve several extents for
+every page split or merge in a B-tree. But we do not want to waste disk space
+if the table only occupies < FSP_EXTENT_SIZE pages. That is why we apply
+different rules in that special case, just ensuring that there are n_pages
+free pages available.
+
+@param[out]	n_reserved	number of extents actually reserved; if we
+				return true and the tablespace size is <
+				FSP_EXTENT_SIZE pages, then this can be 0,
+				otherwise it is n_ext
+@param[in]	space_id	tablespace identifier
+@param[in]	n_ext		number of extents to reserve
+@param[in]	alloc_type	page reservation type (FSP_BLOB, etc)
+@param[in,out]	mtr		the mini transaction
+@param[in]	n_pages		for small tablespaces (tablespace size is
+				less than FSP_EXTENT_SIZE), number of free
+				pages to reserve.
+@return true if we were able to make the reservation */
 bool
 fsp_reserve_free_extents(
-/*=====================*/
-	ulint*	n_reserved,/*!< out: number of extents actually reserved; if we
-			return TRUE and the tablespace size is < 64 pages,
-			then this can be 0, otherwise it is n_ext */
-	ulint	space_id,/*!< in: space id */
-	ulint	n_ext,	/*!< in: number of extents to reserve */
+	ulint*		n_reserved,
+	ulint		space_id,
+	ulint		n_ext,
 	fsp_reserve_t	alloc_type,
-			/*!< in: page reservation type */
-	mtr_t*	mtr);	/*!< in/out: mini-transaction */
-/**********************************************************************//**
-This function should be used to get information on how much we still
-will be able to insert new data to the database without running out the
-tablespace. Only free extents are taken into account and we also subtract
-the safety margin required by the above function fsp_reserve_free_extents.
-@return available space in kB */
+	mtr_t*		mtr,
+	ulint		n_pages = 2);
+
+/** Calculate how many KiB of new data we will be able to insert to the
+tablespace without running out of space.
+@param[in]	space_id	tablespace ID
+@return available space in KiB
+@retval UINTMAX_MAX if unknown */
 uintmax_t
 fsp_get_available_space_in_free_extents(
-/*====================================*/
-	ulint	space_id);	/*!< in: space id */
+	ulint		space_id);
+
+/** Calculate how many KiB of new data we will be able to insert to the
+tablespace without running out of space. Start with a space object that has
+been acquired by the caller who holds it for the calculation,
+@param[in]	space		tablespace object from fil_space_acquire()
+@return available space in KiB */
+uintmax_t
+fsp_get_available_space_in_free_extents(
+	const fil_space_t*	space);
+
 /**********************************************************************//**
 Frees a single page of a segment. */
 void
@@ -527,16 +577,6 @@ fsp_parse_init_file_page(
 	byte*		ptr,	/*!< in: buffer */
 	byte*		end_ptr, /*!< in: buffer end */
 	buf_block_t*	block);	/*!< in: block or NULL */
-#ifdef UNIV_DEBUG
-/*******************************************************************//**
-Validates a segment.
-@return TRUE if ok */
-ibool
-fseg_validate(
-/*==========*/
-	fseg_header_t*	header, /*!< in: segment header */
-	mtr_t*		mtr);	/*!< in/out: mini-transaction */
-#endif /* UNIV_DEBUG */
 #ifdef UNIV_BTR_PRINT
 /*******************************************************************//**
 Writes info of a segment. */
@@ -606,27 +646,6 @@ ulint
 xdes_calc_descriptor_index(
 	const page_size_t&	page_size,
 	ulint			offset);
-
-/** Gets pointer to a the extent descriptor of a page.
-The page where the extent descriptor resides is x-locked. If the page offset
-is equal to the free limit of the space, adds new extents from above the free
-limit to the space free list, if not free limit == space size. This adding
-is necessary to make the descriptor defined, as they are uninitialized
-above the free limit.
-@param[in]	space_id	space id
-@param[in]	offset		page offset; if equal to the free limit, we
-try to add new extents to the space free list
-@param[in]	page_size	page size
-@param[in,out]	mtr		mini-transaction
-@return pointer to the extent descriptor, NULL if the page does not
-exist in the space or if the offset exceeds the free limit */
-xdes_t*
-xdes_get_descriptor(
-	ulint			space_id,
-	ulint			offset,
-	const page_size_t&	page_size,
-	mtr_t*			mtr)
-__attribute__((warn_unused_result));
 
 /**********************************************************************//**
 Gets a descriptor bit of a page.

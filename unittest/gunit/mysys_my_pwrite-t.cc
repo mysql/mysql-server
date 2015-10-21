@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,7 +46,7 @@ MockWrite *mockfs= NULL;
   Include the source file, which will give us
   mysys_my_pwrite_unittest::my_pwrite() for testing.
 */
-#include "../../mysys/my_pread.c"
+#include "../../mysys/my_pread.cc"
 
 #undef pwrite
 #undef lseek

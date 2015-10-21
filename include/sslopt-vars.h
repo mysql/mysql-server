@@ -16,6 +16,10 @@
 #ifndef SSLOPT_VARS_INCLUDED
 #define SSLOPT_VARS_INCLUDED
 
+/**
+  @file include/sslopt-vars.h
+*/
+
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 /* Always try to use SSL per default */
 static my_bool opt_use_ssl   = TRUE;

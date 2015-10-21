@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,35 @@
 #include "m_string.h"
 #include "ndb_socket.h"
 
+/*
+  Implement my_socket_close here to avoid EventLogger.hpp in
+  header file (causes unrelated link problem on Solaris).
+*/
+
+#if defined _WIN32
+
+/* skip */
+
+#else
+
+#include <sys/stat.h>
+
+int my_socket_close(ndb_socket_t s)
+{
+  struct stat sb;
+  if (fstat(s.fd, &sb) == 0)
+  {
+    if ((sb.st_mode & S_IFMT) != S_IFSOCK)
+    {
+      fprintf(stderr, "fd=%d: not socket: mode=%o",
+              s.fd, sb.st_mode);
+      abort();
+    }
+  }
+  return close(s.fd);
+}
+
+#endif
 
 /*
   Implement my_socketpair() so that it works both on UNIX and windows
@@ -29,7 +58,7 @@
 int my_socketpair(ndb_socket_t s[2])
 {
   struct sockaddr_in addr;
-  SOCKET_SIZE_TYPE addrlen = sizeof(addr);
+  socket_len_t addrlen = sizeof(addr);
   ndb_socket_t listener;
 
   my_socket_invalidate(&listener);

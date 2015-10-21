@@ -25,6 +25,7 @@
 #include "my_sys.h"
 #include "mysqld.h"                    // connection_events_loop_aborted(), ...
 #include "my_time.h"                   // my_init_time
+#include "m_string.h"                  // my_stpcpy
 #include <m_ctype.h>
 
 #ifdef _WIN32

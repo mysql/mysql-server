@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,9 +15,7 @@
 
 
 /**
-  @file
-
-  @brief
+  @file mysys_ssl/my_md5.cc
   Wrapper functions for OpenSSL and YaSSL. Also provides a Compatibility layer
   to make available YaSSL's MD5 implementation.
 */

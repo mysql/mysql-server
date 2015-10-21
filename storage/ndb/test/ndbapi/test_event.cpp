@@ -27,6 +27,13 @@
 #include <NdbEnv.h>
 #include <Bitmask.hpp>
 
+#define CHK(b,e) \
+  if (!(b)) { \
+    g_err << "ERR: " << #b << " failed at line " << __LINE__ \
+          << ": " << e << endl; \
+    return NDBT_FAILED; \
+  }
+
 static int createEvent(Ndb *pNdb,
                        const NdbDictionary::Table &tab,
                        bool merge_events,
@@ -1225,10 +1232,14 @@ end:
 }
 
 /**
- * This method expects the listener to consume an inconsistent gci,
- * and then it expects to move on to the following epochs.
- * Listener stops the test when it either 1) receives 10 more epochs after
- * it consumed an inconsistent epoch or 2) has received 200 epochs.
+ * This method checks that the nextEvent() removes inconsistent epoch
+ * from the event queue (Bug#18716991 - INCONSISTENT EVENT DATA IS NOT
+ * REMOVED FROM EVENT QUEUE CAUSING CONSUMPTION STOP) and continues
+ * delivering the following epoch event data.
+ *
+ * Listener stops the test when it either 1) receives 10 more epochs
+ * after it consumed an inconsistent epoch or 2) has polled 120 more
+ * poll rounds after the first event data is polled.
  * Test succeeds for case 1 and fails for case 2.
  */
 int runEventListenerCheckProgressUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
@@ -1238,45 +1249,50 @@ int runEventListenerCheckProgressUntilStopped(NDBT_Context* ctx, NDBT_Step* step
   const NdbDictionary::Table * table= ctx->getTab();
   HugoTransactions hugoTrans(* table);
   Ndb* ndb= GETNDB(step);
-  Uint64 poll_gci = 0, incons_gci = 0;
+  Uint64 poll_gci = 0;
+  // First inconsistent epoch found after pollEvents call
+  Uint64 incons_gci_by_poll = 0;
+  // First inconsistent epoch found after nextEvent call
+  Uint64 incons_gci_by_next = 0;
   Uint64 op_gci = 0, curr_gci = 0, consumed_gci = 0;
-  bool found_gap = false;
-  Uint32 consumed_epochs = 0;
+
+  Uint32 consumed_epochs = 0; // Total epochs consumed
   int32 consumed_epochs_after = 0; // epochs consumed after inconsis epoch
 
   char buf[1024];
   sprintf(buf, "%s_EVENT", table->getName());
   NdbEventOperation *pOp, *pCreate = 0;
   pCreate = pOp = ndb->createEventOperation(buf);
-  if ( pOp == NULL ) {
-    g_err << "Event operation creation failed on %s" << buf << endl;
-    return NDBT_FAILED;
-  }
 
-  int i;
-  int n_columns= table->getNoOfColumns();
-  NdbRecAttr* recAttr[1024];
-  NdbRecAttr* recAttrPre[1024];
-  for (i = 0; i < n_columns; i++) {
-    recAttr[i]    = pOp->getValue(table->getColumn(i)->getName());
-    recAttrPre[i] = pOp->getPreValue(table->getColumn(i)->getName());
-  }
+  CHK(pOp != NULL, "Event operation creation failed");
+  CHK(pOp->execute() == 0, "execute operation execution failed");
 
-  if (pOp->execute())
-  { // This starts changes to "start flowing"
-    g_err << "execute operation execution failed: \n";
-    g_err << pOp->getNdbError().code << " "
-      << pOp->getNdbError().message << endl;
-    result = NDBT_FAILED;
-    goto end;
-  }
+  // Syncronise event listening and error injection
+  ctx->setProperty("Inject_error", (Uint32)0);
+  ctx->setProperty("Found_inconsistency", (Uint32)0);
 
-  while (!ctx->isTestStopped())
+  // Wait max 10 sec for event data to start flowing
+  Uint32 retries = 10;
+  while (retries-- > 0)
   {
-    ndb->pollEvents(100, &poll_gci);
-    if (!found_gap && !ndb->isConsistent(incons_gci))
+    if (ndb->pollEvents(1000, &poll_gci) == 1)
+        break;
+  }
+  CHK(retries > 0, "No epoch has received in 10 secs");
+
+  // Event data have started flowing, inject error after one sec
+  NdbSleep_SecSleep(1);
+  ctx->setProperty("Inject_error", (Uint32)1);
+
+  // if no inconsistency is found after 120 poll rounds, fail
+  retries = 120;
+  while (!ctx->isTestStopped() && retries-- > 0)
+  {
+    ndb->pollEvents(1000, &poll_gci);
+    if (incons_gci_by_poll == 0 && !ndb->isConsistent(incons_gci_by_poll))
     {
-      found_gap = true;
+      // found the first inconsistency
+      ctx->setProperty("Found_inconsistency", (Uint32)1);
     }
 
     /**
@@ -1293,49 +1309,62 @@ int runEventListenerCheckProgressUntilStopped(NDBT_Context* ctx, NDBT_Step* step
         consumed_gci = curr_gci;
         curr_gci = op_gci;
         consumed_epochs ++;
-
-        if (found_gap && consumed_gci > incons_gci)
+        if (incons_gci_by_next > 0 &&
+            consumed_gci > incons_gci_by_next &&
+            consumed_epochs_after++ == 10)
         {
-            consumed_epochs_after ++;
+          ctx->stopTest();
+          break;
         }
-	if (consumed_epochs_after == 10 ||
-	    consumed_epochs == 200)
-	    ctx->stopTest();
       }
     }
-    consumed_gci = curr_gci; // epoch boundary
+
+    // nextEvent returned NULL: either queue is empty or
+    // an inconsistent epoch is found
+    if (incons_gci_by_poll != 0 && incons_gci_by_next == 0 &&
+        !ndb->isConsistent(incons_gci_by_next))
+    {
+      CHK(incons_gci_by_poll == incons_gci_by_next,
+          "pollEvents and nextEvent found different inconsistent epochs");
+
+      // Start counting epochs consumed after the first inconsistent epoch
+      consumed_epochs_after = 0;
+      g_info << "Epochs consumed at inconsistent epoch : "
+             << consumed_epochs << endl;
+    }
+
+    // Note epoch boundary when event queue becomes empty
+    consumed_gci = curr_gci;
   }
 
-  g_info << "Epochs consumed totally: " << consumed_epochs
-         << ". Epochs consumed after inconsistent epoch : "
-         << consumed_epochs_after << endl;
-
-  if (incons_gci == 0)
+  if (incons_gci_by_poll == 0)
   {
-    // not found gap
-    g_err << "Inconsistent event data has not been seen. Either fault injection did not work or test stopped earlier." << endl;
+    g_err << "Inconsistent event data has not been seen. "
+          << "Either fault injection did not work or test stopped earlier."
+          << endl;
     result =  NDBT_FAILED;
   }
-  else if (incons_gci >= op_gci)
+  else if (consumed_epochs_after == 0)
   {
     g_err << "Listener : consumption stalled after inconsistent gci : "
-          << incons_gci
+          << incons_gci_by_poll
           << ". Last consumed gci : " << consumed_gci
           << ". Last polled gci " << poll_gci << endl;
     result =  NDBT_FAILED;
   }
   else {
-    g_err << "Listener : progressed from inconsis_gci : "
-          << incons_gci << " to last consumed gci " << consumed_gci
+    g_info << "Epochs consumed totally: " << consumed_epochs
+           << ". Epochs consumed after inconsistent epoch : "
+           << consumed_epochs_after
+           << ". Poll rounds " << (120 - retries) << endl;
+
+    g_info << "Listener : progressed from inconsis_gci : " << incons_gci_by_poll
+          << " to last consumed gci " << consumed_gci
           << ". Last polled gci : " << poll_gci << endl;
   }
-end:
-  if (ndb->dropEventOperation(pCreate)) {
-    g_err << "dropEventOperation execution failed "
-          << ndb->getNdbError().code << " "
-          << ndb->getNdbError().message << endl;
-    result = NDBT_FAILED;
-  }
+
+  CHK(retries > 0, "Test failed despite 120 poll rounds");
+  CHK((ndb->dropEventOperation(pCreate) == 0), "dropEventOperation failed");
   return result;
 }
 
@@ -2276,7 +2305,6 @@ runInsertDeleteUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
       return NDBT_FAILED;
     }
   }
-  
   return NDBT_OK;
 }
 
@@ -2425,12 +2453,25 @@ int
 errorInjectBufferOverflowOnly(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter restarter;
+  assert(ctx->getProperty("Inject_error", (Uint32)0) == 0);
+  // Wait for the signal from the listener
+  while (ctx->getProperty("Inject_error", (Uint32)0) != 1)
+  {
+    NdbSleep_SecSleep(1);
+  }
+  ctx->setProperty("Inject_error", (Uint32)0);
 
-  NdbSleep_SecSleep(1);
   if (restarter.insertErrorInAllNodes(13036) != 0)
   {
     return NDBT_FAILED;
   }
+  while (ctx->getProperty("Found_inconsistency", (Uint32)0) != 1)
+  {
+    NdbSleep_SecSleep(1);
+  }
+  ctx->setProperty("Inject_error", (Uint32)0);
+
+  restarter.insertErrorInAllNodes(0); //Remove the injected error
   return NDBT_OK;
 }
 
@@ -2444,6 +2485,7 @@ errorInjectStalling(NDBT_Context* ctx, NDBT_Step* step)
   int result = NDBT_OK;
   int res;
   bool connected = true;
+  uint retries = 100;
 
   if (pOp == 0)
   {
@@ -2457,16 +2499,27 @@ errorInjectStalling(NDBT_Context* ctx, NDBT_Step* step)
     goto cleanup;
   }
 
-  res = ndb->pollEvents(5000) > 0;
-
-  if (ndb->getNdbError().code != 0)
+  Uint64 curr_gci;
+  for (int i=0; (i<10) && (curr_gci != NDB_FAILURE_GCI); i++)
   {
-    g_err << "pollEvents failed: \n";
-    g_err << ndb->getNdbError().code << " "
-          << ndb->getNdbError().message << endl;
+    res = ndb->pollEvents(5000, &curr_gci) > 0;
+
+    if (ndb->getNdbError().code != 0)
+    {
+      g_err << "pollEvents failed: \n";
+      g_err << ndb->getNdbError().code << " "
+            << ndb->getNdbError().message << endl;
+      result = NDBT_FAILED;
+      goto cleanup;
+    }
+  }
+
+  if (curr_gci != NDB_FAILURE_GCI)
+  {
+    g_err << "pollEvents failed to detect cluster failure: \n";
     result = NDBT_FAILED;
     goto cleanup;
-  }
+  } 
 
   if (res > 0) {
     NdbEventOperation *tmp;
@@ -2481,6 +2534,7 @@ errorInjectStalling(NDBT_Context* ctx, NDBT_Step* step)
       }
       switch (tmp->getEventType()) {
       case NdbDictionary::Event::TE_CLUSTER_FAILURE:
+        g_err << "Found TE_CLUSTER_FAILURE" << endl;
         connected = false;
         break;
       default:
@@ -2496,15 +2550,12 @@ errorInjectStalling(NDBT_Context* ctx, NDBT_Step* step)
     }
   }
 
-cleanup:
-
   if (ndb->dropEventOperation(pOp) != 0) {
     g_err << "dropping event operation failed\n";
     result = NDBT_FAILED;
   }
 
   // Reconnect by trying to start a transaction
-  uint retries = 100;
   while (!connected && retries--)
   {
     HugoTransactions hugoTrans(* ctx->getTab());
@@ -2529,9 +2580,6 @@ cleanup:
     return NDBT_FAILED;
   }
 
-  // Stop the other thread
-  ctx->stopTest();
-
   if (restarter.waitClusterStarted(300) != 0){
     return NDBT_FAILED;
   }
@@ -2539,6 +2587,44 @@ cleanup:
   if (ndb->waitUntilReady() != 0){
     return NDBT_FAILED;
   }
+
+  pOp= createEventOperation(ndb, *pTab);
+
+  if (pOp == 0)
+  {
+    g_err << "Failed to createEventOperation" << endl;
+    return NDBT_FAILED;
+  }
+
+  // Check that we receive events again
+  for (int i=0; (i<10) && (curr_gci == NDB_FAILURE_GCI); i++)
+  {
+    res = ndb->pollEvents(5000, &curr_gci) > 0;
+
+    if (ndb->getNdbError().code != 0)
+    {
+      g_err << "pollEvents failed: \n";
+      g_err << ndb->getNdbError().code << " "
+            << ndb->getNdbError().message << endl;
+      result = NDBT_FAILED;
+      goto cleanup;
+    }
+  }
+  if (curr_gci == NDB_FAILURE_GCI)
+  {
+    g_err << "pollEvents after restart failed res " << res << " curr_gci " << curr_gci << endl;
+    result =  NDBT_FAILED;
+  }
+
+cleanup:
+
+  if (ndb->dropEventOperation(pOp) != 0) {
+    g_err << "dropping event operation failed\n";
+    result = NDBT_FAILED;
+  }
+
+  // Stop the other thread
+  ctx->stopTest();
 
   return result;
 }
@@ -3887,6 +3973,896 @@ int runTryGetEvent(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+// Waits until the event buffer is filled upto fill_percent
+// or #retries exhaust.
+bool wait_to_fill_buffer(Ndb* ndb, Uint32 fill_percent)
+{
+  Ndb::EventBufferMemoryUsage mem_usage;
+  Uint32 usage_before_wait = 0;
+  Uint64 prev_gci = 0;
+  Uint32 retries = 10;
+
+  do
+  {
+    ndb->get_event_buffer_memory_usage(mem_usage);
+    usage_before_wait = mem_usage.usage_percent;
+    if (fill_percent < 100 && usage_before_wait >= fill_percent)
+    {
+      return true;
+    }
+
+    // Assume that latestGCI will increase in this sleep time
+    // (with default TimeBetweenEpochs 100 mill).
+    NdbSleep_SecSleep(1);
+
+    const Uint64 latest_gci = ndb->getLatestGCI();
+
+    /* fill_percent == 100 :
+     * It is not enough to test usage_after_wait >= 100 to decide
+     * whether a gap has occurred, because a gap can occur
+     * at a fill_percent < 100, eg at 99%, when there is no space
+     * for a new epoch. Therefore, we have to wait until the
+     * latest_gci (and usage) becomes stable, because epochs are
+     * discarded during a gap.
+     */
+    if (prev_gci == latest_gci && retries-- == 0)
+    {
+      /* No new epoch is buffered despite waiting with continuous
+       * load generation. A gap must have occurred. Enough waiting.
+       * Check usage is unchanged as well.
+       */
+      ndb->get_event_buffer_memory_usage(mem_usage);
+      const Uint32 usage_after_wait = mem_usage.usage_percent;
+      if (usage_before_wait == usage_after_wait)
+      {
+        return true;
+      }
+      g_err << "wait_to_fill_buffer failed : prev_gci "
+            << prev_gci << "latest_gci " << latest_gci
+            << " usage before wait " << usage_before_wait
+            << " usage after wait " <<  usage_after_wait << endl;
+      return false;
+    }
+    prev_gci = latest_gci;
+  } while (true);
+
+  assert(false); // Should not reach here
+}
+
+/*********************************************************
+ * Test the backward compatible pollEvents returns 1
+ * when the event buffer overflows. However, the test cannot
+ * guarantee that overflow epoch data is found at the
+ * head of the event queue.
+ * The following nextEvent call will crash with 'out of memory' error.
+ * The test will fail if there is no crash.
+ */
+int runPollBCOverflowEB(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table * table= ctx->getTab();
+  HugoTransactions hugoTrans(* table);
+  Ndb* ndb= GETNDB(step);
+  ndb->set_eventbuf_max_alloc(2621440); // max event buffer size
+
+  char buf[1024];
+  sprintf(buf, "%s_EVENT", table->getName());
+  NdbEventOperation *pOp = NULL;
+  pOp = ndb->createEventOperation(buf);
+  CHK(pOp != NULL, "Event operation creation failed");
+  CHK(pOp->execute() == 0, "execute operation execution failed");
+
+  // Wait until event buffer get filled 100%, to get a gap event
+  if (!wait_to_fill_buffer(ndb, 100))
+    return NDBT_FAILED;
+
+  g_err << endl << "The test is expected to crash with"
+        << " Event buffer out of memory." << endl << endl;
+
+  Uint64 poll_gci = 0;
+  while (ndb->pollEvents(100, &poll_gci))
+  {
+    while ((pOp = ndb->nextEvent()))
+    {}
+  }
+  // The test should not come here. Expected to crash in nextEvent.
+  return NDBT_FAILED;
+}
+
+/*************************************************************
+ * Test: pollEvents(0) returns immediately :
+ * The coumer waits max 10 secs to see an event.
+ * Then it polls with 0 wait time. If it could not see
+ * event data with the same epoch, it fails.
+ */
+int runPollBCNoWaitConsumer(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table * table= ctx->getTab();
+  HugoTransactions hugoTrans(* table);
+  Ndb* ndb= GETNDB(step);
+  ndb->set_eventbuf_max_alloc(2621440); // max event buffer size
+
+  char buf[1024];
+  sprintf(buf, "%s_EVENT", table->getName());
+  NdbEventOperation *pOp = NULL, *pCreate = NULL;
+  pCreate = pOp = ndb->createEventOperation(buf);
+  CHK(pOp != NULL, "Event operation creation failed");
+  CHK(pOp->execute() == 0, "execute operation execution failed");
+
+  // Wait max 10 sec for event data to start flowing
+  Uint32 retries = 10;
+  Uint64 poll_gci = 0;
+  while (retries-- > 0)
+  {
+    if (ndb->pollEvents(1000, &poll_gci) == 1)
+        break;
+  }
+  CHK(retries > 0, "No epoch has received in 10 secs");
+
+  // pollEvents with aMilliSeconds = 0 will poll only once (no wait),
+  // and it should see the event data seen above
+  Uint64 poll_gci2 = 0;
+  CHK((ndb->pollEvents(0, &poll_gci2) != 1),
+      "pollEvents(0) hasn't seen the event data");
+  CHK(poll_gci == poll_gci2,
+      "pollEvents(0) hasn't seen the same epoch");
+
+  CHK((ndb->dropEventOperation(pCreate) == 0), "dropEventOperation failed");
+  return NDBT_OK;
+}
+
+int runPollBCNoWait(NDBT_Context* ctx, NDBT_Step* step)
+{
+  // Insert one record, to test pollEvents(0).
+  HugoTransactions hugoTrans(*ctx->getTab());
+  UtilTransactions utilTrans(*ctx->getTab());
+  CHK((hugoTrans.loadTable(GETNDB(step), 1, 1) == 0), "Insert failed");
+  return NDBT_OK;
+}
+
+/*************************************************************
+ * Test: pollEvents(-1) will wait long (2^32 mill secs) :
+ *    To test it within a reasonable time, this wait will be
+ *    ended after 10 secs by peroforming an insert by runPollBCLong()
+ *    and the pollEvents sees it.
+ *    If the wait will not end or it ends prematuerly (< 10 secs),
+ *    the test will fail.
+ */
+int runPollBCLongWaitConsumer(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table * table= ctx->getTab();
+  HugoTransactions hugoTrans(* table);
+  Ndb* ndb= GETNDB(step);
+  ndb->set_eventbuf_max_alloc(2621440); // max event buffer size
+
+  char buf[1024];
+  sprintf(buf, "%s_EVENT", table->getName());
+  NdbEventOperation *pOp = NULL, *pCreate = NULL;
+  pCreate = pOp = ndb->createEventOperation(buf);
+  CHK(pOp != NULL, "Event operation creation failed");
+  CHK(pOp->execute() == 0, "execute operation execution failed");
+
+  Uint64 poll_gci = 0;
+  ndb->pollEvents(-1, &poll_gci);
+
+  // poll has seen the insert event data now.
+  CHK((ndb->dropEventOperation(pCreate) == 0), "dropEventOperation failed");
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
+int runPollBCLongWait(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* runPollWaitLong() is blocked by pollEvent(-1).
+   * We do not want to wait 2^32 millsec, so we end it
+   * after 10 secs by sending an insert.
+   */
+  const NDB_TICKS startTime = NdbTick_getCurrentTicks();
+  NdbSleep_SecSleep(10);
+
+  // Insert one record, to end the consumer's long wait
+  HugoTransactions hugoTrans(*ctx->getTab());
+  UtilTransactions utilTrans(*ctx->getTab());
+  CHK((hugoTrans.loadTable(GETNDB(step), 1, 1) == 0), "Insert failed");
+
+  // Give max 10 sec for the consumer to see the insert
+  Uint32 retries = 10;
+  while (!ctx->isTestStopped() && retries-- > 0)
+  {
+    NdbSleep_SecSleep(1);
+  }
+  CHK((ctx->isTestStopped() || retries > 0),
+      "Consumer hasn't seen the insert in 10 secs");
+
+  const Uint32 duration =
+    (Uint32)NdbTick_Elapsed(startTime, NdbTick_getCurrentTicks()).milliSec();
+
+  if (duration < 10000)
+  {
+    g_err << "pollEvents(-1) returned earlier (" << duration
+          << " secs) than expected minimum of 10 secs." << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+
+/*************************************************************
+ * Test backward compatibility of the pollEvents related to
+ * inconsistent epochs.
+ * An inconsistent event data can be found at the head of the
+ * event queue or after the head.
+ * It it is at the head:
+ *  - the backward compatible pollEvents will return 1 and
+ *  - the following nextEvent call will return NULL.
+ * The test writes out which case (head or after) is found.
+ *
+ * For each poll, nextEvent round will end the test when
+ * it finds an inconsistent epoch, or process the whole queue.
+ *
+ * After each poll (before nextEvent call) event queue is checked
+ * for inconsistency.
+ * Test will fail :
+ * a) if no inconsistent epoch is found after 120 poll rounds
+ * b) If the  pollEvents and nextEvent found different inconsistent epochs
+ * c) if the pollEvents and nextEvent found unequal #inconsistent epochs
+ */
+int runPollBCInconsistency(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table * table= ctx->getTab();
+  HugoTransactions hugoTrans(* table);
+  Ndb* ndb= GETNDB(step);
+
+  char buf[1024];
+  sprintf(buf, "%s_EVENT", table->getName());
+  NdbEventOperation *pOp, *pCreate = NULL;
+  pCreate = pOp = ndb->createEventOperation(buf);
+  CHK(pOp != NULL, "Event operation creation failed");
+  CHK(pOp->execute() == 0, "execute operation execution failed");
+
+  Uint32 n_ins = 0, n_dels = 0, n_unknown = 0;
+  Uint32 n_inconsis_poll = 0, n_inconsis_next = 0;
+
+  Uint64 inconsis_epoch_poll = 0; // inconsistent epoch seen by pollEvents
+  Uint64 inconsis_epoch_next = 0;// inconsistent epoch seen by nextEvent
+
+  Uint64 current_gci = 0, poll_gci = 0;
+
+  // Syncronise event listening and error injection
+  ctx->setProperty("Inject_error", (Uint32)0);
+  ctx->setProperty("Found_inconsistency", (Uint32)0);
+
+  // Wait max 10 sec for event data to start flowing
+  Uint32 retries = 10;
+  while (retries-- > 0)
+  {
+    if (ndb->pollEvents(1000, &poll_gci) == 1)
+        break;
+  }
+  CHK(retries > 0, "No epoch has received in 10 secs");
+
+  // Event data have started flowing, inject error after a sec
+  NdbSleep_SecSleep(1);
+  ctx->setProperty("Inject_error", (Uint32)1);
+
+  // if no inconsistency is found within 120 poll rounds, fail
+  retries = 120;
+  do
+  {
+    // Check whether an inconsistent epoch is in the queue
+    if (!ndb->isConsistent(inconsis_epoch_poll))
+    {
+      n_inconsis_poll++;
+      ctx->setProperty("Found_inconsistency", (Uint32)1);
+    }
+
+    pOp = ndb->nextEvent();
+    // Check whether an inconsistent epoch is at the head
+    if (pOp == NULL)
+    {
+      // pollEvents returned 1, but nextEvent returned 0,
+      // Should be an inconsistent epoch
+      CHK(!ndb->isConsistent(inconsis_epoch_next),
+          "Expected inconsistent epoch");
+      g_info << "Next event found inconsistent epoch at the"
+             << " head of the event queue" << endl;
+      CHK((inconsis_epoch_poll != 0 &&
+           inconsis_epoch_poll == inconsis_epoch_next),
+          "pollEvents and nextEvent found different inconsistent epochs");
+      n_inconsis_next++;
+      goto end_test;
+
+      g_err << "pollEvents returned 1, but nextEvent found no data"
+            << endl;
+      return NDBT_FAILED;
+    }
+
+    while (pOp)
+    {
+      current_gci = pOp->getGCI();
+
+      switch (pOp->getEventType())
+      {
+      case NdbDictionary::Event::TE_INSERT:
+        n_ins ++;
+        break;
+      case NdbDictionary::Event::TE_DELETE:
+        n_dels ++;
+        break;
+      default:
+        n_unknown ++;
+        break;
+      }
+
+      pOp = ndb->nextEvent();
+      if (pOp == NULL)
+      {
+        // pOp returned NULL, check it is an inconsistent epoch.
+        if (!ndb->isConsistent(inconsis_epoch_next))
+        {
+          g_info << "Next event found inconsistent epoch"
+                 << " in the event queue" << endl;
+          CHK((inconsis_epoch_poll != 0 &&
+               inconsis_epoch_poll == inconsis_epoch_next),
+              "pollEvents and nextEvent found different inconsistent epochs");
+          n_inconsis_next++;
+          goto end_test;
+        }
+        // Check whether we have processed the entire queue
+        CHK(current_gci == poll_gci, "Expected inconsistent epoch");
+      }
+    }
+    if (retries-- == 0)
+      goto end_test;
+
+  } while (ndb->pollEvents(1000, &poll_gci));
+
+end_test:
+
+  if (retries == 0 ||
+      n_inconsis_poll == 0 ||
+      n_inconsis_poll != n_inconsis_next ||
+      n_unknown != 0 )
+  {
+    g_err << "Test failed :" << endl;
+    g_err << "Retries " << 120 - retries << endl;
+    g_err << " #inconsistent epochs found by pollEvents "
+          << n_inconsis_poll << endl;
+    g_err << " #inconsistent epochs found by nextEvent "
+          << n_inconsis_next << endl;
+    g_err << " Inconsis epoch found by pollEvents "
+          << inconsis_epoch_poll << endl;
+    g_err << " inconsis epoch found by nextEvent "
+          << inconsis_epoch_next << endl;
+    g_err << " Inserts " << n_ins << ", deletes " << n_dels
+          << ", unknowns " << n_unknown << endl;
+    return NDBT_FAILED;
+  }
+
+  // Stop the transaction load to data nodes
+  ctx->stopTest();
+
+  CHK(ndb->dropEventOperation(pCreate) == 0, "dropEventOperation failed");
+
+  return NDBT_OK;
+}
+
+/*************************************************************
+ * Check highestQueuedEpoch stays stable over a poll period
+ * while latestGCI increases due to newer completely-received
+ * epochs get buffered
+ */
+int
+runCheckHQElatestGCI(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+
+  NdbEventOperation* evOp = createEventOperation(pNdb, *pTab);
+  CHK(evOp != NULL, "Event operation creation failed");
+  CHK(evOp->execute() == 0, "execute operation execution failed");
+
+  Uint64 highestQueuedEpoch = 0;
+  int pollRetries = 60;
+  int res = 0;
+  while (res == 0 && pollRetries-- > 0)
+  {
+    res = pNdb->pollEvents2(1000, &highestQueuedEpoch);
+    NdbSleep_SecSleep(1);
+  }
+
+  // 10 sec waiting should be enough to get an epoch with default
+  // TimeBetweenEpochsTimeout (4 sec) and TimeBetweenEpochs (100 millsec).
+  CHK(highestQueuedEpoch != 0, "No epochs received after 10 secs");
+
+
+  // Wait for some more epochs to be buffered.
+  int retries = 10;
+  Uint64 latest = 0;
+  do
+  {
+    NdbSleep_SecSleep(1);
+    latest = pNdb->getLatestGCI();
+  } while (latest <= highestQueuedEpoch && retries-- > 0);
+
+  CHK(latest > highestQueuedEpoch, "No new epochs buffered");
+
+  const Uint64 hqe = pNdb->getHighestQueuedEpoch();
+  if (highestQueuedEpoch != hqe)
+  {
+    g_err << "Highest queued epoch " << highestQueuedEpoch
+          << " has changed before the next poll to "
+          << pNdb->getHighestQueuedEpoch() << endl;
+    return NDBT_FAILED;
+  }
+
+  pNdb->pollEvents2(1000, &highestQueuedEpoch);
+  if (highestQueuedEpoch <= hqe || highestQueuedEpoch < latest)
+  {
+    g_err << "No new epochs polled:"
+          << " highestQueuedEpoch at the last poll" << hqe
+          << " highestQueuedEpoch at the this poll " << highestQueuedEpoch
+          << " latest epoch seen " << latest << endl;
+    return NDBT_FAILED;
+  }
+
+  CHK(pNdb->dropEventOperation(evOp) == 0, "dropEventOperation failed");
+
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
+/**
+ * Wait until some epoch reaches the event queue and then consume nEpochs.
+ * nepochs = 0: Wait until some epoch reaches the event queue and return true
+ * nepochs > 0: Consume the given number of epochs or the queue becomes
+ *   empty. Return true.
+ * Returns false if no epoch reaches the event queue within the #pollRetries
+ * or epochs are retrieved out of order.
+ */
+
+// Remember the highest queued epoch before the cluster restart
+static Uint64 epoch_before_restart = 0;
+bool
+consumeEpochs(Ndb* ndb, uint nEpochs)
+{
+  Uint64 op_gci = 0, curr_gci = 0, consumed_gci = 0;
+  Uint32 consumed_epochs = 0;
+  Uint32 emptyEpochs = 0, errorEpochs = 0, regularOps = 0;
+
+  g_info << "Epochs to be consumed " << nEpochs << endl;
+  // Allow some time for the event data from the data nodes
+  // to reach the event buffer
+  NdbSleep_SecSleep(5);
+
+  int pollRetries = 60;
+  int res = 0;
+  Uint64 highestQueuedEpoch = 0;
+  while (pollRetries-- > 0)
+  {
+    res = ndb->pollEvents2(1000, &highestQueuedEpoch);
+
+    g_info << "consumeEpochs: " << highestQueuedEpoch  << " ("
+           << (Uint32)(highestQueuedEpoch >> 32) << "/"
+           << (Uint32)highestQueuedEpoch << ")"
+           << " pollRetries left " << pollRetries
+           << " res " << res << endl;
+
+    if (nEpochs == 0 && res > 0)
+    {
+      // Some epochs have reached the event queue,
+      // but not requested to consume
+      epoch_before_restart = highestQueuedEpoch;
+      g_info << "Ret : nEpochs == 0 && res > 0" << endl;
+      return true;
+    }
+
+    if (res == 0)
+    {
+      NdbSleep_SecSleep(1);
+      continue;
+    }
+
+    // Consume nEpochs
+    NdbEventOperation* pOp = NULL;
+    while ((pOp = ndb->nextEvent2()))
+    {
+      NdbDictionary::Event::TableEvent err_type;
+      if ((pOp->isErrorEpoch(&err_type)) ||
+          (pOp->getEventType2() == NdbDictionary::Event::TE_CLUSTER_FAILURE))
+        errorEpochs++;
+      else if (pOp->isEmptyEpoch())
+        emptyEpochs++;
+      else
+        regularOps++;
+
+      op_gci = pOp->getGCI();
+      if (op_gci < curr_gci)
+      {
+        g_err << endl << "Out of order epochs: retrieved epoch " << op_gci
+              << " (" << (Uint32)(op_gci >> 32) << "/"
+              << (Uint32)op_gci << ")" << endl;
+        g_err << " Curr gci " << curr_gci << " ("
+              << (Uint32)(curr_gci >> 32) << "/"
+              << (Uint32)curr_gci << ")" << endl;
+        g_err << " Epoch before restart " << epoch_before_restart  << " ("
+              << (Uint32)(epoch_before_restart >> 32) << "/"
+              << (Uint32)epoch_before_restart << ")" << endl;
+        g_err << " Consumed epoch " << consumed_gci << " ("
+              << (Uint32)(consumed_gci >> 32) << "/"
+              << (Uint32)consumed_gci << ")" << endl << endl;
+        return false;
+      }
+
+      if (op_gci > curr_gci)
+      {
+        // epoch boundary
+        consumed_gci = curr_gci;
+        curr_gci = op_gci;
+
+        if (++consumed_epochs > nEpochs)
+        {
+          g_info << "Consumed epochs " << consumed_epochs << endl;
+          g_info << "Empty epochs " << emptyEpochs
+                << " RegualrOps " << regularOps
+                << " Error epochs " << errorEpochs << endl;
+          return true;
+        }
+      }
+      // Note epoch boundary when event queue becomes empty
+      consumed_gci = curr_gci;
+    }
+  }
+
+  // Retries expired
+  if ((nEpochs == 0 && highestQueuedEpoch == 0) ||
+      (consumed_epochs == 0))
+  {
+    g_err << "No epochs reached the queue, nEpochs " << nEpochs << endl;
+    return false;
+  }
+
+  g_info << "Consumed epochs " << consumed_epochs << endl;
+  g_info << "Empty epochs " << emptyEpochs << " regualrOps " << regularOps
+        << " Error epochs " << errorEpochs << endl;
+  return true;
+}
+
+/*************************************************************
+ * The test generates some transaction load, waits til the
+ * event queue gets filled, restarts cluster (initially if
+ * requested), generates some transaction load and then
+ * consumes all events from the queue.
+ *
+ * The test will fail if no epoch reaches the event queue within
+ * the #pollRetries or epochs are retrieved out of order.
+ */
+
+int
+runInjectClusterFailure(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+  const NdbDictionary::Table tab(* ctx->getTab());
+
+  NdbEventOperation* evOp = createEventOperation(pNdb, tab);
+  CHK(evOp != NULL, "Event operation creation failed");
+
+  // Generate some transaction load
+  HugoTransactions hugoTrans(tab);
+  CHK(hugoTrans.loadTable(GETNDB(step), 1000, 100) == 0,
+      "Failed to generate transaction load after cluster restart");
+
+  // Poll until find some event data in the queue
+  // but don't consume (nEpochs to consume is 0)
+  CHK(consumeEpochs(pNdb, 0), "No event data found by pollEvents");
+  /*
+   * Drop the pre-created table before initial restart to avoid invalid
+   * dict cache. Also use a copy of the pre-created table struct
+   * to avoid accessing invalid memory.
+   */
+  const NdbDictionary::Table tab1(* ctx->getTab());
+  CHK(pDict->dropTable(tab.getName()) == 0, pDict->getNdbError());
+  CHK(dropEvent(pNdb, tab) == 0, pDict->getNdbError());
+
+  if (ctx->getProperty("InitialRestart"))
+    g_info << "Restarting cluster initially" << endl;
+  else
+    g_info << "Restarting cluster" << endl;
+
+  // Restart cluster with abort
+  NdbRestarter restarter;
+  if (restarter.restartAll(ctx->getProperty("InitialRestart"),
+                           true, true) != 0)
+    return NDBT_FAILED;
+
+  g_err << "wait nostart" << endl;
+  restarter.waitClusterNoStart();
+  g_err << "startAll" << endl;
+  restarter.startAll();
+  g_err << "wait started" << endl;
+  restarter.waitClusterStarted();
+
+  CHK(pNdb->dropEventOperation(evOp) == 0, "dropEventOperation failed");
+  NdbSleep_SecSleep(1);
+
+  // Create the table
+  CHK(pDict->createTable(tab1) == 0, pDict->getNdbError());
+  const NdbDictionary::Table* pTab = pDict->getTable(tab.getName());
+  CHK(pTab != 0, pDict->getNdbError());
+  // Create the event
+  CHK(createEvent(pNdb, tab1, ctx)== 0, pDict->getNdbError());
+
+  //Create event op
+  evOp = createEventOperation(pNdb, *pTab);
+  CHK(evOp != NULL, "Event operation creation failed");
+
+  // Generate some transaction load
+  HugoTransactions hugoTrans1(*pTab);
+  CHK(hugoTrans1.loadTable(GETNDB(step), 1000, 100) == 0,
+      "Failed to generate transaction load after cluster restart");
+
+  // consume all epochs left by giving a high value to eEpochs
+  CHK(consumeEpochs(pNdb, 10000), "Consume after cluster restart failed");
+
+  CHK(pNdb->dropEventOperation(evOp) == 0, "dropEventOperation failed");
+  CHK(dropEvent(pNdb, tab) == 0, pDict->getNdbError());
+  return NDBT_OK;
+}
+
+/******** Test event buffer overflow **********/
+
+/**
+ * Test the production and consumption of gap epochs
+ * (having evnt type TE_OUT_OF_MEMORY) wth of a slow
+ * listenenr causing event buffer to overflow (runTardyEventListener())
+ */
+
+// Collect statistics
+class ConsumptionStatistics
+{
+public:
+  ConsumptionStatistics();
+
+  // Count the gaps consumed while the test is progressing.
+  Uint32 consumedGaps;
+
+  Uint32 emptyEpochs; // Count the empty epochs in the test
+
+  // Number of event buffer overflows, the listener has intended to consume
+  static const Uint32 totalGaps = 6;
+
+  Uint64 gap_epoch[totalGaps]; // Store the gap epochs consumed
+
+  /** consumed_epochs[0] : #epochs the event buffer can accomodate
+   * before the first overflow.
+   * consumed_epochs[1-5] : Consumed epochs between each gaps.
+   */
+  Uint32 consumed_epochs[totalGaps];
+
+  void print();
+};
+
+ConsumptionStatistics::ConsumptionStatistics() : consumedGaps(0), emptyEpochs(0)
+{
+  for (Uint32 i = 0; i < totalGaps; i++)
+  {
+    gap_epoch[i] = 0;
+    consumed_epochs[i] = 0;
+  }
+}
+
+void ConsumptionStatistics::print()
+{
+  /* Buffer capacity : #epochs event buffer can accomodate.
+   * The test fills the event buffer twice.
+   * The buffer capacity of the first and the second rounds
+   * should be comparable, with a small difference due to
+   * timimg of transactions and epochs. However,
+   * considering the different machine/platforms the test will
+   * be run on, the difference is not intended to be used as
+   * a test succees/failure criteria.
+   * Instead both values are written out for manual inspection.
+   */
+  if (consumedGaps == 0)
+    g_err << "Test failed. No epochs consumed." << endl;
+  else if (consumedGaps < totalGaps)
+    g_err << "Test failed. Less epochs consumed. Expected: "
+          << totalGaps << " Consumed: " << consumedGaps << endl;
+
+  // Calculate the event buffer capacity in the second round of filling
+  Uint32 bufferCapacitySecondRound = 0;
+  for (Uint32 i=1; i < totalGaps; ++i)
+    bufferCapacitySecondRound += consumed_epochs[i];
+  bufferCapacitySecondRound -= consumedGaps; // Exclude overflow epochs
+
+  g_err << endl << "Empty epochs consumed : " << emptyEpochs << "." << endl;
+
+  g_err << "Expected gap epochs : " << totalGaps
+        << ", consumed gap epochs : " << consumedGaps << "." << endl;
+
+  if (consumedGaps > 0)
+  {
+    g_err << "Gap epoch | Consumed epochs before this gap : " << endl;
+    for (Uint32 i = 0; i< consumedGaps; ++i)
+    {
+      g_err << gap_epoch[i] << " | "
+            << consumed_epochs[i] << endl;
+    }
+
+    g_err << endl
+          << "Buffer capacity (Epochs consumed before first gap occurred) : "
+          << consumed_epochs[0] << " epochs." << endl;
+    g_err << "Epochs consumed after first gap until the buffer"
+          << " got filled again (excluding overflow epochs): "
+          << bufferCapacitySecondRound << "." << endl << endl;
+  }
+}
+
+/* Consume event data until all gaps are consumed or
+ * free_percent space in the event buffer becomes available
+ */
+bool consume_buffer(NDBT_Context* ctx, Ndb* ndb,
+                   NdbEventOperation *pOp,
+                   Uint32 buffer_percent,
+                   ConsumptionStatistics &stats)
+{
+  Ndb::EventBufferMemoryUsage mem_usage;
+  ndb->get_event_buffer_memory_usage(mem_usage);
+  Uint32 prev_mem_usage = mem_usage.usage_percent;
+  Uint64 op_gci = 0, curr_gci = 0;
+
+  Uint64 poll_gci = 0;
+  int poll_retries = 10;
+  int res = 0;
+  while (poll_retries-- > 0 && (res = ndb->pollEvents2(1000, &poll_gci)))
+  {
+    while ((pOp = ndb->nextEvent2()))
+    {
+      op_gci = pOp->getGCI();
+
+      // -------- handle epoch boundary --------
+      if (op_gci > curr_gci)
+      {
+        curr_gci = op_gci;
+        stats.consumed_epochs[stats.consumedGaps] ++;
+
+        if (pOp->getEventType2() == NdbDictionary::Event::TE_EMPTY)
+          stats.emptyEpochs++;
+        else
+          if (pOp->getEventType2() == NdbDictionary::Event::TE_OUT_OF_MEMORY)
+          {
+            stats.gap_epoch[stats.consumedGaps++] = op_gci;
+            if (stats.consumedGaps == stats.totalGaps)
+              return true;
+          }
+
+        // Ensure that the event buffer memory usage doesn't grow during a gap
+        ndb->get_event_buffer_memory_usage(mem_usage);
+        const Uint32 current_mem_usage = mem_usage.usage_percent;
+        if (current_mem_usage > prev_mem_usage)
+        {
+          g_err << "Test failed: The buffer usage grows during gap." << endl;
+          g_err << " Prev mem usage " << prev_mem_usage
+                << ", Current mem usage " << current_mem_usage << endl;
+          return false;
+        }
+
+        /**
+         * Consume until
+         * a) the whole event buffer is consumed or
+         * b) >= free_percent is consumed such that buffering can be resumed
+         * (For case b) buffer_percent must be < (100-free_percent)
+         * for resumption).
+         */
+
+        if (current_mem_usage == 0 ||
+            current_mem_usage < buffer_percent)
+        {
+          return true;
+        }
+        prev_mem_usage = current_mem_usage;
+      }
+    }
+  }
+
+  // Event queue became empty or err before reaching the consumption target
+  g_err << "Test failed: consumption target " << buffer_percent
+        << " is not reached after "
+        << poll_retries << " poll retries."
+        << " poll results " << res << endl;
+
+  return false;
+}
+
+/**
+ * Test: Emulate a tardy consumer as follows :
+ * Fill the event buffer to 100% initially, in order to accelerate
+ * the gap occurence.
+ * Then let the consumer to consume and free the buffer a little
+ *   more than free_percent (20), such that buffering resumes again.
+ *   Fill 100%. Repeat this consume/fill until 'n' gaps are
+ *   produced and all are consumed, where n = ((100 / 20) + 1) = 6.
+ *   When 6-th gap is produced, the event buffer is filled for the second time.
+ * The load generator (insert/delete) is stopped after 6 gaps are produced.
+ * Then the consumer consumes all produced gap epochs.
+ * Test succeeds when : all gaps are consumed,
+ * Test fails if
+ *  a) producer cannot produce a gap
+ *  b) event buffer usage grows during a gap (when consuming until free %)
+ *  c) consumer cannot consume the given target buffer % within #retries
+ *  d) Total gaps consumed < 6.
+ */
+int runTardyEventListener(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  const NdbDictionary::Table * table= ctx->getTab();
+  HugoTransactions hugoTrans(* table);
+  Ndb* ndb= GETNDB(step);
+
+  ndb->set_eventbuf_max_alloc(5242880); // max event buffer size 10485760
+  const Uint32 free_percent = 20;
+  ndb->set_eventbuffer_free_percent(free_percent);
+
+  ConsumptionStatistics statistics;
+
+  char buf[1024];
+  sprintf(buf, "%s_EVENT", table->getName());
+  NdbEventOperation *pOp, *pCreate = 0;
+  pCreate = pOp = ndb->createEventOperation(buf);
+  CHK(pOp != NULL, "Event operation creation failed");
+  CHK(pOp->execute() == 0, "Execute operation execution failed");
+
+  bool res = true;
+  Uint32 producedGaps = 0;
+
+  while (producedGaps++ < statistics.totalGaps)
+  {
+    /**
+     * Fill the event buffer completely to 100% :
+     *  - First time : to speed up the test,
+     *  - then fill (~ free_percent) after resuming buffering
+     */
+    if (!wait_to_fill_buffer(ndb, 100))
+    {
+      goto end_test;
+    }
+
+    if (producedGaps == statistics.totalGaps)
+      break;
+
+    /**
+     * The buffer has overflown, consume until buffer gets
+     * free_percent space free, such that buffering can be resumed.
+     */
+    res = consume_buffer(ctx, ndb, pOp, (100 - free_percent), statistics);
+    if (!res)
+    {
+      goto end_test;
+    }
+  }
+
+  // Signal the load generator to stop the load
+  ctx->stopTest();
+
+  // Consume the whole event buffer.
+  // (buffer_percent to be consumed = 100 - 100 = 0)
+  res = consume_buffer(ctx, ndb, pOp, 0, statistics);
+
+end_test:
+
+  if (!res)
+    g_err << "consume_buffer failed." << endl;
+
+  if (!res || statistics.consumedGaps < statistics.totalGaps)
+    result = NDBT_FAILED;
+
+  if (result == NDBT_FAILED)
+    statistics.print();
+
+  CHK(ndb->dropEventOperation(pOp) == 0, "dropEventOperation failed");
+  return result;
+}
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -4161,7 +5137,82 @@ TESTCASE("Apiv2EmptyEpochs",
   INITIALIZER(runCreateEvent);
   STEP(runListenEmptyEpochs);
   FINALIZER(runDropEvent);
-};
+}
+TESTCASE("BackwardCompatiblePollNoWait",
+         "Check backward compatibility for pollEvents"
+         "when poll does not wait")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runPollBCNoWaitConsumer);
+  STEP(runPollBCNoWait);
+  FINALIZER(runDropEvent);
+}
+TESTCASE("BackwardCompatiblePollLongWait",
+         "Check backward compatibility for pollEvents"
+         "when poll waits long")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runPollBCLongWaitConsumer);
+  STEP(runPollBCLongWait);
+  FINALIZER(runDropEvent);
+}
+TESTCASE("BackwardCompatiblePollInconsistency",
+         "Check backward compatibility of pollEvents"
+          "when handling data node buffer overflow")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runInsertDeleteUntilStopped);
+  STEP(runPollBCInconsistency);
+  STEP(errorInjectBufferOverflowOnly);
+  FINALIZER(runDropEvent);
+}
+TESTCASE("Apiv2HQE-latestGCI",
+         "Verify the behaviour of the new API w.r.t."
+         "highest queued and latest received epochs")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runCheckHQElatestGCI);
+  STEP(runInsertDeleteUntilStopped);
+  FINALIZER(runDropEvent);
+}
+TESTCASE("Apiv2-check_event_queue_cleared",
+         "Check whether subcriptions been dropped "
+         "and recreated after a cluster restart "
+         "cause any problem for event consumption.")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runInjectClusterFailure);
+}
+TESTCASE("Apiv2-check_event_queue_cleared_initial",
+         "test Bug 18411034 : Check whether the event queue is cleared "
+         "after a cluster failure causing subcriptions to be "
+         "dropped and recreated, and cluster is restarted initially.")
+{
+  TC_PROPERTY("InitialRestart", 1);
+  INITIALIZER(runCreateEvent);
+  STEP(runInjectClusterFailure);
+}
+TESTCASE("Apiv2EventBufferOverflow",
+         "Check gap-resume works by: create a gap"
+         "and consume to free free_percent of buffer; repeat")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runInsertDeleteUntilStopped);
+  STEP(runTardyEventListener);
+  FINALIZER(runDropEvent);
+}
+#if 0
+TESTCASE("BackwardCompatiblePollCOverflowEB",
+         "Check whether backward compatibility of pollEvents  manually"
+         "to see it causes process exit when nextEvent() processes an"
+         "event buffer overflow event data fom the queue")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runPollBCOverflowEB);
+  STEP(runInsertDeleteUntilStopped);
+  FINALIZER(runDropEvent);
+}
+#endif
 NDBT_TESTSUITE_END(test_event);
 
 int main(int argc, const char** argv){

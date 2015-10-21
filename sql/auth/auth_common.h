@@ -566,9 +566,14 @@ int check_change_password(THD *thd, const char *host, const char *user,
                           const char *password, size_t password_len);
 bool change_password(THD *thd, const char *host, const char *user,
                      char *password);
-bool mysql_create_user(THD *thd, List <LEX_USER> &list);
-bool mysql_alter_user(THD *thd, List <LEX_USER> &list);
-bool mysql_drop_user(THD *thd, List <LEX_USER> &list);
+int write_bin_log_n_handle_any_error(THD *thd,
+                                     const char* query,
+                                     size_t query_len,
+                                     bool transactional_tables,
+                                     bool *rollback_whole_statement);
+bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists);
+bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists);
+bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists);
 bool mysql_rename_user(THD *thd, List <LEX_USER> &list);
 
 bool set_and_validate_user_attributes(THD *thd,
@@ -581,8 +586,9 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
 bool hostname_requires_resolving(const char *hostname);
 my_bool acl_init(bool dont_read_acl_tables);
 void acl_free(bool end=0);
-my_bool acl_reload(THD *thd); 
-my_bool grant_init();
+my_bool acl_reload(THD *thd);
+bool check_engine_type_for_acl_table(THD *thd);
+bool grant_init(bool skip_grant_tables);
 void grant_free(void);
 my_bool grant_reload(THD *thd);
 ulong acl_get(const char *host, const char *ip,
@@ -609,12 +615,10 @@ bool check_grant_column (THD *thd, GRANT_INFO *grant,
 bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
                                      const char *name, size_t length,
                                      ulong want_privilege);
-bool check_grant_all_columns(THD *thd, ulong want_access, 
+bool check_grant_all_columns(THD *thd, ulong want_access,
                              Field_iterator_table_ref *fields);
 bool check_grant_routine(THD *thd, ulong want_access,
                          TABLE_LIST *procs, bool is_proc, bool no_error);
-bool check_routine_level_acl(THD *thd, const char *db, const char *name,
-                             bool is_proc);
 bool check_grant_db(THD *thd,const char *db);
 bool acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
                                   bool with_grant);
@@ -651,6 +655,10 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
 bool check_fk_parent_table_access(THD *thd,
                                   HA_CREATE_INFO *create_info,
                                   Alter_info *alter_info);
+bool check_readonly(THD *thd, bool err_if_readonly);
+void err_readonly(THD *thd);
+
+bool is_secure_transport(int vio_type);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 
@@ -725,3 +733,4 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status);
 #endif /* HAVE_OPENSSL && !HAVE_YASSL */
 
 #endif /* AUTH_COMMON_INCLUDED */
+

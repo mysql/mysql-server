@@ -16,6 +16,7 @@ typedef enum enum_field_types {
   MYSQL_TYPE_TIMESTAMP2,
   MYSQL_TYPE_DATETIME2,
   MYSQL_TYPE_TIME2,
+  MYSQL_TYPE_JSON=245,
   MYSQL_TYPE_NEWDECIMAL=246,
   MYSQL_TYPE_ENUM=247,
   MYSQL_TYPE_SET=248,
@@ -27,16 +28,41 @@ typedef enum enum_field_types {
   MYSQL_TYPE_STRING=254,
   MYSQL_TYPE_GEOMETRY=255
 } enum_field_types;
+#include "my_command.h"
 enum enum_server_command
 {
-  COM_SLEEP, COM_QUIT, COM_INIT_DB, COM_QUERY, COM_FIELD_LIST,
-  COM_CREATE_DB, COM_DROP_DB, COM_REFRESH, COM_SHUTDOWN, COM_STATISTICS,
-  COM_PROCESS_INFO, COM_CONNECT, COM_PROCESS_KILL, COM_DEBUG, COM_PING,
-  COM_TIME, COM_DELAYED_INSERT, COM_CHANGE_USER, COM_BINLOG_DUMP,
-  COM_TABLE_DUMP, COM_CONNECT_OUT, COM_REGISTER_SLAVE,
-  COM_STMT_PREPARE, COM_STMT_EXECUTE, COM_STMT_SEND_LONG_DATA, COM_STMT_CLOSE,
-  COM_STMT_RESET, COM_SET_OPTION, COM_STMT_FETCH, COM_DAEMON,
-  COM_BINLOG_DUMP_GTID, COM_RESET_CONNECTION,
+  COM_SLEEP,
+  COM_QUIT,
+  COM_INIT_DB,
+  COM_QUERY,
+  COM_FIELD_LIST,
+  COM_CREATE_DB,
+  COM_DROP_DB,
+  COM_REFRESH,
+  COM_SHUTDOWN,
+  COM_STATISTICS,
+  COM_PROCESS_INFO,
+  COM_CONNECT,
+  COM_PROCESS_KILL,
+  COM_DEBUG,
+  COM_PING,
+  COM_TIME,
+  COM_DELAYED_INSERT,
+  COM_CHANGE_USER,
+  COM_BINLOG_DUMP,
+  COM_TABLE_DUMP,
+  COM_CONNECT_OUT,
+  COM_REGISTER_SLAVE,
+  COM_STMT_PREPARE,
+  COM_STMT_EXECUTE,
+  COM_STMT_SEND_LONG_DATA,
+  COM_STMT_CLOSE,
+  COM_STMT_RESET,
+  COM_SET_OPTION,
+  COM_STMT_FETCH,
+  COM_DAEMON,
+  COM_BINLOG_DUMP_GTID,
+  COM_RESET_CONNECTION,
   COM_END
 };
 struct st_vio;
@@ -93,12 +119,15 @@ enum enum_session_state_type
   SESSION_TRACK_SYSTEM_VARIABLES,
   SESSION_TRACK_SCHEMA,
   SESSION_TRACK_STATE_CHANGE,
-  SESSION_TRACK_GTIDS
+  SESSION_TRACK_GTIDS,
+  SESSION_TRACK_TRANSACTION_CHARACTERISTICS,
+  SESSION_TRACK_TRANSACTION_STATE
 };
 my_bool my_net_init(NET *net, Vio* vio);
 void my_net_local_init(NET *net);
 void net_end(NET *net);
 void net_clear(NET *net, my_bool check_buffer);
+void net_claim_memory_ownership(NET *net);
 my_bool net_realloc(NET *net, size_t length);
 my_bool net_flush(NET *net);
 my_bool my_net_write(NET *net,const unsigned char *packet, size_t len);
@@ -253,6 +282,7 @@ typedef unsigned long long my_ulonglong;
 #include "my_alloc.h"
 #include <mysql/psi/psi_memory.h>
 #include "psi_base.h"
+struct PSI_thread;
 typedef unsigned int PSI_memory_key;
 typedef struct st_used_mem
 {
@@ -269,6 +299,9 @@ typedef struct st_mem_root
   size_t block_size;
   unsigned int block_num;
   unsigned int first_block_usage;
+  size_t max_capacity;
+  size_t allocated_size;
+  my_bool error_for_capacity_exceeded;
   void (*error_handler)(void);
   PSI_memory_key m_psi_key;
 } MEM_ROOT;
@@ -326,7 +359,8 @@ enum mysql_option
   MYSQL_SERVER_PUBLIC_KEY,
   MYSQL_ENABLE_CLEARTEXT_PLUGIN,
   MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
-  MYSQL_OPT_SSL_ENFORCE
+  MYSQL_OPT_SSL_ENFORCE,
+  MYSQL_OPT_MAX_ALLOWED_PACKET, MYSQL_OPT_NET_BUFFER_LENGTH
 };
 struct st_mysql_options_extention;
 struct st_mysql_options {
@@ -437,15 +471,8 @@ typedef struct st_mysql_res {
   my_bool unbuffered_fetch_cancelled;
   void *extension;
 } MYSQL_RES;
-typedef struct st_mysql_parameters
-{
-  unsigned long *p_max_allowed_packet;
-  unsigned long *p_net_buffer_length;
-  void *extension;
-} MYSQL_PARAMETERS;
 int mysql_server_init(int argc, char **argv, char **groups);
 void mysql_server_end(void);
-MYSQL_PARAMETERS * mysql_get_parameters(void);
 my_bool mysql_thread_init(void);
 void mysql_thread_end(void);
 my_ulonglong mysql_num_rows(MYSQL_RES *res);

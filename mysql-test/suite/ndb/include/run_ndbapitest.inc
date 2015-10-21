@@ -47,4 +47,9 @@ $F->close();
 
 EOF
 
+if ($NDBAPITEST_CLEANUP_QUERY != '')
+{
+  eval $NDBAPITEST_CLEANUP_QUERY;
+}
+
 --source $MYSQLTEST_VARDIR/tmp/run_ndbapitest.result

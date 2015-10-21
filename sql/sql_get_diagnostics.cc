@@ -302,7 +302,7 @@ Condition_information_item::make_utf8_string_item(THD *thd, const String *str)
   a given condition.
 
   @param thd  The current thread.
-  @param da   The Diagnostics Area.
+  @param cond  The SQL condition.
 
   @retval Item representing the value.
   @retval NULL on error.

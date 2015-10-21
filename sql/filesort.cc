@@ -16,10 +16,8 @@
 
 
 /**
-  @file
-
-  @brief
-  Sorts a database
+  @file sql/filesort.cc
+  Sorts a database.
 */
 
 #include "filesort.h"
@@ -42,7 +40,9 @@
 #include "priority_queue.h"
 #include "log.h"
 #include "item_sum.h"                   // Item_sum
+#include "json_dom.h"                   // Json_wrapper
 #include "psi_memory_key.h"
+#include "template_utils.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -136,6 +136,13 @@ void Sort_param::init_for_filesort(Filesort *file_sort,
     */
     sort_length+= ref_length;
   }
+  /*
+    Add hash at the end of sort key to order cut values correctly.
+    Needed for GROUPing, rather than for ORDERing.
+  */
+  if (use_hash)
+    sort_length+= sizeof(ulonglong);
+
   rec_length= sort_length + addon_length;
   max_rows= maxrows;
 }
@@ -214,7 +221,6 @@ static void trace_filesort_information(Opt_trace_context *trace,
   table->sort.sorted_result, or left in the main filesort buffer.
 
   @param      thd            Current thread
-  @param      table          Table to sort
   @param      filesort       How to sort the table
   @param      sort_positions Set to TRUE if we want to force sorting by position
                              (Needed by UPDATE/INSERT or ALTER TABLE or
@@ -225,21 +231,19 @@ static void trace_filesort_information(Opt_trace_context *trace,
   @param[out] found_rows     Store the number of found rows here.
                              This is the number of found rows after
                              applying WHERE condition.
+  @param[out] returned_rows  Number of rows in the result, could be less than
+                             found_rows if LIMIT is provided.
 
   @note
     If we sort by position (like if sort_positions is 1) filesort() will
     call table->prepare_for_position().
 
-  @returns
-    HA_POS_ERROR	Error
-  @returns
-    \#			Number of rows in the result, could be less than
-                        found_rows if LIMIT were provided.
+  @returns   False if success, true if error
 */
 
-ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
-                 bool sort_positions, ha_rows *examined_rows,
-                 ha_rows *found_rows)
+bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
+              ha_rows *examined_rows, ha_rows *found_rows,
+              ha_rows *returned_rows)
 {
   int error;
   ulong memory_available= thd->variables.sortbuff_size;
@@ -254,14 +258,15 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
     pq((Malloc_allocator<uchar*>
         (key_memory_Filesort_info_record_pointers)));
   Opt_trace_context * const trace= &thd->opt_trace;
-  TABLE *const table= qep_tab->table();
+  QEP_TAB *const tab= filesort->tab;
+  TABLE *const table= tab->table();
   ha_rows max_rows= filesort->limit;
   uint s_length= 0;
 
   DBUG_ENTER("filesort");
 
   if (!(s_length= filesort->make_sortorder()))
-    DBUG_RETURN(HA_POS_ERROR);  /* purecov: inspected */
+    DBUG_RETURN(true);  /* purecov: inspected */
 
   /*
     We need a nameless wrapper, since we may be inside the "steps" of
@@ -271,10 +276,9 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
   trace_filesort_information(trace, filesort->sortorder, s_length);
 
   DBUG_ASSERT(!table->reginfo.join_tab);
-  Item_subselect *const subselect=
-    (table->reginfo.qep_tab &&
-     table->reginfo.qep_tab->join()) ?
-    table->reginfo.qep_tab->join()->select_lex->master_unit()->item : NULL;
+  DBUG_ASSERT(tab == table->reginfo.qep_tab);
+  Item_subselect *const subselect= tab && tab->join() ?
+    tab->join()->select_lex->master_unit()->item : NULL;
 
   MYSQL_FILESORT_START(const_cast<char*>(table->s->db.str),
                        const_cast<char*>(table->s->table_name.str));
@@ -303,14 +307,15 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
 
   param.init_for_filesort(filesort,
                           sortlength(thd, filesort->sortorder, s_length,
-                                     &multi_byte_charset),
+                                     &multi_byte_charset,
+                                     &param.use_hash),
                           table,
                           thd->variables.max_length_for_sort_data,
                           max_rows, sort_positions);
 
   table_sort.addon_fields= param.addon_fields;
 
-  if (qep_tab->quick())
+  if (tab->quick())
     thd->inc_status_sort_range();
   else
     thd->inc_status_sort_scan();
@@ -414,7 +419,7 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
   // New scope, because subquery execution must be traced within an array.
   {
     Opt_trace_array ota(trace, "filesort_execution");
-    num_rows= find_all_keys(thd, &param, qep_tab,
+    num_rows= find_all_keys(thd, &param, tab,
                             &table_sort,
                             &chunk_file,
                             &tempfile,
@@ -521,9 +526,7 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
   }
   if (error)
   {
-    int kill_errno= thd->killed_errno();
-
-    DBUG_ASSERT(thd->is_error() || kill_errno);
+    DBUG_ASSERT(thd->is_error() || thd->killed);
 
     /*
       We replace the table->sort at the end.
@@ -536,11 +539,11 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
       Guard against Bug#11745656 -- KILL QUERY should not send "server shutdown"
       to client!
     */
-    const char *cause= kill_errno
-                       ? ((kill_errno == THD::KILL_CONNECTION
+    const char *cause= thd->killed
+                       ? ((thd->killed == THD::KILL_CONNECTION
                          && !connection_events_loop_aborted())
                           ? ER_THD(thd, THD::KILL_QUERY)
-                          : ER_THD(thd, kill_errno))
+                          : ER_THD(thd, thd->killed))
                        : thd->get_stmt_da()->message_text();
     const char *msg=   ER_THD(thd, ER_FILSORT_ABORT);
 
@@ -563,6 +566,7 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
   else
     thd->inc_status_sort_rows(num_rows);
   *examined_rows= param.examined_rows;
+  *returned_rows= num_rows;
 
   /* table->sort.io_cache should be free by this time */
   DBUG_ASSERT(NULL == table->sort.io_cache);
@@ -574,7 +578,7 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
              ("num_rows: %ld examined_rows: %ld found_rows: %ld",
               (long) num_rows, (long) *examined_rows, (long) *found_rows));
   MYSQL_FILESORT_DONE(error, num_rows);
-  DBUG_RETURN(error ? HA_POS_ERROR : num_rows);
+  DBUG_RETURN(error);
 } /* filesort */
 
 
@@ -621,12 +625,13 @@ uint Filesort::make_sortorder()
     pos->field= 0; pos->item= 0;
     if (real_item->type() == Item::FIELD_ITEM)
     {
-      // Could be a field, or Item_direct_view_ref wrapping a field
+      // Could be a field, or Item_direct_view_ref/Item_ref wrapping a field
       DBUG_ASSERT(item->type() == Item::FIELD_ITEM ||
                   (item->type() == Item::REF_ITEM &&
-                   static_cast<Item_ref*>(item)->ref_type() ==
-                   Item_ref::VIEW_REF));
-      pos->field= static_cast<Item_field*>(real_item)->field;
+                   (down_cast<Item_ref*>(item)->ref_type() == Item_ref::VIEW_REF
+                    || down_cast<Item_ref*>(item)->ref_type() == Item_ref::REF)
+                    ));
+      pos->field= down_cast<Item_field*>(real_item)->field;
     }
     else if (real_item->type() == Item::SUM_FUNC_ITEM &&
              !real_item->const_item())
@@ -736,7 +741,7 @@ static void dbug_print_record(TABLE *table, bool print_rowid)
     fprintf(DBUG_FILE, " rowid ");
     for (uint i=0; i < table->file->ref_length; i++)
     {
-      fprintf(DBUG_FILE, "%x", (uchar)table->file->ref[i]);
+      fprintf(DBUG_FILE, "%x", table->file->ref[i]);
     }
   }
   fprintf(DBUG_FILE, "\n");
@@ -744,6 +749,63 @@ unlock_file_and_quit:
   DBUG_UNLOCK_FILE;
 }
 #endif 
+
+
+/// Error handler for filesort.
+class Filesort_error_handler : public Internal_error_handler
+{
+  THD *m_thd;                ///< The THD in which filesort is executed.
+  bool m_seen_not_supported; ///< Has a not supported warning has been seen?
+public:
+  /**
+    Create an error handler and push it onto the error handler
+    stack. The handler will be automatically popped from the error
+    handler stack when it is destroyed.
+  */
+  Filesort_error_handler(THD *thd)
+    : m_thd(thd), m_seen_not_supported(false)
+  {
+    thd->push_internal_handler(this);
+  }
+
+  /**
+    Pop the error handler from the error handler stack, and destroy
+    it.
+  */
+  ~Filesort_error_handler()
+  {
+    m_thd->pop_internal_handler();
+  }
+
+  /**
+    Handle a condition.
+
+    The handler will make sure that no more than a single
+    ER_NOT_SUPPORTED_YET warning will be seen by the higher
+    layers. This warning is generated by Json_wrapper::make_sort_key()
+    for every value that it doesn't know how to create a sort key
+    for. It is sufficient for the higher layers to report this warning
+    only once per sort.
+  */
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+  {
+    if (*level == Sql_condition::SL_WARNING &&
+        sql_errno == ER_NOT_SUPPORTED_YET)
+    {
+      if (m_seen_not_supported)
+        return true;
+      m_seen_not_supported= true;
+    }
+
+    return false;
+  }
+
+};
+
 
 static const Item::enum_walk walk_subquery=
   Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY);
@@ -755,7 +817,7 @@ static const Item::enum_walk walk_subquery=
 
   @param thd               Thread handle
   @param param             Sorting parameter
-  @param select            Use this to get source data
+  @param qep_tab            Use this to get source data
   @param fs_info           Struct containing sort buffer etc.
   @param chunk_file        File to write Merge_chunks describing sorted segments
                            in tempfile.
@@ -817,6 +879,14 @@ static ha_rows find_all_keys(THD *thd, Sort_param *param, QEP_TAB *qep_tab,
   ha_rows num_records= 0;
   const bool packed_addon_fields= param->using_packed_addons();
 
+  /*
+    Set up an error handler for filesort. It is automatically pushed
+    onto the internal error handler stack upon creation, and will be
+    popped off the stack automatically when the handler goes out of
+    scope.
+  */
+  Filesort_error_handler error_handler(thd);
+
   DBUG_ENTER("find_all_keys");
   DBUG_PRINT("info",("using: %s",
                      (qep_tab->condition() ? qep_tab->quick() ? "ranges" : "where":
@@ -865,7 +935,8 @@ static ha_rows find_all_keys(THD *thd, Sort_param *param, QEP_TAB *qep_tab,
     Set up temporary column read map for columns used by sort and verify
     it's not used
   */
-  DBUG_ASSERT(bitmap_is_clear_all(&sort_form->tmp_set));
+  DBUG_ASSERT(sort_form->tmp_set.n_bits == 0 ||
+              bitmap_is_clear_all(&sort_form->tmp_set));
 
   // Temporary set for register_used_fields and mark_field_in_map()
   sort_form->read_set= &sort_form->tmp_set;
@@ -1118,8 +1189,8 @@ const bool Is_big_endian= true;
 #else
 const bool Is_big_endian= false;
 #endif
-void copy_native_longlong(uchar *to, size_t to_length,
-                          longlong val, bool is_unsigned)
+static void copy_native_longlong(uchar *to, size_t to_length,
+                                 longlong val, bool is_unsigned)
 {
   copy_integer<Is_big_endian>(to, to_length,
                               static_cast<uchar*>(static_cast<void*>(&val)),
@@ -1127,10 +1198,76 @@ void copy_native_longlong(uchar *to, size_t to_length,
                               is_unsigned);
 }
 
+
+/**
+  Make a sort key for the JSON value in an Item.
+
+  This function is called by Sort_param::make_sortkey(). We don't want
+  it to be inlined, since that seemed to have a negative impact on
+  some performance tests.
+
+  @param[in]     item    The item for which to create a sort key.
+
+  @param[out]    to      Pointer into the buffer to which the sort key should
+                         be written. It will point to where the data portion
+                         of the key should start. For nullable items, this
+                         means right after the NULL indicator byte. The NULL
+                         indicator byte (to[-1]) should be initialized by the
+                         caller to a value that indicates not NULL.
+
+  @param[in]     length  The length of the sort key, not including the NULL
+                         indicator byte at the beginning of the sort key for
+                         nullable items.
+
+  @param[in,out] hash    The hash key of the JSON values in the current row.
+*/
+static void __attribute__((noinline))
+make_json_sort_key(Item *item, uchar *to, size_t length, ulonglong *hash)
+{
+  DBUG_ASSERT(!item->maybe_null || to[-1] == 1);
+
+  Json_wrapper wr;
+  if (item->val_json(&wr))
+  {
+    // An error happened when reading the JSON value. Give up.
+    memset(to, 0, length);
+    return;
+  }
+
+  if (item->null_value)
+  {
+    /*
+      Got NULL. The sort key should be all zeros. The caller has
+      already tentatively set the NULL indicator byte at to[-1] to
+      not-NULL, so we need to clear that byte too.
+    */
+    if (item->maybe_null)
+    {
+      memset(to - 1, 0, length + 1);
+    }
+    else
+    {
+      /* purecov: begin inspected */
+      DBUG_PRINT("warning",
+                 ("Got null on something that shouldn't be null"));
+      DBUG_ABORT();
+      memset(to, 0, length);
+      /* purecov: end */
+    }
+  }
+  else
+  {
+    wr.make_sort_key(to, length);
+    *hash= wr.make_hash_key(hash);
+  }
+}
+
+
 uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
 {
   uchar *orig_to= to;
   const st_sort_field *sort_field;
+  ulonglong hash= 0;
 
   for (sort_field= local_sortorder.begin() ;
        sort_field != local_sortorder.end() ;
@@ -1140,6 +1277,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
     if (sort_field->field)
     {
       Field *field= sort_field->field;
+      DBUG_ASSERT(sort_field->field_type == field->type());
       if (field->maybe_null())
       {
 	if (field->is_null())
@@ -1155,19 +1293,40 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
 	  *to++=1;
       }
       field->make_sort_key(to, sort_field->length);
+      if (sort_field->field_type == MYSQL_TYPE_JSON)
+      {
+        DBUG_ASSERT(use_hash);
+        unique_hash(field, &hash);
+      }
     }
     else
     {						// Item
       Item *item=sort_field->item;
       maybe_null= item->maybe_null;
+      DBUG_ASSERT(sort_field->field_type == item->field_type());
       switch (sort_field->result_type) {
       case STRING_RESULT:
       {
+        if (maybe_null)
+          *to++= 1;
+
+        if (sort_field->field_type == MYSQL_TYPE_JSON)
+        {
+          DBUG_ASSERT(use_hash);
+          /*
+            We don't want the code for creating JSON sort keys to be
+            inlined here, as increasing the size of the surrounding
+            "else" branch seems to have a negative impact on some
+            performance tests, even if those tests never execute the
+            "else" branch.
+          */
+          make_json_sort_key(item, to, sort_field->length, &hash);
+          break;
+        }
+
         const CHARSET_INFO *cs=item->collation.collation;
         char fill_char= ((cs->state & MY_CS_BINSORT) ? (char) 0 : ' ');
 
-        if (maybe_null)
-          *to++=1;
         /* All item->str() to use some extra byte for end null.. */
         String tmp((char*) to,sort_field->length+4,cs);
         String *res= item->str_result(&tmp);
@@ -1230,7 +1389,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
                          sort_field->suffix_length);
           }
 
-          my_strnxfrm(cs,(uchar*)to,length,(const uchar*)res->ptr(),length);
+          my_strnxfrm(cs, to,length,(const uchar*)res->ptr(),length);
           cs->cset->fill(cs, (char *)to+length,diff,fill_char);
         }
         break;
@@ -1312,7 +1471,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
           }
           else
           {
-            change_double_for_sort(value, (uchar*) to);
+            change_double_for_sort(value, to);
           }
 	  break;
 	}
@@ -1336,6 +1495,12 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
     }
     else
       to+= sort_field->length;
+  }
+
+  if (use_hash)
+  {
+    int8store(to, hash);
+    to+= 8;
   }
 
   if (using_addon_fields())
@@ -1407,13 +1572,8 @@ static void register_used_fields(Sort_param *param)
       if (field->table == table)
       {
         bitmap_set_bit(bitmap, field->field_index);
-        // Add base columns if it's a virtual generated column
-        if (field->gcol_info && !field->stored_in_db)
-        {
-          bitmap_fast_test_and_set(table->write_set, field->field_index);
-          field->gcol_info->expr_item->walk(&Item::mark_field_in_map,
-                                            Item::WALK_PREFIX, (uchar *)&mf);
-        }
+        if (field->is_virtual_gcol())
+          table->mark_gcol_in_maps(field);
       }
     }
     else
@@ -1430,13 +1590,8 @@ static void register_used_fields(Sort_param *param)
     {
       Field *field= addonf->field;
       bitmap_set_bit(bitmap, field->field_index);
-      // Add base columns if it's a virtual generated column
-      if (field->gcol_info && !field->stored_in_db)
-      {
-        bitmap_fast_test_and_set(table->write_set, field->field_index);
-        field->gcol_info->expr_item->walk(&Item::mark_field_in_map,
-                                          Item::WALK_PREFIX, (uchar *)&mf);
-      }
+      if (field->is_virtual_gcol())
+          table->mark_gcol_in_maps(field);
     }
   }
   else
@@ -1522,10 +1677,10 @@ static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort)
     This function tests whether a priority queue should be used to keep
     the result. Necessary conditions are:
     - estimate that it is actually cheaper than merge-sort
-    - enough memory to store the <max_rows> records.
+    - enough memory to store the @<max_rows@> records.
 
-    If we don't have space for <max_rows> records, but we *do* have
-    space for <max_rows> keys, we may rewrite 'table' to sort with
+    If we don't have space for @<max_rows@> records, but we *do* have
+    space for @<max_rows@> keys, we may rewrite 'table' to sort with
     references to records instead of additional data.
     (again, based on estimates that it will actually be cheaper).
 
@@ -1675,11 +1830,11 @@ bool check_if_pq_applicable(Opt_trace_context *trace,
 /**
   Merges buffers to make < MERGEBUFF2 buffers.
 
+  @param thd
   @param param        Sort parameters.
   @param sort_buffer  The main memory buffer.
   @param chunk_array  Array of chunk descriptors to merge.
-  @param p_num_chunks [out]
-                      output: the number of chunks left in the output file.
+  @param [out] p_num_chunks The number of chunks left in the output file.
   @param t_file       Where to store the result.
 */
 int merge_many_buff(THD *thd, Sort_param *param, Sort_buffer sort_buffer,
@@ -1876,6 +2031,7 @@ struct Merge_chunk_less
 /**
   Merge buffers to one buffer.
 
+  @param thd
   @param param          Sort parameter
   @param from_file      File with source data (Merge_chunks point to this file)
   @param to_file        File to write the sorted result data.
@@ -2077,7 +2233,7 @@ int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
 
   do
   {
-    if ((ha_rows) merge_chunk->mem_count() > max_rows)
+    if (merge_chunk->mem_count() > max_rows)
     {
       merge_chunk->set_mem_count(max_rows); /* Don't write too many records */
       merge_chunk->set_rowcount(0);         /* Don't read more */
@@ -2150,6 +2306,9 @@ static uint suffix_length(ulong string_length)
   @param s_length	          Number of items to sort
   @param[out] multi_byte_charset Set to 1 if we are using multi-byte charset
                                  (In which case we have to use strxnfrm())
+  @param[out] use_hash           Set to true when make_sortkey should
+                                 calculate and append hash for each sort key
+                                 @see Sort_param::make_sortkey()
 
   @note
     sortorder->length is updated for each sort item.
@@ -2162,11 +2321,12 @@ static uint suffix_length(ulong string_length)
 
 uint
 sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
-           bool *multi_byte_charset)
+           bool *multi_byte_charset, bool *use_hash)
 {
   uint total_length= 0;
   const CHARSET_INFO *cs;
   *multi_byte_charset= false;
+  *use_hash= false;
 
   for (; s_length-- ; sortorder++)
   {
@@ -2192,10 +2352,15 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
       {
         set_if_smaller(sortorder->length, thd->variables.max_sort_length);
       }
+
+      sortorder->field_type= sortorder->field->type();
+      if (sortorder->field_type == MYSQL_TYPE_JSON)
+        *use_hash= true;
     }
     else
     {
       sortorder->result_type= sortorder->item->result_type();
+      sortorder->field_type= sortorder->item->field_type();
       if (sortorder->item->is_temporal())
         sortorder->result_type= INT_RESULT;
       switch (sortorder->result_type) {
@@ -2215,6 +2380,8 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
           sortorder->suffix_length= suffix_length(sortorder->length);
           sortorder->length+= sortorder->suffix_length;
         }
+        if (sortorder->field_type == MYSQL_TYPE_JSON)
+          *use_hash= true;
 	break;
       case INT_RESULT:
 #if SIZEOF_LONG_LONG > 4
@@ -2289,7 +2456,25 @@ Filesort::get_addon_fields(ulong max_length_for_sort_data,
   uint packable_length= 0;
   uint num_fields= 0;
   uint null_fields= 0;
-  MY_BITMAP *read_set= (*ptabfield)->table->read_set;
+  TABLE *const table= tab->table();
+  MY_BITMAP *read_set= table->read_set;
+
+  // Locate the effective index for the table to be sorted (if any)
+  const uint index= tab->effective_index();
+  /*
+    filter_covering is true if access is via an index that is covering,
+    regardless of whether the access is by the covering index or by
+    index and base table, since the query has to be fulfilled with fields
+    from that index only.
+    This information is later used to filter out base columns for virtual
+    generated columns, since these are only needed when reading the table.
+    During sorting, trust that values for all generated columns have been
+    materialized, which means that base columns are no longer necessary.
+  */
+  const bool filter_covering=
+    index != MAX_KEY &&
+    table->covering_keys.is_set(index) &&
+    table->index_contains_some_virtual_gcol(index);
 
   /*
     If there is a reference to a field in the query add it
@@ -2306,11 +2491,14 @@ Filesort::get_addon_fields(ulong max_length_for_sort_data,
   {
     if (!bitmap_is_set(read_set, field->field_index))
       continue;
+    // part_of_key is empty for a BLOB, so apply this check before the next.
     if (field->flags & BLOB_FLAG)
     {
       DBUG_ASSERT(addon_fields == NULL);
       return NULL;
     }
+    if (filter_covering && !field->part_of_key.is_set(index))
+      continue;                   // See explanation above filter_covering
 
     const uint field_length= field->max_packed_col_length();
     total_length+= field_length;
@@ -2367,6 +2555,8 @@ Filesort::get_addon_fields(ulong max_length_for_sort_data,
   {
     if (!bitmap_is_set(read_set, field->field_index))
       continue;
+    if (filter_covering && !field->part_of_key.is_set(index))
+      continue;
     DBUG_ASSERT(addonf != addon_fields->end());
 
     addonf->field= field;
@@ -2404,7 +2594,7 @@ Filesort::get_addon_fields(ulong max_length_for_sort_data,
 
 void change_double_for_sort(double nr,uchar *to)
 {
-  uchar *tmp=(uchar*) to;
+  uchar *tmp= to;
   if (nr == 0.0)
   {						/* Change to zero string */
     tmp[0]=(uchar) 128;

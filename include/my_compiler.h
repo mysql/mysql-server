@@ -17,6 +17,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
+  @file include/my_compiler.h
   Header for compiler-dependent features.
 
   Intended to contain a set of reusable wrappers for preprocessor

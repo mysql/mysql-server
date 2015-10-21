@@ -415,9 +415,15 @@ IF(SYSCONFDIR)
   SET(DEFAULT_SYSCONFDIR "${SYSCONFDIR}")
 ENDIF()
 
-SET(TMPDIR "P_tmpdir"
-  CACHE PATH
-  "PATH to MySQL TMP dir. Defaults to the P_tmpdir macro in <stdio.h>")
+IF(WIN32) # P_tmpdir is not defined on Windows as of VS2015.
+  SET(TMPDIR "" # So we use empty path as default. In practice TMP/TEMP is used
+    CACHE PATH
+    "PATH to MySQL TMP dir")
+ELSE()
+  SET(TMPDIR "P_tmpdir"
+    CACHE PATH
+    "PATH to MySQL TMP dir. Defaults to the P_tmpdir macro in <stdio.h>")
+ENDIF()
 IF(TMPDIR STREQUAL "P_tmpdir")
   # Do not quote it, to refer to the P_tmpdir macro.
   SET(DEFAULT_TMPDIR "P_tmpdir")
@@ -459,6 +465,53 @@ MYSQL_CHECK_EDITLINE()
 MYSQL_CHECK_LIBEVENT()
 # Add lz4 library
 MYSQL_CHECK_LZ4()
+
+# Check for SYS_thread_selfid system call
+CHECK_C_SOURCE_COMPILES("
+#include <sys/types.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+int main(int ac, char **av)
+{
+  unsigned long long tid = syscall(SYS_thread_selfid);
+  return (tid != 0 ? 0 : 1);
+}"
+HAVE_SYS_THREAD_SELFID)
+
+# Check for gettid() system call
+CHECK_C_SOURCE_COMPILES("
+#include <sys/types.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+int main(int ac, char **av)
+{
+  unsigned long long tid = syscall(SYS_gettid);
+  return (tid != 0 ? 0 : 1);
+}"
+HAVE_SYS_GETTID)
+
+# Check for pthread_getthreadid_np()
+CHECK_C_SOURCE_COMPILES("
+#include <pthread_np.h>
+int main(int ac, char **av)
+{
+  unsigned long long tid = pthread_getthreadid_np();
+  return (tid != 0 ? 0 : 1);
+}"
+HAVE_PTHREAD_GETTHREADID_NP)
+
+# Check for pthread_self() returning an integer type
+CHECK_C_SOURCE_COMPILES("
+#include <sys/types.h>
+#include <pthread.h>
+int main(int ac, char **av)
+{
+  unsigned long long tid = pthread_self();
+  return (tid != 0 ? 0 : 1);
+}"
+HAVE_INTEGER_PTHREAD_SELF
+FAIL_REGEX "warning: incompatible pointer to integer conversion"
+)
 
 #
 # Setup maintainer mode options by the end. Platform checks are
@@ -524,7 +577,7 @@ IF(UNIX)
 ENDIF()
 
 IF(NOT WITHOUT_SERVER)
-  ADD_SUBDIRECTORY(tests)
+  ADD_SUBDIRECTORY(testclients)
   ADD_SUBDIRECTORY(sql)
   OPTION (WITH_EMBEDDED_SERVER "Compile MySQL with embedded server" OFF)
   IF(WITH_EMBEDDED_SERVER) 
@@ -541,13 +594,13 @@ IF(NOT WITHOUT_SERVER)
   ADD_SUBDIRECTORY(mysql-test)
   ADD_SUBDIRECTORY(mysql-test/lib/My/SafeProcess)
   ADD_SUBDIRECTORY(support-files)
-  ADD_SUBDIRECTORY(sql-bench)
   IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
     ADD_SUBDIRECTORY(internal)
   ENDIF()
   ADD_SUBDIRECTORY(packaging/rpm-oel)
   ADD_SUBDIRECTORY(packaging/rpm-fedora)
   ADD_SUBDIRECTORY(packaging/rpm-sles)
+  ADD_SUBDIRECTORY(packaging/rpm-docker)
 ENDIF()
 
 INCLUDE(cmake/abi_check.cmake)

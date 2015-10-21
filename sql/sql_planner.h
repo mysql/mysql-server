@@ -16,7 +16,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/** @file Join planner classes */
+/**
+  @file sql/sql_planner.h
+  Join planner classes.
+*/
 
 #include "my_global.h"
 

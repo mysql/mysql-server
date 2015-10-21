@@ -62,7 +62,7 @@ uint calc_days_in_year(uint year)
 
 /**
    Set MYSQL_TIME structure to 0000-00-00 00:00:00.000000
-   @param tm[OUT]    The value to set.
+   @param [out] tm    The value to set.
    @param time_type  Timestasmp type
 */
 void set_zero_time(MYSQL_TIME *tm,
@@ -464,7 +464,7 @@ str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
         {
           if (str[0] == 'p' || str[0] == 'P')
             add_hours= 12;
-          else if (str[0] != 'a' || str[0] != 'A')
+          else if (str[0] != 'a' && str[0] != 'A')
             continue;                           /* Not AM/PM */
           str+= 2;                              /* Skip AM/PM */
           /* Skip space after AM/PM */
@@ -836,8 +836,8 @@ fractional:
 /**
   Convert number to TIME
   @param nr            Number to convert.
-  @param OUT ltime     Variable to convert to.
-  @param OUT warnings  Warning vector.
+  @param [out] ltime     Variable to convert to.
+  @param [out] warnings  Warning vector.
 
   @retval false OK
   @retval true No. is out of range
@@ -887,7 +887,7 @@ number_to_time(longlong nr, MYSQL_TIME *ltime, int *warnings)
   set it to the closest endpoint of the range and set
   MYSQL_TIME_WARN_OUT_OF_RANGE flag in the 'warning' variable.
 
-  @param  time     pointer to MYSQL_TIME value
+  @param  my_time  pointer to MYSQL_TIME value
   @param  warning  set MYSQL_TIME_WARN_OUT_OF_RANGE flag if the value is out of range
 */
 void adjust_time_range(struct st_mysql_time *my_time, int *warning) 
@@ -1281,8 +1281,9 @@ TIME_to_datetime_str(char *to, const MYSQL_TIME *ltime)
 /**
   Print a datetime value with an optional fractional part.
 
-  @l_time       The MYSQL_TIME value to print.
-  @to      OUT  The string pointer to print at.
+  @param l_time       The MYSQL_TIME value to print
+  @param [out] to     The string pointer to print at
+  @param dec          Precision, in the range 0..6
   @return       The length of the result string.  
 */
 int my_datetime_to_str(const MYSQL_TIME *l_time, char *to, uint dec)
@@ -1331,7 +1332,7 @@ int my_TIME_to_str(const MYSQL_TIME *l_time, char *to, uint dec)
   Print a timestamp with an oprional fractional part: XXXXX[.YYYYY]
 
   @param      tm  The timestamp value to print.
-  @param  OUT to  The string pointer to print at. 
+  @param [out] to  The string pointer to print at. 
   @param      dec Precision, in the range 0..6.
   @return         The length of the result string.
 */
@@ -1605,7 +1606,7 @@ longlong TIME_to_longlong_time_packed(const MYSQL_TIME *ltime)
 /**
   Convert time packed numeric representation to time.
 
-  @param  OUT ltime  The MYSQL_TIME variable to set.
+  @param [out] ltime  The MYSQL_TIME variable to set.
   @param      tmp    The packed numeric representation.
 */
 void TIME_from_longlong_time_packed(MYSQL_TIME *ltime, longlong tmp)
@@ -1636,7 +1637,7 @@ void TIME_from_longlong_time_packed(MYSQL_TIME *ltime, longlong tmp)
   Convert in-memory numeric time representation to on-disk representation
   
   @param       nr   Value in packed numeric time format.
-  @param   OUT ptr  The buffer to put value at.
+  @param [out] ptr  The buffer to put value at.
   @param       dec  Precision.
 */
 void my_time_packed_to_binary(longlong nr, uchar *ptr, uint dec)
@@ -1806,7 +1807,7 @@ longlong year_to_longlong_datetime_packed(long year)
 
 /**
   Convert packed numeric datetime representation to MYSQL_TIME.
-  @param OUT  ltime The datetime variable to convert to.
+  @param [out] ltime The datetime variable to convert to.
   @param      tmp   The packed numeric datetime value.
 */
 void TIME_from_longlong_datetime_packed(MYSQL_TIME *ltime, longlong tmp)
@@ -1837,7 +1838,7 @@ void TIME_from_longlong_datetime_packed(MYSQL_TIME *ltime, longlong tmp)
 
 /**
   Convert packed numeric date representation to MYSQL_TIME.
-  @param OUT  ltime The date variable to convert to.
+  @param [out] ltime The date variable to convert to.
   @param      tmp   The packed numeric date value.
 */
 void TIME_from_longlong_date_packed(MYSQL_TIME *ltime, longlong tmp)
@@ -1893,7 +1894,7 @@ longlong my_datetime_packed_from_binary(const uchar *ptr, uint dec)
   Store in-memory numeric packed datetime representation to disk.
 
   @param      nr  In-memory numeric packed datetime representation.
-  @param OUT  ptr The pointer to store at.
+  @param [out] ptr The pointer to store at.
   @param      dec Precision, 1-6.
 */
 void my_datetime_packed_to_binary(longlong nr, uchar *ptr, uint dec)
@@ -1929,7 +1930,7 @@ void my_datetime_packed_to_binary(longlong nr, uchar *ptr, uint dec)
 /**
   Convert binary timestamp representation to in-memory representation.
 
-  @param  OUT tm  The variable to convert to.
+  @param [out] tm  The variable to convert to.
   @param      ptr The pointer to read the value from.
   @param      dec Precision.
 */
@@ -1962,7 +1963,7 @@ void my_timestamp_from_binary(struct timeval *tm, const uchar *ptr, uint dec)
   Convert in-memory timestamp representation to on-disk representation.
 
   @param        tm   The value to convert.
-  @param  OUT   ptr  The pointer to store the value to.
+  @param [out]  ptr  The pointer to store the value to.
   @param        dec  Precision.
 */
 void my_timestamp_to_binary(const struct timeval *tm, uchar *ptr, uint dec)
@@ -1999,7 +2000,7 @@ void my_timestamp_to_binary(const struct timeval *tm, uchar *ptr, uint dec)
   Convert a temporal value to packed numeric temporal representation,
   depending on its time_type.
 
-  @ltime   The value to convert.
+  @param ltime   The value to convert.
   @return  Packed numeric time/date/datetime representation.
 */
 longlong TIME_to_longlong_packed(const MYSQL_TIME *ltime)

@@ -311,4 +311,4 @@ int my_connection_handler_reset()
   return 0;
 #endif
 }
-};
+}

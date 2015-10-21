@@ -87,6 +87,8 @@ my_bool disconnect_on_expired_password= TRUE;
 #define DEFAULT_SSL_CLIENT_CERT "client-cert.pem"
 #define DEFAULT_SSL_CLIENT_KEY  "client-key.pem"
 
+#define MAX_CN_NAME_LENGTH 64
+
 my_bool opt_auto_generate_certs= TRUE;
 
 char *auth_rsa_private_key_path;
@@ -718,8 +720,8 @@ bool acl_check_host(const char *host, const char *ip)
   authentication protocol.
 */
 
-ACL_USER *decoy_user(const LEX_STRING &username,
-                      MEM_ROOT *mem)
+static ACL_USER *decoy_user(const LEX_STRING &username,
+                            MEM_ROOT *mem)
 {
   ACL_USER *user= (ACL_USER *) alloc_root(mem, sizeof(ACL_USER));
   user->can_authenticate= false;
@@ -1120,15 +1122,15 @@ typedef char * (*get_proto_string_func_t) (char **, size_t *, size_t *);
 /**
   Get a string formatted according to the 4.1 version of the MySQL protocol.
 
-  @param buffer[in, out]    Pointer to the user-supplied buffer to be scanned.
-  @param max_bytes_available[in, out]  Limit the bytes to scan.
-  @param string_length[out] The number of characters scanned not including
+  @param [in, out] buffer    Pointer to the user-supplied buffer to be scanned.
+  @param [in, out] max_bytes_available  Limit the bytes to scan.
+  @param [out] string_length The number of characters scanned not including
                             the null character.
 
-  @remark Strings are always null character terminated in this version of the
+  @note Strings are always null character terminated in this version of the
           protocol.
 
-  @remark The string_length does not include the terminating null character.
+  @note The string_length does not include the terminating null character.
           However, after the call, the buffer is increased by string_length+1
           bytes, beyond the null character if there still available bytes to
           scan.
@@ -1159,16 +1161,16 @@ char *get_41_protocol_string(char **buffer,
 /**
   Get a string formatted according to the 4.0 version of the MySQL protocol.
 
-  @param buffer[in, out]    Pointer to the user-supplied buffer to be scanned.
-  @param max_bytes_available[in, out]  Limit the bytes to scan.
-  @param string_length[out] The number of characters scanned not including
+  @param [in, out] buffer    Pointer to the user-supplied buffer to be scanned.
+  @param [in, out] max_bytes_available  Limit the bytes to scan.
+  @param [out] string_length The number of characters scanned not including
                             the null character.
 
-  @remark If there are not enough bytes left after the current position of
+  @note If there are not enough bytes left after the current position of
           the buffer to satisfy the current string, the string is considered
           to be empty and a pointer to empty_c_string is returned.
 
-  @remark A string at the end of the packet is not null terminated.
+  @note A string at the end of the packet is not null terminated.
 
   @return Pointer to beginning of the string scanned, or a pointer to a empty
           string.
@@ -1211,11 +1213,11 @@ char *get_40_protocol_string(char **buffer,
 /**
   Get a length encoded string from a user-supplied buffer.
 
-  @param buffer[in, out] The buffer to scan; updates position after scan.
-  @param max_bytes_available[in, out] Limit the number of bytes to scan
-  @param string_length[out] Number of characters scanned
+  @param [in, out] buffer The buffer to scan; updates position after scan.
+  @param [in, out] max_bytes_available Limit the number of bytes to scan
+  @param [out] string_length Number of characters scanned
 
-  @remark In case the length is zero, then the total size of the string is
+  @note In case the length is zero, then the total size of the string is
     considered to be 1 byte; the size byte.
 
   @return pointer to first byte after the header in buffer.
@@ -1265,11 +1267,11 @@ char *get_56_lenc_string(char **buffer,
 /**
   Get a length encoded string from a user-supplied buffer.
 
-  @param buffer[in, out] The buffer to scan; updates position after scan.
-  @param max_bytes_available[in, out] Limit the number of bytes to scan
-  @param string_length[out] Number of characters scanned
+  @param [in, out] buffer The buffer to scan; updates position after scan.
+  @param [in, out] max_bytes_available Limit the number of bytes to scan
+  @param [out] string_length Number of characters scanned
 
-  @remark In case the length is zero, then the total size of the string is
+  @note In case the length is zero, then the total size of the string is
     considered to be 1 byte; the size byte.
 
   @note the maximum size of the string is 255 because the header is always 
@@ -1961,6 +1963,7 @@ server_mpvio_update_thd(THD *thd, MPVIO_EXT *mpvio)
     thd->variables.sql_mode|= MODE_IGNORE_SPACE;
 }
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 /**
   Calculate the timestamp difference for password expiry
 
@@ -1970,7 +1973,7 @@ server_mpvio_update_thd(THD *thd, MPVIO_EXT *mpvio)
   @retval 0  password is valid
   @retval 1  password has expired
 */
-bool
+static bool
 check_password_lifetime(THD *thd, const ACL_USER *acl_user)
 {
 
@@ -2012,6 +2015,8 @@ check_password_lifetime(THD *thd, const ACL_USER *acl_user)
   }
   return password_time_expired;
 }
+#endif // NO_EMBEDDED_ACCESS_CHECKS
+
 
 /**
 Logging connection for the general query log, extracted from
@@ -2033,20 +2038,26 @@ acl_log_connect(const char *user,
                 THD *thd,
                 enum enum_server_command command)
 {
+  const char *vio_name_str= NULL;
+  int len= 0;
+  get_vio_type_name(thd->get_vio_type(), & vio_name_str, & len);
+
   if (strcmp(auth_as, user) && (PROXY_FLAG != *auth_as))
   {
-    query_logger.general_log_print(thd, command, "%s@%s as %s on %s",
+    query_logger.general_log_print(thd, command, "%s@%s as %s on %s using %s",
       user,
       host,
       auth_as,
-      db ? db : (char*) "");
+      db ? db : (char*) "",
+      vio_name_str);
   }
   else
   {
-    query_logger.general_log_print(thd, command, (char*) "%s@%s on %s",
+    query_logger.general_log_print(thd, command, "%s@%s on %s using %s",
       user,
       host,
-      db ? db : (char*) "");
+      db ? db : (char*) "",
+      vio_name_str);
   }
 }
 
@@ -2145,6 +2156,9 @@ acl_authenticate(THD *thd, enum_server_command command)
   }
 
   server_mpvio_update_thd(thd, &mpvio);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_THREAD_CALL(set_connection_type)(thd->get_vio_type());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   Security_context *sctx= thd->security_context();
   const ACL_USER *acl_user= mpvio.acl_user;
@@ -2324,6 +2338,14 @@ acl_authenticate(THD *thd, enum_server_command command)
       DBUG_RETURN(1);
     }
 
+    if (opt_require_secure_transport &&
+        !is_secure_transport(thd->active_vio->type))
+    {
+      my_error(ER_SECURE_TRANSPORT_REQUIRED, MYF(0));
+      DBUG_RETURN(1);
+    }
+
+
     /* checking password_time_expire for connecting user */
     password_time_expired= check_password_lifetime(thd, mpvio.acl_user);
 
@@ -2450,8 +2472,20 @@ acl_authenticate(THD *thd, enum_server_command command)
   DBUG_RETURN(0);
 }
 
-int generate_native_password(char *outbuf, unsigned int *buflen,
-                             const char *inbuf, unsigned int inbuflen)
+bool is_secure_transport(int vio_type)
+{
+  switch (vio_type)
+  {
+    case VIO_TYPE_SSL:
+    case VIO_TYPE_SHARED_MEMORY:
+    case VIO_TYPE_SOCKET:
+      return TRUE;
+  }
+  return FALSE;
+}
+
+static int generate_native_password(char *outbuf, unsigned int *buflen,
+                                    const char *inbuf, unsigned int inbuflen)
 {
   if (my_validate_password_policy(inbuf, inbuflen))
     return 1;
@@ -2482,7 +2516,7 @@ int generate_native_password(char *outbuf, unsigned int *buflen,
   return 0;
 }
 
-int validate_native_password_hash(char* const inbuf, unsigned int buflen)
+static int validate_native_password_hash(char* const inbuf, unsigned int buflen)
 {
   /* empty password is also valid */
   if ((buflen &&
@@ -2492,8 +2526,8 @@ int validate_native_password_hash(char* const inbuf, unsigned int buflen)
   return 1;
 }
 
-int set_native_salt(const char* password, unsigned int password_len,
-                    unsigned char* salt, unsigned char *salt_len)
+static int set_native_salt(const char* password, unsigned int password_len,
+                           unsigned char* salt, unsigned char *salt_len)
 {
   /* for empty passwords salt_len is 0 */
   if (password_len == 0)
@@ -2510,8 +2544,8 @@ int set_native_salt(const char* password, unsigned int password_len,
 }
 
 #if defined(HAVE_OPENSSL)
-int generate_sha256_password(char *outbuf, unsigned int *buflen,
-                             const char *inbuf, unsigned int inbuflen)
+static int generate_sha256_password(char *outbuf, unsigned int *buflen,
+                                    const char *inbuf, unsigned int inbuflen)
 {
   if (my_validate_password_policy(inbuf, inbuflen))
     return 1;
@@ -2541,7 +2575,7 @@ int generate_sha256_password(char *outbuf, unsigned int *buflen,
   return 0;
 }
 
-int validate_sha256_password_hash(char* const inbuf, unsigned int buflen)
+static int validate_sha256_password_hash(char* const inbuf, unsigned int buflen)
 {
   if ((inbuf && inbuf[0] == '$' &&
       inbuf[1] == '5' && inbuf[2] == '$' &&
@@ -2551,10 +2585,10 @@ int validate_sha256_password_hash(char* const inbuf, unsigned int buflen)
   return 1;
 }
 
-int set_sha256_salt(const char* password __attribute__((unused)),
-                    unsigned int password_len __attribute__((unused)),
-                    unsigned char* salt __attribute__((unused)),
-                    unsigned char *salt_len)
+static int set_sha256_salt(const char* password __attribute__((unused)),
+                           unsigned int password_len __attribute__((unused)),
+                           unsigned char* salt __attribute__((unused)),
+                           unsigned char *salt_len)
 {
   *salt_len= 0;
   return 0;
@@ -2663,18 +2697,18 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   DBUG_RETURN(CR_AUTH_HANDSHAKE);
 }
 
+#if defined(HAVE_OPENSSL)
 /**
   Interface for querying the MYSQL_PUBLIC_VIO about encryption state.
  
 */
 
-int my_vio_is_encrypted(MYSQL_PLUGIN_VIO *vio)
+static int my_vio_is_encrypted(MYSQL_PLUGIN_VIO *vio)
 {
   MPVIO_EXT *mpvio= (MPVIO_EXT *) vio;
   return (mpvio->vio_is_encrypted);
 }
 
-#if defined(HAVE_OPENSSL)
 #ifndef HAVE_YASSL
 
 int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff)
@@ -2722,7 +2756,7 @@ bool init_rsa_keys(void)
 
 static MYSQL_PLUGIN plugin_info_ptr;
 
-int init_sha256_password_handler(MYSQL_PLUGIN plugin_ref)
+static int init_sha256_password_handler(MYSQL_PLUGIN plugin_ref)
 {
   plugin_info_ptr= plugin_ref;
   return 0;
@@ -2932,7 +2966,7 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
                      CRYPT_MAX_PASSWORD_SIZE,
                      (char *) pkt,
                      pkt_len-1, 
-                     (char *) user_salt_begin,
+                     user_salt_begin,
                      (const char **) 0);
 
   /* Compare the newly created hash digest with the password record */
@@ -3232,7 +3266,7 @@ private:
 };
 
 
-EVP_PKEY *evp_pkey_generate(RSA *rsa)
+static EVP_PKEY *evp_pkey_generate(RSA *rsa)
 {
   if (rsa)
   {
@@ -3321,6 +3355,7 @@ public:
                     EVP_PKEY *ca_pkey= NULL)
   {
     X509 *x509= X509_new();
+    DBUG_ASSERT(cn.length() <= MAX_CN_NAME_LENGTH);
     ASN1_INTEGER_set(X509_get_serialNumber(x509), serial);
     X509_gmtime_adj(X509_get_notBefore(x509), notbefore);
     X509_gmtime_adj(X509_get_notAfter(x509), notafter);
@@ -3495,6 +3530,8 @@ bool create_x509_certificate(RSA_generator_func &rsa_gen,
   File_IO *x509_ca_key_file_istream= NULL;
   File_IO *x509_ca_cert_file_istream= NULL;
   X509_gen x509_gen;
+  MY_MODE file_creation_mode= get_file_perm(USER_READ | USER_WRITE);
+  MY_MODE saved_umask= umask(~(file_creation_mode));
 
   x509_key_file_ostream= filecr(key_filename);
 
@@ -3626,6 +3663,8 @@ end:
     X509_free(x509);
   if (ca_x509)
     X509_free(ca_x509);
+
+  umask(saved_umask);
   return ret_val;
 }
 
@@ -3656,6 +3695,8 @@ bool create_RSA_key_pair(RSA_generator_func &rsa_gen,
   bool ret_val= true;
   File_IO * priv_key_file_ostream= NULL;
   File_IO * pub_key_file_ostream= NULL;
+  MY_MODE file_creation_mode= get_file_perm(USER_READ | USER_WRITE);
+  MY_MODE saved_umask= umask(~(file_creation_mode));
 
   DBUG_ASSERT(priv_key_filename.size() && pub_key_filename.size());
 
@@ -3721,6 +3762,8 @@ bool create_RSA_key_pair(RSA_generator_func &rsa_gen,
 end:
   if (rsa)
     RSA_free(rsa);
+
+  umask(saved_umask);
   return ret_val;
 }
 
@@ -3804,12 +3847,30 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status)
       Sql_string_t server_name= "MySQL_Server_";
       Sql_string_t client_name= "MySQL_Server_";
 
-      ca_name.append(server_version);
+      ca_name.append(MYSQL_SERVER_VERSION);
       ca_name.append("_Auto_Generated_CA_Certificate");
-      server_name.append(server_version);
+      server_name.append(MYSQL_SERVER_VERSION);
       server_name.append("_Auto_Generated_Server_Certificate");
-      client_name.append(server_version);
+      client_name.append(MYSQL_SERVER_VERSION);
       client_name.append("_Auto_Generated_Client_Certificate");
+
+      /*
+        Maximum length of X509 certificate subject is 64.
+        Make sure that constructed strings are within valid
+        bounds or change them to minimal default strings
+      */
+      if (ca_name.length() > MAX_CN_NAME_LENGTH ||
+          server_name.length() > MAX_CN_NAME_LENGTH ||
+          client_name.length() > MAX_CN_NAME_LENGTH)
+      {
+        ca_name.clear();
+        ca_name.append("MySQL_Server_Auto_Generated_CA_Certificate");
+        server_name.clear();
+        server_name.append("MySQL_Server_Auto_Generated_Server_Certificate");
+        client_name.clear();
+        client_name.append("MySQL_Server_Auto_Generated_Client_Certificate");
+      }
+
       /* Create and write the certa and keys on disk */
       if ((create_x509_certificate(rsa_gen, ca_name, 1, DEFAULT_SSL_CA_CERT,
                                    DEFAULT_SSL_CA_KEY, fcr) == false) ||

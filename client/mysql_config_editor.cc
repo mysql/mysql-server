@@ -84,7 +84,8 @@ static int read_login_key(void);
 static int add_header(void);
 static void my_perror(const char *msg);
 
-static void verbose_msg(const char *fmt, ...);
+static void verbose_msg(const char *fmt, ...)
+  __attribute__((format(printf, 1, 2)));
 static void print_version(void);
 static void usage_program(void);
 static void usage_command(int command);
@@ -99,6 +100,7 @@ enum commands {
   MY_CONFIG_HELP
 };
 
+extern "C" {
 struct my_command_data {
   const int id;
   const char *name;
@@ -108,6 +110,7 @@ struct my_command_data {
                                  const struct my_option *opt,
                                  char *argument);
 };
+}
 
 
 /* mysql_config_editor utility options. */
@@ -211,7 +214,8 @@ static struct my_option my_help_command_options[]=
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
-my_bool
+extern "C" {
+static my_bool
 my_program_get_one_option(int optid,
                           const struct my_option *opt __attribute__((unused)),
                           char *argument)
@@ -232,7 +236,7 @@ my_program_get_one_option(int optid,
   return 0;
 }
 
-my_bool
+static my_bool
 my_set_command_get_one_option(int optid,
                               const struct my_option *opt __attribute__((unused)),
                               char *argument)
@@ -259,7 +263,7 @@ my_set_command_get_one_option(int optid,
   return 0;
 }
 
-my_bool
+static my_bool
 my_remove_command_get_one_option(int optid,
                                  const struct my_option *opt __attribute__((unused)),
                                  char *argument)
@@ -283,7 +287,7 @@ my_remove_command_get_one_option(int optid,
   return 0;
 }
 
-my_bool
+static my_bool
 my_print_command_get_one_option(int optid,
                                 const struct my_option *opt __attribute__((unused)),
                                 char *argument)
@@ -307,7 +311,7 @@ my_print_command_get_one_option(int optid,
   return 0;
 }
 
-my_bool
+static my_bool
 my_reset_command_get_one_option(int optid,
                                 const struct my_option *opt __attribute__((unused)),
                                 char *argument)
@@ -319,6 +323,7 @@ my_reset_command_get_one_option(int optid,
     break;
   }
   return 0;
+}
 }
 
 static struct my_command_data command_data[]=
@@ -376,7 +381,7 @@ int main(int argc, char *argv[])
   if (command > -1)
     rc= execute_commands(command);
 
-  if (rc == -1)
+  if (rc != 0)
   {
     my_perror("operation failed.");
     DBUG_RETURN(1);
@@ -518,8 +523,6 @@ done:
 
 /**
   Execute 'set' command.
-
-  @param void
 
   @return -1              Error
            0              Success
@@ -668,8 +671,6 @@ error:
 /**
   Execute 'print' command.
 
-  @param void
-
   @return -1              Error
            0              Success
 */
@@ -705,10 +706,8 @@ error:
   Create the login file if it does not exist, check
   and set its permissions and modes.
 
-  @param void
-
-  @return -1              Error
-           0              Success
+  @return  TRUE           Error
+           FALSE          Success
 */
 
 static my_bool check_and_create_login_file(void)
@@ -837,10 +836,10 @@ static my_bool check_and_create_login_file(void)
       goto error;
   }
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 
 error:
-  DBUG_RETURN(-1);
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -902,8 +901,6 @@ done:
   password string.
 
   @param buf [in]         Buffer to be printed.
-
-  @raturn                 void
 */
 
 static void mask_password_and_print(char *buf)
@@ -1170,8 +1167,8 @@ static char* locate_login_path(DYNAMIC_STRING *file_buf, const char *path_name)
   @note The contents of the file buffer are encrypted
         on a line-by-line basis with each line having
         the following format :
-        [<first 4 bytes store cipher-length>|<Next cipher-length
-        bytes store actual cipher>]
+        [\<first 4 bytes store cipher-length\>
+        |\<Next cipher-length bytes store actual cipher\>]
 */
 
 static int encrypt_and_write_file(DYNAMIC_STRING *file_buf)
@@ -1302,9 +1299,10 @@ error:
 /**
   Encrypt the given plain text.
 
-  @param plain     [in]   Plain text to be encrypted.
-  @param plain_len [in]   Length of the plain text.
-  @param cipher    [out]  Encrypted cipher text.
+  @param plain            Plain text to be encrypted
+  @param plain_len        Length of the plain text
+  @param [out] cipher     Encrypted cipher text
+  @param aes_len          Length of the cypher
 
   @return                 -1 if error encountered,
                           length encrypted, otherwise.

@@ -49,8 +49,10 @@ Created 1/8/1996 Heikki Tuuri
 #include "gis0type.h"
 #include "os0once.h"
 #include "ut0new.h"
+#include "dict/mem.h"
 
 #include <set>
+#include <vector>
 #include <algorithm>
 #include <iterator>
 
@@ -71,8 +73,9 @@ combination of types */
 				other flags */
 #define	DICT_SPATIAL	64	/* SPATIAL index; can't be combined with the
 				other flags */
+#define	DICT_VIRTUAL	128	/* Index on Virtual column */
 
-#define	DICT_IT_BITS	7	/*!< number of bits used for
+#define	DICT_IT_BITS	8	/*!< number of bits used for
 				SYS_INDEXES.TYPE */
 /* @} */
 
@@ -171,23 +174,23 @@ to open the table and allows InnoDB to quickly find the tablespace. */
 
 /** Bit mask of the COMPACT field */
 #define DICT_TF_MASK_COMPACT				\
-		((~(~0 << DICT_TF_WIDTH_COMPACT))	\
+		((~(~0U << DICT_TF_WIDTH_COMPACT))	\
 		<< DICT_TF_POS_COMPACT)
 /** Bit mask of the ZIP_SSIZE field */
 #define DICT_TF_MASK_ZIP_SSIZE				\
-		((~(~0 << DICT_TF_WIDTH_ZIP_SSIZE))	\
+		((~(~0U << DICT_TF_WIDTH_ZIP_SSIZE))	\
 		<< DICT_TF_POS_ZIP_SSIZE)
 /** Bit mask of the ATOMIC_BLOBS field */
 #define DICT_TF_MASK_ATOMIC_BLOBS			\
-		((~(~0 << DICT_TF_WIDTH_ATOMIC_BLOBS))	\
+		((~(~0U << DICT_TF_WIDTH_ATOMIC_BLOBS))	\
 		<< DICT_TF_POS_ATOMIC_BLOBS)
 /** Bit mask of the DATA_DIR field */
 #define DICT_TF_MASK_DATA_DIR				\
-		((~(~0 << DICT_TF_WIDTH_DATA_DIR))	\
+		((~(~0U << DICT_TF_WIDTH_DATA_DIR))	\
 		<< DICT_TF_POS_DATA_DIR)
 /** Bit mask of the SHARED_SPACE field */
 #define DICT_TF_MASK_SHARED_SPACE			\
-		((~(~0 << DICT_TF_WIDTH_SHARED_SPACE))	\
+		((~(~0U << DICT_TF_WIDTH_SHARED_SPACE))	\
 		<< DICT_TF_POS_SHARED_SPACE)
 
 /** Return the value of the COMPACT field */
@@ -225,7 +228,7 @@ for unknown bits in order to protect backward incompatibility. */
 /* @{ */
 /** Total number of bits in table->flags2. */
 #define DICT_TF2_BITS			8
-#define DICT_TF2_UNUSED_BIT_MASK	(~0 << DICT_TF2_BITS)
+#define DICT_TF2_UNUSED_BIT_MASK	(~0U << DICT_TF2_BITS)
 #define DICT_TF2_BIT_MASK		~DICT_TF2_UNUSED_BIT_MASK
 
 /** TEMPORARY; TRUE for tables from CREATE TEMPORARY TABLE. */
@@ -285,35 +288,31 @@ parent table will fail, and user has to drop excessive foreign constraint
 before proceeds. */
 #define FK_MAX_CASCADE_DEL		255
 
-/**********************************************************************//**
-Creates a table memory object.
-@return own: table object */
-dict_table_t*
-dict_mem_table_create(
-/*==================*/
-	const char*	name,		/*!< in: table name */
-	ulint		space,		/*!< in: space where the clustered index
-					of the table is placed */
-	ulint		n_cols,		/*!< in: number of columns */
-	ulint		flags,		/*!< in: table flags */
-	ulint		flags2);	/*!< in: table flags2 */
-/****************************************************************//**
-Free a table memory object. */
-void
-dict_mem_table_free(
-/*================*/
-	dict_table_t*	table);		/*!< in: table */
-/**********************************************************************//**
-Adds a column definition to a table. */
-void
-dict_mem_table_add_col(
-/*===================*/
-	dict_table_t*	table,	/*!< in: table */
-	mem_heap_t*	heap,	/*!< in: temporary memory heap, or NULL */
-	const char*	name,	/*!< in: column name, or NULL */
-	ulint		mtype,	/*!< in: main datatype */
-	ulint		prtype,	/*!< in: precise type */
-	ulint		len);	/*!< in: precision */
+/** Adds a virtual column definition to a table.
+@param[in,out]	table		table
+@param[in]	heap		temporary memory heap, or NULL. It is
+				used to store name when we have not finished
+				adding all columns. When all columns are
+				added, the whole name will copy to memory from
+				table->heap
+@param[in]	name		column name
+@param[in]	mtype		main datatype
+@param[in]	prtype		precise type
+@param[in]	len		length
+@param[in]	pos		position in a table
+@param[in]	num_base	number of base columns
+@return the virtual column definition */
+dict_v_col_t*
+dict_mem_table_add_v_col(
+	dict_table_t*	table,
+	mem_heap_t*	heap,
+	const char*	name,
+	ulint		mtype,
+	ulint		prtype,
+	ulint		len,
+	ulint		pos,
+	ulint		num_base);
+
 /**********************************************************************//**
 Renames a column of a table in the data dictionary cache. */
 void
@@ -322,19 +321,9 @@ dict_mem_table_col_rename(
 	dict_table_t*	table,	/*!< in/out: table */
 	unsigned	nth_col,/*!< in: column index */
 	const char*	from,	/*!< in: old column name */
-	const char*	to);	/*!< in: new column name */
-/**********************************************************************//**
-This function populates a dict_col_t memory structure with
-supplied information. */
-void
-dict_mem_fill_column_struct(
-/*========================*/
-	dict_col_t*	column,		/*!< out: column struct to be
-					filled */
-	ulint		col_pos,	/*!< in: column position */
-	ulint		mtype,		/*!< in: main data type */
-	ulint		prtype,		/*!< in: precise type */
-	ulint		col_len);	/*!< in: column length */
+	const char*	to,	/*!< in: new column name */
+	bool		is_virtual);
+				/*!< in: if this is a virtual column */
 /**********************************************************************//**
 This function poplulates a dict_index_t index memory structure with
 supplied information. */
@@ -352,32 +341,6 @@ dict_mem_fill_index_struct(
 	ulint		type,		/*!< in: DICT_UNIQUE,
 					DICT_CLUSTERED, ... ORed */
 	ulint		n_fields);	/*!< in: number of fields */
-/**********************************************************************//**
-Creates an index memory object.
-@return own: index object */
-dict_index_t*
-dict_mem_index_create(
-/*==================*/
-	const char*	table_name,	/*!< in: table name */
-	const char*	index_name,	/*!< in: index name */
-	ulint		space,		/*!< in: space where the index tree is
-					placed, ignored if the index is of
-					the clustered type */
-	ulint		type,		/*!< in: DICT_UNIQUE,
-					DICT_CLUSTERED, ... ORed */
-	ulint		n_fields);	/*!< in: number of fields */
-/**********************************************************************//**
-Adds a field definition to an index. NOTE: does not take a copy
-of the column name if the field is a column. The memory occupied
-by the column name may be released only after publishing the index. */
-void
-dict_mem_index_add_field(
-/*=====================*/
-	dict_index_t*	index,		/*!< in: index */
-	const char*	name,		/*!< in: column name */
-	ulint		prefix_len);	/*!< in: 0 or the column prefix length
-					in a MySQL index like
-					INDEX (textcol(25)) */
 /**********************************************************************//**
 Frees an index memory object. */
 void
@@ -529,6 +492,53 @@ struct dict_col_t{
 					this column. Our current max limit is
 					3072 (REC_VERSION_56_MAX_INDEX_COL_LEN)
 					bytes. */
+};
+
+/** Index information put in a list of virtual column structure. Index
+id and virtual column position in the index will be logged.
+There can be multiple entries for a given index, with a different position. */
+struct dict_v_idx_t {
+	/** active index on the column */
+	dict_index_t*	index;
+
+	/** position in this index */
+	ulint		nth_field;
+};
+
+/** Index list to put in dict_v_col_t */
+typedef	std::list<dict_v_idx_t, ut_allocator<dict_v_idx_t> >	dict_v_idx_list;
+
+/** Data structure for a virtual column in a table */
+struct dict_v_col_t{
+	/** column structure */
+	dict_col_t		m_col;
+
+	/** array of base column ptr */
+	dict_col_t**		base_col;
+
+	/** number of base column */
+	ulint			num_base;
+
+	/** column pos in table */
+	ulint			v_pos;
+
+	/** Virtual index list, and column position in the index,
+	the allocated memory is not from table->heap, nor it is
+	tracked by dict_sys->size */
+	dict_v_idx_list*	v_indexes;
+
+};
+
+/** Data structure for newly added virtual column in a table */
+struct dict_add_v_col_t{
+	/** number of new virtual column */
+	ulint			n_v_col;
+
+	/** column structures */
+	const dict_v_col_t*	v_col;
+
+	/** new col names */
+	const char**		v_col_name;
 };
 
 /** @brief DICT_ANTELOPE_MAX_INDEX_COL_LEN is measured in bytes and
@@ -1140,10 +1150,58 @@ generate a specific template for it. */
 typedef ut_list_base<lock_t, ut_list_node<lock_t> lock_table_t::*>
 	table_lock_list_t;
 
+/** mysql template structure defined in row0mysql.cc */
+struct mysql_row_templ_t;
+
+/** Structure defines template related to virtual columns and
+their base columns */
+struct dict_vcol_templ_t {
+	/** number of regular columns */
+	ulint			n_col;
+
+	/** number of virtual columns */
+	ulint			n_v_col;
+
+	/** array of templates for virtual col and their base columns */
+	mysql_row_templ_t**	vtempl;
+
+	/** table's database name */
+	std::string		db_name;
+
+	/** table name */
+	std::string		tb_name;
+
+	/** share->table_name */
+	std::string		share_name;
+
+	/** MySQL record length */
+	ulint			rec_len;
+
+	/** default column value if any */
+	const byte*		default_rec;
+};
+
 /* This flag is for sync SQL DDL and memcached DML.
 if table->memcached_sync_count == DICT_TABLE_IN_DDL means there's DDL running on
 the table, DML from memcached will be blocked. */
 #define DICT_TABLE_IN_DDL -1
+
+/** The dirty status of tables, used to indicate if a table has some
+dynamic metadata changed to be written back */
+enum table_dirty_status {
+	/** Some persistent metadata is now dirty in memory, need to be
+	written back to DDTableBuffer table and(or directly to)
+	DD table. There could be either one row or no row for this table in
+	DDTableBuffer table */
+	METADATA_DIRTY = 0,
+	/** Some persistent metadata is buffered in DDTableBuffer table,
+	need to be written back to DD table. There is must be one row in
+	DDTableBuffer table for this table */
+	METADATA_BUFFERED,
+	/** All persistent metadata are up to date. There is no row
+	for this table in DDTableBuffer table */
+	METADATA_CLEAN
+};
 
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
@@ -1222,18 +1280,27 @@ struct dict_table_t {
 	dict_operation_lock. */
 	unsigned				to_be_dropped:1;
 
-	/** Number of columns defined so far. */
+	/** Number of non-virtual columns defined so far. */
 	unsigned				n_def:10;
 
-	/** Number of columns. */
+	/** Number of non-virtual columns. */
 	unsigned				n_cols:10;
+
+	/** Number of total columns (inlcude virtual and non-virtual) */
+	unsigned				n_t_cols:10;
+
+	/** Number of total columns defined so far. */
+	unsigned                                n_t_def:10;
+
+	/** Number of virtual columns defined so far. */
+	unsigned                                n_v_def:10;
+
+	/** Number of virtual columns. */
+	unsigned                                n_v_cols:10;
 
 	/** TRUE if it's not an InnoDB system table or a table that has no FK
 	relationships. */
 	unsigned				can_be_evicted:1;
-
-	/** TRUE if table is corrupted. */
-	unsigned				corrupted:1;
 
 	/** TRUE if some indexes should be dropped after ONLINE_INDEX_ABORTED
 	or ONLINE_INDEX_ABORTED_DROPPED. */
@@ -1242,11 +1309,17 @@ struct dict_table_t {
 	/** Array of column descriptions. */
 	dict_col_t*				cols;
 
+	/** Array of virtual column descriptions. */
+	dict_v_col_t*				v_cols;
+
 	/** Column names packed in a character string
 	"name1\0name2\0...nameN\0". Until the string contains n_cols, it will
 	be allocated from a temporary heap. The final string will be allocated
 	from table->heap. */
 	const char*				col_names;
+
+	/** Virtual column names */
+	const char*				v_col_names;
 
 #ifndef UNIV_HOTBACKUP
 	/** Hash chain node. */
@@ -1270,6 +1343,21 @@ struct dict_table_t {
 
 	/** Node of the LRU list of tables. */
 	UT_LIST_NODE_T(dict_table_t)		table_LRU;
+
+	/** table dirty_status, which is protected by dict_persist->mutex */
+	table_dirty_status			dirty_status;
+
+	/** Node of the dirty table list of tables, which is protected
+	by dict_persist->mutex */
+	UT_LIST_NODE_T(dict_table_t)		dirty_dict_tables;
+
+#ifdef UNIV_DEBUG
+	/** This field is used to mark if a table is in the
+	dirty_dict_tables_list. if the dirty_status is not of
+	METADATA_CLEAN, the table should be in the list, otherwise not.
+	This field should be protected by dict_persist->mutex too. */
+	bool					in_dirty_dict_tables_list;
+#endif /* UNIV_DEBUG */
 
 	/** Maximum recursive level we support when loading tables chained
 	together with FK constraints. If exceeds this level, we will stop
@@ -1510,6 +1598,224 @@ public:
 	/** Magic number. */
 	ulint					magic_n;
 #endif /* UNIV_DEBUG */
+	/** mysql_row_templ_t for base columns used for compute the virtual
+	columns */
+	dict_vcol_templ_t*			vc_templ;
+
+	/** whether above vc_templ comes from purge allocation */
+	bool					vc_templ_purge;
+};
+
+/** Persistent dynamic metadata type, there should be 1 to 1
+relationship between the metadata and the type. Please keep them in order
+so that we can iterate over it */
+enum persistent_type_t {
+	/** The smallest type, which should be 1 less than the first
+	true type */
+	PM_SMALLEST_TYPE = 0,
+
+	/** Persistent Metadata type for corrupted indexes */
+	PM_INDEX_CORRUPTED = 1,
+
+	/* TODO: Will add following types
+	PM_TABLE_AUTO_INC = 2,
+	PM_TABLE_UPDATE_TIME = 3,
+	Maybe something tablespace related
+	PM_TABLESPACE_SIZE = 4,
+	PM_TABLESPACE_MAX_TRX_ID = 5, */
+
+	/** The biggest type, which should be 1 bigger than the last
+	true type */
+	PM_BIGGEST_TYPE = 2
+};
+
+typedef std::vector<index_id_t, ut_allocator<index_id_t > >
+corrupted_ids_t;
+
+/** Persistent dynamic metadata for a table */
+class PersistentTableMetadata {
+public:
+	/** Constructor
+	@param[in]	id	table id */
+	explicit PersistentTableMetadata(
+		table_id_t	id)
+	: m_id(id), m_corrupted_ids()
+	{}
+
+	/** Get the corrupted indexes' IDs
+	@return the vector of indexes' IDs */
+	const corrupted_ids_t& get_corrupted_indexes() const
+	{
+		return(m_corrupted_ids);
+	}
+
+	/** Add a corrupted index id and space id
+	@param[in]	id	corrupted index id */
+	void add_corrupted_index(
+		const index_id_t	id)
+	{
+		m_corrupted_ids.push_back(id);
+	}
+
+	/** Reset all the metadata, after it has been written to
+	the buffer table */
+	void reset()
+	{
+		m_corrupted_ids.clear();
+	}
+
+	/** Get the table id of the metadata
+	@return table id */
+	table_id_t get_table_id() const {
+		return(m_id);
+	}
+
+private:
+	/** Table ID which this metadata belongs to */
+	table_id_t		m_id;
+
+	/** Storing the corrupted indexes' ID if exist, or else empty */
+	corrupted_ids_t		m_corrupted_ids;
+
+	/* TODO: We will add update_time, auto_inc, etc. here and APIs
+	accordingly */
+};
+
+/** Interface for persistent dynamic table metadata. */
+class Persister {
+public:
+	/** Virtual desctructor */
+	virtual ~Persister() {}
+
+	/** Write the dynamic metadata of a table, we can pre-calculate
+	the size by calling get_write_size()
+	@param[in]	metadata	persistent data
+	@param[out]	buffer		write buffer
+	@param[in]	size		size of write buffer, should be
+					at least get_write_size()
+	@return the length of bytes written */
+	virtual ulint write(
+		const PersistentTableMetadata&	metadata,
+		byte*				buffer,
+		ulint				size) = 0;
+
+	/** Pre-calculate the size of metadata to be written
+	@param[in]	metadata	metadata to be written
+	@return the size of metadata */
+	virtual ulint get_write_size(
+		const PersistentTableMetadata&	metadata) = 0;
+
+	/** Read the dynamic metadata from buffer, and store them to
+	metadata object
+	@param[out]	metadata	metadata where we store the read data
+	@param[in]	buffer		buffer to read
+	@param[in]	size		size of buffer
+        @param[out]	corrupt		true if we found something wrong in
+					the buffer except incomplete buffer,
+					otherwise false
+	@return the bytes we read from the buffer if the buffer data
+	is complete and we get everything, 0 if the buffer is incompleted */
+	virtual ulint read(
+		PersistentTableMetadata&metadata,
+		const byte*		buffer,
+		ulint			size,
+		bool*			corrupt) = 0;
+
+	/** Write MLOG_TABLE_DYNAMIC_META for persistent dynamic
+	metadata of table
+	@param[in]	id		table id
+	@param[in]	metadata	metadata used to write the log
+	@param[in,out]	mtr		mini-transaction */
+	void write_log(
+		table_id_t			id,
+		const PersistentTableMetadata&	metadata,
+		mtr_t*				mtr);
+};
+
+/** Persister used for corrupted indexes */
+class CorruptedIndexPersister : public Persister {
+public:
+	/** Write the corrupted indexes of a table, we can pre-calculate
+	the size by calling get_write_size()
+	@param[in]	metadata	persistent metadata
+	@param[out]	buffer		write buffer
+	@param[in]	size		size of write buffer, should be
+					at least get_write_size()
+	@return the length of bytes written */
+	ulint write(
+		const PersistentTableMetadata&	metadata,
+		byte*				buffer,
+		ulint				size);
+
+	/** Pre-calculate the size of metadata to be written
+	@param[in]	metadata	metadata to be written
+	@return the size of metadata */
+	ulint get_write_size(
+		const PersistentTableMetadata&	metadata);
+
+	/** Read the corrupted indexes from buffer, and store them to
+	metadata object
+	@param[out]	metadata	metadata where we store the read data
+	@param[in]	buffer		buffer to read
+	@param[in]	size		size of buffer
+	@param[out]	corrupt		true if we found something wrong in
+					the buffer except incomplete buffer,
+					otherwise false
+	@return the bytes we read from the buffer if the buffer data
+	is complete and we get everything, 0 if the buffer is incomplete */
+	ulint read(
+		PersistentTableMetadata&metadata,
+		const byte*		buffer,
+		ulint			size,
+		bool*			corrupt);
+
+private:
+	/** The length of index_id_t we will write */
+	static const size_t		INDEX_ID_LENGTH = 12;
+};
+
+/** Container of persisters used in the system. Currently we don't need
+to protect this object since we only initialize it at very beginning and
+destroy it in the end. During the server running, we only get the persisters */
+class Persisters {
+
+	typedef std::map<persistent_type_t, Persister*,
+			 std::less<persistent_type_t>,
+			 ut_allocator<std::pair<const persistent_type_t,
+						Persister*> > >
+	persisters_t;
+
+public:
+	/** Constructor */
+	Persisters()
+		: m_persisters()
+	{}
+
+	/** Destructor */
+	~Persisters();
+
+	/** Get the persister object with specified type
+	@param[in]	type	persister type
+	@return Persister object required or NULL if not found */
+	Persister* get(
+		persistent_type_t	type) const;
+
+	/** Add a specified persister of type, we will allocate the Persister
+	if there is no such persister exist, otherwise do nothing and return
+	the existing one
+	@param[in]	type	persister type
+	@return the persister of type */
+	Persister* add(
+		persistent_type_t	type);
+
+	/** Remove a specified persister of type, we will free the Persister
+	@param[in]	type	persister type */
+	void remove(
+		persistent_type_t	type);
+
+private:
+	/** A map to store all persisters needed */
+	persisters_t	m_persisters;
 };
 
 /*******************************************************************//**
@@ -1612,6 +1918,34 @@ dict_table_autoinc_own(
 	return(mutex_own(table->autoinc_mutex));
 }
 #endif /* UNIV_DEBUG */
+
+/** Check whether the col is used in spatial index or regular index.
+@param[in]	col	column to check
+@return spatial status */
+inline
+spatial_status_t
+dict_col_get_spatial_status(
+	const dict_col_t*	col)
+{
+	spatial_status_t	spatial_status = SPATIAL_NONE;
+
+	/* Column is not a part of any index. */
+	if (!col->ord_part) {
+		return(spatial_status);
+	}
+
+	if (DATA_GEOMETRY_MTYPE(col->mtype)) {
+		if (col->max_prefix == 0) {
+			spatial_status = SPATIAL_ONLY;
+		} else {
+			/* Any regular index on a geometry column
+			should have a prefix. */
+			spatial_status = SPATIAL_MIXED;
+		}
+	}
+
+	return(spatial_status);
+}
 
 #ifndef UNIV_NONINL
 #include "dict0mem.ic"

@@ -176,11 +176,11 @@
   The cost of average seek 
     DISK_SEEK_BASE_COST + DISK_SEEK_PROP_COST*BLOCKS_IN_AVG_SEEK =1.0.
 */
-#define DISK_SEEK_BASE_COST ((double)0.9)
+#define DISK_SEEK_BASE_COST (0.9)
 
 #define BLOCKS_IN_AVG_SEEK  128
 
-#define DISK_SEEK_PROP_COST ((double)0.1/BLOCKS_IN_AVG_SEEK)
+#define DISK_SEEK_PROP_COST (0.1/BLOCKS_IN_AVG_SEEK)
 
 
 /**

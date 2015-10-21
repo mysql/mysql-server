@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
-  @file mysql/psi/psi_abi_v0.h
+  @file include/mysql/psi/psi_abi_v0.h
   ABI check for mysql/psi/psi.h, when compiling without instrumentation.
   This file is only used to automate detection of changes between versions.
   Do not include this file, include mysql/psi/psi.h instead.

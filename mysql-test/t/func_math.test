@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Test of math functions
 #
@@ -184,14 +179,14 @@ create table t1
 (f1 varchar(32) not null,
  f2 smallint(5) unsigned not null,
  f3 int(10) unsigned not null default '0')
-engine=myisam default charset=utf8;
+default charset=utf8;
 insert into t1 values ('zombie',0,0),('gold',1,10000),('silver',2,10000);
 
 create table t2
 (f1 int(10) unsigned not null,
  f2 int(10) unsigned not null,
  f3 smallint(5) unsigned not null)
-engine=myisam default charset=utf8;
+default charset=utf8;
 insert into t2 values (16777216,16787215,1),(33554432,33564431,2);
 
 select format(t2.f2-t2.f1+1,0) from t1,t2
@@ -279,7 +274,7 @@ DROP TABLE t1;
 #
 # Bug#45152 crash with round() function on longtext column in a derived table
 #
-CREATE TABLE t1(f1 LONGTEXT) engine=myisam;
+CREATE TABLE t1(f1 LONGTEXT);
 INSERT INTO t1 VALUES ('a');
 SELECT 1 FROM (SELECT ROUND(f1) AS a FROM t1) AS s WHERE a LIKE 'a';
 SELECT 1 FROM (SELECT ROUND(f1, f1) AS a FROM t1) AS s WHERE a LIKE 'a';
@@ -584,7 +579,7 @@ select 5.9 div 2, 1.23456789e3 DIV 2, 1.23456789e9 DIV 2, 1.23456789e19 DIV 2;
 
 CREATE TABLE t1(a DOUBLE);
 
-SET sql_mode='';
+SET sql_mode='NO_AUTO_CREATE_USER';
 INSERT INTO t1 VALUES (ln(1));
 INSERT INTO t1 VALUES (ln(0));
 INSERT INTO t1 VALUES (ln(-1));
@@ -594,7 +589,7 @@ INSERT INTO t1 VALUES (log2(0));
 INSERT INTO t1 VALUES (log10(0));
 SELECT * FROM t1 ORDER BY a;
 
-SET sql_mode='STRICT_ALL_TABLES';
+SET sql_mode=default;
 INSERT INTO t1 VALUES (ln(1));
 --error ER_INVALID_ARGUMENT_FOR_LOGARITHM
 INSERT INTO t1 VALUES (ln(0));
@@ -610,29 +605,76 @@ INSERT INTO t1 VALUES (log2(0));
 INSERT INTO t1 VALUES (log10(0));
 SELECT * FROM t1 ORDER BY a;
 
-SET sql_mode='STRICT_ALL_TABLES';
 --error ER_INVALID_ARGUMENT_FOR_LOGARITHM
 UPDATE t1 SET a = ln(0);
 SELECT * FROM t1 ORDER BY a;
 
-SET sql_mode='';
+SET sql_mode='NO_AUTO_CREATE_USER';
 UPDATE t1 SET a = ln(0);
 SELECT * FROM t1 ORDER BY a;
 
-SET sql_mode='STRICT_ALL_TABLES';
+SET sql_mode=default;
 --error ER_INVALID_ARGUMENT_FOR_LOGARITHM
 DELETE FROM t1 WHERE a <=> ln(0);
 SELECT * FROM t1 ORDER BY a;
 
-SET sql_mode='';
+SET sql_mode='NO_AUTO_CREATE_USER';
 DELETE FROM t1 WHERE a <=> ln(0);
 SELECT * FROM t1 ORDER BY a;
 
 DROP TABLE t1;
-SET sql_mode='';
+SET sql_mode=default;
 
 --echo #
 --echo # Bug#19047527 SQRT() : UNINITIALISED VALUE IN MY_STRTOD
 --echo #
 
 do sqrt(weight_string(_eucjpms "0E+"));
+
+
+--echo #
+--echo # Bug#21279005 - ROUND FUNCTION INCORRECT IN WHERE-CLAUSE
+--echo #                USING LOCAL VARIABLE
+
+DELIMITER |;
+CREATE PROCEDURE test_round_fn()
+BEGIN
+  DECLARE num_digits int;
+  SET num_digits := 3;
+
+  CREATE TEMPORARY TABLE tmp_test (
+    number double
+  );
+  INSERT INTO tmp_test
+  VALUES (1),(0);
+
+  SELECT
+    number,
+    Round(number, num_digits) > 0,
+    Round(number, 3) > 0
+  FROM
+    tmp_test;
+
+  SELECT
+    number,
+    Round(number, num_digits) > 0,
+    Round(number, 3) > 0
+  FROM
+    tmp_test
+  WHERE
+    Round(number, 3) >= 0;
+
+  SELECT
+    number,
+    Round(number, num_digits) > 0,
+    Round(number, 3) > 0
+  FROM
+    tmp_test
+  WHERE
+    Round(number, num_digits) >= 0;
+
+END|
+DELIMITER ;|
+
+CALL test_round_fn();
+DROP PROCEDURE test_round_fn;

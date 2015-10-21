@@ -43,15 +43,17 @@ tab_create_graph_create(
 	dict_table_t*	table,		/*!< in: table to create, built as
 					a memory data structure */
 	mem_heap_t*	heap);		/*!< in: heap where created */
-/*********************************************************************//**
-Creates an index create graph.
+/** Creates an index create graph.
+@param[in]	index	index to create, built as a memory data structure
+@param[in,out]	heap	heap where created
+@param[in]	add_v	new virtual columns added in the same clause with
+			add index
 @return own: index create node */
 ind_node_t*
 ind_create_graph_create(
-/*====================*/
-	dict_index_t*	index,		/*!< in: index to create, built
-					as a memory data structure */
-	mem_heap_t*	heap);		/*!< in: heap where created */
+	dict_index_t*		index,
+	mem_heap_t*		heap,
+	const dict_add_v_col_t*	add_v);
 
 /***********************************************************//**
 Creates a table. This is a high-level function used in SQL execution graphs.
@@ -205,6 +207,60 @@ dict_create_add_foreigns_to_dictionary(
 	const dict_table_t*	table,
 	trx_t*			trx)
 	__attribute__((warn_unused_result));
+
+/** Check whether the foreign constraint could be on a column that is
+a base column of some virtual column.
+@param[in]	col_name	column name for the column to be checked
+@param[in]	table		the table
+@return true if this column is a base column, otherwise, false */
+bool
+dict_foreign_has_col_as_base_col(
+	const char*		col_name,
+	const dict_table_t*	table);
+
+/** Check whether the foreign constraint could be on a column that is
+part of a virtual index in the table
+@param[in]	fk_col_name	FK column name for the column to be checked
+@param[in]	table		the table
+@return true if this column is indexed with other virtual columns */
+bool
+dict_foreign_has_col_in_v_index(
+	const char*		fk_col_name,
+	const dict_table_t*	table);
+
+/** Check if a foreign constraint is on columns served as based columns
+of some virtual column. This is to prevent creating SET NULL or CASCADE
+constrainst on such columns
+@param[in]	local_fk_set	set of foreign key objects, to be added to
+the dictionary tables
+@param[in]	table		table to which the foreign key objects in
+local_fk_set belong to
+@return true if yes, otherwise, false */
+bool
+dict_foreigns_has_v_base_col(
+        const dict_foreign_set& local_fk_set,
+        const dict_table_t*     table);
+
+/** Check if a virtual column could have base columns in foreign constraints,
+this is to prevent creating virtual index on such column
+@param[in]      table   table
+@param[in]      v_col_n virtual column number for the virtual column to check
+@return true if the virtual column could have base columns in constraint */
+bool
+dict_table_has_base_in_foreign(
+        const dict_table_t*     table,
+        ulint                   v_col_n);
+
+/** Check if a column is in foreign constraint with CASCADE properties or
+SET NULL
+@param[in]	table		table
+@param[in]	col_name	name for the column to be checked
+@return true if the column is in foreign constraint, otherwise, false */
+bool
+dict_foreigns_has_this_col(
+	const dict_table_t*	table,
+	const char*		col_name);
+
 /****************************************************************//**
 Creates the tablespaces and datafiles system tables inside InnoDB
 at server bootstrap or server start if they are not found or are
@@ -213,6 +269,12 @@ not of the right form.
 dberr_t
 dict_create_or_check_sys_tablespace(void);
 /*=====================================*/
+/** Creates the virtual column system tables inside InnoDB
+at server bootstrap or server start if they are not found or are
+not of the right form.
+@return DB_SUCCESS or error code */
+dberr_t
+dict_create_or_check_sys_virtual();
 
 /** Put a tablespace definition into the data dictionary,
 replacing what was there previously.
@@ -231,17 +293,6 @@ dict_replace_tablespace_in_dictionary(
 	const char*	path,
 	trx_t*		trx,
 	bool		commit);
-
-/** Add another datafile to the data dictionary for a given space_id.
-@param[in]	space	Tablespace ID
-@param[in]	path	Tablespace path
-@param[in,out]	trx	Transaction**
-@return error code or DB_SUCCESS */
-dberr_t
-dict_add_datafile_to_dictionary(
-	ulint		space_id,
-	const char*	path,
-	trx_t*		trx);
 
 /** Delete records from SYS_TABLESPACES and SYS_DATAFILES associated
 with a particular tablespace ID.
@@ -277,10 +328,15 @@ struct tab_node_t{
 					of the column definitions; the row to
 					be inserted is built by the parent
 					node  */
+	ins_node_t*	v_col_def;	/*!< child node which does the inserts
+					of the sys_virtual row definitions;
+					the row to be inserted is built by
+					the parent node  */
 	/*----------------------*/
 	/* Local storage for this graph node */
 	ulint		state;		/*!< node execution state */
 	ulint		col_no;		/*!< next column definition to insert */
+	ulint		base_col_no;	/*!< next base column to insert */
 	mem_heap_t*	heap;		/*!< memory heap used as auxiliary
 					storage */
 };
@@ -288,8 +344,9 @@ struct tab_node_t{
 /* Table create node states */
 #define	TABLE_BUILD_TABLE_DEF	1
 #define	TABLE_BUILD_COL_DEF	2
-#define	TABLE_ADD_TO_CACHE	3
-#define	TABLE_COMPLETED		4
+#define	TABLE_BUILD_V_COL_DEF	3
+#define	TABLE_ADD_TO_CACHE	4
+#define	TABLE_COMPLETED		5
 
 /* Index create node struct */
 
@@ -314,7 +371,40 @@ struct ind_node_t{
 	ulint		field_no;	/* next field definition to insert */
 	mem_heap_t*	heap;		/*!< memory heap used as auxiliary
 					storage */
+	const dict_add_v_col_t*
+			add_v;		/*!< new virtual columns that being
+					added along with an add index call */
 };
+
+/** Compose a column number for a virtual column, stored in the "POS" field
+of Sys_columns. The column number includes both its virtual column sequence
+(the "nth" virtual column) and its actual column position in original table
+@param[in]	v_pos		virtual column sequence
+@param[in]	col_pos		column position in original table definition
+@return	composed column position number */
+UNIV_INLINE
+ulint
+dict_create_v_col_pos(
+	ulint	v_pos,
+	ulint	col_pos);
+
+/** Get the column number for a virtual column (the column position in
+original table), stored in the "POS" field of Sys_columns
+@param[in]      pos             virtual column position
+@return column position in original table */
+UNIV_INLINE
+ulint
+dict_get_v_col_mysql_pos(
+        ulint   pos);
+
+/** Get a virtual column sequence (the "nth" virtual column) for a
+virtual column, stord in the "POS" field of Sys_columns
+@param[in]      pos             virtual column position
+@return virtual column sequence */
+UNIV_INLINE
+ulint
+dict_get_v_col_pos(
+        ulint   pos);
 
 /* Index create node states */
 #define	INDEX_BUILD_INDEX_DEF	1

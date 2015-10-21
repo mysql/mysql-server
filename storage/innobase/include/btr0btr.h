@@ -208,12 +208,12 @@ btr_block_get_func(
 	ulint			mode,
 	const char*		file,
 	ulint			line,
-# ifdef UNIV_SYNC_DEBUG
+# ifdef UNIV_DEBUG
 	const dict_index_t*	index,
-# endif /* UNIV_SYNC_DEBUG */
+# endif /* UNIV_DEBUG */
 	mtr_t*		mtr);
 
-# ifdef UNIV_SYNC_DEBUG
+# ifdef UNIV_DEBUG
 /** Gets a buffer page and declares its latching order level.
 @param page_id tablespace/page identifier
 @param page_size page size
@@ -224,7 +224,7 @@ btr_block_get_func(
 #  define btr_block_get(page_id, page_size, mode, index, mtr)	\
 	btr_block_get_func(page_id, page_size, mode,		\
 			   __FILE__, __LINE__, index, mtr)
-# else /* UNIV_SYNC_DEBUG */
+# else /* UNIV_DEBUG */
 /** Gets a buffer page and declares its latching order level.
 @param page_id tablespace/page identifier
 @param page_size page size
@@ -234,7 +234,7 @@ btr_block_get_func(
 @return the block descriptor */
 #  define btr_block_get(page_id, page_size, mode, index, mtr)	\
 	btr_block_get_func(page_id, page_size, mode, __FILE__, __LINE__, mtr)
-# endif /* UNIV_SYNC_DEBUG */
+# endif /* UNIV_DEBUG */
 /** Gets a buffer page and declares its latching order level.
 @param page_id tablespace/page identifier
 @param page_size page size
@@ -351,6 +351,23 @@ void
 btr_free(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size);
+
+/** Truncate an index tree. We just free all except the root.
+Currently, this function is only specific for clustered indexes and the only
+caller is DDTableBuffer which manages a table with only a clustered index.
+It is up to the caller to ensure atomicity and to implement recovery by
+calling btr_truncate_recover().
+@param[in]	index		clustered index */
+void
+btr_truncate(
+	const dict_index_t*	index);
+
+/** Recovery function for btr_truncate. We will check if there is a
+crash during btr_truncate, if so, do recover it, if not, do nothing.
+@param[in]	index		clustered index */
+void
+btr_truncate_recover(
+	const dict_index_t*	index);
 
 /*************************************************************//**
 Makes tree one level higher by splitting the root, and inserts

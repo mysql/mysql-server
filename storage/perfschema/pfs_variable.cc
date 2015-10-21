@@ -511,8 +511,8 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var,
 
   /* Get the value of the system variable. */
   const char *value;
-  value= get_one_variable(target_thd, show_var, query_scope, show_var_type,
-                          NULL, &m_charset, m_value_str, &m_value_length);
+  value= get_one_variable_ext(current_thd, target_thd, show_var, query_scope, show_var_type,
+                              NULL, &m_charset, m_value_str, &m_value_length);
 
   m_value_length= MY_MIN(m_value_length, SHOW_VAR_FUNC_BUFF_SIZE);
 
@@ -600,6 +600,7 @@ int PFS_status_variable_cache::materialize_account(PFS_account *pfs_account)
 /**
   Compare status variable scope to desired scope.
   @param variable_scope         Scope of current status variable
+  @param strict                 Strict mode, for compatibility with SHOW
   @return TRUE if variable matches the query scope
 */
 bool PFS_status_variable_cache::match_scope(SHOW_SCOPE variable_scope, bool strict)
@@ -871,6 +872,20 @@ bool PFS_status_variable_cache::do_initialize_session(void)
 }
 
 /**
+  For the current THD, use initial_status_vars taken from before the query start.
+*/
+System_status_var *PFS_status_variable_cache::set_status_vars(void)
+{
+  System_status_var *status_vars;
+  if (m_safe_thd == m_current_thd && m_current_thd->initial_status_var != NULL)
+    status_vars= m_current_thd->initial_status_var;
+  else
+    status_vars= &m_safe_thd->status_var;
+
+  return status_vars;
+}
+
+/**
   Build cache for GLOBAL status variables using values totaled from all threads.
 */
 int PFS_status_variable_cache::do_materialize_global(void)
@@ -878,6 +893,7 @@ int PFS_status_variable_cache::do_materialize_global(void)
   System_status_var status_totals;
 
   m_materialized= false;
+  DEBUG_SYNC(m_current_thd, "before_materialize_global_status_array");
 
   /* Acquire LOCK_status to guard against plugin load/unload. */
   if (m_current_thd->fill_status_recursion_level++ == 0)
@@ -912,6 +928,7 @@ int PFS_status_variable_cache::do_materialize_global(void)
     mysql_mutex_unlock(&LOCK_status);
 
   m_materialized= true;
+  DEBUG_SYNC(m_current_thd, "after_materialize_global_status_array");
 
   return 0;
 }
@@ -946,8 +963,9 @@ int PFS_status_variable_cache::do_materialize_all(THD* unsafe_thd)
     /*
       Build the status variable cache using the SHOW_VAR array as a reference.
       Use the status values from the THD protected by the thread manager lock.
-     */
-    manifest(m_safe_thd, m_show_var_array.begin(), &m_safe_thd->status_var, "", false, false);
+    */
+    System_status_var *status_vars= set_status_vars();
+    manifest(m_safe_thd, m_show_var_array.begin(), status_vars, "", false, false);
 
     /* Release lock taken in get_THD(). */
     mysql_mutex_unlock(&m_safe_thd->LOCK_thd_data);
@@ -991,8 +1009,9 @@ int PFS_status_variable_cache::do_materialize_session(THD* unsafe_thd)
     /*
       Build the status variable cache using the SHOW_VAR array as a reference.
       Use the status values from the THD protected by the thread manager lock.
-     */
-    manifest(m_safe_thd, m_show_var_array.begin(), &m_safe_thd->status_var, "", false, true);
+    */
+    System_status_var *status_vars= set_status_vars();
+    manifest(m_safe_thd, m_show_var_array.begin(), status_vars, "", false, true);
 
     /* Release lock taken in get_THD(). */
     mysql_mutex_unlock(&m_safe_thd->LOCK_thd_data);
@@ -1033,7 +1052,8 @@ int PFS_status_variable_cache::do_materialize_session(PFS_thread *pfs_thread)
       Build the status variable cache using the SHOW_VAR array as a reference.
       Use the status values from the THD protected by the thread manager lock.
     */
-    manifest(m_safe_thd, m_show_var_array.begin(), &m_safe_thd->status_var, "", false, true);
+    System_status_var *status_vars= set_status_vars();
+    manifest(m_safe_thd, m_show_var_array.begin(), status_vars, "", false, true);
 
     /* Release lock taken in get_THD(). */
     mysql_mutex_unlock(&m_safe_thd->LOCK_thd_data);

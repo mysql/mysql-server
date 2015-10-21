@@ -16,6 +16,10 @@
 #ifndef _welcome_copyright_notice_h_
 #define _welcome_copyright_notice_h_
 
+/**
+  @file include/welcome_copyright_notice.h
+*/
+
 #define COPYRIGHT_NOTICE_CURRENT_YEAR "2015"
 
 /*

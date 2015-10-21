@@ -28,7 +28,9 @@
 #include "my_bit.h"               // my_count_bits
 #include "my_getopt.h"            // get_opt_arg_type
 #include "mysql/plugin.h"         // enum_mysql_show_type
+#include "debug_sync.h"           // debug_sync_update
 #include "item.h"                 // Item
+#include "log.h"                  // sql_print_information
 #include "set_var.h"              // sys_var
 #include "sql_class.h"            // THD
 #include "sql_plugin.h"           // my_plugin_lock_by_name
@@ -37,7 +39,7 @@
 #include "tztime.h"               // Time_zone
 #include "binlog.h"               // mysql_bin_log
 #include "rpl_rli.h"              // sql_slave_skip_counter
-#include "rpl_msr.h"              // msr_map
+#include "rpl_msr.h"              // channel_map
 #include "rpl_group_replication.h"// is_group_replication_running
 #include "mysqld.h"               // max_system_variables test_flags ...
 
@@ -65,6 +67,7 @@
 #define ON_UPDATE(X) X
 #define READ_ONLY sys_var::READONLY+
 #define NOT_VISIBLE sys_var::INVISIBLE+
+#define UNTRACKED_DEFAULT sys_var::TRI_LEVEL+
 // this means that Sys_var_charptr initial value was malloc()ed
 #define PREALLOCATED sys_var::ALLOCATED+
 /*
@@ -88,6 +91,8 @@ extern sys_var_chain all_sys_vars;
 enum charset_enum {IN_SYSTEM_CHARSET, IN_FS_CHARSET};
 
 static const char *bool_values[3]= {"OFF", "ON", 0};
+
+const char *fixup_enforce_gtid_consistency_command_line(char *value_arg);
 
 /**
   A small wrapper class to pass getopt arguments as a pair
@@ -484,7 +489,7 @@ public:
     it does not have to be less than value_count.  The corresponding
     alias will be used in mysqld --help to show the default value.
 
-    @param command_line_no_value The default value if a command line
+    @param command_line_no_value_arg The default value if a command line
     option is given without a value ('--command-line-option' without
     '=VALUE').  This must be less than value_count_arg.
   */
@@ -789,6 +794,35 @@ public:
 
   bool check_update_type(Item_result type)
   { return type != STRING_RESULT; }
+};
+
+class Sys_var_version : public Sys_var_charptr
+{
+public:
+  Sys_var_version(const char *name_arg,
+          const char *comment, int flag_args, ptrdiff_t off, size_t size,
+          CMD_LINE getopt,
+          enum charset_enum is_os_charset_arg,
+          const char *def_val)
+    : Sys_var_charptr(name_arg, comment, flag_args, off, size, getopt, is_os_charset_arg, def_val)
+  {}
+
+  ~Sys_var_version()
+  {}
+
+  virtual uchar *global_value_ptr(THD *thd, LEX_STRING *base)
+  {
+    uchar *value= Sys_var_charptr::global_value_ptr(thd, base);
+
+    DBUG_EXECUTE_IF("alter_server_version_str",
+                    {
+                      static const char *altered_value= "some-other-version";
+                      uchar *altered_value_ptr= reinterpret_cast<uchar*> (& altered_value);
+                      value= altered_value_ptr;
+                    });
+
+    return value;
+  }
 };
 
 
@@ -1115,7 +1149,7 @@ public:
 };
 
 /**
-  The class for @test_flags (core_file for now).
+  The class for @c test_flags (core_file for now).
   It's derived from Sys_var_mybool.
 
   Class specific constructor arguments:
@@ -1144,7 +1178,7 @@ public:
 };
 
 /**
-  The class for the @max_user_connections.
+  The class for the @c max_user_connections.
   It's derived from Sys_var_uint, but non-standard session value
   requires a new class.
 
@@ -1569,7 +1603,6 @@ public:
   }
   bool session_update(THD *thd, set_var *var)
   {
-    extern bool debug_sync_update(THD *thd, char *val_str);
     return debug_sync_update(thd, var->save_result.string_value.str);
   }
   bool global_update(THD *thd, set_var *var)
@@ -1588,7 +1621,6 @@ public:
   }
   uchar *session_value_ptr(THD *running_thd, THD *target_thd, LEX_STRING *base)
   {
-    extern uchar *debug_sync_value_ptr(THD *thd);
     return debug_sync_value_ptr(running_thd);
   }
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)

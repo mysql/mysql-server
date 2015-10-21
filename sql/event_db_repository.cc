@@ -172,6 +172,7 @@ class Event_db_intact : public Table_check_intact
 {
 protected:
   void report_error(uint, const char *fmt, ...)
+    __attribute__((format(printf, 3, 4)))
   {
     va_list args;
     va_start(args, fmt);
@@ -193,6 +194,7 @@ static Event_db_intact table_intact;
   @param   table      The row to fill out
   @param   et         Event's data
   @param   sp         Event stored routine
+  @param   sql_mode   Event SQL_MODE
   @param   is_update  CREATE EVENT or ALTER EVENT
 
   @retval  FALSE success
@@ -251,7 +253,7 @@ mysql_event_fill_row(THD *thd,
   */
   if (!is_update || et->status_changed)
     rs|= fields[ET_FIELD_STATUS]->store((longlong)et->status, TRUE);
-  rs|= fields[ET_FIELD_ORIGINATOR]->store((longlong)et->originator, TRUE);
+  rs|= fields[ET_FIELD_ORIGINATOR]->store(et->originator, TRUE);
 
   /*
     Change the SQL_MODE only if body was present in an ALTER EVENT and of course
@@ -282,7 +284,7 @@ mysql_event_fill_row(THD *thd,
     }
 
     fields[ET_FIELD_INTERVAL_EXPR]->set_notnull();
-    rs|= fields[ET_FIELD_INTERVAL_EXPR]->store((longlong)et->expression, TRUE);
+    rs|= fields[ET_FIELD_INTERVAL_EXPR]->store(et->expression, TRUE);
 
     fields[ET_FIELD_TRANSIENT_INTERVAL]->set_notnull();
 
@@ -643,7 +645,7 @@ Event_db_repository::open_event_table(THD *thd, enum thr_lock_type lock_type,
   Creates an event record in mysql.event table.
 
   Creates an event. Relies on mysql_event_fill_row which is shared with
-  ::update_event.
+  @c update_event().
 
   @pre All semantic checks must be performed outside. This function
   only creates a record on disk.

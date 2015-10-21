@@ -17,6 +17,10 @@
 #ifndef _my_bitmap_h_
 #define _my_bitmap_h_
 
+/**
+  @file include/my_bitmap.h
+*/
+
 #define MY_BIT_NONE (~(uint) 0)
 
 #include "my_global.h"
@@ -114,16 +118,30 @@ static inline my_bool bitmap_is_set(const MY_BITMAP *map, uint bit)
  */
 static inline my_bool bitmap_cmp(const MY_BITMAP *map1, const MY_BITMAP *map2)
 {
+  DBUG_ASSERT(map1->n_bits > 0);
+  DBUG_ASSERT(map2->n_bits > 0);
+
   if (memcmp(map1->bitmap, map2->bitmap, 4*(no_words_in_map(map1)-1)) != 0)
     return FALSE;
   return ((*map1->last_word_ptr | map1->last_word_mask) ==
           (*map2->last_word_ptr | map2->last_word_mask));
 }
 
-#define bitmap_clear_all(MAP) \
-  { memset((MAP)->bitmap, 0, 4*no_words_in_map((MAP))); }
-#define bitmap_set_all(MAP) \
-  (memset((MAP)->bitmap, 0xFF, 4*no_words_in_map((MAP))))
+/*
+  Clears all bits. This is allowed even for a zero-size bitmap.
+ */
+static inline void bitmap_clear_all(MY_BITMAP *map)
+{
+  memset(map->bitmap, 0, 4 * no_words_in_map(map));
+}
+
+/*
+  Sets all bits. This is allowed even for a zero-size bitmap.
+ */
+static inline void bitmap_set_all(MY_BITMAP *map)
+{
+  memset(map->bitmap, 0xFF, 4 * no_words_in_map(map));
+}
 
 #ifdef	__cplusplus
 }

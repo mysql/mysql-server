@@ -309,7 +309,7 @@ typedef enum {
 					a prefix of a fixed length column) */
 } ib_match_mode_t;
 
-/** @struct ib_col_meta_t InnoDB column meta data. */
+/** InnoDB column meta data. */
 typedef struct {
 	ib_col_type_t	type;		/*!< Type of the column */
 
@@ -398,7 +398,7 @@ is such that we must use the client code to compare them.
 
 @param col_meta column meta data
 @param p1 key
-@oaram p1_len		key length
+@param p1_len key length
 @param p2 second key
 @param p2_len second key length
 @return 1, 0, -1, if a is greater, equal, less than b, respectively */
@@ -482,17 +482,6 @@ ib_trx_rollback(
 	ib_trx_t	ib_trx);	/*!< in: trx handle */
 
 /*****************************************************************//**
-Open an InnoDB table and return a cursor handle to it.
-@return DB_SUCCESS or err code */
-ib_err_t
-ib_cursor_open_table_using_id(
-/*==========================*/
-	ib_id_u64_t	table_id,	/*!< in: table id of table to open */
-	ib_trx_t	ib_trx,		/*!< in: Current transaction handle
-					can be NULL */
-	ib_crsr_t*	ib_crsr);	/*!< out,own: InnoDB cursor */
-
-/*****************************************************************//**
 Open an InnoDB secondary index cursor and return a cursor handle to it.
 @return DB_SUCCESS or err code */
 ib_err_t
@@ -529,14 +518,6 @@ Close an InnoDB table and free the cursor.
 ib_err_t
 ib_cursor_close(
 /*============*/
-	ib_crsr_t	ib_crsr);	/*!< in/out: InnoDB cursor */
-
-/*****************************************************************//**
-Close the table, decrement n_ref_count count.
-@return DB_SUCCESS or err code */
-ib_err_t
-ib_cursor_close_table(
-/*==================*/
 	ib_crsr_t	ib_crsr);	/*!< in/out: InnoDB cursor */
 
 /*****************************************************************//**
@@ -880,16 +861,6 @@ ib_err_t
 ib_cursor_lock(
 /*===========*/
 	ib_crsr_t	ib_crsr,	/*!< in/out: InnoDB cursor */
-	ib_lck_mode_t	ib_lck_mode);	/*!< in: InnoDB lock mode */
-
-/*****************************************************************//**
-Set the Lock an InnoDB table using the table id.
-@return DB_SUCCESS or error code */
-ib_err_t
-ib_table_lock(
-/*===========*/
-	ib_trx_t	ib_trx,		/*!< in/out: transaction */
-	ib_id_u64_t	table_id,	/*!< in: table id */
 	ib_lck_mode_t	ib_lck_mode);	/*!< in: InnoDB lock mode */
 
 /*****************************************************************//**

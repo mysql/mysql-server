@@ -17,6 +17,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
+  @file include/thr_rwlock.h
   MySQL rwlock implementation.
 
   There are two "layers":
@@ -191,23 +192,21 @@ extern int rw_pr_wrlock(rw_pr_lock_t *);
 extern int rw_pr_unlock(rw_pr_lock_t *);
 extern int rw_pr_destroy(rw_pr_lock_t *);
 
-static inline void
-rw_pr_lock_assert_write_owner(const rw_pr_lock_t *rwlock __attribute__((unused)))
-{
 #ifdef SAFE_MUTEX
+static inline void
+rw_pr_lock_assert_write_owner(const rw_pr_lock_t *rwlock)
+{
   DBUG_ASSERT(rwlock->active_writer &&
               my_thread_equal(my_thread_self(), rwlock->writer_thread));
-#endif
 }
 
 static inline void
-rw_pr_lock_assert_not_write_owner(const rw_pr_lock_t *rwlock __attribute__((unused)))
+rw_pr_lock_assert_not_write_owner(const rw_pr_lock_t *rwlock)
 {
-#ifdef SAFE_MUTEX
   DBUG_ASSERT(!rwlock->active_writer ||
               !my_thread_equal(my_thread_self(), rwlock->writer_thread));
-#endif
 }
+#endif
 
 C_MODE_END
 

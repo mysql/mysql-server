@@ -14,7 +14,7 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
-  @file storage/perfschema/pfs_digest.h
+  @file storage/perfschema/pfs_digest.cc
   Statement Digest data structures (implementation).
 */
 
@@ -305,7 +305,7 @@ search:
   return NULL;
 }
 
-void purge_digest(PFS_thread* thread, PFS_digest_key *hash_key)
+static void purge_digest(PFS_thread* thread, PFS_digest_key *hash_key)
 {
   LF_PINS *pins= get_digest_hash_pins(thread);
   if (unlikely(pins == NULL))

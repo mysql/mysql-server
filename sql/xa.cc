@@ -25,6 +25,7 @@
 #include "psi_memory_key.h"     // key_memory_XID
 #include "sql_class.h"          // THD
 #include "sql_plugin.h"         // plugin_foreach
+#include "tc_log.h"             // tc_log
 #include "transaction.h"        // trans_begin, trans_rollback
 
 #include <pfs_transaction_provider.h>
@@ -45,6 +46,12 @@ static HASH transaction_cache;
 static const uint MYSQL_XID_PREFIX_LEN= 8; // must be a multiple of 8
 static const uint MYSQL_XID_OFFSET= MYSQL_XID_PREFIX_LEN + sizeof(server_id);
 static const uint MYSQL_XID_GTRID_LEN= MYSQL_XID_OFFSET + sizeof(my_xid);
+
+static void attach_native_trx(THD *thd);
+static Transaction_ctx *transaction_cache_search(XID *xid);
+static bool transaction_cache_insert(XID *xid, Transaction_ctx *transaction);
+static bool transaction_cache_insert_recovery(XID *xid);
+
 
 my_xid xid_t::get_my_xid() const
 {
@@ -180,11 +187,13 @@ int ha_recover(HASH *commit_list)
   DBUG_ENTER("ha_recover");
   info.found_foreign_xids= info.found_my_xids= 0;
   info.commit_list= commit_list;
-  info.dry_run= (info.commit_list == 0 && tc_heuristic_recover == 0);
+  info.dry_run= (info.commit_list == 0 &&
+                 tc_heuristic_recover == TC_HEURISTIC_NOT_USED);
   info.list= NULL;
 
   /* commit_list and tc_heuristic_recover cannot be set both */
-  DBUG_ASSERT(info.commit_list == 0 || tc_heuristic_recover == 0);
+  DBUG_ASSERT(info.commit_list == 0 ||
+              tc_heuristic_recover == TC_HEURISTIC_NOT_USED);
   /* if either is set, total_ha_2pc must be set too */
   DBUG_ASSERT(info.dry_run || total_ha_2pc>(ulong)opt_bin_log);
 
@@ -276,6 +285,24 @@ static bool xa_trans_force_rollback(THD *thd)
     return true;
   }
   return false;
+}
+
+
+/**
+  Reset some transaction state information and delete corresponding
+  Transaction_ctx object from cache.
+
+  @param thd    Current thread
+*/
+
+static void cleanup_trans_state(THD *thd)
+{
+  thd->variables.option_bits&= ~OPTION_BEGIN;
+  thd->server_status&=
+    ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
+  thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::SESSION);
+  DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
+  transaction_cache_delete(thd->get_transaction());
 }
 
 
@@ -391,6 +418,8 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
       else
         res= MY_TEST(ha_commit_low(thd, /* all */ true));
 
+      DBUG_EXECUTE_IF("simulate_xa_commit_log_failure", { res= true; });
+
       if (res)
         my_error(ER_XAER_RMERR, MYF(0));
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
@@ -401,8 +430,9 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
           we need to explicitly mark the transaction as committed.
         */
         MYSQL_COMMIT_TRANSACTION(thd->m_transaction_psi);
-        thd->m_transaction_psi= NULL;
       }
+
+      thd->m_transaction_psi= NULL;
 #endif
     }
   }
@@ -412,15 +442,11 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
     DBUG_RETURN(true);
   }
 
-  thd->variables.option_bits&= ~OPTION_BEGIN;
-  thd->get_transaction()->reset_unsafe_rollback_flags(
-    Transaction_ctx::SESSION);
-  thd->server_status&=
-    ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
-  DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
-  transaction_cache_delete(thd->get_transaction());
+  cleanup_trans_state(thd);
+
   xid_state->set_state(XID_STATE::XA_NOTR);
   xid_state->unset_binlogged();
+  trans_track_end_trx(thd);
   /* The transaction should be marked as complete in P_S. */
   DBUG_ASSERT(thd->m_transaction_psi == NULL || res);
   DBUG_RETURN(res);
@@ -437,9 +463,8 @@ bool Sql_cmd_xa_commit::execute(THD *thd)
     /*
         We've just done a commit, reset transaction
         isolation level and access mode to the session default.
-     */
-    thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
-    thd->tx_read_only= thd->variables.tx_read_only;
+    */
+    trans_reset_one_shot_chistics(thd);
 
     my_ok(thd);
   }
@@ -499,15 +524,11 @@ bool Sql_cmd_xa_rollback::trans_xa_rollback(THD *thd)
 
   bool res= xa_trans_force_rollback(thd);
 
-  thd->variables.option_bits&= ~OPTION_BEGIN;
-  thd->get_transaction()->reset_unsafe_rollback_flags(
-    Transaction_ctx::SESSION);
-  thd->server_status&=
-    ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
-  DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
-  transaction_cache_delete(thd->get_transaction());
+  cleanup_trans_state(thd);
+
   xid_state->set_state(XID_STATE::XA_NOTR);
   xid_state->unset_binlogged();
+  trans_track_end_trx(thd);
   /* The transaction should be marked as complete in P_S. */
   DBUG_ASSERT(thd->m_transaction_psi == NULL);
   DBUG_RETURN(res);
@@ -525,8 +546,7 @@ bool Sql_cmd_xa_rollback::execute(THD *thd)
       We've just done a rollback, reset transaction
       isolation level and access mode to the session default.
     */
-    thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
-    thd->tx_read_only= thd->variables.tx_read_only;
+    trans_reset_one_shot_chistics(thd);
     my_ok(thd);
   }
 
@@ -681,14 +701,13 @@ bool Sql_cmd_xa_prepare::trans_xa_prepare(THD *thd)
     my_error(ER_XAER_NOTA, MYF(0));
   else if (ha_prepare(thd))
   {
-    /*
-      todo: simulate a failure that sustains
-      Bug 20538956.
-    */
-    transaction_cache_delete(thd->get_transaction());
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+    DBUG_ASSERT(thd->m_transaction_psi == NULL);
+#endif
+
+    cleanup_trans_state(thd);
     xid_state->set_state(XID_STATE::XA_NOTR);
-    MYSQL_SET_TRANSACTION_XA_STATE(thd->m_transaction_psi,
-                                   (int)xid_state->get_state());
+    thd->get_transaction()->cleanup();
     my_error(ER_XA_RBROLLBACK, MYF(0));
   }
   else
@@ -955,6 +974,7 @@ extern "C" void transaction_free_hash(void *);
 
   @param ptr  pointer to the record
   @param length  length of the record
+  @param not_used Unused
 
   @return  pointer to a record stored in cache
 */
@@ -1010,7 +1030,8 @@ bool transaction_cache_init()
   mysql_mutex_init(key_LOCK_transaction_cache, &LOCK_transaction_cache,
                    MY_MUTEX_INIT_FAST);
   return my_hash_init(&transaction_cache, &my_charset_bin, 100, 0, 0,
-                      transaction_get_hash_key, transaction_free_hash, 0) != 0;
+                      transaction_get_hash_key, transaction_free_hash, 0,
+                      key_memory_XID) != 0;
 }
 
 void transaction_cache_free()
@@ -1023,7 +1044,18 @@ void transaction_cache_free()
 }
 
 
-Transaction_ctx *transaction_cache_search(XID *xid)
+/**
+  Search information about XA transaction by a XID value.
+
+  @param xid    Pointer to a XID structure that identifies a XA transaction.
+
+  @return  pointer to a Transaction_ctx that describes the whole transaction
+           including XA-specific information (XID_STATE).
+    @retval  NULL     failure
+    @retval  != NULL  success
+*/
+
+static Transaction_ctx *transaction_cache_search(XID *xid)
 {
   mysql_mutex_lock(&LOCK_transaction_cache);
 
@@ -1035,6 +1067,19 @@ Transaction_ctx *transaction_cache_search(XID *xid)
   return res;
 }
 
+
+/**
+  Insert information about XA transaction into a cache indexed by XID.
+
+  @param xid     Pointer to a XID structure that identifies a XA transaction.
+  @param transaction
+                 Pointer to Transaction object that is inserted.
+
+  @return  operation result
+    @retval  false   success or a cache already contains XID_STATE
+                     for this XID value
+    @retval  true    failure
+*/
 
 bool transaction_cache_insert(XID *xid, Transaction_ctx *transaction)
 {
@@ -1093,6 +1138,18 @@ bool transaction_cache_detach(Transaction_ctx *transaction)
 }
 
 
+/**
+  Insert information about XA transaction being recovered into a cache
+  indexed by XID.
+
+  @param xid     Pointer to a XID structure that identifies a XA transaction.
+
+  @return  operation result
+    @retval  false   success or a cache already contains Transaction_ctx
+                     for this XID value
+    @retval  true    failure
+*/
+
 bool transaction_cache_insert_recovery(XID *xid)
 {
   mysql_mutex_lock(&LOCK_transaction_cache);
@@ -1133,7 +1190,7 @@ void transaction_cache_delete(Transaction_ctx *transaction)
   THD of the slave applier is dissociated from a transaction object in engine
   that continues to exist there.
 
-  @param  THD current thread
+  @param  thd current thread
   @return the value of is_error()
 */
 
@@ -1180,6 +1237,7 @@ bool applier_reset_xa_trans(THD *thd)
 
   @param[in,out]     thd     Thread context
   @param             plugin  Reference to handlerton
+  @param             unused  Unused
 
   @return    FALSE   on success, TRUE otherwise.
 */
@@ -1200,7 +1258,7 @@ my_bool detach_native_trx(THD *thd, plugin_ref plugin, void *unused)
 
   @param     thd     Thread context
 */
-void attach_native_trx(THD *thd)
+static void attach_native_trx(THD *thd)
 {
   Ha_trx_info *ha_info=
     thd->get_transaction()->ha_trx_info(Transaction_ctx::SESSION);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,9 +22,6 @@
 
 #include "field.h"
 
-type_conversion_status
-store_internal_with_error_check(Field_new_decimal *field,
-                                int conversion_err, my_decimal *value);
 namespace field_newdecimal_unittest {
 
 using my_testing::chars_2_decimal;

@@ -22,6 +22,7 @@
 #include "field.h"              // Field
 #include "item_func.h"          // mqh_used
 #include "log.h"                // sql_print_warning
+#include "mysqld.h"             // my_localhost
 #include "psi_memory_key.h"     // key_memory_acl_mem
 #include "records.h"            // READ_RECORD
 #include "sql_authentication.h" // sha256_password_plugin_name
@@ -31,6 +32,7 @@
 #include "sql_time.h"           // str_to_time_with_warn
 #include "table.h"              // TABLE
 #include "derror.h"             // ER_THD
+#include "debug_sync.h"
 
 #define INVALID_DATE "0000-00-00 00:00:00"
 
@@ -79,8 +81,6 @@ bool rwlocks_initialized= false;
 
 const uint LOCK_GRANT_PARTITIONS= 32;
 Partitioned_rwlock LOCK_grant;
-
-#define FIRST_NON_YN_FIELD 26
 
 #define IP_ADDR_STRLEN (3 + 1 + 3 + 1 + 3 + 1 + 3)
 #define ACL_KEY_LENGTH (IP_ADDR_STRLEN + 1 + NAME_LEN + \
@@ -276,7 +276,6 @@ ACL_PROXY_USER::check_validity(bool check_no_resolve)
                       proxied_host.get_host() ? proxied_host.get_host() : "",
                       user ? user : "",
                       host.get_host() ? host.get_host() : "");
-    return TRUE;
   }
   return FALSE;
 }
@@ -551,22 +550,12 @@ ulong get_sort(uint count,...)
 
 bool hostname_requires_resolving(const char *hostname)
 {
+
+  /* called only for --skip-name-resolve */
+  DBUG_ASSERT(specialflag & SPECIAL_NO_RESOLVE);
+
   if (!hostname)
     return FALSE;
-
-  /* Check if hostname is the localhost. */
-
-  size_t hostname_len= strlen(hostname);
-  size_t localhost_len= strlen(my_localhost);
-
-  if (hostname == my_localhost ||
-      (hostname_len == localhost_len &&
-       !my_strnncoll(system_charset_info,
-                     (const uchar *) hostname,  hostname_len,
-                     (const uchar *) my_localhost, strlen(my_localhost))))
-  {
-    return FALSE;
-  }
 
   /*
     If the string contains any of {':', '%', '_', '/'}, it is definitely
@@ -614,8 +603,8 @@ static uchar* get_key_column(GRANT_COLUMN *buff, size_t *length,
 }
 
 
-uchar* get_grant_table(GRANT_NAME *buff, size_t *length,
-                       my_bool not_used __attribute__((unused)))
+static uchar* get_grant_table(GRANT_NAME *buff, size_t *length,
+                              my_bool not_used __attribute__((unused)))
 {
   *length=buff->key_length;
   return (uchar*) buff->hash_key;
@@ -665,7 +654,8 @@ GRANT_TABLE::GRANT_TABLE(const char *h, const char *d,const char *u,
   :GRANT_NAME(h,d,u,t,p, FALSE), cols(c)
 {
   (void) my_hash_init2(&hash_columns,4,system_charset_info,
-                   0,0,0, (my_hash_get_key) get_key_column,0,0);
+                   0,0,0, (my_hash_get_key) get_key_column,0,0,
+                   key_memory_acl_memex);
 }
 
 
@@ -699,11 +689,9 @@ GRANT_NAME::GRANT_NAME(TABLE *form, bool is_routine)
 }
 
 
-GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
-  :GRANT_NAME(form, FALSE)
+GRANT_TABLE::GRANT_TABLE(TABLE *form)
+  :GRANT_NAME(form, false)
 {
-  uchar key[MAX_KEY_LENGTH];
-
   if (!db || !tname)
   {
     /* Wrong table row; Ignore it */
@@ -715,10 +703,33 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
   cols =  fix_rights_for_column(cols);
 
   (void) my_hash_init2(&hash_columns,4,system_charset_info,
-                   0,0,0, (my_hash_get_key) get_key_column,0,0);
+                   0,0,0, (my_hash_get_key) get_key_column,0,0,
+                   key_memory_acl_memex);
+}
+
+
+GRANT_TABLE::~GRANT_TABLE()
+{
+  my_hash_free(&hash_columns);
+}
+
+
+bool GRANT_TABLE::init(TABLE *col_privs)
+{
+  int error;
+
   if (cols)
   {
+    uchar key[MAX_KEY_LENGTH];
     uint key_prefix_len;
+
+    if (!col_privs->key_info)
+    {
+      my_error(ER_TABLE_CORRUPT, MYF(0), col_privs->s->db.str,
+               col_privs->s->table_name.str);
+      return true;
+    }
+
     KEY_PART_INFO *key_part= col_privs->key_info->key_part;
     col_privs->field[0]->store(host.get_host(),
                                host.get_host() ? host.get_host_len() : 0,
@@ -732,53 +743,73 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
                      key_part[2].store_length +
                      key_part[3].store_length);
     key_copy(key, col_privs->record[0], col_privs->key_info, key_prefix_len);
-    col_privs->field[4]->store("",0, &my_charset_latin1);
+    col_privs->field[4]->store("", 0, &my_charset_latin1);
 
-    if (col_privs->file->ha_index_init(0, 1))
+    error= col_privs->file->ha_index_init(0, 1);
+    DBUG_EXECUTE_IF("wl7158_grant_table_1",
+                    col_privs->file->ha_index_end();
+                    error= HA_ERR_LOCK_DEADLOCK;);
+    if (error)
     {
+      acl_print_ha_error(error);
+      return true;
+    }
+
+    error=
+      col_privs->file->ha_index_read_map(col_privs->record[0], (uchar*) key,
+                                         (key_part_map)15, HA_READ_KEY_EXACT);
+    DBUG_EXECUTE_IF("wl7158_grant_table_2",
+                    error= HA_ERR_LOCK_DEADLOCK;);
+    if (error)
+    {
+      bool ret= false;
       cols= 0;
-      return;
+      if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
+      {
+        acl_print_ha_error(error);
+        ret= true;
+      }
+      col_privs->file->ha_index_end();
+      return ret;
     }
 
-    if (col_privs->file->ha_index_read_map(col_privs->record[0], (uchar*) key,
-                                           (key_part_map)15, HA_READ_KEY_EXACT))
-    {
-      cols = 0; /* purecov: deadcode */
-      col_privs->file->ha_index_end();
-      return;
-    }
     do
     {
       String *res,column_name;
       GRANT_COLUMN *mem_check;
       /* As column name is a string, we don't have to supply a buffer */
-      res=col_privs->field[4]->val_str(&column_name);
+      res= col_privs->field[4]->val_str(&column_name);
       ulong priv= (ulong) col_privs->field[6]->val_int();
-      if (!(mem_check = new GRANT_COLUMN(*res,
-                                         fix_rights_for_column(priv))))
+      DBUG_EXECUTE_IF("mysql_grant_table_init_out_of_memory",
+                      DBUG_SET("+d,simulate_out_of_memory"););
+      if (!(mem_check= new GRANT_COLUMN(*res,
+                                        fix_rights_for_column(priv))) ||
+            my_hash_insert(&hash_columns, (uchar *) mem_check))
       {
         /* Don't use this entry */
-        privs = cols = 0;               /* purecov: deadcode */
-        return;                         /* purecov: deadcode */
+        col_privs->file->ha_index_end();
+
+        DBUG_EXECUTE_IF("mysql_grant_table_init_out_of_memory",
+                        DBUG_SET("-d,simulate_out_of_memory"););
+        return true;
       }
-      if (my_hash_insert(&hash_columns, (uchar *) mem_check))
+
+      error= col_privs->file->ha_index_next(col_privs->record[0]);
+      DBUG_EXECUTE_IF("wl7158_grant_table_3",
+                      error= HA_ERR_LOCK_DEADLOCK;);
+      if (error && error != HA_ERR_END_OF_FILE)
       {
-        /* Invalidate this entry */
-        privs= cols= 0;
-        return;
+        acl_print_ha_error(error);
+        col_privs->file->ha_index_end();
+        return true;
       }
-    } while (!col_privs->file->ha_index_next(col_privs->record[0]) &&
-             !key_cmp_if_same(col_privs,key,0,key_prefix_len));
+    }
+    while (!error && !key_cmp_if_same(col_privs,key,0,key_prefix_len));
     col_privs->file->ha_index_end();
   }
+
+  return false;
 }
-
-
-GRANT_TABLE::~GRANT_TABLE()
-{
-  my_hash_free(&hash_columns);
-}
-
 
 /*
   Find first entry that matches the current user
@@ -850,7 +881,6 @@ bool is_acl_user(const char *host, const char *user)
 /**
   Validate if a user can proxy as another user
 
-  @thd                     current thread
   @param user              the logged in user (proxy user)
   @param authenticated_as  the effective user a plugin is trying to 
                            impersonate as (proxied user)
@@ -962,10 +992,10 @@ ulong acl_get(const char *host, const char *ip,
   acl_entry *entry;
   DBUG_ENTER("acl_get");
 
-  copy_length= (size_t) (strlen(ip ? ip : "") +
-                 strlen(user ? user : "") +
-                 strlen(db ? db : "")) + 2; /* Added 2 at the end to avoid  
-                                               buffer overflow at strmov()*/
+  copy_length= (strlen(ip ? ip : "") +
+                strlen(user ? user : "") +
+                strlen(db ? db : "")) + 2; /* Added 2 at the end to avoid
+                                              buffer overflow at strmov()*/
   /*
     Make sure that my_stpcpy() operations do not result in buffer overflow.
   */
@@ -1014,7 +1044,9 @@ ulong acl_get(const char *host, const char *ip,
 exit:
   /* Save entry in cache for quick retrieval */
   if (!db_is_pattern &&
-      (entry= (acl_entry*) malloc(sizeof(acl_entry)+key_length)))
+      (entry= (acl_entry*) my_malloc(key_memory_acl_cache,
+                                     sizeof(acl_entry)+key_length,
+                                     MYF(0))))
   {
     entry->access=(db_access & host_access);
     entry->length=key_length;
@@ -1026,21 +1058,6 @@ exit:
   DBUG_RETURN(db_access & host_access);
 }
 
-
-/**
-  Check if the user is allowed to change password
-
- @param thd THD
- @param host Hostname for the user
- @param user User name
- @param new_password new password
-
- new_password cannot be NULL
-
- @return Error status
-   @retval 0 OK
-   @retval 1 ERROR; In this case the error is sent to the client.
-*/
 
 /*
   Check if there are any possible matching entries for this host
@@ -1059,10 +1076,13 @@ static void init_check_host(void)
     acl_wild_hosts=
       new Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE>(key_memory_acl_mem);
 
+  size_t acl_users_size= acl_users ? acl_users->size() : 0;
+
   (void) my_hash_init(&acl_check_hosts,system_charset_info,
-                      acl_users->size(), 0, 0,
-                      (my_hash_get_key) check_get_key, 0, 0);
-  if (!allow_all_hosts)
+                      acl_users_size, 0, 0,
+                      (my_hash_get_key) check_get_key, 0, 0,
+                      key_memory_acl_mem);
+  if (acl_users_size && !allow_all_hosts)
   {
     for (ACL_USER *acl_user= acl_users->begin();
          acl_user != acl_users->end(); ++acl_user)
@@ -1246,7 +1266,7 @@ public:
     @retval true Hash is of wrong length or format
 */
 
-bool set_user_salt(ACL_USER *acl_user)
+static bool set_user_salt(ACL_USER *acl_user)
 {
   bool result= false;
   plugin_ref plugin= NULL;
@@ -1351,9 +1371,10 @@ my_bool acl_init(bool dont_read_acl_tables)
   my_bool return_val;
   DBUG_ENTER("acl_init");
 
-  acl_cache= new hash_filo(ACL_CACHE_SIZE, 0, 0,
+  acl_cache= new hash_filo(key_memory_acl_cache,
+                           ACL_CACHE_SIZE, 0, 0,
                            (my_hash_get_key) acl_entry_get_key,
-                           (my_hash_free_key) free,
+                           (my_hash_free_key) my_free,
                            &my_charset_utf8_bin);
 
   LOCK_grant.init(LOCK_GRANT_PARTITIONS
@@ -1384,12 +1405,24 @@ my_bool acl_init(bool dont_read_acl_tables)
     DBUG_RETURN(1); /* purecov: inspected */
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
+
+  /*
+    Check storage engine type for every ACL table and output warning
+    message in case it's different from supported one (InnoDB). We
+    still allow server to start-up if tables are in different SE
+    since this is necessary to be able to perform privilege table
+    upgrade without extra server restarts. Account management
+    statements do their own checks and refuse to operate if privilege
+    tables are using unsupported SE.
+  */
+  return_val= check_engine_type_for_acl_table(thd);
+
   /*
     It is safe to call acl_reload() since acl_* arrays and hashes which
     will be freed there are global static objects and thus are initialized
     by zeros at startup.
   */
-  return_val= acl_reload(thd);
+  return_val|= acl_reload(thd);
 
   thd->release_resources();
   delete thd;
@@ -1453,7 +1486,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   is_old_db_layout= user_table_schema_factory.is_old_user_table_schema(table);
 
   allow_all_hosts=0;
-  while (!(read_record_info.read_record(&read_record_info)))
+  int read_rec_errcode;
+  while (!(read_rec_errcode= read_record_info.read_record(&read_record_info)))
   {
     password_expired= false;
     /* Reading record from mysql.user */
@@ -1484,7 +1518,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                         "ignored in --skip-name-resolve mode.",
                         user.user ? user.user : "",
                         user.host.get_host() ? user.host.get_host() : "");
-      continue;
     }
 
     /* Read password from authentication_string field */
@@ -1496,6 +1529,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     {
       sql_print_error("Fatal error: mysql.user table is damaged. "
                       "Please run mysql_upgrade.");
+
+      end_read_record(&read_record_info);
       goto end;
     }
     if(user.auth_string.str)
@@ -1691,7 +1726,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
         if (plugin)
         {
           st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
-          if (auth->validate_authentication_string((char*)user.auth_string.str,
+          if (auth->validate_authentication_string(user.auth_string.str,
                                                    user.auth_string.length))
           {
             sql_print_warning("Found invalid password for user: '%s@%s'; "
@@ -1797,9 +1832,12 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
         allow_all_hosts=1;                      // Anyone can connect
     }
   } // END while reading records from the mysql.user table
-  
-  std::sort(acl_users->begin(), acl_users->end(), ACL_compare());
+
   end_read_record(&read_record_info);
+  if (read_rec_errcode > 0)
+    goto end;
+
+  std::sort(acl_users->begin(), acl_users->end(), ACL_compare());
   acl_users->shrink_to_fit();
 
   if (super_users_with_empty_plugin)
@@ -1829,7 +1867,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   table->use_all_columns();
   acl_dbs->clear();
 
-  while (!(read_record_info.read_record(&read_record_info)))
+  while (!(read_rec_errcode= read_record_info.read_record(&read_record_info)))
   {
     /* Reading record in mysql.db */
     ACL_DB db;
@@ -1849,7 +1887,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                         db.db,
                         db.user ? db.user : "",
                         db.host.get_host() ? db.host.get_host() : "");
-      continue;
     }
     db.access=get_access(table,3,0);
     db.access=fix_rights_for_db(db.access);
@@ -1880,9 +1917,12 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     }
     acl_dbs->push_back(db);
   } // END reading records from mysql.db tables
-  
-  std::sort(acl_dbs->begin(), acl_dbs->end(), ACL_compare());
+
   end_read_record(&read_record_info);
+  if (read_rec_errcode > 0)
+    goto end;
+
+  std::sort(acl_dbs->begin(), acl_dbs->end(), ACL_compare());
   acl_dbs->shrink_to_fit();
 
   /* Prepare to read records from the mysql.proxies_priv table */
@@ -1894,7 +1934,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                          NULL, 1, 1, FALSE))
       goto end;
     table->use_all_columns();
-    while (!(read_record_info.read_record(&read_record_info)))
+    while (!(read_rec_errcode= read_record_info.read_record(&read_record_info)))
     {
       /* Reading record in mysql.proxies_priv */
       ACL_PROXY_USER proxy;
@@ -1908,8 +1948,11 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
       }
     } // END reading records from the mysql.proxies_priv table
 
-    std::sort(acl_proxy_users->begin(), acl_proxy_users->end(), ACL_compare());
     end_read_record(&read_record_info);
+    if (read_rec_errcode > 0)
+      goto end;
+
+    std::sort(acl_proxy_users->begin(), acl_proxy_users->end(), ACL_compare());
   }
   else
   {
@@ -1962,6 +2005,74 @@ void acl_free(bool end)
 }
 
 
+bool check_engine_type_for_acl_table(THD *thd)
+{
+  TABLE_LIST tables[6];
+
+  /*
+    Open the following ACL tables to check their consistency.
+    Although we don't read here from the tables being opened we still
+    request a lock type MDL_SHARED_READ_ONLY for the sake of consistency
+    with other code.
+  */
+
+  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("user"),
+                           "user", TL_READ, MDL_SHARED_READ_ONLY);
+
+  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("db"),
+                           "db", TL_READ, MDL_SHARED_READ_ONLY);
+
+  tables[2].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("proxies_priv"),
+                           "proxies_priv", TL_READ, MDL_SHARED_READ_ONLY);
+
+  tables[3].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("tables_priv"),
+                           "tables_priv", TL_READ, MDL_SHARED_READ_ONLY);
+
+  tables[4].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("columns_priv"),
+                           "columns_priv", TL_READ, MDL_SHARED_READ_ONLY);
+
+  tables[5].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("procs_priv"),
+                           "procs_priv", TL_READ, MDL_SHARED_READ_ONLY);
+
+  tables[0].next_local= tables[0].next_global= tables + 1;
+  tables[1].next_local= tables[1].next_global= tables + 2;
+  tables[2].next_local= tables[2].next_global= tables + 3;
+  tables[3].next_local= tables[3].next_global= tables + 4;
+  tables[4].next_local= tables[4].next_global= tables + 5;
+  tables[0].open_type= tables[1].open_type= tables[2].open_type= OT_BASE_ONLY;
+  tables[3].open_type= tables[4].open_type= tables[5].open_type= OT_BASE_ONLY;
+
+  bool result= open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT);
+  if (!result)
+  {
+    check_acl_tables(tables, false);
+    close_acl_tables(thd);
+  }
+
+  return result;
+}
+
+
+/**
+  Small helper function which allows to determine if error which caused
+  failure to open and lock privilege tables should not be reported to error
+  log (because this is expected or temporary condition).
+*/
+
+static bool is_expected_or_transient_error(THD *thd)
+{
+  return ! thd->get_stmt_da()->is_error() || // Interrupted/no error condition.
+         thd->get_stmt_da()->mysql_errno() == ER_TABLE_NOT_LOCKED ||
+         thd->get_stmt_da()->mysql_errno() == ER_LOCK_DEADLOCK;
+}
+
+
 /*
   Forget current user/db-level privileges and read new privileges
   from the privilege tables.
@@ -1995,24 +2106,37 @@ my_bool acl_reload(THD *thd)
     obtaining acl_cache->lock mutex.
   */
   tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("user"), "user", TL_READ);
+                           C_STRING_WITH_LEN("user"),
+                           "user", TL_READ, MDL_SHARED_READ_ONLY);
+  /*
+    For a TABLE_LIST element that is inited with a lock type TL_READ
+    the type MDL_SHARED_READ_ONLY of MDL is requested for.
+    Acquiring strong MDL lock allows to avoid deadlock and timeout errors
+    from SE level.
+  */
   tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("db"), "db", TL_READ);
+                           C_STRING_WITH_LEN("db"),
+                           "db", TL_READ, MDL_SHARED_READ_ONLY);
+
   tables[2].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("proxies_priv"), 
-                           "proxies_priv", TL_READ);
+                           C_STRING_WITH_LEN("proxies_priv"),
+                           "proxies_priv", TL_READ, MDL_SHARED_READ_ONLY);
+
   tables[0].next_local= tables[0].next_global= tables + 1;
   tables[1].next_local= tables[1].next_global= tables + 2;
+
   tables[0].open_type= tables[1].open_type= tables[2].open_type= OT_BASE_ONLY;
-  tables[2].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
 
   if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     /*
       Execution might have been interrupted; only print the error message
-      if a user error condition has been raised.
+      if a user error condition has been raised. Also do not print expected/
+      transient errors about tables not being locked (occurs when user does
+      FLUSH PRIVILEGES under LOCK TABLES) and MDL deadlocks. These errors
+      can't occurr at start-up and will be reported to user anyway.
     */
-    if (thd->get_stmt_da()->is_error())
+    if (! is_expected_or_transient_error(thd))
     {
       sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
                       thd->get_stmt_da()->message_text());
@@ -2064,6 +2188,8 @@ my_bool acl_reload(THD *thd)
     mysql_mutex_unlock(&acl_cache->lock);
 
   close_acl_tables(thd);
+
+  DEBUG_SYNC(thd, "after_acl_reload");
   DBUG_RETURN(return_val);
 }
 
@@ -2078,7 +2204,7 @@ void acl_insert_proxy_user(ACL_PROXY_USER *new_value)
 }
 
 
-void free_grant_table(GRANT_TABLE *grant_table)
+static void free_grant_table(GRANT_TABLE *grant_table)
 {
   my_hash_free(&grant_table->hash_columns);
 }
@@ -2144,16 +2270,22 @@ void  grant_free(void)
   @brief Initialize structures responsible for table/column-level privilege
    checking and load information for them from tables in the 'mysql' database.
 
+  @param skip_grant_tables  true if the command line option
+    --skip-grant-tables is specified, else false.
+
   @return Error status
-    @retval 0 OK
-    @retval 1 Could not initialize grant subsystem.
+    @retval false OK
+    @retval true  Could not initialize grant subsystem.
 */
 
-my_bool grant_init()
+bool grant_init(bool skip_grant_tables)
 {
   THD  *thd;
   my_bool return_val;
   DBUG_ENTER("grant_init");
+
+  if (skip_grant_tables)
+    DBUG_RETURN(false);
 
   if (!(thd= new THD))
     DBUG_RETURN(1);                             /* purecov: deadcode */
@@ -2161,6 +2293,10 @@ my_bool grant_init()
   thd->store_globals();
 
   return_val=  grant_reload(thd);
+
+  if (return_val && thd->get_stmt_da()->is_error())
+    sql_print_error("Fatal: can't initialize grant subsystem - '%s'",
+                    thd->get_stmt_da()->message_text());
 
   thd->release_resources();
   delete thd;
@@ -2174,7 +2310,7 @@ my_bool grant_init()
 
   Reads the procs_priv table into memory hash.
 
-  @param table A pointer to the procs_priv table structure.
+  @param p_table A pointer to the procs_priv table structure.
 
   @see grant_reload
   @see grant_reload_procs_priv
@@ -2188,20 +2324,39 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
 {
   MEM_ROOT *memex_ptr;
   my_bool return_val= 1;
+  int error;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
   MEM_ROOT **save_mem_root_ptr= my_thread_get_THR_MALLOC();
   DBUG_ENTER("grant_load_procs_priv");
   (void) my_hash_init(&proc_priv_hash, &my_charset_utf8_bin,
                       0,0,0, (my_hash_get_key) get_grant_table,
-                      0,0);
+                      0, 0, key_memory_acl_memex);
   (void) my_hash_init(&func_priv_hash, &my_charset_utf8_bin,
                       0,0,0, (my_hash_get_key) get_grant_table,
-                      0,0);
-  if (p_table->file->ha_index_init(0, 1))
-    DBUG_RETURN(TRUE);
+                      0, 0, key_memory_acl_memex);
+  error= p_table->file->ha_index_init(0, 1);
+  DBUG_EXECUTE_IF("wl7158_grant_load_proc_1",
+                  p_table->file->ha_index_end();
+                  error= HA_ERR_LOCK_DEADLOCK;);
+  if (error)
+  {
+    acl_print_ha_error(error);
+    DBUG_RETURN(true);
+  }
   p_table->use_all_columns();
 
-  if (!p_table->file->ha_index_first(p_table->record[0]))
+  error= p_table->file->ha_index_first(p_table->record[0]);
+  DBUG_EXECUTE_IF("wl7158_grant_load_proc_2",
+                  error= HA_ERR_LOCK_DEADLOCK;);
+
+  if (error)
+  {
+    if (error == HA_ERR_END_OF_FILE)
+      return_val= 0; // Return Ok.
+    else
+      acl_print_ha_error(error);
+  }
+  else
   {
     memex_ptr= &memex;
     my_thread_set_THR_MALLOC(&memex_ptr);
@@ -2224,7 +2379,6 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
                             mem_check->tname, mem_check->user,
                             mem_check->host.get_host() ?
                             mem_check->host.get_host() : "");
-          continue;
         }
       }
       if (p_table->field[4]->val_int() == SP_TYPE_PROCEDURE)
@@ -2252,11 +2406,20 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
         delete mem_check;
         goto end_unlock;
       }
+      error= p_table->file->ha_index_next(p_table->record[0]);
+      DBUG_EXECUTE_IF("wl7158_grant_load_proc_3",
+                      error= HA_ERR_LOCK_DEADLOCK;);
+      if (error)
+      {
+        if (error == HA_ERR_END_OF_FILE)
+          return_val= 0;
+        else
+          acl_print_ha_error(error);
+        goto end_unlock;
+      }
     }
-    while (!p_table->file->ha_index_next(p_table->record[0]));
+    while (true);
   }
-  /* Return ok */
-  return_val= 0;
 
 end_unlock:
   p_table->file->ha_index_end();
@@ -2284,6 +2447,7 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
 {
   MEM_ROOT *memex_ptr;
   my_bool return_val= 1;
+  int error;
   TABLE *t_table= 0, *c_table= 0;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
   MEM_ROOT **save_mem_root_ptr= my_thread_get_THR_MALLOC();
@@ -2294,25 +2458,51 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
 
   (void) my_hash_init(&column_priv_hash, &my_charset_utf8_bin,
                       0,0,0, (my_hash_get_key) get_grant_table,
-                      (my_hash_free_key) free_grant_table,0);
+                      (my_hash_free_key) free_grant_table,0,
+                      key_memory_acl_memex);
 
   t_table = tables[0].table;
   c_table = tables[1].table;
-  if (t_table->file->ha_index_init(0, 1))
+  error= t_table->file->ha_index_init(0, 1);
+  DBUG_EXECUTE_IF("wl7158_grant_load_1",
+                  t_table->file->ha_index_end();
+                  error= HA_ERR_LOCK_DEADLOCK;);
+  if (error)
+  {
+    acl_print_ha_error(error);
     goto end_index_init;
+  }
   t_table->use_all_columns();
   c_table->use_all_columns();
 
-  if (!t_table->file->ha_index_first(t_table->record[0]))
+  error= t_table->file->ha_index_first(t_table->record[0]);
+  DBUG_EXECUTE_IF("wl7158_grant_load_2",
+                  error= HA_ERR_LOCK_DEADLOCK;);
+  if (error)
+  {
+    if (error == HA_ERR_END_OF_FILE)
+      return_val= 0; // Return Ok.
+    else
+      acl_print_ha_error(error);
+  }
+  else
   {
     memex_ptr= &memex;
     my_thread_set_THR_MALLOC(&memex_ptr);
     do
     {
       GRANT_TABLE *mem_check;
-      if (!(mem_check=new (memex_ptr) GRANT_TABLE(t_table,c_table)))
+      mem_check= new (memex_ptr) GRANT_TABLE(t_table);
+
+      if (!mem_check)
       {
         /* This could only happen if we are out memory */
+        goto end_unlock;
+      }
+
+      if (mem_check->init(c_table))
+      {
+        delete mem_check;
         goto end_unlock;
       }
 
@@ -2326,7 +2516,6 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
                             mem_check->user ? mem_check->user : "",
                             mem_check->host.get_host() ?
                             mem_check->host.get_host() : "");
-          continue;
         }
       }
 
@@ -2337,11 +2526,21 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
         delete mem_check;
         goto end_unlock;
       }
-    }
-    while (!t_table->file->ha_index_next(t_table->record[0]));
-  }
+      error= t_table->file->ha_index_next(t_table->record[0]);
+      DBUG_EXECUTE_IF("wl7158_grant_load_3",
+                      error= HA_ERR_LOCK_DEADLOCK;);
+      if (error)
+      {
+        if (error != HA_ERR_END_OF_FILE)
+          acl_print_ha_error(error);
+        else
+          return_val= 0;
+        goto end_unlock;
+      }
 
-  return_val=0;                                 // Return ok
+    }
+    while (true);
+  }
 
 end_unlock:
   t_table->file->ha_index_end();
@@ -2422,40 +2621,23 @@ my_bool grant_reload(THD *thd)
   if (!initialized)
     DBUG_RETURN(0);
 
+  /*
+    Acquiring strong MDL lock allows to avoid deadlock and timeout errors
+    from SE level.
+  */
   tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
                            C_STRING_WITH_LEN("tables_priv"),
-                           "tables_priv", TL_READ);
+                           "tables_priv", TL_READ, MDL_SHARED_READ_ONLY);
   tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
                            C_STRING_WITH_LEN("columns_priv"),
-                           "columns_priv", TL_READ);
+                           "columns_priv", TL_READ, MDL_SHARED_READ_ONLY);
   tables[2].init_one_table(C_STRING_WITH_LEN("mysql"),
                            C_STRING_WITH_LEN("procs_priv"),
-                           "procs_priv", TL_READ);
+                           "procs_priv", TL_READ, MDL_SHARED_READ_ONLY);
 
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[1].next_local= tables[1].next_global= tables+2;
   tables[0].open_type= tables[1].open_type= tables[2].open_type= OT_BASE_ONLY;
-
-  /*
-    Reload will work in the following manner:-
-
-                             proc_priv_hash structure
-                              /                     \
-                    not initialized                 initialized
-                   /               \                     |
-    mysql.procs_priv table        Server Startup         |
-        is missing                      \                |
-             |                         open_and_lock_tables()
-    Assume we are working on           /success             \failure
-    pre 4.1 system tables.        Normal Scenario.          An error is thrown.
-    A warning is printed          Reload column privilege.  Retain the old hash.
-    and continue with             Reload function and
-    reloading the column          procedure privileges,
-    privileges.                   if available.
-  */
-
-  if (!(my_hash_inited(&proc_priv_hash)))
-    tables[2].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
 
   /*
     To avoid deadlocks we should obtain table locks before
@@ -2463,21 +2645,12 @@ my_bool grant_reload(THD *thd)
   */
   if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
-    if (thd->get_stmt_da()->is_error())
+    if (! is_expected_or_transient_error(thd))
     {
       sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
                       thd->get_stmt_da()->message_text());
     }
     goto end;
-  }
-
-  if (tables[2].table == NULL)
-  {
-    sql_print_warning("Table 'mysql.procs_priv' does not exist. "
-                      "Please run mysql_upgrade.");
-    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NO_SUCH_TABLE,
-                        ER_THD(thd, ER_NO_SUCH_TABLE), tables[2].db,
-                        tables[2].table_name);
   }
 
   LOCK_grant.wrlock();
@@ -2496,8 +2669,7 @@ my_bool grant_reload(THD *thd)
     pre 4.1 privilage tables
   */
   if ((return_val= (grant_load(thd, tables) ||
-                    (tables[2].table != NULL &&
-                     grant_reload_procs_priv(thd, &tables[2])))
+                    grant_reload_procs_priv(thd, &tables[2]))
      ))
   {                                             // Error. Revert to old hash
     DBUG_PRINT("error",("Reverting to old privileges"));

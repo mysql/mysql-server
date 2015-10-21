@@ -39,7 +39,8 @@ int hp_close(HP_INFO *info)
 #ifndef DBUG_OFF
   if (info->s->changed && heap_check_heap(info,0))
   {
-    error=my_errno=HA_ERR_CRASHED;
+    error= HA_ERR_CRASHED;
+    set_my_errno(error);
   }
 #endif
   info->s->changed=0;

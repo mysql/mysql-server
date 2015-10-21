@@ -228,7 +228,7 @@ pre_init_event_thread(THD* thd)
 extern "C" void *event_scheduler_thread(void *arg)
 {
   /* needs to be first for thread_stack */
-  THD *thd= (THD *) ((struct scheduler_param *) arg)->thd;
+  THD *thd= ((struct scheduler_param *) arg)->thd;
   Event_scheduler *scheduler= ((struct scheduler_param *) arg)->scheduler;
   bool res;
 
@@ -239,6 +239,8 @@ extern "C" void *event_scheduler_thread(void *arg)
   res= post_init_event_thread(thd);
 
   DBUG_ENTER("event_scheduler_thread");
+  my_claim(arg);
+  thd->claim_memory_ownership();
   my_free(arg);
   if (!res)
     scheduler->run(thd);
@@ -272,7 +274,11 @@ extern "C" void *event_worker_thread(void *arg)
   THD *thd;
   Event_queue_element_for_exec *event= (Event_queue_element_for_exec *)arg;
 
+  event->claim_memory_ownership();
+
   thd= event->thd;
+
+  thd->claim_memory_ownership();
 
   mysql_thread_set_psi_id(thd->thread_id());
 

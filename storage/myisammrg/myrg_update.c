@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,10 @@
 int myrg_update(MYRG_INFO *info,const uchar *oldrec, uchar *newrec)
 {
   if (!info->current_table)
-    return (my_errno=HA_ERR_NO_ACTIVE_RECORD);
+  {
+    set_my_errno(HA_ERR_NO_ACTIVE_RECORD);
+    return HA_ERR_NO_ACTIVE_RECORD;
+  }
 
   return mi_update(info->current_table->table,oldrec,newrec);
 }

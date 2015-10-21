@@ -568,3 +568,117 @@ set @@global.concurrent_insert= @old_concurrent_insert;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
+
+
+--echo #
+--echo # WL#2284: Increase the length of a user name
+--echo #
+
+CREATE DATABASE test1;
+CREATE TABLE test1.t1 (
+  int_field INTEGER UNSIGNED NOT NULL,
+  char_field CHAR(10),
+  INDEX(`int_field`)
+);
+
+CREATE USER user_name_len_16@localhost;
+CREATE USER user_name_len_22_01234@localhost;
+CREATE USER user_name_len_32_012345678901234@localhost;
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user_name_len_16@localhost;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user_name_len_22_01234@localhost;
+
+--echo # Check that user_name_len16 has no SELECT permission ON t1
+connect (con_user_16,localhost,user_name_len_16,,test);
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM test1.t1;
+
+--echo # Check that user_name_len_22_01234 has no SELECT permission ON t1
+connect (con_user_22,localhost,user_name_len_22_01234,,test);
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM test1.t1;
+
+connection default;
+GRANT SELECT ON test1.t1 TO user_name_len_22_01234@localhost;
+
+--echo # Check that user_name_len_22_01234 has *now* SELECT permission ON t1
+connection con_user_22;
+SELECT * FROM test1.t1;
+
+connection default;
+
+CREATE DEFINER=user_name_len_22_01234@localhost PROCEDURE test1.p1_len22()
+  SELECT * FROM test1.t1;
+
+GRANT EXECUTE ON PROCEDURE test1.p1_len22 TO user_name_len_22_01234@localhost;
+GRANT EXECUTE ON PROCEDURE test1.p1_len22 TO user_name_len_16@localhost;
+
+--echo # Now user_name_len_16 should be able to SELECT FROM t1 by calling
+--echo # p1_len22 procedure
+
+connection con_user_16;
+CALL test1.p1_len22();
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=user_name_len_33_0123456789012345@localhost PROCEDURE test1.p1_len33()
+  SELECT * FROM test1.t1;
+
+connection default;
+
+--echo # REVOKE the SELECT permission from user_name_len_22_01234
+REVOKE SELECT ON test1.t1 FROM user_name_len_22_01234@localhost;
+
+--echo # and GRANT it to user_name_len_32_012345678901234
+GRANT SELECT ON test1.t1 TO user_name_len_32_012345678901234@localhost;
+
+CREATE DEFINER = user_name_len_32_012345678901234@localhost FUNCTION test1.f1_len32() RETURNS INT
+ RETURN (SELECT COUNT(*) FROM test1.t1);
+
+GRANT EXECUTE ON FUNCTION test1.f1_len32 TO user_name_len_32_012345678901234@localhost;
+GRANT EXECUTE ON FUNCTION test1.f1_len32 TO user_name_len_22_01234@localhost;
+
+GRANT SELECT ON test1.t1 TO user_name_len_22_01234@localhost;
+--echo # Now user_name_len_22_01234 should be able to SELECT COUNT(*) FROM t1
+--echo # by calling f1_len32 function
+connection con_user_22;
+SELECT test1.f1_len32();
+
+connection default;
+
+--echo # Recreate test1.p1_len22, this time with Security Context set to INVOKER
+DROP PROCEDURE test1.p1_len22;
+--echo # Make sure user_name_len_22_01234 has SELECT privileges on test.t1
+connection con_user_22;
+SELECT * FROM test1.t1;
+connection default;
+
+CREATE DEFINER=user_name_len_22_01234@localhost PROCEDURE test1.p1_len22()
+SQL SECURITY INVOKER
+  SELECT * FROM test1.t1;
+
+GRANT EXECUTE ON PROCEDURE test1.p1_len22 TO user_name_len_22_01234@localhost;
+GRANT EXECUTE ON PROCEDURE test1.p1_len22 TO user_name_len_16@localhost;
+
+--echo # Now user_name_len_16 should *NOT* be able to SELECT COUNT(*) FROM t1
+--echo # by calling f1_len22 function as this function is using the INVOKER
+--echo # security context
+
+connection con_user_16;
+--error ER_TABLEACCESS_DENIED_ERROR
+CALL test1.p1_len22();
+
+connection default;
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=user_name_len_33_0123456789012345@localhost FUNCTION test1.f1_len33() RETURNS INT
+  RETURN (SELECT COUNT(*) FROM test1.t1);
+
+# Cleanup
+disconnect con_user_16;
+disconnect con_user_22;
+
+DROP DATABASE test1;
+
+DROP USER user_name_len_16@localhost;
+DROP USER user_name_len_22_01234@localhost;
+DROP USER user_name_len_32_012345678901234@localhost;
+

@@ -41,7 +41,6 @@ Created 2011/04/18 Sunny Bains
 #include <mysql/service_thd_wait.h>
 
 #include "srv0srv.h"
-#include "sync0mutex.h"
 #include "trx0trx.h"
 #include "row0mysql.h"
 #include "dict0dict.h"
@@ -247,11 +246,13 @@ srv_conc_enter_innodb(
 {
 	trx_t*	trx	= prebuilt->trx;
 
+#ifdef UNIV_DEBUG
 	{
 		btrsea_sync_check	check(trx->has_search_latch);
 
 		ut_ad(!sync_check_iterate(check));
 	}
+#endif /* UNIV_DEBUG */
 
 	srv_conc_enter_innodb_with_atomics(trx);
 }
@@ -265,11 +266,13 @@ srv_conc_force_enter_innodb(
 	trx_t*	trx)	/*!< in: transaction object associated with the
 			thread */
 {
+#ifdef UNIV_DEBUG
 	{
 		btrsea_sync_check	check(trx->has_search_latch);
 
 		ut_ad(!sync_check_iterate(check));
 	}
+#endif /* UNIV_DEBUG */
 
 	if (!srv_thread_concurrency) {
 
@@ -302,11 +305,13 @@ srv_conc_force_exit_innodb(
 
 	srv_conc_exit_innodb_with_atomics(trx);
 
+#ifdef UNIV_DEBUG
 	{
 		btrsea_sync_check	check(trx->has_search_latch);
 
 		ut_ad(!sync_check_iterate(check));
 	}
+#endif /* UNIV_DEBUG */
 }
 
 /*********************************************************************//**

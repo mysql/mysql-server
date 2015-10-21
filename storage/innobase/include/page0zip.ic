@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -102,28 +102,6 @@ In summary, the compressed page looks like this:
 */
 
 /**********************************************************************//**
-Determine the size of a compressed page in bytes.
-@return size in bytes */
-UNIV_INLINE
-ulint
-page_zip_get_size(
-/*==============*/
-	const page_zip_des_t*	page_zip)	/*!< in: compressed page */
-{
-	ulint	size;
-
-	if (!page_zip->ssize) {
-		return(0);
-	}
-
-	size = (UNIV_ZIP_SIZE_MIN >> 1) << page_zip->ssize;
-
-	ut_ad(size >= UNIV_ZIP_SIZE_MIN);
-	ut_ad(size <= UNIV_PAGE_SIZE);
-
-	return(size);
-}
-/**********************************************************************//**
 Set the size of a compressed page in bytes. */
 UNIV_INLINE
 void
@@ -189,29 +167,6 @@ page_zip_rec_needs_ext(
 	return(rec_size >= page_get_free_space_of_empty(comp) / 2);
 }
 #endif /* !UNIV_HOTBACKUP */
-
-#ifdef UNIV_DEBUG
-/**********************************************************************//**
-Validate a compressed page descriptor.
-@return TRUE if ok */
-UNIV_INLINE
-ibool
-page_zip_simple_validate(
-/*=====================*/
-	const page_zip_des_t*	page_zip)/*!< in: compressed page descriptor */
-{
-	ut_ad(page_zip);
-	ut_ad(page_zip->data);
-	ut_ad(page_zip->ssize <= PAGE_ZIP_SSIZE_MAX);
-	ut_ad(page_zip_get_size(page_zip)
-	      > PAGE_DATA + PAGE_ZIP_DIR_SLOT_SIZE);
-	ut_ad(page_zip->m_start <= page_zip->m_end);
-	ut_ad(page_zip->m_end < page_zip_get_size(page_zip));
-	ut_ad(page_zip->n_blobs
-	      < page_zip_get_size(page_zip) / BTR_EXTERN_FIELD_REF_SIZE);
-	return(TRUE);
-}
-#endif /* UNIV_DEBUG */
 
 /**********************************************************************//**
 Determine if the length of the page trailer.
@@ -438,6 +393,80 @@ page_zip_reset_stat_per_index()
 		page_zip_stat_per_index.end());
 
 	mutex_exit(&page_zip_stat_per_index_mutex);
+}
+
+/*************************************************************//**
+Find the slot of the given record in the dense page directory.
+@return dense directory slot, or NULL if record not found */
+UNIV_INLINE
+byte*
+page_zip_dir_find_low(
+/*==================*/
+	byte*	slot,			/*!< in: start of records */
+	byte*	end,			/*!< in: end of records */
+	ulint	offset)			/*!< in: offset of user record */
+{
+	ut_ad(slot <= end);
+
+	for (; slot < end; slot += PAGE_ZIP_DIR_SLOT_SIZE) {
+		if ((mach_read_from_2(slot) & PAGE_ZIP_DIR_SLOT_MASK)
+		    == offset) {
+			return(slot);
+		}
+	}
+
+	return(NULL);
+}
+
+/*************************************************************//**
+Gets the size of the compressed page trailer (the dense page directory),
+only including user records (excluding the free list).
+@return length of dense page directory comprising existing records, in bytes */
+UNIV_INLINE
+ulint
+page_zip_dir_user_size(
+/*===================*/
+	const page_zip_des_t*	page_zip)	/*!< in: compressed page */
+{
+	ulint	size = PAGE_ZIP_DIR_SLOT_SIZE
+		* page_get_n_recs(page_zip->data);
+	ut_ad(size <= page_zip_dir_size(page_zip));
+	return(size);
+}
+
+/*************************************************************//**
+Find the slot of the given free record in the dense page directory.
+@return dense directory slot, or NULL if record not found */
+UNIV_INLINE
+byte*
+page_zip_dir_find_free(
+/*===================*/
+	page_zip_des_t*	page_zip,		/*!< in: compressed page */
+	ulint		offset)			/*!< in: offset of user record */
+{
+	byte*	end	= page_zip->data + page_zip_get_size(page_zip);
+
+	ut_ad(page_zip_simple_validate(page_zip));
+
+	return(page_zip_dir_find_low(end - page_zip_dir_size(page_zip),
+				     end - page_zip_dir_user_size(page_zip),
+				     offset));
+}
+
+/*************************************************************//**
+Gets an offset to the compressed page trailer (the dense page directory),
+including deleted records (the free list).
+@return offset of the dense page directory */
+UNIV_INLINE
+ulint
+page_zip_dir_start_offs(
+/*====================*/
+	const page_zip_des_t*	page_zip,	/*!< in: compressed page */
+	ulint			n_dense)	/*!< in: directory size */
+{
+	ut_ad(n_dense * PAGE_ZIP_DIR_SLOT_SIZE < page_zip_get_size(page_zip));
+
+	return(page_zip_get_size(page_zip) - n_dense * PAGE_ZIP_DIR_SLOT_SIZE);
 }
 
 #ifdef UNIV_MATERIALIZE

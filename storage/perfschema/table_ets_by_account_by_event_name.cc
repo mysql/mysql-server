@@ -11,7 +11,7 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  Foundation, Inc., 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file storage/perfschema/table_ets_by_account_by_event_name.cc
@@ -35,7 +35,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 {
   {
     { C_STRING_WITH_LEN("USER") },
-    { C_STRING_WITH_LEN("char(16)") },
+    { C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")") },
     { NULL, 0}
   },
   {
@@ -141,7 +141,8 @@ table_ets_by_account_by_event_name::m_share=
   sizeof(pos_ets_by_account_by_event_name),
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 PFS_engine_table*

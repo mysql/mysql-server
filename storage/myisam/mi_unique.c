@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ my_bool mi_check_unique(MI_INFO *info, MI_UNIQUEDEF *def, uchar *record,
     if (info->lastpos != disk_pos &&
 	!(*info->s->compare_unique)(info,def,record,info->lastpos))
     {
-      my_errno=HA_ERR_FOUND_DUPP_UNIQUE;
+      set_my_errno(HA_ERR_FOUND_DUPP_UNIQUE);
       info->errkey= (int) def->key;
       info->dupp_key_pos= info->lastpos;
       info->page_changed=1;			/* Can't optimize read next */

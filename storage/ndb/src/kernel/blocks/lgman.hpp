@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,12 +68,11 @@ protected:
   void execFSREADREF(Signal*);
   void execFSREADCONF(Signal*);
 
-  void execLCP_FRAG_ORD(Signal*);
-  void execEND_LCP_REQ(Signal*);
+  void execEND_LCPREQ(Signal*);
   void execSUB_GCP_COMPLETE_REP(Signal*);
   
   void execSTART_RECREQ(Signal*);
-  void execEND_LCP_CONF(Signal*);
+  void execEND_LCPCONF(Signal*);
 
   void execGET_TABINFOREQ(Signal*);
   void execCALLBACK_ACK(Signal*);
@@ -113,6 +112,7 @@ public:
     Uint32 m_file_size;
     Uint32 m_state;
     Uint32 m_fd; // When speaking to NDBFS
+    Uint64 m_start_lsn;
     
     enum FileState 
     {
@@ -121,16 +121,21 @@ public:
       ,FS_ONLINE      = 0x4   // File is online
       ,FS_OPENING     = 0x8   // File is being opened during SR
       ,FS_SORTING     = 0x10  // Files in group are being sorted
-      ,FS_SEARCHING   = 0x20  // File is being searched for end of log
+      ,FS_SEARCHING   = 0x20  // File is being binary searched for end of log
       ,FS_EXECUTING   = 0x40  // File is used for executing UNDO log
       ,FS_EMPTY       = 0x80  // File is empty (used when online)
       ,FS_OUTSTANDING = 0x100 // File has outstanding request
       ,FS_MOVE_NEXT   = 0x200 // When receiving reply move to next file
+      ,FS_SEARCHING_END   = 0x400  // Searched for end of log, scan
+      ,FS_SEARCHING_FINAL_READ   = 0x800 //Searched for log end, read last page
     };
     
     union {
       struct {
-	Uint32 m_outstanding; // Outstaning pages
+	Uint32 m_outstanding; // Outstanding pages
+        Uint32 m_current_scan_index;
+        Uint32 m_current_scanned_pages;
+        bool m_binary_search_end;
 	Uint64 m_lsn;         // Used when finding log head
       } m_online;
       struct {
@@ -198,8 +203,10 @@ public:
                                   Logfile_group::LG_CUT_LOG_THREAD |
                                   Logfile_group::LG_WAITERS_THREAD |
                                   Logfile_group::LG_FLUSH_THREAD;
-    
-    Uint64 m_last_lsn;
+   
+    Uint32 m_applied;
+
+    Uint64 m_next_lsn;
     Uint64 m_last_sync_req_lsn; // Outstanding
     Uint64 m_last_synced_lsn;   // 
     Uint64 m_max_sync_req_lsn;  // User requested lsn
@@ -211,6 +218,7 @@ public:
     
     Buffer_idx m_tail_pos[3]; // 0 is cut, 1 is saved, 2 is current
     Buffer_idx m_file_pos[2]; // 0 tail, 1 head = { file_ptr_i, page_no }
+    Buffer_idx m_consumer_file_pos;
     Uint64 m_free_file_words; // Free words in logfile group 
     
     Undofile_list::Head m_files;     // Files in log
@@ -278,7 +286,7 @@ private:
 
   Page_map::DataBufferPool m_data_buffer_pool;
 
-  Uint64 m_last_lsn;
+  Uint64 m_next_lsn;
   Uint32 m_latest_lcp;
   Logfile_group_list m_logfile_group_list;
   Logfile_group_hash m_logfile_group_hash;
@@ -312,6 +320,11 @@ private:
 
   void find_log_head(Signal* signal, Ptr<Logfile_group> ptr);
   void find_log_head_in_file(Signal*, Ptr<Logfile_group>,Ptr<Undofile>,Uint64);
+  void find_log_head_end_check(Signal*,
+                               Ptr<Logfile_group>,
+                               Ptr<Undofile>,
+                               Uint64);
+  void find_log_head_complete(Signal*, Ptr<Logfile_group>,Ptr<Undofile>);
 
   void init_run_undo_log(Signal*);
   void read_undo_log(Signal*, Ptr<Logfile_group> ptr);
@@ -320,6 +333,7 @@ private:
   
   void execute_undo_record(Signal*);
   const Uint32* get_next_undo_record(Uint64* lsn);
+  void update_consumer_file_pos(Ptr<Logfile_group> ptr);
   void stop_run_undo_log(Signal* signal);
   void init_tail_ptr(Signal* signal, Ptr<Logfile_group> ptr);
 

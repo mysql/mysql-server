@@ -24,6 +24,8 @@ typedef struct st_mysql_lex_string LEX_STRING;
 
 
 bool trans_check_state(THD *thd);
+void trans_reset_one_shot_chistics(THD *thd);
+void trans_track_end_trx(THD *thd);
 
 bool trans_begin(THD *thd, uint flags= 0);
 bool trans_commit(THD *thd);
@@ -33,6 +35,7 @@ bool trans_rollback_implicit(THD *thd);
 
 bool trans_commit_stmt(THD *thd);
 bool trans_rollback_stmt(THD *thd);
+bool trans_commit_attachable(THD *thd);
 
 bool trans_savepoint(THD *thd, LEX_STRING name);
 bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name);

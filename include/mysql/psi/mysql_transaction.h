@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #define MYSQL_TRANSACTION_H
 
 /**
-  @file mysql/psi/mysql_transaction.h
+  @file include/mysql/psi/mysql_transaction.h
   Instrumentation helpers for transactions.
 */
 

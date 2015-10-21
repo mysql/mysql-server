@@ -1,7 +1,7 @@
 
 ######################## t/grant_alter_user_qa.test ###################################
 # Testing CREATE/ALTER/GRANT USER new syntax and                                      #
-# new variable "log-backward-compatible-user-definitions" default value "OFF"         #
+# new variable "log-builtin-as-identified-by-password" default value "OFF"         #
 #                                                                                     #
 # Test for WL#6409                                                                    #
 # Created : 2014-12-15                                                                #
@@ -1009,39 +1009,39 @@ DROP USER user1@localhost,user2@localhost,user3@localhost,
           user4@localhost,user5@localhost,user6@localhost;
 --echo
 
---echo # Testing log_backward_compatible_user_definitions variable scope GLOBAL Dynamic
+--echo # Testing log_builtin_as_identified_by_password variable scope GLOBAL Dynamic
 
-# log_backward_compatible_user_definitions variable change dynamically
-SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
+# log_builtin_as_identified_by_password variable change dynamically
+SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
 --echo
-SET GLOBAL log_backward_compatible_user_definitions = ON;
-SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
+SET GLOBAL log_builtin_as_identified_by_password = ON;
+SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
 --echo
-SET GLOBAL log_backward_compatible_user_definitions = OFF;
-SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
---echo
---error ER_GLOBAL_VARIABLE
-SET SESSION log_backward_compatible_user_definitions = ON;
-SHOW  VARIABLES LIKE 'log_backward_compatible_user_definitions';
+SET GLOBAL log_builtin_as_identified_by_password = OFF;
+SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
 --echo
 --error ER_GLOBAL_VARIABLE
-SET @@log_backward_compatible_user_definitions = OFF;
-SHOW VARIABLES LIKE 'log_backward_compatible_user_definitions';
---echo
-SET @@global.log_backward_compatible_user_definitions = ON;
-SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
+SET SESSION log_builtin_as_identified_by_password = ON;
+SHOW  VARIABLES LIKE 'log_builtin_as_identified_by_password';
 --echo
 --error ER_GLOBAL_VARIABLE
-SET @@session.log_backward_compatible_user_definitions = ON;
+SET @@log_builtin_as_identified_by_password = OFF;
+SHOW VARIABLES LIKE 'log_builtin_as_identified_by_password';
+--echo
+SET @@global.log_builtin_as_identified_by_password = ON;
+SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
+--echo
+--error ER_GLOBAL_VARIABLE
+SET @@session.log_builtin_as_identified_by_password = ON;
 --echo # GLOBAL variable value
-SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
-SET  GLOBAL log_backward_compatible_user_definitions = OFF;
-SHOW VARIABLES LIKE 'log_backward_compatible_user_definitions';
+SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
+SET  GLOBAL log_builtin_as_identified_by_password = OFF;
+SHOW VARIABLES LIKE 'log_builtin_as_identified_by_password';
 
 --echo
---echo # Test general and binary log with log_backward_compatible_user_definitions
+--echo # Test general and binary log with log_builtin_as_identified_by_password
 
---echo # Restarting the server with log_backward_compatible_user_definitions = OFF
+--echo # Restarting the server with log_builtin_as_identified_by_password = OFF
 
 # Write file to make mysql-test-run.pl wait for the server to stop
 let $expect_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
@@ -1054,7 +1054,7 @@ let $expect_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --source include/wait_until_disconnected.inc
 
 --echo # Restart server.
---exec echo "restart:--log-backward-compatible-user-definitions=OFF --log-bin" > $expect_file
+--exec echo "restart:--log-builtin-as-identified-by-password=OFF --log-bin" > $expect_file
 
 # Turn on reconnect
 --enable_reconnect
@@ -1062,7 +1062,7 @@ let $expect_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 # Call script that will poll the server waiting for it to be back online again
 --source include/wait_until_connected_again.inc
 
-SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
+SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
 SHOW GLOBAL VARIABLES LIKE 'log_bin';
 
 # Get rid of previous tests binlog
@@ -1138,7 +1138,7 @@ SET @old_log_output=    @@global.log_output;
 SET @old_general_log=         @@global.general_log;
 SET @old_general_log_file=    @@global.general_log_file;
 
-let $general_file_off = $MYSQLTEST_VARDIR/log/log_backward_compatible_user_definitions_OFF.log;
+let $general_file_off = $MYSQLTEST_VARDIR/log/log_builtin_as_identified_by_password_OFF.log;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval SET GLOBAL general_log_file = '$general_file_off';
 SET GLOBAL log_output =       'FILE,TABLE';
@@ -1217,11 +1217,11 @@ SET GLOBAL general_log=       @old_general_log;
 SET GLOBAL log_output=        @old_log_output;
 
 --echo
---echo # Test general log with log_backward_compatible_user_definitions ON
+--echo # Test general log with log_builtin_as_identified_by_password ON
 
-SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
+SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
 
---echo # Restarting the server with log_backward_compatible_user_definitions ON
+--echo # Restarting the server with log_builtin_as_identified_by_password ON
 
 # Write file to make mysql-test-run.pl wait for the server to stop.
 --exec echo "wait" > $expect_file
@@ -1233,7 +1233,7 @@ SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
 --source include/wait_until_disconnected.inc
 
 --echo # Restart server.
---exec echo "restart:--log-backward-compatible-user-definitions=ON --log-bin" > $expect_file
+--exec echo "restart:--log-builtin-as-identified-by-password=ON --log-bin" > $expect_file
 
 # Turn on reconnect
 --enable_reconnect
@@ -1241,7 +1241,7 @@ SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
 # Call script that will poll the server waiting for it to be back online again
 --source include/wait_until_connected_again.inc
 
-SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
+SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
 SHOW GLOBAL VARIABLES LIKE 'log_bin';
 
 # Get rid of previous tests binlog
@@ -1317,7 +1317,7 @@ SET @old_log_output=    @@global.log_output;
 SET @old_general_log=         @@global.general_log;
 SET @old_general_log_file=    @@global.general_log_file;
 
-let $general_file_on = $MYSQLTEST_VARDIR/log/log_backward_compatible_user_definitions_ON.log;
+let $general_file_on = $MYSQLTEST_VARDIR/log/log_builtin_as_identified_by_password_ON.log;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval SET GLOBAL general_log_file = '$general_file_on';
 SET GLOBAL log_output =       'FILE,TABLE';
@@ -1487,3 +1487,105 @@ SELECT USER, AUTHENTICATION_STRING FROM mysql.user WHERE user like 'bug20364862_
 DROP DATABASE db1;
 DROP USER bug20364862_user@localhost;
 DROP USER bug20364862_dest@localhost;
+
+--echo
+--echo Bug #20625566 SHOW CREATE USER ALLOWS ACCESS TO OTHER USERS PASSWORD HASH
+--echo
+
+--echo # Restarting the server with log_builtin_as_identified_by_password = OFF
+
+# Write file to make mysql-test-run.pl wait for the server to stop
+let $expect_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+--exec echo "wait" > $expect_file
+
+# Request shutdown
+--send_shutdown
+
+# Call script that will poll the server waiting for it to disapear
+--source include/wait_until_disconnected.inc
+
+--echo # Restart server.
+--exec echo "restart:--log-builtin-as-identified-by-password=OFF --log-bin" > $expect_file
+
+# Turn on reconnect
+--enable_reconnect
+
+# Call script that will poll the server waiting for it to be back online again
+--source include/wait_until_connected_again.inc
+
+CREATE USER user1@localhost;
+CREATE USER user1@47.9.9.9 IDENTIFIED BY 'pass1';
+CREATE USER user2 IDENTIFIED BY 'pass2';
+
+--echo # case1 without any privileges
+--connect(con1, localhost, user1,)
+SELECT USER(), CURRENT_USER();
+SHOW CREATE USER user1@localhost;
+--error ER_DBACCESS_DENIED_ERROR
+SHOW CREATE USER user1@47.9.9.9;
+--error ER_DBACCESS_DENIED_ERROR
+SHOW CREATE USER user2;
+--error ER_DBACCESS_DENIED_ERROR
+SHOW CREATE USER invalid_user;
+disconnect con1;
+connection default;
+
+--echo # case2 with SELECT privilege on mysql db
+GRANT SELECT ON mysql.* TO user1@localhost;
+--connect(con1, localhost, user1,)
+SELECT USER(), CURRENT_USER();
+SHOW CREATE USER user1@localhost;
+SHOW CREATE USER user1@47.9.9.9;
+SHOW CREATE USER user2;
+--error ER_CANNOT_USER
+SHOW CREATE USER invalid_user;
+disconnect con1;
+connection default;
+
+--echo # case3 with all global privileges except SELECT
+GRANT ALL ON *.* TO user1@localhost;
+REVOKE SELECT ON *.* FROM user1@localhost;
+REVOKE CREATE USER ON *.* FROM user1@localhost;
+REVOKE SELECT ON mysql.* FROM user1@localhost;
+SHOW GRANTS FOR user1@localhost;
+--connect(con1, localhost, user1,)
+SELECT USER(), CURRENT_USER();
+SHOW CREATE USER user1@localhost;
+--error ER_DBACCESS_DENIED_ERROR
+SHOW CREATE USER user1@47.9.9.9;
+disconnect con1;
+connection default;
+
+--echo # case4 with irrelevant privilege on mysql db
+REVOKE ALL ON *.* FROM user1@localhost;
+SHOW GRANTS FOR user1@localhost;
+GRANT UPDATE ON mysql.* TO user1@localhost;
+SHOW GRANTS FOR user1@localhost;
+--connect(con1, localhost, user1,)
+SELECT USER(), CURRENT_USER();
+SHOW CREATE USER user1@localhost;
+--error ER_DBACCESS_DENIED_ERROR
+SHOW CREATE USER user1@47.9.9.9;
+--error ER_DBACCESS_DENIED_ERROR
+SHOW CREATE USER user2;
+--error ER_DBACCESS_DENIED_ERROR
+SHOW CREATE USER invalid_user;
+disconnect con1;
+connection default;
+
+--echo # case4 test for proxy user
+CREATE USER bug20625566_user@localhost IDENTIFIED WITH test_plugin_server
+         AS 'bug20625566_dest';
+CREATE USER bug20625566_dest@localhost IDENTIFIED BY 'dest_password';
+GRANT PROXY ON bug20625566_dest@localhost TO bug20625566_user@localhost;
+--connect(con1, localhost, bug20625566_user,bug20625566_dest)
+SELECT USER(), CURRENT_USER();
+--error ER_DBACCESS_DENIED_ERROR
+SHOW CREATE USER bug20625566_user@localhost;
+SHOW CREATE USER bug20625566_dest@localhost;
+disconnect con1;
+connection default;
+
+# cleanup
+DROP USER user1@localhost, user1@47.9.9.9, user2,
+          bug20625566_user@localhost, bug20625566_dest@localhost;

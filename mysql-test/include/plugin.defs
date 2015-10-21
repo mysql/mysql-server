@@ -43,6 +43,7 @@ ha_partition       storage/partition  PARTITION_PLUGIN  partition
 mypluglib          plugin/fulltext    SIMPLE_PARSER
 libpluginmecab     plugin/fulltext    MECAB
 adt_null           plugin/audit_null  AUDIT_NULL
+test_security_context  plugin/audit_null  TEST_SECURITY_CONTEXT  test_security_context
 libdaemon_example  plugin/daemon_example DAEMONEXAMPLE
 replication_observers_example_plugin    plugin/replication_observers_example RPL_OBS_EXAMPLE
 libmemcached       plugin/innodb_memcached/daemon_memcached DAEMON_MEMCACHED
@@ -55,3 +56,25 @@ mysql_no_login     plugin/mysql_no_login      MYSQL_NO_LOGIN    mysql_no_login
 group_replication  plugin/group_replication   GROUP_REPLICATION
 locking_service    sql                        LOCKING_SERVICE
 version_token      plugin/version_token       VERSION_TOKEN
+libtest_services   plugin/test_services TESTSERVICES
+libtest_services_threaded  plugin/test_services TESTSERVICESTHREADED
+# Test session API
+libtest_session_in_thd                  plugin/test_service_sql_api TEST_SESSION_IN_THD
+libtest_x_sessions_init                 plugin/test_service_sql_api TEST_X_SESSIONS_INIT
+libtest_x_sessions_deinit               plugin/test_service_sql_api TEST_X_SESSIONS_DEINIT
+libtest_session_detach                  plugin/test_service_sql_api TEST_SESSION_DETACH
+libtest_session_info                    plugin/test_service_sql_api TEST_SESSION_INFO
+# Test SQL API
+libtest_sql_complex                     plugin/test_service_sql_api TEST_SQL_COMPLEX
+libtest_sql_2_sessions                  plugin/test_service_sql_api TEST_SQL_2_SESSIONS
+libtest_sql_cmds_1                      plugin/test_service_sql_api TEST_SQL_CMDS_1
+libtest_sql_all_col_types               plugin/test_service_sql_api TEST_SQL_ALL_COL_TYPES
+libtest_sql_processlist                 plugin/test_service_sql_api TEST_SQL_PROCESSLIST
+libtest_sql_shutdown                    plugin/test_service_sql_api TEST_SQL_SHUTDOWN
+libtest_sql_stored_procedures_functions plugin/test_service_sql_api TEST_SQL_STORED_PROCEDURES_FUNCTIONS
+libtest_sql_views_triggers              plugin/test_service_sql_api TEST_SQL_VIEWS_TRIGGERS
+libtest_sql_commit                      plugin/test_service_sql_api TEST_SQL_COMMIT
+libtest_sql_lock                        plugin/test_service_sql_api TEST_SQL_LOCK
+libtest_sql_sqlmode                     plugin/test_service_sql_api TEST_SQL_SQLMODE
+libtest_sql_replication                 plugin/test_service_sql_api TEST_SQL_REPLICATION
+libtest_sql_errors                      plugin/test_service_sql_api TEST_SQL_ERRORS

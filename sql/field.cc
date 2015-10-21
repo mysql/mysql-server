@@ -17,10 +17,8 @@
 
 
 /**
-  @file
-
-  @brief
-  This file implements classes defined in field.h
+  @file sql/field.cc
+  This file implements classes defined in field.h.
 */
 
 #include "field.h"
@@ -30,6 +28,9 @@
 #include "derror.h"                      // ER_THD
 #include "filesort.h"                    // change_double_for_sort
 #include "item_timefunc.h"               // Item_func_now_local
+#include "json_binary.h"                 // json_binary::serialize
+#include "json_dom.h"                    // Json_dom, Json_wrapper
+#include "item_json_func.h"              // ensure_utf8mb4
 #include "log_event.h"                   // class Table_map_log_event
 #include "mysqld.h"                      // log_10
 #include "rpl_rli.h"                     // Relay_log_info
@@ -38,9 +39,12 @@
 #include "sql_join_buffer.h"             // CACHE_FIELD
 #include "sql_time.h"                    // str_to_datetime_with_warn
 #include "strfunc.h"                     // find_type2
+#include "template_utils.h"              // pointer_cast
 #include "tztime.h"                      // Time_zone
+#include "spatial.h"                     // Geometry
 
 #include <algorithm>
+#include <memory>                        // auto_ptr
 
 using std::max;
 using std::min;
@@ -70,7 +74,7 @@ const char field_separator=',';
   and index of field in thia array.
 */
 #define FIELDTYPE_TEAR_FROM (MYSQL_TYPE_BIT + 1)
-#define FIELDTYPE_TEAR_TO   (MYSQL_TYPE_NEWDECIMAL - 1)
+#define FIELDTYPE_TEAR_TO   (MYSQL_TYPE_JSON - 1)
 #define FIELDTYPE_NUM (FIELDTYPE_TEAR_FROM + (255 - FIELDTYPE_TEAR_TO))
 
 
@@ -107,6 +111,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_JSON
+    MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_NEWDECIMAL,  MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_SET          MYSQL_TYPE_TINY_BLOB
@@ -137,6 +143,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
+    MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_JSON
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_NEWDECIMAL,  MYSQL_TYPE_VARCHAR,
@@ -169,6 +177,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_JSON
+    MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_NEWDECIMAL,  MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_SET          MYSQL_TYPE_TINY_BLOB
@@ -199,6 +209,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
+    MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_JSON
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_NEWDECIMAL,  MYSQL_TYPE_VARCHAR,
@@ -231,6 +243,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_JSON
+    MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_DOUBLE,      MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_SET          MYSQL_TYPE_TINY_BLOB
@@ -261,6 +275,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
+    MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_JSON
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_DOUBLE,      MYSQL_TYPE_VARCHAR,
@@ -293,6 +309,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_NEWDATE,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_BIT,
+  //MYSQL_TYPE_JSON
+    MYSQL_TYPE_JSON,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_NEWDECIMAL,  MYSQL_TYPE_ENUM,
   //MYSQL_TYPE_SET          MYSQL_TYPE_TINY_BLOB
@@ -323,6 +341,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_DATETIME,    MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
+    MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_JSON
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
@@ -355,6 +375,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_NEWDATE,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_JSON
+    MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_NEWDECIMAL,  MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_SET          MYSQL_TYPE_TINY_BLOB
@@ -385,6 +407,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_NEWDATE,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
+    MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_JSON
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL    MYSQL_TYPE_ENUM
     MYSQL_TYPE_NEWDECIMAL,  MYSQL_TYPE_VARCHAR,
@@ -417,6 +441,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_NEWDATE,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_JSON
+    MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_SET          MYSQL_TYPE_TINY_BLOB
@@ -447,6 +473,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_NEWDATE,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
+    MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_JSON
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
@@ -479,6 +507,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_DATETIME,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_JSON
+    MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_SET          MYSQL_TYPE_TINY_BLOB
@@ -509,6 +539,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
+    MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_JSON
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_NEWDECIMAL,  MYSQL_TYPE_VARCHAR,
@@ -541,6 +573,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_NEWDATE,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_JSON
+    MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_SET          MYSQL_TYPE_TINY_BLOB
@@ -571,6 +605,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
+    MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_JSON
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
@@ -603,6 +639,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_BIT,
+  //MYSQL_TYPE_JSON
+    MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_SET          MYSQL_TYPE_TINY_BLOB
@@ -611,6 +649,39 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_LONG_BLOB,
   //MYSQL_TYPE_BLOB         MYSQL_TYPE_VAR_STRING
     MYSQL_TYPE_BLOB,        MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_STRING       MYSQL_TYPE_GEOMETRY
+    MYSQL_TYPE_STRING,      MYSQL_TYPE_VARCHAR
+  },
+  /* MYSQL_TYPE_JSON -> */
+  {
+  //MYSQL_TYPE_DECIMAL      MYSQL_TYPE_TINY
+    MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_SHORT        MYSQL_TYPE_LONG
+    MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_FLOAT        MYSQL_TYPE_DOUBLE
+    MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_NULL         MYSQL_TYPE_TIMESTAMP
+    MYSQL_TYPE_JSON,        MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_LONGLONG     MYSQL_TYPE_INT24
+    MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_DATE         MYSQL_TYPE_TIME
+    MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_DATETIME     MYSQL_TYPE_YEAR
+    MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
+    MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_BIT          <16>-<244>
+    MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_JSON
+    MYSQL_TYPE_JSON,
+  //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
+    MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_SET          MYSQL_TYPE_TINY_BLOB
+    MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_LONG_BLOB,
+  //MYSQL_TYPE_MEDIUM_BLOB  MYSQL_TYPE_LONG_BLOB
+    MYSQL_TYPE_LONG_BLOB,   MYSQL_TYPE_LONG_BLOB,
+  //MYSQL_TYPE_BLOB         MYSQL_TYPE_VAR_STRING
+    MYSQL_TYPE_LONG_BLOB,   MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_STRING       MYSQL_TYPE_GEOMETRY
     MYSQL_TYPE_STRING,      MYSQL_TYPE_VARCHAR
   },
@@ -633,6 +704,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
+    MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_JSON
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_NEWDECIMAL,  MYSQL_TYPE_VARCHAR,
@@ -665,6 +738,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_JSON
+    MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_SET          MYSQL_TYPE_TINY_BLOB
@@ -695,6 +770,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
+    MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_JSON
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
@@ -727,6 +804,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_TINY_BLOB,   MYSQL_TYPE_TINY_BLOB,
   //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_TINY_BLOB,
+  //MYSQL_TYPE_JSON
+    MYSQL_TYPE_LONG_BLOB,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_TINY_BLOB,   MYSQL_TYPE_TINY_BLOB,
   //MYSQL_TYPE_SET          MYSQL_TYPE_TINY_BLOB
@@ -758,6 +837,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_MEDIUM_BLOB,
   //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_MEDIUM_BLOB,
+  //MYSQL_TYPE_JSON
+    MYSQL_TYPE_LONG_BLOB,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_MEDIUM_BLOB,
   //MYSQL_TYPE_SET          MYSQL_TYPE_TINY_BLOB
@@ -788,6 +869,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_LONG_BLOB,   MYSQL_TYPE_LONG_BLOB,
   //MYSQL_TYPE_BIT          <16>-<244>
+    MYSQL_TYPE_LONG_BLOB,
+  //MYSQL_TYPE_JSON
     MYSQL_TYPE_LONG_BLOB,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_LONG_BLOB,   MYSQL_TYPE_LONG_BLOB,
@@ -820,6 +903,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_BLOB,        MYSQL_TYPE_BLOB,
   //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_BLOB,
+  //MYSQL_TYPE_JSON
+    MYSQL_TYPE_LONG_BLOB,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_BLOB,        MYSQL_TYPE_BLOB,
   //MYSQL_TYPE_SET          MYSQL_TYPE_TINY_BLOB
@@ -850,6 +935,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
+    MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_JSON
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
@@ -882,6 +969,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_STRING,      MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_STRING,
+  //MYSQL_TYPE_JSON
+    MYSQL_TYPE_STRING,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_STRING,      MYSQL_TYPE_STRING,
   //MYSQL_TYPE_SET          MYSQL_TYPE_TINY_BLOB
@@ -912,6 +1001,8 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_BIT          <16>-<244>
+    MYSQL_TYPE_VARCHAR,
+  //MYSQL_TYPE_JSON
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
@@ -976,6 +1067,8 @@ static Item_result field_types_result_type [FIELDTYPE_NUM]=
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
   STRING_RESULT,            STRING_RESULT,
   //MYSQL_TYPE_BIT          <16>-<244>
+  STRING_RESULT,
+  //MYSQL_TYPE_JSON
   STRING_RESULT,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
   DECIMAL_RESULT,           STRING_RESULT,
@@ -1124,10 +1217,10 @@ static void push_numerical_conversion_warning(THD* thd, const char* str,
   Emits a warning for the decimal conversion error. May modify
   dec_value if there was conversion overflow or bad number.
 
-
+  @param field             Field to operate on
   @param dec_error         decimal library return code
                            (E_DEC_* see include/decimal.h)
-  @param dec_value[in,out] Decimal value returned by convertion function.
+  @param [in,out] dec_value Decimal value returned by conversion function.
   @param from              Value converted from
   @param length            Length of 'from'
   @param charset_arg       Charset of 'from'
@@ -1159,6 +1252,65 @@ static void set_decimal_warning(Field_new_decimal *field,
     my_decimal_set_zero(dec_value);
   }
 }
+
+
+/**
+  Copy string with optional character set conversion.
+
+  This calls helper function well_formed_copy_nchars to copy string
+  with optional character set convertion. Specially, it checks if
+  the ASCII code point exceeds code range. If YES, it allows the
+  input but raises a warning.
+
+  @param to_cs                    Character set of "to" string
+  @param to                       Store result here
+  @param to_length                Maxinum length of "to" string
+  @param from_cs                  From character set
+  @param from                     Copy from here
+  @param from_length              Length of from string
+  @param nchars                   Copy not more that nchars characters
+  @param well_formed_error_pos    Return position when "from" is not well
+                                  formed or NULL otherwise.
+  @param cannot_convert_error_pos Return position where a not convertable
+                                  character met, or NULL otherwise.
+  @param from_end_pos             Return position where scanning of "from"
+                                  string stopped.
+
+  @retval length of bytes copied to 'to'
+*/
+
+size_t field_well_formed_copy_nchars(const CHARSET_INFO *to_cs,
+                                     char *to, size_t to_length,
+                                     const CHARSET_INFO *from_cs,
+                                     const char *from, size_t from_length,
+                                     size_t nchars,
+                                     const char **well_formed_error_pos,
+                                     const char **cannot_convert_error_pos,
+                                     const char **from_end_pos)
+{
+  size_t res = well_formed_copy_nchars(to_cs, to, to_length, from_cs,
+                                       from, from_length, nchars,
+                                       well_formed_error_pos,
+                                       cannot_convert_error_pos,
+                                       from_end_pos);
+  /*
+   If the code point is out of ascii range, we only give user a warning
+   in 5.7. Need to change to give a ERROR in future version.
+  */
+  if ((to_cs->state & MY_CS_PUREASCII) && *well_formed_error_pos != NULL)
+  {
+    char tmp[32];
+    *well_formed_error_pos = NULL;
+    convert_to_printable(tmp, sizeof(tmp), from, from_length, from_cs, 6);
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                        ER_INVALID_CHARACTER_STRING,
+                        ER_THD(current_thd, ER_INVALID_CHARACTER_STRING),
+                        "ascii", tmp);
+  }
+  return res;
+
+}
+
 
 /**
   Check whether a field type can be partially indexed by a key.
@@ -1229,10 +1381,11 @@ void Field_num::prepend_zeros(String *value)
   @todo
     Make this multi-byte-character safe
 
-  @param str		String to test
-  @param length        Length of 'str'
-  @param int_end	Pointer to char after last used digit
   @param cs		Character set
+  @param str		String to test
+  @param length         Length of 'str'
+  @param int_end	Pointer to char after last used digit
+  @param error          Return code from strntoull10rnd()
 
   @note
     This is called after one has called strntoull10rnd() function.
@@ -1409,7 +1562,7 @@ Field::Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
    field_name(field_name_arg),
    unireg_check(unireg_check_arg),
    field_length(length_arg), null_bit(null_bit_arg), 
-   is_created_from_null_item(FALSE),
+   is_created_from_null_item(FALSE), m_indexed(false),
    m_warnings_pushed(0),
    gcol_info(0), stored_in_db(TRUE)
 
@@ -1425,7 +1578,7 @@ Field::Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
   Check NOT NULL constraint on the field after temporary nullability is
   disabled.
 
-  @param warning_no Warning to report.
+  @param mysql_errno Warning to report.
 
   @return TYPE_OK if the value is Ok, or corresponding error code from
   the type_conversion_status enum.
@@ -1565,13 +1718,13 @@ bool Field::send_text(Protocol *protocol)
     old_map= dbug_tmp_use_all_columns(table, table->read_set);
 #endif
 
-  val_str(&str);
+  String *res= val_str(&str);
 #ifndef DBUG_OFF
   if (old_map)
     dbug_tmp_restore_column_map(table->read_set, old_map);
 #endif
 
-  return protocol->store(str.ptr(), str.length(), str.charset());
+  return res ? protocol->store(res) : protocol->store_null();
 }
 
 
@@ -1581,8 +1734,8 @@ bool Field::send_binary(Protocol *protocol)
   String tmp(buff,sizeof(buff),charset());
   if (is_null())
     return protocol->store_null();
-  val_str(&tmp);
-  return protocol->store(tmp.ptr(), tmp.length(), tmp.charset());
+  String *res= val_str(&tmp);
+  return res ? protocol->store(res) : protocol->store_null();
 }
 
 
@@ -1926,7 +2079,7 @@ void Field_str::make_field(Send_field *field)
 
   @note
     Field_str is the base class for fields implemeting
-    [VAR]CHAR, VAR[BINARY], BLOB/TEXT, GEOMETRY.
+    [VAR]CHAR, VAR[BINARY], BLOB/TEXT, GEOMETRY, JSON.
     String value should be converted to floating point value according
     our rules, so we use double to store value of decimal in string.
 
@@ -2050,6 +2203,7 @@ Field *Field::new_field(MEM_ROOT *root, TABLE *new_table,
   tmp->key_start.init(0);
   tmp->part_of_key.init(0);
   tmp->part_of_sortkey.init(0);
+  tmp->m_indexed= false;
   /*
     todo: We should never alter unireg_check after an object is constructed,
     and the member should be made const. But a lot of code depends upon this
@@ -2529,7 +2683,7 @@ type_conversion_status Field_decimal::store(double nr)
   uchar fyllchar,*to;
   char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
 
-  fyllchar = zerofill ? (char) '0' : (char) ' ';
+  fyllchar = zerofill ? '0' : ' ';
   length= my_fcvt(nr, dec, buff, NULL);
 
   if (length > field_length)
@@ -2570,7 +2724,7 @@ type_conversion_status Field_decimal::store(longlong nr, bool unsigned_val)
     return TYPE_WARN_OUT_OF_RANGE;
   }
 
-  fyllchar = zerofill ? (char) '0' : (char) ' ';
+  fyllchar = zerofill ? '0' : ' ';
   to= ptr;
   for (uint i=int_part-length ; i-- > 0 ;)
     *to++ = fyllchar;
@@ -2866,7 +3020,7 @@ Field_new_decimal::store_value(const my_decimal *decimal_value)
     set_value_on_overflow(&buff, decimal_value->sign());
     my_decimal2binary(E_DEC_FATAL_ERROR, &buff, ptr, precision, dec);
   }
-  DBUG_EXECUTE("info", print_decimal_buff(decimal_value, (uchar *) ptr,
+  DBUG_EXECUTE("info", print_decimal_buff(decimal_value, ptr,
                                           bin_size););
   DBUG_RETURN((err != E_DEC_OK) ? decimal_err_to_type_conv_status(err)
                                 : error);
@@ -3011,7 +3165,7 @@ my_decimal* Field_new_decimal::val_decimal(my_decimal *decimal_value)
   DBUG_ENTER("Field_new_decimal::val_decimal");
   binary2my_decimal(E_DEC_FATAL_ERROR, ptr, decimal_value,
                     precision, dec);
-  DBUG_EXECUTE("info", print_decimal_buff(decimal_value, (uchar *) ptr,
+  DBUG_EXECUTE("info", print_decimal_buff(decimal_value, ptr,
                                           bin_size););
   DBUG_RETURN(decimal_value);
 }
@@ -3208,6 +3362,16 @@ Field_new_decimal::unpack(uchar* to,
   return from+len;
 }
 
+bool Field_new_decimal::send_binary(Protocol *protocol)
+{
+  my_decimal dec_value;
+  if (is_null())
+    return protocol->store_null();
+  return protocol->store_decimal(val_decimal(&dec_value),
+                                 zerofill ? precision : 0, dec);
+}
+
+
 /****************************************************************************
 ** tiny int
 ****************************************************************************/
@@ -3359,7 +3523,8 @@ bool Field_tiny::send_binary(Protocol *protocol)
 {
   if (is_null())
     return protocol->store_null();
-  return protocol->store_tiny((longlong) (int8) ptr[0]);
+  return protocol->store_tiny((longlong) unsigned_flag? (uint8) ptr[0]:
+                                                         (int8) ptr[0]);
 }
 
 int Field_tiny::cmp(const uchar *a_ptr, const uchar *b_ptr)
@@ -4848,7 +5013,7 @@ bool Field_double::send_binary(Protocol *protocol)
   if (is_null())
     return protocol->store_null();
   String buf;
-  return protocol->store((double) Field_double::val_real(), dec, &buf);
+  return protocol->store(Field_double::val_real(), dec, &buf);
 }
 
 
@@ -4870,8 +5035,6 @@ int Field_double::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-
-#define DBL_EXP_DIG (sizeof(double)*8-DBL_MANT_DIG)
 
 /* The following should work for IEEE */
 
@@ -5075,7 +5238,7 @@ type_conversion_status Field_temporal::store(double nr)
 /**
   Store string into a date/time/datetime field.
 
-  @param from     Date/time string
+  @param str      Date/time string
   @param  len     Length of the string
   @param  cs      Character set of the string
 
@@ -5506,8 +5669,8 @@ my_decimal *Field_temporal_with_date_and_timef::val_decimal(my_decimal *dec_arg)
 
   - TIMESTAMP_DN_FIELD - means TIMESTAMP DEFAULT CURRENT_TIMESTAMP.
 
-  - TIMESTAMP_UN_FIELD - means TIMESTAMP DEFAULT <default value> ON UPDATE
-    CURRENT_TIMESTAMP, where <default value> is an implicit or explicit
+  - TIMESTAMP_UN_FIELD - means TIMESTAMP DEFAULT @<default value@> ON UPDATE
+    CURRENT_TIMESTAMP, where @<default value@> is an implicit or explicit
     expression other than CURRENT_TIMESTAMP or any synonym thereof
     (e.g. NOW().)
 
@@ -5556,7 +5719,7 @@ my_time_flags_t Field_timestamp::date_flags(const THD *thd)
 {
   /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
   my_time_flags_t date_flags= TIME_NO_ZERO_IN_DATE;
-  if (thd->is_strict_mode())
+  if (thd->variables.sql_mode & MODE_NO_ZERO_DATE)
     date_flags|= TIME_NO_ZERO_DATE;
   return date_flags;
 }
@@ -5754,7 +5917,7 @@ my_time_flags_t Field_timestampf::date_flags(const THD *thd)
 {
   /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
   my_time_flags_t date_flags= TIME_NO_ZERO_IN_DATE;
-  if (thd->is_strict_mode())
+  if (thd->variables.sql_mode & MODE_NO_ZERO_DATE)
     date_flags|= TIME_NO_ZERO_DATE;
   return date_flags;
 }
@@ -6050,8 +6213,8 @@ bool Field_time::get_time(MYSQL_TIME *ltime)
 int Field_time::cmp(const uchar *a_ptr, const uchar *b_ptr)
 {
   int32 a,b;
-  a=(int32) sint3korr(a_ptr);
-  b=(int32) sint3korr(b_ptr);
+  a= sint3korr(a_ptr);
+  b= sint3korr(b_ptr);
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
@@ -6337,8 +6500,10 @@ void Field_year::sql_type(String &res) const
 my_time_flags_t Field_newdate::date_flags(const THD *thd)
 {
   my_time_flags_t date_flags= TIME_FUZZY_DATE;
-  if (thd->is_strict_mode())
-    date_flags|= TIME_NO_ZERO_DATE | TIME_NO_ZERO_IN_DATE;
+  if (thd->variables.sql_mode & MODE_NO_ZERO_DATE)
+    date_flags|= TIME_NO_ZERO_DATE;
+  if (thd->variables.sql_mode & MODE_NO_ZERO_IN_DATE)
+    date_flags|= TIME_NO_ZERO_IN_DATE;
   if (thd->variables.sql_mode & MODE_INVALID_DATES)
     date_flags|= TIME_INVALID_DATES;
   return date_flags;
@@ -6361,7 +6526,7 @@ Field_newdate::store_internal(const MYSQL_TIME *ltime, int *warnings)
 
 bool Field_newdate::get_date_internal(MYSQL_TIME *ltime)
 {
-  uint32 tmp= (uint32) uint3korr(ptr);
+  uint32 tmp= uint3korr(ptr);
   ltime->day=   tmp & 31;
   ltime->month= (tmp >> 5) & 15;
   ltime->year=  (tmp >> 9);
@@ -6420,7 +6585,7 @@ String *Field_newdate::val_str(String *val_buffer,
   ASSERT_COLUMN_MARKED_FOR_READ;
   val_buffer->alloc(field_length);
   val_buffer->length(field_length);
-  uint32 tmp=(uint32) uint3korr(ptr);
+  uint32 tmp= uint3korr(ptr);
   int part;
   char *pos=(char*) val_buffer->ptr()+10;
 
@@ -6454,8 +6619,8 @@ bool Field_newdate::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 int Field_newdate::cmp(const uchar *a_ptr, const uchar *b_ptr)
 {
   uint32 a,b;
-  a=(uint32) uint3korr(a_ptr);
-  b=(uint32) uint3korr(b_ptr);
+  a= uint3korr(a_ptr);
+  b= uint3korr(b_ptr);
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
@@ -6486,8 +6651,10 @@ void Field_newdate::sql_type(String &res) const
 my_time_flags_t Field_datetime::date_flags(const THD *thd)
 {
   my_time_flags_t date_flags= TIME_FUZZY_DATE;
-  if (thd->is_strict_mode())
-    date_flags|= TIME_NO_ZERO_DATE | TIME_NO_ZERO_IN_DATE;
+  if (thd->variables.sql_mode & MODE_NO_ZERO_DATE)
+    date_flags|= TIME_NO_ZERO_DATE;
+  if (thd->variables.sql_mode & MODE_NO_ZERO_IN_DATE)
+    date_flags|= TIME_NO_ZERO_IN_DATE;
   if (thd->variables.sql_mode & MODE_INVALID_DATES)
     date_flags|= TIME_INVALID_DATES;
   return date_flags;
@@ -6678,8 +6845,10 @@ void Field_datetime::sql_type(String &res) const
 my_time_flags_t Field_datetimef::date_flags(const THD *thd)
 {
   my_time_flags_t date_flags= TIME_FUZZY_DATE;
-  if (thd->is_strict_mode())
-    date_flags|= TIME_NO_ZERO_DATE | TIME_NO_ZERO_IN_DATE;
+  if (thd->variables.sql_mode & MODE_NO_ZERO_DATE)
+    date_flags|= TIME_NO_ZERO_DATE;
+  if (thd->variables.sql_mode & MODE_NO_ZERO_IN_DATE)
+    date_flags|= TIME_NO_ZERO_IN_DATE;
   if (thd->variables.sql_mode & MODE_INVALID_DATES)
     date_flags|= TIME_INVALID_DATES;
   return date_flags;
@@ -6771,6 +6940,10 @@ type_conversion_status Field_datetimef::store_packed(longlong nr)
 
       "Cannot convert character string: 'xxx' for column 't' at row 1"
 
+  @param  original_string            this is is the original string that was
+                                     supposed to be copied. Helps in keeping
+                                     track of whether a value has been
+                                     completely truncated.
   @param  well_formed_error_pos      position of the first non-wellformed
                                      character in the source string
   @param  cannot_convert_error_pos   position of the first non-convertable
@@ -6781,12 +6954,14 @@ type_conversion_status Field_datetimef::store_packed(longlong nr)
   @param  count_spaces               treat trailing spaces as important data
   @param  cs                         character set of the string
 
-  @return TYPE_OK, TYPE_NOTE_TRUNCATED, TYPE_WARN_TRUNCATED
+  @return TYPE_OK, TYPE_NOTE_TRUNCATED, TYPE_WARN_TRUNCATED,
+          TYPE_WARN_ALL_TRUNCATED
 
 */
 
 type_conversion_status
-Field_longstr::check_string_copy_error(const char *well_formed_error_pos,
+Field_longstr::check_string_copy_error(const char *original_string,
+                                       const char *well_formed_error_pos,
                                        const char *cannot_convert_error_pos,
                                        const char *from_end_pos,
                                        const char *end,
@@ -6809,6 +6984,10 @@ Field_longstr::check_string_copy_error(const char *well_formed_error_pos,
                       ER_THD(thd, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                       "string", tmp, field_name,
                       thd->get_stmt_da()->current_row_for_condition());
+
+  if (well_formed_error_pos == original_string)
+    return TYPE_WARN_ALL_TRUNCATED;
+
   return TYPE_WARN_TRUNCATED;
 }
 
@@ -6878,7 +7057,7 @@ Field_string::store(const char *from, size_t length,const CHARSET_INFO *cs)
   /* See the comment for Field_long::store(long long) */
   DBUG_ASSERT(table->in_use == current_thd);
 
-  copy_length= well_formed_copy_nchars(field_charset,
+  copy_length= field_well_formed_copy_nchars(field_charset,
                                        (char*) ptr, field_length,
                                        cs, from, length,
                                        field_length / field_charset->mbmaxlen,
@@ -6892,7 +7071,7 @@ Field_string::store(const char *from, size_t length,const CHARSET_INFO *cs)
                               field_length-copy_length,
                               field_charset->pad_char);
 
-  return check_string_copy_error(well_formed_error_pos,
+  return check_string_copy_error(from, well_formed_error_pos,
                                  cannot_convert_error_pos, from_end_pos,
                                  from + length, false, cs);
 }
@@ -7074,7 +7253,7 @@ check_field_for_37426(const void *param_arg)
 bool
 Field_string::compatible_field_size(uint field_metadata,
                                     Relay_log_info *rli_arg,
-                                    uint16 mflags __attribute__((unused)),
+                                    uint16 mflags,
                                     int *order_var)
 {
 #ifdef HAVE_REPLICATION
@@ -7380,7 +7559,7 @@ type_conversion_status Field_varstring::store(const char *from, size_t length,
   const char *cannot_convert_error_pos;
   const char *from_end_pos;
 
-  copy_length= well_formed_copy_nchars(field_charset,
+  copy_length= field_well_formed_copy_nchars(field_charset,
                                        (char*) ptr + length_bytes,
                                        field_length,
                                        cs, from, length,
@@ -7394,7 +7573,7 @@ type_conversion_status Field_varstring::store(const char *from, size_t length,
   else
     int2store(ptr, static_cast<uint16>(copy_length));
 
-  return check_string_copy_error(well_formed_error_pos,
+  return check_string_copy_error(from, well_formed_error_pos,
                                  cannot_convert_error_pos, from_end_pos,
                                  from + length, true, cs);
 }
@@ -7893,7 +8072,7 @@ uint32 Field_blob::get_length(const uchar *pos, uint packlength_arg, bool low_by
       return (uint32) tmp;
     }
   case 3:
-    return (uint32) uint3korr(pos);
+    return uint3korr(pos);
   case 4:
     {
       uint32 tmp;
@@ -7903,7 +8082,7 @@ uint32 Field_blob::get_length(const uchar *pos, uint packlength_arg, bool low_by
       else
 #endif
 	ulongget(&tmp, pos);
-      return (uint32) tmp;
+      return tmp;
     }
   }
   /* When expanding this, see also MAX_FIELD_BLOBLENGTH. */
@@ -8016,8 +8195,10 @@ Field_blob::store_internal(const char *from, size_t length,
   }
 
   new_length= min<size_t>(max_data_length(), field_charset->mbmaxlen * length);
+
   if (value.alloc(new_length))
     goto oom_error;
+
   tmp= const_cast<char*>(value.ptr());
 
   {
@@ -8029,7 +8210,7 @@ Field_blob::store_internal(const char *from, size_t length,
       is never used to limit the length of the data. The cut of long data
       is done with the new_length value.
     */
-    size_t copy_length= well_formed_copy_nchars(field_charset,
+    size_t copy_length= field_well_formed_copy_nchars(field_charset,
                                                 tmp, new_length,
                                                 cs, from, length,
                                                 length,
@@ -8038,7 +8219,7 @@ Field_blob::store_internal(const char *from, size_t length,
                                                 &from_end_pos);
 
     store_ptr_and_length(tmp, copy_length);
-    return check_string_copy_error(well_formed_error_pos,
+    return check_string_copy_error(from, well_formed_error_pos,
                                    cannot_convert_error_pos, from_end_pos,
                                    from + length, true, cs);
   }
@@ -8423,8 +8604,8 @@ const uchar *Field_blob::unpack(uchar *to,
   uint32 const length= get_length(from, master_packlength, low_byte_first);
   DBUG_DUMP("packed", from, length + master_packlength);
   bitmap_set_bit(table->write_set, field_index);
-  store(reinterpret_cast<const char*>(from) + master_packlength,
-        length, field_charset);
+  Field_blob::store(pointer_cast<const char*>(from) + master_packlength,
+                    length, field_charset);
 #ifndef DBUG_OFF  
   uchar *vptr;
   get_ptr(&vptr);
@@ -8456,6 +8637,51 @@ uint Field_blob::is_equal(Create_field *new_field)
   return ((new_field->sql_type == get_blob_type_from_length(max_data_length()))
           && new_field->charset == field_charset &&
           new_field->pack_length == pack_length());
+}
+
+/**
+  Save the current BLOB value to avoid that it gets overwritten.
+
+  This is used when updating virtual generated columns that are
+  BLOBs. Some storage engines require that we have both the old and
+  new BLOB value for virtual generated columns that are indexed in
+  order for the storage engine to be able to maintain the index. This
+  function will transfer the buffer storing the current BLOB value
+  from 'value' to 'old_value'. This avoids that the current BLOB value
+  is over-written when the new BLOB value is saved into this field.
+
+  The reason this requires special handling when updating/deleting
+  virtual columns of BLOB type is that the BLOB value is not known to
+  the storage engine. For stored columns, the "old" BLOB value is read
+  by the storage engine, Field_blob is made to point to the engine's
+  internal buffer; Field_blob's internal buffer (Field_blob::value)
+  isn't used and remains available to store the "new" value.  For
+  virtual generated columns, the "old" value is written directly into
+  Field_blob::value when reading the record to be
+  updated/deleted. This is done in update_generated_read_fields(). 
+  Since, in this case, the "old" value already occupies the place to
+  store the "new" value, we must call this function before we write
+  the "new" value into Field_blob::value object so that the "old"
+  value does not get over-written. The table->record[1] buffer will
+  have a pointer that points to the memory buffer inside
+  old_value. The storage engine will use table->record[1] to read the
+  old value for the BLOB and use table->record[0] to read the new
+  value.
+
+  This function must be called before we store the new BLOB value in
+  this field object.
+*/
+
+void Field_blob::keep_old_value()
+{
+  /*
+    We should only need to keep a copy of the blob value in the case
+    where this is a virtual genarated column (that is indexed).
+  */
+  DBUG_ASSERT(is_virtual_gcol());
+
+  // Transfer ownership of the current BLOB value to old_value
+  old_value.takeover(value);
 }
 
 
@@ -8566,6 +8792,388 @@ uint Field_geom::is_equal(Create_field *new_field)
          new_field->geom_type == get_geometry_type() &&
          new_field->charset == field_charset &&
          new_field->pack_length == pack_length();
+}
+
+
+/**
+  Get the type of this field (json).
+  @param str  the string that receives the type
+*/
+void Field_json::sql_type(String &str) const
+{
+  str.set_ascii(STRING_WITH_LEN("json"));
+}
+
+
+/// Create a shallow clone of this field in the specified MEM_ROOT.
+Field_json *Field_json::clone(MEM_ROOT *mem_root) const
+{
+  DBUG_ASSERT(type() == MYSQL_TYPE_JSON);
+  return new (mem_root) Field_json(*this);
+}
+
+
+/// Create a shallow clone of this field.
+Field_json *Field_json::clone() const
+{
+  DBUG_ASSERT(type() == MYSQL_TYPE_JSON);
+  return new Field_json(*this);
+}
+
+
+/**
+  Check if a new field is compatible with this one.
+  @param new_field  the new field
+  @return true if new_field is compatible with this field, false otherwise
+*/
+uint Field_json::is_equal(Create_field *new_field)
+{
+  // All JSON fields are compatible with each other.
+  return (new_field->sql_type == real_type());
+}
+
+
+/**
+  Store data in this JSON field.
+
+  JSON data is usually stored using store(Field_json*) or store_json(), so this
+  function will only be called if non-JSON data is attempted stored in a JSON
+  field. This results in an error in most cases.
+
+  It will attempt to parse the string (unless it's binary) as JSON text, and
+  store a binary representation of JSON document if the string could be parsed.
+
+  Note that we override store() and not store_internal() because
+  Field_blob::store() contains logic that bypasses store_internal() in
+  some cases we care about. In particular:
+
+  - When supplied an empty string, we want to raise a JSON syntax
+    error instead of silently inserting an empty byte string.
+
+  - When called from GROUP_CONCAT with ORDER BY or DISTINCT, we want
+    to do the same data conversion as usual, whereas
+    Field_blob::store() jumps directly to Field_blob::store_to_mem()
+    with the unprocessed input data.
+
+  @param from   the start of the data to be stored
+  @param length the length of the data
+  @param cs     the character set of the data
+  @return zero on success, non-zero on failure
+*/
+type_conversion_status
+Field_json::store(const char *from, size_t length, const CHARSET_INFO *cs)
+{
+  ASSERT_COLUMN_MARKED_FOR_WRITE;
+
+  /*
+    First clear the field so that it doesn't contain garbage if we
+    return with an error. Some callers continue for a while even after
+    an error has been raised, and they could get into trouble if the
+    field contains garbage.
+  */
+  reset();
+
+  const char *s;
+  size_t ss;
+  String v(from, length, cs);
+
+  if (ensure_utf8mb4(&v, &value, &s, &ss, true))
+  {
+    return TYPE_ERR_BAD_VALUE;
+  }
+
+  const char *parse_err;
+  size_t err_offset;
+  std::auto_ptr<Json_dom> dom(Json_dom::parse(s, ss, &parse_err, &err_offset));
+
+  if (dom.get() == NULL)
+  {
+    if (parse_err != NULL)
+    {
+      // Syntax error.
+      my_error(ER_INVALID_JSON_TEXT, MYF(0),
+               parse_err, err_offset, v.c_ptr_safe());
+    }
+    return TYPE_ERR_BAD_VALUE;
+  }
+
+  if (json_binary::serialize(dom.get(), &value))
+    return TYPE_ERR_BAD_VALUE;
+
+  return store_binary(value.ptr(), value.length());
+}
+
+
+/**
+  Helper function for raising an error when trying to store a value
+  into a JSON column, and that value needs to be cast to JSON before
+  it can be stored.
+*/
+type_conversion_status Field_json::unsupported_conversion()
+{
+  ASSERT_COLUMN_MARKED_FOR_WRITE;
+  String s;
+  s.append("column ");
+  s.append(*table_name);
+  s.append('.');
+  s.append(field_name);
+  my_error(ER_INVALID_JSON_TEXT, MYF(0), "not a JSON text, may need CAST",
+           0, s.c_ptr_safe());
+  return TYPE_ERR_BAD_VALUE;
+}
+
+
+/**
+  Store the provided JSON binary data in this field.
+
+  @param[in] ptr     pointer to JSON binary data
+  @param[in] length  the length of the binary data
+  @return zero on success, non-zero on failure
+*/
+type_conversion_status Field_json::store_binary(const char *ptr, size_t length)
+{
+  /*
+    We expect that a valid binary representation of a JSON document is
+    passed to us.
+
+    We make an exception for the case of an empty binary string. Even
+    though an empty binary string is not a valid representation of a
+    JSON document, we might be served one as a result of inserting
+    NULL or DEFAULT into a not nullable JSON column using INSERT
+    IGNORE, or inserting DEFAULT into a not nullable JSON column in
+    non-strict SQL mode.
+
+    We accept an empty binary string in those cases. Such values will
+    be converted to the JSON null literal when they are read with
+    Field_json::val_json().
+  */
+  DBUG_ASSERT(length == 0 || json_binary::parse_binary(ptr, length).is_valid());
+
+  if (value.length() > UINT_MAX32)
+  {
+    /* purecov: begin inspected */
+    my_error(ER_JSON_VALUE_TOO_BIG, MYF(0));
+    return TYPE_ERR_BAD_VALUE;
+    /* purecov: end */
+  }
+
+  return Field_blob::store(ptr, length, field_charset);
+}
+
+
+/// Store a double in a JSON field. Will raise an error for now.
+type_conversion_status Field_json::store(double nr)
+{
+  return unsupported_conversion();
+}
+
+
+/// Store an integer in a JSON field. Will raise an error for now.
+type_conversion_status Field_json::store(longlong nr, bool unsigned_val)
+{
+  return unsupported_conversion();
+}
+
+
+/// Store a decimal in a JSON field. Will raise an error for now.
+type_conversion_status Field_json::store_decimal(const my_decimal *)
+{
+  return unsupported_conversion();
+}
+
+
+/// Store a TIME value in a JSON field. Will raise an error for now.
+type_conversion_status Field_json::store_time(MYSQL_TIME *ltime, uint8 dec_arg)
+{
+  return unsupported_conversion();
+}
+
+
+/**
+  Store a JSON value as binary.
+
+  @param json  the JSON value to store
+  @return zero on success, non-zero otherwise
+*/
+type_conversion_status Field_json::store_json(Json_wrapper *json)
+{
+  ASSERT_COLUMN_MARKED_FOR_WRITE;
+
+  json_binary::Value json_val= json->to_value();
+  if (json_val.type() == json_binary::Value::ERROR ||
+      json_val.raw_binary(&value))
+    return TYPE_ERR_BAD_VALUE;
+
+  return store_binary(value.ptr(), value.length());
+}
+
+
+/**
+  Copy the contents of a non-null JSON field into this field.
+
+  @param[in] field the field to copy data from
+  @return zero on success, non-zero on failure
+*/
+type_conversion_status Field_json::store(Field_json *field)
+{
+  /*
+    The callers of this function have already checked for null, so we
+    don't need to handle it here for now. Assert that field is not
+    null.
+  */
+  DBUG_ASSERT(!field->is_null());
+
+  String tmp;
+  String *s= field->Field_blob::val_str(&tmp, &tmp);
+  return store_binary(s->ptr(), s->length());
+}
+
+
+bool Field_json::val_json(Json_wrapper *wr)
+{
+  ASSERT_COLUMN_MARKED_FOR_READ;
+  DBUG_ASSERT(!is_null());
+
+  String tmp;
+  String *s= Field_blob::val_str(&tmp, &tmp);
+
+  /*
+    The empty string is not a valid JSON binary representation, so we
+    should have returned an error. However, sometimes an empty
+    Field_json object is created in order to retrieve meta-data.
+    Return a dummy value instead of raising an error. Bug#21104470.
+
+    The field could also contain an empty string after forcing NULL or
+    DEFAULT into a not nullable JSON column using lax error checking
+    (such as INSERT IGNORE or non-strict SQL mode). The JSON null
+    literal is used to represent the empty value in this case.
+    Bug#21437989.
+  */
+  if (s->length() == 0)
+  {
+    Json_wrapper w(new (std::nothrow) Json_null());
+    wr->steal(&w);
+    return false;
+  }
+
+  json_binary::Value v(json_binary::parse_binary(s->ptr(), s->length()));
+  if (v.type() == json_binary::Value::ERROR)
+  {
+    /* purecov: begin inspected */
+    my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
+    return true;
+    /* purecov: end */
+  }
+
+  Json_wrapper w(v);
+  wr->steal(&w);
+  return false;
+}
+
+longlong Field_json::val_int()
+{
+  ASSERT_COLUMN_MARKED_FOR_READ;
+
+  Json_wrapper wr;
+  if (is_null() || val_json(&wr))
+    return 0;                                   /* purecov: inspected */
+
+  return wr.coerce_int(field_name);
+}
+
+
+double Field_json::val_real()
+{
+  ASSERT_COLUMN_MARKED_FOR_READ;
+
+  Json_wrapper wr;
+  if (is_null() || val_json(&wr))
+    return 0.0;                                 /* purecov: inspected */
+
+  return wr.coerce_real(field_name);
+}
+
+
+String *Field_json::val_str(String *buf1, String *buf2 __attribute__((unused)))
+{
+  ASSERT_COLUMN_MARKED_FOR_READ;
+
+  /*
+    Per contract of Field::val_str(String*,String*), buf1 should be
+    used if the value needs to be converted to string, and buf2 should
+    be used if the string value is already known. We need to convert,
+    so use buf1.
+  */
+  buf1->length(0);
+
+  Json_wrapper wr;
+  if (is_null() || val_json(&wr) || wr.to_string(buf1, true, field_name))
+    buf1->length(0);
+
+  return buf1;
+}
+
+my_decimal *Field_json::val_decimal(my_decimal *decimal_value)
+{
+  ASSERT_COLUMN_MARKED_FOR_READ;
+
+  Json_wrapper wr;
+  if (is_null() || val_json(&wr))
+  {
+    /* purecov: begin inspected */
+    my_decimal_set_zero(decimal_value);
+    return decimal_value;
+    /* purecov: end */
+  }
+
+  return wr.coerce_decimal(decimal_value, field_name);
+}
+
+
+bool Field_json::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+{
+  bool result= get_time(ltime);
+  if (!result && ltime->time_type == MYSQL_TIMESTAMP_TIME)
+  {
+    MYSQL_TIME tmp= *ltime;
+    time_to_datetime(current_thd, &tmp, ltime);
+  }
+  return result;
+}
+
+
+bool Field_json::get_time(MYSQL_TIME *ltime)
+{
+  ASSERT_COLUMN_MARKED_FOR_READ;
+
+  Json_wrapper wr;
+  bool result= is_null() || val_json(&wr) || wr.coerce_time(ltime, field_name);
+  if (result)
+    set_zero_time(ltime, MYSQL_TIMESTAMP_DATETIME); /* purecov: inspected */
+  return result;
+}
+
+
+void Field_json::make_sort_key(uchar *to, size_t length)
+{
+  Json_wrapper wr;
+  if (val_json(&wr))
+  {
+    /* purecov: begin inspected */
+    memset(to, 0, length);
+    return;
+    /* purecov: end */
+  }
+  wr.make_sort_key(to, length);
+}
+
+
+ulonglong Field_json::make_hash_key(ulonglong *hash_val)
+{
+  Json_wrapper wr;
+  if (val_json(&wr))
+    return *hash_val;                         /* purecov: inspected */
+  return wr.make_hash_key(hash_val);
 }
 
 
@@ -8785,7 +9393,7 @@ String *Field_enum::val_str(String *val_buffer __attribute__((unused)),
   if (!tmp || tmp > typelib->count)
     val_ptr->set("", 0, field_charset);
   else
-    val_ptr->set((const char*) typelib->type_names[tmp-1],
+    val_ptr->set(typelib->type_names[tmp-1],
 		 typelib->type_lengths[tmp-1],
 		 field_charset);
   return val_ptr;
@@ -8941,7 +9549,7 @@ String *Field_set::val_str(String *val_buffer,
   val_buffer->set_charset(field_charset);
   val_buffer->length(0);
 
-  while (tmp && bitnr < (uint) typelib->count)
+  while (tmp && bitnr < typelib->count)
   {
     if (tmp & 1)
     {
@@ -9777,6 +10385,7 @@ void Create_field::create_length_to_internal_length(void)
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_GEOMETRY:
+  case MYSQL_TYPE_JSON:
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_VARCHAR:
@@ -9855,6 +10464,10 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
     pack_flag= FIELDFLAG_GEOM;
     break;
 
+  case MYSQL_TYPE_JSON:
+    pack_flag= FIELDFLAG_JSON;
+    break;
+
   case MYSQL_TYPE_ENUM:
     pack_flag= FIELDFLAG_INTERVAL;
     break;
@@ -9899,8 +10512,11 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_GEOMETRY:
-    // If you are going to use the above types, you have to pass a
-    // pack_length as parameter. Assert that is really done.
+  case MYSQL_TYPE_JSON:
+    /*
+      If you are going to use the above types, you have to pass a
+      pack_length as parameter. Assert that is really done.
+    */
     DBUG_ASSERT(pack_length_arg != ~0U);
     pack_flag|= pack_length_to_packflag(pack_length_arg);
     break;
@@ -9916,13 +10532,14 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   gcol_info= 0;
   stored_in_db= TRUE;
 
-  DBUG_PRINT("debug", ("pack_flag: %s%s%s%s%s%s, pack_type: %d",
+  DBUG_PRINT("debug", ("pack_flag: %s%s%s%s%s%s%s, pack_type: %d",
                        FLAGSTR(pack_flag, FIELDFLAG_BINARY),
                        FLAGSTR(pack_flag, FIELDFLAG_NUMBER),
                        FLAGSTR(pack_flag, FIELDFLAG_INTERVAL),
                        FLAGSTR(pack_flag, FIELDFLAG_GEOM),
                        FLAGSTR(pack_flag, FIELDFLAG_BLOB),
                        FLAGSTR(pack_flag, FIELDFLAG_DECIMAL),
+                       FLAGSTR(pack_flag, FIELDFLAG_JSON),
                        f_packtype(pack_flag)));
   DBUG_VOID_RETURN;
 }
@@ -10183,6 +10800,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_GEOMETRY:
+  case MYSQL_TYPE_JSON:
     if (fld_default_value)
     {
       /* Allow empty as default value. */
@@ -10442,6 +11060,7 @@ size_t calc_pack_length(enum_field_types type, size_t length)
   case MYSQL_TYPE_MEDIUM_BLOB:	return 3+portable_sizeof_char_ptr;
   case MYSQL_TYPE_LONG_BLOB:	return 4+portable_sizeof_char_ptr;
   case MYSQL_TYPE_GEOMETRY:	return 4+portable_sizeof_char_ptr;
+  case MYSQL_TYPE_JSON:         return 4+portable_sizeof_char_ptr;
   case MYSQL_TYPE_SET:
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_NEWDECIMAL:
@@ -10538,6 +11157,10 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
       return new Field_geom(ptr,null_pos,null_bit,
 			    unireg_check, field_name, share,
 			    pack_length, geom_type);
+    if (f_is_json(pack_flag))
+      return new Field_json(ptr, null_pos, null_bit,
+                            unireg_check, field_name, share,
+                            pack_length);
     if (f_is_blob(pack_flag))
       return new Field_blob(ptr,null_pos,null_bit,
 			    unireg_check, field_name, share,
@@ -10673,7 +11296,7 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
 
 Create_field::Create_field(Field *old_field,Field *orig_field) :
   field_name(old_field->field_name),
-  change(old_field->field_name),
+  change(NULL),
   comment(old_field->comment),
   sql_type(old_field->real_type()),
   length(old_field->field_length),
@@ -10772,7 +11395,7 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
         char buff[MAX_FIELD_WIDTH], *pos;
         String tmp(buff, sizeof(buff), charset), *res;
         res= orig_field->val_str(&tmp);
-        pos= (char*) sql_strmake(res->ptr(), res->length());
+        pos= sql_strmake(res->ptr(), res->length());
         def= new Item_string(pos, res->length(), charset);
       }
       orig_field->move_field_offset(-diff);	// Back to record[0]
@@ -10813,6 +11436,45 @@ uint32 Field_blob::char_length()
   }
 }
 
+/**
+  This function creates a separate copy of blob value.
+
+  @param [in] mem_root
+    mem_root that is used to allocate memory for 'copy_of_value'.
+
+  @return - Can fail if we are out of memory.
+    @retval false   Success
+    @retval true    Failure
+*/
+
+bool Field_blob::copy_blob_value(MEM_ROOT *mem_root)
+{
+  DBUG_ENTER("copy_blob_value");
+
+  // Testing memory allocation failure
+  DBUG_EXECUTE_IF("simulate_blob_memory_allocation_fail",
+                  DBUG_SET("+d,simulate_out_of_memory"););
+
+  // Allocate new memory location
+  size_t ulen= get_length(ptr);
+
+  char *blob_value= (char *) alloc_root(mem_root, ulen);
+  if (!blob_value)
+    DBUG_RETURN(true);
+
+  // Copy Data
+  uchar *temp_ptr;
+  get_ptr(&temp_ptr);
+  memcpy(blob_value, temp_ptr, ulen);
+
+  // Set ptr of Field for duplicated data
+  store_ptr_and_length(blob_value, ulen);
+
+  // Set 'value' with the duplicated data
+  value.set(blob_value, ulen, value.charset());
+
+  DBUG_RETURN(false);
+}
 
 /**
   maximum possible display length for blob.

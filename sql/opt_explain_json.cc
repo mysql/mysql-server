@@ -275,8 +275,6 @@ public:
   /**
     Set nested ORDER BY/GROUP BY/DISTINCT node to @c ctx
 
-    @param json                 Formatter
-
     @retval false               Ok
     @retval true                Error
   */

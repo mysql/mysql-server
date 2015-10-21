@@ -140,13 +140,6 @@ static const char *ha_myisammrg_exts[] = {
   ".MRG",
   NullS
 };
-extern int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
-                        MI_COLUMNDEF **recinfo_out, uint *records_out);
-extern int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
-                            uint t1_keys, uint t1_recs,
-                            MI_KEYDEF *t2_keyinfo, MI_COLUMNDEF *t2_recinfo,
-                            uint t2_keys, uint t2_recs, bool strict,
-                            TABLE *table_arg);
 static void split_file_name(const char *file_name,
 			    LEX_STRING *db, LEX_STRING *name);
 
@@ -201,7 +194,7 @@ const char *ha_myisammrg::index_type(uint key_number)
     @retval     0               OK
     @retval     != 0            Error
 
-  @detail
+  @details
 
     This function adds a TABLE_LIST object for a MERGE child table to a
     list of tables in the parent handler object. It is called for each
@@ -342,7 +335,7 @@ extern "C" int myisammrg_parent_open_callback(void *callback_param,
   @retval     0                    OK
   @retval     -1                   Error, my_errno gives reason
 
-  @detail
+  @details
   This function initializes the MERGE storage engine structures
   and adds a child list of TABLE_LIST to the parent handler.
 */
@@ -374,7 +367,7 @@ int ha_myisammrg::open(const char *name, int mode __attribute__((unused)),
   children_l= NULL;
   children_last_l= NULL;
   child_def_list.empty();
-  my_errno= 0;
+  set_my_errno(0);
 
   /* retrieve children table list. */
   if (is_cloned)
@@ -389,8 +382,8 @@ int ha_myisammrg::open(const char *name, int mode __attribute__((unused)),
     */
     if (!(file= myrg_open(name, table->db_stat,  HA_OPEN_IGNORE_IF_LOCKED)))
     {
-      DBUG_PRINT("error", ("my_errno %d", my_errno));
-      DBUG_RETURN(my_errno ? my_errno : -1); 
+      DBUG_PRINT("error", ("my_errno %d", my_errno()));
+      DBUG_RETURN(my_errno() ? my_errno() : -1); 
     }
 
     file->children_attached= TRUE;
@@ -400,8 +393,8 @@ int ha_myisammrg::open(const char *name, int mode __attribute__((unused)),
   else if (!(file= myrg_parent_open(name, myisammrg_parent_open_callback, this)))
   {
     /* purecov: begin inspected */
-    DBUG_PRINT("error", ("my_errno %d", my_errno));
-    DBUG_RETURN(my_errno ? my_errno : -1);
+    DBUG_PRINT("error", ("my_errno %d", my_errno()));
+    DBUG_RETURN(my_errno() ? my_errno() : -1);
     /* purecov: end */
   }
   DBUG_PRINT("myrg", ("MYRG_INFO: 0x%lx  child tables: %u",
@@ -417,7 +410,7 @@ int ha_myisammrg::open(const char *name, int mode __attribute__((unused)),
     @retval     0               OK
     @retval     != 0            Error
 
-  @detail
+  @details
     When a MERGE parent table has just been opened, insert the
     TABLE_LIST chain from the MERGE handler into the table list used for
     opening tables for this statement. This lets the children be opened
@@ -610,7 +603,7 @@ public:
     @retval     !=NULL                  OK, returning pointer
     @retval     NULL,                   Error.
 
-  @detail
+  @details
     This function retrieves the MyISAM table handle from the
     next child table. It is called for each child table.
 */
@@ -769,7 +762,7 @@ handler *ha_myisammrg::clone(const char *name, MEM_ROOT *mem_root)
     @retval     0               OK
     @retval     != 0            Error, my_errno gives reason
 
-  @detail
+  @details
     Let the storage engine attach its children through a callback
     function. Check table definitions for consistency.
 
@@ -824,7 +817,7 @@ int ha_myisammrg::attach_children(void)
                            myisammrg_attach_children_callback, &param,
                            (my_bool *) &param.need_compat_check))
   {
-    error= my_errno;
+    error= my_errno();
     goto err;
   }
   DBUG_PRINT("myrg", ("calling myrg_extrafunc"));
@@ -926,7 +919,8 @@ err:
   DBUG_PRINT("error", ("attaching MERGE children failed: %d", error));
   print_error(error, MYF(0));
   detach_children();
-  DBUG_RETURN(my_errno= error);
+  set_my_errno(error);
+  DBUG_RETURN(error);
 }
 
 
@@ -1034,8 +1028,8 @@ int ha_myisammrg::detach_children(void)
   if (myrg_detach_children(this->file))
   {
     /* purecov: begin inspected */
-    print_error(my_errno, MYF(0));
-    DBUG_RETURN(my_errno ? my_errno : -1);
+    print_error(my_errno(), MYF(0));
+    DBUG_RETURN(my_errno() ? my_errno() : -1);
     /* purecov: end */
   }
 
@@ -1640,8 +1634,7 @@ int ha_myisammrg::records(ha_rows *num_rows)
 }
 
 
-extern int myrg_panic(enum ha_panic_function flag);
-int myisammrg_panic(handlerton *hton, ha_panic_function flag)
+static int myisammrg_panic(handlerton *hton, ha_panic_function flag)
 {
   return myrg_panic(flag);
 }

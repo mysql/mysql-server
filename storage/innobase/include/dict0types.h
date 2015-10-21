@@ -26,7 +26,8 @@ Created 1/8/1996 Heikki Tuuri
 #ifndef dict0types_h
 #define dict0types_h
 
-#include <ut0mutex.h>
+#include "ibuf0types.h" /* IBUF_SPACE_ID */
+#include "ut0mutex.h"
 
 struct dict_sys_t;
 struct dict_col_t;
@@ -34,9 +35,11 @@ struct dict_field_t;
 struct dict_index_t;
 struct dict_table_t;
 struct dict_foreign_t;
+struct dict_v_col_t;
 
 struct ind_node_t;
 struct tab_node_t;
+struct dict_add_v_col_t;
 
 /* Space id and page no where the dictionary header resides */
 #define	DICT_HDR_SPACE		0	/* the SYSTEM tablespace */
@@ -52,7 +55,8 @@ typedef ib_id_t		table_id_t;
 typedef ib_id_t		space_index_t;
 
 /** Globally unique index identifier */
-struct index_id_t {
+class index_id_t {
+public:
 	/** Constructor.
 	@param[in]	space_id	Tablespace identifier
 	@param[in]	index_id	Index identifier */
@@ -76,6 +80,25 @@ struct index_id_t {
 	{
 		return(m_space_id == other.m_space_id
 		       && m_index_id == other.m_index_id);
+	}
+
+	/** Convert an index_id to a 64 bit integer.
+	@return a 64 bit integer */
+	uint64_t
+	conv_to_int() const
+	{
+		ut_ad((m_index_id & 0xFFFFFFFF00000000ULL) == 0);
+
+		return(static_cast<uint64_t>(m_space_id) << 32 | m_index_id);
+	}
+
+	/** Check if the index belongs to the insert buffer.
+	@return true if the index belongs to the insert buffer */
+	bool
+	is_ibuf() const
+	{
+		return(m_space_id == IBUF_SPACE_ID
+		       && m_index_id == DICT_IBUF_ID_MIN + IBUF_SPACE_ID);
 	}
 
 	/** Tablespace identifier */
@@ -139,5 +162,32 @@ typedef ib_mutex_t DictSysMutex;
 /** Flag to control insert buffer debugging. */
 extern uint		ibuf_debug;
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+
+/** Shift for spatial status */
+#define SPATIAL_STATUS_SHIFT	12
+
+/** Mask to encode/decode spatial status. */
+#define SPATIAL_STATUS_MASK	(3 << SPATIAL_STATUS_SHIFT)
+
+#if SPATIAL_STATUS_MASK < REC_VERSION_56_MAX_INDEX_COL_LEN
+# error SPATIAL_STATUS_MASK < REC_VERSION_56_MAX_INDEX_COL_LEN
+#endif
+
+/** whether a col is used in spatial index or regular index
+Note: the spatial status is part of persistent undo log,
+so we should not modify the values in MySQL 5.7 */
+enum spatial_status_t {
+	/* Unkown status (undo format in 5.7.9) */
+	SPATIAL_UNKNOWN = 0,
+
+	/** Not used in gis index. */
+	SPATIAL_NONE	= 1,
+
+	/** Used in both spatial index and regular index. */
+	SPATIAL_MIXED	= 2,
+
+	/** Only used in spatial index. */
+	SPATIAL_ONLY	= 3
+};
 
 #endif

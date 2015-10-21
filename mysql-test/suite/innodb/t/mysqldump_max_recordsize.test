@@ -97,7 +97,7 @@ col36 CHAR(255),col37 CHAR(255),col38 CHAR(255),col39 CHAR(255),col40  CHAR(255)
 col42 CHAR(255),col43 CHAR(255),col44 CHAR(255),col45 CHAR(255),col46  CHAR(255), col47 CHAR(255),
 col48 CHAR(255),col49 CHAR(255),col50 CHAR(255),col51 CHAR(255),col52  CHAR(255), col53 CHAR(255),
 col54 CHAR(255),col55 CHAR(255),col56 CHAR(255),col57 CHAR(255),col58  CHAR(255), col59 CHAR(255),
-col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64 CHAR(255)) ENGINE=innodb;
+col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64 CHAR(255)) ENGINE=innodb ROW_FORMAT=COMPACT;
 
 # Load data , hit with an ERROR 1118 (42000): Row size too large (> 16318).
 --error ER_TOO_BIG_ROWSIZE
@@ -164,6 +164,7 @@ DROP DATABASE test;
 --source include/wait_until_disconnected.inc
 
 # Remove residue files and data folder of page size 32K
+let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1/data;
 --source ../include/cleanup_folder.inc
 
 # Create datadir path,rathan than mtr defaults path
@@ -227,6 +228,7 @@ DROP DATABASE test;
 --source include/wait_until_disconnected.inc
 
 # Remove residue files and data folder of page size 16K
+let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1/data;
 --source ../include/cleanup_folder.inc
 
 # Create datadir path,rathan than mtr defaults path

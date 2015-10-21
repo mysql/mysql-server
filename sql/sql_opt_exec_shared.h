@@ -13,7 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/// @file Common types of the Optimizer, used by optimization and execution
+/**
+  @file sql/sql_opt_exec_shared.h
+  Common types of the Optimizer, used by optimization and execution.
+*/
 
 #ifndef SQL_OPT_EXEC_SHARED_INCLUDED
 #define SQL_OPT_EXEC_SHARED_INCLUDED
@@ -419,7 +422,7 @@ private:
   Key_map       m_keys;
 
   /**
-     Either #rows in the table or 1 for const table.
+     Either number of rows in the table or 1 for const table.
      Used in optimization, and also in execution for FOUND_ROWS().
   */
   ha_rows	m_records;

@@ -140,7 +140,7 @@ static native_mutex_t LOCK_hostname;
 
 /* These must be right or mysqld will not find the symbol! */
 
-C_MODE_START;
+C_MODE_START
 my_bool metaphon_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
 void metaphon_deinit(UDF_INIT *initid);
 char *metaphon(UDF_INIT *initid, UDF_ARGS *args, char *result,
@@ -164,7 +164,7 @@ double avgcost( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char *error );
 my_bool is_const_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
 char *is_const(UDF_INIT *initid, UDF_ARGS *args, char *result, unsigned long
                *length, char *is_null, char *error);
-C_MODE_END;
+C_MODE_END
 
 /*************************************************************************
 ** Example of init function
@@ -395,7 +395,7 @@ char *metaphon(UDF_INIT *initid __attribute__((unused)),
 		  *result++ = (( n == n_start &&
 				 !ISVOWEL ( n[2])) ||
 			       *( n - 1 ) == 'S' ) ?
-		    (char)'K' : (char)'X';
+		    'K' : 'X';
 		else
 		  *result++ = 'K';
 	  }
@@ -405,7 +405,7 @@ char *metaphon(UDF_INIT *initid __attribute__((unused)),
 	  *result++ =
 	    ( n[1] == 'G' &&
 	      MAKESOFT ( n[2])) ?
-	    (char)'J' : (char)'T';
+	    'J' : 'T';
 	  break;
 
 	case 'G':   /* complicated, see table in text */
@@ -428,7 +428,7 @@ char *metaphon(UDF_INIT *initid __attribute__((unused)),
 	    *result++ =
 	      ( MAKESOFT ( *( n  + 1 )) &&
 		n[2] != 'G' ) ?
-	      (char)'J' : (char)'K';
+	      'J' : 'K';
 	  else
 	    if ( n[1] == 'H'   &&
 		!NOGHTOF( *( n - 3 )) &&
@@ -452,7 +452,7 @@ char *metaphon(UDF_INIT *initid __attribute__((unused)),
 
 	case 'P':    /* PH = F, else P = P */
 	  *result++ = *( n +  1 ) == 'H'
-	    ? (char)'F' : (char)'P';
+	    ? 'F' : 'P';
 	  break;
 	case 'Q':   /* Q = K (U after Q is already gone */
 	  *result++ = 'K';
@@ -463,7 +463,7 @@ char *metaphon(UDF_INIT *initid __attribute__((unused)),
 			( *(n  + 1) == 'I' &&
 			  ( n[2] == 'O' ||
 			    n[2] == 'A')))  ?
-	    (char)'X' : (char)'S';
+	    'X' : 'S';
 	  break;
 
 	case 'T':  /* TIO, TIA = X ("sh" sound) */
@@ -694,7 +694,7 @@ longlong sequence(UDF_INIT *initid __attribute__((unused)), UDF_ARGS *args,
 #include <sys/socket.h>
 #endif
 
-C_MODE_START;
+C_MODE_START
 my_bool lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
 void lookup_deinit(UDF_INIT *initid);
 char *lookup(UDF_INIT *initid, UDF_ARGS *args, char *result,
@@ -703,7 +703,7 @@ my_bool reverse_lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
 void reverse_lookup_deinit(UDF_INIT *initid);
 char *reverse_lookup(UDF_INIT *initid, UDF_ARGS *args, char *result,
 		     unsigned long *length, char *null_value, char *error);
-C_MODE_END;
+C_MODE_END
 
 
 /****************************************************************************
@@ -1148,7 +1148,7 @@ char * check_const_len(UDF_INIT *initid, UDF_ARGS *args __attribute__((unused)),
 }
 
 
-C_MODE_START;
+C_MODE_START
 my_bool  my_median_init  (UDF_INIT *initid, UDF_ARGS *args, char *message);
 void     my_median_deinit(UDF_INIT* initid);
 void     my_median_add   (UDF_INIT* initid, UDF_ARGS* args,
@@ -1157,7 +1157,7 @@ void     my_median_clear (UDF_INIT* initid, UDF_ARGS* args,
                           char* is_null, char *error);
 longlong my_median       (UDF_INIT* initid, UDF_ARGS* args,
                           char* is_null, char *error);
-C_MODE_END;
+C_MODE_END
 
 struct My_median_data
 {

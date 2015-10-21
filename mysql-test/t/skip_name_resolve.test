@@ -19,6 +19,21 @@ DROP USER mysqltest_1@'127.0.0.1/255.255.255.255';
 # Bug#13407 Remote connecting crashes server
 # Server crashed when one used USER() function in connection for which
 # was impossible to obtain peer hostname.
+
+# Within the WL#7158 records for the users root@127.0.0.1 and root@::1
+# have been deleted from the script mysql-test/include/mtr_system_tables_data.sql
+# that used to fill in system tables. Since this test relies on the presence of this
+# records in the table mysql.user we add the users root@127.0.0.1 and root@::1
+# into mysql.user explicitly.
+--disable_warnings
+DROP TABLE IF EXISTS mysql.user_bak;
+CREATE TABLE mysql.user_bak AS SELECT * FROM mysql.user;
+INSERT IGNORE INTO mysql.user VALUES ('127.0.0.1','root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y' ,'Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,@@default_authentication_plugin,'','N', CURRENT_TIMESTAMP,NULL,'N');
+INSERT IGNORE INTO mysql.user VALUES ('::1','root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y' ,'Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,@@default_authentication_plugin,'','N', CURRENT_TIMESTAMP,NULL,'N');
+--enable_warnings
+COMMIT;
+FLUSH PRIVILEGES;
+
 connect (con1, localhost, root, , test, $MASTER_MYPORT, );
 --replace_column 1 #
 SELECT USER();
@@ -32,6 +47,13 @@ disconnect con1;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
+
+# Restore original content of mysql.user
+TRUNCATE TABLE mysql.user;
+INSERT INTO mysql.user SELECT * FROM mysql.user_bak;
+COMMIT;
+FLUSH PRIVILEGES;
+DROP TABLE mysql.user_bak;
 
 --echo #
 --echo # Bug #37168: Missing variable - skip_name_resolve
@@ -54,3 +76,26 @@ SET @@LOCAL.skip_name_resolve=0;
 SET @@GLOBAL.skip_name_resolve=0;
 
 --echo End of 5.1 tests
+
+
+--echo #
+--echo # Bug #20438524: 5.7.5 SKIP_NAME_RESOLVE STOPS ALL CONNECTION ATTEMPTS
+--echo #
+
+CREATE USER b20438524@'%' IDENTIFIED BY 'pwd';
+--echo # set some valid addresses
+UPDATE mysql.user SET host='localhost' WHERE user='b20438524';
+FLUSH PRIVILEGES;
+
+--echo # cleanup
+DELETE FROM mysql.user WHERE user='b20438524';
+FLUSH PRIVILEGES;
+
+--echo # must find the pattern
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN='user' entry 'b20438524@localhost' ignored in --skip-name-resolve mode
+source include/search_pattern_in_file.inc;
+
+
+--echo End of 5.7 tests
+

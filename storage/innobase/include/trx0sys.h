@@ -36,7 +36,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "ut0byte.h"
 #include "mem0mem.h"
-#include "sync0mutex.h"
 #include "ut0lst.h"
 #include "read0types.h"
 #include "page0types.h"
@@ -242,16 +241,6 @@ trx_rw_is_active(
 					that will be set if corrupt */
 	bool		do_ref_count);	/*!< in: if true then increment the
 					trx_t::n_ref_count */
-#ifdef UNIV_DEBUG
-/****************************************************************//**
-Checks whether a trx is in on of rw_trx_list
-@return TRUE if is in */
-bool
-trx_in_rw_trx_list(
-/*============*/
-	const trx_t*	in_trx)		/*!< in: transaction */
-	__attribute__((warn_unused_result));
-#endif /* UNIV_DEBUG */
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 /***********************************************************//**
 Assert that a transaction has been recovered.
@@ -297,13 +286,12 @@ trx_sys_create_rsegs(
 	ulint	n_rsegs,	/*!< number of rollback segments to create */
 	ulint	n_tmp_rsegs);	/*!< number of rollback segments reserved for
 				temp-tables. */
-/*****************************************************************//**
-Get the number of transaction in the system, independent of their state.
-@return count of transactions in trx_sys_t::trx_list */
+
+/** Determine if there are incomplete transactions in the system.
+@return whether incomplete transactions need rollback */
 UNIV_INLINE
-ulint
-trx_sys_get_n_rw_trx(void);
-/*======================*/
+bool
+trx_sys_need_rollback();
 
 /*********************************************************************
 Check if there are any active (non-prepared) transactions.
@@ -491,7 +479,14 @@ struct trx_sys_t {
 					transactions that have not yet been
 					started in InnoDB. */
 
-	trx_ids_t	rw_trx_ids;	/*!< Read write transaction IDs */
+	trx_ids_t	rw_trx_ids;	/*!< Array of Read write transaction IDs
+					for MVCC snapshot. A ReadView would take
+					a snapshot of these transactions whose
+					changes are not visible to it. We should
+					remove transactions from the list before
+					committing in memory and releasing locks
+					to ensure right order of removal and
+					consistent snapshot. */
 
 	char		pad3[64];	/*!< To avoid false sharing */
 	trx_rseg_t*	rseg_array[TRX_SYS_N_RSEGS];
@@ -520,15 +515,6 @@ struct trx_sys_t {
 
 	ulint		n_prepared_trx;	/*!< Number of transactions currently
 					in the XA PREPARED state */
-
-	ulint		n_prepared_recovered_trx; /*!< Number of transactions
-					currently in XA PREPARED state that are
-					also recovered. Such transactions cannot
-					be added during runtime. They can only
-					occur after recovery if mysqld crashed
-					while there were XA PREPARED
-					transactions. We disable query cache
-					if such transactions exist. */
 };
 
 /** When a trx id which is zero modulo this number (which must be a power of

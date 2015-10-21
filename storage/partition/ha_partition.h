@@ -482,8 +482,7 @@ public:
   }
 
   /**
-    @breif
-    Positions an index cursor to the index specified in the hanlde. Fetches the
+    Positions an index cursor to the index specified in the handle. Fetches the
     row if available. If the key value is null, begin at first key of the
     index.
   */

@@ -107,7 +107,8 @@ table_mems_global_by_event_name::m_share=
   sizeof(pos_t),
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 PFS_engine_table* table_mems_global_by_event_name::create(void)
@@ -221,12 +222,25 @@ void table_mems_global_by_event_name::make_row(PFS_memory_class *klass)
   m_row.m_event_name.make_row(klass);
 
   PFS_connection_memory_visitor visitor(klass);
-  PFS_connection_iterator::visit_global(true,  /* hosts */
-                                        false, /* users */
-                                        true,  /* accounts */
-                                        true,  /* threads */
-                                        false, /* THDs */
-                                        &visitor);
+
+  if (klass->is_global())
+  {
+    PFS_connection_iterator::visit_global(false, /* hosts */
+                                          false, /* users */
+                                          false, /* accounts */
+                                          false, /* threads */
+                                          false, /* THDs */
+                                          &visitor);
+  }
+  else
+  {
+    PFS_connection_iterator::visit_global(true,  /* hosts */
+                                          false, /* users */
+                                          true,  /* accounts */
+                                          true,  /* threads */
+                                          false, /* THDs */
+                                          &visitor);
+  }
 
   m_row.m_stat.set(& visitor.m_stat);
   m_row_exists= true;

@@ -13,6 +13,11 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+/**
+  @file storage/perfschema/table_session_connect_attrs.cc
+  TABLE SESSION_CONNECT_ATTRS.
+*/
+
 #include "table_session_connect_attrs.h"
 
 THR_LOCK table_session_connect_attrs::m_table_lock;
@@ -29,7 +34,8 @@ table_session_connect_attrs::m_share=
   sizeof(pos_connect_attr_by_thread_by_attr), /* ref length */
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 PFS_engine_table* table_session_connect_attrs::create()

@@ -279,6 +279,10 @@ TRACE
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -472,6 +476,10 @@ TRACE
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -776,6 +784,10 @@ TRACE
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -1223,6 +1235,10 @@ TRACE
             "join_optimization": {
               "select#": 2,
               "steps": [
+                {
+                  "substitute_generated_columns": {
+                  } /* substitute_generated_columns */
+                },
                 {
                   "table_dependencies": [
                     {
@@ -1713,6 +1729,10 @@ SET @a=(select count(a) from t1 where a>0)	{
                   } /* condition_processing */
                 },
                 {
+                  "substitute_generated_columns": {
+                  } /* substitute_generated_columns */
+                },
+                {
                   "table_dependencies": [
                     {
                       "table": "`t1`",
@@ -1838,6 +1858,10 @@ set_case_expr (15) 0 (select count(`a`) from `test`.`t1` where (`a` > 1))	{
                   } /* condition_processing */
                 },
                 {
+                  "substitute_generated_columns": {
+                  } /* substitute_generated_columns */
+                },
+                {
                   "table_dependencies": [
                     {
                       "table": "`t1`",
@@ -1952,13 +1976,37 @@ do (select 42)	{
   "steps": [
     {
       "join_preparation": {
-        "select#": 2,
+        "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#2 */ select 42"
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select 42"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
+            "expanded_query": "/* select#1 */ select 42 AS `(select 42)`"
           }
         ] /* steps */
       } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_execution */
     }
   ] /* steps */
 }	0	0
@@ -2385,6 +2433,18 @@ table3.col_varchar_10_utf8_key	{
         "select#": 1,
         "steps": [
           {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": null,
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": null
+                }
+              ] /* steps */
+            } /* condition_processing */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t3` `table1`",
@@ -2712,6 +2772,10 @@ from t0 where a in
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t0`",
@@ -2807,6 +2871,10 @@ from t0 where a in
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -3479,6 +3547,10 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                   } /* condition_processing */
                 },
                 {
+                  "substitute_generated_columns": {
+                  } /* substitute_generated_columns */
+                },
+                {
                   "table_dependencies": [
                     {
                       "table": "`t1`",
@@ -4021,6 +4093,10 @@ link_alias_148._field_156	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -4807,6 +4883,10 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1` `alias1`",
@@ -5081,6 +5161,10 @@ select * from t1,t2 where t1.a+t2.c=cos(10) and t2.b=2	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [

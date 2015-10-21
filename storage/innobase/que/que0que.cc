@@ -46,8 +46,6 @@ Created 5/27/1996 Heikki Tuuri
 #include "eval0eval.h"
 #include "pars0types.h"
 
-#define QUE_MAX_LOOPS_WITHOUT_CHECK	16
-
 /* Short introduction to query graphs
    ==================================
 
@@ -510,6 +508,7 @@ que_graph_free_recursive(
 
 		que_graph_free_recursive(cre_tab->tab_def);
 		que_graph_free_recursive(cre_tab->col_def);
+		que_graph_free_recursive(cre_tab->v_col_def);
 
 		mem_heap_free(cre_tab->heap);
 
@@ -554,7 +553,6 @@ que_graph_free_recursive(
 	case QUE_NODE_LOCK:
 	case QUE_NODE_FUNC:
 	case QUE_NODE_ORDER:
-	case QUE_NODE_ROW_PRINTF:
 	case QUE_NODE_OPEN:
 	case QUE_NODE_FETCH:
 		/* No need to do anything */
@@ -1058,8 +1056,6 @@ que_thr_step(
 		thr = dict_create_table_step(thr);
 	} else if (type == QUE_NODE_CREATE_INDEX) {
 		thr = dict_create_index_step(thr);
-	} else if (type == QUE_NODE_ROW_PRINTF) {
-		thr = row_printf_step(thr);
 	} else {
 		ut_error;
 	}

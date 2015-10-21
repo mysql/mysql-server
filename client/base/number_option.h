@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,8 +27,6 @@ namespace Mysql{
 namespace Tools{
 namespace Base{
 namespace Options{
-
-using std::string;
 
 /**
   Template class for all number options.
@@ -59,9 +57,9 @@ public:
     @param value Pointer to int32 object to receive option value.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
-  Number_option(int32* value, string name, string description)
+  Number_option(int32* value, std::string name, std::string description)
     : Abstract_integer_number_option<Number_option<int32>, int32>(
     value, GET_INT32, name, description)
   {}
@@ -79,9 +77,9 @@ public:
     @param value Pointer to uint32 object to receive option value.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
-  Number_option(uint32* value, string name, string description)
+  Number_option(uint32* value, std::string name, std::string description)
     : Abstract_integer_number_option<Number_option<uint32>, uint32>(
     value, GET_UINT32, name, description)
   {}
@@ -99,9 +97,9 @@ public:
     @param value Pointer to int64 object to receive option value.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
-  Number_option(int64* value, string name, string description)
+  Number_option(int64* value, std::string name, std::string description)
     : Abstract_integer_number_option<Number_option<int64>, int64>(
     value, GET_LL, name, description)
   {}
@@ -119,9 +117,9 @@ public:
     @param value Pointer to uint64 object to receive option value.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
-  Number_option(uint64* value, string name, string description)
+  Number_option(uint64* value, std::string name, std::string description)
     : Abstract_integer_number_option<Number_option<uint64>, uint64>(
     value, GET_ULL, name, description)
   {}
@@ -139,9 +137,9 @@ public:
     @param value Pointer to double object to receive option value.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
-  Number_option(double* value, string name, string description)
+  Number_option(double* value, std::string name, std::string description)
     : Abstract_number_option<Number_option<double>, double>(
       value, GET_DOUBLE, name, description,
       getopt_double2ulonglong((double)*value))

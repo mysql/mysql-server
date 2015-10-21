@@ -15,53 +15,123 @@
 
 INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/mysys)
 
-SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c
-				errors.c hash.c list.c mf_cache.c mf_dirname.c mf_fn_ext.c
-				mf_format.c mf_getdate.c mf_iocache.c mf_iocache2.c mf_keycache.c 
-				mf_keycaches.c mf_loadpath.c mf_pack.c mf_path.c mf_qsort.c mf_qsort2.c
-				mf_radix.c mf_same.c mf_soundex.c mf_arr_appstr.c
-				mf_tempfile.c mf_unixpath.c mf_wcomp.c mulalloc.c my_access.c
-				my_alloc.c my_bit.c my_bitmap.c my_chsize.c
-				my_compress.c my_copy.c  my_create.c my_delete.c
-				my_div.c my_error.c my_file.c my_fopen.c my_fstream.c 
-				my_gethwaddr.c my_getsystime.c my_getwd.c my_compare.c my_init.c
-				my_lib.c my_lock.c my_malloc.c my_mess.c
-				my_mkdir.c my_mmap.c my_once.c my_open.c my_pread.c
-				my_read.c my_redel.c my_rename.c my_seek.c
-				my_static.c my_symlink.c my_symlink2.c my_sync.c my_thr_init.c 
-				my_write.c ptr_cmp.c queues.c stacktrace.c
-				string.c thr_cond.c thr_lock.c thr_mutex.c
-				thr_rwlock.c tree.c typelib.c base64.c my_memmem.c
-				lf_alloc-pin.c lf_dynarray.c lf_hash.c
-				my_rdtsc.c psi_noop.c my_syslog.c
-				my_chmod.c my_thread.c)
+SET(MYSYS_SOURCES
+  array.cc
+  base64.cc
+  charset.cc
+  charset-def.cc
+  checksum.cc
+  errors.cc
+  hash.cc
+  lf_alloc-pin.cc
+  lf_dynarray.cc
+  lf_hash.cc
+  list.cc
+  mf_arr_appstr.cc
+  mf_cache.cc
+  mf_dirname.cc
+  mf_fn_ext.cc
+  mf_format.cc
+  mf_getdate.cc
+  mf_iocache2.cc
+  mf_iocache.cc
+  mf_keycache.cc
+  mf_keycaches.cc
+  mf_loadpath.cc
+  mf_pack.cc
+  mf_path.cc
+  mf_qsort2.cc
+  mf_qsort.cc
+  mf_radix.cc
+  mf_same.cc
+  mf_soundex.cc
+  mf_tempfile.cc
+  mf_unixpath.cc
+  mf_wcomp.cc
+  mulalloc.cc
+  my_access.cc
+  my_alloc.cc
+  my_bit.cc
+  my_bitmap.cc
+  my_chmod.cc
+  my_chsize.cc
+  my_compare.cc
+  my_compress.cc
+  my_copy.cc
+  my_create.cc
+  my_delete.cc
+  my_div.cc
+  my_error.cc
+  my_file.cc
+  my_fopen.cc
+  my_fstream.cc
+  my_gethwaddr.cc
+  my_getsystime.cc
+  my_getwd.cc
+  my_init.cc
+  my_lib.cc
+  my_lock.cc
+  my_malloc.cc
+  my_memmem.cc
+  my_mess.cc
+  my_mkdir.cc
+  my_mmap.cc
+  my_once.cc
+  my_open.cc
+  my_pread.cc
+  my_rdtsc.cc
+  my_read.cc
+  my_redel.cc
+  my_rename.cc
+  my_seek.cc
+  my_static.cc
+  my_symlink2.cc
+  my_symlink.cc
+  my_sync.cc
+  my_syslog.cc
+  my_thread.cc
+  my_thr_init.cc
+  my_timespec.cc
+  my_write.cc
+  psi_noop.cc
+  ptr_cmp.cc
+  queues.cc
+  stacktrace.cc
+  string.cc
+  thr_cond.cc
+  thr_lock.cc
+  thr_mutex.cc
+  thr_rwlock.cc
+  tree.cc
+  typelib.cc
+)
 
 IF (WIN32)
   LIST(APPEND MYSYS_SOURCES
-    my_conio.c
-    my_windac.c
-    my_winerr.c
-    my_winfile.c
-    win_timers.c
+    my_conio.cc
+    my_windac.cc
+    my_winerr.cc
+    my_winfile.cc
+    win_timers.cc
   )
 ENDIF()
 
 IF(HAVE_POSIX_TIMERS)
- SET(MYSYS_SOURCES ${MYSYS_SOURCES} posix_timers.c)
+ SET(MYSYS_SOURCES ${MYSYS_SOURCES} posix_timers.cc)
 ENDIF()
 
 IF(HAVE_KQUEUE_TIMERS)
-  SET(MYSYS_SOURCES ${MYSYS_SOURCES} kqueue_timers.c)
+  SET(MYSYS_SOURCES ${MYSYS_SOURCES} kqueue_timers.cc)
 ENDIF()
 
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
   # Inline assembly template for rdtsc
-  SET_SOURCE_FILES_PROPERTIES(my_rdtsc.c
+  SET_SOURCE_FILES_PROPERTIES(my_rdtsc.cc
    PROPERTIES COMPILE_FLAGS "${CMAKE_CURRENT_SOURCE_DIR}/my_timer_cycles.il")
 ENDIF()
 
 IF(HAVE_LINUX_LARGE_PAGES)
- SET(MYSYS_SOURCES ${MYSYS_SOURCES} my_largepage.c)
+ SET(MYSYS_SOURCES ${MYSYS_SOURCES} my_largepage.cc)
 ENDIF()
 
 ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES})
@@ -74,15 +144,15 @@ IF(CMAKE_USE_PTHREADS_INIT AND CMAKE_C_FLAGS MATCHES "-fsanitize=")
   TARGET_LINK_LIBRARIES(mysys pthread)
 ENDIF()
 
-ADD_EXECUTABLE(thr_lock thr_lock.c)
+ADD_EXECUTABLE(thr_lock thr_lock.cc)
 TARGET_LINK_LIBRARIES(thr_lock mysys)
 SET_TARGET_PROPERTIES(thr_lock PROPERTIES COMPILE_FLAGS "-DMAIN")
-ADD_EXECUTABLE(queues queues.c)
+ADD_EXECUTABLE(queues queues.cc)
 TARGET_LINK_LIBRARIES(queues mysys)
 SET_TARGET_PROPERTIES(queues PROPERTIES COMPILE_FLAGS "-DMAIN")
 ADD_TEST(queues_test queues)
 
-ADD_EXECUTABLE(base64_test base64.c)
+ADD_EXECUTABLE(base64_test base64.cc)
 SET_TARGET_PROPERTIES(base64_test PROPERTIES COMPILE_FLAGS "-DMAIN")
 TARGET_LINK_LIBRARIES(base64_test mysys)
 
@@ -90,3 +160,11 @@ IF(MSVC)
    INSTALL_DEBUG_TARGET(mysys DESTINATION ${INSTALL_LIBDIR}/debug)
 ENDIF()
 
+MY_CHECK_CXX_COMPILER_FLAG("-Wdeprecated-declarations" HAVE_DEPREC_CONST)
+
+IF(CMAKE_GENERATOR MATCHES "Xcode" AND HAVE_DEPREC_CONST)
+  INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+  ADD_COMPILE_FLAGS(
+    stacktrace.c
+    COMPILE_FLAGS -Wno-deprecated-declarations)
+ENDIF()

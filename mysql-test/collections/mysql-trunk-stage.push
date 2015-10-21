@@ -1,11 +1,3 @@
-# Special per push test suite for mysql-trunk-stage used for qualifying WLs.
-# Covers more cases than default.push to catch problems in stage before tests
-# are pushed to main trees.
-
-# Run all default suites without specifying any replication mode. This will  run
-# rpl tests in all 3 modes row, stmt and mixed
-perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=normal      --vardir=var  --report-features 
-
 # Run all default suites with ps-protocol
 perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=ps         --vardir=var-ps --ps-protocol
 
@@ -15,9 +7,11 @@ perl mysql-test-run.pl --timer --force --parallel=auto --comment=embedded --vard
 # Run with innodb page size 4k
 perl mysql-test-run.pl --timer  --force --parallel=auto --comment=innodb_4k_size --vardir=var-innodb-4k --experimental=collections/default.experimental --suite=innodb --mysqld=--innodb-page-size=4k
 
-# Run with innodb_undo_tablespace > 1
-perl mysql-test-run.pl --timer  --force --parallel=auto --comment=innodb_undo --vardir=var-innodb-undo --experimental=collections/default.experimental --suite=innodb_undo --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2 --skip-test-list=collections/disabled-per-push.list
-perl mysql-test-run.pl --timer --force --parallel=auto --comment=innodb_undo --vardir=var-innodb-undo --experimental=collections/default.experimental --suite=innodb_undo --mysqld=--innodb_undo_tablespaces=3 --mysqld=--innodb_page_size=64K --bootstrap --innodb_undo_tablespaces=3 --bootstrap --innodb_page_size=64K --bootstrap --innodb_undo_logs=35 --skip-test-list=collections/disabled-per-push.list --big-test noop
+
+# Run default suites with innodb_undo_tablespace set to > 0
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=innodb_undo-2-debug  --vardir=var-innodb-undo-2-debug --experimental=collections/default.experimental --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2
+# Run innodb suites with innodb_undo_table_spaces >0  and different pagesizes
+perl mysql-test-run.pl --timer  --force --parallel=auto --comment=innodb_undo_5_64k --vardir=var-innodb-undo-5-64k --experimental=collections/default.experimental --suite=innodb_undo,innodb_zip,innodb --mysqld=--innodb_undo_tablespaces=5 --mysqld=--innodb-page-size=64k
 
 # Additional modes for rpl. Multi-Threaded Slave
 perl mysql-test-run.pl --timer  --force --parallel=auto --comment=rpl_binlog_n_mix_MTS --vardir=var-mts-rpl-binlog-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --suite=rpl

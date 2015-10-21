@@ -19,6 +19,7 @@ SET @@GLOBAL.MAX_BINLOG_SIZE= 4096;
 
 --let $connections= 11
 --let $loops= 500
+--let $error_simulation= 1
 
 --echo # Disable diff_table test
 --let $enable_diff_table= 0
@@ -27,9 +28,9 @@ SET @@GLOBAL.MAX_BINLOG_SIZE= 4096;
 --let $engine = MyISAM
 --source extra/rpl_tests/rpl_stress_test.inc
 
---echo # Enable diff_table test
---let $enable_diff_table= 1
---echo # Test tables with InnoDB engine when enableing diff_table
+--echo # Disable diff_table test
+--let $enable_diff_table= 0
+--echo # Test tables with InnoDB engine when disabling diff_table
 --echo # and simulating flush error
 --let $engine = InnoDB
 --source extra/rpl_tests/rpl_stress_test.inc

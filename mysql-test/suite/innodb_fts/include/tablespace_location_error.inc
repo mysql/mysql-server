@@ -99,7 +99,7 @@ SET DEBUG = '-d,ib_fts_aux_table_error';
 
 SET DEBUG = '+d,ib_fts_index_table_error';
 --error 1030
-ALTER TABLE t1 DROP INDEX fts_idx, ADD FULLTEXT INDEX fts_idx(a,b);
+ALTER TABLE t1 DROP INDEX fts_idx, ADD FULLTEXT INDEX fts_idx(a);
 SET DEBUG = '-d,ib_fts_index_table_error';
 
 --source suite/innodb/include/show_i_s_tables.inc

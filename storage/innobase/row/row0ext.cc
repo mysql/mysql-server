@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -48,15 +48,14 @@ row_ext_cache_fill(
 					dfield_get_data(dfield));
 	ulint		f_len	= dfield_get_len(dfield);
 	byte*		buf	= ext->buf + i * ext->max_len;
+	blobref_t	blobref(dfield->blobref());
 
 	ut_ad(ext->max_len > 0);
 	ut_ad(i < ext->n_ext);
 	ut_ad(dfield_is_ext(dfield));
 	ut_a(f_len >= BTR_EXTERN_FIELD_REF_SIZE);
 
-	if (UNIV_UNLIKELY(!memcmp(field_ref_zero,
-				  field + f_len - BTR_EXTERN_FIELD_REF_SIZE,
-				  BTR_EXTERN_FIELD_REF_SIZE))) {
+	if (blobref.is_zero()) {
 		/* The BLOB pointer is not set: we cannot fetch it */
 		ext->len[i] = 0;
 	} else {

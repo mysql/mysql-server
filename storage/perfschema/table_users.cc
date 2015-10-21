@@ -13,6 +13,11 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+/**
+  @file storage/perfschema/table_users.cc
+  TABLE USERS.
+*/
+
 #include "my_global.h"
 #include "my_thread.h"
 #include "table_users.h"
@@ -31,7 +36,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 {
   {
     { C_STRING_WITH_LEN("USER") },
-    { C_STRING_WITH_LEN("char(16)") },
+    { C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")") },
     { NULL, 0}
   },
   {
@@ -62,7 +67,8 @@ table_users::m_share=
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 PFS_engine_table* table_users::create()

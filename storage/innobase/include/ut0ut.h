@@ -45,6 +45,7 @@ Created 1/20/1994 Heikki Tuuri
 #endif /* MYSQL_SERVER */
 
 #include <stdarg.h>
+#include "ut/ut.h"
 
 /** Index name prefix in fast index creation, as a string constant */
 #define TEMP_INDEX_PREFIX_STR	"\377"
@@ -106,6 +107,22 @@ do {								\
 #define ut_max	std::max
 #define ut_min	std::min
 
+/** Calculate the minimum of two pairs.
+@param[out]	min_hi	MSB of the minimum pair
+@param[out]	min_lo	LSB of the minimum pair
+@param[in]	a_hi	MSB of the first pair
+@param[in]	a_lo	LSB of the first pair
+@param[in]	b_hi	MSB of the second pair
+@param[in]	b_lo	LSB of the second pair */
+UNIV_INLINE
+void
+ut_pair_min(
+	ulint*	min_hi,
+	ulint*	min_lo,
+	ulint	a_hi,
+	ulint	a_lo,
+	ulint	b_hi,
+	ulint	b_lo);
 /******************************************************//**
 Compares two ulints.
 @return 1 if a > b, 0 if a == b, -1 if a < b */
@@ -115,6 +132,24 @@ ut_ulint_cmp(
 /*=========*/
 	ulint	a,	/*!< in: ulint */
 	ulint	b);	/*!< in: ulint */
+/** Compare two pairs of integers.
+@param[in]	a_h	more significant part of first pair
+@param[in]	a_l	less significant part of first pair
+@param[in]	b_h	more significant part of second pair
+@param[in]	b_l	less significant part of second pair
+@return comparison result of (a_h,a_l) and (b_h,b_l)
+@retval -1 if (a_h,a_l) is less than (b_h,b_l)
+@retval 0 if (a_h,a_l) is equal to (b_h,b_l)
+@retval 1 if (a_h,a_l) is greater than (b_h,b_l) */
+UNIV_INLINE
+int
+ut_pair_cmp(
+	ulint	a_h,
+	ulint	a_l,
+	ulint	b_h,
+	ulint	b_l)
+	__attribute__((warn_unused_result));
+
 /*************************************************************//**
 Calculates fast the remainder of n/m when m is a power of two.
 @param n in: numerator
@@ -246,20 +281,6 @@ struct ut_strcmp_functor
 	}
 };
 
-/**********************************************************//**
-Prints a timestamp to a file. */
-void
-ut_print_timestamp(
-/*===============*/
-	FILE*	file)	/*!< in: file where to print */
-	UNIV_COLD;
-
-/**********************************************************//**
-Sprintfs a timestamp to a buffer, 13..14 chars plus terminating NUL. */
-void
-ut_sprintf_timestamp(
-/*=================*/
-	char*	buf); /*!< in: buffer where to sprintf */
 #ifdef UNIV_HOTBACKUP
 /**********************************************************//**
 Sprintfs a timestamp to a buffer with no spaces and with ':' characters
@@ -285,34 +306,7 @@ ulint
 ut_delay(
 /*=====*/
 	ulint	delay);	/*!< in: delay in microseconds on 100 MHz Pentium */
-#endif /* UNIV_HOTBACKUP */
-/*************************************************************//**
-Prints the contents of a memory buffer in hex and ascii. */
-void
-ut_print_buf(
-/*=========*/
-	FILE*		file,	/*!< in: file where to print */
-	const void*	buf,	/*!< in: memory buffer */
-	ulint		len);	/*!< in: length of the buffer */
 
-/*************************************************************//**
-Prints the contents of a memory buffer in hex. */
-void
-ut_print_buf_hex(
-/*=============*/
-	std::ostream&	o,	/*!< in/out: output stream */
-	const void*	buf,	/*!< in: memory buffer */
-	ulint		len);	/*!< in: length of the buffer */
-/*************************************************************//**
-Prints the contents of a memory buffer in hex and ascii. */
-void
-ut_print_buf(
-/*=========*/
-	std::ostream&	o,	/*!< in/out: output stream */
-	const void*	buf,	/*!< in: memory buffer */
-	ulint		len);	/*!< in: length of the buffer */
-
-#ifndef UNIV_HOTBACKUP
 /* Forward declaration of transaction handle */
 struct trx_t;
 
@@ -559,6 +553,19 @@ public:
 	~error_or_warn();
 private:
 	const bool	m_error;
+};
+
+/** Emit a fatal message if the given predicate is true, otherwise emit a
+error message. */
+class fatal_or_error : public logger {
+public:
+	fatal_or_error(bool	pred)
+	: m_fatal(pred)
+	{}
+
+	~fatal_or_error();
+private:
+	const bool	m_fatal;
 };
 
 } // namespace ib

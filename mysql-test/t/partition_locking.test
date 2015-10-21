@@ -1751,6 +1751,7 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (a INT, b VARCHAR(66))
 PARTITION BY HASH (a) PARTITIONS 3;
 INSERT INTO t1 VALUES (1, "One"), (2, "Two"), (3, "Three"), (4, "Four"), (5, "Five"), (6, "Six"), (0, "Zero");
+--error ER_SUBQUERY_NO_1_ROW
 DO (SELECT a FROM t1);
 FLUSH STATUS;
 DO (SELECT @x:= b FROM t1 WHERE a = 5);

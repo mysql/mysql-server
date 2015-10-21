@@ -36,7 +36,6 @@ Created 12/9/1995 Heikki Tuuri
 #include "univ.i"
 #include "dyn0buf.h"
 #ifndef UNIV_HOTBACKUP
-#include "sync0mutex.h"
 #include "sync0rw.h"
 #endif /* !UNIV_HOTBACKUP */
 
@@ -62,25 +61,6 @@ typedef ulint (*log_checksum_func_t)(const byte* log_block);
 log_sys->mutex. */
 extern log_checksum_func_t log_checksum_algorithm_ptr;
 
-/** Maximum number of log groups in log_group_t::checkpoint_buf */
-#define LOG_MAX_N_GROUPS	32
-
-/*******************************************************************//**
-Calculates where in log files we find a specified lsn.
-@return log file number */
-ulint
-log_calc_where_lsn_is(
-/*==================*/
-	int64_t*	log_file_offset,	/*!< out: offset in that file
-						(including the header) */
-	ib_uint64_t	first_header_lsn,	/*!< in: first log file start
-						lsn */
-	ib_uint64_t	lsn,			/*!< in: lsn whose position to
-						determine */
-	ulint		n_log_files,		/*!< in: total number of log
-						files */
-	int64_t		log_file_size);		/*!< in: log file size
-						(including the header) */
 #ifndef UNIV_HOTBACKUP
 /** Append a string to the log.
 @param[in]	str		string
@@ -244,22 +224,13 @@ shutdown. This function also writes all log in log files to the log archive. */
 void
 logs_empty_and_mark_files_at_shutdown(void);
 /*=======================================*/
-/******************************************************//**
-Reads a checkpoint info from a log group header to log_sys->checkpoint_buf. */
+/** Read a log group header page to log_sys->checkpoint_buf.
+@param[in]	group	log group
+@param[in]	header	0 or LOG_CHECKPOINT_1 or LOG_CHECKPOINT2 */
 void
-log_group_read_checkpoint_info(
-/*===========================*/
-	log_group_t*	group,	/*!< in: log group */
-	ulint		field);	/*!< in: LOG_CHECKPOINT_1 or LOG_CHECKPOINT_2 */
-/*******************************************************************//**
-Gets info from a checkpoint about a log group. */
-void
-log_checkpoint_get_nth_group_info(
-/*==============================*/
-	const byte*	buf,	/*!< in: buffer containing checkpoint info */
-	ulint		n,	/*!< in: nth slot */
-	ulint*		file_no,/*!< out: archived file number */
-	ulint*		offset);/*!< out: archived file offset */
+log_group_header_read(
+	const log_group_t*	group,
+	ulint			header);
 /** Write checkpoint info to the log header and invoke log_mutex_exit().
 @param[in]	sync	whether to wait for the write to complete */
 void
@@ -312,14 +283,6 @@ log_group_set_fields(
 	log_group_t*	group,	/*!< in/out: group */
 	lsn_t		lsn);	/*!< in: lsn for which the values should be
 				set */
-/******************************************************//**
-Calculates the data capacity of a log group, when the log file headers are not
-included.
-@return capacity in bytes */
-lsn_t
-log_group_get_capacity(
-/*===================*/
-	const log_group_t*	group);	/*!< in: log group */
 #endif /* !UNIV_HOTBACKUP */
 /************************************************************//**
 Gets a log block flush bit.
@@ -362,29 +325,12 @@ log_block_calc_checksum(
 /*====================*/
 	const byte*	block);	/*!< in: log block */
 
-/** Calculates the checksum for a log block using the legacy InnoDB algorithm.
-@param[in]	block	the redo log block
-@return		the calculated checksum value */
-UNIV_INLINE
-ulint
-log_block_calc_checksum_innodb(const byte*	block);
-
 /** Calculates the checksum for a log block using the CRC32 algorithm.
 @param[in]	block	log block
 @return checksum */
 UNIV_INLINE
 ulint
 log_block_calc_checksum_crc32(
-	const byte*	block);
-
-/** Calculates the checksum for a log block using the CRC32 algorithm.
-This function uses big endian byteorder when converting byte strings to
-integers.
-@param[in]	block	log block
-@return checksum */
-UNIV_INLINE
-ulint
-log_block_calc_checksum_crc32_legacy_big_endian(
 	const byte*	block);
 
 /** Calculates the checksum for a log block using the "no-op" algorithm.
@@ -496,7 +442,11 @@ void
 log_mem_free(void);
 /*==============*/
 
+/** Redo log system */
 extern log_t*	log_sys;
+
+/** Whether to generate and require checksums on the redo log pages */
+extern my_bool	innodb_log_checksums;
 
 /* Values used as flags */
 #define LOG_FLUSH	7652559
@@ -546,84 +496,44 @@ extern log_t*	log_sys;
 					.._HDR_NO */
 #define	LOG_BLOCK_TRL_SIZE	4	/* trailer size in bytes */
 
-/* Offsets for a checkpoint field */
+/* Offsets inside the checkpoint pages (redo log format version 1) */
 #define LOG_CHECKPOINT_NO		0
 #define LOG_CHECKPOINT_LSN		8
-#define LOG_CHECKPOINT_OFFSET_LOW32	16
-#define LOG_CHECKPOINT_LOG_BUF_SIZE	20
-#define	LOG_CHECKPOINT_ARCHIVED_LSN	24
-#define	LOG_CHECKPOINT_GROUP_ARRAY	32
+#define LOG_CHECKPOINT_OFFSET		16
+#define LOG_CHECKPOINT_LOG_BUF_SIZE	24
 
-/* For each value smaller than LOG_MAX_N_GROUPS the following 8 bytes: */
+/** Offsets of a log file header */
+/* @{ */
+/** Log file header format identifier (32-bit unsigned big-endian integer).
+This used to be called LOG_GROUP_ID and always written as 0,
+because InnoDB never supported more than one copy of the redo log. */
+#define LOG_HEADER_FORMAT	0
+/** 4 unused (zero-initialized) bytes. */
+#define LOG_HEADER_PAD1		4
+/** LSN of the start of data in this log file
+(with format version 1 and 2). */
+#define LOG_HEADER_START_LSN	8
+/** A null-terminated string which will contain either the string 'ibbackup'
+and the creation time if the log file was created by mysqlbackup --restore,
+or the MySQL version that created the redo log file. */
+#define LOG_HEADER_CREATOR	16
+/** End of the log file creator field. */
+#define LOG_HEADER_CREATOR_END	(LOG_HEADER_CREATOR + 32)
+/** Contents of the LOG_HEADER_CREATOR field */
+#define LOG_HEADER_CREATOR_CURRENT	"MySQL " INNODB_VERSION_STR
 
-#define LOG_CHECKPOINT_ARCHIVED_FILE_NO	0
-#define LOG_CHECKPOINT_ARCHIVED_OFFSET	4
+/** Supported redo log formats. Stored in LOG_HEADER_FORMAT. */
+enum log_header_format_t
+{
+	/** The MySQL 5.7.9 redo log format identifier. We can support recovery
+	from this format if the redo log is clean (logically empty). */
+	LOG_HEADER_FORMAT_5_7_9 = 1,
+	/** The redo log format identifier
+	corresponding to the current format version. */
+	LOG_HEADER_FORMAT_CURRENT = 2
+};
+/* @} */
 
-#define	LOG_CHECKPOINT_ARRAY_END	(LOG_CHECKPOINT_GROUP_ARRAY\
-							+ LOG_MAX_N_GROUPS * 8)
-#define LOG_CHECKPOINT_CHECKSUM_1	LOG_CHECKPOINT_ARRAY_END
-#define LOG_CHECKPOINT_CHECKSUM_2	(4 + LOG_CHECKPOINT_ARRAY_END)
-#if 0
-#define LOG_CHECKPOINT_FSP_FREE_LIMIT	(8 + LOG_CHECKPOINT_ARRAY_END)
-					/*!< Not used (0);
-					This used to contain the
-					current fsp free limit in
-					tablespace 0, in units of one
-					megabyte.
-
-					This information might have been used
-					since mysqlbackup version 0.35 but
-					before 1.41 to decide if unused ends of
-					non-auto-extending data files
-					in space 0 can be truncated.
-
-					This information was made obsolete
-					by mysqlbackup --compress. */
-#define LOG_CHECKPOINT_FSP_MAGIC_N	(12 + LOG_CHECKPOINT_ARRAY_END)
-					/*!< Not used (0);
-					This magic number tells if the
-					checkpoint contains the above field:
-					the field was added to
-					InnoDB-3.23.50 and
-					removed from MySQL 5.6 */
-#define LOG_CHECKPOINT_FSP_MAGIC_N_VAL	1441231243
-					/*!< if LOG_CHECKPOINT_FSP_MAGIC_N
-					contains this value, then
-					LOG_CHECKPOINT_FSP_FREE_LIMIT
-					is valid */
-#endif
-#define LOG_CHECKPOINT_OFFSET_HIGH32	(16 + LOG_CHECKPOINT_ARRAY_END)
-#define LOG_CHECKPOINT_SIZE		(20 + LOG_CHECKPOINT_ARRAY_END)
-
-
-/* Offsets of a log file header */
-#define LOG_GROUP_ID		0	/* log group number */
-#define LOG_FILE_START_LSN	4	/* lsn of the start of data in this
-					log file */
-#define LOG_FILE_NO		12	/* 4-byte archived log file number;
-					this field is only defined in an
-					archived log file */
-#define LOG_FILE_WAS_CREATED_BY_HOT_BACKUP 16
-					/* a 32-byte field which contains
-					the string 'ibbackup' and the
-					creation time if the log file was
-					created by mysqlbackup --restore;
-					when mysqld is first time started
-					on the restored database, it can
-					print helpful info for the user */
-#define	LOG_FILE_ARCH_COMPLETED	OS_FILE_LOG_BLOCK_SIZE
-					/* this 4-byte field is TRUE when
-					the writing of an archived log file
-					has been completed; this field is
-					only defined in an archived log file */
-#define LOG_FILE_END_LSN	(OS_FILE_LOG_BLOCK_SIZE + 4)
-					/* lsn where the archived log file
-					at least extends: actually the
-					archived log file may extend to a
-					later lsn, as long as it is within the
-					same log block as this lsn; this field
-					is defined only when an archived log
-					file has been completely written */
 #define LOG_CHECKPOINT_1	OS_FILE_LOG_BLOCK_SIZE
 					/* first checkpoint field in the log
 					header; we write alternately to the
@@ -635,52 +545,66 @@ extern log_t*	log_sys;
 					header */
 #define LOG_FILE_HDR_SIZE	(4 * OS_FILE_LOG_BLOCK_SIZE)
 
-#define LOG_GROUP_OK		301
-#define LOG_GROUP_CORRUPTED	302
+/** The state of a log group */
+enum log_group_state_t {
+	/** No corruption detected */
+	LOG_GROUP_OK,
+	/** Corrupted */
+	LOG_GROUP_CORRUPTED
+};
 
 typedef ib_mutex_t	LogSysMutex;
 typedef ib_mutex_t	FlushOrderMutex;
 
 /** Log group consists of a number of log files, each of the same size; a log
-group is implemented as a space in the sense of the module fil0fil. */
+group is implemented as a space in the sense of the module fil0fil.
+The fields are protected by log_sys->mutex. */
 struct log_group_t{
-	/* The following fields are protected by log_sys->mutex */
-	ulint		id;		/*!< log group id */
-	ulint		n_files;	/*!< number of files in the group */
-	lsn_t		file_size;	/*!< individual log file size in bytes,
-					including the log file header */
-	ulint		space_id;	/*!< file space which implements the log
-					group */
-	ulint		state;		/*!< LOG_GROUP_OK or
-					LOG_GROUP_CORRUPTED */
-	lsn_t		lsn;		/*!< lsn used to fix coordinates within
-					the log group */
-	lsn_t		lsn_offset;	/*!< the offset of the above lsn */
-	byte**		file_header_bufs_ptr;/*!< unaligned buffers */
-	byte**		file_header_bufs;/*!< buffers for each file
-					header in the group */
-	/*-----------------------------*/
-	lsn_t		scanned_lsn;	/*!< used only in recovery: recovery scan
-					succeeded up to this lsn in this log
-					group */
-	byte*		checkpoint_buf_ptr;/*!< unaligned checkpoint header */
-	byte*		checkpoint_buf;	/*!< checkpoint header is written from
-					this buffer to the group */
-	UT_LIST_NODE_T(log_group_t)
-			log_groups;	/*!< list of log groups */
+	/** log group identifier (always 0) */
+	ulint				id;
+	/** number of files in the group */
+	ulint				n_files;
+	/** format of the redo log: e.g., LOG_HEADER_FORMAT_CURRENT */
+	ulint				format;
+	/** individual log file size in bytes, including the header */
+	lsn_t				file_size
+	/** file space which implements the log group */;
+	ulint				space_id;
+	/** corruption status */
+	log_group_state_t		state;
+	/** lsn used to fix coordinates within the log group */
+	lsn_t				lsn;
+	/** the byte offset of the above lsn */
+	lsn_t				lsn_offset;
+	/** unaligned buffers */
+	byte**				file_header_bufs_ptr;
+	/** buffers for each file header in the group */
+	byte**				file_header_bufs;
+
+	/** used only in recovery: recovery scan succeeded up to this
+	lsn in this log group */
+	lsn_t				scanned_lsn;
+	/** unaligned checkpoint header */
+	byte*				checkpoint_buf_ptr;
+	/** buffer for writing a checkpoint header */
+	byte*				checkpoint_buf;
+	/** list of log groups */
+	UT_LIST_NODE_T(log_group_t)	log_groups;
 };
 
 /** Redo log buffer */
 struct log_t{
-	byte		pad[64];	/*!< padding to prevent other memory
+	char		pad1[CACHE_LINE_SIZE];
+					/*!< Padding to prevent other memory
 					update hotspots from residing on the
 					same memory cache line */
 	lsn_t		lsn;		/*!< log sequence number */
 	ulint		buf_free;	/*!< first free offset within the log
 					buffer */
 #ifndef UNIV_HOTBACKUP
+	char		pad2[CACHE_LINE_SIZE];/*!< Padding */
 	LogSysMutex	mutex;		/*!< mutex protecting the log */
-
+	char		pad3[CACHE_LINE_SIZE];/*!< Padding */
 	FlushOrderMutex	log_flush_order_mutex;/*!< mutex to serialize access to
 					the flush list when we are putting
 					dirty blocks in the list. The idea
@@ -825,6 +749,15 @@ struct log_t{
 
 /** Release the log sys mutex. */
 #define log_mutex_exit() mutex_exit(&log_sys->mutex)
+
+/** Calculate the offset of an lsn within a log group.
+@param[in]	lsn	log sequence number
+@param[in]	group	log group
+@return offset within the log group */
+lsn_t
+log_group_calc_lsn_offset(
+	lsn_t			lsn,
+	const log_group_t*	group);
 
 #ifndef UNIV_NONINL
 #include "log0log.ic"

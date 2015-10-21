@@ -29,14 +29,9 @@ using std::min;
 using std::max;
 
 static const unsigned int PACKET_BUFFER_EXTRA_ALLOC= 1024;
-bool net_send_error_packet(THD *, uint, const char *, const char *);
-bool net_send_error_packet(NET *, uint, const char *, const char *, bool,
-                           ulong, const CHARSET_INFO*);
-/* Declared non-static only because of the embedded library. */
-bool net_send_ok(THD *, uint, uint, ulonglong, ulonglong, const char *, bool);
-/* Declared non-static only because of the embedded library. */
-bool net_send_eof(THD *thd, uint server_status, uint statement_warn_count);
 #ifndef EMBEDDED_LIBRARY
+static bool net_send_error_packet(NET *, uint, const char *, const char *, bool,
+                                  ulong, const CHARSET_INFO*);
 static bool write_eof_packet(THD *, NET *, uint, uint);
 #endif
 
@@ -243,7 +238,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err)
   @param id                      Auto_increment id for first row (if used)
   @param message                 Message to send to the client
                                  (Used by mysql_status)
-  @param eof_indentifier         when true [FE] will be set in OK header
+  @param eof_identifier          when true [FE] will be set in OK header
                                  else [00] will be used
 
   @return
@@ -506,10 +501,10 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
    @retval TRUE  An error occurred and the messages wasn't sent properly
 */
 
-bool net_send_error_packet(NET* net, uint sql_errno, const char *err,
-                           const char* sqlstate, bool bootstrap,
-                           ulong client_capabilities,
-                           const CHARSET_INFO* character_set_results)
+static bool net_send_error_packet(NET* net, uint sql_errno, const char *err,
+                                  const char* sqlstate, bool bootstrap,
+                                  ulong client_capabilities,
+                                  const CHARSET_INFO* character_set_results)
 {
   uint length;
   /*
@@ -709,6 +704,10 @@ bool Protocol_classic::init_net(Vio *vio)
   return my_net_init(&m_thd->net, vio);
 }
 
+void Protocol_classic::claim_memory_ownership()
+{
+  net_claim_memory_ownership(&m_thd->net);
+}
 
 void Protocol_classic::end_net()
 {
@@ -757,12 +756,6 @@ char *Protocol_classic::get_last_error()
 void Protocol_classic::wipe_net()
 {
   memset(&m_thd->net, 0, sizeof(m_thd->net));
-}
-
-
-bool Protocol_classic::vio_ok()
-{
-  return m_thd->net.vio != NULL;
 }
 
 
@@ -834,7 +827,7 @@ bool Protocol_classic::parse_packet(union COM_DATA *data,
   {
   case COM_INIT_DB:
   {
-    data->com_init_db.db_name= raw_packet;
+    data->com_init_db.db_name= reinterpret_cast<const char*>(raw_packet);
     data->com_init_db.length= packet_length;
     break;
   }
@@ -902,7 +895,7 @@ bool Protocol_classic::parse_packet(union COM_DATA *data,
   }
   case COM_STMT_PREPARE:
   {
-    data->com_stmt_prepare.query= (char *)raw_packet;
+    data->com_stmt_prepare.query= reinterpret_cast<const char*>(raw_packet);
     data->com_stmt_prepare.length= packet_length;
     break;
   }
@@ -924,7 +917,7 @@ bool Protocol_classic::parse_packet(union COM_DATA *data,
   }
   case COM_QUERY:
   {
-    data->com_query.query= (char*)raw_packet;
+    data->com_query.query= reinterpret_cast<const char*>(raw_packet);
     data->com_query.length= packet_length;
     break;
   }
@@ -987,7 +980,7 @@ int Protocol_classic::get_command(COM_DATA *com_data, enum_server_command *cmd)
   /* Do not rely on my_net_read, extra safety against programming errors. */
   raw_packet[packet_length]= '\0';                  /* safety */
 
-  *cmd= (enum enum_server_command) (uchar) raw_packet[0];
+  *cmd= (enum enum_server_command) raw_packet[0];
 
   if (*cmd >= COM_END)
     *cmd= COM_END;				// Wrong command
@@ -1186,6 +1179,8 @@ bool Protocol_classic::send_field_metadata(Send_field *field,
   packet->length((uint) (pos - packet->ptr()));
 
 #ifndef DBUG_OFF
+  // TODO: this should be protocol-dependent, as it records incorrect type
+  // for binary protocol
   // Text protocol sends fields as varchar
   field_types[count++]= field->field ? MYSQL_TYPE_VAR_STRING : field->type;
 #endif
@@ -1196,7 +1191,7 @@ bool Protocol_classic::send_field_metadata(Send_field *field,
 bool Protocol_classic::end_row()
 {
   DBUG_ENTER("Protocol_classic::end_row");
-  if (m_thd->vio_ok())
+  if (m_thd->get_protocol()->connection_alive())
     DBUG_RETURN(my_net_write(&m_thd->net, (uchar *) packet->ptr(),
                              packet->length()));
   DBUG_RETURN(0);
@@ -1236,6 +1231,12 @@ bool store(Protocol *prot, I_List<i_string>* str_list)
 ****************************************************************************/
 
 #ifndef EMBEDDED_LIBRARY
+
+bool Protocol_classic::connection_alive()
+{
+  return m_thd->net.vio != NULL;
+}
+
 void Protocol_text::start_row()
 {
 #ifndef DBUG_OFF
@@ -1289,7 +1290,7 @@ SSL_handle Protocol_classic::get_ssl()
 }
 
 
-int Protocol_classic::shutdown()
+int Protocol_classic::shutdown(bool server_shutdown)
 {
   return m_thd->net.vio ? vio_shutdown(m_thd->net.vio) : 0;
 }
@@ -1306,6 +1307,7 @@ bool Protocol_text::store(const char *from, size_t length,
       field_types[field_pos] == MYSQL_TYPE_BIT ||
       field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL ||
       field_types[field_pos] == MYSQL_TYPE_NEWDATE ||
+      field_types[field_pos] == MYSQL_TYPE_JSON ||
       (field_types[field_pos] >= MYSQL_TYPE_ENUM &&
            field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
   if(!send_metadata) field_pos++;
@@ -1375,7 +1377,7 @@ bool Protocol_text::store_longlong(longlong from, bool unsigned_flag)
 }
 
 
-bool Protocol_text::store_decimal(const my_decimal *d)
+bool Protocol_text::store_decimal(const my_decimal *d, uint prec, uint dec)
 {
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
@@ -1385,7 +1387,7 @@ bool Protocol_text::store_decimal(const my_decimal *d)
 #endif
   char buff[DECIMAL_MAX_STR_LENGTH + 1];
   String str(buff, sizeof(buff), &my_charset_bin);
-  (void) my_decimal2string(E_DEC_FATAL_ERROR, d, 0, 0, 0, &str);
+  (void) my_decimal2string(E_DEC_FATAL_ERROR, d, prec, dec, '0', &str);
   return net_store_data((uchar *) str.ptr(), str.length());
 }
 
@@ -1569,6 +1571,7 @@ bool Protocol_binary::store(const char *from, size_t length,
     field_types[field_pos] == MYSQL_TYPE_BIT ||
     field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL ||
     field_types[field_pos] == MYSQL_TYPE_NEWDATE ||
+    field_types[field_pos] == MYSQL_TYPE_JSON ||
     (field_types[field_pos] >= MYSQL_TYPE_ENUM &&
       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
 #endif
@@ -1666,20 +1669,21 @@ bool Protocol_binary::store_longlong(longlong from, bool unsigned_flag)
 }
 
 
-bool Protocol_binary::store_decimal(const my_decimal *d)
+bool Protocol_binary::store_decimal(const my_decimal *d, uint prec, uint dec)
 {
   if(send_metadata)
-    return Protocol_text::store_decimal(d);
+    return Protocol_text::store_decimal(d, prec, dec);
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
   DBUG_ASSERT(field_types == 0 ||
-    field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL);
-  field_pos++;
+    field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL ||
+    field_types[field_pos] == MYSQL_TYPE_VAR_STRING);
+  // store() will increment the field_pos counter
 #endif
   char buff[DECIMAL_MAX_STR_LENGTH + 1];
   String str(buff, sizeof(buff), &my_charset_bin);
-  (void) my_decimal2string(E_DEC_FATAL_ERROR, d, 0, 0, 0, &str);
-  return Protocol_text::store(str.ptr(), str.length(), str.charset());
+  (void) my_decimal2string(E_DEC_FATAL_ERROR, d, prec, dec, '0', &str);
+  return store(str.ptr(), str.length(), str.charset(), result_cs);
 }
 
 

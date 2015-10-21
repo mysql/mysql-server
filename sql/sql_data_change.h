@@ -39,7 +39,7 @@ enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };
 
    -# Insert statements, i.e. INSERT INTO .. VALUES
 
-   -# Update statements. UPDATE <table> SET ...
+   -# Update statements. UPDATE @<table@> SET ...
 
    -# Delete statements. Currently this class is not used for delete statements
       and thus has not yet been adapted to handle it.
@@ -100,7 +100,7 @@ private:
 
   /** Whether this object must manage function defaults */
   const bool m_manage_defaults;
-  /** Bitmap: bit is set if we should set column #i to its function default */
+  /** Bitmap: bit is set if we should set column number i to its function default */
   MY_BITMAP *m_function_default_columns;
 
   /// Policy for handling insertion of duplicate values.
@@ -112,9 +112,9 @@ protected:
      This function will, unless done already, calculate and keep the set of
      function default columns.
 
-     Function default columns are those columns declared DEFAULT <function>
-     and/or ON UPDATE <function>. These will store the return value of
-     <function> when the relevant operation is applied on the table.
+     Function default columns are those columns declared DEFAULT @<function@>
+     and/or ON UPDATE @<function@>. These will store the return value of
+     @<function@> when the relevant operation is applied on the table.
 
      Calling this function, without error, is a prerequisite for calling
      COPY_INFO::set_function_defaults().

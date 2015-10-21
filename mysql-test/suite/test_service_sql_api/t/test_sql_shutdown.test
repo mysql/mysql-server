@@ -1,0 +1,67 @@
+--source include/not_embedded.inc
+let $MYSQLD_DATADIR= `select @@datadir`;
+let MYSQLDDATADIR= `select @@datadir`;
+
+--echo ##########################################
+--echo # Run plugin
+--echo ##########################################
+--replace_result $TEST_SQL_SHUTDOWN TEST_SQL_SHUTDOWN
+eval INSTALL PLUGIN test_sql_shutdown SONAME '$TEST_SQL_SHUTDOWN';
+# Wait until the plugin thread has opened a session.
+# That's for the deterministic result also on slow machines.
+let $wait_condition= SELECT count(*) > 0 FROM information_schema.processlist WHERE info LIKE 'PLUGIN%';
+--source include/wait_condition.inc
+SELECT count(*) FROM information_schema.processlist WHERE info LIKE 'PLUGIN%';
+--echo ##########################################
+--echo # Shutdown
+--echo ##########################################
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+# Give implicitly called deinit of plugin time to write 'SERVER SHUTDOWN' to file
+# The following perl snippet is waiting until the test plugin will be ready
+# to write into the log. The last line must contain "SERVER SHUTDOWN".
+# Then the test can cat the file content into the result file.
+perl;
+    use strict;
+    my $max_trials= 300;
+    my $fc_count= 0;
+    my $p_found= 1;
+    my $fn= "$ENV{'MYSQLDDATADIR'}/test_sql_shutdown.log";
+    my $search_pattern="SERVER SHUTDOWN";
+    while ($p_found and $fc_count < $max_trials) {
+         open(FILE, "<", $fn);
+         while (<FILE>) {
+              if (m{$search_pattern}) {
+                 $p_found= 0;
+                 close(FILE);
+                 exit;
+              }
+         }
+         sleep(1);
+         $fc_count++;
+         close(FILE);
+    }
+    print "Pattern \"$search_pattern\" not found\n";
+EOF
+cat_file $MYSQLD_DATADIR/test_sql_shutdown.log;
+
+
+--echo ##########################################
+--echo # Restart
+--echo ##########################################
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+cat_file $MYSQLD_DATADIR/test_sql_shutdown.log;
+
+SELECT plugin_name, plugin_status, plugin_type,
+       plugin_description, load_option
+FROM information_schema.plugins
+WHERE plugin_name LIKE "test_sql_shutdown";
+
+--echo ##########################################
+--echo # Stop plugin
+--echo ##########################################
+UNINSTALL PLUGIN test_sql_shutdown;
+remove_file $MYSQLD_DATADIR/test_sql_shutdown.log;

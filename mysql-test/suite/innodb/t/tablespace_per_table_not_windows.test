@@ -1,0 +1,164 @@
+--echo #
+--echo # Test the limits of a file-per-table tablespace name.  MySQL combines
+--echo # the database name with the table name to make a unique table name.
+--echo #
+
+--source include/have_innodb.inc
+--source include/not_windows.inc
+# This will test the limit of a filename in MySQL at 512 bytes.
+# We control that by making it a relative path starting with "./".
+# The embedded server uses an absolute path as the datadir
+# which has a non-deterministic length.
+--source include/not_embedded.inc
+
+SET default_storage_engine=InnoDB;
+LET $MYSQLD_DATADIR = `select @@datadir`;
+
+--echo #
+--echo # MySQL limits each database and tablename identifier to 64 characters
+--echo # of up to 3 bytes per character, corresponding to 192 bytes.
+--echo #
+LET $too_long_name  = this_sixty_five_byte_name_is_too_long____________________________;
+--error ER_TOO_LONG_IDENT
+--eval CREATE DATABASE `$too_long_name`
+
+LET $long_name      = this_sixty_four_byte_name_is_not_too_long_______________________;
+--eval CREATE DATABASE `$long_name`
+--eval USE `$long_name`
+
+--echo #
+--echo # A 64 character tablename can be created in a 64 character database name
+--echo #
+--eval CREATE TABLE `$long_name`.`$long_name` (a SERIAL)
+
+--echo #
+--echo # A 65 character tablename is too long.
+--echo #
+--error ER_TOO_LONG_IDENT
+--eval CREATE TABLE `test`.`$too_long_name` (a SERIAL)
+--error ER_TOO_LONG_IDENT
+--eval CREATE TABLE `$long_name`.`$too_long_name` (a SERIAL)
+
+--echo #
+--echo # Non-non-filename-safe characters like '#' are expanded to '@0023'.
+--echo # On many file systems, such as Linux extfs, you can create a database name
+--echo # that expands to up to 255 bytes long.
+--echo # `##################################################_long` is expanded to
+--echo #                        (50 * 5) +                     5  = 255.
+--echo #
+LET $long_db_name = ##################################################_long;
+--eval CREATE DATABASE `$long_db_name`;
+--eval USE `$long_db_name`
+
+--echo #
+--echo # This 256-byte name is only one byte longer but fails with an error code
+--echo # from the stat operation.
+--echo # `##################################################_long_` is expanded to
+--echo #                        (50 * 5) +                    6  = 256.
+--echo #
+--replace_regex /Errcode: [0-9]+/Errcode: ##/  /@0023/#/
+--error 13
+CREATE DATABASE `##################################################_long_`;
+
+--echo #
+--echo # This 300-byte name which is the longest name that gets an error code
+--echo # from the stat operation.
+--echo # `###########################################################_long` is expanded to
+--echo #                        (59 * 5) +                             5  = 300.
+--echo #
+--replace_regex /Errcode: [0-9]+/Errcode: ##/  /@0023/#/
+--error 13
+CREATE DATABASE `###########################################################_long`;
+
+--echo #
+--echo # This 301-byte name which is only one byte longer but fails with ER_TOO_LONG_IDENT.
+--echo # `###########################################################_long_` is expanded to
+--echo #                        (59 * 5) +                             6  = 301.
+--echo #
+--replace_result @0023 #
+--error ER_TOO_LONG_IDENT
+CREATE DATABASE `###########################################################_long_`;
+
+USE test;
+
+LET $long_249_byte_table_name = #################################################long;
+LET $long_250_byte_table_name = #################################################_long;
+LET $long_251_byte_table_name = #################################################_long_;
+LET $long_252_byte_table_name = #################################################_long___;
+
+--echo #
+--echo # An expanded table name is limited to 251 bytes
+--echo #
+--eval CREATE TABLE `test`.`$long_251_byte_table_name` (a SERIAL)
+
+--echo #
+--echo # A 252-byte tablename is too long
+--echo #
+--replace_regex /errno: [0-9]+/errno: ##/  /@0023/#/
+--error ER_CANT_CREATE_TABLE
+--eval CREATE TABLE `test`.`$long_252_byte_table_name` (a SERIAL)
+
+CREATE DATABASE twenty_byte_db_name_;
+USE `twenty_byte_db_name_`;
+
+--echo #
+--echo # A 251 byte expanded table name will fit with a longer database name
+--echo #
+--eval CREATE TABLE `twenty_byte_db_name_`.`$long_251_byte_table_name` (a SERIAL)
+
+--echo #
+--echo # A 252 byte expanded table name is also too long in a longer database name
+--echo #
+--replace_regex /errno: [0-9]+/errno: ##/  /@0023/#/
+--error ER_CANT_CREATE_TABLE
+--eval CREATE TABLE `twenty_byte_db_name_`.`$long_252_byte_table_name` (a SERIAL)
+
+--echo #
+--echo # Another limitation is a 512 byte length to an expanded path that includes
+--echo # the datadir which is './' in this test, the expanded database name,
+--echo # the directory separator '/', the expanded table name, and the file extension.
+--echo # './long_db_name.long_250_byte_table_name.frm'
+--echo #  2+    255    +1+       250            +1+3  = 512
+--echo #
+--eval CREATE TABLE `$long_db_name`.`$long_250_byte_table_name` (a SERIAL)
+
+--error ER_IDENT_CAUSES_TOO_LONG_PATH
+--eval CREATE TABLE `$long_db_name`.`$long_251_byte_table_name` (a SERIAL)
+SHOW WARNINGS;
+
+--echo #
+--echo # Show the successfully created databases and tables
+--echo #
+--echo ---- list_files MYSQLD_DATADIR/test
+--replace_result @0023 #
+--list_files $MYSQLD_DATADIR/test
+--echo ---- list_files MYSQLD_DATADIR/$long_name
+--replace_result @0023 #
+--list_files $MYSQLD_DATADIR/$long_name
+--echo ---- list_files MYSQLD_DATADIR/$long_db_name
+--replace_result @0023 #
+--list_files $MYSQLD_DATADIR/@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023_long
+
+--replace_result @0023 #
+SELECT name FROM information_schema.innodb_sys_tables WHERE name LIKE '%long%';
+--replace_result @0023 #
+SELECT name FROM information_schema.innodb_sys_tablespaces WHERE name LIKE '%long%';
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR  @0023 #
+SELECT path FROM information_schema.innodb_sys_datafiles WHERE path LIKE '%long%';
+--vertical_results
+--replace_regex /innodb_file_per_table_[0-9]*/innodb_file_per_table_##/
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR  @0023 #
+SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name LIKE '%long%';
+--horizontal_results
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--eval DROP TABLE `$long_name`.`$long_name`
+--eval DROP TABLE `test`.`$long_251_byte_table_name`
+--eval DROP TABLE `twenty_byte_db_name_`.`$long_251_byte_table_name`
+--eval DROP TABLE `$long_db_name`.`$long_250_byte_table_name`
+--eval DROP DATABASE `$long_name`
+--eval DROP DATABASE `$long_db_name`
+DROP DATABASE `twenty_byte_db_name_`;

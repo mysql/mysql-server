@@ -232,7 +232,7 @@ static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list)
     true      rename failed
 */
 
-bool
+static bool
 do_rename(THD *thd, TABLE_LIST *ren_table,
           const char *new_db, const char *new_table_name,
           const char *new_table_alias, bool skip_error)
@@ -241,7 +241,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
   char name[FN_REFLEN + 1];
   const char *new_alias, *old_alias;
   frm_type_enum frm_type;
-  enum legacy_db_type table_type;
+  handlerton *hton;
 
   DBUG_ENTER("do_rename");
 
@@ -267,13 +267,12 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
   build_table_filename(name, sizeof(name) - 1,
                        ren_table->db, old_alias, reg_ext, 0);
 
-  frm_type= dd_frm_type(thd, name, &table_type);
+  frm_type= dd_frm_type_and_se(thd, name, &hton);
   switch (frm_type)
   {
     case FRMTYPE_TABLE:
       {
-        handlerton *hton= ha_resolve_by_legacy_type(thd, table_type);
-        if (table_type != DB_TYPE_UNKNOWN && !hton)
+        if (!hton)
         {
           my_error(ER_STORAGE_ENGINE_NOT_LOADED, MYF(0), ren_table->db, old_alias);
           DBUG_RETURN(1);
@@ -311,7 +310,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
       { 
         char errbuf[MYSYS_STRERROR_SIZE];
         my_error(ER_FILE_NOT_FOUND, MYF(0), name,
-                 my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+                 my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
       }
       break;
   }

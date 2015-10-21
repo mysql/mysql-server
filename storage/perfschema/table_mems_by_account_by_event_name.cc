@@ -36,7 +36,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 {
  {
     { C_STRING_WITH_LEN("USER") },
-    { C_STRING_WITH_LEN("char(16)") },
+    { C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")") },
     { NULL, 0}
   },
   {
@@ -117,7 +117,8 @@ table_mems_by_account_by_event_name::m_share=
   sizeof(pos_mems_by_account_by_event_name),
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 PFS_engine_table* table_mems_by_account_by_event_name::create(void)
@@ -163,13 +164,22 @@ int table_mems_by_account_by_event_name::rnd_next(void)
     account= global_account_container.get(m_pos.m_index_1, & has_more_account);
     if (account != NULL)
     {
-      memory_class= find_memory_class(m_pos.m_index_2);
-      if (memory_class)
+      do
       {
-        make_row(account, memory_class);
-        m_next_pos.set_after(&m_pos);
-        return 0;
+        memory_class= find_memory_class(m_pos.m_index_2);
+        if (memory_class != NULL)
+        {
+          if (! memory_class->is_global())
+          {
+            make_row(account, memory_class);
+            m_next_pos.set_after(&m_pos);
+            return 0;
+          }
+
+          m_pos.next_class();
+        }
       }
+      while (memory_class != NULL);
     }
   }
 
@@ -187,10 +197,13 @@ int table_mems_by_account_by_event_name::rnd_pos(const void *pos)
   if (account != NULL)
   {
     memory_class= find_memory_class(m_pos.m_index_2);
-    if (memory_class)
+    if (memory_class != NULL)
     {
-      make_row(account, memory_class);
-      return 0;
+      if (! memory_class->is_global())
+      {
+        make_row(account, memory_class);
+        return 0;
+      }
     }
   }
 

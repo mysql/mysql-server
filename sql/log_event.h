@@ -14,14 +14,14 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @addtogroup Replication
-  @{
-
-  @file
+  @file sql/log_event.h
   
   @brief Binary log event definitions.  This includes generic code
   common to all types of log events, as well as specific code for each
   type of log event.
+
+  @addtogroup Replication
+  @{
 */
 
 
@@ -51,12 +51,10 @@
 #include <string>
 
 #ifdef MYSQL_CLIENT
-/*
-  Variable to suppress the USE <DATABASE> command when using the
-  new mysqlbinlog option
-*/
-bool option_rewrite_set= FALSE;
-extern I_List<i_string_pair> binlog_rewrite_db;
+class Format_description_log_event;
+typedef bool (*read_log_event_filter_function)(char** buf,
+                                               ulong*,
+                                               const Format_description_log_event*);
 #endif
 
 extern "C" {
@@ -383,7 +381,6 @@ typedef struct st_print_event_info
   uint charset_database_number;
   my_thread_id thread_id;
   bool thread_id_printed;
-  uint32 server_id_from_fd_event;
 
   st_print_event_info();
 
@@ -442,22 +439,6 @@ typedef struct st_print_event_info
    */
   bool skipped_event_in_transaction;
 
-  /* true if gtid_next is set with a value */
-  bool is_gtid_next_set;
-
-  /*
-    Determines if the current value of gtid_next needs to be restored
-    to AUTOMATIC if the binary log would end after the current event.
-
-    If the log ends after a transaction, then this should be false.
-    If the log ends in the middle of a transaction, then this should
-    be true; this can happen for relay logs where transactions are
-    split over multiple logs.
-
-    Set to true initially, and after a Gtid_log_event is processed.
-    Set to false if is_gtid_next_set is true.
-   */
-  bool is_gtid_next_valid;
 } PRINT_EVENT_INFO;
 #endif
 
@@ -695,12 +676,12 @@ public:
                                    *description_event,
                                    my_bool crc_check);
 
-  /*
+  /**
    This function will read the common header into the buffer and
    rewind the IO_CACHE back to the beginning of the event.
 
    @param[in]         log_cache The IO_CACHE to read from.
-   @param[in/out]     header The buffer where to read the common header. This
+   @param[in,out]     header The buffer where to read the common header. This
                       buffer must be at least LOG_EVENT_MINIMAL_HEADER_LEN long.
 
    @returns           false on success, true otherwise.
@@ -715,7 +696,7 @@ public:
     DBUG_RETURN(false);
   }
 
-  /*
+  /**
    This static function will read the event length from the common
    header that is on the IO_CACHE. Note that the IO_CACHE read position
    will not be updated.
@@ -741,14 +722,14 @@ public:
     Reads an event from a binlog or relay log. Used by the dump thread
     this method reads the event into a raw buffer without parsing it.
 
-    @Note If mutex is 0, the read will proceed without mutex.
+    @note If mutex is 0, the read will proceed without mutex.
 
-    @Note If a log name is given than the method will check if the
+    @note If a log name is given than the method will check if the
     given binlog is still active.
 
     @param[in]  file                log file to be read
     @param[out] packet              packet to hold the event
-    @param[in]  lock                the lock to be used upon read
+    @param[in]  log_lock            the lock to be used upon read
     @param[in]  checksum_alg_arg    the checksum algorithm
     @param[in]  log_file_name_arg   the log's file name
     @param[out] is_binlog_active    is the current log still active
@@ -763,7 +744,7 @@ public:
    */
   static int read_log_event(IO_CACHE* file, String* packet,
                             mysql_mutex_t* log_lock,
-                            binary_log::enum_binlog_checksum_alg checksum_alg_arg,
+                            enum_binlog_checksum_alg checksum_alg_arg,
                             const char *log_file_name_arg= NULL,
                             bool* is_binlog_active= NULL);
   /*
@@ -802,7 +783,8 @@ public:
     /* avoid having to link mysqlbinlog against libpthread */
   static Log_event* read_log_event(IO_CACHE* file,
                                    const Format_description_log_event
-                                   *description_event, my_bool crc_check);
+                                   *description_event, my_bool crc_check,
+                                   read_log_event_filter_function f);
   /* print*() functions are used by mysqlbinlog */
   virtual void print(FILE* file, PRINT_EVENT_INFO* print_event_info) = 0;
   void print_timestamp(IO_CACHE* file, time_t* ts);
@@ -1007,8 +989,7 @@ private:
      @param slave_server_id   id of the server, extracted from event
      @param mts_in_group      the being group parsing status, true
                               means inside the group
-     @param  is_scheduler_dbname
-                              true when the current submode (scheduler)
+     @param is_dbname_type    true when the current submode (scheduler)
                               is of DB_NAME type.
 
      @retval EVENT_EXEC_PARALLEL  if event is executed by a Worker
@@ -1076,7 +1057,7 @@ private:
   }
 
   /**
-     @return index  in \in [0, M] range to indicate
+     @return index  in [0, M] range to indicate
              to be assigned worker;
              M is the max index of the worker pool.
   */
@@ -1314,15 +1295,15 @@ protected:
 */
 
 /**
-  A @Query event is written to the binary log whenever the database is
+  A Query event is written to the binary log whenever the database is
   modified on the master, unless row based logging is used.
 
   Query_log_event is created for logging, and is called after an update to the
   database is done. It is used when the server acts as the master.
 
   Virtual inheritance is required here to handle the diamond problem in
-  the class Execute_load_query_log_event.
-  The diamond structure is explained in @Excecute_load_query_log_event
+  the class @c Execute_load_query_log_event.
+  The diamond structure is explained in @c Excecute_load_query_log_event
 
   @internal
   The inheritance structure is as follows:
@@ -1408,6 +1389,8 @@ public:
 #else
   void print_query_header(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info);
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
+  static bool rewrite_db_in_buffer(char **buf, ulong *event_len,
+                                   const Format_description_log_event *fde);
 #endif
 
   Query_log_event();
@@ -1483,7 +1466,8 @@ public:        /* !!! Public in this patch to allow old usage */
     return
       !strncmp(query, "COMMIT", q_len) ||
       (!native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK"))
-       && native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK TO ")));
+       && native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK TO "))) ||
+      !strncmp(query, STRING_WITH_LEN("XA ROLLBACK"));
   }
   static size_t get_query(const char *buf, size_t length,
                           const Format_description_log_event *fd_event,
@@ -1508,7 +1492,7 @@ public:        /* !!! Public in this patch to allow old usage */
 
   Virtual inheritance is required here to handle the diamond problem in
   the class Create_file_log_event.
-  The diamond structure is explained in @Create_file_log_event
+  The diamond structure is explained in @c Create_file_log_event
   @internal
   The inheritance structure in the current design for the classes is
   as follows:
@@ -1715,6 +1699,23 @@ class Format_description_log_event: public Format_description_event,
                                     public Start_log_event_v3
 {
 public:
+  /*
+    MTS Workers and Coordinator share the event and that affects its
+    destruction. Instantiation is always done by Coordinator/SQL thread.
+    Workers are allowed to destroy only "obsolete" instances, those
+    that are not actual for Coordinator anymore but needed to Workers
+    that are processing queued events depending on the old instance.
+    The counter of a new FD is incremented by Coordinator or Worker at
+    time of {Relay_log_info,Slave_worker}::set_rli_description_event()
+    execution.
+    In the same methods the counter of the "old" FD event is decremented
+    and when it drops to zero the old FD is deleted.
+    The latest read from relay-log event is to be
+    destroyed by Coordinator/SQL thread at its thread exit.
+    Notice the counter is processed even in the single-thread mode where
+    decrement and increment are done by the single SQL thread.
+  */
+  Atomic_int32 usage_counter;
   Format_description_log_event(uint8_t binlog_ver, const char* server_ver=0);
   Format_description_log_event(const char* buf, uint event_len,
                                const Format_description_event
@@ -2714,6 +2715,8 @@ public:
     return new table_def(m_coltype, m_colcnt, m_field_metadata,
                          m_field_metadata_size, m_null_bits, m_flags);
   }
+  static bool rewrite_db_in_buffer(char **buf, ulong *event_len,
+                                   const Format_description_log_event *fde);
 #endif
   const Table_id& get_table_id() const { return m_table_id; }
   const char *get_table_name() const { return m_tblnam.c_str(); }
@@ -2793,9 +2796,9 @@ private:
   Virtual inheritance is required here to handle the diamond problem in
   the class Write_rows_log_event, Update_rows_log_event and
   Delete_rows_log_event.
-  The diamond structure is explained in @Write_rows_log_event,
-                                        @Update_rows_log_event,
-                                        @Delete_rows_log_event
+  The diamond structure is explained in @c Write_rows_log_event,
+                                        @c Update_rows_log_event,
+                                        @c Delete_rows_log_event
 
   @internal
   The inheritance structure in the current design for the classes is
@@ -3153,7 +3156,7 @@ private:
   /**
     Private member function called while handling idempotent errors.
 
-    @param err[IN/OUT] the error to handle. If it is listed as
+    @param [in,out] err the error to handle. If it is listed as
                        idempotent/ignored related error, then it is cleared.
     @returns true if the slave should stop executing rows.
    */
@@ -3165,7 +3168,7 @@ private:
      m_curr_row so that the next row is processed during the row
      execution main loop (@c Rows_log_event::do_apply_event()).
 
-     @param err[IN] the current error code.
+     @param err the current error code.
    */
   void do_post_row_operations(Relay_log_info const *rli, int err);
 
@@ -3219,10 +3222,10 @@ private:
     the indexes are in non-contigous ranges it fetches record corresponding
     to the key value in the next range.
 
-    @parms: bool first_read : signifying if this is the first time we are reading a row
+    @param first_read  signifying if this is the first time we are reading a row
             over an index.
-    @return_value: -  error code when there are no more reeords to be fetched or some other
-                      error occured,
+    @return  error code when there are no more records to be fetched or some other
+                      error occurred,
                    -  0 otherwise.
   */
   int next_record_scan(bool first_read);
@@ -3230,8 +3233,7 @@ private:
   /**
     Populates the m_distinct_keys with unique keys to be modified
     during HASH_SCAN over keys.
-    @return_value -0 success
-                  -Err_code
+    @returns 0 success, or the error code.
   */
   int add_key_to_distinct_keyset();
 
@@ -4299,7 +4301,7 @@ private:
   bool write_data_map(IO_CACHE* file, std::map<std::string, std::string> *map);
 #endif
 
-  int get_size_data_map(std::map<std::string, std::string> *map);
+  size_t get_size_data_map(std::map<std::string, std::string> *map);
 
 public:
 
@@ -4333,8 +4335,6 @@ public:
 
   /**
     Sets the certification info
-
-    @param db the database
   */
   void set_certification_info(std::map<std::string, std::string> *info);
 

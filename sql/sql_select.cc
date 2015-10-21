@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file
+  @file sql/sql_select.cc
 
   @brief Evaluate query expressions, throughout resolving, optimization and
          execution.
@@ -62,8 +62,9 @@ static store_key *get_store_key(THD *thd,
 				Key_use *keyuse, table_map used_tables,
 				KEY_PART_INFO *key_part, uchar *key_buff,
 				uint maybe_null);
+static uint actual_key_flags(KEY *key_info);
 bool const_expression_in_where(Item *conds,Item *item, Item **comp_item);
-uint find_shortest_key(TABLE *table, const Key_map *usable_keys);
+
 /**
   Handle a data manipulation query, from preparation through cleanup
 
@@ -95,8 +96,8 @@ uint find_shortest_key(TABLE *table, const Key_map *usable_keys);
     @todo make this function also handle INSERT ... VALUES, single-table
           UPDATE and DELETE, SET and DO.
     
-    The function processes queries where the outer-most query expression
-    contains one query block and no fake_select_lex separately.
+    The function processes simple query expressions without UNION and
+    without multi-level ORDER BY/LIMIT separately.
     Such queries are executed with a more direct code path.
 */
 bool handle_query(THD *thd, LEX *lex, Query_result *result,
@@ -119,7 +120,8 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
     DBUG_RETURN(true);
   }
 
-  const bool single_query= !(unit->is_union() || unit->fake_select_lex);
+  const bool single_query= unit->is_simple();
+
   lex->used_tables=0;                         // Updated by setup_fields
 
   THD_STAGE_INFO(thd, stage_init);
@@ -199,6 +201,7 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
 
   DBUG_ASSERT(!thd->is_error());
 
+  thd->update_previous_found_rows();
   THD_STAGE_INFO(thd, stage_end);
 
   // Do partial cleanup (preserve plans for EXPLAIN).
@@ -327,124 +330,133 @@ static bool sj_table_is_included(JOIN *join, JOIN_TAB *join_tab)
   @retval FALSE  OK 
   @retval TRUE   Out of memory error
 
-  @details
     Setup the strategies to eliminate semi-join duplicates.
     At the moment there are 5 strategies:
 
-    1. DuplicateWeedout (use of temptable to remove duplicates based on rowids
+    -# DuplicateWeedout (use of temptable to remove duplicates based on rowids
                          of row combinations)
-    2. FirstMatch (pick only the 1st matching row combination of inner tables)
-    3. LooseScan (scanning the sj-inner table in a way that groups duplicates
+    -# FirstMatch (pick only the 1st matching row combination of inner tables)
+    -# LooseScan (scanning the sj-inner table in a way that groups duplicates
                   together and picking the 1st one)
-    4. MaterializeLookup (Materialize inner tables, then setup a scan over
+    -# MaterializeLookup (Materialize inner tables, then setup a scan over
                           outer correlated tables, lookup in materialized table)
-    5. MaterializeScan (Materialize inner tables, then setup a scan over
+    -# MaterializeScan (Materialize inner tables, then setup a scan over
                         materialized tables, perform lookup in outer tables)
-    
+
     The join order has "duplicate-generating ranges", and every range is
     served by one strategy or a combination of FirstMatch with with some
     other strategy.
-    
+
     "Duplicate-generating range" is defined as a range within the join order
     that contains all of the inner tables of a semi-join. All ranges must be
     disjoint, if tables of several semi-joins are interleaved, then the ranges
     are joined together, which is equivalent to converting
-      SELECT ... WHERE oe1 IN (SELECT ie1 ...) AND oe2 IN (SELECT ie2 )
+
+     `SELECT ... WHERE oe1 IN (SELECT ie1 ...) AND oe2 IN (SELECT ie2 )`
+
     to
-      SELECT ... WHERE (oe1, oe2) IN (SELECT ie1, ie2 ... ...)
-    .
+
+      `SELECT ... WHERE (oe1, oe2) IN (SELECT ie1, ie2 ... ...)`.
 
     Applicability conditions are as follows:
 
-    DuplicateWeedout strategy
-    ~~~~~~~~~~~~~~~~~~~~~~~~~
+    @par DuplicateWeedout strategy
 
+    @code
       (ot|nt)*  [ it ((it|ot|nt)* (it|ot))]  (nt)*
       +------+  +=========================+  +---+
         (1)                 (2)               (3)
+    @endcode
 
-       (1) - Prefix of OuterTables (those that participate in 
-             IN-equality and/or are correlated with subquery) and outer 
-             Non-correlated tables.
-       (2) - The handled range. The range starts with the first sj-inner
-             table, and covers all sj-inner and outer tables 
-             Within the range,  Inner, Outer, outer non-correlated tables
-             may follow in any order.
-       (3) - The suffix of outer non-correlated tables.
-    
-    FirstMatch strategy
-    ~~~~~~~~~~~~~~~~~~~
+    -# Prefix of OuterTables (those that participate in IN-equality and/or are
+       correlated with subquery) and outer Non-correlated tables.
 
+    -# The handled range. The range starts with the first sj-inner table, and
+       covers all sj-inner and outer tables Within the range, Inner, Outer,
+       outer non-correlated tables may follow in any order.
+
+    -# The suffix of outer non-correlated tables.
+
+    @par FirstMatch strategy
+
+    @code
       (ot|nt)*  [ it ((it|nt)* it) ]  (nt)*
       +------+  +==================+  +---+
         (1)             (2)          (3)
 
-      (1) - Prefix of outer correlated and non-correlated tables
-      (2) - The handled range, which may contain only inner and
-            non-correlated tables.
-      (3) - The suffix of outer non-correlated tables.
+    @endcode
+    -# Prefix of outer correlated and non-correlated tables
 
-    LooseScan strategy 
-    ~~~~~~~~~~~~~~~~~~
+    -# The handled range, which may contain only inner and non-correlated
+       tables.
 
+    -# The suffix of outer non-correlated tables.
+
+    @par LooseScan strategy
+
+    @code
      (ot|ct|nt) [ loosescan_tbl (ot|nt|it)* it ]  (ot|nt)*
      +--------+   +===========+ +=============+   +------+
         (1)           (2)          (3)              (4)
-     
-      (1) - Prefix that may contain any outer tables. The prefix must contain
-            all the non-trivially correlated outer tables. (non-trivially means
-            that the correlation is not just through the IN-equality).
-      
-      (2) - Inner table for which the LooseScan scan is performed.
-            Notice that special requirements for existence of certain indexes
-            apply to this table, @see class Loose_scan_opt.
+    @endcode
 
-      (3) - The remainder of the duplicate-generating range. It is served by 
-            application of FirstMatch strategy. Outer IN-correlated tables
-            must be correlated to the LooseScan table but not to the inner
-            tables in this range. (Currently, there can be no outer tables
-            in this range because of implementation restrictions,
-            @see Optimize_table_order::advance_sj_state()).
+    -# Prefix that may contain any outer tables. The prefix must contain all
+       the non-trivially correlated outer tables. (non-trivially means that
+       the correlation is not just through the IN-equality).
 
-      (4) - The suffix of outer correlated and non-correlated tables.
+    -# Inner table for which the LooseScan scan is performed.  Notice that
+       special requirements for existence of certain indexes apply to this
+       table, @see class Loose_scan_opt.
 
-    MaterializeLookup strategy
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~
+    -# The remainder of the duplicate-generating range. It is served by
+       application of FirstMatch strategy. Outer IN-correlated tables must be
+       correlated to the LooseScan table but not to the inner tables in this
+       range. (Currently, there can be no outer tables in this range because
+       of implementation restrictions, @see
+       Optimize_table_order::advance_sj_state()).
 
+    -# The suffix of outer correlated and non-correlated tables.
+
+    @par MaterializeLookup strategy
+
+    @code
      (ot|nt)*  [ it (it)* ]  (nt)*
      +------+  +==========+  +---+
         (1)         (2)        (3)
+    @endcode
 
-      (1) - Prefix of outer correlated and non-correlated tables.
+    -# Prefix of outer correlated and non-correlated tables.
 
-      (2) - The handled range, which may contain only inner tables.
+    -# The handled range, which may contain only inner tables.
             The inner tables are materialized in a temporary table that is
             later used as a lookup structure for the outer correlated tables.
 
-      (3) - The suffix of outer non-correlated tables.
+    -# The suffix of outer non-correlated tables.
 
-    MaterializeScan strategy
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~
+    @par MaterializeScan strategy
 
+    @code
      (ot|nt)*  [ it (it)* ]  (ot|nt)*
      +------+  +==========+  +-----+
         (1)         (2)         (3)
+    @endcode
 
-      (1) - Prefix of outer correlated and non-correlated tables.
+    -# Prefix of outer correlated and non-correlated tables.
 
-      (2) - The handled range, which may contain only inner tables.
+    -# The handled range, which may contain only inner tables.
             The inner tables are materialized in a temporary table which is
             later used to setup a scan.
 
-      (3) - The suffix of outer correlated and non-correlated tables.
+    -# The suffix of outer correlated and non-correlated tables.
 
-  Note that MaterializeLookup and MaterializeScan has overlap in their patterns.
-  It may be possible to consolidate the materialization strategies into one.
-  
+  Note that MaterializeLookup and MaterializeScan has overlap in their
+  patterns. It may be possible to consolidate the materialization strategies
+  into one.
+
   The choice between the strategies is made by the join optimizer (see
-  advance_sj_state() and fix_semijoin_strategies()).
-  This function sets up all fields/structures/etc needed for execution except
-  for setup/initialization of semi-join materialization which is done in 
+  advance_sj_state() and fix_semijoin_strategies()).  This function sets up
+  all fields/structures/etc needed for execution except for
+  setup/initialization of semi-join materialization which is done in
   setup_materialized_table().
 */
 
@@ -869,7 +881,11 @@ void JOIN::reset()
       func->clear();
   }
 
-  init_ftfuncs(thd, select_lex);
+  if (select_lex->has_ft_funcs())
+  {
+    /* TODO: move the code to JOIN::exec */
+    (void)init_ftfuncs(thd, select_lex);
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -1198,7 +1214,7 @@ void calc_length_and_keyparts(Key_use *keyuse, JOIN_TAB *tab, const uint key,
     }
     keyuse++;
   } while (keyuse->table_ref == tab->table_ref && keyuse->key == key);
-  DBUG_ASSERT(length > 0 && keyparts != 0);
+  DBUG_ASSERT(keyparts > 0);
   *length_out= length;
   *keyparts_out= keyparts;
 }
@@ -1209,7 +1225,7 @@ void calc_length_and_keyparts(Key_use *keyuse, JOIN_TAB *tab, const uint key,
 
   @param join          The join object being handled
   @param j             The join_tab which will have the ref access populated
-  @param first_keyuse  First key part of (possibly multi-part) key
+  @param org_keyuse  First key part of (possibly multi-part) key
   @param used_tables   Bitmap of available tables
 
   @return False if success, True if error
@@ -1690,6 +1706,11 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab,
       tbl->s->tmp_table != NO_TMP_TABLE &&
       tbl->s->tmp_table != TRANSACTIONAL_TMP_TABLE)
     DBUG_VOID_RETURN;
+
+  // TODO: Currently, index on virtual generated column doesn't support ICP
+  if (tbl->vfield && tbl->index_contains_some_virtual_gcol(keyno))
+    DBUG_VOID_RETURN;
+
   /*
     Fields of other non-const tables aren't allowed in following cases:
        type is:
@@ -1732,6 +1753,7 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab,
        of pushing an index condition on a clustered key is much lower 
        than on a non-clustered key. This restriction should be 
        re-evaluated when WL#6061 is implemented.
+    7. The index on virtual generated columns is not supported for ICP.
   */
   if (condition() &&
       tbl->file->index_flags(keyno, 0, 1) &
@@ -2349,7 +2371,8 @@ void QEP_TAB::cleanup()
   {
     if (op->type() == QEP_operation::OT_TMP_TABLE)
     {
-      free_tmp_table(current_thd, t);
+      if (t) // Check tmp table is not yet freed.
+        free_tmp_table(current_thd, t);
       delete tmp_table_param;
       tmp_table_param= NULL;
     }
@@ -2450,8 +2473,10 @@ bool QEP_shared_owner::and_with_condition(Item *add_cond)
     - However, if this is a JOIN for a [sub]select, which is not
     a correlated subquery itself, but has subqueries, we can free it
     fully and also free JOINs of all its subqueries. The exception
-    is a subquery in SELECT list, e.g: @n
-    SELECT a, (select max(b) from t1) group by c @n
+    is a subquery in SELECT list, e.g:
+    @code
+    SELECT a, (select max(b) from t1) group by c
+    @endcode
     This subquery will not be evaluated at first sweep and its value will
     not be inserted into the temporary table. Instead, it's evaluated
     when selecting from the temporary table. Therefore, it can't be freed
@@ -2522,10 +2547,6 @@ void JOIN::join_free()
 /**
   Free resources of given join.
 
-  @param fill   true if we should free all resources, call with full==1
-                should be last, before it this function can be called with
-                full==0
-
   @note
     With subquery this function definitely will be called several times,
     but even for simple query it can be called several times.
@@ -2592,8 +2613,8 @@ void JOIN::cleanup()
   with non-JOIN statements (i.e. single-table UPDATE and DELETE).
 
 
-  @param order            Linked list of ORDER BY arguments
-  @param cond             WHERE expression
+  @param order            Linked list of ORDER BY arguments.
+  @param where            Where condition.
 
   @return pointer to new filtered ORDER list or NULL if whole list eliminated
 
@@ -3069,7 +3090,7 @@ bool JOIN::make_sum_func_list(List<Item> &field_list,
   Free joins of subselect of this select.
 
   @param thd      THD pointer
-  @param select   pointer to st_select_lex which subselects joins we will free
+  @param select   pointer to SELECT_LEX which subselects joins we will free
 */
 
 void free_underlaid_joins(THD *thd, SELECT_LEX *select)
@@ -3281,6 +3302,7 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
     TRUE on error  
 */
 
+__attribute__((warn_unused_result))
 bool JOIN::clear()
 {
   /* 
@@ -3338,6 +3360,80 @@ bool SELECT_LEX::change_query_result(Query_result_interceptor *new_result,
   }
 }
 
+/**
+  Add having condition as a filter condition, which is applied when reading
+  from the temp table.
+
+  @param    curr_tmp_table  Table number to which having conds are added.
+  @returns  false if success, true if error.
+*/
+
+bool JOIN::add_having_as_tmp_table_cond(uint curr_tmp_table)
+{
+  having_cond->update_used_tables();
+  QEP_TAB *const curr_table= &qep_tab[curr_tmp_table];
+  table_map used_tables;
+  Opt_trace_context *const trace= &thd->opt_trace;
+
+  DBUG_ENTER("JOIN::add_having_as_tmp_table_cond");
+
+  if (curr_table->table_ref)
+    used_tables= curr_table->table_ref->map();
+  else
+  {
+    /*
+      Pushing parts of HAVING to an internal temporary table.
+      Fields in HAVING condition may have been replaced with fields in an
+      internal temporary table. This table has map=1, hence we check that
+      we have no fields from other tables (outer references are fine).
+      Unfortunaly, update_used_tables() is not reliable for subquery
+      items, which could thus still have other tables in their
+      used_tables() information.
+    */
+    DBUG_ASSERT(having_cond->has_subquery() ||
+                !(having_cond->used_tables() & ~(1 | PSEUDO_TABLE_BITS)));
+    used_tables= 1;
+  }
+
+  /*
+    All conditions which can be applied after reading from used_tables are
+    added as filter conditions of curr_tmp_table. If condition's used_tables is
+    not read yet for example subquery in having, then it will be kept as it is
+    in original having_cond of join.
+  */
+  Item* sort_table_cond= make_cond_for_table(thd, having_cond, used_tables,
+                                             (table_map) 0, false);
+  if (sort_table_cond)
+  {
+    if (!curr_table->condition())
+      curr_table->set_condition(sort_table_cond);
+    else
+    {
+      curr_table->set_condition(new Item_cond_and(curr_table->condition(),
+                                                  sort_table_cond));
+      if (curr_table->condition()->fix_fields(thd, 0))
+        DBUG_RETURN(true);
+    }
+    curr_table->condition()->top_level_item();
+    DBUG_EXECUTE("where",print_where(curr_table->condition(),
+				 "select and having",
+                                     QT_ORDINARY););
+
+    having_cond= make_cond_for_table(thd, having_cond, ~ (table_map) 0,
+                                     ~used_tables, false);
+    DBUG_EXECUTE("where",
+                 print_where(having_cond, "having after sort",
+                 QT_ORDINARY););
+
+    Opt_trace_object trace_wrapper(trace);
+    Opt_trace_object(trace, "sort_using_internal_table")
+                .add("condition_for_sort", sort_table_cond)
+                .add("having_after_sort", having_cond);
+  }
+
+  DBUG_RETURN(false);
+}
+
 
 /**
   Init tmp tables usage info.
@@ -3390,8 +3486,6 @@ bool JOIN::make_tmp_tables_info()
   having_for_explain= having_cond;
 
   const bool has_group_by= this->grouped;
-
-  Opt_trace_context *const trace= &thd->opt_trace;
 
   /*
     Setup last table to provide fields and all_fields lists to the next
@@ -3459,24 +3553,6 @@ bool JOIN::make_tmp_tables_info()
         qep_tab[const_tables].position()->sj_strategy != SJ_OPT_LOOSE_SCAN &&
         qep_tab[const_tables].use_order()));
 
-    /*
-      We don't have to store rows in temp table that doesn't match HAVING if:
-      - we are sorting the table and writing complete group rows to the
-        temp table.
-      - We are using DISTINCT without resolving the distinct as a GROUP BY
-        on all columns.
-
-      If having is not handled here, it will be checked before the row
-      is sent to the client.
-    */
-    if (having_cond &&
-        (sort_and_group || (exec_tmp_table->distinct && !group_list)))
-    {
-      // Attach HAVING to tmp table's condition
-      qep_tab[curr_tmp_table].having= having_cond;
-      having_cond= NULL; // Already done
-    }
-
     /* Change sum_fields reference to calculated fields in tmp_table */
     DBUG_ASSERT(items1.is_null());
     items1= select_lex->ref_ptr_array_slice(2);
@@ -3503,7 +3579,33 @@ bool JOIN::make_tmp_tables_info()
     qep_tab[curr_tmp_table].all_fields= &tmp_all_fields1;
     qep_tab[curr_tmp_table].fields= &tmp_fields_list1;
     setup_tmptable_write_func(&qep_tab[curr_tmp_table]);
- 
+
+    /*
+      If having is not handled here, it will be checked before the row is sent
+      to the client.
+    */
+    if (having_cond &&
+        (sort_and_group || (exec_tmp_table->distinct && !group_list)))
+    {
+      /*
+        If there is no select distinct then move the having to table conds of
+        tmp table.
+        NOTE : We cannot apply having after distinct. If columns of having are
+               not part of select distinct, then distinct may remove rows
+               which can satisfy having.
+      */
+      if (!select_distinct && add_having_as_tmp_table_cond(curr_tmp_table))
+        DBUG_RETURN(true);
+
+      /*
+        Having condition which we are not able to add as tmp table conds are
+        kept as before. And, this will be applied before storing the rows in
+        tmp table.
+      */
+      qep_tab[curr_tmp_table].having= having_cond;
+      having_cond= NULL; // Already done
+    }
+
     tmp_table_param.func_count= 0;
     tmp_table_param.field_count+= tmp_table_param.func_count;
     if (sort_and_group || qep_tab[curr_tmp_table].table()->group)
@@ -3700,56 +3802,8 @@ bool JOIN::make_tmp_tables_info()
     /* If we have already done the group, add HAVING to sorted table */
     if (having_cond && !group_list && !sort_and_group)
     {
-      having_cond->update_used_tables();
-      QEP_TAB *const curr_table= &qep_tab[curr_tmp_table];
-      table_map used_tables;
-
-      if (curr_table->table_ref)
-        used_tables= curr_table->table_ref->map();
-      else
-      {
-        /*
-          Pushing parts of HAVING to an internal temporary table.
-          Fields in HAVING condition may have been replaced with fields in an
-          internal temporary table. This table has map=1, hence we check that
-          we have no fields from other tables (outer references are fine).
-          Unfortunaly, update_used_tables() is not reliable for subquery
-          items, which could thus still have other tables in their
-          used_tables() information.
-        */
-        DBUG_ASSERT(having_cond->has_subquery() ||
-                    !(having_cond->used_tables() & ~(1 | PSEUDO_TABLE_BITS)));
-        used_tables= 1;
-      }
-
-      Item* sort_table_cond= make_cond_for_table(thd, having_cond, used_tables,
-                                                 (table_map) 0, false);
-      if (sort_table_cond)
-      {
-        if (!curr_table->condition())
-          curr_table->set_condition(sort_table_cond);
-        else
-        {
-          curr_table->set_condition(new Item_cond_and(curr_table->condition(),
-                                                      sort_table_cond));
-          curr_table->condition()->fix_fields(thd, 0);
-        }
-        curr_table->condition()->top_level_item();
-	DBUG_EXECUTE("where",print_where(curr_table->condition(),
-					 "select and having",
-                                         QT_ORDINARY););
-
-        having_cond= make_cond_for_table(thd, having_cond, ~ (table_map) 0,
-                                         ~used_tables, false);
-        DBUG_EXECUTE("where",
-                     print_where(having_cond, "having after sort",
-                     QT_ORDINARY););
-
-        Opt_trace_object trace_wrapper(trace);
-        Opt_trace_object(trace, "sort_using_internal_table")
-                    .add("condition_for_sort", sort_table_cond)
-                    .add("having_after_sort", having_cond);
-      }
+      if (add_having_as_tmp_table_cond(curr_tmp_table))
+        DBUG_RETURN(true);
     }
 
     if (grouped)
@@ -3847,7 +3901,9 @@ void JOIN::unplug_join_tabs()
 /**
   @brief Add Filesort object to the given table to sort if with filesort
 
-  @param tab        the JOIN_TAB object to attach created Filesort object to
+  @param idx        JOIN_TAB's position in the qep_tab array. The
+                    created Filesort object gets attached to this.
+
   @param sort_order List of expressions to sort the table by
 
   @note This function moves tab->select, if any, to filesort->select
@@ -3862,7 +3918,7 @@ JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order)
   explain_flags.set(sort_order->src, ESP_USING_FILESORT);
   QEP_TAB *const tab= &qep_tab[idx]; 
   tab->filesort=
-    new (thd->mem_root) Filesort(*sort_order, HA_POS_ERROR);
+    new (thd->mem_root) Filesort(tab, *sort_order, HA_POS_ERROR);
   if (!tab->filesort)
     return true;
   {
@@ -3905,7 +3961,7 @@ JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order)
 }
 
 /**
-  Find a cheaper access key than a given @a key
+  Find a cheaper access key than a given key.
 
   @param          tab                 NULL or JOIN_TAB of the accessed table
   @param          order               Linked list of ORDER BY arguments
@@ -4124,7 +4180,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
         */
         const Cost_estimate table_scan_time= table->file->table_scan_cost();
         const double index_scan_time= select_limit / rec_per_key *
-          min<double>(table->cost_model()->io_block_read_cost(rec_per_key),
+          min<double>(table->cost_model()->page_read_cost(rec_per_key),
                       table_scan_time.total_cost());
 
         /*
@@ -4185,8 +4241,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   Find a key to apply single table UPDATE/DELETE by a given ORDER
 
   @param       order           Linked list of ORDER BY arguments
-  @param       table           Table to find a key
-  @param       select          Pointer to access/update select->quick (if any)
+  @param       tab             Table to find a key
   @param       limit           LIMIT clause parameter 
   @param [out] need_sort       TRUE if filesort needed
   @param [out] reverse
@@ -4285,8 +4340,7 @@ uint get_index_for_order(ORDER *order, QEP_TAB *tab,
     if (test_if_cheaper_ordering(NULL, order, table,
                                  table->keys_in_use_for_order_by, -1,
                                  limit,
-                                 &key, &direction, &limit) &&
-        !is_key_used(table, key, table->write_set))
+                                 &key, &direction, &limit))
     {
       *need_sort= FALSE;
       *reverse= (direction < 0);
@@ -4324,7 +4378,7 @@ uint actual_key_parts(const KEY *key_info)
   @return key flags.
 */
 
-uint actual_key_flags(KEY *key_info)
+static uint actual_key_flags(KEY *key_info)
 {
   return key_info->table->in_use->
     optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS) ?

@@ -102,7 +102,7 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_repl
 
 --echo # Assert that channels are not created for failed CHANGE MASTER command.
 --echo # and number of channels configured must be 2
---let $assert_text= there shall be only four rows representing 4 channels.
+--let $assert_text= there shall be only two rows representing 2 channels.
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_applier_configuration] = 2;
 --source include/assert.inc
 

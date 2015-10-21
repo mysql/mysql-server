@@ -307,9 +307,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     error++;
     break;
   case OPT_CHARSETS_DIR:
-#if MYSQL_VERSION_ID > 32300
     charsets_dir = argument;
-#endif
     break;
   case OPT_MYSQL_PROTOCOL:
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
@@ -359,8 +357,6 @@ int main(int argc,char *argv[])
     free_defaults(save_argv);
     exit(ho_error);
   }
-  temp_argv= mask_password(argc, &argv);
-  temp_argc= argc;
 
   if (debug_info_flag)
     my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
@@ -372,6 +368,10 @@ int main(int argc,char *argv[])
     usage();
     exit(1);
   }
+
+  temp_argv= mask_password(argc, &argv);
+  temp_argc= argc;
+
   commands = temp_argv;
   if (tty_password)
     opt_password = get_tty_password(NullS);
@@ -711,12 +711,20 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 	  !stat(pidfile, &pidfile_status))
 	last_modified= pidfile_status.st_mtime;
 
-      if (mysql_shutdown(mysql, SHUTDOWN_DEFAULT))
+      /* Issue COM_SHUTDOWN if server version is older then 5.7*/
+      int resShutdown= 1;
+      if(mysql_get_server_version(mysql) < 50709)
+        resShutdown= mysql_shutdown(mysql, SHUTDOWN_DEFAULT);
+      else
+        resShutdown= mysql_query(mysql, "shutdown");
+
+      if(resShutdown)
       {
-	my_printf_error(0, "shutdown failed; error: '%s'", error_flags,
-			mysql_error(mysql));
-	return -1;
+        my_printf_error(0, "shutdown failed; error: '%s'", error_flags,
+        mysql_error(mysql));
+        return -1;
       }
+
       argc=1;                   /* force SHUTDOWN to be the last command    */
       if (got_pidfile)
       {
@@ -1287,11 +1295,9 @@ static void usage(void)
   flush-threads         Flush the thread cache\n\
   flush-privileges      Reload grant tables (same as reload)\n\
   kill id,id,...	Kill mysql threads");
-#if MYSQL_VERSION_ID >= 32200
   puts("\
   password [new-password] Change old password to new-password in current format\n\
   old-password [new-password] Change old password to new-password in old format");
-#endif
   puts("\
   ping			Check if mysqld is alive\n\
   processlist		Show list of active threads in server\n\

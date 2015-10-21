@@ -122,7 +122,8 @@
                                                    /* type, db_1, db_2, ... */  \
                                    1U + (MAX_DBS_IN_EVENT_MTS * (1 + NAME_LEN)) + \
                                    3U +            /* type, microseconds */ + \
-                                   1U + 16 + 1 + 60/* type, user_len, user, host_len, host */)
+                                   1U + 32*3 + 1 + 60 \
+                                   /* type, user_len, user, host_len, host */)
 
 
 /**
@@ -661,8 +662,7 @@ public:
   @param buf                  the buffer containing the complete information
                               including the event and the header data
 
-  @param description_event    first constructor of Format_description_event,
-                              used to extract the binlog_version
+  @param binlog_version       the binary log version
   */
   Log_event_header(const char* buf, uint16_t binlog_version);
 
@@ -784,7 +784,7 @@ public:
     IGNORABLE_HEADER_LEN= 0,
     ROWS_HEADER_LEN_V2= 10,
     TRANSACTION_CONTEXT_HEADER_LEN= 18,
-    VIEW_CHANGE_HEADER_LEN= 53,
+    VIEW_CHANGE_HEADER_LEN= 52,
     XA_PREPARE_HEADER_LEN= 0
   }; // end enum_post_header_length
 protected:

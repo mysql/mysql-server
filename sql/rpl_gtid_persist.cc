@@ -760,6 +760,7 @@ extern "C" void *compress_gtid_table(void *p_thd)
   mysql_thread_set_psi_id(thd->thread_id());
   my_thread_init();
   DBUG_ENTER("compress_gtid_table");
+
   init_thd(&thd);
   for (;;)
   {
@@ -810,7 +811,7 @@ extern "C" void *compress_gtid_table(void *p_thd)
 void create_compress_gtid_table_thread()
 {
   my_thread_attr_t attr;
-  int error;
+  int error= 0;
   THD *thd;
   if (!(thd= new THD))
   {

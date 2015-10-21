@@ -168,6 +168,8 @@ public:
       resolved(false), resolved_children(0)
   { }
 
+  virtual ~Opt_hints() {}
+
   bool is_specified(opt_hints_enum type_arg) const
   {
     return hints_map.is_specified(type_arg);
@@ -253,10 +255,12 @@ public:
   /**
     Print all hints except of QB_NAME hint.
 
-    @param thd             Pointer to THD object
-    @param str             Pointer to String object
+    @param thd              Pointer to THD object
+    @param str              Pointer to String object
+    @param query_type       If query type is QT_NORMALIZED_FORMAT,
+                            un-resolved hints will also be printed
   */
-  void print(THD *thd, String *str);
+  void print(THD *thd, String *str, enum_query_type query_type);
   /**
     Check if there are any unresolved hint objects and
     print warnings for them.
@@ -484,7 +488,7 @@ public:
   optimizer switch value if hint is not specified.
 
   @param thd               Pointer to THD object
-  @param tab               Pointer to TABLE object
+  @param table             Pointer to TABLE object
   @param keyno             Key number
   @param type_arg          Hint type
   @param optimizer_switch  Optimizer switch flag
@@ -501,7 +505,7 @@ bool hint_key_state(const THD *thd, const TABLE *table,
   optimizer switch value if hint is not specified.
 
   @param thd                Pointer to THD object
-  @param tab                Pointer to TABLE object
+  @param table              Pointer to TABLE object
   @param type_arg           Hint type
   @param optimizer_switch   Optimizer switch flag
 

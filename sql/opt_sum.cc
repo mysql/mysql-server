@@ -95,9 +95,9 @@ static ulonglong get_exact_record_count(TABLE_LIST *tables)
   
   @param table      Table object
   @param ref        Reference to the structure where we store the key value
-  @item_field       Field used in MIN()
-  @range_fl         Whether range endpoint is strict less than
-  @prefix_len       Length of common key part for the range
+  @param item_field Field used in MIN()
+  @param range_fl   Whether range endpoint is strict less than
+  @param prefix_len Length of common key part for the range
   
   @retval
     0               No errors
@@ -190,7 +190,7 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
   
   @param table      Table object
   @param ref        Reference to the structure where we store the key value
-  @range_fl         Whether range endpoint is strict greater than
+  @param range_fl   Whether range endpoint is strict greater than
   
   @retval
     0               No errors
@@ -374,8 +374,7 @@ int opt_sum_query(THD *thd,
         {
           Item_func_match* fts_item= static_cast<Item_func_match*>(conds); 
           fts_item->set_hints(NULL, FT_NO_RANKING, HA_POS_ERROR, false);
-          fts_item->init_search();
-          if (thd->is_error())
+          if (fts_item->init_search(thd))
             break;
           count= fts_item->get_count();
         }
@@ -432,12 +431,19 @@ int opt_sum_query(THD *thd,
             DBUG_RETURN(error);
           }
 
+          /*
+            Necessary columns to read from the index have been determined by
+            find_key_for_maxmin(); they are the columns involved in
+            'WHERE col=const' and the aggregated one.
+            We may not need all columns of read_set, neither all columns of
+            the index.
+          */
           DBUG_ASSERT(table->read_set == &table->def_read_set);
           DBUG_ASSERT(bitmap_is_clear_all(&table->tmp_set));
           table->read_set= &table->tmp_set;
-          // Set bits for user-defined parts of key
-          table->mark_columns_used_by_index_no_reset(ref.key, table->read_set);
-          // Set bits for the column that we need (may be in PK part)
+          table->mark_columns_used_by_index_no_reset(ref.key, table->read_set,
+                                                     ref.key_parts);
+          // The aggregated column may or not be included in ref.key_parts.
           bitmap_set_bit(table->read_set, item_field->field->field_index);
           error= is_max ?
                  get_index_max_value(table, &ref, range_fl) :

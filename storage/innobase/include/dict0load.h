@@ -50,6 +50,7 @@ enum dict_system_id_t {
 	SYS_FOREIGN_COLS,
 	SYS_TABLESPACES,
 	SYS_DATAFILES,
+	SYS_VIRTUAL,
 
 	/* This must be last item. Defines the number of system tables. */
 	SYS_NUM_SYSTEM_TABLES
@@ -90,75 +91,6 @@ char*
 dict_get_first_table_name_in_db(
 /*============================*/
 	const char*	name);	/*!< in: database name which ends to '/' */
-
-/********************************************************************//**
-Loads a table column definition from a SYS_COLUMNS record to
-dict_table_t.
-@return error message, or NULL on success */
-const char*
-dict_load_column_low(
-/*=================*/
-	dict_table_t*	table,		/*!< in/out: table, could be NULL
-					if we just populate a dict_column_t
-					struct with information from
-					a SYS_COLUMNS record */
-	mem_heap_t*	heap,		/*!< in/out: memory heap
-					for temporary storage */
-	dict_col_t*	column,		/*!< out: dict_column_t to fill,
-					or NULL if table != NULL */
-	table_id_t*	table_id,	/*!< out: table id */
-	const char**	col_name,	/*!< out: column name */
-	const rec_t*	rec);		/*!< in: SYS_COLUMNS record */
-/********************************************************************//**
-Loads an index definition from a SYS_INDEXES record to dict_index_t.
-If allocate=TRUE, we will create a dict_index_t structure and fill it
-accordingly. If allocated=FALSE, the dict_index_t will be supplied by
-the caller and filled with information read from the record.  @return
-error message, or NULL on success */
-const char*
-dict_load_index_low(
-/*================*/
-	byte*		table_id,	/*!< in/out: table id (8 bytes),
-					an "in" value if allocate=TRUE
-					and "out" when allocate=FALSE */
-	const char*	table_name,	/*!< in: table name */
-	mem_heap_t*	heap,		/*!< in/out: temporary memory heap */
-	const rec_t*	rec,		/*!< in: SYS_INDEXES record */
-	ibool		allocate,	/*!< in: TRUE=allocate *index,
-					FALSE=fill in a pre-allocated
-					*index */
-	dict_index_t**	index);		/*!< out,own: index, or NULL */
-/********************************************************************//**
-Loads an index field definition from a SYS_FIELDS record to
-dict_index_t.
-@return error message, or NULL on success */
-const char*
-dict_load_field_low(
-/*================*/
-	byte*		index_id,	/*!< in/out: index id (8 bytes)
-					an "in" value if index != NULL
-					and "out" if index == NULL */
-	dict_index_t*	index,		/*!< in/out: index, could be NULL
-					if we just populate a dict_field_t
-					struct with information from
-					a SYS_FIELDS record */
-	dict_field_t*	sys_field,	/*!< out: dict_field_t to be
-					filled */
-	ulint*		pos,		/*!< out: Field position */
-	byte*		last_index_id,	/*!< in: last index id */
-	mem_heap_t*	heap,		/*!< in/out: memory heap
-					for temporary storage */
-	const rec_t*	rec);		/*!< in: SYS_FIELDS record */
-/********************************************************************//**
-Using the table->heap, copy the null-terminated filepath into
-table->data_dir_path and put a null byte before the extension.
-This allows SHOW CREATE TABLE to return the correct DATA DIRECTORY path.
-Make this data directory path only if it has not yet been saved. */
-void
-dict_save_data_dir_path(
-/*====================*/
-	dict_table_t*	table,		/*!< in/out: table */
-	char*		filepath);	/*!< in: filepath of tablespace */
 
 /** Make sure the data_file_name is saved in dict_table_t if needed.
 Try to read it from the fil_system first, then from SYS_DATAFILES.
@@ -300,7 +232,25 @@ dict_process_sys_columns_rec(
 	const rec_t*	rec,		/*!< in: current SYS_COLUMNS rec */
 	dict_col_t*	column,		/*!< out: dict_col_t to be filled */
 	table_id_t*	table_id,	/*!< out: table id */
-	const char**	col_name);	/*!< out: column name */
+	const char**	col_name,	/*!< out: column name */
+	ulint*		nth_v_col);	/*!< out: if virtual col, this is
+					records its sequence number */
+
+/** This function parses a SYS_VIRTUAL record and extract virtual column
+information
+@param[in,out]	heap		heap memory
+@param[in]	rec		current SYS_COLUMNS rec
+@param[in,out]	table_id	table id
+@param[in,out]	pos		virtual column position
+@param[in,out]	base_pos	base column position
+@return error message, or NULL on success */
+const char*
+dict_process_sys_virtual_rec(
+	mem_heap_t*	heap,
+	const rec_t*	rec,
+	table_id_t*	table_id,
+	ulint*		pos,
+	ulint*		base_pos);
 /********************************************************************//**
 This function parses a SYS_FIELDS record and populate a dict_field_t
 structure with the information from the record.
@@ -365,15 +315,6 @@ dict_process_sys_datafiles(
 	ulint*		space,		/*!< out: pace id */
 	const char**	path);		/*!< out: datafile path */
 
-/** Update the record for space_id in SYS_TABLESPACES to this filepath.
-@param[in]	space_id	Tablespace ID
-@param[in]	filepath	Tablespace filepath
-@return DB_SUCCESS if OK, dberr_t if the insert failed */
-dberr_t
-dict_update_filepath(
-	ulint		space_id,
-	const char*	filepath);
-
 /** Replace records in SYS_TABLESPACES and SYS_DATAFILES associated with
 the given space_id using an independent transaction.
 @param[in]	space_id	Tablespace ID
@@ -387,16 +328,6 @@ dict_replace_tablespace_and_filepath(
 	const char*	name,
 	const char*	filepath,
 	ulint		fsp_flags);
-
-/** Add another filepath to the Data Dictionary for the given space_id
-using an independent transaction.
-@param[in]	space_id	Tablespace ID
-@param[in]	filepath	First filepath
-@return DB_SUCCESS if OK, dberr_t if the insert failed */
-dberr_t
-dict_add_filepath(
-	ulint		space_id,
-	const char*	filepath);
 
 #ifndef UNIV_NONINL
 #include "dict0load.ic"

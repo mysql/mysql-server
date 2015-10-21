@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -37,7 +37,6 @@ struct sel_node_t;
 struct open_node_t;
 struct fetch_node_t;
 
-struct row_printf_node_t;
 struct sel_buf_t;
 
 struct undo_node_t;

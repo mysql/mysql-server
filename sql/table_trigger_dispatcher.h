@@ -125,7 +125,7 @@ public:
            get_triggers(TRG_EVENT_DELETE, TRG_ACTION_AFTER);
   }
 
-  void mark_fields(enum_trigger_event_type event);
+  bool mark_fields(enum_trigger_event_type event);
 
   bool add_tables_and_routines_for_triggers(THD *thd,
                                             Query_tables_list *prelocking_ctx,

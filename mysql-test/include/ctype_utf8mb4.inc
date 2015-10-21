@@ -195,7 +195,7 @@ if(!$is_heap)
 if(!$is_ndb)
 {
 --error ER_TOO_LONG_KEY,ER_INDEX_COLUMN_TOO_LONG
-eval create table t1 (a text character set utf8mb4, primary key(a(371))) engine $engine;
+eval create table t1 (a text character set utf8mb4, primary key(a(371))) engine $engine ROW_FORMAT=COMPACT;
 }
 if($is_ndb)
 {

@@ -740,6 +740,23 @@ static bool pack_header(THD *thd, uchar *forminfo,
       DBUG_RETURN(true);
     if (field->gcol_info)
     {
+      /*
+        It is important to normalize the expression's text into the FRM, to
+        make it independent from sql_mode. For example, 'a||b' means 'a OR b'
+        or 'CONCAT(a,b)', depending on if PIPES_AS_CONCAT is on. Using
+        Item::print(), we get self-sufficient text containing 'OR' or
+        'CONCAT'. If sql_mode later changes, it will not affect the column.
+       */
+      String s;
+      // Printing db and table name is useless
+      field->gcol_info->expr_item->
+        print(&s, enum_query_type(QT_NO_DB | QT_NO_TABLE));
+      /*
+        The new text must have exactly the same lifetime as the old text, it's
+        a replacement for it. So the same MEM_ROOT must be used: pass NULL.
+      */
+      field->gcol_info->dup_expr_str(NULL, s.ptr(), s.length());
+
       uint tmp_len= system_charset_info->cset->charpos(system_charset_info,
                                                        field->gcol_info->expr_str.str,
                                                        field->gcol_info->expr_str.str +
@@ -1090,6 +1107,110 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
 
 
 /**
+  Auxiliary function which stores field's explicit or implicit default
+  value in record buffer.
+
+  @param         thd         Connection's context.
+  @param         table       Table for which field default value to be stored.
+  @param         field       Field definition object.
+  @param         rec_pos     Pointer to the main part of record buffer where
+                             field values are stored (as opposed to record
+                             preamble).
+  @param         null_pos    Pointer to the preamble part of record buffer
+                             where null bits and leftover bits from BIT fields
+                             are stored.
+  @param[in,out] null_count  Index of bit in preamble to be used for storing
+                             NULL/leftover bits for the field if necessary. On
+                             return incremented by number of bits in preamble
+                             used for this field.
+
+  @retval true  An error occurred.
+  @retval false Success.
+*/
+
+static bool make_default_value(THD *thd, TABLE *table, Create_field *field,
+                               uchar *rec_pos, uchar *null_pos, uint *null_count)
+{
+  Field *regfield= make_field(table->s,
+                              rec_pos + field->offset,
+                              field->length,
+                              null_pos + *null_count / 8,
+                              *null_count & 7,
+                              field->pack_flag,
+                              field->sql_type,
+                              field->charset,
+                              field->geom_type,
+                              field->unireg_check,
+                              field->save_interval ? field->save_interval :
+                              field->interval,
+                              field->field_name);
+  if (!regfield)
+    return true;   // End of memory
+
+  /* save_in_field() will access regfield->table->in_use */
+  regfield->init(table);
+
+  if (!(field->flags & NOT_NULL_FLAG))
+  {
+    regfield->set_null();
+    (*null_count)++;
+  }
+
+  if (field->sql_type == MYSQL_TYPE_BIT && !f_bit_as_char(field->pack_flag))
+    (*null_count)+= field->length & 7;
+
+  Field::utype type= (Field::utype) MTYP_TYPENR(field->unireg_check);
+
+  if (field->def)
+  {
+    /*
+      Storing the value of a function is pointless as this function may not
+      be constant.
+    */
+    DBUG_ASSERT(field->def->type() != Item::FUNC_ITEM);
+    type_conversion_status res= field->def->save_in_field(regfield, true);
+    if (res != TYPE_OK && res != TYPE_NOTE_TIME_TRUNCATED &&
+        res != TYPE_NOTE_TRUNCATED)
+    {
+      /*
+        clear current error and report INVALID DEFAULT value error message
+      */
+      if (thd->is_error())
+        thd->clear_error();
+
+      my_error(ER_INVALID_DEFAULT, MYF(0), regfield->field_name);
+      /*
+        Delete to avoid memory leak for fields that allocate extra
+        memory (e.g Field_blob::value)
+      */
+      delete regfield;
+      return true;
+    }
+  }
+  else if (regfield->real_type() == MYSQL_TYPE_ENUM &&
+           (field->flags & NOT_NULL_FLAG))
+  {
+    regfield->set_notnull();
+    regfield->store((longlong) 1, TRUE);
+  }
+  else if (type == Field::YES)		// Old unireg type
+    regfield->store(ER_THD(thd, ER_YES),
+                    strlen(ER_THD(thd, ER_YES)),system_charset_info);
+  else if (type == Field::NO)			// Old unireg type
+    regfield->store(ER_THD(thd, ER_NO),
+                    strlen(ER_THD(thd, ER_NO)),system_charset_info);
+  else
+    regfield->reset();
+  /*
+    Delete to avoid memory leak for fields that allocate extra
+    memory (e.g Field_blob::value)
+  */
+  delete regfield;
+  return false;
+}
+
+
+/**
    Creates a record buffer consisting of default values for all columns and
    stores it in the formfile (.frm file.)
 
@@ -1122,13 +1243,13 @@ static bool make_empty_rec(THD *thd, File file,
                            handler *handler)
 {
   int error= 0;
-  Field::utype type;
   uint null_count;
   uchar *buff,*null_pos;
   TABLE table;
   TABLE_SHARE share;
   Create_field *field;
   enum_check_fields old_count_cuted_fields= thd->count_cuted_fields;
+  bool has_vgc= false;
   DBUG_ENTER("make_empty_rec");
 
   /* We need a table to generate columns for default values */
@@ -1157,85 +1278,38 @@ static bool make_empty_rec(THD *thd, File file,
   thd->count_cuted_fields= CHECK_FIELD_WARN;    // To find wrong default values
   while ((field=it++))
   {
-    Field *regfield= make_field(&share,
-                                buff+field->offset + data_offset,
-                                field->length,
-                                null_pos + null_count / 8,
-                                null_count & 7,
-                                field->pack_flag,
-                                field->sql_type,
-                                field->charset,
-                                field->geom_type,
-                                field->unireg_check,
-                                field->save_interval ? field->save_interval :
-                                field->interval, 
-                                field->field_name);
-    if (!regfield)
-    {
-      error= 1;
-      goto err;                                 // End of memory
-    }
-
-    /* save_in_field() will access regfield->table->in_use */
-    regfield->init(&table);
-
-    if (!(field->flags & NOT_NULL_FLAG))
-    {
-      regfield->set_null();
-      null_count++;
-    }
-
-    if (field->sql_type == MYSQL_TYPE_BIT && !f_bit_as_char(field->pack_flag))
-      null_count+= field->length & 7;
-
-    type= (Field::utype) MTYP_TYPENR(field->unireg_check);
-
-    if (field->def)
+    if (field->stored_in_db)
     {
       /*
-        Storing the value of a function is pointless as this function may not
-        be constant.
+        Even though Create_field::offset for virtual generated columns already
+        point at the end of record buffer we still need separate pass for them
+        in order to allocate null bits from preamble tail as well.
       */
-      DBUG_ASSERT(field->def->type() != Item::FUNC_ITEM);
-      type_conversion_status res= field->def->save_in_field(regfield, true);
-      if (res != TYPE_OK && res != TYPE_NOTE_TIME_TRUNCATED &&
-          res != TYPE_NOTE_TRUNCATED)
+      if (make_default_value(thd, &table, field, buff + data_offset,
+                             null_pos, &null_count))
       {
-        /*
-          clear current error and report INVALID DEFAULT value error message
-          */
-        if (thd->is_error())
-          thd->clear_error();
-
-        my_error(ER_INVALID_DEFAULT, MYF(0), regfield->field_name);
         error= 1;
-        /*
-          Delete to avoid memory leak for fields that allocate extra
-          memory (e.g Field_blob::value)
-        */
-        delete regfield;
         goto err;
       }
     }
-    else if (regfield->real_type() == MYSQL_TYPE_ENUM &&
-	     (field->flags & NOT_NULL_FLAG))
-    {
-      regfield->set_notnull();
-      regfield->store((longlong) 1, TRUE);
-    }
-    else if (type == Field::YES)		// Old unireg type
-      regfield->store(ER_THD(thd, ER_YES),
-                      strlen(ER_THD(thd, ER_YES)),system_charset_info);
-    else if (type == Field::NO)			// Old unireg type
-      regfield->store(ER_THD(thd, ER_NO),
-                      strlen(ER_THD(thd, ER_NO)),system_charset_info);
     else
-      regfield->reset();
-    /*
-      Delete to avoid memory leak for fields that allocate extra
-      memory (e.g Field_blob::value)
-    */
-    delete regfield;
+      has_vgc= true;
+  }
+  if (has_vgc)
+  {
+    it.rewind();
+    while ((field=it++))
+    {
+      if (!field->stored_in_db)
+      {
+        if (make_default_value(thd, &table, field, buff + data_offset,
+                               null_pos, &null_count))
+        {
+          error= 1;
+          goto err;
+        }
+      }
+    }
   }
   DBUG_ASSERT(data_offset == ((null_count + 7) / 8));
 

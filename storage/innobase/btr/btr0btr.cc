@@ -39,6 +39,7 @@ Created 6/2/1994 Heikki Tuuri
 #include "btr0cur.h"
 #include "btr0sea.h"
 #include "btr0pcur.h"
+#include "buf0stats.h"
 #include "rem0cmp.h"
 #include "lock0lock.h"
 #include "ibuf0ibuf.h"
@@ -52,6 +53,7 @@ Created 6/2/1994 Heikki Tuuri
 Checks if the page in the cursor can be merged with given page.
 If necessary, re-organize the merge_page.
 @return	true if possible to merge. */
+static
 bool
 btr_can_merge_with_page(
 /*====================*/
@@ -230,9 +232,7 @@ btr_height_get(
 	/* Release the S latch on the root page. */
 	mtr->memo_release(root_block, MTR_MEMO_PAGE_S_FIX);
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_d(sync_check_unlock(&root_block->lock));
-#endif /* UNIV_SYNC_DEBUG */
 
 	return(height);
 }
@@ -372,6 +372,10 @@ btr_page_create(
 	}
 
 	btr_page_set_index_id(page, page_zip, index->id, mtr);
+
+	if (level == 0) {
+		buf_stat_per_index->inc(index_id_t(index->space, index->id));
+	}
 }
 
 /**************************************************************//**
@@ -988,6 +992,10 @@ btr_create(
 			space, 0,
 			IBUF_HEADER + IBUF_TREE_SEG_HEADER, mtr);
 
+		if (ibuf_hdr_block == NULL) {
+			return(FIL_NULL);
+		}
+
 		buf_block_dbg_add_level(
 			ibuf_hdr_block, SYNC_IBUF_TREE_NODE_NEW);
 
@@ -1118,6 +1126,8 @@ btr_create(
 
 	ut_ad(page_get_max_insert_size(page, 2) > 2 * BTR_PAGE_MAX_REC_SIZE);
 
+	buf_stat_per_index->inc(index_id_t(space, index_id));
+
 	return(page_no);
 }
 
@@ -1227,6 +1237,114 @@ btr_free(
 	btr_free_but_not_root(block, MTR_LOG_NO_REDO);
 	btr_free_root(block, &mtr);
 	mtr.commit();
+}
+
+/** Truncate an index tree. We just free all except the root.
+Currently, this function is only specific for clustered indexes and the only
+caller is DDTableBuffer which manages a table with only a clustered index.
+It is up to the caller to ensure atomicity and to ensure correct recovery by
+calling btr_truncate_recover().
+@param[in]	index		clustered index */
+void
+btr_truncate(
+	const dict_index_t*	index)
+{
+	ut_ad(dict_index_is_clust(index));
+	ut_ad(dict_table_get_next_index(index) == NULL);
+
+	ulint			root_page_no	= index->page;
+	ulint			space_id	= index->space;
+	fil_space_t*		space		= fil_space_acquire(space_id);
+
+	if (space == NULL) {
+		return;
+	}
+
+	page_size_t		page_size(space->flags);
+	const page_id_t         page_id(space_id, root_page_no);
+	mtr_t			mtr;
+	buf_block_t*		block;
+
+	mtr.start();
+
+	mtr_x_lock(&space->latch, &mtr);
+
+	block = buf_page_get(page_id, page_size, RW_X_LATCH, &mtr);
+
+	mtr.set_named_space(space);
+
+	page_t*			page = buf_block_get_frame(block);
+	ut_ad(page_is_root(page));
+
+	/* Mark that we are going to truncate the index tree
+	We use PAGE_MAX_TRX_ID as it should be always 0 for clustered
+	index. */
+	mlog_write_ull(page + (PAGE_HEADER + PAGE_MAX_TRX_ID), -1ULL, &mtr);
+
+	mtr.commit();
+
+	mtr.start();
+	mtr.set_named_space(space);
+
+	block = buf_page_get(page_id, page_size, RW_X_LATCH, &mtr);
+
+	/* Free all except the root, we don't want to change it. */
+	btr_free_but_not_root(block, MTR_LOG_ALL);
+
+	/* Reset the mark saying that we have finished the truncate.
+	The PAGE_MAX_TRX_ID would be reset here. */
+	page_create(block, &mtr, dict_table_is_comp(index->table), false);
+	ut_ad(buf_block_get_frame(block) + (PAGE_HEADER + PAGE_MAX_TRX_ID)
+	      == 0);
+
+	mtr.commit();
+
+	rw_lock_x_unlock(&space->latch);
+
+	fil_space_release(space);
+}
+
+/** Recovery function for btr_truncate. We will check if there is a
+crash during btr_truncate, if so, do recover it, if not, do nothing.
+@param[in]	index		clustered index */
+void
+btr_truncate_recover(
+	const dict_index_t*	index)
+{
+	ut_ad(dict_index_is_clust(index));
+	ut_ad(dict_table_get_next_index(index) == NULL);
+
+	ulint			root_page_no = index->page;
+	ulint			space_id = index->space;
+	fil_space_t*		space = fil_space_acquire(space_id);
+
+	if (space == NULL) {
+		return;
+	}
+
+	page_size_t		page_size(space->flags);
+	const page_id_t		page_id(space_id, root_page_no);
+	mtr_t			mtr;
+	buf_block_t*		block;
+
+	mtr.start();
+
+	block = buf_page_get(page_id, page_size, RW_X_LATCH, &mtr);
+
+	page_t*			page = buf_block_get_frame(block);
+
+	trx_id_t		trx_id = page_get_max_trx_id(page);
+	ut_ad(trx_id == 0 || trx_id == -1ULL);
+
+	mtr.commit();
+
+	fil_space_release(space);
+
+	if (trx_id == -1ULL) {
+		/* -1 means there is a half-done btr_truncate,
+		we can simple redo it again. */
+		btr_truncate(index);
+	}
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -2566,11 +2684,9 @@ func_start:
 	ut_ad(!dict_index_is_online_ddl(cursor->index)
 	      || (flags & BTR_CREATE_FLAG)
 	      || dict_index_is_clust(cursor->index));
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own_flagged(dict_index_get_lock(cursor->index),
 				  RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX)
 	      || dict_table_is_intrinsic(cursor->index->table));
-#endif /* UNIV_SYNC_DEBUG */
 
 	block = btr_cur_get_block(cursor);
 	page = buf_block_get_frame(block);
@@ -4217,6 +4333,11 @@ btr_index_rec_validate(
 		return(TRUE);
 	}
 
+#ifdef VIRTUAL_INDEX_DEBUG
+	if (dict_index_has_virtual(index)) {
+		fprintf(stderr, "index name is %s\n", index->name());
+	}
+#endif
 	if ((ibool)!!page_is_comp(page) != dict_table_is_comp(index->table)) {
 		btr_index_rec_validate_report(page, rec, index);
 
@@ -4309,6 +4430,12 @@ btr_index_rec_validate(
 			return(FALSE);
 		}
 	}
+
+#ifdef VIRTUAL_INDEX_DEBUG
+	if (dict_index_has_virtual(index)) {
+		rec_print_new(stderr, rec, offsets);
+	}
+#endif
 
 	if (heap) {
 		mem_heap_free(heap);
@@ -4912,6 +5039,7 @@ node_ptr_fails:
 /**************************************************************//**
 Do an index level validation of spaital index tree.
 @return	true if no error found */
+static
 bool
 btr_validate_spatial_index(
 /*=======================*/
@@ -5002,6 +5130,7 @@ btr_validate_index(
 Checks if the page in the cursor can be merged with given page.
 If necessary, re-organize the merge_page.
 @return	true if possible to merge. */
+static
 bool
 btr_can_merge_with_page(
 /*====================*/

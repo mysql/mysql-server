@@ -25,20 +25,11 @@ LET $data_directory = DATA DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
 
 --disable_query_log
 # These errors are expected in the error log for this test.
-call mtr.add_suppression("\\[ERROR\\] InnoDB: A tablespace for `test/.*` has been found in multiple places");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for ");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Default location:");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Dictionary location:");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Error number 38 means 'Function not implemented'.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `test`.`.*` in the cache. Attempting to load");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: In file '.*', tablespace id and flags are .* but in the InnoDB data dictionary they are");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 38 in a file operation.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Remote location:");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Will not open tablespace `test/.*`");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table `test`\.`.*` because the \.ibd file is missing");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace `test/.*` because it could not be opened.");
 --enable_query_log
@@ -60,7 +51,6 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace `test/.*` be
 --echo #      ywn       Yes          WrongFile      No
 --echo #      nnn       No           No             No
 --echo #      www       WrongFile    WrongFile      WrongFile
---echo #   nolink       No           Yes, No ISL    No
 --echo #
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
@@ -130,62 +120,48 @@ INSERT INTO nolink VALUES (1, 'no link file');
 --echo # YYY; Tablespace found in 3 places
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQLD_DATADIR/test/yyy.ibd
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQL_TMP_DIR/new_dir/test/yyy.ibd
---exec echo $MYSQL_TMP_DIR/new_dir/test/yyy.ibd > $MYSQLD_DATADIR/test/yyy.isl
 
 --echo # NYY; Tablespace found in alt_dir and new_dir
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/nyy.ibd $MYSQL_TMP_DIR/new_dir/test/nyy.ibd
---exec echo $MYSQL_TMP_DIR/new_dir/test/nyy.ibd > $MYSQLD_DATADIR/test/nyy.isl
 
 --echo # YNY; Tablespace found in default and new_dir
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yny.ibd $MYSQLD_DATADIR/test/yny.ibd
 --move_file $MYSQL_TMP_DIR/alt_dir/test/yny.ibd $MYSQL_TMP_DIR/new_dir/test/yny.ibd
---exec echo $MYSQL_TMP_DIR/new_dir/test/yny.ibd > $MYSQLD_DATADIR/test/yny.isl
 
 --echo # YYN; Tablespace found in default and alt_dir
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yyn.ibd $MYSQLD_DATADIR/test/yyn.ibd
 
 --echo # NYW; Copy the wrong file to new_dir
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQL_TMP_DIR/new_dir/test/nyw.ibd
---exec echo $MYSQL_TMP_DIR/new_dir/test/nyw.ibd > $MYSQLD_DATADIR/test/nyw.isl
 
 --echo # NWY; Move the wrong file to alt_dir, good one to new_dir.
 --move_file $MYSQL_TMP_DIR/alt_dir/test/nwy.ibd $MYSQL_TMP_DIR/new_dir/test/nwy.ibd
---exec echo $MYSQL_TMP_DIR/new_dir/test/nwy.ibd > $MYSQLD_DATADIR/test/nwy.isl
---copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQL_TMP_DIR/alt_dir/test/nwy.ibd
+#--copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQL_TMP_DIR/alt_dir/test/nwy.ibd
 
 --echo # WNY; Move the wrong file to default, good one to new_dir, delete it form alt_dir
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQLD_DATADIR/test/wny.ibd
 --move_file $MYSQL_TMP_DIR/alt_dir/test/wny.ibd $MYSQL_TMP_DIR/new_dir/test/wny.ibd
---exec echo $MYSQL_TMP_DIR/new_dir/test/wny.ibd > $MYSQLD_DATADIR/test/wny.isl
 
 --echo # YNW; Move the file to default, wrong one to new_dir, delete it form alt_dir
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/ynw.ibd $MYSQLD_DATADIR/test/ynw.ibd
 --remove_file $MYSQL_TMP_DIR/alt_dir/test/ynw.ibd
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQL_TMP_DIR/new_dir/test/ynw.ibd
---exec echo $MYSQL_TMP_DIR/new_dir/test/ynw.ibd > $MYSQLD_DATADIR/test/ynw.isl
 
 --echo # WYN; Copy the wrong file to default
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQLD_DATADIR/test/wyn.ibd
 
 --echo # YWN; Move the file to default, wrong one to alt_dir
---copy_file $MYSQL_TMP_DIR/alt_dir/test/ywn.ibd $MYSQLD_DATADIR/test/ywn.ibd
--- remove_file $MYSQL_TMP_DIR/alt_dir/test/ywn.ibd
---copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQL_TMP_DIR/alt_dir/test/ywn.ibd
+--move_file $MYSQL_TMP_DIR/alt_dir/test/ywn.ibd $MYSQLD_DATADIR/test/ywn.ibd
+#--copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQL_TMP_DIR/alt_dir/test/ywn.ibd
 
---echo # NNN; Delete the tablespace and ISL
---remove_file $MYSQLD_DATADIR/test/nnn.isl
+--echo # NNN; Delete the tablespace
 --remove_file $MYSQL_TMP_DIR/alt_dir/test/nnn.ibd
 
 --echo # WWW; Put the wrong file in all three locations
---copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQLD_DATADIR/test/www.ibd
+#--copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQLD_DATADIR/test/www.ibd
 --remove_file $MYSQL_TMP_DIR/alt_dir/test/www.ibd
---copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQL_TMP_DIR/alt_dir/test/www.ibd
---copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQL_TMP_DIR/new_dir/test/www.ibd
---exec echo $MYSQL_TMP_DIR/new_dir/test/www.ibd > $MYSQLD_DATADIR/test/www.isl
-
---echo # NOLINK; Delete the ISL file Since remote location is still in SYS_DATAFILES,
---echo # it should still be found. And the ISL file should be re-created.
---remove_file $MYSQLD_DATADIR/test/nolink.isl
+#--copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQL_TMP_DIR/alt_dir/test/www.ibd
+#--copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQL_TMP_DIR/new_dir/test/www.ibd
 
 --echo # Make a backup of this tablespace to use later.
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/nolink.ibd $MYSQL_TMP_DIR/alt_dir/test/nolink.ibd.bak
@@ -204,19 +180,20 @@ INSERT INTO nolink VALUES (1, 'no link file');
 
 --source suite/innodb/include/show_i_s_tablespaces.inc
 
---error ER_TABLESPACE_MISSING
 SELECT * FROM yyy;
---error ER_TABLESPACE_MISSING
 SELECT * FROM nyy;
 --error ER_TABLESPACE_MISSING
 SELECT * FROM yny;
---error ER_TABLESPACE_MISSING
 SELECT * FROM yyn;
 SELECT * FROM nyw;
+--error ER_TABLESPACE_MISSING
 SELECT * FROM nwy;
+--error ER_TABLESPACE_MISSING
 SELECT * FROM wny;
+--error ER_TABLESPACE_MISSING
 SELECT * FROM ynw;
 SELECT * FROM wyn;
+--error ER_TABLESPACE_MISSING
 SELECT * FROM ywn;
 --error ER_TABLESPACE_MISSING
 SELECT * FROM nnn;
@@ -224,23 +201,25 @@ SELECT * FROM nnn;
 SELECT * FROM www;
 SELECT * FROM nolink;
 
---error ER_TABLESPACE_MISSING
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE yyy;
---error ER_TABLESPACE_MISSING
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE nyy;
 --error ER_TABLESPACE_MISSING
 SHOW CREATE TABLE yny;
---error ER_TABLESPACE_MISSING
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE yyn;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE nyw;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_TABLESPACE_MISSING
 SHOW CREATE TABLE nwy;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_TABLESPACE_MISSING
 SHOW CREATE TABLE wny;
+--error ER_TABLESPACE_MISSING
 SHOW CREATE TABLE ynw;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE wyn;
+--error ER_TABLESPACE_MISSING
 SHOW CREATE TABLE ywn;
 --error ER_TABLESPACE_MISSING
 SHOW CREATE TABLE nnn;
@@ -288,21 +267,22 @@ DROP TABLE nolink;
 --echo ---- MYSQL_TMP_DIR/new_dir/test
 --list_files $MYSQL_TMP_DIR/new_dir/test
 
---remove_file $MYSQLD_DATADIR/test/www.ibd
+#--remove_file $MYSQLD_DATADIR/test/www.ibd
 --remove_file $MYSQLD_DATADIR/test/wny.ibd
 --remove_file $MYSQLD_DATADIR/test/wyn.ibd
 --remove_file $MYSQLD_DATADIR/test/yny.ibd
 --remove_file $MYSQLD_DATADIR/test/yyn.ibd
 --remove_file $MYSQLD_DATADIR/test/yyy.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/nwy.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/nyy.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/www.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/ywn.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/yyn.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd
+--remove_file $MYSQL_TMP_DIR/new_dir/test/nwy.ibd
+--remove_file $MYSQL_TMP_DIR/new_dir/test/wny.ibd
+#--remove_file $MYSQL_TMP_DIR/alt_dir/test/nyy.ibd
+#--remove_file $MYSQL_TMP_DIR/alt_dir/test/www.ibd
+#--remove_file $MYSQL_TMP_DIR/alt_dir/test/ywn.ibd
+#--remove_file $MYSQL_TMP_DIR/alt_dir/test/yyn.ibd
+#--remove_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd
 --remove_file $MYSQL_TMP_DIR/new_dir/test/nyw.ibd
 --remove_file $MYSQL_TMP_DIR/new_dir/test/nyy.ibd
---remove_file $MYSQL_TMP_DIR/new_dir/test/www.ibd
+#--remove_file $MYSQL_TMP_DIR/new_dir/test/www.ibd
 --remove_file $MYSQL_TMP_DIR/new_dir/test/ynw.ibd
 --remove_file $MYSQL_TMP_DIR/new_dir/test/yny.ibd
 --remove_file $MYSQL_TMP_DIR/new_dir/test/yyy.ibd
@@ -319,20 +299,10 @@ DROP TABLE nolink;
 
 --echo #
 --echo # Create some tables again and this time, crash instead of shutdown
---echo # InnoDB recovery does not have the ability at this time to query
---echo # the data dictionary in order to determine if the table it is
---echo # openeing is the correct one, or to find the previous location
---echo # of a tablespace from SYS_DATAFILES.  It must rely on the ISL file
---echo # to tell the truth. But it can compare the current linked location
---echo # with a tablespace found in the default location and use the most
---echo # recent.
 --echo #
 --echo # Test recovery when tablespaces can be found at multiple places.
---echo # SYS_DATAFILES is unavailable during recovery.
---echo # Link File will refer to the file at alt_dir.
---echo # In each case except the control tablespace, the Link file will
---echo # exist with a file name in alt_dir.  'fnolink.ibd.bak' is the
---echo # source of the 'wrong' tablespaces.
+--echo # The data dictionary is unavailable during recovery.
+--echo # 'nolink.ibd.bak' is the source of the 'wrong' tablespaces.
 --echo #
 --echo # Tablename   Default_Tablespace  Remote_Tablespace
 --echo #    ny              No                  Yes
@@ -459,11 +429,6 @@ DROP TABLE yn;
 DROP TABLE yw;
 DROP TABLE yy;
 
---echo ---- MYSQLD_DATADIR/test
---list_files $MYSQLD_DATADIR/test
---echo ---- MYSQL_TMP_DIR/alt_dir/test
---list_files $MYSQL_TMP_DIR/alt_dir/test
-
 --echo #
 --echo # List of files after DROP TABLES
 --echo #
@@ -474,6 +439,8 @@ DROP TABLE yy;
 
 --remove_file $MYSQLD_DATADIR/test/wy.ibd
 --remove_file $MYSQLD_DATADIR/test/yy.ibd
+--remove_file $MYSQLD_DATADIR/test/ynw.ibd
+--remove_file $MYSQLD_DATADIR/test/ywn.ibd
 --remove_file $MYSQL_TMP_DIR/alt_dir/test/nolink.ibd.bak
 
 --rmdir $MYSQL_TMP_DIR/alt_dir/test

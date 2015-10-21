@@ -30,6 +30,7 @@
 #include "mysqld_error.h"                     // ER_*
 #include "sql_const.h"                        // CREATE_MODE
 #include "sql_list.h"                         // List_iterator_fast
+#include "sql_string.h"                       // String
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -306,7 +307,7 @@ err_w_file:
 /**
   Renames a frm file (including backups) in same schema.
 
-  @thd                     thread handler
+  @param thd               thread handler
   @param schema            name of given schema
   @param old_name          original file name
   @param new_db            new schema
@@ -462,10 +463,8 @@ frm_error:
   @param mem_root	  MEM_ROOT for parameter allocation
   @param str		  pointer on string, where results should be stored
 
-  @retval
-    0	  error
-  @retval
-    \#	  pointer on symbol after string
+  @return Pointer on symbol after string
+  @retval 0	  error
 */
 
 
@@ -500,7 +499,7 @@ parse_string(const char *ptr, const char *end, MEM_ROOT *mem_root,
     TRUE    error
 */
 
-my_bool
+static my_bool
 read_escaped_string(const char *ptr, const char *eol, LEX_STRING *str)
 {
   char *write_pos= str->str;
@@ -546,7 +545,7 @@ read_escaped_string(const char *ptr, const char *eol, LEX_STRING *str)
 
 
 /**
-  parse \\n delimited escaped string.
+  parse @\n delimited escaped string.
 
   @param ptr		  pointer on string beginning
   @param end		  pointer on symbol after parsed string end (still owned
@@ -554,10 +553,9 @@ read_escaped_string(const char *ptr, const char *eol, LEX_STRING *str)
   @param mem_root	  MEM_ROOT for parameter allocation
   @param str		  pointer on string, where results should be stored
 
+  @return Pointer on symbol after string
   @retval
     0	  error
-  @retval
-    \#	  pointer on symbol after string
 */
 
 
@@ -585,10 +583,9 @@ parse_escaped_string(const char *ptr, const char *end, MEM_ROOT *mem_root,
   @param mem_root	  MEM_ROOT for parameter allocation
   @param str		  pointer on string, where results should be stored
 
+  @return Pointer on symbol after string
   @retval
     0	  error
-  @retval
-    \#	  pointer on symbol after string
 */
 
 static const char *
@@ -686,7 +683,6 @@ nlist_err:
                              then "required", non-existing parameters will
                              remain their values.
   @param hook                hook called for unknown keys
-  @param hook_data           some data specific for the hook
 
   @retval
     FALSE   OK

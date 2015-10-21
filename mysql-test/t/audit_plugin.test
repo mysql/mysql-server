@@ -15,10 +15,10 @@ if(`SELECT CONVERT(@@version_compile_os USING latin1)
 # Adjustment to the fact that protocols which lead to the use
 # of prepared statements cause that a higher number of
 # plugin calls gets counted.
-let $expected_calls= 21;
+let $expected_calls= 63;
 if(`SELECT $PS_PROTOCOL > 0`)
 {
-   let $expected_calls= 52;
+   let $expected_calls= 105;
 }
 if(`SELECT $SP_PROTOCOL > 0`)
 {

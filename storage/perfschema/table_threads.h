@@ -16,13 +16,18 @@
 #ifndef TABLE_THREADS_H
 #define TABLE_THREADS_H
 
+/**
+  @file storage/perfschema/table_threads.h
+  TABLE THREADS.
+*/
+
 #include "pfs_column_types.h"
 #include "cursor_by_thread.h"
 
 struct PFS_thread;
 
 /**
-  \addtogroup Performance_schema_tables
+  @addtogroup Performance_schema_tables
   @{
 */
 
@@ -71,6 +76,10 @@ struct row_threads
   PFS_thread *m_psi;
   /** Column PARENT_THREAD_ID. */
   ulonglong m_parent_thread_internal_id;
+  /** Column CONNECTION_TYPE. */
+  enum_vio_type m_connection_type;
+  /** Column THREAD_OS_ID. */
+  my_thread_os_id_t m_thread_os_id;
 };
 
 /** Table PERFORMANCE_SCHEMA.THREADS. */

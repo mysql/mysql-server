@@ -27,6 +27,7 @@
 #include "discrete_interval.h"            // Discrete_interval
 #include "error_handler.h"                // Internal_error_handler
 #include "opt_trace_context.h"            // Opt_trace_context
+#include "protocol.h"                     // Protocol
 #include "protocol_classic.h"             // Protocol_text
 #include "rpl_context.h"                  // Rpl_thd_context
 #include "session_tracker.h"              // Session_tracker
@@ -44,6 +45,7 @@
 #include <mysql/psi/mysql_statement.h>
 
 #include <memory>
+#include "mysql/thread_type.h"
 
 class Reprepare_observer;
 class sp_cache;
@@ -58,16 +60,6 @@ typedef struct st_log_info LOG_INFO;
 typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct user_conn USER_CONN;
 typedef struct st_mysql_lock MYSQL_LOCK;
-
-/**
-  The meat of thd_proc_info(THD*, char*), a macro that packs the last
-  three calling-info parameters.
-*/
-extern "C"
-const char *set_thd_proc_info(MYSQL_THD thd_arg, const char *info,
-                              const char *calling_func,
-                              const char *calling_file,
-                              const unsigned int calling_line);
 
 #define thd_proc_info(thd, msg) \
   set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
@@ -85,27 +77,15 @@ LEX_CSTRING thd_query_unsafe(THD *thd);
 size_t thd_query_safe(THD *thd, char *buf, size_t buflen);
 
 /**
- To be used for pool-of-threads (implemeneted differently on various OSs)
+  To be used for pool-of-threads (implemented differently on various OSs)
 */
 class thd_scheduler
 {
 public:
-  /*
-    Thread instrumentation for the user job.
-    This member holds the instrumentation while the user job is not run
-    by a thread.
-
-    Note that this member is not conditionally declared
-    (ifdef HAVE_PSI_INTERFACE), because doing so will change the binary
-    layout of THD, which is exposed to plugin code that may be compiled
-    differently.
-  */
-  PSI_thread *m_psi;
-
   void *data;                  /* scheduler-specific data structure */
 
   thd_scheduler()
-  : m_psi(NULL), data(NULL)
+  : data(NULL)
   { }
 
   ~thd_scheduler() { }
@@ -283,6 +263,8 @@ public:
   /** Erase all prepared statements (calls Prepared_statement destructor). */
   void erase(Prepared_statement *statement);
 
+  void claim_memory_ownership();
+
   void reset();
 
   ~Prepared_statement_map();
@@ -300,10 +282,18 @@ private:
   yet another time.
 */
 
-struct Item_change_record: public ilink<Item_change_record>
+class Item_change_record: public ilink<Item_change_record>
 {
+private:
+  // not used
+  Item_change_record() {}
+public:
+  Item_change_record(Item **place, Item *new_value)
+    : place(place), old_value(*place), new_value(new_value)
+  {}
   Item **place;
   Item *old_value;
+  Item *new_value;
 };
 
 typedef I_List<Item_change_record> Item_change_list;
@@ -505,7 +495,8 @@ public:
   ulonglong first_successful_insert_id_in_cur_stmt, insert_id_for_cur_row;
   Discrete_interval auto_inc_interval_for_cur_row;
   Discrete_intervals_list auto_inc_intervals_forced;
-  ulonglong limit_found_rows;
+  ulonglong current_found_rows;
+  ulonglong previous_found_rows;
   ha_rows    cuted_fields, sent_row_count, examined_row_count;
   ulong client_capabilities;
   uint in_sub_stmt;
@@ -515,20 +506,6 @@ public:
   enum enum_check_fields count_cuted_fields;
 };
 
-
-/* Flags for the THD::system_thread variable */
-enum enum_thread_type
-{
-  NON_SYSTEM_THREAD= 0,
-  SYSTEM_THREAD_SLAVE_IO= 1,
-  SYSTEM_THREAD_SLAVE_SQL= 2,
-  SYSTEM_THREAD_NDBCLUSTER_BINLOG= 4,
-  SYSTEM_THREAD_EVENT_SCHEDULER= 8,
-  SYSTEM_THREAD_EVENT_WORKER= 16,
-  SYSTEM_THREAD_INFO_REPOSITORY= 32,
-  SYSTEM_THREAD_SLAVE_WORKER= 64,
-  SYSTEM_THREAD_COMPRESS_GTID_TABLE= 128
-};
 
 inline char const *
 show_system_thread(enum_thread_type thread)
@@ -545,6 +522,7 @@ show_system_thread(enum_thread_type thread)
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_INFO_REPOSITORY);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_SLAVE_WORKER);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_COMPRESS_GTID_TABLE);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_BACKGROUND);
   default:
     sprintf(buf, "<UNKNOWN SYSTEM THREAD: %d>", thread);
     return buf;
@@ -887,11 +865,50 @@ public:
   struct  System_variables variables;	// Changeable local variables
   struct  System_status_var status_var; // Per thread statistic vars
   struct  System_status_var *initial_status_var; /* used by show status */
+  // has status_var already been added to global_status_var?
+  bool status_var_aggregated;
+
+  /**
+    Current query cost.
+    @sa system_status_var::last_query_cost
+  */
+  double m_current_query_cost;
+  /**
+    Current query partial plans.
+    @sa system_status_var::last_query_partial_plans
+  */
+  ulonglong m_current_query_partial_plans;
+
+  /**
+    Clear the query costs attributes for the current query.
+  */
+  void clear_current_query_costs()
+  {
+    m_current_query_cost= 0.0;
+    m_current_query_partial_plans= 0;
+  }
+
+  /**
+    Save the current query costs attributes in
+    the thread session status.
+    Use this method only after the query execution is completed,
+    so that
+      @code SHOW SESSION STATUS like 'last_query_%' @endcode
+      @code SELECT * from performance_schema.session_status
+      WHERE VARIABLE_NAME like 'last_query_%' @endcode
+    actually reports the previous query, not itself.
+  */
+  void save_current_query_costs()
+  {
+    status_var.last_query_cost= m_current_query_cost;
+    status_var.last_query_partial_plans= m_current_query_partial_plans;
+  }
+
   THR_LOCK_INFO lock_info;              // Locking info of this thread
   /**
     Protects THD data accessed from other threads.
     The attributes protected are:
-    - thd->mysys_var (used by KILL statement and shutdown).
+    - thd->is_killable (used by KILL statement and shutdown).
     - thd->user_vars (user variables, inspected by monitoring)
     Is locked when THD is deleted.
   */
@@ -946,7 +963,7 @@ public:
     A pointer to the stack frame of handle_one_connection(),
     which is called first in the thread for handling a client
   */
-  char	  *thread_stack;
+  const char *thread_stack;
 
   /**
     @note
@@ -1120,7 +1137,7 @@ public:
 #ifndef DBUG_OFF
   uint dbug_sentry; // watch out for memory corruption
 #endif
-  struct st_my_thread_var *mysys_var;
+  bool is_killable;
   /**
     Mutex protecting access to current_mutex and current_cond.
   */
@@ -1140,6 +1157,10 @@ public:
     thread can be unstuck.
   */
   mysql_cond_t * volatile current_cond;
+  /**
+    Condition variable used for waiting by the THR_LOCK.c subsystem.
+  */
+  mysql_cond_t COND_thr_lock;
 
 private:
   /**
@@ -1189,7 +1210,7 @@ public:
   uint fill_variables_recursion_level;
 
   /* container for handler's private per-connection data */
-  Ha_data ha_data[MAX_HA];
+  Prealloced_array<Ha_data, PREALLOC_NUM_HA> ha_data;
 
   /*
     Position of first event in Binlog
@@ -1605,9 +1626,17 @@ public:
   }
 
   /**
-    Stores the result of the FOUND_ROWS() function.
+    Stores the result of the FOUND_ROWS() function.  Set at query end, stable
+    throughout the query.
   */
-  ulonglong  limit_found_rows;
+  ulonglong  previous_found_rows;
+  /**
+    Dynamic, collected and set also in subqueries. Not stable throughout query.
+    previous_found_rows is a snapshot of this take at query end making it
+    stable throughout the next query, see update_previous_found_rows.
+  */
+  ulonglong  current_found_rows;
+
   /*
     Indicate if the gtid_executed table is being operated implicitly
     within current transaction. This happens because we are inserting
@@ -1615,6 +1644,20 @@ public:
     slave SQL thread/workers.
   */
   bool is_operating_gtid_table_implicitly;
+  /*
+    Indicate that a sub-statement is being operated implicitly
+    within current transaction.
+    As we don't want that this implicit sub-statement to consume the
+    GTID of the actual transaction, we set it true at the beginning of
+    the sub-statement and set it false again after "committing" the
+    sub-statement.
+    When it is true, the applier will not save the transaction owned
+    gtid into mysql.gtid_executed table before transaction prepare, as
+    it does when binlog is disabled, or binlog is enabled and
+    log_slave_updates is disabled.
+    Rpl_info_table::do_flush_info() uses this flag.
+  */
+  bool is_operating_substatement_implicitly;
 
 private:
   /**
@@ -1782,7 +1825,7 @@ public:
   /**
     This counter is 32 bit because of the client protocol.
 
-    @note It is not meant to be used for my_thread_self(), see @real_id for this.
+    @note It is not meant to be used for my_thread_self(), see @c real_id for this.
 
     @note Set to reserved_thread_id on initialization. This is a magic
     value that is only to be used for temporary THDs not present in
@@ -1855,6 +1898,15 @@ public:
   THD *next_to_commit;
 
   /**
+    The member is served for marking a query that CREATEs or ALTERs
+    a table declared with a TIMESTAMP column as dependent on
+    @@session.explicit_defaults_for_timestamp.
+    Is set to true by parser, unset at the end of the query.
+    Possible marking in checked by binary logger.
+  */
+  bool binlog_need_explicit_defaults_ts;
+
+  /**
      Functions to set and get transaction position.
 
      These functions are used to set the transaction position for the
@@ -1925,6 +1977,7 @@ public:
   {
     CE_NONE= 0,
     CE_FLUSH_ERROR,
+    CE_SYNC_ERROR,
     CE_COMMIT_ERROR,
     CE_ERROR_COUNT
   } commit_error;
@@ -1944,7 +1997,6 @@ public:
   enum killed_state
   {
     NOT_KILLED=0,
-    KILL_BAD_DATA=1,
     KILL_CONNECTION=ER_SERVER_SHUTDOWN,
     KILL_QUERY=ER_QUERY_INTERRUPTED,
     KILL_TIMEOUT=ER_QUERY_TIMEOUT,
@@ -2085,7 +2137,7 @@ public:
     Array of bits indicating which audit classes have already been
     added to the list of audit plugins which are currently in use.
   */
-  Prealloced_array<unsigned long, 1> audit_class_mask;
+  Prealloced_array<unsigned long, 11> audit_class_mask;
 #endif
 
 #if defined(ENABLED_DEBUG_SYNC)
@@ -2134,7 +2186,7 @@ public:
   void cleanup_connection(void);
   void cleanup_after_query();
   bool store_globals();
-  bool restore_globals();
+  void restore_globals();
 
   inline void set_active_vio(Vio* vio)
   {
@@ -2150,11 +2202,13 @@ public:
     mysql_mutex_unlock(&LOCK_thd_data);
   }
 
+  enum_vio_type get_vio_type();
+
   void shutdown_active_vio();
   void awake(THD::killed_state state_to_set);
 
   /** Disconnect the associated communication endpoint. */
-  void disconnect();
+  void disconnect(bool server_shutdown= false);
 
 #ifndef MYSQL_CLIENT
   enum enum_binlog_query_type {
@@ -2331,8 +2385,20 @@ public:
   }
   inline ulonglong found_rows(void)
   {
-    return limit_found_rows;
+    return previous_found_rows;
   }
+
+  /*
+    Call when it is clear that the query is ended and we have collected the
+    right value for current_found_rows. Calling this method makes a snapshot of
+    that value and makes it ready and stable for subsequent FOUND_ROWS() call
+    in the next statement.
+  */
+  inline void update_previous_found_rows()
+  {
+    previous_found_rows= current_found_rows;
+  }
+
   /**
     Returns TRUE if session is in a multi-statement transaction mode.
 
@@ -2347,8 +2413,8 @@ public:
     Note: this doesn't tell you whether a transaction is active.
     A session can be in multi-statement transaction mode, and yet
     have no active transaction, e.g., in case of:
-    set @@autocommit=0;
-    set @a= 3;                                     <-- these statements don't
+    set \@\@autocommit=0;
+    set \@a= 3;                                    <-- these statements don't
     set transaction isolation level serializable;  <-- start an active
     flush tables;                                  <-- transaction
 
@@ -2451,11 +2517,23 @@ public:
     is_slave_error= false;
     DBUG_VOID_RETURN;
   }
-#ifndef EMBEDDED_LIBRARY
-  inline bool vio_ok() const
+
+  inline bool is_classic_protocol()
   {
-    return get_protocol_classic()->vio_ok();
+    DBUG_ENTER("THD::is_classic_protocol");
+    DBUG_PRINT("info", ("type=%d", get_protocol()->type()));
+    switch (get_protocol()->type())
+    {
+    case Protocol::PROTOCOL_BINARY:
+    case Protocol::PROTOCOL_TEXT:
+      DBUG_RETURN(true);
+    default:
+      break;
+    }
+    DBUG_RETURN(false);
   }
+
+#ifndef EMBEDDED_LIBRARY
   /** Return FALSE if connection to client is broken. */
   virtual bool is_connected()
   {
@@ -2464,11 +2542,16 @@ public:
       not using vio. So this function always returns true for all
       system threads.
     */
-    return system_thread ||
-      (vio_ok() ? vio_is_connected(get_protocol_classic()->get_vio()) : FALSE);
+    if (system_thread)
+      return true;
+
+    if (is_classic_protocol())
+      return get_protocol()->connection_alive() &&
+             vio_is_connected(get_protocol_classic()->get_vio());
+    else
+      return get_protocol()->connection_alive();
   }
 #else
-  inline bool vio_ok() const { return TRUE; }
   virtual bool is_connected() { return true; }
 #endif
   /**
@@ -2574,27 +2657,45 @@ public:
                   place, *place, new_value));
       if (new_value)
         new_value->set_runtime_created(); /* Note the change of item tree */
-      nocheck_register_item_tree_change(place, *place, mem_root);
+      nocheck_register_item_tree_change(place, new_value);
     }
     *place= new_value;
   }
 
-/*
-  Find and update change record of an underlying item.
+  /**
+    Remember that place was updated with new_value so it can be restored
+    by rollback_item_tree_changes().
 
-  @param old_ref The old place of moved expression.
-  @param new_ref The new place of moved expression.
-  @details
-  During permanent transformations, e.g. join flattening in simplify_joins,
-  a condition could be moved from one place to another, e.g. from on_expr
-  to WHERE condition. If the moved condition has replaced some other with
-  change_item_tree() function, the change record will restore old value
-  to the wrong place during rollback_item_tree_changes. This function goes
-  through the list of change records, and replaces Item_change_record::place.
-*/
-  void change_item_tree_place(Item **old_ref, Item **new_ref);
-  void nocheck_register_item_tree_change(Item **place, Item *old_value,
-                                         MEM_ROOT *runtime_memroot);
+    @param[in] place the location that will change, and whose old value
+               we need to remember for restoration
+    @param[in] new_value new value about to be inserted into *place, remember
+               for associative lookup, see replace_rollback_place()
+  */
+  void nocheck_register_item_tree_change(Item **place, Item *new_value);
+
+  /**
+    Find and update change record of an underlying item based on the new
+    value for a place.
+
+    If we have already saved a position to rollback for new_value,
+    forget that rollback position and register the new place instead,
+    typically because a transformation has made the old place irrelevant.
+    If not, a no-op.
+
+    @param new_place  The new location in which we have presumably saved
+                      the new value, but which need to be rolled back to
+                      the old value.
+                      This location must also contain the new value.
+  */
+  void replace_rollback_place(Item **new_place);
+
+  /**
+    Restore locations set by calls to nocheck_register_item_tree_change().  The
+    value to be restored depends on whether replace_rollback_place()
+    has been called. If not, we restore the original value. If it has been
+    called, we restore the one supplied by the latest call to
+    replace_rollback_place()
+  */
   void rollback_item_tree_changes();
 
   /*
@@ -2602,11 +2703,6 @@ public:
     state after execution of a non-prepared SQL statement.
   */
   void end_statement();
-  inline int killed_errno() const
-  {
-    killed_state killed_val; /* to cache the volatile 'killed' */
-    return (killed_val= killed) != KILL_BAD_DATA ? killed_val : 0;
-  }
   void send_kill_message() const;
 
   void set_status_var_init();
@@ -3053,24 +3149,6 @@ public:
     is_ddl_gtid_consistent or is_dml_gtid_consistent returned false.
   */
   bool has_gtid_consistency_violation;
-  /*
-    Hack used to communicate between MYSQL_BIN_LOG::commit and
-    Gtid_state::update_on_[commit|rollback].
-
-    Normally, MYSQL_BIN_LOG::commit will invoke some function that
-    eventually calls Gtid_state::update_on_commit.  However, in some
-    corner cases it may not happen, for instance if there is nothing
-    commit or in some error cases.  In those cases,
-    MYSQL_BIN_LOG::commit has to call
-    Gtid_state::update_on_[commit|rollback] instead.
-
-    The control flow inside MYSQL_BIN_LOG::commit is very complex, so
-    the easiest way to check if Gtid_state::update_on_commit was
-    called is to set a flag when it gets called and check the flag in
-    MYSQL_BIN_LOG::commit.
-  */
-  bool pending_gtid_state_update;
-
 
   const LEX_CSTRING &db() const
   { return m_db; }
@@ -3078,8 +3156,7 @@ public:
   /**
     Set the current database; use deep copy of C-string.
 
-    @param new_db     a pointer to the new database name.
-    @param new_db_len length of the new database name.
+    @param new_db     the new database name.
 
     Initialize the current database from a NULL-terminated string with
     length. If we run out of memory, we free the current database and
@@ -3101,8 +3178,7 @@ public:
   /**
     Set the current database; use shallow copy of C-string.
 
-    @param new_db     a pointer to the new database name.
-    @param new_db_len length of the new database name.
+    @param new_db     the new database name.
 
     @note This operation just sets {db, db_length}. Switching the current
     database usually involves other actions, like switching other database
@@ -3135,6 +3211,30 @@ public:
     return false;
   }
   thd_scheduler scheduler;
+
+public:
+  /**
+    Save the performance schema thread instrumentation
+    associated with this user session.
+    @param psi Performance schema thread instrumentation
+  */
+  void set_psi(PSI_thread *psi);
+  /**
+    Read the performance schema thread instrumentation
+    associated with this user session.
+    This method is safe to use from a different thread.
+  */
+  PSI_thread* get_psi();
+
+private:
+  /**
+    Performance schema thread instrumentation for this session.
+    This member is maintained using atomic operations,
+    do not access it directly.
+    @sa set_psi
+    @sa get_psi
+  */
+  PSI_thread* m_psi;
 
 public:
   inline Internal_error_handler *get_internal_handler()
@@ -3214,8 +3314,8 @@ private:
   friend class Sql_cmd_common_signal;
   friend class Sql_cmd_signal;
   friend class Sql_cmd_resignal;
-  friend void push_warning(THD*, Sql_condition::enum_severity_level, uint,
-                           const char*);
+  friend void push_warning(THD* thd, Sql_condition::enum_severity_level severity,
+                           uint code, const char* message_text);
   friend void my_message_sql(uint, const char *, myf);
 
   /**
@@ -3320,13 +3420,13 @@ public:
   }
 
   /**
-    Assign a new value to mysys_var.
+    Assign a new value to is_killable
     Protected with the LOCK_thd_data mutex.
   */
-  void set_mysys_var(struct st_my_thread_var *new_mysys_var)
+  void set_is_killable(bool is_killable_arg)
   {
     mysql_mutex_lock(&LOCK_thd_data);
-    mysys_var= new_mysys_var;
+    is_killable= is_killable_arg;
     mysql_mutex_unlock(&LOCK_thd_data);
   }
 
@@ -3507,7 +3607,7 @@ public:
     Sum fields has table name empty and field_name.
 
     @param list         List of items to send to client
-    @param flag         Bit mask with the following functions:
+    @param flags        Bit mask with the following functions:
                           - 1 send number of rows
                           - 2 send default values
                           - 4 don't write eof packet
@@ -3595,6 +3695,22 @@ public:
     slave connection.
   */
   bool duplicate_slave_uuid;
+
+  /**
+    Claim all the memory used by the THD object.
+    This method is to keep memory instrumentation statistics
+    updated, when an object is transfered across threads.
+  */
+  void claim_memory_ownership();
+
+  bool is_a_srv_session() const { return is_a_srv_session_thd; }
+  void mark_as_srv_session() { is_a_srv_session_thd= true; }
+private:
+  /**
+    Variable to mark if the object is part of a Srv_session object, which
+    aggregates THD.
+  */
+  bool is_a_srv_session_thd;
 };
 
 
@@ -3722,6 +3838,12 @@ my_eof(THD *thd)
 {
   thd->set_row_count_func(-1);
   thd->get_stmt_da()->set_eof_status(thd);
+  if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
+  {
+    ((Transaction_state_tracker *)
+     thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER))
+      ->add_trx_state(thd, TX_RESULT_SET);
+  }
 }
 
 #define tmp_disable_binlog(A)       \
@@ -3776,7 +3898,7 @@ inline void add_group_to_list(THD *thd, ORDER *order)
 
 
 /**
-  @param THD         thread context
+  @param thd         thread context
   @param hton        pointer to handlerton
   @return address of the placeholder of handlerton's specific transaction
           object (data)

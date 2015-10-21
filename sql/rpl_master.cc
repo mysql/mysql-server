@@ -24,7 +24,7 @@
 #include "debug_sync.h"                         // DEBUG_SYNC
 #include "item_func.h"                          // user_var_entry
 #include "log.h"                                // sql_print_information
-#include "mysqld.h"                             // LOCK_slave_list
+#include "mysqld.h"                             // server_id
 #include "mysqld_thd_manager.h"                 // Global_THD_manager
 #include "psi_memory_key.h"
 #include "rpl_binlog_sender.h"                  // Binlog_sender
@@ -41,7 +41,6 @@ int max_binlog_dump_events = 0; // unlimited
 my_bool opt_sporadic_binlog_dump_fail = 0;
 
 #define SLAVE_LIST_CHUNK 128
-#define SLAVE_ERRMSG_SIZE (FN_REFLEN+64)
 HASH slave_list;
 extern TYPELIB binlog_checksum_typelib;
 
@@ -78,6 +77,7 @@ extern "C" void slave_info_free(void *s)
   my_free(s);
 }
 
+static mysql_mutex_t LOCK_slave_list;
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_LOCK_slave_list;
 
@@ -103,7 +103,8 @@ void init_slave_list()
 
   my_hash_init(&slave_list, system_charset_info, SLAVE_LIST_CHUNK, 0, 0,
                (my_hash_get_key) slave_list_key,
-               (my_hash_free_key) slave_info_free, 0);
+               (my_hash_free_key) slave_info_free, 0,
+               key_memory_SLAVE_INFO);
   mysql_mutex_init(key_LOCK_slave_list, &LOCK_slave_list, MY_MUTEX_INIT_FAST);
 }
 
@@ -389,7 +390,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length)
   if (slave_gtid_executed.add_gtid_encoding(packet_position, data_size) !=
       RETURN_STATUS_OK)
     DBUG_RETURN(true);
-  gtid_string= slave_gtid_executed.to_string();
+  slave_gtid_executed.to_string(&gtid_string);
   DBUG_PRINT("info", ("Slave %d requested to read %s at position %llu gtid set "
                       "'%s'.", thd->server_id, name, pos, gtid_string));
 

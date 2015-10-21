@@ -436,7 +436,7 @@ struct PFS_ALIGNED PFS_file_class : public PFS_instr_class
 struct PFS_ALIGNED PFS_stage_class : public PFS_instr_class
 {
   /**
-    Length of the 'stage/<component>/' prefix.
+    Length of the 'stage/\<component\>/' prefix.
     This is to extract 'foo' from 'stage/sql/foo'.
   */
   uint m_prefix_length;
@@ -470,6 +470,15 @@ struct PFS_ALIGNED PFS_socket_class : public PFS_instr_class
 /** Instrumentation metadata for a memory. */
 struct PFS_ALIGNED PFS_memory_class : public PFS_instr_class
 {
+  bool is_global() const
+  {
+    return m_flags & PSI_FLAG_GLOBAL;
+  }
+
+  bool is_transferable() const
+  {
+    return m_flags & PSI_FLAG_TRANSFER;
+  }
 };
 
 void init_event_name_sizing(const PFS_global_param *param);

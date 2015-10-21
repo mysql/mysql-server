@@ -13,6 +13,11 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+/**
+  @file storage/perfschema/table_hosts.cc
+  TABLE HOSTS.
+*/
+
 #include "my_global.h"
 #include "my_thread.h"
 #include "table_hosts.h"
@@ -62,7 +67,8 @@ table_hosts::m_share=
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 PFS_engine_table* table_hosts::create()

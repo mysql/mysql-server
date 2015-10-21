@@ -612,7 +612,8 @@ update_mbr:
 			page_rec_get_next(page_get_infimum_rec(page)),
 			page_is_comp(page)));
 	}
-#endif
+#endif /* UNIV_DEBUG */
+
 	mem_heap_free(heap);
 
 	return(true);
@@ -806,6 +807,7 @@ This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
 @return TRUE on success; FALSE on compression failure */
+static
 ibool
 rtr_split_page_move_rec_list(
 /*=========================*/
@@ -1038,10 +1040,8 @@ func_start:
 	ut_ad(!dict_index_is_online_ddl(cursor->index)
 	      || (flags & BTR_CREATE_FLAG)
 	      || dict_index_is_clust(cursor->index));
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own_flagged(dict_index_get_lock(cursor->index),
 				  RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
-#endif /* UNIV_SYNC_DEBUG */
 
 	block = btr_cur_get_block(cursor);
 	page = buf_block_get_frame(block);
@@ -1853,4 +1853,163 @@ rtr_rec_cal_increase(
 		static_cast<int>(dtuple_f_len), area);
 
 	return(ret);
+}
+
+/** Estimates the number of rows in a given area.
+@param[in]	index	index
+@param[in]	tuple	range tuple containing mbr, may also be empty tuple
+@param[in]	mode	search mode
+@return estimated number of rows */
+int64_t
+rtr_estimate_n_rows_in_range(
+	dict_index_t*	index,
+	const dtuple_t*	tuple,
+	page_cur_mode_t	mode)
+{
+	/* Check tuple & mode */
+	if (tuple->n_fields == 0) {
+		return(HA_POS_ERROR);
+	}
+
+	switch (mode) {
+	case PAGE_CUR_DISJOINT:
+	case PAGE_CUR_CONTAIN:
+	case PAGE_CUR_INTERSECT:
+	case PAGE_CUR_WITHIN:
+	case PAGE_CUR_MBR_EQUAL:
+		break;
+	default:
+		return(HA_POS_ERROR);
+	}
+
+	DBUG_EXECUTE_IF("rtr_pcur_move_to_next_return",
+		return(2);
+	);
+
+	/* Read mbr from tuple. */
+	const dfield_t*	dtuple_field;
+	ulint		dtuple_f_len __attribute__((unused));
+	rtr_mbr_t	range_mbr;
+	double		range_area;
+	byte*		range_mbr_ptr;
+
+	dtuple_field = dtuple_get_nth_field(tuple, 0);
+	dtuple_f_len = dfield_get_len(dtuple_field);
+	range_mbr_ptr = reinterpret_cast<byte*>(dfield_get_data(dtuple_field));
+
+	ut_ad(dtuple_f_len >= DATA_MBR_LEN);
+	rtr_read_mbr(range_mbr_ptr, &range_mbr);
+	range_area = (range_mbr.xmax - range_mbr.xmin)
+		 * (range_mbr.ymax - range_mbr.ymin);
+
+	/* Get index root page. */
+	page_size_t	page_size(dict_table_page_size(index->table));
+	page_id_t	page_id(dict_index_get_space(index),
+				dict_index_get_page(index));
+	mtr_t		mtr;
+	buf_block_t*	block;
+	page_t*		page;
+	ulint		n_recs;
+
+	mtr_start(&mtr);
+	mtr.set_named_space(dict_index_get_space(index));
+	mtr_s_lock(dict_index_get_lock(index), &mtr);
+
+	block = btr_block_get(page_id, page_size, RW_S_LATCH, index, &mtr);
+	page = buf_block_get_frame(block);
+	n_recs = page_header_get_field(page, PAGE_N_RECS);
+
+	if (n_recs == 0) {
+		mtr_commit(&mtr);
+		return(HA_POS_ERROR);
+	}
+
+	rec_t*		rec;
+	byte*		field;
+	ulint		len;
+	ulint*		offsets = NULL;
+	mem_heap_t*	heap;
+
+	heap = mem_heap_create(512);
+	rec = page_rec_get_next(page_get_infimum_rec(page));
+	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+
+	/* Scan records in root page and calculate area. */
+	double	area = 0;
+	while (!page_rec_is_supremum(rec)) {
+		rtr_mbr_t	mbr;
+		double		rec_area;
+
+		field = rec_get_nth_field(rec, offsets, 0, &len);
+		ut_ad(len == DATA_MBR_LEN);
+
+		rtr_read_mbr(field, &mbr);
+
+		rec_area = (mbr.xmax - mbr.xmin) * (mbr.ymax - mbr.ymin);
+
+		if (rec_area == 0) {
+			switch (mode) {
+			case PAGE_CUR_CONTAIN:
+			case PAGE_CUR_INTERSECT:
+				area += 1;
+				break;
+
+			case PAGE_CUR_DISJOINT:
+				break;
+
+			case PAGE_CUR_WITHIN:
+			case PAGE_CUR_MBR_EQUAL:
+				if (rtree_key_cmp(
+					PAGE_CUR_WITHIN, range_mbr_ptr,
+					DATA_MBR_LEN, field, DATA_MBR_LEN)
+				    == 0) {
+					area += 1;
+				}
+
+				break;
+
+			default:
+				ut_error;
+			}
+		} else {
+			switch (mode) {
+			case PAGE_CUR_CONTAIN:
+			case PAGE_CUR_INTERSECT:
+				area += rtree_area_overlapping(range_mbr_ptr,
+						field, DATA_MBR_LEN) / rec_area;
+				break;
+
+			case PAGE_CUR_DISJOINT:
+				area += 1;
+				area -= rtree_area_overlapping(range_mbr_ptr,
+						field, DATA_MBR_LEN) / rec_area;
+				break;
+
+			case PAGE_CUR_WITHIN:
+			case PAGE_CUR_MBR_EQUAL:
+				if (rtree_key_cmp(
+					PAGE_CUR_WITHIN, range_mbr_ptr,
+					DATA_MBR_LEN, field, DATA_MBR_LEN)
+				    == 0) {
+					area += range_area / rec_area;
+				}
+
+				break;
+			default:
+				ut_error;
+			}
+		}
+
+		rec = page_rec_get_next(rec);
+	}
+
+	mtr_commit(&mtr);
+	mem_heap_free(heap);
+
+	if (my_isinf(area) || my_isnan(area)) {
+		return(HA_POS_ERROR);
+	}
+
+	return(static_cast<int64_t>(dict_table_get_n_rows(index->table)
+				    * area / n_recs));
 }

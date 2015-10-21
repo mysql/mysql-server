@@ -3,6 +3,8 @@
 --echo #		TABLESPACE AS THE PRIMARY
 --echo #
 
+--source include/have_innodb_max_16k.inc
+
 # Create a table with FTS columns and make sure the auxilliary
 # table are created in the same tablespace.
 

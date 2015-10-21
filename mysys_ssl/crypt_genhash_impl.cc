@@ -13,6 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
+/**
+  @file mysys_ssl/crypt_genhash_impl.cc
+*/
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
@@ -49,17 +52,17 @@
 #else
 #define DIGEST_CTX TaoCrypt::SHA256
 #define DIGEST_LEN 32
-void DIGESTInit(DIGEST_CTX *ctx)
+static void DIGESTInit(DIGEST_CTX *ctx)
 {
   ctx->Init();
 }
 
-void DIGESTUpdate(DIGEST_CTX *ctx, const void *plaintext, int len)
+static void DIGESTUpdate(DIGEST_CTX *ctx, const void *plaintext, int len)
 {
   ctx->Update((const TaoCrypt::byte *)plaintext, len);
 }
 
-void DIGESTFinal(void *txt, DIGEST_CTX *ctx)
+static void DIGESTFinal(void *txt, DIGEST_CTX *ctx)
 {
   ctx->Final((TaoCrypt::byte *)txt);
 }
@@ -76,12 +79,13 @@ static const char crypt_alg_magic[] = "$5";
 #endif
 
 
+#ifndef HAVE_STRLCAT
 /**
   Size-bounded string copying and concatenation
   This is a replacement for STRLCPY(3)
 */
 
-size_t
+static size_t
 strlcat(char *dst, const char *src, size_t siz)
 {
   char *d= dst;
@@ -107,6 +111,7 @@ strlcat(char *dst, const char *src, size_t siz)
   *d= '\0';
   return(dlen + (s - src));       /* count does not include NUL */
 }
+#endif
 
 static const int crypt_alg_magic_len = sizeof (crypt_alg_magic) - 1;
 
@@ -203,11 +208,6 @@ int extract_user_salt(char **salt_begin,
   return *salt_end - *salt_begin;
 }
 
-const char *sha256_find_digest(char *pass)
-{
-  int sz= strlen(pass);
-  return pass + sz - SHA256_HASH_LENGTH;
-}
 
 /*
  * Portions of the below code come from crypt_bsdmd5.so (bsdmd5.c) :
@@ -268,7 +268,7 @@ my_crypt_genhash(char *ctbuffer,
   salt = (char *)switchsalt;
 
   /* skip our magic string */
-  if (strncmp((char *)salt, crypt_alg_magic, crypt_alg_magic_len) == 0)
+  if (strncmp(salt, crypt_alg_magic, crypt_alg_magic_len) == 0)
   {
           salt += crypt_alg_magic_len + 1;
   }

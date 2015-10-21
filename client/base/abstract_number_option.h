@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,8 +26,6 @@ namespace Tools{
 namespace Base{
 namespace Options{
 
-using std::string;
-
 /**
   Abstract option to handle numeric option values.
  */
@@ -53,18 +51,18 @@ protected:
     @param var_type my_getopt internal option type.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
     @param default_value default value to be supplied to internal option
       data structure.
    */
-  Abstract_number_option(T_value* value, ulong var_type, string name,
-    string description, uint64 default_value);
+  Abstract_number_option(T_value* value, ulong var_type, std::string name,
+    std::string description, uint64 default_value);
 };
 
 
 template<typename T_type, typename T_value>Abstract_number_option<T_type, T_value>
 ::Abstract_number_option(
-  T_value* value, ulong var_type, string name, string description,
+  T_value* value, ulong var_type, std::string name, std::string description,
   uint64 default_value)
   : Abstract_value_option<T_type>(
       value, var_type, name, description, default_value)

@@ -27,19 +27,14 @@
 #include "mysql_version.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
-#ifdef HAVE_LIBPTHREAD
-#include <my_thread.h>
-#endif
 
 #include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 
 /* Global Thread counter */
 uint counter;
-#ifdef HAVE_LIBPTHREAD
 native_mutex_t counter_mutex;
 native_cond_t count_threshold;
-#endif
 
 static void db_error_with_table(MYSQL *mysql, char *table);
 static void db_error(MYSQL *mysql);
@@ -57,6 +52,8 @@ static char	*opt_password=0, *current_user=0,
 		*lines_terminated=0, *enclosed=0, *opt_enclosed=0,
 		*escaped=0, *opt_columns=0, 
 		*default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME;
+static uint opt_enable_cleartext_plugin= 0;
+static my_bool using_opt_enable_cleartext_plugin= 0;
 static uint     opt_mysql_port= 0, opt_protocol= 0;
 static char *opt_bind_addr = NULL;
 static char * opt_mysql_unix_port=0;
@@ -110,6 +107,10 @@ static struct my_option my_long_options[] =
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"delete", 'd', "First delete all rows from table.", &opt_delete,
    &opt_delete, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"enable_cleartext_plugin", OPT_ENABLE_CLEARTEXT_PLUGIN,
+   "Enable/disable the clear text authentication plugin.",
+   &opt_enable_cleartext_plugin, &opt_enable_cleartext_plugin,
+   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"fields-terminated-by", OPT_FTB,
    "Fields in the input file are terminated by the given string.", 
    &fields_terminated, &fields_terminated, 0, 
@@ -272,6 +273,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_local_file=1;
     break;
 #endif
+  case OPT_ENABLE_CLEARTEXT_PLUGIN:
+    using_opt_enable_cleartext_plugin= TRUE;
+    break;
   case OPT_MYSQL_PROTOCOL:
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
@@ -475,6 +479,10 @@ static MYSQL *db_connect(char *host, char *database,
   if (opt_default_auth && *opt_default_auth)
     mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
+  if (using_opt_enable_cleartext_plugin)
+    mysql_options(mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN,
+                  (char*)&opt_enable_cleartext_plugin);
+
   mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset);
   mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
@@ -586,8 +594,7 @@ static char *field_escape(char *to,const char *from,uint length)
 
 int exitcode= 0;
 
-#ifdef HAVE_LIBPTHREAD
-pthread_handler_t worker_thread(void *arg)
+void *worker_thread(void *arg)
 {
   int error;
   char *raw_table_name= (char *)arg;
@@ -626,7 +633,6 @@ error:
 
   return 0;
 }
-#endif
 
 
 int main(int argc, char **argv)
@@ -648,14 +654,14 @@ int main(int argc, char **argv)
     return(1);
   }
 
-#ifdef HAVE_LIBPTHREAD
   if (opt_use_threads && !lock_tables)
   {
-    my_thread_t mainthread;            /* Thread descriptor */
+    my_thread_handle mainthread;            /* Thread descriptor */
     my_thread_attr_t attr;          /* Thread attributes */
     my_thread_attr_init(&attr);
-    pthread_attr_setdetachstate(&attr,
-                                PTHREAD_CREATE_DETACHED);
+#ifndef _WIN32
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+#endif
 
     native_mutex_init(&counter_mutex, NULL);
     native_cond_init(&count_threshold);
@@ -667,7 +673,7 @@ int main(int argc, char **argv)
       {
         struct timespec abstime;
 
-        set_timespec(abstime, 3);
+        set_timespec(&abstime, 3);
         native_cond_timedwait(&count_threshold, &counter_mutex, &abstime);
       }
       /* Before exiting the lock we set ourselves up for the next thread */
@@ -693,7 +699,7 @@ int main(int argc, char **argv)
     {
       struct timespec abstime;
 
-      set_timespec(abstime, 3);
+      set_timespec(&abstime, 3);
       native_cond_timedwait(&count_threshold, &counter_mutex, &abstime);
     }
     native_mutex_unlock(&counter_mutex);
@@ -702,7 +708,6 @@ int main(int argc, char **argv)
     my_thread_attr_destroy(&attr);
   }
   else
-#endif
   {
     MYSQL *mysql= 0;
     if (!(mysql= db_connect(current_host,current_db,current_user,opt_password)))

@@ -37,7 +37,7 @@
 
 /**
   A row in connection nodes table. The fields with string values have an additional
-  length field denoted by <field_name>_length.
+  length field denoted by \<field_name\>_length.
 */
 struct st_row_group_members {
   char channel_name[CHANNEL_NAME_LENGTH];
@@ -47,7 +47,8 @@ struct st_row_group_members {
   char member_host[HOSTNAME_LENGTH];
   uint member_host_length;
   uint member_port;
-  enum_member_state member_state;
+  char member_state[NAME_LEN];
+  uint member_state_length;
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_group_members. */

@@ -121,10 +121,11 @@ public:
   /**
     Release reserved auto increment values not used.
     @param thd             Thread.
+    @param table_share     Table Share
     @param next_insert_id  Next insert id (first non used auto inc value).
     @param max_reserved    End of reserved auto inc range.
   */
-  void release_auto_inc_if_possible(THD *thd,
+  void release_auto_inc_if_possible(THD *thd, TABLE_SHARE *table_share,
                                     const ulonglong next_insert_id,
                                     const ulonglong max_reserved);
 
@@ -185,7 +186,7 @@ class Partition_handler :public Sql_alloc
 {
 public:
   Partition_handler() {}
-  ~Partition_handler() {}
+  virtual ~Partition_handler() {}
 
   /**
     Get dynamic table information from partition.
@@ -396,7 +397,7 @@ class Partition_helper : public Sql_alloc
   typedef Priority_queue<uchar *, std::vector<uchar*>, Key_rec_less> Prio_queue;
 public:
   Partition_helper(handler *main_handler);
-  ~Partition_helper();
+  virtual ~Partition_helper();
 
   /**
     Set partition info.
@@ -659,8 +660,6 @@ protected:
   /**
     Set m_part_share, Allocate internal bitmaps etc. used by open tables.
 
-    @param mem_root  Memory root to allocate things from (not yet used).
-
     @return Operation status.
       @retval false success.
       @retval true  failure.
@@ -758,14 +757,14 @@ protected:
   /**
     Check/fix misplaced rows.
 
-    @param part_id  Partition to check/fix.
+    @param read_part_id  Partition to check/fix.
     @param repair   If true, move misplaced rows to correct partition.
 
     @return Operation status.
       @retval    0  Success
       @retval != 0  Error
   */
-  int check_misplaced_rows(uint part_id, bool repair);
+  int check_misplaced_rows(uint read_part_id, bool repair);
   /**
     Set used partitions bitmap from Alter_info.
 
@@ -831,7 +830,7 @@ private:
       @retval    0  Success.
       @retval != 0  Error code.
   */
-  virtual int update_row_in_part(uint new_part_id,
+  virtual int update_row_in_part(uint part_id,
                                  const uchar *old_data,
                                  uchar *new_data) = 0;
   /**
@@ -865,6 +864,7 @@ private:
     @see class handler.
   */
   virtual int rnd_init_in_part(uint part_id, bool table_scan) = 0;
+  int ph_rnd_next_in_part(uint part_id, uchar *buf);
   virtual int rnd_next_in_part(uint part_id, uchar *buf) = 0;
   virtual int rnd_end_in_part(uint part_id, bool scan) = 0;
   virtual void position_in_last_part(uchar *ref, const uchar *row) = 0;
@@ -1041,7 +1041,7 @@ private:
     perform any sort.
 
     @param[out] buf        Read row in MySQL Row Format.
-    @param[in]  next_same  Called from index_next_same.
+    @param[in]  is_next_same  Called from index_next_same.
 
     @return Operation status.
       @retval HA_ERR_END_OF_FILE  End of scan
@@ -1103,7 +1103,7 @@ private:
     Common routine to handle index_next with ordered results.
 
     @param[out] buf        Read row in MySQL Row Format.
-    @param[in]  next_same  Called from index_next_same.
+    @param[in]  is_next_same  Called from index_next_same.
 
     @return Operation status.
       @retval HA_ERR_END_OF_FILE  End of scan

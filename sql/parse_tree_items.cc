@@ -21,8 +21,8 @@
 #include "sp_pcontext.h"           // sp_pcontext
 
 /**
-  Helper to resolve the SQL:2003 Syntax exception 1) in <in predicate>.
-  See SQL:2003, Part 2, section 8.4 <in predicate>, Note 184, page 383.
+  Helper to resolve the SQL:2003 Syntax exception 1) in @<in predicate@>.
+  See SQL:2003, Part 2, section 8.4 @<in predicate@>, Note 184, page 383.
   This function returns the proper item for the SQL expression
   <code>left [NOT] IN ( expr )</code>
   @param pc the current parse context
@@ -67,7 +67,7 @@ static Item* handle_sql2003_note184_exception(Parse_context *pc, Item* left,
     if (expr2->substype() == Item_subselect::SINGLEROW_SUBS)
     {
       Item_singlerow_subselect *expr3 = (Item_singlerow_subselect*) expr2;
-      st_select_lex *subselect;
+      SELECT_LEX *subselect;
 
       /*
         Implement the mandated change, by altering the semantic tree:
@@ -187,7 +187,7 @@ bool PTI_udf_expr::itemize(Parse_context *pc, Item **res)
     expr->item_name.copy(expr_loc.start, expr_loc.length(), pc->thd->charset());
   *res= expr;
   return false;
-};
+}
 
 
 bool PTI_function_call_generic_ident_sys::itemize(Parse_context *pc, Item **res)

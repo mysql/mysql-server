@@ -15,7 +15,7 @@
 
 #include "my_config.h"
 #include <gtest/gtest.h>
-#include "log.h"
+#include "tc_log.h"
 #include "sql_class.h"
 #include "test_utils.h"
 #include "thread_utils.h"
@@ -58,7 +58,7 @@ public:
   {
     initializer.SetUp();
     total_ha_2pc= 2;
-    tc_heuristic_recover= 0;
+    tc_heuristic_recover= TC_HEURISTIC_NOT_USED;
     /*
       Assign a transaction coordinator object to am
       instance of TCLogMMapTest. This transaction coordinator

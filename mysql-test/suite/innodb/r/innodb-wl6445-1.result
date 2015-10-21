@@ -27,8 +27,6 @@ id
 SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
 SET GLOBAL innodb_file_per_table = 1;
-CREATE USER 'test3'@'localhost' IDENTIFIED BY '123';
-GRANT ALL ON testdb_wl6445.* TO 'test3'@'localhost';
 USE testdb_wl6445;
 SELECT i FROM t1 ORDER BY i;
 i
@@ -42,6 +40,8 @@ i	LEFT(j,20)
 1	aaaaaaaaaaaaaaaaaaaa
 2	bbbbbbbbbbbbbbbbbbbb
 3	cccccccccccccccccccc
+CREATE USER 'test3'@'localhost' IDENTIFIED BY '123';
+ERROR HY000: The ACL operation failed due to the following error from SE: errcode 165 - Table is read only
 # connection con_test1_user try to modify
 SELECT user();
 user()
@@ -109,7 +109,6 @@ UNLOCK TABLES;
 # restart
 DROP USER 'test1'@'localhost';
 DROP USER 'test2'@'localhost';
-DROP USER 'test3'@'localhost';
 DROP DATABASE testdb_wl6445;
 case # 2
 CREATE DATABASE testdb_wl6445;
@@ -1276,7 +1275,7 @@ ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 CREATE TABLE t2 ( i INT ) ENGINE = Innodb;
 ERROR HY000: InnoDB is in read only mode.
 CREATE USER 'test5'@'localhost' IDENTIFIED BY '123';
-GRANT ALL ON testdb_wl6445.* TO 'test5'@'localhost';
+ERROR HY000: The ACL operation failed due to the following error from SE: errcode 165 - Table is read only
 # restart: --read-only
 USE testdb_wl6445;
 INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
@@ -1311,7 +1310,6 @@ CREATE USER 'test5_2'@'localhost' IDENTIFIED BY '123';
 GRANT ALL ON testdb_wl6445.* TO 'test5_2'@'localhost';
 # restart
 DROP USER 'test5_2'@'localhost';
-DROP USER 'test5'@'localhost';
 DROP DATABASE testdb_wl6445;
 case # 6
 CREATE DATABASE testdb_wl6445;

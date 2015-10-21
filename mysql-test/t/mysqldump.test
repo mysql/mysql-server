@@ -889,13 +889,8 @@ select * from t1;
 create  view v1 as
 select * from v3 where b in (1, 2, 3, 4, 5, 6, 7);
 
-# Disable warnings since LIMIT warning for unsafe statement if
-# binlog_format = STATEMENT. Note: after BUG#45832, the warning should
-# not be issued.
---disable_warnings
 create  view v2 as
 select v3.a from v3, v1 where v1.a=v3.a and v3.b=3 limit 1;
---enable_warnings
 
 --exec $MYSQL_DUMP --skip-comments test
 
@@ -1826,6 +1821,8 @@ drop database mysqldump_test_db;
 # Bug#26121 mysqldump includes LOCK TABLES general_log WRITE
 #
 --exec $MYSQL_DUMP --all-databases > $MYSQLTEST_VARDIR/tmp/bug26121.sql
+# take a backup of mysql.proc table
+--exec $MYSQL_DUMP mysql proc > $MYSQLTEST_VARDIR/tmp/mysql.proc.sql
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug26121.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/bug26121.sql
 
@@ -2530,3 +2527,120 @@ SELECT HEX(a) FROM t1;
 --exec $MYSQL_DUMP -necqt --compact --hex-blob dump_gis
 DROP DATABASE dump_gis;
 
+--echo #
+--echo # Bug #20772273 : MYSQLIMPORT --USE-THREADS DOESN'T USE MULTIPLE THREADS
+--echo #
+
+CREATE DATABASE db_20772273;
+USE db_20772273;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1), (2);
+CREATE TABLE t2(a INT);
+INSERT INTO t2 VALUES (3), (4);
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+--exec $MYSQL_DUMP --tab=$MYSQLTEST_VARDIR/tmp/ db_20772273
+--exec $MYSQL db_20772273 < $MYSQLTEST_VARDIR/tmp/t1.sql
+--exec $MYSQL db_20772273 < $MYSQLTEST_VARDIR/tmp/t2.sql
+
+# Test mysqlimport with multiple threads
+--exec $MYSQL_IMPORT --silent --use-threads=2 db_20772273 $MYSQLTEST_VARDIR/tmp/t1.txt $MYSQLTEST_VARDIR/tmp/t2.txt
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+#Cleanup
+DROP TABLE t1;
+DROP TABLE t2;
+DROP DATABASE db_20772273;
+
+--echo #
+--echo # WL#8132 JSON datatype and binary storage format
+--echo #
+
+CREATE DATABASE dump_json;
+USE dump_json;
+CREATE TABLE t1 (j JSON);
+INSERT INTO t1 VALUES (JSON_ARRAY(1, 2, 3, "one", "two", "three"));
+SELECT * FROM t1;
+--exec $MYSQL_DUMP --compact dump_json t1
+# Expect JSON values to be dumped as text, also with --hex-blob.
+--exec $MYSQL_DUMP --compact --hex-blob dump_json t1
+DROP DATABASE dump_json;
+
+--echo #
+--echo # WL#411 Generated columns
+--echo #
+
+CREATE DATABASE dump_generated;
+USE dump_generated;
+CREATE TABLE t1 (pk INTEGER, a INTEGER, b INTEGER, c VARCHAR(16),
+                 sum INTEGER GENERATED ALWAYS AS (a+b),
+                 sub VARCHAR(4) GENERATED ALWAYS AS (SUBSTRING(c, 1, 4)),
+                 key k1(sum),
+                 key k2(sub)
+) engine=innodb;
+INSERT INTO t1(pk, a, b, c) VALUES (1, 11, 12, 'oneone'), (2, 21, 22, 'twotwo');
+SELECT * FROM t1;
+--exec $MYSQL_DUMP dump_generated t1 > $MYSQLTEST_VARDIR/tmp/t1.sql
+DELETE FROM t1;
+--exec $MYSQL dump_generated < $MYSQLTEST_VARDIR/tmp/t1.sql
+SELECT * FROM t1;
+--exec $MYSQL_DUMP dump_generated t1 --tab=$MYSQLTEST_VARDIR/tmp/
+DELETE FROM t1;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t1
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo # A table with regular columns after generated
+CREATE TABLE t2 (pk INTEGER, a INTEGER, b INTEGER,
+                 sum INTEGER GENERATED ALWAYS AS (a+b),
+                 c VARCHAR(16),
+                 key k1(sum)
+) engine=innodb;
+INSERT INTO t2(pk, a, b, c) VALUES (1, 11, 12, 'oneone'), (2, 21, 22, 'twotwo');
+SELECT * FROM t2;
+--exec $MYSQL_DUMP dump_generated t2 > $MYSQLTEST_VARDIR/tmp/t2.sql
+DELETE FROM t2;
+--exec $MYSQL dump_generated < $MYSQLTEST_VARDIR/tmp/t2.sql
+SELECT * FROM t2;
+--exec $MYSQL_DUMP dump_generated t2 --tab=$MYSQLTEST_VARDIR/tmp/
+DELETE FROM t2;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/t2.txt' INTO TABLE t2
+SELECT * FROM t2;
+DROP TABLE t2;
+
+DROP DATABASE dump_generated;
+
+--echo #
+--echo # End of 5.7 tests
+--echo #
+
+--echo #
+--echo # Bug #21549860 MYSQLDUMP/MYSQLPUMP INCLUDES SYS SCHEMA STORED PROGRAMS
+--echo #               EVEN IF SKIPPING SCHEMA
+--echo #
+
+# restore mysql.proc table
+--exec $MYSQL mysql < $MYSQLTEST_VARDIR/tmp/mysql.proc.sql
+# take backup of sys schema
+--exec $MYSQL_DUMP --databases sys > $MYSQLTEST_VARDIR/tmp/sys.sql
+# this will not dump sys schema and
+# sys schema routines present in mysql.proc table
+--exec $MYSQL_DUMP --all-databases > $MYSQLTEST_VARDIR/tmp/bug21549860.sql
+SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+DROP DATABASE sys;
+SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug21549860.sql
+SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+# restore mysql.proc table and sys schema
+--exec $MYSQL mysql < $MYSQLTEST_VARDIR/tmp/mysql.proc.sql
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/sys.sql
+SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+--remove_file $MYSQLTEST_VARDIR/tmp/bug21549860.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/mysql.proc.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/sys.sql

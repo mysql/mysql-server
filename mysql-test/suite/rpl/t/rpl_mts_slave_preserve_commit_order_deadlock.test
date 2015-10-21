@@ -1,0 +1,310 @@
+################################################################################
+# BUG#20136704 --SLAVE-PRESERVE-COMMIT-ORDER CAUSES SLAVE TO DEADLOCK AND
+#              BREAK FOR SOME QUERIE
+#
+# A corner case of deadlock:
+# INSERT INTO t1 (7, NULL);
+# DELETE FROM t1 WHERE c2 <= 3;
+# They are executed parallel on master and INSERT is binlogged before DELETE.
+#
+# On slave, they are applied parallel by w0 and w1. And the deadlock is:
+#   w0                                         w1
+# -------------------------         --------------------------
+#  applying DELETE                    applying INSERT
+#  get the row locks first.
+#                                     waiting for w1 to release the row lock.
+#  waiting for w2 to commit
+#
+#  For this two special statements, INSERT doesn't block DELETE, but DELETE does
+#  block the INSERT since some innodb internal reasons.
+#
+# This test verifies the deadlock can be found and handled correctly.
+# When it finds the deadlock, it will rollback the the transaction which should
+# commit after the waiting transaction.
+################################################################################
+--source include/have_debug.inc
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+#
+# Initialize
+#
+CREATE TABLE t1(c1 INT PRIMARY KEY, c2 INT, INDEX(c2)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES(1, NULL),(2, 2), (3, NULL), (4, 4), (5, NULL), (6, 6);
+
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
+SET @saved_slave_parallel_type = @@GLOBAL.slave_parallel_type;
+SET @saved_slave_parallel_workers = @@GLOBAL.slave_parallel_workers;
+SET @saved_slave_preserve_commit_order = @@GLOBAL.slave_preserve_commit_order;
+SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
+SET @saved_slave_transaction_retries = @@GLOBAL.slave_transaction_retries;
+
+SET GLOBAL slave_transaction_retries = 2;
+SET GLOBAL slave_parallel_type = "LOGICAL_CLOCK";
+SET GLOBAL slave_parallel_workers = 3;
+SET GLOBAL slave_preserve_commit_order = ON;
+# Set it a long time to guarantee it doens't report an timeout error
+SET GLOBAL innodb_lock_wait_timeout = 1000;
+
+
+--echo #
+--echo # Case 1: Verify slave can find the deadlock when DELETE is waiting
+--echo # for its turn to commit
+--echo #
+--source include/rpl_connection_master.inc
+# There is a bug that the first two transactions cannot be applied parallel.
+# So we need to an extra transaction here.
+INSERT INTO t1 VALUES(10, 10);
+
+SET debug = "d,set_commit_parent_100";
+INSERT INTO t1 VALUES(11, NULL);
+DELETE FROM t1 WHERE c2 <= 3;
+
+--source include/rpl_connection_slave.inc
+# It blocks above INSERT statement
+BEGIN;
+INSERT INTO t1 VALUES(11, 11);
+
+--source include/rpl_connection_slave1.inc
+--source include/start_slave_sql.inc
+
+# It guarantees the DELETE statement is waiting for
+# the transaction before it to commit
+--let $wait_condition= SELECT count(*) = 1 FROM information_schema.processlist WHERE STATE = "Waiting for preceding transaction to commit"
+--source include/wait_condition.inc
+
+# Resume the INSERT statement and trigger the deadlock
+--source include/rpl_connection_slave.inc
+ROLLBACK;
+
+--let $rpl_diff_statement= SELECT * FROM t1;
+--source include/rpl_diff.inc
+
+--source include/rpl_connection_master.inc
+SET debug = "";
+TRUNCATE t1;
+INSERT INTO t1 VALUES(1, NULL),(2, 2), (3, NULL), (4, 4), (5, NULL), (6, 6);
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
+
+--echo #
+--echo # Case 2: Verify slave can find the deadlock when it begins to applying
+--echo # second DELETE statement.
+--echo #
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES(20, NULL);
+
+SET debug = "d,set_commit_parent_100";
+INSERT INTO t1 VALUES(21, NULL);
+
+BEGIN;
+INSERT INTO t1 VALUES(22, 22);
+DELETE FROM t1 WHERE c2 <= 3;
+INSERT INTO t1 VALUES(23, 23);
+INSERT INTO t1 VALUES(24, 24);
+INSERT INTO t1 VALUES(25, 25);
+COMMIT;
+
+--source include/rpl_connection_slave.inc
+# Use it to block the worker applying 'INSERT INTO t1 VALUES(21, NULL)';
+BEGIN;
+INSERT INTO t1 VALUES(21, 21);
+
+--let $rpl_connection_name= server_2_1
+--source include/rpl_connection.inc
+# Use it to block the worker applying 'INSERT INTO t1 VALUES(23, 23)';
+BEGIN;
+INSERT INTO t1 VALUES(23, 23);
+
+--source include/rpl_connection_slave1.inc
+--source include/start_slave_sql.inc
+
+# It guarantees 'DELETE FROM t1 WHERE c2 <= 3;' is applied.
+--let $wait_condition= SELECT count(*) = 1 FROM information_schema.processlist WHERE info = "INSERT INTO t1 VALUES(23, 23)"
+--source include/wait_condition.inc
+
+# Resume "INSERT INTO t1 VALUES(21, 21);" to trigger the lock conflict
+--source include/rpl_connection_slave.inc
+ROLLBACK;
+
+# It guarantees that both workers are waiting for locks
+# hold by above two transactions
+--let $status_var= Innodb_row_lock_current_waits
+--let $status_var_value= 2
+--source include/wait_for_status_var.inc
+
+# Resume "INSERT INTO t1 VALUES(23, 23);". It will be rolled back.
+--let $rpl_connection_name= server_2_1
+--source include/rpl_connection.inc
+ROLLBACK;
+
+--let $rpl_diff_statement= SELECT * FROM t1;
+--source include/rpl_diff.inc
+
+--source include/rpl_connection_master.inc
+SET debug = "";
+TRUNCATE t1;
+INSERT INTO t1 VALUES(1, NULL),(2, 2), (3, NULL), (4, 4), (5, NULL), (32, 32);
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
+
+
+--echo #
+--echo # Test case 3: Verify the worker can handle it correctly when it is
+--echo # retrying a transaction.
+--echo #
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES(30, NULL);
+
+SET debug = "d,set_commit_parent_100";
+INSERT INTO t1 VALUES(31, NULL);
+INSERT INTO t1 VALUES(33, NULL);
+
+DELETE FROM t1 WHERE c2 <= 3;
+
+--source include/rpl_connection_slave.inc
+# Use it to block the worker applying 'INSERT INTO t1 VALUES(31, NULL)';
+BEGIN;
+INSERT INTO t1 VALUES(31, 31);
+
+--let $rpl_connection_name= server_2_1
+--source include/rpl_connection.inc
+# Use it to block the worker applying 'INSERT INTO t1 VALUES(33, NULL)';
+BEGIN;
+INSERT INTO t1 VALUES(33, 33);
+
+--source include/rpl_connection_slave1.inc
+--source include/start_slave_sql.inc
+
+# It guarantees 'DELETE' statement is waiting for the transactions before it.
+--let $wait_condition= SELECT count(*) = 1 FROM information_schema.processlist WHERE STATE = "Waiting for preceding transaction to commit"
+--source include/wait_condition.inc
+
+# Trigger one deadlock
+--source include/rpl_connection_slave.inc
+ROLLBACK;
+
+# It guarantees "INSERT INTO t1 VALUES(31, 31);" is already applied.
+--let $wait_condition= SELECT count(*) = 1 FROM t1 WHERE c1 = 31
+--source include/wait_condition.inc
+
+# It guarantees 'DELETE' statement is waiting for the transactions before it.
+--let $wait_condition= SELECT count(*) = 1 FROM information_schema.processlist WHERE STATE = "Waiting for preceding transaction to commit"
+--source include/wait_condition.inc
+
+# Trigger another deadlock
+--let $rpl_connection_name= server_2_1
+--source include/rpl_connection.inc
+ROLLBACK;
+
+--let $rpl_diff_statement= SELECT * FROM t1
+--source include/rpl_diff.inc
+SET debug = "";
+
+--echo #
+--echo # Test Case 4: Innodb internal transaction deadlock
+--echo #
+--source include/rpl_connection_master.inc
+CREATE TABLE t2 LIKE mysql.innodb_table_stats;
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
+CALL mtr.add_suppression(".*InnoDB: Cannot save table statistics for table.*");
+LOCK TABLE t1 WRITE;
+
+--source include/rpl_connection_master.inc
+# There is a bug that the first two transactions cannot be applied parallel.
+# So we need to an extra transaction here.
+TRUNCATE t2;
+SET debug = "d,set_commit_parent_100";
+ANALYZE TABLE t1;
+INSERT INTO t2 SELECT * FROM mysql.innodb_table_stats;
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave_sql.inc
+
+# It guarantees 'INSERT' statement is waiting for the transactions before it.
+--let $wait_condition= SELECT count(*) = 1 FROM information_schema.processlist WHERE STATE = "Waiting for preceding transaction to commit"
+--source include/wait_condition.inc
+
+UNLOCK TABLES;
+
+--echo #
+--echo # Test Case 5: It won't cause transaction rollback if
+--echo #              slave_preserve_commit_order is OFF
+--echo #
+--source include/rpl_connection_master.inc
+SET debug = "";
+TRUNCATE t1;
+INSERT INTO t1 VALUES(1, NULL),(2, 2), (3, NULL), (4, 4), (5, NULL), (6, 6);
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
+
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES(50, 50);
+
+SET debug = "d,set_commit_parent_100";
+INSERT INTO t1 VALUES(51, NULL);
+BEGIN;
+INSERT INTO t1 VALUES(52, 52);
+DELETE FROM t1 WHERE c2 <= 3;
+INSERT INTO t1 VALUES(53, 53);
+INSERT INTO t1 VALUES(54, 54);
+INSERT INTO t1 VALUES(55, 55);
+COMMIT;
+
+--source include/rpl_connection_slave.inc
+# Use it to block the worker applying 'INSERT INTO t1 VALUES(51, NULL)';
+BEGIN;
+INSERT INTO t1 VALUES(51, 51);
+
+--let $rpl_connection_name= server_2_1
+--source include/rpl_connection.inc
+# Use it to block the worker applying 'INSERT INTO t1 VALUES(53, 53)';
+BEGIN;
+INSERT INTO t1 VALUES(53, 53);
+
+--source include/rpl_connection_slave1.inc
+SET GLOBAL slave_preserve_commit_order = OFF;
+# It will make slave to stop if order commit deadlock happens
+SET GLOBAL slave_transaction_retries = 0;
+--source include/start_slave_sql.inc
+
+# It guarantees 'DELETE FROM t1 WHERE c2 <= 3;' is applied.
+--let $wait_condition= SELECT count(*) = 1 FROM information_schema.processlist WHERE info = "INSERT INTO t1 VALUES(53, 53)"
+--source include/wait_condition.inc
+
+# Resume "INSERT INTO t1 VALUES(51, 51);" to trigger the lock conflict
+--source include/rpl_connection_slave.inc
+ROLLBACK;
+
+# It guarantees that both workers are waiting for locks
+# hold by above two transactions
+--let $status_var= Innodb_row_lock_current_waits
+--let $status_var_value= 2
+--source include/wait_for_status_var.inc
+
+# Resume "INSERT INTO t1 VALUES(53, 53);" to continue its transaction.
+--let $rpl_connection_name= server_2_1
+--source include/rpl_connection.inc
+ROLLBACK;
+
+--let $rpl_diff_statement= SELECT * FROM t1;
+--source include/rpl_diff.inc
+
+--echo #
+--echo # Deinitialize
+--echo #
+--source include/rpl_connection_master.inc
+SET debug = "";
+DROP TABLE t1, t2;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/stop_slave.inc
+SET GLOBAL slave_transaction_retries = @saved_slave_transaction_retries;
+SET GLOBAL slave_parallel_type = @saved_slave_parallel_type;
+SET GLOBAL slave_parallel_workers = @saved_slave_parallel_workers;
+SET GLOBAL slave_preserve_commit_order = @saved_slave_preserve_commit_order;
+SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

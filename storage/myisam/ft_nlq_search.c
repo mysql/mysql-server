@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 #define FT_CORE
 #include "ftdefs.h"
+#include "my_base.h" /* HA_KEYTYPE_FLOAT */
 
 /* search with natural language queries */
 
@@ -341,7 +342,7 @@ int ft_nlq_read_next(FT_INFO *handler, char *record)
     info->update|= HA_STATE_AKTIV;		/* Record is read */
     return 0;
   }
-  return my_errno;
+  return my_errno();
 }
 
 

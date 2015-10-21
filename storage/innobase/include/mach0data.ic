@@ -25,6 +25,7 @@ Created 11/28/1995 Heikki Tuuri
 ***********************************************************************/
 
 #include "mtr0types.h"
+#include "ut0byte.h"
 
 /*******************************************************//**
 The following function is used to store data in one byte. */
@@ -227,7 +228,6 @@ mach_write_compressed(
 	}
 }
 
-#ifdef UNIV_LOG_LSN_DEBUG
 /*********************************************************//**
 Returns the size of a ulint when written in the compressed form.
 @return compressed size in bytes */
@@ -254,7 +254,6 @@ mach_get_compressed_size(
 		return(5);
 	}
 }
-#endif /* UNIV_LOG_LSN_DEBUG */
 
 /*********************************************************//**
 Reads a ulint in a compressed form.
@@ -498,7 +497,8 @@ mach_u64_write_much_compressed(
 
 /*********************************************************//**
 Reads a 64-bit integer in a compressed form.
-@return the value read */
+@return the value read
+@see mach_parse_u64_much_compressed() */
 UNIV_INLINE
 ib_uint64_t
 mach_u64_read_much_compressed(

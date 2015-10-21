@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -16,7 +16,8 @@
 #ifndef _mysql_time_h_
 #define _mysql_time_h_
 
-/*
+/**
+  @file include/mysql_time.h
   Time declarations shared between the server and client API:
   you should not add anything to this header unless it's used
   (and hence should be visible) in mysql.h.

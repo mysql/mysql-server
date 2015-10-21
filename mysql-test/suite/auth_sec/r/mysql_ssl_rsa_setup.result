@@ -16,4 +16,17 @@
 # Case 10 : Custom suffix with invalid characters
 # Case 11 : Help and Version information
 # Case 12 : Very long path
+#
+# Bug#21087116 : MYSQL_SSL_RSA_SETUP CREATES CLIENT-CERT.PEM WITH INCORRECT CN
+#
+# CN of CA certificate should be MySQL_Server_.*_Auto_Generated_CA_Certificate
+# CN of Server certificate should be MySQL_Server_.*_Auto_Generated_Server_Certificate
+# CN of Client certificate should be MySQL_Server_.*_Auto_Generated_Client_Certificate
 # Global Cleanup
+#
+# Bug#21025377: CAN'T CONNECT TO SSL ENABLED SERVER FIRST 30 SEC AFTER
+# INITIAL STARTUP
+#
+# Restart the server
+# Restart completed.
+No ssl errors found after running mysql server with newely created certs.

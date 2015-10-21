@@ -36,6 +36,7 @@ Created July 18, 2007 Vasil Dimov
 #include "dict0load.h"
 #include "buf0buddy.h"
 #include "buf0buf.h"
+#include "buf0stats.h"
 #include "ibuf0ibuf.h"
 #include "dict0mem.h"
 #include "dict0types.h"
@@ -52,6 +53,7 @@ Created July 18, 2007 Vasil Dimov
 #include "page0zip.h"
 #include "fsp0sysspace.h"
 #include "ut0new.h"
+#include "dict0crea.h"
 
 /** structure associates a name string with a file page type and/or buffer
 page state. */
@@ -146,19 +148,6 @@ const ulint	MAX_BUF_INFO_CACHED = 10000;
 	if ((expr) != 0) {	\
 		DBUG_RETURN(1);	\
 	}
-
-#define RETURN_IF_INNODB_NOT_STARTED(plugin_name)			\
-do {									\
-	if (!srv_was_started) {						\
-		push_warning_printf(thd, Sql_condition::SL_WARNING,	\
-				    ER_CANT_FIND_SYSTEM_REC,		\
-				    "InnoDB: SELECTing from "		\
-				    "INFORMATION_SCHEMA.%s but "	\
-				    "the InnoDB storage engine "	\
-				    "is not installed", plugin_name);	\
-		DBUG_RETURN(0);						\
-	}								\
-} while (0)
 
 #if !defined __STRICT_ANSI__ && defined __GNUC__ && !defined __clang__
 #define STRUCT_FLD(name, value)	name: value
@@ -712,10 +701,6 @@ fill_innodb_trx_from_cache(
 		/* trx_adaptive_hash_latched */
 		OK(fields[IDX_TRX_ADAPTIVE_HASH_LATCHED]->store(
 			   static_cast<double>(row->trx_has_search_latch)));
-
-		/* trx_adaptive_hash_timeout */
-		OK(fields[IDX_TRX_ADAPTIVE_HASH_TIMEOUT]->store(
-			   (longlong) row->trx_search_latch_timeout, true));
 
 		/* trx_is_read_only*/
 		OK(fields[IDX_TRX_READ_ONLY]->store(
@@ -1296,8 +1281,6 @@ trx_i_s_common_fill_table(
 	table_name = tables->schema_table_name;
 	/* or table_name = tables->schema_table->table_name; */
 
-	RETURN_IF_INNODB_NOT_STARTED(table_name);
-
 	/* update the cache */
 	trx_i_s_cache_start_write(cache);
 	trx_i_s_possibly_fetch_data_into_cache(cache);
@@ -1442,8 +1425,6 @@ i_s_cmp_fill_low(
 
 		DBUG_RETURN(0);
 	}
-
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	for (uint i = 0; i < PAGE_ZIP_SSIZE_MAX; i++) {
 		page_zip_stat_t*	zip_stat = &page_zip_stat[i];
@@ -1756,8 +1737,6 @@ i_s_cmp_per_index_fill_low(
 
 		DBUG_RETURN(0);
 	}
-
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* Create a snapshot of the stats so we do not bump into lock
 	order violations with dict_sys->mutex below. */
@@ -2089,48 +2068,53 @@ i_s_cmpmem_fill_low(
 		DBUG_RETURN(0);
 	}
 
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
-
 	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
-		buf_pool_t*	buf_pool;
+		buf_pool_t*		buf_pool;
+		ulint			zip_free_len_local[BUF_BUDDY_SIZES_MAX + 1];
+		buf_buddy_stat_t	buddy_stat_local[BUF_BUDDY_SIZES_MAX + 1];
 
 		status	= 0;
 
 		buf_pool = buf_pool_from_array(i);
 
+		/* Save buddy stats for buffer pool in local variables. */
 		buf_pool_mutex_enter(buf_pool);
+		for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
+
+			zip_free_len_local[x] = (x < BUF_BUDDY_SIZES) ?
+				UT_LIST_GET_LEN(buf_pool->zip_free[x]) : 0;
+
+			buddy_stat_local[x] = buf_pool->buddy_stat[x];
+
+			if (reset) {
+				/* This is protected by buf_pool->mutex. */
+				buf_pool->buddy_stat[x].relocated = 0;
+				buf_pool->buddy_stat[x].relocated_usec = 0;
+			}
+		}
+		buf_pool_mutex_exit(buf_pool);
 
 		for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
 			buf_buddy_stat_t*	buddy_stat;
 
-			buddy_stat = &buf_pool->buddy_stat[x];
+			buddy_stat = &buddy_stat_local[x];
 
 			table->field[0]->store(BUF_BUDDY_LOW << x);
 			table->field[1]->store(static_cast<double>(i));
 			table->field[2]->store(static_cast<double>(
 				buddy_stat->used));
 			table->field[3]->store(static_cast<double>(
-				(x < BUF_BUDDY_SIZES)
-				? UT_LIST_GET_LEN(buf_pool->zip_free[x])
-				: 0));
+				zip_free_len_local[x]));
 			table->field[4]->store(
 				(longlong) buddy_stat->relocated, true);
 			table->field[5]->store(
 				static_cast<double>(buddy_stat->relocated_usec / 1000000));
-
-			if (reset) {
-				/* This is protected by buf_pool->mutex. */
-				buddy_stat->relocated = 0;
-				buddy_stat->relocated_usec = 0;
-			}
 
 			if (schema_table_store_record(thd, table)) {
 				status = 1;
 				break;
 			}
 		}
-
-		buf_pool_mutex_exit(buf_pool);
 
 		if (status) {
 			break;
@@ -4836,7 +4820,6 @@ i_s_innodb_buffer_stats_fill_table(
 	buf_pool_info_t*	pool_info;
 
 	DBUG_ENTER("i_s_innodb_buffer_fill_general");
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* Only allow the PROCESS privilege holder to access the stats */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -5563,8 +5546,6 @@ i_s_innodb_buffer_page_fill_table(
 
 	DBUG_ENTER("i_s_innodb_buffer_page_fill_table");
 
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
-
 	/* deny access to user without PROCESS privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
 		DBUG_RETURN(0);
@@ -6116,8 +6097,6 @@ i_s_innodb_buf_page_lru_fill_table(
 
 	DBUG_ENTER("i_s_innodb_buf_page_lru_fill_table");
 
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
-
 	/* deny access to any users that do not hold PROCESS_ACL */
 	if (check_global_access(thd, PROCESS_ACL)) {
 		DBUG_RETURN(0);
@@ -6394,7 +6373,6 @@ i_s_sys_tables_fill_table(
 	mtr_t		mtr;
 
 	DBUG_ENTER("i_s_sys_tables_fill_table");
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* deny access to user without PROCESS_ACL privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -6699,7 +6677,6 @@ i_s_sys_tables_fill_table_stats(
 	mtr_t		mtr;
 
 	DBUG_ENTER("i_s_sys_tables_fill_table_stats");
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* deny access to user without PROCESS_ACL privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -6715,7 +6692,7 @@ i_s_sys_tables_fill_table_stats(
 	while (rec) {
 		const char*	err_msg;
 		dict_table_t*	table_rec;
-		ulint		ref_count;
+		ulint		ref_count = 0;
 
 		/* Fetch the dict_table_t structure corresponding to
 		this SYS_TABLES record */
@@ -6723,10 +6700,24 @@ i_s_sys_tables_fill_table_stats(
 			heap, rec, &table_rec,
 			DICT_TABLE_LOAD_FROM_CACHE, &mtr);
 
-		ref_count = table_rec->get_ref_count();
+		if (table_rec != NULL) {
+			ut_ad(err_msg == NULL);
+
+			ref_count = table_rec->get_ref_count();
+
+			/* Protect the dict_table_t object by incrementing
+			the reference count. */
+			table_rec->acquire();
+		}
+
 		mutex_exit(&dict_sys->mutex);
 
-		if (!err_msg) {
+		DBUG_EXECUTE_IF("test_sys_tablestats", {
+			if (strcmp("test/t1", table_rec->name.m_name) == 0 ) {
+				DEBUG_SYNC_C("dict_table_not_protected");
+			}});
+
+		if (table_rec != NULL) {
 			i_s_dict_fill_sys_tablestats(thd, table_rec, ref_count,
 						     tables->table);
 		} else {
@@ -6739,6 +6730,11 @@ i_s_sys_tables_fill_table_stats(
 
 		/* Get the next record */
 		mutex_enter(&dict_sys->mutex);
+
+		if (table_rec != NULL) {
+			table_rec->release();
+		}
+
 		mtr_start(&mtr);
 		rec = dict_getnext_system(&pcur, &mtr);
 	}
@@ -6966,7 +6962,6 @@ i_s_sys_indexes_fill_table(
 	mtr_t			mtr;
 
 	DBUG_ENTER("i_s_sys_indexes_fill_table");
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* deny access to user without PROCESS_ACL privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -7165,6 +7160,8 @@ i_s_dict_fill_sys_columns(
 	const char*	col_name,	/*!< in: column name */
 	dict_col_t*	column,		/*!< in: dict_col_t struct holding
 					more column information */
+	ulint		nth_v_col,	/*!< in: virtual column, its
+					sequence number (nth virtual col) */
 	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
 	Field**		fields;
@@ -7177,7 +7174,12 @@ i_s_dict_fill_sys_columns(
 
 	OK(field_store_string(fields[SYS_COLUMN_NAME], col_name));
 
-	OK(fields[SYS_COLUMN_POSITION]->store(column->ind));
+	if (dict_col_is_virtual(column)) {
+		ulint	pos = dict_create_v_col_pos(nth_v_col, column->ind);
+		OK(fields[SYS_COLUMN_POSITION]->store(pos));
+	} else {
+		OK(fields[SYS_COLUMN_POSITION]->store(column->ind));
+	}
 
 	OK(fields[SYS_COLUMN_MTYPE]->store(column->mtype));
 
@@ -7208,7 +7210,6 @@ i_s_sys_columns_fill_table(
 	mtr_t		mtr;
 
 	DBUG_ENTER("i_s_sys_columns_fill_table");
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* deny access to user without PROCESS_ACL privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -7225,18 +7226,20 @@ i_s_sys_columns_fill_table(
 		const char*	err_msg;
 		dict_col_t	column_rec;
 		table_id_t	table_id;
+		ulint		nth_v_col;
 
 		/* populate a dict_col_t structure with information from
 		a SYS_COLUMNS row */
 		err_msg = dict_process_sys_columns_rec(heap, rec, &column_rec,
-						       &table_id, &col_name);
+						       &table_id, &col_name,
+						       &nth_v_col);
 
 		mtr_commit(&mtr);
 		mutex_exit(&dict_sys->mutex);
 
 		if (!err_msg) {
 			i_s_dict_fill_sys_columns(thd, table_id, col_name,
-						 &column_rec,
+						 &column_rec, nth_v_col,
 						 tables->table);
 		} else {
 			push_warning_printf(thd, Sql_condition::SL_WARNING,
@@ -7332,6 +7335,216 @@ struct st_mysql_plugin	i_s_innodb_sys_columns =
 	STRUCT_FLD(flags, 0UL),
 };
 
+/**  SYS_VIRTUAL **************************************************/
+/** Fields of the dynamic table INFORMATION_SCHEMA.INNODB_SYS_VIRTUAL */
+static ST_FIELD_INFO	innodb_sys_virtual_fields_info[] =
+{
+#define SYS_VIRTUAL_TABLE_ID		0
+	{STRUCT_FLD(field_name,		"TABLE_ID"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define SYS_VIRTUAL_POS			1
+	{STRUCT_FLD(field_name,		"POS"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define SYS_VIRTUAL_BASE_POS		2
+	{STRUCT_FLD(field_name,		"BASE_POS"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+/** Function to populate the information_schema.innodb_sys_virtual with
+related information
+param[in]	thd		thread
+param[in]	table_id	table ID
+param[in]	pos		virtual column position
+param[in]	base_pos	base column position
+param[in,out]	table_to_fill	fill this table
+@return 0 on success */
+static
+int
+i_s_dict_fill_sys_virtual(
+	THD*		thd,
+	table_id_t	table_id,
+	ulint		pos,
+	ulint		base_pos,
+	TABLE*		table_to_fill)
+{
+	Field**		fields;
+
+	DBUG_ENTER("i_s_dict_fill_sys_virtual");
+
+	fields = table_to_fill->field;
+
+	OK(fields[SYS_VIRTUAL_TABLE_ID]->store((longlong) table_id, TRUE));
+
+	OK(fields[SYS_VIRTUAL_POS]->store(pos));
+
+	OK(fields[SYS_VIRTUAL_BASE_POS]->store(base_pos));
+
+	OK(schema_table_store_record(thd, table_to_fill));
+
+	DBUG_RETURN(0);
+}
+
+/** Function to fill information_schema.innodb_sys_virtual with information
+collected by scanning SYS_VIRTUAL table.
+param[in]	thd		thread
+param[in,out]	tables		tables to fill
+param[in]	item		condition (not used)
+@return 0 on success */
+static
+int
+i_s_sys_virtual_fill_table(
+	THD*		thd,
+	TABLE_LIST*	tables,
+	Item*		)
+{
+	btr_pcur_t	pcur;
+	const rec_t*	rec;
+	ulint		pos;
+	ulint		base_pos;
+	mem_heap_t*	heap;
+	mtr_t		mtr;
+
+	DBUG_ENTER("i_s_sys_virtual_fill_table");
+
+	/* deny access to user without PROCESS_ACL privilege */
+	if (check_global_access(thd, PROCESS_ACL)) {
+		DBUG_RETURN(0);
+	}
+
+	heap = mem_heap_create(1000);
+	mutex_enter(&dict_sys->mutex);
+	mtr_start(&mtr);
+
+	rec = dict_startscan_system(&pcur, &mtr, SYS_VIRTUAL);
+
+	while (rec) {
+		const char*	err_msg;
+		table_id_t	table_id;
+
+		/* populate a dict_col_t structure with information from
+		a SYS_VIRTUAL row */
+		err_msg = dict_process_sys_virtual_rec(heap, rec,
+						       &table_id, &pos,
+						       &base_pos);
+
+		mtr_commit(&mtr);
+		mutex_exit(&dict_sys->mutex);
+
+		if (!err_msg) {
+			i_s_dict_fill_sys_virtual(thd, table_id, pos, base_pos,
+						  tables->table);
+		} else {
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
+					    ER_CANT_FIND_SYSTEM_REC, "%s",
+					    err_msg);
+		}
+
+		mem_heap_empty(heap);
+
+		/* Get the next record */
+		mutex_enter(&dict_sys->mutex);
+		mtr_start(&mtr);
+		rec = dict_getnext_system(&pcur, &mtr);
+	}
+
+	mtr_commit(&mtr);
+	mutex_exit(&dict_sys->mutex);
+	mem_heap_free(heap);
+
+	DBUG_RETURN(0);
+}
+
+/** Bind the dynamic table INFORMATION_SCHEMA.innodb_sys_virtual
+param[in,out]	p	table schema object
+@return 0 on success */
+static
+int
+innodb_sys_virtual_init(
+	void*	p)
+{
+	ST_SCHEMA_TABLE*	schema;
+
+	DBUG_ENTER("innodb_sys_virtual_init");
+
+	schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = innodb_sys_virtual_fields_info;
+	schema->fill_table = i_s_sys_virtual_fill_table;
+
+	DBUG_RETURN(0);
+}
+
+struct st_mysql_plugin	i_s_innodb_sys_virtual =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "INNODB_SYS_VIRTUAL"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, plugin_author),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "InnoDB SYS_VIRTUAL"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, innodb_sys_virtual_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	/* unsigned int */
+	STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
+};
 /**  SYS_FIELDS  ***************************************************/
 /* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_SYS_FIELDS */
 static ST_FIELD_INFO	innodb_sys_fields_fields_info[] =
@@ -7416,7 +7629,6 @@ i_s_sys_fields_fill_table(
 	mtr_t		mtr;
 
 	DBUG_ENTER("i_s_sys_fields_fill_table");
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* deny access to user without PROCESS_ACL privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -7652,7 +7864,6 @@ i_s_sys_foreign_fill_table(
 	mtr_t		mtr;
 
 	DBUG_ENTER("i_s_sys_foreign_fill_table");
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* deny access to user without PROCESS_ACL privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -7871,7 +8082,6 @@ i_s_sys_foreign_cols_fill_table(
 	mtr_t		mtr;
 
 	DBUG_ENTER("i_s_sys_foreign_cols_fill_table");
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* deny access to user without PROCESS_ACL privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -8090,15 +8300,6 @@ static ST_FIELD_INFO	innodb_sys_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,           ""),
 	 STRUCT_FLD(open_method,        SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESPACES_COMPRESSION	10
-	{STRUCT_FLD(field_name,		"COMPRESSION"),
-	 STRUCT_FLD(field_length,	MAX_COMPRESSION_LEN + 1),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
 	END_OF_ST_FIELD_INFO
 
 };
@@ -8183,8 +8384,6 @@ i_s_dict_fill_sys_tablespaces(
 		/* Get the file system (or Volume) block size. */
 		dberr_t	err = os_file_get_status(filename, &stat, false, false);
 
-		ut_free(filename);
-
 		switch(err) {
 		case DB_FAIL:
 			ib::warn()
@@ -8202,6 +8401,8 @@ i_s_dict_fill_sys_tablespaces(
 				<< ut_strerr(err);
 			break;
 		}
+
+		ut_free(filename);
 	}
 
 	OK(fields[SYS_TABLESPACES_FS_BLOCK_SIZE]->store(stat.block_size, true));
@@ -8209,12 +8410,6 @@ i_s_dict_fill_sys_tablespaces(
 	OK(fields[SYS_TABLESPACES_FILE_SIZE]->store(file.m_total_size, true));
 
 	OK(fields[SYS_TABLESPACES_ALLOC_SIZE]->store(file.m_alloc_size, true));
-
-	Compression::Type	type = fil_get_compression(space);
-
-	OK(field_store_string(
-			fields[SYS_TABLESPACES_COMPRESSION],
-			Compression::to_string(type)));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
@@ -8240,7 +8435,6 @@ i_s_sys_tablespaces_fill_table(
 	mtr_t		mtr;
 
 	DBUG_ENTER("i_s_sys_tablespaces_fill_table");
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* deny access to user without PROCESS_ACL privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -8435,7 +8629,6 @@ i_s_sys_datafiles_fill_table(
 	mtr_t		mtr;
 
 	DBUG_ENTER("i_s_sys_datafiles_fill_table");
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* deny access to user without PROCESS_ACL privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -8533,6 +8726,356 @@ struct st_mysql_plugin	i_s_innodb_sys_datafiles =
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(init, innodb_sys_datafiles_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	/* unsigned int */
+	STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
+};
+
+/** Fill handlerton based INFORMATION_SCHEMA.FILES table.
+@param[in,out]	thd	thread/connection descriptor
+@param[in,out]	tables	information schema tables to fill
+@retval 0 for success
+@retval HA_ERR_OUT_OF_MEM when running out of memory
+@return nonzero for failure */
+int
+i_s_files_table_fill(
+	THD*		thd,
+	TABLE_LIST*	tables)
+{
+	TABLE*			table_to_fill	= tables->table;
+	Field**			fields		= table_to_fill->field;
+	/* Use this class so that if the OK() macro returns,
+	fil_space_release() is called. */
+	FilSpace		space;
+
+	DBUG_ENTER("i_s_files_table_fill");
+
+	/* Gather information reportable to information_schema.files
+	for the first or next file in fil_system. */
+	for (const fil_node_t* node = fil_node_next(NULL);
+	     node != NULL;
+	     node = fil_node_next(node)) {
+		const char*	type = "TABLESPACE";
+		const char*	space_name;
+		/** Buffer to build file-per-table tablespace names.
+		Even though a space_id is often stored in a ulint, it cannot
+		be larger than 1<<32-1, which is 10 numeric characters. */
+		char		file_per_table_name[
+			sizeof("innodb_file_per_table_1234567890")];
+		uintmax_t	avail_space;
+		ulint		extent_pages;
+		ulint		extend_pages;
+
+		space = node->space;
+		fil_type_t	purpose = space()->purpose;
+
+		switch (purpose) {
+		case FIL_TYPE_LOG:
+			/* Do not report REDO LOGs to I_S.FILES */
+			space = NULL;
+			continue;
+		case FIL_TYPE_TABLESPACE:
+			if (!is_system_tablespace(space()->id)
+			    && space()->id <= srv_undo_tablespaces_open) {
+				type = "UNDO LOG";
+				break;
+			} /* else fall through for TABLESPACE */
+		case FIL_TYPE_IMPORT:
+			/* 'IMPORTING'is a status. The type is TABLESPACE. */
+			break;
+		case FIL_TYPE_TEMPORARY:
+			type = "TEMPORARY";
+			break;
+		};
+
+		page_size_t	page_size(space()->flags);
+
+		/* Single-table tablespaces are assigned to a schema. */
+		if (!is_predefined_tablespace(space()->id)
+		    && !FSP_FLAGS_GET_SHARED(space()->flags)) {
+			/* Their names will be like "test/t1" */
+			ut_ad(NULL != strchr(space()->name, '/'));
+
+			/* File-per-table tablespace names are generated
+			internally and certain non-file-system-allowed
+			characters are expanded which can make the space
+			name too long. In order to avoid that problem,
+			use a modified tablespace name.
+			Since we are not returning dbname and tablename,
+			the user must match the space_id to i_s_table.space
+			in order find the single table that is in it or the
+			schema it belongs to. */
+			ut_snprintf(
+				file_per_table_name,
+				sizeof(file_per_table_name),
+				"innodb_file_per_table_" ULINTPF,
+				space()->id);
+			space_name = file_per_table_name;
+		} else {
+			/* Only file-per-table space names contain '/'.
+                        This is not file-per-table . */
+			ut_ad(NULL == strchr(space()->name, '/'));
+
+			space_name = space()->name;
+		}
+
+		init_fill_schema_files_row(table_to_fill);
+
+		OK(field_store_ulint(fields[IS_FILES_FILE_ID],
+				     space()->id));
+		OK(field_store_string(fields[IS_FILES_FILE_NAME],
+				      node->name));
+		OK(field_store_string(fields[IS_FILES_FILE_TYPE],
+				      type));
+		OK(field_store_string(fields[IS_FILES_TABLESPACE_NAME],
+				      space_name));
+		OK(field_store_string(fields[IS_FILES_ENGINE],
+				      "InnoDB"));
+		OK(field_store_ulint(fields[IS_FILES_FREE_EXTENTS],
+				     space()->free_len));
+
+		extent_pages = fsp_get_extent_size_in_pages(page_size);
+
+		OK(field_store_ulint(fields[IS_FILES_TOTAL_EXTENTS],
+				     space()->size_in_header / extent_pages));
+		OK(field_store_ulint(fields[IS_FILES_EXTENT_SIZE],
+				     extent_pages * page_size.physical()));
+		OK(field_store_ulint(fields[IS_FILES_INITIAL_SIZE],
+				     node->init_size * page_size.physical()));
+
+		if (node->max_size >= ULINT_MAX) {
+			fields[IS_FILES_MAXIMUM_SIZE]->set_null();
+		} else {
+			OK(field_store_ulint(fields[IS_FILES_MAXIMUM_SIZE],
+				node->max_size * page_size.physical()));
+		}
+		if (space()->id == srv_sys_space.space_id()) {
+			extend_pages = srv_sys_space.get_increment();
+		} else if (space()->id == srv_tmp_space.space_id()) {
+			extend_pages = srv_tmp_space.get_increment();
+		} else {
+			extend_pages = fsp_get_pages_to_extend_ibd(
+				page_size, node->size);
+		}
+
+		OK(field_store_ulint(fields[IS_FILES_AUTOEXTEND_SIZE],
+				     extend_pages * page_size.physical()));
+
+		avail_space = fsp_get_available_space_in_free_extents(space());
+		OK(field_store_ulint(fields[IS_FILES_DATA_FREE],
+				     static_cast<ulint>(avail_space * 1024)));
+		OK(field_store_string(fields[IS_FILES_STATUS],
+				      (purpose == FIL_TYPE_IMPORT)
+				      ? "IMPORTING" : "NORMAL"));
+
+		schema_table_store_record(thd, table_to_fill);
+		space = NULL;
+	}
+
+	DBUG_RETURN(0);
+}
+
+/** INFORMATION_SCHEMA.INNODB_CACHED_INDEXES */
+
+/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_CACHED_INDEXES */
+static ST_FIELD_INFO	innodb_cached_indexes_fields_info[] =
+{
+#define CACHED_INDEXES_INDEX_ID		0
+	{STRUCT_FLD(field_name,		"INDEX_ID"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define CACHED_INDEXES_N_CACHED_PAGES	1
+	{STRUCT_FLD(field_name,		"N_CACHED_PAGES"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+/** Populate INFORMATION_SCHEMA.INNODB_CACHED_INDEXES.
+@param[in]	thd		user thread
+@param[in]	index		populated dict_index_t struct with index info
+@param[in,out]	table_to_fill	fill this table
+@return 0 on success */
+static
+int
+i_s_fill_innodb_cached_indexes_row(
+	THD*		thd,
+	dict_index_t*	index,
+	TABLE*		table_to_fill)
+{
+	DBUG_ENTER("i_s_fill_innodb_cached_indexes_row");
+
+	const index_id_t	index_id(index->space, index->id);
+	const uint64_t		n = buf_stat_per_index->get(index_id);
+
+	if (n == 0) {
+		DBUG_RETURN(0);
+	}
+
+	Field**	fields = table_to_fill->field;
+
+	OK(fields[CACHED_INDEXES_INDEX_ID]->store(
+			static_cast<longlong>(index->id), true));
+
+	OK(fields[CACHED_INDEXES_N_CACHED_PAGES]->store(
+			static_cast<longlong>(n), true));
+
+	OK(schema_table_store_record(thd, table_to_fill));
+
+	DBUG_RETURN(0);
+}
+
+/** Go through each record in SYS_INDEXES, and fill
+INFORMATION_SCHEMA.INNODB_CACHED_INDEXES.
+@param[in]	thd	thread
+@param[in,out]	tables	tables to fill
+@return 0 on success */
+static
+int
+i_s_innodb_cached_indexes_fill_table(
+	THD*		thd,
+	TABLE_LIST*	tables,
+	Item*		/* not used */)
+{
+	DBUG_ENTER("i_s_innodb_cached_indexes_fill_table");
+
+	/* deny access to user without PROCESS_ACL privilege */
+	if (check_global_access(thd, PROCESS_ACL)) {
+		DBUG_RETURN(0);
+	}
+
+	mem_heap_t*	heap = mem_heap_create(1000);
+
+	mutex_enter(&dict_sys->mutex);
+
+	mtr_t		mtr;
+
+	mtr_start(&mtr);
+
+	/* Start the scan of SYS_INDEXES. */
+	btr_pcur_t	pcur;
+	const rec_t*	rec = dict_startscan_system(&pcur, &mtr, SYS_INDEXES);
+
+	/* Process each record in the table. */
+	while (rec != NULL) {
+		table_id_t	table_id;
+		dict_index_t	index;
+
+		/* Populate a dict_index_t structure with an information
+		from a SYS_INDEXES row. */
+		const char*	err_msg = dict_process_sys_indexes_rec(
+			heap, rec, &index, &table_id);
+
+		mtr_commit(&mtr);
+
+		mutex_exit(&dict_sys->mutex);
+
+		if (err_msg == NULL) {
+			i_s_fill_innodb_cached_indexes_row(
+				thd, &index, tables->table);
+		} else {
+			push_warning_printf(
+				thd, Sql_condition::SL_WARNING,
+				ER_CANT_FIND_SYSTEM_REC, "%s", err_msg);
+		}
+
+		mem_heap_empty(heap);
+
+		/* Get the next record. */
+		mutex_enter(&dict_sys->mutex);
+
+		mtr_start(&mtr);
+
+		rec = dict_getnext_system(&pcur, &mtr);
+	}
+
+	mtr_commit(&mtr);
+
+	mutex_exit(&dict_sys->mutex);
+
+	mem_heap_free(heap);
+
+	DBUG_RETURN(0);
+}
+
+/** Bind the dynamic table INFORMATION_SCHEMA.INNODB_CACHED_INDEXES.
+@param[in,out]	p	table schema object
+@return 0 on success */
+static
+int
+innodb_cached_indexes_init(
+	void*	p)
+{
+	ST_SCHEMA_TABLE*	schema;
+
+	DBUG_ENTER("innodb_cached_indexes_init");
+
+	schema = static_cast<ST_SCHEMA_TABLE*>(p);
+
+	schema->fields_info = innodb_cached_indexes_fields_info;
+	schema->fill_table = i_s_innodb_cached_indexes_fill_table;
+
+	DBUG_RETURN(0);
+}
+
+struct st_mysql_plugin	i_s_innodb_cached_indexes =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "INNODB_CACHED_INDEXES"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, plugin_author),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "InnoDB cached indexes"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, innodb_cached_indexes_init),
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */

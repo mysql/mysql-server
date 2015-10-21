@@ -65,7 +65,10 @@ disconnect plug_con_rightp;
 
 --echo ## test no_auto_create_user sql mode with plugin users
 SET @@sql_mode=no_auto_create_user;
+--error 1133
 GRANT INSERT ON TEST.* TO grant_user IDENTIFIED WITH 'test_plugin_server';
+
+GRANT INSERT ON TEST.* TO grant_user IDENTIFIED WITH 'test_plugin_server' BY '123';
 SET @@sql_mode=default;
 DROP USER grant_user;
 --echo ## test utf-8 user name
@@ -369,61 +372,6 @@ DROP USER standard_user;
 DROP DATABASE shared;
 
 --echo #
---echo # Bug #57551 : Live upgrade fails between 5.1.52 -> 5.5.7-rc
---echo #
-
-CALL mtr.add_suppression("Missing system table mysql.proxies_priv.");
-
-DROP TABLE mysql.proxies_priv;
-
---echo # Must come back with mysql.proxies_priv absent.
---source include/restart_mysqld.inc
-
---error ER_NO_SUCH_TABLE
-SELECT * FROM mysql.proxies_priv;
-
-CREATE USER u1@localhost;
-GRANT ALL PRIVILEGES ON *.* TO u1@localhost;
-REVOKE ALL PRIVILEGES ON *.* FROM u1@localhost;
-GRANT ALL PRIVILEGES ON *.* TO u1@localhost;
-
-CREATE USER u2@localhost;
-GRANT ALL PRIVILEGES ON *.* TO u2@localhost;
-
---echo # access denied because of no privileges to root
---error ER_ACCESS_DENIED_NO_PASSWORD_ERROR
-GRANT PROXY ON u2@localhost TO u1@localhost;
-
---echo # access denied because of no privileges to root
---error ER_ACCESS_DENIED_NO_PASSWORD_ERROR
-REVOKE PROXY ON u2@localhost FROM u1@localhost;
-
---echo # go try graning proxy on itself, so that it will need the table
-connect(proxy_granter_con,localhost,u2,);
-connection proxy_granter_con;
-
---error ER_NO_SUCH_TABLE
-GRANT PROXY ON u2@localhost TO u1@localhost;
---error ER_NO_SUCH_TABLE
-REVOKE PROXY ON u2@localhost FROM u1@localhost;
-
-connection default;
-disconnect proxy_granter_con;
-
---echo # test if REVOKE works without the proxies_priv table
-REVOKE ALL PRIVILEGES ON *.* FROM u1@localhost, u2@localhost;
-
---echo # test if DROP USER work without the proxies_priv table
-DROP USER u1@localhost,u2@localhost;
-
---echo # test if FLUSH PRIVILEGES works without the proxies_priv table
-FLUSH PRIVILEGES;
-
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
---query_vertical SELECT Host,User,Proxied_host,Proxied_user,With_grant FROM mysql.proxies_priv
-FLUSH PRIVILEGES;
-
---echo #
 --echo # Bug#58139 : default-auth option not recognized in MySQL standard
 --echo #             command line clients
 --echo #
@@ -708,3 +656,185 @@ disconnect plugin_con;
 
 connection default;
 DROP USER 'employee'@'localhost', 'empl_external'@'localhost';
+
+--echo #
+--echo # WL#2284: Increase the length of a user name
+--echo #
+
+--echo # Testing 32 proxy users
+
+CREATE USER user_name_len_22_01234 IDENTIFIED WITH 'test_plugin_server' AS 'user_name_len_22_0dest';
+CREATE USER user_name_len_22_0dest IDENTIFIED BY 'plug_dest_passwd';
+SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
+--echo ## test plugin auth
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR : this should fail : no grant
+connect(plug_user22,localhost,user_name_len_22_01234,user_name_len_22_0dest);
+--enable_query_log
+
+GRANT PROXY ON user_name_len_22_0dest TO user_name_len_22_01234;
+--echo test proxies_priv columns
+--replace_column 1 xx 7 xx
+SELECT * FROM mysql.proxies_priv WHERE user !='root';
+--echo test mysql.proxies_priv;
+SHOW CREATE TABLE mysql.proxies_priv;
+
+connect(plug_user22,localhost,user_name_len_22_01234,user_name_len_22_0dest);
+
+connection plug_user22;
+SELECT USER(),CURRENT_USER();
+connection default;
+
+--character_set utf8
+SET NAMES utf8;
+
+# 32 characters user name
+CREATE USER очень_очень_очень_длинный_юзер__ IDENTIFIED WITH 'test_plugin_server' AS 'очень_очень_очень_длинный_дест__';
+CREATE USER очень_очень_очень_длинный_дест__ IDENTIFIED BY 'plug_dest_passwd';
+SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
+--echo ## test plugin auth
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR : this should fail : no grant
+connect(plug_user32,localhost,очень_очень_очень_длинный_юзер__,очень_очень_очень_длинный_дест__);
+--enable_query_log
+
+GRANT PROXY ON очень_очень_очень_длинный_дест__ TO очень_очень_очень_длинный_юзер__;
+--echo test proxies_priv columns
+--replace_column 1 xx 7 xx
+SELECT * FROM mysql.proxies_priv WHERE user !='root';
+--echo test mysql.proxies_priv;
+SHOW CREATE TABLE mysql.proxies_priv;
+
+connect(plug_user32,localhost,очень_очень_очень_длинный_юзер__,очень_очень_очень_длинный_дест__);
+
+connection plug_user32;
+SELECT USER(),CURRENT_USER();
+connection default;
+
+--echo # Testing 32 proxy users cleanup
+
+disconnect plug_user22;
+disconnect plug_user32;
+DROP USER user_name_len_22_01234;
+DROP USER user_name_len_22_0dest;
+DROP USER очень_очень_очень_длинный_юзер__;
+DROP USER очень_очень_очень_длинный_дест__;
+SET NAMES default;
+
+--echo # Testing 32 users with different authentication plugins
+
+CREATE USER user_name_len_22_01234@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string';
+--connect(con_user22_sha,localhost, user_name_len_22_01234,'auth_string',,,,SSL)
+SELECT CURRENT_USER();
+
+--connection default
+--disconnect con_user22_sha
+DROP USER user_name_len_22_01234@localhost;
+
+CREATE USER user_name_len_32_012345678901234@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
+--connect(con_user32_native,localhost, user_name_len_32_012345678901234,'auth_string')
+SELECT CURRENT_USER();
+
+--connection default
+--disconnect con_user32_native
+DROP USER user_name_len_32_012345678901234@localhost;
+
+CREATE USER user_name_len_32_012345678901234@localhost IDENTIFIED WITH 'cleartext_plugin_server' AS 'auth_string';
+--connect(con_user32_cleartext,localhost, user_name_len_32_012345678901234,'auth_string',,,,CLEARTEXT)
+SELECT CURRENT_USER();
+
+--connection default
+--disconnect con_user32_cleartext
+DROP USER user_name_len_32_012345678901234@localhost;
+
+--connection default
+
+--echo # Testing 32 users with different authentication plugins WITH REQUIRE SSL
+
+CREATE USER user_name_len_22_01234@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string' REQUIRE SSL;
+--connect(con_user22_sha,localhost, user_name_len_22_01234,'auth_string',,,,SSL)
+SELECT CURRENT_USER();
+
+--connection default
+--disconnect con_user22_sha
+DROP USER user_name_len_22_01234@localhost;
+
+CREATE USER user_name_len_32_012345678901234@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string' REQUIRE SSL;
+--connect(con_user32_native,localhost, user_name_len_32_012345678901234,'auth_string',,,,SSL)
+SELECT CURRENT_USER();
+
+--connection default
+--disconnect con_user32_native
+DROP USER user_name_len_32_012345678901234@localhost;
+
+CREATE USER user_name_len_32_012345678901234@localhost IDENTIFIED WITH 'cleartext_plugin_server' AS 'auth_string' REQUIRE SSL;
+--connect(con_user32_cleartext,localhost, user_name_len_32_012345678901234,'auth_string',,,,SSL CLEARTEXT)
+SELECT CURRENT_USER();
+
+--connection default
+--disconnect con_user32_cleartext
+DROP USER user_name_len_32_012345678901234@localhost;
+
+--echo # Testing 32 utf users with different authentication plugins
+
+--character_set utf8
+SET NAMES utf8;
+
+# 32 characters user name
+CREATE USER очень_очень_очень_длинный_юзер__@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string';
+--connect(con_user32_utf_sha,localhost, очень_очень_очень_длинный_юзер__,'auth_string',,,,SSL)
+SELECT CURRENT_USER();
+
+--connection default
+--disconnect con_user32_utf_sha
+DROP USER очень_очень_очень_длинный_юзер__@localhost;
+
+# 32 characters user name
+CREATE USER очень_очень_очень_длинный_юзер__@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
+--connect(con_user32_utf_native,localhost, очень_очень_очень_длинный_юзер__,'auth_string')
+SELECT CURRENT_USER();
+
+--connection default
+--disconnect con_user32_utf_native
+DROP USER очень_очень_очень_длинный_юзер__@localhost;
+
+CREATE USER очень_очень_очень_длинный_юзер__@localhost IDENTIFIED WITH 'cleartext_plugin_server' AS 'auth_string';
+--connect(con_user32_utf_cleartext,localhost, очень_очень_очень_длинный_юзер__,'auth_string',,,,CLEARTEXT)
+SELECT CURRENT_USER();
+
+--connection default
+--disconnect con_user32_utf_cleartext
+DROP USER очень_очень_очень_длинный_юзер__@localhost;
+
+--connection default
+
+--echo # Testing 32 utf users with different authentication plugins WITH REQUIRE SSL
+
+# 32 characters user name
+CREATE USER очень_очень_очень_длинный_юзер__@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string' REQUIRE SSL;
+--connect(con_user32_utf_sha,localhost, очень_очень_очень_длинный_юзер__,'auth_string',,,,SSL)
+SELECT CURRENT_USER();
+
+--connection default
+--disconnect con_user32_utf_sha
+DROP USER очень_очень_очень_длинный_юзер__@localhost;
+
+# 32 characters user name
+CREATE USER очень_очень_очень_длинный_юзер__@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string' REQUIRE SSL;
+--connect(con_user32_utf_native,localhost, очень_очень_очень_длинный_юзер__,'auth_string',,,,SSL)
+SELECT CURRENT_USER();
+
+--connection default
+--disconnect con_user32_utf_native
+DROP USER очень_очень_очень_длинный_юзер__@localhost;
+
+CREATE USER очень_очень_очень_длинный_юзер__@localhost IDENTIFIED WITH 'cleartext_plugin_server' AS 'auth_string' REQUIRE SSL;
+--connect(con_user32_utf_cleartext,localhost, очень_очень_очень_длинный_юзер__,'auth_string',,,,SSL CLEARTEXT)
+SELECT CURRENT_USER();
+
+--connection default
+--disconnect con_user32_utf_cleartext
+DROP USER очень_очень_очень_длинный_юзер__@localhost;
+
+--connection default
+SET NAMES default;

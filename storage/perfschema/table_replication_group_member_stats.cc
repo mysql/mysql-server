@@ -28,6 +28,104 @@
 #include "log.h"
 #include "rpl_group_replication.h"
 
+/*
+  Callbacks implementation for GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS.
+*/
+static void set_channel_name(void* const context, const char& value,
+                             size_t length)
+{
+  struct st_row_group_member_stats* row=
+      static_cast<struct st_row_group_member_stats*>(context);
+  const size_t max= CHANNEL_NAME_LENGTH;
+  length= std::min(length, max);
+
+  row->channel_name_length= length;
+  memcpy(row->channel_name, &value, length);
+}
+
+static void set_view_id(void* const context, const char& value, size_t length)
+{
+  struct st_row_group_member_stats* row=
+      static_cast<struct st_row_group_member_stats*>(context);
+  const size_t max= HOSTNAME_LENGTH;
+  length= std::min(length, max);
+
+  row->view_id_length= length;
+  memcpy(row->view_id, &value, length);
+}
+
+static void set_member_id(void* const context, const char& value, size_t length)
+{
+  struct st_row_group_member_stats* row=
+      static_cast<struct st_row_group_member_stats*>(context);
+  const size_t max= UUID_LENGTH;
+  length= std::min(length, max);
+
+  row->member_id_length= length;
+  memcpy(row->member_id, &value, length);
+}
+
+static void set_transactions_committed(void* const context, const char& value,
+                                       size_t length)
+{
+  struct st_row_group_member_stats* row=
+      static_cast<struct st_row_group_member_stats*>(context);
+
+  if (row->trx_committed != NULL)
+    my_free(row->trx_committed);
+
+  row->trx_committed_length= length;
+  row->trx_committed= (char*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                        length,
+                                        MYF(0));
+  memcpy(row->trx_committed, &value, length);
+}
+
+static void set_last_conflict_free_transaction(void* const context,
+                                               const char& value, size_t length)
+{
+  struct st_row_group_member_stats* row=
+      static_cast<struct st_row_group_member_stats*>(context);
+  const size_t max= Gtid::MAX_TEXT_LENGTH+1;
+  length= std::min(length, max);
+
+  row->last_cert_trx_length= length;
+  memcpy(row->last_cert_trx, &value, length);
+}
+
+static void set_transactions_in_queue(void* const context,
+                                      unsigned long long int value)
+{
+  struct st_row_group_member_stats* row=
+      static_cast<struct st_row_group_member_stats*>(context);
+  row->trx_in_queue= value;
+}
+
+static void set_transactions_certified(void* const context,
+                                       unsigned long long int value)
+{
+  struct st_row_group_member_stats* row=
+      static_cast<struct st_row_group_member_stats*>(context);
+  row->trx_checked= value;
+}
+
+static void set_transactions_conflicts_detected(void* const context,
+                                                unsigned long long int value)
+{
+  struct st_row_group_member_stats* row=
+      static_cast<struct st_row_group_member_stats*>(context);
+  row->trx_conflicts= value;
+}
+
+static void set_transactions_in_validation(void* const context,
+                                           unsigned long long int value)
+{
+  struct st_row_group_member_stats* row=
+      static_cast<struct st_row_group_member_stats*>(context);
+  row->trx_validating= value;
+}
+
+
 THR_LOCK table_replication_group_member_stats::m_table_lock;
 
 static const TABLE_FIELD_TYPE field_types[]=
@@ -69,7 +167,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     {C_STRING_WITH_LEN("TRANSACTIONS_COMMITTED_ALL_MEMBERS")},
-    {C_STRING_WITH_LEN("text")},
+    {C_STRING_WITH_LEN("longtext")},
     {NULL, 0}
   },
   {
@@ -95,7 +193,8 @@ table_replication_group_member_stats::m_share=
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 PFS_engine_table* table_replication_group_member_stats::create(void)
@@ -108,8 +207,6 @@ table_replication_group_member_stats::table_replication_group_member_stats()
     m_row_exists(false), m_pos(0), m_next_pos(0)
 {
   m_row.trx_committed= NULL;
-  m_row.trx_committed_length= 0;
-  m_row.last_cert_trx_length= -1;
 }
 
 table_replication_group_member_stats::~table_replication_group_member_stats()
@@ -168,104 +265,42 @@ int table_replication_group_member_stats::rnd_pos(const void *pos)
 void table_replication_group_member_stats::make_row()
 {
   DBUG_ENTER("table_replication_group_member_stats::make_row");
+  // Set default values.
   m_row_exists= false;
+  m_row.channel_name_length= 0;
+  m_row.view_id_length= 0;
+  m_row.member_id_length= 0;
+  m_row.trx_committed_length= 0;
+  m_row.last_cert_trx_length= 0;
+  m_row.trx_in_queue= 0;
+  m_row.trx_checked= 0;
+  m_row.trx_conflicts= 0;
+  m_row.trx_validating= 0;
 
-  GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO* group_member_stats_info;
-  if(!(group_member_stats_info=
-       (GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO*)
-                           my_malloc(PSI_NOT_INSTRUMENTED,
-                                     sizeof(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO),
-                                     MYF(MY_WME))))
+  // Set callbacks on GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS.
+  const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS callbacks=
   {
-    sql_print_error("Unable to allocate memory on"
-                    " table_replication_group_member_stats::make_row");
-    DBUG_VOID_RETURN;
+    &m_row,
+    &set_channel_name,
+    &set_view_id,
+    &set_member_id,
+    &set_transactions_committed,
+    &set_last_conflict_free_transaction,
+    &set_transactions_in_queue,
+    &set_transactions_certified,
+    &set_transactions_conflicts_detected,
+    &set_transactions_in_validation,
+  };
+
+  // Query plugin and let callbacks do their job.
+  if (get_group_replication_group_member_stats_info(callbacks))
+  {
+    DBUG_PRINT("info", ("Group Replication stats not available!"));
   }
-
-  bool dbsm_stats_not_available
-                            = get_group_replication_group_member_stats_info
-                                                      (group_member_stats_info);
-
-  if(dbsm_stats_not_available)
-    DBUG_PRINT("info", ("Member's DBSM stats not available!"));
   else
   {
-    m_row.channel_name_length= 0;
-    if (group_member_stats_info->channel_name != NULL)
-    {
-      m_row.channel_name_length= strlen(group_member_stats_info->channel_name);
-      memcpy(m_row.channel_name, group_member_stats_info->channel_name,
-             m_row.channel_name_length);
-
-      my_free((void*)group_member_stats_info->channel_name);
-    }
-
-    if(group_member_stats_info->view_id != NULL)
-    {
-      m_row.view_id_length= strlen(group_member_stats_info->view_id);
-      memcpy(m_row.view_id, group_member_stats_info->view_id,
-             m_row.view_id_length);
-
-      my_free((void*)group_member_stats_info->view_id);
-    }
-    else
-    {
-      m_row.view_id_length= 0;
-      m_row.view_id[0]= '\0';
-    }
-
-    m_row.member_id_length= 0;
-    if (group_member_stats_info->member_id != NULL)
-    {
-      m_row.member_id_length= strlen(group_member_stats_info->member_id);
-      memcpy(m_row.member_id, group_member_stats_info->member_id,
-             m_row.member_id_length);
-
-      my_free((void*)group_member_stats_info->member_id);
-    }
-
-    m_row.trx_in_queue= group_member_stats_info->transaction_in_queue;
-    m_row.trx_checked= group_member_stats_info->transaction_certified;
-    m_row.trx_conflicts= group_member_stats_info
-                                             ->transaction_conflicts_detected;
-    m_row.trx_validating= group_member_stats_info->transactions_in_validation;
-
-    m_row.trx_committed_length= 0;
-    if (group_member_stats_info->committed_transactions != NULL)
-    {
-      m_row.trx_committed_length= strlen(group_member_stats_info
-                                                      ->committed_transactions);
-      m_row.trx_committed= (char*) my_malloc(PSI_NOT_INSTRUMENTED,
-                                             m_row.trx_committed_length + 1,
-                                             MYF(0));
-
-      memcpy(m_row.trx_committed,
-             group_member_stats_info->committed_transactions,
-             m_row.trx_committed_length+1);
-
-      my_free((void*)group_member_stats_info->committed_transactions);
-    }
-
-    if(group_member_stats_info->last_conflict_free_transaction != NULL)
-    {
-      m_row.last_cert_trx_length=
-        strlen(group_member_stats_info->last_conflict_free_transaction);
-      memcpy(m_row.last_cert_trx,
-             group_member_stats_info->last_conflict_free_transaction,
-             m_row.last_cert_trx_length);
-
-      my_free((void*)group_member_stats_info->last_conflict_free_transaction);
-    }
-    else
-    {
-      m_row.last_cert_trx_length= 0;
-      m_row.last_cert_trx[0]= '\0';
-    }
-
     m_row_exists= true;
   }
-
-  my_free(group_member_stats_info);
 
   DBUG_VOID_RETURN;
 }

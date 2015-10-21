@@ -335,14 +335,14 @@ INSERT INTO t2 VALUES (1), (2), (3);
 EXPLAIN UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT b FROM t2 WHERE t2.b < 3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where; FirstMatch(t1)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; FirstMatch(t1)
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT b FROM t2 WHERE t2.b < 3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where; FirstMatch(t1)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; FirstMatch(t1)
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -353,7 +353,7 @@ FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1, t2            WHERE a IN (SELECT b FROM t2 WHERE t2.b < 3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -992,13 +992,13 @@ SET @save_optimizer_switch= @@optimizer_switch;
 EXPLAIN DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	6.67	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	6.67	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
@@ -1008,7 +1008,7 @@ FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	6.67	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
@@ -1036,13 +1036,13 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 EXPLAIN DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	6.67	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	6.67	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
@@ -1052,7 +1052,7 @@ FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	6.67	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`a2` > 2) and (`test`.`t1`.`a1` = `test`.`t2`.`a2`))
@@ -1684,7 +1684,7 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 (i) VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35),(36),(37),(38),(39),
-(40),(41),(42);
+(40),(41),(42),(43),(44);
 CREATE TABLE t2 (i INT, key1 INT, key2 INT, INDEX (key1), INDEX (key2));
 INSERT INTO t2 (key1, key2) SELECT i, i FROM t1;
 #
@@ -2178,7 +2178,7 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35),(36),(37),(38),(39),
-(40),(41),(42);
+(40),(41),(42),(43),(44);
 CREATE TABLE t2 (i INT, key1 INT, key2 INT, INDEX (key1), INDEX (key2));
 INSERT INTO t2 (key1, key2) SELECT i, i FROM t1;
 #
@@ -2520,7 +2520,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,`test`.`t2`.`c1` AS `c1`,`test`.`t2`.`c2` AS `c2` from `test`.`t1` left join `test`.`t2` on((`test`.`t1`.`c1` = `test`.`t2`.`c1`)) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,`test`.`t2`.`c1` AS `c1`,`test`.`t2`.`c2` AS `c2` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`c1` = `test`.`t1`.`c1`)) where 1
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
@@ -3185,7 +3185,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t1`.`id` = `test`.`t2`.`id`)) where 1 group by `test`.`t1`.`id`
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`id` = `test`.`t1`.`id`)) where 1 group by `test`.`t1`.`id`
 DROP TABLE t1,t2;
 #74
 CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;

@@ -232,7 +232,7 @@ password_expired	Y
 password_lifetime	NULL
 account_locked	N
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 SET PASSWORD = 'def';
 
 SHOW CREATE USER u3@localhost;
@@ -311,7 +311,7 @@ password_expired	Y
 password_lifetime	0
 account_locked	N
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 
 CREATE USER user7@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y'
             PASSWORD EXPIRE DEFAULT ACCOUNT LOCK PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
@@ -375,7 +375,7 @@ password_expired	Y
 password_lifetime	0
 account_locked	N
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 SET PASSWORD='auth_string';
 SELECT USER();
 USER()
@@ -399,7 +399,7 @@ connect(localhost,u5,,test,MASTER_PORT,MASTER_SOCKET);
 ERROR HY000: Access denied for user 'u5'@'localhost'. Account is locked.
 ALTER USER u5@localhost REQUIRE SSL PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK;
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 CREATE USER u6@localhost IDENTIFIED BY 'auth_string' REQUIRE X509
 ACCOUNT LOCK PASSWORD EXPIRE PASSWORD EXPIRE NEVER;
 SELECT user,plugin,authentication_string,ssl_type,password_expired,
@@ -658,7 +658,7 @@ SHOW CREATE USER u12@localhost;
 CREATE USER for u12@localhost
 CREATE USER 'u12'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<non-deterministic-password-hash>' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 4 PASSWORD EXPIRE ACCOUNT UNLOCK
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 ALTER USER USER() IDENTIFIED BY 'abc';
 SELECT USER();
 USER()
@@ -1015,12 +1015,12 @@ SELECT USER();
 USER()
 u19@localhost
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 SELECT USER();
 USER()
 u21@localhost
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 SELECT USER();
 USER()
 u23@localhost

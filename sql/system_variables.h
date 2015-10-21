@@ -18,6 +18,7 @@
 
 #include "my_global.h"
 #include "my_base.h"          // ha_rows
+#include "my_thread_local.h"  // my_thread_id
 #include "rpl_gtid.h"         // Gitd_specification
 #include "sql_plugin_ref.h"   // plugin_ref
 #include "sql_cmd.h"          // SQLCOM_END
@@ -25,7 +26,6 @@
 class MY_LOCALE;
 class Time_zone;
 typedef ulonglong sql_mode_t;
-typedef uint32 my_thread_id;
 typedef struct st_list LIST;
 typedef struct charset_info_st CHARSET_INFO;
 
@@ -173,6 +173,7 @@ struct System_variables
   ulong net_write_timeout;
   ulong optimizer_prune_level;
   ulong optimizer_search_depth;
+  ulong range_optimizer_max_mem_size;
   ulong preload_buff_size;
   ulong profiling_history_size;
   ulong read_buff_size;
@@ -260,11 +261,12 @@ struct System_variables
   Gtid_set_or_null gtid_next_list;
   ulong session_track_gtids; // see enum_session_track_gtids
 
-  ulong max_statement_time;
+  ulong max_execution_time;
 
   char *track_sysvars_ptr;
   my_bool session_track_schema;
   my_bool session_track_state_change;
+  ulong   session_track_transaction_info;
   /**
     Compatibility option to mark the pre MySQL-5.6.4 temporals columns using
     the old format using comments for SHOW CREATE TABLE and in I_S.COLUMNS
@@ -335,9 +337,9 @@ struct System_status_var
   ulonglong bytes_received;
   ulonglong bytes_sent;
 
-  ulonglong max_statement_time_exceeded;
-  ulonglong max_statement_time_set;
-  ulonglong max_statement_time_set_failed;
+  ulonglong max_execution_time_exceeded;
+  ulonglong max_execution_time_set;
+  ulonglong max_execution_time_set_failed;
 
   /* Number of statements sent from the client. */
   ulonglong questions;
@@ -379,7 +381,7 @@ void add_diff_to_status(System_status_var *to_var,
                         System_status_var *dec_var);
 
 
-void add_to_status(System_status_var *to_var, const System_status_var *from_var,
-                   bool add_com_vars);
+void add_to_status(System_status_var *to_var, System_status_var *from_var,
+                   bool reset_from_var);
 
 #endif // SYSTEM_VARIABLES_INCLUDED

@@ -20,6 +20,11 @@
 #include "handler.h"                 // enum_schema_tables
 #include "mysql_com.h"               // enum_server_command
 
+/**
+  @addtogroup GROUP_PARSER
+  @{
+*/
+
 class Comp_creator;
 class Generated_column;
 class Item;
@@ -33,7 +38,7 @@ class THD;
 union COM_DATA;
 typedef struct st_lex_user LEX_USER;
 typedef struct st_order ORDER;
-typedef class st_select_lex SELECT_LEX;
+class SELECT_LEX;
 
 
 extern "C" int test_if_data_home_dir(const char *dir);
@@ -80,13 +85,10 @@ void mysql_reset_thd_for_next_command(THD *thd);
 void create_select_for_variable(Parse_context *pc, const char *var_name);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);
 void mysql_init_multi_delete(LEX *lex);
-void create_table_set_open_action_and_adjust_tables(LEX *lex);
-int mysql_execute_command(THD *thd);
+int mysql_execute_command(THD *thd, bool first_level= false);
 bool do_command(THD *thd);
-bool dispatch_command(THD *thd,COM_DATA *com_data,
+bool dispatch_command(THD *thd, const COM_DATA *com_data,
                       enum enum_server_command command);
-bool append_file_to_dir(THD *thd, const char **filename_ptr,
-                        const char *table_name);
 bool append_file_to_dir(THD *thd, const char **filename_ptr,
                         const char *table_name);
 void execute_init_command(THD *thd, LEX_STRING *init_command,
@@ -112,6 +114,7 @@ void init_update_queries(void);
 Item *negate_expression(Parse_context *pc, Item *expr);
 bool check_stack_overrun(THD *thd, long margin, uchar *dummy);
 void killall_non_super_threads(THD *thd);
+bool shutdown(THD *thd, enum mysql_enum_shutdown_level level, enum enum_server_command command);
 
 /* Variables */
 
@@ -227,6 +230,11 @@ bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables);
 */
 #define CF_DISALLOW_IN_RO_TRANS   (1U << 15)
 
+/**
+  Identifies statements and commands that can be used with Protocol Plugin
+*/
+#define CF_ALLOW_PROTOCOL_PLUGIN (1U << 16)
+
 /* Bits in server_command_flags */
 
 /**
@@ -247,8 +255,11 @@ bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables);
 #define CF_SKIP_QUESTIONS       (1U << 1)
 
 /**
-  Used to mark commands that can be used with Protocol Plugin
+  1U << 16 is reserved for Protocol Plugin statements and commands
 */
-#define CF_ALLOW_PROTOCOL_PLUGIN (1U << 2)
+
+/**
+  @} (end of group GROUP_PARSER)
+*/
 
 #endif /* SQL_PARSE_INCLUDED */

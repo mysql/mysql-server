@@ -1,0 +1,30 @@
+DROP TABLE IF EXISTS t1, t2;
+DROP VIEW IF EXISTS v_t1;
+CREATE TABLE t1 (id INT PRIMARY KEY);
+CREATE view v_t1 AS SELECT * FROM t1;
+CALL sys.table_exists('test', 't1', @exists);
+SELECT @exists;
+@exists
+BASE TABLE
+CALL sys.table_exists('test', 'v_t1', @exists);
+SELECT @exists;
+@exists
+VIEW
+CREATE TEMPORARY TABLE t1 (id INT PRIMARY KEY);
+CALL sys.table_exists('test', 't1', @exists);
+SELECT @exists;
+@exists
+TEMPORARY
+CALL sys.table_exists('test', 't2', @exists);
+SELECT @exists;
+@exists
+
+SET @identifier := REPEAT('a', 65);
+CALL sys.table_exists(@identifier, 't1', @exists);
+ERROR 22001: Data too long for column 'in_db' at row 1
+CALL sys.table_exists('test', @identifier, @exists);
+ERROR 22001: Data too long for column 'in_table' at row 1
+DROP TEMPORARY TABLE t1;
+DROP TABLE t1;
+DROP VIEW v_t1;
+SET @identifier := NULL;

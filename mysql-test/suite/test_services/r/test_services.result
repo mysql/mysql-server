@@ -1,0 +1,32 @@
+call mtr.add_suppression("This is a warning from test plugin");
+call mtr.add_suppression("This is an error from test plugin");
+------ Run plugin ------------------------------------------------
+INSTALL PLUGIN test_services SONAME 'TESTSERVICES';
+------ Show variables of plugin to control test execution --------
+SHOW VARIABLES LIKE 'test_service%';
+Variable_name	Value
+test_services_with_log_message	1
+test_services_with_snprintf	1
+------ Show status of plugin -------------------------------------
+SHOW STATUS LIKE 'test_services_status';
+Variable_name	Value
+test_services_status	1
+test status: 1
+------ Stop plugin -----------------------------------------------
+UNINSTALL PLUGIN test_services;
+------ Service: my_snprintf --------------------------------------
+Starting test of my_snprintf in test_services.
+This is a text output formatted with my_snprintf.
+Shutting down test of my_snprintf in test_services.
+------ Service: my_plugin_log_service ----------------------------
+CREATE TABLE t1 (c1 varchar(30), c2 TEXT);
+LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/log/mysqld.1.err' INTO TABLE t1 
+FIELDS TERMINATED BY ' [';
+SELECT replace(c2,'\r','') FROM t1 WHERE c2 LIKE '%test_services %';
+replace(c2,'\r','')
+Note] Plugin test_services reported: 'Test_services with_snprintf_val: 1'
+Note] Plugin test_services reported: 'Test_services with_log_message_val: 1'
+Note] Plugin test_services reported: 'This is the test plugin for services testing info report output'
+Warning] Plugin test_services reported: 'This is a warning from test plugin for services testing warning report output'
+ERROR] Plugin test_services reported: 'This is an error from test plugin for services testing error report output'
+DROP TABLE IF EXISTS t1;

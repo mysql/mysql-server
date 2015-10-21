@@ -4,7 +4,8 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: Database page corruption on disk o
 SET GLOBAL innodb_file_per_table=on;
 [1]: Test is to corrupt the ibd file, & do repair for (innodb|crc32|none) checksum through innochecksum tool
 # Create and populate the table to be corrupted
-CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) COMPRESSION="none", ENGINE=InnoDB;
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) COMPRESSION="none",
+ROW_FORMAT=COMPACT ENGINE=InnoDB;
 INSERT INTO t1 (b) VALUES ('corrupt me');
 INSERT INTO t1 (b) VALUES ('corrupt me');
 # Shutdown the server
@@ -81,11 +82,11 @@ page-type-dump                    (No default value)
 log                               (No default value)
 [4]: Test for --allow-mismatches =99
 # Expect the fails for checksum mismatches. Print the error message.
-innochecksum: innodb_checksum_algorithm is set to "strict_none" but the page [page id: space=X, page number=Y] contains a valid checksum "crc32".  Accepting the page as valid. Change innodb_checksum_algorithm to "none" to silently accept such pages or rewrite all pages so that they contain "none" checksum.
-innochecksum: innodb_checksum_algorithm is set to "strict_none" but the page [page id: space=X, page number=Y] contains a valid checksum "crc32".  Accepting the page as valid. Change innodb_checksum_algorithm to "none" to silently accept such pages or rewrite all pages so that they contain "none" checksum.
-innochecksum: innodb_checksum_algorithm is set to "strict_none" but the page [page id: space=X, page number=Y] contains a valid checksum "crc32".  Accepting the page as valid. Change innodb_checksum_algorithm to "none" to silently accept such pages or rewrite all pages so that they contain "none" checksum.
-innochecksum: innodb_checksum_algorithm is set to "strict_none" but the page [page id: space=X, page number=Y] contains a valid checksum "crc32".  Accepting the page as valid. Change innodb_checksum_algorithm to "none" to silently accept such pages or rewrite all pages so that they contain "none" checksum.
-innochecksum: innodb_checksum_algorithm is set to "strict_none" but the page [page id: space=X, page number=Y] contains a valid checksum "crc32".  Accepting the page as valid. Change innodb_checksum_algorithm to "none" to silently accept such pages or rewrite all pages so that they contain "none" checksum.
+[WARNING] innochecksum: innodb_checksum_algorithm is set to "strict_none" but the page [page id: space=X, page number=Y] contains a valid checksum "crc32".  Accepting the page as valid. Change innodb_checksum_algorithm to "none" to silently accept such pages or rewrite all pages so that they contain "none" checksum.
+[WARNING] innochecksum: innodb_checksum_algorithm is set to "strict_none" but the page [page id: space=X, page number=Y] contains a valid checksum "crc32".  Accepting the page as valid. Change innodb_checksum_algorithm to "none" to silently accept such pages or rewrite all pages so that they contain "none" checksum.
+[WARNING] innochecksum: innodb_checksum_algorithm is set to "strict_none" but the page [page id: space=X, page number=Y] contains a valid checksum "crc32".  Accepting the page as valid. Change innodb_checksum_algorithm to "none" to silently accept such pages or rewrite all pages so that they contain "none" checksum.
+[WARNING] innochecksum: innodb_checksum_algorithm is set to "strict_none" but the page [page id: space=X, page number=Y] contains a valid checksum "crc32".  Accepting the page as valid. Change innodb_checksum_algorithm to "none" to silently accept such pages or rewrite all pages so that they contain "none" checksum.
+[WARNING] innochecksum: innodb_checksum_algorithm is set to "strict_none" but the page [page id: space=X, page number=Y] contains a valid checksum "crc32".  Accepting the page as valid. Change innodb_checksum_algorithm to "none" to silently accept such pages or rewrite all pages so that they contain "none" checksum.
 [5]: Test checksum check for page: 2 to page:5
 [6]: Test for checksum check for only pageno.= 2
 [7]: Further Test are for rewrite checksum (innodb|crc32|none) for all ibd file & start the server.

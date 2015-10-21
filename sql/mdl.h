@@ -78,7 +78,6 @@ public:
                           int src_line) = 0;
 
   /**
-    @def EXIT_COND(S)
     End a wait on a condition
     @param [in] stage the new stage to enter
     @param src_function function name of the caller
@@ -290,7 +289,7 @@ enum enum_mdl_duration {
   Metadata lock object key.
 
   A lock is requested or granted based on a fully qualified name and type.
-  E.g. They key for a table consists of <0 (=table)>+<database>+<table name>.
+  E.g. They key for a table consists of @<0 (=table)@>+@<database@>+@<table name@>.
   Elsewhere in the comments this triple will be referred to simply as "key"
   or "name".
 */
@@ -355,7 +354,7 @@ public:
     Construct a metadata lock key from a triplet (mdl_namespace,
     database and name).
 
-    @remark The key for a table is <mdl_namespace>+<database name>+<table name>
+    @remark The key for a table is @<mdl_namespace@>+@<database name@>+@<table name@>
 
     @param  mdl_namespace Id of namespace of object to be locked
     @param  db            Name of database to which the object belongs
@@ -879,6 +878,8 @@ public:
              m_tickets[MDL_TRANSACTION].is_empty() &&
              m_tickets[MDL_EXPLICIT].is_empty());
   }
+
+  bool has_locks(MDL_key::enum_mdl_namespace mdl_namespace) const;
 
   MDL_savepoint mdl_savepoint()
   {

@@ -45,7 +45,6 @@ struct innodb_idx_translate_t {
 					array index */
 };
 
-
 /** InnoDB table share */
 typedef struct st_innobase_share {
 	const char*	table_name;	/*!< InnoDB table name */
@@ -92,7 +91,21 @@ public:
 
 	const Key_map* keys_to_use_for_scanning();
 
-	int open(const char *name, int mode, uint test_if_locked);
+	int open(const char *name, int, uint);
+
+	/** Opens dictionary table object using table name. For partition, we need to
+	try alternative lower/upper case names to support moving data files across
+	platforms.
+	@param[in]	table_name	name of the table/partition
+	@param[in]	norm_name	normalized name of the table/partition
+	@param[in]	is_partition	if this is a partition of a table
+	@param[in]	ignore_err	error to ignore for loading dictionary object
+	@return dictionary table object or NULL if not found */
+	static dict_table_t* open_dict_table(
+	const char*		table_name,
+	const char*		norm_name,
+	bool			is_partition,
+	dict_err_ignore_t	ignore_err);
 
 	handler* clone(const char *name, MEM_ROOT *mem_root);
 
@@ -216,6 +229,10 @@ public:
 	int get_parent_foreign_key_list(
 		THD*			thd,
 		List<FOREIGN_KEY_INFO>*	f_key_list);
+
+	int get_cascade_foreign_key_table_list(
+		THD*				thd,
+		List<st_handler_tablename>*	fk_table_list);
 
 	bool can_switch_engines();
 
@@ -462,9 +479,6 @@ protected:
 
 	/** Flags that specificy the handler instance (table) capability. */
 	Table_flags		m_int_table_flags;
-
-	/** Index into the server's primkary keye meta-data table->key_info{} */
-	uint			m_primary_key;
 
 	/** this is set to 1 when we are starting a table scan but have
 	not yet fetched any row, else false */
@@ -719,7 +733,8 @@ public:
 	"set_lower_case" is set to true.
 	@param[in,out]	norm_name	Buffer to return the normalized name in.
 	@param[in]	name		Table name string.
-	@param[in]	set_lower_case	True if we want to set name to lower case. */
+	@param[in]	set_lower_case	True if we want to set name to lower
+					case. */
 	static void normalize_table_name_low(
 		char*           norm_name,
 		const char*     name,
@@ -782,30 +797,6 @@ private:
 };
 
 /**
-Retrieve the FTS Relevance Ranking result for doc with doc_id
-of prebuilt->fts_doc_id
-@return the relevance ranking value */
-float
-innobase_fts_retrieve_ranking(
-	FT_INFO*	fts_hdl);	/*!< in: FTS handler */
-
-/**
-Find and Retrieve the FTS Relevance Ranking result for doc with doc_id
-of prebuilt->fts_doc_id
-@return the relevance ranking value */
-float
-innobase_fts_find_ranking(
-	FT_INFO*	fts_hdl,	/*!< in: FTS handler */
-	uchar*		record,		/*!< in: Unused */
-	uint		len);		/*!< in: Unused */
-
-/**
-Free the memory for the FTS handler */
-void
-innobase_fts_close_ranking(
-	FT_INFO*	fts_hdl);	/*!< in: FTS handler */
-
-/**
 Initialize the table FTS stopword list
 @return TRUE if success */
 ibool
@@ -848,40 +839,6 @@ innobase_fts_check_doc_id_index_in_def(
 	__attribute__((warn_unused_result));
 
 /**
-@return version of the extended FTS API */
-uint
-innobase_fts_get_version();
-
-/**
-@return Which part of the extended FTS API is supported */
-ulonglong
-innobase_fts_flags();
-
-/**
-Find and Retrieve the FTS doc_id for the current result row
-@return the document ID */
-ulonglong
-innobase_fts_retrieve_docid(
-	FT_INFO_EXT*	fts_hdl);	/*!< in: FTS handler */
-
-/**
-Find and retrieve the size of the current result
-@return number of matching rows */
-ulonglong
-innobase_fts_count_matches(
-	FT_INFO_EXT*	fts_hdl);	/*!< in: FTS handler */
-
-/**
-Copy table flags from MySQL's HA_CREATE_INFO into an InnoDB table object.
-Those flags are stored in .frm file and end up in the MySQL table object,
-but are frequently used inside InnoDB so we keep their copies into the
-InnoDB table object. */
-void
-innobase_copy_frm_flags_from_create_info(
-	dict_table_t*		innodb_table,	/*!< in/out: InnoDB table */
-	const HA_CREATE_INFO*	create_info);	/*!< in: create info */
-
-/**
 Copy table flags from MySQL's TABLE_SHARE into an InnoDB table object.
 Those flags are stored in .frm file and end up in the MySQL table object,
 but are frequently used inside InnoDB so we keep their copies into the
@@ -890,6 +847,19 @@ void
 innobase_copy_frm_flags_from_table_share(
 	dict_table_t*		innodb_table,	/*!< in/out: InnoDB table */
 	const TABLE_SHARE*	table_share);	/*!< in: table share */
+
+/** Set up base columns for virtual column
+@param[in]	table	the InnoDB table
+@param[in]	field	MySQL field
+@param[in,out]	v_col	virtual column to be set up */
+void
+innodb_base_col_setup(
+	dict_table_t*	table,
+	const Field*	field,
+	dict_v_col_t*	v_col);
+
+/** whether this is a computed virtual column */
+#define innobase_is_v_fld(field) ((field)->gcol_info && !(field)->stored_in_db)
 
 /** Release temporary latches.
 Call this function when mysqld passes control to the client. That is to
@@ -957,3 +927,39 @@ innodb_rec_per_key(
 	dict_index_t*	index,
 	ulint		i,
 	ha_rows		records);
+
+/** Build template for the virtual columns and their base columns
+@param[in]	table		MySQL TABLE
+@param[in]	ib_table	InnoDB dict_table_t
+@param[in,out]	s_templ		InnoDB template structure
+@param[in]	add_v		new virtual columns added along with
+				add index call
+@param[in]	locked		true if innobase_share_mutex is held
+@param[in]	share_tbl_name	original MySQL table name */
+void
+innobase_build_v_templ(
+	const TABLE*		table,
+	const dict_table_t*	ib_table,
+	dict_vcol_templ_t*	s_templ,
+	const dict_add_v_col_t*	add_v,
+	bool			locked,
+	const char*		share_tbl_name);
+
+/** callback used by MySQL server layer to initialized
+the table virtual columns' template
+@param[in]	table		MySQL TABLE
+@param[in,out]	ib_table	InnoDB dict_table_t */
+void
+innobase_build_v_templ_callback(
+        const TABLE*	table,
+        void*		ib_table);
+
+/** Callback function definition, used by MySQL server layer to initialized
+the table virtual columns' template */
+typedef void (*my_gcolumn_templatecallback_t)(const TABLE*, void*);
+
+/** Get the computed value by supplying the base column values.
+@param[in,out]  table   the table whose virtual column template to be built */
+void
+innobase_init_vc_templ(
+        dict_table_t*   table);

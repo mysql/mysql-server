@@ -109,7 +109,7 @@ EXPLAIN
               "a",
               "b"
             ],
-            "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t1`.`b` = `test`.`t2`.`b`), true)"
+            "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t2`.`b` = `test`.`t1`.`b`), true)"
           }
         }
       ]
@@ -117,7 +117,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t1`.`b` = `test`.`t2`.`b`)) where 1 order by `test`.`t1`.`a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`b` = `test`.`t1`.`b`)) where 1 order by `test`.`t1`.`a`
 select * from t1 left join t2 on t1.b = t2.b order by t1.a;
 a	b	a	b
 1	a	NULL	NULL
@@ -1590,7 +1590,7 @@ EXPLAIN
               "a",
               "b"
             ],
-            "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t1`.`a` = `test`.`t2`.`a`), true)"
+            "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t2`.`a` = `test`.`t1`.`a`), true)"
           }
         }
       ]
@@ -1598,7 +1598,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t1`.`a` = `test`.`t2`.`a`)) where 1 order by `test`.`t1`.`b`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1 order by `test`.`t1`.`b`
 select * from t1 left join t2 on t1.a = t2.a order by t1.b;
 a	b	a	b
 1	ababab	NULL	NULL
@@ -1904,13 +1904,15 @@ analyze table t1,t3;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 test.t3	analyze	status	OK
+set @old_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='materialization=off';
 explain format=json select * from t3 where b in (select a from t1);
 EXPLAIN
 {
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "8.00"
+      "query_cost": "8.40"
     },
     "duplicates_removal": {
       "using_temporary_table": true,
@@ -1950,13 +1952,13 @@ EXPLAIN
               "test.t1.a"
             ],
             "rows_examined_per_scan": 1,
-            "rows_produced_per_join": 1,
+            "rows_produced_per_join": 3,
             "filtered": "100.00",
             "cost_info": {
               "read_cost": "3.00",
-              "eval_cost": "0.20",
-              "prefix_cost": "8.00",
-              "data_read_per_join": "616"
+              "eval_cost": "0.60",
+              "prefix_cost": "8.40",
+              "data_read_per_join": "1K"
             },
             "used_columns": [
               "a",
@@ -1977,6 +1979,7 @@ select * from t3 where b in (select a from t1);
 a	b	pk1	pk2	pk3
 1	1	1	1	1
 2	2	2	2	2
+set @@optimizer_switch=@old_optimizer_switch;
 update t1, t3 set t3.b=10, t1.a=20;
 select * from t1 order by 1,2;
 a	b
@@ -3098,6 +3101,24 @@ a
 set big_tables= @old_big_tables;
 set global innodb_limit_optimistic_insert_debug=
 @old_limit_optimistic_insert_debug;
+#
+# Bug#20454979 CRASH IN ACTUAL_KEY_PARTS 
+#
+create table t1(a blob);
+insert into t1 values ('a');
+# The query result is not correct until bug#20692219 is fixed
+select distinct least(1,count(distinct a)) from t1 group by a;
+least(1,count(distinct a))
+0
+drop table t1;
+#
+# Bug#21461026: INCONSISTEND CASING ON STORAGE ENGINE VARIABLE VALUE
+#
+SHOW GLOBAL VARIABLES LIKE '%\_storage\_engine';
+Variable_name	Value
+default_storage_engine	InnoDB
+default_tmp_storage_engine	InnoDB
+internal_tmp_disk_storage_engine	InnoDB
 set @@global.internal_tmp_disk_storage_engine= @old_internal_tmp_disk_storage_engine;
 set big_tables= @old_big_tables;
 set optimizer_switch= @old_optimizer_switch;

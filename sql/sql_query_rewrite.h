@@ -16,7 +16,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <mysql/plugin_query_rewrite.h>
+#include <mysql/plugin_audit.h>
 
 /**
   Calls the query rewrite plugins' respective rewrite functions before parsing
@@ -29,7 +29,9 @@ void invoke_pre_parse_rewrite_plugins(THD *thd);
 /**
   Enables digests in the parser state if any plugin needs it.
 
-  @param param ps This parser state will have digests enabled if any plugin
+  @param thd The session.
+
+  @param ps This parser state will have digests enabled if any plugin
   needs it.
 
   @note For the time being, only post-parse query rewrite plugins are able to
@@ -40,7 +42,9 @@ void enable_digest_if_any_plugin_needs_it(THD *thd, Parser_state *ps);
 
 /**
   Calls query rewrite plugins after parsing the query.
-  @param[in] thd the thread with the query to be rewritten
+
+  @param[in] thd The session with the query to be rewritten.
+  @param is_prepared True if the query was a prepared statement.
 */
 bool invoke_post_parse_rewrite_plugins(THD *thd, my_bool is_prepared);
 

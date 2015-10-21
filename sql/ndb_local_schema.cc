@@ -188,11 +188,14 @@ Ndb_local_schema::Table::frm_engine_is_ndb(void) const
   build_table_filename(buf, sizeof(buf)-1,
                        m_db, m_name, reg_ext, 0);
 
-  legacy_db_type engine_type;
-  (void)dd_frm_type(m_thd, buf, &engine_type);
-  DBUG_PRINT("info", ("engine_type: %d", engine_type));
-
-  return (engine_type == DB_TYPE_NDBCLUSTER);
+  handlerton *storage_engine;
+  (void) dd_frm_type_and_se(m_thd, buf, &storage_engine);
+  if (storage_engine)
+  {
+    DBUG_PRINT("info", ("engine_type: %d", storage_engine->db_type));
+    return (storage_engine->db_type == DB_TYPE_NDBCLUSTER);
+  }
+  return false;
 }
 
 

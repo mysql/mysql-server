@@ -230,8 +230,7 @@ select * from t2;
 a
 insert into t2 (a) values (1023);
 do (f2(23));
-Warnings:
-Error	1062	Duplicate entry '23' for key 'a'
+ERROR 23000: Duplicate entry '23' for key 'a'
 select * from t2;
 a
 1023

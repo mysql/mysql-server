@@ -17,7 +17,7 @@
 # Global constants, only to be changed between major releases.
 #
 
-SET(SHARED_LIB_MAJOR_VERSION "20")
+SET(SHARED_LIB_MAJOR_VERSION "21")
 SET(SHARED_LIB_MINOR_VERSION "0")
 SET(PROTOCOL_VERSION "10")
 SET(DOT_FRM_VERSION "6")
@@ -79,6 +79,8 @@ ENDMACRO()
 # Get mysql version and other interesting variables
 GET_MYSQL_VERSION()
 
+SET(SHARED_LIB_PATCH_VERSION ${PATCH_VERSION})
+
 SET(MYSQL_TCP_PORT_DEFAULT "3306")
 
 IF(NOT MYSQL_TCP_PORT)
@@ -97,8 +99,9 @@ IF(NOT COMPILATION_COMMENT)
 ENDIF()
 
 # Get the sys schema version from the mysql_sys_schema.sql file
+# however if compiling without performance schema, always use version 1.0.0
 MACRO(GET_SYS_SCHEMA_VERSION)
-  FILE (STRINGS ${CMAKE_SOURCE_DIR}/scripts/mysql_sys_schema.sql str REGEX "SELECT \\'([0-9]+\\.[0-9]+\\.[0-9]+)\\' AS")
+  FILE (STRINGS ${CMAKE_SOURCE_DIR}/scripts/mysql_sys_schema.sql str REGEX "SELECT \\'([0-9]+\\.[0-9]+\\.[0-9]+)\\' AS sys_version")
   IF(str)
     STRING(REGEX MATCH "([0-9]+\\.[0-9]+\\.[0-9]+)" SYS_SCHEMA_VERSION "${str}")
   ENDIF()

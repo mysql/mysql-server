@@ -16,8 +16,13 @@
 #ifndef _my_plugin_h
 #define _my_plugin_h
 
+/**
+  @file include/mysql/plugin.h
+*/
+
 #ifndef MYSQL_ABI_CHECK
 #include <stddef.h>
+#include "mysql_version.h" /* MYSQL_VERSION_ID */
 #endif
 
 /*
@@ -93,10 +98,8 @@ typedef struct st_mysql_xid MYSQL_XID;
 #define MYSQL_REPLICATION_PLUGIN     6	/* The replication plugin type */
 #define MYSQL_AUTHENTICATION_PLUGIN  7  /* The authentication plugin type */
 #define MYSQL_VALIDATE_PASSWORD_PLUGIN  8   /* validate password plugin type */
-#define MYSQL_REWRITE_PRE_PARSE_PLUGIN  9   /* Pre-parse query rewrite. */
-#define MYSQL_REWRITE_POST_PARSE_PLUGIN 10  /* Post-parse query rewrite. */
-#define MYSQL_GROUP_REPLICATION_PLUGIN  11  /* The Group Replication plugin */
-#define MYSQL_MAX_PLUGIN_TYPE_NUM    12  /* The number of plugin types   */
+#define MYSQL_GROUP_REPLICATION_PLUGIN  9  /* The Group Replication plugin */
+#define MYSQL_MAX_PLUGIN_TYPE_NUM    10  /* The number of plugin types   */
 
 /* We use the following strings to define licenses for plugins */
 #define PLUGIN_LICENSE_PROPRIETARY 0
@@ -458,6 +461,10 @@ DECLARE_MYSQL_THDVAR_SIMPLE(name, double) = { \
 #define THDVAR(thd, name) \
   (*(MYSQL_SYSVAR_NAME(name).resolve(thd, MYSQL_SYSVAR_NAME(name).offset)))
 
+#define THDVAR_SET(thd, name, value) \
+  plugin_thdvar_safe_update(thd, MYSQL_SYSVAR(name), \
+                            (char **) &THDVAR(thd, name), \
+                            (const char *) value);
 
 /*
   Plugin description structure.

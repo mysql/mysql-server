@@ -48,20 +48,11 @@ extern int	yydebug;
 NOT re-entrant */
 extern sym_tab_t*	pars_sym_tab_global;
 
-extern pars_res_word_t	pars_to_char_token;
-extern pars_res_word_t	pars_to_number_token;
 extern pars_res_word_t	pars_to_binary_token;
-extern pars_res_word_t	pars_binary_to_number_token;
 extern pars_res_word_t	pars_substr_token;
-extern pars_res_word_t	pars_replstr_token;
 extern pars_res_word_t	pars_concat_token;
 extern pars_res_word_t	pars_length_token;
 extern pars_res_word_t	pars_instr_token;
-extern pars_res_word_t	pars_sysdate_token;
-extern pars_res_word_t	pars_printf_token;
-extern pars_res_word_t	pars_assert_token;
-extern pars_res_word_t	pars_rnd_token;
-extern pars_res_word_t	pars_rnd_str_token;
 extern pars_res_word_t	pars_count_token;
 extern pars_res_word_t	pars_sum_token;
 extern pars_res_word_t	pars_distinct_token;
@@ -294,14 +285,6 @@ return_node_t*
 pars_return_statement(void);
 /*=======================*/
 /*********************************************************************//**
-Parses a procedure call.
-@return function node */
-func_node_t*
-pars_procedure_call(
-/*================*/
-	que_node_t*	res_word,/*!< in: procedure name reserved word */
-	que_node_t*	args);	/*!< in: argument list */
-/*********************************************************************//**
 Parses an assignment statement.
 @return assignment statement node */
 assign_node_t*
@@ -328,13 +311,6 @@ pars_open_statement(
 	ulint		type,	/*!< in: ROW_SEL_OPEN_CURSOR
 				or ROW_SEL_CLOSE_CURSOR */
 	sym_node_t*	cursor);	/*!< in: cursor node */
-/*********************************************************************//**
-Parses a row_printf-statement.
-@return row_printf-statement node */
-row_printf_node_t*
-pars_row_printf_statement(
-/*======================*/
-	sel_node_t*	sel_node);	/*!< in: select node */
 /*********************************************************************//**
 Parses a commit statement.
 @return own: commit node struct */
@@ -408,16 +384,6 @@ pars_procedure_definition(
 	sym_node_t*	param_list,	/*!< in: parameter declaration list */
 	que_node_t*	stat_list);	/*!< in: statement list */
 
-/*************************************************************//**
-Parses a stored procedure call, when this is not within another stored
-procedure, that is, the client issues a procedure call directly.
-In MySQL/InnoDB, stored InnoDB procedures are invoked via the
-parsed procedure tree, not via InnoDB SQL, so this function is not used.
-@return query graph */
-que_fork_t*
-pars_stored_procedure_call(
-/*=======================*/
-	sym_node_t*	sym_node);	/*!< in: stored procedure name */
 /******************************************************************//**
 Completes a query graph by adding query thread and fork nodes
 above it and prepares the graph for running. The fork created is of

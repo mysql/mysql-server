@@ -18,8 +18,8 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "my_global.h"
-#include "handler.h"                            // MAX_HA
 #include "m_string.h"                           // LEX_CSTRING
+#include "prealloced_array.h"
 
 class THD;
 struct TABLE;
@@ -192,11 +192,19 @@ private:
 class SE_cost_constants
 {
 public:
-  SE_cost_constants() : m_io_block_read_cost(IO_BLOCK_READ_COST),
+  SE_cost_constants() : m_memory_block_read_cost(MEMORY_BLOCK_READ_COST),
+    m_io_block_read_cost(IO_BLOCK_READ_COST),
+    m_memory_block_read_cost_default(true),
     m_io_block_read_cost_default(true)
   {}
 
   virtual ~SE_cost_constants() {}
+
+  /**
+    Cost of reading one random block from an in-memory database buffer.
+  */
+
+  double memory_block_read_cost() const { return m_memory_block_read_cost; }
 
   /**
     Cost of reading one random block from disk.
@@ -216,7 +224,7 @@ protected:
 
     @param name    name of cost constant
     @param value   new value
-    @param default specify whether the new value is a default value or
+    @param default_value specify whether the new value is a default value or
                    an engine specific value
 
     @return Status for updating the cost constant
@@ -268,7 +276,7 @@ protected:
     @param[in,out] cost_constant_is_default whether the current value has the
                                             default value or not
     @param new_value                        the new value for the cost constant
-    @param default_value_is_default         whether this is a new default value
+    @param new_value_is_default             whether this is a new default value
                                             or not
   */
 
@@ -280,12 +288,18 @@ private:
     This section specifies default values for cost constants.
   */
 
+  /// Default cost for reading a random block from an in-memory buffer
+  static const double MEMORY_BLOCK_READ_COST;
+
   /// Default cost for reading a random disk block
   static const double IO_BLOCK_READ_COST;
 
   /*
     This section specifies cost constants for the table
   */
+
+  /// Cost constant for reading a random block from an in-memory buffer
+  double m_memory_block_read_cost;
 
   /// Cost constant for reading a random disk block.
   double m_io_block_read_cost;
@@ -294,6 +308,9 @@ private:
     This section has boolean variables that is used for knowing whether
     the above cost variables is using the default value or not.
   */
+  
+  /// Whether the memory_block_read_cost is a default value or not
+  bool m_memory_block_read_cost_default;
 
   /// Whether the io_block_read_cost is a default value or not
   bool m_io_block_read_cost_default;
@@ -533,8 +550,11 @@ private:
   /// Cost constants for server operations
   Server_cost_constants m_server_constants;
 
-  /// Cost constants for storage engines
-  Cost_model_se_info m_engines[MAX_HA];
+  /**
+    Cost constants for storage engines
+    15 should be enough for most use cases, see PREALLOC_NUM_HA.
+  */
+  Prealloced_array<Cost_model_se_info, 15, false> m_engines;
 
   /// Reference counter for this set of cost constants.
   unsigned int m_ref_counter;

@@ -439,7 +439,7 @@ void cleanup_table_share_hash(void)
   @param thread The running thread.
   @returns The LF_HASH pins for the thread.
 */
-LF_PINS* get_table_share_hash_pins(PFS_thread *thread)
+static LF_PINS* get_table_share_hash_pins(PFS_thread *thread)
 {
   if (unlikely(thread->m_table_share_hash_pins == NULL))
   {
@@ -596,8 +596,8 @@ PFS_table_share::find_index_stat(uint index) const
 
 /**
   Find or create a table share index instrumentation.
-  @param server_share
-  @index index
+  @param server_share the server TABLE_SHARE structure
+  @param index the index
   @return a table share index, or NULL
 */
 PFS_table_share_index*
@@ -1148,7 +1148,8 @@ PFS_sync_key register_mutex_class(const char *name, uint name_length,
     Out of space, report to SHOW STATUS that
     the allocated memory was too small.
   */
-  mutex_class_lost++;
+  if (pfs_enabled)
+    mutex_class_lost++;
   return 0;
 }
 
@@ -1186,7 +1187,8 @@ PFS_sync_key register_rwlock_class(const char *name, uint name_length,
     return (index + 1);
   }
 
-  rwlock_class_lost++;
+  if (pfs_enabled)
+    rwlock_class_lost++;
   return 0;
 }
 
@@ -1223,7 +1225,8 @@ PFS_sync_key register_cond_class(const char *name, uint name_length,
     return (index + 1);
   }
 
-  cond_class_lost++;
+  if (pfs_enabled)
+    cond_class_lost++;
   return 0;
 }
 
@@ -1313,7 +1316,8 @@ PFS_thread_key register_thread_class(const char *name, uint name_length,
     return (index + 1);
   }
 
-  thread_class_lost++;
+  if (pfs_enabled)
+    thread_class_lost++;
   return 0;
 }
 
@@ -1366,7 +1370,8 @@ PFS_file_key register_file_class(const char *name, uint name_length,
     return (index + 1);
   }
 
-  file_class_lost++;
+  if (pfs_enabled)
+    file_class_lost++;
   return 0;
 }
 
@@ -1419,7 +1424,8 @@ PFS_stage_key register_stage_class(const char *name,
     return (index + 1);
   }
 
-  stage_class_lost++;
+  if (pfs_enabled)
+    stage_class_lost++;
   return 0;
 }
 
@@ -1456,7 +1462,8 @@ PFS_statement_key register_statement_class(const char *name, uint name_length,
     return (index + 1);
   }
 
-  statement_class_lost++;
+  if (pfs_enabled)
+    statement_class_lost++;
   return 0;
 }
 
@@ -1538,7 +1545,8 @@ PFS_socket_key register_socket_class(const char *name, uint name_length,
     return (index + 1);
   }
 
-  socket_class_lost++;
+  if (pfs_enabled)
+    socket_class_lost++;
   return 0;
 }
 
@@ -1584,12 +1592,13 @@ PFS_memory_key register_memory_class(const char *name, uint name_length,
     entry->m_enabled= false; /* disabled by default */
     /* Set user-defined configuration options for this instrument */
     configure_instr_class(entry);
-    entry->m_timed= false; /* unused anyway */
+    entry->m_timed= false; /* Immutable */
     PFS_atomic::add_u32(&memory_class_allocated_count, 1);
     return (index + 1);
   }
 
-  memory_class_lost++;
+  if (pfs_enabled)
+    memory_class_lost++;
   return 0;
 }
 

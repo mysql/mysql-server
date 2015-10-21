@@ -247,7 +247,6 @@ protected:
   */
   virtual int delete_row_values(TABLE *table, const unsigned char *buf,
                                 Field **fields);
-
   /**
     Constructor.
     @param share            table share
@@ -313,6 +312,8 @@ struct PFS_engine_table_share
   TABLE_FIELD_DEF *m_field_def;
   /** Schema integrity flag. */
   bool m_checked;
+  /** Table is available even if the Performance Schema is disabled. */
+  bool m_perpetual;
 };
 
 /**
@@ -409,6 +410,45 @@ public:
 /** Singleton instance of PFS_unknown_acl. */
 extern PFS_unknown_acl pfs_unknown_acl;
 
+
+/**
+  Privileges for world readable tables.
+*/
+class PFS_readonly_world_acl : public PFS_readonly_acl
+{
+public:
+  PFS_readonly_world_acl()
+  {}
+
+  ~PFS_readonly_world_acl()
+  {}
+  virtual ACL_internal_access_result check(ulong want_access, ulong *save_priv) const;
+};
+
+
+/** Singleton instance of PFS_readonly_world_acl */
+extern PFS_readonly_world_acl pfs_readonly_world_acl;
+
+
+/**
+Privileges for world readable truncatable tables.
+*/
+class PFS_truncatable_world_acl : public PFS_truncatable_acl
+{
+public:
+  PFS_truncatable_world_acl()
+  {}
+
+  ~PFS_truncatable_world_acl()
+  {}
+  virtual ACL_internal_access_result check(ulong want_access, ulong *save_priv) const;
+};
+
+
+/** Singleton instance of PFS_readonly_world_acl */
+extern PFS_truncatable_world_acl pfs_truncatable_world_acl;
+
+
 /** Position of a cursor, for simple iterations. */
 struct PFS_simple_index
 {
@@ -434,14 +474,14 @@ struct PFS_simple_index
     Set this index at a given position.
     @param other a position
   */
-  void set_at(const struct PFS_simple_index *other)
+  void set_at(const PFS_simple_index *other)
   { m_index= other->m_index; }
 
   /**
     Set this index after a given position.
     @param other a position
   */
-  void set_after(const struct PFS_simple_index *other)
+  void set_after(const PFS_simple_index *other)
   { m_index= other->m_index + 1; }
 
   /** Set this index to the next record. */
@@ -479,7 +519,7 @@ struct PFS_double_index
     Set this index at a given position.
     @param other a position
   */
-  void set_at(const struct PFS_double_index *other)
+  void set_at(const PFS_double_index *other)
   {
     m_index_1= other->m_index_1;
     m_index_2= other->m_index_2;
@@ -489,7 +529,7 @@ struct PFS_double_index
     Set this index after a given position.
     @param other a position
   */
-  void set_after(const struct PFS_double_index *other)
+  void set_after(const PFS_double_index *other)
   {
     m_index_1= other->m_index_1;
     m_index_2= other->m_index_2 + 1;
@@ -530,7 +570,7 @@ struct PFS_triple_index
     Set this index at a given position.
     @param other a position
   */
-  void set_at(const struct PFS_triple_index *other)
+  void set_at(const PFS_triple_index *other)
   {
     m_index_1= other->m_index_1;
     m_index_2= other->m_index_2;
@@ -541,7 +581,7 @@ struct PFS_triple_index
     Set this index after a given position.
     @param other a position
   */
-  void set_after(const struct PFS_triple_index *other)
+  void set_after(const PFS_triple_index *other)
   {
     m_index_1= other->m_index_1;
     m_index_2= other->m_index_2;

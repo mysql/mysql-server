@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* 
-   Data structures for mysys/my_alloc.c (root memory allocator)
+/**
+  @file include/my_alloc.h
+  Data structures for mysys/my_alloc.c (root memory allocator).
 */
 
 #ifndef _my_alloc_h
@@ -52,6 +53,19 @@ typedef struct st_mem_root
      MAX_BLOCK_USAGE_BEFORE_DROP block will be dropped in 'used' list)
   */
   unsigned int first_block_usage;
+
+  /*
+    Maximum amount of memory this mem_root can hold. A value of 0
+    implies there is no limit.
+  */
+  size_t max_capacity;
+
+  /* Allocated size for this mem_root */
+
+  size_t allocated_size;
+
+  /* Enable this for error reporting if capacity is exceeded */
+  my_bool error_for_capacity_exceeded;
 
   void (*error_handler)(void);
 

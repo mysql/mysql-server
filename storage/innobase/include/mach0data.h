@@ -141,7 +141,6 @@ mach_write_compressed(
 /*==================*/
 	byte*	b,	/*!< in: pointer to memory where to store */
 	ulint	n);	/*!< in: ulint integer to be stored */
-#ifdef UNIV_LOG_LSN_DEBUG
 /*********************************************************//**
 Returns the size of an ulint when written in the compressed form.
 @return compressed size in bytes */
@@ -151,7 +150,6 @@ mach_get_compressed_size(
 /*=====================*/
 	ulint	n)	/*!< in: ulint integer to be stored */
 	__attribute__((const));
-#endif /* UNIV_LOG_LSN_DEBUG */
 /** Read a 32-bit integer in a compressed form.
 @param[in,out]	b	pointer to memory where to read;
 advanced by the number of bytes consumed
@@ -252,6 +250,17 @@ mach_u64_read_much_compressed(
 /*==========================*/
 	const byte*	b)	/*!< in: pointer to memory from where to read */
 	__attribute__((warn_unused_result));
+
+/** Read a 64-bit integer in a much compressed form.
+@param[in,out]	ptr	pointer to memory where to read,
+advanced by the number of bytes consumed, or set NULL if out of space
+@param[in]	end_ptr	end of the buffer
+@return unsigned 64-bit integer */
+ib_uint64_t
+mach_parse_u64_much_compressed(
+	const byte**	ptr,
+	const byte*	end_ptr);
+
 /** Read a 32-bit integer in a compressed form.
 @param[in,out]	ptr	pointer to memory where to read;
 advanced by the number of bytes consumed, or set NULL if out of space

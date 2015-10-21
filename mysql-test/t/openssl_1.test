@@ -78,7 +78,7 @@ drop table t1;
 --exec echo "this query should not execute;" > $MYSQLTEST_VARDIR/tmp/test.sql
 --replace_regex /2026 SSL connection error.*/2026 SSL connection error: xxxx/
 --error 1
---exec $MYSQL_TEST --ssl-ca=$MYSQL_TEST_DIR/std_data/untrusted-cacert.pem --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+--exec $MYSQL_TEST --ssl --ssl-ca=$MYSQL_TEST_DIR/std_data/untrusted-cacert.pem --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 --echo
 
 #
@@ -87,7 +87,7 @@ drop table t1;
 #
 --replace_regex /2026 SSL connection error.*/2026 SSL connection error: xxxx/
 --error 1
---exec $MYSQL_TEST --ssl-ca= --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+--exec $MYSQL_TEST --ssl --ssl-ca= --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 --echo
 
 #
@@ -96,7 +96,7 @@ drop table t1;
 #
 --replace_regex /2026 SSL connection error.*/2026 SSL connection error: xxxx/
 --error 1
---exec $MYSQL_TEST --ssl-ca=nonexisting_file.pem --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+--exec $MYSQL_TEST --ssl --ssl-ca=nonexisting_file.pem --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 --echo
 
 #
@@ -104,14 +104,14 @@ drop table t1;
 # a blank client-key
 #
 --error 1
---exec $MYSQL_TEST --ssl-key= --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+--exec $MYSQL_TEST --ssl --ssl-key= --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 
 #
 # Test that we can't open connection to server if we are using
 # a blank client-cert
 #
 --error 1
---exec $MYSQL_TEST --ssl-cert= --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+--exec $MYSQL_TEST --ssl --ssl-cert= --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 
 #
 # Bug#21611 Slave can't connect when master-ssl-cipher specified
@@ -119,7 +119,7 @@ drop table t1;
 # - Usa a cipher that both yaSSL and OpenSSL supports
 #
 --exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit;" > $MYSQLTEST_VARDIR/tmp/test.sql
---exec $MYSQL_TEST --ssl-cipher=DHE-RSA-AES256-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+--exec $MYSQL_TEST --ssl --ssl-cipher=DHE-RSA-AES256-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 
 #
 # Bug#25309 SSL connections without CA certificate broken since MySQL 5.0.23
@@ -173,19 +173,19 @@ SET GLOBAL event_scheduler=0;
 # Test to connect using a list of ciphers
 #
 --exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit;" > $MYSQLTEST_VARDIR/tmp/test.sql
---exec $MYSQL_TEST --ssl-cipher=UNKNOWN-CIPHER:AES128-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+--exec $MYSQL_TEST --ssl --ssl-cipher=UNKNOWN-CIPHER:AES128-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 
 
 # Test to connect using a specifi cipher
 #
 --exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit;" > $MYSQLTEST_VARDIR/tmp/test.sql
---exec $MYSQL_TEST --ssl-cipher=AES128-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+--exec $MYSQL_TEST --ssl --ssl-cipher=AES128-SHA < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 
 # Test to connect using an unknown cipher
 #
 --exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit" > $MYSQLTEST_VARDIR/tmp/test.sql
 --error 1
---exec $MYSQL_TEST --ssl-cipher=UNKNOWN-CIPHER < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+--exec $MYSQL_TEST --ssl --ssl-cipher=UNKNOWN-CIPHER < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 
 #
 # Bug#27669 mysqldump: SSL connection error when trying to connect
@@ -215,31 +215,31 @@ DROP TABLE t1;
 #
 
 # Common ciphers to openssl and yassl
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-cipher=DHE-RSA-AES256-SHA
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-cipher=EDH-RSA-DES-CBC3-SHA
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-cipher=AES256-SHA
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-cipher=RC4-SHA
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl --ssl-cipher=DHE-RSA-AES256-SHA
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl --ssl-cipher=EDH-RSA-DES-CBC3-SHA
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl --ssl-cipher=AES256-SHA
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl --ssl-cipher=RC4-SHA
 --disable_query_log
 --disable_result_log
 
 # Below here caused crashes.  ################
 --error 1,0
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-cipher=NOT----EXIST
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl --ssl-cipher=NOT----EXIST
 # These probably exist but the server's keys can't be used to accept these kinds of connections.
 --error 1,0
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-cipher=DHE-DSS-AES128-RMD
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl --ssl-cipher=DHE-DSS-AES128-RMD
 --error 1,0
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-cipher=DHE-DSS-AES128-SHA
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl --ssl-cipher=DHE-DSS-AES128-SHA
 --error 1,0
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-cipher=DHE-DSS-AES256-RMD
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl --ssl-cipher=DHE-DSS-AES256-RMD
 --error 1,0
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-cipher=DHE-DSS-AES256-SHA
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl --ssl-cipher=DHE-DSS-AES256-SHA
 --error 1,0
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-cipher=DHE-DSS-DES-CBC3-RMD
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl --ssl-cipher=DHE-DSS-DES-CBC3-RMD
 --error 1,0
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-cipher=EDH-DSS-DES-CBC3-SHA
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl --ssl-cipher=EDH-DSS-DES-CBC3-SHA
 --error 1,0
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl-cipher=EDH-DSS-DES-CBC-SHA
+--exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl-cipher';" --ssl --ssl-cipher=EDH-DSS-DES-CBC-SHA
 # End of crashers.  ##########################
 
 # If this gives a result, then the bug is fixed.
@@ -269,9 +269,9 @@ set sql_mode= @orig_sql_mode;
 --echo #
 
 --echo # Must return empty
---exec $MYSQL --skip-ssl -e "SHOW STATUS LIKE 'Ssl-cipher';"
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --skip-ssl -e "SHOW STATUS LIKE 'Ssl-cipher';"
 --echo # Must return values for the certificate data
---exec $MYSQL --skip-ssl -e "SHOW STATUS LIKE 'Ssl_server_not%';"
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --skip-ssl -e "SHOW STATUS LIKE 'Ssl_server_not%';"
 
 --echo End of 5.7 tests
 

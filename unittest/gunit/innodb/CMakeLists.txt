@@ -30,6 +30,7 @@ SET(TESTS
   ha_innodb
   mem0mem
   ut0crc32
+  ut0lock_free_hash
   ut0mem
   ut0new
 )
@@ -38,6 +39,10 @@ IF (MERGE_UNITTESTS)
   SET(MERGE_INNODB_TESTS ${CMAKE_CURRENT_BINARY_DIR}/merge_innodb_tests-t.cc)
   SET_SOURCE_FILES_PROPERTIES(MERGE_INNODB_TESTS PROPERTIES GENERATED 1)
 
+  ADD_COMPILE_FLAGS(
+    ${MERGE_INNODB_TESTS}
+    COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+  )
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 
   FILE(WRITE ${MERGE_INNODB_TESTS} "// Merging InnoDB unit tests\n")
@@ -62,6 +67,12 @@ IF (MERGE_UNITTESTS)
   TARGET_LINK_LIBRARIES(merge_innodb_tests-t
     sql binlog rpl master slave sql)
 
+  # Download TBB from https://www.threadingbuildingblocks.org
+  #SET(TBB_INCDIR /path/to/tbb43_20150611oss/include)
+  #SET(TBB_LIBDIR /path/to/tbb43_20150611oss/build/linux_intel64_gcc_cc4.9.1_libc2.12_kernel2.6.39_release)
+  #TARGET_LINK_LIBRARIES(merge_innodb_tests-t tbb -L${TBB_LIBDIR} -Wl,-rpath=${TBB_LIBDIR})
+  #INCLUDE_DIRECTORIES(${TBB_INCDIR})
+
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
     TARGET_LINK_LIBRARIES(merge_innodb_tests-t perfschema)
   ENDIF()
@@ -72,6 +83,10 @@ IF (MERGE_UNITTESTS)
 
 ELSE()
 
+  ADD_COMPILE_FLAGS(
+    ut0lock_free_hash-t.cc
+    COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+  )
   FOREACH(test ${TESTS})
     SET(SRC_FILES ${test}-t.cc)
     IF(WIN32)

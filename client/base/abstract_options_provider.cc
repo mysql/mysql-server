@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,80 +25,81 @@ using std::vector;
 using std::string;
 using std::map;
 using namespace Mysql::Tools::Base::Options;
+using Mysql::Nullable;
 
 
 Simple_option* Abstract_options_provider::create_new_option(
-  string name, string description)
+  std::string name, std::string description)
 {
   return this->attach_new_option<Simple_option>(
     new Simple_option(name, description));
 }
 
 Disabled_option* Abstract_options_provider::create_new_disabled_option(
-  string name, string description)
+  std::string name, std::string description)
 {
   return this->attach_new_option<Disabled_option>(
     new Disabled_option(name, description));
 }
 
 Char_array_option* Abstract_options_provider::create_new_option(
-  char** value, string name, string description)
+  char** value, std::string name, std::string description)
 {
   return this->attach_new_option<Char_array_option>(
     new Char_array_option(value, false, name, description));
 }
 
 Password_option* Abstract_options_provider::create_new_password_option(
-  Nullable<string>* value, string name, string description)
+  Nullable<string>* value, std::string name, std::string description)
 {
   return this->attach_new_option<Password_option>(
     new Password_option(value, name, description));
 }
 
 String_option* Abstract_options_provider::create_new_option(
-  Nullable<string>* value, string name, string description)
+  Nullable<std::string>* value, std::string name, std::string description)
 {
   return this->attach_new_option<String_option>(
     new String_option(value, name, description));
 }
 
 Number_option<int32>* Abstract_options_provider::create_new_option(
-  int32* value, string name, string description)
+  int32* value, std::string name, std::string description)
 {
   return this->attach_new_option<Number_option<int32> >(
     new Number_option<int32>(value, name, description));
 }
 
 Number_option<uint32>* Abstract_options_provider::create_new_option(
-  uint32* value, string name, string description)
+  uint32* value, std::string name, std::string description)
 {
   return this->attach_new_option<Number_option<uint32> >(
     new Number_option<uint32>(value, name, description));
 }
 
 Number_option<int64>* Abstract_options_provider::create_new_option(
-  int64* value, string name, string description)
+  int64* value, std::string name, std::string description)
 {
   return this->attach_new_option<Number_option<int64> >(
     new Number_option<int64>(value, name, description));
 }
 
 Number_option<uint64>* Abstract_options_provider::create_new_option(
-  uint64* value, string name, string description)
+  uint64* value, std::string name, std::string description)
 {
   return this->attach_new_option<Number_option<uint64> >(
     new Number_option<uint64>(value, name, description));
 }
 
 Number_option<double>* Abstract_options_provider::create_new_option(
-  double* value, string name, string description)
+  double* value, std::string name, std::string description)
 {
   return this->attach_new_option<Number_option<double> >(
     new Number_option<double>(value, name, description));
 }
 
 Bool_option* Abstract_options_provider::create_new_option(
-  bool* value, string name, string description)
+  bool* value, std::string name, std::string description)
 {
   return this->attach_new_option<Bool_option>(
     new Bool_option(value, name, description));

@@ -40,7 +40,8 @@ public:
   Ndb_schema_objects()
   {
     (void)my_hash_init(&m_hash, &my_charset_bin, 1, 0, 0,
-                       (my_hash_get_key)ndb_schema_objects_get_key, 0, 0);
+                       (my_hash_get_key)ndb_schema_objects_get_key, 0, 0,
+                       PSI_INSTRUMENT_ME);
   }
 
   ~Ndb_schema_objects()

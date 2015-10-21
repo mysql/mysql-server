@@ -137,10 +137,11 @@ static bool init_fields(THD *thd, TABLE_LIST *tables,
     found exactly one topic.
 */
 
-void memorize_variant_topic(THD *thd, TABLE *topics, int count,
-			    struct st_find_field *find_fields,
-			    List<String> *names,
-			    String *name, String *description, String *example)
+static void memorize_variant_topic(THD *thd, TABLE *topics, int count,
+                                   struct st_find_field *find_fields,
+                                   List<String> *names,
+                                   String *name, String *description,
+                                   String *example)
 {
   DBUG_ENTER("memorize_variant_topic");
   MEM_ROOT *mem_root= thd->mem_root;
@@ -187,9 +188,10 @@ void memorize_variant_topic(THD *thd, TABLE *topics, int count,
 
 */
 
-int search_topics(THD *thd, QEP_TAB *topics, struct st_find_field *find_fields,
-		  List<String> *names,
-		  String *name, String *description, String *example)
+static int search_topics(THD *thd, QEP_TAB *topics,
+                         struct st_find_field *find_fields,
+                         List<String> *names,
+                         String *name, String *description, String *example)
 {
   int count= 0;
   READ_RECORD read_record_info;
@@ -231,8 +233,9 @@ int search_topics(THD *thd, QEP_TAB *topics, struct st_find_field *find_fields,
     2   found more then one topic matching the mask
 */
 
-int search_keyword(THD *thd, QEP_TAB *keywords, struct st_find_field *find_fields,
-                   int *key_id)
+static int search_keyword(THD *thd, QEP_TAB *keywords,
+                          struct st_find_field *find_fields,
+                          int *key_id)
 {
   int count= 0;
   READ_RECORD read_record_info;
@@ -281,10 +284,11 @@ int search_keyword(THD *thd, QEP_TAB *keywords, struct st_find_field *find_field
     exactly one topic was found.
 */
 
-int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
-			   struct st_find_field *find_fields, int16 key_id,
-			   List<String> *names,
-			   String *name, String *description, String *example)
+static int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
+                                  struct st_find_field *find_fields,
+                                  int16 key_id, List<String> *names,
+                                  String *name, String *description,
+                                  String *example)
 {
   uchar buff[8];	// Max int length
   int count= 0;
@@ -327,7 +331,7 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
     uchar topic_id_buff[8];
     longlong topic_id= rtopic_id->val_int();
     Field *field= find_fields[help_topic_help_topic_id].field;
-    field->store((longlong) topic_id, TRUE);
+    field->store(topic_id, TRUE);
     field->get_key_image(topic_id_buff, field->pack_length(), Field::itRAW);
 
     if (!topics->file->ha_index_read_map(topics->record[0], topic_id_buff,
@@ -361,9 +365,9 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
     #			Number of categories found
 */
 
-int search_categories(THD *thd, QEP_TAB *categories,
-		      struct st_find_field *find_fields,
-		      List<String> *names, int16 *res_id)
+static int search_categories(THD *thd, QEP_TAB *categories,
+                             struct st_find_field *find_fields,
+                             List<String> *names, int16 *res_id)
 {
   Field *pfname= find_fields[help_category_name].field;
   Field *pcat_id= find_fields[help_category_help_category_id].field;
@@ -403,8 +407,8 @@ int search_categories(THD *thd, QEP_TAB *categories,
     res     list of finded names
 */
 
-void get_all_items_for_category(THD *thd, QEP_TAB *items, Field *pfname,
-				List<String> *res)
+static void get_all_items_for_category(THD *thd, QEP_TAB *items, Field *pfname,
+                                       List<String> *res)
 {
   READ_RECORD read_record_info;
   DBUG_ENTER("get_all_items_for_category");
@@ -451,7 +455,7 @@ void get_all_items_for_category(THD *thd, QEP_TAB *items, Field *pfname,
     0		Successeful send
 */
 
-int send_answer_1(THD *thd, String *s1, String *s2, String *s3)
+static int send_answer_1(THD *thd, String *s1, String *s2, String *s3)
 {
   DBUG_ENTER("send_answer_1");
   List<Item> field_list;
@@ -494,7 +498,7 @@ int send_answer_1(THD *thd, String *s1, String *s2, String *s3)
     result of protocol->send_result_set_metadata
 */
 
-int send_header_2(THD *thd, bool for_category)
+static int send_header_2(THD *thd, bool for_category)
 {
   DBUG_ENTER("send_header_2");
   List<Item> field_list;
@@ -542,9 +546,9 @@ extern "C" int string_ptr_cmp(const void* ptr1, const void* ptr2)
     0	Data was successefully send
 */
 
-int send_variant_2_list(MEM_ROOT *mem_root, Protocol *protocol,
-			List<String> *names,
-			const char *cat, String *source_name)
+static int send_variant_2_list(MEM_ROOT *mem_root, Protocol *protocol,
+                               List<String> *names,
+                               const char *cat, String *source_name)
 {
   DBUG_ENTER("send_variant_2_list");
 
@@ -586,8 +590,8 @@ int send_variant_2_list(MEM_ROOT *mem_root, Protocol *protocol,
   'tab'
 */
 
-bool prepare_simple_select(THD *thd, Item *cond,
-                           TABLE *table, QEP_TAB *tab)
+static bool prepare_simple_select(THD *thd, Item *cond,
+                                  TABLE *table, QEP_TAB *tab)
 {
   if (!cond->fixed)
     cond->fix_fields(thd, &cond);	// can never fail
@@ -630,9 +634,9 @@ bool prepare_simple_select(THD *thd, Item *cond,
   @see prepare_simple_select()
 */
 
-bool prepare_select_for_name(THD *thd, const char *mask, size_t mlen,
-                             TABLE_LIST *tables, TABLE *table,
-                             Field *pfname, QEP_TAB *tab)
+static bool prepare_select_for_name(THD *thd, const char *mask, size_t mlen,
+                                    TABLE_LIST *tables, TABLE *table,
+                                    Field *pfname, QEP_TAB *tab)
 {
   Item *cond= new Item_func_like(new Item_field(pfname),
 				 new Item_string(mask,mlen,pfname->charset()),

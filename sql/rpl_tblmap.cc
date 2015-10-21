@@ -31,6 +31,14 @@
 table_mapping::table_mapping()
   : m_free(0)
 {
+  PSI_memory_key psi_key;
+
+#ifdef MYSQL_CLIENT
+  psi_key= PSI_NOT_INSTRUMENTED;
+#else
+  psi_key= key_memory_table_mapping_root;
+#endif
+
   /*
     No "free_element" function for entries passed here, as the entries are
     allocated in a MEM_ROOT (freed as a whole in the destructor), they cannot
@@ -40,15 +48,10 @@ table_mapping::table_mapping()
   */
   (void) my_hash_init(&m_table_ids,&my_charset_bin,TABLE_ID_HASH_SIZE,
 		   offsetof(entry,table_id),sizeof(ulonglong),
-		   0,0,0);
+                   0, 0, 0, psi_key);
   /* We don't preallocate any block, this is consistent with m_free=0 above */
-#ifdef MYSQL_CLIENT
-  init_alloc_root(PSI_NOT_INSTRUMENTED,
+  init_alloc_root(psi_key,
                   &m_mem_root, TABLE_ID_HASH_SIZE*sizeof(entry), 0);
-#else
-  init_alloc_root(key_memory_table_mapping_root,
-                  &m_mem_root, TABLE_ID_HASH_SIZE*sizeof(entry), 0);
-#endif
 }
 
 table_mapping::~table_mapping()

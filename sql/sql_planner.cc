@@ -122,7 +122,7 @@ Optimize_table_order::Optimize_table_order(THD *thd_arg, JOIN *join_arg,
                                     is added to the partial plan.
   @param prefix_rowcount            estimate for the number of records returned
                                     by the partial plan
-  @param found_condition [out]      whether or not there exists a condition
+  @param [out] found_condition      whether or not there exists a condition
                                     that filters away rows for this table.
                                     Always true when the function finds a
                                     usable 'ref' access, but also if it finds
@@ -133,9 +133,9 @@ Optimize_table_order::Optimize_table_order(THD *thd_arg, JOIN *join_arg,
                                     condition in question must be in the plan
                                     prefix for this to be 'true'. Unmodified
                                     if no relevant condition is found.
-  @param ref_depend_map [out]       tables the best ref access depends on.
+  @param [out] ref_depend_map       tables the best ref access depends on.
                                     Unmodified if no 'ref' access is found.
-  @param used_key_parts [out]       Number of keyparts 'ref' access uses.
+  @param [out] used_key_parts       Number of keyparts 'ref' access uses.
                                     Unmodified if no 'ref' access is found.
 
   @return pointer to Key_use for the index with best 'ref' access, NULL if
@@ -344,7 +344,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
         if ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME)
         {
           cur_read_cost= prev_record_reads(join, idx, table_deps) *
-                         table->cost_model()->io_block_read_cost();
+                         table->cost_model()->page_read_cost(1.0);
           cur_fanout= 1.0;
         }
         else
@@ -435,7 +435,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
           }
           else
             cur_read_cost= prefix_rowcount *
-              min(table->cost_model()->io_block_read_cost(tmp_fanout),
+              min(table->cost_model()->page_read_cost(tmp_fanout),
                   tab->worst_seeks);
         }
       }
@@ -629,7 +629,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
         }
         else
           cur_read_cost= prefix_rowcount *
-            min(table->cost_model()->io_block_read_cost(tmp_fanout),
+            min(table->cost_model()->page_read_cost(tmp_fanout),
                 tab->worst_seeks);
       }
       else
@@ -655,7 +655,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
       }
       // Actually it should be cur_fanout=0.0 (yes!) but 1.0 is probably safer
       cur_read_cost= prev_record_reads(join, idx, table_deps) *
-                     table->cost_model()->io_block_read_cost();
+                     table->cost_model()->page_read_cost(1.0);
       cur_fanout= 1.0;
     }
 
@@ -931,7 +931,7 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
 
   float filter_effect= 1.0;
 
-  thd->status_var.last_query_partial_plans++;
+  thd->m_current_query_partial_plans++;
 
   /*
     Cannot use join buffering if either
@@ -1411,9 +1411,23 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
 
   /*
     Cost calculations and picking the right join order assumes that a
-    positive number of output rows from each joined table. The code
-    below makes sure that even in the case of heavy filtering, the
-    number of rows output from a joined table is more than zero.
+    positive number of output rows from each joined table. We assume
+    that at least one row in the table match the condition.  Not all
+    code is able to cope with estimates of less than one row.  (For
+    example, DupsWeedout may include extra tables in its
+    duplicate-eliminating range in such cases.)
+  */
+  filter= max(filter, 1.0f / tab->records());
+
+  /*
+    For large tables, the restriction above may still give very small
+    numbers when calculating fan-out.  The code below makes sure that
+    there is a lower limit on fan-out.
+    TODO: Should evaluate whether this restriction makes sense.  It
+          can cause the estimated size of the result set to be
+          different for different join orders. However, some unwanted
+          effects on DBT-3 was observed when removing it, so keeping
+          it for now.
   */
   if ((filter * fanout) < 0.05f)
     filter= 0.05f/static_cast<float>(fanout);
@@ -1427,7 +1441,7 @@ cleanup:
 
 
 /**
-   @Returns a bitmap of bound semi-join equalities.
+   Returns a bitmap of bound semi-join equalities.
 
    If we consider (oe1, .. oeN) IN (SELECT ie1, .. ieN) then ieK=oeK is
    called sj-equality. If ieK or oeK depends only on tables available before
@@ -1885,7 +1899,7 @@ bool Optimize_table_order::choose_table_order()
       best_access_path() et al. when no filtering effect is possible.
     */
     join->where_cond->walk(&Item::add_field_to_cond_set_processor,
-                           Item::enum_walk(Item::WALK_POSTFIX), NULL);
+                           Item::WALK_POSTFIX, NULL);
   }
 
   if (straight_join)
@@ -2296,10 +2310,10 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables)
 /**
   Calculate a cost of given partial join order
  
-  @param join              Join to use. ::positions holds the partial join order
-  @param n_tables          Number of tables in the partial join order
-  @param cost_arg[out]     Store read time here 
-  @param rowcount_arg[out] Store record count here
+  @param join               Join to use. @c positions holds the partial join order
+  @param n_tables           Number of tables in the partial join order
+  @param [out] cost_arg     Store read time here 
+  @param [out] rowcount_arg Store record count here
 
     This is needed for semi-join materialization code. The idea is that 
     we detect sj-materialization after we've put all sj-inner tables into
@@ -2470,8 +2484,8 @@ void Optimize_table_order::consider_plan(uint             idx,
     the complexity of greedy_search is O(N!).
 
   @note
-    ::best_extension_by_limited_search() & ::eq_ref_extension_by_limited_search()
-    are closely related to each other and intentially implemented using the
+    @c best_extension_by_limited_search() and @c eq_ref_extension_by_limited_search()
+    are closely related to each other and intentionally implemented using the
     same pattern wherever possible. If a change/bug fix is done to either of
     these also consider if it is relevant for the other.
 
@@ -2604,7 +2618,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
       be uncond. swapped to maintain '#rows-ordered' best_ref[].
       This is critical for early pruning of bad plans.
     */
-    swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
+    std::swap(join->best_ref[idx], *pos);
 
     if ((remaining_tables & real_table_bit) && 
         !(eq_ref_extended & real_table_bit) &&
@@ -2816,10 +2830,10 @@ static inline bool almost_equal(double left, double right)
   1::1 relation between the rows being joined. Assuming we
   have multiple such 1::1 (star-)joined relations in a
   sequence, without other join types inbetween. Then all of 
-  these 'eq_ref-joins' will be estimated to return the excact 
-  same #rows and having identical 'cost' (or 'read_time').
+  these 'eq_ref-joins' will be estimated to return the exact 
+  same number of rows and having identical 'cost' (or 'read_time').
 
-  This leads to that we can append such a contigous sequence
+  This leads to that we can append such a contiguous sequence
   of eq_ref-joins to a partial plan in any order without 
   affecting the total cost of the query plan. Exploring the
   different permutations of these eq_refs in the 'greedy' 
@@ -2827,7 +2841,7 @@ static inline bool almost_equal(double left, double right)
 
   Once we have appended a single eq_ref-join to a partial
   plan, we may use eq_ref_extension_by_limited_search() to search 
-  'remaining_tables' for more eq_refs which will form a contigous
+  'remaining_tables' for more eq_refs which will form a contiguous
   set of eq_refs in the QEP.
 
   Effectively, this chain of eq_refs will be handled as a single
@@ -2852,8 +2866,8 @@ static inline bool almost_equal(double left, double right)
   corresponding cost of the optimal plan is in 'join->best_read'.
 
   @note
-    ::best_extension_by_limited_search() & ::eq_ref_extension_by_limited_search()
-    are closely related to each other and intentially implemented using the
+    @c best_extension_by_limited_search() and @c eq_ref_extension_by_limited_search()
+    are closely related to each other and intentionally implemented using the
     same pattern wherever possible. If a change/bug fix is done to either of
     these also consider if it is relevant for the other.
 
@@ -2950,7 +2964,7 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
       should be swapped to maintain '#rows' ordered tables.
       This is critical for early pruning of bad plans.
     */
-    swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
+    std::swap(join->best_ref[idx], *pos);
 
     /*
       Consider table for 'eq_ref' heuristic if:
@@ -3521,7 +3535,7 @@ bool Optimize_table_order::check_interleaving_with_nj(JOIN_TAB *tab)
   @param final            If true, use and update access path data in
                           join->best_positions, otherwise use join->positions
                           and update a local buffer.
-  @param[out] rowcount    New output row count
+  @param[out] newcount    New output row count
   @param[out] newcost     New join prefix cost
 
   @return True if strategy selection successful, false otherwise.
@@ -3696,7 +3710,7 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
   @param final             If true, use and update access path data in
                            join->best_positions, otherwise use join->positions
                            and update a local buffer.
-  @param[out] rowcount     New output row count
+  @param[out] newcount     New output row count
   @param[out] newcost      New join prefix cost
 
   @details
@@ -3782,7 +3796,7 @@ void Optimize_table_order::semijoin_mat_scan_access_paths(
 
   @param last_inner        Index of the last inner table
   @param sjm_nest          Pointer to semi-join nest for inner tables
-  @param[out] rowcount     New output row count
+  @param[out] newcount     New output row count
   @param[out] newcost      New join prefix cost
 
   @details
@@ -3860,6 +3874,7 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
   double cost, rowcount;
   double inner_fanout= 1.0;
   double outer_fanout= 1.0;
+  double max_outer_fanout= 1.0;
   uint rowsize;             // Row size of the temporary table
   if (first_tab == join->const_tables)
   {
@@ -3874,25 +3889,14 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
     rowsize= 8;             // This is not true but we'll make it so
   }
   /**
-    @todo: Some times, some outer fanout is "absorbed" into the inner fanout.
+    Some times, some outer fanout is "absorbed" into the inner fanout.
     In this case, we should make a better estimate for outer_fanout that
     is used to calculate the output rowcount.
-    Trial code:
-      if (inner_fanout > 1.0)
-      {
-       // We have inner table(s) before an outer table. If there are
-       // dependencies between these tables, the fanout for the outer
-       // table is not a good estimate for the final number of rows from
-       // the weedout execution, therefore we convert some of the inner
-       // fanout into an outer fanout, limited to the number of possible
-       // rows in the outer table.
-        double fanout= min(inner_fanout * p->rows_fetched,
-                           p->table->table->quick_condition_rows);
-        inner_fanout*= p->rows_fetched / fanout;
-        outer_fanout*= fanout;
-      }
-      else
-        outer_fanout*= p->rows_fetched;
+    If we have inner table(s) before an outer table, there are
+    dependencies between these tables. The fanout for the outer table is
+    not a good estimate for the final number of rows from the weedout
+    execution, therefore we convert some of the inner fanout into an outer
+    fanout, limited to the number of possible rows in the outer table.
   */
   for (uint j= first_tab; j <= last_tab; j++)
   {
@@ -3905,13 +3909,40 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
       inner_fanout*= p->rows_fetched * p->filter_effect;
     else
     {
-      outer_fanout*= p->rows_fetched * p->filter_effect;
+      /*
+        max_outer_fanout is the cardinality of the cross product
+        of the outer tables.
+        @note: We do not consider dependencies between these tables here.
+      */
+      double total_records= p->table->table()->file->stats.records;
+      max_outer_fanout*= total_records * p->filter_effect;
+      if (inner_fanout > 1.0 )
+      {
+        // Absorb inner fanout into the outer fanout
+        outer_fanout*= inner_fanout * p->rows_fetched * p->filter_effect;
+        inner_fanout= 1;
+      }
+      else
+        outer_fanout*= p->rows_fetched * p->filter_effect;
       rowsize+= p->table->table()->file->ref_length;
     }
   }
 
+  if (max_outer_fanout < outer_fanout)
+  {
+    /*
+      The calculated fanout for the outer tables is bigger than
+      the cardinality of the cross product of the outer tables.
+      Adjust outer fanout to the max value, but also adjust
+      inner fanout so that inner_fanout * outer_fanout is still
+      the same (dups weedout runs a complete join internally).
+    */
+    if (max_outer_fanout > 0.0)
+      inner_fanout*= outer_fanout / max_outer_fanout;
+    outer_fanout= max_outer_fanout;
+  }
+
   /*
-    @todo: Change this paragraph in concert with the todo note above.
     Add the cost of temptable use. The table will have outer_fanout rows,
     and we will make 
     - rowcount * outer_fanout writes
@@ -3967,6 +3998,7 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
           ..
         }
       }
+    }
 
     Most of the new state is saved in join->positions[idx] (and hence no undo
     is necessary).

@@ -53,7 +53,7 @@ static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables);
 
   @param fields            The insert fields to be checked.
   @param view              The view for insert.
-  @param insert_table_ref[out] Reference to table to insert into
+  @param [out] insert_table_ref Reference to table to insert into
 
   This function is called to check that the fields being inserted into
   are from a single base table. This must be checked when the table to
@@ -94,7 +94,6 @@ static bool check_single_table_insert(List<Item> &fields, TABLE_LIST *view,
   @param fields       The insert fields.
   @param value_count  Number of values supplied
   @param value_count_known if false, delay field count check
-                      @todo: Eliminate this when preparation is properly phased
   @param check_unique If duplicate values should be rejected.
 
   @return false if success, true if error
@@ -106,6 +105,7 @@ static bool check_single_table_insert(List<Item> &fields, TABLE_LIST *view,
         - Rearrange the call to check_insert_fields() from
           mysql_prepare_insert() so that the value_count is known also when
           processing a prepared statement.
+        - Eliminate value_count_known when preparation is properly phased
 */
 
 static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
@@ -175,7 +175,8 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
     */
     table_list->next_local= NULL;
     context->resolve_in_table_list_only(table_list);
-    res= setup_fields(thd, Ref_ptr_array(), fields, INSERT_ACL, 0, 0);
+    res= setup_fields(thd, Ref_ptr_array(), fields, INSERT_ACL, NULL,
+                      false, true);
 
     /* Restore the current context. */
     ctx_state.restore_state(context, table_list);
@@ -262,7 +263,7 @@ static bool check_valid_table_refs(const TABLE_LIST *view, List<Item> &values,
   Validates default value of fields which are not specified in
   the column list of INSERT statement.
 
-  @Note table->record[0] should be be populated with default values
+  @note table->record[0] should be be populated with default values
         before calling this function.
 
   @param thd              thread context
@@ -334,6 +335,84 @@ void prepare_triggers_for_insert_stmt(THD *thd, TABLE *table)
 }
 
 /**
+  Setup data for field BLOB/GEOMETRY field types for execution of
+  "INSERT...UPDATE" statement. For a expression in 'UPDATE' clause
+  like "a= VALUES(a)", let as call Field* referring 'a' as LHS_FIELD
+  and Field* referring field 'a' in "VALUES(a)" as RHS_FIELD
+
+  This function creates a separate copy of the blob value for RHS_FIELD,
+  if the field is updated as well as accessed through VALUES()
+  function in 'UPDATE' clause of "INSERT...UPDATE" statement.
+
+  @param [in] thd
+    Pointer to THD object.
+
+  @param [in] fields
+    List of fields representing LHS_FIELD of all expressions
+    in 'UPDATE' clause.
+
+  @return - Can fail only when we are out of memory.
+    @retval false   Success
+    @retval true    Failure
+*/
+
+bool mysql_prepare_blob_values(THD *thd, List<Item> &fields, MEM_ROOT *mem_root)
+{
+  DBUG_ENTER("mysql_prepare_blob_values");
+
+  if (fields.elements <= 1)
+    DBUG_RETURN(false);
+
+  // Collect LHS_FIELD's which are updated in a 'set'.
+  // This 'set' helps decide if we need to make copy of BLOB value
+  // or not.
+
+  Prealloced_array<Field_blob *, 16, true>
+    blob_update_field_set(PSI_NOT_INSTRUMENTED);
+  if (blob_update_field_set.reserve(fields.elements))
+    DBUG_RETURN(true);
+
+  List_iterator_fast<Item> f(fields);
+  Item *fld;
+  while ((fld= f++))
+  {
+    Item_field *field= fld->field_for_view_update();
+    Field *lhs_field= field->field;
+
+    if (lhs_field->type() == MYSQL_TYPE_BLOB ||
+        lhs_field->type() == MYSQL_TYPE_GEOMETRY)
+      blob_update_field_set.insert_unique(down_cast<Field_blob *>(lhs_field));
+  }
+
+  // Traverse through thd->lex->insert_update_values_map
+  // and make copy of BLOB values in RHS_FIELD, if the same field is
+  // modified (present in above 'set' prepared).
+  if (thd->lex->has_values_map())
+  {
+    std::map<Field *, Field *>::iterator iter;
+    for(iter= thd->lex->begin_values_map();
+        iter != thd->lex->end_values_map();
+        ++iter)
+    {
+      // Retrieve the Field_blob pointers from the map.
+      // and initialize newly declared variables immediately.
+      Field_blob *lhs_field= down_cast<Field_blob *>(iter->first);
+      Field_blob *rhs_field= down_cast<Field_blob *>(iter->second);
+
+      // Check if the Field_blob object is updated before making a copy.
+      if (blob_update_field_set.count_unique(lhs_field) == 0)
+        continue;
+
+      // Copy blob value
+      if(rhs_field->copy_blob_value(mem_root))
+        DBUG_RETURN(true);
+    }
+  }
+
+  DBUG_RETURN(false);
+}
+
+/**
   INSERT statement implementation
 
   @note Like implementations of other DDL/DML in MySQL, this function
@@ -361,7 +440,7 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
     emptiness of the first row is enough
     3) "INSERT VALUES (expr_1, ...), ..." so no defaults are needed; even if
     expr_i is "DEFAULT" (in which case the column is set by
-    Item_default_value::save_in_field()).
+    Item_default_value::save_in_field_inner()).
   */
   const bool manage_defaults=
     insert_field_list.elements != 0 ||          // 1)
@@ -378,7 +457,7 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
   enum partition_info::enum_can_prune can_prune_partitions=
                                                   partition_info::PRUNE_NO;
   MY_BITMAP used_partitions;
-  bool prune_needs_default_values;
+  bool prune_needs_default_values= false;
 
   SELECT_LEX *const select_lex= lex->select_lex;
 
@@ -481,7 +560,8 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
       my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
       goto exit_without_my_ok;
     }
-    if (setup_fields(thd, Ref_ptr_array(), *values, SELECT_ACL, 0, 0))
+    if (setup_fields(thd, Ref_ptr_array(), *values, SELECT_ACL, NULL,
+                     false, false))
       goto exit_without_my_ok;
 
     /*
@@ -788,7 +868,6 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
 	routines did not result in any error due to the KILLED.  In
 	such case the flag is ignored for constructing binlog event.
 	*/
-	DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
         if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                               thd->query().str, thd->query().length,
 			           transactional_table, FALSE, FALSE,
@@ -1085,7 +1164,7 @@ Sql_cmd_insert_base::mysql_prepare_insert_check_table(THD *thd,
 
   @param table     table(TABLE object) we insert into,
                    might be NULL in case of view
-  @param           table(TABLE_LIST object) or view we insert into
+  @param tables (TABLE_LIST object) or view we insert into
 */
 
 static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables)
@@ -1112,8 +1191,6 @@ static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables)
   @param thd                   Thread handler
   @param table_list            Global/local table list
   @param values                List of values to be inserted
-  @param duplic                What to do on duplicate key error
-  @param where                 Where clause (for insert ... select)
   @param select_insert         TRUE if INSERT ... SELECT statement
 
   @todo (in far future)
@@ -1216,14 +1293,14 @@ bool Sql_cmd_insert_base::mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
 
     if (!res)
       res= setup_fields(thd, Ref_ptr_array(),
-                        *values, SELECT_ACL, 0, 0);
+                        *values, SELECT_ACL, NULL, false, false);
     if (!res)
       res= check_valid_table_refs(table_list, *values, map);
 
     thd->lex->in_update_value_clause= true;
     if (!res)
       res= setup_fields(thd, Ref_ptr_array(),
-                        insert_value_list, SELECT_ACL, 0, 0);
+                        insert_value_list, SELECT_ACL, NULL, false, false);
     if (!res)
       res= check_valid_table_refs(table_list, insert_value_list, map);
     if (!res && lex->insert_table_leaf->table->vfield)
@@ -1238,7 +1315,7 @@ bool Sql_cmd_insert_base::mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
 #endif
       // Setup the columns to be updated
       res= setup_fields(thd, Ref_ptr_array(),
-                        insert_update_list, UPDATE_ACL, 0, 0);
+                        insert_update_list, UPDATE_ACL, NULL, false, true);
       if (!res)
         res= check_valid_table_refs(table_list, insert_update_list, map);
       if (!res && lex->insert_table_leaf->table->vfield)
@@ -1286,7 +1363,7 @@ bool Sql_cmd_insert_base::mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
 #endif
       // Setup the columns to be modified
       res= setup_fields(thd, Ref_ptr_array(),
-                        insert_update_list, UPDATE_ACL, 0, 0);
+                        insert_update_list, UPDATE_ACL, NULL, false, true);
       if (!res)
         res= check_valid_table_refs(table_list, insert_update_list, map);
 
@@ -1308,7 +1385,7 @@ bool Sql_cmd_insert_base::mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       thd->lex->in_update_value_clause= true;
       if (!res)
         res= setup_fields(thd, Ref_ptr_array(), insert_value_list,
-                          SELECT_ACL, 0, 0);
+                          SELECT_ACL, NULL, false, false);
       thd->lex->in_update_value_clause= false;
 
       /*
@@ -1347,6 +1424,9 @@ bool Sql_cmd_insert_base::mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
         table_list->prepare_replace_filter(thd))
       DBUG_RETURN(true);
   }
+
+  if (!select_insert && select_lex->apply_local_transforms(thd, false))
+    DBUG_RETURN(true);
 
   DBUG_RETURN(false);
 }
@@ -1416,8 +1496,14 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
   MY_BITMAP *save_read_set, *save_write_set;
   ulonglong prev_insert_id= table->file->next_insert_id;
   ulonglong insert_id_for_cur_row= 0;
+  MEM_ROOT mem_root;
   DBUG_ENTER("write_record");
 
+  /* Here we are using separate MEM_ROOT as this memory should be freed once we
+     exit write_record() function. This is marked as not instumented as it is
+     allocated for very short time in a very specific case.
+  */
+  init_sql_alloc(PSI_NOT_INSTRUMENTED, &mem_root, 256, 0);
   info->stats.records++;
   save_read_set=  table->read_set;
   save_write_set= table->write_set;
@@ -1511,7 +1597,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
       {
 	if (table->file->extra(HA_EXTRA_FLUSH_CACHE)) /* Not needed with NISAM */
 	{
-	  error=my_errno;
+	  error=my_errno();
 	  goto err;
 	}
 
@@ -1549,6 +1635,15 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
         */
 	DBUG_ASSERT(table->insert_values != NULL);
         store_record(table,insert_values);
+        /*
+          Special check for BLOB/GEOMETRY field in statements with
+          "ON DUPLICATE KEY UPDATE" clause.
+          See mysql_prepare_blob_values() function for more details.
+        */
+        if (mysql_prepare_blob_values(thd,
+                                      *update->get_changed_columns(),
+                                      &mem_root))
+           goto before_trg_err;
         restore_record(table,record[1]);
         DBUG_ASSERT(update->get_changed_columns()->elements ==
                     update->update_values->elements);
@@ -1792,6 +1887,7 @@ ok_or_after_trg_err:
   if (!table->file->has_transactions())
     thd->get_transaction()->mark_modified_non_trans_table(
       Transaction_ctx::STMT);
+  free_root(&mem_root, MYF(0));
   DBUG_RETURN(trg_error);
 
 err:
@@ -1810,6 +1906,7 @@ before_trg_err:
   if (key)
     my_safe_afree(key, table->s->max_unique_length, MAX_KEY_LENGTH);
   table->column_bitmaps_set(save_read_set, save_write_set);
+  free_root(&mem_root, MYF(0));
   DBUG_RETURN(1);
 }
 
@@ -1918,7 +2015,8 @@ int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   res= check_insert_fields(thd, table_list, *fields, values.elements, true,
                            !insert_into_view);
   if (!res)
-    res= setup_fields(thd, Ref_ptr_array(), values, SELECT_ACL, 0, 0);
+    res= setup_fields(thd, Ref_ptr_array(), values, SELECT_ACL, NULL,
+                      false, false);
 
   if (duplicate_handling == DUP_UPDATE && !res)
   {
@@ -1935,8 +2033,9 @@ int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     table_list->set_want_privilege(UPDATE_ACL);
 #endif
-    res= res || setup_fields(thd, Ref_ptr_array(),
-                             *update.get_changed_columns(), UPDATE_ACL, 0, 0);
+    if (!res)
+      res= setup_fields(thd, Ref_ptr_array(), *update.get_changed_columns(),
+                        UPDATE_ACL, NULL, false, true);
     /*
       When we are not using GROUP BY and there are no ungrouped aggregate
       functions 
@@ -1958,8 +2057,9 @@ int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
         ctx_state.get_first_name_resolution_table();
     }
     lex->in_update_value_clause= true;
-    res= res || setup_fields(thd, Ref_ptr_array(), *update.update_values,
-                             SELECT_ACL, 0, 0);
+    if (!res)
+      res= setup_fields(thd, Ref_ptr_array(), *update.update_values,
+                        SELECT_ACL, NULL, false, false);
     lex->in_update_value_clause= false;
     if (!res)
     {
@@ -2147,80 +2247,35 @@ bool Query_result_insert::send_data(List<Item> &values)
   error= write_record(thd, table, &info, &update);
   table->auto_increment_field_not_null= FALSE;
 
-  if (error)
-  {
-    if (thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
-        thd->is_current_stmt_binlog_format_row() &&
-        mysql_bin_log.is_open())
-    {
-      /*
-        In row based binlog format, CREATE...SELECT gets written to the
-        binary log as:
-          Anonymous_gtids_log_event (or Gtids_log_event)
-          CREATE
-          Anonymous_gtids_log_event (or Gtids_log_event)
-          BEGIN
-          row events
-          COMMIT
-        CREATE TABLE is logged into binary log, but the table is not created
-        in storage engine on the master, if error happens on DML part of
-        CREATE...SELECT. So we log a compensatory DROP TABLE Query-event for
-        the case.
-      */
-      TABLE_LIST *create_table= thd->lex->create_last_non_select_table;
-      const char *db= create_table->db;
-      size_t db_len= create_table->db_length;
-      String built_query;
+  DEBUG_SYNC(thd, "create_select_after_write_rows_event");
 
-      DBUG_ASSERT(db != NULL);
-      built_query.set_charset(system_charset_info);
-      built_query.append("DROP TABLE IF EXISTS ");
-      /* Don't write the database name if it is the current one. */
-      if (thd->db().str == NULL || strcmp(db, thd->db().str) != 0)
-      {
-        append_identifier(thd, &built_query, db, db_len,
-                          system_charset_info, thd->charset());
-        built_query.append(".");
-      }
-      append_identifier(thd, &built_query, create_table->table_name,
-                        strlen(create_table->table_name),
-                        system_charset_info, thd->charset());
-      built_query.append(" /* generated by server when error happens on DML part of CREATE...SELECT */");
-      thd->binlog_query(THD::STMT_QUERY_TYPE, built_query.ptr(),
-                        built_query.length(), false /* is_trans */,
-                        true/* direct */, false /* suppress_use */, 0);
-    }
-  }
-  else
+  if (!error &&
+      (table->triggers || info.get_duplicate_handling() == DUP_UPDATE))
   {
-    if (table->triggers || info.get_duplicate_handling() == DUP_UPDATE)
-    {
-      /*
-        Restore fields of the record since it is possible that they were
-        changed by ON DUPLICATE KEY UPDATE clause.
-    
-        If triggers exist then whey can modify some fields which were not
-        originally touched by INSERT ... SELECT, so we have to restore
-        their original values for the next row.
-      */
-      restore_record(table, s->default_values);
-    }
-    if (table->next_number_field)
-    {
-      /*
-        If no value has been autogenerated so far, we need to remember the
-        value we just saw, we may need to send it to client in the end.
-      */
-      if (thd->first_successful_insert_id_in_cur_stmt == 0) // optimization
-        autoinc_value_of_last_inserted_row= 
-          table->next_number_field->val_int();
-      /*
-        Clear auto-increment field for the next record, if triggers are used
-        we will clear it twice, but this should be cheap.
-      */
-      table->next_number_field->reset();
-    }
+    /*
+      Restore fields of the record since it is possible that they were
+      changed by ON DUPLICATE KEY UPDATE clause.
+      If triggers exist then whey can modify some fields which were not
+      originally touched by INSERT ... SELECT, so we have to restore
+      their original values for the next row.
+    */
+    restore_record(table, s->default_values);
   }
+  if (!error && table->next_number_field)
+  {
+    /*
+      If no value has been autogenerated so far, we need to remember the
+      value we just saw, we may need to send it to client in the end.
+    */
+    if (thd->first_successful_insert_id_in_cur_stmt == 0) // optimization
+      autoinc_value_of_last_inserted_row= table->next_number_field->val_int();
+    /*
+      Clear auto-increment field for the next record, if triggers are used
+      we will clear it twice, but this should be cheap.
+    */
+    table->next_number_field->reset();
+  }
+
   DBUG_RETURN(error);
 }
 
@@ -2314,10 +2369,10 @@ bool Query_result_insert::send_eof()
   if (error)
   {
     myf error_flags= MYF(0);
-    if (table->file->is_fatal_error(my_errno))
+    if (table->file->is_fatal_error(my_errno()))
       error_flags|= ME_FATALERROR;
 
-    table->file->print_error(my_errno, error_flags);
+    table->file->print_error(my_errno(), error_flags);
     DBUG_RETURN(1);
   }
 
@@ -2427,30 +2482,23 @@ void Query_result_insert::abort_result_set()
 
   Let "source table columns" be the set of columns in the SELECT list.
 
-  An interesting peculiarity in the syntax CREATE TABLE (<columns>) SELECT is
+  An interesting peculiarity in the syntax CREATE TABLE (@<columns@>) SELECT is
   that function defaults are stripped from the the source table columns, but
   not from the additional columns defined in the CREATE TABLE part. The first
   @c TIMESTAMP column there is also subject to promotion to @c TIMESTAMP @c
   DEFAULT @c CURRENT_TIMESTAMP @c ON @c UPDATE @c CURRENT_TIMESTAMP, as usual.
 
 
-  @param thd           [in]     Thread object
-  @param create_info   [in]     Create information (like MAX_ROWS, ENGINE or
+  @param [in] thd               Thread object
+  @param [in] create_info       Create information (like MAX_ROWS, ENGINE or
                                 temporary table flag)
-  @param create_table  [in]     Pointer to TABLE_LIST object providing database
+  @param [in] create_table      Pointer to TABLE_LIST object providing database
                                 and name for table to be created or to be open
-  @param alter_info    [in/out] Initial list of columns and indexes for the
+  @param [in,out] alter_info    Initial list of columns and indexes for the
                                 table to be created
-  @param items         [in]     The source table columns. Corresponding column
+  @param [in] items             The source table columns. Corresponding column
                                 definitions (Create_field's) will be added to
                                 the end of alter_info->create_list.
-  @param lock          [out]    Pointer to the MYSQL_LOCK object for table
-                                created will be returned in this parameter.
-                                Since this table is not included in THD::lock
-                                caller is responsible for explicitly unlocking
-                                this table.
-  @param hooks         [in]     Hooks to be invoked before and after obtaining
-                                table lock on the table being created.
 
   @note
     This function assumes that either table exists and was pre-opened and
@@ -2537,16 +2585,11 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       table_field= NULL;
     }
 
+    DBUG_ASSERT(tmp_table_field->gcol_info== NULL && tmp_table_field->stored_in_db);
     Create_field *cr_field= new Create_field(tmp_table_field, table_field);
 
     if (!cr_field)
       DBUG_RETURN(NULL);
-
-    /*
-      Inheriting vitual generated information is not allowed.
-    */
-    cr_field->gcol_info= NULL;
-    cr_field->stored_in_db= TRUE;
 
     if (item->maybe_null)
       cr_field->flags &= ~NOT_NULL_FLAG;
@@ -2881,14 +2924,18 @@ int Query_result_create::binlog_show_create_table(TABLE **tables, uint count)
   /*
     Note 1: In RBR mode, we generate a CREATE TABLE statement for the
     created table by calling store_create_info() (behaves as SHOW
-    CREATE TABLE).  In the event of an error, nothing should be
-    written to the binary log, even if the table is non-transactional;
-    therefore we pretend that the generated CREATE TABLE statement is
-    for a transactional table.  The event will then be put in the
-    transaction cache, and any subsequent events (e.g., table-map
-    events and binrow events) will also be put there.  We can then use
-    ha_autocommit_or_rollback() to either throw away the entire
-    kaboodle of events, or write them to the binary log.
+    CREATE TABLE). The 'CREATE TABLE' event will be put in the
+    binlog statement cache with an Anonymous_gtid_log_event, and
+    any subsequent events (e.g., table-map events and rows event)
+    will be put in the binlog transaction cache with an
+    Anonymous_gtid_log_event. So that the 'CREATE...SELECT'
+    statement is logged as:
+      Anonymous_gtid_log_event
+      CREATE TABLE event
+      Anonymous_gtid_log_event
+      BEGIN
+      rows event
+      COMMIT
 
     We write the CREATE TABLE statement here and not in prepare()
     since there potentially are sub-selects or accesses to information
@@ -2913,6 +2960,7 @@ int Query_result_create::binlog_show_create_table(TABLE **tables, uint count)
 
   if (mysql_bin_log.is_open())
   {
+    DEBUG_SYNC(thd, "create_select_before_write_create_event");
     int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
     result= thd->binlog_query(THD::STMT_QUERY_TYPE,
                               query.ptr(), query.length(),
@@ -2920,10 +2968,7 @@ int Query_result_create::binlog_show_create_table(TABLE **tables, uint count)
                               /* direct */ true,
                               /* suppress_use */ FALSE,
                               errcode);
-    thd->is_commit_in_middle_of_statement= true;
-    result |= mysql_bin_log.commit(thd, true);
-    thd->is_commit_in_middle_of_statement= false;
-    thd->pending_gtid_state_update= true;
+    DEBUG_SYNC(thd, "create_select_after_write_create_event");
   }
   DBUG_RETURN(result);
 }

@@ -41,6 +41,12 @@ Created 4/18/1996 Heikki Tuuri
 #include "log0recv.h"
 #include "os0file.h"
 
+/** TRUE if we don't have DDTableBuffer in the system tablespace,
+this should be due to we run the server against old data files.
+Please do NOT change this when server is running.
+FIXME: This should be removed away once we can upgrade for new DD. */
+extern bool    srv_missing_dd_table_buffer;
+
 /**********************************************************************//**
 Gets a pointer to the dictionary header and x-latches its page.
 @return pointer to the dictionary header, page x-latched */
@@ -192,6 +198,15 @@ dict_hdr_create(
 
 	ut_a(DICT_HDR_PAGE_NO == block->page.id.page_no());
 
+	/* We create the root page for DDTableBuffer here, right after
+	all dict_header things have been created. Because
+	FSP_TBL_BUFFER_TREE_ROOT_PAGE_NO is right after
+	FSP_DICT_HDR_PAGE_NO */
+	root_page_no = btr_create(DICT_CLUSTERED, 0, univ_page_size,
+				  DICT_TBL_BUFFER_ID, dict_ind_redundant,
+				  NULL, mtr);
+	ut_ad(root_page_no == FSP_TBL_BUFFER_TREE_ROOT_PAGE_NO);
+
 	dict_header = dict_hdr_get(mtr);
 
 	/* Start counting row, table, index, and tree ids from
@@ -337,7 +352,7 @@ dict_boot(void)
 	/* Insert into the dictionary cache the descriptions of the basic
 	system tables */
 	/*-------------------------*/
-	table = dict_mem_table_create("SYS_TABLES", DICT_HDR_SPACE, 8, 0, 0);
+	table = dict_mem_table_create("SYS_TABLES", DICT_HDR_SPACE, 8, 0, 0, 0);
 
 	dict_mem_table_add_col(table, heap, "NAME", DATA_BINARY, 0,
 			       MAX_FULL_NAME_LEN);
@@ -390,7 +405,8 @@ dict_boot(void)
 	ut_a(error == DB_SUCCESS);
 
 	/*-------------------------*/
-	table = dict_mem_table_create("SYS_COLUMNS", DICT_HDR_SPACE, 7, 0, 0);
+	table = dict_mem_table_create("SYS_COLUMNS", DICT_HDR_SPACE,
+				      7, 0, 0, 0);
 
 	dict_mem_table_add_col(table, heap, "TABLE_ID", DATA_BINARY, 0, 8);
 	dict_mem_table_add_col(table, heap, "POS", DATA_INT, 0, 4);
@@ -423,7 +439,7 @@ dict_boot(void)
 
 	/*-------------------------*/
 	table = dict_mem_table_create("SYS_INDEXES", DICT_HDR_SPACE,
-				      DICT_NUM_COLS__SYS_INDEXES, 0, 0);
+				      DICT_NUM_COLS__SYS_INDEXES, 0, 0, 0);
 
 	dict_mem_table_add_col(table, heap, "TABLE_ID", DATA_BINARY, 0, 8);
 	dict_mem_table_add_col(table, heap, "ID", DATA_BINARY, 0, 8);
@@ -456,7 +472,7 @@ dict_boot(void)
 	ut_a(error == DB_SUCCESS);
 
 	/*-------------------------*/
-	table = dict_mem_table_create("SYS_FIELDS", DICT_HDR_SPACE, 3, 0, 0);
+	table = dict_mem_table_create("SYS_FIELDS", DICT_HDR_SPACE, 3, 0, 0, 0);
 
 	dict_mem_table_add_col(table, heap, "INDEX_ID", DATA_BINARY, 0, 8);
 	dict_mem_table_add_col(table, heap, "POS", DATA_INT, 0, 4);
@@ -487,9 +503,13 @@ dict_boot(void)
 
 	/*-------------------------*/
 
-	/* Initialize the insert buffer table and index for each tablespace */
+	/* Initialize the insert buffer table, table buffer and indexes */
 
 	ibuf_init_at_db_start();
+
+	if (!srv_missing_dd_table_buffer) {
+		dict_persist->table_buffer = UT_NEW_NOKEY(DDTableBuffer());
+	}
 
 	dberr_t	err = DB_SUCCESS;
 

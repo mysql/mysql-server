@@ -16,11 +16,16 @@
 #ifndef TABLE_SESSION_ACCOUNT_CONNECT_ATTRS_H
 #define TABLE_SESSION_ACCOUNT_CONNECT_ATTRS_H
 
+/**
+  @file storage/perfschema/table_session_account_connect_attrs.h
+  TABLE SESSION_ACCOUNT_CONNECT_ATTRS.
+*/
+
 #include "table_session_connect.h"
 #include "thr_lock.h"
 
 /**
-  \addtogroup Performance_schema_tables
+  @addtogroup Performance_schema_tables
   @{
 */
 

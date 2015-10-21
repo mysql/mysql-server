@@ -58,46 +58,26 @@ const Gtid_set::String_format Gtid_set::commented_string_format=
 };
 
 
-Gtid_set::Gtid_set(Sid_map *_sid_map, Checkable_rwlock *_sid_lock
-#ifdef HAVE_PSI_INTERFACE
-                   ,PSI_mutex_key free_intervals_mutex_key
-#endif
-                  )
+Gtid_set::Gtid_set(Sid_map *_sid_map, Checkable_rwlock *_sid_lock)
   : sid_lock(_sid_lock), sid_map(_sid_map),
     m_intervals(key_memory_Gtid_set_Interval_chunk)
 {
-  init(
-#ifdef HAVE_PSI_INTERFACE
-       free_intervals_mutex_key
-#endif
-      );
+  init();
 }
 
 
 Gtid_set::Gtid_set(Sid_map *_sid_map, const char *text,
-                   enum_return_status *status, Checkable_rwlock *_sid_lock
-#ifdef HAVE_PSI_INTERFACE
-                   ,PSI_mutex_key free_intervals_mutex_key
-#endif
-                  )
+                   enum_return_status *status, Checkable_rwlock *_sid_lock)
   : sid_lock(_sid_lock), sid_map(_sid_map),
     m_intervals(key_memory_Gtid_set_Interval_chunk)
 {
   DBUG_ASSERT(_sid_map != NULL);
-  init(
-#ifdef HAVE_PSI_INTERFACE
-       free_intervals_mutex_key
-#endif
-      );
+  init();
   *status= add_gtid_text(text);
 }
 
 
-void Gtid_set::init(
-#ifdef HAVE_PSI_INTERFACE
-                    PSI_mutex_key free_intervals_mutex_key
-#endif
-                   )
+void Gtid_set::init()
 {
   DBUG_ENTER("Gtid_set::init");
   cached_string_length= -1;
@@ -105,7 +85,8 @@ void Gtid_set::init(
   chunks= NULL;
   free_intervals= NULL;
   if (sid_lock)
-    mysql_mutex_init(free_intervals_mutex_key, &free_intervals_mutex, NULL);
+    mysql_mutex_init(key_gtid_executed_free_intervals_mutex,
+                     &free_intervals_mutex, NULL);
 #ifndef DBUG_OFF
   n_chunks= 0;
 #endif
@@ -697,16 +678,29 @@ Gtid_set::remove_gno_intervals(rpl_sidno sidno,
                                Const_interval_iterator other_ivit,
                                Free_intervals_lock *lock)
 {
-  DBUG_ENTER("Gtid_set::remove_gno_intervals(rpl_sidno, Interval_iterator, bool *)");
+  DBUG_ENTER("Gtid_set::remove_gno_intervals(rpl_sidno, Interval_iterator, Free_intervals_lock *)");
   DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
   const Interval *other_iv;
   Interval_iterator ivit(this, sidno);
   while ((other_iv= other_ivit.get()) != NULL)
   {
     remove_gno_interval(&ivit, other_iv->start, other_iv->end, lock);
+    if (ivit.get() == NULL)
+      break;
     other_ivit.next();
   }
   DBUG_VOID_RETURN;
+}
+
+
+void Gtid_set::remove_intervals_for_sidno(Gtid_set *other, rpl_sidno sidno)
+{
+  // Currently only works if this and other use the same Sid_map.
+  DBUG_ASSERT(other->sid_map == sid_map || other->sid_map == NULL ||
+              sid_map == NULL);
+  Const_interval_iterator other_ivit(other, sidno);
+  Free_intervals_lock lock(this);
+  remove_gno_intervals(sidno, other_ivit, &lock);
 }
 
 
@@ -832,30 +826,48 @@ rpl_gno Gtid_set::get_last_gno(rpl_sidno sidno) const
   DBUG_RETURN(gno);
 }
 
-int Gtid_set::to_string(char **buf_arg, const Gtid_set::String_format *sf_arg) const
+int Gtid_set::to_string(char **buf_arg, bool need_lock,
+                        const Gtid_set::String_format *sf_arg) const
 {
   DBUG_ENTER("Gtid_set::to_string");
+  if (sid_lock != NULL)
+  {
+    if (need_lock)
+      sid_lock->wrlock();
+    else
+      sid_lock->assert_some_wrlock();
+  }
   int len= get_string_length(sf_arg);
   *buf_arg= (char *)my_malloc(key_memory_Gtid_set_to_string,
                               len + 1, MYF(MY_WME));
   if (*buf_arg == NULL)
     DBUG_RETURN(-1);
-  to_string(*buf_arg, sf_arg);
+  to_string(*buf_arg, false/*need_lock*/, sf_arg);
+  if (sid_lock != NULL && need_lock)
+    sid_lock->unlock();
   DBUG_RETURN(len);
 }
 
-int Gtid_set::to_string(char *buf, const Gtid_set::String_format *sf) const
+int Gtid_set::to_string(char *buf, bool need_lock,
+                        const Gtid_set::String_format *sf) const
 {
   DBUG_ENTER("Gtid_set::to_string");
   DBUG_ASSERT(sid_map != NULL);
   if (sid_lock != NULL)
-    sid_lock->assert_some_wrlock();
+  {
+    if (need_lock)
+      sid_lock->wrlock();
+    else
+      sid_lock->assert_some_wrlock();
+  }
   if (sf == NULL)
     sf= &default_string_format;
   if (sf->empty_set_string != NULL && is_empty())
   {
     memcpy(buf, sf->empty_set_string, sf->empty_set_string_length);
     buf[sf->empty_set_string_length]= '\0';
+    if (sid_lock != NULL && need_lock)
+      sid_lock->unlock();
     DBUG_RETURN(sf->empty_set_string_length);
   } 
   rpl_sidno map_max_sidno= sid_map->get_max_sidno();
@@ -910,6 +922,8 @@ int Gtid_set::to_string(char *buf, const Gtid_set::String_format *sf) const
   DBUG_PRINT("info", ("ret='%s' strlen(s)=%zu s-buf=%lu get_string_length=%d", buf,
              strlen(buf), (ulong) (s - buf), get_string_length(sf)));
   DBUG_ASSERT(s - buf == get_string_length(sf));
+  if (sid_lock != NULL && need_lock)
+    sid_lock->unlock();
   DBUG_RETURN((int)(s - buf));
 }
 

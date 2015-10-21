@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,8 +17,9 @@
 #ifndef MY_BIT_INCLUDED
 #define MY_BIT_INCLUDED
 
-/*
-  Some useful bit functions
+/**
+  @file include/my_bit.h
+  Some useful bit functions.
 */
 
 C_MODE_START

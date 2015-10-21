@@ -1,6 +1,6 @@
 #ifndef SQL_PLIST_H
 #define SQL_PLIST_H
-/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
 
 
 #include <my_global.h>
+
+#include <algorithm>
 
 template <typename T, typename L>
 class I_P_List_iterator;
@@ -139,7 +141,7 @@ public:
   }
   void swap(I_P_List<T, B, C> &rhs)
   {
-    swap_variables(T *, m_first, rhs.m_first);
+    std::swap(m_first, rhs.m_first);
     I::swap(rhs);
     if (m_first)
       *B::prev_ptr(m_first)= &m_first;
@@ -241,7 +243,7 @@ protected:
   void inc() {m_counter++;}
   void dec() {m_counter--;}
   void swap(I_P_List_counter &rhs)
-  { swap_variables(uint, m_counter, rhs.m_counter); }
+  { std::swap(m_counter, rhs.m_counter); }
 public:
   uint elements() const { return m_counter; }
 };
@@ -279,7 +281,7 @@ protected:
   void set_last(T **a) { m_last= a; }
   T** get_last() const { return m_last; }
   void swap(I_P_List_fast_push_back<T> &rhs)
-  { swap_variables(T**, m_last, rhs.m_last); }
+  { std::swap(m_last, rhs.m_last); }
 };
 
 #endif

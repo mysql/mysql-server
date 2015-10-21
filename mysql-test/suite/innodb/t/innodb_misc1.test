@@ -172,6 +172,7 @@ drop table t1, t2, t3, t4, t5, t6, t7, t8;
 
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
+SET GLOBAL innodb_default_row_format=compact;
 --error ER_INDEX_COLUMN_TOO_LONG
 create table t1 (col1 varchar(768) primary key)
  character set = latin1 engine = innodb;
@@ -184,10 +185,26 @@ create table t3 (col1 text, primary key(col1(768)))
 --error ER_INDEX_COLUMN_TOO_LONG
 create table t4 (col1 blob, primary key(col1(768)))
  character set = latin1 engine = innodb;
+
+SET GLOBAL innodb_default_row_format=dynamic;
+create table t1 (col1 varchar(768) primary key)
+ character set = latin1 engine = innodb;
+drop table t1;
+create table t2 (col1 varbinary(768) primary key)
+ character set = latin1 engine = innodb;
+drop table t2;
+create table t3 (col1 text, primary key(col1(768)))
+ character set = latin1 engine = innodb;
+drop table t3;
+create table t4 (col1 blob, primary key(col1(768)))
+ character set = latin1 engine = innodb;
+drop table t4;
+SET GLOBAL innodb_default_row_format=default;
 
 SET sql_mode = default;
 
 # these should be refused
+SET GLOBAL innodb_default_row_format=compact;
 --error ER_INDEX_COLUMN_TOO_LONG
 create table t1 (col1 varchar(768) primary key)
  character set = latin1 engine = innodb;
@@ -200,6 +217,7 @@ create table t3 (col1 text, primary key(col1(768)))
 --error ER_INDEX_COLUMN_TOO_LONG
 create table t4 (col1 blob, primary key(col1(768)))
  character set = latin1 engine = innodb;
+SET GLOBAL innodb_default_row_format=default;
 
 #
 # Test improved foreign key error messages (bug #3443)
@@ -961,11 +979,8 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 ALTER TABLE t2 ADD FOREIGN KEY (a) REFERENCES t1 (a) ON DELETE SET NULL;
 # NULL -> NOT NULL only allowed INPLACE if strict sql_mode is on.
-SET @old_sql_mode = @@sql_mode;
-SET @@sql_mode = 'STRICT_TRANS_TABLES';
 --error ER_FK_COLUMN_NOT_NULL
 ALTER TABLE t2 MODIFY a INT NOT NULL;
-SET @@sql_mode = @old_sql_mode;
 DELETE FROM t1;
 DROP TABLE t2,t1;
 

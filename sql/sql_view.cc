@@ -162,17 +162,14 @@ err:
   possibly generate a conforming name for them if not.
 
   @param  lex   LEX for this thread.
-
-  @retval false Operation was a success.
-  @retval true  An error occurred.
 */
-static bool make_valid_column_names(LEX *lex)
+
+static void make_valid_column_names(LEX *lex)
 {
   Item *item;
   size_t name_len;
   char buff[NAME_LEN];
   uint column_no= 1;
-  DBUG_ENTER("make_valid_column_names");
 
   for (SELECT_LEX *sl= lex->select_lex; sl; sl= sl->next_select())
   {
@@ -185,37 +182,7 @@ static bool make_valid_column_names(LEX *lex)
       item->orig_name= item->item_name;
       item->item_name.copy(buff, name_len);
     }
-
-    /*
-     There is a possibility of generating same name for column in more than
-     one SELECT_LEX. For Example:
-
-       CREATE TABLE t1 (Name_exp_1 INT, Name_exp_2 INT, Name_exp_3 INT);
-       CREATE TABLE t2 (Name_exp_1 INT, Name_exp_2 INT, Name_exp_3 INT);
-
-       CREATE VIEW v1 AS SELECT '', t1.Name_exp_2 AS Name_exp_2 FROM t1
-                         UNION
-                         SELECT '', t2.Name_exp_1 AS Name_exp_1 from t2;
-
-     But, column names of the first SELECT_LEX is considered
-     for the output.
-
-        mysql> SELECT * FROM v1;
-        +------------+------------+
-        | Name_exp_1 | Name_exp_2 |
-        +------------+------------+
-        |            |          2 |
-        |            |          3 |
-        +------------+------------+
-
-     So, checking for duplicate names in only "sl", current
-     SELECT_LEX.
-    */
-    if (check_duplicate_names(sl->item_list, 1))
-      DBUG_RETURN(true);
   }
-
-  DBUG_RETURN(false);
 }
 
 
@@ -277,7 +244,7 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
 
   @param thd thread handler
   @param tables tables used in the view
-  @param views views to create
+  @param view views to create
   @param mode VIEW_CREATE_NEW, VIEW_ALTER, VIEW_CREATE_OR_REPLACE
 
   @retval FALSE Operation was a success.
@@ -636,7 +603,14 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   }
 
   /* Check if the auto generated column names are conforming. */
-  if (make_valid_column_names(lex))
+  make_valid_column_names(lex);
+
+  /*
+    Only column names of the first select_lex should be checked for
+    duplication; any further UNION-ed part isn't used for determining
+    names of the view's columns.
+  */
+  if (check_duplicate_names(select_lex->item_list, 1))
   {
     res= TRUE;
     goto err;
@@ -721,53 +695,53 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   */
 
   if (!res)
-    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->db, view->table_name, false);
-
-  if (mysql_bin_log.is_open())
   {
-    String buff;
-    const LEX_STRING command[3]=
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->db, view->table_name, false);
+    if (mysql_bin_log.is_open())
+    {
+      String buff;
+      const LEX_STRING command[3]=
       {{ C_STRING_WITH_LEN("CREATE ") },
-       { C_STRING_WITH_LEN("ALTER ") },
-       { C_STRING_WITH_LEN("CREATE OR REPLACE ") }};
+        { C_STRING_WITH_LEN("ALTER ") },
+        { C_STRING_WITH_LEN("CREATE OR REPLACE ") }};
 
-    buff.append(command[thd->lex->create_view_mode].str,
-                command[thd->lex->create_view_mode].length);
-    view_store_options(thd, views, &buff);
-    buff.append(STRING_WITH_LEN("VIEW "));
-    /* Test if user supplied a db (ie: we did not use thd->db) */
-    if (views->db && views->db[0] &&
-        (thd->db().str == NULL || strcmp(views->db, thd->db().str)))
-    {
-      append_identifier(thd, &buff, views->db,
-                        views->db_length);
-      buff.append('.');
-    }
-    append_identifier(thd, &buff, views->table_name,
-                      views->table_name_length);
-    if (lex->view_list.elements)
-    {
-      List_iterator_fast<LEX_STRING> names(lex->view_list);
-      LEX_STRING *name;
-      int i;
-      
-      for (i= 0; (name= names++); i++)
+      buff.append(command[thd->lex->create_view_mode].str,
+                  command[thd->lex->create_view_mode].length);
+      view_store_options(thd, views, &buff);
+      buff.append(STRING_WITH_LEN("VIEW "));
+      /* Test if user supplied a db (ie: we did not use thd->db) */
+      if (views->db && views->db[0] &&
+          (thd->db().str == NULL || strcmp(views->db, thd->db().str)))
       {
-        buff.append(i ? ", " : "(");
-        append_identifier(thd, &buff, name->str, name->length);
+        append_identifier(thd, &buff, views->db,
+                          views->db_length);
+        buff.append('.');
       }
-      buff.append(')');
+      append_identifier(thd, &buff, views->table_name,
+                        views->table_name_length);
+      if (lex->view_list.elements)
+      {
+        List_iterator_fast<LEX_STRING> names(lex->view_list);
+        LEX_STRING *name;
+        int i;
+
+        for (i= 0; (name= names++); i++)
+        {
+          buff.append(i ? ", " : "(");
+          append_identifier(thd, &buff, name->str, name->length);
+        }
+        buff.append(')');
+      }
+      buff.append(STRING_WITH_LEN(" AS "));
+      buff.append(views->source.str, views->source.length);
+
+      int errcode= query_error_code(thd, TRUE);
+      thd->add_to_binlog_accessed_dbs(views->db);
+      if (thd->binlog_query(THD::STMT_QUERY_TYPE,
+                            buff.ptr(), buff.length(), FALSE, FALSE, FALSE, errcode))
+        res= TRUE;
     }
-    buff.append(STRING_WITH_LEN(" AS "));
-    buff.append(views->source.str, views->source.length);
-
-    int errcode= query_error_code(thd, TRUE);
-    thd->add_to_binlog_accessed_dbs(views->db);
-    if (thd->binlog_query(THD::STMT_QUERY_TYPE,
-                          buff.ptr(), buff.length(), FALSE, FALSE, FALSE, errcode))
-      res= TRUE;
   }
-
   if (mode != VIEW_CREATE_NEW)
     query_cache.invalidate(thd, view, FALSE);
   if (res)
@@ -1456,8 +1430,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
     }
   }
 
-  if (!(view_ref->view_tables=
-      (List<TABLE_LIST>*) new(thd->mem_root) List<TABLE_LIST>))
+  if (!(view_ref->view_tables= new(thd->mem_root) List<TABLE_LIST>))
   {
     result= true;
     DBUG_RETURN(true);
@@ -1516,8 +1489,15 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
     NOTE: It is important for UPDATE/INSERT/DELETE checks to have these
     tables just after view instead of at tail of list, to be able to check that
     table is unique. Also we store old next table for the same purpose.
+
+    If prelocking a view which has lock_type==TL_IGNORE we cannot add
+    the tables, as that would result in tables with
+    lock_type==TL_IGNORE being added to the prelocking set. That, in
+    turn, would lead to lock_external() being called on those tables,
+    which is not permitted (causes assert).
   */
-  if (view_tables)
+  if (view_tables && !(view_ref->prelocking_placeholder &&
+                       view_ref->lock_type == TL_IGNORE))
   {
     if (view_ref->next_global)
     {
@@ -1729,7 +1709,6 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   String non_existant_views;
   char *wrong_object_db= NULL, *wrong_object_name= NULL;
   bool error= FALSE;
-  enum legacy_db_type not_used;
   bool some_views_deleted= FALSE;
   bool something_wrong= FALSE;
   DBUG_ENTER("mysql_drop_view");
@@ -1756,7 +1735,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
                          view->db, view->table_name, reg_ext, 0);
 
     if (access(path, F_OK) || 
-        FRMTYPE_VIEW != (type= dd_frm_type(thd, path, &not_used)))
+        FRMTYPE_VIEW != (type= dd_frm_type(thd, path)))
     {
       if (thd->lex->drop_if_exists)
       {
@@ -1981,21 +1960,21 @@ bool insert_view_fields(THD *thd, List<Item> *list, TABLE_LIST *view)
   DBUG_ENTER("insert_view_fields");
 
   if (!(trans= view->field_translation))
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   trans_end= view->field_translation_end;
 
   for (Field_translator *entry= trans; entry < trans_end; entry++)
   {
-    Item_field *fld;
-    if ((fld= entry->item->field_for_view_update()))
-      list->push_back(fld);
-    else
+    Item_field *fld= entry->item->field_for_view_update();
+    if (fld == NULL)
     {
-      my_error(ER_NON_INSERTABLE_TABLE, MYF(0), view->alias, "INSERT");
+      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), entry->item->item_name.ptr());
       DBUG_RETURN(TRUE);
     }
+
+    list->push_back(fld);
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 /*

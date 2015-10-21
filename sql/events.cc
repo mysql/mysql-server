@@ -318,6 +318,10 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
   bool save_binlog_row_based, event_already_exists;
   DBUG_ENTER("Events::create_event");
 
+  DBUG_EXECUTE_IF("thd_killed_injection",
+                   thd->killed= THD::KILL_QUERY;
+                   DBUG_RETURN(FALSE););
+
   if (check_if_system_tables_error())
     DBUG_RETURN(TRUE);
 
@@ -1018,7 +1022,7 @@ PSI_stage_info *all_events_stages[]=
 
 static PSI_memory_info all_events_memory[]=
 {
-  { &key_memory_event_basic_root, "Event_basic::mem_root", 0}
+  { &key_memory_event_basic_root, "Event_basic::mem_root", PSI_FLAG_GLOBAL}
 };
 
 static void init_events_psi_keys(void)

@@ -42,6 +42,15 @@ Created 2014/01/16 Jimmy Yang
 
 #endif /* UNIV_HOTBACKUP */
 
+/** Restore the stored position of a persistent cursor bufferfixing the page */
+static
+bool
+rtr_cur_restore_position(
+	ulint		latch_mode,	/*!< in: BTR_SEARCH_LEAF, ... */
+	btr_cur_t*	cursor,		/*!< in: detached persistent cursor */
+	ulint		level,		/*!< in: index level */
+	mtr_t*		mtr);		/*!< in: mtr */
+
 /*************************************************************//**
 Pop out used parent path entry, until we find the parent with matching
 page number */
@@ -365,7 +374,7 @@ rtr_pcur_getnext_from_path(
 					rtr_store_parent_path(
 						block, btr_cur, rw_latch,
 						level, mtr);
-#endif
+#endif /* UNIV_DEBUG */
 				}
 			}
 		} else {
@@ -640,46 +649,18 @@ rtr_pcur_open_low(
 	}
 }
 
-/************************************************************//**
-Returns the father block to a page. It is assumed that mtr holds
-an X or SX latch on the tree.
-@return rec_get_offsets() of the node pointer record */
-ulint*
-rtr_page_get_father_block(
-/*======================*/
-	ulint*		offsets,/*!< in: work area for the return value */
-	mem_heap_t*	heap,	/*!< in: memory heap to use */
-	dict_index_t*	index,	/*!< in: b-tree index */
-	buf_block_t*	block,	/*!< in: child page in the index */
-	mtr_t*		mtr,	/*!< in: mtr */
-	btr_cur_t*	sea_cur,/*!< in: search cursor, contains information
-				about parent nodes in search */
-	btr_cur_t*	cursor)	/*!< out: cursor on node pointer record,
-				its page x-latched */
-{
-	rec_t*  rec = page_rec_get_next(
-		page_get_infimum_rec(buf_block_get_frame(block)));
-	btr_cur_position(index, rec, block, cursor);
-
-	return(rtr_page_get_father_node_ptr(offsets, heap, sea_cur,
-					    cursor, mtr));
-}
-
-/************************************************************//**
-Returns the upper level node pointer to a R-Tree page. It is assumed
-that mtr holds an x-latch on the tree.
+/** Returns the upper level node pointer to a R-Tree page. It is assumed
+that mtr holds an SX-latch or X-latch on the tree.
 @return	rec_get_offsets() of the node pointer record */
+static
 ulint*
-rtr_page_get_father_node_ptr_func(
-/*==============================*/
+rtr_page_get_father_node_ptr(
 	ulint*		offsets,/*!< in: work area for the return value */
 	mem_heap_t*	heap,	/*!< in: memory heap to use */
 	btr_cur_t*	sea_cur,/*!< in: search cursor */
 	btr_cur_t*	cursor,	/*!< in: cursor pointing to user record,
 				out: cursor on node pointer record,
 				its page x-latched */
-	const char*	file,	/*!< in: file name */
-	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	dtuple_t*	tuple;
@@ -759,6 +740,31 @@ rtr_page_get_father_node_ptr_func(
 	}
 
 	return(offsets);
+}
+
+/************************************************************//**
+Returns the father block to a page. It is assumed that mtr holds
+an X or SX latch on the tree.
+@return rec_get_offsets() of the node pointer record */
+ulint*
+rtr_page_get_father_block(
+/*======================*/
+	ulint*		offsets,/*!< in: work area for the return value */
+	mem_heap_t*	heap,	/*!< in: memory heap to use */
+	dict_index_t*	index,	/*!< in: b-tree index */
+	buf_block_t*	block,	/*!< in: child page in the index */
+	mtr_t*		mtr,	/*!< in: mtr */
+	btr_cur_t*	sea_cur,/*!< in: search cursor, contains information
+				about parent nodes in search */
+	btr_cur_t*	cursor)	/*!< out: cursor on node pointer record,
+				its page x-latched */
+{
+	rec_t*  rec = page_rec_get_next(
+		page_get_infimum_rec(buf_block_get_frame(block)));
+	btr_cur_position(index, rec, block, cursor);
+
+	return(rtr_page_get_father_node_ptr(offsets, heap, sea_cur,
+					    cursor, mtr));
 }
 
 /********************************************************************//**
@@ -882,9 +888,8 @@ get_parent:
 			/* There must be a rec in the path, if the path
 			is run out, the spatial index is corrupted. */
 			if (!ret) {
-				mutex_enter(&dict_sys->mutex);
-				dict_set_corrupted_index_cache_only(index);
-				mutex_exit(&dict_sys->mutex);
+
+				dict_set_corrupted(index);
 
 				ib::info() << "InnoDB: Corruption of a"
 					" spatial index " << index->name
@@ -953,7 +958,7 @@ rtr_create_rtr_info(
 
 		rtr_info->matches->bufp = page_align(rtr_info->matches->rec_buf
 						     + UNIV_PAGE_SIZE_MAX + 1);
-		mutex_create("rtr_match_mutex",
+		mutex_create(LATCH_ID_RTR_MATCH_MUTEX,
 			     &rtr_info->matches->rtr_match_mutex);
 		rw_lock_create(PFS_NOT_INSTRUMENTED,
 			       &(rtr_info->matches->block.lock),
@@ -963,7 +968,7 @@ rtr_create_rtr_info(
 	rtr_info->path = UT_NEW_NOKEY(rtr_node_path_t());
 	rtr_info->parent_path = UT_NEW_NOKEY(rtr_node_path_t());
 	rtr_info->need_prdt_lock = need_prdt;
-	mutex_create("rtr_path_mutex",
+	mutex_create(LATCH_ID_RTR_PATH_MUTEX,
 		     &rtr_info->rtr_path_mutex);
 
 	mutex_enter(&index->rtr_track->rtr_active_mutex);
@@ -1006,7 +1011,10 @@ rtr_init_rtr_info(
 		rtr_info->path = NULL;
 		rtr_info->parent_path = NULL;
 		rtr_info->matches = NULL;
-		mutex_create("rtr_path_mutex", &rtr_info->rtr_path_mutex);
+
+		mutex_create(LATCH_ID_RTR_PATH_MUTEX,
+			     &rtr_info->rtr_path_mutex);
+
 		memset(rtr_info->tree_blocks, 0x0,
 		       sizeof(rtr_info->tree_blocks));
 		memset(rtr_info->tree_savepoints, 0x0,
@@ -1133,7 +1141,7 @@ rtr_rebuild_path(
 	rtr_node_path_t::iterator	rit;
 #ifdef UNIV_DEBUG
 	ulint	before_size = rtr_info->path->size();
-#endif
+#endif /* UNIV_DEBUG */
 
 	for (rit = rtr_info->path->begin();
 	     rit != rtr_info->path->end(); ++rit) {
@@ -1148,13 +1156,13 @@ rtr_rebuild_path(
 		node_visit_t	rec = new_path->back();
 		ut_ad(rec.level < rtr_info->cursor->tree_height
 		      && rec.page_no > 0);
-#endif
+#endif /* UNIV_DEBUG */
 	}
 
 	UT_DELETE(rtr_info->path);
-#ifdef UNIV_DEBUG
+
 	ut_ad(new_path->size() == before_size - 1);
-#endif
+
 	rtr_info->path = new_path;
 
 	if (!rtr_info->parent_path->empty()) {
@@ -1250,16 +1258,13 @@ rtr_check_discard_page(
 	lock_mutex_exit();
 }
 
-/**************************************************************//**
-Restores the stored position of a persistent cursor bufferfixing the page */
+/** Restore the stored position of a persistent cursor bufferfixing the page */
+static
 bool
-rtr_cur_restore_position_func(
-/*==========================*/
-	ulint		latch_mode,	/*!< in: BTR_CONT_MODIFY_TREE, ... */
+rtr_cur_restore_position(
+	ulint		latch_mode,	/*!< in: BTR_SEARCH_LEAF, ... */
 	btr_cur_t*	btr_cur,	/*!< in: detached persistent cursor */
 	ulint		level,		/*!< in: index level */
-	const char*	file,		/*!< in: file name */
-	ulint		line,		/*!< in: line where called */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	dict_index_t*	index;
@@ -1288,8 +1293,9 @@ rtr_cur_restore_position_func(
 
 	if (!buf_pool_is_obsolete(r_cursor->withdraw_clock)
 	    && buf_page_optimistic_get(RW_X_LATCH,
-				    r_cursor->block_when_stored,
-				    r_cursor->modify_clock, file, line, mtr)) {
+				       r_cursor->block_when_stored,
+				       r_cursor->modify_clock,
+				       __FILE__, __LINE__, mtr)) {
 		ut_ad(r_cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 
 		ut_ad(r_cursor->rel_pos == BTR_PCUR_ON);
@@ -1325,7 +1331,7 @@ rtr_cur_restore_position_func(
 
 			mem_heap_free(heap);
 		} while (0);
-#endif
+#endif /* UNIV_DEBUG */
 
 		return(true);
 	}
@@ -1542,10 +1548,10 @@ rtr_copy_buf(
 	matches->block.frame = block->frame;
 #ifndef UNIV_HOTBACKUP
 	matches->block.unzip_LRU = block->unzip_LRU;
-#ifdef UNIV_DEBUG
-	matches->block.in_unzip_LRU_list = block->in_unzip_LRU_list;
-	matches->block.in_withdraw_list = block->in_withdraw_list;
-#endif /* UNIV_DEBUG */
+
+	ut_d(matches->block.in_unzip_LRU_list = block->in_unzip_LRU_list);
+	ut_d(matches->block.in_withdraw_list = block->in_withdraw_list);
+
 	/* Skip buf_block_t::mutex */
 	/* Skip buf_block_t::lock */
 	matches->block.lock_hash_val = block->lock_hash_val;
@@ -1561,9 +1567,9 @@ rtr_copy_buf(
 	matches->block.index = block->index;
 	matches->block.made_dirty_with_no_latch
 		= block->made_dirty_with_no_latch;
-#ifdef UNIV_SYNC_DEBUG
-	matches->block.debug_latch = block->debug_latch;
-#endif /* UNIV_SYNC_DEBUG */
+
+	ut_d(matches->block.debug_latch = block->debug_latch);
+
 #endif /* !UNIV_HOTBACKUP */
 }
 

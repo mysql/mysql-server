@@ -44,9 +44,10 @@ let $assert_text= SSS shows Slave_SQL_Running as "Yes". So, Service_State from t
 let $assert_cond= "$sss_value" = "Yes" AND "$ps_value"= "ON";
 source include/assert.inc;
 
+let $ss_value= query_get_value(SHOW STATUS LIKE 'Slave_retried_transactions', Value, 1);
 let $ps_value= query_get_value(select count_transactions_retries from performance_schema.replication_applier_status, count_transactions_retries, 1);
-let $assert_text= COUNT_TRANSACTION_RETRIES should be 0.;
-let $assert_cond= "$ps_value"= 0;
+let $assert_text= COUNT_TRANSACTION_RETRIES should be equal to Slave_retried_transactions.;
+let $assert_cond= "$ps_value"= "$ss_value";
 source include/assert.inc;
 
 --echo
@@ -61,9 +62,10 @@ let $assert_text= SSS shows Slave_SQL_Running as "No". So, Service_State from th
 let $assert_cond= "$sss_value" = "No" AND "$ps_value"= "OFF";
 source include/assert.inc;
 
+let $ss_value= query_get_value(SHOW STATUS LIKE 'Slave_retried_transactions', Value, 1);
 let $ps_value= query_get_value(select count_transactions_retries from performance_schema.replication_applier_status, count_transactions_retries, 1);
-let $assert_text= COUNT_TRANSACTION_RETRIES should be 0.;
-let $assert_cond= "$ps_value"= 0;
+let $assert_text= COUNT_TRANSACTION_RETRIES should be equal to Slave_retried_transactions.;
+let $assert_cond= "$ps_value"= "$ss_value";
 source include/assert.inc;
 
 source include/start_slave.inc;

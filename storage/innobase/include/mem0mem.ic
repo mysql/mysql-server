@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -61,14 +61,14 @@ mem_heap_block_free(
 	mem_heap_t*	heap,	/*!< in: heap */
 	mem_block_t*	block);	/*!< in: block to free */
 
-#ifndef UNIV_HOTBACKUP
+#ifndef UNIV_LIBRARY
 /******************************************************************//**
 Frees the free_block field from a memory heap. */
 void
 mem_heap_free_block_free(
 /*=====================*/
 	mem_heap_t*	heap);	/*!< in: heap */
-#endif /* !UNIV_HOTBACKUP */
+#endif /* !UNIV_LIBRARY */
 
 /***************************************************************//**
 Adds a new block to a memory heap.
@@ -302,11 +302,11 @@ mem_heap_empty(
 	mem_heap_t*	heap)
 {
 	mem_heap_free_heap_top(heap, (byte*) heap + mem_block_get_start(heap));
-#ifndef UNIV_HOTBACKUP
+#ifndef UNIV_LIBRARY
 	if (heap->free_block) {
 		mem_heap_free_block_free(heap);
 	}
-#endif /* !UNIV_HOTBACKUP */
+#endif /* !UNIV_LIBRARY */
 }
 
 /** Returns a pointer to the topmost element in a memory heap.
@@ -497,9 +497,11 @@ mem_heap_create_func(
 		return(NULL);
 	}
 
+#ifndef UNIV_LIBRARY
 	/* The first block should not be in buffer pool,
 	because it might be relocated to resize buffer pool. */
 	ut_ad(block->buf_block == NULL);
+#endif /* !UNIV_LIBRARY */
 
 	UT_LIST_INIT(block->base, &mem_block_t::list);
 
@@ -524,11 +526,11 @@ mem_heap_free(
 
 	block = UT_LIST_GET_LAST(heap->base);
 
-#ifndef UNIV_HOTBACKUP
+#ifndef UNIV_LIBRARY
 	if (heap->free_block) {
 		mem_heap_free_block_free(heap);
 	}
-#endif /* !UNIV_HOTBACKUP */
+#endif /* !UNIV_LIBRARY */
 
 	while (block != NULL) {
 		/* Store the contents of info before freeing current block
@@ -556,11 +558,11 @@ mem_heap_get_size(
 
 	size = heap->total_size;
 
-#ifndef UNIV_HOTBACKUP
+#ifndef UNIV_LIBRARY
 	if (heap->free_block) {
 		size += UNIV_PAGE_SIZE;
 	}
-#endif /* !UNIV_HOTBACKUP */
+#endif /* !UNIV_LIBRARY */
 
 	return(size);
 }

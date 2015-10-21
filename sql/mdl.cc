@@ -719,7 +719,8 @@ public:
           "obtrusive" set we have to acquire using "slow path" even locks of
           "unobtrusive" type.
 
-    @sa MDL_scoped_lock/MDL_object_lock::m_unobtrusive_lock_increment for
+    @see MDL_scoped_lock::m_unobtrusive_lock_increment and
+    @see MDL_object_lock::m_unobtrusive_lock_increment for
         definitions of these sets for scoped and per-object locks.
   */
   inline static fast_path_state_t
@@ -866,8 +867,8 @@ public:
     counters of specific types of "unobtrusive" locks which were granted using
     "fast path".
 
-    @sa MDL_scoped_lock::m_unobtrusive_lock_increment and
-        MDL_object_lock::m_unobtrusive_lock_increment for details about how
+    @see MDL_scoped_lock::m_unobtrusive_lock_increment and
+        @see MDL_object_lock::m_unobtrusive_lock_increment for details about how
         counts of different types of locks are packed into this field.
 
     @note Doesn't include "unobtrusive" locks granted using "slow path".
@@ -1179,7 +1180,7 @@ void MDL_map::destroy()
 /**
   Find MDL_lock object corresponding to the key.
 
-  @param[in/out]  pins     LF_PINS to be used for pinning pointers during
+  @param[in,out]  pins     LF_PINS to be used for pinning pointers during
                            look-up and returned MDL_lock object.
   @param[in]      mdl_key  Key for which MDL_lock object needs to be found.
   @param[out]     pinned   TRUE  - if MDL_lock object is pinned,
@@ -1237,7 +1238,7 @@ MDL_lock* MDL_map::find(LF_PINS *pins, const MDL_key *mdl_key, bool *pinned)
   Find MDL_lock object corresponding to the key, create it
   if it does not exist.
 
-  @param[in/out]  pins     LF_PINS to be used for pinning pointers during
+  @param[in,out]  pins     LF_PINS to be used for pinning pointers during
                            look-up and returned MDL_lock object.
   @param[in]      mdl_key  Key for which MDL_lock object needs to be found.
   @param[out]     pinned   TRUE  - if MDL_lock object is pinned,
@@ -1312,7 +1313,7 @@ static int mdl_lock_match_unused(const uchar *arg)
                                unused object. Primarily needed to generate
                                random value to be used for random dive into
                                the hash in MDL_map.
-  @param[in/out] pins          Pins for the calling thread to be used for
+  @param[in,out] pins          Pins for the calling thread to be used for
                                hash lookup and deletion.
   @param[out]    unused_locks  Number of unused lock objects after operation.
 
@@ -1517,9 +1518,12 @@ bool MDL_context::fix_pins()
   The MDL subsystem does not own or manage memory of lock requests.
 
   @param  mdl_namespace  Id of namespace of object to be locked
-  @param  db             Name of database to which the object belongs
-  @param  name           Name of of the object
-  @param  mdl_type       The MDL lock type for the request.
+  @param  db_arg         Name of database to which the object belongs
+  @param  name_arg       Name of of the object
+  @param  mdl_type_arg   The MDL lock type for the request.
+  @param  mdl_duration_arg   The MDL duration for the request.
+  @param  src_file       Source file name issuing the request.
+  @param  src_line       Source line number issuing the request.
 */
 
 void MDL_request::init_with_source(MDL_key::enum_mdl_namespace mdl_namespace,
@@ -1546,6 +1550,9 @@ void MDL_request::init_with_source(MDL_key::enum_mdl_namespace mdl_namespace,
 
   @param key_arg       The pre-built MDL key for the request.
   @param mdl_type_arg  The MDL lock type for the request.
+  @param mdl_duration_arg   The MDL duration for the request.
+  @param src_file      Source file name issuing the request.
+  @param src_line      Source line number issuing the request.
 */
 
 void MDL_request::init_by_key_with_source(const MDL_key *key_arg,
@@ -1868,8 +1875,6 @@ MDL_wait::timed_wait(MDL_context_owner *owner, struct timespec *abs_timeout,
   Clear bit corresponding to the type of metadata lock in bitmap representing
   set of such types if list of tickets does not contain ticket with such type.
 
-  @param[in,out]  bitmap  Bitmap representing set of types of locks.
-  @param[in]      list    List to inspect.
   @param[in]      type    Type of metadata lock to look up in the list.
 */
 
@@ -2782,7 +2787,7 @@ MDL_context::find_ticket(MDL_request *mdl_request,
   Returns immediately without any side effect if encounters a lock
   conflict. Otherwise takes the lock.
 
-  @param mdl_request [in/out] Lock request object for lock to be acquired
+  @param [in,out] mdl_request Lock request object for lock to be acquired
 
   @retval  FALSE   Success. The lock may have not been acquired.
                    Check the ticket, if it's NULL, a conflicting lock
@@ -2903,8 +2908,8 @@ void MDL_context::materialize_fast_path_locks()
 /**
   Auxiliary method for acquiring lock without waiting.
 
-  @param mdl_request [in/out] Lock request object for lock to be acquired
-  @param out_ticket  [out]    Ticket for the request in case when lock
+  @param [in,out] mdl_request Lock request object for lock to be acquired
+  @param [out] out_ticket     Ticket for the request in case when lock
                               has not been acquired.
 
   @retval  FALSE   Success. The lock may have not been acquired.
@@ -3449,9 +3454,9 @@ void MDL_lock::object_lock_notify_conflicting_locks(MDL_context *ctx, MDL_lock *
 /**
   Acquire one lock with waiting for conflicting locks to go away if needed.
 
-  @param mdl_request [in/out] Lock request object for lock to be acquired
+  @param [in,out] mdl_request Lock request object for lock to be acquired
 
-  @param lock_wait_timeout [in] Seconds to wait before timeout.
+  @param lock_wait_timeout Seconds to wait before timeout.
 
   @retval  FALSE   Success. MDL_request::ticket points to the ticket
                    for the lock.
@@ -4340,7 +4345,7 @@ void MDL_context::release_locks(MDL_release_locks_visitor *visitor)
 /**
   Downgrade an EXCLUSIVE or SHARED_NO_WRITE lock to shared metadata lock.
 
-  @param type  Type of lock to which exclusive lock should be downgraded.
+  @param new_type  Type of lock to which exclusive lock should be downgraded.
 */
 
 void MDL_ticket::downgrade_lock(enum_mdl_type new_type)
@@ -4589,9 +4594,35 @@ bool MDL_context::has_lock(const MDL_savepoint &mdl_savepoint,
 
 
 /**
+  Does this context have an lock of the given namespace?
+
+  @retval true    At least one lock of given namespace held
+  @retval false   No locks of the given namespace held
+*/
+
+bool MDL_context::has_locks(MDL_key::enum_mdl_namespace mdl_namespace) const
+{
+  MDL_ticket *ticket;
+
+  for (int i=0; i < MDL_DURATION_END; i++)
+  {
+    enum_mdl_duration duration= static_cast<enum_mdl_duration>(i);
+
+    Ticket_iterator it(m_tickets[duration]);
+    while ((ticket= it++))
+    {
+      if (ticket->get_key()->mdl_namespace() == mdl_namespace)
+        return true;
+    }
+  }
+  return false;
+}
+
+
+/**
   Change lock duration for transactional lock.
 
-  @param ticket   Ticket representing lock.
+  @param mdl_ticket Ticket representing lock.
   @param duration Lock duration to be set.
 
   @note This method only supports changing duration of

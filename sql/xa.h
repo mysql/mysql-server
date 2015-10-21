@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,10 @@ typedef int64 query_id_t;
 
 enum xa_option_words {XA_NONE, XA_JOIN, XA_RESUME, XA_ONE_PHASE,
                       XA_SUSPEND, XA_FOR_MIGRATE};
+
+static const int TC_HEURISTIC_NOT_USED= 0;
+static const int TC_HEURISTIC_RECOVER_COMMIT= 1;
+static const int TC_HEURISTIC_RECOVER_ROLLBACK= 2;
 
 /**
   This class represents SQL statement which starts an XA transaction
@@ -577,35 +581,6 @@ bool transaction_cache_init();
 
 
 /**
-  Search information about XA transaction by a XID value.
-
-  @param xid    Pointer to a XID structure that identifies a XA transaction.
-
-  @return  pointer to a Transaction_ctx that describes the whole transaction
-           including XA-specific information (XID_STATE).
-    @retval  NULL     failure
-    @retval  != NULL  success
-*/
-
-Transaction_ctx *transaction_cache_search(XID *xid);
-
-
-/**
-  Insert information about XA transaction into a cache indexed by XID.
-
-  @param xid     Pointer to a XID structure that identifies a XA transaction.
-  @param transaction
-                 Pointer to Transaction object that is inserted.
-
-  @return  operation result
-    @retval  false   success or a cache already contains XID_STATE
-                     for this XID value
-    @retval  true    failure
-*/
-
-bool transaction_cache_insert(XID *xid, Transaction_ctx *transaction);
-
-/**
   Transaction is marked in the cache as if it's recovered.
   The method allows to sustain prepared transaction disconnection.
 
@@ -619,21 +594,6 @@ bool transaction_cache_insert(XID *xid, Transaction_ctx *transaction);
 */
 
 bool transaction_cache_detach(Transaction_ctx *transaction);
-
-
-/**
-  Insert information about XA transaction being recovered into a cache
-  indexed by XID.
-
-  @param xid     Pointer to a XID structure that identifies a XA transaction.
-
-  @return  operation result
-    @retval  false   success or a cache already contains Transaction_ctx
-                     for this XID value
-    @retval  true    failure
-*/
-
-bool transaction_cache_insert_recovery(XID *xid);
 
 
 /**
@@ -660,7 +620,7 @@ void transaction_cache_free();
   THD of the slave applier is dissociated from a transaction object in engine
   that continues to exist there.
 
-  @param  THD current thread
+  @param  thd current thread
   @return the value of is_error()
 */
 
@@ -680,19 +640,11 @@ struct st_plugin_int *plugin_find_by_type(const LEX_CSTRING &plugin, int type);
 
   @param[in,out]     thd     Thread context
   @param             plugin  Reference to handlerton
+  @param             unused  Unused
 
   @return    FALSE   on success, TRUE otherwise.
 */
 
 my_bool detach_native_trx(THD *thd, plugin_ref plugin,
                                       void *unused);
-
-
-/**
-  The function restores previously saved storage engine transaction context.
-
-  @param     thd     Thread context
-*/
-
-void attach_native_trx(THD *thd);
 #endif

@@ -121,10 +121,9 @@ ALTER TABLE tables_priv
 ALTER TABLE tables_priv
   MODIFY Host char(60) NOT NULL default '',
   MODIFY Db char(64) NOT NULL default '',
-  MODIFY User char(16) NOT NULL default '',
+  MODIFY User char(32) NOT NULL default '',
   MODIFY Table_name char(64) NOT NULL default '',
   MODIFY Grantor char(77) NOT NULL default '',
-  ENGINE=MyISAM,
   CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
 
 ALTER TABLE tables_priv
@@ -149,10 +148,9 @@ ALTER TABLE columns_priv
 ALTER TABLE columns_priv
   MODIFY Host char(60) NOT NULL default '',
   MODIFY Db char(64) NOT NULL default '',
-  MODIFY User char(16) NOT NULL default '',
+  MODIFY User char(32) NOT NULL default '',
   MODIFY Table_name char(64) NOT NULL default '',
   MODIFY Column_name char(64) NOT NULL default '',
-  ENGINE=MyISAM,
   CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin,
   COMMENT='Column privileges';
 
@@ -216,8 +214,8 @@ alter table func comment='User defined functions';
 # and reset all char columns to correct width
 ALTER TABLE user
   MODIFY Host char(60) NOT NULL default '',
-  MODIFY User char(16) NOT NULL default '',
-  ENGINE=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+  MODIFY User char(32) NOT NULL default '',
+  CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
 ALTER TABLE user
   MODIFY Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   MODIFY Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
@@ -245,8 +243,8 @@ ALTER TABLE user
 ALTER TABLE db
   MODIFY Host char(60) NOT NULL default '',
   MODIFY Db char(64) NOT NULL default '',
-  MODIFY User char(16) NOT NULL default '',
-  ENGINE=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+  MODIFY User char(32) NOT NULL default '',
+  CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
 ALTER TABLE db
   MODIFY  Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   MODIFY  Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
@@ -393,7 +391,7 @@ UPDATE user LEFT JOIN db USING (Host,User) SET Create_user_priv='Y'
 #
 
 ALTER TABLE procs_priv
-  ENGINE=MyISAM,
+  MODIFY User char(32) NOT NULL default '',
   CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
 
 ALTER TABLE procs_priv
@@ -647,6 +645,9 @@ UPDATE user SET Create_tablespace_priv = Super_priv WHERE @hadCreateTablespacePr
 -- NOTE: until upgrade is finished, stored routines are not available,
 -- because system tables (e.g. mysql.proc) might be not usable.
 --
+SET @global_automatic_sp_privileges = @@GLOBAL.automatic_sp_privileges;
+SET GLOBAL automatic_sp_privileges = FALSE;
+
 drop procedure if exists mysql.die;
 create procedure mysql.die() signal sqlstate 'HY000' set message_text='Unexpected content found in the performance_schema database.';
 
@@ -662,6 +663,7 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 drop procedure mysql.die;
+SET GLOBAL automatic_sp_privileges = @global_automatic_sp_privileges;
 
 ALTER TABLE user ADD plugin char(64) DEFAULT 'mysql_native_password' NOT NULL,  ADD authentication_string TEXT;
 ALTER TABLE user MODIFY plugin char(64) DEFAULT 'mysql_native_password' NOT NULL;
@@ -688,6 +690,11 @@ DROP TABLE tmp_proxies_priv;
 
 -- Checking for any duplicate hostname and username combination are exists.
 -- If exits we will throw error.
+
+-- We also need to avoid accessing privilege tables.
+SET @global_automatic_sp_privileges = @@GLOBAL.automatic_sp_privileges;
+SET GLOBAL automatic_sp_privileges = FALSE;
+
 DROP PROCEDURE IF EXISTS mysql.warn_duplicate_host_names;
 CREATE PROCEDURE mysql.warn_duplicate_host_names() SIGNAL SQLSTATE '45000'  SET MESSAGE_TEXT = 'Multiple accounts exist for @user_name, @host_name that differ only in Host lettercase; remove all except one of them';
 SET @cmd='call mysql.warn_duplicate_host_names()';
@@ -700,6 +707,8 @@ EXECUTE stmt;
 SHOW WARNINGS;
 DROP PREPARE stmt;
 DROP PROCEDURE mysql.warn_duplicate_host_names;
+
+SET GLOBAL automatic_sp_privileges = @global_automatic_sp_privileges;
 
 # Convering the host name to lower case for existing users
 UPDATE user SET host=LOWER( host ) WHERE LOWER( host ) <> host;
@@ -731,6 +740,10 @@ ALTER TABLE ndb_binlog_index
 SET @deprecated_pwds=(SELECT COUNT(*) FROM mysql.user WHERE LENGTH(password) = 16);
 
 -- signal the deprecation error
+
+SET @global_automatic_sp_privileges = @@GLOBAL.automatic_sp_privileges;
+SET GLOBAL automatic_sp_privileges = FALSE;
+
 DROP PROCEDURE IF EXISTS mysql.warn_pre41_pwd;
 CREATE PROCEDURE mysql.warn_pre41_pwd() SIGNAL SQLSTATE '01000' SET MESSAGE_TEXT='Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.';
 SET @cmd='call mysql.warn_pre41_pwd()';
@@ -742,6 +755,7 @@ SHOW WARNINGS;
 DROP PREPARE stmt;
 DROP PROCEDURE mysql.warn_pre41_pwd;
 
+SET GLOBAL automatic_sp_privileges = @global_automatic_sp_privileges;
 --
 -- Add timestamp and expiry columns
 --
@@ -835,6 +849,9 @@ ALTER TABLE ndb_binlog_index
 -- Check for non-empty host table and issue a warning
 --
 
+SET @global_automatic_sp_privileges = @@GLOBAL.automatic_sp_privileges;
+SET GLOBAL automatic_sp_privileges = FALSE;
+
 DROP PROCEDURE IF EXISTS mysql.warn_host_table_nonempty;
 CREATE PROCEDURE mysql.warn_host_table_nonempty() SIGNAL SQLSTATE '01000' SET MESSAGE_TEXT='Table mysql.host is not empty. It is deprecated and will be removed in a future release.';
 SET @cmd='call mysql.warn_host_table_nonempty()';
@@ -857,6 +874,7 @@ SHOW WARNINGS;
 DROP PREPARE stmt;
 DROP PROCEDURE mysql.warn_host_table_nonempty;
 
+SET GLOBAL automatic_sp_privileges = @global_automatic_sp_privileges;
 --
 -- Upgrade help tables
 --
@@ -868,7 +886,8 @@ ALTER TABLE help_topic MODIFY url TEXT NOT NULL;
 -- Upgrade a table engine from MyISAM to InnoDB for the system tables
 -- help_topic, help_category, help_relation, help_keyword, plugin, servers,
 -- time_zone, time_zone_leap_second, time_zone_name, time_zone_transition,
--- time_zone_transition_type.
+-- time_zone_transition_type, columns_priv, db, procs_priv, proxies_priv,
+-- tables_priv, user.
 
 ALTER TABLE help_topic ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE help_category ENGINE=InnoDB STATS_PERSISTENT=0;
@@ -881,6 +900,12 @@ ALTER TABLE time_zone_leap_second ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE time_zone_name ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE time_zone_transition ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE time_zone_transition_type ENGINE=InnoDB STATS_PERSISTENT=0;
+ALTER TABLE db ENGINE=InnoDB STATS_PERSISTENT=0;
+ALTER TABLE user ENGINE=InnoDB STATS_PERSISTENT=0;
+ALTER TABLE tables_priv ENGINE=InnoDB STATS_PERSISTENT=0;
+ALTER TABLE columns_priv ENGINE=InnoDB STATS_PERSISTENT=0;
+ALTER TABLE procs_priv ENGINE=InnoDB STATS_PERSISTENT=0;
+ALTER TABLE proxies_priv ENGINE=InnoDB STATS_PERSISTENT=0;
 
 # Move any distributed grant tables back to NDB after upgrade
 SET @cmd="ALTER TABLE mysql.user ENGINE=NDB";

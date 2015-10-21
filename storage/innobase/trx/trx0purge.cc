@@ -236,7 +236,7 @@ trx_purge_sys_create(
 	rw_lock_create(trx_purge_latch_key,
 		       &purge_sys->latch, SYNC_PURGE_LATCH);
 
-	mutex_create("purge_sys_pq", &purge_sys->pq_mutex);
+	mutex_create(LATCH_ID_PURGE_SYS_PQ, &purge_sys->pq_mutex);
 
 	ut_a(n_purge_threads > 0);
 
@@ -876,7 +876,7 @@ namespace undo {
 
 		return(exist);
 	}
-};
+}
 
 /** Iterate over all the UNDO tablespaces and check if any of the UNDO
 tablespace qualifies for TRUNCATE (size > threshold).

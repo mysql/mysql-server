@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_profiling.inc
 
 # Verify that the protocol isn't violated if we ask for profiling info
@@ -299,7 +294,7 @@ commit;
 select @@profiling;
 --enable_warnings
 
-drop table if exists t1, t2, t3;
+drop table if exists t2, t1, t3;
 drop view if exists v1;
 drop function if exists f1;
 

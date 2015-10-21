@@ -1,0 +1,61 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#### I. Initialize ####
+[connection slave]
+include/stop_slave.inc
+SET @save.innodb_lock_wait_timeout= @@global.innodb_lock_wait_timeout;
+set @@global.innodb_lock_wait_timeout=5 + 1000;
+include/start_slave.inc
+[connection master]
+CREATE DATABASE d1;
+CREATE DATABASE d2;
+CREATE TABLE d1.t (a INT PRIMARY KEY, name text) ENGINE=INNODB;
+CREATE TABLE d2.t (a INT PRIMARY KEY, name text) ENGINE=INNODB;
+#### II. Prepare test scenario ####
+include/sync_slave_sql_with_master.inc
+BEGIN;
+INSERT INTO d2.t VALUES (2, 'Slave local');
+INSERT INTO d1.t VALUES (3, 'Slave local');
+[connection master]
+INSERT INTO d1.t VALUES (1, 'T1');
+INSERT INTO d2.t VALUES (1, 'T2');
+INSERT INTO d2.t VALUES (2, 'T3');
+INSERT INTO d2.t VALUES (3, 'T4');
+INSERT INTO d1.t VALUES (2, 'T5');
+INSERT INTO d1.t VALUES (3, 'T6');
+INSERT INTO d2.t VALUES (4, 'T7');
+INSERT INTO d2.t VALUES (5, 'T8');
+INSERT INTO d1.t VALUES (4, 'T9');
+[connection slave1]
+# Now d1.t has two rows and d2.t has one row.
+# Now coordinator has read the entire relay log and populated workers' queues.
+SELECT * FROM d2.t;
+a	name
+1	T2
+SELECT * FROM d1.t;
+a	name
+1	T1
+2	T5
+#### Verify that STOP SLAVE stops at gap less state ####
+STOP SLAVE;
+[connection slave]
+# Now coordinator is waiting for the worker to consume its queue.
+ROLLBACK;
+include/wait_for_slave_sql_to_stop.inc
+# III. Now all slave threads have stopped. Verify that worker completed its queue:
+# d2 should contain Т2, Т3, Т4.
+include/assert.inc [Rows until T3 in d2.t must be replicated now]
+# d1 should contain Т1, Т5, T6.
+include/assert.inc [Rows until 2 in d1.t must be replicated now]
+include/start_slave.inc
+[connection slave1]
+[connection slave]
+SET @@global.innodb_lock_wait_timeout= @save.innodb_lock_wait_timeout;
+[connection master]
+DROP DATABASE d1;
+DROP DATABASE d2;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

@@ -18,6 +18,11 @@ if (`SELECT @@have_dynamic_loading != 'YES'`) {
   --skip Requires dynamic loading
 }
 
+if (!$GROUP_REPLICATION)
+{
+  --skip Need Group Replication plugin
+}
+
 if (!`select count(*) from information_schema.plugins where PLUGIN_NAME like 'group_replication'`)
 {
   --skip Need Group Replication plugin

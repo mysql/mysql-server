@@ -30,4 +30,6 @@ public interface DynamicObjectDelegate {
     public void found(Boolean found);
 
     public void release();
+
+    public boolean wasReleased();
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,10 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-/*
+/**
+  @file include/byte_order_generic.h
   Endianness-independent definitions for architectures other
   than the x86 architecture.
 */
+
 static inline int16 sint2korr(const uchar *A)
 {
   return

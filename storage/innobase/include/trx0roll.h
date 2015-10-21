@@ -50,20 +50,6 @@ trx_savept_t
 trx_savept_take(
 /*============*/
 	trx_t*	trx);	/*!< in: transaction */
-/********************************************************************//**
-Pops the topmost record when the two undo logs of a transaction are seen
-as a single stack of records ordered by their undo numbers.
-@return undo log record copied to heap, NULL if none left, or if the
-undo number of the top record would be less than the limit */
-trx_undo_rec_t*
-trx_roll_pop_top_rec_of_trx_low(
-/*============================*/
-	trx_t*		trx,		/*!< in/out: transaction */
-	trx_undo_ptr_t*	undo_ptr,	/*!< in: rollback segment to look
-					for next undo log record. */
-	undo_no_t	limit,		/*!< in: least undo number we need */
-	roll_ptr_t*	roll_ptr,	/*!< out: roll pointer to undo record */
-	mem_heap_t*	heap);		/*!< in/out: memory heap where copied */
 
 /********************************************************************//**
 Get next undo log record from redo and noredo rollback segments.

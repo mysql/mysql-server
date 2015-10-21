@@ -1,0 +1,39 @@
+# We don't care about innodb warnings at this point
+CALL mtr.add_suppression("InnoDB:");
+# shut server down
+# Server is down
+#
+# Bug #20546898: MYSQLD --INIT-FILE DOESN\'T ACCEPT GRANT STATEMENTS
+#
+# create bootstrap file with ACL commands
+# Run the server with --initialize --init-file
+extract the root password
+password found
+# Restart the server against DDIR
+# connect as root
+# reset the password
+SET PASSWORD='';
+# Must have USAGE
+SHOW GRANTS FOR u1@localhost;
+Grants for u1@localhost
+GRANT USAGE ON *.* TO 'u1'@'localhost'
+# Must have a SELECT privilege
+SHOW GRANTS FOR u3@localhost;
+Grants for u3@localhost
+GRANT SELECT ON `grants_try`.* TO 'u3'@'localhost'
+GRANT USAGE ON *.* TO 'u3'@'localhost'
+# Must have a password
+SHOW CREATE USER u2@localhost;
+CREATE USER for u2@localhost
+CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*85D0F19E5598AC04AC7B3FCF5383247D28FB59EF' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+# shut server down
+# Server is down
+# close the test connection
+# remove the password file
+# delete mysqld log
+# delete bootstrap file
+# delete datadir
+#
+# Cleanup
+#
+# Restarting the server

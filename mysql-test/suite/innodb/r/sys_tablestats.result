@@ -1,0 +1,17 @@
+#
+# Bug #21794102 HANDLE_FATAL_SIGNAL (SIG=11) IN
+# DICT_TABLE_T::GET_REF_COUNT
+#
+create table t1 (f1 int primary key, f2 int) engine=innodb;
+insert into t1 values (1, 1);
+set debug ='d,test_sys_tablestats';
+set debug_sync = 'dict_table_not_protected SIGNAL have_t1 WAIT_FOR del_t1';
+select name from information_schema.innodb_sys_tablestats;
+# Connection con1:
+set debug_sync = 'now WAIT_FOR have_t1';
+drop table t1;
+set debug_sync = 'now SIGNAL del_t1';
+# Connection default:
+set debug_sync = reset;
+set debug = reset;
+set global innodb_background_drop_list_empty = 0;

@@ -1,0 +1,27 @@
+#--source include/have_daemon_example_plugin.inc
+--source include/not_embedded.inc
+
+call mtr.add_suppression("This is a warning from test plugin");
+call mtr.add_suppression("This is an error from test plugin");
+
+--echo ------ Setup ------------------------------------------------
+
+CREATE DATABASE mydb;
+
+--echo ------ Run plugin ------------------------------------------------
+--replace_result $TEST_SQL_CMDS_1 TEST_SQL_CMDS_1
+eval INSTALL PLUGIN test_sql_cmds_1 SONAME '$TEST_SQL_CMDS_1';
+
+--echo ------ Stop plugin -----------------------------------------------
+UNINSTALL PLUGIN test_sql_cmds_1;
+
+--disable_warnings
+
+--echo ------ Check output from tested service --------------------------------------
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_sql_cmds_1.log;
+remove_file $MYSQLD_DATADIR/test_sql_cmds_1.log;
+
+--echo ------- Cleanup --------------------------------------
+
+DROP DATABASE mydb;

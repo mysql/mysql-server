@@ -28,6 +28,9 @@
 static MYSQL_PLUGIN plugin_info_ptr;
 
 int validate_plugin_server_requirements(Trans_param *param);
+int test_channel_service_interface_initialization();
+int test_channel_service_interface();
+int test_channel_service_interface_io_thread();
 
 /*
   Will register the number of calls to each method of Server state
@@ -87,42 +90,42 @@ static void dump_server_state_calls()
 /*
   DBMS lifecycle events observers.
 */
-int before_handle_connection(Server_state_param *param)
+static int before_handle_connection(Server_state_param *param)
 {
   before_handle_connection_call++;
 
   return 0;
 }
 
-int before_recovery(Server_state_param *param)
+static int before_recovery(Server_state_param *param)
 {
   before_recovery_call++;
 
   return 0;
 }
 
-int after_engine_recovery(Server_state_param *param)
+static int after_engine_recovery(Server_state_param *param)
 {
   after_engine_recovery_call++;
 
   return 0;
 }
 
-int after_recovery(Server_state_param *param)
+static int after_recovery(Server_state_param *param)
 {
   after_recovery_call++;
 
   return 0;
 }
 
-int before_server_shutdown(Server_state_param *param)
+static int before_server_shutdown(Server_state_param *param)
 {
   before_server_shutdown_call++;
 
   return 0;
 }
 
-int after_server_shutdown(Server_state_param *param)
+static int after_server_shutdown(Server_state_param *param)
 {
   after_server_shutdown_call++;
 
@@ -188,13 +191,18 @@ static void dump_transaction_calls()
 /*
   Transaction lifecycle events observers.
 */
-int trans_before_dml(Trans_param *param, int& out_val)
+static int trans_before_dml(Trans_param *param, int& out_val)
 {
   trans_before_dml_call++;
 
   DBUG_EXECUTE_IF("cause_failure_in_before_dml_hook",
                   out_val= 1;);
-
+  DBUG_EXECUTE_IF("validate_replication_observers_plugin_server_channels",
+                  test_channel_service_interface(););
+  DBUG_EXECUTE_IF("validate_replication_observers_plugin_server_channel_io_thread",
+                  test_channel_service_interface_io_thread(););
+  DBUG_EXECUTE_IF("validate_replication_observers_plugin_server_channels_init",
+                  test_channel_service_interface_initialization(););
   return 0;
 }
 
@@ -205,8 +213,9 @@ typedef enum enum_before_commit_test_cases {
   INVALID_CERTIFICATION_OUTCOME
 } before_commit_test_cases;
 
-int before_commit_tests(Trans_param *param,
-                        before_commit_test_cases test_case)
+#ifndef DBUG_OFF
+static int before_commit_tests(Trans_param *param,
+                               before_commit_test_cases test_case)
 {
   rpl_sid fake_sid;
   rpl_sidno fake_sidno;
@@ -258,15 +267,16 @@ int before_commit_tests(Trans_param *param,
   {
     my_plugin_log_message(&plugin_info_ptr,
                           MY_ERROR_LEVEL,
-                          "Unable to update transaction context service on server, thread_id: %lu",
+                          "Unable to update transaction context service on server, thread_id: %u",
                           param->thread_id);
     return 1;
   }
 
   return 0;
 }
+#endif
 
-int trans_before_commit(Trans_param *param)
+static int trans_before_commit(Trans_param *param)
 {
   trans_before_commit_call++;
 
@@ -288,21 +298,21 @@ int trans_before_commit(Trans_param *param)
   return 0;
 }
 
-int trans_before_rollback(Trans_param *param)
+static int trans_before_rollback(Trans_param *param)
 {
   trans_before_rollback_call++;
 
   return 0;
 }
 
-int trans_after_commit(Trans_param *param)
+static int trans_after_commit(Trans_param *param)
 {
   trans_after_commit_call++;
 
   return 0;
 }
 
-int trans_after_rollback(Trans_param *param)
+static int trans_after_rollback(Trans_param *param)
 {
   trans_after_rollback_call++;
 
@@ -385,56 +395,56 @@ static void dump_binlog_relay_calls()
   }
 }
 
-int binlog_relay_thread_start(Binlog_relay_IO_param *param)
+static int binlog_relay_thread_start(Binlog_relay_IO_param *param)
 {
   binlog_relay_thread_start_call++;
 
   return 0;
 }
 
-int binlog_relay_thread_stop(Binlog_relay_IO_param *param)
+static int binlog_relay_thread_stop(Binlog_relay_IO_param *param)
 {
   binlog_relay_thread_stop_call++;
 
   return 0;
 }
 
-int binlog_relay_applier_stop(Binlog_relay_IO_param *param,
-                              bool aborted)
+static int binlog_relay_applier_stop(Binlog_relay_IO_param *param,
+                                     bool aborted)
 {
   binlog_relay_applier_stop_call++;
 
   return 0;
 }
 
-int binlog_relay_before_request_transmit(Binlog_relay_IO_param *param,
-                                         uint32 flags)
+static int binlog_relay_before_request_transmit(Binlog_relay_IO_param *param,
+                                                uint32 flags)
 {
   binlog_relay_before_request_transmit_call++;
 
   return 0;
 }
 
-int binlog_relay_after_read_event(Binlog_relay_IO_param *param,
-                                  const char *packet, unsigned long len,
-                                  const char **event_buf, unsigned long *event_len)
+static int binlog_relay_after_read_event(Binlog_relay_IO_param *param,
+                                         const char *packet, unsigned long len,
+                                         const char **event_buf, unsigned long *event_len)
 {
   binlog_relay_after_read_event_call++;
 
   return 0;
 }
 
-int binlog_relay_after_queue_event(Binlog_relay_IO_param *param,
-                                   const char *event_buf,
-                                   unsigned long event_len,
-                                   uint32 flags)
+static int binlog_relay_after_queue_event(Binlog_relay_IO_param *param,
+                                          const char *event_buf,
+                                          unsigned long event_len,
+                                          uint32 flags)
 {
   binlog_relay_after_queue_event_call++;
 
   return 0;
 }
 
-int binlog_relay_after_reset_slave(Binlog_relay_IO_param *param)
+static int binlog_relay_after_reset_slave(Binlog_relay_IO_param *param)
 {
   binlog_relay_after_reset_slave_call++;
 
@@ -560,10 +570,11 @@ int validate_plugin_server_requirements(Trans_param *param)
   Trans_context_info startup_pre_reqs;
   get_server_startup_prerequirements(startup_pre_reqs, false);
 
-  bool server_engine_ready= is_server_engine_ready();
+  //check the server is initialized by checking if the default channel exists
+  bool server_engine_ready= channel_is_active("", CHANNEL_NO_THD);
 
   uchar *encoded_gtid_executed= NULL;
-  uint length;
+  size_t length;
   get_server_encoded_gtid_executed(&encoded_gtid_executed, &length);
 
 #if !defined(DBUG_OFF)
@@ -606,6 +617,190 @@ int validate_plugin_server_requirements(Trans_param *param)
   return 0;
 }
 
+int test_channel_service_interface_initialization()
+{
+    int error= initialize_channel_service_interface();
+    DBUG_ASSERT(error);
+    return error;
+}
+
+int test_channel_service_interface()
+{
+    //The initialization method should return OK
+    int error= initialize_channel_service_interface();
+    DBUG_ASSERT(!error);
+
+    //Test channel creation
+    char interface_channel[]= "example_channel";
+    Channel_creation_info info;
+    initialize_channel_creation_info(&info);
+    error= channel_create(interface_channel, &info);
+    DBUG_ASSERT(!error);
+
+    //Assert the channel exists
+    bool exists= channel_is_active(interface_channel, CHANNEL_NO_THD);
+    DBUG_ASSERT(exists);
+
+    //Check that a non existing channel is declared as such
+    char dummy_channel[]= "dummy_channel";
+    exists= channel_is_active(dummy_channel, CHANNEL_NO_THD);
+    DBUG_ASSERT(!exists);
+
+    //Test that we cannot create a empty named channel (the default channel)
+    char empty_interface_channel[]= "";
+    initialize_channel_creation_info(&info);
+    error= channel_create(empty_interface_channel, &info);
+    DBUG_ASSERT(error == RPL_CHANNEL_SERVICE_DEFAULT_CHANNEL_CREATION_ERROR);
+
+    //Start the applier thread (since it does not need an external server)
+    Channel_connection_info connection_info;
+    initialize_channel_connection_info(&connection_info);
+    error= channel_start(interface_channel,
+                         &connection_info,
+                         CHANNEL_APPLIER_THREAD,
+                         true);
+    DBUG_ASSERT(!error);
+
+    //Assert that the applier thread is running
+    bool running= channel_is_active(interface_channel, CHANNEL_APPLIER_THREAD);
+    DBUG_ASSERT(running);
+
+    //Wait for execution of events (none in this case so it should return OK)
+    error= channel_wait_until_apply_queue_applied(interface_channel, 100000);
+    DBUG_ASSERT(!error);
+
+    //Get the last delivered gno (should be 0)
+    rpl_sid fake_sid;
+    fake_sid.parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    rpl_sidno fake_sidno= get_sidno_from_global_sid_map(fake_sid);
+    rpl_gno gno= channel_get_last_delivered_gno(interface_channel, fake_sidno);
+    DBUG_ASSERT(gno == 0);
+
+    //Check that for non existing channels it returns the corresponding error
+    gno= channel_get_last_delivered_gno(dummy_channel, fake_sidno);
+    DBUG_ASSERT(gno == RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+
+    //Extract the applier id
+    long unsigned int * applier_id= NULL;
+    channel_get_thread_id(interface_channel,
+                          CHANNEL_APPLIER_THREAD,
+                          &applier_id);
+    DBUG_ASSERT(*applier_id > 0);
+    my_free(applier_id);
+
+    //Stop the channel applier
+    error= channel_stop(interface_channel,
+                        3,
+                        10000);
+    DBUG_ASSERT(!error);
+
+    //Assert that the applier thread is not running
+    running= channel_is_active(interface_channel, CHANNEL_APPLIER_THREAD);
+    DBUG_ASSERT(!running);
+
+    //Purge the channel and assert all is OK
+    error= channel_purge_queue(interface_channel, true);
+    DBUG_ASSERT(!error);
+
+    //Assert the channel is not there.
+    exists= channel_is_active(interface_channel, CHANNEL_NO_THD);
+    DBUG_ASSERT(!exists);
+
+    //Check that a queue in an empty channel will fail.
+    char empty_event[]= "";
+    error= channel_queue_packet(dummy_channel, empty_event, 0);
+    DBUG_ASSERT(error);
+
+    //Test a multi thread channel
+    info.channel_mts_parallel_type= CHANNEL_MTS_PARALLEL_TYPE_LOGICAL_CLOCK;
+    info.channel_mts_parallel_workers= 3;
+
+    error= channel_create(interface_channel, &info);
+    DBUG_ASSERT(!error);
+
+    //Assert the channel exists
+    exists= channel_is_active(interface_channel, CHANNEL_NO_THD);
+    DBUG_ASSERT(exists);
+
+    error= channel_start(interface_channel,
+                         &connection_info,
+                         CHANNEL_APPLIER_THREAD,
+                         true);
+    DBUG_ASSERT(!error);
+
+    //Extract the applier ids
+    applier_id= NULL;
+    int num_appliers= channel_get_thread_id(interface_channel,
+                                            CHANNEL_APPLIER_THREAD,
+                                            &applier_id);
+    DBUG_ASSERT(num_appliers == 4);
+
+    unsigned long thread_id= 0;
+    for (int i = 0; i < num_appliers; i++)
+    {
+      thread_id= applier_id[i];
+      DBUG_ASSERT(thread_id > 0);
+    }
+    my_free(applier_id);
+
+    //Stop the channel applier
+    error= channel_stop(interface_channel,
+                        3,
+                        10000);
+    DBUG_ASSERT(!error);
+
+    //Purge the channel and assert all is OK
+    error= channel_purge_queue(interface_channel, true);
+    DBUG_ASSERT(!error);
+
+    //Assert the channel is not there.
+    exists= channel_is_active(interface_channel, CHANNEL_NO_THD);
+    DBUG_ASSERT(!exists);
+
+    return (error && exists && running && gno && num_appliers && thread_id);
+}
+
+int test_channel_service_interface_io_thread()
+{
+  //The initialization method should return OK
+  int error= initialize_channel_service_interface();
+  DBUG_ASSERT(!error);
+
+  char interface_channel[]= "example_channel";
+
+  //Assert the channel exists
+  bool exists= channel_is_active(interface_channel, CHANNEL_NO_THD);
+  DBUG_ASSERT(exists);
+
+  //Assert that the receiver is running
+  bool running= channel_is_active(interface_channel, CHANNEL_RECEIVER_THREAD);
+  DBUG_ASSERT(running);
+
+  //Extract the receiver id
+  long unsigned int * thread_id= NULL;
+  int num_threads= channel_get_thread_id(interface_channel,
+                                         CHANNEL_RECEIVER_THREAD,
+                                         &thread_id);
+  DBUG_ASSERT(num_threads == 1);
+  DBUG_ASSERT(*thread_id > 0);
+  my_free(thread_id);
+
+  //Check that the applier thread is waiting for events to be queued.
+  int is_waiting= channel_is_applier_waiting(interface_channel);
+  DBUG_ASSERT(is_waiting == 1);
+
+  //Stop the channel
+  error= channel_stop(interface_channel,
+                      3,
+                      10000);
+  DBUG_ASSERT(!error);
+
+  //Assert that the receiver thread is not running
+  running= channel_is_active(interface_channel, CHANNEL_RECEIVER_THREAD);
+  DBUG_ASSERT(!running);
+
+  return (error && exists && running && num_threads && is_waiting);
+}
 
 /*
   Initialize the Replication Observer example at server start or plugin

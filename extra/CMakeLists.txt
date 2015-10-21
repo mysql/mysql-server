@@ -16,11 +16,14 @@
 INCLUDE_DIRECTORIES(
 ${CMAKE_SOURCE_DIR}/include 
 ${ZLIB_INCLUDE_DIR}
+${LZ4_INCLUDE_DIR}
 # Following is for perror, in case NDB is compiled in.
 ${CMAKE_SOURCE_DIR}/storage/ndb/include
 ${CMAKE_BINARY_DIR}/storage/ndb/include
 ${CMAKE_SOURCE_DIR}/storage/ndb/include/ndbapi
 ${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmapi)
+
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 # Default install component for the files is Server here
 SET(MYSQL_INSTALL_COMPONENT Server)
@@ -93,6 +96,12 @@ ENDIF()
 MYSQL_ADD_EXECUTABLE(replace replace.c)
 TARGET_LINK_LIBRARIES(replace mysys)
 
+MYSQL_ADD_EXECUTABLE(lz4_decompress lz4_decompress.cc)
+TARGET_LINK_LIBRARIES(lz4_decompress ${LZ4_LIBRARY})
+
+MYSQL_ADD_EXECUTABLE(zlib_decompress zlib_decompress.cc)
+TARGET_LINK_LIBRARIES(zlib_decompress ${ZLIB_LIBRARY})
+
 IF(WITH_INNOBASE_STORAGE_ENGINE)
 
   IF(LZ4_INCLUDE_DIR AND LZ4_LIBRARY)
@@ -100,21 +109,44 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
     INCLUDE_DIRECTORIES(${LZ4_INCLUDE_DIR})
   ENDIF()
 
+  IF(NOT MSVC)
+    IF(NOT CMAKE_CROSSCOMPILING)
+    CHECK_C_SOURCE_RUNS(
+    "#include<stdint.h>
+    int main()
+    {
+      unsigned char       a = 0;
+      unsigned char       b = 0;
+      unsigned char       c = 1;
+
+      __atomic_exchange(&a, &b,  &c, __ATOMIC_RELEASE);
+      __atomic_compare_exchange(&a, &b, &c, 0,
+                                __ATOMIC_RELEASE, __ATOMIC_ACQUIRE);
+      return(0);
+    }"
+    HAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE
+    )
+    ENDIF()
+
+    IF(HAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE)
+      ADD_DEFINITIONS(-DHAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE=1)
+    ENDIF()
+  ENDIF(NOT MSVC)
+
   # Add path to the InnoDB headers
   INCLUDE_DIRECTORIES(
+    ${CMAKE_SOURCE_DIR}/storage/innobase/
     ${CMAKE_SOURCE_DIR}/storage/innobase/include
     ${CMAKE_SOURCE_DIR}/sql
   )
-  # We use the InnoDB code directly in case the code changes.
-  ADD_DEFINITIONS("-DUNIV_INNOCHECKSUM")
-  SET(INNOBASE_SOURCES
-      ../storage/innobase/buf/buf0checksum.cc
-      ../storage/innobase/ut/ut0crc32.cc
-      ../storage/innobase/os/os0file.cc
-     )
+  SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DUNIV_DEBUG")
 
-  MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.cc ${INNOBASE_SOURCES})
-  TARGET_LINK_LIBRARIES(innochecksum mysys mysys_ssl ${LZ4_LIBRARY})
+  # We use the InnoDB code directly in case the code changes.
+  MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.cc)
+  SET_TARGET_PROPERTIES(innochecksum
+    PROPERTIES COMPILE_DEFINITIONS "UNIV_LIBRARY")
+  TARGET_LINK_LIBRARIES(innochecksum
+    mysys_ssl innodb_zipdecompress ${LZ4_LIBRARY})
   ADD_DEPENDENCIES(innochecksum GenError)
 ENDIF()
 

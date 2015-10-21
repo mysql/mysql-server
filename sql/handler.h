@@ -23,6 +23,7 @@
 
 #include "my_global.h"
 #include "ft_global.h"         // ft_hints
+#include "my_thread_local.h"   // my_errno
 #include "thr_lock.h"          // thr_lock_type
 #include "discrete_interval.h" // Discrete_interval
 #include "key.h"               // KEY
@@ -35,6 +36,7 @@
 #include "mysql/psi/psi.h"
 
 #include <algorithm>
+#include <string>
 
 class Alter_info;
 class handler;
@@ -47,6 +49,7 @@ struct handlerton;
 struct TABLE;
 struct TABLE_LIST;
 struct TABLE_SHARE;
+typedef struct st_bitmap MY_BITMAP;
 typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
 typedef struct st_hash HASH;
 typedef struct st_key_cache KEY_CACHE;
@@ -62,7 +65,7 @@ typedef bool (stat_print_fn)(THD *thd, const char *type, size_t type_len,
 
 namespace AQP {
   class Join_plan;
-};
+}
 
 extern ulong savepoint_alloc_size;
 extern KEY_CREATE_INFO default_key_create_info;
@@ -71,14 +74,25 @@ extern MYSQL_PLUGIN_IMPORT const Key_map key_map_empty;
 extern MYSQL_PLUGIN_IMPORT Key_map key_map_full; // Should be treated as const
 
 /*
-  Note: the following includes binlog and closing 0.
+  We preallocate data for several storage engine plugins.
   so: innodb + bdb + ndb + binlog + myisam + myisammrg + archive +
       example + csv + heap + blackhole + federated + 0
   (yes, the sum is deliberately inaccurate)
-  TODO remove the limit, use dynarrays
 */
-#define MAX_HA 15
-extern st_plugin_int *hton2plugin[MAX_HA];
+#define PREALLOC_NUM_HA 15
+
+/// Maps from slot to plugin. May return NULL if plugin has been unloaded.
+st_plugin_int *hton2plugin(uint slot);
+/// Returns the size of the array holding pointers to plugins.
+size_t num_hton2plugins();
+
+/**
+  For unit testing.
+  Insert plugin into arbitrary slot in array.
+  Remove plugin from arbitrary slot in array.
+*/
+st_plugin_int *insert_hton2plugin(uint slot, st_plugin_int* plugin);
+st_plugin_int *remove_hton2plugin(uint slot);
 
 extern const char *ha_row_type[];
 extern const char *tx_isolation_names[];
@@ -240,11 +254,12 @@ enum enum_alter_inplace_result {
   this flag must implement start_read_removal() and end_read_removal().
   The handler may return "fake" rows constructed from the key of the row
   asked for. This is used to optimize UPDATE and DELETE by reducing the
-  numer of roundtrips between handler and storage engine.
+  number of round-trips between handler and storage engine.
   
   Example:
-  UPDATE a=1 WHERE pk IN (<keys>)
+  UPDATE a=1 WHERE pk IN (@<keys@>)
 
+  @verbatim
   mysql_update()
   {
     if (<conditions for starting read removal>)
@@ -260,9 +275,10 @@ enum enum_alter_inplace_result {
     end_read_removal()
     -> handler returns the number of rows actually written
   }
+  @endverbatim
 
   @note This optimization in combination with batching may be used to
-        remove even more roundtrips.
+        remove even more round-trips.
 */
 #define HA_READ_BEFORE_WRITE_REMOVAL  (1LL << 38)
 
@@ -322,6 +338,10 @@ enum enum_alter_inplace_result {
 */
 #define HA_GENERATED_COLUMNS            (1LL << 46)
 
+/**
+  Supports index on virtual generated column
+*/
+#define HA_CAN_INDEX_VIRTUAL_GENERATED_COLUMN (1LL << 47)
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
@@ -508,14 +528,14 @@ given at all. */
 */
 #define HA_CREATE_USED_TABLESPACE       (1L << 25)
 
-/** COMPRESS="zlib|lz4|none" used during table create. */
+/** COMPRESSION="zlib|lz4|none" used during table create. */
 #define HA_CREATE_USED_COMPRESS         (1L << 26)
 
 /*
-  Structure to hold list of system_database.system_table.
+  Structure to hold list of database_name.table_name.
   This is used at both mysqld and storage engine layer.
 */
-struct st_system_tablename
+struct st_handler_tablename
 {
   const char *db;
   const char *tablename;
@@ -1083,16 +1103,30 @@ public:
   static const HA_ALTER_FLAGS DROP_PK_INDEX              = 1ULL << 5;
 
   // Add column
-  static const HA_ALTER_FLAGS ADD_COLUMN                 = 1ULL << 6;
+
+  // Virtual generated column
+  static const HA_ALTER_FLAGS ADD_VIRTUAL_COLUMN         = 1ULL << 6;
+  // Stored base (non-generated) column
+  static const HA_ALTER_FLAGS ADD_STORED_BASE_COLUMN     = 1ULL << 7;
+  // Stored generated column
+  static const HA_ALTER_FLAGS ADD_STORED_GENERATED_COLUMN= 1ULL << 8;
+  // Add generic column (convience constant).
+  static const HA_ALTER_FLAGS ADD_COLUMN= ADD_VIRTUAL_COLUMN |
+                                          ADD_STORED_BASE_COLUMN |
+                                          ADD_STORED_GENERATED_COLUMN;
 
   // Drop column
-  static const HA_ALTER_FLAGS DROP_COLUMN                = 1ULL << 7;
+  static const HA_ALTER_FLAGS DROP_VIRTUAL_COLUMN        = 1ULL << 9;
+  static const HA_ALTER_FLAGS DROP_STORED_COLUMN         = 1ULL << 10;
+  static const HA_ALTER_FLAGS DROP_COLUMN= DROP_VIRTUAL_COLUMN |
+                                           DROP_STORED_COLUMN;
 
   // Rename column
-  static const HA_ALTER_FLAGS ALTER_COLUMN_NAME          = 1ULL << 8;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_NAME          = 1ULL << 11;
 
   // Change column datatype
-  static const HA_ALTER_FLAGS ALTER_COLUMN_TYPE          = 1ULL << 9;
+  static const HA_ALTER_FLAGS ALTER_VIRTUAL_COLUMN_TYPE         = 1ULL << 12;
+  static const HA_ALTER_FLAGS ALTER_STORED_COLUMN_TYPE          = 1ULL << 13;
 
   /**
     Change column datatype in such way that new type has compatible
@@ -1100,61 +1134,68 @@ public:
     possible to perform change by only updating data dictionary
     without changing table rows.
   */
-  static const HA_ALTER_FLAGS ALTER_COLUMN_EQUAL_PACK_LENGTH = 1ULL << 10;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_EQUAL_PACK_LENGTH = 1ULL << 14;
 
-  // Reorder column
-  static const HA_ALTER_FLAGS ALTER_COLUMN_ORDER         = 1ULL << 11;
+  /// A virtual column has changed its position
+  static const HA_ALTER_FLAGS ALTER_VIRTUAL_COLUMN_ORDER     = 1ULL << 15;
+
+  /// A stored column has changed its position (disregarding virtual columns)
+  static const HA_ALTER_FLAGS ALTER_STORED_COLUMN_ORDER      = 1ULL << 16;
 
   // Change column from NOT NULL to NULL
-  static const HA_ALTER_FLAGS ALTER_COLUMN_NULLABLE      = 1ULL << 12;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_NULLABLE      = 1ULL << 17;
 
   // Change column from NULL to NOT NULL
-  static const HA_ALTER_FLAGS ALTER_COLUMN_NOT_NULLABLE  = 1ULL << 13;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_NOT_NULLABLE  = 1ULL << 18;
 
   // Set or remove default column value
-  static const HA_ALTER_FLAGS ALTER_COLUMN_DEFAULT       = 1ULL << 14;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_DEFAULT       = 1ULL << 19;
+
+  // Change column generation expression
+  static const HA_ALTER_FLAGS ALTER_VIRTUAL_GCOL_EXPR    = 1ULL << 20;
+  static const HA_ALTER_FLAGS ALTER_STORED_GCOL_EXPR     = 1ULL << 21;
 
   // Add foreign key
-  static const HA_ALTER_FLAGS ADD_FOREIGN_KEY            = 1ULL << 15;
+  static const HA_ALTER_FLAGS ADD_FOREIGN_KEY            = 1ULL << 22;
 
   // Drop foreign key
-  static const HA_ALTER_FLAGS DROP_FOREIGN_KEY           = 1ULL << 16;
+  static const HA_ALTER_FLAGS DROP_FOREIGN_KEY           = 1ULL << 23;
 
   // table_options changed, see HA_CREATE_INFO::used_fields for details.
-  static const HA_ALTER_FLAGS CHANGE_CREATE_OPTION       = 1ULL << 17;
+  static const HA_ALTER_FLAGS CHANGE_CREATE_OPTION       = 1ULL << 24;
 
   // Table is renamed
-  static const HA_ALTER_FLAGS ALTER_RENAME               = 1ULL << 18;
+  static const HA_ALTER_FLAGS ALTER_RENAME               = 1ULL << 25;
 
-  // Change the storage type of column 
-  static const HA_ALTER_FLAGS ALTER_COLUMN_STORAGE_TYPE = 1ULL << 19;
+  // Change the storage type of column
+  static const HA_ALTER_FLAGS ALTER_COLUMN_STORAGE_TYPE = 1ULL << 26;
 
   // Change the column format of column
-  static const HA_ALTER_FLAGS ALTER_COLUMN_COLUMN_FORMAT = 1ULL << 20;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_COLUMN_FORMAT = 1ULL << 27;
 
   // Add partition
-  static const HA_ALTER_FLAGS ADD_PARTITION              = 1ULL << 21;
+  static const HA_ALTER_FLAGS ADD_PARTITION              = 1ULL << 28;
 
   // Drop partition
-  static const HA_ALTER_FLAGS DROP_PARTITION             = 1ULL << 22;
+  static const HA_ALTER_FLAGS DROP_PARTITION             = 1ULL << 29;
 
   // Changing partition options
-  static const HA_ALTER_FLAGS ALTER_PARTITION            = 1ULL << 23;
+  static const HA_ALTER_FLAGS ALTER_PARTITION            = 1ULL << 30;
 
   // Coalesce partition
-  static const HA_ALTER_FLAGS COALESCE_PARTITION         = 1ULL << 24;
+  static const HA_ALTER_FLAGS COALESCE_PARTITION         = 1ULL << 31;
 
   // Reorganize partition ... into
-  static const HA_ALTER_FLAGS REORGANIZE_PARTITION       = 1ULL << 25;
+  static const HA_ALTER_FLAGS REORGANIZE_PARTITION       = 1ULL << 32;
 
   // Reorganize partition
-  static const HA_ALTER_FLAGS ALTER_TABLE_REORG          = 1ULL << 26;
+  static const HA_ALTER_FLAGS ALTER_TABLE_REORG          = 1ULL << 33;
 
   // Remove partitioning
-  static const HA_ALTER_FLAGS ALTER_REMOVE_PARTITIONING  = 1ULL << 27;
+  static const HA_ALTER_FLAGS ALTER_REMOVE_PARTITIONING  = 1ULL << 34;
 
   // Partition operation with ALL keyword
-  static const HA_ALTER_FLAGS ALTER_ALL_PARTITION        = 1ULL << 28;
+  static const HA_ALTER_FLAGS ALTER_ALL_PARTITION        = 1ULL << 35;
 
   /**
     Rename index. Note that we set this flag only if there are no other
@@ -1162,22 +1203,22 @@ public:
     detect renaming of indexes which is done by dropping index and then
     re-creating index with identical definition under different name.
   */
-  static const HA_ALTER_FLAGS RENAME_INDEX               = 1ULL << 29;
+  static const HA_ALTER_FLAGS RENAME_INDEX               = 1ULL << 36;
 
   /**
     Recreate the table for ALTER TABLE FORCE, ALTER TABLE ENGINE
     and OPTIMIZE TABLE operations.
   */
-  static const HA_ALTER_FLAGS RECREATE_TABLE             = 1ULL << 30;
+  static const HA_ALTER_FLAGS RECREATE_TABLE             = 1ULL << 37;
 
   // Add spatial index
-  static const HA_ALTER_FLAGS ADD_SPATIAL_INDEX          = 1ULL << 31;
-
-  // Alter generated column
-  static const HA_ALTER_FLAGS HA_ALTER_STORED_GCOL       = 1ULL << 32;
+  static const HA_ALTER_FLAGS ADD_SPATIAL_INDEX          = 1ULL << 38;
 
   // Alter index comment
-  static const HA_ALTER_FLAGS ALTER_INDEX_COMMENT        = 1ULL << 33;
+  static const HA_ALTER_FLAGS ALTER_INDEX_COMMENT        = 1ULL << 39;
+
+  // New/changed virtual generated column require validation
+  static const HA_ALTER_FLAGS VALIDATE_VIRTUAL_COLUMN    = 1ULL << 40;
 
   /**
     Create options (like MAX_ROWS) for the new version of table.
@@ -1484,8 +1525,6 @@ typedef struct st_range_seq_if
   bool (*skip_index_tuple) (range_seq_t seq, char *range_info);
 } RANGE_SEQ_IF;
 
-uint16 &mrr_persistent_flag_storage(range_seq_t seq, uint idx);
-char* &mrr_get_ptr_by_idx(range_seq_t seq, uint idx);
 
 /**
   Used to store optimizer cost estimates.
@@ -1812,7 +1851,7 @@ public:
   /**
     Set Ft_hints limit.
 
-    @param Ft_hints limit
+    @param ft_limit limit
   */
   void set_hint_limit(ha_rows ft_limit)
   {
@@ -1932,8 +1971,10 @@ protected:
   ha_rows estimation_rows_to_insert;
 public:
   handlerton *ht;                 /* storage engine of this handler */
-  uchar *ref;				/* Pointer to current row */
-  uchar *dup_ref;			/* Pointer to duplicate row */
+  /** Pointer to current row */
+  uchar *ref;
+  /** Pointer to duplicate row */
+  uchar *dup_ref;
 
   ha_statistics stats;
   
@@ -2101,6 +2142,19 @@ private:
   */
   Handler_share **ha_share;
 
+  /**
+    Some non-virtual ha_* functions, responsible for reading rows,
+    like ha_rnd_pos(), must ensure that virtual generated columns are
+    calculated before they return. For that, they should set this
+    member to true at their start, and check it before they return: if
+    the member is still true, it means they should calculate; if it's
+    false, it means the calculation has been done by some called
+    lower-level function and does not need to be re-done (which is why
+    we need this status flag: to avoid redundant calculations, for
+    performance).
+  */
+  bool m_update_generated_read_fields;
+
 public:
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
     :table_share(share_arg), table(0),
@@ -2118,7 +2172,7 @@ public:
     m_psi_batch_mode(PSI_BATCH_MODE_NONE),
     m_psi_numrows(0),
     m_psi_locker(NULL),
-    m_lock_type(F_UNLCK), ha_share(NULL)
+    m_lock_type(F_UNLCK), ha_share(NULL), m_update_generated_read_fields(false)
     {
       DBUG_PRINT("info",
                  ("handler created F_UNLCK %d F_RDLCK %d F_WRLCK %d",
@@ -2222,10 +2276,10 @@ public:
     If any of the table or key name is not available this method will return
     false and will not change any of child_table_name or child_key_name.
 
-    @param child_table_name[out]    Table name
-    @param child_table_name_len[in] Table name buffer size
-    @param child_key_name[out]      Key name
-    @param child_key_name_len[in]   Key name buffer size
+    @param [out] child_table_name    Table name
+    @param [in] child_table_name_len Table name buffer size
+    @param [out] child_key_name      Key name
+    @param [in] child_key_name_len   Key name buffer size
 
     @retval  true                  table and key names were available
                                    and were written into the corresponding
@@ -2769,7 +2823,7 @@ public:
             dependent or child table.
 
     @param thd  The thread handle.
-    @param f_key_list[out]  The list of foreign keys.
+    @param [out] f_key_list  The list of foreign keys.
 
     @return The handler error code or zero for success.
   */
@@ -2783,12 +2837,31 @@ public:
             referenced or parent table.
 
     @param thd  The thread handle.
-    @param f_key_list[out]  The list of foreign keys.
+    @param [out] f_key_list  The list of foreign keys.
 
     @return The handler error code or zero for success.
   */
   virtual int
   get_parent_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
+  { return 0; }
+  /**
+    Get the list of tables which are direct or indirect parents in foreign
+    key with cascading actions for this table.
+
+    @remarks Returns the set of parent tables connected by FK clause that
+    can modify the given table.
+
+    @param      thd             The thread handle.
+    @param[out] fk_table_list   List of parent tables (including indirect parents).
+                                Elements of the list as well as buffers for database
+                                and schema names are allocated from the current
+                                memory root. 
+
+    @return The handler error code or zero for success
+  */
+  virtual int
+  get_cascade_foreign_key_table_list(THD *thd,
+                                     List<st_handler_tablename> *fk_table_list)
   { return 0; }
   virtual uint referenced_by_foreign_key() { return 0;}
   virtual void init_table_handle_for_HANDLER()
@@ -3001,7 +3074,7 @@ public:
  }
 
   /**
-    Reports #tables included in pushed join which this
+    Reports number of tables included in pushed join which this
     handler instance is part of. ==0 -> Not pushed
   */
   virtual uint number_of_pushed_joins() const
@@ -3408,16 +3481,17 @@ private:
     from the table. This call is prefixed with a call to handler::store_lock()
     and is invoked only for those handler instances that stored the lock.
 
-    Calls to rnd_init/index_init are prefixed with this call. When table
-    IO is complete, we call external_lock(F_UNLCK).
+    Calls to @c rnd_init / @c index_init are prefixed with this call. When table
+    IO is complete, we call @code external_lock(F_UNLCK) @endcode.
     A storage engine writer should expect that each call to
-    ::external_lock(F_[RD|WR]LOCK is followed by a call to
-    ::external_lock(F_UNLCK). If it is not, it is a bug in MySQL.
+    @code ::external_lock(F_[RD|WR]LOCK @endcode is followed by a call to
+    @code ::external_lock(F_UNLCK) @endcode. If it is not, it is a bug in MySQL.
 
     The name and signature originate from the first implementation
-    in MyISAM, which would call fcntl to set/clear an advisory
+    in MyISAM, which would call @c fcntl to set/clear an advisory
     lock on the data file in this method.
 
+    @param   thd          the current thread
     @param   lock_type    F_RDLCK, F_WRLCK, F_UNLCK
 
     @return  non-0 in case of failure, 0 in case of success.
@@ -3452,7 +3526,10 @@ protected:
                          enum ha_rkey_function find_flag)
    { return  HA_ERR_WRONG_COMMAND; }
   virtual int index_read_last(uchar * buf, const uchar * key, uint key_len)
-   { return (my_errno= HA_ERR_WRONG_COMMAND); }
+  {
+    set_my_errno(HA_ERR_WRONG_COMMAND);
+    return HA_ERR_WRONG_COMMAND;
+  }
 public:
   /**
     This method is similar to update_row, however the handler doesn't need
@@ -3483,7 +3560,10 @@ public:
     by one.
   */
   virtual int delete_all_rows()
-  { return (my_errno=HA_ERR_WRONG_COMMAND); }
+  {
+    set_my_errno(HA_ERR_WRONG_COMMAND);
+    return HA_ERR_WRONG_COMMAND;
+  }
   /**
     Quickly remove all rows from a table.
 
@@ -3512,7 +3592,10 @@ public:
   virtual int disable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
   virtual int enable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
   virtual int discard_or_import_tablespace(my_bool discard)
-  { return (my_errno=HA_ERR_WRONG_COMMAND); }
+  {
+    set_my_errno(HA_ERR_WRONG_COMMAND);
+    return HA_ERR_WRONG_COMMAND;
+  }
   virtual void drop_table(const char *name);
   virtual int create(const char *name, TABLE *form, HA_CREATE_INFO *info)=0;
 
@@ -3530,6 +3613,29 @@ public:
     return false;
   }
   int get_lock_type() const { return m_lock_type; }
+
+  /**
+    Callback function that will be called by my_prepare_gcolumn_template
+    once the table has been opened.
+  */
+  typedef void (*my_gcolumn_template_callback_t)(const TABLE*, void*);
+  static bool my_prepare_gcolumn_template(THD *thd,
+                                          const char *db_name,
+                                          const char *table_name,
+                                          my_gcolumn_template_callback_t myc,
+                                          void *ib_table);
+  static bool my_eval_gcolumn_expr(THD *thd,
+                                   bool open_in_engine,
+                                   const char *db_name,
+                                   const char *table_name,
+                                   const MY_BITMAP *const fields,
+                                   uchar *record);
+  static bool my_eval_gcolumn_expr(THD *thd,
+                                   const char *db_name,
+                                   const char *table_name,
+                                   const MY_BITMAP *const fields,
+                                   uchar *record);
+
   /* This must be implemented if the handlerton's partition_flags() is set. */
   virtual Partition_handler *get_partition_handler()
   { return NULL; }
@@ -3703,7 +3809,7 @@ void ha_kill_connection(THD *thd);
 /**
   Flush the log(s) of storage engine(s).
 
-  @param hton Handlerton of storage engine.
+  @param db_type Handlerton of storage engine.
   @param binlog_group_flush true if we got invoked by binlog group
   commit during flush stage, false in other cases.
   @retval false Succeed
@@ -3723,6 +3829,14 @@ int ha_delete_table(THD *thd, handlerton *db_type, const char *path,
 /* statistics and info */
 bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat);
 
+typedef bool Log_func(THD*, TABLE*, bool,
+                      const uchar*, const uchar*);
+
+int  binlog_log_row(TABLE* table,
+                    const uchar *before_record,
+                    const uchar *after_record,
+                    Log_func *log_func);
+
 /* discovery */
 int ha_create_table_from_engine(THD* thd, const char *db, const char *name);
 bool ha_check_if_table_exists(THD* thd, const char *db, const char *name,
@@ -3732,6 +3846,8 @@ int ha_find_files(THD *thd,const char *db,const char *path,
 int ha_table_exists_in_engine(THD* thd, const char* db, const char* name);
 bool ha_check_if_supported_system_table(handlerton *hton, const char* db, 
                                         const char* table_name);
+bool check_if_sql_layer_system_table(const char *db,
+                                     const char *table_name);
 
 /* key cache */
 extern "C" int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);
@@ -3744,6 +3860,7 @@ int ha_release_temporary_latches(THD *thd);
 /* transactions: interface to handlerton functions */
 int ha_start_consistent_snapshot(THD *thd);
 int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock= false);
+int ha_commit_attachable(THD *thd);
 int ha_rollback_trans(THD *thd, bool all);
 int ha_prepare(THD *thd);
 
@@ -3754,14 +3871,14 @@ int ha_prepare(THD *thd);
   @note
     there are three modes of operation:
     - automatic recover after a crash
-    in this case commit_list != 0, tc_heuristic_recover==0
+    in this case commit_list != 0, tc_heuristic_recover==TC_HEURISTIC_NOT_USED
     all xids from commit_list are committed, others are rolled back
     - manual (heuristic) recover
-    in this case commit_list==0, tc_heuristic_recover != 0
+    in this case commit_list==0, tc_heuristic_recover != TC_HEURISTIC_NOT_USED
     DBA has explicitly specified that all prepared transactions should
     be committed (or rolled back).
     - no recovery (MySQL did not detect a crash)
-    in this case commit_list==0, tc_heuristic_recover == 0
+    in this case commit_list==0, tc_heuristic_recover == TC_HEURISTIC_NOT_USED
     there should be no prepared transactions in this case.
 */
 
@@ -3812,4 +3929,6 @@ const char *table_case_name(HA_CREATE_INFO *info, const char *name);
 void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag);
 void print_keydup_error(TABLE *table, KEY *key, myf errflag);
 
+void ha_set_normalized_disabled_se_str(const std::string &disabled_se_str);
+bool ha_is_storage_engine_disabled(handlerton *se_engine);
 #endif /* HANDLER_INCLUDED */

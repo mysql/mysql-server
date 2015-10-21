@@ -118,18 +118,6 @@ row_mysql_store_geometry(
 					is SQL NULL this should be 0; remember
 					also to set the NULL bit in the MySQL record
 					header! */
-/*******************************************************************//**
-Reads a reference to a geometry data in the MySQL format.
-@return pointer to geometry data */
-const byte*
-row_mysql_read_geometry(
-/*====================*/
-	ulint*		len,		/*!< out: geometry data length */
-	const byte*	ref,		/*!< in: reference in the
-					MySQL format */
-	ulint		col_len)	/*!< in: BLOB reference length
-					(not BLOB length) */
-	__attribute__((warn_unused_result));
 /**************************************************************//**
 Pad a column with spaces. */
 void
@@ -576,17 +564,6 @@ void
 row_mysql_close(void);
 /*=================*/
 
-/*********************************************************************//**
-Reassigns the table identifier of a table.
-@return error code or DB_SUCCESS */
-dberr_t
-row_mysql_table_id_reassign(
-/*========================*/
-	dict_table_t*	table,	/*!< in/out: table */
-	trx_t*		trx,	/*!< in/out: transaction */
-	table_id_t*	new_id) /*!< out: new table id */
-        __attribute__((warn_unused_result));
-
 /* A struct describing a place for an individual column in the MySQL
 row format which is presented to the table handler in ha_innobase.
 This template struct is used to speed up row transformations between
@@ -635,6 +612,7 @@ struct mysql_row_templ_t {
 	ulint	is_unsigned;		/*!< if a column type is an integer
 					type and this field is != 0, then
 					it is an unsigned integer type */
+	ulint	is_virtual;		/*!< if a column is a virtual column */
 };
 
 #define MYSQL_FETCH_CACHE_SIZE		8
@@ -900,7 +878,26 @@ struct SysIndexCallback {
 	virtual void operator()(mtr_t* mtr, btr_pcur_t* pcur) throw() = 0;
 };
 
-
+/** Get the computed value by supplying the base column values.
+@param[in,out]	row		the data row
+@param[in]	col		virtual column
+@param[in]	index		index on the virtual column
+@param[in,out]	my_rec		MySQL record to store the rows
+@param[in,out]	local_heap	heap memory for processing large data etc.
+@param[in,out]	heap		memory heap that copies the actual index row
+@param[in]	ifield		index field
+@param[in]	in_purge	whether this is called by purge
+@return the field filled with computed value */
+dfield_t*
+innobase_get_computed_value(
+	const dtuple_t*		row,
+	const dict_v_col_t*	col,
+	const dict_index_t*	index,
+	byte*			my_rec,
+	mem_heap_t**		local_heap,
+	mem_heap_t*		heap,
+	const dict_field_t*	ifield,
+	bool			in_purge);
 
 #define ROW_PREBUILT_FETCH_MAGIC_N	465765687
 
@@ -922,5 +919,11 @@ struct SysIndexCallback {
 #ifndef UNIV_NONINL
 #include "row0mysql.ic"
 #endif
+
+#ifdef UNIV_DEBUG
+/** Wait for the background drop list to become empty. */
+void
+row_wait_for_background_drop_list_empty();
+#endif /* UNIV_DEBUG */
 
 #endif /* row0mysql.h */

@@ -314,3 +314,215 @@ UPDATE t1 SET col7 = DEFAULT;
 UPDATE t1 SET col8 = DEFAULT;
 DROP TABLE t1;
 
+if ($support_virtual_index)
+{
+--echo Bug#20797344: WL#8149: ALLOCATED SPACE FOR INDEXED BLOB VGC CAN BE
+--echo               OVERWRITTEN FOR UPDATE
+--echo #
+CREATE TABLE t (a varchar(100), b blob,
+c blob GENERATED ALWAYS AS (concat(a,b)) VIRTUAL,
+d blob GENERATED ALWAYS AS (b) VIRTUAL,
+e int(11) GENERATED ALWAYS AS (10) VIRTUAL,
+h int(11) NOT NULL, PRIMARY KEY (h), key(c(20)));
+INSERT INTO t(a,b,h) VALUES('aaaaaaa','1111111', 11);
+INSERT INTO t(a,b,h) VALUES('bbbbbbb','2222222', 22);
+SELECT c FROM t;
+UPDATE t SET a='ccccccc';
+SELECT c FROM t;
+DROP TABLE t;
+}
+
+--echo # Bug#21081742: ASSERTION !TABLE || (!TABLE->WRITE_SET || 
+--echo # BITMAP_IS_SET(TABLE->WRITE_SET
+--echo #
+
+CREATE TABLE b ( 
+pk INTEGER AUTO_INCREMENT,
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)),
+PRIMARY KEY (pk)
+);
+
+INSERT INTO b (col_varchar_nokey) VALUES ('v'),('v');
+
+CREATE TABLE d (
+pk INTEGER AUTO_INCREMENT,
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)),
+PRIMARY KEY (pk)
+) ;
+
+INSERT INTO d (col_varchar_nokey) VALUES ('q'),('g'),('e'),('l'),(NULL),('v'),('c'),('u'),('x');
+
+CREATE TABLE bb (
+pk INTEGER AUTO_INCREMENT,
+col_varchar_nokey VARCHAR(1) /*! NULL */,
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)),
+PRIMARY KEY (pk)
+);
+
+INSERT INTO bb (col_varchar_nokey) VALUES ('j'),('h');
+
+EXPLAIN UPDATE
+d AS OUTR1, b AS OUTR2
+SET OUTR1.col_varchar_nokey = NULL
+WHERE
+( 't', 'b' )  IN
+(
+SELECT
+INNR1.col_varchar_nokey AS x,
+INNR1.col_varchar_key AS y
+FROM bb AS INNR1
+WHERE OUTR1.pk = 1
+);
+
+DROP TABLE IF EXISTS b,bb,d;
+
+
+--echo #
+--echo # Bug#21216067 ASSERTION FAILED ROW_UPD_SEC_INDEX_ENTRY (INNOBASE/ROW/ROW0UPD.CC:2103)
+--echo #
+
+CREATE TABLE t (
+x INT, y INT, gc INT GENERATED ALWAYS AS (x+1) STORED
+);
+INSERT INTO t VALUES ();
+UPDATE t t1, t t2 SET t2.y = 1, t1.x = 2;
+SELECT * FROM t;
+DROP TABLE t;
+
+if ($support_virtual_index)
+{
+CREATE TABLE t (
+x INT, y INT, gc INT GENERATED ALWAYS AS (x+1), KEY (x,gc)
+);
+INSERT INTO t VALUES ();
+UPDATE t t1, t t2 SET t1.x = 1, t2.y = 2;
+SELECT * FROM t;
+SELECT gc FROM t;
+DROP TABLE t;
+}
+
+let $query=
+UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+
+--echo # stored
+
+CREATE TABLE C (
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) STORED
+);
+
+INSERT INTO C (col_varchar_nokey) VALUES ('c');
+eval EXPLAIN $query;
+eval $query;
+SELECT * from C;
+DROP TABLE C;
+
+--echo # stored, indexed
+
+CREATE TABLE C (
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) STORED,
+KEY (col_varchar_key, col_varchar_nokey)
+);
+
+INSERT INTO C (col_varchar_nokey) VALUES ('c');
+eval EXPLAIN $query;
+eval $query;
+SELECT * from C;
+DROP TABLE C;
+
+--echo # virtual
+
+CREATE TABLE C (
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) VIRTUAL
+);
+
+INSERT INTO C (col_varchar_nokey) VALUES ('c');
+eval EXPLAIN $query;
+eval $query;
+SELECT * from C;
+DROP TABLE C;
+
+if ($support_virtual_index)
+{
+--echo # virtual, indexed
+
+CREATE TABLE C (
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) VIRTUAL,
+KEY (col_varchar_key, col_varchar_nokey)
+);
+
+INSERT INTO C (col_varchar_nokey) VALUES ('c');
+eval EXPLAIN $query;
+eval $query;
+SELECT * from C;
+DROP TABLE C;
+}
+
+if ($support_virtual_index)
+{
+--echo #
+--echo # Bug #21530366 CRASH/ASSERTION, CORRUPTION WITH INDEXES + 
+--echo #               VIRTUAL COLUMNS, BLOB
+--echo #
+
+CREATE TABLE t (
+  a INTEGER,
+  b BLOB GENERATED ALWAYS AS (a) VIRTUAL,
+  INDEX (b(57))
+);
+
+INSERT INTO t (a) VALUES (9);
+UPDATE t SET a = 10;
+DELETE FROM t WHERE a = 10;
+
+DROP TABLE t;
+}
+
+if ($support_virtual_index)
+{
+--echo # Bug#21807818: Generated columns not updated with empty insert list
+
+--source include/turn_off_strict_mode.inc
+
+CREATE TABLE t (
+a BLOB GENERATED ALWAYS AS ('') VIRTUAL,
+b TIMESTAMP(4) GENERATED ALWAYS AS ('') VIRTUAL NOT NULL,
+KEY (a(183),b)
+);
+
+INSERT INTO t VALUES(), (), ();
+
+DELETE IGNORE FROM t;
+
+DROP TABLE t;
+
+--source include/restore_strict_mode.inc
+} 
+
+--echo #Bug#21929967:GCOLS:GCOL VALUE CHANGES WHEN SESSION CHANGES SQL_MODE
+CREATE TABLE t(c1 INT GENERATED ALWAYS AS (1) VIRTUAL NOT NULL,
+               c2 INT GENERATED ALWAYS AS(2) STORED NOT NULL);
+INSERT INTO t VALUES(DEFAULT, DEFAULT);
+SELECT * FROM t;
+CREATE TABLE t1(c1 INT, c2 INT GENERATED ALWAYS AS(c1 + 1) STORED);
+INSERT INTO t1(c2) VALUES(DEFAULT);
+SELECT * FROM t1;
+CREATE TABLE t2(c1 INT DEFAULT 1, c2 INT GENERATED ALWAYS AS(c1 + 1) STORED NOT NULL);
+INSERT INTO t2(c2) VALUES(DEFAULT);
+SELECT * FROM t2;
+DROP TABLE t, t1, t2;
+

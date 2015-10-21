@@ -59,6 +59,8 @@ public:
   bool dropped;
   THD *thd;
 
+  void claim_memory_ownership();
+
 private:
   /* Prevent use of these */
   Event_queue_element_for_exec(const Event_queue_element_for_exec &);

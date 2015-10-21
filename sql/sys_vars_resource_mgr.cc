@@ -20,8 +20,8 @@
 /**
   Returns the member that contains the given key (address).
 
-  @parma key    [IN]        Key (address) to look for in the list.
-  @param length [IN]        Length of the key.
+  @param key           Key (address) to look for in the list.
+  @param length        Length of the key.
 
   @return
     Success - Address of the member containing the specified key (address).
@@ -39,8 +39,8 @@ uchar *Session_sysvar_resource_manager::find(void *key, size_t length)
   Allocates memory for Sys_var_charptr session variable during session
   initialization.
 
-  @param var     [IN]     The variable.
-  @param charset [IN]     Character set information.
+  @param var         The variable.
+  @param charset     Character set information.
 
   @return
   Success - false
@@ -58,13 +58,14 @@ bool Session_sysvar_resource_manager::init(char **var, const CHARSET_INFO * char
       my_hash_init(&m_sysvar_string_alloc_hash,
 	           const_cast<CHARSET_INFO *> (charset),
 		   4, 0, 0, (my_hash_get_key) sysvars_mgr_get_key,
-		   my_free, HASH_UNIQUE);
+		   my_free, HASH_UNIQUE,
+                   key_memory_THD_Session_sysvar_resource_manager);
     /* Create a new node & add it to the hash. */
     if ( !(element=
            (sys_var_ptr *) my_malloc(key_memory_THD_Session_sysvar_resource_manager,
                                      sizeof(sys_var_ptr), MYF(MY_WME))) ||
          !(ptr=
-           (char *) my_memdup(PSI_NOT_INSTRUMENTED,
+           (char *) my_memdup(key_memory_THD_Session_sysvar_resource_manager,
                               *var, strlen(*var) + 1, MYF(MY_WME))))
       return true;                            /* Error */
     element->data= (void *) ptr;
@@ -81,9 +82,9 @@ bool Session_sysvar_resource_manager::init(char **var, const CHARSET_INFO * char
   Frees the old alloced memory, memdup()'s the given val to a new memory
   address & updated the session variable pointer.
 
-  @param var     [IN]     The variable.
-  @param val     [IN]     The new value.
-  @param val_len [IN]     Length of the new value.
+  @param var         The variable.
+  @param val         The new value.
+  @param val_len     Length of the new value.
 
   @return
   Success - false
@@ -125,7 +126,7 @@ bool Session_sysvar_resource_manager::update(char **var, char *val,
   if (val && *var)
   {
     /* Free the existing one & update the current address. */
-    element->data= (char *) ptr;
+    element->data= ptr;
     my_hash_update(&m_sysvar_string_alloc_hash, (uchar *) element,
 	           (uchar *)old_key, strlen(old_key));
     if (old_key)
@@ -156,7 +157,7 @@ bool Session_sysvar_resource_manager::update(char **var, char *val,
           (sys_var_ptr*) my_malloc(key_memory_THD_Session_sysvar_resource_manager,
 				   sizeof(sys_var_ptr), MYF(MY_WME))))
       return true;                            /* Error */
-    element->data= (char *) ptr;
+    element->data= ptr;
     my_hash_insert(&m_sysvar_string_alloc_hash, (uchar *) element);
   }
 
@@ -169,6 +170,24 @@ bool Session_sysvar_resource_manager::update(char **var, char *val,
   */
   *var= ptr;
   return false;
+}
+
+void Session_sysvar_resource_manager::claim_memory_ownership()
+{
+  /* Release Sys_var_charptr resources here. */
+  sys_var_ptr *ptr;
+  int i= 0;
+  while ((ptr= (sys_var_ptr*)my_hash_element(&m_sysvar_string_alloc_hash, i)))
+  {
+    if (ptr->data)
+      my_claim(ptr->data);
+    i++;
+  }
+
+  if (m_sysvar_string_alloc_hash.records)
+  {
+    my_hash_claim(&m_sysvar_string_alloc_hash);
+  }
 }
 
 

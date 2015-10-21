@@ -807,6 +807,10 @@ insert into t3 values ('1 - 01', '2 - 01');
 insert into t3 values ('1 - 02', '2 - 02');
 insert into t3 values ('1 - 03', '2 - 03');
 insert into t3 values ('1 - 04', '2 - 04');
+insert into t3 values ('1 - 05', '2 - 05');
+insert into t3 values ('1 - 06', '2 - 06');
+insert into t3 values ('1 - 07', '2 - 07');
+insert into t3 values ('1 - 08', '2 - 08');
 
 explain extended
 select * from t1
@@ -6970,3 +6974,151 @@ WHERE 1 IN (SELECT (a.b IS NULL) IN (SELECT 1 FROM c) FROM c)
 ;
 
 DROP TABLE a, c;
+
+--echo #
+--echo # Bug#18194196: OPTIMIZER EXECUTES STATEMENT INPERFORMANT
+--echo #
+  
+CREATE TABLE t1 (uid INTEGER, fid INTEGER, INDEX(uid));
+INSERT INTO t1 VALUES
+(1,1), (1,2), (1,3), (1,4),
+(2,5), (2,6), (2,7), (2,8),
+(3,1), (3,2), (3,9);
+  
+CREATE TABLE t2 (uid INT PRIMARY KEY, name VARCHAR(128), INDEX(name));
+INSERT INTO t2 VALUES
+(1, "A"), (2, "B"), (3, "C"), (4, "D"), (5, "E"),
+(6, "F"), (7, "G"), (8, "H"), (9, "I");
+  
+CREATE TABLE t3 (uid INT, fid INT, INDEX(uid));
+INSERT INTO t3 VALUES
+(1,1), (1,2), (1,3),(1,4),
+(2,5), (2,6), (2,7), (2,8),
+(3,1), (3,2), (3,9);
+  
+CREATE TABLE t4 (uid INT PRIMARY KEY, name VARCHAR(128), INDEX(name));
+INSERT INTO t4 VALUES
+(1, "A"), (2, "B"), (3, "C"), (4, "D"), (5, "E"),
+(6, "F"), (7, "G"), (8, "H"), (9, "I");
+
+ANALYZE TABLE t1,t2,t3,t4;
+
+EXPLAIN SELECT name FROM t2, t1
+WHERE t1.uid IN (SELECT t4.uid FROM t4, t3 WHERE t3.uid=1 AND t4.uid=t3.fid)
+AND t2.uid=t1.fid;
+
+FLUSH STATUS;
+
+SELECT name FROM t2, t1
+WHERE t1.uid IN (SELECT t4.uid FROM t4, t3 WHERE t3.uid=1 AND t4.uid=t3.fid)
+AND t2.uid=t1.fid;
+
+SHOW STATUS LIKE '%handler_read%';
+
+DROP TABLE t1,t2,t3,t4;
+
+--echo # End of test for Bug#18194196
+
+--echo #
+--echo # Bug#21184091 ASSERT `READ_ROWS >= 0.0' AT 
+--echo #              COST_MODEL_SERVER::TMPTABLE_READWRITE_COST()
+--echo #
+
+CREATE TABLE t1 (
+pk INTEGER,
+col_varchar varchar(1),
+col_int INTEGER,
+PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+
+CREATE TABLE t2 (
+col_int INTEGER,
+col_varchar varchar(1)
+) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES (7,'x');
+INSERT INTO t2 VALUES (4,'z');
+
+SELECT t2.col_varchar
+FROM t2 STRAIGHT_JOIN t1 ON t2.col_varchar = t1.col_varchar
+JOIN t2 AS table3 ON t1.pk = table3.col_int
+WHERE t1.pk IN (SELECT col_int FROM t1);
+
+DROP TABLE t1,t2;
+
+--echo # End of test for Bug#21184091
+
+--echo # Bug#21139722: Assertion failed: !(used_tables() & ((table_map) 1) ...
+
+CREATE TABLE t1(a INTEGER) engine=innodb;
+CREATE TABLE t2(b INTEGER) engine=innodb;
+
+let $query=
+SELECT 1
+FROM (SELECT 1 IN (SELECT 1
+                   FROM t1
+                   WHERE (SELECT 1 FROM t2 HAVING b) NOT IN (SELECT 1 FROM t2)
+                  )
+      FROM t2
+     ) AS z;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+# A test case containing two outer references from different query blocks
+# Debugging is needed to inspect correct transformation, unfortunately.
+
+CREATE TABLE t1(a INTEGER) engine=innodb;
+
+let $query=
+SELECT (SELECT a FROM t1 AS t2
+        WHERE a IN (SELECT t1.a+t2.a FROM t1 AS t3))
+FROM t1 AS t1;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1;
+
+--echo # End of test for Bug#21139722
+
+# New tests can use InnoDB as default
+SET DEFAULT_STORAGE_ENGINE=INNODB;
+
+--echo #
+--echo # Bug#21139402 ASSERTION FAILED: LENGTH > 0 && KEYPARTS != 0, CRASH IN JOIN::OPTIMIZE_KEYUSE
+--echo #
+
+CREATE TABLE t1 (a INT, b INT, PRIMARY KEY(a));
+CREATE TABLE t2 (c INT PRIMARY KEY);
+let $query=
+SELECT 1 FROM t1
+WHERE 1 IN
+ (SELECT (c IS NULL) IN (SELECT a FROM t1 WHERE b)  FROM t2);
+eval EXPLAIN $query;
+eval $query;
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#21619634 ACCESS OF DEALLOCATED ITEM_OUTER_REF CAUSES CRASH: PREPARED STMT
+--echo #
+create table cc (i int) engine="innodb";
+insert into cc values (1);
+
+# Always worked
+select (select count(i) from cc as cc_alias
+          where (cc.i in (select cc_alias.i from cc)))
+      from cc group by i;
+
+# Used to crash:
+# Without alias cc_alias.i as outer reference, no crash
+prepare stmt from
+"select (select count(i) from cc as cc_alias
+         where (cc.i in (select cc_alias.i from cc)))
+     from cc group by i";
+
+execute stmt;
+execute stmt;
+drop table cc;

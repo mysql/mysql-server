@@ -1,0 +1,43 @@
+--source include/have_innodb.inc
+--source include/have_debug.inc
+
+create table t1 (f1 int primary key) engine=innodb;
+create table t2 (f1 int primary key,
+    constraint c1 foreign key (f1) references t1(f1)
+    on update cascade
+    on delete cascade) engine=innodb;
+create table t3 (f1 int primary key,
+    constraint c2 foreign key (f1) references t1(f1)
+    on update cascade
+    on delete cascade) engine=innodb;
+show create table t1;
+show create table t2;
+show create table t3;
+
+insert into t1 values (1);
+insert into t1 values (2);
+insert into t1 values (3);
+
+insert into t2 values (1);
+insert into t2 values (2);
+insert into t2 values (3);
+
+insert into t3 values (1);
+insert into t3 values (2);
+insert into t3 values (3);
+
+select f1 from t1;
+select f1 from t2;
+select f1 from t3;
+
+SET DEBUG='+d,dml_cascade_only_once';
+SET DEBUG='+d,row_upd_cascade_lock_wait_err';
+update t1 set f1 = 100 where f1 = 2;
+
+select f1 from t1;
+select f1 from t2;
+select f1 from t3;
+
+drop table t2;
+drop table t3;
+drop table t1;

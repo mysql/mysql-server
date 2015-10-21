@@ -63,12 +63,14 @@ ERROR HY000: Error writing file 'master-bin' ((errno: #)
 CREATE USER user1;
 CREATE USER user1;
 ERROR HY000: Error writing file 'master-bin' ((errno: #)
+CREATE USER user1;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM user1;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM user1;
 ERROR HY000: Error writing file 'master-bin' ((errno: #)
 DROP USER user1;
 DROP USER user1;
 ERROR HY000: Error writing file 'master-bin' ((errno: #)
+DROP USER user1;
 #
 # Cleanup
 #

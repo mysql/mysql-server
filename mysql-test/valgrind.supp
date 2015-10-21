@@ -866,7 +866,16 @@
    fun:_my_b_write
    fun:_Z*10write_keysP10Sort_paramP13Filesort_infojP11st_io_cacheS4_
    fun:_Z*13find_all_keysP3THDP10Sort_paramP7QEP_TABP13Filesort_infoP11st_io_cacheS8_P13Bounded_queueIPhSA_S1_N12_GLOBAL__N_111Mem_compareEEPy
-   fun:_Z8filesortP3THDP7QEP_TABP8FilesortbPyS5_
+   fun:_Z8filesortP3THDP8FilesortbPyS3_S3_
+}
+
+{
+   Bug#12856915 VALGRIND FAILURE IN FILESORT/CREATE_SORT_INDEX / three
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:my_b_flush_io_cache
+   fun:_Z8filesortP3THDP8FilesortbPyS3_S3_
 }
 
 {
@@ -918,7 +927,7 @@
    fun:_ZL10plugin_delP13st_plugin_int
    fun:_ZL12reap_pluginsv
    fun:_Z15plugin_shutdownv
-   fun:_ZL8clean_upb*
+   fun:_Z*8clean_upb*
 }
 
 {
@@ -950,45 +959,65 @@
    fun:malloc_info
 }
 
-# Supress Corosync leaks
+#supress warnings from openssl random generator
+
 {
-   Corosync leak when we start Group Replication on server start
+   OpenSSL conditional jump in ssl3_ctx_ctrl
+   Memcheck:Cond
+   ...
+   fun:ssl3_ctx_ctrl
+   fun:new_VioSSLFd
+}
+
+{
+   OpenSSL uninitialised value of size 8 in new_VioSSLFd
+   Memcheck:Value8
+   fun:BN_num_bits_word
+   fun:BN_num_bits
+   ...
+   fun:new_VioSSLFd
+}
+
+{
+   OpenSSL uninitialised value of size 8 in new_VioSSLFd
+   Memcheck:Value8
+   fun:BN_mod_exp_mont_consttime
+   ...
+   fun:new_VioSSLFd
+}
+
+
+# supress uninitialized because some SSL libraries do random like that
+{
+   OpenSSL conditional jump in generate_user_salt due to randomness
+   Memcheck:Cond
+   fun:generate_user_salt
+   fun:native_password_authenticate
+}
+
+
+# Remove the NUMA ones below when https://github.com/numactl/numactl/issues/3
+# is resolved.
+
+{
+   libnuma fails to free its internally allocated memory 1
    Memcheck:Leak
    fun:malloc
-   ...
-   fun:_ZN25Group_replication_handler5startEv
-   fun:_Z23group_replication_startv
-   obj:*
-   fun:_ZL17plugin_initializeP13st_plugin_int
-   fun:_Z11plugin_initPiPPci
-   ...
+   fun:numa_bitmask_alloc
 }
 
 {
-   Corosync leak when we start Group Replication on server start
+   libnuma fails to free its internally allocated memory 2
    Memcheck:Leak
    fun:calloc
-   ...
-   fun:_ZN25Group_replication_handler5startEv
-   fun:_Z23group_replication_startv
-   obj:*
-   fun:_ZL17plugin_initializeP13st_plugin_int
-   fun:_Z11plugin_initPiPPci
-   fun:_ZL22init_server_componentsv
-   fun:_Z11mysqld_mainiPPc
-   ...
+   fun:numa_bitmask_alloc
 }
 
 {
-   Corosync leak when we start Group Replication manually
+   libnuma fails to free its internally allocated memory 3
    Memcheck:Leak
+   fun:calloc
    fun:*
-   ...
-   fun:_ZN25Group_replication_handler5startEv
-   fun:_Z23group_replication_startv
-   fun:_Z21mysql_execute_commandP3THD
-   fun:_Z11mysql_parseP3THDP12Parser_state
-   fun:_Z16dispatch_command19enum_server_commandP3THDPcm
-   ...
+   fun:numa_node_to_cpus
 }
 

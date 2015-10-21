@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -414,12 +414,6 @@ static void create_record(uchar *record,uint rownr)
      float8store(pos,data[i]);
      pos+=8;
    }
-}
-
-#else
-int main(int argc __attribute__((unused)),char *argv[] __attribute__((unused)))
-{
-  exit(0);
 }
 
 #include "mi_extrafunc.h"

@@ -151,21 +151,6 @@ page_set_ssn_id(
 }
 
 /*************************************************************//**
-Reads the given header field. */
-UNIV_INLINE
-ulint
-page_header_get_field(
-/*==================*/
-	const page_t*	page,	/*!< in: page */
-	ulint		field)	/*!< in: PAGE_LEVEL, ... */
-{
-	ut_ad(page);
-	ut_ad(field <= PAGE_INDEX_ID);
-
-	return(mach_read_from_2(page + PAGE_HEADER + field));
-}
-
-/*************************************************************//**
 Sets the given header field. */
 UNIV_INLINE
 void
@@ -677,18 +662,6 @@ page_dir_set_n_slots(
 	ulint		n_slots)/*!< in: number of slots */
 {
 	page_header_set_field(page, page_zip, PAGE_N_DIR_SLOTS, n_slots);
-}
-
-/*************************************************************//**
-Gets the number of records in the heap.
-@return number of user records */
-UNIV_INLINE
-ulint
-page_dir_get_n_heap(
-/*================*/
-	const page_t*	page)	/*!< in: index page */
-{
-	return(page_header_get_field(page, PAGE_N_HEAP) & 0x7fff);
 }
 
 /*************************************************************//**

@@ -64,6 +64,15 @@ typedef std::set<
 	std::less<table_id_t>,
 	ut_allocator<table_id_t> >	table_id_set;
 
+/** Map of transactions to affected table_id */
+typedef std::map<
+	trx_t*, table_id_set,
+	std::less<trx_t*>,
+	ut_allocator<table_id_set> >	trx_table_map;
+
+/** Map of resurrected transactions to affected table_id */
+static trx_table_map	resurrected_trx_tables;
+
 /** Dummy session used currently in MySQL interface */
 sess_t*	trx_dummy_sess = NULL;
 
@@ -77,7 +86,7 @@ TrxVersion::TrxVersion(trx_t* trx)
 }
 
 /** Set flush observer for the transaction
-@param[in/out]	trx		transaction struct
+@param[in,out]	trx		transaction struct
 @param[in]	observer	flush observer */
 void
 trx_set_flush_observer(
@@ -137,11 +146,7 @@ trx_init(
 
 	trx->check_unique_secondary = true;
 
-	trx->support_xa = true;
-
 	trx->lock.n_rec_locks = 0;
-
-	trx->search_latch_timeout = BTR_SEA_TIMEOUT;
 
 	trx->dict_operation = TRX_DICT_OP_NONE;
 
@@ -150,8 +155,6 @@ trx_init(
 	trx->error_state = DB_SUCCESS;
 
 	trx->error_key_num = ULINT_UNDEFINED;
-
-	trx->last_upd_sp_index = NULL;
 
 	trx->undo_no = 0;
 
@@ -253,8 +256,8 @@ struct TrxFactory {
 			trx->trx_savepoints,
 			&trx_named_savept_t::trx_savepoints);
 
-		mutex_create("trx", &trx->mutex);
-		mutex_create("trx_undo", &trx->undo_mutex);
+		mutex_create(LATCH_ID_TRX, &trx->mutex);
+		mutex_create(LATCH_ID_TRX_UNDO, &trx->undo_mutex);
 
 		lock_trx_alloc_locks(trx);
 	}
@@ -367,7 +370,7 @@ struct TrxPoolLock {
 	/** Create the mutex */
 	void create()
 	{
-		mutex_create("trx_pool", &m_mutex);
+		mutex_create(LATCH_ID_TRX_POOL, &m_mutex);
 	}
 
 	/** Acquire the mutex */
@@ -390,7 +393,7 @@ struct TrxPoolManagerLock {
 	/** Create the mutex */
 	void create()
 	{
-		mutex_create("trx_pool_manager", &m_mutex);
+		mutex_create(LATCH_ID_TRX_POOL_MANAGER, &m_mutex);
 	}
 
 	/** Acquire the mutex */
@@ -548,7 +551,7 @@ trx_allocate_for_mysql(void)
 }
 
 /** Check state of transaction before freeing it.
-@param trx trx object to validate */
+@param[in,out]	trx	transaction object to validate */
 static
 void
 trx_validate_state_before_free(trx_t* trx)
@@ -585,8 +588,8 @@ trx_validate_state_before_free(trx_t* trx)
 	assert_trx_is_inactive(trx);
 }
 
-/** Free and initialize a transaction object instantinated during recovery.
-@param trx trx object to free and initialize during recovery */
+/** Free and initialize a transaction object instantiated during recovery.
+@param[in,out]	trx	transaction object to free and initialize */
 void
 trx_free_resurrected(trx_t* trx)
 {
@@ -598,7 +601,7 @@ trx_free_resurrected(trx_t* trx)
 }
 
 /** Free a transaction that was allocated by background or user threads.
-@param trx trx object to free */
+@param[in,out]	trx	transaction object to free */
 void
 trx_free_for_background(trx_t* trx)
 {
@@ -671,7 +674,6 @@ trx_disconnect_from_mysql(
 		ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
 
 		trx->is_recovered = true;
-		trx_sys->n_prepared_recovered_trx++;
 	        trx->mysql_thd = NULL;
 		/* todo/fixme: suggest to do it at innodb prepare */
 		trx->will_lock = 0;
@@ -706,21 +708,20 @@ trx_free_for_mysql(trx_t*	trx)
 	trx_free_for_background(trx);
 }
 
-/****************************************************************//**
-Resurrect the table locks for a resurrected transaction. */
+/** Resurrect the table IDs for a resurrected transaction.
+@param[in]	trx		resurrected transaction
+@param[in]	undo_ptr	pointer to undo segment
+@param[in]	undo		undo log */
 static
 void
-trx_resurrect_table_locks(
-/*======================*/
-	trx_t*			trx,	/*!< in/out: transaction */
+trx_resurrect_table_ids(
+	trx_t*			trx,
 	const trx_undo_ptr_t*	undo_ptr,
-					/*!< in: pointer to undo segment. */
-	const trx_undo_t*	undo)	/*!< in: undo log */
+	const trx_undo_t*	undo)
 {
 	mtr_t			mtr;
 	page_t*			undo_page;
 	trx_undo_rec_t*		undo_rec;
-	table_id_set		tables;
 
 	ut_ad(undo == undo_ptr->insert_undo || undo == undo_ptr->update_undo);
 
@@ -728,6 +729,11 @@ trx_resurrect_table_locks(
 
 		return;
 	}
+
+	table_id_set		empty;
+	table_id_set&		tables
+		= resurrected_trx_tables.insert(
+			trx_table_map::value_type(trx, empty)).first->second;
 
 	mtr_start(&mtr);
 
@@ -773,36 +779,52 @@ trx_resurrect_table_locks(
 	} while (undo_rec);
 
 	mtr_commit(&mtr);
+}
 
-	for (table_id_set::const_iterator i = tables.begin();
-	     i != tables.end(); i++) {
-		if (dict_table_t* table = dict_table_open_on_id(
-			    *i, FALSE, DICT_TABLE_OP_LOAD_TABLESPACE)) {
-			if (table->ibd_file_missing
-			    || dict_table_is_temporary(table)) {
-				mutex_enter(&dict_sys->mutex);
-				dict_table_close(table, TRUE, FALSE);
-				dict_table_remove_from_cache(table);
-				mutex_exit(&dict_sys->mutex);
-				continue;
+/** Resurrect table locks for resurrected transactions. */
+void
+trx_resurrect_locks()
+{
+	for (trx_table_map::const_iterator t = resurrected_trx_tables.begin();
+	     t != resurrected_trx_tables.end(); t++) {
+		trx_t*			trx	= t->first;
+		const table_id_set&	tables	= t->second;
+		ut_ad(trx->is_recovered);
+
+		for (table_id_set::const_iterator i = tables.begin();
+		     i != tables.end(); i++) {
+			if (dict_table_t* table = dict_table_open_on_id(
+				    *i, FALSE,
+				    DICT_TABLE_OP_LOAD_TABLESPACE)) {
+				ut_ad(!dict_table_is_temporary(table));
+
+				if (table->ibd_file_missing
+				    || dict_table_is_temporary(table)) {
+					mutex_enter(&dict_sys->mutex);
+					dict_table_close(table, TRUE, FALSE);
+					dict_table_remove_from_cache(table);
+					mutex_exit(&dict_sys->mutex);
+					continue;
+				}
+
+				if (trx->state == TRX_STATE_PREPARED) {
+					trx->mod_tables.insert(table);
+				}
+
+				lock_table_ix_resurrect(table, trx);
+
+				DBUG_PRINT("ib_trx",
+					   ("resurrect" TRX_ID_FMT
+					    "  table '%s' IX lock",
+					    trx_get_id_for_print(trx),
+					    table->name.m_name));
+
+				dict_table_close(table, FALSE, FALSE);
 			}
-
-			if (trx->state == TRX_STATE_PREPARED) {
-				trx->mod_tables.insert(table);
-			}
-			lock_table_ix_resurrect(table, trx);
-
-			DBUG_PRINT("ib_trx",
-				   ("resurrect" TRX_ID_FMT
-				    "  table '%s' IX lock from %s undo",
-				    trx_get_id_for_print(trx),
-				    table->name.m_name,
-				    undo == undo_ptr->insert_undo
-				    ? "insert" : "update"));
-
-			dict_table_close(table, FALSE, FALSE);
 		}
 	}
+
+	resurrected_trx_tables.clear();
 }
 
 /****************************************************************//**
@@ -851,7 +873,6 @@ trx_resurrect_insert(
 
 				trx->state = TRX_STATE_PREPARED;
 				++trx_sys->n_prepared_trx;
-				++trx_sys->n_prepared_recovered_trx;
 			} else {
 
 				ib::info() << "Since innodb_force_recovery"
@@ -924,7 +945,6 @@ trx_resurrect_update_in_prepared_state(
 
 			if (trx_state_eq(trx, TRX_STATE_NOT_STARTED)) {
 				++trx_sys->n_prepared_trx;
-				++trx_sys->n_prepared_recovered_trx;
 			} else {
 				ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
 			}
@@ -1038,7 +1058,7 @@ trx_lists_init_at_db_start(void)
 
 			trx_sys_rw_trx_add(trx);
 
-			trx_resurrect_table_locks(
+			trx_resurrect_table_ids(
 				trx, &trx->rsegs.m_redo, undo);
 		}
 
@@ -1065,7 +1085,7 @@ trx_lists_init_at_db_start(void)
 
 			trx_sys_rw_trx_add(trx);
 
-			trx_resurrect_table_locks(
+			trx_resurrect_table_ids(
 				trx, &trx->rsegs.m_redo, undo);
 		}
 	}
@@ -1103,7 +1123,7 @@ get_next_redo_rseg(
 	ulong	max_undo_logs,	/*!< in: maximum number of UNDO logs to use */
 	ulint	n_tablespaces)	/*!< in: number of rollback tablespaces */
 {
-	trx_rseg_t*	rseg;
+	trx_rseg_t*	rseg = NULL;
 	static ulint	redo_rseg_slot = 0;
 	ulint		slot = 0;
 
@@ -1559,6 +1579,7 @@ trx_serialisation_number_get(
 Assign the transaction its history serialisation number and write the
 update UNDO log record to the assigned rollback segment.
 @return true if a serialisation log was written */
+static
 bool
 trx_write_serialisation_history(
 /*============================*/
@@ -1859,29 +1880,49 @@ trx_update_mod_tables_timestamp(
 }
 
 /**
-Erase the transaction from the write set.
+Erase the transaction from running transaction lists and serialization
+list. Active RW transaction list of a MVCC snapshot(ReadView::prepare)
+won't include this transaction after this call. All implicit locks are
+also released by this call as trx is removed from rw_trx_list.
 @param[in] trx		Transaction to erase, must have an ID > 0
 @param[in] serialised	true if serialisation log was written */
 static
 void
-trx_erase_from_write_set(trx_t* trx, bool serialised)
+trx_erase_lists(
+	trx_t*	trx,
+	bool	serialised)
 {
-	ut_ad(trx_sys_mutex_own());
+	ut_ad(trx->id > 0);
+	trx_sys_mutex_enter();
 
 	if (serialised) {
 		UT_LIST_REMOVE(trx_sys->serialisation_list, trx);
 	}
 
-	trx_sys->rw_trx_set.erase(TrxTrack(trx->id));
-
 	trx_ids_t::iterator	it = std::lower_bound(
 		trx_sys->rw_trx_ids.begin(),
 		trx_sys->rw_trx_ids.end(),
 		trx->id);
-
 	ut_ad(*it == trx->id);
-
 	trx_sys->rw_trx_ids.erase(it);
+
+	if (trx->read_only || trx->rsegs.m_redo.rseg == NULL) {
+
+		ut_ad(!trx->in_rw_trx_list);
+	} else {
+
+		UT_LIST_REMOVE(trx_sys->rw_trx_list, trx);
+		ut_d(trx->in_rw_trx_list = false);
+		ut_ad(trx_sys_validate_trx_list());
+
+		if (trx->read_view != NULL) {
+			trx_sys->mvcc->view_close(trx->read_view, true);
+		}
+	}
+
+	trx_sys->rw_trx_set.erase(TrxTrack(trx->id));
+
+	trx_sys_mutex_exit();
 }
 
 /****************************************************************//**
@@ -1938,57 +1979,32 @@ trx_commit_in_memory(
 
 	} else {
 
+		if (trx->id > 0) {
+			/* For consistent snapshot, we need to remove current
+			transaction from running transaction id list for mvcc
+			before doing commit and releasing locks. */
+			trx_erase_lists(trx, serialised);
+		}
+
 		lock_trx_release_locks(trx);
 
 		/* Remove the transaction from the list of active
 		transactions now that it no longer holds any user locks. */
 
 		ut_ad(trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
+		DEBUG_SYNC_C("after_trx_committed_in_memory");
 
-		if (trx->read_only || trx->rsegs.m_redo.rseg == 0) {
-
-			ut_ad(!trx->in_rw_trx_list);
+		if (trx->read_only || trx->rsegs.m_redo.rseg == NULL) {
 
 			MONITOR_INC(MONITOR_TRX_RO_COMMIT);
-
 			if (trx->read_view != NULL) {
 				trx_sys->mvcc->view_close(
 					trx->read_view, false);
 			}
 
-			/* Only RO transactions that write to temporary tables
-			are assigned a transaction ID. */
-			if (trx->id > 0) {
-				trx_sys_mutex_enter();
-
-				trx_erase_from_write_set(trx, serialised);
-
-				trx_sys_mutex_exit();
-			}
-
 		} else {
-
 			ut_ad(trx->id > 0);
-
-			trx_sys_mutex_enter();
-
-			check_trx_state(trx);
-
-			UT_LIST_REMOVE(trx_sys->rw_trx_list, trx);
-
-			ut_d(trx->in_rw_trx_list = false);
-
 			MONITOR_INC(MONITOR_TRX_RW_COMMIT);
-
-			ut_ad(trx_sys_validate_trx_list());
-
-			if (trx->read_view != NULL) {
-				trx_sys->mvcc->view_close(trx->read_view, true);
-			}
-
-			trx_erase_from_write_set(trx, serialised);
-
-			trx_sys_mutex_exit();
 		}
 	}
 
@@ -2193,6 +2209,7 @@ trx_commit_low(
 		DEBUG_SYNC_C("before_trx_state_committed_in_memory");
 	}
 #endif
+
 	trx_commit_in_memory(trx, mtr, serialised);
 }
 
@@ -2421,17 +2438,6 @@ trx_commit_for_mysql(
 	switch (trx->state) {
 	case TRX_STATE_NOT_STARTED:
 	case TRX_STATE_FORCED_ROLLBACK:
-
-		/* Update the info whether we should skip XA steps that eat
-		CPU time.
-
-		For the duration of the transaction trx->support_xa is
-		not reread from thd so any changes in the value take
-		effect in the next transaction. This is to avoid a
-		scenario where some undo log records generated by a
-		transaction contain XA information and other undo log
-		records generated by the same transaction do not. */
-		trx->support_xa = thd_supports_xa(trx->mysql_thd);
 
 		ut_d(trx->start_file = __FILE__);
 		ut_d(trx->start_line = __LINE__);
@@ -3068,18 +3074,6 @@ trx_start_if_not_started_xa_low(
 	switch (trx->state) {
 	case TRX_STATE_NOT_STARTED:
 	case TRX_STATE_FORCED_ROLLBACK:
-
-		/* Update the info whether we should skip XA steps
-		that eat CPU time.
-
-		For the duration of the transaction trx->support_xa is
-		not reread from thd so any changes in the value take
-		effect in the next transaction. This is to avoid a
-		scenario where some undo generated by a transaction,
-		has XA stuff, and other undo, generated by the same
-		transaction, doesn't. */
-		trx->support_xa = thd_supports_xa(trx->mysql_thd);
-
 		trx_start_low(trx, read_write);
 		return;
 
@@ -3283,6 +3277,8 @@ trx_kill_blocking(trx_t* trx)
 		return;
 	}
 
+	DEBUG_SYNC_C("trx_kill_blocking_enter");
+
 	ulint	had_dict_lock = trx->dict_operation_lock_mode;
 
 	switch (had_dict_lock) {
@@ -3367,6 +3363,10 @@ trx_kill_blocking(trx_t* trx)
 		if (trx_is_started(victim_trx) && rollback) {
 
 			trx_id_t	id = victim_trx->id;
+			char*		thr_text = thd_security_context(
+							victim_trx->mysql_thd,
+							buffer, sizeof(buffer),
+							512);
 
 			ut_ad(victim_trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC);
 
@@ -3375,9 +3375,7 @@ trx_kill_blocking(trx_t* trx)
 			trx_rollback_for_mysql(victim_trx);
 
 			ib::info() << "Killed transaction: ID: " << id
-				<< " - " << thd_security_context(
-					victim_trx->mysql_thd,
-					buffer, sizeof(buffer), 512);
+				<< " - " << thr_text;
 		}
 
 		trx_mutex_enter(victim_trx);

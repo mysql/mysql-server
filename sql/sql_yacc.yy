@@ -75,6 +75,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "lex_token.h"
 #include "item_cmpfunc.h"
 #include "item_geofunc.h"
+#include "item_json_func.h"
 #include "sql_plugin.h"                      // plugin_is_ready
 #include "parse_tree_hints.h"
 #include "derror.h"
@@ -197,7 +198,7 @@ int yylex(void *yylval, void *yythd);
   to abort from the parser.
 */
 
-void MYSQLerror(YYLTYPE *, THD *thd, const char *s)
+static void MYSQLerror(YYLTYPE *, THD *thd, const char *s)
 {
   /*
     Restore the original LEX if it was replaced when parsing
@@ -289,7 +290,7 @@ Pos     Instruction
   @param thd thread handler
 */
 
-void case_stmt_action_case(THD *thd)
+static void case_stmt_action_case(THD *thd)
 {
   LEX *lex= thd->lex;
   sp_head *sp= lex->sphead;
@@ -312,7 +313,7 @@ void case_stmt_action_case(THD *thd)
   @param lex the parser lex context
 */
 
-bool case_stmt_action_then(THD *thd, LEX *lex)
+static bool case_stmt_action_then(THD *thd, LEX *lex)
 {
   sp_head *sp= lex->sphead;
   sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
@@ -347,7 +348,7 @@ bool case_stmt_action_then(THD *thd, LEX *lex)
   @param simple true for simple cases, false for searched cases
 */
 
-void case_stmt_action_end_case(LEX *lex, bool simple)
+static void case_stmt_action_end_case(LEX *lex, bool simple)
 {
   sp_head *sp= lex->sphead;
   sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
@@ -397,41 +398,6 @@ static bool add_create_index (LEX *lex, keytype type,
   return FALSE;
 }
 
-/**
-  Compare a LEX_USER against the current user as defined by the exact user and
-  host used during authentication.
-
-  @param user A pointer to a user which needs to be matched against the
-              current.
-
-  @see SET PASSWORD rules
-
-  @retval true The specified user is the authorized user
-  @retval false The user doesn't match
-*/
-
-bool match_authorized_user(Security_context *ctx, LEX_USER *user)
-{
-  if(user->user.str && my_strcasecmp(system_charset_info,
-                                     ctx->priv_user().str,
-                                     user->user.str) == 0)
-  {
-    /*
-      users match; let's compare hosts.
-      1. first compare with the host we actually authorized,
-      2. then see if we match the host mask of the priv_host
-    */
-    if (user->host.str && my_strcasecmp(system_charset_info,
-                                        user->host.str,
-                                        ctx->priv_host().str) == 0)
-    {
-      /* specified user exactly match the authorized user */
-      return true;
-    }
-  }
-  return false;
-}
-
 static void init_index_hints(List<Index_hint> *hints, index_hint_type type,
                              index_clause_map clause)
 {
@@ -457,7 +423,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %lex-param { class THD *YYTHD }
 %pure-parser                                    /* We have threads */
 /* We should not introduce new conflicts any more. */
-%expect 129
+%expect 126
 
 /*
    Comments for TOKENS.
@@ -730,6 +696,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  ISSUER_SYM
 %token  ITERATE_SYM
 %token  JOIN_SYM                      /* SQL-2003-R */
+%token  JSON_SEPARATOR_SYM            /* MYSQL */
+%token  JSON_SYM                      /* MYSQL */
 %token  KEYS
 %token  KEY_BLOCK_SIZE
 %token  KEY_SYM                       /* SQL-2003-N */
@@ -790,7 +758,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  MATCH                         /* SQL-2003-R */
 %token  MAX_CONNECTIONS_PER_HOUR
 %token  MAX_QUERIES_PER_HOUR
-%token  MAX_STATEMENT_TIME_SYM
 %token  MAX_ROWS
 %token  MAX_SIZE_SYM
 %token  MAX_SYM                       /* SQL-2003-N */
@@ -1289,6 +1256,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %type <charset>
         opt_collate
+        opt_collate_explicit
         charset_name
         charset_name_or_default
         old_or_new_charset_name
@@ -1302,7 +1270,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %type <boolfunc2creator> comp_op
 
 %type <NONE>
-        create change do drop
+        create change drop
         truncate rename
         show describe load alter optimize keycache preload flush
         reset purge begin commit rollback savepoint release
@@ -1434,6 +1402,7 @@ END_OF_INPUT
 %type <ulonglong_number> query_spec_option 
 
 %type <select_options> select_option select_option_list select_options
+        empty_select_options
 
 %type <node> join_table join_table_parens order_or_limit
           option_value union_opt
@@ -1515,7 +1484,7 @@ END_OF_INPUT
 
 %type <derived_table> derived_table
 
-%type <select> select
+%type <select> select do_stmt
 
 %type <param_marker> param_marker
 
@@ -1528,6 +1497,7 @@ END_OF_INPUT
         update_stmt
         insert_stmt
         replace_stmt
+        shutdown_stmt
 
 %type <table_ident> table_ident_opt_wild
 
@@ -1648,7 +1618,7 @@ statement:
         | deallocate
         | delete_stmt           {  MAKE_CMD($1); }
         | describe
-        | do
+        | do_stmt               { CONTEXTUALIZE($1); }
         | drop
         | execute
         | flush
@@ -1682,6 +1652,7 @@ statement:
         | set                   { CONTEXTUALIZE($1); }
         | signal_stmt
         | show
+        | shutdown_stmt         { MAKE_CMD($1); }
         | slave
         | start
         | truncate
@@ -2335,10 +2306,12 @@ create:
           }
           view_or_trigger_or_sp_or_event
           {}
-        | CREATE USER clear_privileges grant_list require_clause
+        | CREATE USER opt_if_not_exists clear_privileges grant_list require_clause
                       connect_options opt_account_lock_password_expire_options
           {
-            Lex->sql_command = SQLCOM_CREATE_USER;
+            LEX *lex=Lex;
+            lex->sql_command = SQLCOM_CREATE_USER;
+            lex->create_info.options=$3;
           }
         | CREATE LOGFILE_SYM GROUP_SYM logfile_group_info
           {
@@ -2617,6 +2590,7 @@ clear_password_expire_options:
          /* Nothing */
          {
            LEX *lex=Lex;
+           lex->alter_password.update_password_expired_fields= false;
            lex->alter_password.update_password_expired_column= false;
            lex->alter_password.use_default_password_lifetime= true;
            lex->alter_password.expire_after_days= 0;
@@ -3680,9 +3654,11 @@ sp_proc_stmt_statement:
               instructions for them were already added during processing
               of "set" rule.
             */
-            DBUG_ASSERT(lex->sql_command != SQLCOM_SET_OPTION ||
+            DBUG_ASSERT((lex->sql_command != SQLCOM_SET_OPTION &&
+                         lex->sql_command != SQLCOM_SET_PASSWORD) ||
                         lex->var_list.is_empty());
-            if (lex->sql_command != SQLCOM_SET_OPTION)
+            if (lex->sql_command != SQLCOM_SET_OPTION &&
+                lex->sql_command != SQLCOM_SET_PASSWORD)
             {
               /* Extract the query statement from the tokenizer. */
 
@@ -6311,9 +6287,19 @@ field_spec:
 
 field_def:
           type opt_attribute {}
-        | type opt_generated_always AS '(' generated_column_func ')' opt_stored_attribute opt_gcol_attribute_list
+        | type opt_collate_explicit opt_generated_always
+          AS '(' generated_column_func ')' opt_stored_attribute
+          opt_gcol_attribute_list
           {
             $$= $1;
+            if (Lex->charset)
+            {
+              Lex->charset= merge_charset_and_collation(Lex->charset, $2);
+              if (Lex->charset == NULL)
+                MYSQL_YYABORT;
+            }
+            else
+              Lex->charset= $2;
             Lex->gcol_info->set_field_type((enum enum_field_types) $$);
           }
         ;
@@ -6337,17 +6323,18 @@ gcol_attribute:
           UNIQUE_SYM
           {
             LEX *lex=Lex;
-            lex->type|= UNIQUE_FLAG; 
-            lex->alter_info.flags|= Alter_inplace_info::ADD_INDEX;
+            lex->type|= UNIQUE_FLAG;
+            lex->alter_info.flags|= Alter_info::ALTER_ADD_INDEX;
           }
         | UNIQUE_SYM KEY_SYM
           {
             LEX *lex=Lex;
-            lex->type|= UNIQUE_KEY_FLAG; 
-            lex->alter_info.flags|= Alter_inplace_info::ADD_INDEX; 
+            lex->type|= UNIQUE_KEY_FLAG;
+            lex->alter_info.flags|= Alter_info::ALTER_ADD_INDEX;
           }
         | COMMENT_SYM TEXT_STRING_sys { Lex->comment= $2; }
         | not NULL_SYM { Lex->type|= NOT_NULL_FLAG; }
+        | NULL_SYM
         | opt_primary KEY_SYM
           {
             LEX *lex=Lex;
@@ -6392,10 +6379,21 @@ generated_column_func:
             }
             ITEMIZE($1, &$1);
             uint expr_len= (uint)@1.cpp.length();
-            Lex->gcol_info->expr_str.str=
-              (char* ) sql_memdup(@1.cpp.start, expr_len);
-            Lex->gcol_info->expr_str.length= expr_len;
+            Lex->gcol_info->dup_expr_str(YYTHD->mem_root, @1.cpp.start, expr_len);
             Lex->gcol_info->expr_item= $1;
+            /*
+              @todo: problems:
+              - here we have a call to the constructor of
+              Generated_column, which takes no argument and builds a
+              non-functional object
+              - then we fill it member by member; either by assignment to
+              public members (!) or by call to a public setter. Both these
+              techniques allow changing, at any future point in time, vital
+              properties of the object which should rather be constant.
+              Class should rather have a constructor which takes arguments,
+              sets members, and members should be constant after that.
+              This would also get rid of some setters like set_field_stored();
+            */
           }
         ;
 
@@ -6533,6 +6531,13 @@ type:
               */
               if (!YYTHD->variables.explicit_defaults_for_timestamp)
                 Lex->type|= NOT_NULL_FLAG;
+              /*
+                To flag the current statement as dependent for binary
+                logging on the session var. Extra copying to Lex is
+                done in case prepared stmt.
+              */
+              Lex->binlog_need_explicit_defaults_ts=
+                YYTHD->binlog_need_explicit_defaults_ts= true;
 
               $$=MYSQL_TYPE_TIMESTAMP2;
             }
@@ -6650,6 +6655,11 @@ type:
             $$=MYSQL_TYPE_LONGLONG;
             Lex->type|= (AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNSIGNED_FLAG |
               UNIQUE_FLAG);
+          }
+        | JSON_SYM
+          {
+            Lex->charset=&my_charset_bin;
+            $$=MYSQL_TYPE_JSON;
           }
         ;
 
@@ -6981,6 +6991,11 @@ collation_name:
 opt_collate:
           /* empty */ { $$=NULL; }
         | COLLATE_SYM collation_name_or_default { $$=$2; }
+        ;
+
+opt_collate_explicit:
+          /* empty */ { $$= NULL; }
+        | COLLATE_SYM collation_name { $$= $2; }
         ;
 
 collation_name_or_default:
@@ -7594,9 +7609,11 @@ alter:
         ;
 
 alter_user_command:
-          ALTER USER clear_privileges
+          ALTER USER if_exists clear_privileges
           {
-            Lex->sql_command= SQLCOM_ALTER_USER;
+            LEX *lex= Lex;
+            lex->sql_command= SQLCOM_ALTER_USER;
+            lex->drop_if_exists= $3;
           }
         ;
 
@@ -7626,6 +7643,7 @@ opt_account_lock_password_expire_option:
         | password_expire
           {
             LEX *lex=Lex;
+            lex->alter_password.update_password_expired_fields= true;
             lex->alter_password.update_password_expired_column= true;
           }
         | password_expire INTERVAL_SYM real_ulong_num DAY_SYM
@@ -7638,15 +7656,20 @@ opt_account_lock_password_expire_option:
               my_error(ER_WRONG_VALUE, MYF(0), "DAY", buf);
               MYSQL_YYABORT;
             }
+            lex->alter_password.update_password_expired_fields= true;
             lex->alter_password.expire_after_days= $3;
             lex->alter_password.use_default_password_lifetime= false;
           }
         | password_expire NEVER_SYM
           {
             LEX *lex=Lex;
+            lex->alter_password.update_password_expired_fields= true;
             lex->alter_password.use_default_password_lifetime= false;
           }
         | password_expire DEFAULT
+          {
+            Lex->alter_password.update_password_expired_fields= true;
+          }
         ;
 
 password_expire:
@@ -7897,10 +7920,18 @@ alter_commands:
 
 opt_validation:
           /* empty */
-        | WITH VALIDATION_SYM
+        | alter_opt_validation
+        ;
+
+alter_opt_validation:
+        WITH VALIDATION_SYM
+          {
+            Lex->alter_info.with_validation= Alter_info::ALTER_WITH_VALIDATION;
+          }
         | WITHOUT_SYM VALIDATION_SYM
           {
-            Lex->alter_info.with_validation= false;
+            Lex->alter_info.with_validation=
+              Alter_info::ALTER_WITHOUT_VALIDATION;
           }
 	    ;
 
@@ -8023,10 +8054,6 @@ alter_list_item:
           add_column column_def opt_place
           {
             Lex->create_last_non_select_table= Lex->last_table();
-            if (Lex->gcol_info && Lex->gcol_info->get_field_stored())
-              Lex->alter_info.flags|= Alter_info::ALTER_STORED_GCOLUMN;
-            else if (Lex->gcol_info)
-              Lex->alter_info.flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
           }
         | ADD key_def
           {
@@ -8034,14 +8061,6 @@ alter_list_item:
             Lex->alter_info.flags|= Alter_info::ALTER_ADD_INDEX;
           }
         | add_column '(' create_field_list ')'
-          {
-            Lex->alter_info.flags|= Alter_info::ALTER_ADD_COLUMN |
-                                    Alter_info::ALTER_ADD_INDEX;
-            if (Lex->gcol_info && Lex->gcol_info->get_field_stored())
-              Lex->alter_info.flags|= Alter_info::ALTER_STORED_GCOLUMN;
-            else if (Lex->gcol_info)
-              Lex->alter_info.flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
-          }
         | CHANGE opt_column field_ident
           {
             LEX *lex=Lex;
@@ -8051,10 +8070,6 @@ alter_list_item:
           field_spec opt_place
           {
             Lex->create_last_non_select_table= Lex->last_table();
-            if (Lex->gcol_info && Lex->gcol_info->get_field_stored())
-              Lex->alter_info.flags|= Alter_info::ALTER_STORED_GCOLUMN;
-            else if (Lex->gcol_info)
-              Lex->alter_info.flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
           }
         | MODIFY_SYM opt_column field_ident
           {
@@ -8078,10 +8093,6 @@ alter_list_item:
                                   lex->uint_geom_type,
                                   lex->gcol_info))
               MYSQL_YYABORT;
-            if (Lex->gcol_info && Lex->gcol_info->get_field_stored())
-              Lex->alter_info.flags|= Alter_info::ALTER_STORED_GCOLUMN;
-            else if (Lex->gcol_info)
-              Lex->alter_info.flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
           }
           opt_place
           {
@@ -8246,6 +8257,7 @@ alter_list_item:
           }
         | alter_algorithm_option
         | alter_lock_option
+        | alter_opt_validation
         ;
 
 opt_index_lock_algorithm:
@@ -9205,7 +9217,6 @@ select_options:
           {
             $$.query_spec_options= 0;
             $$.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
-            $$.max_statement_time= 0;
           }
         | select_option_list
         ;
@@ -9224,7 +9235,6 @@ select_option:
           {
             $$.query_spec_options= $1;
             $$.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
-            $$.max_statement_time= 0;
           }
         | SQL_NO_CACHE_SYM
           {
@@ -9234,7 +9244,6 @@ select_option:
              */
             $$.query_spec_options= 0;
             $$.sql_cache= SELECT_LEX::SQL_NO_CACHE;
-            $$.max_statement_time= 0;
           }
         | SQL_CACHE_SYM
           {
@@ -9244,18 +9253,6 @@ select_option:
              */
             $$.query_spec_options= 0;
             $$.sql_cache= SELECT_LEX::SQL_CACHE;
-            $$.max_statement_time= 0;
-          }
-        | MAX_STATEMENT_TIME_SYM EQ real_ulong_num
-          {
-            /*
-              MAX_STATEMENT_TIME is applicable to SELECT query and that too
-              only for the TOP LEVEL SELECT statement.
-              MAX_STATEMENT_TIME is not appliable to SELECTs of stored routines.
-            */
-            $$.query_spec_options= SELECT_MAX_STATEMENT_TIME;
-            $$.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
-            $$.max_statement_time= $3;
           }
         ;
 
@@ -9656,6 +9653,13 @@ simple_expr:
           {
             $$= NEW_PTN Item_date_add_interval(@$, $5, $2, $3, 0);
           }
+        | simple_ident JSON_SEPARATOR_SYM TEXT_STRING_literal
+          {
+            Item_string *path=
+              NEW_PTN Item_string(@$, $3.str, $3.length,
+                                  YYTHD->variables.collation_connection);
+            $$= NEW_PTN Item_func_json_extract(YYTHD, @$, $1, path);
+          }
         ;
 
 /*
@@ -9990,7 +9994,7 @@ function_call_conflict:
         ;
 
 geometry_function:
-          GEOMETRYCOLLECTION '(' expr_list ')'
+          GEOMETRYCOLLECTION '(' opt_expr_list ')'
           {
             $$= NEW_PTN Item_func_spatial_collection(@$, $3,
                         Geometry::wkb_geometrycollection,
@@ -10056,7 +10060,15 @@ fulltext_options:
           opt_natural_language_mode opt_query_expansion
           { $$= $1 | $2; }
         | IN_SYM BOOLEAN_SYM MODE_SYM
-          { $$= FT_BOOL; }
+          {
+            $$= FT_BOOL;
+            DBUG_EXECUTE_IF("simulate_bug18831513",
+                            {
+                              THD *thd= YYTHD;
+                              if (thd->sp_runtime_ctx)
+                                MYSQLerror(NULL,thd,"syntax error");
+                            });
+          }
         ;
 
 opt_natural_language_mode:
@@ -10332,6 +10344,14 @@ cast_type:
             $$.type_flags= 0;
             $$.length= $2.length;
             $$.dec= $2.dec;
+          }
+        | JSON_SYM
+          {
+            $$.target=ITEM_CAST_JSON;
+            $$.charset= NULL;
+            $$.type_flags= 0;
+            $$.length= NULL;
+            $$.dec= NULL;
           }
         ;
 
@@ -10928,6 +10948,7 @@ alter_order_item:
               MYSQL_YYABORT;
             order->item_ptr= $1;
             order->direction= ($2 == 1) ? ORDER::ORDER_ASC : ORDER::ORDER_DESC;
+            order->is_position= false;
             add_order_to_list(thd, order);
           }
         ;
@@ -11163,16 +11184,31 @@ into_destination:
   DO statement
 */
 
-do:
-          DO_SYM
+do_stmt:
+          DO_SYM empty_select_options select_item_list
           {
-            LEX *lex=Lex;
-            lex->sql_command = SQLCOM_DO;
+/*
+            $$= NEW_PTN PT_select(
+                  NEW_PTN PT_select_init2(NULL,
+                    NEW_PTN PT_select_part2(
+                      NEW_PTN PT_select_options_and_item_list($2, $3)), NULL),
+                                                              SQLCOM_DO);
+*/
+            $$= NEW_PTN PT_select
+              (SQLCOM_DO,
+               NEW_PTN PT_query_expression
+               (NEW_PTN PT_query_expression_body_primary
+                (NEW_PTN PT_query_specification
+                 (NEW_PTN PT_select_part2
+                  (NEW_PTN PT_select_options_and_item_list($2, $3))))));
           }
-          expr_list
+        ;
+
+empty_select_options:
+          /* empty */
           {
-            CONTEXTUALIZE($3);
-            Lex->do_insert_list= &$3->value;
+            $$.query_spec_options= 0;
+            $$.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
           }
         ;
 
@@ -11283,9 +11319,11 @@ drop:
             lex->drop_if_exists= $3;
             lex->spname= $4;
           }
-        | DROP USER clear_privileges user_list
+        | DROP USER if_exists clear_privileges user_list
           {
-            Lex->sql_command = SQLCOM_DROP_USER;
+             LEX *lex=Lex;
+             lex->sql_command= SQLCOM_DROP_USER;
+             lex->drop_if_exists= $3;
           }
         | DROP VIEW_SYM if_exists
           {
@@ -11987,13 +12025,13 @@ show_param:
           {
             Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW WARNINGS doesn't clear them.
             Parse_context pc(YYTHD, Select);
-            (void) create_select_for_variable(&pc, "warning_count");
+            create_select_for_variable(&pc, "warning_count");
           }
         | COUNT_SYM '(' '*' ')' ERRORS
           {
             Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW ERRORS doesn't clear them.
             Parse_context pc(YYTHD, Select);
-            (void) create_select_for_variable(&pc, "error_count");
+            create_select_for_variable(&pc, "error_count");
           }
         | WARNINGS opt_limit_clause
           {
@@ -12206,8 +12244,9 @@ show_param:
           }
         | CREATE USER clear_privileges user
           {
-            Lex->sql_command= SQLCOM_SHOW_CREATE_USER;
-            Lex->grant_user=$4;
+            LEX *lex=Lex;
+            lex->sql_command= SQLCOM_SHOW_CREATE_USER;
+            lex->grant_user=$4;
           }
         ;
 
@@ -13379,6 +13418,7 @@ keyword:
         | SAVEPOINT_SYM         {}
         | SECURITY_SYM          {}
         | SERVER_SYM            {}
+        | SHUTDOWN              {}
         | SIGNED_SYM            {}
         | SOCKET_SYM            {}
         | SLAVE                 {}
@@ -13516,6 +13556,7 @@ keyword_sp:
         | ISOLATION                {}
         | ISSUER_SYM               {}
         | INSERT_METHOD            {}
+        | JSON_SYM                 {}
         | KEY_BLOCK_SIZE           {}
         | LAST_SYM                 {}
         | LEAVES                   {}
@@ -13551,7 +13592,6 @@ keyword_sp:
         | MASTER_AUTO_POSITION_SYM {}
         | MAX_CONNECTIONS_PER_HOUR {}
         | MAX_QUERIES_PER_HOUR     {}
-        | MAX_STATEMENT_TIME_SYM   {}
         | MAX_SIZE_SYM             {}
         | MAX_UPDATES_PER_HOUR     {}
         | MAX_USER_CONNECTIONS_SYM {}
@@ -13652,7 +13692,6 @@ keyword_sp:
         | SESSION_SYM              {}
         | SIMPLE_SYM               {}
         | SHARE_SYM                {}
-        | SHUTDOWN                 {}
         | SLOW                     {}
         | SNAPSHOT_SYM             {}
         | SOUNDS_SYM               {}
@@ -14052,6 +14091,15 @@ unlock:
           }
           table_or_tables
           {}
+        ;
+
+
+shutdown_stmt:
+          SHUTDOWN
+          {
+            Lex->sql_command= SQLCOM_SHUTDOWN;
+            $$= NEW_PTN PT_shutdown();
+          }
         ;
 
 /*

@@ -68,7 +68,8 @@ enum certs
   CLIENT_KEY,
   CLIENT_REQ,
   PRIVATE_KEY,
-  PUBLIC_KEY
+  PUBLIC_KEY,
+  OPENSSL_RND
 };
 
 Sql_string_t cert_files[] =
@@ -83,7 +84,8 @@ Sql_string_t cert_files[] =
   create_string("client-key.pem"),
   create_string("client-req.pem"),
   create_string("private_key.pem"),
-  create_string("public_key.pem")
+  create_string("public_key.pem"),
+  create_string(".rnd")
 };
 
 #define MAX_PATH_LEN  (FN_REFLEN - strlen(FN_DIRSEP) \
@@ -159,8 +161,20 @@ static
 int execute_command(const Sql_string_t &command,
                     const Sql_string_t &error_message)
 {
-  info << "Executing : " << command << endl;
-  if (system(command.c_str()))
+  stringstream cmd_string;
+
+  cmd_string << command;
+  if (!opt_verbose)
+  {
+#ifndef _WIN32
+    cmd_string << " > /dev/null 2>&1";
+#else
+    cmd_string << " > NUL 2>&1";
+#endif /* _WIN32 */
+  }
+
+  info << "Executing : " << cmd_string.str() << endl;
+  if (system(cmd_string.str().c_str()))
   {
     error << error_message << endl;
     return 1;
@@ -356,7 +370,8 @@ void usage(void)
 }
 
 
-my_bool
+extern "C" {
+static my_bool
 my_arguments_get_one_option(int optid,
                             const struct my_option *opt __attribute__((unused)),
                             char *argument)
@@ -372,6 +387,7 @@ my_arguments_get_one_option(int optid,
       exit(0);
   }
   return 0;
+}
 }
 
 
@@ -413,6 +429,9 @@ int main(int argc, char *argv[])
     free_resources();
     exit(1);
   }
+
+  MY_MODE file_creation_mode= get_file_perm(USER_READ | USER_WRITE);
+  MY_MODE saved_umask= umask(~(file_creation_mode));
 
   defaults_argv= argv;
   my_getopt_use_args_separator= FALSE;
@@ -536,12 +555,13 @@ int main(int argc, char *argv[])
       X509_key x509_key(suffix_string);
       X509_cert x509_cert;
 
-      /* Delete existing files : Window may have problem if we don't */
+      /* Delete existing files if any */
       remove_file(cert_files[CA_REQ], false);
       remove_file(cert_files[SERVER_REQ], false);
       remove_file(cert_files[CLIENT_REQ], false);
       remove_file(cert_files[CLIENT_CERT], false);
       remove_file(cert_files[CLIENT_KEY], false);
+      remove_file(cert_files[OPENSSL_RND], false);
 
       /* Generate CA Key and Certificate */
       if ((ret_val= execute_command(x509_key("_Auto_Generated_CA_Certificate",
@@ -566,7 +586,7 @@ int main(int argc, char *argv[])
         goto end;
 
       /* Generate Client Key and Certificate */
-      if ((ret_val= execute_command(x509_key("_Auto_Generated_Server_Certificate",
+      if ((ret_val= execute_command(x509_key("_Auto_Generated_Client_Certificate",
                                              cert_files[CLIENT_KEY], cert_files[CLIENT_REQ]),
                                     "Error generating client_key.pem and client_req.pem")))
         goto end;
@@ -603,6 +623,8 @@ int main(int argc, char *argv[])
 
       if ((ret_val= remove_file(cert_files[CLIENT_REQ])))
         goto end;
+
+      remove_file(cert_files[OPENSSL_RND], false);
     }
 
     /*
@@ -624,6 +646,10 @@ int main(int argc, char *argv[])
     {
       RSA_priv rsa_priv;
       RSA_pub rsa_pub;
+
+      /* Remove existing file if any */
+      remove_file(cert_files[OPENSSL_RND], false);
+
       if ((ret_val= execute_command(rsa_priv(cert_files[PRIVATE_KEY]),
               "Error generating private_key.pem")))
         goto end;
@@ -636,6 +662,8 @@ int main(int argc, char *argv[])
       if ((ret_val= set_file_pair_permission(cert_files[PRIVATE_KEY],
                                              cert_files[PUBLIC_KEY])))
         goto end;
+
+      remove_file(cert_files[OPENSSL_RND], false);
     }
 
     if (my_setwd(save_wd, MYF(MY_WME)))
@@ -649,6 +677,8 @@ int main(int argc, char *argv[])
   info << "Success!" << endl;
 
 end:
+
+  umask(saved_umask);
   free_resources();
 
   DBUG_RETURN(ret_val);

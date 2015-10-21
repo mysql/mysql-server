@@ -13,6 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+/**
+  @file mysys/mysys_priv.h
+*/
+
 #ifndef MYSYS_PRIV_INCLUDED
 #define MYSYS_PRIV_INCLUDED
 
@@ -37,7 +41,7 @@ extern PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
 extern PSI_rwlock_key key_SAFE_HASH_lock;
 
 extern PSI_cond_key key_IO_CACHE_SHARE_cond,
-  key_IO_CACHE_SHARE_cond_writer, key_my_thread_var_suspend,
+  key_IO_CACHE_SHARE_cond_writer,
   key_THR_COND_threads;
 
 C_MODE_END
@@ -49,7 +53,7 @@ C_MODE_START
 extern PSI_stage_info stage_waiting_for_table_level_lock;
 
 extern mysql_mutex_t THR_LOCK_malloc, THR_LOCK_open, THR_LOCK_keycache;
-extern mysql_mutex_t THR_LOCK_lock, THR_LOCK_net;
+extern mysql_mutex_t THR_LOCK_net;
 extern mysql_mutex_t THR_LOCK_charset;
 
 #ifdef HAVE_PSI_INTERFACE
@@ -62,7 +66,6 @@ extern PSI_file_key key_file_charset;
 
 /* These keys are always defined. */
 
-extern PSI_memory_key key_memory_array_buffer;
 extern PSI_memory_key key_memory_charset_file;
 extern PSI_memory_key key_memory_charset_loader;
 extern PSI_memory_key key_memory_lf_node;

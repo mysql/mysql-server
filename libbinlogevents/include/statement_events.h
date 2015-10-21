@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 
   @file statement_events.h
 
-  @brief Contains the classes representing statement events occuring in the
+  @brief Contains the classes representing statement events occurring in the
   replication stream. Each event is represented as a byte sequence with logical
   divisions as event header, event specific data and event footer. The header
   and footer are common to all the events and are represented as two different
@@ -473,7 +473,14 @@ public:
     /*
      A code for Query_log_event status, similar to G_COMMIT_TS2.
    */
-    Q_COMMIT_TS2
+    Q_COMMIT_TS2,
+    /*
+      The master connection @@session.explicit_defaults_for_timestamp which
+      is recorded for queries, CREATE and ALTER table that is defined with
+      a TIMESTAMP column, that are dependent on that feature.
+      For pre-WL6292 master's the associated with this code value is zero.
+    */
+    Q_EXPLICIT_DEFAULTS_FOR_TIMESTAMP
   };
   const char* query;
   const char* db;
@@ -574,7 +581,20 @@ public:
     Q_MASTER_DATA_WRITTEN_CODE to the slave's server binlog.
   */
   size_t master_data_written;
-
+  /*
+    The following member gets set to OFF or ON value when the
+    Query-log-event is marked as dependent on
+    @@explicit_defaults_for_timestamp. That is the member is relevant
+    to queries that declare TIMESTAMP column attribute, like CREATE
+    and ALTER.
+    The value is set to @c TERNARY_OFF when @@explicit_defaults_for_timestamp
+    encoded value is zero, otherwise TERNARY_ON.
+  */
+  enum enum_ternary {
+    TERNARY_UNSET,
+    TERNARY_OFF,
+    TERNARY_ON
+  } explicit_defaults_ts;
   /*
     number of updated databases by the query and their names. This info
     is requested by both Coordinator and Worker.
@@ -616,7 +636,7 @@ public:
     </pre>
 
     @param buf                Containing the event header and data
-    @param even_len           The length upto which buf contains Query event data
+    @param event_len          The length upto which buf contains Query event data
     @param description_event  FDE specific to the binlog version
 
     @param event_type         Required to determine whether the event type is
@@ -770,7 +790,7 @@ public:
   };
 
   /**
-    This constructor will initialize the instance variablesi and the type_code,
+    This constructor will initialize the instance variables and the type_code,
     it will be used only by the server code.
   */
   User_var_event(const char *name_arg, unsigned int name_len_arg, char *val_arg,
@@ -804,7 +824,7 @@ public:
     </pre>
 
     @param buf                Contains the serialized event.
-    @param length             Length of the serialized event.
+    @param event_len          Length of the serialized event.
     @param description_event  An FDE event, used to get the
                               following information
                               -binlog_version

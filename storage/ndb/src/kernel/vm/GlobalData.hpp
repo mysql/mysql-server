@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -56,6 +56,7 @@ struct GlobalData {
   
   Uint32     theNextTimerJob;         // Owned by TimeQueue::
   Uint32     theCurrentTimer;         // Owned by TimeQueue::
+  Uint32     theZeroTQIndex;          // Owned by TimeQueue::
   Uint32     theShortTQIndex;         // Owned by TimeQueue::
   
   Uint32     theLongTQIndex;          // Owned by TimeQueue::

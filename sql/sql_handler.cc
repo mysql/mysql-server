@@ -196,7 +196,8 @@ bool Sql_cmd_handler_open::execute(THD *thd)
     if (my_hash_init(&thd->handler_tables_hash, &my_charset_latin1,
                      HANDLER_TABLES_HASH_SIZE, 0, 0,
                      (my_hash_get_key) mysql_ha_hash_get_key,
-                     (my_hash_free_key) mysql_ha_hash_free, 0))
+                     (my_hash_free_key) mysql_ha_hash_free, 0,
+                     key_memory_THD_handler_tables_hash))
     {
       DBUG_PRINT("exit",("ERROR"));
       DBUG_RETURN(TRUE);
@@ -469,6 +470,7 @@ bool Sql_cmd_handler_read::execute(THD *thd)
   Item          *cond= select_lex->where_cond();
   ha_rows select_limit_cnt, offset_limit_cnt;
   MDL_savepoint mdl_savepoint;
+  bool res;
   DBUG_ENTER("Sql_cmd_handler_read::execute");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'",
                       tables->db, tables->table_name, tables->alias));
@@ -662,8 +664,14 @@ retry:
                     tables->db, tables->alias, &it, 0))
     goto err;
 
-  thd->send_result_metadata(&list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
+  DBUG_EXECUTE_IF("simulate_handler_read_failure",
+                  DBUG_SET("+d,simulate_net_write_failure"););
+  res= thd->send_result_metadata(&list,
+                                      Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
+  DBUG_EXECUTE_IF("simulate_handler_read_failure",
+                  DBUG_SET("-d,simulate_net_write_failure"););
+  if (res)
+    goto err;
 
   /*
     In ::external_lock InnoDB resets the fields which tell it that
@@ -765,8 +773,20 @@ retry:
 	  goto err;
         }
         old_map= dbug_tmp_use_all_columns(table, table->write_set);
-	item->save_in_field(key_part->field, true);
+        type_conversion_status conv_status=
+          item->save_in_field(key_part->field, true);
         dbug_tmp_restore_column_map(table->write_set, old_map);
+        /*
+          If conversion status is TYPE_ERR_BAD_VALUE, the target index value
+          is not stored into record buffer, so we can't proceed with the
+          index search.
+        */
+        if (conv_status == TYPE_ERR_BAD_VALUE)
+        {
+          my_error(ER_WRONG_ARGUMENTS, MYF(0), "HANDLER ... READ");
+          goto err;
+        }
+
 	key_len+=key_part->store_length;
         keypart_map= (keypart_map << 1) | 1;
       }
@@ -812,7 +832,9 @@ retry:
       protocol->start_row();
       if (thd->send_result_set_row(&list))
         goto err;
-      protocol->end_row();
+
+      if (protocol->end_row())
+	goto err;
     }
     num_rows++;
     thd->inc_sent_row_count(1);
@@ -926,7 +948,7 @@ void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables)
   Close cursors of matching tables from the HANDLER's hash table.
 
   @param thd Thread identifier.
-  @param tables The list of tables to flush.
+  @param all_tables The list of tables to flush.
 */
 
 void mysql_ha_flush_tables(THD *thd, TABLE_LIST *all_tables)
@@ -1000,7 +1022,7 @@ void mysql_ha_flush(THD *thd)
   close_temporary_tables) to obtain a TABLE_LIST containing the
   temporary tables.
 
-  @See close_temporary_tables
+  @sa close_temporary_tables
   @param thd Thread identifier.
 */
 void mysql_ha_rm_temporary_tables(THD *thd)

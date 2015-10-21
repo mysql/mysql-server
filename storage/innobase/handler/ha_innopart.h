@@ -147,6 +147,17 @@ public:
 		const char*	sep,
 		size_t		len);
 
+	/** Set up the virtual column template for partition table, and points
+	all m_table_parts[]->vc_templ to it.
+	@param[in]      table           MySQL TABLE object
+	@param[in]      ib_table        InnoDB dict_table_t
+	@param[in]      table_name      Table name (db/table_name) */
+	void
+	set_v_templ(
+		TABLE*		table,
+		dict_table_t*	ib_table,
+		const char*	name);
+
 private:
 	/** Disable default constructor. */
 	Ha_innopart_share() {};
@@ -530,6 +541,15 @@ public:
 	get_parent_foreign_key_list(
 		THD*			thd,
 		List<FOREIGN_KEY_INFO>*	f_key_list)
+	{
+		return(0);
+	}
+
+	// TODO: not yet supporting FK.
+	int
+	get_cascade_foreign_key_table_list(
+		THD*				thd,
+		List<st_handler_tablename>*	fk_table_list)
 	{
 		return(0);
 	}
@@ -1087,6 +1107,12 @@ private:
 	external_lock(
 		THD*	thd,
 		int	lock_type);
+
+	THR_LOCK_DATA**
+	store_lock(
+		THD*			thd,
+		THR_LOCK_DATA**		to,
+		thr_lock_type		lock_type);
 
 	int
 	write_row(

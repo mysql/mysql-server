@@ -58,6 +58,12 @@ developer to enable it during debug. */
 bool srv_skip_temp_table_checks_debug = true;
 #endif /* UNIV_DEBUG */
 
+/** TRUE if we don't have DDTableBuffer in the system tablespace,
+this should be due to we run the server against old data files.
+Please do NOT change this when server is running.
+FIXME: This should be removed away once we can upgrade for new DD. */
+extern bool	srv_missing_dd_table_buffer;
+
 /** Convert a numeric string that optionally ends in G or M or K,
     to a number containing megabytes.
 @param[in]	str	String with a quantity in bytes
@@ -284,9 +290,9 @@ SysTablespace::parse_params(
 			}
 		}
 
-		m_files.push_back(Datafile(filepath, size, order));
+		m_files.push_back(Datafile(filepath, flags(), size, order));
 		Datafile* datafile = &m_files.back();
-		datafile->make_filepath_no_ext(path());
+		datafile->make_filepath(path(), filepath, NO_EXT);
 
 		if (::strlen(str) >= 6
 		    && *str == 'n'
@@ -351,8 +357,14 @@ SysTablespace::check_size(
 	os_offset_t	size = os_file_get_size(file.m_handle);
 	ut_a(size != (os_offset_t) -1);
 
-	/* Round size downward to megabytes */
-	ulint	rounded_size_pages = (ulint) (size >> UNIV_PAGE_SIZE_SHIFT);
+	/* Under some error conditions like disk full scenarios
+	or file size reaching filesystem limit the data file
+	could contain an incomplete extent at the end. When we
+	extend a data file and if some failure happens, then
+	also the data file could contain an incomplete extent.
+	So we need to round the size downward to a  megabyte.*/
+
+	ulint	rounded_size_pages = get_pages_from_size(size);
 
 	/* If last file */
 	if (&file == &m_files.back() && m_auto_extend_last_file) {
@@ -523,6 +535,76 @@ SysTablespace::open_file(
 	}
 
 	return(err);
+}
+
+/** Check if the DDTableBuffer exists in this tablespace.
+FIXME: This should be removed away once we can upgrade for new DD
+@return DB_SUCCESS or error code */
+dberr_t
+SysTablespace::check_dd_table_buffer()
+{
+	dberr_t		err;
+
+	ut_ad(space_id() == TRX_SYS_SPACE);
+
+	files_t::iterator it = m_files.begin();
+	ut_a(it->m_exists);
+
+	if (it->m_handle == OS_FILE_CLOSED) {
+
+		err = it->open_or_create(true);
+
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
+        }
+
+	byte*		unaligned_read_buf;
+	byte*		read_buf;
+
+	unaligned_read_buf = static_cast<byte*>(
+		ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
+
+	read_buf = static_cast<byte*>(
+		ut_align(unaligned_read_buf, UNIV_PAGE_SIZE));
+
+	IORequest	read_request(IORequest::READ);
+
+	read_request.disable_compression();
+
+	err = os_file_read(
+		read_request,
+		it->handle(), read_buf,
+		FSP_TBL_BUFFER_TREE_ROOT_PAGE_NO * UNIV_PAGE_SIZE,
+		UNIV_PAGE_SIZE);
+
+	if (err != DB_SUCCESS) {
+
+		srv_missing_dd_table_buffer = true;
+
+		ib::error()
+			<< "Failed to read the system tablespace page for"
+			<< " the root page of DDTableBuffer.";
+
+		ut_free(unaligned_read_buf);
+
+		return(err);
+	}
+
+	if (mach_read_from_8(read_buf + PAGE_HEADER + PAGE_INDEX_ID)
+	    == DICT_TBL_BUFFER_ID) {
+
+		srv_missing_dd_table_buffer = false;
+	} else {
+
+		srv_missing_dd_table_buffer = true;
+	}
+
+	ut_free(unaligned_read_buf);
+
+	it->close();
+
+	return(DB_SUCCESS);
 }
 
 /** Check the tablespace header for this tablespace.
@@ -931,9 +1013,22 @@ SysTablespace::open_or_create(
 		}
 	}
 
+	/* Check if we have DDTableBuffer in the system tablespace. */
+	if (!is_temp) {
+
+		if (create_new_db) {
+
+			srv_missing_dd_table_buffer = false;
+		} else {
+
+			check_dd_table_buffer();
+		}
+	}
+
 	/* Close the curent handles, add space and file info to the
 	fil_system cache and the Data Dictionary, and re-open them
 	in file_system cache so that they stay open until shutdown. */
+	ulint	node_counter = 0;
 	for (files_t::iterator it = begin; it != end; ++it) {
 		it->close();
 		it->m_exists = true;
@@ -950,63 +1045,29 @@ SysTablespace::open_or_create(
 
 		ut_a(fil_validate());
 
-		/* Open the data file. */
+		ulint	max_size = (++node_counter == m_files.size()
+				    ? (m_last_file_size_max == 0
+				       ? ULINT_MAX
+				       : m_last_file_size_max)
+				    : it->m_size);
+
+		/* Add the datafile to the fil_system cache. */
 		if (!fil_node_create(
-			it->m_filepath, it->m_size,
-			space, it->m_type != SRV_NOT_RAW, it->m_atomic_write)) {
+			    it->m_filepath, it->m_size,
+			    space, it->m_type != SRV_NOT_RAW,
+			    it->m_atomic_write, max_size)) {
 
-		       err = DB_ERROR;
-		       break;
+			err = DB_ERROR;
+			break;
 		}
 	}
-
-	return(err);
-}
-
-/** Replace any records for this space_id in the Data Dictionary with
-this name, flags & filepath..
-@return DB_SUCCESS or error code */
-dberr_t
-SysTablespace::replace_in_dictionary()
-{
-	dberr_t			err	= DB_SUCCESS;
-	files_t::iterator	begin = m_files.begin();
-	files_t::iterator	end = m_files.end();
-
-	if (srv_read_only_mode) {
-		return(DB_SUCCESS);
-	}
-
-	rw_lock_x_lock(&dict_operation_lock);
-	mutex_enter(&dict_sys->mutex);
-
-	/* Add space and file info to the Data Dictionary. */
-	for (files_t::iterator it = begin; it != end; ++it) {
-		if (it == begin) {
-			/* First data file. */
-			err = dict_replace_tablespace_and_filepath(
-				space_id(), name(), it->m_filepath, flags());
-			if (err != DB_SUCCESS) {
-				break;
-			}
-		} else {
-			/* Add extra datafiles to the Data Dictionary */
-			err = dict_add_filepath(space_id(), it->m_filepath);
-			if (err != DB_SUCCESS) {
-				break;
-			}
-		}
-	}
-
-	mutex_exit(&dict_sys->mutex);
-	rw_lock_x_unlock(&dict_operation_lock);
 
 	return(err);
 }
 
 /** Normalize the file size, convert from megabytes to number of pages. */
 void
-SysTablespace::normalize()
+SysTablespace::normalize_size()
 {
 	files_t::iterator	end = m_files.end();
 

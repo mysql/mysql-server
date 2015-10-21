@@ -19,6 +19,7 @@
 #include "my_global.h"
 
 #include "partition_element.h"       // partition_state
+#include "lock.h"                    // Tablespace_hash_set
 
 class Alter_info;
 class Alter_table_ctx;
@@ -116,6 +117,11 @@ void get_full_part_id_from_key(const TABLE *table, uchar *buf,
                                KEY *key_info,
                                const key_range *key_spec,
                                part_id_range *part_spec);
+bool get_partition_tablespace_names(
+       THD *thd,
+       const char *partition_info_str,
+       uint partition_info_len,
+       Tablespace_hash_set *tablespace_set);
 bool mysql_unpack_partition(THD *thd, char *part_buf,
                             uint part_info_len,
                             TABLE *table, bool is_create_table_ind,
@@ -123,12 +129,6 @@ bool mysql_unpack_partition(THD *thd, char *part_buf,
                             bool *work_part_info_used);
 bool make_used_partitions_str(partition_info *part_info,
                               List<const char> *parts);
-uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
-                                       bool left_endpoint,
-                                       bool include_endpoint);
-uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
-                                           bool left_endpoint,
-                                           bool include_endpoint);
 bool check_part_func_fields(Field **ptr, bool ok_with_charsets);
 bool field_is_partition_charset(Field *field);
 Item* convert_charset_partition_constant(Item *item, const CHARSET_INFO *cs);
@@ -179,14 +179,12 @@ void create_partition_name(char *out, const char *in1,
 void create_subpartition_name(char *out, const char *in1,
                               const char *in2, const char *in3,
                               uint name_variant);
-void set_field_ptr(Field **ptr, const uchar *new_buf, const uchar *old_buf);
-void set_key_field_ptr(KEY *key_info, const uchar *new_buf,
-                       const uchar *old_buf);
 /** Set up table for creating a partition.
 Copy info from partition to the table share so the created partition
 has the correct info.
   @param thd               THD object
   @param share             Table share to be updated.
+  @param partition_name_with_path
   @param info              Create info to be updated.
   @param part_elem         partition_element containing the info.
 

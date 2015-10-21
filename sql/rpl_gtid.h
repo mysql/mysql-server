@@ -117,6 +117,7 @@ enum enum_return_status
 };
 
 /**
+  @def __CHECK_RETURN_STATUS
   Lowest level macro used in the PROPAGATE_* and RETURN_* macros
   below.
 
@@ -268,7 +269,7 @@ extern TYPELIB gtid_mode_typelib;
 
   @param string The string to decode.
 
-  @param[OUT] error If the string does not represent a valid
+  @param[out] error If the string does not represent a valid
   GTID_MODE, this is set to true, otherwise it is left untouched.
 
   @return The GTID_MODE.
@@ -307,8 +308,8 @@ enum enum_gtid_mode_lock
   GTID_MODE_LOCK_GTID_MODE,
   /// global_sid_lock held.
   GTID_MODE_LOCK_SID,
-  /// LOCK_msr_map held.
-  GTID_MODE_LOCK_MSR_MAP
+  /// read or write lock on channel_map lock is held.
+  GTID_MODE_LOCK_CHANNEL_MAP
 /*
   Currently, no function that calls get_gtid_mode needs
   this. Uncomment this, and uncomment the case in get_gtid_mode, if it
@@ -340,7 +341,7 @@ enum_gtid_mode get_gtid_mode(enum_gtid_mode_lock have_lock);
 /**
   Return the current GTID_MODE as a string. Used only for debugging.
 
-  @param need_lock Pass this parameter to get_gtid_mode(bool).
+  @param have_lock Pass this parameter to get_gtid_mode(bool).
 */
 inline const char *get_gtid_mode_string(enum_gtid_mode_lock have_lock)
 {
@@ -826,27 +827,6 @@ public:
     mysql_mutex_assert_not_owner(&get_mutex_cond(n)->mutex);
 #endif
   }
-  /**
-    Wait for signal on the n'th condition variable.
-
-    The caller must hold the read lock or write lock on sid_lock, as
-    well as the nth mutex lock, before invoking this function.  The
-    sid_lock will be released, whereas the mutex will be released
-    during the wait and (atomically) re-acquired when the wait ends.
-  */
-  inline void wait(const THD* thd, int n) const
-  {
-    DBUG_ENTER("Mutex_cond_array::wait");
-    Mutex_cond *mutex_cond= get_mutex_cond(n);
-    global_lock->unlock();
-    if (!check_thd_killed(thd))
-    {
-      mysql_mutex_assert_owner(&mutex_cond->mutex);
-      mysql_cond_wait(&mutex_cond->cond, &mutex_cond->mutex);
-      mysql_mutex_assert_owner(&mutex_cond->mutex);
-    }
-    DBUG_VOID_RETURN;
-  }
 
   /**
     Wait for signal on the n'th condition variable.
@@ -857,26 +837,31 @@ public:
     during the wait and (atomically) re-acquired when the wait ends
     or the timeout is reached.
 
-    @param[in] n - Sidno to wait for.
-    @param[in] abstime - pointer to the absolute wating time
+    @param[in] thd THD object for the calling thread.
+    @param[in] sidno Condition variable to wait for.
+    @param[in] abstime The absolute point in time when the wait times
+    out and stops, or NULL to wait indefinitely.
 
-    @retval - 0 - success
-             !=0 - failure
+    @retval false Success.
+    @retval true Failure: either timeout or thread was killed.  If
+    thread was killed, the error has been generated.
   */
-  inline int wait(const THD* thd, int sidno, struct timespec* abstime) const
+  inline bool wait(const THD* thd, int sidno, struct timespec* abstime) const
   {
     DBUG_ENTER("Mutex_cond_array::wait");
     int error= 0;
     Mutex_cond *mutex_cond= get_mutex_cond(sidno);
     global_lock->unlock();
-    if (!check_thd_killed(thd))
-    {
-      mysql_mutex_assert_owner(&mutex_cond->mutex);
+    mysql_mutex_assert_owner(&mutex_cond->mutex);
+    if (is_thd_killed(thd))
+      DBUG_RETURN(true);
+    if (abstime != NULL)
       error= mysql_cond_timedwait(&mutex_cond->cond,
                                   &mutex_cond->mutex, abstime);
-      mysql_mutex_assert_owner(&mutex_cond->mutex);
-    }
-    DBUG_RETURN(error);
+    else
+      mysql_cond_wait(&mutex_cond->cond, &mutex_cond->mutex);
+    mysql_mutex_assert_owner(&mutex_cond->mutex);
+    DBUG_RETURN(error == ETIMEDOUT || error == ETIME);
   }
 #ifndef MYSQL_CLIENT
   /// Execute THD::enter_cond for the n'th condition variable.
@@ -900,16 +885,15 @@ public:
     @return RETURN_OK or RETURN_REPORTED_ERROR
   */
   enum_return_status ensure_index(int n);
+private:
   /**
-    This function is used to check whether the given thd is killed
-    or not.
+    Return true if the given THD is killed.
 
     @param[in] thd -  The thread object
     @retval true  - thread is killed
             false - thread not killed
   */
-  bool check_thd_killed(const THD* thd) const;
-private:
+  bool is_thd_killed(const THD* thd) const;
   /// A mutex/cond pair.
   struct Mutex_cond
   {
@@ -1075,6 +1059,9 @@ struct Gtid
 class Gtid_set
 {
 public:
+#ifdef HAVE_PSI_INTERFACE
+  static PSI_mutex_key key_gtid_executed_free_intervals_mutex;
+#endif
   /**
     Constructs a new, empty Gtid_set.
 
@@ -1083,14 +1070,8 @@ public:
     @param sid_lock Read-write lock that protects updates to the
     number of SIDs. This may be NULL if such changes do not need to be
     protected.
-    @param free_intervals_mutex_key Performance_schema instrumentation
-    key to use for the free_intervals mutex.
   */
-  Gtid_set(Sid_map *sid_map, Checkable_rwlock *sid_lock= NULL
-#ifdef HAVE_PSI_INTERFACE
-           ,PSI_mutex_key free_intervals_mutex_key= 0
-#endif
-          );
+  Gtid_set(Sid_map *sid_map, Checkable_rwlock *sid_lock= NULL);
   /**
     Constructs a new Gtid_set that contains the groups in the given string, in the same format as add_gtid_text(char *).
 
@@ -1101,8 +1082,6 @@ public:
     @param sid_lock Read/write lock to protect changes in the number
     of SIDs with. This may be NULL if such changes do not need to be
     protected.
-    @param free_intervals_mutex_key Performance_schema instrumentation
-    key to use for the free_intervals mutex.
 
     If sid_lock != NULL, then the read lock on sid_lock must be held
     before calling this function. If the array is grown, sid_lock is
@@ -1110,18 +1089,10 @@ public:
     there will be a short period when the lock is not held at all.
   */
   Gtid_set(Sid_map *sid_map, const char *text, enum_return_status *status,
-           Checkable_rwlock *sid_lock= NULL
-#ifdef HAVE_PSI_INTERFACE
-           ,PSI_mutex_key free_intervals_mutex_key= 0
-#endif
-          );
+           Checkable_rwlock *sid_lock= NULL);
 private:
   /// Worker for the constructor.
-  void init(
-#ifdef HAVE_PSI_INTERFACE
-            PSI_mutex_key free_intervals_mutex_key
-#endif
-           );
+  void init();
 public:
   /// Destroy this Gtid_set.
   ~Gtid_set();
@@ -1203,6 +1174,20 @@ public:
   */
   void remove_gtid_set(const Gtid_set *other);
   /**
+    Removes all intervals of 'other' for a given SIDNO, from 'this'.
+
+    Example:
+    this = A:1-100, B:1-100
+    other = A:1-100, B:1-50, C:1-100
+    this.remove_intervals_for_sidno(other, B) = A:1-100, B:51-100
+
+    It is not required that the intervals exist in this Gtid_set.
+
+    @param other The set to remove.
+    @param sidno The sidno to remove.
+  */
+  void remove_intervals_for_sidno(Gtid_set *other, rpl_sidno sidno);
+  /**
     Adds the set of GTIDs represented by the given string to this Gtid_set.
 
     The string must have the format of a comma-separated list of zero
@@ -1225,7 +1210,7 @@ public:
     short period when the lock is not held at all.
 
     @param text The string to parse.
-    @param anonymous[in,out] If this is NULL, ANONYMOUS is not
+    @param [in,out] anonymous If this is NULL, ANONYMOUS is not
     allowed.  If this is not NULL, it will be set to true if the
     anonymous group was found; false otherwise.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
@@ -1234,7 +1219,7 @@ public:
   /**
     Decodes a Gtid_set from the given string.
 
-    @param string The string to parse.
+    @param encoded The string to parse.
     @param length The number of bytes.
     @param actual_length If this is not NULL, it is set to the number
     of bytes used by the encoding (which may be less than 'length').
@@ -1283,7 +1268,7 @@ public:
     Returns true if this Gtid_set is a subset of the given gtid_set
     on the given superset_sidno and subset_sidno.
 
-    @param super          Gtid_set with which 'this'::gtid_set needs to be
+    @param super          Gtid_set with which this->gtid_set needs to be
                            compared
     @param superset_sidno The sidno that will be compared, relative to
                            super->sid_map.
@@ -1336,39 +1321,6 @@ public:
     Gtid_set, false otherwise.
   */
   static bool is_valid(const char *text);
-  /**
-    Return a newly allocated string containing this Gtid_set, or NULL
-    on out of memory.
-  */
-  char *to_string() const
-  {
-    char *str= (char *)my_malloc(key_memory_Gtid_set_to_string,
-                                 get_string_length() + 1, MYF(MY_WME));
-    if (str != NULL)
-      to_string(str);
-    return str;
-  }
-#ifndef DBUG_OFF
-  /// Debug only: Print this Gtid_set to stdout.
-  void print() const
-  {
-    char *str= to_string();
-    printf("%s\n", str);
-    my_free(str);
-  }
-#endif
-  /**
-    Print this Gtid_set to the trace file if debug is enabled; no-op
-    otherwise.
-  */
-  void dbug_print(const char *text= "") const
-  {
-#ifndef DBUG_OFF
-    char *str= to_string();
-    DBUG_PRINT("info", ("%s%s'%s'", text, *text ? ": " : "", str));
-    my_free(str);
-#endif
-  }
 
   /**
     Class Gtid_set::String_format defines the separators used by
@@ -1415,20 +1367,58 @@ public:
 
     @param[out] buf Pointer to the buffer where the string should be
     stored. This should have size at least get_string_length()+1.
+    @param need_lock If this Gtid_set has a sid_lock, then the write
+    lock must be held while generating the string. If this parameter
+    is true, then this function acquires and releases the lock;
+    otherwise it asserts that the caller holds the lock.
     @param string_format String_format object that specifies
     separators in the resulting text.
     @return Length of the generated string.
   */
-  int to_string(char *buf, const String_format *string_format= NULL) const;
+  int to_string(char *buf, bool need_lock= false,
+                const String_format *string_format= NULL) const;
 
   /**
     Formats a Gtid_set as a string and saves in a newly allocated buffer.
     @param[out] buf Pointer to pointer to string. The function will
     set it to point to the newly allocated buffer, or NULL on out of memory.
+    @param need_lock If this Gtid_set has a sid_lock, then the write
+    lock must be held while generating the string. If this parameter
+    is true, then this function acquires and releases the lock;
+    otherwise it asserts that the caller holds the lock.
     @param string_format Specifies how to format the string.
     @retval Length of the generated string, or -1 on out of memory.
   */
-  int to_string(char **buf, const String_format *string_format= NULL) const;
+  int to_string(char **buf, bool need_lock= false,
+                const String_format *string_format= NULL) const;
+#ifndef DBUG_OFF
+  /// Debug only: Print this Gtid_set to stdout.
+  void print(bool need_lock= false,
+             const Gtid_set::String_format *sf= NULL) const
+  {
+    char *str;
+    to_string(&str, need_lock, sf);
+    printf("%s\n", str ? str : "out of memory in Gtid_set::print");
+    my_free(str);
+  }
+#endif
+  /**
+    Print this Gtid_set to the trace file if debug is enabled; no-op
+    otherwise.
+  */
+  void dbug_print(const char *text= "", bool need_lock= false,
+                  const Gtid_set::String_format *sf= NULL) const
+  {
+#ifndef DBUG_OFF
+    char *str;
+    to_string(&str, need_lock, sf);
+    DBUG_PRINT("info", ("%s%s'%s'",
+                        text,
+                        *text ? ": " : "",
+                        str ? str : "out of memory in Gtid_set::dbug_print"));
+    my_free(str);
+#endif
+  }
   /**
     Gets all gtid intervals from this Gtid_set.
 
@@ -1481,7 +1471,7 @@ public:
     number of intervals.
 
     @param n_intervals The number of intervals to add.
-    @param intervals Array of n_intervals intervals.
+    @param intervals_param Array of n_intervals intervals.
   */
   void add_interval_memory(int n_intervals, Interval *intervals_param)
   {
@@ -2040,7 +2030,7 @@ public:
   /**
     Returns the owner of the given GTID, or 0 if the GTID is not owned.
 
-    @param Gtid The Gtid to query.
+    @param gtid The Gtid to query.
     @return my_thread_id of the thread that owns the group, or
     0 if the group is not owned.
   */
@@ -2342,9 +2332,6 @@ public:
 class Gtid_state
 {
 public:
-#ifdef HAVE_PSI_INTERFACE
-  static PSI_mutex_key key_gtid_executed_free_intervals_mutex;
-#endif
   /**
     Constructs a new Gtid_state object.
 
@@ -2357,11 +2344,7 @@ public:
     sid_map(_sid_map),
     sid_locks(sid_lock),
     lost_gtids(sid_map, sid_lock),
-    executed_gtids(sid_map, sid_lock
-#ifdef HAVE_PSI_INTERFACE
-                   ,key_gtid_executed_free_intervals_mutex
-#endif
-                  ),
+    executed_gtids(sid_map, sid_lock),
     gtids_only_in_table(sid_map, sid_lock),
     previous_gtids_logged(sid_map, sid_lock),
     owned_gtids(sid_lock) {}
@@ -2663,7 +2646,7 @@ public:
     Generates the GTID (or ANONYMOUS, if GTID_MODE = OFF or
     OFF_PERMISSIVE) for the THD, and acquires ownership.
 
-    @param THD The thread.
+    @param thd The thread.
     @param specified_sidno Externaly generated sidno.
     @param specified_gno   Externaly generated gno.
 
@@ -2684,7 +2667,9 @@ public:
   { sid_locks.assert_owner(sidno); }
 #ifndef MYSQL_CLIENT
   /**
-    Waits until the given GTID is not owned by any other thread.
+    Wait for a signal on the given SIDNO.
+
+    NOTE: This releases a lock!
 
     This requires that the caller holds a read lock on sid_lock.  It
     will release the lock before waiting; neither global_sid_lock nor
@@ -2692,16 +2677,35 @@ public:
     returns.
 
     @param thd THD object of the caller.
-    @param g Gtid to wait for.
-    @param timeout - pointer to the absolute timeout to wait for.
+    @param sidno Sidno to wait for.
+    @param[in] abstime The absolute point in time when the wait times
+    out and stops, or NULL to wait indefinitely.
 
-    @retval  0 - success
-             !=0 timeout or some failure.
+    @retval false Success.
+    @retval true Failure: either timeout or thread was killed.  If
+    thread was killed, the error has been generated.
   */
-  int wait_for_gtid(THD *thd, const Gtid &gtid, struct timespec* timeout= NULL);
+  bool wait_for_sidno(THD *thd, rpl_sidno sidno, struct timespec *abstime);
+  /**
+    This is only a shorthand for wait_for_sidno, which contains
+    additional debug printouts and assertions for the case when the
+    caller waits for one specific GTID.
+  */
+  bool wait_for_gtid(THD *thd, const Gtid &gtid, struct timespec* abstime= NULL);
+  /**
+    Wait until the given Gtid_set is included in @@GLOBAL.GTID_EXECUTED.
 
+    @param thd The calling thread.
+    @param gtid_set Gtid_set to wait for.
+    @param[in] timeout The maximum number of milliseconds that the
+    function should wait, or 0 to wait indefinitely.
+
+    @retval false Success.
+    @retval true Failure: either timeout or thread was killed.  If
+    thread was killed, the error has been generated.
+   */
+  bool wait_for_gtid_set(THD *thd, Gtid_set *gtid_set, longlong timeout);
 #endif // ifndef MYSQL_CLIENT
-#ifdef HAVE_GTID_NEXT_LIST
   /**
     Locks one mutex for each SIDNO where the given Gtid_set has at
     least one GTID.  Locks are acquired in order of increasing SIDNO.
@@ -2717,7 +2721,6 @@ public:
     Gtid_set has at least one GTID.
   */
   void broadcast_sidnos(const Gtid_set *set);
-#endif // ifdef HAVE_GTID_NEXT_LIST
   /**
     Ensure that owned_gtids, executed_gtids, lost_gtids, gtids_only_in_table,
     previous_gtids_logged and sid_locks have room for at least as many SIDNOs
@@ -2735,24 +2738,6 @@ public:
   */
   enum_return_status ensure_sidno();
 
-  /**
-    This function is used to wait for a given gtid until it is logged.
-
-    @param thd     - global thread pointer.
-    @param Gtid    - Pointer to the Gtid set which gets updated.
-    @param timeout - Timeout value for which wait should be done in
-                     millisecond.
-
-    @return 0 - success
-            1 - timeout
-
-    For all other cases we will throw corresponding error messages using the
-    my_error(ER_*, MYF(0)) call and return with value of -1.
-
-   */
-#ifdef MYSQL_SERVER
-  int wait_for_gtid_set(THD* thd, String* gtid, longlong timeout);
-#endif
   /**
     Adds the given Gtid_set to lost_gtids and executed_gtids.
     lost_gtids must be a subset of executed_gtids.
@@ -2930,20 +2915,12 @@ public:
   */
   bool warn_on_modify_gtid_table(THD *thd, TABLE_LIST *table);
 #endif
-private:
-#ifdef HAVE_GTID_NEXT_LIST
-  /// Lock all SIDNOs owned by the given THD.
-  void lock_owned_sidnos(const THD *thd);
-#endif
-  /// Unlock all SIDNOs owned by the given THD.
-  void unlock_owned_sidnos(const THD *thd);
-  /// Broadcast the condition for all SIDNOs owned by the given THD.
-  void broadcast_owned_sidnos(const THD *thd);
   /**
     Remove the GTID owned by thread from owned GTIDs.
 
     This will:
 
+    - Clean up the thread state if the thread owned GTIDs is empty.
     - Release ownership of all GTIDs owned by the THD. This removes
       the GTID from Owned_gtids and clears the ownership status in the
       THD object.
@@ -2957,7 +2934,15 @@ private:
   */
   void update_gtids_impl(THD *thd, bool is_commit);
 
-
+private:
+#ifdef HAVE_GTID_NEXT_LIST
+  /// Lock all SIDNOs owned by the given THD.
+  void lock_owned_sidnos(const THD *thd);
+#endif
+  /// Unlock all SIDNOs owned by the given THD.
+  void unlock_owned_sidnos(const THD *thd);
+  /// Broadcast the condition for all SIDNOs owned by the given THD.
+  void broadcast_owned_sidnos(const THD *thd);
   /// Read-write lock that protects updates to the number of SIDs.
   mutable Checkable_rwlock *sid_lock;
   /// The Sid_map used by this Gtid_state.
@@ -3189,7 +3174,7 @@ struct Gtid_specification
 
     @param sid_map Sid_map to use if the type of this
     Gtid_specification is GTID_GROUP.
-    @param buf[out] The buffer
+    @param [out] buf The buffer
     @param need_lock If true, this function acquires global_sid_lock
     before looking up the sidno in sid_map, and then releases it. If
     false, this function asserts that the lock is held by the caller.
@@ -3202,9 +3187,8 @@ struct Gtid_specification
     @param sid SID to use if the type of this Gtid_specification is
     GTID_GROUP.  Can be NULL if this Gtid_specification is
     ANONYMOUS_GROUP or AUTOMATIC_GROUP.
-    @param buf[out] The buffer
+    @param[out] buf The buffer
     @retval The number of characters written.
-    @buf[out]
   */
   int to_string(const rpl_sid *sid, char *buf) const;
 #ifndef DBUG_OFF
@@ -3321,26 +3305,18 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd);
 bool gtid_pre_statement_post_implicit_commit_checks(THD *thd);
 
 /**
-  Check if the current statement terminates a transaction, and if so
-  set GTID_NEXT.type to UNDEFINED_GROUP.
-
-  @param thd THD object for the session.
-*/
-void gtid_post_statement_checks(THD *thd);
-
-/**
   Acquire ownership of the given Gtid_specification.
 
   The Gtid_specification must be of type GTID_GROUP or ANONYMOUS_GROUP.
 
   The caller must hold global_sid_lock (normally the rdlock).  The
-  lock may be termporarily released and acquired again. In the end,
+  lock may be temporarily released and acquired again. In the end,
   the lock will be released, so the caller should *not* release the
   lock.
 
   The function will try to acquire ownership of the GTID and update
   both THD::gtid_next, Gtid_state::owned_gtids, and
-  THD::owned_gtid/THD::owned_sid.
+  THD::owned_gtid / THD::owned_sid.
 
   @param thd The thread that acquires ownership.
 

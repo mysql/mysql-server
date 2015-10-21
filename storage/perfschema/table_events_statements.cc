@@ -257,7 +257,8 @@ table_events_statements_current::m_share=
   sizeof(pos_events_statements_current), /* ref length */
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 THR_LOCK table_events_statements_history::m_table_lock;
@@ -274,7 +275,8 @@ table_events_statements_history::m_share=
   sizeof(pos_events_statements_history), /* ref length */
   &m_table_lock,
   &table_events_statements_current::m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 THR_LOCK table_events_statements_history_long::m_table_lock;
@@ -291,7 +293,8 @@ table_events_statements_history_long::m_share=
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &table_events_statements_current::m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 table_events_statements_common::table_events_statements_common
@@ -301,14 +304,19 @@ table_events_statements_common::table_events_statements_common
 {}
 
 /**
-  Build a row.
-  @param statement                      the statement the cursor is reading
+  Build a row, part 1.
+
+  This method is used while holding optimist locks.
+
+  @param statement    The statement the cursor is reading
+  @param [out] digest Saved copy of the statement digest
 */
 void table_events_statements_common::make_row_part_1(PFS_events_statements *statement,
                                                      sql_digest_storage *digest)
 {
   const char *base;
   const char *safe_source_file;
+  ulonglong timer_end;
 
   m_row_exists= false;
 
@@ -324,15 +332,48 @@ void table_events_statements_common::make_row_part_1(PFS_events_statements *stat
   m_row.m_nesting_event_type= statement->m_nesting_event_type;
   m_row.m_nesting_event_level= statement->m_nesting_event_level;
 
-  m_normalizer->to_pico(statement->m_timer_start, statement->m_timer_end,
+  if (m_row.m_end_event_id == 0)
+  {
+    timer_end= get_timer_raw_value(statement_timer);
+  }
+  else
+  {
+    timer_end= statement->m_timer_end;
+  }
+
+  m_normalizer->to_pico(statement->m_timer_start, timer_end,
                       & m_row.m_timer_start, & m_row.m_timer_end, & m_row.m_timer_wait);
   m_row.m_lock_time= statement->m_lock_time * MICROSEC_TO_PICOSEC;
 
   m_row.m_name= klass->m_name;
   m_row.m_name_length= klass->m_name_length;
 
+  CHARSET_INFO *cs= get_charset(statement->m_sqltext_cs_number, MYF(0));
+  size_t valid_length= statement->m_sqltext_length;
+
+  if (cs->mbmaxlen > 1)
+  {
+    int well_formed_error;
+    valid_length= cs->cset->well_formed_len(cs, statement->m_sqltext, statement->m_sqltext + valid_length,
+                                            valid_length, &well_formed_error);
+  }
+
+  m_row.m_sqltext.set_charset(cs);
   m_row.m_sqltext.length(0);
-  m_row.m_sqltext.append(statement->m_sqltext, statement->m_sqltext_length);
+  m_row.m_sqltext.append(statement->m_sqltext, (uint32)valid_length, cs);
+
+  /* Indicate that sqltext is truncated or not well-formed. */
+  if (statement->m_sqltext_truncated || valid_length < statement->m_sqltext_length)
+  {
+    size_t chars= m_row.m_sqltext.numchars();
+    if (chars > 3)
+    {
+      chars-= 3;
+      size_t bytes_offset= m_row.m_sqltext.charpos(chars, 0);
+      m_row.m_sqltext.length(bytes_offset);
+      m_row.m_sqltext.append("...", 3);
+    }
+  }
 
   m_row.m_current_schema_name_length= statement->m_current_schema_name_length;
   if (m_row.m_current_schema_name_length > 0)
@@ -390,6 +431,13 @@ void table_events_statements_common::make_row_part_1(PFS_events_statements *stat
   return;
 }
 
+/**
+  Build a row, part 2.
+
+  This method is used after all optimist locks have been released.
+
+  @param [in] digest Statement digest to print in the row.
+*/
 void table_events_statements_common::make_row_part_2(const sql_digest_storage *digest)
 {
   /*
@@ -840,18 +888,19 @@ int table_events_statements_history::rnd_pos(const void *pos)
 
   pfs_thread= global_thread_container.get(m_pos.m_index_1);
   if (pfs_thread != NULL)
-
-  DBUG_ASSERT(m_pos.m_index_2 < events_statements_history_per_thread);
-
-  if ( ! pfs_thread->m_statements_history_full &&
-      (m_pos.m_index_2 >= pfs_thread->m_statements_history_index))
-    return HA_ERR_RECORD_DELETED;
-
-  statement= &pfs_thread->m_statements_history[m_pos.m_index_2];
-  if (statement->m_class != NULL)
   {
-    make_row(pfs_thread, statement);
-    return 0;
+    DBUG_ASSERT(m_pos.m_index_2 < events_statements_history_per_thread);
+
+    if ( ! pfs_thread->m_statements_history_full &&
+        (m_pos.m_index_2 >= pfs_thread->m_statements_history_index))
+      return HA_ERR_RECORD_DELETED;
+
+    statement= &pfs_thread->m_statements_history[m_pos.m_index_2];
+    if (statement->m_class != NULL)
+    {
+      make_row(pfs_thread, statement);
+      return 0;
+    }
   }
 
   return HA_ERR_RECORD_DELETED;

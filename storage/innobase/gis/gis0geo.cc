@@ -757,6 +757,49 @@ rtree_area_increase(
 	return(loc_ab_area - a_area);
 }
 
+/** Calculates overlapping area
+@param[in]	a	mbr a
+@param[in]	b	mbr b
+@param[in]	mbr_len	mbr length
+@return overlapping area */
+double
+rtree_area_overlapping(
+	const uchar*	a,
+	const uchar*	b,
+	int		mbr_len)
+{
+	double	area = 1.0;
+	double	amin;
+	double	amax;
+	double	bmin;
+	double	bmax;
+	int	key_len;
+	int	keyseg_len;
+
+	keyseg_len = 2 * sizeof(double);
+
+	for (key_len = mbr_len; key_len > 0; key_len -= keyseg_len) {
+		amin = mach_double_read(a);
+		bmin = mach_double_read(b);
+		amax = mach_double_read(a + sizeof(double));
+		bmax = mach_double_read(b + sizeof(double));
+
+		amin = std::max(amin, bmin);
+		amax = std::min(amax, bmax);
+
+		if (amin > amax) {
+			return(0);
+		} else {
+			area *= (amax - amin);
+		}
+
+		a += keyseg_len;
+		b += keyseg_len;
+	}
+
+	return(area);
+}
+
 /** Get the wkb of default POINT value, which represents POINT(0 0)
 if it's of dimension 2, etc.
 @param[in]	n_dims		dimensions

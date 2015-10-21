@@ -228,7 +228,7 @@ create view v4 (c) as select COLLATION_NAME from information_schema.collations
 where COLLATION_NAME like "latin1%";
 select * from v4;
 show keys from v4;
-select * from information_schema.views where TABLE_NAME like "v%";
+select * from information_schema.views where TABLE_SCHEMA != 'sys' and TABLE_NAME like "v%";
 drop view v0, v1, v2, v3, v4;
 
 #
@@ -281,8 +281,8 @@ create view v2 (c) as select a from t1 WITH LOCAL CHECK OPTION;
 create view v3 (c) as select a from t1 WITH CASCADED CHECK OPTION;
 select * from information_schema.views where table_schema != 'sys';
 grant select (a) on test.t1 to joe@localhost with grant option;
-select * from INFORMATION_SCHEMA.COLUMN_PRIVILEGES;
-select * from INFORMATION_SCHEMA.TABLE_PRIVILEGES;
+select * from INFORMATION_SCHEMA.COLUMN_PRIVILEGES WHERE table_schema != 'sys';
+select * from INFORMATION_SCHEMA.TABLE_PRIVILEGES WHERE table_schema != 'sys';
 drop view v1, v2, v3;
 drop table t1;
 delete from mysql.user where user='joe';
@@ -506,11 +506,11 @@ drop table t_crashme;
 # Bug#7217 information_schema: columns are varbinary() instead of timestamp
 #
 select table_schema, table_name, column_name from information_schema.columns
-where table_schema not like 'performance_schema'
+where table_schema not in ('performance_schema', 'sys')
   and data_type = 'longtext';
 
 select table_name, column_name, data_type from information_schema.columns
-where table_schema not like 'performance_schema'
+where table_schema not in ('performance_schema', 'sys')
   and data_type = 'datetime'
   and table_name not like 'innodb_%';
 
@@ -832,7 +832,7 @@ CREATE FUNCTION func2() RETURNS BIGINT RETURN 1;
 delimiter //;
 CREATE FUNCTION func1() RETURNS BIGINT
 BEGIN
-  RETURN ( SELECT COUNT(*) FROM INFORMATION_SCHEMA.VIEWS);
+  RETURN ( SELECT COUNT(*) FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA != 'sys');
 END//
 delimiter ;//
 
@@ -1914,16 +1914,82 @@ CREATE PROCEDURE information_schema.is() BEGIN END;
 --echo #
 --echo # Bug#19307777 ASSERTION `QEP_TAB->CONDITION() == QEP_TAB->CONDITION_OPTIM()' FAILED
 --echo #
+# After ACL tables were migrated to InnoDB storage engine the
+# "Impossible HAVING" optimization isn't possible with mysql.procs_priv
+# table. To keep the test runnable the copy of this table using MyISAM
+# engine is created and used in the test.
+CREATE TABLE mysql.procs_priv_copy ENGINE=MyISAM AS SELECT * FROM mysql.procs_priv;
 
 let $query=
 select * from
 information_schema . innodb_cmp as table1
-left outer join mysql . procs_priv as table2
+left outer join mysql . procs_priv_copy as table2
 on ( table2 . routine_name = table1 . compress_time )
 where not table1 . compress_time <> '2006-09-03 10:11:37.046313'
 having  table2 . grantor <> '2008-02-28 22:17:05.025739' limit 9;
 
 eval EXPLAIN $query;
 eval $query;
+DROP TABLE mysql.procs_priv_copy;
+
+--echo #
+--echo # Bug#20665051 SQL_SHOW.CC:7764: ASSERTION `QEP_TAB->CONDITION() == QEP_TAB->CONDITION_OPTIM()
+--echo #
+
+let query=
+SELECT 1
+FROM DUAL
+WHERE (SELECT 1 FROM information_schema.tables
+        WHERE table_schema
+        ORDER BY table_name
+        LIMIT 1);
+eval EXPLAIN $query;
+--disable_warnings
+eval $query;
+--enable_warnings
+
+let $query=
+SELECT 1 AS F1 FROM information_schema.tables
+WHERE "CHARACTER_SETS"=
+      (SELECT CAST(TABLE_NAME AS CHAR)
+      FROM information_schema.tables
+      WHERE table_schema != 'PERFORMANCE_SCHEMA'
+      ORDER BY table_name
+      LIMIT 1)
+LIMIT 1;
+
+eval EXPLAIN $query;
+eval $query;
+
+--echo #
+--echo # WL#2284: Increase the length of a user name
+--echo #
+
+connection default;
+
+--character_set utf8
+set names utf8;
+
+CREATE USER user_name_len_22_01234@localhost;
+GRANT SELECT ON *.* TO user_name_len_22_01234@localhost;
+connect (con_user22,localhost,user_name_len_22_01234,,test);
+connection con_user22;
+SELECT user,db FROM information_schema.processlist;
+connection default;
+
+# 32 characters user name
+CREATE USER очень_очень_очень_длинный_юзер__@localhost;
+GRANT SELECT ON *.* TO очень_очень_очень_длинный_юзер__@localhost;
+connect (con_user32_utf8,localhost,очень_очень_очень_длинный_юзер__,,test);
+connection con_user32_utf8;
+SELECT user,db FROM information_schema.processlist;
+connection default;
+
+# cleanup
+disconnect con_user22;
+disconnect con_user32_utf8;
+DROP USER user_name_len_22_01234@localhost;
+DROP USER очень_очень_очень_длинный_юзер__@localhost;
+set names default;
 
 set sql_mode= @orig_sql_mode;

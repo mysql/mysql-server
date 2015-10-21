@@ -114,7 +114,7 @@ Database: information_schema
 | INNODB_TRX                            |
 | INNODB_SYS_DATAFILES                  |
 | INNODB_FT_CONFIG                      |
-| INNODB_SYS_TABLESTATS                 |
+| INNODB_SYS_VIRTUAL                    |
 | INNODB_CMP                            |
 | INNODB_FT_BEING_DELETED               |
 | INNODB_CMP_RESET                      |
@@ -129,16 +129,18 @@ Database: information_schema
 | INNODB_SYS_FIELDS                     |
 | INNODB_CMP_PER_INDEX_RESET            |
 | INNODB_BUFFER_PAGE                    |
-| INNODB_FT_DEFAULT_STOPWORD            |
+| INNODB_SYS_FOREIGN_COLS               |
 | INNODB_FT_INDEX_TABLE                 |
 | INNODB_FT_INDEX_CACHE                 |
 | INNODB_SYS_TABLESPACES                |
 | INNODB_METRICS                        |
-| INNODB_SYS_FOREIGN_COLS               |
+| INNODB_CACHED_INDEXES                 |
 | INNODB_CMPMEM                         |
 | INNODB_BUFFER_POOL_STATS              |
 | INNODB_SYS_COLUMNS                    |
 | INNODB_SYS_FOREIGN                    |
+| INNODB_SYS_TABLESTATS                 |
+| INNODB_FT_DEFAULT_STOPWORD            |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
 +---------------------------------------+
@@ -179,7 +181,7 @@ Database: INFORMATION_SCHEMA
 | INNODB_TRX                            |
 | INNODB_SYS_DATAFILES                  |
 | INNODB_FT_CONFIG                      |
-| INNODB_SYS_TABLESTATS                 |
+| INNODB_SYS_VIRTUAL                    |
 | INNODB_CMP                            |
 | INNODB_FT_BEING_DELETED               |
 | INNODB_CMP_RESET                      |
@@ -194,16 +196,18 @@ Database: INFORMATION_SCHEMA
 | INNODB_SYS_FIELDS                     |
 | INNODB_CMP_PER_INDEX_RESET            |
 | INNODB_BUFFER_PAGE                    |
-| INNODB_FT_DEFAULT_STOPWORD            |
+| INNODB_SYS_FOREIGN_COLS               |
 | INNODB_FT_INDEX_TABLE                 |
 | INNODB_FT_INDEX_CACHE                 |
 | INNODB_SYS_TABLESPACES                |
 | INNODB_METRICS                        |
-| INNODB_SYS_FOREIGN_COLS               |
+| INNODB_CACHED_INDEXES                 |
 | INNODB_CMPMEM                         |
 | INNODB_BUFFER_POOL_STATS              |
 | INNODB_SYS_COLUMNS                    |
 | INNODB_SYS_FOREIGN                    |
+| INNODB_SYS_TABLESTATS                 |
+| INNODB_FT_DEFAULT_STOPWORD            |
 +---------------------------------------+
 Wildcard: inf_rmation_schema
 +--------------------+
@@ -297,5 +301,17 @@ Database: test  Wildcard: `t%
 +--------+
 DROP TABLE ```t1`, ```t2`;
 SET GLOBAL sql_mode = @OLD_SQL_MODE;
+#
+# WL#2284: Increase the length of a user name
+#
+CREATE USER 'user_with_length_32_abcdefghijkl'@'localhost';
+GRANT ALL ON *.* TO 'user_with_length_32_abcdefghijkl'@'localhost';
+Database: mysql  Table: user  Wildcard: user
++-------+----------+-----------+------+-----+---------+-------+---------------------------------+---------+
+| Field | Type     | Collation | Null | Key | Default | Extra | Privileges                      | Comment |
++-------+----------+-----------+------+-----+---------+-------+---------------------------------+---------+
+| User  | char(32) | utf8_bin  | NO   | PRI |         |       | select,insert,update,references |         |
++-------+----------+-----------+------+-----+---------+-------+---------------------------------+---------+
+DROP USER 'user_with_length_32_abcdefghijkl'@'localhost';
 
 End of tests

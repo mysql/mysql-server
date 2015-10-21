@@ -18,6 +18,7 @@
 
 #include "my_global.h"
 #include "my_sys.h"                     // wild_many, wild_one, wild_prefix
+#include "m_string.h"                   // LEX_CSTRING
 #include "mysql_com.h"                  // SCRAMBLE_LENGTH
 #include "mysql_time.h"                 // MYSQL_TIME
 #include "prealloced_array.h"           // Prealloced_array
@@ -248,7 +249,8 @@ public:
 
   GRANT_TABLE(const char *h, const char *d,const char *u,
               const char *t, ulong p, ulong c);
-  GRANT_TABLE (TABLE *form, TABLE *col_privs);
+  explicit GRANT_TABLE(TABLE *form);
+  bool init(TABLE *col_privs);
   ~GRANT_TABLE();
   bool ok() { return privs != 0 || cols != 0; }
 };

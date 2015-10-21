@@ -12,24 +12,12 @@ include/sync_slave_sql_with_master.inc
 # Build connections to master server
 # Stress test that execute massive queries on every connection
 include/sync_slave_sql_with_master.inc
-# Enable diff_table test
-# Test tables with InnoDB engine when enableing diff_table
+# Disable diff_table test
+# Test tables with InnoDB engine when disabling diff_table
 # and simulating flush error
 include/sync_slave_sql_with_master.inc
 # Build connections to master server
 # Stress test that execute massive queries on every connection
-include/sync_slave_sql_with_master.inc
-# Test if the results are consistent on master and slave
-include/diff_tables.inc [master:t1, slave:t1]
-include/diff_tables.inc [master:t2, slave:t2]
-include/diff_tables.inc [master:t3, slave:t3]
-include/diff_tables.inc [master:t4, slave:t4]
-include/diff_tables.inc [master:t5, slave:t5]
-include/diff_tables.inc [master:t6, slave:t6]
-include/diff_tables.inc [master:t7, slave:t7]
-include/diff_tables.inc [master:t8, slave:t8]
-include/diff_tables.inc [master:t9, slave:t9]
-include/diff_tables.inc [master:t10, slave:t10]
 include/sync_slave_sql_with_master.inc
 SET @@GLOBAL.MAX_BINLOG_SIZE= @max_binlog_size_save;
 include/rpl_end.inc

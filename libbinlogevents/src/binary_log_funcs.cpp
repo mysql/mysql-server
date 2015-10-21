@@ -1,4 +1,4 @@
-/* Copyright (c)  2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -186,6 +186,7 @@ max_display_length_for_field(enum_field_types sql_type, unsigned int metadata)
 
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_GEOMETRY:
+  case MYSQL_TYPE_JSON:
     return uint_max(4 * 8);
 
   default:
@@ -206,15 +207,6 @@ int decimal_binary_size(int precision, int scale)
  }
 
 
-/**
- This helper function calculates the size in bytes of a particular field in a
- row type event as defined by the field_ptr and metadata_ptr arguments.
- @param col Field type code
- @param master_data The field data
- @param metadata The field metadata
-
- @return The size in bytes of a particular field
-*/
 uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
                          unsigned int metadata)
 {
@@ -360,6 +352,7 @@ uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_GEOMETRY:
+  case MYSQL_TYPE_JSON:
   {
     /*
       Compute the length of the data. We cannot use get_length() here

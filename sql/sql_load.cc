@@ -41,6 +41,7 @@
 #include "item_timefunc.h"  // Item_func_now_local
 #include "rpl_rli.h"     // Relay_log_info
 #include "derror.h"
+#include "log.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -319,23 +320,45 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       Let us also prepare SET clause, altough it is probably empty
       in this case.
     */
-    if (setup_fields(thd, Ref_ptr_array(),
-                     set_fields, INSERT_ACL, 0, 0) ||
-        setup_fields(thd, Ref_ptr_array(), set_values, SELECT_ACL, 0, 0))
+    if (setup_fields(thd, Ref_ptr_array(), set_fields, INSERT_ACL, NULL,
+                     false, true) ||
+        setup_fields(thd, Ref_ptr_array(), set_values, SELECT_ACL, NULL,
+                     false, false))
       DBUG_RETURN(TRUE);
   }
   else
   {						// Part field list
-    /* TODO: use this conds for 'WITH CHECK OPTIONS' */
-    if (setup_fields(thd, Ref_ptr_array(),
-                     fields_vars, INSERT_ACL, 0, 0) ||
-        setup_fields(thd, Ref_ptr_array(),
-                     set_fields, INSERT_ACL, 0, 0))
+    /*
+      Because fields_vars may contain user variables,
+      pass false for column_update in first call below.
+    */
+    if (setup_fields(thd, Ref_ptr_array(), fields_vars, INSERT_ACL, NULL,
+                     false, false) ||
+        setup_fields(thd, Ref_ptr_array(), set_fields, INSERT_ACL, NULL,
+                     false, true))
       DBUG_RETURN(TRUE);
+
+    /*
+      Special updatability test is needed because fields_vars may contain
+      a mix of column references and user variables.
+    */
+    Item *item;
+    List_iterator<Item> it(fields_vars);
+    while ((item= it++))
+    {
+      if ((item->type() == Item::FIELD_ITEM ||
+           item->type() == Item::REF_ITEM) &&
+          item->field_for_view_update() == NULL)
+      {
+        my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->item_name.ptr());
+        DBUG_RETURN(true);
+      }
+    }
     /* We explicitly ignore the return value */
     (void)check_that_all_fields_are_given_values(thd, table, table_list);
     /* Fix the expressions in SET clause */
-    if (setup_fields(thd, Ref_ptr_array(), set_values, SELECT_ACL, 0, 0))
+    if (setup_fields(thd, Ref_ptr_array(), set_values, SELECT_ACL, NULL,
+                     false, false))
       DBUG_RETURN(TRUE);
   }
 
@@ -542,7 +565,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
         table->file->ha_end_bulk_insert() && !error)
     {
-      table->file->print_error(my_errno, MYF(0));
+      table->file->print_error(my_errno(), MYF(0));
       error= 1;
     }
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
@@ -1083,11 +1106,6 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           ((Item_user_var_as_out_param *)item)->set_null_value(
                                                   read_info.read_charset);
         }
-        else
-        {
-          my_error(ER_LOAD_DATA_INVALID_COLUMN, MYF(0), item->full_name());
-          DBUG_RETURN(1);
-        }
 
 	continue;
       }
@@ -1106,11 +1124,6 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
         ((Item_user_var_as_out_param *)item)->set_value((char*) pos, length,
                                                         read_info.read_charset);
-      }
-      else
-      {
-        my_error(ER_LOAD_DATA_INVALID_COLUMN, MYF(0), item->full_name());
-        DBUG_RETURN(1);
       }
     }
 
@@ -1165,11 +1178,6 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
           ((Item_user_var_as_out_param *)item)->set_null_value(
                                                   read_info.read_charset);
-        }
-        else
-        {
-          my_error(ER_LOAD_DATA_INVALID_COLUMN, MYF(0), item->full_name());
-          DBUG_RETURN(1);
         }
       }
     }
@@ -1563,10 +1571,11 @@ READ_INFO::~READ_INFO()
       if (chr1 != my_b_EOF)                                                   \
       {                                                                       \
         len= my_mbcharlen_2((cs), (chr), chr1);                               \
-        /* Must be gb18030 charset */                                         \
-        DBUG_ASSERT(len == 2 || len == 4);                                    \
+        /* Character is gb18030 or invalid (len = 0) */                       \
+        DBUG_ASSERT(len == 0 || len == 2 || len == 4);                        \
       }                                                                       \
-      PUSH(chr1);                                                             \
+      if (len != 0)                                                           \
+        PUSH(chr1);                                                           \
     }                                                                         \
   } while (0)
 
@@ -1983,9 +1992,9 @@ my_xml_entity_to_char(const char *name, size_t length)
   @param chr    character
   
   @details According to the "XML 1.0" standard,
-           only space (#x20) characters, carriage returns,
+           only space (@#x20) characters, carriage returns,
            line feeds or tabs are considered as spaces.
-           Convert all of them to space (#x20) for parsing simplicity.
+           Convert all of them to space (@#x20) for parsing simplicity.
 */
 static int
 my_tospace(int chr)
@@ -2170,8 +2179,15 @@ int READ_INFO::read_xml()
       break;
       
     case '/': /* close tag */
-      level--;
       chr= my_tospace(GET);
+      /* Decrease the 'level' only when (i) It's not an */
+      /* (without space) empty tag i.e. <tag/> or, (ii) */
+      /* It is of format <row col="val" .../>           */
+      if(chr != '>' || in_tag)
+      {
+        level--;
+        in_tag= false;
+      }
       if(chr != '>')   /* if this is an empty tag <tag   /> */
         tag.length(0); /* we should keep tag value          */
       while(chr != '>' && chr != my_b_EOF)

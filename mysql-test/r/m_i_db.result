@@ -3,14 +3,15 @@
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 set password='abc';
-SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
+SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
+mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
 count(*)
-1
+2
 CREATE USER 'u1'@'localhost';
 GRANT ALL ON *.* TO 'u1'@'localhost';
 show databases;
@@ -24,19 +25,20 @@ test
 set password='';
 select count(*) from mysql.user;
 count(*)
-2
+3
 # Execute m_i_db without any options where MYSQL_TMP_DIR/.mysql_secret is there. Start server and try to login with root credentials.
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 set password='abc';
-SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
+SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
+mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
 count(*)
-1
+2
 CREATE USER 'u1'@'localhost';
 GRANT ALL ON *.* TO 'u1'@'localhost';
 show databases;
@@ -51,12 +53,13 @@ set password='';
 # with --insecure where the file MYSQL_TMP_DIR/.mysql_secret is not there. Start server and try to login with root credentials
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
-SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
+SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
+mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
 count(*)
-1
+2
 CREATE USER 'u1'@'localhost';
 GRANT ALL ON *.* TO 'u1'@'localhost';
 show databases;
@@ -71,12 +74,13 @@ set password='';
 # Check the behavior of the option --admin-user
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
-SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
+SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
+mysql.sys	localhost	mysql_native_password
 test_user	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
 count(*)
-1
+2
 CREATE USER 'u1'@'localhost';
 GRANT ALL ON *.* TO 'u1'@'localhost';
 show databases;
@@ -91,14 +95,15 @@ set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 set password='abc';
-SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
+SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
+mysql.sys	localhost	mysql_native_password
 test_user	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
 count(*)
-1
+2
 CREATE USER 'u1'@'localhost';
 GRANT ALL ON *.* TO 'u1'@'localhost';
 show databases;
@@ -113,12 +118,13 @@ set password='';
 # Check the behavior of the option --login-path when passed with --login-file
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
-SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
+SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
+mysql.sys	localhost	mysql_native_password
 test_user2	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
 count(*)
-1
+2
 CREATE USER 'u1'@'localhost';
 GRANT ALL ON *.* TO 'u1'@'localhost';
 show databases;
@@ -133,12 +139,13 @@ set password='';
 # Check the behavior when login-path is not passed, but only --login-file
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
-SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
+SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
+mysql.sys	localhost	mysql_native_password
 test_user2	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
 count(*)
-1
+2
 CREATE USER 'u1'@'localhost';
 GRANT ALL ON *.* TO 'u1'@'localhost';
 show databases;
@@ -153,12 +160,13 @@ set password='';
 # Check the behavior of the option --admin-user
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
-SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
+SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
+mysql.sys	localhost	mysql_native_password
 test_user	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
 count(*)
-1
+2
 CREATE USER 'u1'@'localhost';
 GRANT ALL ON *.* TO 'u1'@'localhost';
 show databases;
@@ -174,14 +182,15 @@ set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 set password='abc';
-SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
+SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
+mysql.sys	localhost	mysql_native_password
 test_user	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
 count(*)
-1
+2
 CREATE USER 'u1'@'localhost';
 GRANT ALL ON *.* TO 'u1'@'localhost';
 show databases;
@@ -197,14 +206,15 @@ set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 set password='abc';
-SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
+SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
+mysql.sys	localhost	mysql_native_password
 root	127.0.0.1	mysql_native_password
 SELECT count(*) FROM mysql.user;
 count(*)
-1
+2
 CREATE USER 'u1'@'localhost';
 GRANT ALL ON *.* TO 'u1'@'localhost';
 show databases;
@@ -218,12 +228,13 @@ test
 set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
-SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
+SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
+mysql.sys	localhost	mysql_native_password
 root	127.0.0.1	mysql_native_password
 SELECT count(*) FROM mysql.user;
 count(*)
-1
+2
 CREATE USER 'u1'@'localhost';
 GRANT ALL ON *.* TO 'u1'@'localhost';
 show databases;
@@ -238,12 +249,13 @@ set password='';
 # Check the behavior of the option --admin-host when passed along with --admin-path
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
-SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
+SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
+mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
 count(*)
-1
+2
 CREATE USER 'u1'@'localhost';
 GRANT ALL ON *.* TO 'u1'@'localhost';
 show databases;
@@ -260,14 +272,15 @@ set password='';
 # Execution of mysql_install_db ends..............
 ERROR 28000: Access denied for user 'root'@'localhost' (using password: YES)
 SELECT user FROM mysql.user;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 set password='abc';
-SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
+SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
+mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
 count(*)
-1
+2
 CREATE USER 'u1'@'localhost';
 GRANT ALL ON *.* TO 'u1'@'localhost';
 show databases;
@@ -282,12 +295,13 @@ set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 ERROR 28000: Access denied for user 'root'@'localhost' (using password: NO)
-SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
+SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
+mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
 count(*)
-1
+2
 CREATE USER 'u1'@'localhost';
 GRANT ALL ON *.* TO 'u1'@'localhost';
 show databases;
@@ -304,14 +318,15 @@ set password='';
 # Execution of mysql_install_db ends..............
 ERROR 28000: Access denied for user 'root'@'localhost' (using password: YES)
 SELECT user FROM mysql.user;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 set password='abc';
-SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
+SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
+mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
 count(*)
-1
+2
 CREATE USER 'u1'@'localhost';
 GRANT ALL ON *.* TO 'u1'@'localhost';
 show databases;
@@ -326,12 +341,13 @@ set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 ERROR 28000: Access denied for user 'root'@'localhost' (using password: NO)
-SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
+SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
+mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
 count(*)
-1
+2
 CREATE USER 'u1'@'localhost';
 GRANT ALL ON *.* TO 'u1'@'localhost';
 show databases;
@@ -347,14 +363,15 @@ set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 set password='abc';
-SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
+SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
+mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
 count(*)
-1
+2
 CREATE USER 'u1'@'localhost';
 GRANT ALL ON *.* TO 'u1'@'localhost';
 show databases;
@@ -368,12 +385,13 @@ test
 set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
-SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
+SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
+mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
 count(*)
-1
+2
 CREATE USER 'u1'@'localhost';
 GRANT ALL ON *.* TO 'u1'@'localhost';
 show databases;
@@ -389,14 +407,15 @@ set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 set password='abc';
-SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
+SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
+mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
 count(*)
-1
+2
 CREATE USER 'u1'@'localhost';
 GRANT ALL ON *.* TO 'u1'@'localhost';
 show databases;
@@ -410,12 +429,13 @@ test
 set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
-SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
+SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
+mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
 count(*)
-1
+2
 CREATE USER 'u1'@'localhost';
 GRANT ALL ON *.* TO 'u1'@'localhost';
 show databases;
@@ -431,14 +451,15 @@ set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 set password='abc';
-SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
+SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
+mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
 count(*)
-1
+2
 CREATE USER 'u1'@'localhost';
 GRANT ALL ON *.* TO 'u1'@'localhost';
 show databases;
@@ -454,14 +475,15 @@ set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 set password='abc';
-SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
+SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
+mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
 count(*)
-1
+2
 CREATE USER 'u1'@'localhost';
 GRANT ALL ON *.* TO 'u1'@'localhost';
 show databases;
@@ -475,12 +497,13 @@ test
 set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
-SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
+SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
+mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
 count(*)
-1
+2
 CREATE USER 'u1'@'localhost';
 GRANT ALL ON *.* TO 'u1'@'localhost';
 show databases;

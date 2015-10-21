@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -117,6 +117,35 @@ upd_field_set_field_no(
 			   dfield_get_type(&upd_field->new_val));
 }
 
+/** set field number to a update vector field, marks this field is updated.
+@param[in,out]	upd_field	update vector field
+@param[in]	field_no	virtual column sequence num
+@param[in]	index		index */
+UNIV_INLINE
+void
+upd_field_set_v_field_no(
+	upd_field_t*	upd_field,
+	ulint		field_no,
+	dict_index_t*	index)
+{
+	upd_field->field_no = field_no;
+	upd_field->orig_len = 0;
+
+	if (field_no >= dict_table_get_n_v_cols(index->table)) {
+		ib::error()
+			<< " trying to access virtual field " << field_no
+			<< " in " << index->name
+			<< " of table " << index->table->name
+			<< " which contains only " << index->table->n_v_cols
+			<< " virutal columns";
+		ut_ad(0);
+	}
+
+	dict_col_copy_type(&dict_table_get_nth_v_col(
+				index->table, field_no)->m_col,
+			   dfield_get_type(&upd_field->new_val));
+}
+
 /*********************************************************************//**
 Returns a field of an update vector by field_no.
 @return update vector field, or NULL */
@@ -125,11 +154,17 @@ const upd_field_t*
 upd_get_field_by_field_no(
 /*======================*/
 	const upd_t*	update,	/*!< in: update vector */
-	ulint		no)	/*!< in: field_no */
+	ulint		no,	/*!< in: field_no */
+	bool		is_virtual) /*!< in: if it is virtual column */
 {
 	ulint	i;
 	for (i = 0; i < upd_get_n_fields(update); i++) {
 		const upd_field_t*	uf = upd_get_nth_field(update, i);
+
+		/* matches only if the field matches that of is_virtual */
+		if ((!is_virtual) != (!upd_fld_is_virtual_col(uf))) {
+			continue;
+		}
 
 		if (uf->field_no == no) {
 

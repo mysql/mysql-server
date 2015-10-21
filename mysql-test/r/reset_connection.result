@@ -194,7 +194,7 @@ set sql_mode= @orig_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER USER user_wl6797@localhost PASSWORD EXPIRE;
-mysqltest: At line 1: reset connection failed: You must SET PASSWORD before executing this statement
+mysqltest: At line 1: reset connection failed: You must reset your password using ALTER USER statement before executing this statement.
 DROP USER user_wl6797@localhost;
 
 Bug #18329348 RESETCONNECTION DOESN'T CLEAR TIMESTAMP

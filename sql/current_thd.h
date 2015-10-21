@@ -20,6 +20,8 @@
 #include "my_thread_local.h"
 #include "my_dbug.h"
 
+class THD;
+
 /*
   THR_THD is a key which will be used to set/get THD* for a thread,
   using my_set_thread_local()/my_get_thread_local().

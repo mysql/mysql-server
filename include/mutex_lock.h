@@ -16,6 +16,10 @@
 #ifndef MUTEX_LOCK_INCLUDED
 #define MUTEX_LOCK_INCLUDED
 
+/**
+  @file include/mutex_lock.h
+*/
+
 #include <my_global.h>
 #include <mysql/psi/mysql_thread.h>
 

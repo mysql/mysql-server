@@ -19,9 +19,9 @@
 #include "plugin.h"
 
 /**
-  @file plugin_query_rewrite
-  API for the query rewrite plugin types. (MYSQL_REWRITE_PRE_PARSE_PLUGIN and
-  MYSQL_REWRITE_POST_PARSE_PLUGIN)
+  @file include/mysql/plugin_query_rewrite.h
+  API for the query rewrite plugin types (MYSQL_REWRITE_PRE_PARSE_PLUGIN and
+  MYSQL_REWRITE_POST_PARSE_PLUGIN).
 */
 
 /// Must be set by a plugin if the query is rewritten.

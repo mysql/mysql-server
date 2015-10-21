@@ -154,8 +154,11 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */)
 {
   String str;
   String *strat_name= args[0]->val_str_ascii(&str);
-  if (args[0]->null_value)
-    return error_str();
+  if ((null_value= args[0]->null_value))
+  {
+    DBUG_ASSERT(maybe_null);
+    return NULL;
+  }
 
   // Get the NULL-terminated ascii string.
   const char *pstrat_name= strat_name->c_ptr_safe();
@@ -199,8 +202,11 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */)
       }
 
       double val= args[1]->val_real();
-      if (args[1]->null_value)
-        return error_str();
+      if ((null_value= args[1]->null_value))
+      {
+        DBUG_ASSERT(maybe_null);
+        return NULL;
+      }
       if (val <= 0)
       {
         my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
@@ -387,7 +393,28 @@ String *Item_func_buffer::val_str(String *str_value_arg)
       geom_type == Geometry::wkb_multilinestring ||
       geom_type == Geometry::wkb_geometrycollection)
   {
-    simplify_multi_geometry(obj);
+    /*
+      Make a copy of the geometry byte string argument to work on it,
+      don't modify the original one since it is assumed to be stable.
+      Simplifying the argument is worth the effort because buffer computation
+      is less expensive with simplified geometry.
+
+      The copy's buffer may be directly returned as result so it has to be a
+      data member.
+
+      Here we assume that if obj->is_alloced() is false, obj's referring to some
+      geometry data stored somewhere else so here we cache the simplified
+      version into m_tmp_geombuf without modifying obj's original referred copy;
+      otherwise we believe the geometry data
+      is solely owned by obj and that each call of this ST_Buffer() is given
+      a valid GEOMETRY byte string, i.e. it is structually valid and if it was
+      simplified before, the obj->m_length was correctly set to the new length
+      after the simplification operation.
+     */
+    const bool use_buffer= !obj->is_alloced();
+    if (simplify_multi_geometry(obj, (use_buffer ? &m_tmp_geombuf : NULL)) &&
+        use_buffer)
+      obj= &m_tmp_geombuf;
 
     if (!(geom= Geometry::construct(&buffer, obj)))
     {
@@ -640,9 +667,13 @@ String *Item_func_buffer::val_str(String *str_value_arg)
       If the result geometry is a multi-geometry or geometry collection that has
       only one component, extract that component as result.
     */
-    simplify_multi_geometry(str_result);
+    simplify_multi_geometry(str_result, NULL);
   }
-  CATCH_ALL("st_buffer", had_except= true)
+  catch (...)
+  {
+    had_except= true;
+    handle_gis_exception("st_buffer");
+  }
 
   if (had_except)
     DBUG_RETURN(error_str());

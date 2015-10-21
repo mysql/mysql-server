@@ -1,0 +1,21 @@
+--source include/have_innodb.inc
+--source include/not_windows.inc
+# Embedded server does not support restarting.
+--source include/not_embedded.inc
+
+select @@innodb_flush_method;
+# Linux tmpfs
+call mtr.add_suppression("InnoDB: Failed to set O_DIRECT");
+# Solaris
+call mtr.add_suppression("InnoDB: Failed to set DIRECTIO_ON");
+
+let $restart_parameters=restart: --innodb-flush-method=5;
+--source include/restart_mysqld.inc
+select @@innodb_flush_method;
+
+create table t(a serial) engine=innodb;
+
+let $restart_parameters=restart;
+--source include/restart_mysqld.inc
+
+drop table t;

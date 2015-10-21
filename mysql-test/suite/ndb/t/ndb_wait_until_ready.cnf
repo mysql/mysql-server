@@ -1,0 +1,34 @@
+!include ../my.cnf
+
+[cluster_config.1]
+NoOfReplicas=                  2
+ndbd=,,,
+ndb_mgmd=
+mysqld=,
+ndbapi=,,,,,,,,,,,
+
+[mysqld]
+ndb-cluster-connection-pool=1
+
+[cluster_config.ndbd.3.1]
+Nodegroup=65536
+
+[cluster_config.ndbd.4.1]
+Nodegroup=65536
+
+[cluster_config.mysqld.1.1]
+NodeId=6
+
+[cluster_config.mysqld.2.1]
+NodeId=7
+
+[mysqld.1.1]
+ndb-nodeid=6
+
+[mysqld.2.1]
+ndb-nodeid=7
+
+[ENV]
+NDB_CONNECTSTRING=             @mysql_cluster.1.ndb_connectstring
+MASTER_MYPORT=                 @mysqld.1.1.port
+MASTER_MYPORT1=                @mysqld.2.1.port

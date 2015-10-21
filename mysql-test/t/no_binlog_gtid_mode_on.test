@@ -4,6 +4,18 @@
 # Problem: Server is hitting the above mentioned assert when
 # commiting statements under GTID_MODE is ON + binlog disabled + autocommit
 # enabled combination.
+#
+# Bug#20954452  GTID IS NOT RELEASED PROPERLY WHEN PS_PROTOCOL + GTID + BINLOG OFF COMBINATION
+#
+# When a statement was executed using the PS protocol, i.e., using
+# COM_STMT_PREPARE + COM_STMT_EXECUTE rather than COM_QUERY, then
+# it would not release GTID ownership. The reason was that
+# update_gtids_impl was not called for COM_STMT_EXECUTE. After
+# fixing the bug it is called. This affected most DML and DDL,
+# although before this the mysqltest client tool would only use the
+# PS protocol for DML and CREATE TABLE. Since the server supports it,
+# this patch updates mysqltest to use the PS protocol for most DDL.
+#
 # Steps to reproduce:
 #   i) SET SESSION GTID_NEXT='UUID:GNO'
 #  ii) Execute a statement
@@ -11,13 +23,13 @@
 #  iv) Execute above three steps for all different types of statements
 ###############################################################################
 
-# BUG#20954452 is making this test fail in ps-protocol run. Disabling it until
-# the bug is fixed.
---source include/no_protocol.inc
 # Test is not required to run against embedded server
 --source include/not_embedded.inc
 # Should be tested against "binlog disabled" server
 --source include/not_log_bin.inc
+
+# Clean gtid_executed so that test can execute after other tests
+RESET MASTER;
 
 # Initial setup
 connect (connection_for_table_check,127.0.0.1,root,,test,$MASTER_MYPORT);
@@ -269,6 +281,19 @@ DROP DATABASE db1;
 --source include/gtid_step_assert.inc
 --replace_result $master_uuid MASTER_UUID
 SELECT GTID_EXECUTED_FROM_TABLE();
+
+
+--echo #
+--echo # Bug #21459999  "ASSERTION FAILURE WHEN PREVIOUSLY UNUSED TIME
+--echo #                 ZONE IS USED WITH GTID + NO BINLOG"
+CREATE TABLE t1(dt DATETIME) engine=INNODB;
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:23'
+--echo # Below statement caused assertion failure.
+INSERT INTO t1 VALUES (CONVERT_TZ('2015-07-01 01:00:00', 'UTC', 'No-such-time-zone'));
+SET SESSION GTID_NEXT='AUTOMATIC';
+DROP TABLE t1;
+
 
 # Cleanup
 --source include/gtid_utils_end.inc

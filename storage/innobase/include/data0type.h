@@ -194,6 +194,8 @@ be less than 256 */
 				type when the column is true VARCHAR where
 				MySQL uses 2 bytes to store the data len;
 				for shorter VARCHARs MySQL uses only 1 byte */
+#define	DATA_VIRTUAL	8192	/* Virtual column */
+
 /*-------------------------------------------*/
 
 /* This many bytes we need to store the type information affecting the
@@ -534,12 +536,13 @@ ibool
 dtype_validate(
 /*===========*/
 	const dtype_t*	type);	/*!< in: type struct to validate */
-/*********************************************************************//**
-Prints a data type structure. */
+#ifdef UNIV_DEBUG
+/** Print a data type structure.
+@param[in]	type	data type */
 void
 dtype_print(
-/*========*/
-	const dtype_t*	type);	/*!< in: type */
+	const dtype_t*	type);
+#endif /* UNIV_DEBUG */
 
 /* Structure for an SQL data type.
 If you add fields to this structure, be sure to initialize them everywhere.

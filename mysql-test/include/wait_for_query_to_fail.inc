@@ -17,6 +17,10 @@ while (!$mysql_errno)
 
   if (!$counter)
   {
+    if ($show_rpl_debug_info)
+    {
+      --source include/show_rpl_debug_info.inc
+    }
     --die "Waited too long for query to fail";
   }
 }

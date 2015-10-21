@@ -16,6 +16,10 @@
 #ifndef PFS_BUFFER_CONTAINER_H
 #define PFS_BUFFER_CONTAINER_H
 
+/**
+  @file storage/perfschema/pfs_buffer_container.h
+  Generic buffer container.
+*/
 #include "my_global.h"
 #include "pfs_lock.h"
 #include "pfs_instr.h"
@@ -38,7 +42,7 @@ class PFS_buffer_processor;
 template <class T, class U, class V>
 class PFS_buffer_iterator;
 
-template <class T, int PAGE_SIZE, int PAGE_COUNT, class U, class V>
+template <class T, int PFS_PAGE_SIZE, int PFS_PAGE_COUNT, class U, class V>
 class PFS_buffer_scalable_iterator;
 
 template <class T>
@@ -50,7 +54,7 @@ class PFS_buffer_default_allocator;
 template <class T, class U, class V>
 class PFS_buffer_container;
 
-template <class T, int PAGE_SIZE, int PAGE_COUNT, class U, class V>
+template <class T, int PFS_PAGE_SIZE, int PFS_PAGE_COUNT, class U, class V>
 class PFS_buffer_scalable_container;
 
 template <class T>
@@ -358,41 +362,43 @@ private:
 };
 
 template <class T,
-          int PAGE_SIZE,
-          int PAGE_COUNT,
+          int PFS_PAGE_SIZE,
+          int PFS_PAGE_COUNT,
           class U = PFS_buffer_default_array<T>,
           class V = PFS_buffer_default_allocator<T> >
 class PFS_buffer_scalable_container
 {
 public:
-  friend class PFS_buffer_scalable_iterator<T, PAGE_SIZE, PAGE_COUNT, U, V>;
+  friend class PFS_buffer_scalable_iterator<T, PFS_PAGE_SIZE, PFS_PAGE_COUNT, U, V>;
 
   typedef T value_type;
   typedef U array_type;
   typedef V allocator_type;
   typedef PFS_buffer_const_iterator<T> const_iterator_type;
-  typedef PFS_buffer_scalable_iterator<T, PAGE_SIZE, PAGE_COUNT, U, V> iterator_type;
+  typedef PFS_buffer_scalable_iterator<T, PFS_PAGE_SIZE, PFS_PAGE_COUNT, U, V> iterator_type;
   typedef PFS_buffer_processor<T> processor_type;
   typedef void (*function_type)(value_type *);
 
   PFS_buffer_scalable_container(allocator_type *allocator)
   {
     m_allocator= allocator;
+    m_initialized= false;
   }
 
   int init(long max_size)
   {
     int i;
 
+    m_initialized= true;
     m_full= true;
-    m_max= PAGE_COUNT * PAGE_SIZE;
-    m_max_page_count= PAGE_COUNT;
-    m_last_page_size= PAGE_SIZE;
+    m_max= PFS_PAGE_COUNT * PFS_PAGE_SIZE;
+    m_max_page_count= PFS_PAGE_COUNT;
+    m_last_page_size= PFS_PAGE_SIZE;
     m_lost= 0;
     m_monotonic.m_u32= 0;
     m_max_page_index.m_u32= 0;
 
-    for (i=0 ; i < PAGE_COUNT; i++)
+    for (i=0 ; i < PFS_PAGE_COUNT; i++)
     {
       m_pages[i]= NULL;
     }
@@ -404,14 +410,14 @@ public:
     }
     else if (max_size > 0)
     {
-      if (max_size % PAGE_SIZE == 0)
+      if (max_size % PFS_PAGE_SIZE == 0)
       {
-        m_max_page_count= max_size / PAGE_SIZE;
+        m_max_page_count= max_size / PFS_PAGE_SIZE;
       }
       else
       {
-        m_max_page_count= max_size / PAGE_SIZE + 1;
-        m_last_page_size= max_size % PAGE_SIZE;
+        m_max_page_count= max_size / PFS_PAGE_SIZE + 1;
+        m_last_page_size= max_size % PFS_PAGE_SIZE;
       }
       /* Bounded allocation. */
       m_full= false;
@@ -421,6 +427,8 @@ public:
       /* max_size = -1 means unbounded allocation */
       m_full= false;
     }
+
+    native_mutex_init(& m_critical_section, NULL);
     return 0;
   }
 
@@ -429,23 +437,33 @@ public:
     int i;
     array_type *page;
 
-    for (i=0 ; i < PAGE_COUNT; i++)
+    if (! m_initialized)
+      return;
+
+    native_mutex_lock(& m_critical_section);
+
+    for (i=0 ; i < PFS_PAGE_COUNT; i++)
     {
       page= m_pages[i];
       if (page != NULL)
       {
-        m_allocator->free_array(page, PAGE_SIZE);
+        m_allocator->free_array(page, PFS_PAGE_SIZE);
         delete page;
         m_pages[i]= NULL;
       }
     }
+    native_mutex_unlock(& m_critical_section);
+
+    native_mutex_destroy(& m_critical_section);
+
+    m_initialized= false;
   }
 
   ulong get_row_count()
   {
     ulong page_count= PFS_atomic::load_u32(& m_max_page_index.m_u32);
 
-    return page_count * PAGE_SIZE;
+    return page_count * PFS_PAGE_SIZE;
   }
 
   ulong get_row_size() const
@@ -473,12 +491,10 @@ public:
     uint page_logical_size;
     value_type *pfs;
     array_type *array;
-    array_type *old_array;
 
     void *addr;
     void * volatile * typed_addr;
     void *ptr;
-    void *old_ptr;
 
     /*
       1: Try to find an available record within the existing pages
@@ -549,44 +565,72 @@ public:
 
       if (array == NULL)
       {
-        /* (2-b) Found no page, allocate a new one */
-        array= new array_type();
-        builtin_memory_scalable_buffer.count_alloc(sizeof (array_type));
+        // ==================================================================
+        // BEGIN CRITICAL SECTION -- buffer expand
+        // ==================================================================
 
-        int rc= m_allocator->alloc_array(array, PAGE_SIZE);
-        if (rc != 0)
-        {
-          m_allocator->free_array(array, PAGE_SIZE);
-          delete array;
-          builtin_memory_scalable_buffer.count_free(sizeof (array_type));
-          m_lost++;
-          return NULL;
-        }
+        /*
+          On a fresh started server, buffers are typically empty.
+          When a sudden load spike is seen by the server,
+          multiple threads may want to expand the buffer at the same time.
 
-        /* (2-c) Atomic CAS, array <==> (m_pages[current_page_count] if NULL)  */
-        old_ptr= NULL;
-        ptr= array;
-        if (my_atomic_casptr(typed_addr, & old_ptr, ptr))
+          Using a compare and swap to allow multiple pages to be added,
+          possibly freeing duplicate pages on collisions,
+          does not work well because the amount of code involved
+          when creating a new page can be significant (PFS_thread),
+          causing MANY collisions between (2-b) and (2-d).
+
+          A huge number of collisions (which can happen when thousands
+          of new connections hits the server after a restart)
+          leads to a huge memory consumption, and to OOM.
+
+          To mitigate this, we use here a mutex,
+          to enforce that only ONE page is added at a time,
+          so that scaling the buffer happens in a predictable
+          and controlled manner.
+        */
+        native_mutex_lock(& m_critical_section);
+
+        /*
+          Peek again for pages added by collaborating threads,
+          this time as the only thread allowed to expand the buffer
+        */
+
+        /* (2-b) Atomic Load, array= m_pages[current_page_count] */
+
+        ptr= my_atomic_loadptr(typed_addr);
+        array= static_cast<array_type *>(ptr);
+
+        if (array == NULL)
         {
-          /* CAS: Ok */
+          /* (2-c) Found no page, allocate a new one */
+          array= new array_type();
+          builtin_memory_scalable_buffer.count_alloc(sizeof (array_type));
+
+          int rc= m_allocator->alloc_array(array, PFS_PAGE_SIZE);
+          if (rc != 0)
+          {
+            m_allocator->free_array(array, PFS_PAGE_SIZE);
+            delete array;
+            builtin_memory_scalable_buffer.count_free(sizeof (array_type));
+            m_lost++;
+            native_mutex_unlock(& m_critical_section);
+            return NULL;
+          }
+
+          /* (2-d) Atomic STORE, m_pages[current_page_count] = array  */
+          ptr= array;
+          my_atomic_storeptr(typed_addr, ptr);
 
           /* Advertise the new page */
           PFS_atomic::add_u32(& m_max_page_index.m_u32, 1);
         }
-        else
-        {
-          /* CAS: Race condition with another thread */
 
-          old_array= static_cast<array_type *>(old_ptr);
+        native_mutex_unlock(& m_critical_section);
 
-          /* Delete the page */
-          m_allocator->free_array(array, PAGE_SIZE);
-          delete array;
-          builtin_memory_scalable_buffer.count_free(sizeof (array_type));
-
-          /* Use the new page added concurrently instead */
-          array= old_array;
-        }
+        // ==================================================================
+        // END CRITICAL SECTION -- buffer expand
+        // ==================================================================
       }
 
       DBUG_ASSERT(array != NULL);
@@ -616,13 +660,13 @@ public:
     value_type *pfs;
     value_type *pfs_last;
 
-    for (i=0 ; i < PAGE_COUNT; i++)
+    for (i=0 ; i < PFS_PAGE_COUNT; i++)
     {
       page= m_pages[i];
       if (page != NULL)
       {
         pfs= page->m_ptr;
-        pfs_last= pfs + PAGE_SIZE;
+        pfs_last= pfs + PFS_PAGE_SIZE;
 
         if ((pfs <= safe_pfs) &&
             (safe_pfs < pfs_last))
@@ -639,13 +683,13 @@ public:
 
   iterator_type iterate()
   {
-    return PFS_buffer_scalable_iterator<T, PAGE_SIZE, PAGE_COUNT, U, V>(this, 0);
+    return PFS_buffer_scalable_iterator<T, PFS_PAGE_SIZE, PFS_PAGE_COUNT, U, V>(this, 0);
   }
 
   iterator_type iterate(uint index)
   {
     DBUG_ASSERT(index <= m_max);
-    return PFS_buffer_scalable_iterator<T, PAGE_SIZE, PAGE_COUNT, U, V>(this, index);
+    return PFS_buffer_scalable_iterator<T, PFS_PAGE_SIZE, PFS_PAGE_COUNT, U, V>(this, index);
   }
 
   void apply(function_type fct)
@@ -655,13 +699,13 @@ public:
     value_type *pfs;
     value_type *pfs_last;
 
-    for (i=0 ; i < PAGE_COUNT; i++)
+    for (i=0 ; i < PFS_PAGE_COUNT; i++)
     {
       page= m_pages[i];
       if (page != NULL)
       {
         pfs= page->m_ptr;
-        pfs_last= pfs + PAGE_SIZE;
+        pfs_last= pfs + PFS_PAGE_SIZE;
 
         while (pfs < pfs_last)
         {
@@ -682,13 +726,13 @@ public:
     value_type *pfs;
     value_type *pfs_last;
 
-    for (i=0 ; i < PAGE_COUNT; i++)
+    for (i=0 ; i < PFS_PAGE_COUNT; i++)
     {
       page= m_pages[i];
       if (page != NULL)
       {
         pfs= page->m_ptr;
-        pfs_last= pfs + PAGE_SIZE;
+        pfs_last= pfs + PFS_PAGE_SIZE;
 
         while (pfs < pfs_last)
         {
@@ -706,13 +750,13 @@ public:
     value_type *pfs;
     value_type *pfs_last;
 
-    for (i=0 ; i < PAGE_COUNT; i++)
+    for (i=0 ; i < PFS_PAGE_COUNT; i++)
     {
       page= m_pages[i];
       if (page != NULL)
       {
         pfs= page->m_ptr;
-        pfs_last= pfs + PAGE_SIZE;
+        pfs_last= pfs + PFS_PAGE_SIZE;
 
         while (pfs < pfs_last)
         {
@@ -733,13 +777,13 @@ public:
     value_type *pfs;
     value_type *pfs_last;
 
-    for (i=0 ; i < PAGE_COUNT; i++)
+    for (i=0 ; i < PFS_PAGE_COUNT; i++)
     {
       page= m_pages[i];
       if (page != NULL)
       {
         pfs= page->m_ptr;
-        pfs_last= pfs + PAGE_SIZE;
+        pfs_last= pfs + PFS_PAGE_SIZE;
 
         while (pfs < pfs_last)
         {
@@ -754,11 +798,11 @@ public:
   {
     DBUG_ASSERT(index < m_max);
 
-    uint index_1= index / PAGE_SIZE;
+    uint index_1= index / PFS_PAGE_SIZE;
     array_type *page= m_pages[index_1];
     if (page != NULL)
     {
-      uint index_2= index % PAGE_SIZE;
+      uint index_2= index % PFS_PAGE_SIZE;
       value_type *pfs= page->m_ptr + index_2;
 
       if (pfs->m_lock.is_populated())
@@ -778,7 +822,7 @@ public:
       return NULL;
     }
 
-    uint index_1= index / PAGE_SIZE;
+    uint index_1= index / PFS_PAGE_SIZE;
     array_type *page= m_pages[index_1];
 
     if (page == NULL)
@@ -788,7 +832,7 @@ public:
     }
 
     *has_more= true;
-    uint index_2= index % PAGE_SIZE;
+    uint index_2= index % PFS_PAGE_SIZE;
     value_type *pfs= page->m_ptr + index_2;
 
     if (pfs->m_lock.is_populated())
@@ -807,13 +851,13 @@ public:
     value_type *pfs;
     value_type *pfs_last;
 
-    for (i=0 ; i < PAGE_COUNT; i++)
+    for (i=0 ; i < PFS_PAGE_COUNT; i++)
     {
       page= m_pages[i];
       if (page != NULL)
       {
         pfs= page->m_ptr;
-        pfs_last= pfs + PAGE_SIZE;
+        pfs_last= pfs + PFS_PAGE_SIZE;
 
         if ((pfs <= unsafe) &&
             (unsafe < pfs_last))
@@ -835,7 +879,7 @@ private:
   uint get_page_logical_size(uint page_index)
   {
     if (page_index + 1 < m_max_page_count)
-      return PAGE_SIZE;
+      return PFS_PAGE_SIZE;
     return m_last_page_size;
   }
 
@@ -843,8 +887,8 @@ private:
   {
     DBUG_ASSERT(index <= m_max);
 
-    uint index_1= index / PAGE_SIZE;
-    uint index_2= index % PAGE_SIZE;
+    uint index_1= index / PFS_PAGE_SIZE;
+    uint index_2= index % PFS_PAGE_SIZE;
     array_type *page;
     value_type *pfs_first;
     value_type *pfs;
@@ -862,13 +906,13 @@ private:
 
       pfs_first= page->m_ptr;
       pfs= pfs_first + index_2;
-      pfs_last= pfs_first + PAGE_SIZE;
+      pfs_last= pfs_first + PFS_PAGE_SIZE;
 
       while (pfs < pfs_last)
       {
         if (pfs->m_lock.is_populated())
         {
-          uint found= index_1 * PAGE_SIZE + static_cast<uint>(pfs - pfs_first);
+          uint found= index_1 * PFS_PAGE_SIZE + static_cast<uint>(pfs - pfs_first);
           *found_index= found;
           index= found + 1;
           return pfs;
@@ -879,20 +923,22 @@ private:
       index_1++;
       index_2= 0;
     }
-    while (index_1 < PAGE_COUNT);
+    while (index_1 < PFS_PAGE_COUNT);
 
     index= static_cast<uint>(m_max);
     return NULL;
   }
 
+  bool m_initialized;
   bool m_full;
   size_t m_max;
   PFS_cacheline_uint32 m_monotonic;
   PFS_cacheline_uint32 m_max_page_index;
   ulong m_max_page_count;
   ulong m_last_page_size;
-  array_type * m_pages[PAGE_COUNT];
+  array_type * m_pages[PFS_PAGE_COUNT];
   allocator_type *m_allocator;
+  native_mutex_t m_critical_section;
 };
 
 template <class T, class U, class V>

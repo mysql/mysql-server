@@ -34,7 +34,7 @@
 #include "rsa.h"
 
 
-#define YASSL_VERSION "2.3.7b"
+#define YASSL_VERSION "2.3.8"
 
 
 #if defined(__cplusplus)
@@ -230,7 +230,6 @@ int          SSL_set_session(SSL *ssl, SSL_SESSION *session);
 SSL_SESSION* SSL_get_session(SSL* ssl);
 void         SSL_flush_sessions(SSL_CTX *ctx, long tm);
 long         SSL_SESSION_set_timeout(SSL_SESSION*, long);
-long         SSL_CTX_set_session_cache_mode(SSL_CTX* ctx, long mode);
 X509*        SSL_get_peer_certificate(SSL*);
 long         SSL_get_verify_result(SSL*);
 

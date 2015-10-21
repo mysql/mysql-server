@@ -500,11 +500,12 @@ private:
 
 class EventBufferManager {
 public:
-  EventBufferManager();
+  EventBufferManager(const Ndb* const m_ndb);
   ~EventBufferManager() {};
 
 private:
 
+  const Ndb* const m_ndb;
   /* Last epoch that will be buffered completely before
    * the beginning of a gap.
    */
@@ -661,11 +662,13 @@ public:
   void add_drop_lock() { NdbMutex_Lock(m_add_drop_mutex); }
   void add_drop_unlock() { NdbMutex_Unlock(m_add_drop_mutex); }
   void lock() { NdbMutex_Lock(m_mutex); }
+  bool trylock() { return NdbMutex_Trylock(m_mutex) == 0; }
   void unlock() { NdbMutex_Unlock(m_mutex); }
 
   void add_op();
   void remove_op();
   void init_gci_containers();
+  void clear_event_queue();
 
   // accessed from the "receive thread"
   int insertDataL(NdbEventOperationImpl *op,
@@ -673,6 +676,10 @@ public:
 		  LinearSectionPtr ptr[3]);
   void execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const, Uint32 len,
                                 int complete_cluster_failure= 0);
+  void execSUB_START_CONF(const SubStartConf * const, Uint32 len);
+  void execSUB_STOP_CONF(const SubStopConf * const, Uint32 len);
+  void execSUB_STOP_REF(const SubStopRef * const, Uint32 len);
+
   void complete_outof_order_gcis();
   
   void report_node_failure_completed(Uint32 node_id);
@@ -680,8 +687,9 @@ public:
   // used by user thread 
   Uint64 getLatestGCI();
   Uint32 getEventId(int bufferId);
+  Uint64 getHighestQueuedEpoch();
 
-  int pollEvents2(int aMillisecondNumber, Uint64 *HighestQueuedEpoch= 0);
+  int pollEvents(int aMillisecondNumber, Uint64 *HighestQueuedEpoch= 0);
   int flushIncompleteEvents(Uint64 gci);
 
   void free_consumed_event_data();
@@ -754,7 +762,10 @@ public:
   // "latest gci" variables updated in user thread
   Uint64 m_latest_poll_GCI; // latest gci handed over to user thread
 
+  bool m_failure_detected; // marker that event operations have failure events
+
   bool m_startup_hack;
+  bool m_prevent_nodegroup_change;
 
   NdbMutex *m_mutex;
   struct NdbCondition *p_cond;

@@ -41,7 +41,7 @@ static PSI_rwlock_info all_validate_password_rwlocks[]=
   { &key_validate_password_LOCK_dict_file, "LOCK_dict_file", 0}
 };
 
-void init_validate_password_psi_keys()
+static void init_validate_password_psi_keys()
 {
   const char* category= "validate";
   int count;
@@ -164,7 +164,7 @@ static void read_dictionary_file()
     {
       dictionary_stream.close();
       my_plugin_log_message(&plugin_info_ptr, MY_WARNING_LEVEL,
-                            "Dictionary file size exceeded",
+                            "Dictionary file size exceeded "
                             "MAX_DICTIONARY_FILE_LENGTH, not loaded");
       return;
     }
@@ -221,7 +221,7 @@ static int validate_dictionary_check(mysql_string_handle password)
   mysql_string_free(lower_string_handle);
   int substr_pos= 0;
   int substr_length= length;
-  string_type password_str= (const char *)buffer;
+  string_type password_str= string_type((const char *)buffer, length);
   string_type password_substr;
   set_type::iterator itr;
   /*  

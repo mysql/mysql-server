@@ -14,9 +14,6 @@ use performance_schema;
 # Verify that these global mutexes have been properly initilized in mysys
 
 select count(name) from mutex_instances
- where name like "wait/synch/mutex/mysys/THR_LOCK_threads";
-
-select count(name) from mutex_instances
  where name like "wait/synch/mutex/mysys/THR_LOCK_malloc";
 
 select count(name) from mutex_instances
@@ -36,10 +33,8 @@ select count(name) from mutex_instances
 
 # There are no global rwlock in mysys
 
-# Verify that these global conditions have been properly initilized in mysys
-
-select count(name) from cond_instances
- where name like "wait/synch/cond/mysys/THR_COND_threads";
+# There are no global conditions in mysys
+# (THR_COND_threads is only present in debug builds
 
 # Verify that these global mutexes have been properly initilized in sql
 
@@ -56,9 +51,6 @@ select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_status";
 
 select count(name) from mutex_instances
- where name like "wait/synch/mutex/sql/LOCK_error_log";
-
-select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_uuid_generator";
 
 select count(name) from mutex_instances
@@ -66,9 +58,6 @@ select count(name) from mutex_instances
 
 select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_slave_list";
-
-select count(name) from mutex_instances
- where name like "wait/synch/mutex/sql/LOCK_msr_map";
 
 select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_manager";

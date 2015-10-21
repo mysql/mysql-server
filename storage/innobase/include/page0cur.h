@@ -295,6 +295,7 @@ page_cur_search(
 	const dict_index_t*	index,
 	const dtuple_t*		tuple,
 	page_cur_t*		cursor);
+
 /****************************************************************//**
 Searches the right position for a page cursor. */
 void
@@ -314,6 +315,31 @@ page_cur_search_with_match(
 					fields in lower limit record */
 	page_cur_t*		cursor,	/*!< out: page cursor */
 	rtr_info_t*		rtr_info);/*!< in/out: rtree search stack */
+/** Search the right position for a page cursor.
+@param[in]	block			buffer block
+@param[in]	index			index tree
+@param[in]	tuple			key to be searched for
+@param[in]	mode			search mode
+@param[in,out]	iup_matched_fields	already matched fields in the
+upper limit record
+@param[in,out]	iup_matched_bytes	already matched bytes in the
+first partially matched field in the upper limit record
+@param[in,out]	ilow_matched_fields	already matched fields in the
+lower limit record
+@param[in,out]	ilow_matched_bytes	already matched bytes in the
+first partially matched field in the lower limit record
+@param[out]	cursor			page cursor */
+void
+page_cur_search_with_match_bytes(
+	const buf_block_t*	block,
+	const dict_index_t*	index,
+	const dtuple_t*		tuple,
+	page_cur_mode_t		mode,
+	ulint*			iup_matched_fields,
+	ulint*			iup_matched_bytes,
+	ulint*			ilow_matched_fields,
+	ulint*			ilow_matched_bytes,
+	page_cur_t*		cursor);
 /***********************************************************//**
 Positions a page cursor on a randomly chosen user record on a page. If there
 are no user records, sets the cursor on the infimum record. */

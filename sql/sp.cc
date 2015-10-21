@@ -295,8 +295,8 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
   {
     sql_print_warning("Stored routine '%s'.'%s': invalid value "
                       "in column mysql.proc.character_set_client.",
-                      (const char *) db_name,
-                      (const char *) sr_name);
+                      db_name,
+                      sr_name);
 
     invalid_creation_ctx= TRUE;
   }
@@ -308,8 +308,8 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
   {
     sql_print_warning("Stored routine '%s'.'%s': invalid value "
                       "in column mysql.proc.collation_connection.",
-                      (const char *) db_name,
-                      (const char *) sr_name);
+                      db_name,
+                      sr_name);
 
     invalid_creation_ctx= TRUE;
   }
@@ -321,8 +321,8 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
   {
     sql_print_warning("Stored routine '%s'.'%s': invalid value "
                       "in column mysql.proc.db_collation.",
-                      (const char *) db_name,
-                      (const char *) sr_name);
+                      db_name,
+                      sr_name);
 
     invalid_creation_ctx= TRUE;
   }
@@ -333,8 +333,8 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
                         Sql_condition::SL_WARNING,
                         ER_SR_INVALID_CREATION_CTX,
                         ER_THD(thd, ER_SR_INVALID_CREATION_CTX),
-                        (const char *) db_name,
-                        (const char *) sr_name);
+                        db_name,
+                        sr_name);
   }
 
   /*
@@ -389,7 +389,7 @@ void Proc_table_intact::report_error(uint code, const char *fmt, ...)
     m_print_once= FALSE;
     sql_print_error("%s", buf);
   }
-};
+}
 
 
 /** Single instance used to control printing to the error log. */
@@ -404,10 +404,9 @@ static Proc_table_intact proc_table_intact;
                  currently open tables will be saved, and from which will be
                  restored when we will end work with mysql.proc.
 
+  @returns Pointer to TABLE object of mysql.proc
   @retval
     0	Error
-  @retval
-    \#	Pointer to TABLE object of mysql.proc
 */
 
 TABLE *open_proc_table_for_read(THD *thd, Open_tables_backup *backup)
@@ -445,10 +444,9 @@ err:
   @note
     Table opened with this call should closed using close_thread_tables().
 
+  @returns Pointer to TABLE object of mysql.proc
   @retval
     0	Error
-  @retval
-    \#	Pointer to TABLE object of mysql.proc
 */
 
 static TABLE *open_proc_table_for_update(THD *thd)
@@ -728,7 +726,7 @@ public:
 
 
 /**
-  @brief    The function parses input strings and returns SP stucture.
+  The function parses input strings and returns SP structure.
 
   @param[in]      thd               Thread handler
   @param[in]      defstr            CREATE... string
@@ -736,8 +734,7 @@ public:
   @param[in]      creation_ctx      Creation context of stored routines
                                     
   @return     Pointer on sp_head struct
-    @retval   #                     Pointer on sp_head struct
-    @retval   0                     error
+    @retval   NULL                  error
 */
 
 static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
@@ -1612,7 +1609,7 @@ sp_drop_db_routines(THD *thd, const char *db)
   }
 
   if (! table->file->ha_index_read_map(table->record[0],
-                                       (uchar *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
+                                       table->field[MYSQL_PROC_FIELD_DB]->ptr,
                                        (key_part_map)1, HA_READ_KEY_EXACT))
   {
     int nxtres;
@@ -1643,7 +1640,7 @@ sp_drop_db_routines(THD *thd, const char *db)
 	break;
       }
     } while (! (nxtres= table->file->ha_index_next_same(table->record[0],
-                                (uchar *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
+                                table->field[MYSQL_PROC_FIELD_DB]->ptr,
 						     key_len)));
     if (nxtres != HA_ERR_END_OF_FILE)
       ret= SP_KEY_NOT_FOUND;
@@ -1923,7 +1920,8 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
 {
   my_hash_init_opt(&prelocking_ctx->sroutines, system_charset_info,
                    Query_tables_list::START_SROUTINES_HASH_SIZE,
-                   0, 0, sp_sroutine_key, 0, 0);
+                   0, 0, sp_sroutine_key, 0, 0,
+                   PSI_INSTRUMENT_ME);
 
   if (!my_hash_search(&prelocking_ctx->sroutines, key->ptr(), key->length()))
   {
@@ -2250,8 +2248,8 @@ static bool create_string(THD *thd, String *buf,
 
 
 /**
-  @brief    The function loads sp_head struct for information schema purposes
-            (used for I_S ROUTINES & PARAMETERS tables).
+  The function loads sp_head struct for information schema purposes
+  (used for I_S ROUTINES & PARAMETERS tables).
 
   @param[in]      thd               thread handler
   @param[in]      proc_table        mysql.proc table structurte
@@ -2265,8 +2263,7 @@ static bool create_string(THD *thd, String *buf,
                                     otherwise returns 0
                                     
   @return     Pointer on sp_head struct
-    @retval   #                     Pointer on sp_head struct
-    @retval   0                     error
+    @retval   NULL                  error
 */
 
 sp_head *
@@ -2626,26 +2623,24 @@ bool sp_check_name(LEX_STRING *ident)
   the global table list, e.g. "mysql", "proc".
 */
 TABLE_LIST *sp_add_to_query_tables(THD *thd, LEX *lex,
-                                   const char *db, const char *name,
-                                   thr_lock_type locktype,
-                                   enum_mdl_type mdl_type)
+                                   const char *db, const char *name)
 {
-  TABLE_LIST *table= (TABLE_LIST *)thd->mem_calloc(sizeof(TABLE_LIST));
+  TABLE_LIST *table= static_cast<TABLE_LIST*>(thd->alloc(sizeof(TABLE_LIST)));
 
   if (!table)
     return NULL;
 
-  table->db_length= strlen(db);
-  table->db= thd->strmake(db, table->db_length);
-  table->table_name_length= strlen(name);
-  table->table_name= thd->strmake(name, table->table_name_length);
-  table->alias= thd->mem_strdup(name);
-  table->lock_type= locktype;
+  size_t db_length= strlen(db);
+  size_t table_name_length= strlen(name);
+
+  table->init_one_table(thd->strmake(db, db_length), db_length,
+                        thd->strmake(name, table_name_length),
+                        table_name_length,
+                        thd->mem_strdup(name),
+                        TL_IGNORE, MDL_SHARED_NO_WRITE);
+
   table->select_lex= lex->current_select();
   table->cacheable_table= 1;
-  MDL_REQUEST_INIT(&table->mdl_request,
-                   MDL_key::TABLE, table->db, table->table_name,
-                   mdl_type, MDL_TRANSACTION);
 
   lex->add_to_query_tables(table);
 

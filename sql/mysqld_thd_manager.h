@@ -16,9 +16,9 @@
 #ifndef MYSQLD_THD_MANAGER_INCLUDED
 #define MYSQLD_THD_MANAGER_INCLUDED
 
-#include "my_global.h"   // ulonglong
-#include "my_thread.h"   // my_thread_id
-#include "my_atomic.h"   // my_atomic_add32
+#include "my_global.h"
+#include "my_atomic.h"         // my_atomic_add32
+#include "my_thread_local.h"   // my_thread_id
 #include "prealloced_array.h"
 
 class THD;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,15 +17,15 @@
 #define MYSQL_SP_H
 
 /**
-  @file mysql/psi/mysql_sp.h
+  @file include/mysql/psi/mysql_sp.h
   Instrumentation helpers for stored programs.
 */
 
 #include "mysql/psi/psi.h"
 
 #ifndef PSI_SP_CALL
-#define PSI_SP_CALL(M) PSI_DYNAMIC_CALL(M)                               
-#endif    
+#define PSI_SP_CALL(M) PSI_DYNAMIC_CALL(M)
+#endif
 
 #ifdef HAVE_PSI_SP_INTERFACE
   #define MYSQL_START_SP(STATE, SP_SHARE) \

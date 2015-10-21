@@ -54,7 +54,7 @@ PFS_engine_table_share
 table_session_status::m_share=
 {
   { C_STRING_WITH_LEN("session_status") },
-  &pfs_readonly_acl,
+  &pfs_readonly_world_acl,
   table_session_status::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
@@ -62,7 +62,8 @@ table_session_status::m_share=
   sizeof(pos_t),
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  true   /* perpetual */
 };
 
 PFS_engine_table*
@@ -92,9 +93,6 @@ void table_session_status::reset_position(void)
 
 int table_session_status::rnd_init(bool scan)
 {
-  if (show_compatibility_56)
-    return 0;
-
  /* Build a cache of all status variables for this thread. */
   m_status_cache.materialize_all(current_thd);
 
@@ -113,9 +111,6 @@ int table_session_status::rnd_init(bool scan)
 
 int table_session_status::rnd_next(void)
 {
-  if (show_compatibility_56)
-    return HA_ERR_END_OF_FILE;
-
   for (m_pos.set_at(&m_next_pos);
        m_pos.m_index < m_status_cache.size();
        m_pos.next())
@@ -137,9 +132,6 @@ int table_session_status::rnd_next(void)
 int
 table_session_status::rnd_pos(const void *pos)
 {
-  if (show_compatibility_56)
-    return HA_ERR_RECORD_DELETED;
-
   /* If global status array has changed, do nothing. */ // TODO: warning
   if (!m_context->versions_match())
     return HA_ERR_RECORD_DELETED;

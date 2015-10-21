@@ -1,0 +1,2005 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# Creating table t1
+CREATE TABLE t1(c1 INT NOT NULL, c2 INT);
+###################################################################
+# Run plugin
+###################################################################
+INSTALL PLUGIN test_sql_replication SONAME 'TEST_SQL_REPLICATION';
+###################################################################
+# Stop plugin
+###################################################################
+UNINSTALL PLUGIN test_sql_replication;
+###################################################################
+# Plugin log
+###################################################################
+========================================================================
+Test in a server thread
+[srv_session_open]
+========================================================================
+EXECUTING:[35][SELECT 'first complex command' as a]
+[CS_TEXT_REPRESENTATION]
+		[meta] rows: 1
+		[meta] cols: 1
+		[meta] server status: 2
+		[meta] server status: AUTOCOMMIT 
+		[meta] warning count: 0
+
+			[meta][field] db name: 
+			[meta][field] table name: 
+			[meta][field] org table name: 
+			[meta][field] col name: a
+			[meta][field] org col name: 
+			[meta][field] length: 63
+			[meta][field] charsetnr: 33
+			[meta][field] flags: 1 (NOT_NULL )
+			[meta][field] decimals: 31
+			[meta][field] type: VARCHAR (15)
+
+
+		[meta][charset result] number: 33
+		[meta][charset result] name: utf8
+		[meta][charset result] collation: utf8_general_ci
+		[meta][charset result] sort order: 
+
+		[data][.a][ 21][first complex command]
+
+		[end] server status: 2
+		[end] server status: AUTOCOMMIT 
+		[end] warning count:  0
+		[end] affected rows:  0
+		[end] last insert id: 0
+		[end] message: 
+[CS_BINARY_REPRESENTATION]
+		[meta] rows: 1
+		[meta] cols: 1
+		[meta] server status: 2
+		[meta] server status: AUTOCOMMIT 
+		[meta] warning count: 0
+
+			[meta][field] db name: 
+			[meta][field] table name: 
+			[meta][field] org table name: 
+			[meta][field] col name: a
+			[meta][field] org col name: 
+			[meta][field] length: 63
+			[meta][field] charsetnr: 33
+			[meta][field] flags: 1 (NOT_NULL )
+			[meta][field] decimals: 31
+			[meta][field] type: VARCHAR (15)
+
+
+		[meta][charset result] number: 33
+		[meta][charset result] name: utf8
+		[meta][charset result] collation: utf8_general_ci
+		[meta][charset result] sort order: 
+
+		[data][.a][ 21][first complex command]
+
+		[end] server status: 2
+		[end] server status: AUTOCOMMIT 
+		[end] warning count:  0
+		[end] affected rows:  0
+		[end] last insert id: 0
+		[end] message: 
+========================================================================
+EXECUTING:[COM_INIT_DB][test]
+========================================================================
+EXECUTING:[62][INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,1), (5,2), (6,3)]
+[CS_TEXT_REPRESENTATION]
+		[meta] rows: 0
+		[meta] cols: 0
+		[meta] server status: 0
+		[meta] server status: 
+		[meta] warning count: 0
+
+		[meta] no columns
+
+		[meta] no charset
+
+		[data] no rows
+
+		[end] server status: 2
+		[end] server status: AUTOCOMMIT 
+		[end] warning count:  0
+		[end] affected rows:  6
+		[end] last insert id: 0
+		[end] message: Records: 6  Duplicates: 0  Warnings: 0
+========================================================================
+EXECUTING:[COM_INIT_DB][test]
+========================================================================
+EXECUTING:[16][SELECT * FROM t1]
+[CS_TEXT_REPRESENTATION]
+		[meta] rows: 6
+		[meta] cols: 2
+		[meta] server status: 34
+		[meta] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[meta] warning count: 0
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c1
+			[meta][field] org col name: c1
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c2
+			[meta][field] org col name: c2
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 0
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+
+		[meta][charset result] number: 33
+		[meta][charset result] name: utf8
+		[meta][charset result] collation: utf8_general_ci
+		[meta][charset result] sort order: 
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  1][2]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  1][5]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[end] server status: 34
+		[end] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[end] warning count:  0
+		[end] affected rows:  0
+		[end] last insert id: 0
+		[end] message: 
+[CS_BINARY_REPRESENTATION]
+		[meta] rows: 6
+		[meta] cols: 2
+		[meta] server status: 34
+		[meta] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[meta] warning count: 0
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c1
+			[meta][field] org col name: c1
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c2
+			[meta][field] org col name: c2
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 0
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+
+		[meta][charset result] number: 33
+		[meta][charset result] name: utf8
+		[meta][charset result] collation: utf8_general_ci
+		[meta][charset result] sort order: 
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  1][2]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  1][5]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[end] server status: 34
+		[end] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[end] warning count:  0
+		[end] affected rows:  0
+		[end] last insert id: 0
+		[end] message: 
+========================================================================
+EXECUTING:[COM_INIT_DB][test]
+========================================================================
+EXECUTING:[35][UPDATE t1 SET c1 = 100 WHERE c2 = 2]
+[CS_TEXT_REPRESENTATION]
+		[meta] rows: 0
+		[meta] cols: 0
+		[meta] server status: 0
+		[meta] server status: 
+		[meta] warning count: 0
+
+		[meta] no columns
+
+		[meta] no charset
+
+		[data] no rows
+
+		[end] server status: 34
+		[end] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[end] warning count:  0
+		[end] affected rows:  2
+		[end] last insert id: 0
+		[end] message: Rows matched: 2  Changed: 2  Warnings: 0
+========================================================================
+EXECUTING:[COM_INIT_DB][test]
+========================================================================
+EXECUTING:[16][SELECT * FROM t1]
+[CS_TEXT_REPRESENTATION]
+		[meta] rows: 6
+		[meta] cols: 2
+		[meta] server status: 34
+		[meta] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[meta] warning count: 0
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c1
+			[meta][field] org col name: c1
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c2
+			[meta][field] org col name: c2
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 0
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+
+		[meta][charset result] number: 33
+		[meta][charset result] name: utf8
+		[meta][charset result] collation: utf8_general_ci
+		[meta][charset result] sort order: 
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[end] server status: 34
+		[end] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[end] warning count:  0
+		[end] affected rows:  0
+		[end] last insert id: 0
+		[end] message: 
+[CS_BINARY_REPRESENTATION]
+		[meta] rows: 6
+		[meta] cols: 2
+		[meta] server status: 34
+		[meta] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[meta] warning count: 0
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c1
+			[meta][field] org col name: c1
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c2
+			[meta][field] org col name: c2
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 0
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+
+		[meta][charset result] number: 33
+		[meta][charset result] name: utf8
+		[meta][charset result] collation: utf8_general_ci
+		[meta][charset result] sort order: 
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[end] server status: 34
+		[end] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[end] warning count:  0
+		[end] affected rows:  0
+		[end] last insert id: 0
+		[end] message: 
+========================================================================
+[srv_session_close]
+Follows threaded run
+========================================================================
+init thread
+[srv_session_open]
+========================================================================
+EXECUTING:[35][SELECT 'first complex command' as a]
+[CS_TEXT_REPRESENTATION]
+		[meta] rows: 1
+		[meta] cols: 1
+		[meta] server status: 2
+		[meta] server status: AUTOCOMMIT 
+		[meta] warning count: 0
+
+			[meta][field] db name: 
+			[meta][field] table name: 
+			[meta][field] org table name: 
+			[meta][field] col name: a
+			[meta][field] org col name: 
+			[meta][field] length: 63
+			[meta][field] charsetnr: 33
+			[meta][field] flags: 1 (NOT_NULL )
+			[meta][field] decimals: 31
+			[meta][field] type: VARCHAR (15)
+
+
+		[meta][charset result] number: 33
+		[meta][charset result] name: utf8
+		[meta][charset result] collation: utf8_general_ci
+		[meta][charset result] sort order: 
+
+		[data][.a][ 21][first complex command]
+
+		[end] server status: 2
+		[end] server status: AUTOCOMMIT 
+		[end] warning count:  0
+		[end] affected rows:  0
+		[end] last insert id: 0
+		[end] message: 
+[CS_BINARY_REPRESENTATION]
+		[meta] rows: 1
+		[meta] cols: 1
+		[meta] server status: 2
+		[meta] server status: AUTOCOMMIT 
+		[meta] warning count: 0
+
+			[meta][field] db name: 
+			[meta][field] table name: 
+			[meta][field] org table name: 
+			[meta][field] col name: a
+			[meta][field] org col name: 
+			[meta][field] length: 63
+			[meta][field] charsetnr: 33
+			[meta][field] flags: 1 (NOT_NULL )
+			[meta][field] decimals: 31
+			[meta][field] type: VARCHAR (15)
+
+
+		[meta][charset result] number: 33
+		[meta][charset result] name: utf8
+		[meta][charset result] collation: utf8_general_ci
+		[meta][charset result] sort order: 
+
+		[data][.a][ 21][first complex command]
+
+		[end] server status: 2
+		[end] server status: AUTOCOMMIT 
+		[end] warning count:  0
+		[end] affected rows:  0
+		[end] last insert id: 0
+		[end] message: 
+========================================================================
+EXECUTING:[COM_INIT_DB][test]
+========================================================================
+EXECUTING:[62][INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,1), (5,2), (6,3)]
+[CS_TEXT_REPRESENTATION]
+		[meta] rows: 0
+		[meta] cols: 0
+		[meta] server status: 0
+		[meta] server status: 
+		[meta] warning count: 0
+
+		[meta] no columns
+
+		[meta] no charset
+
+		[data] no rows
+
+		[end] server status: 2
+		[end] server status: AUTOCOMMIT 
+		[end] warning count:  0
+		[end] affected rows:  6
+		[end] last insert id: 0
+		[end] message: Records: 6  Duplicates: 0  Warnings: 0
+========================================================================
+EXECUTING:[COM_INIT_DB][test]
+========================================================================
+EXECUTING:[16][SELECT * FROM t1]
+[CS_TEXT_REPRESENTATION]
+		[meta] rows: 12
+		[meta] cols: 2
+		[meta] server status: 34
+		[meta] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[meta] warning count: 0
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c1
+			[meta][field] org col name: c1
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c2
+			[meta][field] org col name: c2
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 0
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+
+		[meta][charset result] number: 33
+		[meta][charset result] name: utf8
+		[meta][charset result] collation: utf8_general_ci
+		[meta][charset result] sort order: 
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  1][2]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  1][5]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[end] server status: 34
+		[end] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[end] warning count:  0
+		[end] affected rows:  0
+		[end] last insert id: 0
+		[end] message: 
+[CS_BINARY_REPRESENTATION]
+		[meta] rows: 12
+		[meta] cols: 2
+		[meta] server status: 34
+		[meta] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[meta] warning count: 0
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c1
+			[meta][field] org col name: c1
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c2
+			[meta][field] org col name: c2
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 0
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+
+		[meta][charset result] number: 33
+		[meta][charset result] name: utf8
+		[meta][charset result] collation: utf8_general_ci
+		[meta][charset result] sort order: 
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  1][2]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  1][5]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[end] server status: 34
+		[end] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[end] warning count:  0
+		[end] affected rows:  0
+		[end] last insert id: 0
+		[end] message: 
+========================================================================
+EXECUTING:[COM_INIT_DB][test]
+========================================================================
+EXECUTING:[35][UPDATE t1 SET c1 = 100 WHERE c2 = 2]
+[CS_TEXT_REPRESENTATION]
+		[meta] rows: 0
+		[meta] cols: 0
+		[meta] server status: 0
+		[meta] server status: 
+		[meta] warning count: 0
+
+		[meta] no columns
+
+		[meta] no charset
+
+		[data] no rows
+
+		[end] server status: 34
+		[end] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[end] warning count:  0
+		[end] affected rows:  2
+		[end] last insert id: 0
+		[end] message: Rows matched: 4  Changed: 2  Warnings: 0
+========================================================================
+EXECUTING:[COM_INIT_DB][test]
+========================================================================
+EXECUTING:[16][SELECT * FROM t1]
+[CS_TEXT_REPRESENTATION]
+		[meta] rows: 12
+		[meta] cols: 2
+		[meta] server status: 34
+		[meta] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[meta] warning count: 0
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c1
+			[meta][field] org col name: c1
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c2
+			[meta][field] org col name: c2
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 0
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+
+		[meta][charset result] number: 33
+		[meta][charset result] name: utf8
+		[meta][charset result] collation: utf8_general_ci
+		[meta][charset result] sort order: 
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[end] server status: 34
+		[end] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[end] warning count:  0
+		[end] affected rows:  0
+		[end] last insert id: 0
+		[end] message: 
+[CS_BINARY_REPRESENTATION]
+		[meta] rows: 12
+		[meta] cols: 2
+		[meta] server status: 34
+		[meta] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[meta] warning count: 0
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c1
+			[meta][field] org col name: c1
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c2
+			[meta][field] org col name: c2
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 0
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+
+		[meta][charset result] number: 33
+		[meta][charset result] name: utf8
+		[meta][charset result] collation: utf8_general_ci
+		[meta][charset result] sort order: 
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[end] server status: 34
+		[end] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[end] warning count:  0
+		[end] affected rows:  0
+		[end] last insert id: 0
+		[end] message: 
+========================================================================
+[srv_session_close]
+deinit thread
+SELECT * FROM t1;
+c1	c2
+1	1
+100	2
+3	3
+4	1
+100	2
+6	3
+1	1
+100	2
+3	3
+4	1
+100	2
+6	3
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+c1	c2
+1	1
+100	2
+3	3
+4	1
+100	2
+6	3
+1	1
+100	2
+3	3
+4	1
+100	2
+6	3
+[Connection Master]
+###################################################################
+# Run plugin
+###################################################################
+INSTALL PLUGIN test_sql_replication SONAME 'TEST_SQL_REPLICATION';
+###################################################################
+# Stop plugin
+###################################################################
+UNINSTALL PLUGIN test_sql_replication;
+###################################################################
+# Plugin log
+###################################################################
+========================================================================
+Test in a server thread
+[srv_session_open]
+========================================================================
+EXECUTING:[35][SELECT 'first complex command' as a]
+[CS_TEXT_REPRESENTATION]
+		[meta] rows: 1
+		[meta] cols: 1
+		[meta] server status: 2
+		[meta] server status: AUTOCOMMIT 
+		[meta] warning count: 0
+
+			[meta][field] db name: 
+			[meta][field] table name: 
+			[meta][field] org table name: 
+			[meta][field] col name: a
+			[meta][field] org col name: 
+			[meta][field] length: 63
+			[meta][field] charsetnr: 33
+			[meta][field] flags: 1 (NOT_NULL )
+			[meta][field] decimals: 31
+			[meta][field] type: VARCHAR (15)
+
+
+		[meta][charset result] number: 33
+		[meta][charset result] name: utf8
+		[meta][charset result] collation: utf8_general_ci
+		[meta][charset result] sort order: 
+
+		[data][.a][ 21][first complex command]
+
+		[end] server status: 2
+		[end] server status: AUTOCOMMIT 
+		[end] warning count:  0
+		[end] affected rows:  0
+		[end] last insert id: 0
+		[end] message: 
+[CS_BINARY_REPRESENTATION]
+		[meta] rows: 1
+		[meta] cols: 1
+		[meta] server status: 2
+		[meta] server status: AUTOCOMMIT 
+		[meta] warning count: 0
+
+			[meta][field] db name: 
+			[meta][field] table name: 
+			[meta][field] org table name: 
+			[meta][field] col name: a
+			[meta][field] org col name: 
+			[meta][field] length: 63
+			[meta][field] charsetnr: 33
+			[meta][field] flags: 1 (NOT_NULL )
+			[meta][field] decimals: 31
+			[meta][field] type: VARCHAR (15)
+
+
+		[meta][charset result] number: 33
+		[meta][charset result] name: utf8
+		[meta][charset result] collation: utf8_general_ci
+		[meta][charset result] sort order: 
+
+		[data][.a][ 21][first complex command]
+
+		[end] server status: 2
+		[end] server status: AUTOCOMMIT 
+		[end] warning count:  0
+		[end] affected rows:  0
+		[end] last insert id: 0
+		[end] message: 
+========================================================================
+EXECUTING:[COM_INIT_DB][test]
+========================================================================
+EXECUTING:[62][INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,1), (5,2), (6,3)]
+[CS_TEXT_REPRESENTATION]
+		[meta] rows: 0
+		[meta] cols: 0
+		[meta] server status: 0
+		[meta] server status: 
+		[meta] warning count: 0
+
+		[meta] no columns
+
+		[meta] no charset
+
+		[data] no rows
+
+		[end] server status: 2
+		[end] server status: AUTOCOMMIT 
+		[end] warning count:  0
+		[end] affected rows:  6
+		[end] last insert id: 0
+		[end] message: Records: 6  Duplicates: 0  Warnings: 0
+========================================================================
+EXECUTING:[COM_INIT_DB][test]
+========================================================================
+EXECUTING:[16][SELECT * FROM t1]
+[CS_TEXT_REPRESENTATION]
+		[meta] rows: 18
+		[meta] cols: 2
+		[meta] server status: 34
+		[meta] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[meta] warning count: 0
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c1
+			[meta][field] org col name: c1
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c2
+			[meta][field] org col name: c2
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 0
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+
+		[meta][charset result] number: 33
+		[meta][charset result] name: utf8
+		[meta][charset result] collation: utf8_general_ci
+		[meta][charset result] sort order: 
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  1][2]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  1][5]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[end] server status: 34
+		[end] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[end] warning count:  0
+		[end] affected rows:  0
+		[end] last insert id: 0
+		[end] message: 
+[CS_BINARY_REPRESENTATION]
+		[meta] rows: 18
+		[meta] cols: 2
+		[meta] server status: 34
+		[meta] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[meta] warning count: 0
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c1
+			[meta][field] org col name: c1
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c2
+			[meta][field] org col name: c2
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 0
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+
+		[meta][charset result] number: 33
+		[meta][charset result] name: utf8
+		[meta][charset result] collation: utf8_general_ci
+		[meta][charset result] sort order: 
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  1][2]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  1][5]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[end] server status: 34
+		[end] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[end] warning count:  0
+		[end] affected rows:  0
+		[end] last insert id: 0
+		[end] message: 
+========================================================================
+EXECUTING:[COM_INIT_DB][test]
+========================================================================
+EXECUTING:[35][UPDATE t1 SET c1 = 100 WHERE c2 = 2]
+[CS_TEXT_REPRESENTATION]
+		[meta] rows: 0
+		[meta] cols: 0
+		[meta] server status: 0
+		[meta] server status: 
+		[meta] warning count: 0
+
+		[meta] no columns
+
+		[meta] no charset
+
+		[data] no rows
+
+		[end] server status: 34
+		[end] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[end] warning count:  0
+		[end] affected rows:  2
+		[end] last insert id: 0
+		[end] message: Rows matched: 6  Changed: 2  Warnings: 0
+========================================================================
+EXECUTING:[COM_INIT_DB][test]
+========================================================================
+EXECUTING:[16][SELECT * FROM t1]
+[CS_TEXT_REPRESENTATION]
+		[meta] rows: 18
+		[meta] cols: 2
+		[meta] server status: 34
+		[meta] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[meta] warning count: 0
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c1
+			[meta][field] org col name: c1
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c2
+			[meta][field] org col name: c2
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 0
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+
+		[meta][charset result] number: 33
+		[meta][charset result] name: utf8
+		[meta][charset result] collation: utf8_general_ci
+		[meta][charset result] sort order: 
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[end] server status: 34
+		[end] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[end] warning count:  0
+		[end] affected rows:  0
+		[end] last insert id: 0
+		[end] message: 
+[CS_BINARY_REPRESENTATION]
+		[meta] rows: 18
+		[meta] cols: 2
+		[meta] server status: 34
+		[meta] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[meta] warning count: 0
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c1
+			[meta][field] org col name: c1
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c2
+			[meta][field] org col name: c2
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 0
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+
+		[meta][charset result] number: 33
+		[meta][charset result] name: utf8
+		[meta][charset result] collation: utf8_general_ci
+		[meta][charset result] sort order: 
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[end] server status: 34
+		[end] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[end] warning count:  0
+		[end] affected rows:  0
+		[end] last insert id: 0
+		[end] message: 
+========================================================================
+[srv_session_close]
+Follows threaded run
+========================================================================
+init thread
+[srv_session_open]
+========================================================================
+EXECUTING:[35][SELECT 'first complex command' as a]
+[CS_TEXT_REPRESENTATION]
+		[meta] rows: 1
+		[meta] cols: 1
+		[meta] server status: 2
+		[meta] server status: AUTOCOMMIT 
+		[meta] warning count: 0
+
+			[meta][field] db name: 
+			[meta][field] table name: 
+			[meta][field] org table name: 
+			[meta][field] col name: a
+			[meta][field] org col name: 
+			[meta][field] length: 63
+			[meta][field] charsetnr: 33
+			[meta][field] flags: 1 (NOT_NULL )
+			[meta][field] decimals: 31
+			[meta][field] type: VARCHAR (15)
+
+
+		[meta][charset result] number: 33
+		[meta][charset result] name: utf8
+		[meta][charset result] collation: utf8_general_ci
+		[meta][charset result] sort order: 
+
+		[data][.a][ 21][first complex command]
+
+		[end] server status: 2
+		[end] server status: AUTOCOMMIT 
+		[end] warning count:  0
+		[end] affected rows:  0
+		[end] last insert id: 0
+		[end] message: 
+[CS_BINARY_REPRESENTATION]
+		[meta] rows: 1
+		[meta] cols: 1
+		[meta] server status: 2
+		[meta] server status: AUTOCOMMIT 
+		[meta] warning count: 0
+
+			[meta][field] db name: 
+			[meta][field] table name: 
+			[meta][field] org table name: 
+			[meta][field] col name: a
+			[meta][field] org col name: 
+			[meta][field] length: 63
+			[meta][field] charsetnr: 33
+			[meta][field] flags: 1 (NOT_NULL )
+			[meta][field] decimals: 31
+			[meta][field] type: VARCHAR (15)
+
+
+		[meta][charset result] number: 33
+		[meta][charset result] name: utf8
+		[meta][charset result] collation: utf8_general_ci
+		[meta][charset result] sort order: 
+
+		[data][.a][ 21][first complex command]
+
+		[end] server status: 2
+		[end] server status: AUTOCOMMIT 
+		[end] warning count:  0
+		[end] affected rows:  0
+		[end] last insert id: 0
+		[end] message: 
+========================================================================
+EXECUTING:[COM_INIT_DB][test]
+========================================================================
+EXECUTING:[62][INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,1), (5,2), (6,3)]
+[CS_TEXT_REPRESENTATION]
+		[meta] rows: 0
+		[meta] cols: 0
+		[meta] server status: 0
+		[meta] server status: 
+		[meta] warning count: 0
+
+		[meta] no columns
+
+		[meta] no charset
+
+		[data] no rows
+
+		[end] server status: 2
+		[end] server status: AUTOCOMMIT 
+		[end] warning count:  0
+		[end] affected rows:  6
+		[end] last insert id: 0
+		[end] message: Records: 6  Duplicates: 0  Warnings: 0
+========================================================================
+EXECUTING:[COM_INIT_DB][test]
+========================================================================
+EXECUTING:[16][SELECT * FROM t1]
+[CS_TEXT_REPRESENTATION]
+		[meta] rows: 24
+		[meta] cols: 2
+		[meta] server status: 34
+		[meta] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[meta] warning count: 0
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c1
+			[meta][field] org col name: c1
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c2
+			[meta][field] org col name: c2
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 0
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+
+		[meta][charset result] number: 33
+		[meta][charset result] name: utf8
+		[meta][charset result] collation: utf8_general_ci
+		[meta][charset result] sort order: 
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  1][2]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  1][5]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[end] server status: 34
+		[end] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[end] warning count:  0
+		[end] affected rows:  0
+		[end] last insert id: 0
+		[end] message: 
+[CS_BINARY_REPRESENTATION]
+		[meta] rows: 24
+		[meta] cols: 2
+		[meta] server status: 34
+		[meta] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[meta] warning count: 0
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c1
+			[meta][field] org col name: c1
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c2
+			[meta][field] org col name: c2
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 0
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+
+		[meta][charset result] number: 33
+		[meta][charset result] name: utf8
+		[meta][charset result] collation: utf8_general_ci
+		[meta][charset result] sort order: 
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  1][2]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  1][5]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[end] server status: 34
+		[end] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[end] warning count:  0
+		[end] affected rows:  0
+		[end] last insert id: 0
+		[end] message: 
+========================================================================
+EXECUTING:[COM_INIT_DB][test]
+========================================================================
+EXECUTING:[35][UPDATE t1 SET c1 = 100 WHERE c2 = 2]
+[CS_TEXT_REPRESENTATION]
+		[meta] rows: 0
+		[meta] cols: 0
+		[meta] server status: 0
+		[meta] server status: 
+		[meta] warning count: 0
+
+		[meta] no columns
+
+		[meta] no charset
+
+		[data] no rows
+
+		[end] server status: 34
+		[end] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[end] warning count:  0
+		[end] affected rows:  2
+		[end] last insert id: 0
+		[end] message: Rows matched: 8  Changed: 2  Warnings: 0
+========================================================================
+EXECUTING:[COM_INIT_DB][test]
+========================================================================
+EXECUTING:[16][SELECT * FROM t1]
+[CS_TEXT_REPRESENTATION]
+		[meta] rows: 24
+		[meta] cols: 2
+		[meta] server status: 34
+		[meta] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[meta] warning count: 0
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c1
+			[meta][field] org col name: c1
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c2
+			[meta][field] org col name: c2
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 0
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+
+		[meta][charset result] number: 33
+		[meta][charset result] name: utf8
+		[meta][charset result] collation: utf8_general_ci
+		[meta][charset result] sort order: 
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[end] server status: 34
+		[end] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[end] warning count:  0
+		[end] affected rows:  0
+		[end] last insert id: 0
+		[end] message: 
+[CS_BINARY_REPRESENTATION]
+		[meta] rows: 24
+		[meta] cols: 2
+		[meta] server status: 34
+		[meta] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[meta] warning count: 0
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c1
+			[meta][field] org col name: c1
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+			[meta][field] db name: test
+			[meta][field] table name: t1
+			[meta][field] org table name: t1
+			[meta][field] col name: c2
+			[meta][field] org col name: c2
+			[meta][field] length: 11
+			[meta][field] charsetnr: 8
+			[meta][field] flags: 0
+			[meta][field] decimals: 0
+			[meta][field] type: LONG (3)
+
+
+		[meta][charset result] number: 33
+		[meta][charset result] name: utf8
+		[meta][charset result] collation: utf8_general_ci
+		[meta][charset result] sort order: 
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][1]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][3]
+		[data][t1.c2][  1][3]
+
+		[data][t1.c1][  1][4]
+		[data][t1.c2][  1][1]
+
+		[data][t1.c1][  3][100]
+		[data][t1.c2][  1][2]
+
+		[data][t1.c1][  1][6]
+		[data][t1.c2][  1][3]
+
+		[end] server status: 34
+		[end] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
+		[end] warning count:  0
+		[end] affected rows:  0
+		[end] last insert id: 0
+		[end] message: 
+========================================================================
+[srv_session_close]
+deinit thread
+SELECT * FROM t1;
+c1	c2
+1	1
+100	2
+3	3
+4	1
+100	2
+6	3
+1	1
+100	2
+3	3
+4	1
+100	2
+6	3
+1	1
+100	2
+3	3
+4	1
+100	2
+6	3
+1	1
+100	2
+3	3
+4	1
+100	2
+6	3
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+c1	c2
+1	1
+100	2
+3	3
+4	1
+100	2
+6	3
+1	1
+100	2
+3	3
+4	1
+100	2
+6	3
+1	1
+100	2
+3	3
+4	1
+100	2
+6	3
+1	1
+100	2
+3	3
+4	1
+100	2
+6	3
+include/diff_tables.inc [master:t1,slave:t1]
+[Connection Master]
+# Dropping the created table
+DROP TABLE t1;
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+include/rpl_end.inc

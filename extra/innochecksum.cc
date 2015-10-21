@@ -32,6 +32,7 @@
 #include <time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <iostream>
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
 #endif
@@ -73,6 +74,7 @@ static bool			use_end_page;
 static bool			do_one_page;
 /* replaces declaration in srv0srv.c */
 ulong				srv_page_size;
+ulong				srv_page_size_shift;
 page_size_t			univ_page_size(0, 0, false);
 extern ulong			srv_checksum_algorithm;
 
@@ -154,12 +156,55 @@ static TYPELIB innochecksum_algorithms_typelib = {
 	innochecksum_algorithms, NULL
 };
 
+/** Error logging classes. */
 namespace ib {
+	info::~info()
+	{
+		std::cerr << "[INFO] innochecksum: " << m_oss.str()
+			<< std::endl;
+	}
 
 	warn::~warn()
 	{
-		fprintf(stderr, "innochecksum: %s\n", m_oss.str().c_str());
+		std::cerr << "[WARNING] innochecksum: " <<  m_oss.str()
+			<< std::endl;
 	}
+
+	error::~error()
+	{
+		std::cerr << "[ERROR] innochecksum: " << m_oss.str()
+			<< std::endl;
+	}
+
+	fatal::~fatal()
+	{
+		std::cerr << "[FATAL] innochecksum: " << m_oss.str()
+			<< std::endl;
+		ut_error;
+	}
+}
+
+/** Check that a page_size is correct for InnoDB. If correct, set the
+associated page_size_shift which is the power of 2 for this page size.
+@param[in]	page_isze	page size to evaluate
+@return an associated page_size_shift if valid, 0 if invalid. */
+static
+int
+innodb_page_size_validate(
+	ulong	page_size)
+{
+	ulong	n;
+
+	DBUG_ENTER("innodb_page_size_validate");
+
+	for (n = UNIV_PAGE_SIZE_SHIFT_MIN; n <= UNIV_PAGE_SIZE_SHIFT_MAX;
+	     n++) {
+		if (page_size == (ulong) (1 << n)) {
+			DBUG_RETURN(n);
+		}
+	}
+
+	DBUG_RETURN(0);
 }
 
 /** Get the page size of the filespace from the filespace header.
@@ -180,6 +225,10 @@ get_page_size(
 	} else {
 		srv_page_size = ((UNIV_ZIP_SIZE_MIN >> 1) << ssize);
 	}
+
+	srv_page_size_shift = innodb_page_size_validate(srv_page_size);
+
+	ut_ad(srv_page_size_shift != 0);
 
 	univ_page_size.copy_from(
 		page_size_t(srv_page_size, srv_page_size, false));
@@ -233,6 +282,7 @@ error_message(
  @retval file pointer; file pointer is NULL when error occured.
 */
 
+static
 FILE*
 open_file(
 	const char*	name)
@@ -303,24 +353,26 @@ open_file(
 	return (fil_in);
 }
 
-/************************************************************//*
- Read the content of file
-
- @param  [in,out]	buf			read the file in buffer
- @param  [in]		partial_page_read	enable when to read the
-						remaining buffer for first page.
- @param  [in]		physical_page_size	Physical/Commpressed page size.
- @param  [in,out]	fil_in			file pointer created for the
-						tablespace.
- @retval no. of bytes read.
+ /** Read the contents of file. If a page is compressed, the page
+is decompressed.
+@param[in,out]	buf			read the file in buffer
+@param[in]	partial_page_read	enable when to read the
+					remaining buffer for first page
+@param[in]	page_size		page size
+@param[in,out]	fil_in			file pointer created for the
+					tablespace
+@retval number of bytes read
 */
+static
 ulong read_file(
-	byte*	buf,
-	bool	partial_page_read,
-	ulong	physical_page_size,
-	FILE*	fil_in)
+	byte*			buf,
+	bool			partial_page_read,
+	const page_size_t&	page_size,
+	FILE*			fil_in)
 {
 	ulong bytes = 0;
+
+	ulong physical_page_size = page_size.physical();
 
 	DBUG_ASSERT(physical_page_size >= UNIV_ZIP_SIZE_MIN);
 
@@ -332,7 +384,29 @@ ulong read_file(
 
 	bytes += ulong(fread(buf, 1, physical_page_size, fil_in));
 
-	return bytes;
+	if (!page_size.is_compressed() || mach_read_from_4(buf + FIL_PAGE_OFFSET) < 3) {
+		return(bytes);
+	}
+
+	/* Decompress a compressed page */
+
+	byte*	uncomp_buf = static_cast<byte*>(
+               ut_malloc_nokey(2 * page_size.logical()));
+	byte*	uncomp_page = static_cast<byte*>(
+                ut_align(uncomp_buf, page_size.logical()));
+	memset(uncomp_page, 0, page_size.logical());
+
+	page_zip_des_t*	page_zip = static_cast<page_zip_des_t*>(
+                        malloc(sizeof(page_zip_des_t)));
+	page_zip_des_init(page_zip);
+	page_zip->data = buf;
+	page_zip->ssize = page_size_to_ssize(
+                page_size.physical());
+	page_zip_decompress_low(page_zip, uncomp_page, true);
+	free(uncomp_buf);
+	free(page_zip);
+
+	return(bytes);
 }
 
 /** Class to check if a page is corrupted and print calculated
@@ -705,6 +779,7 @@ is_page_empty(
 @retval		true			do rewrite
 @retval		false			skip the rewrite as checksum stored
 match with calculated or page is doublwrite buffer. */
+static
 bool
 update_checksum(
 	byte*			page,
@@ -884,6 +959,7 @@ Parse the page and collect/dump the information about page type
 @param [in] page	buffer page
 @param [in] file	file for diagnosis.
 */
+static
 void
 parse_page(
 	const byte*	page,
@@ -1092,6 +1168,7 @@ parse_page(
 
 @retval FILE pointer if successfully created else NULL when error occured.
 */
+static
 FILE*
 create_file(
 	char*	file_name)
@@ -1134,6 +1211,7 @@ create_file(
  Print the page type count of a tablespace.
  @param [in] fil_out	stream where the output goes.
 */
+static
 void
 print_summary(
 	FILE*	fil_out)
@@ -1366,11 +1444,11 @@ int main(
 	/* our input filename. */
 	char*		filename;
 	/* Buffer to store pages read. */
-	byte* buf = (uchar*) malloc(
-			sizeof(uchar) * (UNIV_PAGE_SIZE_MAX));
-
+	byte*		buf = NULL;
 	/* bytes read count */
 	ulong		bytes;
+	/* Buffer to decompress page.*/
+	byte*		tbuf = NULL;
 	/* current time */
 	time_t		now;
 	/* last time */
@@ -1444,6 +1522,10 @@ int main(
 	if (verbose) {
 		my_print_variables_ex(innochecksum_options, stderr);
 	}
+
+
+	buf = (byte*) malloc(UNIV_PAGE_SIZE_MAX * 2);
+	tbuf = buf + UNIV_PAGE_SIZE_MAX;
 
 	/* The file name is not optional. */
 	for (int i = 0; i < argc; ++i) {
@@ -1522,6 +1604,7 @@ int main(
 			fprintf(stderr, "of %d bytes.  Bytes read was %lu\n",
 				UNIV_ZIP_SIZE_MIN, bytes);
 
+			free(buf);
 			DBUG_RETURN(1);
 		}
 
@@ -1580,12 +1663,15 @@ int main(
 					perror("Error: Unable to seek to "
 						"necessary offset");
 
+					free(buf);
 					DBUG_RETURN(1);
 				}
 				/* Save the current file pointer in
 				pos variable. */
 				if (0 != fgetpos(fil_in, &pos)) {
 					perror("fgetpos");
+
+					free(buf);
 					DBUG_RETURN(1);
 				}
 			} else {
@@ -1605,8 +1691,7 @@ int main(
 					if partial_page_read is enable. */
 					bytes = read_file(buf,
 							  partial_page_read,
-							  static_cast<ulong>(
-							  page_size.physical()),
+							  page_size,
 							  fil_in);
 
 					partial_page_read = false;
@@ -1617,6 +1702,7 @@ int main(
 							"to seek to necessary "
 							"offset");
 
+						free(buf);
 						DBUG_RETURN(1);
 					}
 				}
@@ -1637,16 +1723,13 @@ int main(
 				"======================================\n");
 		}
 
-		byte*	tbuf = (byte*) malloc(UNIV_PAGE_SIZE_MAX);
-
 		/* main checksumming loop */
 		cur_page_num = start_page;
 		lastt = 0;
 		while (!feof(fil_in)) {
 
 			bytes = read_file(buf, partial_page_read,
-					  static_cast<ulong>(
-					  page_size.physical()), fil_in);
+					  page_size, fil_in);
 			partial_page_read = false;
 
 			if (!bytes && feof(fil_in)) {
@@ -1658,8 +1741,7 @@ int main(
 					page_size.physical());
 				perror(" ");
 
-				free(tbuf);
-
+				free(buf);
 				DBUG_RETURN(1);
 			}
 
@@ -1667,7 +1749,7 @@ int main(
 				fprintf(stderr, "Error: bytes read (%lu) "
 					"doesn't match page size (%lu)\n",
 					bytes, page_size.physical());
-				free(tbuf);
+				free(buf);
 				DBUG_RETURN(1);
 			}
 
@@ -1682,7 +1764,7 @@ int main(
 					fprintf(stderr,
 						"Page decompress failed");
 
-					free(tbuf);
+					free(buf);
 					DBUG_RETURN(1);
 				}
 			}
@@ -1710,7 +1792,7 @@ int main(
 								"count::%" PRIuMAX "\n",
 								allow_mismatches);
 
-							free(tbuf);
+							free(buf);
 							DBUG_RETURN(1);
 						}
 					}
@@ -1722,7 +1804,7 @@ int main(
 			    && !write_file(filename, fil_in, buf,
 					    &pos, page_size)) {
 
-				free(tbuf);
+				free(buf);
 				DBUG_RETURN(1);
 			}
 
@@ -1755,8 +1837,6 @@ int main(
 			}
 		}
 
-		free(tbuf);
-
 		if (!read_from_stdin) {
 			/* flcose() will flush the data and release the lock if
 			any acquired. */
@@ -1778,6 +1858,7 @@ int main(
 		fclose(log_file);
 	}
 
+	free(buf);
 	DBUG_RETURN(0);
 }
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -98,6 +98,7 @@ dict_stats_recalc_pool_deinit()
 	recalc_pool->clear();
 
 	UT_DELETE(recalc_pool);
+	recalc_pool = NULL;
 }
 
 /*****************************************************************//**
@@ -237,7 +238,7 @@ dict_stats_thread_init()
 	   (thus a level <SYNC_DICT && <SYNC_DICT_OPERATION would do)
 	So we choose SYNC_STATS_AUTO_RECALC to be about below SYNC_DICT. */
 
-	mutex_create("recalc_pool", &recalc_pool_mutex);
+	mutex_create(LATCH_ID_RECALC_POOL, &recalc_pool_mutex);
 
 	dict_stats_recalc_pool_init();
 }
@@ -251,6 +252,10 @@ dict_stats_thread_deinit()
 {
 	ut_a(!srv_read_only_mode);
 	ut_ad(!srv_dict_stats_thread_active);
+
+	if (recalc_pool == NULL) {
+		return;
+	}
 
 	dict_stats_recalc_pool_deinit();
 
@@ -292,7 +297,7 @@ dict_stats_process_entry_from_recalc_pool()
 	}
 
 	/* Check whether table is corrupted */
-	if (table->corrupted) {
+	if (dict_table_is_corrupted(table)) {
 		dict_table_close(table, TRUE, FALSE);
 		mutex_exit(&dict_sys->mutex);
 		return;

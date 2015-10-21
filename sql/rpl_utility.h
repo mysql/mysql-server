@@ -204,13 +204,13 @@ private:
   HASH m_hash;
 
   /**
-     Auxiliar and internal method used to create an hash key, based on
+     Auxiliary and internal method used to create an hash key, based on
      the data in table->record[0] buffer and signaled as used in cols.
 
      @param table  The table that is being scanned
      @param cols   The read_set bitmap signaling which columns are used.
 
-     @retuns the hash key created.
+     @returns the hash key created.
    */
   my_hash_value_type make_hash_key(TABLE *table, MY_BITMAP* cols);
 };
@@ -346,6 +346,7 @@ public:
   */
   uint32 calc_field_size(uint col, uchar *master_data) const;
 
+#ifndef MYSQL_CLIENT
   /**
     Decide if the table definition is compatible with a table.
 
@@ -366,13 +367,12 @@ public:
     @param rli   Pointer to relay log info
     @param table Pointer to table to compare with.
 
-    @param[out] tmp_table_var Pointer to temporary table for holding
+    @param[out] conv_table_var Pointer to temporary table for holding
     conversion table.
 
     @retval 1  if the table definition is not compatible with @c table
     @retval 0  if the table definition is compatible with @c table
   */
-#ifndef MYSQL_CLIENT
   bool compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
                       TABLE **conv_table_var) const;
 

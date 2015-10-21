@@ -59,7 +59,7 @@ ENDIF()
 ADD_EXECUTABLE(pfs_connect_attr-t
   pfs_connect_attr-t.cc
   ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
-  ${CMAKE_SOURCE_DIR}/mysys/string.c
+  ${CMAKE_SOURCE_DIR}/mysys/string.cc
   ${MYSQLD_EXTRA_SOURCES}
 )
 ADD_DEPENDENCIES(pfs_connect_attr-t GenServerSource)

@@ -15,7 +15,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-/* class for the the myisam handler */
+/**
+  @file storage/myisam/ha_myisam.h
+  MyISAM storage engine.
+*/
 
 #include <myisam.h>
 #include <ft_global.h>
@@ -37,9 +40,25 @@ extern const char *myisam_recover_names[];
 extern ulonglong myisam_recover_options;
 extern const char *myisam_stats_method_names[];
 
+int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
+                 MI_COLUMNDEF **recinfo_out, uint *records_out);
+int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
+                     uint t1_keys, uint t1_recs,
+                     MI_KEYDEF *t2_keyinfo, MI_COLUMNDEF *t2_recinfo,
+                     uint t2_keys, uint t2_recs, bool strict,
+                     TABLE *table_arg);
+
 C_MODE_START
 ICP_RESULT index_cond_func_myisam(void *arg);
 C_MODE_END
+
+class Myisam_handler_share: public Handler_share
+{
+public:
+  Myisam_handler_share() : m_share(NULL) {}
+  ~Myisam_handler_share() {}
+  struct st_mi_isam_share *m_share;
+};
 
 class ha_myisam: public handler
 {

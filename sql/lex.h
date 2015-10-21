@@ -32,6 +32,9 @@
 #define SYM_OR_NULL(A) A
 #endif
 
+#define HINT_COMMENT_STARTER "/*+"
+#define HINT_COMMENT_TERMINATOR "*/"
+
 #define SYM(T, A)    STRING_WITH_LEN(T),SYM_OR_NULL(A),SG_KEYWORDS
 #define SYM_FN(T, A) STRING_WITH_LEN(T),SYM_OR_NULL(A),SG_FUNCTIONS
 #define SYM_HK(T, A) STRING_WITH_LEN(T),SYM_OR_NULL(A),SG_HINTABLE_KEYWORDS
@@ -306,6 +309,7 @@ static const SYMBOL symbols[] = {
   { SYM("ITERATE",                  ITERATE_SYM)},
   { SYM("INVOKER",                  INVOKER_SYM)},
   { SYM("JOIN",                     JOIN_SYM)},
+  { SYM("JSON",                     JSON_SYM)},
   { SYM("KEY",                      KEY_SYM)},
   { SYM("KEYS",                     KEYS)},
   { SYM("KEY_BLOCK_SIZE",           KEY_BLOCK_SIZE)},
@@ -363,7 +367,6 @@ static const SYMBOL symbols[] = {
   { SYM("MATCH",                    MATCH)},
   { SYM("MAX_CONNECTIONS_PER_HOUR", MAX_CONNECTIONS_PER_HOUR)},
   { SYM("MAX_QUERIES_PER_HOUR",     MAX_QUERIES_PER_HOUR)},
-  { SYM("MAX_STATEMENT_TIME",       MAX_STATEMENT_TIME_SYM)},
   { SYM("MAX_ROWS",                 MAX_ROWS)},
   { SYM("MAX_SIZE",                 MAX_SIZE_SYM)},
   { SYM("MAX_UPDATES_PER_HOUR",     MAX_UPDATES_PER_HOUR)},
@@ -724,7 +727,6 @@ static const SYMBOL symbols[] = {
   { SYM_H("BNL",                    BNL_HINT)},
   { SYM_H("DUPSWEEDOUT",            DUPSWEEDOUT_HINT)},
   { SYM_H("FIRSTMATCH",             FIRSTMATCH_HINT)},
-  { SYM_H("ICP",                    ICP_HINT)},
   { SYM_H("INTOEXISTS",             INTOEXISTS_HINT)},
   { SYM_H("LOOSESCAN",              LOOSESCAN_HINT)},
   { SYM_H("MATERIALIZATION",        MATERIALIZATION_HINT)},

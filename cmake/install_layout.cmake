@@ -68,7 +68,6 @@
 # - INSTALL_SHAREDIR        (location of aclocal/mysql.m4)
 # - INSTALL_MYSQLSHAREDIR   (MySQL character sets and localized error messages)
 # - INSTALL_MYSQLTESTDIR    (mysql-test)
-# - INSTALL_SQLBENCHDIR     (sql-bench)
 # - INSTALL_SUPPORTFILESDIR (various extra support files)
 #
 # - INSTALL_MYSQLDATADIR    (data directory)
@@ -133,18 +132,21 @@ FILE(GLOB plugin_tests
 )
 
 #
-# DEFAULT_SECURE_FILE_PRIV_DIR
+# DEFAULT_SECURE_FILE_PRIV_DIR/DEFAULT_SECURE_FILE_PRIV_EMBEDDED_DIR
 #
 IF(INSTALL_LAYOUT MATCHES "STANDALONE" OR
    INSTALL_LAYOUT MATCHES "WIN")
   SET(secure_file_priv_path "")
+  SET(secure_file_priv_embedded_path "NULL")
 ELSEIF(INSTALL_LAYOUT MATCHES "RPM" OR
        INSTALL_LAYOUT MATCHES "SLES" OR
        INSTALL_LAYOUT MATCHES "SVR4" OR
        INSTALL_LAYOUT MATCHES "DEB")
   SET(secure_file_priv_path "/var/lib/mysql-files")
+  SET(secure_file_priv_embedded_path "NULL")
 ELSE()
   SET(secure_file_priv_path "${default_prefix}/mysql-files")
+  SET(secure_file_priv_embedded_path "NULL")
 ENDIF()
 
 #
@@ -167,12 +169,12 @@ SET(INSTALL_INFODIR_STANDALONE          "docs")
 SET(INSTALL_SHAREDIR_STANDALONE         "share")
 SET(INSTALL_MYSQLSHAREDIR_STANDALONE    "share")
 SET(INSTALL_MYSQLTESTDIR_STANDALONE     "mysql-test")
-SET(INSTALL_SQLBENCHDIR_STANDALONE      ".")
 SET(INSTALL_SUPPORTFILESDIR_STANDALONE  "support-files")
 #
 SET(INSTALL_MYSQLDATADIR_STANDALONE     "data")
 SET(INSTALL_PLUGINTESTDIR_STANDALONE    ${plugin_tests})
 SET(INSTALL_SECURE_FILE_PRIVDIR_STANDALONE ${secure_file_priv_path})
+SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_STANDALONE ${secure_file_priv_embedded_path})
 
 #
 # WIN layout
@@ -194,12 +196,12 @@ SET(INSTALL_INFODIR_WIN          "docs")
 SET(INSTALL_SHAREDIR_WIN         "share")
 SET(INSTALL_MYSQLSHAREDIR_WIN    "share")
 SET(INSTALL_MYSQLTESTDIR_WIN     "mysql-test")
-SET(INSTALL_SQLBENCHDIR_WIN      ".")
 SET(INSTALL_SUPPORTFILESDIR_WIN  "support-files")
 #
 SET(INSTALL_MYSQLDATADIR_WIN     "data")
 SET(INSTALL_PLUGINTESTDIR_WIN    ${plugin_tests})
 SET(INSTALL_SECURE_FILE_PRIVDIR_WIN ${secure_file_priv_path})
+SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_WIN ${secure_file_priv_embedded_path})
 
 #
 # FREEBSD layout
@@ -221,12 +223,12 @@ SET(INSTALL_INFODIR_FREEBSD          "docs")
 SET(INSTALL_SHAREDIR_FREEBSD         "share")
 SET(INSTALL_MYSQLSHAREDIR_FREEBSD    "share")
 SET(INSTALL_MYSQLTESTDIR_FREEBSD     "mysql-test")
-SET(INSTALL_SQLBENCHDIR_FREEBSD      ".")
 SET(INSTALL_SUPPORTFILESDIR_FREEBSD  "support-files")
 #
 SET(INSTALL_MYSQLDATADIR_FREEBSD     "data")
 SET(INSTALL_PLUGINTESTDIR_FREEBSD    ${plugin_tests})
 SET(INSTALL_SECURE_FILE_PRIVDIR_FREEBSD ${secure_file_priv_path})
+SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_FREEBSD ${secure_file_priv_embedded_path})
 
 #
 # GLIBC layout
@@ -248,12 +250,12 @@ SET(INSTALL_INFODIR_GLIBC          "docs")
 SET(INSTALL_SHAREDIR_GLIBC         "share")
 SET(INSTALL_MYSQLSHAREDIR_GLIBC    "share")
 SET(INSTALL_MYSQLTESTDIR_GLIBC     "mysql-test")
-SET(INSTALL_SQLBENCHDIR_GLIBC      ".")
 SET(INSTALL_SUPPORTFILESDIR_GLIBC  "support-files")
 #
 SET(INSTALL_MYSQLDATADIR_GLIBC     "data")
 SET(INSTALL_PLUGINTESTDIR_GLIBC    ${plugin_tests})
 SET(INSTALL_SECURE_FILE_PRIVDIR_GLIBC ${secure_file_priv_path})
+SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_GLIBC ${secure_file_priv_embedded_path})
 
 #
 # OSX layout
@@ -275,12 +277,12 @@ SET(INSTALL_INFODIR_OSX          "docs")
 SET(INSTALL_SHAREDIR_OSX         "share")
 SET(INSTALL_MYSQLSHAREDIR_OSX    "share")
 SET(INSTALL_MYSQLTESTDIR_OSX     "mysql-test")
-SET(INSTALL_SQLBENCHDIR_OSX      ".")
 SET(INSTALL_SUPPORTFILESDIR_OSX  "support-files")
 #
 SET(INSTALL_MYSQLDATADIR_OSX     "data")
 SET(INSTALL_PLUGINTESTDIR_OSX    ${plugin_tests})
 SET(INSTALL_SECURE_FILE_PRIVDIR_OSX ${secure_file_priv_path})
+SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_OSX ${secure_file_priv_embedded_path})
 
 #
 # TARGZ layout
@@ -302,12 +304,12 @@ SET(INSTALL_INFODIR_TARGZ          "docs")
 SET(INSTALL_SHAREDIR_TARGZ         "share")
 SET(INSTALL_MYSQLSHAREDIR_TARGZ    "share")
 SET(INSTALL_MYSQLTESTDIR_TARGZ     "mysql-test")
-SET(INSTALL_SQLBENCHDIR_TARGZ      ".")
 SET(INSTALL_SUPPORTFILESDIR_TARGZ  "support-files")
 #
 SET(INSTALL_MYSQLDATADIR_TARGZ     "data")
 SET(INSTALL_PLUGINTESTDIR_TARGZ    ${plugin_tests})
 SET(INSTALL_SECURE_FILE_PRIVDIR_TARGZ ${secure_file_priv_path})
+SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_TARGZ ${secure_file_priv_embedded_path})
 
 #
 # RPM layout
@@ -338,12 +340,12 @@ SET(INSTALL_MANDIR_RPM                  "share/man")
 SET(INSTALL_SHAREDIR_RPM                "share")
 SET(INSTALL_MYSQLSHAREDIR_RPM           "share/mysql")
 SET(INSTALL_MYSQLTESTDIR_RPM            "share/mysql-test")
-SET(INSTALL_SQLBENCHDIR_RPM             "")
 SET(INSTALL_SUPPORTFILESDIR_RPM         "share/mysql")
 #
 SET(INSTALL_MYSQLDATADIR_RPM            "/var/lib/mysql")
 SET(INSTALL_PLUGINTESTDIR_RPM           ${plugin_tests})
 SET(INSTALL_SECURE_FILE_PRIVDIR_RPM     ${secure_file_priv_path})
+SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_RPM     ${secure_file_priv_embedded_path})
 
 #
 # SLES layout
@@ -370,12 +372,12 @@ SET(INSTALL_MANDIR_SLES                  "share/man")
 SET(INSTALL_SHAREDIR_SLES                "share")
 SET(INSTALL_MYSQLSHAREDIR_SLES           "share/mysql")
 SET(INSTALL_MYSQLTESTDIR_SLES            "share/mysql-test")
-SET(INSTALL_SQLBENCHDIR_SLES             "")
 SET(INSTALL_SUPPORTFILESDIR_SLES         "share/mysql")
 #
 SET(INSTALL_MYSQLDATADIR_SLES            "/var/lib/mysql")
 SET(INSTALL_PLUGINTESTDIR_SLES           ${plugin_tests})
 SET(INSTALL_SECURE_FILE_PRIVDIR_SLES     ${secure_file_priv_path})
+SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_SLES     ${secure_file_priv_embedded_path})
 
 #
 # DEB layout
@@ -397,12 +399,12 @@ SET(INSTALL_INFODIR_DEB                 "docs")
 SET(INSTALL_SHAREDIR_DEB                "share")
 SET(INSTALL_MYSQLSHAREDIR_DEB           "share")
 SET(INSTALL_MYSQLTESTDIR_DEB            "mysql-test")
-SET(INSTALL_SQLBENCHDIR_DEB             ".")
 SET(INSTALL_SUPPORTFILESDIR_DEB         "support-files")
 #
 SET(INSTALL_MYSQLDATADIR_DEB            "/var/lib/mysql")
 SET(INSTALL_PLUGINTESTDIR_DEB           ${plugin_tests})
 SET(INSTALL_SECURE_FILE_PRIVDIR_DEB     ${secure_file_priv_path})
+SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_DEB     ${secure_file_priv_embedded_path})
 
 #
 # SVR4 layout
@@ -424,12 +426,12 @@ SET(INSTALL_INFODIR_SVR4                "docs")
 SET(INSTALL_SHAREDIR_SVR4               "share")
 SET(INSTALL_MYSQLSHAREDIR_SVR4          "share")
 SET(INSTALL_MYSQLTESTDIR_SVR4           "mysql-test")
-SET(INSTALL_SQLBENCHDIR_SVR4            ".")
 SET(INSTALL_SUPPORTFILESDIR_SVR4        "support-files")
 #
 SET(INSTALL_MYSQLDATADIR_SVR4           "/var/lib/mysql")
 SET(INSTALL_PLUGINTESTDIR_SVR4          ${plugin_tests})
 SET(INSTALL_SECURE_FILE_PRIVDIR_SVR4    ${secure_file_priv_path})
+SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_SVR4    ${secure_file_priv_embedded_path})
 
 
 # Clear cached variables if install layout was changed
@@ -444,8 +446,8 @@ SET(OLD_INSTALL_LAYOUT ${INSTALL_LAYOUT} CACHE INTERNAL "")
 # will be defined  as ${INSTALL_BINDIR_STANDALONE} by default if STANDALONE
 # layout is chosen)
 FOREACH(var BIN SBIN LIB MYSQLSHARE SHARE PLUGIN INCLUDE SCRIPT DOC MAN
-  INFO MYSQLTEST SQLBENCH DOCREADME SUPPORTFILES MYSQLDATA PLUGINTEST
-  SECURE_FILE_PRIV)
+  INFO MYSQLTEST DOCREADME SUPPORTFILES MYSQLDATA PLUGINTEST
+  SECURE_FILE_PRIV SECURE_FILE_PRIV_EMBEDDED)
   SET(INSTALL_${var}DIR  ${INSTALL_${var}DIR_${INSTALL_LAYOUT}}
   CACHE STRING "${var} installation directory" ${FORCE})
   MARK_AS_ADVANCED(INSTALL_${var}DIR)
@@ -461,4 +463,12 @@ IF(INSTALL_SECURE_FILE_PRIVDIR)
 ELSE()
   SET(DEFAULT_SECURE_FILE_PRIV_DIR \"\"
       CACHE INTERNAL "default --secure-file-priv directory" FORCE)
+ENDIF()
+
+IF(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR)
+  SET(DEFAULT_SECURE_FILE_PRIV_EMBEDDED_DIR "\"${INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR}\""
+    CACHE INTERNAL "default --secure-file-priv directory (for embedded library)" FORCE)
+ELSE()
+  SET(DEFAULT_SECURE_FILE_PRIV_EMBEDDED_DIR "NULL"
+    CACHE INTERNAL "default --secure-file-priv directory (for embedded library)" FORCE)
 ENDIF()

@@ -262,11 +262,6 @@ buf_frame_will_withdrawn(
 	buf_pool_t*	buf_pool,
 	const byte*	ptr);
 
-/** Resize the buffer pool based on srv_buf_pool_size from
-srv_buf_pool_old_size. */
-void
-buf_pool_resize();
-
 /** This is the thread for resizing buffer pool. It waits for an event and
 when waked up either performs a resizing and sleeps again.
 @param[in]	arg	a dummy parameter required by os_thread_create.
@@ -520,7 +515,7 @@ ibool
 buf_page_peek(
 	const page_id_t&	page_id);
 
-#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
+#ifdef UNIV_DEBUG
 
 /** Sets file_page_was_freed TRUE if the page is found in the buffer pool.
 This function should be called when we free a file page and want the
@@ -542,7 +537,7 @@ buf_page_t*
 buf_page_reset_file_page_was_freed(
 	const page_id_t&	page_id);
 
-#endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
+#endif /* UNIV_DEBUG */
 /********************************************************************//**
 Reads the freed_page_clock of a buffer block.
 @return freed_page_clock */
@@ -618,10 +613,10 @@ UNIV_INLINE
 void
 buf_block_buf_fix_inc_func(
 /*=======================*/
-# ifdef UNIV_SYNC_DEBUG
+# ifdef UNIV_DEBUG
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line */
-# endif /* UNIV_SYNC_DEBUG */
+# endif /* UNIV_DEBUG */
 	buf_block_t*	block);	/*!< in/out: block to bufferfix */
 
 /** Increments the bufferfix count.
@@ -655,19 +650,26 @@ ulint
 buf_block_unfix(
 	buf_block_t*	block);
 
-# ifdef UNIV_SYNC_DEBUG
+/** Unfixes the page, unlatches the page,
+removes it from page_hash and removes it from LRU.
+@param[in,out]	bpage	pointer to the block */
+void
+buf_read_page_handle_error(
+	buf_page_t*	bpage);
+
+# ifdef UNIV_DEBUG
 /** Increments the bufferfix count.
 @param[in,out]	b	block to bufferfix
 @param[in]	f	file name where requested
 @param[in]	l	line number where requested */
 # define buf_block_buf_fix_inc(b,f,l) buf_block_buf_fix_inc_func(f,l,b)
-# else /* UNIV_SYNC_DEBUG */
+# else /* UNIV_DEBUG */
 /** Increments the bufferfix count.
 @param[in,out]	b	block to bufferfix
 @param[in]	f	file name where requested
 @param[in]	l	line number where requested */
 # define buf_block_buf_fix_inc(b,f,l) buf_block_buf_fix_inc_func(b)
-# endif /* UNIV_SYNC_DEBUG */
+# endif /* UNIV_DEBUG */
 #else /* !UNIV_HOTBACKUP */
 # define buf_block_modify_clock_inc(block) ((void) 0)
 #endif /* !UNIV_HOTBACKUP */
@@ -798,30 +800,18 @@ buf_stats_get_pool_info(
 	ulint			pool_id,	/*!< in: buffer pool ID */
 	buf_pool_info_t*	all_pool_info);	/*!< in/out: buffer pool info
 						to fill */
-/*********************************************************************//**
-Returns the ratio in percents of modified pages in the buffer pool /
+/** Return the ratio in percents of modified pages in the buffer pool /
 database pages in the buffer pool.
 @return modified page percentage ratio */
 double
 buf_get_modified_ratio_pct(void);
-/*============================*/
-/**********************************************************************//**
-Refreshes the statistics used to print per-second averages. */
-void
-buf_refresh_io_stats(
-/*=================*/
-	buf_pool_t*	buf_pool);	/*!< buffer pool instance */
-/**********************************************************************//**
-Refreshes the statistics used to print per-second averages. */
+/** Refresh the statistics used to print per-second averages. */
 void
 buf_refresh_io_stats_all(void);
-/*=================*/
-/*********************************************************************//**
-Asserts that all file pages in the buffer are in a replaceable state.
+/** Assert that all file pages in the buffer are in a replaceable state.
 @return TRUE */
 ibool
 buf_all_freed(void);
-/*===============*/
 /*********************************************************************//**
 Checks that there currently are no pending i/o-operations for the buffer
 pool.
@@ -842,7 +832,7 @@ buf_pool_invalidate(void);
 --------------------------- LOWER LEVEL ROUTINES -------------------------
 =========================================================================*/
 
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 /*********************************************************************//**
 Adds latch level info for the rw-lock protecting the buffer frame. This
 should be called in the debug version after a successful latching of a
@@ -854,9 +844,9 @@ buf_block_dbg_add_level(
 	buf_block_t*	block,	/*!< in: buffer page
 				where we have acquired latch */
 	latch_level_t	level);	/*!< in: latching order level */
-#else /* UNIV_SYNC_DEBUG */
+#else /* UNIV_DEBUG */
 # define buf_block_dbg_add_level(block, level) /* nothing */
-#endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */
 /*********************************************************************//**
 Gets the state of a block.
 @return state */
@@ -1083,25 +1073,6 @@ buf_block_t*
 buf_block_align(
 /*============*/
 	const byte*	ptr);	/*!< in: pointer to a frame */
-/********************************************************************//**
-Find out if a pointer belongs to a buf_block_t. It can be a pointer to
-the buf_block_t itself or a member of it
-@return TRUE if ptr belongs to a buf_block_t struct */
-ibool
-buf_pointer_is_block_field(
-/*=======================*/
-	const void*		ptr);	/*!< in: pointer not
-					dereferenced */
-/** Find out if a pointer corresponds to a buf_block_t::mutex.
-@param m in: mutex candidate
-@return TRUE if m is a buf_block_t::mutex */
-#define buf_pool_is_block_mutex(m)			\
-	buf_pointer_is_block_field((const void*)(m))
-/** Find out if a pointer corresponds to a buf_block_t::lock.
-@param l in: rw-lock candidate
-@return TRUE if l is a buf_block_t::lock */
-#define buf_pool_is_block_lock(l)			\
-	buf_pointer_is_block_field((const void*)(l))
 
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 /*********************************************************************//**
@@ -1286,18 +1257,6 @@ buf_pool_watch_is_sentinel(
 	const buf_pool_t*	buf_pool,	/*!< buffer pool instance */
 	const buf_page_t*	bpage)		/*!< in: block */
 	__attribute__((warn_unused_result));
-
-/** Add watch for the given page to be read in. Caller must have
-appropriate hash_lock for the bpage. This function may release the
-hash_lock and reacquire it.
-@param[in]	page_id		page id
-@param[in,out]	hash_lock	hash_lock currently latched
-@return NULL if watch set, block if the page is in the buffer pool */
-buf_page_t*
-buf_pool_watch_set(
-	const page_id_t&	page_id,
-	rw_lock_t**		hash_lock)
-__attribute__((warn_unused_result));
 
 /** Stop watching if the page has been read in.
 buf_pool_watch_set(space,offset) must have returned NULL before.
@@ -1535,13 +1494,13 @@ public:
 					0 if the block was never accessed
 					in the buffer pool. Protected by
 					block mutex */
-# if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
+# ifdef UNIV_DEBUG
 	ibool		file_page_was_freed;
 					/*!< this is set to TRUE when
 					fsp frees a page in buffer pool;
 					protected by buf_pool->zip_mutex
 					or buf_block_t::mutex. */
-# endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
+# endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 };
 
@@ -1561,6 +1520,8 @@ struct buf_block_t{
 					aligned to an address divisible by
 					UNIV_PAGE_SIZE */
 #ifndef UNIV_HOTBACKUP
+	BPageLock	lock;		/*!< read-write lock of the buffer
+					frame */
 	UT_LIST_NODE_T(buf_block_t) unzip_LRU;
 					/*!< node of the decompressed LRU list;
 					a block is in the unzip_LRU list
@@ -1572,14 +1533,6 @@ struct buf_block_t{
 					used in debugging */
 	ibool		in_withdraw_list;
 #endif /* UNIV_DEBUG */
-	BPageMutex	mutex;		/*!< mutex protecting this block:
-					state (also protected by the buffer
-					pool mutex), io_fix, buf_fix_count,
-					and accessed; we introduce this new
-					mutex in InnoDB-5.1 to relieve
-					contention on the buffer pool mutex */
-	rw_lock_t	lock;		/*!< read-write lock of the buffer
-					frame */
 	unsigned	lock_hash_val:32;/*!< hashed value of the page address
 					in the record lock hash table;
 					protected by buf_block_t::lock
@@ -1609,9 +1562,12 @@ struct buf_block_t{
 
 	ulint		n_hash_helps;	/*!< counter which controls building
 					of a new hash index for the page */
+	volatile ulint	n_bytes;	/*!< recommended prefix length for hash
+					search: number of bytes in
+					an incomplete last field */
 	volatile ulint	n_fields;	/*!< recommended prefix length for hash
 					search: number of full fields */
-	volatile ibool	left_side;	/*!< TRUE or FALSE, depending on
+	volatile bool	left_side;	/*!< true or false, depending on
 					whether the leftmost record of several
 					records with the same prefix should be
 					indexed in the hash index */
@@ -1619,7 +1575,7 @@ struct buf_block_t{
 
 	/** @name Hash search fields
 	These 5 fields may only be modified when we have
-	an x-latch on btr_search_latch AND
+	an x-latch on search system AND
 	- we are holding an s-latch or x-latch on buf_block_t::lock or
 	- we know that buf_block_t::buf_fix_count == 0.
 
@@ -1627,7 +1583,7 @@ struct buf_block_t{
 	in the buffer pool in buf0buf.cc.
 
 	Another exception is that assigning block->index = NULL
-	is allowed whenever holding an x-latch on btr_search_latch. */
+	is allowed whenever holding an x-latch on search system. */
 
 	/* @{ */
 
@@ -1638,6 +1594,8 @@ struct buf_block_t{
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	unsigned	curr_n_fields:10;/*!< prefix length for hash indexing:
 					number of full fields */
+	unsigned	curr_n_bytes:15;/*!< number of bytes in hash
+					indexing */
 	unsigned	curr_left_side:1;/*!< TRUE or FALSE in hash indexing */
 	dict_index_t*	index;		/*!< Index for which the
 					adaptive hash index has been
@@ -1658,7 +1616,7 @@ struct buf_block_t{
 					/*!< Skip check in buf_dblwr_check_block
 					during bulk load, protected by lock.*/
 	/* @} */
-# ifdef UNIV_SYNC_DEBUG
+# ifdef UNIV_DEBUG
 	/** @name Debug fields */
 	/* @{ */
 	rw_lock_t	debug_latch;	/*!< in the debug version, each thread
@@ -1667,6 +1625,12 @@ struct buf_block_t{
 					debug utilities in sync0rw */
 	/* @} */
 # endif
+	BPageMutex	mutex;		/*!< mutex protecting this block:
+					state (also protected by the buffer
+					pool mutex), io_fix, buf_fix_count,
+					and accessed; we introduce this new
+					mutex in InnoDB-5.1 to relieve
+					contention on the buffer pool mutex */
 #endif /* !UNIV_HOTBACKUP */
 };
 
@@ -1883,7 +1847,7 @@ struct buf_pool_t{
 	/* @{ */
 	BufPoolMutex	mutex;		/*!< Buffer pool mutex of this
 					instance */
-	BPageMutex	zip_mutex;	/*!< Zip mutex of this buffer
+	BufPoolZipMutex	zip_mutex;	/*!< Zip mutex of this buffer
 					pool instance, protects compressed
 					only pages (of type buf_page_t, not
 					buf_block_t */
@@ -2141,7 +2105,7 @@ Use these instead of accessing buf_pool->mutex directly. */
 # define buf_page_hash_lock_x_confirm(hash_lock, buf_pool, page_id)\
 	hash_lock_x_confirm(hash_lock, (buf_pool)->page_hash, (page_id).fold())
 
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 /** Test if page_hash lock is held in s-mode. */
 # define buf_page_hash_lock_held_s(buf_pool, bpage)	\
 	rw_lock_own(buf_page_hash_lock_get((buf_pool), (bpage)->id), RW_LOCK_S)
@@ -2163,14 +2127,14 @@ Use these instead of accessing buf_pool->mutex directly. */
 
 # define buf_block_hash_lock_held_s_or_x(buf_pool, block)	\
 	buf_page_hash_lock_held_s_or_x((buf_pool), &(block)->page)
-#else /* UNIV_SYNC_DEBUG */
+#else /* UNIV_DEBUG */
 # define buf_page_hash_lock_held_s(b, p)	(TRUE)
 # define buf_page_hash_lock_held_x(b, p)	(TRUE)
 # define buf_page_hash_lock_held_s_or_x(b, p)	(TRUE)
 # define buf_block_hash_lock_held_s(b, p)	(TRUE)
 # define buf_block_hash_lock_held_x(b, p)	(TRUE)
 # define buf_block_hash_lock_held_s_or_x(b, p)	(TRUE)
-#endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Forbid the release of the buffer pool mutex. */

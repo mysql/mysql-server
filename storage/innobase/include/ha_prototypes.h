@@ -35,26 +35,8 @@ simple headers.
 
 /* Forward declarations */
 class THD;
-class Field;
-struct fts_string_t;
 typedef struct charset_info_st CHARSET_INFO;
-
-/*********************************************************************//**
-Wrapper around MySQL's copy_and_convert function.
-@return number of bytes copied to 'to' */
-ulint
-innobase_convert_string(
-/*====================*/
-	void*		to,		/*!< out: converted string */
-	ulint		to_length,	/*!< in: number of bytes reserved
-					for the converted string */
-	CHARSET_INFO*	to_cs,		/*!< in: character set to convert to */
-	const void*	from,		/*!< in: string to convert */
-	ulint		from_length,	/*!< in: number of bytes to convert */
-	CHARSET_INFO*	from_cs,	/*!< in: character set to convert
-					from */
-	uint*		errors);	/*!< out: number of errors encountered
-					during the conversion */
+struct dict_table_t;
 
 /*******************************************************************//**
 Formats the raw data in "data" (in InnoDB on-disk format) that is of
@@ -186,23 +168,12 @@ innobase_strcasecmp(
 	const char*	a,	/*!< in: first string to compare */
 	const char*	b);	/*!< in: second string to compare */
 
-/******************************************************************//**
-Compares NUL-terminated UTF-8 strings case insensitively. The
-second string contains wildcards.
-@return 0 if a match is found, 1 if not */
-int
-innobase_wildcasecmp(
-/*=================*/
-	const char*	a,	/*!< in: string to compare */
-	const char*	b);	/*!< in: wildcard string to compare */
-
-/******************************************************************//**
-Strip dir name from a full path name and return only its file name.
+/** Strip dir name from a full path name and return only the file name
+@param[in]	path_name	full path name
 @return file name or "null" if no file name */
 const char*
 innobase_basename(
-/*==============*/
-	const char*	path_name);	/*!< in: full path name */
+	const char*	path_name);
 
 /******************************************************************//**
 Returns true if the thread is executing a SELECT statement.
@@ -285,16 +256,6 @@ innobase_get_at_most_n_mbchars(
 				number of CHARACTERS n in the prefix) */
 	ulint data_len,		/*!< in: length of the string in bytes */
 	const char* str);	/*!< in: character string */
-
-/******************************************************************//**
-Returns true if the thread supports XA,
-global value of innodb_supports_xa if thd is NULL.
-@return true if thd supports XA */
-ibool
-thd_supports_xa(
-/*============*/
-	THD*	thd);	/*!< in: thread handle, or NULL to query
-			the global innodb_supports_xa */
 
 /******************************************************************//**
 Returns the lock wait timeout for the current connection.
@@ -507,9 +468,9 @@ Converts an identifier from my_charset_filename to UTF-8 charset. */
 uint
 innobase_convert_to_system_charset(
 /*===============================*/
-	char*           to,		/* out: converted identifier */
-	const char*     from,		/* in: identifier to convert */
-	ulint           len,		/* in: length of 'to', in bytes */
+	char*		to,		/* out: converted identifier */
+	const char*	from,		/* in: identifier to convert */
+	ulint		len,		/* in: length of 'to', in bytes */
 	uint*		errors);	/* out: error return */
 
 /**********************************************************************
@@ -517,9 +478,15 @@ Converts an identifier from my_charset_filename to UTF-8 charset. */
 uint
 innobase_convert_to_filename_charset(
 /*=================================*/
-	char*           to,     /* out: converted identifier */
-	const char*     from,   /* in: identifier to convert */
-	ulint           len);   /* in: length of 'to', in bytes */
+	char*		to,	/* out: converted identifier */
+	const char*	from,	/* in: identifier to convert */
+	ulint		len);	/* in: length of 'to', in bytes */
+
+
+/**********************************************************************
+Issue a warning that the row is too big. */
+void
+ib_warn_row_too_big(const dict_table_t*	table);
 
 /*************************************************************//**
 InnoDB index push-down condition check defined in ha_innodb.cc
@@ -547,6 +514,11 @@ thd_requested_durability(
 	const THD* thd)	/*!< in: thread handle */
 	__attribute__((warn_unused_result));
 
-#endif /* !UNIV_HOTBACKUP */
+/** Update the system variable with the given value of the InnoDB
+buffer pool size.
+@param[in]	buf_pool_size	given value of buffer pool size.*/
+void
+innodb_set_buf_pool_size(ulonglong buf_pool_size);
 
+#endif /* !UNIV_HOTBACKUP */
 #endif /* HA_INNODB_PROTOTYPES_H */

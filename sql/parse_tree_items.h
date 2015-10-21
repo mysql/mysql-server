@@ -484,7 +484,7 @@ class PTI_num_literal_num : public Item_int
 public:
   PTI_num_literal_num(const POS &pos,
                        const LEX_STRING &num, int dummy_error= 0)
-  : super(pos, num, (longlong) my_strtoll10(num.str, NULL, &dummy_error),
+  : super(pos, num, my_strtoll10(num.str, NULL, &dummy_error),
           static_cast<uint>(num.length))
   {}
 };
@@ -536,7 +536,7 @@ public:
 
     set_repertoire_from_value();
     set_cs_specified(TRUE);
-    return check_well_formed_result(&str_value, TRUE) == NULL;
+    return check_well_formed_result(&str_value, true, true) == NULL;
   }
 };
 
@@ -559,7 +559,7 @@ public:
       return true;
 
     set_cs_specified(TRUE);
-    return check_well_formed_result(&str_value, TRUE) == NULL;
+    return check_well_formed_result(&str_value, true, true) == NULL;
   }
 };
 
@@ -620,7 +620,7 @@ public:
 /**
   Parse tree Item wrapper for 3-dimentional variable names
   
-  Example: @global.default.x
+  Example: \@global.default.x
 */
 class PTI_variable_aux_3d : public Parse_tree_item
 {
@@ -778,7 +778,6 @@ public:
     if (super::itemize(pc, res) || expr->itemize(pc, &expr))
       return true;
 
-    Item_string *item;
     *res= NULL;
     /*
       If "expr" is reasonably short pure ASCII string literal,
@@ -789,12 +788,11 @@ public:
       SELECT {ts'2001-01-01 10:20:30'};
     */
     if (expr->type() == Item::STRING_ITEM &&
-       (item= (Item_string *) expr) &&
-        item->collation.repertoire == MY_REPERTOIRE_ASCII &&
-        item->str_value.length() < MAX_DATE_STRING_REP_LENGTH * 4)
+        expr->collation.repertoire == MY_REPERTOIRE_ASCII &&
+        expr->str_value.length() < MAX_DATE_STRING_REP_LENGTH * 4)
     {
       enum_field_types type= MYSQL_TYPE_STRING;
-      ErrConvString str(&item->str_value);
+      ErrConvString str(&expr->str_value);
       LEX_STRING *ls= &ident;
       if (ls->length == 1)
       {
@@ -930,7 +928,7 @@ public:
     */
     DBUG_ASSERT(tmp_param == param_marker);
 
-    static_cast<Item_param *>(param_marker)->limit_clause_param= true;
+    param_marker->limit_clause_param= true;
     *res= param_marker;
     return false;
   }

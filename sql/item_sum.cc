@@ -129,7 +129,7 @@ bool Item_sum::init_sum_func_check(THD *thd)
     If the context conditions are not met the method reports an error.
     If the set function is aggregated in some outer subquery the method
     adds it to the chain of items for such set functions that is attached
-    to the the st_select_lex structure for this subquery.
+    to the the SELECT_LEX structure for this subquery.
 
     A number of designated members of the object are used to check the
     conditions. They are specified in the comment before the Item_sum
@@ -311,7 +311,7 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
       Mark Item_subselect(s) as containing aggregate function all the way up
       to aggregate function's calculation context.
       Note that we must not mark the Item of calculation context itself
-      because with_sum_func on the calculation context st_select_lex is
+      because with_sum_func on the calculation context SELECT_LEX is
       already set above.
 
       with_sum_func being set for an Item means that this Item refers 
@@ -319,7 +319,7 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
       or through intermediate items to an aggregate function that is calculated
       in a context "outside" of the Item (e.g. in the current or outer select).
 
-      with_sum_func being set for an st_select_lex means that this query block
+      with_sum_func being set for an SELECT_LEX means that this query block
       has aggregate functions directly referenced (i.e. not through a subquery).
     */
     for (SELECT_LEX *sl= thd->lex->current_select(); 
@@ -339,13 +339,11 @@ Item_sum::Item_sum(const POS &pos, PT_item_list *opt_list)
 {
   if (arg_count > 0)
   {
-    args= (Item**) sql_alloc(2 * sizeof(Item*) * arg_count);
+    args= (Item**) sql_alloc(sizeof(Item*) * arg_count);
     if (args == NULL)
     {
-      orig_args= NULL;
       return; // OOM
     }
-    orig_args= args + arg_count;
     uint i=0;
     List_iterator_fast<Item> li(opt_list->value);
     Item *item;
@@ -367,24 +365,15 @@ Item_sum::Item_sum(THD *thd, Item_sum *item):
   aggr_sel(item->aggr_sel),
   nest_level(item->nest_level), aggr_level(item->aggr_level),
   quick_group(item->quick_group),
-  arg_count(item->arg_count), orig_args(NULL),
+  arg_count(item->arg_count),
   used_tables_cache(item->used_tables_cache),
   forced_const(item->forced_const) 
 {
   if (arg_count <= 2)
-  {
-    args=tmp_args;
-    orig_args=tmp_orig_args;
-  }
-  else
-  {
-    if (!(args= (Item**) thd->alloc(sizeof(Item*)*arg_count)))
-      return;
-    if (!(orig_args= (Item**) thd->alloc(sizeof(Item*)*arg_count)))
-      return;
-  }
+    args= tmp_args;
+  else if (!(args= (Item**) thd->alloc(sizeof(Item*)*arg_count)))
+    return;
   memcpy(args, item->args, sizeof(Item*)*arg_count);
-  memcpy(orig_args, item->orig_args, sizeof(Item*)*arg_count);
   init_aggregator();
   with_distinct= item->with_distinct;
   if (item->aggr)
@@ -398,7 +387,7 @@ void Item_sum::mark_as_sum_func()
 }
 
 
-void Item_sum::mark_as_sum_func(st_select_lex *cur_select)
+void Item_sum::mark_as_sum_func(SELECT_LEX *cur_select)
 {
   cur_select->n_sum_items++;
   cur_select->with_sum_func= 1;
@@ -408,14 +397,12 @@ void Item_sum::mark_as_sum_func(st_select_lex *cur_select)
 
 void Item_sum::print(String *str, enum_query_type query_type)
 {
-  /* orig_args is not filled with valid values until fix_fields() */
-  Item **pargs= fixed ? orig_args : args;
   str->append(func_name());
   for (uint i=0 ; i < arg_count ; i++)
   {
     if (i)
       str->append(',');
-    pargs[i]->print(str, query_type);
+    args[i]->print(str, query_type);
   }
   str->append(')');
 }
@@ -499,6 +486,8 @@ bool Item_sum::clean_up_after_removal(uchar *arg)
     for (prev= this; prev->next != this; prev= prev->next)
       ;
     prev->next= next;
+    next= NULL;
+
     if (aggr_sel->inner_sum_func_list == this)
       aggr_sel->inner_sum_func_list= prev;
   }
@@ -1203,6 +1192,9 @@ void Aggregator_distinct::endup()
           table->file->ha_index_or_rnd_end();
         ha_rows num_rows= 0;
         table->file->ha_records(&num_rows);
+        // We have to initialize hash_index because update_sum_func needs it
+        if (table->hash_field)
+          table->file->ha_index_init(0, false);
         sum->count= static_cast<longlong>(num_rows);
       }
       endup_done= TRUE;
@@ -1285,7 +1277,6 @@ Item_sum_num::fix_fields(THD *thd, Item **ref)
   if (check_sum_func(thd, ref))
     return TRUE;
 
-  memcpy (orig_args, args, sizeof (Item *) * arg_count);
   fixed= 1;
   return FALSE;
 }
@@ -1329,6 +1320,8 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
   result_field=0;
   null_value=1;
   fix_length_and_dec();
+  if (thd->is_error())
+    return true;
   item= item->real_item();
   if (item->type() == Item::FIELD_ITEM)
     hybrid_field_type= ((Item_field*) item)->field->type();
@@ -1338,7 +1331,6 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
   if (check_sum_func(thd, ref))
     return TRUE;
 
-  orig_args[0]= args[0];
   fixed= 1;
   return FALSE;
 }
@@ -1699,7 +1691,7 @@ longlong Item_sum_count::val_int()
   DBUG_ASSERT(fixed == 1);
   if (aggr)
     aggr->endup();
-  return (longlong) count;
+  return count;
 }
 
 
@@ -2158,6 +2150,17 @@ Item_sum_hybrid::val_str(String *str)
   if ((null_value= value->null_value))
     DBUG_ASSERT(retval == NULL);
   return retval;
+}
+
+
+bool Item_sum_hybrid::val_json(Json_wrapper *wr)
+{
+  DBUG_ASSERT(fixed);
+  if (null_value)
+    return false;
+  bool ok= value->val_json(wr);
+  null_value= value->null_value;
+  return ok;
 }
 
 
@@ -3266,7 +3269,7 @@ int dump_leaf_key(void* key_arg, element_count count __attribute__((unused)),
 
   @param distinct_arg   distinct
   @param select_list    list of expression for show values
-  @param order_list     list of sort columns
+  @param opt_order_list list of sort columns
   @param separator_arg  string value of separator.
 */
 
@@ -3292,12 +3295,6 @@ Item_func_group_concat::Item_func_group_concat(const POS &pos,
 
   if (!(args= (Item**) sql_alloc(sizeof(Item*) * arg_count)))
     return;
-
-  if (!(orig_args= (Item **) sql_alloc(sizeof(Item *) * arg_count)))
-  {
-    args= NULL;
-    return;
-  }
 
   if (order_array.reserve(arg_count_order))
     return;
@@ -3331,7 +3328,6 @@ bool Item_func_group_concat::itemize(Parse_context *pc, Item **res)
   if (super::itemize(pc, res))
     return true;
   context= pc->thd->lex->current_context();
-  memcpy(orig_args, args, sizeof(Item*) * arg_count);
   return false;
 }
 
@@ -3429,7 +3425,8 @@ void Item_func_group_concat::cleanup()
    */
   for (uint i= 0; i < arg_count_order; i++)
   {
-    order_array[i].item= &args[arg_count_field + i];
+    if (order_array[i].is_position)
+      args[arg_count_field + i]= order_array[i].item_ptr;
   }
   DBUG_VOID_RETURN;
 }
@@ -3449,7 +3446,8 @@ Field *Item_func_group_concat::make_string_field(TABLE *table_arg)
   const uint32 max_characters= max_length / collation.collation->mbminlen;
   if (max_characters > CONVERT_IF_BIGGER_TO_BLOB)
     field= new Field_blob(max_characters * collation.collation->mbmaxlen,
-                          maybe_null, item_name.ptr(), collation.collation, TRUE);
+                          maybe_null, item_name.ptr(),
+                          collation.collation, true);
   else
     field= new Field_varstring(max_characters * collation.collation->mbmaxlen,
                                maybe_null, item_name.ptr(), table_arg->s, collation.collation);
@@ -3771,7 +3769,7 @@ void Item_func_group_concat::print(String *str, enum_query_type query_type)
   {
     if (i)
       str->append(',');
-    orig_args[i]->print(str, query_type);
+    args[i]->print(str, query_type);
   }
   if (arg_count_order)
   {
@@ -3780,7 +3778,7 @@ void Item_func_group_concat::print(String *str, enum_query_type query_type)
     {
       if (i)
         str->append(',');
-      orig_args[i + arg_count_field]->print(str, query_type);
+      args[i + arg_count_field]->print(str, query_type);
       if (order_array[i].direction == ORDER::ORDER_ASC)
         str->append(STRING_WITH_LEN(" ASC"));
       else

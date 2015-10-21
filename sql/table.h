@@ -29,13 +29,14 @@
 #include "sql_bitmap.h"    // Bitmap
 #include "sql_sort.h"      // Filesort_info
 #include "table_id.h"      // Table_id
+#include "lock.h"          // Tablespace_hash_set
 
 /* Structs that defines the TABLE */
 class File_parser;
 class Item_subselect;
 class Item_field;
 class GRANT_TABLE;
-class st_select_lex_unit;
+class SELECT_LEX_UNIT;
 class COND_EQUAL;
 class Security_context;
 class ACL_internal_schema_access;
@@ -51,6 +52,7 @@ struct LEX;
 typedef int8 plan_idx;
 class Opt_hints_qb;
 class Opt_hints_table;
+class SELECT_LEX;
 
 typedef int64 query_id_t;
 
@@ -237,6 +239,7 @@ typedef struct st_order {
   Field  *field;                        /* If tmp-table group */
   char   *buff;                         /* If tmp-table group */
   table_map used, depend_map;
+  bool is_position;  /* An item expresses a position in a ORDER clause */
 } ORDER;
 
 /**
@@ -273,6 +276,7 @@ typedef struct st_grant_internal_info GRANT_INTERNAL_INFO;
  */
 struct GRANT_INFO
 {
+  GRANT_INFO();
   /**
      @brief A copy of the privilege information regarding the current host,
      database, object and user.
@@ -503,7 +507,13 @@ public:
   Table_check_intact() {}
   virtual ~Table_check_intact() {}
 
-  /** Checks whether a table is intact. */
+  /**
+    Checks whether a table is intact.
+
+    @param thd Session.
+    @param table Table to check.
+    @param table_def Table definition struct.
+  */
   bool check(THD *thd, TABLE *table, const TABLE_FIELD_DEF *table_def);
 };
 
@@ -732,16 +742,14 @@ struct TABLE_SHARE
   const File_parser *view_def;
 
 
-  /*
+  /**
     Set share's table cache key and update its db and table name appropriately.
 
-    SYNOPSIS
-      set_table_cache_key()
-        key_buff    Buffer with already built table cache key to be
+    @param key_buff    Buffer with already built table cache key to be
                     referenced from share.
-        key_length  Key length.
+    @param key_length  Key length.
 
-    NOTES
+    @note
       Since 'key_buff' buffer will be referenced from share it should has same
       life-time as share itself.
       This method automatically ensures that TABLE_SHARE::table_name/db have
@@ -763,15 +771,13 @@ struct TABLE_SHARE
   }
 
 
-  /*
+  /**
     Set share's table cache key and update its db and table name appropriately.
 
-    SYNOPSIS
-      set_table_cache_key()
-        key_buff    Buffer to be used as storage for table cache key
+    @param key_buff    Buffer to be used as storage for table cache key
                     (should be at least key_length bytes).
-        key         Value for table cache key.
-        key_length  Key length.
+    @param key         Value for table cache key.
+    @param key_length  Key length.
 
     NOTE
       Since 'key_buff' buffer will be used as storage for table cache key
@@ -784,20 +790,20 @@ struct TABLE_SHARE
     set_table_cache_key(key_buff, key_length);
   }
 
-  inline bool honor_global_locks()
+  bool honor_global_locks() const
   {
     return ((table_category == TABLE_CATEGORY_USER)
             || (table_category == TABLE_CATEGORY_SYSTEM));
   }
 
-  inline ulonglong get_table_def_version()
+  ulonglong get_table_def_version() const
   {
     return table_map_id;
   }
 
 
   /** Is this table share being expelled from the table definition cache?  */
-  inline bool has_old_version() const
+  bool has_old_version() const
   {
     return version != refresh_version;
   }
@@ -880,6 +886,13 @@ struct TABLE_SHARE
     return (tmp_table == SYSTEM_TMP_TABLE) ? 0 : table_map_id.id();
   }
 
+  /** Determine if the table is missing a PRIMARY KEY. */
+  bool is_missing_primary_key() const
+  {
+    DBUG_ASSERT(primary_key <= MAX_KEY);
+    return primary_key == MAX_KEY;
+  }
+
   bool visit_subgraph(Wait_for_flush *waiting_ticket,
                       MDL_wait_for_graph_visitor *gvisitor);
 
@@ -932,7 +945,7 @@ public:
   {
     truncated_value= is_truncated_value;
   }
-  bool is_truncated_value() { return truncated_value; }
+  bool is_truncated_value() const { return truncated_value; }
 };
 
 
@@ -1269,7 +1282,8 @@ public:
   void prepare_for_position(void);
 
   void mark_column_used(THD *thd, Field *field, enum enum_mark_columns mark);
-  void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map);
+  void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map,
+                                           uint key_parts= UINT_MAX);
   void mark_columns_used_by_index(uint index);
   void mark_auto_increment_column(void);
   void mark_columns_needed_for_update(THD *thd);
@@ -1277,7 +1291,8 @@ public:
   void mark_columns_needed_for_insert(THD *thd);
   void mark_columns_per_binlog_row_image(THD *thd);
   void mark_generated_columns(bool is_update);
-  bool is_field_dependent_on_generated_columns(uint field_index);
+  bool is_field_used_by_generated_columns(uint field_index);
+  void mark_gcol_in_maps(Field *field);
   inline void column_bitmaps_set(MY_BITMAP *read_set_arg,
                                  MY_BITMAP *write_set_arg)
   {
@@ -1331,6 +1346,19 @@ public:
     }
   }
 
+  /**
+    Check whether the given index has a virtual generated columns.
+
+    @param index_no        the given index to check
+
+    @returns true if if index is defined over at least one virtual generated
+    column
+  */
+  inline bool index_contains_some_virtual_gcol(uint index_no)
+  {
+    DBUG_ASSERT(index_no < s->keys);
+    return key_info[index_no].flags & HA_VIRTUAL_GEN_KEY;
+  }
   bool update_const_key_parts(Item *conds);
 
   bool check_read_removal(uint index);
@@ -1367,6 +1395,12 @@ public:
   /// Return whether table is nullable
   bool is_nullable() const { return nullable; }
 
+  /// @return true if table contains one or more generated columns
+  bool has_gcol() const { return vfield; }
+
+  /// @return true if table contains one or more virtual generated columns
+  bool has_virtual_gcol() const;
+
   /**
     Initialize the optimizer cost model.
  
@@ -1383,6 +1417,26 @@ public:
     Return the cost model object for this table.
   */
   const Cost_model_table* cost_model() const { return &m_cost_model; }
+
+  /**
+    Fix table's generated columns' (GC) expressions
+   
+    @details When a table is opened from the dictionary, the GCs' expressions
+    are fixed during opening (see fix_fields_gcol_func()). After query
+    execution, Item::cleanup() is called on them (see cleanup_gc_items()). When
+    the table is opened from the table cache, the GCs need to be fixed again
+    and this function does that.
+
+    @param[in] thd     the current thread
+    @return true if error, else false
+  */
+  bool refix_gc_items(THD *thd);
+  
+  /**
+    Clean any state in items associated with generated columns to be ready for
+    the next statement.
+  */
+  void cleanup_gc_items();
 };
 
 
@@ -1438,8 +1492,8 @@ typedef struct st_field_info
   /**
      This is used to set column attributes. By default, columns are @c NOT
      @c NULL and @c SIGNED, and you can deviate from the default
-     by setting the appopriate flags. You can use either one of the flags
-     @c MY_I_S_MAYBE_NULL and @cMY_I_S_UNSIGNED or
+     by setting the appropriate flags. You can use either one of the flags
+     @c MY_I_S_MAYBE_NULL and @c MY_I_S_UNSIGNED or
      combine them using the bitwise or operator @c |. Both flags are
      defined in table.h.
    */
@@ -1554,6 +1608,7 @@ public:
   ALTER user ... PASSWORD EXPIRE ...
 */
 typedef struct st_lex_alter {
+  bool update_password_expired_fields;
   bool update_password_expired_column;
   bool use_default_password_lifetime;
   uint16 expire_after_days;
@@ -1678,12 +1733,32 @@ struct TABLE_LIST
     opt_hints_qb= NULL;
   }
 
+
+  /**
+    Auxiliary method which prepares TABLE_LIST consisting of one table instance
+    to be used in simple open_and_lock_tables and takes type of MDL lock on the
+    table as explicit parameter.
+  */
+
+  inline void init_one_table(const char *db_name_arg,
+                             size_t db_length_arg,
+                             const char *table_name_arg,
+                             size_t table_name_length_arg,
+                             const char *alias_arg,
+                             enum thr_lock_type lock_type_arg,
+                             enum enum_mdl_type mdl_request_type)
+  {
+    init_one_table(db_name_arg, db_length_arg, table_name_arg,
+                   table_name_length_arg, alias_arg, lock_type_arg);
+    mdl_request.set_type(mdl_request_type);
+  }
+
   /// Create a TABLE_LIST object representing a nested join
   static TABLE_LIST *new_nested_join(MEM_ROOT *allocator,
                                      const char *alias,
                                      TABLE_LIST *embedding,
                                      List<TABLE_LIST> *belongs_to,
-                                     class st_select_lex *select);
+                                     SELECT_LEX *select);
 
   Item         **join_cond_ref() { return &m_join_cond; }
   Item          *join_cond() const { return m_join_cond; }
@@ -1718,7 +1793,7 @@ struct TABLE_LIST
   }
 
   /// Merge tables from a query block into a nested join structure
-  bool merge_underlying_tables(class st_select_lex *select);
+  bool merge_underlying_tables(SELECT_LEX *select);
 
   /// Reset table
   void reset();
@@ -1872,6 +1947,24 @@ struct TABLE_LIST
       tr= tr->merge_underlying_list;
     return tr;
   }
+
+  /// Return any leaf table that is not an inner table of an outer join
+  /// @todo when WL#6570 is implemented, replace with first_leaf_table()
+  TABLE_LIST *any_outer_leaf_table()
+  {
+    TABLE_LIST *tr= this;
+    while (tr->merge_underlying_list)
+    {
+      tr= tr->merge_underlying_list;
+      /*
+        "while" is used, however, an "if" might be sufficient since there is
+        no more than one inner table in a join nest (with outer_join true).
+      */
+      while (tr->outer_join)
+        tr= tr->next_local;
+    }
+    return tr;
+  }
   /**
     Set the LEX object of a view (will also define this as a view).
     @note: The value 1 is used to indicate a view but without a valid
@@ -1894,13 +1987,13 @@ struct TABLE_LIST
     Set the query expression of a derived table or view.
     (Will also define this as a derived table, unless it is a named view.)
   */
-  void set_derived_unit(st_select_lex_unit *query_expr)
+  void set_derived_unit(SELECT_LEX_UNIT *query_expr)
   {
     derived= query_expr;
   }
 
   /// Return the query expression of a derived table or view.
-  st_select_lex_unit *derived_unit() const
+  SELECT_LEX_UNIT *derived_unit() const
   {
     DBUG_ASSERT(derived);
     return derived;
@@ -2108,7 +2201,7 @@ struct TABLE_LIST
   /*
     List of tables local to a subquery or the top-level SELECT (used by
     SQL_I_List). Considers views as leaves (unlike 'next_leaf' below).
-    Created at parse time in st_select_lex::add_table_to_list() ->
+    Created at parse time in SELECT_LEX::add_table_to_list() ->
     table_list.link_in_list().
   */
   TABLE_LIST *next_local;
@@ -2211,11 +2304,11 @@ private:
      
      @note Inside views, a subquery in the @c FROM clause is not allowed.
   */
-  st_select_lex_unit *derived;		/* SELECT_LEX_UNIT of derived table */
+  SELECT_LEX_UNIT *derived;		/* SELECT_LEX_UNIT of derived table */
 
 public:
   ST_SCHEMA_TABLE *schema_table;        /* Information_schema table */
-  st_select_lex	*schema_select_lex;
+  SELECT_LEX *schema_select_lex;
   /*
     True when the view field translation table is used to convert
     schema table fields for backwards compatibility with SHOW command.
@@ -2223,7 +2316,7 @@ public:
   bool schema_table_reformed;
   Temp_table_param *schema_table_param;
   /* link to select_lex where this table was used */
-  st_select_lex	*select_lex;
+  SELECT_LEX *select_lex;
 
 private:
   LEX *view;                    /* link on VIEW lex for merging */
@@ -2296,7 +2389,7 @@ public:
       - VIEW_ALGORITHM_UNDEFINED
       - VIEW_ALGORITHM_TEMPTABLE
       - VIEW_ALGORITHM_MERGE
-      @to do Replace with an enum 
+      @todo Replace with an enum 
   */
   ulonglong     algorithm;
   ulonglong     view_suid;              ///< view is suid (TRUE by default)
@@ -2373,7 +2466,7 @@ public:
   /** TRUE if an alias for this table was specified in the SQL. */
   bool          is_alias;
   /** TRUE if the table is referred to in the statement using a fully
-      qualified name (<db_name>.<table_name>).
+      qualified name (@<db_name@>.@<table_name@>).
   */
   bool          is_fqtn;
 
@@ -2385,7 +2478,7 @@ public:
   /*
     Attributes to save/load view creation context in/from frm-file.
 
-    Ther are required only to be able to use existing parser to load
+    They are required only to be able to use existing parser to load
     view-definition file. As soon as the parser parsed the file, view
     creation context is initialized and the attributes become redundant.
 
@@ -2555,17 +2648,15 @@ public:
 };
 
 
-/*
+/**
   Generic iterator over the fields of an arbitrary table reference.
 
-  DESCRIPTION
     This class unifies the various ways of iterating over the columns
     of a table reference depending on the type of SQL entity it
     represents. If such an entity represents a nested table reference,
     this iterator encapsulates the iteration over the columns of the
     members of the table reference.
 
-  IMPLEMENTATION
     The implementation assumes that all underlying NATURAL/USING table
     references already contain their result columns and are linked into
     the list TABLE_LIST::next_name_resolution_table.
@@ -2609,7 +2700,7 @@ struct Semijoin_mat_optimize
   bool lookup_allowed;
   /// True if data types allow the MaterializeScan semijoin strategy
   bool scan_allowed;
-  /// Expected #rows in the materialized table
+  /// Expected number of rows in the materialized table
   double expected_rowcount;
   /// Materialization cost - execute sub-join and write rows to temp.table
   Cost_estimate materialization_cost;
@@ -2782,37 +2873,34 @@ void free_table_share(TABLE_SHARE *share);
   Get the tablespace name for a table.
 
   This function will open the .FRM file for the given TABLE_LIST element
-  and get the tablespace name, if present. For NDB tables with version
-  before 50120, the function will ask the SE for the tablespace name,
-  because for these tables, the tablespace name is not stored in the.FRM
-  file, but only within the SE itself.
+  and fill Tablespace_hash_set with the tablespace name used by table and
+  table partitions, if present. For NDB tables with version before 50120,
+  the function will ask the SE for the tablespace name, because for these
+  tables, the tablespace name is not stored in the.FRM file, but only
+  within the SE itself.
 
   @note The function does *not* consider errors. If the file is not present,
         this does not raise an error. The reason is that this function will
         be used for tables that may not exist, e.g. in the context of
         'DROP TABLE IF EXISTS', which does not care whether the table
-        exists or not. If an error occurs, the function will return NULL.
+        exists or not. The function returns success in this case.
 
-  @note The return value is a char pointer to the tablespace name. The
-        string is allocated in the memory root of the thd, and will be
-        freed implicitly.
+  @note Strings inserted into hash are allocated in the memory
+        root of the thd, and will be freed implicitly.
 
-  @note When the tablespace name is written, there is no distinction between
-        a tablespace name which is empty, and the NULL string pointer. Thus,
-        when reading the name, we will always return a string of length 0 or
-        more, unless there is an error, in which case we will return NULL.
+  @param thd    - Thread context.
+  @param table  - Table from which we read the tablespace names.
+  @param tablespace_set (OUT)- Hash set to be filled with tablespace names.
 
-  @note If the tablespace name is invalid, the name will be ignored, and the
-        function will return NULL.
+  @retval true  - On failure, especially due to memory allocation errors
+                  and partition string parse errors.
+  @retval false - On success. Even if tablespaces are not used by table.
+*/
 
-  @param thd    Thread context
-  @param table  Table for which to get the tablespace name
-
-  @return Pointer to string holding a valid tablespace name. If an error
-          occurs, the function returns NULL.
- */
-
-const char *get_tablespace_name(THD *thd, const TABLE_LIST *table);
+bool get_table_and_parts_tablespace_names(
+       THD *thd,
+       TABLE_LIST *table,
+       Tablespace_hash_set *tablespace_set);
 
 int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags);
 void open_table_error(THD *thd, TABLE_SHARE *share,
@@ -2829,7 +2917,7 @@ bool get_field(MEM_ROOT *mem, Field *field, class String *res);
 int closefrm(TABLE *table, bool free_share);
 int read_string(File file, uchar* *to, size_t length);
 void free_blobs(TABLE *table);
-void free_field_buffers_larger_than(TABLE *table, uint32 size);
+void free_blob_buffers_and_reset(TABLE *table, uint32 size);
 int set_zone(int nr,int min_zone,int max_zone);
 ulong make_new_entry(File file,uchar *fileinfo,TYPELIB *formnames,
 		     const char *newname);
@@ -2902,8 +2990,10 @@ inline void mark_as_null_row(TABLE *table)
 
 bool is_simple_order(ORDER *order);
 
-bool update_generated_write_fields(TABLE *table);
-bool update_generated_read_fields(TABLE *table);
+void repoint_field_to_record(TABLE *table, uchar *old_rec, uchar *new_rec);
+bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table);
+bool update_generated_read_fields(uchar *buf, TABLE *table,
+                                  uint active_index= MAX_KEY);
 
 /**
   Check if a TABLE_LIST instance represents a pre-opened temporary table.

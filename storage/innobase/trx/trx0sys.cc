@@ -90,35 +90,6 @@ ReadView::check_trx_id_sanity(
 # ifdef UNIV_DEBUG
 /* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
 uint	trx_rseg_n_slots_debug = 0;
-
-/****************************************************************//**
-Checks whether a trx is in one of rw_trx_list
-@return true if is in */
-bool
-trx_in_rw_trx_list(
-/*============*/
-	const trx_t*	in_trx)	/*!< in: transaction */
-{
-	const trx_t*	trx;
-
-	/* Non-locking autocommits should not hold any locks. */
-	check_trx_state(in_trx);
-
-	ut_ad(trx_sys_mutex_own());
-
-	ut_ad(trx_assert_started(in_trx));
-
-	for (trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list);
-	     trx != NULL && trx != in_trx;
-	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
-
-		check_trx_state(trx);
-
-		ut_ad(trx->rsegs.m_redo.rseg != NULL && !trx->read_only);
-	}
-
-	return(trx != 0);
-}
 # endif /* UNIV_DEBUG */
 
 /*****************************************************************//**
@@ -490,7 +461,7 @@ trx_sys_create(void)
 
 	trx_sys = static_cast<trx_sys_t*>(ut_zalloc_nokey(sizeof(*trx_sys)));
 
-	mutex_create("trx_sys", &trx_sys->mutex);
+	mutex_create(LATCH_ID_TRX_SYS, &trx_sys->mutex);
 
 	UT_LIST_INIT(trx_sys->serialisation_list, &trx_t::no_list);
 	UT_LIST_INIT(trx_sys->rw_trx_list, &trx_t::trx_list);
@@ -586,9 +557,19 @@ trx_sys_create_rsegs(
 
 	ut_ad(n_used <= TRX_SYS_N_RSEGS);
 
+	/* By default 1 redo rseg is always active that is hosted in
+	system tablespace. */
+	ulint	n_redo_active;
+	if (n_rsegs <= n_tmp_rsegs) {
+		n_redo_active = 1;
+	} else if (n_rsegs > n_used) {
+		n_redo_active = n_used - n_tmp_rsegs;
+	} else {
+		n_redo_active = n_rsegs - n_tmp_rsegs;
+	}
+
 	/* Do not create additional rollback segments if innodb_force_recovery
 	has been set and the database was not shutdown cleanly. */
-
 	if (!srv_force_recovery && !recv_needed_recovery && n_used < n_rsegs) {
 		ulint	i;
 		ulint	new_rsegs = n_rsegs - n_used;
@@ -607,6 +588,7 @@ trx_sys_create_rsegs(
 
 			if (trx_rseg_create(space, 0) != NULL) {
 				++n_used;
+				++n_redo_active;
 			} else {
 				break;
 			}
@@ -615,7 +597,7 @@ trx_sys_create_rsegs(
 
 	ib::info() << n_used - srv_tmp_undo_logs
 		<< " redo rollback segment(s) found. "
-		<< ((n_rsegs <= n_tmp_rsegs) ? 1 : (n_rsegs - n_tmp_rsegs))
+		<< n_redo_active
 		<< " redo rollback segment(s) are active.";
 
 	ib::info() << n_noredo_created << " non-redo rollback segment(s) are"
@@ -662,8 +644,11 @@ void
 trx_sys_close(void)
 /*===============*/
 {
-	ut_ad(trx_sys != NULL);
 	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
+
+	if (trx_sys == NULL) {
+		return;
+	}
 
 	ulint	size = trx_sys->mvcc->size();
 
@@ -803,7 +788,6 @@ trx_sys_any_active_transactions(void)
 					trx, trx->rsegs.m_noredo.update_undo);
 				trx->state = TRX_STATE_PREPARED;
 				trx_sys->n_prepared_trx++;
-				trx_sys->n_prepared_recovered_trx++;
 			}
 		}
 

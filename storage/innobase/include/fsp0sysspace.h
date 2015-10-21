@@ -111,7 +111,7 @@ public:
 	void shutdown();
 
 	/** Normalize the file size, convert to extents. */
-	void normalize();
+	void normalize_size();
 
 	/**
 	@return true if a new raw device was created. */
@@ -151,6 +151,15 @@ public:
 		       * ((1024 * 1024) / UNIV_PAGE_SIZE));
 	}
 
+	/** Roundoff to MegaBytes is similar as done in
+	SysTablespace::parse_units() function.
+	@return the pages when given size of file (bytes). */
+	ulint get_pages_from_size(os_offset_t size)
+	{
+		return (ulint)((size / (1024 * 1024))
+			       * ((1024 * 1024) / UNIV_PAGE_SIZE));
+	}
+
 	/**
 	@return next increment size */
 	ulint get_increment() const;
@@ -168,12 +177,12 @@ public:
 		lsn_t*	flush_lsn)
 		__attribute__((warn_unused_result));
 
-	/** Replace any records for this space_id in the Data Dictionary with
-	this name, flags & filepath..
-	@return DB_SUCCESS or error code */
-	dberr_t replace_in_dictionary();
-
 private:
+	/** Check if the DDTableBuffer exists in this tablespace.
+	FIXME: This should be removed away once we can upgrade for new DD
+	@return DB_SUCCESS or error code */
+	dberr_t check_dd_table_buffer();
+
 	/** Check the tablespace header for this tablespace.
 	@param[out]	flushed_lsn	the value of FIL_PAGE_FILE_FLUSH_LSN
 	@return DB_SUCCESS or error code */
@@ -312,7 +321,6 @@ is_system_or_undo_tablespace(
 	       || id <= srv_undo_tablespaces_open);
 }
 
-#ifdef UNIV_DEBUG
 /** Check if predefined shared tablespace.
 @return true if predefined shared tablespace */
 UNIV_INLINE
@@ -325,5 +333,4 @@ is_predefined_tablespace(
 	return(id <= srv_undo_tablespaces_open
 	       || id == srv_tmp_space.space_id());
 }
-#endif /* UNIV_DEBUG */
 #endif /* fsp0sysspace_h */

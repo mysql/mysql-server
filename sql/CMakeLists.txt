@@ -72,6 +72,7 @@ SET(SQL_SHARED_SOURCES
   auth/password.c
   auth/password_policy_service.cc
   auth/sql_security_ctx.cc
+  auth/service_security_context.cc
   bootstrap.cc
   conn_handler/connection_handler_manager.cc 
   current_thd.cc
@@ -85,8 +86,6 @@ SET(SQL_SHARED_SOURCES
   filesort.cc
   filesort_utils.cc
   aggregate_check.cc
-  gcalc_slicescan.cc
-  gcalc_tools.cc
   gstream.cc
   handler.cc
   hostname.cc
@@ -101,6 +100,7 @@ SET(SQL_SHARED_SOURCES
   item_geofunc_relchecks.cc
   item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
+  item_json_func.cc
   item_row.cc 
   item_strfunc.cc
   item_subselect.cc
@@ -108,6 +108,9 @@ SET(SQL_SHARED_SOURCES
   item_timefunc.cc 
   item_xmlfunc.cc 
   item_inetfunc.cc
+  json_dom.cc
+  json_binary.cc
+  json_path.cc
   key.cc
   key_spec.cc
   keycaches.cc
@@ -116,6 +119,7 @@ SET(SQL_SHARED_SOURCES
   log.cc
   mdl.cc
   my_decimal.cc
+  mysqld.cc
   net_serv.cc
   opt_costconstantcache.cc
   opt_costconstants.cc
@@ -215,6 +219,7 @@ SET(SQL_SHARED_SOURCES
   sql_table.cc
   sql_tablespace.cc
   sql_test.cc
+  sql_thd_internal_api.cc
   sql_thd_api.cc
   sql_time.cc
   sql_timer.cc
@@ -232,6 +237,7 @@ SET(SQL_SHARED_SOURCES
   table.cc
   table_cache.cc
   table_trigger_dispatcher.cc
+  tc_log.cc
   thr_malloc.cc 
   transaction.cc
   transaction_info.cc
@@ -260,10 +266,12 @@ SET(SQL_SOURCE
   ../sql-common/pack.c
   ../sql-common/client_authentication.cc
   ../sql-common/sql_string.cc 
+  command_service.cc
   conn_handler/channel_info.cc
   conn_handler/connection_handler_per_thread.cc
   conn_handler/connection_handler_one_thread.cc
   conn_handler/socket_connection.cc
+  conn_handler/init_net_server_extension.cc
   des_key_file.cc
   event_data_objects.cc
   event_db_repository.cc 
@@ -272,11 +280,14 @@ SET(SQL_SOURCE
   event_scheduler.cc
   events.cc
   mf_iocache.cc
-  mysqld.cc
   mysqld_thd_manager.cc
+  protocol_callback.cc
   signal_handler.cc
   sql_audit.cc
   sql_client.cc
+  srv_session.cc
+  srv_session_info_service.cc
+  srv_session_service.cc
   )
 
 IF(NOT WIN32)
@@ -293,36 +304,55 @@ ENDIF()
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 ADD_COMPILE_FLAGS(
+  handler.cc
   item_geofunc.cc
   item_geofunc_buffer.cc
   item_geofunc_relchecks.cc
   item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
+  item_json_func.cc
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
 
-# Boost Geometry source has unused local typedefs.
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
-IF(HAVE_NO_UNUSED_TYPEDEFS)
+# Boost source has unused local typedefs.
+MY_CHECK_CXX_COMPILER_FLAG("-Wunused-local-typedefs" HAVE_UNUSED_TYPEDEFS)
+IF(HAVE_UNUSED_TYPEDEFS)
   ADD_COMPILE_FLAGS(
+    handler.cc
     item_geofunc.cc
     item_geofunc_buffer.cc
     item_geofunc_relchecks.cc
     item_geofunc_relchecks_bgwrap.cc
     item_geofunc_setops.cc
+    item_json_func.cc
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
   )
 ENDIF()
-# In Clang 3.6 the flag is named slightly different.
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedef" HAVE_NO_UNUSED_TYPEDEF)
-IF(HAVE_NO_UNUSED_TYPEDEF)
+
+# Boost source has logical && with non-zero constant
+MY_CHECK_CXX_COMPILER_FLAG("-Wlogical-op" HAVE_LOGICAL_OP)
+IF(HAVE_LOGICAL_OP)
   ADD_COMPILE_FLAGS(
     item_geofunc.cc
     item_geofunc_buffer.cc
     item_geofunc_relchecks.cc
     item_geofunc_relchecks_bgwrap.cc
     item_geofunc_setops.cc
-    COMPILE_FLAGS "-Wno-unused-local-typedef"
+    item_json_func.cc
+    COMPILE_FLAGS "-Wno-logical-op"
+  )
+ENDIF()
+
+# Some Boost 1.58 source does not adhere to stricter C++11 rules
+MY_CHECK_CXX_COMPILER_FLAG("-Wc++11-extra-semi" HAVE_CPP11_EXTRA_SEMI)
+IF(HAVE_CPP11_EXTRA_SEMI)
+  ADD_COMPILE_FLAGS(
+    item_geofunc.cc
+    item_geofunc_buffer.cc
+    item_geofunc_relchecks.cc
+    item_geofunc_relchecks_bgwrap.cc
+    item_geofunc_setops.cc
+    COMPILE_FLAGS "-Wno-c++11-extra-semi"
   )
 ENDIF()
 
@@ -342,7 +372,7 @@ IF (WIN32 AND OPENSSL_APPLINK_C)
   )
 ENDIF()
 
-ADD_LIBRARY(sql STATIC ${SQL_SOURCE})
+ADD_CONVENIENCE_LIBRARY(sql ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql GenServerSource)
 ADD_DEPENDENCIES(sql GenDigestServerSource)
 ADD_DEPENDENCIES(sql GenBootstrapPriv)
@@ -369,15 +399,15 @@ SET (BINLOG_SOURCE rpl_gtid_misc.cc
                    log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
                    rpl_filter.cc rpl_record.cc rpl_record_old.cc
                    rpl_utility.cc rpl_injector.cc rpl_table_access.cc)
-ADD_LIBRARY(binlog ${BINLOG_SOURCE})
+ADD_CONVENIENCE_LIBRARY(binlog ${BINLOG_SOURCE})
 TARGET_LINK_LIBRARIES(binlog binlogevents_static)
 
 SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc rpl_context.cc)
 ADD_DEPENDENCIES(binlog GenError)
-ADD_LIBRARY(rpl ${RPL_SOURCE})
+ADD_CONVENIENCE_LIBRARY(rpl ${RPL_SOURCE})
 SET (MASTER_SOURCE rpl_master.cc rpl_binlog_sender.cc)
 ADD_DEPENDENCIES(rpl GenError)
-ADD_LIBRARY(master ${MASTER_SOURCE})
+ADD_CONVENIENCE_LIBRARY(master ${MASTER_SOURCE})
 ADD_DEPENDENCIES(master GenError)
 SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
 		  rpl_info_handler.cc rpl_info_file.cc
@@ -386,7 +416,7 @@ SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
                   rpl_rli_pdb.cc rpl_info_dummy.cc rpl_mts_submode.cc
                   rpl_slave_commit_order_manager.cc rpl_msr.cc
                   rpl_trx_boundary_parser.cc rpl_channel_service_interface.cc)
-ADD_LIBRARY(slave ${SLAVE_SOURCE})
+ADD_CONVENIENCE_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
 
 

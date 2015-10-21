@@ -48,6 +48,7 @@ Created June 2005 by Marko Makela
 #include "srv0srv.h"
 #include "trx0types.h"
 #include "mem0mem.h"
+#include "page/zipdecompress.h"
 
 /* Compression level to be used by zlib. Settable by user. */
 extern uint	page_zip_level;
@@ -74,15 +75,6 @@ extern uint	page_zip_level;
 compression algorithm changes in zlib. */
 extern my_bool	page_zip_log_pages;
 
-/**********************************************************************//**
-Determine the size of a compressed page in bytes.
-@return size in bytes */
-UNIV_INLINE
-ulint
-page_zip_get_size(
-/*==============*/
-	const page_zip_des_t*	page_zip)	/*!< in: compressed page */
-	__attribute__((warn_unused_result));
 /**********************************************************************//**
 Set the size of a compressed page in bytes. */
 UNIV_INLINE
@@ -189,18 +181,6 @@ page_zip_decompress(
 				FALSE=verify but do not copy some
 				page header fields that should not change
 				after page creation */
-
-#ifdef UNIV_DEBUG
-/**********************************************************************//**
-Validate a compressed page descriptor.
-@return TRUE if ok */
-UNIV_INLINE
-ibool
-page_zip_simple_validate(
-/*=====================*/
-	const page_zip_des_t*	page_zip);	/*!< in: compressed page
-						descriptor */
-#endif /* UNIV_DEBUG */
 
 #ifdef UNIV_ZIP_DEBUG
 /**********************************************************************//**

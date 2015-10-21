@@ -23,13 +23,16 @@ class Item_in_subselect;
 class THD;
 struct TABLE;
 struct TABLE_LIST;
-typedef class st_select_lex SELECT_LEX;
+class SELECT_LEX;
 typedef struct st_order ORDER;
 template <typename Element_type> class Bounds_checked_array;
 typedef Bounds_checked_array<Item*> Ref_ptr_array;
 template <class T> class List;
 
-/** @file Name resolution functions */
+/**
+  @file sql/sql_resolver.h
+  Name resolution functions.
+*/
 
 bool setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
                  List<Item> &fields, List <Item> &all_fields, ORDER *order);

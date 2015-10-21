@@ -54,15 +54,13 @@ Created Nov 22, 2013 Mattias Jonsson */
 #include "partition_info.h"
 #include "key.h"
 
-#define INSIDE_HA_INNOPART_CC
-
 /* To be backwards compatible we also fold partition separator on windows. */
 #ifdef _WIN32
-const char* part_sep = "#p#";
-const char* sub_sep = "#sp#";
+static const char* part_sep = "#p#";
+static const char* sub_sep = "#sp#";
 #else
-const char* part_sep = "#P#";
-const char* sub_sep = "#SP#";
+static const char* part_sep = "#P#";
+static const char* sub_sep = "#SP#";
 #endif /* _WIN32 */
 
 Ha_innopart_share::Ha_innopart_share(
@@ -155,18 +153,23 @@ Ha_innopart_share::open_one_table_part(
 	uint		part_id,
 	const char*	partition_name)
 {
-	m_table_parts[part_id] = dict_table_open_on_name(partition_name,
-					FALSE, TRUE, DICT_ERR_IGNORE_NONE);
+	m_table_parts[part_id] =
+		ha_innobase::open_dict_table(partition_name, partition_name,
+					     TRUE, DICT_ERR_IGNORE_NONE);
+
 	if (m_table_parts[part_id] == NULL) {
 		return(true);
 	}
 
 	dict_table_t *ib_table = m_table_parts[part_id];
 	if ((!DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID)
-	     && m_table_share->fields != dict_table_get_n_user_cols(ib_table))
+	     && m_table_share->fields
+		 != (dict_table_get_n_user_cols(ib_table)
+		     + dict_table_get_n_v_cols(ib_table)))
 	    || (DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID)
 		&& (m_table_share->fields
-		    != dict_table_get_n_user_cols(ib_table) - 1))) {
+		    != dict_table_get_n_user_cols(ib_table)
+		       + dict_table_get_n_v_cols(ib_table) - 1))) {
 		ib::warn() << "Partition `" << get_partition_name(part_id)
 			<< "` contains " << dict_table_get_n_user_cols(ib_table)
 			<< " user defined columns in InnoDB, but "
@@ -179,9 +182,11 @@ Ha_innopart_share::open_one_table_part(
 		/* Mark this partition as corrupted, so the drop table
 		or force recovery can still use it, but not others.
 		TODO: persist table->corrupted so it will be retained on
-		restart and out-of-bounds operations will see it. */
+		restart and out-of-bounds operations will see it. But if
+		this would be removed in WL#7141-7488, we don't need to
+		persist it */
 
-		ib_table->corrupted = true;
+		dict_table_get_first_index(ib_table)->type |= DICT_CORRUPT;
 		dict_table_close(ib_table, FALSE, FALSE);
 	}
 
@@ -189,6 +194,43 @@ Ha_innopart_share::open_one_table_part(
 	the column names etc. in the internal InnoDB meta-data cache. */
 
 	return(false);
+}
+
+/** Set up the virtual column template for partition table, and points
+all m_table_parts[]->vc_templ to it.
+@param[in]	table		MySQL TABLE object
+@param[in]	ib_table	InnoDB dict_table_t
+@param[in]	table_name	Table name (db/table_name) */
+void
+Ha_innopart_share::set_v_templ(
+	TABLE*		table,
+	dict_table_t*	ib_table,
+	const char*	name)
+{
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	if (ib_table->n_v_cols > 0) {
+		for (ulint i = 0; i < m_tot_parts; i++) {
+			if (m_table_parts[i]->vc_templ != NULL
+			    && m_table_parts[i]->get_ref_count() == 1) {
+				/* Clean and refresh the template */
+				dict_free_vc_templ(m_table_parts[i]->vc_templ);
+				m_table_parts[i]->vc_templ->vtempl = NULL;
+			} else {
+				m_table_parts[i]->vc_templ
+					= UT_NEW_NOKEY(dict_vcol_templ_t());
+				m_table_parts[i]->vc_templ->vtempl = NULL;
+			}
+
+			if (m_table_parts[i]->vc_templ->vtempl == NULL) {
+				innobase_build_v_templ(
+					table, ib_table,
+					m_table_parts[i]->vc_templ,
+					NULL, true, name);
+			}
+
+		}
+	}
 }
 
 /** Initialize the share with table and indexes per partition.
@@ -406,6 +448,7 @@ Ha_innopart_share::close_table_parts()
 		ut_free(m_index_mapping);
 		m_index_mapping = NULL;
 	}
+
 	m_tot_parts = 0;
 	m_index_count = 0;
 }
@@ -915,26 +958,20 @@ done:
 	return(error);
 }
 
-/** Opens a partitioned InnoDB table.
-Initializes needed data and opens the table which already exists
-in an InnoDB database.
-@param[in]	name		Table name (db/tablename)
-@param[in]	mode		Not used
-@param[in]	test_if_locked	Not used
-@return	0 or error number. */
+/** Open a partitioned InnoDB table.
+@param[in]	name	table name
+@retval 1 if error
+@retval 0 if success */
 int
-ha_innopart::open(
-	const char*	name,
-	int		/*mode*/,
-	uint		/*test_if_locked*/)
+ha_innopart::open(const char* name, int, uint)
 {
 	dict_table_t*	ib_table;
 	char		norm_name[FN_REFLEN];
 	THD*		thd;
 
 	DBUG_ENTER("ha_innopart::open");
+	DBUG_ASSERT(table_share == table->s);
 
-	ut_ad(table);
 	if (m_part_info == NULL) {
 		/* Must be during ::clone()! */
 		ut_ad(table->part_info != NULL);
@@ -943,7 +980,7 @@ ha_innopart::open(
 	thd = ha_thd();
 
 	/* Under some cases MySQL seems to call this function while
-	holding btr_search_latch. This breaks the latching order as
+	holding search latch(es). This breaks the latching order as
 	we acquire dict_sys->mutex below and leads to a deadlock. */
 
 	if (thd != NULL) {
@@ -1046,7 +1083,7 @@ share_error:
 	}
 
 	if (!thd_tablespace_op(thd) && no_tablespace) {
-		my_errno = ENOENT;
+                set_my_errno(ENOENT);
 
 		lock_shared_ha_data();
 		m_part_share->close_table_parts();
@@ -1061,9 +1098,13 @@ share_error:
 	m_prebuilt->default_rec = table->s->default_values;
 	ut_ad(m_prebuilt->default_rec);
 
-	/* Looks like MySQL-3.23 sometimes has primary key number != 0. */
-	m_primary_key = table->s->primary_key;
-	key_used_on_scan = m_primary_key;
+	if (ib_table->n_v_cols > 0) {
+		mutex_enter(&dict_sys->mutex);
+		m_part_share->set_v_templ(table, ib_table, name);
+		mutex_exit(&dict_sys->mutex);
+	}
+
+	key_used_on_scan = table_share->primary_key;
 
 	/* Allocate a buffer for a 'row reference'. A row reference is
 	a string of bytes of length ref_length which uniquely specifies
@@ -1075,7 +1116,7 @@ share_error:
 
 		m_prebuilt->clust_index_was_generated = FALSE;
 
-		if (UNIV_UNLIKELY(m_primary_key >= MAX_KEY)) {
+		if (table_share->is_missing_primary_key()) {
 			table_name_t table_name;
 			table_name.m_name = const_cast<char*>(name);
 			ib::error() << "Table " << table_name
@@ -1094,7 +1135,8 @@ share_error:
 					    " dictionary, but not in"
 					    " MySQL!", name);
 
-			/* If m_primary_key >= MAX_KEY, its (m_primary_key)
+			/* If table_share->is_missing_primary_key(),
+			the table_share->primary_key
 			value could be out of bound if continue to index
 			into key_info[] array. Find InnoDB primary index,
 			and assign its key_length to ref_length.
@@ -1139,11 +1181,12 @@ share_error:
 			save space, because all row reference buffers are
 			allocated based on ref_length. */
 
-			ref_length = table->key_info[m_primary_key].key_length;
+			ref_length = table->key_info[table_share->primary_key]
+				.key_length;
 			ref_length += PARTITION_BYTES_IN_POS;
 		}
 	} else {
-		if (m_primary_key != MAX_KEY) {
+		if (!table_share->is_missing_primary_key()) {
 			table_name_t table_name;
 			table_name.m_name = const_cast<char*>(name);
 			ib::error() << "Table " << table_name
@@ -1656,6 +1699,8 @@ ha_innopart::index_init(
 	int	error;
 	uint	part_id = m_part_info->get_first_used_partition();
 	DBUG_ENTER("ha_innopart::index_init");
+
+	active_index = keynr;
 	if (part_id == MY_BIT_NONE) {
 		DBUG_RETURN(0);
 	}
@@ -1703,6 +1748,7 @@ ha_innopart::index_end()
 
 	if (part_id == MY_BIT_NONE) {
 		/* Never initialized any index. */
+		active_index = MAX_KEY;
 		DBUG_RETURN(0);
 	}
 	if (m_ordered) {
@@ -2035,7 +2081,7 @@ ha_innopart::index_next_in_part(
 	ut_ad(m_ordered_scan_ongoing
 	      || m_ordered_rec_buffer == NULL
 	      || m_prebuilt->used_in_HANDLER
-	      || m_part_info->num_partitions_used() <= 1);
+	      || m_part_spec.start_part >= m_part_spec.end_part);
 
 	DBUG_RETURN(error);
 }
@@ -2098,7 +2144,7 @@ ha_innopart::index_prev_in_part(
 	ut_ad(m_ordered_scan_ongoing
 	      || m_ordered_rec_buffer == NULL
 	      || m_prebuilt->used_in_HANDLER
-	      || m_part_info->num_partitions_used() <= 1);
+	      || m_part_spec.start_part >= m_part_spec.end_part);
 
 	return(error);
 }
@@ -2291,24 +2337,21 @@ ha_innopart::rnd_init_in_part(
 	uint	part_id,
 	bool	scan)
 {
-	int	err;
+	DBUG_ENTER("ha_innopart::rnd_init_in_part");
+	DBUG_ASSERT(table_share->is_missing_primary_key()
+		    == m_prebuilt->clust_index_was_generated);
 
-	if (m_prebuilt->clust_index_was_generated) {
-		err = change_active_index(part_id, MAX_KEY);
-	} else {
-		err = change_active_index(part_id, m_primary_key);
-	}
-
-	m_start_of_scan = 1;
+	int	err = change_active_index(part_id, table_share->primary_key);
 
 	/* Don't use semi-consistent read in random row reads (by position).
 	This means we must disable semi_consistent_read if scan is false. */
 
 	if (!scan) {
-		try_semi_consistent_read(false);
+		m_prebuilt->row_read_type = ROW_READ_WITH_LOCKS;
 	}
 
-	return(err);
+	m_start_of_scan = true;
+	DBUG_RETURN(err);
 }
 
 /** Ends a table scan.
@@ -2411,6 +2454,10 @@ ha_innopart::position_in_last_part(
 	uchar*		ref_arg,
 	const uchar*	record)
 {
+	DBUG_ENTER("ha_innopart::position_in_last_part");
+	DBUG_ASSERT(table_share->is_missing_primary_key()
+		    == m_prebuilt->clust_index_was_generated);
+
 	if (m_prebuilt->clust_index_was_generated) {
 		/* No primary key was defined for the table and we
 		generated the clustered index from row id: the
@@ -2421,10 +2468,12 @@ ha_innopart::position_in_last_part(
 	} else {
 
 		/* Copy primary key as the row reference */
-		KEY*	key_info = table->key_info + m_primary_key;
+		KEY*	key_info = table->key_info + table_share->primary_key;
 		key_copy(ref_arg, (uchar*)record, key_info,
 			 key_info->key_length);
 	}
+
+	DBUG_VOID_RETURN;
 }
 
 /** Fill in data_dir_path and tablespace name from internal data
@@ -2597,8 +2646,7 @@ create_table_info_t::set_remote_path_flags()
 			m_remote_path[len] = OS_PATH_SEPARATOR;
 			m_remote_path[len + 1] = '\0';
 		}
-	}
-	else {
+	} else {
 		ut_ad(DICT_TF_HAS_DATA_DIR(m_flags) == 0);
 	}
 }
@@ -2967,7 +3015,7 @@ ha_innopart::truncate()
 
 	DBUG_ENTER("ha_innopart::truncate");
 
-	if (srv_read_only_mode) {
+	if (high_level_read_only) {
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
 
@@ -3998,6 +4046,39 @@ ha_innopart::start_stmt(
 	return(error);
 }
 
+/** Function to store lock for all partitions in native partitioned table. Also
+look at ha_innobase::store_lock for more details.
+@param[in]	thd		user thread handle
+@param[in]	to		pointer to the current element in an array of
+pointers to lock structs
+@param[in]	lock_type	lock type to store in 'lock'; this may also be
+TL_IGNORE
+@retval	to	pointer to the current element in the 'to' array */
+THR_LOCK_DATA**
+ha_innopart::store_lock(
+	THD*			thd,
+	THR_LOCK_DATA**		to,
+	thr_lock_type		lock_type)
+{
+	trx_t*  trx = m_prebuilt->trx;
+	const uint sql_command = thd_sql_command(thd);
+
+	ha_innobase::store_lock(thd, to, lock_type);
+
+	if (sql_command == SQLCOM_FLUSH
+	    && lock_type == TL_READ_NO_INSERT) {
+		for (uint i = 1; i < m_tot_parts; i++) {
+			dict_table_t* table = m_part_share->get_table_part(i);
+
+			dberr_t err = row_quiesce_set_state(
+				table, QUIESCE_START, trx);
+			ut_a(err == DB_SUCCESS || err == DB_UNSUPPORTED);
+		}
+	}
+
+	return to;
+}
+
 /** Lock/prepare to lock table.
 As MySQL will execute an external lock for every new table it uses when it
 starts to process an SQL statement (an exception is when MySQL calls
@@ -4015,8 +4096,6 @@ ha_innopart::external_lock(
 	int	lock_type)
 {
 	int	error = 0;
-	bool	is_quiesce_set = false;
-	bool	is_quiesce_start = false;
 
 	if (m_part_info->get_first_used_partition() == MY_BIT_NONE
 		&& !(m_mysql_has_locked
@@ -4029,63 +4108,55 @@ ha_innopart::external_lock(
 	ut_ad(m_mysql_has_locked || lock_type != F_UNLCK);
 
 	m_prebuilt->table = m_part_share->get_table_part(0);
-	switch (m_prebuilt->table->quiesce) {
-	case QUIESCE_START:
-		/* Check for FLUSH TABLE t WITH READ LOCK; */
-		if (!srv_read_only_mode
-		    && thd_sql_command(thd) == SQLCOM_FLUSH
-		    && lock_type == F_RDLCK) {
-
-			is_quiesce_set = true;
-			is_quiesce_start = true;
-		}
-		break;
-
-	case QUIESCE_COMPLETE:
-		/* Check for UNLOCK TABLES; implicit or explicit
-		or trx interruption. */
-		if (m_prebuilt->trx->flush_tables > 0
-		    && (lock_type == F_UNLCK
-			|| trx_is_interrupted(m_prebuilt->trx))) {
-
-			is_quiesce_set = true;
-		}
-
-		break;
-
-	case QUIESCE_NONE:
-		break;
-	default:
-		ut_ad(0);
-	}
-
 	error = ha_innobase::external_lock(thd, lock_type);
 
-	/* FLUSH FOR EXPORT is done above only for the first partition,
-	so complete it for all the other partitions. */
-	if (is_quiesce_set) {
-		for (uint i = 1; i < m_tot_parts; i++) {
-			dict_table_t* table = m_part_share->get_table_part(i);
-			if (is_quiesce_start) {
-				table->quiesce = QUIESCE_START;
-				row_quiesce_table_start(table, m_prebuilt->trx);
+        for (uint i = 0; i < m_tot_parts; i++) {
+		dict_table_t* table = m_part_share->get_table_part(i);
 
-				/* Use the transaction instance to track UNLOCK
-				TABLES. It can be done via START TRANSACTION;
-				too implicitly. */
+		switch (table->quiesce) {
+		case QUIESCE_START:
+			/* Check for FLUSH TABLE t WITH READ LOCK */
+			if (!srv_read_only_mode
+			    && thd_sql_command(thd) == SQLCOM_FLUSH
+			    && lock_type == F_RDLCK) {
+
+				ut_ad(table->quiesce == QUIESCE_START);
+
+				row_quiesce_table_start(table,
+							m_prebuilt->trx);
+
+				/* Use the transaction instance to track
+				UNLOCK TABLES. It can be done via START
+				TRANSACTION; too implicitly. */
 
 				++m_prebuilt->trx->flush_tables;
-			} else {
+			}
+			break;
+
+		case QUIESCE_COMPLETE:
+			/* Check for UNLOCK TABLES; implicit or explicit
+			or trx interruption. */
+			if (m_prebuilt->trx->flush_tables > 0
+			    && (lock_type == F_UNLCK
+				|| trx_is_interrupted(m_prebuilt->trx))) {
+
 				ut_ad(table->quiesce == QUIESCE_COMPLETE);
 				row_quiesce_table_complete(table,
-					m_prebuilt->trx);
+							   m_prebuilt->trx);
 
 				ut_a(m_prebuilt->trx->flush_tables > 0);
 				--m_prebuilt->trx->flush_tables;
 			}
+			break;
+
+		case QUIESCE_NONE:
+			break;
+
+		default:
+			ut_ad(0);
 		}
-		m_prebuilt->table = m_part_share->get_table_part(0);
 	}
+
 	ut_ad(!m_auto_increment_lock);
 	ut_ad(!m_auto_increment_safe_stmt_log_lock);
 

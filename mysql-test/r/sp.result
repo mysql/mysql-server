@@ -8,12 +8,12 @@ drop function if exists f2;
 create table t1 (
 id   char(16) not null default '',
 data int not null
-);
+) engine=myisam;
 create table t2 (
 s   char(16),
 i   int,
 d   double
-);
+) engine=myisam;
 drop procedure if exists foo42;
 create procedure foo42()
 insert into test.t1 values ("foo", 42);
@@ -1422,8 +1422,8 @@ getcount(id)
 select * from t3|
 v	c
 bar	4
-zip	3
 foo	1
+zip	3
 drop table t3|
 drop function getcount|
 drop table if exists t3|
@@ -2143,8 +2143,8 @@ create procedure bug3734 (param1 varchar(100))
 select * from t3 where match (title,body) against (param1)|
 call bug3734('database')|
 id	title	body
-5	MySQL vs. YourSQL	In the following database comparison ...
 1	MySQL Tutorial	DBMS stands for DataBase ...
+5	MySQL vs. YourSQL	In the following database comparison ...
 call bug3734('Security')|
 id	title	body
 6	MySQL Security	When configured properly, MySQL ...
@@ -2315,7 +2315,7 @@ show create table t3|
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `bug2773()` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t3|
 drop function bug2773|
 drop procedure if exists bug3788|
@@ -2915,20 +2915,24 @@ call avg ()|
 drop procedure avg|
 drop procedure if exists bug6129|
 set @old_mode= @@sql_mode;
-set @@sql_mode= "STRICT_ALL_TABLES";
+set @@sql_mode= "ERROR_FOR_DIVISION_BY_ZERO";
 create procedure bug6129()
 select @@sql_mode|
 call bug6129()|
 @@sql_mode
-STRICT_ALL_TABLES
-set @@sql_mode= "STRICT_ALL_TABLES"|
+ERROR_FOR_DIVISION_BY_ZERO
+set @@sql_mode= "STRICT_ALL_TABLES,NO_ZERO_DATE"|
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 call bug6129()|
 @@sql_mode
-STRICT_ALL_TABLES
-set @@sql_mode= "STRICT_ALL_TABLES"|
+ERROR_FOR_DIVISION_BY_ZERO
+set @@sql_mode= "NO_ZERO_IN_DATE"|
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 call bug6129()|
 @@sql_mode
-STRICT_ALL_TABLES
+ERROR_FOR_DIVISION_BY_ZERO
 set @@sql_mode=@old_mode;
 drop procedure bug6129|
 drop procedure if exists bug9856|
@@ -3733,17 +3737,17 @@ call bug12589_1()|
 Table	Create Table
 tm1	CREATE TEMPORARY TABLE `tm1` (
   `spv1` decimal(3,3) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 call bug12589_2()|
 Table	Create Table
 tm1	CREATE TEMPORARY TABLE `tm1` (
   `spv1` decimal(6,3) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 call bug12589_3()|
 Table	Create Table
 tm1	CREATE TEMPORARY TABLE `tm1` (
   `spv1` decimal(6,3) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop procedure bug12589_1|
 drop procedure bug12589_2|
 drop procedure bug12589_3|
@@ -4236,7 +4240,7 @@ x
 drop procedure bug14376|
 drop procedure if exists bug5967|
 drop table if exists t3|
-create table t3 (a varchar(255))|
+create table t3 (a varchar(255)) engine=myisam|
 insert into t3 (a) values ("a - table column")|
 create procedure bug5967(a varchar(255))
 begin
@@ -4804,7 +4808,7 @@ show create table t3|
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `i` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 select * from t3|
 i
 0
@@ -4815,7 +4819,7 @@ show create table t3|
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `j` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 select * from t3|
 j
 0
@@ -5271,11 +5275,11 @@ use test|
 drop table t3|
 DROP PROCEDURE IF EXISTS bug16899_p1|
 DROP FUNCTION IF EXISTS bug16899_f1|
-CREATE DEFINER=1234567890abcdefGHIKL@localhost PROCEDURE bug16899_p1()
+CREATE DEFINER=1234567890abcdefGHIKLsdafdsjakfhkshfkshsndvkjsddngjhasdkjghskahfdksjhcnsndkhjkghskjfjsdhfkhskfdhksjdhfkjshfksh@localhost PROCEDURE bug16899_p1()
 BEGIN
 SET @a = 1;
 END|
-ERROR HY000: String '1234567890abcdefGHIKL' is too long for user name (should be no longer than 16)
+ERROR HY000: String '1234567890abcdefGHIKLsdafdsjakfhkshfkshsndvkjsddngjhasdkjghskahfdksjhc' is too long for user name (should be no longer than 32)
 CREATE DEFINER=some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY
 FUNCTION bug16899_f1() RETURNS INT
 BEGIN
@@ -6064,7 +6068,7 @@ examplebug20777	CREATE TABLE `examplebug20777` (
   `2**64-2` bigint(20) unsigned DEFAULT NULL,
   `2**64-1` bigint(20) unsigned DEFAULT NULL,
   `2**64` bigint(20) unsigned DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 select * from examplebug20777 order by i;
 i	2**63-2	2**63-1	2**63	2**63+1	2**64-2	2**64-1	2**64
 0	9223372036854775806	9223372036854775807	9223372036854775808	9223372036854775809	18446744073709551614	18446744073709551615	18446744073709551615
@@ -6363,6 +6367,9 @@ CREATE FUNCTION f2(I INT) RETURNS INT DETERMINISTIC RETURN 3;
 CREATE TABLE t1 (c1 INT, INDEX(c1));
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 CREATE VIEW v1 AS SELECT c1 FROM t1;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1 WHERE c1=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	c1	c1	5	const	1	100.00	Using index
@@ -6439,7 +6446,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `v` datetime DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 
 DROP TABLE t1;
 
@@ -6450,7 +6457,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `v` datetime DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 
 DROP TABLE t1;
 
@@ -6459,7 +6466,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `v` bigint(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 
 DROP TABLE t1;
 
@@ -6470,7 +6477,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `v` bigint(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 
 DROP TABLE t1;
 
@@ -6897,9 +6904,6 @@ drop procedure if exists p;
 set @old_mode= @@sql_mode;
 set @@sql_mode= cast(pow(2,32)-1 as unsigned integer);
 Warnings:
-Warning	3027	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
-Warning	3027	'NO_ZERO_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
-Warning	3027	'NO_ZERO_IN_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select @@sql_mode into @full_mode;
 create procedure p() begin end;
@@ -7153,7 +7157,7 @@ SELECT f1();
 f1()
 a
 Warnings:
-Warning	1265	Data truncated for column 'f4()' at row 1
+Warning	1265	Data truncated for column 'f4()' at row 2
 DROP FUNCTION f1;
 DROP FUNCTION f2;
 DROP FUNCTION f3;
@@ -7796,7 +7800,7 @@ SET @@default_storage_engine = DEFAULT;
 SET @default_storage_engine_saved = @@default_storage_engine;
 SELECT @@default_storage_engine;
 @@default_storage_engine
-MyISAM
+InnoDB
 SET @@default_storage_engine = InnoDB;
 SELECT @@default_storage_engine;
 @@default_storage_engine
@@ -7804,7 +7808,7 @@ InnoDB
 CALL p1();
 SELECT @@default_storage_engine;
 @@default_storage_engine
-MyISAM
+InnoDB
 SET @@default_storage_engine = @default_storage_engine_saved;
 DROP PROCEDURE p1;
 DROP TABLE t1;
@@ -7815,6 +7819,8 @@ DROP TABLE t1;
 #
 SET @org_mode= @@sql_mode;
 SET sql_mode= 'STRICT_TRANS_TABLES';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 CREATE TABLE t1(a INT) ENGINE= InnoDB;
 INSERT INTO t1 VALUES (123456);
 CREATE PROCEDURE p1() 
@@ -7856,3 +7862,33 @@ PREPARE s FROM
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 DROP TABLE t1, t2;
 SET sql_mode = DEFAULT;
+#
+# ASSERTION FAILED: FALSE IN CREATE_TMP_FIELD WITH UNKNOWN OUTER FIELD
+#
+CREATE TABLE t1 ( a INT );
+SET @v = 1;
+PREPARE stmt FROM 'SELECT 1 FROM ( SELECT ? FROM t1 GROUP BY a ) al;';
+EXECUTE stmt USING @v;
+1
+PREPARE stmt FROM 'CREATE TABLE t2 AS SELECT ? FROM t1';
+EXECUTE stmt USING @v;
+DROP TABLE t1, t2;
+#
+# Bug #18599181: CALLING A ROUTINE WITHOUT SPECIFYING DATABASE PREFIX
+#                MAY RETURN ERROR 1370
+#
+CREATE DATABASE db1;
+CREATE FUNCTION f1() RETURNS INT RETURN 1;
+CREATE FUNCTION db1.f2() RETURNS INT RETURN test.f1();
+CREATE USER myuser@'localhost';
+GRANT ALL ON db1.* TO myuser@'localhost';
+SELECT f2();
+f2()
+1
+SELECT f2();
+f2()
+1
+DROP DATABASE db1;
+DROP USER myuser@localhost;
+DROP FUNCTION f1;
+#

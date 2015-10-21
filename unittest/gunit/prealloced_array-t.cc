@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -227,6 +227,7 @@ TEST_F(PreallocedArrayTest, InsertUnique)
   for (int *pi= int_10.begin(); pi != int_10.end(); ++pi)
   {    
     unique_arr.insert_unique(*pi);
+    EXPECT_EQ(1U, unique_arr.count_unique(*pi));
   }
   EXPECT_EQ(10U, unique_arr.size());
   // Duplicates should have been ignored, and the result should be sorted.
@@ -254,7 +255,10 @@ TEST_F(PreallocedArrayTest, EraseUnique)
 
   // Removing non-existing numbers should return 0.
   for (int ix= 0; ix < 10; ++ix)
+  {
+    EXPECT_EQ(0U, int_10.count_unique(2 * ix));
     EXPECT_EQ(0U, int_10.erase_unique(2 * ix));
+  }
 
   // 10 numbers should still remain.
   EXPECT_EQ(10U, int_10.size());
@@ -303,6 +307,53 @@ private:
   To verify that there are no leaks, do:
   valgrind ./prealloced_array-t --gtest_filter="-*DeathTest*"
 */
+TEST_F(PreallocedArrayTest, NoMemLeaksAssignAt)
+{
+  Prealloced_array<IntWrap, 10, false>
+    array(PSI_NOT_INSTRUMENTED, 0);
+  EXPECT_EQ(0U, array.size());
+  
+  array.assign_at(3, IntWrap(3));
+  EXPECT_EQ(4U, array.size());
+  EXPECT_EQ(3, array[3].getval());
+  EXPECT_EQ(0, array[0].getval());
+
+  array.assign_at(0, IntWrap(42));
+  EXPECT_EQ(4U, array.size());
+  EXPECT_EQ(42, array[0].getval());
+  
+  array.assign_at(4, IntWrap(4));
+  EXPECT_EQ(5U, array.size());
+  EXPECT_EQ(4, array[4].getval());
+
+  array.assign_at(42, IntWrap(42));
+  EXPECT_EQ(43U, array.size());
+  EXPECT_EQ(42, array[42].getval());
+
+  array.assign_at(0, IntWrap(0));
+  EXPECT_EQ(0, array[0].getval());
+}
+
+TEST_F(PreallocedArrayTest, NoMemLeaksInitializing)
+{
+  const size_t initial_capacity= 10;
+  Prealloced_array<IntWrap, initial_capacity, false>
+    array1(PSI_NOT_INSTRUMENTED, 0);
+  EXPECT_EQ(0U, array1.size());
+
+  Prealloced_array<IntWrap, initial_capacity, false>
+    array2(PSI_NOT_INSTRUMENTED, initial_capacity / 2);
+  EXPECT_EQ(5U, array2.size());
+
+  Prealloced_array<IntWrap, 10, false>
+    array3(PSI_NOT_INSTRUMENTED, initial_capacity);
+  EXPECT_EQ(10U, array3.size());
+
+  Prealloced_array<IntWrap, 10, false>
+    array4(PSI_NOT_INSTRUMENTED, 2 * initial_capacity);
+  EXPECT_EQ(20U, array4.size());
+}
+
 TEST_F(PreallocedArrayTest, NoMemLeaksPushing)
 {
   Prealloced_array<IntWrap, 1, false> array(PSI_NOT_INSTRUMENTED);

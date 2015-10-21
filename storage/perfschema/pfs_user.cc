@@ -274,7 +274,7 @@ PFS_user *sanitize_user(PFS_user *unsafe)
   return global_user_container.sanitize(unsafe);
 }
 
-void purge_user(PFS_thread *thread, PFS_user *user)
+static void purge_user(PFS_thread *thread, PFS_user *user)
 {
   LF_PINS *pins= get_user_hash_pins(thread);
   if (unlikely(pins == NULL))

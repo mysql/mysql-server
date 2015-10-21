@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -934,12 +934,12 @@ fill_max_and_min:
 
    @param[out] min_str Smallest string that ranges LIKE.
    @param[out] max_str Largest string that ranges LIKE.
-   @param[out] min_len Length of min_str
-   @param[out] max_len Length of max_str
+   @param[out] min_length Length of min_str
+   @param[out] max_length Length of max_str
 
    @return Optimization status.
    @retval FALSE if LIKE pattern can be optimized
-   @rerval TRUE if LIKE can't be optimized.
+   @retval TRUE if LIKE can't be optimized.
 */
 my_bool
 my_like_range_generic(const CHARSET_INFO *cs,

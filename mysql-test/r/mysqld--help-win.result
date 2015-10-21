@@ -213,6 +213,8 @@ The following options may be given as the first argument:
  client that does INSERT DELAYED will wait until there is
  room in the queue again. This variable is deprecated
  along with INSERT DELAYED.
+ --disabled-storage-engines=name 
+ Limit CREATE TABLE for the storage engines listed
  --disconnect-on-expired-password 
  Give clients that don't signal password expiration
  support execution time error(s) instead of connection
@@ -252,7 +254,9 @@ The following options may be given as the first argument:
  This option causes CREATE TABLE to create all TIMESTAMP
  columns as NULL with DEFAULT NULL attribute, Without this
  option, TIMESTAMP columns are NOT NULL and have implicit
- DEFAULT clauses. The old behavior is deprecated.
+ DEFAULT clauses. The old behavior is deprecated. The
+ variable can only be set by users having the SUPER
+ privilege.
  --external-locking  Use system (external) locking (disabled by default). 
  With this option enabled you can run myisamchk to test
  (not repair) tables while the MySQL server is running.
@@ -359,9 +363,6 @@ The following options may be given as the first argument:
  --lock-wait-timeout=# 
  Timeout in seconds to wait for a lock before returning an
  error.
- --log-backward-compatible-user-definitions 
- Controls logging of CREATE/ALTER/GRANT user statements in
- replication binlogs, general query logs and audit logs.
  --log-bin[=name]    Log update queries in binary format. Optional (but
  strongly recommended to avoid replication problems if
  server's hostname changes) argument should be the chosen
@@ -382,6 +383,10 @@ The following options may be given as the first argument:
  row based binary log.  If equal to 0, then the latest
  version of events are written.  This option is useful
  during some upgrades.
+ --log-builtin-as-identified-by-password 
+ Controls logging of CREATE/ALTER/GRANT and SET PASSWORD
+ user statements in replication binlogs, general query
+ logs and audit logs.
  --log-error[=name]  Error log file
  --log-error-verbosity=# 
  How detailed the error log should be. 1, log errors only.
@@ -487,6 +492,9 @@ The following options may be given as the first argument:
  --max-digest-length=# 
  Maximum length considered for digest text.
  --max-error-count=# Max number of errors/warnings to store for a statement
+ --max-execution-time=# 
+ Kill SELECT statement that takes over the specified
+ number of milliseconds
  --max-heap-table-size=# 
  Don't allow creation of heap tables bigger than this
  --max-join-size=#   Joins that are probably going to read more than
@@ -509,9 +517,6 @@ The following options may be given as the first argument:
  value are used; the rest are ignored)
  --max-sp-recursion-depth[=#] 
  Maximum stored procedure recursion depth
- --max-statement-time=# 
- Kill SELECT statement that takes over the specified
- number of milliseconds
  --max-tmp-tables=#  Maximum number of temporary tables a client can keep open
  at a time
  --max-user-connections=# 
@@ -665,11 +670,9 @@ The following options may be given as the first argument:
  --performance-schema-consumer-events-transactions-current 
  Default startup value for the events_transactions_current
  consumer.
- (Defaults to on; use --skip-performance-schema-consumer-events-transactions-current to disable.)
  --performance-schema-consumer-events-transactions-history 
  Default startup value for the events_transactions_history
  consumer.
- (Defaults to on; use --skip-performance-schema-consumer-events-transactions-history to disable.)
  --performance-schema-consumer-events-transactions-history-long 
  Default startup value for the
  events_transactions_history_long consumer.
@@ -847,6 +850,14 @@ The following options may be given as the first argument:
  --range-alloc-block-size=# 
  Allocation block size for storing ranges during
  optimization
+ --range-optimizer-max-mem-size=# 
+ Maximum amount of memory used by the range optimizer to
+ allocate predicates during range analysis. The larger the
+ number, more memory may be consumed during range
+ analysis. If the value is too low to completed range
+ optimization of a query, index range scan will not be
+ considered for this query. A value of 0 means range
+ optimizer does not have any cap on memory. 
  --read-buffer-size=# 
  Each thread that does a sequential scan allocates a
  buffer of this size for each table it scans. If you do
@@ -953,6 +964,10 @@ The following options may be given as the first argument:
  not sure, leave this option unset
  --report-user=name  The account user name of the slave to be reported to the
  master during slave registration
+ --require-secure-transport 
+ When this option is enabled, connections attempted using
+ insecure transport will be rejected.  Secure transports
+ are SSL/TLS, Unix socket or Shared Memory (on Windows).
  --rpl-stop-slave-timeout=# 
  Timeout in seconds to wait for slave to stop before
  returning a warning.
@@ -978,6 +993,15 @@ The following options may be given as the first argument:
  Track changes to the 'session state'.
  --session-track-system-variables=name 
  Track changes in registered system variables.
+ --session-track-transaction-info=name 
+ Track changes to the transaction attributes. OFF to
+ disable; STATE to track just transaction state (Is there
+ an active transaction? Does it have any data? etc.);
+ CHARACTERISTICS to track transaction state and report all
+ statements needed to start a transaction with the same
+ characteristics (isolation level, read only/read write,
+ snapshot - but not any work done / data modified within
+ the transaction).
  --sha256-password-proxy-users 
  If set to FALSE (the default), then the sha256_password
  authentication plugin will not signal for authenticated
@@ -1040,7 +1064,7 @@ The following options may be given as the first argument:
  Number of seconds to wait for more data from a
  master/slave connection before aborting the read
  --slave-parallel-type=name 
- Specifies if the slave will use database partioning or
+ Specifies if the slave will use database partitioning or
  information from master to parallelize
  transactions.(Default: DATABASE).
  --slave-parallel-workers=# 
@@ -1082,7 +1106,7 @@ The following options may be given as the first argument:
  unsigned values, and ALL_SIGNED to treat all integer
  column type data to be signed values. Default treatment
  is ALL_SIGNED. If ALL_SIGNED and ALL_UNSIGNED both are
- specifed, ALL_SIGNED will take high priority than
+ specified, ALL_SIGNED will take higher priority than
  ALL_UNSIGNED. If the variable is assigned the empty set,
  no conversions are allowed and it is expected that the
  types match exactly.
@@ -1115,6 +1139,10 @@ The following options may be given as the first argument:
  --stored-program-cache=# 
  The soft upper limit for number of cached stored routines
  for one connection.
+ --super-read-only   Make all non-temporary tables read-only, with the
+ exception for replication (slave) threads.  Users with
+ the SUPER privilege are affected, unlike read_only. 
+ Setting super_read_only to ON also sets read_only to ON.
  -s, --symbolic-links 
  Enable symbolic link support.
  --sync-binlog=#     Synchronously flush binary log to disk after every #th
@@ -1140,7 +1168,7 @@ The following options may be given as the first argument:
  The number of table cache instances
  --tc-heuristic-recover=name 
  Decision to use in heuristic recover process. Possible
- values are COMMIT or ROLLBACK.
+ values are OFF, COMMIT or ROLLBACK.
  --thread-cache-size=# 
  How many threads we should keep in a cache for reuse
  --thread-handling=name 
@@ -1166,8 +1194,9 @@ The following options may be given as the first argument:
  Default transaction access mode. True if transactions are
  read-only.
  --transaction-write-set-extraction[=name] 
- This option is used to let the server know when toextract
- the write set which will be used for various purposes. 
+ This option is used to let the server know when to
+ extract the write set which will be used for various
+ purposes. 
  --updatable-views-with-limit=name 
  YES = Don't issue an error message (warning only) if a
  VIEW without presence of a key of the underlying table is
@@ -1235,6 +1264,7 @@ delay-key-write ON
 delayed-insert-limit 100
 delayed-insert-timeout 300
 delayed-queue-size 1000
+disabled-storage-engines 
 disconnect-on-expired-password TRUE
 disconnect-slave-event-count 0
 div-precision-increment 4
@@ -1266,7 +1296,7 @@ init-slave
 initialize FALSE
 initialize-insecure FALSE
 interactive-timeout 28800
-internal-tmp-disk-storage-engine INNODB
+internal-tmp-disk-storage-engine InnoDB
 join-buffer-size 262144
 keep-files-on-create FALSE
 key-buffer-size 8388608
@@ -1279,11 +1309,11 @@ lc-messages-dir MYSQL_SHAREDIR/
 lc-time-names en_US
 local-infile TRUE
 lock-wait-timeout 31536000
-log-backward-compatible-user-definitions FALSE
 log-bin (No default value)
 log-bin-index (No default value)
 log-bin-trust-function-creators FALSE
 log-bin-use-v1-row-events FALSE
+log-builtin-as-identified-by-password FALSE
 log-error stderr
 log-error-verbosity 1
 log-isam myisam.log
@@ -1318,6 +1348,7 @@ max-connections 151
 max-delayed-threads 20
 max-digest-length 1024
 max-error-count 64
+max-execution-time 0
 max-heap-table-size 16777216
 max-join-size 18446744073709551615
 max-length-for-sort-data 1024
@@ -1327,7 +1358,6 @@ max-relay-log-size 0
 max-seeks-for-key 18446744073709551615
 max-sort-length 1024
 max-sp-recursion-depth 0
-max-statement-time 0
 max-tmp-tables 32
 max-user-connections 0
 max-write-lock-count 18446744073709551615
@@ -1373,8 +1403,8 @@ performance-schema-consumer-events-stages-history-long FALSE
 performance-schema-consumer-events-statements-current TRUE
 performance-schema-consumer-events-statements-history TRUE
 performance-schema-consumer-events-statements-history-long FALSE
-performance-schema-consumer-events-transactions-current TRUE
-performance-schema-consumer-events-transactions-history TRUE
+performance-schema-consumer-events-transactions-current FALSE
+performance-schema-consumer-events-transactions-history FALSE
 performance-schema-consumer-events-transactions-history-long FALSE
 performance-schema-consumer-events-waits-current FALSE
 performance-schema-consumer-events-waits-history FALSE
@@ -1396,7 +1426,7 @@ performance-schema-instrument
 performance-schema-max-cond-classes 80
 performance-schema-max-cond-instances -1
 performance-schema-max-digest-length 1024
-performance-schema-max-file-classes 50
+performance-schema-max-file-classes 80
 performance-schema-max-file-handles 32768
 performance-schema-max-file-instances -1
 performance-schema-max-index-stat -1
@@ -1412,7 +1442,7 @@ performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-sql-text-length 1024
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 190
+performance-schema-max-statement-classes 192
 performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
@@ -1435,6 +1465,7 @@ query-cache-type OFF
 query-cache-wlock-invalidate FALSE
 query-prealloc-size 8192
 range-alloc-block-size 4096
+range-optimizer-max-mem-size 1536000
 read-buffer-size 131072
 read-only FALSE
 read-rnd-buffer-size 262144
@@ -1450,6 +1481,7 @@ report-host (No default value)
 report-password (No default value)
 report-port 0
 report-user (No default value)
+require-secure-transport FALSE
 rpl-stop-slave-timeout 31536000
 safe-user-create FALSE
 secure-auth TRUE
@@ -1459,6 +1491,7 @@ session-track-gtids OFF
 session-track-schema TRUE
 session-track-state-change FALSE
 session-track-system-variables time_zone,autocommit,character_set_client,character_set_results,character_set_connection
+session-track-transaction-info OFF
 sha256-password-proxy-users FALSE
 shared-memory FALSE
 shared-memory-base-name MYSQL
@@ -1491,16 +1524,17 @@ slow-query-log FALSE
 slow-start-timeout 15000
 sort-buffer-size 262144
 sporadic-binlog-dump-fail FALSE
-sql-mode ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+sql-mode ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 stored-program-cache 256
+super-read-only FALSE
 symbolic-links FALSE
 sync-binlog 1
 sync-master-info 10000
 sync-relay-log 10000
 sync-relay-log-info 10000
 sysdate-is-now FALSE
-table-open-cache-instances 1
-tc-heuristic-recover COMMIT
+table-open-cache-instances 16
+tc-heuristic-recover OFF
 thread-cache-size 9
 thread-handling one-thread-per-connection
 thread-stack 262144
