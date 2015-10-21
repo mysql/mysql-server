@@ -453,7 +453,9 @@ mem_heap_block_free(
 
 	block->magic_n = MEM_FREED_BLOCK_MAGIC_N;
 
+#ifndef UNIV_LIBRARY
 	UNIV_MEM_ASSERT_W(block, len);
+#endif /* !UNIV_LIBRARY */
 
 #ifndef UNIV_LIBRARY
 	if (type == MEM_HEAP_DYNAMIC || len < UNIV_PAGE_SIZE / 2) {
