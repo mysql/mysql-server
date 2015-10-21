@@ -65,59 +65,6 @@ public:
 };
 
 
-class PT_subselect : public PT_select_lex
-{
-  typedef PT_select_lex super;
-
-  POS pos;
-  PT_select_lex *query_expression_body;
-
-public:
-  explicit PT_subselect(const POS &pos,
-                        PT_select_lex *query_expression_body_arg)
-  : pos(pos), query_expression_body(query_expression_body_arg)
-  {}
-  
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc))
-      return true;
-
-    LEX *lex= pc->thd->lex;
-    if (!lex->expr_allows_subselect ||
-       lex->sql_command == (int)SQLCOM_PURGE)
-    {
-      error(pc, pos);
-      return true;
-    }
-    /* 
-      we are making a "derived table" for the parenthesis
-      as we need to have a lex level to fit the union 
-      after the parenthesis, e.g. 
-      (SELECT .. ) UNION ...  becomes 
-      SELECT * FROM ((SELECT ...) UNION ...)
-    */
-    SELECT_LEX *child= lex->new_query(pc->select);
-    if (child == NULL)
-      return true;
-
-    Parse_context inner_pc(pc->thd, child);
-    if (query_expression_body->contextualize(&inner_pc))
-      return true;
-
-    lex->pop_context();
-    pc->select->n_child_sum_items += child->n_sum_items;
-    /*
-      A subselect can add fields to an outer select. Reserve space for
-      them.
-    */
-    pc->select->select_n_where_fields+= child->select_n_where_fields;
-    pc->select->select_n_having_items+= child->select_n_having_items;
-    value= query_expression_body->value;
-    return false;
-  }
-};
-
 
 class PT_order_expr : public Parse_tree_node, public ORDER
 {
@@ -949,6 +896,9 @@ public:
 
 class PT_query_expression_body : public Parse_tree_node
 {
+public:
+  virtual bool is_union() const = 0;
+  virtual void set_containing_qe(PT_query_expression *qe) {}
 };
 
 
@@ -1953,6 +1903,8 @@ public:
   PT_limit_clause *limit_clause() const { return opt_limit_clause; }
   PT_order *order_clause() const { return opt_order_clause; }
 
+  bool has_into_clause() const { return opt_into1 != NULL; }
+
   virtual PT_order *remove_order_clause()
   {
     PT_order *order= opt_order_clause;
@@ -1977,25 +1929,85 @@ public:
 
   PT_query_expression(PT_query_expression_body *body,
                       PT_order *order,
-                      PT_limit_clause *limit)
+                      const POS &order_pos,
+                      PT_limit_clause *limit,
+                      PT_procedure_analyse *procedure_analyse,
+                      Select_lock_type &lock_type)
     : contextualized(false),
       m_body(body),
       m_order(order),
-      m_limit(limit)
+      m_order_pos(order_pos),
+      m_limit(limit),
+      m_procedure_analyse(procedure_analyse),
+      m_lock_type(lock_type),
+      m_parentheses(false)
   {}
 
-  PT_query_expression(PT_query_expression_body *body)
-    : contextualized(false)
+  PT_query_expression(PT_query_expression *qe,
+                      PT_order *order,
+                      const POS &order_pos,
+                      PT_limit_clause *limit,
+                      PT_procedure_analyse *procedure_analyse,
+                      Select_lock_type &lock_type)
+    : contextualized(false),
+      m_body(qe->m_body),
+      m_order(order),
+      m_order_pos(order_pos),
+      m_limit(limit),
+      m_procedure_analyse(procedure_analyse),
+      m_lock_type(lock_type),
+      m_parentheses(false)
+  {}
+
+  PT_query_expression(PT_query_expression_body *body,
+                      const Select_lock_type &lock_type)
+    : contextualized(false),
+      m_body(body),
+      m_order(NULL),
+      m_limit(NULL),
+      m_procedure_analyse(NULL),
+      m_lock_type(lock_type),
+      m_parentheses(false)
   {}
 
   virtual bool contextualize(Parse_context *pc)
   {
+    pc->select->set_braces(m_parentheses || pc->select->braces);
+    m_body->set_containing_qe(this);
     if (Parse_tree_node::contextualize(pc) ||
         m_body->contextualize(pc))
       return true;
+
+    if (!contextualized)
+      if (contextualize_order_and_limit(pc))
+        return true;
+
+    if (::contextualize(m_procedure_analyse, pc))
+      return true;
+
+    if (m_procedure_analyse && pc->select->master_unit()->outer_select() != NULL)
+      my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "subquery");
+
+    if (m_lock_type.is_set)
+    {
+      pc->select->set_lock_for_tables(m_lock_type.lock_type);
+      pc->thd->lex->safe_to_cache_query= m_lock_type.is_safe_to_cache_query;
+    }
+
     return false;
   }
 
+  bool has_procedure() const { return m_procedure_analyse != NULL; }
+
+  bool has_order() const { return m_order != NULL; }
+
+  bool has_limit() const { return m_limit != NULL; }
+
+  bool is_union() const { return m_body->is_union(); }
+
+  /**
+    Callback for deeper nested query expressions.
+  */
   bool contextualize_order_and_limit(Parse_context *pc)
   {
     contextualized= true;
@@ -2008,7 +2020,9 @@ public:
     return false;
   }
 
-  virtual void remove_parentheses() {}
+  void set_parentheses() { m_parentheses= true; }
+
+  void remove_parentheses() { m_parentheses= false; }
 
   /**
     Called by the parser when it has decided that this query expression may
@@ -2030,23 +2044,98 @@ private:
   bool contextualized;
   PT_query_expression_body *m_body;
   PT_order *m_order;
+  POS m_order_pos;
   PT_limit_clause *m_limit;
+  PT_procedure_analyse *m_procedure_analyse;
+  Select_lock_type m_lock_type;
+  bool m_parentheses;
+};
+
+
+class PT_subquery : public Parse_tree_node
+{
+public:
+  PT_subquery(POS pos, PT_query_expression *query_expression)
+    : m_query_expression(query_expression), m_pos(pos),
+      m_is_derived_table(false)
+  {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (Parse_tree_node::contextualize(pc))
+      return true;
+
+    LEX *lex= pc->thd->lex;
+    if (!lex->expr_allows_subselect ||
+       lex->sql_command == (int)SQLCOM_PURGE)
+    {
+      error(pc, m_pos);
+      return true;
+    }
+
+    /*
+      We are making a "derived table" for the parenthesis
+      as we need to have a lex level to fit the union
+      after the parenthesis, e.g.
+      (SELECT .. ) UNION ...  becomes
+      SELECT * FROM ((SELECT ...) UNION ...)
+    */
+    SELECT_LEX *child= lex->new_query(pc->select);
+    if (child == NULL)
+      return true;
+
+    Parse_context inner_pc(pc->thd, child);
+
+    if (m_is_derived_table)
+      child->linkage= DERIVED_TABLE_TYPE;
+
+    if (m_query_expression->contextualize(&inner_pc))
+      return true;
+
+    m_select_lex= inner_pc.select->master_unit()->first_select();
+
+    lex->pop_context();
+    pc->select->n_child_sum_items += child->n_sum_items;
+
+    /*
+      A subselect can add fields to an outer select. Reserve space for
+      them.
+    */
+    pc->select->select_n_where_fields+= child->select_n_where_fields;
+    pc->select->select_n_having_items+= child->select_n_having_items;
+
+    return false;
+  }
+
+  void remove_parentheses() { m_query_expression->remove_parentheses(); }
+
+  bool is_union() { return m_query_expression->is_union(); }
+
+  SELECT_LEX *value() { return m_select_lex; }
+
+private:
+  PT_query_expression *m_query_expression;
+  POS m_pos;
+  SELECT_LEX *m_select_lex;
+public:
+  bool m_is_derived_table;
 };
 
 
 class PT_derived_table : public PT_table_list
 {
 public:
-  PT_derived_table(PT_query_expression *query_expression,
-                   LEX_STRING *table_alias) :
-    m_query_expression(query_expression),
+  PT_derived_table(PT_subquery *subquery, LEX_STRING *table_alias) :
+    m_subquery(subquery),
     m_table_alias(table_alias)
-  {}
+  {
+    m_subquery->m_is_derived_table= true;
+  }
 
   virtual bool contextualize(Parse_context *pc);
 
 private:
-  PT_query_expression *m_query_expression;
+  PT_subquery *m_subquery;
   LEX_STRING *m_table_alias;
 };
 
@@ -2108,6 +2197,8 @@ public:
     return false;
   }
 
+  virtual bool is_union() const { return false; }
+
 private:
   PT_query_primary *m_query_primary;
 };
@@ -2115,12 +2206,17 @@ private:
 class PT_union : public PT_query_expression_body
 {
 public:
-  PT_union(PT_query_expression_body *lhs, bool is_distinct,
+  PT_union(PT_query_expression *lhs, bool is_distinct,
            PT_query_primary *rhs) :
     m_lhs(lhs),
     m_is_distinct(is_distinct),
-    m_rhs(rhs)
+    m_rhs(rhs),
+    m_containing_qe(NULL)
   {}
+
+  virtual void set_containing_qe(PT_query_expression *qe) {
+    m_containing_qe= qe;
+  }
 
   virtual bool contextualize(Parse_context *pc)
   {
@@ -2146,6 +2242,10 @@ public:
     pc->select= unit->fake_select_lex;
     pc->select->no_table_names_allowed= true;
 
+    if (m_containing_qe != NULL &&
+        m_containing_qe->contextualize_order_and_limit(pc))
+      return true;
+
     pc->select->no_table_names_allowed= false;
     pc->select= select_lex;
 
@@ -2159,23 +2259,19 @@ public:
   virtual bool is_nested() const { return false; }
 
 private:
-  PT_query_expression_body *m_lhs;
+  PT_query_expression *m_lhs;
   bool m_is_distinct;
   PT_query_primary *m_rhs;
   PT_into_destination *m_into;
+  PT_query_expression *m_containing_qe;
 };
 
 
 class PT_nested_query_expression: public PT_query_primary
 {
 public:
-  PT_nested_query_expression(PT_query_expression_body *body,
-                             PT_order *order,
-                             PT_limit_clause *limit) :
-    m_body(body),
-    m_order_clause(order),
-    m_limit_clause(limit)
-  {}
+
+  PT_nested_query_expression(PT_query_expression *qe) : m_qe(qe) {}
 
   virtual bool contextualize(Parse_context *pc)
   {
@@ -2183,32 +2279,13 @@ public:
       return true;
 
     pc->select->set_braces(true);
+    bool result= m_qe->contextualize(pc);
 
-    return m_body->contextualize(pc) ||
-      ::contextualize(m_order_clause, pc) ||
-      ::contextualize(m_limit_clause, pc);
-  }
-
-  virtual PT_order *order_clause() { return m_order_clause; }
-  virtual PT_limit_clause *limit_clause() { return m_limit_clause; }
-  virtual PT_order *remove_order_clause()
-  {
-    PT_order *order= m_order_clause;
-    m_order_clause= NULL;
-    return order;
-  }
-
-  virtual PT_limit_clause *remove_limit_clause()
-  {
-    PT_limit_clause *limit= m_limit_clause;
-    m_limit_clause= NULL;
-    return limit;
+    return result;
   }
 
 private:
-  PT_query_expression_body *m_body;
-  PT_order *m_order_clause;
-  PT_limit_clause *m_limit_clause;
+  PT_query_expression *m_qe;
 };
 
 
@@ -2315,8 +2392,17 @@ class PT_select : public Parse_tree_node
   PT_query_expression *select_init;
 
 public:
-  explicit PT_select(PT_query_expression *select_init_arg)
-  : select_init(select_init_arg)
+  PT_select(PT_query_expression *select_init_arg)
+    : select_init(select_init_arg),
+      m_into(NULL)
+  {}
+
+  /**
+     @param into The trailing INTO destination.
+   */
+  PT_select(PT_query_expression *select_init_arg, PT_into_destination *into)
+    : select_init(select_init_arg),
+      m_into(into)
   {}
 
   virtual bool contextualize(Parse_context *pc)
@@ -2326,11 +2412,12 @@ public:
 
     pc->thd->lex->sql_command= SQLCOM_SELECT;
 
-    if (select_init->contextualize(pc))
-      return true;
-
-    return false;
+    return select_init->contextualize(pc) ||
+      ::contextualize(m_into, pc);
   }
+
+private:
+  PT_into_destination *m_into;
 };
 
 

@@ -352,7 +352,7 @@ ERROR HY000: Incorrect usage of PROCEDURE and non-SELECT
 SELECT (SELECT * FROM t1 PROCEDURE ANALYSE());
 ERROR HY000: Incorrect usage of PROCEDURE and subquery
 SELECT (SELECT * FROM t1 PROCEDURE ANALYSE()) PROCEDURE ANALYSE;
-ERROR HY000: Incorrect usage of PROCEDURE and subquery
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 SELECT * FROM (SELECT * FROM t1 PROCEDURE ANALYSE()) tt1;
 ERROR HY000: Incorrect usage of PROCEDURE and subquery
 SELECT * FROM t1 WHERE a IN (SELECT * FROM t1 PROCEDURE ANALYSE());
@@ -366,9 +366,9 @@ SELECT * INTO DUMPFILE "MYSQLTEST_VARDIR/wl6242.dumpfile" FROM t1 PROCEDURE ANAL
 ERROR HY000: Incorrect usage of PROCEDURE and INTO
 # Wrong usage: UNION:
 SELECT * FROM t1 UNION SELECT * FROM t1 PROCEDURE ANALYSE();
-ERROR HY000: Incorrect usage of PROCEDURE and subquery
+ERROR HY000: Incorrect usage of PROCEDURE and UNION
 SELECT * FROM t1 PROCEDURE ANALYSE() UNION SELECT * FROM t1;
-ERROR HY000: Incorrect usage of UNION and SELECT ... PROCEDURE ANALYSE()
+ERROR HY000: Incorrect usage of PROCEDURE and UNION
 # Wrong 1st parameter:
 SELECT * FROM t1 PROCEDURE ANALYSE((SELECT 1));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT 1))' at line 1

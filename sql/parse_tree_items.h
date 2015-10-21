@@ -90,12 +90,12 @@ class PTI_comp_op_all : public Parse_tree_item
   Item *left;
   chooser_compare_func_creator comp_op;
   bool is_all;
-  PT_subselect *subselect;
+  PT_subquery *subselect;
 
 public:
   PTI_comp_op_all(const POS &pos, Item *left_arg,
                   chooser_compare_func_creator comp_op_arg, bool is_all_arg,
-                  PT_subselect *subselect_arg)
+                  PT_subquery *subselect_arg)
   : super(pos), left(left_arg), comp_op(comp_op_arg),
     is_all(is_all_arg), subselect(subselect_arg)
   {}
@@ -727,10 +727,10 @@ class PTI_singlerow_subselect : public Parse_tree_item
 {
   typedef Parse_tree_item super;
 
-  PT_subselect *subselect;
+  PT_subquery *subselect;
 
 public:
-  PTI_singlerow_subselect(const POS &pos, PT_subselect *subselect_arg)
+  PTI_singlerow_subselect(const POS &pos, PT_subquery *subselect_arg)
   : super(pos), subselect(subselect_arg)
   {}
 
@@ -746,10 +746,10 @@ class PTI_exists_subselect : public Parse_tree_item
 {
   typedef Parse_tree_item super;
 
-  PT_subselect *subselect;
+  PT_subquery *subselect;
 
 public:
-  PTI_exists_subselect(const POS &pos, PT_subselect *subselect_arg)
+  PTI_exists_subselect(const POS &pos, PT_subquery *subselect_arg)
   : super(pos), subselect(subselect_arg)
   {}
 

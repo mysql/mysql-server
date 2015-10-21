@@ -76,8 +76,13 @@ protected:
     lex_start(thd());
     mysql_reset_thd_for_next_command(thd());
     bool err= parse_sql(thd(), &state, NULL);
-    EXPECT_FALSE(err);
+    assert_eq(0, err);
     return thd()->lex->current_select();
+  }
+
+  void assert_eq(int x, int y) const
+  {
+    ASSERT_EQ(x, y);
   }
 
   SELECT_LEX *parse(const char *query) const { return parse(query, 0); }

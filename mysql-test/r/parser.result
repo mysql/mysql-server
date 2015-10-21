@@ -758,11 +758,11 @@ SELECT 1 FROM t1
 UNION
 SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
 PROCEDURE ANALYSE() FOR UPDATE;
-ERROR HY000: Incorrect usage of PROCEDURE and subquery
+ERROR HY000: Incorrect usage of PROCEDURE and UNION
 SELECT 1 FROM DUAL PROCEDURE ANALYSE() 
 UNION
 SELECT 1 FROM t1;
-ERROR HY000: Incorrect usage of UNION and SELECT ... PROCEDURE ANALYSE()
+ERROR HY000: Incorrect usage of PROCEDURE and UNION
 (SELECT 1 FROM t1)
 UNION 
 (SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
@@ -926,7 +926,8 @@ SELECT COUNT(1) FROM DUAL GROUP BY '1' ORDER BY 1 ;
 COUNT(1)
 1
 SELECT COUNT(1)           GROUP BY '1' ORDER BY 1 ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GROUP BY '1' ORDER BY 1' at line 1
+COUNT(1)
+1
 DO(SELECT 1 c           GROUP BY 1 HAVING 1 ORDER BY COUNT(1));
 DO(SELECT 1 c FROM DUAL GROUP BY 1 HAVING 1 ORDER BY COUNT(1));
 SELECT (SELECT 1 c                   GROUP BY 1 HAVING 1 ORDER BY COUNT(1)) AS
@@ -983,7 +984,8 @@ c
 SELECT 1 c FROM DUAL GROUP BY 1 HAVING 0 ORDER BY COUNT(1);
 c
 SELECT 1 c           GROUP BY 1 HAVING 1 ORDER BY COUNT(1);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GROUP BY 1 HAVING 1 ORDER BY COUNT(1)' at line 1
+c
+1
 #
 # Bug #18106058: RECENT REGRESSION: CRASH IN JOIN::MAKE_TMP_TABLES_INFO
 #
@@ -1005,8 +1007,8 @@ f
 1
 SELECT 1 AS f                   HAVING EXISTS(SELECT 1 FROM t1) IS TRUE
 ORDER BY f;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'HAVING EXISTS(SELECT 1 FROM t1) IS TRUE
-ORDER BY f' at line 1
+f
+1
 DROP TABLE t1;
 #
 # Bug#17075846 : unquoted file names for variable values are
@@ -1231,11 +1233,6 @@ SELECT 2 FROM t1 UNION ((SELECT 3 FROM t1));
 2
 2
 3
-SELECT 1 FROM t1
-UNION
-SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
-PROCEDURE ANALYSE() FOR UPDATE;
-ERROR HY000: Incorrect usage of PROCEDURE and subquery
 (SELECT 1 FROM t1 ORDER BY 1) ORDER BY 1;
 1
 1
@@ -1300,9 +1297,9 @@ ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER c
 ORDER BY t1.b;
 ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER clause
 SELECT 1 UNION ( SELECT 1 UNION SELECT 1 );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION ( SELECT 1 UNION SELECT 1 )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 )' at line 1
 ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1' at line 1
 SELECT a FROM t1 ORDER BY a UNION SELECT a FROM t1;
 ERROR HY000: Incorrect usage of UNION and ORDER BY
 (SELECT * FROM t1 LIMIT 1) UNION SELECT * FROM t1;
@@ -1328,6 +1325,18 @@ CREATE PROCEDURE p1() BEGIN IF whatever THEN SELECT 1; END IF; END|
 CALL p1();
 ERROR 42S22: Unknown column 'whatever' in 'field list'
 DROP PROCEDURE p1;
+SELECT 1 PROCEDURE ANALYSE() UNION SELECT 1;
+ERROR HY000: Incorrect usage of PROCEDURE and UNION
+SELECT 1 UNION SELECT 1 PROCEDURE ANALYSE() ;
+ERROR HY000: Incorrect usage of PROCEDURE and UNION
+(SELECT 1 PROCEDURE ANALYSE()) UNION SELECT 1;
+ERROR HY000: Incorrect usage of UNION and SELECT ... PROCEDURE ANALYSE()
+(SELECT 1 PROCEDURE ANALYSE()) UNION (SELECT 1);
+ERROR HY000: Incorrect usage of UNION and SELECT ... PROCEDURE ANALYSE()
+SELECT 1 UNION (SELECT 1 PROCEDURE ANALYSE());
+ERROR HY000: Incorrect usage of PROCEDURE and subquery
+(SELECT 1) UNION (SELECT 1 PROCEDURE ANALYSE());
+ERROR HY000: Incorrect usage of PROCEDURE and subquery
 #
 # Part 2: Test of changed (fixed) behavior.
 #
@@ -1390,9 +1399,13 @@ INSERT INTO t3 VALUES ( 3 ), ( 3 ), ( 3 );
 1
 2
 (SELECT 1 UNION SELECT 2) ORDER BY 1;
-ERROR HY000: Incorrect usage of UNION and ORDER
+1
+1
+2
 ((SELECT 1 UNION SELECT 2)) ORDER BY 1;
-ERROR HY000: Incorrect usage of UNION and ORDER
+1
+1
+2
 ((SELECT 1) ORDER BY 1);
 1
 1
@@ -1400,11 +1413,15 @@ ERROR HY000: Incorrect usage of UNION and ORDER
 1
 1
 (SELECT 1 UNION SELECT 2) LIMIT 1;
-ERROR HY000: Incorrect usage of UNION and ORDER
+1
+1
 ((SELECT 1 UNION SELECT 2)) LIMIT 1;
-ERROR HY000: Incorrect usage of UNION and ORDER
+1
+1
 (SELECT a FROM t1) LIMIT 1 UNION ALL ((SELECT a FROM t1 ORDER BY a)) LIMIT 2;
-ERROR HY000: Incorrect usage of UNION and LIMIT
+a
+1
+1
 DROP TABLE t1, t2, t3;
 #
 # Part 3: The <table factor> syntax.
@@ -1581,11 +1598,10 @@ a	a
 SELECT * FROM  (  t1,   (t2) );
 a	a
 1	2
-# Both of these fail consistently now.
-( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 )' at line 1
-SELECT * FROM ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 ) a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 ) a' at line 1
+((SELECT 1 UNION SELECT 1) UNION SELECT 1);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1)' at line 1
+SELECT * FROM ((SELECT 1 UNION SELECT 1) UNION SELECT 1) a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1) a' at line 1
 SELECT * FROM (t1, t2) JOIN (t3, t4) ON TRUE;
 a	a	a	a
 1	2	3	3
@@ -1647,7 +1663,7 @@ a	b	c
 SELECT * FROM ((t1, ((t2, t3))));
 a	b	c
 CREATE VIEW v1 AS SELECT 1 INTO @v;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @v' at line 1
+ERROR HY000: View's SELECT contains a 'INTO' clause
 CREATE VIEW v1 AS SELECT 1 FROM ( SELECT 1 FROM t1 ) my_table;
 DROP TABLE t1, t2, t3, t4, t5;
 DROP VIEW v1;

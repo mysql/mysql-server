@@ -1011,40 +1011,26 @@ bool PT_derived_table::contextualize(Parse_context *pc)
 
   SELECT_LEX *outer_select= pc->select;
   LEX *lex= pc->thd->lex;
-/*
-  if (! lex->parsing_options.allows_derived)
-  {
-    my_error(ER_VIEW_SELECT_DERIVED, MYF(0));
-    return true;
-  }
-*/
+
   lex->derived_tables|= DERIVED_SUBQUERY;
 
   outer_select->parsing_place= CTX_DERIVED;
   if (outer_select->linkage == GLOBAL_OPTIONS_TYPE)
     return true; // TODO: error(pc, pos)?
 
-  SELECT_LEX *child= lex->new_query(pc->select);
-  if (child == NULL)
+  if (m_subquery->contextualize(pc))
     return true;
-
-  // Note that this current select is different from the one above
-  pc->select= child;
-  pc->select->linkage= DERIVED_TABLE_TYPE;
 
   outer_select->parsing_place= CTX_NONE;
 
-  lex->parsing_options.allows_select_into= false;
-  if (m_query_expression->contextualize(pc))
-    return true;
-
-  lex->parsing_options.allows_select_into= true;
   /*
     Handle case of derived table, alias may be NULL if there
     are no outer parentheses, add_table_to_list() will throw
     error in this case
   */
-  SELECT_LEX_UNIT *unit= pc->select->master_unit();
+  DBUG_ASSERT(pc->select->next_select() == NULL);
+
+  SELECT_LEX_UNIT *unit= pc->select->first_inner_unit();
   pc->select= outer_select;
   Table_ident *ti= new Table_ident(unit);
   if (ti == NULL)
@@ -1056,9 +1042,6 @@ bool PT_derived_table::contextualize(Parse_context *pc)
   if (value == NULL)
     return true;
   pc->select->add_joined_table(value);
-  pc->thd->lex->pop_context();
-
-  child->parsing_place= CTX_NONE;
 
   return false;
 }

@@ -325,6 +325,7 @@ SET(SERVER_TESTS
   handler
   initialize_password
   insert_delayed
+  into_syntax
   item
   item_filter
   item_func_now_local
@@ -347,6 +348,7 @@ SET(SERVER_TESTS
   select_lex_visitor
   sql_table
   strings_utf8
+  subquery_syntax
   table_cache
   table_factor_syntax
   tc_log_mmap

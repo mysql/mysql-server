@@ -1911,7 +1911,13 @@ UNION
 )
 ORDER BY c2 DESC, c1 ASC LIMIT 1
 ) AS res;
-ERROR HY000: Incorrect usage of UNION and ORDER
+c1	c2
+t1a	1
+t1a	2
+t1a	3
+t1b	2
+t1b	1
+t2a	3
 DROP TABLE t1, t2;
 #
 # Bug #58970 Problem Subquery (without referencing a table) 
@@ -2092,7 +2098,7 @@ UNION
 SELECT 2
 ORDER BY t1.a) AS x
 FROM t1;
-ERROR 42000: Table 't1' from one of the SELECTs cannot be used in field list
+ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER clause
 # Subquery, ORDER BY contains set function with outer reference
 SELECT (SELECT 1 AS foo
 UNION
@@ -2106,7 +2112,7 @@ UNION
 SELECT 2
 ORDER BY COUNT(t1.a)) AS x
 FROM t1;
-ERROR 42000: Table 't1' from one of the SELECTs cannot be used in field list
+ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER clause
 # Subquery, ORDER BY contains set function
 SELECT (SELECT 1 AS foo
 UNION

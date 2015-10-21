@@ -457,7 +457,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %lex-param { class THD *YYTHD }
 %pure-parser                                    /* We have threads */
 /* We should not introduce new conflicts any more. */
-%expect 137
+%expect 129
 
 /*
    Comments for TOKENS.
@@ -1146,6 +1146,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %right  NOT_SYM NOT2_SYM
 %right  BINARY COLLATE_SYM
 %left  INTERVAL_SYM
+%left SUBQUERY_AS_EXPR
+%left '(' ')'
 
 %type <lex_str>
         IDENT IDENT_QUOTED TEXT_STRING DECIMAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM
@@ -1499,7 +1501,7 @@ END_OF_INPUT
 
 %type <select_options_and_item_list> select_options_and_item_list
 
-%type <select_part2> select_part2 select_statement_single_row
+%type <select_part2> select_part2 query_specification select_statement_single_row
 
 %type <query_primary> query_primary
 
@@ -1507,11 +1509,11 @@ END_OF_INPUT
 
 %type <select_init> select_init
 
-%type <query_expression> query_expression subquery
+%type <query_expression> query_expression query_expression_parens
+
+%type <subquery> subquery row_subquery table_subquery
 
 %type <derived_table> derived_table
-
-%type <query_expression> row_subquery table_subquery
 
 %type <select> select
 
@@ -8889,12 +8891,37 @@ select:
           {
             $$= NEW_PTN PT_select($1);
           }
-        | select_statement_single_row
+        | query_expression_parens
           {
-            $$= NEW_PTN PT_select
-              (NEW_PTN PT_query_expression
-               (NEW_PTN PT_query_expression_body_primary
-                (NEW_PTN PT_query_specification($1))));
+            $1->set_parentheses();
+            $$= NEW_PTN PT_select($1);
+          }
+        | query_expression into
+          {
+            if ($1->has_procedure() && $2 != NULL)
+            {
+              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "INTO");
+              MYSQL_YYABORT;
+            }
+            $$= NEW_PTN PT_select($1, $2);
+          }
+        | select_statement_single_row
+          opt_order_clause
+          opt_limit_clause
+          opt_procedure_analyse_clause
+          opt_select_lock_type
+          {
+            if ($1->has_into_clause() && $4 != NULL)
+            {
+              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "INTO");
+              MYSQL_YYABORT;
+            }
+            PT_query_specification *qs= NEW_PTN PT_query_specification($1);
+            PT_query_expression_body *qeb=
+              NEW_PTN PT_query_expression_body_primary(qs);
+            PT_query_expression *qe=
+              NEW_PTN PT_query_expression(qeb, $2, @$, $3, $4, $5);
+            $$= NEW_PTN PT_select(qe);
           }
         ;
 
@@ -8906,56 +8933,18 @@ select_statement_single_row:
           opt_where_clause
           opt_group_clause
           opt_having_clause
-          opt_order_clause
-          opt_limit_clause
-          opt_procedure_analyse_clause
-          opt_select_lock_type
           {
-            if ($10)
-            {
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "INTO");
-              MYSQL_YYABORT;
-            }
             $$= NEW_PTN PT_select_part2($2, // select_options_and_item_list
                                         $3, // into
                                         $4, // opt_from_clause
                                         $5, // opt_where_clause
                                         $6, // opt_group_clause
                                         $7, // opt_having_clause
-                                        $8, // opt_order_clause
-                                        $9, // opt_limit_clause
-                                        $10, // opt_procedure_analyse_clause
+                                        NULL, // opt_order_clause
+                                        NULL, // opt_limit_clause
+                                        NULL, // opt_procedure_analyse_clause
                                         NULL, // second into
-                                        $11); // opt_select_lock_type
-          }
-        | SELECT_SYM
-          select_options_and_item_list
-          from_clause
-          opt_where_clause
-          opt_group_clause
-          opt_having_clause
-          opt_order_clause
-          opt_limit_clause
-          opt_procedure_analyse_clause
-          into
-          opt_select_lock_type
-          {
-            if ($9 != NULL)
-            {
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "INTO");
-              MYSQL_YYABORT;
-            }
-            $$= NEW_PTN PT_select_part2($2, // select_options_and_item_list
-                                        NULL, // first into
-                                        $3, // opt_from_clause
-                                        $4, // opt_where_clause
-                                        $5, // opt_group_clause
-                                        $6, // opt_having_clause
-                                        $7, // opt_order_clause
-                                        $8, // opt_limit_clause
-                                        $9, // opt_procedure_analyse_clause
-                                        $10, // second into
-                                        $11); // opt_select_lock_type
+                                        Select_lock_type()); // opt_select_lock_type
           }
         ;
 
@@ -8976,8 +8965,29 @@ select_init:
 
 query_expression:
           query_expression_body opt_order_clause opt_limit_clause
+          opt_procedure_analyse_clause opt_select_lock_type
           {
-            $$= NEW_PTN PT_query_expression($1, $2, $3);
+            if ($1->is_union() && $4 != NULL)
+              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
+            $$= NEW_PTN PT_query_expression($1, $2, @$, $3, $4, $5);
+          }
+        | query_expression_parens order_clause opt_limit_clause
+          opt_procedure_analyse_clause opt_select_lock_type
+          {
+            if ($1->is_union() && $4 != NULL)
+              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
+            PT_nested_query_expression *nested=
+              NEW_PTN PT_nested_query_expression($1);
+            PT_query_expression_body_primary *body=
+              NEW_PTN PT_query_expression_body_primary(nested);
+            $$= NEW_PTN PT_query_expression(body, $2, @$, $3, $4, $5);
+          }
+        | query_expression_parens limit_clause
+          opt_procedure_analyse_clause opt_select_lock_type
+          {
+            if ($1->is_union() && $3 != NULL)
+              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
+            $$= NEW_PTN PT_query_expression($1, NULL, @$, $2, $3, $4);
           }
         ;
 
@@ -8986,20 +8996,70 @@ query_expression_body:
           {
             $$= NEW_PTN PT_query_expression_body_primary($1);
           }
-        | query_expression_body UNION_SYM union_option query_primary
+        | query_expression UNION_SYM union_option query_primary
           {
-            $$= NEW_PTN PT_union(/*@$,*/ $1, $3, $4);
+            if ($1->has_procedure())
+              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
+
+            if ($1->has_order())
+              my_error(ER_WRONG_USAGE, MYF(0), "UNION", "ORDER BY");
+
+            if ($1->has_limit())
+              my_error(ER_WRONG_USAGE, MYF(0), "UNION", "LIMIT");
+
+            $$= NEW_PTN PT_union($1, $3, $4);
+          }
+        | query_expression_parens UNION_SYM union_option query_primary
+          {
+            $1->set_parentheses();
+
+            if ($1->is_union())
+              YYTHD->parse_error_at(@4, ER_THD(YYTHD, ER_SYNTAX_ERROR));
+
+            $$= NEW_PTN PT_union($1, $3, $4);
+          }
+        | query_expression UNION_SYM union_option query_expression_parens
+          {
+            if ($4->is_union())
+              YYTHD->parse_error_at(@4, ER_THD(YYTHD, ER_SYNTAX_ERROR));
+
+            PT_nested_query_expression *nested_qe=
+              NEW_PTN PT_nested_query_expression($4);
+            $$= NEW_PTN PT_union($1, $3, nested_qe);
+          }
+        | query_expression_parens UNION_SYM union_option query_expression_parens
+          {
+            if ($1->is_union())
+              YYTHD->parse_error_at(@1, ER_THD(YYTHD, ER_SYNTAX_ERROR));
+
+            if ($4->is_union())
+              YYTHD->parse_error_at(@4, ER_THD(YYTHD, ER_SYNTAX_ERROR));
+
+            $1->set_parentheses();
+            PT_nested_query_expression *nested_qe=
+              NEW_PTN PT_nested_query_expression($4);
+            $$= NEW_PTN PT_union($1, $3, nested_qe);
+          }
+        ;
+
+
+query_expression_parens:
+          '(' query_expression_parens ')' { $$= $2; }
+        | '(' query_expression ')'
+        {
+          /*
+            We don't call set_parentheses() on a query expression here, since
+            this rule is used in places where parentheses don't count for the
+            SELECT_LEX structure, for example in derived tables.
+          */
+          $$= $2;
           }
         ;
 
 query_primary:
-          SELECT_SYM select_part2
+          SELECT_SYM query_specification
           {
             $$= NEW_PTN PT_query_specification($1, $2);
-          }
-        | '(' query_expression_body opt_order_clause opt_limit_clause ')'
-          {
-            $$= NEW_PTN PT_nested_query_expression($2, $3, $4);
           }
         ;
 
@@ -9025,25 +9085,77 @@ select_part2:
             $$= NEW_PTN PT_select_part2($1, NULL, NULL, NULL, NULL, NULL,
                                         $2, $3, NULL, NULL, $4);
           }
-        | select_options_and_item_list  /* #1 */
-          from_clause                   /* #3 */
-          opt_where_clause              /* #4 */
-          opt_group_clause              /* #5 */
-          opt_having_clause             /* #6 */
-          opt_order_clause              /* #7 */
-          opt_limit_clause              /* #8 */
-          opt_procedure_analyse_clause  /* #9 */
-          opt_select_lock_type          /* #11 */
+        | select_options_and_item_list into opt_select_lock_type
           {
-            $$= NEW_PTN PT_select_part2($1, NULL, $2, $3, $4, $5, $6, $7, $8, NULL, $9);
+            $$= NEW_PTN PT_select_part2($1, $2, NULL, NULL, NULL, NULL, NULL,
+                                        NULL, NULL, NULL, $3);
+          }
+        | select_options_and_item_list  /* #1 */
+          from_clause                   /* #2 */
+          opt_where_clause              /* #3 */
+          opt_group_clause              /* #4 */
+          opt_having_clause             /* #5 */
+          opt_order_clause              /* #6 */
+          opt_limit_clause              /* #7 */
+          opt_procedure_analyse_clause  /* #8 */
+          opt_select_lock_type          /* #9 */
+          {
+            $$= NEW_PTN PT_select_part2($1, NULL, $2, $3, $4, $5, $6, $7, $8,
+                                        NULL, $9);
           }
         ;
+
+
+// todo: consolidate
+query_specification:
+          select_options_and_item_list
+          opt_where_clause              /* $3 */
+          opt_group_clause              /* $4 */
+          opt_having_clause             /* $5 */
+          {
+            $$= NEW_PTN PT_select_part2($1,   // 1 select_options_and_item_list
+                                        NULL, // 2 into
+                                        NULL, // 3 from
+                                        $2, // 4 where
+                                        $3, // 5 group
+                                        $4, // 6 having
+                                        NULL,   // 7 order
+                                        NULL,   // 8 limit
+                                        NULL, // 9 procedure
+                                        NULL, // 10 into
+                                        Select_lock_type());// 11 lock type
+          }
+        | select_options_and_item_list  /* $1 */
+          from_clause                   /* $2 */
+          opt_where_clause              /* $3 */
+          opt_group_clause              /* $4 */
+          opt_having_clause             /* $5 */
+          {
+            $$= NEW_PTN PT_select_part2($1,   // 1 select_options_and_item_list
+                                        NULL, //   into
+                                        $2,   // 2 from
+                                        $3,   // 3 where
+                                        $4,   // 4 group
+                                        $5,   // 5 having
+                                        NULL,   // 6 order
+                                        NULL,   // 7 limit
+                                        NULL, //   procedure
+                                        NULL, //   into
+                                        Select_lock_type());//   lock type
+          }
+        ;
+
+
 
 select_options_and_item_list:
           {
             /*
               TODO: remove this semantic action (currently this removal
               adds shift/reduce conflict)
+
+              The new rules, i.e. query_expression et. al are not afflicted by
+              this problem, so when select_part2 has been fully replaced, we
+              can remove it.
             */
           }
           select_options select_item_list
@@ -9266,7 +9378,7 @@ bool_pri:
           {
             $$= NEW_PTN Item_func_isnotnull(@$, $1);
           }
-        | bool_pri comp_op predicate %prec EQ
+        | bool_pri comp_op predicate
           {
             $$= NEW_PTN PTI_comp_op(@$, $1, $2, $3);
           }
@@ -9488,11 +9600,9 @@ simple_expr:
           }
         | row_subquery
           {
-            $$= NEW_PTN PTI_singlerow_subselect(@$,
-                                                NEW_PTN PT_subselect(@$, $1));
+            $$= NEW_PTN PTI_singlerow_subselect(@$, $1);
           }
-        | '(' expr ')'
-          { $$= $2; }
+        | '(' expr ')' { $$= $2; }
         | '(' expr ',' expr_list ')'
           {
             $$= NEW_PTN Item_row(@$, $2, $4->value);
@@ -10511,7 +10621,7 @@ table_factor:
             $$= NEW_PTN PT_table_factor_table_ident($1, $2, $3, $4);
           }
         | named_table_parens
-        | derived_table
+        | derived_table { $$ = $1; }
         | join_table_parens
           {
             $$= NEW_PTN PT_table_factor_joined_table($1);
@@ -14634,15 +14744,19 @@ union_option:
         | ALL       { $$=0; }
         ;
 
-subquery:
-          '(' query_expression ')' { $$= $2; }
-
 row_subquery:
           subquery
         ;
 
 table_subquery:
           subquery
+        ;
+
+subquery:
+          query_expression_parens %prec SUBQUERY_AS_EXPR
+          {
+            $$= NEW_PTN PT_subquery(@$, $1);
+          }
         ;
 
 query_spec_option:

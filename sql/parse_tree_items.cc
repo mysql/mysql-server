@@ -128,7 +128,7 @@ bool PTI_comp_op_all::itemize(Parse_context *pc, Item **res)
       left->itemize(pc, &left) || subselect->contextualize(pc))
     return true;
 
-  *res= all_any_subquery_creator(left, comp_op, is_all, subselect->value);
+  *res= all_any_subquery_creator(left, comp_op, is_all, subselect->value());
   return false;
 }
 
@@ -291,7 +291,7 @@ bool PTI_singlerow_subselect::itemize(Parse_context *pc, Item **res)
 {
   if (super::itemize(pc, res) || subselect->contextualize(pc))
     return true;
-  *res= new (pc->mem_root) Item_singlerow_subselect(subselect->value);
+  *res= new (pc->mem_root) Item_singlerow_subselect(subselect->value());
   return *res == NULL;
 }
 
@@ -300,7 +300,7 @@ bool PTI_exists_subselect::itemize(Parse_context *pc, Item **res)
 {
   if (super::itemize(pc, res) || subselect->contextualize(pc))
     return true;
-  *res= new (pc->mem_root) Item_exists_subselect(subselect->value);
+  *res= new (pc->mem_root) Item_exists_subselect(subselect->value());
   return *res == NULL;
 }
 

@@ -130,6 +130,7 @@ create event event3 on schedule every 50 + 10 minute starts date_add("20100101",
 let $wait_condition=SELECT count(*)=0 from t_event3;
 --source include/wait_condition.inc
 select count(*) from t_event3;
+--error ER_EVENT_DOES_NOT_EXIST
 drop event event3;
 drop table t_event3;
 

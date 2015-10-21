@@ -101,4 +101,16 @@ private:
 
 }  // namespace my_testing
 
+
+/*
+  Some compilers want to know the type of the NULL when expanding gunit's
+  EXPECT_EQ macros.
+*/
+template <typename T>
+void expect_null(T *t)
+{
+  T *t_null= NULL;
+  EXPECT_EQ(t_null, t);
+}
+
 #endif  // TEST_UTILS_INCLUDED

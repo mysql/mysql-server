@@ -1711,17 +1711,17 @@ DROP TABLE t1;
 SET GLOBAL query_cache_size= default;
 CREATE TABLE t1( a INT );
 SET @v = ( SELECT SQL_CACHE    1 );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '1 )' at line 1
+ERROR 42000: Incorrect usage/placement of 'SQL_CACHE'
 SET @v = ( SELECT SQL_NO_CACHE 1 );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '1 )' at line 1
+ERROR 42000: Incorrect usage/placement of 'SQL_NO_CACHE'
 SELECT a FROM t1 WHERE a IN ( SELECT SQL_CACHE    a FROM t1 );
-ERROR 42S22: Unknown column 'SQL_CACHE' in 'field list'
+ERROR 42000: Incorrect usage/placement of 'SQL_CACHE'
 SELECT a FROM t1 WHERE a IN ( SELECT SQL_NO_CACHE a FROM t1 );
-ERROR 42S22: Unknown column 'SQL_NO_CACHE' in 'field list'
+ERROR 42000: Incorrect usage/placement of 'SQL_NO_CACHE'
 SELECT ( SELECT SQL_CACHE a FROM t1 );
-ERROR 42S22: Unknown column 'SQL_CACHE' in 'field list'
+ERROR 42000: Incorrect usage/placement of 'SQL_CACHE'
 SELECT ( SELECT SQL_NO_CACHE a FROM t1 );
-ERROR 42S22: Unknown column 'SQL_NO_CACHE' in 'field list'
+ERROR 42000: Incorrect usage/placement of 'SQL_NO_CACHE'
 SELECT SQL_CACHE * FROM t1;
 a
 SELECT SQL_NO_CACHE * FROM t1;
@@ -1731,16 +1731,16 @@ ERROR 42000: Incorrect usage/placement of 'SQL_CACHE'
 SELECT * FROM t1 UNION SELECT SQL_NO_CACHE * FROM t1;
 ERROR 42000: Incorrect usage/placement of 'SQL_NO_CACHE'
 SELECT * FROM t1 WHERE a IN (SELECT SQL_CACHE a FROM t1);
-ERROR 42S22: Unknown column 'SQL_CACHE' in 'field list'
+ERROR 42000: Incorrect usage/placement of 'SQL_CACHE'
 SELECT * FROM t1 WHERE a IN (SELECT a FROM t1 UNION SELECT SQL_CACHE a FROM t1);
-ERROR 42S22: Unknown column 'SQL_CACHE' in 'field list'
+ERROR 42000: Incorrect usage/placement of 'SQL_CACHE'
 SELECT * FROM t1 UNION SELECT SQL_NO_CACHE * FROM t1;
 ERROR 42000: Incorrect usage/placement of 'SQL_NO_CACHE'
 SELECT * FROM t1 WHERE a IN (SELECT SQL_NO_CACHE a FROM t1);
-ERROR 42S22: Unknown column 'SQL_NO_CACHE' in 'field list'
+ERROR 42000: Incorrect usage/placement of 'SQL_NO_CACHE'
 SELECT * FROM t1 WHERE a IN 
 (SELECT a FROM t1 UNION SELECT SQL_NO_CACHE a FROM t1);
-ERROR 42S22: Unknown column 'SQL_NO_CACHE' in 'field list'
+ERROR 42000: Incorrect usage/placement of 'SQL_NO_CACHE'
 SELECT SQL_CACHE SQL_NO_CACHE * FROM t1;
 ERROR HY000: Incorrect usage of SQL_CACHE and SQL_NO_CACHE
 SELECT SQL_NO_CACHE SQL_CACHE * FROM t1;
@@ -1755,10 +1755,10 @@ SELECT SQL_NO_CACHE * FROM t1 UNION SELECT SQL_NO_CACHE * FROM t1;
 ERROR 42000: Incorrect usage/placement of 'SQL_NO_CACHE'
 SELECT SQL_CACHE * FROM t1 WHERE a IN 
 (SELECT SQL_NO_CACHE a FROM t1);
-ERROR 42S22: Unknown column 'SQL_NO_CACHE' in 'field list'
+ERROR 42000: Incorrect usage/placement of 'SQL_NO_CACHE'
 SELECT SQL_CACHE * FROM t1 WHERE a IN 
 (SELECT a FROM t1 UNION SELECT SQL_NO_CACHE a FROM t1);
-ERROR 42S22: Unknown column 'SQL_NO_CACHE' in 'field list'
+ERROR 42000: Incorrect usage/placement of 'SQL_NO_CACHE'
 DROP TABLE t1;
 End of 5.1 tests
 #

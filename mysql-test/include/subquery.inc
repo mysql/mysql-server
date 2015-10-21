@@ -2421,13 +2421,9 @@ SELECT sql_no_cache * FROM t1 WHERE NOT EXISTS
    (SELECT i FROM t1)
   );
 
-#TODO:not supported
---error ER_PARSE_ERROR
 SELECT * FROM t1
 WHERE NOT EXISTS (((SELECT i FROM t1) UNION (SELECT i FROM t1)));
 
-#TODO:not supported
---error ER_PARSE_ERROR
 explain select ((select t11.i from t1 t11) union (select t12.i from t1 t12))
   from t1;
 

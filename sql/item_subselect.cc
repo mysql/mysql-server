@@ -29,7 +29,7 @@
 #include "item_sum.h"            // Item_sum_max
 #include "mysqld.h"              // in_left_expr_name
 #include "opt_trace.h"           // OPT_TRACE_TRANSFORM
-#include "parse_tree_nodes.h"    // PT_subselect
+#include "parse_tree_nodes.h"    // PT_subquery
 #include "sql_class.h"           // THD
 #include "sql_join_buffer.h"     // JOIN_CACHE
 #include "sql_lex.h"             // st_select_lex
@@ -1402,7 +1402,7 @@ Item_in_subselect::Item_in_subselect(Item * left_exp,
 
 
 Item_in_subselect::Item_in_subselect(const POS &pos, Item * left_exp,
-				     PT_subselect *pt_subselect_arg)
+				     PT_subquery *pt_subselect_arg)
 : super(pos), left_expr(left_exp), left_expr_cache(NULL),
   left_expr_cache_filled(false), need_expr_cache(TRUE), expr(NULL),
   optimizer(NULL), was_null(FALSE), abort_on_null(FALSE),
@@ -1424,7 +1424,7 @@ bool Item_in_subselect::itemize(Parse_context *pc, Item **res)
   if (super::itemize(pc, res) || left_expr->itemize(pc, &left_expr) ||
       pt_subselect->contextualize(pc))
     return true;
-  SELECT_LEX *select_lex= pt_subselect->value;
+  SELECT_LEX *select_lex= pt_subselect->value();
   init(select_lex, new Query_result_exists_subquery(pc->thd, this));
   if (test_limit())
     return true;

@@ -30,7 +30,7 @@ class subselect_hash_sj_engine;
 class Item_bool_func2;
 class Cached_item;
 class Comp_creator;
-class PT_subselect;
+class PT_subquery;
 class PT_query_expression;
 class Item_in_optimizer;
 class Item_func_not_all;
@@ -444,7 +444,7 @@ public:
   TABLE_LIST *expr_join_nest;
 
 private:
-  PT_subselect *pt_subselect;
+  PT_subquery *pt_subselect;
 
 public:
   bool in2exists_added_to_where() const
@@ -467,7 +467,7 @@ public:
 
   explicit
   Item_in_subselect(Item * left_expr, SELECT_LEX *select_lex);
-  Item_in_subselect(const POS &pos, Item * left_expr, PT_subselect *pt_subselect_arg);
+  Item_in_subselect(const POS &pos, Item * left_expr, PT_subquery *pt_subselect_arg);
   Item_in_subselect(const POS &pos, Item *left_expr,
                     PT_query_expression *qe)
   {}

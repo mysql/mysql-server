@@ -29,17 +29,6 @@ namespace union_syntax_unittest {
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
 
-/*
-  Some compilers want to know the type of the NULL when expanding gunit's
-  EXPECT_EQ macros.
-*/
-template <typename T>
-void expect_null(T *t)
-{
-  T *t_null= NULL;
-  EXPECT_EQ(t_null, t);
-}
-
 
 class UnionSyntaxTest : public ParserTest
 {
@@ -257,9 +246,13 @@ const char *get_order_by_column_name(SELECT_LEX *query_block, int index = 0)
 }
 
 
-const char *get_order_by_column_name(SELECT_LEX_UNIT *query_expression, int index = 0)
+const char *get_order_by_column_name(SELECT_LEX_UNIT *query_expression,
+                                     int index = 0)
 {
-  return get_order_by_column_name(query_expression->fake_select_lex, index);
+  SELECT_LEX *fake= query_expression->fake_select_lex;
+  // Why can't I use ASSERT_FALSE here?!
+  EXPECT_FALSE(fake == NULL);
+  return get_order_by_column_name(fake, index);
 }
 
 

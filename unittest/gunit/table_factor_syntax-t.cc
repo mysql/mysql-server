@@ -16,27 +16,18 @@
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 #include <gtest/gtest.h>
+#include "template_utils.h"
 #include "parsertest.h"
 #include "test_utils.h"
 #include "thr_lock.h"
 #include "sql_lex.h"
+#include "item_func.h"
 #include <string>
 
 namespace table_factor_syntax_unittest {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
-
-/*
-  Some compilers want to know the type of the NULL when expanding gunit's
-  EXPECT_EQ macros.
-*/
-template <typename T>
-void expect_null(T *t)
-{
-  T *t_null= NULL;
-  EXPECT_EQ(t_null, t);
-}
 
 
 class TableFactorSyntaxTest : public ParserTest
@@ -108,6 +99,30 @@ TEST_F(TableFactorSyntaxTest, Single)
 }
 
 
+TEST_F(TableFactorSyntaxTest, TablelessTableSubquery)
+{
+  SELECT_LEX *term=
+    parse("SELECT 1 FROM (SELECT 2) a;", 0);
+  expect_null<SELECT_LEX>(term->outer_select());
+  SELECT_LEX_UNIT *top_union= term->master_unit();
+
+  EXPECT_EQ(term, top_union->first_select());
+  expect_null(term->next_select());
+
+  ASSERT_EQ(1, term->top_join_list.elements);
+  EXPECT_STREQ("a", term->top_join_list.head()->alias);
+
+  SELECT_LEX_UNIT *inner_union= term->first_inner_unit();
+
+  SELECT_LEX *inner_term= inner_union->first_select();
+
+  expect_null(inner_term->first_inner_unit());
+
+  EXPECT_NE(term, term->table_list.first->derived_unit()->first_select()) <<
+    "No cycle in the AST, please.";
+}
+
+
 TEST_F(TableFactorSyntaxTest, Union)
 {
   SELECT_LEX *block=
@@ -121,10 +136,9 @@ TEST_F(TableFactorSyntaxTest, Union)
   TABLE_LIST *dt= block->table_list.first;
   EXPECT_EQ(dt, block->context.first_name_resolution_table);
 
-  ASSERT_EQ(Item::FUNC_ITEM, block->where_cond()->type());
-  Item_func *equals= static_cast<Item_func*>(block->where_cond());
-  ASSERT_EQ(Item::FIELD_ITEM, equals->arguments()[0]->type());
-  Item_field *d1a= static_cast<Item_field*>(equals->arguments()[0]);
+  Item_func *top_where_cond= down_cast<Item_func*>(block->where_cond());
+  Item_field *d1a= down_cast<Item_field*>(top_where_cond->arguments()[0]);
+  ASSERT_FALSE(d1a->context == NULL);
   EXPECT_EQ(dt, d1a->context->first_name_resolution_table);
 
   EXPECT_EQ(1, block->top_join_list.elements);
