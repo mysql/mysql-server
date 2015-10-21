@@ -72,5 +72,27 @@ EOF
 
 --exec $MYSQLADMIN -uroot --password="" -S $MASTER_MYSOCK -P $MASTER_MYPORT ping 2>&1
 
---echo
+
+--echo #
+--echo # Bug#21796658: OLD-PASSWORD SUBCOMMAND IS STILL IN MYSQLADMIN --HELP IN 5.7
+--echo #
+
+--let $admin_outfile=$MYSQLTEST_VARDIR/tmp/bug21796658.output
+
+--echo # execute mysqladmin --help
+# Returns 1 on normal execution
+--error 1
+--exec $MYSQLADMIN --help 2>&1 > $admin_outfile
+
+--echo # check the output of mysqladmin for old-password
+--let $assert_text= check the output of mysqladmin for old-password
+--let $assert_file= $admin_outfile
+--let $assert_select=old-password
+--let $assert_count=0
+--source include/assert_grep.inc
+
+--echo # cleanup
+--remove_file $admin_outfile
+
+
 --echo End of tests
