@@ -11373,7 +11373,9 @@ create_table_info_t::create_table()
 				"Create table '%s' with foreign key constraint"
 				" failed. Cannot add foreign key constraint"
 				" placed on the base column of indexed"
-				" virtual column.\n", m_table_name);
+				" virtual column, or constraint placed"
+				" on columns being part of virtual index.\n",
+				m_table_name);
 			break;
 		default:
 			break;
