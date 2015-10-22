@@ -19,10 +19,6 @@ cmd: testScan
 args: -n ScanKeyInfoExhaust T1
 max-time: 180
 
-cmd: testBasic
-args: -n RefreshTuple T6 D1
-max-time: 180
-
 cmd: testFK
 args: -n CreateDropWithData T1
 max-time: 180
