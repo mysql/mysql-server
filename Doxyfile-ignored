@@ -1,0 +1,151 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+#===========================================================================
+
+#===========================================================================
+# MAINTAINER:
+# File a bug for each doxygen failure seen during the build:
+# - PRODUCT = MySQL Server (8478)
+# - COMPONENT = SRDOXYGEN (temporary: SRCOMP)
+# - make sure the title contains DOXYGEN
+# and update this file with exceptions using the templates below
+#===========================================================================
+
+#===========================================================================
+# << template to remove an entire directory >>
+# BUG#XXXXXXXX - TITLE
+# DATE / BUG REPORT AUTHOR
+# storage/innobase/*
+#===========================================================================
+
+#===========================================================================
+# << template to remove some files >>
+# BUG#XXXXXXXX - TITLE
+# DATE / BUG REPORT AUTHOR
+# include/m_ctype.h:*
+#===========================================================================
+
+# BUG#21501098 - DOXYGEN ERRORS IN INNODB
+# 24-JUL-2015 Marc ALFF
+storage/innobase/*
+
+# BUG#22007679 - DOXYGEN ERRORS IN SERVER CHARSETS
+# 13-OCT-2015 Marc ALFF
+include/m_ctype.h:*
+strings/*
+
+# BUG#22007730 - DOXYGEN ERRORS IN SERVER LOGGING
+# 13-OCT-2015 Marc ALFF
+include/my_sys.h:*
+mysys/my_syslog.cc:*
+
+# BUG#22007765 - DOXYGEN ERRORS IN PARTITION
+# 13-OCT-2015 Marc ALFF
+storage/partition/ha_partition.h:*
+storage/partition/ha_partition.cc:*
+
+# Bug#22016108 - DOXYGEN ERRORS IN TRIGGERS 
+# 14-OCT-2015 Marc ALFF
+sql/trigger_loader.cc:*
+sql/trigger_loader.h:*
+sql/sql_trigger.cc:*
+sql/sql_trigger.h:*
+
+# Bug#22016152 - DOXYGEN ERRORS IN AUTH CODE 
+# 14-OCT-2015 Marc ALFF
+sql/auth/*
+
+# Bug#22078873 - DOXYGEN ERRORS IN REPLICATION CODE
+# 21-OCT-2015 Marc ALFF
+libbinlogevents/include/control_events.h:*
+sql/binlog.h:*
+sql/log_event.h:*
+sql/rpl_channel_service_interface.cc:*
+sql/rpl_channel_service_interface.h:*
+sql/rpl_gtid.h:*
+sql/rpl_gtid_persist.h:*
+sql/rpl_info_factory.h:*
+sql/rpl_info_file.cc:*
+sql/rpl_info_file.h:*
+sql/rpl_master.cc:*
+sql/rpl_master.h:*
+sql/rpl_mi.h:*
+sql/rpl_mts_submode.h:*
+sql/rpl_record.cc:*
+sql/rpl_record.h:*
+sql/rpl_rli.h:*
+sql/rpl_rli_pdb.cc:*
+sql/rpl_rli_pdb.h:*
+sql/rpl_slave.cc:*
+sql/rpl_utility.h:*
+
+# Bug#22078967 - DOXYGEN ERRORS IN OPTIMIZER CODE 
+# 21-OCT-2015 Marc ALFF
+sql/opt_explain_format.h:*
+sql/opt_explain_json.h:*
+sql/opt_explain_traditional.h:*
+sql/opt_trace.h:*
+sql/sql_optimizer.cc:*
+sql/sql_resolver.cc:*
+
+# Bug#22079158 - DOXYGEN ERRORS IN SQL_SHOW CODE 
+# 21-OCT-2015 Marc ALFF
+sql/sql_show.cc:*
+sql/sql_show.h:*
+
+
+# Bug#22083791 - DOXYGEN ERRORS IN RUNTIME CODE 
+# 22-OCT-2015 Marc ALFF
+sql/field.h:*
+sql/handler.cc:*
+sql/handler.h:*
+sql/inplace_vector.h:*
+sql/item.cc:*
+sql/item_cmpfunc.h:*
+sql/item_func.cc:*
+sql/item_func.h:*
+sql/item_geofunc.h:*
+sql/item_geofunc_internal.h:*
+sql/item.h:*
+sql/item_json_func.h:*
+sql/item_sum.h:*
+sql/item_timefunc.cc:*
+sql/item_timefunc.h:*
+sql/json_dom.h:*
+sql/lock.cc:*
+sql/log.h:*
+sql/nt_servc.h:*
+sql/protocol_callback.h:*
+sql/protocol.h:*
+sql/set_var.h:*
+sql/spatial.cc:*
+sql/spatial.h:*
+sql/sp_rcontext.h:*
+sql/sql_audit.cc:*
+sql/sql_base.cc:*
+sql/sql_cache.h:*
+sql/sql_data_change.h:*
+sql/sql_insert.cc:*
+sql/sql_insert.h:*
+sql/sql_lex.h:*
+sql/sql_parse.cc:*
+sql/sql_parse.h:*
+sql/sql_table.cc:*
+sql/sql_union.h:*
+sql/sql_update.cc:*
+sql/sql_update.h:*
+sql/srv_session.cc:*
+sql/srv_session.h:*
+

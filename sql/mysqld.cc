@@ -30,8 +30,6 @@
 
   @section OPT Optimizer
 
-  See @ref PAGE_OPT_AGGREGATE_CHECKS
-
   See @ref PAGE_OPT_TRACE
 
   @section PFS Performance Schema

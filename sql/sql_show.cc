@@ -2079,6 +2079,7 @@ view_store_options(THD *thd, TABLE_LIST *table, String *buff)
 /**
   Append ALGORITHM clause to the given buffer.
   
+  @param table              VIEW definition
   @param [in,out] buff      buffer to hold ALGORITHM clause
 */
 

@@ -3913,6 +3913,7 @@ static Sys_var_ulong Sys_sort_buffer(
   is set then warning is reported.
 
   @param sql_mode sql mode.
+  @param thd      Current thread
 */
 static void check_sub_modes_of_strict_mode(sql_mode_t &sql_mode, THD *thd)
 {
@@ -4567,6 +4568,7 @@ static Sys_var_bit Sys_log_off(
   This function sets the session variable thd->variables.sql_log_bin 
   to reflect changes to @@session.sql_log_bin.
 
+  @param     thd    Current thread
   @param[in] self   A pointer to the sys_var, i.e. Sys_log_binlog.
   @param[in] type   The type either session or global.
 
@@ -4592,6 +4594,7 @@ static bool fix_sql_log_bin_after_update(sys_var *self, THD *thd,
     - the set is not called from within a function/trigger;
     - there is no on-going transaction.
 
+  @param     thd    Current thread
   @param[in] self   A pointer to the sys_var, i.e. Sys_log_binlog.
   @param[in] var    A pointer to the set_var created by the parser.
 

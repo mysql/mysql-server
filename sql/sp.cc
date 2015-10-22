@@ -475,6 +475,7 @@ static TABLE *open_proc_table_for_update(THD *thd)
   Return appropriate error about recursion limit reaching
 
   @param thd  Thread handle
+  @param sp   The stored procedure executed
 
   @remark For functions and triggers we return error about
           prohibited recursion. For stored procedures we
@@ -2749,6 +2750,7 @@ error:
   Return a string representation of the Item value.
 
   @param thd  Thread context.
+  @param item The item to evaluate
   @param str  String buffer for representation of the value.
 
   @note

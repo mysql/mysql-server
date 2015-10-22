@@ -473,7 +473,19 @@ public:
   };
 
   /**
-    Class specific parameters:
+    Enumerated type system variable.
+
+    @param name_arg See sys_var::sys_var()
+
+    @param comment See sys_var::sys_var()
+
+    @param flag_args See sys_var::sys_var()
+
+    @param off See sys_var::sys_var()
+
+    @param size See sys_var::sys_var()
+
+    @param getopt See sys_var::sys_var()
 
     @param aliases_arg Array of ALIASes, indicating which textual
     values map to which number.  Should be terminated with an ALIAS
@@ -492,6 +504,18 @@ public:
     @param command_line_no_value_arg The default value if a command line
     option is given without a value ('--command-line-option' without
     '=VALUE').  This must be less than value_count_arg.
+
+    @param lock See sys_var::sys_var()
+
+    @param binlog_status_arg See sys_var::sys_var()
+
+    @param on_check_func See sys_var::sys_var()
+
+    @param on_update_func See sys_var::sys_var()
+
+    @param substitute See sys_var::sys_var()
+
+    @param parse_flag See sys_var::sys_var()
   */
   Sys_var_multi_enum(const char *name_arg,
           const char *comment, int flag_args, ptrdiff_t off, size_t size,
