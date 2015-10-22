@@ -9,10 +9,12 @@ select inet_ntoa(inet_aton("255.255.255.255.255.255.255.255"));
 inet_ntoa(inet_aton("255.255.255.255.255.255.255.255"))
 NULL
 Warnings:
-Warning	1411	Incorrect integer value: '18446744073709551615' for function inet_ntoa
+Warning	1411	Incorrect string value: '255.255.255.255.255.255.255.255' for function inet_aton
 select inet_aton("255.255.255.255.255"),inet_aton("255.255.1.255"),inet_aton("0.1.255");
 inet_aton("255.255.255.255.255")	inet_aton("255.255.1.255")	inet_aton("0.1.255")
-1099511627775	4294902271	65791
+NULL	4294902271	65791
+Warnings:
+Warning	1411	Incorrect string value: '255.255.255.255.255' for function inet_aton
 select inet_ntoa(1099511627775),inet_ntoa(4294902271),inet_ntoa(511);
 inet_ntoa(1099511627775)	inet_ntoa(4294902271)	inet_ntoa(511)
 NULL	255.255.1.255	0.0.1.255
@@ -947,7 +949,9 @@ Warnings:
 Warning	1411	Incorrect string value: '1.0002.3.4' for function inet6_aton
 SELECT HEX(INET_ATON('1.2.3.4.5'));
 HEX(INET_ATON('1.2.3.4.5'))
-102030405
+NULL
+Warnings:
+Warning	1411	Incorrect string value: '1.2.3.4.5' for function inet_aton
 SELECT HEX(INET6_ATON('1.2.3.4.5'));
 HEX(INET6_ATON('1.2.3.4.5'))
 NULL
@@ -1142,6 +1146,19 @@ SELECT INET6_NTOA(ip), HEX(ip), LENGTH(ip) FROM t2;
 INET6_NTOA(ip)	HEX(ip)	LENGTH(ip)
 DROP TABLE t1;
 DROP TABLE t2;
+#
+# Bug#22071558 INET_ATON ACCEPTS MORE THAN FOUR GROUPS OF DIGITS AND RETURNS INT BIGGER THAN 4G
+#
+select inet_aton("0.255.255.255.255");
+inet_aton("0.255.255.255.255")
+NULL
+Warnings:
+Warning	1411	Incorrect string value: '0.255.255.255.255' for function inet_aton
+select inet_aton("255.255.255.2551");
+inet_aton("255.255.255.2551")
+NULL
+Warnings:
+Warning	1411	Incorrect string value: '255.255.255.2551' for function inet_aton
 
 # -- Done.
 

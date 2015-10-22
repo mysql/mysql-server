@@ -86,6 +86,8 @@ longlong Item_func_inet_aton::val_int()
     case 1: result<<= 8; /* Fall through */
     case 2: result<<= 8; /* Fall through */
     }
+    if (dot_count > 3) // Too many groups
+      goto err;
     null_value= false;
     return (result << 8) + (ulonglong) byte_result;
   }
