@@ -1871,6 +1871,17 @@ public:
                 the st_select_lex that contained the clause that was removed.
   */
   virtual bool clean_up_after_removal(uchar *arg) { return false; }
+
+  /**
+    Propagate components that use referenced columns from derived tables.
+    Some columns from derived tables may be determined to be unused, but
+    may actually reference other columns that are used. This function will
+    return true for such columns when called with Item::walk(), which then
+    means that this column can also be marked as used.
+    @see also SELECT_LEX::delete_unused_merged_columns().
+  */
+  virtual bool propagate_derived_used(uchar *arg) { return is_derived_used(); }
+
   /// @see Distinct_check::check_query()
   virtual bool aggregate_check_distinct(uchar *arg)
   { return false; }
