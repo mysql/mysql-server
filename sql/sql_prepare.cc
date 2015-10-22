@@ -3746,7 +3746,6 @@ Prepared_statement::swap_prepared_statement(Prepared_statement *copy)
   /* Ditto */
   swap_variables(LEX_CSTRING, m_db, copy->m_db);
 
-  DBUG_ASSERT(m_db.length == copy->m_db.length);
   DBUG_ASSERT(param_count == copy->param_count);
   DBUG_ASSERT(thd == copy->thd);
   last_error[0]= '\0';
