@@ -3065,14 +3065,11 @@ connection ddl;
 create index i2_1 on t2(d, a, b, e);
 
 connection spj;
+
 # Should give pruned scan. The index prefix containing the distribution key
 # has a single possible value.
-explain select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
-
-
 select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
 
-connection spj;
 --disable_query_log
 let $new_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
 --eval select $new_pruned_scan_count - $old_pruned_scan_count as pruned_scan_count
@@ -3083,16 +3080,13 @@ connection ddl;
 drop index i2_1 on t2;
 create index i2_3 on t2(a, d, b, e);
 
+connection spj;
+
 # Should give pruned scan. The index prefix containing the distribution key
 # has a single possible value.
 
-connection spj;
-
 # Turn off condition_fanout_filter to keep "old" QEP
 set optimizer_switch='condition_fanout_filter=off';
-
-explain select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
-
 select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
 
 # Restore condition_fanout_filter to default value
@@ -4002,8 +3996,6 @@ create table t1 (
 
 connection spj;
 insert into t1  values ('aaa', 1, 'aaa', 1);
-explain
-select * from t1 as q1, t1 as q2 where q1.a = 'aaa' and q1.c=q2.a;
 select * from t1 as q1, t1 as q2 where q1.a = 'aaa' and q1.c=q2.a;
 
 connection ddl;

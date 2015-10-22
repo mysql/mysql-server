@@ -5099,13 +5099,6 @@ insert into t2(a,b,c,d,e,f) values (5, 6, 7, 1, 2, 3);
 insert into t2(a,b,c,d,e,f) values (6, 7, 8, 1, 2, 3);
 insert into t2(a,b,c,d,e,f) values (7, 8, 9, 1, 2, 3);
 create index i2_1 on t2(d, a, b, e);
-explain select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	p2	ref	PRIMARY,i2_1	i2_1	12	const,const,const	3	100.00	NULL
-1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	12	const,test.x.e,const	1	100.00	Using join buffer (Batched Key Access)
-Warnings:
-Note	1003	Cannot push table 'y' as child of table 'x'. Doing so would prevent using join buffer for table 'y'.
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t2` `x` join `test`.`t2` `y` where ((`test`.`y`.`c` = 3) and (`test`.`y`.`b` = `test`.`x`.`e`) and (`test`.`x`.`b` = 2) and (`test`.`x`.`a` = 1) and (`test`.`x`.`d` = 1) and (`test`.`y`.`a` = 1))
 select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
 count(*)
 2
@@ -5114,13 +5107,6 @@ pruned_scan_count
 drop index i2_1 on t2;
 create index i2_3 on t2(a, d, b, e);
 set optimizer_switch='condition_fanout_filter=off';
-explain select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	p2	ref	PRIMARY,i2_3	i2_3	12	const,const,const	3	100.00	NULL
-1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY,i2_3	PRIMARY	12	const,test.x.e,const	1	100.00	Using join buffer (Batched Key Access)
-Warnings:
-Note	1003	Cannot push table 'y' as child of table 'x'. Doing so would prevent using join buffer for table 'y'.
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t2` `x` join `test`.`t2` `y` where ((`test`.`y`.`c` = 3) and (`test`.`y`.`b` = `test`.`x`.`e`) and (`test`.`x`.`b` = 2) and (`test`.`x`.`a` = 1) and (`test`.`x`.`d` = 1) and (`test`.`y`.`a` = 1))
 select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
 count(*)
 2
@@ -6275,14 +6261,6 @@ d int not null,
 primary key (a,b)
 ) engine ndb partition by key (a);
 insert into t1  values ('aaa', 1, 'aaa', 1);
-explain
-select * from t1 as q1, t1 as q2 where q1.a = 'aaa' and q1.c=q2.a;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	q1	p3	ref	PRIMARY	PRIMARY	18	const	2	100.00	NULL
-1	SIMPLE	q2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	18	test.q1.c	1	100.00	Using join buffer (Batched Key Access)
-Warnings:
-Note	1003	Cannot push table 'q2' as child of table 'q1'. Doing so would prevent using join buffer for table 'q2'.
-Note	1003	/* select#1 */ select `test`.`q1`.`a` AS `a`,`test`.`q1`.`b` AS `b`,`test`.`q1`.`c` AS `c`,`test`.`q1`.`d` AS `d`,`test`.`q2`.`a` AS `a`,`test`.`q2`.`b` AS `b`,`test`.`q2`.`c` AS `c`,`test`.`q2`.`d` AS `d` from `test`.`t1` `q1` join `test`.`t1` `q2` where ((`test`.`q2`.`a` = `test`.`q1`.`c`) and (`test`.`q1`.`a` = 'aaa'))
 select * from t1 as q1, t1 as q2 where q1.a = 'aaa' and q1.c=q2.a;
 a	b	c	d	a	b	c	d
 aaa	1	aaa	1	aaa	1	aaa	1
