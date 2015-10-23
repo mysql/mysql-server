@@ -476,7 +476,7 @@ test_config_values_index_iter(void)
                   "[mysqld]", NULL);
   CHECK(c);
 
-  struct ConfigValues& values = c->values()->m_config;
+  class ConfigValues& values = c->values()->m_config;
 
   Uint32 i = 0;
   while(true)
