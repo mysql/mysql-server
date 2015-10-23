@@ -762,5 +762,32 @@ ANALYZE TABLE employees;
 --eval EXPLAIN $query
 --eval $query
 DROP TABLE employees;
+--echo #
+--echo # Bug#22077611 UPDATE .. WHERE JSON_EXTRACT(..) = '..' NOT USING
+--echo #              VIRTUAL COL INDEX
+--echo #
+CREATE TABLE t(a INT, b INT, gc INT GENERATED ALWAYS AS (a+1) STORED, KEY(gc));
+INSERT INTO t(a) VALUES (1), (2), (3), (4), (5), (1), (2), (3), (4), (5);
+ANALYZE TABLE t;
+--let $query= UPDATE t SET b = 10 WHERE (a+1) = 3
+--eval EXPLAIN $query
+--eval $query
+SELECT * FROM t ORDER BY a, b;
+ANALYZE TABLE t;
+--let $query= UPDATE t SET b = 9 ORDER BY (a+1) LIMIT 1
+--eval EXPLAIN $query
+--eval $query
+SELECT * FROM t ORDER BY a, b;
+ANALYZE TABLE t;
+--let $query= DELETE FROM t WHERE (a+1) = 2
+--eval EXPLAIN $query
+--eval $query
+SELECT * FROM t ORDER BY a, b;
+ANALYZE TABLE t;
+--let $query= DELETE FROM t ORDER BY (a+1) LIMIT 1
+--eval EXPLAIN $query
+--eval $query
+SELECT * FROM t ORDER BY a, b;
+DROP TABLE t;
 
 --echo #

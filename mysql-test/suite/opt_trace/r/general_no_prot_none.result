@@ -6350,6 +6350,10 @@ QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 update t6 set d=5 where d is NULL	{
   "steps": [
     {
+      "substitute_generated_columns": {
+      } /* substitute_generated_columns */
+    },
+    {
       "condition_processing": {
         "condition": "WHERE",
         "original_condition": "isnull(`t6`.`d`)",
@@ -6434,6 +6438,10 @@ select * from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 delete from t6 where d=5	{
   "steps": [
+    {
+      "substitute_generated_columns": {
+      } /* substitute_generated_columns */
+    },
     {
       "condition_processing": {
         "condition": "WHERE",
@@ -7661,6 +7669,10 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "substitute_generated_columns": {
+      } /* substitute_generated_columns */
+    },
+    {
       "condition_processing": {
         "condition": "WHERE",
         "original_condition": "(`t1`.`id` = 'z')",
@@ -7800,6 +7812,10 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "substitute_generated_columns": {
+      } /* substitute_generated_columns */
+    },
+    {
       "condition_processing": {
         "condition": "WHERE",
         "original_condition": "(`t1`.`id` = 'z')",
@@ -7939,6 +7955,10 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "substitute_generated_columns": {
+      } /* substitute_generated_columns */
+    },
+    {
       "condition_processing": {
         "condition": "WHERE",
         "original_condition": "(`t1`.`id` = 'z')",
@@ -8077,6 +8097,10 @@ insert into t1 values("z",0)	{
 }	0	0
 delete from t1 where id="z"	{
   "steps": [
+    {
+      "substitute_generated_columns": {
+      } /* substitute_generated_columns */
+    },
     {
       "condition_processing": {
         "condition": "WHERE",
@@ -8216,6 +8240,10 @@ select * from information_schema.OPTIMIZER_TRACE|
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 delete from t1 where id="z"	{
   "steps": [
+    {
+      "substitute_generated_columns": {
+      } /* substitute_generated_columns */
+    },
     {
       "condition_processing": {
         "condition": "WHERE",
@@ -8596,6 +8624,10 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "substitute_generated_columns": {
+      } /* substitute_generated_columns */
+    },
+    {
       "condition_processing": {
         "condition": "WHERE",
         "original_condition": "(`t1`.`id` = 'z')",
@@ -8735,6 +8767,10 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "substitute_generated_columns": {
+      } /* substitute_generated_columns */
+    },
+    {
       "condition_processing": {
         "condition": "WHERE",
         "original_condition": "(`t1`.`id` = 'z')",
@@ -8874,6 +8910,10 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "substitute_generated_columns": {
+      } /* substitute_generated_columns */
+    },
+    {
       "condition_processing": {
         "condition": "WHERE",
         "original_condition": "(`t1`.`id` = 'z')",
@@ -9012,6 +9052,10 @@ insert into t1 values("z",0)	{
 }	0	0
 delete from t1 where id="z"	{
   "steps": [
+    {
+      "substitute_generated_columns": {
+      } /* substitute_generated_columns */
+    },
     {
       "condition_processing": {
         "condition": "WHERE",
@@ -9445,6 +9489,10 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "substitute_generated_columns": {
+      } /* substitute_generated_columns */
+    },
+    {
       "condition_processing": {
         "condition": "WHERE",
         "original_condition": "(`t1`.`id` = 'z')",
@@ -9588,6 +9636,10 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "substitute_generated_columns": {
+      } /* substitute_generated_columns */
+    },
+    {
       "condition_processing": {
         "condition": "WHERE",
         "original_condition": "(`t1`.`id` = 'z')",
@@ -9731,6 +9783,10 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "substitute_generated_columns": {
+      } /* substitute_generated_columns */
+    },
+    {
       "condition_processing": {
         "condition": "WHERE",
         "original_condition": "(`t1`.`id` = 'z')",
@@ -9873,6 +9929,10 @@ insert into t1 values("z",0)	{
 }	0	0
 delete from t1 where id="z"	{
   "steps": [
+    {
+      "substitute_generated_columns": {
+      } /* substitute_generated_columns */
+    },
     {
       "condition_processing": {
         "condition": "WHERE",
@@ -10501,6 +10561,10 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "substitute_generated_columns": {
+      } /* substitute_generated_columns */
+    },
+    {
       "condition_processing": {
         "condition": "WHERE",
         "original_condition": "(`t1`.`id` = 'z')",
@@ -10640,6 +10704,10 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "substitute_generated_columns": {
+      } /* substitute_generated_columns */
+    },
+    {
       "condition_processing": {
         "condition": "WHERE",
         "original_condition": "(`t1`.`id` = 'z')",
@@ -10779,6 +10847,10 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "substitute_generated_columns": {
+      } /* substitute_generated_columns */
+    },
+    {
       "condition_processing": {
         "condition": "WHERE",
         "original_condition": "(`t1`.`id` = 'z')",
@@ -10917,6 +10989,10 @@ insert into t1 values("z",0)	{
 }	0	0
 delete from t1 where id="z"	{
   "steps": [
+    {
+      "substitute_generated_columns": {
+      } /* substitute_generated_columns */
+    },
     {
       "condition_processing": {
         "condition": "WHERE",
@@ -11264,6 +11340,10 @@ delete from v1 where data=100	{
         ] /* transformations */,
         "expanded_query": "/* select#1 */ select  from `t1` where ((`t1`.`data` = 100) and (`t1`.`id` < 'c'))"
       } /* transformations_to_nested_joins */
+    },
+    {
+      "substitute_generated_columns": {
+      } /* substitute_generated_columns */
     },
     {
       "condition_processing": {
