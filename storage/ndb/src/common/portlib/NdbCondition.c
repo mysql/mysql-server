@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,7 +55,7 @@ NdbCondition_initialize()
   clock_id = CLOCK_HIGHRES;
 #endif
 
-  if (clock_gettime(clock_id, &tick_time) != 0)
+  if ((res = clock_gettime(clock_id, &tick_time)) != 0)
   {
     assert(FALSE);
     goto nogo;
