@@ -817,6 +817,11 @@ static int check_options(int argc, char **argv, char *operation)
     /* read the plugin config file and check for match against argument */
     else
     {
+      if (strlen(argv[i]) + 4 + 1 > FN_REFLEN)
+      {
+        fprintf(stderr, "ERROR: argument is too long.\n");
+        return 1;
+      }
       strcpy(plugin_name, argv[i]);
       strcpy(config_file, argv[i]);
       strcat(config_file, ".ini");
@@ -908,6 +913,7 @@ static int process_options(int argc, char *argv[], char *operation)
     if (opt_basedir[i-1] != FN_LIBCHAR || opt_basedir[i-1] != FN_LIBCHAR2)
     {
       char buff[FN_REFLEN];
+      memset(buff, 0, sizeof(buff));
       
       strncpy(buff, opt_basedir, sizeof(buff) - 1);
 #ifdef _WIN32
