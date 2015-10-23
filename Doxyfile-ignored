@@ -51,11 +51,10 @@ strings/*
 include/my_sys.h:*
 mysys/my_syslog.cc:*
 
-# commented to test build itself
-# # BUG#22007765 - DOXYGEN ERRORS IN PARTITION
-# # 13-OCT-2015 Marc ALFF
-# storage/partition/ha_partition.h:*
-# storage/partition/ha_partition.cc:*
+# BUG#22007765 - DOXYGEN ERRORS IN PARTITION
+# 13-OCT-2015 Marc ALFF
+storage/partition/ha_partition.h:*
+storage/partition/ha_partition.cc:*
 
 # Bug#22016108 - DOXYGEN ERRORS IN TRIGGERS 
 # 14-OCT-2015 Marc ALFF
@@ -105,7 +104,6 @@ sql/sql_resolver.cc:*
 # 21-OCT-2015 Marc ALFF
 sql/sql_show.cc:*
 sql/sql_show.h:*
-
 
 # Bug#22083791 - DOXYGEN ERRORS IN RUNTIME CODE 
 # 22-OCT-2015 Marc ALFF
