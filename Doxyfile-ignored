@@ -18,7 +18,7 @@
 # MAINTAINER:
 # File a bug for each doxygen failure seen during the build:
 # - PRODUCT = MySQL Server (8478)
-# - COMPONENT = SRDOXYGEN (temporary: SRCOMP)
+# - COMPONENT = SRDOXYGEN
 # - make sure the title contains DOXYGEN
 # and update this file with exceptions using the templates below
 #===========================================================================
