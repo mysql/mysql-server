@@ -84,6 +84,9 @@
 #define IGNORE_DATA 0x01 /* don't dump data for this table */
 
 
+/* Maximum number of fields per table */
+#define MAX_FIELDS 4000
+
 static void add_load_option(DYNAMIC_STRING *str, const char *option,
                              const char *option_value);
 static ulong find_set(TYPELIB *lib, const char *x, uint length,
@@ -972,10 +975,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 static int get_options(int *argc, char ***argv)
 {
   int ho_error;
-  MYSQL_PARAMETERS *mysql_params= mysql_get_parameters();
 
-  opt_max_allowed_packet= *mysql_params->p_max_allowed_packet;
-  opt_net_buffer_length= *mysql_params->p_net_buffer_length;
+  if (mysql_get_option(NULL, MYSQL_OPT_MAX_ALLOWED_PACKET, &opt_max_allowed_packet) ||
+      mysql_get_option(NULL, MYSQL_OPT_NET_BUFFER_LENGTH, &opt_max_allowed_packet))
+  {
+    exit(1);
+  }
 
   md_result_file= stdout;
   my_getopt_use_args_separator= TRUE;
@@ -1007,8 +1012,12 @@ static int get_options(int *argc, char ***argv)
   if ((ho_error= handle_options(argc, argv, my_long_options, get_one_option)))
     return(ho_error);
 
-  *mysql_params->p_max_allowed_packet= opt_max_allowed_packet;
-  *mysql_params->p_net_buffer_length= opt_net_buffer_length;
+  if (mysql_options(NULL, MYSQL_OPT_MAX_ALLOWED_PACKET, &opt_max_allowed_packet) ||
+      mysql_options(NULL, MYSQL_OPT_NET_BUFFER_LENGTH, &opt_net_buffer_length))
+  {
+    exit(1);
+  }
+
   if (debug_info_flag)
     my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
   if (debug_check_flag)
@@ -2583,13 +2592,14 @@ static inline my_bool general_log_or_slow_log_tables(const char *db,
     db          - db name
     table_type  - table type, e.g. "MyISAM" or "InnoDB", but also "VIEW"
     ignore_flag - what we must particularly ignore - see IGNORE_ defines above
-
+    real_columns- Contains one byte per column, 0 means unused, 1 is used
+                  Generated columns are marked as unused
   RETURN
     number of fields in table, 0 if error
 */
 
 static uint get_table_structure(char *table, char *db, char *table_type,
-                                char *ignore_flag)
+                                char *ignore_flag, my_bool real_columns[])
 {
   my_bool    init=0, write_data, complete_insert;
   my_ulonglong num_fields;
@@ -2609,6 +2619,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   FILE       *sql_file= md_result_file;
   size_t     len;
   my_bool    is_log_table;
+  unsigned int colno;
   MYSQL_RES  *result;
   MYSQL_ROW  row;
   DBUG_ENTER("get_table_structure");
@@ -2848,6 +2859,29 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       DBUG_RETURN(0);
     }
 
+    if (write_data && !complete_insert)
+    {
+      /*
+        If data contents of table are to be written and complete_insert
+        is false (column list not required in INSERT statement), scan the
+        column list for generated columns, as presence of any generated column
+        will require that an explicit list of columns is printed.
+      */
+      while ((row= mysql_fetch_row(result)))
+      {
+        complete_insert|=
+          strcmp(row[SHOW_EXTRA], "STORED GENERATED") == 0 ||
+          strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED") == 0;
+      }
+      mysql_free_result(result);
+
+      if (mysql_query_with_error_report(mysql, &result, query_buff))
+      {
+        if (path)
+          my_fclose(sql_file, MYF(MY_WME));
+        DBUG_RETURN(0);
+      }
+    }
     /*
       If write_data is true, then we build up insert statements for
       the table's data. Note: in subsequent lines of code, this test
@@ -2875,9 +2909,14 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       }
     }
 
+    colno= 0;
     while ((row= mysql_fetch_row(result)))
     {
-      if (complete_insert)
+      real_columns[colno]=
+        strcmp(row[SHOW_EXTRA], "STORED GENERATED") != 0 &&
+        strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED") != 0;
+
+      if (real_columns[colno++] && complete_insert)
       {
         if (init)
         {
@@ -2901,6 +2940,29 @@ static uint get_table_structure(char *table, char *db, char *table_type,
     if (mysql_query_with_error_report(mysql, &result, query_buff))
       DBUG_RETURN(0);
 
+    if (write_data && !complete_insert)
+    {
+      /*
+        If data contents of table are to be written and complete_insert
+        is false (column list not required in INSERT statement), scan the
+        column list for generated columns, as presence of any generated column
+        will require that an explicit list of columns is printed.
+      */
+      while ((row= mysql_fetch_row(result)))
+      {
+        complete_insert|=
+          strcmp(row[SHOW_EXTRA], "STORED GENERATED") == 0 ||
+          strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED") == 0;
+      }
+      mysql_free_result(result);
+
+      if (mysql_query_with_error_report(mysql, &result, query_buff))
+      {
+        if (path)
+          my_fclose(sql_file, MYF(MY_WME));
+        DBUG_RETURN(0);
+      }
+    }
     /* Make an sql-file, if path was given iow. option -T was given */
     if (!opt_no_create_info)
     {
@@ -2943,9 +3005,18 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       }
     }
 
+    colno= 0;
     while ((row= mysql_fetch_row(result)))
     {
       ulong *lengths= mysql_fetch_lengths(result);
+
+      real_columns[colno]=
+        strcmp(row[SHOW_EXTRA], "STORED GENERATED") != 0 &&
+        strcmp(row[SHOW_EXTRA], "VIRTUAL GENERATED") != 0;
+
+      if (!real_columns[colno++])
+        continue;
+
       if (init)
       {
         if (!opt_xml && !opt_no_create_info)
@@ -3495,13 +3566,15 @@ static void dump_table(char *table, char *db)
   MYSQL_RES     *res;
   MYSQL_FIELD   *field;
   MYSQL_ROW     row;
+  my_bool real_columns[MAX_FIELDS];
   DBUG_ENTER("dump_table");
 
   /*
     Make sure you get the create table info before the following check for
     --no-data flag below. Otherwise, the create table info won't be printed.
   */
-  num_fields= get_table_structure(table, db, table_type, &ignore_flag);
+  num_fields= get_table_structure(table, db, table_type, &ignore_flag,
+                                  real_columns);
 
   /*
     The "table" could be a view.  If so, we don't do anything here.
@@ -3594,6 +3667,12 @@ static void dump_table(char *table, char *db)
       dynstr_append_checked(&query_string, " WHERE ");
       dynstr_append_checked(&query_string, where);
     }
+    else if ((!my_strcasecmp(charset_info, db, "mysql")) &&
+             (!my_strcasecmp(charset_info, table, "proc")) &&
+             opt_alldbs)
+    {
+      dynstr_append_checked(&query_string, " WHERE db != 'sys'");
+    }
 
     if (order_by)
     {
@@ -3623,6 +3702,16 @@ static void dump_table(char *table, char *db)
 
       dynstr_append_checked(&query_string, " WHERE ");
       dynstr_append_checked(&query_string, where);
+    }
+    /*
+      If table is mysql.proc then do not dump routines which belong
+      to sys schema
+    */
+    else if ((!my_strcasecmp(charset_info, db, "mysql")) &&
+             (!my_strcasecmp(charset_info, table, "proc")) &&
+             opt_alldbs)
+    {
+      dynstr_append_checked(&query_string, " WHERE db != 'sys'");
     }
     if (order_by)
     {
@@ -3715,6 +3804,8 @@ static void dump_table(char *table, char *db)
                       "Not enough fields from table %s! Aborting.\n",
                       result_table);
 
+        if (!real_columns[i])
+          continue;
         /*
            63 is my_charset_bin. If charsetnr is not 63,
            we have not a BLOB but a TEXT column.
@@ -4498,6 +4589,8 @@ static int dump_all_tables_in_db(char *database)
   char *afterdot;
   my_bool general_log_table_exists= 0, slow_log_table_exists=0;
   int using_mysql_db= !my_strcasecmp(charset_info, database, "mysql");
+  my_bool real_columns[MAX_FIELDS];
+
   DBUG_ENTER("dump_all_tables_in_db");
 
   afterdot= my_stpcpy(hash_key, database);
@@ -4629,14 +4722,16 @@ static int dump_all_tables_in_db(char *database)
     if (general_log_table_exists)
     {
       if (!get_table_structure((char *) "general_log",
-                               database, table_type, &ignore_flag) )
+                               database, table_type, &ignore_flag,
+                               real_columns))
         verbose_msg("-- Warning: get_table_structure() failed with some internal "
                     "error for 'general_log' table\n");
     }
     if (slow_log_table_exists)
     {
       if (!get_table_structure((char *) "slow_log",
-                               database, table_type, &ignore_flag) )
+                               database, table_type, &ignore_flag,
+                               real_columns))
         verbose_msg("-- Warning: get_table_structure() failed with some internal "
                     "error for 'slow_log' table\n");
     }
@@ -5528,6 +5623,7 @@ static my_bool add_set_gtid_purged(MYSQL *mysql_con)
     /* close the SET expression */
     fprintf(md_result_file,"%s';\n", (char*)gtid_set[0]);
   }
+  mysql_free_result(gtid_purged_res);
 
   return FALSE;  /*success */
 }

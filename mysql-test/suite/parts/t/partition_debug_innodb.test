@@ -91,3 +91,6 @@ let $crash_statement= ALTER TABLE t1 EXCHANGE PARTITION p0 WITH TABLE t2;
 --source suite/parts/inc/partition_crash_exchange.inc
 let $fail_statement= $crash_statement;
 --source suite/parts/inc/partition_fail_exchange.inc
+
+--source suite/parts/inc/partition_crash_upgrade.inc
+--source suite/parts/inc/partition_fail_upgrade.inc

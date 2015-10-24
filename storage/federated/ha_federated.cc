@@ -2014,8 +2014,9 @@ int ha_federated::end_bulk_insert()
   }
 
   dynstr_free(&bulk_insert);
-  
-  DBUG_RETURN(my_errno= error);
+
+  set_my_errno(error);
+  DBUG_RETURN(error);
 }
 
 

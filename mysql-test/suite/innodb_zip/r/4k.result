@@ -18,30 +18,30 @@ FROM	INFORMATION_SCHEMA.INNODB_SYS_TABLES  t,
 INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
 WHERE	t.table_id = i.table_id
 AND	t.name LIKE 'mysql%'
-	ORDER BY t.space, i.page_no;
+	ORDER BY t.name, i.index_id;
 table_name	n_cols	table_flags	index_name	root_page	type	n_fields	merge_threshold
-mysql/plugin	5	1	PRIMARY	3	3	1	50
-mysql/servers	12	1	PRIMARY	3	3	1	50
-mysql/help_topic	9	1	PRIMARY	3	3	1	50
-mysql/help_topic	9	1	name	4	2	1	50
-mysql/help_category	7	1	PRIMARY	3	3	1	50
-mysql/help_category	7	1	name	4	2	1	50
-mysql/help_relation	5	1	PRIMARY	3	3	2	50
-mysql/help_keyword	5	1	PRIMARY	3	3	1	50
-mysql/help_keyword	5	1	name	4	2	1	50
-mysql/time_zone_name	5	1	PRIMARY	3	3	1	50
-mysql/time_zone	5	1	PRIMARY	3	3	1	50
-mysql/time_zone_transition	6	1	PRIMARY	3	3	2	50
-mysql/time_zone_transition_type	8	1	PRIMARY	3	3	2	50
-mysql/time_zone_leap_second	5	1	PRIMARY	3	3	1	50
-mysql/innodb_table_stats	9	1	PRIMARY	3	3	2	50
-mysql/innodb_index_stats	11	1	PRIMARY	3	3	4	50
-mysql/slave_relay_log_info	12	1	PRIMARY	3	3	1	50
-mysql/slave_master_info	27	1	PRIMARY	3	3	1	50
-mysql/slave_worker_info	16	1	PRIMARY	3	3	2	50
-mysql/gtid_executed	6	1	PRIMARY	3	3	2	50
-mysql/server_cost	7	1	PRIMARY	3	3	1	50
-mysql/engine_cost	9	1	PRIMARY	3	3	3	50
+mysql/engine_cost	9	33	PRIMARY	3	3	3	50
+mysql/gtid_executed	6	33	PRIMARY	3	3	2	50
+mysql/help_category	7	33	PRIMARY	3	3	1	50
+mysql/help_category	7	33	name	4	2	1	50
+mysql/help_keyword	5	33	PRIMARY	3	3	1	50
+mysql/help_keyword	5	33	name	4	2	1	50
+mysql/help_relation	5	33	PRIMARY	3	3	2	50
+mysql/help_topic	9	33	PRIMARY	3	3	1	50
+mysql/help_topic	9	33	name	4	2	1	50
+mysql/innodb_index_stats	11	33	PRIMARY	3	3	4	50
+mysql/innodb_table_stats	9	33	PRIMARY	3	3	2	50
+mysql/plugin	5	33	PRIMARY	3	3	1	50
+mysql/servers	12	33	PRIMARY	3	3	1	50
+mysql/server_cost	7	33	PRIMARY	3	3	1	50
+mysql/slave_master_info	27	33	PRIMARY	3	3	1	50
+mysql/slave_relay_log_info	12	33	PRIMARY	3	3	1	50
+mysql/slave_worker_info	16	33	PRIMARY	3	3	2	50
+mysql/time_zone	5	33	PRIMARY	3	3	1	50
+mysql/time_zone_leap_second	5	33	PRIMARY	3	3	1	50
+mysql/time_zone_name	5	33	PRIMARY	3	3	1	50
+mysql/time_zone_transition	6	33	PRIMARY	3	3	2	50
+mysql/time_zone_transition_type	8	33	PRIMARY	3	3	2	50
 CREATE TABLE t1 (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;
 CREATE TABLE t2 (a INT KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=innodb;
 CREATE TABLE t3 (a INT KEY, b TEXT) ROW_FORMAT=COMPRESSED ENGINE=innodb;
@@ -319,7 +319,6 @@ CREATE INDEX t1d ON t1 (d(767));
 UPDATE t1 SET d=@e;
 ERROR HY000: Undo log record is too big.
 CREATE INDEX t1e ON t1 (e(767));
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 1982. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -347,7 +346,8 @@ t1	CREATE TABLE `t1` (
   KEY `t1a` (`a`(767)),
   KEY `t1b` (`b`(767)),
   KEY `t1c` (`c`(767)),
-  KEY `t1d` (`d`(767))
+  KEY `t1d` (`d`(767)),
+  KEY `t1e` (`e`(767))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 DROP TABLE t1;
 SET SESSION innodb_strict_mode = OFF;
@@ -418,7 +418,9 @@ CREATE TABLE t1(
 c text NOT NULL, d text NOT NULL,
 PRIMARY KEY (c(767)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
-ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
+Warnings:
+Warning	139	Row size too large (> max_row_size). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
+DROP TABLE t1;
 CREATE TABLE t1(
 c text NOT NULL, d text NOT NULL,
 PRIMARY KEY (c(767)))
@@ -431,7 +433,9 @@ ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4 CHARSET=ASCII;
 drop table t1;
 CREATE TABLE t1(c text, PRIMARY KEY (c(440)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
-ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
+Warnings:
+Warning	139	Row size too large (> max_row_size). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
+DROP TABLE t1;
 CREATE TABLE t1(c text, PRIMARY KEY (c(438)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
 INSERT INTO t1 VALUES(REPEAT('A',512)),(REPEAT('B',512));

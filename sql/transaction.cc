@@ -445,6 +445,12 @@ bool trans_commit_stmt(THD *thd)
   */
   DBUG_ASSERT(! thd->in_sub_stmt);
 
+  /*
+    Some code in MYSQL_BIN_LOG::commit and ha_commit_low() is not safe
+    for attachable transactions.
+  */
+  DBUG_ASSERT(!thd->is_attachable_transaction_active());
+
   thd->get_transaction()->merge_unsafe_rollback_flags();
 
   if (thd->get_transaction()->is_active(Transaction_ctx::STMT))
@@ -489,6 +495,12 @@ bool trans_rollback_stmt(THD *thd)
   */
   DBUG_ASSERT(! thd->in_sub_stmt);
 
+  /*
+    Some code in MYSQL_BIN_LOG::rollback and ha_rollback_low() is not safe
+    for attachable transactions.
+  */
+  DBUG_ASSERT(!thd->is_attachable_transaction_active());
+
   thd->get_transaction()->merge_unsafe_rollback_flags();
 
   if (thd->get_transaction()->is_active(Transaction_ctx::STMT))
@@ -500,6 +512,27 @@ bool trans_rollback_stmt(THD *thd)
   else if (tc_log)
     tc_log->rollback(thd, false);
 
+  if (!thd->owned_gtid.is_empty() &&
+      thd->variables.gtid_next.type == GTID_GROUP &&
+      !thd->in_active_multi_stmt_transaction())
+  {
+    /*
+      To a failed single statement transaction with a specified gtid on
+      auto-commit mode, we roll back its owned gtid if it does not modify
+      non-transational table or commit its owned gtid if it has modified
+      non-transactional table when rolling back it if binlog is disabled,
+      as we did when binlog is enabled.
+      We do not need to check if binlog is enabled here, since we already
+      released its owned gtid in MYSQL_BIN_LOG::rollback(...) right before
+      this if binlog is enabled.
+    */
+    if (thd->get_transaction()->has_modified_non_trans_table(
+          Transaction_ctx::STMT))
+      gtid_state->update_on_commit(thd);
+    else
+      gtid_state->update_on_rollback(thd);
+  }
+
   /* In autocommit=1 mode the transaction should be marked as complete in P_S */
   DBUG_ASSERT(thd->in_active_multi_stmt_transaction() ||
               thd->m_transaction_psi == NULL ||
@@ -510,6 +543,51 @@ bool trans_rollback_stmt(THD *thd)
 
   DBUG_RETURN(FALSE);
 }
+
+
+/**
+  Commit the attachable transaction.
+
+  @note This is slimmed down version of trans_commit_stmt() which commits
+        attachable transaction but skips code which is unnecessary and
+        unsafe for them (like dealing with GTIDs).
+
+  @param thd     Current thread
+
+  @retval False - Success
+  @retval True  - Failure
+*/
+bool trans_commit_attachable(THD *thd)
+{
+  DBUG_ENTER("trans_commit_attachable");
+  int res= 0;
+
+  /* This function only handles attachable transactions. */
+  DBUG_ASSERT(thd->is_attachable_transaction_active());
+
+  /*
+    Since the attachable transaction is AUTOCOMMIT we only need to commit
+    statement transaction.
+  */
+  DBUG_ASSERT(! thd->get_transaction()->is_active(Transaction_ctx::SESSION));
+
+  /* Attachable transactions should not do anything unsafe. */
+  DBUG_ASSERT(!thd->get_transaction()->
+                 cannot_safely_rollback(Transaction_ctx::STMT));
+
+
+  if (thd->get_transaction()->is_active(Transaction_ctx::STMT))
+  {
+    res= ha_commit_attachable(thd);
+  }
+
+  DBUG_ASSERT(thd->m_transaction_psi == NULL);
+
+  thd->get_transaction()->reset(Transaction_ctx::STMT);
+
+  DBUG_RETURN(MY_TEST(res));
+}
+
 
 /* Find a named savepoint in the current transaction. */
 static SAVEPOINT **

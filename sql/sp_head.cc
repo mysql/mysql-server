@@ -32,6 +32,7 @@
 #include "sp_cache.h"
 #include "sql_parse.h"         // cleanup_items
 #include "sql_base.h"          // close_thread_tables
+#include "template_utils.h"    // pointer_cast
 #include "transaction.h"       // trans_commit_stmt
 #include "opt_trace.h"         // opt_trace_disable_etc
 
@@ -683,15 +684,18 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   */
   thd->change_list.move_elements_to(&old_change_list);
 
-  /*
-    Cursors will use thd->packet, so they may corrupt data which was prepared
-    for sending by upper level. OTOH cursors in the same routine can share this
-    buffer safely so let use use routine-local packet instead of having own
-    packet buffer for each cursor.
+  if (thd->is_classic_protocol())
+  {
+    /*
+      Cursors will use thd->packet, so they may corrupt data which was
+      prepared for sending by upper level. OTOH cursors in the same routine
+      can share this buffer safely so let use use routine-local packet
+      instead of having own packet buffer for each cursor.
 
-    It is probably safe to use same thd->convert_buff everywhere.
-  */
-  old_packet.swap(*thd->get_protocol_classic()->get_packet());
+      It is probably safe to use same thd->convert_buff everywhere.
+    */
+    old_packet.swap(*thd->get_protocol_classic()->get_packet());
+  }
 
   /*
     Switch to per-instruction arena here. We can do it since we cleanup
@@ -839,8 +843,9 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
 
   thd->sp_runtime_ctx->pop_all_cursors(); // To avoid memory leaks after an error
 
-  /* Restore all saved */
-  old_packet.swap(*thd->get_protocol_classic()->get_packet());
+  if(thd->is_classic_protocol())
+    /* Restore all saved */
+    old_packet.swap(*thd->get_protocol_classic()->get_packet());
   DBUG_ASSERT(thd->change_list.is_empty());
   old_change_list.move_elements_to(&thd->change_list);
   thd->lex= old_lex;
@@ -2097,31 +2102,19 @@ void sp_head::add_used_tables_to_table_list(THD *thd,
 
   for (uint i= 0; i < m_sptabs.records; i++)
   {
-    char *tab_buff, *key_buff;
-    SP_TABLE *stab= (SP_TABLE*) my_hash_element(&m_sptabs, i);
+    SP_TABLE *stab= pointer_cast<SP_TABLE*>(my_hash_element(&m_sptabs, i));
     if (stab->temp)
       continue;
 
-    if (!(tab_buff= (char *)thd->mem_calloc(ALIGN_SIZE(sizeof(TABLE_LIST)) *
-                                        stab->lock_count)) ||
-        !(key_buff= (char*)thd->memdup(stab->qname.str,
-                                       stab->qname.length)))
+    char *tab_buff= static_cast<char*>
+      (thd->alloc(ALIGN_SIZE(sizeof(TABLE_LIST)) * stab->lock_count));
+    char *key_buff= static_cast<char*>(thd->memdup(stab->qname.str,
+                                                   stab->qname.length));
+    if (!tab_buff || !key_buff)
       return;
 
     for (uint j= 0; j < stab->lock_count; j++)
     {
-      TABLE_LIST *table= (TABLE_LIST *)tab_buff;
-
-      table->db= key_buff;
-      table->db_length= stab->db_length;
-      table->table_name= table->db + table->db_length + 1;
-      table->table_name_length= stab->table_name_length;
-      table->alias= table->table_name + table->table_name_length + 1;
-      table->lock_type= stab->lock_type;
-      table->cacheable_table= 1;
-      table->prelocking_placeholder= 1;
-      table->belong_to_view= belong_to_view;
-      table->trg_event_map= stab->trg_event_map;
       /*
         Since we don't allow DDL on base tables in prelocked mode it
         is safe to infer the type of metadata lock from the type of
@@ -2136,7 +2129,7 @@ void sp_head::add_used_tables_to_table_list(THD *thd,
           acquire "strong" locks to ensure that LOCK TABLES properly
           works for storage engines which don't use THR_LOCK locks.
         */
-        mdl_lock_type= (table->lock_type >= TL_WRITE_ALLOW_WRITE) ?
+        mdl_lock_type= (stab->lock_type >= TL_WRITE_ALLOW_WRITE) ?
                        MDL_SHARED_NO_READ_WRITE : MDL_SHARED_READ_ONLY;
       }
       else
@@ -2146,12 +2139,21 @@ void sp_head::add_used_tables_to_table_list(THD *thd,
           Let us respect explicit LOW_PRIORITY clause if was used
           in the routine.
         */
-        mdl_lock_type= mdl_type_for_dml(table->lock_type);
+        mdl_lock_type= mdl_type_for_dml(stab->lock_type);
       }
 
-      MDL_REQUEST_INIT(&table->mdl_request,
-                       MDL_key::TABLE, table->db, table->table_name,
-                       mdl_lock_type, MDL_TRANSACTION);
+      TABLE_LIST *table= pointer_cast<TABLE_LIST*>(tab_buff);
+      table->init_one_table(key_buff, stab->db_length,
+                            key_buff + stab->db_length + 1,
+                            stab->table_name_length,
+                            key_buff + stab->db_length + 1 +
+                            stab->table_name_length + 1,
+                            stab->lock_type, mdl_lock_type);
+
+      table->cacheable_table= 1;
+      table->prelocking_placeholder= 1;
+      table->belong_to_view= belong_to_view;
+      table->trg_event_map= stab->trg_event_map;
 
       /* Everyting else should be zeroed */
 

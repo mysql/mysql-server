@@ -197,6 +197,18 @@ dict_max_field_len_store_undo(
 	const dict_col_t*	col)	/*!< in: column which index prefix
 					is based on */
 	__attribute__((nonnull, warn_unused_result));
+
+/** Determine maximum bytes of a virtual column need to be stored
+in the undo log.
+@param[in]	table		dict_table_t for the table
+@param[in]	col_no		virtual column number
+@return maximum bytes of virtual column to be stored in the undo log */
+UNIV_INLINE
+ulint
+dict_max_v_field_len_store_undo(
+	dict_table_t*		table,
+	ulint			col_no);
+
 #endif /* !UNIV_HOTBACKUP */
 #ifdef UNIV_DEBUG
 /*********************************************************************//**
@@ -304,6 +316,19 @@ dict_table_autoinc_initialize(
 	dict_table_t*	table,	/*!< in/out: table */
 	ib_uint64_t	value)	/*!< in: next value to assign to a row */
 	__attribute__((nonnull));
+
+/** Store autoinc value when the table is evicted.
+@param[in]	table	table evicted */
+void
+dict_table_autoinc_store(
+	const dict_table_t*	table);
+
+/** Restore autoinc value when the table is loaded.
+@param[in]	table	table loaded */
+void
+dict_table_autoinc_restore(
+	dict_table_t*	table);
+
 /********************************************************************//**
 Reads the next autoinc value (== autoinc counter value), 0 if not yet
 initialized.
@@ -362,6 +387,14 @@ dict_table_remove_from_cache(
 /*=========================*/
 	dict_table_t*	table)	/*!< in, own: table */
 	__attribute__((nonnull));
+/**********************************************************************//**
+Removes a table object from the dictionary cache. */
+void
+dict_table_remove_from_cache_low(
+/*=============================*/
+	dict_table_t*	table,		/*!< in, own: table */
+	ibool		lru_evict);	/*!< in: TRUE if table being evicted
+					to make room in the table LRU list */
 /**********************************************************************//**
 Renames a table object.
 @return TRUE if success */
@@ -1100,20 +1133,43 @@ dict_make_room_in_cache(
 
 #define BIG_ROW_SIZE	1024
 
-/**********************************************************************//**
-Adds an index to the dictionary cache.
+/** Adds an index to the dictionary cache.
+@param[in]	table	table on which the index is
+@param[in]	index	index; NOTE! The index memory
+			object is freed in this function!
+@param[in]	page_no	root page number of the index
+@param[in]	strict	TRUE=refuse to create the index
+			if records could be too big to fit in
+			an B-tree page
 @return DB_SUCCESS, DB_TOO_BIG_RECORD, or DB_CORRUPTION */
 dberr_t
 dict_index_add_to_cache(
-/*====================*/
-	dict_table_t*	table,	/*!< in: table on which the index is */
-	dict_index_t*	index,	/*!< in, own: index; NOTE! The index memory
-				object is freed in this function! */
-	ulint		page_no,/*!< in: root page number of the index */
-	ibool		strict)	/*!< in: TRUE=refuse to create the index
-				if records could be too big to fit in
-				an B-tree page */
-	__attribute__((nonnull, warn_unused_result));
+	dict_table_t*	table,
+	dict_index_t*	index,
+	ulint		page_no,
+	ibool		strict)
+	__attribute__((warn_unused_result));
+
+/** Adds an index to the dictionary cache, with possible indexing newly
+added column.
+@param[in]	table	table on which the index is
+@param[in]	index	index; NOTE! The index memory
+			object is freed in this function!
+@param[in]	add_v	new virtual column that being added along with
+			an add index call
+@param[in]	page_no	root page number of the index
+@param[in]	strict	TRUE=refuse to create the index
+			if records could be too big to fit in
+			an B-tree page
+@return DB_SUCCESS, DB_TOO_BIG_RECORD, or DB_CORRUPTION */
+dberr_t
+dict_index_add_to_cache_w_vcol(
+	dict_table_t*		table,
+	dict_index_t*		index,
+	const dict_add_v_col_t* add_v,
+	ulint			page_no,
+	ibool			strict)
+	__attribute__((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 Gets the number of fields in the internal representation of an index,
@@ -1645,6 +1701,8 @@ extern dict_sys_t*	dict_sys;
 /** the data dictionary rw-latch protecting dict_sys */
 extern rw_lock_t*	dict_operation_lock;
 
+typedef std::map<table_id_t, ib_uint64_t> autoinc_map_t;
+
 /* Dictionary system struct */
 struct dict_sys_t{
 	DictSysMutex	mutex;		/*!< mutex protecting the data
@@ -1680,6 +1738,8 @@ struct dict_sys_t{
 	UT_LIST_BASE_NODE_T(dict_table_t)
 			table_non_LRU;	/*!< List of tables that can't be
 					evicted from the cache */
+	autoinc_map_t*	autoinc_map;	/*!< Map to store table id and autoinc
+					when table is evicted */
 };
 #endif /* !UNIV_HOTBACKUP */
 

@@ -13,6 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "debug_sync.h"
 #include "rpl_rli_pdb.h"
 
 #include "log.h"                            // sql_print_error
@@ -273,6 +274,8 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
   relay_log_change_notified= FALSE; // the 1st group to contain relaylog name
   checkpoint_notified= FALSE;       // the same as above
   master_log_change_notified= false;// W learns master log during 1st group exec
+  fd_change_notified= false; // W is to learn master FD version same as above
+  server_version= version_product(rli->slave_version_split);
   bitmap_shifted= 0;
   workers= c_rli->workers; // shallow copying is sufficient
   wq_empty_waits= wq_size_waits_cnt= groups_done= events_done= curr_jobs= 0;
@@ -301,9 +304,13 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
 
   /* create mts submode for each of the the workers. */
   current_mts_submode=
-    (mts_parallel_option == MTS_PARALLEL_TYPE_DB_NAME)?
+    (rli->channel_mts_submode == MTS_PARALLEL_TYPE_DB_NAME)?
        (Mts_submode*) new Mts_submode_database():
        (Mts_submode*) new Mts_submode_logical_clock();
+
+  //workers and coordinator must be of the same type
+  DBUG_ASSERT(rli->current_mts_submode->get_type() ==
+              current_mts_submode->get_type());
 
   m_order_commit_deadlock= false;
   DBUG_RETURN(0);
@@ -1297,7 +1304,14 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
     int64 min_child_waited_logical_ts=
       my_atomic_load64(&mts_submode->min_waited_timestamp);
 
-    if (error)
+    DBUG_EXECUTE_IF("slave_worker_ends_group_before_signal_lwm",
+                    {
+                      const char act[]= "now WAIT_FOR worker_continue";
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    });
+
+    if (unlikely(error))
     {
       mysql_mutex_lock(&c_rli->mts_gaq_LOCK);
       mts_submode->is_error= true;
@@ -1308,20 +1322,26 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
     else if (min_child_waited_logical_ts != SEQ_UNINIT)
     {
       mysql_mutex_lock(&c_rli->mts_gaq_LOCK);
-      longlong curr_lwm= mts_submode->get_lwm_timestamp(c_rli, true);
-      min_child_waited_logical_ts=
-        my_atomic_load64(&mts_submode->min_waited_timestamp);
-      if (min_child_waited_logical_ts != SEQ_UNINIT &&
-          mts_submode->clock_leq(mts_submode->min_waited_timestamp,
-                                 curr_lwm))
+
+      /*
+        min_child_waited_logical_ts may include an old value, so we need to
+        check it again after getting the lock.
+      */
+      if (mts_submode->min_waited_timestamp != SEQ_UNINIT)
       {
-        /*
-          There's a transaction that depends on the current.
-        */
-        mysql_cond_signal(&c_rli->logical_clock_cond);
+        longlong curr_lwm= mts_submode->get_lwm_timestamp(c_rli, true);
+
+        if (mts_submode->clock_leq(mts_submode->min_waited_timestamp, curr_lwm))
+        {
+          /*
+            There's a transaction that depends on the current.
+          */
+          mysql_cond_signal(&c_rli->logical_clock_cond);
+        }
       }
       mysql_mutex_unlock(&c_rli->mts_gaq_LOCK);
     }
+
 #ifndef DBUG_OFF
     curr_group_seen_sequence_number= false;
 #endif
@@ -2537,6 +2557,8 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
 
   while (1)
   {
+    Slave_job_group *ptr_g;
+
     if (unlikely(thd->killed || worker->running_status == Slave_worker::STOP_ACCEPTED))
     {
       DBUG_ASSERT(worker->running_status != Slave_worker::ERROR_LEAVING);
@@ -2559,6 +2581,13 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
     set_timespec_nsec(&worker->ts_exec[0], 0); // pre-exec
     worker->stats_read_time += diff_timespec(&worker->ts_exec[0],
                                              &worker->ts_exec[1]);
+    /* Adapting to possible new Format_description_log_event */
+    ptr_g= rli->gaq->get_job_group(ev->mts_group_idx);
+    if (ptr_g->new_fd_event)
+    {
+      worker->set_rli_description_event(ptr_g->new_fd_event);
+      ptr_g->new_fd_event= NULL;
+    }
 
     error= worker->slave_worker_exec_event(ev);
 

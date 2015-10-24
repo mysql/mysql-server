@@ -97,6 +97,27 @@ void Program::create_options()
     "processing thread.");
 }
 
+void  Program::check_mutually_exclusive_options()
+{
+  /*
+    In case of --single-transactions or --add-locks we dont allow parallelism
+  */
+  if (m_mysqldump_tool_chain_maker_options->m_default_parallelism ||
+     m_mysqldump_tool_chain_maker_options->get_parallel_schemas_thread_count())
+  {
+    if (m_single_transaction)
+      m_mysql_chain_element_options->get_program()->error(
+        Mysql::Tools::Base::Message_data(1, "Usage of --single-transaction "
+        "is mutually exclusive with parallelism.",
+        Mysql::Tools::Base::Message_type_error));
+    if (m_mysqldump_tool_chain_maker_options->m_formatter_options->m_add_locks)
+      m_mysql_chain_element_options->get_program()->error(
+        Mysql::Tools::Base::Message_data(1, "Usage of --add-locks "
+        "is mutually exclusive with parallelism.",
+        Mysql::Tools::Base::Message_type_error));
+  }
+}
+
 int Program::execute(std::vector<std::string> positional_options)
 {
   I_connection_provider* connection_provider= NULL;
@@ -118,6 +139,18 @@ int Program::execute(std::vector<std::string> positional_options)
     message_handler= new Mysql::Instance_callback
     <bool, const Mysql::Tools::Base::Message_data&, Program>(
     this, &Program::message_handler);
+
+  Mysql::Tools::Base::Mysql_query_runner* runner= connection_provider
+         ->get_runner(message_handler);
+  if (mysql_get_server_version(runner->get_low_level_connection()) < 50708)
+  {
+    std::cerr << "Server version is not compatible. Server version should "
+                 "be 5.7.8 or above.";
+    delete message_handler;
+    delete connection_provider;
+    return 0;
+  }
+
   Simple_id_generator* id_generator= new Simple_id_generator();
 
   boost::chrono::high_resolution_clock::time_point start_time=
@@ -135,6 +168,7 @@ int Program::execute(std::vector<std::string> positional_options)
     m_mysql_chain_element_options);
   m_mysqldump_tool_chain_maker_options->process_positional_options(
     positional_options);
+  check_mutually_exclusive_options();
   I_chain_maker* chain_maker= new Mysqldump_tool_chain_maker(
     connection_provider, message_handler, id_generator,
     m_mysqldump_tool_chain_maker_options);
@@ -182,6 +216,16 @@ Program::~Program()
   delete m_mysql_chain_element_options;
   delete m_mysqldump_tool_chain_maker_options;
   this->close_redirected_stderr();
+}
+
+void Program::short_usage()
+{
+  std::cout << "Usage: " << get_name() <<" [OPTIONS] [--all-databases]"
+            << std::endl;
+  std::cout << "OR     " << get_name() <<" [OPTIONS] --databases DB1 [DB2 DB3...]"
+            << std::endl;
+  std::cout << "OR     " << get_name() <<" [OPTIONS] database [tables]"
+            << std::endl;
 }
 
 Program::Program()

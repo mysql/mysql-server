@@ -13,6 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "debug_sync.h"
 #include "rpl_mts_submode.h"
 
 #include "hash.h"                           // HASH
@@ -555,6 +556,9 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
     break;
   }
 
+  DBUG_PRINT("info", ("sequence_number %lld, last_committed %lld",
+                      sequence_number, last_committed));
+
   if (first_event)
   {
     first_event= false;
@@ -590,6 +594,9 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
     compile_time_assert(SEQ_UNINIT == 0);
     if (unlikely(sequence_number > last_sequence_number + 1))
     {
+      DBUG_PRINT("info", ("sequence_number gap found, "
+                          "last_sequence_number %lld, sequence_number %lld",
+                          last_sequence_number, sequence_number));
       DBUG_ASSERT(rli->replicate_same_server_id || true /* TODO: account autopositioning */);
       gap_successor= true;
     }
@@ -869,10 +876,20 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
       while (!worker && !thd->killed)
       {
         /*
-          wait and get a free worker.
-          todo: replace with First Available assignement policy
+          Busy wait with yielding thread control before to next attempt
+          to find a free worker. As of current, a worker
+          can't have more than one assigned group of events in its
+          queue.
+
+          todo: replace this At-Most-One assignment policy with
+                First Available Worker as
+                this method clearly can't be considered as optimal.
         */
+#if !defined(_WIN32)
+        sched_yield();
+#else
         my_sleep(rli->mts_coordinator_basic_nap);
+#endif
         worker= get_free_worker(rli);
       }
       THD_STAGE_INFO(thd, *old_stage);
@@ -954,6 +971,13 @@ Mts_submode_logical_clock::
     if (mts_checkpoint_routine(rli, 0, true, true /*need_data_lock=true*/))
       DBUG_RETURN(-1);
   }
+  DBUG_EXECUTE_IF("wait_for_workers_to_finish_after_wait",
+                  {
+                    const char act[]= "now WAIT_FOR coordinator_continue";
+                    DBUG_ASSERT(!debug_sync_set_action(rli->info_thd,
+                                                       STRING_WITH_LEN(act)));
+                  });
+
   // The current commit point sequence may end here (e.g Rotate to new log)
   rli->gaq->lwm.sequence_number= SEQ_UNINIT;
   // Restore previous info.

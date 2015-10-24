@@ -6,28 +6,29 @@ call mtr.add_suppression("Could not open .*");
 call mtr.add_suppression("Could not use .*");
 call mtr.add_suppression("Can't generate a unique log-filename master-bin");
 call mtr.add_suppression("The server was unable to create a new log file *");
-call mtr.add_suppression("An error occured during flushing cache to file.");
+call mtr.add_suppression("An error occurred during flushing cache to file.");
 call mtr.add_suppression("Either disk is full or file system is read only");
+call mtr.add_suppression("Attempting backtrace. You can use the following information to find out");
 RESET MASTER;
 Test case1
 SET GLOBAL binlog_error_action= ABORT_SERVER;
 flush logs;
-ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while rotating the binlog. Aborting the server
+ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while rotating the binlog. Aborting the server.
 Test case2
 SET SESSION debug="+d,fault_injection_updating_index";
 SET GLOBAL binlog_error_action= ABORT_SERVER;
 flush logs;
-ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while opening the binlog. Aborting the server
+ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while opening the binlog. Aborting the server.
 Test case3
 SET SESSION debug="+d,simulate_disk_full_on_open_binlog";
 SET GLOBAL binlog_error_action= ABORT_SERVER;
 flush logs;
-ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while opening the binlog. Aborting the server
+ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while opening the binlog. Aborting the server.
 Test case4
 SET SESSION debug="+d,fault_injection_init_name";
 SET GLOBAL binlog_error_action= ABORT_SERVER;
 flush logs;
-ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while opening the binlog. Aborting the server
+ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while opening the binlog. Aborting the server.
 Test case5
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 flush logs;
@@ -74,7 +75,7 @@ CREATE TABLE t1(i INT);
 SET SESSION debug="+d,simulate_error_during_flush_cache_to_file";
 SET GLOBAL binlog_error_action= ABORT_SERVER;
 INSERT INTO t1 VALUES (1);
-ERROR HY000: Binary logging not possible. Message: An error occured during flushing cache to file. 'binlog_error_action' is set to 'ABORT_SERVER'. Hence aborting the server
+ERROR HY000: Binary logging not possible. Message: An error occurred during flushing cache to file. 'binlog_error_action' is set to 'ABORT_SERVER'. Hence aborting the server.
 include/assert.inc [Count of elements in t1 should be 0.]
 SET SESSION debug="+d,simulate_error_during_flush_cache_to_file";
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
@@ -83,5 +84,24 @@ include/assert.inc [Count of elements in t1 should be 1.]
 DROP table t1;
 SET SESSION debug="-d,simulate_error_during_flush_cache_to_file";
 # restart
+"Test case10"
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+SET SESSION debug='+d,error_unique_log_filename';
+FLUSH LOGS;
+ERROR HY000: Can't generate a unique log-filename master-bin.(1-999)
+
+DROP TABLE t1;
+SET SESSION debug="";
+SHOW BINARY LOGS;
+ERROR HY000: You are not using binary logging
+# restart
+"Test case11"
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+SET GLOBAL binlog_error_action=ABORT_SERVER;
+SET SESSION debug='+d,error_unique_log_filename';
+FLUSH LOGS;
+ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while rotating the binlog. Aborting the server.
+DROP TABLE t1;
 SET SESSION debug="";
 SET GLOBAL binlog_error_action= ABORT_SERVER;

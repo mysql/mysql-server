@@ -41,21 +41,18 @@ GRANT ALL PRIVILEGES ON *.* TO 'user_ssl'@'127.0.0.1';
 --echo
 --echo # Connection type testing for SOCKET protocol.
 connect(socket_con1,localhost,root);
-SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 
 connection default;
 disconnect socket_con1;
 --source include/wait_until_count_sessions.inc
 
 connect(socket_con2,localhost,root,,,$MASTER_MYPORT);
-SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 
 connection default;
 disconnect socket_con2;
 --source include/wait_until_count_sessions.inc
 
 connect(socket_con3,localhost,root,,,,$MASTER_MYSOCK);
-SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 
 connection default;
 disconnect socket_con3;
@@ -83,14 +80,12 @@ disconnect socket_con3;
 
 --echo
 connect(tcp_con1,127.0.0.1,user_tcp);
-SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 
 connection default;
 disconnect tcp_con1;
 --source include/wait_until_count_sessions.inc
 
 connect(tcp_con2,127.0.0.1,user_tcp,,,,$MASTER_MYSOCK);
-SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 
 connection default;
 disconnect tcp_con2;
@@ -111,7 +106,6 @@ disconnect tcp_con2;
 --echo # Testing TCP/IP connections over SSL/TLS.
 --echo
 connect(ssl_con2,127.0.0.1,user_ssl,,,,,SSL);
-SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 
 connection default;
 disconnect ssl_con2;
@@ -119,7 +113,6 @@ disconnect ssl_con2;
 
 --echo
 connect(ssl_con3,127.0.0.1,user_tcp,,,$MASTER_MYPORT,,SSL);
-SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 
 connection default;
 disconnect ssl_con3;
@@ -127,7 +120,6 @@ disconnect ssl_con3;
 
 --echo
 connect(ssl_con4,127.0.0.1,user_ssl,,,$MASTER_MYPORT,$MASTER_MYSOCK,SSL);
-SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 
 connection default;
 disconnect ssl_con4;

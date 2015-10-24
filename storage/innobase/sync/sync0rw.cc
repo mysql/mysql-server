@@ -338,13 +338,14 @@ rw_lock_s_lock_spin(
 {
 	ulint		i = 0;	/* spin round count */
 	sync_array_t*	sync_arr;
+	ulint		spin_count = 0;
+	ulint		count_os_wait = 0;
 
 	/* We reuse the thread id to index into the counter, cache
 	it here for efficiency. */
 
 	ut_ad(rw_lock_validate(lock));
 
-	rw_lock_stats.rw_s_spin_wait_count.inc();
 lock_loop:
 
 	/* Spin waiting for the writer field to become free */
@@ -361,9 +362,17 @@ lock_loop:
 		os_thread_yield();
 	}
 
+	++spin_count;
+
 	/* We try once again to obtain the lock */
-	if (TRUE == rw_lock_s_lock_low(lock, pass, file_name, line)) {
-		rw_lock_stats.rw_s_spin_round_count.inc();
+	if (rw_lock_s_lock_low(lock, pass, file_name, line)) {
+
+		if (count_os_wait > 0) {
+			lock->count_os_wait += count_os_wait;
+			rw_lock_stats.rw_s_os_wait_count.add(count_os_wait);
+		}
+
+		rw_lock_stats.rw_s_spin_round_count.add(spin_count);
 
 		return; /* Success */
 	} else {
@@ -372,7 +381,8 @@ lock_loop:
 			goto lock_loop;
 		}
 
-		rw_lock_stats.rw_s_spin_round_count.inc();
+
+		++count_os_wait;
 
 		sync_cell_t*	cell;
 
@@ -383,21 +393,23 @@ lock_loop:
 		signal is sent. This may lead to some unnecessary signals. */
 		rw_lock_set_waiter_flag(lock);
 
-		if (TRUE == rw_lock_s_lock_low(lock, pass, file_name, line)) {
+		if (rw_lock_s_lock_low(lock, pass, file_name, line)) {
+
 			sync_array_free_cell(sync_arr, cell);
+
+			if (count_os_wait > 0) {
+
+				lock->count_os_wait += count_os_wait;
+
+				rw_lock_stats.rw_s_os_wait_count.add(
+					count_os_wait);
+			}
+
+			rw_lock_stats.rw_s_spin_round_count.add(spin_count);
+
 			return; /* Success */
 		}
 
-#ifndef INNORWLOCKTEST
-		if (MONITOR_IS_ON(MONITOR_LATCHES)) {
-#endif /* !INNORWLOCKTEST */
-			/* these stats may not be accurate */
-			++lock->count_os_wait;
-#ifndef INNORWLOCKTEST
-		}
-#endif /* !INNORWLOCKTEST */
-
-		rw_lock_stats.rw_s_os_wait_count.inc();
 		/* see comments in trx_commit_low() to
 		before_trx_state_committed_in_memory explaining
 		this care to invoke the following sync check.*/
@@ -411,6 +423,7 @@ lock_loop:
 		sync_array_wait_event(sync_arr, cell);
 
 		i = 0;
+
 		goto lock_loop;
 	}
 }
@@ -451,12 +464,15 @@ rw_lock_x_lock_wait_func(
 	ulint		line)	/*!< in: line where requested */
 {
 	ulint		i = 0;
+	ulint		n_spins = 0;
 	sync_array_t*	sync_arr;
+	ulint		count_os_wait = 0;
 
 	os_rmb;
 	ut_ad(lock->lock_word <= threshold);
 
 	while (lock->lock_word < threshold) {
+
 		if (srv_spin_wait_delay) {
 			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
 		}
@@ -468,28 +484,19 @@ rw_lock_x_lock_wait_func(
 		}
 
 		/* If there is still a reader, then go to sleep.*/
-		rw_lock_stats.rw_x_spin_round_count.inc();
+		++n_spins;
 
 		sync_cell_t*	cell;
 
 		sync_arr = sync_array_get_and_reserve_cell(
-				lock, RW_LOCK_X_WAIT, file_name, line, &cell);
+			lock, RW_LOCK_X_WAIT, file_name, line, &cell);
 
 		i = 0;
 
 		/* Check lock_word to ensure wake-up isn't missed.*/
 		if (lock->lock_word < threshold) {
 
-#ifndef INNORWLOCKTEST
-			if (MONITOR_IS_ON(MONITOR_LATCHES)) {
-#endif /* !INNORWLOCKTEST */
-				/* these stats may not be accurate */
-				++lock->count_os_wait;
-#ifndef INNORWLOCKTEST
-			}
-#endif /* !INNORWLOCKTEST */
-
-			rw_lock_stats.rw_x_os_wait_count.inc();
+			++count_os_wait;
 
 			/* Add debug info as it is needed to detect possible
 			deadlock. We must add info for WAIT_EX thread for
@@ -505,11 +512,19 @@ rw_lock_x_lock_wait_func(
 
 			/* It is possible to wake when lock_word < 0.
 			We must pass the while-loop check to proceed.*/
+
 		} else {
 			sync_array_free_cell(sync_arr, cell);
+			break;
 		}
 	}
-	rw_lock_stats.rw_x_spin_round_count.inc();
+
+	rw_lock_stats.rw_x_spin_round_count.add(n_spins);
+
+	if (count_os_wait > 0) {
+		lock->count_os_wait += count_os_wait;
+		rw_lock_stats.rw_x_os_wait_count.add(count_os_wait);
+	}
 }
 
 #ifdef UNIV_DEBUG
@@ -545,8 +560,7 @@ rw_lock_x_lock_low(
 		rw_lock_set_writer_id_and_recursion_flag(
 			lock, !pass);
 
-		rw_lock_x_lock_wait(lock, pass,
-				    0, file_name, line);
+		rw_lock_x_lock_wait(lock, pass, 0, file_name, line);
 
 	} else {
 		os_thread_id_t	thread_id = os_thread_get_curr_id();
@@ -571,9 +585,10 @@ rw_lock_x_lock_low(
 
 				/* Wait for any the other S-locks to be
 				released. */
-				rw_lock_x_lock_wait(lock, pass,
-						    -X_LOCK_HALF_DECR,
-						    file_name, line);
+				rw_lock_x_lock_wait(
+					lock, pass, -X_LOCK_HALF_DECR,
+					file_name, line);
+
 			} else {
 				/* At least one X lock by this thread already
 				exists. Add another. */
@@ -698,31 +713,29 @@ rw_lock_x_lock_func(
 	const char*	file_name,/*!< in: file name where lock requested */
 	ulint		line)	/*!< in: line where requested */
 {
-	ulint		i;
+	ulint		i = 0;
 	sync_array_t*	sync_arr;
-	bool		spinning = false;
+	ulint		spin_count = 0;
+	ulint		count_os_wait = 0;
 
 	ut_ad(rw_lock_validate(lock));
 	ut_ad(!rw_lock_own(lock, RW_LOCK_S));
-
-	i = 0;
 
 lock_loop:
 
 	if (rw_lock_x_lock_low(lock, pass, file_name, line)) {
 
-		rw_lock_stats.rw_x_spin_round_count.inc();
+		if (count_os_wait > 0) {
+			lock->count_os_wait += count_os_wait;
+			rw_lock_stats.rw_x_os_wait_count.add(count_os_wait);
+		}
+
+		rw_lock_stats.rw_x_spin_round_count.add(spin_count);
 
 		/* Locking succeeded */
 		return;
 
 	} else {
-
-		if (!spinning) {
-			spinning = true;
-
-			rw_lock_stats.rw_x_spin_wait_count.inc();
-		}
 
 		/* Spin waiting for the lock_word to become free */
 		os_rmb;
@@ -737,14 +750,17 @@ lock_loop:
 			i++;
 		}
 
+		spin_count += i;
+
 		if (i >= srv_n_spin_wait_rounds) {
+
 			os_thread_yield();
+
 		} else {
+
 			goto lock_loop;
 		}
 	}
-
-	rw_lock_stats.rw_x_spin_round_count.inc();
 
 	sync_cell_t*	cell;
 
@@ -758,24 +774,23 @@ lock_loop:
 	if (rw_lock_x_lock_low(lock, pass, file_name, line)) {
 		sync_array_free_cell(sync_arr, cell);
 
+		if (count_os_wait > 0) {
+			lock->count_os_wait += count_os_wait;
+			rw_lock_stats.rw_x_os_wait_count.add(count_os_wait);
+		}
+
+		rw_lock_stats.rw_x_spin_round_count.add(spin_count);
+
 		/* Locking succeeded */
 		return;
 	}
 
-#ifndef INNORWLOCKTEST
-	if (MONITOR_IS_ON(MONITOR_LATCHES)) {
-#endif /* !INNORWLOCKTEST */
-		/* these stats may not be accurate */
-		lock->count_os_wait++;
-#ifndef INNORWLOCKTEST
-	}
-#endif /* !INNORWLOCKTEST */
-
-	rw_lock_stats.rw_x_os_wait_count.inc();
+	++count_os_wait;
 
 	sync_array_wait_event(sync_arr, cell);
 
 	i = 0;
+
 	goto lock_loop;
 }
 
@@ -798,38 +813,33 @@ rw_lock_sx_lock_func(
 	ulint		line)	/*!< in: line where requested */
 
 {
-	ulint		i;	/*!< spin round count */
+	ulint		i = 0;
 	sync_array_t*	sync_arr;
-	ibool		spinning = false;
-	size_t		counter_index;
-
-	/* We reuse the thread id to index into the counter, cache
-	it here for efficiency. */
-
-	counter_index = (size_t) os_thread_get_curr_id();
+	ulint		spin_count = 0;
+	ulint		count_os_wait = 0;
+	ulint		spin_wait_count = 0;
 
 	ut_ad(rw_lock_validate(lock));
 	ut_ad(!rw_lock_own(lock, RW_LOCK_S));
-
-	i = 0;
 
 lock_loop:
 
 	if (rw_lock_sx_lock_low(lock, pass, file_name, line)) {
 
-		rw_lock_stats.rw_sx_spin_round_count.add(counter_index, i);
+		if (count_os_wait > 0) {
+			lock->count_os_wait += count_os_wait;
+			rw_lock_stats.rw_sx_os_wait_count.add(count_os_wait);
+		}
+
+		rw_lock_stats.rw_sx_spin_round_count.add(spin_count);
+		rw_lock_stats.rw_sx_spin_wait_count.add(spin_wait_count);
 
 		/* Locking succeeded */
 		return;
 
 	} else {
 
-		if (!spinning) {
-			spinning = true;
-
-			rw_lock_stats.rw_sx_spin_wait_count.add(
-				counter_index, 1);
-		}
+		++spin_wait_count;
 
 		/* Spin waiting for the lock_word to become free */
 		os_rmb;
@@ -844,14 +854,17 @@ lock_loop:
 			i++;
 		}
 
+		spin_count += i;
+
 		if (i >= srv_n_spin_wait_rounds) {
+
 			os_thread_yield();
+
 		} else {
+
 			goto lock_loop;
 		}
 	}
-
-	rw_lock_stats.rw_sx_spin_round_count.add(counter_index, i);
 
 	sync_cell_t*	cell;
 
@@ -863,26 +876,27 @@ lock_loop:
 	rw_lock_set_waiter_flag(lock);
 
 	if (rw_lock_sx_lock_low(lock, pass, file_name, line)) {
+
 		sync_array_free_cell(sync_arr, cell);
+
+		if (count_os_wait > 0) {
+			lock->count_os_wait += count_os_wait;
+			rw_lock_stats.rw_sx_os_wait_count.add(count_os_wait);
+		}
+
+		rw_lock_stats.rw_sx_spin_round_count.add(spin_count);
+		rw_lock_stats.rw_sx_spin_wait_count.add(spin_wait_count);
 
 		/* Locking succeeded */
 		return;
 	}
 
-#ifndef INNORWLOCKTEST
-	if (MONITOR_IS_ON(MONITOR_LATCHES)) {
-#endif /* !INNORWLOCKTEST */
-		/* these stats may not be accurate */
-		++lock->count_os_wait;
-#ifndef INNORWLOCKTEST
-	}
-#endif /* !INNORWLOCKTEST */
-
-	rw_lock_stats.rw_sx_os_wait_count.add(counter_index, 1);
+	++count_os_wait;
 
 	sync_array_wait_event(sync_arr, cell);
 
 	i = 0;
+
 	goto lock_loop;
 }
 

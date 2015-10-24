@@ -184,11 +184,60 @@ int runCreateTheTable(NDBT_Context* ctx, NDBT_Step* step){
 
 int runDropTheTable(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);  
-  //const NdbDictionary::Table* pTab = ctx->getTab();
   
-  // Try to create table in db
+  // Drop table
   pNdb->getDictionary()->dropTable(f_tablename);
   
+  return NDBT_OK;
+}
+
+int runSetDropTableConcurrentLCP(NDBT_Context *ctx, NDBT_Step *step)
+{
+  NdbRestarter restarter;
+  if(restarter.insertErrorInAllNodes(5088) != 0)
+  {
+    g_err << "failed to set error insert"<< endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+int runSetMinTimeBetweenLCP(NDBT_Context *ctx, NDBT_Step *step)
+{
+  NdbRestarter restarter;
+  int result;
+  int val = DumpStateOrd::DihMinTimeBetweenLCP;
+  if (restarter.dumpStateAllNodes(&val, 1) != 0)
+  {
+    do { CHECK(0); } while(0);
+    g_err << "Failed to set LCP to min value" << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+int runResetMinTimeBetweenLCP(NDBT_Context *ctx, NDBT_Step *step)
+{
+  NdbRestarter restarter;
+  int result;
+  int val2[] = { DumpStateOrd::DihMinTimeBetweenLCP, 0 };
+  if (restarter.dumpStateAllNodes(val2, 2) != 0)
+  {
+    do { CHECK(0); } while(0);
+    g_err << "Failed to set LCP to min value" << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+int runSetDropTableConcurrentLCP2(NDBT_Context *ctx, NDBT_Step *step)
+{
+  NdbRestarter restarter;
+  if(restarter.insertErrorInAllNodes(5089) != 0)
+  {
+    g_err << "failed to set error insert"<< endl;
+    return NDBT_FAILED;
+  }
   return NDBT_OK;
 }
 
@@ -11184,6 +11233,26 @@ TESTCASE("DropWithTakeover","bug 14190114"){
 TESTCASE("CreateInvalidTables", 
 	 "Try to create the invalid tables we have defined\n"){ 
   INITIALIZER(runCreateInvalidTables);
+}
+TESTCASE("DropTableConcurrentLCP",
+         "Drop a table while LCP is ongoing\n")
+{
+  INITIALIZER(runCreateTheTable);
+  INITIALIZER(runFillTable);
+  INITIALIZER(runSetMinTimeBetweenLCP);
+  INITIALIZER(runSetDropTableConcurrentLCP);
+  INITIALIZER(runDropTheTable);
+  FINALIZER(runResetMinTimeBetweenLCP);
+}
+TESTCASE("DropTableConcurrentLCP2",
+         "Drop a table while LCP is ongoing\n")
+{
+  INITIALIZER(runCreateTheTable);
+  INITIALIZER(runFillTable);
+  INITIALIZER(runSetMinTimeBetweenLCP);
+  INITIALIZER(runSetDropTableConcurrentLCP2);
+  INITIALIZER(runDropTheTable);
+  FINALIZER(runResetMinTimeBetweenLCP);
 }
 TESTCASE("CreateTableWhenDbIsFull", 
 	 "Try to create a new table when db already is full\n"){ 

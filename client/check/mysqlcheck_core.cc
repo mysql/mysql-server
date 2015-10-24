@@ -49,7 +49,7 @@ int what_to_do = 0;
 void (*DBError)(MYSQL *mysql, string when);
 
 static int first_error = 0;
-vector<string> tables4repair, tables4rebuild, alter_table_cmds;
+vector<string> tables4repair, tables4rebuild, alter_table_cmds, failed_tables;
 
 
 static int process_all_databases();
@@ -60,7 +60,7 @@ static int process_one_db(string database);
 static int use_db(string database);
 static int handle_request_for_tables(string tables);
 static void print_result();
-static string fix_table_name(string src);
+static string escape_table_name(string src);
 
 
 static int process_all_databases()
@@ -106,33 +106,53 @@ static int process_selected_tables(string db, vector<string> table_names)
     return 1;
   vector<string>::iterator it;
 
-  if (opt_all_in_1 && what_to_do != DO_UPGRADE)
-  {
-    for (it= table_names.begin(); it != table_names.end(); it++)
-    {
-      *it= fix_table_name(*it);
-    }
-  }
   for (it= table_names.begin(); it != table_names.end(); it++)
+  {
+    if (what_to_do != DO_UPGRADE)
+      *it= escape_table_name(*it);
     handle_request_for_tables(*it);
-
+  }
   return 0;
 } /* process_selected_tables */
 
-static string fix_table_name(string src)
+
+static inline void escape_str(string src, size_t start, size_t end, string &res)
 {
-  string res= "`";
-  for (size_t i= 0; i < src.length(); i++)
+  res+= '`';
+  for (size_t i= start; i < end; i++)
   {
     switch (src[i]) {
-    case '`':            /* escape backtick character */
+    case '`':            /* Escape backtick character. */
       res+= '`';
-      /* fall through */
+      /* Fall through. */
     default:
       res+= src[i];
     }
   }
   res+= '`';
+}
+
+
+static string escape_table_name(string src)
+{
+  string res= "";
+
+  escape_str(src, 0, src.length(), res);
+  return res;
+}
+
+
+static string escape_db_table_name(string src, size_t dot_pos)
+{
+  string res= "";
+
+  /* Escape database name. */
+  escape_str(src, 0, dot_pos - 1, res);
+  /* Add a dot. */
+  res+= '.';
+  /* Escape table name. */
+  escape_str(src, dot_pos, src.length(), res);
+
   return res;
 }
 
@@ -207,7 +227,7 @@ static int fix_database_storage_name(string name)
 static int rebuild_table(string name)
 {
   int rc= 0;
-  string query= "ALTER TABLE " + fix_table_name(name) + " FORCE";
+  string query= "ALTER TABLE " + name + " FORCE";
   if (mysql_real_query(sock, query.c_str(), (uint)query.length()))
   {
     fprintf(stderr, "Failed to %s\n", query.c_str());
@@ -293,11 +313,6 @@ static int handle_request_for_tables(string tables)
     return fix_table_storage_name(tables);
   }
 
-  if (!opt_all_in_1)
-  {
-    tables= fix_table_name(tables);
-  }
-
   string query= operation + " TABLE " + tables + " " + options;
 
   if (mysql_real_query(sock, query.c_str(), query.length()))
@@ -318,13 +333,11 @@ static void print_result()
   char prev[NAME_LEN*3+2];
   char prev_alter[MAX_ALTER_STR_SIZE];
   uint i;
-  char *db_name;
-  size_t length_of_db;
+  size_t dot_pos;
   my_bool found_error=0, table_rebuild=0;
 
   res = mysql_use_result(sock);
-  db_name= sock->db;
-  length_of_db= strlen(db_name);
+  dot_pos= strlen(sock->db) + 1;
 
   prev[0] = '\0';
   prev_alter[0]= 0;
@@ -348,21 +361,17 @@ static void print_result()
           if (prev_alter[0])
             alter_table_cmds.push_back(prev_alter);
           else
-          {
-            char *table_name= prev + (length_of_db+1);
-            tables4rebuild.push_back(table_name);
-          }
+            tables4rebuild.push_back(escape_db_table_name(prev, dot_pos));
         }
-         else
-         {
-           char *table_name= prev + (length_of_db+1);
-           tables4repair.push_back(table_name);
-         }
+        else
+        {
+          tables4repair.push_back(escape_db_table_name(prev, dot_pos));
+        }
 
       }
-      found_error=0;
-      table_rebuild=0;
-      prev_alter[0]= 0;
+      found_error=   0;
+      table_rebuild= 0;
+      prev_alter[0]= '\0';
       if (opt_silent)
         continue;
     }
@@ -374,25 +383,36 @@ static void print_result()
       if (opt_auto_repair && strcmp(row[2],"note"))
       {
         const char *alter_txt= strstr(row[3], "ALTER TABLE");
-        found_error=1;
+        found_error= 1;
         if (alter_txt)
         {
-          table_rebuild=1;
+          table_rebuild= 1;
+          const char *match_str;
           if (!strncmp(row[3], KEY_PARTITIONING_CHANGED_STR,
-                       strlen(KEY_PARTITIONING_CHANGED_STR)) &&
-              strstr(alter_txt, "PARTITION BY"))
+                       strlen(KEY_PARTITIONING_CHANGED_STR)))
           {
-            if (strlen(alter_txt) >= MAX_ALTER_STR_SIZE)
+            if (strstr(alter_txt, "PARTITION BY") &&
+                strlen(alter_txt) < MAX_ALTER_STR_SIZE)
             {
-              printf("Error: Alter command too long (>= %d),"
-                     " please do \"%s\" or dump/reload to fix it!\n",
-                     MAX_ALTER_STR_SIZE,
-                     alter_txt);
-              table_rebuild= 0;
-              prev_alter[0]= 0;
+              strcpy(prev_alter, alter_txt);
             }
             else
-              strcpy(prev_alter, alter_txt);
+            {
+               printf("\nError: Alter command unknown or too long (%d >= %d), "
+                      "please investigate the above or dump/reload to fix it!"
+                      "\n",
+                      (int)strlen(alter_txt),
+                      MAX_ALTER_STR_SIZE);
+              found_error=   0;
+              table_rebuild= 0;
+              prev_alter[0]= '\0';
+              failed_tables.push_back(row[0]);
+            }
+          }
+          else if ((match_str= strstr(alter_txt, "` UPGRADE PARTITIONING")) &&
+                   strlen(match_str) == 22)
+          {
+            strcpy(prev_alter, alter_txt);
           }
         }
       }
@@ -410,15 +430,11 @@ static void print_result()
       if (prev_alter[0])
         alter_table_cmds.push_back(prev_alter);
       else
-      {
-        char *table_name= prev + (length_of_db+1);
-        tables4rebuild.push_back(table_name);
-      }
+        tables4rebuild.push_back(escape_db_table_name(prev, dot_pos));
     }
     else
     {
-      char *table_name= prev + (length_of_db+1);
-      tables4repair.push_back(table_name);
+      tables4repair.push_back(escape_db_table_name(prev, dot_pos));
     }
   }
   mysql_free_result(res);
@@ -481,8 +497,15 @@ void Mysql::Tools::Check::mysql_check(MYSQL* connection, int what_to_do,
     process_databases(arguments);
   if (::opt_auto_repair)
   {
-    if (!::opt_silent && !(tables4repair.empty() && tables4rebuild.empty()))
-      puts("\nRepairing tables");
+    if (!::opt_silent)
+    {
+      if (!(tables4repair.empty() && tables4rebuild.empty()))
+        puts("\nRepairing tables");
+
+      if (!(alter_table_cmds.empty()))
+        puts("\nUpgrading tables");
+    }
+
     ::what_to_do = DO_REPAIR;
 
     vector<string>::iterator it;
@@ -496,7 +519,23 @@ void Mysql::Tools::Check::mysql_check(MYSQL* connection, int what_to_do,
     }
     for (it = alter_table_cmds.begin(); it != alter_table_cmds.end() ; it++)
     {
-      run_query(*it);
+      if (0 == run_query(*it))
+        printf("Running  : %s\nstatus   : OK\n", (*it).c_str());
+      else
+      {
+        fprintf(stderr, "Failed to %s\n", (*it).c_str());
+        fprintf(stderr, "Error: %s\n", mysql_error(sock));
+      }
+    }
+    if (!failed_tables.empty())
+    {
+      fprintf(stderr,
+              "These tables cannot be automatically upgraded,"
+              " see the log above:\n");
+    }
+    for (it = failed_tables.begin(); it != failed_tables.end() ; it++)
+    {
+      fprintf(stderr, "%s\n", it->c_str());
     }
   }
 }

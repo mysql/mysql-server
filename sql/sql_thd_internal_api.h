@@ -31,14 +31,16 @@ class THD;
 
   @param              thd            THD object
   @param              stack_start    Start of stack for connection
+  @param              bound          True if bound to a physical thread.
 */
-int thd_init(THD *thd, char *stack_start);
+int thd_init(THD *thd, char *stack_start, bool bound);
 
 /**
   Create a THD and do proper initialization of it.
 
   @param enable_plugins     Should dynamic plugin support be enabled?
   @param background_thread  Is this a background thread?
+  @param bound              True if bound to a physical thread.
 
   @note Dynamic plugin support is only possible for THDs that
         are created after the server has initialized properly.
@@ -47,7 +49,7 @@ int thd_init(THD *thd, char *stack_start);
         SHOW PROCESSLIST and the server will not wait for them to
         terminate during shutdown.
 */
-THD *create_thd(bool enable_plugins, bool background_thread);
+THD *create_thd(bool enable_plugins, bool background_thread, bool bound);
 
 /**
   Cleanup the THD object, remove it from the global list of THDs
@@ -63,6 +65,6 @@ void destroy_thd(THD *thd);
   @param thd              Thread object
   @param stack_start      Start of stack to set in THD object
 */
-void thd_set_thread_stack(THD *thd, char *stack_start);
+void thd_set_thread_stack(THD *thd, const char *stack_start);
 
 #endif // SQL_THD_INTERNAL_API_INCLUDED

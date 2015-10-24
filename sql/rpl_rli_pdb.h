@@ -121,7 +121,32 @@ typedef struct st_slave_job_group
   /* Clock-based scheduler requirement: */
   longlong last_committed; // commit parent timestamp
   longlong sequence_number;   // transaction's logical timestamp
+  /*
+    After Coordinator has seen a new FD event, it sets this member to
+    point to the new event, once per worker. Coordinator does so
+    when it schedules a first group following the FD event to a worker.
+    It checks Slave_worker::fd_change_notified flag to decide whether
+    to do this or not.
+    When the worker executes the group, it replaces its currently
+    active FD by the new FD once it takes on the group first event. It
+    checks this member and resets it after the FD replacement is done.
 
+    The member is kind of lock-free. It's updated by Coordinator and
+    read by Worker without holding any mutex. That's still safe thanks
+    to Slave_worker::jobs_lock that works as synchronizer, Worker
+    can't read any stale info.
+    The member is updated by Coordinator when it decides which Worker
+    an event following a new FD is to be scheduled.
+    After Coordinator has chosen a Worker, it queues the event to it
+    with necessarily taking Slave_worker::jobs_lock. The Worker grabs
+    the mutex lock later at pulling the event from the queue and
+    releases the lock before to read from this member.
+
+    This sequence of actions shows the write operation always precedes
+    the read one, and ensures no stale FD info is passed to the
+    Worker.
+  */
+  Format_description_log_event *new_fd_event;
   /*
     Coordinator fills the struct with defaults and options at starting of
     a group distribution.
@@ -145,6 +170,7 @@ typedef struct st_slave_job_group
 #endif
     last_committed= SEQ_UNINIT;
     sequence_number= SEQ_UNINIT;
+    new_fd_event= NULL;
   }
 } Slave_job_group;
 
@@ -407,6 +433,18 @@ public:
   volatile bool relay_log_change_notified; // Coord sets and resets, W can read
   volatile bool checkpoint_notified; // Coord sets and resets, W can read
   volatile bool master_log_change_notified; // Coord sets and resets, W can read
+  /*
+    The variable serves to Coordinator as a memo to itself
+    to notify a Worker about the fact that a new FD has been read.
+    Normally, the value is true, to mean the Worker is notified.
+    When Coordinator reads a new FD it changes the value to false.
+    When Coordinator schedules to a Worker the first event following the new FD,
+    it propagates the new FD to the Worker through Slave_job_group::new_fd_event.
+    Afterwards Coordinator returns the value back to the regular true,
+    to denote things done. Worker will adapt to the new FD once it
+    takes on a first event of the marked group.
+  */
+  bool fd_change_notified;
   ulong bitmap_shifted;  // shift the last bitmap at receiving new CP
   // WQ current excess above the overrun level
   long wq_overrun_cnt;
@@ -437,6 +475,8 @@ public:
   MY_BITMAP group_executed; // bitmap describes groups executed after last CP
   MY_BITMAP group_shifted;  // temporary bitmap to compute group_executed
   ulong checkpoint_seqno;   // the most significant ON bit in group_executed
+  /* Initial value of FD-for-execution version until it's gets known. */
+  ulong server_version;
   enum en_running_state
   {
     NOT_RUNNING= 0,
@@ -467,14 +507,6 @@ public:
     variable is set to true.
   */
   bool exit_incremented;
-  /*
-    The gtid (or anonymous) of the currently executing transaction, or
-    of the last executing transaction if no transaction is currently
-    executing.  This is used to fill the last_seen_transaction column
-    of the table
-    performance_schema.replication_applier_status_by_worker.
-  */
-  Gtid_specification currently_executing_gtid;
 
   int init_worker(Relay_log_info*, ulong);
   int rli_init_info(bool);
@@ -495,20 +527,32 @@ public:
   void rollback_positions(Slave_job_group *ptr_g);
   bool reset_recovery_info();
   /**
-     Different from the parent method in that this does not delete
-     rli_description_event.
-     The method runs by Coordinator when Worker are synched or being
-     destroyed.
+    The method runs at Worker initalization, at runtime when
+    Coordinator supplied a new FD event for execution context, and at
+    the Worker pool shutdown.
+    Similarly to the Coordinator's
+    Relay_log_info::set_rli_description_event() the possibly existing
+    old FD is destoyed, carefully; each worker decrements
+    Format_description_log_event::usage_counter and when it is made
+    zero the destructor runs.
+    Unlike to Coordinator's role, the usage counter of the new FD is *not*
+    incremented, see @c Log_event::get_slave_worker() where and why it's done
+    there.
+
+    Notice, the method is run as well by Coordinator per each Worker at MTS
+    shutdown time.
+
+    Todo: consider to merge logics of the method with that of
+    Relay_log_info class.
+
+    @param fdle   pointer to a new Format_description_log_event
   */
   void set_rli_description_event(Format_description_log_event *fdle)
   {
     DBUG_ENTER("Slave_worker::set_rli_description_event");
-    DBUG_ASSERT(!fdle || (running_status == Slave_worker::RUNNING && info_thd));
 
     if (fdle)
     {
-      mysql_mutex_assert_owner(&jobs_lock);
-
       /*
         When the master rotates its binary log, set gtid_next to
         NOT_YET_DETERMINED.  This tells the slave thread that:
@@ -520,18 +564,41 @@ public:
         - If a statement is executed before any Gtid_log_event, then
           gtid_next is set to anonymous (this is done in
           Gtid_log_event::do_apply_event().
+
+        It is imporant to not set GTID_NEXT=NOT_YET_DETERMINED in the
+        middle of a transaction.  If that would happen when
+        GTID_MODE=ON, the next statement would fail because it
+        implicitly sets GTID_NEXT=ANONYMOUS, which is disallowed when
+        GTID_MODE=ON.  So then there would be no way to end the
+        transaction; any attempt to do so would result in this error.
+        (It is not possible for the slave threads to have
+        gtid_next.type==AUTOMATIC or UNDEFINED in the middle of a
+        transaction, but it is possible for a client thread to have
+        gtid_next.type==AUTOMATIC and issue a BINLOG statement
+        containing this Format_description_log_event.)
       */
-      if (fdle->server_id != ::server_id &&
+      if (!is_in_group() &&
           (info_thd->variables.gtid_next.type == AUTOMATIC_GROUP ||
            info_thd->variables.gtid_next.type == UNDEFINED_GROUP))
       {
         DBUG_PRINT("info", ("Setting gtid_next.type to NOT_YET_DETERMINED_GROUP"));
         info_thd->variables.gtid_next.set_not_yet_determined();
       }
-
-      adapt_to_master_version(fdle);
+      adapt_to_master_version_updown(fdle->get_product_version(),
+                                     get_master_server_version());
     }
+    if (rli_description_event)
+    {
+      DBUG_ASSERT(rli_description_event->usage_counter.atomic_get() > 0);
 
+      if (rli_description_event->usage_counter.atomic_add(-1) == 1)
+      {
+        /* The being deleted by Worker FD can't be the latest one */
+        DBUG_ASSERT(rli_description_event != c_rli->get_rli_description_event());
+
+        delete rli_description_event;
+      }
+    }
     rli_description_event= fdle;
 
     DBUG_VOID_RETURN;
@@ -575,7 +642,16 @@ public:
 
   bool found_order_commit_deadlock() { return m_order_commit_deadlock; }
   void report_order_commit_deadlock() { m_order_commit_deadlock= true; }
-
+  /**
+    @return either the master server version as extracted from the last
+            installed Format_description_log_event, or when it was not
+            installed then the slave own server version.
+  */
+  ulong get_master_server_version()
+  {
+    return !get_rli_description_event() ? server_version :
+      get_rli_description_event()->get_product_version();
+  }
 protected:
 
   virtual void do_report(loglevel level, int err_code,

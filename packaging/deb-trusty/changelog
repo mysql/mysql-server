@@ -1,3 +1,14 @@
+mysql-community (5.7.9-1ubuntu14.04) trusty; urgency=low
+
+  [ Akhil Mohan ]
+  * new upstream release
+
+  [ Balasubramanian Kandasamy ]
+  * Added new libtest_* plugins to source/include-binaries, mysql-*-test.install
+  * Added mysqlpump man page to d/mysql-*-client.install
+
+ -- Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>  Wed, 26 Aug 2015 15:20:12 +0530
+
 mysql-community (5.7.8-rc-1ubuntu14.04) trusty; urgency=low
 
   * new upstream release
@@ -5,6 +16,9 @@ mysql-community (5.7.8-rc-1ubuntu14.04) trusty; urgency=low
     libtest_framework
     libtest_services
     libtest_services_threaded
+    locking_service
+    test_security_context
+    version_token
   * added support for MECAB in
     d/{control,rules,mysql-*-server.install,source/include-binaries}
     (Closes: #20315007)
@@ -12,6 +26,8 @@ mysql-community (5.7.8-rc-1ubuntu14.04) trusty; urgency=low
     (Closes: #20650118)
   * removed pkg mysql-*-bench; sqlbench will not be packaged
     (Closes: #21303289)
+  * removed cleanup statement for client lib symlinks *_r in d/rules
+    (Closes: #21311067)
 
  -- Akhil Mohan <akhil.mohan@oracle.com>  Tue, 23 Jun 2015 16:11:26 +0530
 

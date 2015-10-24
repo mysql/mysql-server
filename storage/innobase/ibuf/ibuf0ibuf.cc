@@ -4991,6 +4991,27 @@ ibuf_check_bitmap_on_import(
 		bitmap_page = ibuf_bitmap_get_map_page(
 			page_id_t(space_id, page_no), page_size, &mtr);
 
+		if (buf_page_is_zeroes(bitmap_page, page_size)) {
+			/* This means we got all-zero page instead of
+			ibuf bitmap page. The subsequent page should be
+			all-zero pages. */
+#ifdef UNIV_DEBUG
+			for (ulint curr_page = page_no + 1;
+			     curr_page < page_size.physical(); curr_page++) {
+
+				buf_block_t* block = buf_page_get(
+						page_id_t(space_id, curr_page),
+						page_size,
+						RW_S_LATCH, &mtr);
+	                        page_t*	page = buf_block_get_frame(block);
+				ut_ad(buf_page_is_zeroes(page, page_size));
+			}
+#endif /* UNIV_DEBUG */
+			ibuf_exit(&mtr);
+			mtr_commit(&mtr);
+			continue;
+		}
+
 		for (i = FSP_IBUF_BITMAP_OFFSET + 1;
 		     i < page_size.physical();
 		     i++) {

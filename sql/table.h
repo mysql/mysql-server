@@ -28,6 +28,7 @@
 #include "sql_bitmap.h"    // Bitmap
 #include "sql_sort.h"      // Filesort_info
 #include "table_id.h"      // Table_id
+#include "lock.h"          // Tablespace_hash_set
 
 /* Structs that defines the TABLE */
 class File_parser;
@@ -269,6 +270,7 @@ typedef struct st_grant_internal_info GRANT_INTERNAL_INFO;
  */
 struct GRANT_INFO
 {
+  GRANT_INFO();
   /**
      @brief A copy of the privilege information regarding the current host,
      database, object and user.
@@ -1271,7 +1273,8 @@ public:
   void prepare_for_position(void);
 
   void mark_column_used(THD *thd, Field *field, enum enum_mark_columns mark);
-  void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map);
+  void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map,
+                                           uint key_parts= UINT_MAX);
   void mark_columns_used_by_index(uint index);
   void mark_auto_increment_column(void);
   void mark_columns_needed_for_update(void);
@@ -1405,6 +1408,26 @@ public:
     Return the cost model object for this table.
   */
   const Cost_model_table* cost_model() const { return &m_cost_model; }
+
+  /**
+    Fix table's generated columns' (GC) expressions
+   
+    @details When a table is opened from the dictionary, the GCs' expressions
+    are fixed during opening (see fix_fields_gcol_func()). After query
+    execution, Item::cleanup() is called on them (see cleanup_gc_items()). When
+    the table is opened from the table cache, the GCs need to be fixed again
+    and this function does that.
+
+    @param[in] thd     the current thread
+    @return true if error, else false
+  */
+  bool refix_gc_items(THD *thd);
+  
+  /**
+    Clean any state in items associated with generated columns to be ready for
+    the next statement.
+  */
+  void cleanup_gc_items();
 };
 
 
@@ -1576,6 +1599,7 @@ public:
   ALTER user ... PASSWORD EXPIRE ...
 */
 typedef struct st_lex_alter {
+  bool update_password_expired_fields;
   bool update_password_expired_column;
   bool use_default_password_lifetime;
   uint16 expire_after_days;
@@ -1681,7 +1705,8 @@ struct TABLE_LIST
                              const char *table_name_arg,
                              size_t table_name_length_arg,
                              const char *alias_arg,
-                             enum thr_lock_type lock_type_arg)
+                             enum thr_lock_type lock_type_arg,
+                             enum enum_mdl_type mdl_type_arg)
   {
     memset(this, 0, sizeof(*this));
     m_map= 1;
@@ -1693,11 +1718,24 @@ struct TABLE_LIST
     lock_type= lock_type_arg;
     MDL_REQUEST_INIT(&mdl_request,
                      MDL_key::TABLE, db, table_name,
-                     mdl_type_for_dml(lock_type),
+                     mdl_type_arg,
                      MDL_TRANSACTION);
     callback_func= 0;
     opt_hints_table= NULL;
     opt_hints_qb= NULL;
+  }
+
+  inline void init_one_table(const char *db_name_arg,
+                             size_t db_length_arg,
+                             const char *table_name_arg,
+                             size_t table_name_length_arg,
+                             const char *alias_arg,
+                             enum thr_lock_type lock_type_arg)
+  {
+    init_one_table(db_name_arg, db_length_arg,
+                   table_name_arg, table_name_length_arg,
+                   alias_arg, lock_type_arg,
+                   mdl_type_for_dml(lock_type_arg));
   }
 
   /// Create a TABLE_LIST object representing a nested join
@@ -1892,6 +1930,24 @@ struct TABLE_LIST
     TABLE_LIST *tr= this;
     while (tr->merge_underlying_list)
       tr= tr->merge_underlying_list;
+    return tr;
+  }
+
+  /// Return any leaf table that is not an inner table of an outer join
+  /// @todo when WL#6570 is implemented, replace with first_leaf_table()
+  TABLE_LIST *any_outer_leaf_table()
+  {
+    TABLE_LIST *tr= this;
+    while (tr->merge_underlying_list)
+    {
+      tr= tr->merge_underlying_list;
+      /*
+        "while" is used, however, an "if" might be sufficient since there is
+        no more than one inner table in a join nest (with outer_join true).
+      */
+      while (tr->outer_join)
+        tr= tr->next_local;
+    }
     return tr;
   }
   /**
@@ -2804,37 +2860,34 @@ void free_table_share(TABLE_SHARE *share);
   Get the tablespace name for a table.
 
   This function will open the .FRM file for the given TABLE_LIST element
-  and get the tablespace name, if present. For NDB tables with version
-  before 50120, the function will ask the SE for the tablespace name,
-  because for these tables, the tablespace name is not stored in the.FRM
-  file, but only within the SE itself.
+  and fill Tablespace_hash_set with the tablespace name used by table and
+  table partitions, if present. For NDB tables with version before 50120,
+  the function will ask the SE for the tablespace name, because for these
+  tables, the tablespace name is not stored in the.FRM file, but only
+  within the SE itself.
 
   @note The function does *not* consider errors. If the file is not present,
         this does not raise an error. The reason is that this function will
         be used for tables that may not exist, e.g. in the context of
         'DROP TABLE IF EXISTS', which does not care whether the table
-        exists or not. If an error occurs, the function will return NULL.
+        exists or not. The function returns success in this case.
 
-  @note The return value is a char pointer to the tablespace name. The
-        string is allocated in the memory root of the thd, and will be
-        freed implicitly.
+  @note Strings inserted into hash are allocated in the memory
+        root of the thd, and will be freed implicitly.
 
-  @note When the tablespace name is written, there is no distinction between
-        a tablespace name which is empty, and the NULL string pointer. Thus,
-        when reading the name, we will always return a string of length 0 or
-        more, unless there is an error, in which case we will return NULL.
+  @param thd    - Thread context.
+  @param table  - Table from which we read the tablespace names.
+  @param tablespace_set (OUT)- Hash set to be filled with tablespace names.
 
-  @note If the tablespace name is invalid, the name will be ignored, and the
-        function will return NULL.
+  @retval true  - On failure, especially due to memory allocation errors
+                  and partition string parse errors.
+  @retval false - On success. Even if tablespaces are not used by table.
+*/
 
-  @param thd    Thread context
-  @param table  Table for which to get the tablespace name
-
-  @return Pointer to string holding a valid tablespace name. If an error
-          occurs, the function returns NULL.
- */
-
-const char *get_tablespace_name(THD *thd, const TABLE_LIST *table);
+bool get_table_and_parts_tablespace_names(
+       THD *thd,
+       TABLE_LIST *table,
+       Tablespace_hash_set *tablespace_set);
 
 int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags);
 void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg);
@@ -2851,7 +2904,7 @@ bool get_field(MEM_ROOT *mem, Field *field, class String *res);
 int closefrm(TABLE *table, bool free_share);
 int read_string(File file, uchar* *to, size_t length);
 void free_blobs(TABLE *table);
-void free_field_buffers_larger_than(TABLE *table, uint32 size);
+void free_blob_buffers_and_reset(TABLE *table, uint32 size);
 int set_zone(int nr,int min_zone,int max_zone);
 ulong make_new_entry(File file,uchar *fileinfo,TYPELIB *formnames,
 		     const char *newname);
@@ -2924,7 +2977,7 @@ inline void mark_as_null_row(TABLE *table)
 bool is_simple_order(ORDER *order);
 
 void repoint_field_to_record(TABLE *table, uchar *old_rec, uchar *new_rec);
-bool update_generated_write_fields(TABLE *table);
+bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table);
 bool update_generated_read_fields(uchar *buf, TABLE *table,
                                   uint active_index= MAX_KEY);
 

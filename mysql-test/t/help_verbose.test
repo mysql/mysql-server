@@ -17,12 +17,9 @@
 
 --exec $MYSQLD --no-defaults --help --verbose --datadir=$TEST_DATADIR --lc-messages-dir=$MESSAGES_DIR --secure-file-priv="" > $LOG_FILE 2>&1
 
---echo # There should be no errors or warnings
+--echo # There should be no errors
 --let SEARCH_FILE=    $LOG_FILE
 --let SEARCH_PATTERN= \[ERROR\]
---source include/search_pattern.inc
-
---let SEARCH_PATTERN= \[Warning\]
 --source include/search_pattern.inc
 
 # Cleanup
@@ -42,12 +39,9 @@
 
 --exec $MYSQLD --no-defaults --help --verbose --datadir=$TEST_DATADIR --lc-messages-dir=$MESSAGES_DIR  --secure-file-priv="" > $LOG_FILE 2>&1
 
---echo # There should be no errors or warnings
+--echo # There should be no errors
 --let SEARCH_FILE=    $LOG_FILE
 --let SEARCH_PATTERN= \[ERROR\]
---source include/search_pattern.inc
-
---let SEARCH_PATTERN= \[Warning\]
 --source include/search_pattern.inc
 
 --echo # There should be no leftovers in the datadir.
@@ -70,12 +64,9 @@
 
 --exec $MYSQLD --no-defaults --help --verbose --datadir=$TEST_DATADIR --lc-messages-dir=$MESSAGES_DIR  --secure-file-priv="" > $LOG_FILE 2>&1
 
---echo # There should be no errors or warnings
+--echo # There should be no errors
 --let SEARCH_FILE=    $LOG_FILE
 --let SEARCH_PATTERN= \[ERROR\]
---source include/search_pattern.inc
-
---let SEARCH_PATTERN= \[Warning\]
 --source include/search_pattern.inc
 
 # Cleanup

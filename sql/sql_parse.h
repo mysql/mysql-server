@@ -81,9 +81,9 @@ void create_select_for_variable(Parse_context *pc, const char *var_name);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);
 void mysql_init_multi_delete(LEX *lex);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);
-int mysql_execute_command(THD *thd);
+int mysql_execute_command(THD *thd, bool first_level = false);
 bool do_command(THD *thd);
-bool dispatch_command(THD *thd,COM_DATA *com_data,
+bool dispatch_command(THD *thd, const COM_DATA *com_data,
                       enum enum_server_command command);
 bool append_file_to_dir(THD *thd, const char **filename_ptr,
                         const char *table_name);
@@ -112,6 +112,7 @@ void init_update_queries(void);
 Item *negate_expression(Parse_context *pc, Item *expr);
 bool check_stack_overrun(THD *thd, long margin, uchar *dummy);
 void killall_non_super_threads(THD *thd);
+bool shutdown(THD *thd, enum mysql_enum_shutdown_level level, enum enum_server_command command);
 
 /* Variables */
 

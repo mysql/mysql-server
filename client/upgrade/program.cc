@@ -42,10 +42,10 @@ using std::stringstream;
 int mysql_check_errors;
 
 const int SYS_TABLE_COUNT = 1;
-const int SYS_VIEW_COUNT = 91;
+const int SYS_VIEW_COUNT = 100;
 const int SYS_TRIGGER_COUNT = 2;
-const int SYS_FUNCTION_COUNT = 14;
-const int SYS_PROCEDURE_COUNT = 22;
+const int SYS_FUNCTION_COUNT = 21;
+const int SYS_PROCEDURE_COUNT = 26;
 
 /**
   Error callback to be called from mysql_check functionality.
@@ -118,6 +118,11 @@ public:
   string get_description()
   {
     return "MySQL utility for upgrading databases to new MySQL versions.";
+  }
+
+  void short_usage()
+  {
+    std::cout << "Usage: " << get_name() <<" [OPTIONS]" << std::endl;
   }
 
   /**
@@ -245,14 +250,14 @@ public:
 
             while ((row = mysql_fetch_row(result)))
             {
-                ulong sys_version = calc_server_version(row[0]);
-                if (sys_version >= calc_server_version(SYS_SCHEMA_VERSION))
+                stringstream ss;
+                ulong installed_sys_version = calc_server_version(row[0]);
+                ulong expected_sys_version = calc_server_version(SYS_SCHEMA_VERSION);
+                if (installed_sys_version >= expected_sys_version)
                 {
-                  stringstream ss;
                   ss << "The sys schema is already up to date (version " << row[0] << ").";
                   this->print_verbose_message(ss.str());
                 } else {
-                  stringstream ss;
                   ss << "Found outdated sys schema version " << row[0] << ".";
                   this->print_verbose_message(ss.str());
                   if (this->run_sys_schema_upgrade() != 0)
@@ -289,7 +294,7 @@ public:
 
             while ((row = mysql_fetch_row(result)))
             {
-                if (SYS_TABLE_COUNT != atoi(row[0]))
+                if (SYS_TABLE_COUNT > atoi(row[0]))
                 {
                   stringstream ss;
                   ss << "Found "  << row[0] <<  " sys tables, but expected " << SYS_TABLE_COUNT << "."
@@ -319,7 +324,7 @@ public:
 
             while ((row = mysql_fetch_row(result)))
             {
-                if (SYS_VIEW_COUNT != atoi(row[0]))
+                if (SYS_VIEW_COUNT > atoi(row[0]))
                 {
                   stringstream ss;
                   ss << "Found "  << row[0] <<  " sys views, but expected " << SYS_VIEW_COUNT << "."
@@ -349,7 +354,7 @@ public:
 
             while ((row = mysql_fetch_row(result)))
             {
-                if (SYS_TRIGGER_COUNT != atoi(row[0]))
+                if (SYS_TRIGGER_COUNT > atoi(row[0]))
                 {
                   stringstream ss;
                   ss << "Found "  << row[0] <<  " sys triggers, but expected " << SYS_TRIGGER_COUNT << "."
@@ -379,7 +384,7 @@ public:
 
             while ((row = mysql_fetch_row(result)))
             {
-                if (SYS_FUNCTION_COUNT != atoi(row[0]))
+                if (SYS_FUNCTION_COUNT > atoi(row[0]))
                 {
                   stringstream ss;
                   ss << "Found "  << row[0] <<  " sys functions, but expected " << SYS_FUNCTION_COUNT << "."
@@ -409,7 +414,7 @@ public:
 
             while ((row = mysql_fetch_row(result)))
             {
-                if (SYS_PROCEDURE_COUNT != atoi(row[0]))
+                if (SYS_PROCEDURE_COUNT > atoi(row[0]))
                 {
                   stringstream ss;
                   ss << "Found "  << row[0] <<  " sys procedures, but expected " << SYS_PROCEDURE_COUNT << "."
@@ -551,12 +556,13 @@ private:
     int64 result;
 
     Mysql_query_runner runner(*this->m_query_runner);
-    runner.add_result_callback(
-      new Instance_callback<int64, const Mysql_query_runner::Row&, Program>(
-      this, &Program::result_callback));
-    runner.add_message_callback(
-      new Instance_callback<int64, const Message_data&, Program>(
-      this, &Program::fix_privilage_tables_error));
+    Instance_callback<int64, const Mysql_query_runner::Row&, Program>
+      result_cb(this, &Program::result_callback);
+    Instance_callback<int64, const Message_data&, Program>
+      message_cb(this, &Program::fix_privilage_tables_error);
+
+    runner.add_result_callback(&result_cb);
+    runner.add_message_callback(&message_cb);
 
     this->print_verbose_message("Running queries to upgrade MySQL server.");
 
@@ -591,12 +597,13 @@ private:
     int result;
 
     Mysql_query_runner runner(*this->m_query_runner);
-    runner.add_result_callback(
-      new Instance_callback<int64, const Mysql_query_runner::Row&, Program>(
-      this, &Program::result_callback));
-    runner.add_message_callback(
-      new Instance_callback<int64, const Message_data&, Program>(
-      this, &Program::fix_privilage_tables_error));
+    Instance_callback<int64, const Mysql_query_runner::Row&, Program>
+      result_cb(this, &Program::result_callback);
+    Instance_callback<int64, const Message_data&, Program>
+      message_cb(this, &Program::fix_privilage_tables_error);
+
+    runner.add_result_callback(&result_cb);
+    runner.add_message_callback(&message_cb);
 
     this->print_verbose_message("Upgrading the sys schema.");
 

@@ -171,23 +171,23 @@ to open the table and allows InnoDB to quickly find the tablespace. */
 
 /** Bit mask of the COMPACT field */
 #define DICT_TF_MASK_COMPACT				\
-		((~(~0 << DICT_TF_WIDTH_COMPACT))	\
+		((~(~0U << DICT_TF_WIDTH_COMPACT))	\
 		<< DICT_TF_POS_COMPACT)
 /** Bit mask of the ZIP_SSIZE field */
 #define DICT_TF_MASK_ZIP_SSIZE				\
-		((~(~0 << DICT_TF_WIDTH_ZIP_SSIZE))	\
+		((~(~0U << DICT_TF_WIDTH_ZIP_SSIZE))	\
 		<< DICT_TF_POS_ZIP_SSIZE)
 /** Bit mask of the ATOMIC_BLOBS field */
 #define DICT_TF_MASK_ATOMIC_BLOBS			\
-		((~(~0 << DICT_TF_WIDTH_ATOMIC_BLOBS))	\
+		((~(~0U << DICT_TF_WIDTH_ATOMIC_BLOBS))	\
 		<< DICT_TF_POS_ATOMIC_BLOBS)
 /** Bit mask of the DATA_DIR field */
 #define DICT_TF_MASK_DATA_DIR				\
-		((~(~0 << DICT_TF_WIDTH_DATA_DIR))	\
+		((~(~0U << DICT_TF_WIDTH_DATA_DIR))	\
 		<< DICT_TF_POS_DATA_DIR)
 /** Bit mask of the SHARED_SPACE field */
 #define DICT_TF_MASK_SHARED_SPACE			\
-		((~(~0 << DICT_TF_WIDTH_SHARED_SPACE))	\
+		((~(~0U << DICT_TF_WIDTH_SHARED_SPACE))	\
 		<< DICT_TF_POS_SHARED_SPACE)
 
 /** Return the value of the COMPACT field */
@@ -225,7 +225,7 @@ for unknown bits in order to protect backward incompatibility. */
 /* @{ */
 /** Total number of bits in table->flags2. */
 #define DICT_TF2_BITS			8
-#define DICT_TF2_UNUSED_BIT_MASK	(~0 << DICT_TF2_BITS)
+#define DICT_TF2_UNUSED_BIT_MASK	(~0U << DICT_TF2_BITS)
 #define DICT_TF2_BIT_MASK		~DICT_TF2_UNUSED_BIT_MASK
 
 /** TEMPORARY; TRUE for tables from CREATE TEMPORARY TABLE. */
@@ -560,6 +560,20 @@ struct dict_col_t{
 					3072 for Barracuda table */
 };
 
+/** Index information put in a list of virtual column structure. Index
+id and virtual column position in the index will be logged.
+There can be multiple entries for a given index, with a different position. */
+struct dict_v_idx_t {
+	/** active index on the column */
+	dict_index_t*	index;
+
+	/** position in this index */
+	ulint		nth_field;
+};
+
+/** Index list to put in dict_v_col_t */
+typedef	std::list<dict_v_idx_t, ut_allocator<dict_v_idx_t> >	dict_v_idx_list;
+
 /** Data structure for a virtual column in a table */
 struct dict_v_col_t{
 	/** column structure */
@@ -573,6 +587,24 @@ struct dict_v_col_t{
 
 	/** column pos in table */
 	ulint			v_pos;
+
+	/** Virtual index list, and column position in the index,
+	the allocated memory is not from table->heap, nor it is
+	tracked by dict_sys->size */
+	dict_v_idx_list*	v_indexes;
+
+};
+
+/** Data structure for newly added virtual column in a table */
+struct dict_add_v_col_t{
+	/** number of new virtual column */
+	ulint			n_v_col;
+
+	/** column structures */
+	const dict_v_col_t*	v_col;
+
+	/** new col names */
+	const char**		v_col_name;
 };
 
 /** @brief DICT_ANTELOPE_MAX_INDEX_COL_LEN is measured in bytes and
@@ -1687,6 +1719,43 @@ dict_table_autoinc_own(
 	return(mutex_own(table->autoinc_mutex));
 }
 #endif /* UNIV_DEBUG */
+
+/** whether a col is used in spatial index or regular index */
+enum col_spatial_status {
+	/** Not used in gis index. */
+	SPATIAL_NONE	= 0,
+
+	/** Used in both spatial index and regular index. */
+	SPATIAL_MIXED	= 1,
+
+	/** Only used in spatial index. */
+	SPATIAL_ONLY	= 2
+};
+
+/** Check whether the col is used in spatial index or regular index.
+@param[in]	col	column to check
+@return col_spatial_status */
+inline
+col_spatial_status
+dict_col_get_spatial_status(
+	const dict_col_t*	col)
+{
+	col_spatial_status	spatial_status = SPATIAL_NONE;
+
+	ut_ad(col->ord_part);
+
+	if (DATA_GEOMETRY_MTYPE(col->mtype)) {
+		if (col->max_prefix == 0) {
+			spatial_status = SPATIAL_ONLY;
+		} else {
+			/* Any regular index on a geometry column
+			should have a prefix. */
+			spatial_status = SPATIAL_MIXED;
+		}
+	}
+
+	return(spatial_status);
+}
 
 #ifndef UNIV_NONINL
 #include "dict0mem.ic"

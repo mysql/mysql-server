@@ -272,6 +272,8 @@ will be freed in the destructor.
 void
 Datafile::set_name(const char*	name)
 {
+	ut_free(m_name);
+
 	if (name != NULL) {
 		m_name = mem_strdup(name);
 	} else if (fsp_is_file_per_table(m_space_id, m_flags)) {
@@ -572,9 +574,16 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 
 		return(DB_CORRUPTION);
 
-	} else if (fil_space_read_name_and_filepath(
-			   m_space_id, &prev_name, &prev_filepath)
-		   && (0 != strcmp(m_filepath, prev_filepath))) {
+	}
+
+	if (fil_space_read_name_and_filepath(
+		m_space_id, &prev_name, &prev_filepath)) {
+
+		if (0 == strcmp(m_filepath, prev_filepath)) {
+			ut_free(prev_name);
+			ut_free(prev_filepath);
+			return(DB_SUCCESS);
+		}
 
 		/* Make sure the space_id has not already been opened. */
 		ib::error() << "Attempted to open a previously opened"
@@ -826,6 +835,19 @@ Datafile::restore_from_doublewrite(
 			m_filepath, m_handle, page, 0, page_size.physical()));
 }
 
+/** Create a link filename based on the contents of m_name,
+open that file, and read the contents into m_filepath.
+@retval DB_SUCCESS if remote linked tablespace file is opened and read.
+@retval DB_CANNOT_OPEN_FILE if the link file does not exist. */
+dberr_t
+RemoteDatafile::open_link_file()
+{
+	set_link_filepath(NULL);
+	m_filepath = read_link_file(m_link_filepath);
+
+	return(m_filepath == NULL ? DB_CANNOT_OPEN_FILE : DB_SUCCESS);
+}
+
 /** Opens a handle to the file linked to in an InnoDB Symbolic Link file
 in read-only mode so that it can be validated.
 @param[in]	strict	whether to issue error messages
@@ -833,21 +855,8 @@ in read-only mode so that it can be validated.
 dberr_t
 RemoteDatafile::open_read_only(bool strict)
 {
-	if (m_filepath == NULL) {
-		if (m_link_filepath == NULL) {
-			m_link_filepath = fil_make_filepath(
-				NULL, name(), ISL, false);
-		}
-
-		bool	is_shared = FSP_FLAGS_GET_SHARED(flags());
-		m_filepath = read_link_file(m_link_filepath, is_shared);
-
-		/* Validate m_filepath */
-		if (m_filepath == NULL) {
-			/* There is no ISL file or
-			its contents are not valid. */
-			return(DB_ERROR);
-		}
+	if (m_filepath == NULL && open_link_file() == DB_CANNOT_OPEN_FILE) {
+		return(DB_ERROR);
 	}
 
 	dberr_t err = Datafile::open_read_only(strict);
@@ -870,19 +879,8 @@ in read-write mode so that it can be restored from doublewrite and validated.
 dberr_t
 RemoteDatafile::open_read_write(bool read_only_mode)
 {
-	if (m_filepath == NULL) {
-		if (m_link_filepath == NULL) {
-			m_link_filepath = fil_make_filepath(
-				NULL, name(), ISL, false);
-		}
-
-		bool	is_shared = FSP_FLAGS_GET_SHARED(flags());
-		m_filepath = read_link_file(m_link_filepath, is_shared);
-
-		if (m_filepath == NULL) {
-			/* There is no remote file */
-			return(DB_ERROR);
-		}
+	if (m_filepath == NULL && open_link_file() == DB_CANNOT_OPEN_FILE) {
+		return(DB_ERROR);
 	}
 
 	dberr_t err = Datafile::open_read_write(read_only_mode);
@@ -917,22 +915,19 @@ the path provided without its suffix, plus DOT_ISL.
 void
 RemoteDatafile::set_link_filepath(const char* path)
 {
-	char*	basename;
-	bool	is_shared =  FSP_FLAGS_GET_SHARED(flags());
+	if (m_link_filepath != NULL) {
+		return;
+	}
 
-	if (is_shared) {
-		ut_ad(path != NULL);
+	if (path != NULL && FSP_FLAGS_GET_SHARED(flags())) {
+		/* Make the link_filepath based on the basename. */
 		ut_ad(strcmp(&path[strlen(path) - strlen(DOT_IBD)],
 		      DOT_IBD) == 0);
 
-		basename = mem_strdup(base_name(path));
-		basename[strlen(basename) - strlen(DOT_IBD)] = '\0';
-
-		m_link_filepath = fil_make_filepath(NULL, basename, ISL, false);
-
-		ut_free(basename);
+		m_link_filepath = fil_make_filepath(NULL, base_name(path),
+						    ISL, false);
 	} else {
-		ut_ad(path == NULL);
+		/* Make the link_filepath based on the m_name. */
 		m_link_filepath = fil_make_filepath(NULL, name(), ISL, false);
 	}
 }
@@ -978,14 +973,18 @@ RemoteDatafile::create_link_file(
 			/* File is in the datadir. */
 			return(DB_SUCCESS);
 		}
-	}
 
-	link_filepath = fil_make_filepath(NULL, name, ISL, false);
+		/* Use the file basename to build the ISL filepath. */
+		link_filepath = fil_make_filepath(NULL, base_name(filepath),
+						  ISL, false);
+	} else {
+		link_filepath = fil_make_filepath(NULL, name, ISL, false);
+	}
 	if (link_filepath == NULL) {
 		return(DB_ERROR);
 	}
 
-	prev_filepath = read_link_file(link_filepath, is_shared);
+	prev_filepath = read_link_file(link_filepath);
 	if (prev_filepath) {
 		/* Truncate will call this with an existing
 		link file which contains the same filepath. */
@@ -1047,10 +1046,7 @@ RemoteDatafile::create_link_file(
 void
 RemoteDatafile::delete_link_file(void)
 {
-	if (m_link_filepath == NULL) {
-		m_link_filepath = fil_make_filepath(NULL, name(),
-						    ISL, false);
-	}
+	ut_ad(m_link_filepath != NULL);
 
 	if (m_link_filepath != NULL) {
 		os_file_delete_if_exists(innodb_data_file_key,
@@ -1082,13 +1078,10 @@ For general tablespaces, there will be no 'database' directory.
 The 'basename.isl' will be in the datadir.
 The caller must free the memory returned if it is not null.
 @param[in]	link_filepath	filepath of the ISL file
-@param[in]	is_shared	true for general tablespace,
-				false for file-per-table
 @return Filepath of the IBD file read from the ISL file */
 char*
 RemoteDatafile::read_link_file(
-	const char*	link_filepath,
-	bool		is_shared)
+	const char*	link_filepath)
 {
 	char*		filepath = NULL;
 	FILE*		file = NULL;

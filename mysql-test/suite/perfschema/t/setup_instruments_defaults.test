@@ -37,6 +37,21 @@ AND enabled = 'no' AND timed = 'no'
 ORDER BY name;
 
 --echo #
+--echo # Verify that the memory instruments are never timed
+--echo #
+SELECT * FROM performance_schema.setup_instruments
+WHERE name like 'memory/%'
+AND timed = 'YES';
+
+--echo #
+--echo # Verify that the memory/performance_schema instruments are never disabled
+--echo #
+SELECT * FROM performance_schema.setup_instruments
+WHERE name like 'memory/performance_schema/%'
+AND enabled = 'NO';
+
+
+--echo #
 --echo # Verify that the instrument startup settings are not not visible.
 --echo #
 SHOW VARIABLES LIKE "%/wait/synch/mutex%";

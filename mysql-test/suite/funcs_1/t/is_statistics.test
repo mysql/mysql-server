@@ -137,7 +137,9 @@ ORDER BY table_schema,table_name,index_name,seq_in_index,column_name;
 let $my_show1 = SHOW GRANTS FOR 'testuser1'@'localhost';
 let $my_show2 = SHOW GRANTS FOR 'testuser2'@'localhost';
 eval $my_select;
+--sorted_result
 eval $my_show1;
+--sorted_result
 eval $my_show2;
 
 --echo # Establish connection testuser1 (user=testuser1)
@@ -145,6 +147,7 @@ eval $my_show2;
 connect (testuser1, localhost, testuser1, , test);
 # nothing visible for testuser1
 eval $my_select;
+--sorted_result
 eval $my_show1;
 --error ER_DBACCESS_DENIED_ERROR
 eval $my_show2;
@@ -156,6 +159,7 @@ connect (testuser2, localhost, testuser2, , test);
 eval $my_select;
 --error ER_DBACCESS_DENIED_ERROR
 eval $my_show1;
+--sorted_result
 eval $my_show2;
 
 --echo # Switch to connection default
@@ -163,12 +167,15 @@ connection default;
 GRANT SELECT ON db_datadict.t1 TO 'testuser1'@'localhost' WITH GRANT OPTION;
 GRANT SELECT(f1,f5) ON db_datadict_2.t3 TO 'testuser1'@'localhost';
 eval $my_select;
+--sorted_result
 eval $my_show1;
+--sorted_result
 eval $my_show2;
 
 --echo # Switch to connection testuser1
 connection testuser1;
 eval $my_select;
+--sorted_result
 eval $my_show1;
 --error ER_DBACCESS_DENIED_ERROR
 eval $my_show2;
@@ -178,17 +185,20 @@ connection testuser2;
 eval $my_select;
 --error ER_DBACCESS_DENIED_ERROR
 eval $my_show1;
+--sorted_result
 eval $my_show2;
 
 --echo # Switch to connection default
 connection default;
 REVOKE SELECT,GRANT OPTION ON db_datadict.t1 FROM 'testuser1'@'localhost';
+--sorted_result
 eval $my_show1;
 
 --echo # Switch to connection testuser1
 # nothing visible for testuser1
 connection testuser1;
 eval $my_select;
+--sorted_result
 eval $my_show1;
 
 # Cleanup

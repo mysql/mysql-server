@@ -198,11 +198,8 @@ public:
   // Set for RENAME INDEX
   static const uint ALTER_RENAME_INDEX          = 1L << 27;
 
-  // Set for adding/altering stored generated columns
-  static const uint ALTER_STORED_GCOLUMN        = 1L << 28;
-
-  // Set for adding/altering virtual generated columns
-  static const uint ALTER_VIRTUAL_GCOLUMN       = 1L << 29;
+  // Set for UPGRADE PARTITIONING
+  static const uint ALTER_UPGRADE_PARTITIONING  = 1L << 30;
 
   enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 
@@ -244,6 +241,23 @@ public:
 
 
   /**
+    Status of validation clause in ALTER TABLE statement. Used during
+    partitions and GC alterations.
+  */
+  enum enum_with_validation
+  {
+    /**
+      Default value, used when it's not specified in the statement.
+      Means WITH VALIDATION for partitions alterations and WITHOUT VALIDATION
+      for altering virtual GC.
+    */
+    ALTER_VALIDATION_DEFAULT,
+    ALTER_WITH_VALIDATION,
+    ALTER_WITHOUT_VALIDATION
+  };
+
+
+  /**
      Columns and keys to be dropped.
      After mysql_prepare_alter_table() it contains only foreign keys and
      virtual generated columns to be dropped. This information is necessary
@@ -270,8 +284,11 @@ public:
   enum_alter_table_algorithm    requested_algorithm;
   // Type of ALTER TABLE lock.
   enum_alter_table_lock         requested_lock;
-  // WITHOUT VALIDATION was not given
-  bool                          with_validation;
+  /*
+    Whether VALIDATION is asked for an operation. Used during virtual GC and
+    partitions alterations.
+  */
+  enum_with_validation          with_validation;
 
   Alter_info() :
     flags(0),
@@ -279,7 +296,7 @@ public:
     num_parts(0),
     requested_algorithm(ALTER_TABLE_ALGORITHM_DEFAULT),
     requested_lock(ALTER_TABLE_LOCK_DEFAULT),
-    with_validation(true)
+    with_validation(ALTER_VALIDATION_DEFAULT)
   {}
 
   void reset()
@@ -295,7 +312,7 @@ public:
     partition_names.empty();
     requested_algorithm= ALTER_TABLE_ALGORITHM_DEFAULT;
     requested_lock= ALTER_TABLE_LOCK_DEFAULT;
-    with_validation= true;
+    with_validation= ALTER_VALIDATION_DEFAULT;
   }
 
 
@@ -402,8 +419,13 @@ public:
   { return tmp_path; }
 
 public:
+  typedef uint error_if_not_empty_mask;
+  static const error_if_not_empty_mask DATETIME_WITHOUT_DEFAULT= 1 << 0;
+  static const error_if_not_empty_mask GEOMETRY_WITHOUT_DEFAULT= 1 << 1;
+
   Create_field *datetime_field;
-  bool         error_if_not_empty;
+  error_if_not_empty_mask error_if_not_empty;
+  bool         requires_generated_column_server_evaluation;
   uint         tables_opened;
   const char   *db;
   const char   *table_name;

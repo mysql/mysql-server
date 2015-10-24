@@ -7413,7 +7413,7 @@ ER_CANT_SET_GTID_MODE
   eng "SET @@GLOBAL.GTID_MODE = %-.64s is not allowed because %-.384s."
 
 ER_CANT_USE_AUTO_POSITION_WITH_GTID_MODE_OFF
-  eng "The replication receiver thread for channel '%s' cannot start in AUTO_POSITION mode: this server uses @@GLOBAL.GTID_MODE = OFF."
+  eng "The replication receiver thread%-.192s cannot start in AUTO_POSITION mode: this server uses @@GLOBAL.GTID_MODE = OFF."
 
 ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION
   eng "Cannot replicate anonymous transaction when AUTO_POSITION = 1, at file %.512s, position %lld."
@@ -7578,6 +7578,31 @@ ER_AUDIT_API_ABORT
 
 ER_INVALID_JSON_PATH_ARRAY_CELL 42000
   eng "A path expression is not a path to a cell in an array."
+
+ER_BUFPOOL_RESIZE_INPROGRESS
+  eng "Another buffer pool resize is already in progress."
+
+ER_FEATURE_DISABLED_SEE_DOC
+  eng "The '%s' feature is disabled; see the documentation for '%s'"
+
+ER_SERVER_ISNT_AVAILABLE
+  eng "Server isn't available"
+
+ER_SESSION_WAS_KILLED
+  eng "Session was killed"
+
+ER_CAPACITY_EXCEEDED
+  eng "Memory capacity of %llu bytes for '%s' exceeded. %s"
+
+ER_CAPACITY_EXCEEDED_IN_RANGE_OPTIMIZER
+  eng "Range optimization was not done for this query."
+
+ER_TABLE_NEEDS_UPG_PART
+  eng "Partitioning upgrade required. Please dump/reload to fix it or do: ALTER TABLE `%-.192s`.`%-.192s` UPGRADE PARTITIONING"
+
+ER_CANT_WAIT_FOR_EXECUTED_GTID_SET_WHILE_OWNING_A_GTID
+  eng "The client holds ownership of the GTID %s. Therefore, WAIT_FOR_EXECUTED_GTID_SET cannot wait for this GTID."
+
 
 #
 #  End of 5.7 error messages.

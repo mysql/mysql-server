@@ -1,0 +1,97 @@
+# test needs two different servers, hence disable test for
+# embedded which only runs on one
+-- source include/not_embedded.inc
+-- source include/have_ndb.inc
+-- source include/have_multi_ndb.inc
+
+# Test uses a 4 node configuration with
+# ndbd using nodeid 1-4, mgmd 5, first mysqld 6 and second mysqld 7
+
+# Check that there are 4 connections from second mysqld
+connection server1;
+let $wait_condition = select count(*) = 4
+                      from ndbinfo.transporters
+                      where remote_node_id = 7 and status='CONNECTED';
+--source include/wait_condition.inc
+
+--echo # Restart mysqld with all data nodes started
+connection server2;
+let $start_time = `select now()`;
+let $mysqld_name=mysqld.2.1;
+--source include/restart_mysqld.inc
+let $mysqld_restart_time_full_cluster= `select timestampdiff(second, '$start_time', now())`;
+#echo $mysqld_restart_time_full_cluster;
+
+--echo # Check that there are still 4 connections from second mysqld
+connection server1;
+let $wait_condition = select count(*) = 4
+                      from ndbinfo.transporters
+                      where remote_node_id = 7 and status='CONNECTED';
+--source include/wait_condition.inc
+
+## Calculate a reasonable limit for restart time for mysqld with partial cluster
+## It should take about the same time as with full cluster, but also depends
+## on what else runs on the machine at the time. Use average between mysqld
+## restart time with full cluster (see above) and maximal time according to
+## configuration.
+## Could of course just skip this and just check the number of connections
+## after restart.
+## Note also that in normal case the main part of restart time is not spent
+## waiting for db nodes.
+let $mysqld_restart_time_partial_cluster_limit =
+  `select (@@ndb_wait_connected + $mysqld_restart_time_full_cluster)/2`;
+#echo $mysqld_restart_time_partial_cluster_limit;
+
+# Stop two data nodes, one with node group, one without
+--exec $NDB_MGM --no-defaults --verbose=0 --execute "2 restart -n"
+--exec $NDB_MGM --no-defaults --verbose=0 --execute "4 restart -n -a"
+
+--echo # Check that there are only _2_ connections from second mysqld
+connection server1;
+let $wait_condition = select count(*) = 2
+                      from ndbinfo.transporters
+                      where remote_node_id = 7 and status='CONNECTED';
+--source include/wait_condition.inc
+
+--echo # Restart one mysqld with 2 data nodes down and check how long it took
+connection server2;
+let $start_time = `select now()`;
+let $mysqld_name=mysqld.2.1;
+--source include/restart_mysqld.inc
+let $mysqld_restart_time_partial_cluster= `select timestampdiff(second, '$start_time', now())`;
+#echo $mysqld_restart_time_partial_cluster;
+
+if (`select $mysqld_restart_time_partial_cluster >= $mysqld_restart_time_partial_cluster_limit`)
+{
+  select now();
+  echo mysqld_restart_time_full_cluster: $mysqld_restart_time_full_cluster;
+  echo mysqld_restart_time_partial_cluster: $mysqld_restart_time_partial_cluster;
+  echo mysqld_restart_time_partial_cluster_limit: $mysqld_restart_time_partial_cluster_limit;
+  select @@ndb_wait_connected;
+  select * from ndbinfo.transporters;
+  -- die Restart took longer time then expected, indicates either bug or extreme load on test machine.
+}
+
+--echo # Check that there are 2 connections from second mysqld
+connection server1;
+let $wait_condition = select count(*) = 2
+                      from ndbinfo.transporters
+                      where remote_node_id = 7 and status='CONNECTED';
+--source include/wait_condition.inc
+
+--echo # Start all data nodes again.
+--exec $NDB_MGM --no-defaults --verbose=0 --execute "2 start"
+--exec $NDB_MGM --no-defaults --verbose=0 --execute "4 start"
+--exec $NDB_WAITER --no-defaults --wait-nodes=2,4 >> $NDB_TOOLS_OUTPUT
+
+--echo # Check that there are again 4 connections from second mysqld
+connection server1;
+let $wait_condition = select count(*) = 4
+                      from ndbinfo.transporters
+                      where remote_node_id = 7 and status='CONNECTED';
+# Would really just want to wait for one api data node heart beat interval (1.5s)
+# to verify that newly started data nodes are quickly connected by api node.
+# But since mtr often runs in overloaded hosts a longer timeout (6s) is used.
+let $wait_timeout = 6;
+--source include/wait_condition.inc
+

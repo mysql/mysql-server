@@ -320,9 +320,11 @@ void thr_lock_delete(THR_LOCK *lock)
 }
 
 
-void thr_lock_info_init(THR_LOCK_INFO *info, my_thread_id thread_id)
+void thr_lock_info_init(THR_LOCK_INFO *info, my_thread_id thread_id,
+                        mysql_cond_t *suspend)
 {
   info->thread_id= thread_id;
+  info->suspend= suspend;
 }
 
 	/* Initialize a lock instance */
@@ -353,8 +355,8 @@ static void wake_up_waiters(THR_LOCK *lock);
 
 static enum enum_thr_lock_result
 wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
-              my_bool in_wait_list, ulong lock_wait_timeout,
-              struct st_my_thread_var *thread_var)
+              THR_LOCK_INFO *owner,
+              my_bool in_wait_list, ulong lock_wait_timeout)
 {
   struct timespec wait_timeout;
   enum enum_thr_lock_result result= THR_LOCK_ABORTED;
@@ -393,7 +395,7 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   locks_waited++;
 
   /* Set up control struct to allow others to abort locks */
-  data->cond= &thread_var->suspend;
+  data->cond= owner->suspend;
 
   enter_cond_hook(NULL, data->cond, &data->lock->mutex,
                   &stage_waiting_for_table_level_lock, &old_stage,
@@ -409,16 +411,16 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
     ourselves to call it before_lock_wait once before starting to wait
     and once after the thread has exited the wait loop.
    */
-  if ((!thread_var->abort || in_wait_list) && before_lock_wait)
+  if ((!is_killed_hook(NULL) || in_wait_list) && before_lock_wait)
     (*before_lock_wait)();
 
   set_timespec(&wait_timeout, lock_wait_timeout);
-  while (!thread_var->abort || in_wait_list)
+  while (!is_killed_hook(NULL) || in_wait_list)
   {
     int rc= mysql_cond_timedwait(data->cond, &data->lock->mutex, &wait_timeout);
     /*
       We must break the wait if one of the following occurs:
-      - the connection has been aborted (!thread_var->abort),
+      - the connection has been aborted (!is_killed_hook()),
       - the lock has been granted (data->cond is set to NULL by the granter),
         or the waiting has been aborted (additionally data->type is set to
         TL_UNLOCK).
@@ -447,9 +449,6 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
    */
   if (after_lock_wait)
     (*after_lock_wait)();
-
-  DBUG_PRINT("thr_lock", ("aborted: %d  in_wait_list: %d",
-                          thread_var->abort, in_wait_list));
 
   if (data->cond || data->type == TL_UNLOCK)
   {
@@ -486,8 +485,7 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
 
 enum enum_thr_lock_result
 thr_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner,
-         enum thr_lock_type lock_type, ulong lock_wait_timeout,
-         struct st_my_thread_var *thread_var)
+         enum thr_lock_type lock_type, ulong lock_wait_timeout)
 {
   THR_LOCK *lock=data->lock;
   enum enum_thr_lock_result result= THR_LOCK_SUCCESS;
@@ -707,7 +705,8 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner,
     wait_queue= &lock->write_wait;
   }
   /* Can't get lock yet;  Wait for it */
-  result= wait_for_lock(wait_queue, data, 0, lock_wait_timeout, thread_var);
+  result= wait_for_lock(wait_queue, data, owner, 0,
+                        lock_wait_timeout);
   MYSQL_END_TABLE_LOCK_WAIT(locker);
   DBUG_RETURN(result);
 end:
@@ -963,7 +962,7 @@ static void sort_locks(THR_LOCK_DATA **data,uint count)
 
 enum enum_thr_lock_result
 thr_multi_lock(THR_LOCK_DATA **data, uint count, THR_LOCK_INFO *owner,
-               ulong lock_wait_timeout, struct st_my_thread_var *thread_var)
+               ulong lock_wait_timeout)
 {
   THR_LOCK_DATA **pos,**end;
   DBUG_ENTER("thr_multi_lock");
@@ -974,7 +973,7 @@ thr_multi_lock(THR_LOCK_DATA **data, uint count, THR_LOCK_INFO *owner,
   for (pos=data,end=data+count; pos < end ; pos++)
   {
     enum enum_thr_lock_result result= thr_lock(*pos, owner, (*pos)->type,
-                                               lock_wait_timeout, thread_var);
+                                               lock_wait_timeout);
     if (result != THR_LOCK_SUCCESS)
     {						/* Aborted */
       thr_multi_unlock(data,(uint) (pos-data));
@@ -1372,17 +1371,16 @@ static void *test_thread(void *arg)
   THR_LOCK_DATA data[MAX_LOCK_COUNT];
   THR_LOCK_INFO lock_info;
   THR_LOCK_DATA *multi_locks[MAX_LOCK_COUNT];
+  my_thread_id id;
+  mysql_cond_t COND_thr_lock;
 
-  struct st_my_thread_var my_thread_var;
-  memset(&my_thread_var, 0, sizeof(my_thread_var));
-  my_thread_var.id= param + 1; /* Main thread uses value 0. */
-  mysql_cond_init(0, &my_thread_var.suspend);
+  id= param + 1; /* Main thread uses value 0. */
+  mysql_cond_init(0, &COND_thr_lock);
 
-  printf("Thread T@%u (%d) started\n", my_thread_var.id, param);
+  printf("Thread T@%d started\n", id);
   fflush(stdout);
 
-
-  thr_lock_info_init(&lock_info, my_thread_var.id);
+  thr_lock_info_init(&lock_info, id, &COND_thr_lock);
   for (i=0; i < lock_counts[param] ; i++)
   {
     thr_lock_data_init(locks+tests[param][i].lock_nr,data+i,NULL);
@@ -1395,8 +1393,7 @@ static void *test_thread(void *arg)
       multi_locks[i]= &data[i];
       data[i].type= tests[param][i].lock_type;
     }
-    thr_multi_lock(multi_locks, lock_counts[param], &lock_info, TEST_TIMEOUT,
-                   &my_thread_var);
+    thr_multi_lock(multi_locks, lock_counts[param], &lock_info, TEST_TIMEOUT);
     mysql_mutex_lock(&LOCK_thread_count);
     {
       int tmp=rand() & 7;			/* Do something from 0-2 sec */
@@ -1415,13 +1412,14 @@ static void *test_thread(void *arg)
     thr_multi_unlock(multi_locks,lock_counts[param]);
   }
 
-  printf("Thread T@%u (%d) ended\n", my_thread_var.id, param);
+  printf("Thread T@%d ended\n", id);
   fflush(stdout);
   thr_print_locks();
   mysql_mutex_lock(&LOCK_thread_count);
   thread_count--;
   mysql_cond_signal(&COND_thread_count); /* Tell main we are ready */
   mysql_mutex_unlock(&LOCK_thread_count);
+  mysql_cond_destroy(&COND_thr_lock);
   free((uchar*) arg);
   return 0;
 }

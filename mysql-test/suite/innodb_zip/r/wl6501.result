@@ -1274,4 +1274,27 @@ drop procedure populate_t1;
 drop procedure populate_t2;
 drop procedure populate_t3;
 drop table t1, t2, t3;
+create table ibstd_33 (
+a int not null,
+d varchar(40) not null,
+b text not null,
+c text,
+index(d),
+index(a),
+primary key (b(16), a, d),
+fulltext ftsic(c)) engine=InnoDB row_format=dynamic;
+insert into ibstd_33 (a,d,b,c) values ('1','6',
+repeat('0.350557460150547arrclolullcocuraalaulloooclrcoulrccaoocourcrorooruruooauuauarrouccuoucrooaaouullrularcoarclloraaac','367'),
+repeat('0.0836047279001129oaalolrllcoulaoococrolooullocuaacocoaoloclouallruaalolaruucaloluraocorrlouuoaorloarrluaaorucu','534'));
+select count(*) from ibstd_33;
+count(*)
+1
+set session debug = "+d,ib_truncate_crash_while_fts_cleanup";
+truncate table ibstd_33;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the MySQL server
+select count(*) from ibstd_33;
+ERROR 42S02: Table 'test.ibstd_33' doesn't exist
+drop table ibstd_33;
 set global innodb_file_per_table = default;
+set global innodb_strict_mode = default;

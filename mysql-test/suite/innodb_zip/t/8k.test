@@ -42,7 +42,7 @@ SELECT	t.name table_name, t.n_cols, t.flag table_flags,
 		INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
 	WHERE	t.table_id = i.table_id
 	AND	t.name LIKE 'mysql%'
-	ORDER BY t.space, i.page_no;
+	ORDER BY t.name, i.index_id;
 
 CREATE TABLE t1 (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;
 CREATE TABLE t2 (a INT KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=innodb;
@@ -326,16 +326,14 @@ UPDATE t1 SET h=@e;
 CREATE INDEX t1i ON t1 (i(767));
 UPDATE t1 SET i=@e;
 
-# The function dict_index_too_big_for_undo() prevents us from adding
-# one more index that is 767 bytes long.
 --replace_regex /> [0-9]*/> max_row_size/
--- error ER_TOO_BIG_ROWSIZE
-CREATE INDEX t1j ON t1 (j(767));
+CREATE INDEX t1k ON t1 (j(767));
 
 # But it does allow a 500 byte index.  And with this, we cannot
 # update the record. This is a problem.  It means that the DDL is
 # allowed to create a table and a record that CANNOT be updated.
 # See bug#12953735
+--replace_regex /> [0-9]*/> max_row_size/
 CREATE INDEX t1j ON t1 (j(500));
 --error ER_UNDO_RECORD_TOO_BIG
 UPDATE t1 SET j=@e;
@@ -444,26 +442,26 @@ DROP TABLE t1;
 # (The fix of Bug #50945 only affects REDUNDANT and COMPACT tables.)
 SET SESSION innodb_strict_mode = off;
 --replace_regex /> [0-9]*/> max_row_size/
---error ER_TOO_BIG_ROWSIZE
 CREATE TABLE t1(
 	c text NOT NULL, d text NOT NULL,
 	PRIMARY KEY (c(767),d(767)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
+DROP TABLE t1;
 --replace_regex /> [0-9]*/> max_row_size/
---error ER_TOO_BIG_ROWSIZE
 CREATE TABLE t1(
 	c text NOT NULL, d text NOT NULL,
 	PRIMARY KEY (c(767),d(767)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2 CHARSET=ASCII;
+DROP TABLE t1;
 CREATE TABLE t1(
 	c text NOT NULL, d text NOT NULL,
 	PRIMARY KEY (c(767),d(767)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4 CHARSET=ASCII;
 drop table t1;
 --replace_regex /> [0-9]*/> max_row_size/
---error ER_TOO_BIG_ROWSIZE
 CREATE TABLE t1(c text, PRIMARY KEY (c(440)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
+DROP TABLE t1;
 CREATE TABLE t1(c text, PRIMARY KEY (c(438)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
 INSERT INTO t1 VALUES(REPEAT('A',512)),(REPEAT('B',512));

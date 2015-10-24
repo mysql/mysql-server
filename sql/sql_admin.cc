@@ -455,7 +455,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           if (!table->table->part_info)
           {
             my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
-            goto err;
+            result_code= HA_ADMIN_FAILED;
+            goto send_result;
           }
 
           if (set_part_state(alter_info,
@@ -463,21 +464,9 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                              PART_ADMIN,
                              true))
           {
-            char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
-            size_t length;
-            DBUG_PRINT("admin", ("sending non existent partition error"));
-            protocol->start_row();
-            protocol->store(table_name, system_charset_info);
-            protocol->store(operator_name, system_charset_info);
-            protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-            length= my_snprintf(buff, sizeof(buff),
-                                ER(ER_DROP_PARTITION_NON_EXISTENT),
-                                table_name);
-            protocol->store(buff, length, system_charset_info);
-            if(protocol->end_row())
-              goto err;
-            my_eof(thd);
-            goto err;
+            my_error(ER_DROP_PARTITION_NON_EXISTENT, MYF(0), table_name);
+            result_code= HA_ADMIN_FAILED;
+            goto send_result;
           }
         }
       }
@@ -882,7 +871,7 @@ send_result_message:
         if (thd->is_error())
         {
           const char *err_msg= thd->get_stmt_da()->message_text();
-          if (!thd->vio_ok())
+          if (!thd->get_protocol()->connection_alive())
           {
             sql_print_error("%s", err_msg);
           }
@@ -932,6 +921,18 @@ send_result_message:
                             table->table_name);
       protocol->store(buf, length, system_charset_info);
       fatal_error=1;
+      break;
+    }
+
+    case HA_ADMIN_NEEDS_UPG_PART:
+    {
+      char buf[MYSQL_ERRMSG_SIZE];
+      size_t length;
+
+      protocol->store(STRING_WITH_LEN("error"), system_charset_info);
+      length= my_snprintf(buf, sizeof(buf), ER(ER_TABLE_NEEDS_UPG_PART),
+                          table->db, table->table_name);
+      protocol->store(buf, length, system_charset_info);
       break;
     }
 
@@ -1227,5 +1228,19 @@ bool Sql_cmd_repair_table::execute(THD *thd)
   thd->lex->query_tables= first_table;
 
 error:
+  DBUG_RETURN(res);
+}
+
+
+bool Sql_cmd_shutdown::execute(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_shutdown::execute");
+  bool res= TRUE;
+#ifndef EMBEDDED_LIBRARY
+  res= !shutdown(thd, SHUTDOWN_DEFAULT, COM_QUERY);
+#else
+  my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+#endif
+
   DBUG_RETURN(res);
 }

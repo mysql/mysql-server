@@ -11,7 +11,7 @@
 
 # concurrency testing
 # when single-transaction is used it is not recommended to use parallelism
---exec $MYSQL_PUMP --databases db1 --default-parallelism=1 --single-transaction > $MYSQLTEST_VARDIR/tmp/result_file_1.sql
+--exec $MYSQL_PUMP --databases db1 --default-parallelism=0 --single-transaction > $MYSQLTEST_VARDIR/tmp/result_file_1.sql
 --exec $MYSQL_PUMP --parallel-schemas=3:db2,db1_1gb --default-parallelism=2 --include-databases=db1_1gb,db1,db2 > $MYSQLTEST_VARDIR/tmp/result_file_2.sql
 
 DROP DATABASE db1;

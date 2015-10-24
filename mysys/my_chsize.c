@@ -57,14 +57,14 @@ int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
 #ifdef _WIN32
     if (my_win_chsize(fd, newlength))
     {
-      my_errno= errno;
+      set_my_errno(errno);
       goto err;
     }
     DBUG_RETURN(0);
 #elif defined(HAVE_FTRUNCATE)
     if (ftruncate(fd, (off_t) newlength))
     {
-      my_errno= errno;
+      set_my_errno(errno);
       goto err;
     }
     DBUG_RETURN(0);
@@ -100,7 +100,7 @@ err:
   {
     char  errbuf[MYSYS_STRERROR_SIZE];
     my_error(EE_CANT_CHSIZE, MYF(0),
-             my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+             my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
   }
   DBUG_RETURN(1);
 } /* my_chsize */

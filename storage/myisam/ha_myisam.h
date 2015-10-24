@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,6 +38,14 @@ extern ulonglong myisam_recover_options;
 C_MODE_START
 ICP_RESULT index_cond_func_myisam(void *arg);
 C_MODE_END
+
+class Myisam_handler_share: public Handler_share
+{
+public:
+  Myisam_handler_share() : m_share(NULL) {}
+  ~Myisam_handler_share() {}
+  struct st_mi_isam_share *m_share;
+};
 
 class ha_myisam: public handler
 {

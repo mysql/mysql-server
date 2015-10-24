@@ -563,7 +563,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
         table->file->ha_end_bulk_insert() && !error)
     {
-      table->file->print_error(my_errno, MYF(0));
+      table->file->print_error(my_errno(), MYF(0));
       error= 1;
     }
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
@@ -1568,10 +1568,11 @@ READ_INFO::~READ_INFO()
       if (chr1 != my_b_EOF)                                                   \
       {                                                                       \
         len= my_mbcharlen_2((cs), (chr), chr1);                               \
-        /* Must be gb18030 charset */                                         \
-        DBUG_ASSERT(len == 2 || len == 4);                                    \
+        /* Character is gb18030 or invalid (len = 0) */                       \
+        DBUG_ASSERT(len == 0 || len == 2 || len == 4);                        \
       }                                                                       \
-      PUSH(chr1);                                                             \
+      if (len != 0)                                                           \
+        PUSH(chr1);                                                           \
     }                                                                         \
   } while (0)
 
@@ -2175,8 +2176,15 @@ int READ_INFO::read_xml()
       break;
       
     case '/': /* close tag */
-      level--;
       chr= my_tospace(GET);
+      /* Decrease the 'level' only when (i) It's not an */
+      /* (without space) empty tag i.e. <tag/> or, (ii) */
+      /* It is of format <row col="val" .../>           */
+      if(chr != '>' || in_tag)
+      {
+        level--;
+        in_tag= false;
+      }
       if(chr != '>')   /* if this is an empty tag <tag   /> */
         tag.length(0); /* we should keep tag value          */
       while(chr != '>' && chr != my_b_EOF)

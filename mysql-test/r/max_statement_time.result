@@ -220,17 +220,10 @@ INSERT INTO t2 VALUES(@b);
 END|
 Warnings:
 Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
-DROP EVENT event1|
-TRUNCATE TABLE t2;
-CREATE EVENT event1 ON SCHEDULE AT CURRENT_TIMESTAMP
-DO BEGIN
-SELECT SLEEP(2) into @a;
-INSERT INTO t2 VALUES(@a);
-END
-|
 # Wait until at least one instance of event is executed.
 SELECT /*+ MAX_EXECUTION_TIME(3600000) */ * FROM t2;
 f1
+0
 0
 DELETE FROM t2;
 SET @@global.event_scheduler= @global_event_scheduler_status;

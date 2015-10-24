@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
   Performance schema instrumentation (declarations).
 */
 
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
 #ifdef MYSQL_SERVER
 #ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_DYNAMIC_PLUGIN
@@ -66,14 +66,14 @@ void pfs_inc_transaction_rollback_to_savepoint_v1(PSI_transaction_locker *locker
 void pfs_inc_transaction_release_savepoint_v1(PSI_transaction_locker *locker,
                                               ulong count);
 
-void pfs_end_transaction_v1(PSI_transaction_locker *locker, bool commit);
+void pfs_end_transaction_v1(PSI_transaction_locker *locker, my_bool commit);
 
 C_MODE_END
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* EMBEDDED_LIBRARY */
 #endif /* MYSQL_SERVER */
-#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+#endif /* HAVE_PSI_TRANSACTION_INTERFACE */
 
 #endif
 

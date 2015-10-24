@@ -36,23 +36,20 @@ static const char *initialization_cmds[] =
   NULL
 };
 
-#define INSERT_USER_CMD_NATIVE "INSERT INTO user VALUES('localhost', 'root', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', '', '', '', '', 0, 0, 0, 0, @@default_authentication_plugin, PASSWORD('%s'), 'Y', CURRENT_TIMESTAMP, NULL, 'N');\n"
-#define INSERT_USER_CMD_SHA256 "INSERT INTO user VALUES('localhost', 'root', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', '', '', '', '', 0, 0, 0, 0, @@default_authentication_plugin, PASSWORD('%s'), 'Y', CURRENT_TIMESTAMP, NULL, 'N');\n"
-#define INSERT_USER_CMD_INSECURE "INSERT INTO user VALUES('localhost', 'root', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', '', '', '', '', 0, 0, 0, 0, @@default_authentication_plugin, '', 'N', CURRENT_TIMESTAMP, NULL, 'N');\n"
+#define INSERT_USER_CMD "CREATE USER root@localhost IDENTIFIED BY '%s' PASSWORD EXPIRE;\n"
+#define INSERT_USER_CMD_INSECURE "CREATE USER root@localhost;\n"
 #define GENERATED_PASSWORD_LENGTH 12
 
-#define SET_OLD_PASSWORDS "SET @@old_passwords=%d"
-
-char insert_user_buffer[sizeof(INSERT_USER_CMD_NATIVE) + GENERATED_PASSWORD_LENGTH * 2];
-char set_old_passwords_buffer[sizeof(SET_OLD_PASSWORDS) + 2 /* always single digit */];
+char insert_user_buffer[sizeof(INSERT_USER_CMD) + GENERATED_PASSWORD_LENGTH * 2];
 
 my_bool opt_initialize_insecure= FALSE;
 
 static const char *initialization_data[] =
 {
-  set_old_passwords_buffer,
+  "FLUSH PRIVILEGES",
   insert_user_buffer,
-  "INSERT INTO proxies_priv VALUES('localhost', 'root', '', '', TRUE, '', now());\n",
+  "GRANT ALL PRIVILEGES ON *.* TO root@localhost WITH GRANT OPTION;\n",
+  "GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION;\n",
   NULL
 };
 
@@ -159,7 +156,6 @@ void Compiled_in_command_iterator::begin(void)
   sql_print_information("%s", cmd_descs[cmds_ofs]);
   if (opt_initialize_insecure)
   {
-    sprintf(set_old_passwords_buffer, SET_OLD_PASSWORDS, 0);
     strcpy(insert_user_buffer, INSERT_USER_CMD_INSECURE);
     sql_print_warning("root@localhost is created with an empty password ! "
                       "Please consider switching off the --initialize-insecure option.");
@@ -168,9 +164,6 @@ void Compiled_in_command_iterator::begin(void)
   {
     char password[GENERATED_PASSWORD_LENGTH + 1];
     char escaped_password[GENERATED_PASSWORD_LENGTH * 2 + 1];
-    bool is_sha256= 0 != strncmp(default_auth_plugin,
-                                 native_password_plugin_name.str,
-                                 native_password_plugin_name.length);
     ulong saved_verbosity= log_error_verbosity;
 
     generate_password(password, GENERATED_PASSWORD_LENGTH);
@@ -180,20 +173,16 @@ void Compiled_in_command_iterator::begin(void)
       Temporarily bump verbosity to print the password.
       It's safe to do it since we're the sole process running.
     */
-    log_error_verbosity= 2;
-    sql_print_warning("A temporary password is generated for root@localhost: %s",
-                      password);
+    log_error_verbosity= 3;
+    sql_print_information(
+      "A temporary password is generated for root@localhost: %s", password);
     log_error_verbosity= saved_verbosity;
 
     escape_string_for_mysql(&my_charset_bin,
                             escaped_password, sizeof(escaped_password),
                             password, GENERATED_PASSWORD_LENGTH);
 
-    sprintf(set_old_passwords_buffer, SET_OLD_PASSWORDS,
-            is_sha256 ? 2 : 0);
-    sprintf(insert_user_buffer,
-            is_sha256 ? INSERT_USER_CMD_SHA256 : INSERT_USER_CMD_NATIVE,
-            escaped_password);
+    sprintf(insert_user_buffer, INSERT_USER_CMD, escaped_password);
   }
 }
 

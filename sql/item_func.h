@@ -28,7 +28,8 @@ class PT_item_list;
 
 extern void reject_geometry_args(uint arg_count, Item **args,
                                  Item_result_field *me);
-
+void unsupported_json_comparison(size_t arg_count, Item **args,
+                                 const char *msg);
 
 class Item_func :public Item_result_field
 {
@@ -60,7 +61,7 @@ public:
 		  SP_EQUALS_FUNC, SP_DISJOINT_FUNC,SP_INTERSECTS_FUNC,
 		  SP_TOUCHES_FUNC,SP_CROSSES_FUNC,SP_WITHIN_FUNC,
 		  SP_CONTAINS_FUNC,SP_COVEREDBY_FUNC,SP_COVERS_FUNC,
-                  SP_OVERLAPS_FUNC,
+                  SP_OVERLAPS_FUNC, SP_WKB_FUNC,
 		  SP_STARTPOINT,SP_ENDPOINT,SP_EXTERIORRING,
 		  SP_POINTN,SP_GEOMETRYN,SP_INTERIORRINGN,
                   NOT_FUNC, NOT_ALL_FUNC,
@@ -262,7 +263,7 @@ public:
     then do NOT first serialize the JSON value into a string form.
 
     A better solution might be to put this logic into
-    Item_func::save_in_field() or even Item::save_in_field().
+    Item_func::save_in_field_inner() or even Item::save_in_field_inner().
     But that would mean providing val_json() overrides for
     more Item subclasses. And that feels like pulling on a
     ball of yarn late in the release cycle for 5.7. FIXME.
@@ -2172,14 +2173,14 @@ public:
   type_conversion_status save_in_field(Field *field, bool no_conversions,
                                        bool can_use_result_field);
 
-  type_conversion_status save_in_field(Field *field, bool no_conversions)
-  { return save_in_field(field, no_conversions, true); }
-
   void save_org_in_field(Field *field)
   { save_in_field(field, true, false); }
 
   bool set_entry(THD *thd, bool create_if_not_exists);
   void cleanup();
+protected:
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+  { return save_in_field(field, no_conversions, true); }
 };
 
 
@@ -2689,6 +2690,7 @@ private:
   
 protected:
   bool is_expensive_processor(uchar *arg) { return true; }
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
 
 public:
 
@@ -2772,8 +2774,6 @@ public:
 
   bool val_json(Json_wrapper *result);
 
-  type_conversion_status save_in_field(Field *field, bool no_conversions);
-
   virtual bool change_context_processor(uchar *cntx)
   {
     context= reinterpret_cast<Name_resolution_context *>(cntx);
@@ -2852,7 +2852,7 @@ extern bool check_reserved_words(LEX_STRING *name);
 extern enum_field_types agg_field_type(Item **items, uint nitems);
 double my_double_round(double value, longlong dec, bool dec_unsigned,
                        bool truncate);
-bool eval_const_cond(Item *cond);
+bool eval_const_cond(THD *thd, Item *cond, bool *value);
 Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type);
 
 extern bool volatile  mqh_used;

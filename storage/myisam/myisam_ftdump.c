@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,6 +51,12 @@ static struct my_option my_long_options[] =
 };
 
 
+extern st_keycache_thread_var *keycache_thread_var()
+{
+  return &main_thread_keycache_var;
+}
+
+
 int main(int argc,char *argv[])
 {
   int error=0, subkeys;
@@ -63,6 +69,11 @@ int main(int argc,char *argv[])
   struct { MI_INFO *info; } aio0, *aio=&aio0; /* for GWS_IN_USE */
 
   MY_INIT(argv[0]);
+
+  memset(&main_thread_keycache_var, 0, sizeof(st_keycache_thread_var));
+  mysql_cond_init(PSI_NOT_INSTRUMENTED,
+                  &main_thread_keycache_var.suspend);
+
   if ((error= handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(error);
   if (count || dump)
@@ -88,7 +99,7 @@ int main(int argc,char *argv[])
   if (!(info=mi_open(argv[0], O_RDONLY,
                      HA_OPEN_ABORT_IF_LOCKED|HA_OPEN_FROM_SQL_LAYER)))
   {
-    error=my_errno;
+    error=my_errno();
     goto err;
   }
 
@@ -214,9 +225,10 @@ int main(int argc,char *argv[])
 
 err:
   if (error && error != HA_ERR_END_OF_FILE)
-    printf("got error %d\n",my_errno);
+    printf("got error %d\n",my_errno());
   if (info)
     mi_close(info);
+  mysql_cond_destroy(&main_thread_keycache_var.suspend);
   return 0;
 }
 

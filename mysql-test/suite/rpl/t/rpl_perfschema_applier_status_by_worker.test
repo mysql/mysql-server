@@ -1,7 +1,7 @@
 # ==== Purpose ====
 #
 # This test script serves as the functionality testing for the table
-# performance_schema.replication_applier_status_by_coordinator. Test
+# performance_schema.replication_applier_status_by_worker. Test
 # for ddl and dml operations is a part of the perfschema suite.
 # The ddl/dml tests are named:
 # 1) ddl_replication_applier_status_by_worker.test and
@@ -67,11 +67,18 @@ SET @@global.slave_parallel_workers=0;
 set @save_slave_transaction_retries= @@global.slave_transaction_retries;
 source include/start_slave.inc;
 
-let $assert_text= In non-MTS mode(SQL thread), the table should return an empty set.;
-let $assert_cond= [select count(*) from performance_schema.replication_applier_status_by_worker] = 0;
+# Post Bug#20001173 fix in case of Single Threaded Slave(STS) mode SQL
+# thread's staus will be reported as part of
+# performance_schema.replication_applier_status_by_worker table.
+let $assert_text= In non-MTS mode(SQL thread), the table should return one row as Single SQL applier thread will be part of replication_applier_status_by_worker table.;
+let $assert_cond= [select count(*) from performance_schema.replication_applier_status_by_worker] = 1;
 source include/assert.inc;
 
+let $assert_text= In non-MTS mode(SQL thread), the table should return empty result set;
+let $assert_cond= [select count(*) from performance_schema.replication_applier_status_by_coordinator] = 0;
+source include/assert.inc;
 source include/stop_slave.inc;
+
 SET @@global.slave_parallel_workers=1;
 # to avoid warnings
 set @save_slave_transaction_retries= @@global.slave_transaction_retries;

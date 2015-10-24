@@ -195,6 +195,9 @@ extern char*	srv_data_home;
 recovery and open all tables in RO mode instead of RW mode. We don't
 sync the max trx id to disk either. */
 extern my_bool	srv_read_only_mode;
+/** Set if InnoDB operates in read-only mode or innodb-force-recovery
+is greater than SRV_FORCE_NO_TRX_UNDO. */
+extern my_bool	high_level_read_only;
 /** store to its own file each table created by an user; data
 dictionary tables are in the system tablespace 0 */
 extern my_bool	srv_file_per_table;
@@ -223,6 +226,7 @@ OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 extern my_bool	srv_use_native_aio;
+extern my_bool	srv_numa_interleave;
 #endif /* !UNIV_HOTBACKUP */
 
 /** Server undo tablespaces directory, can be absolute path. */
@@ -263,7 +267,16 @@ extern char*	srv_log_group_home_dir;
 /** Maximum number of srv_n_log_files, or innodb_log_files_in_group */
 #define SRV_N_LOG_FILES_MAX 100
 extern ulong	srv_n_log_files;
+/** At startup, this is the current redo log file size.
+During startup, if this is different from srv_log_file_size_requested
+(innodb_log_file_size), the redo log will be rebuilt and this size
+will be initialized to srv_log_file_size_requested.
+When upgrading from a previous redo log format, this will be set to 0,
+and writing to the redo log is not allowed.
+
+During startup, this is in bytes, and later converted to pages. */
 extern ib_uint64_t	srv_log_file_size;
+/** The value of the startup parameter innodb_log_file_size */
 extern ib_uint64_t	srv_log_file_size_requested;
 extern ulint	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
@@ -368,9 +381,6 @@ extern ibool	srv_use_doublewrite_buf;
 extern ulong	srv_doublewrite_batch_size;
 extern ulong	srv_checksum_algorithm;
 
-/* Checksum algorithm used for the redo log file blocks */
-extern ulong	srv_log_checksum_algorithm;
-
 extern double	srv_max_buf_pool_modified_pct;
 extern ulong	srv_max_purge_lag;
 extern ulong	srv_max_purge_lag_delay;
@@ -466,6 +476,7 @@ schema */
 #  define pfs_register_thread(key)			\
 do {								\
 	struct PSI_thread* psi = PSI_THREAD_CALL(new_thread)(key, NULL, 0);\
+	PSI_THREAD_CALL(set_thread_os_id)(psi);			\
 	PSI_THREAD_CALL(set_thread)(psi);			\
 } while (0)
 
@@ -831,8 +842,8 @@ struct export_var_t{
 	ulint innodb_data_writes;		/*!< I/O write requests */
 	ulint innodb_data_written;		/*!< Data bytes written */
 	ulint innodb_data_reads;		/*!< I/O read requests */
-	char  innodb_buffer_pool_dump_status[512];/*!< Buf pool dump status */
-	char  innodb_buffer_pool_load_status[512];/*!< Buf pool load status */
+	char  innodb_buffer_pool_dump_status[OS_FILE_MAX_PATH + 128];/*!< Buf pool dump status */
+	char  innodb_buffer_pool_load_status[OS_FILE_MAX_PATH + 128];/*!< Buf pool load status */
 	char  innodb_buffer_pool_resize_status[512];/*!< Buf pool resize status */
 	ulint innodb_buffer_pool_pages_total;	/*!< Buffer pool size */
 	ulint innodb_buffer_pool_pages_data;	/*!< Data pages */
@@ -919,6 +930,7 @@ struct srv_slot_t{
 #else /* !UNIV_HOTBACKUP */
 # define srv_use_adaptive_hash_indexes		FALSE
 # define srv_use_native_aio			FALSE
+# define srv_numa_interleave			FALSE
 # define srv_force_recovery			0UL
 # define srv_set_io_thread_op_info(t,info)	((void) 0)
 # define srv_reset_io_thread_op_info()		((void) 0)

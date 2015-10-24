@@ -486,11 +486,152 @@ WHERE OUTR1.pk = 1
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	OUTR1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
-1	UPDATE	INNR1	NULL	ALL	NULL	NULL	NULL	NULL	2	25.00	Using where; FirstMatch(OUTR1)
+1	UPDATE	INNR1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(OUTR1)
 1	SIMPLE	OUTR2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
 Warnings:
 Note	1276	Field or reference 'test.OUTR1.pk' of SELECT #2 was resolved in SELECT #1
 DROP TABLE IF EXISTS b,bb,d;
+#
+# Bug#21216067 ASSERTION FAILED ROW_UPD_SEC_INDEX_ENTRY (INNOBASE/ROW/ROW0UPD.CC:2103)
+#
+CREATE TABLE t (
+x INT, y INT, gc INT GENERATED ALWAYS AS (x+1) STORED
+);
+INSERT INTO t VALUES ();
+UPDATE t t1, t t2 SET t2.y = 1, t1.x = 2;
+SELECT * FROM t;
+x	y	gc
+2	1	3
+DROP TABLE t;
+CREATE TABLE t (
+x INT, y INT, gc INT GENERATED ALWAYS AS (x+1), KEY (x,gc)
+);
+INSERT INTO t VALUES ();
+UPDATE t t1, t t2 SET t1.x = 1, t2.y = 2;
+SELECT * FROM t;
+x	y	gc
+1	2	2
+SELECT gc FROM t;
+gc
+2
+DROP TABLE t;
+# stored
+CREATE TABLE C (
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) STORED
+);
+INSERT INTO C (col_varchar_nokey) VALUES ('c');
+EXPLAIN UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	OUTR1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	UPDATE	OUTR2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+SELECT * from C;
+col_varchar_nokey	col_varchar_key
+a	aa
+DROP TABLE C;
+# stored, indexed
+CREATE TABLE C (
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) STORED,
+KEY (col_varchar_key, col_varchar_nokey)
+);
+INSERT INTO C (col_varchar_nokey) VALUES ('c');
+EXPLAIN UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	OUTR1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	UPDATE	OUTR2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+SELECT * from C;
+col_varchar_nokey	col_varchar_key
+a	aa
+DROP TABLE C;
+# virtual
+CREATE TABLE C (
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) VIRTUAL
+);
+INSERT INTO C (col_varchar_nokey) VALUES ('c');
+EXPLAIN UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	OUTR1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	UPDATE	OUTR2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+SELECT * from C;
+col_varchar_nokey	col_varchar_key
+a	aa
+DROP TABLE C;
+# virtual, indexed
+CREATE TABLE C (
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) VIRTUAL,
+KEY (col_varchar_key, col_varchar_nokey)
+);
+INSERT INTO C (col_varchar_nokey) VALUES ('c');
+EXPLAIN UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	OUTR1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	UPDATE	OUTR2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+SELECT * from C;
+col_varchar_nokey	col_varchar_key
+a	aa
+DROP TABLE C;
+#
+# Bug #21530366 CRASH/ASSERTION, CORRUPTION WITH INDEXES + 
+#               VIRTUAL COLUMNS, BLOB
+#
+CREATE TABLE t (
+a INTEGER,
+b BLOB GENERATED ALWAYS AS (a) VIRTUAL,
+INDEX (b(57))
+);
+INSERT INTO t (a) VALUES (9);
+UPDATE t SET a = 10;
+DELETE FROM t WHERE a = 10;
+DROP TABLE t;
+# Bug#21807818: Generated columns not updated with empty insert list
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+CREATE TABLE t (
+a BLOB GENERATED ALWAYS AS ('') VIRTUAL,
+b TIMESTAMP(4) GENERATED ALWAYS AS ('') VIRTUAL NOT NULL,
+KEY (a(183),b)
+);
+INSERT INTO t VALUES(), (), ();
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+Warning	1265	Data truncated for column 'b' at row 2
+Warning	1265	Data truncated for column 'b' at row 3
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect datetime value: '' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '' for column 'b' at row 1
+DROP TABLE t;
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
 DROP PROCEDURE IF EXISTS p1;

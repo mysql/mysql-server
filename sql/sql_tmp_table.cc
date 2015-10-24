@@ -81,6 +81,12 @@ Field *create_tmp_field_from_field(THD *thd, Field *org_field,
       new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
     if (org_field->type() == FIELD_TYPE_DOUBLE)
       ((Field_double *) new_field)->not_fixed= TRUE;
+    /*
+      This field will belong to an internal temporary table, it cannot be
+      generated.
+    */
+    new_field->gcol_info= NULL;
+    new_field->stored_in_db= true;
   }
   return new_field;
 }
@@ -204,7 +210,8 @@ static Field *create_tmp_field_for_schema(THD *thd, Item *item, TABLE *table)
     Field *field;
     if (item->max_length > MAX_FIELD_VARCHARLENGTH)
       field= new Field_blob(item->max_length, item->maybe_null,
-                            item->item_name.ptr(), item->collation.collation);
+                            item->item_name.ptr(),
+                            item->collation.collation, false);
     else
     {
       field= new Field_varstring(item->max_length, item->maybe_null,
@@ -241,10 +248,10 @@ static Field *create_tmp_field_for_schema(THD *thd, Item *item, TABLE *table)
                        If modify_item is 0 then fill_record() will update
                        the temporary table
 
-  @retval
-    NULL		on error
-  @retval
-    new_created field
+  @retval NULL On error. This also happens if the item is a prepared statement
+  parameter.
+
+  @retval new_created field
 */
 
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
@@ -389,6 +396,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       break;
     result->set_derivation(item->collation.derivation);
     break;
+  case Item::PARAM_ITEM:
+    return NULL;
   default:					// Dosen't have to be stored
     DBUG_ASSERT(false);
     break;
@@ -474,13 +483,13 @@ void Cache_temp_engine_properties::init(THD *thd)
     For ha_innobase::max_supported_key_part_length(), the returned value
     relies on innodb_large_prefix. However, in innodb itself, the limitation
     on key_part length is up to the ROW_FORMAT. In current trunk, internal
-    temp table's ROW_FORMAT is COMPACT. In order to keep the consistence
-    between server and innodb, here we hard-coded 767 as the maximum of 
+    temp table's ROW_FORMAT is DYNAMIC. In order to keep the consistence
+    between server and innodb, here we hard-coded 3072 as the maximum of
     key_part length supported by innodb until bug#20629014 is fixed.
 
     TODO: Remove the hard-code here after bug#20629014 is fixed.
   */
-  INNODB_MAX_KEY_PART_LENGTH= 767;
+  INNODB_MAX_KEY_PART_LENGTH= 3072;
   INNODB_MAX_KEY_PARTS= handler->max_key_parts();
   delete handler;
   plugin_unlock(0, db_plugin);
@@ -630,6 +639,9 @@ static void register_hidden_field(TABLE *table,
           MAX_FIELDS columns. This prevents any MyISAM temp table
           made when materializing the view from hitting the 64k
           MyISAM header size limit.
+
+  @remark We may actually end up with a table without any columns at all.
+          See comment below: We don't have to store this.
 */
 
 #define STRING_TOTAL_LENGTH_TO_PACK_ROWS 128
@@ -814,6 +826,8 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   table->covering_keys.init();
   table->merge_keys.init();
   table->keys_in_use_for_query.init();
+  table->keys_in_use_for_group_by.init();
+  table->keys_in_use_for_order_by.init();
 
   table->s= share;
   init_tmp_table_share(thd, share, "", 0, tmpname, tmpname);
@@ -948,6 +962,8 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
 
       if (!new_field)
       {
+        if (type == Item::PARAM_ITEM)
+          goto update_hidden;
         DBUG_ASSERT(thd->is_fatal_error);
         goto err;				// Got OOM
       }
@@ -2324,14 +2340,10 @@ bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
                            ulonglong options, my_bool big_tables,
                            Opt_trace_context *trace)
 {
-  /*
-    For internal tmp table, we don't support generated columns.
-    Because gcol_info is copied during create_tmp_field_from_field,
-    we have to clear it.
-    @todo it would be better to do it when creating the field.
-  */
+#ifndef DBUG_OFF
   for (uint i= 0; i < table->s->fields; i++)
-    table->field[i]->gcol_info= NULL;
+    DBUG_ASSERT(table->field[i]->gcol_info== NULL && table->field[i]->stored_in_db);
+#endif
 
   if (table->s->db_type() == innodb_hton)
   {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,7 +50,7 @@ DblqhProxy::DblqhProxy(Block_context& ctx) :
   // GSN_LCP_FRAG_ORD
   addRecSignal(GSN_LCP_FRAG_ORD, &DblqhProxy::execLCP_FRAG_ORD);
   addRecSignal(GSN_LCP_FRAG_REP, &DblqhProxy::execLCP_FRAG_REP);
-  addRecSignal(GSN_END_LCP_CONF, &DblqhProxy::execEND_LCP_CONF);
+  addRecSignal(GSN_END_LCPCONF, &DblqhProxy::execEND_LCPCONF);
   addRecSignal(GSN_LCP_COMPLETE_REP, &DblqhProxy::execLCP_COMPLETE_REP);
 
   addRecSignal(GSN_EMPTY_LCP_REQ, &DblqhProxy::execEMPTY_LCP_REQ);
@@ -656,8 +656,8 @@ DblqhProxy::completeLCP_1(Signal* signal)
   }
 
   /**
-   * send END_LCP_REQ to all pgman instances (except "extra" pgman)
-   *   they will reply with END_LCP_CONF
+   * send END_LCPREQ to all pgman instances (except "extra" pgman)
+   *   they will reply with END_LCPCONF
    */
   EndLcpReq* req = (EndLcpReq*)signal->getDataPtrSend();
   req->senderData= 0;
@@ -669,7 +669,7 @@ DblqhProxy::completeLCP_1(Signal* signal)
     jam();
     c_lcpRecord.m_complete_outstanding++;
     sendSignal(numberToRef(PGMAN, workerInstance(i), getOwnNodeId()),
-               GSN_END_LCP_REQ, signal, EndLcpReq::SignalLength, JBB);
+               GSN_END_LCPREQ, signal, EndLcpReq::SignalLength, JBA);
   }
 }
 
@@ -690,7 +690,7 @@ DblqhProxy::execLCP_COMPLETE_REP(Signal* signal)
 }
 
 void
-DblqhProxy::execEND_LCP_CONF(Signal* signal)
+DblqhProxy::execEND_LCPCONF(Signal* signal)
 {
   jamEntry();
   ndbrequire(c_lcpRecord.m_state == LcpRecord::L_COMPLETING_1 ||
@@ -745,7 +745,7 @@ DblqhProxy::completeLCP_2(Signal* signal)
   // NOTE: ugly to use MaxLqhWorkers directly
   Uint32 instance = c_workers + 1;
   sendSignal(numberToRef(PGMAN, instance, getOwnNodeId()),
-             GSN_END_LCP_REQ, signal, EndLcpReq::SignalLength, JBB);
+             GSN_END_LCPREQ, signal, EndLcpReq::SignalLength, JBA);
 }
 
 
@@ -767,15 +767,15 @@ DblqhProxy::completeLCP_3(Signal* signal)
   req->backupId= c_lcpRecord.m_lcpId;
 
   // no reply from this
-  sendSignal(TSMAN_REF, GSN_END_LCP_REQ, signal,
-             EndLcpReq::SignalLength, JBB);
+  sendSignal(TSMAN_REF, GSN_END_LCPREQ, signal,
+             EndLcpReq::SignalLength, JBA);
 
   if (c_lcpRecord.m_lcp_frag_rep_cnt)
   {
     jam();
     c_lcpRecord.m_complete_outstanding++;
-    sendSignal(LGMAN_REF, GSN_END_LCP_REQ, signal,
-               EndLcpReq::SignalLength, JBB);
+    sendSignal(LGMAN_REF, GSN_END_LCPREQ, signal,
+               EndLcpReq::SignalLength, JBA);
   }
   else
   {

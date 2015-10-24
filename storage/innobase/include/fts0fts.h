@@ -1032,5 +1032,16 @@ fts_check_cached_index(
 /*===================*/
 	dict_table_t*	table);  /*!< in: Table where indexes are dropped */
 
+/** Check if the all the auxillary tables associated with FTS index are in
+consistent state. For now consistency is check only by ensuring
+index->page_no != FIL_NULL
+@param[out]	base_table	table has host fts index
+@param[in,out]	trx		trx handler
+@return true if check certifies auxillary tables are sane false otherwise. */
+bool
+fts_is_corrupt(
+	dict_table_t*	base_table,
+	trx_t*		trx);
+
 #endif /*!< fts0fts.h */
 

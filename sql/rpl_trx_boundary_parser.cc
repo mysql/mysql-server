@@ -152,8 +152,13 @@ Transaction_boundary_parser::get_event_boundary_type(
                 native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK TO "))))
         boundary_type= EVENT_BOUNDARY_TYPE_END_TRX;
       /*
-        If the query is not ( BEGIN | COMMIT | ROLLBACK ), it can be considered
-        an ordinary statement.
+        XA ROLLBACK is always the end of a XA transaction.
+      */
+      else if (!native_strncasecmp(query, STRING_WITH_LEN("XA ROLLBACK")))
+        boundary_type= EVENT_BOUNDARY_TYPE_END_XA_TRX;
+      /*
+        If the query is not (BEGIN | XA START | COMMIT | [XA] ROLLBACK), it can
+        be considered an ordinary statement.
       */
       else
         boundary_type= EVENT_BOUNDARY_TYPE_STATEMENT;
@@ -352,6 +357,31 @@ bool Transaction_boundary_parser::update_state(
       /* FALL THROUGH */
     case EVENT_PARSER_DML:
       break;
+    }
+    break;
+
+  case EVENT_BOUNDARY_TYPE_END_XA_TRX:
+    /* In any case, we will update the state to NONE */
+    new_parser_state= EVENT_PARSER_NONE;
+    /* The following switch is mostly to differentiate the warning messages */
+    switch(current_parser_state) {
+      case EVENT_PARSER_NONE:
+      case EVENT_PARSER_DDL:
+        if (throw_warnings)
+          sql_print_warning(
+              "QUERY(XA ROLLBACK) is "
+              "not expected in an event stream %s.",
+              current_parser_state == EVENT_PARSER_NONE ? "outside a transaction" :
+              "in the middle of a DDL"); /* EVENT_PARSER_DDL */
+        error= true;
+        break;
+      case EVENT_PARSER_ERROR: /* we probably threw a warning before */
+        error= true;
+        /* FALL THROUGH */
+      case EVENT_PARSER_DML:
+      /* XA ROLLBACK can appear after a GTID event */
+      case EVENT_PARSER_GTID:
+        break;
     }
     break;
 

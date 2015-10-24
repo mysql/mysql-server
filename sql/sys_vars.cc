@@ -47,7 +47,7 @@
 #include "rpl_info_factory.h"            // Rpl_info_factory
 #include "rpl_info_handler.h"            // INFO_REPOSITORY_FILE
 #include "rpl_mi.h"                      // Master_info
-#include "rpl_msr.h"                     // msr_map
+#include "rpl_msr.h"                     // channel_map
 #include "rpl_mts_submode.h"             // MTS_PARALLEL_TYPE_DB_NAME
 #include "rpl_rli.h"                     // Relay_log_info
 #include "rpl_slave.h"                   // SLAVE_THD_TYPE
@@ -213,14 +213,14 @@ static Sys_var_mybool Sys_pfs_consumer_events_transactions_current(
        "performance_schema_consumer_events_transactions_current",
        "Default startup value for the events_transactions_current consumer.",
        READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_transactions_current_enabled),
-       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        PFS_TRAILING_PROPERTIES);
 
 static Sys_var_mybool Sys_pfs_consumer_events_transactions_history(
        "performance_schema_consumer_events_transactions_history",
        "Default startup value for the events_transactions_history consumer.",
        READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_transactions_history_enabled),
-       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        PFS_TRAILING_PROPERTIES);
 
 static Sys_var_mybool Sys_pfs_consumer_events_transactions_history_long(
@@ -741,9 +741,10 @@ static Sys_var_int32 Sys_binlog_max_flush_queue_time(
        " transactions before it flush the transactions to the binary log (and"
        " optionally sync, depending on the value of sync_binlog).",
        GLOBAL_VAR(opt_binlog_max_flush_queue_time),
-       CMD_LINE(REQUIRED_ARG),
+       CMD_LINE(REQUIRED_ARG, OPT_BINLOG_MAX_FLUSH_QUEUE_TIME),
        VALID_RANGE(0, 100000), DEFAULT(0), BLOCK_SIZE(1),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG);
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
+       DEPRECATED(""));
 
 static Sys_var_ulong Sys_binlog_group_commit_sync_delay(
        "binlog_group_commit_sync_delay",
@@ -1073,13 +1074,8 @@ static Sys_var_mybool Sys_explicit_defaults_for_timestamp(
 static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TYPE thread_mask)
 {
   bool ret= FALSE;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (!(thd->security_context()->check_access(SUPER_ACL)))
-  {
-    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+  if (check_super_outside_trx_outside_sf(self, thd, var))
     return TRUE;
-  }
-#endif
 #ifdef HAVE_REPLICATION
   Master_info *mi;
   int running= 0;
@@ -1091,18 +1087,18 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
                           opt_mi_repository_id: opt_rli_repository_id))
       return FALSE;
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
   /* Repository conversion not possible, when multiple channels exist */
-  if (msr_map.get_num_instances(true) > 1)
+  if (channel_map.get_num_instances(true) > 1)
   {
       msg= "Repository conversion is possible when only default channel exists";
       my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
-      mysql_mutex_unlock(&LOCK_msr_map);
+      channel_map.unlock();
       return TRUE;
   }
 
-  mi= msr_map.get_mi(msr_map.get_default_channel());
+  mi= channel_map.get_default_channel_mi();
 
   if (mi != NULL)
   {
@@ -1156,7 +1152,7 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
     }
     unlock_slave_threads(mi);
   }
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
 #endif
   return ret;
 }
@@ -1227,6 +1223,60 @@ static bool check_not_null(sys_var *self, THD *thd, set_var *var)
 {
   return var->value && var->value->is_null();
 }
+
+
+/**
+  Check storage engine is not empty and log warning.
+
+  Checks if default_storage_engine or default_tmp_storage_engine is set
+  empty and return true. This method also logs warning if the
+  storage engine set is a disabled storage engine specified in
+  disabled_storage_engines.
+
+  @param self    pointer to system variable object.
+  @param thd     Connection handle.
+  @param var     pointer to set variable object.
+
+  @return  true if the set variable is empty.
+           false if the set variable is not empty.
+*/
+static bool check_storage_engine(sys_var *self, THD *thd, set_var *var)
+{
+  if (check_not_null(self,thd,var))
+    return true;
+
+  if (!opt_bootstrap && !opt_noacl)
+  {
+    char buff[STRING_BUFFER_USUAL_SIZE];
+    String str(buff,sizeof(buff), system_charset_info), *res;
+    LEX_STRING se_name;
+
+    if (var->value)
+    {
+      res= var->value->val_str(&str);
+      lex_string_set(&se_name, res->ptr());
+    }
+    else
+    {
+      // Use the default value defined by sys_var.
+      lex_string_set(&se_name,
+        reinterpret_cast<const char*>(
+        dynamic_cast<Sys_var_plugin*>(self)->global_value_ptr(thd, NULL)));
+    }
+
+    plugin_ref plugin;
+    if ((plugin= ha_resolve_by_name(NULL, &se_name, FALSE)))
+    {
+      handlerton *hton= plugin_data<handlerton*>(plugin);
+      if (ha_is_storage_engine_disabled(hton))
+        sql_print_warning("%s is set to a disabled storage engine %s.",
+                          self->name.str, se_name.str);
+      plugin_unlock(NULL, plugin);
+    }
+  }
+  return false;
+}
+
 static bool check_charset(sys_var *self, THD *thd, set_var *var)
 {
   if (!var->value)
@@ -1818,7 +1868,7 @@ static const char *transaction_write_set_hashing_algorithms[]=
 
 static Sys_var_enum Sys_extract_write_set(
        "transaction_write_set_extraction",
-       "This option is used to let the server know when to"
+       "This option is used to let the server know when to "
        "extract the write set which will be used for various purposes. ",
        SESSION_VAR(transaction_write_set_extraction), CMD_LINE(OPT_ARG),
        transaction_write_set_hashing_algorithms,
@@ -2230,14 +2280,14 @@ static bool fix_max_binlog_size(sys_var *self, THD *thd, enum_var_type type)
   {
     Master_info *mi =NULL;
 
-    mysql_mutex_lock(&LOCK_msr_map);
-    for (mi_map::iterator it= msr_map.begin(); it!= msr_map.end(); it++)
+    channel_map.wrlock();
+    for (mi_map::iterator it= channel_map.begin(); it!= channel_map.end(); it++)
     {
       mi= it->second;
       if (mi!= NULL)
         mi->rli->relay_log.set_max_size(max_binlog_size);
     }
-    mysql_mutex_unlock(&LOCK_msr_map);
+    channel_map.unlock();
   }
 #endif
   return false;
@@ -2403,8 +2453,8 @@ static bool fix_max_relay_log_size(sys_var *self, THD *thd, enum_var_type type)
 #ifdef HAVE_REPLICATION
   Master_info *mi= NULL;
 
-  mysql_mutex_lock(&LOCK_msr_map);
-  for (mi_map::iterator it= msr_map.begin(); it!=msr_map.end(); it++)
+  channel_map.wrlock();
+  for (mi_map::iterator it= channel_map.begin(); it!=channel_map.end(); it++)
   {
     mi= it->second;
 
@@ -2412,7 +2462,7 @@ static bool fix_max_relay_log_size(sys_var *self, THD *thd, enum_var_type type)
       mi->rli->relay_log.set_max_size(max_relay_log_size ?
                                       max_relay_log_size: max_binlog_size);
   }
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
 #endif
   return false;
 }
@@ -2617,6 +2667,20 @@ static Sys_var_ulong Sys_optimizer_search_depth(
        "the system will automatically pick a reasonable value",
        SESSION_VAR(optimizer_search_depth), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, MAX_TABLES+1), DEFAULT(MAX_TABLES+1), BLOCK_SIZE(1));
+
+static Sys_var_ulong Sys_range_optimizer_max_mem_size(
+      "range_optimizer_max_mem_size",
+      "Maximum amount of memory used by the range optimizer "
+      "to allocate predicates during range analysis. "
+      "The larger the number, more memory may be consumed during "
+      "range analysis. If the value is too low to completed range "
+      "optimization of a query, index range scan will not be "
+      "considered for this query. A value of 0 means range optimizer "
+      "does not have any cap on memory. ",
+      SESSION_VAR(range_optimizer_max_mem_size),
+      CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, ULONG_MAX),
+      DEFAULT(1536000),
+      BLOCK_SIZE(1));
 
 static const char *optimizer_switch_names[]=
 {
@@ -3008,7 +3072,7 @@ static Sys_var_ulong Sys_range_alloc_block_size(
        "range_alloc_block_size",
        "Allocation block size for storing ranges during optimization",
        SESSION_VAR(range_alloc_block_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(RANGE_ALLOC_BLOCK_SIZE, ULONG_MAX),
+       VALID_RANGE(RANGE_ALLOC_BLOCK_SIZE, UINT32_MAX),
        DEFAULT(RANGE_ALLOC_BLOCK_SIZE), BLOCK_SIZE(1024));
 
 static Sys_var_ulong Sys_multi_range_count(
@@ -3033,7 +3097,7 @@ static Sys_var_ulong Sys_query_alloc_block_size(
        "query_alloc_block_size",
        "Allocation block size for query parsing and execution",
        SESSION_VAR(query_alloc_block_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1024, ULONG_MAX), DEFAULT(QUERY_ALLOC_BLOCK_SIZE),
+       VALID_RANGE(1024, UINT_MAX32), DEFAULT(QUERY_ALLOC_BLOCK_SIZE),
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_thd_mem_root));
 
@@ -3300,7 +3364,7 @@ static Sys_var_set Slave_type_conversions(
        " ALL_UNSIGNED to treat all integer column type data to be unsigned values, and"
        " ALL_SIGNED to treat all integer column type data to be signed values." 
        " Default treatment is ALL_SIGNED. If ALL_SIGNED and ALL_UNSIGNED both are"
-       " specifed, ALL_SIGNED will take high priority than ALL_UNSIGNED."
+       " specified, ALL_SIGNED will take higher priority than ALL_UNSIGNED."
        " If the variable is assigned the empty set, no conversions are"
        " allowed and it is expected that the types match exactly.",
        GLOBAL_VAR(slave_type_conversions_options), CMD_LINE(REQUIRED_ARG),
@@ -3338,9 +3402,9 @@ static bool check_slave_stopped(sys_var *self, THD *thd, set_var *var)
   if (check_not_null_not_empty(self, thd, var))
     return true;
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
-  for (mi_map::iterator it= msr_map.begin(); it!= msr_map.end(); it++)
+  for (mi_map::iterator it= channel_map.begin(); it!= channel_map.end(); it++)
   {
     mi= it->second;
     if (mi)
@@ -3354,7 +3418,7 @@ static bool check_slave_stopped(sys_var *self, THD *thd, set_var *var)
       mysql_mutex_unlock(&mi->rli->run_lock);
     }
   }
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
   return result;
 }
 
@@ -3376,7 +3440,7 @@ static Sys_var_set Slave_rows_search_algorithms(
 static const char *mts_parallel_type_names[]= {"DATABASE", "LOGICAL_CLOCK", 0};
 static Sys_var_enum Mts_parallel_type(
        "slave_parallel_type",
-       "Specifies if the slave will use database partioning "
+       "Specifies if the slave will use database partitioning "
        "or information from master to parallelize transactions."
        "(Default: DATABASE).",
        GLOBAL_VAR(mts_parallel_option), CMD_LINE(REQUIRED_ARG),
@@ -3964,9 +4028,9 @@ static Sys_var_plugin Sys_default_storage_engine(
        "default_storage_engine", "The default storage engine for new tables",
        SESSION_VAR(table_plugin), NO_CMD_LINE,
        MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_storage_engine),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_not_null));
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_storage_engine));
 
-const char *internal_tmp_disk_storage_engine_names[] = { "MYISAM", "INNODB", 0};
+const char *internal_tmp_disk_storage_engine_names[] = { "MyISAM", "InnoDB", 0};
 static Sys_var_enum Sys_internal_tmp_disk_storage_engine(
        "internal_tmp_disk_storage_engine",
        "The default storage engine for on-disk internal tmp table",
@@ -3974,10 +4038,10 @@ static Sys_var_enum Sys_internal_tmp_disk_storage_engine(
        internal_tmp_disk_storage_engine_names, DEFAULT(TMP_TABLE_INNODB));
 
 static Sys_var_plugin Sys_default_tmp_storage_engine(
-       "default_tmp_storage_engine", "The default storage engine for new explict temporary tables",
+       "default_tmp_storage_engine", "The default storage engine for new explicit temporary tables",
        SESSION_VAR(temp_table_plugin), NO_CMD_LINE,
        MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_tmp_storage_engine),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_not_null));
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_storage_engine));
 
 #if defined(ENABLED_DEBUG_SYNC)
 /*
@@ -4812,20 +4876,20 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
 
   /*
    Here we have lock on LOCK_global_system_variables and we need
-    lock on LOCK_msr_map. In START_SLAVE handler, we take these
+    lock on channel_map lock. In START_SLAVE handler, we take these
     two locks in different order. This can lead to DEADLOCKs. See
     BUG#14236151 for more details.
    So we release lock on LOCK_global_system_variables before acquiring
-    lock on LOCK_msr_map. But this could lead to isolation issues
-    between multiple seters. Hence introducing secondary guard
+    lock on channel_map lock. But this could lead to isolation issues
+    between multiple setters. Hence introducing secondary guard
     for this global variable and releasing the lock here and acquiring
     locks back again at the end of this function.
    */
   mysql_mutex_unlock(&LOCK_slave_net_timeout);
   mysql_mutex_unlock(&LOCK_global_system_variables);
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
-  for (mi_map::iterator it=msr_map.begin(); it!=msr_map.end(); it++)
+  for (mi_map::iterator it=channel_map.begin(); it!=channel_map.end(); it++)
   {
     mi= it->second;
 
@@ -4838,7 +4902,7 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
                    ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
   }
 
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
   mysql_mutex_lock(&LOCK_global_system_variables);
   mysql_mutex_lock(&LOCK_slave_net_timeout);
   return false;
@@ -5458,11 +5522,11 @@ static Sys_var_mybool Sys_offline_mode(
        &PLock_offline_mode, NOT_IN_BINLOG,
        ON_CHECK(0), ON_UPDATE(handle_offline_mode));
 
-static Sys_var_mybool Sys_log_backward_compatible_user_definitions(
-       "log_backward_compatible_user_definitions",
-       "Controls logging of CREATE/ALTER/GRANT user statements "
+static Sys_var_mybool Sys_log_builtin_as_identified_by_password(
+       "log_builtin_as_identified_by_password",
+       "Controls logging of CREATE/ALTER/GRANT and SET PASSWORD user statements "
        "in replication binlogs, general query logs and audit logs.",
-       GLOBAL_VAR(opt_log_backward_compatible_user_definitions),
+       GLOBAL_VAR(opt_log_builtin_as_identified_by_password),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_mybool Sys_avoid_temporal_upgrade(

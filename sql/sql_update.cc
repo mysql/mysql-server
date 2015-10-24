@@ -321,8 +321,8 @@ bool mysql_update(THD *thd,
     This must be done before partitioning pruning, since prune_partitions()
     uses the table->write_set to determine may prune locks too.
   */
-  if (table->triggers)
-    table->triggers->mark_fields(TRG_EVENT_UPDATE);
+  if (table->triggers && table->triggers->mark_fields(TRG_EVENT_UPDATE))
+    DBUG_RETURN(true);
 
   QEP_TAB_standalone qep_tab_st;
   QEP_TAB &qep_tab= qep_tab_st.as_QEP_TAB();
@@ -396,16 +396,18 @@ bool mysql_update(THD *thd,
         const replacement. However, at the moment there is no such
         thing as Item::clone().
       */
-      conds= build_equal_items(thd, conds, NULL, false,
-                               select_lex->join_list, &cond_equal);
-      conds= remove_eq_conds(thd, conds, &result);
+      if (build_equal_items(thd, conds, &conds, NULL, false,
+                            select_lex->join_list, &cond_equal))
+        goto exit_without_my_ok;
+      if (remove_eq_conds(thd, conds, &conds, &result))
+        goto exit_without_my_ok;
     }
     else
-      conds= optimize_cond(thd, conds, &cond_equal, select_lex->join_list,
-                           true, &result);
-
-    if (thd->is_error())
+    {
+      if (optimize_cond(thd, &conds, &cond_equal, select_lex->join_list,
+                        &result))
         goto exit_without_my_ok;
+    }
 
     if (result == Item::COND_FALSE)
     {
@@ -421,6 +423,11 @@ bool mysql_update(THD *thd,
     if (conds)
     {
       conds= substitute_for_best_equal_field(conds, cond_equal, 0);
+      if (conds == NULL)
+      {
+        error= true;
+        goto exit_without_my_ok;
+      }
       conds->update_used_tables();
     }
   }
@@ -549,7 +556,7 @@ bool mysql_update(THD *thd,
 
   used_key_is_modified|= partition_key_modified(table, table->write_set);
 
-  using_filesort= order && (need_sort||used_key_is_modified);
+  using_filesort= order && need_sort;
 
   {
     ha_rows rows;
@@ -1863,8 +1870,8 @@ int Query_result_update::prepare(List<Item> &not_used_values,
         bitmap_union(table->read_set, table->write_set);
       }
       /* All needed columns must be marked before prune_partitions(). */
-      if (table->triggers)
-        table->triggers->mark_fields(TRG_EVENT_UPDATE);
+      if (table->triggers && table->triggers->mark_fields(TRG_EVENT_UPDATE))
+        DBUG_RETURN(true);
     }
   }
 
@@ -2346,7 +2353,7 @@ bool Query_result_update::send_data(List<Item> &not_used_values)
       }
 
       /* Store regular updated fields in the row. */
-      fill_record(thd,
+      fill_record(thd, tmp_table,
                   tmp_table->visible_field_ptr() +
                   1 + unupdated_check_opt_tables.elements,
                   *values_for_table[offset], NULL, NULL);
@@ -2593,10 +2600,20 @@ int Query_result_update::do_updates()
 	   copy_field_ptr++)
         copy_field_ptr->invoke_do_copy(copy_field_ptr);
 
+      // The above didn't update generated columns
+      if (table->vfield &&
+          update_generated_write_fields(table->write_set, table))
+        goto err;
+
       if (table->triggers)
       {
         bool rc= table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
                                                    TRG_ACTION_BEFORE, true);
+
+        // Trigger might have changed dependencies of generated columns
+        if (!rc && table->vfield &&
+            update_generated_write_fields(table->write_set, table))
+          goto err;
 
         table->triggers->disable_fields_temporary_nullability();
 

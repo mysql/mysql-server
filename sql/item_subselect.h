@@ -172,7 +172,7 @@ public:
   bool walk_body(Item_processor processor, enum_walk walk, uchar *arg);
   bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   virtual bool explain_subquery_checker(uchar **arg);
-  bool inform_item_in_cond_of_tab(uchar *join_tab_index);
+  bool inform_item_in_cond_of_tab(uchar *arg);
   virtual bool clean_up_after_removal(uchar *arg);
 
   const char *func_name() const { DBUG_ASSERT(0); return "subselect"; }
@@ -698,6 +698,11 @@ protected:
   QEP_TAB *tab;
   Item *cond; /* The WHERE condition of subselect */
   ulonglong hash; /* Hash value calculated by copy_ref_key, when needed. */
+  /**
+     Whether a lookup for key value (x0,y0) (x0 and/or y0 being NULL or not
+     NULL) will find at most one row.
+  */
+  bool unique;
 private:
   /* FALSE for 'ref', TRUE for 'ref-or-null'. */
   bool check_null;
@@ -712,11 +717,6 @@ private:
     was a row such that t.no_key IS NULL.
   */
   Item *having;
-  /**
-     Whether a lookup for key value (x0,y0) (x0 and/or y0 being NULL or not
-     NULL) will find at most one row.
-  */
-  bool unique;
 public:
 
   /*
@@ -728,7 +728,7 @@ public:
                                  Item *having_arg, bool chk_null,
                                  bool unique_arg)
     :subselect_engine(subs, 0), tab(tab_arg), cond(where),
-    check_null(chk_null), having(having_arg), unique(unique_arg)
+    unique(unique_arg), check_null(chk_null), having(having_arg)
   {};
   virtual bool exec();
   virtual void print (String *str, enum_query_type query_type);

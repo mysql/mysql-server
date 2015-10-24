@@ -3,9 +3,9 @@ create function version_tokens_set returns string soname 'version_token.so';
 create function version_tokens_show returns string soname 'version_token.so';
 create function version_tokens_edit returns string soname 'version_token.so';
 create function version_tokens_delete returns string soname 'version_token.so';
-create function vtoken_get_read_locks returns int soname 'version_token.so';
-create function vtoken_get_write_locks returns int soname 'version_token.so';
-create function vtoken_release_locks returns int soname 'version_token.so';
+create function version_tokens_lock_shared returns int soname 'version_token.so';
+create function version_tokens_lock_exclusive returns int soname 'version_token.so';
+create function version_tokens_unlock returns int soname 'version_token.so';
 
 # Error checks for UDFs
 select version_tokens_set("token1    =     abc;token2=       def",123);
@@ -22,16 +22,20 @@ select version_tokens_edit(123);
 ERROR HY000: Can't initialize function 'version_tokens_edit'; Wrong arguments provided for the function.
 select version_tokens_delete(123);
 ERROR HY000: Can't initialize function 'version_tokens_delete'; Wrong arguments provided for the function.
-select vtoken_get_read_locks("Less arguments");
-ERROR HY000: Can't initialize function 'vtoken_get_read_locks'; Requires at least two arguments: (lock(...),timeout).
-select vtoken_get_read_locks(1,"Wrong argument type");
-ERROR HY000: Can't initialize function 'vtoken_get_read_locks'; Wrong argument type - expected integer.
-select vtoken_get_write_locks("Less arguments");
-ERROR HY000: Can't initialize function 'vtoken_get_write_locks'; Requires at least two arguments: (lock(...),timeout).
-select vtoken_get_write_locks(1,"Wrong argument type");
-ERROR HY000: Can't initialize function 'vtoken_get_write_locks'; Wrong argument type - expected integer.
-select vtoken_release_locks("Takes no arguments");
-ERROR HY000: Can't initialize function 'vtoken_release_locks'; Requires no arguments.
+select version_tokens_lock_shared("Less arguments");
+ERROR HY000: Can't initialize function 'version_tokens_lock_shared'; Requires at least two arguments: (lock(...),timeout).
+select version_tokens_lock_shared(1,"Wrong argument type");
+ERROR HY000: Can't initialize function 'version_tokens_lock_shared'; Wrong argument type - expected integer.
+select version_tokens_lock_exclusive("Less arguments");
+ERROR HY000: Can't initialize function 'version_tokens_lock_exclusive'; Requires at least two arguments: (lock(...),timeout).
+select version_tokens_lock_exclusive(1,"Wrong argument type");
+ERROR HY000: Can't initialize function 'version_tokens_lock_exclusive'; Wrong argument type - expected integer.
+select version_tokens_unlock("Takes no arguments");
+ERROR HY000: Can't initialize function 'version_tokens_unlock'; Requires no arguments.
+select version_tokens_lock_shared("gizmo", -1);
+ERROR 22003: timeout value is out of range in 'version_tokens_lock_shared'
+select version_tokens_lock_exclusive("gizmo", -1);
+ERROR 22003: timeout value is out of range in 'version_tokens_lock_exclusive'
 
 CREATE USER vbhagi@localhost;
 
@@ -105,10 +109,10 @@ token2=abc;
 
 select version_tokens_delete("*");
 version_tokens_delete("*")
-Version tokens list cleared.
+0 version tokens deleted.
 select version_tokens_show();
 version_tokens_show()
-NULL
+token2=abc;
 
 do version_tokens_set("token1=def;token2= abc;token3=111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111112");
 select version_tokens_show();
@@ -211,7 +215,7 @@ drop function version_tokens_set;
 drop function version_tokens_show;
 drop function version_tokens_edit;
 drop function version_tokens_delete;
-drop function vtoken_get_read_locks;
-drop function vtoken_get_write_locks;
-drop function vtoken_release_locks;
+drop function version_tokens_lock_shared;
+drop function version_tokens_lock_exclusive;
+drop function version_tokens_unlock;
 drop user vbhagi@localhost;

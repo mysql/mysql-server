@@ -124,3 +124,25 @@ ALTER TABLE t1 modify b int generated always as (year(a)-1) virtual;
 select * from t1;
 
 drop table t1;
+
+--echo #
+--echo # Bug#21779011 INVALID READS AND SENDING RANDOM SERVER MEMORY BACK
+--echo #              TO CLIENT
+--echo #
+
+CREATE TABLE t (
+ c INTEGER GENERATED ALWAYS AS (2) VIRTUAL,
+ d INTEGER,
+ KEY (d)
+) PARTITION BY KEY (d) PARTITIONS 2;
+
+INSERT INTO t (d) VALUES (1),(1),(2),(2);
+
+# Need to disable ONLY_FULL_GROUP_BY mode
+--source include/turn_off_only_full_group_by.inc
+
+SELECT c FROM t WHERE d >= 1 GROUP BY d LIMIT 2;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+
+DROP TABLE t;

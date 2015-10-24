@@ -426,6 +426,7 @@ typedef struct vio_string vio_string;
 /**
   Names for each VIO TYPE.
   Indexed by enum_vio_type.
+  If you add more, please update audit_log.cc
 */
 static const vio_string vio_type_names[] =
 {
@@ -434,7 +435,9 @@ static const vio_string vio_type_names[] =
   { C_STRING_WITH_LEN("Socket") },
   { C_STRING_WITH_LEN("Named Pipe") },
   { C_STRING_WITH_LEN("SSL/TLS") },
-  { C_STRING_WITH_LEN("Shared Memory") }
+  { C_STRING_WITH_LEN("Shared Memory") },
+  { C_STRING_WITH_LEN("Internal") },
+  { C_STRING_WITH_LEN("Plugin") }
 };
 
 void get_vio_type_name(enum enum_vio_type vio_type, const char ** str, int * len)

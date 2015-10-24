@@ -39,6 +39,7 @@
 #include "log.h"
 #include "item_sum.h"                   // Item_sum
 #include "json_dom.h"                   // Json_wrapper
+#include "template_utils.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -621,12 +622,13 @@ uint Filesort::make_sortorder()
     pos->field= 0; pos->item= 0;
     if (real_item->type() == Item::FIELD_ITEM)
     {
-      // Could be a field, or Item_direct_view_ref wrapping a field
+      // Could be a field, or Item_direct_view_ref/Item_ref wrapping a field
       DBUG_ASSERT(item->type() == Item::FIELD_ITEM ||
                   (item->type() == Item::REF_ITEM &&
-                   static_cast<Item_ref*>(item)->ref_type() ==
-                   Item_ref::VIEW_REF));
-      pos->field= static_cast<Item_field*>(real_item)->field;
+                   (down_cast<Item_ref*>(item)->ref_type() == Item_ref::VIEW_REF
+                    || down_cast<Item_ref*>(item)->ref_type() == Item_ref::REF)
+                    ));
+      pos->field= down_cast<Item_field*>(real_item)->field;
     }
     else if (real_item->type() == Item::SUM_FUNC_ITEM &&
              !real_item->const_item())
@@ -930,7 +932,8 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
     Set up temporary column read map for columns used by sort and verify
     it's not used
   */
-  DBUG_ASSERT(bitmap_is_clear_all(&sort_form->tmp_set));
+  DBUG_ASSERT(sort_form->tmp_set.n_bits == 0 ||
+              bitmap_is_clear_all(&sort_form->tmp_set));
 
   // Temporary set for register_used_fields and mark_field_in_map()
   sort_form->read_set= &sort_form->tmp_set;

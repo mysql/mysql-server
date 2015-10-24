@@ -30,6 +30,7 @@
 #include "discover.h"                 // writefrm
 #include "log.h"                      // sql_print_error
 #include "log_event.h"                // Write_rows_log_event
+#include "my_bitmap.h"                // MY_BITMAP
 #include "probes_mysql.h"             // MYSQL_HANDLER_WRLOCK_START
 #include "opt_costconstantcache.h"    // reload_optimizer_cost_constants
 #include "rpl_handler.h"              // RUN_HOOK
@@ -308,7 +309,7 @@ const char *ha_legacy_type_name(legacy_db_type legacy_type)
 const char* mysqld_system_database= "mysql";
 
 // System tables that belong to mysqld_system_database.
-st_system_tablename mysqld_system_tables[]= {
+st_handler_tablename mysqld_system_tables[]= {
   {mysqld_system_database, "db"},
   {mysqld_system_database, "user"},
   {mysqld_system_database, "host"},
@@ -548,11 +549,7 @@ bool ha_is_storage_engine_disabled(handlerton *se_handle)
     se_name.append(",");
     boost::algorithm::to_upper(se_name);
     if(strstr(normalized_se_str.c_str(), se_name.c_str()))
-    {
-      my_error(ER_DISABLED_STORAGE_ENGINE, MYF(0),
-               ha_resolve_storage_engine_name(se_handle));
       return true;
-    }
   }
   return false;
 }
@@ -753,6 +750,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_TABLESPACE_IS_NOT_EMPTY,	ER_DEFAULT(ER_TABLESPACE_IS_NOT_EMPTY));
   SETMSG(HA_ERR_WRONG_FILE_NAME,		ER_DEFAULT(ER_WRONG_FILE_NAME));
   SETMSG(HA_ERR_NOT_ALLOWED_COMMAND,		ER_DEFAULT(ER_NOT_ALLOWED_COMMAND));
+  SETMSG(HA_ERR_COMPUTE_FAILED,		"Compute virtual column value failed");
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsg, HA_ERR_FIRST, HA_ERR_LAST);
 }
@@ -1436,14 +1434,16 @@ int ha_prepare(THD *thd)
 
     while (ha_info)
     {
-      int err;
       handlerton *ht= ha_info->ht();
       thd->status_var.ha_prepare_count++;
       if (ht->prepare)
       {
-        if ((err= ht->prepare(ht, thd, true)))
+        DBUG_EXECUTE_IF("simulate_xa_failure_prepare", {
+          ha_rollback_trans(thd, true);
+          DBUG_RETURN(1);
+        });
+        if (ht->prepare(ht, thd, true))
         {
-          my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
           ha_rollback_trans(thd, true);
           error=1;
           break;
@@ -1974,6 +1974,80 @@ int ha_rollback_trans(THD *thd, bool all)
     trn_ctx->push_unsafe_rollback_warnings(thd);
 
   DBUG_RETURN(error);
+}
+
+
+/**
+  Commit the attachable transaction in storage engines.
+
+  @note This is slimmed down version of ha_commit_trans()/ha_commit_low()
+        which commits attachable transaction but skips code which is
+        unnecessary and unsafe for them (like dealing with GTIDs).
+        Since attachable transactions are read-only their commit only
+        needs to release resources and cleanup state in SE.
+
+  @param thd     Current thread
+
+  @retval 0      - Success
+  @retval non-0  - Failure
+*/
+int ha_commit_attachable(THD *thd)
+{
+  int error= 0;
+  Transaction_ctx *trn_ctx= thd->get_transaction();
+  Ha_trx_info *ha_info= trn_ctx->ha_trx_info(Transaction_ctx::STMT);
+  Ha_trx_info *ha_info_next;
+
+  /* This function only handles attachable transactions. */
+  DBUG_ASSERT(thd->is_attachable_transaction_active());
+  /*
+    Since the attachable transaction is AUTOCOMMIT we only need
+    to care about statement transaction.
+  */
+  DBUG_ASSERT(! trn_ctx->is_active(Transaction_ctx::SESSION));
+
+  if (ha_info)
+  {
+    for (; ha_info; ha_info= ha_info_next)
+    {
+      /* Attachable transaction is not supposed to modify anything. */
+      DBUG_ASSERT(! ha_info->is_trx_read_write());
+
+      handlerton *ht= ha_info->ht();
+      if (ht->commit(ht, thd, false))
+      {
+        /*
+          In theory this should not happen since attachable transactions
+          are read only and therefore commit is supposed to only release
+          resources/cleanup state. Even if this happens we will simply
+          continue committing attachable transaction in other SEs.
+        */
+        DBUG_ASSERT(false);
+        error= 1;
+      }
+      thd->status_var.ha_commit_count++;
+      ha_info_next= ha_info->next();
+
+      ha_info->reset(); /* keep it conveniently zero-filled */
+    }
+    trn_ctx->reset_scope(Transaction_ctx::STMT);
+  }
+
+  /*
+    Mark transaction as commited in PSI.
+  */
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  if (thd->m_transaction_psi != NULL)
+  {
+    MYSQL_COMMIT_TRANSACTION(thd->m_transaction_psi);
+    thd->m_transaction_psi= NULL;
+  }
+#endif
+
+  /* Free resources and perform other cleanup even for 'empty' transactions. */
+  trn_ctx->cleanup();
+
+  return (error);
 }
 
 
@@ -2563,7 +2637,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
   }
   if (error)
   {
-    my_errno= error;                            /* Safeguard */
+    set_my_errno(error);                            /* Safeguard */
     DBUG_PRINT("error",("error: %d  errno: %d",error,errno));
   }
   else
@@ -2737,10 +2811,16 @@ int handler::ha_rnd_next(uchar *buf)
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == RND);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, MAX_KEY, result,
     { result= rnd_next(buf); })
-  if (!result && table->vfield)
+  if (!result && m_update_generated_read_fields)
+  {
     result= update_generated_read_fields(buf, table);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -2765,10 +2845,16 @@ int handler::ha_rnd_pos(uchar *buf, uchar *pos)
   /* TODO: Find out how to solve ha_rnd_pos when finding duplicate update. */
   /* DBUG_ASSERT(inited == RND); */
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, MAX_KEY, result,
     { result= rnd_pos(buf, pos); })
-  if (!result && table->vfield)
+  if (!result && m_update_generated_read_fields)
+  {
     result= update_generated_read_fields(buf, table);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -2809,10 +2895,16 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_read_map(buf, key, keypart_map, find_flag); })
-  if (!result && table->vfield)
+  if (!result && m_update_generated_read_fields)
+  {
     result= update_generated_read_fields(buf, table, active_index);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -2826,10 +2918,16 @@ int handler::ha_index_read_last_map(uchar *buf, const uchar *key,
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_read_last_map(buf, key, keypart_map); })
-  if (!result && table->vfield)
+  if (!result && m_update_generated_read_fields)
+  {
     result= update_generated_read_fields(buf, table, active_index);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -2849,10 +2947,16 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
   DBUG_ASSERT(end_range == NULL);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, index, result,
     { result= index_read_idx_map(buf, index, key, keypart_map, find_flag); })
-  if (!result && table->vfield)
+  if (!result && m_update_generated_read_fields)
+  {
     result= update_generated_read_fields(buf, table, index);
+    m_update_generated_read_fields= false;
+  }
   return result;
 }
 
@@ -2877,10 +2981,16 @@ int handler::ha_index_next(uchar * buf)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_next(buf); })
-  if (!result && table->vfield)
+  if (!result && m_update_generated_read_fields)
+  {
     result= update_generated_read_fields(buf, table, active_index);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -2905,10 +3015,16 @@ int handler::ha_index_prev(uchar * buf)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_prev(buf); })
-  if (!result && table->vfield)
+  if (!result && m_update_generated_read_fields)
+  {
     result= update_generated_read_fields(buf, table, active_index);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -2933,10 +3049,16 @@ int handler::ha_index_first(uchar * buf)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_first(buf); })
-  if (!result && table->vfield)
+  if (!result && m_update_generated_read_fields)
+  {
     result= update_generated_read_fields(buf, table, active_index);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -2961,10 +3083,16 @@ int handler::ha_index_last(uchar * buf)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_last(buf); })
-  if (!result && table->vfield)
+  if (!result && m_update_generated_read_fields)
+  {
     result= update_generated_read_fields(buf, table, active_index);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -2991,10 +3119,16 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_next_same(buf, key, keylen); })
-  if (!result && table->vfield)
+  if (!result && m_update_generated_read_fields)
+  {
     result= update_generated_read_fields(buf, table, active_index);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -4163,15 +4297,15 @@ int handler::delete_table(const char *name)
     fn_format(buff, name, "", *ext, MY_UNPACK_FILENAME|MY_APPEND_EXT);
     if (mysql_file_delete_with_symlink(key_file_misc, buff, MYF(0)))
     {
-      if (my_errno != ENOENT)
+      if (my_errno() != ENOENT)
       {
         /*
           If error on the first existing file, return the error.
           Otherwise delete as much as possible.
         */
         if (enoent_or_zero)
-          return my_errno;
-	saved_error= my_errno;
+          return my_errno();
+	saved_error= my_errno();
       }
     }
     else
@@ -4191,7 +4325,8 @@ int handler::rename_table(const char * from, const char * to)
   {
     if (rename_file_ext(from, to, *ext))
     {
-      if ((error=my_errno) != ENOENT)
+      error= my_errno();
+      if (error != ENOENT)
 	break;
       error= 0;
     }
@@ -4231,6 +4366,9 @@ void handler::drop_table(const char *name)
 int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
 {
   int error;
+  bool skip_version_update = false;
+  bool is_upgrade = check_opt->sql_flags & TT_FOR_UPGRADE;
+
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
 
@@ -4242,16 +4380,29 @@ int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
   {
     if ((error= check_old_types()))
       return error;
+
     error= ha_check_for_upgrade(check_opt);
-    if (error && (error != HA_ADMIN_NEEDS_CHECK))
-      return error;
-    if (!error && (check_opt->sql_flags & TT_FOR_UPGRADE))
-      return 0;
+    switch (error)
+    {
+      case HA_ADMIN_NEEDS_UPG_PART:
+        /* Skip version update as the table needs upgrade. */
+        skip_version_update= true;
+        /* Fall through */
+      case HA_ADMIN_OK:
+        if (is_upgrade)
+          return error;
+        /* Fall through */
+      case HA_ADMIN_NEEDS_CHECK:
+        break;
+      default:
+        return error;
+    }
   }
+
   if ((error= check(thd, check_opt)))
     return error;
   /* Skip updating frm version if not main handler. */
-  if (table->file != this)
+  if (table->file != this || skip_version_update)
     return error;
   return update_frm_version(table);
 }
@@ -4549,7 +4700,6 @@ handler::check_if_supported_inplace_alter(TABLE *altered_table,
     Alter_inplace_info::CHANGE_CREATE_OPTION |
     Alter_inplace_info::ALTER_RENAME |
     Alter_inplace_info::RENAME_INDEX |
-    Alter_inplace_info::HA_ALTER_STORED_GCOL |
     Alter_inplace_info::ALTER_INDEX_COMMENT;
 
   /* Is there at least one operation that requires copy algorithm? */
@@ -4973,7 +5123,7 @@ bool ha_check_if_supported_system_table(handlerton *hton, const char *db,
   st_sys_tbl_chk_params check_params;
   bool is_system_database= false;
   const char **names;
-  st_system_tablename *systab;
+  st_handler_tablename *systab;
 
   // Check if we have a system database name in the command.
   DBUG_ASSERT(known_system_databases != NULL);
@@ -5211,9 +5361,12 @@ int ha_resize_key_cache(KEY_CACHE *key_cache)
     ulonglong division_limit= key_cache->param_division_limit;
     ulonglong age_threshold=  key_cache->param_age_threshold;
     mysql_mutex_unlock(&LOCK_global_system_variables);
-    DBUG_RETURN(!resize_key_cache(key_cache, tmp_block_size,
-				  tmp_buff_size,
-				  division_limit, age_threshold));
+    const int retval= resize_key_cache(key_cache,
+                                       keycache_thread_var(),
+                                       tmp_block_size,
+                                       tmp_buff_size,
+                                       division_limit, age_threshold);
+    DBUG_RETURN(!retval);
   }
   DBUG_RETURN(0);
 }
@@ -6046,6 +6199,9 @@ int handler::multi_range_read_next(char **range_info)
   int range_res;
   DBUG_ENTER("handler::multi_range_read_next");
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   if (!mrr_have_range)
   {
     mrr_have_range= TRUE;
@@ -6086,6 +6242,14 @@ scan_it_again:
   while ((result == HA_ERR_END_OF_FILE) && !range_res);
 
   *range_info= mrr_cur_range.ptr;
+
+  /* Update virtual generated fields */
+  if (!result && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(table->record[0], table, active_index);
+    m_update_generated_read_fields= false;
+  }
+
   DBUG_PRINT("exit",("handler::multi_range_read_next result %d", result));
   DBUG_RETURN(result);
 }
@@ -7594,7 +7758,8 @@ int handler::ha_write_row(uchar *buf)
 
   DBUG_EXECUTE_IF("handler_crashed_table_on_usage",
                   my_error(HA_ERR_CRASHED, MYF(ME_ERRORLOG), table_share->table_name.str);
-                  DBUG_RETURN(my_errno= HA_ERR_CRASHED););
+                  set_my_errno(HA_ERR_CRASHED);
+                  DBUG_RETURN(HA_ERR_CRASHED););
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_WRITE_ROW, MAX_KEY, error,
     { error= write_row(buf); })
@@ -7634,7 +7799,8 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
 
   DBUG_EXECUTE_IF("handler_crashed_table_on_usage",
                   my_error(HA_ERR_CRASHED, MYF(ME_ERRORLOG), table_share->table_name.str);
-                  return(my_errno= HA_ERR_CRASHED););
+                  set_my_errno(HA_ERR_CRASHED);
+                  return(HA_ERR_CRASHED););
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_UPDATE_ROW, active_index, error,
     { error= update_row(old_data, new_data);})
@@ -7663,7 +7829,8 @@ int handler::ha_delete_row(const uchar *buf)
 
   DBUG_EXECUTE_IF("handler_crashed_table_on_usage",
                   my_error(HA_ERR_CRASHED, MYF(ME_ERRORLOG), table_share->table_name.str);
-                  return(my_errno= HA_ERR_CRASHED););
+                  set_my_errno(HA_ERR_CRASHED);
+                  return(HA_ERR_CRASHED););
 
   MYSQL_DELETE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
@@ -7796,16 +7963,15 @@ struct blob_len_ptr{
 */
 
 static void extract_blob_space_and_length_from_record_buff(const TABLE *table,
-                                           ulonglong fields,
+                                           const MY_BITMAP *const fields,
                                            blob_len_ptr *blob_len_ptr_array)
 {
   int num= 0;
   for (Field **vfield= table->vfield; *vfield; vfield++)
   {
-    if (!(fields & (1ULL << (*vfield)->field_index)))
-      continue;         // Skip unneeded fields
-
-    if ((*vfield)->is_virtual_gcol() && (*vfield)->type() == MYSQL_TYPE_BLOB)
+    // Check if this field should be included
+    if (bitmap_is_set(fields, (*vfield)->field_index) &&
+        (*vfield)->is_virtual_gcol() && (*vfield)->type() == MYSQL_TYPE_BLOB)
     {
       blob_len_ptr_array[num].length= (*vfield)->data_length();
       // TODO: The following check is only for Innodb.
@@ -7841,16 +8007,15 @@ static void extract_blob_space_and_length_from_record_buff(const TABLE *table,
 */
 
 static void copy_blob_data(const TABLE *table,
-                           ulonglong fields,
+                           const MY_BITMAP *const fields,
                            blob_len_ptr *blob_len_ptr_array)
 {
   uint  num= 0;
   for (Field **vfield= table->vfield; *vfield; vfield++)
   {
-    if (!(fields & (1ULL << (*vfield)->field_index)))
-      continue;         // Skip unneeded fields
-
-    if ((*vfield)->is_virtual_gcol() && (*vfield)->type() == MYSQL_TYPE_BLOB)
+    // Check if this field should be included
+    if (bitmap_is_set(fields, (*vfield)->field_index) &&
+        (*vfield)->is_virtual_gcol() && (*vfield)->type() == MYSQL_TYPE_BLOB)
     {
       DBUG_ASSERT(blob_len_ptr_array[num].length > 0);
       DBUG_ASSERT(blob_len_ptr_array[num].ptr != NULL);
@@ -7895,7 +8060,7 @@ static void copy_blob_data(const TABLE *table,
 */
 
 static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
-                                        ulonglong fields,
+                                        const MY_BITMAP *const fields,
                                         uchar *record,
                                         bool in_purge)
 {
@@ -7912,31 +8077,74 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
     for blob.
   */
   if (in_purge)
-    extract_blob_space_and_length_from_record_buff(table, fields, blob_len_ptr_array);
+    extract_blob_space_and_length_from_record_buff(table, fields,
+                                                   blob_len_ptr_array);
 
   bool res= false;
+  MY_BITMAP fields_to_evaluate;
+  my_bitmap_map bitbuf[bitmap_buffer_size(MAX_FIELDS) / sizeof(my_bitmap_map)];
+  bitmap_init(&fields_to_evaluate, bitbuf, table->s->fields, 0);
+  bitmap_set_all(&fields_to_evaluate);
+  bitmap_intersect(&fields_to_evaluate, fields);
+  /*
+    In addition to evaluating the value for the columns requested by
+    the caller we also need to evaluate any virtual columns that these
+    depend on.
+    This loop goes through the columns that should be evaluated and
+    adds all the base columns. If the base column is virtual, it has
+    to be evaluated.
+  */
   for (Field **vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
   {
     Field *field= *vfield_ptr;
-    if (!(fields & (1ULL << field->field_index)))
-      continue;         // Skip unneeded fields
+    // Validate that the field number is less than the bit map size
+    DBUG_ASSERT(field->field_index < fields->n_bits);
 
-    DBUG_ASSERT(field->gcol_info && field->gcol_info->expr_item->fixed);
-    if (in_purge)
+    if (bitmap_is_set(fields, field->field_index))
+      bitmap_union(&fields_to_evaluate, &field->gcol_info->base_columns_map);
+  }
+
+   /*
+     Evaluate all requested columns and all base columns these depends
+     on that are virtual.
+  */
+  for (Field **vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
+  {
+    Field *field= *vfield_ptr;
+
+    // Check if we should evaluate this field
+    if (bitmap_is_set(&fields_to_evaluate, field->field_index) &&
+        field->is_virtual_gcol())
     {
-      /*
-        Adding to read_set/write_set is normally done up-front by high-level
-        layers before calling any handler's read/delete/etc functions.
-        But, for the specific case of the purge thread, it has no high-level
-        layer to manage read_set/write_set.
-      */
-      table->mark_column_used(thd, field, MARK_COLUMNS_WRITE);
-    }
+      DBUG_ASSERT(field->gcol_info && field->gcol_info->expr_item->fixed);
+      if (in_purge)
+      {
+        /*
+          Adding to read_set/write_set is normally done up-front by high-level
+          layers before calling any handler's read/delete/etc functions.
+          But, for the specific case of the purge thread, it has no high-level
+          layer to manage read_set/write_set.
+        */
+        table->mark_column_used(thd, field, MARK_COLUMNS_WRITE);
+      }
 
-    res= field->gcol_info->expr_item->save_in_field(field, 0);
-    DBUG_ASSERT(!thd->is_error() || res);
-    if (res)
-      break;
+      const type_conversion_status save_in_field_status=
+        field->gcol_info->expr_item->save_in_field(field, 0);
+      DBUG_ASSERT(!thd->is_error() || save_in_field_status != TYPE_OK);
+
+      /*
+        save_in_field() may return non-zero even if there was no
+        error. This happens if a warning is raised, such as an
+        out-of-range warning when converting the result to the target
+        type of the virtual column. We should stop only if the
+        non-zero return value was caused by an actual error.
+      */
+      if (save_in_field_status != TYPE_OK && thd->is_error())
+      {
+        res= true;
+        break;
+      }
+    }
   }
 
   /*
@@ -8019,7 +8227,7 @@ bool handler::my_eval_gcolumn_expr(THD *thd,
                                    bool open_in_engine,
                                    const char *db_name,
                                    const char *table_name,
-                                   ulonglong fields,
+                                   const MY_BITMAP *const fields,
                                    uchar *record)
 {
   DBUG_ASSERT(thd->system_thread == SYSTEM_THREAD_BACKGROUND);
@@ -8086,7 +8294,7 @@ bool handler::my_eval_gcolumn_expr(THD *thd,
 bool handler::my_eval_gcolumn_expr(THD *thd,
                                    const char *db_name,
                                    const char *table_name,
-                                   ulonglong fields,
+                                   const MY_BITMAP *const fields,
                                    uchar *record)
 {
   DBUG_ENTER("my_eval_gcolumn_expr");

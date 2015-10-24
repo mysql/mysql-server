@@ -539,9 +539,9 @@ type_conversion_status Item::save_date_in_field(Field *field)
     result  the pointer to the string value to be stored
 
   DESCRIPTION
-    The method is used by Item_*::save_in_field implementations
+    The method is used by Item_*::save_in_field_inner() implementations
     when we don't need to calculate the value to store
-    See Item_string::save_in_field() implementation for example
+    See Item_string::save_in_field_inner() implementation for example
 
   IMPLEMENTATION
     Check if the Item is null and stores the NULL or the
@@ -2851,31 +2851,34 @@ const char *Item_ident::full_name() const
   return tmp;
 }
 
-void Item_ident::print(String *str, enum_query_type query_type)
+
+void Item_ident::print(String *str, enum_query_type query_type,
+                       const char *db_name_arg,
+                       const char *table_name_arg) const
 {
   THD *thd= current_thd;
   char d_name_buff[MAX_ALIAS_NAME], t_name_buff[MAX_ALIAS_NAME];
-  const char *d_name= db_name, *t_name= table_name;
+  const char *d_name= db_name_arg, *t_name= table_name_arg;
 
   if (lower_case_table_names== 1 ||
       // mode '2' does not apply to aliases:
       (lower_case_table_names == 2 && !alias_name_used()))
   {
-    if (table_name && table_name[0])
+    if (table_name_arg && table_name_arg[0])
     {
-      my_stpcpy(t_name_buff, table_name);
+      my_stpcpy(t_name_buff, table_name_arg);
       my_casedn_str(files_charset_info, t_name_buff);
       t_name= t_name_buff;
     }
-    if (db_name && db_name[0])
+    if (db_name_arg && db_name_arg[0])
     {
-      my_stpcpy(d_name_buff, db_name);
+      my_stpcpy(d_name_buff, db_name_arg);
       my_casedn_str(files_charset_info, d_name_buff);
       d_name= d_name_buff;
     }
   }
 
-  if (!table_name || !field_name || !field_name[0])
+  if (!table_name_arg || !field_name || !field_name[0])
   {
     const char *nm= (field_name && field_name[0]) ?
                       field_name : item_name.is_set() ? item_name.ptr() : "tmp_field";
@@ -2883,7 +2886,7 @@ void Item_ident::print(String *str, enum_query_type query_type)
     return;
   }
 
-  if (db_name && db_name[0] &&
+  if (db_name_arg && db_name_arg[0] &&
       !(query_type & QT_COMPACT_FORMAT) &&
       !alias_name_used())
   {
@@ -2895,7 +2898,7 @@ void Item_ident::print(String *str, enum_query_type query_type)
       str->append('.');
     }
   }
-  if (table_name[0])
+  if (table_name_arg[0])
   {
     append_identifier(thd, str, t_name, strlen(t_name));
     str->append('.');
@@ -3124,11 +3127,23 @@ table_map Item_field::used_tables() const
 }
 
 
-table_map Item_field::resolved_used_tables() const
+bool Item_field::used_tables_for_level(uchar *arg)
 {
   // Used by resolver only, so can never reach a "const" table.
   DBUG_ASSERT(!table_ref->table->const_table);
-  return table_ref->map();
+  Used_tables *const ut= pointer_cast<Used_tables *>(arg);
+  /*
+    When the qualifying query for the field (table_ref->select_lex) is the same
+    level as the requested level, add the table's map.
+    When the qualifying query for the field is outer relative to the
+    requested level, add an outer reference.
+  */
+  if (ut->select == table_ref->select_lex)
+    ut->used_tables|= table_ref->map();
+  else if (ut->select->nest_level > table_ref->select_lex->nest_level)
+    ut->used_tables|= OUTER_REF_TABLE_BIT;
+
+  return false;
 }
 
 void Item_ident::fix_after_pullout(st_select_lex *parent_select,
@@ -3194,7 +3209,11 @@ void Item_ident::fix_after_pullout(st_select_lex *parent_select,
     */
     Item_subselect *subq_predicate= child_select->master_unit()->item;
 
-    subq_predicate->used_tables_cache|= this->resolved_used_tables();
+    Used_tables ut(depended_from);
+    (void) walk(&Item::used_tables_for_level,
+               Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+               pointer_cast<uchar *>(&ut));
+    subq_predicate->used_tables_cache|= ut.used_tables;
     subq_predicate->const_item_cache&= this->const_item();
   }
 }
@@ -4008,7 +4027,7 @@ void Item_param::reset()
 
 
 type_conversion_status
-Item_param::save_in_field(Field *field, bool no_conversions)
+Item_param::save_in_field_inner(Field *field, bool no_conversions)
 {
   field->set_notnull();
 
@@ -4630,7 +4649,7 @@ longlong Item_copy_string::val_int()
 
 
 type_conversion_status
-Item_copy_string::save_in_field(Field *field, bool no_conversions)
+Item_copy_string::save_in_field_inner(Field *field, bool no_conversions)
 {
   return save_str_value_in_field(field, &str_value);
 }
@@ -4783,7 +4802,8 @@ bool Item_copy_json::get_time(MYSQL_TIME *ltime)
 }
 
 
-type_conversion_status Item_copy_json::save_in_field(Field *field, bool no_conversions)
+type_conversion_status
+Item_copy_json::save_in_field_inner(Field *field, bool no_conversions)
 {
   if (null_value)
     return set_field_to_null(field);
@@ -4818,7 +4838,7 @@ save_int_value_in_field (Field *field, longlong nr,
                          bool null_value, bool unsigned_flag);
 
 type_conversion_status
-Item_copy_int::save_in_field(Field *field, bool no_conversions)
+Item_copy_int::save_in_field_inner(Field *field, bool no_conversions)
 {
   return save_int_value_in_field(field, cached_value,
                                  null_value, unsigned_flag);
@@ -4897,7 +4917,7 @@ my_decimal *Item_copy_float::val_decimal(my_decimal *decimal_value)
 
 
 type_conversion_status
-Item_copy_float::save_in_field(Field *field, bool no_conversions)
+Item_copy_float::save_in_field_inner(Field *field, bool no_conversions)
 {
   // TODO: call set_field_to_null_with_conversions below
   if (null_value)
@@ -4913,7 +4933,7 @@ Item_copy_float::save_in_field(Field *field, bool no_conversions)
 ****************************************************************************/
 
 type_conversion_status
-Item_copy_decimal::save_in_field(Field *field, bool no_conversions)
+Item_copy_decimal::save_in_field_inner(Field *field, bool no_conversions)
 {
   // TODO: call set_field_to_null_with_conversions below
   if (null_value)
@@ -5156,8 +5176,11 @@ void mark_select_range_as_dependent(THD *thd,
     if (found_field == view_ref_found)
     {
       Item::Type type= found_item->type();
-      prev_subselect_item->used_tables_cache|=
-        found_item->resolved_used_tables();// not needed but logical
+      Used_tables ut(last_select);
+      (void) found_item->walk(&Item::used_tables_for_level,
+                      Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+                      pointer_cast<uchar *>(&ut));
+      prev_subselect_item->used_tables_cache|= ut.used_tables;
       dependent= ((type == Item::REF_ITEM || type == Item::FIELD_ITEM) ?
                   (Item_ident*) found_item :
                   0);
@@ -5556,8 +5579,11 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
         else
         {
           Item::Type ref_type= (*reference)->type();
-          prev_subselect_item->used_tables_cache|=
-            (*reference)->resolved_used_tables();
+          Used_tables ut(select);
+          (void) (*reference)->walk(&Item::used_tables_for_level,
+                      Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+                      pointer_cast<uchar *>(&ut));
+          prev_subselect_item->used_tables_cache|= ut.used_tables;
           prev_subselect_item->const_item_cache&=
             (*reference)->const_item();
           if (thd->lex->in_sum_func &&
@@ -5821,6 +5847,8 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
 
             set_field(new_field);
 
+            cached_table= table_ref;
+
             // The found column may be an outer reference
             if (item_field->depended_from)
               mark_as_dependent(thd, item_field->depended_from,
@@ -5893,26 +5921,24 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
     }
 
     /*
-      if it is not expression from merged VIEW we will set this field.
-
-      We can leave expression substituted from view for next PS/SP rexecution
-      (i.e. do not register this substitution for reverting on cleanup()
-      (register_item_tree_changing())), because this subtree will be
-      fix_field'ed during setup_tables()->setup_underlying() (i.e. before
-      all other expressions of query, and references on tables which do
-      not present in query will not make problems.
-
-      Also we suppose that view can't be changed during PS/SP life.
+      If inside an aggregation function, set the correct aggregation level.
+      Even if a view reference is found, the level is still the query block
+      associated with the context of the current item:
     */
+    DBUG_ASSERT(from_field != view_ref_found ||
+                context->select_lex ==
+                dynamic_cast<Item_ident *>(*reference)->context->select_lex);
+    if (thd->lex->in_sum_func &&
+        thd->lex->in_sum_func->nest_level == context->select_lex->nest_level)
+      set_if_bigger(thd->lex->in_sum_func->max_arg_level,
+                    context->select_lex->nest_level);
+
+    // If view column reference, Item in *reference is completely resolved:
     if (from_field == view_ref_found)
       return false;
 
+    // Not view reference, not outer reference; need to set properties:
     set_field(from_field);
-    if (thd->lex->in_sum_func &&
-        thd->lex->in_sum_func->nest_level == 
-        thd->lex->current_select()->nest_level)
-      set_if_bigger(thd->lex->in_sum_func->max_arg_level,
-                    thd->lex->current_select()->nest_level);
   }
   else if (thd->mark_used_columns != MARK_COLUMNS_NONE)
   {
@@ -6426,7 +6452,7 @@ Field *Item::make_string_field(TABLE *table)
     field= new Field_json(max_length, maybe_null, item_name.ptr());
   else if (max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB)
     field= new Field_blob(max_length, maybe_null, item_name.ptr(),
-                          collation.collation, TRUE);
+                          collation.collation, true);
   /* Item_type_holder holds the exact type, do not change it */
   else if (max_length > 0 &&
       (type() != Item::TYPE_HOLDER || field_type() != MYSQL_TYPE_STRING))
@@ -6549,10 +6575,11 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
     if (this->type() == Item::TYPE_HOLDER)
-      field= new Field_blob(max_length, maybe_null, item_name.ptr(), collation.collation,
-                            1);
+      field= new Field_blob(max_length, maybe_null, item_name.ptr(),
+                            collation.collation, true);
     else
-      field= new Field_blob(max_length, maybe_null, item_name.ptr(), collation.collation);
+      field= new Field_blob(max_length, maybe_null, item_name.ptr(),
+                            collation.collation, false);
     break;					// Blob handled outside of case
   case MYSQL_TYPE_GEOMETRY:
     field= new Field_geom(max_length, maybe_null,
@@ -6602,10 +6629,10 @@ void Item_field::save_org_in_field(Field *to)
 }
 
 type_conversion_status
-Item_field::save_in_field(Field *to, bool no_conversions)
+Item_field::save_in_field_inner(Field *to, bool no_conversions)
 {
   type_conversion_status res;
-  DBUG_ENTER("Item_field::save_in_field");
+  DBUG_ENTER("Item_field::save_in_field_inner");
   if (result_field->is_null())
   {
     null_value=1;
@@ -6646,7 +6673,7 @@ Item_field::save_in_field(Field *to, bool no_conversions)
 */
 
 type_conversion_status
-Item_null::save_in_field(Field *field, bool no_conversions)
+Item_null::save_in_field_inner(Field *field, bool no_conversions)
 {
   return set_field_to_null_with_conversions(field, no_conversions);
 }
@@ -6669,38 +6696,34 @@ type_conversion_status Item_null::save_safe_in_field(Field *field)
 }
 
 
-/**
-  Check if an error occurred while storing a value in a field, and
-  return the appropriate type_conversion_status.
-
-  @param[in] error  the returned status from the store() call
-  @param[in] field  the field in which the value was stored
-  @return a type_conversion_status indicating if an error had occurred
-*/
-static type_conversion_status check_error(type_conversion_status error,
-                                          Field *field)
+type_conversion_status
+Item::save_in_field(Field *field, bool no_conversions)
 {
-  if (error)
-    return error;
+  const type_conversion_status ret= save_in_field_inner(field, no_conversions);
 
-  if (field->table->in_use->is_error())
+  /*
+    If an error was raised during evaluation of the item,
+    save_in_field_inner() might not notice and return TYPE_OK. Make
+    sure that we return not OK if there was an error.
+  */
+  if (ret == TYPE_OK && field->table && field->table->in_use->is_error())
     return TYPE_ERR_BAD_VALUE;
 
-  return TYPE_OK;
+  return ret;
 }
 
 
 /*
   This implementation can lose str_value content, so if the
   Item uses str_value to store something, it should
-  reimplement it's ::save_in_field() as Item_string, for example, does.
+  reimplement its ::save_in_field_inner() as Item_string, for example, does.
 
   Note: all Item_XXX::val_str(str) methods must NOT rely on the fact that
   str != str_value. For example, see fix for bug #44743.
 */
 
 type_conversion_status
-Item::save_in_field(Field *field, bool no_conversions)
+Item::save_in_field_inner(Field *field, bool no_conversions)
 {
   if (result_type() == STRING_RESULT)
   {
@@ -6722,7 +6745,7 @@ Item::save_in_field(Field *field, bool no_conversions)
             return set_field_to_null_with_conversions(field, no_conversions);
           }
           field->set_notnull();
-          return check_error(field->store_time(&t), field);
+          return field->store_time(&t);
         }
         if (field->type() == MYSQL_TYPE_NEWDECIMAL)
         {
@@ -6731,7 +6754,7 @@ Item::save_in_field(Field *field, bool no_conversions)
           if (null_value)
             return set_field_to_null_with_conversions(field, no_conversions);
           field->set_notnull();
-          return check_error(field->store_decimal(value), field);
+          return field->store_decimal(value);
         }
         if (field->type() == MYSQL_TYPE_INT24 ||
             field->type() == MYSQL_TYPE_TINY  ||
@@ -6743,7 +6766,7 @@ Item::save_in_field(Field *field, bool no_conversions)
           if (null_value)
             return set_field_to_null_with_conversions(field, no_conversions);
           field->set_notnull();
-          return check_error(field->store(nr, unsigned_flag), field);
+          return field->store(nr, unsigned_flag);
         }
         if (field->type() == MYSQL_TYPE_FLOAT ||
                  field->type() == MYSQL_TYPE_DOUBLE)
@@ -6752,7 +6775,7 @@ Item::save_in_field(Field *field, bool no_conversions)
           if (null_value)
             return set_field_to_null_with_conversions(field, no_conversions);
           field->set_notnull();
-          return check_error(field->store(nr), field);
+          return field->store(nr);
         }
       }
     }
@@ -6775,7 +6798,7 @@ Item::save_in_field(Field *field, bool no_conversions)
       field->store(result->ptr(),result->length(),
                    field->type() == MYSQL_TYPE_JSON ? result->charset() : cs);
     str_value.set_quick(0, 0, cs);
-    return check_error(error, field);
+    return error;
   }
 
   if (result_type() == REAL_RESULT && field->result_type() == STRING_RESULT)
@@ -6784,7 +6807,7 @@ Item::save_in_field(Field *field, bool no_conversions)
     if (null_value)
       return set_field_to_null_with_conversions(field, no_conversions);
     field->set_notnull();
-    return check_error(field->store(nr), field);
+    return field->store(nr);
   }
 
   if (result_type() == REAL_RESULT)
@@ -6793,7 +6816,7 @@ Item::save_in_field(Field *field, bool no_conversions)
     if (null_value)
       return set_field_to_null_with_conversions(field, no_conversions);
     field->set_notnull();
-    return check_error(field->store(nr), field);
+    return field->store(nr);
   }
 
   if (result_type() == DECIMAL_RESULT)
@@ -6803,19 +6826,19 @@ Item::save_in_field(Field *field, bool no_conversions)
     if (null_value)
       return set_field_to_null_with_conversions(field, no_conversions);
     field->set_notnull();
-    return check_error(field->store_decimal(value), field);
+    return field->store_decimal(value);
   }
 
   longlong nr= val_int();
   if (null_value)
     return set_field_to_null_with_conversions(field, no_conversions);
   field->set_notnull();
-  return check_error(field->store(nr, unsigned_flag), field);
+  return field->store(nr, unsigned_flag);
 }
 
 
 type_conversion_status
-Item_string::save_in_field(Field *field, bool no_conversions)
+Item_string::save_in_field_inner(Field *field, bool no_conversions)
 {
   String *result;
   result=val_str(&str_value);
@@ -6824,10 +6847,10 @@ Item_string::save_in_field(Field *field, bool no_conversions)
 
 
 type_conversion_status
-Item_uint::save_in_field(Field *field, bool no_conversions)
+Item_uint::save_in_field_inner(Field *field, bool no_conversions)
 {
-  /* Item_int::save_in_field handles both signed and unsigned. */
-  return Item_int::save_in_field(field, no_conversions);
+  /* Item_int::save_in_field_inner handles both signed and unsigned. */
+  return Item_int::save_in_field_inner(field, no_conversions);
 }
 
 /**
@@ -6872,7 +6895,7 @@ save_int_value_in_field (Field *field, longlong nr,
                     value
 */
 type_conversion_status
-Item_int::save_in_field(Field *field, bool no_conversions)
+Item_int::save_in_field_inner(Field *field, bool no_conversions)
 {
   return save_int_value_in_field (field, val_int(), null_value,
                                   unsigned_flag);
@@ -6880,7 +6903,7 @@ Item_int::save_in_field(Field *field, bool no_conversions)
 
 
 type_conversion_status
-Item_temporal::save_in_field(Field *field, bool no_conversions)
+Item_temporal::save_in_field_inner(Field *field, bool no_conversions)
 {
   longlong nr= field->is_temporal_with_time() ?
                val_temporal_with_round(field->type(), field->decimals()) :
@@ -6894,7 +6917,7 @@ Item_temporal::save_in_field(Field *field, bool no_conversions)
 
 
 type_conversion_status
-Item_decimal::save_in_field(Field *field, bool no_conversions)
+Item_decimal::save_in_field_inner(Field *field, bool no_conversions)
 {
   field->set_notnull();
   return field->store_decimal(&decimal_value);
@@ -7045,7 +7068,7 @@ void Item_float::init(const char *str_arg, uint length)
 
 
 type_conversion_status
-Item_float::save_in_field(Field *field, bool no_conversions)
+Item_float::save_in_field_inner(Field *field, bool no_conversions)
 {
   double nr= val_real();
   // TODO: call set_field_to_null_with_conversions below
@@ -7177,7 +7200,7 @@ my_decimal *Item_hex_string::val_decimal(my_decimal *decimal_value)
 
 
 type_conversion_status
-Item_hex_string::save_in_field(Field *field, bool no_conversions)
+Item_hex_string::save_in_field_inner(Field *field, bool no_conversions)
 {
   field->set_notnull();
   if (field->result_type() == STRING_RESULT)
@@ -7766,7 +7789,11 @@ void Item_field::print(String *str, enum_query_type query_type)
     }
     return;
   }
-  Item_ident::print(str, query_type);
+  if ((table_name == NULL || table_name[0] == 0) && field && field->orig_table)
+    Item_ident::print(str, query_type, field->orig_table->s->db.str,
+                      field->orig_table->alias);
+  else
+    Item_ident::print(str, query_type);
 }
 
 /**
@@ -8452,7 +8479,7 @@ my_decimal *Item_ref::val_decimal(my_decimal *decimal_value)
 }
 
 type_conversion_status
-Item_ref::save_in_field(Field *to, bool no_conversions)
+Item_ref::save_in_field_inner(Field *to, bool no_conversions)
 {
   type_conversion_status res;
   if (result_field)
@@ -8632,7 +8659,9 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
   if (cached_table->is_inner_table_of_outer_join())
   {
     maybe_null= true;
-    first_inner_table= cached_table->first_leaf_table();
+    first_inner_table= cached_table->any_outer_leaf_table();
+    // @todo delete this when WL#6570 is implemented
+    (*ref)->maybe_null= true;
   }
   return false;
 }
@@ -8772,6 +8801,17 @@ bool Item_direct_view_ref::val_bool()
 }
 
 
+bool Item_direct_view_ref::val_json(Json_wrapper *wr)
+{
+  if (has_null_row())
+  {
+    null_value= TRUE;
+    return false;
+  }
+  return super::val_json(wr);
+}
+
+
 bool Item_direct_view_ref::is_null()
 {
   if (has_null_row())
@@ -8789,13 +8829,13 @@ bool Item_direct_view_ref::send(Protocol *prot, String *tmp)
 }
 
 
-type_conversion_status Item_direct_view_ref::save_in_field(Field *field,
-                                                           bool no_conversions)
+type_conversion_status
+Item_direct_view_ref::save_in_field_inner(Field *field, bool no_conversions)
 {
   if (has_null_row())
     return set_field_to_null_with_conversions(field, no_conversions);
 
-  return super::save_in_field(field, no_conversions);
+  return super::save_in_field_inner(field, no_conversions);
 }
 
 bool Item_default_value::itemize(Parse_context *pc, Item **res)
@@ -8892,7 +8932,7 @@ void Item_default_value::print(String *str, enum_query_type query_type)
 
 
 type_conversion_status
-Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
+Item_default_value::save_in_field_inner(Field *field_arg, bool no_conversions)
 {
   if (!arg)
   {
@@ -8929,7 +8969,7 @@ Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
     field_arg->set_default();
     return field_arg->validate_stored_val(current_thd);
   }
-  return Item_field::save_in_field(field_arg, no_conversions);
+  return Item_field::save_in_field_inner(field_arg, no_conversions);
 }
 
 
@@ -9007,6 +9047,30 @@ bool Item_insert_value::fix_fields(THD *thd, Item **reference)
     def_field->move_field_offset((my_ptrdiff_t)
                                  (def_field->table->insert_values -
                                   def_field->table->record[0]));
+    /*
+      Put the original and cloned Field_blob objects in
+      'insert_update_values_map' map. This will be used to make a
+      separate copy of blob value, in case 'UPDATE' clause is executed in
+      'INSERT...UPDATE' statement. See mysql_prepare_blob_values()
+      for more info. We are only checking for MYSQL_TYPE_BLOB and
+      MYSQL_TYPE_GEOMETRY. Sub types of blob like TINY BLOB, LONG BLOB, JSON,
+      are internally stored are BLOB only. Same applies to geometry type.
+    */
+    if ((def_field->type() == MYSQL_TYPE_BLOB ||
+         def_field->type() == MYSQL_TYPE_GEOMETRY))
+    {
+      try
+      {
+        thd->lex->insert_update_values_map.
+          insert(std::make_pair(field_arg->field, def_field));
+      }
+      catch(std::bad_alloc const &)
+      {
+        my_error(ER_STD_BAD_ALLOC_ERROR, MYF(0), "", "fix_fields");
+        return true;
+      }
+    }
+
     set_field(def_field);
   }
   else
@@ -9197,12 +9261,25 @@ Item_result item_cmp_type(Item_result a,Item_result b)
 }
 
 
-void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
+/**
+  Substitute a const item with a simpler const item, if possible.
+
+  @param thd         Thread handler
+  @param[in,out] ref Const item to be processed, contains simplest possible
+                     item on return.
+  @param comp_item   Item that provides result type for generated const item
+
+  @returns false if success, true if error
+*/
+
+bool resolve_const_item(THD *thd, Item **ref, Item *comp_item)
 {
   Item *item= *ref;
+  DBUG_ASSERT(item->const_item());
+
   Item *new_item= NULL;
   if (item->basic_const_item())
-    return;                                     // Can't be better
+    return false;                               // Can't be better
   Item_result res_type=item_cmp_type(comp_item->result_type(),
 				     item->result_type());
   switch (res_type) {
@@ -9222,6 +9299,8 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     char buff[MAX_FIELD_WIDTH];
     String tmp(buff,sizeof(buff),&my_charset_bin),*result;
     result=item->val_str(&tmp);
+    if (thd->is_error())
+      return true;
     if (item->null_value)
       new_item= new Item_null(item->item_name);
     else if (item->is_temporal())
@@ -9242,6 +9321,8 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
   case INT_RESULT:
   {
     longlong result=item->val_int();
+    if (thd->is_error())
+      return true;
     uint length=item->max_length;
     bool null_value=item->null_value;
     new_item= (null_value ? (Item*) new Item_null(item->item_name) :
@@ -9261,8 +9342,6 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     */
     Item_row *item_row= (Item_row*) item;
     Item_row *comp_item_row= (Item_row*) comp_item;
-    uint col;
-    new_item= 0;
     /*
       If item and comp_item are both Item_rows and have same number of cols
       then process items in Item_row one by one.
@@ -9271,16 +9350,19 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     */
     DBUG_ASSERT(item->result_type() == comp_item->result_type());
     DBUG_ASSERT(item_row->cols() == comp_item_row->cols());
-    col= item_row->cols();
+    uint col= item_row->cols();
     while (col-- > 0)
-      resolve_const_item(thd, item_row->addr(col),
-                         comp_item_row->element_index(col));
+      if (resolve_const_item(thd, item_row->addr(col),
+                             comp_item_row->element_index(col)))
+        return true;
     break;
   }
   /* Fallthrough */
   case REAL_RESULT:
   {						// It must REAL_RESULT
     double result= item->val_real();
+    if (thd->is_error())
+      return true;
     uint length=item->max_length,decimals=item->decimals;
     bool null_value=item->null_value;
     new_item= (null_value ? (Item*) new Item_null(item->item_name) : (Item*)
@@ -9291,6 +9373,8 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
   {
     my_decimal decimal_value;
     my_decimal *result= item->val_decimal(&decimal_value);
+    if (thd->is_error())
+      return true;
     bool null_value= item->null_value;
     new_item= (null_value ?
                (Item*) new Item_null(item->item_name) :
@@ -9301,8 +9385,12 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
   default:
     DBUG_ASSERT(0);
   }
-  if (new_item)
-    thd->change_item_tree(ref, new_item);
+  if (new_item == NULL)
+    return true;
+
+  thd->change_item_tree(ref, new_item);
+
+  return false;
 }
 
 /**
@@ -10067,14 +10155,14 @@ my_decimal *Item_cache_str::val_decimal(my_decimal *decimal_val)
 
 
 type_conversion_status
-Item_cache_str::save_in_field(Field *field, bool no_conversions)
+Item_cache_str::save_in_field_inner(Field *field, bool no_conversions)
 {
   if (!value_cached && !cache_value())
     return TYPE_ERR_BAD_VALUE;               // Fatal: couldn't cache the value
   if (null_value)
     return set_field_to_null_with_conversions(field, no_conversions);
-  const type_conversion_status res= Item_cache::save_in_field(field,
-                                                              no_conversions);
+  const type_conversion_status res=
+    Item_cache::save_in_field_inner(field, no_conversions);
   if (is_varbinary && field->type() == MYSQL_TYPE_STRING && value != NULL &&
       value->length() < field->field_length)
     return TYPE_WARN_OUT_OF_RANGE;
@@ -10365,6 +10453,10 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
                       display_length(item) /
                       item->collation.collation->mbmaxlen *
                       collation.collation->mbmaxlen);
+
+      if (max_length > char_to_byte_length_safe(MAX_FIELD_CHARLENGTH,
+                                                collation.collation->mbmaxlen))
+        fld_type= MYSQL_TYPE_VAR_STRING;
     }
     else
       set_if_bigger(max_length, display_length(item));

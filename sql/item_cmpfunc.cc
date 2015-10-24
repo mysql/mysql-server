@@ -695,6 +695,17 @@ void Item_bool_func2::fix_length_and_dec()
 
 void Arg_comparator::cleanup()
 {
+  if (comparators != NULL)
+  {
+    /*
+      We cannot rely on (*a)->cols(), since *a may be deallocated
+      at this point, so use comparator_count to loop.
+    */
+    for (size_t i= 0; i < comparator_count; i++)
+    {
+      comparators[i].cleanup();
+    }
+  }
   delete[] comparators;
   comparators= 0;
   delete_json_scalar_holder(json_scalar);
@@ -720,6 +731,8 @@ int Arg_comparator::set_compare_func(Item_result_field *item, Item_result type)
     }
     if (!(comparators= new Arg_comparator[n]))
       return 1;
+    comparator_count= n;
+
     for (uint i=0; i < n; i++)
     {
       if ((*a)->element_index(i)->cols() != (*b)->element_index(i)->cols())
@@ -997,6 +1010,11 @@ bool
 Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
 {
   if (a->type() == Item::ROW_ITEM || b->type() == Item::ROW_ITEM)
+    return false;
+
+  // GEOMETRY data is never convertible to any other type of data.
+  if (a->field_type() == MYSQL_TYPE_GEOMETRY ||
+      b->field_type() == MYSQL_TYPE_GEOMETRY)
     return false;
 
   if (a->is_temporal_with_date())
@@ -2943,6 +2961,14 @@ void Item_func_between::fix_length_and_dec()
     Item_bool_func2::fix_length_and_dec().
   */
   reject_geometry_args(arg_count, args, this);
+
+  /*
+    JSON values will be compared as strings, and not with the JSON
+    comparator as one might expect. Raise a warning if one of the
+    arguments is JSON.
+  */
+  unsupported_json_comparison(arg_count, args,
+                              "comparison of JSON in the BETWEEN operator");
 
   /*
     Detect the comparison of DATE/DATETIME items.
@@ -5287,6 +5313,16 @@ void Item_func_in::fix_length_and_dec()
       bisection_possible= false;
   }
 
+  /*
+    JSON values will be compared as strings, and not with the JSON
+    comparator as one might expect. Raise a warning if one of the
+    arguments is JSON. (The degenerate case x IN (y) may get rewritten
+    to x = y, though, and then the JSON comparator will be used if one
+    of the arguments is JSON.)
+  */
+  unsupported_json_comparison(arg_count, args,
+                              "comparison of JSON in the IN operator");
+
   if (type_cnt == 1)
   {
     if (cmp_type == STRING_RESULT && 
@@ -5774,6 +5810,24 @@ void Item_cond::fix_after_pullout(st_select_lex *parent_select,
     else
       not_null_tables_cache&= item->not_null_tables();
   }
+}
+
+
+bool Item_cond::eq(const Item *item, bool binary_cmp) const
+{
+  if (this == item)
+    return true;
+  if (item->type() != COND_ITEM)
+    return false;
+  const Item_cond *item_cond= down_cast<const Item_cond *>(item);
+  if (functype() != item_cond->functype() ||
+      arg_count != item_cond->arg_count ||
+      func_name() != item_cond->func_name())
+    return false;
+  for (size_t i= 0; i < arg_count; ++i)
+    if (!args[i]->eq(item_cond->args[i], binary_cmp))
+      return false;
+  return true;
 }
 
 
@@ -7116,7 +7170,7 @@ Item_equal::Item_equal(Item_equal *item_equal)
 }
 
 
-void Item_equal::compare_const(Item *c)
+bool Item_equal::compare_const(THD *thd, Item *c)
 {
   if (compare_as_dates)
   {
@@ -7126,41 +7180,46 @@ void Item_equal::compare_const(Item *c)
   else
   {
     Item_func_eq *func= new Item_func_eq(c, const_item);
-    if(func->set_cmp_func())
-      return;
+    if (func == NULL)
+      return true;
+    if (func->set_cmp_func())
+      return true;
     func->quick_fix_field();
     cond_false= !func->val_int();
+    if (thd->is_error())
+      return true;
   }
   if (cond_false)
     const_item_cache= 1;
+  return false;
 }
 
 
-void Item_equal::add(Item *c, Item_field *f)
+bool Item_equal::add(THD *thd, Item *c, Item_field *f)
 {
   if (cond_false)
-    return;
+    return false;
   if (!const_item)
   {
     DBUG_ASSERT(f);
     const_item= c;
     compare_as_dates= f->is_temporal_with_date();
-    return;
+    return false;
   }
-  compare_const(c);
+  return compare_const(thd, c);
 }
 
 
-void Item_equal::add(Item *c)
+bool Item_equal::add(THD *thd, Item *c)
 {
   if (cond_false)
-    return;
+    return false;
   if (!const_item)
   {
     const_item= c;
-    return;
+    return false;
   }
-  compare_const(c);
+  return compare_const(thd, c);
 }
 
 void Item_equal::add(Item_field *f)
@@ -7207,11 +7266,15 @@ bool Item_equal::contains(Field *field)
     After this operation the Item_equal object additionally contains
     the field items of another item of the type Item_equal.
     If the optional constant items are not equal the cond_false flag is
-    set to 1.  
+    set to 1.
+
+  @param thd     thread handler
   @param item    multiple equality whose members are to be joined
+
+  @returns false if success, true if error
 */
 
-void Item_equal::merge(Item_equal *item)
+bool Item_equal::merge(THD *thd, Item_equal *item)
 {
   fields.concat(&item->fields);
   Item *c= item->const_item;
@@ -7222,9 +7285,11 @@ void Item_equal::merge(Item_equal *item)
       the multiple equality already contains a constant and its 
       value is  not equal to the value of c.
     */
-    add(c);
+    if (add(thd, c))
+      return true;
   }
   cond_false|= item->cond_false;
+  return false;
 } 
 
 
@@ -7259,9 +7324,13 @@ void Item_equal::sort(Item_field_cmpfunc compare, void *arg)
   compared with the designated constant item if there is any in the
   multiple equality. If there is none the first new constant item
   becomes designated.
+
+  @param thd      thread handler
+
+  @returns false if success, true if error
 */
 
-void Item_equal::update_const()
+bool Item_equal::update_const(THD *thd)
 {
   List_iterator<Item_field> it(fields);
   Item *item;
@@ -7284,9 +7353,11 @@ void Item_equal::update_const()
         !item->is_outer_field())
     {
       it.remove();
-      add(item);
+      if (add(thd, item))
+        return true;
     }
   }
+  return false;
 }
 
 bool Item_equal::fix_fields(THD *thd, Item **ref)

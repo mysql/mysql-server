@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
   get_options(argc,argv);
 
   memset(&hp_create_info, 0, sizeof(hp_create_info));
-  hp_create_info.max_table_size= 1024L*1024L;
+  hp_create_info.max_table_size= 1024L * 1024L * 2;
   hp_create_info.keys= keys;
   hp_create_info.keydef= keyinfo;
   hp_create_info.reclength= reclength;
@@ -138,9 +138,9 @@ int main(int argc, char *argv[])
 
     if (heap_write(file,record))
     {
-      if (my_errno != HA_ERR_FOUND_DUPP_KEY || key3[n3] == 0)
+      if (my_errno() != HA_ERR_FOUND_DUPP_KEY || key3[n3] == 0)
       {
-	printf("Error: %d in write at record: %d\n",my_errno,i);
+	printf("Error: %d in write at record: %d\n",my_errno(),i);
 	goto err;
       }
       if (verbose) printf("   Double key: %d\n",n3);
@@ -183,7 +183,7 @@ int main(int argc, char *argv[])
       }
       if (heap_delete(file,record))
       {
-	printf("error: %d; can't delete record: \"%s\"\n", my_errno,(char*) record);
+	printf("error: %d; can't delete record: \"%s\"\n", my_errno(),(char*) record);
 	goto err;
       }
       opt_delete++;
@@ -241,10 +241,10 @@ int main(int argc, char *argv[])
     }
     if (heap_update(file,record,record2))
     {
-      if (my_errno != HA_ERR_FOUND_DUPP_KEY || key3[n3] == 0)
+      if (my_errno() != HA_ERR_FOUND_DUPP_KEY || key3[n3] == 0)
       {
 	printf("error: %d; can't update:\nFrom: \"%s\"\nTo:   \"%s\"\n",
-	       my_errno,(char*) record, (char*) record2);
+	       my_errno(),(char*) record, (char*) record2);
 	goto err;
       }
       if (verbose)
@@ -547,8 +547,8 @@ int main(int argc, char *argv[])
     goto err;
   }
 
-  if (my_errno != HA_ERR_END_OF_FILE)
-    printf("error: %d from heap_rrnd\n",my_errno);
+  if (my_errno() != HA_ERR_END_OF_FILE)
+    printf("error: %d from heap_rrnd\n",my_errno());
   if (key_check)
     printf("error: Some read got wrong: check is %ld\n",(long) key_check);
 
@@ -564,7 +564,7 @@ end:
   my_end(MY_GIVE_INFO);
   return(0);
 err:
-  printf("Got error: %d when using heap-database\n",my_errno);
+  printf("Got error: %d when using heap-database\n",my_errno());
   (void) heap_close(file);
   return(1);
 } /* main */

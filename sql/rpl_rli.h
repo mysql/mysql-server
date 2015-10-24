@@ -170,6 +170,16 @@ public:
    */
   bool replicate_same_server_id;
 
+  /*
+    The gtid (or anonymous) of the currently executing transaction, or
+    of the last executing transaction if no transaction is currently
+    executing.  This is used to fill the last_seen_transaction
+    column
+    of the table
+    performance_schema.replication_applier_status_by_worker.
+  */
+  Gtid_specification currently_executing_gtid;
+
   /*** The following variables can only be read when protect by data lock ****/
   /*
     cur_log_fd - file descriptor of the current read  relay log
@@ -210,6 +220,9 @@ public:
 
   /* parent Master_info structure */
   Master_info *mi;
+
+  /* number of temporary tables open in this channel */
+  Atomic_int32 channel_open_temp_tables;
 
   /*
     Needed to deal properly with cur_log getting closed and re-opened with
@@ -287,7 +300,7 @@ public:
   int init_relay_log_pos(const char* log,
                          ulonglong pos, bool need_data_lock,
                          const char** errmsg,
-                         bool look_for_description_event);
+                         bool keep_looking_for_fd);
 
   /*
     Update the error number, message and timestamp fields. This function is
@@ -1125,8 +1138,21 @@ public:
   /**
     adaptation for the slave applier to specific master versions.
   */
-  void adapt_to_master_version(Format_description_log_event *fdle);
+  ulong adapt_to_master_version(Format_description_log_event *fdle);
+  ulong adapt_to_master_version_updown(ulong master_version,
+                                       ulong current_version);
   uchar slave_version_split[3]; // bytes of the slave server version
+  /*
+    relay log info repository should be updated on relay log
+    rotate. But when the transaction is split across two relay logs,
+    update the repository will cause unexpected results and should
+    be postponed till the 'commit' of the transaction is executed.
+
+    A flag that set to 'true' when this type of 'forced flush'(at the
+    time of rotate relay log) is postponed due to transaction split
+    across the relay logs.
+  */
+  bool force_flush_postponed_due_to_split_trans;
 
   Commit_order_manager *get_commit_order_manager()
   {

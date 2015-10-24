@@ -261,8 +261,8 @@ struct Slot {
 	/** Compressed data page, aligned and derived from compressed_ptr */
 	byte*			compressed_page;
 
-	/** true if the fil_page_compress() was successful */
-	bool			compress_ok;
+	/** true, if we shouldn't punch a hole after writing the page */
+	bool			skip_punch_hole;
 };
 
 /** The asynchronous i/o array structure */
@@ -850,6 +850,20 @@ public:
 	@return DB_SUCCESS or error code. */
 	static dberr_t post_io_processing(Slot* slot);
 
+	/** Decompress after a read and punch a hole in the file if
+	it was a write */
+	static dberr_t io_complete(const Slot* slot)
+	{
+		ut_a(slot->offset > 0);
+		ut_a(slot->type.is_read() || !slot->skip_punch_hole);
+
+		return(os_file_io_complete(
+				slot->type, slot->file, slot->buf,
+				slot->compressed_page, slot->original_len,
+				static_cast<ulint>(slot->offset),
+				slot->len));
+	}
+
 private:
 	/** Check whether the page was compressed.
 	@param[in]	slot		The slot that contains the IO request
@@ -905,20 +919,6 @@ private:
 	@param[in]	n_bytes		Total bytes read so far
 	@return DB_SUCCESS or error code */
 	static dberr_t check_read(Slot* slot, ulint n_bytes);
-
-	/** Decompress after a read and punch a hole in the file if
-	it was a write */
-	static dberr_t io_complete(const Slot* slot)
-	{
-		ut_a(slot->offset > 0);
-		ut_a(slot->type.is_read() || slot->compress_ok);
-
-		return(os_file_io_complete(
-				slot->type, slot->file, slot->buf,
-				slot->compressed_page, slot->original_len,
-				static_cast<ulint>(slot->offset),
-				slot->len));
-	}
 };
 
 /** Helper class for doing synchronous file IO. Currently, the objective
@@ -1098,13 +1098,18 @@ AIOHandler::post_io_processing(Slot* slot)
 				slot->len = slot->original_len;
 			}
 
-			err = io_complete(slot);
+			/* The punch hole has been done on collect() */
+
+			if (slot->type.is_read()) {
+				err = io_complete(slot);
+			} else {
+				err = DB_SUCCESS;
+			}
 
 			ut_ad(err == DB_SUCCESS
 			      || err == DB_UNSUPPORTED
 			      || err == DB_CORRUPTION
-			      || err == DB_IO_DECOMPRESS_FAIL
-			      || err == DB_IO_NO_PUNCH_HOLE);
+			      || err == DB_IO_DECOMPRESS_FAIL);
 		} else {
 
 			err = DB_SUCCESS;
@@ -1702,58 +1707,154 @@ os_file_make_data_dir_path(
 	ptr[tablename_len] = '\0';
 }
 
-/** The function os_file_dirname returns a directory component of a
-null-terminated pathname string. In the usual case, dirname returns
-the string up to, but not including, the final '/', and basename
-is the component following the final '/'. Trailing '/' characters
-are not counted as part of the pathname.
+/** Check if the path refers to the root of a drive using a pointer
+to the last directory separator that the caller has fixed.
+@param[in]	path	path name
+@param[in]	path	last directory separator in the path
+@return true if this path is a drive root, false if not */
+UNIV_INLINE
+bool
+os_file_is_root(
+	const char*	path,
+	const char*	last_slash)
+{
+	return(
+#ifdef _WIN32
+	       (last_slash == path + 2 && path[1] == ':') ||
+#endif /* _WIN32 */
+	       last_slash == path);
+}
 
-If path does not contain a slash, dirname returns the string ".".
-
-Concatenating the string returned by dirname, a "/", and the basename
-yields a complete pathname.
-
-The return value is a copy of the directory component of the pathname.
-The copy is allocated from heap. It is the caller responsibility
-to free it after it is no longer needed.
-
-The following list of examples (taken from SUSv2) shows the strings
-returned by dirname and basename for different paths:
-
-       path	      dirname	     basename
-       "/usr/lib"     "/usr"	     "lib"
-       "/usr/"	      "/"	     "usr"
-       "usr"	      "."	     "usr"
-       "/"	      "/"	     "/"
-       "."	      "."	     "."
-       ".."	      "."	     ".."
-
+/** Return the parent directory component of a null-terminated path.
+Return a new buffer containing the string up to, but not including,
+the final component of the path.
+The path returned will not contain a trailing separator.
+Do not return a root path, return NULL instead.
+The final component trimmed off may be a filename or a directory name.
+If the final component is the only component of the path, return NULL.
+It is the caller's responsibility to free the returned string after it
+is no longer needed.
 @param[in]	path		Path name
-@return own: directory component of the pathname */
+@return own: parent directory of the path */
+static
 char*
-os_file_dirname(
+os_file_get_parent_dir(
 	const char*	path)
 {
+	bool	has_trailing_slash = false;
+
 	/* Find the offset of the last slash */
 	const char* last_slash = strrchr(path, OS_PATH_SEPARATOR);
-	if (!last_slash) {
-		/* No slash in the path, return "." */
 
-		return(mem_strdup("."));
+	if (!last_slash) {
+		/* No slash in the path, return NULL */
+		return(NULL);
 	}
 
-	/* Ok, there is a slash */
+	/* Ok, there is a slash. Is there anything after it? */
+	if (static_cast<size_t>(last_slash - path + 1) == strlen(path)) {
+		has_trailing_slash = true;
+	}
 
-	if (last_slash == path) {
-		/* last slash is the first char of the path */
+	/* Reduce repetative slashes. */
+	while (last_slash > path
+		&& last_slash[-1] == OS_PATH_SEPARATOR) {
+		last_slash--;
+	}
 
-		return(mem_strdup("/"));
+	/* Check for the root of a drive. */
+	if (os_file_is_root(path, last_slash)) {
+		return(NULL);
+	}
+
+	/* If a trailing slash prevented the first strrchr() from trimming
+	the last component of the path, trim that component now. */
+	if (has_trailing_slash) {
+		/* Back up to the previous slash. */
+		last_slash--;
+		while (last_slash > path
+		       && last_slash[0] != OS_PATH_SEPARATOR) {
+			last_slash--;
+		}
+
+		/* Reduce repetative slashes. */
+		while (last_slash > path
+			&& last_slash[-1] == OS_PATH_SEPARATOR) {
+			last_slash--;
+		}
+	}
+
+	/* Check for the root of a drive. */
+	if (os_file_is_root(path, last_slash)) {
+		return(NULL);
 	}
 
 	/* Non-trivial directory component */
 
 	return(mem_strdupl(path, last_slash - path));
 }
+#ifdef UNIV_ENABLE_UNIT_TEST_GET_PARENT_DIR
+
+/* Test the function os_file_get_parent_dir. */
+void
+test_os_file_get_parent_dir(
+	const char*	child_dir,
+	const char*	expected_dir)
+{
+	char* child = mem_strdup(child_dir);
+	char* expected = expected_dir == NULL ? NULL
+			 : mem_strdup(expected_dir);
+
+	/* os_file_get_parent_dir() assumes that separators are
+	converted to OS_PATH_SEPARATOR. */
+	os_normalize_path(child);
+	os_normalize_path(expected);
+
+	char* parent = os_file_get_parent_dir(child);
+
+	bool unexpected = (expected == NULL
+			  ? (parent != NULL)
+			  : (0 != strcmp(parent, expected)));
+	if (unexpected) {
+		ib::fatal() << "os_file_get_parent_dir('" << child
+			<< "') returned '" << parent
+			<< "', instead of '" << expected << "'.";
+	}
+	ut_free(parent);
+	ut_free(child);
+	ut_free(expected);
+}
+
+/* Test the function os_file_get_parent_dir. */
+void
+unit_test_os_file_get_parent_dir()
+{
+	test_os_file_get_parent_dir("/usr/lib/a", "/usr/lib");
+	test_os_file_get_parent_dir("/usr/", NULL);
+	test_os_file_get_parent_dir("//usr//", NULL);
+	test_os_file_get_parent_dir("usr", NULL);
+	test_os_file_get_parent_dir("usr//", NULL);
+	test_os_file_get_parent_dir("/", NULL);
+	test_os_file_get_parent_dir("//", NULL);
+	test_os_file_get_parent_dir(".", NULL);
+	test_os_file_get_parent_dir("..", NULL);
+# ifdef _WIN32
+	test_os_file_get_parent_dir("D:", NULL);
+	test_os_file_get_parent_dir("D:/", NULL);
+	test_os_file_get_parent_dir("D:\\", NULL);
+	test_os_file_get_parent_dir("D:/data", NULL);
+	test_os_file_get_parent_dir("D:/data/", NULL);
+	test_os_file_get_parent_dir("D:\\data\\", NULL);
+	test_os_file_get_parent_dir("D:///data/////", NULL);
+	test_os_file_get_parent_dir("D:\\\\\\data\\\\\\\\", NULL);
+	test_os_file_get_parent_dir("D:/data//a", "D:/data");
+	test_os_file_get_parent_dir("D:\\data\\\\a", "D:\\data");
+	test_os_file_get_parent_dir("D:///data//a///b/", "D:///data//a");
+	test_os_file_get_parent_dir("D:\\\\\\data\\\\a\\\\\\b\\", "D:\\\\\\data\\\\a");
+#endif  /* _WIN32 */
+}
+#endif /* UNIV_ENABLE_UNIT_TEST_GET_PARENT_DIR */
+
 
 /** Creates all missing subdirectories along the given path.
 @param[in]	path		Path name
@@ -1772,19 +1873,10 @@ os_file_create_subdirs_if_needed(
 
 	}
 
-	char*	subdir = os_file_dirname(path);
+	char*	subdir = os_file_get_parent_dir(path);
 
-	if (strlen(path) - strlen(subdir) == 1) {
-		ut_free(subdir);
-
-		return(DB_WRONG_FILE_NAME);
-	}
-
-	if (strlen(subdir) == 1
-	    && (*subdir == OS_PATH_SEPARATOR || *subdir == '.')) {
+	if (subdir == NULL) {
 		/* subdir is root or cwd, nothing to do */
-		ut_free(subdir);
-
 		return(DB_SUCCESS);
 	}
 
@@ -1818,74 +1910,74 @@ os_file_create_subdirs_if_needed(
 @param[out]	buf		buffer to read or write
 @param[in,out]	n		number of bytes to read/write, starting from
 				offset
-@param[out]	err		DB_SUCCESS or error code
 @return pointer to allocated page, compressed data is written to the offset
-	that is aligned on UNIV_SECTOR_SIZE */
+	that is aligned on UNIV_SECTOR_SIZE of Block.m_ptr */
 static
 byte*
 os_file_compress_page(
-	const IORequest&	type,
-	void*&			buf,
-	ulint*			n,
-	dberr_t*		err)
+	IORequest&	type,
+	void*&		buf,
+	ulint*		n)
 {
 	ut_ad(!type.is_log());
 	ut_ad(type.is_write());
 	ut_ad(type.is_compressed());
 
-	// FIXME: We should use TLS for this and reduce the malloc/free
-
 	ulint	n_alloc = *n * 2;
 
+	ut_a(n_alloc < UNIV_PAGE_SIZE_MAX * 2);
 	ut_a(type.compression_algorithm().m_type != Compression::LZ4
 	     || static_cast<ulint>(LZ4_COMPRESSBOUND(*n)) < n_alloc);
 
 	byte*	ptr = reinterpret_cast<byte*>(ut_malloc_nokey(n_alloc));
 
 	if (ptr == NULL) {
-
-		*err = DB_OUT_OF_MEMORY;
-
 		return(NULL);
+	}
 
-	} else {
+	ulint	old_compressed_len;
+	ulint	compressed_len = *n;
 
-		ulint	compressed_len = *n;
-		ulint	old_compressed_len;
+	old_compressed_len = mach_read_from_2(
+		reinterpret_cast<byte*>(buf)
+		+ FIL_PAGE_COMPRESS_SIZE_V1);
 
-		old_compressed_len = mach_read_from_2(
-			reinterpret_cast<byte*>(buf)
-			+ FIL_PAGE_COMPRESS_SIZE_V1);
-
+	if (old_compressed_len > 0) {
 		old_compressed_len = ut_calc_align(
 			old_compressed_len + FIL_PAGE_DATA,
 			type.block_size());
-
-		byte*	compressed_page;
-
-		compressed_page = static_cast<byte*>(
-			ut_align(ptr, UNIV_SECTOR_SIZE));
-
-		byte*	buf_ptr;
-
-		buf_ptr = os_file_compress_page(
-			type.compression_algorithm(),
-			type.block_size(),
-			reinterpret_cast<byte*>(buf),
-			*n,
-			compressed_page,
-			&compressed_len);
-
-		bool	compressed = buf_ptr != buf;
-
-		if (compressed) {
-
-			buf = buf_ptr;
-			*n = compressed_len;
-		}
 	}
 
-	*err = DB_SUCCESS;
+	byte*	compressed_page;
+
+	compressed_page = static_cast<byte*>(
+		ut_align(ptr, UNIV_SECTOR_SIZE));
+
+	byte*	buf_ptr;
+
+	buf_ptr = os_file_compress_page(
+		type.compression_algorithm(),
+		type.block_size(),
+		reinterpret_cast<byte*>(buf),
+		*n,
+		compressed_page,
+		&compressed_len);
+
+	if (buf_ptr != buf) {
+		/* Set new compressed size to uncompressed page. */
+		memcpy(reinterpret_cast<byte*>(buf) + FIL_PAGE_COMPRESS_SIZE_V1,
+		       buf_ptr + FIL_PAGE_COMPRESS_SIZE_V1, 2);
+
+		buf = buf_ptr;
+		*n = compressed_len;
+
+		if (compressed_len >= old_compressed_len) {
+
+			ut_ad(old_compressed_len <= UNIV_PAGE_SIZE);
+
+			type.clear_punch_hole();
+		}
+	}
 
 	return(ptr);
 }
@@ -1922,6 +2014,7 @@ os_file_punch_hole_posix(
 	os_offset_t	off,
 	os_offset_t	len)
 {
+
 #ifdef HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE
 	const int	mode = FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE;
 
@@ -2244,6 +2337,21 @@ LinuxAIOHandler::collect()
 			/* We have not overstepped to next segment. */
 			ut_a(slot->pos < end_pos);
 
+			/* We never compress/decompress the first page */
+
+			if (slot->offset > 0
+			    && !slot->skip_punch_hole
+			    && slot->type.is_compression_enabled()
+			    && !slot->type.is_log()
+			    && slot->type.is_write()
+			    && slot->type.is_compressed()
+			    && slot->type.punch_hole()) {
+
+				slot->err = AIOHandler::io_complete(slot);
+			} else {
+				slot->err = DB_SUCCESS;
+			}
+
 			/* Mark this request as completed. The error handling
 			will be done in the calling function. */
 			m_array->acquire();
@@ -2251,7 +2359,6 @@ LinuxAIOHandler::collect()
 			slot->ret = events[i].res2;
 			slot->io_already_done = true;
 			slot->n_bytes = events[i].res;
-			slot->err = DB_SUCCESS;
 
 			m_array->release();
 		}
@@ -5119,7 +5226,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
 static __attribute__((warn_unused_result))
 ssize_t
 os_file_io(
-	IORequest&	type,
+	const IORequest&in_type,
 	os_file_t	file,
 	void*		buf,
 	ulint		n,
@@ -5128,6 +5235,7 @@ os_file_io(
 {
 	byte*		ptr;
 	ulint		original_n = n;
+	IORequest	type = in_type;
 	byte*		compressed_page;
 	ssize_t		bytes_returned = 0;
 
@@ -5136,20 +5244,14 @@ os_file_io(
 		/* We don't compress the first page of any file. */
 		ut_ad(offset > 0);
 
-		ptr = os_file_compress_page(type, buf, &n, err);
-
-		if (*err != DB_SUCCESS) {
-
-			ut_ad(ptr == NULL);
-
-			return(-1);
-		}
+		ptr  = os_file_compress_page(type, buf, &n);
 
 		compressed_page = static_cast<byte*>(
 			ut_align(ptr, UNIV_SECTOR_SIZE));
 
 	} else {
-		ptr = compressed_page = NULL;
+		ptr = NULL;
+		compressed_page = NULL;
 	}
 
 	SyncFileIO	sync_file_io(file, buf, n, offset);
@@ -5287,7 +5389,7 @@ os_file_write_page(
 
 		ib::error()
 			<< "Write to file " << name << "failed at offset "
-			<< offset << "." << n
+			<< offset << ", " << n
 			<< " bytes should have been written,"
 			" only " << n_bytes << " were written."
 			" Operating system error number " << errno << "."
@@ -5300,7 +5402,7 @@ os_file_write_page(
 
 			ib::error()
 				<< "Error number " << errno
-				<< "%d means '" << strerror(errno) << "'";
+				<< " means '" << strerror(errno) << "'";
 		}
 
 		ib::info() << OPERATING_SYSTEM_ERROR_MSG;
@@ -6576,7 +6678,6 @@ AIO::reserve_slot(
 	slot->ptr      = slot->buf;
 	slot->offset   = offset;
 	slot->err      = DB_SUCCESS;
-	slot->compress_ok = false;
 	slot->original_len = static_cast<uint32>(len);
 	slot->io_already_done = false;
 
@@ -6589,28 +6690,34 @@ AIO::reserve_slot(
 
 		release();
 
-		byte*	ptr;
 		ulint	compressed_len = len;
 
 		ulint	old_compressed_len;
 
 		old_compressed_len = mach_read_from_2(
-			reinterpret_cast<byte*>(buf)
-			+ FIL_PAGE_COMPRESS_SIZE_V1);
+			slot->buf + FIL_PAGE_COMPRESS_SIZE_V1);
 
-		old_compressed_len = ut_calc_align(
-			old_compressed_len + FIL_PAGE_DATA, type.block_size());
+		if (old_compressed_len > 0) {
+			old_compressed_len = ut_calc_align(
+				old_compressed_len + FIL_PAGE_DATA,
+				slot->type.block_size());
+		}
+
+		byte*	ptr;
 
 		ptr = os_file_compress_page(
 			slot->type.compression_algorithm(),
 			slot->type.block_size(),
-			reinterpret_cast<byte*>(buf),
+			slot->buf,
 			slot->len,
 			slot->compressed_page,
 			&compressed_len);
 
 		if (ptr != buf) {
-			len = compressed_len;
+			/* Set new compressed size to uncompressed page. */
+			memcpy(slot->buf + FIL_PAGE_COMPRESS_SIZE_V1,
+			       slot->compressed_page
+			       + FIL_PAGE_COMPRESS_SIZE_V1, 2);
 #ifdef _WIN32
 			slot->len = static_cast<DWORD>(compressed_len);
 #else
@@ -6618,10 +6725,20 @@ AIO::reserve_slot(
 #endif /* _WIN32 */
 			slot->buf = slot->compressed_page;
 			slot->ptr = slot->buf;
-			slot->compress_ok = true;
+
+			if (old_compressed_len > 0
+			    && compressed_len >= old_compressed_len) {
+
+				ut_ad(old_compressed_len <= UNIV_PAGE_SIZE);
+
+				slot->skip_punch_hole = true;
+
+			} else {
+				slot->skip_punch_hole = false;
+			}
 
 		} else {
-			slot->compress_ok = false;
+			slot->skip_punch_hole = false;
 		}
 
 		acquire();
@@ -8251,9 +8368,10 @@ Compression::deserialize(
 
 	mach_write_to_2(src + FIL_PAGE_TYPE, header.m_original_type);
 
-	ut_ad(memcmp(src + FIL_PAGE_LSN + 4,
-		     src + (header.m_original_size + FIL_PAGE_DATA)
-		     - FIL_PAGE_END_LSN_OLD_CHKSUM + 4, 4) == 0);
+	ut_ad(dblwr_recover
+	      || memcmp(src + FIL_PAGE_LSN + 4,
+			src + (header.m_original_size + FIL_PAGE_DATA)
+			- FIL_PAGE_END_LSN_OLD_CHKSUM + 4, 4) == 0);
 
 	if (allocated) {
 		ut_free(dst);

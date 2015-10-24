@@ -89,7 +89,8 @@ void Mysql_crawler::enumerate_objects()
   std::vector<Database* >::iterator it;
   std::vector<Database_end_dump_task* >::iterator it_end;
   for (it= db_list.begin(),it_end= db_end_task_list.begin();
-       it != db_list.end(),it_end != db_end_task_list.end(); ++it, ++it_end)
+       ((it != db_list.end()) && (it_end != db_end_task_list.end()));
+        ++it, ++it_end)
   {
     m_current_database_end_dump_task= *it_end;
     this->enumerate_views(**it);

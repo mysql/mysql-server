@@ -1,0 +1,15 @@
+########### suite/sysschema/t/pr_ps_setup_reset_to_default.test #############
+#                                                                           #
+# Testing of of the sys.ps_setup_reset_to_default() procedure               #
+#                                                                           #
+# Creation:                                                                 #
+# 2015-08-14 jkrogh Implement this test as part of Bug 21550271/Bug77927    #
+#                                                                           #
+#############################################################################
+
+-- source include/not_embedded.inc
+
+# Currently just a sanity check
+CALL sys.ps_setup_reset_to_default(TRUE);
+
+-- source ../include/ps_setup_reset_to_default_cleanup.inc

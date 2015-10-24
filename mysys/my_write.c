@@ -78,13 +78,13 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
       Buffer+= writtenbytes;
       Count-= writtenbytes;
     }
-    my_errno= errno;
+    set_my_errno(errno);
     DBUG_PRINT("error",("Write only %ld bytes, error: %d",
-			(long) writtenbytes, my_errno));
-    if (mysys_thread_var()->abort)
+			(long) writtenbytes, my_errno()));
+    if (is_killed_hook(NULL))
       MyFlags&= ~ MY_WAIT_IF_FULL;		/* End if aborted by user */
 
-    if ((my_errno == ENOSPC || my_errno == EDQUOT) &&
+    if ((my_errno() == ENOSPC || my_errno() == EDQUOT) &&
         (MyFlags & MY_WAIT_IF_FULL))
     {
       wait_for_free_space(my_filename(Filedes), errors);
@@ -96,7 +96,7 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
 
     if (writtenbytes != 0 && writtenbytes != (size_t) -1)
       continue;                                 /* Retry if something written */
-    else if (my_errno == EINTR)
+    else if (my_errno() == EINTR)
     {
       DBUG_PRINT("debug", ("my_write() was interrupted and returned %ld",
                            (long) writtenbytes));
@@ -117,7 +117,7 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
     {
       char errbuf[MYSYS_STRERROR_SIZE];
       my_error(EE_WRITE, MYF(0), my_filename(Filedes),
-               my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+               my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
     }
     DBUG_RETURN(MY_FILE_ERROR);
   }

@@ -205,6 +205,11 @@ static void set_thread_THD_noop(PSI_thread *thread NNN, THD *thd NNN)
   return;
 }
 
+static void set_thread_os_id_noop(PSI_thread *thread NNN)
+{
+  return;
+}
+
 static PSI_thread*
 get_thread_noop(void NNN)
 {
@@ -429,6 +434,12 @@ static PSI_file* end_file_open_wait_noop(PSI_file_locker *locker NNN,
 
 static void end_file_open_wait_and_bind_to_descriptor_noop
   (PSI_file_locker *locker NNN, File file NNN)
+{
+  return;
+}
+
+static void end_temp_file_open_wait_and_bind_to_descriptor_noop
+  (PSI_file_locker *locker NNN, File file NNN, const char *filaneme NNN)
 {
   return;
 }
@@ -893,6 +904,7 @@ static PSI PSI_noop=
   new_thread_noop,
   set_thread_id_noop,
   set_thread_THD_noop,
+  set_thread_os_id_noop,
   get_thread_noop,
   set_thread_user_noop,
   set_thread_user_host_noop,
@@ -929,6 +941,7 @@ static PSI PSI_noop=
   start_file_open_wait_noop,
   end_file_open_wait_noop,
   end_file_open_wait_and_bind_to_descriptor_noop,
+  end_temp_file_open_wait_and_bind_to_descriptor_noop,
   start_file_wait_noop,
   end_file_wait_noop,
   start_file_close_wait_noop,

@@ -5455,5 +5455,74 @@ CREATE TABLE `t1` (
 INSERT INTO `t1` VALUES ('[1, 2, 3, \"one\", \"two\", \"three\"]');
 DROP DATABASE dump_json;
 #
+# WL#411 Generated columns
+#
+CREATE DATABASE dump_generated;
+USE dump_generated;
+CREATE TABLE t1 (pk INTEGER, a INTEGER, b INTEGER, c VARCHAR(16),
+sum INTEGER GENERATED ALWAYS AS (a+b),
+sub VARCHAR(4) GENERATED ALWAYS AS (SUBSTRING(c, 1, 4)),
+key k1(sum),
+key k2(sub)
+) engine=innodb;
+INSERT INTO t1(pk, a, b, c) VALUES (1, 11, 12, 'oneone'), (2, 21, 22, 'twotwo');
+SELECT * FROM t1;
+pk	a	b	c	sum	sub
+1	11	12	oneone	23	oneo
+2	21	22	twotwo	43	twot
+DELETE FROM t1;
+SELECT * FROM t1;
+pk	a	b	c	sum	sub
+1	11	12	oneone	23	oneo
+2	21	22	twotwo	43	twot
+DELETE FROM t1;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t1;
+SELECT * FROM t1;
+pk	a	b	c	sum	sub
+1	11	12	oneone	23	oneo
+2	21	22	twotwo	43	twot
+DROP TABLE t1;
+# A table with regular columns after generated
+CREATE TABLE t2 (pk INTEGER, a INTEGER, b INTEGER,
+sum INTEGER GENERATED ALWAYS AS (a+b),
+c VARCHAR(16),
+key k1(sum)
+) engine=innodb;
+INSERT INTO t2(pk, a, b, c) VALUES (1, 11, 12, 'oneone'), (2, 21, 22, 'twotwo');
+SELECT * FROM t2;
+pk	a	b	sum	c
+1	11	12	23	oneone
+2	21	22	43	twotwo
+DELETE FROM t2;
+SELECT * FROM t2;
+pk	a	b	sum	c
+1	11	12	23	oneone
+2	21	22	43	twotwo
+DELETE FROM t2;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t2.txt' INTO TABLE t2;
+SELECT * FROM t2;
+pk	a	b	sum	c
+1	11	12	23	oneone
+2	21	22	43	twotwo
+DROP TABLE t2;
+DROP DATABASE dump_generated;
+#
 # End of 5.7 tests
 #
+#
+# Bug #21549860 MYSQLDUMP/MYSQLPUMP INCLUDES SYS SCHEMA STORED PROGRAMS
+#               EVEN IF SKIPPING SCHEMA
+#
+SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+COUNT(*)
+47
+DROP DATABASE sys;
+SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+COUNT(*)
+0
+SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+COUNT(*)
+0
+SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+COUNT(*)
+47

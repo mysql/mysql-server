@@ -30,6 +30,26 @@
 #include "item_timefunc.h"               // Item_func_now_local
 #include "template_utils.h"              // down_cast
 
+
+/**
+  Check if geometry type sub is a subtype of super.
+
+  @param sub The type to check
+  @param super The supertype
+
+  @return True if sub is a subtype of super
+ */
+inline static bool is_subtype_of(Field::geometry_type sub,
+                                 Field::geometry_type super)
+{
+  return (super == Field::GEOM_GEOMETRY ||
+          (super == Field::GEOM_GEOMETRYCOLLECTION &&
+           (sub == Field::GEOM_MULTIPOINT ||
+            sub == Field::GEOM_MULTILINESTRING ||
+            sub == Field::GEOM_MULTIPOLYGON)));
+}
+
+
 static void do_field_eq(Copy_field *copy)
 {
   memcpy(copy->to_ptr, copy->from_ptr, copy->from_length());
@@ -252,9 +272,11 @@ static void do_copy_not_null(Copy_field *copy)
   if (*copy->null_row ||
       (copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit)))
   {
-    copy->to_field()->set_warning(Sql_condition::SL_WARNING,
-                                  WARN_DATA_TRUNCATED, 1);
-    copy->to_field()->reset();
+    if (copy->to_field()->reset() == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
+      my_error(ER_INVALID_USE_OF_NULL, MYF(0));
+    else
+      copy->to_field()->set_warning(Sql_condition::SL_WARNING,
+                                    WARN_DATA_TRUNCATED, 1);
   }
   else
     copy->invoke_do_copy2(copy);
@@ -708,7 +730,24 @@ Copy_field::get_copy_func(Field *to,Field *from)
 {
   bool compatible_db_low_byte_first= (to->table->s->db_low_byte_first ==
                                      from->table->s->db_low_byte_first);
-  if (to->flags & BLOB_FLAG)
+  if (to->type() == MYSQL_TYPE_GEOMETRY)
+  {
+    if (from->type() != MYSQL_TYPE_GEOMETRY ||
+        to->maybe_null() != from->maybe_null())
+      return do_conv_blob;
+
+    Field_geom *to_geom= down_cast<Field_geom*>(to);
+    Field_geom *from_geom= down_cast<Field_geom*>(from);
+
+    // to is same as or a wider type than from
+    if (to_geom->get_geometry_type() == from_geom->get_geometry_type() ||
+        is_subtype_of(from_geom->get_geometry_type(),
+                      to_geom->get_geometry_type()))
+      return do_field_eq;
+
+    return do_conv_blob;
+  }
+  else if (to->flags & BLOB_FLAG)
   {
     if (!(from->flags & BLOB_FLAG) || from->charset() != to->charset())
       return do_conv_blob;
@@ -904,15 +943,10 @@ type_conversion_status field_conv(Field *to,Field *from)
   {						// Be sure the value is stored
     Field_blob *blob=(Field_blob*) to;
     from->val_str(&blob->value);
-    /*
-      Copy value if copy_blobs is set, or source is not a string and
-      we have a pointer to its internal string conversion buffer.
-    */
-    if (to->table->copy_blobs ||
-        (!blob->value.is_alloced() &&
-         from->real_type() != MYSQL_TYPE_STRING &&
-         from->real_type() != MYSQL_TYPE_VARCHAR))
+
+    if (!blob->value.is_alloced() && from->is_updatable())
       blob->value.copy();
+
     return blob->store(blob->value.ptr(),blob->value.length(),from->charset());
   }
   if (from->real_type() == MYSQL_TYPE_ENUM &&

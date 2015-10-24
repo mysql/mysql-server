@@ -365,9 +365,6 @@ The following options may be given as the first argument:
  --lock-wait-timeout=# 
  Timeout in seconds to wait for a lock before returning an
  error.
- --log-backward-compatible-user-definitions 
- Controls logging of CREATE/ALTER/GRANT user statements in
- replication binlogs, general query logs and audit logs.
  --log-bin[=name]    Log update queries in binary format. Optional (but
  strongly recommended to avoid replication problems if
  server's hostname changes) argument should be the chosen
@@ -388,6 +385,10 @@ The following options may be given as the first argument:
  row based binary log.  If equal to 0, then the latest
  version of events are written.  This option is useful
  during some upgrades.
+ --log-builtin-as-identified-by-password 
+ Controls logging of CREATE/ALTER/GRANT and SET PASSWORD
+ user statements in replication binlogs, general query
+ logs and audit logs.
  --log-error[=name]  Error log file
  --log-error-verbosity=# 
  How detailed the error log should be. 1, log errors only.
@@ -678,11 +679,9 @@ The following options may be given as the first argument:
  --performance-schema-consumer-events-transactions-current 
  Default startup value for the events_transactions_current
  consumer.
- (Defaults to on; use --skip-performance-schema-consumer-events-transactions-current to disable.)
  --performance-schema-consumer-events-transactions-history 
  Default startup value for the events_transactions_history
  consumer.
- (Defaults to on; use --skip-performance-schema-consumer-events-transactions-history to disable.)
  --performance-schema-consumer-events-transactions-history-long 
  Default startup value for the
  events_transactions_history_long consumer.
@@ -860,6 +859,14 @@ The following options may be given as the first argument:
  --range-alloc-block-size=# 
  Allocation block size for storing ranges during
  optimization
+ --range-optimizer-max-mem-size=# 
+ Maximum amount of memory used by the range optimizer to
+ allocate predicates during range analysis. The larger the
+ number, more memory may be consumed during range
+ analysis. If the value is too low to completed range
+ optimization of a query, index range scan will not be
+ considered for this query. A value of 0 means range
+ optimizer does not have any cap on memory. 
  --read-buffer-size=# 
  Each thread that does a sequential scan allocates a
  buffer of this size for each table it scans. If you do
@@ -1063,7 +1070,7 @@ The following options may be given as the first argument:
  Number of seconds to wait for more data from a
  master/slave connection before aborting the read
  --slave-parallel-type=name 
- Specifies if the slave will use database partioning or
+ Specifies if the slave will use database partitioning or
  information from master to parallelize
  transactions.(Default: DATABASE).
  --slave-parallel-workers=# 
@@ -1105,7 +1112,7 @@ The following options may be given as the first argument:
  unsigned values, and ALL_SIGNED to treat all integer
  column type data to be signed values. Default treatment
  is ALL_SIGNED. If ALL_SIGNED and ALL_UNSIGNED both are
- specifed, ALL_SIGNED will take high priority than
+ specified, ALL_SIGNED will take higher priority than
  ALL_UNSIGNED. If the variable is assigned the empty set,
  no conversions are allowed and it is expected that the
  types match exactly.
@@ -1190,8 +1197,9 @@ The following options may be given as the first argument:
  Default transaction access mode. True if transactions are
  read-only.
  --transaction-write-set-extraction[=name] 
- This option is used to let the server know when toextract
- the write set which will be used for various purposes. 
+ This option is used to let the server know when to
+ extract the write set which will be used for various
+ purposes. 
  --updatable-views-with-limit=name 
  YES = Don't issue an error message (warning only) if a
  VIEW without presence of a key of the underlying table is
@@ -1292,7 +1300,7 @@ init-slave
 initialize FALSE
 initialize-insecure FALSE
 interactive-timeout 28800
-internal-tmp-disk-storage-engine INNODB
+internal-tmp-disk-storage-engine InnoDB
 join-buffer-size 262144
 keep-files-on-create FALSE
 key-buffer-size 8388608
@@ -1306,11 +1314,11 @@ lc-messages-dir MYSQL_SHAREDIR/
 lc-time-names en_US
 local-infile TRUE
 lock-wait-timeout 31536000
-log-backward-compatible-user-definitions FALSE
 log-bin (No default value)
 log-bin-index (No default value)
 log-bin-trust-function-creators FALSE
 log-bin-use-v1-row-events FALSE
+log-builtin-as-identified-by-password FALSE
 log-error stderr
 log-error-verbosity 1
 log-isam myisam.log
@@ -1401,8 +1409,8 @@ performance-schema-consumer-events-stages-history-long FALSE
 performance-schema-consumer-events-statements-current TRUE
 performance-schema-consumer-events-statements-history TRUE
 performance-schema-consumer-events-statements-history-long FALSE
-performance-schema-consumer-events-transactions-current TRUE
-performance-schema-consumer-events-transactions-history TRUE
+performance-schema-consumer-events-transactions-current FALSE
+performance-schema-consumer-events-transactions-history FALSE
 performance-schema-consumer-events-transactions-history-long FALSE
 performance-schema-consumer-events-waits-current FALSE
 performance-schema-consumer-events-waits-history FALSE
@@ -1424,7 +1432,7 @@ performance-schema-instrument
 performance-schema-max-cond-classes 80
 performance-schema-max-cond-instances -1
 performance-schema-max-digest-length 1024
-performance-schema-max-file-classes 50
+performance-schema-max-file-classes 80
 performance-schema-max-file-handles 32768
 performance-schema-max-file-instances -1
 performance-schema-max-index-stat -1
@@ -1440,7 +1448,7 @@ performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-sql-text-length 1024
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 191
+performance-schema-max-statement-classes 192
 performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
@@ -1463,6 +1471,7 @@ query-cache-type OFF
 query-cache-wlock-invalidate FALSE
 query-prealloc-size 8192
 range-alloc-block-size 4096
+range-optimizer-max-mem-size 1536000
 read-buffer-size 131072
 read-only FALSE
 read-rnd-buffer-size 262144

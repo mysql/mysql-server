@@ -71,6 +71,7 @@ SET(SQL_SHARED_SOURCES
   auth/password.c
   auth/password_policy_service.cc
   auth/sql_security_ctx.cc
+  auth/service_security_context.cc
   bootstrap.cc
   conn_handler/connection_handler_manager.cc 
   datadict.cc
@@ -160,7 +161,6 @@ SET(SQL_SHARED_SOURCES
   sql_alloc_error_handler.cc
   sql_alter.cc
   sql_analyse.cc
-  sql_audit.cc
   sql_base.cc 
   sql_bootstrap.cc
   sql_initialize.cc
@@ -256,6 +256,7 @@ SET(SQL_SOURCE
   ../sql-common/pack.c
   ../sql-common/client_authentication.cc
   ../sql-common/sql_string.cc 
+  command_service.cc
   conn_handler/channel_info.cc
   conn_handler/connection_handler_per_thread.cc
   conn_handler/connection_handler_one_thread.cc
@@ -270,8 +271,13 @@ SET(SQL_SOURCE
   mf_iocache.cc
   mysqld.cc
   mysqld_thd_manager.cc
+  protocol_callback.cc
   signal_handler.cc
+  sql_audit.cc
   sql_client.cc
+  srv_session.cc
+  srv_session_info_service.cc
+  srv_session_service.cc
   )
 
 IF(NOT WIN32)

@@ -194,7 +194,6 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
   {
     if (thd->variables.gtid_next.type == GTID_GROUP)
       thd->variables.gtid_next.set_undefined();
-    thd->pending_gtid_state_update= false;
     DBUG_PRINT("info", ("skipping update_gtids_impl because "
                         "thread does not own anything and does not violate "
                         "gtid consistency"));
@@ -370,29 +369,12 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
       - Normally, it is a rollback of an automatic transaction, so
         then is_commit is false and gtid_next=automatic.
 
-      - There is also a corner case. If CREATE...SELECT is logged in
-        row format, it gets logged as CREATE without select, followed
-        by a transaction containing row events.  For this case, there
-        is a commit after the table has been created, before rows have
-        been selected.  After this commit,
-        thd->pending_gtid_state_update is set to true by the
-        CREATE...SELECT code.  This means that later, when the part of
-        the statement that selects rows calls
-        MYSQL_BIN_BINLOG::commit, if there were no matching rows so
-        that there is nothing to commit, MYSQL_BIN_LOG::commit does a
-        direct call to gtid_state->update_on_[commit|rollback] since
-        other functions called from MYSQL_BIN_LOG::commit did not do
-        this.  Then, if GTID_NEXT=AUTOMATIC, nothing will be owned at
-        this point.  Thus, to cover this case we add the
-        '||thd->pending_gtid_state_update' clause.
-
-      - There is another corner case. A transaction with an empty gtid
+      - There is also a corner case. A transaction with an empty gtid
         should call gtid_end_transaction(...) to check a possible
         violation of gtid consistency on commit, if it has set
         has_gtid_consistency_violation to true.
     */
-    DBUG_ASSERT(!is_commit || thd->pending_gtid_state_update ||
-                thd->has_gtid_consistency_violation);
+    DBUG_ASSERT(!is_commit || thd->has_gtid_consistency_violation);
     DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP);
   }
 
@@ -403,8 +385,6 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
 
   thd->owned_gtid.dbug_print(NULL,
                              "set owned_gtid (clear) in update_gtids_impl");
-
-  thd->pending_gtid_state_update= false;
 
   DBUG_VOID_RETURN;
 }
@@ -428,84 +408,155 @@ void Gtid_state::end_gtid_violating_transaction(THD *thd)
 }
 
 
-int Gtid_state::wait_for_gtid_set(THD* thd, String* gtid_set_text, longlong timeout)
+bool Gtid_state::wait_for_sidno(THD *thd, rpl_sidno sidno,
+                                struct timespec *abstime)
 {
-  int error= 0;
-  int ret_val= 0;
+  DBUG_ENTER("wait_for_sidno");
+  PSI_stage_info old_stage;
+  sid_lock->assert_some_lock();
+  sid_locks.assert_owner(sidno);
+  sid_locks.enter_cond(thd, sidno,
+                       &stage_waiting_for_gtid_to_be_committed,
+                       &old_stage);
+  bool ret= (thd->killed != THD::NOT_KILLED ||
+             sid_locks.wait(thd, sidno, abstime));
+  // Can't call sid_locks.unlock() as that requires global_sid_lock.
+  mysql_mutex_unlock(thd->current_mutex);
+  thd->EXIT_COND(&old_stage);
+  DBUG_RETURN(ret);
+}
+
+
+bool Gtid_state::wait_for_gtid(THD *thd, const Gtid &gtid,
+                               struct timespec *abstime)
+{
+  DBUG_ENTER("Gtid_state::wait_for_gtid");
+  DBUG_PRINT("info", ("SIDNO=%d GNO=%lld owner(sidno,gno)=%u thread_id=%u",
+                      gtid.sidno, gtid.gno,
+                      owned_gtids.get_owner(gtid), thd->thread_id()));
+  DBUG_ASSERT(owned_gtids.get_owner(gtid) != thd->thread_id());
+
+  bool ret= wait_for_sidno(thd, gtid.sidno, abstime);
+  DBUG_RETURN(ret);
+}
+
+
+bool Gtid_state::wait_for_gtid_set(THD *thd, Gtid_set* wait_for,
+                                   longlong timeout)
+{
   struct timespec abstime;
   DBUG_ENTER("Gtid_state::wait_for_gtid_set");
-  DBUG_PRINT("info", ("Waiting for %s timeout %lld", gtid_set_text->c_ptr_safe(),
-             timeout));
   DEBUG_SYNC(thd, "begin_wait_for_executed_gtid_set");
+  wait_for->dbug_print("Waiting for");
+  DBUG_PRINT("info", ("Timeout %lld", timeout));
 
-  Sid_map sid_map(NULL);
-  Gtid_set wait_gtid_set(&sid_map, NULL);
-  Gtid_set executed_gtid_set(&sid_map, NULL);
+  global_sid_lock->assert_some_rdlock();
 
-  if (wait_gtid_set.add_gtid_text(gtid_set_text->c_ptr_safe()) != RETURN_STATUS_OK)
-  {
-    DBUG_RETURN(-1);
-  }
+  DBUG_ASSERT(wait_for->get_sid_map() == global_sid_map);
 
   if (timeout > 0)
     set_timespec(&abstime, timeout);
 
-  while (!thd->killed)
+  /*
+    Algorithm:
+
+    Let 'todo' contain the GTIDs to wait for. Iterate over SIDNOs in
+    'todo' (this is the 'for' loop below).
+
+    For each SIDNO in 'todo', remove gtid_executed for that SIDNO from
+    'todo'.  If, after this removal, there is still some interval for
+    this SIDNO in 'todo', then wait for a signal on this SIDNO.
+    Repeat this step until 'todo' is empty for this SIDNO (this is the
+    innermost 'while' loop below).
+
+    Once the loop over SIDNOs has completed, 'todo' is guaranteed to
+    be empty.  However, it may still be the case that not all GTIDs of
+    wait_for are included in gtid_executed, since RESET MASTER may
+    have been executed while we were waiting.
+
+    RESET MASTER requires global_sid_lock.wrlock.  We hold
+    global_sid_lock.rdlock while removing GTIDs from 'todo', but the
+    wait operation releases global_sid_lock.rdlock.  So if we
+    completed the 'for' loop without waiting, we know for sure that
+    global_sid_lock.rdlock was held while emptying 'todo', and thus
+    RESET MASTER cannot have executed in the meantime.  But if we
+    waited at some point during the execution of the 'for' loop, RESET
+    MASTER may have been called.  Thus, we repeatedly run 'for' loop
+    until it completes without waiting (this is the outermost 'while'
+    loop).
+  */
+
+  // Will be true once the entire 'for' loop completes without waiting.
+  bool verified= false;
+
+  // The set of GTIDs that we are still waiting for.
+  Gtid_set todo(global_sid_map, NULL);
+  // As an optimization, add 100 Intervals that do not need to be
+  // allocated. This avoids allocation of these intervals.
+  static const int preallocated_interval_count= 100;
+  Gtid_set::Interval ivs[preallocated_interval_count];
+  todo.add_interval_memory(preallocated_interval_count, ivs);
+
+  /*
+    Iterate until we have verified that all GTIDs in the set are
+    included in gtid_executed.
+  */
+  while (!verified)
   {
-    global_sid_lock->wrlock();
-    const Gtid_set *executed_gtids= gtid_state->get_executed_gtids();
+    todo.add_gtid_set(wait_for);
 
-    if (executed_gtid_set.add_gtid_set(executed_gtids) != RETURN_STATUS_OK)
+    // Iterate over SIDNOs until all GTIDs have been removed from 'todo'.
+
+    // Set 'verified' to true; it will be set to 'false' if any wait
+    // is done.
+    verified= true;
+    for (int sidno= 1; sidno <= todo.get_max_sidno(); sidno++)
     {
-      global_sid_lock->unlock();
-      DBUG_RETURN(-1);
-    }
-    global_sid_lock->unlock();
+      // Iterate until 'todo' is empty for this SIDNO.
+      while (todo.contains_sidno(sidno))
+      {
+        lock_sidno(sidno);
+        todo.remove_intervals_for_sidno(&executed_gtids, sidno);
 
-    /*
-      Removing the values from the wait_gtid_set which are already in the
-      executed_gtid_set. This wait will continue till the point the
-      wait_gtid_st is empty.
-    */
-    wait_gtid_set.remove_gtid_set(&executed_gtid_set);
+        if (todo.contains_sidno(sidno))
+        {
+          bool ret= wait_for_sidno(thd, sidno, timeout > 0 ? &abstime : NULL);
 
-    Gtid_set::Gtid_iterator git(&wait_gtid_set);
-    Gtid wait_for= git.get();
-    if (wait_for.sidno == 0)
-      break;
+          // wait_for_gtid will release both the global lock and the
+          // mutex.  Acquire the global lock again.
+          global_sid_lock->rdlock();
+          verified= false;
 
-    // Get the UUID to wait for.
-    const rpl_sid &wait_for_uuid= sid_map.sidno_to_sid(wait_for.sidno);
+          if (thd->killed)
+          {
+            switch (thd->killed)
+            {
+            case ER_SERVER_SHUTDOWN:
+            case ER_QUERY_INTERRUPTED:
+            case ER_QUERY_TIMEOUT:
+              my_error(thd->killed, MYF(0));
+              break;
+            default:
+              my_error(ER_QUERY_INTERRUPTED, MYF(0));
+              break;
+            }
+            DBUG_RETURN(true);
+          }
 
-    global_sid_lock->rdlock();
-
-    // Replace the sidno relative to the local sid_map by the
-    // sidno relative to global_sid_map
-    wait_for.sidno= global_sid_map->add_sid(wait_for_uuid);
-
-    gtid_state->lock_sidno(wait_for.sidno);
-
-    /*
-      the lock will be released by the wait_for_gtid function call
-      when the waiting condition is met or the function timesout.
-    */
-    error= (timeout > 0) ? wait_for_gtid(thd, wait_for, &abstime) :
-      wait_for_gtid(thd, wait_for, NULL);
-    if (error == ETIMEDOUT || error == ETIME)
-    {
-      ret_val= 1;
-      break;
+          if (ret)
+            DBUG_RETURN(true);
+        }
+        else
+        {
+          // Keep the global lock since it may be needed in a later
+          // iteration of the for loop.
+          unlock_sidno(sidno);
+          break;
+        }
+      }
     }
   }
-
-  // return in case the query is interrupted.
-  if (thd->killed)
-  {
-    my_error(ER_QUERY_INTERRUPTED, MYF(0));
-    DBUG_RETURN(-1);
-  }
-
-  DBUG_RETURN(ret_val);
+  DBUG_RETURN(false);
 }
 
 rpl_gno Gtid_state::get_automatic_gno(rpl_sidno sidno) const
@@ -602,32 +653,6 @@ enum_return_status Gtid_state::generate_automatic_gtid(THD *thd,
 }
 
 
-int Gtid_state::wait_for_gtid(THD *thd, const Gtid &gtid, struct timespec* timeout)
-{
-  DBUG_ENTER("Gtid_state::wait_for_gtid");
-  int error= 0;
-  PSI_stage_info old_stage;
-  DBUG_PRINT("info", ("SIDNO=%d GNO=%lld owner(sidno,gno)=%u thread_id=%u",
-                      gtid.sidno, gtid.gno,
-                      owned_gtids.get_owner(gtid), thd->thread_id()));
-  DBUG_ASSERT(owned_gtids.get_owner(gtid) != thd->thread_id());
-  sid_locks.enter_cond(thd, gtid.sidno,
-                       &stage_waiting_for_gtid_to_be_committed,
-                       &old_stage);
-  //while (get_owner(g.sidno, g.gno) != 0 && !thd->killed && !abort_loop)
-
-  if (timeout)
-    error= sid_locks.wait(thd, gtid.sidno, timeout);
-  else
-    sid_locks.wait(thd, gtid.sidno);
-  // Can't call sid_locks.unlock() as that requires global_sid_lock.
-  mysql_mutex_unlock(thd->current_mutex);
-  thd->EXIT_COND(&old_stage);
-  DBUG_RETURN(error);
-}
-
-
-#ifdef HAVE_GTID_NEXT_LIST
 void Gtid_state::lock_sidnos(const Gtid_set *gs)
 {
   DBUG_ASSERT(gs);
@@ -656,7 +681,6 @@ void Gtid_state::broadcast_sidnos(const Gtid_set *gs)
     if (gs->contains_sidno(sidno))
       broadcast_sidno(sidno);
 }
-#endif
 
 
 enum_return_status Gtid_state::ensure_sidno()
@@ -715,6 +739,9 @@ enum_return_status Gtid_state::add_lost_gtids(const Gtid_set *gtid_set)
   PROPAGATE_REPORTED_ERROR(gtids_only_in_table.add_gtid_set(gtid_set));
   PROPAGATE_REPORTED_ERROR(lost_gtids.add_gtid_set(gtid_set));
   PROPAGATE_REPORTED_ERROR(executed_gtids.add_gtid_set(gtid_set));
+  lock_sidnos(gtid_set);
+  broadcast_sidnos(gtid_set);
+  unlock_sidnos(gtid_set);
 
   DBUG_RETURN(RETURN_STATUS_OK);
 }

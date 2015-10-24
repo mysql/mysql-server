@@ -1,0 +1,326 @@
+# ==== Purpose ====
+#
+# To a failed single statement transaction which is operating a
+# non-transactional table with a specified gtid on auto-commit
+# mode, verify that we can roll back its owned gtid if it does
+# not modify non-transational table or commit its owned gtid if
+# it has modified non-transactional table when rolling back it.
+#
+# ==== Implementation ====
+#
+# 1) SET SESSION GTID_NEXT='UUID:GNO'.
+# 2) Execute a failed single statement transaction, which is
+#    operating a non-transactional table.
+# 3) Verify that we can roll back its owned gtid if it does not
+#    modify non-transational table or commit its owned gtid if
+#    it has modified non-transactional table when rolling back it.
+# 4) Execute above three steps for all different types of statements
+#
+
+# Clean gtid_executed so that test can execute after other tests
+RESET MASTER;
+
+--let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+
+SET GLOBAL GTID_MODE=OFF_PERMISSIVE;
+CREATE TABLE t1(c1 INT PRIMARY KEY) ENGINE=MyISAM;
+CREATE TABLE t1_c like t1;
+CREATE INDEX t_index ON t1(c1);
+CREATE TEMPORARY TABLE temp1(c1 INT) ENGINE=MyISAM;
+ALTER TABLE temp1 ADD COLUMN other_column INT;
+CREATE VIEW v1 as SELECT 1;
+CREATE USER user1;
+CREATE DATABASE db1;
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1_c VALUES (1), (2);
+
+# Check-1: Roll back a failed CREATE TABLE
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:1'
+--error ER_TABLE_EXISTS_ERROR
+CREATE TABLE t1(c1 INT, c2 INT);
+
+--let $assert_text= rollback gtid MASTER_UUID:1
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+--source include/assert.inc
+
+# Check-2: Roll back a failed ALTER TABLE
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:2'
+--error ER_NO_SUCH_TABLE
+ALTER TABLE t2 ADD COLUMN other_column INT;
+
+--let $assert_text= rollback gtid MASTER_UUID:2
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+--source include/assert.inc
+
+# Check-3: Roll back a failed DROP TABLE
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:3'
+--error ER_BAD_TABLE_ERROR
+DROP TABLE t2;
+
+--let $assert_text= rollback gtid MASTER_UUID:3
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+--source include/assert.inc
+
+# Check-4: Roll back a failed CREATE INDEX
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:4'
+--error ER_DUP_KEYNAME
+CREATE INDEX t_index ON t1(c1);
+
+--let $assert_text= rollback gtid MASTER_UUID:4
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+--source include/assert.inc
+
+# Check-5: Roll back a failed DROP INDEX
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:5'
+--error ER_CANT_DROP_FIELD_OR_KEY
+DROP INDEX t_index2 ON t1;
+
+--let $assert_text= rollback gtid MASTER_UUID:5
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+--source include/assert.inc
+
+# Check-6: Roll back a failed RENAME TABLE
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:6'
+--error ER_FILE_NOT_FOUND
+RENAME TABLE t3 TO t4;
+
+--let $assert_text= rollback gtid MASTER_UUID:6
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+--source include/assert.inc
+
+# Check-7: Roll back a failed CREATE TEMPORARY TABLE
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:7'
+--error ER_TABLE_EXISTS_ERROR
+CREATE TEMPORARY TABLE temp1(c1 INT);
+
+--let $assert_text= rollback gtid MASTER_UUID:7
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+--source include/assert.inc
+
+# Check-8: Roll back a failed ALTER TEMPORARY TABLE
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:8'
+--error ER_DUP_FIELDNAME
+ALTER TABLE temp1 ADD COLUMN other_column INT;
+
+--let $assert_text= rollback gtid MASTER_UUID:8
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+--source include/assert.inc
+
+# Check-9: Roll back a failed DROP TEMPORARY TABLE
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:9'
+--error ER_BAD_TABLE_ERROR
+DROP TEMPORARY TABLE temp2;
+
+--let $assert_text= rollback gtid MASTER_UUID:9
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+--source include/assert.inc
+
+# Check-10: Roll back a failed CREATE DATABASE
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:10'
+--error ER_DB_CREATE_EXISTS
+CREATE DATABASE db1;
+
+--let $assert_text= rollback gtid MASTER_UUID:10
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+--source include/assert.inc
+
+# We disable the case due to differnces between
+# linux and windows in the results
+# Check-11: Roll back a failed ALTER DATABASE
+#--replace_result $master_uuid MASTER_UUID
+#--eval SET SESSION GTID_NEXT='$master_uuid:11'
+#--error 1
+#ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+#--let $assert_text= rollback gtid MASTER_UUID:11
+#--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+#--source include/assert.inc
+
+# Check-12: Roll back a failed DROP DATABASE
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:12'
+--error ER_DB_DROP_EXISTS
+DROP DATABASE db2;
+
+--let $assert_text= rollback gtid MASTER_UUID:12
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+--source include/assert.inc
+
+# Check-13: Roll back a failed CREATE USER
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:13'
+--error ER_CANNOT_USER
+CREATE USER user1;
+
+--let $assert_text= rollback gtid MASTER_UUID:13
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+--source include/assert.inc
+
+# Check-14: Roll back a failed ALTER USER
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:14'
+--error ER_CANNOT_USER
+ALTER USER user2 IDENTIFIED BY 'passwd';
+
+--let $assert_text= rollback gtid MASTER_UUID:14
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+--source include/assert.inc
+
+# Check-15: Roll back a failed GRANT
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:15'
+--error ER_PASSWORD_NO_MATCH
+GRANT ALL ON *.* TO user2;
+
+--let $assert_text= rollback gtid MASTER_UUID:15
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+--source include/assert.inc
+
+# Check-16: Roll back a failed REVOKE
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:16'
+--error ER_NONEXISTING_GRANT
+REVOKE ALL PRIVILEGES ON *.* FROM user2;
+
+--let $assert_text= rollback gtid MASTER_UUID:16
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+--source include/assert.inc
+
+# Check-17: Roll back a failed DROP USER
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:17'
+--error ER_CANNOT_USER
+DROP USER user2;
+
+--let $assert_text= rollback gtid MASTER_UUID:17
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+--source include/assert.inc
+
+# Check-18: Roll back a failed DROP VIEW
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:18'
+--error ER_BAD_TABLE_ERROR
+DROP VIEW v2;
+
+--let $assert_text= rollback gtid MASTER_UUID:18
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+--source include/assert.inc
+
+# Check-19: Roll back a failed CREATE VIEW
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:19'
+--error ER_TABLE_EXISTS_ERROR
+CREATE VIEW v1 as SELECT 1;
+
+--let $assert_text= rollback gtid MASTER_UUID:19
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+--source include/assert.inc
+
+# Check-20: Roll back a failed INSERT, the single stmt trx does not modify
+# non-trans table, so its owned gtid is rolled back.
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:20'
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (3), (2);
+
+--let $assert_text= rollback gtid MASTER_UUID:20
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+--source include/assert.inc
+
+# Check-21: Roll back a failed INSERT SELECT, the single stmt trx does not
+# modify non-trans table, so its owned gtid is rolled back.
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:21'
+--error ER_DUP_ENTRY
+INSERT INTO t1 SELECT * FROM t1;
+
+--let $assert_text= rollback gtid MASTER_UUID:21
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = ""
+--source include/assert.inc
+
+# Check-22: Roll back a failed INSERT, the single stmt trx has modified
+# non-trans table, so its owned gtid is committed.
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:22'
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (2), (3);
+
+--let $assert_text= commit gtid MASTER_UUID:22
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:22"
+--source include/assert.inc
+
+# Check-23: Roll back a failed INSERT SELECT, the single stmt trx has modified
+# non-trans table, so its owned gtid is committed.
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:23'
+--error ER_DUP_ENTRY
+INSERT INTO t1 SELECT * FROM t1_c;
+
+--let $assert_text= commit gtid MASTER_UUID:23
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:22-23"
+--source include/assert.inc
+
+# Check-24: Roll back a failed UPDATE, the single stmt trx does not modify
+# non-trans table, so its owned gtid is rolled back.
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:24'
+--error ER_DUP_ENTRY
+UPDATE t1 SET c1=2 WHERE c1=1;
+
+--let $assert_text= rollback gtid MASTER_UUID:24
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:22-23"
+--source include/assert.inc
+
+# Check-25: Roll back a failed UPDATE, the single stmt trx has modified
+# non-trans table t1_c, so its owned gtid is committed.
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:25'
+--error ER_DUP_ENTRY
+UPDATE t1_c, t1 SET t1_c.c1=3, t1.c1=2 WHERE t1_c.c1=1 AND t1.c1=1;
+
+--let $assert_text= commit gtid MASTER_UUID:25
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:22-23:25"
+--source include/assert.inc
+
+# Check-26: Roll back a failed UPDATE, the single stmt trx does not modify
+# non-trans table, so its owned gtid is rolled back.
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:26'
+--error ER_DUP_ENTRY
+UPDATE t1, t1_c SET t1.c1=2, t1_c.c1=3 WHERE t1.c1=1 OR t1_c.c1=1;
+
+--let $assert_text= rollback gtid MASTER_UUID:26
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:22-23:25"
+--source include/assert.inc
+
+# In ps protocol, the test case failed. Bug#21679228 is addressing it.
+# Check-27: Roll back a failed DELETE, the single stmt trx does not modify
+# non-trans table, so its owned gtid is rolled back.
+#--replace_result $master_uuid MASTER_UUID
+#--eval SET SESSION GTID_NEXT='$master_uuid:27'
+#--error ER_NO_SUCH_TABLE
+#DELETE FROM t2 WHERE c1=100;
+
+#--let $assert_text= rollback gtid MASTER_UUID:27
+#--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:22-23:25"
+#--source include/assert.inc
+
+# Cleanup
+SET GTID_NEXT = 'AUTOMATIC';
+DROP INDEX t_index ON t1;
+DROP TABLE t1, t1_c;
+DROP TEMPORARY TABLE temp1;
+DROP VIEW v1;
+DROP USER user1;
+SET GLOBAL GTID_MODE=OFF;
+DROP DATABASE db1;
+

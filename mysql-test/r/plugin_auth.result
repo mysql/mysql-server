@@ -53,6 +53,8 @@ plug@localhost	plug_dest@%
 ## test no_auto_create_user sql mode with plugin users
 SET @@sql_mode=no_auto_create_user;
 GRANT INSERT ON TEST.* TO grant_user IDENTIFIED WITH 'test_plugin_server';
+ERROR 42000: Can't find any matching row in the user table
+GRANT INSERT ON TEST.* TO grant_user IDENTIFIED WITH 'test_plugin_server' BY '123';
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 SET @@sql_mode=default;
@@ -252,21 +254,22 @@ WL#5706 -- show the above got logged/rewritten correctly
 SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('%IDENTIFIED ','WITH %');
 argument
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 GRANT INSERT ON TEST.* TO grant_user IDENTIFIED WITH 'test_plugin_server'
+GRANT INSERT ON `TEST`.* TO 'grant_user'@'%' IDENTIFIED WITH 'test_plugin_server' AS '<secret>'
 CREATE USER `Ÿ` IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
 GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user 
 IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
 GRANT ALL PRIVILEGES ON `test_grant_db`.* TO 'new_grant_user'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 CREATE USER grant_plug IDENTIFIED WITH 'test_plugin_server' 
 AS 'grant_plug_dest'
-CREATE USER 'grant_plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
-CREATE USER 'grant_plug_dest2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'grant_plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
+CREATE USER 'grant_plug_dest2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 GRANT USAGE ON *.* TO ''@'','proxy_admin'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' WITH GRANT OPTION
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 ## cleanup
 DROP USER plug;
 DROP USER plug_dest;

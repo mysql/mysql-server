@@ -1,7 +1,7 @@
 set @old_innodb_file_format_max=@@innodb_file_format_max;
 select @old_innodb_file_format_max;
 @old_innodb_file_format_max
-Antelope
+Barracuda
 set global innodb_file_format_max = Barracuda;
 Warnings:
 Warning	131	Using innodb_file_format_max is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
@@ -19,7 +19,7 @@ Warnings:
 Warning	131	Using innodb_file_format_max is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 select @@innodb_file_format_max;
 @@innodb_file_format_max
-Antelope
+Barracuda
 set global innodb_file_format_max = cheetah;
 ERROR 42000: Variable 'innodb_file_format_max' can't be set to the value of 'cheetah'
 set global innodb_file_format_max = Bear;

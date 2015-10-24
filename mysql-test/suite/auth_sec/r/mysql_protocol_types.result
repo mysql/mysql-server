@@ -14,15 +14,6 @@ CREATE USER 'user_ssl'@'127.0.0.1';
 GRANT ALL PRIVILEGES ON *.* TO 'user_ssl'@'127.0.0.1';
 
 # Connection type testing for SOCKET protocol.
-SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
-connection_type
-Socket
-SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
-connection_type
-Socket
-SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
-connection_type
-Socket
 mysqld is alive
 mysqld is alive
 
@@ -34,12 +25,6 @@ Socket
 
 # Connection type testing for TCP/IP  protocol.
 
-SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
-connection_type
-TCP/IP
-SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
-connection_type
-TCP/IP
 # MYSQLADMIN test
 mysqld is alive
 mysqld is alive
@@ -50,17 +35,8 @@ TCP/IP
 
 # Testing TCP/IP connections over SSL/TLS.
 
-SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
-connection_type
-SSL/TLS
 
-SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
-connection_type
-SSL/TLS
 
-SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
-connection_type
-SSL/TLS
 
 # MYSQLADMIN test
 mysqld is alive

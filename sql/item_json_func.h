@@ -55,6 +55,9 @@ private:
   // map argument indexes to indexes into m_paths
   Mem_root_array<int, true> m_arg_idx_to_vector_idx;
 
+  // remembers whether a constant path was null or invalid
+  Mem_root_array<bool, true> m_arg_idx_to_problem_indicator;
+
   // number of cells in m_arg_idx_to_vector
   uint m_size;
 
@@ -114,6 +117,8 @@ protected:
   // Cache for constant path expressions
   Json_path_cache m_path_cache;
 
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
+
 public:
   Item_json_func(THD *thd, const POS &pos, Item *a) : Item_func(pos, a),
     m_path_cache(thd, 1)
@@ -129,7 +134,6 @@ public:
   {}
 
   enum_field_types field_type() const { return MYSQL_TYPE_JSON; }
-  type_conversion_status save_in_field(Field *field, bool no_conversions);
 
   void fix_length_and_dec()
   {
@@ -179,11 +183,16 @@ bool json_value(Item **args, uint arg_idx, Json_wrapper *result);
   @param[out] str           the string buffer
   @param[in]  func_name     the name of the function we are executing
   @param[out] result        the JSON value wrapper
-
+  @param[in]  preserve_neg_zero_int
+                            Whether integer negative zero should be preserved.
+                            If set to TRUE, -0 is handled as a DOUBLE. Double
+                            negative zero (-0.0) is preserved regardless of what
+                            this parameter is set to.
   @result false if we found a value or NULL, true if not.
 */
 bool get_json_wrapper(Item **args, uint arg_idx, String *str,
-                      const char *func_name, Json_wrapper *wrapper);
+                      const char *func_name, Json_wrapper *wrapper,
+                      bool preserve_neg_zero_int= false);
 
 /**
   Convert Json values or MySQL values to JSON.
@@ -217,8 +226,8 @@ bool get_json_atom_wrapper(Item **args, uint arg_idx,
 /**
   Check a non-empty val for character set. If it has character set
   my_charset_binary, signal error and return false. Else, try to convert to
-  my_charset_utf8mb4_binary. If this fails, signal error and return false, else
-  return true.
+  my_charset_utf8mb4_binary. If this fails, signal error and return true, else
+  return false.
 
   @param[in]     val       the string to be checked
   @param[in,out] buf       buffer to hold the converted string
@@ -487,6 +496,10 @@ public:
     : Item_json_func(thd, pos, a)
   {}
 
+  Item_func_json_extract(THD *thd, const POS &pos, Item *a, Item *b)
+    : Item_json_func(thd, pos, a, b)
+  {}
+
   const char *func_name() const
   {
     return "json_extract";
@@ -496,20 +509,20 @@ public:
 };
 
 /**
-  Represents the JSON function JSON_APPEND()
+  Represents the JSON function JSON_ARRAY_APPEND()
 */
-class Item_func_json_append :public Item_json_func
+class Item_func_json_array_append :public Item_json_func
 {
   String m_doc_value;
 
 public:
-  Item_func_json_append(THD *thd, const POS &pos, PT_item_list *a)
+  Item_func_json_array_append(THD *thd, const POS &pos, PT_item_list *a)
     : Item_json_func(thd, pos, a)
   {}
 
   const char *func_name() const
   {
-    return "json_append";
+    return "json_array_append";
   }
 
   bool val_json(Json_wrapper *wr);
@@ -521,6 +534,7 @@ public:
 class Item_func_json_insert :public Item_json_func
 {
   String m_doc_value;
+  Json_path_clone m_path;
 
 public:
   Item_func_json_insert(THD *thd, const POS &pos, PT_item_list *a)
@@ -541,6 +555,7 @@ public:
 class Item_func_json_array_insert :public Item_json_func
 {
   String m_doc_value;
+  Json_path_clone m_path;
 
 public:
   Item_func_json_array_insert(THD *thd, const POS &pos, PT_item_list *a)
@@ -563,6 +578,7 @@ class Item_func_json_set_replace :public Item_json_func
   /// True if this is JSON_SET, false if it is JSON_REPLACE.
   const bool m_json_set;
   String m_doc_value;
+  Json_path_clone m_path;
 
 protected:
   Item_func_json_set_replace(THD *thd, const POS &pos, PT_item_list *a, bool json_set)

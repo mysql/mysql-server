@@ -914,7 +914,7 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
 
   float filter_effect= 1.0;
 
-  thd->status_var.last_query_partial_plans++;
+  thd->m_current_query_partial_plans++;
 
   /*
     Cannot use join buffering if either
@@ -1394,9 +1394,23 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
 
   /*
     Cost calculations and picking the right join order assumes that a
-    positive number of output rows from each joined table. The code
-    below makes sure that even in the case of heavy filtering, the
-    number of rows output from a joined table is more than zero.
+    positive number of output rows from each joined table. We assume
+    that at least one row in the table match the condition.  Not all
+    code is able to cope with estimates of less than one row.  (For
+    example, DupsWeedout may include extra tables in its
+    duplicate-eliminating range in such cases.)
+  */
+  filter= max(filter, 1.0f / tab->records());
+
+  /*
+    For large tables, the restriction above may still give very small
+    numbers when calculating fan-out.  The code below makes sure that
+    there is a lower limit on fan-out.
+    TODO: Should evaluate whether this restriction makes sense.  It
+          can cause the estimated size of the result set to be
+          different for different join orders. However, some unwanted
+          effects on DBT-3 was observed when removing it, so keeping
+          it for now.
   */
   if ((filter * fanout) < 0.05f)
     filter= 0.05f/static_cast<float>(fanout);

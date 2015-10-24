@@ -58,7 +58,7 @@ void* my_once_alloc(size_t Size, myf MyFlags)
 
     if ((next = (USED_MEM*) malloc(get_size)) == 0)
     {
-      my_errno=errno;
+      set_my_errno(errno);
       if (MyFlags & (MY_FAE+MY_WME))
 	my_error(EE_OUTOFMEMORY, MYF(ME_FATALERROR), get_size);
       return((uchar*) 0);

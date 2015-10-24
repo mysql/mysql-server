@@ -15,7 +15,9 @@
 
 /* Open a temporary file and cache it with io_cache. Delete it on close */
 
+#include "my_global.h"
 #include "mysys_priv.h"
+#include "mysql/psi/mysql_file.h"
 #include "my_sys.h"
 #include <m_string.h>
 #include "my_static.h"
@@ -65,17 +67,17 @@ my_bool open_cached_file(IO_CACHE *cache, const char* dir, const char *prefix,
   DBUG_RETURN(1);
 }
 
-	/* Create the temporary file */
+/* Create the temporary file */
 
 my_bool real_open_cached_file(IO_CACHE *cache)
 {
   char name_buff[FN_REFLEN];
   int error=1;
   DBUG_ENTER("real_open_cached_file");
-  if ((cache->file=create_temp_file(name_buff, cache->dir, cache->prefix,
-				    (O_RDWR | O_BINARY | O_TRUNC |
-				     O_TEMPORARY | O_SHORT_LIVED),
-				    MYF(MY_WME))) >= 0)
+  if ((cache->file= mysql_file_create_temp(cache->file_key, name_buff,
+                      cache->dir, cache->prefix,
+                      (O_RDWR | O_BINARY | O_TRUNC | O_TEMPORARY | O_SHORT_LIVED),
+                      MYF(MY_WME))) >= 0)
   {
     error=0;
     cache_remove_open_tmp(cache, name_buff);
@@ -90,11 +92,11 @@ void close_cached_file(IO_CACHE *cache)
   if (my_b_inited(cache))
   {
     File file=cache->file;
-    cache->file= -1;				/* Don't flush data */
+    cache->file= -1;    /* Don't flush data */
     (void) end_io_cache(cache);
     if (file >= 0)
     {
-      (void) my_close(file,MYF(0));
+      (void) mysql_file_close(file, MYF(0));
     }
     my_free(cache->dir);
     my_free(cache->prefix);

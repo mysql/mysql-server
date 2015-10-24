@@ -907,3 +907,49 @@ SET sql_mode=default;
 # Bug#19047527 SQRT() : UNINITIALISED VALUE IN MY_STRTOD
 #
 do sqrt(weight_string(_eucjpms "0E+"));
+#
+# Bug#21279005 - ROUND FUNCTION INCORRECT IN WHERE-CLAUSE
+#                USING LOCAL VARIABLE
+CREATE PROCEDURE test_round_fn()
+BEGIN
+DECLARE num_digits int;
+SET num_digits := 3;
+CREATE TEMPORARY TABLE tmp_test (
+number double
+);
+INSERT INTO tmp_test
+VALUES (1),(0);
+SELECT
+number,
+Round(number, num_digits) > 0,
+Round(number, 3) > 0
+FROM
+tmp_test;
+SELECT
+number,
+Round(number, num_digits) > 0,
+Round(number, 3) > 0
+FROM
+tmp_test
+WHERE
+Round(number, 3) >= 0;
+SELECT
+number,
+Round(number, num_digits) > 0,
+Round(number, 3) > 0
+FROM
+tmp_test
+WHERE
+Round(number, num_digits) >= 0;
+END|
+CALL test_round_fn();
+number	Round(number, num_digits) > 0	Round(number, 3) > 0
+1	1	1
+0	0	0
+number	Round(number, num_digits) > 0	Round(number, 3) > 0
+1	1	1
+0	0	0
+number	Round(number, num_digits) > 0	Round(number, 3) > 0
+1	1	1
+0	0	0
+DROP PROCEDURE test_round_fn;

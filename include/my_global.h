@@ -660,8 +660,9 @@ static inline struct tm *gmtime_r(const time_t *clock, struct tm *res)
   gmtime_s(res, clock);
   return res;
 }
+#endif /* _WIN32 */
 
-
+#ifndef HAVE_STRUCT_TIMESPEC /* Windows before VS2015 */
 /*
   Declare a union to make sure FILETIME is properly aligned
   so it can be used directly as a 64 bit value. The value
@@ -678,7 +679,7 @@ struct timespec {
   long max_timeout_msec;
 };
 
-#endif /* _WIN32 */
+#endif /* !HAVE_STRUCT_TIMESPEC */
 
 C_MODE_START
 extern ulonglong my_getsystime(void);
@@ -686,7 +687,7 @@ C_MODE_END
 
 static inline void set_timespec_nsec(struct timespec *abstime, ulonglong nsec)
 {
-#ifndef _WIN32
+#ifdef HAVE_STRUCT_TIMESPEC
   ulonglong now= my_getsystime() + (nsec / 100);
   ulonglong tv_sec= now / 10000000ULL;
 #if SIZEOF_TIME_T < SIZEOF_LONG_LONG
@@ -695,7 +696,7 @@ static inline void set_timespec_nsec(struct timespec *abstime, ulonglong nsec)
 #endif
   abstime->tv_sec=  (time_t)tv_sec;
   abstime->tv_nsec= (now % 10000000ULL) * 100 + (nsec % 100);
-#else /* !_WIN32 */
+#else /* !HAVE_STRUCT_TIMESPEC */
   ulonglong max_timeout_msec= (nsec / 1000000);
   union ft64 tv;
   GetSystemTimeAsFileTime(&tv.ft);
@@ -705,7 +706,7 @@ static inline void set_timespec_nsec(struct timespec *abstime, ulonglong nsec)
   max_timeout_msec= MY_MIN(max_timeout_msec, ((ulonglong)INT_MAX32));
 #endif
   abstime->max_timeout_msec= (long)max_timeout_msec;
-#endif /* !_WIN32 */
+#endif /* !HAVE_STRUCT_TIMESPEC */
 }
 
 static inline void set_timespec(struct timespec *abstime, ulonglong sec)
@@ -722,7 +723,7 @@ static inline void set_timespec(struct timespec *abstime, ulonglong sec)
 */
 static inline int cmp_timespec(struct timespec *ts1, struct timespec *ts2)
 {
-#ifndef _WIN32
+#ifdef HAVE_STRUCT_TIMESPEC
   if (ts1->tv_sec > ts2->tv_sec ||
       (ts1->tv_sec == ts2->tv_sec && ts1->tv_nsec > ts2->tv_nsec))
     return 1;
@@ -740,13 +741,19 @@ static inline int cmp_timespec(struct timespec *ts1, struct timespec *ts2)
 
 static inline ulonglong diff_timespec(struct timespec *ts1, struct timespec *ts2)
 {
-#ifndef _WIN32
+#ifdef HAVE_STRUCT_TIMESPEC
   return (ts1->tv_sec - ts2->tv_sec) * 1000000000ULL +
     ts1->tv_nsec - ts2->tv_nsec;
 #else
   return (ts1->tv.i64 - ts2->tv.i64) * 100;
 #endif
 }
+
+#ifdef _WIN32
+typedef int MY_MODE;
+#else
+typedef mode_t MY_MODE;
+#endif /* _WIN32 */
 
 /* File permissions */
 #define USER_READ       (1L << 0)

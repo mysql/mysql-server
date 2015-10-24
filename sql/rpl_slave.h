@@ -105,8 +105,8 @@ extern bool server_id_supplied;
 /*
   MUTEXES in replication:
 
-  LOCK_msr_map: This is to lock the Multisource datastructure (msr_map).
-  Generally it used to retrieve an mi from msr_map.It is used to SERIALIZE ALL
+  channel_map lock: This is to lock the Multisource datastructure (channel_map).
+  Generally it used to retrieve an mi from channel_map.It is used to SERIALIZE ALL
   administrative commands of replication: START SLAVE, STOP SLAVE, CHANGE
   MASTER, RESET SLAVE, end_slave() (when mysqld stops) [init_slave() does not
   need it it's called early]. Any of these commands holds the mutex from the
@@ -150,7 +150,7 @@ extern bool server_id_supplied;
       mi.data_lock, rli.data_lock, mi.err_lock, rli.err_lock
 
     stop_slave:
-      LOCK_msr_map,
+      channel_map lock,
       ( mi.run_lock, thd.LOCK_thd_data
       | rli.run_lock, thd.LOCK_thd_data
       | relay.LOCK_log
@@ -221,12 +221,12 @@ extern bool server_id_supplied;
       relay.log_lock
 
     Sys_var_gtid_mode::global_update:
-      gtid_mode_lock, LOCK_msr_map, binlog.LOCK_log, global_sid_lock
+      gtid_mode_lock, channel_map lock, binlog.LOCK_log, global_sid_lock
 
   So the DAG of lock acquisition order (not counting the buggy
   purge_logs) is, empirically:
 
-    gtid_mode_lock, LOCK_msr_map, mi.run_lock, rli.run_lock,
+    gtid_mode_lock, channel_map lock, mi.run_lock, rli.run_lock,
       ( rli.data_lock,
         ( LOCK_thd_list,
           (
@@ -352,36 +352,36 @@ int add_new_channel(Master_info** mi, const char* channel,
 int terminate_slave_threads(Master_info* mi, int thread_mask,
                             ulong stop_wait_timeout,
                             bool need_lock_term= true);
-int start_slave_threads(bool need_lock_slave, bool wait_for_start,
-			Master_info* mi, int thread_mask);
-int start_slave(THD *thd);
+bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
+                         Master_info* mi, int thread_mask);
+bool start_slave(THD *thd);
 int stop_slave(THD *thd);
-int start_slave(THD* thd,
-                LEX_SLAVE_CONNECTION* connection_param,
-                LEX_MASTER_INFO* master_param,
-                int thread_mask_input,
-                Master_info* mi,
-                bool set_mts_settings,
-                bool net_report);
+bool start_slave(THD* thd,
+                 LEX_SLAVE_CONNECTION* connection_param,
+                 LEX_MASTER_INFO* master_param,
+                 int thread_mask_input,
+                 Master_info* mi,
+                 bool set_mts_settings);
 int stop_slave(THD* thd, Master_info* mi, bool net_report,
-               bool for_one_channel=true);
+               bool for_one_channel,
+               bool* push_temp_table_warning);
 /*
   cond_lock is usually same as start_lock. It is needed for the case when
   start_lock is 0 which happens if start_slave_thread() is called already
   inside the start_lock section, but at the same time we want a
   mysql_cond_wait() on start_cond, start_lock
 */
-int start_slave_thread(
+bool start_slave_thread(
 #ifdef HAVE_PSI_INTERFACE
-                       PSI_thread_key thread_key,
+                        PSI_thread_key thread_key,
 #endif
-                       my_start_routine h_func,
-                       mysql_mutex_t *start_lock,
-                       mysql_mutex_t *cond_lock,
-                       mysql_cond_t *start_cond,
-                       volatile uint *slave_running,
-                       volatile ulong *slave_run_id,
-                       Master_info *mi);
+                        my_start_routine h_func,
+                        mysql_mutex_t *start_lock,
+                        mysql_mutex_t *cond_lock,
+                        mysql_cond_t *start_cond,
+                        volatile uint *slave_running,
+                        volatile ulong *slave_run_id,
+                        Master_info *mi);
 
 /* retrieve table from master and copy to slave*/
 int fetch_master_table(THD* thd, const char* db_name, const char* table_name,
@@ -407,7 +407,7 @@ void set_slave_thread_options(THD* thd);
 void set_slave_thread_default_charset(THD *thd, Relay_log_info const *rli);
 int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli);
 int rotate_relay_log(Master_info* mi);
-int queue_event(Master_info* mi,const char* buf, ulong event_len);
+bool queue_event(Master_info* mi,const char* buf, ulong event_len);
 
 extern "C" void *handle_slave_io(void *arg);
 extern "C" void *handle_slave_sql(void *arg);
@@ -430,7 +430,7 @@ extern my_bool master_ssl;
 extern char *master_ssl_ca, *master_ssl_capath, *master_ssl_cert;
 extern char *master_ssl_cipher, *master_ssl_key;
        
-int mts_recovery_groups(Relay_log_info *rli);
+bool mts_recovery_groups(Relay_log_info *rli);
 bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
                             bool force, bool need_data_lock);
 bool sql_slave_killed(THD* thd, Relay_log_info* rli);

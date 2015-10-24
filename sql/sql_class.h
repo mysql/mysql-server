@@ -29,6 +29,7 @@
 #include "discrete_interval.h"            // Discrete_interval
 #include "handler.h"                      // KEY_CREATE_INFO
 #include "opt_trace_context.h"            // Opt_trace_context
+#include "protocol.h"                     // Protocol
 #include "protocol_classic.h"             // Protocol_text
 #include "rpl_context.h"                  // Rpl_thd_context
 #include "rpl_gtid.h"                     // Gtid_specification
@@ -48,6 +49,7 @@
 #include <mysql/psi/mysql_statement.h>
 
 #include <memory>
+#include "mysql/thread_type.h"
 
 class Reprepare_observer;
 class sp_cache;
@@ -464,6 +466,7 @@ typedef struct system_variables
   ulong net_write_timeout;
   ulong optimizer_prune_level;
   ulong optimizer_search_depth;
+  ulong range_optimizer_max_mem_size;
   ulong preload_buff_size;
   ulong profiling_history_size;
   ulong read_buff_size;
@@ -839,10 +842,18 @@ private:
   yet another time.
 */
 
-struct Item_change_record: public ilink<Item_change_record>
+class Item_change_record: public ilink<Item_change_record>
 {
+private:
+  // not used
+  Item_change_record() {}
+public:
+  Item_change_record(Item **place, Item *new_value)
+    : place(place), old_value(*place), new_value(new_value)
+  {}
   Item **place;
   Item *old_value;
+  Item *new_value;
 };
 
 typedef I_List<Item_change_record> Item_change_list;
@@ -1044,7 +1055,8 @@ public:
   ulonglong first_successful_insert_id_in_cur_stmt, insert_id_for_cur_row;
   Discrete_interval auto_inc_interval_for_cur_row;
   Discrete_intervals_list auto_inc_intervals_forced;
-  ulonglong limit_found_rows;
+  ulonglong current_found_rows;
+  ulonglong previous_found_rows;
   ha_rows    cuted_fields, sent_row_count, examined_row_count;
   ulong client_capabilities;
   uint in_sub_stmt;
@@ -1054,21 +1066,6 @@ public:
   enum enum_check_fields count_cuted_fields;
 };
 
-
-/* Flags for the THD::system_thread variable */
-enum enum_thread_type
-{
-  NON_SYSTEM_THREAD= 0,
-  SYSTEM_THREAD_SLAVE_IO= 1,
-  SYSTEM_THREAD_SLAVE_SQL= 2,
-  SYSTEM_THREAD_NDBCLUSTER_BINLOG= 4,
-  SYSTEM_THREAD_EVENT_SCHEDULER= 8,
-  SYSTEM_THREAD_EVENT_WORKER= 16,
-  SYSTEM_THREAD_INFO_REPOSITORY= 32,
-  SYSTEM_THREAD_SLAVE_WORKER= 64,
-  SYSTEM_THREAD_COMPRESS_GTID_TABLE= 128,
-  SYSTEM_THREAD_BACKGROUND= 256
-};
 
 inline char const *
 show_system_thread(enum_thread_type thread)
@@ -1458,6 +1455,13 @@ public:
 
   LEX *lex;                                     // parse tree descriptor
 
+  /*
+   True if @@SESSION.GTID_EXECUTED was read once and the deprecation warning
+   was issued.
+   This flag needs to be removed once @@SESSION.GTID_EXECUTED is deprecated.
+  */
+  bool gtid_executed_warning_issued;
+
 private:
   /**
     The query associated with this statement.
@@ -1554,11 +1558,48 @@ public:
   struct  system_status_var *initial_status_var; /* used by show status */
   // has status_var already been added to global_status_var?
   bool status_var_aggregated;
+
+  /**
+    Current query cost.
+    @sa system_status_var::last_query_cost
+  */
+  double m_current_query_cost;
+  /**
+    Current query partial plans.
+    @sa system_status_var::last_query_partial_plans
+  */
+  ulonglong m_current_query_partial_plans;
+
+  /**
+    Clear the query costs attributes for the current query.
+  */
+  void clear_current_query_costs()
+  {
+    m_current_query_cost= 0.0;
+    m_current_query_partial_plans= 0;
+  }
+
+  /**
+    Save the current query costs attributes in
+    the thread session status.
+    Use this method only after the query execution is completed,
+    so that
+      @code SHOW SESSION STATUS like 'last_query_%' @endcode
+      @code SELECT * from performance_schema.session_status
+      WHERE VARIABLE_NAME like 'last_query_%' @endcode
+    actually reports the previous query, not itself.
+  */
+  void save_current_query_costs()
+  {
+    status_var.last_query_cost= m_current_query_cost;
+    status_var.last_query_partial_plans= m_current_query_partial_plans;
+  }
+
   THR_LOCK_INFO lock_info;              // Locking info of this thread
   /**
     Protects THD data accessed from other threads.
     The attributes protected are:
-    - thd->mysys_var (used by KILL statement and shutdown).
+    - thd->is_killable (used by KILL statement and shutdown).
     - thd->user_vars (user variables, inspected by monitoring)
     Is locked when THD is deleted.
   */
@@ -1613,7 +1654,7 @@ public:
     A pointer to the stack frame of handle_one_connection(),
     which is called first in the thread for handling a client
   */
-  char	  *thread_stack;
+  const char *thread_stack;
 
   /**
     @note
@@ -1787,7 +1828,7 @@ public:
 #ifndef DBUG_OFF
   uint dbug_sentry; // watch out for memory corruption
 #endif
-  struct st_my_thread_var *mysys_var;
+  bool is_killable;
   /**
     Mutex protecting access to current_mutex and current_cond.
   */
@@ -1807,6 +1848,10 @@ public:
     thread can be unstuck.
   */
   mysql_cond_t * volatile current_cond;
+  /**
+    Condition variable used for waiting by the THR_LOCK.c subsystem.
+  */
+  mysql_cond_t COND_thr_lock;
 
 private:
   /**
@@ -2272,9 +2317,17 @@ public:
   }
 
   /**
-    Stores the result of the FOUND_ROWS() function.
+    Stores the result of the FOUND_ROWS() function.  Set at query end, stable
+    throughout the query.
   */
-  ulonglong  limit_found_rows;
+  ulonglong  previous_found_rows;
+  /**
+    Dynamic, collected and set also in subqueries. Not stable throughout query.
+    previous_found_rows is a snapshot of this take at query end making it
+    stable throughout the next query, see update_previous_found_rows.
+  */
+  ulonglong  current_found_rows;
+
   /*
     Indicate if the gtid_executed table is being operated implicitly
     within current transaction. This happens because we are inserting
@@ -2776,7 +2829,7 @@ public:
     Array of bits indicating which audit classes have already been
     added to the list of audit plugins which are currently in use.
   */
-  Prealloced_array<unsigned long, 1> audit_class_mask;
+  Prealloced_array<unsigned long, 11> audit_class_mask;
 #endif
 
 #if defined(ENABLED_DEBUG_SYNC)
@@ -2825,7 +2878,7 @@ public:
   void cleanup_connection(void);
   void cleanup_after_query();
   bool store_globals();
-  bool restore_globals();
+  void restore_globals();
 
   inline void set_active_vio(Vio* vio)
   {
@@ -2847,7 +2900,7 @@ public:
   void awake(THD::killed_state state_to_set);
 
   /** Disconnect the associated communication endpoint. */
-  void disconnect();
+  void disconnect(bool server_shutdown= false);
 
 #ifndef MYSQL_CLIENT
   enum enum_binlog_query_type {
@@ -3024,8 +3077,20 @@ public:
   }
   inline ulonglong found_rows(void)
   {
-    return limit_found_rows;
+    return previous_found_rows;
   }
+
+  /*
+    Call when it is clear that the query is ended and we have collected the
+    right value for current_found_rows. Calling this method makes a snapshot of
+    that value and makes it ready and stable for subsequent FOUND_ROWS() call
+    in the next statement.
+  */
+  inline void update_previous_found_rows()
+  {
+    previous_found_rows= current_found_rows;
+  }
+
   /**
     Returns TRUE if session is in a multi-statement transaction mode.
 
@@ -3144,11 +3209,23 @@ public:
     is_slave_error= false;
     DBUG_VOID_RETURN;
   }
-#ifndef EMBEDDED_LIBRARY
-  inline bool vio_ok() const
+
+  inline bool is_classic_protocol()
   {
-    return get_protocol_classic()->vio_ok();
+    DBUG_ENTER("THD::is_classic_protocol");
+    DBUG_PRINT("info", ("type=%d", get_protocol()->type()));
+    switch (get_protocol()->type())
+    {
+    case Protocol::PROTOCOL_BINARY:
+    case Protocol::PROTOCOL_TEXT:
+      DBUG_RETURN(true);
+    default:
+      break;
+    }
+    DBUG_RETURN(false);
   }
+
+#ifndef EMBEDDED_LIBRARY
   /** Return FALSE if connection to client is broken. */
   virtual bool is_connected()
   {
@@ -3157,11 +3234,16 @@ public:
       not using vio. So this function always returns true for all
       system threads.
     */
-    return system_thread ||
-      (vio_ok() ? vio_is_connected(get_protocol_classic()->get_vio()) : FALSE);
+    if (system_thread)
+      return true;
+
+    if (is_classic_protocol())
+      return get_protocol()->connection_alive() &&
+             vio_is_connected(get_protocol_classic()->get_vio());
+    else
+      return get_protocol()->connection_alive();
   }
 #else
-  inline bool vio_ok() const { return TRUE; }
   virtual bool is_connected() { return true; }
 #endif
   /**
@@ -3267,27 +3349,45 @@ public:
                   place, *place, new_value));
       if (new_value)
         new_value->set_runtime_created(); /* Note the change of item tree */
-      nocheck_register_item_tree_change(place, *place, mem_root);
+      nocheck_register_item_tree_change(place, new_value);
     }
     *place= new_value;
   }
 
-/*
-  Find and update change record of an underlying item.
+  /**
+    Remember that place was updated with new_value so it can be restored
+    by rollback_item_tree_changes().
 
-  @param old_ref The old place of moved expression.
-  @param new_ref The new place of moved expression.
-  @details
-  During permanent transformations, e.g. join flattening in simplify_joins,
-  a condition could be moved from one place to another, e.g. from on_expr
-  to WHERE condition. If the moved condition has replaced some other with
-  change_item_tree() function, the change record will restore old value
-  to the wrong place during rollback_item_tree_changes. This function goes
-  through the list of change records, and replaces Item_change_record::place.
-*/
-  void change_item_tree_place(Item **old_ref, Item **new_ref);
-  void nocheck_register_item_tree_change(Item **place, Item *old_value,
-                                         MEM_ROOT *runtime_memroot);
+    @param[in] place the location that will change, and whose old value
+               we need to remember for restoration
+    @param[in] the new value about to be inserted into *place, remember
+               for associative lookup, see replace_rollback_place()
+  */
+  void nocheck_register_item_tree_change(Item **place, Item *new_value);
+
+  /**
+    Find and update change record of an underlying item based on the new
+    value for a place.
+
+    If we have already saved a position to rollback for new_value,
+    forget that rollback position and register the new place instead,
+    typically because a transformation has made the old place irrelevant.
+    If not, a no-op.
+
+    @param new_place  The new location in which we have presumably saved
+                      the new value, but which need to be rolled back to
+                      the old value.
+                      This location must also contain the new value.
+  */
+  void replace_rollback_place(Item **new_place);
+
+  /**
+    Restore locations set by calls to nocheck_register_item_tree_change().  The
+    value to be restored depends on whether replace_rollback_place()
+    has been called. If not, we restore the original value. If it has been
+    called, we restore the one supplied by the latest call to
+    replace_rollback_place()
+  */
   void rollback_item_tree_changes();
 
   /*
@@ -3762,24 +3862,6 @@ public:
     is_ddl_gtid_consistent or is_dml_gtid_consistent returned false.
   */
   bool has_gtid_consistency_violation;
-  /*
-    Hack used to communicate between MYSQL_BIN_LOG::commit and
-    Gtid_state::update_on_[commit|rollback].
-
-    Normally, MYSQL_BIN_LOG::commit will invoke some function that
-    eventually calls Gtid_state::update_on_commit.  However, in some
-    corner cases it may not happen, for instance if there is nothing
-    commit or in some error cases.  In those cases,
-    MYSQL_BIN_LOG::commit has to call
-    Gtid_state::update_on_[commit|rollback] instead.
-
-    The control flow inside MYSQL_BIN_LOG::commit is very complex, so
-    the easiest way to check if Gtid_state::update_on_commit was
-    called is to set a flag when it gets called and check the flag in
-    MYSQL_BIN_LOG::commit.
-  */
-  bool pending_gtid_state_update;
-
 
   const LEX_CSTRING &db() const
   { return m_db; }
@@ -4055,13 +4137,13 @@ public:
   }
 
   /**
-    Assign a new value to mysys_var.
+    Assign a new value to is_killable
     Protected with the LOCK_thd_data mutex.
   */
-  void set_mysys_var(struct st_my_thread_var *new_mysys_var)
+  void set_is_killable(bool is_killable_arg)
   {
     mysql_mutex_lock(&LOCK_thd_data);
-    mysys_var= new_mysys_var;
+    is_killable= is_killable_arg;
     mysql_mutex_unlock(&LOCK_thd_data);
   }
 
@@ -4337,6 +4419,15 @@ public:
     updated, when an object is transfered across threads.
   */
   void claim_memory_ownership();
+
+  bool is_a_srv_session() const { return is_a_srv_session_thd; }
+  void mark_as_srv_session() { is_a_srv_session_thd= true; }
+private:
+  /**
+    Variable to mark if the object is part of a Srv_session object, which
+    aggregates THD.
+  */
+  bool is_a_srv_session_thd;
 };
 
 /**

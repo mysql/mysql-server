@@ -257,7 +257,7 @@ void udf_init()
     }
   }
   if (error > 0)
-    sql_print_error("Got unknown error: %d", my_errno);
+    sql_print_error("Got unknown error: %d", my_errno());
   end_read_record(&read_record_info);
   table->m_needs_reopen= TRUE;                  // Force close to free memory
 

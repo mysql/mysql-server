@@ -184,7 +184,9 @@ mlog_write_initial_log_record_low(
 	ut_ad(type <= MLOG_BIGGEST_TYPE);
 	ut_ad(type == MLOG_FILE_NAME
 	      || type == MLOG_FILE_DELETE
+	      || type == MLOG_FILE_CREATE2
 	      || type == MLOG_FILE_RENAME2
+	      || type == MLOG_INDEX_LOAD
 	      || type == MLOG_TRUNCATE
 	      || mtr->is_named_space(space_id));
 

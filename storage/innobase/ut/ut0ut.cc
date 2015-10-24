@@ -797,8 +797,6 @@ ut_strerr(
 		return("not found");
 	case DB_ONLINE_LOG_TOO_BIG:
 		return("Log size exceeded during online index creation");
-	case DB_DICT_CHANGED:
-		return("Table dictionary has changed");
 	case DB_IDENTIFIER_TOO_LONG:
 		return("Identifier name is too long");
 	case DB_FTS_EXCEED_RESULT_CACHE_LIMIT:
@@ -828,6 +826,9 @@ ut_strerr(
 		       "transaction");
 	case DB_WRONG_FILE_NAME:
 		return("Invalid Filename");
+
+	case DB_COMPUTE_VALUE_FAILED:
+		return("Compute generated column failed");
 
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */
@@ -923,6 +924,12 @@ error_or_warn::~error_or_warn()
 	} else {
 		sql_print_warning("InnoDB: %s", m_oss.str().c_str());
 	}
+}
+
+fatal_or_error::~fatal_or_error()
+{
+	sql_print_error("InnoDB: %s", m_oss.str().c_str());
+	ut_a(!m_fatal);
 }
 
 } // namespace ib

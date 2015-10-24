@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,7 +38,8 @@ int hp_close(HP_INFO *info)
 #ifndef DBUG_OFF
   if (info->s->changed && heap_check_heap(info,0))
   {
-    error=my_errno=HA_ERR_CRASHED;
+    error= HA_ERR_CRASHED;
+    set_my_errno(error);
   }
 #endif
   info->s->changed=0;

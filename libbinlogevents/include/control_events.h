@@ -1253,12 +1253,6 @@ protected:
     </td>
   </tr>
 
-  <tr>
-    <td>written_to_binlog</td>
-    <td>1 byte bool</td>
-    <td>Identifies if the event was already written to the binlog.</td>
-  </tr>
-
 */
 class View_change_event : public Binary_log_event
 {
@@ -1289,7 +1283,7 @@ public:
 
   virtual ~View_change_event();
 
-  static char *read_data_map(char *pos, unsigned int map_len,
+  static char *read_data_map(char *pos, uint32_t map_len,
                              std::map<std::string, std::string> *map);
 
 #ifndef HAVE_MYSYS
@@ -1307,17 +1301,14 @@ protected:
   static const int ENCODED_SEQ_NUMBER_OFFSET= 40;
   // 4 bytes length.
   static const int ENCODED_CERT_INFO_SIZE_OFFSET= 48;
-  // 1 bytes length
-  static const int ENCODED_WRITTEN_FLAG_OFFSET= 52;
 
 
   /*
     The layout of the buffer is as follows
-    +--------------------- -+-------------+----------+---------+
-    | View Id               | seq number  | map size | written |
-    +-----------------------+-------------+----------+---------+
+    +--------------------- -+-------------+----------+
+    | View Id               | seq number  | map size |
+    +-----------------------+-------------+----------+
    view id (40 bytes) + seq number (8 bytes) + map size (4 bytes)
-      + written flag (1 byte)
    Sum of the length of the values at the above OFFSETS.
   */
 
@@ -1327,15 +1318,13 @@ protected:
   //Field sizes on serialization
   static const int ENCODED_VIEW_ID_MAX_LEN= 40;
   static const int ENCODED_CERT_INFO_KEY_SIZE_LEN= 2;
-  static const int ENCODED_CERT_INFO_VALUE_LEN= 2;
+  static const int ENCODED_CERT_INFO_VALUE_LEN= 4;
 
   char view_id[ENCODED_VIEW_ID_MAX_LEN];
 
   long long int seq_number;
 
   std::map<std::string, std::string> certification_info;
-
-  bool written_to_binlog;
 };
 
 

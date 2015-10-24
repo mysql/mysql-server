@@ -119,13 +119,27 @@ bool Partition_share::init_auto_inc_mutex(TABLE_SHARE *table_share)
 }
 
 
+/**
+  Release reserved auto increment values not used.
+  @param thd             Thread.
+  @param table_share     Table Share
+  @param next_insert_id  Next insert id (first non used auto inc value).
+  @param max_reserved    End of reserved auto inc range.
+*/
 void
-Partition_share::release_auto_inc_if_possible(THD *thd,
+Partition_share::release_auto_inc_if_possible(THD *thd, TABLE_SHARE *table_share,
                                               const ulonglong next_insert_id,
                                               const ulonglong max_reserved)
 {
   DBUG_ASSERT(auto_inc_mutex);
-  mysql_mutex_assert_owner(auto_inc_mutex);
+
+#ifndef DBUG_OFF
+  if (table_share->tmp_table == NO_TMP_TABLE)
+  {
+    mysql_mutex_assert_owner(auto_inc_mutex);
+  }
+#endif /* DBUG_OFF */
+
   /*
     If the current auto_increment values is lower than the reserved value (1)
     and the reserved value was reserved by this thread (2), then we can
@@ -844,7 +858,7 @@ void Partition_helper::ph_release_auto_increment()
   {
     ulonglong max_reserved= m_handler->auto_inc_interval_for_cur_row.maximum();
     lock_auto_increment();
-    m_part_share->release_auto_inc_if_possible(get_thd(),
+    m_part_share->release_auto_inc_if_possible(get_thd(), m_table->s,
                                                m_handler->next_insert_id,
                                                max_reserved);
     DBUG_PRINT("info", ("part_share->next_auto_inc_val: %lu",
@@ -1707,7 +1721,7 @@ bool Partition_helper::print_admin_msg(THD* thd,
   msgbuf[len - 1] = 0; // healthy paranoia
 
 
-  if (!thd->vio_ok())
+  if (!thd->get_protocol()->connection_alive())
   {
     sql_print_error("%s", msgbuf);
     goto err;

@@ -24,10 +24,10 @@
 #include "spatial.h"           // gis_wkb_raw_free
 #include "item_strfunc.h"      // Item_str_func
 #include "item_json_func.h"    // Item_json_func
+#include "json_dom.h"          // JSON
 
 #include <vector>
 #include <set>
-#include <rapidjson/document.h>
 
 
 /**
@@ -256,7 +256,8 @@ public:
   Item_func_as_wkb(const POS &pos, Item *a): Item_geometry_func(pos, a) {}
   const char *func_name() const { return "st_aswkb"; }
   String *val_str(String *);
-  enum_field_types field_type() const  { return MYSQL_TYPE_BLOB; }
+  enum_field_types field_type() const  { return MYSQL_TYPE_GEOMETRY; }
+  enum Functype functype() const   { return SP_WKB_FUNC; }
 };
 
 class Item_func_geometry_type: public Item_str_ascii_func
@@ -319,25 +320,24 @@ public:
   bool fix_fields(THD *, Item **ref);
   const char *func_name() const { return "st_geomfromgeojson"; }
   Geometry::wkbType get_wkbtype(const char *typestring);
-  bool get_positions(const rapidjson::Value *coordinates, Gis_point *point);
-  bool get_linestring(const rapidjson::Value *data_array,
+  bool get_positions(const Json_array *coordinates, Gis_point *point);
+  bool get_linestring(const Json_array *data_array,
                       Gis_line_string *linestring);
-  bool get_polygon(const rapidjson::Value *data_array, Gis_polygon *polygon);
-  bool parse_object(const rapidjson::Value *object, bool *rollback,
+  bool get_polygon(const Json_array *data_array, Gis_polygon *polygon);
+  bool parse_object(const Json_object *object, bool *rollback,
                     String *buffer, bool is_parent_featurecollection,
                     Geometry **geometry);
-  bool parse_object_array(const rapidjson::Value *points,
+  bool parse_object_array(const Json_array *points,
                           Geometry::wkbType type, bool *rollback,
                           String *buffer, bool is_parent_featurecollection,
                           Geometry **geometry);
   static bool check_argument_valid_integer(Item *argument);
-  bool parse_crs_object(const rapidjson::Value *crs_object);
-  bool is_member_valid(const rapidjson::Value *parent,
-                       rapidjson::Value::ConstMemberIterator member,
-                       const char *member_name, rapidjson::Type expected_type,
-                       bool allow_null, bool *was_null);
-  rapidjson::Value::ConstMemberIterator
-  my_find_member_ncase(const rapidjson::Value *v, const char *member_name);
+  bool parse_crs_object(const Json_object *crs_object);
+  bool is_member_valid(const Json_dom *member, const char *member_name,
+                       Json_dom::enum_json_type expected_type, bool allow_null,
+                       bool *was_null);
+  const Json_dom *
+  my_find_member_ncase(const Json_object *object, const char *member_name);
 
   static const char *TYPE_MEMBER;
   static const char *CRS_MEMBER;
@@ -374,8 +374,6 @@ private:
     defaults to -1.
   */
   longlong m_srid_found_in_document;
-  /// rapidjson document to hold the parsed GeoJSON.
-  rapidjson::Document m_document;
 };
 
 
@@ -464,7 +462,7 @@ class Item_func_convex_hull: public Item_geometry_func
   bool bg_convex_hull(const Geometry *geom, String *wkb);
 public:
   Item_func_convex_hull(const POS &pos, Item *a): Item_geometry_func(pos, a) {}
-  const char *func_name() const { return "st_convex_hull"; }
+  const char *func_name() const { return "st_convexhull"; }
   String *val_str(String *);
   Field::geometry_type get_geometry_type() const;
 };
@@ -865,6 +863,7 @@ public:
   }
 private:
   op_type spatial_op;
+  String m_result_buffer;
 };
 
 
@@ -929,7 +928,7 @@ private:
   */
   Strategy_setting settings[side_strategy + 1];
   String tmp_value;                             // Stores current buffer result.
-
+  String m_tmp_geombuf;
   void set_strategies();
 public:
   Item_func_buffer(const POS &pos, PT_item_list *ilist);
@@ -991,7 +990,6 @@ public:
   longlong val_int();
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   const char *func_name() const { return "st_isvalid"; }
-  void fix_length_and_dec() { maybe_null= 0; }
 };
 
 class Item_func_dimension: public Item_int_func
@@ -1106,7 +1104,7 @@ class Item_func_srid: public Item_int_func
 public:
   Item_func_srid(const POS &pos, Item *a): Item_int_func(pos, a) {}
   longlong val_int();
-  const char *func_name() const { return "srid"; }
+  const char *func_name() const { return "st_srid"; }
   void fix_length_and_dec() { max_length= 10; maybe_null= 1; }
 };
 

@@ -32,7 +32,8 @@
 #include "sql_base.h"                    // OPEN_VIEW_ONLY
 #include "sql_class.h"                   // THD
 #include "sql_parse.h"                   // check_stack_overrun
-#include "sql_partition.h"               // mysql_unpack_partition
+#include "sql_partition.h"               // mysql_unpack_partition,
+                                         // get_partition_tablespace_names
 #include "sql_plugin.h"                  // plugin_unlock
 #include "sql_select.h"                  // actual_key_parts
 #include "sql_table.h"                   // build_table_filename
@@ -41,6 +42,7 @@
 #include "strfunc.h"                     // unhex_type2
 #include "table_cache.h"                 // table_cache_manager
 #include "table_trigger_dispatcher.h"    // Table_trigger_dispatcher
+#include "template_utils.h"              // down_cast
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -220,6 +222,17 @@ View_creation_ctx * View_creation_ctx::create(THD *thd,
 }
 
 /*************************************************************************/
+
+GRANT_INFO::GRANT_INFO()
+{
+  grant_table= 0;
+  version= 0;
+  privilege= NO_ACCESS;
+#ifndef DBUG_OFF
+  want_privilege= 0;
+#endif
+}
+
 
 /* Get column name from column hash */
 
@@ -821,7 +834,7 @@ err_not_open:
   if (error && !error_given)
   {
     share->error= error;
-    open_table_error(share, error, (share->open_errno= my_errno), 0);
+    open_table_error(share, error, (share->open_errno= my_errno()), 0);
   }
 
   DBUG_RETURN(error);
@@ -1041,7 +1054,10 @@ public:
 };
 
 
-const char *get_tablespace_name(THD *thd, const TABLE_LIST *table)
+bool get_table_and_parts_tablespace_names(
+       THD *thd,
+       TABLE_LIST *table,
+       Tablespace_hash_set *tablespace_set)
 {
   // Prepare the path to the .FRM file and open the file
   char path[FN_REFLEN + 1];           //< Path to .FRM file
@@ -1052,7 +1068,7 @@ const char *get_tablespace_name(THD *thd, const TABLE_LIST *table)
   // the file in this case.
   File file= mysql_file_open(key_file_frm, path, O_RDONLY | O_SHARE, MYF(0));
   if (file < 0)
-    return NULL;
+    return false;
 
   // Next, we read the header and do some basic verification of the
   // header fields.
@@ -1064,7 +1080,7 @@ const char *get_tablespace_name(THD *thd, const TABLE_LIST *table)
   {
     // Upon failure, return NULL, but here, we have to close the file first.
     mysql_file_close(file, MYF(MY_WME));
-    return NULL;
+    return false;
   }
 
   // For mysql versions before 50120, NDB stored the tablespace names only
@@ -1113,10 +1129,16 @@ const char *get_tablespace_name(THD *thd, const TABLE_LIST *table)
     }
     plugin_unlock(NULL, se_plugin);
 
-    // The buffers being freed at the end of the function are not allocated
-    // yet, so it is safe to return directly, after closing the file.
-    mysql_file_close(file, MYF(MY_WME));
-    return tablespace_name;
+    if (tablespace_name &&
+        strlen(tablespace_name) &&
+        tablespace_set->insert(const_cast<char*>(tablespace_name)))
+    {
+      mysql_file_close(file, MYF(MY_WME));
+      return true;
+    }
+
+    // Proceed to read tablespace names used by // partitions.
+    // Reading them from partition_info_str string in .FRM
   }
 
   // For other engines, and for cluster tables with version >= 50120, we
@@ -1126,9 +1148,10 @@ const char *get_tablespace_name(THD *thd, const TABLE_LIST *table)
   const uint n_length= uint4korr(head + 55);   //< Length of extra segment
   if (n_length == 0 || pos == 0)
   {
-    // If failing, return NULL, but here, we have to close the file first.
+    // We close the file and return success, as we no form info
+    // or extra segment.
     mysql_file_close(file, MYF(MY_WME));
-    return NULL;
+    return false;
   }
 
   // Now, we are done with the basic verification. The outline of the
@@ -1200,6 +1223,7 @@ const char *get_tablespace_name(THD *thd, const TABLE_LIST *table)
   }
 
   // Read the form information, allocate and read the extra segment.
+  bool error= true;
   mysql_file_seek(file, pos, MY_SEEK_SET,MYF(0));
   uchar forminfo[288];
   uchar *extra_segment_buff= static_cast<uchar*>(
@@ -1220,8 +1244,29 @@ const char *get_tablespace_name(THD *thd, const TABLE_LIST *table)
     next_chunk+= uint2korr(next_chunk) + 2;   // Connect string
     if (next_chunk + 2 < buff_end)
       next_chunk+= uint2korr(next_chunk) + 2; // DB type
-    if (next_chunk + 5 < buff_end)
-      next_chunk+= 5 + uint4korr(next_chunk); // Partitioning
+    if (next_chunk + 5 < buff_end) // Partitioning
+    {
+      uint32 partition_info_str_len = uint4korr(next_chunk);
+      const char *partition_info_str= NULL;
+
+      if (partition_info_str_len)
+      {
+        if (!(partition_info_str= (const char*)
+              memdup_root(thd->mem_root, next_chunk + 4,
+                          partition_info_str_len + 1)))
+        {
+          goto err;
+        }
+
+        // Fill tablespace names used by partition into tablespace_set.
+        if (get_partition_tablespace_names(
+              thd, partition_info_str, partition_info_str_len, tablespace_set))
+        {
+          goto err;
+        }
+      }
+      next_chunk+= 5 + partition_info_str_len;
+    }
     if (uint4korr(head + 51) >= 50110 && next_chunk < buff_end)
       next_chunk++;                           // Auto_partitioned
 
@@ -1256,12 +1301,21 @@ const char *get_tablespace_name(THD *thd, const TABLE_LIST *table)
     }
   }
 
+  // Fill tablespace name used by table, if present.
+  if (tablespace_name &&
+      strlen(tablespace_name) &&
+      tablespace_set->insert(const_cast<char*>(tablespace_name)))
+    error= true;
+  else
+    error= false;
+
+err:
   // Free the dynamically allocated buffers and close the .FRM file
   my_free(extra_segment_buff);
   my_free(disk_buff);
   mysql_file_close(file, MYF(MY_WME));
 
-  return tablespace_name;
+  return error;
 }
 
 
@@ -2548,7 +2602,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
  err:
   share->error= error;
-  share->open_errno= my_errno;
+  share->open_errno= my_errno();
   share->errarg= errarg;
   my_free(disk_buff);
   my_free(extra_segment_buff);
@@ -2622,7 +2676,7 @@ static bool validate_generated_expr(Field *field)
   @return
     FALSE                Ok, generated expression is fixed sucessfully 
  */
-bool fix_fields_gcol_func(THD *thd, Field *field)
+static bool fix_fields_gcol_func(THD *thd, Field *field)
 {
   uint dir_length, home_dir_length;
   bool result= TRUE;
@@ -2709,7 +2763,8 @@ end:
 }
 
 /**
-  Build the base_columns member of this generated column
+  Calculate the base_columns_map and num_non_virtual_base_cols members of
+  this generated column
 
   @param table    Table with the checked field
 
@@ -2719,8 +2774,10 @@ end:
 bool Generated_column::register_base_columns(TABLE *table)
 {
   DBUG_ENTER("register_base_columns");
-  my_bitmap_map bitbuf[bitmap_buffer_size(MAX_FIELDS) / sizeof(my_bitmap_map)];
-  MY_BITMAP base_columns_map;
+  my_bitmap_map *bitbuf=
+    static_cast<my_bitmap_map *>(alloc_root(&table->mem_root,
+                                bitmap_buffer_size(table->s->fields)));
+  DBUG_ASSERT(num_non_virtual_base_cols == 0);
   bitmap_init(&base_columns_map, bitbuf, table->s->fields, 0);
 
   MY_BITMAP *save_old_read_set= table->read_set;
@@ -2729,14 +2786,14 @@ bool Generated_column::register_base_columns(TABLE *table)
   expr_item->walk(&Item::mark_field_in_map,
                   Item::WALK_PREFIX, (uchar *) &mark_fld);
   table->read_set= save_old_read_set;
+
+  /* Calculate the number of non-virtual base columns */
   for (uint i= 0; i < table->s->fields; i++)
   {
     Field *field= table->field[i];
-    /* Virtual generated columns are not needed */
-    if (field->stored_in_db &&
-        bitmap_is_set(&base_columns_map, field->field_index) &&
-        base_columns.push_back(field))
-      DBUG_RETURN(true); // OOM
+    if (bitmap_is_set(&base_columns_map, field->field_index) &&
+        field->stored_in_db)
+      num_non_virtual_base_cols++;
   }
   DBUG_RETURN(false);
 }
@@ -2759,11 +2816,11 @@ bool Generated_column::register_base_columns(TABLE *table)
     FALSE           Success
  */
 
-bool unpack_gcol_info_from_frm(THD *thd,
-                               TABLE *table,
-                               Field *field,
-                               bool is_create_table,
-                               bool *error_reported)
+static bool unpack_gcol_info_from_frm(THD *thd,
+                                      TABLE *table,
+                                      Field *field,
+                                      bool is_create_table,
+                                      bool *error_reported)
 {
   DBUG_ENTER("unpack_gcol_info_from_frm");
   DBUG_ASSERT(field->table == table);
@@ -2845,6 +2902,7 @@ bool unpack_gcol_info_from_frm(THD *thd,
       */
       *error_reported= TRUE;
     }
+    // Any memory allocated in this function is freed in parse_err
     field->gcol_info= 0;
     goto parse_err;
   }
@@ -3185,6 +3243,7 @@ partititon_err:
                                       is_create_table,
                                       &error_reported))
         {
+          *vfield_ptr= NULL;
           error= 4; // in case no error is reported
           goto err;
         }
@@ -3221,7 +3280,7 @@ partititon_err:
 	    ibd file might be missing
           */
           error= 1;
-          DBUG_ASSERT(my_errno == HA_ERR_TABLESPACE_MISSING);
+          DBUG_ASSERT(my_errno() == HA_ERR_TABLESPACE_MISSING);
           break;
         case HA_ERR_NO_SUCH_TABLE:
 	  /*
@@ -3229,7 +3288,7 @@ partititon_err:
             as if the .frm file didn't exist
           */
 	  error= 1;
-	  my_errno= ENOENT;
+	  set_my_errno(ENOENT);
           break;
         case EMFILE:
 	  /*
@@ -3239,7 +3298,7 @@ partititon_err:
           DBUG_PRINT("error", ("open file: %s failed, too many files opened (errno: %d)", 
 		  share->normalized_path.str, ha_err));
 	  error= 1;
-	  my_errno= EMFILE;
+	  set_my_errno(EMFILE);
           break;
         default:
           outparam->file->print_error(ha_err, MYF(0));
@@ -3278,10 +3337,15 @@ partititon_err:
 
  err:
   if (! error_reported)
-    open_table_error(share, error, my_errno, 0);
+    open_table_error(share, error, my_errno(), 0);
   delete outparam->file;
   if (outparam->part_info)
     free_items(outparam->part_info->item_free_list);
+  if (outparam->vfield)
+  {
+    for (Field **vfield= outparam->vfield; *vfield; vfield++)
+      free_items((*vfield)->gcol_info->item_free_list);
+  }
   outparam->file= 0;				// For easier error checking
   outparam->db_stat=0;
   free_root(&outparam->mem_root, MYF(0));
@@ -3361,24 +3425,24 @@ void free_blobs(TABLE *table)
 
 
 /**
-  Reclaim temporary blob storage which is bigger than 
-  a threshold.
- 
+  Reclaims temporary blob storage which is bigger than a threshold.
+  Resets blob pointer.
+
   @param table A handle to the TABLE object containing blob fields
   @param size The threshold value.
- 
 */
 
-void free_field_buffers_larger_than(TABLE *table, uint32 size)
+void free_blob_buffers_and_reset(TABLE *table, uint32 size)
 {
   uint *ptr, *end;
-  for (ptr= table->s->blob_field, end=ptr + table->s->blob_fields ;
+  for (ptr= table->s->blob_field, end= ptr + table->s->blob_fields ;
        ptr != end ;
        ptr++)
   {
-    Field_blob *blob= (Field_blob*) table->field[*ptr];
+    Field_blob *blob= down_cast<Field_blob*>(table->field[*ptr]);
     if (blob->get_field_buffer_size() > size)
-        blob->mem_free();
+      blob->mem_free();
+    blob->reset();
   }
 }
 
@@ -3897,10 +3961,10 @@ File create_frm(THD *thd, const char *name, const char *db,
   }
   else
   {
-    if (my_errno == ENOENT)
+    if (my_errno() == ENOENT)
       my_error(ER_BAD_DB_ERROR,MYF(0),db);
     else
-      my_error(ER_CANT_CREATE_TABLE,MYF(0),table,my_errno);
+      my_error(ER_CANT_CREATE_TABLE,MYF(0),table,my_errno());
   }
   return (file);
 } /* create_frm */
@@ -4545,8 +4609,51 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
 
   /* Tables may be reused in a sub statement. */
   DBUG_ASSERT(!file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
+  
+  bool error __attribute__((unused))= refix_gc_items(thd);
+  DBUG_ASSERT(!error);
 }
 
+
+bool TABLE::refix_gc_items(THD *thd)
+{
+  if (vfield)
+  {
+    for (Field **vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
+    {
+      Field *vfield= *vfield_ptr;
+      DBUG_ASSERT(vfield->gcol_info && vfield->gcol_info->expr_item);
+      if (!vfield->gcol_info->expr_item->fixed)
+      {
+        /* 
+          Temporarily disable privileges check; already done when first fixed,
+          and then based on definer's (owner's) rights: this thread has
+          invoker's rights
+        */
+        ulong sav_want_priv= thd->want_privilege;
+        thd->want_privilege= 0;
+
+        if (fix_fields_gcol_func(thd, vfield))
+          return true;
+        
+        // Restore any privileges check
+        thd->want_privilege= sav_want_priv;
+        get_fields_in_item_tree= FALSE;
+      }
+    }
+  }
+  return false;
+}
+  
+
+void TABLE::cleanup_gc_items()
+{
+  if (!has_gcol())
+    return;
+
+  for (Field **vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
+    cleanup_items((*vfield_ptr)->gcol_info->item_free_list);
+}
 
 /*
   Create Item_field for each column in the table.
@@ -5372,10 +5479,16 @@ bool TABLE_LIST::prepare_security(THD *thd)
   {
     DBUG_ASSERT(tbl->referencing_view);
     const char *local_db, *local_table_name;
-    if (tbl->view)
+    if (tbl->is_view())
     {
       local_db= tbl->view_db.str;
       local_table_name= tbl->view_name.str;
+    }
+    else if (tbl->is_derived())
+    {
+      /* Initialize privileges for derived tables */
+      tbl->grant.privilege= SELECT_ACL;
+      continue;
     }
     else
     {
@@ -6009,18 +6122,25 @@ void TABLE::mark_columns_used_by_index(uint index)
 
 /*
   mark columns used by key, but don't reset other fields
+  @param  index     index number
+  @param  bitmap    bitmap to mark
+  @param  key_parts Number of leading key parts to mark. Default is UINT_MAX.
+
+  @todo consider using actual_key_parts(key_info[index]) instead of
+  key_info[index].user_defined_key_parts: if the PK suffix of a secondary
+  index is usable it should be marked.
 */
 
 void TABLE::mark_columns_used_by_index_no_reset(uint index,
-                                                   MY_BITMAP *bitmap)
+                                                MY_BITMAP *bitmap,
+                                                uint key_parts)
 {
   KEY_PART_INFO *key_part= key_info[index].key_part;
-  KEY_PART_INFO *key_part_end= (key_part +
-                                key_info[index].user_defined_key_parts);
+  KEY_PART_INFO *key_part_end=
+    key_part +
+    std::min(key_info[index].user_defined_key_parts, key_parts);
   for (;key_part != key_part_end; key_part++)
-  {
     bitmap_set_bit(bitmap, key_part->fieldnr-1);
-  }
 }
 
 
@@ -6069,8 +6189,9 @@ void TABLE::mark_columns_needed_for_delete()
 {
   mark_columns_per_binlog_row_image();
 
-  if (triggers)
-    triggers->mark_fields(TRG_EVENT_DELETE);
+  if (triggers && triggers->mark_fields(TRG_EVENT_DELETE))
+    return;
+
   if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE)
   {
     Field **reg_field;
@@ -6454,7 +6575,7 @@ void TABLE::use_index(int key_to_save)
    */
   for (reg_field=field ; *reg_field; reg_field++)
   {
-    if(!(*reg_field)->part_of_key.is_set(key_to_save))
+    if (key_to_save < 0 || !(*reg_field)->part_of_key.is_set(key_to_save))
       (*reg_field)->key_start.clear_all();
     (*reg_field)->part_of_key.clear_all();
     (*reg_field)->part_of_sortkey.clear_all();
@@ -6522,7 +6643,8 @@ void TABLE::mark_columns_needed_for_insert()
       row replacement or update write_record() will mark all table
       fields as used.
     */
-    triggers->mark_fields(TRG_EVENT_INSERT);
+    if (triggers->mark_fields(TRG_EVENT_INSERT))
+      return;
   }
   if (found_next_number_field)
     mark_auto_increment_column();
@@ -6595,12 +6717,6 @@ void TABLE::mark_generated_columns(bool is_update)
     {
       tmp_vfield= *vfield_ptr;
       DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
-      Mark_field mark_fld(MARK_COLUMNS_TEMP);
-      MY_BITMAP *save_old_read_set= read_set;
-      bitmap_clear_all(&dependent_fields);
-      read_set= &dependent_fields;
-      tmp_vfield->gcol_info->expr_item->walk(&Item::mark_field_in_map,
-                              Item::WALK_PREFIX, (uchar *) &mark_fld);
 
       /*
         We need to evaluate the GC if:
@@ -6614,9 +6730,9 @@ void TABLE::mark_generated_columns(bool is_update)
            be located first, for that the GC's value is needed.
       */
       if ((!tmp_vfield->stored_in_db && tmp_vfield->m_indexed) ||
-          bitmap_is_overlapping(read_set, write_set))
+          bitmap_is_overlapping(write_set,
+                                &tmp_vfield->gcol_info->base_columns_map))
       {
-        read_set= save_old_read_set;
         // The GC needs to be updated
         tmp_vfield->table->mark_column_used(in_use, tmp_vfield,
                                             MARK_COLUMNS_WRITE);
@@ -6625,8 +6741,6 @@ void TABLE::mark_generated_columns(bool is_update)
                                             MARK_COLUMNS_READ);
         bitmap_updated= TRUE;
       }
-      else
-        read_set= save_old_read_set;
     }
   }
   else // Insert needs to evaluate all generated columns
@@ -7114,12 +7228,12 @@ static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
   {
     THD *thd= field->table->in_use;
     key++;
-    entry= new (thd->stmt_arena->mem_root) Derived_key();
+    entry= new (thd->mem_root) Derived_key();
     if (!entry)
       return TRUE;
     entry->referenced_by= ref_by_tbl;
     entry->used_fields.clear_all();
-    if (derived_key_list.push_back(entry, thd->stmt_arena->mem_root))
+    if (derived_key_list.push_back(entry, thd->mem_root))
       return TRUE;
     field->table->max_keys++;
   }
@@ -7342,39 +7456,6 @@ bool is_simple_order(ORDER *order)
   return TRUE;
 }
 
-/**
-  Check whether a given virtual generated column is part of a covering index.
-
-  @note that this ignores the number of key parts used by MySQL: if the index
-  is on (other, vgcol) and MySQL chooses to use it but only its first
-  key part, this function still returns true. Fortunately, if vgcol is needed
-  it is in read_set, and is part of the complete index, then InnoDB will read
-  the complete index entry (see build_template_needs_field()) and provide the
-  vgcol's value. So the number of key parts used by MySQL is irrelevant here.
-
-  @param table        pointer of the table
-  @param index_no     the number of index to be checked
-  @param vfield       the pointer of checked virtual generated column
-
-  @return true if the column is covered by the given index.
-*/
-static bool
-index_contains_this_virtual_gcol(const TABLE *table, uint index_no,
-                                 const Field *vfield)
-{
-  DBUG_ASSERT(index_no != MAX_KEY && table->key_read);
-  const KEY *key= table->key_info + index_no;
-
-  for (KEY_PART_INFO *key_part= key->key_part;
-       key_part < key->key_part + key->user_defined_key_parts;
-       key_part++)
-  {
-    if (key_part->field == vfield)
-      return true;
-  }
-  return false;
-}
-
 
 /**
   Repoint a table's fields from old_rec to new_rec
@@ -7394,21 +7475,42 @@ void repoint_field_to_record(TABLE *table, uchar *old_rec, uchar *new_rec)
 
 
 /**
-  Evaluate each virtual generated column marked in read_set.
+  Evaluate necessary virtual generated columns.
   This is used right after reading a row from the storage engine.
 
-  @note this is not necessary for stored generated fields.
+  @note this is not necessary for stored generated columns, as they are
+  provided by the storage engine.
 
   @param buf[in,out]     the buffer to store data
   @param table           the TABLE object
-  @param active_index    the number of key for index scan(MAX_KEY is default)
+  @param active_index    the number of key for index scan (MAX_KEY is default)
 
   @return true if error.
+
+  @todo see below for potential conflict with Bug#21815348 .
  */
 bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index)
 {
   DBUG_ENTER("update_generated_read_fields");
   DBUG_ASSERT(table && table->vfield);
+  if (active_index != MAX_KEY && table->key_read)
+  {
+    /*
+      The covering index is providing all necessary columns, including
+      generated ones.
+      Note that this logic may have to be reconsidered when we fix
+      Bug#21815348; indeed, for that bug it could be possible to implement the
+      following optimization: if A is an indexed base column, and B is a
+      virtual generated column dependent on A, "select B from t" could choose
+      an index-only scan over the index of A and calculate values of B on the
+      fly. In that case, we would come here, however calculation of B would
+      still be needed.
+      Currently MySQL doesn't choose an index scan in that case because it
+      considers B as independent from A, in its index-scan decision logic.
+    */
+    DBUG_RETURN(false);
+  }
+
   int error= 0;
 
   /*
@@ -7423,18 +7525,13 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index)
   {
     Field *vfield= *vfield_ptr;
     DBUG_ASSERT(vfield->gcol_info && vfield->gcol_info->expr_item);
-    /**
+    /*
       Only calculate those virtual generated fields that are marked in the
-      read_set bitmap and not filled.
-      @todo: Consider replacing index_contains_this_virtual_gcol with
-             a test on part_of_key below.
+      read_set bitmap.
     */
     if (!vfield->stored_in_db &&
-        bitmap_is_set(table->read_set, vfield->field_index) &&
-        !(active_index != MAX_KEY && table->key_read &&
-          index_contains_this_virtual_gcol(table, active_index, vfield)))
+        bitmap_is_set(table->read_set, vfield->field_index))
     {
-      /* Generate the actual value of the generated fields */
       error= vfield->gcol_info->expr_item->save_in_field(vfield, 0);
       DBUG_PRINT("info", ("field '%s' - updated", vfield->field_name));
       if (error && !table->in_use->is_error())
@@ -7475,6 +7572,7 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index)
   @note We need calculate data for both virtual and stored generated
   fields.
 
+  @param bitmap         Bitmap over fields to update
   @param table          the TABLE object
 
   @return
@@ -7484,7 +7582,7 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index)
       true   - Error occurred during the generation/calculation of a generated
                field value
  */
-bool update_generated_write_fields(TABLE *table)
+bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table)
 {
   DBUG_ENTER("update_generated_write_fields");
   Field **vfield_ptr;
@@ -7497,20 +7595,20 @@ bool update_generated_write_fields(TABLE *table)
     Field *vfield;
     vfield= (*vfield_ptr);
     DBUG_ASSERT(vfield->gcol_info && vfield->gcol_info->expr_item);
-    /* Only update those fields that are marked in the write_set bitmap */
-    if (bitmap_is_set(table->write_set, vfield->field_index))
+
+    /* Only update those fields that are marked in the bitmap */
+    if (bitmap_is_set(bitmap, vfield->field_index))
     {
       /*
         For a virtual generated column of blob type, we have to keep
         the current blob value since this might be needed by the
-        storage enngine during updates.
+        storage engine during updates.
       */
       if (vfield->type() == MYSQL_TYPE_BLOB && vfield->is_virtual_gcol())
-        (down_cast<Field_blob *>(vfield))->set_keep_old_value(true);
+        (down_cast<Field_blob*>(vfield))->keep_old_value();
+
       /* Generate the actual value of the generated fields */
       error= vfield->gcol_info->expr_item->save_in_field(vfield, 0);
-      if (vfield->type() == MYSQL_TYPE_BLOB && vfield->is_virtual_gcol())
-        (down_cast<Field_blob *>(vfield))->set_keep_old_value(false);
 
       DBUG_PRINT("info", ("field '%s' - updated", vfield->field_name));
       if (error && !table->in_use->is_error())
@@ -7550,9 +7648,9 @@ void TABLE::mark_gcol_in_maps(Field *field)
 {
   bitmap_set_bit(write_set, field->field_index);
   /*
-    Using MARK_COLUMNS_TEMP has the effect that underlying base columns
-    are added to read_set but not added to requirements for an index to be
-    covering (covering_keys is not touched). So, if we have:
+    Note that underlying base columns are here added to read_set but not added
+    to requirements for an index to be covering (covering_keys is not touched).
+    So, if we have:
     SELECT gcol FROM t :
     - an index covering gcol only (not including base columns), can still be
     chosen by the optimizer; note that InnoDB's build_template_needs_field()
@@ -7562,7 +7660,13 @@ void TABLE::mark_gcol_in_maps(Field *field)
     they are in read_set.
     - Note how this relies on InnoDB's behaviour.
   */
-  Mark_field mf(this, MARK_COLUMNS_TEMP);
-  field->gcol_info->expr_item->walk(&Item::mark_field_in_map,Item::WALK_PREFIX,
-                                    reinterpret_cast<uchar *>(&mf));
+  for (uint i= 0; i < s->fields; i++)
+  {
+    if (bitmap_is_set(&field->gcol_info->base_columns_map, i))
+    {
+      bitmap_set_bit(read_set, i);
+      if (this->field[i]->is_virtual_gcol())
+        bitmap_set_bit(write_set, i);
+    }
+  }
 }

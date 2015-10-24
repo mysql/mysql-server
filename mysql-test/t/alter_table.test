@@ -2652,3 +2652,53 @@ ALTER TABLE t TABLESPACE s;
 --echo # Drop table and tablespace.
 DROP TABLE t;
 DROP TABLESPACE s ENGINE InnoDB;
+
+
+--echo #
+--echo # BUG#20106837: ALTER TABLE WHICH DROPS AND ADDS THE SAME FULLTEXT
+--echo #               INDEX IS NOT INPLACE/FAST.
+
+CREATE TABLE t1(fld1 varchar(200), FULLTEXT(fld1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES('ABCD');
+
+--enable_info
+--echo #Without patch, it was not fast a INPLACE ALTER.
+ALTER TABLE t1 DROP INDEX fld1, ADD FULLTEXT INDEX fld1(fld1);
+--disable_info
+
+--echo #Without patch, reports an error 'ER_ALTER_OPERATION_NOT_SUPPORTED'.
+ALTER TABLE t1 ALGORITHM=INPLACE, DROP INDEX fld1,
+ADD FULLTEXT INDEX fld1(fld1);
+DROP TABLE t1;
+
+--echo #Test with InnoDB engine.
+CREATE TABLE t1(fld1 varchar(200), FULLTEXT(fld1)) ENGINE=INNODB;
+INSERT INTO t1 VALUES('ABCD');
+
+--enable_info
+--echo #Without patch, it was not fast a INPLACE ALTER.
+ALTER TABLE t1 DROP INDEX fld1, ADD FULLTEXT INDEX fld1(fld1);
+--disable_info
+
+--echo #Without patch, reports an error 'ER_ALTER_OPERATION_NOT_SUPPORTED'.
+ALTER TABLE t1 ALGORITHM=INPLACE, DROP INDEX fld1,
+ADD FULLTEXT INDEX fld1(fld1);
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#20146455: FIND_KEY_CI RETURNS NULL, CAUSES CRASH IN
+--echo #               FILL_ALTER_INPLACE_INFO
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT,
+                 FOREIGN KEY (b) REFERENCES t1(a)) ENGINE= MyISAM;
+ALTER TABLE t1 RENAME INDEX b TO w, ADD FOREIGN KEY (b) REFERENCES t1(a);
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT,
+                 FOREIGN KEY (b) REFERENCES t1(a)) ENGINE= InnoDB;
+ALTER TABLE t1 RENAME INDEX b TO w, ADD FOREIGN KEY (b) REFERENCES t1(a);
+SHOW CREATE TABLE t1;
+DROP TABLE t1;

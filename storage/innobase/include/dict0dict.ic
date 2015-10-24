@@ -482,6 +482,7 @@ dict_table_get_n_v_cols(
 /** Check if a table has indexed virtual columns
 @param[in]	table	the table to check
 @return true is the table has indexed virtual columns */
+UNIV_INLINE
 bool
 dict_table_has_indexed_v_cols(
 	const dict_table_t*	table)
@@ -1553,6 +1554,37 @@ dict_max_field_len_store_undo(
 	}
 
 	return(prefix_len);
+}
+
+/** Determine maximum bytes of a virtual column need to be stored
+in the undo log.
+@param[in]	table		dict_table_t for the table
+@param[in]	col_no		virtual column number
+@return maximum bytes of virtual column to be stored in the undo log */
+UNIV_INLINE
+ulint
+dict_max_v_field_len_store_undo(
+	dict_table_t*		table,
+	ulint			col_no)
+{
+	const dict_col_t*	col
+		= &dict_table_get_nth_v_col(table, col_no)->m_col;
+	ulint			max_log_len;
+
+	/* This calculation conforms to the non-virtual column
+	maximum log length calculation:
+	1) for UNIV_FORMAT_A, upto REC_ANTELOPE_MAX_INDEX_COL_LEN
+	for UNIV_FORMAT_B, upto col->max_prefix or
+	2) REC_VERSION_56_MAX_INDEX_COL_LEN, whichever is less */
+	if (dict_table_get_format(table) >= UNIV_FORMAT_B) {
+		max_log_len = (col->max_prefix > 0)
+			? col->max_prefix
+			: DICT_MAX_FIELD_LEN_BY_FORMAT(table);
+	} else {
+		max_log_len = REC_ANTELOPE_MAX_INDEX_COL_LEN;
+	}
+
+	return(max_log_len);
 }
 
 /**********************************************************************//**

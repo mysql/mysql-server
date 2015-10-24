@@ -126,6 +126,20 @@ public:
 
 	int open(const char *name, int mode, uint test_if_locked);
 
+	/** Opens dictionary table object using table name. For partition, we need to
+	try alternative lower/upper case names to support moving data files across
+	platforms.
+	@param[in]	table_name	name of the table/partition
+	@param[in]	norm_name	normalized name of the table/partition
+	@param[in]	is_partition	if this is a partition of a table
+	@param[in]	ignore_err	error to ignore for loading dictionary object
+	@return dictionary table object or NULL if not found */
+	static dict_table_t* open_dict_table(
+	const char*		table_name,
+	const char*		norm_name,
+	bool			is_partition,
+	dict_err_ignore_t	ignore_err);
+
 	handler* clone(const char *name, MEM_ROOT *mem_root);
 
 	int close(void);
@@ -248,6 +262,10 @@ public:
 	int get_parent_foreign_key_list(
 		THD*			thd,
 		List<FOREIGN_KEY_INFO>*	f_key_list);
+
+	int get_cascade_foreign_key_table_list(
+		THD*				thd,
+		List<st_handler_tablename>*	fk_table_list);
 
 	bool can_switch_engines();
 
@@ -478,6 +496,10 @@ protected:
 
 	/** Save CPU time with prebuilt/cached data structures */
 	row_prebuilt_t*		m_prebuilt;
+
+	/** prebuilt pointer for the right prebuilt. For native
+	partitioning, points to the current partition prebuilt. */
+	row_prebuilt_t**	m_prebuilt_ptr;
 
 	/** Thread handle of the user currently using the handler;
 	this is set in external_lock function */
@@ -1031,7 +1053,9 @@ innodb_rec_per_key(
 /** Build template for the virtual columns and their base columns
 @param[in]	table		MySQL TABLE
 @param[in]	ib_table	InnoDB dict_table_t
-@param[in,out]	share		InnoDB share structure
+@param[in,out]	s_templ		InnoDB template structure
+@param[in]	add_v		new virtual columns added along with
+				add index call
 @param[in]	locked		true if innobase_share_mutex is held
 @param[in]	share_tbl_name	original MySQL table name */
 void
@@ -1039,6 +1063,7 @@ innobase_build_v_templ(
 	const TABLE*		table,
 	const dict_table_t*	ib_table,
 	innodb_col_templ_t*	s_templ,
+	const dict_add_v_col_t*	add_v,
 	bool			locked,
 	const char*		share_tbl_name);
 

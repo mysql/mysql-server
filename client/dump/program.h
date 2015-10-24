@@ -45,6 +45,10 @@ public:
 
   void error(const Mysql::Tools::Base::Message_data& message);
 
+  void short_usage();
+
+  void check_mutually_exclusive_options();
+
 private:
   bool message_handler(const Mysql::Tools::Base::Message_data& message);
   void error_log_file_callback(char*);

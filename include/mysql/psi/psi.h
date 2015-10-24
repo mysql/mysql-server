@@ -292,6 +292,10 @@ typedef struct PSI_bootstrap PSI_bootstrap;
 
 #ifdef DISABLE_ALL_PSI
 
+#ifndef DISABLE_PSI_THREAD
+#define DISABLE_PSI_THREAD
+#endif
+
 #ifndef DISABLE_PSI_MUTEX
 #define DISABLE_PSI_MUTEX
 #endif
@@ -794,7 +798,10 @@ typedef unsigned int PSI_thread_key;
   To instrument a file, a file key must be obtained using @c register_file.
   Using a zero key always disable the instrumentation.
 */
+#ifndef PSI_FILE_KEY_DEFINED
 typedef unsigned int PSI_file_key;
+#define PSI_FILE_KEY_DEFINED
+#endif
 
 /**
   Instrumented stage key.
@@ -1237,6 +1244,8 @@ struct PSI_statement_locker_state_v1
   char m_schema_name[PSI_SCHEMA_NAME_LEN];
   /** Length in bytes of @c m_schema_name. */
   uint m_schema_name_length;
+  /** Statement character set number. */
+  uint m_cs_number;
   PSI_sp_share *m_parent_sp_share;
   PSI_prepared_stmt *m_parent_prepared_stmt;
 };
@@ -1580,6 +1589,13 @@ typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread,
                                    ulonglong id);
 
 /**
+  Assign the current operating system thread id to an instrumented thread.
+  The operating system task id is obtained from @c gettid()
+  @param thread the instrumented thread
+*/
+typedef void (*set_thread_os_id_v1_t)(struct PSI_thread *thread);
+
+/**
   Get the instrumentation for the running thread.
   For this function to return a result,
   the thread instrumentation must have been attached to the
@@ -1892,6 +1908,15 @@ typedef struct PSI_file* (*end_file_open_wait_v1_t)
 */
 typedef void (*end_file_open_wait_and_bind_to_descriptor_v1_t)
   (struct PSI_file_locker *locker, File file);
+
+/**
+  End a file instrumentation open operation, for non stream temporary files.
+  @param locker the file locker.
+  @param file the file number assigned by open() or create() for this file.
+  @param filename the file name generated during temporary file creation.
+*/
+typedef void (*end_temp_file_open_wait_and_bind_to_descriptor_v1_t)
+  (struct PSI_file_locker *locker, File file, const char *filename);
 
 /**
   Record a file instrumentation start event.
@@ -2461,6 +2486,8 @@ struct PSI_v1
   set_thread_id_v1_t set_thread_id;
   /** @sa set_thread_THD_v1_t. */
   set_thread_THD_v1_t set_thread_THD;
+  /** @sa set_thread_os_id_v1_t. */
+  set_thread_os_id_v1_t set_thread_os_id;
   /** @sa get_thread_v1_t. */
   get_thread_v1_t get_thread;
   /** @sa set_thread_user_v1_t. */
@@ -2534,6 +2561,9 @@ struct PSI_v1
   /** @sa end_file_open_wait_and_bind_to_descriptor_v1_t. */
   end_file_open_wait_and_bind_to_descriptor_v1_t
     end_file_open_wait_and_bind_to_descriptor;
+  /** @sa end_temp_file_open_wait_and_bind_to_descriptor_v1_t. */
+  end_temp_file_open_wait_and_bind_to_descriptor_v1_t
+    end_temp_file_open_wait_and_bind_to_descriptor;
   /** @sa start_file_wait_v1_t. */
   start_file_wait_v1_t start_file_wait;
   /** @sa end_file_wait_v1_t. */

@@ -32,6 +32,7 @@
 #include "sql_show.h"                  // append_identifier
 #include "sql_table.h"                 // primary_key_name
 #include "sql_insert.h"                // Sql_cmd_insert_base
+#include "lex_token.h"
 
 
 extern int HINT_PARSER_parse(THD *thd,
@@ -278,6 +279,7 @@ Lex_input_stream::reset(const char *buffer, size_t length)
   yylval= NULL;
   lookahead_token= -1;
   lookahead_yylval= NULL;
+  skip_digest= false;
   /*
     Lex_input_stream modifies the query string in one special case (sic!).
     yyUnput() modifises the string when patching version comments.
@@ -593,6 +595,7 @@ void lex_end(LEX *lex)
 
   delete lex->sphead;
   lex->sphead= NULL;
+  lex->insert_update_values_map.clear();
 
   DBUG_VOID_RETURN;
 }
@@ -885,7 +888,8 @@ static bool consume_optimizer_hints(Lex_input_stream *lip)
     lip->yySkipn(whitespace); // skip whitespace
 
     Hint_scanner hint_scanner(lip->m_thd, lip->yylineno, lip->get_ptr(),
-                              lip->get_end_of_query() - lip->get_ptr());
+                              lip->get_end_of_query() - lip->get_ptr(),
+                              lip->m_digest);
     PT_hint_list *hint_list= NULL;
     int rc= HINT_PARSER_parse(lip->m_thd, &hint_scanner, &hint_list);
     if (rc == 2)
@@ -905,6 +909,7 @@ static bool consume_optimizer_hints(Lex_input_stream *lip)
       lip->yylineno= hint_scanner.get_lineno();
       lip->yySkipn(hint_scanner.get_ptr() - lip->get_ptr());
       lip->yylval->optimizer_hints= hint_list; // NULL in case of syntax error
+      lip->m_digest= hint_scanner.get_digest(); // NULL is digest buf. is full.
       return false;
     }
   }
@@ -935,8 +940,13 @@ static int find_keyword(Lex_input_stream *lip, uint len, bool function)
       return OR2_SYM;
 
     lip->yylval->optimizer_hints= NULL;
-    if ((symbol->group & SG_HINTABLE_KEYWORDS) && consume_optimizer_hints(lip))
-      return ABORT_SYM;
+    if (symbol->group & SG_HINTABLE_KEYWORDS)
+    {
+      lip->add_digest_token(symbol->tok, lip->yylval);
+      if (consume_optimizer_hints(lip))
+        return ABORT_SYM;
+      lip->skip_digest= true;
+    }
 
     return symbol->tok;
   }
@@ -1401,7 +1411,9 @@ int MYSQLlex(YYSTYPE *yylval, YYLTYPE *yylloc, THD *thd)
 
   yylloc->cpp.end= lip->get_cpp_ptr();
   yylloc->raw.end= lip->get_ptr();
-  lip->add_digest_token(token, yylval);
+  if (!lip->skip_digest)
+    lip->add_digest_token(token, yylval);
+  lip->skip_digest= false;
   return token;
 }
 
@@ -1456,6 +1468,13 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
       {
         state=MY_LEX_COMMENT;
         break;
+      }
+
+      if (c == '-' && lip->yyPeek() == '>')    // '->'
+      {
+        lip->yySkip();
+        lip->next_state= MY_LEX_START;
+        return JSON_SEPARATOR_SYM;
       }
 
       if (c != ')')
@@ -2077,7 +2096,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
       case MY_LEX_STRING:
       case MY_LEX_USER_VARIABLE_DELIMITER:
       case MY_LEX_STRING_OR_DELIMITER:
-	break;
+        break;
       case MY_LEX_USER_END:
 	lip->next_state=MY_LEX_SYSTEM_VAR;
 	break;
@@ -3124,7 +3143,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
     {
       if (opt_hints_qb)
         opt_hints_qb->append_qb_hint(thd, &hint_str);
-      thd->lex->opt_hints_global->print(thd, &hint_str);
+      thd->lex->opt_hints_global->print(thd, &hint_str, query_type);
     }
     else if (opt_hints_qb)
       opt_hints_qb->append_qb_hint(thd, &hint_str);
@@ -3145,7 +3164,6 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
       Item::val*() don't have an error status). In this case the query block
       may be broken and printing it may crash.
     */
-    DBUG_ASSERT(0);
     str->append(STRING_WITH_LEN("had some error"));
     return;
   }
@@ -3518,6 +3536,7 @@ LEX::LEX()
    option_type(OPT_DEFAULT),
    is_set_password_sql(false),
    // Initialize here to avoid uninitialized variable warnings.
+   contains_plaintext_password(false),
    keep_diagnostics(DA_KEEP_UNSPECIFIED),
    is_lex_started(0),
   in_update_value_clause(false)

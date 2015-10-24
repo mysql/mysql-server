@@ -54,7 +54,7 @@ typedef std::map<int, mi_map> replication_channel_map;
   Relay_log_info by mi->rli;
 
   This class is not yet thread safe. Any part of replication code that
-  calls this class member function should always Lock the mutex LOCK_msr_map.
+  calls this class member function should always lock the channel_map.
 
   Only a single global object for a server instance should be created.
 
@@ -79,7 +79,7 @@ typedef std::map<int, mi_map> replication_channel_map;
            }
           }
          </pseudo_code>
-         However, we lock LOCK_msr_map for every rnd_next(); There is a gap
+         However, we lock channel_map lock for every rnd_next(); There is a gap
          where an addition/deletion of a channel would rearrange the map
          making the integer indices of the pfs table point to a wrong value.
          Either missing a row or duplicating a row.
@@ -88,13 +88,6 @@ typedef std::map<int, mi_map> replication_channel_map;
          replciation pfs tables, by marking a master_info defeated as 0
          (i.e NULL). A new master info is added to this array at the
          first NULL always.
-
-  @todo: Make this class a singleton, so that only one object exists for an
-         instance.
-
-  @optional_todo: since every select * in replication pfs table depends on
-         LOCK_msr_map, think of either splitting the lock into rw lock
-         OR making a copy of all slave_info_objects for info display.
 */
 class Multisource_info
 {
@@ -114,7 +107,16 @@ private:
     and cannot be modified.
   */
   static const char* default_channel;
+  Master_info *default_channel_mi;
   static const char* group_replication_channel_names[];
+
+  /**
+    This lock was designed to protect the channel_map from adding or removing
+    master_info objects from the map (adding or removing replication channels).
+    In fact it also acts like the LOCK_active_mi of MySQL 5.6, preventing two
+    replication administrative commands to run in parallel.
+  */
+  Checkable_rwlock *m_channel_map_lock;
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 
@@ -134,12 +136,32 @@ public:
   /* Constructor for this class.*/
   Multisource_info()
   {
+    /*
+      This class should be a singleton.
+      The assert below is to prevent it to be instantiated more than once.
+    */
+#ifndef DBUG_OFF
+    static int instance_count= 0;
+    instance_count++;
+    DBUG_ASSERT(instance_count == 1);
+#endif
     current_mi_count= 0;
-
+    default_channel_mi= NULL;
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
     init_rpl_pfs_mi();
 #endif  /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
+    m_channel_map_lock= new Checkable_rwlock(
+#ifdef HAVE_PSI_INTERFACE
+                                             key_rwlock_channel_map_lock
+#endif
+                                            );
+  }
+
+  /* Destructor for this class.*/
+  ~Multisource_info()
+  {
+    delete m_channel_map_lock;
   }
 
   /**
@@ -159,7 +181,7 @@ public:
 
   /**
     Find the master_info object corresponding to a channel explicitly
-    from replication_channel_map;
+    from replication channel_map;
     Return if it exists, otherwise return 0
 
     @param[in]  channel       channel name for the master info object.
@@ -168,6 +190,17 @@ public:
                               in the map. Otherwise, NULL;
   */
   Master_info* get_mi(const char* channel_name);
+
+  /**
+    Return the master_info object corresponding to the default channel.
+    @retval                   pointer to the master info object if exists.
+                              Otherwise, NULL;
+  */
+  Master_info* get_default_channel_mi()
+  {
+    m_channel_map_lock->assert_some_lock();
+    return default_channel_mi;
+  }
 
   /**
     Remove the entry corresponding to the channel, from the
@@ -198,6 +231,8 @@ public:
   inline uint get_num_instances(bool all=false)
   {
     DBUG_ENTER("Multisource_info::get_num_instances");
+
+    m_channel_map_lock->assert_some_lock();
 
     replication_channel_map::iterator map_it;
 
@@ -237,9 +272,11 @@ public:
   */
   inline bool is_valid_channel_count()
   {
+    m_channel_map_lock->assert_some_lock();
+    bool is_valid= current_mi_count < MAX_CHANNELS;
     DBUG_EXECUTE_IF("max_replication_channels_exceeded",
-                    current_mi_count= MAX_CHANNELS+1;);
-    return (current_mi_count < MAX_CHANNELS);
+                    is_valid= false;);
+    return (is_valid);
   }
 
   /**
@@ -333,10 +370,53 @@ public:
   Master_info* get_mi_at_pos(uint pos);
 #endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */
 
+  /**
+    Acquire the read lock.
+  */
+  inline void rdlock()
+  { m_channel_map_lock->rdlock(); }
+
+  /**
+    Acquire the write lock.
+  */
+  inline void wrlock()
+  { m_channel_map_lock->wrlock(); }
+
+  /**
+    Release the lock (whether it is a write or read lock).
+  */
+  inline void unlock()
+  { m_channel_map_lock->unlock(); }
+
+  /**
+    Assert that some thread holds either the read or the write lock.
+  */
+  inline void assert_some_lock() const
+  { m_channel_map_lock->assert_some_lock(); }
+
+  /**
+    Assert that some thread holds the write lock.
+  */
+  inline void assert_some_wrlock() const
+  { m_channel_map_lock->assert_some_wrlock(); }
 };
 
 /* Global object for multisourced slave. */
-extern Multisource_info  msr_map;
+extern Multisource_info channel_map;
+
+static bool inline is_slave_configured()
+{
+  /* Server was started with server_id == 0
+     OR
+     failure to load slave info repositories because of repository
+     mismatch i.e Assume slave had a multisource replication with several
+     channels setup with TABLE repository. Then if the slave is restarted
+     with FILE repository, we fail to load any of the slave repositories,
+     including the default channel one.
+     Hence, channel_map.get_default_channel_mi() will return NULL.
+  */
+  return (channel_map.get_default_channel_mi() != NULL);
+}
 
 #endif   /* HAVE_REPLICATION */
 #endif  /*RPL_MSR_H*/

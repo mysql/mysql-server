@@ -7,39 +7,30 @@ call mtr.add_suppression("Did not write failed .* into binary log while "
                          "granting/revoking privileges in databases.");
 CREATE DATABASE test_user_db;
 
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 --echo ========== test 1.1 ======================================================
 # without '', without AS part
 CREATE USER plug IDENTIFIED WITH test_plugin_server;
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER plug;
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH test_plugin_server;
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH test_plugin_server BY '123';
+--source include/plugin_auth_check_non_default_users.inc
 REVOKE ALL PRIVILEGES ON test_user_db.* FROM plug;
 DROP USER plug;
 # with '', without AS part
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER plug;
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server' BY '123';
+--source include/plugin_auth_check_non_default_users.inc
 REVOKE ALL PRIVILEGES ON test_user_db.* FROM plug;
 DROP USER plug;
 # without '', AS part empty
 CREATE USER plug IDENTIFIED WITH test_plugin_server AS '';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER plug;
+--error 1133
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH test_plugin_server AS '';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
-REVOKE ALL PRIVILEGES ON test_user_db.* FROM plug;
-DROP USER plug;
 # with '', AS part empty without ''
 --error ER_PARSE_ERROR
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS ;
@@ -117,54 +108,42 @@ GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_serv
 # CREATE...WITH/CREATE...BY
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 --echo ========== test 1.1.1.6/1.1.2.5 ============================
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER plug, plug_dest;
 # 
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER plug;
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER plug_dest;
 #  GRANT...WITH/CREATE...BY
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER plug, plug_dest;
 # 
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH test_plugin_server AS 'plug_dest';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER plug;
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER plug_dest;
 # CREATE...WITH/GRANT...BY
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest IDENTIFIED BY 'plug_dest_passwd';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER plug, plug_dest;
 # 
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER plug;
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest IDENTIFIED BY 'plug_dest_passwd';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER plug_dest;
 # 
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
@@ -182,11 +161,9 @@ CREATE USER plug IDENTIFIED WITH 'test_plugin_server';
 DROP USER plug;
 # 
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED BY 'plug_dest_passwd';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER plug;
 #
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH test_plugin_server AS 'plug_dest';
@@ -196,17 +173,14 @@ DROP USER plug;
 #
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 CREATE USER plug_dest IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER plug,plug_dest;
 #
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest 
                         IDENTIFIED WITH test_plugin_server AS 'plug_dest';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER plug,plug_dest;
 # 
 
@@ -215,23 +189,19 @@ DROP USER plug,plug_dest;
 SET NAMES utf8;
 # 
 CREATE USER plüg IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER plüg;
 CREATE USER plüg_dest IDENTIFIED BY 'plug_dest_passwd';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER plüg_dest;
 
 SET NAMES ascii;
 # 
 CREATE USER 'plüg' IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER 'plüg';
 CREATE USER 'plüg_dest' IDENTIFIED BY 'plug_dest_passwd';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER 'plüg_dest';
 
 SET NAMES latin1;
@@ -240,12 +210,10 @@ SET NAMES latin1;
 --error ER_PLUGIN_IS_NOT_LOADED
 CREATE USER 'plüg' IDENTIFIED WITH 'test_plügin_server' AS 'plüg_dest';
 CREATE USER 'plug' IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER 'plug';
 CREATE USER 'plüg_dest' IDENTIFIED BY 'plug_dest_passwd';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER 'plüg_dest';
 
 SET NAMES utf8;
@@ -253,21 +221,17 @@ SET NAMES utf8;
 --error ER_PLUGIN_IS_NOT_LOADED
 CREATE USER plüg IDENTIFIED WITH 'test_plügin_server' AS 'plüg_dest';
 CREATE USER 'plüg' IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER 'plüg';
 CREATE USER 'plüg_dest' IDENTIFIED BY 'plug_dest_passwd';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER 'plüg_dest';
 
 CREATE USER plüg IDENTIFIED WITH test_plugin_server AS 'plüg_dest';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER plüg;
 CREATE USER plüg_dest IDENTIFIED BY 'plug_dest_passwd';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER plüg_dest;
 
 --echo ========== test 1.1.1.2/1.1.2.2=============================
@@ -286,12 +250,10 @@ CREATE USER plug IDENTIFIED WITH test_plugin_server AS @auth_string;
 CREATE USER plug IDENTIFIED WITH 'hh''s_test_plugin_server' AS 'plug_dest';
 
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'hh''s_plug_dest';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER plug;
 CREATE USER 'hh''s_plug_dest' IDENTIFIED BY 'plug_dest_passwd';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER 'hh''s_plug_dest';
 
 --echo ========== test 1.1.1.4 ====================================
@@ -302,23 +264,20 @@ CREATE USER plug IDENTIFIED WITH hh''s_test_plugin_server AS 'plug_dest';
 --echo ========== test 1.1.3.1 ====================================
 
 GRANT INSERT ON test_user_db.* TO grant_user IDENTIFIED WITH test_plugin_server AS 'plug_dest';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 CREATE USER plug_dest; 
 DROP USER plug_dest;
 set @orig_sql_mode = @@sql_mode;
 set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest;
 set sql_mode= @orig_sql_mode;
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER grant_user,plug_dest;
 #
 set @save_sql_mode= @@sql_mode;
 SET @@sql_mode=no_auto_create_user;
 GRANT INSERT ON test_user_db.* TO grant_user IDENTIFIED WITH test_plugin_server AS 'plug_dest';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 CREATE USER plug_dest; 
 DROP USER plug_dest;
 --error ER_PASSWORD_NO_MATCH
@@ -326,15 +285,12 @@ GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest;
 DROP USER grant_user;
 #
 GRANT INSERT ON test_user_db.* TO grant_user IDENTIFIED WITH test_plugin_server AS 'plug_dest';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
-CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd'; 
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
+CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER plug_dest;
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest IDENTIFIED BY 'plug_user_passwd';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+--source include/plugin_auth_check_non_default_users.inc
 DROP USER grant_user,plug_dest;
 #
 DROP DATABASE test_user_db;

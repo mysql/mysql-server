@@ -7,7 +7,10 @@
 --source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/not_embedded.inc
---source include/no_valgrind_without_big.inc
+#
+# Skip it in Valgrind until BUG#21631197 has been fixed
+# 
+--source include/not_valgrind.inc
 
 # Slow shutdown and restart to make sure ibuf merge is finished
 SET GLOBAL innodb_fast_shutdown = 0;
@@ -52,16 +55,18 @@ where name = 'test/t1' into @space_id;
 flush tables t1 for export;
 unlock tables;
 
+begin;
+insert into t1 values (6, repeat('%', 12));
+
+set global debug = "+d,no_checkpoint";
+
 --echo # Make the first page dirty for table t1
 set global innodb_saved_page_number_debug = 0;
 set global innodb_fil_make_page_dirty_debug = @space_id;
 
---echo # Ensure that dirty pages of table t1 is flushed.
-flush tables t1 for export;
-unlock tables;
+--echo # Ensure that dirty pages of table t1 are flushed.
+set global innodb_buf_flush_list_now = 1;
 
-begin;
-insert into t1 values (6, repeat('%', 12));
 --source include/kill_mysqld.inc
 
 --echo # Make the first page (page_no=0) of the user tablespace
@@ -93,16 +98,18 @@ where name = 'test/t1' into @space_id;
 flush tables t1 for export;
 unlock tables;
 
+begin;
+insert into t1 values (6, repeat('%', 12));
+
+set global debug = "+d,no_checkpoint";
+
 --echo # Make the first page dirty for table t1
 set global innodb_saved_page_number_debug = 0;
 set global innodb_fil_make_page_dirty_debug = @space_id;
 
---echo # Ensure that dirty pages of table t1 is flushed.
-flush tables t1 for export;
-unlock tables;
+--echo # Ensure that dirty pages of table t1 are flushed.
+set global innodb_buf_flush_list_now = 1;
 
-begin;
-insert into t1 values (6, repeat('%', 12));
 --source include/kill_mysqld.inc
 
 --echo # Corrupt the first page (page_no=0) of the user tablespace.
@@ -133,16 +140,18 @@ where name = 'test/t1' into @space_id;
 flush tables t1 for export;
 unlock tables;
 
+begin;
+insert into t1 values (6, repeat('%', 400));
+
+set global debug = "+d,no_checkpoint";
+
 --echo # Make the 2nd page dirty for table t1
 set global innodb_saved_page_number_debug = 1;
 set global innodb_fil_make_page_dirty_debug = @space_id;
 
---echo # Ensure that dirty pages of table t1 is flushed.
-flush tables t1 for export;
-unlock tables;
+--echo # Ensure that dirty pages of table t1 are flushed.
+set global innodb_buf_flush_list_now = 1;
 
-begin;
-insert into t1 values (6, repeat('%', 400));
 --source include/kill_mysqld.inc
 
 --echo # Make the 2nd page (page_no=1) of the tablespace all zeroes.
@@ -174,16 +183,18 @@ where name = 'test/t1' into @space_id;
 flush tables t1 for export;
 unlock tables;
 
+begin;
+insert into t1 values (6, repeat('%', 400));
+
+set global debug = "+d,no_checkpoint";
+
 --echo # Make the 2nd page dirty for table t1
 set global innodb_saved_page_number_debug = 1;
 set global innodb_fil_make_page_dirty_debug = @space_id;
 
---echo # Ensure that dirty pages of table t1 is flushed.
-flush tables t1 for export;
-unlock tables;
+--echo # Ensure that the dirty pages of table t1 are flushed.
+set global innodb_buf_flush_list_now = 1;
 
-begin;
-insert into t1 values (6, repeat('%', 400));
 --source include/kill_mysqld.inc
 
 --echo # Corrupt the 2nd page (page_no=1) of the user tablespace.
@@ -208,7 +219,10 @@ select f1, f2 from t1;
 --echo # Test Begin: Test if recovery works if first page of
 --echo # system tablespace is full of zeroes.
 
---echo # Ensure that the dirty page of system tablespace is flushed.
+begin;
+insert into t1 values (6, repeat('%', 400));
+
+--echo # Ensure that all dirty pages in the system are flushed.
 set global innodb_buf_flush_list_now = 1;
 
 --echo # Make the first page dirty for system tablespace
@@ -216,10 +230,13 @@ set global innodb_saved_page_number_debug = 0;
 set global innodb_fil_make_page_dirty_debug = 0;
 
 --echo # Ensure that the dirty page of system tablespace is also flushed.
+# We do this after the transaction starts and all dirty pages have been flushed
+# already. So flushing of this specified dirty page will surely keep the
+# copy in doublewrite buffer, and no more writes to doublewrite buffer would
+# overwrite the copy. Thus, we can safely modify the original page when server
+# is down. So do the following testings.
 set global innodb_buf_flush_list_now = 1;
 
-begin;
-insert into t1 values (6, repeat('%', 400));
 --source include/kill_mysqld.inc
 
 --echo # Make the first page (page_no=0) of the system tablespace
@@ -244,7 +261,10 @@ select f1, f2 from t1;
 --echo # Test Begin: Test if recovery works if first page of
 --echo # system tablespace is corrupted.
 
---echo # Ensure that the dirty page of system tablespace is flushed.
+begin;
+insert into t1 values (6, repeat('%', 400));
+
+--echo # Ensure that all dirty pages in the system are flushed.
 set global innodb_buf_flush_list_now = 1;
 
 --echo # Make the first page dirty for system tablespace
@@ -254,8 +274,6 @@ set global innodb_fil_make_page_dirty_debug = 0;
 --echo # Ensure that the dirty page of system tablespace is also flushed.
 set global innodb_buf_flush_list_now = 1;
 
-begin;
-insert into t1 values (6, repeat('%', 400));
 --source include/kill_mysqld.inc
 
 --echo # Corrupt the first page (page_no=0) of the system tablespace.
@@ -279,18 +297,19 @@ select f1, f2 from t1;
 --echo # Test Begin: Test if recovery works if 2nd page of
 --echo # system tablespace is full of zeroes.
 
---echo # Ensure that the dirty page of system tablespace is flushed.
+begin;
+insert into t1 values (6, repeat('%', 400));
+
+--echo # Ensure that all dirty pages in the system are flushed.
 set global innodb_buf_flush_list_now = 1;
 
 --echo # Make the second page dirty for system tablespace
 set global innodb_saved_page_number_debug = 1;
 set global innodb_fil_make_page_dirty_debug = 0;
 
---echo # Ensure that the dirty page of system tablespace is flushed.
+--echo # Ensure that the dirty page of system tablespace is also flushed.
 set global innodb_buf_flush_list_now = 1;
 
-begin;
-insert into t1 values (6, repeat('%', 400));
 --source include/kill_mysqld.inc
 
 --echo # Make the 2nd page (page_no=1) of the system tablespace
@@ -316,18 +335,19 @@ select f1, f2 from t1;
 --echo # Test Begin: Test if recovery works if 2nd page of
 --echo # system tablespace is corrupted.
 
---echo # Ensure that the dirty page of system tablespace is flushed.
+begin;
+insert into t1 values (6, repeat('%', 400));
+
+--echo # Ensure that all dirty pages in the system are flushed.
 set global innodb_buf_flush_list_now = 1;
 
 --echo # Make the second page dirty for system tablespace
 set global innodb_saved_page_number_debug = 1;
 set global innodb_fil_make_page_dirty_debug = 0;
 
---echo # Ensure that the dirty page of system tablespace is flushed.
+--echo # Ensure that the dirty page of system tablespace is also flushed.
 set global innodb_buf_flush_list_now = 1;
 
-begin;
-insert into t1 values (6, repeat('%', 400));
 --source include/kill_mysqld.inc
 
 --echo # Make the 2nd page (page_no=1) of the system tablespace

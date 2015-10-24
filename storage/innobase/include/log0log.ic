@@ -200,13 +200,13 @@ log_block_calc_checksum(
 	return(log_checksum_algorithm_ptr(block));
 }
 
-/** Calculates the checksum for a log block using the legacy InnoDB algorithm.
-@param[in]     block   log block
-@return        checksum */
+/** Calculate the checksum for a log block using the pre-5.7.9 algorithm.
+@param[in]	block	log block
+@return		checksum */
 UNIV_INLINE
 ulint
-log_block_calc_checksum_innodb(
-	const byte*     block)
+log_block_calc_checksum_format_0(
+	const byte*	block)
 {
 	ulint	sum;
 	ulint	sh;
@@ -229,7 +229,7 @@ log_block_calc_checksum_innodb(
 	return(sum);
 }
 
-/** Calculates the checksum for a log block using the CRC32 algorithm.
+/** Calculate the checksum for a log block using the MySQL 5.7 algorithm.
 @param[in]	block	log block
 @return checksum */
 UNIV_INLINE
@@ -238,20 +238,6 @@ log_block_calc_checksum_crc32(
 	const byte*	block)
 {
 	return(ut_crc32(block, OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE));
-}
-
-/** Calculates the checksum for a log block using the CRC32 algorithm.
-This function uses big endian byteorder when converting byte strings to
-integers.
-@param[in]	block	log block
-@return checksum */
-UNIV_INLINE
-ulint
-log_block_calc_checksum_crc32_legacy_big_endian(
-	const byte*	block)
-{
-	return(ut_crc32_legacy_big_endian(
-			block, OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE));
 }
 
 /** Calculates the checksum for a log block using the "no-op" algorithm.

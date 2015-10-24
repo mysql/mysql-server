@@ -604,6 +604,19 @@ private:
 	const bool	m_error;
 };
 
+/** Emit a fatal message if the given predicate is true, otherwise emit a
+error message. */
+class fatal_or_error : public logger {
+public:
+	fatal_or_error(bool	pred)
+	: m_fatal(pred)
+	{}
+
+	~fatal_or_error();
+private:
+	const bool	m_fatal;
+};
+
 } // namespace ib
 
 #ifndef UNIV_NONINL

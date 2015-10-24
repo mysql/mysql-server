@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ ndbcluster_connect(int (*connect_callback)(void),
   {
     sql_print_error("NDB: failed to allocate global ndb cluster connection");
     DBUG_PRINT("error", ("Ndb_cluster_connection(%s)", connect_string));
-    my_errno= HA_ERR_OUT_OF_MEM;
+    set_my_errno(HA_ERR_OUT_OF_MEM);
     DBUG_RETURN(-1);
   }
   {
@@ -81,7 +81,7 @@ ndbcluster_connect(int (*connect_callback)(void),
   {
     sql_print_error("NDB: failed to allocate global ndb object");
     DBUG_PRINT("error", ("failed to create global ndb object"));
-    my_errno= HA_ERR_OUT_OF_MEM;
+    set_my_errno(HA_ERR_OUT_OF_MEM);
     DBUG_RETURN(-1);
   }
   if (g_ndb->init() != 0)

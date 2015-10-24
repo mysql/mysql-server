@@ -644,17 +644,6 @@ public:
 
 public:
   static Geometry *create_by_typeid(Geometry_buffer *buffer, int type_id);
-  static Geometry *scan_header_and_create(wkb_parser *wkb, Geometry_buffer *buffer)
-  {
-    Geometry *geom;
-    wkb_header header;
-
-    if (wkb->scan_wkb_header(&header) ||
-        !(geom= create_by_typeid(buffer, header.wkb_type)))
-      return NULL;
-    geom->set_data_ptr(wkb->data(), wkb->length());
-    return geom;
-  }
 
   static Geometry *construct(Geometry_buffer *buffer,
                              const char *data, uint32 data_len,
@@ -782,7 +771,8 @@ protected:
   }
   static Class_info *find_class(const char *name, size_t len);
   void append_points(String *txt, uint32 n_points,
-                     wkb_parser *wkb, uint32 offset) const;
+                     wkb_parser *wkb, uint32 offset,
+                     bool bracket_pt= false) const;
   bool create_point(String *result, wkb_parser *wkb) const;
   bool create_point(String *result, point_xy p) const;
   bool get_mbr_for_points(MBR *mbr, wkb_parser *wkb, uint offset) const;
@@ -2430,7 +2420,7 @@ Gis_wkb_vector(const Gis_wkb_vector<T> &v) :Geometry(v), m_geo_vect(NULL)
   DBUG_ASSERT((v.get_ptr() != NULL && v.get_nbytes() > 0) ||
               (v.get_ptr() == NULL && !v.get_ownmem() &&
                v.get_nbytes() == 0));
-  if (v.is_bg_adapter() == false || v.get_ptr() == NULL)
+  if (!v.is_bg_adapter() || (v.get_ptr() == NULL && v.m_geo_vect == NULL))
     return;
   m_geo_vect= new Geo_vector();
   std::auto_ptr<Geo_vector> guard(m_geo_vect);
@@ -3596,6 +3586,9 @@ public:
 /*********************** GeometryCollection *******************************/
 class Gis_geometry_collection: public Geometry
 {
+private:
+  static Geometry *scan_header_and_create(wkb_parser *wkb,
+                                          Geometry_buffer *buffer);
 public:
   Gis_geometry_collection()
     :Geometry(NULL, 0, Flags_t(wkb_geometrycollection, 0), default_srid)

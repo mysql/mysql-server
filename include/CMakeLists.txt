@@ -23,6 +23,7 @@ ${CMAKE_CURRENT_BINARY_DIR}/sql_state.h
 SET(HEADERS_ABI 
   mysql.h 
   mysql_com.h
+  my_command.h
   mysql_time.h 
   my_list.h
   my_alloc.h
@@ -42,6 +43,7 @@ SET(HEADERS
   my_xml.h
   mysql_embed.h
   my_thread.h
+  my_thread_local.h
   decimal.h
   errmsg.h
   my_global.h
@@ -60,6 +62,9 @@ SET(HEADERS
   byte_order_generic_x86.h
   little_endian.h
   big_endian.h
+  thr_cond.h
+  thr_mutex.h
+  thr_rwlock.h
   ${HEADERS_GEN_CONFIGURE}
 )
 

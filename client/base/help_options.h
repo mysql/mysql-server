@@ -52,6 +52,9 @@ public:
 
 private:
   void help_callback(char* argument __attribute__((unused)));
+  void version_callback(char* argument __attribute__((unused)));
+
+  void print_version_line();
 
   Abstract_program *m_program;
 };

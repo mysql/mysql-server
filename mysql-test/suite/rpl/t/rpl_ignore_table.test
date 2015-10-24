@@ -81,10 +81,15 @@ GRANT INSERT ON *.* TO mysqltest6@localhost;
 GRANT INSERT ON test.* TO mysqltest6@localhost;
 GRANT INSERT ON test.t1 TO mysqltest6@localhost;
 
+--sorted_result
 show grants for mysqltest1@localhost;
+--sorted_result
 show grants for mysqltest2@localhost;
+--sorted_result
 show grants for mysqltest3@localhost;
+--sorted_result
 show grants for mysqltest4@localhost;
+--sorted_result
 show grants for mysqltest6@localhost;
 
 flush privileges;

@@ -40,6 +40,7 @@ class Arg_comparator: public Sql_alloc
   arg_cmp_func func;
   Item_result_field *owner;
   Arg_comparator *comparators;   // used only for compare_row()
+  uint16 comparator_count;
   double precision;
   /* Fields used in DATE/DATETIME comparison. */
   Item *a_cache, *b_cache;         // Cached values of a and b items
@@ -65,10 +66,12 @@ public:
   /* Allow owner function to use string buffers. */
   String value1, value2;
 
-  Arg_comparator(): comparators(0), a_cache(0), b_cache(0), set_null(TRUE),
+  Arg_comparator(): comparators(0), comparator_count(0),
+    a_cache(0), b_cache(0), set_null(TRUE),
     get_value_a_func(0), get_value_b_func(0), json_scalar(0)
   {}
-  Arg_comparator(Item **a1, Item **a2): a(a1), b(a2), comparators(0),
+  Arg_comparator(Item **a1, Item **a2): a(a1), b(a2),
+    comparators(0), comparator_count(0),
     a_cache(0), b_cache(0), set_null(TRUE),
     get_value_a_func(0), get_value_b_func(0), json_scalar(0)
   {}
@@ -2032,6 +2035,7 @@ public:
 
   enum Type type() const { return COND_ITEM; }
   List<Item>* argument_list() { return &list; }
+  bool eq(const Item *item, bool binary_cmp) const;
   table_map used_tables() const { return used_tables_cache; }
   void update_used_tables();
   virtual void print(String *str, enum_query_type query_type);
@@ -2149,9 +2153,9 @@ public:
   }
 
   inline Item* get_const() { return const_item; }
-  void compare_const(Item *c);
-  void add(Item *c, Item_field *f);
-  void add(Item *c);
+  bool compare_const(THD *thd, Item *c);
+  bool add(THD *thd, Item *c, Item_field *f);
+  bool add(THD *thd, Item *c);
   void add(Item_field *f);
   uint members();
   bool contains(Field *field);
@@ -2162,8 +2166,8 @@ public:
   */
   Item_field* get_first() { return fields.head(); }
   Item_field* get_subst_item(const Item_field *field);
-  void merge(Item_equal *item);
-  void update_const();
+  bool merge(THD *thd, Item_equal *item);
+  bool update_const(THD *thd);
   enum Functype functype() const { return MULT_EQUAL_FUNC; }
   longlong val_int(); 
   const char *func_name() const { return "multiple equal"; }

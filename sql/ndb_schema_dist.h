@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,7 +68,8 @@ int ndbcluster_log_schema_op(THD* thd,
                              uint32 ndb_table_version,
                              SCHEMA_OP_TYPE type,
                              const char *new_db,
-                             const char *new_table_name);
+                             const char *new_table_name,
+                             bool log_query_on_participant = true);
 
 const char* get_schema_type_name(uint type);
 

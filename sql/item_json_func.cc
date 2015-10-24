@@ -33,7 +33,6 @@
 
 // Used by the Json_path_cache
 #define JPC_UNINITIALIZED -1
-#define JPC_NULL_OR_ERROR -2
 
 /** Helper routines */
 
@@ -83,23 +82,31 @@ bool ensure_utf8mb4(String *val, String *buf,
 /**
   Parse a JSON dom out of an argument to a JSON function.
 
-  @param[in]  res     Pointer to string value of arg.
-  @param[in]  arg_idx 0-based index of corresponding JSON function argument
-  @param[in]  func_name  Name of the user-invoked JSON_ function
-  @param[out] need_parse True if we needed to parse to validate
-  @param[in,out] dom        If non-null, we want any text parsed DOM
-                            returned at the location pointed to
-  @param[in]     require_str_or_json
-                            If true, generate an error if other types used
-                            as input
+  @param[in]  res          Pointer to string value of arg.
+  @param[in]  arg_idx      0-based index of corresponding JSON function argument
+  @param[in]  func_name    Name of the user-invoked JSON_ function
+  @param[in,out] dom       If non-null, we want any text parsed DOM
+                           returned at the location pointed to
+  @param[in]  require_str_or_json
+                           If true, generate an error if other types used
+                           as input
+  @param[out] parse_error  set to true if the parser was run and found an error
+                           else false
+  @param[in]  preserve_neg_zero_int
+                           Whether integer negative zero should be preserved.
+                           If set to TRUE, -0 is handled as a DOUBLE. Double
+                           negative zero (-0.0) is preserved regardless of what
+                           this parameter is set to.
+
   @returns false if the arg parsed as valid JSON, true otherwise
 */
 static bool parse_json(String *res,
                        uint arg_idx,
                        const char *func_name,
-                       bool *need_parse,
                        Json_dom **dom,
-                       bool require_str_or_json)
+                       bool require_str_or_json,
+                       bool *parse_error,
+                       bool preserve_neg_zero_int= false)
 {
   char buff[MAX_FIELD_WIDTH];
   String utf8_res(buff, sizeof(buff), &my_charset_utf8mb4_bin);
@@ -107,13 +114,13 @@ static bool parse_json(String *res,
   const char *safep;         // contents of res, possibly converted
   size_t safe_length;        // length of safep
 
+  *parse_error= false;
+
   if (ensure_utf8mb4(res, &utf8_res, &safep, &safe_length,
                       require_str_or_json))
   {
     return true;
   }
-
-  *need_parse= true;
 
   if (!dom)
   {
@@ -123,7 +130,8 @@ static bool parse_json(String *res,
 
   const char *parse_err;
   size_t err_offset;
-  *dom= Json_dom::parse(safep, safe_length, &parse_err, &err_offset);
+  *dom= Json_dom::parse(safep, safe_length, &parse_err, &err_offset,
+                        preserve_neg_zero_int);
 
   if (*dom == NULL && parse_err != NULL)
   {
@@ -132,6 +140,7 @@ static bool parse_json(String *res,
     my_error(ER_INVALID_JSON_TEXT_IN_PARAM, MYF(0),
              arg_idx + 1, func_name, parse_err, err_offset,
              value.c_str());
+    *parse_error= true;
   }
   return *dom == NULL;
 }
@@ -238,22 +247,29 @@ static bool get_json_string(Item *arg_item,
   @param[in]     arg_idx    Index (0-based) of argument into the args array
   @param[out]    value      Item_func_json_*::m_value alias
   @param[in]     func_name  Name of the user-invoked JSON_ function
-  @param[out]    need_parse True if we needed to parse to validate
   @param[in,out] dom        If non-null, we want any text parsed DOM
                             returned at the location pointed to
   @param[in]     require_str_or_json
                             If true, generate an error if other types used
                             as input
+  @param[out]    valid      true if a valid JSON value was found (or NULL),
+                            else false
+  @param[in]     preserve_neg_zero_int
+                            Whether integer negative zero should be preserved.
+                            If set to TRUE, -0 is handled as a DOUBLE. Double
+                            negative zero (-0.0) is preserved regardless of what
+                            this parameter is set to.
 
-  @returns true if the text is valid JSON (or NULL), else false
+  @returns true iff syntax error *and* dom != null, else false
 */
 static bool json_is_valid(Item **args,
                           uint arg_idx,
                           String *value,
                           const char *func_name,
-                          bool *need_parse,
                           Json_dom **dom,
-                          bool require_str_or_json)
+                          bool require_str_or_json,
+                          bool *valid,
+                          bool preserve_neg_zero_int= false)
 {
   Item *const arg_item= args[arg_idx];
 
@@ -262,12 +278,14 @@ static bool json_is_valid(Item **args,
   case MYSQL_TYPE_NULL:
     arg_item->update_null_value();
     DBUG_ASSERT(arg_item->null_value);
-    return true;
+    *valid= true;
+    return false;
   case MYSQL_TYPE_JSON:
   {
     Json_wrapper w;
     // Also sets the null_value flag
-    return !arg_item->val_json(&w);
+    *valid= !arg_item->val_json(&w);
+    return !*valid;
   }
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_VAR_STRING:
@@ -284,22 +302,33 @@ static bool json_is_valid(Item **args,
         Field *field= fi->field;
         if (field->flags & (ENUM_FLAG | SET_FLAG))
         {
+          *valid= false;
           return false;
         }
       }
 
       if (arg_item->null_value)
-        return true;
+      {
+        *valid= true;
+        return false;
+      }
 
-      const bool success= parse_json(res, arg_idx, func_name,
-                                     need_parse, dom, require_str_or_json);
-      return !success;
+      bool parse_error= false;
+      const bool failure= parse_json(res, arg_idx, func_name,
+                                     dom, require_str_or_json,
+                                     &parse_error, preserve_neg_zero_int);
+      *valid= !failure;
+      return parse_error;
     }
   default:
     if (require_str_or_json)
     {
+      *valid= false;
       my_error(ER_INVALID_TYPE_FOR_JSON, MYF(0), arg_idx + 1, func_name);
+      return true;
     }
+
+    *valid= false;
     return false;
   }
 }
@@ -485,6 +514,7 @@ enum_one_or_all_type parse_and_cache_ooa(Item *arg,
 Json_path_cache::Json_path_cache(THD *thd, uint size)
   : m_paths(key_memory_JSON),
     m_arg_idx_to_vector_idx(thd->mem_root, size),
+    m_arg_idx_to_problem_indicator(thd->mem_root, size),
     m_size(size)
 {
   reset_cache();
@@ -508,12 +538,12 @@ bool Json_path_cache::parse_and_cache_path(Item ** args, uint arg_idx,
     // nothing to do if it has already been parsed
     if (vector_idx >= 0)
     {
-      return false;
-    }
+      if (m_arg_idx_to_problem_indicator[vector_idx])
+      {
+        return true;
+      }
 
-    if (vector_idx == JPC_NULL_OR_ERROR)
-    {
-      return true;
+      return false;
     }
   }
 
@@ -539,7 +569,7 @@ bool Json_path_cache::parse_and_cache_path(Item ** args, uint arg_idx,
     if (is_constant)
     {
       // remember that we had a problem
-      m_arg_idx_to_vector_idx[arg_idx]= JPC_NULL_OR_ERROR;
+      m_arg_idx_to_problem_indicator[vector_idx]= true;
     }
 
     return true;
@@ -553,13 +583,12 @@ Json_path *Json_path_cache::get_path(uint arg_idx)
 {
   int vector_idx= m_arg_idx_to_vector_idx[arg_idx];
 
-  if (vector_idx >= 0)
+  if ((vector_idx < 0) || m_arg_idx_to_problem_indicator[vector_idx])
   {
-    return &(m_paths.at(vector_idx));
+    return NULL;
   }
 
-  DBUG_ASSERT(vector_idx == JPC_NULL_OR_ERROR);
-  return NULL;
+  return &(m_paths.at(vector_idx));
 }
 
 
@@ -568,6 +597,7 @@ void Json_path_cache::reset_cache()
   for (uint arg_idx= 0; arg_idx < m_size; arg_idx++)
   {
     m_arg_idx_to_vector_idx[arg_idx]= JPC_UNINITIALIZED;
+    m_arg_idx_to_problem_indicator[arg_idx] = false;
   }
 
   m_paths.clear();
@@ -585,7 +615,7 @@ void Item_json_func::cleanup()
 
 
 type_conversion_status
-Item_json_func::save_in_field(Field *field, bool no_conversions)
+Item_json_func::save_in_field_inner(Field *field, bool no_conversions)
 {
   return save_possibly_as_json(field, no_conversions);
 }
@@ -599,8 +629,11 @@ longlong Item_func_json_valid::val_int()
 
   try
   {
-    bool dummy;
-    bool ok= json_is_valid(args, 0, &m_value, func_name(), &dummy, NULL, false);
+    bool ok;
+    if (json_is_valid(args, 0, &m_value, func_name(), NULL, false, &ok))
+    {
+      return error_int();
+    }
 
     if (!ok)
     {
@@ -708,7 +741,7 @@ static bool contains_wr(const Json_wrapper &doc_wrapper,
 
     while (!c_oi.empty() && !d_oi.empty())
     {
-      for( ; !d_oi.empty() && cmp(d_oi.elt().first, c_oi.elt().first);
+      for(; !d_oi.empty() && cmp(d_oi.elt().first, c_oi.elt().first);
           d_oi.next()) {}
 
       if (d_oi.empty() || cmp(c_oi.elt().first, d_oi.elt().first))
@@ -976,7 +1009,7 @@ longlong Item_func_json_contains_path::val_int()
       Json_path *path= m_path_cache.get_path(i);
 
       hits.clear();
-      if (wrapper.seek(*path, &hits, true, !require_all))
+      if (wrapper.seek(*path, &hits, true, true))
         return error_int();               /* purecov: inspected */
       if (hits.size() > 0)
       {
@@ -1027,7 +1060,8 @@ bool get_json_wrapper(Item **args,
                       uint arg_idx,
                       String *str,
                       const char *func_name,
-                      Json_wrapper *wrapper)
+                      Json_wrapper *wrapper,
+                      bool preserve_neg_zero_int)
 {
   if (!json_value(args, arg_idx, wrapper))
   {
@@ -1051,11 +1085,16 @@ bool get_json_wrapper(Item **args,
   */
 
   /* Is this a JSON text? */
-  bool needed_parse= false ; //@< true indicates a JSON string
   Json_dom *dom; //@< we'll receive a DOM here from a successful text parse
 
-  if (!json_is_valid(args, arg_idx, str, func_name, &needed_parse, &dom, true))
+  bool valid;
+  if (json_is_valid(args, arg_idx, str, func_name, &dom, true, &valid,
+                     preserve_neg_zero_int))
+    return true;
+
+  if (!valid)
   {
+    my_error(ER_INVALID_TYPE_FOR_JSON, MYF(0), arg_idx + 1, func_name);
     return true;
   }
 
@@ -1064,7 +1103,6 @@ bool get_json_wrapper(Item **args,
     return false;
   }
 
-  DBUG_ASSERT(needed_parse);
   DBUG_ASSERT(dom);
 
   *wrapper= Json_wrapper(dom);
@@ -1086,10 +1124,12 @@ static uint opaque_index(enum_field_types field_type)
 
   switch (field_type)
   {
+  case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_STRING:
     {
       offset= static_cast<uint>(Json_dom::J_OPAQUE_BLOB);
@@ -1697,11 +1737,46 @@ bool get_json_atom_wrapper(Item **args,
 }
 
 
+/**
+  Convert JSON values or MySQL values to JSON. Converts SQL NULL
+  to the JSON null literal.
+
+  @param[in]     args       arguments to function
+  @param[in]     arg_idx    the index of the argument to process
+  @param[in]     calling_function    name of the calling function
+  @param[in,out] value      working area (if the returned Json_wrapper points
+                            to a binary value rather than a DOM, this string
+                            will end up holding the binary representation, and
+                            it must stay alive until the wrapper is destroyed
+                            or converted from binary to DOM)
+  @param[in,out] tmp        temporary scratch space for converting strings to
+                            the correct charset; only used if accept_string is
+                            true and conversion is needed
+  @param[in,out] wr         the result wrapper
+  @returns false if we found a value or NULL, true otherwise
+*/
+bool get_atom_null_as_null(Item **args, uint arg_idx,
+                           const char *calling_function, String *value,
+                           String *tmp, Json_wrapper *wr)
+{
+  if (get_json_atom_wrapper(args, arg_idx, calling_function, value,
+                            tmp, wr, NULL, true))
+    return true;
+
+  if (args[arg_idx]->null_value)
+  {
+    Json_wrapper null_wrapper(new (std::nothrow) Json_null());
+    wr->steal(&null_wrapper);
+  }
+
+  return false;
+}
+
+
 bool Item_json_typecast::val_json(Json_wrapper *wr)
 {
   DBUG_ASSERT(fixed == 1);
 
-  bool needed_parse= false ; //@< true indicates a JSON string, not a binary
   Json_dom *dom= NULL;       //@< if non-null we want a DOM from parse
 
   if (args[0]->field_type() == MYSQL_TYPE_NULL)
@@ -1719,8 +1794,12 @@ bool Item_json_typecast::val_json(Json_wrapper *wr)
     return false;
   }
 
+  bool valid;
   if (json_is_valid(args, 0, &m_value, func_name(),
-                    &needed_parse, &dom, false))
+                    &dom, false, &valid))
+    return error_json();
+
+  if (valid)
   {
     if (args[0]->null_value)
     {
@@ -1728,7 +1807,6 @@ bool Item_json_typecast::val_json(Json_wrapper *wr)
       return false;
     }
     // We were able to parse a JSON value from a string.
-    DBUG_ASSERT(needed_parse);
     DBUG_ASSERT(dom);
     // Pass on the DOM wrapped
     Json_wrapper w(dom);
@@ -1737,10 +1815,11 @@ bool Item_json_typecast::val_json(Json_wrapper *wr)
     return false;
   }
 
-  // Not a string, nor a JSON value, wrap the rest
+  // Not a non-binary string, nor a JSON value, wrap the rest
 
-  if (get_json_atom_wrapper(args, 0, func_name(), &m_value, &m_conversion_buffer,
-                             wr, NULL, true))
+  if (get_json_atom_wrapper(args, 0, func_name(), &m_value,
+                            &m_conversion_buffer,
+                            wr, NULL, true))
     return error_json();
 
   null_value= args[0]->null_value;
@@ -1989,7 +2068,7 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr)
   - an array cell at index 0 that any non-array element at the top level could
     have been autowrapped to (since we got a hit), i.e. '$[0]' or
     $[0][0]...[0]'.
- 
+
   @param[in] path the specified path which gave a match
   @param[in] v    the JSON item matched
   @return true if v is a top level item
@@ -2006,12 +2085,12 @@ static inline bool wrapped_top_level_item(Json_path *path, Json_dom *v)
     DBUG_ASSERT(path->get_leg_at(i)->get_array_cell_index() == 0);
   }
 #endif
-  
+
   return true;
 }
 
 
-bool Item_func_json_append::val_json(Json_wrapper *wr)
+bool Item_func_json_array_append::val_json(Json_wrapper *wr)
 {
   DBUG_ASSERT(fixed == 1);
 
@@ -2058,20 +2137,16 @@ bool Item_func_json_append::val_json(Json_wrapper *wr)
         first. Json_dom::seek returns outermost hits first.
 
         Note that, later on, we decide to forbid ellipses in the path
-        arguments to json_append().
+        arguments to json_array_append().
       */
-      for (Json_dom_vector::iterator it= hits.end(); it != hits.begin(); )
+      for (Json_dom_vector::iterator it= hits.end(); it != hits.begin();)
       {
         --it;
         Json_wrapper valuew;
-        if (get_json_atom_wrapper(args, i + 1, func_name(), &m_value, &m_conversion_buffer,
-                                   &valuew, NULL, true))
+        if (get_atom_null_as_null(args, i + 1, func_name(), &m_value,
+                                  &m_conversion_buffer,
+                                  &valuew))
           return error_json();
-        if (args[i + 1]->null_value)
-        {
-          null_value= true;
-          return false;
-        }
 
         if ((*it)->json_type() == Json_dom::J_ARRAY)
         {
@@ -2114,7 +2189,7 @@ bool Item_func_json_append::val_json(Json_wrapper *wr)
     // docw still owns the augmented doc, so hand it over to result
     wr->steal(&docw);
 
-  } CATCH_ALL("json_append", return error_json()) /* purecov: inspected */
+  } CATCH_ALL("json_array_append", return error_json()) /* purecov: inspected */
 
   null_value= false;
   return false;
@@ -2151,15 +2226,21 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
         null_value= true;
         return false;
       }
-      Json_path *path= m_path_cache.get_path(i);
+      Json_path *current_path= m_path_cache.get_path(i);
+
+      /**
+        Clone the path so that we won't mess up the cached version
+        when we pop the trailing leg below.
+      */
+      m_path.set(current_path);
 
       {
         Json_dom_vector hits(key_memory_JSON);
-        if (doc->seek(*path, &hits, false, true))
+        if (doc->seek(m_path, &hits, false, true))
           return error_json();                /* purecov: inspected */
 
         if (hits.size() != 0 || // already exists
-            path->leg_count() == 0) // is root
+            m_path.leg_count() == 0) // is root
         {
           continue;
         }
@@ -2173,8 +2254,8 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
         Remove the first path leg and search again.
       */
       Json_dom_vector hits(key_memory_JSON);
-      Json_path_leg l= path->pop();
-      if (doc->seek(*path, &hits, false, true))
+      const Json_path_leg *leg= m_path.pop();
+      if (doc->seek(m_path, &hits, false, true))
         return error_json();                  /* purecov: inspected */
 
       if (hits.size() < 1)
@@ -2184,16 +2265,11 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
       }
 
       Json_wrapper valuew;
-      if (get_json_atom_wrapper(args, i + 1, func_name(), &m_value, &m_conversion_buffer,
-                                 &valuew, NULL, true))
+      if (get_atom_null_as_null(args, i + 1, func_name(), &m_value,
+                                &m_conversion_buffer,
+                                &valuew))
       {
         return error_json();
-      }
-
-      if(args[i + 1]->null_value)
-      {
-        null_value= true;
-        return false;
       }
 
       /*
@@ -2205,23 +2281,23 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
         Note that, later on, we decided to forbid ellipses in the path
         arguments to json_insert().
       */
-      for (Json_dom_vector::iterator it= hits.end(); it != hits.begin(); )
+      for (Json_dom_vector::iterator it= hits.end(); it != hits.begin();)
       {
         --it;
         // We found *something* at that parent path
 
         // What did we specify in the path, object or array?
-        if (l.get_type() == jpl_array_cell)
+        if (leg->get_type() == jpl_array_cell)
         {
           // We specified an array, what did we find at that position?
           if ((*it)->json_type() == Json_dom::J_ARRAY)
           {
             Json_array *arr= down_cast<Json_array *>(*it);
-            DBUG_ASSERT(l.get_type() == jpl_array_cell);
-            if (arr->insert_clone(l.get_array_cell_index(), valuew.to_dom()))
+            DBUG_ASSERT(leg->get_type() == jpl_array_cell);
+            if (arr->insert_clone(leg->get_array_cell_index(), valuew.to_dom()))
               return error_json();        /* purecov: inspected */
           }
-          else if (l.get_array_cell_index() > 0)
+          else if (leg->get_array_cell_index() > 0)
           {
             /*
               Found a scalar or object and we didn't specify position 0:
@@ -2231,7 +2307,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
             Json_array *newarr= new (std::nothrow) Json_array();
             if (!newarr ||
                 newarr->append_clone(a) /* auto-wrap this */ ||
-                newarr->insert_clone(l.get_array_cell_index(),
+                newarr->insert_clone(leg->get_array_cell_index(),
                                      valuew.to_dom()))
             {
               delete newarr;                    /* purecov: inspected */
@@ -2244,7 +2320,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
               array or object, we need to find the parent DOM to be able to
               replace it in situ.
             */
-            if (path->leg_count() == 0) // root
+            if (m_path.leg_count() == 0) // root
             {
               Json_wrapper newroot(newarr);
               docw.steal(&newroot);
@@ -2257,20 +2333,17 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
             }
           }
         }
-        else if (l.get_type() == jpl_member &&
+        else if (leg->get_type() == jpl_member &&
                  (*it)->json_type() == Json_dom::J_OBJECT)
         {
           Json_object *o= down_cast<Json_object *>(*it);
-          const char *ename= l.get_member_name();
-          size_t enames= l.get_member_name_length();
+          const char *ename= leg->get_member_name();
+          size_t enames= leg->get_member_name_length();
           if (o->add_clone(std::string(ename, enames), valuew.to_dom()))
             return error_json();          /* purecov: inspected */
         }
       }
 
-      // now restore the leg we removed in case we are caching paths
-      if (path->append(l))
-        return error_json();              /* purecov: inspected */
     } // end of loop through paths
     // docw still owns the augmented doc, so hand it over to result
     wr->steal(&docw);
@@ -2311,12 +2384,18 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
         null_value= true;
         return false;
       }
-      Json_path *path= m_path_cache.get_path(i);
+      Json_path *current_path= m_path_cache.get_path(i);
+
+      /**
+        Clone the path so that we won't mess up the cached version
+        when we pop the trailing leg below.
+      */
+      m_path.set(current_path);
 
       // the path must end in a cell identifier
-      size_t leg_count= path->leg_count();
+      size_t leg_count= m_path.leg_count();
       if ((leg_count == 0) ||
-          (path->get_leg_at(leg_count - 1)->get_type() != jpl_array_cell))
+          (m_path.get_leg_at(leg_count - 1)->get_type() != jpl_array_cell))
       {
         my_error(ER_INVALID_JSON_PATH_ARRAY_CELL, MYF(0));
         return error_json();
@@ -2328,36 +2407,22 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
         Remove the last path leg and search again.
       */
       Json_dom_vector hits(key_memory_JSON);
-      Json_path_leg l= path->pop();
-      if (doc->seek(*path, &hits, false, true))
+      const Json_path_leg *leg= m_path.pop();
+      if (doc->seek(m_path, &hits, false, true))
         return error_json();                  /* purecov: inspected */
 
       if (hits.empty())
       {
-        // now restore the leg we removed in case we are caching paths
-        if (path->append(l))
-          return error_json();              /* purecov: inspected */
-
         // no unique object found at parent position, so bail out
         continue;
       }
 
       Json_wrapper valuew;
-      if (get_json_atom_wrapper(args, i + 1, func_name(),
+      if (get_atom_null_as_null(args, i + 1, func_name(),
                                 &m_value, &m_conversion_buffer,
-                                &valuew, NULL, true))
+                                &valuew))
       {
         return error_json();
-      }
-
-      if (args[i + 1]->null_value)
-      {
-        // now restore the leg we removed in case we are caching paths
-        if (path->append(l))
-          return error_json();              /* purecov: inspected */
-
-        null_value= true;
-        return false;
       }
 
       /*
@@ -2369,7 +2434,7 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
         Note that, later on, we decided to forbid ellipses in the path
         arguments to json_insert().
       */
-      for (Json_dom_vector::iterator it= hits.end(); it != hits.begin(); )
+      for (Json_dom_vector::iterator it= hits.end(); it != hits.begin();)
       {
         --it;
         // We found *something* at that parent path
@@ -2380,15 +2445,12 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
         {
           // Excellent. Insert the value at that location.
           Json_array *arr= down_cast<Json_array *>(*it);
-          DBUG_ASSERT(l.get_type() == jpl_array_cell);
-          if (arr->insert_clone(l.get_array_cell_index(), valuew.to_dom()))
+          DBUG_ASSERT(leg->get_type() == jpl_array_cell);
+          if (arr->insert_clone(leg->get_array_cell_index(), valuew.to_dom()))
             return error_json();        /* purecov: inspected */
         }
       }
 
-      // now restore the leg we removed in case we are caching paths
-      if (path->append(l))
-        return error_json();              /* purecov: inspected */
     } // end of loop through paths
     // docw still owns the augmented doc, so hand it over to result
     wr->steal(&docw);
@@ -2398,6 +2460,70 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
   null_value= false;
   return false;
 }
+
+
+/**
+  Clone a source path to a target path, stripping out [0] legs
+  which are made redundant by the auto-wrapping rule
+  in the WL#7909 spec:
+
+  "If a pathExpression identifies a non-array value,
+  then pathExpression[ 0 ] evaluates to the same value
+  as pathExpression."
+
+  @param[in]      source_path The original path.
+  @param[in,out]  target_path The clone to be filled in.
+  @param[in]      doc The document to seek through.
+
+  @returns True if an error occurred. False otherwise.
+*/
+static bool clone_without_autowrapping(Json_path *source_path,
+                                       Json_path_clone *target_path,
+                                       Json_dom *doc)
+{
+  Json_dom_vector hits(key_memory_JSON);
+
+  target_path->clear();
+  size_t leg_count= source_path->leg_count();
+  for (size_t leg_idx= 0; leg_idx < leg_count; leg_idx++)
+  {
+    const Json_path_leg *path_leg= source_path->get_leg_at(leg_idx);
+    if ((path_leg->get_type() == jpl_array_cell) &&
+        (path_leg->get_array_cell_index() == 0))
+    {
+      /**
+         We have a partial path of the form
+
+         pathExpression[0]
+
+         So see if pathExpression identifies a non-array value.
+      */
+      hits.clear();
+      if (doc->seek(*target_path, &hits, false, true))
+        return true;  /* purecov: inspected */
+
+      if (!hits.empty())
+      {
+        Json_dom *candidate= hits.at(0);
+        if (candidate->json_type() != Json_dom::J_ARRAY)
+        {
+          /**
+            pathExpression identifies a non-array value.
+            We satisfy the conditions of the rule above.
+            So we can throw away the [0] leg.
+          */
+          continue;
+        }
+      }
+    }
+    // The rule above is NOT satisified. So add the leg.
+    target_path->append(path_leg);
+  }
+  hits.clear();
+
+  return false;
+}
+
 
 /**
   Common implementation for JSON_SET and JSON_REPLACE
@@ -2430,22 +2556,25 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
         null_value= true;
         return false;
       }
-      Json_path *path= m_path_cache.get_path(i);
+      Json_path *current_path= m_path_cache.get_path(i);
+
+      /**
+        Clone the path, stripping off redundant auto-wrapping.
+      */
+      if (clone_without_autowrapping(current_path, &m_path, doc))
+      {
+        return error_json();
+      }
 
       Json_dom_vector hits(key_memory_JSON);
-      if (doc->seek(*path, &hits, false, true))
+      if (doc->seek(m_path, &hits, false, true))
         return error_json();                  /* purecov: inspected */
 
       Json_wrapper valuew;
-      if (get_json_atom_wrapper(args, i + 1, func_name(), &m_value, &m_conversion_buffer,
-                                 &valuew, NULL, true))
+      if (get_atom_null_as_null(args, i + 1, func_name(), &m_value,
+                                &m_conversion_buffer,
+                                &valuew))
         return error_json();
-
-      if(args[i + 1]->null_value)
-      {
-        null_value= true;
-        return false;
-      }
 
       if (hits.size() == 0)
       {
@@ -2456,16 +2585,13 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
 
           Remove the first path leg and search again.
         */
-        Json_path_leg l= path->pop();
-        if (doc->seek(*path, &hits, false, true))
+        const Json_path_leg *leg= m_path.pop();
+        if (doc->seek(m_path, &hits, false, true))
           return error_json();                /* purecov: inspected */
 
         if (hits.size() < 1)
         {
-          // no unique object found at parent position, so bail out,
-          // just restore path first
-          if (path->append(l))
-            return error_json();                  /* purecov: inspected */
+          // no unique object found at parent position, so bail out
           continue;
         }
 
@@ -2475,11 +2601,11 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
           ellipses in the path. Make sure we do the most nested replacements
           first. Json_dom::seek returns outermost hits first.
         */
-        for (Json_dom_vector::iterator it= hits.end(); it != hits.begin(); )
+        for (Json_dom_vector::iterator it= hits.end(); it != hits.begin();)
         {
           --it;
           // We now have either an array or an object in the parent's path
-          if (l.get_type() == jpl_array_cell)
+          if (leg->get_type() == jpl_array_cell)
           {
             if ((*it)->json_type() == Json_dom::J_ARRAY)
             {
@@ -2487,8 +2613,9 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
                 continue;
 
               Json_array *arr= down_cast<Json_array *>(*it);
-              DBUG_ASSERT(l.get_type() == jpl_array_cell);
-              if (arr->insert_clone(l.get_array_cell_index(), valuew.to_dom()))
+              DBUG_ASSERT(leg->get_type() == jpl_array_cell);
+              if (arr->insert_clone(leg->get_array_cell_index(),
+                                    valuew.to_dom()))
                 return error_json();            /* purecov: inspected */
             }
             else
@@ -2501,7 +2628,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
               Json_dom *a= *it;
               Json_dom *res;
 
-              if (l.get_array_cell_index() == 0)
+              if (leg->get_array_cell_index() == 0)
               {
                 res= valuew.clone_dom();
                 if (!res)
@@ -2516,7 +2643,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
                 Json_array *newarr= new (std::nothrow) Json_array();
                 if (!newarr ||
                     newarr->append_clone(a) ||
-                    newarr->insert_clone(l.get_array_cell_index(),
+                    newarr->insert_clone(leg->get_array_cell_index(),
                                          valuew.to_dom()))
                 {
                   delete newarr;                /* purecov: inspected */
@@ -2531,7 +2658,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
                 inside an array or object, we need to find the parent DOM to be
                 able to replace it in situ.
               */
-              if (path->leg_count() == 0) // root
+              if (m_path.leg_count() == 0) // root
               {
                 Json_wrapper newroot(res);
                 docw.steal(&newroot);
@@ -2544,23 +2671,20 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
               }
             }
           }
-          else if (l.get_type() == jpl_member &&
+          else if (leg->get_type() == jpl_member &&
                    (*it)->json_type() == Json_dom::J_OBJECT)
           {
             if (!m_json_set) // replace semantics, so skip if path not present
               continue;
 
             Json_object *o= down_cast<Json_object *>(*it);
-            const char *ename= l.get_member_name();
-            size_t enames= l.get_member_name_length();
+            const char *ename= leg->get_member_name();
+            size_t enames= leg->get_member_name_length();
             if (o->add_clone(std::string(ename, enames), valuew.to_dom()))
               return error_json();              /* purecov: inspected */
           }
         } // end of loop through hits
 
-        // now restore the leg we removed in case we are caching paths
-        if (path->append(l))
-          return error_json();                  /* purecov: inspected */
       }
       else
       {
@@ -2613,17 +2737,11 @@ bool Item_func_json_array::val_json(Json_wrapper *wr)
     for (uint32 i= 0; i < arg_count; ++i)
     {
       Json_wrapper valuew;
-      if (get_json_atom_wrapper(args, i, func_name(), &m_value, &m_conversion_buffer,
-                                 &valuew, NULL, true))
+      if (get_atom_null_as_null(args, i, func_name(), &m_value,
+                                &m_conversion_buffer,
+                                &valuew))
       {
         return error_json();
-      }
-
-      // translate SQL NULL into the JSON null literal
-      if (args[i]->null_value)
-      {
-        Json_wrapper null_wrapper(new (std::nothrow) Json_null());
-        valuew.steal(&null_wrapper);
       }
 
       if (arr->append_alias(valuew.to_dom()))
@@ -2678,17 +2796,10 @@ bool Item_func_json_row_object::val_json(Json_wrapper *wr)
 
       // value
       Json_wrapper valuew;
-      if (get_json_atom_wrapper(args, value_idx, func_name(), &m_value,
-                                 &m_conversion_buffer, &valuew, NULL, true))
+      if (get_atom_null_as_null(args, value_idx, func_name(), &m_value,
+                                &m_conversion_buffer, &valuew))
       {
         return error_json();
-      }
-
-      // translate SQL NULL into the JSON null literal
-      if (args[i]->null_value)
-      {
-        Json_wrapper null_wrapper(new (std::nothrow) Json_null());
-        valuew.steal(&null_wrapper);
       }
 
       if (object->add_alias(key, valuew.to_dom()))
@@ -2708,67 +2819,72 @@ bool Item_func_json_row_object::val_json(Json_wrapper *wr)
 
 bool Item_func_json_search::fix_fields(THD *thd, Item **items)
 {
-  bool retval= Item_json_func::fix_fields(thd, items);
+  if (Item_json_func::fix_fields(thd, items))
+    return true;
 
-  if (!retval)
+  // Fabricate a LIKE node
+
+  m_source_string_item= new Item_string(&my_charset_utf8mb4_bin);
+  Item_string *default_escape= new Item_string(&my_charset_utf8mb4_bin);
+  if (m_source_string_item == NULL || default_escape == NULL)
+    return true;                              /* purecov: inspected */
+
+  Item *like_string_item= args[2];
+  bool escape_initialized= false;
+
+  // Get the escape character, if any
+  if (arg_count > 3)
   {
-    // Fabricate a LIKE node
+    Item *orig_escape= args[3];
 
-    m_source_string_item= new Item_string(&my_charset_utf8mb4_bin);
-    Item *like_string_item= args[2];
-
-    Item_string *default_escape= new Item_string(&my_charset_utf8mb4_bin);
-    bool escape_initialized= false;
-
-    // Get the escape character, if any
-    if (arg_count > 3)
+    /*
+      Evaluate the escape clause. For a standalone LIKE expression,
+      the escape clause only has to be constant during execution.
+      However, we require a stronger condition: it must be constant.
+      That means that we can evaluate the escape clause at resolution time
+      and copy the results from the JSON_SEARCH() args into the arguments
+      for the LIKE node which we're fabricating.
+    */
+    if (!orig_escape->const_item())
     {
-      Item *orig_escape= args[3];
-
-      /*
-       Evaluate the escape clause. For a standalone LIKE expression,
-       the escape clause only has to be constant during execution.
-       However, we require a stronger condition: it must be constant.
-       That means that we can evaluate the escape clause at resolution time
-       and copy the results from the JSON_SEARCH() args into the arguments
-       for the LIKE node which we're fabricating.
-      */
-      if (!orig_escape->const_item())
-      {
-        my_error(ER_WRONG_ARGUMENTS,MYF(0),"ESCAPE");
-        return true;
-      }
-
-      String *escape_str= orig_escape->val_str(&m_escape);
-      if (!orig_escape->null_value)
-      {
-        uint escape_length= static_cast<uint>(escape_str->length());
-        default_escape->set_str_with_copy(escape_str->ptr(), escape_length);
-        escape_initialized= true;
-      }
-    }
-    if (!escape_initialized)
-    {
-      default_escape->set_str_with_copy("\\", 1);
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "ESCAPE");
+      return true;
     }
 
-    m_like_node= new Item_func_like(m_source_string_item,
-                                    like_string_item,
-                                    default_escape, true);
-
-    Item *like_args[3];
-    like_args[0]= m_source_string_item;
-    like_args[1]= like_string_item;
-    like_args[2]= default_escape;
-
-    m_like_node->fix_fields(thd, like_args);
-
-    // resolving the LIKE node may overwrite its arguments
-    Item **resolved_like_args= m_like_node->arguments();
-    m_source_string_item= down_cast<Item_string *>(resolved_like_args[0]);
+    String *escape_str= orig_escape->val_str(&m_escape);
+    if (thd->is_error())
+      return true;
+    if (escape_str)
+    {
+      uint escape_length= static_cast<uint>(escape_str->length());
+      default_escape->set_str_with_copy(escape_str->ptr(), escape_length);
+      escape_initialized= true;
+    }
   }
 
-  return retval;
+  if (!escape_initialized)
+  {
+    default_escape->set_str_with_copy("\\", 1);
+  }
+
+  m_like_node= new Item_func_like(m_source_string_item, like_string_item,
+                                  default_escape, true);
+  if (m_like_node == NULL)
+    return true;                              /* purecov: inspected */
+
+  Item *like_args[3];
+  like_args[0]= m_source_string_item;
+  like_args[1]= like_string_item;
+  like_args[2]= default_escape;
+
+  if (m_like_node->fix_fields(thd, like_args))
+    return true;
+
+  // resolving the LIKE node may overwrite its arguments
+  Item **resolved_like_args= m_like_node->arguments();
+  m_source_string_item= down_cast<Item_string *>(resolved_like_args[0]);
+
+  return false;
 }
 
 
@@ -3035,7 +3151,7 @@ bool Item_func_json_search::val_json(Json_wrapper *wr)
       }   // end of loop through user-supplied path expressions
     }     // end if there are user-supplied path expressions
 
-  } CATCH_ALL("json_append", return error_json()) /* purecov: inspected */
+  } CATCH_ALL("json_search", return error_json()) /* purecov: inspected */
 
   if (matches.size() == 0)
   {
@@ -3071,7 +3187,8 @@ bool Item_func_json_search::val_json(Json_wrapper *wr)
 }
 
 
-Item_func_json_remove::Item_func_json_remove(THD *thd, const POS &pos, PT_item_list *a)
+Item_func_json_remove::Item_func_json_remove(THD *thd, const POS &pos,
+                                             PT_item_list *a)
   : Item_json_func(thd, pos, a)
 {}
 
@@ -3144,7 +3261,7 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr)
       Json_dom *parent= child->parent();
 
       // no parent means the root. the path is nonsense.
-      if (parent == NULL )
+      if (parent == NULL)
       {
         continue;
       }
@@ -3295,8 +3412,6 @@ String *Item_func_json_unquote::val_str(String *str)
 
   try
   {
-    bool need_parse;
-
     if (args[0]->field_type() == MYSQL_TYPE_JSON)
     {
       Json_wrapper wr;
@@ -3357,7 +3472,8 @@ String *Item_func_json_unquote::val_str(String *str)
       return res; // return string unchanged
     }
 
-    if (parse_json(res, 0, func_name(), &need_parse, &dom, true))
+    bool parse_error= false;
+    if (parse_json(res, 0, func_name(), &dom, true, &parse_error))
     {
       return error_str();
     }
@@ -3365,7 +3481,6 @@ String *Item_func_json_unquote::val_str(String *str)
     /*
       Extract the internal string representation as a MySQL string
     */
-    DBUG_ASSERT(need_parse);
     DBUG_ASSERT(dom->json_type() == Json_dom::J_STRING);
     Json_wrapper wr(dom);
     if (str->copy(wr.get_data(), wr.get_data_length(), collation.collation))

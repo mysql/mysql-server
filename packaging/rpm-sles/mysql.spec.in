@@ -14,7 +14,6 @@
 # Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
 # MA  02110-1301  USA.
 
-%global milestone       rc
 %global mysql_version   @VERSION@
 
 %global mysql_vendor    Oracle and/or its affiliates
@@ -38,7 +37,7 @@
 %{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community Server - Debug (GPL)}
 %{!?src_base:                    %global src_base mysql}
 
-%global src_dir               %{src_base}-%{version}%{?milestone:-%{milestone}}
+%global src_dir               %{src_base}-%{version}
 
 # multiarch
 %global multiarchs            ppc %{power64} %{ix86} x86_64 %{sparc}
@@ -76,7 +75,7 @@ Name:           mysql-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @MYSQL_NO_DASH_VERSION@
-Release:        0.2%{?milestone:.%{milestone}}%{?commercial:.1}%{?dist}
+Release:        1%{?commercial:.1}%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 URL:            http://www.mysql.com/
@@ -89,6 +88,7 @@ Source91:       filter-requires.sh
 BuildRequires:  cmake >= 2.8.2
 BuildRequires:  perl
 BuildRequires:  libaio-devel
+BuildRequires:  libnuma-devel
 BuildRequires:  ncurses-devel
 BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
@@ -264,6 +264,7 @@ Obsoletes:      MySQL-devel < %{version}-%{release}
 Obsoletes:      mysql-devel < %{version}-%{release}
 Obsoletes:      mariadb-devel
 Obsoletes:      libmysqlclient-devel
+Obsoletes:      mysql-connector-c-shared-devel < 6.2
 Provides:       mysql-devel = %{version}-%{release}
 Provides:       libmysqlclient-devel = %{version}-%{release}
 
@@ -287,10 +288,9 @@ Obsoletes:      MySQL-shared < %{version}-%{release}
 Obsoletes:      mysql-libs < %{version}-%{release}
 Obsoletes:      mariadb-libs
 Obsoletes:      libmysqlclient20 < %{version}-%{release}
-Obsoletes:      libmysqlclient_r20 < %{version}-%{release}
+Obsoletes:      mysql-connector-c-shared < 6.2
 Provides:       mysql-libs = %{version}-%{release}
 Provides:       libmysqlclient20 = %{version}-%{release}
-Provides:       libmysqlclient_r20 = %{version}-%{release}
 
 %description    libs
 This package contains the shared libraries for MySQL client
@@ -430,7 +430,7 @@ mkdir release
 MBD=$RPM_BUILD_DIR/%{src_dir}
 
 # Ensure that needed directories exists
-install -d -m 0755 %{buildroot}/var/lib/mysql
+install -d -m 0751 %{buildroot}/var/lib/mysql
 install -d -m 0755 %{buildroot}/var/run/mysql
 install -d -m 0750 %{buildroot}/var/log/mysql
 install -d -m 0750 %{buildroot}/var/lib/mysql-files
@@ -499,7 +499,7 @@ rm -r $(readlink var) var
 
 %post server
 datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p')
-/bin/chmod 0755 "$datadir"
+/bin/chmod 0751 "$datadir"
 /bin/touch /var/log/mysql/mysqld.log
 %if 0%{?systemd}
 %service_add_post mysql.service
@@ -657,7 +657,6 @@ fi
 %attr(644, root, root) %{_datadir}/mysql/my-*.cnf
 %attr(644, root, root) %{_datadir}/mysql/mysql-log-rotate
 %attr(644, root, root) %{_datadir}/mysql/mysql_security_commands.sql
-%attr(644, root, root) %{_datadir}/mysql/mysql_system_tables_fix_for_downgrade.sql
 %attr(644, root, root) %{_datadir}/mysql/dictionary.txt
 %attr(644, root, root) %{_datadir}/mysql/innodb_memcached_config.sql
 %attr(644, root, root) %{_datadir}/mysql/install_rewriter.sql
@@ -670,7 +669,7 @@ fi
 %attr(755, root, root) %{_sysconfdir}/init.d/mysql
 %endif
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
-%dir %attr(755, mysql, mysql) /var/lib/mysql
+%dir %attr(751, mysql, mysql) /var/lib/mysql
 %dir %attr(755, mysql, mysql) /var/run/mysql
 %dir %attr(750, mysql, mysql) /var/log/mysql
 %dir %attr(750, mysql, mysql) /var/lib/mysql-files
@@ -725,6 +724,7 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysqlbinlog.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlcheck.1*
 %attr(644, root, root) %{_mandir}/man1/mysqldump.1*
+%attr(644, root, root) %{_mandir}/man1/mysqlpump.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlimport.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlshow.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlslap.1*
@@ -739,10 +739,9 @@ fi
 %{_includedir}/mysql
 %{_datadir}/aclocal/mysql.m4
 %{_libdir}/mysql/libmysqlclient.a
-%{_libdir}/mysql/libmysqlclient_r.a
 %{_libdir}/mysql/libmysqlservices.a
-%{_libdir}/mysql/libmysqlclient_r.so
 %{_libdir}/mysql/libmysqlclient.so
+%{_libdir}/pkgconfig/mysqlclient.pc
 
 %files libs
 %defattr(-, root, root, -)
@@ -750,7 +749,6 @@ fi
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/libmysqlclient.so.20*
-%{_libdir}/mysql/libmysqlclient_r.so.20*
 
 %if 0%{?compatlib}
 %files libs-compat
@@ -781,9 +779,28 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_framework.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_services_threaded.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_session_detach.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_session_in_thd.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_session_info.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_2_sessions.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_all_col_types.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_cmds_1.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_commit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_complex.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_errors.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_lock.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_processlist.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_replication.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_shutdown.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_sqlmode.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_stored_procedures_functions.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_views_triggers.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_x_sessions_deinit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_x_sessions_init.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_server.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/test_security_context.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
@@ -791,9 +808,28 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_framework.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_services_threaded.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_session_detach.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_session_in_thd.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_session_info.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_2_sessions.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_all_col_types.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_cmds_1.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_commit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_complex.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_errors.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_lock.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_processlist.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_replication.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_shutdown.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_sqlmode.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_stored_procedures_functions.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_views_triggers.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_x_sessions_deinit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_x_sessions_init.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_security_context.so
 
 %attr(644, root, root) %{_mandir}/man1/mysql_client_test.1*
 %attr(644, root, root) %{_mandir}/man1/mysql-stress-test.pl.1*
@@ -817,6 +853,15 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
+* Tue Sep 29 2015 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.9-1
+- Updated for 5.7.9
+- Added libtest_* plugins to test package subpackage
+- Add mysqlpump man page
+- Obsolete mysql-connector-c-shared dependencies
+
+* Thu Jun 25 2015 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.8-0.2.rc
+- Add support for pkg-config
+
 * Wed May 20 2015 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.8-0.2.rc
 - Added libtest_framework.so, libtest_services.so, libtest_services_threaded.so plugins
 - Build and ship mecab plugin

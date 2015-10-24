@@ -64,7 +64,7 @@ let $wait_condition =
 --source include/wait_condition.inc
 
 # trying to update innodb_buffer_pool_size
---echo Expect warning and not updated
+--error ER_BUFPOOL_RESIZE_INPROGRESS
 set global innodb_buffer_pool_size = 8*1024*1024;
 select @@global.innodb_buffer_pool_size;
 
@@ -156,7 +156,7 @@ connection default;
 set global DEBUG="+d,ib_buf_chunk_init_fails";
 set global innodb_buffer_pool_size = 16*1024*1024;
 let $wait_condition =
-  SELECT SUBSTR(variable_value, 1, 32) = 'Resizing buffer pool was failed,'
+  SELECT SUBSTR(variable_value, 1, 27) = 'Resizing buffer pool failed'
   FROM information_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
 --source include/wait_condition.inc

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,9 @@
 
 #include <Properties.hpp>
 #include <Configuration.hpp>
+
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 472
 
@@ -215,9 +218,15 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
  
   jam();
 
-  Uint32 szDataBuf = (2 * 1024 * 1024);
-  Uint32 szLogBuf = (2 * 1024 * 1024);
-  Uint32 szWrite = 32768, maxWriteSize = (256 * 1024);
+  const Uint32 DEFAULT_WRITE_SIZE = (256 * 1024);
+  const Uint32 DEFAULT_MAX_WRITE_SIZE = (1024 * 1024);
+  const Uint32 DEFAULT_BUFFER_SIZE = (16 * 1024 * 1024);
+
+  Uint32 szDataBuf = DEFAULT_BUFFER_SIZE;
+  Uint32 szLogBuf = DEFAULT_BUFFER_SIZE;
+  Uint32 szWrite = DEFAULT_WRITE_SIZE;
+  Uint32 maxWriteSize = DEFAULT_MAX_WRITE_SIZE;
+
   ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_DATA_BUFFER_MEM, &szDataBuf);
   ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_LOG_BUFFER_MEM, &szLogBuf);
   ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_WRITE_SIZE, &szWrite);
@@ -253,10 +262,22 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   c_defaults.m_maxWriteSize = maxWriteSize;
   c_defaults.m_lcp_buffer_size = szDataBuf;
 
+  /* We deprecate the use of BackupMemory, it serves no purpose at all. */
   Uint32 szMem = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_MEM, &szMem);
 
-  szMem += 3 * extra; // (data+log+lcp);
+  if (szMem != (32 * 1024 * 1024))
+  {
+    jam();
+    g_eventLogger->info("BackupMemory parameter setting ignored,"
+                        " BackupMemory deprecated");
+  }
+  szMem = szDataBuf + szLogBuf;
+
+  /**
+   * We allocate szDataBuf + szLogBuf pages for Backups and
+   * szDataBuf pages for LCPs.
+   */
   Uint32 noPages =
     (szMem + sizeof(Page32) - 1) / sizeof(Page32) +
     (c_defaults.m_lcp_buffer_size + sizeof(Page32) - 1) / sizeof(Page32);

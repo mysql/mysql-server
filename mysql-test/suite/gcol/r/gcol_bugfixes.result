@@ -345,3 +345,161 @@ field1
 8
 8
 DROP TABLE t1;
+# bug#21487651: gcols: memory leak after failed alter table
+CREATE TABLE t(a int);
+ALTER TABLE t ADD COLUMN b int GENERATED ALWAYS AS (
+date_sub(a,interval a month)) VIRTUAL;
+ALTER TABLE t ADD COLUMN c int GENERATED ALWAYS AS (sum(a));
+ERROR HY000: Invalid use of group function
+DROP TABLE t;
+#
+# Bug#21628840: CRASH/MEMORY CORRUPTION ADDING INDEXES TO VIRTUAL COLUMN
+#               (II)
+#
+CREATE TABLE t1( a INT ) ENGINE = INNODB;
+INSERT INTO t1( a ) VALUES ( 1 ), ( 2 ), ( 3 ), ( 4 ), ( 5 );
+ALTER TABLE t1 ADD COLUMN b INT GENERATED ALWAYS AS (a - 1) STORED;
+ALTER TABLE t1 ADD COLUMN c INT GENERATED ALWAYS AS (b + 1) VIRTUAL;
+# Used to cause valgrind warning.
+ALTER TABLE t1 ADD INDEX( c );
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# Make sure the index is correct. That's kinda important.
+EXPLAIN
+SELECT c FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	c	5	NULL	5	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c` AS `c` from `test`.`t1`
+SELECT c FROM t1;
+c
+1
+2
+3
+4
+5
+DROP TABLE t1;
+#
+# Bug#21797776 ASSERTION `BIT < MAP->N_BITS' FAILED.
+#
+CREATE TABLE C (
+col_int_1 INT,
+col_int_2 INT GENERATED ALWAYS AS (col_int_1 + col_int_1) STORED,
+col_int_3 INT GENERATED ALWAYS AS (col_int_2 + col_int_1) VIRTUAL
+);
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS
+SELECT
+col_int_2 AS field1, col_int_2 AS field2,
+col_int_3 AS field3, col_int_3 AS field4
+FROM C;
+SELECT * FROM v1;
+field1	field2	field3	field4
+DROP TABLE C;
+DROP VIEW v1;
+#
+# Bug#21613615 GCOLS: ASSERTION FAILED: !TABLE || (!TABLE->READ_SET || BITMAP_IS_SET
+#
+CREATE TABLE t (a INT);
+CREATE TABLE v (
+a INT,
+c INT,
+b CHAR(2) GENERATED ALWAYS AS (a IN (1)) VIRTUAL,
+KEY(c,b(1)));
+INSERT INTO v (a,c) VALUES (1,1);
+EXPLAIN SELECT 1 FROM t WHERE ( SELECT 1 FROM t ) >=ANY( SELECT c FROM v );
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+2	SUBQUERY	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` where 0
+SELECT 1 FROM t WHERE ( SELECT 1 FROM t ) >=ANY( SELECT c FROM v );
+1
+EXPLAIN SELECT (SELECT MAX(c) FROM v);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select (/* select#2 */ select max(`test`.`v`.`c`) from `test`.`v`) AS `(SELECT MAX(c) FROM v)`
+SELECT (SELECT MAX(c) FROM v);
+(SELECT MAX(c) FROM v)
+1
+DROP TABLE t, v;
+CREATE TABLE v (
+a INT,
+c INT,
+b CHAR(2) GENERATED ALWAYS AS (a IN (1)) VIRTUAL, KEY(c,b(1)));
+INSERT INTO v (a,c) VALUES (1,1);
+SELECT MAX(c), COUNT(b) FROM v;
+MAX(c)	COUNT(b)
+1	1
+DROP TABLE v;
+CREATE TABLE v (
+a INT PRIMARY KEY,
+b INT, KEY(b));
+INSERT INTO v (a,b) VALUES (1,1);
+SELECT MAX(a) FROM v WHERE b=1;
+MAX(a)
+1
+DROP TABLE v;
+#
+# Bug#21824519: ASSERTION IN DROP TRIGGER WHEN TABLE HAS
+#               VIRTUAL GENERATED COLUMN
+#
+CREATE TABLE t (a INT, b INT GENERATED ALWAYS AS (a) VIRTUAL);
+CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW BEGIN END;
+INSERT INTO t (a) VALUES (1);
+SELECT * FROM t;
+a	b
+1	1
+DROP TRIGGER tr;
+SELECT * FROM t;
+a	b
+1	1
+CREATE FUNCTION f() RETURNS INT RETURN (SELECT COUNT(*) FROM t);
+SELECT f();
+f()
+1
+DROP FUNCTION f;
+SELECT * FROM t;
+a	b
+1	1
+DROP TABLE t;
+#
+# Bug #21808680: JSON + GENERATED COLUMN CORRUPTS TABLE CACHE
+#                MEMORY, CRASHES
+#
+CREATE TABLE t (a INT, b JSON, c TEXT GENERATED ALWAYS AS (REPEAT(a=b, 2)));
+INSERT INTO t (a, b) VALUES (1, '2'), (3, '3');
+SELECT * FROM t;
+a	b	c
+1	2	00
+3	3	11
+DROP TABLE t;
+#
+# Bug#21833760 CALC_DAYNR: ASSERTION `DELSUM+(INT) Y/4-TEMP >= 0' FAILED.
+#
+CREATE TABLE C(
+c1 INT AUTO_INCREMENT,
+c8 DATETIME,
+c9 TIME,
+c11 TIME GENERATED ALWAYS AS(ADDTIME(c8,c9)) VIRTUAL,
+c13 TIME GENERATED ALWAYS AS(ADDTIME(c8,c11)) VIRTUAL,
+PRIMARY KEY(c1),
+UNIQUE KEY(c13)
+);
+INSERT INTO C (c8,c9) VALUES('1970-01-01',0),('1970-01-01',1);
+CREATE VIEW view_C AS SELECT * FROM C;
+SELECT /*+ NO_BNL(t1) */ t1.c13 FROM C AS t2 STRAIGHT_JOIN C AS t1 FORCE INDEX(c13);
+c13
+00:00:00
+00:00:01
+00:00:00
+00:00:01
+SELECT DISTINCT t1.c13 FROM C AS t1, view_C AS t2;
+c13
+00:00:00
+00:00:01
+DROP TABLE C;
+DROP VIEW view_C;

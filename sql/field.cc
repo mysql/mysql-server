@@ -3300,6 +3300,16 @@ Field_new_decimal::unpack(uchar* to,
   return from+len;
 }
 
+bool Field_new_decimal::send_binary(Protocol *protocol)
+{
+  my_decimal dec_value;
+  if (is_null())
+    return protocol->store_null();
+  return protocol->store_decimal(val_decimal(&dec_value),
+                                 zerofill ? precision : 0, dec);
+}
+
+
 /****************************************************************************
 ** tiny int
 ****************************************************************************/
@@ -3451,7 +3461,8 @@ bool Field_tiny::send_binary(Protocol *protocol)
 {
   if (is_null())
     return protocol->store_null();
-  return protocol->store_tiny((longlong) (int8) ptr[0]);
+  return protocol->store_tiny((longlong) unsigned_flag? (uint8) ptr[0]:
+                                                         (int8) ptr[0]);
 }
 
 int Field_tiny::cmp(const uchar *a_ptr, const uchar *b_ptr)
@@ -6864,6 +6875,10 @@ type_conversion_status Field_datetimef::store_packed(longlong nr)
 
       "Cannot convert character string: 'xxx' for column 't' at row 1"
 
+  @param  original_string            this is is the original string that was
+                                     supposed to be copied. Helps in keeping
+                                     track of whether a value has been
+                                     completely truncated.
   @param  well_formed_error_pos      position of the first non-wellformed
                                      character in the source string
   @param  cannot_convert_error_pos   position of the first non-convertable
@@ -6874,12 +6889,14 @@ type_conversion_status Field_datetimef::store_packed(longlong nr)
   @param  count_spaces               treat trailing spaces as important data
   @param  cs                         character set of the string
 
-  @return TYPE_OK, TYPE_NOTE_TRUNCATED, TYPE_WARN_TRUNCATED
+  @return TYPE_OK, TYPE_NOTE_TRUNCATED, TYPE_WARN_TRUNCATED,
+          TYPE_WARN_ALL_TRUNCATED
 
 */
 
 type_conversion_status
-Field_longstr::check_string_copy_error(const char *well_formed_error_pos,
+Field_longstr::check_string_copy_error(const char *original_string,
+                                       const char *well_formed_error_pos,
                                        const char *cannot_convert_error_pos,
                                        const char *from_end_pos,
                                        const char *end,
@@ -6902,6 +6919,10 @@ Field_longstr::check_string_copy_error(const char *well_formed_error_pos,
                       ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                       "string", tmp, field_name,
                       thd->get_stmt_da()->current_row_for_condition());
+
+  if (well_formed_error_pos == original_string)
+    return TYPE_WARN_ALL_TRUNCATED;
+
   return TYPE_WARN_TRUNCATED;
 }
 
@@ -6985,7 +7006,7 @@ Field_string::store(const char *from, size_t length,const CHARSET_INFO *cs)
                               field_length-copy_length,
                               field_charset->pad_char);
 
-  return check_string_copy_error(well_formed_error_pos,
+  return check_string_copy_error(from, well_formed_error_pos,
                                  cannot_convert_error_pos, from_end_pos,
                                  from + length, false, cs);
 }
@@ -7487,7 +7508,7 @@ type_conversion_status Field_varstring::store(const char *from, size_t length,
   else
     int2store(ptr, static_cast<uint16>(copy_length));
 
-  return check_string_copy_error(well_formed_error_pos,
+  return check_string_copy_error(from, well_formed_error_pos,
                                  cannot_convert_error_pos, from_end_pos,
                                  from + length, true, cs);
 }
@@ -7919,7 +7940,7 @@ Field_blob::Field_blob(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
   :Field_longstr(ptr_arg, BLOB_PACK_LENGTH_TO_MAX_LENGH(blob_pack_length),
                  null_ptr_arg, null_bit_arg, unireg_check_arg, field_name_arg,
                  cs),
-   packlength(blob_pack_length), keep_old_value(false)
+   packlength(blob_pack_length)
 {
   DBUG_ASSERT(blob_pack_length <= 4); // Only pack lengths 1-4 supported currently
   flags|= BLOB_FLAG;
@@ -8104,20 +8125,6 @@ Field_blob::store_internal(const char *from, size_t length,
 
   new_length= min<size_t>(max_data_length(), field_charset->mbmaxlen * length);
 
-  /*
-    For UPDATE statements that update a virtual generated column,
-    the storage engine might need to have access to the old value
-    for the generated column. If that is the case, we can not update
-    directly into the existing value but need to keep it. To do
-    this, we transfer the value string to old_value. A new string
-    will be allocated for the updated value.
-  */
-  if (keep_old_value)
-  {
-    DBUG_ASSERT(is_virtual_gcol());
-    old_value.takeover(value);
-  }
-
   if (value.alloc(new_length))
     goto oom_error;
 
@@ -8141,7 +8148,7 @@ Field_blob::store_internal(const char *from, size_t length,
                                                 &from_end_pos);
 
     store_ptr_and_length(tmp, copy_length);
-    return check_string_copy_error(well_formed_error_pos,
+    return check_string_copy_error(from, well_formed_error_pos,
                                    cannot_convert_error_pos, from_end_pos,
                                    from + length, true, cs);
   }
@@ -8561,6 +8568,51 @@ uint Field_blob::is_equal(Create_field *new_field)
           new_field->pack_length == pack_length());
 }
 
+/**
+  Save the current BLOB value to avoid that it gets overwritten.
+
+  This is used when updating virtual generated columns that are
+  BLOBs. Some storage engines require that we have both the old and
+  new BLOB value for virtual generated columns that are indexed in
+  order for the storage engine to be able to maintain the index. This
+  function will transfer the buffer storing the current BLOB value
+  from 'value' to 'old_value'. This avoids that the current BLOB value
+  is over-written when the new BLOB value is saved into this field.
+
+  The reason this requires special handling when updating/deleting
+  virtual columns of BLOB type is that the BLOB value is not known to
+  the storage engine. For stored columns, the "old" BLOB value is read
+  by the storage engine, Field_blob is made to point to the engine's
+  internal buffer; Field_blob's internal buffer (Field_blob::value)
+  isn't used and remains available to store the "new" value.  For
+  virtual generated columns, the "old" value is written directly into
+  Field_blob::value when reading the record to be
+  updated/deleted. This is done in update_generated_read_fields(). 
+  Since, in this case, the "old" value already occupies the place to
+  store the "new" value, we must call this function before we write
+  the "new" value into Field_blob::value object so that the "old"
+  value does not get over-written. The table->record[1] buffer will
+  have a pointer that points to the memory buffer inside
+  old_value. The storage engine will use table->record[1] to read the
+  old value for the BLOB and use table->record[0] to read the new
+  value.
+
+  This function must be called before we store the new BLOB value in
+  this field object.
+*/
+
+void Field_blob::keep_old_value()
+{
+  /*
+    We should only need to keep a copy of the blob value in the case
+    where this is a virtual genarated column (that is indexed).
+  */
+  DBUG_ASSERT(is_virtual_gcol());
+
+  // Transfer ownership of the current BLOB value to old_value
+  old_value.takeover(value);
+}
+
 
 void Field_geom::sql_type(String &res) const
 {
@@ -8717,7 +8769,7 @@ uint Field_json::is_equal(Create_field *new_field)
 /**
   Store data in this JSON field.
 
-  JSON data is usually stored using store_dom() or store_json(), so this
+  JSON data is usually stored using store(Field_json*) or store_json(), so this
   function will only be called if non-JSON data is attempted stored in a JSON
   field. This results in an error in most cases.
 
@@ -8746,6 +8798,14 @@ Field_json::store(const char *from, size_t length, const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
 
+  /*
+    First clear the field so that it doesn't contain garbage if we
+    return with an error. Some callers continue for a while even after
+    an error has been raised, and they could get into trouble if the
+    field contains garbage.
+  */
+  reset();
+
   const char *s;
   size_t ss;
   String v(from, length, cs);
@@ -8770,22 +8830,7 @@ Field_json::store(const char *from, size_t length, const CHARSET_INFO *cs)
     return TYPE_ERR_BAD_VALUE;
   }
 
-  return store_dom(dom.get());
-}
-
-
-/**
-  Convert a Json_dom object to binary representation and store it in this
-  field.
-
-  @param dom the Json_dom to store
-  @return zero on success, non-zero on failure
-*/
-type_conversion_status Field_json::store_dom(const Json_dom *dom)
-{
-  ASSERT_COLUMN_MARKED_FOR_WRITE;
-
-  if (json_binary::serialize(dom, &value))
+  if (json_binary::serialize(dom.get(), &value))
     return TYPE_ERR_BAD_VALUE;
 
   return store_binary(value.ptr(), value.length());
@@ -8820,7 +8865,22 @@ type_conversion_status Field_json::unsupported_conversion()
 */
 type_conversion_status Field_json::store_binary(const char *ptr, size_t length)
 {
-  DBUG_ASSERT(json_binary::parse_binary(ptr, length).is_valid());
+  /*
+    We expect that a valid binary representation of a JSON document is
+    passed to us.
+
+    We make an exception for the case of an empty binary string. Even
+    though an empty binary string is not a valid representation of a
+    JSON document, we might be served one as a result of inserting
+    NULL or DEFAULT into a not nullable JSON column using INSERT
+    IGNORE, or inserting DEFAULT into a not nullable JSON column in
+    non-strict SQL mode.
+
+    We accept an empty binary string in those cases. Such values will
+    be converted to the JSON null literal when they are read with
+    Field_json::val_json().
+  */
+  DBUG_ASSERT(length == 0 || json_binary::parse_binary(ptr, length).is_valid());
 
   if (value.length() > UINT_MAX32)
   {
@@ -8915,6 +8975,12 @@ bool Field_json::val_json(Json_wrapper *wr)
     should have returned an error. However, sometimes an empty
     Field_json object is created in order to retrieve meta-data.
     Return a dummy value instead of raising an error. Bug#21104470.
+
+    The field could also contain an empty string after forcing NULL or
+    DEFAULT into a not nullable JSON column using lax error checking
+    (such as INSERT IGNORE or non-strict SQL mode). The JSON null
+    literal is used to represent the empty value in this case.
+    Bug#21437989.
   */
   if (s->length() == 0)
   {
@@ -8965,10 +9031,6 @@ String *Field_json::val_str(String *buf1, String *buf2 __attribute__((unused)))
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
 
-  Json_wrapper wr;
-  if (is_null() || val_json(&wr))
-    return NULL;
-
   /*
     Per contract of Field::val_str(String*,String*), buf1 should be
     used if the value needs to be converted to string, and buf2 should
@@ -8976,8 +9038,10 @@ String *Field_json::val_str(String *buf1, String *buf2 __attribute__((unused)))
     so use buf1.
   */
   buf1->length(0);
-  if (wr.to_string(buf1, true, field_name))
-    return NULL;                                /* purecov: inspected */
+
+  Json_wrapper wr;
+  if (is_null() || val_json(&wr) || wr.to_string(buf1, true, field_name))
+    buf1->length(0);
 
   return buf1;
 }
@@ -9025,19 +9089,23 @@ bool Field_json::get_time(MYSQL_TIME *ltime)
 
 void Field_json::make_sort_key(uchar *to, size_t length)
 {
-  String tmp;
-  String *s= Field_blob::val_str(&tmp, &tmp);
-  Json_wrapper wr(json_binary::parse_binary(s->ptr(), s->length()));
+  Json_wrapper wr;
+  if (val_json(&wr))
+  {
+    /* purecov: begin inspected */
+    memset(to, 0, length);
+    return;
+    /* purecov: end */
+  }
   wr.make_sort_key(to, length);
 }
 
 
 ulonglong Field_json::make_hash_key(ulonglong *hash_val)
 {
-  String tmp;
-  String *s= Field_blob::val_str(&tmp, &tmp);
-  Json_wrapper wr(json_binary::parse_binary(s->ptr(), s->length()));
-
+  Json_wrapper wr;
+  if (val_json(&wr))
+    return *hash_val;                         /* purecov: inspected */
   return wr.make_hash_key(hash_val);
 }
 
@@ -11301,6 +11369,45 @@ uint32 Field_blob::char_length()
   }
 }
 
+/**
+  This function creates a separate copy of blob value.
+
+  @param [in] mem_root
+    mem_root that is used to allocate memory for 'copy_of_value'.
+
+  @return - Can fail if we are out of memory.
+    @retval false   Success
+    @retval true    Failure
+*/
+
+bool Field_blob::copy_blob_value(MEM_ROOT *mem_root)
+{
+  DBUG_ENTER("copy_blob_value");
+
+  // Testing memory allocation failure
+  DBUG_EXECUTE_IF("simulate_blob_memory_allocation_fail",
+                  DBUG_SET("+d,simulate_out_of_memory"););
+
+  // Allocate new memory location
+  size_t ulen= get_length(ptr);
+
+  char *blob_value= (char *) alloc_root(mem_root, ulen);
+  if (!blob_value)
+    DBUG_RETURN(true);
+
+  // Copy Data
+  uchar *temp_ptr;
+  get_ptr(&temp_ptr);
+  memcpy(blob_value, temp_ptr, ulen);
+
+  // Set ptr of Field for duplicated data
+  store_ptr_and_length(blob_value, ulen);
+
+  // Set 'value' with the duplicated data
+  value.set(blob_value, ulen, value.charset());
+
+  DBUG_RETURN(false);
+}
 
 /**
   maximum possible display length for blob.

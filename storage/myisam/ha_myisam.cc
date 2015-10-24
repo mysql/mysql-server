@@ -153,7 +153,7 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
 
   DBUG_PRINT(msg_type,("message: %s",msgbuf));
 
-  if (!thd->vio_ok())
+  if (!thd->get_protocol()->connection_alive())
   {
     sql_print_error("%s", msgbuf);
     return;
@@ -727,6 +727,8 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
 {
   MI_KEYDEF *keyinfo;
   MI_COLUMNDEF *recinfo= 0;
+  Myisam_handler_share *my_handler_share;
+  MYISAM_SHARE *share= NULL;
   uint recs;
   uint i;
 
@@ -748,11 +750,49 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
   if (!(test_if_locked & HA_OPEN_TMP_TABLE) && opt_myisam_use_mmap)
     test_if_locked|= HA_OPEN_MMAP;
 
-  if (!(file=mi_open(name, mode, test_if_locked | HA_OPEN_FROM_SQL_LAYER)))
-    return (my_errno ? my_errno : -1);
+  /*
+     We are allocating the handler share only in case of normal MyISAM tables
+  */
+  if (table->s->tmp_table == NO_TMP_TABLE)
+  {
+    lock_shared_ha_data();
+    my_handler_share= static_cast <Myisam_handler_share*>(get_ha_share_ptr());
+    if (my_handler_share)
+      share= my_handler_share->m_share;
+
+    if (!(file= mi_open_share(name, share, mode,
+                              test_if_locked | HA_OPEN_FROM_SQL_LAYER)))
+    {
+      unlock_shared_ha_data();
+      return (my_errno() ? my_errno() : -1);
+    }
+    if (!my_handler_share)
+    {
+      my_handler_share= new (std::nothrow) Myisam_handler_share;
+      if (my_handler_share)
+      {
+        my_handler_share->m_share= file->s;
+        set_ha_share_ptr(static_cast <Handler_share*>(my_handler_share));
+      }
+      else
+      {
+        mi_close(file);
+        unlock_shared_ha_data();
+        return (my_errno() ? my_errno() : HA_ERR_OUT_OF_MEM);
+      }
+    }
+    unlock_shared_ha_data();
+  }
+  else
+     if (!(file=
+           mi_open_share(name, share, mode,
+                         test_if_locked | HA_OPEN_FROM_SQL_LAYER)))
+       return (my_errno() ? my_errno() : -1);
+
   if (!table->s->tmp_table) /* No need to perform a check for tmp table */
   {
-    if ((my_errno= table2myisam(table, &keyinfo, &recinfo, &recs)))
+    set_my_errno(table2myisam(table, &keyinfo, &recinfo, &recs));
+    if (my_errno())
     {
       /* purecov: begin inspected */
       DBUG_PRINT("error", ("Failed to convert TABLE object to MyISAM "
@@ -766,7 +806,7 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
                          true, table))
     {
       /* purecov: begin inspected */
-      my_errno= HA_ERR_CRASHED;
+      set_my_errno(HA_ERR_CRASHED);
       goto err;
       /* purecov: end */
     }
@@ -791,7 +831,7 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
         (struct st_mysql_ftparser *)plugin_decl(parser)->info;
     table->key_info[i].block_size= file->s->keyinfo[i].block_length;
   }
-  my_errno= 0;
+  set_my_errno(0);
   goto end;
  err:
   this->close();
@@ -802,14 +842,29 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
   */
   if (recinfo)
     my_free(recinfo);
-  return my_errno;
+  return my_errno();
 }
 
 int ha_myisam::close(void)
 {
-  MI_INFO *tmp=file;
-  file=0;
-  return mi_close(tmp);
+  my_bool closed_share= FALSE;
+  lock_shared_ha_data();
+  int err= mi_close_share(file, &closed_share);
+  file= 0;
+  /*
+    Since tmp tables will also come to the same flow. To distinguesh with them
+    we need to check table_share->tmp_table.
+  */
+  if (closed_share && table_share->tmp_table == NO_TMP_TABLE)
+  {
+    Myisam_handler_share *my_handler_share=
+      static_cast <Myisam_handler_share*>(get_ha_share_ptr());
+    if (my_handler_share && my_handler_share->m_share)
+      delete (my_handler_share);
+    set_ha_share_ptr(NULL);
+  }
+  unlock_shared_ha_data();
+  return err;
 }
 
 int ha_myisam::write_row(uchar *buf)
@@ -1018,7 +1073,7 @@ int ha_myisam::optimize(THD* thd, HA_CHECK_OPT *check_opt)
   if ((error= repair(thd,param,1)) && param.retry_repair)
   {
     sql_print_warning("Warning: Optimize table got errno %d on %s.%s, retrying",
-                      my_errno, param.db_name, param.table_name);
+                      my_errno(), param.db_name, param.table_name);
     param.testflag&= ~T_REP_BY_SORT;
     error= repair(thd,param,1);
   }
@@ -1054,8 +1109,8 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
       mi_lock_database(file, table->s->tmp_table ? F_EXTRA_LCK : F_WRLCK))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
-    mi_check_print_error(&param, ER(ER_CANT_LOCK), my_errno,
-                         my_strerror(errbuf, sizeof(errbuf), my_errno));
+    mi_check_print_error(&param, ER(ER_CANT_LOCK), my_errno(),
+                         my_strerror(errbuf, sizeof(errbuf), my_errno()));
     DBUG_RETURN(HA_ADMIN_FAILED);
   }
 
@@ -1268,7 +1323,7 @@ int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT *check_opt)
       break;
     default:
       my_snprintf(buf, sizeof(buf),
-                  "Failed to read from index file (errno: %d)", my_errno);
+                  "Failed to read from index file (errno: %d)", my_errno());
       errmsg= buf;
     }
     error= HA_ADMIN_FAILED;
@@ -1403,7 +1458,7 @@ int ha_myisam::enable_indexes(uint mode)
     if ((error= (repair(thd,param,0) != HA_ADMIN_OK)) && param.retry_repair)
     {
       sql_print_warning("Warning: Enabling keys got errno %d on %s.%s, retrying",
-                        my_errno, param.db_name, param.table_name);
+                        my_errno(), param.db_name, param.table_name);
       /*
         Repairing by sort failed. Now try standard repair method.
         Still we want to fix only index file. If data file corruption
@@ -2142,6 +2197,61 @@ int myisam_panic(handlerton *hton, ha_panic_function flag)
   return mi_panic(flag);
 }
 
+
+extern "C" st_keycache_thread_var *keycache_thread_var()
+{
+  THD *thd= current_thd;
+  if (thd == NULL)
+  {
+    /*
+      This is not a thread belonging to a connection.
+      It will then be the main thread during startup/shutdown or
+      extra threads created for thr_find_all_keys().
+    */
+    return (st_keycache_thread_var*)my_get_thread_local(keycache_tls_key);
+  }
+
+  /*
+    For connection threads keycache thread state is stored in Ha_data::ha_ptr.
+    This pointer has lifetime for the connection duration and is not used
+    for anything else by MyISAM.
+
+    @see Ha_data (sql_class.h)
+  */
+  st_keycache_thread_var *keycache_thread_var=
+    static_cast<st_keycache_thread_var *>(thd_get_ha_data(thd, myisam_hton));
+  if (!keycache_thread_var)
+  {
+    /* Lazy initialization */
+    keycache_thread_var=
+      static_cast<st_keycache_thread_var *>(my_malloc(
+        mi_key_memory_keycache_thread_var,
+        sizeof(st_keycache_thread_var),
+        MYF(MY_ZEROFILL)));
+    mysql_cond_init(mi_keycache_thread_var_suspend,
+                    &keycache_thread_var->suspend);
+    thd_set_ha_data(thd, myisam_hton, keycache_thread_var);
+  }
+  return keycache_thread_var;
+}
+
+
+static int myisam_close_connection(handlerton *hton, THD *thd)
+{
+  st_keycache_thread_var *keycache_thread_var=
+    static_cast<st_keycache_thread_var *>(thd_get_ha_data(thd, hton));
+
+  if (keycache_thread_var)
+  {
+    thd_set_ha_data(thd, hton, NULL);
+    mysql_cond_destroy(&keycache_thread_var->suspend);
+    my_free(keycache_thread_var);
+  }
+
+  return 0;
+}
+
+
 static int myisam_init(void *p)
 {
   handlerton *myisam_hton;
@@ -2163,9 +2273,23 @@ static int myisam_init(void *p)
   myisam_hton->db_type= DB_TYPE_MYISAM;
   myisam_hton->create= myisam_create_handler;
   myisam_hton->panic= myisam_panic;
+  myisam_hton->close_connection= myisam_close_connection;
   myisam_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
   myisam_hton->is_supported_system_table= myisam_is_supported_system_table;
 
+  main_thread_keycache_var= st_keycache_thread_var();
+  mysql_cond_init(mi_keycache_thread_var_suspend,
+                  &main_thread_keycache_var.suspend);
+  (void)my_create_thread_local_key(&keycache_tls_key, NULL);
+  my_set_thread_local(keycache_tls_key, &main_thread_keycache_var);
+  return 0;
+}
+
+
+static int myisam_deinit(void *p)
+{
+  mysql_cond_destroy(&main_thread_keycache_var.suspend);
+  my_delete_thread_local_key(keycache_tls_key);
   return 0;
 }
 
@@ -2270,7 +2394,7 @@ mysql_declare_plugin(myisam)
   "MyISAM storage engine",
   PLUGIN_LICENSE_GPL,
   myisam_init, /* Plugin Init */
-  NULL, /* Plugin Deinit */
+  myisam_deinit, /* Plugin Deinit */
   0x0100, /* 1.0 */
   NULL,                       /* status variables                */
   myisam_sysvars,             /* system variables                */

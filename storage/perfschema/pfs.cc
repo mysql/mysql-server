@@ -19,6 +19,19 @@
 */
 #include "my_global.h"
 #include "thr_lock.h"
+
+/* Make sure exported prototypes match the implementation. */
+#include "pfs_file_provider.h"
+#include "pfs_idle_provider.h"
+#include "pfs_memory_provider.h"
+#include "pfs_metadata_provider.h"
+#include "pfs_socket_provider.h"
+#include "pfs_stage_provider.h"
+#include "pfs_statement_provider.h"
+#include "pfs_table_provider.h"
+#include "pfs_thread_provider.h"
+#include "pfs_transaction_provider.h"
+
 #include "mysql/psi/psi.h"
 #include "mysql/psi/mysql_thread.h"
 #include "my_thread.h"
@@ -2145,6 +2158,7 @@ extern "C" void* pfs_spawn_thread(void *arg)
     pfs= create_thread(klass, typed_arg->m_child_identity, 0);
     if (likely(pfs != NULL))
     {
+      pfs->m_thread_os_id= my_thread_os_id();
       clear_thread_account(pfs);
 
       pfs->m_parent_thread_internal_id= typed_arg->m_thread_internal_id;
@@ -2272,6 +2286,18 @@ void pfs_set_thread_THD_v1(PSI_thread *thread, THD *thd)
   if (unlikely(pfs == NULL))
     return;
   pfs->m_thd= thd;
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_os_thread_id.
+*/
+void pfs_set_thread_os_id_v1(PSI_thread *thread)
+{
+  PFS_thread *pfs= reinterpret_cast<PFS_thread*> (thread);
+  if (unlikely(pfs == NULL))
+    return;
+  pfs->m_thread_os_id= my_thread_os_id();
 }
 
 /**
@@ -4432,6 +4458,27 @@ void pfs_end_file_open_wait_and_bind_to_descriptor_v1
 
 /**
   Implementation of the file instrumentation interface.
+  @sa PSI_v1::end_temp_file_open_wait_and_bind_to_descriptor.
+*/
+void pfs_end_temp_file_open_wait_and_bind_to_descriptor_v1
+  (PSI_file_locker *locker, File file, const char *filename)
+{
+  DBUG_ASSERT(filename != NULL);
+  PSI_file_locker_state *state= reinterpret_cast<PSI_file_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+
+  /* Set filename that was generated during creation of temporary file. */
+  state->m_name= filename;
+  pfs_end_file_open_wait_and_bind_to_descriptor_v1(locker, file);
+
+  PFS_file *pfs_file= reinterpret_cast<PFS_file *> (state->m_file);
+  DBUG_ASSERT(pfs_file != NULL);
+  pfs_file->m_temporary= true;
+}
+
+
+/**
+  Implementation of the file instrumentation interface.
   @sa PSI_v1::start_file_wait.
 */
 void pfs_start_file_wait_v1(PSI_file_locker *locker,
@@ -4638,6 +4685,17 @@ void pfs_end_file_close_wait_v1(PSI_file_locker *locker, int rc)
     switch(state->m_operation)
     {
     case PSI_FILE_CLOSE:
+      if (file != NULL)
+      {
+        if (file->m_temporary)
+        {
+          DBUG_ASSERT(file->m_file_stat.m_open_count <= 1);
+          destroy_file(thread, file);
+        }
+        else
+          release_file(file);
+      }
+      break;
     case PSI_FILE_STREAM_CLOSE:
       if (file != NULL)
         release_file(file);
@@ -4844,6 +4902,7 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
                                    const void *charset, PSI_sp_share *sp_share)
 {
   DBUG_ASSERT(state != NULL);
+  DBUG_ASSERT(charset != NULL);
   if (! flag_global_instrumentation)
     return NULL;
   PFS_statement_class *klass= find_statement_class(key);
@@ -4890,6 +4949,8 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
       pfs->m_lock_time= 0;
       pfs->m_current_schema_name_length= 0;
       pfs->m_sqltext_length= 0;
+      pfs->m_sqltext_truncated= false;
+      pfs->m_sqltext_cs_number= system_charset_info->number; /* default */
 
       pfs->m_message_text[0]= '\0';
       pfs->m_sql_errno= 0;
@@ -5015,6 +5076,7 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
   state->m_no_good_index_used= 0;
 
   state->m_digest= NULL;
+  state->m_cs_number= ((CHARSET_INFO *)charset)->number;
 
   state->m_schema_name_length= 0;
   state->m_parent_sp_share= sp_share;
@@ -5124,10 +5186,14 @@ void pfs_set_statement_text_v1(PSI_statement_locker *locker,
     PFS_events_statements *pfs= reinterpret_cast<PFS_events_statements*> (state->m_statement);
     DBUG_ASSERT(pfs != NULL);
     if (text_len > pfs_max_sqltext)
-      text_len= pfs_max_sqltext;
+    {
+      text_len= (uint)pfs_max_sqltext;
+      pfs->m_sqltext_truncated= true;
+    }
     if (text_len)
       memcpy(pfs->m_sqltext, text, text_len);
     pfs->m_sqltext_length= text_len;
+    pfs->m_sqltext_cs_number= state->m_cs_number;
   }
 
   return;
@@ -6336,7 +6402,7 @@ void pfs_register_memory_v1(const char *category,
                    register_memory_class)
 }
 
-static PSI_memory_key pfs_memory_alloc_v1(PSI_memory_key key, size_t size, PSI_thread **owner)
+PSI_memory_key pfs_memory_alloc_v1(PSI_memory_key key, size_t size, PSI_thread **owner)
 {
   PFS_thread ** owner_thread= reinterpret_cast<PFS_thread**>(owner);
   DBUG_ASSERT(owner_thread != NULL);
@@ -6406,7 +6472,7 @@ static PSI_memory_key pfs_memory_alloc_v1(PSI_memory_key key, size_t size, PSI_t
   return key;
 }
 
-static PSI_memory_key pfs_memory_realloc_v1(PSI_memory_key key, size_t old_size, size_t new_size, PSI_thread **owner)
+PSI_memory_key pfs_memory_realloc_v1(PSI_memory_key key, size_t old_size, size_t new_size, PSI_thread **owner)
 {
   PFS_thread ** owner_thread_hdl= reinterpret_cast<PFS_thread**>(owner);
   DBUG_ASSERT(owner != NULL);
@@ -6484,7 +6550,7 @@ static PSI_memory_key pfs_memory_realloc_v1(PSI_memory_key key, size_t old_size,
   return key;
 }
 
-static PSI_memory_key pfs_memory_claim_v1(PSI_memory_key key, size_t size, PSI_thread **owner)
+PSI_memory_key pfs_memory_claim_v1(PSI_memory_key key, size_t size, PSI_thread **owner)
 {
   PFS_thread ** owner_thread= reinterpret_cast<PFS_thread**>(owner);
   DBUG_ASSERT(owner_thread != NULL);
@@ -6549,7 +6615,7 @@ static PSI_memory_key pfs_memory_claim_v1(PSI_memory_key key, size_t size, PSI_t
   return key;
 }
 
-static void pfs_memory_free_v1(PSI_memory_key key, size_t size, PSI_thread *owner)
+void pfs_memory_free_v1(PSI_memory_key key, size_t size, PSI_thread *owner)
 {
   PFS_memory_class *klass= find_memory_class(key);
   if (klass == NULL)
@@ -6866,6 +6932,7 @@ PSI_v1 PFS_v1=
   pfs_new_thread_v1,
   pfs_set_thread_id_v1,
   pfs_set_thread_THD_v1,
+  pfs_set_thread_os_id_v1,
   pfs_get_thread_v1,
   pfs_set_thread_user_v1,
   pfs_set_thread_account_v1,
@@ -6902,6 +6969,7 @@ PSI_v1 PFS_v1=
   pfs_start_file_open_wait_v1,
   pfs_end_file_open_wait_v1,
   pfs_end_file_open_wait_and_bind_to_descriptor_v1,
+  pfs_end_temp_file_open_wait_and_bind_to_descriptor_v1,
   pfs_start_file_wait_v1,
   pfs_end_file_wait_v1,
   pfs_start_file_close_wait_v1,

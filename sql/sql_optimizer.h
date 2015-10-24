@@ -792,6 +792,8 @@ private:
   bool setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
                                          const POSITION *inner_pos,
                                          POSITION *sjm_pos);
+
+  bool add_having_as_tmp_table_cond(uint curr_tmp_table);
   bool make_tmp_tables_info();
   void set_plan_state(enum_plan_state plan_state_arg);
   bool compare_costs_of_subquery_strategies(
@@ -853,17 +855,18 @@ private:
 
 bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno, 
                             bool other_tbls_ok);
-Item *remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value);
-Item *optimize_cond(THD *thd, Item *conds, COND_EQUAL **cond_equal,
+bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
+                     Item::cond_result *cond_value);
+bool optimize_cond(THD *thd, Item **conds, COND_EQUAL **cond_equal,
                     List<TABLE_LIST> *join_list,
-                    bool build_equalities, Item::cond_result *cond_value);
+                    Item::cond_result *cond_value);
 Item* substitute_for_best_equal_field(Item *cond,
                                       COND_EQUAL *cond_equal,
                                       void *table_join_idx);
-Item *build_equal_items(THD *thd, Item *cond,
-                        COND_EQUAL *inherited, bool do_inherit,
-                        List<TABLE_LIST> *join_list,
-                        COND_EQUAL **cond_equal_ref);
+bool build_equal_items(THD *thd, Item *cond, Item **retcond,
+                       COND_EQUAL *inherited, bool do_inherit,
+                       List<TABLE_LIST> *join_list,
+                       COND_EQUAL **cond_equal_ref);
 bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args);
 Key_use_array *create_keyuse_for_table(THD *thd, TABLE *table, uint keyparts,
                                        Item_field **fields,

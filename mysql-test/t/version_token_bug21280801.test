@@ -1,0 +1,97 @@
+# Save the initial number of concurrent sessions
+--disable_ps_protocol
+--source include/not_embedded.inc
+--source include/count_sessions.inc
+--source include/have_perfschema.inc
+
+--echo # Check if the plugin is present
+if ( !$VERSION_TOKEN ) {
+  skip Locking service plugin requires the environment variable \$VERSION_TOKEN to be set (normally done by mtr);
+}
+
+--echo # initialize the version token plugin
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN version_tokens SONAME '$VERSION_TOKEN';
+--replace_regex /\.dll/.so/
+eval CREATE FUNCTION version_tokens_set RETURNS STRING SONAME '$VERSION_TOKEN';
+--replace_regex /\.dll/.so/
+eval CREATE FUNCTION version_tokens_show RETURNS STRING SONAME '$VERSION_TOKEN';
+--replace_regex /\.dll/.so/
+eval CREATE FUNCTION version_tokens_edit RETURNS STRING SONAME '$VERSION_TOKEN';
+--replace_regex /\.dll/.so/
+eval CREATE FUNCTION version_tokens_delete RETURNS STRING SONAME '$VERSION_TOKEN';
+--replace_regex /\.dll/.so/
+eval CREATE FUNCTION version_tokens_lock_shared RETURNS INT SONAME '$VERSION_TOKEN';
+--replace_regex /\.dll/.so/
+eval CREATE FUNCTION version_tokens_lock_exclusive RETURNS INT SONAME '$VERSION_TOKEN';
+--replace_regex /\.dll/.so/
+eval CREATE FUNCTION version_tokens_unlock RETURNS INT SONAME '$VERSION_TOKEN';
+
+--echo # Initialize performance_schema
+UPDATE performance_schema.setup_instruments SET enabled = 'NO', timed = 'YES';
+
+UPDATE performance_schema.setup_instruments SET enabled = 'YES'
+WHERE name IN ('wait/io/table/sql/handler',
+               'wait/lock/table/sql/handler',
+               'wait/lock/metadata/sql/mdl');
+INSERT INTO performance_schema.setup_objects (object_type, object_schema, object_name, enabled, timed)
+  VALUES ('TABLE', 'mtr', '%', 'NO', 'NO');
+
+
+--echo #
+--echo # Bug 21280801: VERSION TOKEN LOCKING DOES NOT WORK
+--echo #
+
+DO version_tokens_set('vt1=11;vt2=22;vt3=33;vt4=44;vt5=55');
+SELECT version_tokens_show();
+
+DO version_tokens_lock_exclusive('vt3', 'vt5', 'vt1', 0);
+
+--echo # Must return 3 rows
+SELECT OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+  FROM performance_schema.metadata_locks
+  WHERE OBJECT_NAME in ('vt1','vt3','vt5') AND
+        LOCK_TYPE='EXCLUSIVE'
+  ORDER BY OBJECT_NAME;
+
+ --connect(con2,localhost,root,,)
+
+--error ER_LOCKING_SERVICE_TIMEOUT
+DO version_tokens_lock_exclusive('vt3', 'vt5', 'vt1', 4);
+
+--connection default
+disconnect con2;
+
+DO version_tokens_unlock();
+--echo # Must return 0 rows
+SELECT OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+  FROM performance_schema.metadata_locks
+  WHERE OBJECT_NAME in ('vt1','vt3','vt5') AND
+        LOCK_TYPE='EXCLUSIVE'
+  ORDER BY OBJECT_NAME;
+
+
+--echo # End of 5.7 tests
+
+
+--echo # Cleanup
+
+--echo # wait for all sessions to disconnect
+--source include/wait_until_count_sessions.inc
+
+
+--echo # Cleanup performance schema
+UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';
+DELETE FROM performance_schema.setup_objects WHERE object_schema='mtr';
+
+--echo # clean up version token plugin
+UNINSTALL PLUGIN version_tokens;
+DROP FUNCTION version_tokens_set;
+DROP FUNCTION version_tokens_show;
+DROP FUNCTION version_tokens_edit;
+DROP FUNCTION version_tokens_delete;
+DROP FUNCTION version_tokens_lock_shared;
+DROP FUNCTION version_tokens_lock_exclusive;
+DROP FUNCTION version_tokens_unlock;
+
+--echo # Cleanup done

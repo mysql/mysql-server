@@ -3071,10 +3071,10 @@ SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("LINESTRING(30 
 
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("LINESTRING(0 0, 0 10, 10 10, 10 0)"), 10, 5)));
 
-SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("POLYGON((30 10, 40 40, 20 40, 10 20))"), 20, 6)));
+SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("POLYGON((30 10, 40 40, 20 40, 10 20,30 10))"), 20, 6)));
 
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("POLYGON((35 10, 45 45, 15 40, 10 20, 35 10),"
-                                    "(20 30, 35 35, 30 20))"), 20, 7)));
+                                    "(20 30, 35 35, 30 20,20 30))"), 20, 7)));
 
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOINT(10 40, 40 30, 20 20, 30 10)"))));
 
@@ -3597,6 +3597,43 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "      \"crs\": null                                      "
 "  }"));
 
+--echo # Check that GeomFromGeoJSON can read data from a JSON field.
+
+CREATE TABLE json_tbl
+(
+  id INT NOT NULL AUTO_INCREMENT,
+  json_value JSON,
+  PRIMARY KEY (id)
+);
+
+INSERT INTO json_tbl (json_value) VALUES
+('{ "type": "Point", "coordinates": [100.0, 0.0] }'),
+('{
+  "type": "LineString",
+  "coordinates":
+    [ [100.0, 0.0], [101.0, 1.0] ]
+}'),
+('{
+  "type": "Polygon",
+  "coordinates":
+    [ [ [100.0, 0.0], [101.0, 0.0], [101.0, 1.0], [100.0, 1.0], [100.0, 0.0] ] ]
+}'),
+('{
+  "type": "Polygon",
+  "coordinates": [
+    [ [100.0, 0.0], [101.0, 0.0], [101.0, 1.0], [100.0, 1.0], [100.0, 0.0] ],
+    [ [100.2, 0.2], [100.8, 0.2], [100.8, 0.8], [100.2, 0.8], [100.2, 0.2] ]
+  ]
+}'),
+('{
+  "type": "MultiPoint",
+  "coordinates": [ [100.0, 0.0], [101.0, 1.0] ]
+}'),
+('{ "type": "Point", "coordinates": [-12.144, 13.736489] }');
+
+SELECT ST_AsText(ST_GeomFromGeoJSON(json_value)) FROM json_tbl;
+DROP TABLE json_tbl;
+
 #####################################################################
 # Bug#19342661
 #####################################################################
@@ -3812,3 +3849,27 @@ SELECT ST_GEOMFROMGEOJSON('-1E-36181012216111515851075235238');
 SELECT ST_GEOMFROMGEOJSON('1E+36181012216111515851075235238');
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 SELECT ST_GEOMFROMGEOJSON('-1E+36181012216111515851075235238');
+
+
+--echo #
+--echo # Bug#21389101 ST_GEOMFROMGEOJSON: STACK OVERFLOW IN
+--echo #              RAPIDJSON::GENERICREADER
+--echo #
+
+--error ER_JSON_DOCUMENT_TOO_DEEP
+SELECT ST_GeomFromGeoJSON(REPEAT('[', 1000));
+
+--error ER_JSON_DOCUMENT_TOO_DEEP
+SELECT ST_GeomFromGeoJSON(REPEAT('{"foo":', 1000));
+
+
+--echo #
+--echo # Bug#21616810 CONNECTION HANG OR ASSERTION 0 IN
+--echo #              THD::SEND_STATEMENT_STATUS, SQL_CLASS.CC
+--echo #
+
+CREATE TABLE t (a INT) ENGINE=InnoDB;
+INSERT INTO t (a) VALUES (0), (1);
+SELECT 1 FROM t GROUP BY ST_AsGeoJSON(NULL, "1", NULL);
+SELECT 1 FROM t GROUP BY ST_AsGeoJSON(NULL, 5, 0);
+DROP TABLE t;

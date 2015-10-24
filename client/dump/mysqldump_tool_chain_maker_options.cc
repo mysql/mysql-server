@@ -43,6 +43,7 @@ void Mysqldump_tool_chain_maker_options::parallel_schemas_callback(char*)
   {
     threads= 0;
   }
+  m_thread_count+= threads;
   m_last_parallel_schemas_queue_id++;
   m_object_queue_threads.insert(std::make_pair(
     m_last_parallel_schemas_queue_id, threads));
@@ -91,8 +92,8 @@ void Mysqldump_tool_chain_maker_options::process_positional_options(
   if ((m_dump_all_databases ? 1 : 0) + (m_dump_selected_databases ? 1 : 0) > 1)
   {
     m_mysql_chain_element_options->get_program()->error(
-      Mysql::Tools::Base::Message_data(1, "Usage of --all-databases, "
-      "--databases and --tables is mutually  exclusive.",
+      Mysql::Tools::Base::Message_data(1, "Usage of --all-databases and "
+      "--databases are mutually  exclusive.",
       Mysql::Tools::Base::Message_type_error));
   }
   else if (m_dump_all_databases
@@ -166,11 +167,12 @@ void Mysqldump_tool_chain_maker_options::process_positional_options(
     m_object_filter.m_tables_excluded.push_back(std::make_pair(
       "mysql", "proxies_priv"));
     /*
-      Since we dump CREATE EVENT statement skip this table.
+      Since we dump CREATE EVENT/FUNCTION/PROCEDURE statement skip this table.
     */
     m_object_filter.m_tables_excluded.push_back(std::make_pair(
       "mysql", "event"));
-
+    m_object_filter.m_tables_excluded.push_back(std::make_pair(
+      "mysql", "proc"));
   }
   if (m_object_filter.m_databases_excluded.size() > 0 ||
     m_object_filter.m_databases_included.size() == 0)
@@ -191,11 +193,11 @@ void Mysqldump_tool_chain_maker_options::create_options()
   this->create_new_option(&m_dump_all_databases, "all-databases",
     "Dump all databases. This is default behaviour if no positional options "
     "are specified. Specifying this option is mutually exclusive with "
-    "--databases and --tables.")
+    "--databases.")
     ->set_short_character('A');
   this->create_new_option(&m_dump_selected_databases, "databases",
     "Dump selected databases, specified in positional options. Specifying "
-    "this option is mutually exclusive with --all-databases and --tables.")
+    "this option is mutually exclusive with --all-databases.")
     ->set_short_character('B');
   this->create_new_option(&m_parallel_schemas_string, "parallel-schemas",
     "[N:]<list of: schema_name separated with ','>. Process tables in "
@@ -235,9 +237,15 @@ Mysqldump_tool_chain_maker_options::Mysqldump_tool_chain_maker_options(
   m_object_reader_options(
     new Mysql_object_reader_options(mysql_chain_element_options)),
   m_last_parallel_schemas_queue_id(0),
+  m_thread_count(0),
   m_object_filter(mysql_chain_element_options->get_program())
 {
   this->add_provider(m_formatter_options);
   this->add_provider(m_object_reader_options);
   this->add_provider(&m_object_filter);
+}
+
+int Mysqldump_tool_chain_maker_options::get_parallel_schemas_thread_count()
+{
+  return m_thread_count;
 }

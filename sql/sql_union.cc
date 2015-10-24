@@ -53,7 +53,7 @@ bool Query_result_union::send_data(List<Item> &values)
     unit->offset_limit_cnt--;
     return false;
   }
-  if (fill_record(thd, table->visible_field_ptr(), values, NULL, NULL))
+  if (fill_record(thd, table, table->visible_field_ptr(), values, NULL, NULL))
     return true;                /* purecov: inspected */
 
   if (!check_unique_constraint(table))
@@ -187,8 +187,8 @@ private:
   /// Wrapped result has initialized tables
   bool done_initialize_tables;
 
-  /// Accumulated limit_found_rows
-  ulonglong limit_found_rows;
+  /// Accumulated current_found_rows
+  ulonglong current_found_rows;
 
   /// Number of rows offset
   ha_rows offset;
@@ -199,7 +199,7 @@ public:
   Query_result_union_direct(Query_result *result, SELECT_LEX *last_select_lex)
     :result(result), last_select_lex(last_select_lex),
     done_send_result_set_metadata(false), done_initialize_tables(false),
-    limit_found_rows(0)
+    current_found_rows(0)
   {}
   bool change_query_result(Query_result *new_result);
   uint field_count(List<Item> &fields) const
@@ -303,7 +303,7 @@ bool Query_result_union_direct::send_data(List<Item> &items)
     return false;
   }
 
-  if (fill_record(thd, table->field, items, NULL, NULL))
+  if (fill_record(thd, table, table->field, items, NULL, NULL))
     return true; /* purecov: inspected */
 
   return result->send_data(unit->item_list);
@@ -323,12 +323,12 @@ bool Query_result_union_direct::initialize_tables(JOIN *join)
 bool Query_result_union_direct::send_eof()
 {
   // Reset for each query block, so accumulate here
-  limit_found_rows+= thd->limit_found_rows -
+  current_found_rows+= thd->current_found_rows -
                      thd->lex->current_select()->get_offset();
 
   if (unit->thd->lex->current_select() == last_select_lex)
   {
-    thd->limit_found_rows= limit_found_rows;
+    thd->current_found_rows= current_found_rows;
 
     // Reset and make ready for re-execution
     // @todo: Dangerous if we have an error midway?
@@ -851,7 +851,7 @@ bool st_select_lex_unit::execute(THD *thd)
     join->exec();
     status= join->error != 0;
     fake_select_lex->table_list.empty();
-    thd->limit_found_rows = (ulonglong)table->file->stats.records;
+    thd->current_found_rows= (ulonglong)table->file->stats.records;
   }
 
   thd->lex->set_current_select(lex_select_save);

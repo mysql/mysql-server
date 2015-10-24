@@ -164,7 +164,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
 #if !defined(HAVE_READDIR_R)
   mysql_mutex_unlock(&THR_LOCK_open);
 #endif
-  my_errno=errno;
+  set_my_errno(errno);
   if (dirp)
     (void) closedir(dirp);
   my_dirend(result);
@@ -172,7 +172,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     my_error(EE_DIR, MYF(0), path,
-             my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+             my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
   }
   DBUG_RETURN((MY_DIR *) NULL);
 } /* my_dir */
@@ -328,7 +328,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   DBUG_PRINT("exit", ("found %d files", result->number_off_files));
   DBUG_RETURN(result);
 error:
-  my_errno=errno;
+  set_my_errno(errno);
   if (handle != -1)
       _findclose(handle);
   my_dirend(result);
@@ -381,7 +381,7 @@ MY_STAT *my_stat(const char *path, MY_STAT *stat_area, myf my_flags)
       DBUG_RETURN(stat_area);
 #endif
   DBUG_PRINT("error",("Got errno: %d from stat", errno));
-  my_errno= errno;
+  set_my_errno(errno);
   if (m_used)					/* Free if new area */
     my_free(stat_area);
 
@@ -390,7 +390,7 @@ error:
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     my_error(EE_STAT, MYF(0), path,
-             my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+             my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
     DBUG_RETURN((MY_STAT *) NULL);
   }
   DBUG_RETURN((MY_STAT *) NULL);

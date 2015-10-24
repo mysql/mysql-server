@@ -1,5 +1,4 @@
-/* Copyright (c) 2003-2008 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -76,9 +75,10 @@ int mi_assign_to_key_cache(MI_INFO *info,
     in the old key cache.
   */
 
-  if (flush_key_blocks(share->key_cache, share->kfile, FLUSH_RELEASE))
+  if (flush_key_blocks(share->key_cache, keycache_thread_var(),
+                       share->kfile, FLUSH_RELEASE))
   {
-    error= my_errno;
+    error= my_errno();
     mi_print_error(info->s, HA_ERR_CRASHED);
     mi_mark_crashed(info);		/* Mark that table must be checked */
   }
@@ -91,7 +91,8 @@ int mi_assign_to_key_cache(MI_INFO *info,
     (This can never fail as there is never any not written data in the
     new key cache)
   */
-  (void) flush_key_blocks(key_cache, share->kfile, FLUSH_RELEASE);
+  (void) flush_key_blocks(key_cache, keycache_thread_var(),
+                          share->kfile, FLUSH_RELEASE);
 
   /*
     ensure that setting the key cache and changing the multi_key_cache
@@ -108,7 +109,7 @@ int mi_assign_to_key_cache(MI_INFO *info,
   if (multi_key_cache_set((uchar*) share->unique_file_name,
                           share->unique_name_length,
 			  share->key_cache))
-    error= my_errno;
+    error= my_errno();
   mysql_mutex_unlock(&share->intern_lock);
   DBUG_RETURN(error);
 }

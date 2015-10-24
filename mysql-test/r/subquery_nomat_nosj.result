@@ -4560,7 +4560,7 @@ new1	10	10	NULL
 explain extended
 select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) z from t2 where a=10 and b=10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	8	1.56	Using where
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where
 2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	idx	idx	5	func	4	10.00	Using where; Full scan on NULL key
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -7009,7 +7009,7 @@ AND sq2_alias1.col_varchar_key > alias1.col_varchar_key
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	PRIMARY	t1	NULL	index	NULL	col_varchar_key	7	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
-2	DEPENDENT SUBQUERY	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	5.33	Range checked for each record (index map: 0x4)
+2	DEPENDENT SUBQUERY	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	20.00	Range checked for each record (index map: 0x4)
 2	DEPENDENT SUBQUERY	sq2_alias2	NULL	ref	col_int_key	col_int_key	4	test.t1.pk	2	100.00	Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -7054,7 +7054,7 @@ EXPLAIN EXTENDED SELECT * FROM v2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	PRIMARY	t1	NULL	index	NULL	col_varchar_key	7	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
-3	DEPENDENT SUBQUERY	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	5.33	Using where
+3	DEPENDENT SUBQUERY	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	20.00	Using where
 3	DEPENDENT SUBQUERY	sq2_alias2	NULL	ref	col_int_key	col_int_key	4	test.t1.pk	2	100.00	Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -7086,7 +7086,7 @@ AND sq2_alias1.col_varchar_key > alias1.col_varchar_key
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	PRIMARY	t1	NULL	index	NULL	col_varchar_key	7	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
-2	DEPENDENT SUBQUERY	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	5.33	Using where
+2	DEPENDENT SUBQUERY	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	20.00	Using where
 2	DEPENDENT SUBQUERY	sq2_alias2	NULL	ref	col_int_key	col_int_key	4	test.t1.pk	2	100.00	Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -7930,4 +7930,141 @@ HAVING field1 >= 'nw'
 field1	field2
 v	1
 DROP TABLE t1,t2;
+#
+# Bug#21211187 CRASH IN JOIN::UPDATE_DEPEND_MAP
+#
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=INNODB;
+CREATE TABLE t0(a INT);
+INSERT INTO t0 VALUES();
+SELECT 1 FROM t1
+WHERE 1 IN
+(
+SELECT 1 FROM t1
+WHERE
+(
+SELECT a
+FROM (SELECT  1 FROM t1) q
+ORDER BY (SELECT (SELECT  1 FROM t1) FROM t0 HAVING a) DESC
+LIMIT 1
+)
+)
+;
+1
+DROP TABLE t0,t1;
+#
+# Bug#21292102 CRASH IN GET_SORT_BY_TABLE()
+#
+set sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TABLE t (a INT) ENGINE=INNODB;
+SELECT 1 FROM t WHERE 1 IN
+(
+SELECT 1 FROM t WHERE 1 <=>
+(
+EXISTS
+(
+SELECT a FROM (SELECT 1) s
+GROUP BY 1 <= ANY
+(
+SELECT 1 FROM t HAVING a
+)
+HAVING 1
+)
+)
+);
+1
+SET @@SQL_MODE=DEFAULT;
+DROP TABLE t;
+SET DEFAULT_STORAGE_ENGINE=INNODB;
+#
+# Bug#21205577 ASSERTION FAILED: (INT)IDX >= 0 && IDX < PARENT_JOIN->TABLES
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES(1);
+CREATE TABLE t2(a INT);
+INSERT INTO t2 VALUES(1),(1),(1),(1),(1);
+SELECT
+(
+(SELECT 1 IN (SELECT 1 FROM t1 AS x1))
+IN
+(
+SELECT 1 FROM t2
+WHERE a IN (SELECT 4 FROM t1 AS x2)
+)
+) AS result
+FROM t1 AS x3;
+result
+0
+SELECT
+(
+(36, (SELECT 1 IN (SELECT 1 FROM t1 AS x1)))
+IN
+(
+SELECT 36, 1 FROM t2
+WHERE a IN (SELECT 4 FROM t1 AS x2)
+)
+) AS result
+FROM t1 AS x3;
+result
+0
+DROP TABLE t1,t2;
+# Bug#21574933 Extra rows with derived table in subquery + XOR
+CREATE TABLE t1 (
+pk INT NOT NULL,
+col_date DATE,
+PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (1,'2008-06-18'), (4,NULL);
+CREATE TABLE t2 (
+col_date DATE,
+pk INT NOT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t2 VALUES ('2002-02-02',1);
+CREATE TABLE t3 (
+pk INT NOT NULL,
+col_varchar VARCHAR(1),
+col_int_key INT,
+col_int INT,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+);
+INSERT INTO t3 VALUES (4,'l',2,2);
+explain SELECT pk,
+col_int IN
+(SELECT innr1.pk
+FROM t1 AS innr2
+LEFT JOIN (SELECT pk, col_date FROM t2) AS innr1
+ON innr2.col_date <> innr1.col_date
+WHERE outr.col_int_key < 6) AS x
+FROM t3 AS outr;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	outr	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	innr2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1276	Field or reference 'test.outr.col_int_key' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`outr`.`pk` AS `pk`,<in_optimizer>(`test`.`outr`.`col_int`,<exists>(/* select#2 */ select 1 from `test`.`t1` `innr2` left join (`test`.`t2`) on((`test`.`innr2`.`col_date` <> `test`.`t2`.`col_date`)) where ((`test`.`outr`.`col_int_key` < 6) and <if>(outer_field_is_not_null, ((<cache>(`test`.`outr`.`col_int`) = `test`.`t2`.`pk`) or isnull(`test`.`t2`.`pk`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`pk`), true))) AS `x` from `test`.`t3` `outr`
+SELECT pk,
+col_int IN
+(SELECT innr1.pk
+FROM t1 AS innr2
+LEFT JOIN (SELECT pk, col_date FROM t2) AS innr1
+ON innr2.col_date <> innr1.col_date
+WHERE outr.col_int_key < 6) AS x
+FROM t3 AS outr;
+pk	x
+4	NULL
+SELECT pk,
+col_int IN
+(SELECT innr1.pk
+FROM t1 AS innr2
+LEFT JOIN (SELECT pk, date'2015-01-01' AS d FROM t2) AS innr1
+ON innr2.col_date <> innr1.d
+WHERE outr.col_int_key < 6) AS x
+FROM t3 AS outr;
+pk	x
+4	NULL
+DROP TABLE t1, t2, t3;
 set optimizer_switch=default;

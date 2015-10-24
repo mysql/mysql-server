@@ -36,7 +36,6 @@
 #include "sql_optimizer.h"    // JOIN
 #include "sql_show.h"         // get_schema_tables_result
 #include "sql_tmp_table.h"    // create_tmp_table
-#include "json_binary.h"    // json_binary::Value
 #include "json_dom.h"    // Json_wrapper
 
 #include <algorithm>
@@ -164,7 +163,7 @@ JOIN::exec()
         send_records= calc_found_rows ? 1 : thd->get_sent_row_count();
       }
       /* Query block (without union) always returns 0 or 1 row */
-      thd->limit_found_rows= send_records;
+      thd->current_found_rows= send_records;
     }
     else
     {
@@ -612,7 +611,7 @@ end_sj_materialize(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
       if (item->is_null())
         DBUG_RETURN(NESTED_LOOP_OK);
     }
-    fill_record(thd, table->visible_field_ptr(),
+    fill_record(thd, table, table->visible_field_ptr(),
                 sjm->sj_nest->nested_join->sj_inner_exprs,
                 NULL, NULL);
     if (thd->is_error())
@@ -634,8 +633,6 @@ end_sj_materialize(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
 }
 
 
-
-
 /**
   Check appearance of new constant items in multiple equalities
   of a condition after reading a constant table.
@@ -645,14 +642,15 @@ end_sj_materialize(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
     reading the constant (single row) table tab. If so it adjusts
     the multiple equality appropriately.
 
+  @param thd        thread handler
   @param cond       condition whose multiple equalities are to be checked
-  @param table      constant table that has been read
+  @param tab        constant table that has been read
 */
 
-static void update_const_equal_items(Item *cond, JOIN_TAB *tab)
+static bool update_const_equal_items(THD *thd, Item *cond, JOIN_TAB *tab)
 {
   if (!(cond->used_tables() & tab->table_ref->map()))
-    return;
+    return false;
 
   if (cond->type() == Item::COND_ITEM)
   {
@@ -660,14 +658,18 @@ static void update_const_equal_items(Item *cond, JOIN_TAB *tab)
     List_iterator_fast<Item> li(*cond_list);
     Item *item;
     while ((item= li++))
-      update_const_equal_items(item, tab);
+    {
+      if (update_const_equal_items(thd, item, tab))
+        return true;
+    }
   }
   else if (cond->type() == Item::FUNC_ITEM && 
            ((Item_cond*) cond)->functype() == Item_func::MULT_EQUAL_FUNC)
   {
     Item_equal *item_equal= (Item_equal *) cond;
     bool contained_const= item_equal->get_const() != NULL;
-    item_equal->update_const();
+    if (item_equal->update_const(thd))
+      return true;
     if (!contained_const && item_equal->get_const())
     {
       /* Update keys for range analysis */
@@ -702,6 +704,7 @@ static void update_const_equal_items(Item *cond, JOIN_TAB *tab)
       }
     }
   }
+  return false;
 }
 
 /**
@@ -729,7 +732,7 @@ return_zero_rows(JOIN *join, List<Item> &fields)
   /* Update results for FOUND_ROWS */
   if (!join->send_row_on_empty_set())
   {
-    join->thd->limit_found_rows= 0;
+    join->thd->current_found_rows= 0;
   }
 
   SELECT_LEX *const select= join->select_lex;
@@ -940,7 +943,7 @@ do_select(JOIN *join)
       error= join->first_select(join,qep_tab,1);
   }
 
-  join->thd->limit_found_rows= join->send_records;
+  join->thd->current_found_rows= join->send_records;
   /*
     For "order by with limit", we cannot rely on send_records, but need
     to use the rowcount read originally into the join_tab applying the
@@ -967,7 +970,7 @@ do_select(JOIN *join)
         sort_tab->filesort->sortorder &&
         sort_tab->filesort->limit != HA_POS_ERROR)
     {
-      join->thd->limit_found_rows= sort_tab->records();
+      join->thd->current_found_rows= sort_tab->records();
     }
   }
 
@@ -1632,6 +1635,10 @@ evaluate_join_record(JOIN *join, QEP_TAB *const qep_tab)
       if (rc != NESTED_LOOP_OK)
         DBUG_RETURN(rc);
 
+      /* check for errors evaluating the condition */
+      if (join->thd->is_error())
+        DBUG_RETURN(NESTED_LOOP_ERROR);
+
       if (qep_tab->do_loosescan() &&
           QEP_AT(qep_tab,match_tab).found_match)
       {
@@ -1897,8 +1904,10 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
 
   /* Check appearance of new constant items in Item_equal objects */
   JOIN *const join= tab->join();
-  if (join->where_cond)
-    update_const_equal_items(join->where_cond, tab);
+  THD *const thd= join->thd;
+  if (join->where_cond &&
+      update_const_equal_items(thd, join->where_cond, tab))
+    DBUG_RETURN(1);
   TABLE_LIST *tbl;
   for (tbl= join->select_lex->leaf_tables; tbl; tbl= tbl->next_leaf)
   {
@@ -1907,8 +1916,9 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
     do
     {
       embedded= embedding;
-      if (embedded->join_cond_optim())
-        update_const_equal_items(embedded->join_cond_optim(), tab);
+      if (embedded->join_cond_optim() &&
+          update_const_equal_items(thd, embedded->join_cond_optim(), tab))
+        DBUG_RETURN(1);
       embedding= embedded->embedding;
     }
     while (embedding &&
@@ -2863,19 +2873,6 @@ end_send(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
   {
     int error;
 
-    /*
-      If group ref array exist then set it as current ref array. Result values
-      of non-deterministic expressions are saved here and corresponding Item_ref
-      should look for their values here rather than re-evaluation of the same.
-      Example : Loose index scan with having, where having refers to
-                non-deterministic function like rand() in select.
-    */
-    if (!join->items3.is_null() && !join->set_group_rpa)
-    {
-      join->set_group_rpa= true;
-      join->set_items_ref_array(join->items3);
-    }
-
     if (join->tables &&
         // In case filesort has been used and zeroed quick():
         (join->qep_tab[0].quick_optim() &&
@@ -3111,29 +3108,18 @@ static bool cmp_field_value(Field *field, my_ptrdiff_t diff)
 
     Field_json *json_field= down_cast<Field_json *>(field);
 
-    char *left_data;
-    json_field->get_ptr(pointer_cast<uchar **>(&left_data));
-    json_binary::Value left_value(json_binary::parse_binary(left_data, src_len));
-    if (left_value.type() == json_binary::Value::ERROR)
-    {
-      /* purecov: begin inspected */
-      my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
-      return true;
-      /* purecov: end */
-    }
-    Json_wrapper left_wrapper(left_value);
+    // Fetch the JSON value on the left side of the comparison.
+    Json_wrapper left_wrapper;
+    if (json_field->val_json(&left_wrapper))
+      return true;                            /* purecov: inspected */
 
-    char *right_data;
-    json_field->get_ptr(pointer_cast<uchar **>(&right_data), diff);
-    json_binary::Value right_value(json_binary::parse_binary(right_data, dst_len));
-    if (right_value.type() == json_binary::Value::ERROR)
-    {
-      /* purecov: begin inspected */
-      my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
-      return true;
-      /* purecov: end */
-    }
-    Json_wrapper right_wrapper(right_value);
+    // Fetch the JSON value on the right side of the comparison.
+    Json_wrapper right_wrapper;
+    json_field->ptr+= diff;
+    bool err= json_field->val_json(&right_wrapper);
+    json_field->ptr-= diff;
+    if (err)
+      return true;                            /* purecov: inspected */
 
     return (left_wrapper.compare(right_wrapper) != 0);
   }
@@ -3345,14 +3331,6 @@ end_write(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
   }
   if (!end_of_records)
   {
-    /*
-      Set the ref_ptrs to current temp table ref_array. Below we evaluate
-      having, Item_ref of non-deterministic expressions in having should refer
-      to their result values in temp table instead of re-evaluating the same.
-    */
-    if (join->current_ref_ptrs != *(qep_tab->ref_array))
-      join->set_items_ref_array(*(qep_tab->ref_array));
-
     Temp_table_param *const tmp_tbl= qep_tab->tmp_table_param;
     if (copy_fields(tmp_tbl, join->thd))
       DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
@@ -3584,13 +3562,6 @@ end_write_group(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
       if (end_of_records)
 	DBUG_RETURN(NESTED_LOOP_OK);
       join->first_record=1;
-
-      /*
-        Set the ref_ptrs to current temp table ref_array. Below we evaluate
-        having, Item_ref of non-deterministic expressions in having should refer
-        to their result values in temp table instead of re-evaluating the same.
-      */
-      join->set_items_ref_array(*(qep_tab->ref_array));
 
       (void)(test_if_item_cache_changed(join->group_fields));
     }

@@ -510,12 +510,13 @@ private:
   enum_state m_state;
   Compound_vector m_stack;
   Json_dom *m_dom_as_built;
-
+  bool m_preserve_neg_zero_int;
 public:
-  Rapid_json_handler()
+  Rapid_json_handler(bool preserve_neg_zero_int= false)
     : m_state(expect_anything),
       m_stack(key_memory_JSON),
-      m_dom_as_built(NULL)
+      m_dom_as_built(NULL),
+      m_preserve_neg_zero_int(preserve_neg_zero_int)
   {}
 
   ~Rapid_json_handler()
@@ -634,7 +635,7 @@ public:
 
   bool Double(double d, bool is_int= false)
   {
-    if (is_int)
+    if (is_int && !m_preserve_neg_zero_int)
     {
       /*
         The is_int flag is true only if -0 was seen. Handle it as an
@@ -858,9 +859,10 @@ public:
 
 
 Json_dom *Json_dom::parse(const char *text, size_t length,
-                          const char **syntaxerr, size_t *offset)
+                          const char **syntaxerr, size_t *offset,
+                          bool preserve_neg_zero_int)
 {
-  Rapid_json_handler handler;
+  Rapid_json_handler handler(preserve_neg_zero_int);
   MemoryStream ss(text, length);
   Reader reader;
   bool success= reader.Parse<kParseDefaultFlags>(ss, handler);
@@ -2410,7 +2412,8 @@ Json_path Json_dom::get_location()
 }
 
 
-bool Json_dom::seek(const Json_path &path, Json_dom_vector *hits,
+bool Json_dom::seek(const Json_seekable_path &path,
+                    Json_dom_vector *hits,
                     bool auto_wrap, bool only_need_one)
 {
   Json_dom_vector candidates(key_memory_JSON);
@@ -2443,7 +2446,7 @@ bool Json_dom::seek(const Json_path &path, Json_dom_vector *hits,
 }
 
 
-bool Json_wrapper::seek_no_ellipsis(const Json_path &path,
+bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
                                     Json_wrapper_vector *hits,
                                     const size_t leg_number,
                                     bool auto_wrap,
@@ -2592,7 +2595,8 @@ bool Json_wrapper::seek_no_ellipsis(const Json_path &path,
 }
 
 
-bool Json_wrapper::seek(const Json_path &path, Json_wrapper_vector *hits,
+bool Json_wrapper::seek(const Json_seekable_path &path,
+                        Json_wrapper_vector *hits,
                         bool auto_wrap, bool only_need_one)
 {
   if (empty())

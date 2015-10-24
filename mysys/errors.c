@@ -52,7 +52,8 @@ const char *globerrs[GLOBERRS]=
   "File '%s' (fileno: %d) was not closed",
   "Can't change ownership of the file '%s' (Errcode: %d - %s)",
   "Can't change permissions of the file '%s' (Errcode: %d - %s)",
-  "Can't seek in file '%s' (Errcode: %d - %s)"
+  "Can't seek in file '%s' (Errcode: %d - %s)",
+  "Memory capacity exceeded (capacity %llu bytes)"
 };
 
 
@@ -71,7 +72,7 @@ void wait_for_free_space(const char *filename, int errors)
     char errbuf[MYSYS_STRERROR_SIZE];
     my_message_local(ERROR_LEVEL, EE(EE_DISK_FULL),
                      filename,my_errno,
-                     my_strerror(errbuf, sizeof(errbuf), my_errno));
+                     my_strerror(errbuf, sizeof(errbuf), my_errno()));
     my_message_local(ERROR_LEVEL,
                      "Retry in %d secs. Message reprinted in %d secs",
                      MY_WAIT_FOR_USER_TO_FIX_PANIC,

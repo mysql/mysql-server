@@ -47,13 +47,13 @@ drop table t1;
 
 --echo # Added columns mixed with virtual GC and other columns
 create table t1 (a int);
---error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+insert into t1 values(1);
+--enable_info
 alter table t1 add column (b int generated always as (a+1) virtual, c int);
---error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
 alter table t1 add column (d int, e int generated always as (a+1) virtual);
---error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
 alter table t1 add column (f int generated always as (a+1) virtual, g int as(5) stored);
 alter table t1 add column (h int generated always as (a+1) virtual, i int as(5) virtual);
+--disable_info
 drop table t1;
 
 --echo # DEFAULT
@@ -307,6 +307,18 @@ INSERT INTO t1(col1,col2,col3,col4,col9,extra)
 VALUES(0,6,3,4,REPEAT(4,1000),0);
 ALTER TABLE t1 DROP COLUMN col1;
 DROP TABLE t1;
+
+--echo # Bug#21390605:VALGRIND ERROR ON DELETE FROM TABLE CONTAINING
+--echo #  AN INDEXED VIRTUAL COLUMN
+CREATE TABLE t1 (
+  a INTEGER,
+  b INTEGER GENERATED ALWAYS AS (a) VIRTUAL,
+  c INTEGER GENERATED ALWAYS AS (b) VIRTUAL,
+  INDEX idx (b,c)
+);
+INSERT INTO t1 (a) VALUES (42);
+DELETE FROM t1 WHERE c = 42;
+DROP TABLE t1;
 }
 
 --echo # Bug#20757211: GENERATED COLUMNS: ALTER TABLE CRASHES
@@ -376,4 +388,54 @@ SELECT c, c_ci REGEXP 'A', c_cs REGEXP 'A' FROM t1;
 
 DROP TABLE t1;
 
+--echo # Bug #21469535: VALGRIND ERROR (CONDITIONAL JUMP) WHEN INSERT
+--echo #                ROWS INTO A PARTITIONED TABLE
 --echo #
+CREATE TABLE t1 (
+    id INT NOT NULL,
+    store_id INT NOT NULL,
+    x INT GENERATED ALWAYS AS (id + store_id)
+)
+PARTITION BY RANGE (store_id) (
+    PARTITION p0 VALUES LESS THAN (6),
+    PARTITION p1 VALUES LESS THAN (11),
+    PARTITION p2 VALUES LESS THAN (16),
+    PARTITION p3 VALUES LESS THAN (21)
+);
+
+INSERT INTO t1 VALUES(1, 2, default);
+DROP TABLE t1;
+
+--echo # Bug#21465626:ASSERT/CRASH ON DROPPING/ADDING VIRTUAL COLUMN
+CREATE TABLE t (a int(11), b int(11),
+ c int(11) GENERATED ALWAYS AS (a+b) VIRTUAL,
+ d int(11) GENERATED ALWAYS AS (a+b) VIRTUAL);
+INSERT INTO t(a,b) VALUES(1,2);
+--enable_info
+--echo # Mixed drop/add/rename virtual with non-virtual columns,
+--echo # ALGORITHM=INPLACE is not supported for InnoDB
+ALTER TABLE t DROP d, ADD e varchar(10);
+ALTER TABLE t ADD d int, ADD f char(10) AS ('aaa');
+ALTER TABLE t CHANGE d dd int, CHANGE f ff varchar(10) AS ('bbb');
+--echo # Only drop/add/change virtual, inplace is supported for Innodb
+ALTER TABLE t DROP c, DROP ff;
+ALTER TABLE t ADD c int(11) as (a+b), ADD f varchar(10) as ('aaa');
+ALTER TABLE t CHANGE c c int(11) as (a), CHANGE f f varchar(10) as('bbb');
+--echo # Change order should be ALGORITHM=INPLACE on Innodb
+ALTER TABLE t CHANGE c c int(11) as (a) after f;
+ALTER TABLE t CHANGE b b int(11) after c;
+--echo # TODO: Changing virtual column type should be ALGORITHM=INPLACE on InnoDB, current it goes only with COPY method
+ALTER TABLE t CHANGE c c varchar(10) as ('a');
+--echo # Changing stored column type is ALGORITHM=COPY
+ALTER TABLE t CHANGE dd d varchar(10);
+if ($support_virtual_index)
+{
+
+ALTER TABLE t ADD INDEX idx(a), ADD INDEX idx1(c);
+ALTER TABLE t RENAME INDEX idx TO idx2, RENAME INDEX idx1 TO idx3;
+ALTER TABLE t DROP INDEX idx2, DROP INDEX idx3;
+ALTER TABLE t ADD INDEX idx(c), ADD INDEX idx1(d);
+ALTER TABLE t DROP INDEX idx, DROP INDEX idx1;
+}
+--disable_info
+DROP TABLE t;

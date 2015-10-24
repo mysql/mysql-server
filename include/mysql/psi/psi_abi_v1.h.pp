@@ -352,6 +352,7 @@ struct PSI_statement_locker_state_v1
   const struct sql_digest_storage *m_digest;
   char m_schema_name[(64 * 3)];
   uint m_schema_name_length;
+  uint m_cs_number;
   PSI_sp_share *m_parent_sp_share;
   PSI_prepared_stmt *m_parent_prepared_stmt;
 };
@@ -450,6 +451,7 @@ typedef void (*set_thread_THD_v1_t)(struct PSI_thread *thread,
                                     THD *thd);
 typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread,
                                    ulonglong id);
+typedef void (*set_thread_os_id_v1_t)(struct PSI_thread *thread);
 typedef struct PSI_thread* (*get_thread_v1_t)(void);
 typedef void (*set_thread_user_v1_t)(const char *user, int user_len);
 typedef void (*set_thread_account_v1_t)(const char *user, int user_len,
@@ -537,6 +539,8 @@ typedef struct PSI_file* (*end_file_open_wait_v1_t)
   (struct PSI_file_locker *locker, void *result);
 typedef void (*end_file_open_wait_and_bind_to_descriptor_v1_t)
   (struct PSI_file_locker *locker, File file);
+typedef void (*end_temp_file_open_wait_and_bind_to_descriptor_v1_t)
+  (struct PSI_file_locker *locker, File file, const char *filename);
 typedef void (*start_file_wait_v1_t)
   (struct PSI_file_locker *locker, size_t count,
    const char *src_file, uint src_line);
@@ -716,6 +720,7 @@ struct PSI_v1
   new_thread_v1_t new_thread;
   set_thread_id_v1_t set_thread_id;
   set_thread_THD_v1_t set_thread_THD;
+  set_thread_os_id_v1_t set_thread_os_id;
   get_thread_v1_t get_thread;
   set_thread_user_v1_t set_thread_user;
   set_thread_account_v1_t set_thread_account;
@@ -753,6 +758,8 @@ struct PSI_v1
   end_file_open_wait_v1_t end_file_open_wait;
   end_file_open_wait_and_bind_to_descriptor_v1_t
     end_file_open_wait_and_bind_to_descriptor;
+  end_temp_file_open_wait_and_bind_to_descriptor_v1_t
+    end_temp_file_open_wait_and_bind_to_descriptor;
   start_file_wait_v1_t start_file_wait;
   end_file_wait_v1_t end_file_wait;
   start_file_close_wait_v1_t start_file_close_wait;

@@ -1,3 +1,218 @@
+#include <mysql/service_srv_session.h>
+struct Srv_session;
+typedef struct Srv_session* MYSQL_SESSION;
+typedef void (*srv_session_error_cb)(void *ctx,
+                                     unsigned int sql_errno,
+                                     const char *err_msg);
+extern struct srv_session_service_st
+{
+  int (*init_session_thread)(const void *plugin);
+  void (*deinit_session_thread)();
+  MYSQL_SESSION (*open_session)(srv_session_error_cb error_cb,
+                                void *plugix_ctx);
+  int (*detach_session)(MYSQL_SESSION session);
+  int (*close_session)(MYSQL_SESSION session);
+  int (*server_is_available)();
+} *srv_session_service;
+int srv_session_init_thread(const void *plugin);
+void srv_session_deinit_thread();
+MYSQL_SESSION srv_session_open(srv_session_error_cb cb, void *plugix_ctx);
+int srv_session_detach(MYSQL_SESSION session);
+int srv_session_close(MYSQL_SESSION session);
+int srv_session_server_is_available();
+#include <mysql/service_srv_session_info.h>
+#include "mysql/service_srv_session.h"
+extern struct srv_session_info_service_st {
+  MYSQL_THD (*get_thd)(MYSQL_SESSION session);
+  my_thread_id (*get_session_id)(MYSQL_SESSION session);
+  LEX_CSTRING (*get_current_db)(MYSQL_SESSION session);
+  uint16_t (*get_client_port)(MYSQL_SESSION session);
+  int (*set_client_port)(MYSQL_SESSION session, uint16_t port);
+  int (*set_connection_type)(MYSQL_SESSION session, enum enum_vio_type type);
+  int (*killed)(MYSQL_SESSION session);
+  unsigned int (*session_count)();
+  unsigned int (*thread_count)(const void *plugin);
+} *srv_session_info_service;
+MYSQL_THD srv_session_info_get_thd(MYSQL_SESSION session);
+my_thread_id srv_session_info_get_session_id(MYSQL_SESSION session);
+LEX_CSTRING srv_session_info_get_current_db(MYSQL_SESSION session);
+uint16_t srv_session_info_get_client_port(MYSQL_SESSION session);
+int srv_session_info_set_client_port(MYSQL_SESSION session, uint16_t port);
+int srv_session_info_set_connection_type(MYSQL_SESSION session,
+                                         enum enum_vio_type type);
+int srv_session_info_killed(MYSQL_SESSION session);
+unsigned int srv_session_info_session_count();
+unsigned int srv_session_info_thread_count(const void *plugin);
+#include <mysql/service_command.h>
+#include "mysql/service_srv_session.h"
+#include "mysql/com_data.h"
+typedef struct st_com_init_db_data
+{
+  const char *db_name;
+  unsigned long length;
+} COM_INIT_DB_DATA;
+typedef struct st_com_refresh_data
+{
+  unsigned char options;
+} COM_REFRESH_DATA;
+typedef struct st_com_shutdown_data
+{
+  enum mysql_enum_shutdown_level level;
+} COM_SHUTDOWN_DATA;
+typedef struct st_com_kill_data
+{
+  unsigned long id;
+} COM_KILL_DATA;
+typedef struct st_com_set_option_data
+{
+  unsigned int opt_command;
+} COM_SET_OPTION_DATA;
+typedef struct st_com_stmt_execute_data
+{
+  unsigned long stmt_id;
+  unsigned long flags;
+  unsigned char *params;
+  unsigned long params_length;
+} COM_STMT_EXECUTE_DATA;
+typedef struct st_com_stmt_fetch_data
+{
+  unsigned long stmt_id;
+  unsigned long num_rows;
+} COM_STMT_FETCH_DATA;
+typedef struct st_com_stmt_send_long_data_data
+{
+  unsigned long stmt_id;
+  unsigned int param_number;
+  unsigned char *longdata;
+  unsigned long length;
+} COM_STMT_SEND_LONG_DATA_DATA;
+typedef struct st_com_stmt_prepare_data
+{
+  const char *query;
+  unsigned int length;
+} COM_STMT_PREPARE_DATA;
+typedef struct st_stmt_close_data
+{
+  unsigned int stmt_id;
+} COM_STMT_CLOSE_DATA;
+typedef struct st_com_stmt_reset_data
+{
+  unsigned int stmt_id;
+} COM_STMT_RESET_DATA;
+typedef struct st_com_query_data
+{
+  const char *query;
+  unsigned int length;
+} COM_QUERY_DATA;
+typedef struct st_com_field_list_data
+{
+  unsigned char *table_name;
+  unsigned int table_name_length;
+  const unsigned char *query;
+  unsigned int query_length;
+} COM_FIELD_LIST_DATA;
+union COM_DATA {
+  COM_INIT_DB_DATA com_init_db;
+  COM_REFRESH_DATA com_refresh;
+  COM_SHUTDOWN_DATA com_shutdown;
+  COM_KILL_DATA com_kill;
+  COM_SET_OPTION_DATA com_set_option;
+  COM_STMT_EXECUTE_DATA com_stmt_execute;
+  COM_STMT_FETCH_DATA com_stmt_fetch;
+  COM_STMT_SEND_LONG_DATA_DATA com_stmt_send_long_data;
+  COM_STMT_PREPARE_DATA com_stmt_prepare;
+  COM_STMT_CLOSE_DATA com_stmt_close;
+  COM_STMT_RESET_DATA com_stmt_reset;
+  COM_QUERY_DATA com_query;
+  COM_FIELD_LIST_DATA com_field_list;
+};
+#include "mysql_time.h"
+enum enum_mysql_timestamp_type
+{
+  MYSQL_TIMESTAMP_NONE= -2, MYSQL_TIMESTAMP_ERROR= -1,
+  MYSQL_TIMESTAMP_DATE= 0, MYSQL_TIMESTAMP_DATETIME= 1, MYSQL_TIMESTAMP_TIME= 2
+};
+typedef struct st_mysql_time
+{
+  unsigned int year, month, day, hour, minute, second;
+  unsigned long second_part;
+  my_bool neg;
+  enum enum_mysql_timestamp_type time_type;
+} MYSQL_TIME;
+#include "decimal.h"
+typedef enum
+{TRUNCATE=0, HALF_EVEN, HALF_UP, CEILING, FLOOR}
+  decimal_round_mode;
+typedef int32 decimal_digit_t;
+typedef struct st_decimal_t {
+  int intg, frac, len;
+  my_bool sign;
+  decimal_digit_t *buf;
+} decimal_t;
+struct st_send_field
+{
+  const char *db_name;
+  const char *table_name;
+  const char *org_table_name;
+  const char *col_name;
+  const char *org_col_name;
+  unsigned long length;
+  unsigned int charsetnr;
+  unsigned int flags;
+  unsigned int decimals;
+  enum_field_types type;
+};
+struct st_command_service_cbs
+{
+  int (*start_result_metadata)(void *ctx, uint num_cols, uint flags,
+                               const CHARSET_INFO *resultcs);
+  int (*field_metadata)(void *ctx, struct st_send_field *field,
+                        const CHARSET_INFO *charset);
+  int (*end_result_metadata)(void *ctx, uint server_status,
+                             uint warn_count);
+  int (*start_row)(void *ctx);
+  int (*end_row)(void *ctx);
+  void (*abort_row)(void *ctx);
+  ulong (*get_client_capabilities)(void *ctx);
+  int (*get_null)(void * ctx);
+  int (*get_integer)(void * ctx, longlong value);
+  int (*get_longlong)(void * ctx, longlong value, uint is_unsigned);
+  int (*get_decimal)(void * ctx, const decimal_t * value);
+  int (*get_double)(void * ctx, double value, uint32_t decimals);
+  int (*get_date)(void * ctx, const MYSQL_TIME * value);
+  int (*get_time)(void * ctx, const MYSQL_TIME * value, uint decimals);
+  int (*get_datetime)(void * ctx, const MYSQL_TIME * value, uint decimals);
+  int (*get_string)(void * ctx, const char * value, size_t length,
+                    const CHARSET_INFO * valuecs);
+  void (*handle_ok)(void * ctx,
+                    uint server_status, uint statement_warn_count,
+                    ulonglong affected_rows, ulonglong last_insert_id,
+                    const char * message);
+  void (*handle_error)(void * ctx, uint sql_errno, const char * err_msg,
+                       const char * sqlstate);
+  void (*shutdown)(void *ctx, int server_shutdown);
+};
+enum cs_text_or_binary
+{
+  CS_TEXT_REPRESENTATION= 1,
+  CS_BINARY_REPRESENTATION= 2,
+};
+extern struct command_service_st {
+  int (*run_command)(MYSQL_SESSION session,
+                     enum enum_server_command command,
+                     const union COM_DATA * data,
+                     const CHARSET_INFO * client_cs,
+                     const struct st_command_service_cbs * callbacks,
+                     enum cs_text_or_binary text_or_binary,
+                     void * service_callbacks_ctx);
+} *command_service;
+int command_service_run_command(MYSQL_SESSION session,
+                                enum enum_server_command command,
+                                const union COM_DATA * data,
+                                const CHARSET_INFO * client_cs,
+                                const struct st_command_service_cbs * callbacks,
+                                enum cs_text_or_binary text_or_binary,
+                                void * service_callbacks_ctx);
 #include <mysql/service_my_snprintf.h>
 extern struct my_snprintf_service_st {
   size_t (*my_snprintf_type)(char*, size_t, const char*, ...);
@@ -13,6 +228,12 @@ struct st_mysql_lex_string
   size_t length;
 };
 typedef struct st_mysql_lex_string MYSQL_LEX_STRING;
+struct st_mysql_const_lex_string
+{
+  const char *str;
+  size_t length;
+};
+typedef struct st_mysql_const_lex_string MYSQL_LEX_CSTRING;
 extern struct thd_alloc_service_st {
   void *(*thd_alloc_func)(void*, size_t);
   void *(*thd_calloc_func)(void*, size_t);
@@ -225,6 +446,30 @@ extern struct transaction_write_set_service_st {
   Transaction_write_set* (*get_transaction_write_set)(unsigned long m_thread_id);
 } *transaction_write_set_service;
 Transaction_write_set* get_transaction_write_set(unsigned long m_thread_id);
+#include <mysql/service_security_context.h>
+typedef char my_svc_bool;
+extern struct security_context_service_st {
+  my_svc_bool (*thd_get_security_context)(void*, void* *out_ctx);
+  my_svc_bool (*thd_set_security_context)(void*, void* in_ctx);
+  my_svc_bool (*security_context_create)(void* *out_ctx);
+  my_svc_bool (*security_context_destroy)(void*);
+  my_svc_bool (*security_context_copy)(void* in_ctx, void* *out_ctx);
+  my_svc_bool (*security_context_lookup)(void* ctx,
+                                         const char *user, const char *host,
+                                         const char *ip, const char *db);
+  my_svc_bool (*security_context_get_option)(void*, const char *name, void *inout_pvalue);
+  my_svc_bool (*security_context_set_option)(void*, const char *name, void *pvalue);
+} *security_context_service;
+  my_svc_bool thd_get_security_context(void*, void* *out_ctx);
+  my_svc_bool thd_set_security_context(void*, void* in_ctx);
+  my_svc_bool security_context_create(void* *out_ctx);
+  my_svc_bool security_context_destroy(void* ctx);
+  my_svc_bool security_context_copy(void* in_ctx, void* *out_ctx);
+  my_svc_bool security_context_lookup(void* ctx,
+                                  const char *user, const char *host,
+                                  const char *ip, const char *db);
+  my_svc_bool security_context_get_option(void*, const char *name, void *inout_pvalue);
+  my_svc_bool security_context_set_option(void*, const char *name, void *pvalue);
 #include <mysql/service_locking.h>
 enum enum_locking_service_lock_type
 { LOCKING_SERVICE_READ, LOCKING_SERVICE_WRITE };

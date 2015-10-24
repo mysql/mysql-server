@@ -86,10 +86,12 @@ int64 Mysql_query_runner::run_query(string query)
     means that another query is in progress, which is not allowed.
    */
   if (!m_is_processing->compare_exchange_strong(expected_value, true))
-    return this->report_message(Message_data(1, "Cannot execute more than one "
-      "MySQL query in parallel on single MySQL connection.",
-      Message_type_error));
-
+  {
+    Message_data message(1, "Cannot execute more than one "
+                            "MySQL query in parallel on single MySQL connection.",
+                            Message_type_error);
+    return this->report_message(message);
+  }
   uint64 result= this->run_query_unguarded(query);
   *m_is_processing= false;
 
@@ -98,9 +100,7 @@ int64 Mysql_query_runner::run_query(string query)
 
 int64 Mysql_query_runner::run_query_unguarded(string query)
 {
-  int ret= mysql_query(m_connection, query.c_str());
-
-  if (ret != 0)
+  if (0 != mysql_query(m_connection, query.c_str()))
     return this->report_mysql_error();
 
   MYSQL_RES* results= mysql_use_result(m_connection);
@@ -149,56 +149,49 @@ int64 Mysql_query_runner::run_query_unguarded(string query)
   }
 
   // Get all notes, warnings and errors of last query.
-  ret= mysql_query(m_connection, "SHOW WARNINGS");
-
-  // Connection error occurred.
-  if (ret != 0)
-    return this->report_mysql_error();
-
-  results= mysql_use_result(m_connection);
-
-  if (results == NULL)
-    return this->report_mysql_error();
-
-  uint64 result_code= 0;
+  if (0 != mysql_query(m_connection, "SHOW WARNINGS") ||
+      NULL == (results= mysql_use_result(m_connection)))
+  {
+    this->report_mysql_error();
+    return 0;
+  }
 
   // Process all errors and warnings.
-  for (;result_code == 0;)
+  for (;;)
   {
     // Feed message callbacks with results.
     MYSQL_ROW row= mysql_fetch_row(results);
 
     if (row == NULL)
     {
-      // NULL row indicates end of rows or error
-      if (mysql_errno(m_connection) == 0)
-        break;
-      else
-      {
-        result_code= this->report_mysql_error();
-        break;
-      }
+      // End of rows or an error.
+      if (mysql_errno(m_connection) != 0)
+        this->report_mysql_error();
+      break;
     }
+
     unsigned int columns = mysql_field_count(m_connection);
     Row* processed_row= new Row(results, columns, row);
 
-    result_code= this->report_message(Message_data(
-      atoi((*processed_row)[1].c_str()),
-      (*processed_row)[2],
-      this->get_message_type_from_severity((*processed_row)[0])));
+    Warning_data warning(atoi((*processed_row)[1].c_str()),
+                         (*processed_row)[2],
+                         this->get_message_type_from_severity((*processed_row)[0]));
+    this->report_message(warning);
+    delete processed_row;
   }
   mysql_free_result(results);
 
-  return result_code;
+  return 0;
 }
 
 int64 Mysql_query_runner::report_mysql_error()
 {
-  return this->report_message(Message_data(mysql_errno(m_connection),
-    mysql_error(m_connection), Message_type_error));
+  Message_data message(mysql_errno(m_connection), mysql_error(m_connection),
+                       Message_type_error);
+  return this->report_message(message);
 }
 
-int64 Mysql_query_runner::report_message(Message_data message)
+int64 Mysql_query_runner::report_message(Message_data &message)
 {
   vector<I_callable<int64, const Message_data&>*>::reverse_iterator it;
   for (it= m_message_callbacks.rbegin();
@@ -230,7 +223,7 @@ enum Message_type Mysql_query_runner::get_message_type_from_severity(
       &my_charset_latin1, m_connection->charset, &dummy_errors);
 
     if (my_strcasecmp(m_connection->charset, severity.c_str(),
-      severity_string.c_ptr()) == 0)
+      severity_string.c_ptr_safe()) == 0)
     {
       return (Message_type)i;
     }

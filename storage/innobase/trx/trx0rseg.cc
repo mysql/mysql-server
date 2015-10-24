@@ -417,7 +417,11 @@ trx_rseg_create(
 		page_no = trx_rseg_header_create(
 			space_id, page_size, ULINT_MAX, slot_no, &mtr);
 
-		ut_a(page_no != FIL_NULL);
+		if (page_no == FIL_NULL) {
+			mtr_commit(&mtr);
+
+			return(rseg);
+		}
 
 		sys_header = trx_sysf_get(&mtr);
 

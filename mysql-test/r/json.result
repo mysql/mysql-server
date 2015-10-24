@@ -280,6 +280,8 @@ i	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13	c14	c15	c16	c17	c18	c19
 31	0	0	0	0	NULL	NULL	0	0	0	0	0	NULL	NULL	0	0	0	0	0	NULL
 100	0	0	0	1	NULL	NULL	0	0	0	0	0	NULL	NULL	0	0	0	0	0	NULL
 Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the IN operator'
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the IN operator'
 Warning	3156	Invalid JSON value for CAST to DOUBLE: '{"a": 2}' from j at row 2
 Warning	3156	Invalid JSON value for CAST to DOUBLE: '[1, 2]' from j at row 35
 Warning	3156	Invalid JSON value for CAST to DOUBLE: '{"a": "b", "c": "d", "ab": "abc", "bc": ["x", "y"]}' from j at row 36
@@ -2396,12 +2398,12 @@ true	BOOLEAN
 "2010-12-02 02:01:00.000000"	TIMESTAMP
 "2010-12-02 02:01:00.000000"	DATETIME
 "9999-12-31 23:59:59.999999"	DATETIME
-"base64:type253:MTIzNGFiY2Q="	OPAQUE
+"base64:type253:MTIzNGFiY2Q="	BLOB
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id;
 j	tp
-"base64:type253:MTIzNGFiY2Q="	OPAQUE
+"base64:type253:MTIzNGFiY2Q="	BLOB
 "9999-12-31 23:59:59.999999"	DATETIME
 "2010-12-02 02:01:00.000000"	TIMESTAMP
 "2010-12-02 02:01:00.000000"	DATETIME
@@ -3140,7 +3142,7 @@ true	BOOLEAN
 "2010-12-02 02:01:00.000000"	TIMESTAMP
 "2010-12-02 02:01:00.000000"	DATETIME
 "9999-12-31 23:59:59.999999"	DATETIME
-"base64:type253:MTIzNGFiY2Q="	OPAQUE
+"base64:type253:MTIzNGFiY2Q="	BLOB
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SET @@max_sort_length=4;
@@ -3513,7 +3515,7 @@ true	BOOLEAN
 "2010-12-02 01:02:03.000000"	DATETIME
 "2010-12-02 02:01:00.000000"	DATETIME
 "9999-12-31 23:59:59.999999"	DATETIME
-"base64:type253:MTIzNGFiY2Q="	OPAQUE
+"base64:type253:MTIzNGFiY2Q="	BLOB
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SET @@max_sort_length=default;
@@ -6250,6 +6252,12 @@ cast(py as json)
 select cast(js as json) from t1;
 cast(js as json)
 [123]
+#
+# Bug#21442878 INCORRECT RETURN STATUS FROM
+#              ITEM_JSON_TYPECAST::VAL_JSON() ON PARSE ERRORS
+#
+select json_extract(en, '$') from t1;
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_extract; a JSON string or JSON type is required.
 drop table t1;
 create table t1 ( c1 varchar(200) character set 'latin1',
 c2 varchar(200) character set 'utf8' );
@@ -6322,7 +6330,7 @@ json_type(cast(3.14E30 as json))
 DOUBLE
 select json_type(cast(cast('10101abcde' as binary) as json));
 json_type(cast(cast('10101abcde' as binary) as json))
-OPAQUE
+BLOB
 select json_type(cast(ST_GeomFromText('POINT(1 1)') as json));
 json_type(cast(ST_GeomFromText('POINT(1 1)') as json))
 OBJECT
@@ -6988,97 +6996,97 @@ select json_extract( '[ { "a": [3,4] }, { "b": 2 } ]', '$[0].a', '$[1].a' ) jdoc
 jdoc
 [[3, 4]]
 # ----------------------------------------------------------------------
-# Test of JSON_APPEND function.
+# Test of JSON_ARRAY_APPEND function.
 # ----------------------------------------------------------------------
-select json_append(NULL, '$.b', cast(1 as json));
-json_append(NULL, '$.b', cast(1 as json))
+select json_array_append(NULL, '$.b', cast(1 as json));
+json_array_append(NULL, '$.b', cast(1 as json))
 NULL
-select json_append('[1,2,3]', NULL, cast(1 as json));
-json_append('[1,2,3]', NULL, cast(1 as json))
+select json_array_append('[1,2,3]', NULL, cast(1 as json));
+json_array_append('[1,2,3]', NULL, cast(1 as json))
 NULL
-select json_append('[1,2,3]', '$', NULL);
-json_append('[1,2,3]', '$', NULL)
-NULL
-select json_append(NULL);
-ERROR 42000: Incorrect parameter count in the call to native function 'json_append'
-select json_append(NULL, NULL);
-ERROR 42000: Incorrect parameter count in the call to native function 'json_append'
-select json_append(NULL, NULL, NULL, NULL);
-ERROR 42000: Incorrect parameter count in the call to native function 'json_append'
+select json_array_append('[1,2,3]', '$', NULL);
+json_array_append('[1,2,3]', '$', NULL)
+[1, 2, 3, null]
+select json_array_append(NULL);
+ERROR 42000: Incorrect parameter count in the call to native function 'json_array_append'
+select json_array_append(NULL, NULL);
+ERROR 42000: Incorrect parameter count in the call to native function 'json_array_append'
+select json_array_append(NULL, NULL, NULL, NULL);
+ERROR 42000: Incorrect parameter count in the call to native function 'json_array_append'
 create table t(j json);
 insert into t values ('[ 1, 2, 3, {"a": [4,5,6]}]');
-select json_append(j, '$[3].a', cast(7 as json)) from t;
-json_append(j, '$[3].a', cast(7 as json))
+select json_array_append(j, '$[3].a', cast(7 as json)) from t;
+json_array_append(j, '$[3].a', cast(7 as json))
 [1, 2, 3, {"a": [4, 5, 6, 7]}]
-select json_append(j, '$', 7) from t;
-json_append(j, '$', 7)
+select json_array_append(j, '$', 7) from t;
+json_array_append(j, '$', 7)
 [1, 2, 3, {"a": [4, 5, 6]}, 7]
-select json_append(j, '$', cast(7 as json), '$[3].a', 3.14) from t;
-json_append(j, '$', cast(7 as json), '$[3].a', 3.14)
+select json_array_append(j, '$', cast(7 as json), '$[3].a', 3.14) from t;
+json_array_append(j, '$', cast(7 as json), '$[3].a', 3.14)
 [1, 2, 3, {"a": [4, 5, 6, 3.14]}, 7]
 # second path's append ignored since it doesn't specify an array
 # nor is it an existing scalar,  so no auto-wrapping either
-select json_append(j, '$', 7, '$[3].b', cast(8 as json)) from t;
-json_append(j, '$', 7, '$[3].b', cast(8 as json))
+select json_array_append(j, '$', 7, '$[3].b', cast(8 as json)) from t;
+json_array_append(j, '$', 7, '$[3].b', cast(8 as json))
 [1, 2, 3, {"a": [4, 5, 6]}, 7]
 drop table t;
-SELECT JSON_APPEND(cast('1' as json), '$', 3);
-JSON_APPEND(cast('1' as json), '$', 3)
+SELECT JSON_ARRAY_APPEND(cast('1' as json), '$', 3);
+JSON_ARRAY_APPEND(cast('1' as json), '$', 3)
 [1, 3]
-SELECT JSON_APPEND(cast('{"a": 3}' as json), '$', 3);
-JSON_APPEND(cast('{"a": 3}' as json), '$', 3)
+SELECT JSON_ARRAY_APPEND(cast('{"a": 3}' as json), '$', 3);
+JSON_ARRAY_APPEND(cast('{"a": 3}' as json), '$', 3)
 [{"a": 3}, 3]
-select json_append(cast('{"a": {"b": [3]}}' as json), '$**[0]', 6);
+select json_array_append(cast('{"a": {"b": [3]}}' as json), '$**[0]', 6);
 ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
 # Auto-wrapping, since because the paths identify scalars.
 # should return {"a": "foo", "b": ["bar", 4], "c": ["wibble", "grape"]}
-SELECT JSON_APPEND('{"a": "foo", "b": "bar", "c": "wibble"}',
+SELECT JSON_ARRAY_APPEND('{"a": "foo", "b": "bar", "c": "wibble"}',
 '$.b', cast(4 as json),
 '$.c', cast('"grape"' as json));
-JSON_APPEND('{"a": "foo", "b": "bar", "c": "wibble"}',
+JSON_ARRAY_APPEND('{"a": "foo", "b": "bar", "c": "wibble"}',
 '$.b', cast(4 as json),
 '$.c', cast('"grape"' as json))
 {"a": "foo", "b": ["bar", 4], "c": ["wibble", "grape"]}
 # should return {"a": "foo", "b": [1, 2, 3, 4],
 #                "c": ["apple", "pear", "grape"]}
-SELECT JSON_APPEND('{"a" : "foo","b": [1, 2, 3], "c": ["apple", "pear"]}',
+SELECT JSON_ARRAY_APPEND('{"a" : "foo","b": [1, 2, 3], "c": ["apple", "pear"]}',
 '$.b', cast(4 as json),
 '$.c', cast('"grape"' as json));
-JSON_APPEND('{"a" : "foo","b": [1, 2, 3], "c": ["apple", "pear"]}',
+JSON_ARRAY_APPEND('{"a" : "foo","b": [1, 2, 3], "c": ["apple", "pear"]}',
 '$.b', cast(4 as json),
 '$.c', cast('"grape"' as json))
 {"a": "foo", "b": [1, 2, 3, 4], "c": ["apple", "pear", "grape"]}
-SELECT JSON_APPEND('{"a" : "foo","b": [1, 2, 3], "c": ["apple", "pear"]}',
+SELECT JSON_ARRAY_APPEND('{"a" : "foo","b": [1, 2, 3], "c": ["apple", "pear"]}',
 '$.b', 4,
 '$.c', 'grape');
-JSON_APPEND('{"a" : "foo","b": [1, 2, 3], "c": ["apple", "pear"]}',
+JSON_ARRAY_APPEND('{"a" : "foo","b": [1, 2, 3], "c": ["apple", "pear"]}',
 '$.b', 4,
 '$.c', 'grape')
 {"a": "foo", "b": [1, 2, 3, 4], "c": ["apple", "pear", "grape"]}
-select json_append( '[[], [], []]', '$[*]', 3, '$[*]', 4);
+select json_array_append( '[[], [], []]', '$[*]', 3, '$[*]', 4);
 ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
-select json_append( '[[], "not array", []]', '$[*]', 3, '$[*]', 4);
+select json_array_append( '[[], "not array", []]', '$[*]', 3, '$[*]', 4);
 ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
-SELECT JSON_APPEND
+SELECT JSON_ARRAY_APPEND
 (
 '{ "a" : "foo", "b" : "bar", "c" : "wibble" }',
 '$.b', 4,
 '$.c', "grape"
 );
-JSON_APPEND
+JSON_ARRAY_APPEND
 (
 '{ "a" : "foo", "b" : "bar", "c" : "wibble" }',
 '$.b', 4,
 '$.c', "grape"
 )
 {"a": "foo", "b": ["bar", 4], "c": ["wibble", "grape"]}
-SELECT JSON_APPEND
+SELECT JSON_ARRAY_APPEND
 (
 '{ "a" : "foo", "b" : [ 1, 2, 3 ], "c" : [ "apple", "pear" ] }',
 '$.b', 4,
 '$.c', "grape"
 );
-JSON_APPEND
+JSON_ARRAY_APPEND
 (
 '{ "a" : "foo", "b" : [ 1, 2, 3 ], "c" : [ "apple", "pear" ] }',
 '$.b', 4,
@@ -7088,14 +7096,14 @@ JSON_APPEND
 # ----------------------------------------------------------------------
 # Bug#21373874 ASSERTION `PARENT' FAILED
 # ----------------------------------------------------------------------
-select json_append('{"a":1}', '$[0]', 100);
-json_append('{"a":1}', '$[0]', 100)
+select json_array_append('{"a":1}', '$[0]', 100);
+json_array_append('{"a":1}', '$[0]', 100)
 [{"a": 1}, 100]
-select json_append('3', '$[0]', 100);
-json_append('3', '$[0]', 100)
+select json_array_append('3', '$[0]', 100);
+json_array_append('3', '$[0]', 100)
 [3, 100]
-select json_append('3', '$[0][0][0][0]', 100);
-json_append('3', '$[0][0][0][0]', 100)
+select json_array_append('3', '$[0][0][0][0]', 100);
+json_array_append('3', '$[0][0][0][0]', 100)
 [3, 100]
 # ----------------------------------------------------------------------
 # Test of JSON_INSERT function.
@@ -7108,7 +7116,7 @@ json_insert('[1,2,3]', NULL, cast(1 as json))
 NULL
 select json_insert('[1,2,3]', '$[3]', NULL);
 json_insert('[1,2,3]', '$[3]', NULL)
-NULL
+[1, 2, 3, null]
 select json_insert(NULL);
 ERROR 42000: Incorrect parameter count in the call to native function 'json_insert'
 select json_insert(NULL, NULL);
@@ -7272,7 +7280,7 @@ json_array_insert('[1,2,3]', NULL, 1)
 NULL
 select json_array_insert('[1,2,3]', '$[3]', NULL);
 json_array_insert('[1,2,3]', '$[3]', NULL)
-NULL
+[1, 2, 3, null]
 select json_array_insert(NULL);
 ERROR 42000: Incorrect parameter count in the call to native function 'json_array_insert'
 select json_array_insert(NULL, NULL);
@@ -7392,7 +7400,7 @@ insert into t values (1, 'a'), (2, null), (3, 'a');
 select id v, json_array_insert('[[1]]', '$[0][0]', v) from t order by id;
 v	json_array_insert('[[1]]', '$[0][0]', v)
 1	[["a", 1]]
-2	NULL
+2	[[null, 1]]
 3	[["a", 1]]
 drop table t;
 select json_array_insert( '"a"', '$[0]', true );
@@ -7433,7 +7441,7 @@ json_set('[1,2,3]', NULL, cast(1 as json))
 NULL
 select json_set('[1,2,3]', '$[3]', NULL);
 json_set('[1,2,3]', '$[3]', NULL)
-NULL
+[1, 2, 3, null]
 select json_set(NULL);
 ERROR 42000: Incorrect parameter count in the call to native function 'json_set'
 select json_set(NULL, NULL);
@@ -7584,7 +7592,7 @@ JSON_SET
 {"a": {"b": false, "c": true}}
 #
 # Bug #21304639: JSON_SET() WITH MULTI-LEG PATH RETURNS DIFFERENT
-#                RESULTS ON FIRST ROW VS NEXT	
+#                RESULTS ON FIRST ROW VS NEXT
 #
 create table t21304639(pk int);
 insert into t21304639 values (2), (1), (3);
@@ -7618,9 +7626,9 @@ NULL
 select json_replace('[1,2,3]', NULL, cast(1 as json));
 json_replace('[1,2,3]', NULL, cast(1 as json))
 NULL
-select json_replace('[1,2,3]', '$[3]', NULL);
-json_replace('[1,2,3]', '$[3]', NULL)
-NULL
+select json_replace('[1,2,3]', '$[2]', NULL);
+json_replace('[1,2,3]', '$[2]', NULL)
+[1, 2, null]
 select json_replace(NULL);
 ERROR 42000: Incorrect parameter count in the call to native function 'json_replace'
 select json_replace(NULL, NULL);
@@ -7899,6 +7907,8 @@ select json_search( '{ "a": "foo" }', 'one', 'foo', null, '$a' );
 ERROR 42000: Invalid JSON path expression. The error is around character position 1 in '$a'.
 select json_search( '{ "a": "foo" }', 'all', 'foo', null, '$.a', '$b' );
 ERROR 42000: Invalid JSON path expression. The error is around character position 1 in '$b'.
+select json_search(a, b, c);
+ERROR 42S22: Unknown column 'a' in 'field list'
 select json_search( '{ "a": "foobar" }', 'one', 'foo%' );
 json_search( '{ "a": "foobar" }', 'one', 'foo%' )
 "$.a"
@@ -8721,7 +8731,7 @@ set return_value = json_array();
 set idx = 0;
 while idx < array_length do
 set path = concat( '$[', idx, ']' );
-set return_value = json_append
+set return_value = json_array_append
 (
 return_value,
 '$',
@@ -8789,7 +8799,7 @@ set return_value = json_array();
 set idx = 0;
 while idx < array_length do
 set path = concat( '$[', idx, ']' );
-set return_value = json_append
+set return_value = json_array_append
 (
 return_value,
 '$',
@@ -9677,7 +9687,7 @@ JSON_TYPE(j),
 JSON_KEYS(j),
 JSON_EXTRACT(j, '$'),
 JSON_REMOVE(j, '$.a.b.c'),
-JSON_APPEND(j, '$', 2),
+JSON_ARRAY_APPEND(j, '$', 2),
 JSON_SET(j, '$[0]', 2),
 JSON_INSERT(j, '$[0]', 2),
 JSON_REPLACE(j, '$[0]', 2),
@@ -9693,7 +9703,7 @@ JSON_UNQUOTE(CAST(j AS CHAR)),
 JSON_QUOTE(CAST(j AS CHAR))
 FROM T_WITH_NULLS
 ORDER BY i;
-JSON_VALID(j)	JSON_TYPE(j)	JSON_KEYS(j)	JSON_EXTRACT(j, '$')	JSON_REMOVE(j, '$.a.b.c')	JSON_APPEND(j, '$', 2)	JSON_SET(j, '$[0]', 2)	JSON_INSERT(j, '$[0]', 2)	JSON_REPLACE(j, '$[0]', 2)	JSON_MERGE(j, j)	JSON_SEARCH(j, 'one', 'abc')	JSON_CONTAINS(j, '[1]')	JSON_CONTAINS_PATH(j, 'all', '$.a')	JSON_LENGTH(j)	JSON_DEPTH(j)	JSON_ARRAY(j, j)	JSON_OBJECT('k', j)	JSON_UNQUOTE(CAST(j AS CHAR))	JSON_QUOTE(CAST(j AS CHAR))
+JSON_VALID(j)	JSON_TYPE(j)	JSON_KEYS(j)	JSON_EXTRACT(j, '$')	JSON_REMOVE(j, '$.a.b.c')	JSON_ARRAY_APPEND(j, '$', 2)	JSON_SET(j, '$[0]', 2)	JSON_INSERT(j, '$[0]', 2)	JSON_REPLACE(j, '$[0]', 2)	JSON_MERGE(j, j)	JSON_SEARCH(j, 'one', 'abc')	JSON_CONTAINS(j, '[1]')	JSON_CONTAINS_PATH(j, 'all', '$.a')	JSON_LENGTH(j)	JSON_DEPTH(j)	JSON_ARRAY(j, j)	JSON_OBJECT('k', j)	JSON_UNQUOTE(CAST(j AS CHAR))	JSON_QUOTE(CAST(j AS CHAR))
 NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL
 1	ARRAY	NULL	[1]	[1]	[1, 2]	[2]	[1]	[2]	[1, 1]	NULL	1	0	1	2	[[1], [1]]	{"k": [1]}	[1]	"[1]"
 NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL
@@ -9707,7 +9717,7 @@ JSON_TYPE(j),
 JSON_KEYS(j),
 JSON_EXTRACT(j, '$'),
 JSON_REMOVE(j, '$.a.b.c'),
-JSON_APPEND(j, '$', 2),
+JSON_ARRAY_APPEND(j, '$', 2),
 JSON_SET(j, '$[0]', 2),
 JSON_INSERT(j, '$[0]', 2),
 JSON_REPLACE(j, '$[0]', 2),
@@ -9723,7 +9733,7 @@ JSON_UNQUOTE(CAST(j AS CHAR)),
 JSON_QUOTE(CAST(j AS CHAR))
 FROM T_WITH_NULLS
 ORDER BY i;
-JSON_VALID(j)	JSON_TYPE(j)	JSON_KEYS(j)	JSON_EXTRACT(j, '$')	JSON_REMOVE(j, '$.a.b.c')	JSON_APPEND(j, '$', 2)	JSON_SET(j, '$[0]', 2)	JSON_INSERT(j, '$[0]', 2)	JSON_REPLACE(j, '$[0]', 2)	JSON_MERGE(j, j)	JSON_SEARCH(j, 'one', 'abc')	JSON_CONTAINS(j, '[1]')	JSON_CONTAINS_PATH(j, 'all', '$.a')	JSON_LENGTH(j)	JSON_DEPTH(j)	JSON_ARRAY(j, j)	JSON_OBJECT('k', j)	JSON_UNQUOTE(CAST(j AS CHAR))	JSON_QUOTE(CAST(j AS CHAR))
+JSON_VALID(j)	JSON_TYPE(j)	JSON_KEYS(j)	JSON_EXTRACT(j, '$')	JSON_REMOVE(j, '$.a.b.c')	JSON_ARRAY_APPEND(j, '$', 2)	JSON_SET(j, '$[0]', 2)	JSON_INSERT(j, '$[0]', 2)	JSON_REPLACE(j, '$[0]', 2)	JSON_MERGE(j, j)	JSON_SEARCH(j, 'one', 'abc')	JSON_CONTAINS(j, '[1]')	JSON_CONTAINS_PATH(j, 'all', '$.a')	JSON_LENGTH(j)	JSON_DEPTH(j)	JSON_ARRAY(j, j)	JSON_OBJECT('k', j)	JSON_UNQUOTE(CAST(j AS CHAR))	JSON_QUOTE(CAST(j AS CHAR))
 NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL
 1	ARRAY	NULL	[1]	[1]	[1, 2]	[2]	[1]	[2]	[1, 1]	NULL	1	0	1	2	["[1]", "[1]"]	{"k": "[1]"}	[1]	"[1]"
 NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL
@@ -9772,9 +9782,9 @@ SELECT JSON_REMOVE(json_text, json_path) FROM t_latin1 ORDER BY id;
 JSON_REMOVE(json_text, json_path)
 []
 {}
-SELECT JSON_APPEND(json_text, json_path, json_atom_text)
+SELECT JSON_ARRAY_APPEND(json_text, json_path, json_atom_text)
 FROM t_latin1 ORDER BY id;
-JSON_APPEND(json_text, json_path, json_atom_text)
+JSON_ARRAY_APPEND(json_text, json_path, json_atom_text)
 [["æøå", "åøæ"]]
 {"æøå": ["æøå", "åøæ"]}
 SELECT JSON_SET(json_text, json_path, json_atom_text) FROM t_latin1 ORDER BY id;
@@ -9897,8 +9907,8 @@ a	json_array( ((a < 3) and (a > 1)) )
 1	[false]
 2	[true]
 3	[false]
-select a, json_append( '[]', '$', ((a < 3) and (a > 1)) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', ((a < 3) and (a > 1)) )
+select a, json_array_append( '[]', '$', ((a < 3) and (a > 1)) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', ((a < 3) and (a > 1)) )
 1	[false]
 2	[true]
 3	[false]
@@ -9907,8 +9917,8 @@ a	json_array( not ((a < 3) and (a > 1)) )
 1	[true]
 2	[false]
 3	[true]
-select a, json_append( '[]', '$', not ((a < 3) and (a > 1)) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', not ((a < 3) and (a > 1)) )
+select a, json_array_append( '[]', '$', not ((a < 3) and (a > 1)) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', not ((a < 3) and (a > 1)) )
 1	[true]
 2	[false]
 3	[true]
@@ -9917,8 +9927,8 @@ a	json_array( ((a < 3) or (a > 1)) )
 1	[true]
 2	[true]
 3	[true]
-select a, json_append( '[]', '$', ((a < 3) or (a > 1)) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', ((a < 3) or (a > 1)) )
+select a, json_array_append( '[]', '$', ((a < 3) or (a > 1)) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', ((a < 3) or (a > 1)) )
 1	[true]
 2	[true]
 3	[true]
@@ -9927,24 +9937,24 @@ a	json_array( not ((a < 3) or (a > 1)) )
 1	[false]
 2	[false]
 3	[false]
-select a, json_append( '[]', '$', not ((a < 3) or (a > 1)) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', not ((a < 3) or (a > 1)) )
+select a, json_array_append( '[]', '$', not ((a < 3) or (a > 1)) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', not ((a < 3) or (a > 1)) )
 1	[false]
 2	[false]
 3	[false]
 select json_array( not true, not false );
 json_array( not true, not false )
 [false, true]
-select json_append( '[]', '$', not true, '$', not false );
-json_append( '[]', '$', not true, '$', not false )
+select json_array_append( '[]', '$', not true, '$', not false );
+json_array_append( '[]', '$', not true, '$', not false )
 [false, true]
 select a, json_array( 1 and true ) from t_bool_literals order by a;
 a	json_array( 1 and true )
 1	[true]
 2	[true]
 3	[true]
-select a, json_append( '[]', '$', 1 and true ) from t_bool_literals order by a;
-a	json_append( '[]', '$', 1 and true )
+select a, json_array_append( '[]', '$', 1 and true ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', 1 and true )
 1	[true]
 2	[true]
 3	[true]
@@ -9953,24 +9963,24 @@ a	json_array( not 1 )
 1	[false]
 2	[false]
 3	[false]
-select a, json_append( '[]', '$', not 1 ) from t_bool_literals order by a;
-a	json_append( '[]', '$', not 1 )
+select a, json_array_append( '[]', '$', not 1 ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', not 1 )
 1	[false]
 2	[false]
 3	[false]
 select json_array( true, false );
 json_array( true, false )
 [true, false]
-select json_append( '[]', '$', true, '$', false );
-json_append( '[]', '$', true, '$', false )
+select json_array_append( '[]', '$', true, '$', false );
+json_array_append( '[]', '$', true, '$', false )
 [true, false]
 select a, json_array( (a < 3) ) from t_bool_literals order by a;
 a	json_array( (a < 3) )
 1	[true]
 2	[true]
 3	[false]
-select a, json_append( '[]', '$', (a < 3) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', (a < 3) )
+select a, json_array_append( '[]', '$', (a < 3) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', (a < 3) )
 1	[true]
 2	[true]
 3	[false]
@@ -9979,8 +9989,8 @@ a	json_array( (a <= 3) )
 1	[true]
 2	[true]
 3	[true]
-select a, json_append( '[]', '$', (a <= 3) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', (a <= 3) )
+select a, json_array_append( '[]', '$', (a <= 3) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', (a <= 3) )
 1	[true]
 2	[true]
 3	[true]
@@ -9989,8 +9999,8 @@ a	json_array( (a > 3) )
 1	[false]
 2	[false]
 3	[false]
-select a, json_append( '[]', '$', (a > 3) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', (a > 3) )
+select a, json_array_append( '[]', '$', (a > 3) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', (a > 3) )
 1	[false]
 2	[false]
 3	[false]
@@ -9999,8 +10009,8 @@ a	json_array( (a >= 3) )
 1	[false]
 2	[false]
 3	[true]
-select a, json_append( '[]', '$', (a >= 3) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', (a >= 3) )
+select a, json_array_append( '[]', '$', (a >= 3) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', (a >= 3) )
 1	[false]
 2	[false]
 3	[true]
@@ -10009,8 +10019,8 @@ a	json_array( (a <> 3) )
 1	[true]
 2	[true]
 3	[false]
-select a, json_append( '[]', '$', (a <> 3) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', (a <> 3) )
+select a, json_array_append( '[]', '$', (a <> 3) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', (a <> 3) )
 1	[true]
 2	[true]
 3	[false]
@@ -10019,8 +10029,8 @@ a	json_array( (a != 3) )
 1	[true]
 2	[true]
 3	[false]
-select a, json_append( '[]', '$', (a != 3) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', (a != 3) )
+select a, json_array_append( '[]', '$', (a != 3) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', (a != 3) )
 1	[true]
 2	[true]
 3	[false]
@@ -10029,8 +10039,8 @@ a	json_array( a is null )
 1	[false]
 2	[false]
 3	[false]
-select a, json_append( '[]', '$', a is null ) from t_bool_literals order by a;
-a	json_append( '[]', '$', a is null )
+select a, json_array_append( '[]', '$', a is null ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', a is null )
 1	[false]
 2	[false]
 3	[false]
@@ -10039,8 +10049,8 @@ a	json_array( a is not null )
 1	[true]
 2	[true]
 3	[true]
-select a, json_append( '[]', '$', a is not null ) from t_bool_literals order by a;
-a	json_append( '[]', '$', a is not null )
+select a, json_array_append( '[]', '$', a is not null ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', a is not null )
 1	[true]
 2	[true]
 3	[true]
@@ -10049,8 +10059,8 @@ a	json_array( a is true )
 1	[true]
 2	[true]
 3	[true]
-select a, json_append( '[]', '$', a is true ) from t_bool_literals order by a;
-a	json_append( '[]', '$', a is true )
+select a, json_array_append( '[]', '$', a is true ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', a is true )
 1	[true]
 2	[true]
 3	[true]
@@ -10059,8 +10069,8 @@ a	json_array( a is not true )
 1	[false]
 2	[false]
 3	[false]
-select a, json_append( '[]', '$', a is not true ) from t_bool_literals order by a;
-a	json_append( '[]', '$', a is not true )
+select a, json_array_append( '[]', '$', a is not true ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', a is not true )
 1	[false]
 2	[false]
 3	[false]
@@ -10069,12 +10079,12 @@ a	json_array(nullif(true, false)  )
 1	[true]
 2	[true]
 3	[true]
-select a, json_append
+select a, json_array_append
 (
 '[]',
 '$',  nullif(true, false)
 ) from t_bool_literals order by a;
-a	json_append
+a	json_array_append
 (
 '[]',
 '$',  nullif(true, false)
@@ -10087,12 +10097,12 @@ a	json_array( (case when (a > 1) then true else false end) and true )
 1	[false]
 2	[true]
 3	[true]
-select a, json_append
+select a, json_array_append
 (
 '[]',
 '$', (case when (a > 1) then true else false end) and true
 ) from t_bool_literals order by a;
-a	json_append
+a	json_array_append
 (
 '[]',
 '$', (case when (a > 1) then true else false end) and true
@@ -10105,8 +10115,8 @@ a	json_array( a between 2 and 4 )
 1	[false]
 2	[true]
 3	[true]
-select a, json_append( '[]', '$', a between 2 and 4 ) from t_bool_literals order by a;
-a	json_append( '[]', '$', a between 2 and 4 )
+select a, json_array_append( '[]', '$', a between 2 and 4 ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', a between 2 and 4 )
 1	[false]
 2	[true]
 3	[true]
@@ -10115,8 +10125,8 @@ a	json_array( a in (1,3) )
 1	[true]
 2	[false]
 3	[true]
-select a, json_append( '[]', '$', a in (1,3) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', a in (1,3) )
+select a, json_array_append( '[]', '$', a in (1,3) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', a in (1,3) )
 1	[true]
 2	[false]
 3	[true]
@@ -10125,8 +10135,8 @@ a	json_array( b like 'foo%' )
 1	[true]
 2	[true]
 3	[false]
-select a, json_append( '[]', '$', b like 'foo%' ) from t_bool_literals order by a;
-a	json_append( '[]', '$', b like 'foo%' )
+select a, json_array_append( '[]', '$', b like 'foo%' ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', b like 'foo%' )
 1	[true]
 2	[true]
 3	[false]
@@ -10135,8 +10145,8 @@ a	json_array( b REGEXP '^fo+d' )
 1	[true]
 2	[false]
 3	[false]
-select a, json_append( '[]', '$', b REGEXP '^fo+d' ) from t_bool_literals order by a;
-a	json_append( '[]', '$', b REGEXP '^fo+d' )
+select a, json_array_append( '[]', '$', b REGEXP '^fo+d' ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', b REGEXP '^fo+d' )
 1	[true]
 2	[false]
 3	[false]
@@ -10145,8 +10155,8 @@ a	json_array( b rlike '^fo+d' )
 1	[true]
 2	[false]
 3	[false]
-select a, json_append( '[]', '$', b rlike '^fo+d' ) from t_bool_literals order by a;
-a	json_append( '[]', '$', b rlike '^fo+d' )
+select a, json_array_append( '[]', '$', b rlike '^fo+d' ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', b rlike '^fo+d' )
 1	[true]
 2	[false]
 3	[false]
@@ -10155,8 +10165,8 @@ a	json_array( b not REGEXP '^fo+d' )
 1	[false]
 2	[true]
 3	[true]
-select a, json_append( '[]', '$', b not REGEXP '^fo+d' ) from t_bool_literals order by a;
-a	json_append( '[]', '$', b not REGEXP '^fo+d' )
+select a, json_array_append( '[]', '$', b not REGEXP '^fo+d' ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', b not REGEXP '^fo+d' )
 1	[false]
 2	[true]
 3	[true]
@@ -10165,8 +10175,8 @@ a	json_array( b not rlike '^fo+d' )
 1	[false]
 2	[true]
 3	[true]
-select a, json_append( '[]', '$', b not rlike '^fo+d' ) from t_bool_literals order by a;
-a	json_append( '[]', '$', b not rlike '^fo+d' )
+select a, json_array_append( '[]', '$', b not rlike '^fo+d' ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', b not rlike '^fo+d' )
 1	[false]
 2	[true]
 3	[true]
@@ -10175,8 +10185,8 @@ a	json_array( b = some( select b from t_bool_literals ) )
 1	[true]
 2	[true]
 3	[true]
-select a, json_append( '[]', '$', b = some( select b from t_bool_literals ) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', b = some( select b from t_bool_literals ) )
+select a, json_array_append( '[]', '$', b = some( select b from t_bool_literals ) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', b = some( select b from t_bool_literals ) )
 1	[true]
 2	[true]
 3	[true]
@@ -10185,8 +10195,8 @@ a	json_array( b = all( select b from t_bool_literals ) )
 1	[false]
 2	[false]
 3	[false]
-select a, json_append( '[]', '$', b = all( select b from t_bool_literals ) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', b = all( select b from t_bool_literals ) )
+select a, json_array_append( '[]', '$', b = all( select b from t_bool_literals ) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', b = all( select b from t_bool_literals ) )
 1	[false]
 2	[false]
 3	[false]
@@ -10195,8 +10205,8 @@ a	json_array( b = any( select b from t_bool_literals ) )
 1	[true]
 2	[true]
 3	[true]
-select a, json_append( '[]', '$', b = any( select b from t_bool_literals ) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', b = any( select b from t_bool_literals ) )
+select a, json_array_append( '[]', '$', b = any( select b from t_bool_literals ) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', b = any( select b from t_bool_literals ) )
 1	[true]
 2	[true]
 3	[true]
@@ -10205,8 +10215,8 @@ a	json_array( b > some( select b from t_bool_literals ) )
 1	[false]
 2	[true]
 3	[true]
-select a, json_append( '[]', '$', b > some( select b from t_bool_literals ) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', b > some( select b from t_bool_literals ) )
+select a, json_array_append( '[]', '$', b > some( select b from t_bool_literals ) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', b > some( select b from t_bool_literals ) )
 1	[false]
 2	[true]
 3	[true]
@@ -10215,8 +10225,8 @@ a	json_array( b > all( select b from t_bool_literals ) )
 1	[false]
 2	[false]
 3	[false]
-select a, json_append( '[]', '$', b > all( select b from t_bool_literals ) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', b > all( select b from t_bool_literals ) )
+select a, json_array_append( '[]', '$', b > all( select b from t_bool_literals ) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', b > all( select b from t_bool_literals ) )
 1	[false]
 2	[false]
 3	[false]
@@ -10225,8 +10235,8 @@ a	json_array( b > any( select b from t_bool_literals ) )
 1	[false]
 2	[true]
 3	[true]
-select a, json_append( '[]', '$', b > any( select b from t_bool_literals ) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', b > any( select b from t_bool_literals ) )
+select a, json_array_append( '[]', '$', b > any( select b from t_bool_literals ) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', b > any( select b from t_bool_literals ) )
 1	[false]
 2	[true]
 3	[true]
@@ -10235,8 +10245,8 @@ a	json_array( b < some( select b from t_bool_literals ) )
 1	[true]
 2	[true]
 3	[false]
-select a, json_append( '[]', '$', b < some( select b from t_bool_literals ) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', b < some( select b from t_bool_literals ) )
+select a, json_array_append( '[]', '$', b < some( select b from t_bool_literals ) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', b < some( select b from t_bool_literals ) )
 1	[true]
 2	[true]
 3	[false]
@@ -10245,8 +10255,8 @@ a	json_array( b < all( select b from t_bool_literals ) )
 1	[false]
 2	[false]
 3	[false]
-select a, json_append( '[]', '$', b < all( select b from t_bool_literals ) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', b < all( select b from t_bool_literals ) )
+select a, json_array_append( '[]', '$', b < all( select b from t_bool_literals ) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', b < all( select b from t_bool_literals ) )
 1	[false]
 2	[false]
 3	[false]
@@ -10255,8 +10265,8 @@ a	json_array( b < any( select b from t_bool_literals ) )
 1	[true]
 2	[true]
 3	[false]
-select a, json_append( '[]', '$', b < any( select b from t_bool_literals ) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', b < any( select b from t_bool_literals ) )
+select a, json_array_append( '[]', '$', b < any( select b from t_bool_literals ) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', b < any( select b from t_bool_literals ) )
 1	[true]
 2	[true]
 3	[false]
@@ -10265,8 +10275,8 @@ a	json_array( b <= some( select b from t_bool_literals ) )
 1	[true]
 2	[true]
 3	[true]
-select a, json_append( '[]', '$', b <= some( select b from t_bool_literals ) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', b <= some( select b from t_bool_literals ) )
+select a, json_array_append( '[]', '$', b <= some( select b from t_bool_literals ) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', b <= some( select b from t_bool_literals ) )
 1	[true]
 2	[true]
 3	[true]
@@ -10275,8 +10285,8 @@ a	json_array( b <= all( select b from t_bool_literals ) )
 1	[true]
 2	[false]
 3	[false]
-select a, json_append( '[]', '$', b <= all( select b from t_bool_literals ) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', b <= all( select b from t_bool_literals ) )
+select a, json_array_append( '[]', '$', b <= all( select b from t_bool_literals ) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', b <= all( select b from t_bool_literals ) )
 1	[true]
 2	[false]
 3	[false]
@@ -10285,8 +10295,8 @@ a	json_array( b <= any( select b from t_bool_literals ) )
 1	[true]
 2	[true]
 3	[true]
-select a, json_append( '[]', '$', b <= any( select b from t_bool_literals ) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', b <= any( select b from t_bool_literals ) )
+select a, json_array_append( '[]', '$', b <= any( select b from t_bool_literals ) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', b <= any( select b from t_bool_literals ) )
 1	[true]
 2	[true]
 3	[true]
@@ -10295,8 +10305,8 @@ a	json_array( b >= some( select b from t_bool_literals ) )
 1	[true]
 2	[true]
 3	[true]
-select a, json_append( '[]', '$', b >= some( select b from t_bool_literals ) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', b >= some( select b from t_bool_literals ) )
+select a, json_array_append( '[]', '$', b >= some( select b from t_bool_literals ) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', b >= some( select b from t_bool_literals ) )
 1	[true]
 2	[true]
 3	[true]
@@ -10305,8 +10315,8 @@ a	json_array( b >= all( select b from t_bool_literals ) )
 1	[false]
 2	[false]
 3	[true]
-select a, json_append( '[]', '$', b >= all( select b from t_bool_literals ) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', b >= all( select b from t_bool_literals ) )
+select a, json_array_append( '[]', '$', b >= all( select b from t_bool_literals ) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', b >= all( select b from t_bool_literals ) )
 1	[false]
 2	[false]
 3	[true]
@@ -10315,8 +10325,8 @@ a	json_array( b >= any( select b from t_bool_literals ) )
 1	[true]
 2	[true]
 3	[true]
-select a, json_append( '[]', '$', b >= any( select b from t_bool_literals ) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', b >= any( select b from t_bool_literals ) )
+select a, json_array_append( '[]', '$', b >= any( select b from t_bool_literals ) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', b >= any( select b from t_bool_literals ) )
 1	[true]
 2	[true]
 3	[true]
@@ -10325,8 +10335,8 @@ a	json_array( exists( select b from t_bool_literals where a = 1 ) )
 1	[true]
 2	[true]
 3	[true]
-select a, json_append( '[]', '$', exists( select b from t_bool_literals where a = 1 ) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', exists( select b from t_bool_literals where a = 1 ) )
+select a, json_array_append( '[]', '$', exists( select b from t_bool_literals where a = 1 ) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', exists( select b from t_bool_literals where a = 1 ) )
 1	[true]
 2	[true]
 3	[true]
@@ -10335,8 +10345,8 @@ a	json_array( not exists( select b from t_bool_literals where a = 1 ) )
 1	[false]
 2	[false]
 3	[false]
-select a, json_append( '[]', '$', not exists( select b from t_bool_literals where a = 1 ) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', not exists( select b from t_bool_literals where a = 1 ) )
+select a, json_array_append( '[]', '$', not exists( select b from t_bool_literals where a = 1 ) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', not exists( select b from t_bool_literals where a = 1 ) )
 1	[false]
 2	[false]
 3	[false]
@@ -10345,8 +10355,8 @@ a	json_array( json_valid( b ) )
 1	[false]
 2	[false]
 3	[false]
-select a, json_append( '[]', '$', json_valid( b ) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', json_valid( b ) )
+select a, json_array_append( '[]', '$', json_valid( b ) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', json_valid( b ) )
 1	[false]
 2	[false]
 3	[false]
@@ -10355,8 +10365,8 @@ a	json_array( not json_valid( b ) )
 1	[true]
 2	[true]
 3	[true]
-select a, json_append( '[]', '$', not json_valid( b ) ) from t_bool_literals order by a;
-a	json_append( '[]', '$', not json_valid( b ) )
+select a, json_array_append( '[]', '$', not json_valid( b ) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$', not json_valid( b ) )
 1	[true]
 2	[true]
 3	[true]
@@ -10369,9 +10379,9 @@ a	json_array( gtid_subset('3E11FA47-71CA-11E1-9E33-C80AA9429562:23', '3E11FA47-7
 1	[true]
 2	[true]
 3	[true]
-select a, json_append( '[]', '$', gtid_subset('3E11FA47-71CA-11E1-9E33-C80AA9429562:23', '3E11FA47-71CA-11E1-9E33-C80AA9429562:21-57') )
+select a, json_array_append( '[]', '$', gtid_subset('3E11FA47-71CA-11E1-9E33-C80AA9429562:23', '3E11FA47-71CA-11E1-9E33-C80AA9429562:21-57') )
 from t_bool_literals order by a;
-a	json_append( '[]', '$', gtid_subset('3E11FA47-71CA-11E1-9E33-C80AA9429562:23', '3E11FA47-71CA-11E1-9E33-C80AA9429562:21-57') )
+a	json_array_append( '[]', '$', gtid_subset('3E11FA47-71CA-11E1-9E33-C80AA9429562:23', '3E11FA47-71CA-11E1-9E33-C80AA9429562:21-57') )
 1	[true]
 2	[true]
 3	[true]
@@ -10381,9 +10391,9 @@ a	json_array( not gtid_subset('3E11FA47-71CA-11E1-9E33-C80AA9429562:23', '3E11FA
 1	[false]
 2	[false]
 3	[false]
-select a, json_append( '[]', '$', not gtid_subset('3E11FA47-71CA-11E1-9E33-C80AA9429562:23', '3E11FA47-71CA-11E1-9E33-C80AA9429562:21-57') )
+select a, json_array_append( '[]', '$', not gtid_subset('3E11FA47-71CA-11E1-9E33-C80AA9429562:23', '3E11FA47-71CA-11E1-9E33-C80AA9429562:21-57') )
 from t_bool_literals order by a;
-a	json_append( '[]', '$', not gtid_subset('3E11FA47-71CA-11E1-9E33-C80AA9429562:23', '3E11FA47-71CA-11E1-9E33-C80AA9429562:21-57') )
+a	json_array_append( '[]', '$', not gtid_subset('3E11FA47-71CA-11E1-9E33-C80AA9429562:23', '3E11FA47-71CA-11E1-9E33-C80AA9429562:21-57') )
 1	[false]
 2	[false]
 3	[false]
@@ -10392,8 +10402,8 @@ a	json_array( b = ( select distinct b from t_bool_literals where a = 1 ) )
 1	[true]
 2	[false]
 3	[false]
-select a, json_append( '[]', '$',  b = ( select distinct b from t_bool_literals where a = 1 ) ) from t_bool_literals order by a;
-a	json_append( '[]', '$',  b = ( select distinct b from t_bool_literals where a = 1 ) )
+select a, json_array_append( '[]', '$',  b = ( select distinct b from t_bool_literals where a = 1 ) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$',  b = ( select distinct b from t_bool_literals where a = 1 ) )
 1	[true]
 2	[false]
 3	[false]
@@ -10402,8 +10412,8 @@ a	json_array( b > ( select distinct b from t_bool_literals where a = 1 ) )
 1	[false]
 2	[true]
 3	[true]
-select a, json_append( '[]', '$',  b > ( select distinct b from t_bool_literals where a = 1 ) ) from t_bool_literals order by a;
-a	json_append( '[]', '$',  b > ( select distinct b from t_bool_literals where a = 1 ) )
+select a, json_array_append( '[]', '$',  b > ( select distinct b from t_bool_literals where a = 1 ) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$',  b > ( select distinct b from t_bool_literals where a = 1 ) )
 1	[false]
 2	[true]
 3	[true]
@@ -10412,8 +10422,8 @@ a	json_array( b >= ( select distinct b from t_bool_literals where a = 1 ) )
 1	[true]
 2	[true]
 3	[true]
-select a, json_append( '[]', '$',  b >= ( select distinct b from t_bool_literals where a = 1 ) ) from t_bool_literals order by a;
-a	json_append( '[]', '$',  b >= ( select distinct b from t_bool_literals where a = 1 ) )
+select a, json_array_append( '[]', '$',  b >= ( select distinct b from t_bool_literals where a = 1 ) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$',  b >= ( select distinct b from t_bool_literals where a = 1 ) )
 1	[true]
 2	[true]
 3	[true]
@@ -10422,8 +10432,8 @@ a	json_array( b < ( select distinct b from t_bool_literals where a = 1 ) )
 1	[false]
 2	[false]
 3	[false]
-select a, json_append( '[]', '$',  b < ( select distinct b from t_bool_literals where a = 1 ) ) from t_bool_literals order by a;
-a	json_append( '[]', '$',  b < ( select distinct b from t_bool_literals where a = 1 ) )
+select a, json_array_append( '[]', '$',  b < ( select distinct b from t_bool_literals where a = 1 ) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$',  b < ( select distinct b from t_bool_literals where a = 1 ) )
 1	[false]
 2	[false]
 3	[false]
@@ -10432,8 +10442,8 @@ a	json_array( b <= ( select distinct b from t_bool_literals where a = 1 ) )
 1	[true]
 2	[false]
 3	[false]
-select a, json_append( '[]', '$',  b <= ( select distinct b from t_bool_literals where a = 1 ) ) from t_bool_literals order by a;
-a	json_append( '[]', '$',  b <= ( select distinct b from t_bool_literals where a = 1 ) )
+select a, json_array_append( '[]', '$',  b <= ( select distinct b from t_bool_literals where a = 1 ) ) from t_bool_literals order by a;
+a	json_array_append( '[]', '$',  b <= ( select distinct b from t_bool_literals where a = 1 ) )
 1	[true]
 2	[false]
 3	[false]
@@ -10970,6 +10980,8 @@ insert into tt(j) values (cast(1 as json)), (null);
 select sum( distinct j ) from tt group by j having j in ( avg( 1 ), 1 + j);
 sum( distinct j )
 1
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the IN operator'
 SELECT JSON_ARRAY(j), COUNT(*) FROM tt GROUP BY j, i WITH ROLLUP;
 JSON_ARRAY(j)	COUNT(*)
 [null]	1
@@ -11295,14 +11307,14 @@ set @mypath = '$[1]';
 execute json_stmt4 USING @mypath;
 json_keys( '[ { "keyA": true }, { "keyB": false } ]', ? )
 ["keyB"]
-prepare json_stmt5 FROM 'select json_append( ''{ "keyA": [1, 2], "keyB": [3, 4] }'', ?, 5 )';
+prepare json_stmt5 FROM 'select json_array_append( ''{ "keyA": [1, 2], "keyB": [3, 4] }'', ?, 5 )';
 set @mypath = '$.keyA';
 execute json_stmt5 USING @mypath;
-json_append( '{ "keyA": [1, 2], "keyB": [3, 4] }', ?, 5 )
+json_array_append( '{ "keyA": [1, 2], "keyB": [3, 4] }', ?, 5 )
 {"keyA": [1, 2, 5], "keyB": [3, 4]}
 set @mypath = '$.keyB';
 execute json_stmt5 USING @mypath;
-json_append( '{ "keyA": [1, 2], "keyB": [3, 4] }', ?, 5 )
+json_array_append( '{ "keyA": [1, 2], "keyB": [3, 4] }', ?, 5 )
 {"keyA": [1, 2], "keyB": [3, 4, 5]}
 prepare json_stmt6 FROM 'select json_insert( ''{ "keyA": [1, 2], "keyB": [3, 4] }'', ?, 5 )';
 set @mypath = '$.keyA[2]';
@@ -12975,3 +12987,420 @@ SELECT JSON_EXTRACT('1E+36181012216111515851075235238', '$');
 ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Number too big to be stored in double." at position 6 in '1E+36181012216111515851075235238'.
 SELECT JSON_EXTRACT('-1E+36181012216111515851075235238', '$');
 ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Number too big to be stored in double." at position 7 in '-1E+36181012216111515851075235238'.
+#
+# Bug#21383284: ASSERTION IN SELECT_LEX::SETUP_CONDS
+#
+SELECT 1 FROM dual WHERE JSON_SEARCH('{}', 'one', 'foo', 'too-long-escape');
+ERROR HY000: Incorrect arguments to ESCAPE
+SELECT 1 FROM dual WHERE JSON_SEARCH('{}', 'one', 'foo', JSON_EXTRACT('', '$'));
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "The document is empty." at position 0 in ''.
+#
+# Bug#21437989: ASSERTION FAILED:
+#               JSON_BINARY::PARSE_BINARY(PTR, LENGTH).IS_VALID()
+#
+CREATE TABLE t(j JSON NOT NULL);
+INSERT INTO t VALUES ();
+ERROR HY000: Field 'j' doesn't have a default value
+INSERT INTO t VALUES (NULL);
+ERROR 23000: Column 'j' cannot be null
+INSERT IGNORE INTO t VALUES ();
+Warnings:
+Warning	1364	Field 'j' doesn't have a default value
+INSERT IGNORE INTO t VALUES (NULL);
+Warnings:
+Warning	1048	Column 'j' cannot be null
+SELECT * FROM t;
+j
+null
+null
+INSERT INTO t SELECT j FROM t;
+REPLACE INTO t SELECT j FROM t;
+SELECT * FROM t;
+j
+null
+null
+null
+null
+null
+null
+null
+null
+DROP TABLE t;
+#
+# Bug#21448719: WRONG RESULT FOR JSON VALUE IN OUTER JOIN WITH VIEW
+#
+CREATE TABLE t1(j1 JSON);
+CREATE TABLE t2(j2 JSON);
+CREATE VIEW v AS SELECT CAST('1' AS JSON) AS jv, j2 FROM t2;
+INSERT INTO t1 VALUES ('1');
+SELECT j1, jv, j2, JSON_ARRAY(j1, jv, j2) FROM t1 LEFT JOIN v ON j1 = jv;
+j1	jv	j2	JSON_ARRAY(j1, jv, j2)
+1	NULL	NULL	[1, null, null]
+INSERT INTO t2 VALUES ('1');
+SELECT j1, jv, j2, JSON_ARRAY(j1, jv, j2) FROM t1 LEFT JOIN v ON j1 = jv;
+j1	jv	j2	JSON_ARRAY(j1, jv, j2)
+1	1	1	[1, 1, 1]
+DROP TABLE t1, t2;
+DROP VIEW v;
+#
+# Bug#21442624 INCORRECT RESULT FROM JSON_SET WITH AUTO-WRAPPING
+#
+SELECT JSON_SET('1', '$', 100);
+JSON_SET('1', '$', 100)
+100
+SELECT JSON_SET('1', '$[0]', 100);
+JSON_SET('1', '$[0]', 100)
+100
+SELECT JSON_SET('1', '$[0][0]', 100);
+JSON_SET('1', '$[0][0]', 100)
+100
+SELECT JSON_SET('1', '$[0][0][0]', 100);
+JSON_SET('1', '$[0][0][0]', 100)
+100
+SELECT JSON_SET('[]', '$', 100);
+JSON_SET('[]', '$', 100)
+100
+SELECT JSON_SET('[]', '$[0]', 100);
+JSON_SET('[]', '$[0]', 100)
+[100]
+SELECT JSON_SET('[]', '$[0][0]', 100);
+JSON_SET('[]', '$[0][0]', 100)
+[]
+SELECT JSON_SET('[]', '$[0][0][0]', 100);
+JSON_SET('[]', '$[0][0][0]', 100)
+[]
+SELECT JSON_SET('[1]', '$', 100);
+JSON_SET('[1]', '$', 100)
+100
+SELECT JSON_SET('[1]', '$[0]', 100);
+JSON_SET('[1]', '$[0]', 100)
+[100]
+SELECT JSON_SET('[1]', '$[0][0]', 100);
+JSON_SET('[1]', '$[0][0]', 100)
+[100]
+SELECT JSON_SET('[1]', '$[0][0][0]', 100);
+JSON_SET('[1]', '$[0][0][0]', 100)
+[100]
+SELECT JSON_SET('[[1]]', '$', 100);
+JSON_SET('[[1]]', '$', 100)
+100
+SELECT JSON_SET('[[1]]', '$[0]', 100);
+JSON_SET('[[1]]', '$[0]', 100)
+[100]
+SELECT JSON_SET('[[1]]', '$[0][0]', 100);
+JSON_SET('[[1]]', '$[0][0]', 100)
+[[100]]
+SELECT JSON_SET('[[1]]', '$[0][0][0]', 100);
+JSON_SET('[[1]]', '$[0][0][0]', 100)
+[[100]]
+SELECT JSON_SET('[[[1]]]', '$', 100);
+JSON_SET('[[[1]]]', '$', 100)
+100
+SELECT JSON_SET('[[[1]]]', '$[0]', 100);
+JSON_SET('[[[1]]]', '$[0]', 100)
+[100]
+SELECT JSON_SET('[[[1]]]', '$[0][0]', 100);
+JSON_SET('[[[1]]]', '$[0][0]', 100)
+[[100]]
+SELECT JSON_SET('[[[1]]]', '$[0][0][0]', 100);
+JSON_SET('[[[1]]]', '$[0][0][0]', 100)
+[[[100]]]
+SELECT JSON_REPLACE('1', '$', 100);
+JSON_REPLACE('1', '$', 100)
+100
+SELECT JSON_REPLACE('1', '$[0]', 100);
+JSON_REPLACE('1', '$[0]', 100)
+100
+SELECT JSON_REPLACE('1', '$[0][0]', 100);
+JSON_REPLACE('1', '$[0][0]', 100)
+100
+SELECT JSON_REPLACE('1', '$[0][0][0]', 100);
+JSON_REPLACE('1', '$[0][0][0]', 100)
+100
+SELECT JSON_REPLACE('[]', '$', 100);
+JSON_REPLACE('[]', '$', 100)
+100
+SELECT JSON_REPLACE('[]', '$[0]', 100);
+JSON_REPLACE('[]', '$[0]', 100)
+[]
+SELECT JSON_REPLACE('[]', '$[0][0]', 100);
+JSON_REPLACE('[]', '$[0][0]', 100)
+[]
+SELECT JSON_REPLACE('[]', '$[0][0][0]', 100);
+JSON_REPLACE('[]', '$[0][0][0]', 100)
+[]
+SELECT JSON_REPLACE('[1]', '$', 100);
+JSON_REPLACE('[1]', '$', 100)
+100
+SELECT JSON_REPLACE('[1]', '$[0]', 100);
+JSON_REPLACE('[1]', '$[0]', 100)
+[100]
+SELECT JSON_REPLACE('[1]', '$[0][0]', 100);
+JSON_REPLACE('[1]', '$[0][0]', 100)
+[100]
+SELECT JSON_REPLACE('[1]', '$[0][0][0]', 100);
+JSON_REPLACE('[1]', '$[0][0][0]', 100)
+[100]
+SELECT JSON_REPLACE('[[1]]', '$', 100);
+JSON_REPLACE('[[1]]', '$', 100)
+100
+SELECT JSON_REPLACE('[[1]]', '$[0]', 100);
+JSON_REPLACE('[[1]]', '$[0]', 100)
+[100]
+SELECT JSON_REPLACE('[[1]]', '$[0][0]', 100);
+JSON_REPLACE('[[1]]', '$[0][0]', 100)
+[[100]]
+SELECT JSON_REPLACE('[[1]]', '$[0][0][0]', 100);
+JSON_REPLACE('[[1]]', '$[0][0][0]', 100)
+[[100]]
+SELECT JSON_REPLACE('[[[1]]]', '$', 100);
+JSON_REPLACE('[[[1]]]', '$', 100)
+100
+SELECT JSON_REPLACE('[[[1]]]', '$[0]', 100);
+JSON_REPLACE('[[[1]]]', '$[0]', 100)
+[100]
+SELECT JSON_REPLACE('[[[1]]]', '$[0][0]', 100);
+JSON_REPLACE('[[[1]]]', '$[0][0]', 100)
+[[100]]
+SELECT JSON_REPLACE('[[[1]]]', '$[0][0][0]', 100);
+JSON_REPLACE('[[[1]]]', '$[0][0][0]', 100)
+[[[100]]]
+#
+# Bug#21472872 WRONG RESULTS CAUSED BY PATH LEG POPPING
+# IN JSON FUNCTIONS
+#
+create table tdoc( id int, doc json );
+insert into tdoc values
+( 1, '[]' ),
+( 2, '{ "a": { "b": true } }' );
+select id, json_insert( doc, '$.a.c', false ) from tdoc where id = 2;
+id	json_insert( doc, '$.a.c', false )
+2	{"a": {"b": true, "c": false}}
+select id, json_insert( doc, '$.a.c', false ) from tdoc order by id;
+id	json_insert( doc, '$.a.c', false )
+1	[]
+2	{"a": {"b": true, "c": false}}
+drop table tdoc;
+create table tdoc( id int, doc json, new_value varchar( 10 ) );
+insert into tdoc values
+( 1, '{ "a": { "b": true } }', null ),
+( 2, '{ "a": { "b": true } }', 'abc' );
+select id, json_insert( doc, '$.a.c', new_value ) from tdoc where id = 2;
+id	json_insert( doc, '$.a.c', new_value )
+2	{"a": {"b": true, "c": "abc"}}
+select id, json_insert( doc, '$.a.c', new_value ) from tdoc order by id;
+id	json_insert( doc, '$.a.c', new_value )
+1	{"a": {"b": true, "c": null}}
+2	{"a": {"b": true, "c": "abc"}}
+drop table tdoc;
+#
+# Bug#21491442 VARIANT::FORCED_RETURN() [WITH T = JSON_SCALAR*]:
+#              ASSERTION `FALSE' FAILED.
+#
+create table t (a json, b blob,
+c int generated always as (1!=a) virtual not null) engine=innodb;
+insert into t(a) values('[1]');
+insert into t(a) values('[1]');
+select a,c from t;
+a	c
+[1]	1
+[1]	1
+prepare ps1 from 'insert into t(a) values(?)';
+set @a='[1]';
+execute ps1 using @a;
+execute ps1 using @a;
+select a,c from t;
+a	c
+[1]	1
+[1]	1
+[1]	1
+[1]	1
+drop table t;
+create temporary table t (a json, b blob,
+c int generated always as (1!=a) virtual not null) engine=innodb;
+insert into t(a) values('[1]');
+insert into t(a) values('[1]');
+select a,c from t;
+a	c
+[1]	1
+[1]	1
+prepare ps1 from 'insert into t(a) values(?)';
+set @a='[1]';
+execute ps1 using @a;
+execute ps1 using @a;
+select a,c from t;
+a	c
+[1]	1
+[1]	1
+[1]	1
+[1]	1
+drop table t;
+#
+# Bug#21487833: DBUG_ABORT() IN JSON_WRAPPER::MAKE_HASH_KEY
+#               WITH ORDERED JSON
+#
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+CREATE TABLE t (a BLOB, b JSON NOT NULL) ENGINE=InnoDB;
+INSERT INTO t VALUES ('', NULL), ('', NULL);
+Warnings:
+Warning	1048	Column 'b' cannot be null
+UPDATE t SET a = 1 ORDER BY b;
+SELECT COUNT(a) FROM t GROUP BY b;
+COUNT(a)
+2
+SELECT DISTINCT B FROM t;
+B
+null
+SELECT b FROM t UNION DISTINCT SELECT b FROM t;
+b
+null
+SELECT * FROM t ORDER BY b;
+a	b
+1	null
+1	null
+DROP TABLE t;
+#
+# Bug#21541481: MEMORY LEAK OF ALLOCATIONS MADE IN
+#               VAL_JSON_FUNC_FIELD_SUBSELECT
+#
+# This comparison gave valgrind leakage before the fix
+create table t(a json not null) engine=innodb;
+insert into t values('{}');
+select row(uuid(), a) < row(a, str_to_date(1,1)) from t;
+row(uuid(), a) < row(a, str_to_date(1,1))
+1
+drop table t;
+# Bug#21547877: UPDATE/INSERT JSON COLUMN CRASHES IF EXPRESSION
+#               REFERS TO SELF
+#
+SET NAMES latin1;
+CREATE TABLE t (j JSON);
+INSERT INTO t VALUES ('{}');
+UPDATE t SET j='1', j='1111-11-11', j=('1' NOT BETWEEN j AND '1');
+ERROR 22032: Invalid JSON text: "The document root must not follow by other values." at position 4 in value (or column) '1111-11-11'.
+SELECT * FROM t;
+j
+{}
+DROP TABLE t;
+SET NAMES DEFAULT;
+#
+# Bug#21602361: ASSERTION FAILED: (VECTOR_IDX == -1) || (VECTOR_IDX >= 0)
+#
+create table t(b int, key(b))engine=innodb;
+insert into t values(1),(2);
+select json_length('{}',@uninitialized_21602361)
+from t group by b into @uninitialized_21602361;
+ERROR 42000: Result consisted of more than one row
+set @initialized_21602361 = '$';
+select json_length('{}',@initialized_21602361)
+from t group by b into @initialized_21602361;
+ERROR 42000: Invalid JSON path expression. The error is around character position 1 in '0'.
+set @error_value_21602361 = '$[';
+select json_length('{}',@error_value_21602361)
+from t group by b into @error_value_21602361;
+ERROR 42000: Invalid JSON path expression. The error is around character position 2 in '$['.
+set @valid_path_21602361 = '$';
+select concat( '$[', json_length('{}',@valid_path_21602361), ']' )
+from t group by b into @valid_path_21602361;
+ERROR 42000: Result consisted of more than one row
+set @null_value_21602361 = null;
+select json_length('{}',@null_value_21602361)
+from t group by b into @null_value_21602361;
+ERROR 42000: Result consisted of more than one row
+drop table t;
+#
+# Bug#21649073: JSON_TYPE RETURNS OPAQUE FOR SOME BINARY VALUES
+#
+SELECT JSON_TYPE(CAST(CAST('abcd' AS BINARY) AS JSON));
+JSON_TYPE(CAST(CAST('abcd' AS BINARY) AS JSON))
+BLOB
+CREATE TABLE t (bn BINARY(5), vb VARBINARY(5),
+tb TINYBLOB, mb MEDIUMBLOB, bb BLOB, lb LONGBLOB);
+INSERT INTO t (bn) VALUES (x'cafe');
+UPDATE t SET vb = bn, tb = bn, mb = bn, bb = bn, lb = bn;
+SELECT JSON_TYPE(CAST(bn AS JSON)) AS bn, JSON_TYPE(CAST(vb AS JSON)) AS vb,
+JSON_TYPE(CAST(tb AS JSON)) AS tb, JSON_TYPE(CAST(mb AS JSON)) AS mb,
+JSON_TYPE(CAST(bb AS JSON)) AS bb, JSON_TYPE(CAST(lb AS JSON)) AS lb
+FROM t;
+bn	vb	tb	mb	bb	lb
+BLOB	BLOB	BLOB	BLOB	BLOB	BLOB
+DROP TABLE t;
+#
+# Basic tests for inlined JSON path
+#
+CREATE TABLE t1(f1 JSON);
+INSERT INTO t1 VALUES('{"a":1}'),('{"a":3}'),('{"a":2}');
+INSERT INTO t1 VALUES('{"a":11, "b":3}'),('{"a":33, "b":1}'),('{"a":22,"b":2}');
+SELECT f1->"$.a" FROM t1;
+f1->"$.a"
+1
+3
+2
+11
+33
+22
+EXPLAIN SELECT f1->"$.a" FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`f1`,'$.a') AS `f1->"$.a"` from `test`.`t1`
+SELECT f1->"$.a" FROM t1 WHERE f1->"$.b" > 1;
+f1->"$.a"
+11
+22
+EXPLAIN SELECT f1->"$.a" FROM t1 WHERE f1->"$.b" > 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`f1`,'$.a') AS `f1->"$.a"` from `test`.`t1` where (json_extract(`test`.`t1`.`f1`,'$.b') > 1)
+SELECT f1->"$.a", f1->"$.b" FROM t1 ORDER BY f1->"$.b";
+f1->"$.a"	f1->"$.b"
+1	NULL
+3	NULL
+2	NULL
+33	1
+22	2
+11	3
+EXPLAIN SELECT f1->"$.a", f1->"$.b" FROM t1 ORDER BY f1->"$.b";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`f1`,'$.a') AS `f1->"$.a"`,json_extract(`test`.`t1`.`f1`,'$.b') AS `f1->"$.b"` from `test`.`t1` order by json_extract(`test`.`t1`.`f1`,'$.b')
+SELECT MAX(f1->"$.a"), f1->"$.b" FROM t1 GROUP BY f1->"$.b";
+MAX(f1->"$.a")	f1->"$.b"
+3	NULL
+33	1
+22	2
+11	3
+EXPLAIN SELECT MAX(f1->"$.a"), f1->"$.b" FROM t1 GROUP BY f1->"$.b";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select max(json_extract(`test`.`t1`.`f1`,'$.a')) AS `MAX(f1->"$.a")`,json_extract(`test`.`t1`.`f1`,'$.b') AS `f1->"$.b"` from `test`.`t1` group by json_extract(`test`.`t1`.`f1`,'$.b')
+SELECT JSON_OBJECT("c",f1->"$.b") AS f2
+FROM t1 HAVING JSON_TYPE(f2->"$.c") <> 'NULL';
+f2
+{"c": 3}
+{"c": 1}
+{"c": 2}
+EXPLAIN
+SELECT JSON_OBJECT("c",f1->"$.b") AS f2 FROM t1 HAVING JSON_TYPE(f2->"$.c") <> 'NULL';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select json_object('c',json_extract(`test`.`t1`.`f1`,'$.b')) AS `f2` from `test`.`t1` having (json_type(json_extract(`f2`,'$.c')) <> 'NULL')
+DROP TABLE t1;
+#
+# Bug#21828321: JSON FUNCS CALL DBUG_ABORT OR EXIT() ON WINDOWS!
+#
+SELECT JSON_ARRAY(LEAST(NULL, NULL), GREATEST(NULL, NULL), LEAST(j1, NULL),
+GREATEST(NULL, j2), LEAST(j1, j2), GREATEST(j1, j2)) AS j
+FROM (SELECT CAST('1' AS JSON) AS j1, CAST('2' AS JSON) AS j2) t;
+j
+[null, null, null, null, "1", "2"]
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the LEAST and GREATEST operators'
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the LEAST and GREATEST operators'
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the LEAST and GREATEST operators'
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the LEAST and GREATEST operators'

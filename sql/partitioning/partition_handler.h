@@ -120,10 +120,11 @@ public:
   /**
     Release reserved auto increment values not used.
     @param thd             Thread.
+    @param table_share     Table Share
     @param next_insert_id  Next insert id (first non used auto inc value).
     @param max_reserved    End of reserved auto inc range.
   */
-  void release_auto_inc_if_possible(THD *thd,
+  void release_auto_inc_if_possible(THD *thd, TABLE_SHARE *table_share,
                                     const ulonglong next_insert_id,
                                     const ulonglong max_reserved);
 

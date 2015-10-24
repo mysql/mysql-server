@@ -394,20 +394,20 @@ SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('LINESTRING(0 0, 1 1)'),ST_GEO
 --echo #====================================================================================
 --echo # linestring,polygon
 --echo #====================================================================================
-SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))')));
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10,11 15))')));
 
 SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal)));
 
-SELECT ST_ASTEXT(ST_SYMDIFFERENCE(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 25))'))) FROM gis_geometrycollection WHERE fid=110;
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 25,11 15))'))) FROM gis_geometrycollection WHERE fid=110;
 
 --echo #====================================================================================
 --echo # linestring,multipolygon
 --echo #====================================================================================
-SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 25)))')));
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 25,11 15)))')));
 
 SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems)));
 
-SELECT ST_ASTEXT(ST_SYMDIFFERENCE(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 25)),((25 0,0 15,25 10)))'))) FROM gis_geometrycollection WHERE fid=110;
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 25,11 15)),((25 0,0 15,25 10,25 0)))'))) FROM gis_geometrycollection WHERE fid=110;
 
 --echo #====================================================================================
 --echo # linestring,geometrycollection
@@ -563,9 +563,9 @@ SELECT ST_ASTEXT(ST_SYMDIFFERENCE(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_g
 --echo #====================================================================================
 SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems_3)));
 
-SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('POLYGON((0 0,2 2,3 0))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()')));
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('POLYGON((0 0,2 2,3 0,0 0))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()')));
 
-SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5,5 0),(2 2,2 3,3 3,3 2))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5,5 0,0 0),(2 2,2 3,3 3,3 2,2 2))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
                                                                                                                       'GEOMETRYCOLLECTION())')));
 
 --echo #====================================================================================
@@ -628,9 +628,9 @@ SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEX
 
 SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems)));
 
-SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,2 2,3 0)))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()')));
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,2 2,3 0,0 0)))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()')));
 
-SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0),(2 2,2 3,3 3,3 2)),((5 5,5 7,7 7,7 5)))'),
+SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0),(2 2,2 3,3 3,3 2,2 2)),((5 5,5 7,7 7,7 5,5 5)))'),
                                   ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')));
 
 --echo #====================================================================================
@@ -963,3 +963,30 @@ SELECT ST_ASTEXT(ST_SYMDIFFERENCE(a.g, b.g)) FROM t1 AS a JOIN t1 AS b ORDER BY 
 DROP TABLE gis_geometrycollection;
 DROP TABLE gis_geometrycollection_2;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #21263152 ST_SYMDIFFERENCE(POLYGON, POLYGON) MAY RETURN AN INVALID
+--echo # MULTIPOLYGON
+--echo #
+
+SELECT ST_ISVALID(
+  ST_SYMDIFFERENCE(
+    ST_GEOMFROMTEXT('POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))'),
+    ST_GEOMFROMTEXT('POLYGON((1 0, 1 1, 2 1, 2 0, 1 0))')
+  )
+) AS valid;
+
+SELECT ST_ISVALID(
+  ST_SYMDIFFERENCE(
+    ST_GEOMFROMTEXT('POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))'),
+    ST_GeomFromText('POLYGON((1 0, 1 1, 0 1, 0 2, 2 2, 2 0, 1 0))')
+  )
+) AS valid;
+
+SELECT ST_ASTEXT(
+  ST_SYMDIFFERENCE(
+    ST_GEOMFROMTEXT('POLYGON((52 18, 66 23, 73 9, 48 6, 52 18),
+                             (59 18, 67 18, 67 13, 59 13, 59 18))'),
+    ST_GEOMFROMTEXT('POLYGON((62 48, 84 48, 84 30, 56 30, 56 34, 62 48))')
+  )
+) AS r;

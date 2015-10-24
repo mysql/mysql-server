@@ -626,13 +626,20 @@ bool make_date_time(Date_time_format *format, MYSQL_TIME *l_time,
 	str->append_with_prefill(intbuff, length, 2, '0');
 	break;
       case 'j':
-	if (type == MYSQL_TIMESTAMP_TIME)
-	  return 1;
-	length= (uint) (int10_to_str(calc_daynr(l_time->year,l_time->month,
-					l_time->day) - 
-		     calc_daynr(l_time->year,1,1) + 1, intbuff, 10) - intbuff);
-	str->append_with_prefill(intbuff, length, 3, '0');
-	break;
+        {
+          if (type == MYSQL_TIMESTAMP_TIME)
+            return 1;
+
+          int radix= 10;
+          int diff= calc_daynr(l_time->year,l_time->month, l_time->day) -
+            calc_daynr(l_time->year,1,1) + 1;
+          if (diff < 0)
+            radix= -10;
+
+          length= (uint) (int10_to_str(diff, intbuff, radix) - intbuff);
+          str->append_with_prefill(intbuff, length, 3, '0');
+        }
+        break;
       case 'k':
 	length= (uint) (int10_to_str(l_time->hour, intbuff, 10) - intbuff);
 	str->append_with_prefill(intbuff, length, 1, '0');
@@ -847,13 +854,14 @@ void Item_temporal_func::print(String *str, enum_query_type query_type)
 
 
 type_conversion_status
-Item_temporal_hybrid_func::save_in_field(Field *field, bool no_conversions)
+Item_temporal_hybrid_func::save_in_field_inner(Field *field,
+                                               bool no_conversions)
 {
   if (cached_field_type == MYSQL_TYPE_TIME)
     return save_time_in_field(field);
   if (is_temporal_type_with_date(cached_field_type))
     return save_date_in_field(field);
-  return Item_str_func::save_in_field(field, no_conversions);
+  return Item_str_func::save_in_field_inner(field, no_conversions);
 }
 
 
@@ -1981,7 +1989,7 @@ Time_zone *Item_func_now_utc::time_zone()
 
 
 type_conversion_status
-Item_func_now::save_in_field(Field *to, bool no_conversions)
+Item_func_now::save_in_field_inner(Field *to, bool no_conversions)
 {
   to->set_notnull();
   return to->store_time(cached_time.get_TIME_ptr(), decimals);

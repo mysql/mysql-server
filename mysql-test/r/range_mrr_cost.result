@@ -224,6 +224,9 @@ drop table t1;
 create table t1 (x int, y int, index(x), index(y));
 insert into t1 (x) values (1),(2),(3),(4),(5),(6),(7),(8),(9);
 update t1 set y=x;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain select * from t1, t1 t2 where t1.y = 8 and t2.x between 7 and t1.y+0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	y	y	5	const	1	100.00	NULL
@@ -763,7 +766,7 @@ v.oxrootid ='d8c4177d09f8b11f5.52725521' AND
 s.oxleft > v.oxleft AND s.oxleft < v.oxright;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	v	NULL	ref	OXLEFT,OXRIGHT,OXROOTID	OXROOTID	34	const	5	100.00	NULL
-1	SIMPLE	s	NULL	ALL	OXLEFT,OXROOTID	NULL	NULL	NULL	6	9.26	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	s	NULL	ALL	OXLEFT,OXROOTID	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`s`.`OXID` AS `oxid` from `test`.`t1` `v` join `test`.`t1` `s` where ((`test`.`s`.`OXROOTID` = 'd8c4177d09f8b11f5.52725521') and (`test`.`v`.`OXROOTID` = 'd8c4177d09f8b11f5.52725521') and (`test`.`s`.`OXLEFT` > `test`.`v`.`OXLEFT`) and (`test`.`s`.`OXLEFT` < `test`.`v`.`OXRIGHT`))
 SELECT s.oxid FROM t1 v, t1 s 
@@ -917,6 +920,8 @@ and c10 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh",
 "abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
 "abcdefgC", "12345678C", "qwertyuiC", "asddfgC");
 c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13	c14	c15	c16
+Warnings:
+Warning	3170	Memory capacity of 1536000 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 drop table t1;
 End of 4.1 tests
 CREATE TABLE t1 (
@@ -1161,6 +1166,9 @@ c int NOT NULL DEFAULT '0',
 INDEX idx1(b,c), INDEX idx2(c));
 INSERT INTO t1(id) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
 INSERT INTO t1(b,c) VALUES (3,4), (3,4);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT * FROM t1 WHERE b<=3 AND 3<=c;
 id	b	c
 0	3	4
@@ -1230,7 +1238,7 @@ A1	2005-11-15 00:00:00	2000.000
 DROP INDEX `PRIMARY` ON t1;
 EXPLAIN SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	8.33	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
 Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
 Note	1003	/* select#1 */ select `test`.`t1`.`item` AS `item`,`test`.`t1`.`started` AS `started`,`test`.`t1`.`price` AS `price` from `test`.`t1` where ((`test`.`t1`.`item` = 'A1') and (`test`.`t1`.`started` <= '2005-12-01 24:00:00'))
@@ -3051,7 +3059,7 @@ WHERE (t7.a, t7.b) IN ((t5.b, 1), (t6.b, 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t6	NULL	ALL	a	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t5	NULL	ALL	a	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t7	NULL	ALL	a	NULL	NULL	NULL	7	4.08	Range checked for each record (index map: 0x1)
+1	SIMPLE	t7	NULL	ALL	a	NULL	NULL	NULL	7	14.29	Range checked for each record (index map: 0x1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b` from `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t5`.`a` = `test`.`t6`.`a`) and ((`test`.`t7`.`a`,`test`.`t7`.`b`) in ((`test`.`t5`.`b`,1),(`test`.`t6`.`b`,1))))
 FLUSH STATUS;
@@ -3341,4 +3349,155 @@ GROUP BY col1;
 c
 1
 DROP TABLE t1;
+#
+# Bug#21415791 VALGRIND ERROR (CONDITIONAL JUMP) AT KEY_AND
+#              (RANGE_OPT_PARAM*, SEL_ARG*, SEL_AR
+#
+CREATE TABLE t1 (
+col_varchar_10 VARCHAR(10),
+pk INTEGER NOT NULL,
+col_int_key INTEGER,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_varchar_10 (col_varchar_10)
+) ENGINE=InnoDB;
+INSERT INTO t1 (
+pk, col_varchar_10, col_int_key) VALUES
+(1, 'ttttt', 0), (2, 'zzzzz', 0), (3, 'ggggg', 0),
+(4, 'hhhhh', 0), (5, 'kkkkk', 0), (6, 'lllll', 0);
+CREATE TABLE t2 (
+pk INTEGER NOT NULL,
+col_varchar_10 VARCHAR(10),
+PRIMARY KEY (pk),
+KEY col_varchar_10 (col_varchar_10)
+) ENGINE=InnoDB;
+INSERT INTO t2 (
+pk,  col_varchar_10) VALUES
+(1, '00000'), (2, '00000'), (3, '44444'), (4, '00000'),
+(5, NULL), (6, NULL), (7, NULL);
+SELECT COUNT(t1.col_int_key)
+FROM t2 RIGHT OUTER JOIN t1 ON t2.col_varchar_10 <= t1.col_varchar_10
+WHERE t2.pk <> 4 OR t2.pk != t1.col_int_key AND t2.pk <> 1000;
+COUNT(t1.col_int_key)
+24
+DROP TABLE t1, t2;
+#
+# Bug #20229614: OR CONDITIONS ON MULTI-COLUMN INDEX MAY NOT USE ALL
+#                INDEX COLUMNS TO FILTER ROWS
+#
+CREATE TABLE t1 (
+c1 INT,
+c2 INT,
+c3 INT,
+PRIMARY KEY(c1, c2, c3)
+) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1, 1, 1), (1, 1, 2), (1, 1, 3),
+(1, 1, 4), (1, 1, 5);
+INSERT INTO t1 SELECT c1, 2, c3 FROM t1;
+INSERT INTO t1 SELECT c1, 3, c3 FROM t1 WHERE c2 = 1;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+15
+EXPLAIN SELECT c1, c2, c3
+FROM t1
+WHERE (c1 = 1 AND c2 = 1 AND c3 = 1) OR
+(c1 = 1 AND c2 = 2 AND c3 = 2) OR
+(c1 = 1 AND c2 = 2 AND c3 = 3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	12	NULL	3	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3` from `test`.`t1` where (((`test`.`t1`.`c3` = 1) and (`test`.`t1`.`c2` = 1) and (`test`.`t1`.`c1` = 1)) or ((`test`.`t1`.`c3` = 2) and (`test`.`t1`.`c2` = 2) and (`test`.`t1`.`c1` = 1)) or ((`test`.`t1`.`c3` = 3) and (`test`.`t1`.`c2` = 2) and (`test`.`t1`.`c1` = 1)))
+DROP TABLE t1;
+#
+# Bug#21139683: ASSERTION FAILED: TYPE_ARG == MAYBE_KEY ||
+#               TYPE_ARG == IMPOSSIBLE
+#
+CREATE TABLE t1 (
+a BLOB,
+PRIMARY KEY(a(1)),
+KEY(a(1))
+) ENGINE=INNODB;
+SELECT 1 FROM t1 WHERE a <> 'a' OR a <> "";
+1
+DROP TABLE t1;
+#
+# Bug#19333852: RESULT DIFF IN QUERY HAVING DISTINCT
+#               WITH GROUP BY
+#
+CREATE TABLE t1 (
+v1 VARCHAR(20) CHARACTER SET utf8 NOT NULL,
+pk INTEGER NOT NULL,
+PRIMARY KEY (pk),
+KEY v1_key (v1(10))
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('ABCDE',19), ('JLVGO',14);
+EXPLAIN SELECT * FROM t1 WHERE t1.v1 < CHAR(128);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	v1_key	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Warning	1366	Incorrect string value: '\x80' for column 'v1' at row 1
+Note	1003	/* select#1 */ select `test`.`t1`.`v1` AS `v1`,`test`.`t1`.`pk` AS `pk` from `test`.`t1` where (`test`.`t1`.`v1` < <cache>(char(128)))
+EXPLAIN SELECT * FROM t1 WHERE t1.v1 = CHAR(128);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	v1_key	v1_key	32	const	1	100.00	Using where
+Warnings:
+Warning	1366	Incorrect string value: '\x80' for column 'v1' at row 1
+Warning	1366	Incorrect string value: '\x80' for column 'v1' at row 1
+Note	1003	/* select#1 */ select `test`.`t1`.`v1` AS `v1`,`test`.`t1`.`pk` AS `pk` from `test`.`t1` where (`test`.`t1`.`v1` = <cache>(char(128)))
+EXPLAIN SELECT * FROM t1 WHERE t1.v1 BETWEEN 'f' AND CHAR(128);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	v1_key	v1_key	32	NULL	1	100.00	Using where
+Warnings:
+Warning	1366	Incorrect string value: '\x80' for column 'v1' at row 1
+Note	1003	/* select#1 */ select `test`.`t1`.`v1` AS `v1`,`test`.`t1`.`pk` AS `pk` from `test`.`t1` where (`test`.`t1`.`v1` between 'f' and <cache>(char(128)))
+SELECT * FROM t1 WHERE t1.v1 < CHAR(128);
+v1	pk
+JLVGO	14
+ABCDE	19
+Warnings:
+Warning	1366	Incorrect string value: '\x80' for column 'v1' at row 1
+SELECT * FROM t1 WHERE t1.v1 = CHAR(128);
+v1	pk
+Warnings:
+Warning	1366	Incorrect string value: '\x80' for column 'v1' at row 1
+Warning	1366	Incorrect string value: '\x80' for column 'v1' at row 1
+SELECT * FROM t1 WHERE t1.v1 BETWEEN 'f' AND CHAR(128);
+v1	pk
+JLVGO	14
+Warnings:
+Warning	1366	Incorrect string value: '\x80' for column 'v1' at row 1
+DROP TABLE t1;
+#
+# Bug #21761867: ASSERTION `TYPE_ARG == MAYBE_KEY ||
+#                TYPE_ARG == IMPOSSIBLE' FAILED.
+#
+CREATE TABLE t1 (
+c10 INT NOT NULL,
+c12 INT NOT NULL,
+c18 INT,
+PRIMARY KEY (c10,c12),
+UNIQUE KEY key_c12(c12),
+KEY key_c18(c18));
+INSERT INTO t1 VALUES(11,5,0), (12,6,1), (13,7,2), (14,8,3), (15,9,4);
+CREATE TABLE t2 (
+c10 INT NOT NULL,
+c12 INT NOT NULL,
+PRIMARY KEY(c10,c12));
+CREATE TABLE t3 (c10 INT NOT NULL);
+SELECT t2.c10
+FROM t1
+RIGHT JOIN t3
+LEFT JOIN t2
+ON t3.c10 = t2.c10
+ON t1.c12 > t2.c12
+WHERE
+t1.c10 <= 25
+AND
+t1.c18 IS NOT NULL
+OR
+t1.c10 > 5
+AND
+t1.c18 IN (15,16,18);
+c10
+DROP TABLE t1, t2, t3;
 set optimizer_switch=default;

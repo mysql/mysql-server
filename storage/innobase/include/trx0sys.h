@@ -596,7 +596,14 @@ struct trx_sys_t {
 					transactions that have not yet been
 					started in InnoDB. */
 
-	trx_ids_t	rw_trx_ids;	/*!< Read write transaction IDs */
+	trx_ids_t	rw_trx_ids;	/*!< Array of Read write transaction IDs
+					for MVCC snapshot. A ReadView would take
+					a snapshot of these transactions whose
+					changes are not visible to it. We should
+					remove transactions from the list before
+					committing in memory and releasing locks
+					to ensure right order of removal and
+					consistent snapshot. */
 
 	char		pad3[64];	/*!< To avoid false sharing */
 	trx_rseg_t*	rseg_array[TRX_SYS_N_RSEGS];

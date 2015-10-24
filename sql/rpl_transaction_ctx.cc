@@ -43,7 +43,6 @@ void Rpl_transaction_ctx::cleanup()
 int Rpl_transaction_ctx::set_rpl_transaction_ctx(Transaction_termination_ctx transaction_termination_ctx)
 {
   DBUG_ENTER("Rpl_transaction_ctx::set_verdict");
-  DBUG_ASSERT(m_transaction_ctx.m_sidno == 0 && m_transaction_ctx.m_gno == 0);
 
   if (transaction_termination_ctx.m_generated_gtid)
   {

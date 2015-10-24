@@ -1184,13 +1184,27 @@ dict_check_sys_tablespaces(
 			continue;
 		}
 
-		/* Ignore system and file-per-table tablespaces,
-		and tablespaces that already are in the tablespace cache. */
+		/* Ignore system and file-per-table tablespaces. */
 		if (is_system_tablespace(space_id)
-		    || !fsp_is_shared_tablespace(fsp_flags)
-		    || fil_space_for_table_exists_in_mem(
-			    space_id, space_name,
-			    false, true, NULL, 0)) {
+		    || !fsp_is_shared_tablespace(fsp_flags)) {
+			continue;
+		}
+
+		/* Ignore tablespaces that already are in the tablespace
+		cache. */
+		if (fil_space_for_table_exists_in_mem(
+				space_id, space_name, false, true, NULL, 0)) {
+			/* Recovery can open a datafile that does not
+			match SYS_DATAFILES.  If they don't match, update
+			SYS_DATAFILES. */
+			char *dict_path = dict_get_first_path(space_id);
+			char *fil_path = fil_space_get_first_path(space_id);
+			if (dict_path && fil_path
+			    && strcmp(dict_path, fil_path)) {
+				dict_update_filepath(space_id, fil_path);
+			}
+			ut_free(dict_path);
+			ut_free(fil_path);
 			continue;
 		}
 
@@ -1204,7 +1218,7 @@ dict_check_sys_tablespaces(
 		/* Check that the .ibd file exists. */
 		dberr_t	err = fil_ibd_open(
 			validate,
-			!srv_read_only_mode,
+			!srv_read_only_mode && srv_log_file_size != 0,
 			FIL_TYPE_TABLESPACE,
 			space_id,
 			fsp_flags,
@@ -1427,6 +1441,17 @@ dict_check_sys_tables(
 		cache. */
 		if (fil_space_for_table_exists_in_mem(
 			    space_id, space_name, false, true, NULL, 0)) {
+			/* Recovery can open a datafile that does not
+			match SYS_DATAFILES.  If they don't match, update
+			SYS_DATAFILES. */
+			char *dict_path = dict_get_first_path(space_id);
+			char *fil_path = fil_space_get_first_path(space_id);
+			if (dict_path && fil_path
+			    && strcmp(dict_path, fil_path)) {
+				dict_update_filepath(space_id, fil_path);
+			}
+			ut_free(dict_path);
+			ut_free(fil_path);
 			ut_free(table_name.m_name);
 			ut_free(shared_space_name);
 			continue;
@@ -1444,7 +1469,7 @@ dict_check_sys_tables(
 		ulint	fsp_flags = dict_tf_to_fsp_flags(flags, is_temp);
 		dberr_t	err = fil_ibd_open(
 			validate,
-			!srv_read_only_mode,
+			!srv_read_only_mode && srv_log_file_size != 0,
 			FIL_TYPE_TABLESPACE,
 			space_id,
 			fsp_flags,
@@ -1678,12 +1703,13 @@ err_len:
 					       prtype, col_len);
 		}
 	} else {
-		if (nth_v_col != NULL) {
-			*nth_v_col = dict_get_v_col_pos(pos);
-		}
-
 		dict_mem_fill_column_struct(column, pos, mtype,
 					    prtype, col_len);
+	}
+
+	/* Report the virtual column number */
+	if ((prtype & DATA_VIRTUAL) && nth_v_col != NULL) {
+		*nth_v_col = dict_get_v_col_pos(pos);
 	}
 
 	return(NULL);
@@ -1831,13 +1857,14 @@ dict_load_columns(
 	     i++) {
 		const char*	err_msg;
 		const char*	name = NULL;
+		ulint		nth_v_col = ULINT_UNDEFINED;
 
 		rec = btr_pcur_get_rec(&pcur);
 
 		ut_a(btr_pcur_is_on_user_rec(&pcur));
 
 		err_msg = dict_load_column_low(table, heap, NULL, NULL,
-					       &name, rec, NULL);
+					       &name, rec, &nth_v_col);
 
 		if (err_msg == dict_load_column_del) {
 			n_skipped++;
@@ -1847,9 +1874,11 @@ dict_load_columns(
 		}
 
 		/* Note: Currently we have one DOC_ID column that is
-		shared by all FTS indexes on a table. */
+		shared by all FTS indexes on a table. And only non-virtual
+		column can be used for FULLTEXT index */
 		if (innobase_strcasecmp(name,
-					FTS_DOC_ID_COL_NAME) == 0) {
+					FTS_DOC_ID_COL_NAME) == 0
+		    && nth_v_col == ULINT_UNDEFINED) {
 			dict_col_t*	col;
 			/* As part of normal loading of tables the
 			table->flag is not set for tables with FTS
@@ -2325,7 +2354,7 @@ err_len:
 		goto err_len;
 	}
 	type = mach_read_from_4(field);
-	if (type & (~0 << DICT_IT_BITS)) {
+	if (type & (~0U << DICT_IT_BITS)) {
 		return("unknown SYS_INDEXES.TYPE bits");
 	}
 

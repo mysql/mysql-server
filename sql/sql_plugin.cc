@@ -39,6 +39,10 @@
 #include "template_utils.h"    // pointer_cast
 #include "transaction.h"       // trans_rollback_stmt
 
+#ifndef EMBEDDED_LIBRARY
+#include "srv_session.h"       // Srv_session::check_for_stale_threads()
+#endif
+
 #include <algorithm>
 
 #ifdef HAVE_DLFCN_H
@@ -100,8 +104,11 @@ const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 extern int initialize_schema_table(st_plugin_int *plugin);
 extern int finalize_schema_table(st_plugin_int *plugin);
 
-extern int initialize_audit_plugin(st_plugin_int *plugin);
-extern int finalize_audit_plugin(st_plugin_int *plugin);
+#ifdef EMBEDDED_LIBRARY
+// Dummy implementations for embedded
+int initialize_audit_plugin(st_plugin_int *plugin) { return 1; }
+int finalize_audit_plugin(st_plugin_int *plugin) { return 0; }
+#endif
 
 /*
   The number of elements in both plugin_type_initialize and
@@ -987,6 +994,9 @@ static void plugin_deinitialize(st_plugin_int *plugin, bool ref_check)
   }
   plugin->state= PLUGIN_IS_UNINITIALIZED;
 
+#ifndef EMBEDDED_LIBRARY
+  Srv_session::check_for_stale_threads(plugin);
+#endif
   /*
     We do the check here because NDB has a worker THD which doesn't
     exit until NDB is shut down.
@@ -1901,14 +1911,10 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
 
   DBUG_ENTER("mysql_install_plugin");
 
-  if (opt_noacl)
-  {
-    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
-    DBUG_RETURN(true);
-  }
-
   tables.init_one_table("mysql", 5, "plugin", 6, "plugin", TL_WRITE);
-  if (check_table_access(thd, INSERT_ACL, &tables, FALSE, 1, FALSE))
+
+  if (!opt_noacl &&
+      check_table_access(thd, INSERT_ACL, &tables, false, 1, false))
     DBUG_RETURN(true);
 
   /* need to open before acquiring LOCK_plugin or it will deadlock */
@@ -1934,14 +1940,18 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
 
     This hack should be removed when LOCK_plugin is fixed so it
     protects only what it supposed to protect.
-  */
-  mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS);
+    */
+#ifndef EMBEDDED_LIBRARY
+  mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS,
+                              MYSQL_AUDIT_GENERAL_ALL);
+#endif
 
   mysql_mutex_lock(&LOCK_plugin);
   DEBUG_SYNC(thd, "acquired_LOCK_plugin");
   mysql_rwlock_wrlock(&LOCK_system_variables_hash);
 
-  if (my_load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv, NULL))
+  if (my_load_defaults(MYSQL_CONFIG_NAME, load_default_groups,
+                       &argc, &argv, NULL))
   {
     mysql_rwlock_unlock(&LOCK_system_variables_hash);
     report_error(REPORT_TO_USER, ER_PLUGIN_IS_NOT_LOADED, name->str);
@@ -1971,13 +1981,13 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
       goto deinit;
     }
   }
+  mysql_mutex_unlock(&LOCK_plugin);
 
   /*
     We do not replicate the INSTALL PLUGIN statement. Disable binlogging
     of the insert into the plugin table, so that it is not replicated in
     row based mode.
   */
-  mysql_mutex_unlock(&LOCK_plugin);
   tmp_disable_binlog(thd);
   table->use_all_columns();
   restore_record(table, s->default_values);
@@ -2020,15 +2030,10 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
 
   DBUG_ENTER("mysql_uninstall_plugin");
 
-  if (opt_noacl)
-  {
-    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
-    DBUG_RETURN(true);
-  }
-
   tables.init_one_table("mysql", 5, "plugin", 6, "plugin", TL_WRITE);
 
-  if (check_table_access(thd, DELETE_ACL, &tables, FALSE, 1, FALSE))
+  if (!opt_noacl &&
+      check_table_access(thd, DELETE_ACL, &tables, false, 1, false))
     DBUG_RETURN(true);
 
   /* need to open before acquiring LOCK_plugin or it will deadlock */
@@ -2063,7 +2068,10 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
     This hack should be removed when LOCK_plugin is fixed so it
     protects only what it supposed to protect.
   */
-  mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS);
+#ifndef EMBEDDED_LIBRARY
+  mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS,
+                                   MYSQL_AUDIT_GENERAL_ALL);
+#endif
 
   mysql_mutex_lock(&LOCK_plugin);
   if (!(plugin= plugin_find_internal(name_cstr, MYSQL_ANY_PLUGIN)) ||

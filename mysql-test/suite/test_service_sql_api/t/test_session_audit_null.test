@@ -1,0 +1,44 @@
+--source include/not_embedded.inc
+--source include/have_null_audit_plugin.inc
+
+--echo ##########################################
+--echo # Run audit_null plugin
+--echo ##########################################
+# Adjustment to the OS dependent extension of shared libraries.
+let $expected_extension= so;
+if(`SELECT CONVERT(@@version_compile_os USING latin1)
+           IN ("Win32","Win64","Windows")`)
+{
+   let $expected_extension= dll;
+}
+--replace_result $expected_extension <expected_extension>
+eval INSTALL PLUGIN null_audit SONAME 'adt_null.$expected_extension';
+
+--echo # Before installing test_session_in_thd plugin
+SHOW STATUS LIKE 'audit_null_connection%';
+
+--echo ##########################################
+--echo # Start plugin with audit null
+--echo ##########################################
+--replace_result $TEST_SESSION_IN_THD TEST_SESSION_IN_THD
+eval INSTALL PLUGIN test_session_in_thd SONAME '$TEST_SESSION_IN_THD';
+
+--echo ##########################################
+--echo # Stop plugin
+--echo ##########################################
+UNINSTALL PLUGIN test_session_in_thd;
+
+--echo ##########################################
+--echo # Plugin log
+--echo ##########################################
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_session_in_thd.log;
+remove_file $MYSQLD_DATADIR/test_session_in_thd.log;
+
+--echo # After installing test_session_in_thd plugin
+SHOW STATUS LIKE 'audit_null_connection%';
+
+--echo ##########################################
+--echo # Stop audit_null plugin
+--echo ##########################################
+UNINSTALL PLUGIN null_audit;

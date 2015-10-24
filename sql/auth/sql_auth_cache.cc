@@ -269,7 +269,6 @@ ACL_PROXY_USER::check_validity(bool check_no_resolve)
                       proxied_host.get_host() ? proxied_host.get_host() : "",
                       user ? user : "",
                       host.get_host() ? host.get_host() : "");
-    return TRUE;
   }
   return FALSE;
 }
@@ -544,22 +543,12 @@ ulong get_sort(uint count,...)
 
 bool hostname_requires_resolving(const char *hostname)
 {
+
+  /* called only for --skip-name-resolve */
+  DBUG_ASSERT(specialflag & SPECIAL_NO_RESOLVE);
+
   if (!hostname)
     return FALSE;
-
-  /* Check if hostname is the localhost. */
-
-  size_t hostname_len= strlen(hostname);
-  size_t localhost_len= strlen(my_localhost);
-
-  if (hostname == my_localhost ||
-      (hostname_len == localhost_len &&
-       !my_strnncoll(system_charset_info,
-                     (const uchar *) hostname,  hostname_len,
-                     (const uchar *) my_localhost, strlen(my_localhost))))
-  {
-    return FALSE;
-  }
 
   /*
     If the string contains any of {':', '%', '_', '/'}, it is definitely
@@ -1088,11 +1077,13 @@ static void init_check_host(void)
     acl_wild_hosts=
       new Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE>(key_memory_acl_mem);
 
+  size_t acl_users_size= acl_users ? acl_users->size() : 0;
+
   (void) my_hash_init(&acl_check_hosts,system_charset_info,
-                      acl_users->size(), 0, 0,
+                      acl_users_size, 0, 0,
                       (my_hash_get_key) check_get_key, 0, 0,
                       key_memory_acl_mem);
-  if (!allow_all_hosts)
+  if (acl_users_size && !allow_all_hosts)
   {
     for (ACL_USER *acl_user= acl_users->begin();
          acl_user != acl_users->end(); ++acl_user)
@@ -1516,7 +1507,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                         "ignored in --skip-name-resolve mode.",
                         user.user ? user.user : "",
                         user.host.get_host() ? user.host.get_host() : "");
-      continue;
     }
 
     /* Read password from authentication_string field */
@@ -1528,6 +1518,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     {
       sql_print_error("Fatal error: mysql.user table is damaged. "
                       "Please run mysql_upgrade.");
+
+      end_read_record(&read_record_info);
       goto end;
     }
     if(user.auth_string.str)
@@ -1884,7 +1876,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                         db.db,
                         db.user ? db.user : "",
                         db.host.get_host() ? db.host.get_host() : "");
-      continue;
     }
     db.access=get_access(table,3,0);
     db.access=fix_rights_for_db(db.access);
@@ -2289,7 +2280,6 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
                             mem_check->tname, mem_check->user,
                             mem_check->host.get_host() ?
                             mem_check->host.get_host() : "");
-          continue;
         }
       }
       if (p_table->field[4]->val_int() == SP_TYPE_PROCEDURE)
@@ -2424,7 +2414,6 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
                             mem_check->user ? mem_check->user : "",
                             mem_check->host.get_host() ?
                             mem_check->host.get_host() : "");
-          continue;
         }
       }
 

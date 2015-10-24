@@ -1,0 +1,7 @@
+#create the necessary tables and setup
+--source suite/ndb/include/ndb_addnode_restart_setup.inc
+
+let NDBAPITEST_NAME=testSystemRestart;
+let NDBAPITEST_ARGS=-nMTR_AddNodesAndRestart1 -l1 --noddl -v T1;
+let NDBAPITEST_CLEANUP_QUERY=DROP DATABASE TEST_DB;
+--source suite/ndb/include/run_ndbapitest.inc

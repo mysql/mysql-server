@@ -742,3 +742,73 @@ t2	CREATE TABLE `t2` (
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`c2`) REFERENCES `t1` (`c5`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t2, t1;
+#
+#BUG#21514135 SCHEMA MISMATCH ERROR WHEN IMPORTING TABLESPACE AFTER
+#DROPPING AN INDEX
+#
+CREATE DATABASE source_db;
+CREATE DATABASE dest_db;
+CREATE TABLE source_db.t1 (
+id int(11) NOT NULL,
+age int(11) DEFAULT NULL,
+name varchar(20),
+PRIMARY KEY (id),
+KEY index1 (age)
+) ENGINE=InnoDB;
+ALTER TABLE source_db.t1 DROP INDEX index1, ADD INDEX index2(name, age), algorithm=inplace;
+FLUSH TABLES source_db.t1 FOR EXPORT;
+UNLOCK TABLES;
+USE dest_db;
+CREATE TABLE `t1` (
+  `id` int(11) NOT NULL,
+  `age` int(11) DEFAULT NULL,
+  `name` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `index2` (`name`,`age`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+ALTER TABLE dest_db.t1 DISCARD TABLESPACE;
+ALTER TABLE dest_db.t1 IMPORT TABLESPACE;
+CHECK TABLE dest_db.t1;
+Table	Op	Msg_type	Msg_text
+dest_db.t1	check	status	OK
+SHOW CREATE TABLE dest_db.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL,
+  `age` int(11) DEFAULT NULL,
+  `name` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `index2` (`name`,`age`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT * FROM dest_db.t1;
+id	age	name
+DROP TABLE dest_db.t1;
+ALTER TABLE source_db.t1 DROP INDEX index2, algorithm=inplace;
+FLUSH TABLES source_db.t1 FOR EXPORT;
+UNLOCK TABLES;
+USE dest_db;
+CREATE TABLE `t1` (
+  `id` int(11) NOT NULL,
+  `age` int(11) DEFAULT NULL,
+  `name` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+ALTER TABLE dest_db.t1 DISCARD TABLESPACE;
+ALTER TABLE dest_db.t1 IMPORT TABLESPACE;
+CHECK TABLE dest_db.t1;
+Table	Op	Msg_type	Msg_text
+dest_db.t1	check	status	OK
+SHOW CREATE TABLE dest_db.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL,
+  `age` int(11) DEFAULT NULL,
+  `name` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT * FROM dest_db.t1;
+id	age	name
+DROP TABLE dest_db.t1;
+DROP TABLE source_db.t1;
+DROP DATABASE source_db;
+DROP DATABASE dest_db;

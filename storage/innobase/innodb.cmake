@@ -38,6 +38,10 @@ IF(UNIX)
       LINK_LIBRARIES(aio)
     ENDIF()
 
+    IF(HAVE_LIBNUMA)
+      LINK_LIBRARIES(numa)
+    ENDIF()
+
   ELSEIF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
     ADD_DEFINITIONS("-DUNIV_SOLARIS")
   ENDIF()
@@ -147,6 +151,21 @@ IF(NOT CMAKE_CROSSCOMPILING)
   }"
   HAVE_IB_GCC_ATOMIC_THREAD_FENCE
   )
+  CHECK_C_SOURCE_RUNS(
+  "#include<stdint.h>
+  int main()
+  {
+    unsigned char	a = 0;
+    unsigned char	b = 0;
+    unsigned char	c = 1;
+
+    __atomic_exchange(&a, &b,  &c, __ATOMIC_RELEASE);
+    __atomic_compare_exchange(&a, &b, &c, 0,
+			      __ATOMIC_RELEASE, __ATOMIC_ACQUIRE);
+    return(0);
+  }"
+  HAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE
+  )
 ENDIF()
 
 IF(HAVE_IB_GCC_SYNC_SYNCHRONISE)
@@ -155,6 +174,10 @@ ENDIF()
 
 IF(HAVE_IB_GCC_ATOMIC_THREAD_FENCE)
  ADD_DEFINITIONS(-DHAVE_IB_GCC_ATOMIC_THREAD_FENCE=1)
+ENDIF()
+
+IF(HAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE)
+ ADD_DEFINITIONS(-DHAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE=1)
 ENDIF()
 
  # either define HAVE_IB_ATOMIC_PTHREAD_T_GCC or not

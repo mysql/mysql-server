@@ -100,10 +100,10 @@ struct OSTrackMutex {
 	@param[in]	filename	from where called
 	@param[in]	line		within filename */
 	void enter(
-		ulint		max_spins,
-		ulint		max_delay,
+		uint32_t	max_spins,
+		uint32_t	max_delay,
 		const char*	filename,
-		ulint		line)
+		uint32_t	line)
 		UNIV_NOTHROW
 	{
 		ut_ad(innodb_calling_exit || !m_freed);
@@ -225,12 +225,12 @@ struct TTASFutexMutex {
 	@param[in]	filename	from where called
 	@param[in]	line		within filename */
 	void enter(
-		ulint		max_spins,
-		ulint		max_delay,
+		uint32_t	max_spins,
+		uint32_t	max_delay,
 		const char*	filename,
-		ulint		line) UNIV_NOTHROW
+		uint32_t	line) UNIV_NOTHROW
 	{
-		ulint		n_spins;
+		uint32_t	n_spins;
 		lock_word_t	lock = ttas(max_spins, max_delay, n_spins);
 
 		/* If there were no waiters when this thread tried
@@ -240,19 +240,22 @@ struct TTASFutexMutex {
 		by then. In this case the thread can assume it
 		was granted the mutex. */
 
+		uint32_t	n_waits;
+
 		if (lock != MUTEX_STATE_UNLOCKED) {
 
-			if ((lock != MUTEX_STATE_LOCKED || !set_waiters())) {
+			if (lock != MUTEX_STATE_LOCKED || !set_waiters()) {
 
-				ulint	n_waits = wait();
-
-				m_policy.add(n_spins, n_waits);
-
-				return;
+				n_waits = wait();
+			} else {
+				n_waits = 0;
 			}
+
+		} else {
+			n_waits = 0;
 		}
 
-		m_policy.add(n_spins, 0);
+		m_policy.add(n_spins, n_waits);
 	}
 
 	/** Release the mutex. */
@@ -317,14 +320,10 @@ struct TTASFutexMutex {
 		return(m_policy);
 	}
 private:
-	/**
-	@return the lock state. */
+	/** @return the lock state. */
 	lock_word_t state() const UNIV_NOTHROW
 	{
-		/** Try and force a memory read. */
-		const volatile void*	p = &m_lock_word;
-
-		return(*(lock_word_t*) p);
+		return(m_lock_word);
 	}
 
 	/** Release the mutex.
@@ -353,9 +352,9 @@ private:
 
 	/** Wait if the lock is contended.
 	@return the number of waits */
-	ulint wait() UNIV_NOTHROW
+	uint32_t wait() UNIV_NOTHROW
 	{
-		ulint	n_waits = 0;
+		uint32_t	n_waits = 0;
 
 		/* Use FUTEX_WAIT_PRIVATE because our mutexes are
 		not shared between processes. */
@@ -388,9 +387,9 @@ private:
 	@param[out]	n_spins		retries before acquire
 	@return value of lock word before locking. */
 	lock_word_t ttas(
-		ulint		max_spins,
-		ulint		max_delay,
-		ulint&		n_spins) UNIV_NOTHROW
+		uint32_t	max_spins,
+		uint32_t	max_delay,
+		uint32_t&	n_spins) UNIV_NOTHROW
 	{
 		os_rmb;
 
@@ -413,9 +412,13 @@ private:
 	}
 
 private:
+
+	/** Policy data */
 	MutexPolicy		m_policy;
 
-	volatile lock_word_t	m_lock_word MY_ALIGNED(MY_ALIGNOF(ulint));
+	/** lock_word is the target of the atomic test-and-set instruction
+	when atomic operations are enabled. */
+	lock_word_t		m_lock_word MY_ALIGNED(MY_ALIGNOF(ulint));
 };
 
 #endif /* HAVE_IB_LINUX_FUTEX */
@@ -505,14 +508,14 @@ struct TTASMutex {
 	@param filename		from where called
 	@param line		within filename */
 	void enter(
-		ulint		max_spins,
-		ulint		max_delay,
+		uint32_t	max_spins,
+		uint32_t	max_delay,
 		const char*	filename,
-		ulint		line) UNIV_NOTHROW
+		uint32_t	line) UNIV_NOTHROW
 	{
 		if (!try_lock()) {
 
-			ulint	n_spins = ttas(max_spins, max_delay);
+			uint32_t	n_spins = ttas(max_spins, max_delay);
 
 			/* No OS waits for spin mutexes */
 			m_policy.add(n_spins, 0);
@@ -522,10 +525,7 @@ struct TTASMutex {
 	/** @return the lock state. */
 	lock_word_t state() const UNIV_NOTHROW
 	{
-		/** Try and force a memory read. */
-		const volatile void*	p = &m_lock_word;
-
-		return(*(lock_word_t*) p);
+		return(m_lock_word);
 	}
 
 	/** @return true if locked by some thread */
@@ -559,13 +559,13 @@ private:
 	@param[in]	max_spins	max spins
 	@param[in]	max_delay	max delay per spin
 	@return number spins before acquire */
-	ulint ttas(
-		ulint		max_spins,
-		ulint		max_delay)
+	uint32_t ttas(
+		uint32_t	max_spins,
+		uint32_t	max_delay)
 		UNIV_NOTHROW
 	{
-		ulint		i = 0;
-		const ulint	step = max_spins;
+		uint32_t	i = 0;
+		const uint32_t	step = max_spins;
 
 		os_rmb;
 
@@ -586,7 +586,6 @@ private:
 				}
 			}
 
-
 		} while (!try_lock());
 
 		return(i);
@@ -602,7 +601,7 @@ private:
 
 	/** lock_word is the target of the atomic test-and-set instruction
 	when atomic operations are enabled. */
-	volatile lock_word_t	m_lock_word;
+	lock_word_t		m_lock_word;
 };
 
 template <template <typename> class Policy = NoPolicy>
@@ -613,9 +612,9 @@ struct TTASEventMutex {
 	TTASEventMutex()
 		UNIV_NOTHROW
 		:
-		m_event(),
+		m_lock_word(MUTEX_STATE_UNLOCKED),
 		m_waiters(),
-		m_lock_word(MUTEX_STATE_UNLOCKED)
+		m_event()
 	{
 		/* Check that lock_word is aligned. */
 		ut_ad(!((ulint) &m_lock_word % sizeof(ulint)));
@@ -687,7 +686,7 @@ struct TTASEventMutex {
 
 		tas_unlock();
 
-		if (*waiters() != 0) {
+		if (m_waiters != 0) {
 			signal();
 		}
 	}
@@ -698,26 +697,14 @@ struct TTASEventMutex {
 	@param[in]	filename	from where called
 	@param[in]	line		within filename */
 	void enter(
-		ulint		max_spins,
-		ulint		max_delay,
+		uint32_t	max_spins,
+		uint32_t	max_delay,
 		const char*	filename,
-		ulint		line)
+		uint32_t	line)
 		UNIV_NOTHROW
 	{
-		/* Note that we do not peek at the value of m_lock_word
-		before trying the atomic test_and_set; we could peek,
-		and possibly save time. */
-
 		if (!try_lock()) {
-			ulint	n_spins;
-
-			ulint	n_waits = spin_and_wait(
-				max_spins, max_delay, filename, line, n_spins);
-
-			/* waits and yields will be the same number
-			in our mutex design */
-
-			m_policy.add(n_spins, n_waits);
+			spin_and_try_lock(max_spins, max_delay, filename, line);
 		}
 	}
 
@@ -725,10 +712,7 @@ struct TTASEventMutex {
 	lock_word_t state() const
 		UNIV_NOTHROW
 	{
-		/** Try and force a memory read. */
-		const volatile void*	p = &m_lock_word;
-
-		return(*(lock_word_t*) p);
+		return(m_lock_word);
 	}
 
 	/** The event that the mutex will wait in sync0arr.cc
@@ -770,12 +754,26 @@ struct TTASEventMutex {
 	}
 
 private:
+	/** Wait in the sync array.
+	@param[in]	filename	from where it was called
+	@param[in]	line		line number in file
+	@param[in]	spin		retry this many times again
+	@return true if the mutex acquisition was successful. */
+	bool wait(
+		const char*	filename,
+		uint32_t	line,
+		uint32_t	spin)
+		UNIV_NOTHROW;
+
 	/** Spin and wait for the mutex to become free.
 	@param[in]	max_spins	max spins
 	@param[in]	max_delay	max delay per spin
 	@param[in,out]	n_spins		spin start index
-	@return number of spins */
-	void ttas(ulint max_spins, ulint max_delay, ulint& n_spins) const
+	@return true if unlocked */
+	bool is_free(
+		uint32_t	max_spins,
+		uint32_t	max_delay,
+		uint32_t&	n_spins) const
 		UNIV_NOTHROW
 	{
 		ut_ad(n_spins <= max_spins);
@@ -786,60 +784,52 @@ private:
 		committed with atomic test-and-set. In reality, however,
 		all processors probably have an atomic read of a memory word. */
 
-		while (is_locked() && n_spins < max_spins) {
+		do {
+			if (!is_locked()) {
+				return(true);
+			}
 
 			ut_delay(ut_rnd_interval(0, max_delay));
 
 			++n_spins;
-		}
+
+		} while (n_spins < max_spins);
+
+		return(false);
 	}
 
-	/** Wait in the sync array.
-	@param[in]	filename	from where it was called
-	@param[in]	line		line number in file
-	@param[in]	spin		retry this many times again
-	@return true if the mutex acquisition was successful. */
-	bool wait(
-		const char*	filename,
-		ulint		line,
-		ulint		spin)
-		UNIV_NOTHROW;
-
-	/** Reserves a mutex for the current thread. If the mutex is reserved,
-	the function spins a preset time (controlled by srv_n_spin_wait_rounds),
-	waiting for the mutex before suspending the thread.
+	/** Spin while trying to acquire the mutex
 	@param[in]	max_spins	max number of spins
 	@param[in]	max_delay	max delay per spin
 	@param[in]	filename	from where called
-	@param[in]	line		within filename
-	@param[out]	n_spins		spins before acquire
-	@return number of waits/yields before acquire */
-	ulint spin_and_wait(
-		ulint		max_spins,
-		ulint		max_delay,
+	@param[in]	line		within filename */
+	void spin_and_try_lock(
+		uint32_t	max_spins,
+		uint32_t	max_delay,
 		const char*	filename,
-		ulint		line,
-		ulint&		n_spins)
+		uint32_t	line)
 		UNIV_NOTHROW
 	{
-		ulint		n_waits = 0;
-		const ulint	step = max_spins;
-
-		n_spins = 0;
+		uint32_t	n_spins = 0;
+		uint32_t	n_waits = 0;
+		const uint32_t	step = max_spins;
 
 		os_rmb;
 
 		for (;;) {
 
-			ttas(max_spins, max_delay, n_spins);
+			/* If the lock was free then try and acquire it. */
 
-			if (n_spins < max_spins) {
+			if (is_free(max_spins, max_delay, n_spins)) {
 
 				if (try_lock()) {
-					return(n_waits);
+
+					break;
 				} else {
+
 					continue;
 				}
+
 			} else {
 				max_spins = n_spins + step;
 			}
@@ -865,42 +855,33 @@ private:
 			}
 		}
 
-		return(n_waits);
+		/* Waits and yields will be the same number in our
+		mutex design */
+
+		m_policy.add(n_spins, n_waits);
 	}
 
-	/**
-	@return the value of the m_waiters flag */
-	volatile ulint* waiters() UNIV_NOTHROW
+	/** @return the value of the m_waiters flag */
+	lock_word_t waiters() UNIV_NOTHROW
 	{
-		/* Declared volatile in the hope that the value is
-		read from memory */
-
-		volatile ulint*	ptr;
-
-		ptr = &m_waiters;
-
-		/* Here we assume that the read of a single
-		word from memory is atomic */
-
-		return(ptr);
+		return(m_waiters);
 	}
 
 	/** Note that there are threads waiting on the mutex */
 	void set_waiters() UNIV_NOTHROW
 	{
-		*waiters() = 1;
+		m_waiters = 1;
 		os_wmb;
 	}
 
 	/** Note that there are no threads waiting on the mutex */
 	void clear_waiters() UNIV_NOTHROW
 	{
-		*waiters() = 0;
+		m_waiters = 0;
 		os_wmb;
 	}
 
-	/**
-	Try and acquire the lock using TestAndSet.
+	/** Try and acquire the lock using TestAndSet.
 	@return	true if lock succeeded */
 	bool tas_lock() UNIV_NOTHROW
 	{
@@ -920,23 +901,23 @@ private:
 	void signal() UNIV_NOTHROW;
 
 private:
-	// Disable copying
+	/** Disable copying */
 	TTASEventMutex(const TTASEventMutex&);
 	TTASEventMutex& operator=(const TTASEventMutex&);
+
+	/** lock_word is the target of the atomic test-and-set instruction
+	when atomic operations are enabled. */
+	lock_word_t		m_lock_word;
+
+	/** Set to 0 or 1. 1 if there are (or may be) threads waiting
+	in the global wait array for this mutex to be released. */
+	lock_word_t		m_waiters;
 
 	/** Used by sync0arr.cc for the wait queue */
 	os_event_t		m_event;
 
-	/** Set to 0 or 1. 1 if there are (or may be) threads waiting
-	in the global wait array for this mutex to be released. */
-	ulint			m_waiters;
-
 	/** Policy data */
 	MutexPolicy		m_policy;
-
-	/** lock_word is the target of the atomic test-and-set instruction
-	when atomic operations are enabled. */
-	volatile lock_word_t	m_lock_word;
 };
 
 /** Mutex interface for all policy mutexes. This class handles the interfacing
@@ -986,10 +967,10 @@ struct PolicyMutex
 	@param name	filename where locked
 	@param line	line number where locked */
 	void enter(
-		ulint		n_spins,
-		ulint		n_delay,
+		uint32_t	n_spins,
+		uint32_t	n_delay,
 		const char*	name,
-		ulint		line) UNIV_NOTHROW
+		uint32_t	line) UNIV_NOTHROW
 	{
 #ifdef UNIV_PFS_MUTEX
 		/* Note: locker is really an alias for state. That's why
@@ -1014,7 +995,7 @@ struct PolicyMutex
 	/** Try and lock the mutex, return 0 on SUCCESS and 1 otherwise.
 	@param name	filename where locked
 	@param line	line number where locked */
-	int trylock(const char* name, ulint line) UNIV_NOTHROW
+	int trylock(const char* name, uint32_t line) UNIV_NOTHROW
 	{
 #ifdef UNIV_PFS_MUTEX
 		/* Note: locker is really an alias for state. That's why
@@ -1112,7 +1093,7 @@ private:
 	PSI_mutex_locker* pfs_begin_lock(
 		PSI_mutex_locker_state*	state,
 		const char*		name,
-		ulint			line) UNIV_NOTHROW
+		uint32_t		line) UNIV_NOTHROW
 	{
 		if (m_ptr != 0) {
 			return(PSI_MUTEX_CALL(start_mutex_wait)(
@@ -1130,7 +1111,7 @@ private:
 	PSI_mutex_locker* pfs_begin_trylock(
 		PSI_mutex_locker_state*	state,
 		const char*		name,
-		ulint			line) UNIV_NOTHROW
+		uint32_t		line) UNIV_NOTHROW
 	{
 		if (m_ptr != 0) {
 			return(PSI_MUTEX_CALL(start_mutex_wait)(
@@ -1167,14 +1148,17 @@ private:
 			m_ptr = 0;
 		}
 	}
-
-	/** The performance schema instrumentation hook. */
-	PSI_mutex*		m_ptr;
 #endif /* UNIV_PFS_MUTEX */
 
 private:
 	/** The mutex implementation */
 	MutexImpl		m_impl;
+
+#ifdef UNIV_PFS_MUTEX
+	/** The performance schema instrumentation hook. */
+	PSI_mutex*		m_ptr;
+#endif /* UNIV_PFS_MUTEX */
+
 };
 
 #endif /* ib0mutex_h */

@@ -733,7 +733,6 @@ handle_new_error:
 	case DB_READ_ONLY:
 	case DB_FTS_INVALID_DOCID:
 	case DB_INTERRUPTED:
-	case DB_DICT_CHANGED:
 	case DB_CANT_CREATE_GEOMETRY_OBJECT:
 		DBUG_EXECUTE_IF("row_mysql_crash_if_error", {
 					log_buffer_flush_to_disk();
@@ -3217,7 +3216,7 @@ row_create_index_for_mysql(
 
 		heap = mem_heap_create(512);
 
-		node = ind_create_graph_create(index, heap);
+		node = ind_create_graph_create(index, heap, NULL);
 
 		thr = pars_complete_graph_for_exec(node, trx, heap);
 
@@ -3235,11 +3234,13 @@ row_create_index_for_mysql(
 
 		index_id_t index_id = index->id;
 
-		/* add index to dictionary cache and also free index object */
+		/* add index to dictionary cache and also free index object.
+		We allow instrinsic table to violate the size limits because
+		they are used by optimizer for all record formats. */
 		err = dict_index_add_to_cache(
 			table, index, FIL_NULL,
-			(trx_is_strict(trx)
-			 || dict_table_get_format(table) >= UNIV_FORMAT_B));
+			!dict_table_is_intrinsic(table)
+			&& trx_is_strict(trx));
 
 		if (err != DB_SUCCESS) {
 			goto error_handling;

@@ -33,13 +33,19 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 drop table t1;
 # Added columns mixed with virtual GC and other columns
 create table t1 (a int);
+insert into t1 values(1);
 alter table t1 add column (b int generated always as (a+1) virtual, c int);
-ERROR HY000: 'Adding virtual generated columns and other columns in one single ALTER statement' is not supported for generated columns.
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
 alter table t1 add column (d int, e int generated always as (a+1) virtual);
-ERROR HY000: 'Adding virtual generated columns and other columns in one single ALTER statement' is not supported for generated columns.
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
 alter table t1 add column (f int generated always as (a+1) virtual, g int as(5) stored);
-ERROR HY000: 'Adding virtual generated columns and other columns in one single ALTER statement' is not supported for generated columns.
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
 alter table t1 add column (h int generated always as (a+1) virtual, i int as(5) virtual);
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
 drop table t1;
 # DEFAULT
 create table t1 (a int, b int generated always as (a+1) virtual default 0);
@@ -462,7 +468,64 @@ c	c_ci REGEXP 'A'	c_cs REGEXP 'A'
 a	1	0
 A	1	1
 DROP TABLE t1;
+# Bug #21469535: VALGRIND ERROR (CONDITIONAL JUMP) WHEN INSERT
+#                ROWS INTO A PARTITIONED TABLE
 #
+CREATE TABLE t1 (
+id INT NOT NULL,
+store_id INT NOT NULL,
+x INT GENERATED ALWAYS AS (id + store_id)
+)
+PARTITION BY RANGE (store_id) (
+PARTITION p0 VALUES LESS THAN (6),
+PARTITION p1 VALUES LESS THAN (11),
+PARTITION p2 VALUES LESS THAN (16),
+PARTITION p3 VALUES LESS THAN (21)
+);
+INSERT INTO t1 VALUES(1, 2, default);
+DROP TABLE t1;
+# Bug#21465626:ASSERT/CRASH ON DROPPING/ADDING VIRTUAL COLUMN
+CREATE TABLE t (a int(11), b int(11),
+c int(11) GENERATED ALWAYS AS (a+b) VIRTUAL,
+d int(11) GENERATED ALWAYS AS (a+b) VIRTUAL);
+INSERT INTO t(a,b) VALUES(1,2);
+# Mixed drop/add/rename virtual with non-virtual columns,
+# ALGORITHM=INPLACE is not supported for InnoDB
+ALTER TABLE t DROP d, ADD e varchar(10);
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
+ALTER TABLE t ADD d int, ADD f char(10) AS ('aaa');
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
+ALTER TABLE t CHANGE d dd int, CHANGE f ff varchar(10) AS ('bbb');
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
+# Only drop/add/change virtual, inplace is supported for Innodb
+ALTER TABLE t DROP c, DROP ff;
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
+ALTER TABLE t ADD c int(11) as (a+b), ADD f varchar(10) as ('aaa');
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
+ALTER TABLE t CHANGE c c int(11) as (a), CHANGE f f varchar(10) as('bbb');
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+# Change order should be ALGORITHM=INPLACE on Innodb
+ALTER TABLE t CHANGE c c int(11) as (a) after f;
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
+ALTER TABLE t CHANGE b b int(11) after c;
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
+# TODO: Changing virtual column type should be ALGORITHM=INPLACE on InnoDB, current it goes only with COPY method
+ALTER TABLE t CHANGE c c varchar(10) as ('a');
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
+# Changing stored column type is ALGORITHM=COPY
+ALTER TABLE t CHANGE dd d varchar(10);
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
+DROP TABLE t;
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
 DROP PROCEDURE IF EXISTS p1;

@@ -464,7 +464,7 @@ row_vers_build_clust_v_col(
 
 			innobase_get_computed_value(
 				row, col, clust_index, NULL, &local_heap,
-				heap, true);
+				heap, NULL, true);
 		}
 	}
 
@@ -509,7 +509,7 @@ row_vers_vc_matches_cluster(
 	rec_t*          prev_version;
 	mem_heap_t*	heap2;
 	mem_heap_t*	heap = NULL;
-	mem_heap_t*	tuple_heap = mem_heap_create(1024);
+	mem_heap_t*	tuple_heap;
 	ulint		num_v = dict_table_get_n_v_cols(index->table);
 	bool		compare[REC_MAX_N_FIELDS];
 	ulint		n_fields = dtuple_get_n_fields(ientry);
@@ -525,6 +525,8 @@ row_vers_vc_matches_cluster(
 	}
 
 	ut_ad(n_fields > n_non_v_col);
+
+	tuple_heap = mem_heap_create(1024);
 
 	*vrow = dtuple_create_with_vcol(v_heap ? v_heap : tuple_heap, 0, num_v);
 	dtuple_init_v_fld(*vrow);
@@ -784,6 +786,10 @@ row_vers_old_has_index_entry(
 
 					mem_heap_free(heap);
 
+					if (v_heap) {
+						mem_heap_free(v_heap);
+					}
+
 					return(TRUE);
 				}
 			} else {
@@ -792,6 +798,11 @@ row_vers_old_has_index_entry(
 					clust_offsets, index, ientry, roll_ptr,
 					trx_id, NULL, &vrow, mtr)) {
 					mem_heap_free(heap);
+
+					if (v_heap) {
+						mem_heap_free(v_heap);
+					}
+
 					return(TRUE);
 				}
 			}
@@ -827,6 +838,9 @@ row_vers_old_has_index_entry(
 
 				mem_heap_free(heap);
 
+				if (v_heap) {
+					mem_heap_free(v_heap);
+				}
 				return(TRUE);
 			}
 		}

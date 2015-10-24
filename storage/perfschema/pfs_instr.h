@@ -32,6 +32,7 @@ struct PFS_socket_class;
 class THD;
 
 #include "my_global.h"
+#include "my_thread_os_id.h"
 #ifdef _WIN32
 #include <winsock2.h>
 #endif
@@ -148,6 +149,8 @@ struct PFS_ALIGNED PFS_file : public PFS_instr
   PFS_file_class *m_class;
   /** File usage statistics. */
   PFS_file_stat m_file_stat;
+  /** True if a temporary file. */
+  bool m_temporary;
 };
 
 /** Instrumented table implementation. @see PSI_table. */
@@ -440,6 +443,8 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   ulonglong m_parent_thread_internal_id;
   /** External (SHOW PROCESSLIST) thread identifier, not unique. */
   ulong m_processlist_id;
+  /** External (Operating system) thread identifier, if any. */
+  my_thread_os_id_t m_thread_os_id;
   /** Thread class. */
   PFS_thread_class *m_class;
   /**

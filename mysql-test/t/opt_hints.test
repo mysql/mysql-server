@@ -427,6 +427,91 @@ EXPLAIN SELECT /*+ MRR(t1 IDX1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#21205282 CRASH/ASSERTION IN JOIN_CACHE::SET_MATCH_FLAG_IF_NONE WITH NO_BNL HINT
+--echo #
+
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (1);
+
+# Test turning off BNL
+SET optimizer_switch='block_nested_loop=on';
+
+EXPLAIN SELECT 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
+EXPLAIN SELECT /*+ NO_BNL(t1) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
+EXPLAIN SELECT /*+ NO_BNL(t2) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
+EXPLAIN SELECT /*+ NO_BNL(t3) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
+EXPLAIN SELECT /*+ NO_BNL(t4) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
+EXPLAIN SELECT /*+ NO_BNL(t3) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 LEFT JOIN t t4 ON 1) ON 1 WHERE 1;
+
+SELECT /*+ NO_BNL(t4) */ 1 FROM t t1 LEFT JOIN t t2 ON 1 LEFT JOIN (t t3 LEFT JOIN t t4 ON 1) ON 1;
+SELECT /*+ NO_BNL(t3) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 LEFT JOIN t t4 ON 1) ON 1 WHERE 1;
+
+# Test turning on BNL
+SET optimizer_switch='block_nested_loop=off';
+
+EXPLAIN SELECT 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
+EXPLAIN SELECT /*+ BNL(t1) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
+EXPLAIN SELECT /*+ BNL(t2) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
+EXPLAIN SELECT /*+ BNL(t3) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
+EXPLAIN SELECT /*+ BNL(t4) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
+EXPLAIN SELECT /*+ BNL(t2, t3) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
+EXPLAIN SELECT /*+ BNL(t3, t4) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
+EXPLAIN SELECT /*+ BNL(t2, t3, t4) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
+
+DROP TABLE t;
+
+# Test turning on BKA
+CREATE TABLE t(a INT, b INT, KEY k(a));
+INSERT INTO t VALUES (1,1);
+
+EXPLAIN SELECT * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
+EXPLAIN SELECT /*+ BKA(t1) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
+EXPLAIN SELECT /*+ BKA(t2) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
+EXPLAIN SELECT /*+ BKA(t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
+EXPLAIN SELECT /*+ BKA(t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
+EXPLAIN SELECT /*+ BKA(t2, t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
+EXPLAIN SELECT /*+ BKA(t2, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
+EXPLAIN SELECT /*+ BKA(t2, t3, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 USING(a) LEFT JOIN t t4 USING(a)) USING(a);
+
+# Queries with a mix of BKA and BNL
+# Turn both on with optimizer_switch
+SET optimizer_switch='block_nested_loop=on,batched_key_access=on,mrr_cost_based=off';
+
+EXPLAIN SELECT * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
+EXPLAIN SELECT /*+ NO_BKA(t1) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
+EXPLAIN SELECT /*+ NO_BKA(t2) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
+EXPLAIN SELECT /*+ NO_BNL(t3) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
+EXPLAIN SELECT /*+ NO_BNL(t4) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
+EXPLAIN SELECT /*+ NO_BKA(t2) NO_BNL(t3) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
+EXPLAIN SELECT /*+ NO_BNL(t3) NO_BKA(t4) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
+EXPLAIN SELECT /*+ NO_BKA(t2) NO_BNL(t3) NO_BKA(t4) */ * FROM t t1 INNER JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b LEFT JOIN t t4 ON t3.b=t4.b) ON t1.a=t2.a;
+
+# Turn BKA is off, BNL is still on
+SET optimizer_switch='batched_key_access=off';
+
+EXPLAIN SELECT * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ BKA(t1) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ NO_BNL(t2) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ BNL(t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ BKA(t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ BNL(t2, t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ BKA(t3, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+
+# Let both BKA and BNL be off
+SET optimizer_switch='block_nested_loop=off';
+
+EXPLAIN SELECT * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ BKA(t1) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ BNL(t2) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ BNL(t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ BKA(t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ BNL(t2, t3) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ BKA(t3, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+EXPLAIN SELECT /*+ BNL(t2, t3, t4) */ * FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON t2.b=t3.b INNER JOIN t t4 ON t3.a=t4.a) ON t1.b=t2.b;
+
+DROP TABLE t;
+
 set optimizer_switch=default;
 
 --echo #

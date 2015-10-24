@@ -215,12 +215,6 @@ static THD* init_new_thd(Channel_info *channel_info)
     return NULL;
   }
 
-  /*
-    THD::mysys_var::abort is associated with physical thread rather
-    than with THD object. So we need to reset this flag before using
-    this thread for handling of new THD object/connection.
-  */
-  thd->mysys_var->abort= 0;
   return thd;
 }
 
@@ -279,6 +273,7 @@ extern "C" void *handle_connection(void *arg)
       */
       PSI_thread *psi= PSI_THREAD_CALL(new_thread)
         (key_thread_one_connection, thd, thd->thread_id());
+      PSI_THREAD_CALL(set_thread_os_id)(psi);
       PSI_THREAD_CALL(set_thread)(psi);
     }
 #endif
@@ -294,7 +289,7 @@ extern "C" void *handle_connection(void *arg)
       handler_manager->inc_aborted_connects();
     else
     {
-      while (thd_is_connection_alive(thd))
+      while (thd_connection_alive(thd))
       {
         mysql_audit_release(thd);
         if (do_command(thd))

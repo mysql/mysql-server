@@ -479,7 +479,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 0	{
         "steps": [
         ],
         "empty_result": {
-          "cause": "Impossible WHERE"
+          "cause": "Zero limit"
         }
       }
     },
@@ -692,7 +692,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 0	{
         "steps": [
         ],
         "empty_result": {
-          "cause": "Impossible WHERE"
+          "cause": "Zero limit"
         }
       }
     },
@@ -917,29 +917,9 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0	{
       "join_optimization": {
         "select#": 1,
         "steps": [
-          {
-            "condition_processing": {
-              "condition": "WHERE",
-              "original_condition": "(`t1`.`f1` > 10)",
-              "steps": [
-                {
-                  "transformation": "equality_propagation",
-                  "resulting_condition": "(`t1`.`f1` > 10)"
-                },
-                {
-                  "transformation": "constant_propagation",
-                  "resulting_condition": "(`t1`.`f1` > 10)"
-                },
-                {
-                  "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`t1`.`f1` > 10)"
-                }
-              ]
-            }
-          }
         ],
         "empty_result": {
-          "cause": "Impossible WHERE"
+          "cause": "Zero limit"
         }
       }
     },
@@ -1799,7 +1779,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 0	{
         "steps": [
         ],
         "empty_result": {
-          "cause": "Impossible WHERE"
+          "cause": "Zero limit"
         }
       }
     },
@@ -2012,7 +1992,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 0	{
         "steps": [
         ],
         "empty_result": {
-          "cause": "Impossible WHERE"
+          "cause": "Zero limit"
         }
       }
     },
@@ -2237,29 +2217,9 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0	{
       "join_optimization": {
         "select#": 1,
         "steps": [
-          {
-            "condition_processing": {
-              "condition": "WHERE",
-              "original_condition": "(`t1`.`f1` > 10)",
-              "steps": [
-                {
-                  "transformation": "equality_propagation",
-                  "resulting_condition": "(`t1`.`f1` > 10)"
-                },
-                {
-                  "transformation": "constant_propagation",
-                  "resulting_condition": "(`t1`.`f1` > 10)"
-                },
-                {
-                  "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`t1`.`f1` > 10)"
-                }
-              ]
-            }
-          }
         ],
         "empty_result": {
-          "cause": "Impossible WHERE"
+          "cause": "Zero limit"
         }
       }
     },
@@ -6512,7 +6472,7 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 0	{
         "steps": [
         ],
         "empty_result": {
-          "cause": "Impossible WHERE"
+          "cause": "Zero limit"
         }
       }
     },
@@ -7613,6 +7573,18 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                       "table": "`t1`"
                     }
                   ]
+                }
+              ]
+            }
+          },
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": null,
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": null
                 }
               ]
             }

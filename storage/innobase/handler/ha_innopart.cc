@@ -63,6 +63,11 @@ const char* sub_sep = "#sp#";
 const char* part_sep = "#P#";
 const char* sub_sep = "#SP#";
 #endif /* _WIN32 */
+
+/* Partition separator for *nix platforms */
+const char* part_sep_nix = "#P#";
+const char* sub_sep_nix = "#SP#";
+
 extern char*	innobase_file_format_max;
 
 Ha_innopart_share::Ha_innopart_share(
@@ -122,6 +127,7 @@ Ha_innopart_share::append_sep_and_name(
 {
 	size_t	ret;
 	size_t	sep_len = strlen(sep);
+
 	ut_ad(len > sep_len + strlen(from));
 	ut_ad(to != NULL);
 	ut_ad(from != NULL);
@@ -130,7 +136,14 @@ Ha_innopart_share::append_sep_and_name(
 
 	ret = tablename_to_filename(from, to + sep_len,
 		len - sep_len);
-	partition_name_casedn_str(to);
+
+	/* Don't convert to lower case for nix style name. */
+	if (strcmp(sep, part_sep_nix) != 0
+	    && strcmp(sep, sub_sep_nix) != 0) {
+
+		partition_name_casedn_str(to);
+	}
+
 	return(ret + sep_len);
 }
 
@@ -161,8 +174,13 @@ Ha_innopart_share::open_one_table_part(
 	uint		part_id,
 	const char*	partition_name)
 {
-	m_table_parts[part_id] = dict_table_open_on_name(partition_name,
-					FALSE, TRUE, DICT_ERR_IGNORE_NONE);
+	char	norm_name[FN_REFLEN];
+
+	normalize_table_name(norm_name, partition_name);
+	m_table_parts[part_id] =
+		ha_innobase::open_dict_table(partition_name, norm_name,
+					     TRUE, DICT_ERR_IGNORE_NONE);
+
 	if (m_table_parts[part_id] == NULL) {
 		return(true);
 	}
@@ -222,7 +240,7 @@ Ha_innopart_share::set_v_templ(
 			m_s_templ = static_cast<innodb_col_templ_t*>(
 				ut_zalloc_nokey( sizeof *m_s_templ));
 			innobase_build_v_templ(table, ib_table,
-					       m_s_templ, false, name);
+					       m_s_templ, NULL, false, name);
 
 			for (ulint i = 0; i < m_tot_parts; i++) {
 				m_table_parts[i]->vc_templ = m_s_templ;
@@ -292,7 +310,7 @@ Ha_innopart_share::open_table_parts(
 		len = append_sep_and_name(
 				partition_name + table_name_len,
 				part_elem->partition_name,
-				part_sep,
+				part_sep_nix,
 				FN_REFLEN - table_name_len);
 		if (part_info->is_sub_partitioned()) {
 			List_iterator<partition_element>
@@ -303,7 +321,7 @@ Ha_innopart_share::open_table_parts(
 					partition_name
 					+ table_name_len + len,
 					sub_elem->partition_name,
-					sub_sep,
+					sub_sep_nix,
 					FN_REFLEN - table_name_len - len);
 				if (open_one_table_part(i, partition_name)) {
 					goto err;
@@ -1016,7 +1034,7 @@ share_error:
 		}
 		set_ha_share_ptr(static_cast<Handler_share*>(m_part_share));
 	}
-	if (m_part_share->open_table_parts(m_part_info, norm_name)
+	if (m_part_share->open_table_parts(m_part_info, name)
 	    || m_part_share->populate_partition_name_hash(m_part_info)) {
 		goto share_error;
 	}
@@ -1095,7 +1113,7 @@ share_error:
 	}
 
 	if (!thd_tablespace_op(thd) && no_tablespace) {
-		my_errno = ENOENT;
+                set_my_errno(ENOENT);
 
 		lock_shared_ha_data();
 		m_part_share->close_table_parts();
@@ -3036,7 +3054,7 @@ ha_innopart::truncate()
 
 	DBUG_ENTER("ha_innopart::truncate");
 
-	if (srv_read_only_mode) {
+	if (high_level_read_only) {
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
 

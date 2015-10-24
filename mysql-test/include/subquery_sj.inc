@@ -807,6 +807,10 @@ insert into t3 values ('1 - 01', '2 - 01');
 insert into t3 values ('1 - 02', '2 - 02');
 insert into t3 values ('1 - 03', '2 - 03');
 insert into t3 values ('1 - 04', '2 - 04');
+insert into t3 values ('1 - 05', '2 - 05');
+insert into t3 values ('1 - 06', '2 - 06');
+insert into t3 values ('1 - 07', '2 - 07');
+insert into t3 values ('1 - 08', '2 - 08');
 
 explain extended
 select * from t1
@@ -7044,3 +7048,77 @@ DROP TABLE t1,t2;
 
 --echo # End of test for Bug#21184091
 
+--echo # Bug#21139722: Assertion failed: !(used_tables() & ((table_map) 1) ...
+
+CREATE TABLE t1(a INTEGER) engine=innodb;
+CREATE TABLE t2(b INTEGER) engine=innodb;
+
+let $query=
+SELECT 1
+FROM (SELECT 1 IN (SELECT 1
+                   FROM t1
+                   WHERE (SELECT 1 FROM t2 HAVING b) NOT IN (SELECT 1 FROM t2)
+                  )
+      FROM t2
+     ) AS z;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+# A test case containing two outer references from different query blocks
+# Debugging is needed to inspect correct transformation, unfortunately.
+
+CREATE TABLE t1(a INTEGER) engine=innodb;
+
+let $query=
+SELECT (SELECT a FROM t1 AS t2
+        WHERE a IN (SELECT t1.a+t2.a FROM t1 AS t3))
+FROM t1 AS t1;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1;
+
+--echo # End of test for Bug#21139722
+
+# New tests can use InnoDB as default
+SET DEFAULT_STORAGE_ENGINE=INNODB;
+
+--echo #
+--echo # Bug#21139402 ASSERTION FAILED: LENGTH > 0 && KEYPARTS != 0, CRASH IN JOIN::OPTIMIZE_KEYUSE
+--echo #
+
+CREATE TABLE t1 (a INT, b INT, PRIMARY KEY(a));
+CREATE TABLE t2 (c INT PRIMARY KEY);
+let $query=
+SELECT 1 FROM t1
+WHERE 1 IN
+ (SELECT (c IS NULL) IN (SELECT a FROM t1 WHERE b)  FROM t2);
+eval EXPLAIN $query;
+eval $query;
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#21619634 ACCESS OF DEALLOCATED ITEM_OUTER_REF CAUSES CRASH: PREPARED STMT
+--echo #
+create table cc (i int) engine="innodb";
+insert into cc values (1);
+
+# Always worked
+select (select count(i) from cc as cc_alias
+          where (cc.i in (select cc_alias.i from cc)))
+      from cc group by i;
+
+# Used to crash:
+# Without alias cc_alias.i as outer reference, no crash
+prepare stmt from
+"select (select count(i) from cc as cc_alias
+         where (cc.i in (select cc_alias.i from cc)))
+     from cc group by i";
+
+execute stmt;
+execute stmt;
+drop table cc;

@@ -82,28 +82,32 @@ set_retrieved_certification_info(View_change_log_event* view_change_event)
 
 bool
 Group_replication_handler::
-get_connection_status_info(GROUP_REPLICATION_CONNECTION_STATUS_INFO *info)
+get_connection_status_info(
+    const GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS& callbacks)
 {
   if (plugin_handle)
-    return plugin_handle->get_connection_status_info(info);
+    return plugin_handle->get_connection_status_info(callbacks);
   return true;
 }
 
 bool
 Group_replication_handler::
-get_group_members_info(unsigned int index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info)
+get_group_members_info(
+    unsigned int index,
+    const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS& callbacks)
 {
   if (plugin_handle)
-    return plugin_handle->get_group_members_info(index, info);
+    return plugin_handle->get_group_members_info(index, callbacks);
   return true;
 }
 
 bool
 Group_replication_handler::
-get_group_member_stats_info(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO *info)
+get_group_member_stats_info(
+    const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks)
 {
   if (plugin_handle)
-    return plugin_handle->get_group_member_stats_info(info);
+    return plugin_handle->get_group_member_stats_info(callbacks);
   return true;
 }
 
@@ -217,24 +221,28 @@ int set_group_replication_retrieved_certification_info(View_change_log_event *vi
   return 1;
 }
 
-bool get_group_replication_connection_status_info(GROUP_REPLICATION_CONNECTION_STATUS_INFO *info)
+bool get_group_replication_connection_status_info(
+    const GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS& callbacks)
 {
   if (group_replication_handler)
-    return group_replication_handler->get_connection_status_info(info);
+    return group_replication_handler->get_connection_status_info(callbacks);
   return true;
 }
 
-bool get_group_replication_group_members_info(unsigned int index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info)
+bool get_group_replication_group_members_info(
+    unsigned int index,
+    const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS& callbacks)
 {
   if (group_replication_handler)
-    return group_replication_handler->get_group_members_info(index, info);
+    return group_replication_handler->get_group_members_info(index, callbacks);
   return true;
 }
 
-bool get_group_replication_group_member_stats_info(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO* info)
+bool get_group_replication_group_member_stats_info(
+    const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks)
 {
   if (group_replication_handler)
-    return group_replication_handler->get_group_member_stats_info(info);
+    return group_replication_handler->get_group_member_stats_info(callbacks);
   return true;
 }
 
@@ -319,7 +327,7 @@ get_server_startup_prerequirements(Trans_context_info& requirements,
 #endif //HAVE_REPLICATION
 
 bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
-                                      uint *length)
+                                      size_t *length)
 {
   global_sid_lock->wrlock();
 
@@ -342,7 +350,7 @@ bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
 
 #if !defined(DBUG_OFF)
 char* encoded_gtid_set_to_string(uchar *encoded_gtid_set,
-                                 uint length)
+                                 size_t length)
 {
   /* No sid_lock because this is a completely local object. */
   Sid_map sid_map(NULL);

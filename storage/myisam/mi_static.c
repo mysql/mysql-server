@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,6 +37,10 @@ ulong myisam_concurrent_insert= 0;
 ulonglong myisam_max_temp_length= MAX_FILE_SIZE;
 ulong    myisam_data_pointer_size=4;
 ulonglong    myisam_mmap_size= SIZE_T_MAX, myisam_mmap_used= 0;
+/* Keycache thread state for the main thread or single threaded programs. */
+st_keycache_thread_var main_thread_keycache_var;
+/* Key used by myisamchk */
+thread_local_key_t keycache_tls_key;
 
 static int always_valid(const char *filename __attribute__((unused)))
 {
@@ -85,6 +89,7 @@ PSI_memory_key mi_key_memory_MI_DECODE_TREE;
 PSI_memory_key mi_key_memory_MYISAM_SHARE_decode_tables;
 PSI_memory_key mi_key_memory_preload_buffer;
 PSI_memory_key mi_key_memory_stPageList_pages;
+PSI_memory_key mi_key_memory_keycache_thread_var;
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_mutex_key mi_key_mutex_MYISAM_SHARE_intern_lock,
@@ -107,10 +112,12 @@ static PSI_rwlock_info all_myisam_rwlocks[]=
 };
 
 PSI_cond_key mi_key_cond_MI_SORT_INFO_cond;
+PSI_cond_key mi_keycache_thread_var_suspend;
 
 static PSI_cond_info all_myisam_conds[]=
 {
-  { &mi_key_cond_MI_SORT_INFO_cond, "MI_SORT_INFO::cond", 0}
+  { &mi_key_cond_MI_SORT_INFO_cond, "MI_SORT_INFO::cond", 0},
+  { &mi_keycache_thread_var_suspend, "keycache_thread_var::suspend", 0}
 };
 
 PSI_file_key mi_key_file_datatmp, mi_key_file_dfile, mi_key_file_kfile,
@@ -152,7 +159,8 @@ static PSI_memory_info all_myisam_memory[]=
   { &mi_key_memory_MI_DECODE_TREE, "MI_DECODE_TREE", 0},
   { &mi_key_memory_MYISAM_SHARE_decode_tables, "MYISAM_SHARE::decode_tables", 0},
   { &mi_key_memory_preload_buffer, "preload_buffer", 0},
-  { &mi_key_memory_stPageList_pages, "stPageList::pages", 0}
+  { &mi_key_memory_stPageList_pages, "stPageList::pages", 0},
+  { &mi_key_memory_keycache_thread_var, "keycache_thread_var", 0}
 };
 
 void init_myisam_psi_keys()

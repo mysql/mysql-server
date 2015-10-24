@@ -718,7 +718,7 @@ CREATE USER u1@localhost PASSWORD EXPIRE;
 SELECT password_expired FROM mysql.user where user='u1';
 password_expired
 Y
-ERROR 1862 (HY000): Your password has expired. To log in you must change it using a client that supports expired passwords.
+Please use --connect-expired-password option or invoke mysql in interactive mode.
 DROP USER u1@localhost;
 # CREATE USER with password expire attributes for anonymous user
 CREATE USER '' PASSWORD EXPIRE;
@@ -938,15 +938,15 @@ u6@localhost, u7@localhost, u8@localhost, u9@localhost, u10@localhost,
 u11@localhost, u12@localhost, u13@localhost, u14@localhost,
 u15@localhost, u16@localhost, u17@localhost, u18@localhost,
 u19@localhost;
-# test general log with log_backward_compatible_user_definitions ON
-SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
+# test general log with log_builtin_as_identified_by_password ON
+SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
 Variable_name	Value
-log_backward_compatible_user_definitions	OFF
-# restarting the server with log_backward_compatible_user_definitions ON
+log_builtin_as_identified_by_password	OFF
+# restarting the server with log_builtin_as_identified_by_password ON
 # Restart server.
-SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
+SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
 Variable_name	Value
-log_backward_compatible_user_definitions	ON
+log_builtin_as_identified_by_password	ON
 TRUNCATE TABLE mysql.general_log;
 --------------- general log ---------------------------------------
 SET @old_log_output=          @@global.log_output;

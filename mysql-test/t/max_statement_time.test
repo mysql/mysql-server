@@ -250,15 +250,6 @@ DO BEGIN
   INSERT INTO t2 VALUES(@a);
   INSERT INTO t2 VALUES(@b);
 END|
-DROP EVENT event1|
-TRUNCATE TABLE t2;
-
-CREATE EVENT event1 ON SCHEDULE AT CURRENT_TIMESTAMP
-DO BEGIN
-  SELECT SLEEP(2) into @a;
-  INSERT INTO t2 VALUES(@a);
-END
-|
 
 delimiter ;|
 
@@ -267,7 +258,7 @@ let $wait_condition= SELECT /*+ MAX_EXECUTION_TIME(3600000) */ COUNT(*) FROM t2;
 --source include/wait_condition.inc
 
 #Since MAX_EXECUTION_TIME is not applicable for events & SELECTs of event,
-#selects of event1 are not interruped so table contains 0 value.
+#selects of event1 are not interruped so table contains two 0 values.
 SELECT /*+ MAX_EXECUTION_TIME(3600000) */ * FROM t2;
 
 DELETE FROM t2;

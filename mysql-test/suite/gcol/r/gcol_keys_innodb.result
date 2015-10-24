@@ -1030,6 +1030,293 @@ Warnings:
 Note	1003	/* select#1 */ select (`test`.`table1`.`col_int_key` + 1) AS `field1`,`test`.`table2`.`col_int_key` AS `field2` from `test`.`t1` `table1` join `test`.`t1` `table2` where (`test`.`table2`.`pk` = `test`.`table1`.`pk`) group by `col_int_gc_key`,`field2`
 DROP TABLE t1;
 #
+# Bug#21391781 ASSERT WHEN RUNNING ALTER TABLE ON A TABLE WITH INDEX
+#              ON VIRTUAL COLUMN
+#
+CREATE TABLE t1 (
+col1 INTEGER NOT NULL,
+col2 INTEGER NOT NULL,
+gcol1 INTEGER GENERATED ALWAYS AS (col1 + col2) VIRTUAL,
+col3 INTEGER NOT NULL,
+col4 INTEGER NOT NULL,
+col5 INTEGER DEFAULT NULL,
+col6 INTEGER DEFAULT NULL,
+col7 INTEGER DEFAULT NULL,
+col8 INTEGER DEFAULT NULL,
+col9 INTEGER DEFAULT NULL,
+col10 INTEGER DEFAULT NULL,
+col11 INTEGER DEFAULT NULL,
+col12 INTEGER DEFAULT NULL,
+col13 INTEGER DEFAULT NULL,
+col14 INTEGER DEFAULT NULL,
+col15 INTEGER DEFAULT NULL,
+col16 INTEGER DEFAULT NULL,
+col17 INTEGER DEFAULT NULL,
+col18 INTEGER DEFAULT NULL,
+col19 INTEGER DEFAULT NULL,
+col20 INTEGER DEFAULT NULL,
+col21 INTEGER DEFAULT NULL,
+col22 INTEGER DEFAULT NULL,
+col23 INTEGER DEFAULT NULL,
+col24 INTEGER DEFAULT NULL,
+col25 INTEGER DEFAULT NULL,
+col26 INTEGER DEFAULT NULL,
+col27 INTEGER DEFAULT NULL,
+col28 INTEGER DEFAULT NULL,
+col29 INTEGER DEFAULT NULL,
+col30 INTEGER DEFAULT NULL,
+col31 INTEGER DEFAULT NULL,
+col32 INTEGER DEFAULT NULL,
+col33 INTEGER DEFAULT NULL,
+col34 INTEGER DEFAULT NULL,
+col35 INTEGER DEFAULT NULL,
+col36 INTEGER DEFAULT NULL,
+col37 INTEGER DEFAULT NULL,
+col38 INTEGER DEFAULT NULL,
+col39 INTEGER DEFAULT NULL,
+col40 INTEGER DEFAULT NULL,
+col41 INTEGER DEFAULT NULL,
+col42 INTEGER DEFAULT NULL,
+col43 INTEGER DEFAULT NULL,
+col44 INTEGER DEFAULT NULL,
+col45 INTEGER DEFAULT NULL,
+col46 INTEGER DEFAULT NULL,
+col47 INTEGER DEFAULT NULL,
+col48 INTEGER DEFAULT NULL,
+col49 INTEGER DEFAULT NULL,
+col50 INTEGER DEFAULT NULL,
+col51 INTEGER DEFAULT NULL,
+col52 INTEGER DEFAULT NULL,
+col53 INTEGER DEFAULT NULL,
+col54 INTEGER DEFAULT NULL,
+col55 INTEGER DEFAULT NULL,
+col56 INTEGER DEFAULT NULL,
+col57 INTEGER DEFAULT NULL,
+col58 INTEGER DEFAULT NULL,
+col59 INTEGER DEFAULT NULL,
+col60 INTEGER DEFAULT NULL,
+col61 INTEGER DEFAULT NULL,
+col62 INTEGER DEFAULT NULL,
+col63 INTEGER DEFAULT NULL,
+col64 INTEGER DEFAULT NULL,
+col65 INTEGER DEFAULT NULL,
+gcol2 INTEGER GENERATED ALWAYS AS (col3 / col4) VIRTUAL,
+KEY idx1 (gcol1)
+);
+INSERT INTO t1 (col1, col2, col3, col4)
+VALUES (1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4), (5,5,5,5);
+ALTER TABLE t1 ADD COLUMN extra INTEGER;
+SELECT gcol1 FROM t1 FORCE INDEX(idx1);
+gcol1
+2
+4
+6
+8
+10
+DROP TABLE t1;
+CREATE TABLE t1 (
+col1 INTEGER NOT NULL,
+col2 INTEGER NOT NULL,
+gcol1 INTEGER GENERATED ALWAYS AS (col1 + col2) VIRTUAL,
+col3 INTEGER NOT NULL,
+col4 INTEGER NOT NULL,
+col5 INTEGER DEFAULT NULL,
+col6 INTEGER DEFAULT NULL,
+col7 INTEGER DEFAULT NULL,
+col8 INTEGER DEFAULT NULL,
+col9 INTEGER DEFAULT NULL,
+col10 INTEGER DEFAULT NULL,
+col11 INTEGER DEFAULT NULL,
+col12 INTEGER DEFAULT NULL,
+col13 INTEGER DEFAULT NULL,
+col14 INTEGER DEFAULT NULL,
+col15 INTEGER DEFAULT NULL,
+col16 INTEGER DEFAULT NULL,
+col17 INTEGER DEFAULT NULL,
+col18 INTEGER DEFAULT NULL,
+col19 INTEGER DEFAULT NULL,
+col20 INTEGER DEFAULT NULL,
+col21 INTEGER DEFAULT NULL,
+col22 INTEGER DEFAULT NULL,
+col23 INTEGER DEFAULT NULL,
+col24 INTEGER DEFAULT NULL,
+col25 INTEGER DEFAULT NULL,
+col26 INTEGER DEFAULT NULL,
+col27 INTEGER DEFAULT NULL,
+col28 INTEGER DEFAULT NULL,
+col29 INTEGER DEFAULT NULL,
+col30 INTEGER DEFAULT NULL,
+col31 INTEGER DEFAULT NULL,
+col32 INTEGER DEFAULT NULL,
+col33 INTEGER DEFAULT NULL,
+col34 INTEGER DEFAULT NULL,
+col35 INTEGER DEFAULT NULL,
+col36 INTEGER DEFAULT NULL,
+col37 INTEGER DEFAULT NULL,
+col38 INTEGER DEFAULT NULL,
+col39 INTEGER DEFAULT NULL,
+col40 INTEGER DEFAULT NULL,
+col41 INTEGER DEFAULT NULL,
+col42 INTEGER DEFAULT NULL,
+col43 INTEGER DEFAULT NULL,
+col44 INTEGER DEFAULT NULL,
+col45 INTEGER DEFAULT NULL,
+col46 INTEGER DEFAULT NULL,
+col47 INTEGER DEFAULT NULL,
+col48 INTEGER DEFAULT NULL,
+col49 INTEGER DEFAULT NULL,
+col50 INTEGER DEFAULT NULL,
+col51 INTEGER DEFAULT NULL,
+col52 INTEGER DEFAULT NULL,
+col53 INTEGER DEFAULT NULL,
+col54 INTEGER DEFAULT NULL,
+col55 INTEGER DEFAULT NULL,
+col56 INTEGER DEFAULT NULL,
+col57 INTEGER DEFAULT NULL,
+col58 INTEGER DEFAULT NULL,
+col59 INTEGER DEFAULT NULL,
+col60 INTEGER DEFAULT NULL,
+col61 INTEGER DEFAULT NULL,
+col62 INTEGER DEFAULT NULL,
+col63 INTEGER DEFAULT NULL,
+col64 INTEGER DEFAULT NULL,
+col65 INTEGER DEFAULT NULL,
+gcol2 INTEGER GENERATED ALWAYS AS (col3 / col4) VIRTUAL,
+KEY idx1 (gcol2)
+);
+INSERT INTO t1 (col1, col2, col3, col4)
+VALUES (1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4), (5,5,5,5);
+ALTER TABLE t1 ADD COLUMN extra INTEGER;
+SELECT gcol2 FROM t1 FORCE INDEX(idx1);
+gcol2
+1
+1
+1
+1
+1
+DROP TABLE t1;
+#
+# Bug#21628161 CRASH/MEMORY CORRUPTION ADDING INDEXES TO VIRTUAL COLUMN
+#
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+CREATE TABLE t (a INT,
+b BOOLEAN GENERATED ALWAYS AS (a+10000) VIRTUAL,
+c BLOB GENERATED ALWAYS AS (b=2) VIRTUAL);
+INSERT INTO t(a) VALUES (1);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t WHERE c = '0';
+a	b	c
+1	127	0
+ALTER TABLE t ADD UNIQUE INDEX (c(1));
+SELECT * FROM t WHERE c = '0';
+a	b	c
+1	127	0
+DROP TABLE t;
+#
+# Bug#21688115 VIRTUAL COLUMN COMPUTATION SAVE_IN_FIELD()
+#              DID NOT RETURN TRUE WITH DIVIDE 0
+#
+CREATE TABLE t (a INT, b INT, h VARCHAR(10));
+INSERT INTO t VALUES (12, 3, "ss");
+INSERT INTO t VALUES (13, 4, "ss");
+INSERT INTO t VALUES (14, 0, "ss");
+ALTER TABLE t ADD c INT GENERATED ALWAYS AS (a/b) VIRTUAL;
+CREATE INDEX idx ON t(c);
+ERROR 22012: Division by 0
+CALL mtr.add_suppression("\\[Warning\\] InnoDB: Compute virtual column values failed");
+DROP TABLE t;
+#
+# Bug#21770798 OPTIMIZER DOES NOT USE INDEX FOR GENERATED EXPRESSIONS
+#              WITH LOGICAL OPERATORS
+#
+CREATE TABLE t (a INT, b INT,
+gc_and INT GENERATED ALWAYS AS (a AND b) STORED,
+gc_or INT GENERATED ALWAYS AS (a OR b) STORED,
+gc_xor INT GENERATED ALWAYS AS (a XOR b) STORED,
+gc_not INT GENERATED ALWAYS AS (NOT a) STORED,
+gc_case INT GENERATED ALWAYS AS
+(CASE WHEN (a AND b) THEN a ELSE b END) STORED,
+INDEX(gc_and), INDEX(gc_or), INDEX(gc_xor), INDEX(gc_not),
+INDEX(gc_case));
+INSERT INTO t (a, b) VALUES (0, 0), (0, 1), (1, 0), (1, 1);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN SELECT a, b FROM t WHERE (a AND b) = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	gc_and	gc_and	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (`test`.`t`.`gc_and` = 1)
+SELECT a, b FROM t WHERE (a AND b) = 1;
+a	b
+1	1
+EXPLAIN SELECT a, b FROM t WHERE 1 = (a AND b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	gc_and	gc_and	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (1 = `test`.`t`.`gc_and`)
+SELECT a, b FROM t WHERE 1 = (a AND b);
+a	b
+1	1
+EXPLAIN SELECT a, b FROM t WHERE (a AND b) IN (1, 2, 3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	gc_and	NULL	NULL	NULL	4	75.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (`test`.`t`.`gc_and` in (1,2,3))
+SELECT a, b FROM t WHERE (a AND b) IN (1, 2, 3);
+a	b
+1	1
+EXPLAIN SELECT a, b FROM t WHERE (a OR b) = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	gc_or	NULL	NULL	NULL	4	75.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (`test`.`t`.`gc_or` = 1)
+SELECT a, b FROM t WHERE (a OR b) = 1;
+a	b
+0	1
+1	0
+1	1
+EXPLAIN SELECT a, b FROM t WHERE (a OR b) BETWEEN 1 AND 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	gc_or	NULL	NULL	NULL	4	75.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (`test`.`t`.`gc_or` between 1 and 10)
+SELECT a, b FROM t WHERE (a OR b) BETWEEN 1 AND 10;
+a	b
+0	1
+1	0
+1	1
+EXPLAIN SELECT a, b FROM t WHERE (a XOR b) = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	gc_xor	gc_xor	5	const	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (`test`.`t`.`gc_xor` = 1)
+SELECT a, b FROM t WHERE (a XOR b) = 1;
+a	b
+0	1
+1	0
+EXPLAIN SELECT a FROM t WHERE (NOT a) = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	gc_not	gc_not	5	const	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` where (`test`.`t`.`gc_not` = 1)
+SELECT a FROM t WHERE (NOT a) = 1;
+a
+0
+0
+EXPLAIN SELECT a FROM t WHERE (CASE WHEN (a AND b) THEN a ELSE b END) = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	gc_case	gc_case	5	const	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` where (`test`.`t`.`gc_case` = 1)
+SELECT a FROM t WHERE (CASE WHEN (a AND b) THEN a ELSE b END) = 1;
+a
+0
+1
+DROP TABLE t;
+#
 #
 # BUG#21365158 WL8149:ASSERTION `!TABLE || (!TABLE->WRITE_SET 
 #

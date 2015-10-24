@@ -60,7 +60,8 @@
 #                                                                              #
 # *** SHOW_COMPATIBILITY_56 = OFF ***                                          #
 #                                                                              #
-# Information Schema status and system tables are empty.                       #
+# Information Schema status and system tables are disabled                     #
+#  (ER_FEATURE_DISABLED_SEE_DOC).                                              #
 #                                                                              #
 # SHOW GLOBAL STATUS / P_S.GLOBAL_STATUS                                       #
 #  GLOBAL  - Yes                                                               #
@@ -180,8 +181,8 @@ insert into test.sanity
 
 --echo
 --echo # STEP 1-8
---echo # EMPTY, NO WARNINGS (not available in 5.6 mode)
-select *
+insert into test.sanity
+  select "5.6", "P_S.GLOBAL_STATUS", variable_name
   from performance_schema.global_status;
 
 --echo
@@ -192,8 +193,8 @@ select *
 
 --echo
 --echo # STEP 1-10
---echo # EMPTY, NO WARNINGS (not available in 5.6 mode)
-select *
+insert into test.sanity
+  select "5.6", "P_S.SESSION_STATUS", variable_name
   from performance_schema.session_status;
 
 --echo
@@ -222,13 +223,15 @@ set global show_compatibility_56 = off;
 
 --echo
 --echo # STEP 2-1
---echo # EMPTY WITH WARNINGS
+--echo # FAILS WITH ERROR
+--error ER_FEATURE_DISABLED_SEE_DOC
 select *
   from information_schema.global_variables;
 
 --echo
 --echo # STEP 2-2
---echo # EMPTY WITH WARNINGS
+--echo # FAILS WITH ERROR
+--error ER_FEATURE_DISABLED_SEE_DOC
 select *
   from information_schema.session_variables;
 
@@ -253,13 +256,15 @@ insert into test.sanity
 
 --echo
 --echo # STEP 2-6
---echo # EMPTY WITH WARNINGS
+--echo # FAILS WITH ERROR
+--error ER_FEATURE_DISABLED_SEE_DOC
 select *
   from information_schema.global_status;
 
 --echo
 --echo # STEP 2-7
---echo # EMPTY WITH WARNINGS
+--echo # FAILS WITH ERROR
+--error ER_FEATURE_DISABLED_SEE_DOC
 select *
   from information_schema.session_status;
 
@@ -415,6 +420,7 @@ insert into test.sanity values
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "INNODB_CONCURRENCY_TICKETS"),
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "INNODB_DATA_FILE_PATH"),
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "INNODB_DATA_HOME_DIR"),
+  ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "INNODB_DEFAULT_ROW_FORMAT"),
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "INNODB_DISABLE_BACKGROUND_MERGE"),
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "INNODB_DISABLE_RESIZE_BUFFER_POOL_DEBUG"),  
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "INNODB_DISABLE_SORT_FILE_CACHE"),
@@ -452,7 +458,7 @@ insert into test.sanity values
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "INNODB_LOCKS_UNSAFE_FOR_BINLOG"),
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "INNODB_LOG_BUFFER_SIZE"),
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "INNODB_LOG_CHECKPOINT_NOW"),
-  ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "INNODB_LOG_CHECKSUM_ALGORITHM"),
+  ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "INNODB_LOG_CHECKSUMS"),
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "INNODB_LOG_COMPRESSED_PAGES"),
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "INNODB_LOG_FILES_IN_GROUP"),
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "INNODB_LOG_FILE_SIZE"),
@@ -469,6 +475,7 @@ insert into test.sanity values
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "INNODB_MONITOR_ENABLE"),
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "INNODB_MONITOR_RESET"),
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "INNODB_MONITOR_RESET_ALL"),
+  ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "INNODB_NUMA_INTERLEAVE"),
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "INNODB_OLD_BLOCKS_PCT"),
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "INNODB_OLD_BLOCKS_TIME"),
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "INNODB_ONLINE_ALTER_LOG_MAX_SIZE"),
@@ -534,7 +541,7 @@ insert into test.sanity values
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "LOG_BIN_INDEX"),
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "LOG_BIN_TRUST_FUNCTION_CREATORS"),
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "LOG_BIN_USE_V1_ROW_EVENTS"),
-  ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "LOG_BACKWARD_COMPATIBLE_USER_DEFINITIONS"),  
+  ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "LOG_BUILTIN_AS_IDENTIFIED_BY_PASSWORD"),
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "LOG_ERROR"),
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "LOG_ERROR_VERBOSITY"),
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "LOG_OUTPUT"),
@@ -1470,7 +1477,7 @@ select * from test.sanity
 
 --echo
 --echo ================================================================================
---echo TEST 6
+--echo TEST 6A
 --echo Present in 5.7 P_S.GLOBAL_STATUS (2-8)
 --echo Missing in 5.6 I_S.GLOBAL_STATUS (1-6)
 --echo EXPECT NOTHING
@@ -1482,6 +1489,38 @@ select * from test.sanity
     select upper(variable_name) from test.sanity
     where show_mode = "5.6"
     and source = "I_S.GLOBAL_STATUS")
+  order by show_mode, source, variable_name;
+
+--echo
+--echo ================================================================================
+--echo TEST 6B
+--echo Present in 5.7 P_S.GLOBAL_STATUS (2-8)
+--echo Missing in 5.6 P_S.GLOBAL_STATUS (1-8)
+--echo EXPECT NOTHING
+--echo ================================================================================
+select * from test.sanity
+  where show_mode = "5.7"
+  and source = "P_S.GLOBAL_STATUS"
+  and upper(variable_name) not in (
+    select upper(variable_name) from test.sanity
+    where show_mode = "5.6"
+    and source = "P_S.GLOBAL_STATUS")
+  order by show_mode, source, variable_name;
+
+--echo
+--echo ================================================================================
+--echo TEST 6C
+--echo Present in 5.6 P_S.GLOBAL_STATUS (1-8)
+--echo Missing in 5.7 P_S.GLOBAL_STATUS (2-8)
+--echo EXPECT NOTHING
+--echo ================================================================================
+select * from test.sanity
+  where show_mode = "5.6"
+  and source = "P_S.GLOBAL_STATUS"
+  and upper(variable_name) not in (
+    select upper(variable_name) from test.sanity
+    where show_mode = "5.7"
+    and source = "P_S.GLOBAL_STATUS")
   order by show_mode, source, variable_name;
 
 --echo
@@ -1524,7 +1563,7 @@ select * from test.sanity
 
 --echo
 --echo ================================================================================
---echo TEST 9
+--echo TEST 9A
 --echo Present in 5.7 P_S.SESSION_STATUS (2-10)
 --echo Missing in 5.6 I_S.SESSION_STATUS (1-7)
 --echo EXPECT NOTHING
@@ -1536,6 +1575,38 @@ select * from test.sanity
     select upper(variable_name) from test.sanity
     where show_mode = "5.6"
     and source = "I_S.SESSION_STATUS")
+  order by show_mode, source, variable_name;
+
+--echo
+--echo ================================================================================
+--echo TEST 9B
+--echo Present in 5.7 P_S.SESSION_STATUS (2-10)
+--echo Missing in 5.6 P_S.SESSION_STATUS (1-10)
+--echo EXPECT NOTHING
+--echo ================================================================================
+select * from test.sanity
+  where show_mode = "5.7"
+  and source = "P_S.SESSION_STATUS"
+  and upper(variable_name) not in (
+    select upper(variable_name) from test.sanity
+    where show_mode = "5.6"
+    and source = "P_S.SESSION_STATUS")
+  order by show_mode, source, variable_name;
+
+--echo
+--echo ================================================================================
+--echo TEST 9C
+--echo Present in 5.6 P_S.SESSION_STATUS (1-10)
+--echo Missing in 5.7 P_S.SESSION_STATUS (2-10)
+--echo EXPECT NOTHING
+--echo ================================================================================
+select * from test.sanity
+  where show_mode = "5.6"
+  and source = "P_S.SESSION_STATUS"
+  and upper(variable_name) not in (
+    select upper(variable_name) from test.sanity
+    where show_mode = "5.7"
+    and source = "P_S.SESSION_STATUS")
   order by show_mode, source, variable_name;
 
 --echo

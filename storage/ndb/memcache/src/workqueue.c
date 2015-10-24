@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -103,6 +103,13 @@ int workqueue_add (struct workqueue *q, void *item) {
   pthread_cond_signal(& q->not_empty);
   
   return 1;
+}
+
+
+/* If an item is available on the queue, return true 
+*/
+int workqueue_consumer_poll(struct workqueue *q) {
+  return (q->worklist != q->freelist);
 }
 
 

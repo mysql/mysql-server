@@ -1,0 +1,84 @@
+###############################################################################
+#BUG#16418100: ERROR "WHEN GTID_NEXT IS SET TO A GTID" ROW BASED REPLICATION
+# Problem: When relay log info repository is configured to be persisted in a
+# table and if a transaction that uses non-transactional engine is split across
+# multiple relay logs, on relay log flush, partial transaction is
+# committed. If the same situation occurs when gtid-mode=ON, it will cause that
+# the same GTID will be used for more than one transaction and will cause
+# ER_GTID_NEXT_TYPE_UNDEFINED_GROUP error.
+#
+# Steps to reproduce:
+#   1) Generate two write_row events for non-transactional table (MyISAM)
+#      (Default binlog_row_max_event_size= 8192). Insert two tuples with tuple
+#      size as 8192 bytes each. This will generate two write_row events.
+#   2) With Auto_position=0, stopping IO thread after receving one write_row
+#      event will split the transaction across two relay logs.
+#   3) If relaylog_info_repository=table, SQL thread should be able to apply
+#      these type of relaylogs.
+###############################################################################
+# Need debug build to run this test
+--source include/have_debug.inc
+# Problem happens only in gtid mode
+--source include/have_gtid.inc
+# Run only in row format
+--source include/have_binlog_format_row.inc
+# Disable auto position protocol
+--let use_gtids=0
+--let $rpl_skip_start_slave= 1
+--let $rpl_topology= 1->2->3
+--source include/rpl_init.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+# Non-transactional table (MyISAM engine)
+CREATE TABLE t1 (i VARCHAR(8192)) ENGINE=MyISAM;
+
+# Two tuples that will generate two write_row events.
+INSERT INTO t1 VALUES(repeat('a',8192)), (repeat('b', 8192));
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+# Set simulation point to restart IO thread, so that the transaction
+#  is split across the relay logs.
+SET @saved_debug=@@GLOBAL.debug;
+SET GLOBAL debug="d,stop_io_after_reading_write_rows_log_event";
+START SLAVE IO_THREAD;
+--source include/wait_for_slave_io_to_stop.inc
+SET GLOBAL debug=@saved_debug;
+
+# Make sure there are no replication issues
+--disable_warnings
+START SLAVE;
+--enable_warnings
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+--disable_warnings
+START SLAVE;
+--enable_warnings
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--source include/rpl_sync.inc
+
+--let $diff_tables= server_1:t1, server_2:t1, server_3:t1
+--source include/diff_tables.inc
+
+# Assert that relay log info pos is stored on table
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--let $sql_thread_pos=query_get_value('SHOW SLAVE STATUS', Exec_Master_Log_Pos, 1)
+--let $sql_thread_file=query_get_value('SHOW SLAVE STATUS', Relay_Master_Log_File, 1)
+--let $assert_cond= Master_log_pos = $sql_thread_pos FROM mysql.slave_relay_log_info
+--let $assert_text= SQL thread position should be updated to after the split transaction
+--source include/assert.inc
+--let $assert_cond= Master_log_name = "$sql_thread_file" FROM mysql.slave_relay_log_info
+--let $assert_text= SQL thread file should be updated to after the split transaction
+--source include/assert.inc
+
+# Cleanup
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+--source include/rpl_end.inc

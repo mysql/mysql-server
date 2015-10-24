@@ -1048,7 +1048,7 @@ void Query_cache::end_of_result(THD *thd)
 {
   Query_cache_block *query_block;
   Query_cache_tls *query_cache_tls= &thd->query_cache_tls;
-  ulonglong limit_found_rows= thd->limit_found_rows;
+  ulonglong current_found_rows= thd->current_found_rows;
   DBUG_ENTER("Query_cache::end_of_result");
 
   /* See the comment on double-check locking usage above. */
@@ -1108,7 +1108,7 @@ void Query_cache::end_of_result(THD *thd)
     if (last_result_block->length >= query_cache.min_allocation_unit + len)
       query_cache.split_block(last_result_block,len);
 
-    header->found_rows(limit_found_rows);
+    header->found_rows(current_found_rows);
     header->result()->type= Query_cache_block::RESULT;
 
     /* Drop the writer. */
@@ -1273,6 +1273,14 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
   if (thd->variables.session_track_transaction_info != TX_TRACK_NONE)
     DBUG_VOID_RETURN;
 
+  /*
+    The query cache is only supported for the classic protocols.
+    Although protocol_callback.cc is not compiled in embedded, there
+    are other protocols. A check outside the non-embedded block is
+    better.
+  */
+  if (!thd->is_classic_protocol())
+    DBUG_VOID_RETURN;
 #ifndef EMBEDDED_LIBRARY
   /*
     Without active vio, net_write_packet() will not be called and
@@ -1280,7 +1288,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     complete query result in this case, it does not make sense to
     register the query in the first place.
   */
-  if (!thd->get_protocol_classic()->vio_ok())
+  if (!thd->get_protocol()->connection_alive())
     DBUG_VOID_RETURN;
 #endif
 
@@ -1897,8 +1905,10 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
   }
 #endif /*!EMBEDDED_LIBRARY*/
 
-  thd->limit_found_rows = query->found_rows();
-  thd->status_var.last_query_cost= 0.0;
+  thd->current_found_rows= query->found_rows();
+  thd->update_previous_found_rows();
+  thd->clear_current_query_costs();
+  thd->save_current_query_costs();
 
   {
     Opt_trace_start ots(thd, NULL, SQLCOM_SELECT, NULL,
@@ -1921,7 +1931,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 
   BLOCK_UNLOCK_RD(query_block);
   MYSQL_QUERY_CACHE_HIT(const_cast<char*>(thd->query().str),
-                        (ulong) thd->limit_found_rows);
+                        (ulong) thd->current_found_rows);
   DBUG_RETURN(1);				// Result sent to client
 
 err_unlock:

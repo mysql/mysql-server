@@ -38,13 +38,13 @@ class Rpl_info_factory
 {
 public:
   static bool create_slave_info_objects(uint mi_option, uint rli_option, int
-                                        thread_mask, Multisource_info *pmsr_map);
+                                        thread_mask, Multisource_info *pchannel_map);
 
   static Master_info*
   create_slave_per_channel(uint mi_option,uint rli_option,
                            const char* channel,
                            bool convert_repo,
-                           Multisource_info* msr_map,
+                           Multisource_info* channel_map,
                            enum_channel_type channel_type=
                                SLAVE_REPLICATION_CHANNEL);
 

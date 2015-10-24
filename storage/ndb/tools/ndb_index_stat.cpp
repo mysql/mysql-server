@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -562,7 +562,6 @@ doall()
   return ret;
 }
 
-static int oi = 1000;
 static struct my_option
 my_long_options[] =
 {
@@ -572,17 +571,17 @@ my_long_options[] =
     "Name of database table is in",
     (uchar**) &_dbname, (uchar**) &_dbname, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "delete", ++oi,
+  { "delete", NDB_OPT_NOSHORT,
     "Delete index stats of given table"
      " and stop any configured auto update",
     (uchar **)&_delete, (uchar **)&_delete, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "update", ++oi,
+  { "update", NDB_OPT_NOSHORT,
     "Update index stats of given table"
      " and restart any configured auto update",
     (uchar **)&_update, (uchar **)&_update, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "dump", ++oi,
+  { "dump", NDB_OPT_NOSHORT,
     "Dump query cache",
     (uchar **)&_dump, (uchar **)&_dump, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
@@ -591,31 +590,31 @@ my_long_options[] =
     (uchar **)&_query, (uchar **)&_query, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   // sys options
-  { "sys-drop", ++oi,
+  { "sys-drop", NDB_OPT_NOSHORT,
     "Drop any stats tables and events in NDB kernel (all stats is lost)",
     (uchar **)&_sys_drop, (uchar **)&_sys_drop, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "sys-create", ++oi,
+  { "sys-create", NDB_OPT_NOSHORT,
     "Create stats tables and events in NDB kernel (must not exist)",
     (uchar **)&_sys_create, (uchar **)&_sys_create, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "sys-create-if-not-exist", ++oi,
+  { "sys-create-if-not-exist", NDB_OPT_NOSHORT,
     "Like --sys-create but do nothing if correct objects exist",
     (uchar **)&_sys_create_if_not_exist, (uchar **)&_sys_create_if_not_exist, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "sys-create-if-not-valid", ++oi,
+  { "sys-create-if-not-valid", NDB_OPT_NOSHORT,
     "Like --sys-create-if-not-exist but first drop any invalid objects",
     (uchar **)&_sys_create_if_not_valid, (uchar **)&_sys_create_if_not_valid, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "sys-check", ++oi,
+  { "sys-check", NDB_OPT_NOSHORT,
     "Check that correct stats tables and events exist in NDB kernel",
     (uchar **)&_sys_check, (uchar **)&_sys_check, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "sys-skip-tables", ++oi,
+  { "sys-skip-tables", NDB_OPT_NOSHORT,
     "Do not apply sys options to tables",
     (uchar **)&_sys_skip_tables, (uchar **)&_sys_skip_tables, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "sys-skip-events", ++oi,
+  { "sys-skip-events", NDB_OPT_NOSHORT,
     "Do not apply sys options to events",
     (uchar **)&_sys_skip_events, (uchar **)&_sys_skip_events, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },

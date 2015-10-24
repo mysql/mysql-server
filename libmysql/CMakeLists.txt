@@ -155,7 +155,6 @@ get_tty_password
 # will have a FR to replace this for decent name/functionality and document it.
 my_load_defaults
 handle_options
-mysql_get_parameters
 
 CACHE INTERNAL "Undocumented Functions exported by client API"
 
@@ -244,13 +243,6 @@ IF(UNIX)
   ENDMACRO()
 ENDIF()
 
-IF(UNIX)
-  GET_TARGET_NAME(mysqlclient lib_name)
-  INSTALL_SYMLINK(mysqlclient
-    ${lib_name} ${CMAKE_STATIC_LIBRARY_PREFIX}mysqlclient_r.a
-    ${INSTALL_LIBDIR} Development)
-ENDIF()
-
 # In our special "mixed" builds, also install libstlport which will
 # be injected into the build tree by the Sun Studio part of the build.
 
@@ -309,32 +301,6 @@ IF(NOT DISABLE_SHARED)
     SET_TARGET_PROPERTIES(mysqlclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
     SET_TARGET_PROPERTIES(libmysql PROPERTIES CLEAN_DIRECT_OUTPUT 1)
 
-    # Install links to libmysqlclient.so (client_r)
-    GET_VERSIONED_LIBNAME(
-      "${CMAKE_SHARED_LIBRARY_PREFIX}mysqlclient_r"
-      "${CMAKE_SHARED_LIBRARY_SUFFIX}"
-      ""
-      linkname)
-    GET_TARGET_NAME(libmysql lib_name)
-    GET_FILENAME_COMPONENT(lib_name_we ${lib_name} NAME_WE)
-    INSTALL_SYMLINK(libmysql
-      ${lib_name} ${linkname}
-      ${INSTALL_LIBDIR} SharedLibraries)
-    SET(OS_SHARED_LIB_SYMLINKS
-      "${SHARED_LIB_MAJOR_VERSION}" "${OS_SHARED_LIB_VERSION}")
-    LIST(REMOVE_DUPLICATES OS_SHARED_LIB_SYMLINKS)
-    FOREACH(ver ${OS_SHARED_LIB_SYMLINKS})
-      GET_VERSIONED_LIBNAME(
-        "${CMAKE_SHARED_LIBRARY_PREFIX}mysqlclient_r"
-        "${CMAKE_SHARED_LIBRARY_SUFFIX}"
-        "${ver}"
-        linkname)
-      GET_VERSIONED_LIBNAME(
-        ${lib_name_we} "${CMAKE_SHARED_LIBRARY_SUFFIX}" "${ver}" lib_name_ver)
-      INSTALL_SYMLINK(libmysql
-        ${lib_name_ver} ${linkname}
-        ${INSTALL_LIBDIR} SharedLibraries)
-    ENDFOREACH()
   ENDIF()
 ENDIF()
 

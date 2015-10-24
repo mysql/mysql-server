@@ -249,16 +249,14 @@ THD::Attachable_trx::~Attachable_trx()
   DBUG_ASSERT(!m_thd->transaction_rollback_request);
 
   // Commit the attachable transaction before discarding transaction state.
-  // Since the attachable transaction is AUTOCOMMIT we only need to commit
-  // statement transaction. This is mostly needed to properly reset transaction
-  // state in SE.
+  // This is mostly needed to properly reset transaction state in SE.
   // Note: We can't rely on InnoDB hack which auto-magically commits InnoDB
   // transaction when the last table for a statement in auto-commit mode is
   // unlocked. Apparently it doesn't work correctly in some corner cases
   // (for example, when statement is killed just after tables are locked but
   // before any other operations on the table happes). We try not to rely on
   // it in other places on SQL-layer as well.
-  trans_commit_stmt(m_thd);
+  trans_commit_attachable(m_thd);
 
   // Remember the handlerton of an open table to call the handlerton after the
   // tables are closed.
@@ -287,6 +285,9 @@ THD::Attachable_trx::~Attachable_trx()
     m_thd->lex->restore_backup_query_tables_list(
       &m_trx_state.m_query_tables_list);
   }
+
+  DBUG_ASSERT(m_thd->ha_data[ht->slot].ha_ptr ==
+              m_trx_state.m_ha_data[ht->slot].ha_ptr);
 }
 
 /****************************************************************************
@@ -549,8 +550,7 @@ void thd_set_killed(THD *thd)
 */
 void thd_clear_errors(THD *thd)
 {
-  my_errno= 0;
-  thd->mysys_var->abort= 0;
+  set_my_errno(0);
 }
 
 /**
@@ -581,7 +581,7 @@ THD *thd_get_current_thd()
 void reset_thread_globals(THD* thd)
 {
   thd->restore_globals();
-  thd->set_mysys_var(NULL);
+  thd->set_is_killable(false);
 }
 
 extern "C"
@@ -658,14 +658,13 @@ uint thd_get_net_read_write(THD *thd)
 }
 
 /**
-  Set reference to mysys variable in THD object
+  Mark the THD as not killable as it is not currently used by a thread.
 
   @param thd             THD object
-  @param mysys_var       Reference to set
 */
-void thd_set_mysys_var(THD *thd, st_my_thread_var *mysys_var)
+void thd_set_not_killable(THD *thd)
 {
-  thd->set_mysys_var(mysys_var);
+  thd->set_is_killable(false);
 }
 
 /**
@@ -1077,7 +1076,7 @@ bool Drop_table_error_handler::handle_condition(THD *thd,
                                                 Sql_condition::enum_severity_level *level,
                                                 const char* msg)
 {
-  return ((sql_errno == EE_DELETE && my_errno == ENOENT) ||
+  return ((sql_errno == EE_DELETE && my_errno() == ENOENT) ||
           sql_errno == ER_TRG_NO_DEFINER);
 }
 
@@ -1118,6 +1117,7 @@ THD::THD(bool enable_plugins)
    mark_used_columns(MARK_COLUMNS_READ),
    want_privilege(0),
    lex(&main_lex),
+   gtid_executed_warning_issued(false),
    m_query_string(NULL_CSTR),
    m_db(NULL_CSTR),
    rli_fake(0), rli_slave(NULL),
@@ -1178,13 +1178,13 @@ THD::THD(bool enable_plugins)
    skip_gtid_rollback(false),
    is_commit_in_middle_of_statement(false),
    has_gtid_consistency_violation(false),
-   pending_gtid_state_update(false),
    main_da(false),
    m_parser_da(false),
    m_query_rewrite_plugin_da(false),
    m_query_rewrite_plugin_da_ptr(&m_query_rewrite_plugin_da),
    m_stmt_da(&main_da),
-   duplicate_slave_uuid(false)
+   duplicate_slave_uuid(false),
+   is_a_srv_session_thd(false)
 {
   mdl_context.init(this);
   init_sql_alloc(key_memory_thd_main_mem_root,
@@ -1208,7 +1208,8 @@ THD::THD(bool enable_plugins)
   tmp_table=0;
   cuted_fields= 0L;
   m_sent_row_count= 0L;
-  limit_found_rows= 0;
+  current_found_rows= 0;
+  previous_found_rows= 0;
   is_operating_gtid_table_implicitly= false;
   is_operating_substatement_implicitly= false;
   m_row_count_func= -1;
@@ -1226,7 +1227,7 @@ THD::THD(bool enable_plugins)
   query_name_consts= 0;
   db_charset= global_system_variables.collation_database;
   memset(ha_data, 0, sizeof(ha_data));
-  mysys_var=0;
+  is_killable= false;
   binlog_evt_union.do_union= FALSE;
   enable_slow_log= 0;
   commit_error= CE_NONE;
@@ -1250,6 +1251,7 @@ THD::THD(bool enable_plugins)
   mysql_mutex_init(key_LOCK_query_plan, &LOCK_query_plan, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_current_cond, &LOCK_current_cond,
                    MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_COND_thr_lock, &COND_thr_lock);
 
   /* Variables with default values */
   proc_info="login";
@@ -1289,7 +1291,7 @@ THD::THD(bool enable_plugins)
     Make sure thr_lock_info_init() is called for threads which do not get
     assigned a proper thread_id value but keep using reserved_thread_id.
   */
-  thr_lock_info_init(&lock_info, m_thread_id);
+  thr_lock_info_init(&lock_info, m_thread_id, &COND_thr_lock);
 
   m_internal_handler= NULL;
   m_binlog_invoker= FALSE;
@@ -1679,7 +1681,7 @@ void THD::set_new_thread_id()
 {
   m_thread_id= Global_THD_manager::get_instance()->get_new_thread_id();
   variables.pseudo_thread_id= m_thread_id;
-  thr_lock_info_init(&lock_info, m_thread_id);
+  thr_lock_info_init(&lock_info, m_thread_id, &COND_thr_lock);
 }
 
 
@@ -1853,7 +1855,7 @@ void THD::release_resources()
 
   /* Close connection */
 #ifndef EMBEDDED_LIBRARY
-  if (get_protocol_classic()->get_vio())
+  if (is_classic_protocol() && get_protocol_classic()->get_vio())
   {
     vio_delete(get_protocol_classic()->get_vio());
     get_protocol_classic()->end_net();
@@ -1883,7 +1885,6 @@ void THD::release_resources()
   debug_sync_end_thread(this);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 
-  mysql_audit_release(this);
   plugin_thdvar_cleanup(this, m_enable_plugins);
 
   DBUG_ASSERT(timer == NULL);
@@ -1934,6 +1935,7 @@ THD::~THD()
   mysql_mutex_destroy(&LOCK_thd_query);
   mysql_mutex_destroy(&LOCK_thd_sysvar);
   mysql_mutex_destroy(&LOCK_current_cond);
+  mysql_cond_destroy(&COND_thr_lock);
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
 #endif
@@ -2113,11 +2115,9 @@ void THD::awake(THD::killed_state state_to_set)
 
 
   /* Broadcast a condition to kick the target if it is waiting on it. */
-  if (mysys_var)
+  if (is_killable)
   {
     mysql_mutex_lock(&LOCK_current_cond);
-    if (!system_thread)		// Don't abort locks
-      mysys_var->abort=1;
     /*
       This broadcast could be up in the air if the victim thread
       exits the cond in the time between read and broadcast, but that is
@@ -2168,7 +2168,7 @@ void THD::awake(THD::killed_state state_to_set)
           the Vio might be disassociated concurrently.
 */
 
-void THD::disconnect()
+void THD::disconnect(bool server_shutdown)
 {
   Vio *vio= NULL;
 
@@ -2185,10 +2185,11 @@ void THD::disconnect()
   shutdown_active_vio();
 
   /* Disconnect even if a active vio is not associated. */
-  if (get_protocol_classic()->get_vio() != vio &&
-      get_protocol_classic()->vio_ok())
+  if (is_classic_protocol() &&
+      get_protocol_classic()->get_vio() != vio &&
+      get_protocol_classic()->connection_alive())
   {
-    m_protocol->shutdown();
+    m_protocol->shutdown(server_shutdown);
   }
 
   mysql_mutex_unlock(&LOCK_thd_data);
@@ -2237,33 +2238,32 @@ bool THD::store_globals()
 
   if (my_thread_set_THR_THD(this) ||
       my_thread_set_THR_MALLOC(&mem_root))
-    return 1;
+    return true;
   /*
-    mysys_var is concurrently readable by a killer thread.
+    is_killable is concurrently readable by a killer thread.
     It is protected by LOCK_thd_data, it is not needed to lock while the
-    pointer is changing from NULL not non-NULL. If the kill thread reads
-    NULL it doesn't refer to anything, but if it is non-NULL we need to
-    ensure that the thread doesn't proceed to assign another thread to
-    have the mysys_var reference (which in fact refers to the worker
-    threads local storage with key THR_KEY_mysys. 
+    value is changing from false not true. If the kill thread reads
+    true we need to ensure that the thread doesn't proceed to assign
+    another thread to the same TLS reference.
   */
-  mysys_var= mysys_thread_var();
-  DBUG_PRINT("debug", ("mysys_var: 0x%llx", (ulonglong) mysys_var));
+  is_killable= true;
+#ifndef DBUG_OFF
   /*
     Let mysqld define the thread id (not mysys)
     This allows us to move THD to different threads if needed.
   */
-  mysys_var->id= m_thread_id;
+  set_my_thread_var_id(m_thread_id);
+#endif
   real_id= my_thread_self();                      // For debugging
 
-  return 0;
+  return false;
 }
 
 /*
   Remove the thread specific info (THD and mem_root pointer) stored during
   store_global call for this thread.
 */
-bool THD::restore_globals()
+void THD::restore_globals()
 {
   /*
     Assert that thread_stack is initialized: it's necessary to be able
@@ -2274,8 +2274,6 @@ bool THD::restore_globals()
   /* Undocking the thread specific data. */
   my_thread_set_THR_THD(NULL);
   my_thread_set_THR_MALLOC(NULL);
-
-  return 0;
 }
 
 
@@ -2600,10 +2598,8 @@ int THD::send_explain_fields(Query_result *result)
 enum_vio_type THD::get_vio_type()
 {
 #ifndef EMBEDDED_LIBRARY
-  Vio *vio= get_protocol_classic()->get_vio();
-  if (vio != NULL)
-    return vio_type(vio);
-  return NO_VIO_TYPE;
+  DBUG_ENTER("shutdown_active_vio");
+  DBUG_RETURN(get_protocol()->connection_type());
 #else
   return NO_VIO_TYPE;
 #endif
@@ -2626,12 +2622,11 @@ void THD::shutdown_active_vio()
 
 /*
   Register an item tree tree transformation, performed by the query
-  optimizer. We need a pointer to runtime_memroot because it may be !=
-  thd->mem_root (due to possible set_n_backup_active_arena called for thd).
+  optimizer.
 */
 
-void THD::nocheck_register_item_tree_change(Item **place, Item *old_value,
-                                            MEM_ROOT *runtime_memroot)
+void THD::nocheck_register_item_tree_change(Item **place,
+                                            Item *new_value)
 {
   Item_change_record *change;
   /*
@@ -2639,7 +2634,7 @@ void THD::nocheck_register_item_tree_change(Item **place, Item *old_value,
     but still is rather fast as we use alloc_root for allocations.
     A list of item tree changes of an average query should be short.
   */
-  void *change_mem= alloc_root(runtime_memroot, sizeof(*change));
+  void *change_mem= alloc_root(mem_root, sizeof(*change));
   if (change_mem == 0)
   {
     /*
@@ -2648,24 +2643,22 @@ void THD::nocheck_register_item_tree_change(Item **place, Item *old_value,
     */
     return;
   }
-  change= new (change_mem) Item_change_record;
-  change->place= place;
-  change->old_value= old_value;
+  change= new (change_mem) Item_change_record(place, new_value);
   change_list.push_front(change);
 }
 
 
-void THD::change_item_tree_place(Item **old_ref, Item **new_ref)
+void THD::replace_rollback_place(Item **new_place)
 {
   I_List_iterator<Item_change_record> it(change_list);
   Item_change_record *change;
   while ((change= it++))
   {
-    if (change->place == old_ref)
+    if (change->new_value == *new_place)
     {
-      DBUG_PRINT("info", ("change_item_tree_place old_ref %p new_ref %p",
-                          old_ref, new_ref));
-      change->place= new_ref;
+      DBUG_PRINT("info", ("replace_rollback_place new_value %p place %p",
+                          *new_place, new_place));
+      change->place= new_place;
       break;
     }
   }
@@ -3403,8 +3396,8 @@ bool Query_result_dump::send_data(List<Item> &items)
     else if (my_b_write(&cache,(uchar*) res->ptr(),res->length()))
     {
       char errbuf[MYSYS_STRERROR_SIZE];
-      my_error(ER_ERROR_ON_WRITE, MYF(0), path, my_errno,
-               my_strerror(errbuf, sizeof(errbuf), my_errno));
+      my_error(ER_ERROR_ON_WRITE, MYF(0), path, my_errno(),
+               my_strerror(errbuf, sizeof(errbuf), my_errno()));
       goto err;
     }
   }
@@ -3832,7 +3825,9 @@ void THD::end_attachable_transaction()
 */
 extern "C" int thd_killed(const MYSQL_THD thd)
 {
-  return(thd->killed);
+  if (thd == NULL)
+    return current_thd->killed;
+  return thd->killed;
 }
 
 /**
@@ -4130,7 +4125,8 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   backup->count_cuted_fields= count_cuted_fields;
   backup->in_sub_stmt=     in_sub_stmt;
   backup->enable_slow_log= enable_slow_log;
-  backup->limit_found_rows= limit_found_rows;
+  backup->current_found_rows= current_found_rows;
+  backup->previous_found_rows= previous_found_rows;
   backup->examined_row_count= m_examined_row_count;
   backup->sent_row_count= m_sent_row_count;
   backup->cuted_fields=     cuted_fields;
@@ -4153,7 +4149,8 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
     mysql_bin_log.start_union_events(this, this->query_id);
 
   /* Disable result sets */
-  get_protocol_classic()->remove_client_capability(CLIENT_MULTI_RESULTS);
+  if (is_classic_protocol())
+    get_protocol_classic()->remove_client_capability(CLIENT_MULTI_RESULTS);
   in_sub_stmt|= new_state;
   m_examined_row_count= 0;
   m_sent_row_count= 0;
@@ -4201,11 +4198,11 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
     backup->first_successful_insert_id_in_prev_stmt;
   first_successful_insert_id_in_cur_stmt= 
     backup->first_successful_insert_id_in_cur_stmt;
-  limit_found_rows= backup->limit_found_rows;
+  current_found_rows= backup->current_found_rows;
+  previous_found_rows= backup->previous_found_rows;
   set_sent_row_count(backup->sent_row_count);
-  DBUG_ASSERT(m_protocol->type() == Protocol::PROTOCOL_TEXT ||
-              m_protocol->type() == Protocol::PROTOCOL_BINARY);
-  get_protocol_classic()->set_client_capabilities(backup->client_capabilities);
+  if (is_classic_protocol())
+    get_protocol_classic()->set_client_capabilities(backup->client_capabilities);
 
   /*
     If we've left sub-statement mode, reset the fatal error flag.
@@ -4486,7 +4483,9 @@ void THD::clear_next_event_pos()
 void THD::set_currently_executing_gtid_for_slave_thread()
 {
   /*
-    This function may be called in three cases:
+    This function may be called in four cases:
+
+    - From SQL thread while executing Gtid_log_event::do_apply_event
 
     - From an mts worker thread that executes a Gtid_log_event::do_apply_event.
 
@@ -4500,13 +4499,12 @@ void THD::set_currently_executing_gtid_for_slave_thread()
       BINLOG statement containing a Format_description_log_event
       originating from the master.
 
-    Because of the last case, we don't assert(is_mts_worker())
+    Because of the last case, we need to add the following conditions to set
+    currently_executing_gtid.
   */
-  if (is_mts_worker(this))
-  {
-    dynamic_cast<Slave_worker *>(rli_slave)->currently_executing_gtid=
-      variables.gtid_next;
-  }
+  if (system_thread == SYSTEM_THREAD_SLAVE_SQL ||
+      system_thread == SYSTEM_THREAD_SLAVE_WORKER)
+    rli_slave->currently_executing_gtid= variables.gtid_next;
 }
 #endif
 

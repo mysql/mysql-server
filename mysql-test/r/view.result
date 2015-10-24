@@ -1454,7 +1454,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join `test`.`t2` on((`test`.`t1`.`a` = `test`.`t2`.`a`))) on((`test`.`t3`.`a` = `test`.`t1`.`a`)) where 1
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t3`.`a`))) on((`test`.`t1`.`a` = `test`.`t3`.`a`)) where 1
 create view v1 (a) as select a from t1;
 create view v2 (a) as select a from t2;
 create view v4 (a,b) as select v1.a as a, v2.a as b from v1 left join v2 on (v1.a=v2.a);
@@ -1470,7 +1470,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join (`test`.`t2`) on((`test`.`t1`.`a` = `test`.`t2`.`a`))) on((`test`.`t3`.`a` = `test`.`t1`.`a`)) where 1
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join (`test`.`t2`) on(((`test`.`t1`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`a` = `test`.`t3`.`a`)))) on((`test`.`t1`.`a` = `test`.`t3`.`a`)) where 1
 prepare stmt1 from "select * from t3 left join v4 on (t3.a = v4.a);";
 execute stmt1;
 a	a	b
@@ -4385,12 +4385,12 @@ ON dt1.a=dt2.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	25.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` join `test`.`t1` join `test`.`t2` join `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`b` = `test`.`t2`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t1`.`a`))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` join `test`.`t1` join `test`.`t2` join `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`b` = `test`.`t2`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t1`.`a`))
 SELECT *
 FROM t1 JOIN v12_3 AS dt ON t1.a=dt.a;
 a	b	a	b
@@ -5928,7 +5928,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select straight_join NULL AS `pk` from (/* select#2 */ select NULL AS `pk`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from `test`.`t2` left join (`test`.`t1` `sq1_alias1` semi join (`test`.`t3` `c_sq1_alias1`)) on(((NULL = `test`.`sq1_alias1`.`col_varchar_key`) and 1 and (`test`.`c_sq1_alias1`.`col_int_key` <> `test`.`c_sq1_alias1`.`col_int_key`) and (NULL = `test`.`c_sq1_alias1`.`col_varchar_nokey`)))) `alias2` where 1
+Note	1003	/* select#1 */ select straight_join NULL AS `pk` from (/* select#2 */ select NULL AS `pk`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from `test`.`t2` left join (`test`.`t1` `sq1_alias1` semi join (`test`.`t3` `c_sq1_alias1`)) on((1 and (`test`.`c_sq1_alias1`.`col_int_key` <> `test`.`c_sq1_alias1`.`col_int_key`) and multiple equal(NULL, `test`.`sq1_alias1`.`col_varchar_key`) and multiple equal(NULL, `test`.`c_sq1_alias1`.`col_varchar_nokey`)))) `alias2` where 1
 SELECT STRAIGHT_JOIN alias1.pk
 FROM t2 AS alias1
 RIGHT JOIN
@@ -6300,3 +6300,59 @@ INSERT INTO v1(z) VALUES(1);
 ERROR HY000: Column 'z' is not updatable
 DROP VIEW  v1;
 DROP TABLE t1;
+# Bug#21277074: crash (segfault) in THD::change_item_tree on exec of prep
+CREATE TABLE t (i INTEGER);
+PREPARE s1 FROM
+"SELECT (SELECT MAX(i)) AS field1
+   FROM (SELECT * FROM t) AS table1"
+;
+EXECUTE s1;
+field1
+NULL
+CREATE VIEW v AS SELECT * FROM t;
+PREPARE s2 FROM
+"SELECT (SELECT MAX(i)) AS field1
+   FROM v AS table1"
+;
+EXECUTE s2;
+field1
+NULL
+DEALLOCATE PREPARE s1;
+DEALLOCATE PREPARE s2;
+DROP VIEW v;
+DROP TABLE t;
+#
+# BUG#19886430: VIEW CREATION WITH NAMED COLUMNS, OVER UNION,
+#               IS REJECTED
+# Without the patch, reports an error.
+CREATE VIEW v1 (fld1, fld2) AS
+SELECT 1 AS a, 2 AS b
+UNION ALL
+SELECT 1 AS a, 1 AS a;
+# The column names are explicitly specified and not duplicates, hence
+# succeeds.
+CREATE VIEW v2 (fld1, fld2) AS
+SELECT 1 AS a, 2 AS a
+UNION ALL
+SELECT 1 AS a, 1 AS a;
+# The column name in the first SELECT are not duplicates, hence succeeds.
+CREATE VIEW v3 AS
+SELECT 1 AS a, 2 AS b
+UNION ALL
+SELECT 1 AS a, 1 AS a;
+# Should report an error, since the explicitly specified column names are
+# duplicates.
+CREATE VIEW v4 (fld1, fld1) AS
+SELECT 1 AS a, 2 AS b
+UNION ALL
+SELECT 1 AS a, 1 AS a;
+ERROR 42S21: Duplicate column name 'fld1'
+# Should report an error, since duplicate column name is specified in the
+# First SELECT.
+CREATE VIEW v4 AS
+SELECT 1 AS a, 2 AS a
+UNION ALL
+SELECT 1 AS a, 1 AS a;
+ERROR 42S21: Duplicate column name 'a'
+# Cleanup
+DROP VIEW v1, v2, v3;

@@ -477,6 +477,261 @@ EXPLAIN SELECT  table1.col_int_key + 1 AS field1, table2.col_int_key AS field2
   GROUP BY field1, field2;
 
 DROP TABLE t1;
+
+if($support_virtual_index)
+{
+--echo #
+--echo # Bug#21391781 ASSERT WHEN RUNNING ALTER TABLE ON A TABLE WITH INDEX
+--echo #              ON VIRTUAL COLUMN
 --echo #
 
+#
+# Test 1: column number 2 and 66 are virtual and there is an index
+#         on column number 2.
+#
+CREATE TABLE t1 (
+  col1 INTEGER NOT NULL,
+  col2 INTEGER NOT NULL,
+  gcol1 INTEGER GENERATED ALWAYS AS (col1 + col2) VIRTUAL,
+  col3 INTEGER NOT NULL,
+  col4 INTEGER NOT NULL,
+  col5 INTEGER DEFAULT NULL,
+  col6 INTEGER DEFAULT NULL,
+  col7 INTEGER DEFAULT NULL,
+  col8 INTEGER DEFAULT NULL,
+  col9 INTEGER DEFAULT NULL,
+  col10 INTEGER DEFAULT NULL,
+  col11 INTEGER DEFAULT NULL,
+  col12 INTEGER DEFAULT NULL,
+  col13 INTEGER DEFAULT NULL,
+  col14 INTEGER DEFAULT NULL,
+  col15 INTEGER DEFAULT NULL,
+  col16 INTEGER DEFAULT NULL,
+  col17 INTEGER DEFAULT NULL,
+  col18 INTEGER DEFAULT NULL,
+  col19 INTEGER DEFAULT NULL,
+  col20 INTEGER DEFAULT NULL,
+  col21 INTEGER DEFAULT NULL,
+  col22 INTEGER DEFAULT NULL,
+  col23 INTEGER DEFAULT NULL,
+  col24 INTEGER DEFAULT NULL,
+  col25 INTEGER DEFAULT NULL,
+  col26 INTEGER DEFAULT NULL,
+  col27 INTEGER DEFAULT NULL,
+  col28 INTEGER DEFAULT NULL,
+  col29 INTEGER DEFAULT NULL,
+  col30 INTEGER DEFAULT NULL,
+  col31 INTEGER DEFAULT NULL,
+  col32 INTEGER DEFAULT NULL,
+  col33 INTEGER DEFAULT NULL,
+  col34 INTEGER DEFAULT NULL,
+  col35 INTEGER DEFAULT NULL,
+  col36 INTEGER DEFAULT NULL,
+  col37 INTEGER DEFAULT NULL,
+  col38 INTEGER DEFAULT NULL,
+  col39 INTEGER DEFAULT NULL,
+  col40 INTEGER DEFAULT NULL,
+  col41 INTEGER DEFAULT NULL,
+  col42 INTEGER DEFAULT NULL,
+  col43 INTEGER DEFAULT NULL,
+  col44 INTEGER DEFAULT NULL,
+  col45 INTEGER DEFAULT NULL,
+  col46 INTEGER DEFAULT NULL,
+  col47 INTEGER DEFAULT NULL,
+  col48 INTEGER DEFAULT NULL,
+  col49 INTEGER DEFAULT NULL,
+  col50 INTEGER DEFAULT NULL,
+  col51 INTEGER DEFAULT NULL,
+  col52 INTEGER DEFAULT NULL,
+  col53 INTEGER DEFAULT NULL,
+  col54 INTEGER DEFAULT NULL,
+  col55 INTEGER DEFAULT NULL,
+  col56 INTEGER DEFAULT NULL,
+  col57 INTEGER DEFAULT NULL,
+  col58 INTEGER DEFAULT NULL,
+  col59 INTEGER DEFAULT NULL,
+  col60 INTEGER DEFAULT NULL,
+  col61 INTEGER DEFAULT NULL,
+  col62 INTEGER DEFAULT NULL,
+  col63 INTEGER DEFAULT NULL,
+  col64 INTEGER DEFAULT NULL,
+  col65 INTEGER DEFAULT NULL,
+  gcol2 INTEGER GENERATED ALWAYS AS (col3 / col4) VIRTUAL,
+  KEY idx1 (gcol1)
+);
 
+INSERT INTO t1 (col1, col2, col3, col4)
+  VALUES (1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4), (5,5,5,5);
+
+# This will call my_eval_gcolumn_expr to compute the indexed column value
+ALTER TABLE t1 ADD COLUMN extra INTEGER;
+
+SELECT gcol1 FROM t1 FORCE INDEX(idx1);
+
+DROP TABLE t1;
+
+#
+# Test 2: column number 2 and 66 are virtual and there is an index
+#         on column number 66.
+#
+CREATE TABLE t1 (
+  col1 INTEGER NOT NULL,
+  col2 INTEGER NOT NULL,
+  gcol1 INTEGER GENERATED ALWAYS AS (col1 + col2) VIRTUAL,
+  col3 INTEGER NOT NULL,
+  col4 INTEGER NOT NULL,
+  col5 INTEGER DEFAULT NULL,
+  col6 INTEGER DEFAULT NULL,
+  col7 INTEGER DEFAULT NULL,
+  col8 INTEGER DEFAULT NULL,
+  col9 INTEGER DEFAULT NULL,
+  col10 INTEGER DEFAULT NULL,
+  col11 INTEGER DEFAULT NULL,
+  col12 INTEGER DEFAULT NULL,
+  col13 INTEGER DEFAULT NULL,
+  col14 INTEGER DEFAULT NULL,
+  col15 INTEGER DEFAULT NULL,
+  col16 INTEGER DEFAULT NULL,
+  col17 INTEGER DEFAULT NULL,
+  col18 INTEGER DEFAULT NULL,
+  col19 INTEGER DEFAULT NULL,
+  col20 INTEGER DEFAULT NULL,
+  col21 INTEGER DEFAULT NULL,
+  col22 INTEGER DEFAULT NULL,
+  col23 INTEGER DEFAULT NULL,
+  col24 INTEGER DEFAULT NULL,
+  col25 INTEGER DEFAULT NULL,
+  col26 INTEGER DEFAULT NULL,
+  col27 INTEGER DEFAULT NULL,
+  col28 INTEGER DEFAULT NULL,
+  col29 INTEGER DEFAULT NULL,
+  col30 INTEGER DEFAULT NULL,
+  col31 INTEGER DEFAULT NULL,
+  col32 INTEGER DEFAULT NULL,
+  col33 INTEGER DEFAULT NULL,
+  col34 INTEGER DEFAULT NULL,
+  col35 INTEGER DEFAULT NULL,
+  col36 INTEGER DEFAULT NULL,
+  col37 INTEGER DEFAULT NULL,
+  col38 INTEGER DEFAULT NULL,
+  col39 INTEGER DEFAULT NULL,
+  col40 INTEGER DEFAULT NULL,
+  col41 INTEGER DEFAULT NULL,
+  col42 INTEGER DEFAULT NULL,
+  col43 INTEGER DEFAULT NULL,
+  col44 INTEGER DEFAULT NULL,
+  col45 INTEGER DEFAULT NULL,
+  col46 INTEGER DEFAULT NULL,
+  col47 INTEGER DEFAULT NULL,
+  col48 INTEGER DEFAULT NULL,
+  col49 INTEGER DEFAULT NULL,
+  col50 INTEGER DEFAULT NULL,
+  col51 INTEGER DEFAULT NULL,
+  col52 INTEGER DEFAULT NULL,
+  col53 INTEGER DEFAULT NULL,
+  col54 INTEGER DEFAULT NULL,
+  col55 INTEGER DEFAULT NULL,
+  col56 INTEGER DEFAULT NULL,
+  col57 INTEGER DEFAULT NULL,
+  col58 INTEGER DEFAULT NULL,
+  col59 INTEGER DEFAULT NULL,
+  col60 INTEGER DEFAULT NULL,
+  col61 INTEGER DEFAULT NULL,
+  col62 INTEGER DEFAULT NULL,
+  col63 INTEGER DEFAULT NULL,
+  col64 INTEGER DEFAULT NULL,
+  col65 INTEGER DEFAULT NULL,
+  gcol2 INTEGER GENERATED ALWAYS AS (col3 / col4) VIRTUAL,
+  KEY idx1 (gcol2)
+);
+
+INSERT INTO t1 (col1, col2, col3, col4)
+  VALUES (1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4), (5,5,5,5);
+
+# This will call my_eval_gcolumn_expr to compute the indexed column value
+ALTER TABLE t1 ADD COLUMN extra INTEGER;
+
+SELECT gcol2 FROM t1 FORCE INDEX(idx1);
+
+DROP TABLE t1;
+}
+
+if($support_virtual_index)
+{
+--echo #
+--echo # Bug#21628161 CRASH/MEMORY CORRUPTION ADDING INDEXES TO VIRTUAL COLUMN
+--echo #
+# When generating the value of column b, an out-of-range warning is
+# raised. A warning is required in order to reproduce the bug, but it
+# is promoted to an error on insertion unless we turn off strict mode.
+--source include/turn_off_strict_mode.inc
+CREATE TABLE t (a INT,
+                b BOOLEAN GENERATED ALWAYS AS (a+10000) VIRTUAL,
+                c BLOB GENERATED ALWAYS AS (b=2) VIRTUAL);
+INSERT INTO t(a) VALUES (1);
+# Before index was created, this query returned the expected one match.
+SELECT * FROM t WHERE c = '0';
+# Adding an index sometimes crashed, other times populated it with garbage ...
+ALTER TABLE t ADD UNIQUE INDEX (c(1));
+# ... so that this query found no match in the index.
+SELECT * FROM t WHERE c = '0';
+DROP TABLE t;
+--source include/restore_strict_mode.inc
+
+--echo #
+--echo # Bug#21688115 VIRTUAL COLUMN COMPUTATION SAVE_IN_FIELD()
+--echo #              DID NOT RETURN TRUE WITH DIVIDE 0
+--echo #
+CREATE TABLE t (a INT, b INT, h VARCHAR(10));
+INSERT INTO t VALUES (12, 3, "ss");
+INSERT INTO t VALUES (13, 4, "ss");
+INSERT INTO t VALUES (14, 0, "ss");
+ALTER TABLE t ADD c INT GENERATED ALWAYS AS (a/b) VIRTUAL;
+--error ER_DIVISION_BY_ZERO
+CREATE INDEX idx ON t(c);
+CALL mtr.add_suppression("\\[Warning\\] InnoDB: Compute virtual column values failed");
+DROP TABLE t;
+}
+
+--echo #
+--echo # Bug#21770798 OPTIMIZER DOES NOT USE INDEX FOR GENERATED EXPRESSIONS
+--echo #              WITH LOGICAL OPERATORS
+--echo #
+CREATE TABLE t (a INT, b INT,
+                gc_and INT GENERATED ALWAYS AS (a AND b) STORED,
+                gc_or INT GENERATED ALWAYS AS (a OR b) STORED,
+                gc_xor INT GENERATED ALWAYS AS (a XOR b) STORED,
+                gc_not INT GENERATED ALWAYS AS (NOT a) STORED,
+                gc_case INT GENERATED ALWAYS AS
+                (CASE WHEN (a AND b) THEN a ELSE b END) STORED,
+                INDEX(gc_and), INDEX(gc_or), INDEX(gc_xor), INDEX(gc_not),
+                INDEX(gc_case));
+INSERT INTO t (a, b) VALUES (0, 0), (0, 1), (1, 0), (1, 1);
+ANALYZE TABLE t;
+EXPLAIN SELECT a, b FROM t WHERE (a AND b) = 1;
+SELECT a, b FROM t WHERE (a AND b) = 1;
+EXPLAIN SELECT a, b FROM t WHERE 1 = (a AND b);
+SELECT a, b FROM t WHERE 1 = (a AND b);
+EXPLAIN SELECT a, b FROM t WHERE (a AND b) IN (1, 2, 3);
+SELECT a, b FROM t WHERE (a AND b) IN (1, 2, 3);
+EXPLAIN SELECT a, b FROM t WHERE (a OR b) = 1;
+--sorted_result
+SELECT a, b FROM t WHERE (a OR b) = 1;
+EXPLAIN SELECT a, b FROM t WHERE (a OR b) BETWEEN 1 AND 10;
+--sorted_result
+SELECT a, b FROM t WHERE (a OR b) BETWEEN 1 AND 10;
+# XOR and NOT worked even before the bug fix, but we test all logical
+# operators here for completeness.
+EXPLAIN SELECT a, b FROM t WHERE (a XOR b) = 1;
+--sorted_result
+SELECT a, b FROM t WHERE (a XOR b) = 1;
+EXPLAIN SELECT a FROM t WHERE (NOT a) = 1;
+SELECT a FROM t WHERE (NOT a) = 1;
+# Also verify that a logical expression nested inside another
+# expression doesn't prevent substitution.
+EXPLAIN SELECT a FROM t WHERE (CASE WHEN (a AND b) THEN a ELSE b END) = 1;
+--sorted_result
+SELECT a FROM t WHERE (CASE WHEN (a AND b) THEN a ELSE b END) = 1;
+DROP TABLE t;
+
+--echo #

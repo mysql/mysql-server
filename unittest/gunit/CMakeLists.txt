@@ -13,13 +13,13 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-# We want gmock-1.6.0.zip in order to build these unit tests.
+# We want gmock-1.7.0.zip in order to build these unit tests.
 # If you have already downloaded it,
-# invoke cmake with -DWITH_GMOCK=/path/to/gmock-1.6.0.zip
+# invoke cmake with -DWITH_GMOCK=/path/to/gmock-1.7.0.zip
 #                or -DWITH_GMOCK=/path/to
 #
 # Alternatively, set an environment variable
-# export WITH_GMOCK=/path/to/gmock-1.6.0.zip
+# export WITH_GMOCK=/path/to/gmock-1.7.0.zip
 #
 # You can also do cmake -DENABLE_DOWNLOADS=1 
 # and we will download it from http://googlemock.googlecode.com
@@ -27,21 +27,21 @@
 # Either way: we will unpack the zip, compile gmock-all.cc and gtest-all.cc
 # and link them into the executables.
 
-# Where to download and build gmock/gtest.
+# Default location for where to download and build gmock/gtest.
 IF(NOT DOWNLOAD_ROOT)
   SET(DOWNLOAD_ROOT ${CMAKE_SOURCE_DIR}/source_downloads)
 ENDIF()
-IF(NOT EXISTS DOWNLOAD_ROOT)
-  MAKE_DIRECTORY(${DOWNLOAD_ROOT})
-ENDIF()
 
-# We want googlemock version 1.6, which also contains googletest.
-SET(GMOCK_PACKAGE_NAME "gmock-1.6.0")
-SET(GMOCK_SOURCE_DIR ${DOWNLOAD_ROOT}/${GMOCK_PACKAGE_NAME})
-SET(GTEST_SOURCE_DIR ${DOWNLOAD_ROOT}/${GMOCK_PACKAGE_NAME}/gtest)
+# We want googlemock version 1.7, which also contains googletest.
+SET(GMOCK_PACKAGE_NAME "gmock-1.7.0")
 
 IF (DEFINED ENV{WITH_GMOCK} AND NOT DEFINED WITH_GMOCK)
-  SET(WITH_GMOCK "$ENV{WITH_GMOCK}")
+  FILE(TO_CMAKE_PATH "$ENV{WITH_GMOCK}" WITH_GMOCK)
+ENDIF()
+
+IF(LOCAL_GMOCK_ZIP
+   AND NOT ${LOCAL_GMOCK_ZIP} MATCHES ".*${GMOCK_PACKAGE_NAME}\\.zip")
+ SET(LOCAL_GMOCK_ZIP 0)
 ENDIF()
 
 IF (WITH_GMOCK)
@@ -54,21 +54,36 @@ IF (WITH_GMOCK)
               PATHS ${GMOCK_DIR}
               NO_DEFAULT_PATH
              )
+  ELSE()
+    ## Did we get a path name to the directory of the .zip file?
+    FIND_FILE(LOCAL_GMOCK_ZIP
+              NAMES "${GMOCK_PACKAGE_NAME}.zip"
+              PATHS ${WITH_GMOCK}
+              NO_DEFAULT_PATH
+              )
+    ## If WITH_GMOCK is a directory, use it for download.
+    SET(DOWNLOAD_ROOT ${WITH_GMOCK})
   ENDIF()
-  ## Did we get a path name to the directory of the .zip file?
-  FIND_FILE(LOCAL_GMOCK_ZIP
-            NAMES "${GMOCK_PACKAGE_NAME}.zip"
-            PATHS ${WITH_GMOCK}
-            NO_DEFAULT_PATH
-           )
   MESSAGE(STATUS "Local gmock zip ${LOCAL_GMOCK_ZIP}")
 ENDIF()
 
+IF(NOT EXISTS DOWNLOAD_ROOT)
+  MAKE_DIRECTORY(${DOWNLOAD_ROOT})
+ENDIF()
+SET(GMOCK_SOURCE_DIR ${DOWNLOAD_ROOT}/${GMOCK_PACKAGE_NAME})
+SET(GTEST_SOURCE_DIR ${DOWNLOAD_ROOT}/${GMOCK_PACKAGE_NAME}/gtest)
+
 # We may have downloaded gmock/gtest already, building in a different directory.
-IF(EXISTS ${GMOCK_SOURCE_DIR})
+IF(EXISTS ${GMOCK_SOURCE_DIR} OR EXISTS ${LOCAL_GMOCK_ZIP})
   MESSAGE(STATUS "GMOCK_SOURCE_DIR:${GMOCK_SOURCE_DIR}")
   SET(GMOCK_DOWNLOADED 1 CACHE INTERNAL "")
   SET(GMOCK_FOUND 1 CACHE INTERNAL "")
+# If source dir does not exist, reset dependent variables (might be set from before).
+ELSE()
+  SET(LOCAL_GMOCK_ZIP 0 CACHE INTERNAL "")
+  SET(GMOCK_DOWNLOADED 0 CACHE INTERNAL "")
+  SET(GMOCK_FOUND 0 CACHE INTERNAL "")
+  SET(GMOCK_INCLUDE_DIRS 0 CACHE INTERNAL "")
 ENDIF()
 
 
@@ -174,6 +189,21 @@ INCLUDE_DIRECTORIES(
   ${GTEST_SOURCE_DIR}
   ${GTEST_SOURCE_DIR}/include
 )
+
+# Turn off some warning flags when compiling GUnit
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
+IF(HAVE_NO_UNUSED_TYPEDEFS)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedefs")
+ENDIF()
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-missing-field-initializers"
+                           HAVE_NO_MISSING_FIELD_INITIALIZERS)
+IF(HAVE_NO_MISSING_FIELD_INITIALIZERS)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-missing-field-initializers")
+ENDIF()
+
+MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
+MY_CHECK_CXX_COMPILER_FLAG("-Wempty-body" HAVE_EMPTY_BODY)
+
 ADD_LIBRARY(gmock STATIC ${GMOCK_SOURCE_DIR}/src/gmock-all.cc)
 ADD_LIBRARY(gtest STATIC ${GTEST_SOURCE_DIR}/src/gtest-all.cc)
 SET(GTEST_LIBRARIES gmock gtest)
@@ -194,24 +224,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/storage/example
 )
 
-# Turn off some warning flags when compiling GUnit
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-null-dereference" HAVE_NO_NULL)
-IF(HAVE_NO_NULL)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-null-dereference")
-ENDIF()
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
-IF(HAVE_NO_UNUSED_TYPEDEFS)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedefs")
-ENDIF()
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-compare-distinct-pointer-types"
-                           HAVE_NO_COMPARE_DISTINCT_POINTER_TYPES)
-IF(HAVE_NO_COMPARE_DISTINCT_POINTER_TYPES)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-compare-distinct-pointer-types")
-ENDIF()
-
-MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
-MY_CHECK_CXX_COMPILER_FLAG("-Wempty-body" HAVE_EMPTY_BODY)
-
 # main-wrapper libraries (with tap-compatible option).
 ADD_LIBRARY(gunit_small STATIC
   fake_costmodel.cc
@@ -220,6 +232,7 @@ ADD_LIBRARY(gunit_small STATIC
   strnxfrm.cc
   tap_event_listener.cc
   thread_utils.cc
+  fake_table.cc
 )
 ADD_LIBRARY(gunit_large STATIC
   gunit_test_main_server.cc
@@ -293,6 +306,7 @@ SET(TESTS
   thread_utils
   my_timer
   timespec
+  my_alloc
   )
  
 IF (UNIX)
@@ -316,6 +330,7 @@ SET(SERVER_TESTS
   insert_delayed
   item
   item_filter
+  item_func_case
   item_func_now_local
   item_timefunc
   item_like

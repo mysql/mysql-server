@@ -36,6 +36,8 @@
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
 
+#include <string>
+#include <sstream>
 #ifdef _WIN32
 #include <message.h>
 #else
@@ -484,6 +486,8 @@ static int make_iso8601_timestamp(char *buf, ulonglong utime= 0)
       from UTC, with positive values indicating east of the Prime Meridian.
     */
     long tim= -my_tm.tm_gmtoff;
+#elif _WIN32
+    long tim = _timezone;
 #else
     long tim= timezone; // seconds West of UTC.
 #endif
@@ -553,7 +557,7 @@ bool File_query_log::open()
 
   if ((pos= mysql_file_tell(file, MYF(MY_WME))) == MY_FILEPOS_ERROR)
   {
-    if (my_errno == ESPIPE)
+    if (my_errno() == ESPIPE)
       pos= 0;
     else
       goto err;
@@ -778,7 +782,7 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
     timestamp to the slow log
   */
   end= my_stpcpy(end, ",timestamp=");
-  end= int10_to_str((long) current_utime / 1000000, end, 10);
+  end= int10_to_str((long) (current_utime / 1000000), end, 10);
 
   if (end != buff)
   {
@@ -1316,9 +1320,11 @@ static bool log_command(THD *thd, enum_server_command command)
 bool Query_logger::general_log_write(THD *thd, enum_server_command command,
                                      const char *query, size_t query_length)
 {
+#ifndef EMBEDDED_LIBRARY
   /* Send a general log message to the audit API. */
   mysql_audit_general_log(thd, command_name[(uint) command].str,
                           command_name[(uint) command].length);
+#endif
 
   /*
     Do we want to log this kind of command?
@@ -1333,7 +1339,7 @@ bool Query_logger::general_log_write(THD *thd, enum_server_command command,
   mysql_rwlock_rdlock(&LOCK_logger);
 
   char user_host_buff[MAX_USER_HOST_SIZE + 1];
-  size_t user_host_len= make_user_name(thd, user_host_buff);
+  size_t user_host_len= make_user_name(thd->security_context(), user_host_buff);
   ulonglong current_utime= thd->current_utime();
 
   bool error= false;
@@ -1365,9 +1371,11 @@ bool Query_logger::general_log_print(THD *thd, enum_server_command command,
       !opt_general_log ||
       !(*general_log_handler_list))
   {
+#ifndef EMBEDDED_LIBRARY
     /* Send a general log message to the audit API. */
     mysql_audit_general_log(thd, command_name[(uint) command].str,
                             command_name[(uint) command].length);
+#endif
     return false;
   }
 
@@ -1822,6 +1830,21 @@ static mysql_mutex_t LOCK_error_log;
 // This variable is different from log_error_dest.
 // E.g. log_error_dest is "stderr" if we are not logging to file.
 static const char *error_log_file= NULL;
+static bool error_log_buffering= true;
+static std::string *buffered_messages= NULL;
+
+
+void flush_error_log_messages()
+{
+  if (buffered_messages && !buffered_messages->empty())
+  {
+    fprintf(stderr, "%s", buffered_messages->c_str());
+    fflush(stderr);
+    delete buffered_messages;
+    buffered_messages= NULL;
+  }
+  error_log_buffering= false;
+}
 
 
 void init_error_log()
@@ -1855,13 +1878,20 @@ bool open_error_log(const char *filename)
   /* The error stream must be unbuffered. */
   setbuf(stderr, NULL);
 
-  error_log_file= filename; // Remember name for later flushing
+  error_log_file= filename; // Remember name for later reopen
+
+  // Write any messages buffered while we were figuring out the filename
+  flush_error_log_messages();
   return false;
 }
 
 
 void destroy_error_log()
 {
+  // We should have flushed before this...
+  DBUG_ASSERT(!error_log_buffering);
+  // ... but play it safe on release builds
+  flush_error_log_messages();
   if (error_log_initialized)
   {
     error_log_initialized= false;
@@ -1912,14 +1942,33 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer,
   if (error_log_initialized)
     mysql_mutex_lock(&LOCK_error_log);
 
-  fprintf(stderr, "%s %u [%s] %.*s\n",
-          my_timestamp,
-          thread_id,
-          (level == ERROR_LEVEL ? "ERROR" : level == WARNING_LEVEL ?
-           "Warning" : "Note"),
-          (int) length, buffer);
+  if (error_log_buffering)
+  {
+    // Logfile not open yet, buffer messages for now.
+    if (buffered_messages == NULL)
+      buffered_messages= new (std::nothrow) std::string();
+    std::ostringstream s;
+    s << my_timestamp << " " << thread_id;
+    if (level == ERROR_LEVEL)
+      s << " [ERROR] ";
+    else if (level == WARNING_LEVEL)
+      s << " [Warning] ";
+    else
+      s << " [Note] ";
+    s << buffer << std::endl;
+    buffered_messages->append(s.str());
+  }
+  else
+  {
+    fprintf(stderr, "%s %u [%s] %.*s\n",
+            my_timestamp,
+            thread_id,
+            (level == ERROR_LEVEL ? "ERROR" : level == WARNING_LEVEL ?
+             "Warning" : "Note"),
+            (int) length, buffer);
 
-  fflush(stderr);
+    fflush(stderr);
+  }
 
   if (error_log_initialized)
     mysql_mutex_unlock(&LOCK_error_log);

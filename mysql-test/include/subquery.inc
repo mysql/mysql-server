@@ -6446,3 +6446,140 @@ $base_query
 );
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#21211187 CRASH IN JOIN::UPDATE_DEPEND_MAP
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=INNODB;
+CREATE TABLE t0(a INT);
+INSERT INTO t0 VALUES();
+SELECT 1 FROM t1
+WHERE 1 IN
+(
+  SELECT 1 FROM t1
+   WHERE
+   (
+     SELECT a
+     FROM (SELECT  1 FROM t1) q
+     ORDER BY (SELECT (SELECT  1 FROM t1) FROM t0 HAVING a) DESC
+     LIMIT 1
+   )
+)
+;
+DROP TABLE t0,t1;
+
+--echo #
+--echo # Bug#21292102 CRASH IN GET_SORT_BY_TABLE()
+--echo #
+
+set sql_mode="";
+CREATE TABLE t (a INT) ENGINE=INNODB;
+SELECT 1 FROM t WHERE 1 IN
+(
+ SELECT 1 FROM t WHERE 1 <=>
+ (
+   EXISTS
+   (
+     SELECT a FROM (SELECT 1) s
+     GROUP BY 1 <= ANY
+     (
+       SELECT 1 FROM t HAVING a
+     )
+     HAVING 1
+   )
+  )
+);
+SET @@SQL_MODE=DEFAULT;
+DROP TABLE t;
+
+# New tests can use InnoDB as default
+SET DEFAULT_STORAGE_ENGINE=INNODB;
+
+--echo #
+--echo # Bug#21205577 ASSERTION FAILED: (INT)IDX >= 0 && IDX < PARENT_JOIN->TABLES
+--echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES(1);
+CREATE TABLE t2(a INT);
+INSERT INTO t2 VALUES(1),(1),(1),(1),(1);
+
+SELECT
+(
+  (SELECT 1 IN (SELECT 1 FROM t1 AS x1))
+  IN
+  (
+    SELECT 1 FROM t2
+    WHERE a IN (SELECT 4 FROM t1 AS x2)
+  )
+) AS result
+FROM t1 AS x3;
+
+SELECT
+(
+  (36, (SELECT 1 IN (SELECT 1 FROM t1 AS x1)))
+  IN
+  (
+    SELECT 36, 1 FROM t2
+    WHERE a IN (SELECT 4 FROM t1 AS x2)
+  )
+) AS result
+FROM t1 AS x3;
+
+DROP TABLE t1,t2;
+
+--echo # Bug#21574933 Extra rows with derived table in subquery + XOR
+
+CREATE TABLE t1 (
+  pk INT NOT NULL,
+  col_date DATE,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1 VALUES (1,'2008-06-18'), (4,NULL);
+
+CREATE TABLE t2 (
+  col_date DATE,
+  pk INT NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t2 VALUES ('2002-02-02',1);
+
+CREATE TABLE t3 (
+  pk INT NOT NULL,
+  col_varchar VARCHAR(1),
+  col_int_key INT,
+  col_int INT,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+);
+
+INSERT INTO t3 VALUES (4,'l',2,2);
+
+let $query=
+SELECT pk,
+       col_int IN
+       (SELECT innr1.pk
+        FROM t1 AS innr2
+             LEFT JOIN (SELECT pk, col_date FROM t2) AS innr1
+             ON innr2.col_date <> innr1.col_date
+        WHERE outr.col_int_key < 6) AS x
+FROM t3 AS outr;
+
+eval explain $query;
+eval $query;
+
+let $query=
+SELECT pk,
+       col_int IN
+       (SELECT innr1.pk
+        FROM t1 AS innr2
+             LEFT JOIN (SELECT pk, date'2015-01-01' AS d FROM t2) AS innr1
+             ON innr2.col_date <> innr1.d
+        WHERE outr.col_int_key < 6) AS x
+FROM t3 AS outr;
+eval $query;
+
+DROP TABLE t1, t2, t3;

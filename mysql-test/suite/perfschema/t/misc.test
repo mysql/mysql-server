@@ -3,6 +3,7 @@
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
+--source include/no_protocol.inc
 
 #
 # Bug#12790483 OBJECTS_SUMMARY_GLOBAL_BY_TYPE AND RENAME TABLE
@@ -199,9 +200,26 @@ truncate performance_schema.events_statements_history_long;
 select * from t1;
 
 --echo 
-select sql_text, mysql_errno, returned_sqlstate, message_text, errors, warnings
+select mysql_errno, returned_sqlstate, message_text, errors, warnings
   from performance_schema.events_statements_history where errors > 0;
   
 --echo
-select sql_text, mysql_errno, returned_sqlstate, message_text, errors, warnings from 
+select mysql_errno, returned_sqlstate, message_text, errors, warnings from 
   performance_schema.events_statements_history_long where errors > 0;
+
+#
+# Bug#20519832 - TRUNCATED SQL_TEXT values are not suffixed with '...'
+#
+# Verify that truncated SQL statements are suffixed with '...'
+
+use performance_schema;
+truncate performance_schema.events_statements_history;
+
+# Should truncate at 1024 bytes (1024 characters)
+select 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' AS A;
+
+# Should truncate at 1024 bytes (487 characters)
+
+select _utf8mb4 'Ð²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑ' as B;
+
+select count(*) from events_statements_history where sql_text like "%...";

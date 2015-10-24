@@ -4387,6 +4387,9 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
      serialisation of these objects other than in parseable text format).
      We need to save the text of the partition functions since it is not
      possible to retrace this given an item tree.
+
+     Note: Upon any change to this function we might want to make
+     similar change to get_partition_tablespace_names() too.
 */
 
 bool mysql_unpack_partition(THD *thd,
@@ -4536,6 +4539,95 @@ end:
   end_lex_with_single_table(thd, table, old_lex);
   thd->variables.character_set_client= old_character_set_client;
   DBUG_RETURN(result);
+}
+
+/**
+  Fill Tablespace_hash_set with tablespace names used in given
+  partition expression. The partition expression is parsed to get
+  the tablespace names.
+
+  Note that, upon any change to this function we might want to make
+  similar change to mysql_unpack_partition() too.
+
+  @param thd                 - Thread invoking the function
+  @param partition_info_str  - The partition expression.
+  @param partition_info_len  - The partition expression length.
+  @param tablespace_set (OUT)- Hash set to be filled with tablespace name.
+
+  @retval true  - On failure.
+  @retval false - On success.
+*/
+bool get_partition_tablespace_names(
+       THD *thd,
+       const char *partition_info_str,
+       uint partition_info_len,
+       Tablespace_hash_set *tablespace_set)
+{
+  // Backup query arena
+  Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
+  Query_arena backup_arena;
+  Query_arena part_func_arena(thd->mem_root,
+                              Query_arena::STMT_INITIALIZED);
+  thd->set_n_backup_active_arena(&part_func_arena, &backup_arena);
+  thd->stmt_arena= &part_func_arena;
+
+  //
+  // Parsing the partition expression.
+  //
+
+  // Save old state and prepare new LEX
+  const CHARSET_INFO *old_character_set_client=
+    thd->variables.character_set_client;
+  thd->variables.character_set_client= system_charset_info;
+  LEX *old_lex= thd->lex;
+  LEX lex;
+  st_select_lex_unit unit(CTX_NONE);
+  st_select_lex select(NULL, NULL, NULL, NULL, NULL, NULL);
+  lex.new_static_query(&unit, &select);
+  thd->lex= &lex;
+
+  sql_digest_state *parent_digest= thd->m_digest;
+  PSI_statement_locker *parent_locker= thd->m_statement_psi;
+
+  Parser_state parser_state;
+  bool error= true;
+  if ((error= parser_state.init(thd,
+                                partition_info_str,
+                                partition_info_len)))
+    goto end;
+
+  // Create new partition_info object.
+  lex.part_info= new partition_info();
+  if (!lex.part_info)
+  {
+    mem_alloc_error(sizeof(partition_info));
+    goto end;
+  }
+
+  // Parse the string and filling the partition_info.
+  thd->m_digest= NULL;
+  thd->m_statement_psi= NULL;
+  error= parse_sql(thd, &parser_state, NULL);
+  thd->m_digest= parent_digest;
+  thd->m_statement_psi= parent_locker;
+
+  // Fill in partitions from part_info.
+  error= error || fill_partition_tablespace_names(lex.part_info,
+                                                  tablespace_set);
+end:
+  // Free items from current arena.
+  thd->free_items();
+
+  // Retore the old lex.
+  lex_end(thd->lex);
+  thd->lex= old_lex;
+
+  // Restore old arena.
+  thd->stmt_arena= backup_stmt_arena_ptr;
+  thd->restore_active_arena(&part_func_arena, &backup_arena);
+  thd->variables.character_set_client= old_character_set_client;
+
+  return (error);
 }
 
 
@@ -4876,18 +4968,17 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
     my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
     DBUG_RETURN(TRUE);
   }
-  /* Remove partitioning on a not partitioned table is not possible */
-  if (!table->part_info && (alter_info->flags &
-                            Alter_info::ALTER_REMOVE_PARTITIONING))
+  /* Remove/upgrade partitioning on a non-partitioned table is not possible */
+  if (!table->part_info &&
+      (alter_info->flags & (Alter_info::ALTER_REMOVE_PARTITIONING |
+                            Alter_info::ALTER_UPGRADE_PARTITIONING)))
   {
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
     DBUG_RETURN(TRUE);
   }
 
-  thd->work_part_info= thd->lex->part_info;
-
   if (thd->work_part_info &&
-      !(thd->work_part_info= thd->lex->part_info->get_clone()))
+      !(thd->work_part_info= thd->lex->part_info->get_clone(true)))
     DBUG_RETURN(TRUE);
 
   /* ALTER_ADMIN_PARTITION is handled in mysql_admin_table */
@@ -5767,6 +5858,15 @@ the generated partition syntax in a correct manner.
        the specified engine.
        In this case the partition also is changed.
 
+     Case IIc:
+       There was a partitioning before and there is no new one defined.
+       The user has specified explicitly to upgrade partitioning
+
+       We use the old partitioning also for the new table. We do this
+       by assigning the partition_info from the table loaded in
+       open_table to the partition_info struct used by mysql_create_table
+       later in this method.
+
      Case III:
        There was no partitioning before altering the table, there is
        partitioning defined in the altered table. Use the new partitioning.
@@ -5838,6 +5938,15 @@ the generated partition syntax in a correct manner.
           }
           *partition_changed= TRUE;
         }
+        else if (alter_info->flags == Alter_info::ALTER_UPGRADE_PARTITIONING)
+        {
+          DBUG_PRINT("info", ("Upgrade partitioning"));
+          DBUG_ASSERT(create_info->used_fields == 0);
+          /* Fast alter allowed as meta-data only change. */
+          *new_part_info= thd->work_part_info;
+          /* Force table re-open for consistency with the main case. */
+          table->m_needs_reopen= true;
+        }
       }
     }
     if (thd->work_part_info)
@@ -5860,11 +5969,19 @@ the generated partition syntax in a correct manner.
           rebuild). This is to handle KEY (numeric_cols) partitioned tables
           created in 5.1. For more info, see bug#14521864.
         */
-        if (alter_info->flags != Alter_info::ALTER_PARTITION ||
-            !table->part_info ||
-            alter_info->requested_algorithm !=
-              Alter_info::ALTER_TABLE_ALGORITHM_INPLACE ||
-            !table->part_info->has_same_partitioning(part_info))
+        if (alter_info->flags == Alter_info::ALTER_PARTITION &&
+            table->part_info &&
+            alter_info->requested_algorithm ==
+              Alter_info::ALTER_TABLE_ALGORITHM_INPLACE &&
+            table->part_info->has_same_partitioning(part_info))
+        {
+          DBUG_PRINT("info", ("Changed KEY partitioning algorithm"));
+          /* Fast alter allowed as meta-data only change. */
+          *new_part_info= part_info;
+          /* Force table re-open for consistency with the main case. */
+          table->m_needs_reopen= true;
+        }
+        else
         {
           DBUG_PRINT("info", ("partition changed"));
           *partition_changed= true;
@@ -6834,7 +6951,45 @@ bool fast_alter_partition_table(THD *thd,
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
     DBUG_RETURN(true);
   }
-  if (alter_info->flags & Alter_info::ALTER_DROP_PARTITION)
+
+  if (alter_info->flags & (Alter_info::ALTER_PARTITION |
+                           Alter_info::ALTER_UPGRADE_PARTITIONING))
+  {
+    DBUG_ASSERT(alter_info->flags == Alter_info::ALTER_PARTITION ||
+                alter_info->flags == Alter_info::ALTER_UPGRADE_PARTITIONING);
+    DBUG_ASSERT(create_info->used_fields == 0);
+
+    /*
+      Only metadata changes, i.e frm-only!
+
+      1. Add an ddl_log entry that there may be a shadow .frm file to remove
+      2. Create the new .frm file and associated files
+      3. Get exclusive access to the table.
+      4. Write the command to the bin log.
+      5. Put the new .frm file in place.
+    */
+    if (write_log_drop_shadow_frm(lpt) ||
+        ERROR_INJECT_CRASH("crash_upgrade_partition_1") ||
+        ERROR_INJECT_ERROR("fail_upgrade_partition_1") ||
+        mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
+        ERROR_INJECT_CRASH("crash_upgrade_partition_2") ||
+        ERROR_INJECT_ERROR("fail_upgrade_partition_2") ||
+        wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN) ||
+        ERROR_INJECT_CRASH("crash_upgrade_partition_3") ||
+        ERROR_INJECT_ERROR("fail_upgrade_partition_3") ||
+        ((!thd->lex->no_write_to_binlog) &&
+         (write_bin_log(thd, FALSE,
+                        thd->query().str, thd->query().length), FALSE)) ||
+        ERROR_INJECT_CRASH("crash_upgrade_partition_4") ||
+        ERROR_INJECT_ERROR("fail_upgrade_partition_4") ||
+        write_log_rename_frm(lpt) ||
+        ERROR_INJECT_CRASH("crash_upgrade_partition_5") ||
+        ERROR_INJECT_ERROR("fail_upgrade_partition_5"))
+    {
+      error= true;
+    }
+  }
+  else if (alter_info->flags & Alter_info::ALTER_DROP_PARTITION)
   {
     /*
       Now after all checks and setting state on dropped partitions we can

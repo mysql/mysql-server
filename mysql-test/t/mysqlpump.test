@@ -117,4 +117,12 @@ DROP DATABASE db3;
 DROP DATABASE db1_1gb;
 --remove_file $MYSQLTEST_VARDIR/tmp/full_bkp.sql
 
+#
+# Bug #21534277: MYSQLPUMP HAS NO --VERSION OPTION
+#
+
+--exec $MYSQL_PUMP --version 2>&1 > $MYSQLTEST_VARDIR/tmp/output_file.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/output_file.txt
+
+
 # END OF TEST

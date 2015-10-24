@@ -50,7 +50,7 @@ PFS_engine_table_share
 table_global_variables::m_share=
 {
   { C_STRING_WITH_LEN("global_variables") },
-  &pfs_readonly_acl,
+  &pfs_readonly_world_acl,
   table_global_variables::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */

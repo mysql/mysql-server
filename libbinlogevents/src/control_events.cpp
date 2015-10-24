@@ -819,7 +819,7 @@ Transaction_context_event::~Transaction_context_event()
 
 View_change_event::View_change_event(char* raw_view_id)
 : Binary_log_event(VIEW_CHANGE_EVENT),
-  view_id(), seq_number(0), certification_info(), written_to_binlog(false)
+  view_id(), seq_number(0), certification_info()
 {
   memcpy(view_id, raw_view_id, strlen(raw_view_id));
 }
@@ -829,7 +829,7 @@ View_change_event(const char *buffer, unsigned int event_len,
                   const Format_description_event *description_event)
 : Binary_log_event(&buffer, description_event->binlog_version,
                    description_event->server_version),
-  view_id(), seq_number(0), certification_info(), written_to_binlog(false)
+  view_id(), seq_number(0), certification_info()
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header
@@ -842,8 +842,6 @@ View_change_event(const char *buffer, unsigned int event_len,
   memcpy(&cert_info_len, data_header + ENCODED_CERT_INFO_SIZE_OFFSET,
          sizeof(cert_info_len));
   cert_info_len= le32toh(cert_info_len);
-
-  written_to_binlog= (int8_t) data_header[ENCODED_WRITTEN_FLAG_OFFSET];
 
   char *pos = (char*) data_header + VIEW_CHANGE_HEADER_LEN;
 
@@ -865,13 +863,15 @@ View_change_event(const char *buffer, unsigned int event_len,
   @return pointer to the snapshot version.
 */
 char* View_change_event::read_data_map(char *pos,
-                                       unsigned int map_len,
+                                       uint32_t map_len,
                                        std::map<std::string, std::string> *map)
 {
   BAPI_ASSERT(map->empty());
   uint16_t created= 0;
-  for (unsigned int i= 0; i < map_len; i++)
+  uint32_t created_value= 0;
+  for (uint32_t i= 0; i < map_len; i++)
   {
+    created=0;
     memcpy(&created, pos, sizeof(created));
     uint16_t key_len= (uint16_t) le16toh(created);
     pos+= ENCODED_CERT_INFO_KEY_SIZE_LEN;
@@ -879,9 +879,9 @@ char* View_change_event::read_data_map(char *pos,
     std::string key(pos, key_len);
     pos+= key_len;
 
-    created=0;
-    memcpy(&created, pos, sizeof(created));
-    uint16_t value_len= (uint16_t) le16toh(created);
+    created_value=0;
+    memcpy(&created_value, pos, sizeof(created_value));
+    uint32_t value_len= le32toh(created_value);
     pos+= ENCODED_CERT_INFO_VALUE_LEN;
 
     std::string value(pos, value_len);

@@ -1309,11 +1309,17 @@ srv_init_abort_low(
 	if (create_new_db) {
 		ib::error() << "InnoDB Database creation was aborted"
 #ifdef UNIV_DEBUG
-			" at " << file << "[" << line << "]"
+			" at " << innobase_basename(file) << "[" << line << "]"
 #endif /* UNIV_DEBUG */
 			" with error " << ut_strerr(err) << ". You may need"
 			" to delete the ibdata1 file before trying to start"
 			" up again.";
+	} else {
+		ib::error() << "Plugin initialization aborted"
+#ifdef UNIV_DEBUG
+			" at " << innobase_basename(file) << "[" << line << "]"
+#endif /* UNIV_DEBUG */
+			" with error " << ut_strerr(err);
 	}
 
 	srv_shutdown_all_bg_threads();
@@ -1345,10 +1351,19 @@ srv_prepare_to_delete_redo_log_files(
 
 		flushed_lsn = log_sys->lsn;
 
-		ib::warn() << "Resizing redo log from " << n_files << "*"
-			<< srv_log_file_size << " to " << srv_n_log_files
-			<< "*" << srv_log_file_size_requested << " pages"
-			", LSN=" << flushed_lsn;
+		{
+			ib::warn	warning;
+			if (srv_log_file_size == 0) {
+				warning << "Upgrading redo log: ";
+			} else {
+				warning << "Resizing redo log from "
+					<< n_files << "*"
+					<< srv_log_file_size << " to ";
+			}
+			warning << srv_n_log_files << "*"
+				<< srv_log_file_size_requested
+				<< " pages, LSN=" << flushed_lsn;
+		}
 
 		/* Flush the old log files. */
 		log_mutex_exit();
@@ -1407,9 +1422,8 @@ innobase_start_or_create_for_mysql(void)
 	/* Reset the start state. */
 	srv_start_state = SRV_START_STATE_NONE;
 
-	if (srv_force_recovery > SRV_FORCE_NO_TRX_UNDO) {
-		srv_read_only_mode = true;
-	}
+	high_level_read_only = srv_read_only_mode
+		|| srv_force_recovery > SRV_FORCE_NO_TRX_UNDO;
 
 	if (srv_read_only_mode) {
 		ib::info() << "Started in read only mode";
@@ -2086,9 +2100,13 @@ files_checked:
 
 		mtr_start(&mtr);
 
-		fsp_header_init(0, sum_of_new_sizes, &mtr);
+		bool ret = fsp_header_init(0, sum_of_new_sizes, &mtr);
 
 		mtr_commit(&mtr);
+
+		if (!ret) {
+			return(srv_init_abort(DB_ERROR));
+		}
 
 		/* To maintain backward compatibility we create only
 		the first rollback segment before the double write buffer.
@@ -2393,6 +2411,12 @@ files_checked:
 		/* Can only happen if server is read only. */
 		ut_a(srv_read_only_mode);
 		srv_undo_logs = ULONG_UNDEFINED;
+	} else if (srv_available_undo_logs < srv_undo_logs
+		   && !srv_force_recovery && !recv_needed_recovery) {
+		ib::error() << "System or UNDO tablespace is running of out"
+			    << " of space";
+		/* Should due to out of file space. */
+		return(srv_init_abort(DB_ERROR));
 	}
 
 	srv_startup_is_before_trx_rollback_phase = false;

@@ -390,6 +390,8 @@ dict_build_tablespace(
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(tablespace);
 
+        DBUG_EXECUTE_IF("out_of_tablespace_disk",
+                         return(DB_OUT_OF_FILE_SPACE););
 	/* Get a new space id. */
 	dict_hdr_get_new_id(NULL, NULL, &space, NULL, false);
 	if (space == ULINT_UNDEFINED) {
@@ -556,16 +558,8 @@ dict_build_tablespace_for_table(
 			table->space = static_cast<uint32_t>(
 				srv_tmp_space.space_id());
 		} else {
-			/* Create in the system tablespace.
-			Disallow Barracuda (Dynamic & Compressed)
-			page creation as they need file-per-table.
-			Update table flags accordingly */
-			rec_format_t rec_format = table->flags == 0
-						? REC_FORMAT_REDUNDANT
-						: REC_FORMAT_COMPACT;
-			ulint flags = 0;
-			dict_tf_set(&flags, rec_format, 0, 0, 0);
-			table->flags = static_cast<unsigned int>(flags);
+			/* Create in the system tablespace. */
+			ut_ad(table->space == srv_sys_space.space_id());
 		}
 
 		DBUG_EXECUTE_IF("ib_ddl_crash_during_tablespace_alloc",
@@ -1144,6 +1138,13 @@ dict_drop_index_tree(
 		return(false);
 	}
 
+	/* If tablespace is scheduled for truncate, do not try to drop
+	the indexes in that tablespace. There is a truncate fixup action
+	which will take care of it. */
+	if (srv_is_tablespace_truncated(space)) {
+		return(false);
+	}
+
 	btr_free_if_exists(page_id_t(space, root_page_no), page_size,
 			   mach_read_from_8(ptr), mtr);
 
@@ -1371,15 +1372,17 @@ tab_create_graph_create(
 	return(node);
 }
 
-/*********************************************************************//**
-Creates an index create graph.
+/** Creates an index create graph.
+@param[in]	index	index to create, built as a memory data structure
+@param[in,out]	heap	heap where created
+@param[in]	add_v	new virtual columns added in the same clause with
+			add index
 @return own: index create node */
 ind_node_t*
 ind_create_graph_create(
-/*====================*/
-	dict_index_t*	index,	/*!< in: index to create, built as a memory data
-				structure */
-	mem_heap_t*	heap)	/*!< in: heap where created */
+	dict_index_t*		index,
+	mem_heap_t*		heap,
+	const dict_add_v_col_t*	add_v)
 {
 	ind_node_t*	node;
 
@@ -1389,6 +1392,8 @@ ind_create_graph_create(
 	node->common.type = QUE_NODE_CREATE_INDEX;
 
 	node->index = index;
+
+	node->add_v = add_v;
 
 	node->state = INDEX_BUILD_INDEX_DEF;
 	node->page_no = FIL_NULL;
@@ -1602,11 +1607,9 @@ dict_create_index_step(
 
 		index_id_t	index_id = node->index->id;
 
-		err = dict_index_add_to_cache(
-			node->table, node->index, FIL_NULL,
-			trx_is_strict(trx)
-			|| dict_table_get_format(node->table)
-			>= UNIV_FORMAT_B);
+		err = dict_index_add_to_cache_w_vcol(
+			node->table, node->index, node->add_v, FIL_NULL,
+			trx_is_strict(trx));
 
 		node->index = dict_index_get_if_in_cache_low(index_id);
 		ut_a(!node->index == (err != DB_SUCCESS));
@@ -1889,6 +1892,13 @@ dict_create_or_check_sys_virtual()
 		dict_sys->sys_virtual = dict_table_get_low("SYS_VIRTUAL");
 		mutex_exit(&dict_sys->mutex);
 		return(DB_SUCCESS);
+	}
+
+	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO
+	    || srv_read_only_mode) {
+		ib::error() << "Cannot create sys_virtual system tables;"
+			" running in read-only mode.";
+		return(DB_ERROR);
 	}
 
 	trx = trx_allocate_for_mysql();

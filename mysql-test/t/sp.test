@@ -9096,3 +9096,42 @@ PREPARE s FROM
 
 DROP TABLE t1, t2;
 SET sql_mode = DEFAULT;
+
+--echo #
+--echo # ASSERTION FAILED: FALSE IN CREATE_TMP_FIELD WITH UNKNOWN OUTER FIELD
+--echo #
+CREATE TABLE t1 ( a INT );
+
+SET @v = 1;
+
+PREPARE stmt FROM 'SELECT 1 FROM ( SELECT ? FROM t1 GROUP BY a ) al;';
+EXECUTE stmt USING @v;
+
+PREPARE stmt FROM 'CREATE TABLE t2 AS SELECT ? FROM t1';
+EXECUTE stmt USING @v;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #18599181: CALLING A ROUTINE WITHOUT SPECIFYING DATABASE PREFIX
+--echo #                MAY RETURN ERROR 1370
+--echo #
+
+CREATE DATABASE db1;
+CREATE FUNCTION f1() RETURNS INT RETURN 1;
+CREATE FUNCTION db1.f2() RETURNS INT RETURN test.f1();
+CREATE USER myuser@'localhost';
+GRANT ALL ON db1.* TO myuser@'localhost';
+--disconnect default
+--source include/wait_until_disconnected.inc
+--connect(con1,localhost,myuser,,db1)
+SELECT f2();
+SELECT f2();
+--disconnect con1
+--source include/wait_until_disconnected.inc
+--connect(default,localhost,root)
+DROP DATABASE db1;
+DROP USER myuser@localhost;
+DROP FUNCTION f1;
+
+--echo #

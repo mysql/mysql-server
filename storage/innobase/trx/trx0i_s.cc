@@ -590,8 +590,6 @@ thd_done:
 
 	row->trx_has_search_latch = (ibool) trx->has_search_latch;
 
-	row->trx_search_latch_timeout = trx->search_latch_timeout;
-
 	row->trx_is_read_only = trx->read_only;
 
 	row->trx_is_autocommit_non_locking = trx_is_autocommit_non_locking(trx);

@@ -33,6 +33,7 @@
 class Json_dom;
 class Json_path;
 class Json_path_leg;
+class Json_seekable_path;
 class Json_wrapper;
 
 typedef Prealloced_array<Json_wrapper, 16, false> Json_wrapper_vector;
@@ -243,11 +244,17 @@ public:
     @param[out] errmsg any syntax error message (will be ignored if it is NULL)
     @param[out] offset the position in the parsed string a syntax error was
                        found (will be ignored if it is NULL)
+    @param[in]  preserve_neg_zero_int whether integer negative zero should
+                                      be preserved. If set to TRUE, -0 is
+                                      handled as a DOUBLE. Double negative
+                                      zero (-0.0) is preserved regardless of
+                                      what this parameter is set to.
 
     @result the built DOM if JSON text was parseable, else NULL
   */
   static Json_dom *parse(const char *text, size_t length,
-                         const char **errmsg, size_t *offset);
+                         const char **errmsg, size_t *offset,
+                         bool preserve_neg_zero_int= false);
 
   /**
     Maps the enumeration value of type enum_json_type into a string.
@@ -310,7 +317,8 @@ public:
     @param[in]  only_need_one True if we can stop after finding one match
     @return false on success, true on error
   */
-  bool seek(const Json_path &path, Json_dom_vector *hits, bool auto_wrap,
+  bool seek(const Json_seekable_path &path,
+            Json_dom_vector *hits, bool auto_wrap,
             bool only_need_one);
 
 private:
@@ -1402,7 +1410,8 @@ public:
     @retval false on success
     @retval true on error
   */
-  bool seek(const Json_path &path, Json_wrapper_vector *hits, bool auto_wrap,
+  bool seek(const Json_seekable_path &path,
+            Json_wrapper_vector *hits, bool auto_wrap,
             bool only_need_one);
 
   /**
@@ -1419,7 +1428,7 @@ public:
 
     @returns false if there was no error, otherwise true on error
   */
-  bool seek_no_ellipsis(const Json_path &path,
+  bool seek_no_ellipsis(const Json_seekable_path &path,
                         Json_wrapper_vector *hits,
                         const size_t leg_number,
                         bool auto_wrap,

@@ -559,6 +559,7 @@ TYPELIB command_typelib= {array_elements(command_names),"",
 			  command_names, 0};
 
 DYNAMIC_STRING ds_res;
+DYNAMIC_STRING ds_result;
 /* Points to ds_warning in run_query, so it can be freed */
 DYNAMIC_STRING *ds_warn= 0;
 struct st_command *curr_command= 0;
@@ -1312,7 +1313,7 @@ void handle_command_error(struct st_command *command, uint error)
     if (command->abort_on_error)
       die("command \"%.*s\" failed with error %d. my_errno=%d",
           static_cast<int>(command->first_word_len),
-          command->query, error, my_errno);
+          command->query, error, my_errno());
 
     i= match_expected_error(command, error, NULL);
 
@@ -1326,7 +1327,7 @@ void handle_command_error(struct st_command *command, uint error)
     if (command->expected_errors.count > 0)
       die("command \"%.*s\" failed with wrong error: %d. my_errno=%d",
           static_cast<int>(command->first_word_len),
-          command->query, error, my_errno);
+          command->query, error, my_errno());
   }
   else if (command->expected_errors.err[0].type == ERR_ERRNO &&
            command->expected_errors.err[0].code.errnum != 0)
@@ -1430,6 +1431,7 @@ void free_used_memory()
     my_free(embedded_server_args[--embedded_server_arg_count]);
   delete q_lines;
   dynstr_free(&ds_res);
+  dynstr_free(&ds_result);
   if (ds_warn)
     dynstr_free(ds_warn);
   free_all_replace();
@@ -5097,7 +5099,7 @@ void do_shutdown_server(struct st_command *command)
     }
 
     /* Tell server to shutdown if timeout > 0. */
-    if (timeout > 0 && mysql_shutdown(mysql, SHUTDOWN_DEFAULT))
+    if (timeout > 0 && mysql_query(mysql, "shutdown"))
     {
       error= 1;   /* Failed to issue shutdown command. */
       goto end;
@@ -8077,8 +8079,8 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
 {
   MYSQL_RES *res= NULL;     /* Note that here 'res' is meta data result set */
   MYSQL_STMT *stmt;
-  DYNAMIC_STRING ds_prepare_warnings;
-  DYNAMIC_STRING ds_execute_warnings;
+  DYNAMIC_STRING ds_prepare_warnings= DYNAMIC_STRING();
+  DYNAMIC_STRING ds_execute_warnings= DYNAMIC_STRING();
   DBUG_ENTER("run_query_stmt");
   DBUG_PRINT("query", ("'%-.60s'", query));
 
@@ -8331,7 +8333,6 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   MYSQL *mysql= &cn->mysql;
   DYNAMIC_STRING *ds;
   DYNAMIC_STRING *save_ds= NULL;
-  DYNAMIC_STRING ds_result;
   DYNAMIC_STRING ds_sorted;
   DYNAMIC_STRING ds_warnings;
   DYNAMIC_STRING eval_query;
@@ -8341,6 +8342,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   my_bool complete_query= ((flags & QUERY_SEND_FLAG) &&
                            (flags & QUERY_REAP_FLAG));
   DBUG_ENTER("run_query");
+  dynstr_set(&ds_result, "");
 
   if (cn->pending && (flags & QUERY_SEND_FLAG))
     die ("Cannot run query on connection between send and reap");
@@ -8375,7 +8377,6 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   */
   if (command->require_file[0] || command->output_file[0])
   {
-    init_dynamic_string(&ds_result, "", 1024, 1024);
     ds= &ds_result;
   }
   else
@@ -8549,8 +8550,6 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
     command->output_file[0]= 0;
   }
 
-  if (ds == &ds_result)
-    dynstr_free(&ds_result);
   DBUG_VOID_RETURN;
 }
 
@@ -9036,6 +9035,7 @@ int main(int argc, char **argv)
 #endif
 
   init_dynamic_string(&ds_res, "", 2048, 2048);
+  init_dynamic_string(&ds_result, "", 1024, 1024);
 
   parse_args(argc, argv);
 
@@ -9489,8 +9489,8 @@ int main(int argc, char **argv)
         break;
       case Q_SEND_SHUTDOWN:
         handle_command_error(command,
-                             mysql_shutdown(&cur_con->mysql,
-                                            SHUTDOWN_DEFAULT));
+                             mysql_query(&cur_con->mysql,
+                                            "shutdown"));
         break;
       case Q_SHUTDOWN_SERVER:
         do_shutdown_server(command);

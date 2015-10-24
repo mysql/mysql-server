@@ -1,0 +1,15 @@
+ALTER TABLE t1
+RENAME TO t1_new_name;
+ALTER TABLE t2
+RENAME TO t2;
+ALTER TABLE t3
+RENAME TO ndb_ddl_test2.t3;
+ALTER TABLE t4
+RENAME TO ndb_ddl_test2.t4_new_name;
+ALTER TABLE t5
+RENAME TO t5_new_name;
+ALTER TABLE t6
+RENAME TO t6_new_name;
+ALTER TABLE t7
+RENAME TO t7_new_name;
+== verify_mysql_dd.inc ==

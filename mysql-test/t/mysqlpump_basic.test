@@ -69,9 +69,15 @@ CREATE TABLE t10 (
   CONSTRAINT t10_ibfk_1 FOREIGN KEY (c_id) REFERENCES t8 (c_id) ON UPDATE CASCADE
 );
 
+CREATE TABLE t11 (
+   num int PRIMARY KEY,
+   FOREIGN KEY (num) REFERENCES t9 (v_id)
+);
+
 ALTER TABLE t10 ADD COLUMN v_id INT NOT NULL AFTER c_id;
 ALTER TABLE t10 ADD FOREIGN KEY fk_t9(v_id) REFERENCES
       t9(v_id) ON DELETE NO ACTION ON UPDATE CASCADE;
+
 
 INSERT INTO t4  (name) VALUES ('disk_temptable_create_cost');
 INSERT INTO t4  (name) VALUES ('disk_temptable_row_cost');
@@ -249,7 +255,7 @@ CREATE TABLE t0 (c1 INT);
 CREATE TABLE t2 (c1 INT);
 INSERT INTO t0 VALUES (1), (2), (3);
 INSERT INTO t2 VALUES (1), (2), (3);
---exec $MYSQL_PUMP --single-transaction --databases db1_basic > $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+--exec $MYSQL_PUMP --single-transaction --databases db1_basic --default-parallelism=0 > $MYSQLTEST_VARDIR/tmp/db1_basic.sql
 DROP DATABASE db1_basic;
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/db1_basic.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/db1_basic.sql
@@ -330,3 +336,23 @@ DROP DATABASE db2_basic;
 DROP DATABASE db3_basic;
 DROP DATABASE db4_basic;
 
+#echo
+#echo Bug #21628662 MYSQLPUMP SHOULD EXIT FOR ALL INCOMPATIBLE
+#echo                OPTION COMBINATIONS
+#echo
+
+# default parallelism > 1
+--error 1
+--exec $MYSQL_PUMP --add-locks
+--error 1
+--exec $MYSQL_PUMP --single-transaction
+--error 1
+--exec $MYSQL_PUMP --add-locks --parallel-schemas=1:db1
+--error 1
+--exec $MYSQL_PUMP --single-transaction --parallel-schemas=1:db1
+
+# parallel schema threads > 1
+--error 1
+--exec $MYSQL_PUMP --add-locks --parallel-schemas=5:db1 --default-parallelism=0
+--error 1
+--exec $MYSQL_PUMP --single-transaction --parallel-schemas=13:db1 --default-parallelism=0

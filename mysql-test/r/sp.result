@@ -7858,3 +7858,33 @@ PREPARE s FROM
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 DROP TABLE t1, t2;
 SET sql_mode = DEFAULT;
+#
+# ASSERTION FAILED: FALSE IN CREATE_TMP_FIELD WITH UNKNOWN OUTER FIELD
+#
+CREATE TABLE t1 ( a INT );
+SET @v = 1;
+PREPARE stmt FROM 'SELECT 1 FROM ( SELECT ? FROM t1 GROUP BY a ) al;';
+EXECUTE stmt USING @v;
+1
+PREPARE stmt FROM 'CREATE TABLE t2 AS SELECT ? FROM t1';
+EXECUTE stmt USING @v;
+DROP TABLE t1, t2;
+#
+# Bug #18599181: CALLING A ROUTINE WITHOUT SPECIFYING DATABASE PREFIX
+#                MAY RETURN ERROR 1370
+#
+CREATE DATABASE db1;
+CREATE FUNCTION f1() RETURNS INT RETURN 1;
+CREATE FUNCTION db1.f2() RETURNS INT RETURN test.f1();
+CREATE USER myuser@'localhost';
+GRANT ALL ON db1.* TO myuser@'localhost';
+SELECT f2();
+f2()
+1
+SELECT f2();
+f2()
+1
+DROP DATABASE db1;
+DROP USER myuser@localhost;
+DROP FUNCTION f1;
+#

@@ -56,15 +56,14 @@ btr_search_info_update(
 	dict_index_t*	index,	/*!< in: index of the cursor */
 	btr_cur_t*	cursor)	/*!< in: cursor which was just positioned */
 {
-	btr_search_t*	info;
-
 	ut_ad(!rw_lock_own(btr_get_search_latch(index), RW_LOCK_S));
 	ut_ad(!rw_lock_own(btr_get_search_latch(index), RW_LOCK_X));
 
-	if (dict_index_is_spatial(index)) {
+	if (dict_index_is_spatial(index) || !btr_search_enabled) {
 		return;
 	}
 
+	btr_search_t*	info;
 	info = btr_search_get_info(index);
 
 	info->hash_analysis++;
@@ -80,6 +79,24 @@ btr_search_info_update(
 	ut_ad(cursor->flag != BTR_CUR_HASH);
 
 	btr_search_info_update_slow(info, cursor);
+}
+
+/** X-Lock the search latch (corresponding to given index)
+@param[in]	index	index handler */
+UNIV_INLINE
+void
+btr_search_x_lock(const dict_index_t* index)
+{
+	rw_lock_x_lock(btr_get_search_latch(index));
+}
+
+/** X-Unlock the search latch (corresponding to given index)
+@param[in]	index	index handler */
+UNIV_INLINE
+void
+btr_search_x_unlock(const dict_index_t* index)
+{
+	rw_lock_x_unlock(btr_get_search_latch(index));
 }
 
 /** Lock all search latches in exclusive mode. */
@@ -100,6 +117,24 @@ btr_search_x_unlock_all()
 	for (ulint i = 0; i < btr_ahi_parts; ++i) {
 		rw_lock_x_unlock(btr_search_latches[i]);
 	}
+}
+
+/** S-Lock the search latch (corresponding to given index)
+@param[in]	index	index handler */
+UNIV_INLINE
+void
+btr_search_s_lock(const dict_index_t* index)
+{
+	rw_lock_s_lock(btr_get_search_latch(index));
+}
+
+/** S-Unlock the search latch (corresponding to given index)
+@param[in]	index	index handler */
+UNIV_INLINE
+void
+btr_search_s_unlock(const dict_index_t* index)
+{
+	rw_lock_s_unlock(btr_get_search_latch(index));
 }
 
 /** Lock all search latches in shared mode. */

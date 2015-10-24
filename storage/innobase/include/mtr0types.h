@@ -191,7 +191,7 @@ enum mlog_id_t {
 	MLOG_COMP_PAGE_REORGANIZE = 46,
 
 	/** log record about creating an .ibd file, with format */
-	//MLOG_FILE_CREATE2 = 47,
+	MLOG_FILE_CREATE2 = 47,
 
 	/** write the node pointer of a record on a compressed
 	non-leaf B-tree page */
@@ -235,8 +235,12 @@ enum mlog_id_t {
 	/** Table is being truncated. (Marked only for file-per-table) */
 	MLOG_TRUNCATE = 60,
 
+	/** notify that an index tree is being loaded without writing
+	redo log about individual pages */
+	MLOG_INDEX_LOAD = 61,
+
 	/** biggest value (used in assertions) */
-	MLOG_BIGGEST_TYPE = MLOG_TRUNCATE
+	MLOG_BIGGEST_TYPE = MLOG_INDEX_LOAD
 };
 
 /* @} */

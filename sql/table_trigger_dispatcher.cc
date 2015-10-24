@@ -913,12 +913,14 @@ void Table_trigger_dispatcher::print_upgrade_warnings(THD *thd)
   retrieved/stored during execution of statement.
 
   @param event  Type of event triggers for which we are going to inspect
+
+  @returns false if success, true if error
 */
 
-void Table_trigger_dispatcher::mark_fields(enum_trigger_event_type event)
+bool Table_trigger_dispatcher::mark_fields(enum_trigger_event_type event)
 {
   if (check_for_broken_triggers())
-    return;
+    return true;
 
   DBUG_ASSERT(m_subject_table);
 
@@ -933,4 +935,5 @@ void Table_trigger_dispatcher::mark_fields(enum_trigger_event_type event)
   }
 
   m_subject_table->file->column_bitmaps_signal();
+  return false;
 }

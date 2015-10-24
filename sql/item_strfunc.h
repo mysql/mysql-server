@@ -450,10 +450,10 @@ public:
   const char *func_name() const
   {
     switch(m_trim_mode) {
-    case TRIM_BOTH_DEFAULT:
-    case TRIM_BOTH:
-    case TRIM_LEADING:
-    case TRIM_TRAILING:     return "trim";
+    case TRIM_BOTH_DEFAULT: return "trim";
+    case TRIM_BOTH:         return "trim";
+    case TRIM_LEADING:      return "ltrim";
+    case TRIM_TRAILING:     return "rtrim";
     case TRIM_LTRIM:        return "ltrim";
     case TRIM_RTRIM:        return "rtrim";
     }
@@ -645,6 +645,10 @@ class Item_func_user :public Item_func_sysconst
 
 protected:
   bool init (const char *user, const char *host);
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+  {
+    return save_str_value_in_field(field, &str_value);
+  }
 
 public:
   Item_func_user()
@@ -672,10 +676,6 @@ public:
   const char *func_name() const { return "user"; }
   const Name_string fully_qualified_func_name() const
   { return NAME_STRING("user()"); }
-  type_conversion_status save_in_field(Field *field, bool no_conversions)
-  {
-    return save_str_value_in_field(field, &str_value);
-  }
 };
 
 

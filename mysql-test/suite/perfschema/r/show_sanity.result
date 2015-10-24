@@ -27,7 +27,6 @@ select "5.6", "I_S.SESSION_VARIABLES", variable_name
 from information_schema.session_variables;
 Warnings:
 Warning	1287	'INFORMATION_SCHEMA.SESSION_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.session_variables instead
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 
 # STEP 1-3
 insert into test.sanity
@@ -39,15 +38,11 @@ insert into test.sanity
 select "5.6", "P_S.VARIABLES_BY_THREAD", variable_name
 from performance_schema.variables_by_thread
 where thread_id = @my_tid;
-Warnings:
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 
 # STEP 1-5
 insert into test.sanity
 select "5.6", "P_S.SESSION_VARIABLES", variable_name
 from performance_schema.session_variables;
-Warnings:
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 
 # STEP 1-6
 insert into test.sanity
@@ -64,10 +59,9 @@ Warnings:
 Warning	1287	'INFORMATION_SCHEMA.SESSION_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.session_status instead
 
 # STEP 1-8
-# EMPTY, NO WARNINGS (not available in 5.6 mode)
-select *
+insert into test.sanity
+select "5.6", "P_S.GLOBAL_STATUS", variable_name
 from performance_schema.global_status;
-VARIABLE_NAME	VARIABLE_VALUE
 
 # STEP 1-9
 # EMPTY, NO WARNINGS (not available in 5.6 mode)
@@ -76,10 +70,9 @@ from performance_schema.status_by_thread;
 THREAD_ID	VARIABLE_NAME	VARIABLE_VALUE
 
 # STEP 1-10
-# EMPTY, NO WARNINGS (not available in 5.6 mode)
-select *
+insert into test.sanity
+select "5.6", "P_S.SESSION_STATUS", variable_name
 from performance_schema.session_status;
-VARIABLE_NAME	VARIABLE_VALUE
 
 # STEP 1-11
 # EMPTY, NO WARNINGS (not available in 5.6 mode)
@@ -105,20 +98,16 @@ SHOW_COMPATIBILITY_56 = OFF
 set global show_compatibility_56 = off;
 
 # STEP 2-1
-# EMPTY WITH WARNINGS
+# FAILS WITH ERROR
 select *
 from information_schema.global_variables;
-VARIABLE_NAME	VARIABLE_VALUE
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.global_variables instead
+ERROR HY000: The 'INFORMATION_SCHEMA.GLOBAL_VARIABLES' feature is disabled; see the documentation for 'show_compatibility_56'
 
 # STEP 2-2
-# EMPTY WITH WARNINGS
+# FAILS WITH ERROR
 select *
 from information_schema.session_variables;
-VARIABLE_NAME	VARIABLE_VALUE
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.SESSION_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.session_variables instead
+ERROR HY000: The 'INFORMATION_SCHEMA.SESSION_VARIABLES' feature is disabled; see the documentation for 'show_compatibility_56'
 
 # STEP 2-3
 insert into test.sanity
@@ -130,31 +119,23 @@ insert into test.sanity
 select "5.7", "P_S.VARIABLES_BY_THREAD", variable_name
 from performance_schema.variables_by_thread
 where thread_id = @my_tid;
-Warnings:
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 
 # STEP 2-5
 insert into test.sanity
 select "5.7", "P_S.SESSION_VARIABLES", variable_name
 from performance_schema.session_variables;
-Warnings:
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 
 # STEP 2-6
-# EMPTY WITH WARNINGS
+# FAILS WITH ERROR
 select *
 from information_schema.global_status;
-VARIABLE_NAME	VARIABLE_VALUE
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
+ERROR HY000: The 'INFORMATION_SCHEMA.GLOBAL_STATUS' feature is disabled; see the documentation for 'show_compatibility_56'
 
 # STEP 2-7
-# EMPTY WITH WARNINGS
+# FAILS WITH ERROR
 select *
 from information_schema.session_status;
-VARIABLE_NAME	VARIABLE_VALUE
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.SESSION_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.session_status instead
+ERROR HY000: The 'INFORMATION_SCHEMA.SESSION_STATUS' feature is disabled; see the documentation for 'show_compatibility_56'
 
 # STEP 2-8
 insert into test.sanity
@@ -359,6 +340,7 @@ where show_mode = "5.6"
     and source = "P_S.SESSION_VARIABLES")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.6	I_S.SESSION_VARIABLES	GTID_EXECUTED
 
 ================================================================================
 TEST 4B
@@ -374,6 +356,7 @@ where show_mode = "5.7"
     and source = "P_S.SESSION_VARIABLES")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.6	I_S.SESSION_VARIABLES	GTID_EXECUTED
 
 ================================================================================
 TEST 5A
@@ -424,6 +407,7 @@ where show_mode = "JUNK: GLOBAL-ONLY"
     and source = "I_S.SESSION_VARIABLES")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.6	I_S.SESSION_VARIABLES	GTID_EXECUTED
 
 ================================================================================
 TEST 5D
@@ -444,6 +428,7 @@ where show_mode = "JUNK: GLOBAL-ONLY"
     and source = "I_S.SESSION_VARIABLES")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.6	I_S.SESSION_VARIABLES	GTID_EXECUTED
 
 ================================================================================
 TEST 5E
@@ -476,7 +461,7 @@ order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
 
 ================================================================================
-TEST 6
+TEST 6A
 Present in 5.7 P_S.GLOBAL_STATUS (2-8)
 Missing in 5.6 I_S.GLOBAL_STATUS (1-6)
 EXPECT NOTHING
@@ -488,6 +473,38 @@ where show_mode = "5.7"
 select upper(variable_name) from test.sanity
 where show_mode = "5.6"
     and source = "I_S.GLOBAL_STATUS")
+order by show_mode, source, variable_name;
+SHOW_MODE	SOURCE	VARIABLE_NAME
+
+================================================================================
+TEST 6B
+Present in 5.7 P_S.GLOBAL_STATUS (2-8)
+Missing in 5.6 P_S.GLOBAL_STATUS (1-8)
+EXPECT NOTHING
+================================================================================
+select * from test.sanity
+where show_mode = "5.7"
+  and source = "P_S.GLOBAL_STATUS"
+  and upper(variable_name) not in (
+select upper(variable_name) from test.sanity
+where show_mode = "5.6"
+    and source = "P_S.GLOBAL_STATUS")
+order by show_mode, source, variable_name;
+SHOW_MODE	SOURCE	VARIABLE_NAME
+
+================================================================================
+TEST 6C
+Present in 5.6 P_S.GLOBAL_STATUS (1-8)
+Missing in 5.7 P_S.GLOBAL_STATUS (2-8)
+EXPECT NOTHING
+================================================================================
+select * from test.sanity
+where show_mode = "5.6"
+  and source = "P_S.GLOBAL_STATUS"
+  and upper(variable_name) not in (
+select upper(variable_name) from test.sanity
+where show_mode = "5.7"
+    and source = "P_S.GLOBAL_STATUS")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
 
@@ -510,6 +527,7 @@ where show_mode = "5.7"
     and source = "P_S.GLOBAL_STATUS")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.6	I_S.GLOBAL_STATUS	COM_SHUTDOWN
 
 ================================================================================
 TEST 8
@@ -530,7 +548,7 @@ order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
 
 ================================================================================
-TEST 9
+TEST 9A
 Present in 5.7 P_S.SESSION_STATUS (2-10)
 Missing in 5.6 I_S.SESSION_STATUS (1-7)
 EXPECT NOTHING
@@ -542,6 +560,38 @@ where show_mode = "5.7"
 select upper(variable_name) from test.sanity
 where show_mode = "5.6"
     and source = "I_S.SESSION_STATUS")
+order by show_mode, source, variable_name;
+SHOW_MODE	SOURCE	VARIABLE_NAME
+
+================================================================================
+TEST 9B
+Present in 5.7 P_S.SESSION_STATUS (2-10)
+Missing in 5.6 P_S.SESSION_STATUS (1-10)
+EXPECT NOTHING
+================================================================================
+select * from test.sanity
+where show_mode = "5.7"
+  and source = "P_S.SESSION_STATUS"
+  and upper(variable_name) not in (
+select upper(variable_name) from test.sanity
+where show_mode = "5.6"
+    and source = "P_S.SESSION_STATUS")
+order by show_mode, source, variable_name;
+SHOW_MODE	SOURCE	VARIABLE_NAME
+
+================================================================================
+TEST 9C
+Present in 5.6 P_S.SESSION_STATUS (1-10)
+Missing in 5.7 P_S.SESSION_STATUS (2-10)
+EXPECT NOTHING
+================================================================================
+select * from test.sanity
+where show_mode = "5.6"
+  and source = "P_S.SESSION_STATUS"
+  and upper(variable_name) not in (
+select upper(variable_name) from test.sanity
+where show_mode = "5.7"
+    and source = "P_S.SESSION_STATUS")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
 
@@ -564,6 +614,7 @@ where show_mode = "5.7"
     and source = "P_S.SESSION_STATUS")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.6	I_S.SESSION_STATUS	COM_SHUTDOWN
 
 ================================================================================
 TEST 11

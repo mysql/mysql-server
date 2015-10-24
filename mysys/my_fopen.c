@@ -81,18 +81,18 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags)
       DBUG_RETURN(fd);
     }
     (void) my_fclose(fd,MyFlags);
-    my_errno=ENOMEM;
+    set_my_errno(ENOMEM);
   }
   else
-    my_errno=errno;
-  DBUG_PRINT("error",("Got error %d on open",my_errno));
+    set_my_errno(errno);
+  DBUG_PRINT("error",("Got error %d on open",my_errno()));
   if (MyFlags & (MY_FFNF | MY_FAE | MY_WME))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     my_error((flags & O_RDONLY) || (flags == O_RDONLY ) ? EE_FILENOTFOUND :
              EE_CANTCREATEFILE,
              MYF(0), filename,
-             my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+             my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
   }
   DBUG_RETURN((FILE*) 0);
 } /* my_fopen */
@@ -191,12 +191,12 @@ int my_fclose(FILE *fd, myf MyFlags)
 #endif
   if(err < 0)
   {
-    my_errno=errno;
+    set_my_errno(errno);
     if (MyFlags & (MY_FAE | MY_WME))
     {
       char errbuf[MYSYS_STRERROR_SIZE];
       my_error(EE_BADCLOSE, MYF(0), my_filename(file),
-               my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+               my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
     }
   }
   else
@@ -230,12 +230,12 @@ FILE *my_fdopen(File Filedes, const char *name, int Flags, myf MyFlags)
 #endif
   if (!fd)
   {
-    my_errno=errno;
+    set_my_errno(errno);
     if (MyFlags & (MY_FAE | MY_WME))
     {
       char errbuf[MYSYS_STRERROR_SIZE];
       my_error(EE_CANT_OPEN_STREAM, MYF(0),
-               my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+               my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
     }
   }
   else

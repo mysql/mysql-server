@@ -19,8 +19,8 @@
 #include "sql_error.h"
 #include "my_decimal.h"                         /* my_decimal */
 
+#include "violite.h"                            /* SSL && enum_vio_type */
 #ifdef HAVE_OPENSSL
-#include "violite.h"                            /* SSL */
 #define SSL_handle SSL*
 #else
 #define SSL_handle void*
@@ -33,101 +33,11 @@ class THD;
 #define MYSQL_THD void*
 #endif
 
+#include "mysql/com_data.h"
+
 class Send_field;
+class Proto_field;
 
-struct COM_INIT_DB_DATA
-{
-  uchar *db_name;
-  ulong length;
-};
-
-struct COM_REFRESH_DATA
-{
-  uchar options;
-};
-
-struct COM_SHUTDOWN_DATA
-{
-  enum mysql_enum_shutdown_level level;
-};
-
-struct COM_KILL_DATA
-{
-  ulong id;
-};
-
-struct COM_SET_OPTION_DATA
-{
-  uint opt_command;
-};
-
-struct COM_STMT_EXECUTE_DATA
-{
-  ulong stmt_id;
-  ulong flags;
-  uchar *params;
-  ulong params_length;
-};
-
-struct COM_STMT_FETCH_DATA
-{
-  ulong stmt_id;
-  ulong num_rows;
-};
-
-struct COM_STMT_SEND_LONG_DATA_DATA
-{
-  ulong stmt_id;
-  uint param_number;
-  uchar *longdata;
-  ulong length;
-};
-
-struct COM_STMT_PREPARE_DATA
-{
-  char *query;
-  uint length;
-};
-
-struct COM_STMT_CLOSE_DATA
-{
-  uint stmt_id;
-};
-
-struct COM_STMT_RESET_DATA
-{
-  uint stmt_id;
-};
-
-struct COM_QUERY_DATA
-{
-  char *query;
-  uint length;
-};
-
-struct COM_FIELD_LIST_DATA
-{
-  uchar *table_name;
-  uint table_name_length;
-  uchar *query;
-  uint query_length;
-};
-
-union COM_DATA {
-  COM_INIT_DB_DATA com_init_db;
-  COM_REFRESH_DATA com_refresh;
-  COM_SHUTDOWN_DATA com_shutdown;
-  COM_KILL_DATA com_kill;
-  COM_SET_OPTION_DATA com_set_option;
-  COM_STMT_EXECUTE_DATA com_stmt_execute;
-  COM_STMT_FETCH_DATA com_stmt_fetch;
-  COM_STMT_SEND_LONG_DATA_DATA com_stmt_send_long_data;
-  COM_STMT_PREPARE_DATA com_stmt_prepare;
-  COM_STMT_CLOSE_DATA com_stmt_close;
-  COM_STMT_RESET_DATA com_stmt_reset;
-  COM_QUERY_DATA com_query;
-  COM_FIELD_LIST_DATA com_field_list;
-};
 
 class Protocol {
 public:
@@ -169,7 +79,8 @@ public:
                                  // for the old (MySQL 4.0 protocol)
     PROTOCOL_BINARY= 1,          // binary protocol type
     PROTOCOL_LOCAL= 2,           // local protocol type(intercepts communication)
-    PROTOCOL_PLUGIN = 3          // pluggable protocol type (not implemented)
+    PROTOCOL_ERROR = 3,          // error protocol instance
+    PROTOCOL_PLUGIN = 4          // pluggable protocol type
   };
 
   /**
@@ -184,13 +95,15 @@ public:
 
   virtual enum enum_protocol_type type()= 0;
 
+  virtual enum enum_vio_type connection_type()= 0;
+
   /* Data sending functions */
   virtual bool store_null()= 0;
   virtual bool store_tiny(longlong from)= 0;
   virtual bool store_short(longlong from)= 0;
   virtual bool store_long(longlong from)= 0;
   virtual bool store_longlong(longlong from, bool unsigned_flag)= 0;
-  virtual bool store_decimal(const my_decimal *)= 0;
+  virtual bool store_decimal(const my_decimal *, uint, uint)= 0;
   virtual bool store(const char *from, size_t length,
                      const CHARSET_INFO *fromcs)= 0;
   virtual bool store(float from, uint32 decimals, String *buffer)= 0;
@@ -243,8 +156,39 @@ public:
   virtual bool has_client_capability(unsigned long client_capability)= 0;
 
   /**
-    Result set sending functions
+     Checks if the protocol's connection with the client is still alive.
+     It should always return true unless the protocol closed the connection.
+
+     @returns
+      true    if the connection is still alive
+      false   otherwise
+   */
+  virtual bool connection_alive()= 0;
+
+   /**
+     Result set sending functions
+
+     @details Server uses following schema to send result:
+                   ... sending metadata ...
+                              | start_result_metadata(...)
+                              | start_row()
+                              | send_field_metadata(...)
+                              | end_row()
+               ... same for each field sent ...
+                              | end_result_metadata(...)
+                              |
+                   ... sending result ...
+                              | start_row(...)
+                              | store_xxx(...)
+            ... store_xxx(..) is called for each field ...
+                              | end_row(...)
+         ... same for each row, until all rows are sent ...
+                              | send_ok/eof/error(...)
+    However, a protocol implementation might use different schema. For
+    example, Protocol_callback ignores start/end_row when metadata is being
+    sent.
   */
+
   virtual void start_row()= 0;
   virtual bool end_row()= 0;
   virtual void abort_row()= 0;
@@ -252,8 +196,11 @@ public:
 
   /**
     Thread is being shut down, disconnect and free resources
+
+    @param server_shutdown  If false then this is normal thread shutdown. If
+                            true then the server is shutting down.
   */
-  virtual int shutdown()= 0;
+  virtual int shutdown(bool server_shutdown= false)= 0;
 
   /**
     Returns pointer to the SSL object/struct

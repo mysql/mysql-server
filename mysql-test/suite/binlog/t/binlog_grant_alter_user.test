@@ -1,7 +1,7 @@
 
 ################### suite/binlog/t/binlog_grant_alter_user.test ###################
 # Replication Testing CREATE/ALTER/GRANT USER new syntax with New variable        #
-# "log-backward-compatible-user-definitions" default value "OFF"                  #
+# "log-builtin-as-identified-by-password" default value "OFF"                     #
 #                                                                                 # 
 # Test for WL#6409                                                                #
 # created :2015-01-02                                                             #
@@ -16,7 +16,7 @@
 --source include/master-slave.inc
 --connection master
 
-SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
+SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
 --echo #
 --echo # WL#6409: CREATE/ALTER USER
 --echo #
@@ -913,34 +913,34 @@ disconnect con1;
 DROP USER user1@localhost,user2@localhost,user3@localhost,
           user4@localhost,user5@localhost,user6@localhost;
 --echo
---echo # Testing log_backward_compatible_user_definitions variable scope GLOBAL Dynamic
+--echo # Testing log_builtin_as_identified_by_password variable scope GLOBAL Dynamic
 
-# log_backward_compatible_user_definitions variable change dynamically
-SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
+# log_builtin_as_identified_by_password variable change dynamically
+SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
 --echo
-SET GLOBAL log_backward_compatible_user_definitions = ON;
-SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
+SET GLOBAL log_builtin_as_identified_by_password = ON;
+SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
 --echo
-SET GLOBAL log_backward_compatible_user_definitions = OFF;
-SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
---echo
---error ER_GLOBAL_VARIABLE
-SET SESSION log_backward_compatible_user_definitions = ON;
-SHOW  VARIABLES LIKE 'log_backward_compatible_user_definitions';
+SET GLOBAL log_builtin_as_identified_by_password = OFF;
+SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
 --echo
 --error ER_GLOBAL_VARIABLE
-SET @@log_backward_compatible_user_definitions = OFF;
-SHOW VARIABLES LIKE 'log_backward_compatible_user_definitions';
---echo
-SET @@global.log_backward_compatible_user_definitions = ON;
-SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
+SET SESSION log_builtin_as_identified_by_password = ON;
+SHOW  VARIABLES LIKE 'log_builtin_as_identified_by_password';
 --echo
 --error ER_GLOBAL_VARIABLE
-SET @@session.log_backward_compatible_user_definitions = ON;
+SET @@log_builtin_as_identified_by_password = OFF;
+SHOW VARIABLES LIKE 'log_builtin_as_identified_by_password';
+--echo
+SET @@global.log_builtin_as_identified_by_password = ON;
+SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
+--echo
+--error ER_GLOBAL_VARIABLE
+SET @@session.log_builtin_as_identified_by_password = ON;
 --echo # GLOBAL variable value
-SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
-SET GLOBAL log_backward_compatible_user_definitions=OFF;
-SHOW VARIABLES LIKE 'log_backward_compatible_user_definitions';
+SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
+SET GLOBAL log_builtin_as_identified_by_password=OFF;
+SHOW VARIABLES LIKE 'log_builtin_as_identified_by_password';
 
 --source include/sync_slave_sql_with_master.inc
 --echo [On Slave]

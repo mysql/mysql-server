@@ -180,6 +180,7 @@ drop table t1;
 create table t1 (x int, y int, index(x), index(y));
 insert into t1 (x) values (1),(2),(3),(4),(5),(6),(7),(8),(9);
 update t1 set y=x;
+analyze table t1;
 # between with only one end fixed
 explain select * from t1, t1 t2 where t1.y = 8 and t2.x between 7 and t1.y+0;
 explain select * from t1, t1 t2 where t1.y = 8 and t2.x >= 7 and t2.x <= t1.y+0;
@@ -890,6 +891,8 @@ CREATE TABLE t1 (
 INSERT INTO t1(id) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
 
 INSERT INTO t1(b,c) VALUES (3,4), (3,4);
+
+ANALYZE TABLE t1;
 
 SELECT * FROM t1 WHERE b<=3 AND 3<=c;
 SELECT * FROM t1 WHERE 3 BETWEEN b AND c;
@@ -2201,3 +2204,148 @@ FROM t1
 GROUP BY col1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#21415791 VALGRIND ERROR (CONDITIONAL JUMP) AT KEY_AND
+--echo #              (RANGE_OPT_PARAM*, SEL_ARG*, SEL_AR
+--echo #
+CREATE TABLE t1 (
+  col_varchar_10 VARCHAR(10),
+  pk INTEGER NOT NULL,
+  col_int_key INTEGER,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_10 (col_varchar_10)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 (
+pk, col_varchar_10, col_int_key) VALUES
+(1, 'ttttt', 0), (2, 'zzzzz', 0), (3, 'ggggg', 0),
+(4, 'hhhhh', 0), (5, 'kkkkk', 0), (6, 'lllll', 0);
+
+CREATE TABLE t2 (
+  pk INTEGER NOT NULL,
+  col_varchar_10 VARCHAR(10),
+  PRIMARY KEY (pk),
+  KEY col_varchar_10 (col_varchar_10)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 (
+pk,  col_varchar_10) VALUES
+(1, '00000'), (2, '00000'), (3, '44444'), (4, '00000'),
+(5, NULL), (6, NULL), (7, NULL);
+
+SELECT COUNT(t1.col_int_key)
+FROM t2 RIGHT OUTER JOIN t1 ON t2.col_varchar_10 <= t1.col_varchar_10
+WHERE t2.pk <> 4 OR t2.pk != t1.col_int_key AND t2.pk <> 1000;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #20229614: OR CONDITIONS ON MULTI-COLUMN INDEX MAY NOT USE ALL
+--echo #                INDEX COLUMNS TO FILTER ROWS
+--echo #
+
+CREATE TABLE t1 (
+  c1 INT,
+  c2 INT,
+  c3 INT,
+  PRIMARY KEY(c1, c2, c3)
+) ENGINE=INNODB;
+
+INSERT INTO t1 VALUES (1, 1, 1), (1, 1, 2), (1, 1, 3),
+                      (1, 1, 4), (1, 1, 5);
+INSERT INTO t1 SELECT c1, 2, c3 FROM t1;
+INSERT INTO t1 SELECT c1, 3, c3 FROM t1 WHERE c2 = 1;
+
+SELECT COUNT(*) FROM t1;
+
+EXPLAIN SELECT c1, c2, c3
+        FROM t1
+        WHERE (c1 = 1 AND c2 = 1 AND c3 = 1) OR
+              (c1 = 1 AND c2 = 2 AND c3 = 2) OR
+              (c1 = 1 AND c2 = 2 AND c3 = 3);
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#21139683: ASSERTION FAILED: TYPE_ARG == MAYBE_KEY ||
+--echo #               TYPE_ARG == IMPOSSIBLE
+--echo #
+
+CREATE TABLE t1 (
+  a BLOB,
+  PRIMARY KEY(a(1)),
+  KEY(a(1))
+) ENGINE=INNODB;
+
+SELECT 1 FROM t1 WHERE a <> 'a' OR a <> "";
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#19333852: RESULT DIFF IN QUERY HAVING DISTINCT
+--echo #               WITH GROUP BY
+--echo #
+
+CREATE TABLE t1 (
+  v1 VARCHAR(20) CHARACTER SET utf8 NOT NULL,
+  pk INTEGER NOT NULL,
+  PRIMARY KEY (pk),
+  KEY v1_key (v1(10))
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES ('ABCDE',19), ('JLVGO',14);
+
+Let query1= SELECT * FROM t1 WHERE t1.v1 < CHAR(128);
+Let query2= SELECT * FROM t1 WHERE t1.v1 = CHAR(128);
+Let query3= SELECT * FROM t1 WHERE t1.v1 BETWEEN 'f' AND CHAR(128);
+
+eval EXPLAIN $query1;
+eval EXPLAIN $query2;
+eval EXPLAIN $query3;
+
+eval $query1;
+eval $query2;
+eval $query3;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #21761867: ASSERTION `TYPE_ARG == MAYBE_KEY ||
+--echo #                TYPE_ARG == IMPOSSIBLE' FAILED.
+--echo #
+
+CREATE TABLE t1 (
+  c10 INT NOT NULL,
+  c12 INT NOT NULL,
+  c18 INT,
+  PRIMARY KEY (c10,c12),
+  UNIQUE KEY key_c12(c12),
+  KEY key_c18(c18));
+
+INSERT INTO t1 VALUES(11,5,0), (12,6,1), (13,7,2), (14,8,3), (15,9,4);
+
+CREATE TABLE t2 (
+  c10 INT NOT NULL,
+  c12 INT NOT NULL,
+  PRIMARY KEY(c10,c12));
+
+CREATE TABLE t3 (c10 INT NOT NULL);
+
+SELECT t2.c10
+FROM t1
+     RIGHT JOIN t3
+     LEFT JOIN t2
+     ON t3.c10 = t2.c10
+     ON t1.c12 > t2.c12
+WHERE
+     t1.c10 <= 25
+     AND
+     t1.c18 IS NOT NULL
+     OR
+     t1.c10 > 5
+     AND
+     t1.c18 IN (15,16,18);
+
+DROP TABLE t1, t2, t3;

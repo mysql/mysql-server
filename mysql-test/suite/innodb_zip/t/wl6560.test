@@ -264,12 +264,11 @@ show warnings;
 drop table t;
 #
 set innodb_strict_mode = on;
---error ER_ILLEGAL_HA
 create temporary table t (
 	i int)
 	engine = innodb row_format = dynamic;
 --replace_regex /[0-9]+/NUMBER/
-show warnings;
+drop table t;
 #
 set global innodb_file_format = 'Barracuda';
 set innodb_strict_mode = off;

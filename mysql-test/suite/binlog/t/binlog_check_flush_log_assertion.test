@@ -33,14 +33,18 @@ call mtr.add_suppression("MYSQL_BIN_LOG::open failed to generate new file name."
 call mtr.add_suppression("Failed to locate old binlog or relay log files");
 call mtr.add_suppression('Attempting backtrace');
 call mtr.add_suppression("Either disk is full or file system is read only");
-
+call mtr.add_suppression('Could not open .*');
 --enable_query_log
-
-SET @debug_save= @@GLOBAL.DEBUG;
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
 SET GLOBAL debug='+d,error_unique_log_filename';
 
 --error ER_NO_UNIQUE_LOGFILE
 FLUSH LOGS;
+
+# Restart the server to enable binary log.
+--source include/restart_mysqld.inc
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
+SET GLOBAL debug='+d,error_unique_log_filename';
 
 --error ER_NO_UNIQUE_LOGFILE
 RESET MASTER;
@@ -50,6 +54,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 
 --error ER_UNKNOWN_TARGET_BINLOG
 RESET MASTER;
+SET GLOBAL binlog_error_action= ABORT_SERVER;
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 

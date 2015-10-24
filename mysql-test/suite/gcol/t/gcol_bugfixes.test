@@ -352,3 +352,146 @@ WHERE alias2.col_int_key BETWEEN 8 AND (8 + 1 ) OR
 ORDER BY field1;
 
 DROP TABLE t1;
+--echo # bug#21487651: gcols: memory leak after failed alter table
+CREATE TABLE t(a int);
+ALTER TABLE t ADD COLUMN b int GENERATED ALWAYS AS (
+date_sub(a,interval a month)) VIRTUAL;
+--error 1111
+ALTER TABLE t ADD COLUMN c int GENERATED ALWAYS AS (sum(a));
+DROP TABLE t;
+
+--echo #
+--echo # Bug#21628840: CRASH/MEMORY CORRUPTION ADDING INDEXES TO VIRTUAL COLUMN
+--echo #               (II)
+--echo #
+CREATE TABLE t1( a INT ) ENGINE = INNODB;
+INSERT INTO t1( a ) VALUES ( 1 ), ( 2 ), ( 3 ), ( 4 ), ( 5 );
+
+ALTER TABLE t1 ADD COLUMN b INT GENERATED ALWAYS AS (a - 1) STORED;
+ALTER TABLE t1 ADD COLUMN c INT GENERATED ALWAYS AS (b + 1) VIRTUAL;
+
+--echo # Used to cause valgrind warning.
+ALTER TABLE t1 ADD INDEX( c );
+
+ANALYZE TABLE t1;
+
+--echo # Make sure the index is correct. That's kinda important.
+EXPLAIN
+SELECT c FROM t1;
+SELECT c FROM t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#21797776 ASSERTION `BIT < MAP->N_BITS' FAILED.
+--echo #
+
+CREATE TABLE C (
+col_int_1 INT,
+col_int_2 INT GENERATED ALWAYS AS (col_int_1 + col_int_1) STORED,
+col_int_3 INT GENERATED ALWAYS AS (col_int_2 + col_int_1) VIRTUAL
+);
+
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS
+ SELECT
+ col_int_2 AS field1, col_int_2 AS field2,
+ col_int_3 AS field3, col_int_3 AS field4
+ FROM C;
+
+SELECT * FROM v1;
+
+DROP TABLE C;
+DROP VIEW v1;
+
+--echo #
+--echo # Bug#21613615 GCOLS: ASSERTION FAILED: !TABLE || (!TABLE->READ_SET || BITMAP_IS_SET
+--echo #
+
+CREATE TABLE t (a INT);
+CREATE TABLE v (
+a INT,
+c INT,
+b CHAR(2) GENERATED ALWAYS AS (a IN (1)) VIRTUAL,
+KEY(c,b(1)));
+INSERT INTO v (a,c) VALUES (1,1);
+
+let $query=
+SELECT 1 FROM t WHERE ( SELECT 1 FROM t ) >=ANY( SELECT c FROM v );
+eval EXPLAIN $query;
+eval $query;
+
+# A similar one:
+let $query=
+SELECT (SELECT MAX(c) FROM v);
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t, v;
+
+CREATE TABLE v (
+a INT,
+c INT,
+b CHAR(2) GENERATED ALWAYS AS (a IN (1)) VIRTUAL, KEY(c,b(1)));
+INSERT INTO v (a,c) VALUES (1,1);
+SELECT MAX(c), COUNT(b) FROM v;
+DROP TABLE v;
+
+# Using PK suffix of secondary index
+CREATE TABLE v (
+a INT PRIMARY KEY,
+b INT, KEY(b));
+INSERT INTO v (a,b) VALUES (1,1);
+SELECT MAX(a) FROM v WHERE b=1;
+DROP TABLE v;
+
+--echo #
+--echo # Bug#21824519: ASSERTION IN DROP TRIGGER WHEN TABLE HAS
+--echo #               VIRTUAL GENERATED COLUMN
+--echo #
+CREATE TABLE t (a INT, b INT GENERATED ALWAYS AS (a) VIRTUAL);
+CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW BEGIN END;
+INSERT INTO t (a) VALUES (1);
+SELECT * FROM t;
+# DROP TRIGGER used to hit a DBUG_ASSERT.
+DROP TRIGGER tr;
+SELECT * FROM t;
+CREATE FUNCTION f() RETURNS INT RETURN (SELECT COUNT(*) FROM t);
+# And this function call hit the same DBUG_ASSERT.
+SELECT f();
+DROP FUNCTION f;
+SELECT * FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug #21808680: JSON + GENERATED COLUMN CORRUPTS TABLE CACHE
+--echo #                MEMORY, CRASHES
+--echo #
+CREATE TABLE t (a INT, b JSON, c TEXT GENERATED ALWAYS AS (REPEAT(a=b, 2)));
+INSERT INTO t (a, b) VALUES (1, '2'), (3, '3');
+# The next statement used to crash.
+SELECT * FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#21833760 CALC_DAYNR: ASSERTION `DELSUM+(INT) Y/4-TEMP >= 0' FAILED.
+--echo #
+
+CREATE TABLE C(
+c1 INT AUTO_INCREMENT,
+c8 DATETIME,
+c9 TIME,
+c11 TIME GENERATED ALWAYS AS(ADDTIME(c8,c9)) VIRTUAL,
+c13 TIME GENERATED ALWAYS AS(ADDTIME(c8,c11)) VIRTUAL,
+PRIMARY KEY(c1),
+UNIQUE KEY(c13)
+);
+
+INSERT INTO C (c8,c9) VALUES('1970-01-01',0),('1970-01-01',1);
+
+CREATE VIEW view_C AS SELECT * FROM C;
+
+SELECT /*+ NO_BNL(t1) */ t1.c13 FROM C AS t2 STRAIGHT_JOIN C AS t1 FORCE INDEX(c13);
+SELECT DISTINCT t1.c13 FROM C AS t1, view_C AS t2;
+
+DROP TABLE C;
+DROP VIEW view_C;

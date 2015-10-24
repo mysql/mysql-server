@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -64,7 +64,10 @@ int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
     for (i= 1 ; i < keys ; i++)
     {
       if (keyinfo[i].block_length != block_length)
-        DBUG_RETURN(my_errno= HA_ERR_NON_UNIQUE_BLOCK_SIZE);
+      {
+        set_my_errno(HA_ERR_NON_UNIQUE_BLOCK_SIZE);
+        DBUG_RETURN(HA_ERR_NON_UNIQUE_BLOCK_SIZE);
+      }
     }
   }
   else
@@ -75,9 +78,13 @@ int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
 
   if (!(buff= (uchar *) my_malloc(mi_key_memory_preload_buffer,
                                   length, MYF(MY_WME))))
-    DBUG_RETURN(my_errno= HA_ERR_OUT_OF_MEM);
+  {
+    set_my_errno(HA_ERR_OUT_OF_MEM);
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+  }
 
-  if (flush_key_blocks(share->key_cache,share->kfile, FLUSH_RELEASE))
+  if (flush_key_blocks(share->key_cache, keycache_thread_var(),
+                       share->kfile, FLUSH_RELEASE))
     goto err;
 
   do
@@ -97,6 +104,7 @@ int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
         if (mi_test_if_nod(buff))
         {
           if (key_cache_insert(share->key_cache,
+                               keycache_thread_var(),
                                share->kfile, pos, DFLT_INIT_HITS,
                               (uchar*) buff, block_length))
 	    goto err;
@@ -109,6 +117,7 @@ int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
     else
     {
       if (key_cache_insert(share->key_cache,
+                           keycache_thread_var(),
                            share->kfile, pos, DFLT_INIT_HITS,
                            (uchar*) buff, length))
 	goto err;
@@ -122,6 +131,7 @@ int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
 
 err:
   my_free(buff);
-  DBUG_RETURN(my_errno= errno);
+  set_my_errno(errno);
+  DBUG_RETURN(errno);
 }
 
