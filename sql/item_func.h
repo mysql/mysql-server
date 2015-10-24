@@ -1377,19 +1377,17 @@ public:
 };
 
 /*
-  Objects of this class are used as markers in ROLLUP queries
-  they get replaced by a literal int of 1 or 0 depending on
-  if the row is a subtotal
+  GROUPING function is used in ROLLUP queries, they return
+  int 1 or 0 depending on if the row is a subtotal of a 
+  specific column.
 */
 class Item_func_grouping :public Item_int_func
 {
-  int level;
 public:
-  Item_func_grouping(Item *a) :Item_int_func(a), level(0) {}
-  Item *column() { return args[0]; }
+  Item_func_grouping(const POS &pos, Item *a) :Item_int_func(pos, a){}
   const char *func_name() const { return "grouping"; }
   enum Functype functype() const   { return GROUPING_FUNC; }
-  longlong val_int() { return level; }
+  longlong val_int();
 };
 
 /* 

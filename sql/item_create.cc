@@ -5444,7 +5444,7 @@ Create_func_grouping Create_func_grouping::s_singleton;
 Item*
 Create_func_grouping::create(THD *thd, Item *arg1)
 {
-  return new (thd->mem_root) Item_func_grouping(arg1);
+  return new (thd->mem_root) Item_func_grouping(POS(), arg1);
 }
 
 
