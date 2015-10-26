@@ -8985,13 +8985,18 @@ bool fill_record(THD *thd, TABLE *table, List<Item> &fields,
     Field *const rfield= field->field;
     Item *const value= v++;
 
+    /* If bitmap over wanted fields are set, skip non marked fields. */
+    if (bitmap && !bitmap_is_set(bitmap, rfield->field_index))
+      continue;
+
+    bitmap_set_bit(table->fields_set_during_insert, rfield->field_index);
+    if (insert_into_fields_bitmap)
+      bitmap_set_bit(insert_into_fields_bitmap, rfield->field_index);
+
     /* Generated columns will be filled after all base columns are done. */
     if (rfield->is_gcol())
       continue;
 
-    /* If bitmap over wanted fields are set, skip non marked fields. */
-    if (bitmap && !bitmap_is_set(bitmap, rfield->field_index))
-      continue;
     if (rfield == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
     if (value->save_in_field(rfield, false) < 0)
@@ -8999,9 +9004,6 @@ bool fill_record(THD *thd, TABLE *table, List<Item> &fields,
       my_error(ER_UNKNOWN_ERROR, MYF(0));
       goto err;
     }
-    bitmap_set_bit(table->fields_set_during_insert, rfield->field_index);
-    if (insert_into_fields_bitmap)
-      bitmap_set_bit(insert_into_fields_bitmap, rfield->field_index);
   }
 
   if (table->has_gcol() &&
@@ -9249,17 +9251,10 @@ bool fill_record(THD *thd, TABLE *table, Field **ptr, List<Item> &values,
     Item *const value= v++;
     DBUG_ASSERT(field->table == table);
 
-    /* Generated columns will be filled after all base columns are done. */
-    if (field->is_gcol())
-      continue;
-
     /* If bitmap over wanted fields are set, skip non marked fields. */
     if (bitmap && !bitmap_is_set(bitmap, field->field_index))
       continue;
-    if (field == table->next_number_field)
-      table->auto_increment_field_not_null= TRUE;
-    if (value->save_in_field(field, false) == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
-      goto err;
+
     /*
       fill_record could be called as part of multi update and therefore
       table->fields_set_during_insert could be NULL.
@@ -9268,6 +9263,15 @@ bool fill_record(THD *thd, TABLE *table, Field **ptr, List<Item> &values,
       bitmap_set_bit(table->fields_set_during_insert, field->field_index);
     if (insert_into_fields_bitmap)
       bitmap_set_bit(insert_into_fields_bitmap, field->field_index);
+
+    /* Generated columns will be filled after all base columns are done. */
+    if (field->is_gcol())
+      continue;
+
+    if (field == table->next_number_field)
+      table->auto_increment_field_not_null= TRUE;
+    if (value->save_in_field(field, false) == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
+      goto err;
   }
 
   if (table->has_gcol() &&
