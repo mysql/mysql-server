@@ -2194,3 +2194,33 @@ SELECT DISTINCT q1.f1 / 3 FROM (SELECT SUM(f1) AS f1 FROM t2  ) q1;
 q1.f1 / 3
 94.0000
 DROP TABLE t1, t2;
+#
+# Bug#22083757 FLAGS INFO IN RESULT META DATA IS INCORRECT
+#              ( NEGATIVE NUM W/ "UNSIGNED")
+#
+CREATE TABLE t1(a INT UNSIGNED, b DECIMAL(10,2) UNSIGNED);
+INSERT INTO t1 VALUES (2015, 123456.78);
+CREATE TABLE t2(a INT UNSIGNED, b INT UNSIGNED);
+INSERT INTO t2 VALUES (2015, 123456);
+CREATE TABLE t3(a DECIMAL(10,2) UNSIGNED, b DECIMAL(10,2) UNSIGNED);
+INSERT INTO t3 VALUES (2015, 123456);
+SELECT a - b FROM t1;
+ERROR 22003: DECIMAL UNSIGNED value is out of range in '(`test`.`t1`.`a` - `test`.`t1`.`b`)'
+SELECT a - b FROM t2;
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(`test`.`t2`.`a` - `test`.`t2`.`b`)'
+SELECT a - b FROM t3;
+ERROR 22003: DECIMAL UNSIGNED value is out of range in '(`test`.`t3`.`a` - `test`.`t3`.`b`)'
+SET sql_mode=NO_UNSIGNED_SUBTRACTION;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SELECT a - b FROM t1;
+a - b
+-121441.78
+SELECT a - b FROM t2;
+a - b
+-121441
+SELECT a - b FROM t3;
+a - b
+-121441.00
+DROP TABLE t1, t2, t3;
+SET sql_mode=DEFAULT;

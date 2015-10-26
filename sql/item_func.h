@@ -352,7 +352,7 @@ public:
   }
   inline int raise_decimal_overflow()
   {
-    raise_numeric_overflow("DECIMAL");
+    raise_numeric_overflow(unsigned_flag ? "DECIMAL UNSIGNED" : "DECIMAL");
     return E_DEC_OVERFLOW;
   }
   /**
