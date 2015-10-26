@@ -34587,6 +34587,7 @@ static const uint16 unicode_to_cp932[65536]=
   Scans a CP932 character from the input string
   and converts to Unicode code point.
 
+  @param[in]  cs           Character set info, unused
   @param[out] pwc          Unicode code point
   @param[in]  s            Beginning of the input string
   @param[in]  e            End of the input string
@@ -34633,6 +34634,7 @@ my_mb_wc_cp932(const CHARSET_INFO *cs  __attribute__((unused)),
 /**
   Puts the given Unicode character into a CP932 string.
 
+  @param[in] cs             Character set info, unused
   @param[in] wc             Unicode code point
   @param[in] s              Beginning of the out string
   @param[in] e              End of the out string

@@ -65867,6 +65867,7 @@ static const uint16 unicode_to_jisx0212_eucjp[65536]=
   Scans an UJIS character from the input string
   and converts to Unicode code point.
 
+  @param[in]  cs           Character set info, unused
   @param[out] pwc          Unicode code point
   @param[in]  s            Beginning of the input string
   @param[in]  e            End of the input string
@@ -65930,6 +65931,7 @@ my_mb_wc_euc_jp(const CHARSET_INFO *cs __attribute__((unused)),
 /**
   Puts the given Unicode character into an UJIS string.
 
+  @param[in] cs             Character set info, unused
   @param[in] wc             Unicode code point
   @param[in] s              Beginning of the out string
   @param[in] e              End of the out string

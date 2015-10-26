@@ -33957,6 +33957,7 @@ static const uint16 unicode_to_sjis[65536]=
   Scans an SJIS character from the input string
   and converts to Unicode code point.
 
+  @param[in]  cs           Character set info, unused
   @param[out] pwc          Unicode code point
   @param[in]  s            Beginning of the input string
   @param[in]  e            End of the input string
@@ -34002,6 +34003,7 @@ my_mb_wc_sjis(const CHARSET_INFO *cs  __attribute__((unused)),
 /**
   Puts the given Unicode character into an SJIS string.
 
+  @param[in] cs             Character set info, unused
   @param[in] wc             Unicode code point
   @param[in] s              Beginning of the out string
   @param[in] e              End of the out string

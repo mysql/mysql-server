@@ -1326,6 +1326,8 @@ my_strnncoll_utf16(const CHARSET_INFO *cs,
   @param  slen      Length of 's'.
   @param  t         Second string to compare.
   @param  tlen      Length of 't'.
+  @param  diff_if_only_endspace_difference
+                    Whether the end spaces impact the comparison.
 
   IMPLEMENTATION
 
@@ -2142,6 +2144,8 @@ my_strnncoll_utf32(const CHARSET_INFO *cs,
   @param  slen      Length of 's'.
   @param  t         Second string to compare.
   @param  tlen      Length of 't'.
+  @param  diff_if_only_endspace_difference
+                    Whether the end spaces impact the comparison.
 
   IMPLEMENTATION
 

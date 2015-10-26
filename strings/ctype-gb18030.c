@@ -22189,17 +22189,18 @@ unicode_to_gb18030_code(const CHARSET_INFO *cs, int unicode)
 /**
   Compare string against string with wildcard
 
-  @param[in] cs      charset
-  @param[in] str     string
-  @param[in] str_end end of the string
-  @param[in] wildstr string with wildcard
-  @param[in] wildend end of the string with wildcard
-  @param[in] escape  escape char, which is a gb18030 code
-  @param[in] w_one   wild one char, which is a gb18030 code
-  @param[in] w_many  wild many char, which is a gb18030 code
-  @return            0 if matched
-                     -1 if not matched with wildcard
-                     1 if matched with wildcard
+  @param[in] cs            charset
+  @param[in] str           string
+  @param[in] str_end       end of the string
+  @param[in] wildstr       string with wildcard
+  @param[in] wildend       end of the string with wildcard
+  @param[in] escape        escape char, which is a gb18030 code
+  @param[in] w_one         wild one char, which is a gb18030 code
+  @param[in] w_many        wild many char, which is a gb18030 code
+  @param[in] recurse_level current recurse level to do wild card
+  @return                  0 if matched
+                           -1 if not matched with wildcard
+                           1 if matched with wildcard
 */
 static int
 my_wildcmp_gb18030_impl(const CHARSET_INFO *cs,

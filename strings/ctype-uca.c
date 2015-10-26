@@ -19509,9 +19509,10 @@ my_uca_add_contraction_flag(MY_CONTRACTIONS *list, my_wc_t wc, int flag)
 /**
   Add a new contraction into contraction list
   
-  @param list     Pointer to UCA data
-  @param wc       Unicode code points of the characters
-  @param len      Number of characters
+  @param list         Pointer to UCA data
+  @param wc           Unicode code points of the characters
+  @param len          Number of characters
+  @param with_context Whether the comparison is context sensitive
   
   @return   New contraction
   @retval   Pointer to a newly added contraction
@@ -19550,6 +19551,7 @@ my_uca_add_contraction(MY_CONTRACTIONS *list, my_wc_t *wc, size_t len,
   Allocate and initialize memory for contraction list and flags
   
   @param contractions      Pointer to UCA data
+  @param loader            Pointer to charset loader
   @param n        Number of contractions
   
   @return   Error code
@@ -19575,6 +19577,7 @@ my_uca_alloc_contractions(MY_CONTRACTIONS *contractions,
   Return UCA contraction data for a CHARSET_INFO structure.
 
   @param cs       Pointer to CHARSET_INFO structure
+  @param level    UCA comparison level
   @retval         Pointer to contraction data
   @retval         NULL, if this collation does not have UCA contraction
 */
@@ -19646,6 +19649,7 @@ my_uca_can_be_contraction_tail(const MY_CONTRACTIONS *c, my_wc_t wc)
 
   @param c        Pointer to UCA contraction data
   @param wc       Code point
+  @param flag     UCA contraction flag
 
   @retval   0 - cannot be contraction part
   @retval   1 - can be contraction part
