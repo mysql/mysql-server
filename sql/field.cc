@@ -42,6 +42,7 @@
 #include "template_utils.h"              // pointer_cast
 #include "tztime.h"                      // Time_zone
 #include "spatial.h"                     // Geometry
+#include "sql_base.h"                    // is_equal
 
 #include <algorithm>
 #include <memory>                        // auto_ptr
@@ -7105,6 +7106,38 @@ type_conversion_status Field_str::store(double nr)
       set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
   }
   return store(buff, length, &my_charset_numeric);
+}
+
+
+/**
+  Check whether generated columns' expressions are the same.
+
+  @param field  An existing field to compare against
+
+  @return true means the same, otherwise not.
+*/
+
+bool Field::gcol_expr_is_equal(const Field *field) const
+{
+  DBUG_ASSERT(is_gcol() && field->is_gcol());
+
+  return gcol_info->expr_item->eq(field->gcol_info->expr_item, true);
+}
+
+
+/**
+  Check whether generated columns' expressions are the same.
+
+  @param field  A new field to compare against
+
+  @return true means the same, otherwise not.
+*/
+
+bool Field::gcol_expr_is_equal(const Create_field *field) const
+{
+  DBUG_ASSERT(is_gcol() && field->is_gcol());
+
+  return ::is_equal(&gcol_info->expr_str, &field->gcol_info->expr_str);
 }
 
 

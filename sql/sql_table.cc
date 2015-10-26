@@ -6361,6 +6361,31 @@ static bool fill_alter_inplace_info(THD *thd,
         DBUG_ASSERT(0);
       }
 
+      // Conversion to and from generated column is supported if stored:
+      if (field->is_gcol() != new_field->is_gcol())
+      {
+        DBUG_ASSERT((field->is_gcol() && !field->is_virtual_gcol()) ||
+                    (new_field->is_gcol() && !new_field->is_virtual_gcol()));
+        ha_alter_info->handler_flags|=
+          Alter_inplace_info::ALTER_STORED_COLUMN_TYPE;
+      }
+
+      // Modification of generation expression is supported:
+      if (field->is_gcol() && new_field->is_gcol())
+      {
+        // Modification of storage attribute is not supported
+        DBUG_ASSERT(field->is_virtual_gcol() == new_field->is_virtual_gcol());
+        if (!field->gcol_expr_is_equal(new_field))
+        {
+          if (field->is_virtual_gcol())
+            ha_alter_info->handler_flags|=
+              Alter_inplace_info::ALTER_VIRTUAL_COLUMN_TYPE;
+          else
+            ha_alter_info->handler_flags|=
+              Alter_inplace_info::ALTER_STORED_COLUMN_TYPE;
+        }
+      }
+
       bool field_renamed;
       /*
         InnoDB data dictionary is case sensitive so we should use
@@ -8269,6 +8294,10 @@ fk_check_column_changes(THD *thd, Alter_info *alter_info,
           return FK_COLUMN_DATA_CHANGE;
         }
       }
+      DBUG_ASSERT(old_field->is_gcol() == new_field->is_gcol() &&
+                  old_field->is_virtual_gcol() == new_field->is_virtual_gcol());
+      DBUG_ASSERT(!old_field->is_gcol() ||
+                  old_field->gcol_expr_is_equal(new_field));
     }
     else
     {
