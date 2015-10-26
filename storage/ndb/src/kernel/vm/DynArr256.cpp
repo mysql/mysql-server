@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -90,7 +90,7 @@ Uint32 DA256Page::last_free() const
 //#define DA256_USE_PREFETCH
 #define DA256_EXTRA_SAFE
 
-#ifdef TAP_TEST
+#ifdef TEST_DYNARR256
 #define UNIT_TEST
 #include "NdbTap.hpp"
 #endif
@@ -1087,7 +1087,7 @@ usage(FILE *f, int argc, char **argv)
 
 # include "test_context.hpp"
 
-#ifdef TAP_TEST
+#ifdef TEST_DYNARR256
 static
 char* flatten(int argc, char** argv) /* NOT MT-SAFE */
 {
@@ -1109,7 +1109,7 @@ char* flatten(int argc, char** argv) /* NOT MT-SAFE */
 int
 main(int argc, char** argv)
 {
-#ifndef TAP_TEST
+#ifndef TEST_DYNARR256
   verbose = 1;
   if (argc == 1) {
     usage(stderr, argc, argv);
@@ -1133,7 +1133,7 @@ main(int argc, char** argv)
   DynArr256::Head head;
   DynArr256 arr(pool, head);
 
-#ifdef TAP_TEST
+#ifdef TEST_DYNARR256
   if (argc == 1)
   {
     char *argv[2] = { (char*)"dummy", NULL };
@@ -1192,7 +1192,7 @@ main(int argc, char** argv)
            allocatednodes, maxallocatednodes,
            releasednodes);
 
-#ifdef TAP_TEST
+#ifdef TEST_DYNARR256
   ok(allocatednodes == releasednodes &&
      allocatedpages == releasedpages,
      "release");

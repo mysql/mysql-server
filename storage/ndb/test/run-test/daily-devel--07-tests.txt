@@ -19,3 +19,23 @@ cmd: test_event
 args: -n createDropEvent_NF T1
 max-time: 1200
 
+cmd: test_event
+args: -n Apiv2-check_event_received_after_restart T1
+max-time: 300
+
+cmd: test_event
+args: -n Apiv2-check_drop_event_op_after_restart T1
+max-time: 300
+
+cmd: test_event
+args: -n SubscribeUnsubscribe -l1000 T1
+max-time: 180
+
+cmd: test_event
+args: -n SubscribeUnsubscribeWithLoad -l1000 T1
+max-time: 180
+
+cmd: testFK
+args: -n DropTableWithFKDuringRestart T1
+max-time : 300
+

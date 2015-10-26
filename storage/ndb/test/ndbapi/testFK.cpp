@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2014 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1377,6 +1377,44 @@ runDropCascadeChild(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runRestartOneNodeNoStart(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  NdbRestarter restarter;
+
+  /* choose a random node and restart with nostart */
+  int nodeId= restarter.getDbNodeId(rand() % restarter.getNumDbNodes());
+  restarter.restartOneDbNode(nodeId, false, true);
+  /* wait for it to go to no start phase */
+  CHK2(restarter.waitNodesNoStart(&nodeId, 1) == 0,
+       "Unable to restart node");
+  return result;
+}
+
+int
+runStartAllNodes(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  NdbRestarter restarter;
+
+  CHK2(restarter.startAll() == 0, "Failed starting node");
+
+  return result;
+}
+
+int
+runCheckAllNodesStarted(NDBT_Context* ctx, NDBT_Step* step){
+  NdbRestarter restarter;
+
+  if (restarter.waitClusterStarted(1) != 0)
+  {
+    g_err << "All nodes were not started " << endl;
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
 static
 int
 terrorCodes[] =
@@ -1545,6 +1583,20 @@ TESTCASE("CascadeError",
   INITIALIZER(runTransError);
   VERIFIER(runCleanupTable);
   VERIFIER(runDropCascadeChild);
+}
+TESTCASE("DropTableWithFKDuringRestart",
+         "1. Create a child table identical to the current table"
+         "2. Create FK mapping the similar column from both tables"
+         "3. Choose a random node and restart it with nostart"
+         "4. Drop the child table"
+         "5. Start the node at no start")
+{
+  INITIALIZER(runDiscoverTable);
+  INITIALIZER(runCreateCascadeChild);
+  INITIALIZER(runRestartOneNodeNoStart);
+  INITIALIZER(runDropCascadeChild);
+  STEP(runStartAllNodes);
+  VERIFIER(runCheckAllNodesStarted);
 }
 NDBT_TESTSUITE_END(testFK);
 

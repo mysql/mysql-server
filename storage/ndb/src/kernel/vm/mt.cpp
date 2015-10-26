@@ -201,6 +201,12 @@ yield(struct thr_wait* wait, const Uint32 nsec,
     timeout.tv_sec = 0;
     timeout.tv_nsec = nsec;
     futex_wait(val, thr_wait::FS_SLEEPING, &timeout);
+    /**
+     * Any spurious wakeups are handled by simply running the scheduler code.
+     * The check_callback is needed to ensure that we don't miss wakeups. But
+     * that a spurious wakeups causes one loop in the scheduler compared to
+     * the cost of always checking through buffers to check condition.
+     */
   }
   xcng(val, thr_wait::FS_RUNNING);
   return waited;
@@ -221,6 +227,13 @@ wakeup(struct thr_wait* wait)
     return futex_wake(val);
   }
   return 0;
+}
+
+static inline
+int
+try_wakeup(struct thr_wait* wait)
+{
+  return wakeup(wait);
 }
 #else
 
@@ -249,9 +262,14 @@ yield(struct thr_wait* wait, const Uint32 nsec,
   NdbCondition_ComputeAbsTime(&end, (nsec >= 1000000) ? nsec/1000000 : 1);
   NdbMutex_Lock(wait->m_mutex);
 
+  /**
+   * Any spurious wakeups are handled by simply running the scheduler code.
+   * The check_callback is needed to ensure that we don't miss wakeups. But
+   * that a spurious wakeups causes one loop in the scheduler compared to
+   * the cost of always checking through buffers to check condition.
+   */
   Uint32 waits = 0;
-  /* May have spurious wakeups: Always recheck condition predicate */
-  while ((*check_callback)(check_arg))
+  if ((*check_callback)(check_arg))
   {
     wait->m_need_wakeup = true;
     waits++;
@@ -259,13 +277,30 @@ yield(struct thr_wait* wait, const Uint32 nsec,
                                     wait->m_mutex, &end) == ETIMEDOUT)
     {
       wait->m_need_wakeup = false;
-      break;
     }
   }
   NdbMutex_Unlock(wait->m_mutex);
   return (waits > 0);
 }
 
+
+static inline
+int
+try_wakeup(struct thr_wait* wait)
+{
+  int success = NdbMutex_Trylock(wait->m_mutex);
+  if (success != 0)
+    return success;
+
+  // We should avoid signaling when not waiting for wakeup
+  if (wait->m_need_wakeup)
+  {
+    wait->m_need_wakeup = false;
+    NdbCondition_Signal(wait->m_cond);
+  }
+  NdbMutex_Unlock(wait->m_mutex);
+  return 0;
+}
 
 static inline
 int
@@ -1073,6 +1108,7 @@ struct MY_ALIGNED(NDB_CL) thr_data
   Uint32 m_cpu;
   my_thread_t m_thr_id;
   NdbThread* m_thread;
+  Signal *m_signal;
 };
 
 struct mt_send_handle  : public TransporterSendBufferHandle
@@ -1896,10 +1932,16 @@ check_real_time_break(NDB_TICKS now,
 }
 
 static bool
-check_yield(NDB_TICKS now,
-            NDB_TICKS *start_spin_ticks,
+check_yield(NDB_TICKS *start_spin_ticks,
             Uint64 min_spin_timer) //microseconds
 {
+  /**
+   * We add a timer call to ensure that we spin correct amount of time.
+   * We are not worried over the overhead here since we are per definition
+   * spinning when coming here. So no need to worry what we do with the
+   * CPU while spinning.
+   */
+  NDB_TICKS now = NdbTick_getCurrentTicks();
   assert(min_spin_timer > 0);
 
   if (!NdbTick_IsValid(*start_spin_ticks))
@@ -2120,6 +2162,7 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
         this_send_thread->m_watchdog_counter = 3;
         this_send_thread->m_send_buffer_pool.
           release_chunk(g_thr_repository->m_mm, RG_TRANSPORTER_BUFFERS);
+        NdbTick_Invalidate(&start_spin_ticks);
       }
 
       /**
@@ -2161,8 +2204,7 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
 
 
     if (min_spin_timer == 0 ||
-        check_yield(now,
-                    &start_spin_ticks,
+        check_yield(&start_spin_ticks,
                     min_spin_timer))
     {
       Uint32 max_wait_usec;
@@ -2180,8 +2222,14 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
       else
         max_wait_usec = 50*1000;  //50ms, has to wakeup before 100ms watchdog alert.
 
-      yield(&this_send_thread->m_waiter_struct, max_wait_usec*1000,
-            check_available_send_data, (struct thr_data*)NULL);
+      bool waited = yield(&this_send_thread->m_waiter_struct,
+                          max_wait_usec*1000,
+                          check_available_send_data,
+                          (struct thr_data*)NULL);
+      if (waited)
+      {
+        NdbTick_Invalidate(&start_spin_ticks);
+      }
     }
   }
 
@@ -2784,8 +2832,10 @@ flush_write_state_self(thr_job_queue_head *q_head, thr_jb_write_state *w)
 
 static inline
 void
-flush_write_state_other(thr_data *dstptr, thr_job_queue_head *q_head,
-                        thr_jb_write_state *w)
+flush_write_state_other(thr_data *dstptr,
+                        thr_job_queue_head *q_head,
+                        thr_jb_write_state *w,
+                        bool prioa_flag)
 {
   Uint32 pending_signals_saved;
   /*
@@ -2806,7 +2856,8 @@ flush_write_state_other(thr_data *dstptr, thr_job_queue_head *q_head,
   pending_signals_saved = w->get_pending_signals_wakeup();
   pending_signals_saved += w->get_pending_signals();
 
-  if (pending_signals_saved >= MAX_SIGNALS_BEFORE_WAKEUP)
+  if (pending_signals_saved >= MAX_SIGNALS_BEFORE_WAKEUP &&
+      (!prioa_flag))
   {
     w->init_pending_signals();
     wakeup(&(dstptr->m_waiter));
@@ -2825,8 +2876,11 @@ flush_write_state_other(thr_data *dstptr, thr_job_queue_head *q_head,
 */
 static inline
 void
-flush_write_state(const thr_data *selfptr, thr_data *dstptr,
-                  thr_job_queue_head *q_head, thr_jb_write_state *w)
+flush_write_state(const thr_data *selfptr,
+                  thr_data *dstptr,
+                  thr_job_queue_head *q_head,
+                  thr_jb_write_state *w,
+                  bool prioa_flag)
 {
   if (dstptr == selfptr)
   {
@@ -2834,7 +2888,7 @@ flush_write_state(const thr_data *selfptr, thr_data *dstptr,
   }
   else
   {
-    flush_write_state_other(dstptr, q_head, w);
+    flush_write_state_other(dstptr, q_head, w, prioa_flag);
   }
 }
 
@@ -4280,11 +4334,41 @@ read_jba_state(thr_data *selfptr)
   return r->is_empty();
 }
 
+static
+inline
+void
+check_for_input_from_ndbfs(struct thr_data* thr_ptr, Signal* signal)
+{
+  /**
+   * The manner to check for input from NDBFS file threads misuses
+   * the SEND_PACKED signal. For ndbmtd this is intended to be
+   * replaced by using signals directly from NDBFS file threads to
+   * the issuer of the file request. This is WL#8890.
+   */
+  Uint32 i;
+  for (i = 0; i < thr_ptr->m_instance_count; i++)
+  {
+    BlockReference block = thr_ptr->m_instance_list[i];
+    Uint32 main = blockToMain(block);
+    if (main == NDBFS)
+    {
+      Uint32 instance = blockToInstance(block);
+      SimulatedBlock* b = globalData.getBlock(main, instance);
+      b->executeFunction_async(GSN_SEND_PACKED, signal);
+      return;
+    }
+  }
+}
+
 /* Check all job queues, return true only if all are empty. */
 static bool
 check_queues_empty(thr_data *selfptr)
 {
   Uint32 thr_count = g_thr_repository->m_thread_count;
+  if (selfptr->m_thr_no == 0)
+  {
+    check_for_input_from_ndbfs(selfptr, selfptr->m_signal);
+  }
   bool empty = read_jba_state(selfptr);
   if (!empty)
     return false;
@@ -4970,8 +5054,7 @@ mt_receiver_thread_main(void *thr_arg)
     if (lagging_timers == 0 &&       // 1)
         pending_send   <= 0 &&       // 2)
         (min_spin_timer == 0 ||      // 3)
-         check_yield(now,
-                     &start_spin_ticks,
+         check_yield(&start_spin_ticks,
                      min_spin_timer)))
     {
       delay = 1; // 1ms
@@ -5007,6 +5090,10 @@ mt_receiver_thread_main(void *thr_arg)
                                     wait_queue);
           (void)waited;
         }
+      }
+      else
+      {
+        NdbTick_Invalidate(&start_spin_ticks);
       }
     }
     selfptr->m_stat.m_loop_cnt++;
@@ -5243,6 +5330,7 @@ mt_job_thread_main(void *thr_arg)
   NdbTick_Invalidate(&start_spin_ticks);
   NDB_TICKS now = NdbTick_getCurrentTicks();
   selfptr->m_ticks = start_spin_ticks = yield_ticks = now;
+  selfptr->m_signal = signal;
 
   while (globalData.theRestartFlag != perform_stop)
   { 
@@ -5313,8 +5401,7 @@ mt_job_thread_main(void *thr_arg)
       if (pending_send <= 0) /* Nothing pending, or no progress made */
       {
         if (min_spin_timer == 0 ||
-            check_yield(now,
-                        &start_spin_ticks,
+            check_yield(&start_spin_ticks,
                         min_spin_timer))
         {
           /**
@@ -5339,6 +5426,16 @@ mt_job_thread_main(void *thr_arg)
             selfptr->m_stat.m_wait_cnt += waits;
             selfptr->m_stat.m_loop_cnt += loops;
             waits = loops = 0;
+            if (selfptr->m_thr_no == 0)
+            {
+              /**
+               * NDBFS is using thread 0, here we need to call SEND_PACKED
+               * to scan the memory channel for messages from NDBFS threads.
+               * We want to do this here to avoid an extra loop in scheduler
+               * before we discover those messages from NDBFS.
+               */
+              check_for_input_from_ndbfs(selfptr, signal);
+            }
           }
         }
       }
@@ -5453,7 +5550,7 @@ sendlocal(Uint32 self, const SignalHeader *s, const Uint32 *data,
   }
   if (w->get_pending_signals() >= MAX_SIGNALS_BEFORE_FLUSH)
   {
-    flush_write_state(selfptr, dstptr, h, w);
+    flush_write_state(selfptr, dstptr, h, w, false);
   }
 }
 
@@ -5496,7 +5593,7 @@ sendprioa(Uint32 self, const SignalHeader *s, const uint32 *data,
   w.m_write_pos = buffer->m_len;
   bool buf_used = insert_signal(q, h, &w, true, s, data, secPtr,
                                 selfptr->m_next_buffer);
-  flush_write_state(selfptr, dstptr, h, &w);
+  flush_write_state(selfptr, dstptr, h, &w, true);
 
   unlock(&dstptr->m_jba_write_lock);
   if (w.has_any_pending_signals())
@@ -5564,6 +5661,7 @@ sendprioa_STOP_FOR_CRASH(const struct thr_data *selfptr, Uint32 dst)
      not matter which buffer we use in case the current buffer is filled up by
      the STOP_FOR_CRASH signal; the data in it will never be read.
   */
+  static Uint32 MAX_WAIT = 3000;
   static thr_job_buffer dummy_buffer;
 
   /**
@@ -5587,7 +5685,25 @@ sendprioa_STOP_FOR_CRASH(const struct thr_data *selfptr, Uint32 dst)
   thr_job_queue_head *h = &(dstptr->m_jba_head);
   thr_jb_write_state w;
 
-  lock(&dstptr->m_jba_write_lock);
+  /**
+   * Ensure that a crash while holding m_jba_write_lock won't block
+   * dump process forever.
+   */
+  Uint64 loop_count = 0;
+  const NDB_TICKS start_try_lock = NdbTick_getCurrentTicks();
+  while (trylock(&dstptr->m_jba_write_lock) != 0)
+  {
+    if (++loop_count >= 10000)
+    {
+      const NDB_TICKS now = NdbTick_getCurrentTicks();
+      if (NdbTick_Elapsed(start_try_lock, now).milliSec() > MAX_WAIT)
+      {
+        return;
+      }
+      NdbSleep_MilliSleep(1);
+      loop_count = 0;
+    }
+  }
 
   Uint32 index = h->m_write_index;
   w.m_write_index = index;
@@ -5596,12 +5712,30 @@ sendprioa_STOP_FOR_CRASH(const struct thr_data *selfptr, Uint32 dst)
   w.m_write_pos = buffer->m_len;
   insert_signal(q, h, &w, true, &signalT.header, signalT.theData, NULL,
                 &dummy_buffer);
-  flush_write_state(selfptr, dstptr, h, &w);
+  flush_write_state(selfptr, dstptr, h, &w, true);
 
   unlock(&dstptr->m_jba_write_lock);
   if (w.has_any_pending_signals())
   {
-    wakeup(&(dstptr->m_waiter));
+    loop_count = 0;
+    /**
+     * Ensure that a crash while holding wakeup lock won't block
+     * dump process forever. We will wait at most 3 seconds.
+     */
+    const NDB_TICKS start_try_wakeup = NdbTick_getCurrentTicks();
+    while (try_wakeup(&(dstptr->m_waiter)) != 0)
+    {
+      if (++loop_count >= 10000)
+      {
+        const NDB_TICKS now = NdbTick_getCurrentTicks();
+        if (NdbTick_Elapsed(start_try_wakeup, now).milliSec() > MAX_WAIT)
+        {
+          return;
+        }
+        NdbSleep_MilliSleep(1);
+        loop_count = 0;
+      }
+    }
   }
 }
 
@@ -6287,6 +6421,7 @@ FastScheduler::traceDumpPrepare(NdbShutdownType& nst)
   Uint32 waitFor_count = 0;
   NdbMutex_Lock(&g_thr_repository->stop_for_crash_mutex);
   g_thr_repository->stopped_threads = 0;
+  NdbMutex_Unlock(&g_thr_repository->stop_for_crash_mutex);
 
   for (Uint32 thr_no = 0; thr_no < num_threads; thr_no++)
   {
@@ -6303,6 +6438,7 @@ FastScheduler::traceDumpPrepare(NdbShutdownType& nst)
 
   static const Uint32 max_wait_seconds = 2;
   const NDB_TICKS start = NdbTick_getCurrentTicks();
+  NdbMutex_Lock(&g_thr_repository->stop_for_crash_mutex);
   while (g_thr_repository->stopped_threads < waitFor_count)
   {
     NdbCondition_WaitTimeout(&g_thr_repository->stop_for_crash_cond,

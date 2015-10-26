@@ -17,8 +17,13 @@
 basedir = CHOOSE_dir
 fix-nodeid = 1
 mt = 2
+mysqld = CHOOSE_host1
 
 [ndb_mgmd]
+
+[mysqld]
+socket=mysql.sock
+skip-grant-tables
 
 [client]
 protocol=tcp

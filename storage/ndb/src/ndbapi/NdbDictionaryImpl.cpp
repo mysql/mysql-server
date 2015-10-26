@@ -5206,15 +5206,17 @@ NdbDictInterface::executeSubscribeEvent(class Ndb & ndb,
 }
 
 int
-NdbDictionaryImpl::stopSubscribeEvent(NdbEventOperationImpl & ev_op)
+NdbDictionaryImpl::stopSubscribeEvent(NdbEventOperationImpl & ev_op,
+                                      Uint64& stop_gci)
 {
   // NdbDictInterface m_receiver;
-  return m_receiver.stopSubscribeEvent(m_ndb, ev_op);
+  return m_receiver.stopSubscribeEvent(m_ndb, ev_op, stop_gci);
 }
 
 int
 NdbDictInterface::stopSubscribeEvent(class Ndb & ndb,
-				     NdbEventOperationImpl & ev_op)
+				     NdbEventOperationImpl & ev_op,
+                                     Uint64& stop_gci)
 {
   DBUG_ENTER("NdbDictInterface::stopSubscribeEvent");
 
@@ -5249,7 +5251,7 @@ NdbDictInterface::stopSubscribeEvent(class Ndb & ndb,
   if (ret == 0)
   {
     Uint32 *data = (Uint32*)m_buffer.get_data();
-    ev_op.m_stop_gci = data[1] | (Uint64(data[0]) << 32);
+    stop_gci = data[1] | (Uint64(data[0]) << 32);
   }
   DBUG_RETURN(ret);
 }

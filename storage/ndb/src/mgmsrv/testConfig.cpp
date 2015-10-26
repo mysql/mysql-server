@@ -16,6 +16,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#ifdef TEST_MGMCONFIG
+
 #include <ndb_global.h>
 #include "InitConfigFileParser.hpp"
 #include "ConfigInfo.hpp"
@@ -537,3 +539,5 @@ TAPTEST(MgmConfig)
   ndb_end(0);
   return 1; // OK
 }
+
+#endif

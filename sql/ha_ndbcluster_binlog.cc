@@ -51,6 +51,7 @@ extern st_ndb_slave_state g_ndb_slave_state;
 extern my_bool opt_ndb_log_transaction_id;
 extern my_bool log_bin_use_v1_row_events;
 extern my_bool opt_ndb_log_empty_update;
+extern my_bool opt_ndb_clear_apply_status;
 
 bool ndb_log_empty_epochs(void);
 
@@ -849,7 +850,6 @@ int ndbcluster_binlog_end(THD *thd)
 ****************************************************************/
 static void ndbcluster_reset_slave(THD *thd)
 {
-  int error = 0;
   if (!ndb_binlog_running)
     return;
 
@@ -860,15 +860,17 @@ static void ndbcluster_reset_slave(THD *thd)
     - if table does not exist ignore the error as it
       is a consistent behavior
   */
-  Ndb_local_connection mysqld(thd);
-  const bool ignore_no_such_table = true;
-  if(mysqld.delete_rows(STRING_WITH_LEN("mysql"),
-                        STRING_WITH_LEN("ndb_apply_status"),
-                        ignore_no_such_table,
-                        NULL))
+  if (opt_ndb_clear_apply_status)
   {
-    // Failed to delete rows from table
-    error = 1;
+    Ndb_local_connection mysqld(thd);
+    const bool ignore_no_such_table = true;
+    if(mysqld.delete_rows(STRING_WITH_LEN("mysql"),
+                          STRING_WITH_LEN("ndb_apply_status"),
+                          ignore_no_such_table,
+                          NULL))
+    {
+      // Failed to delete rows from table
+    }
   }
 
   g_ndb_slave_state.atResetSlave();

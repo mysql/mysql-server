@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -617,7 +617,7 @@ BaseString::hexdump(char * buf, size_t len, const Uint32 * wordbuf, size_t numwo
   return offset;
 }
 
-#ifdef TEST_BASE_STRING
+#ifdef TEST_BASESTRING
 
 #include <NdbTap.hpp>
 

@@ -87,7 +87,7 @@ doconnect()
   do
   {
     g_ncc = new Ndb_cluster_connection(opt_ndb_connectstring);
-    CHK2(g_ncc->connect(6, 5) == 0, getNdbError(g_ncc));
+    CHK2(g_ncc->connect(opt_connect_retries, opt_connect_retry_delay) == 0, getNdbError(g_ncc));
     CHK2(g_ncc->wait_until_ready(30, 10) == 0, getNdbError(g_ncc));
 
     if (!_sys_any)
