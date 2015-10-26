@@ -44,6 +44,14 @@ CALL mtr.add_suppression("Failed to run 'after_sync' hook");
 --let $rpl_server_number= 1
 --source include/rpl_restart_server.inc
 
+# on slower machines, when we are restarting Master, on slave
+# IO thread might have stopped. Restart it.
+--disable_result_log
+--source include/rpl_connection_slave.inc
+--source include/start_slave_io.inc
+--enable_result_log
+
+--source include/rpl_connection_master.inc
 CALL mtr.add_suppression("An error occurred during sync stage of the commit.");
 
 DROP TABLE t1;
