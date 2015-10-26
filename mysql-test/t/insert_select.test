@@ -426,3 +426,22 @@ eval set global internal_tmp_disk_storage_engine = $default_internal_tmp_se;
 SET GLOBAL myisam_data_pointer_size = @old_myisam_data_pointer_size;
 DROP TABLE t1;
 --echo End of 5.0 tests
+
+--echo #
+--echo # Bug #21441405: DASH '-' IS NOT RECOGNIZED IN CHARSET
+--echo #                ARMSCII8 ON SELECT WHERE QUERY
+--echo #
+CREATE TABLE t1 (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  a VARCHAR(100) CHARACTER SET ARMSCII8
+);
+INSERT INTO t1 (a) VALUES('abc-def');
+INSERT INTO t1 (a) VALUES(x'616263AC646566');
+INSERT INTO t1 (a) VALUES('\'(),-.');
+INSERT INTO t1 (a) VALUES(x'FFA5A4ABACA9');
+SELECT *, HEX(a) FROM t1;
+SELECT *, HEX(a) FROM t1 WHERE a = 'abc-def';
+SELECT *, HEX(a) FROM t1 WHERE a = x'616263AC646566';
+SELECT *, HEX(a) FROM t1 WHERE a = '\'(),-.';
+SELECT *, HEX(a) FROM t1 WHERE a = x'FFA5A4ABACA9';
+DROP TABLE t1;

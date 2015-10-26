@@ -1261,7 +1261,14 @@ create_fromuni(CHARSET_INFO *cs,
       if (wc >= idx[i].uidx.from && wc <= idx[i].uidx.to && wc)
       {
         int ofs= wc - idx[i].uidx.from;
-        tab[ofs]= ch;
+        /*
+          Character sets like armscii8 may have two code points for
+          one character. When converting from UNICODE back to
+          armscii8, select the lowest one, which is in the ASCII
+          range.
+        */
+        if (tab[ofs] == '\0')
+          tab[ofs]= ch;
       }
     }
   }
