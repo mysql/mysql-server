@@ -14,9 +14,9 @@ UNINSTALL PLUGIN rpl_semi_sync_slave;
 UNINSTALL PLUGIN rpl_semi_sync_master;
 include/rpl_reset.inc
 #
-# Main test of semi-sync replication start here
+# Main test of semi-sync replication starts here
 #
-[ on master ]
+[connection master]
 [ default state of semi-sync on master should be OFF ]
 show variables like 'rpl_semi_sync_master_enabled';
 Variable_name	Value
@@ -38,7 +38,7 @@ Variable_name	Value
 Rpl_semi_sync_master_yes_tx	0
 #
 # BUG#45672 Semisync repl: ActiveTranx:insert_tranx_node: transaction node allocation failed
-# BUG#45673 Semisynch reports correct operation even if no slave is connected
+# BUG#45673 Semisync reports correct operation even if no slave is connected
 #
 [ status of semi-sync on master should be OFF ]
 show status like 'Rpl_semi_sync_master_clients';
@@ -54,7 +54,7 @@ include/rpl_reset.inc
 #
 # INSTALL PLUGIN semi-sync on slave
 #
-[ on slave ]
+[connection slave]
 [ default state of semi-sync on slave should be OFF ]
 show variables like 'rpl_semi_sync_slave_enabled';
 Variable_name	Value
@@ -65,7 +65,7 @@ show variables like 'rpl_semi_sync_slave_enabled';
 Variable_name	Value
 rpl_semi_sync_slave_enabled	ON
 include/start_slave.inc
-[ on master ]
+[connection master]
 [ initial master state after the semi-sync slave connected ]
 show status like 'Rpl_semi_sync_master_clients';
 Variable_name	Value
@@ -123,7 +123,7 @@ max(a)
 # BUG#50157
 # semi-sync replication crashes when replicating a transaction which
 # include 'CREATE TEMPORARY TABLE `MyISAM_t` SELECT * FROM `Innodb_t` ;
-[ on master ]
+[connection master]
 SET SESSION AUTOCOMMIT= 0;
 CREATE TABLE t2(c1 INT) ENGINE=innodb;
 include/sync_slave_sql_with_master.inc
@@ -145,7 +145,8 @@ include/sync_slave_sql_with_master.inc
 # timeout waiting for slave reply.
 #
 include/stop_slave.inc
-[ on master ]
+[connection master]
+include/stop_dump_threads.inc
 [ master status should be ON ]
 show status like 'Rpl_semi_sync_master_status';
 Variable_name	Value
@@ -158,7 +159,7 @@ Variable_name	Value
 Rpl_semi_sync_master_yes_tx	15
 show status like 'Rpl_semi_sync_master_clients';
 Variable_name	Value
-Rpl_semi_sync_master_clients	1
+Rpl_semi_sync_master_clients	0
 [ semi-sync replication of these transactions will fail ]
 insert into t1 values (500);
 [ master status should be OFF ]
@@ -185,7 +186,7 @@ Rpl_semi_sync_master_yes_tx	15
 #
 # Test semi-sync status on master will be ON again when slave catches up
 #
-[ on slave ]
+[connection slave]
 [ slave status should be OFF ]
 show status like 'Rpl_semi_sync_slave_status';
 Variable_name	Value
@@ -204,7 +205,7 @@ min(a)
 select max(a) from t1;
 max(a)
 500
-[ on master ]
+[connection master]
 [ master status should be ON again after slave catches up ]
 show status like 'Rpl_semi_sync_master_status';
 Variable_name	Value
@@ -243,7 +244,7 @@ Rpl_semi_sync_master_no_tx	0
 SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
 Rpl_semi_sync_master_yes_tx	0
-[ on master ]
+[connection master]
 show master logs;
 Log_name	master-bin.000001
 File_size	#
@@ -269,16 +270,16 @@ Rpl_semi_sync_master_status	ON
 #
 # Test RESET MASTER/SLAVE
 #
-[ on slave ]
+[connection slave]
 include/start_slave.inc
-[ on master ]
+[connection master]
 create table t1 (a int) engine = ENGINE_TYPE;
 drop table t1;
 include/sync_slave_sql_with_master.inc
 show status like 'Rpl_relay%';
 Variable_name	Value
 [ test reset master ]
-[ on master]
+[connection master]
 reset master;
 show status like 'Rpl_semi_sync_master_status';
 Variable_name	Value
@@ -289,12 +290,14 @@ Rpl_semi_sync_master_no_tx	0
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
 Rpl_semi_sync_master_yes_tx	0
-[ on slave ]
+[connection slave]
 include/stop_slave.inc
 reset slave;
 reset master;
+[connection master]
+include/stop_dump_threads.inc
 include/start_slave.inc
-[ on master ]
+[connection master]
 create table t1 (a int) engine = ENGINE_TYPE;
 insert into t1 values (1);
 insert into t1 values (2), (3);
@@ -305,7 +308,7 @@ a
 1
 2
 3
-[ on master ]
+[connection master]
 [ master semi-sync status should be ON ]
 show status like 'Rpl_semi_sync_master_status';
 Variable_name	Value
@@ -320,18 +323,18 @@ Rpl_semi_sync_master_yes_tx	3
 # Start semi-sync replication without SUPER privilege
 #
 include/rpl_reset.inc
+[connection master]
+include/stop_dump_threads.inc
 set sql_log_bin=0;
-grant replication slave on *.* to rpl@127.0.0.1 identified by 'rpl';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+create user rpl@127.0.0.1 identified by 'rpl';
+grant replication slave on *.* to rpl@127.0.0.1;
 flush privileges;
 set sql_log_bin=1;
 SET @save_show_compatibility_56=@@global.show_compatibility_56;
 SET @@global.show_compatibility_56=OFF;
-[ on slave ]
-grant replication slave on *.* to rpl@127.0.0.1 identified by 'rpl';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+[connection slave]
+create user rpl@127.0.0.1 identified by 'rpl';
+grant replication slave on *.* to rpl@127.0.0.1;
 flush privileges;
 change master to master_user='rpl',master_password='rpl';
 Warnings:
@@ -341,31 +344,40 @@ include/start_slave.inc
 show status like 'Rpl_semi_sync_slave_status';
 Variable_name	Value
 Rpl_semi_sync_slave_status	ON
-[ on master ]
+[connection master]
 SET @@global.show_compatibility_56=ON;
-[ on slave ]
+[connection slave]
 include/stop_slave.inc
+[connection master]
+Insert into t1 values (4);
+show status like 'Rpl_semi_sync_master_status';
+Variable_name	Value
+Rpl_semi_sync_master_status	OFF
+show status like 'Rpl_semi_sync_master_clients';
+Variable_name	Value
+Rpl_semi_sync_master_clients	0
+[connection slave]
 include/start_slave.inc
 show status like 'Rpl_semi_sync_slave_status';
 Variable_name	Value
 Rpl_semi_sync_slave_status	ON
-[ on master ]
+[connection master]
 SET @@global.show_compatibility_56=@save_show_compatibility_56;
+show status like 'Rpl_semi_sync_master_status';
+Variable_name	Value
+Rpl_semi_sync_master_status	ON
 [ master semi-sync should be ON ]
 show status like 'Rpl_semi_sync_master_clients';
 Variable_name	Value
 Rpl_semi_sync_master_clients	1
-show status like 'Rpl_semi_sync_master_status';
-Variable_name	Value
-Rpl_semi_sync_master_status	ON
 show status like 'Rpl_semi_sync_master_no_tx';
 Variable_name	Value
-Rpl_semi_sync_master_no_tx	0
+Rpl_semi_sync_master_no_tx	1
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
 Rpl_semi_sync_master_yes_tx	0
-insert into t1 values (4);
 insert into t1 values (5);
+insert into t1 values (6);
 [ master semi-sync should be ON ]
 show status like 'Rpl_semi_sync_master_clients';
 Variable_name	Value
@@ -375,7 +387,7 @@ Variable_name	Value
 Rpl_semi_sync_master_status	ON
 show status like 'Rpl_semi_sync_master_no_tx';
 Variable_name	Value
-Rpl_semi_sync_master_no_tx	0
+Rpl_semi_sync_master_no_tx	1
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
 Rpl_semi_sync_master_yes_tx	2
@@ -388,7 +400,8 @@ include/stop_slave.inc
 SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
 Variable_name	Value
 Rpl_semi_sync_slave_status	OFF
-[ on master ]
+[connection master]
+include/stop_dump_threads.inc
 [ Semi-sync status on master should be ON ]
 show status like 'Rpl_semi_sync_master_clients';
 Variable_name	Value
@@ -397,12 +410,12 @@ show status like 'Rpl_semi_sync_master_status';
 Variable_name	Value
 Rpl_semi_sync_master_status	ON
 set global rpl_semi_sync_master_enabled= 0;
-[ on slave ]
+[connection slave]
 SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
 Variable_name	Value
 rpl_semi_sync_slave_enabled	ON
 include/start_slave.inc
-[ on master ]
+[connection master]
 insert into t1 values (8);
 [ master semi-sync clients should be 1, status should be OFF ]
 show status like 'Rpl_semi_sync_master_clients';
@@ -422,12 +435,12 @@ include/stop_dump_threads.inc
 UNINSTALL PLUGIN rpl_semi_sync_master;
 SHOW VARIABLES LIKE 'rpl_semi_sync_master_enabled';
 Variable_name	Value
-[ on slave ]
+[connection slave]
 SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
 Variable_name	Value
 rpl_semi_sync_slave_enabled	ON
 include/start_slave.inc
-[ on master ]
+[connection master]
 insert into t1 values (10);
 include/sync_slave_sql_with_master.inc
 [ on slave ]
@@ -441,7 +454,7 @@ INSTALL PLUGIN rpl_semi_sync_master SONAME 'SEMISYNC_MASTER_PLUGIN';
 set global rpl_semi_sync_master_timeout= 60000;
 /* 60s */
 set global rpl_semi_sync_master_enabled= 1;
-[ on slave ]
+[connection slave]
 include/stop_slave.inc
 SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
 Variable_name	Value
