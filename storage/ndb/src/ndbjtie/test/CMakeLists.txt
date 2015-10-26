@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,6 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 # neither wildcards (nor line breaks) for clean targets supported by cmake
+
 SET_DIRECTORY_PROPERTIES(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES
   "test_mutils.sh.log;test_mutils.cmd.log;test_ndbjtie_constants.sh.log;test_ndbjtie_constants.cmd.log;test_ndbjtie_multilib.sh.log;test_ndbjtie_multilib.cmd.log;test_ndbjtie_smoke.sh.log;test_ndbjtie_smoke.cmd.log;test_unload_mutils.sh.log;test_unload_mutils.cmd.log;test_unload_ndbjtie_constants.sh.log;test_unload_ndbjtie_constants.cmd.log;test_unload_ndbjtie_multilib.sh.log;test_unload_ndbjtie_multilib.cmd.log;test_unload_ndbjtie_smoke.sh.log;test_unload_ndbjtie_smoke.cmd.log;")
 
@@ -31,7 +32,7 @@ CREATE_JAR(ndbjtie-test ${JAVA_SOURCES}
   CLASSPATH ${CLASSPATH}
   DEPENDENCIES ndbjtie.jar jtie.jar jtie-test-myjapi.jar)
 
-ADD_EXECUTABLE(ndbjtie_unit_tests-t ndbjtie_unit_tests-t.cpp)
+NDB_ADD_TEST(ndbjtie_unit_tests-t ndbjtie_unit_tests-t.cpp)
 
 IF(HAVE_JDK)
 

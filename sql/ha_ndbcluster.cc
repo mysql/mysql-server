@@ -13416,6 +13416,11 @@ void ha_ndbcluster::print_error(int error, myf errflag)
     m_part_info->print_no_partition_found(table);
   else
   {
+    if (error == HA_ERR_NO_CONNECTION)
+    {
+      handler::print_error(4009, errflag);
+      DBUG_VOID_RETURN;
+    }
     if (error == HA_ERR_FOUND_DUPP_KEY &&
         (table == NULL || table->file == NULL))
     {
@@ -19173,6 +19178,16 @@ static MYSQL_SYSVAR_BOOL(
   0                                 /* default */
 );
 
+my_bool opt_ndb_clear_apply_status;
+static MYSQL_SYSVAR_BOOL(
+  clear_apply_status,               /* name */
+  opt_ndb_clear_apply_status,       /* var  */
+  PLUGIN_VAR_OPCMDARG,
+  "Whether RESET SLAVE will clear all entries in ndb_apply_status",
+  NULL,                             /* check func. */
+  NULL,                             /* update func. */
+  1                                 /* default */
+);
 
 static MYSQL_SYSVAR_STR(
   connectstring,                    /* name */
@@ -19414,6 +19429,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(log_empty_epochs),
   MYSQL_SYSVAR(log_apply_status),
   MYSQL_SYSVAR(log_transaction_id),
+  MYSQL_SYSVAR(clear_apply_status),
   MYSQL_SYSVAR(connectstring),
   MYSQL_SYSVAR(mgmd_host),
   MYSQL_SYSVAR(nodeid),

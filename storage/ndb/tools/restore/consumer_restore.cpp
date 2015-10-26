@@ -840,7 +840,7 @@ BackupRestore::init(Uint32 tableChangesMask)
     return false;
   }
   m_cluster_connection->set_name(g_options.c_str());
-  if(m_cluster_connection->connect(12, 5, 1) != 0)
+  if(m_cluster_connection->connect(m_ndb_connect_retries, m_ndb_connect_retry_delay, 1) != 0)
   {
     return false;
   }

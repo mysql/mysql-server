@@ -864,8 +864,6 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
       goto InvalidSignal;
     }
     tCon = void2con(tFirstDataPtr);
-    assert(tFirstDataPtr != 0 && 
-           void2con(tFirstDataPtr)->checkMagicNumber() == 0);
     if (tCon->checkMagicNumber() == 0)
     {
       tReturnCode = tCon->receiveSCAN_TABREF(aSignal);

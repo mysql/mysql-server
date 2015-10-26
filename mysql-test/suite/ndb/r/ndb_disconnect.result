@@ -1,0 +1,19 @@
+"testing the bug#21837074"
+DROP TABLE IF EXISTS test.t1;
+create table test.t1(i int primary key) engine=ndb;
+Restarting all nodes "no start"
+Waiting for not started
+show create table test.t1;
+ERROR HY000: Got error 4009 'Cluster Failure' from NDBCLUSTER
+"show create table failed as expected. Now starting the nodes again"
+Starting all nodes
+Waiting for started
+"Mysqld connected to cluster. Now executing the show create table again."
+show create table test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL,
+  PRIMARY KEY (`i`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Drop table test.t1;
+"End of test the bug#21837074"

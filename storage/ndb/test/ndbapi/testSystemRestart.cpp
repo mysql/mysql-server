@@ -1278,6 +1278,7 @@ int runWaitStarted(NDBT_Context* ctx, NDBT_Step* step){
 
   NdbRestarter restarter;
   restarter.waitClusterStarted(300);
+  CHK_NDB_READY(GETNDB(step));
 
   NdbSleep_SecSleep(3);
   return NDBT_OK;
@@ -1962,6 +1963,7 @@ int runSR_DD_3(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(restarter.waitClusterNoStart() == 0);
     CHECK(restarter.startAll() == 0);
     CHECK(restarter.waitClusterStarted() == 0);
+    CHK_NDB_READY(pNdb);
     if (error)
     {
       restarter.insertErrorInAllNodes(error);
@@ -2300,6 +2302,7 @@ int runBug45154(NDBT_Context* ctx, NDBT_Step* step)
     restarter.waitClusterNoStart();
     restarter.startAll();
     restarter.waitClusterStarted();
+    CHK_NDB_READY(pNdb);
 
     pDict->dropTable("BUG_45154");
   }
@@ -2368,7 +2371,7 @@ int runBug46651(NDBT_Context* ctx, NDBT_Step* step)
   if (res.waitClusterStarted())
     return NDBT_FAILED;
 
-  pNdb->waitUntilReady();
+  CHK_NDB_READY(pNdb);
 
   NdbDictionary::Table newTab = *pTab;
   col.setName("ATTR4");
@@ -2392,7 +2395,7 @@ int runBug46651(NDBT_Context* ctx, NDBT_Step* step)
   if (res.waitClusterStarted())
     return NDBT_FAILED;
 
-  pNdb->waitUntilReady();
+  CHK_NDB_READY(pNdb);
   pDict->dropTable(tab.getName());
 
   return NDBT_OK;
@@ -2633,7 +2636,7 @@ runBug54611(NDBT_Context* ctx, NDBT_Step* step)
     res.insertErrorInAllNodes(5055);
     res.startAll();
     res.waitClusterStarted();
-    pNdb->waitUntilReady();
+    CHK_NDB_READY(pNdb);
   }
 
   return NDBT_OK;
@@ -2666,6 +2669,7 @@ runBug56961(NDBT_Context* ctx, NDBT_Step* step)
     res.startNodes(&node, 1);
     ndbout_c("Waiting for %d to start", node);
     res.waitClusterStarted();
+    CHK_NDB_READY(pNdb);
 
     ndbout_c("Waiting for %d to restart (5059)", node);
     res.dumpStateOneNode(node, val2, 2);
@@ -2680,7 +2684,7 @@ runBug56961(NDBT_Context* ctx, NDBT_Step* step)
     res.startNodes(&node, 1);
     ndbout_c("Waiting for %d to start", node);
     res.waitClusterStarted();
-    pNdb->waitUntilReady();
+    CHK_NDB_READY(pNdb);
   }
 
   return NDBT_OK;
@@ -2769,6 +2773,7 @@ int runAlterTableAndOptimize(NDBT_Context* ctx, NDBT_Step* step)
             g_err << "Cluster went down during reorganize partition" << endl;
             return NDBT_FAILED;
           }
+          CHK_NDB_READY(GETNDB(step));
           /* retry the query for same table */
           i--;
           nodesKilledDuringStep= false;

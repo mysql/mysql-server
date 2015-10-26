@@ -2228,6 +2228,7 @@ static int runCreateDropNR(NDBT_Context* ctx, NDBT_Step* step)
     ndbout << "Restarting with dropped events with subscribers" << endl;
     if (restartAllNodes())
       break;
+    CHK_NDB_READY(ndb);
     if (ndb->getDictionary()->dropTable(pTab->getName()) != 0){
       g_err << "Failed to drop " << pTab->getName() <<" in db" << endl;
       break;
@@ -2236,6 +2237,7 @@ static int runCreateDropNR(NDBT_Context* ctx, NDBT_Step* step)
            << "table with subscribers" << endl;
     if (restartAllNodes())
       break;
+    CHK_NDB_READY(ndb);
     if (ndb->dropEventOperation(pOp))
     {
       g_err << "Failed dropEventOperation" << endl;
@@ -2391,6 +2393,7 @@ runBug31701(NDBT_Context* ctx, NDBT_Step* step)
   if (restarter.waitClusterStarted())
     return NDBT_FAILED;
 
+  CHK_NDB_READY(GETNDB(step));
   
   int records = ctx->getNumRecords();
   HugoTransactions hugoTrans(*ctx->getTab());
@@ -2637,9 +2640,7 @@ errorInjectStalling(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
 
-  if (ndb->waitUntilReady() != 0){
-    return NDBT_FAILED;
-  }
+  CHK_NDB_READY(ndb);
 
   pOp= createEventOperation(ndb, *pTab);
 
@@ -2845,6 +2846,8 @@ runBug34853(NDBT_Context* ctx, NDBT_Step* step)
   res.startNodes(&nodeId, 1);
   ndbout_c("waiting cluster");
   res.waitClusterStarted();
+
+  CHK_NDB_READY(xndb);
 
   if (pOp->execute())
   { // This starts changes to "start flowing"
@@ -3231,6 +3234,8 @@ runBug37279(NDBT_Context* ctx, NDBT_Step* step)
   {
     return NDBT_FAILED;
   }
+
+  CHK_NDB_READY(pNdb);
   
   pNdb->dropEventOperation(pOp0);
   runDropEvent(ctx, step);
@@ -3295,6 +3300,8 @@ runBug37338(NDBT_Context* ctx, NDBT_Step* step)
       return NDBT_FAILED;
     }
     
+    CHK_NDB_READY(ndb0);
+  
     ndb0->dropEventOperation(pOp0);
     
     delete ndb0;
@@ -3343,6 +3350,7 @@ runBug37442(NDBT_Context* ctx, NDBT_Step* step)
     {
       return NDBT_FAILED;
     }
+    CHK_NDB_READY(GETNDB(step));
   }
 
   runDropEvent(ctx, step);
@@ -3961,6 +3969,8 @@ runBug12598496(NDBT_Context* ctx, NDBT_Step* step)
   if (restarter.waitClusterStarted() != 0)
     return NDBT_FAILED;
 
+  CHK_NDB_READY(pNdb);
+
   pNdb->dropEventOperation(op);
   dropEvent(pNdb, tab);
 
@@ -4154,6 +4164,10 @@ int runPollBCNoWaitConsumer(NDBT_Context* ctx, NDBT_Step* step)
     NdbSleep_SecSleep(1);
   }
   CHK(retries > 0, "No epoch has received in 10 secs");
+
+  CHK_NDB_READY(ndb);
+
+  g_err << "Node started" << endl;
 
   // pollEvents with aMilliSeconds = 0 will poll only once (no wait),
   // and it should see the event data seen above
@@ -4503,11 +4517,7 @@ consumeEpochs(Ndb* ndb, Uint32 nEpochs)
   Uint32 errorEpochs = 0, regularOps = 0, unknownOps = 0;
   Uint32 emptyEpochsBeforeRegular = 0, emptyEpochs = 0;
 
-  // Allow some time for the event data from the data nodes
-  // to reach the event buffer
-  NdbSleep_SecSleep(5);
-
-  int pollRetries = 600;
+  int pollRetries = 60;
   int res = 0;
   Uint64 highestQueuedEpoch = 0;
   while (pollRetries-- > 0)
@@ -4691,6 +4701,7 @@ runInjectClusterFailure(NDBT_Context* ctx, NDBT_Step* step)
 
   // Poll until find some event data in the queue
   // but don't consume (nEpochs to consume is 0)
+  NdbSleep_SecSleep(5);   //Wait for some events to arrive 
   CHK(consumeEpochs(pNdb, 0), "No event data found by pollEvents");
 
   /*
@@ -4701,6 +4712,7 @@ runInjectClusterFailure(NDBT_Context* ctx, NDBT_Step* step)
   const NdbDictionary::Table tab1(* ctx->getTab());
 
   bool initialRestart = ctx->getProperty("InitialRestart");
+  bool consumeAfterDrop = ctx->getProperty("ConsumeAfterDrop");
   bool keepSomeEvOpOnClusterFailure = ctx->getProperty("KeepSomeEvOpOnClusterFailure");
   if (initialRestart)
   {
@@ -4749,13 +4761,35 @@ runInjectClusterFailure(NDBT_Context* ctx, NDBT_Step* step)
 
   // Consume 5 epochs to ensure that the event consumption
   // has started after recovery from cluster failure
-  CHK(consumeEpochs(pNdb, 5), "Consumption after cluster restart failed");
+  NdbSleep_SecSleep(5);   //Wait for events to arrive after restart 
+  if (!consumeAfterDrop)
+  {
+    CHK(consumeEpochs(pNdb, 5), "Consumption after cluster restart failed");
+  }
 
   g_info << "Signal to stop the load" << endl;
   ctx->setProperty("ClusterRestarted", (Uint32)0);
   NdbSleep_SecSleep(1);
 
   CHK(pNdb->dropEventOperation(evOp2) == 0, "dropEventOperation failed");
+  evOp2 = NULL;
+
+  if (consumeAfterDrop)
+  {
+    // First consume buffered events polled before restart.
+    // If incorrectly handled, this will free the dropped evOp2.
+    while (pNdb->nextEvent2() != NULL) {}
+
+    // Poll and consume after evOp2 was dropped.
+    // Events for dropped evOp2 will internally be seen by nextEvent(),
+    // but should be ignored as not 'EXECUTING' - evOp2 must still exists though!
+    Uint64 gci;
+    CHK(pNdb->pollEvents2(1000, &gci), "Failed to pollEvents2 after restart + dropEvent");
+    while (NdbEventOperation* op = pNdb->nextEvent2())
+    {
+      CHK((op!=evOp2), "Received events for 'evOp2' after it was dropped")
+    }
+  }
 
   if (keepSomeEvOpOnClusterFailure)
   {
@@ -5094,6 +5128,9 @@ int runCreateDropEventOperation_NF(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "Cluster failed to start" << endl;
     return NDBT_FAILED;
   }
+
+  CHK_NDB_READY(pNdb);
+
   g_err << "Node started" << endl;
 
 // g_err << "Dropping ev op:"
@@ -5507,6 +5544,17 @@ TESTCASE("Apiv2-check_event_received_after_restart",
 {
   TC_PROPERTY("InitialRestart", 1);
   TC_PROPERTY("KeepSomeEvOpOnClusterFailure", 1);
+  INITIALIZER(runCreateEvent);
+  STEP(runInjectClusterFailure);
+  STEP(runInsertDeleteAfterClusterFailure);
+}
+TESTCASE("Apiv2-check_drop_event_op_after_restart",
+         "Check garbage collection of a dropped event operation "
+         "after a cluster failure resetting the GCI sequence.")
+{
+  TC_PROPERTY("InitialRestart", 1);
+  TC_PROPERTY("KeepSomeEvOpOnClusterFailure", 1);
+  TC_PROPERTY("ConsumeAfterDrop", 1);
   INITIALIZER(runCreateEvent);
   STEP(runInjectClusterFailure);
   STEP(runInsertDeleteAfterClusterFailure);
