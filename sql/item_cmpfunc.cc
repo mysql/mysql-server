@@ -7211,9 +7211,9 @@ bool Item_equal::compare_const(THD *thd, Item *c)
       return true;
     func->quick_fix_field();
     cond_false= !func->val_int();
-    if (thd->is_error())
-      return true;
   }
+  if (thd->is_error())
+    return true;
   if (cond_false)
     const_item_cache= 1;
   return false;
