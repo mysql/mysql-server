@@ -8982,7 +8982,7 @@ type_conversion_status Field_json::store_binary(const char *ptr, size_t length)
   */
   DBUG_ASSERT(length == 0 || json_binary::parse_binary(ptr, length).is_valid());
 
-  if (value.length() > UINT_MAX32)
+  if (length > UINT_MAX32)
   {
     /* purecov: begin inspected */
     my_error(ER_JSON_VALUE_TOO_BIG, MYF(0));
