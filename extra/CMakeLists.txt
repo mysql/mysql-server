@@ -29,9 +29,8 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 SET(MYSQL_INSTALL_COMPONENT Server)
 
 IF(NOT CMAKE_CROSSCOMPILING)
- ADD_EXECUTABLE(comp_err comp_err.c)
+ ADD_EXECUTABLE(comp_err comp_err.cc)
  TARGET_LINK_LIBRARIES(comp_err mysys mysys_ssl)
- SET_TARGET_PROPERTIES(comp_err PROPERTIES LINKER_LANGUAGE CXX)
 ENDIF()
 
 IF (BUILD_BUNDLED_LZ4)
@@ -53,7 +52,7 @@ ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/include/mysqld_error.h
                     --state_file=${PROJECT_BINARY_DIR}/include/sql_state.h
                     --in_file=${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt
                    DEPENDS ${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt
-                   ${CMAKE_CURRENT_SOURCE_DIR}/comp_err.c)
+                   ${CMAKE_CURRENT_SOURCE_DIR}/comp_err.cc)
 
 ADD_CUSTOM_TARGET(GenError
                   ALL

@@ -31,7 +31,7 @@
 ** master/autocommit code by Brian Aker <brian@tangent.org>
 ** SSL by
 ** Andrei Errapart <andreie@no.spam.ee>
-** TÃµnu Samuel  <tonu@please.do.not.remove.this.spam.ee>
+** Tonu Samuel  <tonu@please.do.not.remove.this.spam.ee>
 ** XML by Gary Huntress <ghuntress@mediaone.net> 10/10/01, cleaned up
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
 ** Added --single-transaction option 06/06/2002 by Peter Zaitsev
@@ -55,6 +55,8 @@
 #include "mysqld_error.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
+
+#include "prealloced_array.h"
 
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
@@ -170,7 +172,7 @@ static char *shared_memory_base_name=0;
 static uint opt_protocol= 0;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 
-DYNAMIC_ARRAY ignore_error;
+Prealloced_array<uint, 12, true> ignore_error(PSI_NOT_INSTRUMENTED);
 static int parse_ignore_error();
 
 /*
@@ -966,9 +968,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int) OPT_SET_GTID_PURGED:
     {
       if (argument)
-        opt_set_gtid_purged_mode= find_type_or_exit(argument,
-                                                    &set_gtid_purged_mode_typelib,
-                                                    opt->name)-1;
+        opt_set_gtid_purged_mode= static_cast<enum_set_gtid_purged_mode>
+          (find_type_or_exit(argument,
+                             &set_gtid_purged_mode_typelib,
+                             opt->name)-1);
       break;
     }
   case (int) OPT_MYSQLDUMP_IGNORE_ERROR:
@@ -1550,7 +1553,6 @@ static void free_resources()
     free_defaults(defaults_argv);
   if (opt_ignore_error)
     my_free(opt_ignore_error);
-  delete_dynamic(&ignore_error);
   my_end(my_end_arg);
 }
 
@@ -1571,11 +1573,6 @@ int parse_ignore_error()
 
   DBUG_ENTER("parse_ignore_error");
 
-  if (my_init_dynamic_array(&ignore_error,
-                           PSI_NOT_INSTRUMENTED,
-                           sizeof(uint), NULL, 12, 12))
-    goto error;
-
   token= strtok(opt_ignore_error, search);
 
   while (token != NULL)
@@ -1584,7 +1581,7 @@ int parse_ignore_error()
     // filter out 0s, if any
     if (my_err != 0)
     {
-      if (insert_dynamic(&ignore_error, &my_err))
+      if (ignore_error.push_back(my_err))
         goto error;
     }
     token= strtok(NULL, search);
@@ -1602,7 +1599,7 @@ error:
 */
 static my_bool do_ignore_error()
 {
-  uint i, last_errno, *my_err;
+  uint last_errno;
   my_bool found= 0;
 
   DBUG_ENTER("do_ignore_error");
@@ -1612,10 +1609,9 @@ static my_bool do_ignore_error()
   if (last_errno == 0)
     goto done;
 
-  for (i= 0; i < ignore_error.elements; i++)
+  for (uint *it= ignore_error.begin(); it != ignore_error.end(); ++it)
   {
-    my_err= dynamic_element(&ignore_error, i, uint *);
-    if (last_errno == *my_err)
+    if (last_errno == *it)
     {
       found= 1;
       break;
@@ -5504,8 +5500,8 @@ static char *primary_key_fields(const char *table_name)
   {
     char *end;
     /* result (terminating \0 is already in result_length) */
-    result= my_malloc(PSI_NOT_INSTRUMENTED,
-                      result_length + 10, MYF(MY_WME));
+    result= static_cast<char*>(my_malloc(PSI_NOT_INSTRUMENTED,
+                                         result_length + 10, MYF(MY_WME)));
     if (!result)
     {
       fprintf(stderr, "Error: Not enough memory to store ORDER BY clause\n");

@@ -75,7 +75,7 @@ typedef struct fileinfo
 typedef struct st_my_dir	/* Struct returned from my_dir */
 {
   /*
-    These members are just copies of parts of DYNAMIC_ARRAY structure, 
+    These members are just copies of parts of Prealloced_array structure, 
     which is allocated right after the end of MY_DIR structure (MEM_ROOT
     for storing names is also resides there). We've left them here because
     we don't want to change code that uses my_dir.

@@ -34,6 +34,8 @@
 #include <mysql_version.h>
 #include "mysql/service_mysql_alloc.h"
 
+#include "prealloced_array.h"
+
 #define MAX_ROWS  2000
 #define HEADER_LENGTH 32                /* Length of header in errmsg.sys */
 #define ERRMSG_VERSION 3                /* Version number of errmsg.sys */
@@ -100,7 +102,11 @@ struct errors
   const char *sql_code1;		/* sql state */
   const char *sql_code2;		/* ODBC state */
   struct errors *next_error;            /* Pointer to next error */
-  DYNAMIC_ARRAY msg;                    /* All language texts for this error */
+  Prealloced_array<message, 10>
+  msg;                                  /* All language texts for this error */
+
+  errors() : msg(PSI_NOT_INSTRUMENTED)
+  {}
 };
 
 
@@ -449,7 +455,6 @@ static void clean_up(struct languages *lang_head, struct errors *error_head)
 {
   struct languages *tmp_lang, *next_language;
   struct errors *tmp_error, *next_error;
-  uint count, i;
 
   my_free((void*) default_language);
 
@@ -465,21 +470,21 @@ static void clean_up(struct languages *lang_head, struct errors *error_head)
   for (tmp_error= error_head; tmp_error; tmp_error= next_error)
   {
     next_error= tmp_error->next_error;
-    count= (tmp_error->msg).elements;
-    for (i= 0; i < count; i++)
+    size_t count= (tmp_error->msg).size();
+    for (size_t i= 0; i < count; i++)
     {
       struct message *tmp;
-      tmp= dynamic_element(&tmp_error->msg, i, struct message*);
+      tmp= &tmp_error->msg[i];
       my_free(tmp->lang_short_name);
       my_free(tmp->text);
     }
 
-    delete_dynamic(&tmp_error->msg);
     if (tmp_error->sql_code1[0])
       my_free((void*) tmp_error->sql_code1);
     if (tmp_error->sql_code2[0])
       my_free((void*) tmp_error->sql_code2);
     my_free((void*) tmp_error->er_name);
+    tmp_error->~errors();
     my_free(tmp_error);
   }
 }
@@ -562,7 +567,7 @@ static int parse_input_file(const char *file_name, struct errors **top_error,
 		current_error->er_name, current_message.lang_short_name);
 	DBUG_RETURN(0);
       }
-      if (insert_dynamic(&current_error->msg, &current_message))
+      if (current_error->msg.push_back(current_message))
 	DBUG_RETURN(0);
       continue;
     }
@@ -684,13 +689,12 @@ static struct message *find_message(struct errors *err, const char *lang,
                                     my_bool no_default)
 {
   struct message *tmp, *return_val= 0;
-  uint i, count;
   DBUG_ENTER("find_message");
 
-  count= (err->msg).elements;
-  for (i= 0; i < count; i++)
+  size_t count= (err->msg).size();
+  for (size_t i= 0; i < count; i++)
   {
-    tmp= dynamic_element(&err->msg, i, struct message*);
+    tmp= &err->msg[i];
 
     if (!strcmp(tmp->lang_short_name, lang))
       DBUG_RETURN(tmp);
@@ -798,10 +802,10 @@ static int check_message_format(struct errors *err,
   DBUG_ENTER("check_message_format");
 
   /*  Get first message(if any) */
-  if ((err->msg).elements == 0)
+  if ((err->msg).empty())
     DBUG_RETURN(0); /* No previous message to compare against */
 
-  first= dynamic_element(&err->msg, 0, struct message*);
+  first= err->msg.begin();
   DBUG_ASSERT(first != NULL);
 
   if (checksum_format_specifier(first->text) !=
@@ -931,14 +935,10 @@ static struct errors *parse_error_string(char *str, int er_count)
   DBUG_PRINT("enter", ("str: %s", str));
 
   /* create a new element */
-  new_error= (struct errors *) my_malloc(PSI_NOT_INSTRUMENTED,
-                                         sizeof(*new_error), MYF(MY_WME));
-
-  if (my_init_dynamic_array(&new_error->msg,
-                            PSI_NOT_INSTRUMENTED,
-                            sizeof(struct message),
-                            NULL, 0, 0))
-    DBUG_RETURN(0);				/* OOM: Fatal error */
+  void *rawmem= 
+    my_malloc(PSI_NOT_INSTRUMENTED,
+              sizeof(*new_error), MYF(MY_WME));
+  new_error= new (rawmem) errors();
 
   /* getting the error name */
   str= skip_delimiters(str);
