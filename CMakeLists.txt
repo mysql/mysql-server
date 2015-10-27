@@ -447,7 +447,6 @@ ADD_SUBDIRECTORY(libmysql)
 
 IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(unittest)
-  FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/unittest/ndb)
   ADD_SUBDIRECTORY(unittest/examples)
   ADD_SUBDIRECTORY(unittest/mytap)
   ADD_SUBDIRECTORY(unittest/mytap/t)
