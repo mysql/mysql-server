@@ -17166,21 +17166,31 @@ enum_alter_inplace_result
   bool max_rows_changed= false;
   if (alter_flags & Alter_inplace_info::CHANGE_CREATE_OPTION)
   {
+    DBUG_PRINT("info", ("Some create options changed"));
     if (create_info->auto_increment_value !=
       table->file->stats.auto_increment_value)
+    {
+      DBUG_PRINT("info", ("The AUTO_INCREMENT value changed"));
       auto_increment_value_changed= true;
+    }
     if (create_info->used_fields & HA_CREATE_USED_MAX_ROWS)
+    {
+      DBUG_PRINT("info", ("The MAX_ROWS value changed"));
       max_rows_changed= true;
+    }
   }
 
   if (alter_flags & Alter_inplace_info::ALTER_TABLE_REORG)
   {
+    DBUG_PRINT("info", ("Reorganize partitions"));
     /*
       sql_partition.cc tries to compute what is going on
       and sets flags...that we clear
     */
     if (part_info->use_default_num_partitions)
     {
+      DBUG_PRINT("info", ("Using default number of partitions, "
+                          "clear some flags"));
       alter_flags= alter_flags & ~Alter_inplace_info::COALESCE_PARTITION;
       alter_flags= alter_flags & ~Alter_inplace_info::ADD_PARTITION;
     }
