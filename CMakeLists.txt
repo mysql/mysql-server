@@ -386,7 +386,6 @@ ADD_SUBDIRECTORY(libmysql)
 
 IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(unittest/mytap)
-  FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/unittest/ndb)
   ADD_SUBDIRECTORY(unittest/mysys)
   ADD_SUBDIRECTORY(unittest/my_decimal)
 ENDIF()
