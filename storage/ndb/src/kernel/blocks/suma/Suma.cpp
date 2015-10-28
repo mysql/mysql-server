@@ -5185,14 +5185,23 @@ found:
       else if (getNodeState().startLevel >= NodeState::SL_STOPPING_1)
       {
         jam();
-        ndbrequire(c_shutdown.m_wait_handover);
-        StopMeConf * conf = CAST_PTR(StopMeConf, signal->getDataPtrSend());
-        conf->senderData = c_shutdown.m_senderData;
-        conf->senderRef = reference();
-        sendSignal(c_shutdown.m_senderRef, GSN_STOP_ME_CONF, signal,
-                   StopMeConf::SignalLength, JBB);
-        c_shutdown.m_wait_handover = false;
-        infoEvent("Suma: handover complete");
+        if (c_shutdown.m_wait_handover)
+        {
+          jam();
+          ndbassert(getNodeState().startLevel == NodeState::SL_STOPPING_3);
+          StopMeConf * conf = CAST_PTR(StopMeConf, signal->getDataPtrSend());
+          conf->senderData = c_shutdown.m_senderData;
+          conf->senderRef = reference();
+          sendSignal(c_shutdown.m_senderRef, GSN_STOP_ME_CONF, signal,
+                     StopMeConf::SignalLength, JBB);
+          c_shutdown.m_wait_handover = false;
+          infoEvent("Suma: handover complete");
+        }
+        /* else
+         * either we have not received GSN_STOP_ME_REQ yet
+         * or we have already sent STOP_ME_CONF, but we have completed
+         * the takeover of the peer node's buckets just now.
+         */
       }
     }
 
