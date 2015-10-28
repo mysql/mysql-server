@@ -3441,8 +3441,16 @@ btr_cur_pessimistic_insert(
 			flags, cursor, offsets, heap, entry, n_ext, mtr);
 	}
 
+<<<<<<< HEAD
 	ut_ad(page_rec_get_next(btr_cur_get_rec(cursor)) == *rec
 	      || dict_index_is_spatial(index));
+=======
+	if (*rec == NULL && os_has_said_disk_full) {
+		return(DB_OUT_OF_FILE_SPACE);
+	}
+
+	ut_ad(page_rec_get_next(btr_cur_get_rec(cursor)) == *rec);
+>>>>>>> mysql-5.6
 
 	if (!(flags & BTR_NO_LOCKING_FLAG)) {
 		ut_ad(!dict_table_is_temporary(index->table));
