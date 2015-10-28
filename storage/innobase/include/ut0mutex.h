@@ -40,7 +40,7 @@ extern ulong	srv_force_recovery_crash;
 
 #ifdef UNIV_DEBUG
 #define mutex_validate(M)		(M)
-#define mutex_own(M)			(M)
+#define mutex_own(M)			(M) ? true : false
 #endif /* UNIV_DEBUG */
 typedef OSMutex	SysMutex;
 typedef OSMutex ib_mutex_t;
