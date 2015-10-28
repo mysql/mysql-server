@@ -1591,12 +1591,7 @@ the tuple. It is assumed that mtr contains an x-latch on the tree.
 NOTE that the operation of this function must always succeed,
 we cannot reverse it: therefore enough free disk space must be
 guaranteed to be available before this function is called.
-<<<<<<< HEAD
 @return inserted record */
-=======
-@return	inserted record or NULL if run out of space */
-UNIV_INTERN
->>>>>>> mysql-5.6
 rec_t*
 btr_root_raise_and_insert(
 /*======================*/
@@ -1659,10 +1654,6 @@ btr_root_raise_and_insert(
 	level = btr_page_get_level(root, mtr);
 
 	new_block = btr_page_alloc(index, 0, FSP_NO_DIR, level, mtr, mtr);
-
-	if (new_block == NULL && os_has_said_disk_full) {
-		return(NULL);
-        }
 
 	new_page = buf_block_get_frame(new_block);
 	new_page_zip = buf_block_get_page_zip(new_block);
@@ -2517,13 +2508,7 @@ released within this function! NOTE that the operation of this
 function must always succeed, we cannot reverse it: therefore enough
 free disk space (2 pages) must be guaranteed to be available before
 this function is called.
-
-<<<<<<< HEAD
 @return inserted record */
-=======
-@return inserted record or NULL if run out of space */
-UNIV_INTERN
->>>>>>> mysql-5.6
 rec_t*
 btr_page_split_and_insert(
 /*======================*/
@@ -2648,17 +2633,9 @@ func_start:
 		}
 	}
 
-	DBUG_EXECUTE_IF("disk_is_full",
-			os_has_said_disk_full = true;
-                        return(NULL););
-
 	/* 2. Allocate a new page to the index */
 	new_block = btr_page_alloc(cursor->index, hint_page_no, direction,
 				   btr_page_get_level(page, mtr), mtr, mtr);
-
-	if (new_block == NULL && os_has_said_disk_full) {
-		return(NULL);
-        }
 
 	new_page = buf_block_get_frame(new_block);
 	new_page_zip = buf_block_get_page_zip(new_block);
