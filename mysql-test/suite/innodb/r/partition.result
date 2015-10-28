@@ -470,3 +470,51 @@ Warning	1809	InnoDB: Table '`test`.`t1` /* Partition `p4` */' in system tablespa
 UNLOCK TABLES;
 DROP TABLE t1;
 DROP TABLESPACE ts1;
+#
+# Bug#21957001 INNODB: FAILING ASSERTION: 0 IN FILE HA_INNOPART.CC LINE 3526
+#
+call mtr.add_suppression("\\[Warning\\] InnoDB: Trying to access missing tablespace .*");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Missing .ibd file for table `test`\.`t1` .* ");
+CREATE TABLE t1(c1 INT,c2 CHAR(1)) PARTITION BY KEY(c1) PARTITIONS 4;
+ALTER TABLE t1 DISCARD PARTITION p3 TABLESPACE;
+SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
+TABLE_ROWS
+0
+Warnings:
+Warning	1013	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p3` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
+SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
+TABLE_ROWS
+0
+Warnings:
+Warning	1013	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p1` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+Warning	1013	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p3` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+ALTER TABLE t1 DISCARD PARTITION p2 TABLESPACE;
+SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
+TABLE_ROWS
+0
+Warnings:
+Warning	1013	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p1` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+Warning	1013	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p2` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+Warning	1013	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p3` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+ALTER TABLE t1 DISCARD PARTITION p0 TABLESPACE;
+SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
+TABLE_ROWS
+0
+Warnings:
+Warning	1013	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p0` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+Warning	1013	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p1` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+Warning	1013	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p2` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+Warning	1013	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p3` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT,c2 CHAR(1)) PARTITION BY KEY(c1) PARTITIONS 4;
+ALTER TABLE t1 DISCARD TABLESPACE;
+SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
+TABLE_ROWS
+0
+Warnings:
+Warning	1013	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p0` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+Warning	1013	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p1` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+Warning	1013	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p2` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+Warning	1013	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p3` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
+DROP TABLE t1;

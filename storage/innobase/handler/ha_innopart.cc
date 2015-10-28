@@ -3530,12 +3530,28 @@ ha_innopart::info_low(
 					checked_sys_tablespace = true;
 				}
 
-				ulint	space = static_cast<ulint>(
+				uintmax_t	space =
 					fsp_get_available_space_in_free_extents(
-						ib_table->space));
-				if (space == ULINT_UNDEFINED) {
-					ut_ad(0);
-					avail_space = space;
+						ib_table->space);
+				if (space == UINTMAX_MAX) {
+					THD*	thd = ha_thd();
+					const char* table_name
+						= ib_table->name.m_name;
+
+					push_warning_printf(
+						thd,
+						Sql_condition::SL_WARNING,
+						ER_CANT_GET_STAT,
+						"InnoDB: Trying to get the"
+						" free space for partition %s"
+						" but its tablespace has been"
+						" discarded or the .ibd file"
+						" is missing. Setting the free"
+						" space of the partition to"
+						" zero.",
+						ut_get_name(
+							m_prebuilt->trx,
+							table_name).c_str());
 				} else {
 					avail_space += space;
 				}
@@ -3591,35 +3607,7 @@ ha_innopart::info_low(
 		if ((flag & HA_STATUS_NO_LOCK) == 0
 		    && (flag & HA_STATUS_VARIABLE_EXTRA) != 0
 		    && srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE) {
-
-			if (avail_space == ULINT_UNDEFINED) {
-				THD*	thd;
-				char	errbuf[MYSYS_STRERROR_SIZE];
-
-				thd = ha_thd();
-
-				std::string err_str;
-				err_str = "InnoDB: Trying to get"
-					" the free space for table ";
-				err_str += ut_get_name(m_prebuilt->trx,
-						ib_table->name.m_name);
-				err_str += " but its tablespace has been"
-					" discarded or the .ibd file is"
-					" missing. Setting the free space to"
-					" zero.";
-				push_warning_printf(
-					thd,
-					Sql_condition::SL_WARNING,
-					ER_CANT_GET_STAT,
-					err_str.c_str(),
-					errno,
-					my_strerror(errbuf, sizeof(errbuf),
-						    errno));
-
-				stats.delete_length = 0;
-			} else {
-				stats.delete_length = avail_space * 1024;
-			}
+			stats.delete_length = avail_space * 1024;
 		}
 
 		stats.check_time = 0;
