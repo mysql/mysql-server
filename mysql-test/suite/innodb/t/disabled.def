@@ -9,6 +9,5 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-innodb.alter_crash        : WL#7016 2015-05-11 jhauglid Uses functionality removed by WL#8186
+innodb.alter_crash        : WL#7016 2015-05-11 jhauglid Uses functionality removed by WL#8186. To be enabled when WL#7016 is impemented
 innodb.index_merge_threshold : Bug#21747853 "INNODB.INDEX_MERGE_THRESHOLD IS UNSTABLE WITH SYSTEM TABLES IN INNODB"
-innodb.alter_rename_existing_xtra @darwin: Bug#22090072 2016-10-26 agopi Test leaves behind undeletable file on OSX
