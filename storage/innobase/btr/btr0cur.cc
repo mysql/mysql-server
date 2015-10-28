@@ -1604,6 +1604,10 @@ btr_cur_pessimistic_insert(
 			flags, cursor, offsets, heap, entry, n_ext, mtr);
 	}
 
+	if (*rec == NULL && os_has_said_disk_full) {
+		return(DB_OUT_OF_FILE_SPACE);
+	}
+
 	ut_ad(page_rec_get_next(btr_cur_get_rec(cursor)) == *rec);
 
 	if (!(flags & BTR_NO_LOCKING_FLAG)) {
