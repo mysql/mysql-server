@@ -143,6 +143,17 @@ static MYSQL_THDVAR_BOOL(
 );
 
 
+static MYSQL_THDVAR_BOOL(
+  allow_copying_alter_table,         /* name */
+  PLUGIN_VAR_OPCMDARG,
+  "Specifies if implicit copying alter table is allowed. Can be overridden "
+  "by using ALGORITHM=COPY in the alter table command.",
+  NULL,                              /* check func. */
+  NULL,                              /* update func. */
+  1                                  /* default */
+);
+
+
 static MYSQL_THDVAR_UINT(
   optimized_node_selection,          /* name */
   PLUGIN_VAR_OPCMDARG,
@@ -10001,7 +10012,6 @@ int ha_ndbcluster::create(const char *name,
   uint i, pk_length= 0;
   uchar *data= NULL, *pack_data= NULL;
   bool create_from_engine= (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
-  bool is_alter= (thd->lex->sql_command == SQLCOM_ALTER_TABLE);
   bool is_truncate= (thd->lex->sql_command == SQLCOM_TRUNCATE);
   bool use_disk= FALSE;
   NdbDictionary::Table::SingleUserMode single_user_mode= NdbDictionary::Table::SingleUserModeLocked;
@@ -10031,6 +10041,30 @@ int ha_ndbcluster::create(const char *name,
     my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
              ndbcluster_hton_name, "TEMPORARY");
     DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+  }
+
+  const bool is_alter= (thd->lex->sql_command == SQLCOM_ALTER_TABLE);
+  if (is_alter)
+  {
+    DBUG_PRINT("info", ("Detected copying ALTER TABLE"));
+
+    // Check that the table name is temporary ie. starts with #sql
+    DBUG_ASSERT(!is_user_table(form));
+    DBUG_ASSERT(is_prefix(form->s->table_name.str, tmp_file_prefix));
+
+    if (!THDVAR(thd, allow_copying_alter_table) &&
+        (thd->lex->alter_info.requested_algorithm ==
+         Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT))
+    {
+      // Copying alter table is not allowed and user
+      // have not specified ALGORITHM=COPY
+
+      DBUG_PRINT("info", ("Refusing implicit copying alter table"));
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
+              "Implicit copying alter", "ndb_allow_copying_alter_table=0",
+              "ALGORITHM=COPY to force the alter");
+      DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+    }
   }
 
   DBUG_ASSERT(*fn_rext((char*)name) == 0);
@@ -19474,6 +19508,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(use_exact_count),
   MYSQL_SYSVAR(use_transactions),
   MYSQL_SYSVAR(use_copying_alter_table),
+  MYSQL_SYSVAR(allow_copying_alter_table),
   MYSQL_SYSVAR(optimized_node_selection),
   MYSQL_SYSVAR(batch_size),
   MYSQL_SYSVAR(optimization_delay),
