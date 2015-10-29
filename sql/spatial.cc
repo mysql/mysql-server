@@ -14,11 +14,15 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "spatial.h"
+
 #include "sql_string.h"                         // String
 #include "my_global.h"                          // REQUIRED for HAVE_* below
 #include "gstream.h"                            // Gis_read_stream
-#include "spatial.h"
+#include "gis_bg_traits.h"
+
 #include <mysqld_error.h>
+#include <map>
 #include <set>
 #include <utility>
 #include <prealloced_array.h>
@@ -871,9 +875,9 @@ uint32 wkb_get_uint(const char *ptr, Geometry::wkbByteOrder bo)
   Scan WKB byte string and notify WKB events by calling registered callbacks.
   @param wkb a little endian WKB byte string of 'len' bytes, with or
              without WKB header.
-  @param len[in/out] remaining number of bytes of the wkb string.
+  @param [in,out] len remaining number of bytes of the wkb string.
   @param geotype the type of the geometry to be scanned.
-  @param hashdr whether the 'wkb' point to a WKB header or right after
+  @param has_hdr whether the 'wkb' point to a WKB header or right after
                 the header. If it is true, the
                 'geotype' should be the same as the type in the header;
                 otherwise, and we will use the type specified in WKB header.
@@ -1158,7 +1162,7 @@ bool Geometry::envelope(String *result) const
 /**
   Create a point from data.
 
-  @param OUT result   Put result here
+  @param [out] result   Put result here
   @param wkb          Data for point is here.
 
   @return             false on success, true on error
@@ -1179,9 +1183,8 @@ bool Geometry::create_point(String *result, wkb_parser *wkb) const
 /**
   Create a point from coordinates.
 
-  @param OUT result
-  @param x  x coordinate for point
-  @param y  y coordinate for point
+  @param [out] result
+  @param p  coordinates for point
 
   @return  false on success, true on error
 */
@@ -1203,7 +1206,7 @@ bool Geometry::create_point(String *result, point_xy p) const
   Before calling this function, caller must have already checked that wkb's
   buffer is complete and not truncated.
 
-  @param OUT txt        Append points here
+  @param [out] txt        Append points here
   @param     n_points   Number of points
   @param     wkb        Packed data
   @param     offset     Offset between points
@@ -1238,7 +1241,7 @@ void Geometry::append_points(String *txt, uint32 n_points,
 /**
   Get most bounding rectangle (mbr) for X points
 
-  @param OUT mbr      Result
+  @param [out] mbr      Result
   @param wkb          Data for point is here.
   @param offset       Offset between points
 
@@ -1404,8 +1407,8 @@ Gis_point::Gis_point(const self &pt) :Geometry(pt)
 
 /**
   Deep assignment from point 'p' to this object.
-  @param p the Gis_point to duplicate from.
-  */
+  @param rhs the Gis_point to duplicate from.
+*/
 Gis_point &Gis_point::operator=(const Gis_point &rhs)
 {
   if (this == &rhs)
@@ -1909,8 +1912,8 @@ Gis_polygon::~Gis_polygon()
 
 /**
   Deep assignment from polygon 'o' to this object.
-  @param p the Gis_polygon instance to duplicate from.
-  */
+  @param rhs the Gis_polygon instance to duplicate from.
+*/
 Gis_polygon &Gis_polygon::operator=(const Gis_polygon &rhs)
 {
   if (this == &rhs || !is_bg_adapter() || !rhs.is_bg_adapter())
@@ -2417,7 +2420,7 @@ const Geometry::Class_info *Gis_polygon::get_class_info() const
    The returned WKB has no WKB header.
    Never call get_ptr to obtain a polygon's WKB data.
 
-   @param geo The polygon whose WKB data we want to pack up.
+   @param geo0 The polygon whose WKB data we want to pack up.
    @param[out] pnbytes Takes back the number of bytes of the packed WKB string.
    @return The address of the packed WKB string buffer.
   */
@@ -2474,7 +2477,7 @@ void *get_packed_ptr(const Geometry *geo0, size_t *pnbytes)
   packed so that its outer ring and inner rings point to different locations
   of a continuous chunk of WKB buffer.
 
-  @param geo The already packed polygon, we want to get its data address.
+  @param geo0 The already packed polygon, we want to get its data address.
   @return The WKB string starting address, right after the WKB header if any.
  */
 const char *get_packed_ptr(Geometry *geo0)
@@ -4203,8 +4206,6 @@ void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms)
   not be made a virtual function since BG adapter geometry objects may also
   need it.
 
-  @param geo the geometry to convert, should be one of polygon, multipolygon or
-             geometry collection, otherwise it's a no-op.
   @return the WKB buffer address of the geometry which contains the
           converted WKB data. If geometry data is invalid, returns NULL.
  */
@@ -4245,3 +4246,939 @@ const void *Geometry::normalize_ring_order()
     return NULL;
   return geo->get_data_ptr();
 }
+
+/**
+   Because of resize, a geometry's components may reside not in one chunk,
+   some may in the m_ptr's chunk; others have their own memory and only exist
+   in m_geo_vect vector, not in ptr's chunk. Also, a constructed polygon's
+   data is always not in a chunk and needs to be so when it's pushed into a
+   multipolygon/geometry collection.
+   Thus in mysql before using the returned geometry, also inside the
+   container classes before using the wkb data or clearing m_geo_vect,
+   we need to make them inline, i.e. reside in one chunk of memory.
+   Can only resize a topmost geometry, thus no recursive reassemling
+   to do for now.
+
+   Algorithm:
+
+   Step 1. Structure analysis
+
+   Scan this geometry's components, see whether each of them has its own
+   memory, if so it's 'out of line', otherwise it's 'inline'. Note down
+   those owning memory in a map M1, for each entry X in the map M1, the
+   component's index in the component vector m_geo_vect is used as key;
+   The inline chunk of memory right before it which may have any number
+   of inline components, and the inline chunk's start and end address pair
+   is used as value of the inserted item X. If there is no inline chunk
+   before the component, X's pointer range is (0, 0). The inline chunk's
+   starting address is well maintained during the scan.
+
+
+   Step 2. Reassembling
+
+   Allocate enough memory space (the length is accumulated in step 1) as WKB
+   buffer and call it GBuf here, then copy the WKB of inline and out-of-line
+   geometries into GBuf in original order:
+   Go through the map by index order, for each item, copy the WKB chunk
+   before it into the WKB buffer, then copy this out-of-line geometry's WKB
+   into GBuf.
+
+   Special treatment of polygon: we have to pack its value and store their
+   WKB separately into a map GP in step 1, and in step 2 for a polygon,
+   get its WKB from GP, and at the end release WKB memory buffers held by
+   items of GP.
+ */
+template<typename T>
+void Gis_wkb_vector<T>::reassemble()
+{
+  set_bg_adapter(true);
+  Geometry::wkbType geotype= get_geotype();
+  if (geotype == Geometry::wkb_point || geotype == Geometry::wkb_polygon ||
+      geotype == Geometry::wkb_multipoint || m_geo_vect == NULL ||
+      geotype == Geometry::wkb_linestring || m_geo_vect->size() == 0 ||
+      !has_out_of_line_components())
+    return;
+
+  if (m_geo_vect == NULL)
+    m_geo_vect= new Geo_vector;
+  typedef std::map<size_t, std::pair<const char *, const char *> > segs_t;
+  segs_t segs;
+  size_t hdrsz= 0, num= m_geo_vect->size(), prev_in= 0, totlen= 0, segsz= 0;
+  Geo_vector &vec= *m_geo_vect;
+  const char *start= get_cptr(), *end= NULL, *prev_start= get_cptr();
+  std::map<size_t, std::pair<void *, size_t> > plgn_data;
+  std::map<size_t, std::pair<void *, size_t> >::iterator plgn_data_itr;
+  bool is_inns= (geotype == Geometry::wkb_polygon_inner_rings);
+
+  // True if just passed by a geometry having its own memory and not stored
+  // inside owner's memory during the scan.
+  bool out= false;
+  if (geotype != Geometry::wkb_polygon_inner_rings)
+    hdrsz= WKB_HEADER_SIZE;
+
+  uint32 none= 0;// Used when all components are out of line.
+
+  // Starting step one of the algorithm --- Structure Analysis.
+  for (size_t i= 0; i < num; i++)
+  {
+    T *veci= &(vec[i]);
+    // Polygons are always(almost) out of line. One with its own memory is
+    // always out of line.
+    if (veci->get_geotype() == Geometry::wkb_polygon || veci->get_ownmem())
+    {
+      // In case of a polygon, see if it's already inline in a different
+      // way from other types of geometries.
+      if (veci->get_geotype() == Geometry::wkb_polygon &&
+          polygon_is_packed(veci, this))
+      {
+        if (out)
+        {
+          out= false;
+          DBUG_ASSERT(prev_start == veci->get_ptr());
+        }
+        prev_in= i;
+        continue;
+      }
+
+      // Record the bytes before 1st geometry component.
+      if (i == 0)
+      {
+        if (m_ptr)
+        {
+          start= get_cptr();
+          end= start + sizeof(uint32)/* num geometrys*/ ;
+        }
+        else if (!is_inns)
+        {
+          start= reinterpret_cast<char *>(&none);
+          end= start + sizeof(none);
+        }
+        else
+          start= end= NULL;
+      }
+      // The previous geometry is already out of line, or no m_ptr allocated.
+      else if (out || !prev_start)
+      {
+        start= NULL;
+        end= NULL;
+      }
+      else // The previous geometry is inline, note down the inline range.
+      {
+        start= prev_start;
+        if (veci->get_geotype() == Geometry::wkb_polygon)
+          end= get_packed_ptr(&(vec[prev_in])) + vec[prev_in].get_nbytes();
+        else
+          end= vec[prev_in].get_cptr() + vec[prev_in].get_nbytes();
+        prev_start= end;
+        // The 'end' points to the 1st byte of next geometry stored in its
+        // owner's memory.
+      }
+
+      if (veci->get_geotype() != Geometry::wkb_polygon)
+      {
+        // When this geometry is a geometry collection, we need to make its
+        // components in one chunk first. Not gonna implement this yet since
+        // BG doesn't use geometry collection yet, and consequently no
+        // component can be a multipoint/multilinestring/multipolygon or a
+        // geometrycollection. And multipoint components are already supported
+        // so not forbidding them here.
+#if !defined(DBUG_OFF)
+        Geometry::wkbType veci_gt= veci->get_geotype();
+#endif
+        DBUG_ASSERT(veci_gt != wkb_geometrycollection &&
+                    veci_gt != wkb_multilinestring &&
+                    veci_gt != wkb_multipolygon);
+        /* A point/multipoint/linestring is always in one memory chunk. */
+        totlen+= veci->get_nbytes() + hdrsz;
+      }
+      else
+      {
+        // Must be a polygon out of line.
+        size_t nbytes= 0;
+        void *plgn_base= get_packed_ptr(veci, &nbytes);
+        DBUG_ASSERT(veci->get_nbytes() == 0 || veci->get_nbytes() == nbytes);
+        veci->set_nbytes(nbytes);
+        plgn_data.insert(std::make_pair(i, std::make_pair(plgn_base,nbytes)));
+        totlen+= nbytes + hdrsz;
+      }
+
+      segs.insert(std::make_pair(i, std::make_pair(start, end)));
+      out= true;
+    }
+    else
+    {
+      if (out)
+      {
+        out= false;
+        DBUG_ASSERT(prev_start == veci->get_ptr());
+      }
+      prev_in= i;
+    }
+  }
+
+  segsz= segs.size();
+  if (segsz == 0)
+  {
+    has_out_of_line_components(false);
+    return;
+  }
+
+  size_t nbytes= get_nbytes();
+  DBUG_ASSERT((nbytes == 0 && m_ptr == NULL && num == segsz) ||
+              (nbytes > 0 && num >= segsz));
+
+  // If all are out of line, m_ptr is 0 and no room for ring count, otherwise
+  // the space for ring count is already counted above.
+  totlen+= (nbytes ? nbytes : (is_inns ? 0 : sizeof(uint32)));
+
+  size_t len= 0, total_len= 0, last_i= 0, numgeoms= 0;
+  // Allocate extra space as free space for the WKB buffer, and write it as
+  // defined pattern.
+  const size_t extra_wkb_free_space= 32;
+  char *ptr= static_cast<char *>(gis_wkb_alloc(totlen + extra_wkb_free_space));
+  // The header(object count) is already copied.
+  char *q= ptr;
+
+  if (ptr == NULL)
+  {
+    clear_wkb_data();
+    m_ptr= NULL;
+    set_nbytes(0);
+    set_ownmem(false);
+    goto exit;
+  }
+  memset(ptr + totlen, 0xff, extra_wkb_free_space - 1);
+  ptr[totlen + extra_wkb_free_space - 1]= '\0';
+
+  // Starting step two of the algorithm --- Reassembling.
+  // Assemble the ins and outs into a single chunk.
+  for (segs_t::iterator itr= segs.begin(); itr != segs.end(); ++itr)
+  {
+    size_t i= itr->first;
+    start= itr->second.first;
+    end= itr->second.second;
+    const Geometry *veci= &(vec[i]);
+    last_i= i;
+
+    // Copy the inline geometries before veci into buffer.
+    if (start)
+    {
+      memcpy(q, start, len= end - start);
+      q+= len;
+      total_len+= len;
+    }
+
+    // Set WKB header. This geometry must be one of multilinestring,
+    // multipolygon or a polygon's inner rings.
+    if (get_geotype() != Geometry::wkb_polygon_inner_rings)
+    {
+      q= write_wkb_header(q, veci->get_geotype());
+      total_len+= hdrsz;
+    }
+
+    // Copy the out of line geometry into buffer. A polygon's data isn't
+    // packed inside itself, we've packed it and recorded it in plgn_data.
+    plgn_data_itr= plgn_data.find(i);
+    if (veci->get_geotype() != Geometry::wkb_polygon)
+    {
+      DBUG_ASSERT(plgn_data_itr == plgn_data.end());
+      len= veci->get_nbytes();
+      memcpy(q, veci->get_ptr(), len);
+    }
+    else
+    {
+      DBUG_ASSERT(plgn_data_itr != plgn_data.end());
+      len= plgn_data_itr->second.second;
+      memcpy(q, plgn_data_itr->second.first, len);
+    }
+    q+= len;
+    total_len+= len;
+  }
+
+  // There may be trailing inline geometries to copy at old tail.
+  if (last_i < vec.size() - 1)
+  {
+    len= get_cptr() + get_nbytes() - prev_start;
+    memcpy(q, prev_start, len);
+    total_len+= len;
+  }
+  DBUG_ASSERT(total_len == totlen);
+
+  // Inner rings doesn't have ring count.
+  if (!is_inns)
+  {
+    DBUG_ASSERT(segsz + uint4korr(ptr) <= 0xFFFFFFFF);
+    int4store(reinterpret_cast<uchar *>(ptr),
+              uint4korr(ptr) + static_cast<uint32>(segsz));
+  }
+
+  numgeoms= m_geo_vect->size();
+  clear_wkb_data();
+  set_ptr(ptr, totlen);
+  // An inner ring isn't parsed in set_ptr, has to parse separately since
+  // we don't know its number of rings.
+  if (is_inns)
+    parse_wkb_data(this, get_cptr(), numgeoms);
+  set_ownmem(true);
+exit:
+  for (plgn_data_itr= plgn_data.begin();
+      plgn_data_itr != plgn_data.end(); ++plgn_data_itr)
+    gis_wkb_free(plgn_data_itr->second.first);
+
+  has_out_of_line_components(false);
+}
+
+
+/// @brief Constructor.
+/// @param ptr points to the geometry's wkb data's 1st byte, right after its
+/// wkb header if any.
+/// @param nbytes the byte order indicated by ptr's wkb header.
+/// @param is_bg_adapter Whether this object is created to be used by
+///        Boost Geometry, or to be only used in MySQL code.
+template <typename T>
+Gis_wkb_vector<T>::
+Gis_wkb_vector(const void *ptr, size_t nbytes, const Flags_t &flags,
+               srid_t srid, bool is_bg_adapter)
+  :Geometry(ptr, nbytes, flags, srid)
+{
+  DBUG_ASSERT((ptr != NULL && nbytes > 0) || (ptr == NULL && nbytes == 0));
+  set_ownmem(false); // We use existing WKB data and don't own that memory.
+  set_bg_adapter(is_bg_adapter);
+  m_geo_vect= NULL;
+
+  if (!is_bg_adapter)
+    return;
+
+  std::auto_ptr<Geo_vector> guard;
+
+  wkbType geotype= get_geotype();
+  // Points don't need it, polygon creates it when parsing.
+  if (geotype != Geometry::wkb_point &&
+      geotype != Geometry::wkb_polygon && ptr != NULL)
+    guard.reset(m_geo_vect= new Geo_vector());
+  // For polygon parsing to work
+  if (geotype == Geometry::wkb_polygon)
+    m_ptr= NULL;
+
+  // Why: wkb_polygon_inner_rings should parse in polygon as a whole.
+  // Don't call get_cptr() here, it returns NULL.
+  if (geotype != Geometry::wkb_polygon_inner_rings && ptr != NULL)
+    parse_wkb_data(this, static_cast<const char *>(ptr));
+
+  guard.release();
+}
+
+
+template <typename T>
+Gis_wkb_vector<T>::
+Gis_wkb_vector(const Gis_wkb_vector<T> &v) :Geometry(v), m_geo_vect(NULL)
+{
+  DBUG_ASSERT((v.get_ptr() != NULL && v.get_nbytes() > 0) ||
+              (v.get_ptr() == NULL && !v.get_ownmem() &&
+               v.get_nbytes() == 0));
+  if (!v.is_bg_adapter() || (v.get_ptr() == NULL && v.m_geo_vect == NULL))
+    return;
+  m_geo_vect= new Geo_vector();
+  std::auto_ptr<Geo_vector> guard(m_geo_vect);
+
+  const_cast<self &>(v).reassemble();
+  set_flags(v.get_flags());
+  set_nbytes(v.get_nbytes());
+  if (get_nbytes() > 0)
+  {
+    m_ptr= gis_wkb_alloc(v.get_nbytes() + 2);
+    if (m_ptr == NULL)
+    {
+      m_geo_vect= NULL;
+      set_ownmem(false);
+      set_nbytes(0);
+      return;
+    }
+    memcpy(m_ptr, v.get_ptr(), v.get_nbytes());
+    /*
+      The extra 2 bytes makes the buffer usable by get_nbytes_free.
+      It's hard to know how many more space will be needed so let's
+      allocate more later.
+    */
+    get_cptr()[get_nbytes()]= '\xff';
+    get_cptr()[get_nbytes() + 1]= '\0';
+    parse_wkb_data(this, get_cptr(), v.get_geo_vect()->size());
+    set_ownmem(true);
+  }
+  guard.release();
+}
+
+
+/**
+  Deep assignment from vector 'rhs' to this object.
+  @param rhs the Gis_wkb_vector<T> instance to duplicate from.
+*/
+template <typename T>
+Gis_wkb_vector<T> &Gis_wkb_vector<T>::operator=(const Gis_wkb_vector<T> &rhs)
+{
+  if (this == &rhs)
+    return *this;
+  Geometry::operator=(rhs);
+
+  DBUG_ASSERT((m_ptr != NULL && get_ownmem() && get_nbytes() > 0) ||
+              (m_ptr == NULL && !get_ownmem() && get_nbytes() == 0));
+  DBUG_ASSERT((rhs.get_ptr() != NULL && rhs.get_nbytes() > 0) ||
+              (rhs.get_ptr() == NULL && !rhs.get_ownmem() &&
+               rhs.get_nbytes() == 0));
+
+  if (m_owner == NULL)
+    m_owner= rhs.get_owner();
+
+  size_t nbytes_free= get_nbytes_free();
+  clear_wkb_data();
+
+  if (rhs.get_ptr() == NULL)
+  {
+    if (m_ptr != NULL)
+      gis_wkb_free(m_ptr);
+    m_ptr= NULL;
+    set_flags(rhs.get_flags());
+    return *this;
+  }
+
+  /*
+    Geometry v may have out of line components, need to reassemble first.
+   */
+  const_cast<self &>(rhs).reassemble();
+
+  /*
+    If have no enough space, reallocate with extra space padded with required
+    bytes;
+   */
+  if (m_ptr == NULL || get_nbytes() + nbytes_free < rhs.get_nbytes())
+  {
+    gis_wkb_free(m_ptr);
+    m_ptr= gis_wkb_alloc(rhs.get_nbytes() + 32/* some extra space. */);
+    if (m_ptr == NULL)
+    {
+      /*
+        This object in this case is valid although it doesn't have any data.
+       */
+      set_nbytes(0);
+      set_ownmem(false);
+      return *this;
+    }
+
+    // Fill extra space with pattern defined by
+    // Gis_wkb_vector<>::get_nbytes_free().
+    char *cp= get_cptr();
+    memset(cp + rhs.get_nbytes(), 0xFF, 32);
+    cp[rhs.get_nbytes() + 31]= '\0';
+  }
+
+  /*
+    If need less space than before, set remaining bytes to 0xFF as requred
+    by Gis_wkb_vector<>::get_nbytes_free.
+   */
+  if (get_nbytes() > rhs.get_nbytes())
+    memset(get_cptr() + rhs.get_nbytes(), 0xFF,
+           get_nbytes() - rhs.get_nbytes());
+
+  memcpy(m_ptr, rhs.get_ptr(), rhs.get_nbytes());
+
+  set_flags(rhs.get_flags());
+  set_ownmem(true);
+
+  m_geo_vect= new Geo_vector();
+  parse_wkb_data(this, get_cptr());
+  return *this;
+}
+
+
+/**
+  The copy constructors of Geometry classes always do deep copy, but when
+  pushing a Geometry object into its owner's geo.m_geo_vect, we want to do
+  shallow copy because we want all elements in geo.m_geo_vect vector point
+  into locations in the geo.m_ptr buffer. In such situations call this
+  function.
+  @param g   The Geometry object to push into vec.
+  @return The address of the Geometry object stored in vec.
+ */
+template <typename T>
+void Gis_wkb_vector<T>::shallow_push(const Geometry *g)
+{
+  const T &geo= *(static_cast<const T *>(g));
+  T *pgeo= NULL;
+
+  if (m_geo_vect == NULL)
+    m_geo_vect= new Geo_vector();
+  // Allocate space and create an object with its default constructor.
+  pgeo= static_cast<T *>(m_geo_vect->append_object());
+  DBUG_ASSERT(pgeo != NULL);
+  if (pgeo == NULL)
+    return;
+
+  pgeo->set_flags(geo.get_flags());
+  pgeo->set_srid(geo.get_srid());
+  pgeo->set_bg_adapter(true);
+  // Such a shallow copied object never has its own memory regardless of geo.
+  pgeo->set_ownmem(false);
+
+  // This will parse and set up pgeo->m_geo_vect properly.
+  // Do not copy elements from geo.m_geo_vect into that of pgeo
+  // otherwise STL does deep copy using the Geometry copy constructor.
+  pgeo->set_ptr(geo.get_ptr(), geo.get_nbytes());
+  pgeo->set_owner(geo.get_owner());
+}
+
+
+template <typename T>
+void Gis_wkb_vector<T>::set_ptr(void *ptr, size_t len)
+{
+  DBUG_ASSERT(!(ptr == NULL && len > 0));
+  set_bg_adapter(true);
+  if (get_geotype() != Geometry::wkb_polygon)
+  {
+    if (get_ownmem() && m_ptr != NULL)
+      gis_wkb_free(m_ptr);
+    m_ptr= ptr;
+    if (m_geo_vect)
+      clear_wkb_data();
+  }
+  set_nbytes(len);
+  /* When invoked, this object may or may not have its own memory. */
+  if (get_geotype() != Geometry::wkb_polygon_inner_rings && m_ptr != NULL)
+  {
+    if (m_geo_vect == NULL)
+      m_geo_vect= new Geo_vector();
+    parse_wkb_data(this, get_cptr());
+  }
+}
+
+
+/**
+  Update support
+  We suppose updating a geometry can happen in the following ways:
+  1. create an empty geo, then append components into it, the geo must
+     be a topmost one; a complex geometry such as a multilinestring can be
+     seen as a tree of geometry components, and the mlstr is the topmost
+     geometry, i.e. the root of the tree, its lstrs are next layer of nodes,
+     their points are the 3rd layer of tree nodes. Only the root owns the
+     wkb buffer, other components point somewhere into the buffer, and can
+     only read the data.
+
+     Polygons are only used by getting its exterior ring or inner rings and
+     then work on that/those rings, never used as a whole.
+
+  2. *itr=value, each geo::m_owner can be used to track the topmost
+     memory owner, and do reallocation to accormodate the value. This is
+     for now not supported, will be if needed.
+
+     So far geometry assignment are only used for point objects in boost
+     geometry, thus only Geometry and Gis_point have operator=, no other
+     classes need so, and thus there is no need for reallocation.
+  3. call resize() to append some objects at the end, then assign/append
+     values to the added objects using push_back. Objects added this way
+     are out of line(unless the object is a point), and user need to call
+     reassemble() to make them inline, i.e. stored in its owner's memory.
+*/
+
+/// Clear geometry data of this object.
+template <typename T>
+void Gis_wkb_vector<T>::clear()
+{
+  if (!m_geo_vect)
+  {
+    DBUG_ASSERT(m_ptr == NULL);
+    return;
+  }
+
+  DBUG_ASSERT(m_geo_vect && get_geotype() != Geometry::wkb_polygon);
+
+  // Keep the component vector because this object can be reused again.
+  const void *ptr= get_ptr();
+  set_bg_adapter(true);
+
+  if (ptr && get_ownmem())
+  {
+    gis_wkb_free(const_cast<void *>(ptr));
+    set_ownmem(false);
+  }
+
+  m_ptr= NULL;
+  clear_wkb_data();
+  set_nbytes(0);
+}
+
+
+/// Returns payload number of bytes of the topmost geometry holding this
+/// geometry, i.e. the memory owner.
+template <typename T>
+size_t Gis_wkb_vector<T>::current_size() const
+{
+  // Polygon's data may not stay in a continuous chunk, and we update
+  // its data using the outer/inner rings.
+  DBUG_ASSERT(get_geotype() != Geometry::wkb_polygon);
+  set_bg_adapter(true);
+  if (m_geo_vect == NULL || m_geo_vect->empty())
+    return 0;
+
+  return get_nbytes();
+}
+
+
+/// Get number of free bytes in the buffer held by m_ptr. this object must be
+/// an topmost geometry which owns memory.
+template <typename T>
+size_t Gis_wkb_vector<T>::get_nbytes_free() const
+{
+  DBUG_ASSERT((this->get_ownmem() && m_ptr) || (!get_ownmem() && !m_ptr));
+
+  size_t cap= current_size();
+  if (cap == 0)
+  {
+    DBUG_ASSERT(m_ptr == NULL);
+    return 0;
+  }
+
+  const char *p= NULL, *ptr= get_cptr();
+  DBUG_ASSERT(ptr != NULL);
+
+  /*
+    There will always be remaining free space because in push_back, when
+    number of free bytes equals needed bytes we will do a realloc.
+   */
+  for (p= ptr + cap; *p != 0; p++)
+    ;
+
+  return p - ptr - cap + 1;
+}
+
+
+template <typename T>
+void Gis_wkb_vector<T>::push_back(const T &val)
+{
+  Geometry::wkbType geotype= get_geotype();
+
+  DBUG_ASSERT(geotype != Geometry::wkb_polygon &&
+              ((m_ptr && get_ownmem()) || (!m_ptr && !get_ownmem())));
+
+  // Only three possible types of geometries for val, thus no need to
+  // do val.reassemble().
+  DBUG_ASSERT(val.get_geotype() == wkb_point ||
+              val.get_geotype() == wkb_polygon ||
+              val.get_geotype() == wkb_linestring);
+
+  DBUG_ASSERT(val.get_ptr() != NULL);
+
+  size_t cap= 0, nalloc= 0;
+  size_t vallen, needed;
+  void *src_val= val.get_ptr();
+
+  if (m_geo_vect == NULL)
+    m_geo_vect= new Geo_vector;
+  set_bg_adapter(true);
+  vallen= val.get_nbytes();
+  /*
+    Often inside bg, a polygon is created with no data, then append points
+    into outer ring and inner rings, such a polygon is a 'constructed'
+    polygon, and in this case we need to assemble
+    its data into a continuous chunk.
+   */
+  if (val.get_geotype() == Geometry::wkb_polygon)
+    src_val= get_packed_ptr(&val, &vallen);
+
+  // The 4 types can be resized and have out-of-line components,
+  // reassemble first in case we lose them when doing m_geo_vect->clear().
+  if (geotype == Geometry::wkb_multilinestring ||
+      geotype == Geometry::wkb_geometrycollection ||
+      geotype == Geometry::wkb_polygon_inner_rings ||
+      geotype == Geometry::wkb_multipolygon)
+    reassemble();
+
+  // Get cap only after reassemble().
+  cap= current_size();
+
+  needed= vallen + WKB_HEADER_SIZE;
+  // Use >= instead of > because we always want to have trailing free bytes.
+  if (needed >= this->get_nbytes_free())
+  {
+    nalloc= cap + ((needed * 2 > 256) ? needed * 2 : 256);
+    void *ptr= get_ptr();
+    m_ptr= gis_wkb_realloc(m_ptr, nalloc);
+    if (m_ptr == NULL)
+    {
+      set_nbytes(0);
+      set_ownmem(0);
+      clear_wkb_data();
+      return;
+    }
+
+    // Set unused space to -1, and last unused byte to 0.
+    // Function get_nbytes_free relies on this format.
+    memset(get_cptr() + cap, 0xff, nalloc - cap);
+    get_cptr()[nalloc - 1]= '\0';
+    memset(get_cptr() + cap, 0, sizeof(uint32));
+
+    bool replaced= (ptr != m_ptr);
+    set_ownmem(true);
+    if (m_owner && m_owner->get_geotype() == Geometry::wkb_polygon)
+      m_owner->set_ownmem(true);
+
+    // After reallocation we need to parse again.
+    if (cap > 0 && replaced)
+    {
+      size_t ngeos= 0;
+      if (geotype == Geometry::wkb_polygon_inner_rings)
+        ngeos= size();
+      clear_wkb_data();
+      parse_wkb_data(this, get_cptr(), ngeos);
+    }
+  }
+
+  size_t wkb_header_size= 0;
+  /* Offset for obj count, if needed. */
+  size_t obj_count_len=
+    ((cap == 0 && geotype != Geometry::wkb_polygon_inner_rings) ?
+     sizeof(uint32) : 0);
+  char *val_ptr= get_cptr() + cap + obj_count_len;
+
+  // Append WKB header first, if needed.
+  if (geotype == Geometry::wkb_multipoint ||
+      geotype == Geometry::wkb_multipolygon ||
+      geotype == Geometry::wkb_multilinestring ||
+      geotype == Geometry::wkb_geometrycollection)
+  {
+    Geometry::wkbType vgt= val.get_geotype();
+    DBUG_ASSERT((geotype == Geometry::wkb_multipoint &&
+                 vgt == Geometry::wkb_point) ||
+                (geotype == Geometry::wkb_multipolygon &&
+                 vgt == Geometry::wkb_polygon) ||
+                (geotype == Geometry::wkb_multilinestring &&
+                 vgt == Geometry::wkb_linestring) ||
+                geotype == Geometry::wkb_geometrycollection);
+
+    val_ptr= write_wkb_header(val_ptr, vgt);
+    wkb_header_size= WKB_HEADER_SIZE;
+  }
+
+  // Copy val's data into buffer, then parse it.
+  memcpy(val_ptr, src_val, vallen);
+  set_nbytes(get_nbytes() + wkb_header_size + obj_count_len + vallen);
+
+  // Append geometry component into m_geo_vect vector. Try to avoid
+  // unnecessary parse by calling the right version of set_ptr. And do
+  // shallow push so that the element in m_geo_vect point to WKB buffer
+  // rather than have its own copy of the same WKB data.
+  T val2;
+  val2.set_flags(val.get_flags());
+  val2.set_srid(val.get_srid());
+  val2.Geometry::set_ptr(val_ptr);
+  val2.set_nbytes(vallen);
+  val2.set_owner(this);
+  val2.set_ownmem(false);
+
+  shallow_push(&val2);
+  val2.Geometry::set_ptr(NULL);
+
+  if (val2.get_geotype() == Geometry::wkb_polygon)
+    own_rings(&(m_geo_vect->back()));
+  if (geotype != Geometry::wkb_polygon_inner_rings)
+  {
+    int4store(get_ucptr(), uint4korr(get_ucptr()) + 1);
+    DBUG_ASSERT(uint4korr(get_ucptr()) == this->m_geo_vect->size());
+  }
+
+  if (val.get_geotype() == Geometry::wkb_polygon)
+    gis_wkb_free(src_val);
+}
+
+
+/*
+  Resize as in std::vector<>::resize().
+
+  Because resize can be called to append an empty geometry into its owner,
+  we have to allow pushing into an empty geo and its memory will not
+  be in the same chunk as its owner, which is OK for bg since the
+  Boost Range concept doesn't forbid so. But inside MySQL we should
+  reassemble the geometries into one chunk before using the WKB buffer
+  directly, by calling reassemble().
+*/
+template<typename T>
+void Gis_wkb_vector<T>::resize(size_t sz)
+{
+  if (m_geo_vect == NULL)
+    m_geo_vect= new Geo_vector;
+  Geometry::wkbType geotype= get_geotype();
+  size_t ngeo= m_geo_vect->size();
+  size_t dim= GEOM_DIM;
+  size_t ptsz= SIZEOF_STORED_DOUBLE * dim;
+  bool is_mpt= (geotype == Geometry::wkb_multipoint);
+
+  // Can resize a topmost geometry or a out of line geometry which has
+  // or will have its own memory(i.e. one that's not using others' memory).
+  // Points are fixed size, polygon doesn't hold data directly.
+  DBUG_ASSERT(!(m_ptr != NULL && !get_ownmem()) &&
+              geotype != Geometry::wkb_point &&
+              geotype != Geometry::wkb_polygon);
+  set_bg_adapter(true);
+  if (sz == ngeo)
+    return;
+  // Shrinking the vector.
+  if (sz < ngeo)
+  {
+    // Some elements may be out of line, must do so otherwise we don't
+    // know how much to shrink in m_ptr.
+    reassemble();
+    size_t sublen= 0;
+    for (size_t i= ngeo; i > sz; i--)
+      sublen+= (*m_geo_vect)[i - 1].get_nbytes();
+
+    // '\0' not allowed in middle and no need for ending '\0' because it's
+    // at the end of the original free chunk which is right after this chunk.
+    memset((get_cptr() + get_nbytes() - sublen), 0xff, sublen);
+    set_nbytes(get_nbytes() - sublen);
+
+#if !defined(DBUG_OFF)
+    bool rsz_ret= m_geo_vect->resize(sz);
+    DBUG_ASSERT(rsz_ret == false);
+#else
+    m_geo_vect->resize(sz);
+#endif
+    if (get_geotype() != Geometry::wkb_polygon_inner_rings)
+    {
+      DBUG_ASSERT(uint4korr(get_ucptr()) == ngeo);
+      int4store(get_ucptr(), static_cast<uint32>(sz));
+    }
+    return;
+  }
+
+  char *ptr= NULL, *ptr2= NULL;
+
+  // We can store points directly into its owner, points are fixed length,
+  // thus don't need its own memory.
+  if (geotype == Geometry::wkb_linestring ||
+      geotype == Geometry::wkb_multipoint)
+  {
+    size_t left= get_nbytes_free(),
+           needed= (sz - ngeo) * (ptsz + (is_mpt ? WKB_HEADER_SIZE : 0)),
+           nalloc, cap= get_nbytes();
+
+    if (left <= needed)
+    {
+      nalloc= cap + 32 * (left + needed);
+      ptr= get_cptr();
+      m_ptr= gis_wkb_realloc(m_ptr, nalloc);
+      if (m_ptr == NULL)
+      {
+        set_nbytes(0);
+        set_ownmem(0);
+        clear_wkb_data();
+        return;
+      }
+      ptr2= get_cptr();
+      memset((ptr2 + cap), 0xff, nalloc - cap);
+      ptr2[nalloc - 1]= '\0';
+      /*
+        Only set when cap is 0, otherwise after this call get_nbytes_free()
+        will work wrong, this is different from push_back because push_back
+        always put data here more than 4 bytes inside itself.
+      */
+      if (cap == 0)
+        int4store(get_ucptr(), 0);// obj count
+      set_ownmem(true);
+
+      if (cap > 0 && ptr != m_ptr)
+      {
+        clear_wkb_data();
+        // Note: flags_.nbytes doesn't change.
+        parse_wkb_data(this, get_cptr());
+      }
+    }
+    ptr2= get_cptr();
+    ptr= ptr2 + (cap ? cap : sizeof(uint32)/* obj count */);
+    if (cap == 0)
+      set_nbytes(sizeof(uint32));
+  }
+  else
+    has_out_of_line_components(true);
+
+
+  /*
+    Because the pushed objects have their own memory, here we won't modify
+    m_ptr memory at all.
+  */
+  for (size_t cnt= sz - ngeo; cnt; cnt--)
+  {
+    T tmp;
+    tmp.set_owner(this);
+    tmp.set_ownmem(false);
+    // Points are directly put into owner's buffer, no need for own memory.
+    if (tmp.get_geotype() == Geometry::wkb_point)
+    {
+      if (is_mpt)
+      {
+        ptr= write_wkb_header(ptr, Geometry::wkb_point);
+        set_nbytes(get_nbytes() + WKB_HEADER_SIZE);
+      }
+      tmp.set_ptr(ptr, ptsz);
+      set_nbytes(get_nbytes() + ptsz);
+      ptr+= ptsz;
+      int4store(get_ucptr(), uint4korr(get_ucptr()) + 1);
+      DBUG_ASSERT(uint4korr(get_ucptr()) == m_geo_vect->size() + 1);
+    }
+    else
+      DBUG_ASSERT(ptr == NULL && ptr2 == NULL);
+
+    shallow_push(&tmp);
+    if (tmp.get_geotype() == Geometry::wkb_polygon)
+      own_rings(&(m_geo_vect->back()));
+
+    // tmp will be filled by push_back after this call, which will make
+    // tmp own its own memory, different from other geos in m_geo_vect,
+    // this is OK, users should call reassemble() to put them into
+    // a single chunk of memory.
+  }
+}
+
+
+
+// Explicit template instantiation
+template void Gis_wkb_vector<Gis_line_string>::clear();
+template void Gis_wkb_vector<Gis_point>::clear();
+template void Gis_wkb_vector<Gis_polygon>::clear();
+template void Gis_wkb_vector<Gis_polygon_ring>::clear();
+
+template void Gis_wkb_vector<Gis_line_string>::push_back(Gis_line_string const&);
+template void Gis_wkb_vector<Gis_point>::push_back(Gis_point const&);
+template void Gis_wkb_vector<Gis_polygon>::push_back(Gis_polygon const&);
+template void Gis_wkb_vector<Gis_polygon_ring>::push_back(Gis_polygon_ring const&);
+
+template void Gis_wkb_vector<Gis_line_string>::reassemble();
+template void Gis_wkb_vector<Gis_polygon>::reassemble();
+
+template void Gis_wkb_vector<Gis_line_string>::resize(size_t);
+template void Gis_wkb_vector<Gis_point>::resize(size_t);
+template void Gis_wkb_vector<Gis_polygon>::resize(size_t);
+template void Gis_wkb_vector<Gis_polygon_ring>::resize(size_t);
+
+template void Gis_wkb_vector<Gis_point_spherical>::shallow_push(Geometry const*);
+
+template
+Gis_wkb_vector<Gis_line_string>::
+Gis_wkb_vector(void const*, size_t,
+               Geometry::Flags_t const&, srid_t, bool);
+template
+Gis_wkb_vector<Gis_point_spherical>::
+Gis_wkb_vector(void const*, size_t,
+               Geometry::Flags_t const&, srid_t, bool);
+template
+Gis_wkb_vector<Gis_polygon>::
+Gis_wkb_vector(void const*, size_t,
+               Geometry::Flags_t const&, srid_t, bool);
+template
+Gis_wkb_vector<Gis_point>::
+Gis_wkb_vector(void const*, size_t,
+               Geometry::Flags_t const&, srid_t, bool);
+
+template
+Gis_wkb_vector<Gis_point>&
+Gis_wkb_vector<Gis_point>::operator=(Gis_wkb_vector<Gis_point> const&);
+
+template
+Gis_wkb_vector<Gis_polygon>::Gis_wkb_vector(Gis_wkb_vector<Gis_polygon> const&);

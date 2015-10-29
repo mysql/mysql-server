@@ -1553,121 +1553,121 @@ multipolygon_touches_geometry(Geometry *g1, Geometry *g2,
   inlining and out-of-memory problems in optmized mode on gcc/solaris/intel.
  */
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 point_within_geometry(Geometry *g1, Geometry *g2,
                       my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multipoint_within_geometry(Geometry *g1, Geometry *g2,
                            my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 linestring_within_geometry(Geometry *g1, Geometry *g2,
                            my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multilinestring_within_geometry(Geometry *g1, Geometry *g2,
                                 my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 polygon_within_geometry(Geometry *g1, Geometry *g2,
                         my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multipolygon_within_geometry(Geometry *g1, Geometry *g2,
                              my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multipoint_equals_geometry(Geometry *g1, Geometry *g2, my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 point_disjoint_geometry(Geometry *g1, Geometry *g2,
                         my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multipoint_disjoint_geometry(Geometry *g1, Geometry *g2,
                              my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 linestring_disjoint_geometry(Geometry *g1, Geometry *g2,
                              my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multilinestring_disjoint_geometry(Geometry *g1, Geometry *g2,
                                   my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 polygon_disjoint_geometry(Geometry *g1, Geometry *g2,
                           my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multipolygon_disjoint_geometry(Geometry *g1, Geometry *g2,
                                my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 point_intersects_geometry(Geometry *g1, Geometry *g2,
                           my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multipoint_intersects_geometry(Geometry *g1, Geometry *g2,
                                my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 linestring_intersects_geometry(Geometry *g1, Geometry *g2,
                                my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multilinestring_intersects_geometry(Geometry *g1, Geometry *g2,
                                     my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 polygon_intersects_geometry(Geometry *g1, Geometry *g2,
                             my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multipolygon_intersects_geometry(Geometry *g1, Geometry *g2,
                                  my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 linestring_crosses_geometry(Geometry *g1, Geometry *g2,
                             my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multipoint_crosses_geometry(Geometry *g1, Geometry *g2,
                             my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multilinestring_crosses_geometry(Geometry *g1, Geometry *g2,
                                  my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multipoint_overlaps_multipoint(Geometry *g1, Geometry *g2,
                                my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 point_touches_geometry(Geometry *g1, Geometry *g2,
                        my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multipoint_touches_geometry(Geometry *g1, Geometry *g2,
                             my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 linestring_touches_geometry(Geometry *g1, Geometry *g2,
                             my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multilinestring_touches_polygon(Geometry *g1, Geometry *g2,
                                 my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multilinestring_touches_geometry(Geometry *g1, Geometry *g2,
                                  my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 polygon_touches_geometry(Geometry *g1, Geometry *g2,
                          my_bool *pnull_value);
 template
-int BG_wrap<BG_models<double, boost::geometry::cs::cartesian> > ::
+int BG_wrap<BG_models<boost::geometry::cs::cartesian> > ::
 multipolygon_touches_geometry(Geometry *g1, Geometry *g2,
                               my_bool *pnull_value);
