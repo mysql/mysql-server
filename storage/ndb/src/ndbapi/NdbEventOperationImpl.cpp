@@ -1372,6 +1372,7 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_latest_poll_GCI(),
   m_failure_detected(false),
   m_prevent_nodegroup_change(true),
+  m_mutex(NULL),
   m_current_data(NULL),
   m_total_alloc(0),
   m_max_alloc(0),
@@ -1387,12 +1388,6 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_latest_command= "NdbEventBuffer::NdbEventBuffer";
   m_flush_gci = 0;
 #endif
-
-  if ((p_cond = NdbCondition_Create()) ==  NULL) {
-    ndbout_c("NdbEventHandle: NdbCondition_Create() failed");
-    exit(-1);
-  }
-  m_mutex = 0; // Set in Ndb::init()
 
   // ToDo set event buffer size
   // pre allocate event data array
@@ -1455,8 +1450,6 @@ NdbEventBuffer::~NdbEventBuffer()
     }
     NdbMem_Free((char*)m_allocated_data[j]);
   }
-
-  NdbCondition_Destroy(p_cond);
 }
 
 unsigned
@@ -1566,16 +1559,8 @@ int NdbEventBuffer::expand(unsigned sz)
 }
 
 int
-NdbEventBuffer::pollEvents(int aMillisecondNumber, Uint64 *highestQueuedEpoch)
+NdbEventBuffer::pollEvents(Uint64 *highestQueuedEpoch)
 {
-  if (aMillisecondNumber < 0)
-  {
-    g_eventLogger->error("NdbEventBuffer::pollEvents: negative aMillisecondNumber %d 0x%x %s",
-                         aMillisecondNumber,
-                         m_ndb->getReference(),
-                         m_ndb->getNdbObjectName());
-    return -1;
-  }
   int ret= 1;
 #ifdef VM_TRACE
   const char *m_latest_command_save= m_latest_command;
@@ -1584,11 +1569,6 @@ NdbEventBuffer::pollEvents(int aMillisecondNumber, Uint64 *highestQueuedEpoch)
 
   NdbMutex_Lock(m_mutex);
   EventBufData *ev_data= move_data();
-  if (unlikely(ev_data == 0 && aMillisecondNumber))
-  {
-    NdbCondition_WaitTimeout(p_cond, m_mutex, aMillisecondNumber);
-    ev_data= move_data();
-  }
   m_latest_poll_GCI= MonotonicEpoch(m_epoch_generation,m_latestGCI);
 #ifdef VM_TRACE
   if (ev_data && ev_data->m_event_op)
@@ -2646,10 +2626,6 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
       {
 	complete_outof_order_gcis();
       }
-
-      // signal that somethings happened
-
-      NdbCondition_Signal(p_cond);
     }
     else
     {
@@ -2968,10 +2944,6 @@ NdbEventBuffer::set_total_buckets(Uint32 cnt)
       assert(tmp->m_gcp_complete_rep_count > TOTAL_BUCKETS_INIT);
       tmp->m_gcp_complete_rep_count -= TOTAL_BUCKETS_INIT;
     }
-  }
-  if (found)
-  {
-    NdbCondition_Signal(p_cond);
   }
 }
 
