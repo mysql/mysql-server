@@ -124,4 +124,13 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 # so the following command should never fail.
 --remove_file $MYSQLD_DATADIR/mysql_upgrade_info
 
+
+--echo #
+--echo # Bug #21489398: MYSQL_UPGRADE: FATAL ERROR: UPGRADE FAILED - IMPROVE ERROR
+--echo #
+
+--echo Run mysql_upgrade with unauthorized access
+--error 1
+--exec $MYSQL_UPGRADE --skip-verbose --user=root --password=wrong_password 2>&1
+
 --echo End of tests

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -862,10 +862,17 @@ static int check_version_match(void)
   if (init_dynamic_string(&ds_version, NULL, NAME_CHAR_LEN, NAME_CHAR_LEN))
     die("Out of memory");
 
-  if (run_query("show variables like 'version'",
-                &ds_version, FALSE) ||
-      extract_variable_from_show(&ds_version, version_str))
+
+  if (run_query("show variables like 'version'", &ds_version, FALSE))
   {
+    fprintf(stderr, "Error: Failed while fetching Server version! Could be"
+            " due to unauthorized access.\n");
+    dynstr_free(&ds_version);
+    return 1;                                   /* Query failed */
+  }
+  if (extract_variable_from_show(&ds_version, version_str))
+  {
+    fprintf(stderr, "Error: Failed while extracting Server version!\n");
     dynstr_free(&ds_version);
     return 1;                                   /* Query failed */
   }
@@ -955,15 +962,20 @@ int main(int argc, char **argv)
   /*
     Run "mysqlcheck" and "mysql_fix_privilege_tables.sql"
   */
-  if ((!opt_systables_only &&
-       (run_mysqlcheck_fixnames() || run_mysqlcheck_upgrade())) ||
-      run_sql_fix_privilege_tables())
+  if (!opt_systables_only)
   {
-    /*
-      The upgrade failed to complete in some way or another,
-      significant error message should have been printed to the screen
-    */
-    die("Upgrade failed" );
+    if (run_mysqlcheck_fixnames())
+      die("Error during call to mysql_check for fixing the db/tables names.");
+
+    if (run_mysqlcheck_upgrade())
+      die("Error during call to mysql_check for upgrading the tables names.");
+  }
+
+  if (run_sql_fix_privilege_tables())
+  {
+    /* Specific error msg (if present) would be printed in the function call
+     * above */
+    die("Upgrade failed");
   }
   verbose("OK");
 
