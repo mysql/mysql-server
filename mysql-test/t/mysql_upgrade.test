@@ -202,5 +202,14 @@ DROP USER B20023823_def@localhost;
 DROP USER B20023823_41hash@localhost;
 DROP USER B20023823_16hash@localhost;
 
+
+--echo #
+--echo # Bug #21489398: MYSQL_UPGRADE: FATAL ERROR: UPGRADE FAILED - IMPROVE ERROR
+--echo #
+
+--echo Run mysql_upgrade with unauthorized access
+--error 1
+--exec $MYSQL_UPGRADE --skip-verbose --user=root --password=wrong_password 2>&1
+
 --echo
 --echo End of tests
