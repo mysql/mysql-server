@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,8 +31,8 @@ enum WaitSignalType {
   WAIT_TC_RELEASE   = 4,
   WAIT_NDB_TAMPER   = 5,
   WAIT_SCAN         = 6,
-
   WAIT_TRANS        = 7,
+  WAIT_EVENT        = 8,
 
   // DICT stuff
   WAIT_GET_TAB_INFO_REQ = 11,

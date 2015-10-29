@@ -2126,7 +2126,21 @@ NdbEventOperation *Ndb::getEventOperation(NdbEventOperation* tOp)
 int
 Ndb::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
 {
-  return theEventBuffer->pollEvents(aMillisecondNumber, latestGCI);
+  /* Look for already available events without polling transporter. */
+  const int found = theEventBuffer->pollEvents(latestGCI);
+  if (found)
+    return found;
+
+  /**
+   * We need to poll the transporter, and possibly wait, to make sure
+   * that arrived events are delivered to their clients as soon as possible.
+   * ::trp_deliver_signal() will wakeup the client when event arrives.
+   */
+  PollGuard poll_guard(* theImpl);
+  poll_guard.wait_n_unlock(aMillisecondNumber, 0, WAIT_EVENT);
+  // PollGuard ends here
+
+  return theEventBuffer->pollEvents(latestGCI);
 }
 
 int
