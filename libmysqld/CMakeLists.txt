@@ -110,6 +110,7 @@ ADD_COMPILE_FLAGS(
   ../sql/item_geofunc_relchecks_bgwrap.cc
   ../sql/item_geofunc_setops.cc
   ../sql/item_json_func.cc
+  ../sql/debug_sync.cc
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
 
@@ -124,6 +125,7 @@ IF(HAVE_UNUSED_TYPEDEFS)
     ../sql/item_geofunc_relchecks_bgwrap.cc
     ../sql/item_geofunc_setops.cc
     ../sql/item_json_func.cc
+    ../sql/debug_sync.cc
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
   )
 ENDIF()

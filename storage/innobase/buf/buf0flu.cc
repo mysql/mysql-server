@@ -25,6 +25,7 @@ Created 11/11/1995 Heikki Tuuri
 
 #include "ha_prototypes.h"
 #include <mysql/service_thd_wait.h>
+#include <my_dbug.h>
 
 #include "buf0flu.h"
 
@@ -178,9 +179,19 @@ struct page_cleaner_t {
 	page_cleaner_slot_t*	slots;		/*!< pointer to the slots */
 	bool			is_running;	/*!< false if attempt
 						to shutdown */
+
+#ifdef UNIV_DEBUG
+	ulint			n_disabled_debug;
+						/*<! how many of pc threads
+						have been disabled */
+#endif /* UNIV_DEBUG */
 };
 
 static page_cleaner_t*	page_cleaner = NULL;
+
+#ifdef UNIV_DEBUG
+my_bool innodb_page_cleaner_disabled_debug;
+#endif /* UNIV_DEBUG */
 
 /** If LRU list of a buf_pool is less than this size then LRU eviction
 should not happen. This is because when we do LRU flushing we also put
@@ -2687,6 +2698,8 @@ buf_flush_page_cleaner_init(void)
 		ut_zalloc_nokey(page_cleaner->n_slots
 				* sizeof(*page_cleaner->slots)));
 
+	ut_d(page_cleaner->n_disabled_debug = 0);
+
 	page_cleaner->is_running = true;
 }
 
@@ -2939,6 +2952,122 @@ buf_flush_page_cleaner_set_priority(
 }
 #endif /* UNIV_LINUX */
 
+#ifdef UNIV_DEBUG
+/** Loop used to disable page cleaner threads. */
+static
+void
+buf_flush_page_cleaner_disabled_loop(void)
+{
+	ut_ad(page_cleaner != NULL);
+
+	if (!innodb_page_cleaner_disabled_debug) {
+		/* We return to avoid entering and exiting mutex. */
+		return;
+	}
+
+	mutex_enter(&page_cleaner->mutex);
+	page_cleaner->n_disabled_debug++;
+	mutex_exit(&page_cleaner->mutex);
+
+	while (innodb_page_cleaner_disabled_debug
+	       && srv_shutdown_state == SRV_SHUTDOWN_NONE
+	       && page_cleaner->is_running) {
+
+		os_thread_sleep(100000); /* [A] */
+	}
+
+	/* We need to wait for threads exiting here, otherwise we would
+	encounter problem when we quickly perform following steps:
+		1) SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+		2) SET GLOBAL innodb_page_cleaner_disabled_debug = 0;
+		3) SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+	That's because after step 1 this thread could still be sleeping
+	inside the loop above at [A] and steps 2, 3 could happen before
+	this thread wakes up from [A]. In such case this thread would
+	not re-increment n_disabled_debug and we would be waiting for
+	him forever in buf_flush_page_cleaner_disabled_debug_update(...).
+
+	Therefore we are waiting in step 2 for this thread exiting here. */
+
+	mutex_enter(&page_cleaner->mutex);
+	page_cleaner->n_disabled_debug--;
+	mutex_exit(&page_cleaner->mutex);
+}
+
+/** Disables page cleaner threads (coordinator and workers).
+It's used by: SET GLOBAL innodb_page_cleaner_disabled_debug = 1 (0).
+@param[in]	thd		thread handle
+@param[in]	var		pointer to system variable
+@param[out]	var_ptr		where the formal string goes
+@param[in]	save		immediate result from check function */
+void
+buf_flush_page_cleaner_disabled_debug_update(
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				var_ptr,
+	const void*			save)
+{
+	if (page_cleaner == NULL) {
+		return;
+	}
+
+	if (!*static_cast<const my_bool*>(save)) {
+		if (!innodb_page_cleaner_disabled_debug) {
+			return;
+		}
+
+		innodb_page_cleaner_disabled_debug = false;
+
+		/* Enable page cleaner threads. */
+		while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+			mutex_enter(&page_cleaner->mutex);
+			const ulint n = page_cleaner->n_disabled_debug;
+			mutex_exit(&page_cleaner->mutex);
+			/* Check if all threads have been enabled, to avoid
+			problem when we decide to re-disable them soon. */
+			if (n == 0) {
+				break;
+			}
+		}
+		return;
+	}
+
+	if (innodb_page_cleaner_disabled_debug) {
+		return;
+	}
+
+	innodb_page_cleaner_disabled_debug = true;
+
+	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+		/* Workers are possibly sleeping on is_requested.
+
+		We have to wake them, otherwise they could possibly
+		have never noticed, that they should be disabled,
+		and we would wait for them here forever.
+
+		That's why we have sleep-loop instead of simply
+		waiting on some disabled_debug_event. */
+		os_event_set(page_cleaner->is_requested);
+
+		mutex_enter(&page_cleaner->mutex);
+
+		ut_ad(page_cleaner->n_disabled_debug
+		      <= srv_n_page_cleaners);
+
+		if (page_cleaner->n_disabled_debug
+		    == srv_n_page_cleaners) {
+
+			mutex_exit(&page_cleaner->mutex);
+			break;
+		}
+
+		mutex_exit(&page_cleaner->mutex);
+
+		os_thread_sleep(100000);
+	}
+}
+#endif /* UNIV_DEBUG */
+
 /******************************************************************//**
 page_cleaner thread tasked with flushing dirty pages from the buffer
 pools. As of now we'll have only one coordinator.
@@ -2955,6 +3084,8 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 	ulint	n_flushed = 0;
 	ulint	last_activity = srv_get_activity_count();
 	ulint	last_pages = 0;
+
+	my_thread_init();
 
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(page_cleaner_thread_key);
@@ -3210,6 +3341,8 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 			/* no activity, but woken up by event */
 			n_flushed = 0;
 		}
+
+		ut_d(buf_flush_page_cleaner_disabled_loop());
 	}
 
 	ut_ad(srv_shutdown_state > 0);
@@ -3305,6 +3438,8 @@ thread_exit:
 
 	buf_page_cleaner_is_active = false;
 
+	my_thread_end();
+
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
 	os_thread_exit(NULL);
@@ -3323,6 +3458,8 @@ DECLARE_THREAD(buf_flush_page_cleaner_worker)(
 			/*!< in: a dummy parameter required by
 			os_thread_create */
 {
+	my_thread_init();
+
 	mutex_enter(&page_cleaner->mutex);
 	page_cleaner->n_workers++;
 	mutex_exit(&page_cleaner->mutex);
@@ -3341,6 +3478,8 @@ DECLARE_THREAD(buf_flush_page_cleaner_worker)(
 	while (true) {
 		os_event_wait(page_cleaner->is_requested);
 
+		ut_d(buf_flush_page_cleaner_disabled_loop());
+
 		if (!page_cleaner->is_running) {
 			break;
 		}
@@ -3351,6 +3490,8 @@ DECLARE_THREAD(buf_flush_page_cleaner_worker)(
 	mutex_enter(&page_cleaner->mutex);
 	page_cleaner->n_workers--;
 	mutex_exit(&page_cleaner->mutex);
+
+	my_thread_end();
 
 	os_thread_exit(NULL);
 

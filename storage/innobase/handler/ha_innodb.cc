@@ -18939,6 +18939,24 @@ static MYSQL_SYSVAR_BOOL(disable_resize_buffer_pool_debug,
   "Disable resizing buffer pool to make assertion code not expensive.",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_BOOL(page_cleaner_disabled_debug,
+  innodb_page_cleaner_disabled_debug,
+  PLUGIN_VAR_OPCMDARG,
+  "Disable page cleaner",
+  NULL, buf_flush_page_cleaner_disabled_debug_update, FALSE);
+
+static MYSQL_SYSVAR_BOOL(dict_stats_disabled_debug,
+  innodb_dict_stats_disabled_debug,
+  PLUGIN_VAR_OPCMDARG,
+  "Disable dict_stats thread",
+  NULL, dict_stats_disabled_debug_update, FALSE);
+
+static MYSQL_SYSVAR_BOOL(master_thread_disabled_debug,
+  srv_master_thread_disabled_debug,
+  PLUGIN_VAR_OPCMDARG,
+  "Disable master thread",
+  NULL, srv_master_thread_disabled_debug_update, FALSE);
+
 static MYSQL_SYSVAR_BOOL(sync_debug, srv_sync_debug,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Enable the sync debug checks",
@@ -19104,6 +19122,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(saved_page_number_debug),
   MYSQL_SYSVAR(compress_debug),
   MYSQL_SYSVAR(disable_resize_buffer_pool_debug),
+  MYSQL_SYSVAR(page_cleaner_disabled_debug),
+  MYSQL_SYSVAR(dict_stats_disabled_debug),
+  MYSQL_SYSVAR(master_thread_disabled_debug),
   MYSQL_SYSVAR(sync_debug),
 #endif /* UNIV_DEBUG */
   NULL

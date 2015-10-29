@@ -31,6 +31,7 @@ Created 12/9/1995 Heikki Tuuri
 *******************************************************/
 
 #include "ha_prototypes.h"
+#include <debug_sync.h>
 
 #include "log0log.h"
 
@@ -46,6 +47,7 @@ Created 12/9/1995 Heikki Tuuri
 #include "log0recv.h"
 #include "fil0fil.h"
 #include "dict0boot.h"
+#include "dict0stats_bg.h"
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "trx0sys.h"
@@ -292,6 +294,8 @@ log_margin_checkpoint_age(
 		log_sys->check_flush_or_checkpoint = true;
 		log_mutex_exit();
 
+		DEBUG_SYNC_C("margin_checkpoint_age_rescue");
+
 		if (!flushed_enough) {
 			os_thread_sleep(100000);
 		}
@@ -341,6 +345,8 @@ loop:
 
 	if (log_sys->buf_free + len_upper_limit > log_sys->buf_size) {
 		log_mutex_exit();
+
+		DEBUG_SYNC_C("log_buf_size_exceeded");
 
 		/* Not enough free space, do a write of the log buffer */
 
@@ -470,6 +476,9 @@ log_close(void)
 	checkpoint_age = lsn - log->last_checkpoint_lsn;
 
 	if (checkpoint_age >= log->log_group_capacity) {
+		DBUG_EXECUTE_IF(
+			"print_all_chkp_warnings",
+			log_has_printed_chkp_warning = false;);
 
 		if (!log_has_printed_chkp_warning
 		    || difftime(time(NULL), log_last_warning_time) > 15) {
@@ -1634,6 +1643,12 @@ log_write_checkpoint_info(
 		/* Wait for the checkpoint write to complete */
 		rw_lock_s_lock(&log_sys->checkpoint_lock);
 		rw_lock_s_unlock(&log_sys->checkpoint_lock);
+
+		DEBUG_SYNC_C("checkpoint_completed");
+
+		DBUG_EXECUTE_IF(
+			"crash_after_checkpoint",
+			DBUG_SUICIDE(););
 	}
 }
 
@@ -1667,11 +1682,6 @@ log_checkpoint(
 	lsn_t	oldest_lsn;
 
 	ut_ad(!srv_read_only_mode);
-
-	DBUG_EXECUTE_IF("no_checkpoint",
-			/* We sleep for a long enough time, forcing
-			the checkpoint doesn't happen any more. */
-			os_thread_sleep(360000000););
 
 	if (recv_recovery_is_on()) {
 		recv_apply_hashed_log_recs(TRUE);
@@ -1750,9 +1760,24 @@ log_checkpoint(
 
 	log_write_up_to(flush_lsn, true);
 
+	DBUG_EXECUTE_IF(
+		"using_wa_checkpoint_middle",
+		if (write_always) {
+			DEBUG_SYNC_C("wa_checkpoint_middle");
+
+			const my_bool b = TRUE;
+			buf_flush_page_cleaner_disabled_debug_update(
+				NULL, NULL, NULL, &b);
+			dict_stats_disabled_debug_update(
+				NULL, NULL, NULL, &b);
+			srv_master_thread_disabled_debug_update(
+				NULL, NULL, NULL, &b);
+		});
+
 	log_mutex_enter();
 
-	ut_ad(log_sys->flushed_to_disk_lsn >= oldest_lsn);
+	ut_ad(log_sys->flushed_to_disk_lsn >= flush_lsn);
+	ut_ad(flush_lsn >= oldest_lsn);
 
 	if (!write_always
 	    && log_sys->last_checkpoint_lsn >= oldest_lsn) {

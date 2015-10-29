@@ -7,10 +7,6 @@
 --source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/not_embedded.inc
-#
-# Skip it in Valgrind until BUG#21631197 has been fixed
-# 
---source include/not_valgrind.inc
 
 # Slow shutdown and restart to make sure ibuf merge is finished
 SET GLOBAL innodb_fast_shutdown = 0;
@@ -58,7 +54,7 @@ unlock tables;
 begin;
 insert into t1 values (6, repeat('%', 12));
 
-set global debug = "+d,no_checkpoint";
+--source include/no_checkpoint_start.inc
 
 --echo # Make the first page dirty for table t1
 set global innodb_saved_page_number_debug = 0;
@@ -67,7 +63,8 @@ set global innodb_fil_make_page_dirty_debug = @space_id;
 --echo # Ensure that dirty pages of table t1 are flushed.
 set global innodb_buf_flush_list_now = 1;
 
---source include/kill_mysqld.inc
+--let CLEANUP_IF_CHECKPOINT=drop table t1;
+--source include/no_checkpoint_end.inc
 
 --echo # Make the first page (page_no=0) of the user tablespace
 --echo # full of zeroes.
@@ -101,7 +98,7 @@ unlock tables;
 begin;
 insert into t1 values (6, repeat('%', 12));
 
-set global debug = "+d,no_checkpoint";
+--source include/no_checkpoint_start.inc
 
 --echo # Make the first page dirty for table t1
 set global innodb_saved_page_number_debug = 0;
@@ -110,7 +107,7 @@ set global innodb_fil_make_page_dirty_debug = @space_id;
 --echo # Ensure that dirty pages of table t1 are flushed.
 set global innodb_buf_flush_list_now = 1;
 
---source include/kill_mysqld.inc
+--source include/no_checkpoint_end.inc
 
 --echo # Corrupt the first page (page_no=0) of the user tablespace.
 perl;
@@ -143,7 +140,7 @@ unlock tables;
 begin;
 insert into t1 values (6, repeat('%', 400));
 
-set global debug = "+d,no_checkpoint";
+--source include/no_checkpoint_start.inc
 
 --echo # Make the 2nd page dirty for table t1
 set global innodb_saved_page_number_debug = 1;
@@ -152,7 +149,7 @@ set global innodb_fil_make_page_dirty_debug = @space_id;
 --echo # Ensure that dirty pages of table t1 are flushed.
 set global innodb_buf_flush_list_now = 1;
 
---source include/kill_mysqld.inc
+--source include/no_checkpoint_end.inc
 
 --echo # Make the 2nd page (page_no=1) of the tablespace all zeroes.
 perl;
@@ -186,7 +183,7 @@ unlock tables;
 begin;
 insert into t1 values (6, repeat('%', 400));
 
-set global debug = "+d,no_checkpoint";
+--source include/no_checkpoint_start.inc
 
 --echo # Make the 2nd page dirty for table t1
 set global innodb_saved_page_number_debug = 1;
@@ -195,7 +192,7 @@ set global innodb_fil_make_page_dirty_debug = @space_id;
 --echo # Ensure that the dirty pages of table t1 are flushed.
 set global innodb_buf_flush_list_now = 1;
 
---source include/kill_mysqld.inc
+--source include/no_checkpoint_end.inc
 
 --echo # Corrupt the 2nd page (page_no=1) of the user tablespace.
 perl;

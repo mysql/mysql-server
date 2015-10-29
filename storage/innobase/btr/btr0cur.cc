@@ -6667,6 +6667,8 @@ struct btr_blob_log_check_t {
 
 		log_free_check();
 
+		DEBUG_SYNC_C("blob_write_middle_after_check");
+
 		const mtr_log_t log_mode = m_mtr->get_log_mode();
 		m_mtr->start();
 		m_mtr->set_log_mode(log_mode);
