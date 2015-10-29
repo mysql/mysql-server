@@ -60,13 +60,13 @@ static Item_result item_store_type(Item_result a, Item *item,
     return INT_RESULT;
 }
 
-static void agg_result_type(Item_result *type, my_bool *unsigned_flag,
+static void agg_result_type(Item_result *type, bool *unsigned_flag,
                             Item **items, uint nitems)
 {
   Item **item, **item_end;
 
   *type= STRING_RESULT;
-  *unsigned_flag= FALSE;
+  *unsigned_flag= false;
   /* Skip beginning NULL items */
   for (item= items, item_end= item + nitems; item < item_end; item++)
   {
@@ -84,7 +84,7 @@ static void agg_result_type(Item_result *type, my_bool *unsigned_flag,
     if ((*item)->type() != Item::NULL_ITEM)
     {
       *type= item_store_type(*type, *item, *unsigned_flag);
-      *unsigned_flag= *unsigned_flag && (*item)->unsigned_flag;
+      *unsigned_flag&= (*item)->unsigned_flag;
     }
   }
 }
@@ -2514,7 +2514,8 @@ longlong Item_func_eq::val_int()
 void Item_func_equal::fix_length_and_dec()
 {
   Item_bool_func2::fix_length_and_dec();
-  maybe_null=null_value=0;
+  maybe_null= false;
+  null_value= FALSE;
 }
 
 longlong Item_func_equal::val_int()

@@ -749,8 +749,6 @@ class Item : public Parse_tree_node
 
   Item(const Item &);			/* Prevent use of these */
   void operator=(Item &);
-  /* Cache of the result of is_expensive(). */
-  int8 is_expensive_cache;
   virtual bool is_expensive_processor(uchar *arg) { return false; }
 
 protected:
@@ -787,106 +785,27 @@ public:
 
   enum traverse_order { POSTFIX, PREFIX };
 
-  /**
-    @todo
-    -# Move this away from the Item class. It is a property of the
-    visitor in what direction the traversal is done, not of the visitee.
-
-    -# Make this two booleans instead. There are two orthogonal flags here.
-  */
   enum enum_walk
   {
     WALK_PREFIX=   0x01,
     WALK_POSTFIX=  0x02,
     WALK_SUBQUERY= 0x04,
-    WALK_SUBQUERY_PREFIX= 0x05,
-    WALK_SUBQUERY_POSTFIX= 0x06
+    WALK_SUBQUERY_PREFIX= 0x05,   // Combine prefix and subquery traversal
+    WALK_SUBQUERY_POSTFIX= 0x06   // Combine postfix and subquery traversal
   };
   
-  /* Reuse size, only used by SP local variable assignment, otherwize 0 */
-  uint rsize;
-
-  /*
-    str_values's main purpose is to be used to cache the value in
-    save_in_field
-  */
-  String str_value;
-
-  Item_name_string item_name;  /* Name from select */
-  Item_name_string orig_name;  /* Original item name (if it was renamed)*/
-
-  /**
-     Intrusive list pointer for free list. If not null, points to the next
-     Item on some Query_arena's free list. For instance, stored procedures
-     have their own Query_arena's.
-
-     @see Query_arena::free_list
-   */
-  Item *next;
-  uint32 max_length;                    /* Maximum length, in bytes */
-  /**
-     This member has several successive meanings, depending on the phase we're
-     in:
-     - during field resolution: it contains the index, in the "all_fields"
-     list, of the expression to which this field belongs; or a special
-     constant UNDEF_POS; see SELECT_LEX::cur_pos_in_all_fields and
-     match_exprs_for_only_full_group_by().
-     - when attaching conditions to tables: it says whether some condition
-     needs to be attached or can be omitted (for example because it is already
-     implemented by 'ref' access)
-     - when pushing index conditions: it says whether a condition uses only
-     indexed columns
-     - when creating an internal temporary table: it says how to store BIT
-     fields
-     - when we change DISTINCT to GROUP BY: it is used for book-keeping of
-     fields.
-  */
-  int marker;
-  uint8 decimals;
-  my_bool maybe_null;			/* If item may be null */
-  my_bool null_value;			/* if item is null */
-  my_bool unsigned_flag;
-  my_bool with_sum_func;
-  my_bool fixed;                        /* If item fixed with fix_fields */
-  DTCollation collation;
-  Item_result cmp_context;              /* Comparison context */
-  /*
-    If this item was created in runtime memroot,it cannot be used for
-    substitution in subquery transformation process
-   */
-  bool runtime_item;
-
-private:
-  /**
-    True if this is an expression from the select list of a derived table
-    which is actually used by outer query.
-  */
-  bool derived_used;
-
-protected:
-  my_bool with_subselect;               /* If this item is a subselect or some
-                                           of its arguments is or contains a
-                                           subselect. Computed by fix_fields
-                                           and updated by update_used_tables. */
-  my_bool with_stored_program;          /* If this item is a stored program
-                                           or some of its arguments is or
-                                           contains a stored program.
-                                           Computed by fix_fields and updated
-                                           by update_used_tables. */
-
-  /**
-    This variable is a cache of 'Needed tables are locked'. True if either
-    'No tables locks is needed' or 'Needed tables are locked'.
-    If tables are used, then it will be set to
-    current_thd->lex->is_query_tables_locked().
-
-    It is used when checking const_item()/can_be_evaluated_now().
-  */
-  bool tables_locked_cache;
-  const bool is_parser_item; // true if allocated directly by the parser
- public:
-  // alloc & destruct is done as start of select using sql_alloc
+  /// Item constructor for general use.
   Item();
+
+  /**
+    Constructor used by Item_field, Item_ref & aggregate functions.
+    Used for duplicating lists in processing queries with temporary tables.
+
+    Also used for Item_cond_and/Item_cond_or for creating top AND/OR structure
+    of WHERE clause to protect it of optimisation changes in prepared statements
+  */
+  Item(THD *thd, Item *item);
+
   /**
     Parse-time context-independent constructor.
 
@@ -902,15 +821,7 @@ protected:
     (context-dependent) constructors.
   */
   explicit Item(const POS &);
-  /*
-    Constructor used by Item_field, Item_ref & aggregate (sum) functions.
-    Used for duplicating lists in processing queries with temporary
-    tables
-    Also it used for Item_cond_and/Item_cond_or for creating
-    top AND/OR structure of WHERE clause to protect it of
-    optimisation changes in prepared statements
-  */
-  Item(THD *thd, Item *item);
+
   virtual ~Item()
   {
 #ifdef EXTRA_DEBUG
@@ -943,6 +854,7 @@ protected:
     *res= this;
     return !is_parser_item;
   }
+
 public:
   /**
     The same as contextualize()/contextualize_() but with additional parameter
@@ -2223,8 +2135,88 @@ public:
     const Type t= type();
     return t == FUNC_ITEM || t == COND_ITEM;
   }
+
 private:
   virtual bool subq_opt_away_processor(uchar *arg) { return false; }
+
+public:                            // Start of data fields
+  /**
+    Intrusive list pointer for free list. If not null, points to the next
+    Item on some Query_arena's free list. For instance, stored procedures
+    have their own Query_arena's.
+
+    @see Query_arena::free_list
+  */
+  Item *next;
+  /// str_values's main purpose is to cache the value in save_in_field
+  String str_value;
+
+  /**
+    Character set and collation properties assigned for this Item.
+    Used if Item represents a character string expression.
+  */
+  DTCollation collation;
+  Item_name_string item_name;      ///< Name from query
+  Item_name_string orig_name;      ///< Original item name (if it was renamed)
+  uint32 max_length;               ///< Maximum length, in bytes
+  /**
+    This member has several successive meanings, depending on the phase we're
+    in:
+    - when attaching conditions to tables: it says whether some condition
+      needs to be attached or can be omitted (for example because it is already
+      implemented by 'ref' access).
+    - when pushing index conditions: it says whether a condition uses only
+      indexed columns.
+    - when creating an internal temporary table: says how to store BIT fields.
+    - when we change DISTINCT to GROUP BY: used for book-keeping of fields.
+  */
+  int32 marker;
+  Item_result cmp_context;         ///< Comparison context
+private:
+  const bool is_parser_item;       ///< true if allocated directly by parser
+  /*
+    If this item was created in runtime memroot, it cannot be used for
+    substitution in subquery transformation process
+  */
+  bool runtime_item;
+  int8 is_expensive_cache;         ///< Cache of result of is_expensive()
+public:
+  bool fixed;                      ///< True if item has been resolved
+  uint8 decimals;
+  bool maybe_null;                 ///< True if item is nullable
+  my_bool null_value;              ///< True if item is null
+  bool unsigned_flag;
+  bool with_sum_func;              ///< True if item is aggregated
+
+private:
+  /**
+    True if this is an expression from the select list of a derived table
+    which is actually used by outer query.
+  */
+  bool derived_used;
+
+protected:
+  /**
+    True if this item is a subquery or some of its arguments is or contains a
+    subquery. Computed by fix_fields() and updated by update_used_tables().
+  */
+  bool with_subselect;
+  /**
+    True if this item is a stored program or some of its arguments is or
+    contains a stored program. Computed by fix_fields() and updated
+    by update_used_tables().
+  */
+  bool with_stored_program;
+
+  /**
+    This variable is a cache of 'Needed tables are locked'. True if either
+    'No tables locks is needed' or 'Needed tables are locked'.
+    If tables are used, then it will be set to
+    current_thd->lex->is_query_tables_locked().
+
+    It is used when checking const_item()/can_be_evaluated_now().
+  */
+  bool tables_locked_cache;
 };
 
 
@@ -2614,12 +2606,48 @@ public:
 
   Item_ident(Name_resolution_context *context_arg,
              const char *db_name_arg, const char *table_name_arg,
-             const char *field_name_arg);
+             const char *field_name_arg)
+   :orig_db_name(db_name_arg), orig_table_name(table_name_arg),
+    orig_field_name(field_name_arg), m_alias_of_expr(false),
+    context(context_arg),
+    db_name(db_name_arg), table_name(table_name_arg),
+    field_name(field_name_arg),
+    cached_field_index(NO_CACHED_FIELD_INDEX),
+    cached_table(NULL), depended_from(NULL)
+  {
+    item_name.set(field_name_arg);
+  }
+
   Item_ident(const POS &pos,
              const char *db_name_arg, const char *table_name_arg,
-             const char *field_name_arg);
+             const char *field_name_arg)
+   :super(pos), orig_db_name(db_name_arg), orig_table_name(table_name_arg),
+    orig_field_name(field_name_arg), m_alias_of_expr(false),
+    db_name(db_name_arg), table_name(table_name_arg),
+    field_name(field_name_arg),
+    cached_field_index(NO_CACHED_FIELD_INDEX),
+    cached_table(NULL), depended_from(NULL)
+  {
+    item_name.set(field_name_arg);
+  }
 
-  Item_ident(THD *thd, Item_ident *item);
+
+  /// Constructor used by Item_field & Item_*_ref (see Item comment)
+
+  Item_ident(THD *thd, Item_ident *item)
+   :Item(thd, item),
+    orig_db_name(item->orig_db_name),
+    orig_table_name(item->orig_table_name),
+    orig_field_name(item->orig_field_name),
+    m_alias_of_expr(item->m_alias_of_expr),
+    context(item->context),
+    db_name(item->db_name),
+    table_name(item->table_name),
+    field_name(item->field_name),
+    cached_field_index(item->cached_field_index),
+    cached_table(item->cached_table),
+    depended_from(item->depended_from)
+  {}
 
   virtual bool itemize(Parse_context *pc, Item **res);
 
@@ -2950,7 +2978,8 @@ class Item_null :public Item_basic_constant
 
   void init()
   {
-    maybe_null= null_value= TRUE;
+    maybe_null= true;
+    null_value= TRUE;
     max_length= 0;
     fixed= 1;
     collation.set(&my_charset_bin, DERIVATION_IGNORABLE);
@@ -5060,16 +5089,18 @@ public:
     cached_field_type(MYSQL_TYPE_STRING),
     value_cached(0)
   {
-    fixed= 1; 
-    maybe_null= null_value= 1;
+    fixed= true;
+    maybe_null= true;
+    null_value= TRUE;
   }
   Item_cache(enum_field_types field_type_arg):
     example(0), used_table_map(0), cached_field(0),
     cached_field_type(field_type_arg),
     value_cached(0)
   {
-    fixed= 1;
-    maybe_null= null_value= 1;
+    fixed= true;
+    maybe_null= true;
+    null_value= TRUE;
   }
 
   void set_used_tables(table_map map) { used_table_map= map; }

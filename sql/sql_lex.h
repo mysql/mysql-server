@@ -1150,8 +1150,6 @@ public:
                 //SQL_I_LIST<ORDER> *group_by, SQL_I_LIST<ORDER> order_by
                 );
 
-  virtual ~SELECT_LEX() {}
-
   SELECT_LEX_UNIT *master_unit() const { return master; }
   SELECT_LEX_UNIT *first_inner_unit() const { return slave; }
   SELECT_LEX *outer_select() const { return master->outer_select(); }
@@ -1307,7 +1305,7 @@ public:
   void print_limit(THD *thd, String *str, enum_query_type query_type);
   void fix_prepare_information(THD *thd);
 
-  virtual bool accept(Select_lex_visitor *visitor);
+  bool accept(Select_lex_visitor *visitor);
 
   /**
     Cleanup this subtree (this SELECT_LEX and all nested SELECT_LEXes and
