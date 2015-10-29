@@ -2163,7 +2163,30 @@ NdbEventOperation *Ndb::getEventOperation(NdbEventOperation* tOp)
 int
 Ndb::pollEvents2(int aMillisecondNumber, Uint64 *highestQueuedEpoch)
 {
-  return theEventBuffer->pollEvents(aMillisecondNumber, highestQueuedEpoch);
+  if (unlikely(aMillisecondNumber < 0))
+  {
+    g_eventLogger->error("Ndb::pollEvents2: negative aMillisecondNumber %d 0x%x %s",
+                         aMillisecondNumber,
+                         getReference(),
+                         getNdbObjectName());
+    return -1;
+  }
+
+  /* Look for already available events without polling transporter. */
+  const int found = theEventBuffer->pollEvents(highestQueuedEpoch);
+  if (found)
+    return found;
+
+  /**
+   * We need to poll the transporter, and possibly wait, to make sure
+   * that arrived events are delivered to their clients as soon as possible.
+   * ::trp_deliver_signal() will wakeup the client when event arrives.
+   */
+  PollGuard poll_guard(* theImpl);
+  poll_guard.wait_n_unlock(aMillisecondNumber, 0, WAIT_EVENT);
+  // PollGuard ends here
+
+  return theEventBuffer->pollEvents(highestQueuedEpoch);
 }
 
 bool

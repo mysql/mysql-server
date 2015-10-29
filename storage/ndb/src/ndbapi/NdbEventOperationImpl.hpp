@@ -730,7 +730,7 @@ public:
   Uint32 getEventId(int bufferId);
   Uint64 getHighestQueuedEpoch();
 
-  int pollEvents(int aMillisecondNumber, Uint64 *HighestQueuedEpoch= 0);
+  int pollEvents(Uint64 *HighestQueuedEpoch= NULL);
   int flushIncompleteEvents(Uint64 gci);
 
   void free_consumed_event_data();
@@ -815,7 +815,6 @@ public:
   bool m_prevent_nodegroup_change;
 
   NdbMutex *m_mutex;
-  struct NdbCondition *p_cond;
 
   // receive thread
   Gci_container m_complete_data;
