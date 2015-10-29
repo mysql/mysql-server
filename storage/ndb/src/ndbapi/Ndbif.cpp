@@ -812,14 +812,28 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
   case GSN_SUB_START_REF:
   case GSN_SUB_STOP_CONF:
   case GSN_SUB_STOP_REF:
+  {
+    const Uint64 latestGCI = getLatestGCI();
     NdbDictInterface::execSignal(&theDictionary->m_receiver,
 				 aSignal, ptr);
+    if (tWaitState == WAIT_EVENT && getLatestGCI() != latestGCI)
+    {
+      tNewState = NO_WAIT;
+      break;
+    }
     return;
+  }
   case GSN_SUB_GCP_COMPLETE_REP:
   {
+    const Uint64 latestGCI = getLatestGCI();
     const SubGcpCompleteRep * const rep=
       CAST_CONSTPTR(SubGcpCompleteRep, aSignal->getDataPtr());
     theEventBuffer->execSUB_GCP_COMPLETE_REP(rep, tLen);
+    if (tWaitState == WAIT_EVENT && getLatestGCI() != latestGCI)
+    {
+      tNewState = NO_WAIT;
+      break;
+    }
     return;
   }
   case GSN_SUB_TABLE_DATA:
