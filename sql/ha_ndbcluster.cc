@@ -17211,6 +17211,14 @@ enum_alter_inplace_result
     {
       DBUG_PRINT("info", ("The MAX_ROWS value changed"));
       max_rows_changed= true;
+
+      if (old_tab->getMaxRows() == 0)
+      {
+        // Don't support setting MAX_ROWS on a table without MAX_ROWS
+        DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                        "setting MAX_ROWS on table "
+                                        "without MAX_ROWS"));
+      }
     }
   }
 
