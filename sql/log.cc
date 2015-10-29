@@ -47,7 +47,7 @@
 using std::min;
 using std::max;
 
-/* max size of the log message */
+/* max size of log messages (error log, plugins' logging, general log) */
 #define MAX_LOG_BUFFER_SIZE 1024
 #define MAX_TIME_SIZE 32
 
@@ -2341,7 +2341,7 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer,
 */
 int vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
 {
-  char   buff[1024];
+  char   buff[MAX_LOG_BUFFER_SIZE];
   size_t length;
   DBUG_ENTER("vprint_msg_to_log");
 
@@ -2400,7 +2400,7 @@ extern "C"
 int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
                           const char *format, ...)
 {
-  char format2[MYSQL_ERRMSG_SIZE];
+  char format2[MAX_LOG_BUFFER_SIZE];
   int ret;
   loglevel lvl;
   struct st_plugin_int *plugin = static_cast<st_plugin_int *> (*plugin_ptr);
