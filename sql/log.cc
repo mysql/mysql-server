@@ -48,8 +48,8 @@ using std::min;
 using std::max;
 
 /* max size of log messages (error log, plugins' logging, general log) */
-#define MAX_LOG_BUFFER_SIZE 1024
-#define MAX_TIME_SIZE 32
+static const uint MAX_LOG_BUFFER_SIZE= 1024;
+
 
 #ifndef _WIN32
 static int   log_syslog_facility= 0;
@@ -2049,7 +2049,6 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
                           const char *format, ...)
 {
   char format2[MAX_LOG_BUFFER_SIZE];
-  int ret;
   loglevel lvl;
   struct st_plugin_int *plugin = static_cast<st_plugin_int *> (*plugin_ptr);
   va_list args;
