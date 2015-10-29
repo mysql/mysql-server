@@ -83,6 +83,7 @@ SET(SQL_SHARED_SOURCES
   filesort.cc
   filesort_utils.cc
   aggregate_check.cc
+  geometry_rtree.cc
   gstream.cc
   handler.cc
   hostname.cc
@@ -94,6 +95,7 @@ SET(SQL_SHARED_SOURCES
   item_func.cc
   item_geofunc.cc
   item_geofunc_buffer.cc
+  item_geofunc_internal.cc
   item_geofunc_relchecks.cc
   item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
@@ -294,14 +296,17 @@ ENDIF()
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 ADD_COMPILE_FLAGS(
+  debug_sync.cc
   handler.cc
+  geometry_rtree.cc
   item_geofunc.cc
   item_geofunc_buffer.cc
+  item_geofunc_internal.cc
   item_geofunc_relchecks.cc
   item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
   item_json_func.cc
-  debug_sync.cc
+  spatial.cc
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
 
@@ -309,14 +314,17 @@ ADD_COMPILE_FLAGS(
 MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
 IF(HAVE_NO_UNUSED_TYPEDEFS)
   ADD_COMPILE_FLAGS(
+    debug_sync.cc
     handler.cc
+    geometry_rtree.cc
     item_geofunc.cc
     item_geofunc_buffer.cc
+    item_geofunc_internal.cc
     item_geofunc_relchecks.cc
     item_geofunc_relchecks_bgwrap.cc
     item_geofunc_setops.cc
     item_json_func.cc
-    debug_sync.cc
+    spatial.cc
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
   )
 ENDIF()

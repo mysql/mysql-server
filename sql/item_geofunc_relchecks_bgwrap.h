@@ -27,6 +27,7 @@
   @tparam Geom_types Geometry types definitions.
 */
 
+#include <set>
 
 template<typename Geom_types>
 class BG_wrap {

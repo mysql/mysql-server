@@ -24,10 +24,8 @@
 #include "spatial.h"           // gis_wkb_raw_free
 #include "item_strfunc.h"      // Item_str_func
 #include "item_json_func.h"    // Item_json_func
-#include "json_dom.h"          // JSON
 
 #include <vector>
-#include <set>
 
 
 /**
@@ -174,10 +172,10 @@ public:
   }
 
   Gis_geometry_collection *as_geometry_collection(String *geodata) const;
-  template<typename Coord_type, typename Coordsys>
+  template<typename Coordsys>
   void merge_components(my_bool *pnull_value);
 private:
-  template<typename Coord_type, typename Coordsys>
+  template<typename Coordsys>
   bool merge_one_run(Item_func_spatial_operation *ifso,
                      my_bool *pnull_value);
   bool store_geometry(const Geometry *geo, bool break_multi_geom);
@@ -719,7 +717,7 @@ public:
   void fix_length_and_dec() { maybe_null= 1; }
   bool is_null() { (void) val_int(); return null_value; }
 
-  template<typename CoordinateElementType, typename CoordinateSystemType>
+  template<typename CoordinateSystemType>
   static int bg_geo_relation_check(Geometry *g1, Geometry *g2,
                                    Functype relchk_type, my_bool *);
 
@@ -750,26 +748,26 @@ protected:
   static int crosses_check(Geometry *g1, Geometry *g2,
                            my_bool *pnull_value);
 
-  template<typename Coord_type, typename Coordsys>
+  template<typename Coordsys>
   int multipoint_within_geometry_collection(Gis_multi_point *mpts,
                                             const typename
                                             BG_geometry_collection::
                                             Geometry_list *gv2,
                                             const void *prtree);
 
-  template<typename Coord_type, typename Coordsys>
+  template<typename Coordsys>
   int geocol_relation_check(Geometry *g1, Geometry *g2);
-  template<typename Coord_type, typename Coordsys>
+  template<typename Coordsys>
   int geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
                                          Geometry_list *gv1,
                                          const typename BG_geometry_collection::
                                          Geometry_list *gv2);
-  template<typename Coord_type, typename Coordsys>
+  template<typename Coordsys>
   int geocol_relcheck_within(const typename BG_geometry_collection::
                              Geometry_list *gv1,
                              const typename BG_geometry_collection::
                              Geometry_list *gv2);
-  template<typename Coord_type, typename Coordsys>
+  template<typename Coordsys>
   int geocol_equals_check(const typename BG_geometry_collection::
                           Geometry_list *gv1,
                           const typename BG_geometry_collection::
@@ -792,15 +790,15 @@ protected:
   // Calls bg_geo_set_op.
   friend class BG_geometry_collection;
 
-  template<typename Coord_type, typename Coordsys>
+  template<typename Coordsys>
   Geometry *bg_geo_set_op(Geometry *g1, Geometry *g2, String *result);
 
-  template<typename Coord_type, typename Coordsys>
+  template<typename Coordsys>
   Geometry *combine_sub_results(Geometry *g1, Geometry *g2, String *result);
   Geometry *simplify_multilinestring(Gis_multi_line_string *mls,
                                      String *result);
 
-  template<typename Coord_type, typename Coordsys>
+  template<typename Coordsys>
   Geometry *geometry_collection_set_operation(Geometry *g1, Geometry *g2,
                                               String *result);
 
@@ -819,19 +817,19 @@ protected:
   Geometry *difference_operation(Geometry *g1, Geometry *g2, String *result);
   template <typename Geotypes>
   Geometry *symdifference_operation(Geometry *g1, Geometry *g2, String *result);
-  template<typename Coord_type, typename Coordsys>
+  template<typename Coordsys>
   Geometry *geocol_symdifference(const BG_geometry_collection &bggc1,
                                  const BG_geometry_collection &bggc2,
                                  String *result);
-  template<typename Coord_type, typename Coordsys>
+  template<typename Coordsys>
   Geometry *geocol_difference(const BG_geometry_collection &bggc1,
                               const BG_geometry_collection &bggc2,
                               String *result);
-  template<typename Coord_type, typename Coordsys>
+  template<typename Coordsys>
   Geometry *geocol_intersection(const BG_geometry_collection &bggc1,
                                 const BG_geometry_collection &bggc2,
                                 String *result);
-  template<typename Coord_type, typename Coordsys>
+  template<typename Coordsys>
   Geometry *geocol_union(const BG_geometry_collection &bggc1,
                          const BG_geometry_collection &bggc2,
                          String *result);
