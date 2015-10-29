@@ -32,6 +32,8 @@
 #include "parse_tree_helpers.h"
 #include "item_geofunc_internal.h"
 
+#include <stack>
+
 static int check_geometry_valid(Geometry *geom);
 
 /**
@@ -2641,11 +2643,11 @@ public:
 */
 template <typename Coordsys>
 bool geometry_collection_centroid(const Geometry *geom,
-                                  typename BG_models<double, Coordsys>::
+                                  typename BG_models<Coordsys>::
                                   Point *respt, my_bool *null_value)
 {
-  typename BG_models<double, Coordsys>::Multipolygon mplgn;
-  Geometry_grouper<typename BG_models<double, Coordsys>::Polygon>
+  typename BG_models<Coordsys>::Multipolygon mplgn;
+  Geometry_grouper<typename BG_models<Coordsys>::Polygon>
     plgn_grouper(&mplgn);
 
   const char *wkb_start= geom->get_cptr();
@@ -2668,9 +2670,9 @@ bool geometry_collection_centroid(const Geometry *geom,
   }
   else
   {
-    typename BG_models<double, Coordsys>::Multilinestring mls;
+    typename BG_models<Coordsys>::Multilinestring mls;
     wkb_len= wkb_len0;
-    Geometry_grouper<typename BG_models<double, Coordsys>::Linestring>
+    Geometry_grouper<typename BG_models<Coordsys>::Linestring>
       ls_grouper(&mls);
     wkb_scanner(wkb_start, &wkb_len,
                 Geometry::wkb_geometrycollection, false, &ls_grouper);
@@ -2678,9 +2680,9 @@ bool geometry_collection_centroid(const Geometry *geom,
       boost::geometry::centroid(mls, *respt);
     else
     {
-      typename BG_models<double, Coordsys>::Multipoint mpts;
+      typename BG_models<Coordsys>::Multipoint mpts;
       wkb_len= wkb_len0;
-      Geometry_grouper<typename BG_models<double, Coordsys>::Point>
+      Geometry_grouper<typename BG_models<Coordsys>::Point>
         pt_grouper(&mpts);
       wkb_scanner(wkb_start, &wkb_len,
                   Geometry::wkb_geometrycollection, false, &pt_grouper);
@@ -2698,7 +2700,7 @@ bool geometry_collection_centroid(const Geometry *geom,
 template <typename Coordsys>
 bool Item_func_centroid::bg_centroid(const Geometry *geom, String *ptwkb)
 {
-  typename BG_models<double, Coordsys>::Point respt;
+  typename BG_models<Coordsys>::Point respt;
 
   // Release last call's result buffer.
   bg_resbuf_mgr.free_result_buffer();
@@ -2709,7 +2711,7 @@ bool Item_func_centroid::bg_centroid(const Geometry *geom, String *ptwkb)
     {
     case Geometry::wkb_point:
       {
-        typename BG_models<double, Coordsys>::Point
+        typename BG_models<Coordsys>::Point
           geo(geom->get_data_ptr(), geom->get_data_size(),
               geom->get_flags(), geom->get_srid());
         boost::geometry::centroid(geo, respt);
@@ -2717,7 +2719,7 @@ bool Item_func_centroid::bg_centroid(const Geometry *geom, String *ptwkb)
       break;
     case Geometry::wkb_multipoint:
       {
-        typename BG_models<double, Coordsys>::Multipoint
+        typename BG_models<Coordsys>::Multipoint
           geo(geom->get_data_ptr(), geom->get_data_size(),
               geom->get_flags(), geom->get_srid());
         boost::geometry::centroid(geo, respt);
@@ -2725,7 +2727,7 @@ bool Item_func_centroid::bg_centroid(const Geometry *geom, String *ptwkb)
       break;
     case Geometry::wkb_linestring:
       {
-        typename BG_models<double, Coordsys>::Linestring
+        typename BG_models<Coordsys>::Linestring
           geo(geom->get_data_ptr(), geom->get_data_size(),
               geom->get_flags(), geom->get_srid());
         boost::geometry::centroid(geo, respt);
@@ -2733,7 +2735,7 @@ bool Item_func_centroid::bg_centroid(const Geometry *geom, String *ptwkb)
       break;
     case Geometry::wkb_multilinestring:
       {
-        typename BG_models<double, Coordsys>::Multilinestring
+        typename BG_models<Coordsys>::Multilinestring
           geo(geom->get_data_ptr(), geom->get_data_size(),
               geom->get_flags(), geom->get_srid());
         boost::geometry::centroid(geo, respt);
@@ -2741,7 +2743,7 @@ bool Item_func_centroid::bg_centroid(const Geometry *geom, String *ptwkb)
       break;
     case Geometry::wkb_polygon:
       {
-        typename BG_models<double, Coordsys>::Polygon
+        typename BG_models<Coordsys>::Polygon
           geo(geom->get_data_ptr(), geom->get_data_size(),
               geom->get_flags(), geom->get_srid());
         boost::geometry::centroid(geo, respt);
@@ -2749,7 +2751,7 @@ bool Item_func_centroid::bg_centroid(const Geometry *geom, String *ptwkb)
       break;
     case Geometry::wkb_multipolygon:
       {
-        typename BG_models<double, Coordsys>::Multipolygon
+        typename BG_models<Coordsys>::Multipolygon
           geo(geom->get_data_ptr(), geom->get_data_size(),
               geom->get_flags(), geom->get_srid());
         boost::geometry::centroid(geo, respt);
@@ -2831,8 +2833,8 @@ template <typename Coordsys>
 bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
                                            String *res_hull)
 {
-  typename BG_models<double, Coordsys>::Polygon hull;
-  typename BG_models<double, Coordsys>::Linestring line_hull;
+  typename BG_models<Coordsys>::Polygon hull;
+  typename BG_models<Coordsys>::Linestring line_hull;
   Geometry::wkbType geotype= geom->get_type();
 
   // Release last call's result buffer.
@@ -2851,7 +2853,7 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
         linear hull. If so we must get the linear hull otherwise we will get
         an invalid polygon hull.
        */
-      typename BG_models<double, Coordsys>::Multipoint mpts;
+      typename BG_models<Coordsys>::Multipoint mpts;
       Point_accumulator pt_acc(&mpts);
       const char *wkb_start= geom->get_cptr();
       uint32 wkb_len= geom->get_data_size();
@@ -2861,10 +2863,10 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
         return (null_value= true);
 
       // Make mpts unique as required by the is_colinear() algorithm.
-      typename BG_models<double, Coordsys>::Multipoint distinct_pts;
+      typename BG_models<Coordsys>::Multipoint distinct_pts;
       distinct_pts.resize(mpts.size());
       std::sort(mpts.begin(), mpts.end(), bgpt_lt());
-      typename BG_models<double, Coordsys>::Multipoint::iterator itr=
+      typename BG_models<Coordsys>::Multipoint::iterator itr=
         std::unique_copy(mpts.begin(), mpts.end(),
                          distinct_pts.begin(), bgpt_eq());
       distinct_pts.resize(itr - distinct_pts.begin());
@@ -2875,7 +2877,7 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
         {
           // Here we have to create a brand new point because res_hull will
           // take over its memory, which can't be done to distinct_pts[0].
-          typename BG_models<double, Coordsys>::Point pt_hull= distinct_pts[0];
+          typename BG_models<Coordsys>::Point pt_hull= distinct_pts[0];
           pt_hull.set_srid(geom->get_srid());
           null_value= post_fix_result(&bg_resbuf_mgr, pt_hull, res_hull);
         }
@@ -2933,7 +2935,7 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
       break;
     case Geometry::wkb_multipoint:
       {
-        typename BG_models<double, Coordsys>::Multipoint
+        typename BG_models<Coordsys>::Multipoint
           geo(geom->get_data_ptr(), geom->get_data_size(),
               geom->get_flags(), geom->get_srid());
         boost::geometry::convex_hull(geo, hull);
@@ -2941,7 +2943,7 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
       break;
     case Geometry::wkb_linestring:
       {
-        typename BG_models<double, Coordsys>::Linestring
+        typename BG_models<Coordsys>::Linestring
           geo(geom->get_data_ptr(), geom->get_data_size(),
               geom->get_flags(), geom->get_srid());
         boost::geometry::convex_hull(geo, hull);
@@ -2949,7 +2951,7 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
       break;
     case Geometry::wkb_multilinestring:
       {
-        typename BG_models<double, Coordsys>::Multilinestring
+        typename BG_models<Coordsys>::Multilinestring
           geo(geom->get_data_ptr(), geom->get_data_size(),
               geom->get_flags(), geom->get_srid());
         boost::geometry::convex_hull(geo, hull);
@@ -2957,7 +2959,7 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
       break;
     case Geometry::wkb_polygon:
       {
-        typename BG_models<double, Coordsys>::Polygon
+        typename BG_models<Coordsys>::Polygon
           geo(geom->get_data_ptr(), geom->get_data_size(),
               geom->get_flags(), geom->get_srid());
         boost::geometry::convex_hull(geo, hull);
@@ -2965,7 +2967,7 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
       break;
     case Geometry::wkb_multipolygon:
       {
-        typename BG_models<double, Coordsys>::Multipolygon
+        typename BG_models<Coordsys>::Multipolygon
           geo(geom->get_data_ptr(), geom->get_data_size(),
               geom->get_flags(), geom->get_srid());
         boost::geometry::convex_hull(geo, hull);
@@ -3069,7 +3071,7 @@ simplify_basic(Geometry *geom, double max_dist, String *str,
   {
   case Geometry::wkb_point:
     {
-      typename BG_models<double, Coordsys>::Point
+      typename BG_models<Coordsys>::Point
         geo(geom->get_data_ptr(), geom->get_data_size(),
             geom->get_flags(), geom->get_srid()), out;
       boost::geometry::simplify(geo, out, max_dist);
@@ -3081,7 +3083,7 @@ simplify_basic(Geometry *geom, double max_dist, String *str,
     break;
   case Geometry::wkb_multipoint:
     {
-      typename BG_models<double, Coordsys>::Multipoint
+      typename BG_models<Coordsys>::Multipoint
         geo(geom->get_data_ptr(), geom->get_data_size(),
             geom->get_flags(), geom->get_srid()), out;
       boost::geometry::simplify(geo, out, max_dist);
@@ -3093,7 +3095,7 @@ simplify_basic(Geometry *geom, double max_dist, String *str,
     break;
   case Geometry::wkb_linestring:
     {
-      typename BG_models<double, Coordsys>::Linestring
+      typename BG_models<Coordsys>::Linestring
         geo(geom->get_data_ptr(), geom->get_data_size(),
             geom->get_flags(), geom->get_srid()), out;
       boost::geometry::simplify(geo, out, max_dist);
@@ -3105,7 +3107,7 @@ simplify_basic(Geometry *geom, double max_dist, String *str,
     break;
   case Geometry::wkb_multilinestring:
     {
-      typename BG_models<double, Coordsys>::Multilinestring
+      typename BG_models<Coordsys>::Multilinestring
         geo(geom->get_data_ptr(), geom->get_data_size(),
             geom->get_flags(), geom->get_srid()), out;
       boost::geometry::simplify(geo, out, max_dist);
@@ -3117,7 +3119,7 @@ simplify_basic(Geometry *geom, double max_dist, String *str,
     break;
   case Geometry::wkb_polygon:
     {
-      typename BG_models<double, Coordsys>::Polygon
+      typename BG_models<Coordsys>::Polygon
         geo(geom->get_data_ptr(), geom->get_data_size(),
             geom->get_flags(), geom->get_srid()), out;
       boost::geometry::simplify(geo, out, max_dist);
@@ -3129,7 +3131,7 @@ simplify_basic(Geometry *geom, double max_dist, String *str,
     break;
   case Geometry::wkb_multipolygon:
     {
-      typename BG_models<double, Coordsys>::Multipolygon
+      typename BG_models<Coordsys>::Multipolygon
         geo(geom->get_data_ptr(), geom->get_data_size(),
             geom->get_flags(), geom->get_srid()), out;
       boost::geometry::simplify(geo, out, max_dist);
@@ -4030,7 +4032,7 @@ static int check_geometry_valid(Geometry *geom)
   {
   case Geometry::wkb_point:
   {
-    BG_models<double, bgcs::cartesian>::Point
+    BG_models<bgcs::cartesian>::Point
       bg(geom->get_data_ptr(), geom->get_data_size(),
          geom->get_flags(), geom->get_srid());
     ret= bg::is_valid(bg);
@@ -4038,7 +4040,7 @@ static int check_geometry_valid(Geometry *geom)
   }
   case Geometry::wkb_linestring:
   {
-    BG_models<double, bgcs::cartesian>::Linestring
+    BG_models<bgcs::cartesian>::Linestring
       bg(geom->get_data_ptr(), geom->get_data_size(),
          geom->get_flags(), geom->get_srid());
     ret= bg::is_valid(bg);
@@ -4053,7 +4055,7 @@ static int check_geometry_valid(Geometry *geom)
       break;
     }
 
-    BG_models<double, bgcs::cartesian>::Polygon
+    BG_models<bgcs::cartesian>::Polygon
       bg(ptr, geom->get_data_size(),
          geom->get_flags(), geom->get_srid());
     ret= bg::is_valid(bg);
@@ -4061,7 +4063,7 @@ static int check_geometry_valid(Geometry *geom)
   }
   case Geometry::wkb_multipoint:
   {
-    BG_models<double, bgcs::cartesian>::Multipoint
+    BG_models<bgcs::cartesian>::Multipoint
       bg(geom->get_data_ptr(), geom->get_data_size(),
          geom->get_flags(), geom->get_srid());
     ret= bg::is_valid(bg);
@@ -4069,7 +4071,7 @@ static int check_geometry_valid(Geometry *geom)
   }
   case Geometry::wkb_multilinestring:
   {
-    BG_models<double, bgcs::cartesian>::Multilinestring
+    BG_models<bgcs::cartesian>::Multilinestring
       bg(geom->get_data_ptr(), geom->get_data_size(),
          geom->get_flags(), geom->get_srid());
     ret= bg::is_valid(bg);
@@ -4084,7 +4086,7 @@ static int check_geometry_valid(Geometry *geom)
       break;
     }
 
-    BG_models<double, bgcs::cartesian>::Multipolygon
+    BG_models<bgcs::cartesian>::Multipolygon
       bg(ptr, geom->get_data_size(),
          geom->get_flags(), geom->get_srid());
     ret= bg::is_valid(bg);
@@ -4293,7 +4295,7 @@ double Item_func_area::bg_area(const Geometry *geom)
       break;
     case Geometry::wkb_polygon:
       {
-        typename BG_models<double, Coordsys>::Polygon
+        typename BG_models<Coordsys>::Polygon
           plgn(geom->get_data_ptr(), geom->get_data_size(),
                geom->get_flags(), geom->get_srid());
 
@@ -4302,7 +4304,7 @@ double Item_func_area::bg_area(const Geometry *geom)
       break;
     case Geometry::wkb_multipolygon:
       {
-        typename BG_models<double, Coordsys>::Multipolygon
+        typename BG_models<Coordsys>::Multipolygon
           mplgn(geom->get_data_ptr(), geom->get_data_size(),
                 geom->get_flags(), geom->get_srid());
 
@@ -4460,22 +4462,22 @@ compact_collection(const Geometry *g, Geometry_buffer *gbuf, String *str)
   char *wkb_start= g->get_cptr();
 
   wkb_len= wkb_len0= g->get_data_size();
-  BG_models<double, bgcs::cartesian>::Multilinestring mls;
-  Geometry_grouper<BG_models<double, bgcs::cartesian>::Linestring>
+  BG_models<bgcs::cartesian>::Multilinestring mls;
+  Geometry_grouper<BG_models<bgcs::cartesian>::Linestring>
     ls_grouper(&mls);
   wkb_scanner(wkb_start, &wkb_len,
               Geometry::wkb_geometrycollection, false, &ls_grouper);
 
-  BG_models<double, bgcs::cartesian>::Multipoint mpts;
+  BG_models<bgcs::cartesian>::Multipoint mpts;
   wkb_len= wkb_len0;
-  Geometry_grouper<BG_models<double, bgcs::cartesian>::Point>
+  Geometry_grouper<BG_models<bgcs::cartesian>::Point>
     pt_grouper(&mpts);
   wkb_scanner(wkb_start, &wkb_len,
               Geometry::wkb_geometrycollection, false, &pt_grouper);
 
   Gis_geometry_collection *ret= new (gbuf) Gis_geometry_collection();
   wkb_len= wkb_len0;
-  Geometry_grouper<BG_models<double, bgcs::cartesian>::Polygon>
+  Geometry_grouper<BG_models<bgcs::cartesian>::Polygon>
     mplgn_grouper(ret, str);
   wkb_scanner(wkb_start, &wkb_len,
               Geometry::wkb_geometrycollection, false, &mplgn_grouper);
@@ -4854,7 +4856,7 @@ distance_point_geometry_spherical(const Geometry *g1, const Geometry *g2)
   bg::strategy::distance::haversine<double, double>
     dist_strategy(earth_radius);
 
-  BG_models<double, bgcssed>::Point
+  BG_models<bgcssed>::Point
     bg1(g1->get_data_ptr(), g1->get_data_size(),
         g1->get_flags(), g1->get_srid());
 
@@ -4862,7 +4864,7 @@ distance_point_geometry_spherical(const Geometry *g1, const Geometry *g2)
   {
   case Geometry::wkb_point:
     {
-      BG_models<double, bgcssed>::Point
+      BG_models<bgcssed>::Point
         bg2(g2->get_data_ptr(), g2->get_data_size(),
             g2->get_flags(), g2->get_srid());
       res= bg::distance(bg1, bg2, dist_strategy);
@@ -4870,7 +4872,7 @@ distance_point_geometry_spherical(const Geometry *g1, const Geometry *g2)
     break;
   case Geometry::wkb_multipoint:
     {
-      BG_models<double, bgcssed>::Multipoint
+      BG_models<bgcssed>::Multipoint
         bg2(g2->get_data_ptr(), g2->get_data_size(),
             g2->get_flags(), g2->get_srid());
 
@@ -4893,7 +4895,7 @@ distance_multipoint_geometry_spherical(const Geometry *g1, const Geometry *g2)
   bg::strategy::distance::haversine<double, double>
     dist_strategy(earth_radius);
 
-  BG_models<double, bgcssed>::Multipoint
+  BG_models<bgcssed>::Multipoint
     bg1(g1->get_data_ptr(), g1->get_data_size(),
         g1->get_flags(), g1->get_srid());
 
@@ -4901,7 +4903,7 @@ distance_multipoint_geometry_spherical(const Geometry *g1, const Geometry *g2)
   {
   case Geometry::wkb_point:
     {
-      BG_models<double, bgcssed>::Point
+      BG_models<bgcssed>::Point
         bg2(g2->get_data_ptr(), g2->get_data_size(),
             g2->get_flags(), g2->get_srid());
       res= bg::distance(bg1, bg2, dist_strategy);
@@ -4909,7 +4911,7 @@ distance_multipoint_geometry_spherical(const Geometry *g1, const Geometry *g2)
     break;
   case Geometry::wkb_multipoint:
     {
-      BG_models<double, bgcssed>::Multipoint
+      BG_models<bgcssed>::Multipoint
         bg2(g2->get_data_ptr(), g2->get_data_size(),
             g2->get_flags(), g2->get_srid());
       res= bg::distance(bg1, bg2, dist_strategy);
@@ -4963,7 +4965,7 @@ distance_dispatch_second_geometry(const BG_geometry& bg1, const Geometry* g2)
   {
   case Geometry::wkb_point:
     {
-      typename BG_models<double, Coordsys>::Point
+      typename BG_models<Coordsys>::Point
         bg2(g2->get_data_ptr(), g2->get_data_size(),
             g2->get_flags(), g2->get_srid());
       res= bg::distance(bg1, bg2);
@@ -4971,7 +4973,7 @@ distance_dispatch_second_geometry(const BG_geometry& bg1, const Geometry* g2)
     break;
   case Geometry::wkb_multipoint:
     {
-      typename BG_models<double, Coordsys>::Multipoint
+      typename BG_models<Coordsys>::Multipoint
         bg2(g2->get_data_ptr(), g2->get_data_size(),
             g2->get_flags(), g2->get_srid());
       res= bg::distance(bg1, bg2);
@@ -4979,7 +4981,7 @@ distance_dispatch_second_geometry(const BG_geometry& bg1, const Geometry* g2)
     break;
   case Geometry::wkb_linestring:
     {
-      typename BG_models<double, Coordsys>::Linestring
+      typename BG_models<Coordsys>::Linestring
         bg2(g2->get_data_ptr(), g2->get_data_size(),
             g2->get_flags(), g2->get_srid());
       res= bg::distance(bg1, bg2);
@@ -4987,7 +4989,7 @@ distance_dispatch_second_geometry(const BG_geometry& bg1, const Geometry* g2)
     break;
   case Geometry::wkb_multilinestring:
     {
-      typename BG_models<double, Coordsys>::Multilinestring
+      typename BG_models<Coordsys>::Multilinestring
         bg2(g2->get_data_ptr(), g2->get_data_size(),
             g2->get_flags(), g2->get_srid());
       res= bg::distance(bg1, bg2);
@@ -4995,7 +4997,7 @@ distance_dispatch_second_geometry(const BG_geometry& bg1, const Geometry* g2)
     break;
   case Geometry::wkb_polygon:
     {
-      typename BG_models<double, Coordsys>::Polygon
+      typename BG_models<Coordsys>::Polygon
         bg2(g2->get_data_ptr(), g2->get_data_size(),
             g2->get_flags(), g2->get_srid());
       res= bg::distance(bg1, bg2);
@@ -5003,7 +5005,7 @@ distance_dispatch_second_geometry(const BG_geometry& bg1, const Geometry* g2)
     break;
   case Geometry::wkb_multipolygon:
     {
-      typename BG_models<double, Coordsys>::Multipolygon
+      typename BG_models<Coordsys>::Multipolygon
         bg2(g2->get_data_ptr(), g2->get_data_size(),
             g2->get_flags(), g2->get_srid());
       res= bg::distance(bg1, bg2);
@@ -5035,7 +5037,7 @@ double Item_func_distance::bg_distance(const Geometry *g1, const Geometry *g2)
     {
     case Geometry::wkb_point:
       {
-        typename BG_models<double, Coordsys>::Point
+        typename BG_models<Coordsys>::Point
           bg1(g1->get_data_ptr(), g1->get_data_size(),
               g1->get_flags(), g1->get_srid());
         res= distance_dispatch_second_geometry<Coordsys>(bg1, g2);
@@ -5043,7 +5045,7 @@ double Item_func_distance::bg_distance(const Geometry *g1, const Geometry *g2)
       break;
     case Geometry::wkb_multipoint:
       {
-        typename BG_models<double, Coordsys>::Multipoint
+        typename BG_models<Coordsys>::Multipoint
           bg1(g1->get_data_ptr(), g1->get_data_size(),
               g1->get_flags(), g1->get_srid());
         res= distance_dispatch_second_geometry<Coordsys>(bg1, g2);
@@ -5051,7 +5053,7 @@ double Item_func_distance::bg_distance(const Geometry *g1, const Geometry *g2)
       break;
     case Geometry::wkb_linestring:
       {
-        typename BG_models<double, Coordsys>::Linestring
+        typename BG_models<Coordsys>::Linestring
           bg1(g1->get_data_ptr(), g1->get_data_size(),
               g1->get_flags(), g1->get_srid());
         res= distance_dispatch_second_geometry<Coordsys>(bg1, g2);
@@ -5059,7 +5061,7 @@ double Item_func_distance::bg_distance(const Geometry *g1, const Geometry *g2)
       break;
     case Geometry::wkb_multilinestring:
       {
-        typename BG_models<double, Coordsys>::Multilinestring
+        typename BG_models<Coordsys>::Multilinestring
           bg1(g1->get_data_ptr(), g1->get_data_size(),
               g1->get_flags(), g1->get_srid());
         res= distance_dispatch_second_geometry<Coordsys>(bg1, g2);
@@ -5067,7 +5069,7 @@ double Item_func_distance::bg_distance(const Geometry *g1, const Geometry *g2)
       break;
     case Geometry::wkb_polygon:
       {
-        typename BG_models<double, Coordsys>::Polygon
+        typename BG_models<Coordsys>::Polygon
           bg1(g1->get_data_ptr(), g1->get_data_size(),
               g1->get_flags(), g1->get_srid());
         res= distance_dispatch_second_geometry<Coordsys>(bg1, g2);
@@ -5075,7 +5077,7 @@ double Item_func_distance::bg_distance(const Geometry *g1, const Geometry *g2)
       break;
     case Geometry::wkb_multipolygon:
       {
-        typename BG_models<double, Coordsys>::Multipolygon
+        typename BG_models<Coordsys>::Multipolygon
           bg1(g1->get_data_ptr(), g1->get_data_size(),
               g1->get_flags(), g1->get_srid());
         res= distance_dispatch_second_geometry<Coordsys>(bg1, g2);

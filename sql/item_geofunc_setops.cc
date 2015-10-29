@@ -24,6 +24,7 @@
 #include "current_thd.h"
 #include "item_geofunc_internal.h"
 
+#include <set>
 
 #define BGOPCALL(GeoOutType, geom_out, bgop,                            \
                  GeoType1, g1, GeoType2, g2, wkbres, nullval)           \
@@ -206,7 +207,7 @@ public:
 #endif
     Geometry *retgeo= NULL;
 
-    bool is_out= !Ifsr::bg_geo_relation_check<Coord_type, Coordsys>
+    bool is_out= !Ifsr::bg_geo_relation_check<Coordsys>
       (g1, g2, Ifsr::SP_DISJOINT_FUNC, &null_value);
 
     DBUG_ASSERT(gt2 == Geometry::wkb_linestring ||
@@ -297,7 +298,7 @@ public:
     for (TYPENAME Point_set::iterator i= ptset.begin(); i != ptset.end(); ++i)
     {
       Point &pt= const_cast<Point&>(*i);
-      if (!Ifsr::bg_geo_relation_check<Coord_type, Coordsys>
+      if (!Ifsr::bg_geo_relation_check<Coordsys>
           (&pt, g2, Ifsr::SP_DISJOINT_FUNC, &null_value) && !null_value)
       {
         mpts2->push_back(pt);
@@ -366,7 +367,7 @@ public:
     }
 
     // Need merge, exclude Points that are on the result Linestring.
-    retgeo= m_ifso->combine_sub_results<Coord_type, Coordsys>
+    retgeo= m_ifso->combine_sub_results<Coordsys>
       (tmp1, tmp2, result);
     copy_ifso_state();
 
@@ -443,7 +444,7 @@ public:
       std::copy(ptset.begin(), ptset.end(), std::back_inserter(*tmp2));
     }
 
-    retgeo= m_ifso->combine_sub_results<Coord_type, Coordsys>
+    retgeo= m_ifso->combine_sub_results<Coordsys>
       (guard1.release(), guard2.release(), result);
     copy_ifso_state();
 
@@ -662,7 +663,7 @@ public:
       std::copy(ptset.begin(), ptset.end(), std::back_inserter(*tmp2));
     }
 
-    retgeo= m_ifso->combine_sub_results<Coord_type, Coordsys>
+    retgeo= m_ifso->combine_sub_results<Coordsys>
       (guard1.release(), guard2.release(), result);
     copy_ifso_state();
 
@@ -758,7 +759,7 @@ public:
                 gt2 == Geometry::wkb_polygon ||
                 gt2 == Geometry::wkb_multilinestring ||
                 gt2 == Geometry::wkb_multipolygon);
-    if (Ifsr::bg_geo_relation_check<Coord_type, Coordsys>
+    if (Ifsr::bg_geo_relation_check<Coordsys>
         (g1, g2, Ifsr::SP_DISJOINT_FUNC, &null_value) && !null_value)
     {
       Gis_geometry_collection *geocol= new Gis_geometry_collection(g2, result);
@@ -1087,7 +1088,7 @@ public:
     for (TYPENAME Point_set::iterator i= ptset.begin(); i != ptset.end(); ++i)
     {
       Point &pt= const_cast<Point&>(*i);
-      if (Ifsr::bg_geo_relation_check<Coord_type, Coordsys>
+      if (Ifsr::bg_geo_relation_check<Coordsys>
           (&pt, g2, Ifsr::SP_DISJOINT_FUNC, &null_value))
       {
         if (null_value || (null_value= geocol->append_geometry(&pt, result)))
@@ -1281,7 +1282,7 @@ public:
                                       String *result)
   {
     Geometry *retgeo= NULL;
-    bool is_out= Ifsr::bg_geo_relation_check<Coord_type, Coordsys>
+    bool is_out= Ifsr::bg_geo_relation_check<Coordsys>
       (g1, g2, Ifsr::SP_DISJOINT_FUNC, &null_value);
 
     if (!null_value)
@@ -1316,7 +1317,7 @@ public:
     for (TYPENAME Multipoint::iterator i= mpts1.begin();
          i != mpts1.end(); ++i)
     {
-      if (Ifsr::bg_geo_relation_check<Coord_type, Coordsys>
+      if (Ifsr::bg_geo_relation_check<Coordsys>
           (&(*i), g2, Ifsr::SP_DISJOINT_FUNC, &null_value))
       {
         if (null_value)
@@ -2465,7 +2466,7 @@ symdifference_operation(Geometry *g1, Geometry *g2, String *result)
   }
 
   if (do_geocol_setop)
-    retgeo= geometry_collection_set_operation<Coord_type,
+    retgeo= geometry_collection_set_operation<
       Coordsys>(g1, g2, result);
   else if (!null_value)
     null_value= wrap.get_null_value();
@@ -2477,8 +2478,6 @@ symdifference_operation(Geometry *g1, Geometry *g2, String *result)
   Call boost geometry set operations to compute set operation result, and
   returns the result as a Geometry object.
 
-  @tparam Coord_type The numeric type for a coordinate value, most often
-          it's double.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
   @param g1 First Geometry operand, not a geometry collection.
@@ -2491,11 +2490,11 @@ symdifference_operation(Geometry *g1, Geometry *g2, String *result)
   true, always returns 0. The returned geometry object can be used in the same
   val_str call.
  */
-template<typename Coord_type, typename Coordsys>
+template<typename Coordsys>
 Geometry *Item_func_spatial_operation::
 bg_geo_set_op(Geometry *g1, Geometry *g2, String *result)
 {
-  typedef BG_models<Coord_type, Coordsys> Geom_types;
+  typedef BG_models<Coordsys> Geom_types;
 
   Geometry *retgeo= NULL;
 
@@ -2551,8 +2550,6 @@ bg_geo_set_op(Geometry *g1, Geometry *g2, String *result)
   also need to remove the linestrings that are already in the polygons, this
   isn't done now because there are no such set operation results to combine.
 
-  @tparam Coord_type The numeric type for a coordinate value, most often
-          it's double.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
   @param geo1 First operand, a Multipolygon or Multilinestring object
@@ -2565,11 +2562,11 @@ bg_geo_set_op(Geometry *g1, Geometry *g2, String *result)
   a multipolygon/multilinestring, a geometry collection, or an
   empty geometry collection.
  */
-template<typename Coord_type, typename Coordsys>
+template<typename Coordsys>
 Geometry *Item_func_spatial_operation::
 combine_sub_results(Geometry *geo1, Geometry *geo2, String *result)
 {
-  typedef BG_models<Coord_type, Coordsys> Geom_types;
+  typedef BG_models<Coordsys> Geom_types;
   typedef typename Geom_types::Multipoint Multipoint;
   Geometry *retgeo= NULL;
   bool isin= false, added= false;
@@ -2619,7 +2616,7 @@ combine_sub_results(Geometry *geo1, Geometry *geo2, String *result)
   for (TYPENAME Multipoint::iterator i= mpts.begin();
        i != mpts.end(); ++i)
   {
-    isin= !Item_func_spatial_rel::bg_geo_relation_check<Coord_type,
+    isin= !Item_func_spatial_rel::bg_geo_relation_check<
       Coordsys>(&(*i), geo1, SP_DISJOINT_FUNC, &had_error);
 
     if (had_error)
@@ -2954,6 +2951,28 @@ public:
 };
 
 
+inline Geometry::wkbType base_type(Geometry::wkbType gt)
+{
+  Geometry::wkbType ret;
+
+  switch (gt)
+  {
+  case Geometry::wkb_multipoint:
+    ret= Geometry::wkb_point;
+    break;
+  case Geometry::wkb_multilinestring:
+    ret= Geometry::wkb_linestring;
+    break;
+  case Geometry::wkb_multipolygon:
+    ret= Geometry::wkb_polygon;
+    break;
+  default:
+    ret= gt;
+  }
+  return ret;
+}
+
+
 /**
   Simplify multi-geometry data. If str contains a multi-geometry or geometry
   collection with one component, the component is made as content of str.
@@ -3083,9 +3102,9 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg)
   {
     if (g1->get_type() != Geometry::wkb_geometrycollection &&
         g2->get_type() != Geometry::wkb_geometrycollection)
-      gres= bg_geo_set_op<double, bgcs::cartesian>(g1, g2, str_value_arg);
+      gres= bg_geo_set_op<bgcs::cartesian>(g1, g2, str_value_arg);
     else
-      gres= geometry_collection_set_operation<double, bgcs::cartesian>
+      gres= geometry_collection_set_operation<bgcs::cartesian>
         (g1, g2, str_value_arg);
 
   }
@@ -3195,6 +3214,13 @@ exit:
 }
 
 
+inline bool is_areal(const Geometry *g)
+{
+  return g != NULL && (g->get_type() == Geometry::wkb_polygon ||
+                       g->get_type() == Geometry::wkb_multipolygon);
+}
+
+
 /**
   Do set operation on geometry collections.
   BG doesn't directly support geometry collections in any function, so we
@@ -3204,8 +3230,6 @@ exit:
 
   This function dispatches to specific set operation types.
 
-  @tparam Coord_type The numeric type for a coordinate value, most often
-          it's double.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
   @param g1 First geometry operand, a geometry collection.
@@ -3214,7 +3238,7 @@ exit:
                 geometry collection.
   @return The set operation result, whose WKB data is stored in 'result'.
  */
-template<typename Coord_type, typename Coordsys>
+template<typename Coordsys>
 Geometry *Item_func_spatial_operation::
 geometry_collection_set_operation(Geometry *g1, Geometry *g2,
                                   String *result)
@@ -3252,10 +3276,10 @@ geometry_collection_set_operation(Geometry *g1, Geometry *g2,
   bggc2.fill(g2);
   if (spatial_op != op_union)
   {
-    bggc1.merge_components<Coord_type, Coordsys>(&null_value);
+    bggc1.merge_components<Coordsys>(&null_value);
     if (null_value)
       return gres;
-    bggc2.merge_components<Coord_type, Coordsys>(&null_value);
+    bggc2.merge_components<Coordsys>(&null_value);
     if (null_value)
       return gres;
   }
@@ -3293,7 +3317,7 @@ geometry_collection_set_operation(Geometry *g1, Geometry *g2,
       (spatial_op != op_symdifference ||
        (is_areal(*(gv1.begin())) && is_areal(*(gv2.begin())))))
   {
-    gres= bg_geo_set_op<Coord_type, Coordsys>(*(gv1.begin()), *(gv2.begin()),
+    gres= bg_geo_set_op<Coordsys>(*(gv1.begin()), *(gv2.begin()),
                                               result);
     if (null_value)
       return NULL;
@@ -3365,16 +3389,16 @@ geometry_collection_set_operation(Geometry *g1, Geometry *g2,
   switch (this->spatial_op)
   {
   case op_intersection:
-    gres= geocol_intersection<Coord_type, Coordsys>(bggc1, bggc2, result);
+    gres= geocol_intersection<Coordsys>(bggc1, bggc2, result);
     break;
   case op_union:
-    gres= geocol_union<Coord_type, Coordsys>(bggc1, bggc2, result);
+    gres= geocol_union<Coordsys>(bggc1, bggc2, result);
     break;
   case op_difference:
-    gres= geocol_difference<Coord_type, Coordsys>(bggc1, bggc2, result);
+    gres= geocol_difference<Coordsys>(bggc1, bggc2, result);
     break;
   case op_symdifference:
-    gres= geocol_symdifference<Coord_type, Coordsys>(bggc1, bggc2, result);
+    gres= geocol_symdifference<Coordsys>(bggc1, bggc2, result);
     break;
   default:
     /* Only above four supported. */
@@ -3394,8 +3418,6 @@ geometry_collection_set_operation(Geometry *g1, Geometry *g2,
   collection. If all subresults can be computed successfully, the geometry
   collection is our result.
 
-  @tparam Coord_type The numeric type for a coordinate value, most often
-          it's double.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
   @param bggc1 First geometry operand, a geometry collection.
@@ -3404,7 +3426,7 @@ geometry_collection_set_operation(Geometry *g1, Geometry *g2,
                 geometry collection.
   @return The intersection result, whose WKB data is stored in 'result'.
  */
-template<typename Coord_type, typename Coordsys>
+template<typename Coordsys>
 Geometry *Item_func_spatial_operation::
 geocol_intersection(const BG_geometry_collection &bggc1,
                     const BG_geometry_collection &bggc2,
@@ -3456,7 +3478,7 @@ geocol_intersection(const BG_geometry_collection &bggc1,
       // Free before using it, wkbres may have WKB data from last execution.
       wkbres.mem_free();
       wkbres.length(0);
-      g0= bg_geo_set_op<Coord_type, Coordsys>(*i, geom, &wkbres);
+      g0= bg_geo_set_op<Coordsys>(*i, geom, &wkbres);
 
       if (null_value)
       {
@@ -3483,7 +3505,7 @@ geocol_intersection(const BG_geometry_collection &bggc1,
     that can be merged into a larger one of the same type in the result.
     We will need to figure out how to make such enhancements.
    */
-  bggc.merge_components<Coord_type, Coordsys>(&null_value);
+  bggc.merge_components<Coordsys>(&null_value);
   if (null_value)
     return NULL;
   gres= bggc.as_geometry_collection(result);
@@ -3499,8 +3521,6 @@ geocol_intersection(const BG_geometry_collection &bggc1,
   components from g1 and g2 respectively. Finally no components in g1 and g2
   overlap and GC is our result.
 
-  @tparam Coord_type The numeric type for a coordinate value, most often
-          it's double.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
   @param bggc1 First geometry operand, a geometry collection.
@@ -3509,7 +3529,7 @@ geocol_intersection(const BG_geometry_collection &bggc1,
                 geometry collection.
   @return The union result, whose WKB data is stored in 'result'.
  */
-template<typename Coord_type, typename Coordsys>
+template<typename Coordsys>
 Geometry *Item_func_spatial_operation::
 geocol_union(const BG_geometry_collection &bggc1,
              const BG_geometry_collection &bggc2,
@@ -3526,7 +3546,7 @@ geocol_union(const BG_geometry_collection &bggc1,
 
   // It's likely that there are overlapping components in bggc because it
   // has components from both bggc1 and bggc2.
-  bggc.merge_components<Coord_type, Coordsys>(&null_value);
+  bggc.merge_components<Coordsys>(&null_value);
   if (!null_value)
     gres= bggc.as_geometry_collection(result);
 
@@ -3541,8 +3561,6 @@ geocol_union(const BG_geometry_collection &bggc1,
   If all subresults can be computed successfully, the geometry
   collection GC is our result.
 
-  @tparam Coord_type The numeric type for a coordinate value, most often
-          it's double.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
   @param bggc1 First geometry operand, a geometry collection.
@@ -3551,7 +3569,7 @@ geocol_union(const BG_geometry_collection &bggc1,
                 geometry collection.
   @return The difference result, whose WKB data is stored in 'result'.
  */
-template<typename Coord_type, typename Coordsys>
+template<typename Coordsys>
 Geometry *Item_func_spatial_operation::
 geocol_difference(const BG_geometry_collection &bggc1,
                   const BG_geometry_collection &bggc2,
@@ -3595,7 +3613,7 @@ geocol_difference(const BG_geometry_collection &bggc1,
       wkbres= wkbstrs.append_object();
       if (wkbres == NULL)
         return NULL;
-      Geometry *g0= bg_geo_set_op<Coord_type, Coordsys>(g11, geom,
+      Geometry *g0= bg_geo_set_op<Coordsys>(g11, geom,
                                                         wkbres);
       auto_ptr<Geometry> guard0(g0);
 
@@ -3636,7 +3654,7 @@ geocol_difference(const BG_geometry_collection &bggc1,
       guard11.reset(NULL);
   }
 
-  bggc.merge_components<Coord_type, Coordsys>(&null_value);
+  bggc.merge_components<Coordsys>(&null_value);
   if (null_value)
     return NULL;
   gres= bggc.as_geometry_collection(result);
@@ -3652,8 +3670,6 @@ geocol_difference(const BG_geometry_collection &bggc1,
   Since we've implemented the other 3 types of set operations for geometry
   collections, we can do so.
 
-  @tparam Coord_type The numeric type for a coordinate value, most often
-          it's double.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
   @param bggc1 First geometry operand, a geometry collection.
@@ -3662,7 +3678,7 @@ geocol_difference(const BG_geometry_collection &bggc1,
                 geometry collection.
   @return The symdifference result, whose WKB data is stored in 'result'.
  */
-template<typename Coord_type, typename Coordsys>
+template<typename Coordsys>
 Geometry *Item_func_spatial_operation::
 geocol_symdifference(const BG_geometry_collection &bggc1,
                      const BG_geometry_collection &bggc2,
@@ -3677,7 +3693,7 @@ geocol_symdifference(const BG_geometry_collection &bggc1,
     var_reset(&spatial_op, op_symdifference);
 
   spatial_op= op_union;
-  gc_union= geocol_union<Coord_type, Coordsys>(bggc1, bggc2,
+  gc_union= geocol_union<Coordsys>(bggc1, bggc2,
                                                &union_res);
   auto_ptr<Geometry> guard_union(gc_union);
 
@@ -3686,7 +3702,7 @@ geocol_symdifference(const BG_geometry_collection &bggc1,
   DBUG_ASSERT(gc_union != NULL);
 
   spatial_op= op_intersection;
-  gc_isct= geocol_intersection<Coord_type, Coordsys>(bggc1, bggc2,
+  gc_isct= geocol_intersection<Coordsys>(bggc1, bggc2,
                                                      &isct_res);
   auto_ptr<Geometry> guard_isct(gc_isct);
 
@@ -3697,7 +3713,7 @@ geocol_symdifference(const BG_geometry_collection &bggc1,
   if (gc_isct != NULL && !is_empty_geocollection(isct_res))
   {
     spatial_op= op_difference;
-    gres= geometry_collection_set_operation<Coord_type, Coordsys>
+    gres= geometry_collection_set_operation<Coordsys>
       (gc_union, gc_isct, result);
     guard_dif.reset(gres);
 

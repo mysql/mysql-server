@@ -25,6 +25,8 @@
 #include "item_geofunc_internal.h"
 #include "item_geofunc_relchecks_bgwrap.h"
 
+#include <set>
+
 /*
   Functions for spatial relations
 */
@@ -224,11 +226,11 @@ longlong Item_func_spatial_rel::val_int()
         g2->get_type() != Geometry::wkb_geometrycollection)
     {
       // Must use double, otherwise may lose valid result, not only precision.
-      tres= bg_geo_relation_check<double, bgcs::cartesian>
+      tres= bg_geo_relation_check<bgcs::cartesian>
         (g1, g2, spatial_rel, &had_error);
     }
     else
-      tres= geocol_relation_check<double, bgcs::cartesian>(g1, g2);
+      tres= geocol_relation_check<bgcs::cartesian>(g1, g2);
   }
   catch (...)
   {
@@ -248,8 +250,6 @@ exit:
   Do geometry collection relation check. Boost geometry doesn't support
   geometry collections directly, we have to treat them as a collection of basic
   geometries and use BG features to compute.
-  @tparam Coord_type The numeric type for a coordinate value, most often
-          it's double.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
   @param g1 the 1st geometry collection parameter.
@@ -257,7 +257,7 @@ exit:
   @return whether g1 and g2 satisfy the specified relation, 0 for negative,
                 none 0 for positive.
  */
-template<typename Coord_type, typename Coordsys>
+template<typename Coordsys>
 int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2)
 {
   String gcbuf;
@@ -302,10 +302,10 @@ int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2)
     component of GC2.
    */
   if (spatial_rel != SP_WITHIN_FUNC)
-    bggc1.merge_components<Coord_type, Coordsys>(&null_value);
+    bggc1.merge_components<Coordsys>(&null_value);
   if (null_value)
     return tres;
-  bggc2.merge_components<Coord_type, Coordsys>(&null_value);
+  bggc2.merge_components<Coordsys>(&null_value);
   if (null_value)
     return tres;
 
@@ -319,7 +319,7 @@ int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2)
   }
   else if (gv1->size() == 1 && gv2->size() == 1)
   {
-    tres= bg_geo_relation_check<Coord_type, Coordsys>
+    tres= bg_geo_relation_check<Coordsys>
       (*(gv1->begin()), *(gv2->begin()), spatial_rel, &null_value);
     return tres;
   }
@@ -335,11 +335,11 @@ int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2)
   }
 
   if (spatial_rel == SP_DISJOINT_FUNC || spatial_rel == SP_INTERSECTS_FUNC)
-    tres= geocol_relcheck_intersect_disjoint<Coord_type, Coordsys>(gv1, gv2);
+    tres= geocol_relcheck_intersect_disjoint<Coordsys>(gv1, gv2);
   else if (spatial_rel == SP_WITHIN_FUNC)
-    tres= geocol_relcheck_within<Coord_type, Coordsys>(gv1, gv2);
+    tres= geocol_relcheck_within<Coordsys>(gv1, gv2);
   else if (spatial_rel == SP_EQUALS_FUNC)
-    tres= geocol_equals_check<Coord_type, Coordsys>(gv1, gv2);
+    tres= geocol_equals_check<Coordsys>(gv1, gv2);
   else
     DBUG_ASSERT(false);
 
@@ -359,8 +359,6 @@ int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2)
 /**
   Geometry collection relation checks for disjoint and intersects operations.
 
-  @tparam Coord_type The numeric type for a coordinate value, most often
-          it's double.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
   @param gv1 the 1st geometry collection parameter.
@@ -368,7 +366,7 @@ int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2)
   @return whether @p gv1 and @p gv2 satisfy the specified relation, 0 for negative,
                 none 0 for positive.
  */
-template<typename Coord_type, typename Coordsys>
+template<typename Coordsys>
 int Item_func_spatial_rel::
 geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
                                    Geometry_list *gv1,
@@ -412,7 +410,7 @@ geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
 
       try
       {
-        tres= bg_geo_relation_check<Coord_type, Coordsys>
+        tres= bg_geo_relation_check<Coordsys>
           (*i, (*gvr)[j->second], spatial_rel, &had_error);
       }
       catch (...)
@@ -470,7 +468,7 @@ geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
   This function is called where an rtree index on gv2 is already built so
   we want to pass it in to avoid unnecessarily build the same one again.
  */
-template<typename Coord_type, typename Coordsys>
+template<typename Coordsys>
 int Item_func_spatial_rel::
 multipoint_within_geometry_collection(Gis_multi_point *pmpts,
                                       const typename BG_geometry_collection::
@@ -483,11 +481,11 @@ multipoint_within_geometry_collection(Gis_multi_point *pmpts,
 
   Rtree_index &rtree= *((Rtree_index *)prtree);
 
-  TYPENAME BG_models<Coord_type, Coordsys>::
+  TYPENAME BG_models<Coordsys>::
     Multipoint mpts(pmpts->get_data_ptr(), pmpts->get_data_size(),
                     pmpts->get_flags(), pmpts->get_srid());
 
-  for (TYPENAME BG_models<Coord_type, Coordsys>::Multipoint::iterator
+  for (TYPENAME BG_models<Coordsys>::Multipoint::iterator
        k= mpts.begin(); k != mpts.end(); ++k)
   {
     bool already_in= false;
@@ -512,7 +510,7 @@ multipoint_within_geometry_collection(Gis_multi_point *pmpts,
       */
       if (!has_inner)
       {
-        tres= bg_geo_relation_check<Coord_type, Coordsys>
+        tres= bg_geo_relation_check<Coordsys>
           (&(*k), (*gv2)[j->second], SP_WITHIN_FUNC, &had_error);
         if (had_error || null_value)
           return error_int();
@@ -529,7 +527,7 @@ multipoint_within_geometry_collection(Gis_multi_point *pmpts,
         *k has to intersect one of the components in this loop, otherwise *k
         is out of gv2.
        */
-      tres= bg_geo_relation_check<Coord_type, Coordsys>
+      tres= bg_geo_relation_check<Coordsys>
         (&(*k), (*gv2)[j->second], SP_INTERSECTS_FUNC, &had_error);
       if (had_error || null_value)
         return error_int();
@@ -566,8 +564,6 @@ multipoint_within_geometry_collection(Gis_multi_point *pmpts,
 /**
   Geometry collection relation checks for within and equals(half) checks.
 
-  @tparam Coord_type The numeric type for a coordinate value, most often
-          it's double.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
   @param gv1 the 1st geometry collection parameter.
@@ -575,7 +571,7 @@ multipoint_within_geometry_collection(Gis_multi_point *pmpts,
   @return whether @p gv1 and @p gv2 satisfy the specified relation, 0 for negative,
                 none 0 for positive.
  */
-template<typename Coord_type, typename Coordsys>
+template<typename Coordsys>
 int Item_func_spatial_rel::
 geocol_relcheck_within(const typename BG_geometry_collection::
                        Geometry_list *gv1,
@@ -642,7 +638,7 @@ geocol_relcheck_within(const typename BG_geometry_collection::
     if ((*i)->get_type() == Geometry::wkb_multipoint)
     {
       Gis_multi_point *mpts= static_cast<Gis_multi_point *>(*i);
-      tres= multipoint_within_geometry_collection<Coord_type, Coordsys>
+      tres= multipoint_within_geometry_collection<Coordsys>
         (mpts, gv2, &rtree);
       if (null_value)
         return error_int();
@@ -687,7 +683,7 @@ geocol_relcheck_within(const typename BG_geometry_collection::
 
       try
       {
-        tres= bg_geo_relation_check<Coord_type, Coordsys>
+        tres= bg_geo_relation_check<Coordsys>
           (*i, (*gv2)[j->second], SP_WITHIN_FUNC, &had_error);
       }
       catch (...)
@@ -737,8 +733,6 @@ geocol_relcheck_within(const typename BG_geometry_collection::
 
 /**
   Geometry collection equality check.
-  @tparam Coord_type The numeric type for a coordinate value, most often
-          it's double.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
   @param gv1 the 1st geometry collection parameter.
@@ -746,7 +740,7 @@ geocol_relcheck_within(const typename BG_geometry_collection::
   @return whether @p gv1 and @p gv2 satisfy the specified relation, 0 for negative,
                 none 0 for positive.
  */
-template<typename Coord_type, typename Coordsys>
+template<typename Coordsys>
 int Item_func_spatial_rel::
 geocol_equals_check(const typename BG_geometry_collection::Geometry_list *gv1,
                     const typename BG_geometry_collection::Geometry_list *gv2)
@@ -756,7 +750,7 @@ geocol_equals_check(const typename BG_geometry_collection::Geometry_list *gv1,
 
   do
   {
-    tres= geocol_relcheck_within<Coord_type, Coordsys>(gv1, gv2);
+    tres= geocol_relcheck_within<Coordsys>(gv1, gv2);
     if (!tres || null_value)
       return tres;
     /*
@@ -1279,8 +1273,6 @@ int Item_func_spatial_rel::crosses_check(Geometry *g1, Geometry *g2,
   Item_func_spatial_rel object --- we do so to implement a few functionality
   for other classes in this file, e.g. Item_func_spatial_operation::val_str.
 
-  @tparam Coord_type The numeric type for a coordinate value, most often
-          it's double.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
   @param g1 First Geometry operand, not a geometry collection.
@@ -1290,14 +1282,14 @@ int Item_func_spatial_rel::crosses_check(Geometry *g1, Geometry *g2,
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
  */
-template<typename Coord_type, typename Coordsys>
+template<typename Coordsys>
 int Item_func_spatial_rel::bg_geo_relation_check(Geometry *g1, Geometry *g2,
                                                  Functype relchk_type,
                                                  my_bool *pnull_value)
 {
   int result= 0;
 
-  typedef BG_models<Coord_type, Coordsys> Geom_types;
+  typedef BG_models<Coordsys> Geom_types;
 
   /*
     Dispatch calls to all specific type combinations for each relation check

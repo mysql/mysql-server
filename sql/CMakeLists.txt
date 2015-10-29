@@ -86,6 +86,7 @@ SET(SQL_SHARED_SOURCES
   filesort.cc
   filesort_utils.cc
   aggregate_check.cc
+  geometry_rtree.cc
   gstream.cc
   handler.cc
   hostname.cc
@@ -97,6 +98,7 @@ SET(SQL_SHARED_SOURCES
   item_func.cc
   item_geofunc.cc
   item_geofunc_buffer.cc
+  item_geofunc_internal.cc
   item_geofunc_relchecks.cc
   item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
@@ -304,14 +306,17 @@ ENDIF()
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 ADD_COMPILE_FLAGS(
+  debug_sync.cc
   handler.cc
+  geometry_rtree.cc
   item_geofunc.cc
   item_geofunc_buffer.cc
+  item_geofunc_internal.cc
   item_geofunc_relchecks.cc
   item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
   item_json_func.cc
-  debug_sync.cc
+  spatial.cc
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
 
@@ -319,14 +324,17 @@ ADD_COMPILE_FLAGS(
 MY_CHECK_CXX_COMPILER_FLAG("-Wunused-local-typedefs" HAVE_UNUSED_TYPEDEFS)
 IF(HAVE_UNUSED_TYPEDEFS)
   ADD_COMPILE_FLAGS(
+    debug_sync.cc
     handler.cc
+    geometry_rtree.cc
     item_geofunc.cc
     item_geofunc_buffer.cc
+    item_geofunc_internal.cc
     item_geofunc_relchecks.cc
     item_geofunc_relchecks_bgwrap.cc
     item_geofunc_setops.cc
     item_json_func.cc
-    debug_sync.cc
+    spatial.cc
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
   )
 ENDIF()
@@ -335,12 +343,15 @@ ENDIF()
 MY_CHECK_CXX_COMPILER_FLAG("-Wlogical-op" HAVE_LOGICAL_OP)
 IF(HAVE_LOGICAL_OP)
   ADD_COMPILE_FLAGS(
+    geometry_rtree.cc
     item_geofunc.cc
     item_geofunc_buffer.cc
+    item_geofunc_internal.cc
     item_geofunc_relchecks.cc
     item_geofunc_relchecks_bgwrap.cc
     item_geofunc_setops.cc
     item_json_func.cc
+    spatial.cc
     COMPILE_FLAGS "-Wno-logical-op"
   )
 ENDIF()
@@ -349,8 +360,10 @@ ENDIF()
 MY_CHECK_CXX_COMPILER_FLAG("-Wc++11-extra-semi" HAVE_CPP11_EXTRA_SEMI)
 IF(HAVE_CPP11_EXTRA_SEMI)
   ADD_COMPILE_FLAGS(
+    geometry_rtree.cc
     item_geofunc.cc
     item_geofunc_buffer.cc
+    item_geofunc_internal.cc
     item_geofunc_relchecks.cc
     item_geofunc_relchecks_bgwrap.cc
     item_geofunc_setops.cc
