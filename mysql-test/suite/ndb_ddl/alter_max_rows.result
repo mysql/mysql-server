@@ -1,7 +1,7 @@
 ALTER TABLE t1
 algorithm=inplace,
 max_rows=1111111;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: setting MAX_ROWS on table without MAX_ROWS. Try ALGORITHM=COPY.
 ALTER TABLE t1
 algorithm=copy,
 max_rows=1111111;

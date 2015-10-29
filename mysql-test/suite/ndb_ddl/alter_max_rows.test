@@ -20,7 +20,7 @@ if (`select LOCATE("MAX_ROWS=", CREATE_OPTIONS)
   die t1 has MAX_ROWS set;
 }
 
---error ER_ALTER_OPERATION_NOT_SUPPORTED
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1
   algorithm=inplace,
   max_rows=1111111;
