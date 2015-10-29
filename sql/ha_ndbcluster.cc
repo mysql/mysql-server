@@ -17326,18 +17326,12 @@ enum_alter_inplace_result
 
      if (alter_flags & Alter_inplace_info::ALTER_TABLE_REORG)
      {
-       /* 
-          Refuse if Max_rows has been used before...
-          Workaround is to use ALTER ONLINE TABLE <t> MAX_ROWS=<bigger>;
-       */
        if (old_tab->getMaxRows() != 0)
        {
-         push_warning(current_thd,
-                      Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR,
-                      "Cannot online REORGANIZE a table with Max_Rows set.  "
-                      "Use ALTER TABLE ... MAX_ROWS=<new_val> or offline REORGANIZE "
-                      "to redistribute this table.");
-         DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+         // No inplace REORGANIZE PARTITION for table with MAX_ROWS
+         DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                        "REORGANIZE of table "
+                                        "with MAX_ROWS"));
        }
        new_tab.setFragmentCount(0);
        new_tab.setFragmentData(0, 0);
