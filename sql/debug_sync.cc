@@ -27,7 +27,7 @@
 
   When activated, a sync point can
 
-    - Emit a signal and/or
+    - Emit a signal(s) and/or
     - Wait for a signal
 
   Nomenclature:
@@ -64,6 +64,20 @@
   For every sync point there can be one action per thread only. Every
   thread can request multiple actions, but only one per sync point. In
   other words, a thread can activate multiple sync points.
+
+  However a single action can emit several signals, example given:
+
+      SET DEBUG_SYNC= 'after_open_tables SIGNAL a,b,c WAIT_FOR flushed';
+
+  Suppose we had several connections, and each one could possibly emit
+  signal 'after_latch'. Let assume there is another connection, which
+  waits for the signal being emitted. If the waiting connection wanted
+  to recognize, which connection emitted 'after_latch', then we could
+  decide to always emit two signals: 'after_latch' and 'con$id', where
+  con$id would describe uniquely each connection (con1, con2, ...).
+  Then the waiting connection could simply perform SELECT @@DEBUG_SYNC,
+  and search for con* there. To remove such con$id from @@DEBUG_SYNC,
+  one could then simply perform SET DEBUG_SYNC= 'now WAIT_FOR con$id'.
 
   Here is an example how to activate and use the sync points:
 
@@ -158,10 +172,10 @@
       {RESET |
        <sync point name> TEST |
        <sync point name> CLEAR |
-       <sync point name> {{SIGNAL <signal name> |
+       <sync point name> {{SIGNAL <signal name>[, <signal name>]* |
                            WAIT_FOR <signal name> [TIMEOUT <seconds>]
                            [NO_CLEAR_EVENT]}
-                          [EXECUTE <count>] &| HIT_LIMIT <count>}
+                          [EXECUTE <count>] &| HIT_LIMIT <count>}}
 
   Here '&|' means 'and/or'. This means that one of the sections
   separated by '&|' must be present or both of them.
@@ -335,6 +349,7 @@
 
 #include <set>
 #include <string>
+#include <boost/algorithm/string.hpp>
 
 using std::max;
 using std::min;
@@ -1912,8 +1927,17 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
     if (action->signal.length())
     {
       std::string signal= action->signal.ptr();
-      /* Copy the signal to the global set. */
-      add_signal_event(&signal);
+      std::vector<std::string> signals;
+      boost::split(signals, signal, boost::is_any_of(","));
+      for (std::vector<std::string>::const_iterator it= signals.begin();
+	   it != signals.end(); ++it)
+      {
+        /* Copy the signal to the global set. */
+	std::string s= *it;
+	boost::trim(s);
+	if (!s.empty())
+          add_signal_event(&s);
+      }
       /* Wake threads waiting in a sync point. */
       mysql_cond_broadcast(&debug_sync_global.ds_cond);
       DBUG_PRINT("debug_sync_exec", ("signal '%s'  at: '%s'",
