@@ -1457,6 +1457,8 @@ eval $query;
 ALTER TABLE t1 MODIFY a VARCHAR(332) CHARACTER SET UTF8;
 --enable_warnings
 
+ANALYZE TABLE t1;
+
 # Now subquery materialization can be used, and result is still correct:
 eval EXPLAIN $query;
 eval $query;
