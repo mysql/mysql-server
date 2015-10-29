@@ -1,5 +1,4 @@
 source include/have_innodb.inc;
-source include/have_debug.inc;
 source include/not_embedded.inc;
 
 --echo #
@@ -9,10 +8,6 @@ source include/not_embedded.inc;
 # To make sure that the change buffer is empty
 SET GLOBAL innodb_fast_shutdown=0;
 --source include/restart_mysqld.inc
-
-SET GLOBAL innodb_stats_persistent = OFF;
-SET GLOBAL innodb_stats_auto_recalc = OFF;
-SET GLOBAL innodb_purge_stop_now = ON;
 
 CREATE TABLE t1(a INT PRIMARY KEY, b BLOB) STATS_PERSISTENT=0;
 
@@ -34,7 +29,3 @@ if ($diff != 3) {
 }
 
 DROP TABLE t1;
-
-SET GLOBAL innodb_stats_persistent = default;
-SET GLOBAL innodb_stats_auto_recalc = default;
-SET GLOBAL innodb_purge_run_now = ON;
