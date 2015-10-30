@@ -45,10 +45,12 @@
 using std::min;
 using std::max;
 
-extern "C" {
 
 extern unsigned int mysql_server_last_errno;
 extern char mysql_server_last_error[MYSQL_ERRMSG_SIZE];
+
+extern "C" {
+
 static my_bool emb_read_query_result(MYSQL *mysql);
 
 

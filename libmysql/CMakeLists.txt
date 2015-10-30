@@ -165,7 +165,7 @@ SET(CLIENT_SOURCES
   get_password.c 
   libmysql.c
   errmsg.c
-  ../sql-common/client.c 
+  ../sql-common/client.cc
   ../sql-common/my_time.c 
   ../sql-common/client_plugin.c 
   ../sql-common/client_authentication.cc

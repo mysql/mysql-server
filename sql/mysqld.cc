@@ -8978,7 +8978,7 @@ static PSI_socket_info all_server_sockets[]=
 #endif // !EMBEDDED_LIBRARY
 
 /* TODO: find a good header */
-extern "C" void init_client_psi_keys(void);
+void init_client_psi_keys(void);
 
 /**
   Initialise all the performance schema instrumentation points

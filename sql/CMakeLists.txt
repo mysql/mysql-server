@@ -331,7 +331,7 @@ SET(SQL_SOURCE
   ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
   ../libmysql/errmsg.c
-  ../sql-common/client.c
+  ../sql-common/client.cc
   ../sql-common/client_plugin.c
   ../sql-common/my_time.c
   ../sql-common/my_user.c 
