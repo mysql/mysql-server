@@ -62,7 +62,16 @@ public:
 	@param[in]	space_id	Tablespace identifier
 	@param[in]	index_id	Index identifier */
 	index_id_t(uint32_t space_id, space_index_t index_id) :
-		m_space_id(space_id), m_index_id(index_id)
+		m_space_id(space_id),
+		m_index_id(index_id)
+	{}
+
+	/** Alternate Constructor.
+	@param[in]	space_id	Tablespace identifier
+	@param[in]	index_id	Index identifier */
+	index_id_t(ulint space_id, space_index_t index_id) :
+		m_space_id(static_cast<uint32_t>(space_id)),
+		m_index_id(index_id)
 	{}
 
 	/** Compare this to another index identifier.

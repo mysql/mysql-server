@@ -901,7 +901,7 @@ Created 12/14/1997 Heikki Tuuri
 #define realloc(P, A)	ut_realloc(P, A)
 #define exit(A) 	ut_error
 
-/* Note: We cast result from int to yysize_t */
+/* Note: We cast result from int to yy_size_t */
 #define YY_INPUT(buf, result, max_size) \
 	((result) = pars_get_lex_chars(buf, max_size))
 
@@ -2098,7 +2098,7 @@ YY_RULE_SETUP
 #line 651 "pars0lex.l"
 YY_FATAL_ERROR( "flex scanner jammed" );
 	YY_BREAK
-#line 2109 "lexyy.cc"
+#line 2101 "lexyy.cc"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(comment):
 case YY_STATE_EOF(quoted):

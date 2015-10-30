@@ -1241,7 +1241,8 @@ btr_truncate(
 	/* Mark that we are going to truncate the index tree
 	We use PAGE_MAX_TRX_ID as it should be always 0 for clustered
 	index. */
-	mlog_write_ull(page + (PAGE_HEADER + PAGE_MAX_TRX_ID), -1ULL, &mtr);
+	mlog_write_ull(page + (PAGE_HEADER + PAGE_MAX_TRX_ID),
+		       IB_ID_MAX, &mtr);
 
 	mtr.commit();
 
@@ -1296,13 +1297,13 @@ btr_truncate_recover(
 	page_t*			page = buf_block_get_frame(block);
 
 	trx_id_t		trx_id = page_get_max_trx_id(page);
-	ut_ad(trx_id == 0 || trx_id == -1ULL);
+	ut_ad(trx_id == 0 || trx_id == IB_ID_MAX);
 
 	mtr.commit();
 
 	fil_space_release(space);
 
-	if (trx_id == -1ULL) {
+	if (trx_id == IB_ID_MAX) {
 		/* -1 means there is a half-done btr_truncate,
 		we can simple redo it again. */
 		btr_truncate(index);

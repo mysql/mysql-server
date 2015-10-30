@@ -7714,9 +7714,8 @@ CorruptedIndexPersister::read(
 		return(0);
 	}
 
-	type = mach_read_from_1(buffer);
+	type = *buffer++;
 	++consumed;
-	++buffer;
 
 	if (type != PM_INDEX_CORRUPTED) {
 		*corrupt = true;
@@ -7805,9 +7804,8 @@ AutoIncPersister::read(
 		return(0);
 	}
 
-	type = mach_read_from_1(buffer);
+	type = *buffer++;
 	++consumed;
-	++buffer;
 
 	if (type != PM_TABLE_AUTO_INC) {
 		*corrupt = true;

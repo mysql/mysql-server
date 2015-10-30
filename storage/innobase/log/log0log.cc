@@ -225,7 +225,7 @@ log_buffer_extend(
 	log_sys->buf_next_to_write -= move_start;
 
 	/* reallocate log buffer */
-	srv_log_buffer_size = len / UNIV_PAGE_SIZE + 1;
+	srv_log_buffer_size = static_cast<ulong>(len / UNIV_PAGE_SIZE + 1);
 	ut_free(log_sys->buf_ptr);
 	log_sys->buf_ptr = static_cast<byte*>(
 		ut_zalloc_nokey(LOG_BUFFER_SIZE + OS_FILE_LOG_BLOCK_SIZE));

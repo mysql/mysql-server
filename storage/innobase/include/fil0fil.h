@@ -247,6 +247,13 @@ extern const char* dot_ext[];
 #define DOT_IBD dot_ext[IBD]
 #define DOT_CFG dot_ext[CFG]
 
+#ifdef _WIN32
+/* Initialization of m_abs_path() produces warning C4351:
+"new behavior: elements of array '...' will be default initialized."
+See https://msdn.microsoft.com/en-us/library/1ywe7hcy.aspx */
+#pragma warning(disable:4351)
+#endif /* _WIN32 */
+
 /** Wrapper for a path to a directory that may or may not exist. */
 class Folder
 {
@@ -341,7 +348,7 @@ private:
 but in the MySQL Embedded Server Library and mysqlbackup it is not the default
 directory, and we must set the base file path explicitly */
 extern const char*	fil_path_to_mysql_datadir;
-extern Folder   	folder_mysql_datadir;
+extern Folder		folder_mysql_datadir;
 
 /** Initial size of a single-table tablespace in pages */
 #define FIL_IBD_FILE_INITIAL_SIZE	4

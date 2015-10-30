@@ -92,11 +92,11 @@ pars_sql(
 /*************************************************************//**
 Retrieves characters to the lexical analyzer.
 @return number of characters copied or 0 on EOF */
-int
+size_t
 pars_get_lex_chars(
 /*===============*/
 	char*	buf,		/*!< in/out: buffer where to copy */
-	int	max_size);	/*!< in: maximum number of characters which fit
+	size_t	max_size);	/*!< in: maximum number of characters which fit
 				in the buffer */
 /*************************************************************//**
 Called by yyparse on error. */
