@@ -692,7 +692,4 @@ typedef mode_t MY_MODE;
 #define DEFAULT_SSL_SERVER_CERT "server-cert.pem"
 #define DEFAULT_SSL_SERVER_KEY  "server-key.pem"
 
-#if defined(_WIN32) || defined(_WIN64)
-  #define strcasecmp _stricmp
-#endif
 #endif  // MY_GLOBAL_INCLUDED

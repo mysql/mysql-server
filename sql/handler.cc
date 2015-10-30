@@ -490,8 +490,8 @@ void ha_set_normalized_disabled_se_str(const std::string &disabled_se)
     boost::algorithm::to_upper(se_name);
     for (table_alias= sys_table_aliases; table_alias->str; table_alias+= 2)
     {
-      if (!strcasecmp(se_name.c_str(), table_alias->str) ||
-          !strcasecmp(se_name.c_str(), (table_alias+1)->str))
+      if (!native_strcasecmp(se_name.c_str(), table_alias->str) ||
+          !native_strcasecmp(se_name.c_str(), (table_alias+1)->str))
       {
         normalized_se_str.append(std::string(table_alias->str) + "," +
                                  std::string((table_alias+1)->str) + ",");
