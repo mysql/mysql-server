@@ -2351,3 +2351,26 @@ WHERE
      t1.c18 IN (15,16,18);
 
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug #21318711: WRONG RESULTS FOR TRUNCATED COLUMN AND AGGREGATION
+--echo #
+
+CREATE TABLE t1 (
+  col1 VARCHAR(5),
+  col2 INT NOT NULL,
+  PRIMARY KEY (col1, col2)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES ('abcde', 10);
+
+let $query1= SELECT MAX(col2) FROM t1 WHERE col1 = 'abcdeaa';
+let $query2= SELECT MAX(col2) FROM t1 WHERE col1 = 'abcde  ';
+
+eval EXPLAIN $query1;
+eval EXPLAIN $query2;
+
+eval $query1;
+eval $query2;
+
+DROP TABLE t1;
