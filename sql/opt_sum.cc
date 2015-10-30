@@ -839,7 +839,17 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
     {
       /* Update endpoints for MAX/MIN, see function comment. */
       Item *value= args[between && max_fl ? 2 : 1];
-      value->save_in_field_no_warnings(part->field, true);
+
+      /*
+        A perfect save is neccessary. Truncated / incorrect value can result
+        in an incorrect index lookup. Truncation of trailing space is ignored
+        since that is expected for strings even in other cases.
+      */
+      type_conversion_status retval=
+        value->save_in_field_no_warnings(part->field, true);
+      if (!(retval == TYPE_OK || retval == TYPE_NOTE_TRUNCATED))
+        DBUG_RETURN(false);
+
       if (part->null_bit) 
         *key_ptr++= (uchar) MY_TEST(part->field->is_null());
       part->field->get_key_image(key_ptr, part->length, Field::itRAW);

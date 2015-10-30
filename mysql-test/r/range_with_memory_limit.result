@@ -4020,5 +4020,34 @@ c10
 Warnings:
 Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 DROP TABLE t1, t2, t3;
+#
+# Bug #21318711: WRONG RESULTS FOR TRUNCATED COLUMN AND AGGREGATION
+#
+CREATE TABLE t1 (
+col1 VARCHAR(5),
+col2 INT NOT NULL,
+PRIMARY KEY (col1, col2)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('abcde', 10);
+EXPLAIN SELECT MAX(col2) FROM t1 WHERE col1 = 'abcdeaa';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	PRIMARY	PRIMARY	7	const	1	100.00	Using where; Using index
+Warnings:
+Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Note	1003	/* select#1 */ select max(`test`.`t1`.`col2`) AS `MAX(col2)` from `test`.`t1` where (`test`.`t1`.`col1` = 'abcdeaa')
+EXPLAIN SELECT MAX(col2) FROM t1 WHERE col1 = 'abcde  ';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`col2`) AS `MAX(col2)` from `test`.`t1` where multiple equal('abcde  ', `test`.`t1`.`col1`)
+SELECT MAX(col2) FROM t1 WHERE col1 = 'abcdeaa';
+MAX(col2)
+NULL
+Warnings:
+Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+SELECT MAX(col2) FROM t1 WHERE col1 = 'abcde  ';
+MAX(col2)
+10
+DROP TABLE t1;
 SET RANGE_OPTIMIZER_MAX_MEM_SIZE= DEFAULT;
 # End of test for Bug#17769777 and Bug#17413040
