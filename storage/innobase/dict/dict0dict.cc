@@ -5752,9 +5752,6 @@ dict_set_corrupted(
 			persisted in redo log */
 			log_write_up_to(mtr.commit_lsn(), true);
 
-			DBUG_EXECUTE_IF("meta_log_corrupted",
-					DBUG_SUICIDE(););
-
 			mutex_enter(&dict_persist->mutex);
 
 			switch (table->dirty_status) {
@@ -7484,8 +7481,6 @@ CorruptedIndexPersister::write(
 	++buffer;
 
 	mach_write_to_1(buffer, num);
-	DBUG_EXECUTE_IF("meta_log_corrupted",
-			mach_write_to_1(buffer,100););
 	++length;
 	++buffer;
 
@@ -7562,8 +7557,6 @@ CorruptedIndexPersister::read(
 	}
 
 	num = mach_read_from_1(buffer);
-	DBUG_EXECUTE_IF("meta_log_corrupted",
-			num = 1;);
 	++consumed;
 	++buffer;
 
