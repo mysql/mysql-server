@@ -519,7 +519,7 @@ select load_file(0x0A9FB76C661B409C4BEC88098C5DD71B1072F9691F2E827D7EC8F092B2998
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (1);
 SET NAMES latin1;
-SET character_set_filesystem=filename;
+SET character_set_filesystem=binary;
 select @@character_set_filesystem;
 SELECT * INTO OUTFILE 't-1' FROM t1;
 DELETE FROM t1;
@@ -528,11 +528,11 @@ SELECT * FROM t1;
 DELETE FROM t1;
 SET character_set_filesystem=latin1;
 select @@character_set_filesystem;
-LOAD DATA INFILE 't@002d1' INTO TABLE t1;
+LOAD DATA INFILE 't-1' INTO TABLE t1;
 SELECT * FROM t1;
 DROP TABLE t1;
 let $MYSQLD_DATADIR= `select @@datadir`;
-remove_file $MYSQLD_DATADIR/test/t@002d1;
+remove_file $MYSQLD_DATADIR/test/t-1;
 SET character_set_filesystem=default;
 select @@character_set_filesystem;
 
