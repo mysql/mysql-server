@@ -2518,6 +2518,7 @@ void ha_partition::rebind_psi()
 /**
   Clone the open and locked partitioning handler.
 
+  @param  name      Handler name
   @param  mem_root  MEM_ROOT to use.
 
   @return Pointer to the successfully created clone or NULL
@@ -3383,6 +3384,7 @@ int ha_partition::rnd_next_in_part(uint part_id, uchar *buf)
   current_position should be the offset. If it is a primary key like in
   InnoDB, then it needs to be a primary key.
 
+  @param ref     Byte array to store data
   @param record  Current record in MySQL Row Format.
 
   @note m_last_part must be set (normally done by
@@ -3581,6 +3583,7 @@ int ha_partition::index_last_in_part(uint part, uchar *buf)
   This is used in join_read_last_key to optimize away an ORDER BY.
   Can only be used on indexes supporting HA_READ_ORDER.
 
+  @param[in]     part         Partition to read from
   @param[in,out] buf          Read row in MySQL Row Format
   @param[in]     key          Key
   @param[in]     keypart_map  Which part of key is used
@@ -3678,6 +3681,7 @@ int ha_partition::index_next_same_in_part(uint part,
 
   Used to read backwards through the index (right to left, high to low).
 
+  @param[in]     part Partition id (number)
   @param[in,out] buf  Read row in MySQL Row Format.
 
   @return Operation status.
@@ -3695,6 +3699,7 @@ int ha_partition::index_prev_in_part(uint part, uchar *buf)
   Start a read of one range with start and end key.
 
   @param part_id       Partition to start in.
+  @param buf           Buffer to store data.
   @param start_key     Specification of start key.
   @param end_key       Specification of end key.
   @param eq_range_arg  Is it equal range.
@@ -3728,6 +3733,7 @@ int ha_partition::read_range_first_in_part(uint part_id,
 /**
   Read next record in read of a range with start and end key in partition.
 
+  @param buf   Buffer to store record data.
   @param part  Partition to read from.
 
   @return Operation status.
