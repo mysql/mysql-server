@@ -225,6 +225,7 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
                        int error_code, const char *msg, size_t msg_len)
 {
   mysql_event_general event;
+  char user_buff[MAX_USER_HOST_SIZE];
 
   if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS,
                                   static_cast<unsigned long>(subclass)))
@@ -235,7 +236,6 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
   event.general_thread_id= thd ? thd->thread_id() : 0;
   if (thd)
   {
-    char user_buff[MAX_USER_HOST_SIZE];
     Security_context *sctx= thd->security_context();
 
     event.general_user.str= user_buff;
