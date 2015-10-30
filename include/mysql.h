@@ -180,7 +180,7 @@ struct st_mysql_options {
   unsigned int port, protocol;
   unsigned long client_flag;
   char *host,*user,*password,*unix_socket,*db;
-  struct st_dynamic_array *init_commands;
+  struct Init_commands_array *init_commands;
   char *my_cnf_file,*my_cnf_group, *charset_dir, *charset_name;
   char *ssl_key;				/* PEM key file */
   char *ssl_cert;				/* PEM cert file */

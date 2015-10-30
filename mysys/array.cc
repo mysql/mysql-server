@@ -52,7 +52,7 @@ my_bool my_init_dynamic_array(DYNAMIC_ARRAY *array,
                               uint init_alloc,
                               uint alloc_increment)
 {
-  DBUG_ENTER("init_dynamic_array");
+  DBUG_ENTER("my_init_dynamic_array");
   if (!alloc_increment)
   {
     alloc_increment=MY_MAX((8192-MALLOC_OVERHEAD)/element_size,16);
@@ -82,17 +82,7 @@ my_bool my_init_dynamic_array(DYNAMIC_ARRAY *array,
   DBUG_RETURN(FALSE);
 } 
 
-my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
-                           uint init_alloc, uint alloc_increment)
-{
-  /* placeholder to preserve ABI */
-  return my_init_dynamic_array(array,
-                               PSI_INSTRUMENT_ME,
-                               element_size,
-                               NULL,              /* init_buffer */
-                               init_alloc, 
-                               alloc_increment);
-}
+
 /*
   Insert element at the end of array. Allocate memory if needed.
 
@@ -194,29 +184,6 @@ void *pop_dynamic(DYNAMIC_ARRAY *array)
   return 0;
 }
 
-
-/*
-  Get an element from array by given index
-
-  SYNOPSIS
-    get_dynamic()
-      array	
-      uchar*	Element to be returned. If idx > elements contain zeroes.
-      idx	Index of element wanted. 
-*/
-
-void get_dynamic(DYNAMIC_ARRAY *array, void *element, uint idx)
-{
-  if (idx >= array->elements)
-  {
-    DBUG_PRINT("warning",("To big array idx: %d, array size is %d",
-                          idx,array->elements));
-    memset(element, 0, array->size_of_element);
-    return;
-  }
-  memcpy(element,array->buffer+idx*array->size_of_element,
-         (size_t) array->size_of_element);
-}
 
 void claim_dynamic(DYNAMIC_ARRAY *array)
 {

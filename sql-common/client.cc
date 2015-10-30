@@ -93,6 +93,7 @@
 #include <sql_common.h>
 #include <mysql/client_plugin.h>
 #include "../libmysql/mysql_trace.h"  /* MYSQL_TRACE() instrumentation */
+#include "../libmysql/init_commands_array.h"
 
 #define STATE_DATA(M) \
   (NULL != (M) ? &(MYSQL_EXTENSION_PTR(M)->state_change) : NULL)
@@ -1663,15 +1664,18 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
 
   if (!options->init_commands)
   {
-    options->init_commands= (DYNAMIC_ARRAY*)my_malloc(key_memory_mysql_options,
-                                                      sizeof(DYNAMIC_ARRAY),
-						      MYF(MY_WME));
-    init_dynamic_array(options->init_commands,sizeof(char*),0,5);
+    void *rawmem= my_malloc(key_memory_mysql_options,
+                            sizeof(Init_commands_array),
+                            MYF(MY_WME));
+    if (!rawmem)
+      return 1;
+    options->init_commands=
+      new (rawmem) Init_commands_array(key_memory_mysql_options);
   }
 
-  if (!(tmp= my_strdup(key_memory_mysql_options,
-                       cmd,MYF(MY_WME))) ||
-      insert_dynamic(options->init_commands, &tmp))
+
+  if (!(tmp= my_strdup(key_memory_mysql_options, cmd,MYF(MY_WME))) ||
+      options->init_commands->push_back(tmp))
   {
     my_free(tmp);
     return 1;
@@ -4748,9 +4752,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 #ifndef MYSQL_SERVER
   if (mysql->options.init_commands)
   {
-    DYNAMIC_ARRAY *init_commands= mysql->options.init_commands;
-    char **ptr= (char**)init_commands->buffer;
-    char **end_command= ptr + init_commands->elements;
+    char **ptr= mysql->options.init_commands->begin();
+    char **end_command= mysql->options.init_commands->end();
 
     my_bool reconnect=mysql->reconnect;
     mysql->reconnect=0;
@@ -4902,13 +4905,12 @@ void mysql_close_free_options(MYSQL *mysql)
   /* ci.bind_adress is union with client_ip, already freed above */
   if (mysql->options.init_commands)
   {
-    DYNAMIC_ARRAY *init_commands= mysql->options.init_commands;
-    char **ptr= (char**)init_commands->buffer;
-    char **end= ptr + init_commands->elements;
+    char **ptr= mysql->options.init_commands->begin();
+    char **end= mysql->options.init_commands->end();
     for (; ptr<end; ptr++)
       my_free(*ptr);
-    delete_dynamic(init_commands);
-    my_free(init_commands);
+    mysql->options.init_commands->~Init_commands_array();
+    my_free(mysql->options.init_commands);
   }
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   mysql_ssl_free(mysql);

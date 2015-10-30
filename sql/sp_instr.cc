@@ -113,7 +113,7 @@ public:
 
   2) We need to empty thd->user_var_events after we have wrote a function
      call. This is currently done by making
-     reset_dynamic(&thd->user_var_events);
+     thd->user_var_events.clear()
      calls in several different places. (TODO consider moving this into
      mysql_bin_log.write() function)
 

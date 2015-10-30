@@ -30,6 +30,8 @@
 #include "embedded_priv.h"
 #include "mysql/service_mysql_alloc.h"
 #include "client_settings.h"
+#include "init_commands_array.h"
+
 #ifdef	 HAVE_PWD_H
 #include <pwd.h>
 #endif
@@ -157,9 +159,8 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 
   if (mysql->options.init_commands)
   {
-    DYNAMIC_ARRAY *init_commands= mysql->options.init_commands;
-    char **ptr= (char**)init_commands->buffer;
-    char **end= ptr + init_commands->elements;
+    char **ptr= mysql->options.init_commands->begin();
+    char **end= mysql->options.init_commands->end();
 
     for (; ptr<end; ptr++)
     {
