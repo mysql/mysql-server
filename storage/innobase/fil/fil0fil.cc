@@ -55,6 +55,10 @@ Created 10/25/1995 Heikki Tuuri
 # include "srv0srv.h"
 #endif /* !UNIV_HOTBACKUP */
 
+#ifndef DBUG_OFF
+#include <fstream>
+#endif /* !DBUG_OFF */
+
 /*
 		IMPLEMENTATION OF THE TABLESPACE MEMORY CACHE
 		=============================================
@@ -4485,6 +4489,8 @@ fil_space_extend(
 	as intrinsic table created by Optimizer reside in this tablespace. */
 	ut_ad(!srv_read_only_mode || fsp_is_system_temporary(space->id));
 
+	DBUG_EXECUTE_IF("fil_space_print_xdes_pages",
+			space->print_xdes_pages("xdes_pages.log"););
 retry:
 	bool		success = true;
 
@@ -6802,3 +6808,58 @@ fil_space_t::release_free_extents(ulint	n_reserved)
 	ut_a(n_reserved_extents >= n_reserved);
 	n_reserved_extents -= n_reserved;
 }
+
+#ifndef DBUG_OFF
+/** Print the extent descriptor pages of this tablespace into
+the given file.
+@param[in]	filename	the output file name. */
+void fil_space_t::print_xdes_pages(const char* filename) const
+{
+	std::ofstream	out(filename);
+	print_xdes_pages(out);
+}
+
+/** Print the extent descriptor pages of this tablespace into
+the given file.
+@param[in]	filename	the output file name.
+@return	the output stream. */
+std::ostream& fil_space_t::print_xdes_pages(std::ostream& out) const
+{
+	mtr_t			mtr;
+	const page_size_t	page_size(flags);
+
+	mtr_start(&mtr);
+
+	for (ulint i = 0; i < 100; ++i) {
+		ulint xdes_page_no = i * UNIV_PAGE_SIZE;
+
+		if (xdes_page_no >= size) {
+			break;
+		}
+
+		buf_block_t*	xdes_block = buf_page_get(
+			page_id_t(id, xdes_page_no), page_size,
+			RW_S_LATCH, &mtr);
+
+		page_t*	page = buf_block_get_frame(xdes_block);
+
+		ulint page_type = fil_page_get_type(page);
+
+		switch (page_type) {
+		case FIL_PAGE_TYPE_ALLOCATED:
+			ut_ad(xdes_page_no >= free_limit);
+			goto finish;
+		case FIL_PAGE_TYPE_FSP_HDR:
+		case FIL_PAGE_TYPE_XDES:
+			break;
+		default:
+			ut_error;
+		}
+
+		xdes_page_print(out, page, xdes_page_no, &mtr);
+	}
+finish:
+	mtr_commit(&mtr);
+	return(out);
+}
+#endif /* !DBUG_OFF */

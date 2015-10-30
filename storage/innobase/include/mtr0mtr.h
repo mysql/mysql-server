@@ -33,6 +33,7 @@ Created 11/26/1995 Heikki Tuuri
 #include "buf0types.h"
 #include "trx0types.h"
 #include "dyn0buf.h"
+#include "fil0fil.h"
 
 /** Start a mini-transaction. */
 #define mtr_start(m)		(m)->start()
@@ -228,6 +229,27 @@ struct mtr_t {
 
 		/** Owning mini-transaction */
 		mtr_t*		m_mtr;
+
+		/** Look up the tablespace for the given space_id, that
+		is being modified by the mini-transaction
+		@param[in]	space_id	tablespace identifier.
+		@return tablespace, or NULL if not found */
+		fil_space_t* space(ulint space_id) const
+		{
+			if (m_user_space != NULL
+			    && m_user_space->id == space_id) {
+				return(m_user_space);
+			} else if (m_undo_space != NULL
+				   && m_undo_space->id == space_id) {
+				return(m_undo_space);
+			} else if (m_sys_space != NULL
+				   && m_sys_space->id == space_id) {
+				return(m_sys_space);
+			}
+
+			return(NULL);
+		}
+
 	};
 
 	mtr_t()
@@ -236,6 +258,12 @@ struct mtr_t {
 	}
 
 	~mtr_t() { }
+
+	/** Increment the free list (FSP_FREE) length of the
+	tablespace */
+	void fsp_free_list_length_incr(ulint space_id) {
+		space(space_id)->free_len++;
+	}
 
 	/** Release the free extents that was reserved using
 	fsp_reserve_free_extents().  This is equivalent to calling
@@ -639,6 +667,12 @@ private:
 
 	/** true if it is synchronous mini-transaction */
 	bool			m_sync;
+
+	/** Look up the tablespace for the given space_id, that
+	is being modified by the mini-transaction.
+	@param[in]	space_id	tablespace identifier.
+	@return tablespace, or NULL if not found */
+	fil_space_t*	space(ulint space_id) const;
 };
 
 #ifndef UNIV_NONINL

@@ -172,6 +172,19 @@ struct fil_space_t {
 	void release_free_extents(ulint n_reserved);
 
 	ulint		magic_n;/*!< FIL_SPACE_MAGIC_N */
+
+#ifndef DBUG_OFF
+	/** Print the extent descriptor pages of this tablespace into
+	the given output stream.
+	@param[in]	out	the output stream.
+	@return	the output stream. */
+	std::ostream& print_xdes_pages(std::ostream& out) const;
+
+	/** Print the extent descriptor pages of this tablespace into
+	the given file.
+	@param[in]	filename	the output file name. */
+	void print_xdes_pages(const char* filename) const;
+#endif /* !DBUG_OFF */
 };
 
 /** Value of fil_space_t::magic_n */
@@ -358,7 +371,21 @@ typedef	byte	fil_faddr_t;	/*!< 'type' definition in C: an address
 struct fil_addr_t {
 	ulint	page;		/*!< page number within a space */
 	ulint	boffset;	/*!< byte offset within the page */
+
+	std::ostream& print(std::ostream& out) const
+	{
+		out << "[fil_addr_t: page=" << page << ", boffset="
+			<< boffset << "]";
+		return(out);
+	}
 };
+
+inline
+std::ostream&
+operator<<(std::ostream& out, const fil_addr_t&	obj)
+{
+	return(obj.print(out));
+}
 
 /** The null file address */
 extern fil_addr_t	fil_addr_null;
