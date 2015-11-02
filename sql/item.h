@@ -5110,6 +5110,10 @@ public:
       if (((Item_field *)item)->table_ref)
         used_table_map= ((Item_field *)item)->table_ref->map();
     }
+    else
+    {
+      used_table_map= item->used_tables();
+    }
     return 0;
   };
   enum Type type() const { return CACHE_ITEM; }
