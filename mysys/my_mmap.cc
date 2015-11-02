@@ -28,7 +28,7 @@
 */
 int my_msync(int fd, void *addr, size_t len, int flags)
 {
-  msync(addr, len, flags);
+  msync(static_cast<char*>(addr), len, flags);
   return my_sync(fd, MYF(0));
 }
 

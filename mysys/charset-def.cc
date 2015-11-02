@@ -29,143 +29,143 @@
 #ifdef HAVE_UCA_COLLATIONS
 
 # ifdef HAVE_CHARSET_ucs2
-extern "C" CHARSET_INFO my_charset_ucs2_german2_uca_ci;
-extern "C" CHARSET_INFO my_charset_ucs2_icelandic_uca_ci;
-extern "C" CHARSET_INFO my_charset_ucs2_latvian_uca_ci;
-extern "C" CHARSET_INFO my_charset_ucs2_romanian_uca_ci;
-extern "C" CHARSET_INFO my_charset_ucs2_slovenian_uca_ci;
-extern "C" CHARSET_INFO my_charset_ucs2_polish_uca_ci;
-extern "C" CHARSET_INFO my_charset_ucs2_estonian_uca_ci;
-extern "C" CHARSET_INFO my_charset_ucs2_spanish_uca_ci;
-extern "C" CHARSET_INFO my_charset_ucs2_swedish_uca_ci;
-extern "C" CHARSET_INFO my_charset_ucs2_turkish_uca_ci;
-extern "C" CHARSET_INFO my_charset_ucs2_czech_uca_ci;
-extern "C" CHARSET_INFO my_charset_ucs2_danish_uca_ci;
-extern "C" CHARSET_INFO my_charset_ucs2_lithuanian_uca_ci;
-extern "C" CHARSET_INFO my_charset_ucs2_slovak_uca_ci;
-extern "C" CHARSET_INFO my_charset_ucs2_spanish2_uca_ci;
-extern "C" CHARSET_INFO my_charset_ucs2_roman_uca_ci;
-extern "C" CHARSET_INFO my_charset_ucs2_persian_uca_ci;
-extern "C" CHARSET_INFO my_charset_ucs2_esperanto_uca_ci;
-extern "C" CHARSET_INFO my_charset_ucs2_hungarian_uca_ci;
-extern "C" CHARSET_INFO my_charset_ucs2_croatian_uca_ci;
-extern "C" CHARSET_INFO my_charset_ucs2_sinhala_uca_ci;
-extern "C" CHARSET_INFO my_charset_ucs2_unicode_520_ci;
-extern "C" CHARSET_INFO my_charset_ucs2_vietnamese_ci;
+extern CHARSET_INFO my_charset_ucs2_german2_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_icelandic_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_latvian_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_romanian_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_slovenian_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_polish_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_estonian_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_spanish_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_swedish_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_turkish_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_czech_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_danish_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_lithuanian_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_slovak_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_spanish2_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_roman_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_persian_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_esperanto_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_hungarian_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_croatian_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_sinhala_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_unicode_520_ci;
+extern CHARSET_INFO my_charset_ucs2_vietnamese_ci;
 # endif /* HAVE_CHARSET_ucs2 */
 
 
 # ifdef HAVE_CHARSET_utf32
-extern "C" CHARSET_INFO my_charset_utf32_german2_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf32_icelandic_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf32_latvian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf32_romanian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf32_slovenian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf32_polish_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf32_estonian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf32_spanish_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf32_swedish_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf32_turkish_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf32_czech_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf32_danish_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf32_lithuanian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf32_slovak_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf32_spanish2_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf32_roman_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf32_persian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf32_esperanto_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf32_hungarian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf32_croatian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf32_sinhala_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf32_unicode_520_ci;
-extern "C" CHARSET_INFO my_charset_utf32_vietnamese_ci;
+extern CHARSET_INFO my_charset_utf32_german2_uca_ci;
+extern CHARSET_INFO my_charset_utf32_icelandic_uca_ci;
+extern CHARSET_INFO my_charset_utf32_latvian_uca_ci;
+extern CHARSET_INFO my_charset_utf32_romanian_uca_ci;
+extern CHARSET_INFO my_charset_utf32_slovenian_uca_ci;
+extern CHARSET_INFO my_charset_utf32_polish_uca_ci;
+extern CHARSET_INFO my_charset_utf32_estonian_uca_ci;
+extern CHARSET_INFO my_charset_utf32_spanish_uca_ci;
+extern CHARSET_INFO my_charset_utf32_swedish_uca_ci;
+extern CHARSET_INFO my_charset_utf32_turkish_uca_ci;
+extern CHARSET_INFO my_charset_utf32_czech_uca_ci;
+extern CHARSET_INFO my_charset_utf32_danish_uca_ci;
+extern CHARSET_INFO my_charset_utf32_lithuanian_uca_ci;
+extern CHARSET_INFO my_charset_utf32_slovak_uca_ci;
+extern CHARSET_INFO my_charset_utf32_spanish2_uca_ci;
+extern CHARSET_INFO my_charset_utf32_roman_uca_ci;
+extern CHARSET_INFO my_charset_utf32_persian_uca_ci;
+extern CHARSET_INFO my_charset_utf32_esperanto_uca_ci;
+extern CHARSET_INFO my_charset_utf32_hungarian_uca_ci;
+extern CHARSET_INFO my_charset_utf32_croatian_uca_ci;
+extern CHARSET_INFO my_charset_utf32_sinhala_uca_ci;
+extern CHARSET_INFO my_charset_utf32_unicode_520_ci;
+extern CHARSET_INFO my_charset_utf32_vietnamese_ci;
 # endif /* HAVE_CHARSET_utf32 */
 
 
 # ifdef HAVE_CHARSET_utf16
-extern "C" CHARSET_INFO my_charset_utf16_german2_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf16_icelandic_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf16_latvian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf16_romanian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf16_slovenian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf16_polish_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf16_estonian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf16_spanish_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf16_swedish_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf16_turkish_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf16_czech_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf16_danish_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf16_lithuanian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf16_slovak_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf16_spanish2_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf16_roman_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf16_persian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf16_esperanto_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf16_hungarian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf16_croatian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf16_sinhala_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf16_unicode_520_ci;
-extern "C" CHARSET_INFO my_charset_utf16_vietnamese_ci;
+extern CHARSET_INFO my_charset_utf16_german2_uca_ci;
+extern CHARSET_INFO my_charset_utf16_icelandic_uca_ci;
+extern CHARSET_INFO my_charset_utf16_latvian_uca_ci;
+extern CHARSET_INFO my_charset_utf16_romanian_uca_ci;
+extern CHARSET_INFO my_charset_utf16_slovenian_uca_ci;
+extern CHARSET_INFO my_charset_utf16_polish_uca_ci;
+extern CHARSET_INFO my_charset_utf16_estonian_uca_ci;
+extern CHARSET_INFO my_charset_utf16_spanish_uca_ci;
+extern CHARSET_INFO my_charset_utf16_swedish_uca_ci;
+extern CHARSET_INFO my_charset_utf16_turkish_uca_ci;
+extern CHARSET_INFO my_charset_utf16_czech_uca_ci;
+extern CHARSET_INFO my_charset_utf16_danish_uca_ci;
+extern CHARSET_INFO my_charset_utf16_lithuanian_uca_ci;
+extern CHARSET_INFO my_charset_utf16_slovak_uca_ci;
+extern CHARSET_INFO my_charset_utf16_spanish2_uca_ci;
+extern CHARSET_INFO my_charset_utf16_roman_uca_ci;
+extern CHARSET_INFO my_charset_utf16_persian_uca_ci;
+extern CHARSET_INFO my_charset_utf16_esperanto_uca_ci;
+extern CHARSET_INFO my_charset_utf16_hungarian_uca_ci;
+extern CHARSET_INFO my_charset_utf16_croatian_uca_ci;
+extern CHARSET_INFO my_charset_utf16_sinhala_uca_ci;
+extern CHARSET_INFO my_charset_utf16_unicode_520_ci;
+extern CHARSET_INFO my_charset_utf16_vietnamese_ci;
 # endif  /* HAVE_CHARSET_utf16 */
 
 
 # ifdef HAVE_CHARSET_utf8
-extern "C" CHARSET_INFO my_charset_utf8_german2_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8_icelandic_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8_latvian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8_romanian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8_slovenian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8_polish_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8_estonian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8_spanish_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8_swedish_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8_turkish_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8_czech_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8_danish_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8_lithuanian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8_slovak_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8_spanish2_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8_roman_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8_persian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8_esperanto_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8_hungarian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8_croatian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8_sinhala_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8_unicode_520_ci;
-extern "C" CHARSET_INFO my_charset_utf8_vietnamese_ci;
+extern CHARSET_INFO my_charset_utf8_german2_uca_ci;
+extern CHARSET_INFO my_charset_utf8_icelandic_uca_ci;
+extern CHARSET_INFO my_charset_utf8_latvian_uca_ci;
+extern CHARSET_INFO my_charset_utf8_romanian_uca_ci;
+extern CHARSET_INFO my_charset_utf8_slovenian_uca_ci;
+extern CHARSET_INFO my_charset_utf8_polish_uca_ci;
+extern CHARSET_INFO my_charset_utf8_estonian_uca_ci;
+extern CHARSET_INFO my_charset_utf8_spanish_uca_ci;
+extern CHARSET_INFO my_charset_utf8_swedish_uca_ci;
+extern CHARSET_INFO my_charset_utf8_turkish_uca_ci;
+extern CHARSET_INFO my_charset_utf8_czech_uca_ci;
+extern CHARSET_INFO my_charset_utf8_danish_uca_ci;
+extern CHARSET_INFO my_charset_utf8_lithuanian_uca_ci;
+extern CHARSET_INFO my_charset_utf8_slovak_uca_ci;
+extern CHARSET_INFO my_charset_utf8_spanish2_uca_ci;
+extern CHARSET_INFO my_charset_utf8_roman_uca_ci;
+extern CHARSET_INFO my_charset_utf8_persian_uca_ci;
+extern CHARSET_INFO my_charset_utf8_esperanto_uca_ci;
+extern CHARSET_INFO my_charset_utf8_hungarian_uca_ci;
+extern CHARSET_INFO my_charset_utf8_croatian_uca_ci;
+extern CHARSET_INFO my_charset_utf8_sinhala_uca_ci;
+extern CHARSET_INFO my_charset_utf8_unicode_520_ci;
+extern CHARSET_INFO my_charset_utf8_vietnamese_ci;
 #  ifdef HAVE_UTF8_GENERAL_CS
-extern "C" CHARSET_INFO my_charset_utf8_general_cs;
+extern CHARSET_INFO my_charset_utf8_general_cs;
 #  endif
 # endif
 
 # ifdef HAVE_CHARSET_utf8mb4
-extern "C" CHARSET_INFO my_charset_utf8mb4_german2_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8mb4_icelandic_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8mb4_latvian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8mb4_romanian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8mb4_slovenian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8mb4_polish_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8mb4_estonian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8mb4_spanish_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8mb4_swedish_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8mb4_turkish_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8mb4_czech_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8mb4_danish_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8mb4_lithuanian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8mb4_slovak_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8mb4_spanish2_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8mb4_roman_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8mb4_persian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8mb4_esperanto_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8mb4_hungarian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8mb4_croatian_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8mb4_sinhala_uca_ci;
-extern "C" CHARSET_INFO my_charset_utf8mb4_unicode_520_ci;
-extern "C" CHARSET_INFO my_charset_utf8mb4_vietnamese_ci;
+extern CHARSET_INFO my_charset_utf8mb4_german2_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_icelandic_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_latvian_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_romanian_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_slovenian_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_polish_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_estonian_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_spanish_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_swedish_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_turkish_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_czech_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_danish_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_lithuanian_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_slovak_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_spanish2_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_roman_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_persian_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_esperanto_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_hungarian_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_croatian_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_sinhala_uca_ci;
+extern CHARSET_INFO my_charset_utf8mb4_unicode_520_ci;
+extern CHARSET_INFO my_charset_utf8mb4_vietnamese_ci;
 # endif /* HAVE_CHARSET_utf8mb4 */
 
 # ifdef HAVE_CHARSET_gb18030
-extern "C" CHARSET_INFO my_charset_gb18030_unicode_520_ci;
+extern CHARSET_INFO my_charset_gb18030_unicode_520_ci;
 # endif /* HAVE_CHARSET_gb18030 */
 #endif /* HAVE_UCA_COLLATIONS */
 
