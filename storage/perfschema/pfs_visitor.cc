@@ -134,9 +134,12 @@ public:
     if (pfs != NULL)
     {
       PFS_account *account= sanitize_account(pfs->m_account);
-      if (account->m_host == m_host)
+      if (account != NULL)
       {
-        m_visitor->visit_THD(thd);
+        if (account->m_host == m_host)
+        {
+          m_visitor->visit_THD(thd);
+        }
       }
       else if (pfs->m_host == m_host)
       {
@@ -220,9 +223,12 @@ public:
     if (pfs != NULL)
     {
       PFS_account *account= sanitize_account(pfs->m_account);
-      if (account->m_user == m_user)
+      if (account != NULL)
       {
-        m_visitor->visit_THD(thd);
+        if (account->m_user == m_user)
+        {
+          m_visitor->visit_THD(thd);
+        }
       }
       else if (pfs->m_user == m_user)
       {
