@@ -1465,7 +1465,7 @@ END_OF_INPUT
 
 %type <field_separators> field_term field_term_list opt_field_term
 
-%type <into_destination> into_destination into
+%type <into_destination> into_destination into_clause
 
 %type <select_var_ident> select_var_ident
 
@@ -1487,7 +1487,7 @@ END_OF_INPUT
 
 %type <derived_table> derived_table
 
-%type <select> select do_stmt select_into
+%type <select> select_stmt do_stmt select_stmt_with_into
 
 %type <param_marker> param_marker
 
@@ -1651,7 +1651,7 @@ statement:
         | revoke
         | rollback
         | savepoint
-        | select                { CONTEXTUALIZE($1); }
+        | select_stmt           { CONTEXTUALIZE($1); }
         | set                   { CONTEXTUALIZE($1); }
         | signal_stmt
         | show
@@ -3055,7 +3055,7 @@ sp_decl:
             sp->reset_lex(thd);
             sp->m_parser_data.set_current_stmt_start_ptr(@4.raw.end);
           }
-          select        /*$6*/
+          select_stmt   /*$6*/
           {             /*$7*/
             CONTEXTUALIZE($6);
 
@@ -8901,7 +8901,7 @@ opt_ignore_leaves:
         | IGNORE_SYM LEAVES { $$= TL_OPTION_IGNORE_LEAVES; }
         ;
 
-select:
+select_stmt:
           query_expression
           {
             $$= NEW_PTN PT_select($1);
@@ -8911,15 +8911,20 @@ select:
             $1->set_parentheses();
             $$= NEW_PTN PT_select($1);
           }
-        | select_into
+        | select_stmt_with_into
         ;
 
 /*
-  MySQL has a legacy syntax that allows multiple into clauses. They may appear
-  either before the from clause or at the end. All in a top-level select
-  statement. This makes the grammar ambiguous, because in a from-clause-less
-  select statement with into clause, it is not clear whether the into clause
-  is the leading or the trailing one.
+  MySQL has a syntax extension that allows into clauses in any one of two
+  places. They may appear either before the from clause or at the end. All in
+  a top-level select statement. This extends the standard syntax in two
+  ways. First, we don't have the restriction that the result can contain only
+  one row: the into clause might be INTO OUTFILE/DUMPFILE in which case any
+  number of rows is allowed. Hence MySQL does not have any special case for
+  the standard's <select statement: single row>. Secondly, and this has more
+  severe implications for the parser, it makes the grammar ambiguous, because
+  in a from-clause-less select statement with an into clause, it is not clear
+  whether the into clause is the leading or the trailing one.
 
   While it's possible to write an unambiguous grammar, it would force us to
   duplicate the entire <select statement> syntax all the way down to the <into
@@ -8941,12 +8946,12 @@ select:
   throwing parse errors whenever we reduce a nested query expression if it
   contains an into clause.
 */
-select_into:
-          '(' select_into ')'
+select_stmt_with_into:
+          '(' select_stmt_with_into ')'
           {
             $$= $2;
           }
-        | query_expression into
+        | query_expression into_clause
           {
             if ($1->has_into_clause())
               YYTHD->parse_error_at(@2, ER_THD(YYTHD, ER_SYNTAX_ERROR));
@@ -8977,8 +8982,11 @@ select_init:
         ;
 
 query_expression:
-          query_expression_body opt_order_clause opt_limit_clause
-          opt_procedure_analyse_clause opt_select_lock_type
+          query_expression_body
+          opt_order_clause
+          opt_limit_clause
+          opt_procedure_analyse_clause
+          opt_select_lock_type
           {
             if ($1->is_union() && $4 != NULL)
               my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
@@ -8991,8 +8999,11 @@ query_expression:
 
             $$= NEW_PTN PT_query_expression($1, $2, @$, $3, $4, $5);
           }
-        | query_expression_parens order_clause opt_limit_clause
-          opt_procedure_analyse_clause opt_select_lock_type
+        | query_expression_parens
+          order_clause
+          opt_limit_clause
+          opt_procedure_analyse_clause
+          opt_select_lock_type
           {
             if ($1->is_union() && $4 != NULL)
               my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
@@ -9002,8 +9013,10 @@ query_expression:
               NEW_PTN PT_query_expression_body_primary(nested);
             $$= NEW_PTN PT_query_expression(body, $2, @$, $3, $4, $5);
           }
-        | query_expression_parens limit_clause
-          opt_procedure_analyse_clause opt_select_lock_type
+        | query_expression_parens
+          limit_clause
+          opt_procedure_analyse_clause
+          opt_select_lock_type
           {
             if ($1->is_union() && $3 != NULL)
               my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
@@ -9105,7 +9118,7 @@ select_part2:
             $$= NEW_PTN PT_select_part2($1, NULL, NULL, NULL, NULL, NULL,
                                         $2, $3, NULL, NULL, $4);
           }
-        | select_options_and_item_list into opt_select_lock_type
+        | select_options_and_item_list into_clause opt_select_lock_type
           {
             $$= NEW_PTN PT_select_part2($1, $2, NULL, NULL, NULL, NULL, NULL,
                                         NULL, NULL, NULL, $3);
@@ -9129,7 +9142,7 @@ select_part2:
 // todo: consolidate
 query_specification:
           select_options_and_item_list
-          into
+          into_clause
           opt_from_clause
           opt_where_clause              /* $4 */
           opt_group_clause              /* $5 */
@@ -11169,7 +11182,7 @@ select_var_ident:
           }
         ;
 
-into:
+into_clause:
           INTO into_destination
           {
             $$= $2;
@@ -12383,7 +12396,7 @@ describe:
         ;
 
 explainable_command:
-          select  { CONTEXTUALIZE($1); }
+          select_stmt { CONTEXTUALIZE($1); }
         | insert_stmt                           { MAKE_CMD($1); }
         | replace_stmt                          { MAKE_CMD($1); }
         | update_stmt                           { MAKE_CMD($1); }
