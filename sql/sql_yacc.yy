@@ -1410,7 +1410,8 @@ END_OF_INPUT
 %type <node> join_table join_table_parens order_or_limit
           option_value union_opt
 
-%type <table_reference_list> table_reference_list from_clause opt_from_clause
+%type <table_reference_list> opt_from_clause from_clause from_tables
+          table_reference_list
 
 %type <olap_type> olap_opt
 
@@ -1473,9 +1474,9 @@ END_OF_INPUT
 
 %type <select_options_and_item_list> select_options_and_item_list
 
-%type <select_part2> select_part2 query_specification
+%type <select_part2> select_part2
 
-%type <query_primary> query_primary
+%type <query_primary> query_primary  query_specification
 
 %type <select_paren> select_paren
 
@@ -9081,18 +9082,30 @@ query_expression_parens:
         | '(' query_expression ')'
         {
           /*
-            We don't call set_parentheses() on a query expression here, since
-            this rule is used in places where parentheses don't count for the
-            SELECT_LEX structure, for example in derived tables.
+            We don't call set_parentheses() on a query expression here. It
+            makes no difference to the contextualization phase whether a query
+            expression was within parentheses unless it is used in conjunction
+            with UNION. Therefore set_parentheses() is called only in the
+            rules producing UNION syntax.
+
+            The need for set_parentheses() is purely to support legacy parse
+            rules, and we are gradually moving away from them and using the
+            query_expression_body to define UNION syntax. When this move is
+            complete, we will not need set_parentheses() any more, and the
+            contextualize() phase can be greatly simplified.
           */
           $$= $2;
           }
         ;
 
 query_primary:
-          SELECT_SYM query_specification
+          query_specification
           {
-            $$= NEW_PTN PT_query_specification($1, $2);
+            /*
+              Bison doesn't always get polymorphism. We need to give it a
+              friendly nudge sometimes.
+            */
+            $$= $1;
           }
         ;
 
@@ -9138,49 +9151,42 @@ select_part2:
           }
         ;
 
-
-// todo: consolidate
 query_specification:
+          SELECT_SYM
           select_options_and_item_list
           into_clause
           opt_from_clause
-          opt_where_clause              /* $4 */
-          opt_group_clause              /* $5 */
-          opt_having_clause             /* $6 */
+          opt_where_clause
+          opt_group_clause
+          opt_having_clause
           {
-            $$= NEW_PTN PT_select_part2($1,   // 1 select_options_and_item_list
-                                        $2,   // 2 into
-                                        $3,   // 3 from
-                                        $4,   // 4 where
-                                        $5,   // 5 group
-                                        $6,   // 6 having
-                                        NULL, // 7 order
-                                        NULL, // 8 limit
-                                        NULL, // 9 procedure
-                                        NULL, // 10 into
-                                        Select_lock_type());// 11 lock type
+            PT_select_part2 *select_part2=
+              NEW_PTN PT_select_part2($2,  // select_options_and_item_list
+                                      $3,  // into_clause
+                                      $4,  // from
+                                      $5,  // where
+                                      $6,  // group
+                                      $7); // having
+
+            $$= NEW_PTN PT_query_specification($1, select_part2);
           }
-        | select_options_and_item_list  /* $1 */
-          opt_from_clause               /* $2 */
-          opt_where_clause              /* $3 */
-          opt_group_clause              /* $4 */
-          opt_having_clause             /* $5 */
+        | SELECT_SYM
+          select_options_and_item_list
+          opt_from_clause
+          opt_where_clause
+          opt_group_clause
+          opt_having_clause
           {
-            $$= NEW_PTN PT_select_part2($1,   // 1 select_options_and_item_list
-                                        NULL, //   into
-                                        $2,   // 2 from
-                                        $3,   // 3 where
-                                        $4,   // 4 group
-                                        $5,   // 5 having
-                                        NULL, // 6 order
-                                        NULL, // 7 limit
-                                        NULL, //   procedure
-                                        NULL, //   into
-                                        Select_lock_type());//   lock type
+            PT_select_part2 *select_part2=
+              NEW_PTN PT_select_part2($2,  // select_options_and_item_list
+                                      $3,  // from
+                                      $4,  // where
+                                      $5,  // group
+                                      $6); // having
+
+            $$= NEW_PTN PT_query_specification($1, select_part2);
           }
         ;
-
-
 
 select_options_and_item_list:
           {
@@ -9214,13 +9220,18 @@ table_expression:
           }
         ;
 
-from_clause:
-          FROM table_reference_list { $$= $2; }
+opt_from_clause:
+          /* Empty. */ %prec EMPTY_FROM_CLAUSE { $$= NULL; }
+        | from_clause
         ;
 
-opt_from_clause:
-          /* empty */ %prec EMPTY_FROM_CLAUSE { $$= NULL; }
-        | from_clause
+from_clause:
+          FROM from_tables { $$= $2; }
+        ;
+
+from_tables:
+          DUAL_SYM { $$= NULL; }
+        | table_reference_list
         ;
 
 table_reference_list:
@@ -9228,11 +9239,6 @@ table_reference_list:
           {
             $$= NEW_PTN PT_table_reference_list($1);
           }
-        | DUAL_SYM { $$= NULL; }
-          /* oracle compatibility: oracle always requires FROM clause,
-             and DUAL is system table without fields.
-             Is "SELECT 1 FROM DUAL" any better than "SELECT 1" ?
-          Hmmm :) */
         ;
 
 select_options:
@@ -9631,7 +9637,7 @@ simple_expr:
           {
             $$= NEW_PTN Item_row(@$, $3, $5->value);
           }
-        | EXISTS subquery
+        | EXISTS table_subquery
           {
             $$= NEW_PTN PTI_exists_subselect(@$, $2);
           }
@@ -10689,7 +10695,7 @@ join_table_parens:
         | '(' join_table ')' { $$= $2; }
         ;
 
-derived_table: subquery opt_table_alias
+derived_table: table_subquery opt_table_alias
           {
             /*
               The alias is actually not optional at all, but being MySQL we
@@ -11210,13 +11216,6 @@ into_destination:
 do_stmt:
           DO_SYM empty_select_options select_item_list
           {
-/*
-            $$= NEW_PTN PT_select(
-                  NEW_PTN PT_select_init2(NULL,
-                    NEW_PTN PT_select_part2(
-                      NEW_PTN PT_select_options_and_item_list($2, $3)), NULL),
-                                                              SQLCOM_DO);
-*/
             $$= NEW_PTN PT_select
               (SQLCOM_DO,
                NEW_PTN PT_query_expression

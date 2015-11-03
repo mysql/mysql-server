@@ -328,6 +328,21 @@ TEST_F(UnionSyntaxTest, UnionNestedQueryBlock)
     << "The union should not have an order by clause.";
 }
 
+TEST_F(UnionSyntaxTest, NestedQueryExpWithLimit)
+{
+  SELECT_LEX *block1=
+    parse("(SELECT 1 ORDER BY a LIMIT 5) UNION SELECT 2 ORDER BY b LIMIT 8");
+
+  SELECT_LEX_UNIT *query_expression= block1->master_unit();
+
+  EXPECT_STREQ("a", get_order_by_column_name(block1, 0));
+  EXPECT_EQ(5, block1->select_limit->val_int());
+
+  SELECT_LEX *fake= query_expression->fake_select_lex;
+  EXPECT_STREQ("b", get_order_by_column_name(fake, 0));
+  EXPECT_EQ(8, fake->select_limit->val_int());
+}
+
 TEST_F(UnionSyntaxTest, IgnoredTrailingLimitOnQueryTerm)
 {
   SELECT_LEX *block1= parse("(SELECT 1) UNION SELECT 2 LIMIT 123");

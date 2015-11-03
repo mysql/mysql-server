@@ -1900,6 +1900,46 @@ public:
     opt_into2(opt_into2_arg),
     opt_select_lock_type(opt_select_lock_type_arg)
   {}
+
+  PT_select_part2(
+    PT_select_options_and_item_list *select_options_and_item_list_arg,
+    PT_into_destination *opt_into1_arg,
+    PT_table_reference_list *from_clause_arg,
+    Item *opt_where_clause_arg,
+    PT_group *opt_group_clause_arg,
+    Item *opt_having_clause_arg)
+  : select_options_and_item_list(select_options_and_item_list_arg),
+    opt_into1(opt_into1_arg),
+    from_clause(from_clause_arg),
+    opt_where_clause(opt_where_clause_arg),
+    opt_group_clause(opt_group_clause_arg),
+    opt_having_clause(opt_having_clause_arg),
+    opt_order_clause(NULL),
+    opt_limit_clause(NULL),
+    opt_procedure_analyse_clause(NULL),
+    opt_into2(NULL),
+    opt_select_lock_type()
+  {}
+
+  PT_select_part2(
+    PT_select_options_and_item_list *select_options_and_item_list_arg,
+    PT_table_reference_list *from_clause_arg,
+    Item *opt_where_clause_arg,
+    PT_group *opt_group_clause_arg,
+    Item *opt_having_clause_arg)
+  : select_options_and_item_list(select_options_and_item_list_arg),
+    opt_into1(NULL),
+    from_clause(from_clause_arg),
+    opt_where_clause(opt_where_clause_arg),
+    opt_group_clause(opt_group_clause_arg),
+    opt_having_clause(opt_having_clause_arg),
+    opt_order_clause(NULL),
+    opt_limit_clause(NULL),
+    opt_procedure_analyse_clause(NULL),
+    opt_into2(NULL),
+    opt_select_lock_type()
+  {}
+
   explicit PT_select_part2(
     PT_select_options_and_item_list *select_options_and_item_list_arg)
   : select_options_and_item_list(select_options_and_item_list_arg),
