@@ -5194,6 +5194,10 @@ template
 Gis_wkb_vector<Gis_polygon>::
 Gis_wkb_vector(void const*, size_t,
                Geometry::Flags_t const&, srid_t, bool);
+template
+Gis_wkb_vector<Gis_point>::
+Gis_wkb_vector(void const*, size_t,
+               Geometry::Flags_t const&, srid_t, bool);
 
 template
 Gis_wkb_vector<Gis_point>&
