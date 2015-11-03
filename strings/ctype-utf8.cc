@@ -7439,7 +7439,7 @@ static const uint16 uni_FF20_FF5F[64]=
 
 static int hexlo(int x)
 {
-  static char hex_lo_digit[256]=
+  static signed char hex_lo_digit[256]=
   {
     -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, /* ................ */
     -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, /* ................ */
