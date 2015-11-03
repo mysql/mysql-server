@@ -2941,7 +2941,7 @@ fts_optimize_thread(
 
 	tables = ib_vector_create(heap_alloc, sizeof(fts_slot_t), 4);
 
-	while (!done && srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+	while (!done) {
 
 		/* If there is no message in the queue and we have tables
 		to optimize then optimize the tables. */
