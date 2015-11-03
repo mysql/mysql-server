@@ -272,6 +272,15 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share)
             {
               Field *table_field= key_part[i].field;
 
+              // Index on virtual generated columns is not allowed to be PK
+              // even when the conditions below are true, so this case must be
+              // rejected here.
+              if (table_field->is_virtual_gcol())
+              {
+                primary_key= MAX_KEY;              // Can't be used
+                break;
+              }
+
               /*
                 If the key column is of NOT NULL BLOB type, then it
                 will definitly have key prefix. And if key part prefix size
@@ -296,9 +305,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share)
                 continue;
 
               if (table_field->real_maybe_null() ||
-                  table_field->key_length() != key_part[i].length ||
-                  // Index on virtual generated columns is not allowed to be PK
-                  table_field->is_virtual_gcol())
+                  table_field->key_length() != key_part[i].length)
               {
                 primary_key= MAX_KEY;		// Can't be used
                 break;
