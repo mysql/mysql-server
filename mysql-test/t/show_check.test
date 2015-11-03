@@ -134,6 +134,11 @@ show create table t1;
 drop table t1;
 
 flush tables;
+#
+# We will see some of new DD tables being opened
+# after flush tables. These tables were open when we write to
+# mysql.general_log.
+#
 show open tables;
 create table t1(n int);
 insert into t1 values (1);
@@ -421,20 +426,6 @@ create table t1 (
 );
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
-
-# Test for Bug#93 4.1 protocl crash on corupted frm and SHOW TABLE STATUS
-
-flush tables;
-
-# Create a junk frm file on disk
-let $MYSQLD_DATADIR= `select @@datadir`;
-exec echo "this is a junk file for test" >> $MYSQLD_DATADIR/test/t1.frm ;
---replace_column 6 # 7 # 8 # 9 # 12 #
-SHOW TABLE STATUS like 't1';
---error ER_NOT_FORM_FILE
-show create table t1;
-drop table if exists t1;
---remove_file $MYSQLD_DATADIR/test/t1.frm
 
 #
 # Bug#12183 SHOW OPEN TABLES behavior doesn't match grammar

@@ -39,6 +39,7 @@
 #include <ndbapi/NdbDictionary.hpp>
 #include <ndbapi/ndb_cluster_connection.hpp>
 #include "mysqld_thd_manager.h"  // Global_THD_manager
+#include "dd_table_share.h"
 
 extern my_bool opt_ndb_log_orig;
 extern my_bool opt_ndb_log_bin;
@@ -313,7 +314,7 @@ ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share)
                        share->db, 0,
                        share->table_name,
                        share->key_string());
-  if ((error= open_table_def(thd, shadow_table_share, 0)) ||
+  if ((error= open_table_def(thd, shadow_table_share, false, NULL)) ||
       (error= open_table_from_share(thd, shadow_table_share, "", 0,
                                     (uint) (OPEN_FRM_FILE_ONLY | DELAYED_OPEN | READ_ALL),
                                     0, shadow_table,
@@ -1420,14 +1421,17 @@ int ndbcluster_find_all_files(THD *thd)
       uchar *data= 0, *pack_data= 0;
       size_t length, pack_length;
       int discover= 0;
-      if (readfrm(key, &data, &length) ||
-          packfrm(data, length, &pack_data, &pack_length))
+      if (create_serialized_meta_data(elmt.database, elmt.name,
+                                      &data, &length) ||
+          compress_serialized_meta_data(data, length, &pack_data, &pack_length))
       {
         discover= 1;
         sql_print_information("NDB: missing frm for %s.%s, discovering...",
                               elmt.database, elmt.name);
       }
-      else if (cmp_frm(ndbtab, pack_data, pack_length))
+      else if (different_serialized_meta_data(
+                         static_cast<const uchar *>(ndbtab->getFrmData()),
+                         ndbtab->getFrmLength(), pack_data, pack_length))
       {
         /* ndb_share reference temporary */
         NDB_SHARE *share= get_share(key, 0, FALSE);
@@ -2897,9 +2901,12 @@ class Ndb_schema_event_handler {
     uchar *data= 0, *pack_data= 0;
     size_t length, pack_length;
 
-    if (readfrm(key, &data, &length) == 0 &&
-        packfrm(data, length, &pack_data, &pack_length) == 0 &&
-        cmp_frm(ndbtab, pack_data, pack_length))
+    if (create_serialized_meta_data(db_name, table_name, &data, &length) == 0 &&
+        compress_serialized_meta_data(data, length, &pack_data,
+                                      &pack_length) == 0 &&
+        different_serialized_meta_data(
+                        static_cast<const uchar *>(ndbtab->getFrmData()),
+                        ndbtab->getFrmLength(), pack_data, pack_length))
     {
       DBUG_PRINT("info", ("Detected frm change of table %s.%s",
                           db_name, table_name));
@@ -2910,9 +2917,12 @@ class Ndb_schema_event_handler {
       data= NULL;
 
       int error;
-      if ((error= unpackfrm(&data, &length,
-                            (const uchar*) ndbtab->getFrmData())) ||
-          (error= writefrm(key, data, length)))
+      uchar *sdi_data= const_cast<uchar *>(
+                         static_cast<const uchar *>(ndbtab->getFrmData()));
+      if ((error= uncompress_serialized_meta_data(sdi_data,
+                                                  ndbtab->getFrmLength(),
+                                                  &data, &length)) ||
+          (error= import_serialized_meta_data(data, length, true)))
       {
         sql_print_error("NDB: Failed write frm for %s.%s, error %d",
                         db_name, table_name, error);
@@ -3953,7 +3963,7 @@ ndb_binlog_index_table__open(THD *thd,
                         TL_WRITE);                      // for write
 
   /* Only allow real table to be opened */
-  tables.required_type= FRMTYPE_TABLE;
+  tables.required_type= dd::Abstract_table::TT_BASE_TABLE;
 
   const uint flags =
     MYSQL_LOCK_IGNORE_TIMEOUT; /* Wait for lock "infinitely" */

@@ -36,7 +36,7 @@ Cost_model_server::~Cost_model_server()
 
 void Cost_model_server::init()
 {
-  if (m_server_cost_constants == NULL)
+  if (cost_constant_cache && m_server_cost_constants == NULL)
   {
     // Get the current set of cost constants
     m_cost_constants= cost_constant_cache->get_cost_constants();

@@ -15,6 +15,7 @@ optimize table mysql.proxies_priv;
 optimize table mysql.tables_priv;
 optimize table mysql.procs_priv;
 optimize table mysql.servers;
+flush privileges;
 update performance_schema.setup_consumers set enabled='YES';
 update performance_schema.setup_objects set enabled='YES'
   where object_type='TABLE' and object_schema= 'mysql';

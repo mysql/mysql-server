@@ -140,6 +140,7 @@ public:
   uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
   virtual void update_default(longlong new_def_value)
   { option.def_value= new_def_value; }
+  longlong get_default() { return option.def_value; }
 
   /**
      Update the system variable with the default value from either

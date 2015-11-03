@@ -2925,8 +2925,8 @@ EXECUTING:[19][DROP DATABASE test1]
 
 		[data] no rows
 
-		[end] server status: 0
-		[end] server status: 
+		[end] server status: 256
+		[end] server status: DB_DROPPED 
 		[end] warning count:  0
 		[end] affected rows:  1
 		[end] last insert id: 0
@@ -5856,8 +5856,8 @@ EXECUTING:[19][DROP DATABASE test1]
 
 		[data] no rows
 
-		[end] server status: 0
-		[end] server status: 
+		[end] server status: 256
+		[end] server status: DB_DROPPED 
 		[end] warning count:  0
 		[end] affected rows:  1
 		[end] last insert id: 0

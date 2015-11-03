@@ -294,6 +294,9 @@ show create table t3;
 select * from t3;
 # Disable PS becasue of @@warning_count
 create table if not exists t3 like t1;
+# HANDLER_READ_KEY count differs when using ps protocol because of prepare
+# phase of ps protocol results in call to innodb storage engine apis to check
+# for table existence.
 --disable_ps_protocol
 select @@warning_count;
 --enable_ps_protocol
@@ -837,6 +840,10 @@ create table t2(a int not null, b int not null, c int not null, primary key (a),
 foreign key fk_bug26104 (b,c) references t1(a));
 drop table t1;
 
+# HANDLER_READ_KEY count differs when using ps protocol because of prepare
+# phase of ps protocol results in call to innodb storage engine apis to check
+# for table existence.
+--disable_ps_protocol
 #
 # Bug#15130:CREATE .. SELECT was denied to use advantages of the SQL_BIG_RESULT.
 #
@@ -846,6 +853,7 @@ flush status;
 create table t2 select sql_big_result f1,count(f2) from t1 group by f1;
 show status like 'handler_read%';
 drop table t1,t2;
+--enable_ps_protocol
 
 #
 # Bug #25162: Backing up DB from 5.1 adds 'USING BTREE' to KEYs on table creates
@@ -1801,14 +1809,14 @@ DROP DATABASE db_with_tables_and_an_unrelated_file_in_data_directory;
 DROP DATABASE db_with_tables_and_an_unrelated_file_in_data_directory;
 
 # Case 3: A database (fakely created using mkdir) and has an unrelated file in it's database
-#         directory. Dropping such database should throw ER_DB_DROP_RMDIR
-#         error.
+#         directory. Dropping such database should throw ER_DB_DROP_EXISTS
+#         error (creating a database with mkdir is not supported with new DD).
 --mkdir $MYSQLD_DATADIR/db_created_with_mkdir_and_an_unrelated_file_in_data_directory
 --write_file $MYSQLD_DATADIR/db_created_with_mkdir_and_an_unrelated_file_in_data_directory/intruder.txt
 EOF
 --replace_result $MYSQLD_DATADIR ./ \\ /
---error ER_DB_DROP_RMDIR
+--error ER_DB_DROP_EXISTS
 DROP DATABASE db_created_with_mkdir_and_an_unrelated_file_in_data_directory;
 # Cleanup
 --remove_file $MYSQLD_DATADIR/db_created_with_mkdir_and_an_unrelated_file_in_data_directory/intruder.txt
-DROP DATABASE db_created_with_mkdir_and_an_unrelated_file_in_data_directory;
+--rmdir $MYSQLD_DATADIR/db_created_with_mkdir_and_an_unrelated_file_in_data_directory

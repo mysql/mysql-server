@@ -799,9 +799,6 @@ btr_cur_search_to_nth_level(
 	      || RTREE_SEARCH_MODE(mode));
 	ut_ad(dict_index_check_search_tuple(index, tuple));
 	ut_ad(!dict_index_is_ibuf(index) || ibuf_inside(mtr));
-	ut_ad(dtuple_check_typed(tuple));
-	ut_ad(!(index->type & DICT_FTS));
-	ut_ad(index->page != FIL_NULL);
 
 	UNIV_MEM_INVALID(&cursor->up_match, sizeof cursor->up_match);
 	UNIV_MEM_INVALID(&cursor->up_bytes, sizeof cursor->up_bytes);
@@ -1994,8 +1991,6 @@ btr_cur_search_to_nth_level_with_no_latch(
 	ut_ad(dict_table_is_intrinsic(index->table));
 	ut_ad(level == 0 || mode == PAGE_CUR_LE);
 	ut_ad(dict_index_check_search_tuple(index, tuple));
-	ut_ad(dtuple_check_typed(tuple));
-	ut_ad(index->page != FIL_NULL);
 
 	UNIV_MEM_INVALID(&cursor->up_match, sizeof cursor->up_match);
 	UNIV_MEM_INVALID(&cursor->low_match, sizeof cursor->low_match);

@@ -4389,7 +4389,6 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
 {
   DBUG_ENTER("Query_log_event::do_apply_event");
   int expected_error,actual_error= 0;
-  HA_CREATE_INFO db_options;
 
   DBUG_PRINT("info", ("query=%s", query));
 
@@ -4414,9 +4413,18 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   /*
     Setting the character set and collation of the current database thd->db.
    */
-  load_db_opt_by_name(thd, thd->db().str, &db_options);
-  if (db_options.default_table_charset)
-    thd->db_charset= db_options.default_table_charset;
+  if (get_default_db_collation(thd, db, &thd->db_charset))
+  {
+    DBUG_ASSERT(thd->is_error() || thd->killed);
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
+                "Error in get_default_db_collation: %s",
+                thd->get_stmt_da()->message_text());
+    thd->is_slave_error= true;
+    goto end;
+  }
+
+  thd->db_charset= thd->db_charset ? thd->db_charset : thd->collation();
+
   thd->variables.auto_increment_increment= auto_increment_increment;
   thd->variables.auto_increment_offset=    auto_increment_offset;
   if (explicit_defaults_ts != TERNARY_UNSET)
@@ -11607,7 +11615,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
   table_list->table_id=
     DBUG_EVALUATE_IF("inject_tblmap_same_id_maps_diff_table", 0, m_table_id.id());
   table_list->updating= 1;
-  table_list->required_type= FRMTYPE_TABLE;
+  table_list->required_type= dd::Abstract_table::TT_BASE_TABLE;
   DBUG_PRINT("debug", ("table: %s is mapped to %llu", table_list->table_name,
                        table_list->table_id.id()));
 

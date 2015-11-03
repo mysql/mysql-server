@@ -15,17 +15,18 @@
 
 #include "sql_truncate.h"
 
-#include "debug_sync.h"  // DEBUG_SYNC
-#include "table.h"       // TABLE, FOREIGN_KEY_INFO
-#include "sql_class.h"   // THD
-#include "sql_base.h"    // open_and_lock_tables
-#include "sql_table.h"   // write_bin_log
-#include "datadict.h"    // dd_recreate_table()
-#include "lock.h"        // MYSQL_OPEN_* flags
-#include "auth_common.h" // DROP_ACL
-#include "sql_parse.h"   // check_one_table_access()
-#include "sql_show.h"    //append_identifier()
-#include "sql_cache.h"   // query_cache
+#include "auth_common.h"    // DROP_ACL
+#include "debug_sync.h"     // DEBUG_SYNC
+#include "lock.h"           // MYSQL_OPEN_* flags
+#include "sql_base.h"       // open_and_lock_tables
+#include "sql_cache.h"      // query_cache
+#include "sql_class.h"      // THD
+#include "sql_parse.h"      // check_one_table_access()
+#include "sql_show.h"       // append_identifier()
+#include "sql_table.h"      // write_bin_log
+#include "table.h"          // TABLE, FOREIGN_KEY_INFO
+
+#include "dd/dd_table.h"    // dd::recreate_table
 
 
 /**
@@ -215,7 +216,7 @@ Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
       or writing into the table. Yet, to open a write cursor we need
       a thr_lock lock. Allow to open base tables only.
     */
-    table_ref->required_type= FRMTYPE_TABLE;
+    table_ref->required_type= dd::Abstract_table::TT_BASE_TABLE;
     /*
       Ignore pending FLUSH TABLES since we don't want to release
       the MDL lock taken above and otherwise there is no way to
@@ -277,6 +278,7 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
 {
   bool error= TRUE;
   TABLE_SHARE *share= table->s;
+  TABLE *new_table;
   HA_CREATE_INFO create_info;
   handlerton *table_type= table->s->db_type();
   DBUG_ENTER("recreate_temporary_table");
@@ -300,11 +302,16 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
     on table and schema names.
   */
   ha_create_table(thd, share->normalized_path.str, share->db.str,
-                  share->table_name.str, &create_info, true, true);
+                  share->table_name.str, &create_info, true, true,
+                  share->tmp_table_def);
 
-  if (open_table_uncached(thd, share->path.str, share->db.str,
-                          share->table_name.str, true, true))
+  if ((new_table= open_table_uncached(thd, share->path.str, share->db.str,
+                                      share->table_name.str, true, true,
+                                      share->tmp_table_def)))
   {
+    /* Transfer ownership of dd::Table object to the new TABLE_SHARE. */
+    new_table->s->tmp_table_def= share->tmp_table_def;
+    share->tmp_table_def= NULL;
     error= FALSE;
     thd->thread_specific_used= TRUE;
   }
@@ -373,8 +380,8 @@ bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref,
                          thd->variables.lock_wait_timeout, 0))
       DBUG_RETURN(TRUE);
 
-    if (dd_check_storage_engine_flag(thd, table_ref->db, table_ref->table_name,
-                                     HTON_CAN_RECREATE, hton_can_recreate))
+    if (dd::check_storage_engine_flag(thd, table_ref,
+                                      HTON_CAN_RECREATE, hton_can_recreate))
       DBUG_RETURN(TRUE);
   }
 
@@ -479,7 +486,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
         The storage engine can truncate the table by creating an
         empty table with the same structure.
       */
-      error= dd_recreate_table(thd, table_ref->db, table_ref->table_name);
+      error= dd::recreate_table(thd, table_ref->db, table_ref->table_name);
 
       if (thd->locked_tables_mode && thd->locked_tables_list.reopen_tables(thd))
           thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);

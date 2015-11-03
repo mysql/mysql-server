@@ -946,7 +946,6 @@ row_create_prebuilt(
 	btr_pcur_reset(prebuilt->clust_pcur);
 
 	prebuilt->select_lock_type = LOCK_NONE;
-	prebuilt->stored_select_lock_type = LOCK_NONE_UNSET;
 
 	prebuilt->search_tuple = dtuple_create(heap, search_tuple_n_fields);
 
@@ -975,6 +974,8 @@ row_create_prebuilt(
 
 	prebuilt->fts_doc_id_in_read_set = 0;
 	prebuilt->blob_heap = NULL;
+
+	prebuilt->skip_serializable_dd_view = false;
 
 	prebuilt->m_no_prefetch = false;
 
@@ -2694,31 +2695,41 @@ row_update_for_mysql(
 }
 
 /** Delete all rows for the given table by freeing/truncating indexes.
-@param[in,out]	table	table handler
-@return error code or DB_SUCCESS */
-dberr_t
+@param[in,out]	table	table handler */
+void
 row_delete_all_rows(
 	dict_table_t*	table)
 {
-	dberr_t		err = DB_SUCCESS;
-
+	ut_ad(dict_table_is_temporary(table));
 	/* Step-0: If there is cached insert position along with mtr
 	commit it before starting delete/update action. */
 	dict_table_get_first_index(table)->last_ins_cur->release();
+
+	bool			found;
+	const page_size_t	page_size(
+		fil_space_get_page_size(table->space, &found));
+	ut_a(found);
 
 	/* Step-1: Now truncate all the indexes and re-create them.
 	Note: This is ddl action even though delete all rows is
 	DML action. Any error during this action is ir-reversible. */
 	for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
-	     index != NULL && err == DB_SUCCESS;
+	     index != NULL;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
 
-		err = dict_truncate_index_tree_in_mem(index);
-		// TODO: what happen if get an error
-		ut_ad(err == DB_SUCCESS);
-	}
+		ut_ad(index->space == table->space);
+		const page_id_t	root(index->space, index->page);
+		btr_free(root, page_size);
 
-	return(err);
+		mtr_t	mtr;
+
+		mtr.start();
+		mtr.set_log_mode(MTR_LOG_NO_REDO);
+		index->page = btr_create(index->type, index->space, page_size,
+					 index->id, index, &mtr);
+		ut_ad(index->page != FIL_NULL);
+		mtr.commit();
+	}
 }
 
 /** This can only be used when srv_locks_unsafe_for_binlog is TRUE or this
@@ -3282,7 +3293,8 @@ error_handling:
 			trx_rollback_to_savepoint(trx, NULL);
 		}
 
-		row_drop_table_for_mysql(table_name, trx, FALSE, true, handler);
+		row_drop_table_for_mysql(
+			table_name, trx, SQLCOM_DROP_TABLE, true);
 
 		if (trx_is_started(trx)) {
 
@@ -3377,7 +3389,8 @@ row_table_add_foreign_constraints(
 			trx_rollback_to_savepoint(trx, NULL);
 		}
 
-		row_drop_table_for_mysql(name, trx, FALSE, true);
+		row_drop_table_for_mysql(
+			name, trx, SQLCOM_DROP_TABLE, true);
 
 		if (trx_is_started(trx)) {
 
@@ -4136,18 +4149,18 @@ the transaction will be committed.  Otherwise, the data dictionary
 will remain locked.
 @param[in]	name		Table name
 @param[in]	trx		Transaction handle
-@param[in]	drop_db		true=dropping whole database
+@param[in]	sqlcom		SQL command
 @param[in]	nonatomic	Whether it is permitted to release
 and reacquire dict_operation_lock
 @param[in,out]	handler		Table handler
 @return error code or DB_SUCCESS */
 dberr_t
 row_drop_table_for_mysql(
-	const char*	name,
-	trx_t*		trx,
-	bool		drop_db,
-	bool		nonatomic,
-	dict_table_t*	handler)
+	const char*		name,
+	trx_t*			trx,
+	enum enum_sql_command	sqlcom,
+	bool			nonatomic,
+	dict_table_t*		handler)
 {
 	dberr_t		err;
 	dict_foreign_t*	foreign;
@@ -4277,7 +4290,7 @@ row_drop_table_for_mysql(
 
 			foreign = *it;
 
-			const bool	ref_ok = drop_db
+			const bool	ref_ok = sqlcom == SQLCOM_DROP_DB
 				&& dict_tables_have_same_db(
 					name,
 					foreign->foreign_table_name_lookup);
@@ -4448,124 +4461,127 @@ row_drop_table_for_mysql(
 		tables in Innobase. Deleting a row from SYS_INDEXES table also
 		frees the file segments of the B-tree associated with the
 		index. */
+		if (sqlcom != SQLCOM_TRUNCATE) {
+			info = pars_info_create();
 
-		info = pars_info_create();
+			pars_info_add_str_literal(info, "table_name", name);
 
-		pars_info_add_str_literal(info, "table_name", name);
+			err = que_eval_sql(
+				info,
+				"PROCEDURE DROP_FOREIGN_PROC () IS\n"
+				"sys_foreign_id CHAR;\n"
+				"foreign_id CHAR;\n"
+				"found INT;\n"
 
-		std::basic_string<char, std::char_traits<char>,
-				  ut_allocator<char> > sql;
-		sql.reserve(2000);
+				"DECLARE CURSOR cur_fk IS\n"
+				"SELECT ID FROM SYS_FOREIGN\n"
+				"WHERE FOR_NAME = :table_name\n"
+				"AND TO_BINARY(FOR_NAME)\n"
+				"  = TO_BINARY(:table_name)\n"
+				"LOCK IN SHARE MODE;\n"
 
-		sql =	"PROCEDURE DROP_TABLE_PROC () IS\n"
-			"sys_foreign_id CHAR;\n"
-			"table_id CHAR;\n"
-			"index_id CHAR;\n"
-			"foreign_id CHAR;\n"
-			"space_id INT;\n"
-			"found INT;\n";
-
-		sql +=	"DECLARE CURSOR cur_fk IS\n"
-			"SELECT ID FROM SYS_FOREIGN\n"
-			"WHERE FOR_NAME = :table_name\n"
-			"AND TO_BINARY(FOR_NAME)\n"
-			"  = TO_BINARY(:table_name)\n"
-			"LOCK IN SHARE MODE;\n";
-
-		sql +=	"DECLARE CURSOR cur_idx IS\n"
-			"SELECT ID FROM SYS_INDEXES\n"
-			"WHERE TABLE_ID = table_id\n"
-			"LOCK IN SHARE MODE;\n";
-
-		sql +=	"BEGIN\n";
-
-		sql +=	"SELECT ID INTO table_id\n"
-			"FROM SYS_TABLES\n"
-			"WHERE NAME = :table_name\n"
-			"LOCK IN SHARE MODE;\n"
-			"IF (SQL % NOTFOUND) THEN\n"
-			"       RETURN;\n"
-			"END IF;\n";
-
-		sql +=	"SELECT SPACE INTO space_id\n"
-			"FROM SYS_TABLES\n"
-			"WHERE NAME = :table_name;\n"
-			"IF (SQL % NOTFOUND) THEN\n"
-			"       RETURN;\n"
-			"END IF;\n";
-
-		sql +=	"found := 1;\n"
-			"SELECT ID INTO sys_foreign_id\n"
-			"FROM SYS_TABLES\n"
-			"WHERE NAME = 'SYS_FOREIGN'\n"
-			"LOCK IN SHARE MODE;\n"
-			"IF (SQL % NOTFOUND) THEN\n"
-			"       found := 0;\n"
-			"END IF;\n"
-			"IF (:table_name = 'SYS_FOREIGN') THEN\n"
-			"       found := 0;\n"
-			"END IF;\n"
-			"IF (:table_name = 'SYS_FOREIGN_COLS') \n"
-			"THEN\n"
-			"       found := 0;\n"
-			"END IF;\n";
-
-		sql +=	"OPEN cur_fk;\n"
-			"WHILE found = 1 LOOP\n"
-			"       FETCH cur_fk INTO foreign_id;\n"
-			"       IF (SQL % NOTFOUND) THEN\n"
-			"               found := 0;\n"
-			"       ELSE\n"
-			"               DELETE FROM \n"
-			"		   SYS_FOREIGN_COLS\n"
-			"               WHERE ID = foreign_id;\n"
-			"               DELETE FROM SYS_FOREIGN\n"
-			"               WHERE ID = foreign_id;\n"
-			"       END IF;\n"
-			"END LOOP;\n"
-			"CLOSE cur_fk;\n";
-
-		sql +=	"found := 1;\n"
-			"OPEN cur_idx;\n"
-			"WHILE found = 1 LOOP\n"
-			"       FETCH cur_idx INTO index_id;\n"
-			"       IF (SQL % NOTFOUND) THEN\n"
-			"               found := 0;\n"
-			"       ELSE\n"
-			"               DELETE FROM SYS_FIELDS\n"
-			"               WHERE INDEX_ID = index_id;\n"
-			"               DELETE FROM SYS_INDEXES\n"
-			"               WHERE ID = index_id\n"
-			"               AND TABLE_ID = table_id;\n"
-			"       END IF;\n"
-			"END LOOP;\n"
-			"CLOSE cur_idx;\n";
-
-		sql +=	"DELETE FROM SYS_COLUMNS\n"
-			"WHERE TABLE_ID = table_id;\n"
-			"DELETE FROM SYS_TABLES\n"
-			"WHERE NAME = :table_name;\n";
-
-		if (dict_table_is_file_per_table(table)) {
-			sql += "DELETE FROM SYS_TABLESPACES\n"
-				"WHERE SPACE = space_id;\n"
-				"DELETE FROM SYS_DATAFILES\n"
-				"WHERE SPACE = space_id;\n";
+				"BEGIN\n"
+				"found := 1;\n"
+				"SELECT ID INTO sys_foreign_id\n"
+				"FROM SYS_TABLES\n"
+				"WHERE NAME = 'SYS_FOREIGN'\n"
+				"LOCK IN SHARE MODE;\n"
+				"IF (SQL % NOTFOUND) THEN\n"
+				"       found := 0;\n"
+				"END IF;\n"
+				"IF (:table_name = 'SYS_FOREIGN') THEN\n"
+				"       found := 0;\n"
+				"END IF;\n"
+				"IF (:table_name = 'SYS_FOREIGN_COLS') THEN\n"
+				"       found := 0;\n"
+				"END IF;\n"
+				"OPEN cur_fk;\n"
+				"WHILE found = 1 LOOP\n"
+				"       FETCH cur_fk INTO foreign_id;\n"
+				"       IF (SQL % NOTFOUND) THEN\n"
+				"               found := 0;\n"
+				"       ELSE\n"
+				"               DELETE FROM SYS_FOREIGN_COLS\n"
+				"               WHERE ID = foreign_id;\n"
+				"               DELETE FROM SYS_FOREIGN\n"
+				"               WHERE ID = foreign_id;\n"
+				"       END IF;\n"
+				"END LOOP;\n"
+				"CLOSE cur_fk;\n"
+				"END;\n"
+				, FALSE, trx);
+		} else {
+			err = DB_SUCCESS;
 		}
 
-		sql +=	"DELETE FROM SYS_VIRTUAL\n"
-			"WHERE TABLE_ID = table_id;\n";
+		if (err == DB_SUCCESS) {
+			info = pars_info_create();
+			pars_info_add_str_literal(info, "table_name", name);
+			pars_info_add_int4_literal(info, "file_per_table",
+						   dict_table_is_file_per_table(table));
+			err = que_eval_sql(
+				info,
+				"PROCEDURE DROP_TABLE_PROC () IS\n"
+				"table_id CHAR;\n"
+				"index_id CHAR;\n"
+				"space_id INT;\n"
+				"found INT;\n"
 
-		sql += "END;\n";
+				"DECLARE CURSOR cur_idx IS\n"
+				"SELECT ID FROM SYS_INDEXES\n"
+				"WHERE TABLE_ID = table_id\n"
+				"LOCK IN SHARE MODE;\n"
 
-		err = que_eval_sql(info, sql.c_str(), FALSE, trx);
+				"BEGIN\n"
+				"SELECT ID INTO table_id\n"
+				"FROM SYS_TABLES\n"
+				"WHERE NAME = :table_name\n"
+				"LOCK IN SHARE MODE;\n"
+				"IF (SQL % NOTFOUND) THEN\n"
+				"       RETURN;\n"
+				"END IF;\n"
+				"SELECT SPACE INTO space_id\n"
+				"FROM SYS_TABLES\n"
+				"WHERE NAME = :table_name;\n"
+				"IF (SQL % NOTFOUND) THEN\n"
+				"       RETURN;\n"
+				"END IF;\n"
+				"found := 1;\n"
+				"OPEN cur_idx;\n"
+				"WHILE found = 1 LOOP\n"
+				"       FETCH cur_idx INTO index_id;\n"
+				"       IF (SQL % NOTFOUND) THEN\n"
+				"               found := 0;\n"
+				"       ELSE\n"
+				"               DELETE FROM SYS_FIELDS\n"
+				"               WHERE INDEX_ID = index_id;\n"
+				"               DELETE FROM SYS_INDEXES\n"
+				"               WHERE ID = index_id\n"
+				"               AND TABLE_ID = table_id;\n"
+				"       END IF;\n"
+				"END LOOP;\n"
+				"CLOSE cur_idx;\n"
+				"IF (:file_per_table = 1) THEN\n"
+				"DELETE FROM SYS_TABLESPACES\n"
+				"WHERE SPACE = space_id;\n"
+				"DELETE FROM SYS_DATAFILES\n"
+				"WHERE SPACE = space_id;\n"
+				"END IF;\n"
+				"DELETE FROM SYS_COLUMNS\n"
+				"WHERE TABLE_ID = table_id;\n"
+				"DELETE FROM SYS_TABLES\n"
+				"WHERE NAME = :table_name;\n"
+				"DELETE FROM SYS_VIRTUAL\n"
+				"WHERE TABLE_ID = table_id;\n"
+				"END;\n"
+				, FALSE, trx);
+		}
 	} else {
 		page_no = page_nos;
 		for (dict_index_t* index = dict_table_get_first_index(table);
 		     index != NULL;
 		     index = dict_table_get_next_index(index)) {
-			/* remove the index object associated. */
-			dict_drop_index_tree_in_mem(index, *page_no++);
+			dict_drop_temporary_table_index(index, *page_no++);
 		}
 		err = DB_SUCCESS;
 	}
@@ -4618,7 +4634,7 @@ row_drop_table_for_mysql(
 
 		/* Do not attempt to drop known-to-be-missing tablespaces,
 		nor system or shared general tablespaces. */
-		if (is_discarded || ibd_file_missing || shared_tablespace
+		if (is_discarded || ibd_file_missing || is_temp || shared_tablespace
 		    || is_system_tablespace(space_id)) {
 			break;
 		}
@@ -4846,13 +4862,6 @@ loop:
 			/* There could be orphan temp tables left from
 			interrupted alter table. Leave them, and handle
 			the rest.*/
-			if (table->can_be_evicted
-			    && (name[namelen - 1] != '#')) {
-				ib::warn() << "Orphan table encountered during"
-					" DROP DATABASE. This is possible if '"
-					<< table->name << ".frm' was lost.";
-			}
-
 			if (table->ibd_file_missing) {
 				ib::warn() << "Missing .ibd file for table "
 					<< table->name << ".";

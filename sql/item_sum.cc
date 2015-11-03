@@ -1005,7 +1005,8 @@ bool Aggregator_distinct::setup(THD *thd)
                                  arg->max_length,
                                  arg->decimals, 
                                  arg->maybe_null,
-                                 arg->unsigned_flag);
+                                 arg->unsigned_flag,
+                                 0);
 
     if (! (table= create_virtual_tmp_table(thd, field_list)))
       DBUG_RETURN(TRUE);

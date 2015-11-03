@@ -289,19 +289,10 @@ s1_restart	TABLESPACE	InnoDB	NORMAL	s1_restart	MYSQLD_DATADIR/s1_restart.ibd
 # Shutdown the server and list the tablespace OS files
 #
 ---- MYSQL_DATA_DIR/test
-t1_restart.frm
 t1_restart.ibd
-t2_restart.frm
 t2_restart.ibd
-t3_restart.frm
 t3_restart.ibd
-t4_restart.frm
 t4_restart.ibd
-t5_restart.frm
-t6_restart.frm
-t7_restart.frm
-t8_restart.frm
-t9_restart.frm
 ---- MYSQL_TMP_DIR/alt_dir
 test
 ---- MYSQL_TMP_DIR/alt_dir/test
@@ -522,23 +513,23 @@ ALTER TABLE t7_restart TRUNCATE PARTITION p1;
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t4_restart.ibd
-test/t5_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd
 test/t6_restart#p#p0	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p0.ibd
 test/t6_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p1.ibd
-test/t6_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p2.ibd
 test/t7_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s0.ibd
 test/t7_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s1.ibd
+test/t5_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd
+test/t6_restart#p#p2	Single	DEFAULT	8192	Compressed	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p2.ibd
 test/t7_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s2.ibd
 test/t7_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s3.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 test/t4_restart	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t4_restart.ibd
-test/t5_restart	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd
 test/t6_restart#p#p0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p0.ibd
 test/t6_restart#p#p1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p1.ibd
-test/t6_restart#p#p2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p2.ibd
 test/t7_restart#p#p0#sp#s0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s0.ibd
 test/t7_restart#p#p0#sp#s1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s1.ibd
+test/t5_restart	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd
+test/t6_restart#p#p2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p2.ibd
 test/t7_restart#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s2.ibd
 test/t7_restart#p#p1#sp#s3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s3.ibd
 INSERT INTO t5_restart VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
@@ -600,12 +591,7 @@ SUBPARTITION BY HASH (c1)
 # Shutdown the server and make a backup of a tablespace
 #
 ---- MYSQL_DATA_DIR/test
-t4_restart.frm
 t4_restart.ibd
-t5_restart.frm
-t5_restart.frm.bak
-t6_restart.frm
-t7_restart.frm
 ---- MYSQL_TMP_DIR/alt_dir/test
 t5_restart.ibd
 t5_restart.ibd.bak
@@ -626,23 +612,23 @@ innodb_file_per_table	ON
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t4_restart.ibd
-test/t5_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd
 test/t6_restart#p#p0	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p0.ibd
 test/t6_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p1.ibd
-test/t6_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p2.ibd
 test/t7_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s0.ibd
 test/t7_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s1.ibd
+test/t5_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd
+test/t6_restart#p#p2	Single	DEFAULT	8192	Compressed	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p2.ibd
 test/t7_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s2.ibd
 test/t7_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s3.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 test/t4_restart	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t4_restart.ibd
-test/t5_restart	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd
 test/t6_restart#p#p0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p0.ibd
 test/t6_restart#p#p1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p1.ibd
-test/t6_restart#p#p2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p2.ibd
 test/t7_restart#p#p0#sp#s0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s0.ibd
 test/t7_restart#p#p0#sp#s1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s1.ibd
+test/t5_restart	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd
+test/t6_restart#p#p2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p2.ibd
 test/t7_restart#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s2.ibd
 test/t7_restart#p#p1#sp#s3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s3.ibd
 SELECT count(*) FROM t5_restart;
@@ -699,14 +685,8 @@ SUBPARTITION BY HASH (c1)
 #
 # Try to rename a tablespace to a file that already exists
 #
-RENAME TABLE t5_restart TO t55_restart;
-ERROR 42S01: Table 't55_restart' already exists
 ---- MYSQL_DATA_DIR/test
-t4_restart.frm
 t4_restart.ibd
-t5_restart.frm
-t6_restart.frm
-t7_restart.frm
 ---- MYSQL_TMP_DIR/alt_dir/test
 t5_restart.ibd
 t6_restart#p#p0.ibd
@@ -725,23 +705,23 @@ RENAME TABLE t7_restart TO t77_restart;
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t4_restart.ibd
-test/t55_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
 test/t66_restart#p#p0	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p0.ibd
 test/t66_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p1.ibd
-test/t66_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
 test/t77_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s0.ibd
 test/t77_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s1.ibd
+test/t55_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
+test/t66_restart#p#p2	Single	DEFAULT	8192	Compressed	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
 test/t77_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s2.ibd
 test/t77_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s3.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 test/t4_restart	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t4_restart.ibd
-test/t55_restart	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
 test/t66_restart#p#p0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p0.ibd
 test/t66_restart#p#p1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p1.ibd
-test/t66_restart#p#p2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
 test/t77_restart#p#p0#sp#s0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s0.ibd
 test/t77_restart#p#p0#sp#s1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s1.ibd
+test/t55_restart	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
+test/t66_restart#p#p2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
 test/t77_restart#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s2.ibd
 test/t77_restart#p#p1#sp#s3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s3.ibd
 INSERT INTO t55_restart (SELECT 0, c2, c3, c4, c5 FROM t55_restart);
@@ -799,11 +779,7 @@ SUBPARTITION BY HASH (c1)
  (SUBPARTITION s2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir' ENGINE = InnoDB,
   SUBPARTITION s3 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir' ENGINE = InnoDB)) */
 ---- MYSQL_DATA_DIR/test
-t4_restart.frm
 t4_restart.ibd
-t55_restart.frm
-t66_restart.frm
-t77_restart.frm
 ---- MYSQL_TMP_DIR/alt_dir/test
 t55_restart.ibd
 t66_restart#p#p0.ibd
@@ -823,23 +799,23 @@ innodb_file_per_table	ON
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t4_restart.ibd
-test/t55_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
 test/t66_restart#p#p0	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p0.ibd
 test/t66_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p1.ibd
-test/t66_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
 test/t77_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s0.ibd
 test/t77_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s1.ibd
+test/t55_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
+test/t66_restart#p#p2	Single	DEFAULT	8192	Compressed	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
 test/t77_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s2.ibd
 test/t77_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s3.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 test/t4_restart	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t4_restart.ibd
-test/t55_restart	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
 test/t66_restart#p#p0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p0.ibd
 test/t66_restart#p#p1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p1.ibd
-test/t66_restart#p#p2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
 test/t77_restart#p#p0#sp#s0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s0.ibd
 test/t77_restart#p#p0#sp#s1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s1.ibd
+test/t55_restart	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
+test/t66_restart#p#p2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
 test/t77_restart#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s2.ibd
 test/t77_restart#p#p1#sp#s3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s3.ibd
 INSERT INTO t55_restart (SELECT 0, c2, c3, c4, c5 FROM t55_restart);
@@ -900,11 +876,7 @@ SUBPARTITION BY HASH (c1)
 # Shutdown the server
 #
 ---- MYSQL_DATA_DIR/test
-t4_restart.frm
 t4_restart.ibd
-t55_restart.frm
-t66_restart.frm
-t77_restart.frm
 ---- MYSQL_TMP_DIR/alt_dir/test
 t55_restart.ibd
 t66_restart#p#p0.ibd
@@ -921,23 +893,23 @@ t77_restart#p#p1#sp#s3.ibd
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t4_restart.ibd
-test/t55_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
 test/t66_restart#p#p0	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p0.ibd
 test/t66_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p1.ibd
-test/t66_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
 test/t77_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s0.ibd
 test/t77_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s1.ibd
+test/t55_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
+test/t66_restart#p#p2	Single	DEFAULT	8192	Compressed	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
 test/t77_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s2.ibd
 test/t77_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s3.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 test/t4_restart	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t4_restart.ibd
-test/t55_restart	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
 test/t66_restart#p#p0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p0.ibd
 test/t66_restart#p#p1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p1.ibd
-test/t66_restart#p#p2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
 test/t77_restart#p#p0#sp#s0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s0.ibd
 test/t77_restart#p#p0#sp#s1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s1.ibd
+test/t55_restart	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
+test/t66_restart#p#p2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
 test/t77_restart#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s2.ibd
 test/t77_restart#p#p1#sp#s3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s3.ibd
 INSERT INTO t4_restart (SELECT 0, c2, c3, c4, c5 FROM t4_restart);
@@ -1018,23 +990,23 @@ SUBPARTITION BY HASH (c1)
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t4_restart.ibd
-test/t55_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
 test/t66_restart#p#p0	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p0.ibd
 test/t66_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p1.ibd
-test/t66_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
 test/t77_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s0.ibd
 test/t77_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s1.ibd
+test/t55_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
+test/t66_restart#p#p2	Single	DEFAULT	8192	Compressed	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
 test/t77_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s2.ibd
 test/t77_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s3.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 test/t4_restart	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t4_restart.ibd
-test/t55_restart	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
 test/t66_restart#p#p0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p0.ibd
 test/t66_restart#p#p1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p1.ibd
-test/t66_restart#p#p2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
 test/t77_restart#p#p0#sp#s0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s0.ibd
 test/t77_restart#p#p0#sp#s1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s1.ibd
+test/t55_restart	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
+test/t66_restart#p#p2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
 test/t77_restart#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s2.ibd
 test/t77_restart#p#p1#sp#s3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s3.ibd
 INSERT INTO t4_restart (SELECT 0, c2, c3, c4, c5 FROM t4_restart);

@@ -303,13 +303,11 @@ i int)
 engine = innodb row_format = compressed key_block_size = 8;
 Warnings:
 Warning	1478	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=8.
 Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED is ignored for TEMPORARY TABLE.
 Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 show warnings;
 Level	Code	Message
 Warning	1478	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=8.
 Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED is ignored for TEMPORARY TABLE.
 Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 set innodb_strict_mode = default;
@@ -339,11 +337,9 @@ i int)
 engine = innodb row_format = dynamic key_block_size = 4;
 Warnings:
 Warning	1478	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=4.
 show warnings;
 Level	Code	Message
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
-Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 drop table t;
 create temporary table t (
 i int)
@@ -356,11 +352,9 @@ i int)
 engine = innodb key_block_size = 4;
 Warnings:
 Warning	1478	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=4.
 show warnings;
 Level	Code	Message
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
-Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 drop table t;
 CREATE TEMPORARY TABLE t1(
 i INT
@@ -382,11 +376,9 @@ c CHAR(10) NOT NULL
 ) ENGINE = InnoDB KEY_BLOCK_SIZE = 4;
 Warnings:
 Warning	1478	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=4.
 SHOW WARNINGS;
 Level	Code	Message
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
-Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
@@ -447,11 +439,9 @@ c CHAR(10) NOT NULL
 ) ENGINE = InnoDB KEY_BLOCK_SIZE = 4;
 Warnings:
 Warning	1478	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=4.
 SHOW WARNINGS;
 Level	Code	Message
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
-Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
@@ -497,13 +487,11 @@ c CHAR(10) NOT NULL
 ) ENGINE = InnoDB ROW_FORMAT = COMPRESSED KEY_BLOCK_SIZE = 8;
 Warnings:
 Warning	1478	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=8.
 Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED is ignored for TEMPORARY TABLE.
 Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 SHOW WARNINGS;
 Level	Code	Message
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
-Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 Warning	NUMBER	InnoDB: ROW_FORMAT=COMPRESSED is ignored for TEMPORARY TABLE.
 Warning	NUMBER	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 SHOW CREATE TABLE t1;
@@ -526,11 +514,9 @@ c CHAR(10) NOT NULL
 ) ENGINE = InnoDB ROW_FORMAT = DYNAMIC KEY_BLOCK_SIZE = 8;
 Warnings:
 Warning	1478	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=8.
 SHOW WARNINGS;
 Level	Code	Message
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
-Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
@@ -597,13 +583,11 @@ Expect 1
 ALTER TABLE t1 KEY_BLOCK_SIZE = 4;
 Warnings:
 Warning	1478	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=4.
 Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED is ignored for TEMPORARY TABLE.
 Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 SHOW WARNINGS;
 Level	Code	Message
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
-Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 Warning	NUMBER	InnoDB: ROW_FORMAT=COMPRESSED is ignored for TEMPORARY TABLE.
 Warning	NUMBER	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 SHOW CREATE TABLE t1;
@@ -621,13 +605,11 @@ Expect 1
 ALTER TABLE t1 KEY_BLOCK_SIZE = 4 ROW_FORMAT = COMPRESSED;
 Warnings:
 Warning	1478	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=4.
 Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED is ignored for TEMPORARY TABLE.
 Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 SHOW WARNINGS;
 Level	Code	Message
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
-Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 Warning	NUMBER	InnoDB: ROW_FORMAT=COMPRESSED is ignored for TEMPORARY TABLE.
 Warning	NUMBER	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 SHOW CREATE TABLE t1;
@@ -645,11 +627,9 @@ Expect 1
 ALTER TABLE t1 ROW_FORMAT = DYNAMIC KEY_BLOCK_SIZE = 4;
 Warnings:
 Warning	1478	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=4.
 SHOW WARNINGS;
 Level	Code	Message
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
-Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
@@ -665,11 +645,9 @@ Expect 1
 ALTER TABLE t1 ROW_FORMAT = DYNAMIC;
 Warnings:
 Warning	1478	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=4.
 SHOW WARNINGS;
 Level	Code	Message
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
-Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
@@ -835,13 +813,11 @@ Warning	NUMBER	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 ALTER TABLE t1 KEY_BLOCK_SIZE = 8;
 Warnings:
 Warning	1478	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=8.
 Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED is ignored for TEMPORARY TABLE.
 Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 SHOW WARNINGS;
 Level	Code	Message
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
-Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 Warning	NUMBER	InnoDB: ROW_FORMAT=COMPRESSED is ignored for TEMPORARY TABLE.
 Warning	NUMBER	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 set innodb_strict_mode = ON;

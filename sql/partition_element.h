@@ -61,11 +61,29 @@ enum partition_state {
 
 typedef struct p_column_list_val
 {
-  void* column_value;
+  union column_value_union {
+    /**
+      When a table is opened this is set to the field image of the value
+      from the item_expression below.
+    */
+    const uchar* field_image;
+    /**
+      When the values are read from dd.Partition_value it is carried as
+      a C-string.
+    */
+    const char* value_str;
+  } column_value;
+  /**
+    When partition clause is parsed this is set to the item expression
+    for the value. Must be NULL if the value was not parsed, but
+    read from dd.Partition_value instead.
+  */
   Item* item_expression;
   partition_info *part_info;
   uint partition_id;
+  /** MAXVALUE is set (only for RANGE COLUMNS) */
   bool max_value;
+  /** NULL is set (only for LIST COLUMNS) */
   bool null_value;
   char fixed;
 } part_column_list_val;
@@ -93,6 +111,8 @@ class partition_element :public Sql_alloc {
 public:
   List<partition_element> subpartitions;
   List<part_elem_value> list_val_list;  // list of LIST values/column arrays
+  // TODO: Handle options in a more general way, like dd::Properties
+  // for max/min rows, tablespace, data/index file, nodegroup etc.
   ha_rows part_max_rows;
   ha_rows part_min_rows;
   longlong range_value;
@@ -106,6 +126,7 @@ public:
   enum partition_state part_state;
   uint16 nodegroup_id;
   bool has_null_value;
+  /* TODO: Move this to partition_info?*/
   bool signed_flag;                          // Range value signed
   bool max_value;                            // MAXVALUE range
 

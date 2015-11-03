@@ -56,6 +56,7 @@ latin5_bin	latin5	78		#	#
 armscii8_general_ci	armscii8	32	Yes	#	#
 armscii8_bin	armscii8	64		#	#
 utf8_general_ci	utf8	33	Yes	#	#
+utf8_tolower_ci	utf8	76		#	#
 utf8_bin	utf8	83		#	#
 utf8_unicode_ci	utf8	192		#	#
 utf8_icelandic_ci	utf8	193		#	#

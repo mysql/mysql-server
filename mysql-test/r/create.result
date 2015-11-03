@@ -936,9 +936,9 @@ create table t2 select sql_big_result f1,count(f2) from t1 group by f1;
 show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	8
 Handler_read_last	0
-Handler_read_next	0
+Handler_read_next	2
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	7
@@ -1880,5 +1880,4 @@ DROP DATABASE db_with_tables_and_an_unrelated_file_in_data_directory;
 ERROR HY000: Error dropping database (can't rmdir './db_with_tables_and_an_unrelated_file_in_data_directory/', errno: 17)
 DROP DATABASE db_with_tables_and_an_unrelated_file_in_data_directory;
 DROP DATABASE db_created_with_mkdir_and_an_unrelated_file_in_data_directory;
-ERROR HY000: Error dropping database (can't rmdir './db_created_with_mkdir_and_an_unrelated_file_in_data_directory/', errno: 17)
-DROP DATABASE db_created_with_mkdir_and_an_unrelated_file_in_data_directory;
+ERROR HY000: Can't drop database 'db_created_with_mkdir_and_an_unrelated_file_in_data_directory'; database doesn't exist

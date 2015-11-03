@@ -1,0 +1,26 @@
+#
+# Bug#21442630: FAILING TO STORE AN UPDATED DD OBJECT DOES NOT REVERT
+#               IN-MEMORY CHANGES
+#
+# Create a new connection.
+connect  con1, localhost, root,,;
+# Create a table and rename it, but stop execution right before the
+# updated object is stored persistently.
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY);
+SET DEBUG_SYNC= 'before_storing_dd_object SIGNAL before_store WAIT_FOR cont';
+RENAME TABLE t1 TO t2;;
+connection default;
+# From the default connection, get the thread id of the rename, and
+# kill the query.
+SET DEBUG_SYNC= 'now WAIT_FOR before_store';
+SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE INFO LIKE "RENAME TABLE%" INTO @thread_id;
+KILL QUERY @thread_id;
+SET DEBUG_SYNC= 'now SIGNAL cont';
+connection con1;
+# Reap the rename and try to drop the table being renamed. Without the patch,
+# the drop leads to an assert.
+DROP TABLE t2;
+connection default;
+# Disconnect and cleanup.
+disconnect con1;
+SET DEBUG_SYNC= 'RESET';

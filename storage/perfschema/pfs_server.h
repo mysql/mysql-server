@@ -59,7 +59,7 @@
 struct PFS_sizing_hints
 {
   /** Value of @c Sys_table_def_size */
-  long m_table_definition_cache;
+  ulong m_table_definition_cache;
   /** Value of @c Sys_table_cache_size */
   long m_table_open_cache;
   /** Value of @c Sys_max_connections */

@@ -18,7 +18,6 @@ connection default;
 SET GLOBAL offline_mode = ON;
 t2.MYD
 t2.MYI
-t2.frm
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
 1

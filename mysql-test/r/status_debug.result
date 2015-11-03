@@ -44,7 +44,7 @@ connection con1;
 SET DEBUG_SYNC='RESET';
 connection default;
 INSERT INTO t1(name, val) SELECT * FROM performance_schema.global_status WHERE variable_name='Handler_commit';
-# With fix, Handler_commit status should be 1 (select insert during switch user).
+# With fix, Handler_commit status should be 2 (select insert during switch user + dictionary).
 SELECT (SELECT val FROM t1 WHERE id = 3) - (SELECT val FROM t1 WHERE id = 2);
 (SELECT val FROM t1 WHERE id = 3) - (SELECT val FROM t1 WHERE id = 2)
 1

@@ -53,6 +53,14 @@ void check_performance_schema()
 
   PFS_engine_table_share::check_all_tables(thd);
 
+  /**
+    When we start mysqld server with --autocommit=0
+    the read-only transactions started by new DD operations
+    while opening performance schema tables need to be
+    committed/cleaned-up.
+  */
+  thd->cleanup_connection();
+
   thd->restore_globals();
   delete thd;
   DBUG_VOID_RETURN;

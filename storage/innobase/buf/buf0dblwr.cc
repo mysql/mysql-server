@@ -35,7 +35,7 @@ Created 2011/12/19
 #include "srv0start.h"
 #include "srv0srv.h"
 #include "page0zip.h"
-#include "trx0sys.h"
+#include "trx0purge.h"
 
 #ifndef UNIV_HOTBACKUP
 
@@ -561,13 +561,9 @@ buf_dblwr_process(void)
 		if (page_no >= space->size) {
 
 			/* Do not report the warning if the tablespace is
-			schedule for truncate or was truncated and we have live
-			MLOG_TRUNCATE record in redo. */
-			bool	skip_warning =
-				srv_is_tablespace_truncated(space_id)
-				|| srv_was_tablespace_truncated(space);
-
-			if (!skip_warning) {
+			going to be truncated. */
+			if (!undo::Truncate::is_tablespace_truncated(
+				    space_id)) {
 				ib::warn() << "Page " << page_no_dblwr
 					<< " in the doublewrite buffer is"
 					" not within space bounds: page "

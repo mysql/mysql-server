@@ -204,7 +204,7 @@ dict_hdr_create(
 	FSP_DICT_HDR_PAGE_NO */
 	root_page_no = btr_create(DICT_CLUSTERED, 0, univ_page_size,
 				  DICT_TBL_BUFFER_ID, dict_ind_redundant,
-				  NULL, mtr);
+				  mtr);
 	ut_ad(root_page_no == FSP_TBL_BUFFER_TREE_ROOT_PAGE_NO);
 
 	dict_header = dict_hdr_get(mtr);
@@ -233,7 +233,7 @@ dict_hdr_create(
 	/*--------------------------*/
 	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE, DICT_HDR_SPACE,
 				  univ_page_size, DICT_TABLES_ID,
-				  dict_ind_redundant, NULL, mtr);
+				  dict_ind_redundant, mtr);
 	if (root_page_no == FIL_NULL) {
 
 		return(FALSE);
@@ -244,7 +244,7 @@ dict_hdr_create(
 	/*--------------------------*/
 	root_page_no = btr_create(DICT_UNIQUE, DICT_HDR_SPACE,
 				  univ_page_size, DICT_TABLE_IDS_ID,
-				  dict_ind_redundant, NULL, mtr);
+				  dict_ind_redundant, mtr);
 	if (root_page_no == FIL_NULL) {
 
 		return(FALSE);
@@ -255,7 +255,7 @@ dict_hdr_create(
 	/*--------------------------*/
 	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE, DICT_HDR_SPACE,
 				  univ_page_size, DICT_COLUMNS_ID,
-				  dict_ind_redundant, NULL, mtr);
+				  dict_ind_redundant, mtr);
 	if (root_page_no == FIL_NULL) {
 
 		return(FALSE);
@@ -266,7 +266,7 @@ dict_hdr_create(
 	/*--------------------------*/
 	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE, DICT_HDR_SPACE,
 				  univ_page_size, DICT_INDEXES_ID,
-				  dict_ind_redundant, NULL, mtr);
+				  dict_ind_redundant, mtr);
 	if (root_page_no == FIL_NULL) {
 
 		return(FALSE);
@@ -277,7 +277,7 @@ dict_hdr_create(
 	/*--------------------------*/
 	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE, DICT_HDR_SPACE,
 				  univ_page_size, DICT_FIELDS_ID,
-				  dict_ind_redundant, NULL, mtr);
+				  dict_ind_redundant, mtr);
 	if (root_page_no == FIL_NULL) {
 
 		return(FALSE);

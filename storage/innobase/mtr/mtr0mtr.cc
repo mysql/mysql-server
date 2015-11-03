@@ -30,7 +30,8 @@ Created 11/26/1995 Heikki Tuuri
 #include "page0types.h"
 #include "mtr0log.h"
 #include "log0log.h"
-#include "row0trunc.h"
+#include "trx0purge.h"
+
 #include "log0recv.h"
 #include "fsp0sysspace.h"
 
@@ -590,7 +591,7 @@ mtr_t::x_lock_space(ulint space_id, const char* file, ulint line)
 		ut_ad(space->purpose == FIL_TYPE_TEMPORARY
 		      || space->purpose == FIL_TYPE_IMPORT
 		      || space->redo_skipped_count > 0
-		      || srv_is_tablespace_truncated(space->id));
+		      || undo::Truncate::is_tablespace_truncated(space->id));
 	} else {
 		/* called from trx_rseg_create() */
 		space = m_impl.m_undo_space = fil_space_get(space_id);

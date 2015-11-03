@@ -28,6 +28,7 @@
 #include "table_trigger_dispatcher.h"
 #include "sql_trigger.h"
 #include "mysqld.h"                             // reg_ext
+#include "dd/dd_table.h"  // dd::table_legacy_db_type
 
 static const char *ndb_ext=".ndb";
 
@@ -180,21 +181,19 @@ Ndb_local_schema::Table::rename_file(const char* new_db, const char* new_name,
 }
 
 
-// Read the engine type from .frm and return true if it says NDB
+// Read the engine type from the DD and return true if it says NDB
+// TODO: Change function name to "engine_is_ndb"
 bool
 Ndb_local_schema::Table::frm_engine_is_ndb(void) const
 {
-  char buf[FN_REFLEN + 1];
-  build_table_filename(buf, sizeof(buf)-1,
-                       m_db, m_name, reg_ext, 0);
-
-  handlerton *storage_engine;
-  (void) dd_frm_type_and_se(m_thd, buf, &storage_engine);
-  if (storage_engine)
+  legacy_db_type engine_type;
+  if (!dd::table_legacy_db_type(m_thd, m_db, m_name, &engine_type))
   {
-    DBUG_PRINT("info", ("engine_type: %d", storage_engine->db_type));
-    return (storage_engine->db_type == DB_TYPE_NDBCLUSTER);
+    DBUG_PRINT("info", ("engine_type: %d", engine_type));
+    return (engine_type == DB_TYPE_NDBCLUSTER);
   }
+
+  DBUG_PRINT("info", ("engine_type: Not found for table %s.%s", m_db, m_name));
   return false;
 }
 

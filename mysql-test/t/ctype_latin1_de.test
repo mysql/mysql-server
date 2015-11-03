@@ -8,6 +8,11 @@
 #
 
 set names latin1;
+
+let $old_collation_schema= `SELECT @@collation_database`;
+let $collation_server=`SELECT @@global.collation_server`;
+eval ALTER SCHEMA test COLLATE $collation_server;
+
 set @@collation_connection=latin1_german2_ci;
 
 select @@collation_connection;
@@ -185,3 +190,6 @@ select hex(weight_string('xﬂ' as char(2)));
 --echo #
 --echo # End of 5.6 tests
 --echo #
+
+# Revert the collation of the 'test' schema
+eval ALTER SCHEMA test COLLATE $old_collation_schema;

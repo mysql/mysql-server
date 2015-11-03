@@ -47,19 +47,6 @@ INSERT INTO nolink VALUES (1, 'no link file');
 # Shutdown the server, copy and remove files.
 #
 ---- MYSQLD_DATADIR/test
-nnn.frm
-nolink.frm
-nwy.frm
-nyw.frm
-nyy.frm
-wny.frm
-www.frm
-wyn.frm
-ynw.frm
-yny.frm
-ywn.frm
-yyn.frm
-yyy.frm
 ---- MYSQL_TMP_DIR/alt_dir/test
 nnn.ibd
 nolink.ibd
@@ -89,25 +76,12 @@ yyy.ibd
 # WWW; Put the wrong file in all three locations
 # Make a backup of this tablespace to use later.
 ---- MYSQLD_DATADIR/test
-nnn.frm
-nolink.frm
-nwy.frm
-nyw.frm
-nyy.frm
-wny.frm
 wny.ibd
-www.frm
-wyn.frm
 wyn.ibd
-ynw.frm
 ynw.ibd
-yny.frm
 yny.ibd
-ywn.frm
 ywn.ibd
-yyn.frm
 yyn.ibd
-yyy.frm
 yyy.ibd
 ---- MYSQL_TMP_DIR/alt_dir/test
 nolink.ibd
@@ -244,25 +218,12 @@ nolink	CREATE TABLE `nolink` (
 # List of files before DROP TABLES
 #
 ---- MYSQLD_DATADIR/test
-nnn.frm
-nolink.frm
-nwy.frm
-nyw.frm
-nyy.frm
-wny.frm
 wny.ibd
-www.frm
-wyn.frm
 wyn.ibd
-ynw.frm
 ynw.ibd
-yny.frm
 yny.ibd
-ywn.frm
 ywn.ibd
-yyn.frm
 yyn.ibd
-yyy.frm
 yyy.ibd
 ---- MYSQL_TMP_DIR/alt_dir/test
 nolink.ibd
@@ -391,16 +352,11 @@ c1	c2
 # YN; Tablespace found the default directory but not in alt_dir.
 # YY; Found in both default directory and alt-dir.
 ---- MYSQLD_DATADIR/test
-ny.frm
-wy.frm
 wy.ibd
-yn.frm
 yn.ibd
 ynw.ibd
-yw.frm
 yw.ibd
 ywn.ibd
-yy.frm
 yy.ibd
 ---- MYSQL_TMP_DIR/alt_dir/test
 nolink.ibd.bak

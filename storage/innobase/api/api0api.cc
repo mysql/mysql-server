@@ -44,7 +44,6 @@ InnoDB Native API
 #include "rem0cmp.h"
 #include "dict0priv.h"
 #include "trx0roll.h"
-#include "row0trunc.h"
 
 /** configure variable for binlog option with InnoDB APIs */
 my_bool ib_binlog_enabled = FALSE;
@@ -3023,133 +3022,6 @@ ib_tuple_read_float(
 }
 
 /*****************************************************************//**
-Truncate a table. The cursor handle will be closed and set to NULL
-on success.
-@return DB_SUCCESS or error code */
-ib_err_t
-ib_cursor_truncate(
-/*===============*/
-	ib_crsr_t*	ib_crsr,	/*!< in/out: cursor for table
-					to truncate */
-	ib_id_u64_t*	table_id)	/*!< out: new table id */
-{
-	ib_err_t        err;
-	ib_cursor_t*    cursor = *(ib_cursor_t**) ib_crsr;
-	row_prebuilt_t* prebuilt = cursor->prebuilt;
-
-	*table_id = 0;
-
-	err = ib_cursor_lock(*ib_crsr, IB_LOCK_X);
-
-	if (err == DB_SUCCESS) {
-		trx_t*          trx;
-		dict_table_t*   table = prebuilt->table;
-
-		/* We are going to free the cursor and the prebuilt. Store
-		the transaction handle locally. */
-		trx = prebuilt->trx;
-		err = ib_cursor_close(*ib_crsr);
-		ut_a(err == DB_SUCCESS);
-
-		*ib_crsr = NULL;
-
-		/* A temp go around for assertion in trx_start_for_ddl_low
-		we already start the trx */
-		if (trx->state == TRX_STATE_ACTIVE) {
-#ifdef UNIV_DEBUG
-			trx->start_file = 0;
-#endif /* UNIV_DEBUG */
-			trx->dict_operation = TRX_DICT_OP_TABLE;
-		}
-
-		/* This function currently commits the transaction
-		on success. */
-		err = static_cast<ib_err_t>(
-			row_truncate_table_for_mysql(table, trx));
-
-		if (err == DB_SUCCESS) {
-			*table_id = (table->id);
-		}
-	}
-
-        return(err);
-}
-
-/*****************************************************************//**
-Truncate a table.
-@return DB_SUCCESS or error code */
-ib_err_t
-ib_table_truncate(
-/*==============*/
-	const char*	table_name,	/*!< in: table name */
-	ib_id_u64_t*	table_id)	/*!< out: new table id */
-{
-	ib_err_t        err;
-	dict_table_t*   table;
-	ib_err_t        trunc_err;
-	ib_trx_t        ib_trx = NULL;
-	ib_crsr_t       ib_crsr = NULL;
-	ib_ulint_t	memcached_sync = 0;
-
-	ib_trx = ib_trx_begin(IB_TRX_SERIALIZABLE, true, false);
-
-	dict_mutex_enter_for_mysql();
-
-	table = dict_table_open_on_name(table_name, TRUE, FALSE,
-					DICT_ERR_IGNORE_NONE);
-
-	if (table != NULL && dict_table_get_first_index(table)) {
-		err = ib_create_cursor_with_clust_index(&ib_crsr, table,
-							(trx_t*) ib_trx);
-	} else {
-		err = DB_TABLE_NOT_FOUND;
-	}
-
-	/* Remember the memcached_sync_count and set it to 0, so the
-	truncate can be executed. */
-	if (table != NULL && err == DB_SUCCESS) {
-		memcached_sync = static_cast<ib_ulint_t>(
-			table->memcached_sync_count);
-		table->memcached_sync_count = 0;
-	}
-
-	dict_mutex_exit_for_mysql();
-
-	if (err == DB_SUCCESS) {
-		trunc_err = ib_cursor_truncate(&ib_crsr, table_id);
-		ut_a(err == DB_SUCCESS);
-	} else {
-		trunc_err = err;
-	}
-
-	if (ib_crsr != NULL) {
-		err = ib_cursor_close(ib_crsr);
-		ut_a(err == DB_SUCCESS);
-	}
-
-	if (trunc_err == DB_SUCCESS) {
-		ut_a(!trx_is_started(static_cast<trx_t*>(ib_trx)));
-	} else {
-		err = ib_trx_rollback(ib_trx);
-		ut_a(err == DB_SUCCESS);
-	}
-
-	err = ib_trx_release(ib_trx);
-	ut_a(err == DB_SUCCESS);
-
-	/* Set the memcached_sync_count back. */
-	if (table != NULL && memcached_sync != 0) {
-		dict_mutex_enter_for_mysql();
-
-		table->memcached_sync_count = memcached_sync;
-
-		dict_mutex_exit_for_mysql();
-	}
-
-        return(trunc_err);
-}
-
-/*****************************************************************//**
 Return isolation configuration set by "innodb_api_trx_level"
 @return trx isolation level*/
 ib_trx_level_t
@@ -3201,39 +3073,4 @@ ib_ut_strerr(
 	ib_err_t	num)	/*!< in: error number */
 {
 	return(ut_strerr(num));
-}
-
-/*****************************************************************//**
-Increase/decrease the memcached sync count of table to sync memcached
-DML with SQL DDLs.
-@return DB_SUCCESS or error number */
-ib_err_t
-ib_cursor_set_memcached_sync(
-/*=========================*/
-	ib_crsr_t	ib_crsr,	/*!< in: cursor */
-	ib_bool_t	flag)		/*!< in: true for increase */
-{
-	const ib_cursor_t*      cursor = (const ib_cursor_t*) ib_crsr;
-	row_prebuilt_t*         prebuilt = cursor->prebuilt;
-	dict_table_t*           table = prebuilt->table;
-	ib_err_t                err = DB_SUCCESS;
-
-	if (table != NULL) {
-                /* If memcached_sync_count is -1, means table is
-                doing DDL, we just return error. */
-                if (table->memcached_sync_count == DICT_TABLE_IN_DDL) {
-                        return(DB_ERROR);
-                }
-
-		if (flag) {
-			os_atomic_increment_lint(&table->memcached_sync_count, 1);
-		} else {
-			os_atomic_decrement_lint(&table->memcached_sync_count, 1);
-		        ut_a(table->memcached_sync_count >= 0);
-		}
-	} else {
-		err = DB_TABLE_NOT_FOUND;
-	}
-
-	return(err);
 }

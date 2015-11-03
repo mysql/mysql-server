@@ -21,7 +21,6 @@
 #ifndef MYSQL_CLIENT
 
 #include "hash.h"          // HASH
-#include "datadict.h"      // frm_type_enum
 #include "handler.h"       // row_type
 #include "mdl.h"           // MDL_wait_for_subgraph
 #include "enum_query_type.h" // enum_query_type
@@ -29,7 +28,8 @@
 #include "sql_bitmap.h"    // Bitmap
 #include "sql_sort.h"      // Filesort_info
 #include "table_id.h"      // Table_id
-#include "lock.h"          // Tablespace_hash_set
+
+#include "dd/types/abstract_table.h" // enum_table_type
 
 /* Structs that defines the TABLE */
 class File_parser;
@@ -53,6 +53,10 @@ typedef int8 plan_idx;
 class Opt_hints_qb;
 class Opt_hints_table;
 class SELECT_LEX;
+namespace dd {
+  class Table;
+  class View;
+}
 
 typedef int64 query_id_t;
 
@@ -222,7 +226,7 @@ typedef struct st_order {
   Item   *item_ptr;                     /* Storage for initial item */
 
   enum enum_order {
-    ORDER_NOT_RELEVANT,
+    ORDER_NOT_RELEVANT=1,
     ORDER_ASC,
     ORDER_DESC
   };
@@ -651,8 +655,6 @@ struct TABLE_SHARE
   enum_stats_auto_recalc stats_auto_recalc; /* Automatic recalc of stats. */
   uint null_bytes, last_null_bit_pos;
   uint fields;				/* Number of fields */
-  uint stored_fields;                   /* Number of stored fields 
-                                           (i.e. without generated-only ones) */
   uint rec_buff_length;                 /* Size of table->record[] buffer */
   uint keys;                            /* Number of keys defined for the table*/
   uint key_parts;                       /* Number of key parts of all keys
@@ -665,8 +667,24 @@ struct TABLE_SHARE
   uint null_fields;			/* number of null fields */
   uint blob_fields;			/* number of blob fields */
   uint varchar_fields;                  /* number of varchar fields */
-  uint db_create_options;		/* Create options from database */
-  uint db_options_in_use;		/* Options in use */
+  /**
+    Bitmap with flags representing some of table options/attributes.
+
+    @sa HA_OPTION_PACK_RECORD, HA_OPTION_PACK_KEYS, ...
+
+    @note This is basically copy of HA_CREATE_INFO::table_options bitmap
+          at the time of table opening/usage.
+  */
+  uint db_create_options;
+  /**
+    Bitmap with flags representing some of table options/attributes which
+    are in use by storage engine.
+
+    @note db_options_in_use is normally copy of db_create_options but can
+          be overriden by SE. E.g. MyISAM does this at handler::open() and
+          hander::info() time.
+  */
+  uint db_options_in_use;
   uint db_record_offset;		/* if HA_REC_IN_SEQ */
   uint rowid_field_offset;		/* Field_nr +1 to rowid field */
   /* Primary key index number, used in TABLE::key_info[] */
@@ -674,11 +692,10 @@ struct TABLE_SHARE
   uint next_number_index;               /* autoincrement key number */
   uint next_number_key_offset;          /* autoinc keypart offset in a key */
   uint next_number_keypart;             /* autoinc keypart number in a key */
-  uint error, open_errno, errarg;       /* error from open_table_def() */
+  bool error;                           /* error during open_table_def() */
   uint column_bitmap_size;
   uchar frm_version;
   uint vfields;                         /* Number of generated fields */
-  bool null_field_first;
   bool system;                          /* Set if system table (one record) */
   bool crypted;                         /* If .frm file is crypted */
   bool db_low_byte_first;		/* Portable row format */
@@ -705,12 +722,40 @@ struct TABLE_SHARE
   /* Name of the tablespace used for this table */
   char *tablespace;
 
-  /* filled in when reading from frm */
+  /**
+    Partition meta data. Allocated from TABLE_SHARE::mem_root,
+    created when reading from the dd tables,
+    used as template for each TABLE instance.
+    The reason for having it on the TABLE_SHARE is to be able to reuse the
+    partition_elements containing partition names, values etc. instead of 
+    allocating them for each TABLE instance.
+    TODO: Currently it is filled in and then only used for generating
+    the partition_info_str. The plan is to clone/copy/reference each
+    TABLE::part_info instance from it.
+    What is missing before it can be completed:
+    1) The partition expression, currently created only during parsing which
+       also needs the current TABLE instance as context for name resolution etc.
+    2) The partition values, currently the DD stores them as text so it needs
+       to be converted to field images (which is now done by first parsing the
+       value text into an Item, then saving the Item result/value into a field
+       and then finally copy the field image).
+  */
+  partition_info *m_part_info;
+  // TODO: Remove these four variables:
+  /**
+    Filled in when reading from frm.
+    This can simply be removed when removing the .frm support,
+    since it is already stored in the new DD.
+  */
   bool auto_partitioned;
+  /**
+    Storing the full partitioning clause (PARTITION BY ...) which is used
+    when creating new partition_info object for each new TABLE object by
+    parsing this string.
+    These two will be needed until the missing parts above is fixed.
+  */
   char *partition_info_str;
   uint  partition_info_str_len;
-  uint  partition_info_buffer_size;
-  handlerton *default_part_db_type;
 
   /**
     Cache the checked structure of this table.
@@ -736,10 +781,19 @@ struct TABLE_SHARE
   Wait_for_flush_list m_flush_tickets;
 
   /**
-    For shares representing views File_parser object with view
-    definition read from .FRM file.
-  */ 
-  const File_parser *view_def;
+    View object holding view definition read from DD. This object is not
+    cached, and is owned by the table share. We are not able to read it
+    on demand since we may then get a cache miss while holding LOCK_OPEN.
+  */
+  const dd::View *view_object;
+
+  /**
+    Data-dictionary object describing explicit temporary table represented
+    by this share. NULL for other table types (non-temporary tables, internal
+    temporary tables). This object is owned by TABLE_SHARE and should be
+    deleted along with it.
+  */
+  dd::Table *tmp_table_def;
 
 
   /**
@@ -2436,8 +2490,8 @@ public:
   bool          check_option_processed;
   /// TRUE <=> Filter condition is processed
   bool          replace_filter_processed;
-  /* FRMTYPE_ERROR if any type is acceptable */
-  enum frm_type_enum required_type;
+
+  dd::Abstract_table::enum_table_type required_type;
   char		timestamp_buffer[20];	/* buffer for timestamp (19+1) */
   /*
     This TABLE_LIST object is just placeholder for prelocking, it will be
@@ -2867,44 +2921,6 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
                           size_t key_length,
                           const char *table_name, const char *path);
 void free_table_share(TABLE_SHARE *share);
-
-
-/**
-  Get the tablespace name for a table.
-
-  This function will open the .FRM file for the given TABLE_LIST element
-  and fill Tablespace_hash_set with the tablespace name used by table and
-  table partitions, if present. For NDB tables with version before 50120,
-  the function will ask the SE for the tablespace name, because for these
-  tables, the tablespace name is not stored in the.FRM file, but only
-  within the SE itself.
-
-  @note The function does *not* consider errors. If the file is not present,
-        this does not raise an error. The reason is that this function will
-        be used for tables that may not exist, e.g. in the context of
-        'DROP TABLE IF EXISTS', which does not care whether the table
-        exists or not. The function returns success in this case.
-
-  @note Strings inserted into hash are allocated in the memory
-        root of the thd, and will be freed implicitly.
-
-  @param thd    - Thread context.
-  @param table  - Table from which we read the tablespace names.
-  @param tablespace_set (OUT)- Hash set to be filled with tablespace names.
-
-  @retval true  - On failure, especially due to memory allocation errors
-                  and partition string parse errors.
-  @retval false - On success. Even if tablespaces are not used by table.
-*/
-
-bool get_table_and_parts_tablespace_names(
-       THD *thd,
-       TABLE_LIST *table,
-       Tablespace_hash_set *tablespace_set);
-
-int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags);
-void open_table_error(THD *thd, TABLE_SHARE *share,
-                      int error, int db_errno, int errarg);
 void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
 enum_ident_name_check check_and_convert_db_name(LEX_STRING *db,
                                                 bool preserve_lettercase);
@@ -2919,14 +2935,10 @@ int read_string(File file, uchar* *to, size_t length);
 void free_blobs(TABLE *table);
 void free_blob_buffers_and_reset(TABLE *table, uint32 size);
 int set_zone(int nr,int min_zone,int max_zone);
-ulong make_new_entry(File file,uchar *fileinfo,TYPELIB *formnames,
-		     const char *newname);
-ulong next_io_size(ulong pos);
 void append_unescaped(String *res, const char *pos, size_t length);
-File create_frm(THD *thd, const char *name, const char *db,
-                const char *table, uint reclength, uchar *fileinfo,
-  		HA_CREATE_INFO *create_info, uint keys, KEY *key_info);
 char *fn_rext(char *name);
+TABLE_CATEGORY get_table_category(const LEX_STRING &db,
+                                  const LEX_STRING &name);
 
 /* performance schema */
 extern LEX_STRING PERFORMANCE_SCHEMA_DB_NAME;
@@ -2989,6 +3001,16 @@ inline void mark_as_null_row(TABLE *table)
 }
 
 bool is_simple_order(ORDER *order);
+
+uint add_pk_parts_to_sk(KEY *sk, uint sk_n, KEY *pk, uint pk_n,
+                        TABLE_SHARE *share, handler *handler_file,
+                        uint *usable_parts);
+void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
+                          uint primary_key_n, KEY *keyinfo, uint key_n,
+                          uint key_part_n, uint *usable_parts);
+
+uchar *get_field_name(Field **buff, size_t *length,
+                      my_bool not_used __attribute__((unused)));
 
 void repoint_field_to_record(TABLE *table, uchar *old_rec, uchar *new_rec);
 bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table);

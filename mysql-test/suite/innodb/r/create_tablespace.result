@@ -434,23 +434,20 @@ test/t_single	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/t
 CREATE TABLE t_general (a int, b text) TABLESPACE test/t_single engine=InnoDB;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/t_single engine=InnoDB' at line 1
 CREATE TABLE t_general (a int, b text) TABLESPACE `test/t_single` engine=InnoDB;
-ERROR 42000: InnoDB: A general tablespace name cannot contain '/'.
+ERROR HY000: Tablespace test/t_single doesn't exist.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3119	InnoDB: A general tablespace name cannot contain '/'.
-Error	1031	Table storage engine for 't_general' doesn't have this option
+Error	3510	Tablespace test/t_single doesn't exist.
 CREATE TABLE t_general (a int, b text) TABLESPACE `S_Def` engine=InnoDB;
-ERROR HY000: InnoDB: A general tablespace named `S_Def` cannot be found.
+ERROR HY000: Tablespace S_Def doesn't exist.
 SHOW WARNINGS;
 Level	Code	Message
-Error	1812	InnoDB: A general tablespace named `S_Def` cannot be found.
-Error	1031	Table storage engine for 't_general' doesn't have this option
+Error	3510	Tablespace S_Def doesn't exist.
 CREATE TABLE t_general (a int, b text) TABLESPACE `S_DEF` engine=InnoDB;
-ERROR HY000: InnoDB: A general tablespace named `S_DEF` cannot be found.
+ERROR HY000: Tablespace S_DEF doesn't exist.
 SHOW WARNINGS;
 Level	Code	Message
-Error	1812	InnoDB: A general tablespace named `S_DEF` cannot be found.
-Error	1031	Table storage engine for 't_general' doesn't have this option
+Error	3510	Tablespace S_DEF doesn't exist.
 CREATE TABLESPACE `test/t_single` ADD DATAFILE 's_single.ibd';
 ERROR 42000: InnoDB: A general tablespace name cannot contain '/'.
 SHOW WARNINGS;
@@ -581,17 +578,15 @@ Error	1031	Table storage engine for 't_temp_zip' doesn't have this option
 SET GLOBAL innodb_file_per_table = ON;
 CREATE TABLE s_single (a int, b text) ROW_FORMAT=dynamic;
 CREATE TABLE t_second (a int, b text) TABLESPACE s_single;
-ERROR HY000: InnoDB: A general tablespace named `s_single` cannot be found.
+ERROR HY000: Tablespace s_single doesn't exist.
 SHOW WARNINGS;
 Level	Code	Message
-Error	1812	InnoDB: A general tablespace named `s_single` cannot be found.
-Error	1031	Table storage engine for 't_second' doesn't have this option
+Error	3510	Tablespace s_single doesn't exist.
 CREATE TABLE t_second (a int, b text) TABLESPACE=`test/s_single`;
-ERROR 42000: InnoDB: A general tablespace name cannot contain '/'.
+ERROR HY000: Tablespace test/s_single doesn't exist.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3119	InnoDB: A general tablespace name cannot contain '/'.
-Error	1031	Table storage engine for 't_second' doesn't have this option
+Error	3510	Tablespace test/s_single doesn't exist.
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 s_def	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_def.ibd
@@ -1536,7 +1531,7 @@ t_nomad	CREATE TABLE `t_nomad` (
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 DROP TABLESPACE s_short_life;
 ALTER TABLE t_nomad ENGINE=InnoDB;
-ERROR HY000: InnoDB: A general tablespace named `s_short_life` cannot be found.
+ERROR HY000: Tablespace s_short_life doesn't exist.
 CREATE TABLESPACE s_shorter_life ADD DATAFILE 'shorter_life.ibd';
 ALTER TABLE t_nomad ENGINE=InnoDB TABLESPACE=s_shorter_life;
 SHOW CREATE TABLE t_nomad;

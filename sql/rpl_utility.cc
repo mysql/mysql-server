@@ -740,7 +740,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
 
     uint decimals= 0;
     TYPELIB* interval= NULL;
-    uint pack_length= 0;
+    uint pack_length_override= 0;
     uint32 max_length=
       max_display_length_for_field(type(col), field_metadata(col));
 
@@ -750,7 +750,12 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
     case MYSQL_TYPE_ENUM:
     case MYSQL_TYPE_SET:
       interval= static_cast<Field_enum*>(target_table->field[col])->typelib;
-      pack_length= field_metadata(col) & 0x00ff;
+      /*
+        Number of elements in interval on master and slave might differ.
+        Use pack length from binary log instead of one calculated from
+        number of interval elements on slave.
+      */
+      pack_length_override= field_metadata(col) & 0x00ff;
       break;
 
     case MYSQL_TYPE_NEWDECIMAL:
@@ -776,29 +781,20 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
                       target_table->field[col]->field_name);
       goto err;
 
-    case MYSQL_TYPE_TINY_BLOB:
-    case MYSQL_TYPE_MEDIUM_BLOB:
-    case MYSQL_TYPE_LONG_BLOB:
-    case MYSQL_TYPE_BLOB:
-    case MYSQL_TYPE_GEOMETRY:
-    case MYSQL_TYPE_JSON:
-      pack_length= field_metadata(col) & 0x00ff;
-      break;
-
     default:
       break;
     }
 
     DBUG_PRINT("debug", ("sql_type: %d, target_field: '%s', max_length: %d, decimals: %d,"
-                         " maybe_null: %d, unsigned_flag: %d, pack_length: %u",
+                         " maybe_null: %d, unsigned_flag: %d",
                          binlog_type(col), target_table->field[col]->field_name,
-                         max_length, decimals, TRUE, unsigned_flag, pack_length));
+                         max_length, decimals, TRUE, unsigned_flag));
     field_def->init_for_tmp_table(type(col),
                                   max_length,
                                   decimals,
                                   TRUE,          // maybe_null
                                   unsigned_flag, // unsigned_flag
-                                  pack_length);
+                                  pack_length_override);
     field_def->charset= target_table->field[col]->charset();
     field_def->interval= interval;
   }

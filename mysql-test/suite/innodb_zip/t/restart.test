@@ -285,7 +285,6 @@ SHOW CREATE TABLE t7_restart;
 --source include/shutdown_mysqld.inc
 
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd $MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd.bak
---copy_file $MYSQL_DATA_DIR/test/t5_restart.frm $MYSQL_DATA_DIR/test/t5_restart.frm.bak
 
 --echo ---- MYSQL_DATA_DIR/test
 --replace_result #P# #p#  #SP# #sp#
@@ -318,12 +317,6 @@ SHOW CREATE TABLE t7_restart;
 --echo #
 --echo # Try to rename a tablespace to a file that already exists
 --echo #
-
---copy_file $MYSQL_DATA_DIR/test/t5_restart.frm.bak $MYSQL_DATA_DIR/test/t55_restart.frm
---error ER_TABLE_EXISTS_ERROR
-RENAME TABLE t5_restart TO t55_restart;
---remove_file $MYSQL_DATA_DIR/test/t55_restart.frm
---remove_file $MYSQL_DATA_DIR/test/t5_restart.frm.bak
 
 --remove_file $MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd.bak
 

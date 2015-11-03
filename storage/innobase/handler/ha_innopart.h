@@ -1156,6 +1156,11 @@ private:
 		ulonglong* const	copied,
 		ulonglong* const	deleted)
 	{
+		/* TODO: Refactor fast_alter_partition_table or verify that
+		this is correct design! */
+		if (!trx_is_registered_for_2pc(m_prebuilt->trx)) {
+			innobase_register_trx(ht, ha_thd(), m_prebuilt->trx);
+		}
 		return(Partition_helper::change_partitions(
 						create_info,
 						path,

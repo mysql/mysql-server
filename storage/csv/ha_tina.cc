@@ -162,6 +162,18 @@ static void init_tina_psi_keys(void)
 }
 #endif /* HAVE_PSI_INTERFACE */
 
+
+/*
+  If frm_error() is called in table.cc this is called to find out what file
+  extensions exist for this handler.
+*/
+static const char *ha_tina_exts[] = {
+  CSV_EXT,
+  CSM_EXT,
+  NullS
+};
+
+
 static int tina_init_func(void *p)
 {
   handlerton *tina_hton;
@@ -180,6 +192,8 @@ static int tina_init_func(void *p)
   tina_hton->create= tina_create_handler;
   tina_hton->flags= (HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES | 
                      HTON_NO_PARTITION);
+  tina_hton->file_extensions= ha_tina_exts;
+  tina_hton->rm_tmp_tables= default_rm_tmp_tables;
   return 0;
 }
 
@@ -846,21 +860,6 @@ err:
   dbug_tmp_restore_column_map(table->write_set, org_bitmap);
 
   DBUG_RETURN(error);
-}
-
-/*
-  If frm_error() is called in table.cc this is called to find out what file
-  extensions exist for this handler.
-*/
-static const char *ha_tina_exts[] = {
-  CSV_EXT,
-  CSM_EXT,
-  NullS
-};
-
-const char **ha_tina::bas_ext() const
-{
-  return ha_tina_exts;
 }
 
 /*

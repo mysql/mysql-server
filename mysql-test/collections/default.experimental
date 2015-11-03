@@ -24,3 +24,4 @@ rpl.rpl_gtid_stress_failover             # Bug#20630589  2015-03-19 agopi Origin
 # FC : SUMA bug related to CREATE NODEGROUP/DROP NODEGROUP/CREATE NODEGROUP
 ndb.ndb_addnode_withbinlog
 
+innodb.index_merge_threshold             # WL6378 2015-04-14 mattiasj innodb DD tables causes unstable index_merge_attempts counts for explicit temporary tables

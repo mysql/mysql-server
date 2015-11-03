@@ -230,7 +230,6 @@ ELSE()
   SET(MYSQLSERVER_OUTPUT_NAME mysqld)
 ENDIF()
 
-
 SET(LIBS 
   dbug strings regex mysys mysys_ssl vio
   ${ZLIB_LIBRARY} ${SSL_LIBRARIES}

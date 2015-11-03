@@ -1,0 +1,2 @@
+# For more details on tags WL6378_* refer sql/dd/mtr_readme.txt
+sysschema.mysqldump                 : WL6378_UPGRADE

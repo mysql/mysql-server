@@ -62,7 +62,6 @@ Created 10/8/1995 Heikki Tuuri
 #include "pars0pars.h"
 #include "que0que.h"
 #include "row0mysql.h"
-#include "row0trunc.h"
 #include "srv0mon.h"
 #include "srv0srv.h"
 #include "srv0start.h"
@@ -91,7 +90,7 @@ ibool	srv_buf_dump_thread_active = FALSE;
 
 bool	srv_buf_resize_thread_active = false;
 
-ibool	srv_dict_stats_thread_active = FALSE;
+bool	srv_dict_stats_thread_active = false;
 
 const char*	srv_main_thread_op_info = "";
 
@@ -333,11 +332,19 @@ my_bool	srv_print_all_deadlocks = FALSE;
 /** Enable INFORMATION_SCHEMA.innodb_cmp_per_index */
 my_bool	srv_cmp_per_index_enabled = FALSE;
 
-/* If the following is set to 1 then we do not run purge and insert buffer
-merge to completion before shutdown. If it is set to 2, do not even flush the
-buffer pool to data files at the shutdown: we effectively 'crash'
-InnoDB (but lose no committed transactions). */
-ulint	srv_fast_shutdown	= 0;
+/** The value of the configuration parameter innodb_fast_shutdown,
+controlling the InnoDB shutdown.
+
+If innodb_fast_shutdown=0, InnoDB shutdown will purge all undo log
+records (except XA PREPARE transactions) and complete the merge of the
+entire change buffer, and then shut down the redo log.
+
+If innodb_fast_shutdown=1, InnoDB shutdown will only flush the buffer
+pool to data files, cleanly shutting down the redo log.
+
+If innodb_fast_shutdown=2, shutdown will effectively 'crash' InnoDB
+(but lose no committed transactions). */
+ulong	srv_fast_shutdown;
 
 /* Generate a innodb_status.<pid> file */
 ibool	srv_innodb_status	= FALSE;
@@ -955,6 +962,8 @@ srv_init(void)
 			srv_slot_t*	slot = &srv_sys->sys_threads[i];
 
 			slot->event = os_event_create(0);
+
+			slot->in_use = false;
 
 			ut_a(slot->event);
 		}
@@ -1707,58 +1716,21 @@ srv_inc_activity_count(void)
 	srv_sys->activity_count.inc();
 }
 
-/**********************************************************************//**
-Check whether any background thread is active. If so return the thread
-type.
-@return SRV_NONE if all are suspended or have exited, thread
-type if any are still active. */
-srv_thread_type
-srv_get_active_thread_type(void)
-/*============================*/
-{
-	srv_thread_type ret = SRV_NONE;
+/** Check whether any background thread (except the master thread) is active.
+Send the threads wakeup signal.
 
-	if (srv_read_only_mode) {
-		return(SRV_NONE);
-	}
-
-	srv_sys_mutex_enter();
-
-	for (ulint i = SRV_WORKER; i <= SRV_MASTER; ++i) {
-		if (srv_sys->n_threads_active[i] != 0) {
-			ret = static_cast<srv_thread_type>(i);
-			break;
-		}
-	}
-
-	srv_sys_mutex_exit();
-
-	/* Check only on shutdown. */
-	if (ret == SRV_NONE
-	    && srv_shutdown_state != SRV_SHUTDOWN_NONE) {
-		switch (trx_purge_state()) {
-		case PURGE_STATE_INIT:
-		case PURGE_STATE_EXIT:
-		case PURGE_STATE_DISABLED:
-			break;
-		case PURGE_STATE_RUN:
-		case PURGE_STATE_STOP:
-			ret = SRV_PURGE;
-		}
-	}
-
-	return(ret);
-}
-
-/**********************************************************************//**
-Check whether any background thread are active. If so print which thread
-is active. Send the threads wakeup signal.
-@return name of thread that is active or NULL */
+NOTE: this check is part of the final shutdown, when the first phase of
+shutdown has already been completed.
+@see srv_pre_dd_shutdown()
+@see srv_master_thread_active()
+@return name of thread that is active
+@retval NULL if no thread is active */
 const char*
-srv_any_background_threads_are_active(void)
-/*=======================================*/
+srv_any_background_threads_are_active()
 {
 	const char*	thread_active = NULL;
+
+	ut_ad(!srv_dict_stats_thread_active);
 
 	if (srv_read_only_mode) {
 		if (srv_buf_resize_thread_active) {
@@ -1776,18 +1748,40 @@ srv_any_background_threads_are_active(void)
 		thread_active = "buf_dump_thread";
 	} else if (srv_buf_resize_thread_active) {
 		thread_active = "buf_resize_thread";
-	} else if (srv_dict_stats_thread_active) {
-		thread_active = "dict_stats_thread";
 	}
 
 	os_event_set(srv_error_event);
 	os_event_set(srv_monitor_event);
 	os_event_set(srv_buf_dump_event);
 	os_event_set(lock_sys->timeout_event);
-	os_event_set(dict_stats_event);
 	os_event_set(srv_buf_resize_event);
 
 	return(thread_active);
+}
+
+/** Check whether the master thread is active.
+This is polled during the final phase of shutdown.
+The first phase of server shutdown must have already been executed
+(or the server must not have been fully started up).
+@see srv_pre_dd_shutdown()
+@see srv_any_background_threads_are_active()
+@retval true	if any thread is active
+@retval false	if no thread is active */
+bool
+srv_master_thread_active()
+{
+	if (srv_read_only_mode) {
+		return(false);
+	}
+
+	ut_a(!srv_dict_stats_thread_active);
+	srv_sys_mutex_enter();
+	ut_a(srv_sys->n_threads_active[SRV_WORKER] == 0);
+	ut_a(srv_sys->n_threads_active[SRV_PURGE] == 0);
+	bool	active = srv_sys->n_threads_active[SRV_MASTER] != 0;
+	srv_sys_mutex_exit();
+
+	return(active);
 }
 
 /*******************************************************************//**
@@ -2865,44 +2859,30 @@ srv_purge_wakeup(void)
 	}
 }
 
-/** Check if tablespace is being truncated.
-(Ignore system-tablespace as we don't re-create the tablespace
-and so some of the action that are suppressed by this function
-for independent tablespace are not applicable to system-tablespace).
-@param	space_id	space_id to check for truncate action
-@return true		if being truncated, false if not being
-			truncated or tablespace is system-tablespace. */
+/** Check if the purge threads are active, both coordinator and worker threads
+@return true if any thread is active, false if no thread is active */
 bool
-srv_is_tablespace_truncated(ulint space_id)
+srv_purge_threads_active()
 {
-	if (is_system_tablespace(space_id)) {
-		return(false);
+	for (uint i = 0; i < srv_sys->n_sys_threads; ++i) {
+		srv_slot_t*	slot;
+
+		slot = &srv_sys->sys_threads[i];
+
+		/* The slots for purge could be never used due to no purge
+		threads having been created, so check the flag first. */
+		if (slot->in_use) {
+
+			srv_thread_type	type = srv_slot_get_type(slot);
+
+			if (type == SRV_WORKER || type == SRV_PURGE) {
+
+				return(true);
+			}
+		}
 	}
 
-	return(truncate_t::is_tablespace_truncated(space_id)
-	       || undo::Truncate::is_tablespace_truncated(space_id));
-
-}
-
-/** Check if tablespace was truncated.
-@param[in]	space	space object to check for truncate action
-@return true if tablespace was truncated and we still have an active
-MLOG_TRUNCATE REDO log record. */
-bool
-srv_was_tablespace_truncated(const fil_space_t* space)
-{
-	if (space == NULL) {
-		ut_ad(0);
-		return(false);
-	}
-
-	bool	has_shared_space = FSP_FLAGS_GET_SHARED(space->flags);
-
-	if (is_system_tablespace(space->id) || has_shared_space) {
-		return(false);
-	}
-
-	return(truncate_t::was_tablespace_truncated(space->id));
+	return(false);
 }
 
 /** Call exit(3) */

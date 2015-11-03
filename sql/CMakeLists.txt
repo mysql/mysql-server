@@ -61,6 +61,75 @@ IF(SSL_DEFINES)
  ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
 
+SET(DD_SOURCES
+  dd/dd_schema.cc
+  dd/dd_table.cc
+  dd/dd_tablespace.cc
+  dd/dd_view.cc
+
+  dd/impl/bootstrapper.cc
+  dd/impl/collection_impl.cc
+  dd/impl/dd.cc
+  dd/impl/dictionary_impl.cc
+  dd/impl/dictionary_object_collection.cc
+  dd/impl/object_table_registry.cc
+  dd/impl/properties_impl.cc
+  dd/impl/system_view_name_registry.cc
+  dd/impl/transaction_impl.cc
+  dd/impl/utils.cc
+
+  dd/impl/cache/dictionary_client.cc
+  dd/impl/cache/local_multi_map.cc
+  dd/impl/cache/multi_map_base.cc
+  dd/impl/cache/shared_multi_map.cc
+  dd/impl/cache/shared_dictionary_cache.cc
+  dd/impl/cache/storage_adapter.cc
+
+  dd/impl/raw/object_keys.cc
+  dd/impl/raw/raw_record.cc
+  dd/impl/raw/raw_record_set.cc
+  dd/impl/raw/raw_table.cc
+
+  dd/impl/tables/character_sets.cc
+  dd/impl/tables/collations.cc
+  dd/impl/tables/columns.cc
+  dd/impl/tables/column_type_elements.cc
+  dd/impl/tables/foreign_key_column_usage.cc
+  dd/impl/tables/foreign_keys.cc
+  dd/impl/tables/index_column_usage.cc
+  dd/impl/tables/indexes.cc
+  dd/impl/tables/index_partitions.cc
+  dd/impl/tables/schemata.cc
+  dd/impl/tables/table_partitions.cc
+  dd/impl/tables/table_partition_values.cc
+  dd/impl/tables/tables.cc
+  dd/impl/tables/tablespace_files.cc
+  dd/impl/tables/tablespaces.cc
+  dd/impl/tables/view_table_usage.cc
+
+  dd/impl/types/abstract_table_impl.cc
+  dd/impl/types/charset_impl.cc
+  dd/impl/types/collation_impl.cc
+  dd/impl/types/column_impl.cc
+  dd/impl/types/column_type_element_impl.cc
+  dd/impl/types/dictionary_object_table_impl.cc
+  dd/impl/types/entity_object_impl.cc
+  dd/impl/types/foreign_key_element_impl.cc
+  dd/impl/types/foreign_key_impl.cc
+  dd/impl/types/index_element_impl.cc
+  dd/impl/types/index_impl.cc
+  dd/impl/types/partition_impl.cc
+  dd/impl/types/partition_index_impl.cc
+  dd/impl/types/partition_value_impl.cc
+  dd/impl/types/schema_impl.cc
+  dd/impl/types/table_impl.cc
+  dd/impl/types/tablespace_file_impl.cc
+  dd/impl/types/tablespace_impl.cc
+  dd/impl/types/view_impl.cc
+  dd/impl/types/view_table_impl.cc
+  dd/impl/types/weak_object_impl.cc
+)
+
 SET(SQL_SHARED_SOURCES
   abstract_query_plan.cc
   auth/auth_common.cc
@@ -76,10 +145,10 @@ SET(SQL_SHARED_SOURCES
   bootstrap.cc
   conn_handler/connection_handler_manager.cc 
   current_thd.cc
-  datadict.cc
+  dd_table_share.cc
   debug_sync.cc
+  default_values.cc
   derror.cc
-  discover.cc
   error_handler.cc
   field.cc
   field_conv.cc 
@@ -157,6 +226,7 @@ SET(SQL_SHARED_SOURCES
   rpl_transaction_write_set_ctx.cc
   rpl_write_set_handler.cc
   rules_table_service.cc
+  sdi_utils.cc
   session_tracker.cc
   set_var.cc 
   sp.cc
@@ -249,8 +319,8 @@ SET(SQL_SHARED_SOURCES
   trigger_chain.cc
   tztime.cc
   uniques.cc
-  unireg.cc
   xa.cc
+  ${DD_SOURCES}
 )
 
 SET(SQL_EXPORTED_SOURCES ${SQL_SHARED_SOURCES} PARENT_SCOPE)
@@ -386,6 +456,13 @@ IF (WIN32 AND OPENSSL_APPLINK_C)
     COMPILE_FLAGS "-DHAVE_OPENSSL_APPLINK_C"
   )
 ENDIF()
+
+# Basically we should add $DD_SOURCE to SQL_SOURCE.
+# But, if there are two .cc file with same name in $SQL_SOURCE,
+# e.g., sql/table.cc and sql/dd/table.cc the cmake commands 
+# ADD_LIBRARY or even ADD_CONVENIENCE_LIBRARY picks one and ignores
+# another. And hence some symbol gets lost. The solution is to
+# build a static library 'dd' and add then to library.
 
 ADD_CONVENIENCE_LIBRARY(sql ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql GenServerSource)

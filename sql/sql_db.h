@@ -19,6 +19,7 @@
 #include "my_global.h"
 
 class THD;
+
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_ha_create_information HA_CREATE_INFO;
 typedef struct st_mysql_lex_string LEX_STRING;
@@ -35,14 +36,8 @@ bool mysql_opt_change_db(THD *thd,
                          LEX_STRING *saved_db_name,
                          bool force_switch,
                          bool *cur_db_changed);
-bool my_dboptions_cache_init(void);
-void my_dboptions_cache_free(void);
 bool check_db_dir_existence(const char *db_name);
-bool load_db_opt_by_name(THD *thd, const char *db_name,
-                         HA_CREATE_INFO *db_create_info);
-const CHARSET_INFO *get_default_db_collation(THD *thd, const char *db_name);
-void my_dbopt_cleanup(void);
-
-#define MY_DB_OPT_FILE "db.opt"
-
+bool get_default_db_collation(THD *thd,
+                              const char *db_name,
+                              const CHARSET_INFO **collation);
 #endif /* SQL_DB_INCLUDED */

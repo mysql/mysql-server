@@ -19,7 +19,6 @@
 #include "my_global.h"
 
 #include "partition_element.h"       // partition_state
-#include "lock.h"                    // Tablespace_hash_set
 
 class Alter_info;
 class Alter_table_ctx;
@@ -28,6 +27,7 @@ class Item;
 class String;
 class handler;
 class partition_info;
+class Create_field;
 class THD;
 struct handlerton;
 struct TABLE;
@@ -117,11 +117,6 @@ void get_full_part_id_from_key(const TABLE *table, uchar *buf,
                                KEY *key_info,
                                const key_range *key_spec,
                                part_id_range *part_spec);
-bool get_partition_tablespace_names(
-       THD *thd,
-       const char *partition_info_str,
-       uint partition_info_len,
-       Tablespace_hash_set *tablespace_set);
 bool mysql_unpack_partition(THD *thd, char *part_buf,
                             uint part_info_len,
                             TABLE *table, bool is_create_table_ind,
@@ -162,11 +157,18 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            Alter_table_ctx *alter_ctx,
                            bool *partition_changed,
                            partition_info **new_part_info);
+int expr_to_string(String *val_conv,
+                   Item *item_expr, 
+                   part_column_list_val *col_val,
+                   Field *field,
+                   const char *field_name,
+                   const HA_CREATE_INFO *create_info,
+                   List<Create_field> *create_fields);
 char *generate_partition_syntax(partition_info *part_info,
                                 uint *buf_length, bool use_sql_alloc,
                                 bool show_partition_options,
                                 HA_CREATE_INFO *create_info,
-                                Alter_info *alter_info,
+                                List<Create_field> *create_fields,
                                 const char *current_comment_start);
 bool verify_data_with_partition(TABLE *table, TABLE *part_table,
                                 uint32 part_id);

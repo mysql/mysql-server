@@ -2443,10 +2443,7 @@ test.t1	3775188275
 CHECKSUM TABLE t2 EXTENDED;
 Table	Checksum
 test.t2	3775188275
-CHECKSUM TABLE t3 EXTENDED;
-Table	Checksum
-test.t3	3775188275
-DROP TABLE t1, t2, t3;
+DROP TABLE t1, t2;
 #
 # BUG#51307 - widespread corruption with partitions and insert...select
 #

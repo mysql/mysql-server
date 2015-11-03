@@ -310,18 +310,15 @@ btr_node_ptr_get_child_page_no(
 	const rec_t*	rec,	/*!< in: node pointer record */
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
 	__attribute__((warn_unused_result));
-
 /** Create the root node for a new index tree.
 @param[in]	type			type of the index
 @param[in]	space			space where created
 @param[in]	page_size		page size
 @param[in]	index_id		index id
-@param[in]	index			index, or NULL when applying TRUNCATE
-log record during recovery
-@param[in]	btr_redo_create_info	used for applying TRUNCATE log
-@param[in]	mtr			mini-transaction handle
-record during recovery
-@return page number of the created root, FIL_NULL if did not succeed */
+@param[in]	index			index tree
+@param[in,out]	mtr			mini-transaction
+@return page number of the created root
+@retval FIL_NULL if did not succeed */
 ulint
 btr_create(
 	ulint			type,
@@ -329,7 +326,6 @@ btr_create(
 	const page_size_t&	page_size,
 	space_index_t		index_id,
 	dict_index_t*		index,
-	const btr_create_t*	btr_redo_create_info,
 	mtr_t*			mtr);
 
 /** Free a persistent index tree if it exists.
@@ -344,7 +340,7 @@ btr_free_if_exists(
 	space_index_t		index_id,
 	mtr_t*			mtr);
 
-/** Free an index tree in a temporary tablespace or during TRUNCATE TABLE.
+/** Free an index tree in a temporary tablespace.
 @param[in]	page_id		root page id
 @param[in]	page_size	page size */
 void

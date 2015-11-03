@@ -145,9 +145,14 @@ SELECT table_definition_cache = @@SESSION.table_definition_cache;
 flush tables;
 flush status;
 
+# With new data dictionary (DD) introduced, the size of table definition cache
+# is bit more than expected. There are 11 DD table definitions opened
+# more than expected.
+set @dd_definitions = 11;
+
 --disable_warnings
-set @Open_table_definitions = (select variable_value from information_schema.session_status where variable_name ='Open_table_definitions');
-set @Opened_table_definitions = (select variable_value from information_schema.session_status where variable_name ='Opened_table_definitions');
+set @Open_table_definitions = (select variable_value from information_schema.session_status where variable_name ='Open_table_definitions') + @dd_definitions;
+set @Opened_table_definitions = (select variable_value from information_schema.session_status where variable_name ='Opened_table_definitions') + @dd_definitions;
 --enable_warnings
 
 --echo # create 2 tables 

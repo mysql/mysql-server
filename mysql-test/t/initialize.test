@@ -28,17 +28,16 @@ CALL mtr.add_suppression("InnoDB:");
 
 --echo # create bootstrap file
 write_file $BOOTSTRAP_SQL;
-CREATE DATABASE mysql;
 CREATE DATABASE test;
 CREATE TABLE mysql.t1(a INT) ENGINE=innodb;
 EOF
 
 --echo # play tiny_bootstrap.sql
 
---echo # create the empty datadir
-mkdir $DDIR;
+--echo # First start the server with --initialize
+--exec $MYSQLD $extra_args --initialize --datadir=$DDIR --log-error-verbosity=1 > $MYSQLD_LOG 2>&1
 
---echo # try --bootstrap
+--echo # then try --bootstrap
 --exec $MYSQLD $extra_args --bootstrap --datadir=$DDIR < $BOOTSTRAP_SQL >$MYSQLD_LOG 2>&1
 
 --echo # look for bootstrap deprecated

@@ -501,6 +501,8 @@ ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
 CREATE TABLE t1n LIKE t1o;
 ALTER TABLE t1n ADD FULLTEXT INDEX(ct);
+Warnings:
+Warning	1831	Duplicate index 'ct_2' defined on the table 'test.t1n'. This is deprecated and will be disallowed in a future release.
 ALTER TABLE t1n CHANGE c1 Fts_DOC_ID INT, ALGORITHM=INPLACE;
 ERROR 42000: Incorrect column name 'FTS_DOC_ID'
 ALTER TABLE t1n CHANGE c1 Fts_DOC_ID INT, ALGORITHM=COPY;

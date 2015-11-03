@@ -32,7 +32,6 @@
 
 static const char *initialization_cmds[] =
 {
-  "CREATE DATABASE mysql;\n",
   "USE mysql;\n",
   NULL
 };
@@ -147,7 +146,7 @@ static void generate_password(char *password, int size)
 
 /* these globals don't need protection since it's single-threaded execution */
 static int cmds_ofs=0, cmd_ofs= 0;
-static File_command_iterator *init_file_iter= NULL;
+static bootstrap::File_command_iterator *init_file_iter= NULL;
 
 void Compiled_in_command_iterator::begin(void)
 {
@@ -208,7 +207,7 @@ int Compiled_in_command_iterator::next(std::string &query, int *read_error)
       /* need to allow error reporting */
       THD *thd= current_thd;
       thd->get_stmt_da()->set_overwrite_status(true);
-      init_file_iter= new File_command_iterator(opt_init_file);
+      init_file_iter= new bootstrap::File_command_iterator(opt_init_file);
       if (!init_file_iter->has_file())
       {
         sql_print_error("Failed to open the bootstrap file %s", opt_init_file);

@@ -14,6 +14,12 @@
 SET default_storage_engine=InnoDB;
 LET $MYSQLD_DATADIR = `select @@datadir`;
 
+--echo # Suppress errors about too long filenames in error log.
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number .* in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Error number .* means '.*'");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot create file .*");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: File .* 'create' returned OS error .*");
+
 --echo #
 --echo # MySQL limits each database and tablename identifier to 64 characters
 --echo # of up to 3 bytes per character, corresponding to 192 bytes.
@@ -94,8 +100,8 @@ LET $long_252_byte_table_name = ################################################
 --echo #
 --echo # A 252-byte tablename is too long
 --echo #
---replace_regex /errno: [0-9]+/errno: ##/  /@0023/#/
---error ER_CANT_CREATE_TABLE
+--replace_regex /@0023/#/
+--error ER_GET_ERRNO 
 --eval CREATE TABLE `test`.`$long_252_byte_table_name` (a SERIAL)
 
 CREATE DATABASE twenty_byte_db_name_;
@@ -109,8 +115,8 @@ USE `twenty_byte_db_name_`;
 --echo #
 --echo # A 252 byte expanded table name is also too long in a longer database name
 --echo #
---replace_regex /errno: [0-9]+/errno: ##/  /@0023/#/
---error ER_CANT_CREATE_TABLE
+--replace_regex /@0023/#/
+--error ER_GET_ERRNO 
 --eval CREATE TABLE `twenty_byte_db_name_`.`$long_252_byte_table_name` (a SERIAL)
 
 --echo #

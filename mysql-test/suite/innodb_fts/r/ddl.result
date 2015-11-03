@@ -169,6 +169,8 @@ ADD FULLTEXT INDEX idx5 (title);
 ERROR HY000: InnoDB presently supports one FULLTEXT index creation at a time
 CREATE FULLTEXT INDEX idx on articles (title);
 ALTER TABLE articles ADD FULLTEXT INDEX idx3 (title);
+Warnings:
+Warning	1831	Duplicate index 'idx3' defined on the table 'test.articles'. This is deprecated and will be disallowed in a future release.
 ALTER TABLE articles ADD INDEX t20 (title(20)), LOCK=NONE;
 ALTER TABLE articles DROP INDEX t20;
 INSERT INTO articles (FTS_DOC_ID, title, body) VALUES

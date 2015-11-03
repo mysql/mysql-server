@@ -73,8 +73,10 @@ class ha_myisam: public handler
   ~ha_myisam() {}
   handler *clone(const char *name, MEM_ROOT *mem_root);
   const char *table_type() const { return "MyISAM"; }
-  const char *index_type(uint key_number);
-  const char **bas_ext() const;
+  virtual enum ha_key_alg get_default_index_algorithm() const
+  { return HA_KEY_ALG_BTREE; }
+  virtual bool is_index_algorithm_supported(enum ha_key_alg key_alg) const
+  { return key_alg == HA_KEY_ALG_BTREE || key_alg == HA_KEY_ALG_RTREE; }
   ulonglong table_flags() const { return int_table_flags; }
   int index_init(uint idx, bool sorted);
   int index_end();

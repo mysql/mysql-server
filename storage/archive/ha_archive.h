@@ -95,8 +95,6 @@ class ha_archive: public handler
 
   archive_record_buffer *create_record_buffer(unsigned int length);
   void destroy_record_buffer(archive_record_buffer *r);
-  int frm_copy(azio_stream *src, azio_stream *dst);
-  void frm_load(const char *name, azio_stream *dst);
   unsigned int pack_row_v1(uchar *record);
 
 public:
@@ -105,8 +103,6 @@ public:
   {
   }
   const char *table_type() const { return "ARCHIVE"; }
-  const char *index_type(uint inx) { return "NONE"; }
-  const char **bas_ext() const;
   ulonglong table_flags() const
   {
     return (HA_NO_TRANSACTIONS | HA_REC_NOT_IN_SEQ | HA_CAN_BIT_FIELD |

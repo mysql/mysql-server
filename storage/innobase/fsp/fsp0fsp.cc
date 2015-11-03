@@ -51,7 +51,7 @@ Created 11/29/1995 Heikki Tuuri
 #endif /* UNIV_HOTBACKUP */
 #include "dict0mem.h"
 #include "fsp0sysspace.h"
-#include "fsp0types.h"
+#include "trx0purge.h"
 
 #ifndef UNIV_HOTBACKUP
 
@@ -839,12 +839,11 @@ fsp_space_modify_check(
 		{
 			const fil_type_t	type = fil_space_get_type(id);
 			ut_a(id == srv_tmp_space.space_id()
-			     || srv_is_tablespace_truncated(id)
-			     || fil_space_is_being_truncated(id)
 			     || fil_space_get_flags(id) == ULINT_UNDEFINED
 			     || type == FIL_TYPE_TEMPORARY
 			     || type == FIL_TYPE_IMPORT
-			     || fil_space_is_redo_skipped(id));
+			     || fil_space_is_redo_skipped(id)
+			     || undo::Truncate::is_tablespace_truncated(id));
 		}
 #endif /* UNIV_DEBUG */
 		return;
@@ -1003,7 +1002,7 @@ fsp_header_init(
 	if (space_id == srv_sys_space.space_id()) {
 		if (btr_create(DICT_CLUSTERED | DICT_IBUF,
 			       0, univ_page_size, DICT_IBUF_ID_MIN + space_id,
-			       dict_ind_redundant, NULL, mtr) == FIL_NULL) {
+			       dict_ind_redundant, mtr) == FIL_NULL) {
 			return(false);
 		}
 	}
@@ -1411,11 +1410,7 @@ fsp_fill_free_list(
 				mtr_start(&ibuf_mtr);
 				ibuf_mtr.set_named_space(space);
 
-				/* Avoid logging while truncate table
-				fix-up is active. */
-				if (space->purpose == FIL_TYPE_TEMPORARY
-				    || srv_is_tablespace_truncated(
-					    space->id)) {
+				if (space->purpose == FIL_TYPE_TEMPORARY) {
 					mtr_set_log_mode(
 						&ibuf_mtr, MTR_LOG_NO_REDO);
 				}

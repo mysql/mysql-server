@@ -61,7 +61,7 @@ utf8_roman_ci	utf8_roman_ci	utf8	utf8
 USE test;
 SELECT @@collation_database,@@collation_server,@@character_set_database,@@character_set_server;
 @@collation_database	@@collation_server	@@character_set_database	@@character_set_server
-utf8_roman_ci	utf8_roman_ci	utf8	utf8
+latin1_swedish_ci	utf8_roman_ci	latin1	utf8
 'fill table with some test data';
 CREATE TABLE t1(a CHAR(20))CHARACTER SET=latin1;
 INSERT INTO t1 VALUES('Muffler'),('Müller'),('MX Systems');

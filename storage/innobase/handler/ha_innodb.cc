@@ -97,7 +97,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0mysql.h"
 #include "row0quiesce.h"
 #include "row0sel.h"
-#include "row0trunc.h"
 #include "row0upd.h"
 #include "srv0mon.h"
 #include "srv0srv.h"
@@ -170,7 +169,6 @@ static char*	innobase_server_stopword_table		= NULL;
 /* Below we have boolean-valued start-up parameters, and their default
 values */
 
-static ulong	innobase_fast_shutdown			= 1;
 static my_bool	innobase_use_doublewrite		= TRUE;
 static my_bool	innobase_use_checksums			= TRUE;
 static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
@@ -623,10 +621,8 @@ static ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_cursor_new_trx,
 	(ib_cb_t) ib_cursor_reset,
 	(ib_cb_t) ib_col_get_name,
-	(ib_cb_t) ib_table_truncate,
 	(ib_cb_t) ib_cursor_open_index_using_name,
 	(ib_cb_t) ib_cfg_get_cfg,
-	(ib_cb_t) ib_cursor_set_memcached_sync,
 	(ib_cb_t) ib_cursor_set_cluster_access,
 	(ib_cb_t) ib_cursor_commit_trx,
 	(ib_cb_t) ib_cfg_trx_level,
@@ -1045,14 +1041,64 @@ innobase_drop_database(
 	handlerton*	hton,
 	char*		path);
 
-/*******************************************************************//**
-Closes an InnoDB database. */
+/** Free tablespace resources. */
+static
+void
+innodb_space_shutdown()
+{
+	DBUG_ENTER("innodb_space_shutdown");
+
+	srv_sys_space.shutdown();
+	if (srv_tmp_space.get_sanity_check_status()) {
+		fil_space_close(srv_tmp_space.space_id());
+		srv_tmp_space.delete_files();
+	}
+	srv_tmp_space.shutdown();
+
+	DBUG_VOID_RETURN;
+}
+
+/** Shut down InnoDB after the Global Data Dictionary has been shut down.
+@see innodb_pre_dd_shutdown()
+@retval 0 always */
 static
 int
-innobase_end(
-/*=========*/
-	handlerton*		hton,	/* in: InnoDB handlerton */
-	ha_panic_function	type);
+innodb_shutdown(
+	handlerton*,
+	ha_panic_function)
+{
+	DBUG_ENTER("innodb_shutdown");
+
+	if (innodb_inited) {
+		innodb_inited = 0;
+		hash_table_free(innobase_open_tables);
+		innobase_open_tables = NULL;
+
+		srv_shutdown();
+		innodb_space_shutdown();
+
+		mysql_mutex_destroy(&innobase_share_mutex);
+		mysql_mutex_destroy(&commit_cond_m);
+		mysql_cond_destroy(&commit_cond);
+	}
+
+	DBUG_RETURN(0);
+}
+
+/** Shut down all InnoDB background tasks that may access
+the Global Data Dictionary, before the Global Data Dictionary
+and the rest of InnoDB have been shut down.
+@see dd::shutdown()
+@see innodb_shutdown() */
+static
+void
+innodb_pre_dd_shutdown(
+	handlerton*)
+{
+	if (innodb_inited) {
+		srv_pre_dd_shutdown();
+	}
+}
 
 /*****************************************************************//**
 Creates an InnoDB transaction struct for the thd if it does not yet have one.
@@ -2460,18 +2506,6 @@ innodb_replace_trx_in_thd(
 }
 
 /*********************************************************************//**
-Note that a transaction has been registered with MySQL.
-@return true if transaction is registered with MySQL 2PC coordinator */
-static inline
-bool
-trx_is_registered_for_2pc(
-/*=========================*/
-	const trx_t*	trx)	/* in: transaction */
-{
-	return(trx->is_registered == 1);
-}
-
-/*********************************************************************//**
 Note that a transaction has been registered with MySQL 2PC coordinator. */
 static inline
 void
@@ -2598,7 +2632,8 @@ ha_innobase::ha_innobase(
 		  ),
 	m_start_of_scan(),
 	m_num_write_row(),
-        m_mysql_has_locked()
+	m_stored_select_lock_type(LOCK_NONE_UNSET),
+	m_mysql_has_locked()
 {}
 
 /*********************************************************************//**
@@ -2669,7 +2704,6 @@ for the transaction. This MUST be called for every transaction for which
 the user may call commit or rollback. Calling this several times to register
 the same transaction is allowed, too. This function also registers the
 current SQL statement. */
-static inline
 void
 innobase_register_trx(
 /*==================*/
@@ -3077,7 +3111,7 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 	if the trx isolation level would have been specified as SERIALIZABLE */
 
 	m_prebuilt->select_lock_type = LOCK_NONE;
-	m_prebuilt->stored_select_lock_type = LOCK_NONE;
+	m_stored_select_lock_type = LOCK_NONE;
 
 	/* Always fetch all columns in the index record */
 
@@ -3091,25 +3125,6 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 	reset_template();
 }
 
-/*********************************************************************//**
-Free tablespace resources allocated. */
-static
-void
-innobase_space_shutdown()
-/*=====================*/
-{
-	DBUG_ENTER("innobase_space_shutdown");
-
-	srv_sys_space.shutdown();
-	if (srv_tmp_space.get_sanity_check_status()) {
-		fil_space_close(srv_tmp_space.space_id());
-		srv_tmp_space.delete_files();
-	}
-	srv_tmp_space.shutdown();
-
-	DBUG_VOID_RETURN;
-}
-
 /** Free any resources that were allocated and return failure.
 @return always return 1 */
 static
@@ -3117,10 +3132,26 @@ int
 innodb_init_abort()
 {
 	DBUG_ENTER("innodb_init_abort");
-	innobase_space_shutdown();
+	innodb_space_shutdown();
 	DBUG_RETURN(1);
 }
 
+/** Check if InnoDB is in a mode where the data dictionary is read-only.
+@return true if srv_read_only_mode is TRUE or if srv_force_recovery > 0 */
+static
+bool
+innobase_is_dict_readonly()
+{
+	DBUG_ENTER("innobase_is_dict_readonly");
+	DBUG_RETURN(srv_read_only_mode || srv_force_recovery > 0);
+}
+
+/****************************************************************//**
+Gives the file extension of an InnoDB single-table tablespace. */
+static const char* ha_innobase_exts[] = {
+	dot_ext[IBD],
+	NullS
+};
 
 /*****************************************************************//**
 This function checks if the given db.tablename is a system table
@@ -3666,7 +3697,8 @@ innodb_init(
 	innobase_hton->create = innobase_create_handler;
 	innobase_hton->alter_tablespace = innobase_alter_tablespace;
 	innobase_hton->drop_database = innobase_drop_database;
-	innobase_hton->panic = innobase_end;
+	innobase_hton->pre_dd_shutdown = innodb_pre_dd_shutdown;
+	innobase_hton->panic = innodb_shutdown;
 	innobase_hton->partition_flags= innobase_partition_flags;
 
 	innobase_hton->start_consistent_snapshot =
@@ -3682,10 +3714,14 @@ innodb_init(
 		innobase_release_temporary_latches;
 	innobase_hton->replace_native_transaction_in_thd =
 		innodb_replace_trx_in_thd;
+	innobase_hton->file_extensions = ha_innobase_exts;
 	innobase_hton->data = &innodb_api_cb;
 
 	innobase_hton->is_supported_system_table=
 		innobase_is_supported_system_table;
+
+	innobase_hton->is_dict_readonly=
+		innobase_is_dict_readonly;
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
@@ -3832,44 +3868,6 @@ innodb_init(
 #endif /* UNIV_ENABLE_UNIT_TEST_ROW_RAW_FORMAT_INT */
 
 	DBUG_RETURN(0);
-}
-
-/*******************************************************************//**
-Closes an InnoDB database.
-@return TRUE if error */
-static
-int
-innobase_end(
-/*=========*/
-	handlerton*		hton,	/*!< in/out: InnoDB handlerton */
-	ha_panic_function	type __attribute__((unused)))
-					/*!< in: ha_panic() parameter */
-{
-	int	err= 0;
-
-	DBUG_ENTER("innobase_end");
-	DBUG_ASSERT(hton == innodb_hton_ptr);
-
-	if (innodb_inited) {
-
-		srv_fast_shutdown = (ulint) innobase_fast_shutdown;
-
-		innodb_inited = 0;
-		hash_table_free(innobase_open_tables);
-		innobase_open_tables = NULL;
-
-		if (innobase_shutdown_for_mysql() != DB_SUCCESS) {
-			err = 1;
-		}
-
-		innobase_space_shutdown();
-
-		mysql_mutex_destroy(&innobase_share_mutex);
-		mysql_mutex_destroy(&commit_cond_m);
-		mysql_cond_destroy(&commit_cond);
-	}
-
-	DBUG_RETURN(err);
 }
 
 /** Flush InnoDB redo logs to the file system.
@@ -4584,13 +4582,6 @@ ha_innobase::table_flags() const
 }
 
 /****************************************************************//**
-Gives the file extension of an InnoDB single-table tablespace. */
-static const char* ha_innobase_exts[] = {
-	DOT_IBD,
-	NullS
-};
-
-/****************************************************************//**
 Returns the table type (storage engine name).
 @return table type */
 
@@ -4599,37 +4590,6 @@ ha_innobase::table_type() const
 /*===========================*/
 {
 	return(innobase_hton_name);
-}
-
-/****************************************************************//**
-Returns the index type.
-@return index type */
-
-const char*
-ha_innobase::index_type(
-/*====================*/
-	uint	keynr)		/*!< : index number */
-{
-	dict_index_t*	index = innobase_get_index(keynr);
-
-	if (index && index->type & DICT_FTS) {
-		return("FULLTEXT");
-	} else if (dict_index_is_spatial(index)) {
-		return("SPATIAL");
-	} else {
-		return("BTREE");
-	}
-}
-
-/****************************************************************//**
-Returns the table file name extension.
-@return file extension string */
-
-const char**
-ha_innobase::bas_ext() const
-/*========================*/
-{
-	return(ha_innobase_exts);
 }
 
 /****************************************************************//**
@@ -7962,34 +7922,23 @@ ha_innobase::delete_row(
 }
 
 /** Delete all rows from the table.
-@return error number or 0 */
-
+@retval HA_ERR_WRONG_COMMAND if the table is transactional
+@retval 0 on success */
 int
 ha_innobase::delete_all_rows()
 {
 	DBUG_ENTER("ha_innobase::delete_all_rows");
 
-	/* Currently enabled only for intrinsic tables. */
 	if (!dict_table_is_intrinsic(m_prebuilt->table)) {
+		/* Transactional tables should use truncate(). */
 		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 	}
 
-	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
+	row_delete_all_rows(m_prebuilt->table);
 
-	if (!dict_table_is_intrinsic(m_prebuilt->table)
-	    && trx_in_innodb.is_aborted()) {
+	dict_stats_update(m_prebuilt->table, DICT_STATS_EMPTY_TABLE);
 
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
-	}
-
-	dberr_t	error = row_delete_all_rows(m_prebuilt->table);
-
-	if (error == DB_SUCCESS) {
-		dict_stats_update(m_prebuilt->table, DICT_STATS_EMPTY_TABLE);
-	}
-
-	DBUG_RETURN(convert_error_code_to_mysql(
-			    error, m_prebuilt->table->flags, m_user_thd));
+	DBUG_RETURN(0);
 }
 
 /**********************************************************************//**
@@ -10678,7 +10627,14 @@ index_bad:
 		}
 	}
 
-	if (m_create_info->key_block_size > 0) {
+	if (is_temp && m_create_info->key_block_size > 0) {
+		push_warning(
+			m_thd, Sql_condition::SL_WARNING,
+			ER_ILLEGAL_HA_CREATE_OPTION,
+			"InnoDB: KEY_BLOCK_SIZE is ignored"
+			" for TEMPORARY TABLE.");
+		zip_allowed = false;
+	} else if (m_create_info->key_block_size > 0) {
 		/* The requested compressed page size (key_block_size)
 		is given in kilobytes. If it is a valid number, store
 		that value as the number of log2 shifts from 512 in
@@ -11072,26 +11028,23 @@ create_table_info_t::set_tablespace_type(
 		|| table_being_altered_is_file_per_table
 		|| tablespace_is_file_per_table(m_create_info);
 
-	/* All noncompresed temporary tables will be put into the
-	system temporary tablespace.  */
-	bool is_noncompressed_temporary =
-		m_create_info->options & HA_LEX_CREATE_TMP_TABLE
-		&& !(m_create_info->row_type == ROW_TYPE_COMPRESSED
-		     || m_create_info->key_block_size > 0);
+	bool is_temp = m_create_info->options & HA_LEX_CREATE_TMP_TABLE;
 
-	/* Ignore the current innodb-file-per-table setting if we are
-	creating a temporary, non-compressed table or if the
+	/* Note whether this table will be created using a shared,
+	general or system tablespace. */
+	m_use_shared_space = tablespace_is_shared_space(m_create_info);
+
+	/* Ignore the current innodb_file_per_table setting if we are
+	creating a temporary table or if the
 	TABLESPACE= phrase is using an existing shared tablespace. */
 	m_use_file_per_table =
 		m_allow_file_per_table
-		&& !is_noncompressed_temporary
+		&& !is_temp
 		&& !m_use_shared_space;
 
-	/* DATA DIRECTORY must have m_use_file_per_table but cannot be
-	used with TEMPORARY tables. */
+	/* DATA DIRECTORY must have m_use_file_per_table. */
 	m_use_data_dir =
 		m_use_file_per_table
-		&& !(m_create_info->options & HA_LEX_CREATE_TMP_TABLE)
 		&& (m_create_info->data_file_name != NULL)
 		&& (m_create_info->data_file_name[0] != '\0');
 	ut_ad(!(m_use_shared_space && m_use_data_dir));
@@ -11488,16 +11441,18 @@ create_table_info_t::allocate_trx()
 	m_trx->ddl = true;
 }
 
-/** Create a new table to an InnoDB database.
-@param[in]	name		Table name, format: "db/table_name".
-@param[in]	form		Table format; columns and index information.
-@param[in]	create_info	Create info (including create statement string).
-@return	0 if success else error number. */
+/** Create an InnoDB table.
+@param[in]	name		table name
+@param[in]	form		table structure
+@param[in]	create_info	more information on the table
+@param[in]	file_per_table	whether to create a per-table tablespace
+@return error number */
 int
 ha_innobase::create(
 	const char*	name,
 	TABLE*		form,
-	HA_CREATE_INFO*	create_info)
+	HA_CREATE_INFO*	create_info,
+	bool		file_per_table)
 {
 	int		error;
 	char		norm_name[FN_REFLEN];	/* {database}/{tablename} */
@@ -11511,7 +11466,8 @@ ha_innobase::create(
 				     create_info,
 				     norm_name,
 				     remote_path,
-				     tablespace);
+				     tablespace,
+				     file_per_table);
 
 	/* Initialize the object. */
 	if ((error = info.initialize())) {
@@ -11600,6 +11556,25 @@ cleanup:
 	trx_free_for_mysql(trx);
 
 	DBUG_RETURN(error);
+}
+
+/** Create an InnoDB table.
+@param[in]	name		table name
+@param[in]	form		table structure
+@param[in]	create_info	more information on the table
+@return error number */
+int
+ha_innobase::create(
+	const char*	name,
+	TABLE*		form,
+	HA_CREATE_INFO*	create_info)
+{
+	/* Determine if this CREATE TABLE will be making a file-per-table
+	tablespace.  Note that "srv_file_per_table" is not under
+	dict_sys mutex protection, and could be changed while creating the
+	table. So we read the current value here and make all further
+	decisions based on this. */
+	return(create(name, form, create_info, srv_file_per_table));
 }
 
 /*****************************************************************//**
@@ -11737,15 +11712,15 @@ ha_innobase::discard_or_import_tablespace(
 	DBUG_RETURN(convert_error_code_to_mysql(err, dict_table->flags, NULL));
 }
 
-/*****************************************************************//**
-Deletes all rows of an InnoDB table.
+/** DROP and CREATE an InnoDB table.
 @return error number */
-
 int
 ha_innobase::truncate()
-/*===================*/
 {
 	DBUG_ENTER("ha_innobase::truncate");
+	/* The table should have been opened in ha_innobase::open().
+	Purge might be holding a reference to the table. */
+	DBUG_ASSERT(m_prebuilt->table->n_ref_count >= 1);
 
 	/* Truncate of intrinsic table is not allowed truncate for now. */
 	if (dict_table_is_intrinsic(m_prebuilt->table)) {
@@ -11756,60 +11731,110 @@ ha_innobase::truncate()
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
 
-	/* Get the transaction associated with the current thd, or create one
-	if not yet created, and update m_prebuilt->trx */
-
-	update_thd(ha_thd());
-
-	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
-
-	if (!trx_is_started(m_prebuilt->trx)) {
-		++m_prebuilt->trx->will_lock;
-	}
-
-	dberr_t	err;
-
-	/* Truncate the table in InnoDB */
-	err = row_truncate_table_for_mysql(m_prebuilt->table, m_prebuilt->trx);
-
-	int	error;
-
-	switch (err) {
-	case DB_TABLESPACE_DELETED:
-	case DB_TABLESPACE_NOT_FOUND:
+	if (dict_table_is_discarded(m_prebuilt->table)) {
 		ib_senderrf(
-			m_prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
-			(err == DB_TABLESPACE_DELETED ?
-			ER_TABLESPACE_DISCARDED : ER_TABLESPACE_MISSING),
+			ha_thd(), IB_LOG_LEVEL_ERROR,
+			ER_TABLESPACE_DISCARDED,
 			table->s->table_name.str);
-		table->status = STATUS_NOT_FOUND;
-		error = HA_ERR_TABLESPACE_MISSING;
-		break;
-
-	default:
-		error = convert_error_code_to_mysql(
-			err, m_prebuilt->table->flags,
-			m_prebuilt->trx->mysql_thd);
-
-		table->status = STATUS_NOT_FOUND;
-		break;
+		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
+
+	HA_CREATE_INFO	info;
+	const bool	file_per_table
+		= dict_table_is_file_per_table(m_prebuilt->table);
+	memset(&info, 0, sizeof info);
+	update_create_info_from_table(&info, table);
+
+	if (dict_table_is_temporary(m_prebuilt->table)) {
+		info.options|= HA_LEX_CREATE_TMP_TABLE;
+	} else {
+		dict_get_and_save_data_dir_path(m_prebuilt->table, false);
+	}
+
+	info.key_block_size = table->s->key_block_size;
+
+	char* data_file_name = m_prebuilt->table->data_dir_path;
+
+	if (data_file_name) {
+		info.data_file_name = data_file_name
+			= mem_strdup(data_file_name);
+	}
+
+	char*	name	= mem_strdup(m_share->table_name);
+
+	close();
+
+	int	error	= delete_table(name, SQLCOM_TRUNCATE);
+
+	if (!error) {
+		error = create(name, table, &info, file_per_table);
+	}
+
+	open(name, 0, 0);
+
+	if (!error) {
+		dict_names_t	fk_tables;
+
+		mutex_enter(&dict_sys->mutex);
+
+		const dberr_t	err	= dict_load_foreigns(
+			m_prebuilt->table->name.m_name, NULL, false, true,
+			DICT_ERR_IGNORE_ALL, fk_tables);
+
+		DBUG_ASSERT(fk_tables.empty());
+
+		mutex_exit(&dict_sys->mutex);
+
+		if (err != DB_SUCCESS) {
+			push_warning_printf(
+				m_user_thd, Sql_condition::SL_WARNING,
+				HA_ERR_CANNOT_ADD_FOREIGN,
+				"Truncate table '%s' failed to load some"
+				" foreign key constraints.", name);
+		}
+	}
+
+	ut_free(name);
+	ut_free(data_file_name);
 
 	DBUG_RETURN(error);
 }
 
-/*****************************************************************//**
-Drops a table from an InnoDB database. Before calling this function,
-MySQL calls innobase_commit to commit the transaction of the current user.
-Then the current user cannot have locks set on the table. Drop table
-operation inside InnoDB will remove all locks any user has on the table
-inside InnoDB.
+/** Drop a table.
+@param[in]	name	table name
+@param[in]	sqlcom	type of operation that the DROP is part of
 @return error number */
 
 int
 ha_innobase::delete_table(
-/*======================*/
-	const char*	name)	/*!< in: table name */
+	const char*		name)
+{
+	enum enum_sql_command	sqlcom	= static_cast<enum enum_sql_command>(
+		thd_sql_command(ha_thd()));
+
+	if (sqlcom == SQLCOM_TRUNCATE
+	    && thd_killed(ha_thd())
+	    && (m_prebuilt == NULL
+		|| dict_table_is_temporary(m_prebuilt->table))) {
+		sqlcom = SQLCOM_DROP_TABLE;
+	}
+
+	/* SQLCOM_TRUNCATE will not drop FOREIGN KEY constraints
+	from the data dictionary tables. */
+	DBUG_ASSERT(sqlcom != SQLCOM_TRUNCATE);
+
+	return(delete_table(name, sqlcom));
+}
+
+/** Drop a table.
+@param[in]	name	table name
+@param[in]	sqlcom	type of operation that the DROP is part of
+@return error number */
+
+int
+ha_innobase::delete_table(
+	const char*		name,
+	enum enum_sql_command	sqlcom)
 {
 	dberr_t	err;
 	THD*	thd = ha_thd();
@@ -11885,8 +11910,7 @@ ha_innobase::delete_table(
 	/* Drop the table in InnoDB */
 
 	err = row_drop_table_for_mysql(
-		norm_name, trx, thd_sql_command(thd) == SQLCOM_DROP_DB,
-		true, handler);
+		norm_name, trx, sqlcom, true, handler);
 
 	if (err == DB_TABLE_NOT_FOUND) {
 		/* Test to drop all tables which matches db/tablename + '#'.
@@ -11951,9 +11975,7 @@ ha_innobase::delete_table(
 				par_case_name, name, FALSE);
 #endif /* _WIN32 */
 			err = row_drop_table_for_mysql(
-				par_case_name, trx,
-				thd_sql_command(thd) == SQLCOM_DROP_DB,
-				true, handler);
+				par_case_name, trx, sqlcom, true, handler);
 		}
 	}
 
@@ -13254,8 +13276,6 @@ ha_innobase::info_low(
 {
 	dict_table_t*	ib_table;
 	ib_uint64_t	n_rows;
-	char		path[FN_REFLEN];
-	os_file_stat_t	stat_info;
 
 	DBUG_ENTER("info");
 
@@ -13314,7 +13334,6 @@ ha_innobase::info_low(
 				"returning various info to MySQL";
 		}
 
-
 		stats.update_time = (ulong) ib_table->update_time;
 	}
 
@@ -13353,23 +13372,6 @@ ha_innobase::info_low(
 
 		if (n_rows == 0 && !(flag & HA_STATUS_TIME)) {
 			n_rows++;
-		}
-
-		/* Fix bug#40386: Not flushing query cache after truncate.
-		n_rows can not be 0 unless the table is empty, set to 1
-		instead. The original problem of bug#29507 is actually
-		fixed in the server code. */
-		if (thd_sql_command(m_user_thd) == SQLCOM_TRUNCATE) {
-
-			n_rows = 1;
-
-			/* We need to reset the m_prebuilt value too, otherwise
-			checks for values greater than the last value written
-			to the table will fail and the autoinc counter will
-			not be updated. This will force write_row() into
-			attempting an update of the table's AUTOINC counter. */
-
-			m_prebuilt->autoinc_last_value = 0;
 		}
 
 		const page_size_t&	page_size
@@ -13621,23 +13623,8 @@ ha_innobase::info_low(
 		dict_table_stats_unlock(ib_table, RW_S_LATCH);
 	}
 
-	if (flag & HA_STATUS_CONST) {
-		my_snprintf(path, sizeof(path), "%s/%s%s",
-			    mysql_data_home, table->s->normalized_path.str,
-			    reg_ext);
-
-		unpack_filename(path,path);
-
-		/* Note that we do not know the access time of the table,
-		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
-
-		if (os_file_get_status(
-			path, &stat_info, false,
-			(dict_table_is_intrinsic(ib_table)
-			? false : srv_read_only_mode)) == DB_SUCCESS) {
-			stats.create_time = (ulong) stat_info.ctime;
-		}
-	}
+	/* TODO: create_time code removed since it relied on getting
+	info from the .FRM. This should be handled by I_S changes. */
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
 
@@ -14606,6 +14593,10 @@ ha_innobase::extra(
 	case HA_EXTRA_WRITE_CANNOT_REPLACE:
 		thd_to_trx(ha_thd())->duplicates &= ~TRX_DUP_REPLACE;
 		break;
+	case HA_EXTRA_SKIP_SERIALIZABLE_DD_VIEW:
+		m_prebuilt->skip_serializable_dd_view = true;
+		break;
+
 	default:/* Do nothing */
 		;
 	}
@@ -14634,6 +14625,8 @@ ha_innobase::end_stmt()
 
 	/* This is a statement level counter. */
 	m_prebuilt->autoinc_last_value = 0;
+
+	m_prebuilt->skip_serializable_dd_view = false;
 
 	/* This transaction had called ha_innobase::start_stmt() */
 	trx_t*	trx = m_prebuilt->trx;
@@ -14717,7 +14710,7 @@ ha_innobase::start_stmt(
 		case SQLCOM_DELETE:
 			init_table_handle_for_HANDLER();
 			m_prebuilt->select_lock_type = LOCK_X;
-			m_prebuilt->stored_select_lock_type = LOCK_X;
+			m_stored_select_lock_type = LOCK_X;
 			error = row_lock_table_for_mysql(m_prebuilt, NULL, 1);
 
 			if (error != DB_SUCCESS) {
@@ -14753,10 +14746,9 @@ ha_innobase::start_stmt(
 		2) ::external_lock(),
 		3) ::init_table_handle_for_HANDLER(). */
 
-		ut_a(m_prebuilt->stored_select_lock_type != LOCK_NONE_UNSET);
+		ut_a(m_stored_select_lock_type != LOCK_NONE_UNSET);
 
-		m_prebuilt->select_lock_type =
-			m_prebuilt->stored_select_lock_type;
+		m_prebuilt->select_lock_type = m_stored_select_lock_type;
 	}
 
 	*trx->detailed_error = 0;
@@ -14935,7 +14927,7 @@ ha_innobase::external_lock(
 		/* If this is a SELECT, then it is in UPDATE TABLE ...
 		or SELECT ... FOR UPDATE */
 		m_prebuilt->select_lock_type = LOCK_X;
-		m_prebuilt->stored_select_lock_type = LOCK_X;
+		m_stored_select_lock_type = LOCK_X;
 	}
 
 	if (lock_type != F_UNLCK) {
@@ -14947,6 +14939,7 @@ ha_innobase::external_lock(
 
 		if (trx->isolation_level == TRX_ISO_SERIALIZABLE
 		    && m_prebuilt->select_lock_type == LOCK_NONE
+		    && !m_prebuilt->skip_serializable_dd_view
 		    && thd_test_options(
 			    thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
 
@@ -14956,10 +14949,13 @@ ha_innobase::external_lock(
 			exception is consistent reads in the AUTOCOMMIT=1 mode:
 			we know that they are read-only transactions, and they
 			can be serialized also if performed as consistent
-			reads. */
+			reads. Another exception is when we want to prevent
+			queries on I_S tables(views on DD tables) blocked
+			by a parallel DDL operation because of serializable
+			isolation level */
 
 			m_prebuilt->select_lock_type = LOCK_S;
-			m_prebuilt->stored_select_lock_type = LOCK_S;
+			m_stored_select_lock_type = LOCK_S;
 		}
 
 		/* Starting from 4.1.9, no InnoDB table lock is taken in LOCK
@@ -14999,7 +14995,7 @@ ha_innobase::external_lock(
 
 		if (!trx_is_started(trx)
 		    && (m_prebuilt->select_lock_type != LOCK_NONE
-			|| m_prebuilt->stored_select_lock_type != LOCK_NONE)) {
+			|| m_stored_select_lock_type != LOCK_NONE)) {
 
 			++trx->will_lock;
 		}
@@ -15061,7 +15057,7 @@ ha_innobase::external_lock(
 	if (!trx_is_started(trx)
 	    && lock_type != F_UNLCK
 	    && (m_prebuilt->select_lock_type != LOCK_NONE
-		|| m_prebuilt->stored_select_lock_type != LOCK_NONE)) {
+		|| m_stored_select_lock_type != LOCK_NONE)) {
 
 		++trx->will_lock;
 	}
@@ -15764,10 +15760,10 @@ ha_innobase::store_lock(
 
 		if (trx->isolation_level == TRX_ISO_SERIALIZABLE) {
 			m_prebuilt->select_lock_type = LOCK_S;
-			m_prebuilt->stored_select_lock_type = LOCK_S;
+			m_stored_select_lock_type = LOCK_S;
 		} else {
 			m_prebuilt->select_lock_type = LOCK_NONE;
-			m_prebuilt->stored_select_lock_type = LOCK_NONE;
+			m_stored_select_lock_type = LOCK_NONE;
 		}
 
 	/* Check for DROP TABLE */
@@ -15827,10 +15823,10 @@ ha_innobase::store_lock(
 			for select. */
 
 			m_prebuilt->select_lock_type = LOCK_NONE;
-			m_prebuilt->stored_select_lock_type = LOCK_NONE;
+			m_stored_select_lock_type = LOCK_NONE;
 		} else {
 			m_prebuilt->select_lock_type = LOCK_S;
-			m_prebuilt->stored_select_lock_type = LOCK_S;
+			m_stored_select_lock_type = LOCK_S;
 		}
 
 	} else if (lock_type != TL_IGNORE) {
@@ -15839,12 +15835,12 @@ ha_innobase::store_lock(
 		here even if this would be SELECT ... FOR UPDATE */
 
 		m_prebuilt->select_lock_type = LOCK_NONE;
-		m_prebuilt->stored_select_lock_type = LOCK_NONE;
+		m_stored_select_lock_type = LOCK_NONE;
 	}
 
 	if (!trx_is_started(trx)
 	    && (m_prebuilt->select_lock_type != LOCK_NONE
-	        || m_prebuilt->stored_select_lock_type != LOCK_NONE)) {
+	        || m_stored_select_lock_type != LOCK_NONE)) {
 
 		++trx->will_lock;
 	}
@@ -18182,7 +18178,7 @@ static MYSQL_SYSVAR_ULONG(sync_array_size, srv_sync_array_size,
   1,			/* Minimum value */
   1024, 0);		/* Maximum value */
 
-static MYSQL_SYSVAR_ULONG(fast_shutdown, innobase_fast_shutdown,
+static MYSQL_SYSVAR_ULONG(fast_shutdown, srv_fast_shutdown,
   PLUGIN_VAR_OPCMDARG,
   "Speeds up the shutdown process of the InnoDB storage engine. Possible"
   " values are 0, 1 (faster) or 2 (fastest - crash-like).",

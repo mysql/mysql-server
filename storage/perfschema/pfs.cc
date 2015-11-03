@@ -197,7 +197,7 @@ static void report_memory_accounting_error(
   Its role is to advertise all the SQL tables natively
   supported by the performance schema to the SQL server.
   The code consists of creating MySQL tables for the
-  performance schema itself, and is used in './mysql --bootstrap'
+  performance schema itself, and is used in './mysqld --install-server'
   mode when a server is installed.
 
   The implementation of the database creation script is located in

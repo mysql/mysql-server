@@ -24,7 +24,6 @@
 #include "prealloced_array.h"               // Prealloced_array
 #include "template_utils.h"                 // delete_container_pointers
 #include "auth_common.h"                    // check_grant_db
-#include "datadict.h"                       // dd_frm_type
 #include "debug_sync.h"                     // DEBUG_SYNC
 #include "derror.h"                         // ER_THD
 #include "field.h"                          // Field
@@ -56,6 +55,13 @@
 #include "trigger_chain.h"                  // Trigger_chain
 #include "trigger_loader.h"                 // Trigger_loader
 #include "tztime.h"                         // Time_zone
+
+#include "dd/dd.h"                          // dd::get_dictionary()
+#include "dd/dd_table.h"                    // dd::abstract_table_type
+#include "dd/dd_schema.h"                   // dd::Schema_MDL_locker
+#include "dd/dictionary.h"                  // dd::Dictionary
+#include "dd/cache/dictionary_client.h"     // dd::cache::Dictionary_client
+#include "dd/types/object_table.h"          // dd:Object_table
 
 #ifndef EMBEDDED_LIBRARY
 #include "events.h"                         // Events
@@ -1147,7 +1153,15 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
       DBUG_RETURN(TRUE);
     }
 
-    load_db_opt_by_name(thd, dbname, &create);
+    if (get_default_db_collation(thd, dbname,
+                                 &create.default_table_charset))
+    {
+      DBUG_ASSERT(thd->is_error() || thd->killed);
+      DBUG_RETURN(TRUE);
+    }
+
+    if (create.default_table_charset == NULL)
+      create.default_table_charset= thd->collation();
   }
   List<Item> field_list;
   field_list.push_back(new Item_empty_string("Database",NAME_CHAR_LEN));
@@ -1445,7 +1459,7 @@ static bool print_default_clause(THD *thd, Field *field, String *def_value,
   const bool has_default=
     (field_type != FIELD_TYPE_BLOB &&
      !(field->flags & NO_DEFAULT_VALUE_FLAG) &&
-     field->unireg_check != Field::NEXT_NUMBER &&
+     !(field->auto_flags & Field::NEXT_NUMBER) &&
      !((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
        && has_now_default));
 
@@ -1727,7 +1741,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(def_value);
     }
 
-    if (field->unireg_check == Field::NEXT_NUMBER && 
+    if ((field->auto_flags & Field::NEXT_NUMBER) &&
         !(thd->variables.sql_mode & MODE_NO_FIELD_OPTIONS))
       packet->append(STRING_WITH_LEN(" AUTO_INCREMENT"));
 
@@ -2034,16 +2048,25 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
       !limited_mysql_mode && !foreign_db_mode)
   {
 
-    if (key_info->algorithm == HA_KEY_ALG_BTREE)
-      packet->append(STRING_WITH_LEN(" USING BTREE"));
+    /*
+      Send USING clause only if key algorithm was explicitly specified
+      at the table creation time.
+    */
+    if (key_info->is_algorithm_explicit)
+    {
+      if (key_info->algorithm == HA_KEY_ALG_BTREE)
+        packet->append(STRING_WITH_LEN(" USING BTREE"));
 
-    if (key_info->algorithm == HA_KEY_ALG_HASH)
-      packet->append(STRING_WITH_LEN(" USING HASH"));
+      if (key_info->algorithm == HA_KEY_ALG_HASH)
+        packet->append(STRING_WITH_LEN(" USING HASH"));
 
-    /* send USING only in non-default case: non-spatial rtree */
-    if ((key_info->algorithm == HA_KEY_ALG_RTREE) &&
-        !(key_info->flags & HA_SPATIAL))
-      packet->append(STRING_WITH_LEN(" USING RTREE"));
+      if (key_info->algorithm == HA_KEY_ALG_RTREE)
+      {
+        /* We should send USING only in non-default case: non-spatial rtree. */
+        DBUG_ASSERT(!(key_info->flags & HA_SPATIAL));
+        packet->append(STRING_WITH_LEN(" USING RTREE"));
+      }
+    }
 
     if ((key_info->flags & HA_USES_BLOCK_SIZE) &&
         table->s->key_block_size != key_info->block_size)
@@ -3708,7 +3731,10 @@ static int schema_tables_add(THD *thd, List<LEX_STRING> *files,
   @brief          Create table names list
 
   @details        The function creates the list of table names in
-                  database
+                  database.
+
+  @note           This is an intermediate solution which will be replaced
+                  by the implementation in WL#6599.
 
   @param[in]      thd                   thread handler
   @param[in]      table_names           List of table names in database
@@ -3759,7 +3785,7 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
       }
     }
     else
-    {    
+    {
       if (table_names->push_back(&lookup_field_vals->table_value))
         return 1;
       /*
@@ -3781,26 +3807,74 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
     return (schema_tables_add(thd, table_names,
                               lookup_field_vals->table_value.str));
 
-  find_files_result res= find_files(thd, table_names, db_name->str, path,
-                                    lookup_field_vals->table_value.str, 0,
-                                    tmp_mem_root);
-  if (res != FIND_FILES_OK)
   {
-    /*
-      Downgrade errors about problems with database directory to
-      warnings if this is not a 'SHOW' command.  Another thread
-      may have dropped database, and we may still have a name
-      for that directory.
-    */
-    if (res == FIND_FILES_DIR)
+    const dd::Schema *sch_obj= NULL;
+    if (thd->dd_client()->acquire<dd::Schema>(db_name->str, &sch_obj))
+      return 1;
+
+    if (!sch_obj)
     {
+      /*
+        Report missing database only if it is a 'SHOW' command.
+        Another thread may have dropped the database after we
+        got its name from the DD.
+      */
       if (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND)
+      {
+        my_error(ER_BAD_DB_ERROR, MYF(0), db_name->str);
         return 1;
-      thd->clear_error();
+      }
       return 2;
     }
-    return 1;
+
+    std::vector<std::string> component_names;
+    if (thd->dd_client()->fetch_schema_component_names(sch_obj,
+                                                       &component_names))
+      return 1;
+
+    for(std::vector<std::string>::const_iterator name= component_names.begin();
+        name != component_names.end(); ++name)
+    {
+      if (lookup_field_vals->table_value.str)
+      {
+        if (lower_case_table_names)
+        {
+          if (my_wildcmp(files_charset_info,
+                         name->c_str(),
+                         name->c_str() +
+                         name->length(),
+                         lookup_field_vals->table_value.str,
+                         lookup_field_vals->table_value.str +
+                         lookup_field_vals->table_value.length,
+                         wild_prefix, wild_one, wild_many))
+            continue;
+        }
+        else if (wild_compare(name->c_str(),
+                              lookup_field_vals->table_value.str, 0))
+          continue;
+      }
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+      /* Don't show tables where we don't have any privileges */
+      if (!(thd->col_access & TABLE_ACLS))
+      {
+        TABLE_LIST table_list;
+        memset(&table_list, 0, sizeof(table_list));
+        table_list.db= db_name->str;
+        table_list.db_length= db_name->length;
+        table_list.table_name= const_cast<char*>(name->c_str());
+        table_list.table_name_length= name->length();
+        table_list.grant.privilege= thd->col_access;
+        if (check_grant(thd, TABLE_ACLS, &table_list, TRUE, 1, TRUE))
+          continue;
+      }
+#endif
+      LEX_STRING *table_name= NULL;
+      table_name= thd->make_lex_string(table_name, name->c_str(),
+                                       name->length(), true);
+      table_names->push_back(table_name);
+    }
   }
+
   return 0;
 }
 
@@ -4030,7 +4104,7 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
                                    bool with_i_schema,
                                    bool need_table_type)
 {
-  /* Avoid opening FRM files if table type is not needed. */
+  /* Avoid reading meta data unless required. */
   if (need_table_type)
   {
     if (with_i_schema)
@@ -4040,27 +4114,43 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
     }
     else
     {
-      char path[FN_REFLEN + 1];
-      (void) build_table_filename(path, sizeof(path) - 1, db_name->str, 
-                                  table_name->str, reg_ext, 0);
-      switch (dd_frm_type(thd, path)) {
-      case FRMTYPE_ERROR:
-        table->field[3]->store(STRING_WITH_LEN("ERROR"),
-                               system_charset_info);
-        break;
-      case FRMTYPE_TABLE:
-        table->field[3]->store(STRING_WITH_LEN("BASE TABLE"),
-                               system_charset_info);
-        break;
-      case FRMTYPE_VIEW:
-        table->field[3]->store(STRING_WITH_LEN("VIEW"),
-                               system_charset_info);
-        break;
-      default:
-        DBUG_ASSERT(0);
+      // We need to obtain a shared MDL lock before acquiring the table.
+      MDL_request mdl_request;
+      MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE,
+                       db_name->str, table_name->str,
+                       MDL_SHARED,
+                       MDL_TRANSACTION);
+      if (thd->mdl_context.acquire_lock(&mdl_request,
+                                        thd->variables.lock_wait_timeout))
+        return 1;
+
+      // Fail if the table does not exist
+      dd::Abstract_table::enum_table_type table_type;
+      if (dd::abstract_table_type(thd->dd_client(), db_name->str,
+                                  table_name->str, &table_type))
+        table->field[3]->store(STRING_WITH_LEN("ERROR"), system_charset_info);
+      else
+      {
+        switch (table_type)
+        {
+        case dd::Abstract_table::TT_BASE_TABLE:
+          table->field[3]->store(STRING_WITH_LEN("BASE TABLE"),
+                                 system_charset_info);
+          break;
+        case dd::Abstract_table::TT_USER_VIEW:
+          table->field[3]->store(STRING_WITH_LEN("VIEW"),
+                                 system_charset_info);
+          break;
+        case dd::Abstract_table::TT_SYSTEM_VIEW:
+          table->field[3]->store(STRING_WITH_LEN("SYSTEM VIEW"),
+                                 system_charset_info);
+          break;
+        default:
+          DBUG_ASSERT(false);
+        }
       }
-    if (thd->is_error() &&
-        thd->get_stmt_da()->mysql_errno() == ER_NO_SUCH_TABLE)
+      if (thd->is_error() &&
+          thd->get_stmt_da()->mysql_errno() == ER_NO_SUCH_TABLE)
       {
         thd->clear_error();
         return 0;
@@ -4213,7 +4303,6 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
   TABLE_SHARE *share;
   TABLE_LIST table_list;
   uint res= 0;
-  int not_used;
   my_hash_value_type hash_value;
   const char *key;
   size_t key_length;
@@ -4307,7 +4396,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
   hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
   mysql_mutex_lock(&LOCK_open);
   share= get_table_share(thd, &table_list, key,
-                         key_length, OPEN_VIEW, &not_used, hash_value);
+                         key_length, true, hash_value);
   if (!share)
   {
     res= 0;
@@ -4601,6 +4690,14 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
                 sctx->priv_user().str, db_name->str, 0))
 #endif
     {
+      // We must make sure the schema is released and unlocked in the right
+      // order. Fail if we are unable to get a meta data lock on the schema
+      // name.
+      dd::Schema_MDL_locker mdl_handler(thd);
+      if (mdl_handler.ensure_locked(db_name->str))
+        goto err;
+
+      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
       List<LEX_STRING> table_names;
       int res= make_table_name_list(thd, &table_names, lex,
                                     &lookup_field_vals,
@@ -4613,6 +4710,14 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
       List_iterator_fast<LEX_STRING> it_files(table_names);
       while ((table_name= it_files++))
       {
+        // TODO
+        // Hack - ignoring DD tables, to handle MTR failure
+        const dd::Object_table *dd_table=
+          dd::get_dictionary()->get_dd_table(db_name->str, table_name->str);
+
+        if (dd_table && dd_table->hidden())
+          continue;
+
         DBUG_ASSERT(table_name->length <= NAME_LEN);
 	restore_record(table, s->default_values);
         table->field[schema_table->idx_field1]->
@@ -4800,9 +4905,16 @@ static int fill_schema_schemata(THD *thd, TABLE_LIST *tables, Item *cond)
                 !check_grant_db(thd, db_name->str))
 #endif
     {
-      load_db_opt_by_name(thd, db_name->str, &create);
-      if (store_schema_shemata(thd, table, db_name,
-                               create.default_table_charset))
+      const CHARSET_INFO *collation= NULL;
+      if (get_default_db_collation(thd, db_name->str, &collation))
+      {
+        DBUG_ASSERT(thd->is_error() || thd->killed);
+        DBUG_RETURN(1);
+      }
+
+      collation= collation ? collation : thd->collation();
+
+      if (store_schema_shemata(thd, table, db_name, collation))
         DBUG_RETURN(1);
     }
   }
@@ -4871,7 +4983,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
 
     if (share->partition_info_str_len)
     {
-      tmp_db_type= share->default_part_db_type;
+      tmp_db_type= share->m_part_info->default_engine_type;
       is_partitioned= TRUE;
     }
 
@@ -5332,7 +5444,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     table->field[IS_COLUMNS_COLUMN_KEY]->store((const char*) pos,
                             strlen((const char*) pos), cs);
 
-    if (field->unireg_check == Field::NEXT_NUMBER)
+    if (field->auto_flags & Field::NEXT_NUMBER)
       table->field[IS_COLUMNS_EXTRA]->store(STRING_WITH_LEN("auto_increment"),
                                             cs);
     if (print_on_update_clause(field, &type, true))
@@ -5648,10 +5760,14 @@ static bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
                                                       tmp_string.length(), cs);
       field_def= &sp->m_return_field_def;
       field= make_field(&share, (uchar*) 0, field_def->length,
-                        (uchar*) "", 0, field_def->pack_flag,
+                        (uchar*) "", 0,
                         field_def->sql_type, field_def->charset,
                         field_def->geom_type, Field::NONE,
-                        field_def->interval, "");
+                        field_def->interval, "",
+                        field_def->maybe_null, field_def->is_zerofill,
+                        field_def->is_unsigned, field_def->decimals,
+                        field_def->treat_bit_as_char,
+                        field_def->pack_length_override);
 
       field->table= &tbl;
       field->gcol_info= field_def->gcol_info;
@@ -5710,10 +5826,14 @@ static bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
                                                       tmp_string.length(), cs);
 
       field= make_field(&share, (uchar*) 0, field_def->length,
-                        (uchar*) "", 0, field_def->pack_flag,
+                        (uchar*) "", 0,
                         field_def->sql_type, field_def->charset,
                         field_def->geom_type, Field::NONE,
-                        field_def->interval, spvar->name.str);
+                        field_def->interval, spvar->name.str,
+                        field_def->maybe_null, field_def->is_zerofill,
+                        field_def->is_unsigned, field_def->decimals,
+                        field_def->treat_bit_as_char,
+                        field_def->pack_length_override);
 
       field->table= &tbl;
       field->gcol_info= field_def->gcol_info;
@@ -5813,10 +5933,14 @@ static bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
           (void) build_table_filename(path, sizeof(path), "", "", "", 0);
           init_tmp_table_share(thd, &share, "", 0, "", path);
           field= make_field(&share, (uchar*) 0, field_def->length,
-                            (uchar*) "", 0, field_def->pack_flag,
+                            (uchar*) "", 0,
                             field_def->sql_type, field_def->charset,
                             field_def->geom_type, Field::NONE,
-                            field_def->interval, "");
+                            field_def->interval, "",
+                            field_def->maybe_null, field_def->is_zerofill,
+                            field_def->is_unsigned, field_def->decimals,
+                            field_def->treat_bit_as_char,
+                            field_def->pack_length_override);
 
           field->table= &tbl;
           field->gcol_info= field_def->gcol_info;
@@ -6017,7 +6141,35 @@ static int get_schema_stat_record(THD *thd, TABLE_LIST *tables,
             table->field[9]->store(static_cast<longlong>(round(records)), TRUE);
             table->field[9]->set_notnull();
           }
-          str= show_table->file->index_type(i);
+
+          if (key_info->flags & HA_SPATIAL)
+            str= "SPATIAL";
+          else
+          {
+            ha_key_alg key_alg= key_info->algorithm;
+            /* If index algorithm is implicit get SE default. */
+            switch (key_alg)
+            {
+            case HA_KEY_ALG_SE_SPECIFIC:
+              str= "";
+              break;
+            case HA_KEY_ALG_BTREE:
+              str= "BTREE";
+              break;
+            case HA_KEY_ALG_RTREE:
+              str= "RTREE";
+              break;
+            case HA_KEY_ALG_HASH:
+              str= "HASH";
+              break;
+            case HA_KEY_ALG_FULLTEXT:
+              str= "FULLTEXT";
+              break;
+            default:
+              DBUG_ASSERT(0);
+              str= "";
+            }
+          }
           table->field[13]->store(str, strlen(str), cs);
         }
         if (!(key_info->flags & HA_FULLTEXT) &&
@@ -8952,7 +9104,7 @@ ST_SCHEMA_TABLE schema_tables[]=
    make_old_format, 0, 0, -1, 1, 0},
   {"VIEWS", view_fields_info, create_schema_table, 
    get_all_tables, 0, get_schema_views_record, 1, 2, 0,
-   OPEN_VIEW_ONLY|OPTIMIZE_I_S_TABLE},
+   OPEN_VIEW|OPTIMIZE_I_S_TABLE},
   {0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
 

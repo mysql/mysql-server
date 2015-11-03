@@ -73,7 +73,6 @@ Created 2/16/1996 Heikki Tuuri
 #include "srv0start.h"
 #include "srv0srv.h"
 #include "fsp0sysspace.h"
-#include "row0trunc.h"
 #ifndef UNIV_HOTBACKUP
 # include "trx0rseg.h"
 # include "os0proc.h"
@@ -97,7 +96,6 @@ Created 2/16/1996 Heikki Tuuri
 # include "row0upd.h"
 # include "row0row.h"
 # include "row0mysql.h"
-# include "row0trunc.h"
 # include "btr0pcur.h"
 # include "os0event.h"
 # include "zlib.h"
@@ -126,15 +124,19 @@ ibool	srv_start_raw_disk_in_use = FALSE;
 /** Number of IO threads to use */
 ulint	srv_n_file_io_threads = 0;
 
-/** TRUE if the server is being started, before rolling back any
+/** true if the server is being started */
+bool	srv_is_being_started = false;
+/** true if SYS_TABLESPACES is available for lookups */
+bool	srv_sys_tablespaces_open = false;
+/** true if the server is being started, before rolling back any
 incomplete transactions */
 bool	srv_startup_is_before_trx_rollback_phase = false;
-/** TRUE if the server is being started */
-bool	srv_is_being_started = false;
-/** TRUE if SYS_TABLESPACES is available for lookups */
-bool	srv_sys_tablespaces_open = false;
-/** TRUE if innobase_start_or_create_for_mysql() has been called */
-static ibool	srv_start_has_been_called = FALSE;
+#ifdef UNIV_DEBUG
+/** true if srv_pre_dd_shutdown() has been completed */
+bool	srv_is_being_shutdown = false;
+#endif /* UNIV_DEBUG */
+/** true if srv_start() has been called */
+static bool	srv_start_has_been_called = false;
 
 /** Bit flags for tracking background thread creation. They are used to
 determine which threads need to be stopped if we need to abort during
@@ -1501,7 +1503,7 @@ srv_start(
 			" once during the process lifetime.";
 	}
 
-	srv_start_has_been_called = TRUE;
+	srv_start_has_been_called = true;
 
 	srv_is_being_started = true;
 
@@ -1944,15 +1946,6 @@ files_checked:
 		and there must be no page in the buf_flush list. */
 		buf_pool_invalidate();
 
-		/* Scan and locate truncate log files. Parsed located files
-		and add table to truncate information to central vector for
-		truncate fix-up action post recovery. */
-		err = TruncateLogParser::scan_and_parse(srv_log_group_home_dir);
-		if (err != DB_SUCCESS) {
-
-			return(srv_init_abort(DB_ERROR));
-		}
-
 		/* We always try to do a recovery, even if the database had
 		been shut down normally: this is the normal startup path */
 
@@ -2294,20 +2287,6 @@ srv_dict_recover_on_restart()
 		trx_rollback_or_clean_recovered(FALSE);
 	}
 
-	/* Fix-up truncate of tables in the system tablespace
-	if server crashed while truncate was active. The non-
-	system tables are done after tablespace discovery. Do
-	this now because this procedure assumes that no pages
-	have changed since redo recovery.  Tablespace discovery
-	can do updates to pages in the system tablespace.*/
-	dberr_t	err = truncate_t::fixup_tables_in_system_tablespace();
-
-	if (err != DB_SUCCESS) {
-		bool	create_new_db = false;
-		srv_init_abort(err);
-		exit(3);
-	}
-
 	if (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE) {
 		/* Open or Create SYS_TABLESPACES and SYS_DATAFILES
 		so that tablespace names and other metadata can be
@@ -2342,11 +2321,6 @@ srv_dict_recover_on_restart()
 		bool validate = recv_needed_recovery
 			&& srv_force_recovery == 0;
 		dict_check_tablespaces_and_store_max_id(validate);
-
-		/* Fix-up truncate of table if server crashed while truncate
-		was active. */
-		err = truncate_t::fixup_tables_in_non_system_tablespace();
-		ut_ad(err == DB_SUCCESS); // FIXME: remove in WL#6795
 	}
 
 	/* We can't start any (DDL) transactions if UNDO logging has
@@ -2469,20 +2443,88 @@ srv_fts_close(void)
 }
 #endif
 
-/****************************************************************//**
-Shuts down the InnoDB database.
-@return DB_SUCCESS or error code */
-dberr_t
-innobase_shutdown_for_mysql(void)
-/*=============================*/
+/** Shut down all InnoDB background tasks that may look up objects in
+the data dictionary. */
+void
+srv_pre_dd_shutdown()
 {
-	if (srv_start_state_is_set(SRV_START_STATE_STAT)) {
-		/* Shutdown the FTS optimize sub system. */
-		fts_optimize_start_shutdown();
+	ut_ad(!srv_is_being_shutdown);
 
+	if (srv_read_only_mode) {
+		/* In read-only mode, no background tasks should
+		access the data dictionary. */
+		ut_d(srv_is_being_shutdown = true);
+		return;
+	}
+
+	/* Here, we will only shut down the tasks that may be looking up
+	tables or other objects in the Global Data Dictionary.
+	The following background tasks will not be affected:
+	* background rollback of recovered transactions (those table
+	definitions were already looked up IX-locked at server startup)
+	* change buffer merge (until we replace the IBUF_DUMMY objects
+	with access to the data dictionary)
+	* I/O subsystem (page cleaners, I/O threads, redo log) */
+
+	srv_shutdown_state = SRV_SHUTDOWN_CLEANUP;
+	srv_purge_wakeup();
+	os_event_set(dict_stats_event);
+
+	if (srv_start_state_is_set(SRV_START_STATE_STAT)) {
+		/* Shut down the FULLTEXT INDEX optimizer. */
+		fts_optimize_start_shutdown();
 		fts_optimize_end();
 	}
 
+	for (ulint count = 1;;) {
+		bool	wait = srv_purge_threads_active();
+
+		if (wait) {
+			srv_purge_wakeup();
+			if (srv_print_verbose_log
+			    && (count % 600) == 0) {
+				ib::info() << "Waiting for purge to complete";
+			}
+		} else {
+			switch (trx_purge_state()) {
+			case PURGE_STATE_INIT:
+			case PURGE_STATE_EXIT:
+			case PURGE_STATE_DISABLED:
+				srv_start_state &= ~SRV_START_STATE_PURGE;
+				break;
+			case PURGE_STATE_RUN:
+			case PURGE_STATE_STOP:
+				ut_ad(0);
+			}
+		}
+
+		if (srv_dict_stats_thread_active) {
+			wait = true;
+
+			os_event_set(dict_stats_event);
+
+			if (srv_print_verbose_log && ((count % 600) == 0)) {
+				ib::info() << "Waiting for dict_stats_thread"
+					" to exit";
+			}
+		}
+
+		if (!wait) {
+			break;
+		}
+
+		count++;
+		os_thread_sleep(100000);
+	}
+
+	ut_d(srv_is_being_shutdown = true);
+}
+
+/** Shut down the InnoDB database. */
+void
+srv_shutdown()
+{
+	ut_ad(srv_is_being_shutdown);
 	/* 1. Flush the buffer pool to disk, write the current lsn to
 	the tablespace header(s), and copy all log data to archive.
 	The step 1 is the real InnoDB shutdown. The remaining steps 2 - ...
@@ -2564,9 +2606,10 @@ innobase_shutdown_for_mysql(void)
 			<< srv_shutdown_lsn;
 	}
 
-	srv_start_has_been_called = FALSE;
-
-	return(DB_SUCCESS);
+	srv_start_has_been_called = false;
+	ut_d(srv_is_being_shutdown = false);
+	srv_shutdown_state = SRV_SHUTDOWN_NONE;
+	srv_start_state = SRV_START_STATE_NONE;
 }
 #endif /* !UNIV_HOTBACKUP */
 

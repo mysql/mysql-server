@@ -87,7 +87,7 @@ DROP INDEX t_index2 ON t1;
 # Check-6: Roll back a failed RENAME TABLE
 --replace_result $master_uuid MASTER_UUID
 --eval SET SESSION GTID_NEXT='$master_uuid:6'
---error ER_FILE_NOT_FOUND
+--error ER_NO_SUCH_TABLE
 RENAME TABLE t3 TO t4;
 
 --let $assert_text= rollback gtid MASTER_UUID:6

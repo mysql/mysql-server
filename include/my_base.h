@@ -85,11 +85,19 @@ enum ha_rkey_function {
 	/* Key algorithm types */
 
 enum ha_key_alg {
-  HA_KEY_ALG_UNDEF=	0,		/* Not specified (old file) */
-  HA_KEY_ALG_BTREE=	1,		/* B-tree, default one          */
+  /**
+    Used for cases when key algorithm which is supported by SE can't be
+    described by one of other classes from this enum (@sa Federated,
+    PerfSchema SE, @sa dd::Index::IA_SE_SPECIFIC).
+
+    @note Assigned as default value for key algorithm by parser, replaced by
+          SEs default algorithm for keys in mysql_prepare_create_table().
+  */
+  HA_KEY_ALG_SE_SPECIFIC= 0,
+  HA_KEY_ALG_BTREE=	1,		/* B-tree. */
   HA_KEY_ALG_RTREE=	2,		/* R-tree, for spatial searches */
-  HA_KEY_ALG_HASH=	3,		/* HASH keys (HEAP tables) */
-  HA_KEY_ALG_FULLTEXT=	4		/* FULLTEXT (MyISAM tables) */
+  HA_KEY_ALG_HASH=	3,		/* HASH keys (HEAP, NDB). */
+  HA_KEY_ALG_FULLTEXT=	4		/* FULLTEXT. */
 };
 
         /* Storage media types */ 
@@ -197,7 +205,11 @@ enum ha_extra_function {
   */
   HA_EXTRA_EXPORT,
   /** Do secondary sort by handler::ref (rowid) after key sort. */
-  HA_EXTRA_SECONDARY_SORT_ROWID
+  HA_EXTRA_SECONDARY_SORT_ROWID,
+  /*
+    Skip Serializable isolation level on Views on DD tables.
+    This will make reads on DD Views non blocking */
+  HA_EXTRA_SKIP_SERIALIZABLE_DD_VIEW
 };
 
 /* Compatible option, to be deleted in 6.0 */
@@ -240,34 +252,50 @@ enum ha_base_keytype {
 
 #define HA_MAX_KEYTYPE	31		/* Must be log2-1 */
 
-	/* These flags kan be OR:ed to key-flag */
+/*
+  Flags for KEY::flags bitmap.
 
-#define HA_NOSAME		 1	/* Set if not dupplicated records */
-#define HA_PACK_KEY		 2	/* Pack string key to previous key */
-#define HA_AUTO_KEY		 16
-#define HA_BINARY_PACK_KEY	 32	/* Packing of all keys to prev key */
-#define HA_FULLTEXT		128     /* For full-text search */
-#define HA_UNIQUE_CHECK		256	/* Check the key for uniqueness */
-#define HA_SPATIAL		1024    /* For spatial search */
-#define HA_NULL_ARE_EQUAL	2048	/* NULL in key are cmp as equal */
-#define HA_GENERATED_KEY	8192	/* Automaticly generated key */
+  Also used for similar bitmaps in storage engines (HP_KEYDEF::flag,
+  MI_KEYDEF::flag, ...).
+*/
+
+/** Do not allow duplicate records. */
+#define HA_NOSAME               1
+/** Pack string key to previous key (optimization supported by MyISAM). */
+#define HA_PACK_KEY             2
+/**
+  Auto-increment key.
+
+  @note Not used by SQL-layer/ for KEY::flags. Only set by MyISAM and
+        Heap SEs in MI/HP_KEYDEF::flag.
+*/
+#define HA_AUTO_KEY             16
+/** Packing of all keys to previous key (optimization supported by MyISAM). */
+#define HA_BINARY_PACK_KEY      32
+/** Full-text key. */
+#define HA_FULLTEXT             128
+/**
+  Flag in MI_KEYDEF::flag which marks MyISAM's "uniques".
+
+  @note Internal to MyISAM. Current server doesn't use this feature.
+*/
+#define HA_UNIQUE_CHECK         256
+/** Spatial key. */
+#define HA_SPATIAL              1024
+/**
+  NULLs in key are compared as equal.
+
+  @note Used only for internal temporary tables created by optimizer.
+*/
+#define HA_NULL_ARE_EQUAL       2048
+/** Key was automatically created to support Foreign Key constraint. */
+#define HA_GENERATED_KEY        8192
 
         /* The combination of the above can be used for key type comparison. */
 #define HA_KEYFLAG_MASK (HA_NOSAME | HA_PACK_KEY | HA_AUTO_KEY | \
                          HA_BINARY_PACK_KEY | HA_FULLTEXT | HA_UNIQUE_CHECK | \
                          HA_SPATIAL | HA_NULL_ARE_EQUAL | HA_GENERATED_KEY)
 
-/*
-  Key contains partial segments.
-
-  This flag is internal to the MySQL server by design. It is not supposed
-  neither to be saved in FRM-files, nor to be passed to storage engines.
-  It is intended to pass information into internal static sort_keys(KEY *,
-  KEY *) function.
-
-  This flag can be calculated -- it's based on key lengths comparison.
-*/
-#define HA_KEY_HAS_PART_KEY_SEG 65536
 /**
   Key was renamed (or is result of renaming a key).
 
@@ -283,15 +311,36 @@ enum ha_base_keytype {
 /** Set if a key is on any virtual generated columns */
 #define HA_VIRTUAL_GEN_KEY      (1 << 18)
 
-	/* Automatic bits in key-flag */
+/*
+  Bits in KEY::flags, MI/HP_KEYDEF::flag which are automatically
+  calculated based on other flags/members in these structures
+  (often from info about key parts).
+*/
 
-#define HA_SPACE_PACK_USED	 4	/* Test for if SPACE_PACK used */
-#define HA_VAR_LENGTH_KEY	 8
-#define HA_NULL_PART_KEY	 64
-#define HA_USES_COMMENT          4096
-#define HA_USES_PARSER           16384  /* Fulltext index uses [pre]parser */
-#define HA_USES_BLOCK_SIZE	 ((uint) 32768)
-#define HA_SORT_ALLOWS_SAME      512    /* Intern bit when sorting records */
+/** Some key part packs space. Internal to MyISAM. */
+#define HA_SPACE_PACK_USED      4
+/** Some key part has variable length. Internal to MyISAM and Heap engines. */
+#define HA_VAR_LENGTH_KEY       8
+/** Some key part is nullable. */
+#define HA_NULL_PART_KEY        64
+/** Internal bit used when sorting records. Internal to MyISAM. */
+#define HA_SORT_ALLOWS_SAME     512
+/** Key has comment. */
+#define HA_USES_COMMENT         4096
+/** Fulltext index uses [pre]parser */
+#define HA_USES_PARSER          16384
+/** Key uses KEY_BLOCK_SIZE option. */
+#define HA_USES_BLOCK_SIZE      32768
+/**
+  Key contains partial segments.
+
+  @note This flag is internal to SQL-layer by design. It is not supposed to
+        be used to storage engines. It is intended to pass information into
+        internal static sort_keys(KEY *, KEY *) function.
+
+  This flag can be calculated -- it's based on key lengths comparison.
+*/
+#define HA_KEY_HAS_PART_KEY_SEG 65536
 
 	/* These flags can be added to key-seg-flag */
 
@@ -310,19 +359,111 @@ enum ha_base_keytype {
 #define HA_END_SPACE_ARE_EQUAL	 512
 #define HA_BIT_PART		1024
 
-	/* optionbits for database */
+
+/*
+  Flags for HA_CREATE_INFO::table_options and TABLE_SHARE::db_create_options
+  TABLE_SHARE::db_options_in_use bitmaps.
+
+  @note These bitmaps are used for storing information about some table
+        option values/attributes.
+  @note HA_CREATE_INFO::table_options and TABLE_SHARE::db_create_options
+        are basically the same bitmap at the time of table creation and
+        at the time of table opening/usage correspondingly.
+  @note TABLE_SHARE::db_options_in_use is normally copy of db_create_options
+        but can be overriden by SE. E.g. MyISAM does this at handler::open()
+        and hander::info() time.
+
+  Also used for similar bitmaps in MyISAM (MYISAM_SHARE/MI_ISAMINFO::options).
+*/
+
+/**
+  Indicates that storage engine needs to use packed row format.
+  Set for tables with ROW_FORMAT=DYNAMIC clause, for tables with BLOB fields,
+  and for tables with VARCHAR columns without ROW_FORMAT=FIXED.
+
+  This flag is respected by MyISAM only (it might also decide to use this
+  optimization for its own reasons). InnoDB relies on HA_CREATE_INFO::row_type
+  directly instead.
+*/
 #define HA_OPTION_PACK_RECORD		1
+/**
+  PACK_KEYS=1 option was specified.
+
+  PACK_KEYS=# option specifies whether key packing - optimization supported
+  by MyISAM, should be used.
+  * PACK_KEYS=1 means all keys should be packed,
+  * PACK_KEYS=0 (denoted by @sa HA_OPTION_NO_PACK_KEYS flag) means that key
+    packing should not be used at all.
+  * Not using this option or using PACK_KEYS=DEFAULT clause (denoted by
+    absence of both HA_OPTION_PACK_KEYS and HA_OPTION_NO_PACK_KEYS flags)
+    means that key packing will be used for long string columns.
+*/
 #define HA_OPTION_PACK_KEYS		2
+/**
+  Flag indicating that table is compressed. Used by MyISAM storage engine to
+  tell SQL-layer that tables is compressed. Not set or stored by SQL-layer,
+
+  MyISAM doesn't respect ROW_FORMAT=COMPRESSED clause and doesn't allow direct
+  creation of compressed tables. Existing tables can be compressed by external
+  tool. This tool marks such tables with HA_OPTION_COMPRESS_RECORD flag in
+  MYISAM_SHARE/MI_ISAMINFO::options. Then storage engine sets this flag in
+  TABLE_SHARE::db_options_in_use to let SQL-layer know about the fact. It is
+  never set in HA_CREATE_INFO::table_options/TABLE_SHARE::db_create_options.
+*/
 #define HA_OPTION_COMPRESS_RECORD	4
-#define HA_OPTION_LONG_BLOB_PTR		8 /* new ISAM format */
+/**
+  Unused. Formerly HA_OPTION_LONG_BLOB_PTR - new ISAM format/portable
+  BLOB pointers.
+*/
+#define HA_OPTION_UNUSED1               8
+/**
+  Storage engine (MyISAM) internal flag for marking temporary tables.
+
+  Used in MYISAM_SHARE/MI_ISAMINFO::options, not used by SQL-layer/
+  in HA_CREATE_INFO::table_options/TABLE_SHARE::db_create_options.
+*/
 #define HA_OPTION_TMP_TABLE		16
+/**
+  CHECKSUM=1 option was specified.
+
+  This option enables live checksumming for MyISAM tables. Not used by InnoDB.
+  @sa HA_OPTION_NO_CHECKSUM.
+*/
 #define HA_OPTION_CHECKSUM		32
+/**
+  DELAY_KEY_WRITE=1 option was specified. This option enables MyISAM optimization
+  which postpones key updates until table is closed/expelled from the table cache.
+
+  @sa HA_OPTION_NO_DELAY_KEY_WRITE.
+*/
 #define HA_OPTION_DELAY_KEY_WRITE	64
-#define HA_OPTION_NO_PACK_KEYS		128  /* Reserved for MySQL */
+/**
+  PACK_KEYS=0 option was specified.
+
+  @sa HA_OPTION_PACK_KEYS for further description.
+  @note Unlike HA_OPTION_PACK_KEYS this flag is SQL-layer only.
+*/
+#define HA_OPTION_NO_PACK_KEYS          128
+/**
+  Flag specific to table creation/HA_CREATE_INFO::table_options.
+  Indicates that storage engine instead of creating new table, needs
+  to discover existing one (which metadata was discovered from SE
+  earlier).
+  Not used in TABLE_SHARE::db_create_options/db_options_in_use.
+*/
 #define HA_OPTION_CREATE_FROM_ENGINE    256
+/**
+  Storage engine (MyISAM) internal flag for marking tables which
+  rely on SQL-layer because they have keys using fulltext parser plugin.
+
+  Used in MYISAM_SHARE/MI_ISAMINFO::options, not used by SQL-layer/
+  in HA_CREATE_INFO::table_options/TABLE_SHARE::db_create_options.
+*/
 #define HA_OPTION_RELIES_ON_SQL_LAYER   512
-#define HA_OPTION_NULL_FIELDS		1024
-#define HA_OPTION_PAGE_CHECKSUM		2048
+/** Unused. Formerly HA_OPTION_NULL_FIELDS - reserved for Maria SE. */
+#define HA_OPTION_UNUSED2               1024
+/** Unused. Formerly HA_OPTION_PAGE_CHECKSUM - reserved for Maria SE. */
+#define HA_OPTION_UNUSED3               2048
 /** STATS_PERSISTENT=1 has been specified in the SQL command (either CREATE
 or ALTER TABLE). Table and index statistics that are collected by the
 storage engine and used by the optimizer for query optimization will be
@@ -335,8 +476,31 @@ HA_OPTION_NO_STATS_PERSISTENT is set, this means that the setting is not
 explicitly set at table level and the corresponding table will use whatever
 is the global server default. */
 #define HA_OPTION_NO_STATS_PERSISTENT	8192
-#define HA_OPTION_TEMP_COMPRESS_RECORD	((uint) 16384)	/* set by isamchk */
-#define HA_OPTION_READ_ONLY_DATA	((uint) 32768)	/* Set by isamchk */
+/**
+  MyISAM internal flag used by myisamchk external tool.
+
+  Not used by SQL-layer/in HA_CREATE_INFO::table_options and
+  TABLE_SHARE::db_create_options.
+*/
+#define HA_OPTION_TEMP_COMPRESS_RECORD  16384
+/**
+  MyISAM internal flag which marks table as read-only.
+  Set by myisampack external tool.
+
+  Not used by SQL-layer/in HA_CREATE_INFO::table_options and
+  TABLE_SHARE::db_create_options.
+*/
+#define HA_OPTION_READ_ONLY_DATA        32768
+/**
+  CHECKSUM=0 option was specified. Only used by SQL-layer, in
+  HA_CREATE_INFO::table_options. Not persisted in data-dictionary.
+*/
+#define HA_OPTION_NO_CHECKSUM           (1L << 17)
+/**
+  DELAY_KEY_WRITE=0 option was specified. Only used by SQL-layer, in
+  HA_CREATE_INFO::table_options. Not persisted in data-dictionary.
+*/
+#define HA_OPTION_NO_DELAY_KEY_WRITE    (1L << 18)
 
 	/* Bits in flag to create() */
 

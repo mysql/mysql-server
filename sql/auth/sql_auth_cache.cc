@@ -1992,12 +1992,12 @@ void acl_free(bool end)
     acl_cache->clear(1); /* purecov: inspected */
   else
   {
-    plugin_unlock(0, native_password_plugin);
-    delete acl_cache;
-    acl_cache=0;
-
     if (rwlocks_initialized)
     {
+      plugin_unlock(0, native_password_plugin);
+      delete acl_cache;
+      acl_cache=0;
+
       LOCK_grant.destroy();
       rwlocks_initialized= false;
     }

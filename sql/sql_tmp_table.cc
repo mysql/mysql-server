@@ -1080,7 +1080,7 @@ update_hidden:
       share->db_plugin= ha_lock_engine(0, innodb_hton);
       break;
     default:
-      DBUG_ASSERT(0);
+      DBUG_ASSERT(0); /* purecov: deadcode */
       share->db_plugin= ha_lock_engine(0, innodb_hton);
     }
 
@@ -1132,7 +1132,7 @@ update_hidden:
         param->group_parts;
       keyinfo->actual_key_parts= keyinfo->user_defined_key_parts;
       keyinfo->rec_per_key= 0;
-      keyinfo->algorithm= HA_KEY_ALG_UNDEF;
+      keyinfo->algorithm= table->file->get_default_index_algorithm();
       keyinfo->set_rec_per_key_array(NULL, NULL);
       keyinfo->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
       keyinfo->name= (char*) "<group_key>";
@@ -1183,7 +1183,7 @@ update_hidden:
       keyinfo->actual_flags= keyinfo->flags= HA_NOSAME | HA_NULL_ARE_EQUAL;
       // TODO rename to <distinct_key>
       keyinfo->name= (char*) "<auto_key>";
-      keyinfo->algorithm= HA_KEY_ALG_UNDEF;
+      keyinfo->algorithm= table->file->get_default_index_algorithm();
       keyinfo->set_rec_per_key_array(NULL, NULL);
       keyinfo->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
       /* Create a distinct key over the columns we are going to return */
@@ -1217,8 +1217,10 @@ update_hidden:
           Field_longlong(sizeof(ulonglong), false, "<hash_field>", true);
     if (!field)
     {
+      /* purecov: begin inspected */
       DBUG_ASSERT(thd->is_fatal_error);
       goto err;   // Got OOM
+      /* purecov: end */
     }
 
     // Mark hash_field as NOT NULL
@@ -1506,8 +1508,8 @@ update_hidden:
     hash_key->actual_key_parts= hash_key->usable_key_parts= 1;
     hash_key->user_defined_key_parts= 1;
     hash_key->set_rec_per_key_array(NULL, NULL);
+    hash_key->algorithm= table->file->get_default_index_algorithm();
     keyinfo->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
-    hash_key->algorithm= HA_KEY_ALG_UNDEF;
     if (distinct)
       hash_key->name= (char*) "<hash_distinct_key>";
     else
@@ -1708,7 +1710,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     if (!field)
       DBUG_RETURN(0);
     field->table= table;
-    field->unireg_check= Field::NONE;
+    field->auto_flags= Field::NONE;
     field->flags= (NOT_NULL_FLAG | BINARY_FLAG | NO_DEFAULT_VALUE_FLAG);
     field->reset_fields();
     field->init(table);
@@ -1735,7 +1737,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
       share->db_plugin= ha_lock_engine(0, innodb_hton);
       break;
     default:
-      DBUG_ASSERT(0);
+      DBUG_ASSERT(0); /* purecov: deadcode */
       share->db_plugin= ha_lock_engine(0, innodb_hton);
     }
     table->file= get_new_handler(share, &table->mem_root,
@@ -1882,7 +1884,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     keyinfo->key_length=0;
     {
       key_part_info->init_from_field(field);
-      DBUG_ASSERT(key_part_info->key_type == FIELDFLAG_BINARY);
+      key_part_info->bin_cmp= true;
 
       key_field= field->new_key_field(thd->mem_root, table, group_buff);
       if (!key_field)
@@ -1896,8 +1898,8 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     table->key_info->usable_key_parts= 1;
     table->key_info->actual_key_parts= table->key_info->user_defined_key_parts;
     table->key_info->set_rec_per_key_array(NULL, NULL);
+    table->key_info->algorithm= table->file->get_default_index_algorithm();
     table->key_info->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
-    table->key_info->algorithm= HA_KEY_ALG_UNDEF;
     table->key_info->name= (char*) "weedout_key";
   }
 
@@ -1981,11 +1983,15 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
   while ((cdef= it++))
   {
     *field= make_field(share, 0, cdef->length,
-                       (uchar*) (f_maybe_null(cdef->pack_flag) ? "" : 0),
-                       f_maybe_null(cdef->pack_flag) ? 1 : 0,
-                       cdef->pack_flag, cdef->sql_type, cdef->charset,
-                       cdef->geom_type, cdef->unireg_check,
-                       cdef->interval, cdef->field_name);
+                       (uchar*) (cdef->maybe_null ? "" : 0),
+                       cdef->maybe_null ? 1 : 0,
+                       cdef->sql_type, cdef->charset,
+                       cdef->geom_type, cdef->auto_flags,
+                       cdef->interval, cdef->field_name,
+                       cdef->maybe_null, cdef->is_zerofill,
+                       cdef->is_unsigned, cdef->decimals,
+                       cdef->treat_bit_as_char,
+                       cdef->pack_length_override);
     if (!*field)
       goto error;
     (*field)->init(table);
@@ -2153,7 +2159,7 @@ static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
       if (field->flags & BLOB_FLAG)
       {
 	seg->type=
-	((keyinfo->key_part[i].key_type & FIELDFLAG_BINARY) ?
+	((keyinfo->key_part[i].bin_cmp) ?
 	 HA_KEYTYPE_VARBINARY2 : HA_KEYTYPE_VARTEXT2);
 	seg->bit_start= (uint8)(field->pack_length() -
                                 portable_sizeof_char_ptr);
@@ -2502,7 +2508,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
     new_table.s->db_plugin= ha_lock_engine(thd, innodb_hton);
     break;
   default:
-    DBUG_ASSERT(0);
+    DBUG_ASSERT(0); /* purecov: deadcode */
     new_table.s->db_plugin= ha_lock_engine(thd, innodb_hton);
   }
 

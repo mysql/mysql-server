@@ -104,7 +104,7 @@ FLUSH TABLES;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	Error	Failed to read from the .par file
-test.t1	check	Error	Incorrect information in file: './test/t1.frm'
+test.t1	check	Error	./test/t1 dictionary object is invalid. (Failed to initialize handler.)
 test.t1	check	error	Corrupt
 SELECT * FROM t1;
 ERROR HY000: Failed to read from the .par file
@@ -174,7 +174,6 @@ t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@00
 t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYI
 t1#P#p2.MYD
 t1#P#p2.MYI
-t1.frm
 t1.par
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
 # Renaming to a file name where the first partition is 250 chars
@@ -189,7 +188,6 @@ t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@00
 t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYI
 t1#P#p2.MYD
 t1#P#p2.MYI
-t1.frm
 t1.par
 SELECT * FROM t1;
 a
@@ -210,7 +208,6 @@ t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@00
 t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYI
 t1#P#p2.MYD
 t1#P#p2.MYI
-t1.frm
 t1.par
 # Renaming to a file name where the first partition is 156 chars
 # and the second partition is 256 chars
@@ -224,7 +221,6 @@ t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@00
 t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYI
 t1#P#p2.MYD
 t1#P#p2.MYI
-t1.frm
 t1.par
 SELECT * FROM t1;
 a

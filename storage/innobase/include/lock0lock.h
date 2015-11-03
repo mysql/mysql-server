@@ -500,7 +500,7 @@ lock_trx_release_locks(
 /*===================*/
 	trx_t*	trx);	/*!< in/out: transaction */
 /*********************************************************************//**
-Removes locks on a table to be dropped or truncated.
+Removes locks on a table to be dropped.
 If remove_also_table_sx_locks is TRUE then table-level S and X locks are
 also removed in addition to other table-level and record-level locks.
 No lock, that is going to be removed, is allowed to be a wait lock. */
@@ -508,7 +508,7 @@ void
 lock_remove_all_on_table(
 /*=====================*/
 	dict_table_t*	table,			/*!< in: table to be dropped
-						or truncated */
+						or discarded */
 	ibool		remove_also_table_sx_locks);/*!< in: also removes
 						table S and X locks */
 

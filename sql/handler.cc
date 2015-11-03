@@ -27,9 +27,9 @@
 
 #include "binlog.h"                   // mysql_bin_log
 #include "current_thd.h"
+#include "dd_table_share.h"           // open_table_def
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "derror.h"                   // ER_DEFAULT
-#include "discover.h"                 // writefrm
 #include "lock.h"                     // MYSQL_LOCK
 #include "log.h"                      // sql_print_error
 #include "log_event.h"                // Write_rows_log_event
@@ -39,6 +39,7 @@
 #include "opt_costconstantcache.h"    // reload_optimizer_cost_constants
 #include "psi_memory_key.h"
 #include "rpl_handler.h"              // RUN_HOOK
+#include "sdi_utils.h"                // import_serialized_meta_data
 #include "sql_base.h"                 // free_io_cache
 #include "sql_parse.h"                // check_stack_overrun
 #include "sql_plugin.h"               // plugin_foreach
@@ -49,6 +50,7 @@
 #include "rpl_write_set_handler.h"    // add_pke
 #include "auth_common.h"              // check_readonly() and SUPER_ACL
 
+#include "dd/dictionary.h"            // dd:acquire_shared_table_mdl
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -234,7 +236,7 @@ const char *ha_resolve_storage_engine_name(const handlerton *db_type)
 static handlerton *installed_htons[128];
 
 KEY_CREATE_INFO default_key_create_info=
-  { HA_KEY_ALG_UNDEF, 0, {NullS, 0}, {NullS, 0}, true };
+  { HA_KEY_ALG_SE_SPECIFIC, false, 0, {NullS, 0}, {NullS, 0}, true };
 
 /* number of storage engines (from installed_htons[]) that support 2pc */
 ulong total_ha_2pc= 0;
@@ -415,6 +417,26 @@ plugin_ref ha_resolve_by_name_raw(THD *thd, const LEX_CSTRING &name)
 {
   return plugin_lock_by_name(thd, name, MYSQL_STORAGE_ENGINE_PLUGIN);
 }
+
+
+/**
+  Resolve handlerton plugin by name, without checking for "DEFAULT" or
+  HTON_NOT_USER_SELECTABLE.
+
+  @param thd  Thread context.
+  @param name Plugin name.
+
+  @return plugin or NULL if not found.
+*/
+plugin_ref ha_resolve_by_name_raw(THD *thd, const  std::string &name)
+{
+  LEX_CSTRING se_name;
+  se_name.str= name.c_str();
+  se_name.length= name.length();
+
+  return ha_resolve_by_name_raw(thd, se_name);
+}
+
 
 /** @brief
   Return the storage engine handlerton for the supplied name
@@ -1011,6 +1033,25 @@ void ha_kill_connection(THD *thd)
 }
 
 
+/** Invoke handlerton::pre_dd_shutdown() on a plugin.
+@param plugin	storage engine plugin
+@retval FALSE (always) */
+static my_bool pre_dd_shutdown_handlerton(THD *, plugin_ref plugin, void *)
+{
+  handlerton *hton= plugin_data<handlerton*>(plugin);
+  if (hton->state == SHOW_OPTION_YES && hton->pre_dd_shutdown)
+    hton->pre_dd_shutdown(hton);
+  return FALSE;
+}
+
+
+/** Invoke handlerton::pre_dd_shutdown() on every storage engine plugin. */
+void ha_pre_dd_shutdown(void)
+{
+  plugin_foreach(NULL, pre_dd_shutdown_handlerton,
+                 MYSQL_STORAGE_ENGINE_PLUGIN, 0);
+}
+
 /* ========================================================================
  ======================= TRANSACTIONS ===================================*/
 
@@ -1328,7 +1369,6 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
   DBUG_ENTER("trans_register_ha");
   DBUG_PRINT("enter",("%s", all ? "all" : "stmt"));
 
-  Ha_trx_info *knownn_trans= trn_ctx->ha_trx_info(trx_scope);
   if (all)
   {
     thd->server_status|= SERVER_STATUS_IN_TRANS;
@@ -1337,12 +1377,15 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
     DBUG_PRINT("info", ("setting SERVER_STATUS_IN_TRANS"));
   }
 
-  ha_info= thd->ha_data[ht_arg->slot].ha_info + (all ? 1 : 0);
+  ha_info= thd->get_ha_data(ht_arg->slot)->ha_info + (all ? 1 : 0);
 
   if (ha_info->is_started())
+  {
+    DBUG_ASSERT(trn_ctx->ha_trx_info(trx_scope));
     DBUG_VOID_RETURN; /* already registered, return */
+  }
 
-  ha_info->register_ha(knownn_trans, ht_arg);
+  trn_ctx->register_ha(trx_scope, ha_info, ht_arg);
   trn_ctx->set_ha_trx_info(trx_scope, ha_info);
 
   if (ht_arg->prepare == 0)
@@ -1458,7 +1501,7 @@ ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
 
     if (! all)
     {
-      Ha_trx_info *ha_info_all= &thd->ha_data[ha_info->ht()->slot].ha_info[1];
+      Ha_trx_info *ha_info_all= &thd->get_ha_data(ha_info->ht()->slot)->ha_info[1];
       DBUG_ASSERT(ha_info != ha_info_all);
       /*
         Merge read-only/read-write information about statement
@@ -1762,7 +1805,7 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
 
       if (restore_backup_trx && ht->replace_native_transaction_in_thd)
       {
-        void **trx_backup= thd_ha_data_backup(thd, ht);
+        void **trx_backup= &thd->get_ha_data(ht->slot)->ha_ptr_backup;
 
         ht->replace_native_transaction_in_thd(thd, *trx_backup, NULL);
         *trx_backup= NULL;
@@ -3638,7 +3681,7 @@ void handler::ha_release_auto_increment()
 }
 
 
-const char *table_case_name(HA_CREATE_INFO *info, const char *name)
+const char *table_case_name(const HA_CREATE_INFO *info, const char *name)
 {
   return ((lower_case_table_names == 2 && info->alias) ? info->alias : name);
 }
@@ -4182,44 +4225,6 @@ int handler::check_old_types()
 }
 
 
-static bool update_frm_version(TABLE *table)
-{
-  char path[FN_REFLEN];
-  File file;
-  int result= 1;
-  DBUG_ENTER("update_frm_version");
-
-  /*
-    No need to update frm version in case table was created or checked
-    by server with the same version. This also ensures that we do not
-    update frm version for temporary tables as this code doesn't support
-    temporary tables.
-  */
-  if (table->s->mysql_version == MYSQL_VERSION_ID)
-    DBUG_RETURN(0);
-
-  strxmov(path, table->s->normalized_path.str, reg_ext, NullS);
-
-  if ((file= mysql_file_open(key_file_frm,
-                             path, O_RDWR|O_BINARY, MYF(MY_WME))) >= 0)
-  {
-    uchar version[4];
-
-    int4store(version, MYSQL_VERSION_ID);
-
-    if ((result= mysql_file_pwrite(file, (uchar*) version, 4, 51L, MYF_RW)))
-      goto err;
-
-    table->s->mysql_version= MYSQL_VERSION_ID;
-  }
-err:
-  if (file >= 0)
-    (void) mysql_file_close(file, MYF(MY_WME));
-  DBUG_RETURN(result);
-}
-
-
-
 /**
   @return
     key if error because of duplicated keys
@@ -4239,7 +4244,7 @@ uint handler::get_dup_key(int error)
 
 
 /**
-  Delete all files with extension from bas_ext().
+  Delete all files with extension from handlerton::file_extensions.
 
   @param name		Base name of table
 
@@ -4259,9 +4264,13 @@ int handler::delete_table(const char *name)
   int error= 0;
   int enoent_or_zero= ENOENT;                   // Error if no file was deleted
   char buff[FN_REFLEN];
+  const char **start_ext;
+
   DBUG_ASSERT(m_lock_type == F_UNLCK);
 
-  for (const char **ext=bas_ext(); *ext ; ext++)
+  if (! (start_ext= ht->file_extensions))
+    return 0;
+  for (const char **ext= start_ext; *ext ; ext++)
   {
     fn_format(buff, name, "", *ext, MY_UNPACK_FILENAME|MY_APPEND_EXT);
     if (mysql_file_delete_with_symlink(key_file_misc, buff, MYF(0)))
@@ -4289,7 +4298,9 @@ int handler::rename_table(const char * from, const char * to)
 {
   int error= 0;
   const char **ext, **start_ext;
-  start_ext= bas_ext();
+
+  if (! (start_ext= ht->file_extensions))
+    return 0;
   for (ext= start_ext; *ext ; ext++)
   {
     if (rename_file_ext(from, to, *ext))
@@ -4352,12 +4363,7 @@ int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
     if (!error && (check_opt->sql_flags & TT_FOR_UPGRADE))
       return 0;
   }
-  if ((error= check(thd, check_opt)))
-    return error;
-  /* Skip updating frm version if not main handler. */
-  if (table->file != this)
-    return error;
-  return update_frm_version(table);
+  return check(thd, check_opt);
 }
 
 /**
@@ -4368,7 +4374,7 @@ int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
 void
 handler::mark_trx_read_write()
 {
-  Ha_trx_info *ha_info= &ha_thd()->ha_data[ht->slot].ha_info[0];
+  Ha_trx_info *ha_info= &ha_thd()->get_ha_data(ht->slot)->ha_info[0];
   /*
     When a storage engine method is called, the transaction must
     have been started, unless it's a DDL call, for which the
@@ -4405,8 +4411,8 @@ int handler::ha_repair(THD* thd, HA_CHECK_OPT* check_opt)
   DBUG_ASSERT(result == HA_ADMIN_NOT_IMPLEMENTED ||
               ha_table_flags() & HA_CAN_REPAIR);
 
-  if (result == HA_ADMIN_OK)
-    result= update_frm_version(table);
+  // TODO: Check if table version in DD needs to be updated.
+  // Previously we checked/updated FRM version here.
   return result;
 }
 
@@ -4653,7 +4659,8 @@ handler::check_if_supported_inplace_alter(TABLE *altered_table,
     Alter_inplace_info::CHANGE_CREATE_OPTION |
     Alter_inplace_info::ALTER_RENAME |
     Alter_inplace_info::RENAME_INDEX |
-    Alter_inplace_info::ALTER_INDEX_COMMENT;
+    Alter_inplace_info::ALTER_INDEX_COMMENT |
+    Alter_inplace_info::CHANGE_INDEX_OPTION;
 
   /* Is there at least one operation that requires copy algorithm? */
   if (ha_alter_info->handler_flags & ~inplace_offline_operations)
@@ -4882,6 +4889,21 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
 /**
   Initiates table-file and calls appropriate database-creator.
 
+  @param thd                 Thread context.
+  @param path                Path to table file (without extension).
+  @param db                  Database name.
+  @param table_name          Table name.
+  @param create_info         HA_CREATE_INFO describing table.
+  @param update_create_info  Indicates that create_info needs to be
+                             updated from table share.
+  @param is_temp_table       Indicates that this is temporary table (for
+                             cases when this info is not available from
+                             HA_CREATE_INFO).
+  @param table_def           Data-dictionary object describing table to
+                             be used for table creation instead of reading
+                             information from DD. Currently used only for
+                             explicit temporary tables, NULL otherwise.
+
   @retval
    0  ok
   @retval
@@ -4891,7 +4913,8 @@ int ha_create_table(THD *thd, const char *path,
                     const char *db, const char *table_name,
                     HA_CREATE_INFO *create_info,
                     bool update_create_info,
-                    bool is_temp_table)
+                    bool is_temp_table,
+                    const dd::Table *table_def)
 {
   int error= 1;
   TABLE table;
@@ -4906,7 +4929,7 @@ int ha_create_table(THD *thd, const char *path,
 #endif
   
   init_tmp_table_share(thd, &share, db, 0, table_name, path);
-  if (open_table_def(thd, &share, 0))
+  if (open_table_def(thd, &share, false, table_def))
     goto err;
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
@@ -4947,7 +4970,7 @@ err:
   Try to discover table from engine.
 
   @note
-    If found, write the frm file to disk.
+    If found, import the serialized dictionary information.
 
   @retval
   -1    Table did not exists
@@ -4959,8 +4982,8 @@ err:
 int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
 {
   int error;
-  uchar *frmblob;
-  size_t frmlen;
+  uchar *sdi_blob;
+  size_t sdi_len;
   char path[FN_REFLEN + 1];
   HA_CREATE_INFO create_info;
   TABLE table;
@@ -4969,26 +4992,26 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   DBUG_PRINT("enter", ("name '%s'.'%s'", db, name));
 
   memset(&create_info, 0, sizeof(create_info));
-  if ((error= ha_discover(thd, db, name, &frmblob, &frmlen)))
+  if ((error= ha_discover(thd, db, name, &sdi_blob, &sdi_len)))
   {
     /* Table could not be discovered and thus not created */
     DBUG_RETURN(error);
   }
 
   /*
-    Table exists in handler and could be discovered
-    frmblob and frmlen are set, write the frm to disk
+    The table exists in the handler and could be discovered.
+    Import the SDI based on the sdi_blob and sdi_len, which are set.
   */
 
-  build_table_filename(path, sizeof(path) - 1, db, name, "", 0);
-  // Save the frm file
-  error= writefrm(path, frmblob, frmlen);
-  my_free(frmblob);
+  // Import the SDI
+  error= import_serialized_meta_data(sdi_blob, sdi_len, true);
+  my_free(sdi_blob);
   if (error)
     DBUG_RETURN(2);
 
+  build_table_filename(path, sizeof(path) - 1, db, name, "", 0);
   init_tmp_table_share(thd, &share, db, 0, name, path);
-  if (open_table_def(thd, &share, 0))
+  if (open_table_def(thd, &share, false, NULL))
   {
     DBUG_RETURN(3);
   }
@@ -5068,7 +5091,6 @@ static bool check_if_system_table(const char *db,
   const char *found_db_name= NULL;
 
   // Check if we have a system database name in the command.
-  DBUG_ASSERT(known_system_databases != NULL);
   names= known_system_databases;
   while (names && *names)
   {
@@ -5311,6 +5333,87 @@ static my_bool system_databases_handlerton(THD *unused, plugin_ref plugin,
 
   return FALSE;
 }
+
+
+static my_bool rm_tmp_tables_handlerton(THD *thd, plugin_ref plugin,
+                                        void *files)
+{
+  handlerton *hton= plugin_data<handlerton*>(plugin);
+
+  if (hton->state == SHOW_OPTION_YES && hton->rm_tmp_tables &&
+      hton->rm_tmp_tables(hton, thd, (List<LEX_STRING> *)files))
+    return true;
+
+  return false;
+}
+
+
+/**
+  Ask all SEs to drop all temporary tables which have been left from
+  previous server run. Used on server start-up.
+
+  @param[in]      thd    Thread context.
+  @param[in/out]  files  List of files in directories for temporary files
+                         which match tmp_file_prefix and thus can belong to
+                         temporary tables. If any SE recognizes some file as
+                         belonging to temporary table in this SE and deletes
+                         the file it is also supposed to remove file from
+                         this list.
+*/
+
+bool ha_rm_tmp_tables(THD *thd, List<LEX_STRING> *files)
+{
+  return plugin_foreach(thd, rm_tmp_tables_handlerton,
+                        MYSQL_STORAGE_ENGINE_PLUGIN, files);
+}
+
+
+/**
+  Default implementation for handlerton::rm_tmp_tables() method which
+  simply removes all files from "files" list which have one of SE's
+  extensions. This implementation corresponds to default implementation
+  of handler::delete_table() method.
+*/
+
+bool default_rm_tmp_tables(handlerton *hton, THD *thd, List<LEX_STRING> *files)
+{
+  List_iterator<LEX_STRING> files_it(*files);
+  LEX_STRING *file_path;
+
+  if (! hton->file_extensions)
+    return 0;
+
+  while ((file_path= files_it++))
+  {
+    const char *file_ext= fn_ext(file_path->str);
+
+    for (const char **ext= hton->file_extensions; *ext ; ext++)
+    {
+      if (strcmp(file_ext, *ext) == 0)
+      {
+        if (my_is_symlink(file_path->str) &&
+            test_if_data_home_dir(file_path->str))
+        {
+          /*
+            For safety reasons, if temporary table file is a symlink pointing
+            to a file in the data directory, don't delete the file, delete
+            symlink file only. It would be nicer to not delete symlinked files
+            at all but MyISAM supports temporary tables with DATA DIRECTORY/INDEX
+            DIRECTORY options.
+          */
+          (void) mysql_file_delete(key_file_misc, file_path->str, MYF(0));
+        }
+        else
+          (void) mysql_file_delete_with_symlink(key_file_misc, file_path->str,
+                                                MYF(0));
+        files_it.remove();
+        break;
+      }
+    }
+  }
+  return false;
+}
+
 
 void st_ha_check_opt::init()
 {
@@ -7324,14 +7427,12 @@ static my_bool exts_handlerton(THD *unused, plugin_ref plugin,
 {
   List<char> *found_exts= (List<char> *) arg;
   handlerton *hton= plugin_data<handlerton*>(plugin);
-  handler *file;
-  if (hton->state == SHOW_OPTION_YES && hton->create &&
-      (file= hton->create(hton, (TABLE_SHARE*) 0, current_thd->mem_root)))
+  if (hton->state == SHOW_OPTION_YES && hton->file_extensions)
   {
     List_iterator_fast<char> it(*found_exts);
     const char **ext, *old_ext;
 
-    for (ext= file->bas_ext(); *ext; ext++)
+    for (ext= hton->file_extensions; *ext; ext++)
     {
       while ((old_ext= it++))
       {
@@ -7343,7 +7444,6 @@ static my_bool exts_handlerton(THD *unused, plugin_ref plugin,
 
       it.rewind();
     }
-    delete file;
   }
   return FALSE;
 }
@@ -8179,8 +8279,17 @@ bool handler::my_prepare_gcolumn_template(THD *thd,
   DBUG_ASSERT(!was_truncated);
   lex_start(thd);
   bool rc= true;
+
+  MDL_ticket *mdl_ticket= NULL;
+  if (dd::acquire_shared_table_mdl(
+           thd, db_name, table_name, false, &mdl_ticket))
+    return true;
+
   TABLE *table= open_table_uncached(thd, path, db_name, table_name,
-                                    false, false);
+                                    false, false, NULL);
+
+  dd::release_mdl(thd, mdl_ticket);
+
   if (table)
   {
     myc(table, ib_table);
@@ -8245,8 +8354,16 @@ bool handler::my_eval_gcolumn_expr(THD *thd,
                          db_name, table_name, "", 0, &was_truncated);
     DBUG_ASSERT(!was_truncated);
 
+    MDL_ticket *mdl_ticket= NULL;
+    if (dd::acquire_shared_table_mdl(
+                                     thd, db_name, table_name, false, &mdl_ticket))
+      return true;
+
     TABLE *table= open_table_uncached(thd, path, db_name, table_name,
-                                      false, false);
+                                      false, false, NULL);
+
+    dd::release_mdl(thd, mdl_ticket);
+
     if (table)
     {
       retval= my_eval_gcolumn_expr_helper(thd, table, fields, record, true);

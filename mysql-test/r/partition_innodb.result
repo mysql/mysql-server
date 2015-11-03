@@ -632,16 +632,13 @@ t1#P#p0.cfg
 t1#P#p0.ibd
 t1#P#p1.cfg
 t1#P#p1.ibd
-t1.frm
 # Copying the .cfg and .ibd files as backup
 UNLOCK TABLES;
 # List of files after UNLOCK (no .cfg files).
 t1#P#p0.ibd
 t1#P#p1.ibd
-t1.frm
 ALTER TABLE t1 DISCARD TABLESPACE;
 # List of files after DISCARD (no .cfg/.ibd files).
-t1.frm
 # Moving the .cfg and .ibd files back from backup
 ALTER TABLE t1 IMPORT TABLESPACE;
 # List of files after IMPORT (.cfg files still there).
@@ -649,7 +646,6 @@ t1#P#p0.cfg
 t1#P#p0.ibd
 t1#P#p1.cfg
 t1#P#p1.ibd
-t1.frm
 DROP TABLE t1;
 # List of files after DROP (.cfg files should also be removed).
 #
@@ -900,7 +896,7 @@ PARTITION BY HASH (a) PARTITIONS 2;
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE
 CREATE_TIME IS NOT NULL AND TABLE_NAME='t1';
 COUNT(*)
-1
+0
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8);
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -909,5 +905,5 @@ SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE
 CREATE_TIME IS NOT NULL AND UPDATE_TIME IS NOT NULL
 AND TABLE_NAME='t1';
 COUNT(*)
-1
+0
 DROP TABLE t1;

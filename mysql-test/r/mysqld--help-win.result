@@ -326,6 +326,7 @@ The following options may be given as the first argument:
  --initialize-insecure 
  Create the default database and exit. Create a super user
  with empty password.
+ --install-server    Install the data dictionary for a new server instance.
  --interactive-timeout=# 
  The number of seconds the server waits for activity on an
  interactive connection before closing it
@@ -973,6 +974,8 @@ The following options may be given as the first argument:
  returning a warning.
  --safe-user-create  Don't allow new user creation by the user who has no
  write privileges to the mysql.user table.
+ --schema-definition-cache=# 
+ The number of cached schema definitions
  --secure-auth       Disallow authentication for accounts that have old
  (pre-4.1) passwords. Deprecated. Always TRUE.
  (Defaults to on; use --skip-secure-auth to disable.)
@@ -1139,6 +1142,8 @@ The following options may be given as the first argument:
  --stored-program-cache=# 
  The soft upper limit for number of cached stored routines
  for one connection.
+ --stored-program-definition-cache=# 
+ The number of cached stored program definitions
  --super-read-only   Make all non-temporary tables read-only, with the
  exception for replication (slave) threads.  Users with
  the SUPER privilege are affected, unlike read_only. 
@@ -1166,6 +1171,8 @@ The following options may be given as the first argument:
  cache instances)
  --table-open-cache-instances=# 
  The number of table cache instances
+ --tablespace-definition-cache=# 
+ The number of cached tablespace definitions
  --tc-heuristic-recover=name 
  Decision to use in heuristic recover process. Possible
  values are OFF, COMMIT or ROLLBACK.
@@ -1484,6 +1491,7 @@ report-user (No default value)
 require-secure-transport FALSE
 rpl-stop-slave-timeout 31536000
 safe-user-create FALSE
+schema-definition-cache 256
 secure-auth TRUE
 server-id 0
 server-id-bits 32
@@ -1526,6 +1534,7 @@ sort-buffer-size 262144
 sporadic-binlog-dump-fail FALSE
 sql-mode ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 stored-program-cache 256
+stored-program-definition-cache 256
 super-read-only FALSE
 symbolic-links FALSE
 sync-binlog 1
@@ -1534,6 +1543,7 @@ sync-relay-log 10000
 sync-relay-log-info 10000
 sysdate-is-now FALSE
 table-open-cache-instances 16
+tablespace-definition-cache 256
 tc-heuristic-recover OFF
 thread-cache-size 9
 thread-handling one-thread-per-connection

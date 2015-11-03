@@ -4180,6 +4180,33 @@ static Sys_var_ulong Sys_table_def_size(
        /* table_definition_cache is used as a sizing hint by the performance schema. */
        sys_var::PARSE_EARLY);
 
+static Sys_var_ulong Sys_schema_def_size(
+       "schema_definition_cache",
+       "The number of cached schema definitions",
+       GLOBAL_VAR(schema_def_size),
+       CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(SCHEMA_DEF_CACHE_MIN, 512*1024),
+       DEFAULT(SCHEMA_DEF_CACHE_DEFAULT),
+       BLOCK_SIZE(1));
+
+static Sys_var_ulong Sys_tablespace_def_size(
+       "tablespace_definition_cache",
+       "The number of cached tablespace definitions",
+       GLOBAL_VAR(tablespace_def_size),
+       CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(TABLESPACE_DEF_CACHE_MIN, 512*1024),
+       DEFAULT(TABLESPACE_DEF_CACHE_DEFAULT),
+       BLOCK_SIZE(1));
+
+static Sys_var_ulong Sys_stored_program_def_size(
+       "stored_program_definition_cache",
+       "The number of cached stored program definitions",
+       GLOBAL_VAR(stored_program_def_size),
+       CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(STORED_PROGRAM_DEF_CACHE_MIN, 512*1024),
+       DEFAULT(STORED_PROGRAM_DEF_CACHE_DEFAULT),
+       BLOCK_SIZE(1));
+
 static bool fix_table_cache_size(sys_var *self, THD *thd, enum_var_type type)
 {
   /*

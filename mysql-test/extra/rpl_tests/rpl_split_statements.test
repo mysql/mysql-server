@@ -341,20 +341,16 @@ EOF
 --write_file $server_2_datadir/db9/file.txt
 EOF
 
---echo # db10, db11, db12: not a database, but the directory exists.
+--echo # db10, db11: not a database, but the directory and the entry exist.
 --mkdir $server_1_datadir/db10
 --mkdir $server_1_datadir/db11
---mkdir $server_1_datadir/db12
---mkdir $server_2_datadir/db12
 --write_file $server_1_datadir/db10/file.txt
 EOF
 --write_file $server_1_datadir/db11/file.txt
 EOF
---write_file $server_2_datadir/db12/file.txt
-EOF
 
---echo # db13, db14, db15: not a database. db15 is a database on master.
---mkdir $server_1_datadir/db15
+--echo # db12 is not a database, but the empty directory exists on master.
+--mkdir $server_1_datadir/db12
 
 --source include/rpl_sync.inc
 
@@ -412,7 +408,7 @@ if (!$gtid_mode_on)
 SET GTID_NEXT = 'AUTOMATIC';
 
 --replace_result \\ /
---error ER_DB_DROP_RMDIR
+--error ER_DB_DROP_EXISTS
 DROP DATABASE db10;
 
 --let $event_sequence= ()
@@ -503,18 +499,9 @@ SET GTID_NEXT = 'AUTOMATIC';
 --echo # db11: not a database, but directory exists.
 --source include/save_binlog_position.inc
 --source include/set_gtid_next_gtid_mode_agnostic.inc
-if (!$gtid_mode_on)
-{
-  --replace_result \\ /
-  --error ER_DB_DROP_RMDIR
-  DROP DATABASE db11;
-}
-if ($gtid_mode_on)
-{
-  --replace_result $server_1_uuid MASTER_UUID \\ /
-  --error ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID
-  DROP DATABASE db11;
-}
+--replace_result \\ /
+--error ER_DB_DROP_EXISTS
+DROP DATABASE db11;
 --let $event_sequence= ()
 --source include/assert_binlog_events.inc
 SET GTID_NEXT = 'AUTOMATIC';
@@ -565,22 +552,9 @@ DROP DATABASE db9;
 --let $rpl_connection_name= master
 --source include/rpl_connection.inc
 
---echo # db12: not a database, but directory exists.
+--echo # db12: not a database, but an empty directory exists.
+--error ER_DB_DROP_EXISTS
 DROP DATABASE db12;
---source include/sync_slave_io_with_master.inc
---source include/wait_for_slave_sql_error.inc
---source include/rpl_skip_to_end_of_relay_log.inc
---let $rpl_connection_name= master
---source include/rpl_connection.inc
-
---echo # db15: not a database (on slave).
---let $slave_sql_errno= convert_error(ER_DB_DROP_EXISTS)
-DROP DATABASE db15;
---source include/sync_slave_io_with_master.inc
---source include/wait_for_slave_sql_error.inc
---source include/rpl_skip_to_end_of_relay_log.inc
---let $rpl_connection_name= master
---source include/rpl_connection.inc
 
 --echo ---- Clean up ----
 
@@ -595,7 +569,9 @@ DROP DATABASE db15;
 --remove_file $server_2_datadir/db9/file.txt
 --remove_file $server_1_datadir/db10/file.txt
 --remove_file $server_1_datadir/db11/file.txt
---remove_file $server_2_datadir/db12/file.txt
+--rmdir $server_1_datadir/db10
+--rmdir $server_1_datadir/db11
+--rmdir $server_1_datadir/db12
 
 DROP DATABASE db1;
 DROP DATABASE db2;
@@ -609,7 +585,6 @@ DROP DATABASE IF EXISTS db9;
 DROP DATABASE IF EXISTS db10;
 DROP DATABASE IF EXISTS db11;
 DROP DATABASE IF EXISTS db12;
-DROP DATABASE IF EXISTS db15;
 
 --source include/rpl_sync.inc
 

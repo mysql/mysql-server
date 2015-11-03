@@ -231,7 +231,7 @@ enum mlog_id_t {
 	MLOG_INIT_FILE_PAGE2 = 59,
 
 	/** Table is being truncated. (Marked only for file-per-table) */
-	MLOG_TRUNCATE = 60,
+	/* MLOG_TRUNCATE = 60,  Disabled for WL6378 */
 
 	/** notify that an index tree is being loaded without writing
 	redo log about individual pages */

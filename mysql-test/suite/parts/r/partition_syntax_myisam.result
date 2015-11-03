@@ -669,7 +669,6 @@ t1#P#part1.MYD
 t1#P#part1.MYI
 t1#P#part3.MYD
 t1#P#part3.MYI
-t1.frm
 t1.par
 
 DROP TABLE t1;
@@ -707,7 +706,6 @@ t1#P#part2.MYD
 t1#P#part2.MYI
 t1#P#part3.MYD
 t1#P#part3.MYI
-t1.frm
 t1.par
 
 DROP TABLE t1;
@@ -744,7 +742,6 @@ t1	CREATE TABLE `t1` (
 unified filelist
 t1#P#p0.MYD
 t1#P#p0.MYI
-t1.frm
 t1.par
 
 DROP TABLE t1;
@@ -776,7 +773,6 @@ t1#P#part1.MYD
 t1#P#part1.MYI
 t1#P#part2.MYD
 t1#P#part2.MYI
-t1.frm
 t1.par
 
 DROP TABLE t1;
@@ -885,7 +881,6 @@ t1#P#part3#SP#subpart31.MYD
 t1#P#part3#SP#subpart31.MYI
 t1#P#part3#SP#subpart32.MYD
 t1#P#part3#SP#subpart32.MYI
-t1.frm
 t1.par
 
 DROP TABLE t1;
@@ -920,7 +915,6 @@ t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
 t1#P#p1.MYI
-t1.frm
 t1.par
 
 DROP TABLE t1;
@@ -960,7 +954,6 @@ t1#P#part2#SP#part2sp0.MYD
 t1#P#part2#SP#part2sp0.MYI
 t1#P#part2#SP#part2sp1.MYD
 t1#P#part2#SP#part2sp1.MYI
-t1.frm
 t1.par
 
 DROP TABLE t1;
@@ -988,7 +981,6 @@ PARTITIONS 1 */
 unified filelist
 t1#P#p0.MYD
 t1#P#p0.MYI
-t1.frm
 t1.par
 
 DROP TABLE t1;
@@ -1024,7 +1016,6 @@ t1#P#part1#SP#part1sp0.MYD
 t1#P#part1#SP#part1sp0.MYI
 t1#P#part2#SP#part2sp0.MYD
 t1#P#part2#SP#part2sp0.MYI
-t1.frm
 t1.par
 
 DROP TABLE t1;
@@ -1774,7 +1765,6 @@ t1#P#part1.MYD
 t1#P#part1.MYI
 t1#P#part2.MYD
 t1#P#part2.MYI
-t1.frm
 t1.par
 
 DROP TABLE t1;
@@ -1820,7 +1810,6 @@ t1#P#part2#SP#subpart21.MYD
 t1#P#part2#SP#subpart21.MYI
 t1#P#part2#SP#subpart22.MYD
 t1#P#part2#SP#subpart22.MYI
-t1.frm
 t1.par
 
 DROP TABLE t1;

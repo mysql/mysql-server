@@ -166,33 +166,6 @@ ha_example::ha_example(handlerton *hton, TABLE_SHARE *table_arg)
 {}
 
 
-/**
-  @brief
-  If frm_error() is called then we will use this to determine
-  the file extensions that exist for the storage engine. This is also
-  used by the default rename_table and delete_table method in
-  handler.cc.
-
-  For engines that have two file name extentions (separate meta/index file
-  and data file), the order of elements is relevant. First element of engine
-  file name extentions array should be meta/index file extention. Second
-  element - data file extention. This order is assumed by
-  prepare_for_repair() when REPAIR TABLE ... USE_FRM is issued.
-
-  @see
-  rename_table method in handler.cc and
-  delete_table method in handler.cc
-*/
-
-static const char *ha_example_exts[] = {
-  NullS
-};
-
-const char **ha_example::bas_ext() const
-{
-  return ha_example_exts;
-}
-
 /*
   Following handler function provides access to
   system database specific to SE. This interface
@@ -795,8 +768,8 @@ THR_LOCK_DATA **ha_example::store_lock(THD *thd,
 
   @details
   If you do not implement this, the default delete_table() is called from
-  handler.cc and it will delete all files with the file extensions returned
-  by bas_ext().
+  handler.cc and it will delete all files with the file extensions from
+  handlerton::file_extensions.
 
   Called from handler.cc by delete_table and ha_create_table(). Only used
   during create if the table_flag HA_DROP_BEFORE_CREATE was specified for
@@ -819,8 +792,8 @@ int ha_example::delete_table(const char *name)
 
   @details
   If you do not implement this, the default rename_table() is called from
-  handler.cc and it will delete all files with the file extensions returned
-  by bas_ext().
+  handler.cc and it will delete all files with the file extensions from
+  handlerton::file_extensions.
 
   Called from sql_table.cc by mysql_rename_table().
 

@@ -15,28 +15,25 @@
 
 #include "sql_view.h"
 
-#include "auth_common.h" // CREATE_VIEW_ACL
-#include "binlog.h"      // mysql_bin_log
-#include "datadict.h"    // dd_frm_type
-#include "derror.h"      // ER_THD
-#include "mysqld.h"      // stage_end reg_ext key_file_frm
-#include "opt_trace.h"   // Opt_trace_object
-#include "parse_file.h"  // File_option
-#include "sp_cache.h"    // sp_cache_invalidate
-#include "sql_base.h"    // get_table_def_key
-#include "sql_cache.h"   // query_cache
-#include "sql_class.h"   // THD
-#include "sql_db.h"      // check_db_dir_existence
-#include "sql_parse.h"   // create_default_definer
-#include "sql_show.h"    // append_identifier
-#include "sql_table.h"   // build_table_filename
+#include "auth_common.h"    // CREATE_VIEW_ACL
+#include "binlog.h"         // mysql_bin_log
+#include "derror.h"         // ER_THD
+#include "mysqld.h"         // stage_end reg_ext key_file_frm
+#include "opt_trace.h"      // Opt_trace_object
+#include "sp_cache.h"       // sp_cache_invalidate
+#include "sql_base.h"       // get_table_def_key
+#include "sql_cache.h"      // query_cache
+#include "sql_class.h"      // THD
+#include "sql_db.h"         // check_db_dir_existence
+#include "sql_parse.h"      // create_default_definer
+#include "sql_show.h"       // append_identifier
+#include "sql_table.h"      // write_bin_log
 
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
+#include "dd/dd_table.h"    // dd::abstract_table_type
+#include "dd/dd_view.h"     // dd::create_view
+#include "dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
 
 #define MD5_BUFF_LENGTH 33
-
-const LEX_STRING view_type= { C_STRING_WITH_LEN("VIEW") };
 
 static int mysql_register_view(THD *thd, TABLE_LIST *view,
 			       enum_view_create_mode mode);
@@ -759,67 +756,8 @@ err:
 }
 
 
-/* number of required parameters for making view */
-static const int required_view_parameters= 14;
-
 /*
-  table of VIEW .frm field descriptors
-
-  Note that one should NOT change the order for this, as it's used by
-  parse()
-*/
-static File_option view_parameters[]=
-{{{ C_STRING_WITH_LEN("query")},
-  my_offsetof(TABLE_LIST, select_stmt),
-  FILE_OPTIONS_ESTRING},
- {{ C_STRING_WITH_LEN("md5")},
-  my_offsetof(TABLE_LIST, md5),
-  FILE_OPTIONS_STRING},
- {{ C_STRING_WITH_LEN("updatable")},
-  my_offsetof(TABLE_LIST, updatable_view),
-  FILE_OPTIONS_ULONGLONG},
- {{ C_STRING_WITH_LEN("algorithm")},
-  my_offsetof(TABLE_LIST, algorithm),
-  FILE_OPTIONS_ULONGLONG},
- {{ C_STRING_WITH_LEN("definer_user")},
-  my_offsetof(TABLE_LIST, definer.user),
-  FILE_OPTIONS_STRING},
- {{ C_STRING_WITH_LEN("definer_host")},
-  my_offsetof(TABLE_LIST, definer.host),
-  FILE_OPTIONS_STRING},
- {{ C_STRING_WITH_LEN("suid")},
-  my_offsetof(TABLE_LIST, view_suid),
-  FILE_OPTIONS_ULONGLONG},
- {{ C_STRING_WITH_LEN("with_check_option")},
-  my_offsetof(TABLE_LIST, with_check),
-  FILE_OPTIONS_ULONGLONG},
- {{ C_STRING_WITH_LEN("timestamp")},
-  my_offsetof(TABLE_LIST, timestamp),
-  FILE_OPTIONS_TIMESTAMP},
- {{ C_STRING_WITH_LEN("create-version")},
-  my_offsetof(TABLE_LIST, file_version),
-  FILE_OPTIONS_ULONGLONG},
- {{ C_STRING_WITH_LEN("source")},
-  my_offsetof(TABLE_LIST, source),
-  FILE_OPTIONS_ESTRING},
- {{(char*) STRING_WITH_LEN("client_cs_name")},
-  my_offsetof(TABLE_LIST, view_client_cs_name),
-  FILE_OPTIONS_STRING},
- {{(char*) STRING_WITH_LEN("connection_cl_name")},
-  my_offsetof(TABLE_LIST, view_connection_cl_name),
-  FILE_OPTIONS_STRING},
- {{(char*) STRING_WITH_LEN("view_body_utf8")},
-  my_offsetof(TABLE_LIST, view_body_utf8),
-  FILE_OPTIONS_ESTRING},
- {{NullS, 0},			0,
-  FILE_OPTIONS_STRING}
-};
-
-static LEX_STRING view_file_type[]= {{(char*) STRING_WITH_LEN("VIEW") }};
-
-
-/*
-  Register VIEW (write .frm & process .frm's history backups)
+  Register VIEW (write definition to DD)
 
   SYNOPSIS
     mysql_register_view()
@@ -873,11 +811,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
                   sizeof (is_query_buff),
                   system_charset_info);
 
-  char md5[MD5_BUFF_LENGTH];
-  char dir_buff[FN_REFLEN + 1], path_buff[FN_REFLEN + 1];
-  LEX_STRING dir, file, path;
   int error= 0;
-  bool was_truncated;
   DBUG_ENTER("mysql_register_view");
 
   /*
@@ -910,7 +844,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   DBUG_PRINT("info",
              ("View: %*.s", (int) view_query.length(), view_query.ptr()));
 
-  /* fill structure */
+  /* fill structure (NOTE: TABLE_LIST::source will be removed) */
   view->source= thd->lex->create_view_select;
 
   if (!thd->make_lex_string(&view->select_stmt, view_query.ptr(),
@@ -921,15 +855,15 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     goto err;   
   }
 
-  view->file_version= 1;
-  view->calc_md5(md5);
-  if (!(view->md5.str= (char*) thd->memdup(md5, 32)))
-  {
-    my_error(ER_OUT_OF_RESOURCES, MYF(0));
-    error= -1;
-    goto err;   
-  }
-  view->md5.length= 32;
+  //view->file_version= 1;
+  //view->calc_md5(md5);
+  //if (!(view->md5.str= (char*) thd->memdup(md5, 32)))
+  //{
+  //  my_error(ER_OUT_OF_RESOURCES, MYF(0));
+  //  error= -1;
+  //  goto err;   
+  //}
+  //view->md5.length= 32;
   if (lex->create_view_algorithm == VIEW_ALGORITHM_MERGE &&
       !can_be_merged)
   {
@@ -961,43 +895,29 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
       view->updatable_view= 0;
   }
 
-  /* print file name */
-  dir.length= build_table_filename(dir_buff, sizeof(dir_buff) - 1,
-                                   view->db, "", "", 0);
-  dir.str= dir_buff;
-
-  path.length= build_table_filename(path_buff, sizeof(path_buff) - 1,
-                                    view->db, view->table_name, reg_ext,
-                                    0, &was_truncated);
-  // Check if we hit FN_REFLEN bytes in path length
-  if (was_truncated)
-  {
-    my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(path_buff)-1,
-             path_buff);
-    error= -1;
-    goto err;
-  }
-  path.str= path_buff;
-
-  file.str= path.str + dir.length;
-  file.length= path.length - dir.length;
-
   /* init timestamp */
   if (!view->timestamp.str)
     view->timestamp.str= view->timestamp_buffer;
 
-  /* check old .frm */
+  /* check old definition */
   {
-    char path_buff[FN_REFLEN];
-    LEX_STRING path;
-    File_parser *parser;
-
-    path.str= path_buff;
-    fn_format(path_buff, file.str, dir.str, "", MY_UNPACK_FILENAME);
-    path.length= strlen(path_buff);
-
-    if (!access(path.str, F_OK))
+    bool exists= false;
+    if (dd::table_exists<dd::Abstract_table>(thd->dd_client(), view->db,
+                                             view->table_name, &exists))
     {
+      error= -1;
+      goto err;
+    }
+    if (exists)
+    {
+      dd::Abstract_table::enum_table_type table_type;
+      if (dd::abstract_table_type(thd->dd_client(), view->db,
+                                  view->table_name, &table_type))
+      {
+        error= -1;
+        goto err;
+      }
+
       if (mode == VIEW_CREATE_NEW)
       {
 	my_error(ER_TABLE_EXISTS_ERROR, MYF(0), view->alias);
@@ -1005,13 +925,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
         goto err;
       }
 
-      if (!(parser= sql_parse_prepare(&path, thd->mem_root, 0)))
-      {
-        error= 1;
-        goto err;
-      }
-
-      if (!parser->ok() || !is_equal(&view_type, parser->type()))
+      if (table_type != dd::Abstract_table::TT_USER_VIEW &&
+          table_type != dd::Abstract_table::TT_SYSTEM_VIEW)
       {
         my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
         error= -1;
@@ -1024,7 +939,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
       */
     }
     else
-   {
+    {
       if (mode == VIEW_ALTER)
       {
 	my_error(ER_NO_SUCH_TABLE, MYF(0), view->db, view->alias);
@@ -1048,6 +963,31 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
 
   lex_string_set(&view->view_connection_cl_name,
                  view->view_creation_ctx->get_connection_cl()->name);
+
+  /*
+    Our parser allows incorrect invalid UTF8 characters in literals.
+    Due to this and due to some bugs in view body printing our UTF8
+    version of view body might contain invalid characters. Such UTF8
+    version of view body can't be stored in the data-dictionary.
+    So we validate UTF8 body version and refuse creation of problematic
+    views here.
+
+    This is a temporary workaround to be removed once we stop accepting
+    invalid UTF8 in literals and fix bugs in view body printing.
+  */
+  size_t valid_length;
+  bool not_used;
+  if (validate_string(system_charset_info, is_query.ptr(), is_query.length(),
+                      &valid_length, &not_used))
+  {
+    char hexbuf[7];
+    octet2hex(hexbuf, is_query.ptr() + valid_length,
+              std::min<size_t>(is_query.length() - valid_length, 3));
+    my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
+             system_charset_info->csname,  hexbuf);
+    error= -1;
+    goto err;
+  }
 
   if (!thd->make_lex_string(&view->view_body_utf8, is_query.ptr(),
                             is_query.length(), false))
@@ -1085,18 +1025,25 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     goto err;
   }
 
-  if (sql_create_definition_file(&dir, &file, view_file_type,
-				 (uchar*)view, view_parameters))
+  if (mode != VIEW_CREATE_NEW &&
+      dd::drop_table<dd::View>(thd, view->db, view->table_name))
   {
-    error= thd->is_error() ? -1 : 1;
+    error= 1;
     goto err;
   }
+
+  if (dd::create_view(thd, view, view->db, view->table_name))
+  {
+    error= 1;
+    goto err;
+  }
+
   DBUG_RETURN(0);
 err:
   view->select_stmt.str= NULL;
   view->select_stmt.length= 0;
-  view->md5.str= NULL;
-  view->md5.length= 0;
+  //view->md5.str= NULL;
+  //view->md5.length= 0;
   DBUG_RETURN(error);
 }
 
@@ -1130,7 +1077,7 @@ private:
 };
 
 /**
-  read VIEW .frm and create structures
+  read view definition and create structures
 
   @param[in]  thd                 Thread handler
   @param[in]  share               Share object of view
@@ -1155,7 +1102,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
 
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
-  if (view_ref->required_type == FRMTYPE_TABLE)
+  if (view_ref->required_type == dd::Abstract_table::TT_BASE_TABLE)
   {
     my_error(ER_WRONG_OBJECT, MYF(0), share->db.str, share->table_name.str,
              "BASE TABLE");
@@ -1224,13 +1171,12 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
   view_ref->definer.user.str= view_ref->definer.host.str= 0;
   view_ref->definer.user.length= view_ref->definer.host.length= 0;
 
-  DBUG_ASSERT(share->view_def != NULL);
-  if ((result= share->view_def->parse((uchar*)view_ref, thd->mem_root,
-                                      view_parameters, required_view_parameters,
-                                      &file_parser_dummy_hook)))
-    DBUG_RETURN(true);
+  DBUG_ASSERT(share->view_object);
 
-  // Check old format view .frm file
+  // Read view details from the view object.
+  dd::read_view(view_ref, *share->view_object, thd->mem_root);
+
+  // Check old format view.
   if (!view_ref->definer.user.str)
   {
     DBUG_ASSERT(!view_ref->definer.host.str &&
@@ -1285,20 +1231,18 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
 
   view_ref->set_view_query(view_lex);
 
-  char old_db_buf[NAME_LEN+1];
-  LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
+  LEX_CSTRING current_db_name_saved= thd->db();
   Parser_state parser_state;
   if ((result= parser_state.init(thd, view_ref->select_stmt.str,
                                  view_ref->select_stmt.length)))
     DBUG_RETURN(true);           /* purecov: inspected */
-  /* 
+  /*
     Use view db name as thread default database, in order to ensure
     that the view is parsed and prepared correctly.
   */
-  bool dbchanged;
-  if ((result= mysql_opt_change_db(thd, view_ref->view_db, &old_db, 1,
-                                   &dbchanged)))
-    DBUG_RETURN(true);           /* purecov: inspected */
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+  thd->reset_db(view_ref->view_db);
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   lex_start(thd);
 
@@ -1350,11 +1294,10 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
 
   thd->variables.sql_mode= saved_mode;
 
-  if (dbchanged && mysql_change_db(thd, to_lex_cstring(old_db), true))
-  {
-    result= true;
-    DBUG_RETURN(true);
-  }
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+  thd->reset_db(current_db_name_saved);
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
+
   if (result)
     DBUG_RETURN(true);            /* purecov: inspected */
 
@@ -1688,29 +1631,25 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
 }
 
 
-/*
-  drop view
+/**
+  Drop view
 
-  SYNOPSIS
-    mysql_drop_view()
-    thd		- thread handler
-    views	- views to delete
-    drop_mode	- cascade/check
+  @param[in] thd   thread handler
+  @param[in] views views to delete
 
-  RETURN VALUE
-    FALSE OK
-    TRUE  Error
+  @retval false OK
+  @retval true Error
 */
 
-bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
+bool mysql_drop_view(THD *thd, TABLE_LIST *views)
 {
-  char path[FN_REFLEN + 1];
   TABLE_LIST *view;
   String non_existant_views;
-  char *wrong_object_db= NULL, *wrong_object_name= NULL;
-  bool error= FALSE;
-  bool some_views_deleted= FALSE;
-  bool something_wrong= FALSE;
+  char *wrong_object_db= NULL;
+  char *wrong_object_name= NULL;
+  bool error= false;
+  bool some_views_deleted= false;
+
   DBUG_ENTER("mysql_drop_view");
 
   /*
@@ -1718,100 +1657,124 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     might lead to deadlock. But since we can't really lock view with LOCK
     TABLES we have to simply prohibit dropping of views.
   */
-
   if (thd->locked_tables_mode)
   {
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   if (lock_table_names(thd, views, 0, thd->variables.lock_wait_timeout, 0))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   for (view= views; view; view= view->next_local)
   {
-    frm_type_enum type= FRMTYPE_ERROR;
-    build_table_filename(path, sizeof(path) - 1,
-                         view->db, view->table_name, reg_ext, 0);
+    /*
+      Either, the entity does not exist, in which case we will
+      issue a warning (if running with DROP ... IF EXISTS), or
+      we will fail with an error later due to views not existing.
 
-    if (access(path, F_OK) || 
-        FRMTYPE_VIEW != (type= dd_frm_type(thd, path)))
+      Otherwise, the entity does indeed exist, and we must take
+      different actions depending on the table type.
+    */
+    bool exists= false;
+    if (dd::table_exists<dd::Abstract_table>(thd->dd_client(), view->db,
+                                             view->table_name, &exists))
+      DBUG_RETURN(true);
+    if (!exists)
     {
+      String tbl_name(view->db, system_charset_info);
+      tbl_name.append('.');
+      tbl_name.append(String(view->table_name, system_charset_info));
+
       if (thd->lex->drop_if_exists)
-      {
-        String tbl_name;
-        tbl_name.append(String(view->db,system_charset_info));
-        tbl_name.append('.');
-        tbl_name.append(String(view->table_name,system_charset_info));
 	push_warning_printf(thd, Sql_condition::SL_NOTE,
                             ER_BAD_TABLE_ERROR,
                             ER_THD(thd, ER_BAD_TABLE_ERROR),
                             tbl_name.c_ptr());
-	continue;
-      }
-      if (type == FRMTYPE_TABLE)
-      {
-        if (!wrong_object_name)
-        {
-          wrong_object_db= const_cast<char*>(view->db);
-          wrong_object_name= const_cast<char*>(view->table_name);
-        }
-      }
       else
       {
         if (non_existant_views.length())
           non_existant_views.append(',');
 
-        non_existant_views.append(String(view->db,system_charset_info));
-        non_existant_views.append('.');
-        non_existant_views.append(String(view->table_name,system_charset_info));
+        non_existant_views.append(tbl_name);
       }
-      continue;
     }
-    thd->add_to_binlog_accessed_dbs(view->db);
-    if (mysql_file_delete(key_file_frm, path, MYF(MY_WME)))
-      error= TRUE;
+    else
+    {
+      dd::Abstract_table::enum_table_type table_type;
+      if (dd::abstract_table_type(thd->dd_client(), view->db, view->table_name,
+                                 &table_type))
+        DBUG_RETURN(true);
 
-    some_views_deleted= TRUE;
+      switch (table_type)
+      {
+      case dd::Abstract_table::TT_BASE_TABLE:
+        if (!wrong_object_name)
+        {
+          wrong_object_db= const_cast<char*>(view->db);
+          wrong_object_name= const_cast<char*>(view->table_name);
+        }
+        break;
+      case dd::Abstract_table::TT_SYSTEM_VIEW: // Fall through
+      case dd::Abstract_table::TT_USER_VIEW:
+        {
+          thd->add_to_binlog_accessed_dbs(view->db);
 
-    /*
-      For a view, there is a TABLE_SHARE object, but its
-      ref_count never goes above 1. Remove it from the table
-      definition cache, in case the view was cached.
-    */
-    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->db, view->table_name,
-                     FALSE);
-    query_cache.invalidate(thd, view, FALSE);
-    sp_cache_invalidate();
+          // Remove view from DD tables
+          if (dd::drop_table<dd::View>(thd, view->db, view->table_name))
+          {
+            error= true;
+          }
+
+          some_views_deleted= true;
+
+          /*
+            For a view, there is a TABLE_SHARE object, but its
+            ref_count never goes above 1. Remove it from the table
+            definition cache, in case the view was cached.
+          */
+          tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->db, view->table_name,
+                           false);
+          query_cache.invalidate(thd, view, false);
+          sp_cache_invalidate();
+          break;
+        }
+      default:
+        DBUG_ASSERT(false);
+      }
+    }
   }
 
+  /* If something goes wrong, set error as appropriate */
   if (wrong_object_name)
-  {
-    my_error(ER_WRONG_OBJECT, MYF(0), wrong_object_db, wrong_object_name, 
-             "VIEW");
-  }
+    my_error(ER_WRONG_OBJECT, MYF(0), wrong_object_db, wrong_object_name,
+               "VIEW");
   if (non_existant_views.length())
-  {
     my_error(ER_BAD_TABLE_ERROR, MYF(0), non_existant_views.c_ptr());
+
+  /*
+    If there was an error, we write bin log only if views have been
+    deleted, then we return no matter what. Bin log is written without
+    clearing the error code.
+  */
+  if (error || wrong_object_name || non_existant_views.length())
+  {
+    if (some_views_deleted)
+      (void) write_bin_log(thd, false, thd->query().str,
+                           thd->query().length);
+
+    DBUG_RETURN(true);
   }
 
-  something_wrong= error || wrong_object_name || non_existant_views.length();
-  if (some_views_deleted || !something_wrong)
-  {
-    /* if something goes wrong, bin-log with possible error code,
-       otherwise bin-log with error code cleared.
-     */
-    if (write_bin_log(thd, !something_wrong,
-                      thd->query().str, thd->query().length))
-      something_wrong= 1;
-  }
+  /*
+    Here, we know there was no error. Now, we write bin log with error
+    code cleared.
+  */
+  if (write_bin_log(thd, true, thd->query().str, thd->query().length))
+    DBUG_RETURN(true);
 
-  if (something_wrong)
-  {
-    DBUG_RETURN(TRUE);
-  }
   my_ok(thd);
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -2015,7 +1978,7 @@ int view_checksum(THD *thd, TABLE_LIST *view)
     view       view
 
   Return values:
-    FALSE      Ok 
+    FALSE      Ok
     TRUE       Error
 */
 bool
@@ -2024,78 +1987,38 @@ mysql_rename_view(THD *thd,
                   const char *new_name,
                   TABLE_LIST *view)
 {
-  LEX_STRING pathstr;
-  File_parser *parser;
-  char path_buff[FN_REFLEN + 1];
-  bool error= TRUE;
-  bool was_truncated;
   DBUG_ENTER("mysql_rename_view");
 
-  pathstr.str= (char *) path_buff;
-  pathstr.length= build_table_filename(path_buff, sizeof(path_buff) - 1,
-                                       view->db, view->table_name,
-                                       reg_ext, 0);
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::View *view_obj= NULL;
+  if (thd->dd_client()->acquire<dd::View>(view->db, view->table_name,
+                                          &view_obj) || !view_obj)
+    DBUG_RETURN(true);
 
-  if ((parser= sql_parse_prepare(&pathstr, thd->mem_root, 1)) && 
-       is_equal(&view_type, parser->type()))
+  /*
+    To be PS-friendly we should either to restore state of
+    TABLE_LIST object pointed by 'view' after using it for
+    view definition parsing or use temporary 'view_def_table_list'
+    object for it.
+  */
+  TABLE_LIST view_def_table_list;
+  memset(&view_def_table_list, 0, sizeof(view_def_table_list));
+  view_def_table_list.timestamp.str= view_def_table_list.timestamp_buffer;
+  view_def_table_list.view_suid= TRUE;
+
+  /* Get view definition and source from dd::View object. */
+  dd::read_view(&view_def_table_list, *view_obj, thd->mem_root);
+
+  /* Do the actual renaming of the view. */
+  if (dd::rename_table<dd::View>(thd,
+                                 view->db, view->table_name,
+                                 new_db, new_name))
   {
-    TABLE_LIST view_def;
-    char dir_buff[FN_REFLEN + 1];
-    LEX_STRING dir, file;
+    DBUG_RETURN(true);
+  }
 
-    /*
-      To be PS-friendly we should either to restore state of
-      TABLE_LIST object pointed by 'view' after using it for
-      view definition parsing or use temporary 'view_def'
-      object for it.
-    */
-    memset(&view_def, 0, sizeof(view_def));
-    view_def.timestamp.str= view_def.timestamp_buffer;
-    view_def.view_suid= TRUE;
-
-    /* get view definition and source */
-    if (parser->parse((uchar*)&view_def, thd->mem_root, view_parameters,
-                      array_elements(view_parameters)-1,
-                      &file_parser_dummy_hook))
-      goto err;
-
-    dir.str= dir_buff;
-    dir.length= build_table_filename(dir_buff, sizeof(dir_buff) - 1,
-                                     new_db, "", "", 0);
-
-    pathstr.str= path_buff;
-    pathstr.length= build_table_filename(path_buff, sizeof(path_buff) - 1,
-                                         new_db, new_name, reg_ext, 0,
-                                         &was_truncated);
-    // Check if we hit FN_REFLEN characters in path length
-    if (was_truncated)
-    {
-      my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(path_buff)-1,
-               path_buff);
-      goto err;
-    }
-    file.str= pathstr.str + dir.length;
-    file.length= pathstr.length - dir.length;
-
-    /* rename view and it's backups */
-    if (rename_in_schema_file(thd, view->db, view->table_name, new_db, new_name))
-      goto err;
-
-    if (sql_create_definition_file(&dir, &file, view_file_type,
-                                   (uchar*)&view_def, view_parameters))
-    {
-      /* restore renamed view in case of error */
-      rename_in_schema_file(thd, new_db, new_name, view->db, view->table_name);
-      goto err;
-    }
-  } else
-    DBUG_RETURN(1);  
-
-  /* remove cache entries */
+  /* Remove cache entries. */
   query_cache.invalidate(thd, view, FALSE);
   sp_cache_invalidate();
-  error= FALSE;
-
-err:
-  DBUG_RETURN(error);
+  DBUG_RETURN(false);
 }

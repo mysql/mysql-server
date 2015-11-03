@@ -75,15 +75,6 @@ ha_heap::ha_heap(handlerton *hton, TABLE_SHARE *table_arg)
 {}
 
 
-static const char *ha_heap_exts[] = {
-  NullS
-};
-
-const char **ha_heap::bas_ext() const
-{
-  return ha_heap_exts;
-}
-
 /*
   Hash index statistics is updated (copied from HP_KEYDEF::hash_buckets to 
   rec_per_key) after 1/HEAP_STATS_UPDATE_THRESHOLD fraction of table records 
@@ -687,7 +678,6 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
     keydef[key].seg=       seg;
 
     switch (pos->algorithm) {
-    case HA_KEY_ALG_UNDEF:
     case HA_KEY_ALG_HASH:
       keydef[key].algorithm= HA_KEY_ALG_HASH;
       mem_per_row+= sizeof(HASH_INFO);

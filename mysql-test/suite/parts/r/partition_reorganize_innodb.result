@@ -64,7 +64,6 @@ test/emp#p#northeast#sp#ne1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MY
 test/emp#p#southwest#sp#sw2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_southwest/test/emp#p#southwest#sp#sw2.ibd
 test/emp#p#southwest#sp#sw3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_southwest/test/emp#p#southwest#sp#sw3.ibd
 ---- MYSQLD_DATADIR/test
-emp.frm
 ---- MYSQL_TMP_DIR/alt_dir_northeast/test
 emp#p#northeast#sp#ne0.ibd
 emp#p#northeast#sp#ne1.ibd
@@ -151,7 +150,6 @@ test/emp#p#west#sp#w1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TM
 test/emp#p#south#sp#s0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_south/test/emp#p#south#sp#s0.ibd
 test/emp#p#south#sp#s1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_south/test/emp#p#south#sp#s1.ibd
 ---- MYSQLD_DATADIR/test
-emp.frm
 ---- MYSQL_TMP_DIR/alt_dir_northeast/test
 ---- MYSQL_TMP_DIR/alt_dir_southwest/test
 ---- MYSQL_TMP_DIR/alt_dir_east/test

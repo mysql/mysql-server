@@ -2684,7 +2684,8 @@ ha_innopart::create(
 				     create_info,
 				     table_name,
 				     remote_path,
-				     tablespace_name);
+				     tablespace_name,
+				     srv_file_per_table);
 
 	DBUG_ENTER("ha_innopart::create");
 	ut_ad(create_info != NULL);
@@ -2997,27 +2998,109 @@ ha_innopart::extra(
 	return(ha_innobase::extra(operation));
 }
 
-/** Delete all rows in a partition.
-@return	0 or error number. */
-int
-ha_innopart::truncate_partition_low()
-{
-	return(truncate());
-}
-
 /** Deletes all rows of a partitioned InnoDB table.
 @return	0 or error number. */
 int
 ha_innopart::truncate()
 {
-	dberr_t		err = DB_SUCCESS;
-	int		error;
+	ut_ad(m_part_info->num_partitions_used() == m_tot_parts);
+	return(truncate_partition_low());
+}
 
-	DBUG_ENTER("ha_innopart::truncate");
+/** Delete all rows in the requested partitions.
+Done by deleting the partitions and recreate them again.
+TODO: Add DDL_LOG handling to avoid missing partitions in case of crash.
+@return	0 or error number. */
+int
+ha_innopart::truncate_partition_low()
+{
+	int		error = 0;
+	const char*	table_name = table->s->normalized_path.str;
+	HA_CREATE_INFO*	create_infos;
+	ulint		num_used_parts = m_part_info->num_partitions_used();
+	ulint		processed_partitions = 0;
+	DBUG_ENTER("ha_innopart::truncate_partition_low");
 
 	if (high_level_read_only) {
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
+
+	/* First we copy the info for the partitions that will be truncated,
+	since after we close the table the information is not accessible. */
+
+	/* Use a heap to ease the memory alloc/free. Initialize with one
+	create_info + 5 bytes for short names (t#P#p) per partition. */
+	mem_heap_t*	heap = mem_heap_create(num_used_parts
+		* (sizeof(HA_CREATE_INFO) + 5));
+	if (heap == NULL)
+	{
+		DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+	}
+
+	size_t		alloc_size = sizeof(HA_CREATE_INFO) * num_used_parts;
+	create_infos = static_cast<HA_CREATE_INFO*>(mem_heap_alloc(heap,
+		alloc_size));
+	if (create_infos == NULL)
+	{
+		mem_heap_free(heap);
+		DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+	}
+	memset(create_infos, 0, alloc_size);
+
+	for (uint i = m_part_info->get_first_used_partition();
+	     i < m_tot_parts;
+	     i = m_part_info->get_next_used_partition(i)) {
+
+		dict_table_t*	table_part = m_part_share->get_table_part(i);
+		HA_CREATE_INFO*	info = &create_infos[processed_partitions++];
+		update_create_info_from_table(info, table);
+		/* The table should have been opened in ha_innobase::open().
+		Purge might be holding a reference to the table. */
+		ut_ad(table_part->n_ref_count >= 1);
+
+		/* Temporary partitioned tables are not supported! */
+		ut_ad(!dict_table_is_temporary(table_part));
+
+		/* Intrinsic partitioned tables are not supported! */
+		ut_ad(!dict_table_is_intrinsic(table_part));
+		/* Truncate of intrinsic table is not allowed truncate for
+		now. */
+		if (dict_table_is_intrinsic(table_part)) {
+			error = HA_ERR_WRONG_COMMAND;
+			break;
+		}
+
+		if (dict_table_is_discarded(table_part)) {
+			ib_senderrf(
+				ha_thd(), IB_LOG_LEVEL_ERROR,
+				ER_TABLESPACE_DISCARDED,
+				table->s->table_name.str);
+			error = HA_ERR_NO_SUCH_TABLE;
+			break;
+		}
+		if (table_part->data_dir_path)
+		{
+			info->data_file_name = mem_heap_strdup(heap,
+						table_part->data_dir_path);
+		}
+		/* Use 'alias' variable as partition name. */
+		info->alias = mem_heap_strdup(heap, table_part->name.m_name);
+		/* InnoDB does not support MIN_ROWS, so use that variable
+		for file_per_table. */
+		info->min_rows = dict_table_is_file_per_table(table_part)
+			? 1 : 0;
+		// TODO: WL#6205 Add:
+		//info->tablespace = mem_heap_strdup(heap,
+		//table_part->tablespace_name);
+	}
+
+
+	if (error)
+	{
+		mem_heap_free(heap);
+		DBUG_RETURN(error);
+	}
+	ut_ad(processed_partitions == num_used_parts);
 
 	/* TRUNCATE also means resetting auto_increment. Hence, reset
 	it so that it will be initialized again at the next use. */
@@ -3029,49 +3112,39 @@ ha_innopart::truncate()
 		unlock_auto_increment();
 	}
 
-	/* Get the transaction associated with the current thd, or create one
-	if not yet created, and update m_prebuilt->trx. */
-
-	update_thd(ha_thd());
-
-	if (!trx_is_started(m_prebuilt->trx)) {
-		++m_prebuilt->trx->will_lock;
+	error = close();
+	if (error)
+	{
+		return error;
 	}
-	/* Truncate the table in InnoDB. */
+	/* From now on m_prebuilt is reset! */
 
+	/* m_part_info is still usable! */
+	processed_partitions = 0;
 	for (uint i = m_part_info->get_first_used_partition();
 	     i < m_tot_parts;
 	     i = m_part_info->get_next_used_partition(i)) {
 
-		set_partition(i);
-		err = row_truncate_table_for_mysql(m_prebuilt->table,
-				m_prebuilt->trx);
-		update_partition(i);
-		if (err != DB_SUCCESS) {
+		HA_CREATE_INFO*	info = &create_infos[processed_partitions++];
+		bool file_per_table = false;
+		if (info->min_rows != 0) {
+			info->min_rows = 0;
+			file_per_table = true;
+		}
+
+		const char*	name = info->alias;
+		info->alias = NULL;
+		/* TODO: Add DDL_LOG here to avoid missing partitions on crash. */
+		error = ha_innobase::delete_table(name, SQLCOM_TRUNCATE);
+		if (error == 0) {
+			error = ha_innobase::create(name, table, info, file_per_table);
+		}
+		if (error != 0) {
 			break;
 		}
 	}
-
-	switch (err) {
-
-	case DB_TABLESPACE_DELETED:
-	case DB_TABLESPACE_NOT_FOUND:
-		ib_senderrf(
-			m_prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
-			(err == DB_TABLESPACE_DELETED ?
-			ER_TABLESPACE_DISCARDED : ER_TABLESPACE_MISSING),
-			table->s->table_name.str);
-		table->status = STATUS_NOT_FOUND;
-		error = HA_ERR_NO_SUCH_TABLE;
-		break;
-
-	default:
-		error = convert_error_code_to_mysql(
-			err, m_prebuilt->table->flags,
-			m_prebuilt->trx->mysql_thd);
-		table->status = STATUS_NOT_FOUND;
-		break;
-	}
+	mem_heap_free(heap);
+	open(table_name, 0, 0);
 	DBUG_RETURN(error);
 }
 

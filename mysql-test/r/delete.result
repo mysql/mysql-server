@@ -389,9 +389,9 @@ ERROR 42S02: Unknown table 'a2' in MULTI DELETE
 DELETE a1,a2 FROM db1.t1, db2.t2 AS a2;
 ERROR 42S02: Unknown table 'a1' in MULTI DELETE
 DELETE a1,a2 FROM db3.t1 AS a1, db4.t2 AS a2;
-ERROR 42S02: Table 'db3.t1' doesn't exist
+ERROR 42000: Unknown database 'db3'
 DELETE a1,a2 FROM db3.t1 AS a1, db4.t2 AS a2;
-ERROR 42S02: Table 'db3.t1' doesn't exist
+ERROR 42000: Unknown database 'db3'
 DELETE FROM a1,a2 USING db1.t1, db2.t2;
 ERROR 42S02: Unknown table 'a1' in MULTI DELETE
 DELETE FROM a1,a2 USING db1.t1, db2.t2;
@@ -401,9 +401,9 @@ ERROR 42S02: Unknown table 'a2' in MULTI DELETE
 DELETE FROM a1,a2 USING db1.t1, db2.t2 AS a2;
 ERROR 42S02: Unknown table 'a1' in MULTI DELETE
 DELETE FROM a1,a2 USING db3.t1 AS a1, db4.t2 AS a2;
-ERROR 42S02: Table 'db3.t1' doesn't exist
+ERROR 42000: Unknown database 'db3'
 DELETE FROM a1,a2 USING db3.t1 AS a1, db4.t2 AS a2;
-ERROR 42S02: Table 'db3.t1' doesn't exist
+ERROR 42000: Unknown database 'db3'
 DELETE a1 FROM db1.t1 AS a1, db2.t2 AS a1;
 ERROR 42000: Not unique table/alias: 'a1'
 DELETE a1 FROM db1.a1, db2.t2 AS a1;

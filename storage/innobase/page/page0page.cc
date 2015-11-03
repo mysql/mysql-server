@@ -33,7 +33,6 @@ Created 2/2/1994 Heikki Tuuri
 #include "page0zip.h"
 #include "buf0buf.h"
 #include "btr0btr.h"
-#include "row0trunc.h"
 #ifndef UNIV_HOTBACKUP
 # include "srv0srv.h"
 # include "lock0lock.h"
@@ -430,46 +429,25 @@ page_create_zip(
 /*============*/
 	buf_block_t*		block,		/*!< in/out: a buffer frame
 						where the page is created */
-	dict_index_t*		index,		/*!< in: the index of the
-						page, or NULL when applying
-						TRUNCATE log
-						record during recovery */
+	dict_index_t*		index,		/*!< in: index tree */
 	ulint			level,		/*!< in: the B-tree level
 						of the page */
 	trx_id_t		max_trx_id,	/*!< in: PAGE_MAX_TRX_ID */
-	const redo_page_compress_t* page_comp_info,
-						/*!< in: used for applying
-						TRUNCATE log
-						record during recovery */
 	mtr_t*			mtr)		/*!< in/out: mini-transaction
 						handle */
 {
 	page_t*			page;
 	page_zip_des_t*		page_zip = buf_block_get_page_zip(block);
-	bool			is_spatial;
 
 	ut_ad(block);
 	ut_ad(page_zip);
-	ut_ad(index == NULL || dict_table_is_comp(index->table));
-	is_spatial = index ? dict_index_is_spatial(index)
-			   : page_comp_info->type & DICT_SPATIAL;
+	ut_ad(dict_table_is_comp(index->table));
 
-	page = page_create_low(block, TRUE, is_spatial);
+	page = page_create_low(block, TRUE, dict_index_is_spatial(index));
 	mach_write_to_2(PAGE_HEADER + PAGE_LEVEL + page, level);
 	mach_write_to_8(PAGE_HEADER + PAGE_MAX_TRX_ID + page, max_trx_id);
 
-	if (truncate_t::s_fix_up_active) {
-		/* Compress the index page created when applying
-		TRUNCATE log during recovery */
-		if (!page_zip_compress(page_zip, page, index, page_zip_level,
-				       page_comp_info, NULL)) {
-			/* The compression of a newly created
-			page should always succeed. */
-			ut_error;
-		}
-
-	} else if (!page_zip_compress(page_zip, page, index,
-				      page_zip_level, NULL, mtr)) {
+	if (!page_zip_compress(page_zip, page, index, page_zip_level, mtr)) {
 		/* The compression of a newly created
 		page should always succeed. */
 		ut_error;
@@ -508,7 +486,7 @@ page_create_empty(
 		ut_ad(!dict_table_is_temporary(index->table));
 		page_create_zip(block, index,
 				page_header_get_field(page, PAGE_LEVEL),
-				max_trx_id, NULL, mtr);
+				max_trx_id, mtr);
 	} else {
 		page_create(block, mtr, page_is_comp(page),
 			    dict_index_is_spatial(index));
@@ -687,7 +665,7 @@ page_copy_rec_list_end(
 				       new_page,
 				       index,
 				       page_zip_level,
-				       NULL, mtr)) {
+				       mtr)) {
 			/* Before trying to reorganize the page,
 			store the number of preceding records on the page. */
 			ulint	ret_pos
@@ -846,7 +824,7 @@ page_copy_rec_list_start(
 				goto zip_reorganize;);
 
 		if (!page_zip_compress(new_page_zip, new_page, index,
-				       page_zip_level, NULL, mtr)) {
+				       page_zip_level, mtr)) {
 			ulint	ret_pos;
 #ifndef DBUG_OFF
 zip_reorganize:

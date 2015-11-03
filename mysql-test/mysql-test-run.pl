@@ -3716,7 +3716,6 @@ sub mysql_install_db {
   mtr_init_args(\$args);
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--log-syslog=0");
-  mtr_add_arg($args, "--bootstrap");
   mtr_add_arg($args, "--basedir=%s", $install_basedir);
   mtr_add_arg($args, "--datadir=%s", $install_datadir);
   mtr_add_arg($args, "--loose-skip-ndbcluster");
@@ -3771,16 +3770,21 @@ sub mysql_install_db {
   }
  
   # The user can set MYSQLD_BOOTSTRAP to the full path to a mysqld
-  # to run a different mysqld during --bootstrap.
+  # to run a different mysqld during --bootstrap or --install-server.
   my $exe_mysqld_bootstrap =
     $ENV{'MYSQLD_BOOTSTRAP'} || find_mysqld($install_basedir);
 
   # ----------------------------------------------------------------------
   # export MYSQLD_BOOTSTRAP_CMD variable containing <path>/mysqld <args>
   # ----------------------------------------------------------------------
-  $ENV{'MYSQLD_BOOTSTRAP_CMD'}= "$exe_mysqld_bootstrap " . join(" ", @$args);
+  $ENV{'MYSQLD_BOOTSTRAP_CMD'}= "$exe_mysqld_bootstrap " . join(" --bootstrap ", @$args);
 
+  mtr_add_arg($args, "--install-server");
 
+  # ----------------------------------------------------------------------
+  # export MYSQLD_INSTALL_CMD variable containing <path>/mysqld <args>
+  # ----------------------------------------------------------------------
+  $ENV{'MYSQLD_INSTALL_CMD'}= "$exe_mysqld_bootstrap " . join(" ", @$args);
 
   # ----------------------------------------------------------------------
   # Create the bootstrap.sql file
@@ -3862,6 +3866,10 @@ sub mysql_install_db {
   mtr_tofile($bootstrap_sql_file,
 	     "DELETE FROM mysql.user where user= '';\n");
 
+  # Create test database
+  mtr_tofile($bootstrap_sql_file,
+	     "CREATE DATABASE test;\n");
+
   # Create mtr database
   mtr_tofile($bootstrap_sql_file,
 	     "CREATE DATABASE mtr;\n");
@@ -3879,9 +3887,8 @@ sub mysql_install_db {
   mtr_tofile($path_bootstrap_log,
 	     "$exe_mysqld_bootstrap " . join(" ", @$args) . "\n");
 
-  # Create directories mysql and test
-  mkpath("$install_datadir/mysql");
-  mkpath("$install_datadir/test");
+  # Create data directory
+  mkpath("$install_datadir");
 
   if ( My::SafeProcess->run
        (
@@ -3895,7 +3902,7 @@ sub mysql_install_db {
 	verbose       => $opt_verbose,
        ) != 0)
   {
-    mtr_error("Error executing mysqld --bootstrap\n" .
+    mtr_error("Error executing mysqld --install-server\n" .
               "Could not install system database from $bootstrap_sql_file\n" .
 	      "see $path_bootstrap_log for errors");
   }

@@ -10,9 +10,9 @@ SELECT * FROM t2;
 --echo # State before failure
 --replace_result #p# #P#
 --list_files $DATADIR/test
-SHOW CREATE TABLE t1;
+SHOW CREATE TABLE `t1/a\b#2`;
 --sorted_result
-SELECT * FROM t1;
+SELECT * FROM `t1/a\b#2`;
 # accept all errors
 --disable_abort_on_error
 --replace_regex /#sqlx-[0-9a-f_]*/#sqlx-nnnn_nnnn/i
@@ -21,10 +21,10 @@ SELECT * FROM t1;
 --echo # State after failure
 --replace_result #p# #P#
 --list_files $DATADIR/test
-SHOW CREATE TABLE t1;
+SHOW CREATE TABLE `t1/a\b#2`;
 --sorted_result
-SELECT * FROM t1;
-DROP TABLE t1;
+SELECT * FROM `t1/a\b#2`;
+DROP TABLE `t1/a\b#2`;
 SHOW CREATE TABLE t2;
 --sorted_result
 SELECT * FROM t2;

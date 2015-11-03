@@ -301,18 +301,6 @@ DROP TABLE t1;
 DROP TABLE t2;
 
 --echo #
---echo # Bug#20819189: Assert if .frm exists but no partitioned InnoDB table
---echo #
-CREATE TABLE t1 (a int) ENGINE=InnoDB PARTITION BY HASH (a) PARTITIONS 2;
---copy_file $MYSQLD_DATADIR/test/t1.frm $MYSQLD_DATADIR/test/t2.frm
---error ER_GET_ERRNO
-SELECT * FROM t2;
---remove_file $MYSQLD_DATADIR/test/t2.frm
-# Flush table is needed to remove the 'orphan' t2 definition.
-FLUSH TABLE t2;
-DROP TABLE t1;
-
---echo #
 --echo # Bug#21211524: CRASH IN ACTUAL_KEY_PARTS WITH PARTITIONED TABLES
 --echo #
 CREATE TABLE t1(
@@ -375,23 +363,31 @@ SELECT * from t1 WHERE col1 BETWEEN '2000-01-01 01:02:00' AND '2000-01-01 01:03:
 
 DROP TABLE t1;
 
---echo #
---echo # Bug#21755994 ALTER INPLACE CRASHES ON A INNODB TABLE WITH PARTITION ON SEPARATE TABLESPACE
---echo #
-
-CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
-
-CREATE TABLE t1 ( a INT NOT NULL, PRIMARY KEY (a))
-ENGINE=InnoDB
-PARTITION BY RANGE (a) PARTITIONS 3
-( PARTITION P1 VALUES LESS THAN (2) TABLESPACE ts1,
-  PARTITION P2 VALUES LESS THAN (4) TABLESPACE `innodb_system`,
-  PARTITION P3 VALUES LESS THAN (6));
-
-ALTER TABLE t1 ADD COLUMN f int;
-
-DROP TABLE t1;
-DROP TABLESPACE ts1;
+# WL6378_ALTER_PARTITION_TABLESPACE
+# Reason for disabling the test is that, the following fix does
+# not completely fix the behaviour of ALTER TABLE on a table with
+# partitions using separate tablespace. A new bug Bug#21914047
+# is filed on trunk/5.7, which with slight modification to below test
+# case causes server to dump. After talking to Deb (InnoDB) it
+# seem that the behavior of such a ALTER is not documented yet.
+# So, we are disabling this case until the above bug is fixed.
+#--echo #
+#--echo # Bug#21755994 ALTER INPLACE CRASHES ON A INNODB TABLE WITH PARTITION ON SEPARATE TABLESPACE
+#--echo #
+#
+#CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+#
+#CREATE TABLE t1 ( a INT NOT NULL, PRIMARY KEY (a))
+#ENGINE=InnoDB
+#PARTITION BY RANGE (a) PARTITIONS 3
+#( PARTITION P1 VALUES LESS THAN (2) TABLESPACE ts1,
+#  PARTITION P2 VALUES LESS THAN (4) TABLESPACE `innodb_system`,
+#  PARTITION P3 VALUES LESS THAN (6));
+#
+#ALTER TABLE t1 ADD COLUMN f int;
+#
+#DROP TABLE t1;
+#DROP TABLESPACE ts1;
 
 --echo #
 --echo # Bug#21796845 ASSERT ERR == DB_SUCCESS, ROW_QUIESCE_TABLE_START(), FLUSH TABLES FOR EXPORT

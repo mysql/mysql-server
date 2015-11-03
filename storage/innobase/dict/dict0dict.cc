@@ -5098,6 +5098,10 @@ dict_index_check_search_tuple(
 	ut_a(index);
 	ut_a(dtuple_get_n_fields_cmp(tuple)
 	     <= dict_index_get_n_unique_in_tree(index));
+	ut_ad(index->page != FIL_NULL);
+	ut_ad(index->page >= FSP_FIRST_INODE_PAGE_NO);
+	ut_ad(dtuple_check_typed(tuple));
+	ut_ad(!(index->type & DICT_FTS));
 	return(TRUE);
 }
 #endif /* UNIV_DEBUG */

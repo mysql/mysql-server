@@ -48,8 +48,7 @@ SHOW CREATE TABLE t1;
 --source suite/innodb/include/show_i_s_tables.inc
 --source suite/innodb/include/show_i_s_tablespaces.inc
 
---echo # Verifying .frm and .ibd files
---file_exists $MYSQLD_DATADIR/test/t1.frm
+--echo # Verifying .ibd files
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p0.ibd
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p1.ibd
 
@@ -87,8 +86,7 @@ SELECT * FROM t1;
 SHOW CREATE TABLE t1;
 --source suite/innodb/include/show_i_s_tables.inc
 --source suite/innodb/include/show_i_s_tablespaces.inc
---echo # Verifying .frm and .ibd files
---file_exists $MYSQLD_DATADIR/test/t1.frm
+--echo # Verifying .ibd files
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p0.ibd
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p1.ibd
 
@@ -98,8 +96,7 @@ RENAME TABLE t1 TO t11;
 SHOW CREATE TABLE t11;
 --source suite/innodb/include/show_i_s_tables.inc
 --source suite/innodb/include/show_i_s_tablespaces.inc
---echo # Verifying .frm and .ibd files
---file_exists $MYSQLD_DATADIR/test/t11.frm
+--echo # Verifying .ibd files
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t11#P#p0.ibd
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t11#P#p1.ibd
 
@@ -155,8 +152,7 @@ SHOW CREATE TABLE t1;
 --source suite/innodb/include/show_i_s_tables.inc
 --source suite/innodb/include/show_i_s_tablespaces.inc
 
---echo # Verifying .frm and .ibd files
---file_exists $MYSQLD_DATADIR/test/t1.frm
+--echo # Verifying .ibd files
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p0#SP#s0.ibd
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p0#SP#s1.ibd
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p1#SP#s2.ibd
@@ -199,8 +195,7 @@ SHOW CREATE TABLE t1;
 --source suite/innodb/include/show_i_s_tables.inc
 --source suite/innodb/include/show_i_s_tablespaces.inc
 
---echo # Verifying .frm and .ibd files
---file_exists $MYSQLD_DATADIR/test/t1.frm
+--echo # Verifying .ibd files
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p0#SP#s0.ibd
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p0#SP#s1.ibd
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p1#SP#s2.ibd
@@ -238,8 +233,7 @@ SUBPARTITION BY HASH (a) SUBPARTITIONS 3
  (SUBPARTITION sp6,
   SUBPARTITION sp7 DATA DIRECTORY='$MYSQL_TMP_DIR/alternate_dir/data_subpart',
   SUBPARTITION sp8));
---echo # Verifying .frm and .ibd files
---file_exists $MYSQLD_DATADIR/test/t1.frm
+--echo # Verifying .ibd files
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data_table/test/t1#P#p0#SP#sp0.ibd
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data_table/test/t1#P#p0#SP#sp2.ibd
 --file_exists $MYSQL_TMP_DIR/alternate_dir/data_table/test/t1#P#p2#SP#sp6.ibd

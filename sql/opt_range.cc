@@ -10023,7 +10023,11 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
   }
   /* Figure out if the key scan is ROR (returns rows in ROWID order) or not */
   enum ha_key_alg key_alg= param->table->key_info[seq.real_keyno].algorithm;
-  if ((key_alg != HA_KEY_ALG_BTREE) && (key_alg!= HA_KEY_ALG_UNDEF))
+  /*
+    The HA_KEY_ALG_SE_SPECIFIC part of the below condition is mostly covers
+    engines like Archive/Federated.
+  */
+  if ((key_alg != HA_KEY_ALG_BTREE) && (key_alg != HA_KEY_ALG_SE_SPECIFIC))
   {
     /* 
       All scans are non-ROR scans for those index types.

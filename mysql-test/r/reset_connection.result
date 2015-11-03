@@ -115,10 +115,10 @@ DELETE FROM newt;
 DROP TABLE newt;
 SHOW STATUS like 'Table_open_cache_hits';
 Variable_name	Value
-Table_open_cache_hits	2
+Table_open_cache_hits	>0
 SHOW STATUS like 'Opened_tables';
 Variable_name	Value
-Opened_tables	1
+Opened_tables	>0
 resetconnection;
 SHOW STATUS like 'Table_open_cache_hits';
 Variable_name	Value

@@ -73,6 +73,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "parse_location.h"
 #include "parse_tree_helpers.h"
 #include "lex_token.h"
+#include "dd/types/abstract_table.h"         // TT_BASE_TABLE
 #include "item_cmpfunc.h"
 #include "item_geofunc.h"
 #include "item_json_func.h"
@@ -2770,7 +2771,7 @@ sp_fdparam:
               MYSQL_YYABORT;
             }
             spvar->field_def.field_name= spvar->name.str;
-            spvar->field_def.pack_flag |= FIELDFLAG_MAYBE_NULL;
+            spvar->field_def.maybe_null= true;
           }
         ;
 
@@ -2810,7 +2811,7 @@ sp_pdparam:
               MYSQL_YYABORT;
             }
             spvar->field_def.field_name= spvar->name.str;
-            spvar->field_def.pack_flag |= FIELDFLAG_MAYBE_NULL;
+            spvar->field_def.maybe_null= true;
           }
         ;
 
@@ -2922,7 +2923,7 @@ sp_decl:
                 MYSQL_YYABORT;
 
               spvar->field_def.field_name= spvar->name.str;
-              spvar->field_def.pack_flag |= FIELDFLAG_MAYBE_NULL;
+              spvar->field_def.maybe_null= true;
 
               /* The last instruction is responsible for freeing LEX. */
 
@@ -5025,7 +5026,7 @@ create2:
             if (! src_table)
               MYSQL_YYABORT;
             /* CREATE TABLE ... LIKE is not allowed for views. */
-            src_table->required_type= FRMTYPE_TABLE;
+            src_table->required_type= dd::Abstract_table::TT_BASE_TABLE;
           }
         | '(' LIKE table_ident ')'
           {
@@ -5040,7 +5041,7 @@ create2:
             if (! src_table)
               MYSQL_YYABORT;
             /* CREATE TABLE ... LIKE is not allowed for views. */
-            src_table->required_type= FRMTYPE_TABLE;
+            src_table->required_type= dd::Abstract_table::TT_BASE_TABLE;
           }
         ;
 
@@ -7321,8 +7322,16 @@ fulltext_key_opts:
         ;
 
 key_using_alg:
-          USING btree_or_rtree     { Lex->key_create_info.algorithm= $2; }
-        | TYPE_SYM btree_or_rtree  { Lex->key_create_info.algorithm= $2; }
+          USING btree_or_rtree
+          {
+            Lex->key_create_info.algorithm= $2;
+            Lex->key_create_info.is_algorithm_explicit= true;
+          }
+        | TYPE_SYM btree_or_rtree
+          {
+            Lex->key_create_info.algorithm= $2;
+            Lex->key_create_info.is_algorithm_explicit= true;
+          }
         ;
 
 all_key_opt:
@@ -12271,7 +12280,8 @@ opt_flush_lock:
             for (; tables; tables= tables->next_global)
             {
               tables->mdl_request.set_type(MDL_SHARED_NO_WRITE);
-              tables->required_type= FRMTYPE_TABLE; /* Don't try to flush views. */
+              /* Don't try to flush views. */
+              tables->required_type= dd::Abstract_table::TT_BASE_TABLE;
               tables->open_type= OT_BASE_ONLY;      /* Ignore temporary tables. */
             }
           }
@@ -12290,7 +12300,8 @@ opt_flush_lock:
             for (; tables; tables= tables->next_global)
             {
               tables->mdl_request.set_type(MDL_SHARED_NO_WRITE);
-              tables->required_type= FRMTYPE_TABLE; /* Don't try to flush views. */
+              /* Don't try to flush views. */
+              tables->required_type= dd::Abstract_table::TT_BASE_TABLE;
               tables->open_type= OT_BASE_ONLY;      /* Ignore temporary tables. */
             }
           }

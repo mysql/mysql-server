@@ -9262,7 +9262,7 @@ void register_binlog_handler(THD *thd, bool trx)
     /*
       Set the binary log as read/write otherwise callbacks are not called.
     */
-    thd->ha_data[binlog_hton->slot].ha_info[0].set_trx_read_write();
+    thd->get_ha_data(binlog_hton->slot)->ha_info[0].set_trx_read_write();
   }
   DBUG_VOID_RETURN;
 }

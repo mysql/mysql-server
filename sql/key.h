@@ -39,11 +39,23 @@ public:
      - possible HA_KEY_BLOB_LENGTH bytes needed to store actual value length.
   */
   uint16 store_length;
-  uint16 key_type;
   uint16 fieldnr;			/* Fieldnum in UNIREG */
   uint16 key_part_flag;			/* 0 or HA_REVERSE_SORT */
   uint8 type;
   uint8 null_bit;			/* Position to null_bit */
+  /**
+    True - if key part allows trivial binary comparison,
+    False - if charset collation function needs to be involved.
+
+    @note Not set for KEY_PART_INFO which are used for creating tables,
+          only set when table is opened or for internal temporary tables.
+
+    This value is set a bit too optimistically and disregards the way
+    in which value is stored in record (e.g. it is true for BLOB types).
+    So in practice key_cmp_if_same() also has to check key_part_flag for
+    presence of HA_BLOB_PART, HA_VAR_LENGTH_PART and HA_BIT_PART flags.
+  */
+  bool bin_cmp;
   void init_from_field(Field *fld);     /** Fill data from given field */
   void init_flags();                    /** Set key_part_flag from field */
 };
@@ -89,6 +101,12 @@ typedef struct st_key {
   uint	usable_key_parts;
   uint  block_size;
   enum  ha_key_alg algorithm;
+  /**
+    A flag which indicates that index algorithm for this key was explicitly
+    specified by user. So, for example, it should be mentioned in SHOW CREATE
+    TABLE output.
+  */
+  bool is_algorithm_explicit;
   /**
     Note that parser is used when the table is opened for use, and
     parser_name is used when the table is being created.

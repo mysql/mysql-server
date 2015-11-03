@@ -209,8 +209,8 @@ innodb_api_store(
 	uint64_t		flags,	/*!< in: flags */
 	ENGINE_STORE_OPERATION	op);	/*!< in: Operations */
 
-/*********************************************************************
-Implement the "flush_all" command, map to InnoDB's trunk table operation
+/*************************************************************//**
+Implement the "flush_all" command, map to InnoDB's DELETE operation
 return ENGINE_SUCCESS is all successful */
 ENGINE_ERROR_CODE
 innodb_api_flush(

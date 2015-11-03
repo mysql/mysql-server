@@ -272,9 +272,16 @@ Trigger *Trigger::create_from_parser(THD *thd,
   LEX_STRING client_cs_name;
   LEX_STRING connection_cl_name;
   LEX_STRING db_cl_name;
+  const CHARSET_INFO *default_db_cl= NULL;
 
-  const CHARSET_INFO *default_db_cl=
-    get_default_db_collation(thd, subject_table->s->db.str);
+  if (get_default_db_collation(thd, subject_table->s->db.str,
+                               &default_db_cl))
+  {
+    DBUG_ASSERT(thd->is_error() || thd->killed);
+    return NULL;
+  }
+
+  default_db_cl= default_db_cl ? default_db_cl : thd->collation();
 
   if (!lex_string_copy(&subject_table->mem_root,
                        &client_cs_name,
@@ -535,8 +542,9 @@ bool Trigger::parse(THD *thd)
                                    m_client_cs_name,
                                    m_connection_cl_name,
                                    m_db_cl_name);
-
-  bool parse_error= parse_sql(thd, &parser_state, creation_ctx);
+  bool parse_error= false;
+  if (creation_ctx != NULL)
+    parse_error= parse_sql(thd, &parser_state, creation_ctx);
 
   thd->m_digest= digest_saved;
   thd->m_statement_psi= statement_locker_saved;
@@ -545,6 +553,12 @@ bool Trigger::parse(THD *thd)
 
   thd->pop_internal_handler();
 
+  bool fatal_error= false;
+  if (creation_ctx == NULL)
+  {
+    fatal_error= true;
+    goto cleanup;
+  }
   /*
     Not strictly necessary to invoke this method here, since we know
     that we've parsed CREATE TRIGGER and not an
@@ -564,10 +578,6 @@ bool Trigger::parse(THD *thd)
 
   DBUG_ASSERT(!parse_error || (parse_error && lex.sphead == NULL));
 
-  // fatal_parse_error will be returned from this method.
-
-  bool fatal_parse_error= false;
-
   // Set trigger name.
 
   {
@@ -585,7 +595,7 @@ bool Trigger::parse(THD *thd)
       if (!error_handler.get_trigger_name())
       {
         // We failed to parse trigger name => fatal error.
-        fatal_parse_error= true;
+        fatal_error= true;
         goto cleanup;
       }
 
@@ -601,7 +611,7 @@ bool Trigger::parse(THD *thd)
     LEX_STRING s;
     if (!lex_string_copy(m_mem_root, &s, *trigger_name_ptr))
     {
-      fatal_parse_error= true;
+      fatal_error= true;
       goto cleanup;
     }
 
@@ -688,7 +698,7 @@ cleanup:
   thd->reset_db(current_db_name_saved);
   thd->lex= lex_saved;
 
-  return fatal_parse_error;
+  return fatal_error;
 }
 
 

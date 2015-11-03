@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2014, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1577,7 +1577,8 @@ bool BackupRestore::translate_frm(NdbDictionary::Table *table)
     Fairly future-proof, ok up to 99999 node groups.
   */
   extra_growth = no_parts * 4;
-  if (unpackfrm(&data, &data_len, pack_data))
+  if (uncompress_serialized_meta_data(pack_data, table->getFrmLength(),
+                                      &data, &data_len))
   {
     DBUG_RETURN(TRUE);
   }
@@ -1590,8 +1591,9 @@ bool BackupRestore::translate_frm(NdbDictionary::Table *table)
     free(new_data);
     DBUG_RETURN(TRUE);
   }
-  if (packfrm((uchar*) new_data, new_data_len,
-              &new_pack_data, &new_pack_len))
+  if (compress_serialized_meta_data(reinterpret_cast<uchar *>(new_data),
+                                    new_data_len, &new_pack_data,
+                                    &new_pack_len))
   {
     free(new_data);
     DBUG_RETURN(TRUE);

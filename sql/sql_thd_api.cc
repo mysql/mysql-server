@@ -405,7 +405,7 @@ const char *set_thd_proc_info(MYSQL_THD thd_arg, const char *info,
 extern "C"
 void **thd_ha_data(const MYSQL_THD thd, const struct handlerton *hton)
 {
-  return (void **) &thd->ha_data[hton->slot].ha_ptr;
+  return &(const_cast<THD*>(thd))->get_ha_data(hton->slot)->ha_ptr;
 }
 
 
@@ -434,7 +434,7 @@ extern "C"
 void thd_set_ha_data(MYSQL_THD thd, const struct handlerton *hton,
                      const void *ha_data)
 {
-  plugin_ref *lock= &thd->ha_data[hton->slot].lock;
+  plugin_ref *lock= &thd->get_ha_data(hton->slot)->lock;
   if (ha_data && !*lock)
     *lock= ha_lock_engine(NULL, (handlerton*) hton);
   else if (!ha_data && *lock)

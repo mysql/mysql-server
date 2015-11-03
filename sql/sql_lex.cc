@@ -3546,7 +3546,7 @@ LEX::LEX()
    contains_plaintext_password(false),
    keep_diagnostics(DA_KEEP_UNSPECIFIED),
    is_lex_started(0),
-  in_update_value_clause(false)
+   in_update_value_clause(false)
 {
   reset_query_tables_list(TRUE);
 }

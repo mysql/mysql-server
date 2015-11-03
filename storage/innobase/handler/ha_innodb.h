@@ -75,9 +75,19 @@ public:
 
 	const char* table_type() const;
 
-	const char* index_type(uint key_number);
+	enum ha_key_alg get_default_index_algorithm() const
+	{ return HA_KEY_ALG_BTREE; }
 
-	const char** bas_ext() const;
+	/** Check if SE supports specific key algorithm. */
+	bool is_index_algorithm_supported(enum ha_key_alg key_alg) const
+	{
+		/* This method is never used for FULLTEXT or SPATIAL keys.
+		We rely on handler::ha_table_flags() to check if such keys
+		are supported. */
+		DBUG_ASSERT(key_alg != HA_KEY_ALG_FULLTEXT
+			    && key_alg != HA_KEY_ALG_RTREE);
+		return key_alg == HA_KEY_ALG_BTREE;
+	}
 
 	Table_flags table_flags() const;
 
@@ -123,6 +133,9 @@ public:
 
 	int delete_row(const uchar * buf);
 
+	/** Delete all rows from the table.
+	@retval HA_ERR_WRONG_COMMAND if the table is transactional
+	@retval 0 on success */
 	int delete_all_rows();
 
 	bool was_semi_consistent_read();
@@ -208,16 +221,22 @@ public:
 	ha_rows estimate_rows_upper_bound();
 
 	void update_create_info(HA_CREATE_INFO* create_info);
-
-	int create(
-		const char*		name,
-		TABLE*			form,
-		HA_CREATE_INFO*		create_info);
-
+	int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
+	int create(const char *name, TABLE* form, HA_CREATE_INFO* create_info,
+		   bool file_per_table);
 	int truncate();
 
-	int delete_table(const char *name);
-
+	/** Drop a table.
+	@param[in]	name	table name
+	@return error number */
+	int delete_table(const char* name);
+protected:
+	/** Drop a table.
+	@param[in]	name	table name
+	@param[in]	sqlcom	type of operation that the DROP is part of
+	@return error number */
+	int delete_table(const char* name, enum enum_sql_command sqlcom);
+public:
 	int rename_table(const char* from, const char* to);
 
 	int check(THD* thd, HA_CHECK_OPT* check_opt);
@@ -491,8 +510,12 @@ protected:
 	/** number of write_row() calls */
 	uint			m_num_write_row;
 
-        /** If mysql has locked with external_lock() */
-        bool                    m_mysql_has_locked;
+	/** this field is used to remember the original select_lock_type that
+	was decided in ha_innodb.cc, ::store_lock(), ::external_lock(), etc. */
+	ulint			m_stored_select_lock_type;
+
+	/** If mysql has locked with external_lock() */
+	bool                    m_mysql_has_locked;
 };
 
 const CHARSET_INFO *thd_charset(THD *thd);
@@ -560,6 +583,16 @@ typedef struct new_ft_info
 	row_prebuilt_t*		ft_prebuilt;
 	fts_result_t*		ft_result;
 } NEW_FT_INFO;
+
+/** Allocates an InnoDB transaction for a MySQL handler object for DML.
+@param[in]	hton	Innobase handlerton.
+@param[in]	thd	MySQL thd (connection) object.
+@param[in]	trx	transaction to register. */
+void
+innobase_register_trx(
+	handlerton*	hton,
+	THD*		thd,
+	trx_t*		trx);
 
 /**
 Allocates an InnoDB transaction for a MySQL handler object.
@@ -648,14 +681,15 @@ public:
 		HA_CREATE_INFO*	create_info,
 		char*		table_name,
 		char*		remote_path,
-		char*		tablespace)
+		char*		tablespace,
+		bool		file_per_table)
 	:m_thd(thd),
 	m_form(form),
 	m_create_info(create_info),
 	m_table_name(table_name),
 	m_remote_path(remote_path),
 	m_tablespace(tablespace),
-	m_innodb_file_per_table(srv_file_per_table)
+	m_innodb_file_per_table(file_per_table)
 	{}
 
 	/** Initialize the object. */
@@ -682,7 +716,6 @@ public:
 
 	/** Validate DATA DIRECTORY option. */
 	bool create_option_data_directory_is_valid();
-
 	/** Validate TABLESPACE option. */
 	bool create_option_tablespace_is_valid();
 
@@ -766,7 +799,6 @@ private:
 	char*		m_table_name;
 	/** Remote path (DATA DIRECTORY) or zero length-string */
 	char*		m_remote_path;
-
 	/** Tablespace name or zero length-string. */
 	char*		m_tablespace;
 
@@ -886,6 +918,17 @@ innobase_release_temporary_latches(
 @param[in,out]	thd	MySQL thread handler.
 @return reference to transaction pointer */
 trx_t*& thd_to_trx(THD*	thd);
+
+/** Note that a transaction has been registered with MySQL.
+@param[in]	trx	Transaction.
+@return true if transaction is registered with MySQL 2PC coordinator */
+inline
+bool
+trx_is_registered_for_2pc(
+	const trx_t*	trx)
+{
+	return(trx->is_registered == 1);
+}
 
 /** Converts an InnoDB error code to a MySQL error code.
 Also tells to MySQL about a possible transaction rollback inside InnoDB caused

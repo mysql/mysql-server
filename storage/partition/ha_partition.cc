@@ -135,6 +135,20 @@ static void init_partition_psi_keys(void)
 }
 #endif /* HAVE_PSI_INTERFACE */
 
+
+/*
+  If frm_error() is called then we will use this to to find out what file
+  extensions exist for the storage engine. This is also used by the default
+  rename_table and delete_table method in handler.cc.
+*/
+
+static const char *ha_partition_ext[]=
+{
+  ha_par_ext,
+  NullS
+};
+
+
 static int partition_initialize(void *p)
 {
 
@@ -148,6 +162,7 @@ static int partition_initialize(void *p)
   partition_hton->flags= HTON_NOT_USER_SELECTABLE |
                          HTON_HIDDEN |
                          HTON_TEMPORARY_NOT_SUPPORTED;
+  partition_hton->file_extensions= ha_partition_ext;
 #ifdef HAVE_PSI_INTERFACE
   init_partition_psi_keys();
 #endif
@@ -539,8 +554,8 @@ bool ha_partition::initialize_partition(MEM_ROOT *mem_root)
     point.
 
     If you do not implement this, the default delete_table() is called from
-    handler.cc and it will delete all files with the file extentions returned
-    by bas_ext().
+    handler.cc and it will delete all files with the file extentions from
+    handlerton::file_extensions.
 
     Called from handler.cc by delete_table and  ha_create_table(). Only used
     during create if the table_flag HA_DROP_BEFORE_CREATE was specified for
@@ -571,8 +586,8 @@ int ha_partition::delete_table(const char *name)
     Renames a table from one name to another from alter table call.
 
     If you do not implement this, the default rename_table() is called from
-    handler.cc and it will rename all files with the file extentions returned
-    by bas_ext().
+    handler.cc and it will rename all files with the file extentions from
+    handlerton::file_extensions.
 
     Called from sql_table.cc by mysql_rename_table().
 */
@@ -5102,23 +5117,6 @@ uint8 ha_partition::table_cache_type()
                 MODULE print messages
 ****************************************************************************/
 
-const char *ha_partition::index_type(uint inx)
-{
-  uint first_used_partition;
-  DBUG_ENTER("ha_partition::index_type");
-
-  first_used_partition= m_part_info->get_first_used_partition();
-
-  if (first_used_partition == MY_BIT_NONE)
-  {
-    DBUG_ASSERT(0);                             // How can this happen?
-    DBUG_RETURN(handler::index_type(inx));
-  }
-
-  DBUG_RETURN(m_file[first_used_partition]->index_type(inx));
-}
-
-
 enum row_type ha_partition::get_row_type() const
 {
   uint i;
@@ -5520,21 +5518,6 @@ int ha_partition::discard_or_import_tablespace(my_bool discard)
   DBUG_RETURN(error);
 }
 
-/*
-  If frm_error() is called then we will use this to to find out what file
-  extensions exist for the storage engine. This is also used by the default
-  rename_table and delete_table method in handler.cc.
-*/
-
-static const char *ha_partition_ext[]=
-{
-  ha_par_ext, NullS
-};
-
-const char **ha_partition::bas_ext() const
-{ return ha_partition_ext; }
-
-
 uint ha_partition::min_of_the_max_uint(
                        uint (handler::*operator_func)(void) const) const
 {
@@ -5603,6 +5586,17 @@ uint ha_partition::min_record_length(uint options) const
   return max;
 }
 
+enum ha_key_alg ha_partition::get_default_index_algorithm() const
+{
+  // We can do this since we only support a single engine type.
+  return m_file[0]->get_default_index_algorithm();
+}
+
+bool ha_partition::is_index_algorithm_supported(enum ha_key_alg key_alg) const
+{
+  // We can do this since we only support a single engine type.
+  return m_file[0]->is_index_algorithm_supported(key_alg);
+}
 
 /****************************************************************************
                 MODULE compare records

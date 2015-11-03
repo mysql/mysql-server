@@ -2103,11 +2103,11 @@ int ha_ndbcluster::get_metadata(THD *thd, const char *path)
   size_t length, pack_length;
 
   /*
-    Compare FrmData in NDB with frm file from disk.
+    Compare SdiData in NDB with SDI from global DD.
   */
   error= 0;
-  if (readfrm(path, &data, &length) ||
-      packfrm(data, length, &pack_data, &pack_length))
+  if (create_serialized_meta_data(m_dbname, m_tabname, &data, &length) ||
+      compress_serialized_meta_data(data, length, &pack_data, &pack_length))
   {
     my_free(data, MYF(MY_ALLOW_ZERO_PTR));
     my_free(pack_data, MYF(MY_ALLOW_ZERO_PTR));
@@ -2119,8 +2119,10 @@ int ha_ndbcluster::get_metadata(THD *thd, const char *path)
   if (!(tab= ndbtab_g.get_table()))
     ERR_RETURN(dict->getNdbError());
 
-  if (get_ndb_share_state(m_share) != NSS_ALTERED 
-      && cmp_frm(tab, pack_data, pack_length))
+  if (get_ndb_share_state(m_share) != NSS_ALTERED &&
+      different_serialized_meta_data(
+              static_cast<const uchar*>(tab->getFrmData()),
+              tab->getFrmLength(), pack_data, pack_length))
   {
     DBUG_PRINT("error", 
                ("metadata, pack_length: %lu  getFrmLength: %d  memcmp: %d",
@@ -8064,10 +8066,6 @@ static const char *ha_ndbcluster_exts[] = {
  NullS
 };
 
-const char** ha_ndbcluster::bas_ext() const
-{
-  return ha_ndbcluster_exts;
-}
 
 /**
   How many seeks it will take to read through the table.
@@ -10215,13 +10213,13 @@ int ha_ndbcluster::create(const char *name,
   }
   tab.setSingleUserMode(single_user_mode);
 
-  // Save frm data for this table
-  if (readfrm(name, &data, &length))
+  // Save SDI data for this table
+  if (create_serialized_meta_data(m_dbname, m_tabname, &data, &length))
   {
     result= 1;
     goto abort_return;
   }
-  if (packfrm(data, length, &pack_data, &pack_length))
+  if (compress_serialized_meta_data(data, length, &pack_data, &pack_length))
   {
     my_free((char*)data, MYF(0));
     result= 2;
@@ -12371,8 +12369,8 @@ int ndbcluster_discover(handlerton *hton, THD* thd, const char *db,
   }
   if (share && get_ndb_share_state(share) == NSS_ALTERED)
   {
-    // Frm has been altered on disk, but not yet written to ndb
-    if (readfrm(key, &data, &len))
+    // SDI has been altered, but not yet written to ndb
+    if (create_serialized_meta_data(db, name, &data, &len))
     {
       DBUG_PRINT("error", ("Could not read frm"));
       error= 1;
@@ -12409,8 +12407,10 @@ int ndbcluster_discover(handlerton *hton, THD* thd, const char *db,
       error= 1;
       goto err;
     }
-    
-    if (unpackfrm(&data, &len, (uchar*) tab->getFrmData()))
+
+    uchar *sdi_data= const_cast<uchar *>(
+                       static_cast<const uchar *>(tab->getFrmData()));
+    if (uncompress_serialized_meta_data(sdi_data, len, &data, &len))
     {
       DBUG_PRINT("error", ("Could not unpack table"));
       error= 1;
@@ -13212,6 +13212,7 @@ int ndbcluster_init(void* p)
     h->table_exists_in_engine= ndbcluster_table_exists_in_engine;
     h->make_pushed_join= ndbcluster_make_pushed_join;
     h->is_supported_system_table = is_supported_system_table;
+    h->file_extensions= ha_ndbcluster_exts;
   }
 
   // Initialize NdbApi
@@ -13753,19 +13754,6 @@ bool ha_ndbcluster::low_byte_first() const
 #else
   return TRUE;
 #endif
-}
-const char* ha_ndbcluster::index_type(uint key_number)
-{
-  switch (get_index_type(key_number)) {
-  case ORDERED_INDEX:
-  case UNIQUE_ORDERED_INDEX:
-  case PRIMARY_KEY_ORDERED_INDEX:
-    return "BTREE";
-  case UNIQUE_INDEX:
-  case PRIMARY_KEY_INDEX:
-  default:
-    return "HASH";
-  }
 }
 
 uint8 ha_ndbcluster::table_cache_type()
@@ -17687,8 +17675,8 @@ int ha_ndbcluster::alter_frm(const char *file,
   DBUG_ASSERT(m_table != 0);
 
   DBUG_ASSERT(get_ndb_share_state(m_share) == NSS_ALTERED);
-  if (readfrm(file, &data, &length) ||
-      packfrm(data, length, &pack_data, &pack_length))
+  if (create_serialized_meta_data(m_dbname, m_tabname, &data, &length) ||
+      compress_serialized_meta_data(data, length, &pack_data, &pack_length))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     DBUG_PRINT("info", ("Missing frm for %s", m_tabname));

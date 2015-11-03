@@ -67,3 +67,15 @@ ERROR HY000: 'test.v1' is not BASE TABLE
 drop view v1;
 drop table t1;
 End of 5.0 tests
+#
+# Bug#20197870: sql_table.cc: bool mysql_rename_table ...
+#               assertion `error==0\' failed.
+# The test crashes server without the fix.
+#
+SET @orig_innodb_file_per_table= @@innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = 0;
+create table t1(f1 int) engine=innodb;
+rename table test.t1 to nonexistingdb.t2;
+ERROR 42000: Unknown database 'nonexistingdb'
+drop table t1;
+SET GLOBAL innodb_file_per_table = @orig_innodb_file_per_table;

@@ -20,7 +20,6 @@
 #include "sql_servers.h" // servers_reload
 #include "sql_connect.h" // reset_mqh
 #include "sql_base.h"    // close_cached_tables
-#include "sql_db.h"      // my_dbopt_cleanup
 #include "hostname.h"    // hostname_cache_refresh
 #include "rpl_master.h"  // reset_master
 #include "rpl_slave.h"   // reset_slave
@@ -300,7 +299,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
         result= 1;
       }
     }
-    my_dbopt_cleanup();
   }
   if (options & REFRESH_HOSTS)
     hostname_cache_refresh();

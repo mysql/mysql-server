@@ -1181,11 +1181,6 @@ struct dict_vcol_templ_t {
 	const byte*		default_rec;
 };
 
-/* This flag is for sync SQL DDL and memcached DML.
-if table->memcached_sync_count == DICT_TABLE_IN_DDL means there's DDL running on
-the table, DML from memcached will be blocked. */
-#define DICT_TABLE_IN_DDL -1
-
 /** The dirty status of tables, used to indicate if a table has some
 dynamic metadata changed to be written back */
 enum table_dirty_status {
@@ -1543,12 +1538,6 @@ struct dict_table_t {
 	const trx_t*				autoinc_trx;
 
 	/* @} */
-
-	/** Count of how many handles are opened to this table from memcached.
-	DDL on the table is NOT allowed until this count goes to zero. If
-	it is -1, then there's DDL on the table, DML from memcached will be
-	blocked. */
-	lint					memcached_sync_count;
 
 	/** FTS specific state variables. */
 	fts_t*					fts;

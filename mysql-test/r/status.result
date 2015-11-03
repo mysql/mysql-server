@@ -30,7 +30,7 @@ update t1 set n = 3;
 # Switched to connection: default
 # wait for the second UPDATE to get blocked
 Timeout in wait_condition.inc for select 1 from INFORMATION_SCHEMA.PROCESSLIST
-where ID = 4 and STATE = "Waiting for table level lock"
+where ID = 5 and STATE = "Waiting for table level lock"
 select release_lock('mysqltest_lock');
 release_lock('mysqltest_lock')
 1

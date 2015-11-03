@@ -1248,7 +1248,7 @@ my_bool detach_native_trx(THD *thd, plugin_ref plugin, void *unused)
 
   if (hton->replace_native_transaction_in_thd)
     hton->replace_native_transaction_in_thd(thd, NULL,
-                                            thd_ha_data_backup(thd, hton));
+                                            &thd->get_ha_data(hton->slot)->ha_ptr_backup);
 
   return FALSE;
 }
@@ -1272,7 +1272,7 @@ static void attach_native_trx(THD *thd)
       if (hton->replace_native_transaction_in_thd)
       {
         /* restore the saved original engine transaction's link with thd */
-        void **trx_backup= thd_ha_data_backup(thd, hton);
+        void **trx_backup= &thd->get_ha_data(hton->slot)->ha_ptr_backup;
 
         hton->
           replace_native_transaction_in_thd(thd, *trx_backup, NULL);

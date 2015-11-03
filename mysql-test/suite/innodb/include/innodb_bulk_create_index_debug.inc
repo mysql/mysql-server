@@ -140,7 +140,7 @@ if ($row_format == 'COMPRESSED')
 CALL populate_t1();
 -- enable_query_log
 
-SET SESSION debug="+d,crash_commit_before";
+SET SESSION debug="+d,crash_after_index_create";
 
 # Write file to make mysql-test-run.pl start up the server again
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -194,7 +194,7 @@ INSERT INTO t1 VALUES
 
 SELECT CHAR_LENGTH(b) FROM t1;
 
-SET SESSION debug="+d,crash_commit_before";
+SET SESSION debug="+d,crash_after_index_create";
 
 # Write file to make mysql-test-run.pl start up the server again
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect

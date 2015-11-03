@@ -94,7 +94,6 @@ t1#P#p1.MYD
 t1#P#p1.MYI
 t1#P#p2.MYD
 t1#P#p2.MYI
-t1.frm
 t1.par
 t1#P#p1.MYD
 t1#P#p2.MYD
@@ -587,7 +586,6 @@ t1#P#p4.MYD
 t1#P#p4.MYI
 t1#P#p5.MYD
 t1#P#p5.MYI
-t1.frm
 t1.par
 t1#P#p1.MYD
 t1#P#p2.MYD
@@ -1096,7 +1094,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 t1#P#part0.MYD
 t1#P#part1.MYD
@@ -1607,7 +1604,6 @@ t1#P#parte.MYD
 t1#P#parte.MYI
 t1#P#partf.MYD
 t1#P#partf.MYI
-t1.frm
 t1.par
 t1#P#parta.MYD
 t1#P#partb.MYD
@@ -2110,7 +2106,6 @@ t1#P#partd#SP#partdsp0.MYD
 t1#P#partd#SP#partdsp0.MYI
 t1#P#partd#SP#partdsp1.MYD
 t1#P#partd#SP#partdsp1.MYI
-t1.frm
 t1.par
 t1#P#parta#SP#partasp0.MYD
 t1#P#parta#SP#partasp1.MYD
@@ -2626,7 +2621,6 @@ t1#P#part4#SP#subpart41.MYD
 t1#P#part4#SP#subpart41.MYI
 t1#P#part4#SP#subpart42.MYD
 t1#P#part4#SP#subpart42.MYI
-t1.frm
 t1.par
 t1#P#part1#SP#subpart11.MYD
 t1#P#part1#SP#subpart12.MYD
@@ -3160,7 +3154,6 @@ t1#P#part4#SP#sp41.MYD
 t1#P#part4#SP#sp41.MYI
 t1#P#part4#SP#sp42.MYD
 t1#P#part4#SP#sp42.MYI
-t1.frm
 t1.par
 t1#P#part1#SP#sp11.MYD
 t1#P#part1#SP#sp12.MYD
@@ -3668,7 +3661,6 @@ t1#P#part3#SP#part3sp1.MYD
 t1#P#part3#SP#part3sp1.MYI
 t1#P#part3#SP#part3sp2.MYD
 t1#P#part3#SP#part3sp2.MYI
-t1.frm
 t1.par
 t1#P#part1#SP#part1sp0.MYD
 t1#P#part1#SP#part1sp1.MYD
@@ -4159,7 +4151,6 @@ t1#P#p1.MYD
 t1#P#p1.MYI
 t1#P#p2.MYD
 t1#P#p2.MYI
-t1.frm
 t1.par
 t1#P#p1.MYD
 t1#P#p2.MYD
@@ -4652,7 +4643,6 @@ t1#P#p4.MYD
 t1#P#p4.MYI
 t1#P#p5.MYD
 t1#P#p5.MYI
-t1.frm
 t1.par
 t1#P#p1.MYD
 t1#P#p2.MYD
@@ -5161,7 +5151,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 t1#P#part0.MYD
 t1#P#part1.MYD
@@ -5672,7 +5661,6 @@ t1#P#parte.MYD
 t1#P#parte.MYI
 t1#P#partf.MYD
 t1#P#partf.MYI
-t1.frm
 t1.par
 t1#P#parta.MYD
 t1#P#partb.MYD
@@ -6175,7 +6163,6 @@ t1#P#partd#SP#partdsp0.MYD
 t1#P#partd#SP#partdsp0.MYI
 t1#P#partd#SP#partdsp1.MYD
 t1#P#partd#SP#partdsp1.MYI
-t1.frm
 t1.par
 t1#P#parta#SP#partasp0.MYD
 t1#P#parta#SP#partasp1.MYD
@@ -6689,7 +6676,6 @@ t1#P#part4#SP#subpart41.MYD
 t1#P#part4#SP#subpart41.MYI
 t1#P#part4#SP#subpart42.MYD
 t1#P#part4#SP#subpart42.MYI
-t1.frm
 t1.par
 t1#P#part1#SP#subpart11.MYD
 t1#P#part1#SP#subpart12.MYD
@@ -7223,7 +7209,6 @@ t1#P#part4#SP#sp41.MYD
 t1#P#part4#SP#sp41.MYI
 t1#P#part4#SP#sp42.MYD
 t1#P#part4#SP#sp42.MYI
-t1.frm
 t1.par
 t1#P#part1#SP#sp11.MYD
 t1#P#part1#SP#sp12.MYD
@@ -7731,7 +7716,6 @@ t1#P#part3#SP#part3sp1.MYD
 t1#P#part3#SP#part3sp1.MYI
 t1#P#part3#SP#part3sp2.MYD
 t1#P#part3#SP#part3sp2.MYI
-t1.frm
 t1.par
 t1#P#part1#SP#part1sp0.MYD
 t1#P#part1#SP#part1sp1.MYD
@@ -8228,7 +8212,6 @@ t1#P#p1.MYD
 t1#P#p1.MYI
 t1#P#p2.MYD
 t1#P#p2.MYI
-t1.frm
 t1.par
 t1#P#p1.MYD
 t1#P#p2.MYD
@@ -8774,7 +8757,6 @@ t1#P#p4.MYD
 t1#P#p4.MYI
 t1#P#p5.MYD
 t1#P#p5.MYI
-t1.frm
 t1.par
 t1#P#p1.MYD
 t1#P#p2.MYD
@@ -9336,7 +9318,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 t1#P#part0.MYD
 t1#P#part1.MYD
@@ -9900,7 +9881,6 @@ t1#P#parte.MYD
 t1#P#parte.MYI
 t1#P#partf.MYD
 t1#P#partf.MYI
-t1.frm
 t1.par
 t1#P#parta.MYD
 t1#P#partb.MYD
@@ -10456,7 +10436,6 @@ t1#P#partd#SP#partdsp0.MYD
 t1#P#partd#SP#partdsp0.MYI
 t1#P#partd#SP#partdsp1.MYD
 t1#P#partd#SP#partdsp1.MYI
-t1.frm
 t1.par
 t1#P#parta#SP#partasp0.MYD
 t1#P#parta#SP#partasp1.MYD
@@ -11025,7 +11004,6 @@ t1#P#part4#SP#subpart41.MYD
 t1#P#part4#SP#subpart41.MYI
 t1#P#part4#SP#subpart42.MYD
 t1#P#part4#SP#subpart42.MYI
-t1.frm
 t1.par
 t1#P#part1#SP#subpart11.MYD
 t1#P#part1#SP#subpart12.MYD
@@ -11612,7 +11590,6 @@ t1#P#part4#SP#sp41.MYD
 t1#P#part4#SP#sp41.MYI
 t1#P#part4#SP#sp42.MYD
 t1#P#part4#SP#sp42.MYI
-t1.frm
 t1.par
 t1#P#part1#SP#sp11.MYD
 t1#P#part1#SP#sp12.MYD
@@ -12173,7 +12150,6 @@ t1#P#part3#SP#part3sp1.MYD
 t1#P#part3#SP#part3sp1.MYI
 t1#P#part3#SP#part3sp2.MYD
 t1#P#part3#SP#part3sp2.MYI
-t1.frm
 t1.par
 t1#P#part1#SP#part1sp0.MYD
 t1#P#part1#SP#part1sp1.MYD
@@ -12721,7 +12697,6 @@ t1#P#p1.MYD
 t1#P#p1.MYI
 t1#P#p2.MYD
 t1#P#p2.MYI
-t1.frm
 t1.par
 t1#P#p1.MYD
 t1#P#p2.MYD
@@ -13267,7 +13242,6 @@ t1#P#p4.MYD
 t1#P#p4.MYI
 t1#P#p5.MYD
 t1#P#p5.MYI
-t1.frm
 t1.par
 t1#P#p1.MYD
 t1#P#p2.MYD
@@ -13829,7 +13803,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 t1#P#part0.MYD
 t1#P#part1.MYD
@@ -14393,7 +14366,6 @@ t1#P#parte.MYD
 t1#P#parte.MYI
 t1#P#partf.MYD
 t1#P#partf.MYI
-t1.frm
 t1.par
 t1#P#parta.MYD
 t1#P#partb.MYD
@@ -14949,7 +14921,6 @@ t1#P#partd#SP#partdsp0.MYD
 t1#P#partd#SP#partdsp0.MYI
 t1#P#partd#SP#partdsp1.MYD
 t1#P#partd#SP#partdsp1.MYI
-t1.frm
 t1.par
 t1#P#parta#SP#partasp0.MYD
 t1#P#parta#SP#partasp1.MYD
@@ -15516,7 +15487,6 @@ t1#P#part4#SP#subpart41.MYD
 t1#P#part4#SP#subpart41.MYI
 t1#P#part4#SP#subpart42.MYD
 t1#P#part4#SP#subpart42.MYI
-t1.frm
 t1.par
 t1#P#part1#SP#subpart11.MYD
 t1#P#part1#SP#subpart12.MYD
@@ -16103,7 +16073,6 @@ t1#P#part4#SP#sp41.MYD
 t1#P#part4#SP#sp41.MYI
 t1#P#part4#SP#sp42.MYD
 t1#P#part4#SP#sp42.MYI
-t1.frm
 t1.par
 t1#P#part1#SP#sp11.MYD
 t1#P#part1#SP#sp12.MYD
@@ -16664,7 +16633,6 @@ t1#P#part3#SP#part3sp1.MYD
 t1#P#part3#SP#part3sp1.MYI
 t1#P#part3#SP#part3sp2.MYD
 t1#P#part3#SP#part3sp2.MYI
-t1.frm
 t1.par
 t1#P#part1#SP#part1sp0.MYD
 t1#P#part1#SP#part1sp1.MYD
@@ -17208,7 +17176,6 @@ t1#P#p1.MYD
 t1#P#p1.MYI
 t1#P#p2.MYD
 t1#P#p2.MYI
-t1.frm
 t1.par
 t1#P#p1.MYI
 t1#P#p2.MYI
@@ -17747,7 +17714,6 @@ t1#P#p4.MYD
 t1#P#p4.MYI
 t1#P#p5.MYD
 t1#P#p5.MYI
-t1.frm
 t1.par
 t1#P#p1.MYD
 t1#P#p3.MYD
@@ -18304,7 +18270,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 t1#P#part2.MYD
 t1#P#part3.MYD
@@ -18855,7 +18820,6 @@ t1#P#parte.MYD
 t1#P#parte.MYI
 t1#P#partf.MYD
 t1#P#partf.MYI
-t1.frm
 t1.par
 t1#P#partb.MYD
 t1#P#partc.MYD
@@ -19401,7 +19365,6 @@ t1#P#partd#SP#partdsp0.MYD
 t1#P#partd#SP#partdsp0.MYI
 t1#P#partd#SP#partdsp1.MYD
 t1#P#partd#SP#partdsp1.MYI
-t1.frm
 t1.par
 t1#P#partb#SP#partbsp0.MYD
 t1#P#partb#SP#partbsp1.MYD
@@ -19963,7 +19926,6 @@ t1#P#part4#SP#subpart41.MYD
 t1#P#part4#SP#subpart41.MYI
 t1#P#part4#SP#subpart42.MYD
 t1#P#part4#SP#subpart42.MYI
-t1.frm
 t1.par
 t1#P#part1#SP#subpart11.MYD
 t1#P#part1#SP#subpart12.MYD
@@ -20510,7 +20472,6 @@ t1#P#part4#SP#sp41.MYD
 t1#P#part4#SP#sp41.MYI
 t1#P#part4#SP#sp42.MYD
 t1#P#part4#SP#sp42.MYI
-t1.frm
 t1.par
 t1#P#part1#SP#sp11.MYD
 t1#P#part2#SP#sp21.MYD

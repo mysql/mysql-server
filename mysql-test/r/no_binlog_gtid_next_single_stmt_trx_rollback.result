@@ -34,7 +34,7 @@ ERROR 42000: Can't DROP 't_index2'; check that column/key exists
 include/assert.inc [rollback gtid MASTER_UUID:5]
 SET SESSION GTID_NEXT='MASTER_UUID:6';
 RENAME TABLE t3 TO t4;
-ERROR HY000: Can't find file: './test/t3.frm' (errno: 2 - No such file or directory)
+ERROR 42S02: Table 'test.t3' doesn't exist
 include/assert.inc [rollback gtid MASTER_UUID:6]
 SET SESSION GTID_NEXT='MASTER_UUID:7';
 CREATE TEMPORARY TABLE temp1(c1 INT);
@@ -135,7 +135,7 @@ ERROR 42000: Can't DROP 't_index2'; check that column/key exists
 include/assert.inc [rollback gtid MASTER_UUID:5]
 SET SESSION GTID_NEXT='MASTER_UUID:6';
 RENAME TABLE t3 TO t4;
-ERROR HY000: Can't find file: './test/t3.frm' (errno: 2 - No such file or directory)
+ERROR 42S02: Table 'test.t3' doesn't exist
 include/assert.inc [rollback gtid MASTER_UUID:6]
 SET SESSION GTID_NEXT='MASTER_UUID:7';
 CREATE TEMPORARY TABLE temp1(c1 INT);

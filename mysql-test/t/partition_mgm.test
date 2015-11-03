@@ -79,13 +79,11 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 -- file_exists $MYSQLD_DATADIR/test/t1#P#p0.MYI
 -- file_exists $MYSQLD_DATADIR/test/t1#P#p1.MYD
 -- file_exists $MYSQLD_DATADIR/test/t1#P#p1.MYI
--- file_exists $MYSQLD_DATADIR/test/t1.frm
 -- file_exists $MYSQLD_DATADIR/test/t1.par
 ALTER TABLE t1 COALESCE PARTITION 1;
 SHOW CREATE TABLE t1;
 -- file_exists $MYSQLD_DATADIR/test/t1#P#p0.MYD
 -- file_exists $MYSQLD_DATADIR/test/t1#P#p0.MYI
--- file_exists $MYSQLD_DATADIR/test/t1.frm
 -- file_exists $MYSQLD_DATADIR/test/t1.par
 drop table t1;
 #

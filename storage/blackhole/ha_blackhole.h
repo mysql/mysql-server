@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2014, 2015 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -44,12 +44,10 @@ public:
   }
   /* The name that will be used for display purposes */
   const char *table_type() const { return "BLACKHOLE"; }
-  /*
-    The name of the index type that will be used for display
-    don't implement this method unless you really have indexes
-  */
-  const char *index_type(uint key_number);
-  const char **bas_ext() const;
+  virtual enum ha_key_alg get_default_index_algorithm() const
+  { return HA_KEY_ALG_BTREE; }
+  virtual bool is_index_algorithm_supported(enum ha_key_alg key_alg) const
+  { return key_alg == HA_KEY_ALG_BTREE || key_alg == HA_KEY_ALG_RTREE; }
   ulonglong table_flags() const
   {
     return(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |

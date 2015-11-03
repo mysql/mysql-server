@@ -235,6 +235,16 @@ bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables);
 */
 #define CF_ALLOW_PROTOCOL_PLUGIN (1U << 16)
 
+/**
+  Identifies statements (typically DDL) which needs auto-commit mode
+  temporarily turned off.
+
+  @note This is necessary to prevent InnoDB from automatically committing
+        InnoDB transaction each time data-dictionary tables are closed
+        after being updated.
+*/
+#define CF_NEEDS_AUTOCOMMIT_OFF   (1U << 17)
+
 /* Bits in server_command_flags */
 
 /**

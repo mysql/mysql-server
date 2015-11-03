@@ -77,10 +77,8 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_cursor_new_trx,
 	(ib_cb_t*) &ib_cb_cursor_reset,
 	(ib_cb_t*) &ib_cb_col_get_name,
-	(ib_cb_t*) &ib_cb_table_truncate,
 	(ib_cb_t*) &ib_cb_cursor_open_index_using_name,
 	(ib_cb_t*) &ib_cb_get_cfg,
-	(ib_cb_t*) &ib_cb_cursor_set_memcached_sync,
 	(ib_cb_t*) &ib_cb_cursor_set_cluster_access,
 	(ib_cb_t*) &ib_cb_cursor_commit_trx,
 	(ib_cb_t*) &ib_cb_cfg_trx_level,
@@ -239,7 +237,6 @@ innodb_api_begin(
 						      lock_mode);
 			}
 		}
-
 	} else {
 		ib_cb_cursor_new_trx(*crsr, ib_trx);
 
@@ -1798,7 +1795,7 @@ func_exit:
 }
 
 /*************************************************************//**
-Implement the "flush_all" command, map to InnoDB's "trunk table" operation
+Implement the "flush_all" command, map to InnoDB's DELETE operation
 return ENGINE_SUCCESS is all successful */
 ENGINE_ERROR_CODE
 innodb_api_flush(
@@ -1809,18 +1806,31 @@ innodb_api_flush(
 	const char*		dbname,	/*!< in: database name */
 	const char*		name)	/*!< in: table name */
 {
-	ib_err_t	err = DB_SUCCESS;
+	ib_err_t	err;
 	char		table_name[MAX_TABLE_NAME_LEN
 				   + MAX_DATABASE_NAME_LEN + 1];
-	ib_id_u64_t	new_id;
+	ib_crsr_t	crsr	= conn_data->crsr;
 
-#ifdef _WIN32
-	sprintf(table_name, "%s\%s", dbname, name);
-#else
-	snprintf(table_name, sizeof(table_name), "%s/%s", dbname, name);
-#endif
-	/* currently, we implement engine flush as truncate table */
-	err  = ib_cb_table_truncate(table_name, &new_id);
+	err = innodb_cb_cursor_lock(engine, crsr, IB_LOCK_X);
+
+	if (err != DB_SUCCESS) {
+		fprintf(stderr, " InnoDB_Memcached: Fail to lock"
+			" table '%s.%s'\n", dbname, name);
+		return(err);
+	}
+
+	for (err = ib_cb_cursor_first(crsr); err == DB_SUCCESS;
+	     err = ib_cb_cursor_next(crsr)) {
+		err = ib_cb_delete_row(crsr);
+
+		if (err == DB_RECORD_NOT_FOUND) {
+			err = DB_SUCCESS;
+		}
+	}
+
+	if (err == DB_END_OF_INDEX) {
+		err = DB_SUCCESS;
+	}
 
 	/* If binlog is enabled, log the truncate table statement */
 	if (err == DB_SUCCESS && engine->enable_binlog) {
@@ -1904,11 +1914,6 @@ innodb_reset_conn(
 			}
 
 			ib_cb_trx_rollback(conn_data->crsr_trx);
-		}
-
-		/* Decrease the memcached sync counter to unblock SQL DDL.*/
-		if (conn_data->in_use) {
-			ib_cb_cursor_set_memcached_sync(ib_crsr, false);
 		}
 
 		commit_trx = true;
@@ -2035,8 +2040,6 @@ innodb_cb_cursor_lock(
 	} else {
 		err = ib_cb_cursor_set_lock(ib_crsr, ib_lck_mode);
 	}
-
-	err = ib_cb_cursor_set_memcached_sync(ib_crsr, true);
 
 	return(err);
 }

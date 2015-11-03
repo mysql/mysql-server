@@ -673,13 +673,6 @@ public:
     table types, index type and error messages.
     -------------------------------------------------------------------------
   */
-  /*
-    The name of the index type that will be used for display
-    Here we must ensure that all handlers use the same index type
-    for each index created.
-  */
-  virtual const char *index_type(uint inx);
-
   /* The name of the table type that will be used for display purposes */
   virtual const char *table_type() const;
 
@@ -885,10 +878,6 @@ public:
     return m_file[0]->index_flags(inx, part, all_parts);
   }
   /*
-     extensions of table handler files
-  */
-  virtual const char **bas_ext() const;
-  /*
     unireg.cc will call the following to make sure that the storage engine
     can handle the data it is about to send.
 
@@ -920,6 +909,14 @@ public:
   */
   virtual bool primary_key_is_clustered() const
   { return m_pkey_is_clustered; }
+
+  /*
+    Get default key algorithm for SE. It is used when user has not provided
+    algorithm explicitly or when algorithm specified is not supported by SE.
+  */
+  virtual enum ha_key_alg get_default_index_algorithm() const;
+  /* Check if SE supports specific key algorithm. */
+  virtual bool is_index_algorithm_supported(enum ha_key_alg key_alg) const;
 
   /*
     -------------------------------------------------------------------------

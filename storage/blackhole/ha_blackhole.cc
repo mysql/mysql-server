@@ -56,15 +56,6 @@ ha_blackhole::ha_blackhole(handlerton *hton,
 {}
 
 
-static const char *ha_blackhole_exts[] = {
-  NullS
-};
-
-const char **ha_blackhole::bas_ext() const
-{
-  return ha_blackhole_exts;
-}
-
 int ha_blackhole::open(const char *name, int mode, uint test_if_locked)
 {
   DBUG_ENTER("ha_blackhole::open");
@@ -98,17 +89,6 @@ int ha_blackhole::truncate()
 {
   DBUG_ENTER("ha_blackhole::truncate");
   DBUG_RETURN(0);
-}
-
-const char *ha_blackhole::index_type(uint key_number)
-{
-  DBUG_ENTER("ha_blackhole::index_type");
-  DBUG_RETURN((table_share->key_info[key_number].flags & HA_FULLTEXT) ? 
-              "FULLTEXT" :
-              (table_share->key_info[key_number].flags & HA_SPATIAL) ?
-              "SPATIAL" :
-              (table_share->key_info[key_number].algorithm ==
-               HA_KEY_ALG_RTREE) ? "RTREE" : "BTREE");
 }
 
 int ha_blackhole::write_row(uchar * buf)

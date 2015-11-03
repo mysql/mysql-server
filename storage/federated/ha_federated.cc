@@ -1621,21 +1621,6 @@ ha_rows ha_federated::records_in_range(uint inx, key_range *start_key,
   DBUG_ENTER("ha_federated::records_in_range");
   DBUG_RETURN(FEDERATED_RECORDS_IN_RANGE);
 }
-/*
-  If frm_error() is called then we will use this to to find out
-  what file extentions exist for the storage engine. This is
-  also used by the default rename_table and delete_table method
-  in handler.cc.
-*/
-
-const char **ha_federated::bas_ext() const
-{
-  static const char *ext[]=
-  {
-    NullS
-  };
-  return ext;
-}
 
 
 /*

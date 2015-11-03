@@ -281,13 +281,6 @@ char*
 
 typedef
 ib_err_t
-(*cb_table_truncate_t)(
-/*===================*/
-	const char*	table_name,
-	ib_id_u64_t*	table_id);
-
-typedef
-ib_err_t
 (*cb_cursor_first_t)(
 /*=================*/
         ib_crsr_t       ib_crsr);
@@ -308,13 +301,6 @@ typedef
 int
 (*cb_get_cfg_t)();
 /*=============*/
-
-typedef
-ib_err_t
-(*cb_cursor_set_memcached_sync)(
-/*============================*/
-	ib_crsr_t	ib_crsr,
-	ib_bool_t	flag);
 
 typedef
 ib_err_t
@@ -414,13 +400,11 @@ cb_cursor_new_trx_t		ib_cb_cursor_new_trx;
 cb_cursor_reset_t		ib_cb_cursor_reset;
 cb_col_get_name_t		ib_cb_col_get_name;
 cb_get_idx_field_name		ib_cb_get_idx_field_name;
-cb_table_truncate_t		ib_cb_table_truncate;
 cb_cursor_first_t		ib_cb_cursor_first;
 cb_cursor_next_t		ib_cb_cursor_next;
 cb_cursor_open_index_using_name_t	ib_cb_cursor_open_index_using_name;
 cb_close_thd_t			ib_cb_close_thd;
 cb_get_cfg_t			ib_cb_get_cfg;
-cb_cursor_set_memcached_sync	ib_cb_cursor_set_memcached_sync;
 cb_cursor_set_cluster_access_t	ib_cb_cursor_set_cluster_access;
 cb_cursor_commit_trx_t		ib_cb_cursor_commit_trx;
 cb_cfg_trx_level_t		ib_cb_cfg_trx_level;

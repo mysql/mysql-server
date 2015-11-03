@@ -17,24 +17,26 @@
 
 #include "sp.h"
 
-#include "my_user.h"      // parse_user
+#include "my_user.h"        // parse_user
 #include "mysql/psi/mysql_sp.h"
-#include "binlog.h"       // mysql_bin_log
-#include "derror.h"       // ER_THD
-#include "item_timefunc.h"// Item_func_now_local
-#include "key.h"          // key_copy
-#include "lock.h"         // lock_object_name
-#include "log.h"          // sql_print_warning
-#include "log_event.h"    // append_query_string
-#include "mysqld.h"       // trust_function_creators
-#include "sp_cache.h"     // sp_cache_invalidate
-#include "sp_head.h"      // Stored_program_creation_ctx
-#include "sp_pcontext.h"  // sp_pcontext
-#include "sql_base.h"     // close_thread_tables
-#include "sql_db.h"       // get_default_db_collation
-#include "sql_parse.h"    // parse_sql
-#include "sql_show.h"     // append_identifier
-#include "sql_table.h"    // write_bin_log
+#include "binlog.h"         // mysql_bin_log
+#include "derror.h"         // ER_THD
+#include "item_timefunc.h"  // Item_func_now_local
+#include "key.h"            // key_copy
+#include "lock.h"           // lock_object_name
+#include "log.h"            // sql_print_warning
+#include "log_event.h"      // append_query_string
+#include "mysqld.h"         // trust_function_creators
+#include "sp_cache.h"       // sp_cache_invalidate
+#include "sp_head.h"        // Stored_program_creation_ctx
+#include "sp_pcontext.h"    // sp_pcontext
+#include "sql_base.h"       // close_thread_tables
+#include "sql_db.h"         // get_default_db_collation
+#include "sql_parse.h"      // parse_sql
+#include "sql_show.h"       // append_identifier
+#include "sql_table.h"      // write_bin_log
+
+#include "dd/dd_schema.h"   // dd::schema_exists
 
 /* Used in error handling only */
 #define SP_TYPE_STRING(LP) \
@@ -281,12 +283,12 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
 
   const CHARSET_INFO *client_cs;
   const CHARSET_INFO *connection_cl;
-  const CHARSET_INFO *db_cl;
+  const CHARSET_INFO *db_cl= NULL;
 
   const char *db_name= thd->strmake(name->m_db.str, name->m_db.length);
   const char *sr_name= thd->strmake(name->m_name.str, name->m_name.length);
 
-  bool invalid_creation_ctx= FALSE;
+  bool invalid_creation_ctx= false;
 
   if (load_charset(thd->mem_root,
                    proc_tbl->field[MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT],
@@ -298,7 +300,7 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
                       db_name,
                       sr_name);
 
-    invalid_creation_ctx= TRUE;
+    invalid_creation_ctx= true;
   }
 
   if (load_collation(thd->mem_root,
@@ -311,7 +313,7 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
                       db_name,
                       sr_name);
 
-    invalid_creation_ctx= TRUE;
+    invalid_creation_ctx= true;
   }
 
   if (load_collation(thd->mem_root,
@@ -324,7 +326,7 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
                       db_name,
                       sr_name);
 
-    invalid_creation_ctx= TRUE;
+    invalid_creation_ctx= true;
   }
 
   if (invalid_creation_ctx)
@@ -342,11 +344,16 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
     from the disk.
   */
 
-  if (!db_cl)
-    db_cl= get_default_db_collation(thd, name->m_db.str);
+  if (db_cl == NULL &&
+      get_default_db_collation(thd, name->m_db.str, &db_cl))
+  {
+    DBUG_ASSERT(thd->is_error() || thd->killed);
+    return NULL;
+  }
 
-  /* Create the context. */
+  db_cl= db_cl ? db_cl : thd->collation();
 
+  // Create the context.
   return new Stored_routine_creation_ctx(client_cs, connection_cl, db_cl);
 }
 
@@ -688,6 +695,12 @@ db_find_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp)
   close_nontrans_system_tables(thd, &open_tables_state_backup);
   table= 0;
 
+  if (creation_ctx == NULL)
+  {
+    ret= SP_INTERNAL_ERROR;
+    goto done;
+  }
+
   ret= db_load_routine(thd, type, name, sphp,
                        sql_mode, params, returns, body, chistics,
                        definer, created, modified, creation_ctx);
@@ -1000,8 +1013,6 @@ bool sp_create_routine(THD *thd, sp_head *sp)
   MDL_key::enum_mdl_namespace mdl_type= (sp->m_type == SP_TYPE_FUNCTION) ?
                                         MDL_key::FUNCTION : MDL_key::PROCEDURE;
 
-  const CHARSET_INFO *db_cs= get_default_db_collation(thd, sp->m_db.str);
-
   enum_check_fields saved_count_cuted_fields;
 
   bool store_failed= FALSE;
@@ -1025,16 +1036,27 @@ bool sp_create_routine(THD *thd, sp_head *sp)
     DBUG_RETURN(true);
   }
 
-  /*
-   Check that a database directory with this name
-   exists. Design note: This won't work on virtual databases
-   like information_schema.
-  */
-  if (check_db_dir_existence(sp->m_db.str))
+  // Check that a database with this name exists.
+  bool sch_exists;
+  if (dd::schema_exists(thd, sp->m_db.str, &sch_exists))
+  {
+    // Error is reported by DD API framework.
+    DBUG_RETURN(true);
+  }
+  if (!sch_exists)
   {
     my_error(ER_BAD_DB_ERROR, MYF(0), sp->m_db.str);
     DBUG_RETURN(true);
   }
+
+  const CHARSET_INFO *db_cs= NULL;
+  if (get_default_db_collation(thd, sp->m_db.str, &db_cs))
+  {
+    DBUG_ASSERT(thd->is_error() || thd->killed);
+    DBUG_RETURN(true);
+  }
+
+  db_cs= db_cs ? db_cs : thd->collation();
 
   /* Reset sql_mode during data dictionary operations. */
   thd->variables.sql_mode= 0;
@@ -2299,6 +2321,9 @@ sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
   LEX *old_lex= thd->lex, newlex;
   Stored_program_creation_ctx *creation_ctx= 
     Stored_routine_creation_ctx::load_from_db(thd, &sp_name_obj, proc_table);
+  if (creation_ctx == NULL)
+    return NULL;
+
   sp_body= (type == SP_TYPE_FUNCTION) ? "RETURN NULL" : "BEGIN END";
   memset(&sp_chistics, 0, sizeof(sp_chistics));
   defstr.set_charset(creation_ctx->get_client_cs());

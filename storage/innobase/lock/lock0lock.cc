@@ -4576,7 +4576,7 @@ lock_remove_recovered_trx_record_locks(
 }
 
 /*********************************************************************//**
-Removes locks on a table to be dropped or truncated.
+Removes locks on a table to be dropped.
 If remove_also_table_sx_locks is TRUE then table-level S and X locks are
 also removed in addition to other table-level and record-level locks.
 No lock, that is going to be removed, is allowed to be a wait lock. */
@@ -4584,7 +4584,7 @@ void
 lock_remove_all_on_table(
 /*=====================*/
 	dict_table_t*	table,			/*!< in: table to be dropped
-						or truncated */
+						or discarded */
 	ibool		remove_also_table_sx_locks)/*!< in: also removes
 						table S and X locks */
 {
@@ -5170,7 +5170,7 @@ lock_trx_print_locks(
 
 				/* It is a single table tablespace
 				and the .ibd file is missing
-				(TRUNCATE TABLE probably stole the
+				(DISCARD TABLESPACE probably stole the
 				locks): just print the lock without
 				attempting to load the page in the
 				buffer pool. */

@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2014, 2015 Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -2435,8 +2435,7 @@ sub setup_vardir() {
   # Create new data dirs
   foreach my $data_dir (@data_dir_lst)
   {
-    mkpath("$data_dir/mysql");
-    mkpath("$data_dir/test");
+    mkpath("$data_dir");
   }
 
   # Make a link std_data_ln in var/ that points to std_data
@@ -3136,7 +3135,6 @@ sub install_db ($$) {
   my $args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "--no-defaults");
-  mtr_add_arg($args, "--bootstrap");
   mtr_add_arg($args, "--basedir=%s", $glob_basedir);
   mtr_add_arg($args, "--datadir=%s", $data_dir);
   mtr_add_arg($args, "--loose-skip-ndbcluster");
@@ -3162,13 +3160,20 @@ sub install_db ($$) {
   }
 
   # The user can set MYSQLD_BOOTSTRAP to the full path to a mysqld
-  # to run a different mysqld during --bootstrap.
+  # to run a different mysqld during --bootstrap or --install-server.
   my $exe_mysqld_bootstrap = $ENV{'MYSQLD_BOOTSTRAP'} || $exe_mysqld;
 
   # ----------------------------------------------------------------------
   # export MYSQLD_BOOTSTRAP_CMD variable containing <path>/mysqld <args>
   # ----------------------------------------------------------------------
-  $ENV{'MYSQLD_BOOTSTRAP_CMD'}= "$exe_mysqld_bootstrap " . join(" ", @$args);
+  $ENV{'MYSQLD_BOOTSTRAP_CMD'}= "$exe_mysqld_bootstrap " . join(" --bootstrap ", @$args);
+
+  mtr_add_arg($args, "--install-server");
+
+  # ----------------------------------------------------------------------
+  # export MYSQLD_INSTALL_CMD variable containing <path>/mysqld <args>
+  # ----------------------------------------------------------------------
+  $ENV{'MYSQLD_INSTALL_CMD'}= "$exe_mysqld_bootstrap " . join(" ", @$args);
 
   # ----------------------------------------------------------------------
   # Create the bootstrap.sql file
@@ -3203,6 +3208,10 @@ sub install_db ($$) {
   # Remove anonymous users
   mtr_tofile($bootstrap_sql_file,
 	     "DELETE FROM mysql.user where user= '';");
+
+  # Create test database
+  mtr_tofile($bootstrap_sql_file,
+             "CREATE DATABASE test;\n");
 
   # Log bootstrap command
   my $path_bootstrap_log= "$opt_vardir/log/bootstrap.log";

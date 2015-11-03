@@ -22,6 +22,7 @@
 #include "mock_create_field.h"
 #include "item_timefunc.h"         // Item_func_now_local
 
+
 namespace create_field_unittest {
 
 using my_testing::Server_initializer;
@@ -43,16 +44,17 @@ TEST_F(CreateFieldTest, init)
   Item_func_now_local *now= new Item_func_now_local(0);
 
   Mock_create_field field_definition_none(MYSQL_TYPE_TIMESTAMP, NULL, NULL);
-  EXPECT_EQ(Field::NONE, field_definition_none.unireg_check);
+  EXPECT_EQ(Field::NONE, field_definition_none.auto_flags);
 
   Mock_create_field field_definition_dn(MYSQL_TYPE_TIMESTAMP, now, NULL);
-  EXPECT_EQ(Field::TIMESTAMP_DN_FIELD, field_definition_dn.unireg_check);
+  EXPECT_EQ(Field::DEFAULT_NOW, field_definition_dn.auto_flags);
 
   Mock_create_field field_definition_dnun(MYSQL_TYPE_TIMESTAMP, now, now);
-  EXPECT_EQ(Field::TIMESTAMP_DNUN_FIELD, field_definition_dnun.unireg_check);
+  EXPECT_EQ((Field::DEFAULT_NOW|Field::ON_UPDATE_NOW),
+            field_definition_dnun.auto_flags);
 
   Mock_create_field field_definition_un(MYSQL_TYPE_TIMESTAMP, NULL, now);
-  EXPECT_EQ(Field::TIMESTAMP_UN_FIELD, field_definition_un.unireg_check);
+  EXPECT_EQ(Field::ON_UPDATE_NOW, field_definition_un.auto_flags);
 }
 
 }

@@ -401,7 +401,7 @@ DECLARE_THREAD(dict_stats_thread)(
 	pfs_register_thread(dict_stats_thread_key);
 #endif /* UNIV_PFS_THREAD */
 
-	srv_dict_stats_thread_active = TRUE;
+	srv_dict_stats_thread_active = true;
 
 	while (!SHUTTING_DOWN()) {
 
@@ -433,7 +433,7 @@ DECLARE_THREAD(dict_stats_thread)(
 		os_event_reset(dict_stats_event);
 	}
 
-	srv_dict_stats_thread_active = FALSE;
+	srv_dict_stats_thread_active = false;
 
 	my_thread_end();
 

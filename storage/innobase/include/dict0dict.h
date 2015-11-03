@@ -993,7 +993,7 @@ dict_table_page_size(
 /*********************************************************************//**
 Obtain exclusive locks on all index trees of the table. This is to prevent
 accessing index trees while InnoDB is updating internal metadata for
-operations such as truncate tables. */
+operations such as FLUSH TABLES. */
 UNIV_INLINE
 void
 dict_table_x_lock_indexes(

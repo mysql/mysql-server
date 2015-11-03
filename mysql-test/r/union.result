@@ -523,6 +523,8 @@ a
 ERROR 42000: Incorrect usage/placement of 'SQL_CALC_FOUND_ROWS'
 create temporary table t1 select a from t1 union select a from t2;
 drop temporary table t1;
+create temporary table temp1 select a from t1 union select a from t2;
+drop temporary table temp1;
 create table t1 select a from t1 union select a from t2;
 ERROR 42S01: Table 't1' already exists
 select a from t1 union select a from t2 order by t2.a;

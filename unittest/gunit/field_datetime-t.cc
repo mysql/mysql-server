@@ -62,7 +62,7 @@ public:
     : Field_datetime(0,                         // ptr_arg
                      NULL,                      // null_ptr_arg
                      1,                         // null_bit_arg
-                     Field::NONE,               // unireg_check_arg
+                     Field::NONE,               // auto_flags_arg
                      "field_name")              // field_name_arg
   {
     initialize();

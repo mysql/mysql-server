@@ -7619,6 +7619,33 @@ ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE
 ER_ACL_OPERATION_FAILED
   eng "The ACL operation failed due to the following error from SE: errcode %d - %.256s"
 
+ER_UNSUPPORTED_INDEX_ALGORITHM
+  eng "This storage engine does not support the %s index algorithm, storage engine default was used instead."
+
+ER_NO_SUCH_DB 42Y07
+  eng "Database '%-.192s' doesn't exist"
+
+ER_TOO_BIG_ENUM
+  eng "Too many enumeration values for column %.192s."
+
+ER_TOO_LONG_SET_ENUM_VALUE
+  eng "Too long enumeration/set value for column %.192s."
+
+ER_INVALID_DD_OBJECT
+  eng "%s dictionary object is invalid. (%.192s)"
+
+ER_UPDATING_DD_TABLE
+  eng "Failed to update %.192s dictionary object."
+
+ER_INVALID_DD_OBJECT_ID
+  eng "Dictionary object id (%lu) does not exist."
+
+ER_INVALID_DD_OBJECT_NAME
+  eng "Dictionary object name '%s' is invalid. (%.192s)"
+
+ER_TABLESPACE_MISSING_WITH_NAME
+   eng "Tablespace %-.192s doesn't exist."
+
 #
 #  End of 5.8 error messages.
 #
