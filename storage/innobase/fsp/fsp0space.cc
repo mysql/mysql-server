@@ -27,8 +27,10 @@ Created 2012-11-16 by Sunny Bains as srv/srv0space.cc
 
 #include "fsp0space.h"
 #include "fsp0sysspace.h"
+#ifndef UNIV_HOTBACKUP
 #include "fsp0fsp.h"
 #include "os0file.h"
+#endif /* !UNIV_HOTBACKUP */
 
 #include "my_sys.h"
 
