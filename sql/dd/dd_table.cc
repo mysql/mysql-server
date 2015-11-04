@@ -1220,8 +1220,6 @@ static bool fill_dd_table_from_create_info(THD *thd,
                                            handler *file,
                                            sql_mode_t user_trans_sql_mode)
 {
-  bool error= false;
-
   // Table name must be set with the correct case depending on l_c_t_n
   tab_obj->set_name(table_case_name(create_info, table_name.c_str()));
 
@@ -1387,29 +1385,30 @@ static bool fill_dd_table_from_create_info(THD *thd,
   //       expensive table rebuilds by ALTER TABLE.
 
   // Add field definitions
-  error= fill_dd_columns_from_create_fields(thd, tab_obj,
-                                            create_fields,
-                                            file, user_trans_sql_mode);
+  if (fill_dd_columns_from_create_fields(thd, tab_obj,
+                                         create_fields,
+                                         file,
+                                         user_trans_sql_mode))
+    return true;
 
   // Add index definitions
   fill_dd_indexes_from_keyinfo(tab_obj, keys, keyinfo);
 
   // Add tablespace definition.
-  error= error || fill_dd_tablespace_id_or_name<dd::Table>(
-                    thd,
-                    tab_obj,
-                    create_info->db_type,
-                    create_info->tablespace,
-                    create_info->options & HA_LEX_CREATE_TMP_TABLE);
+  if (fill_dd_tablespace_id_or_name<dd::Table>(
+                              thd,
+                              tab_obj,
+                              create_info->db_type,
+                              create_info->tablespace,
+                              create_info->options & HA_LEX_CREATE_TMP_TABLE))
+    return true;
 
   // Add partition definitions
-  error= error || fill_dd_partition_from_create_info(thd,
-                                                     tab_obj,
-                                                     create_info,
-                                                     create_fields,
-                                                     thd->work_part_info);
-
-  return error;
+  return fill_dd_partition_from_create_info(thd,
+                                            tab_obj,
+                                            create_info,
+                                            create_fields,
+                                            thd->work_part_info);
 }
 
 
