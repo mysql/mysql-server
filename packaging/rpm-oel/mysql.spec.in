@@ -301,7 +301,7 @@ Obsoletes:      mysql-devel < %{version}-%{release}
 Obsoletes:      mariadb-devel
 Provides:       mysql-devel = %{version}-%{release}
 Provides:       mysql-devel%{?_isa} = %{version}-%{release}
-Conflicts:      mysql-connector-c-shared-devel < 6.2
+Conflicts:      mysql-connector-c-devel < 6.2
 
 %description    devel
 This package contains the development header files and libraries necessary
