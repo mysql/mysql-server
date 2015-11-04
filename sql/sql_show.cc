@@ -2863,13 +2863,12 @@ inline void make_upper(char *buf)
   @param variable       Details of the variable.
   @param value_type     Variable type.
   @param show_type      Variable show type.
+  @param status_var     Status values or NULL if for system variable.
   @param [out] charset  Character set of the value.
   @param [in,out] buff  Buffer to store the value.
-                             (Needs to have enough memory
-                             to hold the value of variable.)
   @param [out] length   Length of the value.
 
-  @return                    Pointer to the value buffer.
+  @returns              Pointer to the value buffer.
 */
 
 const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
@@ -2890,13 +2889,12 @@ const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
   @param variable        Details of the variable.
   @param value_type      Variable type.
   @param show_type       Variable show type.
+  @param status_var      Status values or NULL if for system variable.
   @param [out] charset   Character set of the value.
   @param [in,out] buff   Buffer to store the value.
-                              (Needs to have enough memory
-                              to hold the value of variable.)
   @param [out] length    Length of the value.
 
-  @return                     Pointer to the value buffer.
+  @returns               Pointer to the value buffer.
 */
 
 const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
@@ -3883,6 +3881,7 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
   Fill I_S table with data obtained by performing full-blown table open.
 
   @param  thd                       Thread handler.
+  @param  mem_root                  Designated mem_root for query.
   @param  is_show_fields_or_keys    Indicates whether it is a legacy SHOW
                                     COLUMNS or SHOW KEYS statement.
   @param  table                     TABLE object for I_S table to be filled.
@@ -3896,9 +3895,9 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
                                     due to metadata locks, so to avoid
                                     them we should not wait in case if
                                     conflicting lock is present.
-
-  @retval FALSE - Success.
-  @retval TRUE  - Failure.
+  @return Operation status
+    @retval  FALSE on success
+    @retval  TRUE  fatal error
 */
 static bool
 fill_schema_table_by_open(THD *thd, MEM_ROOT *mem_root, 
