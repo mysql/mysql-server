@@ -1178,7 +1178,7 @@ bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,
 
   thd->mark_used_columns= mark_used_columns_saved;
 
-  if (setup_ftfuncs(select))
+  if (select->has_ft_funcs() && setup_ftfuncs(select))
     DBUG_RETURN(true);                          /* purecov: inspected */
 
   if (select->inner_refs_list.elements && select->fix_inner_refs(thd))

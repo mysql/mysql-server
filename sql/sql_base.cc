@@ -8611,6 +8611,36 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
   DBUG_RETURN (false);
 }
 
+/**
+  Resolve variable assignments from LEX object
+
+  @param thd     Thread handler
+  @param lex     Lex object containing variable assignments
+
+  @returns false if success, true if error
+
+  @note
+  set_entry() must be called before fix_fields() of the whole list of
+  field items because:
+
+  1) the list of field items has same order as in the query, and the
+     Item_func_get_user_var item may go before the Item_func_set_user_var:
+        SELECT @a, @a := 10 FROM t;
+  2) The entry->update_query_id value controls constantness of
+     Item_func_get_user_var items, so in presence of Item_func_set_user_var
+     items we have to refresh their entries before fixing of
+     Item_func_get_user_var items.
+*/
+
+bool resolve_var_assignments(THD *thd, LEX *lex)
+{
+  List_iterator<Item_func_set_user_var> li(lex->set_var_list);
+  Item_func_set_user_var *var;
+  while ((var= li++))
+    var->set_entry(thd, false);
+
+  return false;
+}
 
 /****************************************************************************
 ** Check that all given fields exists and fill struct with current data
@@ -8684,22 +8714,6 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
     memset(ref_pointer_array.array(), 0, sizeof(Item *) * fields.elements);
   }
 
-  /*
-    We call set_entry() there (before fix_fields() of the whole list of field
-    items) because:
-    1) the list of field items has same order as in the query, and the
-       Item_func_get_user_var item may go before the Item_func_set_user_var:
-          SELECT @a, @a := 10 FROM t;
-    2) The entry->update_query_id value controls constantness of
-       Item_func_get_user_var items, so in presence of Item_func_set_user_var
-       items we have to refresh their entries before fixing of
-       Item_func_get_user_var items.
-  */
-  List_iterator<Item_func_set_user_var> li(thd->lex->set_var_list);
-  Item_func_set_user_var *var;
-  while ((var= li++))
-    var->set_entry(thd, FALSE);
-
   Ref_ptr_array ref= ref_pointer_array;
 
   Item *item;
@@ -8734,7 +8748,8 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
   thd->mark_used_columns= save_mark_used_columns;
   DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
 
-  DBUG_RETURN(thd->is_error());
+  DBUG_ASSERT(!thd->is_error());
+  DBUG_RETURN(false);
 }
 
 
@@ -9601,6 +9616,8 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
 
 int setup_ftfuncs(SELECT_LEX *select_lex)
 {
+  DBUG_ASSERT(select_lex->has_ft_funcs());
+
   List_iterator<Item_func_match> li(*(select_lex->ftfunc_list)),
                                  lj(*(select_lex->ftfunc_list));
   Item_func_match *ftf, *ftf2;

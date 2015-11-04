@@ -100,6 +100,7 @@ bool SELECT_LEX::prepare(THD *thd)
 
   DBUG_ASSERT(this == thd->lex->current_select());
   DBUG_ASSERT(join == NULL);
+  DBUG_ASSERT(!thd->is_error());
 
   SELECT_LEX_UNIT *const unit= master_unit();
 
@@ -128,13 +129,14 @@ bool SELECT_LEX::prepare(THD *thd)
       DBUG_RETURN(true);
 
     // Wait with privilege checking until all derived tables are resolved.
-    if (!thd->derived_tables_processing &&
+    if (derived_table_count && !thd->derived_tables_processing &&
         check_view_privileges(thd, SELECT_ACL, SELECT_ACL))
       DBUG_RETURN(true);
   }
 
   // Precompute and store the row types of NATURAL/USING joins.
-  if (setup_natural_join_row_types(thd, join_list, &context))
+  if (leaf_table_count >= 2 &&
+      setup_natural_join_row_types(thd, join_list, &context))
     DBUG_RETURN(true);
 
   Mem_root_array<Item_exists_subselect *, true>
@@ -330,7 +332,8 @@ bool SELECT_LEX::prepare(THD *thd)
     }
   }
 
-  if (setup_ftfuncs(this)) /* should be after having->fix_fields */
+  // Setup full-text functions after resolving HAVING
+  if (has_ft_funcs() && setup_ftfuncs(this))
     DBUG_RETURN(true);
 
   if (query_result() && query_result()->prepare(fields_list, unit))
@@ -339,7 +342,7 @@ bool SELECT_LEX::prepare(THD *thd)
   if (olap == ROLLUP_TYPE && resolve_rollup(thd))
     DBUG_RETURN(true); /* purecov: inspected */
 
-  if (flatten_subqueries())
+  if (!sj_candidates->empty() && flatten_subqueries())
     DBUG_RETURN(true);
 
   sj_candidates= NULL;
@@ -1123,6 +1126,7 @@ bool SELECT_LEX::setup_wild(THD *thd)
 
   @returns false if success, true if error
 */
+
 bool SELECT_LEX::setup_conds(THD *thd)
 {
   DBUG_ENTER("SELECT_LEX::setup_conds");
@@ -1153,52 +1157,69 @@ bool SELECT_LEX::setup_conds(THD *thd)
     resolve_place= SELECT_LEX::RESOLVE_NONE;
   }
 
-  /*
-    Apply fix_fields() to all ON clauses at all levels of nesting,
-    including the ones inside view definitions.
-  */
-  for (TABLE_LIST *table= leaf_tables; table; table= table->next_leaf)
-  {
-    TABLE_LIST *embedded; /* The table at the current level of nesting. */
-    TABLE_LIST *embedding= table; /* The parent nested table reference. */
-    do
-    {
-      embedded= embedding;
-      if (embedded->join_cond())
-      {
-        resolve_place= SELECT_LEX::RESOLVE_JOIN_NEST;
-        resolve_nest= embedded;
-        thd->where="on clause";
-        if ((!embedded->join_cond()->fixed &&
-           embedded->join_cond()->fix_fields(thd, embedded->join_cond_ref())) ||
-	   embedded->join_cond()->check_cols(1))
-          DBUG_RETURN(true);
-        cond_count++;
-        resolve_place= SELECT_LEX::RESOLVE_NONE;
-        resolve_nest= NULL;
-      }
-      embedding= embedded->embedding;
-    }
-    while (embedding &&
-           embedding->nested_join->join_list.head() == embedded);
-
-    /* process CHECK OPTION */
-    if (it_is_update)
-    {
-      TABLE_LIST *view= table->top_table();
-      if (view->is_view() && view->is_merged())
-      {
-        if (view->prepare_check_option(thd))
-          DBUG_RETURN(true);        /* purecov: inspected */
-        table->check_option= view->check_option;
-      }
-    }
-  }
+  // Resolve all join condition clauses
+  if (top_join_list.elements > 0 &&
+      setup_join_cond(thd, &top_join_list, it_is_update))
+    DBUG_RETURN(true);
 
   is_item_list_lookup= save_is_item_list_lookup;
 
   DBUG_ASSERT(thd->lex->current_select() == this);
   DBUG_ASSERT(!thd->is_error());
+  DBUG_RETURN(false);
+}
+
+/**
+  Resolve join conditions for a join nest
+
+  @param thd    thread handler
+  @param tables List of tables with join conditions
+  @param in_update True if used in update command that may have CHECK OPTION
+
+  @returns false if success, true if error
+*/
+
+bool SELECT_LEX::setup_join_cond(THD *thd, List<TABLE_LIST> *tables,
+                                 bool in_update)
+{
+  DBUG_ENTER("SELECT_LEX::setup_join_cond");
+
+  List_iterator<TABLE_LIST> li(*tables);
+  TABLE_LIST *tr;
+
+  while ((tr= li++))
+  {
+    // Traverse join conditions recursively
+    if (tr->nested_join != NULL &&
+        setup_join_cond(thd, &tr->nested_join->join_list, in_update))
+      DBUG_RETURN(true);
+
+    if (tr->join_cond())
+    {
+      resolve_place= SELECT_LEX::RESOLVE_JOIN_NEST;
+      resolve_nest= tr;
+      thd->where= "on clause";
+      if ((!tr->join_cond()->fixed &&
+           tr->join_cond()->fix_fields(thd, tr->join_cond_ref())) ||
+          tr->join_cond()->check_cols(1))
+        DBUG_RETURN(true);
+      cond_count++;
+      resolve_place= SELECT_LEX::RESOLVE_NONE;
+      resolve_nest= NULL;
+    }
+    if (in_update)
+    {
+      // Process CHECK OPTION
+      TABLE_LIST *view= tr->top_table();
+      if (view->is_view() && view->is_merged())
+      {
+        if (view->prepare_check_option(thd))
+          DBUG_RETURN(true);        /* purecov: inspected */
+        tr->check_option= view->check_option;
+      }
+    }
+  }
+
   DBUG_RETURN(false);
 }
 
@@ -2526,8 +2547,7 @@ bool SELECT_LEX::flatten_subqueries()
 {
   DBUG_ENTER("flatten_subqueries");
 
-  if (sj_candidates->empty())
-    DBUG_RETURN(FALSE);
+  DBUG_ASSERT(!sj_candidates->empty());
 
   Item_exists_subselect **subq,
     **subq_begin= sj_candidates->begin(),

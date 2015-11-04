@@ -1361,6 +1361,8 @@ static int mysql_test_select(Prepared_statement *stmt,
   SELECT_LEX_UNIT *unit= lex->unit;
   DBUG_ENTER("mysql_test_select");
 
+  DBUG_ASSERT(!thd->is_error());
+
   lex->select_lex->context.resolve_in_select_list= true;
 
   if (select_precheck(thd, lex, tables, lex->select_lex->table_list.first))
@@ -3306,6 +3308,9 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
   */
   MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
+  // A subsystem, such as the Audit plugin, may have set error unnoticed:
+  error|= thd->is_error();
+
   /*
    The only case where we should have items in the thd->free_list is
    after stmt->set_params_from_vars(), which may in some cases create
@@ -3314,6 +3319,7 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
 
   if (error == 0)
     error= check_prepared_statement(this);
+  DBUG_ASSERT(error || !thd->is_error());
 
   /*
     Currently CREATE PROCEDURE/TRIGGER/EVENT are prohibited in prepared

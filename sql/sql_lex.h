@@ -1429,6 +1429,8 @@ private:
                                          int hidden_order_field_count);
   void repoint_contexts_of_join_nests(List<TABLE_LIST> join_list);
   void empty_order_list(int hidden_order_field_count);
+  bool setup_join_cond(THD *thd, List<TABLE_LIST> *tables, bool in_update);
+
   /**
     Pointer to collection of subqueries candidate for semijoin
     conversion.

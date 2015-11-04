@@ -668,7 +668,7 @@ bool Sql_cmd_delete::mysql_prepare_delete(THD *thd)
   thd->want_privilege= want_privilege_saved;
   thd->mark_used_columns= mark_used_columns_saved;
 
-  if (setup_ftfuncs(select))
+  if (select->has_ft_funcs() && setup_ftfuncs(select))
     DBUG_RETURN(true);                       /* purecov: inspected */
 
   // check_key_in_view() may send an SQL note, but we only want it once.
