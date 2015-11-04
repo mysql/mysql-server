@@ -31,29 +31,25 @@ Created 11/29/1995 Heikki Tuuri
 #include "fsp0fsp.ic"
 #endif
 
+#ifdef UNIV_HOTBACKUP
+# include "fut0lst.h"
+#else /* UNIV_HOTBACKUP */
 #include "buf0buf.h"
 #include "fil0fil.h"
 #include "mtr0log.h"
 #include "ut0byte.h"
 #include "page0page.h"
-#include "page0zip.h"
-#ifdef UNIV_HOTBACKUP
-# include "fut0lst.h"
-#else /* UNIV_HOTBACKUP */
-# include "fut0fut.h"
-# include "srv0srv.h"
-# include "srv0start.h"
-# include "ibuf0ibuf.h"
-# include "btr0btr.h"
-# include "btr0sea.h"
-# include "dict0boot.h"
-# include "log0log.h"
-#endif /* UNIV_HOTBACKUP */
-#include "dict0mem.h"
+#include "fut0fut.h"
+#include "srv0srv.h"
+#include "srv0start.h"
+#include "ibuf0ibuf.h"
+#include "btr0btr.h"
+#include "btr0sea.h"
+#include "dict0boot.h"
+#include "log0log.h"
 #include "fsp0sysspace.h"
+#include "dict0mem.h"
 #include "fsp0types.h"
-
-#ifndef UNIV_HOTBACKUP
 
 /** Returns an extent to the free list of a space.
 @param[in]	page_id		page id in the extent
@@ -210,6 +206,7 @@ fsp_flags_to_dict_tf(
 
 	return(flags);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Validate the tablespace flags.
 These flags are stored in the tablespace header at offset FSP_SPACE_FLAGS.
@@ -316,7 +313,7 @@ fsp_is_file_per_table(
 	return(!is_system_tablespace(space_id)
 		&& !fsp_is_shared_tablespace(fsp_flags));
 }
-
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 
 /** Skip some of the sanity checks that are time consuming even in debug mode

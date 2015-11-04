@@ -35,10 +35,61 @@ Created 10/25/1995 Heikki Tuuri
 #include "page0size.h"
 #ifndef UNIV_HOTBACKUP
 #include "ibuf0types.h"
+#else
+#include "log0log.h"
+#include "os0file.h"
+#include "m_string.h"
 #endif /* !UNIV_HOTBACKUP */
 
 #include <list>
 #include <vector>
+
+#ifdef UNIV_HOTBACKUP
+#include <cstring>
+/** determine if file is intermediate / temporary.These files are created during
+reorganize partition, rename tables, add / drop columns etc.
+@param[in]	filepath asbosolute / relative or simply file name
+@retvalue	true	if it is intermediate file
+@retvalue	false	if it is normal file */
+inline
+bool
+is_intermediate_file(const std::string& filepath)
+{
+	std::string file_name = filepath;
+
+	// extract file name from relative or absolute file name
+	std::size_t pos = file_name.rfind(OS_PATH_SEPARATOR);
+	if (pos != std::string::npos)
+		file_name = file_name.substr(++pos);
+
+	transform(file_name.begin(), file_name.end(),
+		file_name.begin(), ::tolower);
+
+	if (file_name[0] != '#') {
+		pos = file_name.rfind("#tmp#.ibd");
+		if (pos != std::string::npos)
+			return true;
+		else
+			return false;  /* normal file name */
+	}
+
+	std::vector<std::string> file_name_patterns = {"#sql-", "#sql2-",
+		"#tmp#", "#ren#"};
+
+	/* search for the unsupported patterns */
+	for (auto itr = file_name_patterns.begin();
+		itr != file_name_patterns.end();
+		itr++) {
+
+		if (0 == std::strncmp(file_name.c_str(),
+			itr->c_str(), itr->length())){
+			return true;
+		}
+	}
+
+	return false;
+}
+#endif /* UNIV_HOTBACKUP */
 
 extern const char general_space_name[];
 
@@ -504,7 +555,6 @@ extern ulint	fil_n_pending_tablespace_flushes;
 /** Number of files currently open */
 extern ulint	fil_n_file_opened;
 
-#ifndef UNIV_HOTBACKUP
 /** Look up a tablespace.
 The caller should hold an InnoDB table lock or a MDL that prevents
 the tablespace from being dropped during the operation,
@@ -518,6 +568,7 @@ fil_space_t*
 fil_space_get(
 	ulint	id)
 	__attribute__((warn_unused_result));
+#ifndef UNIV_HOTBACKUP
 /** Returns the latch of a file space.
 @param[in]	id	space id
 @param[out]	flags	tablespace flags
@@ -985,7 +1036,6 @@ fil_ibd_create(
 	ulint		flags,
 	ulint		size)
 	__attribute__((warn_unused_result));
-#ifndef UNIV_HOTBACKUP
 /********************************************************************//**
 Tries to open a single-table tablespace and optionally checks the space id is
 right in it. If does not succeed, prints an error message to the .err log. This
@@ -1049,7 +1099,6 @@ fil_ibd_load(
 	fil_space_t*&	space)
 	__attribute__((warn_unused_result));
 
-#endif /* !UNIV_HOTBACKUP */
 /***********************************************************************//**
 A fault-tolerant function that tries to read the next file name in the
 directory. We retry 100 times if os_file_readdir_next_file() returns -1. The

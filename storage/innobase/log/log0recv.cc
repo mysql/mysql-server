@@ -51,18 +51,19 @@ Created 9/20/1997 Heikki Tuuri
 #include "fil0fil.h"
 #include "fsp0sysspace.h"
 #include "ut0new.h"
+#include "row0trunc.h"
 #ifndef UNIV_HOTBACKUP
 # include "buf0rea.h"
 # include "srv0srv.h"
 # include "srv0start.h"
 # include "trx0roll.h"
 # include "row0merge.h"
-#include "row0trunc.h"
 #else /* !UNIV_HOTBACKUP */
-/** This is set to FALSE if the backup was originally taken with the
+/** This is set to false if the backup was originally taken with the
 mysqlbackup --include regexp option: then we do not want to create tables in
 directories which were not included */
 bool	recv_replay_file_ops	= true;
+#include "fut0lst.h"
 #endif /* !UNIV_HOTBACKUP */
 
 /** Log records are stored in the hash table in chunks at most of this size;
@@ -82,6 +83,10 @@ volatile bool	recv_recovery_on;
 #ifndef UNIV_HOTBACKUP
 /** TRUE when recv_init_crash_recovery() has been called. */
 bool	recv_needed_recovery;
+#else
+# define recv_needed_recovery			false
+# define buf_pool_get_curr_size() (5 * 1024 * 1024)
+#endif /* !UNIV_HOTBACKUP */
 # ifdef UNIV_DEBUG
 /** TRUE if writing to the redo log (mtr_commit) is forbidden.
 Protected by log_sys->mutex. */
@@ -102,13 +107,18 @@ buffer pool before the pages have been recovered to the up-to-date state.
 
 TRUE means that recovery is running and no operations on the log files
 are allowed yet: the variable name is misleading. */
+#ifndef UNIV_HOTBACKUP
 bool	recv_no_ibuf_operations;
 /** TRUE when the redo log is being backed up */
 # define recv_is_making_a_backup		false
 /** TRUE when recovering from a backed up redo log file */
 # define recv_is_from_backup			false
 #else /* !UNIV_HOTBACKUP */
-# define recv_needed_recovery			false
+/** true if the backup is an offline backup */
+volatile bool is_online_redo_copy = true;
+/**true if the last flushed lsn read at the start of backup */
+volatile lsn_t backup_redo_log_flushed_lsn;
+
 /** TRUE when the redo log is being backed up */
 bool	recv_is_making_a_backup	= false;
 /** TRUE when recovering from a backed up redo log file */
@@ -199,15 +209,19 @@ static recv_spaces_t	recv_spaces;
 @param[in,out]	name		file name
 @param[in]	len		length of the file name
 @param[in]	space_id	the tablespace ID
-@param[in]	deleted		whether this is a MLOG_FILE_DELETE record */
+@param[in]	deleted		whether this is a MLOG_FILE_DELETE record
+@retval true if able to process file successfully.
+@retval false if unable to process the file */
 static
-void
+bool
 fil_name_process(
 	char*	name,
 	ulint	len,
 	ulint	space_id,
 	bool	deleted)
 {
+	bool	processed = true;
+
 	/* We will also insert space=NULL into the map, so that
 	further checks can ensure that a MLOG_FILE_NAME record was
 	scanned before applying any page records for the space_id. */
@@ -254,6 +268,7 @@ fil_name_process(
 					<< f.name << "' and '" << name << "'."
 					" You must delete one of them.";
 				recv_sys->found_corrupt_fs = true;
+				processed = false;
 			}
 			break;
 
@@ -285,6 +300,7 @@ fil_name_process(
 		case FIL_LOAD_INVALID:
 			ut_ad(space == NULL);
 			if (srv_force_recovery == 0) {
+#ifndef UNIV_HOTBACKUP
 				ib::warn() << "We do not continue the crash"
 					" recovery, because the table may"
 					" become corrupt if we cannot apply"
@@ -306,6 +322,14 @@ fil_name_process(
 					" remove the .ibd file, you can set"
 					" --innodb_force_recovery.";
 				recv_sys->found_corrupt_fs = true;
+#else
+				ib::warn() << "We do not continue the apply-log"
+					" operation because the tablespace may"
+					" become corrupt if we cannot apply"
+					" the log records in the redo log"
+					" records to it.";
+#endif /* !UNIV_BACKUP  */
+				processed = false;
 				break;
 			}
 
@@ -316,8 +340,10 @@ fil_name_process(
 			break;
 		}
 	}
+	return(processed);
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Parse or process a MLOG_FILE_* record.
 @param[in]	ptr		redo log record
 @param[in]	end		end of the redo log buffer
@@ -338,17 +364,10 @@ fil_name_parse(
 	mlog_id_t	type,
 	bool		apply)
 {
-#ifdef UNIV_HOTBACKUP
-	ulint		flags	= 0;
-#endif /* UNIV_HOTBACKUP */
-
 	if (type == MLOG_FILE_CREATE2) {
 		if (end < ptr + 4) {
 			return(NULL);
 		}
-#ifdef UNIV_HOTBACKUP
-		flags = mach_read_from_4(ptr);
-#endif /* UNIV_HOTBACKUP */
 		ptr += 4;
 	}
 
@@ -381,6 +400,7 @@ fil_name_parse(
 			recv_sys->found_corrupt_log = true;
 			break;
 		}
+
 		fil_name_process(
 			reinterpret_cast<char*>(ptr), len, space_id, false);
 		break;
@@ -389,21 +409,12 @@ fil_name_parse(
 			recv_sys->found_corrupt_log = true;
 			break;
 		}
+
 		fil_name_process(
 			reinterpret_cast<char*>(ptr), len, space_id, true);
-#ifdef UNIV_HOTBACKUP
-		if (apply && recv_replay_file_ops
-		    && fil_space_get(space_id)) {
-			dberr_t	err = fil_delete_tablespace(
-				space_id, BUF_REMOVE_FLUSH_NO_WRITE);
-			ut_a(err == DB_SUCCESS);
-		}
-#endif /* UNIV_HOTBACKUP */
+
 		break;
 	case MLOG_FILE_CREATE2:
-#ifdef UNIV_HOTBACKUP
-		/* if needed, invoke fil_ibd_create() with flags */
-#endif /* UNIV_HOTBACKUP */
 		break;
 	case MLOG_FILE_RENAME2:
 		if (corrupt) {
@@ -444,22 +455,296 @@ fil_name_parse(
 		if (!apply) {
 			break;
 		}
-#ifdef UNIV_HOTBACKUP
-		if (!recv_replay_file_ops) {
-			break;
-		}
-#endif /* UNIV_HOTBACKUP */
-
 		if (!fil_op_replay_rename(
-			    space_id, first_page_no,
-			    reinterpret_cast<const char*>(ptr),
-			    reinterpret_cast<const char*>(new_name))) {
+			space_id, first_page_no,
+			reinterpret_cast<const char*>(ptr),
+			reinterpret_cast<const char*>(new_name))) {
 			recv_sys->found_corrupt_fs = true;
 		}
 	}
 
 	return(end_ptr);
 }
+#else /* !UNIV_HOTBACKUP */
+/** Parse a file name retrieved from a MLOG_FILE_* record,
+and return the absolute file path corresponds to backup dir
+as well as in the form of database/tablespace
+@param[in]	file_name		path emitted by the redo log
+@param[out]	absolute_path	absolute path of tablespace
+corresponds to backup dir
+@param[out]	tablespace_name	name in the form of database/table */
+static
+void
+make_abs_file_path(
+	const std::string&	name,
+	std::string&		absolute_path,
+	std::string&		tablespace_name)
+{
+	std::string file_name = name;
+	std::string path = fil_path_to_mysql_datadir;
+	size_t pos = std::string::npos;
+
+	if (is_absolute_path(file_name.c_str())) {
+
+		pos = file_name.rfind(OS_PATH_SEPARATOR);
+		std::string temp_name = file_name.substr(0, pos);
+		pos = temp_name.rfind(OS_PATH_SEPARATOR);
+		++pos;
+		file_name = file_name.substr(pos, file_name.length());
+		path += OS_PATH_SEPARATOR + file_name;
+	} else {
+		pos = file_name.find(OS_PATH_SEPARATOR);
+		++pos;
+		file_name = file_name.substr(pos, file_name.length());
+		path += OS_PATH_SEPARATOR + file_name;
+	}
+
+	absolute_path = path;
+
+	/* remove the .ibd extension */
+	pos = file_name.rfind(".ibd");
+	if (pos != std::string::npos)
+		tablespace_name = file_name.substr(0, pos);
+
+	/* space->name uses '/', not OS_PATH_SEPARATOR,
+	update the seperator */
+	if (OS_PATH_SEPARATOR != '/') {
+		pos = tablespace_name.find(OS_PATH_SEPARATOR);
+		while (pos != std::string::npos) {
+			tablespace_name[pos] = '/';
+			pos = tablespace_name.find(OS_PATH_SEPARATOR);
+		}
+	}
+
+}
+
+/** Wrapper around fil_name_process()
+@param[in]	name		absolute path of tablespace file
+@param[in]	space_id	the tablespace ID
+@retval		true		if able to process file successfully.
+@retval		false		if unable to process the file */
+bool
+fil_name_process(
+	const char*	name,
+	ulint	space_id)
+{
+	size_t length = strlen(name);
+	++length;
+
+	char* file_name = static_cast<char*>(ut_malloc_nokey(length));
+	strncpy(file_name, name,length);
+
+	bool processed = fil_name_process(file_name, length, space_id, false);
+
+	ut_free(file_name);
+	return(processed);
+}
+
+/** Parse or process a MLOG_FILE_* record.
+@param[in]	ptr		redo log record
+@param[in]	end		end of the redo log buffer
+@param[in]	space_id	the tablespace ID
+@param[in]	first_page_no	first page number in the file
+@param[in]	type		MLOG_FILE_NAME or MLOG_FILE_DELETE
+or MLOG_FILE_CREATE2 or MLOG_FILE_RENAME2
+@param[in]	apply		whether to apply the record
+@retval	pointer to next redo log record
+@retval	NULL if this log record was truncated */
+static
+byte*
+fil_name_parse(
+	byte*		ptr,
+	const byte*	end,
+	ulint		space_id,
+	ulint		first_page_no,
+	mlog_id_t	type,
+	bool		apply)
+{
+
+	ulint flags = mach_read_from_4(ptr);
+
+	if (type == MLOG_FILE_CREATE2) {
+		if (end < ptr + 4) {
+			return(NULL);
+		}
+		ptr += 4;
+	}
+
+	if (end < ptr + 2) {
+		return(NULL);
+	}
+
+	ulint	len = mach_read_from_2(ptr);
+	ptr += 2;
+	if (end < ptr + len) {
+		return(NULL);
+	}
+
+	os_normalize_path(reinterpret_cast<char*>(ptr));
+
+	/* MLOG_FILE_* records should only be written for
+	user-created tablespaces. The name must be long enough
+	and end in .ibd. */
+	bool corrupt = is_predefined_tablespace(space_id)
+		|| first_page_no != 0 // TODO: multi-file user tablespaces
+		|| len < sizeof "/a.ibd\0"
+		|| memcmp(ptr + len - 5, DOT_IBD, 5) != 0
+		|| memchr(ptr, OS_PATH_SEPARATOR, len) == NULL;
+
+	byte*	end_ptr = ptr + len;
+
+	if (corrupt) {
+		recv_sys->found_corrupt_log = true;
+		return(end_ptr);
+	}
+
+	std::string abs_file_path, tablespace_name;
+	char* name = reinterpret_cast<char*>(ptr);
+	char* new_name = NULL;
+	recv_spaces_t::iterator itr;
+
+	make_abs_file_path(name, abs_file_path, tablespace_name);
+
+	if (!recv_is_making_a_backup) {
+
+		name = static_cast<char*>(ut_malloc_nokey(
+			(abs_file_path.length() + 1)));
+		strcpy(name, abs_file_path.c_str());
+		len = strlen(name) + 1;
+	}
+	switch (type) {
+	default:
+		ut_ad(0); // the caller checked this
+	case MLOG_FILE_NAME:
+		/* Don't validate tablespaces while copying redo logs
+		because backup process might keep some tablespace handles
+		open in server datadir.
+		Maintain "map of dirty tablespaces" so that assumptions
+		for other redo log records are not broken even for dirty
+		tablespaces during apply log */
+		if (!recv_is_making_a_backup) {
+			recv_spaces.insert(std::make_pair(space_id,
+						file_name_t(abs_file_path,
+						false)));
+		}
+		break;
+	case MLOG_FILE_DELETE:
+		/* Don't validate tablespaces while copying redo logs
+		because backup process might keep some tablespace handles
+		open in server datadir. */
+		if (recv_is_making_a_backup)
+			break;
+
+		fil_name_process(
+			name, len, space_id, true);
+
+		if (apply && recv_replay_file_ops
+			&& fil_space_get(space_id)) {
+			dberr_t	err = fil_delete_tablespace(
+				space_id, BUF_REMOVE_FLUSH_NO_WRITE);
+			ut_a(err == DB_SUCCESS);
+		}
+
+		break;
+	case MLOG_FILE_CREATE2:
+		if (recv_is_making_a_backup
+		    || (!recv_replay_file_ops)
+		    || (is_intermediate_file(abs_file_path.c_str()))
+		    || (fil_space_get(space_id))
+		    || (fil_space_get_id_by_name(
+				tablespace_name.c_str()) != ULINT_UNDEFINED)) {
+			/* Don't create table while :-
+			1. scanning the redo logs during backup
+			2. apply-log on a partial backup
+			3. if it is intermediate file
+			4. tablespace is already loaded in memory */
+		} else {
+			itr = recv_spaces.find(space_id);
+			if (itr == recv_spaces.end()
+				|| (itr->second.name != abs_file_path)) {
+
+				dberr_t ret = fil_ibd_create(
+					space_id, tablespace_name.c_str(),
+					abs_file_path.c_str(),
+					flags, FIL_IBD_FILE_INITIAL_SIZE);
+
+				if (ret != DB_SUCCESS) {
+					ib::fatal() << "Could not create the"
+						<< " tablespace : "
+						<< abs_file_path
+						<< " with space Id : "
+						<< space_id;
+				}
+			}
+		}
+		break;
+	case MLOG_FILE_RENAME2:
+		/* The new name follows the old name. */
+		byte*	new_table_name = end_ptr + 2;
+		if (end < new_table_name) {
+			return(NULL);
+		}
+
+		ulint	new_len = mach_read_from_2(end_ptr);
+
+		if (end < end_ptr + 2 + new_len) {
+			return(NULL);
+		}
+
+		end_ptr += 2 + new_len;
+
+		char* new_table = reinterpret_cast<char*>(new_table_name);
+		os_normalize_path(new_table);
+
+		corrupt = corrupt
+			|| new_len < sizeof "/a.ibd\0"
+			|| memcmp(new_table_name + new_len - 5, DOT_IBD, 5) != 0
+			|| !memchr(new_table_name, OS_PATH_SEPARATOR, new_len);
+
+		if (corrupt) {
+			recv_sys->found_corrupt_log = true;
+			break;
+		}
+
+		if (recv_is_making_a_backup
+		    || (!recv_replay_file_ops)
+		    || (is_intermediate_file(name))
+		    || (is_intermediate_file(new_table))) {
+			/* Don't rename table while :-
+			1. scanning the redo logs during backup
+			2. apply-log on a partial backup
+			3. The new name is already used.
+			4. A tablespace is not open in memory with the old name.
+			This will prevent unintended renames during recovery. */
+			break;
+		} else {
+			make_abs_file_path(new_table, abs_file_path,
+					   tablespace_name);
+
+			new_name = static_cast<char*>(ut_malloc_nokey(
+				(abs_file_path.length() + 1)));
+			strcpy(new_name, abs_file_path.c_str());
+			new_len = strlen(new_name) + 1;
+		}
+
+		fil_name_process(name, len, space_id, false);
+		fil_name_process( new_name, new_len, space_id, false);
+
+		if (!fil_op_replay_rename(
+			space_id, first_page_no,
+			name,
+			new_name)) {
+			recv_sys->found_corrupt_fs = true;
+		}
+	}
+
+	if (!recv_is_making_a_backup) {
+		ut_free(name);
+		ut_free(new_name);
+	}
+	return(end_ptr);
+}
+#endif /* UNIV_HOTBACKUP */
 
 /********************************************************//**
 Creates the recovery system. */
@@ -495,7 +780,7 @@ recv_sys_close(void)
 		if (recv_sys->heap != NULL) {
 			mem_heap_free(recv_sys->heap);
 		}
-
+#ifndef UNIV_HOTBACKUP
 		if (recv_sys->flush_start != NULL) {
 			os_event_destroy(recv_sys->flush_start);
 		}
@@ -503,7 +788,7 @@ recv_sys_close(void)
 		if (recv_sys->flush_end != NULL) {
 			os_event_destroy(recv_sys->flush_end);
 		}
-
+#endif /* !UNIV_HOTBACKUP */
 		ut_free(recv_sys->buf);
 		ut_free(recv_sys->last_block_buf_start);
 
@@ -535,7 +820,7 @@ recv_sys_mem_free(void)
 		if (recv_sys->heap != NULL) {
 			mem_heap_free(recv_sys->heap);
 		}
-
+#ifndef UNIV_HOTBACKUP
 		if (recv_sys->flush_start != NULL) {
 			os_event_destroy(recv_sys->flush_start);
 		}
@@ -543,7 +828,7 @@ recv_sys_mem_free(void)
 		if (recv_sys->flush_end != NULL) {
 			os_event_destroy(recv_sys->flush_end);
 		}
-
+#endif /* !UNIV_HOTBACKUP */
 		ut_free(recv_sys->buf);
 		ut_free(recv_sys->last_block_buf_start);
 		ut_free(recv_sys);
@@ -1093,14 +1378,12 @@ recv_read_checkpoint_info_for_backup(
 	cp_buf = hdr + max_cp;
 
 	*lsn = mach_read_from_8(cp_buf + LOG_CHECKPOINT_LSN);
-	*offset = mach_read_from_4(
-		cp_buf + LOG_CHECKPOINT_OFFSET_LOW32);
-	*offset |= ((lsn_t) mach_read_from_4(
-			    cp_buf + LOG_CHECKPOINT_OFFSET_HIGH32)) << 32;
+	*offset = mach_read_from_8(
+		cp_buf + LOG_CHECKPOINT_OFFSET);
 
 	*cp_no = mach_read_from_8(cp_buf + LOG_CHECKPOINT_NO);
 
-	*first_header_lsn = mach_read_from_8(hdr + LOG_FILE_START_LSN);
+	*first_header_lsn = mach_read_from_8(hdr + LOG_HEADER_START_LSN);
 
 	return(TRUE);
 }
@@ -1238,7 +1521,9 @@ recv_parse_or_apply_log_rec_body(
 	mtr_t*		mtr)
 {
 	ut_ad(!block == !mtr);
+#ifndef UNIV_HOTBACKUP
 	ut_ad(!apply || recv_sys->mlog_checkpoint_lsn != 0);
+#endif /* !UNIV_HOTBACKUP */
 
 	switch (type) {
 	case MLOG_FILE_NAME:
@@ -1251,6 +1536,66 @@ recv_parse_or_apply_log_rec_body(
 		return(fil_name_parse(ptr, end_ptr, space_id, page_no, type,
 				      apply));
 	case MLOG_INDEX_LOAD:
+#ifdef UNIV_HOTBACKUP
+		/* While scaning redo logs during  backup phase a
+		MLOG_INDEX_LOAD type redo log record indicates a DDL
+		(create index, alter table...)is performed with
+		'algorithm=inplace'. This redo log indicates that
+
+		1. The DDL was started after MEB started backing up, in which
+		case MEB will not be able to take a consistent backup and should
+		fail. or
+		2. There is a possibility of this record existing in the REDO
+		even after the completion of the index create operation. This is
+		because of InnoDB does  not checkpointing after the flushing the
+		index pages.
+
+		If MEB gets the last_redo_flush_lsn and that is less than the
+		lsn of the current record MEB fails the backup process.
+		Error out in case of online backup and emit a warning in case
+		of offline backup and continue.
+		*/
+		if (!recv_recovery_on) {
+			if (is_online_redo_copy) {
+				if (backup_redo_log_flushed_lsn
+				    < recv_sys->recovered_lsn) {
+					ib::trace() << "Last flushed lsn: "
+						<< backup_redo_log_flushed_lsn
+						<< " load_index lsn "
+						<< recv_sys->recovered_lsn;
+
+					if (backup_redo_log_flushed_lsn == 0)
+						ib::error() << "MEB was not "
+							"able to determine the"
+							"InnoDB Engine Status";
+
+					ib::fatal() << "An optimized(without"
+						" redo logging) DDLoperation"
+						" has been performed. All"
+						" modified pages may not have"
+						" been flushed to the disk yet."
+						" \n    MEB will not be able"
+						" take a consistent backup."
+						" Retry the backup operation";
+				}
+				/** else the index is flushed to disk before
+				backup started hence no error */
+			} else {
+				/* offline backup */
+				ib::trace() << "Last flushed lsn: "
+					<< backup_redo_log_flushed_lsn
+					<< " load_index lsn "
+					<< recv_sys->recovered_lsn;
+
+				ib::warn() << "An optimized(without redo"
+					" logging) DDL operation has been"
+					" performed. All modified pages may not"
+					" have been flushed to the disk yet."
+					" \n    This offline backup may not"
+					" be consistent";
+			}
+		}
+#endif /* UNIV_HOTBACKUP */
 		if (end_ptr < ptr + 8) {
 			return(NULL);
 		}
@@ -1832,9 +2177,6 @@ recv_recover_page_func(
 	lsn_t		end_lsn;
 	lsn_t		page_lsn;
 	lsn_t		page_newest_lsn;
-#ifdef UNIV_DEBUG
-	lsn_t		max_lsn;
-#endif /* UNIV_DEBUG */
 	ibool		modification_to_page;
 	mtr_t		mtr;
 
@@ -1862,12 +2204,13 @@ recv_recover_page_func(
 		return;
 	}
 
+#ifndef UNIV_HOTBACKUP
 	ut_ad(recv_needed_recovery);
-	ut_d(max_lsn = UT_LIST_GET_FIRST(log_sys->log_groups)->scanned_lsn);
 
 	DBUG_PRINT("ib_log",
 		   ("Applying log to page %u:%u",
 		    recv_addr->space, recv_addr->page_no));
+#endif /* !UNIV_HOTBACKUP */
 
 	recv_addr->state = RECV_BEING_PROCESSED;
 
@@ -1923,7 +2266,8 @@ recv_recover_page_func(
 	while (recv) {
 		end_lsn = recv->end_lsn;
 
-		ut_ad(end_lsn <= max_lsn);
+		ut_ad(end_lsn
+		      <= UT_LIST_GET_FIRST(log_sys->log_groups)->scanned_lsn);
 
 		if (recv->len > RECV_DATA_BLOCK_SIZE) {
 			/* We have to copy the record body to a separate
@@ -2033,6 +2377,8 @@ recv_recover_page_func(
 		buf_flush_recv_note_modification(block, start_lsn, end_lsn);
 		log_flush_order_mutex_exit();
 	}
+#else /* !UNIV_HOTBACKUP */
+	start_lsn = start_lsn; /* Silence compiler */
 #endif /* !UNIV_HOTBACKUP */
 
 	/* Make sure that committing mtr does not change the modification
@@ -2299,14 +2645,15 @@ recv_apply_log_recs_for_backup(void)
 	bool		success;
 	ulint		error;
 	ulint		i;
-
+	fil_space_t*	space = NULL;
+	page_id_t	page_id;
 	recv_sys->apply_log_recs = TRUE;
 	recv_sys->apply_batch_on = TRUE;
 
 	block = back_block1;
 
 	ib::info() << "Starting an apply batch of log records to the"
-		" database...";
+		" database...\n";
 
 	fputs("InnoDB: Progress in percent: ", stderr);
 
@@ -2314,9 +2661,15 @@ recv_apply_log_recs_for_backup(void)
 
 	for (i = 0; i < n_hash_cells; i++) {
 		/* The address hash table is externally chained */
-		recv_addr = hash_get_nth_cell(recv_sys->addr_hash, i)->node;
+		recv_addr = static_cast<recv_addr_t*>(hash_get_nth_cell(
+					recv_sys->addr_hash, i)->node);
 
 		while (recv_addr != NULL) {
+
+			ib::trace() << "recv_addr {State: " << recv_addr->state
+				<< ", Space id: " << recv_addr->space
+				<< "Page no: " << recv_addr->page_no
+				<< ". index i: " << i << "\n";
 
 			bool			found;
 			const page_size_t&	page_size
@@ -2404,7 +2757,8 @@ recv_apply_log_recs_for_backup(void)
 			fil0fil.cc routines */
 
 			buf_flush_init_for_writing(
-				block->frame, buf_block_get_page_zip(block),
+				block, block->frame,
+				buf_block_get_page_zip(block),
 				mach_read_from_8(block->frame + FIL_PAGE_LSN),
 				fsp_is_checksum_disabled(
 					block->page.id.space()));
@@ -2422,7 +2776,8 @@ recv_apply_log_recs_for_backup(void)
 					block->frame, NULL);
 			}
 skip_this_recv_addr:
-			recv_addr = HASH_GET_NEXT(addr_hash, recv_addr);
+			recv_addr = static_cast<recv_addr_t*>(HASH_GET_NEXT(
+					addr_hash, recv_addr));
 		}
 
 		if ((100 * i) / n_hash_cells
@@ -2432,7 +2787,10 @@ skip_this_recv_addr:
 			fflush(stderr);
 		}
 	}
-
+	/* write logs in next line */
+	fprintf(stderr, "\n");
+	recv_sys->apply_log_recs = FALSE;
+	recv_sys->apply_batch_on = FALSE;
 	recv_sys_empty_hash();
 }
 #endif /* !UNIV_HOTBACKUP */
@@ -2740,7 +3098,9 @@ loop:
 				}
 				recv_sys->mlog_checkpoint_lsn
 					= recv_sys->recovered_lsn;
+#ifndef UNIV_HOTBACKUP
 				return(true);
+#endif /* !UNIV_HOTBACKUP */
 			}
 			break;
 		case MLOG_FILE_NAME:
@@ -2778,11 +3138,11 @@ loop:
 			/* fall through */
 		case MLOG_INDEX_LOAD:
 			DBUG_PRINT("ib_log",
-				   ("scan " LSN_PF ": log rec %s"
-				    " len " ULINTPF
-				    " page " ULINTPF ":" ULINTPF,
-				    old_lsn, get_mlog_string(type),
-				    len, space, page_no));
+				("scan " LSN_PF ": log rec %s"
+				" len " ULINTPF
+				" page " ULINTPF ":" ULINTPF,
+				old_lsn, get_mlog_string(type),
+				len, space, page_no));
 		}
 	} else {
 		/* Check that all the records associated with the single mtr
@@ -3941,7 +4301,8 @@ recv_reset_log_files_for_backup(
 	*/
 	ut_a(log_dir_len + strlen(ib_logfile_basename) + 11  < sizeof(name));
 
-	buf = ut_zalloc_nokey(LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE);
+	buf = (byte*)ut_zalloc_nokey(LOG_FILE_HDR_SIZE +
+				     OS_FILE_LOG_BLOCK_SIZE);
 
 	for (i = 0; i < n_log_files; i++) {
 
@@ -3964,7 +4325,7 @@ recv_reset_log_files_for_backup(
 
 		if (!success) {
 			ib::fatal() << "Cannot set " << name << " size to "
-				<< log_file_size;
+				<< (long long unsigned)log_file_size;
 		}
 
 		os_file_flush(log_file);
@@ -3975,9 +4336,13 @@ recv_reset_log_files_for_backup(
 
 	log_reset_first_header_and_checkpoint(buf, lsn);
 
-	log_block_init_in_old_format(buf + LOG_FILE_HDR_SIZE, lsn);
+	log_block_init(buf + LOG_FILE_HDR_SIZE, lsn);
 	log_block_set_first_rec_group(buf + LOG_FILE_HDR_SIZE,
 				      LOG_BLOCK_HDR_SIZE);
+	log_block_set_checksum(buf + LOG_FILE_HDR_SIZE,
+	log_block_calc_checksum_crc32(buf + LOG_FILE_HDR_SIZE));
+
+	log_block_set_checksum(buf, log_block_calc_checksum_crc32(buf));
 	sprintf(name, "%s%s%lu", log_dir, ib_logfile_basename, (ulong)0);
 
 	log_file = os_file_create_simple(innodb_log_file_key,
