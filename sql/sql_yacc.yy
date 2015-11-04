@@ -1402,7 +1402,7 @@ END_OF_INPUT
 
 %type <limit_clause> limit_clause opt_limit_clause
 
-%type <ulonglong_number> query_spec_option 
+%type <ulonglong_number> query_spec_option
 
 %type <select_options> select_option select_option_list select_options
         empty_select_options
@@ -8982,6 +8982,32 @@ select_init:
           }
         ;
 
+/**
+  A <query_expression> can be used an <expr>, corresponding to the standard's
+  <select statement: single row>. Now, because both a <query_expression> and
+  an <expr> can appear syntactically within any number of parentheses, we get
+  an ambiguous grammar: Where do the parentheses belong? Techically, we have
+  to tell Bison by which rule to reduce the extra pair of parentheses. We
+  solve it in a somewhat tedious way by defining a query_expression so that it
+  can't have outer parentheses. This forces us to be very explicit about
+  exactly where we allow parentheses; while the standard defines only one rule
+  for <query expression> parentheses, we have to do it in several places. But
+  this is a blessing in disguise, as we are able to define our syntax in a
+  more fine-grained manner, and this is necessary in order to support some
+  syntax that our previous top-down parser allowed. Some of this legacy syntax
+  can be seen in the last two sub-rules here.
+
+  Even if we define a query_expression not to have outer parentheses, we still
+  get a shift/reduce conflict for the <subquery> rule, but we solve this by
+  using an artifical token SUBQUERY_AS_EXPR that has less priority than
+  parentheses. This ensures that the parser consumes as many parentheses as it
+  can, and only when that fails will it try to reduce, and by then it will be
+  clear from the lookahead token whether we have a subquery or just a
+  query_expression within parentheses. For example, if the lookahead token is
+  UNION it's just a query_expression within parentheses and the parentheses
+  have no semantical meaning. If the next token is PLUS, we know it must be an
+  <expr> and the parentheses really mean it's a nested query expression.
+*/
 query_expression:
           query_expression_body
           opt_order_clause
@@ -9025,6 +9051,32 @@ query_expression:
           }
         ;
 
+/**
+  This rule is defined in a non-standard way. The standard defines a
+  query_expression_body as
+
+    <query expression body> ::=
+        <query term>
+      | <query expression body> UNION <query term>
+
+  We have a full query_expression on the left-hand side instead, the reason is
+  the procedure and locking clauses. A locking clause is allowed before a
+  union, e.g.
+
+    SELECT ... FOR UPDATE UNION SELECT ...
+
+  At the same time, the locking clause comes after order and limit clauses in
+  a query_expression. Naively, we could define <query expression body> as
+
+    <query expression body> ::=
+        <query term>
+      | <query expression body> <locking clause> UNION <query term>
+
+  But such a grammar is ambiguous and would require special precedence
+  rules. In this case we choose to define a superset of the grammar, and
+  prohibit syntax that we can't (and don't want to) support by throwing parse
+  errors in the semantic actions.
+*/
 query_expression_body:
           query_primary
           {
@@ -9129,12 +9181,12 @@ select_part2:
           opt_select_lock_type
           {
             $$= NEW_PTN PT_select_part2($1, NULL, NULL, NULL, NULL, NULL,
-                                        $2, $3, NULL, NULL, $4);
+                                        $2, $3, NULL, $4);
           }
         | select_options_and_item_list into_clause opt_select_lock_type
           {
             $$= NEW_PTN PT_select_part2($1, $2, NULL, NULL, NULL, NULL, NULL,
-                                        NULL, NULL, NULL, $3);
+                                        NULL, NULL, $3);
           }
         | select_options_and_item_list  /* #1 */
           from_clause                   /* #2 */
@@ -9147,7 +9199,7 @@ select_part2:
           opt_select_lock_type          /* #9 */
           {
             $$= NEW_PTN PT_select_part2($1, NULL, $2, $3, $4, $5, $6, $7, $8,
-                                        NULL, $9);
+                                        $9);
           }
         ;
 
@@ -10705,10 +10757,6 @@ derived_table: table_subquery opt_table_alias
             if ($2 == NULL)
               my_message(ER_DERIVED_MUST_HAVE_ALIAS,
                          ER_THD(YYTHD, ER_DERIVED_MUST_HAVE_ALIAS), MYF(0));
-
-            // Legacy compatibility.
-            // if (!$1->is_union())
-            //   $1->remove_parentheses();
 
             $$= NEW_PTN PT_derived_table($1, $2);
           }

@@ -37,34 +37,25 @@ public:
 };
 
 
-/**
-  Convenience function to avoid having to write
-
-  @verbatim
-
-  if (node != NULL && node->contextualize(pc))
-    return true;
-
-  @endverbatim
-
-  With this function you only have to do
-
-  @verbatim
-
-  if (::contextualize(node, pc))
-    return true;
-
-  @endverbatim
-*/
-bool contextualize(Parse_tree_node *node, Parse_context *pc);
-
-
 class PT_select_lex : public Parse_tree_node
 {
 public:
   SELECT_LEX *value;
 };
 
+
+/**
+  Convenience function that calls Parse_tree_node::contextualize() on the node
+  if it's non-NULL.
+*/
+bool contextualize(Parse_context *pc, Parse_tree_node *node);
+
+
+/**
+  Convenience function that calls Item::itemize() on the item if it's
+  non-NULL.
+*/
+bool itemize(Parse_context *pc, Item **item);
 
 
 class PT_order_expr : public Parse_tree_node, public ORDER
@@ -1858,6 +1849,20 @@ public:
 
 class PT_select_part2 : public Parse_tree_node
 {
+  /// Adds a default constructor to select_lock_type.
+  class Default_constructible_locking_clause : public Select_lock_type
+  {
+  public:
+    Default_constructible_locking_clause() { is_set= false; }
+
+    Default_constructible_locking_clause(const Select_lock_type &slt)
+    {
+      is_set= slt.is_set;
+      lock_type= slt.lock_type;
+      is_safe_to_cache_query= slt.is_safe_to_cache_query;
+    }
+  };
+
   typedef Parse_tree_node super;
 
   PT_select_options_and_item_list *select_options_and_item_list;
@@ -1869,11 +1874,7 @@ class PT_select_part2 : public Parse_tree_node
   PT_order *opt_order_clause;
   PT_limit_clause *opt_limit_clause;
   PT_procedure_analyse *opt_procedure_analyse_clause;
-
-  /// @todo: remove this one. There can only be one INTO and they mean the
-  /// same thing.
-  PT_into_destination *opt_into2;
-  Select_lock_type opt_select_lock_type;
+  Default_constructible_locking_clause opt_select_lock_type;
 
 public:
   PT_select_part2(
@@ -1886,7 +1887,6 @@ public:
     PT_order *opt_order_clause_arg,
     PT_limit_clause *opt_limit_clause_arg,
     PT_procedure_analyse *opt_procedure_analyse_clause_arg,
-    PT_into_destination *opt_into2_arg,
     const Select_lock_type &opt_select_lock_type_arg)
   : select_options_and_item_list(select_options_and_item_list_arg),
     opt_into1(opt_into1_arg),
@@ -1897,7 +1897,6 @@ public:
     opt_order_clause(opt_order_clause_arg),
     opt_limit_clause(opt_limit_clause_arg),
     opt_procedure_analyse_clause(opt_procedure_analyse_clause_arg),
-    opt_into2(opt_into2_arg),
     opt_select_lock_type(opt_select_lock_type_arg)
   {}
 
@@ -1917,7 +1916,6 @@ public:
     opt_order_clause(NULL),
     opt_limit_clause(NULL),
     opt_procedure_analyse_clause(NULL),
-    opt_into2(NULL),
     opt_select_lock_type()
   {}
 
@@ -1936,7 +1934,22 @@ public:
     opt_order_clause(NULL),
     opt_limit_clause(NULL),
     opt_procedure_analyse_clause(NULL),
-    opt_into2(NULL),
+    opt_select_lock_type()
+  {}
+
+  PT_select_part2(
+    PT_select_options_and_item_list *select_options_and_item_list_arg,
+    PT_table_reference_list *from_clause_arg,
+    Item *opt_where_clause_arg)
+  : select_options_and_item_list(select_options_and_item_list_arg),
+    opt_into1(NULL),
+    from_clause(from_clause_arg),
+    opt_where_clause(opt_where_clause_arg),
+    opt_group_clause(NULL),
+    opt_having_clause(NULL),
+    opt_order_clause(NULL),
+    opt_limit_clause(NULL),
+    opt_procedure_analyse_clause(NULL),
     opt_select_lock_type()
   {}
 
@@ -1951,7 +1964,6 @@ public:
     opt_order_clause(NULL),
     opt_limit_clause(NULL),
     opt_procedure_analyse_clause(NULL),
-    opt_into2(NULL),
     opt_select_lock_type()
   {}
 
@@ -2048,7 +2060,7 @@ public:
       if (contextualize_order_and_limit(pc))
         return true;
 
-    if (::contextualize(m_procedure_analyse, pc))
+    if (::contextualize(pc, m_procedure_analyse))
       return true;
 
     if (m_procedure_analyse && pc->select->master_unit()->outer_select() != NULL)
@@ -2081,7 +2093,7 @@ public:
     contextualized= true;
 
     pc->thd->where= "global ORDER clause";
-    if (::contextualize(m_order, pc) || ::contextualize(m_limit, pc))
+    if (::contextualize(pc, m_order) || ::contextualize(pc, m_limit))
       return true;
 
     pc->thd->where= THD::DEFAULT_WHERE;
@@ -2231,7 +2243,7 @@ public:
   {
     if (Parse_tree_node::contextualize(pc) ||
         m_select_part2->contextualize(pc) ||
-        ::contextualize(m_hints, pc))
+        ::contextualize(pc, m_hints))
       return true;
     return false;
   }
@@ -2513,7 +2525,7 @@ public:
     pc->thd->lex->sql_command= m_sql_command;
 
     return m_select_init->contextualize(pc) ||
-      ::contextualize(m_into, pc);
+      ::contextualize(pc, m_into);
   }
 
 private:

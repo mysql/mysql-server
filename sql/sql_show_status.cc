@@ -72,13 +72,6 @@ build_query(const POS &pos,
     SELECT_LEX::SQL_CACHE_UNSPECIFIED /* sql_cache */
   };
 
-  static const Select_lock_type lock_type=
-  {
-    false, /* is_set */
-    TL_READ, /* lock_type */
-    false /* is_safe_to_cache_query */
-  };
-
   /* ... VARIABLE_NAME ... */
   PTI_simple_ident_ident *ident_name;
   ident_name= new (thd->mem_root) PTI_simple_ident_ident(pos, col_name);
@@ -199,16 +192,8 @@ build_query(const POS &pos,
   /* SELECT ... [ WHERE <cond> ] */
   PT_select_part2 *select_part2;
   select_part2= new (thd->mem_root) PT_select_part2(options_and_item_list,
-                                                    NULL, /* opt_into */
-                                                    table_reference_list, /* from */
-                                                    where_clause, /* opt_where_clause */
-                                                    NULL, /* opt_group_clause */
-                                                    NULL, /* opt_having_clause */
-                                                    NULL, /* opt_order_clause */
-                                                    NULL, /* opt_limit_clause */
-                                                    NULL, /* opt_procedure_analyse_clause */
-                                                    NULL, /* opt_into */
-                                                    lock_type /* opt_select_lock_type */);
+                                                    table_reference_list,
+                                                    where_clause);
   if (select_part2 == NULL)
     return NULL;
 
@@ -223,7 +208,7 @@ build_query(const POS &pos,
     return NULL;
 
    PT_query_expression *query_expression=
-     new (thd->mem_root) PT_query_expression(query_expression_body, lock_type);
+     new (thd->mem_root) PT_query_expression(query_expression_body);
    if (query_expression == NULL)
      return NULL;
 
