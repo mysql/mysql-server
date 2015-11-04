@@ -107,9 +107,9 @@ ulonglong Tables::read_se_private_id(const Raw_record &r)
   Retrieve max se_private_id for a given engine name
   stored in mysql.tables DD tables.
 
-  @param trx - The DD transaction in use.
-  @param engine - The engine name within which we get max se_private_id
-  @param max_id (OUT) - Writes the resulting max id found.
+  @param       otx     The context for opening the DD tables.
+  @param       engine  The engine name within which we get max se_private_id.
+  @param [out] max_id  The resulting max id found.
 */
 /* purecov: begin deadcode */
 void Tables::max_se_private_id(Open_dictionary_tables_ctx *otx,

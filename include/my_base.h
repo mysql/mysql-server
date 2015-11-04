@@ -408,7 +408,7 @@ enum ha_base_keytype {
   tool. This tool marks such tables with HA_OPTION_COMPRESS_RECORD flag in
   MYISAM_SHARE/MI_ISAMINFO::options. Then storage engine sets this flag in
   TABLE_SHARE::db_options_in_use to let SQL-layer know about the fact. It is
-  never set in HA_CREATE_INFO::table_options/TABLE_SHARE::db_create_options.
+  never set in HA_CREATE_INFO::table_options or TABLE_SHARE::db_create_options.
 */
 #define HA_OPTION_COMPRESS_RECORD	4
 /**
@@ -419,8 +419,8 @@ enum ha_base_keytype {
 /**
   Storage engine (MyISAM) internal flag for marking temporary tables.
 
-  Used in MYISAM_SHARE/MI_ISAMINFO::options, not used by SQL-layer/
-  in HA_CREATE_INFO::table_options/TABLE_SHARE::db_create_options.
+  Used in MYISAM_SHARE/MI_ISAMINFO::options, not used by SQL-layer,
+  in HA_CREATE_INFO::table_options or TABLE_SHARE::db_create_options.
 */
 #define HA_OPTION_TMP_TABLE		16
 /**
@@ -445,7 +445,7 @@ enum ha_base_keytype {
 */
 #define HA_OPTION_NO_PACK_KEYS          128
 /**
-  Flag specific to table creation/HA_CREATE_INFO::table_options.
+  Flag specific to table creation and HA_CREATE_INFO::table_options.
   Indicates that storage engine instead of creating new table, needs
   to discover existing one (which metadata was discovered from SE
   earlier).
@@ -456,8 +456,8 @@ enum ha_base_keytype {
   Storage engine (MyISAM) internal flag for marking tables which
   rely on SQL-layer because they have keys using fulltext parser plugin.
 
-  Used in MYISAM_SHARE/MI_ISAMINFO::options, not used by SQL-layer/
-  in HA_CREATE_INFO::table_options/TABLE_SHARE::db_create_options.
+  Used in MYISAM_SHARE/MI_ISAMINFO::options, not used by SQL-layer,
+  in HA_CREATE_INFO::table_options or TABLE_SHARE::db_create_options.
 */
 #define HA_OPTION_RELIES_ON_SQL_LAYER   512
 /** Unused. Formerly HA_OPTION_NULL_FIELDS - reserved for Maria SE. */

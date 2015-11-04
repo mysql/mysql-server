@@ -39,11 +39,11 @@
 #include "dd/types/partition_value.h"         // dd::Partition_value
 #include "dd/types/table.h"                   // dd::Table
 
-/// @TODO
-#include "dd/impl/utils.h"  // dd::eat_str
+// TODO: Avoid exposing dd/impl headers in public files.
+#include "dd/impl/utils.h"                    // dd::eat_str
 #include "dd/types/fwd.h"
 
-#include <memory> // auto_ptr
+#include <memory>                             // auto_ptr
 
 
 enum_field_types dd_get_old_field_type(dd::Column::enum_column_types type)
@@ -1788,13 +1788,13 @@ static bool setup_partition_from_dd(THD *thd,
 /**
   Set field_list
 
-  To append each field to the field_list it will use a Properties object
-  created from the partition_expression string.
+  To append each field to the field_list it will parse the
+  submitted partition_expression string.
 
   Must be in sync with get_field_list_str!
 
   @param[in]     mem_root   Where to allocate the memory for the list entries.
-  @param[in]     prop       Properties object containing the column names.
+  @param[in]     str        String object containing the column names.
   @param[in,out] field_list List to add field names to.
 
   @return false on success, else true.
@@ -1848,6 +1848,8 @@ static bool set_field_list(MEM_ROOT *mem_root,
   - On the open of the first TABLE instance, copy the field images
     to the TABLE_SHARE::partition_info for each partition value.
 
+  @param thd      Thread context.
+  @param share    Share to be updated with partitioning details.
   @param tab_obj  dd::Table object to get partition info from.
 
   @return false if success, else true.

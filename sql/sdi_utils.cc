@@ -23,7 +23,7 @@ bool create_serialized_meta_data(const char *schema_name,
                                  const char *table_name,
                                  uchar **meta_data, size_t *meta_data_length)
 {
-  /**
+  /*
     TODO: This function is currently not implemented. The procedure here
     will be along the following lines:
 

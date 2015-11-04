@@ -291,9 +291,12 @@ public:
   those passed as out parameter into set operation functions, call this
   function before using the result object's data.
 
-  @param resbuf_mgr tracks the result buffer
+  @param          resbuf_mgr   Tracks the result buffer
+  @param [in,out] geout        Geometry object
+  @param [in,out] res          GEOMETRY string.
+
   @return true if an error occurred or if the geometry is an empty
-          collection; false if no error occured.
+          collection; false if no error occurred.
 */
 template <typename BG_geotype>
 bool post_fix_result(BG_result_buf_mgr *resbuf_mgr,

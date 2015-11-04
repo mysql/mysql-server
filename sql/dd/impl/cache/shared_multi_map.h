@@ -412,6 +412,7 @@ public:
     element, with its new keys, is added to the maps again.
 
     @param  element   Element for which new keys should be generated.
+    @param  object    New object to replace the old one.
   */
 
   void replace(Cache_element<T> *element, const T* object);
@@ -421,6 +422,7 @@ public:
     Alter stickiness of an element.
 
     @param   element   Element pointer.
+    @param   sticky    New stickiness.
   */
 
   void set_sticky(Cache_element<T> *element, bool sticky);

@@ -1278,6 +1278,15 @@ void Dictionary_client::dump() const
 }
 /* purecov: end */
 
+// The explicit instantiation of the template members below
+// is not handled well by doxygen, so we enclose this in a
+// cond/endcon block. Documenting these does not add much
+// value anyway, if the member definitions were in a header
+// file, the compiler would do the instantiation for us.
+
+/**
+ @cond
+*/
 
 // Explicitly instantiate the types for the various usages.
 template bool Dictionary_client::fetch_schema_components(
@@ -1402,6 +1411,10 @@ template bool Dictionary_client::update(View*);
 template void Dictionary_client::add(const View*);
 template void Dictionary_client::set_sticky(const View*, bool);
 template bool Dictionary_client::is_sticky(const View*) const;
+
+/**
+ @endcond
+*/
 
 } // namespace cache
 } // namespace dd

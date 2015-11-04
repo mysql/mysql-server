@@ -96,7 +96,7 @@ static inline int write_to_binlog(THD *thd, char *query, size_t q_len,
 
   @param       thd          Thread context.
   @param       db_name      Database name.
-  @param [out] CHARSET_INFO Charset object pointer if object exists else NULL.
+  @param [out] collation    Charset object pointer if object exists else NULL.
 
   @return      false No error.
                true  Error (thd->is_error is assumed to be set.)

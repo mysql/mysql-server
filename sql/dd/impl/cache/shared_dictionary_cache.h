@@ -239,6 +239,7 @@ public:
 
     @tparam  T         Dictionary object type.
     @param   element   Element pointer.
+    @param   object    New object to replace the old one.
   */
 
   template <typename T>

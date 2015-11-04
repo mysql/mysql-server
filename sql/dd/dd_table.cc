@@ -43,10 +43,10 @@
 #include "dd/types/tablespace.h"              // dd::Tablespace
 #include "dd/types/view.h"                    // dd::View
 
-/// @TODO
+// TODO: Avoid exposing dd/impl headers in public files.
 #include "dd/impl/utils.h"                    // dd::escape
 
-#include <memory> // auto_ptr
+#include <memory>                             // auto_ptr
 
 
 // Explicit instanciation of some template functions
@@ -857,7 +857,7 @@ static bool add_part_col_vals(partition_info *part_info,
   @param[in,out] tab_obj        Table object where to store the info.
   @param[in]     create_info    Create info.
   @param[in]     create_fields  List of fiels in the new table.
-  @param[in]     partition_info Partition info object.
+  @param[in]     part_info      Partition info object.
 
   @return false on success, else true.
 */

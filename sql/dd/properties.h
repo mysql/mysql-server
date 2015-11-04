@@ -292,8 +292,8 @@ public:
 
   /**
     Add a new key=value pair where the value is a bool. The
-    bool is converted to string, <false> is represented as "0"
-    while <true> is represented as "1".
+    bool is converted to string, 'false' is represented as "0"
+    while 'true' is represented as "1".
 
     @param key   key to lookup
     @param value bool value to be associated with the key
@@ -414,7 +414,7 @@ public:
   { return from_int<uint32>(value); }
 
   /**
-    Convert a bool to string, <true> is encoded as "1", <false>
+    Convert a bool to string, 'true' is encoded as "1", 'false'
     is encoded as "0".
 
     @param    value   bool variable to convert to string

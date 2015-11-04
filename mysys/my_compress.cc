@@ -144,7 +144,16 @@ my_bool my_uncompress(uchar *packet, size_t len, size_t *complen)
 }
 
 
-// Only used by NDB
+/**
+  Compress meta data.
+
+  @note Not implemented yet. Will probably be needed by NDB.
+
+  @param       meta_data                   Meta data to be compressed.
+  @param       meta_data_length            Length of meta data.
+  @param [out] compressed_meta_data        Compressed meta data.
+  @param [out] compressed_meta_data_length Length of compressed meta data.
+*/
 /* purecov: begin deadcode */
 my_bool compress_serialized_meta_data(
           uchar *meta_data __attribute__((unused)),
@@ -159,6 +168,16 @@ my_bool compress_serialized_meta_data(
 }
 
 
+/**
+  Uncompress meta data.
+
+  @note Not implemented yet. Will probably be needed by NDB.
+
+  @param       compressed_meta_data        Compressed meta data.
+  @param       compressed_meta_data_length Length of compressed meta data.
+  @param [out] meta_data                   Meta data to be compressed.
+  @param [out] meta_data_length            Length of meta data.
+*/
 my_bool uncompress_serialized_meta_data(
           uchar *compressed_meta_data __attribute__((unused)),
           size_t compressed_meta_data_length __attribute__((unused)),

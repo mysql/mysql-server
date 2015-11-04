@@ -758,7 +758,7 @@ void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
   @param[in]     pk            Primary key
   @param[in]     pk_n          Primary key number
   @param[in]     share         Pointer to TABLE_SHARE
-  @param[in]     handler       Pointer to handler
+  @param[in]     handler_file  Pointer to handler
   @param[in,out] usable_parts  Pointer to usable_parts variable
 
   @retval                      Number of added key parts
