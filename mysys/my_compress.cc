@@ -156,14 +156,15 @@ my_bool my_uncompress(uchar *packet, size_t len, size_t *complen)
 */
 /* purecov: begin deadcode */
 my_bool compress_serialized_meta_data(
-          uchar *meta_data __attribute__((unused)),
+          uchar *meta_data __attribute__((unused)) ,
           size_t meta_data_length __attribute__((unused)),
-          uchar **compressed_meta_data __attribute__((unused)),
-          size_t *compressed_meta_data_length __attribute__((unused)))
+          uchar **compressed_meta_data,
+          size_t *compressed_meta_data_length)
 {
   // TODO: This function is currently not implemented
   // TODO: Add new P_S key for allocation
-  DBUG_ASSERT(0);
+  *compressed_meta_data= NULL;
+  *compressed_meta_data_length= 0;
   return 0;
 }
 
@@ -181,11 +182,12 @@ my_bool compress_serialized_meta_data(
 my_bool uncompress_serialized_meta_data(
           uchar *compressed_meta_data __attribute__((unused)),
           size_t compressed_meta_data_length __attribute__((unused)),
-          uchar **meta_data __attribute__((unused)),
-          size_t *meta_data_length __attribute__((unused)))
+          uchar **meta_data,
+          size_t *meta_data_length)
 {
-  // TODO: This function is currently not implemented
-  DBUG_ASSERT(0);
+  // TODO: This function is currently not implemented.
+  *meta_data= NULL;
+  *meta_data_length= 0;
   return 0;
 }
 /* purecov: end */

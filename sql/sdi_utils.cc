@@ -15,6 +15,9 @@
 
 #include "sdi_utils.h"
 
+#include "my_global.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
 #include <string.h>
 
 
@@ -44,7 +47,8 @@ bool create_serialized_meta_data(const char *schema_name,
     10. Generate a string representation of the serialized meta data.
     11. Assign output parameters and return.
   */
-  DBUG_ASSERT(false);
+  *meta_data_length= 0;
+  *meta_data= NULL;
   return false;
 }
 
@@ -53,9 +57,11 @@ bool import_serialized_meta_data(const uchar *meta_data,
                                  size_t meta_data_length,
                                  bool readonly)
 {
-  // TODO: This function is currently not implemented
-  DBUG_ASSERT(false);
-  return false;
+  // TODO: This function is currently not implemented. Return error so
+  // that client code will not attempt to open a non-existent table
+  my_error(ER_FEATURE_DISABLED, MYF(0), "Serialized metadata import",
+           "WL#7069");
+  return true;
 }
 
 
