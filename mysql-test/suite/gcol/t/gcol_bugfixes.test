@@ -545,3 +545,20 @@ SELECT * FROM t1;
 FLUSH TABLES;
 SELECT * FROM t1;
 DROP TABLE t1;
+
+--echo # Bug#22018999: gcols: assertion failed: !error
+
+SET @save_old_sql_mode= @@sql_mode;
+SET sql_mode="";
+
+--error ER_TRUNCATED_WRONG_VALUE
+CREATE TABLE t (a INTEGER AS (SUBSTR('','a',1))) engine=innodb;
+
+CREATE TABLE t (a INTEGER) engine=innodb;
+
+--error ER_TRUNCATED_WRONG_VALUE
+ALTER TABLE t ADD b INTEGER AS (SUBSTR('','a',1));
+
+DROP TABLE t;
+
+set sql_mode= @save_old_sql_mode;
