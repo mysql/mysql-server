@@ -302,9 +302,9 @@ Requires:       mysql-community-libs%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-devel < %{version}-%{release}
 Obsoletes:      mysql-devel < %{version}-%{release}
 Obsoletes:      mariadb-devel
-Conflicts:      mysql-connector-c-shared-devel < 6.2
 Provides:       mysql-devel = %{version}-%{release}
 Provides:       mysql-devel%{?_isa} = %{version}-%{release}
+Conflicts:      mysql-connector-c-devel < 6.2
 
 %description    devel
 This package contains the development header files and libraries necessary
