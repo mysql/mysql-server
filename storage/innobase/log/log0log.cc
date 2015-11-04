@@ -712,6 +712,13 @@ void
 log_init(void)
 /*==========*/
 {
+	ut_ad(static_cast<int>(MTR_MEMO_PAGE_S_FIX)
+	      == static_cast<int>(RW_S_LATCH));
+	ut_ad(static_cast<int>(MTR_MEMO_PAGE_X_FIX)
+	      == static_cast<int>(RW_X_LATCH));
+	ut_ad(static_cast<int>(MTR_MEMO_PAGE_SX_FIX)
+	      == static_cast<int>(RW_SX_LATCH));
+
 	log_sys = static_cast<log_t*>(ut_zalloc_nokey(sizeof(log_t)));
 
 	mutex_create(LATCH_ID_LOG_SYS, &log_sys->mutex);
@@ -1498,9 +1505,6 @@ log_group_checkpoint(
 
 	ut_ad(!srv_read_only_mode);
 	ut_ad(log_mutex_own());
-#if LOG_CHECKPOINT_SIZE > OS_FILE_LOG_BLOCK_SIZE
-# error "LOG_CHECKPOINT_SIZE > OS_FILE_LOG_BLOCK_SIZE"
-#endif
 
 	DBUG_PRINT("ib_log", ("checkpoint " UINT64PF " at " LSN_PF
 			      " written to group " ULINTPF,

@@ -374,8 +374,8 @@ IF(WIN32)
       )
 ENDIF()
 
-INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-ADD_COMPILE_FLAGS(
+# Source files that use Boost
+SET(SQL_BOOST_SOURCES
   debug_sync.cc
   handler.cc
   geometry_rtree.cc
@@ -387,58 +387,40 @@ ADD_COMPILE_FLAGS(
   item_geofunc_setops.cc
   item_json_func.cc
   spatial.cc
-  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
+
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
+  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR})
 
 # Boost source has unused local typedefs.
 MY_CHECK_CXX_COMPILER_FLAG("-Wunused-local-typedefs" HAVE_UNUSED_TYPEDEFS)
 IF(HAVE_UNUSED_TYPEDEFS)
-  ADD_COMPILE_FLAGS(
-    debug_sync.cc
-    handler.cc
-    geometry_rtree.cc
-    item_geofunc.cc
-    item_geofunc_buffer.cc
-    item_geofunc_internal.cc
-    item_geofunc_relchecks.cc
-    item_geofunc_relchecks_bgwrap.cc
-    item_geofunc_setops.cc
-    item_json_func.cc
-    spatial.cc
-    COMPILE_FLAGS "-Wno-unused-local-typedefs"
-  )
+  ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
+    COMPILE_FLAGS "-Wno-unused-local-typedefs")
 ENDIF()
 
 # Boost source has logical && with non-zero constant
 MY_CHECK_CXX_COMPILER_FLAG("-Wlogical-op" HAVE_LOGICAL_OP)
 IF(HAVE_LOGICAL_OP)
-  ADD_COMPILE_FLAGS(
-    geometry_rtree.cc
-    item_geofunc.cc
-    item_geofunc_buffer.cc
-    item_geofunc_internal.cc
-    item_geofunc_relchecks.cc
-    item_geofunc_relchecks_bgwrap.cc
-    item_geofunc_setops.cc
-    item_json_func.cc
-    spatial.cc
-    COMPILE_FLAGS "-Wno-logical-op"
-  )
+  ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES} COMPILE_FLAGS "-Wno-logical-op")
 ENDIF()
 
-# Some Boost 1.58 source does not adhere to stricter C++11 rules
+# Boost source does not adhere to stricter C++11 rules
 MY_CHECK_CXX_COMPILER_FLAG("-Wc++11-extra-semi" HAVE_CPP11_EXTRA_SEMI)
 IF(HAVE_CPP11_EXTRA_SEMI)
+  ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
+    COMPILE_FLAGS "-Wno-c++11-extra-semi")
+ENDIF()
+
+# Bison output and Boost source use undefined symbols in #if checks
+MY_CHECK_CXX_COMPILER_FLAG("-Wundef" HAVE_UNDEF)
+IF(HAVE_UNDEF)
   ADD_COMPILE_FLAGS(
-    geometry_rtree.cc
-    item_geofunc.cc
-    item_geofunc_buffer.cc
-    item_geofunc_internal.cc
-    item_geofunc_relchecks.cc
-    item_geofunc_relchecks_bgwrap.cc
-    item_geofunc_setops.cc
-    COMPILE_FLAGS "-Wno-c++11-extra-semi"
-  )
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
+    ${SQL_BOOST_SOURCES}
+    COMPILE_FLAGS "-Wno-undef")
 ENDIF()
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)

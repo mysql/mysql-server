@@ -30,7 +30,7 @@
 #define HAVE_MYSYS 1
 #endif
 
-#if HAVE_MYSYS
+#ifdef HAVE_MYSYS
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 extern "C" {
@@ -47,7 +47,7 @@ extern PSI_memory_key key_memory_log_event;
 #endif
 
 #if !defined(DBUG_OFF)
-#if HAVE_MYSYS
+#ifdef HAVE_MYSYS
 #define BAPI_ASSERT(x) DBUG_ASSERT(x)
 #else
 #define BAPI_ASSERT(x) assert(x)
@@ -101,7 +101,7 @@ inline char *strndup (const char *s, size_t n)
 */
 inline const char* bapi_strndup(const char *destination, size_t n)
 {
-#if HAVE_MYSYS
+#ifdef HAVE_MYSYS
 /* Call the function in mysys library, required for memory instrumentation */
   return my_strndup(key_memory_log_event, destination, n, MYF(MY_WME));
 #else
@@ -123,7 +123,7 @@ inline const char* bapi_strndup(const char *destination, size_t n)
 inline void* bapi_memdup(const void* source, size_t len)
 {
   void* dest;
-#if HAVE_MYSYS
+#ifdef HAVE_MYSYS
   /* Call the function in mysys library, required for memory instrumentation */
   dest= my_memdup(key_memory_log_event, source, len, MYF(MY_WME));
 #else
@@ -150,7 +150,7 @@ inline void* bapi_memdup(const void* source, size_t len)
 inline void * bapi_malloc(size_t size, int flags)
 {
   void * dest= NULL;
-#if HAVE_MYSYS
+#ifdef HAVE_MYSYS
   dest= my_malloc(key_memory_log_event, size, MYF(flags));
 #else
   dest= malloc(size);
@@ -171,7 +171,7 @@ inline void * bapi_malloc(size_t size, int flags)
 */
 inline void bapi_free(void* ptr)
 {
-#if HAVE_MYSYS
+#ifdef HAVE_MYSYS
   return my_free(ptr);
 #else
   return free(ptr);

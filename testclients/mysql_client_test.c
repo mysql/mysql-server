@@ -20606,7 +20606,7 @@ static struct my_tests_st my_tests[]= {
   { "test_view_sp_list_fields", test_view_sp_list_fields },
   { "client_query", client_query },
   { "test_prepare_insert_update", test_prepare_insert_update},
-#if NOT_YET_WORKING
+#ifdef NOT_YET_WORKING
   { "test_drop_temp", test_drop_temp },
 #endif
   { "test_fetch_seek", test_fetch_seek },

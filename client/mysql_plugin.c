@@ -569,7 +569,7 @@ static int search_dir(const char * base_path, const char *tool_name,
 {
   char new_path[FN_REFLEN];
   char source_path[FN_REFLEN];
-#if _WIN32
+#ifdef _WIN32
   char win_abs_path[FN_REFLEN];
   char self_name[FN_REFLEN];
   const char *last_fn_libchar;
@@ -589,7 +589,7 @@ static int search_dir(const char * base_path, const char *tool_name,
     return 0;
   }  
 
-#if _WIN32
+#ifdef _WIN32
   /*
     On Windows above code will not be able to find the file since
     path names are not absolute and file_exists works only with 

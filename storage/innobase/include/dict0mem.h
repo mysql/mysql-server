@@ -51,6 +51,8 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0new.h"
 #include "dict/mem.h"
 
+#include "sql_const.h"  /* MAX_KEY_LENGTH */
+
 #include <set>
 #include <vector>
 #include <algorithm>

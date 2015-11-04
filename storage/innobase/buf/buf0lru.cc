@@ -58,7 +58,7 @@ is allowed. Note that the tolerance must be small enough such that for
 even the BUF_LRU_OLD_MIN_LEN long LRU list, the LRU_old pointer is not
 allowed to point to either end of the LRU list. */
 
-static const ulint BUF_LRU_OLD_TOLERANCE = 20;
+#define BUF_LRU_OLD_TOLERANCE 20 // #define since it is used in #if below
 
 /** The minimum amount of non-old blocks when the LRU_old list exists
 (that is, when there are more than BUF_LRU_OLD_MIN_LEN blocks).

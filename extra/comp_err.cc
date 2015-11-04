@@ -203,7 +203,7 @@ int main(int argc, char *argv[])
 /* Number of error messages in 5.5 - do not change this number! */
 #define MYSQL_OLD_GA_ERROR_MESSAGE_COUNT 728
 #endif
-#if MYSQL_OLD_GA_ERROR_MESSAGE_COUNT
+#ifdef MYSQL_OLD_GA_ERROR_MESSAGE_COUNT
     if (row_count != MYSQL_OLD_GA_ERROR_MESSAGE_COUNT)
     {
       fprintf(stderr, "Can only add new error messages to latest GA. ");

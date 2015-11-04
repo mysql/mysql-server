@@ -59,7 +59,7 @@ extern "C" {
 
 	/* typedefs for my_dir & my_stat */
 
-#if(_MSC_VER)
+#ifdef _WIN32
 #define MY_STAT struct _stati64 /* 64 bit file size */
 #else
 #define MY_STAT struct stat	/* Orginal struct have what we need */

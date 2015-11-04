@@ -494,7 +494,7 @@ static int make_iso8601_timestamp(char *buf, ulonglong utime= 0)
       from UTC, with positive values indicating east of the Prime Meridian.
     */
     long tim= -my_tm.tm_gmtoff;
-#elif _WIN32
+#elif defined(_WIN32)
     long tim = _timezone;
 #else
     long tim= timezone; // seconds West of UTC.
@@ -595,7 +595,7 @@ bool File_query_log::open()
 #ifdef EMBEDDED_LIBRARY
                         "embedded library\n",
                         my_progname, server_version, MYSQL_COMPILATION_COMMENT
-#elif _WIN32
+#elif defined(_WIN32)
                         "started with:\nTCP Port: %d, Named Pipe: %s\n",
                         my_progname, server_version, MYSQL_COMPILATION_COMMENT,
                         mysqld_port, mysqld_unix_port

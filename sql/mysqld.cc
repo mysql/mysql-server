@@ -2273,7 +2273,7 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
 #endif // !EMBEDDED_LIBRARY
 
 
-#if HAVE_BACKTRACE && HAVE_ABI_CXA_DEMANGLE
+#if defined(HAVE_BACKTRACE) && defined(HAVE_ABI_CXA_DEMANGLE)
 #include <cxxabi.h>
 extern "C" char *my_demangle(const char *mangled_name, int *status)
 {

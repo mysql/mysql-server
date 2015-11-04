@@ -110,7 +110,7 @@ Abstract_program::~Abstract_program()
 
 void Abstract_program::init_name(char *name_from_cmd_line)
 {
-#if _WIN32
+#ifdef _WIN32
   char* name;
 
   char name_buf[FN_REFLEN];
