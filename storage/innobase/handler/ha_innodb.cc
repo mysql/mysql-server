@@ -15185,7 +15185,7 @@ struct ShowStatus {
 		Value(const char*	name,
 		      ulint		spins,
 		      uint64_t		waits,
-		      ulint		calls)
+		      uint64_t		calls)
 			:
 			m_name(name),
 			m_spins(spins),
@@ -15202,7 +15202,7 @@ struct ShowStatus {
 		ulint			m_spins;
 
 		/** Waits so far */
-		ulint			m_waits;
+		uint64_t		m_waits;
 
 		/** Number of calls so far */
 		uint64_t		m_calls;
