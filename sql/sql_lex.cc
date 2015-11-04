@@ -3528,6 +3528,7 @@ LEX::LEX()
    plugins(PSI_NOT_INSTRUMENTED),
    insert_update_values_map(NULL),
    option_type(OPT_DEFAULT),
+   sphead(NULL),
    is_set_password_sql(false),
    // Initialize here to avoid uninitialized variable warnings.
    contains_plaintext_password(false),
