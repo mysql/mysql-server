@@ -10485,7 +10485,10 @@ copy_data_between_tables(THD * thd,
     DBUG_RETURN(-1);				/* purecov: inspected */
 
   if (to->file->ha_external_lock(thd, F_WRLCK))
+  {
+    delete [] copy;
     DBUG_RETURN(-1);
+  }
 
   /* We need external lock before we can disable/enable keys */
   alter_table_manage_keys(thd, to, from->file->indexes_are_disabled(),
