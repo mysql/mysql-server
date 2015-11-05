@@ -7454,7 +7454,13 @@ restart_cluster_failure:
       injector::transaction trans;
       unsigned trans_row_count= 0;
       unsigned trans_slave_row_count= 0;
-      if (!pOp)
+
+      /* pollEvents returned > 0, nextEvent returns NULL means
+       * 1) an inconsistent epoch is found at the head of
+       * the event queue
+       * 2) or an empty epoch.
+       */
+      if (pOp == NULL && i_ndb->isConsistent(gci))
       {
         /*
           Must be an empty epoch since the condition
@@ -7515,19 +7521,6 @@ restart_cluster_failure:
           const NdbEventOperation *gci_op;
           Uint32 event_types;
 
-          if (!i_ndb->isConsistentGCI(gci))
-          {
-            char errmsg[64];
-            uint end= sprintf(&errmsg[0],
-                              "Detected missing data in GCI %llu, "
-                              "inserting GAP event", gci);
-            errmsg[end]= '\0';
-            DBUG_PRINT("info",
-                       ("Detected missing data in GCI %llu, "
-                        "inserting GAP event", gci));
-            LEX_STRING const msg= { C_STRING_WITH_LEN(errmsg) };
-            inj->record_incident(thd, INCIDENT_LOST_EVENTS, msg);
-          }
           while ((gci_op= i_ndb->getGCIEventOperations(&iter, &event_types))
                  != NULL)
           {
@@ -7765,6 +7758,7 @@ restart_cluster_failure:
         ndb_latest_handled_binlog_epoch= gci;
       }
 
+      // pOp == NULL means an inconsistent epoch or the queue is empty.
       if(!i_ndb->isConsistent(gci))
       {
         char errmsg[64];
