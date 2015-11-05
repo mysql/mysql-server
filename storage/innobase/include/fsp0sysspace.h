@@ -110,9 +110,6 @@ public:
 	/** Free the memory allocated by parse() */
 	void shutdown();
 
-	/** Normalize the file size, convert to extents. */
-	void normalize_size();
-
 	/**
 	@return true if a new raw device was created. */
 	bool created_new_raw() const
@@ -135,7 +132,7 @@ public:
 		m_files.back().m_size = size;
 	}
 
-	/** Get the size of the last data file in the tablespace
+	/** Get the number of pages in the last data file in the tablespace
 	@return the size of the last data file in the array */
 	ulint last_file_size() const
 	{
@@ -151,9 +148,11 @@ public:
 		       * ((1024 * 1024) / UNIV_PAGE_SIZE));
 	}
 
-	/** Roundoff to MegaBytes is similar as done in
-	SysTablespace::parse_units() function.
-	@return the pages when given size of file (bytes). */
+	/** Round the number of bytes in the file to MegaBytes
+	and then return the number of pages.
+	Note: Only system tablespaces are required to be at least
+	1 megabyte.
+	@return the number of pages in the file. */
 	ulint get_pages_from_size(os_offset_t size)
 	{
 		return (ulint)((size / (1024 * 1024))
@@ -188,21 +187,10 @@ private:
 	@return DB_SUCCESS or error code */
 	dberr_t read_lsn_and_check_flags(lsn_t* flushed_lsn);
 
-	/**
-	@return true if the last file size is valid. */
-	bool is_valid_size() const
-	{
-		return(m_last_file_size_max >= last_file_size());
-	}
-
-	/**
-	@return true if configured to use raw devices */
-	bool has_raw_device();
-
 	/** Note that the data file was not found.
 	@param[in]	file		data file object
 	@param[out]	create_new_db	true if a new instance to be created
-	@return DB_SUCESS or error code */
+	@return DB_SUCCESS or error code */
 	dberr_t file_not_found(Datafile& file, bool* create_new_db);
 
 	/** Note that the data file was found.
@@ -230,14 +218,23 @@ private:
 	@return DB_SUCCESS or error code */
 	dberr_t set_size(Datafile& file);
 
-	/** Convert a numeric string that optionally ends in G or M, to a
-	number containing megabytes.
-	@param[in]	ptr	string with a quantity in bytes
-	@param[out]	megs	the number in megabytes
-	@return next character in string */
-	static char* parse_units(char* ptr, ulint* megs);
-
 private:
+	/* Put the pointer to the next byte after a valid file name.
+	Note that we must step over the ':' in a Windows filepath.
+	A Windows path normally looks like C:\ibdata\ibdata1:1G, but
+	a Windows raw partition may have a specification like
+	\\.\C::1Gnewraw or \\.\PHYSICALDRIVE2:1Gnewraw.
+	@param[in]	str		system tablespace file path spec
+	@return next character in string after the file name */
+	static char* parse_file_name(char* ptr);
+
+	/** Convert a numeric string that optionally ends in upper or lower
+	case G, M, or K, rounding off to the nearest number of megabytes.
+	Then return the number of pages in the file.
+	@param[in,out]	ptr	Pointer to a numeric string
+	@return the number of pages in the file. */
+	ulint parse_units(char*& ptr);
+
 	enum file_status_t {
 		FILE_STATUS_VOID = 0,		/** status not set */
 		FILE_STATUS_RW_PERMISSION_ERROR,/** permission error */

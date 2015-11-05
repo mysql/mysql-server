@@ -3916,10 +3916,6 @@ innodb_init(
 		DBUG_RETURN(innodb_init_abort());
 	}
 
-	srv_sys_space.normalize_size();
-
-	srv_tmp_space.normalize_size();
-
 	bool	create_new_db = false;
 
 	/* Check if the data files exist or not. */
