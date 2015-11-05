@@ -85,6 +85,24 @@ mysys/my_perf.c, contributed by Facebook under the following license.
 #include "univ.i"
 #include "ut0crc32.h"
 
+#if defined(__GNUC__) && defined(__x86_64__)
+/* x86-specific CRC32 support may be available */
+# define UNIV_CRC32_HW
+#endif /* __GNUC__ && __x86_64__ */
+
+#if defined(__GNUC__) && defined(UNIV_LINUX) && defined(__aarch64__)
+/* include defs for Linux auxiliary vector */
+# include <sys/auxv.h>
+# include <asm/hwcap.h>
+# ifndef HWCAP_CRC32
+#  define HWCAP_CRC32 (1<<7)
+# endif
+/* ARMv8-specific CRC32 support may be available */
+# define UNIV_CRC32_HW
+/* assembler directive to enable CRC32 instructions */
+  asm(".cpu generic+crc");
+#endif /* __GNUC__ && UNIV_LINUX && __aarch64__ */
+
 /** Pointer to CRC32 calculation function. */
 ut_crc32_func_t	ut_crc32;
 
@@ -117,11 +135,12 @@ ut_crc32_swap_byteorder(
 /* CRC32 hardware implementation. */
 
 /* Flag that tells whether the CPU supports CRC32 or not */
-bool	ut_crc32_sse2_enabled = false;
+bool	ut_crc32_hw_enabled = false;
 
-#if defined(__GNUC__) && defined(__x86_64__)
+#ifdef UNIV_CRC32_HW
+#ifdef __x86_64__
 /********************************************************************//**
-Fetches CPU info */
+Fetches x86_64 CPU info */
 static
 void
 ut_cpuid(
@@ -151,6 +170,19 @@ ut_cpuid(
 	}
 }
 
+#elif defined(__aarch64__)
+/********************************************************************//**
+Fetches AArch64 CPU info using kernel auxiliary vector */
+static
+void
+ut_cpuid(
+/*=====*/
+	unsigned long	*hwcap)		/*!< out: hwcap */
+{
+	*hwcap = getauxval(AT_HWCAP);
+}
+#endif /* __aarch64__ */
+
 /** Calculate CRC32 over 8-bit data using a hardware/CPU instruction.
 @param[in,out]	crc	crc32 checksum so far when this function is called,
 when the function ends it will contain the new checksum
@@ -164,11 +196,21 @@ ut_crc32_8_hw(
 	const byte**	data,
 	ulint*		len)
 {
+#if defined(__x86_64__)
 	asm("crc32b %1, %0"
 	    /* output operands */
 	    : "+r" (*crc)
 	    /* input operands */
 	    : "rm" ((*data)[0]));
+#elif defined(__aarch64__)
+	asm("crc32cb %w[c], %w[c], %w[v]"
+	    /* output operands */
+	    : [c]"+r"(*crc)
+	    /* input operands */
+	    : [v]"r"((*data)[0]));
+#else
+#error No support for hardware CRC32 implementation
+#endif
 
 	(*data)++;
 	(*len)--;
@@ -184,6 +226,7 @@ ut_crc32_64_low_hw(
 	uint32_t	crc,
 	uint64_t	data)
 {
+#if defined(__x86_64__)
 	uint64_t	crc_64bit = crc;
 
 	asm("crc32q %1, %0"
@@ -193,6 +236,17 @@ ut_crc32_64_low_hw(
 	    : "rm" (data));
 
 	return(static_cast<uint32_t>(crc_64bit));
+#elif defined(__aarch64__)
+	asm("crc32cx %w[c], %w[c], %x[v]"
+	    /* output operands */
+	    : [c]"+r"(crc)
+	    /* input operands */
+	    : [v]"r"(data));
+
+	return(crc);
+#else
+#error No support for hardware CRC32 implementation
+#endif
 }
 
 /** Calculate CRC32 over 64-bit byte string using a hardware/CPU instruction.
@@ -211,9 +265,9 @@ ut_crc32_64_hw(
 	uint64_t	data_int = *reinterpret_cast<const uint64_t*>(*data);
 
 #ifdef WORDS_BIGENDIAN
-	/* Currently we only support x86_64 (little endian) CPUs. In case
-	some big endian CPU supports a CRC32 instruction, then maybe we will
-	need a byte order swap here. */
+	/* Currently we only support little endian CPUs. In case some big endian
+	CPU supports a CRC32 instruction, then maybe we will need a byte order
+	swap here. */
 #error Dont know how to handle big endian CPUs
 	/*
 	data_int = ut_crc32_swap_byteorder(data_int);
@@ -245,9 +299,9 @@ ut_crc32_64_legacy_big_endian_hw(
 #ifndef WORDS_BIGENDIAN
 	data_int = ut_crc32_swap_byteorder(data_int);
 #else
-	/* Currently we only support x86_64 (little endian) CPUs. In case
-	some big endian CPU supports a CRC32 instruction, then maybe we will
-	NOT need a byte order swap here. */
+	/* Currently we only support little endian CPUs. In case some big endian
+	CPU supports a CRC32 instruction, then maybe we will NOT need a byte
+	order swap here. */
 #error Dont know how to handle big endian CPUs
 #endif /* WORDS_BIGENDIAN */
 
@@ -255,6 +309,92 @@ ut_crc32_64_legacy_big_endian_hw(
 
 	*data += 8;
 	*len -= 8;
+}
+
+/** Calculate CRC32 over 2 64-bit byte string using a hardware/CPU instruction.
+@param[in,out]	crc	crc32 checksum so far when this function is called,
+when the function ends it will contain the new checksum
+@param[in,out]	data	data to be checksummed, the pointer will be advanced
+with 16 bytes
+@param[in,out]	len	remaining bytes, it will be decremented with 16 */
+inline
+void
+ut_crc32_128_hw(
+	uint32_t*	crc,
+	const byte**	data,
+	ulint*		len)
+{
+#ifdef WORDS_BIGENDIAN
+	/* Currently we only support little endian CPUs. In case some big endian
+	CPU supports a CRC32 instruction, then maybe we will need a byte order
+	swap here. */
+#error Dont know how to handle big endian CPUs
+	/*
+	data_int = ut_crc32_swap_byteorder(data_int);
+	*/
+#endif /* WORDS_BIGENDIAN */
+#if defined(__aarch64__)
+	uint64_t v0, v1;
+
+	/* Load a pair of registers with one instruction to spare some cycles.
+	Note that post-index addressing also increments the source address
+	automatically. */
+	asm("ldp %x[a], %x[b], [%x[c]], #16"
+	    /* output operands */
+	    : [a]"=r"(v0), [b]"=r"(v1), [c]"+r"(*data));
+
+	*crc = ut_crc32_64_low_hw(*crc, v0);
+	*crc = ut_crc32_64_low_hw(*crc, v1);
+
+	*len -= 16;
+#else
+	ut_crc32_64_hw(crc, data, len);
+	ut_crc32_64_hw(crc, data, len);
+#endif
+}
+
+/** Calculate CRC32 over 2 64-bit byte string using a hardware/CPU instruction.
+The byte strings are converted to 64-bit integers using big endian byte order.
+@param[in,out]	crc	crc32 checksum so far when this function is called,
+when the function ends it will contain the new checksum
+@param[in,out]	data	data to be checksummed, the pointer will be advanced
+with 16 bytes
+@param[in,out]	len	remaining bytes, it will be decremented with 16 */
+inline
+void
+ut_crc32_128_legacy_big_endian_hw(
+	uint32_t*	crc,
+	const byte**	data,
+	ulint*		len)
+{
+#if defined(__aarch64__)
+	uint64_t v0, v1;
+
+	/* Load a pair of registers with one instruction to spare some cycles.
+	Note that post-index addressing also increments the source address
+	automatically. */
+	asm("ldp %x[a], %x[b], [%x[c]], #16"
+	    /* output operands */
+	    : [a]"=r"(v0), [b]"=r"(v1), [c]"+r"(*data));
+
+#ifndef WORDS_BIGENDIAN
+	v0 = ut_crc32_swap_byteorder(v0);
+	v1 = ut_crc32_swap_byteorder(v1);
+#else
+	/* Currently we only support little endian CPUs. In case some big endian
+	CPU supports a CRC32 instruction, then maybe we will NOT need a byte
+	order swap here. */
+#error Dont know how to handle big endian CPUs
+#endif /* WORDS_BIGENDIAN */
+
+	*crc = ut_crc32_64_low_hw(*crc, v0);
+	*crc = ut_crc32_64_low_hw(*crc, v1);
+
+	*len -= 16;
+#else
+	ut_crc32_64_legacy_big_endian_hw(crc, data, len);
+	ut_crc32_64_legacy_big_endian_hw(crc, data, len);
+#endif
 }
 
 /** Calculates CRC32 using hardware/CPU instructions.
@@ -268,7 +408,7 @@ ut_crc32_hw(
 {
 	uint32_t	crc = 0xFFFFFFFFU;
 
-	ut_a(ut_crc32_sse2_enabled);
+	ut_a(ut_crc32_hw_enabled);
 
 	/* Calculate byte-by-byte up to an 8-byte aligned address. After
 	this consume the input 8-bytes at a time. */
@@ -316,23 +456,15 @@ ut_crc32_hw(
 	(4.51% slowdown over N=256)
 	*/
 	while (len >= 128) {
-		/* This call is repeated 16 times. 16 * 8 = 128. */
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
+		/* This call is repeated 8 times. 128 bits * 8 = 128 bytes */
+		ut_crc32_128_hw(&crc, &buf, &len);
+		ut_crc32_128_hw(&crc, &buf, &len);
+		ut_crc32_128_hw(&crc, &buf, &len);
+		ut_crc32_128_hw(&crc, &buf, &len);
+		ut_crc32_128_hw(&crc, &buf, &len);
+		ut_crc32_128_hw(&crc, &buf, &len);
+		ut_crc32_128_hw(&crc, &buf, &len);
+		ut_crc32_128_hw(&crc, &buf, &len);
 	}
 
 	while (len >= 8) {
@@ -359,7 +491,7 @@ ut_crc32_legacy_big_endian_hw(
 {
 	uint32_t	crc = 0xFFFFFFFFU;
 
-	ut_a(ut_crc32_sse2_enabled);
+	ut_a(ut_crc32_hw_enabled);
 
 	/* Calculate byte-by-byte up to an 8-byte aligned address. After
 	this consume the input 8-bytes at a time. */
@@ -368,23 +500,15 @@ ut_crc32_legacy_big_endian_hw(
 	}
 
 	while (len >= 128) {
-		/* This call is repeated 16 times. 16 * 8 = 128. */
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
+		/* This call is repeated 8 times. 128 bits * 8 = 128 bytes */
+		ut_crc32_128_legacy_big_endian_hw(&crc, &buf, &len);
+		ut_crc32_128_legacy_big_endian_hw(&crc, &buf, &len);
+		ut_crc32_128_legacy_big_endian_hw(&crc, &buf, &len);
+		ut_crc32_128_legacy_big_endian_hw(&crc, &buf, &len);
+		ut_crc32_128_legacy_big_endian_hw(&crc, &buf, &len);
+		ut_crc32_128_legacy_big_endian_hw(&crc, &buf, &len);
+		ut_crc32_128_legacy_big_endian_hw(&crc, &buf, &len);
+		ut_crc32_128_legacy_big_endian_hw(&crc, &buf, &len);
 	}
 
 	while (len >= 8) {
@@ -411,7 +535,7 @@ ut_crc32_byte_by_byte_hw(
 {
 	uint32_t	crc = 0xFFFFFFFFU;
 
-	ut_a(ut_crc32_sse2_enabled);
+	ut_a(ut_crc32_hw_enabled);
 
 	while (len > 0) {
 		ut_crc32_8_hw(&crc, &buf, &len);
@@ -419,7 +543,7 @@ ut_crc32_byte_by_byte_hw(
 
 	return(~crc);
 }
-#endif /* defined(__GNUC__) && defined(__x86_64__) */
+#endif /* UNIV_CRC32_HW */
 
 /* CRC32 software implementation. */
 
@@ -688,17 +812,6 @@ void
 ut_crc32_init()
 /*===========*/
 {
-#if defined(__GNUC__) && defined(__x86_64__)
-	uint32_t	vend[3];
-	uint32_t	model;
-	uint32_t	family;
-	uint32_t	stepping;
-	uint32_t	features_ecx;
-	uint32_t	features_edx;
-
-	ut_cpuid(vend, &model, &family, &stepping,
-		 &features_ecx, &features_edx);
-
 	/* Valgrind does not understand the CRC32 instructions:
 
 	vex amd64->IR: unhandled instruction bytes: 0xF2 0x48 0xF 0x38 0xF0 0xA
@@ -715,19 +828,36 @@ ut_crc32_init()
 	probably kill your program.
 
 	*/
-#ifndef UNIV_DEBUG_VALGRIND
-	ut_crc32_sse2_enabled = (features_ecx >> 20) & 1;
-#endif /* UNIV_DEBUG_VALGRIND */
+#if !defined(UNIV_DEBUG_VALGRIND) && defined(UNIV_CRC32_HW)
+#if defined(__GNUC__) && defined(__x86_64__)
+	uint32_t	vend[3];
+	uint32_t	model;
+	uint32_t	family;
+	uint32_t	stepping;
+	uint32_t	features_ecx;
+	uint32_t	features_edx;
 
-	if (ut_crc32_sse2_enabled) {
+	ut_cpuid(vend, &model, &family, &stepping,
+		 &features_ecx, &features_edx);
+
+	ut_crc32_hw_enabled = (features_ecx >> 20) & 1;
+#endif /* defined(__GNUC__) && defined(__x86_64__) */
+
+#if defined(__GNUC__) && defined(__aarch64__)
+	unsigned long	hwcap;
+
+	ut_cpuid(&hwcap);
+	ut_crc32_hw_enabled = hwcap & HWCAP_CRC32;
+#endif /* defined (__GNUC__) && defined(__aarch64__) */
+
+	if (ut_crc32_hw_enabled) {
 		ut_crc32 = ut_crc32_hw;
 		ut_crc32_legacy_big_endian = ut_crc32_legacy_big_endian_hw;
 		ut_crc32_byte_by_byte = ut_crc32_byte_by_byte_hw;
 	}
+#endif /* !defined(UNIV_DEBUG_VALGRIND) && defined(UNIV_CRC32_HW) */
 
-#endif /* defined(__GNUC__) && defined(__x86_64__) */
-
-	if (!ut_crc32_sse2_enabled) {
+	if (!ut_crc32_hw_enabled) {
 		ut_crc32_slice8_table_init();
 		ut_crc32 = ut_crc32_sw;
 		ut_crc32_legacy_big_endian = ut_crc32_legacy_big_endian_sw;
