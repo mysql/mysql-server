@@ -6837,11 +6837,6 @@ ha_innobase::build_template(
 				    && !dict_index_contains_col_or_prefix(
 					m_prebuilt->index, num_v, true))
 				{
-					ut_ad(!bitmap_is_set(
-						table->read_set, i));
-					ut_ad(!bitmap_is_set(
-						table->write_set, i));
-
 					num_v++;
 					continue;
 				}
