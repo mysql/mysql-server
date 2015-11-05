@@ -584,9 +584,6 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share, const dd::Table *ta
   if (table_options->exists("min_rows"))
     table_options->get_uint64("min_rows", &share->min_rows);
 
-  // Version
-  share->frm_version= tab_obj->version();
-
   // Options from HA_CREATE_INFO::table_options/TABLE_SHARE::db_create_options.
   share->db_create_options= 0;
 

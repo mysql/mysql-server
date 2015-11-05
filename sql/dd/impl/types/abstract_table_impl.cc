@@ -55,8 +55,7 @@ const Dictionary_object_table &Abstract_table::OBJECT_TABLE()
 ///////////////////////////////////////////////////////////////////////////
 
 Abstract_table_impl::Abstract_table_impl()
- :m_version(-1),
-  m_mysql_version_id(MYSQL_VERSION_ID),
+ :m_mysql_version_id(MYSQL_VERSION_ID),
   m_created(0),
   m_last_altered(0),
   m_options(new Properties_impl()),
@@ -137,7 +136,6 @@ bool Abstract_table_impl::restore_attributes(const Raw_record &r)
 
   // Special cases dealing with NULL values for nullable fields
 
-  m_version= r.read_uint(Tables::FIELD_VERSION, -1);
   set_options_raw(r.read_str(Tables::FIELD_OPTIONS, ""));
 
   return false;
@@ -170,7 +168,6 @@ bool Abstract_table_impl::store_attributes(Raw_record *r)
     store_name(r, Tables::FIELD_NAME) ||
     r->store_ref_id(Tables::FIELD_SCHEMA_ID, m_schema_id) ||
     r->store(Tables::FIELD_TYPE, type()) ||
-    r->store(Tables::FIELD_VERSION, m_version, m_version == (uint) -1) ||
     r->store(Tables::FIELD_MYSQL_VERSION_ID, m_mysql_version_id) ||
     r->store(Tables::FIELD_OPTIONS, *m_options) ||
     r->store(Tables::FIELD_CREATED, m_created) ||
@@ -202,7 +199,6 @@ void Abstract_table_impl::debug_print(std::string &outb) const
     << "id: {OID: " << id() << "}; "
     << "m_schema: {OID: " << m_schema_id << "}; "
     << "m_name: " << name() << "; "
-    << "m_version: " << m_version << "; "
     << "m_mysql_version_id: " << m_mysql_version_id << "; "
     << "m_options " << m_options->raw_string() << "; "
     << "m_created: " << m_created << "; "
@@ -325,7 +321,6 @@ void Abstract_table_type::register_tables(Open_dictionary_tables_ctx *otx) const
 #ifndef DBUG_OFF
 Abstract_table_impl::Abstract_table_impl(const Abstract_table_impl &src)
   : Weak_object(src), Entity_object_impl(src),
-    m_version(src.m_version),
     m_mysql_version_id(src.m_mysql_version_id),
     m_created(src.m_created),
     m_last_altered(src.m_last_altered),

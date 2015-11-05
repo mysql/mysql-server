@@ -160,6 +160,9 @@ using std::min;
 
 #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
 
+// For backward compatibility
+static const longlong FRM_VER_TRUE_VARCHAR= 10;
+
 /**
   @class CSET_STRING
   @brief Character set armed LEX_CSTRING
@@ -4988,7 +4991,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
 
     tmp_buff= (char *) ha_resolve_storage_engine_name(tmp_db_type);
     table->field[4]->store(tmp_buff, strlen(tmp_buff), cs);
-    table->field[5]->store((longlong) share->frm_version, TRUE);
+    table->field[5]->store(FRM_VER_TRUE_VARCHAR, TRUE);
 
     ptr=option_buff;
 

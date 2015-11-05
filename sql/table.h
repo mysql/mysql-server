@@ -694,7 +694,6 @@ struct TABLE_SHARE
   uint next_number_keypart;             /* autoinc keypart number in a key */
   bool error;                           /* error during open_table_def() */
   uint column_bitmap_size;
-  uchar frm_version;
   uint vfields;                         /* Number of generated fields */
   bool system;                          /* Set if system table (one record) */
   bool crypted;                         /* If .frm file is crypted */

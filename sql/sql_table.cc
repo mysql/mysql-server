@@ -3763,9 +3763,6 @@ static bool is_phony_blob(enum_field_types sql_type, uint decimals)
   DESCRIPTION
     Prepares the table and key structures for table creation.
 
-  NOTES
-    sets create_info->varchar if the table has a varchar
-
   RETURN VALUES
     FALSE    OK
     TRUE     error
@@ -3795,7 +3792,6 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 
   select_field_pos= alter_info->create_list.elements - select_field_count;
   null_fields=blob_columns=0;
-  create_info->varchar= 0;
   max_key_length= file->max_key_length();
 
   for (field_no=0; (sql_field=it++) ; field_no++)
@@ -4106,8 +4102,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     if (prepare_create_field(thd, sql_field, &blob_columns,
 			     file->ha_table_flags()))
       DBUG_RETURN(TRUE);
-    if (sql_field->sql_type == MYSQL_TYPE_VARCHAR)
-      create_info->varchar= TRUE;
+
     sql_field->offset= record_offset;
     if (sql_field->auto_flags & Field::NEXT_NUMBER)
       auto_increment++;
@@ -6792,7 +6787,6 @@ static bool lock_fk_dependent_tables(THD *thd, TABLE *table)
 
 static bool fill_alter_inplace_info(THD *thd,
                                     TABLE *table,
-                                    bool varchar,
                                     Alter_inplace_info *ha_alter_info)
 {
   Field **f_ptr, *field;
@@ -6854,13 +6848,6 @@ static bool fill_alter_inplace_info(THD *thd,
     ha_alter_info->handler_flags|= Alter_inplace_info::RECREATE_TABLE;
   if (alter_info->with_validation == Alter_info::ALTER_WITH_VALIDATION)
     ha_alter_info->handler_flags|= Alter_inplace_info::VALIDATE_VIRTUAL_COLUMN;
-
-  /*
-    If we altering table with old VARCHAR fields we will be automatically
-    upgrading VARCHAR column types.
-  */
-  if (table->s->frm_version < FRM_VER_TRUE_VARCHAR && varchar)
-    ha_alter_info->handler_flags|=  Alter_inplace_info::ALTER_STORED_COLUMN_TYPE;
 
   /*
     Go through fields in old version of table and detect changes to them.
@@ -8226,7 +8213,6 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 
   DBUG_ENTER("mysql_prepare_alter_table");
 
-  create_info->varchar= FALSE;
   /* Let new create options override the old ones */
   if (!(used_fields & HA_CREATE_USED_MIN_ROWS))
     create_info->min_rows= table->s->min_rows;
@@ -8270,8 +8256,6 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   Field **f_ptr,*field;
   for (f_ptr=table->field ; (field= *f_ptr) ; f_ptr++)
   {
-    if (field->type() == MYSQL_TYPE_STRING)
-      create_info->varchar= TRUE;
     /* Check if field should be dropped */
     Alter_drop *drop;
     drop_it.rewind();
@@ -9776,12 +9760,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   */
   KEY *key_info;
   uint key_count;
-  /*
-    Remember if the new definition has new VARCHAR column;
-    create_info->varchar will be reset in create_table_impl()/
-    mysql_prepare_create_table().
-  */
-  bool varchar= create_info->varchar;
 
   /*
     dd::Table object describing new version of temporary table. This object will
@@ -9822,7 +9800,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     bool use_inplace= true;
 
     /* Fill the Alter_inplace_info structure. */
-    if (fill_alter_inplace_info(thd, table, varchar, &ha_alter_info))
+    if (fill_alter_inplace_info(thd, table, &ha_alter_info))
       goto err_new_table_cleanup;
 
     DBUG_EXECUTE_IF("innodb_index_drop_count_zero",

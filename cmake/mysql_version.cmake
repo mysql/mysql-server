@@ -20,7 +20,6 @@
 SET(SHARED_LIB_MAJOR_VERSION "21")
 SET(SHARED_LIB_MINOR_VERSION "0")
 SET(PROTOCOL_VERSION "10")
-SET(DOT_FRM_VERSION "6")
 
 # Generate "something" to trigger cmake rerun when VERSION changes
 CONFIGURE_FILE(

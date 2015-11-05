@@ -65,16 +65,6 @@ public:
   { m_schema_id= schema_id; }
 
   /////////////////////////////////////////////////////////////////////////
-  // version.
-  /////////////////////////////////////////////////////////////////////////
-
-  virtual uint version() const
-  { return m_version; }
-
-  virtual void set_version(uint version)
-  { m_version= version; }
-
-  /////////////////////////////////////////////////////////////////////////
   // mysql_version_id.
   // Primarily intended for debugging, but can be used as a last-resort
   // version check for SE data and other items, but in general other
@@ -158,7 +148,6 @@ protected:
 private:
   // Fields.
 
-  uint m_version;
   uint m_mysql_version_id;
 
   // TODO-POST-MERGE-TO-TRUNK:

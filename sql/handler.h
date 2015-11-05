@@ -1052,7 +1052,6 @@ typedef struct st_ha_create_information
   uint null_bits;                       /* NULL bits at start of record */
   uint options;				/* OR of HA_CREATE_ options */
   uint merge_insert_method;
-  bool varchar;                         /* 1 if table has a VARCHAR */
   enum ha_storage_media storage_media;  /* DEFAULT, DISK or MEMORY */
 } HA_CREATE_INFO;
 

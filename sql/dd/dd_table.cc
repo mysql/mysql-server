@@ -1223,20 +1223,6 @@ static bool fill_dd_table_from_create_info(THD *thd,
   // Table name must be set with the correct case depending on l_c_t_n
   tab_obj->set_name(table_case_name(create_info, table_name.c_str()));
 
-  // Version
-  //
-  // TODO-NOW: If we are to keep this version value we need to define
-  // when it needs to be changed/what its change means and give
-  // some examples of scenarios when it is going to be useful.
-  //
-  // dlenev: .FRM format version is no longer relevant. So we can try to make
-  // this field a row-format version, but then we need to define its semantics
-  // very clearly/provide rules when this value needs to be changed (and
-  // preferrably some way to enforce this rule). OTOH our experience with
-  // temporals shows that it might be a bad idea to have single version of
-  // format for the whole row and versioning per column might make more sense.
-  tab_obj->set_version(FRM_VER_TRUE_VARCHAR);
-
   // TODO-POST-MERGE-TO-TRUNK:
   // Initialize new field tab_obj->last_checked_for_upgrade
 

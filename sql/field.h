@@ -179,8 +179,6 @@ enum type_conversion_status
 #define my_charset_numeric      my_charset_latin1
 #define MY_REPERTOIRE_NUMERIC   MY_REPERTOIRE_ASCII
 
-#define FRM_VER_TRUE_VARCHAR (FRM_VER+4) /* 10 */
-
 struct st_cache_field;
 type_conversion_status field_conv(Field *to,Field *from);
 
@@ -3437,27 +3435,22 @@ public:
 
 class Field_string :public Field_longstr {
 public:
-  bool can_alter_field_type;
   Field_string(uchar *ptr_arg, uint32 len_arg,uchar *null_ptr_arg,
 	       uchar null_bit_arg,
 	       uchar auto_flags_arg, const char *field_name_arg,
 	       const CHARSET_INFO *cs)
     :Field_longstr(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
-                   auto_flags_arg, field_name_arg, cs),
-     can_alter_field_type(1) {};
+                   auto_flags_arg, field_name_arg, cs)
+     {};
   Field_string(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
                const CHARSET_INFO *cs)
     :Field_longstr((uchar*) 0, len_arg, maybe_null_arg ? (uchar*) "": 0, 0,
-                   NONE, field_name_arg, cs),
-     can_alter_field_type(1) {};
+                   NONE, field_name_arg, cs)
+     {};
 
   enum_field_types type() const
   {
-    return ((can_alter_field_type && table && table->s &&
-             table->s->db_create_options & HA_OPTION_PACK_RECORD &&
-	     field_length >= 4) &&
-            table->s->frm_version < FRM_VER_TRUE_VARCHAR ?
-	    MYSQL_TYPE_VAR_STRING : MYSQL_TYPE_STRING);
+    return MYSQL_TYPE_STRING;
   }
   bool match_collation_to_optimize_range() const { return true; }
   enum ha_base_keytype key_type() const
