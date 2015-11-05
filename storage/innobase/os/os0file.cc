@@ -263,9 +263,9 @@ class AIO {
 public:
 	/** Constructor
 	@param[in]	id		Latch ID
-	@param[in]	n_slots		Number of slots to configure
+	@param[in]	n		Number of slots to configure
 	@param[in]	segments	Number of segments to configure */
-	AIO(latch_id_t id, ulint n_slots, ulint segments);
+	AIO(latch_id_t id, ulint n, ulint segments);
 
 	/** Destructor */
 	~AIO();
@@ -304,7 +304,7 @@ public:
 	ulint pending_io_count() const;
 
 	/** Returns a pointer to the nth slot in the aio array.
-	@param[in]	index	Index of the slot in the array
+	@param[in]	i	Index of the slot in the array
 	@return pointer to slot */
 	const Slot* at(ulint i) const
 		__attribute__((warn_unused_result))
@@ -486,13 +486,13 @@ public:
 
 	/** Create an instance using new(std::nothrow)
 	@param[in]	id		Latch ID
-	@param[in]	n_slots		The number of AIO request slots
-	@param[in]	segments	The number of segments
+	@param[in]	n		The number of AIO request slots
+	@param[in]	n_segments	The number of segments
 	@return a new AIO instance */
 	static AIO* create(
 		latch_id_t	id,
-		ulint		n_slots,
-		ulint		segments)
+		ulint		n,
+		ulint		n_segments)
 		__attribute__((warn_unused_result));
 
 	/** Initializes the asynchronous io system. Creates one array each
@@ -751,14 +751,14 @@ os_file_handle_error(
 Does error handling when a file operation fails.
 @param[in]	name		File name or NULL
 @param[in]	operation	Name of operation e.g., "read", "write"
-@param[in]	silent	if true then don't print any message to the log.
+@param[in]	on_error_silent	if true then don't print any message to the log.
 @return true if we should retry the operation */
 static
 bool
 os_file_handle_error_no_exit(
 	const char*	name,
 	const char*	operation,
-	bool		silent);
+	bool		on_error_silent);
 
 /** Decompress after a read and punch a hole in the file if it was a write
 @param[in]	type		IO context
@@ -783,16 +783,18 @@ os_file_io_complete(
 /** Does simulated AIO. This function should be called by an i/o-handler
 thread.
 
-@param[in]	segment	The number of the segment in the aio arrays to wait
-			for; segment 0 is the ibuf i/o thread, segment 1 the
-			log i/o thread, then follow the non-ibuf read threads,
-			and as the last are the non-ibuf write threads
-@param[out]	m1	the messages passed with the AIO request; note that
-			also in the case where the AIO operation failed, these
-			output parameters are valid and can be used to restart
-			the operation, for example
-@param[out]	m2	Callback argument
-@param[in]	type	IO context
+@param[in]	global_segment	The number of the segment in the aio arrays to
+				await for; segment 0 is the ibuf i/o thread,
+				segment 1 the log i/o thread, then follow the
+				non-ibuf read threads, and as the last are the
+				non-ibuf write threads
+@param[out]	m1		the messages passed with the AIO request; note
+				that also in the case where the AIO operation
+				failed, these output parameters are valid and
+				can be used to restart the operation, for
+				example
+@param[out]	m2		Callback argument
+@param[in]	type		IO context
 @return DB_SUCCESS or error code */
 static
 dberr_t
@@ -4900,7 +4902,7 @@ os_file_check_args(const IORequest& type, os_offset_t offset, ulint n)
 /** Does a syncronous read or write depending upon the type specified
 In case of partial reads/writes the function tries
 NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
-@param[in]	type,		IO flags
+@param[in]	in_type		IO flags
 @param[in]	file		handle to an open file
 @param[out]	buf		buffer where to read
 @param[in]	offset		file offset from the start where to read
@@ -5356,7 +5358,7 @@ os_file_handle_error_no_exit(
 /** Tries to disable OS caching on an opened file descriptor.
 @param[in]	fd		file descriptor to alter
 @param[in]	file_name	file name, used in the diagnostic message
-@param[in]	name		"open" or "create"; used in the diagnostic
+@param[in]	operation_name	"open" or "create"; used in the diagnostic
 				message */
 void
 os_file_set_nocache(
@@ -5654,7 +5656,7 @@ file.
 
 Note: On Windows we use the name and on Unices we use the file handle.
 
-@param[in]	name		File name
+@param[in]	path		File name
 @param[in]	fh		File handle for the file - if opened
 @return true if the file system supports sparse files */
 bool
@@ -5732,7 +5734,7 @@ therefore no other thread is allowed to do the freeing!
 				can be used to restart the operation,
 				for example
 @param[out]	m2		callback message
-@param[out]	type		OS_FILE_WRITE or ..._READ
+@param[out]	request		OS_FILE_WRITE or ..._READ
 @return DB_SUCCESS or error code */
 dberr_t
 os_aio_handler(
@@ -7113,8 +7115,7 @@ public:
 		}
 	}
 
-	/** Do the I/O with ordinary, synchronous i/o functions:
-	@param[in]	len		Length of buffer for IO */
+	/** Do the I/O with ordinary, synchronous i/o functions: */
 	void io()
 	{
 		if (first_slot()->type.is_write()) {
@@ -7359,16 +7360,18 @@ SimulatedAIOHandler::check_pending(
 /** Does simulated AIO. This function should be called by an i/o-handler
 thread.
 
-@param[in]	segment	The number of the segment in the aio arrays to wait
-			for; segment 0 is the ibuf i/o thread, segment 1 the
-			log i/o thread, then follow the non-ibuf read threads,
-			and as the last are the non-ibuf write threads
-@param[out]	m1	the messages passed with the AIO request; note that
-			also in the case where the AIO operation failed, these
-			output parameters are valid and can be used to restart
-			the operation, for example
-@param[out]	m2	Callback argument
-@param[in]	type	IO context
+@param[in]	global_segment	The number of the segment in the aio arrays to
+				wait for; segment 0 is the ibuf i/o thread,
+				segment 1 the log i/o thread, then follow the
+				non-ibuf read threads, and as the last are the
+				non-ibuf write threads
+@param[out]	m1		the messages passed with the AIO request; note
+				that also in the case where the AIO operation
+				failed, these output parameters are valid and
+				can be used to restart
+				the operation, for example
+@param[out]	m2		Callback argument
+@param[in]	type		IO context
 @return DB_SUCCESS or error code */
 static
 dberr_t
@@ -7745,8 +7748,7 @@ os_aio_all_slots_free()
 
 #ifdef UNIV_DEBUG
 /** Prints all pending IO for the array
-@param[in]	file	file where to print
-@param[in]	array	array to process */
+@param[in]	file	file where to print */
 void
 AIO::to_file(FILE* file) const
 {

@@ -1056,7 +1056,7 @@ page_find_rec_max_not_deleted(
 
 /** Issue a warning when the checksum that is stored in the page is valid,
 but different than the global setting innodb_checksum_algorithm.
-@param[in]	current_algo	current checksum algorithm
+@param[in]	curr_algo	current checksum algorithm
 @param[in]	page_checksum	page valid checksum
 @param[in]	page_id		page identifier */
 void

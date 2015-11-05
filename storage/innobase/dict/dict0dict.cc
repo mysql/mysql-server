@@ -4290,9 +4290,7 @@ to contain more fields than mentioned in the constraint.
 				table2 can be written also with the database
 				name before it: test.table2; the default
 				database id the database of parameter name
-@param[in]	sql_length	length of sql_string
 @param[in]	name		table full name in normalized form
-@param[in,out]	handler		table handler if table is intrinsic
 @param[in]	reject_fks	if TRUE, fail with error code
 				DB_CANNOT_ADD_CONSTRAINT if any
 				foreign keys are found.
@@ -6956,7 +6954,7 @@ dict_tf_to_row_format_string(
 }
 
 /** Look for any dictionary objects that are found in the given tablespace.
-@param[in]	space	Tablespace ID to search for.
+@param[in]	space_id	Tablespace ID to search for.
 @return true if tablespace is empty. */
 bool
 dict_tablespace_is_empty(

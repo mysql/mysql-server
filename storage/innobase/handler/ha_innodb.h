@@ -410,9 +410,8 @@ public:
 	/** Initialize multi range read and get information.
 	@see DsMrr_impl::dsmrr_info
 	@param keyno
-	@param seq
-	@param seq_init_param
 	@param n_ranges
+	@param keys
 	@param bufsz
 	@param flags
 	@param cost */

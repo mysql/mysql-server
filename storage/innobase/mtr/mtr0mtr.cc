@@ -942,7 +942,7 @@ struct FlaggedCheck {
 };
 
 /** Check if memo contains the given item.
-@param object		object to search
+@param ptr		object to search
 @param flags		specify types of object (can be ORred) of
 			MTR_MEMO_PAGE_S_FIX ... values
 @return true if contains */

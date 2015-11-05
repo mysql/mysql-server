@@ -254,12 +254,12 @@ dict_create_or_check_sys_virtual();
 
 /** Put a tablespace definition into the data dictionary,
 replacing what was there previously.
-@param[in]	space	Tablespace id
-@param[in]	name	Tablespace name
-@param[in]	flags	Tablespace flags
-@param[in]	path	Tablespace path
-@param[in]	trx	Transaction
-@param[in]	commit	If true, commit the transaction
+@param[in]	space_id	Tablespace id
+@param[in]	name		Tablespace name
+@param[in]	flags		Tablespace flags
+@param[in]	path		Tablespace path
+@param[in]	trx		Transaction
+@param[in]	commit		If true, commit the transaction
 @return error code or DB_SUCCESS */
 dberr_t
 dict_replace_tablespace_in_dictionary(

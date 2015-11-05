@@ -516,7 +516,7 @@ stored in undo log
 @param[in]	roll_ptr	the rollback pointer for the purging record
 @param[in]	trx_id		trx id for the purging record
 @param[in,out]	v_heap		heap used to build virtual dtuple
-@param[in,out]	v_row		dtuple holding the virtual rows (if needed)
+@param[in,out]	vrow		dtuple holding the virtual rows (if needed)
 @param[in]	mtr		mtr holding the latch on rec
 @return true if matches, false otherwise */
 static

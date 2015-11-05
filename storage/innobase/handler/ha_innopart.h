@@ -151,7 +151,7 @@ public:
 	all m_table_parts[]->vc_templ to it.
 	@param[in]      table           MySQL TABLE object
 	@param[in]      ib_table        InnoDB dict_table_t
-	@param[in]      table_name      Table name (db/table_name) */
+	@param[in]      name		Table name (db/table_name) */
 	void
 	set_v_templ(
 		TABLE*		table,
@@ -821,12 +821,12 @@ private:
 	Stores a row in an InnoDB database, to the table specified in this
 	handle.
 	@param[in]	part_id	Partition to write to.
-	@param[in]	row	A row in MySQL format.
+	@param[in]	record	A row in MySQL format.
 	@return error code. */
 	int
 	write_row_in_part(
 		uint	part_id,
-		uchar*	row);
+		uchar*	record);
 
 	/** Update a row in partition.
 	Updates a row given as a parameter to a new value.
@@ -842,12 +842,12 @@ private:
 
 	/** Deletes a row in partition.
 	@param[in]	part_id	Partition to delete from.
-	@param[in]	row	Row to delete in MySQL format.
+	@param[in]	record	Row to delete in MySQL format.
 	@return error number or 0. */
 	int
 	delete_row_in_part(
 		uint		part_id,
-		const uchar*	row);
+		const uchar*	record);
 
 	/** Return first record in index from a partition.
 	@param[in]	part	Partition to read from.
@@ -980,38 +980,38 @@ private:
 
 	/** Initialize random read/scan of a specific partition.
 	@param[in]	part_id		Partition to initialize.
-	@param[in]	table_scan	True for scan else random access.
+	@param[in]	scan		True for scan else random access.
 	@return error number or 0. */
 	int
 	rnd_init_in_part(
 		uint	part_id,
-		bool	table_scan);
+		bool	scan);
 
 	/** Get next row during scan of a specific partition.
 	@param[in]	part_id	Partition to read from.
-	@param[out]	record	Next row.
+	@param[out]	buf	Next row.
 	@return error number or 0. */
 	int
 	rnd_next_in_part(
 		uint	part_id,
-		uchar*	record);
+		uchar*	buf);
 
 	/** End random read/scan of a specific partition.
 	@param[in]	part_id		Partition to end random read/scan.
-	@param[in]	table_scan	True for scan else random access.
+	@param[in]	scan		True for scan else random access.
 	@return error number or 0. */
 	int
 	rnd_end_in_part(
 		uint	part_id,
-		bool	table_scan);
+		bool	scan);
 
 	/** Get a reference to the current cursor position in the last used
 	partition.
-	@param[out]	ref	Reference (PK if exists else row_id).
+	@param[out]	ref_arg	Reference (PK if exists else row_id).
 	@param[in]	record	Record to position. */
 	void
 	position_in_last_part(
-		uchar*		ref,
+		uchar*		ref_arg,
 		const uchar*	record);
 
 	/** Read record by given record (by its PK) from the last used partition.
@@ -1028,12 +1028,12 @@ private:
 	}
 
 	/** Copy a cached MySQL record.
-	@param[out]	to_record	Where to copy the MySQL record.
-	@param[in]	from_record	Which record to copy. */
+	@param[out]	buf		Where to copy the MySQL record.
+	@param[in]	cached_row	Which record to copy. */
 	void
 	copy_cached_row(
-		uchar*		to_record,
-		const uchar*	from_record);
+		uchar*		buf,
+		const uchar*	cached_row);
 	/** @} */
 
 	/* Private handler:: functions specific for native InnoDB partitioning.

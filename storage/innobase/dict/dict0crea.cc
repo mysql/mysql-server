@@ -2094,7 +2094,7 @@ dict_foreigns_has_v_base_col(
 /** Check if a column is in foreign constraint with CASCADE properties or
 SET NULL
 @param[in]	table		table
-@param[in]	fk_col_name	name for the column to be checked
+@param[in]	col_name	name for the column to be checked
 @return true if the column is in foreign constraint, otherwise, false */
 bool
 dict_foreigns_has_this_col(
@@ -2334,12 +2334,12 @@ dict_create_or_check_sys_tablespace(void)
 
 /** Put a tablespace definition into the data dictionary,
 replacing what was there previously.
-@param[in]	space	Tablespace id
-@param[in]	name	Tablespace name
-@param[in]	flags	Tablespace flags
-@param[in]	path	Tablespace path
-@param[in]	trx	Transaction
-@param[in]	commit	If true, commit the transaction
+@param[in]	space_id	Tablespace id
+@param[in]	name		Tablespace name
+@param[in]	flags		Tablespace flags
+@param[in]	path		Tablespace path
+@param[in]	trx		Transaction
+@param[in]	commit		If true, commit the transaction
 @return error code or DB_SUCCESS */
 dberr_t
 dict_replace_tablespace_in_dictionary(

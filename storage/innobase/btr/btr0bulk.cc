@@ -393,7 +393,7 @@ PageBulk::getSplitRec()
 }
 
 /** Copy all records after split rec including itself.
-@param[in]	rec	split rec */
+@param[in]	split_rec	split rec */
 void
 PageBulk::copyIn(
 	rec_t*		split_rec)
@@ -418,7 +418,7 @@ PageBulk::copyIn(
 }
 
 /** Remove all records after split rec including itself.
-@param[in]	rec	split rec	*/
+@param[in]	split_rec	split rec	*/
 void
 PageBulk::copyOut(
 	rec_t*		split_rec)
@@ -492,7 +492,7 @@ PageBulk::setPrev(
 
 /** Check if required space is available in the page for the rec to be inserted.
 We check fill factor & padding here.
-@param[in]	length		required length
+@param[in]	rec_size	required length
 @return true	if space is available */
 bool
 PageBulk::isSpaceAvailable(

@@ -1435,7 +1435,7 @@ innobase_srv_conc_enter_innodb(
 
 /** Note that the thread wants to leave InnoDB only if it doesn't have
 any spare tickets.
-@param[in,out]	m_prebuilt	row prebuilt handler */
+@param[in,out]	prebuilt	row prebuilt handler */
 static inline
 void
 innobase_srv_conc_exit_innodb(
@@ -1581,7 +1581,7 @@ thd_to_trx(
 
 /** Check if statement is of type INSERT .... SELECT that involves
 use of intrinsic tables.
-@param[in]	thd	thread handler
+@param[in]	user_thd	thread handler
 @return true if INSERT .... SELECT statement. */
 static inline
 bool
@@ -2250,7 +2250,7 @@ Compression::is_none(const char* algorithm)
 }
 
 /** Check for supported COMPRESS := (ZLIB | LZ4 | NONE) supported values
-@param[in]	name		Name of the compression algorithm
+@param[in]	algorithm	Name of the compression algorithm
 @param[out]	compression	The compression algorithm
 @return DB_SUCCESS or DB_UNSUPPORTED */
 dberr_t
@@ -2278,8 +2278,7 @@ Compression::check(
 }
 
 /** Check for supported COMPRESS := (ZLIB | LZ4 | NONE) supported values
-@param[in]	name		Name of the compression algorithm
-@param[out]	compression	The compression algorithm
+@param[in]	algorithm	Name of the compression algorithm
 @return DB_SUCCESS or DB_UNSUPPORTED */
 dberr_t
 Compression::validate(const char* algorithm)
@@ -15190,7 +15189,7 @@ struct ShowStatus {
 		/** Constructor
 		@param[in]	name		Name of the mutex
 		@param[in]	spins		Number of spins
-		@param[in]	os_waits	OS waits so far
+		@param[in]	waits		OS waits so far
 		@param[in]	calls		Number of calls to enter() */
 		Value(const char*	name,
 		      ulint		spins,

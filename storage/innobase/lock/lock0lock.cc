@@ -1363,9 +1363,6 @@ lock_number_of_tables_locked(
 Check of the lock is on m_rec_id.
 @param[in] lock			Lock to compare with
 @return true if the record lock is on m_rec_id*/
-/**
-@param[in] rhs			Lock to compare with
-@return true if the record lock equals rhs */
 bool
 RecLock::is_on_row(const lock_t* lock) const
 {

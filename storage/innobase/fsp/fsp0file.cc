@@ -794,7 +794,7 @@ Datafile::find_space_id()
 
 /** Finds a given page of the given space id from the double write buffer
 and copies it to the corresponding .ibd file.
-@param[in]	page_no		Page number to restore
+@param[in]	restore_page_no		Page number to restore
 @return DB_SUCCESS if page was restored from doublewrite, else DB_ERROR */
 dberr_t
 Datafile::restore_from_doublewrite(

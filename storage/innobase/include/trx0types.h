@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -207,7 +207,7 @@ public:
 	}
 
 	/** Erase the element pointed by given iterator.
-	@param[in]	iterator	iterator */
+	@param[in]	it	iterator */
 	void erase(iterator& it)
 	{
 		m_rsegs.erase(it);
@@ -246,8 +246,8 @@ public:
 	}
 
 	/** Compare two TrxUndoRsegs based on trx_no.
-	@param elem1 first element to compare
-	@param elem2 second element to compare
+	@param lhs first element to compare
+	@param rhs second element to compare
 	@return true if elem1 > elem2 else false.*/
 	bool operator()(const TrxUndoRsegs& lhs, const TrxUndoRsegs& rhs)
 	{

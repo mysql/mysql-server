@@ -182,9 +182,9 @@ public:
 	extension .ibd and have a basename of at least 1 byte.
 
 	Set tablespace m_path member and add a Datafile with the filename.
-	@param[in]	datafile_path	full path of the tablespace file. */
+	@param[in]	datafile_added	full path of the tablespace file. */
 	dberr_t add_datafile(
-		const char*	datafile_path);
+		const char*	datafile_added);
 
 	/* Return a pointer to the first Datafile for this Tablespace
 	@return pointer to the first Datafile for this Tablespace*/

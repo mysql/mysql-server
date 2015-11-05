@@ -1710,7 +1710,7 @@ fts_drop_tables(
 
 /** Extract only the required flags from table->flags2 for FTS Aux
 tables.
-@param[in]	in_flags2	Table flags2
+@param[in]	flags2	Table flags2
 @return extracted flags2 for FTS aux tables */
 static inline
 ulint
@@ -6233,8 +6233,8 @@ fts_parent_all_index_set_corrupt(
 }
 
 /** Mark the fts index which index id matches the id as corrupted.
-@param[in]	id		index id to search
-@param[in,out]	parent_table	parent table to check with all the index. */
+@param[in]	id	index id to search
+@param[in,out]	table	parent table to check with all the index. */
 static
 void
 fts_set_index_corrupt(

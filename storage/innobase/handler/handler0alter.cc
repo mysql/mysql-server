@@ -3084,7 +3084,6 @@ columns are removed from the PK;
 follows rule(1), Increasing the prefix length just like adding existing
 PK columns follows rule(2).
 @param[in]	col_map		mapping of old column numbers to new ones
-@param[in]	ha_alter_info	Data used during in-place alter
 @param[in]	old_clust_index	index to be compared
 @param[in]	new_clust_index index to be compared
 @retval true if both indexes have same order.
@@ -3684,9 +3683,9 @@ innobase_add_one_virtual(
 }
 
 /** Update INNODB SYS_TABLES on number of virtual columns
-@param[in] user_table	InnoDB table
+@param[in] table	InnoDB table
 @param[in] n_col	number of columns
-@param[in] trx		transaction
+@param[in] trx	transaction
 @return DB_SUCCESS if successful, otherwise error code */
 static
 dberr_t
@@ -6832,7 +6831,6 @@ commit_get_autoinc(
 
 /** Add or drop foreign key constraints to the data dictionary tables,
 but do not touch the data dictionary cache.
-@param ha_alter_info Data used during in-place alter
 @param ctx In-place ALTER TABLE context
 @param trx Data dictionary transaction
 @param table_name Table name in MySQL

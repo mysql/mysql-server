@@ -95,7 +95,7 @@ dict_load_table_one(
 Does not load any columns or indexes.
 @param[in]	name	Table name
 @param[in]	rec	SYS_TABLES record
-@param[out,own]	table	Table, or NULL
+@param[out]	table	Table, or NULL
 @return error message, or NULL on success */
 static
 const char*
@@ -1829,7 +1829,7 @@ dict_check_sys_tablespaces(
 
 /** Read and return 5 integer fields from a SYS_TABLES record.
 @param[in]	rec		A record of SYS_TABLES
-@param[in]	name		Table Name, the same as SYS_TABLES.NAME
+@param[in]	table_name	Table Name, the same as SYS_TABLES.NAME
 @param[out]	table_id	Pointer to the table_id for this table
 @param[out]	space_id	Pointer to the space_id for this table
 @param[out]	n_cols		Pointer to number of columns for this table.
@@ -2536,7 +2536,7 @@ func_exit:
 Does not load any columns or indexes.
 @param[in]	name	Table name
 @param[in]	rec	SYS_TABLES record
-@param[out,own]	table	table, or NULL
+@param[out]	table	table, or NULL
 @return error message, or NULL on success */
 static
 const char*

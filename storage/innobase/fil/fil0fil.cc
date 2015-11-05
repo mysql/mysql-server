@@ -2528,7 +2528,7 @@ fil_close_tablespace(
 /** Deletes an IBD tablespace, either general or single-table.
 The tablespace must be cached in the memory cache. This will delete the
 datafile, fil_space_t & fil_node_t entries from the file_system_t cache.
-@param[in]	space_id	Tablespace id
+@param[in]	id		Tablespace id
 @param[in]	buf_remove	Specify the action to take on the pages
 for this table in the buffer pool.
 @return DB_SUCCESS or error */
@@ -6062,8 +6062,8 @@ fil_no_punch_hole(fil_node_t* node)
 }
 
 /** Set the compression type for the tablespace
-@param[in] space		Space ID of tablespace for which to set
-@param[in] algorithm		Text representation of the algorithm
+@param[in] space_id	Space ID of tablespace for which to set
+@param[in] algorithm	Text representation of the algorithm
 @return DB_SUCCESS or error code */
 dberr_t
 fil_set_compression(
@@ -6210,7 +6210,7 @@ Folder::Folder(const char* path, size_t len)
 }
 
 /** Assignment operator
-@param[in]	folder	folder string provided */
+@param[in]	path	folder string provided */
 class Folder&
 Folder::operator=(const char* path)
 {

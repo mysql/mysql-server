@@ -262,7 +262,7 @@ public:
 	Folder(const char* path, size_t len);
 
 	/** Assignment operator
-	@param[in]	folder	folder string provided */
+	@param[in]	path	folder string provided */
 	class Folder& operator=(const char* path);
 
 	/** Destructor */
@@ -741,7 +741,7 @@ fil_op_replay_rename(
 /** Deletes an IBD tablespace, either general or single-table.
 The tablespace must be cached in the memory cache. This will delete the
 datafile, fil_space_t & fil_node_t entries from the file_system_t cache.
-@param[in]	space_id	Tablespace id
+@param[in]	id		Tablespace id
 @param[in]	buf_remove	Specify the action to take on the pages
 for this table in the buffer pool.
 @return true if success */
@@ -1271,7 +1271,7 @@ Looks for a pre-existing fil_space_t with the given tablespace ID
 and, if found, returns the name and filepath in newly allocated buffers that the caller must free.
 @param[in] space_id The tablespace ID to search for.
 @param[out] name Name of the tablespace found.
-@param[out] fileapth The filepath of the first datafile for thtablespace found.
+@param[out] filepath The filepath of the first datafile for thtablespace found.
 @return true if tablespace is found, false if not. */
 bool
 fil_space_read_name_and_filepath(
@@ -1349,8 +1349,8 @@ fil_names_dirty_and_write(
 	mtr_t*		mtr);
 
 /** Set the compression type for the tablespace
-@param[in] space		Space ID of tablespace for which to set
-@param[in] algorithm		Text representation of the algorithm
+@param[in]	space_id	Space ID of tablespace for which to set
+@param[in]	algorithm	Text representation of the algorithm
 @return DB_SUCCESS or error code */
 dberr_t
 fil_set_compression(

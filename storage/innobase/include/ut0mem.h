@@ -50,7 +50,7 @@ target are overlapping.
 @return dest */
 UNIV_INLINE
 void*
-ut_memmove(void* dest, const void* sour, ulint n);
+ut_memmove(void* dest, const void* src, ulint n);
 
 /** Wrapper for memcmp(3).  Compare memory areas.
 @param[in]	str1	first memory block to compare

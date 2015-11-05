@@ -363,7 +363,7 @@ public:
 	}
 
 	/** Set compression algorithm
-	@param[in] compression	The compression algorithm to use */
+	@param[in]	type	The compression algorithm to use */
 	void compression_algorithm(Compression::Type type)
 	{
 		if (type == Compression::NONE) {
@@ -517,7 +517,6 @@ struct os_file_stat_t {
 the temporary file is created in the given parameter path. If the path
 is null then it will create the file in the mysql server configuration
 parameter (--tmpdir).
-@param[in]	path	location for creating temporary file
 @return temporary file handle, or NULL on error */
 FILE*
 os_file_create_tmpfile();
@@ -581,7 +580,7 @@ os_file_create_simple_no_error_handling_func(
 /** Tries to disable OS caching on an opened file descriptor.
 @param[in]	fd		file descriptor to alter
 @param[in]	file_name	file name, used in the diagnostic message
-@param[in]	name		"open" or "create"; used in the diagnostic
+@param[in]	operation_name	"open" or "create"; used in the diagnostic
 				message */
 void
 os_file_set_nocache(
@@ -1132,7 +1131,7 @@ os_file_close_no_error_handling(os_file_t file);
 #endif /* UNIV_HOTBACKUP */
 
 /** Gets a file size.
-@param[in]	file		handle to a file
+@param[in]	filename	handle to a file
 @return file size if OK, else set m_total_size to ~0 and m_alloc_size
 	to errno */
 os_file_size_t
@@ -1195,12 +1194,12 @@ os_file_flush_func(
 The number should be retrieved before any other OS calls (because they may
 overwrite the error number). If the number is not known to this program,
 the OS error number + 100 is returned.
-@param[in]	report		true if we want an error message printed
-				for all errors
+@param[in]	report_all_errors	true if we want an error message printed
+					for all errors
 @return error number, or OS error number + 100 */
 ulint
 os_file_get_last_error(
-	bool		report);
+	bool		report_all_errors);
 
 /** NOTE! Use the corresponding macro os_file_read(), not directly this
 function!
@@ -1293,12 +1292,12 @@ This function allocates memory to be returned.  It is the callers
 responsibility to free the return value after it is no longer needed.
 
 @param[in]	old_path		pathname
-@param[in]	new_name		new file name
+@param[in]	tablename		new file name
 @return own: new full pathname */
 char*
 os_file_make_new_pathname(
 	const char*	old_path,
-	const char*	new_name);
+	const char*	tablename);
 
 /** This function reduces a null-terminated full remote path name into
 the path that is sent by MySQL for DATA DIRECTORY clause.  It replaces
@@ -1334,14 +1333,14 @@ array is divided logically into n_read_segs and n_write_segs
 respectively. The caller must create an i/o handler thread for each
 segment in these arrays. This function also creates the sync array.
 No i/o handler thread needs to be created for that
-@param[in]	n_read_segs	number of reader threads
-@param[in]	n_write_segs	number of writer threads
+@param[in]	n_readers	number of reader threads
+@param[in]	n_writers	number of writer threads
 @param[in]	n_slots_sync	number of slots in the sync aio array */
 
 bool
 os_aio_init(
-	ulint		n_read_segs,
-	ulint		n_write_segs,
+	ulint		n_readers,
+	ulint		n_writers,
 	ulint		n_slots_sync);
 
 /**
@@ -1421,14 +1420,14 @@ therefore no other thread is allowed to do the freeing!
 				are valid and can be used to restart the
 				operation, for example
 @param[out]	m2		callback message
-@param[out]	type		OS_FILE_WRITE or ..._READ
+@param[out]	request		OS_FILE_WRITE or ..._READ
 @return DB_SUCCESS or error code */
 dberr_t
 os_aio_handler(
 	ulint		segment,
 	fil_node_t**	m1,
 	void**		m2,
-	IORequest*	type);
+	IORequest*	request);
 
 /** Prints info of the aio arrays.
 @param[in,out]	file		file where to print */
@@ -1515,8 +1514,8 @@ file.
 
 Note: On Windows we use the name and on Unices we use the file handle.
 
-@param[in]	name		File name
-@param[in]	fh		File handle for the file - if opened
+@param[in]	path	File name
+@param[in]	fh	File handle for the file - if opened
 @return true if the file system supports sparse files */
 bool
 os_is_sparse_file_supported(

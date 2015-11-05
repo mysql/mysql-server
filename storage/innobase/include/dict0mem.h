@@ -1874,7 +1874,7 @@ dict_index_zip_pad_mutex_create_lazy(
 /** Destroy the zip_pad_mutex of the given index.
 This function is only called from either single threaded environment
 or from a thread that has not shared the table object with other threads.
-@param[in,out]	table	table whose stats latch to destroy */
+@param[in,out]	index	index whose stats latch to destroy */
 inline
 void
 dict_index_zip_pad_mutex_destroy(

@@ -66,7 +66,7 @@ extern bool	srv_missing_dd_table_buffer;
 
 /** Convert a numeric string that optionally ends in G or M or K,
     to a number containing megabytes.
-@param[in]	str	String with a quantity in bytes
+@param[in]	ptr	String with a quantity in bytes
 @param[out]	megs	The number in megabytes
 @return next character in string */
 char*
@@ -100,7 +100,7 @@ SysTablespace::parse_units(
 }
 
 /** Parse the input params and populate member variables.
-@param[in]	filepath	path to data files
+@param[in]	filepath_spec	path to data files
 @param[in]	supports_raw	true if the tablespace supports raw devices
 @return true on success parse */
 bool

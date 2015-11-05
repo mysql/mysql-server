@@ -200,7 +200,7 @@ Ha_innopart_share::open_one_table_part(
 all m_table_parts[]->vc_templ to it.
 @param[in]	table		MySQL TABLE object
 @param[in]	ib_table	InnoDB dict_table_t
-@param[in]	table_name	Table name (db/table_name) */
+@param[in]	name		Table name (db/table_name) */
 void
 Ha_innopart_share::set_v_templ(
 	TABLE*		table,
@@ -531,7 +531,7 @@ Ha_innopart_share::get_mysql_key(
 
 /** Helper function for set bit in bitmap.
 @param[in,out]	buf	Bitmap buffer to update bit in.
-@param[in]	bit_pos	Bit number (index starts at 0). */
+@param[in]	pos	Bit number (index starts at 0). */
 static
 inline
 void
@@ -544,7 +544,7 @@ set_bit(
 
 /** Helper function for clear bit in bitmap.
 @param[in,out]	buf	Bitmap buffer to update bit in.
-@param[in]	bit_pos	Bit number (index starts at 0). */
+@param[in]	pos	Bit number (index starts at 0). */
 static
 inline
 void
@@ -557,10 +557,10 @@ clear_bit(
 
 /** Helper function for get bit in bitmap.
 @param[in,out]	buf	Bitmap buffer.
-@param[in]	bit_pos	Bit number (index starts at 0).
+@param[in]	pos	Bit number (index starts at 0).
 @return	byte set to 0x0 or 0x1.
 @retval	0x0 bit not set.
-@retval	0x1 bet set. */
+@retval	0x1 bit set. */
 static
 inline
 byte

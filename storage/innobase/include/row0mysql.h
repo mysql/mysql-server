@@ -404,8 +404,6 @@ fields than mentioned in the constraint.
 				database id the database of parameter name
 @param[in]	sql_length	length of sql_string
 @param[in]	name		table full name in normalized form
-@param[in]	is_temp_table	true if table is temporary
-@param[in,out]	handler		table handler if table is intrinsic
 @param[in]	reject_fks	if TRUE, fail with error code
 				DB_CANNOT_ADD_CONSTRAINT if any
 				foreign keys are found.

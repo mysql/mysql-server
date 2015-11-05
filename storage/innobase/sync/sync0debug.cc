@@ -192,7 +192,7 @@ struct LatchDebug {
 	/** Do a basic ordering check.
 	@param[in]	latches		thread's existing latches
 	@param[in]	requested_level	Level requested by latch
-	@param[in]	level		declared ulint so that we can
+	@param[in]	in_level	declared ulint so that we can
 					do level - 1. The level of the
 					latch that the thread is trying
 					to acquire
@@ -200,7 +200,7 @@ struct LatchDebug {
 	bool basic_check(
 		const Latches*	latches,
 		latch_level_t	requested_level,
-		ulint		level) const
+		ulint		in_level) const
 		UNIV_NOTHROW;
 
 	/** Adds a latch and its level in the thread level array. Allocates
@@ -691,7 +691,7 @@ LatchDebug::thread_latches(bool add)
 }
 
 /** Checks if the level value exists in the thread's acquired latches.
-@param[in]	levels		the thread's existing (acquired) latches
+@param[in]	latches		the thread's existing (acquired) latches
 @param[in]	level		to lookup
 @return	latch if found or 0 */
 const latch_t*
@@ -1034,7 +1034,6 @@ LatchDebug::check_order(
 
 /** Removes a latch from the thread level array if it is found there.
 @param[in]	latch		that was released/unlocked
-@param[in]	level		level of the latch
 @return true if found in the array; it is not an error if the latch is
 not found, as we presently are not able to determine the level for
 every latch reservation the program does */

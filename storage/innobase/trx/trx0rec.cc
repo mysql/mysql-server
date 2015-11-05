@@ -805,7 +805,7 @@ trx_undo_page_report_modify_ext(
 
 /** Get MBR from a Geometry column stored externally
 @param[out]	mbr		MBR to fill
-@param[in]	pagesize	table pagesize
+@param[in]	page_size	table pagesize
 @param[in]	field		field contain the geometry data
 @param[in,out]	len		length of field, in bytes
 */
