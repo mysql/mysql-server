@@ -2217,7 +2217,6 @@ dict_index_node_ptr_max_size(
 	ulint	i;
 	/* maximum possible storage size of a record */
 	ulint	rec_max_size;
-	bool	clust = dict_index_is_clust(index);
 
 	if (dict_index_is_ibuf(index)) {
 		/* cannot estimate accurately */
@@ -2260,17 +2259,11 @@ dict_index_node_ptr_max_size(
 		ulint			field_ext_max_size;
 
 		/* Determine the maximum length of the index field. */
+
 		field_max_size = dict_col_get_fixed_size(col, comp);
-
-		bool within_limit = field_max_size <= DICT_MAX_FIXED_COL_LEN;
-
-		/* For clustered index, fixed length fields longer than
-		DICT_MAX_FIXED_COL_LEN needs to be treated as a variable
-		length field. */
-		if (field_max_size > 0 && (!clust || within_limit)) {
-			/* dict_index_add_col() guarantees this */
-			ut_ad(field->prefix_len == 0
-			      || field->fixed_len == 0
+		if (field_max_size) {
+			/* dict_index_add_col() should guarantee this */
+			ut_ad(!field->prefix_len
 			      || field->fixed_len == field->prefix_len);
 			/* Fixed lengths are not encoded
 			in ROW_FORMAT=COMPACT. */
