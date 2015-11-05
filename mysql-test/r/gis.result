@@ -694,7 +694,7 @@ def	test	t1	t1	g	g	255	4294967295	0	Y	144	0	63
 g
 select ST_asbinary(g) from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					ST_asbinary(g)	255	4294967295	0	Y	128	0	63
+def					ST_asbinary(g)	252	4294967295	0	Y	128	0	63
 ST_asbinary(g)
 drop table t1;
 create table t1 (a TEXT, b GEOMETRY NOT NULL, SPATIAL KEY(b));
@@ -766,7 +766,7 @@ from
 t2 ws;
 describe t3;
 Field	Type	Null	Key	Default	Extra
-geomdatawkb	geometry	YES		NULL	
+geomdatawkb	longblob	YES		NULL	
 drop table t1;
 drop table t2;
 drop table t3;
@@ -1128,7 +1128,9 @@ FORCE INDEX(i) WHERE a = date_sub(now(), interval 2808.4 year_month)
 ;
 1
 Warnings:
+Warning	1292	Truncated incorrect datetime value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?'
 Warning	1441	Datetime function: datetime field overflow
+Warning	1292	Truncated incorrect datetime value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\x00@'
 DROP TABLE g1;
 #
 # Bug#13013970 MORE CRASHES IN FIELD_BLOB::GET_KEY_IMAGE
@@ -2373,20 +2375,31 @@ rescol
 SELECT ST_GeomFromText('POINT(0 0)') IN (SELECT b FROM t) AS result;
 result
 0
+Warnings:
+Warning	1292	Incorrect date value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
 SELECT ST_AsWKB(ST_GeomFromText('POINT(0 0)')) IN (SELECT b FROM t) AS result;
 result
 0
+Warnings:
+Warning	1292	Incorrect date value: '\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
 INSERT INTO t VALUES(ST_GeomFromText('POINT(0 0)'), CURDATE());
 SELECT ST_GeomFromText('POINT(0 0)') IN (SELECT b FROM t) AS result;
 result
 0
+Warnings:
+Warning	1292	Incorrect date value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
 SELECT ST_AsWKB(ST_GeomFromText('POINT(0 0)')) IN (SELECT b FROM t) AS result;
 result
 0
+Warnings:
+Warning	1292	Incorrect date value: '\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
 SELECT ST_GeomFromText('POINT(0 0)') > (SELECT b FROM t) AS result;
 ERROR HY000: Incorrect arguments to >
 SELECT ST_AsWKB(ST_GeomFromText('POINT(0 0)')) > (SELECT b FROM t) AS result;
-ERROR HY000: Incorrect arguments to >
+result
+0
+Warnings:
+Warning	1292	Truncated incorrect date value: '\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 DROP TABLE t;
 CREATE TABLE t1(a BLOB NOT NULL, b INT NOT NULL) ENGINE=Innodb;
 SELECT NOT EXISTS
@@ -2420,7 +2433,8 @@ result
 SELECT ST_GeomFromText('POINT(0 0)') > (SELECT b FROM t1) AS result;
 ERROR HY000: Incorrect arguments to >
 SELECT ST_AsWKB(ST_GeomFromText('POINT(0 0)')) > (SELECT b FROM t1) AS result;
-ERROR HY000: Incorrect arguments to >
+result
+0
 DROP TABLE t1;
 #
 # Bug #19880316 ALTER TABLE INSERTS INVALID VALUES IN GEOMETRY COLUMNS
@@ -3037,3 +3051,19 @@ SELECT ST_ISVALID(ST_DIFFERENCE(ST_GEOMFROMTEXT('POLYGON((8 6,5 7,-1
 11,-8 -3,3 5))'))) AS result;
 result
 1
+#
+# Bug #22131961 CANNOT GET GEOMETRY OBJECT FROM DATA YOU SEND TO THE
+# GEOMETRY FIELD
+#
+CREATE TABLE d (id INT, r_id INT, i INT);
+INSERT INTO d VALUES (1, 1, 1);
+CREATE TABLE dp (id INT, d_id INT);
+INSERT INTO dp VALUES (1, 1);
+CREATE TABLE r (id INT, p POINT);
+INSERT INTO r VALUES (1, ST_GEOMFROMTEXT('POINT(1 1)'));
+DO (SELECT ST_ASBINARY(r.p)
+FROM d
+INNER JOIN dp ON d.id = dp.d_id
+INNER JOIN r ON d.r_id = r.id
+ORDER BY d.i);
+DROP TABLE d, dp, r;
