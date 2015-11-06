@@ -1891,6 +1891,8 @@ void Item::split_sum_func2(THD *thd, Item **ref_pointer_array,
     */
     Item_aggregate_ref *item_ref;
     uint el= fields.elements;
+    DBUG_ASSERT(fields.elements <=
+                thd->lex->current_select->ref_pointer_array_size);
     /*
       If this is an item_ref, get the original item
       This is a safety measure if this is called for things that is
@@ -6719,6 +6721,7 @@ Item *Item_field::update_value_transformer(uchar *select_arg)
   {
     List<Item> *all_fields= &select->join->all_fields;
     Item **ref_pointer_array= select->ref_pointer_array;
+    DBUG_ASSERT(all_fields->elements <= select->ref_pointer_array_size);
     int el= all_fields->elements;
     Item_ref *ref;
 

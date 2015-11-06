@@ -5445,6 +5445,41 @@ EXECUTE stmt;
 DROP TABLE t1, t2, t3;
 DROP VIEW v3;
 
+--echo #
+--echo # MDEV-8632: Segmentation fault on INSERT
+--echo #
+CREATE TABLE `t1` (
+  `id` int(10) unsigned NOT NULL,
+  `r` float NOT NULL,
+  PRIMARY KEY (`id`)
+) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+create view v1 as select id, if(r=r,1,2) as d from t1;
+create view v2 as
+  select id, 
+  d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d as p
+  from v1;
+insert into t1 (id, r)
+select id,p from
+(
+  select id, 
+  d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d as p
+  from (
+    select id, if(r=r,1,2) as d
+    from t1
+  ) a
+) b
+on duplicate key update r=p;
+insert into t1 (id, r)
+select id,p from v2 
+on duplicate key update r=p;
+
+prepare stmt from "insert into t1 (id, r) select id,p from v2 on duplicate key update r=p";
+execute stmt;
+execute stmt;
+deallocate prepare stmt;
+
+drop view v1,v2;
+drop table `t1`;
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.5 tests.
 --echo # -----------------------------------------------------------------

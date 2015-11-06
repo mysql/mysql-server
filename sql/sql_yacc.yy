@@ -9872,6 +9872,15 @@ table_factor:
               sel->add_joined_table($$);
               lex->pop_context();
               lex->nest_level--;
+              /*
+                Fields in derived table can be used in upper select in
+                case of merge. We do not add HAVING fields because we do
+                not merge such derived. We do not add union because
+                also do not merge them
+              */
+              if (!sel->next_select())
+                $2->select_n_where_fields+=
+                  sel->select_n_where_fields;
             }
             /*else if (($3->select_lex &&
                       $3->select_lex->master_unit()->is_union() &&
