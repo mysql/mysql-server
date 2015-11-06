@@ -3100,8 +3100,10 @@ Prepared_statement::~Prepared_statement()
   free_items();
   if (lex)
   {
+    DBUG_ASSERT(lex->sphead == NULL);
+    lex_end(lex);
     delete lex->result;
-    delete (st_lex_local *) lex;
+    delete (st_lex_local *) lex;                // TRASH memory
   }
   free_root(&main_mem_root, MYF(0));
   DBUG_VOID_RETURN;
