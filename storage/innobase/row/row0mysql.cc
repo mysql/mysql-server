@@ -978,6 +978,7 @@ row_create_prebuilt(
 	prebuilt->skip_serializable_dd_view = false;
 
 	prebuilt->m_no_prefetch = false;
+	prebuilt->m_read_virtual_key = false;
 
 	DBUG_RETURN(prebuilt);
 }

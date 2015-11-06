@@ -497,3 +497,30 @@ Warning	1013	InnoDB: Trying to get the free space for partition `test`.`t1` /* P
 Warning	1013	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p2` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
 Warning	1013	InnoDB: Trying to get the free space for partition `test`.`t1` /* Partition `p3` */ but its tablespace has been discarded or the .ibd file is missing. Setting the free space of the partition to zero.
 DROP TABLE t1;
+#
+# Bug#21864838: SIG11 IN FIELD_BLOB::CMP| AT SQL/FIELD.CC
+#
+CREATE TABLE t1 (col1 INT PRIMARY KEY, col2 VARCHAR(1), col3 BLOB AS (REPEAT(col2, 500)) VIRTUAL, KEY(col3(100)))
+ENGINE=INNODB
+PARTITION BY HASH(col1) PARTITIONS 2;
+CREATE TABLE t2 (col1 INT PRIMARY KEY, col2 VARCHAR(1), col3 BLOB AS (REPEAT(col2, 500)) VIRTUAL, KEY(col3(100)))
+ENGINE=INNODB
+PARTITION BY HASH(col1) PARTITIONS 2;
+INSERT INTO t1 (col1, col2) VALUES(1, 'd'), (2, 'c'), (3, 'b'), (4, 'a');
+INSERT INTO t2 (col1, col2) VALUES(1, 'd'), (2, 'c'), (3, 'b'), (4, 'a');
+SELECT t1.col1 FROM t1, t2 where t1.col1 = 3 AND t1.col3 = t2.col3 ORDER BY t2.col1 DESC;
+col1
+3
+DROP TABLE t1;
+DROP TABLE t2;
+#
+# Bug #21881155: UNINTIALIZED READ IN KEY_REC_CMP CAUSE CRASH LATER
+#
+CREATE TABLE t1 (col1 int, col2 BLOB AS ('a') VIRTUAL, col3 INT,
+PRIMARY KEY(col1), KEY (col3, col2(1), col1))
+ENGINE=INNODB
+PARTITION BY KEY (col1) PARTITIONS 2;
+INSERT INTO t1(col1) values (1),(2);
+SELECT 1 FROM t1 WHERE col2 > 'a' GROUP BY col3;
+1
+DROP TABLE t1;

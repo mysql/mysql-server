@@ -871,6 +871,8 @@ struct row_prebuilt_t {
 	bool		skip_serializable_dd_view;
 					/* true, if we want skip serializable
 					isolation level on views on DD tables */
+	/** Return materialized key for secondary index scan */
+	bool		m_read_virtual_key;
 };
 
 /** Callback for row_mysql_sys_index_iterate() */
