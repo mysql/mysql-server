@@ -8193,6 +8193,11 @@ bool handler::my_prepare_gcolumn_template(THD *thd,
   DBUG_ASSERT(!was_truncated);
   lex_start(thd);
   bool rc= true;
+
+  // Note! The last argument to open_table_uncached() must be false,
+  // since the table already exists in the TDC. Allowing the table to
+  // be opened in the SE in this case is dangerous as the two shares
+  // could get conflicting SE private data.
   TABLE *table= open_table_uncached(thd, path, db_name, table_name,
                                     false, false);
   if (table)
@@ -8207,14 +8212,17 @@ bool handler::my_prepare_gcolumn_template(THD *thd,
 
 
 /**
-   Callback for generated columns processing. Will open the table
-   and call my_eval_gcolumn_expr_helper() to do the actual
+   Callback for generated columns processing. Will open the table, in the
+   server *only*, and call my_eval_gcolumn_expr_helper() to do the actual
    processing. This function is a variant of the other
    handler::my_eval_gcolumn_expr() but is intended for use when no TABLE
    object already exists - e.g. from purge threads.
 
+   Note! The call to open_table_uncached() must be made with the last
+   argument (open_in_engine) set to false. Failing to do so will cause
+   deadlocks and incorrect behavior.
+
    @param thd             Thread handle
-   @param open_in_engine  Should ha_open() be called?
    @param db_name         Database containing the table to open
    @param table_name      Name of table to open
    @param fields          Bitmap of field index of evaluated generated column
@@ -8223,49 +8231,28 @@ bool handler::my_prepare_gcolumn_template(THD *thd,
    @return true in case of error, false otherwise.
 */
 
-bool handler::my_eval_gcolumn_expr(THD *thd,
-                                   bool open_in_engine,
-                                   const char *db_name,
-                                   const char *table_name,
-                                   const MY_BITMAP *const fields,
-                                   uchar *record)
+bool handler::my_eval_gcolumn_expr_with_open(THD *thd,
+                                             const char *db_name,
+                                             const char *table_name,
+                                             const MY_BITMAP *const fields,
+                                             uchar *record)
 {
   DBUG_ASSERT(thd->system_thread == SYSTEM_THREAD_BACKGROUND);
   bool retval= true;
   lex_start(thd);
 
-  if (open_in_engine)
-  {
-    TABLE_LIST table_list;
-    table_list.init_one_table(db_name, strlen(db_name),
-                              table_name, strlen(table_name),
-                              table_name, TL_READ);
+  char path[FN_REFLEN + 1];
+  bool was_truncated;
+  build_table_filename(path, sizeof(path) - 1 - reg_ext_length,
+                       db_name, table_name, "", 0, &was_truncated);
+  DBUG_ASSERT(!was_truncated);
 
-    TABLE *table= open_ltable(thd, &table_list, table_list.lock_type,
-                              MYSQL_LOCK_IGNORE_TIMEOUT);
-    if (table)
-    {
-      retval=
-        my_eval_gcolumn_expr_helper(thd, table_list.table, fields, record, true);
-      trans_commit_stmt(thd);
-      close_thread_tables(thd);
-    }
-  }
-  else
+  TABLE *table= open_table_uncached(thd, path, db_name, table_name,
+                                    false, false);
+  if (table)
   {
-    char path[FN_REFLEN + 1];
-    bool was_truncated;
-    build_table_filename(path, sizeof(path) - 1 - reg_ext_length,
-                         db_name, table_name, "", 0, &was_truncated);
-    DBUG_ASSERT(!was_truncated);
-
-    TABLE *table= open_table_uncached(thd, path, db_name, table_name,
-                                      false, false);
-    if (table)
-    {
-      retval= my_eval_gcolumn_expr_helper(thd, table, fields, record, true);
-      intern_close_table(table);
-    }
+    retval= my_eval_gcolumn_expr_helper(thd, table, fields, record, true);
+    intern_close_table(table);
   }
 
   lex_end(thd->lex);
