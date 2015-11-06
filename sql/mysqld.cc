@@ -3968,7 +3968,13 @@ a file name for --log-bin-index option", opt_binlog_index_name);
       opt_bin_logname=my_strdup(key_memory_opt_bin_logname,
                                 buf, MYF(0));
     }
-    if (mysql_bin_log.open_index_file(opt_binlog_index_name, ln, TRUE))
+
+    /*
+      Skip opening the index file if we start with --help. This is necessary
+      to avoid creating the file in an otherwise empty datadir, which will
+      cause a succeeding 'mysqld --initialize' to fail.
+    */
+    if (!opt_help && mysql_bin_log.open_index_file(opt_binlog_index_name, ln, TRUE))
     {
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
