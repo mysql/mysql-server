@@ -19466,9 +19466,8 @@ innobase_get_computed_value(
 				vctempl->mysql_col_len, blob_mem, max_len);
                 }
 
-		ret = handler::my_eval_gcolumn_expr(
-			current_thd, false,
-			index->table->vc_templ->db_name.c_str(),
+		ret = handler::my_eval_gcolumn_expr_with_open(
+			current_thd, index->table->vc_templ->db_name.c_str(),
 			index->table->vc_templ->tb_name.c_str(), &column_map,
 			(uchar *)mysql_rec);
         } else {

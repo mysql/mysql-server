@@ -3688,12 +3688,11 @@ public:
                                           const char *table_name,
                                           my_gcolumn_template_callback_t myc,
                                           void *ib_table);
-  static bool my_eval_gcolumn_expr(THD *thd,
-                                   bool open_in_engine,
-                                   const char *db_name,
-                                   const char *table_name,
-                                   const MY_BITMAP *const fields,
-                                   uchar *record);
+  static bool my_eval_gcolumn_expr_with_open(THD *thd,
+                                             const char *db_name,
+                                             const char *table_name,
+                                             const MY_BITMAP *const fields,
+                                             uchar *record);
   static bool my_eval_gcolumn_expr(THD *thd,
                                    const char *db_name,
                                    const char *table_name,

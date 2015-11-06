@@ -6621,10 +6621,25 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
     DBUG_RETURN(0);				/* purecov: inspected */
 
 #ifndef DBUG_OFF
-  mysql_mutex_lock(&LOCK_open);
-  DBUG_ASSERT(!my_hash_search(&table_def_cache, (uchar*) cache_key,
-                              key_length));
-  mysql_mutex_unlock(&LOCK_open);
+  // In order to let purge thread callback call open_table_uncached()
+  // we cannot grab LOCK_open here, as that will cause a deadlock.
+
+  // The assert below safeguards against opening a table which is
+  // already found in the table definition cache. Iff the table will
+  // be opened in the SE below, we may get two conflicting copies of
+  // SE private data in the two table_shares.
+
+  // By only grabbing LOCK_open and check the assert only when
+  // open_in_engine is true, we safeguard the engine private data while
+  // also allowing the purge threads callbacks since they always call
+  // with open_in_engine=false.
+  if (open_in_engine)
+  {
+    mysql_mutex_lock(&LOCK_open);
+    DBUG_ASSERT(!my_hash_search(&table_def_cache, (uchar*) cache_key,
+                                key_length));
+    mysql_mutex_unlock(&LOCK_open);
+  }
 #endif
 
   share= (TABLE_SHARE*) (tmp_table+1);
