@@ -9,13 +9,13 @@ SHOW GLOBAL VARIABLES LIKE "example_%";
 --echo
 SHOW SESSION VARIABLES LIKE "example_%";
 --echo
-SELECT variable_name, variable_value FROM performance_schema.global_status WHERE variable_name LIKE "example_%";
+SELECT variable_name, variable_value FROM information_schema.global_status WHERE variable_name LIKE "example_%";
 --echo
-SELECT variable_name, variable_value FROM performance_schema.session_status WHERE variable_name LIKE "example_%";
+SELECT variable_name, variable_value FROM information_schema.session_status WHERE variable_name LIKE "example_%";
 --echo
-SELECT variable_name, variable_value FROM performance_schema.global_variables WHERE variable_name LIKE "example_%";
+SELECT variable_name, variable_value FROM information_schema.global_variables WHERE variable_name LIKE "example_%";
 --echo
-SELECT variable_name, variable_value FROM performance_schema.session_variables WHERE variable_name LIKE "example_%";
+SELECT variable_name, variable_value FROM information_schema.session_variables WHERE variable_name LIKE "example_%";
 
 #
 # Force sync of local and global system variables.
