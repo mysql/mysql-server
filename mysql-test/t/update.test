@@ -559,3 +559,76 @@ SHOW STATUS LIKE 'HANDLER_UPDATE';
 ROLLBACK;
 DROP TABLE t1, t2;
 
+--echo #
+--echo # MDEV-8938: Server Crash on Update with joins
+--echo #
+
+CREATE TABLE `t1` (
+  `name` varchar(255) NOT NULL,
+  `value` varchar(4095) DEFAULT NULL,
+  PRIMARY KEY (`name`)
+);
+
+UPDATE `t1` SET value = CONCAT("*.",(SELECT `temptable`.`value` FROM (SELECT * FROM `t1` WHERE `name`="consoleproxy.url.domain") AS `temptable` WHERE `temptable`.`name`="consoleproxy.url.domain")) WHERE `name`="consoleproxy.url.domain";
+
+drop table t1;
+
+CREATE TABLE `t1` (
+  `name` varchar(255) NOT NULL,
+  `value` varchar(4095) DEFAULT NULL,
+  PRIMARY KEY (`name`)
+);
+
+create table t2 (
+  `name` varchar(255) NOT NULL,
+  `value` varchar(4095) DEFAULT NULL,
+  PRIMARY KEY (`name`)
+);
+
+UPDATE t1
+SET value = (SELECT value FROM t2 WHERE `name`= t1.name) 
+WHERE value is null ;
+
+drop table t1,t2;
+
+--echo #
+--echo #MDEV-8701: Crash on derived query
+--echo #
+
+CREATE TABLE t1 (
+  data_exit_entry_id int(11) NOT NULL,
+  data_entry_id int(11) NOT NULL,
+  data_entry_exit_id int(11) NOT NULL,
+  data_exit_entry_quantity double NOT NULL
+) DEFAULT CHARSET=utf8;
+
+CREATE TABLE t2 (
+  data_entry_id int(11) NOT NULL,
+  data_entry_cost double NOT NULL,
+  data_entry_quantity double NOT NULL
+) DEFAULT CHARSET=utf8;
+
+create  algorithm=temptable view v1 as SELECT data_entry_exit_id, data_exit_entry_quantity, data_entry_cost 
+          FROM t1 INNER JOIN t2 as dt ON dt.data_entry_id = t1.data_entry_id;
+
+UPDATE t2 
+SET data_entry_cost
+  = ( ( SELECT SUM(data_exit_entry_quantity * data_entry_cost)
+	FROM 
+        v1 AS query 
+        WHERE data_entry_exit_id = t2.data_entry_id
+      )
+    );
+
+UPDATE t2 
+SET data_entry_cost
+  = ( ( SELECT SUM(data_exit_entry_quantity * data_entry_cost)
+	FROM 
+        ( SELECT data_entry_exit_id, data_exit_entry_quantity, data_entry_cost 
+          FROM t1 INNER JOIN t2 as dt ON dt.data_entry_id = t1.data_entry_id) AS query 
+        WHERE data_entry_exit_id = t2.data_entry_id
+      )
+    );
+
+drop view v1;
+drop table t1, t2; 

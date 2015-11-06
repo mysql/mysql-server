@@ -367,6 +367,9 @@ int mysql_update(THD *thd,
     DBUG_RETURN(1);				/* purecov: inspected */
   }
 
+  if (check_unique_table(thd, table_list))
+    DBUG_RETURN(TRUE);
+
   /* Apply the IN=>EXISTS transformation to all subqueries and optimize them. */
   if (select_lex->optimize_unflattened_subqueries(false))
     DBUG_RETURN(TRUE);
@@ -1036,19 +1039,30 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
       setup_ftfuncs(select_lex))
     DBUG_RETURN(TRUE);
 
-  /* Check that we are not using table that we are updating in a sub select */
-  {
-    TABLE_LIST *duplicate;
-    if ((duplicate= unique_table(thd, table_list, table_list->next_global, 0)))
-    {
-      update_non_unique_table_error(table_list, "UPDATE", duplicate);
-      DBUG_RETURN(TRUE);
-    }
-  }
   select_lex->fix_prepare_information(thd, conds, &fake_conds);
   DBUG_RETURN(FALSE);
 }
 
+/**
+  Check that we are not using table that we are updating in a sub select
+
+  @param thd             Thread handle
+  @param table_list      List of table with first to check
+
+  @retval TRUE  Error
+  @retval FALSE OK
+*/
+bool check_unique_table(THD *thd, TABLE_LIST *table_list)
+{
+  TABLE_LIST *duplicate;
+  DBUG_ENTER("check_unique_table");
+  if ((duplicate= unique_table(thd, table_list, table_list->next_global, 0)))
+  {
+    update_non_unique_table_error(table_list, "UPDATE", duplicate);
+    DBUG_RETURN(TRUE);
+  }
+  DBUG_RETURN(FALSE);
+}
 
 /***************************************************************************
   Update multiple tables from join 

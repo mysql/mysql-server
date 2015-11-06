@@ -1408,7 +1408,8 @@ static int mysql_test_update(Prepared_statement *stmt,
     (SELECT_ACL & ~table_list->table->grant.privilege);
   table_list->register_want_access(SELECT_ACL);
 #endif
-  if (setup_fields(thd, 0, stmt->lex->value_list, MARK_COLUMNS_NONE, 0, 0))
+  if (setup_fields(thd, 0, stmt->lex->value_list, MARK_COLUMNS_NONE, 0, 0) ||
+      check_unique_table(thd, table_list))
     goto error;
   /* TODO: here we should send types of placeholders to the client. */
   DBUG_RETURN(0);
