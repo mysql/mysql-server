@@ -896,6 +896,8 @@ struct row_prebuilt_t {
 	/** Disable prefetch. */
 	bool		m_no_prefetch;
 
+	/** Return materialized key for secondary index scan */
+	bool		m_read_virtual_key;
 };
 
 /** Callback for row_mysql_sys_index_iterate() */

@@ -1755,6 +1755,9 @@ ha_innopart::index_init(
 		m_prebuilt->m_no_prefetch = true;
 	}
 
+	/* For scan across partitions, the keys needs to be materialized */
+	m_prebuilt->m_read_virtual_key = true;
+
 	error = change_active_index(part_id, keynr);
 	if (error != 0) {
 		destroy_record_priority_queue();
@@ -1786,6 +1789,7 @@ ha_innopart::index_end()
 		destroy_record_priority_queue();
 		m_prebuilt->m_no_prefetch = false;
 	}
+	m_prebuilt->m_read_virtual_key = false;
 
 	DBUG_RETURN(ha_innobase::index_end());
 }
