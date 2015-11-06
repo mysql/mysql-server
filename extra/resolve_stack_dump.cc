@@ -18,6 +18,7 @@
  */
 
 #include <my_config.h>
+#include <stdio.h>                              // Needed on SunOS 5.10
 #include <vector>
 #include <string>
 
