@@ -1,4 +1,4 @@
-################# suite/perfschema/t/show_plugin.test ##########################
+################# suite/perfschema/t/show_plugin_56.test ##########################
 #                                                                              #
 # MySQL plugins can define their own status variables and system variables.    #
 # This test exercises SHOW STATUS, SHOW VARIABLES and the status and system    #
@@ -37,9 +37,9 @@
 --echo # Save current SHOW_COMPATIBILITY_56 setting
 SELECT @@global.show_compatibility_56 INTO @show_compatibility_56_save;
 --echo #
---echo # SET COMPATIBILITY MODE = OFF
+--echo # SET COMPATIBILITY MODE = ON
 --echo #
-SET @@global.show_compatibility_56 = OFF;
+SET @@global.show_compatibility_56 = ON;
 --echo
 --echo # Verify EXAMPLE plugin is not loaded
 SELECT COUNT(*) = 0 AS "Expect 1" FROM information_schema.plugins WHERE plugin_name = "EXAMPLE";
@@ -51,7 +51,7 @@ connection default;
 --echo ================================================================================
 --echo TEST 1- NO PLUGIN VARS
 --echo ================================================================================
---source ../include/show_plugin_verifier.inc
+--source ../include/show_plugin_verifier_56.inc
 --echo
 
 --echo ================================================================================
@@ -67,7 +67,7 @@ eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
 --echo ================================================================================
 --echo 2.1a - FORCE SYNC OF LOCAL AND GLOBAL SYSTEM VARS
 --echo ================================================================================
---source ../include/show_plugin_verifier.inc
+--source ../include/show_plugin_verifier_56.inc
 
 disconnect con0;
 
@@ -87,7 +87,7 @@ SET SESSION example_double_thdvar = 102.9992;
 --echo ================================================================================
 --echo 2.3 - VERIFY UPDATED PLUGIN VARS
 --echo ================================================================================
---source ../include/show_plugin_verifier.inc
+--source ../include/show_plugin_verifier_56.inc
 
 --echo
 --echo ================================================================================
@@ -99,7 +99,7 @@ UNINSTALL PLUGIN example;
 --echo ================================================================================
 --echo 2.5 - VERIFY NO PLUGIN VARS
 --echo ================================================================================
---source ../include/show_plugin_verifier.inc
+--source ../include/show_plugin_verifier_56.inc
 
 --echo
 --echo ================================================================================
@@ -125,7 +125,7 @@ SET SESSION example_double_thdvar = 202.8882;
 --echo ================================================================================
 --echo 2.8 - VERIFY PLUGIN VARS
 --echo ================================================================================
---source ../include/show_plugin_verifier.inc
+--source ../include/show_plugin_verifier_56.inc
 
 --echo
 --echo ================================================================================
@@ -137,7 +137,7 @@ UNINSTALL PLUGIN example;
 --echo ================================================================================
 --echo 2.10 - VERIFY NO PLUGIN VARS
 --echo ================================================================================
---source ../include/show_plugin_verifier.inc
+--source ../include/show_plugin_verifier_56.inc
 
 --echo
 --echo ================================================================================
@@ -180,7 +180,7 @@ connection default;
 --echo ================================================================================
 --echo 3.4 - VERIFY GLOBAL AND SESSION PLUGIN VARS
 --echo ================================================================================
---source ../include/show_plugin_verifier.inc
+--source ../include/show_plugin_verifier_56.inc
 --echo
 --echo # Variables by thread
 SELECT variable_name, variable_value FROM performance_schema.variables_by_thread
@@ -199,7 +199,7 @@ disconnect con3;
 --echo ================================================================================
 --echo 3.6 - VERIFY SESSION VARS ARE REMOVED
 --echo ================================================================================
---source ../include/show_plugin_verifier.inc
+--source ../include/show_plugin_verifier_56.inc
 --echo
 --echo # Variables by thread
 SELECT variable_name, variable_value FROM performance_schema.variables_by_thread
@@ -224,7 +224,7 @@ connection default;
 --echo ================================================================================
 --echo 3.8 - VERIFY GLOBAL AND SESSION VARS
 --echo ================================================================================
---source ../include/show_plugin_verifier.inc
+--source ../include/show_plugin_verifier_56.inc
 --echo
 --echo # Variables by thread
 SELECT variable_name, variable_value FROM performance_schema.variables_by_thread
@@ -240,7 +240,7 @@ UNINSTALL PLUGIN example;
 --echo ================================================================================
 --echo 3.10 - VERIFY SESSION VARS ARE REMOVED
 --echo ================================================================================
---source ../include/show_plugin_verifier.inc
+--source ../include/show_plugin_verifier_56.inc
 --echo
 --echo # VARIABLES BY THREAD
 SELECT variable_name, variable_value FROM performance_schema.variables_by_thread
@@ -259,7 +259,7 @@ disconnect con3;
 --echo ================================================================================
 --echo 3.12 - VERIFY CLIENTS ARE REMOVED
 --echo ================================================================================
---source ../include/show_plugin_verifier.inc
+--source ../include/show_plugin_verifier_56.inc
 --echo
 --echo # VARIABLES BY THREAD
 SELECT variable_name, variable_value FROM performance_schema.variables_by_thread
