@@ -675,8 +675,9 @@ void Slave_worker::rollback_positions(Slave_job_group* ptr_g)
   }
 }
 
-extern "C" uchar *get_key(const uchar *record, size_t *length,
-                          my_bool not_used __attribute__((unused)))
+extern "C" {
+static uchar *get_key(const uchar *record, size_t *length,
+                      my_bool not_used __attribute__((unused)))
 {
   DBUG_ENTER("get_key");
 
@@ -687,6 +688,7 @@ extern "C" uchar *get_key(const uchar *record, size_t *length,
 
   DBUG_RETURN((uchar*) entry->db);
 }
+} // extern "C"
 
 
 static void free_entry(db_worker_hash_entry *entry)

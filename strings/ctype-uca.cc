@@ -19700,7 +19700,7 @@ my_uca_contraction2_weight(const MY_CONTRACTIONS *list, my_wc_t wc1, my_wc_t wc2
   @retval   TRUE  - can be previous context head
 */
 
-my_bool
+static my_bool
 my_uca_can_be_previous_context_head(const MY_CONTRACTIONS *list, my_wc_t wc)
 {
   return list->flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_PREVIOUS_CONTEXT_HEAD;
@@ -19718,7 +19718,7 @@ my_uca_can_be_previous_context_head(const MY_CONTRACTIONS *list, my_wc_t wc)
   @retval   TRUE - can be contraction tail
 */
 
-my_bool
+static my_bool
 my_uca_can_be_previous_context_tail(const MY_CONTRACTIONS *list, my_wc_t wc)
 {
   return list->flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_PREVIOUS_CONTEXT_TAIL;
@@ -19842,7 +19842,7 @@ my_uca_scanner_contraction_find(my_uca_scanner *scanner, my_wc_t *wc)
   @retval   ptr  - contraction weight array
 */
 
-uint16 *
+static uint16 *
 my_uca_previous_context_find(my_uca_scanner *scanner,
                              my_wc_t wc0, my_wc_t wc1)
 {
@@ -20500,16 +20500,17 @@ int my_wildcmp_uca_impl(const CHARSET_INFO *cs,
   return (str != str_end ? 1 : 0);
 }
 
-extern "C"
-int my_wildcmp_uca(const CHARSET_INFO *cs,
-                   const char *str,const char *str_end,
-                   const char *wildstr,const char *wildend,
-                   int escape, int w_one, int w_many)
+extern "C" {
+static int my_wildcmp_uca(const CHARSET_INFO *cs,
+                          const char *str,const char *str_end,
+                          const char *wildstr,const char *wildend,
+                          int escape, int w_one, int w_many)
 {
   return my_wildcmp_uca_impl(cs, str, str_end,
                              wildstr, wildend,
                              escape, w_one, w_many, 1);
 }
+} // extern "C"
 
 
 /*

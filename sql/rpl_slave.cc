@@ -26,6 +26,7 @@
 
 #ifdef HAVE_REPLICATION
 #include "rpl_slave.h"
+#include "client_settings.h"
 
 #include "errmsg.h"                            // CR_*
 #include "my_bitmap.h"                         // MY_BITMAP
@@ -219,7 +220,6 @@ static int terminate_slave_thread(THD *thd,
                                   ulong *stop_wait_timeout,
                                   bool need_lock_term);
 static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info);
-int slave_worker_exec_job_group(Slave_worker *w, Relay_log_info *rli);
 static int mts_event_coord_cmp(LOG_POS_COORD *id1, LOG_POS_COORD *id2);
 
 static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli);
@@ -5881,7 +5881,8 @@ int check_temp_dir(char* tmp_file, const char *channel_name)
 /*
   Worker thread for the parallel execution of the replication events.
 */
-extern "C" void *handle_slave_worker(void *arg)
+extern "C" {
+static void *handle_slave_worker(void *arg)
 {
   THD *thd;                     /* needs to be first for thread_stack */
   bool thd_added= false;
@@ -6049,6 +6050,7 @@ err:
   my_thread_exit(0);
   DBUG_RETURN(0); 
 }
+} // extern "C"
 
 /**
    Orders jobs by comparing relay log information.

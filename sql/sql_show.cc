@@ -7326,12 +7326,12 @@ static void push_select_warning(THD *thd, enum enum_var_type option_type, bool s
                       ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX),
                       old_name, new_name);
 }
-#endif // EMBEDDED_LIBRARY
 
 /**
   Issue an error for SELECT commands for status and system variables.
 */
-void push_select_error(THD *thd, enum enum_var_type option_type, bool status)
+static void push_select_error(THD *thd, enum enum_var_type option_type,
+                              bool status)
 {
   const char *old_name;
   const char *doc= "show_compatibility_56";
@@ -7346,6 +7346,7 @@ void push_select_error(THD *thd, enum enum_var_type option_type, bool status)
 
   thd->raise_error_printf(ER_FEATURE_DISABLED_SEE_DOC, old_name, doc);
 }
+#endif // EMBEDDED_LIBRARY
 
 static int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
 {

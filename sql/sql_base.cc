@@ -327,13 +327,15 @@ size_t get_table_def_key(const TABLE_LIST *table_list, const char **key)
   Functions to handle table definition cach (TABLE_SHARE)
 *****************************************************************************/
 
-extern "C" uchar *table_def_key(const uchar *record, size_t *length,
-                               my_bool not_used __attribute__((unused)))
+extern "C" {
+static uchar *table_def_key(const uchar *record, size_t *length,
+                            my_bool not_used __attribute__((unused)))
 {
   TABLE_SHARE *entry=(TABLE_SHARE*) record;
   *length= entry->table_cache_key.length;
   return (uchar*) entry->table_cache_key.str;
 }
+} // extern "C"
 
 
 static void table_def_free_entry(TABLE_SHARE *share)

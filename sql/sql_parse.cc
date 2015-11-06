@@ -769,7 +769,7 @@ bool is_log_table_write_query(enum enum_sql_command command)
         InnoDB transaction each time data-dictionary tables are closed
         after being updated.
 */
-bool sqlcom_needs_autocommit_off(const LEX *lex)
+static bool sqlcom_needs_autocommit_off(const LEX *lex)
 {
   return (sql_command_flags[lex->sql_command] & CF_NEEDS_AUTOCOMMIT_OFF) ||
           (lex->sql_command == SQLCOM_CREATE_TABLE &&

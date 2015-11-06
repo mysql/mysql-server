@@ -77,25 +77,25 @@ static int socket_auth(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
     return CR_ERROR;
 }
 
-int generate_auth_string_hash(char *outbuf __attribute__((unused)),
-                              unsigned int *buflen,
-                              const char *inbuf __attribute__((unused)),
-                              unsigned int inbuflen __attribute__((unused)))
+static int generate_auth_string_hash(char *outbuf __attribute__((unused)),
+                                     unsigned int *buflen,
+                                     const char *inbuf __attribute__((unused)),
+                                     unsigned int inbuflen __attribute__((unused)))
 {
   *buflen= 0;
   return 0;
 }
 
-int validate_auth_string_hash(char* const inbuf  __attribute__((unused)),
-                              unsigned int buflen  __attribute__((unused)))
+static int validate_auth_string_hash(char* const inbuf  __attribute__((unused)),
+                                     unsigned int buflen  __attribute__((unused)))
 {
   return 0;
 }
 
-int set_salt(const char* password __attribute__((unused)),
-             unsigned int password_len __attribute__((unused)),
-             unsigned char* salt __attribute__((unused)),
-             unsigned char* salt_len)
+static int set_salt(const char* password __attribute__((unused)),
+                    unsigned int password_len __attribute__((unused)),
+                    unsigned char* salt __attribute__((unused)),
+                    unsigned char* salt_len)
 {
   *salt_len= 0;
   return 0;

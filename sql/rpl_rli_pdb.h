@@ -678,5 +678,7 @@ inline Slave_worker* get_thd_worker(THD *thd)
   return static_cast<Slave_worker *>(thd->rli_slave);
 }
 
+int slave_worker_exec_job_group(Slave_worker *w, Relay_log_info *rli);
+
 #endif // HAVE_REPLICATION
 #endif

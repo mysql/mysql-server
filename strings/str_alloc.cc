@@ -30,7 +30,7 @@ static void my_str_free_default(void *ptr)
   free(ptr);
 }
 
-void *my_str_realloc_default(void *ptr, size_t size)
+static void *my_str_realloc_default(void *ptr, size_t size)
 {
   return realloc(ptr, size);
 }

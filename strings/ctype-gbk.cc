@@ -3445,8 +3445,8 @@ static uint16 gbksortorder(uint16 i)
 }
 
 
-int my_strnncoll_gbk_internal(const uchar **a_res, const uchar **b_res,
-			      size_t length)
+static int my_strnncoll_gbk_internal(const uchar **a_res, const uchar **b_res,
+                                     size_t length)
 {
   const uchar *a= *a_res, *b= *b_res;
   uint a_char,b_char; 
@@ -3476,10 +3476,10 @@ int my_strnncoll_gbk_internal(const uchar **a_res, const uchar **b_res,
 
 
 extern "C" {
-int my_strnncoll_gbk(const CHARSET_INFO *cs __attribute__((unused)),
-		     const uchar *a, size_t a_length,
-                     const uchar *b, size_t b_length,
-                     my_bool b_is_prefix)
+static int my_strnncoll_gbk(const CHARSET_INFO *cs __attribute__((unused)),
+                            const uchar *a, size_t a_length,
+                            const uchar *b, size_t b_length,
+                            my_bool b_is_prefix)
 {
   size_t length= MY_MIN(a_length, b_length);
   int res= my_strnncoll_gbk_internal(&a, &b, length);

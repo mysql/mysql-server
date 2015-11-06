@@ -738,13 +738,13 @@ execute_prepare_stmt_noop(PSI_statement_locker *locker NNN,
   return;
 }
 
-void
+static void
 destroy_prepared_stmt_noop(PSI_prepared_stmt *prepared_stmt NNN)
 {
   return;
 }
 
-void
+static void
 reprepare_prepared_stmt_noop(PSI_prepared_stmt *prepared_stmt NNN)
 {
   return;

@@ -356,7 +356,8 @@ void prepare_triggers_for_insert_stmt(THD *thd, TABLE *table)
     @retval true    Failure
 */
 
-bool mysql_prepare_blob_values(THD *thd, List<Item> &fields, MEM_ROOT *mem_root)
+static bool mysql_prepare_blob_values(THD *thd, List<Item> &fields,
+                                      MEM_ROOT *mem_root)
 {
   DBUG_ENTER("mysql_prepare_blob_values");
 

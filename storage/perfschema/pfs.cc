@@ -2174,7 +2174,8 @@ struct PFS_spawn_thread_arg
   void *m_user_arg;
 };
 
-extern "C" void* pfs_spawn_thread(void *arg)
+extern "C" {
+static void* pfs_spawn_thread(void *arg)
 {
   PFS_spawn_thread_arg *typed_arg= (PFS_spawn_thread_arg*) arg;
   void *user_arg;
@@ -2224,6 +2225,7 @@ extern "C" void* pfs_spawn_thread(void *arg)
 
   return NULL;
 }
+} // extern "C"
 
 /**
   Implementation of the thread instrumentation interface.

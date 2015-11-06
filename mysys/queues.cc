@@ -330,7 +330,7 @@ static my_bool is_divisible_by(uint num, uint divisor)
   return FALSE;
 }
 
-void calculate_next()
+static void calculate_next()
 {
   uint part= expected_part, num= expected_num;
   uint no_parts= tot_no_parts;
@@ -369,7 +369,7 @@ void calculate_next()
   }
 }
 
-void calculate_end_next(uint part)
+static void calculate_end_next(uint part)
 {
   uint no_parts= tot_no_parts, num;
   num_array[part]= 0;
@@ -433,7 +433,7 @@ static int test_compare(void *null_arg, uchar *a, uchar *b)
 }
 } // extern C
 
-my_bool check_num(uint num_part)
+static my_bool check_num(uint num_part)
 {
   uint part= num_part >> 22;
   uint num= num_part & 0x3FFFFF;
@@ -446,7 +446,7 @@ my_bool check_num(uint num_part)
 }
 
 
-void perform_insert(QUEUE *queue)
+static void perform_insert(QUEUE *queue)
 {
   uint i= 1, no_parts= tot_no_parts;
   uint backward_start= 0;
@@ -484,7 +484,7 @@ void perform_insert(QUEUE *queue)
   }
 }
 
-my_bool perform_ins_del(QUEUE *queue, my_bool max_ind)
+static my_bool perform_ins_del(QUEUE *queue, my_bool max_ind)
 {
   uint i= 0, no_loops= tot_no_loops, j= tot_no_parts;
   do
@@ -512,7 +512,7 @@ my_bool perform_ins_del(QUEUE *queue, my_bool max_ind)
   return FALSE;
 }
 
-my_bool do_test(uint no_parts, uint l_max_ind, my_bool l_fix_used)
+static my_bool do_test(uint no_parts, uint l_max_ind, my_bool l_fix_used)
 {
   QUEUE queue;
   my_bool result;

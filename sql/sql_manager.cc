@@ -34,7 +34,8 @@ my_thread_t manager_thread;
 mysql_mutex_t LOCK_manager;
 mysql_cond_t COND_manager;
 
-extern "C" void *handle_manager(void *arg __attribute__((unused)))
+extern "C" {
+static void *handle_manager(void *arg __attribute__((unused)))
 {
   int error = 0;
   struct timespec abstime;
@@ -83,6 +84,7 @@ extern "C" void *handle_manager(void *arg __attribute__((unused)))
   my_thread_end();
   return (NULL);
 }
+} // extern "C"
 
 
 /* Start handle manager thread */

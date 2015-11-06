@@ -33,7 +33,7 @@ typedef void	(*sig_return)(int);/* Returns type from signal */
 static int volatile my_have_got_alarm= 0;
 static uint my_time_to_wait_for_lock= 2; /* In seconds */
 
-void my_set_alarm_variable(int signo __attribute__((unused)))
+static void my_set_alarm_variable(int signo __attribute__((unused)))
 {
   my_have_got_alarm= 1;			/* Tell program that time expired */
 }

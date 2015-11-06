@@ -2380,8 +2380,8 @@ sizeof(load_default_groups)/sizeof(load_default_groups[0]);
   The size of each stack frame for the wildcmp() routines is ~128 bytes,
   so checking *every* recursive call is not necessary.
  */
-extern "C" int
-check_enough_stack_size(int recurse_level)
+extern "C" {
+static int check_enough_stack_size(int recurse_level)
 {
   uchar stack_top;
   if (recurse_level % 16 != 0)
@@ -2392,6 +2392,7 @@ check_enough_stack_size(int recurse_level)
     return check_stack_overrun(my_thd, STACK_MIN_SIZE * 2, &stack_top);
   return 0;
 }
+} // extern "C"
 #endif
 
 
@@ -2626,7 +2627,7 @@ PSI_statement_info com_statement_info[(uint) COM_END + 1];
   this is populated from data mined in com_status_vars,
   which already has one name for each command.
 */
-void init_sql_statement_info()
+static void init_sql_statement_info()
 {
   uint i;
 
@@ -2641,7 +2642,7 @@ void init_sql_statement_info()
   sql_statement_info[(uint) SQLCOM_END].m_flags= 0;
 }
 
-void init_com_statement_info()
+static void init_com_statement_info()
 {
   uint index;
 

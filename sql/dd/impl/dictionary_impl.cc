@@ -167,12 +167,12 @@ bool Dictionary_impl::load_and_cache_server_collation(THD *thd)
   Following are couple of API's that InnoDB needs to acquire MDL locks.
 */
 
-bool acquire_table_mdl(THD *thd,
-                       const char *schema_name,
-                       const char *table_name,
-                       bool no_wait,
-                       enum_mdl_type lock_type,
-                       MDL_ticket **out_mdl_ticket)
+static bool acquire_table_mdl(THD *thd,
+                              const char *schema_name,
+                              const char *table_name,
+                              bool no_wait,
+                              enum_mdl_type lock_type,
+                              MDL_ticket **out_mdl_ticket)
 {
   DBUG_ENTER("dd::acquire_table_mdl");
 

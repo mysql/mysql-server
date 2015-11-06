@@ -28,7 +28,8 @@ extern PSI_thread_key key_ss_thread_Ack_receiver_thread;
 #endif
 
 /* Callback function of ack receive thread */
-extern "C" void *ack_receive_handler(void *arg)
+extern "C" {
+static void *ack_receive_handler(void *arg)
 {
   my_thread_init();
   reinterpret_cast<Ack_receiver *>(arg)->run();
@@ -36,6 +37,7 @@ extern "C" void *ack_receive_handler(void *arg)
   my_thread_exit(0);
   return NULL;
 }
+} // extern "C"
 
 Ack_receiver::Ack_receiver()
 {

@@ -22113,7 +22113,7 @@ my_strnncollsp_gb18030(const CHARSET_INFO *cs __attribute__((unused)),
   @param[in]  flags    flags for strxfrm
   @return              the length of the sort key
 */
-size_t
+static size_t
 my_strnxfrm_gb18030(const CHARSET_INFO *cs,
                     uchar *dst, size_t dstlen, uint nweights,
                     const uchar *src, size_t srclen, uint flags)

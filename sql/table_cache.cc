@@ -31,9 +31,10 @@ PSI_mutex_info Table_cache::m_mutex_keys[]= {
 #endif
 
 
-extern "C" uchar *table_cache_key(const uchar *record,
-                                  size_t *length,
-                                  my_bool not_used __attribute__((unused)))
+extern "C" {
+static uchar *table_cache_key(const uchar *record,
+                              size_t *length,
+                              my_bool not_used __attribute__((unused)))
 {
   TABLE_SHARE *share= ((Table_cache_element*)record)->get_share();
   *length= share->table_cache_key.length;
@@ -41,10 +42,11 @@ extern "C" uchar *table_cache_key(const uchar *record,
 }
 
 
-extern "C" void table_cache_free_entry(Table_cache_element *element)
+static void table_cache_free_entry(Table_cache_element *element)
 {
   delete element;
 }
+} // extern "C"
 
 
 /**

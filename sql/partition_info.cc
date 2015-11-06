@@ -1362,8 +1362,8 @@ range_not_increasing_error:
     -1                 a < b
 */
 
-extern "C"
-int partition_info_list_part_cmp(const void* a, const void* b)
+extern "C" {
+static int partition_info_list_part_cmp(const void* a, const void* b)
 {
   longlong a1= ((LIST_PART_ENTRY*)a)->list_value;
   longlong b1= ((LIST_PART_ENTRY*)b)->list_value;
@@ -1374,6 +1374,7 @@ int partition_info_list_part_cmp(const void* a, const void* b)
   else
     return 0;
 }
+} // extern "C"
 
 
 int partition_info::list_part_cmp(const void* a, const void* b)
@@ -1394,7 +1395,8 @@ int partition_info::list_part_cmp(const void* a, const void* b)
     +1                       First argument is larger
 */
 
-extern "C"
+extern "C" {
+static
 int partition_info_compare_column_values(const void *first_arg,
                                          const void *second_arg)
 {
@@ -1431,6 +1433,7 @@ int partition_info_compare_column_values(const void *first_arg,
   }
   return 0;
 }
+} // extern "C"
 
 
 int partition_info::compare_column_values(const void *first_arg,

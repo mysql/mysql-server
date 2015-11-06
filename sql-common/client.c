@@ -280,7 +280,7 @@ void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate)
   @c my_net_init() and net_end()
  */
 
-my_bool my_net_is_inited(NET *net)
+static my_bool my_net_is_inited(NET *net)
 {
   return net->buff != NULL;
 }
@@ -671,7 +671,7 @@ err:
 /*
   Free all memory acquired to store state change information.
 */
-void free_state_change_info(MYSQL_EXTENSION *ext)
+static void free_state_change_info(MYSQL_EXTENSION *ext)
 {
   STATE_INFO *info;
   int i;
@@ -1354,7 +1354,7 @@ void free_old_query(MYSQL *mysql)
            is set in this case, FALSE otherwise.
 */
 
-my_bool flush_one_result(MYSQL *mysql)
+static my_bool flush_one_result(MYSQL *mysql)
 {
   ulong packet_length;
   my_bool is_data_packet;
@@ -1412,7 +1412,7 @@ my_bool flush_one_result(MYSQL *mysql)
            based on what we got from network.
 */
 
-my_bool opt_flush_ok_packet(MYSQL *mysql, my_bool *is_ok_packet)
+static my_bool opt_flush_ok_packet(MYSQL *mysql, my_bool *is_ok_packet)
 {
   my_bool is_data_packet;
   ulong packet_length= cli_safe_read(mysql, &is_data_packet);
@@ -2018,7 +2018,7 @@ static void cli_fetch_lengths(ulong *to, MYSQL_ROW column,
   @returns 0 on success.
 */
 
-int
+static int
 unpack_field(MYSQL *mysql, MEM_ROOT *alloc, my_bool default_value,
              uint server_capabilities, MYSQL_ROWS *row, MYSQL_FIELD *field)
 {
@@ -2239,7 +2239,7 @@ MYSQL_FIELD *cli_read_metadata(MYSQL *mysql, ulong field_count,
 /* Read all rows (data) from server */
 
 MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
-			  unsigned int fields)
+                          unsigned int fields)
 {
   uint	field;
   ulong pkt_len;
@@ -3225,8 +3225,8 @@ typedef struct {
  @return pointer dest+src_len+header size or NULL if 
 */
 
-char *write_length_encoded_string4(char *dest, char *dest_end, char *src,
-                                  char *src_end)
+static char *write_length_encoded_string4(char *dest, char *dest_end, char *src,
+                                          char *src_end)
 {
   size_t src_len= (size_t)(src_end - src);
   uchar *to= net_store_length((uchar*) dest, src_len);
@@ -3241,7 +3241,7 @@ char *write_length_encoded_string4(char *dest, char *dest_end, char *src,
   Write 1 byte of string length header information to dest and
   copy src_len bytes from src to dest.
 */
-char *write_string(char *dest, char *dest_end, char *src, char *src_end)
+static char *write_string(char *dest, char *dest_end, char *src, char *src_end)
 {
   size_t src_len= (size_t)(src_end - src);
   uchar *to= NULL;
@@ -5718,7 +5718,7 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
 /**
   A function to return the key from a connection attribute
 */
-uchar *
+static uchar *
 get_attr_key(LEX_STRING *part, size_t *length,
              my_bool not_used __attribute__((unused)))
 {

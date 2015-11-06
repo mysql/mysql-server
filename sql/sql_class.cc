@@ -335,17 +335,19 @@ THD::Attachable_trx::~Attachable_trx()
 }
 
 
-extern "C" uchar *get_var_key(user_var_entry *entry, size_t *length,
+extern "C" {
+static uchar *get_var_key(user_var_entry *entry, size_t *length,
                               my_bool not_used __attribute__((unused)))
 {
   *length= entry->entry_name.length();
   return (uchar*) entry->entry_name.ptr();
 }
 
-extern "C" void free_user_var(user_var_entry *entry)
+static void free_user_var(user_var_entry *entry)
 {
   entry->destroy();
 }
+} // extern "C"
 
 PSI_thread* THD::get_psi()
 {

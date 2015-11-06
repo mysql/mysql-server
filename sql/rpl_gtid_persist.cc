@@ -754,7 +754,8 @@ int Gtid_table_persistor::delete_all(TABLE *table)
                        for going to wait for next compression signal until
                        it is terminated.
 */
-extern "C" void *compress_gtid_table(void *p_thd)
+extern "C" {
+static void *compress_gtid_table(void *p_thd)
 {
   THD *thd=(THD*) p_thd;
   mysql_thread_set_psi_id(thd->thread_id());
@@ -803,6 +804,7 @@ extern "C" void *compress_gtid_table(void *p_thd)
   my_thread_exit(0);
   return 0;
 }
+} // extern "C"
 
 
 /**

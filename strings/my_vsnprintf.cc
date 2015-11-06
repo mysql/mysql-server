@@ -17,6 +17,7 @@
 #include <m_string.h>
 #include <stdarg.h>
 #include <m_ctype.h>
+#include "mysql/service_my_snprintf.h"
 
 
 #define MAX_ARGS 32                           /* max positional args count*/

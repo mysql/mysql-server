@@ -429,7 +429,7 @@ static void test_prepare_simple()
 char mct_log_file_path[FILE_PATH_SIZE];
 FILE *mct_log_file= NULL;
 
-void mct_start_logging(const char *test_case_name)
+static void mct_start_logging(const char *test_case_name)
 {
   const char *tmp_dir= getenv("MYSQL_TMP_DIR");
 
@@ -490,7 +490,7 @@ static void mct_log(const char *format, ...)
   }
 }
 
-void mct_close_log()
+static void mct_close_log()
 {
   if (!mct_log_file)
     return;
@@ -13222,7 +13222,7 @@ static void test_bug8722()
 }
 
 
-MYSQL_STMT *open_cursor(const char *query)
+static MYSQL_STMT *open_cursor(const char *query)
 {
   int rc;
   const ulong type= (ulong)CURSOR_TYPE_READ_ONLY;

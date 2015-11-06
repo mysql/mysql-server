@@ -755,7 +755,7 @@ void static change_current_db(MYSQL_SESSION session, const char * db,
 }
 
 
-void test_selects(MYSQL_SESSION session, void *p)
+static void test_selects(MYSQL_SESSION session, void *p)
 {
   DBUG_ENTER("test_selects");
 

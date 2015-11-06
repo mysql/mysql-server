@@ -324,7 +324,7 @@ static int sql_get_decimal(void * ctx, const decimal_t * value)
 }
 
 
-int sql_get_double(void * ctx, double value, uint32 decimals)
+static int sql_get_double(void * ctx, double value, uint32 decimals)
 {
   char buffer[1024];
   struct st_plugin_ctx *pctx= (struct st_plugin_ctx*) ctx;

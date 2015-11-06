@@ -1280,6 +1280,7 @@ static void set_decimal_warning(Field_new_decimal *field,
   @retval length of bytes copied to 'to'
 */
 
+static
 size_t field_well_formed_copy_nchars(const CHARSET_INFO *to_cs,
                                      char *to, size_t to_length,
                                      const CHARSET_INFO *from_cs,

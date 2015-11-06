@@ -1504,7 +1504,8 @@ public:
   they should obey C calling conventions.
 */
 
-extern "C" uchar *
+extern "C" {
+static uchar *
 my_tz_names_get_key(Tz_names_entry *entry, size_t *length,
                     my_bool not_used __attribute__((unused)))
 {
@@ -1512,7 +1513,7 @@ my_tz_names_get_key(Tz_names_entry *entry, size_t *length,
   return (uchar*) entry->name.ptr();
 }
 
-extern "C" uchar *
+static uchar *
 my_offset_tzs_get_key(Time_zone_offset *entry,
                       size_t *length,
                       my_bool not_used __attribute__((unused)))
@@ -1520,6 +1521,7 @@ my_offset_tzs_get_key(Time_zone_offset *entry,
   *length= sizeof(long);
   return (uchar*) &entry->offset;
 }
+} // extern "C"
 
 
 /*

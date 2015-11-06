@@ -216,7 +216,8 @@ static bool handle_bootstrap_impl(THD *thd)
   Used when creating the initial grant tables.
 */
 
-extern "C" void *handle_bootstrap(void *arg)
+extern "C" {
+static void *handle_bootstrap(void *arg)
 {
   THD *thd=(THD*) arg;
 
@@ -250,6 +251,7 @@ extern "C" void *handle_bootstrap(void *arg)
   my_thread_end();
   return 0;
 }
+} // extern "C"
 
 bool run_bootstrap_thread(MYSQL_FILE *file, bootstrap_functor boot_handler)
 {

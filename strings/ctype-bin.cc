@@ -87,9 +87,9 @@ static int my_strnncoll_binary(const CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-size_t my_lengthsp_binary(const CHARSET_INFO *cs __attribute__((unused)),
-                          const char *ptr __attribute__((unused)),
-                          size_t length)
+static size_t my_lengthsp_binary(const CHARSET_INFO *cs __attribute__((unused)),
+                                 const char *ptr __attribute__((unused)),
+                                 size_t length)
 {
   return length;
 }
@@ -280,10 +280,10 @@ static int my_wc_mb_bin(const CHARSET_INFO *cs __attribute__((unused)),
 } // extern "C"
 
 
-extern "C"
-void my_hash_sort_8bit_bin(const CHARSET_INFO *cs __attribute__((unused)),
-                           const uchar *key, size_t len,
-                           ulong *nr1, ulong *nr2)
+extern "C" {
+static void my_hash_sort_8bit_bin(const CHARSET_INFO *cs __attribute__((unused)),
+                                  const uchar *key, size_t len,
+                                  ulong *nr1, ulong *nr2)
 {
   const uchar *pos = key;
   ulong tmp1;
@@ -310,9 +310,8 @@ void my_hash_sort_8bit_bin(const CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-extern "C"
-void my_hash_sort_bin(const CHARSET_INFO *cs __attribute__((unused)),
-		      const uchar *key, size_t len,ulong *nr1, ulong *nr2)
+static void my_hash_sort_bin(const CHARSET_INFO *cs __attribute__((unused)),
+                             const uchar *key, size_t len,ulong *nr1, ulong *nr2)
 {
   const uchar *pos = key;
   ulong tmp1;
@@ -333,6 +332,7 @@ void my_hash_sort_bin(const CHARSET_INFO *cs __attribute__((unused)),
   *nr1= tmp1;
   *nr2= tmp2;
 }
+} // extern "C"
 
 
 /*

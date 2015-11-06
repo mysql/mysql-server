@@ -1152,7 +1152,8 @@ skip:
   return 0;
 }
 
-extern "C"
+extern "C" {
+static
 size_t my_well_formed_len_ascii(const CHARSET_INFO *cs __attribute__((unused)),
                                 const char *start, const char *end,
                                 size_t nchars, int *error)
@@ -1174,6 +1175,7 @@ size_t my_well_formed_len_ascii(const CHARSET_INFO *cs __attribute__((unused)),
   }
   return MY_MIN((size_t)(end - oldstart), nchars);
 }
+} // extern "C"
 
 typedef struct
 {

@@ -90,12 +90,10 @@ static void net_after_header_psi(struct st_net *net, void *user_data,
     thd->m_server_idle= false;
   }
 }
-#endif // HAVE_PSI_INTERFACE
 
 
 void init_net_server_extension(THD *thd)
 {
-#ifdef HAVE_PSI_INTERFACE
   /* Start with a clean state for connection events. */
   thd->m_idle_psi= NULL;
   thd->m_statement_psi= NULL;
@@ -108,8 +106,5 @@ void init_net_server_extension(THD *thd)
   /* Activate this private extension for the mysqld server. */
   thd->get_protocol_classic()->get_net()->extension=
     &thd->m_net_server_extension;
-#else
-  thd->get_protocol_classic()->get_net()->extension= NULL;
-#endif
 }
-
+#endif // HAVE_PSI_INTERFACE

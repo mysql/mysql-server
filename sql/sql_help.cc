@@ -522,12 +522,14 @@ static int send_header_2(THD *thd, bool for_category)
     same as strcmp
 */
 
-extern "C" int string_ptr_cmp(const void* ptr1, const void* ptr2)
+extern "C" {
+static int string_ptr_cmp(const void* ptr1, const void* ptr2)
 {
   String *str1= *(String**)ptr1;
   String *str2= *(String**)ptr2;
   return strcmp(str1->c_ptr(),str2->c_ptr());
 }
+} // extern "C"
 
 /*
   Send to client rows in format:

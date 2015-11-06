@@ -638,7 +638,7 @@ static void verbose_msg(const char *fmt, ...)
     file        - checked file
 */
 
-void check_io(FILE *file)
+static void check_io(FILE *file)
 {
   if (ferror(file) || errno == 5)
     die(EX_EOF, "Got errno %d on write", errno);
@@ -795,8 +795,8 @@ static void write_footer(FILE *sql_file)
 } /* write_footer */
 
 
-uchar* get_table_key(const char *entry, size_t *length,
-                     my_bool not_used __attribute__((unused)))
+static uchar* get_table_key(const char *entry, size_t *length,
+                            my_bool not_used __attribute__((unused)))
 {
   *length= strlen(entry);
   return (uchar*) entry;
@@ -4590,7 +4590,7 @@ static int init_dumping(char *database, int init_func(char*))
 
 /* Return 1 if we should copy the table */
 
-my_bool include_table(const uchar *hash_key, size_t len)
+static my_bool include_table(const uchar *hash_key, size_t len)
 {
   return ! my_hash_search(&ignore_table, hash_key, len);
 }
