@@ -55,8 +55,12 @@ enum {
   /* line for channel */
   LINE_FOR_CHANNEL= 24,
 
+  /* line for tls_version */
+  LINE_FOR_TLS_VERSION= 25,
+
   /* Number of lines currently used when saving master info file */
-  LINES_IN_MASTER_INFO= LINE_FOR_CHANNEL
+  LINES_IN_MASTER_INFO= LINE_FOR_TLS_VERSION
+
 };
 
 /*
@@ -89,7 +93,8 @@ const char *info_mi_fields []=
   "ssl_crl",
   "ssl_crlpath",
   "auto_position",
-  "channel_name"
+  "channel_name",
+  "tls_version",
 };
 
 Master_info::Master_info(
@@ -127,7 +132,7 @@ Master_info::Master_info(
   host[0] = 0; user[0] = 0; bind_addr[0] = 0;
   password[0]= 0; start_password[0]= 0;
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
-  ssl_cipher[0]= 0; ssl_key[0]= 0;
+  ssl_cipher[0]= 0; ssl_key[0]= 0; tls_version[0]= 0;
   ssl_crl[0]= 0; ssl_crlpath[0]= 0;
   master_uuid[0]= 0;
   start_plugin_auth[0]= 0; start_plugin_dir[0]= 0;
@@ -467,6 +472,13 @@ bool Master_info::read_info(Rpl_info_handler *from)
     if (from->get_info(channel, sizeof(channel), (char*)0))
       DBUG_RETURN(true);
   }
+
+  if (lines >= LINE_FOR_TLS_VERSION)
+  {
+    if (from->get_info(tls_version, sizeof(tls_version), (char *) 0))
+      DBUG_RETURN(true);
+  }
+
   ssl= (my_bool) MY_TEST(temp_ssl);
   ssl_verify_server_cert= (my_bool) MY_TEST(temp_ssl_verify_server_cert);
   master_log_pos= (my_off_t) temp_master_log_pos;
@@ -529,7 +541,8 @@ bool Master_info::write_info(Rpl_info_handler *to)
       to->set_info(ssl_crl) ||
       to->set_info(ssl_crlpath) ||
       to->set_info((int) auto_position) ||
-      to->set_info(channel))
+      to->set_info(channel) ||
+      to->set_info(tls_version))
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(FALSE);

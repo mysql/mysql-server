@@ -4,7 +4,7 @@
 # verify that mysql default connect with ssl channel when using TCP/IP
 # connection
 Variable_name	Value
-Ssl_cipher	DHE-RSA-AES256-SHA
+Ssl_cipher	SSL_CIPHER
 # verify that mysql --skip-ssl connect with unencrypted channel
 Variable_name	Value
 Ssl_cipher	
@@ -13,7 +13,7 @@ Variable_name	Value
 Ssl_cipher	
 # verify that mysql --ssl=1 connect with ssl channel
 Variable_name	Value
-Ssl_cipher	DHE-RSA-AES256-SHA
+Ssl_cipher	SSL_CIPHER
 CREATE USER u1@localhost IDENTIFIED BY 'secret' REQUIRE SSL;
 # verify that mysqladmin default connect with ssl channel
 mysqladmin: [Warning] Using a password on the command line interface can be insecure.

@@ -148,6 +148,7 @@ void initialize_channel_ssl_info(Channel_ssl_info* channel_ssl_info)
   channel_ssl_info->ssl_crl_directory= 0;
   channel_ssl_info->ssl_key= 0;
   channel_ssl_info->ssl_cipher= 0;
+  channel_ssl_info->tls_version= 0;
   channel_ssl_info->ssl_verify_server_cert= 0;
 }
 
@@ -175,6 +176,11 @@ void set_mi_ssl_options(LEX_MASTER_INFO* lex_mi, Channel_ssl_info* channel_ssl_i
   if (channel_ssl_info->ssl_ca_directory != NULL)
   {
     lex_mi->ssl_capath= channel_ssl_info->ssl_ca_file_name;
+  }
+
+  if (channel_ssl_info->tls_version != NULL)
+  {
+    lex_mi->tls_version= channel_ssl_info->tls_version;
   }
 
   if (channel_ssl_info->ssl_cert_file_name != NULL)
