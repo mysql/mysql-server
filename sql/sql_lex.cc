@@ -4752,6 +4752,7 @@ void st_lex_master_info::initialize()
     retry_count_opt= auto_position= LEX_MI_UNCHANGED;
   ssl_key= ssl_cert= ssl_ca= ssl_capath= ssl_cipher= NULL;
   ssl_crl= ssl_crlpath= NULL;
+  tls_version= NULL;
   relay_log_name= NULL;
   relay_log_pos= 0;
   repl_ignore_server_ids.clear();

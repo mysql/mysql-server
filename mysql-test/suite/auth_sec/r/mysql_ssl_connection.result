@@ -3,5 +3,5 @@
 #
 CREATE USER u_20693153@localhost IDENTIFIED BY 'abcd';
 Variable_name	Value
-Ssl_cipher	DHE-RSA-AES256-SHA
+Ssl_cipher	SSL_CIPHER
 DROP USER u_20693153@localhost;

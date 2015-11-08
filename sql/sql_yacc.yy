@@ -748,6 +748,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  MASTER_RETRY_COUNT_SYM
 %token  MASTER_SERVER_ID_SYM
 %token  MASTER_SSL_CAPATH_SYM
+%token  MASTER_TLS_VERSION_SYM
 %token  MASTER_SSL_CA_SYM
 %token  MASTER_SSL_CERT_SYM
 %token  MASTER_SSL_CIPHER_SYM
@@ -2061,6 +2062,10 @@ master_def:
         | MASTER_SSL_CAPATH_SYM EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.ssl_capath= $3.str;
+          }
+        | MASTER_TLS_VERSION_SYM EQ TEXT_STRING_sys_nonewline
+          {
+            Lex->mi.tls_version= $3.str;
           }
         | MASTER_SSL_CERT_SYM EQ TEXT_STRING_sys_nonewline
           {
@@ -13379,6 +13384,7 @@ keyword_sp:
         | MASTER_SSL_SYM           {}
         | MASTER_SSL_CA_SYM        {}
         | MASTER_SSL_CAPATH_SYM    {}
+        | MASTER_TLS_VERSION_SYM   {}
         | MASTER_SSL_CERT_SYM      {}
         | MASTER_SSL_CIPHER_SYM    {}
         | MASTER_SSL_CRL_SYM       {}

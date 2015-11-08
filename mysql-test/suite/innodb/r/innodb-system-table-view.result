@@ -1,0 +1,282 @@
+TABLE_ID	NAME	FLAG	N_COLS	SPACE	FILE_FORMAT	ROW_FORMAT	ZIP_PAGE_SIZE	SPACE_TYPE
+11	SYS_FOREIGN	0	7	0	Antelope	Redundant	0	System
+12	SYS_FOREIGN_COLS	0	7	0	Antelope	Redundant	0	System
+13	SYS_TABLESPACES	0	6	0	Antelope	Redundant	0	System
+14	SYS_DATAFILES	0	5	0	Antelope	Redundant	0	System
+15	SYS_VIRTUAL	0	6	0	Antelope	Redundant	0	System
+16	mysql/plugin	33	5	2	Barracuda	Dynamic	0	Single
+17	mysql/servers	33	12	3	Barracuda	Dynamic	0	Single
+18	mysql/help_topic	33	9	4	Barracuda	Dynamic	0	Single
+19	mysql/help_category	33	7	5	Barracuda	Dynamic	0	Single
+20	mysql/help_relation	33	5	6	Barracuda	Dynamic	0	Single
+21	mysql/help_keyword	33	5	7	Barracuda	Dynamic	0	Single
+22	mysql/time_zone_name	33	5	8	Barracuda	Dynamic	0	Single
+23	mysql/time_zone	33	5	9	Barracuda	Dynamic	0	Single
+24	mysql/time_zone_transition	33	6	10	Barracuda	Dynamic	0	Single
+25	mysql/time_zone_transition_type	33	8	11	Barracuda	Dynamic	0	Single
+26	mysql/time_zone_leap_second	33	5	12	Barracuda	Dynamic	0	Single
+32	mysql/gtid_executed	33	6	18	Barracuda	Dynamic	0	Single
+33	mysql/server_cost	33	7	19	Barracuda	Dynamic	0	Single
+34	mysql/engine_cost	33	9	20	Barracuda	Dynamic	0	Single
+table_id	pos	mtype	prtype	len	name
+11	0	1	524292	0	ID
+11	1	1	524292	0	FOR_NAME
+11	2	1	524292	0	REF_NAME
+11	3	6	0	4	N_COLS
+12	0	1	524292	0	ID
+12	1	6	0	4	POS
+12	2	1	524292	0	FOR_COL_NAME
+12	3	1	524292	0	REF_COL_NAME
+13	0	6	0	4	SPACE
+13	1	1	524292	0	NAME
+13	2	6	0	4	FLAGS
+14	0	6	0	4	SPACE
+14	1	1	524292	0	PATH
+15	0	6	0	8	TABLE_ID
+15	1	6	0	4	POS
+15	2	6	0	4	BASE_POS
+16	0	12	2162959	192	name
+16	1	12	2167055	384	dl
+17	0	13	2163198	192	Server_name
+17	1	13	2163198	192	Host
+17	2	13	2163198	192	Db
+17	3	13	2163198	192	Username
+17	4	13	2163198	192	Password
+17	5	6	1283	4	Port
+17	6	13	2163198	192	Socket
+17	7	13	2163198	192	Wrapper
+17	8	13	2163198	192	Owner
+18	0	6	1795	4	help_topic_id
+18	1	13	2163198	192	name
+18	2	6	1794	2	help_category_id
+18	3	5	2163196	10	description
+18	4	5	2163196	10	example
+18	5	5	2163196	10	url
+19	0	6	1794	2	help_category_id
+19	1	13	2163198	192	name
+19	2	6	1538	2	parent_category_id
+19	3	5	2163196	10	url
+20	0	6	1795	4	help_topic_id
+20	1	6	1795	4	help_keyword_id
+21	0	6	1795	4	help_keyword_id
+21	1	13	2163198	192	name
+22	0	13	2163198	192	Name
+22	1	6	1795	4	Time_zone_id
+23	0	6	1795	4	Time_zone_id
+23	1	6	1022	1	Use_leap_seconds
+24	0	6	1795	4	Time_zone_id
+24	1	6	1288	8	Transition_time
+24	2	6	1795	4	Transition_type_id
+25	0	6	1795	4	Time_zone_id
+25	1	6	1795	4	Transition_type_id
+25	2	6	1283	4	Offset
+25	3	6	1793	1	Is_DST
+25	4	13	2163198	24	Abbreviation
+26	0	6	1288	8	Transition_time
+26	1	6	1283	4	Correction
+32	0	2	524798	36	source_uuid
+32	1	6	1288	8	interval_start
+32	2	6	1288	8	interval_end
+33	0	12	2162959	192	cost_name
+33	1	9	1028	4	cost_value
+33	2	3	525575	4	last_update
+33	3	12	2166799	3072	comment
+34	0	12	2162959	192	engine_name
+34	1	6	1283	4	device_type
+34	2	12	2162959	192	cost_name
+34	3	9	1028	4	cost_value
+34	4	3	525575	4	last_update
+34	5	12	2166799	3072	comment
+index_id	table_id	type	n_fields	space	name
+11	11	3	1	0	ID_IND
+12	11	0	1	0	FOR_IND
+13	11	0	1	0	REF_IND
+14	12	3	2	0	ID_IND
+15	13	3	1	0	SYS_TABLESPACES_SPACE
+16	14	3	1	0	SYS_DATAFILES_SPACE
+17	15	3	3	0	BASE_IDX
+18	16	3	1	2	PRIMARY
+19	17	3	1	3	PRIMARY
+20	18	3	1	4	PRIMARY
+21	18	2	1	4	name
+22	19	3	1	5	PRIMARY
+23	19	2	1	5	name
+24	20	3	2	6	PRIMARY
+25	21	3	1	7	PRIMARY
+26	21	2	1	7	name
+27	22	3	1	8	PRIMARY
+28	23	3	1	9	PRIMARY
+29	24	3	2	10	PRIMARY
+30	25	3	2	11	PRIMARY
+31	26	3	1	12	PRIMARY
+37	32	3	2	18	PRIMARY
+38	33	3	1	19	PRIMARY
+39	34	3	3	20	PRIMARY
+SELECT index_id,pos,name FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS
+WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'id', 'host', 'port', 'variable')
+ORDER BY index_id, pos;
+index_id	pos	name
+12	0	FOR_NAME
+13	0	REF_NAME
+14	1	POS
+15	0	SPACE
+16	0	SPACE
+17	0	TABLE_ID
+17	1	POS
+17	2	BASE_POS
+18	0	name
+19	0	Server_name
+20	0	help_topic_id
+21	0	name
+22	0	help_category_id
+23	0	name
+24	0	help_keyword_id
+24	1	help_topic_id
+25	0	help_keyword_id
+26	0	name
+27	0	Name
+28	0	Time_zone_id
+29	0	Time_zone_id
+29	1	Transition_time
+30	0	Time_zone_id
+30	1	Transition_type_id
+31	0	Transition_time
+34	0	Channel_name
+35	0	Channel_name
+36	0	Channel_name
+37	0	source_uuid
+37	1	interval_start
+38	0	cost_name
+39	0	cost_name
+39	1	engine_name
+39	2	device_type
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
+ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
+ID	FOR_COL_NAME	REF_COL_NAME	POS
+DROP TABLE IF EXISTS t_redundant, t_compact, t_compressed, t_dynamic;
+CREATE TABLE t_redundant (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;
+CREATE TABLE t_compact (a INT KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=innodb;
+CREATE TABLE t_compressed (a INT KEY, b TEXT) ROW_FORMAT=COMPRESSED ENGINE=innodb KEY_BLOCK_SIZE=2;
+CREATE TABLE t_dynamic (a INT KEY, b TEXT) ROW_FORMAT=DYNAMIC ENGINE=innodb;
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t_compact	test/t_compact	1	5	Compact	0	Single
+test/t_compressed	test/t_compressed	37	5	Compressed	2048	Single
+test/t_dynamic	test/t_dynamic	33	5	Dynamic	0	Single
+test/t_redundant	test/t_redundant	0	5	Redundant	0	Single
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+test/t_redundant	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t_redundant.ibd
+test/t_compact	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t_compact.ibd
+test/t_compressed	Single	DEFAULT	2048	Compressed	MYSQLD_DATADIR/test/t_compressed.ibd
+test/t_dynamic	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t_dynamic.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+test/t_redundant	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_redundant.ibd
+test/t_compact	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_compact.ibd
+test/t_compressed	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_compressed.ibd
+test/t_dynamic	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_dynamic.ibd
+DROP TABLE t_redundant, t_compact, t_compressed, t_dynamic;
+SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS
+WHERE name NOT LIKE 'sys/%';
+count(*)
+24
+CREATE TABLE parent (id INT NOT NULL,
+PRIMARY KEY (id)) ENGINE=INNODB;
+CREATE TABLE child (id INT, parent_id INT,
+INDEX par_ind (parent_id),
+CONSTRAINT constraint_test
+FOREIGN KEY (parent_id) REFERENCES parent(id)
+ON DELETE CASCADE) ENGINE=INNODB;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
+ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+test/constraint_test	test/child	test/parent	1	1
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
+ID	FOR_COL_NAME	REF_COL_NAME	POS
+test/constraint_test	parent_id	id	0
+INSERT INTO parent VALUES(1);
+SELECT name, num_rows, ref_count
+FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS
+WHERE name LIKE "%parent";
+name	num_rows	ref_count
+test/parent	1	1
+SELECT NAME, FLAG, N_COLS FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE name NOT LIKE 'sys/%';
+NAME	FLAG	N_COLS
+SYS_DATAFILES	0	5
+SYS_FOREIGN	0	7
+SYS_FOREIGN_COLS	0	7
+SYS_TABLESPACES	0	6
+SYS_VIRTUAL	0	6
+mysql/engine_cost	33	9
+mysql/gtid_executed	33	6
+mysql/help_category	33	7
+mysql/help_keyword	33	5
+mysql/help_relation	33	5
+mysql/help_topic	33	9
+mysql/innodb_index_stats	33	11
+mysql/innodb_table_stats	33	9
+mysql/plugin	33	5
+mysql/server_cost	33	7
+mysql/servers	33	12
+mysql/slave_master_info	33	28
+mysql/slave_relay_log_info	33	12
+mysql/slave_worker_info	33	16
+mysql/time_zone	33	5
+mysql/time_zone_leap_second	33	5
+mysql/time_zone_name	33	5
+mysql/time_zone_transition	33	6
+mysql/time_zone_transition_type	33	8
+test/child	33	5
+test/parent	33	4
+SELECT name, n_fields
+from INFORMATION_SCHEMA.INNODB_SYS_INDEXES
+WHERE table_id In (SELECT table_id from
+INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE name LIKE "%parent%");
+name	n_fields
+PRIMARY	1
+SELECT name, n_fields
+from INFORMATION_SCHEMA.INNODB_SYS_INDEXES
+WHERE table_id In (SELECT table_id from
+INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE name LIKE "%child%");
+name	n_fields
+GEN_CLUST_INDEX	0
+par_ind	1
+SELECT name, pos, mtype, len
+from INFORMATION_SCHEMA.INNODB_SYS_COLUMNS
+WHERE table_id In (SELECT table_id from
+INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE name LIKE "%child%");
+name	pos	mtype	len
+id	0	6	4
+parent_id	1	6	4
+DROP TABLE child;
+DROP TABLE parent;
+CREATE TABLE parent (id INT NOT NULL, newid INT NOT NULL,
+PRIMARY KEY (id, newid)) ENGINE=INNODB;
+CREATE TABLE child (id INT, parent_id INT,
+INDEX par_ind (parent_id),
+CONSTRAINT constraint_test
+FOREIGN KEY (id, parent_id) REFERENCES parent(id, newid)
+ON DELETE CASCADE) ENGINE=INNODB;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
+ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+test/constraint_test	test/child	test/parent	2	1
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
+ID	FOR_COL_NAME	REF_COL_NAME	POS
+test/constraint_test	id	id	0
+test/constraint_test	parent_id	newid	1
+INSERT INTO parent VALUES(1, 9);
+SELECT * FROM parent WHERE id IN (SELECT id FROM parent);
+id	newid
+1	9
+SELECT name, num_rows, ref_count
+FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS
+WHERE name LIKE "%parent";
+name	num_rows	ref_count
+test/parent	1	2
+DROP TABLE child;
+DROP TABLE parent;

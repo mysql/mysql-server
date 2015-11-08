@@ -86,6 +86,8 @@ struct st_row_connect_config {
   uint connection_retry_interval;
   ulong connection_retry_count;
   double heartbeat_interval;
+  char tls_version[FN_REFLEN];
+  uint tls_version_length;
 };
 
 /** Table PERFORMANCE_SCHEMA.TABLE_REPLICATION_CONNECTION_CONFIGURATION. */

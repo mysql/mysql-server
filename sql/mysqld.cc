@@ -908,7 +908,7 @@ Query_cache query_cache;
 my_bool opt_use_ssl= 1;
 char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
      *opt_ssl_cipher= NULL, *opt_ssl_key= NULL, *opt_ssl_crl= NULL,
-     *opt_ssl_crlpath= NULL;
+     *opt_ssl_crlpath= NULL, *opt_tls_version= NULL;
 
 #ifdef HAVE_OPENSSL
 char *des_key_file;
@@ -3445,12 +3445,12 @@ int init_ssl()
 #endif
 
     enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
-
+    long ssl_ctx_flags= process_tls_version(opt_tls_version);
     /* having ssl_acceptor_fd != 0 signals the use of SSL */
     ssl_acceptor_fd= new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
 					  opt_ssl_ca, opt_ssl_capath,
 					  opt_ssl_cipher, &error,
-                                          opt_ssl_crl, opt_ssl_crlpath);
+                                          opt_ssl_crl, opt_ssl_crlpath, ssl_ctx_flags);
     DBUG_PRINT("info",("ssl_acceptor_fd: 0x%lx", (long) ssl_acceptor_fd));
     ERR_remove_state(0);
     if (!ssl_acceptor_fd)

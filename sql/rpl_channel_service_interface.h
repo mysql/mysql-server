@@ -66,6 +66,7 @@ struct st_ssl_info
   char* ssl_key;                //SSL key file for connections
   char* ssl_cipher;             //list of permissible ciphers to use for SSL
   int   ssl_verify_server_cert; //check the server's Common Name value
+  char* tls_version;            //TLS version to use for SSL
 };
 typedef struct st_ssl_info Channel_ssl_info;
 
