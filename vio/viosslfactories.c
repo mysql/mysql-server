@@ -17,6 +17,60 @@
 
 #ifdef HAVE_OPENSSL
 
+#define TLS_VERSION_OPTION_SIZE 256
+#define SSL_CIPHER_LIST_SIZE 4096
+
+#ifdef HAVE_YASSL
+static const char tls_ciphers_list[]="DHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA:"
+                                     "AES128-RMD:DES-CBC3-RMD:DHE-RSA-AES256-RMD:"
+                                     "DHE-RSA-AES128-RMD:DHE-RSA-DES-CBC3-RMD:"
+                                     "AES256-SHA:RC4-SHA:RC4-MD5:DES-CBC3-SHA:"
+                                     "DES-CBC-SHA:EDH-RSA-DES-CBC3-SHA:"
+                                     "EDH-RSA-DES-CBC-SHA:AES128-SHA:AES256-RMD";
+static const char tls_cipher_blocked[]= "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:";
+#else
+static const char tls_ciphers_list[]="ECDHE-ECDSA-AES128-GCM-SHA256:"
+                                     "ECDHE-ECDSA-AES256-GCM-SHA384:"
+                                     "ECDHE-RSA-AES128-GCM-SHA256:"
+                                     "ECDHE-RSA-AES256-GCM-SHA384:"
+                                     "ECDHE-ECDSA-AES128-SHA256:"
+                                     "ECDHE-RSA-AES128-SHA256:"
+                                     "ECDHE-ECDSA-AES256-SHA384:"
+                                     "ECDHE-RSA-AES256-SHA384:"
+                                     "DHE-RSA-AES128-GCM-SHA256:"
+                                     "DHE-DSS-AES128-GCM-SHA256:"
+                                     "DHE-RSA-AES128-SHA256:"
+                                     "DHE-DSS-AES128-SHA256:"
+                                     "DHE-DSS-AES256-GCM-SHA384:"
+                                     "DHE-RSA-AES256-SHA256:"
+                                     "DHE-DSS-AES256-SHA256:"
+                                     "ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:"
+                                     "ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:"
+                                     "DHE-DSS-AES128-SHA:DHE-RSA-AES128-SHA:"
+                                     "TLS_DHE_DSS_WITH_AES_256_CBC_SHA:DHE-RSA-AES256-SHA:"
+                                     "AES128-GCM-SHA256:DH-DSS-AES128-GCM-SHA256:"
+                                     "ECDH-ECDSA-AES128-GCM-SHA256:AES256-GCM-SHA384:"
+                                     "DH-DSS-AES256-GCM-SHA384:ECDH-ECDSA-AES256-GCM-SHA384:"
+                                     "AES128-SHA256:DH-DSS-AES128-SHA256:ECDH-ECDSA-AES128-SHA256:AES256-SHA256:"
+                                     "DH-DSS-AES256-SHA256:ECDH-ECDSA-AES256-SHA384:AES128-SHA:"
+                                     "DH-DSS-AES128-SHA:ECDH-ECDSA-AES128-SHA:AES256-SHA:"
+                                     "DH-DSS-AES256-SHA:ECDH-ECDSA-AES256-SHA:DHE-RSA-AES256-GCM-SHA384:"
+                                     "DH-RSA-AES128-GCM-SHA256:ECDH-RSA-AES128-GCM-SHA256:DH-RSA-AES256-GCM-SHA384:"
+                                     "ECDH-RSA-AES256-GCM-SHA384:DH-RSA-AES128-SHA256:"
+                                     "ECDH-RSA-AES128-SHA256:DH-RSA-AES256-SHA256:"
+                                     "ECDH-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA:"
+                                     "ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA:"
+                                     "ECDHE-ECDSA-AES256-SHA:DHE-DSS-AES128-SHA:DHE-RSA-AES128-SHA:"
+                                     "TLS_DHE_DSS_WITH_AES_256_CBC_SHA:DHE-RSA-AES256-SHA:"
+                                     "AES128-SHA:DH-DSS-AES128-SHA:ECDH-ECDSA-AES128-SHA:AES256-SHA:"
+                                     "DH-DSS-AES256-SHA:ECDH-ECDSA-AES256-SHA:DH-RSA-AES128-SHA:"
+                                     "ECDH-RSA-AES128-SHA:DH-RSA-AES256-SHA:ECDH-RSA-AES256-SHA:DES-CBC3-SHA";
+static const char tls_cipher_blocked[]= "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:"
+                                        "!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:"
+                                        "!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:"
+                                        "!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:";
+#endif
+
 static my_bool     ssl_initialized         = FALSE;
 
 /*
@@ -111,7 +165,8 @@ ssl_error_string[] =
   "Failed to set ciphers to use",
   "SSL_CTX_new failed",
   "SSL context is not usable without certificate and private key",
-  "SSL_CTX_set_tmp_dh failed"
+  "SSL_CTX_set_tmp_dh failed",
+  "TLS version is invalid"
 };
 
 const char*
@@ -375,38 +430,108 @@ void ssl_start()
   }
 }
 
+long process_tls_version(const char *tls_version)
+{
+  const char *separator= ",";
+  char *token, *lasts= NULL;
+#ifndef HAVE_YASSL
+  unsigned int tls_versions_count= 3;
+  const char *tls_version_name_list[3]= {"TLSv1", "TLSv1.1", "TLSv1.2"};
+  const char ctx_flag_default[]= "TLSv1,TLSv1.1,TLSv1.2";
+  const long tls_ctx_list[3]= {SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1, SSL_OP_NO_TLSv1_2};
+  long tls_ctx_flag= SSL_OP_NO_TLSv1|SSL_OP_NO_TLSv1_1|SSL_OP_NO_TLSv1_2;
+#else
+  unsigned int tls_versions_count= 2;
+  const char *tls_version_name_list[2]= {"TLSv1", "TLSv1.1"};
+  const long tls_ctx_list[2]= {SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1};
+  const char ctx_flag_default[]= "TLSv1,TLSv1.1";
+  long tls_ctx_flag= SSL_OP_NO_TLSv1|SSL_OP_NO_TLSv1_1;
+#endif
+  unsigned int index= 0;
+  char tls_version_option[TLS_VERSION_OPTION_SIZE]= "";
+  int tls_found= 0;
+
+  if (!tls_version || !my_strcasecmp(&my_charset_latin1, tls_version, ctx_flag_default))
+    return 0;
+
+  if (strlen(tls_version)-1 > sizeof(tls_version_option))
+    return -1;
+
+  strncpy(tls_version_option, tls_version, sizeof(tls_version_option));
+  token= my_strtok_r(tls_version_option, separator, &lasts);
+  while (token)
+  {
+    for (index=0; index < tls_versions_count; index++)
+    {
+      if (!my_strcasecmp(&my_charset_latin1, tls_version_name_list[index], token))
+      {
+        tls_found= 1;
+        tls_ctx_flag= tls_ctx_flag & (~tls_ctx_list[index]);
+        break;
+      }
+    }
+    token= my_strtok_r(NULL, separator, &lasts);
+  }
+
+  if (!tls_found)
+    return -1;
+  else
+    return tls_ctx_flag;
+}
+
 /************************ VioSSLFd **********************************/
 static struct st_VioSSLFd *
 new_VioSSLFd(const char *key_file, const char *cert_file,
              const char *ca_file, const char *ca_path,
              const char *cipher, my_bool is_client,
              enum enum_ssl_init_error *error,
-             const char *crl_file, const char *crl_path)
+             const char *crl_file, const char *crl_path, const long ssl_ctx_flags)
 {
   DH *dh;
   struct st_VioSSLFd *ssl_fd;
   long ssl_ctx_options= SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
+  int ret_set_cipherlist= 0;
+  char cipher_list[SSL_CIPHER_LIST_SIZE]= {0};
   DBUG_ENTER("new_VioSSLFd");
   DBUG_PRINT("enter",
              ("key_file: '%s'  cert_file: '%s'  ca_file: '%s'  ca_path: '%s'  "
-              "cipher: '%s' crl_file: '%s' crl_path: '%s' ",
+              "cipher: '%s' crl_file: '%s' crl_path: '%s' ssl_ctx_flags: '%ld' ",
               key_file ? key_file : "NULL",
               cert_file ? cert_file : "NULL",
               ca_file ? ca_file : "NULL",
               ca_path ? ca_path : "NULL",
               cipher ? cipher : "NULL",
               crl_file ? crl_file : "NULL",
-              crl_path ? crl_path : "NULL"));
+              crl_path ? crl_path : "NULL",
+              ssl_ctx_flags));
+
+  if (ssl_ctx_flags < 0)
+  {
+    *error= SSL_TLS_VERSION_INVALID;
+    DBUG_PRINT("error", ("TLS version invalid : %s", sslGetErrString(*error)));
+    report_errors();
+    DBUG_RETURN(0);
+  }
+
+  ssl_ctx_options= (ssl_ctx_options | ssl_ctx_flags) &
+                   (SSL_OP_NO_SSLv2 |
+                    SSL_OP_NO_SSLv3 |
+                    SSL_OP_NO_TLSv1 |
+                    SSL_OP_NO_TLSv1_1
+#ifndef HAVE_YASSL
+                    | SSL_OP_NO_TLSv1_2
 
 
+#endif
+                   );
   if (!(ssl_fd= ((struct st_VioSSLFd*)
                  my_malloc(key_memory_vio_ssl_fd,
                            sizeof(struct st_VioSSLFd),MYF(0)))))
     DBUG_RETURN(0);
 
   if (!(ssl_fd->ssl_context= SSL_CTX_new(is_client ?
-                                         TLSv1_client_method() :
-                                         TLSv1_server_method())))
+                                         SSLv23_client_method() :
+                                         SSLv23_server_method())))
   {
     *error= SSL_INITERR_MEMFAIL;
     DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
@@ -422,8 +547,13 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
     NOTE: SSL_CTX_set_cipher_list will return 0 if
     none of the provided ciphers could be selected
   */
-  if (cipher &&
-      SSL_CTX_set_cipher_list(ssl_fd->ssl_context, cipher) == 0)
+  strcat(cipher_list, tls_cipher_blocked);
+  if (cipher)
+    strcat(cipher_list, cipher);
+  else
+    strcat(cipher_list, tls_ciphers_list);
+
+  if (ret_set_cipherlist == SSL_CTX_set_cipher_list(ssl_fd->ssl_context, cipher_list))
   {
     *error= SSL_INITERR_CIPHERS;
     DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
@@ -531,7 +661,7 @@ struct st_VioSSLFd *
 new_VioSSLConnectorFd(const char *key_file, const char *cert_file,
                       const char *ca_file, const char *ca_path,
                       const char *cipher, enum enum_ssl_init_error* error,
-                      const char *crl_file, const char *crl_path)
+                      const char *crl_file, const char *crl_path, const long ssl_ctx_flags)
 {
   struct st_VioSSLFd *ssl_fd;
   int verify= SSL_VERIFY_PEER;
@@ -545,7 +675,7 @@ new_VioSSLConnectorFd(const char *key_file, const char *cert_file,
 
   if (!(ssl_fd= new_VioSSLFd(key_file, cert_file, ca_file,
                              ca_path, cipher, TRUE, error,
-                             crl_file, crl_path)))
+                             crl_file, crl_path, ssl_ctx_flags)))
   {
     return 0;
   }
@@ -563,13 +693,13 @@ struct st_VioSSLFd *
 new_VioSSLAcceptorFd(const char *key_file, const char *cert_file,
 		     const char *ca_file, const char *ca_path,
 		     const char *cipher, enum enum_ssl_init_error* error,
-                     const char *crl_file, const char *crl_path)
+                     const char *crl_file, const char * crl_path, const long ssl_ctx_flags)
 {
   struct st_VioSSLFd *ssl_fd;
   int verify= SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE;
   if (!(ssl_fd= new_VioSSLFd(key_file, cert_file, ca_file,
                              ca_path, cipher, FALSE, error,
-                             crl_file, crl_path)))
+                             crl_file, crl_path, ssl_ctx_flags)))
   {
     return 0;
   }

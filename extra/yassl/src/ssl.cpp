@@ -598,8 +598,14 @@ const char* SSL_get_version(SSL* ssl)
 {
     static const char* version3 =  "SSLv3";
     static const char* version31 = "TLSv1";
+    static const char* version32 = "TLSv1.1";
 
-    return ssl->isTLS() ? version31 : version3;
+    if (ssl->isTLSv1_1())
+      return version32;
+    else if(ssl->isTLS())
+      return version31;
+    else
+      return version3;
 }
 
 const char* SSLeay_version(int)
@@ -1015,9 +1021,43 @@ int SSL_get_verify_depth(SSL* ssl)
 }
 
 
-long SSL_CTX_set_options(SSL_CTX*, long)
+long SSL_CTX_set_options(SSL_CTX* ctx, long options)
 {
-    // TDOD:
+    ProtocolVersion pv= ctx->getMethod()->getVersion();
+    bool multi_proto= ctx->getMethod()->multipleProtocol();
+    unsigned long ssl_ctx_mask= SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1;
+
+    do
+    {
+      if (options == 0)
+       break;
+      // only TLSv1.1
+      if ((options & ssl_ctx_mask) == ssl_ctx_mask)
+      {
+        pv.minor_= 2;
+        multi_proto= false;
+        break;
+      }
+      // only TLSv1
+      ssl_ctx_mask= SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1_1;
+      if((options & ssl_ctx_mask) == ssl_ctx_mask)
+      {
+        pv.minor_= 1;
+        multi_proto= false;
+        break;
+      }
+      // TLSv1.1 and TLSv1
+      ssl_ctx_mask= SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
+      if((options & ssl_ctx_mask) == ssl_ctx_mask)
+      {
+        pv.minor_= 2;
+        multi_proto= true;
+        break;
+      }
+    }while(0);
+
+    SSL_METHOD *meth= NEW_YS SSL_METHOD(ctx->getMethod()->getSide(), ProtocolVersion(3,pv.minor_), multi_proto);
+    ctx->SetMethod(meth);
     return SSL_SUCCESS;
 }
 
