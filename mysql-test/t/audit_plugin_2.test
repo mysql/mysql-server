@@ -293,7 +293,7 @@ SELECT @@null_audit_event_order_check;
 SELECT * FROM test_table;
 DELETE FROM test_table;
 
-# Check event order flow
+--echo # Check event order flow
 SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\";;'
                                      'MYSQL_AUDIT_PARSE_PREPARSE;;;'
                                      'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
@@ -329,7 +329,7 @@ START TRANSACTION;
 insert into test_table_2 values(1);
 insert into test_table_2 values(2);
 COMMIT WORK;
-END| 
+END|
 --delimiter ;
 
 SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\";;'
@@ -398,7 +398,7 @@ SELECT * FROM test_table_2;
 DELETE FROM test_table_2;
 
 ## Not nested queries
-# Check event order flow
+--echo # Check event order flow
 INSERT INTO test_table VALUES(1),(2),(3);
 INSERT INTO test_table_2 VALUES(1),(2),(3);
 --replace_result $event_order_exact <expected_check_exact>
@@ -441,15 +441,15 @@ SELECT USER(), CURRENT_USER();
 SELECT USER(), CURRENT_USER();
 
 connection default;
-# Allow 'user2' to use 'mysql' database.
+--echo # Allow 'user2' to use 'mysql' database.
 GRANT ALL ON mysql.* TO user2;
 connection user1_con;
 
-# Change user with 'mysql' as initial database
+--echo # Change user with 'mysql' as initial database
 --change_user user2,,mysql
 SELECT USER(), CURRENT_USER();
 
-# Bring back user1 (no database specified)
+--echo # Bring back user1 (no database specified)
 --change_user user1,,
 SELECT USER(), CURRENT_USER();
 
@@ -486,19 +486,18 @@ connection default;
 #--COM_CHANGE_USER
 SET @@GLOBAL.null_audit_event_order_check = "MYSQL_AUDIT_COMMAND_START;command_id=\"17\";ABORT_RET";
 connection user1_con;
-# Try to change user for a given connection (user and database specified)
+--echo # Try to change user for a given connection (user and database specified)
 --error 1
 --exec echo "--change_user user2,,mysql" | $MYSQL_TEST 2>&1
 
 
 connection default;
-# Allow 'user2' to use 'mysql' database.
+--echo # Allow 'user2' to use 'mysql' database.
 GRANT ALL ON mysql.* TO user2;
 connection user1_con;
 
-# Change user with 'mysql' as initial database
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
---error ER_AUDIT_API_ABORT
+--echo # Change user with 'mysql' as initial database
+SELECT USER(), CURRENT_USER();
 --change_user user2,,mysql
 SELECT USER(), CURRENT_USER();
 
@@ -614,7 +613,7 @@ SELECT @@null_audit_event_order_check;
 --echo #########################
 --echo ## COMMAND_END - ABORT ##
 --echo #########################
-# Abort the MYSQL_AUDIT_COMMAND_END event with the my_message function - should be disabled
+--echo # Abort the MYSQL_AUDIT_COMMAND_END event with the my_message function - should be disabled
 SET @@null_audit_abort_message = "Abort with my_message.";
 SET @@null_audit_event_order_check_exact = 1;
 --replace_result $command_end_id <expected_command_end_id>
@@ -622,7 +621,7 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_END;command_id=\"
 SELECT 1;
 SELECT @@null_audit_event_order_check;
 
-# Abort the MYSQL_AUDIT_COMMAND_END event by returning a non-zero value - should be disabled
+--echo # Abort the MYSQL_AUDIT_COMMAND_END event by returning a non-zero value - should be disabled
 SET @@null_audit_event_order_check_exact = 1;
 --replace_result $command_end_id <expected_command_end_id>
 eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_END;command_id=\"$command_end_id\";ABORT_RET';
