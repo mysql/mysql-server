@@ -3598,7 +3598,8 @@ ha_innopart::info_low(
 							m_prebuilt->trx,
 							table_name).c_str());
 				} else {
-					avail_space += space;
+					avail_space +=
+						static_cast<ulint>(space);
 				}
 			}
 		}

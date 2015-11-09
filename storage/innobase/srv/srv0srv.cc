@@ -2005,7 +2005,7 @@ srv_master_thread_disabled_debug_update(
 
 	const bool disable = *static_cast<const my_bool*>(save);
 
-	const int sig_count = os_event_reset(
+	const int64_t sig_count = os_event_reset(
 		srv_master_thread_disabled_event);
 
 	srv_master_thread_disabled_debug = disable;

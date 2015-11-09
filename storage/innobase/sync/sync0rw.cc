@@ -339,7 +339,7 @@ rw_lock_s_lock_spin(
 	ulint		i = 0;	/* spin round count */
 	sync_array_t*	sync_arr;
 	ulint		spin_count = 0;
-	ulint		count_os_wait = 0;
+	uint64_t	count_os_wait = 0;
 
 	/* We reuse the thread id to index into the counter, cache
 	it here for efficiency. */
@@ -368,7 +368,8 @@ lock_loop:
 	if (rw_lock_s_lock_low(lock, pass, file_name, line)) {
 
 		if (count_os_wait > 0) {
-			lock->count_os_wait += count_os_wait;
+			lock->count_os_wait +=
+				static_cast<uint32_t>(count_os_wait);
 			rw_lock_stats.rw_s_os_wait_count.add(count_os_wait);
 		}
 
@@ -399,7 +400,8 @@ lock_loop:
 
 			if (count_os_wait > 0) {
 
-				lock->count_os_wait += count_os_wait;
+				lock->count_os_wait +=
+					static_cast<uint32_t>(count_os_wait);
 
 				rw_lock_stats.rw_s_os_wait_count.add(
 					count_os_wait);
@@ -466,7 +468,7 @@ rw_lock_x_lock_wait_func(
 	ulint		i = 0;
 	ulint		n_spins = 0;
 	sync_array_t*	sync_arr;
-	ulint		count_os_wait = 0;
+	uint64_t	count_os_wait = 0;
 
 	os_rmb;
 	ut_ad(lock->lock_word <= threshold);
@@ -522,7 +524,8 @@ rw_lock_x_lock_wait_func(
 	rw_lock_stats.rw_x_spin_round_count.add(n_spins);
 
 	if (count_os_wait > 0) {
-		lock->count_os_wait += count_os_wait;
+		lock->count_os_wait +=
+			static_cast<uint32_t>(count_os_wait);
 		rw_lock_stats.rw_x_os_wait_count.add(count_os_wait);
 	}
 }
@@ -716,7 +719,7 @@ rw_lock_x_lock_func(
 	ulint		i = 0;
 	sync_array_t*	sync_arr;
 	ulint		spin_count = 0;
-	ulint		count_os_wait = 0;
+	uint64_t	count_os_wait = 0;
 
 	ut_ad(rw_lock_validate(lock));
 	ut_ad(!rw_lock_own(lock, RW_LOCK_S));
@@ -726,7 +729,8 @@ lock_loop:
 	if (rw_lock_x_lock_low(lock, pass, file_name, line)) {
 
 		if (count_os_wait > 0) {
-			lock->count_os_wait += count_os_wait;
+			lock->count_os_wait +=
+				static_cast<uint32_t>(count_os_wait);
 			rw_lock_stats.rw_x_os_wait_count.add(count_os_wait);
 		}
 
@@ -775,7 +779,8 @@ lock_loop:
 		sync_array_free_cell(sync_arr, cell);
 
 		if (count_os_wait > 0) {
-			lock->count_os_wait += count_os_wait;
+			lock->count_os_wait +=
+				static_cast<uint32_t>(count_os_wait);
 			rw_lock_stats.rw_x_os_wait_count.add(count_os_wait);
 		}
 
@@ -816,7 +821,7 @@ rw_lock_sx_lock_func(
 	ulint		i = 0;
 	sync_array_t*	sync_arr;
 	ulint		spin_count = 0;
-	ulint		count_os_wait = 0;
+	uint64_t	count_os_wait = 0;
 	ulint		spin_wait_count = 0;
 
 	ut_ad(rw_lock_validate(lock));
@@ -827,7 +832,8 @@ lock_loop:
 	if (rw_lock_sx_lock_low(lock, pass, file_name, line)) {
 
 		if (count_os_wait > 0) {
-			lock->count_os_wait += count_os_wait;
+			lock->count_os_wait +=
+				static_cast<uint32_t>(count_os_wait);
 			rw_lock_stats.rw_sx_os_wait_count.add(count_os_wait);
 		}
 
@@ -880,7 +886,8 @@ lock_loop:
 		sync_array_free_cell(sync_arr, cell);
 
 		if (count_os_wait > 0) {
-			lock->count_os_wait += count_os_wait;
+			lock->count_os_wait +=
+				static_cast<uint32_t>(count_os_wait);
 			rw_lock_stats.rw_sx_os_wait_count.add(count_os_wait);
 		}
 

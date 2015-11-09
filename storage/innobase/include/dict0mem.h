@@ -321,7 +321,7 @@ void
 dict_mem_table_col_rename(
 /*======================*/
 	dict_table_t*	table,	/*!< in/out: table */
-	unsigned	nth_col,/*!< in: column index */
+	ulint		nth_col,/*!< in: column index */
 	const char*	from,	/*!< in: old column name */
 	const char*	to,	/*!< in: new column name */
 	bool		is_virtual);

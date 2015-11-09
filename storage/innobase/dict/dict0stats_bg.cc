@@ -370,7 +370,7 @@ dict_stats_disabled_debug_update(
 
 	const bool disable = *static_cast<const my_bool*>(save);
 
-	const int sig_count = os_event_reset(dict_stats_disabled_event);
+	const int64_t sig_count = os_event_reset(dict_stats_disabled_event);
 
 	innodb_dict_stats_disabled_debug = disable;
 

@@ -608,7 +608,7 @@ ha_innobase::check_if_supported_inplace_alter(
 	    & (Alter_inplace_info::ADD_VIRTUAL_COLUMN
 	       | Alter_inplace_info::DROP_VIRTUAL_COLUMN
 	       | Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER)) {
-		ulint	flags = ha_alter_info->handler_flags;
+		ulonglong	flags = ha_alter_info->handler_flags;
 
 		/* TODO: uncomment the flags below, once we start to
 		support them */

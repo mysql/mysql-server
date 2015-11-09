@@ -7176,7 +7176,8 @@ i_s_dict_fill_sys_columns(
 
 	if (dict_col_is_virtual(column)) {
 		ulint	pos = dict_create_v_col_pos(nth_v_col, column->ind);
-		OK(fields[SYS_COLUMN_POSITION]->store(pos));
+		OK(fields[SYS_COLUMN_POSITION]->store(
+			static_cast<double>(pos)));
 	} else {
 		OK(fields[SYS_COLUMN_POSITION]->store(column->ind));
 	}
@@ -7394,9 +7395,11 @@ i_s_dict_fill_sys_virtual(
 
 	OK(fields[SYS_VIRTUAL_TABLE_ID]->store((longlong) table_id, TRUE));
 
-	OK(fields[SYS_VIRTUAL_POS]->store(pos));
+	OK(fields[SYS_VIRTUAL_POS]->store(
+		static_cast<double>(pos)));
 
-	OK(fields[SYS_VIRTUAL_BASE_POS]->store(base_pos));
+	OK(fields[SYS_VIRTUAL_BASE_POS]->store(
+		static_cast<double>(base_pos)));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
