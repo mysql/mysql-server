@@ -2854,9 +2854,16 @@ void alloc_and_copy_thd_dynamic_variables(THD *thd, bool global_lock)
   uint idx;
 
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
-  
+
   /* Block system variable reads from other threads. */
   mysql_mutex_lock(&thd->LOCK_thd_sysvar);
+
+  /*
+    MAINTAINER:
+    The following assert is wrong on purpose, useful to debug
+    when thd dynamic variables are expanded:
+    DBUG_ASSERT(thd->variables.dynamic_variables_ptr == NULL);
+  */
 
   thd->variables.dynamic_variables_ptr= (char*)
     my_realloc(key_memory_THD_variables,
