@@ -24,7 +24,7 @@ create table t2(a int, constraint a foreign key a (a) references t1(a)) engine=i
 ERROR HY000: Can't create table 'test.t2' (errno: 150)
 show warnings;
 Level	Code	Message
-Warning	150	Create  table '`test`.`t2`' with foreign key constraint failed. There is no index in the referenced table where the referenced columns appear as the first columns. Error close to  foreign key a (a) references t1(a)) engine=innodb.
+Warning	150	Create  table '`test`.`t2`' with foreign key constraint failed. There is no index in the referenced table where the referenced columns appear as the first columns near ' foreign key a (a) references t1(a)) engine=innodb'.
 Error	1005	Can't create table 'test.t2' (errno: 150)
 drop table t1;
 create table t1(a int not null primary key, b int) engine=innodb;
@@ -33,14 +33,14 @@ constraint a foreign key a (a) references t1(b)) engine=innodb;
 ERROR HY000: Can't create table 'test.t2' (errno: 150)
 show warnings;
 Level	Code	Message
-Warning	150	Create  table '`test`.`t2`' with foreign key constraint failed. There is no index in the referenced table where the referenced columns appear as the first columns. Error close to  foreign key a (a) references t1(b)) engine=innodb.
+Warning	150	Create  table '`test`.`t2`' with foreign key constraint failed. There is no index in the referenced table where the referenced columns appear as the first columns near ' foreign key a (a) references t1(b)) engine=innodb'.
 Error	1005	Can't create table 'test.t2' (errno: 150)
 create table t2(a int, b int, constraint a foreign key a (a) references t1(a)) engine=innodb;
 alter table t2 add constraint b foreign key (b) references t2(b);
 ERROR HY000: Can't create table '#sql-temporary' (errno: 150)
 show warnings;
 Level	Code	Message
-Warning	150	Alter  table '`test`.`t2`' with foreign key constraint failed. There is no index in the referenced table where the referenced columns appear as the first columns. Error close to  foreign key (b) references t2(b).
+Warning	150	Alter  table '`test`.`t2`' with foreign key constraint failed. There is no index in the referenced table where the referenced columns appear as the first columns near ' foreign key (b) references t2(b)'.
 Error	1005	Can't create table '#sql-temporary' (errno: 150)
 drop table t2, t1;
 create table t1 (f1 integer primary key) engine=innodb;
@@ -48,7 +48,7 @@ alter table t1 add constraint c1 foreign key (f1) references t11(f1);
 ERROR HY000: Can't create table '#sql-temporary' (errno: 150)
 show warnings;
 Level	Code	Message
-Warning	150	Alter  table `test`.`t1` with foreign key constraint failed. Referenced table `test`.`t11` not found in the data dictionary close to  foreign key (f1) references t11(f1).
+Warning	150	Alter  table `test`.`t1` with foreign key constraint failed. Referenced table `test`.`t11` not found in the data dictionary near ' foreign key (f1) references t11(f1)'.
 Error	1005	Can't create table '#sql-temporary' (errno: 150)
 drop table t1;
 create temporary table t1(a int not null primary key, b int, key(b)) engine=innodb;
@@ -56,13 +56,13 @@ create temporary table t2(a int, foreign key(a) references t1(a)) engine=innodb;
 ERROR HY000: Can't create table 'test.t2' (errno: 150)
 show warnings;
 Level	Code	Message
-Warning	150	Create  table `mysqld.1`.`t2` with foreign key constraint failed. Referenced table `mysqld.1`.`t1` not found in the data dictionary close to foreign key(a) references t1(a)) engine=innodb.
+Warning	150	Create  table `mysqld.1`.`t2` with foreign key constraint failed. Referenced table `mysqld.1`.`t1` not found in the data dictionary near 'foreign key(a) references t1(a)) engine=innodb'.
 Error	1005	Can't create table 'test.t2' (errno: 150)
 alter table t1 add foreign key(b) references t1(a);
 ERROR HY000: Can't create table '#sql-temporary' (errno: 150)
 show warnings;
 Level	Code	Message
-Warning	150	Alter  table `mysqld.1`.`t1` with foreign key constraint failed. Referenced table `mysqld.1`.`t1` not found in the data dictionary close to foreign key(b) references t1(a).
+Warning	150	Alter  table `mysqld.1`.`t1` with foreign key constraint failed. Referenced table `mysqld.1`.`t1` not found in the data dictionary near 'foreign key(b) references t1(a)'.
 Error	1005	Can't create table '#sql-temporary' (errno: 150)
 drop table t1;
 create table t1(a int not null primary key, b int, key(b)) engine=innodb;
@@ -70,7 +70,8 @@ alter table t1 add foreign key(a,b) references t1(a);
 ERROR HY000: Can't create table '#sql-temporary' (errno: 150)
 show warnings;
 Level	Code	Message
-Warning	150	Alter  table `test`.`t1` with foreign key constraint failed. Foreign key constraint parse error in foreign key(a,b) references t1(a) close to ). Too few referenced columns, you have 1 when you should have 2.
+Warning	150	Alter  table `test`.`t1` with foreign key constraint failed. Parse error in 'foreign key(a,b) references t1(a)' near ')'.  Referencing column count 1 does not match referenced column count 2.
+
 Error	1005	Can't create table '#sql-temporary' (errno: 150)
 drop table t1;
 create table t1(a int not null primary key, b int, key(b)) engine=innodb;
@@ -78,7 +79,8 @@ alter table t1 add foreign key(a) references t1(a,b);
 ERROR HY000: Can't create table '#sql-temporary' (errno: 150)
 show warnings;
 Level	Code	Message
-Warning	150	Alter  table `test`.`t1` with foreign key constraint failed. Foreign key constraint parse error in foreign key(a) references t1(a,b) close to ). Too few referenced columns, you have 2 when you should have 1.
+Warning	150	Alter  table `test`.`t1` with foreign key constraint failed. Parse error in 'foreign key(a) references t1(a,b)' near ')'.  Referencing column count 2 does not match referenced column count 1.
+
 Error	1005	Can't create table '#sql-temporary' (errno: 150)
 drop table t1;
 create table t1 (f1 integer not null primary key) engine=innodb;
@@ -86,13 +88,13 @@ alter table t1 add constraint c1 foreign key (f1) references t1(f1) on update se
 ERROR HY000: Can't create table '#sql-temporary' (errno: 150)
 show warnings;
 Level	Code	Message
-Warning	150	Alter  table `test`.`t1` with foreign key constraint failed. You have defined a SET NULL condition but column f1 is defined as NOT NULL in  foreign key (f1) references t1(f1) on update set null close to  on update set null.
+Warning	150	Alter  table `test`.`t1` with foreign key constraint failed. You have defined a SET NULL condition but column 'f1' is defined as NOT NULL in ' foreign key (f1) references t1(f1) on update set null' near ' on update set null'.
 Error	1005	Can't create table '#sql-temporary' (errno: 150)
 create table t2(a int not null, foreign key(a) references t1(f1) on delete set null) engine=innodb;
 ERROR HY000: Can't create table 'test.t2' (errno: 150)
 show warnings;
 Level	Code	Message
-Warning	150	Create  table `test`.`t2` with foreign key constraint failed. You have defined a SET NULL condition but column a is defined as NOT NULL in foreign key(a) references t1(f1) on delete set null) engine=innodb close to  on delete set null) engine=innodb.
+Warning	150	Create  table `test`.`t2` with foreign key constraint failed. You have defined a SET NULL condition but column 'a' is defined as NOT NULL in 'foreign key(a) references t1(f1) on delete set null) engine=innodb' near ' on delete set null) engine=innodb'.
 Error	1005	Can't create table 'test.t2' (errno: 150)
 drop table t1;
 create table t1 (id int not null primary key, f1 int, f2 int, key(f1)) engine=innodb;
@@ -100,6 +102,6 @@ create table t2(a char(20), key(a), foreign key(a) references t1(f1)) engine=inn
 ERROR HY000: Can't create table 'test.t2' (errno: 150)
 show warnings;
 Level	Code	Message
-Warning	150	Create  table `test`.`t2` with foreign key constraint failed. Field type or character set for column a does not mach referenced column f1 close to foreign key(a) references t1(f1)) engine=innodb
+Warning	150	Create  table `test`.`t2` with foreign key constraint failed. Field type or character set for column 'a' does not mach referenced column 'f1' near 'foreign key(a) references t1(f1)) engine=innodb'.
 Error	1005	Can't create table 'test.t2' (errno: 150)
 drop table t1;
