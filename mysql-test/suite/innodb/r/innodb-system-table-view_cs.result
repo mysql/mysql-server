@@ -946,7 +946,7 @@ mysql/routines	33	27
 mysql/schemata	33	9
 mysql/server_cost	33	7
 mysql/servers	33	12
-mysql/slave_master_info	33	27
+mysql/slave_master_info	33	28
 mysql/slave_relay_log_info	33	12
 mysql/slave_worker_info	33	16
 mysql/table_partition_values	33	8
