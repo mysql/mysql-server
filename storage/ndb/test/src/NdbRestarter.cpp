@@ -739,7 +739,7 @@ int NdbRestarter::insertErrorInNodes(const int * _nodes, int _num_nodes, int _er
 
   int result = 0;
 
-  for(unsigned i = 0; i < _num_nodes ; i++)
+  for(int i = 0; i < _num_nodes ; i++)
   {
     g_debug << "inserting error in node " << _nodes[i] << endl;
     if (insertErrorInNode(_nodes[i], _error) == -1)
@@ -794,7 +794,7 @@ int NdbRestarter::insertError2InNodes(const int * _nodes, int _num_nodes, int _e
 
   int result = 0;
 
-  for(unsigned i = 0; i < _num_nodes ; i++)
+  for(int i = 0; i < _num_nodes ; i++)
   {
     g_debug << "inserting error in node " << _nodes[i] << endl;
     if (insertError2InNode(_nodes[i], _error, extra) == -1)
