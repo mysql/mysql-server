@@ -24,6 +24,7 @@ information_schema.innodb_sys_indexes AS indexes,
 information_schema.innodb_sys_tables AS tables
 WHERE
 cached.index_id = indexes.index_id
+AND cached.space_id = indexes.space
 AND indexes.table_id = tables.table_id
 AND tables.name LIKE '%test_cached_indexes' -- remove this line to see all cached indexes
 ORDER BY 1, 2, 3;
