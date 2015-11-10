@@ -1082,6 +1082,10 @@ void String::print(String *str)
 {
   char *st= m_ptr;
   char *end= st + m_length;
+
+  if (str->reserve(m_length))
+    return;
+
   for (; st < end; st++)
   {
     uchar c= *st;

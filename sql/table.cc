@@ -1844,6 +1844,10 @@ int set_zone(int nr, int min_zone, int max_zone)
 void append_unescaped(String *res, const char *pos, size_t length)
 {
   const char *end= pos+length;
+
+  if (res->reserve(length + 2))
+    return;
+
   res->append('\'');
 
   for (; pos != end ; pos++)

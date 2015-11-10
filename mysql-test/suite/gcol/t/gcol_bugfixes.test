@@ -562,3 +562,15 @@ ALTER TABLE t ADD b INTEGER AS (SUBSTR('','a',1));
 DROP TABLE t;
 
 set sql_mode= @save_old_sql_mode;
+
+--echo #
+--echo # Bug#22157531 WITH NO MORE .FRM 64K LIMIT WE CAN CREATE MASSIVE TABLES,
+--echo #              BUT TOO SLOWLY..
+--echo #
+
+set @s:=concat("CREATE TABLE t(a LONGBLOB GENERATED ALWAYS AS
+('",REPEAT("a",1024*1024),"') STORED) ENGINE=INNODB;");
+PREPARE r FROM @s;
+EXECUTE r;
+DEALLOCATE PREPARE r;
+DROP TABLE t;

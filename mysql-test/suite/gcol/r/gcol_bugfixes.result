@@ -587,3 +587,13 @@ DROP TABLE t;
 set sql_mode= @save_old_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+#
+# Bug#22157531 WITH NO MORE .FRM 64K LIMIT WE CAN CREATE MASSIVE TABLES,
+#              BUT TOO SLOWLY..
+#
+set @s:=concat("CREATE TABLE t(a LONGBLOB GENERATED ALWAYS AS
+('",REPEAT("a",1024*1024),"') STORED) ENGINE=INNODB;");
+PREPARE r FROM @s;
+EXECUTE r;
+DEALLOCATE PREPARE r;
+DROP TABLE t;
