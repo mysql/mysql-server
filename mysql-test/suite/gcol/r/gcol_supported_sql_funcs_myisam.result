@@ -1467,19 +1467,18 @@ MySQL	MYSQL
 drop table t1;
 set sql_warnings = 0;
 # WEIGHT_STRING()
-THIS IS WRONG, see Bug#78783
 set sql_warnings = 1;
 create table t1 (a varchar(5), b varchar(10) generated always as (weight_string(a as char(4))) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(5) DEFAULT NULL,
-  `b` varchar(10) GENERATED ALWAYS AS (weight_string(`a`)) VIRTUAL
+  `b` varchar(10) GENERATED ALWAYS AS (weight_string(`a` as char(4))) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('MySQL',default);
 select * from t1;
 a	b
-MySQL	MYSQL
+MySQL	MYSQ
 drop table t1;
 set sql_warnings = 0;
 #
