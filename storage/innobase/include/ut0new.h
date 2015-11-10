@@ -223,6 +223,11 @@ struct ut_new_pfx_t {
 	allocated block and its users are responsible for maintaining it
 	and passing it later to ut_allocator::deallocate_large(). */
 	size_t		m_size;
+#if SIZEOF_VOIDP == 4
+	/** Pad the header size to a multiple of 64 bits on 32-bit systems,
+	so that the payload will be aligned to 64 bits. */
+	size_t		pad;
+#endif
 };
 
 /** Allocator class for allocating memory from inside std::* containers. */
@@ -331,6 +336,10 @@ public:
 		size_t	total_bytes = n_elements * sizeof(T);
 
 #ifdef UNIV_PFS_MEMORY
+		/* The header size must not ruin the 64-bit alignment
+		on 32-bit systems. Some allocated structures use
+		64-bit fields. */
+		ut_ad((sizeof(ut_new_pfx_t) & 7) == 0);
 		total_bytes += sizeof(ut_new_pfx_t);
 #endif /* UNIV_PFS_MEMORY */
 
