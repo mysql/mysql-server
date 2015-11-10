@@ -40,6 +40,7 @@
 #include <m_string.h>
 #include <welcome_copyright_notice.h>	/* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include "typelib.h"
+#include "prealloced_array.h"
 
 /* Only parts of these files are included from the InnoDB codebase.
 The parts not included are excluded by #ifndef UNIV_INNOCHECKSUM. */
@@ -1444,7 +1445,7 @@ int main(
 	/* our input filename. */
 	char*		filename;
 	/* Buffer to store pages read. */
-	byte*		buf = NULL;
+	Prealloced_array<byte, 1> buf(PSI_NOT_INSTRUMENTED);
 	/* bytes read count */
 	ulong		bytes;
 	/* Buffer to decompress page.*/
@@ -1524,8 +1525,8 @@ int main(
 	}
 
 
-	buf = (byte*) malloc(UNIV_PAGE_SIZE_MAX * 2);
-	tbuf = buf + UNIV_PAGE_SIZE_MAX;
+	buf.reserve(UNIV_PAGE_SIZE_MAX * 2);
+	tbuf = buf.begin() + UNIV_PAGE_SIZE_MAX;
 
 	/* The file name is not optional. */
 	for (int i = 0; i < argc; ++i) {
@@ -1595,7 +1596,7 @@ int main(
 #endif /* _WIN32 */
 
 		/* Read the minimum page size. */
-		bytes = ulong(fread(buf, 1, UNIV_ZIP_SIZE_MIN, fil_in));
+		bytes = ulong(fread(buf.begin(), 1, UNIV_ZIP_SIZE_MIN, fil_in));
 		partial_page_read = true;
 
 		if (bytes != UNIV_ZIP_SIZE_MIN) {
@@ -1604,18 +1605,17 @@ int main(
 			fprintf(stderr, "of %d bytes.  Bytes read was %lu\n",
 				UNIV_ZIP_SIZE_MIN, bytes);
 
-			free(buf);
 			DBUG_RETURN(1);
 		}
 
 		/* enable variable is_system_tablespace when space_id of given
 		file is zero. Use to skip the checksum verification and rewrite
 		for doublewrite pages. */
-		is_system_tablespace = (!memcmp(&space_id, buf +
+		is_system_tablespace = (!memcmp(&space_id, buf.begin() +
 					FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 4))
 					? true : false;
 
-		const page_size_t&	page_size = get_page_size(buf);
+		const page_size_t&	page_size = get_page_size(buf.begin());
 
 		pages = (ulint) (size / page_size.physical());
 
@@ -1663,7 +1663,6 @@ int main(
 					perror("Error: Unable to seek to "
 						"necessary offset");
 
-					free(buf);
 					DBUG_RETURN(1);
 				}
 				/* Save the current file pointer in
@@ -1671,7 +1670,6 @@ int main(
 				if (0 != fgetpos(fil_in, &pos)) {
 					perror("fgetpos");
 
-					free(buf);
 					DBUG_RETURN(1);
 				}
 			} else {
@@ -1689,7 +1687,7 @@ int main(
 					(fseeko() on stdin doesn't work). So
 					read only the remaining part of page,
 					if partial_page_read is enable. */
-					bytes = read_file(buf,
+					bytes = read_file(buf.begin(),
 							  partial_page_read,
 							  page_size,
 							  fil_in);
@@ -1702,7 +1700,6 @@ int main(
 							"to seek to necessary "
 							"offset");
 
-						free(buf);
 						DBUG_RETURN(1);
 					}
 				}
@@ -1728,7 +1725,7 @@ int main(
 		lastt = 0;
 		while (!feof(fil_in)) {
 
-			bytes = read_file(buf, partial_page_read,
+			bytes = read_file(buf.begin(), partial_page_read,
 					  page_size, fil_in);
 			partial_page_read = false;
 
@@ -1741,7 +1738,6 @@ int main(
 					page_size.physical());
 				perror(" ");
 
-				free(buf);
 				DBUG_RETURN(1);
 			}
 
@@ -1749,22 +1745,20 @@ int main(
 				fprintf(stderr, "Error: bytes read (%lu) "
 					"doesn't match page size (%lu)\n",
 					bytes, page_size.physical());
-				free(buf);
 				DBUG_RETURN(1);
 			}
 
 			if (is_system_tablespace) {
 				/* enable when page is double write buffer.*/
-				skip_page = is_page_doublewritebuffer(buf);
+				skip_page = is_page_doublewritebuffer(buf.begin());
 			} else {
 				skip_page = false;
 
-				if (!page_decompress(buf, tbuf, page_size)) {
+				if (!page_decompress(buf.begin(), tbuf, page_size)) {
 
 					fprintf(stderr,
 						"Page decompress failed");
 
-					free(buf);
 					DBUG_RETURN(1);
 				}
 			}
@@ -1775,7 +1769,7 @@ int main(
 				/* Checksum verification */
 				if (!skip_page) {
 					is_corrupted = is_page_corrupted(
-						buf, page_size);
+						buf.begin(), page_size);
 
 					if (is_corrupted) {
 						fprintf(stderr, "Fail: page "
@@ -1792,7 +1786,6 @@ int main(
 								"count::%" PRIuMAX "\n",
 								allow_mismatches);
 
-							free(buf);
 							DBUG_RETURN(1);
 						}
 					}
@@ -1801,10 +1794,9 @@ int main(
 
 			/* Rewrite checksum */
 			if (do_write
-			    && !write_file(filename, fil_in, buf,
+			    && !write_file(filename, fil_in, buf.begin(),
 					    &pos, page_size)) {
 
-				free(buf);
 				DBUG_RETURN(1);
 			}
 
@@ -1814,7 +1806,7 @@ int main(
 			}
 
 			if (page_type_summary || page_type_dump) {
-				parse_page(buf, fil_page_type);
+				parse_page(buf.begin(), fil_page_type);
 			}
 
 			/* do counter increase and progress printing */
@@ -1858,7 +1850,6 @@ int main(
 		fclose(log_file);
 	}
 
-	free(buf);
 	DBUG_RETURN(0);
 }
 
