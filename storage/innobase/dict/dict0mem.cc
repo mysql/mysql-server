@@ -185,7 +185,9 @@ dict_mem_table_col_rename_low(
 
 	size_t from_len = strlen(s), to_len = strlen(to);
 
-	ut_ad(i < table->n_def);
+	ut_ad(i < table->n_def || is_virtual);
+	ut_ad(i < table->n_v_def || !is_virtual);
+
 	ut_ad(from_len <= NAME_LEN);
 	ut_ad(to_len <= NAME_LEN);
 

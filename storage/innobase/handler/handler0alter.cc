@@ -419,6 +419,37 @@ check_v_col_in_order(
 {
 	ulint	j = 0;
 
+	/* We don't support any adding new virtual column before
+	existed virtual column. */
+	if (ha_alter_info->handler_flags
+              & Alter_inplace_info::ADD_VIRTUAL_COLUMN) {
+		bool			has_new = false;
+
+		List_iterator_fast<Create_field> cf_it(
+			ha_alter_info->alter_info->create_list);
+
+		cf_it.rewind();
+
+		while (const Create_field* new_field = cf_it++) {
+			if (!new_field->is_virtual_gcol()) {
+				continue;
+			}
+
+			/* Found a new added virtual column. */
+			if (!new_field->field) {
+				has_new = true;
+				continue;
+			}
+
+			/* If there's any old virtual column
+			after the new added virtual column,
+			order must be changed. */
+			if (has_new) {
+				return(false);
+			}
+		}
+	}
+
 	/* directly return true if ALTER_VIRTUAL_COLUMN_ORDER is not on */
 	if (!(ha_alter_info->handler_flags
               & Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER)) {

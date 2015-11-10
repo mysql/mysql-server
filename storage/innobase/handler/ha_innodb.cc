@@ -19478,10 +19478,12 @@ innobase_get_computed_value(
 	}
 
 	if (ret != 0) {
+#ifdef INNODB_VIRTUAL_DEBUG
 		ib::warn() << "Compute virtual column values failed ";
 		fputs("InnoDB: Cannot compute value for following record ",
 		      stderr);
 		dtuple_print(stderr, row);
+#endif /* INNODB_VIRTUAL_DEBUG */
 		return(NULL);
 	}
 

@@ -1388,4 +1388,68 @@ replace into t(x, c) values(1, 0);
 
 drop table t;
 
+# Bug22123674 VCOL:INNODB: FAILING ASSERTION: !UT_STRCMP(NAME,
+# FIELD->FIELD_NAME)
+
+CREATE TABLE t(
+c7c CHAR(1)GENERATED ALWAYS AS (c3) VIRTUAL,
+c1 int(1),
+c2 int(1),
+c3 int(1),
+c4 int(1),
+c5 int(1)GENERATED ALWAYS AS ((c2 - c4)) VIRTUAL,
+UNIQUE KEY c5_9(c5)
+)ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t CHANGE COLUMN c5 c5 INT(1) GENERATED ALWAYS AS(c2 -
+c4)VIRTUAL AFTER c3,ALGORITHM=INPLACE;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t CHANGE COLUMN c7c c7c INT(1) GENERATED ALWAYS AS(c3)
+VIRTUAL AFTER c5,ALGORITHM=INPLACE;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t DROP COLUMN c7c,ADD COLUMN c5c INT GENERATED ALWAYS AS(c4/
+c3)VIRTUAL AFTER c3,ALGORITHM=INPLACE;
+
+DROP TABLE t;
+
+# Bug22111464	VCOL:INNODB: FAILING ASSERTION: I < TABLE->N_DEF
+
+CREATE TABLE `t` (
+  `col1` int(11) DEFAULT NULL,
+  `col2` int(11) DEFAULT NULL,
+  `col4` int(11) DEFAULT NULL,
+  `col5` int(11) GENERATED ALWAYS AS ((`col2` % `col4`)) VIRTUAL,
+  `col6` int(11) GENERATED ALWAYS AS ((`col2` - `col2`)) VIRTUAL,
+  `col5x` int(11) GENERATED ALWAYS AS ((`col1` / `col1`)) VIRTUAL,
+  `col6x` int(11) GENERATED ALWAYS AS ((`col2` / `col4`)) VIRTUAL,
+  `col7x` int(11) GENERATED ALWAYS AS ((`col6` % `col6x`)) VIRTUAL,
+  `col8x` int(11) GENERATED ALWAYS AS ((`col6` / `col6`)) VIRTUAL,
+  `col9` text,
+  `col7c` int(11) GENERATED ALWAYS AS ((`col6x` % `col6x`)) VIRTUAL,
+  `col1b` varchar(20) GENERATED ALWAYS AS (`col1`) VIRTUAL,
+  `col3` int(11) DEFAULT NULL,
+  `col7` int(11) DEFAULT NULL,
+  `col5c` int(11) GENERATED ALWAYS AS ((`col5x` * `col6`)) VIRTUAL,
+  `col6c` varchar(20) GENERATED ALWAYS AS (`col5x`) VIRTUAL,
+  `col3b` bigint(20) GENERATED ALWAYS AS ((`col6x` * `col6`)) VIRTUAL,
+  `col1a` varchar(20) GENERATED ALWAYS AS (`col1`) VIRTUAL,
+  `col8` int(11) DEFAULT NULL,
+  UNIQUE KEY `col5` (`col5`),
+  UNIQUE KEY `col6x` (`col6x`),
+  UNIQUE KEY `col5_2` (`col5`),
+  KEY `idx2` (`col9`(10)),
+  KEY `idx4` (`col2`),
+  KEY `idx8` (`col9`(10),`col5`),
+  KEY `idx9` (`col6`),
+  KEY `idx6` (`col6`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+ALTER TABLE t CHANGE COLUMN col3b col8a BIGINT GENERATED ALWAYS AS
+(col6x * col6) VIRTUAL, ADD UNIQUE KEY uidx ( col8a );
+
+DROP TABLE t;
+
 --source include/wait_until_count_sessions.inc
