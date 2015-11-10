@@ -1747,6 +1747,13 @@ void execute_ddl_log_recovery()
 
   thd->set_query(recover_query_string, strlen(recover_query_string));
 
+  /*
+    Prevent InnoDB from automatically committing InnoDB transaction
+    each time data-dictionary tables are closed after being updated.
+  */
+  thd->variables.option_bits&= ~OPTION_AUTOCOMMIT;
+  thd->variables.option_bits|= OPTION_NOT_AUTOCOMMIT;
+
   /* this also initialize LOCK_gdl */
   num_entries= read_ddl_log_header();
   mysql_mutex_lock(&LOCK_gdl);
