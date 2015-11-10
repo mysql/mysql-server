@@ -3653,5 +3653,32 @@ deallocate prepare stmt;
 SET SESSION sql_mode = @save_sql_mode;
 DROP TABLE t1,t2;
 
+--echo #
+--echo # MDEV-8833: Crash of server on prepared statement with
+--echo # conversion to semi-join
+--echo #
 
---echo # End of 10.0 tests
+CREATE TABLE t1 (column1 INT);
+INSERT INTO t1 VALUES (3),(9);
+
+CREATE TABLE t2 (column2 INT);
+INSERT INTO t2 VALUES (1),(4);
+
+CREATE TABLE t3 (column3 INT);
+INSERT INTO t3 VALUES (6),(8);
+
+CREATE TABLE t4 (column4 INT);
+INSERT INTO t4 VALUES (2),(5);
+
+PREPARE stmt FROM "SELECT ( SELECT MAX( table1.column1 ) AS field1 
+FROM t1 AS table1
+WHERE table3.column3 IN ( SELECT table2.column2 AS field2 FROM t2 AS table2 ) 
+) AS sq
+FROM t3 AS table3, t4 AS table4";
+EXECUTE stmt;
+EXECUTE stmt;
+deallocate prepare stmt;
+drop table t1,t2,t3,t4;
+
+
+--echo # End of 5.5 tests
