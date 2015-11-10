@@ -101,6 +101,7 @@ void embedded_get_error(MYSQL *mysql, MYSQL_DATA *data)
   strmake(net->last_error, ei->info, sizeof(net->last_error)-1);
   memcpy(net->sqlstate, ei->sqlstate, sizeof(net->sqlstate));
   mysql->server_status= ei->server_status;
+  free_root(&data->alloc, MYF(0));
   my_free(data);
 }
 
@@ -624,13 +625,6 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   if (!opt_bootstrap)
     servers_init(0);
-
-#ifdef HAVE_DLOPEN
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (!opt_noacl)
-#endif
-    udf_init();
-#endif
 
   start_handle_manager();
 
