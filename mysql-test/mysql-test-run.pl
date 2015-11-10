@@ -2765,6 +2765,13 @@ sub environment_setup {
                    "$path_client_bindir/innochecksum",
                    "$basedir/extra/innochecksum");
   $ENV{'INNOCHECKSUM'}= native_path($exe_innochecksum);
+  if ( $opt_valgrind_clients )
+  {
+    my $args;
+    mtr_init_args(\$args);
+    valgrind_client_arguments($args, \$exe_innochecksum);
+    $ENV{'INNOCHECKSUM'}= mtr_args2str($exe_innochecksum, @$args);
+  }
 
   # ----------------------------------------------------
   # Setup env so childs can execute myisampack and myisamchk
