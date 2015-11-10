@@ -229,7 +229,6 @@ public:
   void update_create_info(HA_CREATE_INFO *create_info);
   void print_error(int error, myf errflag);
   const char * table_type() const;
-  const char ** bas_ext() const;
   ulonglong table_flags(void) const;
   ulong index_flags(uint idx, uint part, bool all_parts) const;
   virtual const Key_map *keys_to_use_for_scanning() { return &btree_keys; }
@@ -271,7 +270,13 @@ public:
 
   bool low_byte_first() const;
 
-  const char* index_type(uint key_number);
+  enum ha_key_alg get_default_index_algorithm() const
+  {
+    /* NDB uses hash indexes only when explicitly requested. */
+    return HA_KEY_ALG_BTREE;
+  }
+  bool is_index_algorithm_supported(enum ha_key_alg key_alg) const
+  { return key_alg == HA_KEY_ALG_BTREE || key_alg == HA_KEY_ALG_HASH; }
 
   double scan_time();
   ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);

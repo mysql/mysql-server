@@ -24,20 +24,21 @@
 
 #include "auth_common.h"              // check_fk_parent_table_access
 #include "binlog.h"                   // mysql_bin_log
+#include "dd_table_share.h"           // open_table_def
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "derror.h"                   // ER_THD
-#include "discover.h"                 // readfrm
 #include "filesort.h"                 // Filesort
 #include "item_timefunc.h"            // Item_func_now_local
 #include "key.h"                      // KEY
 #include "key_spec.h"                 // Key_part_spec
-#include "lock.h"                     // mysql_lock_remove
+#include "lock.h"                     // mysql_lock_remove, lock_tablespace_names
 #include "log.h"                      // sql_print_error
 #include "mysqld.h"                   // key_file_frm
 #include "mysqld_error.h"             // ER_*
 #include "partition_info.h"           // partition_info
 #include "psi_memory_key.h"           // key_memory_gdl
 #include "records.h"                  // READ_RECORD
+#include "sdi_utils.h"                // create_serialized_meta_data
 #include "sp_head.h"                  // sp_head
 #include "sql_base.h"                 // lock_table_names
 #include "sql_cache.h"                // query_cache
@@ -52,9 +53,14 @@
 #include "sql_trigger.h"              // change_trigger_name
 #include "strfunc.h"                  // find_type2
 #include "transaction.h"              // trans_commit_stmt
-#include "unireg.h"                   // rea_create_table
 
 #include "partitioning/partition_handler.h" // Partition_handler
+
+#include "dd/dd.h"                    // dd::get_dictionary
+#include "dd/dd_schema.h"             // dd::schema_exists
+#include "dd/dd_table.h"              // dd::drop_table
+#include "dd/dictionary.h"            // dd::Dictionary
+#include "dd/types/table.h"           // dd::Table
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -95,6 +101,11 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
                            handler *file, KEY **key_info_buffer,
                            uint *key_count, int select_field_count,
                            bool is_sql_layer_system_table);
+
+static
+bool validate_comment_length(THD *thd, const char *comment_str,
+                             size_t *comment_len, uint max_len,
+                             uint err_code, const char *comment_name);
 
 
 /**
@@ -1051,6 +1062,67 @@ static bool deactivate_ddl_log_entry_no_lock(uint entry_no)
   DBUG_RETURN(FALSE);
 }
 
+/**
+  Convert file path to db + tablename.
+
+  Basically reverse of build_table_name()/tablename_to_filename().
+
+  @param[in]  path       db/tablename in file name safe coding
+  @param[out] db         db in system charset (size >= NAME_LEN)
+  @param[out] table_name table name in system charset (size >= NAME_LEN)
+
+  @return false if success, else true.
+*/
+
+static bool path_to_db_and_table_name(const char *path,
+                                      char *db,
+                                      char *table_name)
+{
+  char buf[FN_REFLEN + 1];
+  size_t len= strlen(path);
+  uint errors;
+  memcpy(buf, path, len + 1);
+  char *ptr= strrchr(buf, FN_LIBCHAR);
+  DBUG_ASSERT(ptr);
+  *ptr= '\0';
+  ptr++;
+  if (!strncmp(ptr, tmp_file_prefix, tmp_file_prefix_length))
+  {
+    if (strlen(ptr) >= NAME_LEN)
+      return true;
+    /* Generated "#sql..." with no non-safe file name characters. */
+    strcpy(table_name, ptr);
+  }
+  else
+  {
+    /* Convert to system charset. */
+    if (!strconvert(&my_charset_filename,
+                    ptr,
+                    system_charset_info,
+                    table_name,
+                    NAME_LEN,
+                    &errors) ||
+        errors)
+    {
+      return true;
+    }
+  }
+  ptr= strrchr(buf, FN_LIBCHAR);
+  DBUG_ASSERT(ptr);
+  ptr++;
+  /* Always convert db. */
+  if (!strconvert(&my_charset_filename,
+                  ptr,
+                  system_charset_info,
+                  db,
+                  NAME_LEN,
+                  &errors) ||
+      errors)
+  {
+    return true;
+  }
+  return false;
+}
 
 /**
   Execute one action in a ddl log entry
@@ -1120,19 +1192,26 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
       {
         if (frm_action)
         {
-          strxmov(to_path, ddl_log_entry->name, reg_ext, NullS);
-          if ((error= mysql_file_delete(key_file_frm, to_path, MYF(MY_WME))))
-          {
-            if (my_errno() != ENOENT)
-              break;
-          }
-          DBUG_ASSERT(strcmp("partition", ddl_log_entry->handler_name));
           strxmov(to_path, ddl_log_entry->name, par_ext, NullS);
-          if (access(to_path, F_OK) == 0)
+          (void) mysql_file_delete(key_file_partition_ddl_log, to_path, MYF(0));
+          // TODO: This should be handled by the new DD (check in mysql_update_dd)
+          char db[NAME_LEN + 1];
+          char table_name[NAME_LEN + 1];
+          if (!path_to_db_and_table_name(ddl_log_entry->name, db, table_name) &&
+              !dd::get_dictionary()->is_dd_table_name(db, table_name))
           {
-            (void) mysql_file_delete(key_file_partition_ddl_log,
-                                     to_path,
-                                     MYF(MY_WME));
+            // Check if table exists
+            bool table_exists= false;
+            if (dd::table_exists<dd::Table>(thd->dd_client(),
+                                            db,
+                                            table_name,
+                                            &table_exists))
+              break;
+
+            // Remove table from DD
+            if (table_exists &&
+                dd::drop_table<dd::Table>(thd, db, table_name))
+              break;
           }
         }
         else
@@ -1146,9 +1225,11 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
         if ((deactivate_ddl_log_entry_no_lock(ddl_log_entry->entry_pos)))
           break;
         (void) sync_ddl_log_no_lock();
-        error= FALSE;
         if (ddl_log_entry->action_type == DDL_LOG_DELETE_ACTION)
+        {
+          error= FALSE;
           break;
+        }
       }
       DBUG_ASSERT(ddl_log_entry->action_type == DDL_LOG_REPLACE_ACTION);
       /*
@@ -1159,23 +1240,42 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
     }
     case DDL_LOG_RENAME_ACTION:
     {
-      error= TRUE;
       if (frm_action)
       {
-        strxmov(to_path, ddl_log_entry->name, reg_ext, NullS);
-        strxmov(from_path, ddl_log_entry->from_name, reg_ext, NullS);
-        if (mysql_file_rename(key_file_frm, from_path, to_path, MYF(MY_WME)))
-          break;
+        // TODO: This should be handled by the new DD (check in mysql_update_dd)
+        char db[NAME_LEN + 1];
+        char table_name[NAME_LEN + 1];
+        char from_db[NAME_LEN + 1];
+        char from_table_name[NAME_LEN + 1];
+        if (!path_to_db_and_table_name(ddl_log_entry->name, db, table_name) &&
+            !path_to_db_and_table_name(ddl_log_entry->from_name,
+                                       from_db,
+                                       from_table_name) &&
+            !dd::get_dictionary()->is_dd_table_name(db, table_name))
+        {
+          // Check if table exists
+          bool table_exists= false;
+          if (dd::table_exists<dd::Table>(thd->dd_client(),
+                                          from_db,
+                                          from_table_name,
+                                          &table_exists))
+            break;
+
+          if (table_exists)
+          {
+            // Rename table from DD
+            if (dd::rename_table<dd::Table>(thd,
+                                            from_db,
+                                            from_table_name,
+                                            db,
+                                            table_name))
+              break;
+          }
+        }
         DBUG_ASSERT(strcmp("partition", ddl_log_entry->handler_name));
         strxmov(to_path, ddl_log_entry->name, par_ext, NullS);
         strxmov(from_path, ddl_log_entry->from_name, par_ext, NullS);
-        if (access(from_path, F_OK) == 0)
-        {
-          (void) mysql_file_rename(key_file_partition_ddl_log,
-                                   from_path,
-                                   to_path,
-                                   MYF(MY_WME));
-        }
+        (void) mysql_file_rename(key_file_partition_ddl_log, from_path, to_path, MYF(0));
       }
       else
       {
@@ -1320,7 +1420,7 @@ static bool execute_ddl_log_entry_no_lock(THD *thd, uint first_entry)
 {
   DDL_LOG_ENTRY ddl_log_entry;
   uint read_entry= first_entry;
-  bool error;
+  bool error= false;
   DBUG_ENTER("execute_ddl_log_entry_no_lock");
 
   mysql_mutex_assert_owner(&LOCK_gdl);
@@ -1340,8 +1440,10 @@ static bool execute_ddl_log_entry_no_lock(THD *thd, uint first_entry)
     if ((error= execute_ddl_log_action(thd, &ddl_log_entry)))
     {
       /* Write to error log and continue with next log entry */
+      // TODO: More verbose error message, at least the content of the entry.
       sql_print_error("Failed to execute action for entry = %u from ddl log",
                       read_entry);
+      error= true;
       break;
     }
     read_entry= ddl_log_entry.next_entry;
@@ -1722,6 +1824,205 @@ void release_ddl_log()
 */
 
 
+/*
+  Prepare table defintion.
+
+  TODO: Check if the old .FRM limitations still make sense
+  with the new DD.
+
+  SYNOPSIS
+    prepare_table_def()
+    thd			Thread handler
+    table               Name of table
+    create_info		create info parameters
+    create_fields	Fields to create
+    keys		number of keys to create
+    key_info		Keys to create
+    db_file		Handler to use. May be zero, in which case we use
+			create_info->db_type
+  RETURN
+    false  ok
+    true   error
+*/
+
+static bool prepare_table_def(THD *thd, const char *table,
+                              HA_CREATE_INFO *create_info,
+                              List<Create_field> &create_fields,
+                              uint keys, KEY *key_info,
+                              handler *db_file)
+{
+  DBUG_ENTER("prepare_table_def");
+
+  DBUG_ASSERT(db_file != NULL);
+
+  /* Fix this when we have new .frm files;  Current limit is 4G rows (QQ) */
+  if (create_info->max_rows > UINT_MAX32)
+    create_info->max_rows= UINT_MAX32;
+  if (create_info->min_rows > UINT_MAX32)
+    create_info->min_rows= UINT_MAX32;
+
+  /* If fixed row records, we need one bit to check for deleted rows */
+  if (!(create_info->table_options & HA_OPTION_PACK_RECORD))
+    create_info->null_bits++;
+  ulong data_offset= (create_info->null_bits + 7) / 8;
+
+  if (create_fields.elements > MAX_FIELDS)
+  {
+    my_error(ER_TOO_MANY_FIELDS, MYF(0));
+    DBUG_RETURN(true);
+  }
+
+  size_t reclength= data_offset;
+
+  List_iterator<Create_field> it(create_fields);
+  Create_field *field;
+  while ((field=it++))
+  {
+    if (validate_comment_length(thd,
+                                field->comment.str,
+                                &field->comment.length,
+                                COLUMN_COMMENT_MAXLEN,
+                                ER_TOO_LONG_FIELD_COMMENT,
+                                field->field_name))
+      DBUG_RETURN(true);
+
+    size_t length= field->pack_length;
+    if (field->offset + data_offset + length > reclength)
+      reclength= field->offset + data_offset + length;
+  }
+
+  if (reclength > db_file->max_record_length())
+  {
+    my_error(ER_TOO_BIG_ROWSIZE, MYF(0), static_cast<long>(db_file->max_record_length()));
+    DBUG_RETURN(true);
+  }
+
+  if (create_info->comment.length > TABLE_COMMENT_MAXLEN)
+  {
+    const char *real_table_name= table;
+    it.rewind();
+    while ((field=it++))
+    {
+      if (field->field && field->field->table &&
+        (real_table_name= field->field->table->s->table_name.str))
+         break;
+    }
+    if (validate_comment_length(thd,
+                                create_info->comment.str,
+                                &create_info->comment.length,
+                                TABLE_COMMENT_MAXLEN,
+                                ER_TOO_LONG_TABLE_COMMENT,
+                                real_table_name))
+    {
+      DBUG_RETURN(true);
+    }
+  }
+
+  DBUG_RETURN(false);
+}
+
+
+/**
+  For a regular table: create table definition in the Data Dictionary.
+  For a temporary table: create a dd::Table-object specifying the table
+  definition, but do not put it into the Data Dictionary. The created
+  dd::Table-instance is returned via tmp_table_def out-parameter.
+
+  @param thd           Thread handler
+  @param path          Name of file (including database)
+  @param db            Data base name
+  @param table_name    Table name
+  @param create_info   create info parameters
+  @param create_fields Fields to create
+  @param keys          number of keys to create
+  @param key_info      Keys to create
+  @param file          Handler to use
+  @param no_ha_table   Indicates that only definitions needs to be created
+                       and not a table in the storage engine.
+  @param[out] tmp_table_def  Placeholder for data-dictionary object for
+                             temporary table which was created. It will
+                             contain NULL for regular tables.
+
+  @retval false  ok
+  @retval true   error
+*/
+
+static bool rea_create_table(THD *thd, const char *path,
+                             const char *db, const char *table_name,
+                             HA_CREATE_INFO *create_info,
+                             List<Create_field> &create_fields,
+                             uint keys, KEY *key_info, handler *file,
+                             bool no_ha_table,
+                             dd::Table **tmp_table_def)
+{
+  DBUG_ENTER("rea_create_table");
+
+  bool dd_table_created= false;
+  *tmp_table_def= NULL;
+
+  // Add table details into new DD, both for user tables and dd tables
+  {
+    if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+    {
+      *tmp_table_def= dd::create_tmp_table(thd, db, table_name,
+                                           create_info, create_fields,
+                                           key_info, keys, file);
+      if (!*tmp_table_def)
+        DBUG_RETURN(true);
+    }
+    else
+    {
+      if (dd::create_table(thd, db, table_name,
+                           create_info,
+                           create_fields,
+                           key_info,
+                           keys,
+                           file))
+      {
+        DBUG_RETURN(true);
+      }
+
+      dd_table_created= true;
+    }
+  }
+
+  if (thd->variables.keep_files_on_create)
+    create_info->options|= HA_CREATE_KEEP_FILES;
+
+  if (file->ha_create_handler_files(path, NULL, CHF_CREATE_FLAG,
+                                    create_info))
+    goto err;
+
+  if (!no_ha_table &&
+       ha_create_table(thd, path, db, table_name, create_info,
+                       false, false, *tmp_table_def))
+  {
+    (void) file->ha_create_handler_files(path, NULL, CHF_DELETE_FLAG,
+                                         create_info);
+    goto err;
+  }
+  DBUG_RETURN(false);
+
+err:
+  // Remove metadata from DD
+  if (dd_table_created)
+  {
+    /*
+      We ignore error from dd_drop_table() as we anyway
+      return 'true' failure below.
+    */
+    (void) dd::drop_table<dd::Table>(thd, db, table_name);
+  }
+  else
+  {
+    delete *tmp_table_def;
+    *tmp_table_def= NULL;
+  }
+
+  DBUG_RETURN(true);
+} /* rea_create_table */
+
+
 /**
    @brief construct a temporary shadow file name.
 
@@ -1741,26 +2042,20 @@ size_t build_table_shadow_filename(char *buff, size_t bufflen,
                                    ALTER_PARTITION_PARAM_TYPE *lpt)
 {
   char tmp_name[FN_REFLEN];
-  my_snprintf (tmp_name, sizeof (tmp_name), "%s-%s", tmp_file_prefix,
-               lpt->table_name);
+  my_snprintf(tmp_name, sizeof(tmp_name), "%s_p_%lx_%lx",
+              tmp_file_prefix, current_pid,
+              lpt->thd->thread_id());
   return build_table_filename(buff, bufflen, lpt->db, tmp_name, "", FN_IS_TMP);
 }
 
 
 /*
   SYNOPSIS
-    mysql_write_frm()
+    mysql_update_dd()
     lpt                    Struct carrying many parameters needed for this
                            method
     flags                  Flags as defined below
-      WFRM_INITIAL_WRITE        If set we need to prepare table before
-                                creating the frm file
       WFRM_INSTALL_SHADOW       If set we should install the new frm
-      WFRM_KEEP_SHARE           If set we know that the share is to be
-                                retained and thus we should ensure share
-                                object is correct, if not set we don't
-                                set the new partition syntax string since
-                                we know the share object is destroyed.
       WFRM_PACK_FRM             If set we should pack the frm file and delete
                                 the frm file
 
@@ -1769,12 +2064,12 @@ size_t build_table_shadow_filename(char *buff, size_t bufflen,
     FALSE                  Success
 
   DESCRIPTION
-    A support method that creates a new frm file and in this process it
-    regenerates the partition data. It works fine also for non-partitioned
-    tables since it only handles partitioned data if it exists.
+    A support method that creates a new version of the table defintion in
+    the data dictionary and a new par file. In this process it regenerates
+    the partition data.
 */
 
-bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
+bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
 {
   /*
     Prepare table to prepare for writing a new frm file where the
@@ -1784,19 +2079,20 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
   int error= 0;
   char path[FN_REFLEN+1];
   char shadow_path[FN_REFLEN+1];
-  char shadow_frm_name[FN_REFLEN+1];
-  char frm_name[FN_REFLEN+1];
+  char *shadow_name;
   char *part_syntax_buf;
   uint syntax_len;
+  DBUG_ENTER("mysql_update_dd");
   partition_info *old_part_info= lpt->table->part_info;
-  DBUG_ENTER("mysql_write_frm");
 
   /*
     Build shadow frm file name
   */
   build_table_shadow_filename(shadow_path, sizeof(shadow_path) - 1, lpt);
-  strxmov(shadow_frm_name, shadow_path, reg_ext, NullS);
-  if (flags & WFRM_WRITE_SHADOW)
+  shadow_name= strrchr(shadow_path, FN_LIBCHAR);
+  shadow_name++;
+  DBUG_ASSERT(shadow_name);
+  if (flags & WSDI_WRITE_SHADOW)
   {
     if (mysql_prepare_create_table(lpt->thd, lpt->create_info,
                                    lpt->alter_info,
@@ -1820,7 +2116,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
                                                    &syntax_len,
                                                    TRUE, TRUE,
                                                    lpt->create_info,
-                                                   lpt->alter_info,
+                                                   &lpt->alter_info->create_list,
                                                    NULL);
         lpt->thd->variables.sql_mode= sql_mode_backup;
         if (part_syntax_buf == NULL)
@@ -1836,41 +2132,53 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
     }
     /* Write shadow frm file */
     lpt->create_info->table_options= lpt->db_options;
-    if ((mysql_create_frm(lpt->thd, shadow_frm_name, lpt->db,
-                          lpt->table_name, lpt->create_info,
-                          lpt->alter_info->create_list, lpt->key_count,
-                          lpt->key_info_buffer, lpt->table->file)) ||
+    if ((prepare_table_def(lpt->thd,
+                           lpt->table_name, lpt->create_info,
+                           lpt->alter_info->create_list, lpt->key_count,
+                           lpt->key_info_buffer, lpt->table->file)) ||
         lpt->table->file->ha_create_handler_files(shadow_path, NULL,
                                                   CHF_CREATE_FLAG,
                                                   lpt->create_info))
     {
-      mysql_file_delete(key_file_frm, shadow_frm_name, MYF(0));
-      error= 1;
-      goto end;
+      DBUG_RETURN(true);
+    }
+    // Add table details into new DD
+    if (!dd::get_dictionary()->is_dd_table_name(lpt->db, shadow_name) &&
+        !dd::get_dictionary()->is_dd_table_name(lpt->db, lpt->table_name))
+    {
+      if (dd::create_table(lpt->thd,
+                           lpt->db,
+                           shadow_name,
+                           lpt->create_info,
+                           lpt->alter_info->create_list,
+                           lpt->key_info_buffer,
+                           lpt->key_count,
+                           lpt->table->file))
+      {
+        DBUG_RETURN(true);
+      }
     }
   }
-  if (flags & WFRM_PACK_FRM)
+  if (flags & WSDI_COMPRESS_SDI)
   {
     /*
-      We need to pack the frm file and after packing it we delete the
-      frm file to ensure it doesn't get used. This is only used for
-      handlers that have the main version of the frm file stored in the
-      handler.
+      We need to compress the serialized dictionary information.
+      This is only used for handlers that have the main version of
+      the SDI stored in the handler.
     */
     uchar *data;
     size_t length;
-    if (readfrm(shadow_path, &data, &length) ||
-        packfrm(data, length, &lpt->pack_frm_data, &lpt->pack_frm_len))
+    if (create_serialized_meta_data(lpt->db, shadow_name, &data, &length) ||
+        compress_serialized_meta_data(data, length, &lpt->pack_frm_data,
+                                      &lpt->pack_frm_len))
     {
       my_free(data);
       my_free(lpt->pack_frm_data);
       mem_alloc_error(length);
-      error= 1;
-      goto end;
+      DBUG_RETURN(true);
     }
-    error= mysql_file_delete(key_file_frm, shadow_frm_name, MYF(MY_WME));
   }
-  if (flags & WFRM_INSTALL_SHADOW)
+  if (flags & WSDI_INSTALL_SHADOW)
   {
     partition_info *part_info= lpt->part_info;
     Partition_handler *part_handler= lpt->table->file->get_partition_handler();
@@ -1879,79 +2187,54 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       part_handler->set_part_info(part_info, false);
     }
     /*
-      Build frm file name
+      Build the file name
     */
     build_table_filename(path, sizeof(path) - 1, lpt->db,
                          lpt->table_name, "", 0);
-    strxmov(frm_name, path, reg_ext, NullS);
     /*
-      When we are changing to use new frm file we need to ensure that we
-      don't collide with another thread in process to open the frm file.
-      We start by deleting the .frm file and possible .par file. Then we
+      When we are changing to use new definition we need to ensure that we
+      don't collide with another thread in process to open the par file.
+      We start by deleting the possible .par file. Then we
       write to the DDL log that we have completed the delete phase by
       increasing the phase of the log entry. Next step is to rename the
-      new .frm file and the new .par file to the real name. After
+      new new .par file to the real name. After
       completing this we write a new phase to the log entry that will
       deactivate it.
     */
-    if (mysql_file_delete(key_file_frm, frm_name, MYF(MY_WME)) ||
-        lpt->table->file->ha_create_handler_files(path, shadow_path,
+    if (lpt->table->file->ha_create_handler_files(path, shadow_path,
                                                   CHF_DELETE_FLAG, NULL) ||
-        deactivate_ddl_log_entry(part_info->frm_log_entry->entry_pos) ||
+        deactivate_ddl_log_entry(lpt->part_info->frm_log_entry->entry_pos) ||
         (sync_ddl_log(), FALSE) ||
-        mysql_file_rename(key_file_frm,
-                          shadow_frm_name, frm_name, MYF(MY_WME)) ||
         lpt->table->file->ha_create_handler_files(path, shadow_path,
                                                   CHF_RENAME_FLAG, NULL))
     {
       error= 1;
       goto err;
     }
-    if (part_info && (flags & WFRM_KEEP_SHARE))
+    // TODO: Should this be here or somewhere else? (and where should the rollback be?)
+    // TODO: Also add this to the ddl_log!!!
+    // Delete table details from new DD
+    if (error == 0 &&
+        !dd::get_dictionary()->is_dd_table_name(lpt->db, shadow_name) &&
+        !dd::get_dictionary()->is_dd_table_name(lpt->db, lpt->table_name))
     {
-      TABLE_SHARE *share= lpt->table->s;
-      char *tmp_part_syntax_str;
-      sql_mode_t sql_mode_backup= lpt->thd->variables.sql_mode;
-      lpt->thd->variables.sql_mode&= ~(MODE_ANSI_QUOTES);
-      part_syntax_buf= generate_partition_syntax(part_info,
-                                                 &syntax_len,
-                                                 TRUE, TRUE,
-                                                 lpt->create_info,
-                                                 lpt->alter_info,
-                                                 NULL);
-      lpt->thd->variables.sql_mode= sql_mode_backup;
-      if (part_syntax_buf == NULL)
+      if (dd::rename_table<dd::Table>(lpt->thd,
+                                      lpt->db,
+                                      shadow_name,
+                                      lpt->db,
+                                      lpt->table_name, true))
       {
         error= 1;
         goto err;
       }
-      if (share->partition_info_buffer_size < syntax_len + 1)
-      {
-        share->partition_info_buffer_size= syntax_len+1;
-        if (!(tmp_part_syntax_str= strmake_root(&share->mem_root,
-                                                part_syntax_buf,
-                                                syntax_len)))
-        {
-          error= 1;
-          goto err;
-        }
-        share->partition_info_str= tmp_part_syntax_str;
-      }
-      else
-        memcpy(share->partition_info_str, part_syntax_buf,
-               syntax_len + 1);
-      share->partition_info_str_len= part_info->part_info_len= syntax_len;
-      part_info->part_info_string= part_syntax_buf;
     }
 
 err:
-    deactivate_ddl_log_entry(part_info->frm_log_entry->entry_pos);
-    part_info->frm_log_entry= NULL;
+    deactivate_ddl_log_entry(lpt->part_info->frm_log_entry->entry_pos);
+    lpt->part_info->frm_log_entry= NULL;
     (void) sync_ddl_log();
-    ;
   }
 
-end:
   if (old_part_info)
   {
     Partition_handler *part_handler= lpt->table->file->get_partition_handler();
@@ -2286,8 +2569,6 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     bool is_trans= false;
     const char *db= table->db;
     size_t db_len= table->db_length;
-    frm_type_enum frm_type;
-    handlerton *hton;
 
     DBUG_PRINT("table", ("table_l: '%s'.'%s'  table: 0x%lx  s: 0x%lx",
                          table->db, table->table_name, (long) table->table,
@@ -2436,19 +2717,37 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     DEBUG_SYNC(thd, "rm_table_no_locks_before_delete_table");
     DBUG_EXECUTE_IF("sleep_before_no_locks_delete_table",
                     my_sleep(100000););
+
+    // When dropping temporary tables, we have no MDL lock, so checking
+    // if the table exists will fail due to improper lock guard. However,
+    // the check for existence is relevant only if !drop_temporary, so
+    // we may do the check conditionally.
     error= 0;
+    bool table_exists= false;
+    if (!drop_temporary)
+    {
+      if (dd::table_exists<dd::Abstract_table>(thd->dd_client(),
+                                               table->db,
+                                               table->table_name,
+                                               &table_exists))
+      {
+        error= 1;
+        goto err;
+      }
+    }
+
+    dd::Abstract_table::enum_table_type table_type;
     if (drop_temporary ||
-        ((access(path, F_OK) &&
-          ha_create_table_from_engine(thd, db, alias)) ||
-         ((frm_type= dd_frm_type_and_se(thd, path, &hton)) != FRMTYPE_TABLE &&
-          !drop_view)))
+        ((!table_exists && ha_create_table_from_engine(thd, db, alias)) ||
+        (!drop_view &&
+         (dd::abstract_table_type(thd->dd_client(), db, alias, &table_type) ||
+           table_type != dd::Abstract_table::TT_BASE_TABLE))))
     {
       /*
         One of the following cases happened:
           . "DROP TEMPORARY" but a temporary table was not found.
           . "DROP" but table was not found on disk and table can't be
             created from engine.
-          . ./sql/datadict.cc +32 /Alfranio - TODO: We need to test this.
       */
       if (if_exists)
       {
@@ -2470,19 +2769,24 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     }
     else
     {
-      char *end;
-
-      if (frm_type == FRMTYPE_TABLE && !hton)
+      // If this is an existing table which has an unknown SE, we fail
+      handlerton *hton= NULL;
+      if (!dd::abstract_table_type(thd->dd_client(), db, alias, &table_type) &&
+          table_type == dd::Abstract_table::TT_BASE_TABLE &&
+          dd::table_storage_engine(thd, table, &hton))
       {
-        my_error(ER_STORAGE_ENGINE_NOT_LOADED, MYF(0), db, table->table_name);
         wrong_tables.mem_free();
         error= 1;
         goto err;
       }
+
       // Remove extension for delete
+      char *end;
       *(end= path + path_length - reg_ext_length)= '\0';
       DBUG_PRINT("info", ("deleting table of type %d",
                           (hton ? hton->db_type : 0)));
+      // TODO: Allow removal of .par file for ha_partition tables by allowing
+      //       the SE to read the partitioning names from the DD
       error= ha_delete_table(thd, hton, path, db, table->table_name,
                              !dont_log_query);
 
@@ -2500,16 +2804,28 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       }
       if (!error || error == ENOENT || error == HA_ERR_NO_SUCH_TABLE)
       {
-        int new_error;
-        /* Delete the table definition file */
-        my_stpcpy(end,reg_ext);
-        if (!(new_error= mysql_file_delete(key_file_frm, path, MYF(MY_WME))))
+        // Delete table details from new DD
+        if (!dd::get_dictionary()->is_dd_table_name(db, table->table_name))
         {
-          non_tmp_table_deleted= TRUE;
-          new_error= drop_all_triggers(thd, db, table->table_name);
+          uint err;
+          if (drop_view) // Remove either table or a view
+            err= dd::drop_table<dd::Abstract_table>(thd, db,
+                                                   table->table_name);
+          else // Remove only table
+            err= dd::drop_table<dd::Table>(thd, db, table->table_name);
+
+          if (!err)
+          {
+            error|= drop_all_triggers(thd, db, table->table_name);
+            non_tmp_table_deleted= TRUE;
+          }
+          else
+            error|= 1;
         }
-        error|= new_error;
-        /* Invalidate even if we failed to delete the .FRM file. */
+        else
+          error|= 1;
+
+        /* Invalidate even if we failed to delete the table. */
         query_cache.invalidate_single(thd, table, FALSE);
       }
        non_tmp_error= error ? TRUE : non_tmp_error;
@@ -2750,7 +3066,7 @@ end:
   @param db          The database name.
   @param table_name  The table name.
   @param flags       Flags for build_table_filename() as well as describing
-                     if handler files / .FRM should be deleted as well.
+                     if handler files should be deleted as well.
 
   @return False in case of success, True otherwise.
 */
@@ -2758,26 +3074,56 @@ end:
 bool quick_rm_table(THD *thd, handlerton *base, const char *db,
                     const char *table_name, uint flags)
 {
-  char path[FN_REFLEN + 1];
-  bool error= 0;
   DBUG_ENTER("quick_rm_table");
 
-  size_t path_length= build_table_filename(path, sizeof(path) - 1,
-                                           db, table_name, reg_ext, flags);
-  if (mysql_file_delete(key_file_frm, path, MYF(0)))
-    error= 1; /* purecov: inspected */
-  path[path_length - reg_ext_length]= '\0'; // Remove reg_ext
+  // Build the schema qualified table name, to be submitted to the handler.
+  char path[FN_REFLEN + 1];
+  (void) build_table_filename(path, sizeof(path) - 1,
+                              db, table_name, "", flags);
+
+  // Invoke the handler as appropriate, depending on the NO_HA_TABLE flag.
+  int error= 0;
   if (flags & NO_HA_TABLE)
   {
     handler *file= get_new_handler((TABLE_SHARE*) 0, thd->mem_root, base);
     if (!file)
       DBUG_RETURN(true);
+
+    // This is relevant for deleting the partition files from the partition
+    // engine. In this case, we will not take an error into account, i.e.,
+    // even if the operation against the SE fails, we will go ahead and
+    // remove the table from the data dictionary. This is necessary due to
+    // the following behavior: In 'ha_partition::create()', there is a call
+    // to 'handler::delete_table()' at the end that does cleanup if create
+    // failed. In the context of a table being created during ALTER, this
+    // means that if creation fails, the .par file will be removed already
+    // at that stage, and when we get here, it will not be present. Thus, the
+    // ENOENT while deleting the file is to be expected. This might be
+    // refactored to avoid deleting the .par file at the end of 'create()', and
+    // instead expect it to be present when calling 'ha_create_handler_files()'
+    // below, and consequently take any error returned into account.
     (void) file->ha_create_handler_files(path, NULL, CHF_DELETE_FLAG, NULL);
     delete file;
   }
-  if (!(flags & (FRM_ONLY|NO_HA_TABLE)))
-    error|= ha_delete_table(thd, base, path, db, table_name, 0);
-  DBUG_RETURN(error);
+  else
+    error= ha_delete_table(thd, base, path, db, table_name, 0);
+
+  if (error)
+    DBUG_RETURN(true);
+
+  // Remove the table object from the data dictionary. If this fails, the
+  // DD operation is already rolled back, and we must return with an error.
+  // Note that the DD operation is done after invoking the SE. This is
+  // because the DDL code will handle situations where a table is present
+  // in the DD while missing from the SE, but not the opposite.
+  if (!dd::get_dictionary()->is_dd_table_name(db, table_name) &&
+      dd::drop_table<dd::Table>(thd, db, table_name))
+  {
+    DBUG_ASSERT(thd->is_error() || thd->killed);
+    DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(false);
 }
 
 /*
@@ -2864,7 +3210,8 @@ static int sort_keys(KEY *a, KEY *b)
 static bool check_duplicates_in_interval(THD *thd,
                                          const char *set_or_name,
                                          const char *name, TYPELIB *typelib,
-                                         const CHARSET_INFO *cs, uint *dup_val_count)
+                                         const CHARSET_INFO *cs,
+                                         uint *dup_val_count)
 {
   TYPELIB tmp= *typelib;
   const char **cur_value= typelib->type_names;
@@ -2932,6 +3279,35 @@ static void calculate_interval_lengths(const CHARSET_INFO *cs,
 }
 
 
+/**
+  Check TYPELIB (set or enum) length of individual values.
+
+  @param col_name   Name of column to be checked (for error msg)
+  @param cs         Charset + collation pair of the interval
+  @param interval   List of values for the column
+
+  @return           true if max length is exceeded (error reported),
+                    false otherwise
+*/
+
+static bool check_interval_length(const char *col_name,
+                                  const CHARSET_INFO *cs,
+                                  TYPELIB *interval)
+{
+  const char **pos;
+  uint *len= interval->type_lengths;
+  for (pos= interval->type_names; *pos; pos++, len++)
+  {
+    if (cs->cset->numchars(cs, *pos, *pos + *len) > MAX_INTERVAL_VALUE_LENGTH)
+    {
+      my_error(ER_TOO_LONG_SET_ENUM_VALUE, MYF(0), col_name);
+      return true;
+    }
+  }
+  return false;
+}
+
+
 /*
   Prepare a create_table instance for packing
 
@@ -2944,7 +3320,6 @@ static void calculate_interval_lengths(const CHARSET_INFO *cs,
 
   DESCRIPTION
     This function prepares a Create_field instance.
-    Fields such as pack_flag are valid after this call.
 
   RETURN VALUES
    0	ok
@@ -2964,20 +3339,11 @@ static int prepare_create_field(THD *thd, Create_field *sql_field,
   */
   DBUG_ASSERT(sql_field->charset);
 
+  sql_field->maybe_null= true;
+  sql_field->is_zerofill= false;
+  sql_field->is_unsigned= false;
+
   switch (sql_field->sql_type) {
-  case MYSQL_TYPE_BLOB:
-  case MYSQL_TYPE_MEDIUM_BLOB:
-  case MYSQL_TYPE_TINY_BLOB:
-  case MYSQL_TYPE_LONG_BLOB:
-    sql_field->pack_flag=FIELDFLAG_BLOB |
-      pack_length_to_packflag(sql_field->pack_length -
-                              portable_sizeof_char_ptr);
-    if (sql_field->charset->state & MY_CS_BINSORT)
-      sql_field->pack_flag|=FIELDFLAG_BINARY;
-    sql_field->length=8;			// Unireg field length
-    sql_field->unireg_check=Field::BLOB_FIELD;
-    (*blob_columns)++;
-    break;
   case MYSQL_TYPE_GEOMETRY:
     if (!(table_flags & HA_CAN_GEOMETRY))
     {
@@ -2986,24 +3352,14 @@ static int prepare_create_field(THD *thd, Create_field *sql_field,
                       MYF(0), "GEOMETRY");
       DBUG_RETURN(1);
     }
-    sql_field->pack_flag=FIELDFLAG_GEOM |
-      pack_length_to_packflag(sql_field->pack_length -
-                              portable_sizeof_char_ptr);
-    if (sql_field->charset->state & MY_CS_BINSORT)
-      sql_field->pack_flag|=FIELDFLAG_BINARY;
-    sql_field->length=8;			// Unireg field length
-    sql_field->unireg_check=Field::BLOB_FIELD;
-    (*blob_columns)++;
-    break;
+    /* fall-through */
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_JSON:
-    // JSON fields are stored as BLOBs.
-    sql_field->pack_flag=FIELDFLAG_JSON |
-      pack_length_to_packflag(sql_field->pack_length -
-                              portable_sizeof_char_ptr);
-    if (sql_field->charset->state & MY_CS_BINSORT)
-      sql_field->pack_flag|=FIELDFLAG_BINARY;
-    sql_field->length=8;                        // Unireg field length
-    sql_field->unireg_check=Field::BLOB_FIELD;
+    sql_field->length=8;			// Unireg field length
+    DBUG_ASSERT(sql_field->auto_flags == Field::NONE);
     (*blob_columns)++;
     break;
   case MYSQL_TYPE_VARCHAR:
@@ -3025,30 +3381,32 @@ static int prepare_create_field(THD *thd, Create_field *sql_field,
     }
     /* fall through */
   case MYSQL_TYPE_STRING:
-    sql_field->pack_flag=0;
-    if (sql_field->charset->state & MY_CS_BINSORT)
-      sql_field->pack_flag|=FIELDFLAG_BINARY;
     break;
   case MYSQL_TYPE_ENUM:
-    sql_field->pack_flag=pack_length_to_packflag(sql_field->pack_length) |
-      FIELDFLAG_INTERVAL;
-    if (sql_field->charset->state & MY_CS_BINSORT)
-      sql_field->pack_flag|=FIELDFLAG_BINARY;
-    sql_field->unireg_check=Field::INTERVAL_FIELD;
+    DBUG_ASSERT(sql_field->auto_flags == Field::NONE);
     if (check_duplicates_in_interval(thd, "ENUM",sql_field->field_name,
                                      sql_field->interval,
                                      sql_field->charset, &dup_val_count))
       DBUG_RETURN(1);
+    if (check_interval_length(sql_field->field_name,
+                              sql_field->charset,
+                              sql_field->interval))
+      DBUG_RETURN(1);
+    if (sql_field->interval->count > MAX_ENUM_VALUES)
+    {
+      my_error(ER_TOO_BIG_ENUM, MYF(0), sql_field->field_name);
+      DBUG_RETURN(1);
+    }
     break;
   case MYSQL_TYPE_SET:
-    sql_field->pack_flag=pack_length_to_packflag(sql_field->pack_length) |
-      FIELDFLAG_BITFIELD;
-    if (sql_field->charset->state & MY_CS_BINSORT)
-      sql_field->pack_flag|=FIELDFLAG_BINARY;
-    sql_field->unireg_check=Field::BIT_FIELD;
+    DBUG_ASSERT(sql_field->auto_flags == Field::NONE);
     if (check_duplicates_in_interval(thd, "SET",sql_field->field_name,
                                      sql_field->interval,
                                      sql_field->charset, &dup_val_count))
+      DBUG_RETURN(1);
+    if (check_interval_length(sql_field->field_name,
+                              sql_field->charset,
+                              sql_field->interval))
       DBUG_RETURN(1);
     /* Check that count of unique members is not more then 64 */
     if (sql_field->interval->count -  dup_val_count > sizeof(longlong)*8)
@@ -3064,39 +3422,23 @@ static int prepare_create_field(THD *thd, Create_field *sql_field,
   case MYSQL_TYPE_TIME2:
   case MYSQL_TYPE_DATETIME2:
   case MYSQL_TYPE_NULL:
-    sql_field->pack_flag=f_settype((uint) sql_field->sql_type);
-    break;
   case MYSQL_TYPE_BIT:
-    /* 
-      We have sql_field->pack_flag already set here, see
-      mysql_prepare_create_table().
-    */
-    break;
-  case MYSQL_TYPE_NEWDECIMAL:
-    sql_field->pack_flag=(FIELDFLAG_NUMBER |
-                          (sql_field->flags & UNSIGNED_FLAG ? 0 :
-                           FIELDFLAG_DECIMAL) |
-                          (sql_field->flags & ZEROFILL_FLAG ?
-                           FIELDFLAG_ZEROFILL : 0) |
-                          (sql_field->decimals << FIELDFLAG_DEC_SHIFT));
     break;
   case MYSQL_TYPE_TIMESTAMP:
   case MYSQL_TYPE_TIMESTAMP2:
-    /* fall-through */
+  case MYSQL_TYPE_NEWDECIMAL:
   default:
-    sql_field->pack_flag=(FIELDFLAG_NUMBER |
-                          (sql_field->flags & UNSIGNED_FLAG ? 0 :
-                           FIELDFLAG_DECIMAL) |
-                          (sql_field->flags & ZEROFILL_FLAG ?
-                           FIELDFLAG_ZEROFILL : 0) |
-                          f_settype((uint) sql_field->sql_type) |
-                          (sql_field->decimals << FIELDFLAG_DEC_SHIFT));
+    if (sql_field->flags & ZEROFILL_FLAG)
+      sql_field->is_zerofill= true;
+    if (sql_field->flags & UNSIGNED_FLAG)
+      sql_field->is_unsigned= true;
     break;
   }
-  if (!(sql_field->flags & NOT_NULL_FLAG))
-    sql_field->pack_flag|= FIELDFLAG_MAYBE_NULL;
-  if (sql_field->flags & NO_DEFAULT_VALUE_FLAG)
-    sql_field->pack_flag|= FIELDFLAG_NO_DEFAULT;
+
+  if (sql_field->flags & NOT_NULL_FLAG)
+    sql_field->maybe_null= false;
+  sql_field->pack_length_override= 0;
+
   DBUG_RETURN(0);
 }
 
@@ -3210,7 +3552,7 @@ bool fill_field_definition(THD *thd,
 */
 
 const CHARSET_INFO* get_sql_field_charset(Create_field *sql_field,
-                                          HA_CREATE_INFO *create_info)
+                                          const HA_CREATE_INFO *create_info)
 {
   const CHARSET_INFO *cs= sql_field->charset;
 
@@ -3243,20 +3585,19 @@ void promote_first_timestamp_column(List<Create_field> *column_definitions)
   while ((column_definition= it++) != NULL)
   {
     if (column_definition->sql_type == MYSQL_TYPE_TIMESTAMP ||      // TIMESTAMP
-        column_definition->sql_type == MYSQL_TYPE_TIMESTAMP2 || //  ms TIMESTAMP
-        column_definition->unireg_check == Field::TIMESTAMP_OLD_FIELD) // Legacy
+        column_definition->sql_type == MYSQL_TYPE_TIMESTAMP2)       //  ms TIMESTAMP
     {
       if ((column_definition->flags & NOT_NULL_FLAG) != 0 && // NOT NULL,
           column_definition->def == NULL &&            // no constant default,
           column_definition->gcol_info == NULL &&      // not a generated column
-          column_definition->unireg_check == Field::NONE) // no function default
+          column_definition->auto_flags == Field::NONE) // no function default
       {
         DBUG_PRINT("info", ("First TIMESTAMP column '%s' was promoted to "
                             "DEFAULT CURRENT_TIMESTAMP ON UPDATE "
                             "CURRENT_TIMESTAMP",
                             column_definition->field_name
                             ));
-        column_definition->unireg_check= Field::TIMESTAMP_DNUN_FIELD;
+        column_definition->auto_flags= Field::DEFAULT_NOW|Field::ON_UPDATE_NOW;
       }
       return;
     }
@@ -3269,32 +3610,31 @@ void promote_first_timestamp_column(List<Create_field> *column_definitions)
 
   @param thd              Thread context.
   @param key              Key to be checked.
-  @param key_info         Key meta-data info.
-  @param alter_info       List of columns and indexes to create.
+  @param key_info         Array with all keys for the table.
+  @param key_count        Number of keys in the table.
+  @param alter_info       Alter_info structure describing ALTER TABLE.
+
+  @note Unlike has_index_def_changed() and similar code in
+        mysql_compare_tables() this function compares KEY objects for the same
+        table/created by the same mysql_prepare_create(). Hence difference in
+        field number comparison. We also differentiate UNIQUE and PRIMARY keys.
 
   @retval false           Ok.
   @retval true            Error.
 */
-static bool check_duplicate_key(THD *thd,
-                                Key_spec *key, KEY *key_info,
-                                Alter_info *alter_info)
+
+static bool check_duplicate_key(THD *thd, const KEY *key,
+                                const KEY *key_info, uint key_count,
+                                const Alter_info *alter_info)
 {
-  /*
-    We only check for duplicate indexes if it is requested and the
-    key is not auto-generated.
+  const KEY *k;
+  const KEY *k_end= key_info + key_count;
 
-    Check is requested if the key was explicitly created or altered
-    (Index is altered/column associated with it is dropped) by the user
-    (unless it's a foreign key).
-  */
-  if (!key->key_create_info.check_for_duplicate_indexes || key->generated)
-    return false;
+  /* This function should not be called for PRIMARY or generated keys. */
+  DBUG_ASSERT(key->name != primary_key_name &&
+              !(key->flags & HA_GENERATED_KEY));
 
-  List_iterator<Key_spec> key_list_iterator(alter_info->key_list);
-  List_iterator<Key_part_spec> key_column_iterator(key->columns);
-  Key_spec *k;
-
-  while ((k= key_list_iterator++))
+  for (k= key_info; k != k_end; k++)
   {
     // Looking for a similar key...
 
@@ -3312,10 +3652,20 @@ static bool check_duplicate_key(THD *thd,
         break;
     }
 
-    if (k->generated ||
-        (key->type != k->type) ||
-        (key->key_create_info.algorithm != k->key_create_info.algorithm) ||
-        (key->columns.elements != k->columns.elements))
+    /*
+      Treat key as not duplicate if:
+      - it is generated (as it will be automagically removed if duplicate later)
+      - has different type (Instead of differentiating between PRIMARY and
+        UNIQUE keys we simply skip check for PRIMARY keys. The fact that we
+        have only one primary key for the table is checked elsewhere.)
+      - has different algorithm
+      - has different number of key parts
+    */
+    if ((k->flags & HA_GENERATED_KEY)  ||
+        ((key->flags & HA_KEYFLAG_MASK) != (k->flags & HA_KEYFLAG_MASK)) ||
+        (k->name == primary_key_name) ||
+        (key->algorithm != k->algorithm) ||
+        (key->user_defined_key_parts != k->user_defined_key_parts))
     {
       // Keys are different.
       continue;
@@ -3325,23 +3675,24 @@ static bool check_duplicate_key(THD *thd,
       Keys 'key' and 'k' might be identical.
       Check that the keys have identical columns in the same order.
     */
-
-    List_iterator<Key_part_spec> k_column_iterator(k->columns);
-
+    const KEY_PART_INFO *key_part;
+    const KEY_PART_INFO *key_part_end= key->key_part +
+                                       key->user_defined_key_parts;
+    const KEY_PART_INFO *k_part;
     bool all_columns_are_identical= true;
 
-    key_column_iterator.rewind();
-
-    for (uint i= 0; i < key->columns.elements; ++i)
+    for (key_part= key->key_part, k_part= k->key_part;
+         key_part < key_part_end;
+         key_part++, k_part++)
     {
-      Key_part_spec *c1= key_column_iterator++;
-      Key_part_spec *c2= k_column_iterator++;
-  
-      DBUG_ASSERT(c1 && c2);
-
-      if (my_strcasecmp(system_charset_info,
-                        c1->field_name.str, c2->field_name.str) ||
-          (c1->length != c2->length))
+      /*
+        Key definition is different if we are using a different field or
+        if the used key part length is different. Note since both KEY
+        objects come from mysql_prepare_create_table() we can compare
+        field numbers directly.
+      */
+      if ((key_part->length != k_part->length) ||
+          (key_part->fieldnr != k_part->fieldnr))
       {
         all_columns_are_identical= false;
         break;
@@ -3354,7 +3705,7 @@ static bool check_duplicate_key(THD *thd,
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_DUP_INDEX, ER_THD(thd, ER_DUP_INDEX),
-                          key_info->name,
+                          key->name,
                           thd->lex->query_tables->db,
                           thd->lex->query_tables->table_name);
       if (thd->is_error())
@@ -3366,6 +3717,24 @@ static bool check_duplicate_key(THD *thd,
     }
   }
   return false;
+}
+
+
+/**
+  Helper function which allows to detect column types for which we historically
+  used key packing (optimization implemented only by MyISAM) under erroneous
+  assumption that they have BLOB type.
+*/
+
+static bool is_phony_blob(enum_field_types sql_type, uint decimals)
+{
+  const uint FIELDFLAG_BLOB= 1024;
+  const uint FIELDFLAG_DEC_SHIFT= 8;
+
+  return (sql_type == MYSQL_TYPE_NEWDECIMAL ||
+          sql_type == MYSQL_TYPE_DOUBLE ||
+          sql_type == MYSQL_TYPE_DECIMAL) &&
+          (((decimals << FIELDFLAG_DEC_SHIFT) & FIELDFLAG_BLOB) != 0);
 }
 
 
@@ -3617,12 +3986,14 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     }
 
     if (sql_field->sql_type == MYSQL_TYPE_BIT)
-    { 
-      sql_field->pack_flag= FIELDFLAG_NUMBER;
+    {
       if (file->ha_table_flags() & HA_CAN_BIT_FIELD)
+      {
         total_uneven_bit_length+= sql_field->length & 7;
+        sql_field->treat_bit_as_char= false;
+      }
       else
-        sql_field->pack_flag|= FIELDFLAG_TREAT_BIT_AS_CHAR;
+        sql_field->treat_bit_as_char= true;
     }
 
     sql_field->create_length_to_internal_length();
@@ -3671,15 +4042,14 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 
           /*
             If we are replacing a field with a BIT field, we need
-            to initialize pack_flag. Note that we do not need to
+            to initialize treat_bit_as_char. Note that we do not need to
             increment total_uneven_bit_length here as this dup_field
             has already been processed.
           */
           if (sql_field->sql_type == MYSQL_TYPE_BIT)
           {
-            sql_field->pack_flag= FIELDFLAG_NUMBER;
-            if (!(file->ha_table_flags() & HA_CAN_BIT_FIELD))
-              sql_field->pack_flag|= FIELDFLAG_TREAT_BIT_AS_CHAR;
+            sql_field->treat_bit_as_char=
+              !(file->ha_table_flags() & HA_CAN_BIT_FIELD);
           }
 
 	  sql_field->charset=		(dup_field->charset ?
@@ -3689,7 +4059,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
           sql_field->pack_length=	dup_field->pack_length;
           sql_field->key_length=	dup_field->key_length;
 	  sql_field->decimals=		dup_field->decimals;
-	  sql_field->unireg_check=	dup_field->unireg_check;
+	  sql_field->auto_flags=	dup_field->auto_flags;
           /* 
             We're making one field from two, the result field will have
             dup_field->flags as flags. If we've incremented null_fields
@@ -3732,7 +4102,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     if (sql_field->sql_type == MYSQL_TYPE_VARCHAR)
       create_info->varchar= TRUE;
     sql_field->offset= record_offset;
-    if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
+    if (sql_field->auto_flags & Field::NEXT_NUMBER)
       auto_increment++;
     /*
       For now skip fields that are not physically stored in the database
@@ -3893,6 +4263,11 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
   if (!*key_info_buffer || ! key_part_info)
     DBUG_RETURN(TRUE);				// Out of memory
 
+  Mem_root_array<const KEY *, true> keys_to_check(thd->mem_root);
+
+  if (keys_to_check.reserve(*key_count))
+    DBUG_RETURN(TRUE);				// Out of memory
+
   key_iterator.rewind();
   key_number=0;
   for (; (key=key_iterator++) ; key_number++)
@@ -3927,8 +4302,15 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     case KEYTYPE_FOREIGN:
       key_number--;				// Skip this key
       continue;
+    case KEYTYPE_PRIMARY:
+	key_info->flags= HA_NOSAME;
+	break;
+    case KEYTYPE_UNIQUE:
+      key_info->flags= HA_NOSAME;
+      break;
     default:
-      key_info->flags = HA_NOSAME;
+      DBUG_ASSERT(0);
+      key_info->flags= 0;
       break;
     }
     if (key->generated)
@@ -3939,6 +4321,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     key_info->actual_key_parts= key_info->user_defined_key_parts;
     key_info->key_part=key_part_info;
     key_info->usable_key_parts= key_number;
+    key_info->is_algorithm_explicit= false;
+
 
     if (key->type == KEYTYPE_FULLTEXT)
     {
@@ -3963,7 +4347,6 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
        checking for proper key parts number:
     */
 
-    /* TODO: Add proper checks if handler supports key_type and algorithm */
     if (key_info->flags & HA_SPATIAL)
     {
       if (!(file->ha_table_flags() & HA_CAN_RTREEKEYS))
@@ -3976,17 +4359,69 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
         my_error(ER_TOO_MANY_KEY_PARTS, MYF(0), 1);
         DBUG_RETURN(TRUE);
       }
+      DBUG_ASSERT(! key->key_create_info.is_algorithm_explicit);
+      key_info->algorithm= HA_KEY_ALG_RTREE;
     }
-    else if (key_info->algorithm == HA_KEY_ALG_RTREE)
+    else if (key_info->flags & HA_FULLTEXT)
     {
-      if ((key_info->user_defined_key_parts & 1) == 1)
+      DBUG_ASSERT(! key->key_create_info.is_algorithm_explicit);
+      key_info->algorithm= HA_KEY_ALG_FULLTEXT;
+    }
+    else
+    {
+      if (key->key_create_info.is_algorithm_explicit)
       {
-        my_error(ER_TOO_MANY_KEY_PARTS, MYF(0), 1);
-        DBUG_RETURN(TRUE);
+        if (key->key_create_info.algorithm == HA_KEY_ALG_RTREE)
+        {
+          if ((key_info->user_defined_key_parts & 1) == 1)
+          {
+             my_error(ER_TOO_MANY_KEY_PARTS, MYF(0), 1);
+             DBUG_RETURN(TRUE);
+          }
+          /* TODO: To be deleted */
+          my_error(ER_NOT_SUPPORTED_YET, MYF(0), "RTREE INDEX");
+          DBUG_RETURN(TRUE);
+        }
+        else
+        {
+          /*
+            If key algorithm was specified explicitly check if it is
+            supported by SE.
+          */
+          if (file->is_index_algorithm_supported(key->key_create_info.algorithm))
+          {
+            key_info->is_algorithm_explicit= true;
+            key_info->algorithm= key->key_create_info.algorithm;
+          }
+          else
+          {
+            /*
+              If explicit algorithm is not supported by SE, replace it with
+              default one. Don't mark key algorithm as explicitly specified
+              in this case.
+            */
+            key_info->algorithm= file->get_default_index_algorithm();
+
+            push_warning_printf(thd, Sql_condition::SL_NOTE,
+                                ER_UNSUPPORTED_INDEX_ALGORITHM,
+                                ER_THD(thd, ER_UNSUPPORTED_INDEX_ALGORITHM),
+                                ((key->key_create_info.algorithm ==
+                                  HA_KEY_ALG_HASH) ? "HASH" : "BTREE"));
+          }
+        }
       }
-      /* TODO: To be deleted */
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0), "RTREE INDEX");
-      DBUG_RETURN(TRUE);
+      else
+      {
+        /*
+          If key algorithm was not explicitly specified used default one for
+          this SE. Interesting side-effect of this is that ALTER TABLE will
+          cause index rebuild if SE default changes.
+          Assert that caller doesn't use any non-default algorithm in this
+          case as such setting is ignored anyway.
+        */
+        DBUG_ASSERT(key->key_create_info.algorithm == HA_KEY_ALG_SE_SPECIFIC);
+        key_info->algorithm= file->get_default_index_algorithm();
+      }
     }
 
     /* Take block size from key part or table part */
@@ -4057,7 +4492,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       {
 	if ((sql_field->sql_type != MYSQL_TYPE_STRING &&
 	     sql_field->sql_type != MYSQL_TYPE_VARCHAR &&
-	     !f_is_blob(sql_field->pack_flag)) ||
+	     !is_blob(sql_field->sql_type)) ||
 	    sql_field->charset == &my_charset_bin ||
 	    sql_field->charset->mbminlen > 1 || // ucs2 doesn't work yet
 	    (ft_key_charset && sql_field->charset != ft_key_charset))
@@ -4073,7 +4508,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	  with length (unlike blobs, where ft code takes data length from a
 	  data prefix, ignoring column->length).
 	*/
-	column->length= MY_TEST(f_is_blob(sql_field->pack_flag));
+	column->length= MY_TEST(is_blob(sql_field->sql_type));
       }
       else
       {
@@ -4086,7 +4521,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
             my_error(ER_WRONG_SUB_KEY, MYF(0));
             DBUG_RETURN(TRUE);
           }
-          if (!f_is_geom(sql_field->pack_flag))
+          if (sql_field->sql_type != MYSQL_TYPE_GEOMETRY)
           {
             my_error(ER_SPATIAL_MUST_HAVE_GEOM_COL, MYF(0));
             DBUG_RETURN(TRUE);
@@ -4094,22 +4529,23 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
         }
 
         // JSON columns cannot be used as keys.
-        if (f_is_json(sql_field->pack_flag))
+        if (sql_field->sql_type == MYSQL_TYPE_JSON)
         {
           my_error(ER_JSON_USED_AS_KEY, MYF(0), column->field_name.str);
           DBUG_RETURN(TRUE);
         }
 
-	if (f_is_blob(sql_field->pack_flag) ||
-            (f_is_geom(sql_field->pack_flag) && key->type != KEYTYPE_SPATIAL))
+	if (is_blob(sql_field->sql_type) ||
+            (sql_field->sql_type == MYSQL_TYPE_GEOMETRY &&
+             key->type != KEYTYPE_SPATIAL))
 	{
 	  if (!(file->ha_table_flags() & HA_CAN_INDEX_BLOBS))
 	  {
 	    my_error(ER_BLOB_USED_AS_KEY, MYF(0), column->field_name.str);
 	    DBUG_RETURN(TRUE);
 	  }
-          if (f_is_geom(sql_field->pack_flag) && sql_field->geom_type ==
-              Field::GEOM_POINT)
+          if (sql_field->sql_type == MYSQL_TYPE_GEOMETRY &&
+              sql_field->geom_type == Field::GEOM_POINT)
             column->length= MAX_LEN_GEOM_POINT_FIELD;
 	  if (!column->length)
 	  {
@@ -4139,14 +4575,14 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
               DEFAULT CURRENT_TIMESTAMP
               DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             MySQL does not set sql_field->def flag , but sets
-            Field::TIMESTAMP_DN_FIELD/TIMESTAMP_DNUN_FIELD to the unireg_check.
-            These flags are also set during timestamp column promotion (case2)
+            Field::DEFAULT_NOW in Create_info::auto_flags.
+            This flags are also set during timestamp column promotion (case2)
 
             When explicit_defaults_for_timestamp is not set, the behavior
             expected in both case1 and case2 is to retain the defaults even
             when the column participates in PRIMARY KEY. When
             explicit_defaults_for_timestamp is set, the promotion logic
-            is disabled and the above mentioned flags are not used implicitly.
+            is disabled and the above mentioned flag is not used implicitly.
 
          b) If explicit_defaults_for_timestamp variable is not set:
              Default value assigned due to first timestamp column promotion is
@@ -4157,11 +4593,9 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
         if (key->type == KEYTYPE_PRIMARY && !sql_field->def &&
             !(sql_field->flags & AUTO_INCREMENT_FLAG) &&
             !(real_type_with_now_as_default(sql_field->sql_type) &&
-              (sql_field->unireg_check == Field::TIMESTAMP_DN_FIELD ||
-               sql_field->unireg_check == Field::TIMESTAMP_DNUN_FIELD)))
+              (sql_field->auto_flags & Field::DEFAULT_NOW)))
         {
           sql_field->flags|= NO_DEFAULT_VALUE_FLAG;
-          sql_field->pack_flag|= FIELDFLAG_NO_DEFAULT;
         }
         /*
           Emitting error when field is a part of primary key and is
@@ -4189,7 +4623,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	  {
 	    /* Implicitly set primary key fields to NOT NULL for ISO conf. */
 	    sql_field->flags|= NOT_NULL_FLAG;
-	    sql_field->pack_flag&= ~FIELDFLAG_MAYBE_NULL;
+	    sql_field->maybe_null= false;
             null_fields--;
 	  }
 	  else
@@ -4207,7 +4641,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
             }
           }
 	}
-	if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
+	if (sql_field->auto_flags & Field::NEXT_NUMBER)
 	{
 	  if (column_nr == 0 || (file->ha_table_flags() & HA_AUTO_PART_KEY))
 	    auto_increment--;			// Field is used
@@ -4216,12 +4650,12 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 
       key_part_info->fieldnr= field;
       key_part_info->offset=  (uint16) sql_field->offset;
-      key_part_info->key_type=sql_field->pack_flag;
+
       size_t key_part_length= sql_field->key_length;
 
       if (column->length)
       {
-	if (f_is_blob(sql_field->pack_flag))
+	if (is_blob(sql_field->sql_type))
 	{
           key_part_length= column->length;
           /*
@@ -4262,15 +4696,13 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	  }
 	}
         // Catch invalid use of partial keys 
-	else if (!f_is_geom(sql_field->pack_flag) &&
+	else if (sql_field->sql_type != MYSQL_TYPE_GEOMETRY &&
                  // is the key partial? 
                  column->length != key_part_length &&
                  // is prefix length bigger than field length? 
                  (column->length > key_part_length ||
                   // can the field have a partial key? 
                   !Field::type_can_have_key_part (sql_field->sql_type) ||
-                  // a packed field can't be used in a partial key
-                  f_is_packed(sql_field->pack_flag) ||
                   // does the storage engine allow prefixed search?
                   ((file->ha_table_flags() & HA_NO_PREFIX_CHAR_KEYS) &&
                    // and is this a 'unique' key?
@@ -4313,17 +4745,36 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	}
       }
       key_part_info->length= (uint16) key_part_length;
+
       /* Use packed keys for long strings on the first column */
-      if (!((*db_options) & HA_OPTION_NO_PACK_KEYS) &&
-          !((create_info->table_options & HA_OPTION_NO_PACK_KEYS)) &&
+
+      /*
+        db_options should not have HA_OPTION_NO_PACK_KEYS flag set unless
+        it is also set in HA_CREATE_INFO::table_options.
+      */
+      DBUG_ASSERT(!((*db_options) & HA_OPTION_NO_PACK_KEYS) ||
+                  (((*db_options) & HA_OPTION_NO_PACK_KEYS) ==
+                   (create_info->table_options & HA_OPTION_NO_PACK_KEYS)));
+
+      /*
+        Due to incorrect usage of sql_field->pack_flag & FIELDFLAG_BLOB check
+        we have used packing for some columns which are not strings or BLOBs
+        (see also is_phony_blob()). Since changing this would mean breaking
+        binary compatibility for MyISAM tables with indexes on such columns
+        we mimic this buggy behavior here.
+      */
+      if (!((create_info->table_options & HA_OPTION_NO_PACK_KEYS)) &&
 	  (key_part_length >= KEY_DEFAULT_PACK_LENGTH &&
 	   (sql_field->sql_type == MYSQL_TYPE_STRING ||
 	    sql_field->sql_type == MYSQL_TYPE_VARCHAR ||
-	    sql_field->pack_flag & FIELDFLAG_BLOB)))
+            is_blob(sql_field->sql_type) ||
+            is_phony_blob(sql_field->sql_type, sql_field->decimals))))
       {
-	if ((column_nr == 0 && (sql_field->pack_flag & FIELDFLAG_BLOB)) ||
+	if ((column_nr == 0 &&
+             (is_blob(sql_field->sql_type) ||
+              is_phony_blob(sql_field->sql_type, sql_field->decimals))) ||
             sql_field->sql_type == MYSQL_TYPE_VARCHAR)
-	  key_info->flags|= HA_BINARY_PACK_KEY | HA_VAR_LENGTH_KEY;
+	  key_info->flags|= HA_BINARY_PACK_KEY;
 	else
 	  key_info->flags|= HA_PACK_KEY;
       }
@@ -4400,11 +4851,44 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       key_info->comment.str= key->key_create_info.comment.str;
     }
 
-    // Check if a duplicate index is defined.
-  if (check_duplicate_key(thd, key, key_info, alter_info))
-      DBUG_RETURN(true);
+    /*
+      We only check for duplicate indexes if it is requested and the key is
+      not auto-generated and non-PRIMARY.
+
+      Check is requested if the key was explicitly created or altered
+      (Index is altered/column associated with it is dropped) by the user
+      (unless it's a foreign key).
+
+      The fact that we have only one PRIMARY key for the table is checked
+      elsewhere.
+
+      At this point we simply add qualifying keys to the list, so we can
+      perform check later when we properly construct KEY objects for all
+      keys.
+    */
+    if (key->key_create_info.check_for_duplicate_indexes &&
+        ! key->generated && key->type != KEYTYPE_PRIMARY)
+    {
+      if (keys_to_check.push_back(key_info))
+        DBUG_RETURN(true);
+    }
 
     key_info++;
+  }
+
+  /*
+    At this point all KEY objects are for indexes are fully constructed.
+    So we can check for duplicate indexes for keys for which it was requested.
+  */
+  const KEY **dup_check_key;
+  for (dup_check_key= keys_to_check.begin();
+       dup_check_key != keys_to_check.end();
+       dup_check_key++)
+  {
+    if (check_duplicate_key(thd, *dup_check_key,
+                            *key_info_buffer, *key_count,
+                            alter_info))
+      DBUG_RETURN(true);
   }
 
   if (!unique_key && !primary_key &&
@@ -4437,14 +4921,12 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
   {
     while ((sql_field=it++))
     {
-      Field::utype type= (Field::utype) MTYP_TYPENR(sql_field->unireg_check);
-
       if (!sql_field->def &&
           !sql_field->gcol_info &&
           is_timestamp_type(sql_field->sql_type) &&
           (sql_field->flags & NOT_NULL_FLAG) &&
-          (type == Field::NONE || type == Field::TIMESTAMP_UN_FIELD))
-      {
+          !(sql_field->auto_flags & Field::DEFAULT_NOW))
+        {
         /*
           An error should be reported if:
             - there is no explicit DEFAULT clause (default column value);
@@ -4506,9 +4988,9 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     @retval       false           On success
 */
 
-bool validate_comment_length(THD *thd, const char *comment_str,
-                             size_t *comment_len, uint max_len,
-                             uint err_code, const char *comment_name)
+static bool validate_comment_length(THD *thd, const char *comment_str,
+                                    size_t *comment_len, uint max_len,
+                                    uint err_code, const char *comment_name)
 {
   size_t length= 0;
   DBUG_ENTER("validate_comment_length");
@@ -4551,22 +5033,23 @@ bool validate_comment_length(THD *thd, const char *comment_str,
     apply it to the table.
 */
 
-static void set_table_default_charset(THD *thd,
-				      HA_CREATE_INFO *create_info, char *db)
+static bool set_table_default_charset(THD *thd,
+				      HA_CREATE_INFO *create_info,
+                                      const char *db)
 {
   /*
     If the table character set was not given explicitly,
     let's fetch the database default character set and
     apply it to the table.
   */
-  if (!create_info->default_table_charset)
-  {
-    HA_CREATE_INFO db_info;
+  if (!create_info->default_table_charset &&
+      get_default_db_collation(thd, db, &create_info->default_table_charset))
+      return true;
 
-    load_db_opt_by_name(thd, db, &db_info);
+  if (create_info->default_table_charset == NULL)
+    create_info->default_table_charset= thd->collation();
 
-    create_info->default_table_charset= db_info.default_table_charset;
-  }
+  return false;
 }
 
 
@@ -4666,10 +5149,8 @@ static void sp_prepare_create_field(THD *thd, Create_field *sql_field)
   }
 
   if (sql_field->sql_type == MYSQL_TYPE_BIT)
-  {
-    sql_field->pack_flag= FIELDFLAG_NUMBER |
-                          FIELDFLAG_TREAT_BIT_AS_CHAR;
-  }
+    sql_field->treat_bit_as_char= true;
+
   sql_field->create_length_to_internal_length();
   DBUG_ASSERT(sql_field->def == 0);
   /* Can't go wrong as sql_field->def is not defined */
@@ -4700,6 +5181,10 @@ static void sp_prepare_create_field(THD *thd, Create_field *sql_field)
   @param[out] key_info       Array of KEY objects describing keys in table
                              which was created.
   @param[out] key_count      Number of keys in table which was created.
+  @param[out] tmp_table_def  Data-dictionary object for temporary table
+                             which was created, but was not open because
+                             of "no_ha_table" flag. NULL otherwise (if
+                             table was open or is non-temporary).
 
   If one creates a temporary table, this is automatically opened
 
@@ -4724,7 +5209,8 @@ bool create_table_impl(THD *thd,
                        bool *is_trans,
                        KEY **key_info,
                        uint *key_count,
-                       bool is_sql_layer_system_table)
+                       bool is_sql_layer_system_table,
+                       dd::Table **tmp_table_def)
 {
   const char	*alias;
   uint		db_options;
@@ -4733,7 +5219,7 @@ bool create_table_impl(THD *thd,
   DBUG_ENTER("create_table_impl");
   DBUG_PRINT("enter", ("db: '%s'  table: '%s'  tmp: %d",
                        db, table_name, internal_tmp_table));
-
+  *tmp_table_def= NULL;
 
   /* Check for duplicate fields and check type of table to create */
   if (!alter_info->create_list.elements)
@@ -4754,7 +5240,8 @@ bool create_table_impl(THD *thd,
   if (check_engine(thd, db, table_name, create_info))
     DBUG_RETURN(TRUE);
 
-  set_table_default_charset(thd, create_info, (char*) db);
+  if (set_table_default_charset(thd, create_info, db))
+    DBUG_RETURN(TRUE);
 
   db_options= create_info->table_options;
   if (create_info->row_type == ROW_TYPE_DYNAMIC)
@@ -4889,7 +5376,7 @@ bool create_table_impl(THD *thd,
                                                  &syntax_len,
                                                  TRUE, TRUE,
                                                  create_info,
-                                                 alter_info,
+                                                 &alter_info->create_list,
                                                  NULL);
       thd->variables.sql_mode= sql_mode_backup;
       if (part_syntax_buf == NULL)
@@ -5039,34 +5526,26 @@ bool create_table_impl(THD *thd,
     goto err;
   }
 
-  if (!internal_tmp_table && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
+  if (!internal_tmp_table &&
+      !(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+      !dd::get_dictionary()->is_dd_table_name(db, table_name))
   {
-    char frm_name[FN_REFLEN+1];
-    strxnmov(frm_name, sizeof(frm_name) - 1, path, reg_ext, NullS);
+    // TODO: Check if it safe to remove this block of code
+    bool exists;
+    if (dd::table_exists<dd::Abstract_table>(thd->dd_client(), db, table_name,
+                                             &exists))
+    {
+      error= 1;
+      goto err;
+    }
 
-    if (!access(frm_name, F_OK))
+    if (exists)
     {
       if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
         goto warn;
       my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
       goto err;
     }
-    /*
-      We don't assert here, but check the result, because the table could be
-      in the table definition cache and in the same time the .frm could be
-      missing from the disk, in case of manual intervention which deletes
-      the .frm file. The user has to use FLUSH TABLES; to clear the cache.
-      Then she could create the table. This case is pretty obscure and
-      therefore we don't introduce a new error message only for it.
-    */
-    mysql_mutex_lock(&LOCK_open);
-    if (get_cached_table_share(thd, db, table_name))
-    {
-      mysql_mutex_unlock(&LOCK_open);
-      my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
-      goto err;
-    }
-    mysql_mutex_unlock(&LOCK_open);
   }
 
   /*
@@ -5078,7 +5557,8 @@ bool create_table_impl(THD *thd,
     one else is attempting to discover the table. Since
     it's not on disk as a frm file, no one could be using it!
   */
-  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
+  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+      !dd::get_dictionary()->is_dd_table_name(db, table_name))
   {
     bool create_if_not_exists =
       create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS;
@@ -5166,13 +5646,19 @@ bool create_table_impl(THD *thd,
   }
   create_info->table_options=db_options;
 
+  if (prepare_table_def(thd, table_name, create_info,
+                        alter_info->create_list, *key_count, *key_info,
+                        file))
+    goto err;
+
   /*
-    Create .FRM (and .PAR file for partitioned table).
+    Create table definitions.
     If "no_ha_table" is false also create table in storage engine.
   */
   if (rea_create_table(thd, path, db, table_name,
                        create_info, alter_info->create_list,
-                       *key_count, *key_info, file, no_ha_table))
+                       *key_count, *key_info, file, no_ha_table,
+                       tmp_table_def))
     goto err;
 
   if (!no_ha_table && create_info->options & HA_LEX_CREATE_TMP_TABLE)
@@ -5182,13 +5668,23 @@ bool create_table_impl(THD *thd,
       THD::temporary_tables list.
     */
 
-    TABLE *table= open_table_uncached(thd, path, db, table_name, true, true);
+    TABLE *table= open_table_uncached(thd, path, db, table_name, true, true,
+                                      *tmp_table_def);
 
     if (!table)
     {
       (void) rm_temporary_table(thd, create_info->db_type, path);
+      delete *tmp_table_def;
+      *tmp_table_def= NULL;
       goto err;
     }
+
+    /*
+      Transfer ownership of dd::Table object to TABLE_SHARE.
+      Reset own reference for extra safety.
+    */
+    table->s->tmp_table_def= *tmp_table_def;
+    *tmp_table_def= NULL;
 
     if (is_trans != NULL)
       *is_trans= table->file->has_transactions();
@@ -5210,9 +5706,17 @@ bool create_table_impl(THD *thd,
     TABLE table;
     TABLE_SHARE share;
 
+    /*
+      We don't support partitioned temporary tables at the moment.
+      Supporting them in the code below will require more careful
+      error handling.
+    */
+    DBUG_ASSERT(! (create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+                *tmp_table_def == NULL);
+
     init_tmp_table_share(thd, &share, db, 0, table_name, path);
 
-    bool result= (open_table_def(thd, &share, 0) ||
+    bool result= (open_table_def(thd, &share, false, NULL) ||
                   open_table_from_share(thd, &share, "", 0, (uint) READ_ALL,
                                         0, &table, true));
     /*
@@ -5228,11 +5732,14 @@ bool create_table_impl(THD *thd,
 
     if (result)
     {
-      char frm_name[FN_REFLEN + 1];
-      strxnmov(frm_name, sizeof(frm_name) - 1, path, reg_ext, NullS);
-      (void) mysql_file_delete(key_file_frm, frm_name, MYF(0));
-      (void) file->ha_create_handler_files(path, NULL, CHF_DELETE_FLAG,
-                                           create_info);
+      /*
+        Remove table from DD and SE. We ignore the errors
+        returned from there functions as we anyway report error.
+      */
+      (void) dd::drop_table<dd::Table>(thd, db, table_name);
+
+      file->ha_create_handler_files(path, NULL, CHF_DELETE_FLAG, create_info);
+
       goto err;
     }
   }
@@ -5281,6 +5788,7 @@ bool mysql_create_table_no_lock(THD *thd,
 {
   KEY *not_used_1;
   uint not_used_2;
+  dd::Table *not_used_3;
   char path[FN_REFLEN + 1];
 
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
@@ -5299,10 +5807,17 @@ bool mysql_create_table_no_lock(THD *thd,
     }
   }
 
+  // Don't create the DD tables in the DDSE unless installing the DD
+  bool no_ha_table= false;
+  if (!opt_install_server &&
+        dd::get_dictionary()->is_dd_table_name(db, table_name))
+    no_ha_table= true;
+
   return create_table_impl(thd, db, table_name, path, create_info, alter_info,
-                           false, select_field_count, false, is_trans,
+                           false, select_field_count, no_ha_table, is_trans,
                            &not_used_1, &not_used_2,
-                           check_if_sql_layer_system_table(db, table_name));
+                           check_if_sql_layer_system_table(db, table_name),
+                           &not_used_3);
 }
 
 
@@ -5436,8 +5951,6 @@ make_unique_key_name(const char *field_name,KEY *start,KEY *end)
   @param flags     flags
                    FN_FROM_IS_TMP old_name is temporary.
                    FN_TO_IS_TMP   new_name is temporary.
-                   NO_FRM_RENAME  Don't rename the FRM file
-                                  but only the table in the storage engine.
                    NO_HA_TABLE    Don't rename table in engine.
                    NO_FK_CHECKS   Don't check FK constraints during rename.
 
@@ -5450,45 +5963,67 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
                    const char *old_name, const char *new_db,
                    const char *new_name, uint flags)
 {
-  char from[FN_REFLEN + 1], to[FN_REFLEN + 1],
-    lc_from[FN_REFLEN + 1], lc_to[FN_REFLEN + 1];
-  char *from_base= from, *to_base= to;
-  char tmp_name[NAME_LEN+1];
-  handler *file;
-  int error=0;
-  ulonglong save_bits= thd->variables.option_bits;
-  size_t length;
-  bool was_truncated;
   DBUG_ENTER("mysql_rename_table");
   DBUG_PRINT("enter", ("old: '%s'.'%s'  new: '%s'.'%s'",
                        old_db, old_name, new_db, new_name));
 
-  // Temporarily disable foreign key checks
-  if (flags & NO_FK_CHECKS) 
-    thd->variables.option_bits|= OPTION_NO_FOREIGN_KEY_CHECKS;
+  /*
+    Check if the new_db database exists. The problem is that some
+    SE's may not verify if new_db database exists and they might
+    succeed renaming the table. Moreover, even the InnoDB engine
+    succeeds renaming the table without verifying if the new_db
+    database exists when innodb_file_per_table=0.
+  */
+  bool sch_exists;
+  if (dd::schema_exists(thd, new_db, &sch_exists))
+  {
+    // Error is reported by the dictionary subsystem.
+    DBUG_RETURN(true);
+  }
 
-  file= (base == NULL ? 0 :
-         get_new_handler((TABLE_SHARE*) 0, thd->mem_root, base));
+  // We did not find new_db, so stop here.
+  if (!sch_exists)
+  {
+    my_error(ER_BAD_DB_ERROR, MYF(0), new_db);
+    DBUG_RETURN(true);
+  }
 
+  // Check if we hit FN_REFLEN bytes along with file extension.
+  char from[FN_REFLEN + 1];
+  char to[FN_REFLEN + 1];
+  size_t length;
+  bool was_truncated;
   build_table_filename(from, sizeof(from) - 1, old_db, old_name, "",
                        flags & FN_FROM_IS_TMP);
   length= build_table_filename(to, sizeof(to) - 1, new_db, new_name, "",
                                flags & FN_TO_IS_TMP, &was_truncated);
-  // Check if we hit FN_REFLEN bytes along with file extension.
-  if (was_truncated || length+reg_ext_length > FN_REFLEN)
+  if (was_truncated || length + reg_ext_length > FN_REFLEN)
   {
     my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(to)-1, to);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
+  }
+
+  // Get the handler for the table, and issue an error if we cannot load it.
+  handler *file= (base == NULL ? 0 :
+         get_new_handler((TABLE_SHARE*) 0, thd->mem_root, base));
+  if (!file)
+  {
+    my_error(ER_STORAGE_ENGINE_NOT_LOADED, MYF(0), old_db, old_name);
+    DBUG_RETURN(true);
   }
 
   /*
     If lower_case_table_names == 2 (case-preserving but case-insensitive
     file system) and the storage is not HA_FILE_BASED, we need to provide
-    a lowercase file name, but we leave the .frm in mixed case.
-   */
-  if (lower_case_table_names == 2 && file &&
-      !(file->ha_table_flags() & HA_FILE_BASED))
+    a lowercase file name.
+  */
+  char lc_from[FN_REFLEN + 1];
+  char lc_to[FN_REFLEN + 1];
+  char *from_base= from;
+  char *to_base= to;
+  if (lower_case_table_names == 2 && !(file->ha_table_flags() & HA_FILE_BASED))
   {
+    char tmp_name[NAME_LEN+1];
     my_stpcpy(tmp_name, old_name);
     my_casedn_str(files_charset_info, tmp_name);
     build_table_filename(lc_from, sizeof(lc_from) - 1, old_db, tmp_name, "",
@@ -5502,37 +6037,72 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
     to_base= lc_to;
   }
 
+  /*
+    Rename the table in the data dictionary. If the operation failed, it shall
+    already have been rolled back, and in that case, we must return. An error
+    will already have been issued by the dictionary subsystem. We do the
+    dictionary operation first because it is easier to rollback due to being
+    based on transactional storage.
+  */
+  if (dd::rename_table<dd::Table>(thd, old_db, old_name,
+                                  new_db, new_name, true))
+  {
+    DBUG_ASSERT(thd->is_error() || thd->killed);
+    delete file;
+    DBUG_RETURN(true);
+  }
+
+  /*
+    Temporarily disable foreign key checks, if requested, while the
+    handler is involved.
+  */
+  ulonglong save_bits= thd->variables.option_bits;
+  if (flags & NO_FK_CHECKS)
+    thd->variables.option_bits|= OPTION_NO_FOREIGN_KEY_CHECKS;
+
+  /*
+    Invoke the storage engine as appropriate, depending on the flags.
+    If the function ha_create_handler_files() fails, it also calls
+    my_error() when CHF_RENAME_FLAG is set.
+  */
+  int error= 0;
   if (flags & NO_HA_TABLE)
-  {
-    if (rename_file_ext(from,to,reg_ext))
-      error= my_errno();
-    (void) file->ha_create_handler_files(to, from, CHF_RENAME_FLAG, NULL);
-  }
-  else if (!file || !(error=file->ha_rename_table(from_base, to_base)))
-  {
-    if (!(flags & NO_FRM_RENAME) && rename_file_ext(from,to,reg_ext))
-    {
-      error=my_errno();
-      /* Restore old file name */
-      if (file)
-        file->ha_rename_table(to_base, from_base);
-    }
-  }
+    error= file->ha_create_handler_files(to, from, CHF_RENAME_FLAG, NULL);
+  else
+    error= file->ha_rename_table(from_base, to_base);
+
+  thd->variables.option_bits= save_bits;
   delete file;
-  if (error == HA_ERR_WRONG_COMMAND)
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER TABLE");
-  else if (error)
+
+  /*
+    Upon an error, revert the change in the data dictionary, and report
+    the error. Ignore new errors in this case since we are compensating
+    for another error.
+  */
+  if (error != 0)
   {
-    char errbuf[MYSYS_STRERROR_SIZE];
-    my_error(ER_ERROR_ON_RENAME, MYF(0), from, to,
-             error, my_strerror(errbuf, sizeof(errbuf), error));
+    (void) dd::rename_table<dd::Table>(thd, new_db, new_name,
+                                       old_db, old_name, true);
+
+    // ha_create_handler_files() has already reported error.
+    if (!(flags & NO_HA_TABLE))
+    {
+      if (error == HA_ERR_WRONG_COMMAND)
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER TABLE");
+      else
+      {
+        char errbuf[MYSYS_STRERROR_SIZE];
+        my_error(ER_ERROR_ON_RENAME, MYF(0), from, to,
+                 error, my_strerror(errbuf, sizeof(errbuf), error));
+      }
+    }
   }
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
   /*
     Remove the old table share from the pfs table share array. The new table
     share will be created when the renamed table is first accessed.
-   */
+  */
   if (likely(error == 0))
   {
     my_bool temp_table= (my_bool)is_prefix(old_name, tmp_file_prefix);
@@ -5542,12 +6112,8 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
   }
 #endif
 
-  // Restore options bits to the original value
-  thd->variables.option_bits= save_bits;
-
   DBUG_RETURN(error != 0);
 }
-
 
 /*
   Create a table identical to the specified table
@@ -5817,7 +6383,7 @@ int mysql_discard_or_import_tablespace(THD *thd,
   table_list->mdl_request.set_type(MDL_EXCLUSIVE);
   table_list->lock_type= TL_WRITE;
   /* Do not open views. */
-  table_list->required_type= FRMTYPE_TABLE;
+  table_list->required_type= dd::Abstract_table::TT_BASE_TABLE;
 
   if (open_and_lock_tables(thd, table_list, 0, &alter_prelocking_strategy))
   {
@@ -6361,6 +6927,31 @@ static bool fill_alter_inplace_info(THD *thd,
         DBUG_ASSERT(0);
       }
 
+      // Conversion to and from generated column is supported if stored:
+      if (field->is_gcol() != new_field->is_gcol())
+      {
+        DBUG_ASSERT((field->is_gcol() && !field->is_virtual_gcol()) ||
+                    (new_field->is_gcol() && !new_field->is_virtual_gcol()));
+        ha_alter_info->handler_flags|=
+          Alter_inplace_info::ALTER_STORED_COLUMN_TYPE;
+      }
+
+      // Modification of generation expression is supported:
+      if (field->is_gcol() && new_field->is_gcol())
+      {
+        // Modification of storage attribute is not supported
+        DBUG_ASSERT(field->is_virtual_gcol() == new_field->is_virtual_gcol());
+        if (!field->gcol_expr_is_equal(new_field))
+        {
+          if (field->is_virtual_gcol())
+            ha_alter_info->handler_flags|=
+              Alter_inplace_info::ALTER_VIRTUAL_COLUMN_TYPE;
+          else
+            ha_alter_info->handler_flags|=
+              Alter_inplace_info::ALTER_STORED_COLUMN_TYPE;
+        }
+      }
+
       bool field_renamed;
       /*
         InnoDB data dictionary is case sensitive so we should use
@@ -6524,9 +7115,16 @@ static bool fill_alter_inplace_info(THD *thd,
 
     if (! has_index_def_changed(ha_alter_info, table_key, new_key))
     {
-      /* Key was not modified but still was renamed. */
+      /* Key was not modified in any significant way but still was renamed. */
       ha_alter_info->handler_flags|= Alter_inplace_info::RENAME_INDEX;
       ha_alter_info->add_renamed_key(table_key, new_key);
+
+      /*
+        Check for insignificant changes which do not call for index
+        recreation, but still require update of .FRM.
+      */
+      if (table_key->is_algorithm_explicit != new_key->is_algorithm_explicit)
+        ha_alter_info->handler_flags|= Alter_inplace_info::CHANGE_INDEX_OPTION;
     }
     else
     {
@@ -6556,6 +7154,16 @@ static bool fill_alter_inplace_info(THD *thd,
     {
       /* Key was modified. */
       ha_alter_info->add_modified_key(table_key, new_key);
+    }
+    else
+    {
+      /*
+        Key was not modified in significant way. Still we need to check
+        for insignificant changes which do not call for index recreation,
+        but still require update of .FRM.
+      */
+      if (table_key->is_algorithm_explicit != new_key->is_algorithm_explicit)
+        ha_alter_info->handler_flags|= Alter_inplace_info::CHANGE_INDEX_OPTION;
     }
   }
 
@@ -7300,12 +7908,20 @@ static bool mysql_inplace_alter_table(THD *thd,
                          alter_ctx->db, alter_ctx->alias,
                          FN_FROM_IS_TMP | NO_HA_TABLE))
   {
+    // Catch situations where the SE has requested rollback. This will make
+    // quick_rm_table() fail anyway when the DD starts an attachable
+    // transaction. This situation will be fixed in WL#7785.
+    DBUG_ASSERT(!thd->transaction_rollback_request);
+
     // Since changes were done in-place, we can't revert them.
     (void) quick_rm_table(thd, db_type,
                           alter_ctx->new_db, alter_ctx->tmp_name,
                           FN_IS_TMP | NO_HA_TABLE);
     DBUG_RETURN(true);
   }
+  DBUG_EXECUTE_IF("crash_after_index_create",
+                  DBUG_SET("-d,crash_after_index_create");
+                  DBUG_SUICIDE(););
 
   table_list->mdl_request.ticket= mdl_ticket;
   if (open_table(thd, table_list, &ot_ctx))
@@ -7469,26 +8085,21 @@ upgrade_old_temporal_types(THD *thd, Alter_info *alter_info)
 
     /*
        Set CURRENT_TIMESTAMP as default/update value based on
-       the unireg_check value.
+       the auto_flags value.
     */
 
     if ((def->sql_type == MYSQL_TYPE_DATETIME ||
          def->sql_type == MYSQL_TYPE_TIMESTAMP)
-        && (def->unireg_check != Field::NONE))
+        && (def->auto_flags != Field::NONE))
     {
       Item_func_now_local *now = new (thd->mem_root) Item_func_now_local(0);
       if (!now)
         DBUG_RETURN(true);
 
-      if (def->unireg_check == Field::TIMESTAMP_DN_FIELD)
+      if (def->auto_flags & Field::DEFAULT_NOW)
         default_value= now;
-      else if (def->unireg_check == Field::TIMESTAMP_UN_FIELD)
+      if (def->auto_flags & Field::ON_UPDATE_NOW)
         update_value= now;
-      else if (def->unireg_check == Field::TIMESTAMP_DNUN_FIELD)
-      {
-        update_value= now;
-        default_value= now;
-      }
     }
 
     switch (def->sql_type)
@@ -7663,7 +8274,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 	  !my_strcasecmp(system_charset_info,field->field_name, drop->name))
       {
 	/* Reset auto_increment value if it was dropped */
-	if (MTYP_TYPENR(field->unireg_check) == Field::NEXT_NUMBER &&
+	if ((field->auto_flags & Field::NEXT_NUMBER) &&
 	    !(used_fields & HA_CREATE_USED_AUTO))
 	{
 	  create_info->auto_increment_value=0;
@@ -7774,15 +8385,14 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
           def->flags&= ~NO_DEFAULT_VALUE_FLAG;
           /*
             The defaults are explicitly altered for the TIMESTAMP/DATETIME
-            field, through SET DEFAULT. Hence, set the unireg check
+            field, through SET DEFAULT. Hence, set the auto_flags member
             appropriately.
           */
           if (real_type_with_now_as_default(def->sql_type))
           {
-            if (def->unireg_check == Field::TIMESTAMP_DNUN_FIELD)
-              def->unireg_check= Field::TIMESTAMP_UN_FIELD;
-            else if (def->unireg_check == Field::TIMESTAMP_DN_FIELD)
-              def->unireg_check= Field::NONE;
+            DBUG_ASSERT((def->auto_flags &
+                         ~(Field::DEFAULT_NOW | Field::ON_UPDATE_NOW)) == 0);
+            def->auto_flags&= ~Field::DEFAULT_NOW;
           }
         }
         else
@@ -7977,7 +8587,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
             /* spatial keys can't have sub-key length */
             (key_info->flags & HA_SPATIAL) ||
             (cfield->field->field_length == key_part_length &&
-             !f_is_blob(key_part->key_type)) ||
+             key_part->field->type() != MYSQL_TYPE_BLOB) ||
             (cfield->length && (((cfield->sql_type >= MYSQL_TYPE_TINY_BLOB &&
                                   cfield->sql_type <= MYSQL_TYPE_BLOB) ? 
                                 blob_length_by_type(cfield->sql_type) :
@@ -8032,7 +8642,25 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
         }
       }
 
-      key_create_info.algorithm= key_info->algorithm;
+      if (key_info->is_algorithm_explicit)
+      {
+        key_create_info.algorithm= key_info->algorithm;
+        key_create_info.is_algorithm_explicit= true;
+      }
+      else
+      {
+        /*
+          If key algorithm was not specified explicitly for source table
+          don't specify one a new version as well, This allows to handle
+          ALTER TABLEs which change SE nicely.
+          OTOH this means that any ALTER TABLE will rebuild such keys when
+          SE changes default algorithm for key. Code will have to be adjusted
+          to handle such situation more gracefully.
+        */
+        DBUG_ASSERT((key_create_info.is_algorithm_explicit == false) &&
+                    (key_create_info.algorithm == HA_KEY_ALG_SE_SPECIFIC));
+      }
+
       if (key_info->flags & HA_USES_BLOCK_SIZE)
         key_create_info.block_size= key_info->block_size;
       if (key_info->flags & HA_USES_PARSER)
@@ -8269,6 +8897,10 @@ fk_check_column_changes(THD *thd, Alter_info *alter_info,
           return FK_COLUMN_DATA_CHANGE;
         }
       }
+      DBUG_ASSERT(old_field->is_gcol() == new_field->is_gcol() &&
+                  old_field->is_virtual_gcol() == new_field->is_virtual_gcol());
+      DBUG_ASSERT(!old_field->is_gcol() ||
+                  old_field->gcol_expr_is_equal(new_field));
     }
     else
     {
@@ -8702,7 +9334,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     Note that RENAME TABLE the only ALTER clause which is supported for views
     has been already processed.
   */
-  table_list->required_type= FRMTYPE_TABLE;
+  table_list->required_type= dd::Abstract_table::TT_BASE_TABLE;
 
   Alter_table_prelocking_strategy alter_prelocking_strategy;
 
@@ -8810,7 +9442,14 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         Table maybe does not exist, but we got an exclusive lock
         on the name, now we can safely try to find out for sure.
       */
-      if (!access(alter_ctx.get_new_filename(), F_OK))
+      bool exists;
+      if (dd::table_exists<dd::Abstract_table>(thd->dd_client(),
+                                               alter_ctx.new_db,
+                                               alter_ctx.new_name,
+                                               &exists))
+        DBUG_RETURN(true);
+
+      if (exists)
       {
         /* Table will be closed in do_command() */
         my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alter_ctx.new_alias);
@@ -8941,7 +9580,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     DBUG_RETURN(true);
   }
 
-  set_table_default_charset(thd, create_info, const_cast<char*>(alter_ctx.db));
+  if (set_table_default_charset(thd, create_info, alter_ctx.db))
+    DBUG_RETURN(true);
 
   if (new_part_info)
   {
@@ -9136,6 +9776,16 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   */
   bool varchar= create_info->varchar;
 
+  /*
+    dd::Table object describing new version of temporary table. This object will
+    be created in memory later in create_table_impl() and will not be put into
+    the DD Object Cache.
+
+    We become responsible for destroying this dd::Table object until we pass its
+    ownership to the TABLE_SHARE of the temporary table.
+  */
+  dd::Table *tmp_table_def;
+
   tmp_disable_binlog(thd);
   bool sql_layer_system_table=
      check_if_sql_layer_system_table(alter_ctx.db,
@@ -9145,7 +9795,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                            create_info, alter_info,
                            true, 0, true, NULL,
                            &key_info, &key_count,
-                           sql_layer_system_table);
+                           sql_layer_system_table,
+                           &tmp_table_def);
   reenable_binlog(thd);
 
   if (error)
@@ -9193,7 +9844,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     if (!(altered_table= open_table_uncached(thd, alter_ctx.get_tmp_path(),
                                              alter_ctx.new_db,
                                              alter_ctx.tmp_name,
-                                             true, false)))
+                                             true, false, NULL)))
       goto err_new_table_cleanup;
 
     /* Set markers for fields in TABLE object for altered table. */
@@ -9224,6 +9875,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         Also note that we ignore the LOCK clause here.
       */
       close_temporary_table(thd, altered_table, true, false);
+
+      // NewDD - Delete temporary .frm/.par
       (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
                             alter_ctx.tmp_name, FN_IS_TMP | NO_HA_TABLE);
       goto end_inplace;
@@ -9358,7 +10011,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   {
     if (ha_create_table(thd, alter_ctx.get_tmp_path(),
                         alter_ctx.new_db, alter_ctx.tmp_name,
-                        create_info, false))
+                        create_info, false, false, tmp_table_def))
       goto err_new_table_cleanup;
 
     /* Mark that we have created table in storage engine. */
@@ -9368,7 +10021,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     {
       if (!open_table_uncached(thd, alter_ctx.get_tmp_path(),
                                alter_ctx.new_db, alter_ctx.tmp_name,
-                               true, true))
+                               true, true, tmp_table_def))
         goto err_new_table_cleanup;
       /* in case of alter temp table send the tracker in OK packet */
       if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
@@ -9387,6 +10040,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     /* Table is in thd->temporary_tables */
     (void) open_temporary_table(thd, &tbl);
     new_table= tbl.table;
+    /* Transfer dd::Table ownership to temporary table's share. */
+    new_table->s->tmp_table_def= tmp_table_def;
+    tmp_table_def= NULL;
   }
   else
   {
@@ -9394,7 +10050,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     /* Open our intermediate table. */
     new_table= open_table_uncached(thd, alter_ctx.get_tmp_path(),
                                    alter_ctx.new_db, alter_ctx.tmp_name,
-                                   true, true);
+                                   true, true, NULL);
   }
   if (!new_table)
     goto err_new_table_cleanup;
@@ -9494,6 +10150,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     if (!thd->is_current_stmt_binlog_format_row() &&
         write_bin_log(thd, true, thd->query().str, thd->query().length))
       DBUG_RETURN(true);
+
     goto end_temporary;
   }
 
@@ -9545,6 +10202,11 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   if (mysql_rename_table(thd, old_db_type, alter_ctx.db, alter_ctx.table_name,
                          alter_ctx.db, backup_name, FN_TO_IS_TMP))
   {
+    // Catch situations where the SE has requested rollback. This will make
+    // quick_rm_table() fail anyway when the DD starts an attachable
+    // transaction. This situation will be fixed in WL#7785.
+    DBUG_ASSERT(!thd->transaction_rollback_request);
+
     // Rename to temporary name failed, delete the new table, abort ALTER.
     (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
                           alter_ctx.tmp_name, FN_IS_TMP);
@@ -9556,15 +10218,25 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                          alter_ctx.new_db, alter_ctx.new_alias,
                          FN_FROM_IS_TMP))
   {
+    // Catch situations where the SE has requested rollback. This will make
+    // quick_rm_table() fail anyway when the DD starts an attachable
+    // transaction. This situation will be fixed in WL#7785.
+    DBUG_ASSERT(!thd->transaction_rollback_request);
+
     // Rename failed, delete the temporary table.
     (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
                           alter_ctx.tmp_name, FN_IS_TMP);
-    
-    // Restore the backup of the original table to the old name.
-    (void) mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,
-                              alter_ctx.db, alter_ctx.alias, 
-                              FN_FROM_IS_TMP | NO_FK_CHECKS);
-    
+
+    // Restore the backup of the original table to its original name.
+    // In lieu of wl#7785, if the operation fails, we need to retry it
+    // to avoid leaving the dictionary inconsistent.
+    uint retries= 20;
+    while (retries-- &&
+           mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,
+                              alter_ctx.db, alter_ctx.alias,
+                              FN_FROM_IS_TMP | NO_FK_CHECKS))
+      ;
+
     goto err_with_mdl;
   }
 
@@ -9628,7 +10300,7 @@ end_inplace:
     TABLE *t_table;
     t_table= open_table_uncached(thd, alter_ctx.get_new_path(),
                                  alter_ctx.new_db, alter_ctx.new_name,
-                                 false, true);
+                                 false, true, NULL);
     if (t_table)
       intern_close_table(t_table);
     else
@@ -9657,10 +10329,21 @@ end_temporary:
   DBUG_RETURN(false);
 
 err_new_table_cleanup:
+  delete tmp_table_def;
   if (new_table)
   {
     /* close_temporary_table() frees the new_table pointer. */
     close_temporary_table(thd, new_table, true, true);
+    if (! (create_info->options & HA_LEX_CREATE_TMP_TABLE))
+    {
+      /*
+        Remove table from DD.
+        We ignore error from dd_drop_table() as we anyway
+        return 'true' failure below.
+       */
+      (void) dd::drop_table<dd::Table>(thd, alter_ctx.new_db,
+                                       alter_ctx.tmp_name);
+    }
   }
   else
     (void) quick_rm_table(thd, new_db_type,
@@ -9802,7 +10485,10 @@ copy_data_between_tables(THD * thd,
     DBUG_RETURN(-1);				/* purecov: inspected */
 
   if (to->file->ha_external_lock(thd, F_WRLCK))
+  {
+    delete [] copy;
     DBUG_RETURN(-1);
+  }
 
   /* We need external lock before we can disable/enable keys */
   alter_table_manage_keys(thd, to, from->file->indexes_are_disabled(),
@@ -10081,7 +10767,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
     table->next_global= NULL;
     table->lock_type= TL_READ;
     /* Allow to open real tables only. */
-    table->required_type= FRMTYPE_TABLE;
+    table->required_type= dd::Abstract_table::TT_BASE_TABLE;
 
     if (open_temporary_tables(thd, table) ||
         open_and_lock_tables(thd, table, 0))

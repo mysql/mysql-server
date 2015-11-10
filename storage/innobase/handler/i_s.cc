@@ -7176,7 +7176,8 @@ i_s_dict_fill_sys_columns(
 
 	if (dict_col_is_virtual(column)) {
 		ulint	pos = dict_create_v_col_pos(nth_v_col, column->ind);
-		OK(fields[SYS_COLUMN_POSITION]->store(pos));
+		OK(fields[SYS_COLUMN_POSITION]->store(
+			static_cast<double>(pos)));
 	} else {
 		OK(fields[SYS_COLUMN_POSITION]->store(column->ind));
 	}
@@ -7394,9 +7395,11 @@ i_s_dict_fill_sys_virtual(
 
 	OK(fields[SYS_VIRTUAL_TABLE_ID]->store((longlong) table_id, TRUE));
 
-	OK(fields[SYS_VIRTUAL_POS]->store(pos));
+	OK(fields[SYS_VIRTUAL_POS]->store(
+		static_cast<double>(pos)));
 
-	OK(fields[SYS_VIRTUAL_BASE_POS]->store(base_pos));
+	OK(fields[SYS_VIRTUAL_BASE_POS]->store(
+		static_cast<double>(base_pos)));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
@@ -8899,7 +8902,16 @@ i_s_files_table_fill(
 /* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_CACHED_INDEXES */
 static ST_FIELD_INFO	innodb_cached_indexes_fields_info[] =
 {
-#define CACHED_INDEXES_INDEX_ID		0
+#define CACHED_INDEXES_SPACE_ID		0
+	{STRUCT_FLD(field_name,		"SPACE_ID"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define CACHED_INDEXES_INDEX_ID		1
 	{STRUCT_FLD(field_name,		"INDEX_ID"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
@@ -8908,7 +8920,7 @@ static ST_FIELD_INFO	innodb_cached_indexes_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define CACHED_INDEXES_N_CACHED_PAGES	1
+#define CACHED_INDEXES_N_CACHED_PAGES	2
 	{STRUCT_FLD(field_name,		"N_CACHED_PAGES"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
@@ -8943,8 +8955,11 @@ i_s_fill_innodb_cached_indexes_row(
 
 	Field**	fields = table_to_fill->field;
 
+	OK(fields[CACHED_INDEXES_SPACE_ID]->store(
+			static_cast<long>(index_id.m_space_id), true));
+
 	OK(fields[CACHED_INDEXES_INDEX_ID]->store(
-			static_cast<longlong>(index->id), true));
+			static_cast<longlong>(index_id.m_index_id), true));
 
 	OK(fields[CACHED_INDEXES_N_CACHED_PAGES]->store(
 			static_cast<longlong>(n), true));

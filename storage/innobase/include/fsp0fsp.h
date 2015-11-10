@@ -46,6 +46,67 @@ Created 12/18/1995 Heikki Tuuri
 typedef	byte	fsp_header_t;
 typedef	byte	xdes_t;
 
+#ifdef UNIV_DEBUG
+/** Check if the state of extent descriptor is valid.
+@param[in]	state	the extent descriptor state
+@return	true if state is valid, false otherwise */
+bool
+xdes_state_is_valid(ulint	state);
+#endif /* UNIV_DEBUG */
+
+#ifndef DBUG_OFF
+struct xdes_mem_t
+{
+	xdes_mem_t(const xdes_t*	xdes)
+	: m_xdes(xdes)
+	{}
+
+	const char* state_name() const;
+
+	bool is_valid() const;
+	const xdes_t*		m_xdes;
+
+	std::ostream& print(std::ostream& out) const;
+};
+
+inline
+std::ostream&
+operator<<(std::ostream& out, const xdes_mem_t& obj)
+{
+	return(obj.print(out));
+}
+
+/** In-memory representation of the fsp_header_t file structure. */
+struct fsp_header_mem_t
+{
+	fsp_header_mem_t(
+		const fsp_header_t*	header,
+		mtr_t*			mtr);
+
+	ulint		m_space_id;
+	ulint		m_notused;
+	ulint		m_fsp_size;
+	ulint		m_free_limit;
+	ulint		m_flags;
+	ulint		m_fsp_frag_n_used;
+	flst_bnode_t	m_fsp_free;
+	flst_bnode_t	m_free_frag;
+	flst_bnode_t	m_full_frag;
+	ib_id_t		m_segid;
+	flst_bnode_t	m_inodes_full;
+	flst_bnode_t	m_inodes_free;
+
+	std::ostream& print(std::ostream& out) const;
+};
+
+inline
+std::ostream&
+operator<<(std::ostream& out, const fsp_header_mem_t& obj)
+{
+	return(obj.print(out));
+}
+#endif /* !DBUG_OFF */
+
 /*			SPACE HEADER
 			============
 
@@ -209,13 +270,27 @@ the extent are free and which contain old tuple version to clean. */
 					Index of the bit which tells if
 					there are old versions of tuples
 					on the page */
-/* States of a descriptor */
-#define	XDES_FREE		1	/* extent is in free list of space */
-#define	XDES_FREE_FRAG		2	/* extent is in free fragment list of
-					space */
-#define	XDES_FULL_FRAG		3	/* extent is in full fragment list of
-					space */
-#define	XDES_FSEG		4	/* extent belongs to a segment */
+/** States of a descriptor */
+enum xdes_state_t {
+
+	/** extent descriptor is not initialized */
+	XDES_NOT_INITED	= 0,
+
+	/** extent is in free list of space */
+	XDES_FREE	= 1,
+
+	/** extent is in free fragment list of space */
+	XDES_FREE_FRAG	= 2,
+
+	/** extent is in full fragment list of space */
+	XDES_FULL_FRAG	= 3,
+
+	/** extent belongs to a segment */
+	XDES_FSEG	= 4,
+
+	/** fragment extent leased to segment */
+	XDES_FSEG_FRAG	= 5
+};
 
 /** File extent data structure size in bytes. */
 #define	XDES_SIZE							\
@@ -234,6 +309,9 @@ the extent are free and which contain old tuple version to clean. */
 
 /** Offset of the descriptor array on a descriptor page */
 #define	XDES_ARR_OFFSET		(FSP_HEADER_OFFSET + FSP_HEADER_SIZE)
+
+/** The number of reserved pages in a fragment extent. */
+const ulint XDES_FRAG_N_USED	= 2;
 
 /* @} */
 
@@ -673,4 +751,71 @@ xdes_calc_descriptor_page(
 #include "fsp0fsp.ic"
 #endif
 
+/** Get the state of an xdes.
+@param[in]	descr	extent descriptor
+@param[in,out]	mtr	mini transaction.
+@return	state */
+inline
+xdes_state_t
+xdes_get_state(
+	const xdes_t*	descr,
+	mtr_t*		mtr)
+{
+	ut_ad(descr && mtr);
+	ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_SX_FIX));
+
+	const ulint	state = mach_read_from_4(descr + XDES_STATE);
+
+	ut_ad(xdes_state_is_valid(state));
+	return(static_cast<xdes_state_t>(state));
+}
+
+#ifndef DBUG_OFF
+/** Print the extent descriptor page in user-friendly format.
+@param[in]	out	the output file stream
+@param[in]	xdes	the extent descriptor page
+@param[in]	page_no	the page number of xdes page
+@param[in]	mtr	the mini transaction.
+@return None. */
+std::ostream&
+xdes_page_print(
+	std::ostream&	out,
+	const page_t*	xdes,
+	ulint		page_no,
+	mtr_t*		mtr);
+
+inline
+bool xdes_mem_t::is_valid() const
+{
+	const ulint state = mach_read_from_4(m_xdes + XDES_STATE);
+	return(xdes_state_is_valid(state));
+}
+
+inline
+const char* xdes_mem_t::state_name() const
+{
+	const ulint val = mach_read_from_4(m_xdes + XDES_STATE);
+
+	ut_ad(xdes_state_is_valid(val));
+
+	xdes_state_t	state = static_cast<xdes_state_t>(val);
+
+	switch (state) {
+	case XDES_NOT_INITED:
+		return("XDES_NOT_INITED");
+	case XDES_FREE:
+		return("XDES_FREE");
+	case XDES_FREE_FRAG:
+		return("XDES_FREE_FRAG");
+	case XDES_FULL_FRAG:
+		return("XDES_FULL_FRAG");
+	case XDES_FSEG:
+		return("XDES_FSEG");
+	case XDES_FSEG_FRAG:
+		return("XDES_FSEG_FRAG");
+	}
+	return("UNKNOWN");
+}
+
+#endif /* !DBUG_OFF */
 #endif

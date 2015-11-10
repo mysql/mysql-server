@@ -33,7 +33,6 @@ PSI_memory_key key_memory_KEY_CACHE;
 PSI_memory_key key_memory_SAFE_HASH_ENTRY;
 PSI_memory_key key_memory_MY_BITMAP_bitmap;
 PSI_memory_key key_memory_my_compress_alloc;
-PSI_memory_key key_memory_pack_frm;
 PSI_memory_key key_memory_my_err_head;
 PSI_memory_key key_memory_my_file_info;
 PSI_memory_key key_memory_max_alloca;

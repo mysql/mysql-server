@@ -5002,8 +5002,6 @@ drop procedure bug5967|
 #
 --let $backupdir = $MYSQLTEST_VARDIR/tmp/
 --error 0,1
---remove_file $backupdir/t1.frm
---error 0,1
 --remove_file $backupdir/t1.MYD
 
 --disable_warnings

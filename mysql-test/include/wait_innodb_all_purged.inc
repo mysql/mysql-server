@@ -8,9 +8,16 @@
 #
 #    --source include/wait_innodb_all_purged.inc
 #
---source include/have_innodb.inc
---source include/have_debug.inc
 
+if (!$skip_wait_for_purge) {
+  --let $skip_wait_for_purge= 0
+}
+
+--let $is_debug= `select (version() like '%debug%') as debug`
+--let $do_wait_purge= `select !$skip_wait_for_purge AND $is_debug`
+
+if ($do_wait_purge)
+{
 --disable_query_log
 
 let $wait_counter_init= 300;
@@ -27,6 +34,7 @@ let $wait_counter= $wait_counter_init;
 # Keep track of how many times the wait condition is tested
 let $wait_condition_reps= 0;
 let $prev_trx_age= 0;
+let $age_log=0;
 while ($wait_counter)
 {
 --disable_warnings
@@ -36,6 +44,7 @@ WHERE VARIABLE_NAME = 'INNODB_PURGE_TRX_ID_AGE';`;
 
     if ($trx_age != $prev_trx_age)
     {
+        let $age_log=$age_log:$wait_condition_reps $trx_age;
         let $wait_counter= $wait_counter_init;
         let $prev_trx_age= $trx_age;
     }
@@ -55,7 +64,10 @@ WHERE VARIABLE_NAME = 'INNODB_PURGE_TRX_ID_AGE';`;
 }
 if (!$success)
 {
-  echo Timeout in wait_innodb_all_purged.inc for INNODB_PURGE_TRX_ID_AGE = $trx_age;
+  let $age_log=$age_log:$wait_condition_reps;
+  echo INNODB_PURGE_TRX_ID_AGE = $trx_age (previous id:count $age_log);
+  die Timeout in wait_innodb_all_purged.inc;
 }
 
 --enable_query_log
+}

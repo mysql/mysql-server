@@ -18,17 +18,20 @@
 */
 
 #include "sql_rename.h"
-#include "sql_cache.h"                          // query_cache_*
-#include "sql_table.h"                         // build_table_filename
-#include "sql_trigger.h"          // change_trigger_table_name
-#include "sql_view.h"             // mysql_frm_type, mysql_rename_view
-#include "lock.h"       // MYSQL_OPEN_SKIP_TEMPORARY
-#include "mysqld.h"     // lower_case_table_names
-#include "sql_base.h"   // tdc_remove_table, lock_table_names,
-#include "sql_handler.h"                        // mysql_ha_rm_tables
-#include "datadict.h"
-#include "log.h"
-#include "sql_class.h"
+
+#include "log.h"              // query_logger
+#include "mysqld.h"           // lower_case_table_names
+#include "sql_base.h"         // tdc_remove_table,
+                              // lock_table_names,
+#include "sql_cache.h"        // query_cache
+#include "sql_class.h"        // THD
+#include "sql_handler.h"      // mysql_ha_rm_tables
+#include "sql_table.h"        // write_bin_log,
+                              // build_table_filename
+#include "sql_trigger.h"      // change_trigger_table_name
+#include "sql_view.h"         // mysql_rename_view
+
+#include "dd/dd_table.h"      // dd::table_exists
 
 static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
 				 bool skip_error);
@@ -222,7 +225,7 @@ static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list)
       new_db            The database to which the table to be moved to
       new_table_name    The new table/view name
       new_table_alias   The new table/view alias
-      skip_error        Whether to skip error
+      skip_error        Whether to skip errors
 
   DESCRIPTION
     Rename a single table or a view.
@@ -237,11 +240,8 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
           const char *new_db, const char *new_table_name,
           const char *new_table_alias, bool skip_error)
 {
-  int rc= 1;
-  char name[FN_REFLEN + 1];
-  const char *new_alias, *old_alias;
-  frm_type_enum frm_type;
-  handlerton *hton;
+  const char *new_alias= new_table_name;
+  const char *old_alias= ren_table->table_name;
 
   DBUG_ENTER("do_rename");
 
@@ -250,79 +250,79 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
     old_alias= ren_table->alias;
     new_alias= new_table_alias;
   }
-  else
-  {
-    old_alias= ren_table->table_name;
-    new_alias= new_table_name;
-  }
   DBUG_ASSERT(new_alias);
 
-  build_table_filename(name, sizeof(name) - 1,
-                       new_db, new_alias, reg_ext, 0);
-  if (!access(name,F_OK))
+  // Fail if the target table already exists
+  bool exists;
+  if (dd::table_exists<dd::Abstract_table>(thd->dd_client(), new_db,
+                                           new_alias, &exists))
+    DBUG_RETURN(true);                         // This error cannot be skipped
+
+  if (exists)
   {
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
-    DBUG_RETURN(1);			// This can't be skipped
+    DBUG_RETURN(true);                         // This error cannot be skipped
   }
-  build_table_filename(name, sizeof(name) - 1,
-                       ren_table->db, old_alias, reg_ext, 0);
 
-  frm_type= dd_frm_type_and_se(thd, name, &hton);
-  switch (frm_type)
+  // Get the table type of the old table, and fail if it does not exist
+  dd::Abstract_table::enum_table_type table_type;
+  if (dd::abstract_table_type(thd->dd_client(), ren_table->db,
+                              old_alias, &table_type))
   {
-    case FRMTYPE_TABLE:
+    my_error(ER_NO_SUCH_TABLE, MYF(0), ren_table->db, old_alias);
+    DBUG_RETURN(!skip_error);
+  }
+
+  // So here we know the source table exists and the target table does
+  // not exist. Next is to act based on the table type.
+  switch (table_type)
+  {
+  case dd::Abstract_table::TT_BASE_TABLE:
+    {
+      handlerton *hton= NULL;
+      // If the engine is not found, my_error() has already been called
+      if (dd::table_storage_engine(thd, ren_table, &hton))
+        DBUG_RETURN(!skip_error);
+
+      // If renaming fails, my_error() has already been called
+      if (mysql_rename_table(thd, hton, ren_table->db, old_alias, new_db,
+                             new_alias, 0))
+        DBUG_RETURN(!skip_error);
+
+      // If we fail to update the triggers appropriately, we revert the
+      // changes done and report an error.
+      if (change_trigger_table_name(thd, ren_table->db, old_alias,
+                                         ren_table->table_name,
+                                         new_db, new_alias))
       {
-        if (!hton)
-        {
-          my_error(ER_STORAGE_ENGINE_NOT_LOADED, MYF(0), ren_table->db, old_alias);
-          DBUG_RETURN(1);
-        }
-        if (!(rc= mysql_rename_table(thd, hton, ren_table->db, old_alias,
-                                     new_db, new_alias, 0)))
-        {
-          if ((rc= change_trigger_table_name(thd, ren_table->db, old_alias,
-                                             ren_table->table_name,
-                                             new_db, new_alias)))
-          {
-            /*
-              We've succeeded in renaming table's .frm and in updating
-              corresponding handler data, but have failed to update table's
-              triggers appropriately. So let us revert operations on .frm
-              and handler's data and report about failure to rename table.
-            */
-            (void) mysql_rename_table(thd, hton, new_db, new_alias,
-                                      ren_table->db, old_alias, NO_FK_CHECKS);
-          }
-        }
+        (void) mysql_rename_table(thd, hton, new_db, new_alias,
+                                  ren_table->db, old_alias, NO_FK_CHECKS);
+        DBUG_RETURN(!skip_error);
       }
       break;
-    case FRMTYPE_VIEW:
+    }
+  case dd::Abstract_table::TT_SYSTEM_VIEW: // Fall through
+  case dd::Abstract_table::TT_USER_VIEW:
+    {
       // Changing the schema of a view is not allowed.
       if (strcmp(ren_table->db, new_db))
-        my_error(ER_FORBID_SCHEMA_CHANGE, MYF(0), ren_table->db, 
-                 new_db);
-      else
-        rc= mysql_rename_view(thd, new_db, new_alias, ren_table);
-      break;
-    default:
-      DBUG_ASSERT(0); // should never happen
-    case FRMTYPE_ERROR:
-      { 
-        char errbuf[MYSYS_STRERROR_SIZE];
-        my_error(ER_FILE_NOT_FOUND, MYF(0), name,
-                 my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
+      {
+        my_error(ER_FORBID_SCHEMA_CHANGE, MYF(0), ren_table->db, new_db);
+        DBUG_RETURN(!skip_error);
       }
+      else if (mysql_rename_view(thd, new_db, new_alias, ren_table))
+        DBUG_RETURN(!skip_error);
       break;
+    }
+  default:
+    DBUG_ASSERT(false); /* purecov: deadcode */
   }
 
+  // Now, we know that rename succeeded, and can log the schema access
   thd->add_to_binlog_accessed_dbs(ren_table->db);
   thd->add_to_binlog_accessed_dbs(new_db);
 
-  if (rc && !skip_error)
-    DBUG_RETURN(1);
-
-  DBUG_RETURN(0);
-
+  DBUG_RETURN(false);
 }
 /*
   Rename all tables in list; Return pointer to wrong entry if something goes

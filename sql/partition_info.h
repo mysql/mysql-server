@@ -284,11 +284,12 @@ public:
    ********************************************/
 
   longlong err_value;
-  char* part_info_string;
+  char* part_info_string;                //!< Partition clause as string
 
-  char *part_func_string;
-  char *subpart_func_string;
+  char *part_func_string;                //!< Partition expression as string
+  char *subpart_func_string;             //!< Subpartition expression as string
 
+  /* Used during parsing */
   partition_element *curr_part_elem;     // part or sub part
   partition_element *current_partition;  // partition
   part_elem_value *curr_list_val;

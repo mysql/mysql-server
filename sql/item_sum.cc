@@ -1005,7 +1005,8 @@ bool Aggregator_distinct::setup(THD *thd)
                                  arg->max_length,
                                  arg->decimals, 
                                  arg->maybe_null,
-                                 arg->unsigned_flag);
+                                 arg->unsigned_flag,
+                                 0);
 
     if (! (table= create_virtual_tmp_table(thd, field_list)))
       DBUG_RETURN(TRUE);
@@ -1444,7 +1445,8 @@ void Item_sum_sum::clear()
 void Item_sum_sum::fix_length_and_dec()
 {
   DBUG_ENTER("Item_sum_sum::fix_length_and_dec");
-  maybe_null=null_value=1;
+  maybe_null= true;
+  null_value= TRUE;
   decimals= args[0]->decimals;
 
   switch (args[0]->numeric_context_result_type()) {
@@ -1710,7 +1712,8 @@ void Item_sum_count::cleanup()
 void Item_sum_avg::fix_length_and_dec()
 {
   Item_sum_sum::fix_length_and_dec();
-  maybe_null=null_value=1;
+  maybe_null= true;
+  null_value= TRUE;
   prec_increment= current_thd->variables.div_precincrement;
   if (hybrid_type == DECIMAL_RESULT)
   {
@@ -1906,7 +1909,8 @@ Item_sum_variance::Item_sum_variance(THD *thd, Item_sum_variance *item):
 void Item_sum_variance::fix_length_and_dec()
 {
   DBUG_ENTER("Item_sum_variance::fix_length_and_dec");
-  maybe_null= null_value= 1;
+  maybe_null= true;
+  null_value= TRUE;
 
   /*
     According to the SQL2003 standard (Part 2, Foundations; sec 10.9,

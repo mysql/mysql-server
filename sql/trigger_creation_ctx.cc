@@ -31,7 +31,7 @@ Trigger_creation_ctx::create(THD *thd,
 {
   const CHARSET_INFO *client_cs;
   const CHARSET_INFO *connection_cl;
-  const CHARSET_INFO *db_cl;
+  const CHARSET_INFO *db_cl= NULL;
 
   bool invalid_creation_ctx= FALSE;
 
@@ -87,8 +87,14 @@ Trigger_creation_ctx::create(THD *thd,
     from the disk.
   */
 
-  if (!db_cl)
-    db_cl= get_default_db_collation(thd, db_name.str);
+  if (db_cl == NULL &&
+      get_default_db_collation(thd, db_name.str, &db_cl))
+  {
+    DBUG_ASSERT(thd->is_error() || thd->killed);
+    return NULL;
+  }
+
+  db_cl= db_cl ? db_cl : thd->collation();
 
   return new Trigger_creation_ctx(client_cs, connection_cl, db_cl);
 }

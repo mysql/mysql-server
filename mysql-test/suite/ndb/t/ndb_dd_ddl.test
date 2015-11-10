@@ -369,12 +369,12 @@ ENGINE NDB;
 # see #bug30559
 
 # Create empty file
---write_file $MYSQLTEST_VARDIR/tmp/t1.frm
+--write_file $MYSQLTEST_VARDIR/tmp/t1.dat
 EOF
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error ER_CREATE_FILEGROUP_FAILED
---eval create logfile group lg1 add undofile '$MYSQLTEST_VARDIR/tmp/t1.frm' initial_size 1M undo_buffer_size = 1M engine=ndb;
+--eval create logfile group lg1 add undofile '$MYSQLTEST_VARDIR/tmp/t1.dat' initial_size 1M undo_buffer_size = 1M engine=ndb;
 
 create logfile group lg1
 add undofile 'undofile.dat'
@@ -384,7 +384,7 @@ engine=ndb;
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error ER_CREATE_FILEGROUP_FAILED
---eval create tablespace ts1 add datafile '$MYSQLTEST_VARDIR/tmp/t1.frm' use logfile group lg1 initial_size 1M engine ndb;
+--eval create tablespace ts1 add datafile '$MYSQLTEST_VARDIR/tmp/t1.dat' use logfile group lg1 initial_size 1M engine ndb;
 
 --error ER_DROP_FILEGROUP_FAILED
 drop tablespace ts1
@@ -393,7 +393,7 @@ engine ndb;
 drop logfile group lg1
 engine ndb;
 
---remove_file $MYSQLTEST_VARDIR/tmp/t1.frm
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.dat
 
 
 # End 5.1 test

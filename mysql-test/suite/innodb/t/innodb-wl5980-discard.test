@@ -434,6 +434,7 @@ SHOW CREATE TABLE t5980d;
 
 --error ER_TABLESPACE_DISCARDED
 TRUNCATE TABLE t5980a;
+call mtr.add_suppression("Table .* does not exist .* though MySQL .* rename");
 --error ER_TABLESPACE_DISCARDED
 TRUNCATE TABLE t5980b;
 --error ER_TABLESPACE_MISSING

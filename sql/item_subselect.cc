@@ -3338,6 +3338,8 @@ bool subselect_indexsubquery_engine::exec()
   uint key_length;
   key_part_map key_parts_map;
   ulonglong tmp_hash;
+  const bool unique= tab->type() == JT_EQ_REF;
+  const bool check_null= tab->type() == JT_REF_OR_NULL;
 
   // 'tl' is NULL if this is a tmp table created by subselect_hash_sj_engine.
   TABLE_LIST *const tl= tab->table_ref;
@@ -3573,6 +3575,9 @@ void subselect_indexsubquery_engine::print(String *str)
 void subselect_indexsubquery_engine::print(String *str,
                                            enum_query_type query_type)
 {
+  const bool unique= tab->type() == JT_EQ_REF;
+  const bool check_null= tab->type() == JT_REF_OR_NULL;
+
   if (unique)
     str->append(STRING_WITH_LEN("<primary_index_lookup>("));
   else
@@ -3613,6 +3618,7 @@ void subselect_indexsubquery_engine::print(String *str,
   }
   str->append(')');
 }
+
 
 /**
   change query result object of engine.
@@ -3809,11 +3815,6 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
   {
     tmp_key_parts= tmp_columns->elements;
     key_length= ALIGN_SIZE(tmp_table->s->reclength);
-    /*
-      This index over hash_field is not unique (two rows of the temporary
-      table may have a same hash value with different values of tmp_columns).
-    */
-    unique= false;
   }
   else
   {
@@ -3847,6 +3848,8 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
   tab->set_table(tmp_table);
   tab->ref().key= 0; /* The only temp table index. */
   tab->ref().key_length= tmp_key->key_length;
+  tab->set_type((tmp_table->key_info[0].flags & HA_NOSAME) ? JT_EQ_REF :
+                JT_REF);
   if (!(tab->ref().key_buff=
         (uchar*) thd->mem_calloc(key_length)) ||
       !(tab->ref().key_copy=

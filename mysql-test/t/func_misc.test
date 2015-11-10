@@ -860,6 +860,14 @@ SELECT INET6_NTOA(ip), HEX(ip), LENGTH(ip) FROM t2;
 DROP TABLE t1;
 DROP TABLE t2;
 
+
+--echo #
+--echo # Bug#22071558 INET_ATON ACCEPTS MORE THAN FOUR GROUPS OF DIGITS AND RETURNS INT BIGGER THAN 4G
+--echo #
+
+select inet_aton("0.255.255.255.255");
+select inet_aton("255.255.255.2551");
+
 --echo
 --echo # -- Done.
 --echo

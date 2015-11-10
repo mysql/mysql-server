@@ -47,6 +47,14 @@
 #include <memory>
 #include "mysql/thread_type.h"
 
+namespace dd {
+  namespace cache {
+    class Dictionary_client;
+  }
+
+  class DD_kill_immunizer;
+}
+
 class Reprepare_observer;
 class sp_cache;
 class Rows_log_event;
@@ -770,8 +778,12 @@ public:
   ulong want_privilege;
 
   LEX *lex;                                     // parse tree descriptor
+  dd::cache::Dictionary_client *dd_client() const // Get the dictionary client.
+  { return m_dd_client.get(); }
 
 private:
+  std::auto_ptr<dd::cache::Dictionary_client > m_dd_client;
+
   /**
     The query associated with this statement.
   */
@@ -1209,8 +1221,44 @@ public:
   uint fill_status_recursion_level;
   uint fill_variables_recursion_level;
 
+private:
   /* container for handler's private per-connection data */
   Prealloced_array<Ha_data, PREALLOC_NUM_HA> ha_data;
+
+public:
+  /**
+    Retrieve Ha_data for a given slot. Each handler has a fixed slot nr.
+  */
+  Ha_data* get_ha_data(int slot) { return &ha_data[slot]; }
+
+  /**
+    Copy ha_data into the provided argument. Used by Attachble_transaction.
+  */
+  void backup_ha_data(Prealloced_array<Ha_data, PREALLOC_NUM_HA> *backup)
+  {
+    /*
+      Protect with LOCK_thd_data avoid accessing ha_data while it
+      is being modified.
+    */
+    mysql_mutex_lock(&this->LOCK_thd_data);
+    *backup= ha_data;
+    mysql_mutex_unlock(&this->LOCK_thd_data);
+  }
+
+  /**
+    Restore ha_data from the provided backup copy.
+    Used by Attachable_Transaction.
+  */
+  void restore_ha_data(const Prealloced_array<Ha_data, PREALLOC_NUM_HA> &backup)
+  {
+    /*
+      Protect with LOCK_thd_data to avoid e.g. KILL CONNECTION
+      reading ha_data while it is being modified.
+    */
+    mysql_mutex_lock(&this->LOCK_thd_data);
+    ha_data= backup;
+    mysql_mutex_unlock(&this->LOCK_thd_data);
+  }
 
   /*
     Position of first event in Binlog
@@ -2004,6 +2052,15 @@ public:
   };
   killed_state volatile killed;
 
+  /**
+    When operation on DD tables is in progress then THD is set to kill immune
+    mode.
+    This member holds DD_kill_immunizer object created to make DD operations
+    immune from the kill operations. Member also indicated whether THD is in
+    kill immune mode or not.
+  */
+  dd::DD_kill_immunizer *kill_immunizer;
+
   /* scramble - random string sent to client on handshake */
   char	     scramble[SCRAMBLE_LENGTH+1];
 
@@ -2308,6 +2365,11 @@ public:
   {
     return MY_TEST(variables.sql_mode & (MODE_STRICT_TRANS_TABLES |
                                          MODE_STRICT_ALL_TABLES));
+  }
+  inline const CHARSET_INFO *collation()
+  {
+    return variables.collation_server?variables.collation_server:
+           default_charset_info;
   }
   inline Time_zone *time_zone()
   {
@@ -3896,20 +3958,84 @@ inline void add_group_to_list(THD *thd, ORDER *order)
   thd->lex->select_lex->add_group_to_list(order);
 }
 
+/*************************************************************************/
+
+/** RAII class for temporarily turning off @@autocommit in the connection. */
+
+class Disable_autocommit_guard
+{
+public:
+
+  /**
+    @param thd  non-NULL - pointer to the context of connection in which
+                           @@autocommit mode needs to be disabled.
+                NULL     - if @@autocommit mode needs to be left as is.
+  */
+  Disable_autocommit_guard(THD *thd)
+    : m_thd(thd), m_save_option_bits(thd ? thd->variables.option_bits : 0)
+  {
+    if (m_thd)
+    {
+      /*
+        We can't disable auto-commit if there is ongoing transaction as this
+        might easily break statement/session transaction invariants.
+      */
+      DBUG_ASSERT(m_thd->get_transaction()->is_empty(Transaction_ctx::STMT) &&
+                  m_thd->get_transaction()->is_empty(Transaction_ctx::SESSION));
+
+      m_thd->variables.option_bits&= ~OPTION_AUTOCOMMIT;
+      m_thd->variables.option_bits|= OPTION_NOT_AUTOCOMMIT;
+    }
+  }
+
+  ~Disable_autocommit_guard()
+  {
+    if (m_thd)
+    {
+      /*
+        Both session and statement transactions need to be finished by the
+        time when we enable auto-commit mode back.
+      */
+      DBUG_ASSERT(m_thd->get_transaction()->is_empty(Transaction_ctx::STMT) &&
+                  m_thd->get_transaction()->is_empty(Transaction_ctx::SESSION));
+      m_thd->variables.option_bits= m_save_option_bits;
+    }
+  }
+
+private:
+  THD *m_thd;
+  ulonglong m_save_option_bits;
+};
+
 
 /**
-  @param thd         thread context
-  @param hton        pointer to handlerton
-  @return address of the placeholder of handlerton's specific transaction
-          object (data)
+  RAII class which allows to temporary disable updating Gtid_state.
 */
 
-inline void **thd_ha_data_backup(const THD *thd, const struct handlerton *hton)
+class Disable_gtid_state_update_guard
 {
-  return (void **) &thd->ha_data[hton->slot].ha_ptr_backup;
-}
+public:
+  Disable_gtid_state_update_guard(THD *thd)
+    : m_thd(thd),
+      m_save_is_operating_substatement_implicitly(
+          thd->is_operating_substatement_implicitly),
+      m_save_skip_gtid_rollback(thd->skip_gtid_rollback)
+  {
+    m_thd->is_operating_substatement_implicitly= true;
+    m_thd->skip_gtid_rollback= true;
+  }
 
-/*************************************************************************/
+  ~Disable_gtid_state_update_guard()
+  {
+    m_thd->is_operating_substatement_implicitly=
+      m_save_is_operating_substatement_implicitly;
+    m_thd->skip_gtid_rollback= m_save_skip_gtid_rollback;
+  }
+private:
+  THD *m_thd;
+  bool m_save_is_operating_substatement_implicitly;
+  bool m_save_skip_gtid_rollback;
+};
 
 #endif /* MYSQL_SERVER */
 

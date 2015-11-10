@@ -56,6 +56,9 @@ query_vertical SHOW SLAVE STATUS;
 UNLOCK TABLES;
 SET @@GLOBAL.DEBUG= '$debug_saved';
 
+--echo # Restart SQL thread so that it notices debug has changed
+--source include/restart_slave_sql.inc
+
 --source include/rpl_connection_master.inc
 --source include/sync_slave_sql_with_master.inc
 

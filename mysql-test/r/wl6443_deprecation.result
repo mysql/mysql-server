@@ -113,6 +113,7 @@ mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
 mysql.event                                        OK
+mysql.events                                       OK
 mysql.func                                         OK
 mysql.general_log                                  OK
 mysql.gtid_executed                                OK
@@ -124,10 +125,12 @@ mysql.host                                         OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
+mysql.parameters                                   OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.routines                                     OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
@@ -140,6 +143,7 @@ mysql.time_zone_leap_second                        OK
 mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
+mysql.triggers                                     OK
 mysql.user                                         OK
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
@@ -154,6 +158,7 @@ mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
 mysql.event                                        OK
+mysql.events                                       OK
 mysql.func                                         OK
 mysql.general_log                                  OK
 mysql.gtid_executed                                OK
@@ -164,10 +169,12 @@ mysql.help_topic                                   OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
+mysql.parameters                                   OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.routines                                     OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
@@ -180,6 +187,7 @@ mysql.time_zone_leap_second                        OK
 mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
+mysql.triggers                                     OK
 mysql.user                                         OK
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
@@ -190,6 +198,7 @@ mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
 mysql.event                                        OK
+mysql.events                                       OK
 mysql.func                                         OK
 mysql.general_log                                  OK
 mysql.gtid_executed                                OK
@@ -200,10 +209,12 @@ mysql.help_topic                                   OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
+mysql.parameters                                   OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.routines                                     OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
@@ -216,6 +227,7 @@ mysql.time_zone_leap_second                        OK
 mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
+mysql.triggers                                     OK
 mysql.user                                         OK
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK

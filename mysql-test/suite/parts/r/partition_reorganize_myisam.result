@@ -54,7 +54,6 @@ emp#P#southwest#SP#sw2.MYD
 emp#P#southwest#SP#sw2.MYI
 emp#P#southwest#SP#sw3.MYD
 emp#P#southwest#SP#sw3.MYI
-emp.frm
 emp.par
 ---- MYSQL_TMP_DIR/alt_dir_northeast
 emp#P#northeast#SP#ne0.MYD
@@ -136,7 +135,6 @@ emp#P#west#SP#w0.MYD
 emp#P#west#SP#w0.MYI
 emp#P#west#SP#w1.MYD
 emp#P#west#SP#w1.MYI
-emp.frm
 emp.par
 ---- MYSQL_TMP_DIR/alt_dir_northeast
 ---- MYSQL_TMP_DIR/alt_dir_southwest

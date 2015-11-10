@@ -118,21 +118,18 @@ enum enum_explain_filename_mode
 /* Maximum length of GEOM_POINT Field */
 #define MAX_LEN_GEOM_POINT_FIELD   25
 
-#define WFRM_WRITE_SHADOW 1
-#define WFRM_INSTALL_SHADOW 2
-#define WFRM_PACK_FRM 4
-#define WFRM_KEEP_SHARE 8
+#define WSDI_WRITE_SHADOW 1
+#define WSDI_INSTALL_SHADOW 2
+#define WSDI_COMPRESS_SDI 4
 
 /* Flags for conversion functions. */
 static const uint FN_FROM_IS_TMP=  1 << 0;
 static const uint FN_TO_IS_TMP=    1 << 1;
 static const uint FN_IS_TMP=       FN_FROM_IS_TMP | FN_TO_IS_TMP;
-static const uint NO_FRM_RENAME=   1 << 2;
-static const uint FRM_ONLY=        1 << 3;
 /** Don't remove table in engine. Remove only .FRM and maybe .PAR files. */
-static const uint NO_HA_TABLE=     1 << 4;
+static const uint NO_HA_TABLE=     1 << 2;
 /** Don't check foreign key constraints while renaming table */
-static const uint NO_FK_CHECKS=    1 << 5;
+static const uint NO_FK_CHECKS=    1 << 3;
 
 size_t filename_to_tablename(const char *from, char *to, size_t to_length
 #ifndef DBUG_OFF
@@ -201,8 +198,8 @@ bool fill_field_definition(THD *thd,
                            enum enum_field_types field_type,
                            Create_field *field_def);
 const CHARSET_INFO* get_sql_field_charset(Create_field *sql_field,
-                                          HA_CREATE_INFO *create_info);
-bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags);
+                                          const HA_CREATE_INFO *create_info);
+bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags);
 int write_bin_log(THD *thd, bool clear_error,
                   const char *query, size_t query_length,
                   bool is_trans= FALSE);
@@ -216,9 +213,6 @@ void release_ddl_log_memory_entry(DDL_LOG_MEMORY_ENTRY *log_entry);
 void release_ddl_log();
 void execute_ddl_log_recovery();
 bool execute_ddl_log_entry(THD *thd, uint first_entry);
-bool validate_comment_length(THD *thd, const char *comment_str,
-                             size_t *comment_len, uint max_len,
-                             uint err_code, const char *comment_name);
 
 void promote_first_timestamp_column(List<Create_field> *column_definitions);
 

@@ -23,3 +23,20 @@ SET SESSION DEBUG = "-d,bug43138";
 # --
 # -- End of Bug#43138.
 # --
+#
+# Bug#21625393 : Assert condition (e->usage() == 1) failure in
+#                dd::cache::Shared_multi_map<T>::remove()
+#
+CREATE TABLE t1 (f1 INT);
+SET DEBUG_SYNC='before_dropping_dd_object SIGNAL kill_query WAIT_FOR go';
+DROP TABLE t1;;
+connect  con1, localhost, root,,;
+SET DEBUG_SYNC='now WAIT_FOR kill_query';
+SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE INFO LIKE "DROP TABLE%" INTO @thread_id;
+KILL QUERY @thread_id;
+SET DEBUG_SYNC='now SIGNAL go';
+connection default;
+DROP TABLE t1;
+ERROR 42S02: Unknown table 'test.t1'
+disconnect con1;
+SET DEBUG_SYNC='RESET';

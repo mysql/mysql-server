@@ -239,6 +239,7 @@ select 1 from tab2;
 --echo 1 Expected
 
 --disable_warnings
+
 select (select variable_value from information_schema.session_status where variable_name ='Opened_tables') = @opened_tables;
 --echo 1 Expected
 
@@ -257,6 +258,7 @@ flush status;
 connection default;
 
 --disable_warnings
+
 select (select variable_value from information_schema.global_status where variable_name ='Opened_tables') = @global_opened_tables;
 --echo 1 Expected
 
@@ -293,6 +295,7 @@ flush status;
 connection default;
 
 --disable_warnings
+
 select (select variable_value from information_schema.global_status where variable_name ='Opened_tables') = @global_opened_tables + 1;
 --echo 1 Expected
 

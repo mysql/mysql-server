@@ -3553,11 +3553,12 @@ LEX::LEX()
    plugins(PSI_NOT_INSTRUMENTED),
    insert_update_values_map(NULL),
    option_type(OPT_DEFAULT),
+   sphead(NULL),
    // Initialize here to avoid uninitialized variable warnings.
    contains_plaintext_password(false),
    keep_diagnostics(DA_KEEP_UNSPECIFIED),
    is_lex_started(0),
-  in_update_value_clause(false)
+   in_update_value_clause(false)
 {
   reset_query_tables_list(TRUE);
 }
@@ -4762,6 +4763,7 @@ void st_lex_master_info::initialize()
     retry_count_opt= auto_position= LEX_MI_UNCHANGED;
   ssl_key= ssl_cert= ssl_ca= ssl_capath= ssl_cipher= NULL;
   ssl_crl= ssl_crlpath= NULL;
+  tls_version= NULL;
   relay_log_name= NULL;
   relay_log_pos= 0;
   repl_ignore_server_ids.clear();

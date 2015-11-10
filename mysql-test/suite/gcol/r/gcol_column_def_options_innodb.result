@@ -538,8 +538,8 @@ ALTER TABLE t ADD c int(11) as (a+b), ADD f varchar(10) as ('aaa');
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE t CHANGE c c int(11) as (a), CHANGE f f varchar(10) as('bbb');
-affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
 # Change order should be ALGORITHM=INPLACE on Innodb
 ALTER TABLE t CHANGE c c int(11) as (a) after f;
 affected rows: 1
@@ -588,6 +588,96 @@ SELECT * FROM t1;
 a	b	c
 NULL	NULL	NULL
 1	-1	0
+DROP TABLE t1;
+# Bug#21854004: GCOLS:INNODB: FAILING ASSERTION: I < TABLE->N_DEF
+CREATE TABLE t1(
+col1 INTEGER PRIMARY KEY,
+col2 INTEGER,
+col3 INTEGER,
+col4 INTEGER,
+vgc1 INTEGER AS (col2 + col3) VIRTUAL,
+sgc1 INTEGER AS (col2 - col3) STORED
+);
+INSERT INTO t1(col1, col2, col3) VALUES
+(1, 10, 100), (2, 20, 200);
+SELECT * FROM t1;
+col1	col2	col3	col4	vgc1	sgc1
+1	10	100	NULL	110	-90
+2	20	200	NULL	220	-180
+ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 * col3) VIRTUAL;
+SELECT * FROM t1;
+col1	col2	col3	col4	vgc1	sgc1
+1	10	100	NULL	1000	-90
+2	20	200	NULL	4000	-180
+ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 / col3) STORED;
+SELECT * FROM t1;
+col1	col2	col3	col4	vgc1	sgc1
+1	10	100	NULL	1000	0
+2	20	200	NULL	4000	0
+ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 + col3) VIRTUAL;
+ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 - col3) STORED;
+ALTER TABLE t1 ADD INDEX vgc1 (vgc1);
+ALTER TABLE t1 ADD INDEX sgc1 (sgc1);
+ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 * col3) VIRTUAL;
+SELECT * FROM t1;
+col1	col2	col3	col4	vgc1	sgc1
+1	10	100	NULL	1000	-90
+2	20	200	NULL	4000	-180
+SELECT vgc1 FROM t1;
+vgc1
+1000
+4000
+ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 / col3) STORED;
+SELECT * FROM t1;
+col1	col2	col3	col4	vgc1	sgc1
+1	10	100	NULL	1000	0
+2	20	200	NULL	4000	0
+SELECT sgc1 FROM t1;
+sgc1
+0
+0
+ALTER TABLE t1 DROP INDEX vgc1;
+ALTER TABLE t1 DROP INDEX sgc1;
+ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 + col3) VIRTUAL;
+ALTER TABLE t1 ADD UNIQUE INDEX vgc1 (vgc1);
+ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 - col3) STORED;
+ALTER TABLE t1 ADD UNIQUE INDEX sgc1 (sgc1);
+ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 / col3) VIRTUAL;
+ERROR 23000: Duplicate entry '0' for key 'vgc1'
+ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 / col3) STORED;
+ERROR 23000: Duplicate entry '0' for key 'sgc1'
+ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 * col3) VIRTUAL;
+SELECT * FROM t1;
+col1	col2	col3	col4	vgc1	sgc1
+1	10	100	NULL	1000	-90
+2	20	200	NULL	4000	-180
+SELECT vgc1 FROM t1;
+vgc1
+1000
+4000
+ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 * col3) STORED;
+SELECT * FROM t1;
+col1	col2	col3	col4	vgc1	sgc1
+1	10	100	NULL	1000	1000
+2	20	200	NULL	4000	4000
+SELECT sgc1 FROM t1;
+sgc1
+1000
+4000
+ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 * col3) STORED;
+ERROR HY000: 'Changing the STORED status' is not supported for generated columns.
+ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 / col3) VIRTUAL;
+ERROR HY000: 'Changing the STORED status' is not supported for generated columns.
+ALTER TABLE t1 MODIFY COLUMN col4 INTEGER AS (col1 + col2 + col3) STORED;
+SELECT * FROM t1;
+col1	col2	col3	col4	vgc1	sgc1
+1	10	100	111	1000	1000
+2	20	200	222	4000	4000
+ALTER TABLE t1 MODIFY COLUMN col4 INTEGER;
+SELECT * FROM t1;
+col1	col2	col3	col4	vgc1	sgc1
+1	10	100	111	1000	1000
+2	20	200	222	4000	4000
 DROP TABLE t1;
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;

@@ -249,9 +249,10 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
   for (i= 0; i < share->keys; i++, pos++)
   {
     keydef[i].flag= ((uint16) pos->flags & (HA_NOSAME | HA_FULLTEXT | HA_SPATIAL));
-    keydef[i].key_alg= pos->algorithm == HA_KEY_ALG_UNDEF ?
-      (pos->flags & HA_SPATIAL ? HA_KEY_ALG_RTREE : HA_KEY_ALG_BTREE) :
-      pos->algorithm;
+    DBUG_ASSERT(pos->algorithm != HA_KEY_ALG_SE_SPECIFIC);
+    DBUG_ASSERT(!(pos->flags & HA_SPATIAL) || pos->algorithm == HA_KEY_ALG_RTREE);
+    DBUG_ASSERT(!(pos->flags & HA_FULLTEXT) || pos->algorithm == HA_KEY_ALG_FULLTEXT);
+    keydef[i].key_alg= pos->algorithm;
     keydef[i].block_length= pos->block_size;
     keydef[i].seg= keyseg;
     keydef[i].keysegs= pos->user_defined_key_parts;
@@ -672,11 +673,6 @@ static const char *ha_myisam_exts[] = {
   NullS
 };
 
-const char **ha_myisam::bas_ext() const
-{
-  return ha_myisam_exts;
-}
-
 
 /**
   @brief Check if the given db.tablename is a system table for this SE.
@@ -755,18 +751,6 @@ static bool myisam_is_supported_system_table(const char *db,
     return false;
   }
 }
-
-const char *ha_myisam::index_type(uint key_number)
-{
-  return ((table->key_info[key_number].flags & HA_FULLTEXT) ? 
-	  "FULLTEXT" :
-	  (table->key_info[key_number].flags & HA_SPATIAL) ?
-	  "SPATIAL" :
-	  (table->key_info[key_number].algorithm == HA_KEY_ALG_RTREE) ?
-	  "RTREE" :
-	  "BTREE");
-}
-
 
 /* Name is here without an extension */
 int ha_myisam::open(const char *name, int mode, uint test_if_locked)
@@ -2323,6 +2307,8 @@ static int myisam_init(void *p)
   myisam_hton->close_connection= myisam_close_connection;
   myisam_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
   myisam_hton->is_supported_system_table= myisam_is_supported_system_table;
+  myisam_hton->file_extensions= ha_myisam_exts;
+  myisam_hton->rm_tmp_tables= default_rm_tmp_tables;
 
   main_thread_keycache_var= st_keycache_thread_var();
   mysql_cond_init(mi_keycache_thread_var_suspend,

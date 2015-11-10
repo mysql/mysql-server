@@ -60,8 +60,8 @@ let SEARCH_PATTERN=\[ERROR\] Aborting;
 # missing tablespaces.
 --echo # Start mysqld to create tablespaces according to my.cnf
 --error 1
---exec $MYSQLD $args --skip-grant-tables --innodb-unknown-parameter
-let SEARCH_PATTERN=unknown option '--innodb-unknown-parameter';
+--exec $MYSQLD $args --skip-grant-tables
+let SEARCH_PATTERN=\[ERROR\] Data Dictionary initialization failed;
 --source include/search_pattern_in_file.inc
 let SEARCH_PATTERN=\[ERROR\] Aborting;
 --source include/search_pattern_in_file.inc

@@ -17,11 +17,41 @@
 #
 # MySQL Doxyfile for the MySQL server.
 #
+# Helper commands, to run from the top level directory
+#
 # To run doxygen:
-# - mkdir -p ./generated/doxygen
-# - doxygen
-# - see the logs in ./doxyerror.log
-# - see the doc in ./generated/doxygen/html/index.html
+# ---------------
+#
+#   mkdir -p ./generated/doxygen
+#   doxygen
+#
+# See the logs in ./doxyerror.log
+# See the doc in ./generated/doxygen/html/index.html
+#
+# To parse the error log generated:
+# ---------------------------------
+#
+#   sort -u doxyerror.log |
+#     grep "^"`pwd` |
+#       sed -e "s|"`pwd`"/||g" > tofix-all.log
+#
+# See the errors to fix in tofix-all.log
+#
+# To filter known issues from the error log:
+# ------------------------------------------
+#
+#    grep -v "#" Doxyfile-ignored |
+#      grep -v "^[[:space:]]*$" > Doxyfile-ignored.tmp
+#
+#    grep -v -E --file=Doxyfile-ignored.tmp tofix-all.log > tofix-regressions.log
+#
+# See the list of filtering rules in Doxyfile-ignored.tmp
+# See the list of regression errors in tofix-regressions.log
+#
+# To edit the list of known errors:
+# ---------------------------------
+#
+# See file Doxyfile-ignored
 #
 #===========================================================================
 

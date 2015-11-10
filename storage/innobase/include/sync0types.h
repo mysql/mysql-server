@@ -1169,7 +1169,7 @@ private:
 struct dict_sync_check : public sync_check_functor_t {
 
 	/** Constructor
-	@param[in]	dict_mutex_allow	true if the dict mutex
+	@param[in]	dict_mutex_allowed	true if the dict mutex
 						is allowed */
 	explicit dict_sync_check(bool dict_mutex_allowed)
 		:
@@ -1231,7 +1231,7 @@ struct sync_allowed_latches : public sync_check_functor_t {
 	latch belongs to a latch level that is not there in the allowed list,
 	then it is a violation.
 
-	@param[in]	latch	The latch level to check
+	@param[in]	level	The latch level to check
 	@return true if there is a latch ordering violation */
 	virtual bool operator()(const latch_level_t level)
 	{
@@ -1270,7 +1270,7 @@ private:
 };
 
 /** Get the latch id from a latch name.
-@param[in]	id	Latch name
+@param[in]	name	Latch name
 @return LATCH_ID_NONE. */
 latch_id_t
 sync_latch_get_id(const char* name);

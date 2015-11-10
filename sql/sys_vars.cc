@@ -3913,6 +3913,7 @@ static Sys_var_ulong Sys_sort_buffer(
   is set then warning is reported.
 
   @param sql_mode sql mode.
+  @param thd      Current thread
 */
 static void check_sub_modes_of_strict_mode(sql_mode_t &sql_mode, THD *thd)
 {
@@ -4102,6 +4103,16 @@ static Sys_var_charptr Sys_ssl_capath(
        READ_ONLY GLOBAL_VAR(opt_ssl_capath), SSL_OPT(OPT_SSL_CAPATH),
        IN_FS_CHARSET, DEFAULT(0));
 
+static Sys_var_charptr Sys_tls_version(
+       "tls_version",
+       "TLS version, permitted values are TLSv1, TLSv1.1, TLSv1.2(Only for openssl)",
+       READ_ONLY GLOBAL_VAR(opt_tls_version), SSL_OPT(OPT_TLS_VERSION),
+#ifdef HAVE_YASSL
+       IN_FS_CHARSET, "TLSv1,TLSv1.1");
+#else
+       IN_FS_CHARSET, "TLSv1,TLSv1.1,TLSv1.2");
+#endif
+
 static Sys_var_charptr Sys_ssl_cert(
        "ssl_cert", "X509 cert in PEM format (implies --ssl)",
        READ_ONLY GLOBAL_VAR(opt_ssl_cert), SSL_OPT(OPT_SSL_CERT),
@@ -4178,6 +4189,33 @@ static Sys_var_ulong Sys_table_def_size(
        NULL,
        /* table_definition_cache is used as a sizing hint by the performance schema. */
        sys_var::PARSE_EARLY);
+
+static Sys_var_ulong Sys_schema_def_size(
+       "schema_definition_cache",
+       "The number of cached schema definitions",
+       GLOBAL_VAR(schema_def_size),
+       CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(SCHEMA_DEF_CACHE_MIN, 512*1024),
+       DEFAULT(SCHEMA_DEF_CACHE_DEFAULT),
+       BLOCK_SIZE(1));
+
+static Sys_var_ulong Sys_tablespace_def_size(
+       "tablespace_definition_cache",
+       "The number of cached tablespace definitions",
+       GLOBAL_VAR(tablespace_def_size),
+       CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(TABLESPACE_DEF_CACHE_MIN, 512*1024),
+       DEFAULT(TABLESPACE_DEF_CACHE_DEFAULT),
+       BLOCK_SIZE(1));
+
+static Sys_var_ulong Sys_stored_program_def_size(
+       "stored_program_definition_cache",
+       "The number of cached stored program definitions",
+       GLOBAL_VAR(stored_program_def_size),
+       CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(STORED_PROGRAM_DEF_CACHE_MIN, 512*1024),
+       DEFAULT(STORED_PROGRAM_DEF_CACHE_DEFAULT),
+       BLOCK_SIZE(1));
 
 static bool fix_table_cache_size(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -4567,6 +4605,7 @@ static Sys_var_bit Sys_log_off(
   This function sets the session variable thd->variables.sql_log_bin 
   to reflect changes to @@session.sql_log_bin.
 
+  @param     thd    Current thread
   @param[in] self   A pointer to the sys_var, i.e. Sys_log_binlog.
   @param[in] type   The type either session or global.
 
@@ -4592,6 +4631,7 @@ static bool fix_sql_log_bin_after_update(sys_var *self, THD *thd,
     - the set is not called from within a function/trigger;
     - there is no on-going transaction.
 
+  @param     thd    Current thread
   @param[in] self   A pointer to the sys_var, i.e. Sys_log_binlog.
   @param[in] var    A pointer to the set_var created by the parser.
 

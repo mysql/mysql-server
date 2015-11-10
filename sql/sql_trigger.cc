@@ -193,7 +193,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   }
 
   /* We also don't allow creation of triggers on views. */
-  tables->required_type= FRMTYPE_TABLE;
+  tables->required_type= dd::Abstract_table::TT_BASE_TABLE;
   /*
     Also prevent DROP TRIGGER from opening temporary table which might
     shadow the subject table on which trigger to be dropped is defined.

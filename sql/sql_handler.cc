@@ -256,7 +256,7 @@ bool Sql_cmd_handler_open::execute(THD *thd)
                    MDL_key::TABLE, db, name, MDL_SHARED,
                    MDL_TRANSACTION);
   /* for now HANDLER can be used only for real TABLES */
-  hash_tables->required_type= FRMTYPE_TABLE;
+  hash_tables->required_type= dd::Abstract_table::TT_BASE_TABLE;
   /* add to hash */
   if (my_hash_insert(&thd->handler_tables_hash, (uchar*) hash_tables))
   {

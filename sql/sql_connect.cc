@@ -335,26 +335,29 @@ void release_user_connection(THD *thd)
 
   DBUG_VOID_RETURN;
 }
-
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 /*
   Check for maximum allowable user connections, if the mysqld server is
   started with corresponding variable that is greater then 0.
 */
 
-extern "C" uchar *get_key_conn(user_conn *buff, size_t *length,
-            my_bool not_used __attribute__((unused)))
+extern "C" {
+static uchar *get_key_conn(user_conn *buff, size_t *length,
+                           my_bool not_used __attribute__((unused)))
 {
   *length= buff->len;
   return (uchar*) buff->user;
 }
 
 
-extern "C" void free_user(struct user_conn *uc)
+static void free_user(struct user_conn *uc)
 {
   my_free(uc);
 }
+} // extern "C"
+#endif
 
 
 void init_max_user_conn(void)

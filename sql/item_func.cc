@@ -955,6 +955,19 @@ Item_func::contributes_to_filter(table_map read_tables,
 Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type)
 {
   Item_func *expr= down_cast<Item_func*>(fld->gcol_info->expr_item);
+
+  /*
+    In the case where the generated column expression returns JSON and
+    the predicate compares the values as strings, it is not safe to
+    replace the expression with the generated column, since the
+    indexed string values will be double-quoted. The generated column
+    expression should use the JSON_UNQUOTE function to strip off the
+    double-quotes in order to get a usable index for looking up
+    strings. See also the comment below.
+  */
+  if (type == STRING_RESULT && expr->field_type() == MYSQL_TYPE_JSON)
+    return NULL;
+
   /*
     Skip unquoting function. This is needed to address JSON string
     comparison issue. All JSON_* functions return quoted strings. In
@@ -963,7 +976,7 @@ Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type)
     Hence, the unquoting function in column expression have to be
     skipped in order to correctly match GC expr to expr in
     WHERE condition.  The exception is if user has explicitly used
-    JSON_QUOTE in WHERE condition.
+    JSON_UNQUOTE in WHERE condition.
   */
   if (!strcmp(expr->func_name(),"json_unquote") &&
       strcmp((*func)->func_name(),"json_unquote"))
@@ -1871,7 +1884,7 @@ void Item_func_additive_op::result_precision()
 
 /**
   The following function is here to allow the user to force
-  subtraction of UNSIGNED BIGINT to return negative values.
+  subtraction of UNSIGNED BIGINT/DECIMAL to return negative values.
 */
 
 void Item_func_minus::fix_length_and_dec()
@@ -1967,15 +1980,29 @@ my_decimal *Item_func_minus::decimal_op(my_decimal *decimal_value)
 
   val1= args[0]->val_decimal(&value1);
   if ((null_value= args[0]->null_value))
-    return 0;
+    return NULL;
+
   val2= args[1]->val_decimal(&value2);
-  if (!(null_value= (args[1]->null_value ||
-                     (check_decimal_overflow(my_decimal_sub(E_DEC_FATAL_ERROR &
-                                                            ~E_DEC_OVERFLOW,
-                                                            decimal_value, val1,
-                                                            val2)) > 3))))
-    return decimal_value;
-  return 0;
+  if ((null_value= args[1]->null_value))
+    return NULL;
+
+  if ((null_value=
+       check_decimal_overflow(my_decimal_sub(E_DEC_FATAL_ERROR &
+                                             ~E_DEC_OVERFLOW,
+                                             decimal_value, val1, val2)) > 3))
+    return NULL;
+
+  /*
+   Allow sign mismatch only if sql_mode includes MODE_NO_UNSIGNED_SUBTRACTION
+   See Item_func_minus::fix_length_and_dec.
+  */
+  if (unsigned_flag && decimal_value->sign())
+  {
+    null_value= true;
+    raise_decimal_overflow();
+    return NULL;
+  }
+  return decimal_value;
 }
 
 

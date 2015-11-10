@@ -943,8 +943,7 @@ have_conn:
 
 	/* If flush is running, then wait for it complete. */
 	if (conn_data->is_flushing) {
-		/* Request flush_mutex for waiting for flush
-		completed. */
+		/* Request flush_mutex for waiting for flush completed. */
 		pthread_mutex_lock(&engine->flush_mutex);
 		pthread_mutex_unlock(&engine->flush_mutex);
 	}
@@ -2289,9 +2288,6 @@ innodb_flush(
 		return(ENGINE_SUCCESS);
 	}
 
-	/* Commit any previous work on this connection */
-	innodb_api_cursor_reset(innodb_eng, conn_data, CONN_OP_FLUSH, true);
-
 	if (!innodb_flush_sync_conn(innodb_eng, cookie, true)) {
 		pthread_mutex_unlock(&innodb_eng->flush_mutex);
 		pthread_mutex_unlock(&innodb_eng->conn_mutex);
@@ -2299,6 +2295,7 @@ innodb_flush(
 		return(ENGINE_TMPFAIL);
 	}
 
+	meta_info = conn_data->conn_meta;
 	ib_err = innodb_api_flush(innodb_eng, conn_data,
 				  meta_info->col_info[CONTAINER_DB].col_name,
 			          meta_info->col_info[CONTAINER_TABLE].col_name);

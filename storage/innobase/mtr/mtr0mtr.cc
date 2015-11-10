@@ -30,9 +30,10 @@ Created 11/26/1995 Heikki Tuuri
 #include "page0types.h"
 #include "mtr0log.h"
 #include "log0log.h"
-#include "row0trunc.h"
+#include "trx0purge.h"
 
 #include "log0recv.h"
+#include "fsp0sysspace.h"
 
 #ifdef UNIV_NONINL
 #include "mtr0mtr.ic"
@@ -590,7 +591,7 @@ mtr_t::x_lock_space(ulint space_id, const char* file, ulint line)
 		ut_ad(space->purpose == FIL_TYPE_TEMPORARY
 		      || space->purpose == FIL_TYPE_IMPORT
 		      || space->redo_skipped_count > 0
-		      || srv_is_tablespace_truncated(space->id));
+		      || undo::Truncate::is_tablespace_truncated(space->id));
 	} else {
 		/* called from trx_rseg_create() */
 		space = m_impl.m_undo_space = fil_space_get(space_id);
@@ -876,6 +877,21 @@ mtr_t::release_free_extents(ulint n_reserved)
 	space->release_free_extents(n_reserved);
 }
 
+/** Look up the tablespace for the given space_id, that
+is being modified by the mini-transaction.
+@param[in]	space_id	tablespace identifier.
+@return tablespace, or NULL if not found */
+fil_space_t*
+mtr_t::space(ulint space_id) const
+{
+	fil_space_t*	space = m_impl.space(space_id);
+	if (space == NULL) {
+		ut_ad(space_id == srv_tmp_space.space_id());
+		space = fil_space_get(space_id);
+	}
+	return(space);
+}
+
 #ifdef UNIV_DEBUG
 /** Check if memo contains the given item.
 @return	true if contains */
@@ -926,7 +942,7 @@ struct FlaggedCheck {
 };
 
 /** Check if memo contains the given item.
-@param object		object to search
+@param ptr		object to search
 @param flags		specify types of object (can be ORred) of
 			MTR_MEMO_PAGE_S_FIX ... values
 @return true if contains */

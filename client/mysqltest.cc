@@ -3063,7 +3063,7 @@ static void do_source(struct st_command *command)
 static FILE* my_popen(DYNAMIC_STRING *ds_cmd, const char *mode,
                       struct st_command *command)
 {
-#if _WIN32
+#ifdef _WIN32
   /*
     --execw is for tests executing commands containing non-ASCII characters.
 

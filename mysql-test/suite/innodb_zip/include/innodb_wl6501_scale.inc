@@ -82,6 +82,7 @@ select count(*) from t2;
 select count(*) from t3;
 #
 truncate table t2;
+--echo # WL#7811/WL#7743/WL#7141 TODO: Remove the warnings!
 truncate table t3;
 select count(*) from t1;
 select count(*) from t2;

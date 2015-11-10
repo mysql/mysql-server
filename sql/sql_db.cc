@@ -40,6 +40,10 @@
 #include "sql_table.h"       // build_table_filename
 #include "table.h"           // TABLE_LIST
 
+#include "dd/dd_schema.h"               // dd::create_schema
+#include "dd/iterator.h"                // dd::Iterator
+#include "dd/cache/dictionary_client.h" // Dictionary_client
+
 #ifdef _WIN32
 #include <direct.h>
 #endif
@@ -49,6 +53,9 @@
 
 static const size_t MAX_DROP_TABLE_Q_LEN= 1024;
 
+/*
+  .frm is left in this list so that any orphan files can be removed on upgrade.
+*/
 const char *del_exts[]= {".frm", ".BAK", ".TMD", ".opt", ".OLD", ".cfg", NullS};
 static TYPELIB deletable_extentions=
 {array_elements(del_exts)-1,"del_exts", del_exts, NULL};
@@ -59,41 +66,12 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
                                               TABLE_LIST **tables,
                                               bool *found_other_files);
 
-long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path);
+static long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path);
 static my_bool rm_dir_w_symlink(const char *org_path, my_bool send_error);
 static void mysql_change_db_impl(THD *thd,
                                  const LEX_CSTRING &new_db_name,
                                  ulong new_db_access,
                                  const CHARSET_INFO *new_db_charset);
-
-
-/* Database options hash */
-static HASH dboptions;
-static my_bool dboptions_init= 0;
-static mysql_rwlock_t LOCK_dboptions;
-
-/* Structure for database options */
-typedef struct my_dbopt_st
-{
-  char *name;			/* Database name                  */
-  uint name_length;		/* Database length name           */
-  const CHARSET_INFO *charset;	/* Database default character set */
-} my_dbopt_t;
-
-
-/*
-  Function we use in the creation of our hash to get key.
-*/
-
-extern "C" uchar* dboptions_get_key(my_dbopt_t *opt, size_t *length,
-                                    my_bool not_used);
-
-uchar* dboptions_get_key(my_dbopt_t *opt, size_t *length,
-                         my_bool not_used __attribute__((unused)))
-{
-  *length= opt->name_length;
-  return (uchar*) opt->name;
-}
 
 
 /*
@@ -113,420 +91,56 @@ static inline int write_to_binlog(THD *thd, char *query, size_t q_len,
 } 
 
 
-/*
-  Function to free dboptions hash element
-*/
-
-extern "C" void free_dbopt(void *dbopt);
-
-void free_dbopt(void *dbopt)
-{
-  my_free(dbopt);
-}
-
-#ifdef HAVE_PSI_INTERFACE
-static PSI_rwlock_key key_rwlock_LOCK_dboptions;
-
-static PSI_rwlock_info all_database_names_rwlocks[]=
-{
-  { &key_rwlock_LOCK_dboptions, "LOCK_dboptions", PSI_FLAG_GLOBAL}
-};
-
-static void init_database_names_psi_keys(void)
-{
-  const char* category= "sql";
-  int count;
-
-  count= array_elements(all_database_names_rwlocks);
-  mysql_rwlock_register(category, all_database_names_rwlocks, count);
-}
-#endif
-
-/**
-  Initialize database option cache.
-
-  @note Must be called before any other database function is called.
-
-  @retval  0	ok
-  @retval  1	Fatal error
-*/
-
-bool my_dboptions_cache_init(void)
-{
-#ifdef HAVE_PSI_INTERFACE
-  init_database_names_psi_keys();
-#endif
-
-  bool error= 0;
-  mysql_rwlock_init(key_rwlock_LOCK_dboptions, &LOCK_dboptions);
-  if (!dboptions_init)
-  {
-    dboptions_init= 1;
-    /*
-      For lower_case_table_names=0 we should use case sensitive search
-      (my_charset_bin), for 1 and 2 - case insensitive (system_charset_info).
-    */
-    error= my_hash_init(&dboptions, lower_case_table_names ?
-                        system_charset_info : &my_charset_bin,
-                        32, 0, 0, (my_hash_get_key) dboptions_get_key,
-                        free_dbopt, 0,
-                        key_memory_dboptions_hash);
-  }
-  return error;
-}
-
-
-
-/**
-  Free database option hash and locked databases hash.
-*/
-
-void my_dboptions_cache_free(void)
-{
-  if (dboptions_init)
-  {
-    dboptions_init= 0;
-    my_hash_free(&dboptions);
-    mysql_rwlock_destroy(&LOCK_dboptions);
-  }
-}
-
-
-/**
-  Cleanup cached options.
-*/
-
-void my_dbopt_cleanup(void)
-{
-  mysql_rwlock_wrlock(&LOCK_dboptions);
-  my_hash_free(&dboptions);
-  /*
-    For lower_case_table_names=0 we should use case sensitive search
-    (my_charset_bin), for 1 and 2 - case insensitive (system_charset_info).
-  */
-  my_hash_init(&dboptions, lower_case_table_names ? 
-               system_charset_info : &my_charset_bin,
-               32, 0, 0, (my_hash_get_key) dboptions_get_key,
-               free_dbopt, 0,
-               key_memory_dboptions_hash);
-  mysql_rwlock_unlock(&LOCK_dboptions);
-}
-
-
-/*
-  Find database options in the hash.
-  
-  DESCRIPTION
-    Search a database options in the hash, usings its path.
-    Fills "create" on success.
-  
-  RETURN VALUES
-    0 on success.
-    1 on error.
-*/
-
-static my_bool get_dbopt(const char *dbname, HA_CREATE_INFO *create)
-{
-  my_dbopt_t *opt;
-  size_t length;
-  my_bool error= 1;
-
-  length= strlen(dbname);
-
-  mysql_rwlock_rdlock(&LOCK_dboptions);
-  if ((opt= (my_dbopt_t*) my_hash_search(&dboptions, (uchar*) dbname, length)))
-  {
-    create->default_table_charset= opt->charset;
-    error= 0;
-  }
-  mysql_rwlock_unlock(&LOCK_dboptions);
-  return error;
-}
-
-
-/*
-  Writes database options into the hash.
-  
-  DESCRIPTION
-    Inserts database options into the hash, or updates
-    options if they are already in the hash.
-  
-  RETURN VALUES
-    0 on success.
-    1 on error.
-*/
-
-static my_bool put_dbopt(const char *dbname, HA_CREATE_INFO *create)
-{
-  my_dbopt_t *opt;
-  size_t length;
-  my_bool error= 0;
-  DBUG_ENTER("put_dbopt");
-
-  length= strlen(dbname);
-
-  mysql_rwlock_wrlock(&LOCK_dboptions);
-  if (!(opt= (my_dbopt_t*) my_hash_search(&dboptions, (uchar*) dbname,
-                                          length)))
-  { 
-    /* Options are not in the hash, insert them */
-    char *tmp_name;
-    if (!my_multi_malloc(key_memory_dboptions_hash,
-                         MYF(MY_WME | MY_ZEROFILL),
-                         &opt, sizeof(*opt), &tmp_name, length+1,
-                         NullS))
-    {
-      error= 1;
-      goto end;
-    }
-    
-    opt->name= tmp_name;
-    my_stpcpy(opt->name, dbname);
-    opt->name_length= length;
-    
-    if ((error= my_hash_insert(&dboptions, (uchar*) opt)))
-    {
-      my_free(opt);
-      goto end;
-    }
-  }
-
-  /* Update / write options in hash */
-  opt->charset= create->default_table_charset;
-
-end:
-  mysql_rwlock_unlock(&LOCK_dboptions);
-  DBUG_RETURN(error);
-}
-
-
-/*
-  Deletes database options from the hash.
-*/
-
-static void del_dbopt(const char *path)
-{
-  my_dbopt_t *opt;
-  mysql_rwlock_wrlock(&LOCK_dboptions);
-  if ((opt= (my_dbopt_t *)my_hash_search(&dboptions, (const uchar*) path,
-                                         strlen(path))))
-    my_hash_delete(&dboptions, (uchar*) opt);
-  mysql_rwlock_unlock(&LOCK_dboptions);
-}
-
-
-/*
-  Create database options file:
-
-  DESCRIPTION
-    Currently database default charset is only stored there.
-
-  RETURN VALUES
-  0	ok
-  1	Could not create file or write to it.  Error sent through my_error()
-*/
-
-static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
-{
-  File file;
-  char buf[256]; // Should be enough for one option
-  bool error=1;
-
-  if (!create->default_table_charset)
-    create->default_table_charset= thd->variables.collation_server;
-
-  if (put_dbopt(path, create))
-    return 1;
-
-  if ((file= mysql_file_create(key_file_dbopt, path, CREATE_MODE,
-                               O_RDWR | O_TRUNC, MYF(MY_WME))) >= 0)
-  {
-    ulong length;
-    length= (ulong) (strxnmov(buf, sizeof(buf)-1, "default-character-set=",
-                              create->default_table_charset->csname,
-                              "\ndefault-collation=",
-                              create->default_table_charset->name,
-                              "\n", NullS) - buf);
-
-    /* Error is written by mysql_file_write */
-    if (!mysql_file_write(file, (uchar*) buf, length, MYF(MY_NABP+MY_WME)))
-      error=0;
-    mysql_file_close(file, MYF(0));
-  }
-  return error;
-}
-
-
-/*
-  Load database options file
-
-  load_db_opt()
-  path		Path for option file
-  create	Where to store the read options
-
-  DESCRIPTION
-
-  RETURN VALUES
-  0	File found
-  1	No database file or could not open it
-
-*/
-
-static bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
-{
-  File file;
-  char buf[256];
-  DBUG_ENTER("load_db_opt");
-  bool error=1;
-  uint nbytes;
-
-  memset(create, 0, sizeof(*create));
-  create->default_table_charset= thd->variables.collation_server;
-
-  /* Check if options for this database are already in the hash */
-  if (!get_dbopt(path, create))
-    DBUG_RETURN(0);
-
-  /* Otherwise, load options from the .opt file */
-  if ((file= mysql_file_open(key_file_dbopt,
-                             path, O_RDONLY | O_SHARE, MYF(0))) < 0)
-    goto err1;
-
-  IO_CACHE cache;
-  if (init_io_cache(&cache, file, IO_SIZE, READ_CACHE, 0, 0, MYF(0)))
-    goto err2;
-
-  while ((int) (nbytes= my_b_gets(&cache, (char*) buf, sizeof(buf))) > 0)
-  {
-    char *pos= buf+nbytes-1;
-    /* Remove end space and control characters */
-    while (pos > buf && !my_isgraph(&my_charset_latin1, pos[-1]))
-      pos--;
-    *pos=0;
-    if ((pos= strchr(buf, '=')))
-    {
-      if (!strncmp(buf,"default-character-set", (pos-buf)))
-      {
-        /*
-           Try character set name, and if it fails
-           try collation name, probably it's an old
-           4.1.0 db.opt file, which didn't have
-           separate default-character-set and
-           default-collation commands.
-        */
-        if (!(create->default_table_charset=
-        get_charset_by_csname(pos+1, MY_CS_PRIMARY, MYF(0))) &&
-            !(create->default_table_charset=
-              get_charset_by_name(pos+1, MYF(0))))
-        {
-          sql_print_error("Error while loading database options: '%s':",path);
-          sql_print_error(ER_DEFAULT(ER_UNKNOWN_CHARACTER_SET),pos+1);
-          create->default_table_charset= default_charset_info;
-        }
-      }
-      else if (!strncmp(buf,"default-collation", (pos-buf)))
-      {
-        if (!(create->default_table_charset= get_charset_by_name(pos+1,
-                                                           MYF(0))))
-        {
-          sql_print_error("Error while loading database options: '%s':",path);
-          sql_print_error(ER_DEFAULT(ER_UNKNOWN_COLLATION),pos+1);
-          create->default_table_charset= default_charset_info;
-        }
-      }
-    }
-  }
-  /*
-    Put the loaded value into the hash.
-    Note that another thread could've added the same
-    entry to the hash after we called get_dbopt(),
-    but it's not an error, as put_dbopt() takes this
-    possibility into account.
-  */
-  error= put_dbopt(path, create);
-
-  end_io_cache(&cache);
-err2:
-  mysql_file_close(file, MYF(0));
-err1:
-  DBUG_RETURN(error);
-}
-
-
-/*
-  Retrieve database options by name. Load database options file or fetch from
-  cache.
-
-  SYNOPSIS
-    load_db_opt_by_name()
-    db_name         Database name
-    db_create_info  Where to store the database options
-
-  DESCRIPTION
-    load_db_opt_by_name() is a shortcut for load_db_opt().
-
-  NOTE
-    Although load_db_opt_by_name() (and load_db_opt()) returns status of
-    the operation, it is useless usually and should be ignored. The problem
-    is that there are 1) system databases ("mysql") and 2) virtual
-    databases ("information_schema"), which do not contain options file.
-    So, load_db_opt[_by_name]() returns FALSE for these databases, but this
-    is not an error.
-
-    load_db_opt[_by_name]() clears db_create_info structure in any case, so
-    even on failure it contains valid data. So, common use case is just
-    call load_db_opt[_by_name]() without checking return value and use
-    db_create_info right after that.
-
-  RETURN VALUES (read NOTE!)
-    FALSE   Success
-    TRUE    Failed to retrieve options
-*/
-
-bool load_db_opt_by_name(THD *thd, const char *db_name,
-                         HA_CREATE_INFO *db_create_info)
-{
-  char db_opt_path[FN_REFLEN + 1];
-
-  /*
-    Pass an empty file name, and the database options file name as extension
-    to avoid table name to file name encoding.
-  */
-  (void) build_table_filename(db_opt_path, sizeof(db_opt_path) - 1,
-                              db_name, "", MY_DB_OPT_FILE, 0);
-
-  return load_db_opt(thd, db_opt_path, db_create_info);
-}
-
-
 /**
   Return default database collation.
 
-  @param thd     Thread context.
-  @param db_name Database name.
+  @param       thd          Thread context.
+  @param       db_name      Database name.
+  @param [out] collation    Charset object pointer if object exists else NULL.
 
-  @return CHARSET_INFO object. The operation always return valid character
-    set, even if the database does not exist.
+  @return      false No error.
+               true  Error (thd->is_error is assumed to be set.)
 */
 
-const CHARSET_INFO *get_default_db_collation(THD *thd, const char *db_name)
+bool get_default_db_collation(THD *thd,
+                              const char *db_name,
+                              const CHARSET_INFO **collation)
 {
-  HA_CREATE_INFO db_info;
+  // Getting the default collation for the DD schema must be possible
+  // even before the schemata table is created for server install to
+  // be possible.
+  // TODO: Get mysql schema meta data from the bootstrapper in wl#6394
 
-  if (thd->db().str != NULL && strcmp(db_name, thd->db().str) == 0)
-    return thd->db_charset;
+  *collation= NULL;
+  if (my_strcasecmp(system_charset_info,
+                    MYSQL_SCHEMA_NAME.str, db_name) == 0)
+  {
+    *collation= default_charset_info;
+    return false;
+  }
 
-  load_db_opt_by_name(thd, db_name, &db_info);
+  // We must make sure the schema is released and unlocked in the right order.
+  dd::Schema_MDL_locker mdl_handler(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Schema *sch_obj= NULL;
+  if (mdl_handler.ensure_locked(db_name) ||
+      thd->dd_client()->acquire<dd::Schema>(db_name, &sch_obj))
+    return true;
 
-  /*
-    NOTE: even if load_db_opt_by_name() fails,
-    db_info.default_table_charset contains valid character set
-    (collation_server). We should not fail if load_db_opt_by_name() fails,
-    because it is valid case. If a database has been created just by
-    "mkdir", it does not contain db.opt file, but it is valid database.
-  */
+  DEBUG_SYNC(thd, "acquired_schema_while_getting_collation");
 
-  return db_info.default_table_charset;
+  if (sch_obj)
+  {
+    *collation= get_charset(sch_obj->default_collation_id(), MYF(0));
+    if (*collation == NULL)
+    {
+      char buff[STRING_BUFFER_USUAL_SIZE];
+      my_error(ER_UNKNOWN_COLLATION, MYF(0),
+               llstr(sch_obj->default_collation_id(), buff));
+      return true;
+    }
+  }
+  return false;
 }
 
 
@@ -558,7 +172,19 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     DBUG_RETURN(true);
   }
 
-  if (lock_schema_name(thd, db))
+  /*
+    When creating the schema, we must lock the schema name without case (for
+    correct MDL locking) when l_c_t_n == 2.
+  */
+  char name_buf[NAME_LEN + 1];
+  const char *lock_db_name= db;
+  if (lower_case_table_names == 2)
+  {
+    my_stpcpy(name_buf, db);
+    my_casedn_str(&my_charset_utf8_tolower_ci, name_buf);
+    lock_db_name= name_buf;
+  }
+  if (lock_schema_name(thd, lock_db_name))
     DBUG_RETURN(true);
 
   /* Check directory */
@@ -574,6 +200,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   path[path_len-1]= 0;                    // Remove last '/' from path
 
   MY_STAT stat_info;
+  bool store_in_dd= true;
   if (mysql_file_stat(key_file_misc, path, &stat_info, MYF(0)))
   {
     if (!(create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS))
@@ -584,6 +211,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     push_warning_printf(thd, Sql_condition::SL_NOTE,
                         ER_DB_CREATE_EXISTS,
                         ER_THD(thd, ER_DB_CREATE_EXISTS), db);
+    store_in_dd= false;
   }
   else
   {
@@ -598,25 +226,6 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     {
       my_error(ER_CANT_CREATE_DB, MYF(0), db, my_errno());
       DBUG_RETURN(true);
-    }
-
-    path[path_len-1]= FN_LIBCHAR;
-    strmake(path+path_len, MY_DB_OPT_FILE, sizeof(path)-path_len-1);
-    if (write_db_opt(thd, path, create_info))
-    {
-      /*
-        Could not create options file.
-        Restore things to beginning.
-      */
-      path[path_len]= 0;
-      if (rmdir(path) >= 0)
-        DBUG_RETURN(true);
-      /*
-        We come here when we managed to create the database, but not the option
-        file.  In this case it's best to just continue as if nothing has
-        happened.  (This is a very unlikely senario)
-      */
-      thd->clear_error();
     }
   }
 
@@ -654,7 +263,38 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
       metadata lock on the schema
     */
     if (mysql_bin_log.write_event(&qinfo))
+    {
+      rm_dir_w_symlink(path, true);
       DBUG_RETURN(true);
+    }
+  }
+
+  //
+  // Create schema in DD
+  //
+
+  if (store_in_dd)
+  {
+    if (!create_info->default_table_charset)
+      create_info->default_table_charset= thd->variables.collation_server;
+
+    if (dd::create_schema(thd, db, create_info))
+    {
+      /*
+        We could be here due an deadlock or some error reported
+        by DD API framework. We remove the database directory
+        which we just created above.
+
+        It is expected that rm_dir_w_symlink() would not fail as
+        we already old MDL lock on database and no parallel
+        thread can remove the table before the current create
+        database operation. Even if the call fails due to some
+        other error we ignore the error as we anyway return
+        failure (true) here.
+      */
+      rm_dir_w_symlink(path, true);
+      DBUG_RETURN(true);
+    }
   }
 
   my_ok(thd, 1);
@@ -671,15 +311,18 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   if (lock_schema_name(thd, db))
     DBUG_RETURN(true);
 
+  if (!create_info->default_table_charset)
+    create_info->default_table_charset= thd->variables.collation_server;
+
   /*
-     Recreate db options file: /dbpath/.db.opt
-     We pass MY_DB_OPT_FILE as "extension" to avoid
-     "table name to file name" encoding.
+    Do the change in the dd first to catch failures that should prevent
+    writing binlog.
   */
-  char path[FN_REFLEN+16];
-  build_table_filename(path, sizeof(path) - 1, db, "", MY_DB_OPT_FILE, 0);
-  if (write_db_opt(thd, path, create_info))
+  if (dd::alter_schema(thd, db, create_info))
+  {
+    // The error has been reported already.
     DBUG_RETURN(true);
+  }
 
   /* Change options if current database is being altered. */
 
@@ -715,6 +358,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     if (mysql_bin_log.write_event(&qinfo))
       DBUG_RETURN(true);
   }
+
   my_ok(thd, 1);
   DBUG_RETURN(false);
 }
@@ -749,17 +393,18 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
   Drop_table_error_handler err_handler;
   DBUG_ENTER("mysql_rm_db");
 
-
   if (lock_schema_name(thd, db.str))
     DBUG_RETURN(true);
 
-  size_t length= build_table_filename(path, sizeof(path) - 1, db.str, "", "", 0);
-  my_stpcpy(path+length, MY_DB_OPT_FILE);		// Append db option file name
-  del_dbopt(path);				// Remove dboption hash entry
-  path[length]= '\0';				// Remove file name
+  build_table_filename(path, sizeof(path) - 1, db.str, "", "", 0);
 
   /* See if the directory exists */
-  if (!(dirp= my_dir(path,MYF(MY_DONT_SORT))))
+  bool sch_exists;
+  if (dd::schema_exists(thd, db.str, &sch_exists))
+    DBUG_RETURN(true);
+
+  if (!(dirp= my_dir(path,MYF(MY_DONT_SORT))) ||
+      !sch_exists)
   {
     my_dirend(dirp);
     if (!if_exists)
@@ -824,7 +469,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
         (error= mysql_rm_table_no_locks(thd, tables, true, false, true, true))))
   {
     /*
-      We temporarily disable the binary log while dropping the objects
+      We temporarily disable the binary log while dropping SPs
       in the database. Since the DROP DATABASE statement is always
       replicated as a statement, execution of it will drop all objects
       in the database on the slave as well, so there is no need to
@@ -862,6 +507,20 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
       error= rm_dir_w_symlink(path, true);
   }
   thd->pop_internal_handler();
+
+  //
+  // Remove schema in DD
+  //
+
+  /*
+    If database exists and there was no error we should
+    remove DD entry.
+  */
+  if (!error)
+  {
+    if (dd::drop_schema(thd, db.str))
+      DBUG_RETURN(true);
+  }
 
 update_binlog:
   if (mysql_bin_log.is_open())
@@ -910,8 +569,11 @@ update_binlog:
       DBUG_PRINT("info", ("DROP DATABASE failed; generating DROP TABLE statement(s) in the binlog"));
 
       if (!(query= (char*) thd->alloc(MAX_DROP_TABLE_Q_LEN)))
+      {
         // @todo: abort on out of memory instead
-        DBUG_RETURN(true); /* not much else we can do */
+        /* not much else we can do */
+        DBUG_RETURN(true); /* purecov: inspected */
+      }
       query_pos= query_data_start= my_stpcpy(query,"DROP TABLE IF EXISTS ");
       query_end= query + MAX_DROP_TABLE_Q_LEN;
 
@@ -1000,6 +662,7 @@ update_binlog:
     }
   }
 
+  thd->server_status|= SERVER_STATUS_DB_DROPPED;
   my_ok(thd, deleted_tables);
   DBUG_RETURN(false);
 }
@@ -1061,62 +724,65 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
         *found_other_files= true;
       continue;
     }
-    /* just for safety we use files_charset_info */
-    if (db && !my_strcasecmp(files_charset_info,
-                             extension, reg_ext))
+    strxmov(filePath, path, "/", file->name, NullS);
+    /*
+      We ignore ENOENT error in order to skip files that was deleted
+      by concurrently running statement like REAPIR TABLE ...
+    */
+    if (my_delete_with_symlink(filePath, MYF(0)) &&
+        my_errno() != ENOENT)
     {
-      /* Drop the table nicely */
-      *extension= 0;			// Remove extension
-      TABLE_LIST *table_list=(TABLE_LIST*)
-                              thd->mem_calloc(sizeof(*table_list) + 
-                                          strlen(db) + 1 +
-                                          strlen(file->name) + 1);
-
-      if (!table_list)
-        DBUG_RETURN(true);
-      table_list->db= (char*) (table_list+1);
-      table_list->db_length= my_stpcpy(const_cast<char*>(table_list->db),
-                                       db) - table_list->db;
-      table_list->table_name= table_list->db + table_list->db_length + 1;
-      table_list->table_name_length= filename_to_tablename(file->name,
-                                     const_cast<char*>(table_list->table_name),
-                                     strlen(file->name) + 1);
-      table_list->open_type= OT_BASE_ONLY;
-
-      /* To be able to correctly look up the table in the table cache. */
-      if (lower_case_table_names)
-        table_list->table_name_length= my_casedn_str(files_charset_info,
-                                    const_cast<char*>(table_list->table_name));
-
-      table_list->alias= table_list->table_name;	// If lower_case_table_names=2
-      table_list->internal_tmp_table= is_prefix(file->name, tmp_file_prefix);
-      MDL_REQUEST_INIT(&table_list->mdl_request,
-                       MDL_key::TABLE, table_list->db,
-                       table_list->table_name, MDL_EXCLUSIVE,
-                       MDL_TRANSACTION);
-      /* Link into list */
-      (*tot_list_next_local)= table_list;
-      (*tot_list_next_global)= table_list;
-      tot_list_next_local= &table_list->next_local;
-      tot_list_next_global= &table_list->next_global;
-    }
-    else
-    {
-      strxmov(filePath, path, "/", file->name, NullS);
-      /*
-        We ignore ENOENT error in order to skip files that was deleted
-        by concurrently running statement like REAPIR TABLE ...
-      */
-      if (my_delete_with_symlink(filePath, MYF(0)) &&
-          my_errno() != ENOENT)
-      {
-        char errbuf[MYSYS_STRERROR_SIZE];
-        my_error(EE_DELETE, MYF(0), filePath,
-                 my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
-        DBUG_RETURN(true);
-      }
+      char errbuf[MYSYS_STRERROR_SIZE];
+      my_error(EE_DELETE, MYF(0), filePath,
+               my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
+      DBUG_RETURN(true);
     }
   }
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Schema *sch_obj= NULL;
+  if (thd->dd_client()->acquire<dd::Schema>(db, &sch_obj))
+    DBUG_RETURN(true);
+
+  DBUG_ASSERT(sch_obj);
+
+  std::auto_ptr<dd::Iterator<const dd::Abstract_table> > iter;
+  if (thd->dd_client()->fetch_schema_components(sch_obj, &iter))
+    DBUG_RETURN(true);
+
+  const dd::Abstract_table *table;
+  while ((table= iter->next()) != NULL)
+  {
+    TABLE_LIST *table_list=(TABLE_LIST*)
+      thd->mem_calloc(sizeof(*table_list));
+
+    if (!table_list)
+      DBUG_RETURN(true); /* purecov: inspected */
+
+    table_list->db= thd->mem_strdup(db);
+    table_list->db_length= strlen(db);
+    table_list->table_name= thd->mem_strdup(table->name().c_str());
+    table_list->table_name_length= table->name().length();
+
+    table_list->open_type= OT_BASE_ONLY;
+
+    /* To be able to correctly look up the table in the table cache. */
+    if (lower_case_table_names)
+      my_casedn_str(files_charset_info,
+                    const_cast<char*>(table_list->table_name));
+
+    table_list->alias= table_list->table_name;	// If lower_case_table_names=2
+    table_list->internal_tmp_table= is_prefix(table->name().c_str(), tmp_file_prefix);
+    MDL_REQUEST_INIT(&table_list->mdl_request,
+                     MDL_key::TABLE, table_list->db,
+                     table_list->table_name, MDL_EXCLUSIVE,
+                     MDL_TRANSACTION);
+    /* Link into list */
+    (*tot_list_next_local)= table_list;
+    (*tot_list_next_global)= table_list;
+    tot_list_next_local= &table_list->next_local;
+    tot_list_next_global= &table_list->next_global;
+  }
+
   *tables= tot_list;
   DBUG_RETURN(false);
 }
@@ -1450,7 +1116,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
 
   Security_context *sctx= thd->security_context();
   ulong db_access= sctx->db_access();
-  const CHARSET_INFO *db_default_cl;
+  const CHARSET_INFO *db_default_cl= NULL;
 
   DBUG_ENTER("mysql_change_db");
   DBUG_PRINT("enter",("name: '%s'", new_db_name.str));
@@ -1591,7 +1257,14 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
     attributes and will be freed in THD::~THD().
   */
 
-  db_default_cl= get_default_db_collation(thd, new_db_file_name.str);
+  if (get_default_db_collation(thd, new_db_file_name.str,
+                               &db_default_cl))
+  {
+    DBUG_ASSERT(thd->is_error() || thd->killed);
+    DBUG_RETURN(TRUE);
+  }
+
+  db_default_cl= db_default_cl ? db_default_cl : thd->collation();
 
   new_db_file_name_cstr.str= new_db_file_name.str;
   new_db_file_name_cstr.length= new_db_file_name.length;

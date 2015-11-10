@@ -112,9 +112,9 @@ Event_creation_ctx::load_from_db(THD *thd,
 
   const CHARSET_INFO *client_cs;
   const CHARSET_INFO *connection_cl;
-  const CHARSET_INFO *db_cl;
+  const CHARSET_INFO *db_cl= NULL;
 
-  bool invalid_creation_ctx= FALSE;
+  bool invalid_creation_ctx= false;
 
   if (load_charset(event_mem_root,
                    event_tbl->field[ET_FIELD_CHARACTER_SET_CLIENT],
@@ -126,7 +126,7 @@ Event_creation_ctx::load_from_db(THD *thd,
                       db_name,
                       event_name);
 
-    invalid_creation_ctx= TRUE;
+    invalid_creation_ctx= true;
   }
 
   if (load_collation(event_mem_root,
@@ -139,7 +139,7 @@ Event_creation_ctx::load_from_db(THD *thd,
                       db_name,
                       event_name);
 
-    invalid_creation_ctx= TRUE;
+    invalid_creation_ctx= true;
   }
 
   if (load_collation(event_mem_root,
@@ -152,7 +152,7 @@ Event_creation_ctx::load_from_db(THD *thd,
                       db_name,
                       event_name);
 
-    invalid_creation_ctx= TRUE;
+    invalid_creation_ctx= true;
   }
 
   /*
@@ -160,12 +160,28 @@ Event_creation_ctx::load_from_db(THD *thd,
     from the disk.
   */
 
-  if (!db_cl)
-    db_cl= get_default_db_collation(thd, db_name);
+ if (db_cl == NULL &&
+     get_default_db_collation(thd, db_name, &db_cl))
+ {
+    DBUG_ASSERT(thd->is_error() || thd->killed);
+    sql_print_warning("Event '%s'.'%s': "
+                      "get_default_db_collation() failed with error : %d "
+                      "error message: %s",
+                      db_name,
+                      event_name,
+                      thd->get_stmt_da()->mysql_errno(),
+                      thd->get_stmt_da()->message_text());
+    invalid_creation_ctx= true;
+    *ctx= NULL;
+ }
+ else
+ {
+    db_cl= db_cl ? db_cl : thd->collation();
 
-  /* Create the context. */
+    /* Create the context. */
 
-  *ctx= new Event_creation_ctx(client_cs, connection_cl, db_cl);
+    *ctx= new Event_creation_ctx(client_cs, connection_cl, db_cl);
+ }
 
   return invalid_creation_ctx;
 }
@@ -421,10 +437,10 @@ Event_job_data::load_from_row(THD *thd, TABLE *table)
   DBUG_ENTER("Event_job_data::load_from_row");
 
   if (!table)
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   if (table->s->fields < ET_FIELD_COUNT)
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   if (load_string_fields(table->field,
                          ET_FIELD_DB, &dbname,
@@ -436,10 +452,13 @@ Event_job_data::load_from_row(THD *thd, TABLE *table)
     DBUG_RETURN(TRUE);
 
   if (load_time_zone(thd, tz_name))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   Event_creation_ctx::load_from_db(thd, &mem_root, dbname.str, name.str, table,
                                    &creation_ctx);
+
+  if (creation_ctx == NULL)
+    DBUG_RETURN(true);
 
   ptr= strchr(definer.str, '@');
 
@@ -636,6 +655,9 @@ Event_timed::load_from_row(THD *thd, TABLE *table)
                         ER_THD(thd, ER_EVENT_INVALID_CREATION_CTX),
                         (const char *) dbname.str,
                         (const char *) name.str);
+
+    if (creation_ctx == NULL)
+      DBUG_RETURN(TRUE);
   }
 
   ptr= strchr(definer.str, '@');

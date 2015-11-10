@@ -246,7 +246,6 @@ as they are not shared and so there is no need of latching.
 @param[in]	from_left	true if open to low end, false if open
 				to high end.
 @param[in]	index		index
-@param[in]	latch_mode	latch mode
 @param[in,out]	cursor		cursor
 @param[in]	file		file name
 @param[in]	line		line where called
@@ -794,8 +793,8 @@ btr_copy_externally_stored_field(
 
 /** Copies an externally stored field of a record to mem heap.
 @param[in]	rec		record in a clustered index; must be
-protected by a lock or a page latch
-@param[in]	offset		array returned by rec_get_offsets()
+				protected by a lock or a page latch
+@param[in]	offsets		array returned by rec_get_offsets()
 @param[in]	page_size	BLOB page size
 @param[in]	no		field number
 @param[out]	len		length of the field

@@ -1003,7 +1003,7 @@ dict_create_index_tree_step(
 		node->page_no = btr_create(
 			index->type, index->space,
 			dict_table_page_size(index->table),
-			index->id, index, NULL, &mtr);
+			index->id, index, &mtr);
 
 		if (node->page_no == FIL_NULL) {
 			err = DB_OUT_OF_FILE_SPACE;
@@ -1059,7 +1059,7 @@ dict_create_index_tree_in_mem(
 	page_no = btr_create(
 		index->type, index->space,
 		dict_table_page_size(index->table),
-		index->id, index, NULL, &mtr);
+		index->id, index, &mtr);
 
 	index->page = page_no;
 	index->trx_id = trx->id;
@@ -1131,32 +1131,25 @@ dict_drop_index_tree(
 		return(false);
 	}
 
-	/* If tablespace is scheduled for truncate, do not try to drop
-	the indexes in that tablespace. There is a truncate fixup action
-	which will take care of it. */
-	if (srv_is_tablespace_truncated(space)) {
-		return(false);
-	}
-
 	btr_free_if_exists(page_id_t(space, root_page_no), page_size,
 			   mach_read_from_8(ptr), mtr);
 
 	return(true);
 }
 
-/*******************************************************************//**
-Drops the index tree but don't update SYS_INDEXES table. */
+/** Drop an index tree belonging to a temporary table.
+@param[in]	index		index in a temporary table
+@param[in]	root_page_no	index root page number */
 void
-dict_drop_index_tree_in_mem(
-/*========================*/
-	const dict_index_t*	index,		/*!< in: index */
-	ulint			page_no)	/*!< in: index page-no */
+dict_drop_temporary_table_index(
+	const dict_index_t*	index,
+	ulint			root_page_no)
 {
 	ut_ad(mutex_own(&dict_sys->mutex)
 	      || dict_table_is_intrinsic(index->table));
 	ut_ad(dict_table_is_temporary(index->table));
+	ut_ad(index->page == FIL_NULL);
 
-	ulint			root_page_no = page_no;
 	ulint			space = index->space;
 	bool			found;
 	const page_size_t	page_size(fil_space_get_page_size(space,
@@ -1168,165 +1161,6 @@ dict_drop_index_tree_in_mem(
 	if (root_page_no != FIL_NULL && found) {
 		btr_free(page_id_t(space, root_page_no), page_size);
 	}
-}
-
-/*******************************************************************//**
-Recreate the index tree associated with a row in SYS_INDEXES table.
-@return	new root page number, or FIL_NULL on failure */
-ulint
-dict_recreate_index_tree(
-/*=====================*/
-	const dict_table_t*
-			table,	/*!< in/out: the table the index belongs to */
-	btr_pcur_t*	pcur,	/*!< in/out: persistent cursor pointing to
-				record in the clustered index of
-				SYS_INDEXES table. The cursor may be
-				repositioned in this call. */
-	mtr_t*		mtr)	/*!< in/out: mtr having the latch
-				on the record page. */
-{
-	ut_ad(mutex_own(&dict_sys->mutex));
-	ut_a(!dict_table_is_comp(dict_sys->sys_indexes));
-
-	ulint		len;
-	rec_t*		rec = btr_pcur_get_rec(pcur);
-
-	const byte*	ptr = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_INDEXES__PAGE_NO, &len);
-
-	ut_ad(len == 4);
-
-	ulint	root_page_no = mtr_read_ulint(ptr, MLOG_4BYTES, mtr);
-
-	ptr = rec_get_nth_field_old(rec, DICT_FLD__SYS_INDEXES__SPACE, &len);
-	ut_ad(len == 4);
-
-	ut_a(table->space == mtr_read_ulint(ptr, MLOG_4BYTES, mtr));
-
-	ulint			space = table->space;
-	bool			found;
-	const page_size_t	page_size(fil_space_get_page_size(space,
-								  &found));
-
-	if (!found) {
-		/* It is a single table tablespae and the .ibd file is
-		missing: do nothing. */
-
-		ib::warn()
-			<< "Trying to TRUNCATE a missing .ibd file of table "
-			<< table->name << "!";
-
-		return(FIL_NULL);
-	}
-
-	ptr = rec_get_nth_field_old(rec, DICT_FLD__SYS_INDEXES__TYPE, &len);
-	ut_ad(len == 4);
-	ulint	type = mach_read_from_4(ptr);
-
-	ptr = rec_get_nth_field_old(rec, DICT_FLD__SYS_INDEXES__ID, &len);
-	ut_ad(len == 8);
-	space_index_t	index_id = mach_read_from_8(ptr);
-
-	/* We will need to commit the mini-transaction in order to avoid
-	deadlocks in the btr_create() call, because otherwise we would
-	be freeing and allocating pages in the same mini-transaction. */
-	btr_pcur_store_position(pcur, mtr);
-	mtr_commit(mtr);
-
-	mtr_start(mtr);
-	mtr->set_sys_modified();
-	mtr->set_named_space(space);
-	btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr);
-
-	/* Find the index corresponding to this SYS_INDEXES record. */
-	for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
-	     index != NULL;
-	     index = UT_LIST_GET_NEXT(indexes, index)) {
-		if (index->id == index_id) {
-			if (index->type & DICT_FTS) {
-				return(FIL_NULL);
-			} else {
-				root_page_no = btr_create(
-					type, space, page_size, index_id,
-					index, NULL, mtr);
-				index->page = (unsigned int) root_page_no;
-				return(root_page_no);
-			}
-		}
-	}
-
-	ib::error() << "Failed to create index with index id " << index_id
-		<< " of table " << table->name;
-
-	return(FIL_NULL);
-}
-
-/*******************************************************************//**
-Truncates the index tree but don't update SYSTEM TABLES.
-@return DB_SUCCESS or error */
-dberr_t
-dict_truncate_index_tree_in_mem(
-/*============================*/
-	dict_index_t*	index)		/*!< in/out: index */
-{
-	mtr_t		mtr;
-	bool		truncate;
-	ulint		space = index->space;
-
-	ut_ad(mutex_own(&dict_sys->mutex)
-	      || dict_table_is_intrinsic(index->table));
-	ut_ad(dict_table_is_temporary(index->table));
-
-	ulint		type = index->type;
-	ulint		root_page_no = index->page;
-
-	if (root_page_no == FIL_NULL) {
-
-		/* The tree has been freed. */
-		ib::warn() << "Trying to TRUNCATE a missing index of table "
-			<< index->table->name << "!";
-
-		truncate = false;
-	} else {
-		truncate = true;
-	}
-
-	bool			found;
-	const page_size_t	page_size(fil_space_get_page_size(space,
-								  &found));
-
-	if (!found) {
-
-		/* It is a single table tablespace and the .ibd file is
-		missing: do nothing */
-
-		ib::warn()
-			<< "Trying to TRUNCATE a missing .ibd file of table "
-			<< index->table->name << "!";
-	}
-
-	/* If table to truncate resides in its on own tablespace that will
-	be re-created on truncate then we can ignore freeing of existing
-	tablespace objects. */
-
-	if (truncate) {
-		btr_free(page_id_t(space, root_page_no), page_size);
-	}
-
-	mtr_start(&mtr);
-	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-
-	root_page_no = btr_create(
-		type, space, page_size, index->id, index, NULL, &mtr);
-
-	DBUG_EXECUTE_IF("ib_err_trunc_temp_recreate_index",
-			root_page_no = FIL_NULL;);
-
-	index->page = root_page_no;
-
-	mtr_commit(&mtr);
-
-	return(index->page == FIL_NULL ? DB_ERROR : DB_SUCCESS);
 }
 
 /*********************************************************************//**
@@ -1704,7 +1538,7 @@ dict_check_if_system_table_exists(
 	dict_table_t*	sys_table;
 	dberr_t		error = DB_SUCCESS;
 
-	ut_a(srv_get_active_thread_type() == SRV_NONE);
+	ut_a(!srv_master_thread_active());
 
 	mutex_enter(&dict_sys->mutex);
 
@@ -1744,7 +1578,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 	dberr_t		sys_foreign_err;
 	dberr_t		sys_foreign_cols_err;
 
-	ut_a(srv_get_active_thread_type() == SRV_NONE);
+	ut_a(!srv_master_thread_active());
 
 	/* Note: The master thread has not been started at this point. */
 
@@ -1874,8 +1708,6 @@ dict_create_or_check_sys_virtual()
 	trx_t*		trx;
 	my_bool		srv_file_per_table_backup;
 	dberr_t		err;
-
-	ut_a(srv_get_active_thread_type() == SRV_NONE);
 
 	/* Note: The master thread has not been started at this point. */
 	err = dict_check_if_system_table_exists(
@@ -2262,7 +2094,7 @@ dict_foreigns_has_v_base_col(
 /** Check if a column is in foreign constraint with CASCADE properties or
 SET NULL
 @param[in]	table		table
-@param[in]	fk_col_name	name for the column to be checked
+@param[in]	col_name	name for the column to be checked
 @return true if the column is in foreign constraint, otherwise, false */
 bool
 dict_foreigns_has_this_col(
@@ -2398,7 +2230,7 @@ dict_create_or_check_sys_tablespace(void)
 	dberr_t		sys_tablespaces_err;
 	dberr_t		sys_datafiles_err;
 
-	ut_a(srv_get_active_thread_type() == SRV_NONE);
+	ut_a(!srv_master_thread_active());
 
 	/* Note: The master thread has not been started at this point. */
 
@@ -2502,12 +2334,12 @@ dict_create_or_check_sys_tablespace(void)
 
 /** Put a tablespace definition into the data dictionary,
 replacing what was there previously.
-@param[in]	space	Tablespace id
-@param[in]	name	Tablespace name
-@param[in]	flags	Tablespace flags
-@param[in]	path	Tablespace path
-@param[in]	trx	Transaction
-@param[in]	commit	If true, commit the transaction
+@param[in]	space_id	Tablespace id
+@param[in]	name		Tablespace name
+@param[in]	flags		Tablespace flags
+@param[in]	path		Tablespace path
+@param[in]	trx		Transaction
+@param[in]	commit		If true, commit the transaction
 @return error code or DB_SUCCESS */
 dberr_t
 dict_replace_tablespace_in_dictionary(

@@ -56,6 +56,7 @@ typedef struct st_key_cache KEY_CACHE;
 typedef struct st_key_create_information KEY_CREATE_INFO;
 typedef struct st_savepoint SAVEPOINT;
 typedef struct xid_t XID;
+namespace dd { class Table; }
 typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
                                       uint key_length,
                                       ulonglong *engine_data);
@@ -395,8 +396,6 @@ enum enum_alter_inplace_result {
 #define HA_LEX_CREATE_IF_NOT_EXISTS 2
 #define HA_LEX_CREATE_TABLE_LIKE 4
 #define HA_LEX_CREATE_INTERNAL_TMP_TABLE 8
-#define HA_OPTION_NO_CHECKSUM	(1L << 17)
-#define HA_OPTION_NO_DELAY_KEY_WRITE (1L << 18)
 #define HA_MAX_REC_LENGTH	65535U
 
 /* Table caching type */
@@ -735,6 +734,9 @@ struct handlerton
    int  (*close_connection)(handlerton *hton, THD *thd);
    /* Terminate connection/statement notification. */
    void (*kill_connection)(handlerton *hton, THD *thd);
+   /** Shut down all storage engine background tasks that might access
+   the data dictionary, before the main shutdown. */
+   void (*pre_dd_shutdown)(handlerton *hton);
    /*
      sv points to an uninitialized storage area of requested size
      (see savepoint_offset description)
@@ -867,6 +869,50 @@ struct handlerton
   bool (*is_supported_system_table)(const char *db,
                                     const char *table_name,
                                     bool is_sql_layer_system_table);
+
+  /**
+    Null-ended array of file extentions that exist for the storage engine.
+    Used by frm_error() and the default handler::rename_table and delete_table
+    methods in handler.cc.
+
+    For engines that have two file name extentions (separate meta/index file
+    and data file), the order of elements is relevant. First element of engine
+    file name extentions array should be meta/index file extention. Second
+    element - data file extention. This order is assumed by
+    prepare_for_repair() when REPAIR TABLE ... USE_FRM is issued.
+
+    For engines that don't have files, file_extensions is NULL.
+
+    Currently, the following alternatives are used:
+      - file_extensions == NULL;
+      - file_extensions[0] != NULL, file_extensions[1] == NULL;
+      - file_extensions[0] != NULL, file_extensions[1] != NULL,
+        file_extensions[2] == NULL;
+  */
+  const char **file_extensions;
+
+  /**
+    Check if the DDSE is started in a way that leaves thd DD being read only.
+
+    @retval true    The data dictionary can only be read.
+    @retval false   The data dictionary can be read and written.
+   */
+  bool (*is_dict_readonly)();
+
+  /**
+    Drop all temporary tables which have been left from previous server
+    run belonging to this SE. Used on server start-up.
+
+    @param[in]      hton   Handlerton for storage engine.
+    @param[in]      thd    Thread context.
+    @param[in/out]  files  List of files in directories for temporary files
+                           which match tmp_file_prefix and thus can belong to
+                           temporary tables (but not necessarily in this SE).
+                           It is recommended to remove file from the list if
+                           SE recognizes it as belonging to temporary table
+                           in this SE and deletes it.
+  */
+  bool (*rm_tmp_tables)(handlerton *hton, THD *thd, List<LEX_STRING> *files);
 
   /**
     Retrieve cost constants to be used for this storage engine.
@@ -1006,7 +1052,6 @@ typedef struct st_ha_create_information
   uint null_bits;                       /* NULL bits at start of record */
   uint options;				/* OR of HA_CREATE_ options */
   uint merge_insert_method;
-  uint extra_size;                      /* length of extra data segment */
   bool varchar;                         /* 1 if table has a VARCHAR */
   enum ha_storage_media storage_media;  /* DEFAULT, DISK or MEMORY */
 } HA_CREATE_INFO;
@@ -1221,6 +1266,13 @@ public:
   static const HA_ALTER_FLAGS VALIDATE_VIRTUAL_COLUMN    = 1ULL << 40;
 
   /**
+    Change index option in a way which is likely not to require index
+    recreation. For example, change COMMENT or KEY::is_algorithm_explicit
+    flag (without change of index algorithm itself).
+  */
+  static const HA_ALTER_FLAGS CHANGE_INDEX_OPTION        = 1LL << 41;
+
+  /**
     Create options (like MAX_ROWS) for the new version of table.
 
     @note The referenced instance of HA_CREATE_INFO object was already
@@ -1420,10 +1472,19 @@ public:
   }
 };
 
+/*
+  TODO: move this struct out of handler.h. It is not really part
+        of SE API and more related to Key class produced by parser.
+*/
 
 typedef struct st_key_create_information
 {
   enum ha_key_alg algorithm;
+  /**
+    A flag which indicates that index algorithm was explicitly specified
+    by user.
+  */
+  bool is_algorithm_explicit;
   ulong block_size;
   LEX_STRING parser_name;
   LEX_STRING comment;
@@ -1746,6 +1807,7 @@ public:
   ha_rows records;
   ha_rows deleted;			/* Deleted records */
   ulong mean_rec_length;		/* physical reclength */
+  /* TODO: create_time should be retrieved from the new DD. Remove this. */
   time_t create_time;			/* When table was created */
   ulong check_time;
   ulong update_time;
@@ -2550,8 +2612,22 @@ public:
   */
   virtual enum row_type get_row_type() const { return ROW_TYPE_NOT_USED; }
 
-  virtual const char *index_type(uint key_number) { DBUG_ASSERT(0); return "";}
+  /**
+    Get default key algorithm for SE. It is used when user has not provided
+    algorithm explicitly or when algorithm specified is not supported by SE.
+  */
+  virtual enum ha_key_alg get_default_index_algorithm() const
+  { return HA_KEY_ALG_SE_SPECIFIC; }
 
+  /**
+    Check if SE supports specific key algorithm.
+
+    @note This method is never used for FULLTEXT or SPATIAL keys.
+          We rely on handler::ha_table_flags() to check if such keys
+          are supported.
+  */
+  virtual bool is_index_algorithm_supported(enum ha_key_alg key_alg) const
+  { return key_alg == HA_KEY_ALG_SE_SPECIFIC; }
 
   /**
     Signal that the table->read_set and table->write_set table maps changed
@@ -2869,18 +2945,6 @@ public:
   virtual void free_foreign_key_create_info(char* str) {}
   /** The following can be called without an open handler */
   virtual const char *table_type() const =0;
-  /**
-    If frm_error() is called then we will use this to find out what file
-    extentions exist for the storage engine. This is also used by the default
-    rename_table and delete_table method in handler.cc.
-
-    For engines that have two file name extentions (separate meta/index file
-    and data file), the order of elements is relevant. First element of engine
-    file name extentions array should be meta/index file extention. Second
-    element - data file extention. This order is assumed by
-    prepare_for_repair() when REPAIR TABLE ... USE_FRM is issued.
-  */
-  virtual const char **bas_ext() const =0;
 
   virtual ulong index_flags(uint idx, uint part, bool all_parts) const =0;
 
@@ -3390,7 +3454,7 @@ protected:
 
   /**
     Default rename_table() and delete_table() rename/delete files with a
-    given name and extensions from bas_ext().
+    given name and extensions from handlerton::file_extensions.
 
     These methods can be overridden, but their default implementation
     provide useful functionality.
@@ -3624,12 +3688,11 @@ public:
                                           const char *table_name,
                                           my_gcolumn_template_callback_t myc,
                                           void *ib_table);
-  static bool my_eval_gcolumn_expr(THD *thd,
-                                   bool open_in_engine,
-                                   const char *db_name,
-                                   const char *table_name,
-                                   const MY_BITMAP *const fields,
-                                   uchar *record);
+  static bool my_eval_gcolumn_expr_with_open(THD *thd,
+                                             const char *db_name,
+                                             const char *table_name,
+                                             const MY_BITMAP *const fields,
+                                             uchar *record);
   static bool my_eval_gcolumn_expr(THD *thd,
                                    const char *db_name,
                                    const char *table_name,
@@ -3762,6 +3825,7 @@ handlerton *ha_default_temp_handlerton(THD *thd);
   @return plugin or NULL if not found.
 */
 plugin_ref ha_resolve_by_name_raw(THD *thd, const LEX_CSTRING &name);
+plugin_ref ha_resolve_by_name_raw(THD *thd, const std::string &name);
 plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name,
                               bool is_temp_table);
 plugin_ref ha_lock_engine(THD *thd, const handlerton *hton);
@@ -3806,6 +3870,8 @@ TYPELIB* ha_known_exts();
 int ha_panic(enum ha_panic_function flag);
 void ha_close_connection(THD* thd);
 void ha_kill_connection(THD *thd);
+/** Invoke handlerton::pre_dd_shutdown() on every storage engine plugin. */
+void ha_pre_dd_shutdown(void);
 /**
   Flush the log(s) of storage engine(s).
 
@@ -3820,8 +3886,9 @@ void ha_drop_database(char* path);
 int ha_create_table(THD *thd, const char *path,
                     const char *db, const char *table_name,
                     HA_CREATE_INFO *create_info,
-		                bool update_create_info,
-                    bool is_temp_table= false);
+                    bool update_create_info,
+                    bool is_temp_table,
+                    const dd::Table *table_def);
 
 int ha_delete_table(THD *thd, handlerton *db_type, const char *path,
                     const char *db, const char *alias, bool generate_warning);
@@ -3846,6 +3913,8 @@ int ha_find_files(THD *thd,const char *db,const char *path,
 int ha_table_exists_in_engine(THD* thd, const char* db, const char* name);
 bool ha_check_if_supported_system_table(handlerton *hton, const char* db, 
                                         const char* table_name);
+bool ha_rm_tmp_tables(THD *thd, List<LEX_STRING> *files);
+bool default_rm_tmp_tables(handlerton *hton, THD *thd, List<LEX_STRING> *files);
 bool check_if_sql_layer_system_table(const char *db,
                                      const char *table_name);
 
@@ -3924,7 +3993,7 @@ int ha_binlog_end(THD *thd);
 const char *get_canonical_filename(handler *file, const char *path,
                                    char *tmp_path);
 
-const char *table_case_name(HA_CREATE_INFO *info, const char *name);
+const char *table_case_name(const HA_CREATE_INFO *info, const char *name);
 
 void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag);
 void print_keydup_error(TABLE *table, KEY *key, myf errflag);

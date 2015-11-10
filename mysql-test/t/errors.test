@@ -18,7 +18,7 @@ select count(test.t1.b) from t1;
 select count(not_existing_database.t1) from t1;
 --error 1054
 select count(not_existing_database.t1.a) from t1;
---error 1044,1146
+--error 1044,1049
 select count(not_existing_database.t1.a) from not_existing_database.t1;
 --error 1054
 select 1 from t1 order by 2;

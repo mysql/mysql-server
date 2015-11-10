@@ -2217,7 +2217,6 @@ dict_index_node_ptr_max_size(
 	ulint	i;
 	/* maximum possible storage size of a record */
 	ulint	rec_max_size;
-	bool	clust = dict_index_is_clust(index);
 
 	if (dict_index_is_ibuf(index)) {
 		/* cannot estimate accurately */
@@ -2260,17 +2259,11 @@ dict_index_node_ptr_max_size(
 		ulint			field_ext_max_size;
 
 		/* Determine the maximum length of the index field. */
+
 		field_max_size = dict_col_get_fixed_size(col, comp);
-
-		bool within_limit = field_max_size <= DICT_MAX_FIXED_COL_LEN;
-
-		/* For clustered index, fixed length fields longer than
-		DICT_MAX_FIXED_COL_LEN needs to be treated as a variable
-		length field. */
-		if (field_max_size > 0 && (!clust || within_limit)) {
-			/* dict_index_add_col() guarantees this */
-			ut_ad(field->prefix_len == 0
-			      || field->fixed_len == 0
+		if (field_max_size) {
+			/* dict_index_add_col() should guarantee this */
+			ut_ad(!field->prefix_len
 			      || field->fixed_len == field->prefix_len);
 			/* Fixed lengths are not encoded
 			in ROW_FORMAT=COMPACT. */
@@ -4297,9 +4290,7 @@ to contain more fields than mentioned in the constraint.
 				table2 can be written also with the database
 				name before it: test.table2; the default
 				database id the database of parameter name
-@param[in]	sql_length	length of sql_string
 @param[in]	name		table full name in normalized form
-@param[in,out]	handler		table handler if table is intrinsic
 @param[in]	reject_fks	if TRUE, fail with error code
 				DB_CANNOT_ADD_CONSTRAINT if any
 				foreign keys are found.
@@ -5098,6 +5089,10 @@ dict_index_check_search_tuple(
 	ut_a(index);
 	ut_a(dtuple_get_n_fields_cmp(tuple)
 	     <= dict_index_get_n_unique_in_tree(index));
+	ut_ad(index->page != FIL_NULL);
+	ut_ad(index->page >= FSP_FIRST_INODE_PAGE_NO);
+	ut_ad(dtuple_check_typed(tuple));
+	ut_ad(!(index->type & DICT_FTS));
 	return(TRUE);
 }
 #endif /* UNIV_DEBUG */
@@ -5751,9 +5746,6 @@ dict_set_corrupted(
 			in most cases the corrupted bit would be
 			persisted in redo log */
 			log_write_up_to(mtr.commit_lsn(), true);
-
-			DBUG_EXECUTE_IF("meta_log_corrupted",
-					DBUG_SUICIDE(););
 
 			mutex_enter(&dict_persist->mutex);
 
@@ -6962,7 +6954,7 @@ dict_tf_to_row_format_string(
 }
 
 /** Look for any dictionary objects that are found in the given tablespace.
-@param[in]	space	Tablespace ID to search for.
+@param[in]	space_id	Tablespace ID to search for.
 @return true if tablespace is empty. */
 bool
 dict_tablespace_is_empty(
@@ -7484,8 +7476,6 @@ CorruptedIndexPersister::write(
 	++buffer;
 
 	mach_write_to_1(buffer, num);
-	DBUG_EXECUTE_IF("meta_log_corrupted",
-			mach_write_to_1(buffer,100););
 	++length;
 	++buffer;
 
@@ -7562,8 +7552,6 @@ CorruptedIndexPersister::read(
 	}
 
 	num = mach_read_from_1(buffer);
-	DBUG_EXECUTE_IF("meta_log_corrupted",
-			num = 1;);
 	++consumed;
 	++buffer;
 

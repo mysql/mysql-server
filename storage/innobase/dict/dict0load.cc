@@ -95,7 +95,7 @@ dict_load_table_one(
 Does not load any columns or indexes.
 @param[in]	name	Table name
 @param[in]	rec	SYS_TABLES record
-@param[out,own]	table	Table, or NULL
+@param[out]	table	Table, or NULL
 @return error message, or NULL on success */
 static
 const char*
@@ -1829,7 +1829,7 @@ dict_check_sys_tablespaces(
 
 /** Read and return 5 integer fields from a SYS_TABLES record.
 @param[in]	rec		A record of SYS_TABLES
-@param[in]	name		Table Name, the same as SYS_TABLES.NAME
+@param[in]	table_name	Table Name, the same as SYS_TABLES.NAME
 @param[out]	table_id	Pointer to the table_id for this table
 @param[out]	space_id	Pointer to the space_id for this table
 @param[out]	n_cols		Pointer to number of columns for this table.
@@ -2472,30 +2472,6 @@ dict_load_indexes(
 			error = DB_UNSUPPORTED;
 			dict_mem_index_free(index);
 			goto func_exit;
-		} else if (index->page == FIL_NULL
-			   && !table->ibd_file_missing
-			   && (!(index->type & DICT_FTS))) {
-
-			ib::error() << "Trying to load index " << index->name
-				<< " for table " << table->name
-				<< ", but the index tree has been freed!";
-
-			if (ignore_err & DICT_ERR_IGNORE_INDEX_ROOT) {
-				/* If caller can tolerate this error,
-				we will continue to load the index and
-				let caller deal with this error. However
-				mark the index as corrupted. */
-				index->table = table;
-				dict_set_corrupted(index);
-
-				ib::info() << "Index is corrupt but forcing"
-					" load into data dictionary";
-			} else {
-corrupted:
-				dict_mem_index_free(index);
-				error = DB_CORRUPTION;
-				goto func_exit;
-			}
 		} else if (!dict_index_is_clust(index)
 			   && NULL == dict_table_get_first_index(table)) {
 
@@ -2503,7 +2479,9 @@ corrupted:
 				<< " for table " << table->name
 				<< ", but the first index is not clustered!";
 
-			goto corrupted;
+			dict_mem_index_free(index);
+			error = DB_CORRUPTION;
+			goto func_exit;
 		} else if (dict_is_sys_table(table->id)
 			   && (dict_index_is_clust(index)
 			       || ((table == dict_sys->sys_tables)
@@ -2558,7 +2536,7 @@ func_exit:
 Does not load any columns or indexes.
 @param[in]	name	Table name
 @param[in]	rec	SYS_TABLES record
-@param[out,own]	table	table, or NULL
+@param[out]	table	table, or NULL
 @return error message, or NULL on success */
 static
 const char*
@@ -2955,6 +2933,11 @@ dict_load_table_one(
 	DBUG_PRINT("dict_load_table_one", ("table: %s", name.m_name));
 
 	ut_ad(mutex_own(&dict_sys->mutex));
+#if 0 /* FIXME: enable this in WL#7141 */
+	/* Currently, the master thread may call us in
+	row_drop_tables_for_mysql_in_background(). */
+	ut_ad(!srv_is_being_shutdown);
+#endif
 
 	heap = mem_heap_create(32000);
 
@@ -3189,6 +3172,7 @@ dict_load_table_on_id(
 	mtr_t		mtr;
 
 	ut_ad(mutex_own(&dict_sys->mutex));
+	ut_ad(!srv_is_being_shutdown);
 
 	table = NULL;
 

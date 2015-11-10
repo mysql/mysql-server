@@ -16,12 +16,6 @@
 call mtr.add_suppression("Column count of mysql.proc is wrong. Expected 20, found 19. The table is probably corrupted");
 call mtr.add_suppression("Stored routine .test...bug14233_[123].: invalid value in column mysql.proc");
 
-# Backup proc table
-let $MYSQLD_DATADIR= `select @@datadir`;
---copy_file $MYSQLD_DATADIR/mysql/proc.frm $MYSQLTEST_VARDIR/tmp/proc.frm
---copy_file $MYSQLD_DATADIR/mysql/proc.MYD $MYSQLTEST_VARDIR/tmp/proc.MYD
---copy_file $MYSQLD_DATADIR/mysql/proc.MYI $MYSQLTEST_VARDIR/tmp/proc.MYI
-
 use test;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --disable_warnings
@@ -30,6 +24,10 @@ drop function if exists bug14233;
 drop table if exists t1;
 drop view if exists v1;
 --enable_warnings
+
+# Backup proc table
+create table mysql_proc_backup like mysql.proc;
+insert into mysql_proc_backup select * from mysql.proc;
 
 create procedure bug14233()
   set @x = 42;
@@ -53,41 +51,9 @@ show procedure status;
 
 flush table mysql.proc;
 
-# Thrashing the .frm file
---remove_file $MYSQLD_DATADIR/mysql/proc.frm
---write_file $MYSQLD_DATADIR/mysql/proc.frm
-saljdfa
-EOF
---replace_result $MYSQLTEST_VARDIR . master-data// '' '\\' '/'
---error ER_NOT_FORM_FILE
-call bug14233();
---replace_result $MYSQLTEST_VARDIR . master-data// '' '\\' '/'
---error ER_NOT_FORM_FILE
-create view v1 as select bug14233_f();
---replace_result $MYSQLTEST_VARDIR . master-data// '' '\\' '/'
---error ER_NOT_FORM_FILE
-insert into t1 values (0);
-
-flush table mysql.proc;
-
-# Drop the mysql.proc table
---remove_file $MYSQLD_DATADIR/mysql/proc.frm
---remove_file $MYSQLD_DATADIR/mysql/proc.MYD
---remove_file $MYSQLD_DATADIR/mysql/proc.MYI
---error ER_NO_SUCH_TABLE
-call bug14233();
---error ER_NO_SUCH_TABLE
-create view v1 as select bug14233_f();
---error ER_NO_SUCH_TABLE
-insert into t1 values (0);
-
 # Restore mysql.proc
---copy_file $MYSQLTEST_VARDIR/tmp/proc.frm $MYSQLD_DATADIR/mysql/proc.frm
---copy_file $MYSQLTEST_VARDIR/tmp/proc.MYD $MYSQLD_DATADIR/mysql/proc.MYD
---copy_file $MYSQLTEST_VARDIR/tmp/proc.MYI $MYSQLD_DATADIR/mysql/proc.MYI 
---remove_file $MYSQLTEST_VARDIR/tmp/proc.frm
---remove_file $MYSQLTEST_VARDIR/tmp/proc.MYD
---remove_file $MYSQLTEST_VARDIR/tmp/proc.MYI
+drop table mysql.proc;
+create table mysql.proc like mysql_proc_backup;
 
 flush table mysql.proc;
 flush privileges;
@@ -232,12 +198,6 @@ FLUSH TABLE mysql.procs_priv;
 --disable_warnings
 drop database if exists mysqltest;
 --enable_warnings
---echo # Backup mysql.proc.
-flush table mysql.proc;
-let $MYSQLD_DATADIR= `select @@datadir`;
---copy_file $MYSQLD_DATADIR/mysql/proc.frm $MYSQLTEST_VARDIR/tmp/proc.frm
---copy_file $MYSQLD_DATADIR/mysql/proc.MYD $MYSQLTEST_VARDIR/tmp/proc.MYD
---copy_file $MYSQLD_DATADIR/mysql/proc.MYI $MYSQLTEST_VARDIR/tmp/proc.MYI
 
 create database mysqltest;
 --echo # Corrupt mysql.proc to make it unusable by current version of server.
@@ -247,12 +207,7 @@ drop database mysqltest;
 
 --echo # Restore mysql.proc.
 drop table mysql.proc;
---copy_file $MYSQLTEST_VARDIR/tmp/proc.frm $MYSQLD_DATADIR/mysql/proc.frm
---copy_file $MYSQLTEST_VARDIR/tmp/proc.MYD $MYSQLD_DATADIR/mysql/proc.MYD
---copy_file $MYSQLTEST_VARDIR/tmp/proc.MYI $MYSQLD_DATADIR/mysql/proc.MYI 
---remove_file $MYSQLTEST_VARDIR/tmp/proc.frm
---remove_file $MYSQLTEST_VARDIR/tmp/proc.MYD
---remove_file $MYSQLTEST_VARDIR/tmp/proc.MYI
+rename table mysql_proc_backup to mysql.proc;
 
 
 --echo #

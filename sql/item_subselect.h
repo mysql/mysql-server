@@ -587,7 +587,7 @@ protected:
 public:
 
   enum enum_engine_type {ABSTRACT_ENGINE, SINGLE_SELECT_ENGINE,
-                         UNION_ENGINE, UNIQUESUBQUERY_ENGINE,
+                         UNION_ENGINE,
                          INDEXSUBQUERY_ENGINE, HASH_SJ_ENGINE};
 
   subselect_engine(Item_subselect *si, Query_result_interceptor *res)
@@ -722,17 +722,11 @@ struct st_join_table;
 class subselect_indexsubquery_engine : public subselect_engine
 {
 protected:
+  /// Table which is read, using one of eq_ref, ref, ref_or_null.
   QEP_TAB *tab;
   Item *cond; /* The WHERE condition of subselect */
   ulonglong hash; /* Hash value calculated by copy_ref_key, when needed. */
-  /**
-     Whether a lookup for key value (x0,y0) (x0 and/or y0 being NULL or not
-     NULL) will find at most one row.
-  */
-  bool unique;
 private:
-  /* FALSE for 'ref', TRUE for 'ref-or-null'. */
-  bool check_null;
   /* 
     The "having" clause. This clause (further referred to as "artificial
     having") was inserted by subquery transformation code. It contains 
@@ -752,15 +746,14 @@ public:
   */
   subselect_indexsubquery_engine(THD *thd_arg, QEP_TAB *tab_arg,
 				 Item_subselect *subs, Item *where,
-                                 Item *having_arg, bool chk_null,
-                                 bool unique_arg)
+                                 Item *having_arg)
     :subselect_engine(subs, 0), tab(tab_arg), cond(where),
-    unique(unique_arg), check_null(chk_null), having(having_arg)
+    having(having_arg)
   {};
   virtual bool exec();
   virtual void print (String *str, enum_query_type query_type);
   virtual enum_engine_type engine_type() const
-  { return unique ? UNIQUESUBQUERY_ENGINE : INDEXSUBQUERY_ENGINE; }
+  { return INDEXSUBQUERY_ENGINE; }
   virtual void cleanup() {}
   virtual bool prepare();
   virtual void fix_length_and_dec(Item_cache** row);
@@ -831,8 +824,7 @@ private:
 public:
   subselect_hash_sj_engine(THD *thd, Item_subselect *in_predicate,
                            subselect_single_select_engine *old_engine)
-    :subselect_indexsubquery_engine(thd, NULL, in_predicate, NULL,
-                                    NULL, false, true),
+    :subselect_indexsubquery_engine(thd, NULL, in_predicate, NULL, NULL),
     is_materialized(false), materialize_engine(old_engine), tmp_param(NULL)
   {}
   ~subselect_hash_sj_engine();

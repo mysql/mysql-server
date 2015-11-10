@@ -33,6 +33,9 @@
 # define dirent direct
 #endif
 
+#include "prealloced_array.h"
+#include "template_utils.h"
+
 #if defined(HAVE_READDIR_R)
 #define READDIR(A,B,C) ((errno=readdir_r(A,B,&C)) != 0 || !C)
 #else
@@ -40,12 +43,10 @@
 #endif
 
 /*
-  We are assuming that directory we are reading is either has less than 
-  100 files and so can be read in one initial chunk or has more than 1000
-  files and so big increment are suitable.
+  Allocate space for 100 FILEINFO structs up-front.
 */
-#define ENTRIES_START_SIZE (8192/sizeof(FILEINFO))
-#define ENTRIES_INCREMENT  (65536/sizeof(FILEINFO))
+typedef Prealloced_array<FILEINFO, 100, true> Entries_array;
+
 #define NAMES_START_SIZE   32768
 
 static int	comp_names(struct fileinfo *a,struct fileinfo *b);
@@ -58,10 +59,11 @@ void my_dirend(MY_DIR *buffer)
   DBUG_ENTER("my_dirend");
   if (buffer)
   {
-    delete_dynamic((DYNAMIC_ARRAY*)((char*)buffer + 
-                                    ALIGN_SIZE(sizeof(MY_DIR))));
+    Entries_array *array=
+      pointer_cast<Entries_array*>((char*)buffer + ALIGN_SIZE(sizeof(MY_DIR)));
+    array->~Entries_array();
     free_root((MEM_ROOT*)((char*)buffer + ALIGN_SIZE(sizeof(MY_DIR)) + 
-                          ALIGN_SIZE(sizeof(DYNAMIC_ARRAY))), MYF(0));
+                          ALIGN_SIZE(sizeof(Entries_array))), MYF(0));
     my_free(buffer);
   }
   DBUG_VOID_RETURN;
@@ -83,12 +85,13 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   char          *buffer;
   MY_DIR        *result= 0;
   FILEINFO      finfo;
-  DYNAMIC_ARRAY *dir_entries_storage;
+  Entries_array *dir_entries_storage;
   MEM_ROOT      *names_storage;
   DIR		*dirp;
   struct dirent *dp;
   char		tmp_path[FN_REFLEN + 2], *tmp_file;
   char	dirent_tmp[sizeof(struct dirent)+_POSIX_PATH_MAX+1];
+  void *rawmem= NULL;
 
   DBUG_ENTER("my_dir");
   DBUG_PRINT("my",("path: '%s' MyFlags: %d",path,MyFlags));
@@ -101,24 +104,17 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   if (dirp == NULL || 
       ! (buffer= static_cast<char*>(my_malloc(key_memory_MY_DIR,
                                               ALIGN_SIZE(sizeof(MY_DIR)) +
-                                              ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)) +
+                                              ALIGN_SIZE(sizeof(Entries_array))+
                                               sizeof(MEM_ROOT), MyFlags))))
     goto error;
 
-  dir_entries_storage= (DYNAMIC_ARRAY*)(buffer + ALIGN_SIZE(sizeof(MY_DIR))); 
+  rawmem= pointer_cast<Entries_array*>(buffer + ALIGN_SIZE(sizeof(MY_DIR))); 
+  dir_entries_storage= new (rawmem) Entries_array(key_memory_MY_DIR);
   names_storage= (MEM_ROOT*)(buffer + ALIGN_SIZE(sizeof(MY_DIR)) +
-                             ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)));
+                             ALIGN_SIZE(sizeof(Entries_array)));
   
-  if (my_init_dynamic_array(dir_entries_storage,
-                            key_memory_MY_DIR,
-                            sizeof(FILEINFO),
-                            NULL,               /* init_buffer */
-                            ENTRIES_START_SIZE, ENTRIES_INCREMENT))
-  {
-    my_free(buffer);
-    goto error;
-  }
-  init_alloc_root(key_memory_MY_DIR, names_storage, NAMES_START_SIZE, NAMES_START_SIZE);
+  init_alloc_root(key_memory_MY_DIR,
+                  names_storage, NAMES_START_SIZE, NAMES_START_SIZE);
   
   /* MY_DIR structure is allocated and completly initialized at this point */
   result= (MY_DIR*)buffer;
@@ -147,7 +143,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
     else
       finfo.mystat= NULL;
 
-    if (insert_dynamic(dir_entries_storage, (uchar*)&finfo))
+    if (dir_entries_storage->push_back(finfo))
       goto error;
   }
 
@@ -155,8 +151,8 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
 #if !defined(HAVE_READDIR_R)
   mysql_mutex_unlock(&THR_LOCK_open);
 #endif
-  result->dir_entry= (FILEINFO *)dir_entries_storage->buffer;
-  result->number_off_files= dir_entries_storage->elements;
+  result->dir_entry= dir_entries_storage->begin();
+  result->number_off_files= dir_entries_storage->size();
   
   if (!(MyFlags & MY_DONT_SORT))
     my_qsort((void *) result->dir_entry, result->number_off_files,
@@ -218,7 +214,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   char          *buffer;
   MY_DIR        *result= 0;
   FILEINFO      finfo;
-  DYNAMIC_ARRAY *dir_entries_storage;
+  Entries_array *dir_entries_storage;
   MEM_ROOT      *names_storage;
   struct _finddata_t find;
   ushort	mode;
@@ -228,6 +224,8 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
 #else
   long		handle;
 #endif
+  void          *rawmem= NULL;
+
   DBUG_ENTER("my_dir");
   DBUG_PRINT("my",("path: '%s' stat: %d  MyFlags: %d",path,MyFlags));
 
@@ -247,24 +245,17 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
 
   if (!(buffer= static_cast<char*>(my_malloc(key_memory_MY_DIR,
                                              ALIGN_SIZE(sizeof(MY_DIR)) +
-                                             ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)) +
+                                             ALIGN_SIZE(sizeof(Entries_array)) +
                                              sizeof(MEM_ROOT), MyFlags))))
     goto error;
 
-  dir_entries_storage= (DYNAMIC_ARRAY*)(buffer + ALIGN_SIZE(sizeof(MY_DIR))); 
-  names_storage= (MEM_ROOT*)(buffer + ALIGN_SIZE(sizeof(MY_DIR)) +
-                             ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)));
+  rawmem= buffer + ALIGN_SIZE(sizeof(MY_DIR));
+  dir_entries_storage= new (rawmem) Entries_array(key_memory_MY_DIR);
+  names_storage= pointer_cast<MEM_ROOT*>(buffer + ALIGN_SIZE(sizeof(MY_DIR)) +
+                                         ALIGN_SIZE(sizeof(Entries_array)));
   
-  if (my_init_dynamic_array(dir_entries_storage,
-                            key_memory_MY_DIR,
-                            sizeof(FILEINFO),
-                            NULL,               /* init_buffer */
-                            ENTRIES_START_SIZE, ENTRIES_INCREMENT))
-  {
-    my_free(buffer);
-    goto error;
-  }
-  init_alloc_root(key_memory_MY_DIR, names_storage, NAMES_START_SIZE, NAMES_START_SIZE);
+  init_alloc_root(key_memory_MY_DIR,
+                  names_storage, NAMES_START_SIZE, NAMES_START_SIZE);
   
   /* MY_DIR structure is allocated and completly initialized at this point */
   result= (MY_DIR*)buffer;
@@ -314,7 +305,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
       else
         finfo.mystat= NULL;
 
-      if (insert_dynamic(dir_entries_storage, (uchar*)&finfo))
+      if (dir_entries_storage->push_back(finfo))
         goto error;
     }
     while (_findnext(handle,&find) == 0);
@@ -322,8 +313,8 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
     _findclose(handle);
   }
 
-  result->dir_entry= (FILEINFO *)dir_entries_storage->buffer;
-  result->number_off_files= dir_entries_storage->elements;
+  result->dir_entry= dir_entries_storage->begin();
+  result->number_off_files= dir_entries_storage->size();
 
   if (!(MyFlags & MY_DONT_SORT))
     my_qsort((void *) result->dir_entry, result->number_off_files,

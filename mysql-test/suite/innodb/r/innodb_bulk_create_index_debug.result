@@ -66,7 +66,7 @@ class   INT,
 id      INT,
 title   VARCHAR(100)
 ) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
-SET SESSION debug="+d,crash_commit_before";
+SET SESSION debug="+d,crash_after_index_create";
 CREATE INDEX idx_title ON t1(title);
 ERROR HY000: Lost connection to MySQL server during query
 SELECT COUNT(*) FROM t1;
@@ -108,7 +108,7 @@ CHAR_LENGTH(b)
 20000
 40000
 60000
-SET SESSION debug="+d,crash_commit_before";
+SET SESSION debug="+d,crash_after_index_create";
 ALTER TABLE t1 DROP COLUMN c;
 ERROR HY000: Lost connection to MySQL server during query
 CHECK TABLE t1;
@@ -190,7 +190,7 @@ class   INT,
 id      INT,
 title   VARCHAR(100)
 ) ENGINE=InnoDB ROW_FORMAT=COMPACT;
-SET SESSION debug="+d,crash_commit_before";
+SET SESSION debug="+d,crash_after_index_create";
 CREATE INDEX idx_title ON t1(title);
 ERROR HY000: Lost connection to MySQL server during query
 SELECT COUNT(*) FROM t1;
@@ -232,7 +232,7 @@ CHAR_LENGTH(b)
 20000
 40000
 60000
-SET SESSION debug="+d,crash_commit_before";
+SET SESSION debug="+d,crash_after_index_create";
 ALTER TABLE t1 DROP COLUMN c;
 ERROR HY000: Lost connection to MySQL server during query
 CHECK TABLE t1;
@@ -314,7 +314,7 @@ class   INT,
 id      INT,
 title   VARCHAR(100)
 ) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
-SET SESSION debug="+d,crash_commit_before";
+SET SESSION debug="+d,crash_after_index_create";
 CREATE INDEX idx_title ON t1(title);
 ERROR HY000: Lost connection to MySQL server during query
 SELECT COUNT(*) FROM t1;
@@ -356,7 +356,7 @@ CHAR_LENGTH(b)
 20000
 40000
 60000
-SET SESSION debug="+d,crash_commit_before";
+SET SESSION debug="+d,crash_after_index_create";
 ALTER TABLE t1 DROP COLUMN c;
 ERROR HY000: Lost connection to MySQL server during query
 CHECK TABLE t1;
@@ -441,7 +441,7 @@ class   INT,
 id      INT,
 title   VARCHAR(100)
 ) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
-SET SESSION debug="+d,crash_commit_before";
+SET SESSION debug="+d,crash_after_index_create";
 CREATE INDEX idx_title ON t1(title);
 ERROR HY000: Lost connection to MySQL server during query
 SELECT COUNT(*) FROM t1;
@@ -484,7 +484,7 @@ CHAR_LENGTH(b)
 20000
 40000
 60000
-SET SESSION debug="+d,crash_commit_before";
+SET SESSION debug="+d,crash_after_index_create";
 ALTER TABLE t1 DROP COLUMN c;
 ERROR HY000: Lost connection to MySQL server during query
 CHECK TABLE t1;

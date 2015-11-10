@@ -51,6 +51,8 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0new.h"
 #include "dict/mem.h"
 
+#include "sql_const.h"  /* MAX_KEY_LENGTH */
+
 #include <set>
 #include <vector>
 #include <algorithm>
@@ -319,7 +321,7 @@ void
 dict_mem_table_col_rename(
 /*======================*/
 	dict_table_t*	table,	/*!< in/out: table */
-	unsigned	nth_col,/*!< in: column index */
+	ulint		nth_col,/*!< in: column index */
 	const char*	from,	/*!< in: old column name */
 	const char*	to,	/*!< in: new column name */
 	bool		is_virtual);
@@ -1181,11 +1183,6 @@ struct dict_vcol_templ_t {
 	const byte*		default_rec;
 };
 
-/* This flag is for sync SQL DDL and memcached DML.
-if table->memcached_sync_count == DICT_TABLE_IN_DDL means there's DDL running on
-the table, DML from memcached will be blocked. */
-#define DICT_TABLE_IN_DDL -1
-
 /** The dirty status of tables, used to indicate if a table has some
 dynamic metadata changed to be written back */
 enum table_dirty_status {
@@ -1544,12 +1541,6 @@ struct dict_table_t {
 
 	/* @} */
 
-	/** Count of how many handles are opened to this table from memcached.
-	DDL on the table is NOT allowed until this count goes to zero. If
-	it is -1, then there's DDL on the table, DML from memcached will be
-	blocked. */
-	lint					memcached_sync_count;
-
 	/** FTS specific state variables. */
 	fts_t*					fts;
 
@@ -1883,7 +1874,7 @@ dict_index_zip_pad_mutex_create_lazy(
 /** Destroy the zip_pad_mutex of the given index.
 This function is only called from either single threaded environment
 or from a thread that has not shared the table object with other threads.
-@param[in,out]	table	table whose stats latch to destroy */
+@param[in,out]	index	index whose stats latch to destroy */
 inline
 void
 dict_index_zip_pad_mutex_destroy(

@@ -47,10 +47,6 @@ public:
 
   const char *table_type(void) const { return pfs_engine_name; }
 
-  const char *index_type(uint) { return ""; }
-
-  const char **bas_ext(void) const;
-
   /** Capabilities of the performance schema tables. */
   ulonglong table_flags(void) const
   {

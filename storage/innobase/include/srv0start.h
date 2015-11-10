@@ -91,11 +91,14 @@ srv_dict_recover_on_restart();
 void
 srv_start_threads();
 
-/****************************************************************//**
-Shuts down the Innobase database.
-@return DB_SUCCESS or error code */
-dberr_t
-innobase_shutdown_for_mysql(void);
+/** Shut down all InnoDB background tasks that may look up objects in
+the data dictionary. */
+void
+srv_pre_dd_shutdown();
+
+/** Shut down the InnoDB database. */
+void
+srv_shutdown();
 
 /*************************************************************//**
 Copy the file path component of the physical file to parameter. It will
@@ -132,13 +135,17 @@ extern	lsn_t	srv_shutdown_lsn;
 /** Log sequence number immediately after startup */
 extern	lsn_t	srv_start_lsn;
 
-/** TRUE if the server is being started */
+/** true if the server is being started */
 extern	bool	srv_is_being_started;
-/** TRUE if SYS_TABLESPACES is available for lookups */
+/** true if SYS_TABLESPACES is available for lookups */
 extern	bool	srv_sys_tablespaces_open;
-/** TRUE if the server is being started, before rolling back any
+/** true if the server is being started, before rolling back any
 incomplete transactions */
 extern	bool	srv_startup_is_before_trx_rollback_phase;
+#ifdef UNIV_DEBUG
+/** true if srv_pre_dd_shutdown() has been completed */
+extern	bool	srv_is_being_shutdown;
+#endif /* UNIV_DEBUG */
 
 /** TRUE if a raw partition is in use */
 extern	ibool	srv_start_raw_disk_in_use;

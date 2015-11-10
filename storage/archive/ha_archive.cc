@@ -133,10 +133,6 @@ extern "C" PSI_file_key arch_key_file_data;
 static handler *archive_create_handler(handlerton *hton, 
                                        TABLE_SHARE *table, 
                                        MEM_ROOT *mem_root);
-int archive_discover(handlerton *hton, THD* thd, const char *db, 
-                     const char *name,
-                     uchar **frmblob, 
-                     size_t *frmlen);
 
 /*
   Number of rows that will force a bulk insert.
@@ -199,6 +195,16 @@ static void init_archive_psi_keys(void)
 
 #endif /* HAVE_PSI_INTERFACE */
 
+
+/*
+  We just implement one additional file extension.
+*/
+static const char *ha_archive_exts[] = {
+  ARZ,
+  NullS
+};
+
+
 /*
   Initialize the archive handler.
 
@@ -225,7 +231,8 @@ static int archive_db_init(void *p)
   archive_hton->db_type= DB_TYPE_ARCHIVE_DB;
   archive_hton->create= archive_create_handler;
   archive_hton->flags= HTON_NO_FLAGS;
-  archive_hton->discover= archive_discover;
+  archive_hton->file_extensions= ha_archive_exts;
+  archive_hton->rm_tmp_tables= default_rm_tmp_tables;
 
   DBUG_RETURN(0);
 }
@@ -259,49 +266,6 @@ ha_archive::ha_archive(handlerton *hton, TABLE_SHARE *table_arg)
   archive_reader_open= FALSE;
 }
 
-int archive_discover(handlerton *hton, THD* thd, const char *db, 
-                     const char *name,
-                     uchar **frmblob, 
-                     size_t *frmlen)
-{
-  DBUG_ENTER("archive_discover");
-  DBUG_PRINT("archive_discover", ("db: %s, name: %s", db, name)); 
-  azio_stream frm_stream;
-  char az_file[FN_REFLEN];
-  char *frm_ptr;
-  MY_STAT file_stat; 
-
-  build_table_filename(az_file, sizeof(az_file) - 1, db, name, ARZ, 0);
-
-  if (!(mysql_file_stat(arch_key_file_data, az_file, &file_stat, MYF(0))))
-    goto err;
-
-  if (!(azopen(&frm_stream, az_file, O_RDONLY|O_BINARY)))
-  {
-    if (errno == EROFS || errno == EACCES)
-    {
-      set_my_errno(errno);
-      DBUG_RETURN(errno);
-    }
-    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
-  }
-
-  if (frm_stream.frm_length == 0)
-    goto err;
-
-  frm_ptr= (char *)my_malloc(az_key_memory_frm,
-                             sizeof(char) * frm_stream.frm_length, MYF(0));
-  azread_frm(&frm_stream, frm_ptr);
-  azclose(&frm_stream);
-
-  *frmlen= frm_stream.frm_length;
-  *frmblob= (uchar*) frm_ptr;
-
-  DBUG_RETURN(0);
-err:
-  set_my_errno(0);
-  DBUG_RETURN(1);
-}
 
 static void save_auto_increment(TABLE *table, ulonglong *value)
 {
@@ -587,20 +551,6 @@ int ha_archive::init_archive_reader()
 }
 
 
-/*
-  We just implement one additional file extension.
-*/
-static const char *ha_archive_exts[] = {
-  ARZ,
-  NullS
-};
-
-const char **ha_archive::bas_ext() const
-{
-  return ha_archive_exts;
-}
-
-
 /* 
   When opening a file we:
   Create/get our shared structure.
@@ -681,72 +631,6 @@ int ha_archive::close(void)
   }
 
   DBUG_RETURN(rc);
-}
-
-
-void ha_archive::frm_load(const char *name, azio_stream *dst)
-{
-  char name_buff[FN_REFLEN];
-  MY_STAT file_stat;
-  File frm_file;
-  uchar *frm_ptr;
-  DBUG_ENTER("ha_archive::frm_load");
-  fn_format(name_buff, name, "", ".frm", MY_REPLACE_EXT | MY_UNPACK_FILENAME);
-
-  /* Here is where we open up the frm and pass it to archive to store */
-  if ((frm_file= mysql_file_open(arch_key_file_frm, name_buff, O_RDONLY, MYF(0))) >= 0)
-  {
-    if (!mysql_file_fstat(frm_file, &file_stat, MYF(MY_WME)))
-    {
-      frm_ptr= (uchar *) my_malloc(az_key_memory_frm,
-                                   sizeof(uchar) * (size_t) file_stat.st_size, MYF(0));
-      if (frm_ptr)
-      {
-        if (mysql_file_read(frm_file, frm_ptr, (size_t) file_stat.st_size, MYF(0)) ==
-            (size_t) file_stat.st_size)
-          azwrite_frm(dst, (char *) frm_ptr, (size_t) file_stat.st_size);
-        my_free(frm_ptr);
-      }
-    }
-    mysql_file_close(frm_file, MYF(0));
-  }
-  DBUG_VOID_RETURN;
-}
-
-
-/**
-  Copy a frm blob between streams.
-
-  @param[in]  src   The source stream.
-  @param[in]  dst   The destination stream.
-
-  @return Zero on success, non-zero otherwise.
-*/
-
-int ha_archive::frm_copy(azio_stream *src, azio_stream *dst)
-{
-  int rc= 0;
-  char *frm_ptr;
-
-  /* If there is no .frm in source stream, try to read .frm from file. */
-  if (!src->frm_length)
-  {
-    frm_load(table->s->normalized_path.str, dst);
-    return 0;
-  }
-
-  if (!(frm_ptr= (char *) my_malloc(az_key_memory_frm,
-                                    src->frm_length, MYF(0))))
-    return HA_ERR_OUT_OF_MEM;
-
-  /* Write file offset is set to the end of the file. */
-  if (azread_frm(src, frm_ptr) ||
-      azwrite_frm(dst, frm_ptr, src->frm_length))
-    rc= my_errno() ? my_errno() : HA_ERR_INTERNAL_ERROR;
-
-  my_free(frm_ptr);
-
-  return rc;
 }
 
 
@@ -847,7 +731,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
     if (linkname[0])
       my_symlink(name_buff, linkname, MYF(0));
 
-    frm_load(name, &create_stream);
+    // TODO: Write SDI here?
 
     if (create_info->comment.str)
       azwrite_comment(&create_stream, create_info->comment.str, 
@@ -1483,15 +1367,8 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
   }
 
-  /*
-    Transfer the embedded FRM so that the file can be discoverable.
-    Write file offset is set to the end of the file.
-  */
-  if ((rc= frm_copy(&archive, &writer)))
-  {
-    share->in_optimize= false;
-    goto error;
-  }
+  // TODO: Copy SDI here?
+
   /* 
     An extended rebuild is a lot more effort. We open up each row and re-record it. 
     Any dead rows are removed (aka rows that may have been partially recorded). 

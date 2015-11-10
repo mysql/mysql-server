@@ -303,6 +303,8 @@ SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a desc LIMIT 1;
 
 create temporary table t1 select a from t1 union select a from t2;
 drop temporary table t1;
+create temporary table temp1 select a from t1 union select a from t2;
+drop temporary table temp1;
 --error ER_TABLE_EXISTS_ERROR
 create table t1 select a from t1 union select a from t2;
 --error ER_TABLENAME_NOT_ALLOWED_HERE

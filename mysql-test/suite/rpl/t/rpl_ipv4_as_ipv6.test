@@ -2,7 +2,11 @@
 # Options: --skip-name-resolve, --bind-address=0.0.0.0 (see corresponding cnf file)
 # for master and slave
 #
+
 --source include/have_ipv4_mapped.inc
+
+--let $extra_root_users_for_slave= 1
+--source include/add_extra_root_users.inc
 --source include/have_log_bin.inc
 
 let $IPv6= 127.0.0.1;
@@ -66,3 +70,6 @@ let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
 # clean up
 --replace_column 2 ####
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root';
+
+--connection default
+--source include/remove_extra_root_users.inc

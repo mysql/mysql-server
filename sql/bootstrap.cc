@@ -23,13 +23,16 @@
 #include "sql_class.h"           // THD
 #include "sql_connect.h"         // close_connection
 #include "sql_parse.h"           // mysql_parse
+#include "sys_vars_shared.h"     // intern_find_sys_var
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
 
-static MYSQL_FILE *bootstrap_file= NULL;
-static int bootstrap_error= 0;
+namespace bootstrap {
 
+static MYSQL_FILE *bootstrap_file= NULL;
+static bool bootstrap_error= false;
+static bootstrap_functor bootstrap_handler= NULL;
 
 int File_command_iterator::next(std::string &query, int *error)
 {
@@ -80,7 +83,7 @@ void File_command_iterator::end(void)
 
 Command_iterator *Command_iterator::current_iterator= NULL;
 
-static void handle_bootstrap_impl(THD *thd)
+static bool handle_bootstrap_impl(THD *thd)
 {
   std::string query;
 
@@ -152,15 +155,17 @@ static void handle_bootstrap_impl(THD *thd)
       }
 
       thd->send_statement_status();
-      bootstrap_error= 1;
+      bootstrap_error= true;
       break;
     }
 
     char *query_copy= static_cast<char*>(thd->alloc(query.length() + 1));
     if (query_copy == NULL)
     {
-      bootstrap_error= 1;
+      /* purecov: begin inspected */
+      bootstrap_error= true;
       break;
+      /* purecov: end */
     }
     memcpy(query_copy, query.c_str(), query.length());
     query_copy[query.length()]= '\0';
@@ -176,9 +181,11 @@ static void handle_bootstrap_impl(THD *thd)
     Parser_state parser_state;
     if (parser_state.init(thd, thd->query().str, thd->query().length))
     {
+      /* purecov: begin inspected */
       thd->send_statement_status();
-      bootstrap_error= 1;
+      bootstrap_error= true;
       break;
+      /* purecov: end */
     }
 
     mysql_parse(thd, &parser_state);
@@ -198,7 +205,8 @@ static void handle_bootstrap_impl(THD *thd)
   }
 
   Command_iterator::current_iterator->end();
-  DBUG_VOID_RETURN;
+
+  DBUG_RETURN(bootstrap_error);
 }
 
 
@@ -208,8 +216,8 @@ static void handle_bootstrap_impl(THD *thd)
   Used when creating the initial grant tables.
 */
 
-namespace {
-extern "C" void *handle_bootstrap(void *arg)
+extern "C" {
+static void *handle_bootstrap(void *arg)
 {
   THD *thd=(THD*) arg;
 
@@ -223,7 +231,7 @@ extern "C" void *handle_bootstrap(void *arg)
     close_connection(thd, ER_OUT_OF_RESOURCES);
 #endif
     thd->fatal_error();
-    bootstrap_error= 1;
+    bootstrap_error= true;
     thd->get_protocol_classic()->end_net();
   }
   else
@@ -231,7 +239,10 @@ extern "C" void *handle_bootstrap(void *arg)
     Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
     thd_manager->add_thd(thd);
 
-    handle_bootstrap_impl(thd);
+    if (bootstrap_handler)
+      bootstrap_error= (*bootstrap_handler)(thd);
+    else
+      bootstrap_error= handle_bootstrap_impl(thd);
 
     thd->get_protocol_classic()->end_net();
     thd->release_resources();
@@ -240,10 +251,9 @@ extern "C" void *handle_bootstrap(void *arg)
   my_thread_end();
   return 0;
 }
-} // namespace
+} // extern "C"
 
-
-int bootstrap(MYSQL_FILE *file)
+bool run_bootstrap_thread(MYSQL_FILE *file, bootstrap_functor boot_handler)
 {
   DBUG_ENTER("bootstrap");
 
@@ -255,6 +265,11 @@ int bootstrap(MYSQL_FILE *file)
   thd->set_new_thread_id();
 
   bootstrap_file=file;
+  bootstrap_handler= boot_handler;
+
+  // Set server default sql_mode irrespective of
+  // mysqld server command line argument.
+  thd->variables.sql_mode= intern_find_sys_var("sql_mode", 0)->get_default();
 
   my_thread_attr_t thr_attr;
   my_thread_attr_init(&thr_attr);
@@ -268,12 +283,15 @@ int bootstrap(MYSQL_FILE *file)
                                  &thread_handle, &thr_attr, handle_bootstrap, thd);
   if (error)
   {
+    /* purecov: begin inspected */
     sql_print_warning("Can't create thread to handle bootstrap (errno= %d)",
                       error);
-    DBUG_RETURN(-1);
+    DBUG_RETURN(true);
+    /* purecov: end */
   }
   /* Wait for thread to die */
   my_thread_join(&thread_handle, NULL);
   delete thd;
   DBUG_RETURN(bootstrap_error);
 }
+} // namespace

@@ -84,7 +84,7 @@ USE testdb_wl6445;
 --ERROR ER_CANT_LOCK
 INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
 SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
---ERROR ER_INNODB_READ_ONLY
+--ERROR ER_OPEN_AS_READONLY
 CREATE TABLE t2 ( i int ,j blob) ENGINE = Innodb;
 --ERROR ER_CANT_LOCK
 UPDATE t1 SET i = i+1;
@@ -100,7 +100,7 @@ USE testdb_wl6445;
 --ERROR ER_CANT_LOCK
 INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
 SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
---ERROR ER_INNODB_READ_ONLY
+--ERROR ER_OPEN_AS_READONLY
 CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
 --ERROR ER_CANT_LOCK
 UPDATE t1 SET i = i+1;
@@ -123,7 +123,7 @@ USE testdb_wl6445;
 --ERROR ER_CANT_LOCK
 INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
 SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
---ERROR ER_INNODB_READ_ONLY
+--ERROR ER_OPEN_AS_READONLY
 CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
 --ERROR ER_CANT_LOCK
 UPDATE t1 SET i = i+1;
@@ -203,7 +203,7 @@ USE testdb_wl6445;
 --ERROR ER_CANT_LOCK
 INSERT INTO t1 VALUES (211,repeat('a',200)),(212,repeat('b',200)),(213,repeat('c',200));
 SELECT i,LEFT(j,20) FROM t1 WHERE i%10=0 ORDER BY i;
---ERROR ER_INNODB_READ_ONLY
+--ERROR ER_OPEN_AS_READONLY
 CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
 --ERROR ER_CANT_LOCK
 UPDATE t1 SET i = i+1;
@@ -531,7 +531,7 @@ INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',2
 UPDATE t1 SET i = i + 20;
 --ERROR ER_CANT_LOCK
 DELETE FROM t1;
---ERROR ER_INNODB_READ_ONLY
+--ERROR ER_OPEN_AS_READONLY
 CREATE TABLE t2 ( i INT ) ENGINE = Innodb;
 
 # User-manipulation statements are disallowed since ACL tables use InnoDB.
@@ -620,6 +620,7 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[Warning\\] Skip re-populating collations and character sets tables in read-only mode.");
 --enable_query_log
 
 

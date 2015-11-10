@@ -68,7 +68,8 @@ static void die(const char *fmt, ...)
   exit(1);
 }
 
-char *fgets_fn(char *buffer, size_t size, fgets_input_t input, int *error)
+static char *fgets_fn(char *buffer, size_t size, fgets_input_t input,
+                      int *error)
 {
   char *line= fgets(buffer, (int)size, (FILE*) input);
   if (error)

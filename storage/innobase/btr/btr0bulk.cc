@@ -90,8 +90,7 @@ PageBulk::init()
 		new_page_no = page_get_page_no(new_page);
 
 		if (new_page_zip) {
-			page_create_zip(new_block, m_index, m_level, 0,
-					NULL, mtr);
+			page_create_zip(new_block, m_index, m_level, 0, mtr);
 		} else {
 			ut_ad(!dict_index_is_spatial(m_index));
 			page_create(new_block, mtr,
@@ -328,7 +327,7 @@ PageBulk::compress()
 	ut_ad(m_page_zip != NULL);
 
 	return(page_zip_compress(m_page_zip, m_page, m_index,
-				 page_zip_level, NULL, m_mtr));
+				 page_zip_level, m_mtr));
 }
 
 /** Get node pointer
@@ -394,7 +393,7 @@ PageBulk::getSplitRec()
 }
 
 /** Copy all records after split rec including itself.
-@param[in]	rec	split rec */
+@param[in]	split_rec	split rec */
 void
 PageBulk::copyIn(
 	rec_t*		split_rec)
@@ -419,7 +418,7 @@ PageBulk::copyIn(
 }
 
 /** Remove all records after split rec including itself.
-@param[in]	rec	split rec	*/
+@param[in]	split_rec	split rec	*/
 void
 PageBulk::copyOut(
 	rec_t*		split_rec)
@@ -493,7 +492,7 @@ PageBulk::setPrev(
 
 /** Check if required space is available in the page for the rec to be inserted.
 We check fill factor & padding here.
-@param[in]	length		required length
+@param[in]	rec_size	required length
 @return true	if space is available */
 bool
 PageBulk::isSpaceAvailable(

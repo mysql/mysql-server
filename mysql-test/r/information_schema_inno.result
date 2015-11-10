@@ -72,7 +72,7 @@ constraint fk_t1_1 foreign key (idtype) references `t-2` (id)
 use test;
 select referenced_table_schema, referenced_table_name 
 from information_schema.key_column_usage
-where constraint_schema = 'db-1';
+where constraint_schema = 'db-1' and table_schema != 'PERFORMANCE_SCHEMA';
 referenced_table_schema	referenced_table_name
 NULL	NULL
 db-1	t-2

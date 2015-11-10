@@ -16,11 +16,18 @@
 /* drop and alter of tablespaces */
 
 #include "sql_tablespace.h"
+
 #include "my_global.h"
 #include "derror.h"                             // ER_THD
 #include "lock.h"                               // lock_tablespace_name
 #include "sql_table.h"                          // write_bin_log
 #include "sql_class.h"                          // THD
+
+#include "dd/dd_tablespace.h"                   // dd::create_tablespace
+
+
+static bool update_tablespace_dictionary(
+              THD *thd, st_alter_tablespace *ts_info, handlerton *hton);
 
 /**
   Check if tablespace name is valid
@@ -214,6 +221,17 @@ int mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
       }
       DBUG_RETURN(error);
     }
+
+    // Update data dictionary tables
+    if (update_tablespace_dictionary(thd, ts_info, hton))
+    {
+      /*
+        In practice DD operations should not fail as respective
+        SE tablespace operations are already successfull at this point.
+      */
+      DBUG_RETURN(HA_ADMIN_INTERNAL_ERROR);
+    }
+
   }
   else
   {
@@ -225,3 +243,69 @@ int mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
   error= write_bin_log(thd, false, thd->query().str, thd->query().length);
   DBUG_RETURN(error);
 }
+
+
+/*
+  Handle following operations,
+    - Create tablespace.
+    - Drop tablespace.
+    - Add/Drop datafile.
+
+  @param thd     - Thread executing the operation.
+  @param ts_info - Tablespace metadata from the DDL.
+  @param hton    - Handlerton in which tablespace reside.
+
+  @return false - On success.
+  @return true - On failure.
+*/
+static bool update_tablespace_dictionary(
+              THD *thd, st_alter_tablespace *ts_info, handlerton *hton)
+{
+  DBUG_ENTER("dd_alter_tablespace");
+
+  switch (ts_info->ts_cmd_type)
+  {
+  case CREATE_TABLESPACE:
+    DBUG_RETURN(dd::create_tablespace(thd, ts_info, hton));
+
+  case DROP_TABLESPACE:
+    DBUG_RETURN(dd::drop_tablespace(thd, ts_info, hton));
+
+  case ALTER_TABLESPACE:
+    DBUG_RETURN(dd::alter_tablespace(thd, ts_info, hton));
+
+
+  /*
+    Below tablespace alter operations are handled by SE
+    and data dictionary does not capture metadata related
+    to these operations. OR the operation is not implemented
+    by the SE. The server just returns success in these cases
+    letting the SE to take actions.
+  */
+
+  /*
+    Metadata related to LOGFILE GROUP are not stored in
+    dictionary as of now.
+  */
+  case CREATE_LOGFILE_GROUP:
+  case ALTER_LOGFILE_GROUP:
+  case DROP_LOGFILE_GROUP:
+
+  /*
+    Change file operation is not implemented by any storage
+    engine.
+  */
+  case CHANGE_FILE_TABLESPACE:
+
+  /*
+    Access mode of tablespace is set by SE operation and MySQL
+    ignores it.
+  */
+  case ALTER_ACCESS_MODE_TABLESPACE:
+  default:
+    ;
+  }
+
+  DBUG_RETURN(false);
+}
+

@@ -59,14 +59,6 @@ typedef ib_uint64_t os_offset_t;
 
 #ifdef _WIN32
 
-/**
-Gets the operating system version. Currently works only on Windows.
-@return OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000, OS_WINXP, OS_WINVISTA,
-OS_WIN7. */
-
-ulint
-os_get_os_version();
-
 typedef HANDLE	os_file_dir_t;	/*!< directory stream */
 
 /** We define always WIN_ASYNC_IO, and check at run-time whether
@@ -85,8 +77,6 @@ the OS actually supports it: Win 95 does not, NT does. */
 # define OS_FILE_FROM_FD(fd) (HANDLE) _get_osfhandle(fd)
 
 #else /* _WIN32 */
-
-typedef DIR*	os_file_dir_t;	/*!< directory stream */
 
 /** File handle */
 typedef int	os_file_t;
@@ -115,8 +105,6 @@ enum os_file_create_t {
 					doesn't exist, error) */
 	OS_FILE_CREATE,			/*!< to create new file (if
 					exists, error) */
-	OS_FILE_OVERWRITE,		/*!< to create a new file, if exists
-					the overwrite old file */
 	OS_FILE_OPEN_RAW,		/*!< to open a raw device or disk
 					partition */
 	OS_FILE_CREATE_PATH,		/*!< to create the directories */
@@ -375,7 +363,7 @@ public:
 	}
 
 	/** Set compression algorithm
-	@param[in] compression	The compression algorithm to use */
+	@param[in]	type	The compression algorithm to use */
 	void compression_algorithm(Compression::Type type)
 	{
 		if (type == Compression::NONE) {
@@ -529,48 +517,10 @@ struct os_file_stat_t {
 the temporary file is created in the given parameter path. If the path
 is null then it will create the file in the mysql server configuration
 parameter (--tmpdir).
-@param[in]	path	location for creating temporary file
 @return temporary file handle, or NULL on error */
 FILE*
 os_file_create_tmpfile();
 #endif /* !UNIV_HOTBACKUP */
-
-/** The os_file_opendir() function opens a directory stream corresponding to the
-directory named by the dirname argument. The directory stream is positioned
-at the first entry. In both Unix and Windows we automatically skip the '.'
-and '..' items at the start of the directory listing.
-
-@param[in]	dirname		directory name; it must not contain a trailing
-				'\' or '/'
-@param[in]	is_fatal	true if we should treat an error as a fatal
-				error; if we try to open symlinks then we do
-				not wish a fatal error if it happens not to be
-				a directory
-@return directory stream, NULL if error */
-os_file_dir_t
-os_file_opendir(
-	const char*	dirname,
-	bool		is_fatal);
-
-/**
-Closes a directory stream.
-@param[in] dir	directory stream
-@return 0 if success, -1 if failure */
-int
-os_file_closedir(
-	os_file_dir_t	dir);
-
-/** This function returns information of the next file in the directory. We jump
-over the '.' and '..' entries in the directory.
-@param[in]	dirname		directory name or path
-@param[in]	dir		directory stream
-@param[out]	info		buffer where the info is returned
-@return 0 if ok, -1 if error, 1 if at the end of the directory */
-int
-os_file_readdir_next_file(
-	const char*	dirname,
-	os_file_dir_t	dir,
-	os_file_stat_t*	info);
 
 /**
 This function attempts to create a directory named pathname. The new directory
@@ -630,7 +580,7 @@ os_file_create_simple_no_error_handling_func(
 /** Tries to disable OS caching on an opened file descriptor.
 @param[in]	fd		file descriptor to alter
 @param[in]	file_name	file name, used in the diagnostic message
-@param[in]	name		"open" or "create"; used in the diagnostic
+@param[in]	operation_name	"open" or "create"; used in the diagnostic
 				message */
 void
 os_file_set_nocache(
@@ -1181,7 +1131,7 @@ os_file_close_no_error_handling(os_file_t file);
 #endif /* UNIV_HOTBACKUP */
 
 /** Gets a file size.
-@param[in]	file		handle to a file
+@param[in]	filename	handle to a file
 @return file size if OK, else set m_total_size to ~0 and m_alloc_size
 	to errno */
 os_file_size_t
@@ -1244,12 +1194,12 @@ os_file_flush_func(
 The number should be retrieved before any other OS calls (because they may
 overwrite the error number). If the number is not known to this program,
 the OS error number + 100 is returned.
-@param[in]	report		true if we want an error message printed
-				for all errors
+@param[in]	report_all_errors	true if we want an error message printed
+					for all errors
 @return error number, or OS error number + 100 */
 ulint
 os_file_get_last_error(
-	bool		report);
+	bool		report_all_errors);
 
 /** NOTE! Use the corresponding macro os_file_read(), not directly this
 function!
@@ -1342,12 +1292,12 @@ This function allocates memory to be returned.  It is the callers
 responsibility to free the return value after it is no longer needed.
 
 @param[in]	old_path		pathname
-@param[in]	new_name		new file name
+@param[in]	tablename		new file name
 @return own: new full pathname */
 char*
 os_file_make_new_pathname(
 	const char*	old_path,
-	const char*	new_name);
+	const char*	tablename);
 
 /** This function reduces a null-terminated full remote path name into
 the path that is sent by MySQL for DATA DIRECTORY clause.  It replaces
@@ -1383,14 +1333,14 @@ array is divided logically into n_read_segs and n_write_segs
 respectively. The caller must create an i/o handler thread for each
 segment in these arrays. This function also creates the sync array.
 No i/o handler thread needs to be created for that
-@param[in]	n_read_segs	number of reader threads
-@param[in]	n_write_segs	number of writer threads
+@param[in]	n_readers	number of reader threads
+@param[in]	n_writers	number of writer threads
 @param[in]	n_slots_sync	number of slots in the sync aio array */
 
 bool
 os_aio_init(
-	ulint		n_read_segs,
-	ulint		n_write_segs,
+	ulint		n_readers,
+	ulint		n_writers,
 	ulint		n_slots_sync);
 
 /**
@@ -1470,14 +1420,14 @@ therefore no other thread is allowed to do the freeing!
 				are valid and can be used to restart the
 				operation, for example
 @param[out]	m2		callback message
-@param[out]	type		OS_FILE_WRITE or ..._READ
+@param[out]	request		OS_FILE_WRITE or ..._READ
 @return DB_SUCCESS or error code */
 dberr_t
 os_aio_handler(
 	ulint		segment,
 	fil_node_t**	m1,
 	void**		m2,
-	IORequest*	type);
+	IORequest*	request);
 
 /** Prints info of the aio arrays.
 @param[in,out]	file		file where to print */
@@ -1564,8 +1514,8 @@ file.
 
 Note: On Windows we use the name and on Unices we use the file handle.
 
-@param[in]	name		File name
-@param[in]	fh		File handle for the file - if opened
+@param[in]	path	File name
+@param[in]	fh	File handle for the file - if opened
 @return true if the file system supports sparse files */
 bool
 os_is_sparse_file_supported(

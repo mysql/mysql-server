@@ -135,3 +135,10 @@ CHANGED_TABLE_LIST* Transaction_ctx::changed_table_dup(const char *key,
   ::memcpy(new_table->key, key, key_length);
   return new_table;
 }
+
+
+void Transaction_ctx::register_ha(
+  enum_trx_scope scope, Ha_trx_info *ha_info, handlerton *ht)
+{
+  ha_info->register_ha(&m_scope_info[scope], ht);
+}

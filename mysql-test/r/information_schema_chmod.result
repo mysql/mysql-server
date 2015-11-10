@@ -1,5 +1,0 @@
-create database mysqltest;
-create table mysqltest.t1(a int);
-select table_schema from information_schema.tables where table_schema='mysqltest';
-table_schema
-drop database mysqltest;

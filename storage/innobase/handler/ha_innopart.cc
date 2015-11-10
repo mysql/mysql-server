@@ -200,7 +200,7 @@ Ha_innopart_share::open_one_table_part(
 all m_table_parts[]->vc_templ to it.
 @param[in]	table		MySQL TABLE object
 @param[in]	ib_table	InnoDB dict_table_t
-@param[in]	table_name	Table name (db/table_name) */
+@param[in]	name		Table name (db/table_name) */
 void
 Ha_innopart_share::set_v_templ(
 	TABLE*		table,
@@ -531,7 +531,7 @@ Ha_innopart_share::get_mysql_key(
 
 /** Helper function for set bit in bitmap.
 @param[in,out]	buf	Bitmap buffer to update bit in.
-@param[in]	bit_pos	Bit number (index starts at 0). */
+@param[in]	pos	Bit number (index starts at 0). */
 static
 inline
 void
@@ -544,7 +544,7 @@ set_bit(
 
 /** Helper function for clear bit in bitmap.
 @param[in,out]	buf	Bitmap buffer to update bit in.
-@param[in]	bit_pos	Bit number (index starts at 0). */
+@param[in]	pos	Bit number (index starts at 0). */
 static
 inline
 void
@@ -557,10 +557,10 @@ clear_bit(
 
 /** Helper function for get bit in bitmap.
 @param[in,out]	buf	Bitmap buffer.
-@param[in]	bit_pos	Bit number (index starts at 0).
+@param[in]	pos	Bit number (index starts at 0).
 @return	byte set to 0x0 or 0x1.
 @retval	0x0 bit not set.
-@retval	0x1 bet set. */
+@retval	0x1 bit set. */
 static
 inline
 byte
@@ -1724,6 +1724,9 @@ ha_innopart::index_init(
 		m_prebuilt->m_no_prefetch = true;
 	}
 
+	/* For scan across partitions, the keys needs to be materialized */
+	m_prebuilt->m_read_virtual_key = true;
+
 	error = change_active_index(part_id, keynr);
 	if (error != 0) {
 		destroy_record_priority_queue();
@@ -1755,6 +1758,7 @@ ha_innopart::index_end()
 		destroy_record_priority_queue();
 		m_prebuilt->m_no_prefetch = false;
 	}
+	m_prebuilt->m_read_virtual_key = false;
 
 	DBUG_RETURN(ha_innobase::index_end());
 }
@@ -2684,7 +2688,8 @@ ha_innopart::create(
 				     create_info,
 				     table_name,
 				     remote_path,
-				     tablespace_name);
+				     tablespace_name,
+				     srv_file_per_table);
 
 	DBUG_ENTER("ha_innopart::create");
 	ut_ad(create_info != NULL);
@@ -2997,27 +3002,109 @@ ha_innopart::extra(
 	return(ha_innobase::extra(operation));
 }
 
-/** Delete all rows in a partition.
-@return	0 or error number. */
-int
-ha_innopart::truncate_partition_low()
-{
-	return(truncate());
-}
-
 /** Deletes all rows of a partitioned InnoDB table.
 @return	0 or error number. */
 int
 ha_innopart::truncate()
 {
-	dberr_t		err = DB_SUCCESS;
-	int		error;
+	ut_ad(m_part_info->num_partitions_used() == m_tot_parts);
+	return(truncate_partition_low());
+}
 
-	DBUG_ENTER("ha_innopart::truncate");
+/** Delete all rows in the requested partitions.
+Done by deleting the partitions and recreate them again.
+TODO: Add DDL_LOG handling to avoid missing partitions in case of crash.
+@return	0 or error number. */
+int
+ha_innopart::truncate_partition_low()
+{
+	int		error = 0;
+	const char*	table_name = table->s->normalized_path.str;
+	HA_CREATE_INFO*	create_infos;
+	ulint		num_used_parts = m_part_info->num_partitions_used();
+	ulint		processed_partitions = 0;
+	DBUG_ENTER("ha_innopart::truncate_partition_low");
 
 	if (high_level_read_only) {
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
+
+	/* First we copy the info for the partitions that will be truncated,
+	since after we close the table the information is not accessible. */
+
+	/* Use a heap to ease the memory alloc/free. Initialize with one
+	create_info + 5 bytes for short names (t#P#p) per partition. */
+	mem_heap_t*	heap = mem_heap_create(num_used_parts
+		* (sizeof(HA_CREATE_INFO) + 5));
+	if (heap == NULL)
+	{
+		DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+	}
+
+	size_t		alloc_size = sizeof(HA_CREATE_INFO) * num_used_parts;
+	create_infos = static_cast<HA_CREATE_INFO*>(mem_heap_alloc(heap,
+		alloc_size));
+	if (create_infos == NULL)
+	{
+		mem_heap_free(heap);
+		DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+	}
+	memset(create_infos, 0, alloc_size);
+
+	for (uint i = m_part_info->get_first_used_partition();
+	     i < m_tot_parts;
+	     i = m_part_info->get_next_used_partition(i)) {
+
+		dict_table_t*	table_part = m_part_share->get_table_part(i);
+		HA_CREATE_INFO*	info = &create_infos[processed_partitions++];
+		update_create_info_from_table(info, table);
+		/* The table should have been opened in ha_innobase::open().
+		Purge might be holding a reference to the table. */
+		ut_ad(table_part->n_ref_count >= 1);
+
+		/* Temporary partitioned tables are not supported! */
+		ut_ad(!dict_table_is_temporary(table_part));
+
+		/* Intrinsic partitioned tables are not supported! */
+		ut_ad(!dict_table_is_intrinsic(table_part));
+		/* Truncate of intrinsic table is not allowed truncate for
+		now. */
+		if (dict_table_is_intrinsic(table_part)) {
+			error = HA_ERR_WRONG_COMMAND;
+			break;
+		}
+
+		if (dict_table_is_discarded(table_part)) {
+			ib_senderrf(
+				ha_thd(), IB_LOG_LEVEL_ERROR,
+				ER_TABLESPACE_DISCARDED,
+				table->s->table_name.str);
+			error = HA_ERR_NO_SUCH_TABLE;
+			break;
+		}
+		if (table_part->data_dir_path)
+		{
+			info->data_file_name = mem_heap_strdup(heap,
+						table_part->data_dir_path);
+		}
+		/* Use 'alias' variable as partition name. */
+		info->alias = mem_heap_strdup(heap, table_part->name.m_name);
+		/* InnoDB does not support MIN_ROWS, so use that variable
+		for file_per_table. */
+		info->min_rows = dict_table_is_file_per_table(table_part)
+			? 1 : 0;
+		// TODO: WL#6205 Add:
+		//info->tablespace = mem_heap_strdup(heap,
+		//table_part->tablespace_name);
+	}
+
+
+	if (error)
+	{
+		mem_heap_free(heap);
+		DBUG_RETURN(error);
+	}
+	ut_ad(processed_partitions == num_used_parts);
 
 	/* TRUNCATE also means resetting auto_increment. Hence, reset
 	it so that it will be initialized again at the next use. */
@@ -3029,49 +3116,39 @@ ha_innopart::truncate()
 		unlock_auto_increment();
 	}
 
-	/* Get the transaction associated with the current thd, or create one
-	if not yet created, and update m_prebuilt->trx. */
-
-	update_thd(ha_thd());
-
-	if (!trx_is_started(m_prebuilt->trx)) {
-		++m_prebuilt->trx->will_lock;
+	error = close();
+	if (error)
+	{
+		return error;
 	}
-	/* Truncate the table in InnoDB. */
+	/* From now on m_prebuilt is reset! */
 
+	/* m_part_info is still usable! */
+	processed_partitions = 0;
 	for (uint i = m_part_info->get_first_used_partition();
 	     i < m_tot_parts;
 	     i = m_part_info->get_next_used_partition(i)) {
 
-		set_partition(i);
-		err = row_truncate_table_for_mysql(m_prebuilt->table,
-				m_prebuilt->trx);
-		update_partition(i);
-		if (err != DB_SUCCESS) {
+		HA_CREATE_INFO*	info = &create_infos[processed_partitions++];
+		bool file_per_table = false;
+		if (info->min_rows != 0) {
+			info->min_rows = 0;
+			file_per_table = true;
+		}
+
+		const char*	name = info->alias;
+		info->alias = NULL;
+		/* TODO: Add DDL_LOG here to avoid missing partitions on crash. */
+		error = ha_innobase::delete_table(name, SQLCOM_TRUNCATE);
+		if (error == 0) {
+			error = ha_innobase::create(name, table, info, file_per_table);
+		}
+		if (error != 0) {
 			break;
 		}
 	}
-
-	switch (err) {
-
-	case DB_TABLESPACE_DELETED:
-	case DB_TABLESPACE_NOT_FOUND:
-		ib_senderrf(
-			m_prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
-			(err == DB_TABLESPACE_DELETED ?
-			ER_TABLESPACE_DISCARDED : ER_TABLESPACE_MISSING),
-			table->s->table_name.str);
-		table->status = STATUS_NOT_FOUND;
-		error = HA_ERR_NO_SUCH_TABLE;
-		break;
-
-	default:
-		error = convert_error_code_to_mysql(
-			err, m_prebuilt->table->flags,
-			m_prebuilt->trx->mysql_thd);
-		table->status = STATUS_NOT_FOUND;
-		break;
-	}
+	mem_heap_free(heap);
+	open(table_name, 0, 0);
 	DBUG_RETURN(error);
 }
 
@@ -3498,14 +3575,31 @@ ha_innopart::info_low(
 					checked_sys_tablespace = true;
 				}
 
-				ulint	space = static_cast<ulint>(
+				uintmax_t	space =
 					fsp_get_available_space_in_free_extents(
-						ib_table->space));
-				if (space == ULINT_UNDEFINED) {
-					ut_ad(0);
-					avail_space = space;
+						ib_table->space);
+				if (space == UINTMAX_MAX) {
+					THD*	thd = ha_thd();
+					const char* table_name
+						= ib_table->name.m_name;
+
+					push_warning_printf(
+						thd,
+						Sql_condition::SL_WARNING,
+						ER_CANT_GET_STAT,
+						"InnoDB: Trying to get the"
+						" free space for partition %s"
+						" but its tablespace has been"
+						" discarded or the .ibd file"
+						" is missing. Setting the free"
+						" space of the partition to"
+						" zero.",
+						ut_get_name(
+							m_prebuilt->trx,
+							table_name).c_str());
 				} else {
-					avail_space += space;
+					avail_space +=
+						static_cast<ulint>(space);
 				}
 			}
 		}
@@ -3559,35 +3653,7 @@ ha_innopart::info_low(
 		if ((flag & HA_STATUS_NO_LOCK) == 0
 		    && (flag & HA_STATUS_VARIABLE_EXTRA) != 0
 		    && srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE) {
-
-			if (avail_space == ULINT_UNDEFINED) {
-				THD*	thd;
-				char	errbuf[MYSYS_STRERROR_SIZE];
-
-				thd = ha_thd();
-
-				std::string err_str;
-				err_str = "InnoDB: Trying to get"
-					" the free space for table ";
-				err_str += ut_get_name(m_prebuilt->trx,
-						ib_table->name.m_name);
-				err_str += " but its tablespace has been"
-					" discarded or the .ibd file is"
-					" missing. Setting the free space to"
-					" zero.";
-				push_warning_printf(
-					thd,
-					Sql_condition::SL_WARNING,
-					ER_CANT_GET_STAT,
-					err_str.c_str(),
-					errno,
-					my_strerror(errbuf, sizeof(errbuf),
-						    errno));
-
-				stats.delete_length = 0;
-			} else {
-				stats.delete_length = avail_space * 1024;
-			}
+			stats.delete_length = avail_space * 1024;
 		}
 
 		stats.check_time = 0;

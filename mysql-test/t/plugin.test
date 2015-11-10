@@ -56,6 +56,7 @@ set global example_enum_var= e1;
 --disable_warnings
 select * from information_schema.global_status where variable_name like 'example%' order by variable_name;
 --enable_warnings
+--replace_regex /^Last creation.*t1'$/Last creation 't1'/
 show variables like 'example%';
 
 UNINSTALL PLUGIN example;
@@ -311,10 +312,12 @@ SET SESSION example_last_create_thdvar = '';
 
 CREATE TABLE t10(a INT) ENGINE=EXAMPLE;
 SELECT @@SESSION.example_create_count_thdvar;
+--replace_regex /^Last creation.*t10'$/Last creation 't10'/
 SELECT @@SESSION.example_last_create_thdvar;
 
 CREATE TABLE t20(a INT) ENGINE=EXAMPLE;
 SELECT @@SESSION.example_create_count_thdvar;
+--replace_regex /^Last creation.*t20'$/Last creation 't20'/
 SELECT @@SESSION.example_last_create_thdvar;
 
 DROP TABLE t10, t20;

@@ -1019,7 +1019,7 @@ int JOIN::replace_index_subquery()
   subselect_engine *engine= NULL;
   Item_in_subselect * const in_subs=
     static_cast<Item_in_subselect *>(unit->item);
-  enum join_type type= JT_UNKNOWN;
+  bool found_engine= false;
 
   JOIN_TAB *const first_join_tab= best_ref[0];
 
@@ -1032,7 +1032,7 @@ int JOIN::replace_index_subquery()
     if (first_join_tab->type() == JT_EQ_REF &&
         first_join_tab->ref().items[0]->item_name.ptr() == in_left_expr_name)
     {
-      type= JT_UNIQUE_SUBQUERY;
+      found_engine= true;
       /*
         This uses test_if_ref(), which needs access to JOIN_TAB::join_cond() so
         it must be done before we get rid of JOIN_TAB.
@@ -1042,7 +1042,7 @@ int JOIN::replace_index_subquery()
     else if (first_join_tab->type() == JT_REF &&
              first_join_tab->ref().items[0]->item_name.ptr() == in_left_expr_name)
     {
-      type= JT_INDEX_SUBQUERY;
+      found_engine= true;
       remove_subq_pushed_predicates();
     }
   }
@@ -1050,11 +1050,11 @@ int JOIN::replace_index_subquery()
            first_join_tab->ref().items[0]->item_name.ptr() == in_left_expr_name &&
            having_cond->item_name.ptr() == in_having_cond)
   {
-    type= JT_INDEX_SUBQUERY;
+    found_engine= true;
     where_cond= remove_additional_cond(where_cond);
   }
 
-  if (type == JT_UNKNOWN)
+  if (!found_engine)
     DBUG_RETURN(0);
 
   if (alloc_qep(tables))
@@ -1075,19 +1075,7 @@ int JOIN::replace_index_subquery()
   engine=
     new subselect_indexsubquery_engine(thd, first_qep_tab, unit->item,
                                        where_cond,
-                                       having_cond,
-                                       // check_null
-                                       first_qep_tab->type() == JT_REF_OR_NULL,
-                                       // unique
-                                       type == JT_UNIQUE_SUBQUERY);
-  /**
-     @todo If having_cond!=NULL we pass unique=false. But for this query:
-     (oe1, oe2) IN (SELECT primary_key, non_key_maybe_null_field FROM tbl)
-     we could use "unique=true" for the first index component and let
-     Item_is_not_null_test(non_key_maybe_null_field) handle the second.
-  */
-
-  first_qep_tab->set_type(type);
+                                       having_cond);
 
   if (!unit->item->change_engine(engine))
     DBUG_RETURN(1);

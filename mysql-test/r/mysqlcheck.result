@@ -7,6 +7,7 @@ mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
 mysql.event                                        OK
+mysql.events                                       OK
 mysql.func                                         OK
 mysql.general_log
 note     : The storage engine for the table doesn't support analyze
@@ -18,10 +19,12 @@ mysql.help_topic                                   OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
+mysql.parameters                                   OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.routines                                     OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
@@ -35,6 +38,7 @@ mysql.time_zone_leap_second                        OK
 mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
+mysql.triggers                                     OK
 mysql.user                                         OK
 sys.sys_config                                     OK
 mtr.global_suppressions                            Table is already up to date
@@ -49,6 +53,9 @@ mysql.engine_cost
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.event                                        OK
+mysql.events
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.func                                         OK
 mysql.general_log
 note     : The storage engine for the table doesn't support optimize
@@ -75,6 +82,9 @@ mysql.innodb_table_stats
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.ndb_binlog_index                             OK
+mysql.parameters
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.plugin
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
@@ -83,6 +93,9 @@ mysql.procs_priv
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.proxies_priv
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.routines
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.server_cost
@@ -120,6 +133,9 @@ status   : OK
 mysql.time_zone_transition_type
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
+mysql.triggers
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.user
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
@@ -130,6 +146,7 @@ mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
 mysql.event                                        OK
+mysql.events                                       OK
 mysql.func                                         OK
 mysql.general_log
 note     : The storage engine for the table doesn't support analyze
@@ -141,10 +158,12 @@ mysql.help_topic                                   OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
+mysql.parameters                                   OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.routines                                     OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
@@ -158,6 +177,7 @@ mysql.time_zone_leap_second                        OK
 mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
+mysql.triggers                                     OK
 mysql.user                                         OK
 mysql.columns_priv
 note     : Table does not support optimize, doing recreate + analyze instead
@@ -169,6 +189,9 @@ mysql.engine_cost
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.event                                        Table is already up to date
+mysql.events
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.func                                         Table is already up to date
 mysql.general_log
 note     : The storage engine for the table doesn't support optimize
@@ -195,6 +218,9 @@ mysql.innodb_table_stats
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.ndb_binlog_index                             Table is already up to date
+mysql.parameters
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.plugin
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
@@ -203,6 +229,9 @@ mysql.procs_priv
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.proxies_priv
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.routines
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.server_cost
@@ -238,6 +267,9 @@ mysql.time_zone_transition
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.time_zone_transition_type
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.triggers
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.user
@@ -298,82 +330,11 @@ Table	Op	Msg_type	Msg_text
 test.v1	check	status	OK
 information_schema.routines	check	note	The storage engine for the table doesn't support check
 drop view v1;
-CREATE TABLE t1(a INT) engine=myisam;
-CREATE TABLE t2(a INT) engine=myisam;
-test.t1
-Error    : Incorrect information in file: './test/t1.frm'
-error    : Corrupt
-test.t2                                            OK
-DROP TABLE t1, t2;
 End of 5.0 tests
 End of 5.1 tests
 #
 # Bug #35269: mysqlcheck behaves different depending on order of parameters
 #
-#
-# Bug#11755431 47205: MAP 'REPAIR TABLE' TO RECREATE +ANALYZE FOR
-#              ENGINES NOT SUPPORTING NATIVE
-#
-DROP TABLE IF EXISTS bug47205;
-#
-# Test 1: Check that ALTER TABLE ... rebuilds the table
-CREATE TABLE bug47205(a VARCHAR(20) PRIMARY KEY)
-DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci engine=innodb;
-INSERT INTO bug47205 VALUES ("foobar");
-FLUSH TABLE bug47205;
-# Replace the FRM with a 5.0 FRM that will require upgrade
-# Should indicate that ALTER TABLE ... FORCE is needed
-CHECK TABLE bug47205 FOR UPGRADE;
-Table	Op	Msg_type	Msg_text
-test.bug47205	check	error	Table rebuild required. Please do "ALTER TABLE `bug47205` FORCE" or dump/reload to fix it!
-# ALTER TABLE ... FORCE should rebuild the table
-ALTER TABLE bug47205 FORCE;
-# Table should now be ok
-CHECK TABLE bug47205 FOR UPGRADE;
-Table	Op	Msg_type	Msg_text
-test.bug47205	check	status	OK
-DROP TABLE bug47205;
-#
-# Test 2: InnoDB - REPAIR not supported
-CREATE TABLE bug47205(a VARCHAR(20) PRIMARY KEY)
-DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci engine=innodb;
-FLUSH TABLE bug47205;
-# Replace the FRM with a 5.0 FRM that will require upgrade
-# Should indicate that ALTER TABLE .. FORCE is needed
-CHECK TABLE bug47205 FOR UPGRADE;
-Table	Op	Msg_type	Msg_text
-test.bug47205	check	error	Table rebuild required. Please do "ALTER TABLE `bug47205` FORCE" or dump/reload to fix it!
-# Running mysqlcheck to check and upgrade
-test.bug47205                                      To be repaired, cause follows:
-Server issued error    : Table rebuild required. Please do "ALTER TABLE `bug47205` FORCE" or dump/reload to fix it!
-
-Repairing tables
-`test`.`bug47205`
-Running  : ALTER TABLE `test`.`bug47205` FORCE
-status   : OK
-# Table should now be ok
-CHECK TABLE bug47205 FOR UPGRADE;
-Table	Op	Msg_type	Msg_text
-test.bug47205	check	status	OK
-DROP TABLE bug47205;
-#
-# Test 3: MyISAM - REPAIR supported
-# Use an old FRM that will require upgrade
-# Should indicate that REPAIR TABLE is needed
-CHECK TABLE bug47205 FOR UPGRADE;
-Table	Op	Msg_type	Msg_text
-test.bug47205	check	error	Table upgrade required. Please do "REPAIR TABLE `bug47205`" or dump/reload to fix it!
-# Running mysqlcheck to check and upgrade
-test.bug47205                                      To be repaired, cause follows:
-Server issued error    : Table upgrade required. Please do "REPAIR TABLE `bug47205`" or dump/reload to fix it!
-
-Repairing tables
-test.bug47205                                      OK
-# Table should now be ok
-CHECK TABLE bug47205 FOR UPGRADE;
-Table	Op	Msg_type	Msg_text
-test.bug47205	check	status	OK
-DROP TABLE bug47205;
 #
 # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
 #

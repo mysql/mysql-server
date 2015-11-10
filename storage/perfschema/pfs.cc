@@ -197,7 +197,7 @@ static void report_memory_accounting_error(
   Its role is to advertise all the SQL tables natively
   supported by the performance schema to the SQL server.
   The code consists of creating MySQL tables for the
-  performance schema itself, and is used in './mysql --bootstrap'
+  performance schema itself, and is used in './mysqld --install-server'
   mode when a server is installed.
 
   The implementation of the database creation script is located in
@@ -734,33 +734,39 @@ static inline int mysql_mutex_lock(...)
 
   The graph of structures will look like:
 
-@verbatim
-  PFS_wait_locker (T-A, M-1) ----------
-                                      |
-                                      v
-                                 PFS_mutex (M-1)
-                                 - m_wait_stat    ------------
-                                      ^                      |
-                                      |                      |
-  PFS_wait_locker (T-B, M-1) ----------                      |
-                                                             v
-                                                        PFS_mutex_class (M)
-                                                        - m_wait_stat
-  PFS_wait_locker (T-C, M-2) ----------                      ^
-                                      |                      |
-                                      v                      |
-                                 PFS_mutex (M-2)             |
-                                 - m_wait_stat    ------------
-                                      ^
-                                      |
-  PFS_wait_locker (T-D, M-2) ----------
+  @startuml
 
-            ||                        ||                     ||
-            ||                        ||                     ||
-            vv                        vv                     vv
+  object "PFS_wait_locker (T-A, M-1)" as TAM1
+  object "PFS_wait_locker (T-B, M-1)" as TBM1
+  object "PFS_wait_locker (T-C, M-2)" as TCM2
+  object "PFS_wait_locker (T-D, M-2)" as TDM2
 
-  EVENTS_WAITS_CURRENT ..._SUMMARY_BY_INSTANCE ..._SUMMARY_BY_EVENT_NAME
-@endverbatim
+  object "PFS_mutex (M-1)" as M1
+  M1:m_wait_stat
+
+  object "PFS_mutex (M-2)" as M2
+  M2:m_wait_stat
+
+  object "PFS_mutex_class (M)" as M
+  M:m_wait_stat
+
+  M <-- M1
+  M1 <-- TAM1
+  M1 <-- TBM1
+  M <-- M2
+  M2 <-- TCM2
+  M2 <-- TDM2
+
+  M1 .right. M2
+  TAM1 .right. TBM1
+  TBM1 .right. TCM2
+  TCM2 .right. TDM2
+
+  note right of M : PFS_mutex_class displayed in TABLE EVENTS_WAITS_SUMMARY_BY_EVENT_NAME
+  note right of M2 : PFS_mutex displayed in TABLE EVENTS_WAITS_SUMMARY_BY_INSTANCE
+  note right of TDM2 : PFS_wait_lockers displayed in TABLE EVENTS_WAITS_CURRENT
+
+  @enduml
 
   @section ON_THE_FLY On the fly aggregates
 
@@ -2168,7 +2174,8 @@ struct PFS_spawn_thread_arg
   void *m_user_arg;
 };
 
-extern "C" void* pfs_spawn_thread(void *arg)
+extern "C" {
+static void* pfs_spawn_thread(void *arg)
 {
   PFS_spawn_thread_arg *typed_arg= (PFS_spawn_thread_arg*) arg;
   void *user_arg;
@@ -2218,6 +2225,7 @@ extern "C" void* pfs_spawn_thread(void *arg)
 
   return NULL;
 }
+} // extern "C"
 
 /**
   Implementation of the thread instrumentation interface.

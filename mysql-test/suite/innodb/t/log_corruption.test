@@ -118,8 +118,7 @@ let SEARCH_PATTERN=InnoDB: Cannot create sys_virtual system tables. running in r
 --exec $MYSQLD $args --innodb-log-file-size=1M
 let SEARCH_PATTERN=InnoDB: Upgrading redo log: 2\\*.* pages, LSN=1213964;
 --source include/search_pattern_in_file.inc
-# These were created by the upgrade.
---remove_file $newdir/auto.cnf
+# This was created by the upgrade.
 --remove_file $newdir/ib_buffer_pool
 
 --echo # Test a corrupted MLOG_FILE_NAME record.

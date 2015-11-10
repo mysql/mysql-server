@@ -60,7 +60,6 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 t1.MYD
 t1.MYI
-t1.frm
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
@@ -87,7 +86,6 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY HASH (YEAR(f_date)) */
 t1#P#p0.MYD
 t1#P#p0.MYI
-t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -110,7 +108,6 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY HASH (DAYOFYEAR(f_date)) */
 t1#P#p0.MYD
 t1#P#p0.MYI
-t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -131,7 +128,6 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY HASH (YEAR(f_date)) */
 t1#P#p0.MYD
 t1#P#p0.MYI
-t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -165,7 +161,6 @@ t1#P#part1.MYD
 t1#P#part1.MYI
 t1#P#part7.MYD
 t1#P#part7.MYI
-t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -200,7 +195,6 @@ t1#P#part2.MYD
 t1#P#part2.MYI
 t1#P#part7.MYD
 t1#P#part7.MYI
-t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -244,7 +238,6 @@ t1#P#part2.MYD
 t1#P#part2.MYI
 t1#P#part7.MYD
 t1#P#part7.MYI
-t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -297,7 +290,6 @@ t1#P#part2.MYD
 t1#P#part2.MYI
 t1#P#part7.MYD
 t1#P#part7.MYI
-t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -334,7 +326,6 @@ t1#P#part2.MYD
 t1#P#part2.MYI
 t1#P#part7.MYD
 t1#P#part7.MYI
-t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -368,7 +359,6 @@ t1#P#part2.MYD
 t1#P#part2.MYI
 t1#P#part7.MYD
 t1#P#part7.MYI
-t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -399,7 +389,6 @@ t1#P#part2.MYD
 t1#P#part2.MYI
 t1#P#part7.MYD
 t1#P#part7.MYI
-t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -427,7 +416,6 @@ t1#P#part1.MYD
 t1#P#part1.MYI
 t1#P#part7.MYD
 t1#P#part7.MYI
-t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -452,7 +440,6 @@ t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#part1.MYD
 t1#P#part1.MYI
-t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -474,7 +461,6 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 ENGINE = MyISAM) */
 t1#P#p0.MYD
 t1#P#p0.MYI
-t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -498,7 +484,6 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 t1.MYD
 t1.MYI
-t1.frm
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
@@ -537,7 +522,6 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 t1.MYD
 t1.MYI
-t1.frm
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
@@ -565,7 +549,6 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY KEY (f_int1) */
 t1#P#p0.MYD
 t1#P#p0.MYI
-t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -602,7 +585,6 @@ t1#P#part1.MYD
 t1#P#part1.MYI
 t1#P#part7.MYD
 t1#P#part7.MYI
-t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -637,7 +619,6 @@ t1#P#part2.MYD
 t1#P#part2.MYI
 t1#P#part7.MYD
 t1#P#part7.MYI
-t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -684,7 +665,6 @@ t1#P#part2.MYD
 t1#P#part2.MYI
 t1#P#part7.MYD
 t1#P#part7.MYI
-t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -735,7 +715,6 @@ t1#P#part2.MYD
 t1#P#part2.MYI
 t1#P#part7.MYD
 t1#P#part7.MYI
-t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -775,7 +754,6 @@ t1#P#part2.MYD
 t1#P#part2.MYI
 t1#P#part7.MYD
 t1#P#part7.MYI
-t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -812,7 +790,6 @@ t1#P#part2.MYD
 t1#P#part2.MYI
 t1#P#part7.MYD
 t1#P#part7.MYI
-t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -846,7 +823,6 @@ t1#P#part2.MYD
 t1#P#part2.MYI
 t1#P#part7.MYD
 t1#P#part7.MYI
-t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -877,7 +853,6 @@ t1#P#part1.MYD
 t1#P#part1.MYI
 t1#P#part7.MYD
 t1#P#part7.MYI
-t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -905,7 +880,6 @@ t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#part1.MYD
 t1#P#part1.MYI
-t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -930,7 +904,6 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 ENGINE = MyISAM) */
 t1#P#p0.MYD
 t1#P#p0.MYI
-t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -957,7 +930,6 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 t1.MYD
 t1.MYI
-t1.frm
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where

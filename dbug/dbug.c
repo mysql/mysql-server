@@ -435,7 +435,7 @@ void _db_process_(const char *name)
  *      0 - a list of functions was not changed
  */
 
-int DbugParse(CODE_STATE *cs, const char *control)
+static int DbugParse(CODE_STATE *cs, const char *control)
 {
   const char *end;
   int rel, f_used=0;
@@ -715,8 +715,8 @@ int DbugParse(CODE_STATE *cs, const char *control)
                               (ListFlags(cs->stack->functions) & INCLUDE) ?  \
                                        0 : (uint)TRACE_ON)
 
-void FixTraceFlags_helper(CODE_STATE *cs, const char *func,
-                          struct _db_stack_frame_ *framep)
+static void FixTraceFlags_helper(CODE_STATE *cs, const char *func,
+                                 struct _db_stack_frame_ *framep)
 {
   if (framep->prev)
     FixTraceFlags_helper(cs, framep->func, framep->prev);
@@ -741,7 +741,7 @@ void FixTraceFlags_helper(CODE_STATE *cs, const char *func,
 
 #define fflags(cs) cs->stack->out_file ? ListFlags(cs->stack->functions) : TRACE_ON;
 
-void FixTraceFlags(uint old_fflags, CODE_STATE *cs)
+static void FixTraceFlags(uint old_fflags, CODE_STATE *cs)
 {
   const char *func;
   uint new_fflags, traceon, level;

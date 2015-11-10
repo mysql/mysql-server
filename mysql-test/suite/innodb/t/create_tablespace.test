@@ -332,13 +332,13 @@ CREATE TABLE t_single (a int, b text);
 # A parse error occurs if an identifier contains a '/' unless the identifier is quoted.
 --error ER_PARSE_ERROR
 CREATE TABLE t_general (a int, b text) TABLESPACE test/t_single engine=InnoDB;
---error ER_WRONG_TABLESPACE_NAME
+--error ER_TABLESPACE_MISSING_WITH_NAME
 CREATE TABLE t_general (a int, b text) TABLESPACE `test/t_single` engine=InnoDB;
 SHOW WARNINGS;
---error ER_TABLESPACE_MISSING
+--error ER_TABLESPACE_MISSING_WITH_NAME
 CREATE TABLE t_general (a int, b text) TABLESPACE `S_Def` engine=InnoDB;
 SHOW WARNINGS;
---error ER_TABLESPACE_MISSING
+--error ER_TABLESPACE_MISSING_WITH_NAME
 CREATE TABLE t_general (a int, b text) TABLESPACE `S_DEF` engine=InnoDB;
 SHOW WARNINGS;
 
@@ -442,10 +442,10 @@ SHOW WARNINGS;
 --echo #
 SET GLOBAL innodb_file_per_table = ON;
 CREATE TABLE s_single (a int, b text) ROW_FORMAT=dynamic;
---error ER_TABLESPACE_MISSING
+--error ER_TABLESPACE_MISSING_WITH_NAME
 CREATE TABLE t_second (a int, b text) TABLESPACE s_single;
 SHOW WARNINGS;
---error ER_WRONG_TABLESPACE_NAME
+--error ER_TABLESPACE_MISSING_WITH_NAME
 CREATE TABLE t_second (a int, b text) TABLESPACE=`test/s_single`;
 SHOW WARNINGS;
 --source suite/innodb/include/show_i_s_tablespaces.inc
@@ -884,7 +884,7 @@ INSERT INTO t_nomad(b) VALUES(22);
 SHOW CREATE TABLE t_nomad;
 --source suite/innodb/include/show_i_s_tables.inc
 DROP TABLESPACE s_short_life;
---error ER_TABLESPACE_MISSING
+--error ER_TABLESPACE_MISSING_WITH_NAME
 ALTER TABLE t_nomad ENGINE=InnoDB;
 CREATE TABLESPACE s_shorter_life ADD DATAFILE 'shorter_life.ibd';
 ALTER TABLE t_nomad ENGINE=InnoDB TABLESPACE=s_shorter_life;

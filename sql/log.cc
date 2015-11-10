@@ -51,6 +51,9 @@
 using std::min;
 using std::max;
 
+/* max size of log messages (error log, plugins' logging, general log) */
+static const uint MAX_LOG_BUFFER_SIZE= 1024;
+
 
 #ifndef _WIN32
 static int   log_syslog_facility= 0;
@@ -491,7 +494,7 @@ static int make_iso8601_timestamp(char *buf, ulonglong utime= 0)
       from UTC, with positive values indicating east of the Prime Meridian.
     */
     long tim= -my_tm.tm_gmtoff;
-#elif _WIN32
+#elif defined(_WIN32)
     long tim = _timezone;
 #else
     long tim= timezone; // seconds West of UTC.
@@ -592,7 +595,7 @@ bool File_query_log::open()
 #ifdef EMBEDDED_LIBRARY
                         "embedded library\n",
                         my_progname, server_version, MYSQL_COMPILATION_COMMENT
-#elif _WIN32
+#elif defined(_WIN32)
                         "started with:\nTCP Port: %d, Named Pipe: %s\n",
                         my_progname, server_version, MYSQL_COMPILATION_COMMENT,
                         mysqld_port, mysqld_unix_port
@@ -2038,7 +2041,7 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer,
 
 void error_log_print(enum loglevel level, const char *format, va_list args)
 {
-  char   buff[1024];
+  char   buff[MAX_LOG_BUFFER_SIZE];
   size_t length;
   DBUG_ENTER("error_log_print");
 
@@ -2106,7 +2109,7 @@ extern "C"
 int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
                           const char *format, ...)
 {
-  char format2[MYSQL_ERRMSG_SIZE];
+  char format2[MAX_LOG_BUFFER_SIZE];
   loglevel lvl;
   struct st_plugin_int *plugin = static_cast<st_plugin_int *> (*plugin_ptr);
   va_list args;

@@ -11,17 +11,22 @@
 --echo # WL#7712 Support SSL by default in libmysql
 --echo #
 
+
 --echo # verify that mysql default connect with ssl channel when using TCP/IP
 --echo # connection
+--replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_cipher'"
 
 --echo # verify that mysql --skip-ssl connect with unencrypted channel
+--replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_cipher'" --skip-ssl
 
 --echo # verify that mysql --ssl=0 connect with unencrypted channel
+--replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_cipher'" --ssl=0
 
 --echo # verify that mysql --ssl=1 connect with ssl channel
+--replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_cipher'" --ssl=1
 
 CREATE USER u1@localhost IDENTIFIED BY 'secret' REQUIRE SSL;

@@ -60,13 +60,13 @@ static Item_result item_store_type(Item_result a, Item *item,
     return INT_RESULT;
 }
 
-static void agg_result_type(Item_result *type, my_bool *unsigned_flag,
+static void agg_result_type(Item_result *type, bool *unsigned_flag,
                             Item **items, uint nitems)
 {
   Item **item, **item_end;
 
   *type= STRING_RESULT;
-  *unsigned_flag= FALSE;
+  *unsigned_flag= false;
   /* Skip beginning NULL items */
   for (item= items, item_end= item + nitems; item < item_end; item++)
   {
@@ -84,7 +84,7 @@ static void agg_result_type(Item_result *type, my_bool *unsigned_flag,
     if ((*item)->type() != Item::NULL_ITEM)
     {
       *type= item_store_type(*type, *item, *unsigned_flag);
-      *unsigned_flag= *unsigned_flag && (*item)->unsigned_flag;
+      *unsigned_flag&= (*item)->unsigned_flag;
     }
   }
 }
@@ -1013,11 +1013,6 @@ bool
 Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
 {
   if (a->type() == Item::ROW_ITEM || b->type() == Item::ROW_ITEM)
-    return false;
-
-  // GEOMETRY data is never convertible to any other type of data.
-  if (a->field_type() == MYSQL_TYPE_GEOMETRY ||
-      b->field_type() == MYSQL_TYPE_GEOMETRY)
     return false;
 
   if (a->is_temporal_with_date())
@@ -2514,7 +2509,8 @@ longlong Item_func_eq::val_int()
 void Item_func_equal::fix_length_and_dec()
 {
   Item_bool_func2::fix_length_and_dec();
-  maybe_null=null_value=0;
+  maybe_null= false;
+  null_value= FALSE;
 }
 
 longlong Item_func_equal::val_int()
@@ -7210,9 +7206,9 @@ bool Item_equal::compare_const(THD *thd, Item *c)
       return true;
     func->quick_fix_field();
     cond_false= !func->val_int();
-    if (thd->is_error())
-      return true;
   }
+  if (thd->is_error())
+    return true;
   if (cond_false)
     const_item_cache= 1;
   return false;

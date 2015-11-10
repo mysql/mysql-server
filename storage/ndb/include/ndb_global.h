@@ -216,7 +216,7 @@ extern "C" {
      if the expression is false.
 */
 
-#if (_MSC_VER > 1500) || (defined __GXX_EXPERIMENTAL_CXX0X__)
+#if (defined(_WIN32) && _MSC_VER > 1500) || (defined __GXX_EXPERIMENTAL_CXX0X__)
 
 /*
   Prefer to use the 'static_assert' function from C++0x
@@ -236,7 +236,7 @@ extern "C" {
 #endif
 
 
-#if (_MSC_VER > 1500)
+#if defined(_WIN32) && (_MSC_VER > 1500)
 #define HAVE___HAS_TRIVIAL_CONSTRUCTOR
 #define HAVE___IS_POD
 #endif
@@ -264,7 +264,7 @@ extern "C" {
 /**
  *  __attribute__((noreturn)) was introduce in gcc 2.5
  */
-#if (GCC_VERSION >= 2005)
+#ifdef __GNUC__
 #define ATTRIBUTE_NORETURN __attribute__((noreturn))
 #else
 #define ATTRIBUTE_NORETURN
@@ -273,7 +273,7 @@ extern "C" {
 /**
  *  __attribute__((noinline)) was introduce in gcc 3.1
  */
-#if (GCC_VERSION >= 3001)
+#ifdef __GNUC__
 #define ATTRIBUTE_NOINLINE __attribute__((noinline))
 #else
 #define ATTRIBUTE_NOINLINE

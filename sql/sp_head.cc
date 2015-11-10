@@ -519,13 +519,18 @@ Field *sp_head::create_result_field(size_t field_max_length,
                  field_length,                 /* field [max] length */
                  (uchar*) "",                  /* null ptr */
                  0,                            /* null bit */
-                 m_return_field_def.pack_flag,
                  m_return_field_def.sql_type,
                  m_return_field_def.charset,
                  m_return_field_def.geom_type,
                  Field::NONE,                  /* unreg check */
                  m_return_field_def.interval,
-                 field_name ? field_name : (const char *) m_name.str);
+                 field_name ? field_name : (const char *) m_name.str,
+                 m_return_field_def.maybe_null,
+                 m_return_field_def.is_zerofill,
+                 m_return_field_def.is_unsigned,
+                 m_return_field_def.decimals,
+                 m_return_field_def.treat_bit_as_char,
+                 m_return_field_def.pack_length_override);
 
   field->gcol_info= m_return_field_def.gcol_info;
   field->stored_in_db= m_return_field_def.stored_in_db;

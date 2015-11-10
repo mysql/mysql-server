@@ -356,7 +356,8 @@ void prepare_triggers_for_insert_stmt(THD *thd, TABLE *table)
     @retval true    Failure
 */
 
-bool mysql_prepare_blob_values(THD *thd, List<Item> &fields, MEM_ROOT *mem_root)
+static bool mysql_prepare_blob_values(THD *thd, List<Item> &fields,
+                                      MEM_ROOT *mem_root)
 {
   DBUG_ENTER("mysql_prepare_blob_values");
 
@@ -1009,7 +1010,7 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view,
     if (!(field= trans->item->field_for_view_update()))
       DBUG_RETURN(true);
 
-    if (field->field->unireg_check == Field::NEXT_NUMBER)
+    if (field->field->auto_flags & Field::NEXT_NUMBER)
       view->contain_auto_increment= true;
     /* prepare unique test */
     /*
@@ -3076,6 +3077,21 @@ void Query_result_create::abort_result_set()
   reenable_binlog(thd);
   /* possible error of writing binary log is ignored deliberately */
   (void) thd->binlog_flush_pending_rows_event(TRUE, TRUE);
+
+  /*
+    Rolling back the statement transaction here. The table created in
+    "CREATE TABLE ... SELECT" is removed on error and statement transaction is
+    committed. If the statement is not rolled back here then binlog cache
+    (containing log(s) of new table and inserts) are written to the binlog file.
+
+    We are not allowed to rollback a statement transactions inside stored
+    function or trigger. OTOH in such contexts only creation of temporary
+    tables is allowed and since such tables are not stored in
+    data-dictionary no additional rollback is required (as there is no
+    removal of table from data-dictionary and commit associated with it)
+  */
+  if (!thd->in_sub_stmt)
+    trans_rollback_stmt(thd);
 
   if (m_plock)
   {

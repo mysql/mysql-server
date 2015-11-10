@@ -468,7 +468,7 @@ fts_ast_state_free(
 }
 
 /** Print the ast string
-@param[in] str		string to print */
+@param[in]	ast_str	string to print */
 static
 void
 fts_ast_string_print(
@@ -740,8 +740,8 @@ fts_ast_string_free(
 
 /**
 Translate ast string of type FTS_AST_NUMB to unsigned long by strtoul
-@param[in] str		string to translate
-@param[in] base		the base
+@param[in]	ast_str	string to translate
+@param[in]	base	the base
 @return translated number */
 ulint
 fts_ast_string_to_ul(

@@ -144,14 +144,11 @@ public:
     table_share(fields.elements),
     mock_handler(static_cast<handlerton*>(NULL), &table_share)
   {
-    field= m_field_array;
-
+    initialize();
     List_iterator<Field> it(fields);
     int nbr_fields= 0;
     for (Field *cur_field= it++; cur_field; cur_field= it++)
       add(cur_field, nbr_fields++);
-
-    initialize();
   }
 
   Fake_TABLE(Field *column) :

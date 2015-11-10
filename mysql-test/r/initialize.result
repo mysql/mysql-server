@@ -8,8 +8,8 @@ CALL mtr.add_suppression("InnoDB:");
 #
 # create bootstrap file
 # play tiny_bootstrap.sql
-# create the empty datadir
-# try --bootstrap
+# First start the server with --initialize
+# then try --bootstrap
 # look for bootstrap deprecated
 bootstrap deprecated found 1 times
 # delete datadir

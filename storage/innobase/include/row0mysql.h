@@ -37,9 +37,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "btr0pcur.h"
 #include "trx0types.h"
 #include "sess0sess.h"
-
-// Forward declaration
-struct SysIndexCallback;
+#include "sql_cmd.h"
 
 extern ibool row_rollback_on_timeout;
 
@@ -277,12 +275,10 @@ row_update_for_mysql(
 	__attribute__((warn_unused_result));
 
 /** Delete all rows for the given table by freeing/truncating indexes.
-@param[in,out]	table	table handler
-@return error code or DB_SUCCESS */
-dberr_t
+@param[in,out]	table	table handler */
+void
 row_delete_all_rows(
-	dict_table_t*	table)
-	__attribute__((warn_unused_result));
+	dict_table_t*	table);
 
 /** This can only be used when srv_locks_unsafe_for_binlog is TRUE or this
 session is using a READ COMMITTED or READ UNCOMMITTED isolation level.
@@ -408,8 +404,6 @@ fields than mentioned in the constraint.
 				database id the database of parameter name
 @param[in]	sql_length	length of sql_string
 @param[in]	name		table full name in normalized form
-@param[in]	is_temp_table	true if table is temporary
-@param[in,out]	handler		table handler if table is intrinsic
 @param[in]	reject_fks	if TRUE, fail with error code
 				DB_CANNOT_ADD_CONSTRAINT if any
 				foreign keys are found.
@@ -451,31 +445,44 @@ row_mysql_lock_table(
 	const char*	op_info)	/*!< in: string for trx->op_info */
 	__attribute__((warn_unused_result));
 
-/*********************************************************************//**
-Truncates a table for MySQL.
-@return error code or DB_SUCCESS */
-dberr_t
-row_truncate_table_for_mysql(
-/*=========================*/
-	dict_table_t*	table,	/*!< in: table handle */
-	trx_t*		trx)	/*!< in: transaction handle */
-	__attribute__((warn_unused_result));
-/*********************************************************************//**
-Drops a table for MySQL.  If the data dictionary was not already locked
+/** Drop a table for MySQL. If the data dictionary was not already locked
 by the transaction, the transaction will be committed.  Otherwise, the
 data dictionary will remain locked.
+@param[in]	name		table name
+@param[in,out]	trx		data dictionary transaction
+@param[in]	sqlcom		SQL command
+@param[in]	nonatomic	whether it is permitted
+to release and reacquire dict_operation_lock
+@param[in,out]	handler		intrinsic temporary table handle, or NULL
 @return error code or DB_SUCCESS */
 dberr_t
 row_drop_table_for_mysql(
-/*=====================*/
-	const char*	name,	/*!< in: table name */
-	trx_t*		trx,	/*!< in: dictionary transaction handle */
-	bool		drop_db,/*!< in: true=dropping whole database */
-	bool		nonatomic = true,
-				/*!< in: whether it is permitted
-				to release and reacquire dict_operation_lock */
-	dict_table_t*	handler = NULL);
-				/*!< in/out: table handler. */
+	const char*		name,
+	trx_t*			trx,
+	enum enum_sql_command	sqlcom,
+	bool			nonatomic,
+	dict_table_t*		handler = NULL);
+/** Drop a table for MySQL. If the data dictionary was not already locked
+by the transaction, the transaction will be committed.  Otherwise, the
+data dictionary will remain locked.
+@param[in]	name		table name
+@param[in,out]	trx		data dictionary transaction
+@param[in]	drop_db		whether the database is being dropped
+(ignore certain foreign key constraints)
+@return error code or DB_SUCCESS */
+inline
+dberr_t
+row_drop_table_for_mysql(
+	const char*	name,
+	trx_t*		trx,
+	bool		drop_db)
+{
+	return(row_drop_table_for_mysql(name, trx,
+					drop_db
+					? SQLCOM_DROP_DB
+					: SQLCOM_DROP_TABLE,
+					true, NULL));
+}
 
 /*********************************************************************//**
 Discards the tablespace of a table which stored in an .ibd file. Discarding
@@ -741,11 +748,6 @@ struct row_prebuilt_t {
 	dtuple_t*	clust_ref;	/*!< prebuilt dtuple used in
 					sel/upd/del */
 	ulint		select_lock_type;/*!< LOCK_NONE, LOCK_S, or LOCK_X */
-	ulint		stored_select_lock_type;/*!< this field is used to
-					remember the original select_lock_type
-					that was decided in ha_innodb.cc,
-					::store_lock(), ::external_lock(),
-					etc. */
 	ulint		row_read_type;	/*!< ROW_READ_WITH_LOCKS if row locks
 					should be the obtained for records
 					under an UPDATE or DELETE cursor.
@@ -866,6 +868,11 @@ struct row_prebuilt_t {
 	/** Disable prefetch. */
 	bool		m_no_prefetch;
 
+	bool		skip_serializable_dd_view;
+					/* true, if we want skip serializable
+					isolation level on views on DD tables */
+	/** Return materialized key for secondary index scan */
+	bool		m_read_virtual_key;
 };
 
 /** Callback for row_mysql_sys_index_iterate() */

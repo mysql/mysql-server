@@ -290,8 +290,7 @@ bool key_cmp_if_same(TABLE *table,const uchar *key,uint idx,uint key_length)
       continue;
     }
     length= min((uint) (key_end-key), store_length);
-    if (!(key_part->key_type & (FIELDFLAG_NUMBER+FIELDFLAG_BINARY+
-                                FIELDFLAG_PACK)))
+    if (!(key_part->bin_cmp))
     {
       const CHARSET_INFO *cs= key_part->field->charset();
       size_t char_length= key_part->length / cs->mbmaxlen;

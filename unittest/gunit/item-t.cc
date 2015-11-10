@@ -61,7 +61,7 @@ public:
                  lenght,                        // len_arg
                  NULL,                          // null_ptr_arg
                  0,                             // null_bit_arg
-                 Field::NONE,                   // unireg_check_arg
+                 Field::NONE,                   // auto_flags_arg
                  0,                             // field_name_arg
                  false,                         // zero_arg
                  false)                         // unsigned_arg
@@ -93,7 +93,7 @@ public:
                    length,             // len_arg
                    NULL,               // null_ptr_arg
                    0,                  // null_bit_arg
-                   Field::NONE,        // unireg_check_arg
+                   Field::NONE,        // auto_flags_arg
                    NULL,               // field_name_arg
                    cs)                 // char set
   {

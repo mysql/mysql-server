@@ -225,7 +225,8 @@ pre_init_event_thread(THD* thd)
     0  OK
 */
 
-extern "C" void *event_scheduler_thread(void *arg)
+extern "C" {
+static void *event_scheduler_thread(void *arg)
 {
   /* needs to be first for thread_stack */
   THD *thd= ((struct scheduler_param *) arg)->thd;
@@ -269,7 +270,7 @@ extern "C" void *event_scheduler_thread(void *arg)
     0  OK
 */
 
-extern "C" void *event_worker_thread(void *arg)
+static void *event_worker_thread(void *arg)
 {
   THD *thd;
   Event_queue_element_for_exec *event= (Event_queue_element_for_exec *)arg;
@@ -288,6 +289,7 @@ extern "C" void *event_worker_thread(void *arg)
   my_thread_end();
   return 0;                                     // Can't return anything here
 }
+} // extern "C"
 
 
 /**

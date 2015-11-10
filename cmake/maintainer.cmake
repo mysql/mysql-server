@@ -44,6 +44,8 @@ MY_ADD_C_WARNING_FLAG("Wmissing-format-attribute")
 MY_ADD_CXX_WARNING_FLAG("Wmissing-format-attribute")
 # Only for C++ as C code has some macro usage that is difficult to avoid
 MY_ADD_CXX_WARNING_FLAG("Wlogical-op")
+MY_ADD_C_WARNING_FLAG("Wundef")
+MY_ADD_CXX_WARNING_FLAG("Wundef")
 
 # Turn on extra Clang warnings in maintainer mode
 IF(CMAKE_C_COMPILER_ID MATCHES "Clang" AND MYSQL_MAINTAINER_MODE)
@@ -53,7 +55,7 @@ IF(CMAKE_C_COMPILER_ID MATCHES "Clang" AND MYSQL_MAINTAINER_MODE)
   MY_ADD_C_WARNING_FLAG("Wunreachable-code-break")
   MY_ADD_C_WARNING_FLAG("Wunreachable-code-return")
 # Other possible options that give warnings:
-# -Wcast-align -Wsign-conversion -Wcast-qual -Wreserved-id-macro -Wundef
+# -Wcast-align -Wsign-conversion -Wcast-qual -Wreserved-id-macro
 # -Wdocumentation-unknown-command -Wpadded -Wconversion -Wshorten-64-to-32
 # -Wmissing-prototypes -Wused-but-marked-unused -Wmissing-variable-declarations
 # -Wdocumentation -Wunreachable-code -Wunused-macros -Wformat-nonliteral
@@ -76,7 +78,7 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     MY_ADD_CXX_WARNING_FLAG("Wundefined-reinterpret-cast")
   ENDIF()
 # Other possible options that give warnings:
-# -Wold-style-cast -Wundef -Wc++11-long-long -Wconversion -Wsign-conversion -Wcast-align
+# -Wold-style-cast -Wc++11-long-long -Wconversion -Wsign-conversion -Wcast-align
 # -Wmissing-prototypes -Wdocumentation -Wweak-vtables -Wdocumentation-unknown-command
 # -Wreserved-id-macro -Wpadded -Wused-but-marked-unused -Wshadow -Wunreachable-code-return
 # -Wunused-macros -Wmissing-variable-declarations -Wswitch-enum

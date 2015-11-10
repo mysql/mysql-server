@@ -36,6 +36,8 @@
 #include "derror.h"                          // ER_THD
 #include "sql_cache.h"                       // query_cache
 
+#include "dd/dd_table.h"                     // dd::recreate_table
+
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
 
@@ -106,8 +108,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 
     hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
     mysql_mutex_lock(&LOCK_open);
-    share= get_table_share(thd, table_list, key, key_length, 0,
-                           &error, hash_value);
+    share= get_table_share(thd, table_list, key, key_length, false, hash_value);
     mysql_mutex_unlock(&LOCK_open);
     if (share == NULL)
       DBUG_RETURN(0);				// Can't open frm file
@@ -155,8 +156,8 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     extentions array. First element of engine file name extentions array
     is meta/index file extention. Second element - data file extention. 
   */
-  ext= table->file->bas_ext();
-  if (!ext[0] || !ext[1])
+  ext= table->file->ht->file_extensions;
+  if (!ext || !ext[0] || !ext[1])
     goto end;					// No data file
 
   /* A MERGE table must not come here. */
@@ -193,7 +194,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 			     "Failed renaming data file");
     goto end;
   }
-  if (dd_recreate_table(thd, table_list->db, table_list->table_name))
+  if (dd::recreate_table(thd, table_list->db, table_list->table_name))
   {
     error= send_check_errmsg(thd, table_list, "repair",
 			     "Failed generating table from .frm file");
@@ -280,7 +281,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                                                   HA_CHECK_OPT *),
                               int (handler::*operator_func)(THD *,
                                                             HA_CHECK_OPT *),
-                              int (view_operator_func)(THD *, TABLE_LIST*))
+                              int check_view)
 {
   TABLE_LIST *table;
   SELECT_LEX *select= thd->lex->select_lex;
@@ -366,8 +367,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       lex->query_tables_last= &table->next_global;
       lex->query_tables_own_last= 0;
 
-      if (view_operator_func == NULL)
-        table->required_type=FRMTYPE_TABLE;
+      if (check_view != 1)
+        table->required_type= dd::Abstract_table::TT_BASE_TABLE;
 
       if (!thd->locked_tables_mode && repair_table_use_frm)
       {
@@ -533,8 +534,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
     if (table->is_view())
     {
-      DBUG_PRINT("admin", ("calling view_operator_func"));
-      result_code= (*view_operator_func)(thd, table);
+      result_code= HA_ADMIN_OK;
       goto send_result;
     }
 
@@ -1157,7 +1157,7 @@ bool Sql_cmd_check_table::execute(THD *thd)
 
   res= mysql_admin_table(thd, first_table, &thd->lex->check_opt, "check",
                          lock_type, 0, 0, HA_OPEN_FOR_REPAIR, 0,
-                         &handler::ha_check, &view_checksum);
+                         &handler::ha_check, 1);
 
   thd->lex->select_lex->table_list.first= first_table;
   thd->lex->query_tables= first_table;

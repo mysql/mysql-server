@@ -86,7 +86,6 @@ t1#P#part_1.MYD
 t1#P#part_1.MYI
 t1#P#part_2.MYD
 t1#P#part_2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -567,7 +566,6 @@ t1#P#part_4.MYD
 t1#P#part_4.MYI
 t1#P#part_5.MYD
 t1#P#part_5.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -1065,7 +1063,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -1555,7 +1552,6 @@ t1#P#part_5.MYD
 t1#P#part_5.MYI
 t1#P#parta.MYD
 t1#P#parta.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -2045,7 +2041,6 @@ t1#P#part_4#SP#part_4sp0.MYD
 t1#P#part_4#SP#part_4sp0.MYI
 t1#P#part_4#SP#part_4sp1.MYD
 t1#P#part_4#SP#part_4sp1.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -2548,7 +2543,6 @@ t1#P#part_4#SP#subpart41.MYD
 t1#P#part_4#SP#subpart41.MYI
 t1#P#part_4#SP#subpart42.MYD
 t1#P#part_4#SP#subpart42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -3049,7 +3043,6 @@ t1#P#part_4#SP#sp41.MYD
 t1#P#part_4#SP#sp41.MYI
 t1#P#part_4#SP#sp42.MYD
 t1#P#part_4#SP#sp42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -3542,7 +3535,6 @@ t1#P#part_3#SP#part_3sp1.MYD
 t1#P#part_3#SP#part_3sp1.MYI
 t1#P#part_3#SP#part_3sp2.MYD
 t1#P#part_3#SP#part_3sp2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -4016,7 +4008,6 @@ t1#P#part_1.MYD
 t1#P#part_1.MYI
 t1#P#part_2.MYD
 t1#P#part_2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -4497,7 +4488,6 @@ t1#P#part_4.MYD
 t1#P#part_4.MYI
 t1#P#part_5.MYD
 t1#P#part_5.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -4995,7 +4985,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -5485,7 +5474,6 @@ t1#P#part_5.MYD
 t1#P#part_5.MYI
 t1#P#parta.MYD
 t1#P#parta.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -5975,7 +5963,6 @@ t1#P#part_4#SP#part_4sp0.MYD
 t1#P#part_4#SP#part_4sp0.MYI
 t1#P#part_4#SP#part_4sp1.MYD
 t1#P#part_4#SP#part_4sp1.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -6478,7 +6465,6 @@ t1#P#part_4#SP#subpart41.MYD
 t1#P#part_4#SP#subpart41.MYI
 t1#P#part_4#SP#subpart42.MYD
 t1#P#part_4#SP#subpart42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -6979,7 +6965,6 @@ t1#P#part_4#SP#sp41.MYD
 t1#P#part_4#SP#sp41.MYI
 t1#P#part_4#SP#sp42.MYD
 t1#P#part_4#SP#sp42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -7472,7 +7457,6 @@ t1#P#part_3#SP#part_3sp1.MYD
 t1#P#part_3#SP#part_3sp1.MYI
 t1#P#part_3#SP#part_3sp2.MYD
 t1#P#part_3#SP#part_3sp2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -7947,7 +7931,6 @@ t1#P#part_1.MYD
 t1#P#part_1.MYI
 t1#P#part_2.MYD
 t1#P#part_2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -8429,7 +8412,6 @@ t1#P#part_4.MYD
 t1#P#part_4.MYI
 t1#P#part_5.MYD
 t1#P#part_5.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -8928,7 +8910,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -9419,7 +9400,6 @@ t1#P#part_5.MYD
 t1#P#part_5.MYI
 t1#P#parta.MYD
 t1#P#parta.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -9910,7 +9890,6 @@ t1#P#part_4#SP#part_4sp0.MYD
 t1#P#part_4#SP#part_4sp0.MYI
 t1#P#part_4#SP#part_4sp1.MYD
 t1#P#part_4#SP#part_4sp1.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -10414,7 +10393,6 @@ t1#P#part_4#SP#subpart41.MYD
 t1#P#part_4#SP#subpart41.MYI
 t1#P#part_4#SP#subpart42.MYD
 t1#P#part_4#SP#subpart42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -10916,7 +10894,6 @@ t1#P#part_4#SP#sp41.MYD
 t1#P#part_4#SP#sp41.MYI
 t1#P#part_4#SP#sp42.MYD
 t1#P#part_4#SP#sp42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -11410,7 +11387,6 @@ t1#P#part_3#SP#part_3sp1.MYD
 t1#P#part_3#SP#part_3sp1.MYI
 t1#P#part_3#SP#part_3sp2.MYD
 t1#P#part_3#SP#part_3sp2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -11885,7 +11861,6 @@ t1#P#part_1.MYD
 t1#P#part_1.MYI
 t1#P#part_2.MYD
 t1#P#part_2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -12367,7 +12342,6 @@ t1#P#part_4.MYD
 t1#P#part_4.MYI
 t1#P#part_5.MYD
 t1#P#part_5.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -12866,7 +12840,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -13357,7 +13330,6 @@ t1#P#part_5.MYD
 t1#P#part_5.MYI
 t1#P#parta.MYD
 t1#P#parta.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -13848,7 +13820,6 @@ t1#P#part_4#SP#part_4sp0.MYD
 t1#P#part_4#SP#part_4sp0.MYI
 t1#P#part_4#SP#part_4sp1.MYD
 t1#P#part_4#SP#part_4sp1.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -14352,7 +14323,6 @@ t1#P#part_4#SP#subpart41.MYD
 t1#P#part_4#SP#subpart41.MYI
 t1#P#part_4#SP#subpart42.MYD
 t1#P#part_4#SP#subpart42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -14854,7 +14824,6 @@ t1#P#part_4#SP#sp41.MYD
 t1#P#part_4#SP#sp41.MYI
 t1#P#part_4#SP#sp42.MYD
 t1#P#part_4#SP#sp42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -15348,7 +15317,6 @@ t1#P#part_3#SP#part_3sp1.MYD
 t1#P#part_3#SP#part_3sp1.MYI
 t1#P#part_3#SP#part_3sp2.MYD
 t1#P#part_3#SP#part_3sp2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -15822,7 +15790,6 @@ t1#P#part_1.MYD
 t1#P#part_1.MYI
 t1#P#part_2.MYD
 t1#P#part_2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -16303,7 +16270,6 @@ t1#P#part_4.MYD
 t1#P#part_4.MYI
 t1#P#part_5.MYD
 t1#P#part_5.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -16801,7 +16767,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -17291,7 +17256,6 @@ t1#P#part_5.MYD
 t1#P#part_5.MYI
 t1#P#parta.MYD
 t1#P#parta.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -17781,7 +17745,6 @@ t1#P#part_4#SP#part_4sp0.MYD
 t1#P#part_4#SP#part_4sp0.MYI
 t1#P#part_4#SP#part_4sp1.MYD
 t1#P#part_4#SP#part_4sp1.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -18284,7 +18247,6 @@ t1#P#part_4#SP#subpart41.MYD
 t1#P#part_4#SP#subpart41.MYI
 t1#P#part_4#SP#subpart42.MYD
 t1#P#part_4#SP#subpart42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -18785,7 +18747,6 @@ t1#P#part_4#SP#sp41.MYD
 t1#P#part_4#SP#sp41.MYI
 t1#P#part_4#SP#sp42.MYD
 t1#P#part_4#SP#sp42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -19278,7 +19239,6 @@ t1#P#part_3#SP#part_3sp1.MYD
 t1#P#part_3#SP#part_3sp1.MYI
 t1#P#part_3#SP#part_3sp2.MYD
 t1#P#part_3#SP#part_3sp2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -19755,7 +19715,6 @@ t1#P#part_1.MYD
 t1#P#part_1.MYI
 t1#P#part_2.MYD
 t1#P#part_2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -20236,7 +20195,6 @@ t1#P#part_4.MYD
 t1#P#part_4.MYI
 t1#P#part_5.MYD
 t1#P#part_5.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -20734,7 +20692,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -21224,7 +21181,6 @@ t1#P#part_5.MYD
 t1#P#part_5.MYI
 t1#P#parta.MYD
 t1#P#parta.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -21714,7 +21670,6 @@ t1#P#part_4#SP#part_4sp0.MYD
 t1#P#part_4#SP#part_4sp0.MYI
 t1#P#part_4#SP#part_4sp1.MYD
 t1#P#part_4#SP#part_4sp1.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -22217,7 +22172,6 @@ t1#P#part_4#SP#subpart41.MYD
 t1#P#part_4#SP#subpart41.MYI
 t1#P#part_4#SP#subpart42.MYD
 t1#P#part_4#SP#subpart42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -22718,7 +22672,6 @@ t1#P#part_4#SP#sp41.MYD
 t1#P#part_4#SP#sp41.MYI
 t1#P#part_4#SP#sp42.MYD
 t1#P#part_4#SP#sp42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -23211,7 +23164,6 @@ t1#P#part_3#SP#part_3sp1.MYD
 t1#P#part_3#SP#part_3sp1.MYI
 t1#P#part_3#SP#part_3sp2.MYD
 t1#P#part_3#SP#part_3sp2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -23685,7 +23637,6 @@ t1#P#part_1.MYD
 t1#P#part_1.MYI
 t1#P#part_2.MYD
 t1#P#part_2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -24166,7 +24117,6 @@ t1#P#part_4.MYD
 t1#P#part_4.MYI
 t1#P#part_5.MYD
 t1#P#part_5.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -24664,7 +24614,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -25154,7 +25103,6 @@ t1#P#part_5.MYD
 t1#P#part_5.MYI
 t1#P#parta.MYD
 t1#P#parta.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -25644,7 +25592,6 @@ t1#P#part_4#SP#part_4sp0.MYD
 t1#P#part_4#SP#part_4sp0.MYI
 t1#P#part_4#SP#part_4sp1.MYD
 t1#P#part_4#SP#part_4sp1.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -26147,7 +26094,6 @@ t1#P#part_4#SP#subpart41.MYD
 t1#P#part_4#SP#subpart41.MYI
 t1#P#part_4#SP#subpart42.MYD
 t1#P#part_4#SP#subpart42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -26648,7 +26594,6 @@ t1#P#part_4#SP#sp41.MYD
 t1#P#part_4#SP#sp41.MYI
 t1#P#part_4#SP#sp42.MYD
 t1#P#part_4#SP#sp42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -27141,7 +27086,6 @@ t1#P#part_3#SP#part_3sp1.MYD
 t1#P#part_3#SP#part_3sp1.MYI
 t1#P#part_3#SP#part_3sp2.MYD
 t1#P#part_3#SP#part_3sp2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -27616,7 +27560,6 @@ t1#P#part_1.MYD
 t1#P#part_1.MYI
 t1#P#part_2.MYD
 t1#P#part_2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -28098,7 +28041,6 @@ t1#P#part_4.MYD
 t1#P#part_4.MYI
 t1#P#part_5.MYD
 t1#P#part_5.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -28597,7 +28539,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -29088,7 +29029,6 @@ t1#P#part_5.MYD
 t1#P#part_5.MYI
 t1#P#parta.MYD
 t1#P#parta.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -29579,7 +29519,6 @@ t1#P#part_4#SP#part_4sp0.MYD
 t1#P#part_4#SP#part_4sp0.MYI
 t1#P#part_4#SP#part_4sp1.MYD
 t1#P#part_4#SP#part_4sp1.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -30083,7 +30022,6 @@ t1#P#part_4#SP#subpart41.MYD
 t1#P#part_4#SP#subpart41.MYI
 t1#P#part_4#SP#subpart42.MYD
 t1#P#part_4#SP#subpart42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -30585,7 +30523,6 @@ t1#P#part_4#SP#sp41.MYD
 t1#P#part_4#SP#sp41.MYI
 t1#P#part_4#SP#sp42.MYD
 t1#P#part_4#SP#sp42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -31079,7 +31016,6 @@ t1#P#part_3#SP#part_3sp1.MYD
 t1#P#part_3#SP#part_3sp1.MYI
 t1#P#part_3#SP#part_3sp2.MYD
 t1#P#part_3#SP#part_3sp2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -31554,7 +31490,6 @@ t1#P#part_1.MYD
 t1#P#part_1.MYI
 t1#P#part_2.MYD
 t1#P#part_2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -32036,7 +31971,6 @@ t1#P#part_4.MYD
 t1#P#part_4.MYI
 t1#P#part_5.MYD
 t1#P#part_5.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -32535,7 +32469,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -33026,7 +32959,6 @@ t1#P#part_5.MYD
 t1#P#part_5.MYI
 t1#P#parta.MYD
 t1#P#parta.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -33517,7 +33449,6 @@ t1#P#part_4#SP#part_4sp0.MYD
 t1#P#part_4#SP#part_4sp0.MYI
 t1#P#part_4#SP#part_4sp1.MYD
 t1#P#part_4#SP#part_4sp1.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -34021,7 +33952,6 @@ t1#P#part_4#SP#subpart41.MYD
 t1#P#part_4#SP#subpart41.MYI
 t1#P#part_4#SP#subpart42.MYD
 t1#P#part_4#SP#subpart42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -34523,7 +34453,6 @@ t1#P#part_4#SP#sp41.MYD
 t1#P#part_4#SP#sp41.MYI
 t1#P#part_4#SP#sp42.MYD
 t1#P#part_4#SP#sp42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -35017,7 +34946,6 @@ t1#P#part_3#SP#part_3sp1.MYD
 t1#P#part_3#SP#part_3sp1.MYI
 t1#P#part_3#SP#part_3sp2.MYD
 t1#P#part_3#SP#part_3sp2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -35491,7 +35419,6 @@ t1#P#part_1.MYD
 t1#P#part_1.MYI
 t1#P#part_2.MYD
 t1#P#part_2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -35972,7 +35899,6 @@ t1#P#part_4.MYD
 t1#P#part_4.MYI
 t1#P#part_5.MYD
 t1#P#part_5.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -36470,7 +36396,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -36960,7 +36885,6 @@ t1#P#part_5.MYD
 t1#P#part_5.MYI
 t1#P#parta.MYD
 t1#P#parta.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -37450,7 +37374,6 @@ t1#P#part_4#SP#part_4sp0.MYD
 t1#P#part_4#SP#part_4sp0.MYI
 t1#P#part_4#SP#part_4sp1.MYD
 t1#P#part_4#SP#part_4sp1.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -37953,7 +37876,6 @@ t1#P#part_4#SP#subpart41.MYD
 t1#P#part_4#SP#subpart41.MYI
 t1#P#part_4#SP#subpart42.MYD
 t1#P#part_4#SP#subpart42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -38454,7 +38376,6 @@ t1#P#part_4#SP#sp41.MYD
 t1#P#part_4#SP#sp41.MYI
 t1#P#part_4#SP#sp42.MYD
 t1#P#part_4#SP#sp42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -38947,7 +38868,6 @@ t1#P#part_3#SP#part_3sp1.MYD
 t1#P#part_3#SP#part_3sp1.MYI
 t1#P#part_3#SP#part_3sp2.MYD
 t1#P#part_3#SP#part_3sp2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -39424,7 +39344,6 @@ t1#P#part_1.MYD
 t1#P#part_1.MYI
 t1#P#part_2.MYD
 t1#P#part_2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -39905,7 +39824,6 @@ t1#P#part_4.MYD
 t1#P#part_4.MYI
 t1#P#part_5.MYD
 t1#P#part_5.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -40403,7 +40321,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -40893,7 +40810,6 @@ t1#P#part_5.MYD
 t1#P#part_5.MYI
 t1#P#parta.MYD
 t1#P#parta.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -41383,7 +41299,6 @@ t1#P#part_4#SP#part_4sp0.MYD
 t1#P#part_4#SP#part_4sp0.MYI
 t1#P#part_4#SP#part_4sp1.MYD
 t1#P#part_4#SP#part_4sp1.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -41886,7 +41801,6 @@ t1#P#part_4#SP#subpart41.MYD
 t1#P#part_4#SP#subpart41.MYI
 t1#P#part_4#SP#subpart42.MYD
 t1#P#part_4#SP#subpart42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -42387,7 +42301,6 @@ t1#P#part_4#SP#sp41.MYD
 t1#P#part_4#SP#sp41.MYI
 t1#P#part_4#SP#sp42.MYD
 t1#P#part_4#SP#sp42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -42880,7 +42793,6 @@ t1#P#part_3#SP#part_3sp1.MYD
 t1#P#part_3#SP#part_3sp1.MYI
 t1#P#part_3#SP#part_3sp2.MYD
 t1#P#part_3#SP#part_3sp2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -43354,7 +43266,6 @@ t1#P#part_1.MYD
 t1#P#part_1.MYI
 t1#P#part_2.MYD
 t1#P#part_2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -43835,7 +43746,6 @@ t1#P#part_4.MYD
 t1#P#part_4.MYI
 t1#P#part_5.MYD
 t1#P#part_5.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -44333,7 +44243,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -44823,7 +44732,6 @@ t1#P#part_5.MYD
 t1#P#part_5.MYI
 t1#P#parta.MYD
 t1#P#parta.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -45313,7 +45221,6 @@ t1#P#part_4#SP#part_4sp0.MYD
 t1#P#part_4#SP#part_4sp0.MYI
 t1#P#part_4#SP#part_4sp1.MYD
 t1#P#part_4#SP#part_4sp1.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -45816,7 +45723,6 @@ t1#P#part_4#SP#subpart41.MYD
 t1#P#part_4#SP#subpart41.MYI
 t1#P#part_4#SP#subpart42.MYD
 t1#P#part_4#SP#subpart42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -46317,7 +46223,6 @@ t1#P#part_4#SP#sp41.MYD
 t1#P#part_4#SP#sp41.MYI
 t1#P#part_4#SP#sp42.MYD
 t1#P#part_4#SP#sp42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -46810,7 +46715,6 @@ t1#P#part_3#SP#part_3sp1.MYD
 t1#P#part_3#SP#part_3sp1.MYI
 t1#P#part_3#SP#part_3sp2.MYD
 t1#P#part_3#SP#part_3sp2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -47285,7 +47189,6 @@ t1#P#part_1.MYD
 t1#P#part_1.MYI
 t1#P#part_2.MYD
 t1#P#part_2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -47767,7 +47670,6 @@ t1#P#part_4.MYD
 t1#P#part_4.MYI
 t1#P#part_5.MYD
 t1#P#part_5.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -48266,7 +48168,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -48757,7 +48658,6 @@ t1#P#part_5.MYD
 t1#P#part_5.MYI
 t1#P#parta.MYD
 t1#P#parta.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -49248,7 +49148,6 @@ t1#P#part_4#SP#part_4sp0.MYD
 t1#P#part_4#SP#part_4sp0.MYI
 t1#P#part_4#SP#part_4sp1.MYD
 t1#P#part_4#SP#part_4sp1.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -49752,7 +49651,6 @@ t1#P#part_4#SP#subpart41.MYD
 t1#P#part_4#SP#subpart41.MYI
 t1#P#part_4#SP#subpart42.MYD
 t1#P#part_4#SP#subpart42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -50254,7 +50152,6 @@ t1#P#part_4#SP#sp41.MYD
 t1#P#part_4#SP#sp41.MYI
 t1#P#part_4#SP#sp42.MYD
 t1#P#part_4#SP#sp42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -50748,7 +50645,6 @@ t1#P#part_3#SP#part_3sp1.MYD
 t1#P#part_3#SP#part_3sp1.MYI
 t1#P#part_3#SP#part_3sp2.MYD
 t1#P#part_3#SP#part_3sp2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -51223,7 +51119,6 @@ t1#P#part_1.MYD
 t1#P#part_1.MYI
 t1#P#part_2.MYD
 t1#P#part_2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -51705,7 +51600,6 @@ t1#P#part_4.MYD
 t1#P#part_4.MYI
 t1#P#part_5.MYD
 t1#P#part_5.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -52204,7 +52098,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -52695,7 +52588,6 @@ t1#P#part_5.MYD
 t1#P#part_5.MYI
 t1#P#parta.MYD
 t1#P#parta.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -53186,7 +53078,6 @@ t1#P#part_4#SP#part_4sp0.MYD
 t1#P#part_4#SP#part_4sp0.MYI
 t1#P#part_4#SP#part_4sp1.MYD
 t1#P#part_4#SP#part_4sp1.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -53690,7 +53581,6 @@ t1#P#part_4#SP#subpart41.MYD
 t1#P#part_4#SP#subpart41.MYI
 t1#P#part_4#SP#subpart42.MYD
 t1#P#part_4#SP#subpart42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -54192,7 +54082,6 @@ t1#P#part_4#SP#sp41.MYD
 t1#P#part_4#SP#sp41.MYI
 t1#P#part_4#SP#sp42.MYD
 t1#P#part_4#SP#sp42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -54686,7 +54575,6 @@ t1#P#part_3#SP#part_3sp1.MYD
 t1#P#part_3#SP#part_3sp1.MYI
 t1#P#part_3#SP#part_3sp2.MYD
 t1#P#part_3#SP#part_3sp2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -55160,7 +55048,6 @@ t1#P#part_1.MYD
 t1#P#part_1.MYI
 t1#P#part_2.MYD
 t1#P#part_2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -55641,7 +55528,6 @@ t1#P#part_4.MYD
 t1#P#part_4.MYI
 t1#P#part_5.MYD
 t1#P#part_5.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -56139,7 +56025,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -56629,7 +56514,6 @@ t1#P#part_5.MYD
 t1#P#part_5.MYI
 t1#P#parta.MYD
 t1#P#parta.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -57119,7 +57003,6 @@ t1#P#part_4#SP#part_4sp0.MYD
 t1#P#part_4#SP#part_4sp0.MYI
 t1#P#part_4#SP#part_4sp1.MYD
 t1#P#part_4#SP#part_4sp1.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -57622,7 +57505,6 @@ t1#P#part_4#SP#subpart41.MYD
 t1#P#part_4#SP#subpart41.MYI
 t1#P#part_4#SP#subpart42.MYD
 t1#P#part_4#SP#subpart42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -58123,7 +58005,6 @@ t1#P#part_4#SP#sp41.MYD
 t1#P#part_4#SP#sp41.MYI
 t1#P#part_4#SP#sp42.MYD
 t1#P#part_4#SP#sp42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -58616,7 +58497,6 @@ t1#P#part_3#SP#part_3sp1.MYD
 t1#P#part_3#SP#part_3sp1.MYI
 t1#P#part_3#SP#part_3sp2.MYD
 t1#P#part_3#SP#part_3sp2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -59091,7 +58971,6 @@ t1#P#part_1.MYD
 t1#P#part_1.MYI
 t1#P#part_2.MYD
 t1#P#part_2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -59570,7 +59449,6 @@ t1#P#part_4.MYD
 t1#P#part_4.MYI
 t1#P#part_5.MYD
 t1#P#part_5.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -60066,7 +59944,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -60554,7 +60431,6 @@ t1#P#part_5.MYD
 t1#P#part_5.MYI
 t1#P#parta.MYD
 t1#P#parta.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -61042,7 +60918,6 @@ t1#P#part_4#SP#part_4sp0.MYD
 t1#P#part_4#SP#part_4sp0.MYI
 t1#P#part_4#SP#part_4sp1.MYD
 t1#P#part_4#SP#part_4sp1.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -61543,7 +61418,6 @@ t1#P#part_4#SP#subpart41.MYD
 t1#P#part_4#SP#subpart41.MYI
 t1#P#part_4#SP#subpart42.MYD
 t1#P#part_4#SP#subpart42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -62042,7 +61916,6 @@ t1#P#part_4#SP#sp41.MYD
 t1#P#part_4#SP#sp41.MYI
 t1#P#part_4#SP#sp42.MYD
 t1#P#part_4#SP#sp42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -62533,7 +62406,6 @@ t1#P#part_3#SP#part_3sp1.MYD
 t1#P#part_3#SP#part_3sp1.MYI
 t1#P#part_3#SP#part_3sp2.MYD
 t1#P#part_3#SP#part_3sp2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -63005,7 +62877,6 @@ t1#P#part_1.MYD
 t1#P#part_1.MYI
 t1#P#part_2.MYD
 t1#P#part_2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -63484,7 +63355,6 @@ t1#P#part_4.MYD
 t1#P#part_4.MYI
 t1#P#part_5.MYD
 t1#P#part_5.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -63980,7 +63850,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -64468,7 +64337,6 @@ t1#P#part_5.MYD
 t1#P#part_5.MYI
 t1#P#parta.MYD
 t1#P#parta.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -64956,7 +64824,6 @@ t1#P#part_4#SP#part_4sp0.MYD
 t1#P#part_4#SP#part_4sp0.MYI
 t1#P#part_4#SP#part_4sp1.MYD
 t1#P#part_4#SP#part_4sp1.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -65457,7 +65324,6 @@ t1#P#part_4#SP#subpart41.MYD
 t1#P#part_4#SP#subpart41.MYI
 t1#P#part_4#SP#subpart42.MYD
 t1#P#part_4#SP#subpart42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -65956,7 +65822,6 @@ t1#P#part_4#SP#sp41.MYD
 t1#P#part_4#SP#sp41.MYI
 t1#P#part_4#SP#sp42.MYD
 t1#P#part_4#SP#sp42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -66447,7 +66312,6 @@ t1#P#part_3#SP#part_3sp1.MYD
 t1#P#part_3#SP#part_3sp1.MYI
 t1#P#part_3#SP#part_3sp2.MYD
 t1#P#part_3#SP#part_3sp2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -67239,7 +67103,6 @@ t1#P#part_1.MYD
 t1#P#part_1.MYI
 t1#P#part_2.MYD
 t1#P#part_2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -67718,7 +67581,6 @@ t1#P#part_4.MYD
 t1#P#part_4.MYI
 t1#P#part_5.MYD
 t1#P#part_5.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -68214,7 +68076,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -68702,7 +68563,6 @@ t1#P#part_5.MYD
 t1#P#part_5.MYI
 t1#P#parta.MYD
 t1#P#parta.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -69190,7 +69050,6 @@ t1#P#part_4#SP#part_4sp0.MYD
 t1#P#part_4#SP#part_4sp0.MYI
 t1#P#part_4#SP#part_4sp1.MYD
 t1#P#part_4#SP#part_4sp1.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -69691,7 +69550,6 @@ t1#P#part_4#SP#subpart41.MYD
 t1#P#part_4#SP#subpart41.MYI
 t1#P#part_4#SP#subpart42.MYD
 t1#P#part_4#SP#subpart42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -70190,7 +70048,6 @@ t1#P#part_4#SP#sp41.MYD
 t1#P#part_4#SP#sp41.MYI
 t1#P#part_4#SP#sp42.MYD
 t1#P#part_4#SP#sp42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -70681,7 +70538,6 @@ t1#P#part_3#SP#part_3sp1.MYD
 t1#P#part_3#SP#part_3sp1.MYI
 t1#P#part_3#SP#part_3sp2.MYD
 t1#P#part_3#SP#part_3sp2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -71158,7 +71014,6 @@ t1#P#part_1.MYD
 t1#P#part_1.MYI
 t1#P#part_2.MYD
 t1#P#part_2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -71639,7 +71494,6 @@ t1#P#part_4.MYD
 t1#P#part_4.MYI
 t1#P#part_5.MYD
 t1#P#part_5.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -72137,7 +71991,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -72627,7 +72480,6 @@ t1#P#part_5.MYD
 t1#P#part_5.MYI
 t1#P#parta.MYD
 t1#P#parta.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -73117,7 +72969,6 @@ t1#P#part_4#SP#part_4sp0.MYD
 t1#P#part_4#SP#part_4sp0.MYI
 t1#P#part_4#SP#part_4sp1.MYD
 t1#P#part_4#SP#part_4sp1.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -73620,7 +73471,6 @@ t1#P#part_4#SP#subpart41.MYD
 t1#P#part_4#SP#subpart41.MYI
 t1#P#part_4#SP#subpart42.MYD
 t1#P#part_4#SP#subpart42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -74121,7 +73971,6 @@ t1#P#part_4#SP#sp41.MYD
 t1#P#part_4#SP#sp41.MYI
 t1#P#part_4#SP#sp42.MYD
 t1#P#part_4#SP#sp42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -74614,7 +74463,6 @@ t1#P#part_3#SP#part_3sp1.MYD
 t1#P#part_3#SP#part_3sp1.MYI
 t1#P#part_3#SP#part_3sp2.MYD
 t1#P#part_3#SP#part_3sp2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -75088,7 +74936,6 @@ t1#P#part_1.MYD
 t1#P#part_1.MYI
 t1#P#part_2.MYD
 t1#P#part_2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -75569,7 +75416,6 @@ t1#P#part_4.MYD
 t1#P#part_4.MYI
 t1#P#part_5.MYD
 t1#P#part_5.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -76067,7 +75913,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -76557,7 +76402,6 @@ t1#P#part_5.MYD
 t1#P#part_5.MYI
 t1#P#parta.MYD
 t1#P#parta.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -77047,7 +76891,6 @@ t1#P#part_4#SP#part_4sp0.MYD
 t1#P#part_4#SP#part_4sp0.MYI
 t1#P#part_4#SP#part_4sp1.MYD
 t1#P#part_4#SP#part_4sp1.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -77550,7 +77393,6 @@ t1#P#part_4#SP#subpart41.MYD
 t1#P#part_4#SP#subpart41.MYI
 t1#P#part_4#SP#subpart42.MYD
 t1#P#part_4#SP#subpart42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -78051,7 +77893,6 @@ t1#P#part_4#SP#sp41.MYD
 t1#P#part_4#SP#sp41.MYI
 t1#P#part_4#SP#sp42.MYD
 t1#P#part_4#SP#sp42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -78544,7 +78385,6 @@ t1#P#part_3#SP#part_3sp1.MYD
 t1#P#part_3#SP#part_3sp1.MYI
 t1#P#part_3#SP#part_3sp2.MYD
 t1#P#part_3#SP#part_3sp2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -79019,7 +78859,6 @@ t1#P#part_1.MYD
 t1#P#part_1.MYI
 t1#P#part_2.MYD
 t1#P#part_2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -79501,7 +79340,6 @@ t1#P#part_4.MYD
 t1#P#part_4.MYI
 t1#P#part_5.MYD
 t1#P#part_5.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -80000,7 +79838,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -80491,7 +80328,6 @@ t1#P#part_5.MYD
 t1#P#part_5.MYI
 t1#P#parta.MYD
 t1#P#parta.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -80982,7 +80818,6 @@ t1#P#part_4#SP#part_4sp0.MYD
 t1#P#part_4#SP#part_4sp0.MYI
 t1#P#part_4#SP#part_4sp1.MYD
 t1#P#part_4#SP#part_4sp1.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -81486,7 +81321,6 @@ t1#P#part_4#SP#subpart41.MYD
 t1#P#part_4#SP#subpart41.MYI
 t1#P#part_4#SP#subpart42.MYD
 t1#P#part_4#SP#subpart42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -81988,7 +81822,6 @@ t1#P#part_4#SP#sp41.MYD
 t1#P#part_4#SP#sp41.MYI
 t1#P#part_4#SP#sp42.MYD
 t1#P#part_4#SP#sp42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -82482,7 +82315,6 @@ t1#P#part_3#SP#part_3sp1.MYD
 t1#P#part_3#SP#part_3sp1.MYI
 t1#P#part_3#SP#part_3sp2.MYD
 t1#P#part_3#SP#part_3sp2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -82957,7 +82789,6 @@ t1#P#part_1.MYD
 t1#P#part_1.MYI
 t1#P#part_2.MYD
 t1#P#part_2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -83439,7 +83270,6 @@ t1#P#part_4.MYD
 t1#P#part_4.MYI
 t1#P#part_5.MYD
 t1#P#part_5.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -83938,7 +83768,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -84429,7 +84258,6 @@ t1#P#part_5.MYD
 t1#P#part_5.MYI
 t1#P#parta.MYD
 t1#P#parta.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -84920,7 +84748,6 @@ t1#P#part_4#SP#part_4sp0.MYD
 t1#P#part_4#SP#part_4sp0.MYI
 t1#P#part_4#SP#part_4sp1.MYD
 t1#P#part_4#SP#part_4sp1.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -85424,7 +85251,6 @@ t1#P#part_4#SP#subpart41.MYD
 t1#P#part_4#SP#subpart41.MYI
 t1#P#part_4#SP#subpart42.MYD
 t1#P#part_4#SP#subpart42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -85926,7 +85752,6 @@ t1#P#part_4#SP#sp41.MYD
 t1#P#part_4#SP#sp41.MYI
 t1#P#part_4#SP#sp42.MYD
 t1#P#part_4#SP#sp42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -86420,7 +86245,6 @@ t1#P#part_3#SP#part_3sp1.MYD
 t1#P#part_3#SP#part_3sp1.MYI
 t1#P#part_3#SP#part_3sp2.MYD
 t1#P#part_3#SP#part_3sp2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -86894,7 +86718,6 @@ t1#P#part_1.MYD
 t1#P#part_1.MYI
 t1#P#part_2.MYD
 t1#P#part_2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -87375,7 +87198,6 @@ t1#P#part_4.MYD
 t1#P#part_4.MYI
 t1#P#part_5.MYD
 t1#P#part_5.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -87873,7 +87695,6 @@ t1#P#part_3.MYD
 t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -88363,7 +88184,6 @@ t1#P#part_5.MYD
 t1#P#part_5.MYI
 t1#P#parta.MYD
 t1#P#parta.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -88853,7 +88673,6 @@ t1#P#part_4#SP#part_4sp0.MYD
 t1#P#part_4#SP#part_4sp0.MYI
 t1#P#part_4#SP#part_4sp1.MYD
 t1#P#part_4#SP#part_4sp1.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -89356,7 +89175,6 @@ t1#P#part_4#SP#subpart41.MYD
 t1#P#part_4#SP#subpart41.MYI
 t1#P#part_4#SP#subpart42.MYD
 t1#P#part_4#SP#subpart42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -89857,7 +89675,6 @@ t1#P#part_4#SP#sp41.MYD
 t1#P#part_4#SP#sp41.MYI
 t1#P#part_4#SP#sp42.MYD
 t1#P#part_4#SP#sp42.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -90350,7 +90167,6 @@ t1#P#part_3#SP#part_3sp1.MYD
 t1#P#part_3#SP#part_3sp1.MYI
 t1#P#part_3#SP#part_3sp2.MYD
 t1#P#part_3#SP#part_3sp2.MYI
-t1.frm
 t1.par
 
 # check prerequisites-1 success:    1
@@ -90820,7 +90636,6 @@ t1	CREATE TABLE `t1` (
 unified filelist
 t1.MYD
 t1.MYI
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -91284,7 +91099,6 @@ t1	CREATE TABLE `t1` (
 unified filelist
 t1.MYD
 t1.MYI
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -91756,7 +91570,6 @@ t1	CREATE TABLE `t1` (
 unified filelist
 t1.MYD
 t1.MYI
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -92226,7 +92039,6 @@ t1	CREATE TABLE `t1` (
 unified filelist
 t1.MYD
 t1.MYI
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -92694,7 +92506,6 @@ t1	CREATE TABLE `t1` (
 unified filelist
 t1.MYD
 t1.MYI
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -93166,7 +92977,6 @@ t1	CREATE TABLE `t1` (
 unified filelist
 t1.MYD
 t1.MYI
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -93638,7 +93448,6 @@ t1	CREATE TABLE `t1` (
 unified filelist
 t1.MYD
 t1.MYI
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -94106,7 +93915,6 @@ t1	CREATE TABLE `t1` (
 unified filelist
 t1.MYD
 t1.MYI
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1

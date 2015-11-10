@@ -937,7 +937,7 @@
    fun:_dlerror_run
    fun:dlclose
    fun:_Z8udf_freev
-   fun:_ZL8clean_upb*
+   fun:_Z*8clean_upb*
 }
 
 #Suppress warnings from glibc implementation of 'malloc_info' 
@@ -1017,7 +1017,40 @@
    libnuma fails to free its internally allocated memory 3
    Memcheck:Leak
    fun:calloc
-   fun:*
+   ...
    fun:numa_node_to_cpus
 }
 
+# Uninitialized memory is copied while creating the access
+# key if the first usage of the table is to read records
+# using an index with a composite key where only a part
+# of the key is specified.
+{
+  Key copy reads uninitialized data
+  Memcheck:Cond
+  ...
+  fun:_ZN15Field_varstring13get_key_image*
+  fun:_Z8key_copyPhS_P6st_keyj
+  fun:_ZNK2dd19Parent_id_range_key17create_access_keyEPNS_9Raw_tableE
+  fun:_ZN2dd9Raw_table15open_record_setEPKNS_10Object_keyERSt8auto_ptrINS_14Raw_record_setEE
+}
+
+{
+  Key copy reads uninitialized data
+  Memcheck:Value8
+  ...
+  fun:_ZN15Field_varstring13get_key_image*
+  fun:_Z8key_copyPhS_P6st_keyj
+  fun:_ZNK2dd19Parent_id_range_key17create_access_keyEPNS_9Raw_tableE
+  fun:_ZN2dd9Raw_table15open_record_setEPKNS_10Object_keyERSt8auto_ptrINS_14Raw_record_setEE
+}
+
+{
+  Key copy reads uninitialized data
+  Memcheck:Value4
+  ...
+  fun:_ZN15Field_varstring13get_key_image*
+  fun:_Z8key_copyPhS_P6st_keyj
+  fun:_ZNK2dd19Parent_id_range_key17create_access_keyEPNS_9Raw_tableE
+  fun:_ZN2dd9Raw_table15open_record_setEPKNS_10Object_keyERSt8auto_ptrINS_14Raw_record_setEE
+}

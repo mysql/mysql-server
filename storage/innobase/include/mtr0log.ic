@@ -213,7 +213,6 @@ mlog_write_initial_log_record_low(
 	      || type == MLOG_FILE_CREATE2
 	      || type == MLOG_FILE_RENAME2
 	      || type == MLOG_INDEX_LOAD
-	      || type == MLOG_TRUNCATE
 	      || mtr->is_named_space(space_id));
 
 	mach_write_to_1(log_ptr, type);

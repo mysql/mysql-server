@@ -60,7 +60,7 @@ public:
                         8,                      // len_arg
                         NULL,                   // null_ptr_arg
                         1,                      // null_bit_arg
-                        Field::NONE,            // unireg_check_arg
+                        Field::NONE,            // auto_flags_arg
                         "field_name",           // field_name_arg
                         decimals,               // dec_arg
                         false,                  // zero_arg

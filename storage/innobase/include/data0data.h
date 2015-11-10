@@ -245,7 +245,7 @@ dtuple_get_nth_field(
 	ulint		n);	/*!< in: index of field */
 /** Gets nth virtual field of a tuple.
 @param[in]	tuple	tuple
-@oaran[in]	n	the nth field to get
+@oaram[in]	n	the nth field to get
 @return nth field */
 UNIV_INLINE
 dfield_t*

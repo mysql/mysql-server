@@ -234,7 +234,8 @@ static THD* init_new_thd(Channel_info *channel_info)
   - End thread  / Handle next connection using thread from thread cache
 */
 
-extern "C" void *handle_connection(void *arg)
+extern "C" {
+static void *handle_connection(void *arg)
 {
   Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   Connection_handler_manager *handler_manager=
@@ -339,6 +340,7 @@ extern "C" void *handle_connection(void *arg)
   my_thread_exit(0);
   return NULL;
 }
+} // extern "C"
 
 
 void Per_thread_connection_handler::kill_blocked_pthreads()

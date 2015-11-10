@@ -325,7 +325,7 @@ void
 dict_mem_table_col_rename(
 /*======================*/
 	dict_table_t*	table,	/*!< in/out: table */
-	unsigned	nth_col,/*!< in: column index */
+	ulint		nth_col,/*!< in: column index */
 	const char*	from,	/*!< in: old column name */
 	const char*	to,	/*!< in: new column name */
 	bool		is_virtual)
@@ -336,7 +336,7 @@ dict_mem_table_col_rename(
 	ut_ad((!is_virtual && nth_col < table->n_def)
 	       || (is_virtual && nth_col < table->n_v_def));
 
-	for (unsigned i = 0; i < nth_col; i++) {
+	for (ulint i = 0; i < nth_col; i++) {
 		size_t	len = strlen(s);
 		ut_ad(len > 0);
 		s += len + 1;
@@ -346,7 +346,8 @@ dict_mem_table_col_rename(
 	Proceed with the renaming anyway. */
 	ut_ad(!strcmp(from, s));
 
-	dict_mem_table_col_rename_low(table, nth_col, to, s, is_virtual);
+	dict_mem_table_col_rename_low(table, static_cast<unsigned>(nth_col),
+				      to, s, is_virtual);
 }
 
 #ifndef UNIV_HOTBACKUP

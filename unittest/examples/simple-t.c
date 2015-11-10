@@ -1,5 +1,4 @@
-/* Copyright (C) 2006 MySQL AB
-   Use is subject to license terms
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +15,7 @@
 
 #include <tap.h>
 
-unsigned int gcs(unsigned int a, unsigned int b)
+static unsigned int gcs(unsigned int a, unsigned int b)
 {
   if (b > a) {
     unsigned int t = a;

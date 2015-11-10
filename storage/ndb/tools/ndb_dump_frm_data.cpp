@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (c) 2003, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <ndb_global.h>
 #include <ndb_opts.h>
@@ -115,7 +115,8 @@ dofile(const char* file)
       break;
     }
     int error;
-    if ((error = packfrm(data, size, &pack_data, &pack_len)) != 0)
+    if ((error = compress_serialized_meta_data(data, size,
+                                               &pack_data, &pack_len)) != 0)
     {
       fprintf(stderr, "%s: packfrm: error %d\n", file, error);
       break;

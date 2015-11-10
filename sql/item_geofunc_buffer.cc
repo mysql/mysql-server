@@ -257,7 +257,7 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */)
   {\
   case Geometry::wkb_point:\
   {\
-    BG_models<double, bgcs::cartesian>::Point\
+    BG_models<bgcs::cartesian>::Point\
       bg((geom)->get_data_ptr(), (geom)->get_data_size(),\
          (geom)->get_flags(), (geom)->get_srid());\
     bg::buffer(bg, (geom_out), (dist_strategy), (side_strategy),\
@@ -266,7 +266,7 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */)
   }\
   case Geometry::wkb_multipoint:\
   {\
-    BG_models<double, bgcs::cartesian>::Multipoint\
+    BG_models<bgcs::cartesian>::Multipoint\
       bg((geom)->get_data_ptr(), (geom)->get_data_size(),\
          (geom)->get_flags(), (geom)->get_srid());\
     bg::buffer(bg, (geom_out), (dist_strategy), (side_strategy),\
@@ -275,7 +275,7 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */)
   }\
   case Geometry::wkb_linestring:\
   {\
-    BG_models<double, bgcs::cartesian>::Linestring\
+    BG_models<bgcs::cartesian>::Linestring\
       bg((geom)->get_data_ptr(), (geom)->get_data_size(),\
          (geom)->get_flags(), (geom)->get_srid());\
     bg::buffer(bg, (geom_out), (dist_strategy), (side_strategy),\
@@ -284,7 +284,7 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */)
   }\
   case Geometry::wkb_multilinestring:\
   {\
-    BG_models<double, bgcs::cartesian>::Multilinestring\
+    BG_models<bgcs::cartesian>::Multilinestring\
       bg((geom)->get_data_ptr(), (geom)->get_data_size(),\
          (geom)->get_flags(), (geom)->get_srid());\
     bg::buffer(bg, (geom_out), (dist_strategy), (side_strategy),\
@@ -300,7 +300,7 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */)
       (result)= true;\
       break;            \
     }\
-    BG_models<double, bgcs::cartesian>::Polygon\
+    BG_models<bgcs::cartesian>::Polygon\
       bg(data_ptr, (geom)->get_data_size(),\
          (geom)->get_flags(), (geom)->get_srid());\
     bg::buffer(bg, (geom_out), (dist_strategy), (side_strategy),\
@@ -316,7 +316,7 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */)
       (result)= true;\
       break;            \
     }\
-    BG_models<double, bgcs::cartesian>::Multipolygon\
+    BG_models<bgcs::cartesian>::Multipolygon\
       bg(data_ptr, (geom)->get_data_size(),\
          (geom)->get_flags(), (geom)->get_srid());\
     bg::buffer(bg, (geom_out), (dist_strategy), (side_strategy),\
@@ -522,7 +522,7 @@ String *Item_func_buffer::val_str(String *str_value_arg)
     if (ss3.strategy == point_square)
       strats_combination|= 4;
 
-    BG_models<double, bgcs::cartesian>::Multipolygon result;
+    BG_models<bgcs::cartesian>::Multipolygon result;
     result.set_srid(geom->get_srid());
 
     if (geom->get_type() != Geometry::wkb_geometrycollection)
@@ -594,7 +594,7 @@ String *Item_func_buffer::val_str(String *str_value_arg)
            i != bggc.get_geometries().end(); ++i)
       {
 
-        BG_models<double, bgcs::cartesian>::Multipolygon res;
+        BG_models<bgcs::cartesian>::Multipolygon res;
         String temp_result;
 
         res.set_srid((*i)->get_srid());
@@ -658,7 +658,7 @@ String *Item_func_buffer::val_str(String *str_value_arg)
       }
 
       // Merge the accumulated polygons because they may overlap.
-      bggc2.merge_components<double, bgcs::cartesian>(&null_value);
+      bggc2.merge_components<bgcs::cartesian>(&null_value);
       Gis_geometry_collection *gc= bggc2.as_geometry_collection(str_result);
       delete gc;
     }

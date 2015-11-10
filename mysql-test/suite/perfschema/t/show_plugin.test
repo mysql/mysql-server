@@ -36,6 +36,10 @@
 --echo
 --echo # Save current SHOW_COMPATIBILITY_56 setting
 SELECT @@global.show_compatibility_56 INTO @show_compatibility_56_save;
+--echo #
+--echo # SET COMPATIBILITY MODE = OFF
+--echo #
+SET @@global.show_compatibility_56 = OFF;
 --echo
 --echo # Verify EXAMPLE plugin is not loaded
 SELECT COUNT(*) = 0 AS "Expect 1" FROM information_schema.plugins WHERE plugin_name = "EXAMPLE";
@@ -265,15 +269,6 @@ WHERE variable_name LIKE "example_%" ORDER BY variable_value;
 --echo ================================================================================
 --echo TEST 4 - BUG#18008907: DEADLOCK WITH CHANGE_USER, SHOW VARIABLES, INSTALL PLUGIN
 --echo ================================================================================
-#
-# The following tests are executed by main/plugin.test with show_compatibility_56 = ON.
-# Here they are executed with the compatibility mode disabled.
-#
---echo #
---echo # SET COMPATIBILITY MODE = OFF
---echo #
-SET @@global.show_compatibility_56 = OFF;
-
 --echo
 --disable_result_log
 DELIMITER |;

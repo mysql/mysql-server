@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,7 +51,7 @@
 */
 uint16_t inline le16toh(uint16_t x)
 {
-  #if !(IS_BIG_ENDIAN)
+  #ifndef IS_BIG_ENDIAN
     return x;
   #else
     return ((x >> 8) | (x << 8));
@@ -68,7 +68,7 @@ uint16_t inline le16toh(uint16_t x)
 */
 uint32_t inline le32toh(uint32_t x)
 {
-  #if !(IS_BIG_ENDIAN)
+  #ifndef IS_BIG_ENDIAN
     return x;
   #else
     return (((x >> 24) & 0xff) |
@@ -88,7 +88,7 @@ uint32_t inline le32toh(uint32_t x)
 */
 uint32_t inline be32toh(uint32_t x)
 {
-  #if !(IS_BIG_ENDIAN)
+  #ifndef IS_BIG_ENDIAN
      return (((x >> 24) & 0xff) |
              ((x <<  8) & 0xff0000) |
              ((x >>  8) & 0xff00) |
@@ -108,7 +108,7 @@ uint32_t inline be32toh(uint32_t x)
 */
 uint64_t inline le64toh(uint64_t x)
 {
-  #if !(IS_BIG_ENDIAN)
+  #ifndef IS_BIG_ENDIAN
     return x;
   #else
     x = ((x << 8) & 0xff00ff00ff00ff00ULL) |

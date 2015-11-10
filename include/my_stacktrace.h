@@ -35,7 +35,7 @@ C_MODE_START
 void my_init_stacktrace();
 void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack);
 void my_safe_puts_stderr(const char* val, size_t max_len);
-#if HAVE_BACKTRACE && HAVE_ABI_CXA_DEMANGLE
+#if defined(HAVE_BACKTRACE) && defined(HAVE_ABI_CXA_DEMANGLE)
 char *my_demangle(const char *mangled_name, int *status);
 #endif
 #ifdef _WIN32

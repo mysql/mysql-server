@@ -37,6 +37,8 @@
 #include "template_utils.h"
 #include "debug_sync.h"
 
+#include "dd/dd_table.h"                /* dd::table_exists */
+
 const char *command_array[]=
 {
   "SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "RELOAD",
@@ -1215,12 +1217,25 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     {
       if (!(rights & CREATE_ACL))
       {
-        char buf[FN_REFLEN + 1];
-        build_table_filename(buf, sizeof(buf) - 1, table_list->db,
-                             table_list->table_name, reg_ext, 0);
-        fn_format(buf, buf, "", "", MY_UNPACK_FILENAME  | MY_RESOLVE_SYMLINKS |
-                                    MY_RETURN_REAL_PATH | MY_APPEND_EXT);
-        if (access(buf,F_OK))
+        // We need at least a shared MDL lock on the table to be allowed
+        // to safely check its existence.
+        MDL_request mdl_request;
+        MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE,
+                         table_list->db, table_list->table_name,
+                         MDL_SHARED,
+                         MDL_TRANSACTION);
+        if (thd->mdl_context.acquire_lock(&mdl_request,
+                                          thd->variables.lock_wait_timeout))
+          DBUG_RETURN(true);
+
+        bool exists;
+        if (dd::table_exists<dd::Abstract_table>(thd->dd_client(),
+                                                 table_list->db,
+                                                 table_list->table_name,
+                                                 &exists))
+          DBUG_RETURN(TRUE);
+
+        if (!exists)
         {
           my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db, table_list->alias);
           DBUG_RETURN(TRUE);

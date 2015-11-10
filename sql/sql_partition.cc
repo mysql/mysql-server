@@ -1854,6 +1854,8 @@ end:
 }
 
 
+// TODO: Change this to use streams instead, to make it possible to skip
+//       temporary files etc. and write directly to a string if wanted.
 /*
   The code below is support routines for the reverse parsing of the
   partitioning syntax. This feature is very useful to generate syntax for
@@ -1947,30 +1949,59 @@ static int add_subpartition_by(File fptr)
   return err + add_partition_by(fptr);
 }
 
-static int add_part_field_list(File fptr, List<char> field_list)
+
+/**
+  Append field list to string.
+
+  Used by KEY and COLUMNS partitioning.
+
+  @param[in]     thd        Thread handle.
+  @param[in,out] str        String to append.
+  @param[in]     field_list List of field names to append.
+
+  @return false if success, else true.
+*/
+
+static bool append_field_list(THD *thd, String *str, List<char> field_list)
 {
   uint i, num_fields;
-  int err= 0;
 
   List_iterator<char> part_it(field_list);
   num_fields= field_list.elements;
   i= 0;
-  err+= add_begin_parenthesis(fptr);
+  ulonglong save_options= thd->variables.option_bits;
+  thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE;
   while (i < num_fields)
   {
     const char *field_str= part_it++;
-    String field_string("", 0, system_charset_info);
-    THD *thd= current_thd;
-    ulonglong save_options= thd->variables.option_bits;
-    thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE;
-    append_identifier(thd, &field_string, field_str,
-                      strlen(field_str));
-    thd->variables.option_bits= save_options;
-    err+= add_string_object(fptr, &field_string);
+    append_identifier(thd, str, field_str, strlen(field_str));
     if (i != (num_fields-1))
-      err+= add_comma(fptr);
+    {
+      if (str->append(','))
+      {
+        thd->variables.option_bits= save_options;
+        return true;
+      }
+    }
     i++;
   }
+  thd->variables.option_bits= save_options;
+  return false;
+}
+
+
+static int add_part_field_list(File fptr, List<char> field_list)
+{
+  int err= 0;
+  THD *thd= current_thd;
+  String str("", 0, system_charset_info);
+
+  err+= add_begin_parenthesis(fptr);
+  if (append_field_list(thd, &str, field_list))
+  {
+    err++;
+  }
+  err+= add_string_object(fptr, &str);
   err+= add_end_parenthesis(fptr);
   return err;
 }
@@ -2154,6 +2185,7 @@ static int add_keyword_int(File fptr, const char *keyword, longlong num)
 static int add_engine(File fptr, handlerton *engine_type)
 {
   const char *engine_str= ha_resolve_storage_engine_name(engine_type);
+  DBUG_ASSERT(engine_type != NULL);
   DBUG_PRINT("info", ("ENGINE: %s", engine_str));
   int err= add_string(fptr, "ENGINE = ");
   return err + add_string(fptr, engine_str);
@@ -2269,17 +2301,17 @@ error:
   SYNOPSIS
     get_sql_field()
     field_name                   Field name
-    alter_info                   Info from ALTER TABLE/CREATE TABLE
+    create_fields                Info from ALTER TABLE/CREATE TABLE
 
   RETURN VALUE
     sql_field                    Object filled in by parser about field
     NULL                         No field found
 */
 
-static Create_field* get_sql_field(char *field_name,
-                                   Alter_info *alter_info)
+static Create_field* get_sql_field(const char *field_name,
+                                   List<Create_field> *create_fields)
 {
-  List_iterator<Create_field> it(alter_info->create_list);
+  List_iterator<Create_field> it(*create_fields);
   Create_field *sql_field;
   DBUG_ENTER("get_sql_field");
 
@@ -2295,11 +2327,92 @@ static Create_field* get_sql_field(char *field_name,
   DBUG_RETURN(NULL);
 }
 
+int expr_to_string(String *val_conv,
+                   Item *item_expr, 
+                   part_column_list_val *col_val,
+                   Field *field,
+                   const char *field_name,
+                   const HA_CREATE_INFO *create_info,
+                   List<Create_field> *create_fields)
+{
+  char buffer[MAX_KEY_LENGTH];
+  String str(buffer, sizeof(buffer), &my_charset_bin);
+  String *res;
+  const CHARSET_INFO *field_cs;
+  bool need_cs_check= FALSE;
+  Item_result result_type= STRING_RESULT;
 
-static int add_column_list_values(File fptr, partition_info *part_info,
-                                  part_elem_value *list_value,
-                                  HA_CREATE_INFO *create_info,
-                                  Alter_info *alter_info)
+  /*
+    This function is called at a very early stage, even before
+    we have prepared the sql_field objects. Thus we have to
+    find the proper sql_field object and get the character set
+    from that object.
+  */
+  if (create_info)
+  {
+    Create_field *sql_field;
+
+    if (!(sql_field= get_sql_field(field_name,
+                                   create_fields)))
+    {
+      my_error(ER_FIELD_NOT_FOUND_PART_ERROR, MYF(0));
+      return 1;
+    }
+    if (check_part_field(sql_field->sql_type,
+                         sql_field->field_name,
+                         &result_type,
+                         &need_cs_check))
+      return 1;
+    if (need_cs_check)
+      field_cs= get_sql_field_charset(sql_field, create_info);
+    else
+      field_cs= NULL;
+  }
+  else
+  {
+    result_type= field->result_type();
+    if (check_part_field(field->real_type(),
+                         field->field_name,
+                         &result_type,
+                         &need_cs_check))
+      return 1;
+    DBUG_ASSERT(result_type == field->result_type());
+    if (need_cs_check)
+      field_cs= field->charset();
+    else
+      field_cs= NULL;
+  }
+  if (result_type != item_expr->result_type())
+  {
+    my_error(ER_WRONG_TYPE_COLUMN_VALUE_ERROR, MYF(0));
+    return 1;
+  }
+  if (field_cs && field_cs != item_expr->collation.collation)
+  {
+    if (!(item_expr= convert_charset_partition_constant(item_expr,
+                                                        field_cs)))
+    {
+      my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
+      return 1;
+    }
+  }
+  val_conv->set_charset(system_charset_info);
+  res= item_expr->val_str(&str);
+  if (get_cs_converted_part_value_from_string(current_thd,
+                                              item_expr, res,
+                                              val_conv, field_cs,
+                                              (bool)(create_fields != NULL)))
+  {
+      return 1;
+  }
+  return 0;
+}
+ 
+static
+int add_column_list_values(File fptr, partition_info *part_info,
+                           part_elem_value *list_value,
+                           HA_CREATE_INFO *create_info,
+                           List<Create_field> *create_fields)
 {
   int err= 0;
   uint i;
@@ -2323,81 +2436,43 @@ static int add_column_list_values(File fptr, partition_info *part_info,
       char buffer[MAX_KEY_LENGTH];
       String str(buffer, sizeof(buffer), &my_charset_bin);
       Item *item_expr= col_val->item_expression;
-      if (item_expr->null_value)
+      if (!item_expr)
+      {
+        /*
+	  The values are not from the parser, but from the
+	  dd::Partition_values table. See fill_partitioning_from_dd().
+	*/
+        DBUG_ASSERT(col_val->column_value.value_str);
+        err+= add_string(fptr, col_val->column_value.value_str);
+      }
+      else if (item_expr->null_value)
+      {
         err+= add_string(fptr, "NULL");
+      }
       else
       {
-        String *res;
-        const CHARSET_INFO *field_cs;
-        bool need_cs_check= FALSE;
-        Item_result result_type= STRING_RESULT;
-
-        /*
-          This function is called at a very early stage, even before
-          we have prepared the sql_field objects. Thus we have to
-          find the proper sql_field object and get the character set
-          from that object.
-        */
+        String val_conv;
         if (create_info)
         {
-          Create_field *sql_field;
-
-          if (!(sql_field= get_sql_field(field_name,
-                                         alter_info)))
-          {
-            my_error(ER_FIELD_NOT_FOUND_PART_ERROR, MYF(0));
-            return 1;
-          }
-          if (check_part_field(sql_field->sql_type,
-                               sql_field->field_name,
-                               &result_type,
-                               &need_cs_check))
-            return 1;
-          if (need_cs_check)
-            field_cs= get_sql_field_charset(sql_field, create_info);
-          else
-            field_cs= NULL;
+          err+= expr_to_string(&val_conv,
+                               item_expr,
+                               col_val,
+                               NULL,
+                               field_name,
+                               create_info,
+                               create_fields);
         }
         else
         {
-          Field *field= part_info->part_field_array[i];
-          result_type= field->result_type();
-          if (check_part_field(field->real_type(),
-                               field->field_name,
-                               &result_type,
-                               &need_cs_check))
-            return 1;
-          DBUG_ASSERT(result_type == field->result_type());
-          if (need_cs_check)
-            field_cs= field->charset();
-          else
-            field_cs= NULL;
+          err+= expr_to_string(&val_conv,
+                               item_expr,
+                               col_val,
+                               part_info->part_field_array[i],
+                               NULL,
+                               NULL,
+                               NULL);
         }
-        if (result_type != item_expr->result_type())
-        {
-          my_error(ER_WRONG_TYPE_COLUMN_VALUE_ERROR, MYF(0));
-          return 1;
-        }
-        if (field_cs && field_cs != item_expr->collation.collation)
-        {
-          if (!(item_expr= convert_charset_partition_constant(item_expr,
-                                                              field_cs)))
-          {
-            my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
-            return 1;
-          }
-        }
-        {
-          String val_conv;
-          val_conv.set_charset(system_charset_info);
-          res= item_expr->val_str(&str);
-          if (get_cs_converted_part_value_from_string(current_thd,
-                                                      item_expr, res,
-                                                      &val_conv, field_cs,
-                                                      (alter_info != NULL)))
-            return 1;
-          err+= add_string_object(fptr, &val_conv);
-        }
+        err+= add_string_object(fptr, &val_conv);
       }
     }
     if (i != (num_elements - 1))
@@ -2411,7 +2486,7 @@ static int add_column_list_values(File fptr, partition_info *part_info,
 static int add_partition_values(File fptr, partition_info *part_info,
                                 partition_element *p_elem,
                                 HA_CREATE_INFO *create_info,
-                                Alter_info *alter_info)
+                                List<Create_field> *create_fields)
 {
   int err= 0;
 
@@ -2424,7 +2499,7 @@ static int add_partition_values(File fptr, partition_info *part_info,
       part_elem_value *list_value= list_val_it++;
       err+= add_begin_parenthesis(fptr);
       err+= add_column_list_values(fptr, part_info, list_value,
-                                   create_info, alter_info);
+                                   create_info, create_fields);
       err+= add_end_parenthesis(fptr);
     }
     else
@@ -2467,7 +2542,7 @@ static int add_partition_values(File fptr, partition_info *part_info,
 
       if (part_info->column_list)
         err+= add_column_list_values(fptr, part_info, list_value,
-                                     create_info, alter_info);
+                                     create_info, create_fields);
       else
       {
         if (!list_value->unsigned_flag)
@@ -2535,6 +2610,36 @@ static int add_key_with_algorithm(File fptr, partition_info *part_info,
   return err;
 }
 
+static char *get_file_content(File fptr, uint *buf_length, bool use_sql_alloc)
+{
+  my_off_t buffer_length;
+  char *buf;
+  buffer_length= mysql_file_seek(fptr, 0L, MY_SEEK_END, MYF(0));
+  if (unlikely(buffer_length == MY_FILEPOS_ERROR))
+    return NULL;
+  if (unlikely(mysql_file_seek(fptr, 0L, MY_SEEK_SET, MYF(0))
+               == MY_FILEPOS_ERROR))
+    return NULL;
+  *buf_length= (uint)buffer_length;
+  if (use_sql_alloc)
+    buf= (char*) sql_alloc(*buf_length+1);
+  else
+    buf= (char*) my_malloc(key_memory_partition_syntax_buffer,
+                           *buf_length+1, MYF(MY_WME));
+  if (!buf)
+    return NULL;
+
+  if (unlikely(mysql_file_read(fptr, (uchar*)buf, *buf_length, MYF(MY_FNABP))))
+  {
+    if (!use_sql_alloc)
+      my_free(buf);
+    buf= NULL;
+  }
+  else
+    buf[*buf_length]= 0;
+  return buf;
+}
+
 
 /*
   Generate the partition syntax from the partition data structure.
@@ -2549,7 +2654,9 @@ static int add_key_with_algorithm(File fptr, partition_info *part_info,
                                otherwise use my_malloc
     show_partition_options     Should we display partition options
     create_info                Info generated by parser
-    alter_info                 Info generated by parser
+    create_fields              Info generated by parser
+    current_comment_start      NULL, or comment string encapsulating the
+                               PARTITION BY clause.
 
   RETURN VALUES
     NULL error
@@ -2580,26 +2687,21 @@ char *generate_partition_syntax(partition_info *part_info,
                                 bool use_sql_alloc,
                                 bool show_partition_options,
                                 HA_CREATE_INFO *create_info,
-                                Alter_info *alter_info,
+                                List<Create_field> *create_fields,
                                 const char *current_comment_start)
 {
   uint i,j, tot_num_parts, num_subparts;
   partition_element *part_elem;
-  ulonglong buffer_length;
-  char path[FN_REFLEN];
   int err= 0;
   List_iterator<partition_element> part_it(part_info->partitions);
   File fptr;
   char *buf= NULL; //Return buffer
   DBUG_ENTER("generate_partition_syntax");
 
-  if (unlikely(((fptr= create_temp_file(path,mysql_tmpdir,"psy",
-                                        O_RDWR | O_BINARY | O_TRUNC |
-                                        O_TEMPORARY, MYF(MY_WME)))) < 0))
+  if (!(fptr= mysql_tmpfile("psy")))
+  {
     DBUG_RETURN(NULL);
-#ifndef _WIN32
-  unlink(path);
-#endif
+  }
   err+= add_space(fptr);
   err+= add_partition_by(fptr);
   switch (part_info->part_type)
@@ -2628,7 +2730,8 @@ char *generate_partition_syntax(partition_info *part_info,
       my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
       DBUG_RETURN(NULL);
   }
-  if (part_info->part_expr)
+  /* TODO: use part_expr->print() ?*/
+  if (part_info->part_func_len)
   {
     err+= add_begin_parenthesis(fptr);
     err+= add_string_len(fptr, part_info->part_func_string,
@@ -2662,7 +2765,7 @@ char *generate_partition_syntax(partition_info *part_info,
     }
     else
       err+= add_part_key_word(fptr, partition_keywords[PKW_HASH].str);
-    if (part_info->subpart_expr)
+    if (part_info->subpart_func_len)
     {
       err+= add_begin_parenthesis(fptr);
       err+= add_string_len(fptr, part_info->subpart_func_string,
@@ -2702,7 +2805,7 @@ char *generate_partition_syntax(partition_info *part_info,
         err+= add_partition(fptr);
         err+= add_name_string(fptr, part_elem->partition_name);
         err+= add_partition_values(fptr, part_info, part_elem,
-                                   create_info, alter_info);
+                                   create_info, create_fields);
         if (!part_info->is_sub_partitioned() ||
             part_info->use_default_subpartitions)
         {
@@ -2715,14 +2818,15 @@ char *generate_partition_syntax(partition_info *part_info,
           err+= add_space(fptr);
           err+= add_begin_parenthesis(fptr);
           List_iterator<partition_element> sub_it(part_elem->subpartitions);
+          partition_element *sub_elem;
           j= 0;
           do
           {
-            part_elem= sub_it++;
+            sub_elem= sub_it++;
             err+= add_subpartition(fptr);
-            err+= add_name_string(fptr, part_elem->partition_name);
+            err+= add_name_string(fptr, sub_elem->partition_name);
             if (show_partition_options)
-              err+= add_partition_options(fptr, part_elem);
+              err+= add_partition_options(fptr, sub_elem);
             if (j != (num_subparts-1))
             {
               err+= add_comma(fptr);
@@ -2741,31 +2845,7 @@ char *generate_partition_syntax(partition_info *part_info,
   }
   if (err)
     goto close_file;
-  buffer_length= mysql_file_seek(fptr, 0L, MY_SEEK_END, MYF(0));
-  if (unlikely(buffer_length == MY_FILEPOS_ERROR))
-    goto close_file;
-  if (unlikely(mysql_file_seek(fptr, 0L, MY_SEEK_SET, MYF(0))
-               == MY_FILEPOS_ERROR))
-    goto close_file;
-  *buf_length= (uint)buffer_length;
-  if (use_sql_alloc)
-    buf= (char*) sql_alloc(*buf_length+1);
-  else
-    buf= (char*) my_malloc(key_memory_partition_syntax_buffer,
-                           *buf_length+1, MYF(MY_WME));
-  if (!buf)
-    goto close_file;
-
-  if (unlikely(mysql_file_read(fptr, (uchar*)buf, *buf_length, MYF(MY_FNABP))))
-  {
-    if (!use_sql_alloc)
-      my_free(buf);
-    else
-      buf= NULL;
-  }
-  else
-    buf[*buf_length]= 0;
-
+  buf= get_file_content(fptr, buf_length, use_sql_alloc);
 close_file:
   if (buf == NULL)
   {
@@ -4401,9 +4481,6 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
      serialisation of these objects other than in parseable text format).
      We need to save the text of the partition functions since it is not
      possible to retrace this given an item tree.
-
-     Note: Upon any change to this function we might want to make
-     similar change to get_partition_tablespace_names() too.
 */
 
 bool mysql_unpack_partition(THD *thd,
@@ -4530,6 +4607,10 @@ bool mysql_unpack_partition(THD *thd,
     size_t subpart_func_len= part_info->subpart_func_len;
     char *part_func_string= NULL;
     char *subpart_func_string= NULL;
+    /*
+      TODO: Verify that it really should be allocated on the thd?
+      Or simply remove it and use part_expr->print() instead?
+    */
     if ((part_func_len &&
          !((part_func_string= (char*) thd->alloc(part_func_len)))) ||
         (subpart_func_len &&
@@ -4553,95 +4634,6 @@ end:
   end_lex_with_single_table(thd, table, old_lex);
   thd->variables.character_set_client= old_character_set_client;
   DBUG_RETURN(result);
-}
-
-/**
-  Fill Tablespace_hash_set with tablespace names used in given
-  partition expression. The partition expression is parsed to get
-  the tablespace names.
-
-  Note that, upon any change to this function we might want to make
-  similar change to mysql_unpack_partition() too.
-
-  @param thd                 - Thread invoking the function
-  @param partition_info_str  - The partition expression.
-  @param partition_info_len  - The partition expression length.
-  @param tablespace_set (OUT)- Hash set to be filled with tablespace name.
-
-  @retval true  - On failure.
-  @retval false - On success.
-*/
-bool get_partition_tablespace_names(
-       THD *thd,
-       const char *partition_info_str,
-       uint partition_info_len,
-       Tablespace_hash_set *tablespace_set)
-{
-  // Backup query arena
-  Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
-  Query_arena backup_arena;
-  Query_arena part_func_arena(thd->mem_root,
-                              Query_arena::STMT_INITIALIZED);
-  thd->set_n_backup_active_arena(&part_func_arena, &backup_arena);
-  thd->stmt_arena= &part_func_arena;
-
-  //
-  // Parsing the partition expression.
-  //
-
-  // Save old state and prepare new LEX
-  const CHARSET_INFO *old_character_set_client=
-    thd->variables.character_set_client;
-  thd->variables.character_set_client= system_charset_info;
-  LEX *old_lex= thd->lex;
-  LEX lex;
-  SELECT_LEX_UNIT unit(CTX_NONE);
-  SELECT_LEX select(NULL, NULL, NULL, NULL, NULL, NULL);
-  lex.new_static_query(&unit, &select);
-  thd->lex= &lex;
-
-  sql_digest_state *parent_digest= thd->m_digest;
-  PSI_statement_locker *parent_locker= thd->m_statement_psi;
-
-  Parser_state parser_state;
-  bool error= true;
-  if ((error= parser_state.init(thd,
-                                partition_info_str,
-                                partition_info_len)))
-    goto end;
-
-  // Create new partition_info object.
-  lex.part_info= new partition_info();
-  if (!lex.part_info)
-  {
-    mem_alloc_error(sizeof(partition_info));
-    goto end;
-  }
-
-  // Parse the string and filling the partition_info.
-  thd->m_digest= NULL;
-  thd->m_statement_psi= NULL;
-  error= parse_sql(thd, &parser_state, NULL);
-  thd->m_digest= parent_digest;
-  thd->m_statement_psi= parent_locker;
-
-  // Fill in partitions from part_info.
-  error= error || fill_partition_tablespace_names(lex.part_info,
-                                                  tablespace_set);
-end:
-  // Free items from current arena.
-  thd->free_items();
-
-  // Retore the old lex.
-  lex_end(thd->lex);
-  thd->lex= old_lex;
-
-  // Restore old arena.
-  thd->stmt_arena= backup_stmt_arena_ptr;
-  thd->restore_active_arena(&part_func_arena, &backup_arena);
-  thd->variables.character_set_client= old_character_set_client;
-
-  return (error);
 }
 
 
@@ -6670,10 +6662,8 @@ error:
     FALSE                    Success
 */
 
-static void write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt,
-                                bool dont_crash)
+static void write_log_completed(partition_info *part_info)
 {
-  partition_info *part_info= lpt->part_info;
   DDL_LOG_MEMORY_ENTRY *log_entry= part_info->exec_log_entry;
   DBUG_ENTER("write_log_completed");
 
@@ -6826,7 +6816,7 @@ static bool handle_alter_part_end(ALTER_PARTITION_PARAM_TYPE *lpt,
       We couldn't recover from error, most likely manual interaction
       is required.
     */
-    write_log_completed(lpt, FALSE);
+    write_log_completed(part_info);
     if (error)
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING, 1,
@@ -6996,7 +6986,7 @@ bool fast_alter_partition_table(THD *thd,
     if (write_log_drop_shadow_frm(lpt) ||
         ERROR_INJECT_CRASH("crash_drop_partition_1") ||
         ERROR_INJECT_ERROR("fail_drop_partition_1") ||
-        mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
+        mysql_update_dd(lpt, WSDI_WRITE_SHADOW) ||
         ERROR_INJECT_CRASH("crash_drop_partition_2") ||
         ERROR_INJECT_ERROR("fail_drop_partition_2") ||
         wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN) ||
@@ -7046,7 +7036,7 @@ bool fast_alter_partition_table(THD *thd,
     if (write_log_drop_shadow_frm(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_1") ||
         ERROR_INJECT_ERROR("fail_add_partition_1") ||
-        mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
+        mysql_update_dd(lpt, WSDI_WRITE_SHADOW) ||
         ERROR_INJECT_CRASH("crash_add_partition_2") ||
         ERROR_INJECT_ERROR("fail_add_partition_2") ||
         wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN) ||
@@ -7128,7 +7118,7 @@ bool fast_alter_partition_table(THD *thd,
     if (write_log_drop_shadow_frm(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_1") ||
         ERROR_INJECT_ERROR("fail_change_partition_1") ||
-        mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
+        mysql_update_dd(lpt, WSDI_WRITE_SHADOW) ||
         ERROR_INJECT_CRASH("crash_change_partition_2") ||
         ERROR_INJECT_ERROR("fail_change_partition_2") ||
         write_log_add_change_partition(lpt) ||
@@ -7532,7 +7522,7 @@ static int cmp_rec_and_tuple(part_column_list_val *val, uint32 nvals_in_rec)
     }
     if (val->null_value)
       return +1;
-    res= (*field)->cmp((const uchar*)val->column_value);
+    res= (*field)->cmp(val->column_value.field_image);
     if (res)
       return res;
   }

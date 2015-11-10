@@ -671,6 +671,15 @@ CREATE INDEX IX ON t10(I);
 CREATE INDEX IX ON t100(I);
 CREATE INDEX IX ON t10000(I);
 
+## Adding SHOW CREATE's so that we cache TABLE_SHARE objects
+## for required tables before hand. This helps avoid 'Handler_reads'
+## session status variable to get incremented while reading meta data from
+## data dictionary tables later while queries is being inspected.
+## This enables proper validation of the status variable value.
+SHOW CREATE TABLE t10;
+SHOW CREATE TABLE t100;
+SHOW CREATE TABLE t10000;
+
 ########
 ## EQ_REF Should be executed before 'REF'
 ## - Independent of #records in table being EQ_REF-joined

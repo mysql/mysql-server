@@ -26,8 +26,11 @@
 #include "trigger_chain.h"                    // Trigger_chain
 #include "partitioning/partition_handler.h"   // PART_DEF_NAME, Partition_share
 #include "sql_class.h"                        // THD
-#include "derror.h"
+#include "derror.h"                           // ER_THD
 #include "sql_tablespace.h"                   // check_tablespace_name
+
+
+// TODO: Create ::get_copy() for getting a deep copy.
 
 partition_info *partition_info::get_clone(bool reset /* = false */)
 {
@@ -1359,8 +1362,8 @@ range_not_increasing_error:
     -1                 a < b
 */
 
-extern "C"
-int partition_info_list_part_cmp(const void* a, const void* b)
+extern "C" {
+static int partition_info_list_part_cmp(const void* a, const void* b)
 {
   longlong a1= ((LIST_PART_ENTRY*)a)->list_value;
   longlong b1= ((LIST_PART_ENTRY*)b)->list_value;
@@ -1371,6 +1374,7 @@ int partition_info_list_part_cmp(const void* a, const void* b)
   else
     return 0;
 }
+} // extern "C"
 
 
 int partition_info::list_part_cmp(const void* a, const void* b)
@@ -1391,7 +1395,8 @@ int partition_info::list_part_cmp(const void* a, const void* b)
     +1                       First argument is larger
 */
 
-extern "C"
+extern "C" {
+static
 int partition_info_compare_column_values(const void *first_arg,
                                          const void *second_arg)
 {
@@ -1421,13 +1426,14 @@ int partition_info_compare_column_values(const void *first_arg,
       else
         return -1;
     }
-    int res= (*field)->cmp((const uchar*)first->column_value,
-                           (const uchar*)second->column_value);
+    int res= (*field)->cmp(first->column_value.field_image,
+                           second->column_value.field_image);
     if (res)
       return res;
   }
   return 0;
 }
+} // extern "C"
 
 
 int partition_info::compare_column_values(const void *first_arg,
@@ -2735,10 +2741,10 @@ bool partition_info::fix_column_value_functions(THD *thd,
     col_val->part_info= this;
     col_val->partition_id= part_id;
     if (col_val->max_value)
-      col_val->column_value= NULL;
+      col_val->column_value.field_image= NULL;
     else
     {
-      col_val->column_value= NULL;
+      col_val->column_value.field_image= NULL;
       if (!col_val->null_value)
       {
         uchar *val_ptr;
@@ -2771,7 +2777,7 @@ bool partition_info::fix_column_value_functions(THD *thd,
           result= TRUE;
           goto end;
         }
-        col_val->column_value= val_ptr;
+        col_val->column_value.field_image= val_ptr;
         memcpy(val_ptr, field->ptr, len);
       }
     }
@@ -3271,8 +3277,7 @@ bool fill_partition_tablespace_names(
       if (sub_elem->tablespace_name &&
           strlen(sub_elem->tablespace_name) &&
           tablespace_set->insert(const_cast<char*>(sub_elem->tablespace_name)))
-      return true;
-
+        return true;
     }
   }
 
@@ -3320,4 +3325,3 @@ bool check_partition_tablespace_names(partition_info *part_info)
 
   return false;
 }
-

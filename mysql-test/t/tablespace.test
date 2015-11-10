@@ -88,36 +88,6 @@ SHOW CREATE TABLE t1;
 
 DROP TABLE t1;
 
-#
-# Check that it's possible to read a .frm fle created
-# by MySQL Cluster 7.0(which introduced the new "format
-# section) with this statement:
-#
-# CREATE TABLE cluster_7022_table
-# (
-#   a int primary key,
-#   b int,
-#   c int STORAGE DISK,
-#   d int STORAGE MEMORY NOT NULL,
-#   e int COLUMN_FORMAT DYNAMIC,
-#   f int COLUMN_FORMAT FIXED,
-#   g int COLUMN_FORMAT DEFAULT,
-#   h int STORAGE DISK COLUMN_FORMAT DYNAMIC NOT NULL,
-#   i int STORAGE MEMORY COLUMN_FORMAT DYNAMIC,
-#   j int STORAGE DISK COLUMN_FORMAT FIXED,
-#   k int STORAGE MEMORY COLUMN_FORMAT FIXED
-# ) STORAGE DISK TABLESPACE the_tablespacename ENGINE=MyISAM;
-#
-
-let $MYSQLD_DATADIR= `SELECT @@datadir`;
-copy_file std_data/cluster_7022_table.frm $MYSQLD_DATADIR/test/t1.frm;
-copy_file std_data/cluster_7022_table.MYD $MYSQLD_DATADIR/test/t1.MYD;
-copy_file std_data/cluster_7022_table.MYI $MYSQLD_DATADIR/test/t1.MYI;
-
-SHOW CREATE TABLE t1;
-
-DROP TABLE t1;
-
 --echo #
 --echo # WL#3627 Add COLUMN_FORMAT and STORAGE for fields
 --echo #
@@ -200,3 +170,43 @@ SET SESSION debug="+d,out_of_tablespace_disk";
 CREATE TABLESPACE `ts6` ADD DATAFILE 'ts6.ibd' ENGINE=INNODB;
 SHOW WARNINGS;
 SET SESSION debug="-d,out_of_tablespace_disk";
+
+
+--echo #
+--echo # Bug #21625393 ASSERT(E->USAGE() == 1) FAILURE IN DD::CACHE::SHARED_MULTI_MAP<T>::::REMOVE()
+--echo #
+
+--echo #
+--echo # Create a tablespace, and drop it, but make drop fail
+--echo # before the object is deleted from the dd tables. Now,
+--echo # the object exists in the global data dictionary, but
+--echo # not in the SE not in the SE private data dictionary.
+
+CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd';
+
+--enable_connect_log
+--connect (con1, localhost, root)
+SET SESSION DEBUG='+d,fail_while_dropping_dd_object';
+--error ER_LOCK_WAIT_TIMEOUT
+DROP TABLESPACE ts;
+SET SESSION DEBUG='-d,fail_while_dropping_dd_object';
+
+--echo #
+--echo # Without the patch, the next create statement will acquire the
+--echo # tablespace object without using an auto releaser, because the
+--echo # tablespace with the same name already exists in the global DD,
+--echo # but not in the SE. If it existed in the SE, the fact that it
+--echo # alrady exists would be caught differently. This will give an
+--echo # assert when the thd is deleted, when the connection is closed.
+--echo # The fix is simply to add an auto releaser at the right place.
+
+--error ER_TABLESPACE_EXISTS
+CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd';
+
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection default
+--echo # Drop the tablespace for real.
+DROP TABLESPACE ts;
+--disable_connect_log

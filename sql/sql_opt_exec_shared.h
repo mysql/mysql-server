@@ -215,15 +215,6 @@ enum join_type { /*
                   */
                  JT_REF_OR_NULL,
                  /*
-                   Like eq_ref for subqueries: Replaces subquery with
-                   index lookup in unique index
-                  */
-                 JT_UNIQUE_SUBQUERY,
-                 /*
-                   Like unique_subquery but for non-unique index
-                 */
-                 JT_INDEX_SUBQUERY,
-                 /*
                    Do multiple range scans over one table and combine
                    the results into one. The merge can be used to
                    produce unions and intersections

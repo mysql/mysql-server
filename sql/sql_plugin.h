@@ -148,7 +148,9 @@ extern char *opt_plugin_dir_ptr;
 extern char opt_plugin_dir[FN_REFLEN];
 extern const LEX_STRING plugin_type_names[];
 
-extern int plugin_init(int *argc, char **argv, int init_flags);
+extern bool plugin_register_builtin_and_init_core_se(int *argc, char **argv);
+extern bool plugin_register_dynamic_and_init_all(int *argc,
+                                                 char **argv, int init_flags);
 extern void plugin_shutdown(void);
 extern void memcached_shutdown(void);
 void add_plugin_options(std::vector<my_option> *options, MEM_ROOT *mem_root);

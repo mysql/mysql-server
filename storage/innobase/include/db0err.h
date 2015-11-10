@@ -135,8 +135,6 @@ enum dberr_t {
 	DB_FTS_TOO_MANY_WORDS_IN_PHRASE,
 					/*< Too many words in a phrase */
 
-	DB_TABLESPACE_TRUNCATED,	/*!< tablespace was truncated */
-
 	DB_IO_ERROR = 100,		/*!< Generic IO error */
 
 	DB_IO_DECOMPRESS_FAIL,		/*!< Failure to decompress a page
@@ -183,12 +181,6 @@ enum dberr_t {
 	/* The following are API only error codes. */
 	DB_DATA_MISMATCH = 2000,	/*!< Column update or read failed
 					because the types mismatch */
-
-	DB_SCHEMA_NOT_LOCKED		/*!< If an API function expects the
-					schema to be locked in exclusive mode
-					and if it's not then that API function
-					will return this error code */
-
 };
 
 #endif

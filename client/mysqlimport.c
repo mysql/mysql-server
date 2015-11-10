@@ -594,7 +594,7 @@ static char *field_escape(char *to,const char *from,uint length)
 
 int exitcode= 0;
 
-void *worker_thread(void *arg)
+static void *worker_thread(void *arg)
 {
   int error;
   char *raw_table_name= (char *)arg;

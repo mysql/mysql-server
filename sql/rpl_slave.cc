@@ -26,6 +26,7 @@
 
 #ifdef HAVE_REPLICATION
 #include "rpl_slave.h"
+#include "client_settings.h"
 
 #include "errmsg.h"                            // CR_*
 #include "my_bitmap.h"                         // MY_BITMAP
@@ -219,7 +220,6 @@ static int terminate_slave_thread(THD *thd,
                                   ulong *stop_wait_timeout,
                                   bool need_lock_term);
 static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info);
-int slave_worker_exec_job_group(Slave_worker *w, Relay_log_info *rli);
 static int mts_event_coord_cmp(LOG_POS_COORD *id1, LOG_POS_COORD *id2);
 
 static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli);
@@ -3423,6 +3423,7 @@ static void show_slave_status_metadata(List<Item> &field_list,
                                            MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Replicate_Rewrite_DB", 24));
   field_list.push_back(new Item_empty_string("Channel_Name", CHANNEL_NAME_LENGTH));
+  field_list.push_back(new Item_empty_string("Master_TLS_Version", FN_REFLEN));
 
 }
 
@@ -3702,6 +3703,8 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
   protocol->store(&tmp);
   // channel_name
   protocol->store(mi->get_channel(), &my_charset_bin);
+  // Master_TLS_Version
+  protocol->store(mi->tls_version, &my_charset_bin);
 
   mysql_mutex_unlock(&mi->rli->err_lock);
   mysql_mutex_unlock(&mi->err_lock);
@@ -5881,7 +5884,8 @@ int check_temp_dir(char* tmp_file, const char *channel_name)
 /*
   Worker thread for the parallel execution of the replication events.
 */
-extern "C" void *handle_slave_worker(void *arg)
+extern "C" {
+static void *handle_slave_worker(void *arg)
 {
   THD *thd;                     /* needs to be first for thread_stack */
   bool thd_added= false;
@@ -6049,6 +6053,7 @@ err:
   my_thread_exit(0);
   DBUG_RETURN(0); 
 }
+} // extern "C"
 
 /**
    Orders jobs by comparing relay log information.
@@ -8503,6 +8508,8 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
 #endif
     mysql_options(mysql, MYSQL_OPT_SSL_CRL,
                   mi->ssl_crl[0] ? mi->ssl_crl : 0);
+    mysql_options(mysql, MYSQL_OPT_TLS_VERSION,
+                  mi->tls_version[0] ? mi->tls_version : 0);
     mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH,
                   mi->ssl_crlpath[0] ? mi->ssl_crlpath : 0);
     mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
@@ -10220,6 +10227,7 @@ static bool have_change_master_receive_option(const LEX_MASTER_INFO* lex_mi)
       lex_mi->ssl_cert ||
       lex_mi->ssl_ca ||
       lex_mi->ssl_capath ||
+      lex_mi->tls_version ||
       lex_mi->ssl_cipher ||
       lex_mi->ssl_crl ||
       lex_mi->ssl_crlpath ||
@@ -10454,6 +10462,8 @@ static int change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
     strmake(mi->ssl_ca, lex_mi->ssl_ca, sizeof(mi->ssl_ca)-1);
   if (lex_mi->ssl_capath)
     strmake(mi->ssl_capath, lex_mi->ssl_capath, sizeof(mi->ssl_capath)-1);
+  if (lex_mi->tls_version)
+    strmake(mi->tls_version, lex_mi->tls_version, sizeof(mi->tls_version)-1);
   if (lex_mi->ssl_cert)
     strmake(mi->ssl_cert, lex_mi->ssl_cert, sizeof(mi->ssl_cert)-1);
   if (lex_mi->ssl_cipher)
@@ -10467,7 +10477,7 @@ static int change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
 #ifndef HAVE_OPENSSL
   if (lex_mi->ssl || lex_mi->ssl_ca || lex_mi->ssl_capath ||
       lex_mi->ssl_cert || lex_mi->ssl_cipher || lex_mi->ssl_key ||
-      lex_mi->ssl_verify_server_cert || lex_mi->ssl_crl || lex_mi->ssl_crlpath)
+      lex_mi->ssl_verify_server_cert || lex_mi->ssl_crl || lex_mi->ssl_crlpath || lex_mi->tls_version)
     push_warning(thd, Sql_condition::SL_NOTE,
                  ER_SLAVE_IGNORED_SSL_PARAMS, ER_THD(thd, ER_SLAVE_IGNORED_SSL_PARAMS));
 #endif

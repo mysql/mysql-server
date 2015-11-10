@@ -162,6 +162,7 @@ Partition_share::release_auto_inc_if_possible(THD *thd, TABLE_SHARE *table_share
 
   @param       part   Struct containing name and length
   @param[out]  length Length of the name
+  @param       not_used Not used
 
   @return Partition name
 */

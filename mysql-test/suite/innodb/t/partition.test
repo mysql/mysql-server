@@ -301,18 +301,6 @@ DROP TABLE t1;
 DROP TABLE t2;
 
 --echo #
---echo # Bug#20819189: Assert if .frm exists but no partitioned InnoDB table
---echo #
-CREATE TABLE t1 (a int) ENGINE=InnoDB PARTITION BY HASH (a) PARTITIONS 2;
---copy_file $MYSQLD_DATADIR/test/t1.frm $MYSQLD_DATADIR/test/t2.frm
---error ER_GET_ERRNO
-SELECT * FROM t2;
---remove_file $MYSQLD_DATADIR/test/t2.frm
-# Flush table is needed to remove the 'orphan' t2 definition.
-FLUSH TABLE t2;
-DROP TABLE t1;
-
---echo #
 --echo # Bug#21211524: CRASH IN ACTUAL_KEY_PARTS WITH PARTITIONED TABLES
 --echo #
 CREATE TABLE t1(
@@ -375,23 +363,31 @@ SELECT * from t1 WHERE col1 BETWEEN '2000-01-01 01:02:00' AND '2000-01-01 01:03:
 
 DROP TABLE t1;
 
---echo #
---echo # Bug#21755994 ALTER INPLACE CRASHES ON A INNODB TABLE WITH PARTITION ON SEPARATE TABLESPACE
---echo #
-
-CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
-
-CREATE TABLE t1 ( a INT NOT NULL, PRIMARY KEY (a))
-ENGINE=InnoDB
-PARTITION BY RANGE (a) PARTITIONS 3
-( PARTITION P1 VALUES LESS THAN (2) TABLESPACE ts1,
-  PARTITION P2 VALUES LESS THAN (4) TABLESPACE `innodb_system`,
-  PARTITION P3 VALUES LESS THAN (6));
-
-ALTER TABLE t1 ADD COLUMN f int;
-
-DROP TABLE t1;
-DROP TABLESPACE ts1;
+# WL6378_ALTER_PARTITION_TABLESPACE
+# Reason for disabling the test is that, the following fix does
+# not completely fix the behaviour of ALTER TABLE on a table with
+# partitions using separate tablespace. A new bug Bug#21914047
+# is filed on trunk/5.7, which with slight modification to below test
+# case causes server to dump. After talking to Deb (InnoDB) it
+# seem that the behavior of such a ALTER is not documented yet.
+# So, we are disabling this case until the above bug is fixed.
+#--echo #
+#--echo # Bug#21755994 ALTER INPLACE CRASHES ON A INNODB TABLE WITH PARTITION ON SEPARATE TABLESPACE
+#--echo #
+#
+#CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+#
+#CREATE TABLE t1 ( a INT NOT NULL, PRIMARY KEY (a))
+#ENGINE=InnoDB
+#PARTITION BY RANGE (a) PARTITIONS 3
+#( PARTITION P1 VALUES LESS THAN (2) TABLESPACE ts1,
+#  PARTITION P2 VALUES LESS THAN (4) TABLESPACE `innodb_system`,
+#  PARTITION P3 VALUES LESS THAN (6));
+#
+#ALTER TABLE t1 ADD COLUMN f int;
+#
+#DROP TABLE t1;
+#DROP TABLESPACE ts1;
 
 --echo #
 --echo # Bug#21796845 ASSERT ERR == DB_SUCCESS, ROW_QUIESCE_TABLE_START(), FLUSH TABLES FOR EXPORT
@@ -410,3 +406,66 @@ UNLOCK TABLES;
 
 DROP TABLE t1;
 DROP TABLESPACE ts1;
+
+--echo #
+--echo # Bug#21957001 INNODB: FAILING ASSERTION: 0 IN FILE HA_INNOPART.CC LINE 3526
+--echo #
+call mtr.add_suppression("\\[Warning\\] InnoDB: Trying to access missing tablespace .*");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Missing .ibd file for table `test`\.`t1` .* ");
+
+CREATE TABLE t1(c1 INT,c2 CHAR(1)) PARTITION BY KEY(c1) PARTITIONS 4;
+
+ALTER TABLE t1 DISCARD PARTITION p3 TABLESPACE;
+SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
+
+ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
+SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
+
+ALTER TABLE t1 DISCARD PARTITION p2 TABLESPACE;
+SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
+
+ALTER TABLE t1 DISCARD PARTITION p0 TABLESPACE;
+SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
+
+DROP TABLE t1;
+
+CREATE TABLE t1(c1 INT,c2 CHAR(1)) PARTITION BY KEY(c1) PARTITIONS 4;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+SELECT TABLE_ROWS FROM information_schema.tables where table_name = 't1';
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#21864838: SIG11 IN FIELD_BLOB::CMP| AT SQL/FIELD.CC
+--echo #
+
+CREATE TABLE t1 (col1 INT PRIMARY KEY, col2 VARCHAR(1), col3 BLOB AS (REPEAT(col2, 500)) VIRTUAL, KEY(col3(100)))
+ENGINE=INNODB
+PARTITION BY HASH(col1) PARTITIONS 2;
+
+CREATE TABLE t2 (col1 INT PRIMARY KEY, col2 VARCHAR(1), col3 BLOB AS (REPEAT(col2, 500)) VIRTUAL, KEY(col3(100)))
+ENGINE=INNODB
+PARTITION BY HASH(col1) PARTITIONS 2;
+
+INSERT INTO t1 (col1, col2) VALUES(1, 'd'), (2, 'c'), (3, 'b'), (4, 'a');
+INSERT INTO t2 (col1, col2) VALUES(1, 'd'), (2, 'c'), (3, 'b'), (4, 'a');
+
+SELECT t1.col1 FROM t1, t2 where t1.col1 = 3 AND t1.col3 = t2.col3 ORDER BY t2.col1 DESC;
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+--echo #
+--echo # Bug #21881155: UNINTIALIZED READ IN KEY_REC_CMP CAUSE CRASH LATER
+--echo #
+
+CREATE TABLE t1 (col1 int, col2 BLOB AS ('a') VIRTUAL, col3 INT,
+PRIMARY KEY(col1), KEY (col3, col2(1), col1))
+ENGINE=INNODB
+PARTITION BY KEY (col1) PARTITIONS 2;
+
+INSERT INTO t1(col1) values (1),(2);
+SELECT 1 FROM t1 WHERE col2 > 'a' GROUP BY col3;
+
+DROP TABLE t1;

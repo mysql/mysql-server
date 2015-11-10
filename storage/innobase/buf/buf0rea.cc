@@ -54,17 +54,14 @@ i/o-fixed buffer blocks */
 buffer buf_pool if it is not already there, in which case does nothing.
 Sets the io_fix flag and sets an exclusive lock on the buffer frame. The
 flag is cleared and the x-lock released by an i/o-handler thread.
-
-@param[out] err		DB_SUCCESS, DB_TABLESPACE_DELETED or
-			DB_TABLESPACE_TRUNCATED if we are trying
-			to read from a non-existent tablespace, a
-			tablespace which is just now being dropped,
-			or a tablespace which is truncated
-@param[in] sync		true if synchronous aio is desired
-@param[in] type		IO type, SIMULATED, IGNORE_MISSING
-@param[in] mode		BUF_READ_IBUF_PAGES_ONLY, ...,
-@param[in] page_id	page id
-@param[in] unzip	true=request uncompressed page
+@param[out]	err			DB_SUCCESS or DB_TABLESPACE_DELETED
+if we are trying to read from a non-existent tablespace or a tablespace
+which is just now being dropped
+@param[in]	sync			whether if synchronous aio is desired
+@param[in]	mode			BUF_READ_IBUF_PAGES_ONLY, ...
+@param[in]	page_id			page id
+@param[in]	page_size		page size
+@param[in]	unzip			true=request uncompressed page
 @return 1 if a read request was queued, 0 if the page already resided
 in buf_pool, or if the page is in the doublewrite buffer blocks in
 which case it is never read into the pool, or if the tablespace does
@@ -148,20 +145,8 @@ buf_read_page_low(
 	}
 
 	if (*err != DB_SUCCESS) {
-		if (*err == DB_TABLESPACE_TRUNCATED) {
-			/* Remove the page which is outside the
-			truncated tablespace bounds when recovering
-			from a crash happened during a truncation */
-			buf_read_page_handle_error(bpage);
-			if (recv_recovery_on) {
-				mutex_enter(&recv_sys->mutex);
-				ut_ad(recv_sys->n_addrs > 0);
-				recv_sys->n_addrs--;
-				mutex_exit(&recv_sys->mutex);
-			}
-			return(0);
-		} else if (IORequest::ignore_missing(type)
-			   || *err == DB_TABLESPACE_DELETED) {
+		if (IORequest::ignore_missing(type)
+		    || *err == DB_TABLESPACE_DELETED) {
 			buf_read_page_handle_error(bpage);
 			return(0);
 		}

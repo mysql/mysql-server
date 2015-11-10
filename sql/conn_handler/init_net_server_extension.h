@@ -18,6 +18,8 @@
 #ifndef INIT_NET_SERVER_EXTENSION_INCLUDED
 #define INIT_NET_SERVER_EXTENSION_INCLUDED
 
+#include "my_global.h"
+
 #ifdef HAVE_PSI_INTERFACE
 class THD;
 

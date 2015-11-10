@@ -180,7 +180,7 @@ void my_print_stacktrace(uchar* stack_bottom __attribute__((unused)),
 
 #elif HAVE_BACKTRACE
 
-#if HAVE_ABI_CXA_DEMANGLE
+#ifdef HAVE_ABI_CXA_DEMANGLE
 
 char __attribute__ ((weak)) *
 my_demangle(const char *mangled_name __attribute__((unused)),
@@ -228,7 +228,7 @@ void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack)
   int n = backtrace(addrs, array_elements(addrs));
   my_safe_printf_stderr("stack_bottom = %p thread_stack 0x%lx\n",
                         stack_bottom, thread_stack);
-#if HAVE_ABI_CXA_DEMANGLE
+#ifdef HAVE_ABI_CXA_DEMANGLE
   if ((strings= backtrace_symbols(addrs, n)))
   {
     my_demangle_symbols(strings, n);

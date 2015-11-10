@@ -27,10 +27,10 @@
 #ifdef HAVE_POSIX_TIMERS
 # include <time.h>  /* timer_t */
   typedef timer_t   os_timer_t;
-#elif HAVE_KQUEUE_TIMERS
+#elif defined(HAVE_KQUEUE_TIMERS)
 # include <sys/types.h> /* uintptr_t */
   typedef uintptr_t os_timer_t;
-#elif _WIN32
+#elif defined(_WIN32)
   typedef struct st_os_timer
   {
     HANDLE timer_handle;

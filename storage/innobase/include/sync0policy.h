@@ -191,7 +191,7 @@ public:
 		UNIV_NOTHROW;
 
 	/** Called when the mutex is released
-	@param[in]	mutx		Mutex that was released */
+	@param[in]	mutex		Mutex that was released */
 	void release(const Mutex* mutex)
 		UNIV_NOTHROW;
 

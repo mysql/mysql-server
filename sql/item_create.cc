@@ -6741,7 +6741,8 @@ static Native_func_registry func_array[] =
 
 static HASH native_functions_hash;
 
-extern "C" uchar*
+extern "C" {
+static uchar*
 get_native_fct_hash_key(const uchar *buff, size_t *length,
                         my_bool /* unused */)
 {
@@ -6749,6 +6750,7 @@ get_native_fct_hash_key(const uchar *buff, size_t *length,
   *length= func->name.length;
   return (uchar*) func->name.str;
 }
+} // extern "C"
 
 /*
   Load the hash table for native functions.

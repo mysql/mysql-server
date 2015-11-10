@@ -24,6 +24,8 @@ SET DEBUG_SYNC= 'now SIGNAL signal.commit_continue';
 SHOW SLAVE STATUS;
 UNLOCK TABLES;
 SET @@GLOBAL.DEBUG= '$debug_saved';
+# Restart SQL thread so that it notices debug has changed
+include/restart_slave.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1, slave:t1]

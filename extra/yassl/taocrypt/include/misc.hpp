@@ -390,7 +390,7 @@ inline T RoundUpToMultipleOf(T n, T m)
 template <class T>
 inline unsigned int GetAlignment(T* dummy = 0)	// VC60 workaround
 {
-#if (_MSC_VER >= 1300)
+#if defined(_WIN32) && (_MSC_VER >= 1300)
     return __alignof(T);
 #elif defined(__GNUC__)
     return __alignof__(T);

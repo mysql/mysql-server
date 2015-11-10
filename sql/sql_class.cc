@@ -59,6 +59,9 @@
 
 #include "mysql/service_thd_engine_lock.h"
 
+#include "dd/cache/dictionary_client.h"      // Dictionary_client
+#include "dd/dd_kill_immunizer.h"            // dd:DD_kill_immunizer
+
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
 
@@ -128,6 +131,20 @@ struct Transaction_state
 
   /// Server status flags.
   uint m_server_status;
+
+  /// THD::in_lock_tables value.
+  bool m_in_lock_tables;
+
+  /**
+    Current time zone (i.e. @@session.time_zone) usage indicator.
+
+    Saving it allows data-dictionary code to read timestamp values
+    as datetimes from system tables without disturbing user's statement.
+
+    TODO: We need to change DD code not to use @@session.time_zone at all and
+          stick to UTC for internal storage of timestamps in DD objects.
+  */
+  bool m_time_zone_used;
 };
 
 
@@ -136,7 +153,7 @@ void Transaction_state::backup(THD *thd)
   this->m_sql_command= thd->lex->sql_command;
   this->m_trx= thd->get_transaction();
 
-  this->m_ha_data= thd->ha_data;
+  thd->backup_ha_data(&this->m_ha_data);
 
   this->m_tx_isolation= thd->tx_isolation;
   this->m_tx_read_only= thd->tx_read_only;
@@ -144,6 +161,8 @@ void Transaction_state::backup(THD *thd)
   this->m_sql_mode= thd->variables.sql_mode;
   this->m_transaction_psi= thd->m_transaction_psi;
   this->m_server_status= thd->server_status;
+  this->m_in_lock_tables= thd->in_lock_tables;
+  this->m_time_zone_used= thd->time_zone_used;
 }
 
 
@@ -151,7 +170,7 @@ void Transaction_state::restore(THD *thd)
 {
   thd->set_transaction(this->m_trx);
 
-  thd->ha_data= this->m_ha_data;
+  thd->restore_ha_data(this->m_ha_data);
 
   thd->tx_isolation= this->m_tx_isolation;
   thd->variables.sql_mode= this->m_sql_mode;
@@ -161,6 +180,8 @@ void Transaction_state::restore(THD *thd)
   thd->m_transaction_psi= this->m_transaction_psi;
   thd->server_status= this->m_server_status;
   thd->lex->sql_command= this->m_sql_command;
+  thd->in_lock_tables= this->m_in_lock_tables;
+  thd->time_zone_used= this->m_time_zone_used;
 }
 
 /****************************************************************************
@@ -170,12 +191,21 @@ void Transaction_state::restore(THD *thd)
 class THD::Attachable_trx
 {
 public:
-  Attachable_trx(THD *thd);
+  Attachable_trx(THD *thd, Attachable_trx *prev_trx);
   ~Attachable_trx();
+
+  Attachable_trx *get_prev_attachable_trx() const
+  { return m_prev_attachable_trx; };
 
 private:
   /// THD instance.
   THD *m_thd;
+
+  /**
+    Attachable_trx which was active for the THD before when this
+    transaction was started (NULL in most cases).
+  */
+  Attachable_trx *m_prev_attachable_trx;
 
   /// Transaction state data.
   Transaction_state m_trx_state;
@@ -186,8 +216,8 @@ private:
 };
 
 
-THD::Attachable_trx::Attachable_trx(THD *thd)
- :m_thd(thd)
+THD::Attachable_trx::Attachable_trx(THD *thd, Attachable_trx *prev_trx)
+ : m_thd(thd), m_prev_attachable_trx(prev_trx)
 {
   // The THD::transaction_rollback_request is expected to be unset in the
   // attachable transaction. It's weird to start attachable transaction when the
@@ -222,8 +252,12 @@ THD::Attachable_trx::Attachable_trx(THD *thd)
 
   // Prepare for a new attachable transaction for read-only DD-transaction.
 
+  // LOCK_thd_data must be locked to prevent e.g. KILL CONNECTION from
+  // reading ha_data after clear() but before resize().
+  mysql_mutex_lock(&m_thd->LOCK_thd_data);
   m_thd->ha_data.clear();
   m_thd->ha_data.resize(m_thd->ha_data.capacity());
+  mysql_mutex_unlock(&m_thd->LOCK_thd_data);
 
   // The attachable transaction must used READ COMMITTED isolation level.
 
@@ -246,6 +280,12 @@ THD::Attachable_trx::Attachable_trx(THD *thd)
   // Reset transaction instrumentation.
 
   m_thd->m_transaction_psi= NULL;
+
+  // Reset THD::in_lock_tables so InnoDB won't start acquiring table locks.
+  m_thd->in_lock_tables= false;
+
+  // Reset @@session.time_zone usage indicator for consistency.
+  m_thd->time_zone_used= false;
 }
 
 
@@ -295,17 +335,19 @@ THD::Attachable_trx::~Attachable_trx()
 }
 
 
-extern "C" uchar *get_var_key(user_var_entry *entry, size_t *length,
+extern "C" {
+static uchar *get_var_key(user_var_entry *entry, size_t *length,
                               my_bool not_used __attribute__((unused)))
 {
   *length= entry->entry_name.length();
   return (uchar*) entry->entry_name.ptr();
 }
 
-extern "C" void free_user_var(user_var_entry *entry)
+static void free_user_var(user_var_entry *entry)
 {
   entry->destroy();
 }
+} // extern "C"
 
 PSI_thread* THD::get_psi()
 {
@@ -438,6 +480,7 @@ THD::THD(bool enable_plugins)
    mark_used_columns(MARK_COLUMNS_READ),
    want_privilege(0),
    lex(&main_lex),
+   m_dd_client(new dd::cache::Dictionary_client(this)),
    m_query_string(NULL_CSTR),
    m_db(NULL_CSTR),
    rli_fake(0), rli_slave(NULL),
@@ -473,6 +516,7 @@ THD::THD(bool enable_plugins)
    user_var_events(key_memory_user_var_entry),
    next_to_commit(NULL),
    binlog_need_explicit_defaults_ts(false),
+   kill_immunizer(NULL),
    is_fatal_error(0),
    transaction_rollback_request(0),
    is_fatal_sub_stmt_error(false),
@@ -1286,6 +1330,19 @@ void THD::awake(THD::killed_state state_to_set)
   DBUG_PRINT("enter", ("this: %p current_thd: %p", this, current_thd));
   THD_CHECK_SENTRY(this);
   mysql_mutex_assert_owner(&LOCK_thd_data);
+
+  /*
+    If THD is in kill immune mode (i.e. operation on new DD tables is in
+    progress) then just save state_to_set with THD::kill_immunizer object.
+
+    While exiting kill immune mode, awake() is called again with the killed
+    state saved in THD::kill_immunizer object.
+  */
+  if (kill_immunizer)
+  {
+    kill_immunizer->save_killed_state(state_to_set);
+    DBUG_VOID_RETURN;
+  }
 
   /*
     Set killed flag if the connection is being killed (state_to_set
@@ -2339,18 +2396,17 @@ void THD::restore_backup_open_tables_state(Open_tables_backup *backup)
 
 void THD::begin_attachable_transaction()
 {
-  DBUG_ASSERT(!m_attachable_trx);
-
-  m_attachable_trx= new Attachable_trx(this);
+  m_attachable_trx= new Attachable_trx(this, m_attachable_trx);
 }
 
 
 void THD::end_attachable_transaction()
 {
-  DBUG_ASSERT(m_attachable_trx);
-
+  Attachable_trx *prev_trx= m_attachable_trx->get_prev_attachable_trx();
   delete m_attachable_trx;
-  m_attachable_trx= NULL;
+  // Restore attachable transaction which was active before we started
+  // the one which just has ended. NULL in most cases.
+  m_attachable_trx= prev_trx;
 }
 
 

@@ -114,22 +114,6 @@ dict_create_index_tree(
 	dict_index_t*	index,	/*!< in/out: index */
 	const trx_t*	trx);	/*!< in: InnoDB transaction handle */
 
-/*******************************************************************//**
-Recreate the index tree associated with a row in SYS_INDEXES table.
-@return	new root page number, or FIL_NULL on failure */
-ulint
-dict_recreate_index_tree(
-/*======================*/
-	const dict_table_t*	table,	/*!< in: the table the index
-					belongs to */
-	btr_pcur_t*		pcur,	/*!< in/out: persistent cursor pointing
-					to record in the clustered index of
-					SYS_INDEXES table. The cursor may be
-					repositioned in this call. */
-	mtr_t*			mtr);	/*!< in: mtr having the latch
-					on the record page. The mtr may be
-					committed and restarted in this call. */
-
 /** Drop the index tree associated with a row in SYS_INDEXES table.
 @param[in,out]	rec	SYS_INDEXES record
 @param[in,out]	pcur	persistent cursor on rec
@@ -151,21 +135,13 @@ dict_create_index_tree_in_mem(
 	dict_index_t*	index,		/*!< in/out: index */
 	const trx_t*	trx);		/*!< in: InnoDB transaction handle */
 
-/*******************************************************************//**
-Truncates the index tree but don't update SYSTEM TABLES.
-@return DB_SUCCESS or error */
-dberr_t
-dict_truncate_index_tree_in_mem(
-/*============================*/
-	dict_index_t*	index);		/*!< in/out: index */
-
-/*******************************************************************//**
-Drops the index tree but don't update SYS_INDEXES table. */
+/** Drop an index tree belonging to a temporary table.
+@param[in]	index		index in a temporary table
+@param[in]	root_page_no	index root page number */
 void
-dict_drop_index_tree_in_mem(
-/*========================*/
-	const dict_index_t*	index,	/*!< in: index */
-	ulint			page_no);/*!< in: index page-no */
+dict_drop_temporary_table_index(
+	const dict_index_t*	index,
+	ulint			root_page_no);
 
 /****************************************************************//**
 Creates the foreign key constraints system tables inside InnoDB
@@ -278,12 +254,12 @@ dict_create_or_check_sys_virtual();
 
 /** Put a tablespace definition into the data dictionary,
 replacing what was there previously.
-@param[in]	space	Tablespace id
-@param[in]	name	Tablespace name
-@param[in]	flags	Tablespace flags
-@param[in]	path	Tablespace path
-@param[in]	trx	Transaction
-@param[in]	commit	If true, commit the transaction
+@param[in]	space_id	Tablespace id
+@param[in]	name		Tablespace name
+@param[in]	flags		Tablespace flags
+@param[in]	path		Tablespace path
+@param[in]	trx		Transaction
+@param[in]	commit		If true, commit the transaction
 @return error code or DB_SUCCESS */
 dberr_t
 dict_replace_tablespace_in_dictionary(

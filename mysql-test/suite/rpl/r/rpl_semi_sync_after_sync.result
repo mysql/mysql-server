@@ -161,6 +161,9 @@ c1
 SET GLOBAL debug= @saved_debug;
 CALL mtr.add_suppression("Failed to run 'after_sync' hook");
 include/rpl_restart_server.inc [server_number=1]
+[connection slave]
+include/start_slave_io.inc
+[connection master]
 CALL mtr.add_suppression("An error occurred during sync stage of the commit.");
 DROP TABLE t1;
 include/uninstall_semisync.inc

@@ -128,6 +128,32 @@ public:
 		return(m_logical);
 	}
 
+	ulint	extent_size() const
+	{
+		ulint size = 0;
+		switch(m_physical) {
+		case 4096:
+			size = 256;
+			break;
+		case 8192:
+			size = 128;
+			break;
+		case 16384:
+		case 32768:
+		case 65536:
+			size = 64;
+			break;
+		default:
+			ut_ad(0);
+		}
+		return(size);
+	}
+
+	ulint	extents_per_xdes() const
+	{
+		return(m_physical / extent_size());
+	}
+
 	/** Check whether the page is compressed on disk.
 	@return true if compressed */
 	inline bool is_compressed() const

@@ -205,8 +205,8 @@ private:
 
 	/**
 	Do a timed wait on condition variable.
-	@param abstime - timeout
-	@param time_in_ms - timeout in milliseconds.
+	@param	abstime		timeout
+	@param	time_in_ms	timeout in milliseconds.
 	@return true if timed out, false otherwise */
 	bool timed_wait(
 #ifndef _WIN32
@@ -243,8 +243,8 @@ protected:
 
 /**
 Do a timed wait on condition variable.
-@param abstime - absolute time to wait
-@param time_in_ms - timeout in milliseconds
+@param	abstime		absolute time to wait
+@param	time_in_ms	timeout in milliseconds
 @return true if timed out */
 bool
 os_event::timed_wait(

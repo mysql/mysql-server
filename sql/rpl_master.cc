@@ -64,7 +64,8 @@ extern TYPELIB binlog_checksum_typelib;
   p+= len; \
 }\
 
-extern "C" uint32
+extern "C" {
+static uint32
 *slave_list_key(SLAVE_INFO* si, size_t *len,
 		my_bool not_used __attribute__((unused)))
 {
@@ -72,10 +73,11 @@ extern "C" uint32
   return &si->server_id;
 }
 
-extern "C" void slave_info_free(void *s)
+static void slave_info_free(void *s)
 {
   my_free(s);
 }
+} // extern "C"
 
 static mysql_mutex_t LOCK_slave_list;
 #ifdef HAVE_PSI_INTERFACE

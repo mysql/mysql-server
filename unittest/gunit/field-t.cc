@@ -393,7 +393,7 @@ Field_set *FieldTest::create_field_set(TYPELIB *tl)
               42,                               // len_arg
               NULL,                             // null_ptr_arg
               '\0',                             // null_bit_arg
-              Field::NONE,                      // unireg_check_arg
+              Field::NONE,                      // auto_flags_arg
               "f1",                             // field_name_arg
               1,                                // packlength_arg
               tl,                               // typelib_arg

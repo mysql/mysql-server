@@ -26,6 +26,7 @@
 #include "rpl_handler.h"                        // delegates_init()
 #include "sql_table.h"
 
+
 namespace sql_table_unittest {
 
 using my_testing::Server_initializer;
@@ -62,8 +63,9 @@ TEST_F(SqlTableTest, PromoteFirstTimestampColumn1)
   definitions.push_front(&column_1_definition);
   definitions.push_back(&column_2_definition);
   promote_first_timestamp_column(&definitions);
-  EXPECT_EQ(Field::TIMESTAMP_DNUN_FIELD, column_1_definition.unireg_check);
-  EXPECT_EQ(Field::NONE, column_2_definition.unireg_check);
+  EXPECT_EQ((Field::DEFAULT_NOW|Field::ON_UPDATE_NOW),
+            column_1_definition.auto_flags);
+  EXPECT_EQ(Field::NONE, column_2_definition.auto_flags);
 }
 
 
@@ -84,8 +86,9 @@ TEST_F(SqlTableTest, PromoteFirstTimestampColumn2)
   definitions.push_front(&column_1_definition);
   definitions.push_back(&column_2_definition);
   promote_first_timestamp_column(&definitions);
-  EXPECT_EQ(Field::TIMESTAMP_DNUN_FIELD, column_1_definition.unireg_check);
-  EXPECT_EQ(Field::NONE, column_2_definition.unireg_check);
+  EXPECT_EQ((Field::DEFAULT_NOW|Field::ON_UPDATE_NOW),
+            column_1_definition.auto_flags);
+  EXPECT_EQ(Field::NONE, column_2_definition.auto_flags);
 }
 
 
@@ -104,8 +107,8 @@ TEST_F(SqlTableTest, PromoteFirstTimestampColumn3)
   definitions.push_front(&column_1_definition);
   definitions.push_back(&column_2_definition);
   promote_first_timestamp_column(&definitions);
-  EXPECT_EQ(Field::NONE, column_1_definition.unireg_check);
-  EXPECT_EQ(Field::NONE, column_2_definition.unireg_check);
+  EXPECT_EQ(Field::NONE, column_1_definition.auto_flags);
+  EXPECT_EQ(Field::NONE, column_2_definition.auto_flags);
 }
 
 

@@ -262,7 +262,8 @@ trx_undo_log_v_idx(
 	     it != vcol->v_indexes->end(); ++it) {
 		dict_v_idx_t	v_index = *it;
 
-		ptr += mach_write_compressed(ptr, v_index.index->id);
+		ptr += mach_write_compressed(
+			ptr, static_cast<ulint>(v_index.index->id));
 
 		ptr += mach_write_compressed(ptr, v_index.nth_field);
 	}
@@ -805,7 +806,7 @@ trx_undo_page_report_modify_ext(
 
 /** Get MBR from a Geometry column stored externally
 @param[out]	mbr		MBR to fill
-@param[in]	pagesize	table pagesize
+@param[in]	page_size	table pagesize
 @param[in]	field		field contain the geometry data
 @param[in,out]	len		length of field, in bytes
 */

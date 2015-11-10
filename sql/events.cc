@@ -830,8 +830,9 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, Item * /* cond */)
   Initializes the scheduler's structures.
 
   @param  opt_noacl_or_bootstrap
-                     TRUE if there is --skip-grant-tables or --bootstrap
-                     option. In that case we disable the event scheduler.
+                     TRUE if there is --skip-grant-tables, --install-server
+                     or --bootstrap option. In that case we disable the event
+                     scheduler.
 
   @note   This function is not synchronized.
 
@@ -888,9 +889,9 @@ Events::init(my_bool opt_noacl_or_bootstrap)
     Since we allow event DDL even if the scheduler is disabled,
     check the system tables, as we might need them.
 
-    If run with --skip-grant-tables or --bootstrap, don't try to do the
-    check of system tables and don't complain: in these modes the tables
-    are most likely not there and we're going to disable the event
+    If run with --skip-grant-tables, --install-server or --bootstrap, don't
+    try to do the check of system tables and don't complain: in these modes
+    the tables are most likely not there and we're going to disable the event
     scheduler anyway.
   */
   if (opt_noacl_or_bootstrap || Event_db_repository::check_system_tables(thd))
@@ -909,8 +910,8 @@ Events::init(my_bool opt_noacl_or_bootstrap)
 
   /*
     Was disabled explicitly from the command line, or because we're running
-    with --skip-grant-tables, or --bootstrap, or because we have no system
-    tables.
+    with --skip-grant-tables, --install-server or --bootstrap, or because
+    we have no system tables.
   */
   if (opt_event_scheduler == Events::EVENTS_DISABLED)
     goto end;

@@ -818,17 +818,6 @@ ib_tuple_delete(
 	ib_tpl_t	ib_tpl);	/*!< in,own: Tuple instance to delete */
 
 /*****************************************************************//**
-Truncate a table. The cursor handle will be closed and set to NULL
-on success.
-@return DB_SUCCESS or error code */
-ib_err_t
-ib_cursor_truncate(
-/*===============*/
-	ib_crsr_t*	ib_crsr,	/*!< in/out: cursor for table
-					to truncate */
-	ib_id_u64_t*	table_id);	/*!< out: new table id */
-
-/*****************************************************************//**
 Get a table id.
 @return DB_SUCCESS if found */
 ib_err_t
@@ -945,30 +934,11 @@ ib_get_idx_field_name(
 	ib_ulint_t	i);		/*!< in: column index in tuple */
 
 /*****************************************************************//**
-Truncate a table.
-@return DB_SUCCESS or error code */
-ib_err_t
-ib_table_truncate(
-/*==============*/
-	const char*	table_name,	/*!< in: table name */
-	ib_id_u64_t*	table_id);	/*!< out: new table id */
-
-/*****************************************************************//**
 Get generic configure status
 @return configure status*/
 int
 ib_cfg_get_cfg();
 /*============*/
-
-/*****************************************************************//**
-Increase/decrease the memcached sync count of table to sync memcached
-DML with SQL DDLs.
-@return DB_SUCCESS or error number */
-ib_err_t
-ib_cursor_set_memcached_sync(
-/*=========================*/
-	ib_crsr_t	ib_crsr,	/*!< in: cursor */
-	ib_bool_t	flag);		/*!< in: true for increasing */
 
 /*****************************************************************//**
 Return isolation configuration set by "innodb_api_trx_level"

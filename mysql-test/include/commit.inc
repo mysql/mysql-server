@@ -411,7 +411,7 @@ flush status;
 --echo #
 select * from t1;
 --disable_warnings
-call p_verify_status_increment(1, 0, 1, 0);
+call p_verify_status_increment(1, 0, 2, 0);
 commit;
 call p_verify_status_increment(1, 0, 1, 0);
 --enable_warnings
@@ -600,7 +600,7 @@ begin
 end|
 delimiter ;|
 --disable_warnings
-call p_verify_status_increment(0, 0, 0, 0);
+call p_verify_status_increment(0, 0, 2, 0);
 --enable_warnings
 
 --echo # 16. A function changes non-trans-table.
@@ -611,9 +611,9 @@ call p_verify_status_increment(0, 0, 0, 0);
 --echo #
 select f1();
 --disable_warnings
-call p_verify_status_increment(1, 0, 1, 0);
+call p_verify_status_increment(1, 0, 2, 0);
 commit;
-call p_verify_status_increment(1, 0, 1, 0);
+call p_verify_status_increment(1, 0, 2, 0);
 --enable_warnings
 
 --echo # 17. Read-only statement, a function changes non-trans-table.
@@ -653,7 +653,7 @@ drop table t2;
 set sql_mode=no_engine_substitution;
 create temporary table t2 (a int);
 --disable_warnings
-call p_verify_status_increment(1, 0, 0, 0);
+call p_verify_status_increment(3, 0, 0, 0);
 --enable_warnings
 set sql_mode=default;
 --echo # 19. A function changes temp-trans-table.
@@ -692,7 +692,7 @@ call p_verify_status_increment(2, 0, 1, 0);
 alter table t2 add column b int default 5;
 --echo # A commit is done internally by ALTER. 
 --disable_warnings
-call p_verify_status_increment(2, 0, 2, 0);
+call p_verify_status_increment(2, 0, 3, 0);
 commit;
 --echo # There is nothing left to commit
 call p_verify_status_increment(0, 0, 0, 0);
@@ -787,9 +787,20 @@ call p_verify_status_increment(1, 0, 1, 0);
 --echo #
 create table t2 (a int);
 --disable_warnings
-call p_verify_status_increment(0, 0, 0, 0);
+# Under ps protocol commit count is increased because of extra commits during
+# COM_PREPARE.
+if (`SELECT $PS_PROTOCOL = 0`)
+{
+  --replace_regex /(call p_verify_status_increment.*)5(.*6)/\1<commit_count>\2/
+  call p_verify_status_increment(5, 0, 6, 0);
+}
+if (`SELECT $PS_PROTOCOL > 0`)
+{
+  --replace_regex /(call p_verify_status_increment.*)6(.*6)/\1<commit_count>\2/
+  call p_verify_status_increment(6, 0, 6, 0);
+}
 do (select f1() from t1 where a=2);
-call p_verify_status_increment(2, 2, 2, 2);
+call p_verify_status_increment(2, 2, 3, 2);
 commit;
 call p_verify_status_increment(2, 2, 2, 2);
 --enable_warnings
@@ -835,17 +846,28 @@ create table if not exists t2 (a int) select 6 union select 7;
 --disable_warnings
 call p_verify_status_increment(0, 0, 0, 0);
 create table t3 select a from t2;
-call p_verify_status_increment(2, 0, 4, 4);
+# Under ps protocol commit count is increased because of extra commits during
+# COM_PREPARE.
+if (`SELECT $PS_PROTOCOL = 0`)
+{
+  --replace_regex /7/<commit_count>/
+  call p_verify_status_increment(7, 0, 4, 4);
+}
+if (`SELECT $PS_PROTOCOL > 0`)
+{
+  --replace_regex /8/<commit_count>/
+  call p_verify_status_increment(8, 0, 4, 4);
+}
 alter table t3 add column (b int);
-call p_verify_status_increment(2, 0, 2, 0);
+call p_verify_status_increment(5, 0, 2, 0);
 alter table t3 rename t4;
-call p_verify_status_increment(0, 0, 0, 0);
+call p_verify_status_increment(4, 0, 3, 0);
 rename table t4 to t3;
-call p_verify_status_increment(0, 0, 0, 0);
+call p_verify_status_increment(5, 0, 5, 0);
 truncate table t3;
-call p_verify_status_increment(2, 0, 2, 0);
+call p_verify_status_increment(2, 0, 4, 0);
 create view v1 as select * from t2;
-call p_verify_status_increment(0, 0, 0, 0);
+call p_verify_status_increment(4, 0, 3, 0);
 check table t1;
 call p_verify_status_increment(2, 0, 2, 0);
 --echo # Sic: after this bug is fixed, CHECK leaves no pending transaction
@@ -856,7 +878,7 @@ call p_verify_status_increment(6, 0, 6, 0);
 commit;
 call p_verify_status_increment(0, 0, 0, 0);
 drop view v1;
-call p_verify_status_increment(0, 0, 0, 0);
+call p_verify_status_increment(3, 0, 3, 0);
 --enable_warnings
 
 --echo #

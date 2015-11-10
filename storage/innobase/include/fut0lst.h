@@ -177,4 +177,40 @@ flst_validate(
 
 #endif /* !UNIV_HOTBACKUP */
 
+#ifndef DBUG_OFF
+/** In-memory representation of flst_base_node_t */
+struct flst_bnode_t
+{
+	ulint		len;
+	fil_addr_t	first;
+	fil_addr_t	last;
+
+	flst_bnode_t(const flst_base_node_t* base, mtr_t* mtr)
+		:
+		len(flst_get_len(base)),
+		first(flst_get_first(base, mtr)),
+		last(flst_get_last(base, mtr))
+	{}
+
+	void set(const flst_base_node_t* base, mtr_t* mtr)
+	{
+		len	= flst_get_len(base);
+		first	= flst_get_first(base, mtr);
+		last	= flst_get_last(base, mtr);
+	}
+
+	std::ostream& print(std::ostream& out) const
+	{
+		out << "[flst_base_node_t: len=" << len << ", first="
+			<< first << ", last=" << last << "]";
+		return(out);
+	}
+};
+
+inline
+std::ostream& operator<<(std::ostream& out, const flst_bnode_t& obj)
+{
+	return(obj.print(out));
+}
+#endif /* !DBUG_OFF */
 #endif

@@ -39,10 +39,13 @@ char *ndb_pack_varchar(const NdbDictionary::Column *col,
   Check that frm-file blob in pack_data is equal
   to frm-file of the NdbDictionary::Table.
 
+  TODO: This function is not used anymore, it is replaced by
+  different_serialized_meta_data() in sdi_utils.{h,cc}. May be
+  removed?
+
   @retval
     0    ok
 */
-
 int cmp_frm(const NdbDictionary::Table* ndbtab, const void* pack_data,
             size_t pack_length);
 

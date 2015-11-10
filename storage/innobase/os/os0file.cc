@@ -263,9 +263,9 @@ class AIO {
 public:
 	/** Constructor
 	@param[in]	id		Latch ID
-	@param[in]	n_slots		Number of slots to configure
+	@param[in]	n		Number of slots to configure
 	@param[in]	segments	Number of segments to configure */
-	AIO(latch_id_t id, ulint n_slots, ulint segments);
+	AIO(latch_id_t id, ulint n, ulint segments);
 
 	/** Destructor */
 	~AIO();
@@ -304,7 +304,7 @@ public:
 	ulint pending_io_count() const;
 
 	/** Returns a pointer to the nth slot in the aio array.
-	@param[in]	index	Index of the slot in the array
+	@param[in]	i	Index of the slot in the array
 	@return pointer to slot */
 	const Slot* at(ulint i) const
 		__attribute__((warn_unused_result))
@@ -486,13 +486,13 @@ public:
 
 	/** Create an instance using new(std::nothrow)
 	@param[in]	id		Latch ID
-	@param[in]	n_slots		The number of AIO request slots
-	@param[in]	segments	The number of segments
+	@param[in]	n		The number of AIO request slots
+	@param[in]	n_segments	The number of segments
 	@return a new AIO instance */
 	static AIO* create(
 		latch_id_t	id,
-		ulint		n_slots,
-		ulint		segments)
+		ulint		n,
+		ulint		n_segments)
 		__attribute__((warn_unused_result));
 
 	/** Initializes the asynchronous io system. Creates one array each
@@ -751,14 +751,14 @@ os_file_handle_error(
 Does error handling when a file operation fails.
 @param[in]	name		File name or NULL
 @param[in]	operation	Name of operation e.g., "read", "write"
-@param[in]	silent	if true then don't print any message to the log.
+@param[in]	on_error_silent	if true then don't print any message to the log.
 @return true if we should retry the operation */
 static
 bool
 os_file_handle_error_no_exit(
 	const char*	name,
 	const char*	operation,
-	bool		silent);
+	bool		on_error_silent);
 
 /** Decompress after a read and punch a hole in the file if it was a write
 @param[in]	type		IO context
@@ -783,16 +783,18 @@ os_file_io_complete(
 /** Does simulated AIO. This function should be called by an i/o-handler
 thread.
 
-@param[in]	segment	The number of the segment in the aio arrays to wait
-			for; segment 0 is the ibuf i/o thread, segment 1 the
-			log i/o thread, then follow the non-ibuf read threads,
-			and as the last are the non-ibuf write threads
-@param[out]	m1	the messages passed with the AIO request; note that
-			also in the case where the AIO operation failed, these
-			output parameters are valid and can be used to restart
-			the operation, for example
-@param[out]	m2	Callback argument
-@param[in]	type	IO context
+@param[in]	global_segment	The number of the segment in the aio arrays to
+				await for; segment 0 is the ibuf i/o thread,
+				segment 1 the log i/o thread, then follow the
+				non-ibuf read threads, and as the last are the
+				non-ibuf write threads
+@param[out]	m1		the messages passed with the AIO request; note
+				that also in the case where the AIO operation
+				failed, these output parameters are valid and
+				can be used to restart the operation, for
+				example
+@param[out]	m2		Callback argument
+@param[in]	type		IO context
 @return DB_SUCCESS or error code */
 static
 dberr_t
@@ -3142,161 +3144,6 @@ os_file_create_directory(
 	return(true);
 }
 
-/**
-The os_file_opendir() function opens a directory stream corresponding to the
-directory named by the dirname argument. The directory stream is positioned
-at the first entry. In both Unix and Windows we automatically skip the '.'
-and '..' items at the start of the directory listing.
-@param[in]	dirname		directory name; it must not contain a trailing
-				'\' or '/'
-@param[in]	is_fatal	true if we should treat an error as a fatal
-				error; if we try to open symlinks then we do
-				not wish a fatal error if it happens not to be
-				a directory
-@return directory stream, NULL if error */
-os_file_dir_t
-os_file_opendir(
-	const char*	dirname,
-	bool		error_is_fatal)
-{
-	os_file_dir_t		dir;
-	dir = opendir(dirname);
-
-	if (dir == NULL && error_is_fatal) {
-		os_file_handle_error(dirname, "opendir");
-	}
-
-	return(dir);
-}
-
-/** Closes a directory stream.
-@param[in]	dir		directory stream
-@return 0 if success, -1 if failure */
-int
-os_file_closedir(
-	os_file_dir_t	dir)
-{
-	int	ret = closedir(dir);
-
-	if (ret != 0) {
-		os_file_handle_error_no_exit(NULL, "closedir", false);
-	}
-
-	return(ret);
-}
-
-/** This function returns information of the next file in the directory. We jump
-over the '.' and '..' entries in the directory.
-@param[in]	dirname		directory name or path
-@param[in]	dir		directory stream
-@param[out]	info		buffer where the info is returned
-@return 0 if ok, -1 if error, 1 if at the end of the directory */
-int
-os_file_readdir_next_file(
-	const char*	dirname,
-	os_file_dir_t	dir,
-	os_file_stat_t*	info)
-{
-	struct dirent*	ent;
-	char*		full_path;
-	int		ret;
-	struct stat	statinfo;
-
-#ifdef HAVE_READDIR_R
-	char		dirent_buf[sizeof(struct dirent)
-				   + _POSIX_PATH_MAX + 100];
-	/* In /mysys/my_lib.c, _POSIX_PATH_MAX + 1 is used as
-	the max file name len; but in most standards, the
-	length is NAME_MAX; we add 100 to be even safer */
-#endif /* HAVE_READDIR_R */
-
-next_file:
-
-#ifdef HAVE_READDIR_R
-	ret = readdir_r(dir, (struct dirent*) dirent_buf, &ent);
-
-	if (ret != 0) {
-
-		ib::error()
-			<< "Cannot read directory " << dirname
-			<< " error: " << ret;
-
-		return(-1);
-	}
-
-	if (ent == NULL) {
-		/* End of directory */
-
-		return(1);
-	}
-
-	ut_a(strlen(ent->d_name) < _POSIX_PATH_MAX + 100 - 1);
-#else
-	ent = readdir(dir);
-
-	if (ent == NULL) {
-
-		return(1);
-	}
-#endif /* HAVE_READDIR_R */
-	ut_a(strlen(ent->d_name) < OS_FILE_MAX_PATH);
-
-	if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) {
-
-		goto next_file;
-	}
-
-	strcpy(info->name, ent->d_name);
-
-	full_path = static_cast<char*>(
-		ut_malloc_nokey(strlen(dirname) + strlen(ent->d_name) + 10));
-
-	sprintf(full_path, "%s/%s", dirname, ent->d_name);
-
-	ret = stat(full_path, &statinfo);
-
-	if (ret) {
-
-		if (errno == ENOENT) {
-			/* readdir() returned a file that does not exist,
-			it must have been deleted in the meantime. Do what
-			would have happened if the file was deleted before
-			readdir() - ignore and go to the next entry.
-			If this is the last entry then info->name will still
-			contain the name of the deleted file when this
-			function returns, but this is not an issue since the
-			caller shouldn't be looking at info when end of
-			directory is returned. */
-
-			ut_free(full_path);
-
-			goto next_file;
-		}
-
-		os_file_handle_error_no_exit(full_path, "stat", false);
-
-		ut_free(full_path);
-
-		return(-1);
-	}
-
-	info->size = statinfo.st_size;
-
-	if (S_ISDIR(statinfo.st_mode)) {
-		info->type = OS_FILE_TYPE_DIR;
-	} else if (S_ISLNK(statinfo.st_mode)) {
-		info->type = OS_FILE_TYPE_LINK;
-	} else if (S_ISREG(statinfo.st_mode)) {
-		info->type = OS_FILE_TYPE_FILE;
-	} else {
-		info->type = OS_FILE_TYPE_UNKNOWN;
-	}
-
-	ut_free(full_path);
-
-	return(0);
-}
-
 /** NOTE! Use the corresponding macro os_file_create(), not directly
 this function!
 Opens an existing file or creates a new.
@@ -3364,11 +3211,6 @@ os_file_create_func(
 
 		mode_str = "CREATE";
 		create_flag = O_RDWR | O_CREAT | O_EXCL;
-
-	} else if (create_mode == OS_FILE_OVERWRITE) {
-
-		mode_str = "OVERWRITE";
-		create_flag = O_RDWR | O_CREAT | O_TRUNC;
 
 	} else {
 		ib::error()
@@ -4302,154 +4144,6 @@ os_file_create_directory(
 	return(true);
 }
 
-/** The os_file_opendir() function opens a directory stream corresponding to the
-directory named by the dirname argument. The directory stream is positioned
-at the first entry. In both Unix and Windows we automatically skip the '.'
-and '..' items at the start of the directory listing.
-@param[in]	dirname		directory name; it must not contain a trailing
-				'\' or '/'
-@param[in]	is_fatal	true if we should treat an error as a fatal
-				error; if we try to open symlinks then we do
-				not wish a fatal error if it happens not to
-				be a directory
-@return directory stream, NULL if error */
-os_file_dir_t
-os_file_opendir(
-	const char*	dirname,
-	bool		error_is_fatal)
-{
-	os_file_dir_t		dir;
-	LPWIN32_FIND_DATA	lpFindFileData;
-	char			path[OS_FILE_MAX_PATH + 3];
-
-	ut_a(strlen(dirname) < OS_FILE_MAX_PATH);
-
-	strcpy(path, dirname);
-	strcpy(path + strlen(path), "\\*");
-
-	/* Note that in Windows opening the 'directory stream' also retrieves
-	the first entry in the directory. Since it is '.', that is no problem,
-	as we will skip over the '.' and '..' entries anyway. */
-
-	lpFindFileData = static_cast<LPWIN32_FIND_DATA>(
-		ut_malloc_nokey(sizeof(WIN32_FIND_DATA)));
-
-	dir = FindFirstFile((LPCTSTR) path, lpFindFileData);
-
-	ut_free(lpFindFileData);
-
-	if (dir == INVALID_HANDLE_VALUE) {
-
-		if (error_is_fatal) {
-			os_file_handle_error(dirname, "opendir");
-		}
-
-		return(NULL);
-	}
-
-	return(dir);
-}
-
-/** Closes a directory stream.
-@param[in]	dir	directory stream
-@return 0 if success, -1 if failure */
-int
-os_file_closedir(
-	os_file_dir_t	dir)
-{
-	BOOL		ret;
-
-	ret = FindClose(dir);
-
-	if (!ret) {
-		os_file_handle_error_no_exit(NULL, "closedir", false);
-
-		return(-1);
-	}
-
-	return(0);
-}
-
-/** This function returns information of the next file in the directory. We
-jump over the '.' and '..' entries in the directory.
-@param[in]	dirname		directory name or path
-@param[in]	dir		directory stream
-@param[out]	info		buffer where the info is returned
-@return 0 if ok, -1 if error, 1 if at the end of the directory */
-int
-os_file_readdir_next_file(
-	const char*	dirname,
-	os_file_dir_t	dir,
-	os_file_stat_t*	info)
-{
-	BOOL		ret;
-	int		status;
-	WIN32_FIND_DATA	find_data;
-
-next_file:
-
-	ret = FindNextFile(dir, &find_data);
-
-	if (ret > 0) {
-
-		const char* name;
-
-		name = static_cast<const char*>(find_data.cFileName);
-
-		ut_a(strlen(name) < OS_FILE_MAX_PATH);
-
-		if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
-
-			goto next_file;
-		}
-
-		strcpy(info->name, name);
-
-		info->size = find_data.nFileSizeHigh;
-		info->size <<= 32;
-		info->size |= find_data.nFileSizeLow;
-
-		if (find_data.dwFileAttributes
-		    & FILE_ATTRIBUTE_REPARSE_POINT) {
-
-			/* TODO: test Windows symlinks */
-			/* TODO: MySQL has apparently its own symlink
-			implementation in Windows, dbname.sym can
-			redirect a database directory:
-			REFMAN "windows-symbolic-links.html" */
-
-			info->type = OS_FILE_TYPE_LINK;
-
-		} else if (find_data.dwFileAttributes
-			   & FILE_ATTRIBUTE_DIRECTORY) {
-
-			info->type = OS_FILE_TYPE_DIR;
-
-		} else {
-
-			/* It is probably safest to assume that all other
-			file types are normal. Better to check them rather
-			than blindly skip them. */
-
-			info->type = OS_FILE_TYPE_FILE;
-		}
-
-		status = 0;
-
-	} else if (GetLastError() == ERROR_NO_MORE_FILES) {
-
-		status = 1;
-
-	} else {
-
-		os_file_handle_error_no_exit(NULL, "readdir_next_file", false);
-
-		status = -1;
-	}
-
-	return(status);
-}
-
 /** NOTE! Use the corresponding macro os_file_create(), not directly
 this function!
 Opens an existing file or creates a new.
@@ -4525,10 +4219,6 @@ os_file_create_func(
 	} else if (create_mode == OS_FILE_CREATE) {
 
 		create_flag = CREATE_NEW;
-
-	} else if (create_mode == OS_FILE_OVERWRITE) {
-
-		create_flag = CREATE_ALWAYS;
 
 	} else {
 		ib::error()
@@ -5212,7 +4902,7 @@ os_file_check_args(const IORequest& type, os_offset_t offset, ulint n)
 /** Does a syncronous read or write depending upon the type specified
 In case of partial reads/writes the function tries
 NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
-@param[in]	type,		IO flags
+@param[in]	in_type		IO flags
 @param[in]	file		handle to an open file
 @param[out]	buf		buffer where to read
 @param[in]	offset		file offset from the start where to read
@@ -5668,7 +5358,7 @@ os_file_handle_error_no_exit(
 /** Tries to disable OS caching on an opened file descriptor.
 @param[in]	fd		file descriptor to alter
 @param[in]	file_name	file name, used in the diagnostic message
-@param[in]	name		"open" or "create"; used in the diagnostic
+@param[in]	operation_name	"open" or "create"; used in the diagnostic
 				message */
 void
 os_file_set_nocache(
@@ -5966,7 +5656,7 @@ file.
 
 Note: On Windows we use the name and on Unices we use the file handle.
 
-@param[in]	name		File name
+@param[in]	path		File name
 @param[in]	fh		File handle for the file - if opened
 @return true if the file system supports sparse files */
 bool
@@ -6044,7 +5734,7 @@ therefore no other thread is allowed to do the freeing!
 				can be used to restart the operation,
 				for example
 @param[out]	m2		callback message
-@param[out]	type		OS_FILE_WRITE or ..._READ
+@param[out]	request		OS_FILE_WRITE or ..._READ
 @return DB_SUCCESS or error code */
 dberr_t
 os_aio_handler(
@@ -7425,8 +7115,7 @@ public:
 		}
 	}
 
-	/** Do the I/O with ordinary, synchronous i/o functions:
-	@param[in]	len		Length of buffer for IO */
+	/** Do the I/O with ordinary, synchronous i/o functions: */
 	void io()
 	{
 		if (first_slot()->type.is_write()) {
@@ -7671,16 +7360,18 @@ SimulatedAIOHandler::check_pending(
 /** Does simulated AIO. This function should be called by an i/o-handler
 thread.
 
-@param[in]	segment	The number of the segment in the aio arrays to wait
-			for; segment 0 is the ibuf i/o thread, segment 1 the
-			log i/o thread, then follow the non-ibuf read threads,
-			and as the last are the non-ibuf write threads
-@param[out]	m1	the messages passed with the AIO request; note that
-			also in the case where the AIO operation failed, these
-			output parameters are valid and can be used to restart
-			the operation, for example
-@param[out]	m2	Callback argument
-@param[in]	type	IO context
+@param[in]	global_segment	The number of the segment in the aio arrays to
+				wait for; segment 0 is the ibuf i/o thread,
+				segment 1 the log i/o thread, then follow the
+				non-ibuf read threads, and as the last are the
+				non-ibuf write threads
+@param[out]	m1		the messages passed with the AIO request; note
+				that also in the case where the AIO operation
+				failed, these output parameters are valid and
+				can be used to restart
+				the operation, for example
+@param[out]	m2		Callback argument
+@param[in]	type		IO context
 @return DB_SUCCESS or error code */
 static
 dberr_t
@@ -8057,8 +7748,7 @@ os_aio_all_slots_free()
 
 #ifdef UNIV_DEBUG
 /** Prints all pending IO for the array
-@param[in]	file	file where to print
-@param[in]	array	array to process */
+@param[in]	file	file where to print */
 void
 AIO::to_file(FILE* file) const
 {

@@ -917,8 +917,8 @@ dict_table_has_atomic_blobs(
 	__attribute__((warn_unused_result));
 
 /** Set the various values in a dict_table_t::flags pointer.
-@param[in,out]	flags,		Pointer to a 4 byte Table Flags
-@param[in]	format,		File Format
+@param[in,out]	flags		Pointer to a 4 byte Table Flags
+@param[in]	format		File Format
 @param[in]	zip_ssize	Zip Shift Size
 @param[in]	use_data_dir	Table uses DATA DIRECTORY
 @param[in]	shared_space	Table uses a General Shared Tablespace */
@@ -932,7 +932,7 @@ dict_tf_set(
 	bool		shared_space);
 
 /** Initialize a dict_table_t::flags pointer.
-@param[in]	compact,	Table uses Compact or greater
+@param[in]	compact		Table uses Compact or greater
 @param[in]	zip_ssize	Zip Shift Size (log 2 minus 9)
 @param[in]	atomic_blobs	Table uses Compressed or Dynamic
 @param[in]	data_dir	Table uses DATA DIRECTORY
@@ -993,7 +993,7 @@ dict_table_page_size(
 /*********************************************************************//**
 Obtain exclusive locks on all index trees of the table. This is to prevent
 accessing index trees while InnoDB is updating internal metadata for
-operations such as truncate tables. */
+operations such as FLUSH TABLES. */
 UNIV_INLINE
 void
 dict_table_x_lock_indexes(
@@ -2137,7 +2137,7 @@ dict_table_decode_n_col(
 	ulint*	n_v_col);
 
 /** Look for any dictionary objects that are found in the given tablespace.
-@param[in]	space	Tablespace ID to search for.
+@param[in]	space_id	Tablespace ID to search for.
 @return true if tablespace is empty. */
 bool
 dict_tablespace_is_empty(

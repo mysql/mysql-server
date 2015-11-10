@@ -80,18 +80,13 @@ enum btr_op_t {
 	BTR_DELMARK_OP			/*!< Mark a record for deletion */
 };
 
-/** Modification types for the B-tree operation. */
+/** Modification types for the B-tree operation. Note that the order of
+the enum values is important.*/
 enum btr_intention_t {
 	BTR_INTENTION_DELETE,
 	BTR_INTENTION_BOTH,
 	BTR_INTENTION_INSERT
 };
-#if BTR_INTENTION_DELETE > BTR_INTENTION_BOTH
-#error "BTR_INTENTION_DELETE > BTR_INTENTION_BOTH"
-#endif
-#if BTR_INTENTION_BOTH > BTR_INTENTION_INSERT
-#error "BTR_INTENTION_BOTH > BTR_INTENTION_INSERT"
-#endif
 
 /** For the index->lock scalability improvement, only possibility of clear
 performance regression observed was caused by grown huge history list length.
@@ -203,16 +198,6 @@ btr_rec_free_externally_stored_fields(
 
 #ifndef UNIV_HOTBACKUP
 /*==================== B-TREE SEARCH =========================*/
-
-#if MTR_MEMO_PAGE_S_FIX != RW_S_LATCH
-#error "MTR_MEMO_PAGE_S_FIX != RW_S_LATCH"
-#endif
-#if MTR_MEMO_PAGE_X_FIX != RW_X_LATCH
-#error "MTR_MEMO_PAGE_X_FIX != RW_X_LATCH"
-#endif
-#if MTR_MEMO_PAGE_SX_FIX != RW_SX_LATCH
-#error "MTR_MEMO_PAGE_SX_FIX != RW_SX_LATCH"
-#endif
 
 /** Latches the leaf page or pages requested.
 @param[in]	block		leaf page where the search converged
@@ -799,9 +784,6 @@ btr_cur_search_to_nth_level(
 	      || RTREE_SEARCH_MODE(mode));
 	ut_ad(dict_index_check_search_tuple(index, tuple));
 	ut_ad(!dict_index_is_ibuf(index) || ibuf_inside(mtr));
-	ut_ad(dtuple_check_typed(tuple));
-	ut_ad(!(index->type & DICT_FTS));
-	ut_ad(index->page != FIL_NULL);
 
 	UNIV_MEM_INVALID(&cursor->up_match, sizeof cursor->up_match);
 	UNIV_MEM_INVALID(&cursor->up_bytes, sizeof cursor->up_bytes);
@@ -1994,8 +1976,6 @@ btr_cur_search_to_nth_level_with_no_latch(
 	ut_ad(dict_table_is_intrinsic(index->table));
 	ut_ad(level == 0 || mode == PAGE_CUR_LE);
 	ut_ad(dict_index_check_search_tuple(index, tuple));
-	ut_ad(dtuple_check_typed(tuple));
-	ut_ad(index->page != FIL_NULL);
 
 	UNIV_MEM_INVALID(&cursor->up_match, sizeof cursor->up_match);
 	UNIV_MEM_INVALID(&cursor->low_match, sizeof cursor->low_match);
@@ -6667,6 +6647,8 @@ struct btr_blob_log_check_t {
 
 		log_free_check();
 
+		DEBUG_SYNC_C("blob_write_middle_after_check");
+
 		const mtr_log_t log_mode = m_mtr->get_log_mode();
 		m_mtr->start();
 		m_mtr->set_log_mode(log_mode);
@@ -7827,8 +7809,8 @@ btr_copy_externally_stored_field(
 
 /** Copies an externally stored field of a record to mem heap.
 @param[in]	rec		record in a clustered index; must be
-protected by a lock or a page latch
-@param[in]	offset		array returned by rec_get_offsets()
+				protected by a lock or a page latch
+@param[in]	offsets		array returned by rec_get_offsets()
 @param[in]	page_size	BLOB page size
 @param[in]	no		field number
 @param[out]	len		length of the field

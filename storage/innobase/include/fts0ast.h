@@ -232,14 +232,14 @@ fts_ast_string_create(
 
 /**
 Free an ast string instance
-@param[in,out] ast_str		string to free */
+@param[in,out] ast_str	string to free */
 void
 fts_ast_string_free(
 	fts_ast_string_t*	ast_str);
 
 /**
 Translate ast string of type FTS_AST_NUMB to unsigned long by strtoul
-@param[in] str		string to translate
+@param[in] ast_str		string to translate
 @param[in] base		the base
 @return translated number */
 ulint

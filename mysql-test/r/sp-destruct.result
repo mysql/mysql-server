@@ -8,6 +8,8 @@ drop procedure if exists bug14233;
 drop function if exists bug14233;
 drop table if exists t1;
 drop view if exists v1;
+create table mysql_proc_backup like mysql.proc;
+insert into mysql_proc_backup select * from mysql.proc;
 create procedure bug14233()
 set @x = 42;
 create function bug14233_f() returns int
@@ -24,19 +26,8 @@ ERROR HY000: Column count of mysql.proc is wrong. Expected 20, found 19. The tab
 show procedure status;
 ERROR HY000: Column count of mysql.proc is wrong. Expected 20, found 19. The table is probably corrupted
 flush table mysql.proc;
-call bug14233();
-ERROR HY000: Incorrect information in file: './mysql/proc.frm'
-create view v1 as select bug14233_f();
-ERROR HY000: Incorrect information in file: './mysql/proc.frm'
-insert into t1 values (0);
-ERROR HY000: Incorrect information in file: './mysql/proc.frm'
-flush table mysql.proc;
-call bug14233();
-ERROR 42S02: Table 'mysql.proc' doesn't exist
-create view v1 as select bug14233_f();
-ERROR 42S02: Table 'mysql.proc' doesn't exist
-insert into t1 values (0);
-ERROR 42S02: Table 'mysql.proc' doesn't exist
+drop table mysql.proc;
+create table mysql.proc like mysql_proc_backup;
 flush table mysql.proc;
 flush privileges;
 delete from mysql.proc where name like 'bug14233%';
@@ -143,8 +134,6 @@ FLUSH TABLE mysql.procs_priv;
 #             5.1.50 to 5.5.6".
 #
 drop database if exists mysqltest;
-# Backup mysql.proc.
-flush table mysql.proc;
 create database mysqltest;
 # Corrupt mysql.proc to make it unusable by current version of server.
 alter table mysql.proc drop column type;
@@ -154,6 +143,7 @@ Warnings:
 Error	1805	Column count of mysql.proc is wrong. Expected 20, found 19. The table is probably corrupted
 # Restore mysql.proc.
 drop table mysql.proc;
+rename table mysql_proc_backup to mysql.proc;
 #
 # Bug#58414 mysql_upgrade fails on dump upgrade between 5.1.53 -> 5.5.8
 #

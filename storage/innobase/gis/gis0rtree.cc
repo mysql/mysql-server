@@ -923,7 +923,7 @@ rtr_split_page_move_rec_list(
 		mtr_set_log_mode(mtr, log_mode);
 
 		if (!page_zip_compress(new_page_zip, new_page, index,
-				       page_zip_level, NULL, mtr)) {
+				       page_zip_level, mtr)) {
 			ulint	ret_pos;
 
 			/* Before trying to reorganize the page,

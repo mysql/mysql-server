@@ -129,13 +129,6 @@ public:
   */
   ha_federated *trx_next;
   /*
-    The name of the index type that will be used for display
-    don't implement this method unless you really have indexes
-   */
-  // perhaps get index type
-  const char *index_type(uint inx) { return "REMOTE"; }
-  const char **bas_ext() const;
-  /*
     This is a list of flags that says what the storage engine
     implements. The current table flags are documented in
     handler.h

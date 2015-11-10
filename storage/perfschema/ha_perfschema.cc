@@ -1143,7 +1143,7 @@ static int pfs_init_func(void *p)
     we can not rely on the fact that different mysqld process will assign
     consistently the same legacy_db_type for a given storage engine name.
     In particular, using different --loose-skip-xxx options between
-    ./mysqld --bootstrap
+    ./mysqld --install-server
     ./mysqld
     creates bogus .frm forms when bootstrapping the performance schema,
     if we rely on ha_initialize_handlerton to assign a really dynamic value.
@@ -1266,15 +1266,6 @@ ha_perfschema::ha_perfschema(handlerton *hton, TABLE_SHARE *share)
 
 ha_perfschema::~ha_perfschema()
 {}
-
-static const char *ha_pfs_exts[]= {
-  NullS
-};
-
-const char **ha_perfschema::bas_ext() const
-{
-  return ha_pfs_exts;
-}
 
 int ha_perfschema::open(const char *name, int mode, uint test_if_locked)
 {

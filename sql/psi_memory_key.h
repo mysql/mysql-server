@@ -118,7 +118,6 @@ extern PSI_memory_key key_memory_binlog_ver_1_event;
 extern PSI_memory_key key_memory_bison_stack;
 extern PSI_memory_key key_memory_blob_mem_storage;
 extern PSI_memory_key key_memory_db_worker_hash_entry;
-extern PSI_memory_key key_memory_dboptions_hash;
 extern PSI_memory_key key_memory_delegate;
 extern PSI_memory_key key_memory_errmsgs;
 extern PSI_memory_key key_memory_fill_schema_schemata;

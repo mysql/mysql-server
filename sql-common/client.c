@@ -151,7 +151,6 @@ void init_client_psi_keys(void)
 
 #endif /* HAVE_PSI_INTERFACE */
 
-const char      *default_ssl_cipher= "DHE-RSA-AES256-SHA";
 uint		mysql_port=0;
 char		*mysql_unix_port= 0;
 const char	*unknown_sqlstate= "HY000";
@@ -280,7 +279,7 @@ void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate)
   @c my_net_init() and net_end()
  */
 
-my_bool my_net_is_inited(NET *net)
+static my_bool my_net_is_inited(NET *net)
 {
   return net->buff != NULL;
 }
@@ -671,7 +670,7 @@ err:
 /*
   Free all memory acquired to store state change information.
 */
-void free_state_change_info(MYSQL_EXTENSION *ext)
+static void free_state_change_info(MYSQL_EXTENSION *ext)
 {
   STATE_INFO *info;
   int i;
@@ -1354,7 +1353,7 @@ void free_old_query(MYSQL *mysql)
            is set in this case, FALSE otherwise.
 */
 
-my_bool flush_one_result(MYSQL *mysql)
+static my_bool flush_one_result(MYSQL *mysql)
 {
   ulong packet_length;
   my_bool is_data_packet;
@@ -1412,7 +1411,7 @@ my_bool flush_one_result(MYSQL *mysql)
            based on what we got from network.
 */
 
-my_bool opt_flush_ok_packet(MYSQL *mysql, my_bool *is_ok_packet)
+static my_bool opt_flush_ok_packet(MYSQL *mysql, my_bool *is_ok_packet)
 {
   my_bool is_data_packet;
   ulong packet_length= cli_safe_read(mysql, &is_data_packet);
@@ -1629,7 +1628,7 @@ static const char *default_options[]=
   "ssl-cipher", "max-allowed-packet", "protocol", "shared-memory-base-name",
   "multi-results", "multi-statements", "multi-queries", "secure-auth",
   "report-data-truncation", "plugin-dir", "default-auth",
-  "bind-address", "ssl-crl", "ssl-crlpath", "enable-cleartext-plugin",
+  "bind-address", "ssl-crl", "ssl-crlpath", "enable-cleartext-plugin", "tls-version",
   NullS
 };
 enum option_id {
@@ -1642,6 +1641,7 @@ enum option_id {
   OPT_multi_results, OPT_multi_statements, OPT_multi_queries, OPT_secure_auth, 
   OPT_report_data_truncation, OPT_plugin_dir, OPT_default_auth,
   OPT_bind_address, OPT_ssl_crl, OPT_ssl_crlpath, OPT_enable_cleartext_plugin,
+  OPT_tls_version,
   OPT_keep_this_one_last
 };
 
@@ -1861,6 +1861,8 @@ void mysql_read_default_options(struct st_mysql_options *options,
           my_free(options->ssl_cipher);
           options->ssl_cipher= my_strdup(key_memory_mysql_options,
                                          opt_arg, MYF(MY_WME));
+        case OPT_tls_version:
+          EXTENSION_SET_SSL_STRING(options, tls_version, opt_arg);
           break;
 	case OPT_ssl_crl:
           EXTENSION_SET_SSL_STRING(options, ssl_crl, opt_arg);
@@ -1876,6 +1878,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
         case OPT_ssl_cipher:
         case OPT_ssl_crl:
         case OPT_ssl_crlpath:
+        case OPT_tls_version:
 	  break;
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
 	case OPT_character_sets_dir:
@@ -2018,7 +2021,7 @@ static void cli_fetch_lengths(ulong *to, MYSQL_ROW column,
   @returns 0 on success.
 */
 
-int
+static int
 unpack_field(MYSQL *mysql, MEM_ROOT *alloc, my_bool default_value,
              uint server_capabilities, MYSQL_ROWS *row, MYSQL_FIELD *field)
 {
@@ -2239,7 +2242,7 @@ MYSQL_FIELD *cli_read_metadata(MYSQL *mysql, ulong field_count,
 /* Read all rows (data) from server */
 
 MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
-			  unsigned int fields)
+                          unsigned int fields)
 {
   uint	field;
   ulong pkt_len;
@@ -2566,6 +2569,7 @@ mysql_ssl_free(MYSQL *mysql)
   my_free(mysql->options.ssl_cipher);
   if (mysql->options.extension)
   {
+    my_free(mysql->options.extension->tls_version);
     my_free(mysql->options.extension->ssl_crl);
     my_free(mysql->options.extension->ssl_crlpath);
   }
@@ -2581,6 +2585,8 @@ mysql_ssl_free(MYSQL *mysql)
   {
     mysql->options.extension->ssl_crl = 0;
     mysql->options.extension->ssl_crlpath = 0;
+    mysql->options.extension->ssl_ctx_flags= 0;
+    mysql->options.extension->tls_version= 0;
   }
   mysql->options.use_ssl = FALSE;
   mysql->connector_fd = 0;
@@ -3225,8 +3231,8 @@ typedef struct {
  @return pointer dest+src_len+header size or NULL if 
 */
 
-char *write_length_encoded_string4(char *dest, char *dest_end, char *src,
-                                  char *src_end)
+static char *write_length_encoded_string4(char *dest, char *dest_end, char *src,
+                                          char *src_end)
 {
   size_t src_len= (size_t)(src_end - src);
   uchar *to= net_store_length((uchar*) dest, src_len);
@@ -3241,7 +3247,7 @@ char *write_length_encoded_string4(char *dest, char *dest_end, char *src,
   Write 1 byte of string length header information to dest and
   copy src_len bytes from src to dest.
 */
-char *write_string(char *dest, char *dest_end, char *src, char *src_end)
+static char *write_string(char *dest, char *dest_end, char *src, char *src_end)
 {
   size_t src_len= (size_t)(src_end - src);
   uchar *to= NULL;
@@ -3467,11 +3473,6 @@ cli_establish_ssl(MYSQL *mysql)
 
     end= mysql_fill_packet_header(mysql, buff, sizeof(buff));
 
-    if (!mysql->options.ssl_cipher)
-    {
-      SET_OPTION(ssl_cipher, default_ssl_cipher);
-    }
-
     /*
     Send mysql->client_flag, max_packet_size - unencrypted otherwise
     the server does not know we want to do SSL
@@ -3498,7 +3499,9 @@ cli_establish_ssl(MYSQL *mysql)
       options->extension ?
       options->extension->ssl_crl : NULL,
       options->extension ?
-      options->extension->ssl_crlpath : NULL)))
+      options->extension->ssl_crlpath : NULL,
+      options->extension ?
+      options->extension->ssl_ctx_flags : 0)))
     {
       set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
                                ER_CLIENT(CR_SSL_CONNECTION_ERROR),
@@ -5438,6 +5441,16 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
   case MYSQL_OPT_SSL_CA:       SET_SSL_OPTION(ssl_ca, arg);      break;
   case MYSQL_OPT_SSL_CAPATH:   SET_SSL_OPTION(ssl_capath, arg);  break;
   case MYSQL_OPT_SSL_CIPHER:   SET_SSL_OPTION(ssl_cipher, arg);  break;
+  case MYSQL_OPT_TLS_VERSION:
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+                               ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+                               EXTENSION_SET_SSL_STRING(&mysql->options,
+                                                        tls_version, arg);
+                               if((mysql->options.extension->ssl_ctx_flags=
+                                   process_tls_version(mysql->options.extension->tls_version)) == -1)
+                                 DBUG_RETURN(1);
+#endif
+                               break;
   case MYSQL_OPT_SSL_CRL:      EXTENSION_SET_SSL_STRING(&mysql->options,
                                                         ssl_crl, arg);
                                break;
@@ -5548,7 +5561,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     MYSQL_SET_CHARSET_DIR, MYSQL_SET_CHARSET_NAME, MYSQL_SHARED_MEMORY_BASE_NAME,
     MYSQL_SET_CLIENT_IP, MYSQL_OPT_BIND, MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH,
     MYSQL_OPT_SSL_KEY, MYSQL_OPT_SSL_CERT, MYSQL_OPT_SSL_CA, MYSQL_OPT_SSL_CAPATH,
-    MYSQL_OPT_SSL_CIPHER, MYSQL_OPT_SSL_CRL, MYSQL_OPT_SSL_CRLPATH,
+    MYSQL_OPT_SSL_CIPHER, MYSQL_OPT_SSL_CRL, MYSQL_OPT_SSL_CRLPATH, MYSQL_OPT_TLS_VERSION,
     MYSQL_SERVER_PUBLIC_KEY
 
   <none, error returned>
@@ -5667,6 +5680,10 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
   case MYSQL_OPT_SSL_CIPHER:
     *((char **)arg)= mysql->options.ssl_cipher;
     break;
+  case MYSQL_OPT_TLS_VERSION:
+    *((char **)arg)= mysql->options.extension ?
+                     mysql->options.extension->tls_version : NULL;
+    break;
   case MYSQL_OPT_SSL_CRL:
     *((char **)arg)= mysql->options.extension ?
                      mysql->options.extension->ssl_crl : NULL;
@@ -5718,7 +5735,7 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
 /**
   A function to return the key from a connection attribute
 */
-uchar *
+static uchar *
 get_attr_key(LEX_STRING *part, size_t *length,
              my_bool not_used __attribute__((unused)))
 {

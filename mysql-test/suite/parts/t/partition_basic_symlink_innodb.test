@@ -95,7 +95,7 @@ PARTITION BY HASH (c1)
 );
 SHOW WARNINGS;
 
---echo # Verifying .frm, .par and InnoDB .ibd files
+--echo # Verifying .ibd files
 --echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQLTEST_VARDIR/mysql-test-data-dir/test
@@ -117,7 +117,7 @@ SHOW CREATE TABLE t1;
 ALTER TABLE t1 engine=MyISAM;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 SHOW CREATE TABLE t1;
---echo # Verifying .frm, .par and MyISAM files (.MYD, MYI)
+--echo # Verifying .par and MyISAM files (.MYD, MYI)
 --echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQLTEST_VARDIR/mysql-test-data-dir
@@ -133,7 +133,7 @@ SET SESSION innodb_strict_mode = ON;
 ALTER TABLE t1 engine=InnoDB;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 SHOW CREATE TABLE t1;
---echo # Verifying .frm, .par and InnoDB .ibd files
+--echo # Verifying InnoDB .ibd files
 --echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQLTEST_VARDIR/mysql-test-data-dir

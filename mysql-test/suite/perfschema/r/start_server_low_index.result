@@ -173,20 +173,19 @@ where OBJECT_SCHEMA='db1'
   order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
 COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME
 2	TABLE	db1	t1	NULL
-1	TABLE	db1	t1	uidx
+1	TABLE	db1	t1	(index 0)
 flush tables;
 select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
 from performance_schema.table_io_waits_summary_by_table
 where OBJECT_SCHEMA='db1'
   order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
 COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME
-1	TABLE	db1	t1
+0	TABLE	db1	t1
 select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
 from performance_schema.table_io_waits_summary_by_index_usage
 where OBJECT_SCHEMA='db1'
   order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
 COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME
-1	TABLE	db1	t1	uidx
 select variable_value > 0 from information_schema.global_status
 where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
 variable_value > 0
@@ -213,7 +212,7 @@ from performance_schema.table_io_waits_summary_by_table
 where OBJECT_SCHEMA='db1'
   order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
 COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME
-4	TABLE	db1	t1
+3	TABLE	db1	t1
 3	TABLE	db1	t2
 select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
 from performance_schema.table_io_waits_summary_by_index_usage
@@ -221,7 +220,7 @@ where OBJECT_SCHEMA='db1'
   order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
 COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME
 2	TABLE	db1	t1	NULL
-2	TABLE	db1	t1	uidx
+1	TABLE	db1	t1	(index 0)
 2	TABLE	db1	t2	NULL
 1	TABLE	db1	t2	(index 0)
 flush tables;
@@ -230,14 +229,13 @@ from performance_schema.table_io_waits_summary_by_table
 where OBJECT_SCHEMA='db1'
   order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
 COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME
-2	TABLE	db1	t1
+0	TABLE	db1	t1
 0	TABLE	db1	t2
 select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
 from performance_schema.table_io_waits_summary_by_index_usage
 where OBJECT_SCHEMA='db1'
   order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
 COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME
-2	TABLE	db1	t1	uidx
 select variable_value > 0 from information_schema.global_status
 where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
 variable_value > 0

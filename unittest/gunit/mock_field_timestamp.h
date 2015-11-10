@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,12 +41,12 @@ public:
   uchar buffer[PACK_LENGTH];
   bool store_timestamp_called;
 
-  Mock_field_timestamp(Field::utype utype) :
+  Mock_field_timestamp(uchar auto_flags_arg) :
     Field_timestamp(NULL, // ptr_arg
                     0,    // len_arg
                     NULL, // null_ptr_arg
                     '\0', // null_bit_arg
-                    utype,// unireg_check_arg
+                    auto_flags_arg, // auto_flags_arg
                     ""),  // field_name_arg
     null_byte(0),
     store_timestamp_called(false)

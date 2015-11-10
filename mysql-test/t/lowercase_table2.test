@@ -235,29 +235,6 @@ drop table t_bug44738_UPPERCASE;
 create table t_bug44738_UPPERCASE (i int);
 drop table t_bug44738_UPPERCASE;
 
---echo # Finally, let us check that another issue which was exposed by
---echo # the original test case is solved. I.e. that the table is not 
---echo # created if there is an entry for it in TDC even though it was 
---echo # removed from disk.
-create table t_bug44738_UPPERCASE (i int) engine = myisam;
---echo # Load table definition in TDC.
-select table_schema, table_name, table_comment from information_schema.tables
-  where table_schema = 'test' and table_name like 't_bug44738_%';
---echo # Simulate manual removal of the table.
-let $MYSQLD_DATADIR= `select @@datadir`;
---remove_file $MYSQLD_DATADIR/test/t_bug44738_UPPERCASE.frm
---remove_file $MYSQLD_DATADIR/test/t_bug44738_UPPERCASE.MYD
---remove_file $MYSQLD_DATADIR/test/t_bug44738_UPPERCASE.MYI
---echo # Check that still there is an entry for table in TDC.
-show open tables like 't_bug44738_%';
---echo # So attempt to create table with the same name should fail.
---error ER_FILE_NOT_FOUND
-create table t_bug44738_UPPERCASE (i int);
---echo # And should succeed after FLUSH TABLES.
-flush tables;
-create table t_bug44738_UPPERCASE (i int);
-drop table t_bug44738_UPPERCASE;
-
 --echo # BUG#13702397 - 64211: 'CREATE TABLE ... LIKE ...'
 --echo #                       FAILS TO KEEP CASE
 --echo #
@@ -267,3 +244,34 @@ SHOW TABLES;
 CREATE TABLE TestTable2 LIKE TestTable1;
 SHOW TABLES;
 DROP TABLE TestTable1, TestTable2;
+
+--echo #
+--echo # Bug #19894615: CRASH WHEN CREATING A TABLE IN A SCHEMA THAT
+--echo #                WAS DROPPED AND CREATED AGAIN
+--echo #
+
+CREATE SCHEMA S1;
+DROP SCHEMA S1;
+CREATE SCHEMA S1;
+CREATE TABLE S1.t1(i INT);
+DROP TABLE S1.t1;
+DROP SCHEMA S1;
+
+--echo #
+--echo # Bug #18895960: ASSERT IN OBJECT_CACHE.H LOADING_COMPLETED()
+--echo #                IN MYSQL-TRUNK-WL6378
+--echo #
+
+CREATE TABLE T1 (i INT);
+RENAME TABLE T1 to T2;
+RENAME TABLE T2 to T1;
+SELECT * FROM T1;
+DROP TABLE T1;
+
+CREATE TABLE T1 (i INT) ENGINE= MyISAM;
+CREATE TABLE T2 LIKE T1;
+ALTER TABLE T2 ENGINE= InnoDB;
+DROP TABLE T2;
+RENAME TABLE T1 to T2;
+SELECT * FROM T2;
+DROP TABLE T2;

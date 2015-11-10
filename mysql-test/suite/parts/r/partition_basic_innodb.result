@@ -81,7 +81,6 @@ PARTITIONS 2 */
 unified filelist
 t1#P#p0.ibd
 t1#P#p1.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -544,7 +543,6 @@ t1#P#p1.ibd
 t1#P#p2.ibd
 t1#P#p3.ibd
 t1#P#p4.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -1025,7 +1023,6 @@ t1#P#part_1.ibd
 t1#P#part_2.ibd
 t1#P#part_3.ibd
 t1#P#part_N.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -1500,7 +1497,6 @@ t1#P#partc.ibd
 t1#P#partd.ibd
 t1#P#parte.ibd
 t1#P#partf.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -1973,7 +1969,6 @@ t1#P#partc#SP#partcsp0.ibd
 t1#P#partc#SP#partcsp1.ibd
 t1#P#partd#SP#partdsp0.ibd
 t1#P#partd#SP#partdsp1.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -2459,7 +2454,6 @@ t1#P#part3#SP#subpart31.ibd
 t1#P#part3#SP#subpart32.ibd
 t1#P#part4#SP#subpart41.ibd
 t1#P#part4#SP#subpart42.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -2947,7 +2941,6 @@ t1#P#part3#SP#sp31.ibd
 t1#P#part3#SP#sp32.ibd
 t1#P#part4#SP#sp41.ibd
 t1#P#part4#SP#sp42.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -3422,7 +3415,6 @@ t1#P#part2#SP#part2sp2.ibd
 t1#P#part3#SP#part3sp0.ibd
 t1#P#part3#SP#part3sp1.ibd
 t1#P#part3#SP#part3sp2.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -3884,7 +3876,6 @@ PARTITIONS 2 */
 unified filelist
 t1#P#p0.ibd
 t1#P#p1.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -4347,7 +4338,6 @@ t1#P#p1.ibd
 t1#P#p2.ibd
 t1#P#p3.ibd
 t1#P#p4.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -4828,7 +4818,6 @@ t1#P#part_1.ibd
 t1#P#part_2.ibd
 t1#P#part_3.ibd
 t1#P#part_N.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -5303,7 +5292,6 @@ t1#P#partc.ibd
 t1#P#partd.ibd
 t1#P#parte.ibd
 t1#P#partf.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -5776,7 +5764,6 @@ t1#P#partc#SP#partcsp0.ibd
 t1#P#partc#SP#partcsp1.ibd
 t1#P#partd#SP#partdsp0.ibd
 t1#P#partd#SP#partdsp1.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -6260,7 +6247,6 @@ t1#P#part3#SP#subpart31.ibd
 t1#P#part3#SP#subpart32.ibd
 t1#P#part4#SP#subpart41.ibd
 t1#P#part4#SP#subpart42.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -6744,7 +6730,6 @@ t1#P#part3#SP#sp31.ibd
 t1#P#part3#SP#sp32.ibd
 t1#P#part4#SP#sp41.ibd
 t1#P#part4#SP#sp42.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -7219,7 +7204,6 @@ t1#P#part2#SP#part2sp2.ibd
 t1#P#part3#SP#part3sp0.ibd
 t1#P#part3#SP#part3sp1.ibd
 t1#P#part3#SP#part3sp2.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -7687,7 +7671,6 @@ PARTITIONS 2 */
 unified filelist
 t1#P#p0.ibd
 t1#P#p1.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -8187,7 +8170,6 @@ t1#P#p1.ibd
 t1#P#p2.ibd
 t1#P#p3.ibd
 t1#P#p4.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -8705,7 +8687,6 @@ t1#P#part_1.ibd
 t1#P#part_2.ibd
 t1#P#part_3.ibd
 t1#P#part_N.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -9217,7 +9198,6 @@ t1#P#partc.ibd
 t1#P#partd.ibd
 t1#P#parte.ibd
 t1#P#partf.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -9727,7 +9707,6 @@ t1#P#partc#SP#partcsp0.ibd
 t1#P#partc#SP#partcsp1.ibd
 t1#P#partd#SP#partdsp0.ibd
 t1#P#partd#SP#partdsp1.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -10250,7 +10229,6 @@ t1#P#part3#SP#subpart31.ibd
 t1#P#part3#SP#subpart32.ibd
 t1#P#part4#SP#subpart41.ibd
 t1#P#part4#SP#subpart42.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -10775,7 +10753,6 @@ t1#P#part3#SP#sp31.ibd
 t1#P#part3#SP#sp32.ibd
 t1#P#part4#SP#sp41.ibd
 t1#P#part4#SP#sp42.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -11287,7 +11264,6 @@ t1#P#part2#SP#part2sp2.ibd
 t1#P#part3#SP#part3sp0.ibd
 t1#P#part3#SP#part3sp1.ibd
 t1#P#part3#SP#part3sp2.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -11785,7 +11761,6 @@ PARTITIONS 2 */
 unified filelist
 t1#P#p0.ibd
 t1#P#p1.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -12285,7 +12260,6 @@ t1#P#p1.ibd
 t1#P#p2.ibd
 t1#P#p3.ibd
 t1#P#p4.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -12803,7 +12777,6 @@ t1#P#part_1.ibd
 t1#P#part_2.ibd
 t1#P#part_3.ibd
 t1#P#part_N.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -13315,7 +13288,6 @@ t1#P#partc.ibd
 t1#P#partd.ibd
 t1#P#parte.ibd
 t1#P#partf.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -13825,7 +13797,6 @@ t1#P#partc#SP#partcsp0.ibd
 t1#P#partc#SP#partcsp1.ibd
 t1#P#partd#SP#partdsp0.ibd
 t1#P#partd#SP#partdsp1.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -14348,7 +14319,6 @@ t1#P#part3#SP#subpart31.ibd
 t1#P#part3#SP#subpart32.ibd
 t1#P#part4#SP#subpart41.ibd
 t1#P#part4#SP#subpart42.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -14873,7 +14843,6 @@ t1#P#part3#SP#sp31.ibd
 t1#P#part3#SP#sp32.ibd
 t1#P#part4#SP#sp41.ibd
 t1#P#part4#SP#sp42.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -15385,7 +15354,6 @@ t1#P#part2#SP#part2sp2.ibd
 t1#P#part3#SP#part3sp0.ibd
 t1#P#part3#SP#part3sp1.ibd
 t1#P#part3#SP#part3sp2.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -15883,7 +15851,6 @@ PARTITIONS 2 */
 unified filelist
 t1#P#p0.ibd
 t1#P#p1.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -16399,7 +16366,6 @@ t1#P#p1.ibd
 t1#P#p2.ibd
 t1#P#p3.ibd
 t1#P#p4.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -16933,7 +16899,6 @@ t1#P#part_1.ibd
 t1#P#part_2.ibd
 t1#P#part_3.ibd
 t1#P#part_N.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -17461,7 +17426,6 @@ t1#P#partc.ibd
 t1#P#partd.ibd
 t1#P#parte.ibd
 t1#P#partf.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -17987,7 +17951,6 @@ t1#P#partc#SP#partcsp0.ibd
 t1#P#partc#SP#partcsp1.ibd
 t1#P#partd#SP#partdsp0.ibd
 t1#P#partd#SP#partdsp1.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -18526,7 +18489,6 @@ t1#P#part3#SP#subpart31.ibd
 t1#P#part3#SP#subpart32.ibd
 t1#P#part4#SP#subpart41.ibd
 t1#P#part4#SP#subpart42.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -19067,7 +19029,6 @@ t1#P#part3#SP#sp31.ibd
 t1#P#part3#SP#sp32.ibd
 t1#P#part4#SP#sp41.ibd
 t1#P#part4#SP#sp42.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -19595,7 +19556,6 @@ t1#P#part2#SP#part2sp2.ibd
 t1#P#part3#SP#part3sp0.ibd
 t1#P#part3#SP#part3sp1.ibd
 t1#P#part3#SP#part3sp2.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -20114,7 +20074,6 @@ PARTITIONS 2 */
 unified filelist
 t1#P#p0.ibd
 t1#P#p1.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -20614,7 +20573,6 @@ t1#P#p1.ibd
 t1#P#p2.ibd
 t1#P#p3.ibd
 t1#P#p4.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -21132,7 +21090,6 @@ t1#P#part_1.ibd
 t1#P#part_2.ibd
 t1#P#part_3.ibd
 t1#P#part_N.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -21644,7 +21601,6 @@ t1#P#partc.ibd
 t1#P#partd.ibd
 t1#P#parte.ibd
 t1#P#partf.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -22154,7 +22110,6 @@ t1#P#partc#SP#partcsp0.ibd
 t1#P#partc#SP#partcsp1.ibd
 t1#P#partd#SP#partdsp0.ibd
 t1#P#partd#SP#partdsp1.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -22675,7 +22630,6 @@ t1#P#part3#SP#subpart31.ibd
 t1#P#part3#SP#subpart32.ibd
 t1#P#part4#SP#subpart41.ibd
 t1#P#part4#SP#subpart42.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -23196,7 +23150,6 @@ t1#P#part3#SP#sp31.ibd
 t1#P#part3#SP#sp32.ibd
 t1#P#part4#SP#sp41.ibd
 t1#P#part4#SP#sp42.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -23708,7 +23661,6 @@ t1#P#part2#SP#part2sp2.ibd
 t1#P#part3#SP#part3sp0.ibd
 t1#P#part3#SP#part3sp1.ibd
 t1#P#part3#SP#part3sp2.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -24206,7 +24158,6 @@ PARTITIONS 2 */
 unified filelist
 t1#P#p0.ibd
 t1#P#p1.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -24706,7 +24657,6 @@ t1#P#p1.ibd
 t1#P#p2.ibd
 t1#P#p3.ibd
 t1#P#p4.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -25224,7 +25174,6 @@ t1#P#part_1.ibd
 t1#P#part_2.ibd
 t1#P#part_3.ibd
 t1#P#part_N.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -25736,7 +25685,6 @@ t1#P#partc.ibd
 t1#P#partd.ibd
 t1#P#parte.ibd
 t1#P#partf.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -26246,7 +26194,6 @@ t1#P#partc#SP#partcsp0.ibd
 t1#P#partc#SP#partcsp1.ibd
 t1#P#partd#SP#partdsp0.ibd
 t1#P#partd#SP#partdsp1.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -26767,7 +26714,6 @@ t1#P#part3#SP#subpart31.ibd
 t1#P#part3#SP#subpart32.ibd
 t1#P#part4#SP#subpart41.ibd
 t1#P#part4#SP#subpart42.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -27288,7 +27234,6 @@ t1#P#part3#SP#sp31.ibd
 t1#P#part3#SP#sp32.ibd
 t1#P#part4#SP#sp41.ibd
 t1#P#part4#SP#sp42.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -27800,7 +27745,6 @@ t1#P#part2#SP#part2sp2.ibd
 t1#P#part3#SP#part3sp0.ibd
 t1#P#part3#SP#part3sp1.ibd
 t1#P#part3#SP#part3sp2.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -28298,7 +28242,6 @@ PARTITIONS 2 */
 unified filelist
 t1#P#p0.ibd
 t1#P#p1.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -28814,7 +28757,6 @@ t1#P#p1.ibd
 t1#P#p2.ibd
 t1#P#p3.ibd
 t1#P#p4.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -29348,7 +29290,6 @@ t1#P#part_1.ibd
 t1#P#part_2.ibd
 t1#P#part_3.ibd
 t1#P#part_N.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -29876,7 +29817,6 @@ t1#P#partc.ibd
 t1#P#partd.ibd
 t1#P#parte.ibd
 t1#P#partf.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -30402,7 +30342,6 @@ t1#P#partc#SP#partcsp0.ibd
 t1#P#partc#SP#partcsp1.ibd
 t1#P#partd#SP#partdsp0.ibd
 t1#P#partd#SP#partdsp1.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -30939,7 +30878,6 @@ t1#P#part3#SP#subpart31.ibd
 t1#P#part3#SP#subpart32.ibd
 t1#P#part4#SP#subpart41.ibd
 t1#P#part4#SP#subpart42.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -31476,7 +31414,6 @@ t1#P#part3#SP#sp31.ibd
 t1#P#part3#SP#sp32.ibd
 t1#P#part4#SP#sp41.ibd
 t1#P#part4#SP#sp42.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -32004,7 +31941,6 @@ t1#P#part2#SP#part2sp2.ibd
 t1#P#part3#SP#part3sp0.ibd
 t1#P#part3#SP#part3sp1.ibd
 t1#P#part3#SP#part3sp2.ibd
-t1.frm
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1

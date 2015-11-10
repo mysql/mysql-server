@@ -140,13 +140,8 @@ page_zip_compress(
 						n_blobs, m_start, m_end,
 						m_nonempty */
 	const page_t*		page,		/*!< in: uncompressed page */
-	dict_index_t*		index,		/*!< in: index of the B-tree
-						node */
+	dict_index_t*		index,		/*!< in: index tree */
 	ulint			level,		/*!< in: commpression level */
-	const redo_page_compress_t* page_comp_info,
-						/*!< in: used for applying
-						TRUNCATE log
-						record during recovery */
 	mtr_t*			mtr);		/*!< in/out: mini-transaction,
 						or NULL */
 

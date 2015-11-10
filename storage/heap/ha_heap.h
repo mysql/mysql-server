@@ -36,14 +36,12 @@ public:
   ~ha_heap() {}
   handler *clone(const char *name, MEM_ROOT *mem_root);
   const char *table_type() const;
-  const char *index_type(uint inx)
-  {
-    return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_BTREE) ?
-            "BTREE" : "HASH");
-  }
+  virtual enum ha_key_alg get_default_index_algorithm() const
+  { return HA_KEY_ALG_HASH; }
+  virtual bool is_index_algorithm_supported(enum ha_key_alg key_alg) const
+  { return key_alg == HA_KEY_ALG_BTREE || key_alg == HA_KEY_ALG_HASH; }
   /* Rows also use a fixed-size format */
   enum row_type get_row_type() const { return ROW_TYPE_FIXED; }
-  const char **bas_ext() const;
   ulonglong table_flags() const
   {
     return (HA_FAST_KEY_READ | HA_NO_BLOBS | HA_NULL_IN_KEY |

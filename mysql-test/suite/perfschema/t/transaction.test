@@ -278,7 +278,10 @@ CALL transaction_verifier(1, @con1_thread_id, 'transaction', '', 0, '', '', '', 
 INSERT INTO t1 VALUES (602, 'IMPLICIT COMMIT');
 
 --echo ## Issue a DDL statement to force a commmit
-CREATE TABLE t2 (s1 INT, s2 VARCHAR(64)) ENGINE=INNODB;
+--echo ## This DDL needs to fail early, to avoid starting its own transaction
+--echo ## which will disturb the state.
+--error ER_KEY_COLUMN_DOES_NOT_EXITS
+ALTER TABLE t1 ADD KEY (s3);
 
 --echo
 --echo ## Expect 0 active transactions, 1 committed transaction
@@ -287,7 +290,6 @@ CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE',    0, '',
 CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 CALL clear_transaction_tables();
-DROP TABLE test.t2;
 
 --echo
 --echo ========================================================================

@@ -10,9 +10,18 @@
 #
 # Check actual behavior for table, partitioned table and temporary table
 # #############################################################
+--source include/have_innodb.inc
 --source include/have_innodb_16k.inc
 --source include/have_debug.inc
 
+--disable_query_log
+set @old_internal_tmp_disk_storage_engine = @@internal_tmp_disk_storage_engine;
+--enable_query_log
+
+# To avoid innodb intrinsic tables adding to status counts
+set global internal_tmp_disk_storage_engine = MyISAM;
+
+let $skip_wait_for_purge = 0;
 # Check index merge threshold by create index on all datatypes
 
 CREATE TABLE tab(a BIGINT PRIMARY KEY,c1 TINYTEXT,c2 TEXT,c3 MEDIUMTEXT,
@@ -68,6 +77,9 @@ DROP TABLE tab;
 --echo # test to confirm behavior (MERGE_THRESHOLD=50 (default))
 CREATE TABLE tab1 (a bigint primary key, b varchar(2048)) engine=InnoDB;
 
+# Force purge
+--source suite/innodb/include/force_purge.inc
+
 --source suite/innodb/include/innodb_merge_threshold_delete.inc
 
 DROP TABLE tab1;
@@ -77,6 +89,9 @@ DROP TABLE tab1;
 CREATE TABLE tab1 (a bigint primary key, b varchar(2048)) engine=InnoDB
 COMMENT='MERGE_THRESHOLD=35';
 
+# Force purge
+--source suite/innodb/include/force_purge.inc
+
 --source suite/innodb/include/innodb_merge_threshold_delete.inc
 
 DROP TABLE tab1;
@@ -85,6 +100,9 @@ DROP TABLE tab1;
 --echo # test to confirm behavior (MERGE_THRESHOLD=25)
 CREATE TABLE tab1 (a bigint primary key, b varchar(2048)) engine=InnoDB
 COMMENT='MERGE_THRESHOLD=25';
+
+# Force purge
+--source suite/innodb/include/force_purge.inc
 
 --source suite/innodb/include/innodb_merge_threshold_delete.inc
 
@@ -97,6 +115,9 @@ COMMENT='MERGE_THRESHOLD=35'
 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (20) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB);
+
+# Force purge
+--source suite/innodb/include/force_purge.inc
 
 --source suite/innodb/include/innodb_merge_threshold_delete.inc
 
@@ -111,6 +132,9 @@ DROP TABLE tab1;
 --echo # test to confirm behavior (MERGE_THRESHOLD=50 (default))
 CREATE TABLE tab1 (a bigint primary key, b varchar(2048)) engine=InnoDB;
 
+# Force purge
+--source suite/innodb/include/force_purge.inc
+
 --source suite/innodb/include/innodb_merge_threshold_update.inc
 
 DROP TABLE tab1;
@@ -119,6 +143,9 @@ DROP TABLE tab1;
 --echo # test to confirm behavior (MERGE_THRESHOLD=35)
 CREATE TABLE tab1 (a bigint primary key, b varchar(2048)) engine=InnoDB
 COMMENT='MERGE_THRESHOLD=35';
+
+# Force purge
+--source suite/innodb/include/force_purge.inc
 
 --source suite/innodb/include/innodb_merge_threshold_update.inc
 
@@ -129,6 +156,9 @@ DROP TABLE tab1;
 CREATE TABLE tab1 (a bigint primary key, b varchar(2048)) engine=InnoDB
 COMMENT='MERGE_THRESHOLD=25';
 
+# Force purge
+--source suite/innodb/include/force_purge.inc
+
 --source suite/innodb/include/innodb_merge_threshold_update.inc
 
 DROP TABLE tab1;
@@ -138,12 +168,14 @@ DROP TABLE tab1;
 --echo # (though not registered to SYS_TABLES,SYS_INDEXES, it works correctly)
 # Temporary tables are not purged. so deleting records is not caused
 # So, should be tested by updating case only
+let $skip_wait_for_purge = 1;
 CREATE TEMPORARY TABLE tab1 (a bigint primary key, b varchar(2048)) engine=InnoDB
 COMMENT='MERGE_THRESHOLD=35';
 
 --source suite/innodb/include/innodb_merge_threshold_update.inc
 
 DROP TABLE tab1;
+let $skip_wait_for_purge = 0;
 
 
 --echo #
@@ -186,3 +218,8 @@ CREATE INDEX index1 ON tab1(b(750)) COMMENT 'MERGE_THRESHOLD=45';
 --source suite/innodb/include/innodb_merge_threshold_secondary.inc
 
 DROP TABLE tab1;
+
+
+--disable_query_log
+set global internal_tmp_disk_storage_engine = @old_internal_tmp_disk_storage_engine;
+--enable_query_log

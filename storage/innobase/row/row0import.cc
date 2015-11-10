@@ -282,8 +282,7 @@ class IndexPurge {
 public:
 	/** Constructor
 	@param trx the user transaction covering the import tablespace
-	@param index to be imported
-	@param space_id space id of the tablespace */
+	@param index to be imported. */
 	IndexPurge(
 		trx_t*		trx,
 		dict_index_t*	index) UNIV_NOTHROW
@@ -326,8 +325,7 @@ private:
 	tree structure may be changed during a pessimistic delete. */
 	void	purge_pessimistic_delete() UNIV_NOTHROW;
 
-	/** Purge delete-marked records.
-	@param offsets current row offsets. */
+	/** Purge delete-marked records. */
 	void	purge() UNIV_NOTHROW;
 
 protected:
@@ -884,12 +882,12 @@ private:
 	dberr_t	update_records(buf_block_t* block) UNIV_NOTHROW;
 
 	/** Validate the page, check for corruption.
-	@param offset physical offset within file.
-	@param page page read from file.
+	@param	offset	physical offset within file.
+	@param	block	page read from file.
 	@return 0 on success, 1 if all zero, 2 if corrupted */
 	import_page_status_t validate(
 		os_offset_t	offset,
-		buf_block_t*	page) UNIV_NOTHROW;
+		buf_block_t*	block) UNIV_NOTHROW;
 
 	/** Validate the space flags and update tablespace header page.
 	@param block block read from file, not from the buffer pool.
@@ -1973,8 +1971,8 @@ PageConverter::update_page(
 }
 
 /** Validate the page
-@param offset physical offset within file.
-@param page page read from file.
+@param	offset	physical offset within file.
+@param	block	page read from file.
 @return status */
 PageConverter::import_page_status_t
 PageConverter::validate(

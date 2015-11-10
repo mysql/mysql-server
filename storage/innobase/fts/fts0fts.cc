@@ -1447,7 +1447,8 @@ fts_drop_table(
 		/* Pass nonatomic=false (dont allow data dict unlock),
 		because the transaction may hold locks on SYS_* tables from
 		previous calls to fts_drop_table(). */
-		error = row_drop_table_for_mysql(table_name, trx, true, false);
+		error = row_drop_table_for_mysql(
+			table_name, trx, SQLCOM_DROP_DB, false, NULL);
 
 		if (error != DB_SUCCESS) {
 			ib::error() << "Unable to drop FTS index aux table "
@@ -1709,7 +1710,7 @@ fts_drop_tables(
 
 /** Extract only the required flags from table->flags2 for FTS Aux
 tables.
-@param[in]	in_flags2	Table flags2
+@param[in]	flags2	Table flags2
 @return extracted flags2 for FTS aux tables */
 static inline
 ulint
@@ -1938,11 +1939,11 @@ fts_create_common_tables(
 
 func_exit:
 	if (error != DB_SUCCESS) {
-
 		for (it = common_tables.begin(); it != common_tables.end();
 		     ++it) {
 			row_drop_table_for_mysql(
-				(*it)->name.m_name, trx, FALSE);
+				(*it)->name.m_name, trx,
+				SQLCOM_DROP_DB, false, NULL);
 		}
 	}
 
@@ -2095,11 +2096,10 @@ fts_create_index_tables_low(
 	}
 
 	if (error != DB_SUCCESS) {
-
 		for (it = aux_idx_tables.begin(); it != aux_idx_tables.end();
 		     ++it) {
 			row_drop_table_for_mysql(
-				(*it)->name.m_name, trx, FALSE);
+				(*it)->name.m_name, trx, false);
 		}
 	}
 
@@ -4178,7 +4178,8 @@ fts_sync_table(
 
 	ut_ad(table->fts);
 
-	if (!dict_table_is_discarded(table) && table->fts->cache) {
+	if (!dict_table_is_discarded(table) && table->fts->cache
+	    && !dict_table_is_corrupted(table)) {
 		err = fts_sync(table->fts->cache->sync);
 	}
 
@@ -6232,8 +6233,8 @@ fts_parent_all_index_set_corrupt(
 }
 
 /** Mark the fts index which index id matches the id as corrupted.
-@param[in]	id		index id to search
-@param[in,out]	parent_table	parent table to check with all the index. */
+@param[in]	id	index id to search
+@param[in,out]	table	parent table to check with all the index. */
 static
 void
 fts_set_index_corrupt(
@@ -6423,7 +6424,8 @@ fts_drop_obsolete_aux_table_from_vector(
 		trx_start_for_ddl(trx_drop, TRX_DICT_OP_TABLE);
 
 		err = row_drop_table_for_mysql(
-			aux_drop_table->name, trx_drop, false, true);
+			aux_drop_table->name, trx_drop, SQLCOM_DROP_DB,
+			false, NULL);
 
 		trx_drop->dict_operation_lock_mode = 0;
 
@@ -7386,10 +7388,9 @@ func_exit:
 consistent state. For now consistency is check only by ensuring
 index->page_no != FIL_NULL
 @param[out]	base_table	table has host fts index
-@param[in,out]	trx		trx handler
-@return true if check certifies auxillary tables are sane false otherwise. */
-bool
-fts_is_corrupt(
+@param[in,out]	trx		trx handler */
+void
+fts_check_corrupt(
 	dict_table_t*	base_table,
 	trx_t*		trx)
 {
@@ -7407,7 +7408,7 @@ fts_is_corrupt(
 		fts_get_table_name(&fts_table, table_name);
 
 		dict_table_t*	aux_table = dict_table_open_on_name(
-			table_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+			table_name, true, FALSE, DICT_ERR_IGNORE_NONE);
 
 		if (aux_table == NULL) {
 			dict_set_corrupted(
@@ -7434,6 +7435,4 @@ fts_is_corrupt(
 
 		dict_table_close(aux_table, FALSE, FALSE);
 	}
-
-	return(sane);
 }

@@ -30,6 +30,8 @@ CREATE TABLE t2 (a int PRIMARY KEY AUTO_INCREMENT, b varchar(128))
 ENGINE = InnoDB
 PARTITION BY HASH (a) PARTITIONS 13;
 
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
 
 --echo #
 --echo #
@@ -92,6 +94,7 @@ UPDATE t2 SET b = CONCAT(b, ", UPDATED") WHERE a = 10;
 CREATE TABLE t3 (a INT, b INT AUTO_INCREMENT, PRIMARY KEY (a, b))
 ENGINE = MyISAM
 PARTITION BY HASH (a) PARTITIONS 5;
+SHOW CREATE TABLE t3;
 FLUSH STATUS;
 INSERT INTO t3 VALUES (1, 1);
 --source include/get_handler_status_counts.inc
@@ -122,6 +125,7 @@ DROP TABLE t3;
 --echo # Test handling of INSERT INTO <table> VALUES (<all fields specified>)
 --echo #
 CREATE TABLE t3 (a INT, b CHAR(10)) PARTITION BY HASH (a) PARTITIONS 2;
+SHOW CREATE TABLE t3;
 FLUSH STATUS;
 INSERT INTO t3 VALUES (1, "Test 1");
 --source include/get_handler_status_counts.inc
@@ -197,6 +201,7 @@ SUBPARTITIONS 4
  PARTITION `p0-9` VALUES LESS THAN (9, MAXVALUE),
  PARTITION p10 VALUES LESS THAN (10, MAXVALUE),
  PARTITION `p11-100` VALUES LESS THAN (99, MAXVALUE));
+SHOW CREATE TABLE t3;
 --echo #
 --echo # Test INSERT with
 --echo # empty field specifier list and empty value list
@@ -503,6 +508,7 @@ TRUNCATE TABLE t2;
 --source include/get_handler_status_counts.inc
 --echo # All partitions needs to be locked
 --echo # 1 commit
+SHOW CREATE TABLE t2;
 FLUSH STATUS;
 INSERT INTO t2 SELECT a, b FROM t1 WHERE a IN (1,4);
 --source include/get_handler_status_counts.inc
@@ -726,6 +732,7 @@ SELECT * FROM t1 WHERE a = (SELECT COUNT(*) FROM t3);
 --echo #
 CREATE TABLE t4 SELECT a, b FROM t1;
 ALTER TABLE t4 PARTITION BY HASH (a) PARTITIONS 5;
+SHOW CREATE TABLE t4;
 FLUSH STATUS;
 SELECT * FROM t4 WHERE a = (SELECT a FROM t3);
 --source include/get_handler_status_counts.inc
@@ -928,31 +935,33 @@ WHERE t2.b = t1.b and t2.a = 4;
 FLUSH STATUS;
 CREATE VIEW v1_25 AS SELECT a, b FROM t1 PARTITION (p2, p5);
 --source include/get_handler_status_counts.inc
---echo # No locks!
+--echo # 34 locks (dictionary related)
 FLUSH STATUS;
 CREATE VIEW v1_25_check AS SELECT a, b FROM t1 PARTITION (p2, p5) t1_alias WITH CHECK OPTION;
 --source include/get_handler_status_counts.inc
---echo # No locks!
+--echo # 34 locks (dictionary related)
 FLUSH STATUS;
 CREATE VIEW v1_9 AS SELECT a, b FROM t1 WHERE a = 9;
 --source include/get_handler_status_counts.inc
---echo # No locks!
+--echo # 34 locks (dictionary related)
 FLUSH STATUS;
 CREATE VIEW v1_9_check AS SELECT a, b FROM t1 WHERE a = 9 WITH CHECK OPTION;
 --source include/get_handler_status_counts.inc
---echo # No locks!
+--echo # 34 locks (dictionary related)
 FLUSH STATUS;
 CREATE VIEW v1_all AS SELECT a, b FROM t1;
 --source include/get_handler_status_counts.inc
---echo # No locks!
+--echo # 34 locks (dictionary related)
 SELECT TABLE_NAME, CHECK_OPTION, IS_UPDATABLE, VIEW_DEFINITION
 FROM INFORMATION_SCHEMA.VIEWS
 WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME LIKE 'v1_%';
 
+SHOW CREATE VIEW v1_all;
 FLUSH STATUS;
 INSERT INTO v1_all VALUES (23, "Insert in v1_all");
 --source include/get_handler_status_counts.inc
 
+SHOW CREATE VIEW v1_25;
 FLUSH STATUS;
 INSERT INTO v1_25 VALUES (18, "Insert in v1_25");
 --source include/get_handler_status_counts.inc
@@ -966,6 +975,7 @@ FLUSH STATUS;
 INSERT IGNORE INTO v1_25 VALUES (17, "Insert ignore in v1_25");
 --source include/get_handler_status_counts.inc
 
+SHOW CREATE VIEW v1_25;
 FLUSH STATUS;
 INSERT INTO v1_25_check VALUES (31, "Insert in v1_25_check");
 --source include/get_handler_status_counts.inc
@@ -979,6 +989,7 @@ FLUSH STATUS;
 INSERT IGNORE INTO v1_25_check VALUES (30, "Insert ignore in v1_25_check");
 --source include/get_handler_status_counts.inc
 
+SHOW CREATE VIEW v1_9;
 FLUSH STATUS;
 INSERT INTO v1_9 VALUES (9, "Insert in v1_9");
 --source include/get_handler_status_counts.inc
@@ -989,6 +1000,7 @@ INSERT INTO v1_9 VALUES (8, "Insert in v1_9 NO CHECK!");
 
 SELECT * FROM t1 WHERE a = 8;
 --echo # DELETE will not find row not in view
+SHOW CREATE VIEW v1_9_check;
 FLUSH STATUS;
 DELETE FROM v1_9_check WHERE a = 8;
 --source include/get_handler_status_counts.inc
@@ -1031,6 +1043,9 @@ DROP VIEW v1_all;
 DROP VIEW v1_9, v1_9_check;
 DROP VIEW v1_25, v1_25_check;
 
+# CREATE SELECT result in different values for HANDLER_COMMIT,
+# HANDLER_READ_KEY and HANDLER_EXTERNAL_LOCK when run --ps option.
+--disable_ps_protocol
 --echo #
 --echo # Test CREATE SELECT
 --echo #
@@ -1044,6 +1059,7 @@ CREATE TABLE t3 SELECT a, b FROM t1 WHERE b LIKE 'First%';
 --source include/get_handler_status_counts.inc
 SELECT * FROM t3 ORDER BY a;
 DROP TABLE t3;
+--enable_ps_protocol
 
 --echo #
 --echo # Test Stored procedures
@@ -1248,6 +1264,9 @@ CREATE TRIGGER t1_after_update AFTER UPDATE
 ON t1 FOR EACH ROW
 INSERT INTO t3 VALUES (OLD.a, NEW.a, CONCAT("AU: ", OLD.b), CONCAT("AU: ", NEW.b));
 
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
 FLUSH STATUS;
 INSERT INTO t1 VALUES (2, "First row, p2")
 ON DUPLICATE KEY UPDATE b = CONCAT(b, ", duplicate key 2");
@@ -1273,6 +1292,7 @@ CREATE TRIGGER t1_after_delete AFTER DELETE
 ON t1 FOR EACH ROW
 INSERT INTO t3 VALUES (OLD.a, NULL, CONCAT("AD: ", OLD.b), NULL);
 
+SHOW CREATE TABLE t1;
 FLUSH STATUS;
 REPLACE INTO t1 VALUES (0, "First row, p0 REPLACED2");
 --source include/get_handler_status_counts.inc
@@ -1284,6 +1304,7 @@ CREATE TRIGGER t1_before_delete BEFORE DELETE
 ON t1 FOR EACH ROW
 INSERT INTO t3 VALUES (OLD.a, NULL, CONCAT("BD: ", OLD.b), NULL);
 
+SHOW CREATE TABLE t1;
 FLUSH STATUS;
 REPLACE INTO t1 VALUES (0, "First row, p0 REPLACED3");
 --source include/get_handler_status_counts.inc
@@ -1295,6 +1316,7 @@ CREATE TRIGGER t1_before_update BEFORE UPDATE
 ON t1 FOR EACH ROW
 INSERT INTO t3 VALUES (OLD.a, NEW.a, CONCAT("BU: ", OLD.b), CONCAT("BU: ", NEW.b));
 
+SHOW CREATE TABLE t1;
 FLUSH STATUS;
 INSERT INTO t1 VALUES (2, "First row, p2")
 ON DUPLICATE KEY UPDATE b = CONCAT(b, ", duplicate key 2");
@@ -1334,6 +1356,7 @@ CREATE TRIGGER t1_before_insert BEFORE INSERT
 ON t1 FOR EACH ROW
 INSERT INTO t3 VALUES (1, NEW.a, NULL, CONCAT("BI: ", NEW.b));
 
+SHOW CREATE TABLE t1;
 FLUSH STATUS;
 INSERT INTO t1 VALUES (11, "First row, p11");
 --source include/get_handler_status_counts.inc
@@ -1372,6 +1395,7 @@ CREATE TRIGGER t1_before_insert BEFORE INSERT
 ON t1 FOR EACH ROW
 SET NEW.b = CONCAT("b: ", NEW.b, " a: ", NEW.a);
 
+SHOW CREATE TABLE t1;
 FLUSH STATUS;
 INSERT INTO t1 VALUES (0, "first row, p0");
 --source include/get_handler_status_counts.inc
@@ -1399,6 +1423,7 @@ CREATE TRIGGER t1_before_insert BEFORE INSERT
 ON t1 FOR EACH ROW
 SET NEW.b = CONCAT("b: ", NEW.b);
 
+SHOW CREATE TABLE t1;
 FLUSH STATUS;
 INSERT INTO t1 VALUES (0, "first row, p0");
 --source include/get_handler_status_counts.inc
@@ -1425,6 +1450,7 @@ CREATE TRIGGER t1_before_update BEFORE UPDATE
 ON t1 FOR EACH ROW
 SET NEW.b = CONCAT("old a: ", OLD.a, " new b: ", NEW.b);
 
+SHOW CREATE TABLE t1;
 FLUSH STATUS;
 INSERT INTO t1 VALUES (0, "1st p0");
 --source include/get_handler_status_counts.inc
@@ -1454,6 +1480,7 @@ CREATE TRIGGER t1_before_update BEFORE UPDATE
 ON t1 FOR EACH ROW
 SET NEW.b = CONCAT("new a: ", NEW.a, " new b: ", NEW.b);
 
+SHOW CREATE TABLE t1;
 FLUSH STATUS;
 INSERT INTO t1 VALUES (0, "1st p0");
 --source include/get_handler_status_counts.inc
@@ -1482,6 +1509,7 @@ CREATE TRIGGER t1_before_update BEFORE UPDATE
 ON t1 FOR EACH ROW
 SET NEW.b = CONCAT("new b: ", NEW.b);
 
+SHOW CREATE TABLE t1;
 FLUSH STATUS;
 INSERT INTO t1 VALUES (0, "1st p0");
 --source include/get_handler_status_counts.inc
@@ -1515,6 +1543,9 @@ CREATE TABLE t2 (a int PRIMARY KEY, b varchar(128))
 ENGINE = InnoDB
 PARTITION BY HASH (a) PARTITIONS 13;
 
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+
 INSERT INTO t1 VALUES (1, "MultiUpdate1");
 INSERT INTO t1 VALUES (2, "MultiUpdate2");
 INSERT INTO t2 VALUES (1, "MultiUpdate1");
@@ -1528,6 +1559,8 @@ CREATE TRIGGER t2_before_update BEFORE UPDATE
 ON t2 FOR EACH ROW
 SET NEW.b = CONCAT("new2 a: ", NEW.a, " new2 b: ", NEW.b);
 
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
 FLUSH STATUS;
 --replace_column 10 #
 EXPLAIN EXTENDED UPDATE t1, t2
@@ -1613,6 +1646,8 @@ PARTITION BY RANGE (a)
  PARTITION p3 VALUES LESS THAN (4),
  PARTITION pMax VALUES LESS THAN MAXVALUE);
 
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
 
 INSERT INTO t1 VALUES (1, "Const1");
 INSERT INTO t2 VALUES (1, "Const1");
@@ -1863,6 +1898,7 @@ CREATE TABLE t2 (a INT, b VARCHAR(64)) PARTITION BY HASH (a) PARTITIONS 3;
 INSERT INTO t1 VALUES (1, "test 1");
 --error ER_PARSE_ERROR
 INSERT INTO t2 VALUES (SELECT * FROM t1);
+SHOW CREATE TABLE t2;
 FLUSH STATUS;
 INSERT INTO t2 VALUES ((SELECT a FROM t1), (SELECT b FROM t1));
 --source include/get_handler_status_counts.inc
@@ -1879,6 +1915,7 @@ CREATE TABLE t1 (a INT, b INT) PARTITION BY HASH (a) PARTITIONS 3;
 CREATE TABLE t2 (a INT, b INT) PARTITION BY HASH (a) PARTITIONS 3;
 INSERT INTO t1 VALUES (1, 1), (2, 0), (4, -1), (5, 2), (7, -3), (8, -9),
                       (10, 5), (11, 9);
+SHOW CREATE TABLE t2;
 FLUSH STATUS;
 INSERT INTO t2 VALUES ((SELECT max(a) FROM t1), (SELECT min(a) FROM t1));
 --source include/get_handler_status_counts.inc
@@ -1927,6 +1964,9 @@ DROP TABLE t2;
 INSERT INTO t1 VALUES (1);
 DROP TABLE t1;
 
+# CREATE SELECT result in different values for HANDLER_COMMIT,
+# HANDLER_READ_KEY and HANDLER_EXTERNAL_LOCK when run --ps option.
+--disable_ps_protocol
 CREATE TABLE t1 (a INT) PARTITION BY HASH (a) PARTITIONS 3;
 INSERT INTO t1 VALUES (1), (3), (9), (2), (8), (7);
 
@@ -1944,6 +1984,7 @@ CREATE TABLE t2 SELECT * FROM t1 WHERE a IN (1, 3, 9);
 SELECT * FROM t2;
 
 DROP TABLE t1, t2;
+--disable_ps_protocol
 
 --echo #
 --echo # Test subqueries/stored functions with UPDATE/DELETE/SELECT

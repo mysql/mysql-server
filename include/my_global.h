@@ -316,7 +316,7 @@ typedef socklen_t socket_len_t;
 
 /* Some defines of functions for portability */
 
-#if (_WIN32)
+#ifdef _WIN32
 #if !defined(_WIN64)
 inline double my_ulonglong2double(unsigned long long value)
 {
@@ -371,7 +371,7 @@ inline unsigned long long my_double2ulonglong(double d)
 #include <ieeefp.h>
 #endif
 
-#if (__cplusplus >= 201103L)
+#if defined(__cplusplus) && (__cplusplus >= 201103L)
   /* For C++11 use the new std functions rather than C99 macros. */
   #include <cmath>
   #define my_isfinite(X) std::isfinite(X)
@@ -692,7 +692,4 @@ typedef mode_t MY_MODE;
 #define DEFAULT_SSL_SERVER_CERT "server-cert.pem"
 #define DEFAULT_SSL_SERVER_KEY  "server-key.pem"
 
-#if defined(_WIN32) || defined(_WIN64)
-  #define strcasecmp _stricmp
-#endif
 #endif  // MY_GLOBAL_INCLUDED

@@ -55,7 +55,7 @@ Created 9/20/1997 Heikki Tuuri
 # include "srv0srv.h"
 # include "srv0start.h"
 # include "row0merge.h"
-#include "row0trunc.h"
+# include "trx0purge.h"
 #else /* !UNIV_HOTBACKUP */
 /** This is set to FALSE if the backup was originally taken with the
 mysqlbackup --include regexp option: then we do not want to create tables in
@@ -1399,8 +1399,6 @@ recv_parse_or_apply_log_rec_body(
 			return(NULL);
 		}
 		return(ptr + 8);
-	case MLOG_TRUNCATE:
-		return(truncate_t::parse_redo_entry(ptr, end_ptr, space_id));
 	default:
 		break;
 	}
@@ -1876,7 +1874,6 @@ recv_add_to_hash_table(
 	ut_ad(type != MLOG_DUMMY_RECORD);
 	ut_ad(type != MLOG_CHECKPOINT);
 	ut_ad(type != MLOG_INDEX_LOAD);
-	ut_ad(type != MLOG_TRUNCATE);
 
 	len = rec_end - body;
 
@@ -2112,23 +2109,6 @@ recv_recover_page_func(
 			}
 		}
 
-		/* If per-table tablespace was truncated and there exist REDO
-		records before truncate that are to be applied as part of
-		recovery (checkpoint didn't happen since truncate was done)
-		skip such records using lsn check as they may not stand valid
-		post truncate.
-		LSN at start of truncate is recorded and any redo record
-		with LSN less than recorded LSN is skipped.
-		Note: We can't skip complete recv_addr as same page may have
-		valid REDO records post truncate those needs to be applied. */
-		bool	skip_recv = false;
-		if (srv_was_tablespace_truncated(fil_space_get(recv_addr->space))) {
-			lsn_t	init_lsn =
-				truncate_t::get_truncated_tablespace_init_lsn(
-				recv_addr->space);
-			skip_recv = (recv->start_lsn < init_lsn);
-		}
-
 		/* Ignore applying the redo logs for tablespace that is
 		truncated. Post recovery there is fixup action that will
 		restore the tablespace back to normal state.
@@ -2137,8 +2117,7 @@ recv_recover_page_func(
 		was re-inited and that would lead to an error while applying
 		such action. */
 		if (recv->start_lsn >= page_lsn
-		    && !srv_is_tablespace_truncated(recv_addr->space)
-		    && !skip_recv) {
+		    && !undo::Truncate::is_tablespace_truncated(recv_addr->space)) {
 
 			lsn_t	end_lsn;
 
@@ -2320,15 +2299,6 @@ loop:
 		     recv_addr != 0;
 		     recv_addr = static_cast<recv_addr_t*>(
 				HASH_GET_NEXT(addr_hash, recv_addr))) {
-
-			if (srv_is_tablespace_truncated(recv_addr->space)) {
-				/* Avoid applying REDO log for the tablespace
-				that is schedule for TRUNCATE. */
-				ut_a(recv_sys->n_addrs);
-				recv_addr->state = RECV_DISCARDED;
-				recv_sys->n_addrs--;
-				continue;
-			}
 
 			if (recv_addr->state == RECV_DISCARDED) {
 				ut_a(recv_sys->n_addrs);
@@ -2939,7 +2909,6 @@ loop:
 		case MLOG_FILE_CREATE2:
 		case MLOG_FILE_RENAME2:
 		case MLOG_TABLE_DYNAMIC_META:
-		case MLOG_TRUNCATE:
 			/* These were already handled by
 			recv_parse_log_rec() and
 			recv_parse_or_apply_log_rec_body(). */
@@ -3093,7 +3062,7 @@ loop:
 			case MLOG_FILE_RENAME2:
 			case MLOG_INDEX_LOAD:
 			case MLOG_TABLE_DYNAMIC_META:
-			case MLOG_TRUNCATE:
+			/* case MLOG_TRUNCATE: Disabled for WL6378 */
 				/* These were already handled by
 				recv_parse_log_rec() and
 				recv_parse_or_apply_log_rec_body(). */
@@ -4369,8 +4338,10 @@ get_mlog_string(mlog_id_t type)
 	case MLOG_INDEX_LOAD:
 		return("MLOG_INDEX_LOAD");
 
+/* Disabled for WL6378
 	case MLOG_TRUNCATE:
 		return("MLOG_TRUNCATE");
+*/
 
 	case MLOG_TABLE_DYNAMIC_META:
 		return("MLOG_TABLE_DYNAMIC_META");

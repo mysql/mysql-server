@@ -728,7 +728,7 @@ public:
   }
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec()
-  { decimals=0; max_length=21; maybe_null=null_value=0; }
+  { decimals=0; max_length=21; maybe_null=false; null_value=FALSE; }
 };
 
 
@@ -1155,7 +1155,8 @@ public:
   void reset_field();
   void update_field();
   void fix_length_and_dec()
-  { decimals= 0; max_length=21; unsigned_flag= 1; maybe_null= null_value= 0; }
+  { decimals= 0; max_length=21; unsigned_flag= true; maybe_null= false;
+    null_value= FALSE; }
   void cleanup()
   {
     bits= reset_bits;

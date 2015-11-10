@@ -31,7 +31,7 @@
 #include "sql_partition.h"  // HA_CAN_*, part_id_range
 #include "partition_info.h" // partition_info
 #include "sql_base.h"       // close_cached_tables
-#include "discover.h"       // readfrm
+#include "sdi_utils.h"      // export_table_meta_data()
 #include "auth_common.h"    // wild_case_compare
 #include "transaction.h"
 #include "item_cmpfunc.h"   // Item_func_like

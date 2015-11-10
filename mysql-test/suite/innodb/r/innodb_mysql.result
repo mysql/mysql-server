@@ -658,14 +658,6 @@ UPDATE t3 SET a = 'us' WHERE a = 'uk';
 SELECT * FROM t3 WHERE a = 'uk';
 a
 DROP TABLE t1,t2,t3;
-create table t1 (a int) engine=innodb;
-select * from bug29807;
-ERROR 42S02: Table 'test.bug29807' doesn't exist
-drop table t1;
-drop table bug29807;
-ERROR 42S02: Unknown table 'test.bug29807'
-create table bug29807 (a int);
-drop table bug29807;
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 CREATE TABLE t2 (a INT) ENGINE=InnoDB;
 switch to connection c1

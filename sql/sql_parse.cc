@@ -72,6 +72,7 @@
 #include "transaction.h"      // trans_rollback_implicit
 
 #include <algorithm>
+#include <sstream>
 using std::max;
 
 
@@ -706,6 +707,27 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_CREATE_USER]|=        CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_SET_PASSWORD]|=            CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_END]|=                     CF_ALLOW_PROTOCOL_PLUGIN;
+
+  /*
+    Mark DDL statements which require that auto-commit mode to be temporarily
+    turned off. See sqlcom_needs_autocommit_off() for more details.
+
+    CREATE TABLE and DROP TABLE are not marked as such as they have special
+    variants dealing with temporary tables which don't update data-dictionary
+    at all and which should be allowed in the middle of transaction.
+  */
+  sql_command_flags[SQLCOM_CREATE_INDEX]|=     CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_ALTER_TABLE]|=      CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_DROP_INDEX]|=       CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_CREATE_DB]|=        CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_DROP_DB]|=          CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_ALTER_DB]|=         CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_REPAIR]|=           CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_OPTIMIZE]|=         CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_RENAME_TABLE]|=     CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_CREATE_VIEW]|=      CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_DROP_VIEW]|=        CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_ALTER_TABLESPACE]|= CF_NEEDS_AUTOCOMMIT_OFF;
 }
 
 bool sqlcom_can_generate_row_events(const THD *thd)
@@ -737,6 +759,24 @@ bool is_log_table_write_query(enum enum_sql_command command)
   DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
   return (sql_command_flags[command] & CF_WRITE_LOGS_COMMAND) != 0;
 }
+
+
+/**
+  Check if statement (typically DDL) needs auto-commit mode temporarily
+  turned off.
+
+  @note This is necessary to prevent InnoDB from automatically committing
+        InnoDB transaction each time data-dictionary tables are closed
+        after being updated.
+*/
+static bool sqlcom_needs_autocommit_off(const LEX *lex)
+{
+  return (sql_command_flags[lex->sql_command] & CF_NEEDS_AUTOCOMMIT_OFF) ||
+          (lex->sql_command == SQLCOM_CREATE_TABLE &&
+           ! (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)) ||
+          (lex->sql_command == SQLCOM_DROP_TABLE && ! lex->drop_temporary);
+}
+
 
 void execute_init_command(THD *thd, LEX_STRING *init_command,
                           mysql_rwlock_t *var_lock)
@@ -2577,7 +2617,7 @@ mysql_execute_command(THD *thd, bool first_level)
 
     /* Commit the normal transaction if one is active. */
     if (trans_commit_implicit(thd))
-      goto error;
+      DBUG_RETURN(-1);
     /* Release metadata locks acquired in this transaction. */
     thd->mdl_context.release_transactional_locks();
   }
@@ -2603,6 +2643,14 @@ mysql_execute_command(THD *thd, bool first_level)
   if (lex->sql_command != SQLCOM_SET_OPTION)
     DEBUG_SYNC(thd,"before_execute_sql_command");
 #endif
+
+  /*
+    For statements which need this, prevent InnoDB from automatically
+    committing InnoDB transaction each time data-dictionary tables are
+    closed after being updated.
+  */
+  Disable_autocommit_guard autocommit_guard(sqlcom_needs_autocommit_off(lex)?
+                                            thd : NULL);
 
   /*
     Check if we are in a read-only transaction and we're trying to
@@ -4681,7 +4729,7 @@ end_with_restore_list:
       if (check_table_access(thd, DROP_ACL, all_tables, FALSE, UINT_MAX, FALSE))
         goto error;
       /* Conditionally writes to binlog. */
-      res= mysql_drop_view(thd, first_table, thd->lex->drop_mode);
+      res= mysql_drop_view(thd, first_table);
       break;
     }
   case SQLCOM_CREATE_TRIGGER:
@@ -7068,3 +7116,4 @@ merge_charset_and_collation(const CHARSET_INFO *cs, const CHARSET_INFO *cl)
   }
   return cs;
 }
+

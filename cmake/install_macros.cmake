@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2014, 2015 Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@ MACRO (INSTALL_DEBUG_SYMBOLS targets)
 	  SET(comp Server)
     ELSE()
       SET(comp Debuginfo)
-    ENDIF()	  
+    ENDIF()
     # No .pdb file for static libraries.
     IF(NOT type MATCHES "STATIC_LIBRARY")
       INSTALL(FILES ${pdb_location}

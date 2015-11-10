@@ -162,57 +162,23 @@ drop table t1,t2;
 
 --echo End of 5.0 tests
 
-#
-# Bug#30152 MySQLD crash duing alter table causes DROP DATABASE to FAIL due to temp file
-#
-create database mysql_test;
-create table mysql_test.t1(f1 int);
-create table mysql_test.`#sql-347f_7` (f1 int);
-create table mysql_test.`#sql-347f_8` (f1 int);
-drop table mysql_test.`#sql-347f_8`;
-let $MYSQLD_DATADIR= `select @@datadir`;
-copy_file $MYSQLD_DATADIR/mysql_test/t1.frm $MYSQLD_DATADIR/mysql_test/#sql-347f_6.frm;
-drop database mysql_test;
 
 ###########################################################################
 
---echo
 --echo # --
 --echo # -- Bug#29958: Weird message on DROP DATABASE if mysql.proc does not
 --echo # -- exist.
 --echo # --
 
---disable_warnings
-DROP DATABASE IF EXISTS mysql_test;
---enable_warnings
-
 CREATE DATABASE mysql_test;
 
-let $MYSQLD_DATADIR= `select @@datadir`;
+RENAME TABLE mysql.proc TO mysql.proc_bkp;
 
---let $proc_frm = $MYSQLD_DATADIR/mysql/proc.frm
---let $proc_MYD = $MYSQLD_DATADIR/mysql/proc.MYD
---let $proc_MYI = $MYSQLD_DATADIR/mysql/proc.MYI
-
---let $copy_of_proc_frm = $MYSQLTEST_VARDIR/tmp/bug29958.copy.frm
---let $copy_of_proc_MYD = $MYSQLTEST_VARDIR/tmp/bug29958.copy.MYD
---let $copy_of_proc_MYI = $MYSQLTEST_VARDIR/tmp/bug29958.copy.MYI
-
---copy_file $proc_frm $copy_of_proc_frm
---copy_file $proc_MYD $copy_of_proc_MYD
---copy_file $proc_MYI $copy_of_proc_MYI
-
-DROP TABLE mysql.proc;
+FLUSH TABLES;
 
 DROP DATABASE mysql_test;
 
---copy_file $copy_of_proc_frm $proc_frm
---copy_file $copy_of_proc_MYD $proc_MYD
---copy_file $copy_of_proc_MYI $proc_MYI
-
---remove_file $copy_of_proc_frm
---remove_file $copy_of_proc_MYD
---remove_file $copy_of_proc_MYI
+RENAME TABLE mysql.proc_bkp TO mysql.proc;
 
 --echo
 --echo # --

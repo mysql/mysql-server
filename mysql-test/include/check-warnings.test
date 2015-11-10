@@ -20,8 +20,27 @@ set debug="";
 
 use mtr;
 # Allow this session to read-write even if server is started
-# with --transaction-read-only
+# with --transaction-read-only. And set autocommit mode for
+# the session irrespective of server --autocommit setting.
 set session transaction read write;
+
+# Due to the lack of WL#7828 / WL#8003 now, we might have a pending Data
+# Dictionary read-only transaction at this point. Even though
+# DD-RO-transactions are usually committed in the end, there are cases when
+# it does not happen. It will be changed when WL#7828 / WL#8003 are merged
+# in.
+#
+# Until that happens, we do 'SET SESSION AUTOCOMMIT = 1' here in order to
+# commit that DD-RO-transaction that might be pending. Otherwise, the
+# following statements will fail. By turning autocommit ON we achieve two
+# effects:
+#   1. Ensure there is no loose DD-RO-transaction (i.e. the effect of
+#   COMMIT statement);
+#   2. Make sure all future DD-RO-transactions that might happen below will
+#   be properly committed.
+#
+# We set session variable to not affect other tests. 
+set session autocommit=1;
 
 create temporary table error_log (
   row int auto_increment primary key,

@@ -482,11 +482,13 @@ create table t1 (
 c char(10) character set utf8mb4,
 unique key a using hash (c(1))
 ) engine=MyISAM;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) CHARACTER SET utf8mb4 DEFAULT NULL,
-  UNIQUE KEY `a` (`c`(1)) USING HASH
+  UNIQUE KEY `a` (`c`(1))
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
@@ -640,11 +642,13 @@ create table t1 (
 c char(10) character set utf8mb4 collate utf8mb4_bin,
 unique key a using hash (c(1))
 ) engine=MyISAM;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
-  UNIQUE KEY `a` (`c`(1)) USING HASH
+  UNIQUE KEY `a` (`c`(1))
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
@@ -772,6 +776,8 @@ create table t1 (
 str varchar(255) character set utf8mb4 not null,
 key str using hash (str(2))
 ) engine=MyISAM;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 INSERT INTO t1 VALUES ('str');
 INSERT INTO t1 VALUES ('str2');
 select * from t1 where str='str';

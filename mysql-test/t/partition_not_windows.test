@@ -25,7 +25,6 @@ subpartition by hash (a)
  (SUBPARTITION subpart00, SUBPARTITION subpart01));
 
 --echo # Checking if file exists before alter
---file_exists $MYSQLD_DATADIR/test/t1.frm
 --file_exists $MYSQLD_DATADIR/test/t1.par
 --file_exists $MYSQLD_DATADIR/test/t1#P#p0#SP#subpart00.MYD
 --file_exists $MYSQLD_DATADIR/test/t1#P#p0#SP#subpart00.MYI
@@ -44,7 +43,6 @@ eval ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
  (SUBPARTITION subpart20, SUBPARTITION subpart21));
 
 --echo # Checking if file exists after alter
---file_exists $MYSQLD_DATADIR/test/t1.frm
 --file_exists $MYSQLD_DATADIR/test/t1.par
 --file_exists $MYSQLD_DATADIR/test/t1#P#p1#SP#subpart10.MYD
 --file_exists $MYSQLD_DATADIR/test/t1#P#p1#SP#subpart10.MYI

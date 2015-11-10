@@ -97,8 +97,9 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INPLACE_IGNORE
 	= Alter_inplace_info::ALTER_COLUMN_DEFAULT
 	| Alter_inplace_info::ALTER_COLUMN_COLUMN_FORMAT
 	| Alter_inplace_info::ALTER_COLUMN_STORAGE_TYPE
+	| Alter_inplace_info::ALTER_RENAME
 	| Alter_inplace_info::ALTER_VIRTUAL_GCOL_EXPR
-	| Alter_inplace_info::ALTER_RENAME;
+	| Alter_inplace_info::CHANGE_INDEX_OPTION;
 
 /** Operations on foreign key definitions (changing the schema only) */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_FOREIGN_OPERATIONS
@@ -607,7 +608,7 @@ ha_innobase::check_if_supported_inplace_alter(
 	    & (Alter_inplace_info::ADD_VIRTUAL_COLUMN
 	       | Alter_inplace_info::DROP_VIRTUAL_COLUMN
 	       | Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER)) {
-		ulint	flags = ha_alter_info->handler_flags;
+		ulonglong	flags = ha_alter_info->handler_flags;
 
 		/* TODO: uncomment the flags below, once we start to
 		support them */
@@ -712,8 +713,7 @@ ha_innobase::check_if_supported_inplace_alter(
 				DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 			}
 
-			DBUG_ASSERT((MTYP_TYPENR(key_part->field->unireg_check)
-				     == Field::NEXT_NUMBER)
+			DBUG_ASSERT((key_part->field->auto_flags & Field::NEXT_NUMBER)
 				    == !!(key_part->field->flags
 					  & AUTO_INCREMENT_FLAG));
 
@@ -2291,15 +2291,12 @@ innobase_create_key_defs(
 		new_primary = true;
 
 		while (key_part--) {
-			const uint	maybe_null
-				= key_info[*add].key_part[key_part].key_type
-				& FIELDFLAG_MAYBE_NULL;
+			const bool	maybe_null
+				= key_info[*add].key_part[key_part].
+					field->real_maybe_null();
 			bool		is_v
 				= innobase_is_v_fld(
 					key_info[*add].key_part[key_part].field);
-			DBUG_ASSERT(!maybe_null
-				    == !key_info[*add].key_part[key_part].
-				    field->real_maybe_null());
 
 			if (maybe_null || is_v) {
 				new_primary = false;
@@ -3087,7 +3084,6 @@ columns are removed from the PK;
 follows rule(1), Increasing the prefix length just like adding existing
 PK columns follows rule(2).
 @param[in]	col_map		mapping of old column numbers to new ones
-@param[in]	ha_alter_info	Data used during in-place alter
 @param[in]	old_clust_index	index to be compared
 @param[in]	new_clust_index index to be compared
 @retval true if both indexes have same order.
@@ -3687,9 +3683,9 @@ innobase_add_one_virtual(
 }
 
 /** Update INNODB SYS_TABLES on number of virtual columns
-@param[in] user_table	InnoDB table
+@param[in] table	InnoDB table
 @param[in] n_col	number of columns
-@param[in] trx		transaction
+@param[in] trx	transaction
 @return DB_SUCCESS if successful, otherwise error code */
 static
 dberr_t
@@ -5200,7 +5196,8 @@ ha_innobase::prepare_inplace_alter_table(
 				     ha_alter_info->create_info,
 				     NULL,
 				     NULL,
-				     NULL);
+				     NULL,
+				     is_file_per_table);
 
 	info.set_tablespace_type(is_file_per_table);
 
@@ -5757,8 +5754,7 @@ err_exit:
 
 		field = altered_table->field[i];
 
-		DBUG_ASSERT((MTYP_TYPENR(field->unireg_check)
-			     == Field::NEXT_NUMBER)
+		DBUG_ASSERT((field->auto_flags & Field::NEXT_NUMBER)
 			    == !!(field->flags & AUTO_INCREMENT_FLAG));
 
 		if (field->flags & AUTO_INCREMENT_FLAG) {
@@ -6835,7 +6831,6 @@ commit_get_autoinc(
 
 /** Add or drop foreign key constraints to the data dictionary tables,
 but do not touch the data dictionary cache.
-@param ha_alter_info Data used during in-place alter
 @param ctx In-place ALTER TABLE context
 @param trx Data dictionary transaction
 @param table_name Table name in MySQL

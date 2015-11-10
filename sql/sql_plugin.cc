@@ -194,7 +194,7 @@ static HASH plugin_hash[MYSQL_MAX_PLUGIN_TYPE_NUM];
 static bool reap_needed= false;
 static int plugin_array_version=0;
 
-static bool initialized= 0;
+static bool initialized= false;
 
 /*
   write-lock on LOCK_system_variables_hash is required before modifying
@@ -652,8 +652,8 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
 
   /*
     If report is REPORT_TO_USER, we were called from
-    mysql_install_plugin. Otherwise, we are called directly or
-    indirectly from plugin_init.
+    mysql_install_plugin. Otherwise, we are called
+    indirectly from plugin_register_dynamic_and_init_all().
    */
   if (report == REPORT_TO_USER)
   {
@@ -1048,7 +1048,7 @@ static void reap_plugins(void)
   list= reap;
   while ((plugin= *(--list)))
   {
-    if (!opt_bootstrap)
+    if (!(opt_bootstrap || opt_install_server))
       sql_print_information("Shutting down plugin '%s'", plugin->name.str);
     plugin_deinitialize(plugin, true);
   }
@@ -1298,33 +1298,19 @@ static void init_plugin_psi_keys(void)
 }
 #endif /* HAVE_PSI_INTERFACE */
 
-/*
-  The logic is that we first load and initialize all compiled in plugins.
-  From there we load up the dynamic types (assuming we have not been told to
-  skip this part).
+/**
+  Initialize the internals of the plugin system. Allocate required
+  resources, initialize mutex, etc.
 
-  Finally we initialize everything, aka the dynamic that have yet to initialize.
-*/
-int plugin_init(int *argc, char **argv, int flags)
+  @return Operation outcome, false means no errors
+ */
+static bool plugin_init_internals()
 {
-  uint i;
-  st_mysql_plugin **builtins;
-  st_mysql_plugin *plugin;
-  st_plugin_int tmp, *plugin_ptr, **reap;
-  MEM_ROOT tmp_root;
-  bool reaped_mandatory_plugin= false;
-  bool mandatory= true;
-  DBUG_ENTER("plugin_init");
-
-  if (initialized)
-    DBUG_RETURN(0);
-
 #ifdef HAVE_PSI_INTERFACE
   init_plugin_psi_keys();
 #endif
 
   init_alloc_root(key_memory_plugin_mem_root, &plugin_mem_root, 4096, 4096);
-  init_alloc_root(key_memory_plugin_init_tmp, &tmp_root, 4096, 4096);
 
   if (my_hash_init(&bookmark_hash, &my_charset_bin, 16, 0, 0,
                    get_bookmark_hash_key, NULL, HASH_UNIQUE,
@@ -1346,23 +1332,51 @@ int plugin_init(int *argc, char **argv, int flags)
   if (plugin_dl_array == NULL || plugin_array == NULL)
     goto err;
 
-  for (i= 0; i < MYSQL_MAX_PLUGIN_TYPE_NUM; i++)
+  for (uint i= 0; i < MYSQL_MAX_PLUGIN_TYPE_NUM; i++)
   {
     if (my_hash_init(&plugin_hash[i], system_charset_info, 16, 0, 0,
                      get_plugin_hash_key, NULL, HASH_UNIQUE,
                      key_memory_plugin_mem_root))
       goto err;
   }
+  return false;
+
+err:
+  return true;
+}
+
+/**
+  Register the builtin plugins. Some of the plugins (MyISAM, CSV and InnoDB)
+  are also initialized.
+
+  @param argc number of arguments, propagated to the plugin
+  @param argv actual arguments, propagated to the plugin
+  @return Operation outcome, false means no errors
+ */
+bool plugin_register_builtin_and_init_core_se(int *argc, char **argv)
+{
+  bool mandatory= true;
+  DBUG_ENTER("plugin_register_builtin_and_init_core_se");
+
+  /* Don't allow initializing twice */
+  DBUG_ASSERT(!initialized);
+
+  /* Allocate the temporary mem root, will be freed before returning */
+  MEM_ROOT tmp_root;
+  init_alloc_root(key_memory_plugin_init_tmp, &tmp_root, 4096, 4096);
+
+  /* Make sure the internals are initialized */
+  if (plugin_init_internals())
+    goto err;
 
   mysql_mutex_lock(&LOCK_plugin);
+  initialized= true;
 
-  initialized= 1;
-
-  /*
-    First we register builtin plugins
-  */
-  for (builtins= mysql_mandatory_plugins; *builtins || mandatory; builtins++)
+  /* First we register the builtin mandatory and optional plugins */
+  for (struct st_mysql_plugin **builtins= mysql_mandatory_plugins;
+       *builtins || mandatory; builtins++)
   {
+    /* Switch to optional plugins when done with the mandatory ones */
     if (!*builtins)
     {
       builtins= mysql_optional_plugins;
@@ -1370,8 +1384,9 @@ int plugin_init(int *argc, char **argv, int flags)
       if (!*builtins)
         break;
     }
-    for (plugin= *builtins; plugin->info; plugin++)
+    for (struct st_mysql_plugin *plugin= *builtins; plugin->info; plugin++)
     {
+      struct st_plugin_int tmp;
       memset(&tmp, 0, sizeof(tmp));
       tmp.plugin= plugin;
       tmp.name.str= (char *)plugin->name;
@@ -1405,6 +1420,8 @@ int plugin_init(int *argc, char **argv, int flags)
         tmp.state= PLUGIN_IS_DISABLED;
       else
         tmp.state= PLUGIN_IS_UNINITIALIZED;
+
+      struct st_plugin_int *plugin_ptr;        // Pointer to registered plugin
       if (register_builtin(plugin, &tmp, &plugin_ptr))
         goto err_unlock;
 
@@ -1427,7 +1444,7 @@ int plugin_init(int *argc, char **argv, int flags)
         goto err_unlock;
 
       /*
-        initialize the global default storage engine so that it may
+        Initialize the global default storage engine so that it may
         not be null in any child thread.
       */
       if (is_myisam)
@@ -1443,31 +1460,34 @@ int plugin_init(int *argc, char **argv, int flags)
     }
   }
 
-  /* should now be set to MyISAM storage engine */
+  /* Should now be set to MyISAM storage engine */
   DBUG_ASSERT(global_system_variables.table_plugin);
   DBUG_ASSERT(global_system_variables.temp_table_plugin);
 
   mysql_mutex_unlock(&LOCK_plugin);
 
-  /* Register all dynamic plugins */
-  if (!(flags & PLUGIN_INIT_SKIP_DYNAMIC_LOADING))
-  {
-    I_List_iterator<i_string> iter(opt_plugin_load_list);
-    i_string *item;
-    while (NULL != (item= iter++))
-      plugin_load_list(&tmp_root, argc, argv, item->ptr);
+  free_root(&tmp_root, MYF(0));
+  DBUG_RETURN(false);
 
-    if (!(flags & PLUGIN_INIT_SKIP_PLUGIN_TABLE))
-      plugin_load(&tmp_root, argc, argv);
-  }
+err_unlock:
+  mysql_mutex_unlock(&LOCK_plugin);
 
-  if (flags & PLUGIN_INIT_SKIP_INITIALIZATION)
-    goto end;
+err:
+  free_root(&tmp_root, MYF(0));
+  DBUG_RETURN(true);
+}
 
-  /*
-    Now we initialize all remaining plugins
-  */
+/**
+  Initialize the plugins. Reap those that fail to initialize.
 
+  @return Operation outcome, false means no errors
+ */
+static bool plugin_init_initialize_and_reap()
+{
+  struct st_plugin_int *plugin_ptr;
+  struct st_plugin_int **reap;
+
+  /* Now we initialize all plugins that are not already initialized */
   mysql_mutex_lock(&LOCK_plugin);
   reap= (st_plugin_int **) my_alloca((plugin_array->size()+1) * sizeof(void*));
   *(reap++)= NULL;
@@ -1486,9 +1506,8 @@ int plugin_init(int *argc, char **argv, int flags)
     }
   }
 
-  /*
-    Check if any plugins have to be reaped
-  */
+  /* Check if any plugins have to be reaped */
+  bool reaped_mandatory_plugin= false;
   while ((plugin_ptr= *(--reap)))
   {
     mysql_mutex_unlock(&LOCK_plugin);
@@ -1504,20 +1523,57 @@ int plugin_init(int *argc, char **argv, int flags)
 
   mysql_mutex_unlock(&LOCK_plugin);
   if (reaped_mandatory_plugin)
-    goto err;
+    return true;
 
-end:
-  free_root(&tmp_root, MYF(0));
-
-  DBUG_RETURN(0);
-
-err_unlock:
-  mysql_mutex_unlock(&LOCK_plugin);
-err:
-  free_root(&tmp_root, MYF(0));
-  DBUG_RETURN(1);
+  return false;
 }
 
+/**
+  Register and initialize the dynamic plugins. Also initialize
+  the remaining builtin plugins that are not initialized
+  already.
+
+  @param argc  Command line argument counter
+  @param argv  Command line arguments
+  @param flags Flags to control whether dynamic loading
+               and plugin initialization should be skipped
+
+  @return Operation outcome, false if no errors
+*/
+bool plugin_register_dynamic_and_init_all(int *argc,
+                                          char **argv, int flags)
+{
+  DBUG_ENTER("plugin_register_dynamic_and_init_all");
+
+  /* Make sure the internals are initialized and builtins registered */
+  if (!initialized)
+    DBUG_RETURN(true);
+
+  /* Allocate the temporary mem root, will be freed before returning */
+  MEM_ROOT tmp_root;
+  init_alloc_root(key_memory_plugin_init_tmp, &tmp_root, 4096, 4096);
+
+  /* Register all dynamic plugins */
+  if (!(flags & PLUGIN_INIT_SKIP_DYNAMIC_LOADING))
+  {
+    I_List_iterator<i_string> iter(opt_plugin_load_list);
+    i_string *item;
+    while (NULL != (item= iter++))
+      plugin_load_list(&tmp_root, argc, argv, item->ptr);
+
+    if (!(flags & PLUGIN_INIT_SKIP_PLUGIN_TABLE))
+      plugin_load(&tmp_root, argc, argv);
+  }
+
+  /* Temporary mem root not needed anymore, can free it here */
+  free_root(&tmp_root, MYF(0));
+
+  if (!(flags & PLUGIN_INIT_SKIP_INITIALIZATION))
+    if (plugin_init_initialize_and_reap())
+      DBUG_RETURN(true);
+
+  DBUG_RETURN(false);
+}
 
 static bool register_builtin(st_mysql_plugin *plugin,
                              st_plugin_int *tmp,
@@ -1542,7 +1598,7 @@ static bool register_builtin(st_mysql_plugin *plugin,
 
 
 /*
-  called only by plugin_init()
+  called only by plugin_register_dynamic_and_init_all()
 */
 static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
 {
@@ -1630,7 +1686,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
 
 
 /*
-  called only by plugin_init()
+  called only by plugin_register_dynamic_and_init_all()
 */
 static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
                              const char *list)
@@ -1855,7 +1911,7 @@ void plugin_shutdown(void)
     mysql_mutex_unlock(&LOCK_plugin);
     mysql_mutex_unlock(&LOCK_plugin_delete);
 
-    initialized= 0;
+    initialized= false;
     mysql_mutex_destroy(&LOCK_plugin);
     mysql_mutex_destroy(&LOCK_plugin_delete);
   }
@@ -2798,9 +2854,16 @@ void alloc_and_copy_thd_dynamic_variables(THD *thd, bool global_lock)
   uint idx;
 
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
-  
+
   /* Block system variable reads from other threads. */
   mysql_mutex_lock(&thd->LOCK_thd_sysvar);
+
+  /*
+    MAINTAINER:
+    The following assert is wrong on purpose, useful to debug
+    when thd dynamic variables are expanded:
+    DBUG_ASSERT(thd->variables.dynamic_variables_ptr == NULL);
+  */
 
   thd->variables.dynamic_variables_ptr= (char*)
     my_realloc(key_memory_THD_variables,

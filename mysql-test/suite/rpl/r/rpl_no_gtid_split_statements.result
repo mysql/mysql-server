@@ -204,8 +204,8 @@ CREATE DATABASE db7;
 CREATE DATABASE db8;
 CREATE DATABASE db9;
 include/rpl_sync.inc
-# db10, db11, db12: not a database, but the directory exists.
-# db13, db14, db15: not a database. db15 is a database on master.
+# db10, db11: not a database, but the directory and the entry exist.
+# db12 is not a database, but the empty directory exists on master.
 include/rpl_sync.inc
 ---- DROP DATABASE is split on master; GTID_NEXT=AUTOMATIC ----
 # db1: no table.
@@ -230,7 +230,7 @@ include/assert_binlog_events.inc
 include/save_binlog_position.inc
 SET GTID_NEXT = 'AUTOMATIC';
 DROP DATABASE db10;
-ERROR HY000: Error dropping database (can't rmdir './db10/', errno: 17)
+ERROR HY000: Can't drop database 'db10'; database doesn't exist
 include/assert_binlog_events.inc
 # db13: not a database.
 include/save_binlog_position.inc
@@ -264,7 +264,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/save_binlog_position.inc
 SET GTID_NEXT = '#';
 DROP DATABASE db11;
-ERROR HY000: Error dropping database (can't rmdir './db11/', errno: 17)
+ERROR HY000: Can't drop database 'db11'; database doesn't exist
 include/assert_binlog_events.inc
 SET GTID_NEXT = 'AUTOMATIC';
 # db14: not a database.
@@ -294,18 +294,9 @@ include/sync_slave_io_with_master.inc
 include/wait_for_slave_sql_error.inc [errno=1010]
 include/include/rpl_skip_to_end_of_relay_log.inc
 [connection master]
-# db12: not a database, but directory exists.
+# db12: not a database, but an empty directory exists.
 DROP DATABASE db12;
-include/sync_slave_io_with_master.inc
-include/wait_for_slave_sql_error.inc [errno=1010]
-include/include/rpl_skip_to_end_of_relay_log.inc
-[connection master]
-# db15: not a database (on slave).
-DROP DATABASE db15;
-include/sync_slave_io_with_master.inc
-include/wait_for_slave_sql_error.inc [errno=1008]
-include/include/rpl_skip_to_end_of_relay_log.inc
-[connection master]
+ERROR HY000: Can't drop database 'db12'; database doesn't exist
 ---- Clean up ----
 DROP DATABASE db1;
 DROP DATABASE db2;
@@ -323,13 +314,14 @@ DROP DATABASE IF EXISTS db9;
 Warnings:
 Note	1008	Can't drop database 'db9'; database doesn't exist
 DROP DATABASE IF EXISTS db10;
+Warnings:
+Note	1008	Can't drop database 'db10'; database doesn't exist
 DROP DATABASE IF EXISTS db11;
+Warnings:
+Note	1008	Can't drop database 'db11'; database doesn't exist
 DROP DATABASE IF EXISTS db12;
 Warnings:
 Note	1008	Can't drop database 'db12'; database doesn't exist
-DROP DATABASE IF EXISTS db15;
-Warnings:
-Note	1008	Can't drop database 'db15'; database doesn't exist
 include/rpl_sync.inc
 ==== Case 4: CREATE TABLE ... SELECT ====
 See rpl_gtid_create_select.test

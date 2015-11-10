@@ -21,6 +21,10 @@ optimize table mysql.proxies_priv;
 optimize table mysql.tables_priv;
 optimize table mysql.procs_priv;
 optimize table mysql.servers;
+
+# Execute 'flush privileges' one time before recording so that
+# fetch from dictionary tables does not pollute the result.
+flush privileges;
 --enable_result_log
 
 # Start recording events

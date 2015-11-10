@@ -33,7 +33,7 @@ static const char *sep = "======================================================
 
 static File outfile;
 
-void WRITE_STR(const char *format)
+static void WRITE_STR(const char *format)
 {
   char buffer[STRING_BUFFER_SIZE];
   my_snprintf(buffer,sizeof(buffer),format);

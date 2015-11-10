@@ -651,26 +651,6 @@ SELECT * FROM t3 WHERE a = 'uk';
 DROP TABLE t1,t2,t3;
 
 #
-# Test bug when trying to drop data file which no InnoDB directory entry
-#
-
-create table t1 (a int) engine=innodb;
-let $MYSQLD_DATADIR= `select @@datadir`;
-copy_file $MYSQLD_DATADIR/test/t1.frm $MYSQLD_DATADIR/test/bug29807.frm;
---error 1146
-select * from bug29807;
-drop table t1;
---error 1051
-drop table bug29807;
-create table bug29807 (a int);
-drop table bug29807;
---disable_query_log
-call mtr.add_suppression("InnoDB: Table .*test.*bug29807.* does not exist in the InnoDB internal");
-call mtr.add_suppression("InnoDB: Cannot open table test/bug29807 from");
---enable_query_log
-
-
-#
 # Bug #29154: LOCK TABLES is not atomic when >1 InnoDB tables are locked
 #
 

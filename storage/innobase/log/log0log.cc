@@ -31,6 +31,7 @@ Created 12/9/1995 Heikki Tuuri
 *******************************************************/
 
 #include "ha_prototypes.h"
+#include <debug_sync.h>
 
 #include "log0log.h"
 
@@ -46,6 +47,7 @@ Created 12/9/1995 Heikki Tuuri
 #include "log0recv.h"
 #include "fil0fil.h"
 #include "dict0boot.h"
+#include "dict0stats_bg.h"
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "trx0sys.h"
@@ -292,6 +294,8 @@ log_margin_checkpoint_age(
 		log_sys->check_flush_or_checkpoint = true;
 		log_mutex_exit();
 
+		DEBUG_SYNC_C("margin_checkpoint_age_rescue");
+
 		if (!flushed_enough) {
 			os_thread_sleep(100000);
 		}
@@ -341,6 +345,8 @@ loop:
 
 	if (log_sys->buf_free + len_upper_limit > log_sys->buf_size) {
 		log_mutex_exit();
+
+		DEBUG_SYNC_C("log_buf_size_exceeded");
 
 		/* Not enough free space, do a write of the log buffer */
 
@@ -470,6 +476,9 @@ log_close(void)
 	checkpoint_age = lsn - log->last_checkpoint_lsn;
 
 	if (checkpoint_age >= log->log_group_capacity) {
+		DBUG_EXECUTE_IF(
+			"print_all_chkp_warnings",
+			log_has_printed_chkp_warning = false;);
 
 		if (!log_has_printed_chkp_warning
 		    || difftime(time(NULL), log_last_warning_time) > 15) {
@@ -703,6 +712,13 @@ void
 log_init(void)
 /*==========*/
 {
+	ut_ad(static_cast<int>(MTR_MEMO_PAGE_S_FIX)
+	      == static_cast<int>(RW_S_LATCH));
+	ut_ad(static_cast<int>(MTR_MEMO_PAGE_X_FIX)
+	      == static_cast<int>(RW_X_LATCH));
+	ut_ad(static_cast<int>(MTR_MEMO_PAGE_SX_FIX)
+	      == static_cast<int>(RW_SX_LATCH));
+
 	log_sys = static_cast<log_t*>(ut_zalloc_nokey(sizeof(log_t)));
 
 	mutex_create(LATCH_ID_LOG_SYS, &log_sys->mutex);
@@ -1489,9 +1505,6 @@ log_group_checkpoint(
 
 	ut_ad(!srv_read_only_mode);
 	ut_ad(log_mutex_own());
-#if LOG_CHECKPOINT_SIZE > OS_FILE_LOG_BLOCK_SIZE
-# error "LOG_CHECKPOINT_SIZE > OS_FILE_LOG_BLOCK_SIZE"
-#endif
 
 	DBUG_PRINT("ib_log", ("checkpoint " UINT64PF " at " LSN_PF
 			      " written to group " ULINTPF,
@@ -1634,6 +1647,12 @@ log_write_checkpoint_info(
 		/* Wait for the checkpoint write to complete */
 		rw_lock_s_lock(&log_sys->checkpoint_lock);
 		rw_lock_s_unlock(&log_sys->checkpoint_lock);
+
+		DEBUG_SYNC_C("checkpoint_completed");
+
+		DBUG_EXECUTE_IF(
+			"crash_after_checkpoint",
+			DBUG_SUICIDE(););
 	}
 }
 
@@ -1667,11 +1686,6 @@ log_checkpoint(
 	lsn_t	oldest_lsn;
 
 	ut_ad(!srv_read_only_mode);
-
-	DBUG_EXECUTE_IF("no_checkpoint",
-			/* We sleep for a long enough time, forcing
-			the checkpoint doesn't happen any more. */
-			os_thread_sleep(360000000););
 
 	if (recv_recovery_is_on()) {
 		recv_apply_hashed_log_recs(TRUE);
@@ -1750,9 +1764,24 @@ log_checkpoint(
 
 	log_write_up_to(flush_lsn, true);
 
+	DBUG_EXECUTE_IF(
+		"using_wa_checkpoint_middle",
+		if (write_always) {
+			DEBUG_SYNC_C("wa_checkpoint_middle");
+
+			const my_bool b = TRUE;
+			buf_flush_page_cleaner_disabled_debug_update(
+				NULL, NULL, NULL, &b);
+			dict_stats_disabled_debug_update(
+				NULL, NULL, NULL, &b);
+			srv_master_thread_disabled_debug_update(
+				NULL, NULL, NULL, &b);
+		});
+
 	log_mutex_enter();
 
-	ut_ad(log_sys->flushed_to_disk_lsn >= oldest_lsn);
+	ut_ad(log_sys->flushed_to_disk_lsn >= flush_lsn);
+	ut_ad(flush_lsn >= oldest_lsn);
 
 	if (!write_always
 	    && log_sys->last_checkpoint_lsn >= oldest_lsn) {
@@ -1976,7 +2005,6 @@ logs_empty_and_mark_files_at_shutdown(void)
 	ulint			count = 0;
 	ulint			total_trx;
 	ulint			pending_io;
-	enum srv_thread_type	active_thd;
 	const char*		thread_name;
 
 	ib::info() << "Starting shutdown...";
@@ -2003,8 +2031,8 @@ loop:
 
 	if (thread_name != NULL) {
 		/* Print a message every 60 seconds if we are waiting
-		for the monitor thread to exit. Master and worker
-		threads check will be done later. */
+		for the monitor thread to exit. The master thread
+		will be checked later. */
 
 		if (srv_print_verbose_log && count > 600) {
 			ib::info() << "Waiting for " << thread_name
@@ -2016,7 +2044,7 @@ loop:
 	}
 
 	/* Check that there are no longer transactions, except for
-	PREPARED ones. We need this wait even for the 'very fast'
+	XA PREPARE ones. We need this wait even for the 'very fast'
 	shutdown, because the InnoDB layer may have committed or
 	prepared transactions and we don't want to lose them. */
 
@@ -2034,45 +2062,10 @@ loop:
 		goto loop;
 	}
 
-	/* Check that the background threads are suspended */
-
-	active_thd = srv_get_active_thread_type();
-
-	if (active_thd != SRV_NONE) {
-
-		if (active_thd == SRV_PURGE) {
-			srv_purge_wakeup();
-		}
-
-		/* The srv_lock_timeout_thread, srv_error_monitor_thread
-		and srv_monitor_thread should already exit by now. The
-		only threads to be suspended are the master threads
-		and worker threads (purge threads). Print the thread
-		type if any of such threads not in suspended mode */
+	if (srv_master_thread_active()) {
 		if (srv_print_verbose_log && count > 600) {
-			const char*	thread_type = "<null>";
-
-			switch (active_thd) {
-			case SRV_NONE:
-				/* This shouldn't happen because we've
-				already checked for this case before
-				entering the if(). We handle it here
-				to avoid a compiler warning. */
-				ut_error;
-			case SRV_WORKER:
-				thread_type = "worker threads";
-				break;
-			case SRV_MASTER:
-				thread_type = "master thread";
-				break;
-			case SRV_PURGE:
-				thread_type = "purge thread";
-				break;
-			}
-
-			ib::info() << "Waiting for " << thread_type
-				<< " to be suspended";
-
+			ib::info() << "Waiting for master thread"
+				" to be suspended";
 			count = 0;
 		}
 
@@ -2210,8 +2203,7 @@ loop:
 	srv_shutdown_state = SRV_SHUTDOWN_LAST_PHASE;
 
 	/* Make some checks that the server really is quiet */
-	srv_thread_type	type = srv_get_active_thread_type();
-	ut_a(type == SRV_NONE);
+	ut_a(!srv_master_thread_active());
 
 	bool	freed = buf_all_freed();
 	ut_a(freed);
@@ -2233,8 +2225,7 @@ loop:
 	fil_close_all_files();
 
 	/* Make some checks that the server really is quiet */
-	type = srv_get_active_thread_type();
-	ut_a(type == SRV_NONE);
+	ut_a(!srv_master_thread_active());
 
 	freed = buf_all_freed();
 	ut_a(freed);

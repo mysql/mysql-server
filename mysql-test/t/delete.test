@@ -437,9 +437,9 @@ DELETE a1,a2 FROM db1.t1, db2.t2;
 DELETE a1,a2 FROM db1.t1 AS a1, db2.t2;
 --error ER_UNKNOWN_TABLE
 DELETE a1,a2 FROM db1.t1, db2.t2 AS a2;
---error ER_NO_SUCH_TABLE
+--error ER_BAD_DB_ERROR
 DELETE a1,a2 FROM db3.t1 AS a1, db4.t2 AS a2;
---error ER_NO_SUCH_TABLE
+--error ER_BAD_DB_ERROR
 DELETE a1,a2 FROM db3.t1 AS a1, db4.t2 AS a2;
 
 --error ER_UNKNOWN_TABLE
@@ -450,9 +450,9 @@ DELETE FROM a1,a2 USING db1.t1, db2.t2;
 DELETE FROM a1,a2 USING db1.t1 AS a1, db2.t2;
 --error ER_UNKNOWN_TABLE
 DELETE FROM a1,a2 USING db1.t1, db2.t2 AS a2;
---error ER_NO_SUCH_TABLE
+--error ER_BAD_DB_ERROR
 DELETE FROM a1,a2 USING db3.t1 AS a1, db4.t2 AS a2;
---error ER_NO_SUCH_TABLE
+--error ER_BAD_DB_ERROR
 DELETE FROM a1,a2 USING db3.t1 AS a1, db4.t2 AS a2;
 
 # Ambiguous table references

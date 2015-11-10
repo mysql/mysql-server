@@ -47,9 +47,8 @@ SHOW WARNINGS;
 Level	Code	Message
 Warning	1618	<INDEX DIRECTORY> option ignored
 Warning	1618	<INDEX DIRECTORY> option ignored
-# Verifying .frm, .par and InnoDB .ibd files
+# Verifying .ibd files
 ---- MYSQLD_DATADIR/test
-t1.frm
 ---- MYSQLTEST_VARDIR/mysql-test-data-dir/test
 t1#P#p0.ibd
 t1#P#p1.ibd
@@ -79,13 +78,12 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY HASH (c1)
 (PARTITION p0 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir/' ENGINE = MyISAM,
  PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir/' ENGINE = MyISAM) */
-# Verifying .frm, .par and MyISAM files (.MYD, MYI)
+# Verifying .par and MyISAM files (.MYD, MYI)
 ---- MYSQLD_DATADIR/test
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
 t1#P#p1.MYI
-t1.frm
 t1.par
 ---- MYSQLTEST_VARDIR/mysql-test-data-dir
 t1#P#p0.MYD
@@ -106,9 +104,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY HASH (c1)
 (PARTITION p0 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir/' ENGINE = InnoDB,
  PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir/' ENGINE = InnoDB) */
-# Verifying .frm, .par and InnoDB .ibd files
+# Verifying InnoDB .ibd files
 ---- MYSQLD_DATADIR/test
-t1.frm
 ---- MYSQLTEST_VARDIR/mysql-test-data-dir
 test
 ---- MYSQLTEST_VARDIR/mysql-test-idx-dir

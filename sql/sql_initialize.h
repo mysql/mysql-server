@@ -18,7 +18,7 @@
 
 #include "bootstrap_impl.h"
 
-class Compiled_in_command_iterator : public Command_iterator
+class Compiled_in_command_iterator : public bootstrap::Command_iterator
 {
 public:
   Compiled_in_command_iterator() : is_active(false)

@@ -533,7 +533,6 @@ static PSI_memory_info all_mysys_memory[]=
   { &key_memory_MY_TMPDIR_full_list, "MY_TMPDIR::full_list", 0},
   { &key_memory_MY_BITMAP_bitmap, "MY_BITMAP::bitmap", 0},
   { &key_memory_my_compress_alloc, "my_compress_alloc", 0},
-  { &key_memory_pack_frm, "pack_frm", 0},
   { &key_memory_my_err_head, "my_err_head", 0},
   { &key_memory_my_file_info, "my_file_info", 0},
   { &key_memory_MY_DIR, "MY_DIR", 0},

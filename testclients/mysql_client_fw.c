@@ -988,7 +988,7 @@ Create statement handle, prepare it with statement, execute and allocate
 fetch buffers.
 */
 
-void stmt_fetch_init(Stmt_fetch *fetch, unsigned stmt_no_arg,
+static void stmt_fetch_init(Stmt_fetch *fetch, unsigned stmt_no_arg,
 const char *query_arg)
 {
  unsigned long type= CURSOR_TYPE_READ_ONLY;
@@ -1053,7 +1053,7 @@ const char *query_arg)
 
 /* Fetch and print one row from cursor */
 
-int stmt_fetch_fetch_row(Stmt_fetch *fetch)
+static int stmt_fetch_fetch_row(Stmt_fetch *fetch)
 {
  int rc;
  unsigned i;
@@ -1077,7 +1077,7 @@ int stmt_fetch_fetch_row(Stmt_fetch *fetch)
 }
 
 
-void stmt_fetch_close(Stmt_fetch *fetch)
+static void stmt_fetch_close(Stmt_fetch *fetch)
 {
  unsigned i;
  DBUG_ENTER("stmt_fetch_close");

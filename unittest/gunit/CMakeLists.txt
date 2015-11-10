@@ -200,10 +200,14 @@ MY_CHECK_CXX_COMPILER_FLAG("-Wmissing-field-initializers"
 IF(HAVE_MISSING_FIELD_INITIALIZERS)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-missing-field-initializers")
 ENDIF()
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-missing-format-attribute"
+MY_CHECK_CXX_COMPILER_FLAG("-Wmissing-format-attribute"
   HAVE_MISSING_FORMAT_ATTRIBUTE)
 IF(HAVE_MISSING_FORMAT_ATTRIBUTE)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-missing-format-attribute")
+ENDIF()
+MY_CHECK_CXX_COMPILER_FLAG("-Wundef" HAVE_UNDEF)
+IF(HAVE_UNDEF)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-undef")
 ENDIF()
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
@@ -270,7 +274,7 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 SET(TESTS
   alignment
   bounded_queue
-  bounds_checked_array
+#  bounds_checked_array
   bitmap
   byteorder
   calloc
@@ -332,6 +336,12 @@ ENDIF()
 SET(SERVER_TESTS
   copy_info
   create_field
+  dd_partitions
+  dd_properties
+  dd_schema
+  dd_table
+  dd_cache
+  dd_serialize_interface
   debug_sync
   explain_filename
   field
@@ -410,6 +420,12 @@ IF (MERGE_UNITTESTS)
     ${MERGE_SMALL_TESTS}
     COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
   )
+  ## Merging unit tests on Windows gives so many sections in the object file
+  ## that /bigobj is required
+  IF(WIN32)
+    ADD_COMPILE_FLAGS(${MERGE_SMALL_TESTS} COMPILE_FLAGS "/bigobj")
+    ADD_COMPILE_FLAGS(${MERGE_LARGE_TESTS} COMPILE_FLAGS "/bigobj")
+  ENDIF()
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 
   FILE(WRITE ${MERGE_LARGE_TESTS} "// Merging large unit tests\n")

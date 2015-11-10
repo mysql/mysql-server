@@ -1692,7 +1692,7 @@ public:
 	remove the hp from the list. Must be implemented
 	by the derived classes.
 	@param bpage	buffer block to be compared */
-	virtual void adjust(const buf_page_t*) = 0;
+	virtual void adjust(const buf_page_t* bpage) = 0;
 
 protected:
 	/** Disable copying */

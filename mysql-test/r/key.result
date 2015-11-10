@@ -652,3 +652,533 @@ SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	8.199000
 DROP TABLE t1;
+#
+# Additional coverage for handling of key algorithm in index definition.
+#
+#
+# 1) Default case. If key algorithm was not specified explicitly and
+#    this is normal key (not spatial or fulltext) storage engine
+#    default key algorithm is used.
+#    
+create table tm (k int, index (k)) engine=myisam;
+create table ti (k int, index (k)) engine=innodb;
+create table th (k int, index (k)) engine=heap;
+#
+# Key algorithm is not shown in SHOW CREATE TABLE output in this case
+#
+show create table tm;
+Table	Create Table
+tm	CREATE TABLE `tm` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table ti;
+Table	Create Table
+ti	CREATE TABLE `ti` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+show create table th;
+Table	Create Table
+th	CREATE TABLE `th` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+#
+# But visible in I_S.STATISTICS
+#
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' order by table_name;
+table_name	index_type
+th	HASH
+ti	BTREE
+tm	BTREE
+#
+# Same applies when keys are added by ALTER TABLE
+#
+alter table tm add column l int, add index (l);
+alter table ti add column l int, add index (l);
+alter table th add column l int, add index (l);
+show create table tm;
+Table	Create Table
+tm	CREATE TABLE `tm` (
+  `k` int(11) DEFAULT NULL,
+  `l` int(11) DEFAULT NULL,
+  KEY `k` (`k`),
+  KEY `l` (`l`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table ti;
+Table	Create Table
+ti	CREATE TABLE `ti` (
+  `k` int(11) DEFAULT NULL,
+  `l` int(11) DEFAULT NULL,
+  KEY `k` (`k`),
+  KEY `l` (`l`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+show create table th;
+Table	Create Table
+th	CREATE TABLE `th` (
+  `k` int(11) DEFAULT NULL,
+  `l` int(11) DEFAULT NULL,
+  KEY `k` (`k`),
+  KEY `l` (`l`)
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'l'
+  order by table_name;
+table_name	index_type
+th	HASH
+ti	BTREE
+tm	BTREE
+drop tables tm, ti, th;
+#
+# 2) For SPATIAL and FULLTEXT keys we always use special key
+#    algorithms and there is no way to specify it explicitly.
+#
+create table tm (pk int primary key, p point not null, spatial index (p)) engine=myisam;
+create table ti (pk int primary key, p point not null, spatial index (p)) engine=innodb;
+create table th (pk int primary key, p point not null, spatial index (p)) engine=heap;
+ERROR 42000: The storage engine for the table doesn't support GEOMETRY
+#
+# Key algorithm is not shown in SHOW CREATE TABLE output in this
+# case as well.
+#
+show create table tm;
+Table	Create Table
+tm	CREATE TABLE `tm` (
+  `pk` int(11) NOT NULL,
+  `p` point NOT NULL,
+  PRIMARY KEY (`pk`),
+  SPATIAL KEY `p` (`p`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table ti;
+Table	Create Table
+ti	CREATE TABLE `ti` (
+  `pk` int(11) NOT NULL,
+  `p` point NOT NULL,
+  PRIMARY KEY (`pk`),
+  SPATIAL KEY `p` (`p`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+#
+# But visible in I_S.STATISTICS
+#
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'p'
+  order by table_name;
+table_name	index_type
+ti	SPATIAL
+tm	SPATIAL
+#
+# Same applies when keys are added by ALTER TABLE
+#
+alter table tm add column q point not null, add spatial index (q);
+alter table ti add column q point not null, add spatial index (q);
+show create table tm;
+Table	Create Table
+tm	CREATE TABLE `tm` (
+  `pk` int(11) NOT NULL,
+  `p` point NOT NULL,
+  `q` point NOT NULL,
+  PRIMARY KEY (`pk`),
+  SPATIAL KEY `p` (`p`),
+  SPATIAL KEY `q` (`q`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table ti;
+Table	Create Table
+ti	CREATE TABLE `ti` (
+  `pk` int(11) NOT NULL,
+  `p` point NOT NULL,
+  `q` point NOT NULL,
+  PRIMARY KEY (`pk`),
+  SPATIAL KEY `p` (`p`),
+  SPATIAL KEY `q` (`q`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'q'
+  order by table_name;
+table_name	index_type
+ti	SPATIAL
+tm	SPATIAL
+drop tables tm, ti;
+#
+# Same applies to FULLTEXT indexes.
+#
+create table tm (pk int primary key, v varchar(255), fulltext index (v)) engine=myisam;
+create table ti (pk int primary key, v varchar(255), fulltext index (v)) engine=innodb;
+create table th (pk int primary key, v varchar(255), fulltext index (v)) engine=heap;
+ERROR HY000: The used table type doesn't support FULLTEXT indexes
+show create table tm;
+Table	Create Table
+tm	CREATE TABLE `tm` (
+  `pk` int(11) NOT NULL,
+  `v` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  FULLTEXT KEY `v` (`v`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table ti;
+Table	Create Table
+ti	CREATE TABLE `ti` (
+  `pk` int(11) NOT NULL,
+  `v` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  FULLTEXT KEY `v` (`v`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'v'
+  order by table_name;
+table_name	index_type
+ti	FULLTEXT
+tm	FULLTEXT
+#
+# Same applies when keys are added by ALTER TABLE
+#
+alter table tm add column w varchar(255), add fulltext index (w);
+alter table ti add column w varchar(255), add fulltext index (w);
+show create table tm;
+Table	Create Table
+tm	CREATE TABLE `tm` (
+  `pk` int(11) NOT NULL,
+  `v` varchar(255) DEFAULT NULL,
+  `w` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  FULLTEXT KEY `v` (`v`),
+  FULLTEXT KEY `w` (`w`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table ti;
+Table	Create Table
+ti	CREATE TABLE `ti` (
+  `pk` int(11) NOT NULL,
+  `v` varchar(255) DEFAULT NULL,
+  `w` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  FULLTEXT KEY `v` (`v`),
+  FULLTEXT KEY `w` (`w`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'w'
+  order by table_name;
+table_name	index_type
+ti	FULLTEXT
+tm	FULLTEXT
+drop tables tm, ti;
+#
+# 3) If key algorithm was specified explicitly and it is supported
+#    by the storage engine it will be used.
+#
+create table tm (k int, index using btree (k)) engine=myisam;
+create table ti (k int, index using btree (k)) engine=innodb;
+create table th (k int, index using btree (k)) engine=heap;
+#
+# In this case it is shown in SHOW CREATE TABLE output
+#
+show create table tm;
+Table	Create Table
+tm	CREATE TABLE `tm` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`) USING BTREE
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table ti;
+Table	Create Table
+ti	CREATE TABLE `ti` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+show create table th;
+Table	Create Table
+th	CREATE TABLE `th` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`) USING BTREE
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+#
+# Also visible in I_S.STATISTICS
+#
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' order by table_name;
+table_name	index_type
+th	BTREE
+ti	BTREE
+tm	BTREE
+#
+# Same applies when keys are added by ALTER TABLE
+#
+# Note that the information that algorithm was provided explicitly is
+# preserved by ALTER TABLE.
+alter table tm add column l int, add index using btree (l);
+alter table ti add column l int, add index using btree (l);
+alter table th add column l int, add index using hash (l);
+show create table tm;
+Table	Create Table
+tm	CREATE TABLE `tm` (
+  `k` int(11) DEFAULT NULL,
+  `l` int(11) DEFAULT NULL,
+  KEY `k` (`k`) USING BTREE,
+  KEY `l` (`l`) USING BTREE
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table ti;
+Table	Create Table
+ti	CREATE TABLE `ti` (
+  `k` int(11) DEFAULT NULL,
+  `l` int(11) DEFAULT NULL,
+  KEY `k` (`k`) USING BTREE,
+  KEY `l` (`l`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+show create table th;
+Table	Create Table
+th	CREATE TABLE `th` (
+  `k` int(11) DEFAULT NULL,
+  `l` int(11) DEFAULT NULL,
+  KEY `k` (`k`) USING BTREE,
+  KEY `l` (`l`) USING HASH
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'l'
+  order by table_name;
+table_name	index_type
+th	HASH
+ti	BTREE
+tm	BTREE
+drop tables tm, ti, th;
+#
+# 4) If key algorithm was specified explicitly and but it is not
+#    supported by the storage engine the default algorithm for SE
+#    will be used instead. We will emit a note in this case. We will
+#    also treat such situation as if algorithm is implicit. 
+#
+# The below statements should emit notes.
+create table tm (k int, index using hash (k)) engine=myisam;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
+create table ti (k int, index using hash (k)) engine=innodb;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
+#
+# In this case algorithm is not in SHOW CREATE TABLE output
+#
+show create table tm;
+Table	Create Table
+tm	CREATE TABLE `tm` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table ti;
+Table	Create Table
+ti	CREATE TABLE `ti` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+#
+# But visible in I_S.STATISTICS
+#
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' order by table_name;
+table_name	index_type
+ti	BTREE
+tm	BTREE
+#
+# Same applies when keys are added by ALTER TABLE
+#
+alter table tm add column l int, add index using hash (l);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
+alter table ti add column l int, add index using hash (l);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
+show create table tm;
+Table	Create Table
+tm	CREATE TABLE `tm` (
+  `k` int(11) DEFAULT NULL,
+  `l` int(11) DEFAULT NULL,
+  KEY `k` (`k`),
+  KEY `l` (`l`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table ti;
+Table	Create Table
+ti	CREATE TABLE `ti` (
+  `k` int(11) DEFAULT NULL,
+  `l` int(11) DEFAULT NULL,
+  KEY `k` (`k`),
+  KEY `l` (`l`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'l'
+  order by table_name;
+table_name	index_type
+ti	BTREE
+tm	BTREE
+drop tables tm, ti;
+#
+# 5) Coverage for key algorithm handling in cross-engine ALTER TABLE.
+#
+# If algorithm was not specified explicitly cross-engine ALTER TABLE
+# will silently change it to the new SE's default.
+create table t1 (k int, index (k)) engine=innodb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'k'
+  order by table_name;
+table_name	index_type
+t1	BTREE
+# Change table's SE.
+alter table t1 engine= heap;
+# Key definition stays the same in SHOW CREATE TABLE output
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+# But in I_S.STATISTICS we see that algorithm has changed.
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'k'
+  order by table_name;
+table_name	index_type
+t1	HASH
+drop table t1;
+#
+# If algorithm was specified explicitly and is supported by the new
+# SE we will keep it.
+#
+create table t1 (k int, index using btree (k)) engine=innodb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'k'
+  order by table_name;
+table_name	index_type
+t1	BTREE
+# Change table's SE.
+alter table t1 engine= heap;
+# Key definition stays the same in SHOW CREATE TABLE output
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`) USING BTREE
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+# In I_S.STATISTICS we also see that algorithm is the same
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'k'
+  order by table_name;
+table_name	index_type
+t1	BTREE
+drop table t1;
+#
+# If algorithm was specified explicitly but is not supported by the
+# new SE, we will used new SE's default instead, emit a note, and
+# treat new algorithm as implicitly specified after that.
+#
+create table t1 (k int, index using hash (k)) engine=heap;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`) USING HASH
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'k'
+  order by table_name;
+table_name	index_type
+t1	HASH
+# Change table's SE. Note will be emitted.
+alter table t1 engine= innodb;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
+# New algorithm is not visible SHOW CREATE TABLE output.
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+# In I_S.STATISTICS we see that algorithm has changed.
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'k'
+  order by table_name;
+table_name	index_type
+t1	BTREE
+drop table t1;
+#
+# 6) Key algorithms and duplicate key detection.
+#
+# When we detect duplicate keys in table definition we take
+# key algorithm into account. But we ignore if it was explicit
+# or implicit.
+create table t1 (k int, index using btree (k), index using hash (k)) engine=heap;
+drop table t1;
+create table t1 (k int, index (k), index using hash (k)) engine=heap;
+Warnings:
+Warning	1831	Duplicate index 'k_2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+drop table t1;
+create table t1 (k int, index using btree (k), index (k)) engine=innodb;
+Warnings:
+Warning	1831	Duplicate index 'k_2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+drop table t1;
+create table t1 (k int, index using btree (k), index using hash (k)) engine=innodb;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
+Warning	1831	Duplicate index 'k_2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+drop table t1;
+#
+# 7) Key algorithm and ALTER TABLE ALGORITHM=INPLACE
+#
+# Changing key algorithm from one used by default to the same one
+# but specified explicitly should be inplace/fast operation.
+create table t1 (k int, index (k)) engine=myisam;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+alter table t1 drop key k, add index using btree (k), algorithm=inplace;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`) USING BTREE
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+alter table t1 drop key k, add index (k), algorithm=inplace;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+# Note that below statement doesn't really change algorithm.
+alter table t1 drop key k, add index using hash (k), algorithm=inplace;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
+drop table t1;
+# Changing key algorithm to another one can require COPY algorithm.
+create table t1 (k int, index (k)) engine=heap;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+alter table t1 drop key k, add index using btree (k), algorithm=inplace;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+alter table t1 drop key k, add index using btree (k), algorithm=copy;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`) USING BTREE
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+drop table t1;

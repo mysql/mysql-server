@@ -362,7 +362,16 @@ mysql_event_fill_row(THD *thd,
     system_charset_info);
 
   {
-    const CHARSET_INFO *db_cl= get_default_db_collation(thd, et->dbname.str);
+    const CHARSET_INFO *db_cl= NULL;
+    if (get_default_db_collation(thd, et->dbname.str, &db_cl))
+    {
+      DBUG_ASSERT(thd->is_error() || thd->killed);
+      DBUG_RETURN(TRUE);
+    }
+
+    db_cl= db_cl ? db_cl : thd->collation();
+
+    // TODO: We can get deadlock errors, investigate why.
 
     fields[ET_FIELD_DB_COLLATION]->set_notnull();
     rs|= fields[ET_FIELD_DB_COLLATION]->store(db_cl->name,

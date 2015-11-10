@@ -14,7 +14,7 @@ SHOW TABLES;
 RENAME TABLE t2 TO t1;
 --error 1050
 RENAME TABLE t3 TO t1;
---error 1017
+--error ER_NO_SUCH_TABLE
 RENAME TABLE t3 TO doesnotexist.t1;
 SHOW TABLES; 
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""

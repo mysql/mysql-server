@@ -418,7 +418,7 @@ row_merge_buf_free(
 @param[in]	row_field	field to copy from
 @param[out]	field		field to copy to
 @param[in]	len		length of the field data
-@param[in]	zip_size	compressed BLOB page size,
+@param[in]	page_size	compressed BLOB page size,
 				zero for uncompressed BLOBs
 @param[in,out]	heap		memory heap where to allocate data when
 				converting to ROW_FORMAT=REDUNDANT, or NULL
@@ -3051,9 +3051,9 @@ row_merge_sort(
 
 /** Copy externally stored columns to the data tuple.
 @param[in]	mrec		record containing BLOB pointers,
-or NULL to use tuple instead
+				or NULL to use tuple instead
 @param[in]	offsets		offsets of mrec
-@param[in]	zip_size	compressed page size in bytes, or 0
+@param[in]	page_size	compressed page size in bytes, or 0
 @param[in,out]	tuple		data tuple
 @param[in,out]	heap		memory heap */
 static
@@ -3119,7 +3119,7 @@ row_merge_copy_blobs(
 stored fields are not copied to heap.
 @param[in,out]	index	index on the table
 @param[in]	mtuple	merge record
-@param[in]	heap	memory heap from which memory needed is allocated
+@param[in]	dtuple	data tuple of records
 @return	index entry built. */
 static
 void
@@ -4284,8 +4284,8 @@ row_merge_drop_table(
 	/* There must be no open transactions on the table. */
 	ut_a(table->get_ref_count() == 0);
 
-	return(row_drop_table_for_mysql(table->name.m_name,
-					trx, false, false));
+	return(row_drop_table_for_mysql(table->name.m_name, trx,
+					SQLCOM_DROP_TABLE, false, NULL));
 }
 
 /** Write an MLOG_INDEX_LOAD record to indicate in the redo-log

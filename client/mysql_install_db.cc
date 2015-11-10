@@ -978,12 +978,10 @@ public:
     errno= 0;
     info << "Creating system tables...";
 
-    string create_db("CREATE DATABASE mysql;\n");
     string use_db("USE mysql;\n");
     // ssize_t write() may be declared with attribute warn_unused_result
-    size_t w1= write(fh, create_db.c_str(), create_db.length());
-    size_t w2= write(fh, use_db.c_str(), use_db.length());
-    if (w1 != create_db.length() || w2 != use_db.length())
+    size_t w= write(fh, use_db.c_str(), use_db.length());
+    if (w != use_db.length())
     {
       info << "failed." << endl;
       return false;
@@ -1042,8 +1040,8 @@ public:
          << endl;
     string create_user_cmd;
     m_user->to_sql(&create_user_cmd);
-    w1= write(fh, create_user_cmd.c_str(), create_user_cmd.length());
-    if (w1 !=create_user_cmd.length() || errno != 0)
+    w= write(fh, create_user_cmd.c_str(), create_user_cmd.length());
+    if (w !=create_user_cmd.length() || errno != 0)
       return false;
     info << "Creating default proxy " << m_user->user << "@"
          << m_user->host
@@ -1051,8 +1049,8 @@ public:
     Proxy_user proxy_user(m_user->host, m_user->user);
     string create_proxy_cmd;
     proxy_user.to_str(&create_proxy_cmd);
-    w1= write(fh, create_proxy_cmd.c_str(), create_proxy_cmd.length());
-    if (w1 != create_proxy_cmd.length() || errno != 0)
+    w= write(fh, create_proxy_cmd.c_str(), create_proxy_cmd.length());
+    if (w != create_proxy_cmd.length() || errno != 0)
       return false;
 
     if (!opt_skipsys)
@@ -1656,7 +1654,7 @@ int main(int argc,char *argv[])
   if (opt_def_extra_file != NULL)
     command_line.push_back(string("--defaults-extra-file=")
       .append(opt_def_extra_file));
-  command_line.push_back(string("--bootstrap"));
+  command_line.push_back(string("--install-server"));
   command_line.push_back(string("--datadir=")
     .append(data_directory.to_str()));
   command_line.push_back(string("--lc-messages-dir=")

@@ -1,5 +1,3 @@
-
-
 /*
    Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
@@ -199,6 +197,97 @@ void item_init(void)
 {
   item_func_sleep_init();
   uuid_short_init();
+}
+
+
+Item::Item():
+  next(NULL),
+  str_value(),
+  collation(&my_charset_bin, DERIVATION_COERCIBLE),
+  item_name(), orig_name(),
+  max_length(0),
+  marker(0),
+  cmp_context((Item_result)-1),
+  is_parser_item(false),
+  runtime_item(false),
+  is_expensive_cache(-1),
+  fixed(false),
+  decimals(0),
+  maybe_null(false),
+  null_value(FALSE),
+  unsigned_flag(false),
+  with_sum_func(false),
+  derived_used(false),
+  with_subselect(false),
+  with_stored_program(false),
+  tables_locked_cache(false)
+{
+#ifndef DBUG_OFF
+  contextualized= true;
+#endif//DBUG_OFF
+
+  // Put item in free list so that we can free all items at end
+  THD *const thd= current_thd;
+  next= thd->free_list;
+  thd->free_list= this;
+}
+
+
+Item::Item(THD *thd, Item *item):
+  next(NULL),
+  str_value(item->str_value),
+  collation(item->collation),
+  item_name(item->item_name),
+  orig_name(item->orig_name),
+  max_length(item->max_length),
+  marker(0),
+  cmp_context(item->cmp_context),
+  is_parser_item(false),
+  runtime_item(false),
+  is_expensive_cache(-1),
+  fixed(item->fixed),
+  decimals(item->decimals),
+  maybe_null(item->maybe_null),
+  null_value(item->null_value),
+  unsigned_flag(item->unsigned_flag),
+  with_sum_func(item->with_sum_func),
+  derived_used(item->derived_used),
+  with_subselect(item->has_subquery()),
+  with_stored_program(item->with_stored_program),
+  tables_locked_cache(item->tables_locked_cache)
+{
+#ifndef DBUG_OFF
+  DBUG_ASSERT(item->contextualized);
+  contextualized= true;
+#endif//DBUG_OFF
+
+  next= thd->free_list;				// Put in free list
+  thd->free_list= this;
+}
+
+
+Item::Item(const POS &):
+  next(NULL),
+  str_value(),
+  collation(&my_charset_bin, DERIVATION_COERCIBLE),
+  item_name(), orig_name(),
+  max_length(0),
+  marker(0),
+  cmp_context((Item_result)-1),
+  is_parser_item(true),
+  runtime_item(false),
+  is_expensive_cache(-1),
+  fixed(false),
+  decimals(0),
+  maybe_null(false),
+  null_value(FALSE),
+  unsigned_flag(false),
+  with_sum_func(false),
+  derived_used(false),
+  with_subselect(false),
+  with_stored_program(false),
+  tables_locked_cache(false)
+{
 }
 
 
@@ -566,43 +655,6 @@ Item::save_str_value_in_field(Field *field, String *result)
 }
 
 
-Item::Item():
-  is_expensive_cache(-1), rsize(0),
-  marker(0), fixed(0),
-  collation(&my_charset_bin, DERIVATION_COERCIBLE),
-  runtime_item(false), derived_used(false), with_subselect(false),
-  with_stored_program(false), tables_locked_cache(false),
-  is_parser_item(false)
-{
-#ifndef DBUG_OFF
-  contextualized= true;
-#endif//DBUG_OFF
-
-  maybe_null=null_value=with_sum_func=unsigned_flag=0;
-  decimals= 0; max_length= 0;
-  cmp_context= (Item_result)-1;
-
-  /* Put item in free list so that we can free all items at end */
-  THD *thd= current_thd;
-  next= thd->free_list;
-  thd->free_list= this;
-}
-
-
-Item::Item(const POS &):
-  is_expensive_cache(-1), rsize(0),
-  marker(0), fixed(0),
-  collation(&my_charset_bin, DERIVATION_COERCIBLE),
-  runtime_item(false), derived_used(false), with_subselect(false),
-  with_stored_program(false), tables_locked_cache(false),
-  is_parser_item(true)
-{
-  maybe_null=null_value=with_sum_func=unsigned_flag=0;
-  decimals= 0; max_length= 0;
-  cmp_context= (Item_result)-1;
-}
-
-
 bool Item::itemize(Parse_context *pc, Item **res)
 {
   if (skip_itemize(res))
@@ -625,45 +677,6 @@ bool Item::itemize(Parse_context *pc, Item **res)
       pc->select->select_n_having_items++;
   }
   return false;
-}
-
-
-/**
-  Constructor used by Item_field, Item_ref & aggregate (sum)
-  functions.
-
-  Used for duplicating lists in processing queries with temporary
-  tables.
-*/
-Item::Item(THD *thd, Item *item):
-  is_expensive_cache(-1),
-  rsize(0),
-  str_value(item->str_value),
-  item_name(item->item_name),
-  orig_name(item->orig_name),
-  max_length(item->max_length),
-  marker(item->marker),
-  decimals(item->decimals),
-  maybe_null(item->maybe_null),
-  null_value(item->null_value),
-  unsigned_flag(item->unsigned_flag),
-  with_sum_func(item->with_sum_func),
-  fixed(item->fixed),
-  collation(item->collation),
-  cmp_context(item->cmp_context),
-  runtime_item(false),
-  with_subselect(item->has_subquery()),
-  with_stored_program(item->with_stored_program),
-  tables_locked_cache(item->tables_locked_cache),
-  is_parser_item(false)
-{
-#ifndef DBUG_OFF
-  DBUG_ASSERT(item->contextualized);
-  contextualized= true;
-#endif//DBUG_OFF
-
-  next= thd->free_list;				// Put in free list
-  thd->free_list= this;
 }
 
 
@@ -877,35 +890,6 @@ Item* Item::transform(Item_transformer transformer, uchar *arg)
 }
 
 
-Item_ident::Item_ident(Name_resolution_context *context_arg,
-                       const char *db_name_arg,const char *table_name_arg,
-		       const char *field_name_arg)
-  :orig_db_name(db_name_arg), orig_table_name(table_name_arg),
-   orig_field_name(field_name_arg), m_alias_of_expr(false),
-   context(context_arg),
-   db_name(db_name_arg), table_name(table_name_arg),
-   field_name(field_name_arg),
-   cached_field_index(NO_CACHED_FIELD_INDEX),
-   cached_table(0), depended_from(0)
-{
-  item_name.set(field_name_arg);
-}
-
-
-Item_ident::Item_ident(const POS &pos,
-                       const char *db_name_arg,const char *table_name_arg,
-		       const char *field_name_arg)
-  :super(pos), orig_db_name(db_name_arg), orig_table_name(table_name_arg),
-   orig_field_name(field_name_arg), m_alias_of_expr(false),
-   db_name(db_name_arg), table_name(table_name_arg),
-   field_name(field_name_arg),
-   cached_field_index(NO_CACHED_FIELD_INDEX),
-   cached_table(0), depended_from(0)
-{
-  item_name.set(field_name_arg);
-}
-
-
 bool Item_ident::itemize(Parse_context *pc, Item **res)
 {
   if (skip_itemize(res))
@@ -915,26 +899,6 @@ bool Item_ident::itemize(Parse_context *pc, Item **res)
   context= pc->thd->lex->current_context();
   return false;
 }
-
-
-/**
-  Constructor used by Item_field & Item_*_ref (see Item comment)
-*/
-
-Item_ident::Item_ident(THD *thd, Item_ident *item)
-  :Item(thd, item),
-   orig_db_name(item->orig_db_name),
-   orig_table_name(item->orig_table_name), 
-   orig_field_name(item->orig_field_name),
-   m_alias_of_expr(item->m_alias_of_expr),
-   context(item->context),
-   db_name(item->db_name),
-   table_name(item->table_name),
-   field_name(item->field_name),
-   cached_field_index(item->cached_field_index),
-   cached_table(item->cached_table),
-   depended_from(item->depended_from)
-{}
 
 void Item_ident::cleanup()
 {

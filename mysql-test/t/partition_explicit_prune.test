@@ -41,6 +41,7 @@ SELECT a FROM t1 PARTITION (p0);
 SELECT * FROM t1;
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT a FROM t1 PARTITION (p0) WITH CHECK OPTION;
+SHOW CREATE VIEW v1;
 FLUSH STATUS;
 INSERT INTO v1 VALUES (20);
 --source include/get_handler_status_counts.inc
@@ -55,6 +56,7 @@ SELECT * FROM t1;
 DROP VIEW v1;
 CREATE VIEW v1 AS
 SELECT a FROM t1 PARTITION (p0) WHERE a = 30 WITH CHECK OPTION;
+SHOW CREATE VIEW v1;
 FLUSH STATUS;
 INSERT INTO v1 VALUES (30);
 --source include/get_handler_status_counts.inc
@@ -332,7 +334,7 @@ SELECT * FROM t1 PARTITION (pNeg, `p10-99`);
 FLUSH STATUS;
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`) INTO OUTFILE 'loadtest.txt';
 --source include/get_handler_status_counts.inc
---echo # 1 commit
+--echo # 2 commit (1 because ALTER TABLE temporarily disables auto-commit)
 --echo # 4 read first (for reading the first row in 4 partitions)
 --echo # 8 read key (4 from read first + 4 for index init)
 --echo # 5 read next (one after each row)
@@ -352,6 +354,7 @@ LOAD DATA INFILE 'loadtest.txt' INTO TABLE t1 PARTITION (pNeg, subp4, subp5);
 --source include/get_handler_status_counts.inc
 --echo # 10 lock (1 ha_partition + 4 ha_innobase) x 2 (lock + unlock)
 ALTER TABLE t1 TRUNCATE PARTITION pNeg, `p10-99`;
+SHOW CREATE TABLE t1;
 FLUSH STATUS;
 LOCK TABLE t1 WRITE;
 --source include/get_handler_status_counts.inc
@@ -496,6 +499,7 @@ UNLOCK TABLES;
 --echo # Test multi-table DELETE
 --echo # Can be expressed in two different ways.
 CREATE TABLE t2 LIKE t1;
+SHOW CREATE TABLE t2;
 FLUSH STATUS;
 INSERT INTO t2 PARTITION (`p10-99`, subp3, `p100-99999`) SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
 --source include/get_handler_status_counts.inc
@@ -514,8 +518,19 @@ FLUSH STATUS;
 INSERT INTO t2 SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
 --source include/get_handler_status_counts.inc
 FLUSH STATUS;
+# Under ps protocol HANDLER_COMMIT, HANDLER_READ_KEY, HANDLER_EXTERNAL_LOCK
+# has greater counts.
 CREATE TABLE t3 SELECT * FROM t1 PARTITION (pNeg,subp3,`p100-99999`);
---source include/get_handler_status_counts.inc
+if (`SELECT $PS_PROTOCOL = 0`)
+{
+  --replace_regex /^7$/<handler_commit_count>/ /5/<handler_read_first_count>/ /12/<handler_read_key_count>/ /90/<handler_external_lock_count>/
+  --source include/get_handler_status_counts.inc
+}
+if (`SELECT $PS_PROTOCOL > 0`)
+{
+  --replace_regex /^8$/<handler_commit_count>/ /5/<handler_read_first_count>/ /13/<handler_read_key_count>/ /112/<handler_external_lock_count>/
+  --source include/get_handler_status_counts.inc
+}
 SHOW CREATE TABLE t1;
 SELECT * FROM t1;
 SHOW CREATE TABLE t2;

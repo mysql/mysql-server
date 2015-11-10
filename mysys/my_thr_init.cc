@@ -23,6 +23,7 @@
 #include "my_sys.h"
 #include <m_string.h>
 #include <signal.h>
+#include "my_thread.h"
 #include "my_thread_local.h"
 
 static my_bool THR_KEY_mysys_initialized= FALSE;

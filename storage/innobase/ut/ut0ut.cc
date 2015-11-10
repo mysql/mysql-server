@@ -573,8 +573,6 @@ ut_strerr(
 		return("Tablespace already exists");
 	case DB_TABLESPACE_DELETED:
 		return("Tablespace deleted or being deleted");
-	case DB_TABLESPACE_TRUNCATED:
-		return("Tablespace was truncated");
 	case DB_TABLESPACE_NOT_FOUND:
 		return("Tablespace not found");
 	case DB_LOCK_TABLE_FULL:
@@ -621,8 +619,6 @@ ut_strerr(
 		return("Table is being used in foreign key check");
 	case DB_DATA_MISMATCH:
 		return("data mismatch");
-	case DB_SCHEMA_NOT_LOCKED:
-		return("schema not locked");
 	case DB_NOT_FOUND:
 		return("not found");
 	case DB_ONLINE_LOG_TOO_BIG:

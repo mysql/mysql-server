@@ -23,6 +23,7 @@ SET SESSION DEBUG='-d,innodb_fail_to_update_tablespace_dict';
 --source suite/innodb/include/show_i_s_tablespaces.inc
 --echo # MYSQLD_DATADIR/
 --list_files $MYSQLD_DATADIR/ *.ibd
+--error ER_TABLESPACE_MISSING_WITH_NAME
 DROP TABLESPACE s_def;
 
 --echo #

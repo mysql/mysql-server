@@ -85,22 +85,30 @@ ENDIF()
 # Do not build library unless it is needed by some other target.
 SET_PROPERTY(TARGET boost_lib PROPERTY EXCLUDE_FROM_ALL TRUE)
 
+# Files that use Boost sources that trigger compilation warnings
+SET(MYSQLCLIENT_BOOST_SOURCES
+  ${BOOST_SOURCES_DIR}/libs/thread/src/pthread/once.cpp
+  ${BOOST_SOURCES_DIR}/libs/thread/src/pthread/thread.cpp
+)
+
+# Boost source has logical && with non-zero constant
 MY_CHECK_CXX_COMPILER_FLAG("-Wlogical-op" HAVE_LOGICAL_OP)
 IF(HAVE_LOGICAL_OP)
-  ADD_COMPILE_FLAGS(
-    ${BOOST_SOURCES_DIR}/libs/thread/src/pthread/thread.cpp
-    COMPILE_FLAGS "-Wno-logical-op"
-  )
+  ADD_COMPILE_FLAGS(${MYSQLCLIENT_BOOST_SOURCES}
+    COMPILE_FLAGS "-Wno-logical-op")
 ENDIF()
 
 # Boost source has unused local typedefs.
 MY_CHECK_CXX_COMPILER_FLAG("-Wunused-local-typedefs" HAVE_UNUSED_TYPEDEFS)
 IF(HAVE_UNUSED_TYPEDEFS)
-  ADD_COMPILE_FLAGS(
-    ${BOOST_SOURCES_DIR}/libs/thread/src/pthread/once.cpp
-    ${BOOST_SOURCES_DIR}/libs/thread/src/pthread/thread.cpp
-    COMPILE_FLAGS "-Wno-unused-local-typedefs"
-  )
+  ADD_COMPILE_FLAGS(${MYSQLCLIENT_BOOST_SOURCES}
+    COMPILE_FLAGS "-Wno-unused-local-typedefs")
+ENDIF()
+
+# Boost source use undefined symbols in #if checks
+MY_CHECK_CXX_COMPILER_FLAG("-Wundef" HAVE_UNDEF)
+IF(HAVE_UNDEF)
+  ADD_COMPILE_FLAGS(${MYSQLCLIENT_BOOST_SOURCES} COMPILE_FLAGS "-Wno-undef")
 ENDIF()
 
 ADD_COMPILE_FLAGS(
@@ -142,7 +150,7 @@ TARGET_LINK_LIBRARIES(mysqlcheck_core mysqlclient)
 MYSQL_ADD_EXECUTABLE(mysqlcheck check/mysqlcheck.cc)
 TARGET_LINK_LIBRARIES(mysqlcheck mysqlcheck_core)
 
-MYSQL_ADD_EXECUTABLE(mysqldump mysqldump.c ../sql-common/my_user.c)
+MYSQL_ADD_EXECUTABLE(mysqldump mysqldump.cc ../sql-common/my_user.c)
 TARGET_LINK_LIBRARIES(mysqldump mysqlclient)
 
 MYSQL_ADD_EXECUTABLE(mysqlimport mysqlimport.c)

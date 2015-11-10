@@ -25,6 +25,7 @@
 #include "xa.h"                        // XID_STATE
 
 class THD;
+class Ha_trx_info;
 struct handlerton;
 typedef struct st_savepoint SAVEPOINT;
 
@@ -36,132 +37,6 @@ typedef struct st_changed_table_list
   uint32        key_length;
 } CHANGED_TABLE_LIST;
 
-
-/**
-  Either statement transaction or normal transaction - related
-  thread-specific storage engine data.
-
-  If a storage engine participates in a statement/transaction,
-  an instance of this class is present in
-  thd->m_transaction.m_scope_info[STMT|SESSION].ha_list. The addition
-  this list is made by trans_register_ha().
-
-  When it's time to commit or rollback, each element of ha_list
-  is used to access storage engine's prepare()/commit()/rollback()
-  methods, and also to evaluate if a full two phase commit is
-  necessary.
-
-  @sa General description of transaction handling in handler.cc.
-*/
-
-class Ha_trx_info
-{
-public:
-
-  /**
-    Register this storage engine in the given transaction context.
-  */
-
-  void register_ha(Ha_trx_info *ha_info, handlerton *ht_arg)
-  {
-    DBUG_ENTER("Ha_trx_info::register_ha");
-    DBUG_ASSERT(m_flags == 0);
-    DBUG_ASSERT(m_ht == NULL);
-    DBUG_ASSERT(m_next == NULL);
-
-    m_ht= ht_arg;
-    m_flags= (int) TRX_READ_ONLY; /* Assume read-only at start. */
-
-    m_next= ha_info;
-
-    DBUG_VOID_RETURN;
-  }
-
-  /**
-    Clear, prepare for reuse.
-  */
-
-  void reset()
-  {
-    DBUG_ENTER("Ha_trx_info::reset");
-    m_next= NULL;
-    m_ht= NULL;
-    m_flags= 0;
-    DBUG_VOID_RETURN;
-  }
-
-  Ha_trx_info()
-  {
-    reset();
-  }
-
-  void set_trx_read_write()
-  {
-    DBUG_ASSERT(is_started());
-    m_flags|= (int) TRX_READ_WRITE;
-  }
-
-  bool is_trx_read_write() const
-  {
-    DBUG_ASSERT(is_started());
-    return m_flags & (int) TRX_READ_WRITE;
-  }
-
-  bool is_started() const
-  {
-    return m_ht != NULL;
-  }
-
-
-  /**
-    Mark this transaction read-write if the argument is read-write.
-  */
-
-  void coalesce_trx_with(const Ha_trx_info *stmt_trx)
-  {
-    /*
-      Must be called only after the transaction has been started.
-      Can be called many times, e.g. when we have many
-      read-write statements in a transaction.
-    */
-    DBUG_ASSERT(is_started());
-    if (stmt_trx->is_trx_read_write())
-      set_trx_read_write();
-  }
-
-  Ha_trx_info *next() const
-  {
-    DBUG_ASSERT(is_started());
-    return m_next;
-  }
-
-  handlerton *ht() const
-  {
-    DBUG_ASSERT(is_started());
-    return m_ht;
-  }
-
-private:
-  enum { TRX_READ_ONLY= 0, TRX_READ_WRITE= 1 };
-  /**
-    Auxiliary, used for ha_list management
-  */
-  Ha_trx_info *m_next;
-
-  /**
-    Although a given Ha_trx_info instance is currently always used
-    for the same storage engine, 'ht' is not-NULL only when the
-    corresponding storage is a part of a transaction.
-  */
-  handlerton *m_ht;
-
-  /**
-    Transaction flags related to this engine.
-    Not-null only if this instance is a part of transaction.
-    May assume a combination of enum values above.
-  */
-  uchar       m_flags;
-};
 
 struct st_savepoint
 {
@@ -180,7 +55,11 @@ public:
 
   SAVEPOINT *m_savepoints;
 
-private:
+  void register_ha(enum_trx_scope scope,
+                   Ha_trx_info *ha_info,
+                   handlerton *ht);
+
+public:
   struct THD_TRANS
   {
     /* true is not all entries in the ht[] support 2pc */
@@ -303,6 +182,7 @@ private:
     bool is_empty() const { return m_ha_list == NULL; }
   };
 
+private:
   THD_TRANS m_scope_info[2];
 
   XID_STATE m_xid_state;
@@ -599,6 +479,136 @@ public:
 private:
   Rpl_transaction_ctx m_rpl_transaction_ctx;
   Rpl_transaction_write_set_ctx m_transaction_write_set_ctx;
+};
+
+/**
+  Either statement transaction or normal transaction - related
+  thread-specific storage engine data.
+
+  If a storage engine participates in a statement/transaction,
+  an instance of this class is present in
+  thd->m_transaction.m_scope_info[STMT|SESSION].ha_list. The addition
+  this list is made by trans_register_ha().
+
+  When it's time to commit or rollback, each element of ha_list
+  is used to access storage engine's prepare()/commit()/rollback()
+  methods, and also to evaluate if a full two phase commit is
+  necessary.
+
+  @sa General description of transaction handling in handler.cc.
+*/
+
+class Ha_trx_info
+{
+public:
+
+  /**
+    Register this storage engine in the given transaction context.
+  */
+
+  void register_ha(Transaction_ctx::THD_TRANS *trans, handlerton *ht_arg)
+  {
+    DBUG_ENTER("Ha_trx_info::register_ha");
+    DBUG_ASSERT(m_flags == 0);
+    DBUG_ASSERT(m_ht == NULL);
+    DBUG_ASSERT(m_next == NULL);
+
+    m_ht= ht_arg;
+    m_flags= (int) TRX_READ_ONLY; /* Assume read-only at start. */
+
+    if (trans->m_ha_list != this)
+    {
+      m_next= trans->m_ha_list;
+      trans->m_ha_list= this;
+    }
+
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Clear, prepare for reuse.
+  */
+
+  void reset()
+  {
+    DBUG_ENTER("Ha_trx_info::reset");
+    m_next= NULL;
+    m_ht= NULL;
+    m_flags= 0;
+    DBUG_VOID_RETURN;
+  }
+
+  Ha_trx_info()
+  {
+    reset();
+  }
+
+  void set_trx_read_write()
+  {
+    DBUG_ASSERT(is_started());
+    m_flags|= (int) TRX_READ_WRITE;
+  }
+
+  bool is_trx_read_write() const
+  {
+    DBUG_ASSERT(is_started());
+    return m_flags & (int) TRX_READ_WRITE;
+  }
+
+  bool is_started() const
+  {
+    return m_ht != NULL;
+  }
+
+
+  /**
+    Mark this transaction read-write if the argument is read-write.
+  */
+
+  void coalesce_trx_with(const Ha_trx_info *stmt_trx)
+  {
+    /*
+      Must be called only after the transaction has been started.
+      Can be called many times, e.g. when we have many
+      read-write statements in a transaction.
+    */
+    DBUG_ASSERT(is_started());
+    if (stmt_trx->is_trx_read_write())
+      set_trx_read_write();
+  }
+
+  Ha_trx_info *next() const
+  {
+    DBUG_ASSERT(is_started());
+    return m_next;
+  }
+
+  handlerton *ht() const
+  {
+    DBUG_ASSERT(is_started());
+    return m_ht;
+  }
+
+private:
+  enum { TRX_READ_ONLY= 0, TRX_READ_WRITE= 1 };
+  /**
+    Auxiliary, used for ha_list management
+  */
+  Ha_trx_info *m_next;
+
+  /**
+    Although a given Ha_trx_info instance is currently always used
+    for the same storage engine, 'ht' is not-NULL only when the
+    corresponding storage is a part of a transaction.
+  */
+  handlerton *m_ht;
+
+  /**
+    Transaction flags related to this engine.
+    Not-null only if this instance is a part of transaction.
+    May assume a combination of enum values above.
+  */
+  uchar       m_flags;
 };
 
 #endif

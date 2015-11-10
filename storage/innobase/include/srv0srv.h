@@ -57,8 +57,6 @@ Created 10/10/1995 Heikki Tuuri
 #include "ut0counter.h"
 #include "fil0fil.h"
 
-struct fil_space_t;
-
 /* Global counters used inside InnoDB. */
 struct srv_stats_t {
 	typedef ib_counter_t<ulint, 64> ulint_ctr_64_t;
@@ -354,13 +352,19 @@ extern ulong	srv_force_recovery;
 extern ulong	srv_force_recovery_crash;
 #endif /* !DBUG_OFF */
 
-extern ulint	srv_fast_shutdown;	/*!< If this is 1, do not do a
-					purge and index buffer merge.
-					If this 2, do not even flush the
-					buffer pool to data files at the
-					shutdown: we effectively 'crash'
-					InnoDB (but lose no committed
-					transactions). */
+/** The value of the configuration parameter innodb_fast_shutdown,
+controlling the InnoDB shutdown.
+
+If innodb_fast_shutdown=0, InnoDB shutdown will purge all undo log
+records (except XA PREPARE transactions) and complete the merge of the
+entire change buffer, and then shut down the redo log.
+
+If innodb_fast_shutdown=1, InnoDB shutdown will only flush the buffer
+pool to data files, cleanly shutting down the redo log.
+
+If innodb_fast_shutdown=2, shutdown will effectively 'crash' InnoDB
+(but lose no committed transactions). */
+extern ulong	srv_fast_shutdown;
 extern ibool	srv_innodb_status;
 
 extern unsigned long long	srv_stats_transient_sample_pages;
@@ -392,8 +396,8 @@ extern ibool	srv_buf_dump_thread_active;
 /* true during the lifetime of the buffer pool resize thread */
 extern bool	srv_buf_resize_thread_active;
 
-/* TRUE during the lifetime of the stats thread */
-extern ibool	srv_dict_stats_thread_active;
+/* true during the lifetime of the stats thread */
+extern bool	srv_dict_stats_thread_active;
 
 extern ulong	srv_n_spin_wait_rounds;
 extern ulong	srv_n_free_tickets_to_enter;
@@ -411,6 +415,9 @@ extern my_bool	srv_ibuf_disable_background_merge;
 #ifdef UNIV_DEBUG
 extern my_bool	srv_sync_debug;
 extern my_bool	srv_purge_view_update_only_debug;
+
+/** Value of MySQL global used to disable master thread. */
+extern my_bool	srv_master_thread_disabled_debug;
 #endif /* UNIV_DEBUG */
 
 extern ulint	srv_fatal_semaphore_wait_threshold;
@@ -704,15 +711,6 @@ srv_que_task_enqueue_low(
 /*=====================*/
 	que_thr_t*	thr);	/*!< in: query thread */
 
-/**********************************************************************//**
-Check whether any background thread is active. If so, return the thread
-type.
-@return SRV_NONE if all are are suspended or have exited, thread
-type if any are still active. */
-enum srv_thread_type
-srv_get_active_thread_type(void);
-/*============================*/
-
 extern "C" {
 
 /*********************************************************************//**
@@ -780,13 +778,28 @@ srv_release_threads(
 	enum srv_thread_type	type,	/*!< in: thread type */
 	ulint			n);	/*!< in: number of threads to release */
 
-/**********************************************************************//**
-Check whether any background thread are active. If so print which thread
-is active. Send the threads wakeup signal.
-@return name of thread that is active or NULL */
+/** Check whether any background thread (except the master thread) is active.
+Send the threads wakeup signal.
+
+NOTE: this check is part of the final shutdown, when the first phase of
+shutdown has already been completed.
+@see srv_pre_dd_shutdown()
+@see srv_master_thread_active()
+@return name of thread that is active
+@retval NULL if no thread is active */
 const char*
-srv_any_background_threads_are_active(void);
-/*=======================================*/
+srv_any_background_threads_are_active();
+
+/** Check whether the master thread is active.
+This is polled during the final phase of shutdown.
+The first phase of server shutdown must have already been executed
+(or the server must not have been fully started up).
+@see srv_pre_dd_shutdown()
+@see srv_any_background_threads_are_active()
+@retval true	if any thread is active
+@retval false	if no thread is active */
+bool
+srv_master_thread_active();
 
 /**********************************************************************//**
 Wakeup the purge threads. */
@@ -794,27 +807,30 @@ void
 srv_purge_wakeup(void);
 /*==================*/
 
+/** Check if the purge threads are active, both coordinator and worker threads
+@return true if any thread is active, false if no thread is active */
+bool
+srv_purge_threads_active();
+
 /** Call exit(3) */
 void
 srv_fatal_error()
 	__attribute__((noreturn));
 
-/** Check if tablespace is being truncated.
-(Ignore system-tablespace as we don't re-create the tablespace
-and so some of the action that are suppressed by this function
-for independent tablespace are not applicable to system-tablespace).
-@param	space_id	space_id to check for truncate action
-@return true		if being truncated, false if not being
-			truncated or tablespace is system-tablespace. */
-bool
-srv_is_tablespace_truncated(ulint space_id);
-
-/** Check if tablespace was truncated.
-@param[in]	space	space object to check for truncate action
-@return true if tablespace was truncated and we still have an active
-MLOG_TRUNCATE REDO log record. */
-bool
-srv_was_tablespace_truncated(const fil_space_t* space);
+#ifdef UNIV_DEBUG
+/** Disables master thread. It's used by:
+	SET GLOBAL innodb_master_thread_disabled_debug = 1 (0).
+@param[in]	thd		thread handle
+@param[in]	var		pointer to system variable
+@param[out]	var_ptr		where the formal string goes
+@param[in]	save		immediate result from check function */
+void
+srv_master_thread_disabled_debug_update(
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				var_ptr,
+	const void*			save);
+#endif /* UNIV_DEBUG */
 
 /** Status variables to be passed to MySQL */
 struct export_var_t{

@@ -135,11 +135,11 @@ public:
 	rec_t*	getSplitRec();
 
 	/** Copy all records after split rec including itself.
-	@param[in]	rec	split rec */
+	@param[in]	split_rec	split rec */
 	void copyIn(rec_t*	split_rec);
 
 	/** Remove all records after split rec including itself.
-	@param[in]	rec	split rec	*/
+	@param[in]	split_rec	split rec	*/
 	void copyOut(rec_t*	split_rec);
 
 	/** Set next page
@@ -158,7 +158,7 @@ public:
 
 	/** Check if required space is available in the page for the rec
 	to be inserted.	We check fill factor & padding here.
-	@param[in]	length		required length
+	@param[in]	rec_size	required space
 	@return true	if space is available */
 	inline bool isSpaceAvailable(ulint	rec_size);
 

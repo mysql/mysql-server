@@ -31,7 +31,7 @@ rename table t3 to t4, t2 to t3, t1 to t2, t4 to t2;
 show tables like "t_";
 --error ER_TABLE_EXISTS_ERROR,ER_TABLE_EXISTS_ERROR
 rename table t3 to t1, t2 to t3, t1 to t2, t4 to t1;
---error ER_FILE_NOT_FOUND,ER_FILE_NOT_FOUND
+--error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
 rename table t3 to t4, t5 to t3, t1 to t2, t4 to t1;
 
 select * from t1;
@@ -93,6 +93,19 @@ drop view v1;
 drop table t1;
 
 --echo End of 5.0 tests
+
+--echo #
+--echo # Bug#20197870: sql_table.cc: bool mysql_rename_table ...
+--echo #               assertion `error==0\' failed.
+--echo # The test crashes server without the fix.
+--echo #
+SET @orig_innodb_file_per_table= @@innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = 0;
+create table t1(f1 int) engine=innodb;
+--error ER_BAD_DB_ERROR
+rename table test.t1 to nonexistingdb.t2;
+drop table t1;
+SET GLOBAL innodb_file_per_table = @orig_innodb_file_per_table;
 
 --source include/wait_until_count_sessions.inc
 

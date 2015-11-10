@@ -2115,6 +2115,14 @@ void SSL_CTX::SetSessionCacheOff()
 }
 
 
+void SSL_CTX::SetMethod(SSL_METHOD* meth)
+{
+    if(method_)
+      ysDelete(method_);
+    method_=  meth;
+}
+
+
 void SSL_CTX::SetSessionCacheFlushOff()
 {
     sessionCacheFlushOff_ = true;

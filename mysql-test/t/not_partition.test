@@ -3,38 +3,43 @@
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
 
+--source include/not_embedded.inc
+--source include/have_partition.inc
+
+--echo # Setup
+CREATE TABLE t (
+    firstname VARCHAR(25) NOT NULL,
+    lastname VARCHAR(25) NOT NULL,
+    username VARCHAR(16) NOT NULL,
+    email VARCHAR(35),
+    joined DATE NOT NULL
+)
+PARTITION BY KEY(joined)
+PARTITIONS 6;
+
+--echo # Restart the server without partition engine.
+let $restart_parameters = restart: --skip-partition;
+--source include/restart_mysqld.inc
+
 --disable_abort_on_error
-# Run this test only when mysqld don't has partitioning (not compiled with)
-# the statements are not expected to work, just check that we
-# can't crash the server
-if (`SELECT COUNT(*) != 0 FROM information_schema.plugins WHERE plugin_name = 'partition' AND PLUGIN_STATUS != "DISABLED"`)
-{
-  --skip Test requires partitioning not to be active.
-}
-
-let $MYSQLD_DATADIR= `SELECT @@datadir`;
-
 #
 # Bug#39893: Crash if select on a partitioned table,
 #            when partitioning is disabled
-FLUSH TABLES;
---copy_file $MYSQLTEST_VARDIR/std_data/parts/t1.frm $MYSQLD_DATADIR/test/t1.frm
-SELECT * FROM t1;
-TRUNCATE TABLE t1;
-ANALYZE TABLE t1;
-CHECK TABLE t1;
-OPTIMIZE TABLE t1;
-REPAIR TABLE t1;
-ALTER TABLE t1 REPAIR PARTITION ALL;
-ALTER TABLE t1 CHECK PARTITION ALL;
-ALTER TABLE t1 OPTIMIZE PARTITION ALL;
-ALTER TABLE t1 ANALYZE PARTITION ALL;
-ALTER TABLE t1 REBUILD PARTITION ALL;
-ALTER TABLE t1 TRUNCATE PARTITION ALL;
-ALTER TABLE t1 ENGINE Memory;
-ALTER TABLE t1 ADD (new INT);
-DROP TABLE t1;
---remove_file $MYSQLD_DATADIR/test/t1.frm
+SELECT * FROM t;
+TRUNCATE TABLE t;
+ANALYZE TABLE t;
+CHECK TABLE t;
+OPTIMIZE TABLE t;
+REPAIR TABLE t;
+ALTER TABLE t REPAIR PARTITION ALL;
+ALTER TABLE t CHECK PARTITION ALL;
+ALTER TABLE t OPTIMIZE PARTITION ALL;
+ALTER TABLE t ANALYZE PARTITION ALL;
+ALTER TABLE t REBUILD PARTITION ALL;
+ALTER TABLE t TRUNCATE PARTITION ALL;
+ALTER TABLE t ENGINE Memory;
+ALTER TABLE t ADD (new INT);
+DROP TABLE t;
 
 CREATE TABLE t1 (
     firstname VARCHAR(25) NOT NULL,
@@ -99,3 +104,10 @@ ALTER TABLE `t1` REMOVE PARTITIONING;
 CHECK TABLE `t1` EXTENDED;
 DROP TABLE t1;
 --enable_abort_on_error
+
+--echo # Restart the server.
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
+
+# Cleanup
+DROP TABLE t;

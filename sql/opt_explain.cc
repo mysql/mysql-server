@@ -43,8 +43,7 @@ static bool mysql_explain_unit(THD *thd, SELECT_LEX_UNIT *unit);
 
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "ALL","range","index","fulltext",
-			      "ref_or_null","unique_subquery","index_subquery",
-                              "index_merge"
+			      "ref_or_null", "index_merge"
 };
 
 static const enum_query_type cond_print_flags=
@@ -590,13 +589,14 @@ bool Explain::explain_subqueries()
       fmt->entry()->is_materialized_from_subquery= true;
       fmt->entry()->col_table_name.set_const("<materialized_subquery>");
       fmt->entry()->using_temporary= true;
-      fmt->entry()->col_join_type.set_const(join_type_str[JT_EQ_REF]);
-      fmt->entry()->col_key.set_const("<auto_key>");
 
       const subselect_hash_sj_engine * const engine=
         static_cast<const subselect_hash_sj_engine *>
         (unit->item->get_engine_for_explain());
       const QEP_TAB * const tmp_tab= engine->get_qep_tab();
+
+      fmt->entry()->col_join_type.set_const(join_type_str[tmp_tab->type()]);
+      fmt->entry()->col_key.set_const("<auto_key>");
 
       char buff_key_len[24];
       fmt->entry()->col_key_len.set(buff_key_len,
@@ -1413,7 +1413,22 @@ bool Explain_join::explain_id()
 
 bool Explain_join::explain_join_type()
 {
-  fmt->entry()->col_join_type.set_const(join_type_str[tab ? tab->type() : JT_ALL]);
+  const join_type j_t= tab ? tab->type() : JT_ALL;
+  const char* str= join_type_str[j_t];
+  if ((j_t == JT_EQ_REF || j_t == JT_REF || j_t == JT_REF_OR_NULL) &&
+      join->unit->item)
+  {
+    /*
+      For backward-compatibility, we have special presentation of "index
+      lookup used for in(subquery)": we do not show "ref/etc", but
+      "index_subquery/unique_subquery".
+    */
+    if (join->unit->item->get_engine_for_explain()->engine_type() ==
+        subselect_engine::INDEXSUBQUERY_ENGINE)
+      str= (j_t == JT_EQ_REF) ? "unique_subquery" : "index_subquery";
+  }
+
+  fmt->entry()->col_join_type.set_const(str);
   return false;
 }
 

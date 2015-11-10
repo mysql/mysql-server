@@ -12,7 +12,7 @@ create table t1 (a int);
 insert into t1 values(1);
 include/sync_slave_sql_with_master.inc
 select * from mysqltest1.t1;
-ERROR 42S02: Table 'mysqltest1.t1' doesn't exist
+ERROR 42000: Unknown database 'mysqltest1'
 use mysqltest2;
 create table t1 (a int);
 insert into t1 values(1);

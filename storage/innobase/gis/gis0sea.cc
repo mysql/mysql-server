@@ -307,7 +307,7 @@ rtr_pcur_getnext_from_path(
 					rtr_info->thr);
 			}
 			new_split = true;
-#if UNIV_GIS_DEBUG
+#ifdef UNIV_GIS_DEBUG
 			fprintf(stderr,
 				"GIS_DIAG: Splitted page found: %d, %ld\n",
 				static_cast<int>(need_parent), next_page_no);

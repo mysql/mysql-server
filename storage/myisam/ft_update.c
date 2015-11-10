@@ -18,7 +18,6 @@
 /* functions to work with full-text indices */
 
 #include "ftdefs.h"
-#include "my_base.h" /* HA_KEYTYPE_FLOAT */
 #include <math.h>
 
 void _mi_ft_segiterator_init(MI_INFO *info, uint keynr, const uchar *record,
@@ -283,14 +282,10 @@ uint _ft_make_key(MI_INFO *info, uint keynr, uchar *keybuf, FT_WORD *wptr,
   uchar buf[HA_FT_MAXBYTELEN+16];
   DBUG_ENTER("_ft_make_key");
 
-#if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
   {
     float weight=(float) ((filepos==HA_OFFSET_ERROR) ? 0 : wptr->weight);
     mi_float4store(buf,weight);
   }
-#else
-#error
-#endif
 
   int2store(buf+HA_FT_WLEN,wptr->len);
   memcpy(buf+HA_FT_WLEN+2,wptr->pos,wptr->len);

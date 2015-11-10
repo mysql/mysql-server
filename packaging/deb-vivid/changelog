@@ -1,11 +1,3 @@
-mysql-community (5.7.10-1ubuntu15.04) vivid; urgency=low
-
-  * new upstream release
-  * Added new decompression utilities lz4_decompress and zlib_decompress binaries.
-    (Closes: #21644479)
-
- -- Bharathy Satish <bharathy.x.satish@oracle.com>  Mon, 19 Oct 2015 15:20:12 +0530
-
 mysql-community (5.8.0-m17-1ubuntu15.04) vivid; urgency=low
 
   [ Akhil Mohan ]
@@ -32,6 +24,7 @@ mysql-community (5.8.0-m17-1ubuntu15.04) vivid; urgency=low
 
   [ Balasubramanian Kandasamy ]
   * Added mysqlpump man page to d/mysql-*-client.install
+  * Added new decompression utilities lz4_decompress and zlib_decompress binaries.
 
  -- Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>  Wed, 26 Aug 2015 15:20:12 +0530
 

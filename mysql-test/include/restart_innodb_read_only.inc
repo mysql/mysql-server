@@ -2,6 +2,10 @@
 # refuse startup, in case there exist buffered changes from earlier tests.
 SET GLOBAL innodb_fast_shutdown = 0;
 
+--disable_query_log
+CALL mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
+--enable_query_log
+
 let $restart_parameters = restart: --innodb-read-only;
 --source include/restart_mysqld.inc
 let $restart_parameters=;

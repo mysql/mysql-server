@@ -96,7 +96,6 @@ PSI_memory_key key_memory_binlog_ver_1_event;
 PSI_memory_key key_memory_bison_stack;
 PSI_memory_key key_memory_blob_mem_storage;
 PSI_memory_key key_memory_db_worker_hash_entry;
-PSI_memory_key key_memory_dboptions_hash;
 PSI_memory_key key_memory_delegate;
 PSI_memory_key key_memory_errmsgs;
 PSI_memory_key key_memory_fill_schema_schemata;
@@ -282,7 +281,6 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_bison_stack, "bison_stack", 0},
   { &key_memory_THD_handler_tables_hash, "THD::handler_tables_hash", 0},
   { &key_memory_hash_index_key_buffer, "hash_index_key_buffer", 0},
-  { &key_memory_dboptions_hash, "dboptions_hash", 0},
   { &key_memory_user_conn, "user_conn", 0},
   { &key_memory_LOG_POS_COORD, "LOG_POS_COORD", 0},
   { &key_memory_XID_STATE, "XID_STATE", 0},

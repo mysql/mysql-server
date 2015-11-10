@@ -40,7 +40,7 @@ extern ulong	srv_force_recovery_crash;
 
 #ifdef UNIV_DEBUG
 #define mutex_validate(M)		(M)
-#define mutex_own(M)			(M)
+#define mutex_own(M)			(M) ? true : false
 #endif /* UNIV_DEBUG */
 typedef OSMutex	SysMutex;
 typedef OSMutex ib_mutex_t;
@@ -211,7 +211,7 @@ necessary only if the memory block containing it is freed.
 Add the mutex instance to the global mutex list.
 @param[in,out]	mutex		mutex to initialise
 @param[in]	id		The mutex ID (Latch ID)
-@param[in]	filename	Filename from where it was called
+@param[in]	file_name	Filename from where it was called
 @param[in]	line		Line number in filename from where called */
 template <typename Mutex>
 void mutex_init(

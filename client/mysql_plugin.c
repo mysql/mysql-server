@@ -569,7 +569,7 @@ static int search_dir(const char * base_path, const char *tool_name,
 {
   char new_path[FN_REFLEN];
   char source_path[FN_REFLEN];
-#if _WIN32
+#ifdef _WIN32
   char win_abs_path[FN_REFLEN];
   char self_name[FN_REFLEN];
   const char *last_fn_libchar;
@@ -589,7 +589,7 @@ static int search_dir(const char * base_path, const char *tool_name,
     return 0;
   }  
 
-#if _WIN32
+#ifdef _WIN32
   /*
     On Windows above code will not be able to find the file since
     path names are not absolute and file_exists works only with 
@@ -817,6 +817,11 @@ static int check_options(int argc, char **argv, char *operation)
     /* read the plugin config file and check for match against argument */
     else
     {
+      if (strlen(argv[i]) + 4 + 1 > FN_REFLEN)
+      {
+        fprintf(stderr, "ERROR: argument is too long.\n");
+        return 1;
+      }
       strcpy(plugin_name, argv[i]);
       strcpy(config_file, argv[i]);
       strcat(config_file, ".ini");
@@ -908,6 +913,7 @@ static int process_options(int argc, char *argv[], char *operation)
     if (opt_basedir[i-1] != FN_LIBCHAR || opt_basedir[i-1] != FN_LIBCHAR2)
     {
       char buff[FN_REFLEN];
+      memset(buff, 0, sizeof(buff));
       
       strncpy(buff, opt_basedir, sizeof(buff) - 1);
 #ifdef _WIN32

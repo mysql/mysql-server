@@ -107,9 +107,9 @@ struct Compression {
 
         /** Check wether the compression algorithm is supported.
         @param[in]      algorithm       Compression algorithm to check
-        @param[out]     type            The type that algorithm maps to
+        @param[out]     compression            The type that algorithm maps to
         @return DB_SUCCESS or error code */
-	static dberr_t check(const char* algorithm, Compression* type)
+	static dberr_t check(const char* algorithm, Compression* compression)
 		__attribute__((warn_unused_result));
 
         /** Validate the algorithm string.
@@ -131,7 +131,7 @@ struct Compression {
 		__attribute__((warn_unused_result));
 
 	/** Deserizlise the page header compression meta-data
-	@param[in]	header		Pointer to the page header
+	@param[in]	page		Pointer to the page header
 	@param[out]	control		Deserialised data */
 	static void deserialize_header(
 		const byte*	page,

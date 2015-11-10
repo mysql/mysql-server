@@ -4050,15 +4050,7 @@ got_block:
 	}
 #endif /* UNIV_DEBUG */
 
-	/* While tablespace is reinited the indexes are already freed but the
-	blocks related to it still resides in buffer pool. Trying to remove
-	such blocks from buffer pool would invoke removal of AHI entries
-	associated with these blocks. Logic to remove AHI entry will try to
-	load the block but block is already in free state. Handle the said case
-	with mode = BUF_PEEK_IF_IN_POOL that is invoked from
-	"btr_search_drop_page_hash_when_freed". */
 	ut_ad(mode == BUF_GET_POSSIBLY_FREED
-	      || mode == BUF_PEEK_IF_IN_POOL
 	      || !fix_block->page.file_page_was_freed);
 
 	/* Check if this is the first access to the page */
@@ -5291,17 +5283,13 @@ corrupt:
 			recv_recover_page(TRUE, (buf_block_t*) bpage);
 		}
 
-		/* If space is being truncated then avoid ibuf operation.
-		During re-init we have already freed ibuf entries. */
 		if (uncompressed
 		    && !Compression::is_compressed_page(frame)
 		    && !recv_no_ibuf_operations
-		    && !Tablespace::is_undo_tablespace(bpage->id.space())
-		    && bpage->id.space() != srv_tmp_space.space_id()
-		    && !srv_is_tablespace_truncated(bpage->id.space())
 		    && fil_page_get_type(frame) == FIL_PAGE_INDEX
-		    && page_is_leaf(frame)) {
-
+		    && page_is_leaf(frame)
+		    && bpage->id.space() != srv_tmp_space.space_id()
+		    && !Tablespace::is_undo_tablespace(bpage->id.space())) {
 			ibuf_merge_or_delete_for_page(
 				(buf_block_t*) bpage, bpage->id,
 				&bpage->size, TRUE);

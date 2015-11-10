@@ -43,6 +43,7 @@ typedef struct st_bitmap MY_BITMAP;
 typedef struct st_open_table_list OPEN_TABLE_LIST;
 class SELECT_LEX;
 typedef Bounds_checked_array<Item*> Ref_ptr_array;
+namespace dd { class Table; }
 
 
 #define TEMP_PREFIX	"MY"
@@ -134,11 +135,8 @@ uint cached_table_definitions(void);
 size_t get_table_def_key(const TABLE_LIST *table_list, const char **key);
 TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
                              const char *key, size_t key_length,
-                             uint db_flags, int *error,
-                             my_hash_value_type hash_value);
+                             bool open_view, my_hash_value_type hash_value);
 void release_table_share(TABLE_SHARE *share);
-TABLE_SHARE *get_cached_table_share(THD *thd, const char *db,
-                                    const char *table_name);
 
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
                    uint lock_flags);
@@ -204,14 +202,15 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx);
 TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 			   const char *table_name,
                            bool add_to_temporary_tables_list,
-                           bool open_in_engine);
+                           bool open_in_engine,
+                           const dd::Table *table_def);
 TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name);
 thr_lock_type read_lock_type_for_table(THD *thd,
                                        Query_tables_list *prelocking_ctx,
                                        TABLE_LIST *table_list,
                                        bool routine_modifies_data);
 
-my_bool mysql_rm_tmp_tables(void);
+bool mysql_rm_tmp_tables(void);
 bool rm_temporary_table(THD *thd, handlerton *base, const char *path);
 void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
                              const MDL_savepoint &start_of_statement_svp);

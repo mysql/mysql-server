@@ -30,8 +30,6 @@
 
   @section OPT Optimizer
 
-  See @ref PAGE_OPT_AGGREGATE_CHECKS
-
   See @ref PAGE_OPT_TRACE
 
   @section PFS Performance Schema
@@ -160,6 +158,9 @@
 #ifndef EMBEDDED_LIBRARY
 #include "srv_session.h"
 #endif
+
+#include "dd/dd.h"                      // dd::shutdown
+#include "dd/dd_kill_immunizer.h"       // dd::DD_kill_immunizer
 
 using std::min;
 using std::max;
@@ -405,6 +406,7 @@ ulong slow_start_timeout;
 #endif
 
 my_bool opt_bootstrap= 0;
+bool opt_install_server= false;
 my_bool opt_initialize= 0;
 my_bool opt_skip_slave_start = 0; ///< If set, slave is not autostarted
 my_bool opt_reckless_slave = 0;
@@ -490,9 +492,13 @@ uint protocol_version;
 uint lower_case_table_names;
 long tc_heuristic_recover;
 ulong back_log, connect_timeout, server_id;
-ulong table_cache_size, table_def_size;
+ulong table_cache_size;
 ulong table_cache_instances;
 ulong table_cache_size_per_instance;
+ulong schema_def_size;
+ulong stored_program_def_size;
+ulong table_def_size;
+ulong tablespace_def_size;
 ulong what_to_log;
 ulong slow_launch_time;
 Atomic_int32 slave_open_temp_tables;
@@ -737,8 +743,6 @@ mysql_cond_t COND_start_signal_handler;
 
 bool mysqld_server_started= false;
 
-File_parser_dummy_hook file_parser_dummy_hook;
-
 /* replication parameters, if master_host is not NULL, we are a slave */
 uint report_port= 0;
 ulong master_retry_count=0;
@@ -822,8 +826,10 @@ static void option_error_reporter(enum loglevel level, const char *format, ...)
   va_list args;
   va_start(args, format);
 
-  /* Don't print warnings for --loose options during bootstrap */
-  if (level == ERROR_LEVEL || !opt_bootstrap ||
+  /*
+    Don't print warnings for --loose options during bootstrap or install-server
+  */
+  if (level == ERROR_LEVEL || !(opt_bootstrap || opt_install_server) ||
       (log_error_verbosity > 1))
   {
     error_log_print(level, format, args);
@@ -891,7 +897,7 @@ static ulong max_allowed_packet;
 static ulong net_buffer_length;
 #endif
 
-static my_bool plugins_are_initialized= FALSE;
+static bool dynamic_plugins_are_initialized= false;
 
 #ifndef DBUG_OFF
 static const char* default_dbug_option;
@@ -902,7 +908,7 @@ Query_cache query_cache;
 my_bool opt_use_ssl= 1;
 char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
      *opt_ssl_cipher= NULL, *opt_ssl_key= NULL, *opt_ssl_crl= NULL,
-     *opt_ssl_crlpath= NULL;
+     *opt_ssl_crlpath= NULL, *opt_tls_version= NULL;
 
 #ifdef HAVE_OPENSSL
 char *des_key_file;
@@ -1023,10 +1029,29 @@ public:
                       };);
     }
     mysql_mutex_lock(&killing_thd->LOCK_thd_data);
-    killing_thd->killed= THD::KILL_CONNECTION;
-    MYSQL_CALLBACK(Connection_handler_manager::event_functions,
-                   post_kill_notification, (killing_thd));
-    if (killing_thd->is_killable)
+
+    if (killing_thd->kill_immunizer)
+    {
+      /*
+        If killing_thd is in kill immune mode (i.e. operation on new DD tables
+        is in progress) then just save state_to_set with THD::kill_immunizer
+        object.
+
+        While exiting kill immune mode, awake() is called again with the killed
+        state saved in THD::kill_immunizer object.
+      */
+      killing_thd->kill_immunizer->save_killed_state(THD::KILL_CONNECTION);
+    }
+    else
+    {
+      killing_thd->killed= THD::KILL_CONNECTION;
+
+      MYSQL_CALLBACK(Connection_handler_manager::event_functions,
+                     post_kill_notification, (killing_thd));
+    }
+
+    if (killing_thd->is_killable &&
+        killing_thd->kill_immunizer == NULL)
     {
       mysql_mutex_lock(&killing_thd->LOCK_current_cond);
       if (killing_thd->current_cond)
@@ -1214,7 +1239,8 @@ static void unireg_abort(int exit_code)
 #endif
 #endif // !EMBEDDED_LIBRARY
 
-  clean_up(!opt_help && (exit_code || !opt_bootstrap)); /* purecov: inspected */
+  clean_up(!opt_help && (exit_code ||
+           !(opt_bootstrap || opt_install_server))); /* purecov: inspected */
   DBUG_PRINT("quit",("done with cleanup in unireg_abort"));
 #ifndef EMBEDDED_LIBRARY
   mysqld_exit(exit_code);
@@ -1343,6 +1369,9 @@ void clean_up(bool print_message)
   if (cleanup_done++)
     return; /* purecov: inspected */
 
+  ha_pre_dd_shutdown();
+  dd::shutdown();
+
   stop_handle_manager();
   release_ddl_log();
 
@@ -1365,7 +1394,6 @@ void clean_up(bool print_message)
     bitmap_free(&slave_error_mask);
 #endif
   my_tz_free();
-  my_dboptions_cache_free();
   ignore_db_dirs_free();
   servers_free(1);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1576,7 +1604,7 @@ static struct passwd *check_user(const char *user)
   }
   if (!user)
   {
-    if (!opt_bootstrap && !opt_help)
+    if (!(opt_bootstrap || opt_install_server) && !opt_help)
     {
       sql_print_error("Fatal error: Please read \"Security\" section of the manual to find out how to run mysqld as root!\n");
       unireg_abort(MYSQLD_ABORT_EXIT);
@@ -1675,7 +1703,7 @@ static void set_root(const char *path)
 
 static bool network_init(void)
 {
-  if (opt_bootstrap)
+  if (opt_bootstrap || opt_install_server)
     return false;
 
   set_ports();
@@ -2245,7 +2273,7 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
 #endif // !EMBEDDED_LIBRARY
 
 
-#if HAVE_BACKTRACE && HAVE_ABI_CXA_DEMANGLE
+#if defined(HAVE_BACKTRACE) && defined(HAVE_ABI_CXA_DEMANGLE)
 #include <cxxabi.h>
 extern "C" char *my_demangle(const char *mangled_name, int *status)
 {
@@ -2352,8 +2380,8 @@ sizeof(load_default_groups)/sizeof(load_default_groups[0]);
   The size of each stack frame for the wildcmp() routines is ~128 bytes,
   so checking *every* recursive call is not necessary.
  */
-extern "C" int
-check_enough_stack_size(int recurse_level)
+extern "C" {
+static int check_enough_stack_size(int recurse_level)
 {
   uchar stack_top;
   if (recurse_level % 16 != 0)
@@ -2364,6 +2392,7 @@ check_enough_stack_size(int recurse_level)
     return check_stack_overrun(my_thd, STACK_MIN_SIZE * 2, &stack_top);
   return 0;
 }
+} // extern "C"
 #endif
 
 
@@ -2598,7 +2627,7 @@ PSI_statement_info com_statement_info[(uint) COM_END + 1];
   this is populated from data mined in com_status_vars,
   which already has one name for each command.
 */
-void init_sql_statement_info()
+static void init_sql_statement_info()
 {
   uint i;
 
@@ -2613,7 +2642,7 @@ void init_sql_statement_info()
   sql_statement_info[(uint) SQLCOM_END].m_flags= 0;
 }
 
-void init_com_statement_info()
+static void init_com_statement_info()
 {
   uint index;
 
@@ -2801,8 +2830,10 @@ int init_common_variables()
   /*
     Add server status variables to the dynamic list of
     status variables that is shown by SHOW STATUS.
-    Later, in plugin_init, and mysql_install_plugin
-    new entries could be added to that list.
+    Later, in plugin_register_builtin_and_init_core_se(),
+    plugin_register_dynamic_and_init_all() and
+    mysql_install_plugin(), new entries could be added
+    to that list.
   */
   if (add_status_vars(status_vars))
     return 1; // an error was already reported
@@ -3107,14 +3138,10 @@ int init_common_variables()
   use_temp_pool= 0;
 #endif
 
-  if (my_dboptions_cache_init())
-    return 1;
-
   /* create the data directory if requested */
   if (unlikely(opt_initialize) &&
       initialize_create_data_directory(mysql_real_data_home))
       return 1;
-
 
   /*
     Ensure that lower_case_table_names is set on system where we have case
@@ -3418,12 +3445,12 @@ int init_ssl()
 #endif
 
     enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
-
+    long ssl_ctx_flags= process_tls_version(opt_tls_version);
     /* having ssl_acceptor_fd != 0 signals the use of SSL */
     ssl_acceptor_fd= new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
 					  opt_ssl_ca, opt_ssl_capath,
 					  opt_ssl_cipher, &error,
-                                          opt_ssl_crl, opt_ssl_crlpath);
+                                          opt_ssl_crl, opt_ssl_crlpath, ssl_ctx_flags);
     DBUG_PRINT("info",("ssl_acceptor_fd: 0x%lx", (long) ssl_acceptor_fd));
     ERR_remove_state(0);
     if (!ssl_acceptor_fd)
@@ -3713,7 +3740,7 @@ initialize_storage_engine(char *se_name, const char *se_kind,
   }
   if (!ha_storage_engine_is_enabled(hton))
   {
-    if (!opt_bootstrap)
+    if (!(opt_bootstrap || opt_install_server))
     {
       sql_print_error("Default%s storage engine (%s) is not available",
                       se_kind, se_name);
@@ -3725,7 +3752,7 @@ initialize_storage_engine(char *se_name, const char *se_kind,
   {
     /*
       Need to unlock as global_system_variables.table_plugin
-      was acquired during plugin_init()
+      was acquired during plugin_register_builtin_and_init_core_se()
     */
     plugin_unlock(0, *dest_plugin);
     *dest_plugin= plugin;
@@ -3942,7 +3969,13 @@ a file name for --log-bin-index option", opt_binlog_index_name);
       opt_bin_logname=my_strdup(key_memory_opt_bin_logname,
                                 buf, MYF(0));
     }
-    if (mysql_bin_log.open_index_file(opt_binlog_index_name, ln, TRUE))
+
+    /*
+      Skip opening the index file if we start with --help. This is necessary
+      to avoid creating the file in an otherwise empty datadir, which will
+      cause a succeeding 'mysqld --initialize' to fail.
+    */
+    if (!opt_help && mysql_bin_log.open_index_file(opt_binlog_index_name, ln, TRUE))
     {
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
@@ -4028,6 +4061,21 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   */
   tc_log= &tc_log_dummy;
 
+  /* Load builtin plugins, initialize MyISAM, CSV and InnoDB */
+  if (plugin_register_builtin_and_init_core_se(&remaining_argc,
+                                               remaining_argv))
+  {
+    sql_print_error("Failed to initialize builtin plugins.");
+    unireg_abort(1);
+  }
+
+  /* Initialize DD, plugin_register_dynamic_and_init_all() needs it */
+  if (!opt_help && dd::init(opt_install_server))
+  {
+    sql_print_error("Data Dictionary initialization failed.");
+    unireg_abort(1);
+  }
+
   /*
     Skip reading the plugin table when starting with --help in order
     to also skip initializing InnoDB. This provides a simpler and more
@@ -4035,15 +4083,15 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     directory does not exist, exists but is empty, exists with InnoDB
     system tablespaces present etc.
   */
-  if (plugin_init(&remaining_argc, remaining_argv,
+  if (plugin_register_dynamic_and_init_all(&remaining_argc, remaining_argv,
                   (opt_noacl ? PLUGIN_INIT_SKIP_PLUGIN_TABLE : 0) |
                   (opt_help ? (PLUGIN_INIT_SKIP_INITIALIZATION |
                                PLUGIN_INIT_SKIP_PLUGIN_TABLE) : 0)))
   {
-    sql_print_error("Failed to initialize plugins.");
+    sql_print_error("Failed to initialize dynamic plugins.");
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
-  plugins_are_initialized= TRUE;  /* Don't separate from init function */
+  dynamic_plugins_are_initialized= true;  /* Don't separate from init function */
 
   Session_tracker session_track_system_variables_check;
   LEX_STRING var_list;
@@ -4115,7 +4163,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
-  if (opt_bootstrap)
+  if (opt_bootstrap || opt_install_server)
     log_output_options= LOG_FILE;
 
   /*
@@ -4274,6 +4322,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 
   init_max_user_conn();
   init_update_queries();
+
   DBUG_RETURN(0);
 }
 
@@ -4449,7 +4498,7 @@ int mysqld_main(int argc, char **argv)
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   if (ho_error == 0)
   {
-    if (!opt_help && !opt_bootstrap)
+    if (!opt_help && !(opt_bootstrap || opt_install_server))
     {
       /* Add sizing hints from the server sizing parameters. */
       pfs_param.m_hints.m_table_definition_cache= table_def_size;
@@ -4857,16 +4906,16 @@ int mysqld_main(int argc, char **argv)
   error_handler_hook= my_message_sql;
 
   /* Save pid of this process in a file */
-  if (!opt_bootstrap)
+  if (!(opt_bootstrap || opt_install_server))
     create_pid_file();
 
 
   /* Read the optimizer cost model configuration tables */
-  if (!opt_bootstrap)
+  if (!(opt_bootstrap || opt_install_server))
     reload_optimizer_cost_constants();
 
   if (mysql_rm_tmp_tables() || acl_init(opt_noacl) ||
-      my_tz_init((THD *)0, default_tz_name, opt_bootstrap) ||
+      my_tz_init((THD *)0, default_tz_name, opt_bootstrap || opt_install_server) ||
       grant_init(opt_noacl))
   {
     set_connection_events_loop_aborted(true);
@@ -4876,7 +4925,7 @@ int mysqld_main(int argc, char **argv)
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
-  if (!opt_bootstrap)
+  if (!(opt_bootstrap || opt_install_server))
     servers_init(0);
 
   if (!opt_noacl)
@@ -4885,8 +4934,8 @@ int mysqld_main(int argc, char **argv)
   }
 
   init_status_vars();
-  /* If running with bootstrap, do not start replication. */
-  if (opt_bootstrap)
+  /* If running with bootstrap or install-server, do not start replication. */
+  if (opt_bootstrap || opt_install_server)
     opt_skip_slave_start= 1;
 
   check_binlog_cache_size(NULL);
@@ -4894,8 +4943,8 @@ int mysqld_main(int argc, char **argv)
 
   binlog_unsafe_map_init();
 
-  /* If running with bootstrap, do not start replication. */
-  if (!opt_bootstrap)
+  /* If running with bootstrap or install-server, do not start replication. */
+  if (!(opt_bootstrap || opt_install_server))
   {
     // Make @@slave_skip_errors show the nice human-readable value.
     set_slave_skip_errors(&opt_slave_skip_errors);
@@ -4908,14 +4957,14 @@ int mysqld_main(int argc, char **argv)
   }
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-  initialize_performance_schema_acl(opt_bootstrap);
+  initialize_performance_schema_acl((opt_bootstrap || opt_install_server));
   /*
     Do not check the structure of the performance schema tables
     during bootstrap:
     - the tables are not supposed to exist yet, bootstrap will create them
     - a check would print spurious error messages
   */
-  if (! opt_bootstrap)
+  if (!(opt_bootstrap || opt_install_server))
     check_performance_schema();
 #endif
 
@@ -4924,7 +4973,7 @@ int mysqld_main(int argc, char **argv)
   execute_ddl_log_recovery();
   (void) RUN_HOOK(server_state, after_recovery, (NULL));
 
-  if (Events::init(opt_noacl || opt_bootstrap))
+  if (Events::init(opt_noacl || opt_bootstrap || opt_install_server))
     unireg_abort(MYSQLD_ABORT_EXIT);
 
 #ifndef _WIN32
@@ -4932,12 +4981,12 @@ int mysqld_main(int argc, char **argv)
   start_signal_handler();
 #endif
 
-  if (opt_bootstrap)
+  if (opt_bootstrap || opt_install_server)
   {
     // Make sure we can process SIGHUP during bootstrap.
     server_components_initialized();
 
-    int error= bootstrap(mysql_stdin);
+    int error= bootstrap::run_bootstrap_thread(mysql_stdin, NULL);
     unireg_abort(error ? MYSQLD_ABORT_EXIT : MYSQLD_SUCCESS_EXIT);
   }
   if (opt_init_file && *opt_init_file)
@@ -4957,7 +5006,8 @@ int mysqld_main(int argc, char **argv)
                         my_progname,
                         server_version,
 #ifdef HAVE_SYS_UN_H
-                        (opt_bootstrap ? (char*) "" : mysqld_unix_port),
+                        ((opt_bootstrap || opt_install_server) ?
+                          (char*) "" : mysqld_unix_port),
 #else
                         (char*) "",
 #endif
@@ -5291,7 +5341,7 @@ bool read_init_file(char *file_name)
   if (!(file= mysql_file_fopen(key_file_init, file_name,
                                O_RDONLY, MYF(MY_WME))))
     DBUG_RETURN(TRUE);
-  (void) bootstrap(file);
+  (void) bootstrap::run_bootstrap_thread(file, NULL);
   mysql_file_fclose(file, MYF(MY_WME));
 
   sql_print_information("Execution of init_file \'%s\' ended.", file_name);
@@ -5364,6 +5414,7 @@ int handle_early_options()
         ho_error= EXIT_AMBIGUOUS_OPTION;
       }
       opt_bootstrap= TRUE;
+      opt_install_server= true;
     }
   }
 
@@ -5476,8 +5527,10 @@ static void adjust_table_def_size()
 
 void adjust_related_options(ulong *requested_open_files)
 {
-  /* In bootstrap, disable grant tables (we are about to create them) */
-  if (opt_bootstrap)
+  /*
+    In bootstrap or install-server, disable grant tables (about to be created)
+  */
+  if (opt_bootstrap || opt_install_server)
     opt_noacl= 1;
 
   /* The order is critical here, because of dependencies. */
@@ -5504,6 +5557,9 @@ struct my_option my_long_early_options[]=
   {"help", '?', "Display this help and exit.",
    &opt_help, &opt_help, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
+  {"install-server", OPT_INSTALL_SERVER,
+   "Install the data dictionary for a new server instance.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Used with --help option for detailed help.",
    &opt_verbose, &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
@@ -6884,7 +6940,7 @@ static void usage(void)
   /* Print out all the options including plugin supplied options */
   print_help();
 
-  if (! plugins_are_initialized)
+  if (! dynamic_plugins_are_initialized)
   {
     puts("\n\
 Plugins have parameters that are not reflected in this list\n\
@@ -7264,6 +7320,9 @@ mysqld_get_one_option(int optid,
   case OPT_BOOTSTRAP:
     opt_bootstrap= 1;
     break;
+  case OPT_INSTALL_SERVER:
+    opt_install_server= true;
+    break;
   case OPT_SERVER_ID:
     /*
      Consider that one received a Server Id when 2 conditions are present:
@@ -7568,7 +7627,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   sys_var_add_options(&all_options, sys_var::PARSE_NORMAL);
   add_terminator(&all_options);
 
-  if (opt_help || opt_bootstrap)
+  if (opt_help || opt_bootstrap || opt_install_server)
   {
     /*
       Show errors during --help, but gag everything else so the info the
@@ -7870,7 +7929,7 @@ bool is_secure_file_path(char *path)
   check_secure_file_priv_path : Checks path specified through
   --secure-file-priv and raises warning in following cases:
   1. If path is empty string or NULL and mysqld is not running
-     with --bootstrap mode.
+     with --bootstrap or --install-server mode.
   2. If path can access data directory
   3. If path points to a directory which is accessible by
      all OS users (non-Windows build only)
@@ -7906,15 +7965,15 @@ static bool check_secure_file_priv_path()
 
   if (!opt_secure_file_priv[0])
   {
-    if (opt_bootstrap)
+    if (opt_bootstrap || opt_install_server)
     {
       /*
         Do not impose --secure-file-priv restriction
-        in --bootstrap mode
+        in --bootstrap or --install_server mode
       */
       sql_print_information("Ignoring --secure-file-priv value as server is "
-                            "running with --initialize(-insecure) or "
-                            "--bootstrap.");
+                            "running with --initialize(-insecure), "
+                            "--bootstrap or --install-server.");
     }
     else
     {
@@ -8099,7 +8158,7 @@ static int fix_paths(void)
     Convert the secure-file-priv option to system format, allowing
     a quick strcmp to check if read or write is in an allowed dir
   */
-  if (opt_bootstrap)
+  if (opt_bootstrap || opt_install_server)
     opt_secure_file_priv= EMPTY_STR.str;
   secure_file_priv_nonempty= opt_secure_file_priv[0] ? true : false;
 
@@ -8231,7 +8290,7 @@ static void create_pid_file()
 static void delete_pid_file(myf flags)
 {
   File file;
-  if (opt_bootstrap ||
+  if (opt_bootstrap || opt_install_server ||
       !pid_file_created ||
       !(file= mysql_file_open(key_file_pid, pidfile_name,
                               O_RDONLY, flags)))
@@ -8380,6 +8439,9 @@ PSI_mutex_key key_RELAYLOG_LOCK_sync;
 PSI_mutex_key key_RELAYLOG_LOCK_sync_queue;
 PSI_mutex_key key_RELAYLOG_LOCK_xids;
 PSI_mutex_key key_gtid_ensure_index_mutex;
+PSI_mutex_key key_LOCK_thread_created;
+PSI_mutex_key key_object_cache_mutex; // TODO need to initialize
+PSI_cond_key key_object_loading_cond; // TODO need to initialize
 PSI_mutex_key key_mts_temp_table_LOCK;
 PSI_mutex_key key_mts_gaq_LOCK;
 PSI_mutex_key key_thd_timer_mutex;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -38,6 +38,11 @@ extern os_event_t	dict_stats_event;
 #ifdef HAVE_PSI_INTERFACE
 extern mysql_pfs_key_t	dict_stats_recalc_pool_mutex_key;
 #endif /* HAVE_PSI_INTERFACE */
+
+#ifdef UNIV_DEBUG
+/** Value of MySQL global used to disable dict_stats thread. */
+extern my_bool		innodb_dict_stats_disabled_debug;
+#endif /* UNIV_DEBUG */
 
 /*****************************************************************//**
 Add a table to the recalc pool, which is processed by the
@@ -106,6 +111,21 @@ after dict_stats_thread() has exited. */
 void
 dict_stats_thread_deinit();
 /*======================*/
+
+#ifdef UNIV_DEBUG
+/** Disables dict stats thread. It's used by:
+	SET GLOBAL innodb_dict_stats_disabled_debug = 1 (0).
+@param[in]	thd		thread handle
+@param[in]	var		pointer to system variable
+@param[out]	var_ptr		where the formal string goes
+@param[in]	save		immediate result from check function */
+void
+dict_stats_disabled_debug_update(
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				var_ptr,
+	const void*			save);
+#endif /* UNIV_DEBUG */
 
 /*****************************************************************//**
 This is the thread for background stats gathering. It pops tables, from

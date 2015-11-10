@@ -93,23 +93,6 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) /*!50100 TABLESPACE `ts2` STORAGE DISK */ ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1;
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) /*!50606 STORAGE DISK */ DEFAULT NULL,
-  `d` int(11) NOT NULL /*!50606 STORAGE MEMORY */,
-  `e` int(11) /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
-  `f` int(11) /*!50606 COLUMN_FORMAT FIXED */ DEFAULT NULL,
-  `g` int(11) DEFAULT NULL,
-  `h` int(11) NOT NULL /*!50606 STORAGE DISK */ /*!50606 COLUMN_FORMAT DYNAMIC */,
-  `i` int(11) /*!50606 STORAGE MEMORY */ /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
-  `j` int(11) /*!50606 STORAGE DISK */ /*!50606 COLUMN_FORMAT FIXED */ DEFAULT NULL,
-  `k` int(11) /*!50606 STORAGE MEMORY */ /*!50606 COLUMN_FORMAT FIXED */ DEFAULT NULL,
-  PRIMARY KEY (`a`)
-) /*!50100 TABLESPACE `the_tablespacename` STORAGE DISK */ ENGINE=MyISAM DEFAULT CHARSET=latin1
-DROP TABLE t1;
 #
 # WL#3627 Add COLUMN_FORMAT and STORAGE for fields
 #
@@ -251,3 +234,31 @@ Level	Code	Message
 Error	1528	Failed to create TABLESPACE ts6
 Error	1114	The table 'ts6' is full
 SET SESSION debug="-d,out_of_tablespace_disk";
+#
+# Bug #21625393 ASSERT(E->USAGE() == 1) FAILURE IN DD::CACHE::SHARED_MULTI_MAP<T>::::REMOVE()
+#
+#
+# Create a tablespace, and drop it, but make drop fail
+# before the object is deleted from the dd tables. Now,
+# the object exists in the global data dictionary, but
+# not in the SE not in the SE private data dictionary.
+CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd';
+connect  con1, localhost, root;
+SET SESSION DEBUG='+d,fail_while_dropping_dd_object';
+DROP TABLESPACE ts;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET SESSION DEBUG='-d,fail_while_dropping_dd_object';
+#
+# Without the patch, the next create statement will acquire the
+# tablespace object without using an auto releaser, because the
+# tablespace with the same name already exists in the global DD,
+# but not in the SE. If it existed in the SE, the fact that it
+# alrady exists would be caught differently. This will give an
+# assert when the thd is deleted, when the connection is closed.
+# The fix is simply to add an auto releaser at the right place.
+CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd';
+ERROR HY000: Tablespace 'ts' exists.
+disconnect con1;
+connection default;
+# Drop the tablespace for real.
+DROP TABLESPACE ts;

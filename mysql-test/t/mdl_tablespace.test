@@ -1,3 +1,4 @@
+#
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/have_perfschema.inc
@@ -65,9 +66,7 @@
 --echo #     handled correctly, both with and without source
 --echo #     tables in general tablespaces.
 --echo # 15. Verify that explicit invalid tablespace names make
---echo #     table related DDL be rejected. Verify that implicit
---echo #     invalid tablespace names (e.g., present in an .FRM
---echo #     file from a previous MySQL version) are ignored.
+--echo #     table related DDL be rejected.
 --echo # 16. Verify correct P_S information.
 --echo ###########################################################
 --echo #
@@ -969,9 +968,7 @@ SET DEBUG_SYNC= 'RESET';
 
 --echo ###########################################################
 --echo # TC15. Verify that explicit invalid tablespace names make
---echo #       table related DDL be rejected. Verify that implicit
---echo #       invalid tablespace names (e.g., present in an .FRM
---echo #       file from a previous MySQL version) are ignored.
+--echo #       table related DDL be rejected.
 
 --echo #
 --echo # First, create a tablespace ts1 with one table.
@@ -1002,45 +999,11 @@ CREATE TABLE t2 (pk INTEGER PRIMARY KEY) TABLESPACE ``;
 CREATE TABLE t2 (pk INTEGER PRIMARY KEY) TABLESPACE `xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`;
 
 --echo #
---echo # Copy files for a table with an invalid name.
-let $MYSQLD_DATADIR= `SELECT @@datadir`;
---copy_file std_data/wl7957_1.frm $MYSQLD_DATADIR/test/table_with_invalid_tablespace_name.frm
---copy_file std_data/wl7957_1.MYD $MYSQLD_DATADIR/test/table_with_invalid_tablespace_name.MYD
---copy_file std_data/wl7957_1.MYI $MYSQLD_DATADIR/test/table_with_invalid_tablespace_name.MYI
-
---echo #
---echo # A SHOW CREATE TABLE will omit the tablespace name in
---echo # the output.
-SHOW CREATE TABLE table_with_invalid_tablespace_name;
-FLUSH TABLES;
-
---echo #
---echo # A normal SELECT will behave as usual.
-SELECT * FROM table_with_invalid_tablespace_name;
-FLUSH TABLES;
-
---echo #
---echo # CREATE TABLE LIKE will omit the invalid tablespace name
---echo # when creating the new table.
-CREATE TABLE table_like LIKE table_with_invalid_tablespace_name;
-FLUSH TABLES;
-SHOW CREATE TABLE table_like;
-
---echo #
---echo # ALTER TABLE will ignore the invalid tablespace name.
-ALTER TABLE table_with_invalid_tablespace_name ENGINE=InnoDB;
-FLUSH TABLES;
-SHOW CREATE TABLE table_with_invalid_tablespace_name;
-
---echo #
---echo # Reset DEBUG_SYNC and drop objects.
+--echo # Drop objects.
 
 --connection default
 DROP TABLE t1;
-DROP TABLE table_with_invalid_tablespace_name;
-DROP TABLE table_like;
 DROP TABLESPACE ts1;
-SET DEBUG_SYNC= 'RESET';
 
 
 --echo ###########################################################

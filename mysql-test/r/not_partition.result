@@ -1,50 +1,61 @@
-FLUSH TABLES;
-SELECT * FROM t1;
+# Setup
+CREATE TABLE t (
+firstname VARCHAR(25) NOT NULL,
+lastname VARCHAR(25) NOT NULL,
+username VARCHAR(16) NOT NULL,
+email VARCHAR(35),
+joined DATE NOT NULL
+)
+PARTITION BY KEY(joined)
+PARTITIONS 6;
+# Restart the server without partition engine.
+# restart: --skip-partition
+SELECT * FROM t;
 ERROR HY000: The 'partitioning' feature is not available; you need to remove '--skip-partition' or use MySQL built with '-DWITH_PARTITION_STORAGE_ENGINE=1'
-TRUNCATE TABLE t1;
-ERROR HY000: Storage engine for table 'test'.'t1' is not loaded.
-ANALYZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	Error	The 'partitioning' feature is not available; you need to remove '--skip-partition' or use MySQL built with '-DWITH_PARTITION_STORAGE_ENGINE=1'
-test.t1	analyze	error	Corrupt
-CHECK TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	check	Error	The 'partitioning' feature is not available; you need to remove '--skip-partition' or use MySQL built with '-DWITH_PARTITION_STORAGE_ENGINE=1'
-test.t1	check	error	Corrupt
-OPTIMIZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	optimize	Error	The 'partitioning' feature is not available; you need to remove '--skip-partition' or use MySQL built with '-DWITH_PARTITION_STORAGE_ENGINE=1'
-test.t1	optimize	error	Corrupt
-REPAIR TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	repair	Error	The 'partitioning' feature is not available; you need to remove '--skip-partition' or use MySQL built with '-DWITH_PARTITION_STORAGE_ENGINE=1'
-test.t1	repair	error	Corrupt
-ALTER TABLE t1 REPAIR PARTITION ALL;
-Table	Op	Msg_type	Msg_text
-test.t1	repair	Error	The 'partitioning' feature is not available; you need to remove '--skip-partition' or use MySQL built with '-DWITH_PARTITION_STORAGE_ENGINE=1'
-test.t1	repair	error	Corrupt
-ALTER TABLE t1 CHECK PARTITION ALL;
-Table	Op	Msg_type	Msg_text
-test.t1	check	Error	The 'partitioning' feature is not available; you need to remove '--skip-partition' or use MySQL built with '-DWITH_PARTITION_STORAGE_ENGINE=1'
-test.t1	check	error	Corrupt
-ALTER TABLE t1 OPTIMIZE PARTITION ALL;
-Table	Op	Msg_type	Msg_text
-test.t1	optimize	Error	The 'partitioning' feature is not available; you need to remove '--skip-partition' or use MySQL built with '-DWITH_PARTITION_STORAGE_ENGINE=1'
-test.t1	optimize	error	Corrupt
-ALTER TABLE t1 ANALYZE PARTITION ALL;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	Error	The 'partitioning' feature is not available; you need to remove '--skip-partition' or use MySQL built with '-DWITH_PARTITION_STORAGE_ENGINE=1'
-test.t1	analyze	error	Corrupt
-ALTER TABLE t1 REBUILD PARTITION ALL;
+TRUNCATE TABLE t;
 ERROR HY000: The 'partitioning' feature is not available; you need to remove '--skip-partition' or use MySQL built with '-DWITH_PARTITION_STORAGE_ENGINE=1'
-ALTER TABLE t1 TRUNCATE PARTITION ALL;
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	Error	The 'partitioning' feature is not available; you need to remove '--skip-partition' or use MySQL built with '-DWITH_PARTITION_STORAGE_ENGINE=1'
+test.t	analyze	error	Corrupt
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	Error	The 'partitioning' feature is not available; you need to remove '--skip-partition' or use MySQL built with '-DWITH_PARTITION_STORAGE_ENGINE=1'
+test.t	check	error	Corrupt
+OPTIMIZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	optimize	Error	The 'partitioning' feature is not available; you need to remove '--skip-partition' or use MySQL built with '-DWITH_PARTITION_STORAGE_ENGINE=1'
+test.t	optimize	error	Corrupt
+REPAIR TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	repair	Error	The 'partitioning' feature is not available; you need to remove '--skip-partition' or use MySQL built with '-DWITH_PARTITION_STORAGE_ENGINE=1'
+test.t	repair	error	Corrupt
+ALTER TABLE t REPAIR PARTITION ALL;
+Table	Op	Msg_type	Msg_text
+test.t	repair	Error	The 'partitioning' feature is not available; you need to remove '--skip-partition' or use MySQL built with '-DWITH_PARTITION_STORAGE_ENGINE=1'
+test.t	repair	error	Corrupt
+ALTER TABLE t CHECK PARTITION ALL;
+Table	Op	Msg_type	Msg_text
+test.t	check	Error	The 'partitioning' feature is not available; you need to remove '--skip-partition' or use MySQL built with '-DWITH_PARTITION_STORAGE_ENGINE=1'
+test.t	check	error	Corrupt
+ALTER TABLE t OPTIMIZE PARTITION ALL;
+Table	Op	Msg_type	Msg_text
+test.t	optimize	Error	The 'partitioning' feature is not available; you need to remove '--skip-partition' or use MySQL built with '-DWITH_PARTITION_STORAGE_ENGINE=1'
+test.t	optimize	error	Corrupt
+ALTER TABLE t ANALYZE PARTITION ALL;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	Error	The 'partitioning' feature is not available; you need to remove '--skip-partition' or use MySQL built with '-DWITH_PARTITION_STORAGE_ENGINE=1'
+test.t	analyze	error	Corrupt
+ALTER TABLE t REBUILD PARTITION ALL;
 ERROR HY000: The 'partitioning' feature is not available; you need to remove '--skip-partition' or use MySQL built with '-DWITH_PARTITION_STORAGE_ENGINE=1'
-ALTER TABLE t1 ENGINE Memory;
+ALTER TABLE t TRUNCATE PARTITION ALL;
 ERROR HY000: The 'partitioning' feature is not available; you need to remove '--skip-partition' or use MySQL built with '-DWITH_PARTITION_STORAGE_ENGINE=1'
-ALTER TABLE t1 ADD (new INT);
+ALTER TABLE t ENGINE Memory;
 ERROR HY000: The 'partitioning' feature is not available; you need to remove '--skip-partition' or use MySQL built with '-DWITH_PARTITION_STORAGE_ENGINE=1'
-DROP TABLE t1;
-ERROR HY000: Storage engine for table 'test'.'t1' is not loaded.
+ALTER TABLE t ADD (new INT);
+ERROR HY000: The 'partitioning' feature is not available; you need to remove '--skip-partition' or use MySQL built with '-DWITH_PARTITION_STORAGE_ENGINE=1'
+DROP TABLE t;
+ERROR HY000: The 'partitioning' feature is not available; you need to remove '--skip-partition' or use MySQL built with '-DWITH_PARTITION_STORAGE_ENGINE=1'
 CREATE TABLE t1 (
 firstname VARCHAR(25) NOT NULL,
 lastname VARCHAR(25) NOT NULL,
@@ -112,3 +123,6 @@ CHECK TABLE `t1` EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
+# Restart the server.
+# restart
+DROP TABLE t;
