@@ -21,6 +21,8 @@
   Error messages for MySQL clients.
 */
 
+#include "my_global.h" /* Needed for inline on Visual Studio in C mode */
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
