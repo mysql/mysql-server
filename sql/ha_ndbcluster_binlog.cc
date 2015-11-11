@@ -4176,8 +4176,17 @@ int ndbcluster_binlog_start()
 **************************************************************/
 void
 ndb_rep_event_name(String *event_name,const char *db, const char *tbl,
-                   my_bool full)
+                   bool full, bool allow_hardcoded_name)
 {
+  if (allow_hardcoded_name &&
+      strcmp(db,  NDB_REP_DB) == 0 &&
+      strcmp(tbl, NDB_SCHEMA_TABLE) == 0)
+  {
+    // Always use REPL$ as prefix for the event on mysql.ndb_schema
+    // (unless when dropping events and allow_hardcoded_name is set to false)
+    full = false;
+  }
+ 
   if (full)
     event_name->set_ascii("REPLF$", 6);
   else
@@ -5122,7 +5131,7 @@ ndbcluster_get_binlog_replication_info(THD *thd, Ndb *ndb,
         WRITES.
       */
       DBUG_PRINT("info", ("ndb_apply_status defaulting to FULL, USE_WRITE"));
-      sql_print_information("NDB : ndb-log-apply-status forcing "
+      sql_print_information("NDB: ndb-log-apply-status forcing "
                             "%s.%s to FULL USE_WRITE",
                             NDB_REP_DB, NDB_APPLY_TABLE);
       *binlog_flags = NBT_FULL;
@@ -5911,7 +5920,8 @@ ndbcluster_drop_event(THD *thd, Ndb *ndb, NDB_SHARE *share,
   {
     NDBDICT *dict= ndb->getDictionary();
     String event_name(INJECTOR_EVENT_LEN);
-    ndb_rep_event_name(&event_name, dbname, tabname, i);
+    ndb_rep_event_name(&event_name, dbname, tabname, i,
+                       false /* don't allow hardcoded event name */);
     
     if (!dict->dropEvent(event_name.c_ptr()))
       continue;
