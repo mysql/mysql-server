@@ -1889,9 +1889,10 @@ files_checked:
 		dict_stats_thread_init();
 	}
 
+	fil_set_max_space_id_if_bigger(srv_undo_tablespaces);
+
 	if (create_new_db) {
 		ut_a(!srv_read_only_mode);
-		fil_set_max_space_id_if_bigger(srv_undo_tablespaces);
 
 		err = srv_undo_tablespaces_init(
 			true, srv_undo_tablespaces,
