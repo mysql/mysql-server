@@ -2340,7 +2340,7 @@ public:
     if (opt_ndb_extra_logging)
     {
       sql_print_information("NDB Schema dist: Data node: %d reports "
-                            "subscribe from node %d, subscriber bitmask %x%x",
+                            "unsubscribe from node %d, subscriber bitmask %x%x",
                             data_node_id,
                             subscriber_node_id,
                             subscriber_bitmap[idx].bitmap[1],
@@ -2999,6 +2999,7 @@ class Ndb_schema_event_handler {
     bitmap_clear_all(&servers);
     bitmap_set_bit(&servers, own_nodeid()); // "we" are always alive
     m_schema_dist_data.get_subscriber_bitmask(&servers);
+    assert(bitmap_is_set(&servers, schema->node_id)); // From known subscriber?
 
     /*
       Copy the latest slock info into the ndb_schema_object so that
@@ -4200,8 +4201,17 @@ int ndbcluster_binlog_start()
 **************************************************************/
 void
 ndb_rep_event_name(String *event_name,const char *db, const char *tbl,
-                   my_bool full)
+                   bool full, bool allow_hardcoded_name)
 {
+  if (allow_hardcoded_name &&
+      strcmp(db,  NDB_REP_DB) == 0 &&
+      strcmp(tbl, NDB_SCHEMA_TABLE) == 0)
+  {
+    // Always use REPL$ as prefix for the event on mysql.ndb_schema
+    // (unless when dropping events and allow_hardcoded_name is set to false)
+    full = false;
+  }
+ 
   if (full)
     event_name->set_ascii("REPLF$", 6);
   else
@@ -4322,7 +4332,7 @@ ndbcluster_get_binlog_replication_info(THD *thd, Ndb *ndb,
         WRITES.
       */
       DBUG_PRINT("info", ("ndb_apply_status defaulting to FULL, USE_WRITE"));
-      sql_print_information("NDB : ndb-log-apply-status forcing "
+      sql_print_information("NDB: ndb-log-apply-status forcing "
                             "%s.%s to FULL USE_WRITE",
                             NDB_REP_DB, NDB_APPLY_TABLE);
       *binlog_flags = NBT_FULL;
@@ -5115,7 +5125,8 @@ ndbcluster_drop_event(THD *thd, Ndb *ndb, NDB_SHARE *share,
   {
     NDBDICT *dict= ndb->getDictionary();
     String event_name(INJECTOR_EVENT_LEN);
-    ndb_rep_event_name(&event_name, dbname, tabname, i);
+    ndb_rep_event_name(&event_name, dbname, tabname, i,
+                       false /* don't allow hardcoded event name */);
     
     if (!dict->dropEvent(event_name.c_ptr()))
       continue;
