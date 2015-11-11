@@ -934,14 +934,6 @@ public:
 		m_offset(offset)
 	{
 		ut_ad(m_n > 0);
-
-		/* If off_t is > 4 bytes in size, then we assume we can pass a
-		64-bit address */
-		off_t	offs = static_cast<off_t>(m_offset);
-
-		if (sizeof(off_t) <= 4 && m_offset != (os_offset_t) offs) {
-			ib::error() << "file write at offset > 4 GB.";
-		}
 	}
 
 	/** Destructor */
@@ -4877,28 +4869,6 @@ AIO::simulated_put_read_threads_to_sleep()
 
 #endif /* !_WIN32*/
 
-/** Validate the type, offset and number of bytes to read *
-@param[in]	type		IO flags
-@param[in]	offset		Offset from start of the file
-@param[in]	n		Number of bytes to read from offset */
-static
-void
-os_file_check_args(const IORequest& type, os_offset_t offset, ulint n)
-{
-	ut_ad(type.validate());
-
-	ut_ad(n > 0);
-
-	/* If off_t is > 4 bytes in size, then we assume we can pass a
-	64-bit address */
-	off_t		offs = static_cast<off_t>(offset);
-
-	if (sizeof(off_t) <= 4 && offset != (os_offset_t) offs) {
-
-		ib::error() << "file write at offset > 4 GB.";
-	}
-}
-
 /** Does a syncronous read or write depending upon the type specified
 In case of partial reads/writes the function tries
 NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
@@ -5067,7 +5037,8 @@ os_file_write_page(
 {
 	dberr_t		err;
 
-	os_file_check_args(type, offset, n);
+	ut_ad(type.validate());
+	ut_ad(n > 0);
 
 	ssize_t	n_bytes = os_file_pwrite(type, file, buf, n, offset, &err);
 
@@ -5155,7 +5126,8 @@ os_file_read_page(
 
 	os_bytes_read_since_printout += n;
 
-	os_file_check_args(type, offset, n);
+	ut_ad(type.validate());
+	ut_ad(n > 0);
 
 	for (;;) {
 		ssize_t	n_bytes;

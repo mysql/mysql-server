@@ -846,11 +846,7 @@ SysTablespace::check_file_spec(
 		return(DB_ERROR);
 	}
 
-	ulint tablespace_size = get_sum_of_sizes();
-	if (tablespace_size == ULINT_UNDEFINED) {
-		return(DB_ERROR);
-	} else if (tablespace_size
-		   < min_expected_size / UNIV_PAGE_SIZE) {
+	if (get_sum_of_sizes() < min_expected_size / UNIV_PAGE_SIZE) {
 
 		ib::error() << "Tablespace size must be at least "
 			<< min_expected_size / (1024 * 1024) << " MB";
