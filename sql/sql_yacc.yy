@@ -8997,19 +8997,18 @@ select_init:
         ;
 
 /**
-  A <query_expression> can be used an <expr>, corresponding to the standard's
-  <select statement: single row>. Now, because both a <query_expression> and
-  an <expr> can appear syntactically within any number of parentheses, we get
-  an ambiguous grammar: Where do the parentheses belong? Techically, we have
-  to tell Bison by which rule to reduce the extra pair of parentheses. We
-  solve it in a somewhat tedious way by defining a query_expression so that it
-  can't have outer parentheses. This forces us to be very explicit about
-  exactly where we allow parentheses; while the standard defines only one rule
-  for <query expression> parentheses, we have to do it in several places. But
-  this is a blessing in disguise, as we are able to define our syntax in a
-  more fine-grained manner, and this is necessary in order to support some
-  syntax that our previous top-down parser allowed. Some of this legacy syntax
-  can be seen in the last two sub-rules here.
+  A <query_expression> can be used an <expr>. Now, because both a
+  <query_expression> and an <expr> can appear syntactically within any number
+  of parentheses, we get an ambiguous grammar: Where do the parentheses
+  belong? Techically, we have to tell Bison by which rule to reduce the extra
+  pair of parentheses. We solve it in a somewhat tedious way by defining a
+  query_expression so that it can't have outer parentheses. This forces us to
+  be very explicit about exactly where we allow parentheses; while the
+  standard defines only one rule for <query expression> parentheses, we have
+  to do it in several places. But this is a blessing in disguise, as we are
+  able to define our syntax in a more fine-grained manner, and this is
+  necessary in order to support some MySQL extensions, for example as in the
+  last two sub-rules here.
 
   Even if we define a query_expression not to have outer parentheses, we still
   get a shift/reduce conflict for the <subquery> rule, but we solve this by
@@ -9019,7 +9018,7 @@ select_init:
   clear from the lookahead token whether we have a subquery or just a
   query_expression within parentheses. For example, if the lookahead token is
   UNION it's just a query_expression within parentheses and the parentheses
-  have no semantical meaning. If the next token is PLUS, we know it must be an
+  don't mean it's a subquery. If the next token is PLUS, we know it must be an
   <expr> and the parentheses really mean it's a nested query expression.
 */
 query_expression:
@@ -11278,13 +11277,12 @@ into_destination:
 do_stmt:
           DO_SYM empty_select_options select_item_list
           {
-            $$= NEW_PTN PT_select
-              (SQLCOM_DO,
-               NEW_PTN PT_query_expression
-               (NEW_PTN PT_query_expression_body_primary
-                (NEW_PTN PT_query_specification
-                 (NEW_PTN PT_select_part2
-                  (NEW_PTN PT_select_options_and_item_list($2, $3))))));
+            $$= NEW_PTN PT_select(SQLCOM_DO,
+                  NEW_PTN PT_query_expression(
+                    NEW_PTN PT_query_expression_body_primary(
+                      NEW_PTN PT_query_specification(
+                        NEW_PTN PT_select_part2(
+                          NEW_PTN PT_select_options_and_item_list($2, $3))))));
           }
         ;
 
