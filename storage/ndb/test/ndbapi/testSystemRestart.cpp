@@ -2755,11 +2755,11 @@ int runAlterTableAndOptimize(NDBT_Context* ctx, NDBT_Step* step)
     BaseString query;
     int numOfTables = ctx->getNumTables();
 
-    /* ALTER ONLINE TABLE <tbl_name> REORGANIZE PARTITION */
+    /* ALTER TABLE <tbl_name> ALGORITHM=INPLACE, REORGANIZE PARTITION */
     for(int i= 0; i < numOfTables; i++ )
     {
       SqlResultSet resultSet;
-      query.assfmt("ALTER ONLINE TABLE %s REORGANIZE PARTITION",
+      query.assfmt("ALTER TABLE %s ALGORITHM=INPLACE, REORGANIZE PARTITION",
                    ctx->getTableName(i));
       g_info << "Executing query : "<< query.c_str() << endl;
 

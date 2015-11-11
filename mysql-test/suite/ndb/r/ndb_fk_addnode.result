@@ -15,12 +15,8 @@ HashMap DEFAULT-HASHMAP-3840-2
 Nodegroup 1 created
 Drop Node Group 1 done
 Nodegroup 1 created
-alter online table t2 reorganize partition;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-alter online table t1 reorganize partition;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+alter table t2 algorithm=inplace, reorganize partition;
+alter table t1 algorithm=inplace, reorganize partition;
 FragmentCount 4
 HashMap DEFAULT-HASHMAP-3840-4
 
