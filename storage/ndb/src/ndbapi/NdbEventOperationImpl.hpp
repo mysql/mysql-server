@@ -733,7 +733,10 @@ public:
   int pollEvents(int aMillisecondNumber, Uint64 *HighestQueuedEpoch= 0);
   int flushIncompleteEvents(Uint64 gci);
 
-  void free_consumed_event_data();
+  /* Remove all resources related to current epoch 
+   * after it has been completely consumed.
+   */
+  void remove_consumed_epoch();
 
   /* Consume and discard all completed events. 
    * Memory related to discarded events are released.
@@ -828,7 +831,7 @@ public:
   // user thread
   EventBufData_list m_available_data;
   EventBufData_list m_used_data;
-  EventBufData *m_current_data;
+  const EventBufData *m_current_data;
 
   unsigned m_total_alloc; // total allocated memory
 
