@@ -897,9 +897,11 @@ row_upd_build_difference_binary(
 		}
 	}
 
-	/* Check the virtual columns updates, but there must be some non-virtual
-	column (base columns) change */
-	if (n_diff && n_v_fld) {
+	/* Check the virtual columns updates. Even if there is no non-virtual
+	column (base columns) change, we will still need to build the
+	indexed virtual column value so that undo log would log them (
+	for purge/mvcc purpose) */
+	if (n_v_fld > 0) {
 		row_ext_t*	ext;
 		mem_heap_t*	v_heap = NULL;
 
