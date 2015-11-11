@@ -1255,7 +1255,6 @@ static void mysqld_exit(int exit_code)
 {
   DBUG_ASSERT(exit_code >= MYSQLD_SUCCESS_EXIT
               && exit_code <= MYSQLD_FAILURE_EXIT);
-  log_syslog_exit();
   mysql_audit_finalize();
 #ifndef EMBEDDED_LIBRARY
   Srv_session::module_deinit();
@@ -1492,6 +1491,8 @@ void clean_up(bool print_message)
     my_timer_deinitialize();
 
   have_statement_timeout= SHOW_OPTION_DISABLED;
+
+  log_syslog_exit();
 
   /*
     The following lines may never be executed as the main thread may have
