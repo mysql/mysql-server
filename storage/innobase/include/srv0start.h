@@ -114,11 +114,6 @@ srv_path_copy(
 	const char*	table_name)	/*!< in: source table name */
 	__attribute__((warn_unused_result));
 
-/**
-Shutdown all background threads created by InnoDB. */
-void
-srv_shutdown_all_bg_threads();
-
 /** Get the meta-data filename from the table name for a
 single-table tablespace.
 @param[in]	table		table object
@@ -170,6 +165,12 @@ enum srv_shutdown_t {
 /** At a shutdown this value climbs from SRV_SHUTDOWN_NONE to
 SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
 extern	enum srv_shutdown_t	srv_shutdown_state;
+
 #endif /* !UNIV_HOTBACKUP */
+
+/** Call exit(3) */
+void
+srv_fatal_error()
+	__attribute__((noreturn));
 
 #endif

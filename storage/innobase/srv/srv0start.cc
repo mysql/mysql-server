@@ -107,6 +107,9 @@ Created 2/16/1996 Heikki Tuuri
 extern bool srv_lzo_disabled;
 #endif /* HAVE_LZO1X */
 
+/** Recovered persistent metadata */
+static MetadataRecover* srv_dict_metadata;
+
 /** TRUE if we don't have DDTableBuffer in the system tablespace,
 this should be due to we run the server against old data files.
 Please do NOT change this when server is running.
@@ -681,12 +684,6 @@ srv_undo_tablespace_open(
 		/* Load the tablespace into InnoDB's internal
 		data structures. */
 
-		/* We set the biggest space id to the undo tablespace
-		because InnoDB hasn't opened any other tablespace apart
-		from the system tablespace. */
-
-		fil_set_max_space_id_if_bigger(space_id);
-
 		/* Set the compressed page size to 0 (non-compressed) */
 		flags = fsp_flags_init(
 			univ_page_size, false, false, false, false);
@@ -1208,6 +1205,7 @@ srv_start_state_is_set(
 
 /**
 Shutdown all background threads created by InnoDB. */
+static
 void
 srv_shutdown_all_bg_threads()
 {
@@ -1215,9 +1213,12 @@ srv_shutdown_all_bg_threads()
 
 	srv_shutdown_state = SRV_SHUTDOWN_EXIT_THREADS;
 
-	if (!srv_start_state) {
+	if (srv_start_state == SRV_START_STATE_NONE) {
 		return;
 	}
+
+	UT_DELETE(srv_dict_metadata);
+	srv_dict_metadata = NULL;
 
 	/* All threads end up waiting for certain events. Put those events
 	to the signaled state. Then the threads will exit themselves after
@@ -1428,6 +1429,7 @@ srv_start(
 	size_t		dirnamelen;
 	unsigned	i = 0;
 
+	DBUG_ASSERT(srv_dict_metadata == NULL);
 	/* Reset the start state. */
 	srv_start_state = SRV_START_STATE_NONE;
 
@@ -1889,6 +1891,7 @@ files_checked:
 
 	if (create_new_db) {
 		ut_a(!srv_read_only_mode);
+		fil_set_max_space_id_if_bigger(srv_undo_tablespaces);
 
 		err = srv_undo_tablespaces_init(
 			true, srv_undo_tablespaces,
@@ -1962,31 +1965,6 @@ files_checked:
 			return(srv_init_abort(err));
 		}
 
-		err = srv_undo_tablespaces_init(
-			false, srv_undo_tablespaces,
-			&srv_undo_tablespaces_open);
-
-		if (err != DB_SUCCESS
-		    && srv_force_recovery
-		    < SRV_FORCE_NO_UNDO_LOG_SCAN) {
-
-			if (err == DB_TABLESPACE_NOT_FOUND) {
-				/* A tablespace was not found.
-				The user must force recovery. */
-
-				srv_fatal_error();
-			}
-
-			return(srv_init_abort(err));
-		}
-
-		purge_queue = trx_sys_init_at_db_start();
-
-		/* We should apply the table persistent metadata immediately
-		after the trx initialization, so that all tables are in the
-		latest status. */
-		recv_apply_table_dynamic_metadata();
-
 		if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
 			/* Apply the hashed log records to the
 			respective file pages, for the last batch of
@@ -2015,7 +1993,24 @@ files_checked:
 			buf_flush_sync_all_buf_pools();
 		}
 
-		recv_recovery_from_checkpoint_finish();
+		srv_dict_metadata = recv_recovery_from_checkpoint_finish();
+
+		err = srv_undo_tablespaces_init(
+			false, srv_undo_tablespaces,
+			&srv_undo_tablespaces_open);
+
+		if (err != DB_SUCCESS
+		    && srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
+
+			if (err == DB_TABLESPACE_NOT_FOUND) {
+				/* A tablespace was not found.
+				The user must force recovery. */
+
+				srv_fatal_error();
+			}
+
+			return(srv_init_abort(err));
+		}
 
 		if (!srv_force_recovery
 		    && !recv_sys->found_corrupt_log
@@ -2089,6 +2084,8 @@ files_checked:
 
 			log_buffer_flush_to_disk();
 		}
+
+		purge_queue = trx_sys_init_at_db_start();
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys and trx lists were
@@ -2278,6 +2275,12 @@ void
 srv_dict_recover_on_restart()
 {
 	trx_resurrect_locks();
+
+	if (srv_dict_metadata != NULL) {
+		srv_dict_metadata->apply();
+		UT_DELETE(srv_dict_metadata);
+		srv_dict_metadata = NULL;
+	}
 
 	/* Roll back any recovered data dictionary transactions, so
 	that the data dictionary tables will be free of any locks.
@@ -2581,6 +2584,8 @@ srv_shutdown()
 	dict_persist_close();
 	btr_search_sys_free();
 
+	UT_DELETE(srv_dict_metadata);
+
 	/* 3. Free all InnoDB's own mutexes and the os_fast_mutexes inside
 	them */
 	os_aio_free();
@@ -2725,4 +2730,20 @@ srv_get_meta_data_filename(
 	strcpy(filename, path);
 
 	ut_free(path);
+}
+
+/** Call exit(3) */
+void
+srv_fatal_error()
+{
+
+	ib::error() << "Cannot continue operation.";
+
+	fflush(stderr);
+
+	ut_d(innodb_calling_exit = true);
+
+	srv_shutdown_all_bg_threads();
+
+	exit(3);
 }

@@ -257,7 +257,20 @@ struct mtr_t {
 		m_impl.m_state = MTR_STATE_INIT;
 	}
 
-	~mtr_t() { }
+	~mtr_t() {
+#ifdef UNIV_DEBUG
+		switch (m_impl.m_state) {
+		case MTR_STATE_ACTIVE:
+			ut_ad(m_impl.m_memo.size() == 0);
+			break;
+		case MTR_STATE_INIT:
+		case MTR_STATE_COMMITTED:
+			break;
+		case MTR_STATE_COMMITTING:
+			ut_error;
+		}
+#endif /* UNIV_DEBUG */
+	}
 
 	/** Increment the free list (FSP_FREE) length of the
 	tablespace */

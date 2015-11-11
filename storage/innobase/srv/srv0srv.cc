@@ -2884,19 +2884,3 @@ srv_purge_threads_active()
 
 	return(false);
 }
-
-/** Call exit(3) */
-void
-srv_fatal_error()
-{
-
-	ib::error() << "Cannot continue operation.";
-
-	fflush(stderr);
-
-	ut_d(innodb_calling_exit = true);
-
-	srv_shutdown_all_bg_threads();
-
-	exit(3);
-}

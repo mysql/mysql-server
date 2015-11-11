@@ -39,6 +39,9 @@ Created 9/20/1997 Heikki Tuuri
 #include <vector>
 #include <map>
 
+class MetadataRecover;
+class PersistentTableMetadata;
+
 #ifdef UNIV_HOTBACKUP
 extern bool	recv_replay_file_ops;
 
@@ -123,9 +126,11 @@ of first system tablespace page
 dberr_t
 recv_recovery_from_checkpoint_start(
 	lsn_t	flush_lsn);
-/** Complete recovery from a checkpoint. */
-void
-recv_recovery_from_checkpoint_finish(void);
+
+/** Complete the recovery from the latest checkpoint.
+@return recovered persistent metadata */
+MetadataRecover*
+recv_recovery_from_checkpoint_finish();
 /******************************************************//**
 Resets the logs. The contents of log files will be lost! */
 void
@@ -194,11 +199,6 @@ recv_apply_hashed_log_recs(
 				disk and invalidated in buffer pool: this
 				alternative means that no new log records
 				can be generated during the application */
-
-/** Apply the table persistent dynamic metadata collected during redo
-to in-memory tables */
-void
-recv_apply_table_dynamic_metadata(void);
 
 #ifdef UNIV_HOTBACKUP
 /*******************************************************************//**
@@ -278,9 +278,6 @@ struct recv_dblwr_t {
 	/** Recovered doublewrite buffer page frames */
 	list	pages;
 };
-
-/** Forward declaration */
-class PersistentTableMetadata;
 
 /** Class to parse persistent dynamic metadata redo log, store and
 merge them and apply them to in-memory table objects finally */

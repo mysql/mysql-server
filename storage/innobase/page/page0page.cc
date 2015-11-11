@@ -2362,9 +2362,12 @@ page_validate(
 	    && page_is_leaf(page)
 	    && !page_is_empty(page)) {
 		trx_id_t	max_trx_id	= page_get_max_trx_id(page);
+		/* This will be 0 during recv_apply_hashed_log_recs(TRUE),
+		because the transaction system has not been initialized yet */
 		trx_id_t	sys_max_trx_id	= trx_sys_get_max_trx_id();
 
-		if (max_trx_id == 0 || max_trx_id > sys_max_trx_id) {
+		if (max_trx_id == 0
+		    || (sys_max_trx_id != 0 && max_trx_id > sys_max_trx_id)) {
 			ib::error() << "PAGE_MAX_TRX_ID out of bounds: "
 				<< max_trx_id << ", " << sys_max_trx_id;
 			goto func_exit2;

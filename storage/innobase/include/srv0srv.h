@@ -812,11 +812,6 @@ srv_purge_wakeup(void);
 bool
 srv_purge_threads_active();
 
-/** Call exit(3) */
-void
-srv_fatal_error()
-	__attribute__((noreturn));
-
 #ifdef UNIV_DEBUG
 /** Disables master thread. It's used by:
 	SET GLOBAL innodb_master_thread_disabled_debug = 1 (0).
