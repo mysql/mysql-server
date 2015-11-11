@@ -922,6 +922,8 @@ db_load_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp,
     if (cur_db_changed &&
         mysql_change_db(thd, to_lex_cstring(saved_cur_db_name), true))
     {
+      delete *sphp;
+      *sphp= NULL;
       ret= SP_INTERNAL_ERROR;
       goto end;
     }
