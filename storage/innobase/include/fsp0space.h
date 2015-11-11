@@ -157,9 +157,18 @@ public:
 	/** Free the memory allocated by the Tablespace object */
 	void shutdown();
 
-	/**
-	@return ULINT_UNDEFINED if the size is invalid else the sum of sizes */
-	ulint get_sum_of_sizes() const;
+	/** @return the sum of the file sizes of each Datafile */
+	ulint get_sum_of_sizes() const
+	{
+		ulint	sum = 0;
+
+		for (files_t::const_iterator it = m_files.begin();
+		     it != m_files.end(); ++it) {
+			sum += it->m_size;
+		}
+
+		return(sum);
+	}
 
 	/** Open or Create the data files if they do not exist.
 	@param[in]	is_temp	whether this is a temporary tablespace
