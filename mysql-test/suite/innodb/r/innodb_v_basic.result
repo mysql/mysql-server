@@ -1501,3 +1501,18 @@ Warning	1831	Duplicate index 'idx6' defined on the table 'test.t'. This is depre
 ALTER TABLE t CHANGE COLUMN col3b col8a BIGINT GENERATED ALWAYS AS
 (col6x * col6) VIRTUAL, ADD UNIQUE KEY uidx ( col8a );
 DROP TABLE t;
+#
+# Bug 22141031 - GCOLS: PURGED THREAD DIES: TRIED TO PURGE
+# NON-DELETE-MARKED RECORD IN INDEX
+#
+create table t (
+a int,b int,c text,d int,e int,f int,g int,
+h text generated always as ('1') virtual,
+i int,j int,k int,l int,m int,
+primary key (c(1)),unique key (c(1)),
+key (i),key (h(1))
+) engine=innodb default charset latin1;
+replace into t(c) values ('');
+replace into t(c) values ('');
+alter table t drop column d ;
+drop table t;
