@@ -6606,6 +6606,7 @@ processed_field:
 @param table_name Table name in MySQL
 @param nth_col 0-based index of the column
 @param new_len new column length, in bytes
+@param is_v if it's a virtual column
 @retval true Failure
 @retval false Success */
 static __attribute__((warn_unused_result))
@@ -6616,10 +6617,14 @@ innobase_enlarge_column_try(
 	trx_t*			trx,
 	const char*		table_name,
 	ulint			nth_col,
-	ulint			new_len)
+	ulint			new_len,
+	bool			is_v)
 {
 	pars_info_t*	info;
 	dberr_t		error;
+	dict_col_t*	col;
+	dict_v_col_t*	v_col;
+	ulint		pos;
 
 	DBUG_ENTER("innobase_enlarge_column_try");
 
@@ -6627,9 +6632,19 @@ innobase_enlarge_column_try(
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
-	ut_ad(dict_table_get_nth_col(user_table, nth_col)->len < new_len);
+
+	if (is_v) {
+		v_col = dict_table_get_nth_v_col(user_table, nth_col);
+		pos = dict_create_v_col_pos(v_col->v_pos, v_col->m_col.ind);
+		col = &v_col->m_col;
+	} else {
+		col = dict_table_get_nth_col(user_table, nth_col);
+		pos = nth_col;
+	}
+
+	ut_ad(col->len < new_len);
 #ifdef UNIV_DEBUG
-	switch (dict_table_get_nth_col(user_table, nth_col)->mtype) {
+	switch (col->mtype) {
 	case DATA_MYSQL:
 		/* NOTE: we could allow this when !(prtype & DATA_BINARY_TYPE)
 		and ROW_FORMAT is not REDUNDANT and mbminlen<mbmaxlen.
@@ -6649,7 +6664,7 @@ innobase_enlarge_column_try(
 	info = pars_info_create();
 
 	pars_info_add_ull_literal(info, "tableid", user_table->id);
-	pars_info_add_int4_literal(info, "nth", nth_col);
+	pars_info_add_int4_literal(info, "nth", pos);
 	pars_info_add_int4_literal(info, "new", new_len);
 
 	trx->op_info = "resizing column in SYS_COLUMNS";
@@ -6697,9 +6712,22 @@ innobase_enlarge_columns_try(
 {
 	List_iterator_fast<Create_field> cf_it(
 		ha_alter_info->alter_info->create_list);
-	ulint i = 0;
+	ulint	i = 0;
+	ulint	num_v = 0;
+	bool	is_v;
 
 	for (Field** fp = table->field; *fp; fp++, i++) {
+		ulint	idx;
+
+		if ((*fp)->is_virtual_gcol()) {
+			is_v = true;
+			idx = num_v;
+			num_v++;
+		} else {
+			idx = i - num_v;
+			is_v = false;
+		}
+
 		cf_it.rewind();
 		while (Create_field* cf = cf_it++) {
 			if (cf->field == *fp) {
@@ -6707,7 +6735,7 @@ innobase_enlarge_columns_try(
 				    == IS_EQUAL_PACK_LENGTH
 				    && innobase_enlarge_column_try(
 					    user_table, trx, table_name,
-					    i, cf->length)) {
+					    idx, cf->length, is_v)) {
 					return(true);
 				}
 

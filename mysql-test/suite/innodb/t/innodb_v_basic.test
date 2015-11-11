@@ -1469,4 +1469,19 @@ replace into t(c) values ('');
 alter table t drop column d ;
 
 drop table t;
+
+--echo #
+--echo # Bug 22139917 - ASSERTION: DICT_TABLE_GET_NTH_COL(USER_TABLE, NTH_COL)
+--echo # ->LEN < NEW_LEN
+--echo #
+
+create table t (
+  a int generated always as (1) virtual,
+  b varbinary(1),
+  c varbinary(1) generated always as (b) virtual
+) engine=innodb;
+alter table t change column b b varbinary(2), algorithm=inplace;
+alter table t change column c c varbinary(2) generated always as (b) virtual, algorithm=inplace;
+
+drop table t;
 --source include/wait_until_count_sessions.inc
