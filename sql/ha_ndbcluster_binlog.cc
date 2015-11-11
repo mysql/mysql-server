@@ -2330,6 +2330,7 @@ public:
     // Release the prepared rename key, it's very unlikely
     // that the key is still around here, but just in case
     NDB_SHARE::free_key(m_prepared_rename_key);
+    m_prepared_rename_key = NULL;
   }
 
   // Map from nodeid to position in subscriber bitmaps array
