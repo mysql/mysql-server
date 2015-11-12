@@ -1023,7 +1023,8 @@ public:
                              double lower_latitude, double upper_longitude,
                              double lower_longitude, double *result_latitude,
                              double *result_longitude);
-  static double round_latlongitude(double latlongitude, double error_range);
+  static double round_latlongitude(double latlongitude, double error_range,
+                                   double lower_limit, double upper_limit);
   static bool check_geohash_argument_valid_type(Item *item);
 };
 
