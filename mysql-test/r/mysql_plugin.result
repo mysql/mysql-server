@@ -48,58 +48,72 @@ name	dl
 #
 # Attempt to load non-existant plugin
 #
+Warning: mysql_plugin is deprecated and will be removed in a future version.
 ERROR: Cannot read plugin config file NOT_THERE_AT_ALL. File does not exist.
 #
 # Attempt to use non-existant plugin.ini file
 #
+Warning: mysql_plugin is deprecated and will be removed in a future version.
 ERROR: Cannot read plugin config file daemon_example. File does not exist.
 # 
 # Attempt to omit the plugin
 #
+Warning: mysql_plugin is deprecated and will be removed in a future version.
 ERROR: No plugin specified.
 # 
 # Attempt to omit DISABLE|ENABLE
 #
+Warning: mysql_plugin is deprecated and will be removed in a future version.
 ERROR: missing operation. Please specify either '<plugin> ENABLE' or '<plugin> DISABLE'.
 # 
 # Attempt to use bad paths - datadir
 #
+Warning: mysql_plugin is deprecated and will be removed in a future version.
 ERROR: Cannot access datadir at '/data_not_there/'.
 # 
 # Attempt to use bad paths - basedir
 #
+Warning: mysql_plugin is deprecated and will be removed in a future version.
 ERROR: Cannot access basedir at '/basedir_not_there/'.
 # 
 # Attempt to use bad paths - plugin_dir
 #
+Warning: mysql_plugin is deprecated and will be removed in a future version.
 ERROR: Cannot access plugin_dir at '/plugin_not_there/'.
 # 
 # Attempt to use bad paths - mysqld
 #
+Warning: mysql_plugin is deprecated and will be removed in a future version.
 ERROR: Cannot access mysqld path '/mysqld_not_there/'.
 # 
 # Attempt to use bad paths - my_print_defaults
 #
+Warning: mysql_plugin is deprecated and will be removed in a future version.
 ERROR: Cannot access my-print-defaults path '/my_print_defaults_not_there/'.
 # 
 # Missing library
 #
+Warning: mysql_plugin is deprecated and will be removed in a future version.
 ERROR: The plugin library is missing or in a different location.
 # 
 # Bad format for config file
 #
+Warning: mysql_plugin is deprecated and will be removed in a future version.
 ERROR: Cannot read plugin config file daemon_example. Bad format in plugin configuration file.
 # 
 # Missing base_dir option
 #
+Warning: mysql_plugin is deprecated and will be removed in a future version.
 ERROR: Missing --basedir option.
 # 
 # Missing data_dir option
 #
+Warning: mysql_plugin is deprecated and will be removed in a future version.
 ERROR: Missing --datadir option.
 # 
 # Missing plugin_dir option
 #
+Warning: mysql_plugin is deprecated and will be removed in a future version.
 ERROR: Missing --plugin_dir option.
 #
 # Show the help.
