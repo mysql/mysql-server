@@ -1991,17 +1991,28 @@ my_decimal *Item_func_minus::decimal_op(my_decimal *decimal_value)
        check_decimal_overflow(my_decimal_sub(E_DEC_FATAL_ERROR &
                                              ~E_DEC_OVERFLOW,
                                              decimal_value, val1, val2)) > 3))
-    return NULL;
-
+  {
+    /*
+      Do not return a NULL pointer, as the result may be used in subsequent
+      arithmetic operations.
+     */
+    my_decimal_set_zero(decimal_value);
+    return decimal_value;
+  }
   /*
    Allow sign mismatch only if sql_mode includes MODE_NO_UNSIGNED_SUBTRACTION
    See Item_func_minus::fix_length_and_dec.
   */
   if (unsigned_flag && decimal_value->sign())
   {
-    null_value= true;
+    /*
+      Do not return a NULL pointer, as the result may be used in subsequent
+      arithmetic operations.
+     */
+    my_decimal_set_zero(decimal_value);
+    null_value= maybe_null;
     raise_decimal_overflow();
-    return NULL;
+    return decimal_value;
   }
   return decimal_value;
 }
