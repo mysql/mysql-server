@@ -615,7 +615,7 @@ MetadataRecover::apply()
 		dict_table_t*		table;
 
 		table = dict_table_open_on_id(
-			table_id, true, DICT_TABLE_OP_NORMAL);
+			table_id, true, DICT_TABLE_OP_LOAD_TABLESPACE);
 
 		/* If the table is NULL, it might be already dropped */
 		if (table == NULL) {

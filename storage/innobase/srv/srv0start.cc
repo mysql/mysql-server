@@ -2275,13 +2275,13 @@ any tables (including data dictionary tables) can be accessed. */
 void
 srv_dict_recover_on_restart()
 {
-	trx_resurrect_locks();
-
 	if (srv_dict_metadata != NULL) {
 		srv_dict_metadata->apply();
 		UT_DELETE(srv_dict_metadata);
 		srv_dict_metadata = NULL;
 	}
+
+	trx_resurrect_locks();
 
 	/* Roll back any recovered data dictionary transactions, so
 	that the data dictionary tables will be free of any locks.
