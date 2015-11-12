@@ -52,7 +52,10 @@
 #include "table_cache.h" // Table_cache_manager, Table_cache
 #include "log.h"
 #include "binlog.h"
+
+#ifdef HAVE_REPLICATION
 #include "rpl_rli.h"    //Relay_log_information
+#endif
 
 #include "pfs_table_provider.h"
 #include "mysql/psi/mysql_table.h"
@@ -1788,11 +1791,13 @@ bool close_temporary_tables(THD *thd)
     }
 
     thd->temporary_tables= 0;
+#ifdef HAVE_REPLICATION
     if (thd->slave_thread)
     {
       slave_open_temp_tables.atomic_add(-slave_closed_temp_tables);
       thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(-slave_closed_temp_tables);
     }
+#endif
 
     DBUG_RETURN(FALSE);
   }
@@ -2007,11 +2012,13 @@ bool close_temporary_tables(THD *thd)
     thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
 
   thd->temporary_tables=0;
+#ifdef HAVE_REPLICATION
   if (thd->slave_thread)
   {
     slave_open_temp_tables.atomic_add(-slave_closed_temp_tables);
     thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(-slave_closed_temp_tables);
   }
+#endif
 
   DBUG_RETURN(error);
 }
@@ -2422,6 +2429,7 @@ void close_temporary_table(THD *thd, TABLE *table,
     if (thd->temporary_tables)
       table->next->prev= 0;
   }
+#ifdef HAVE_REPLICATION
   if (thd->slave_thread)
   {
     /* natural invariant of temporary_tables */
@@ -2429,6 +2437,7 @@ void close_temporary_table(THD *thd, TABLE *table,
     slave_open_temp_tables.atomic_add(-1);
     thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(-1);
   }
+#endif
   close_temporary(table, free_share, delete_table);
   DBUG_VOID_RETURN;
 }
@@ -6853,11 +6862,13 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
       tmp_table->next->prev= tmp_table;
     thd->temporary_tables= tmp_table;
     thd->temporary_tables->prev= 0;
+#ifdef HAVE_REPLICATION
     if (thd->slave_thread)
     {
       slave_open_temp_tables.atomic_add(1);
       thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(1);
     }
+#endif
   }
   tmp_table->pos_in_table_list= NULL;
 
