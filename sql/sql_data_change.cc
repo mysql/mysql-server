@@ -141,6 +141,14 @@ void COPY_INFO::set_function_defaults(TABLE *table)
         break;
       }
     }
+
+  /**
+    @todo combine this call to update_generated_write_fields() with the
+    one in fill_record() to avoid updating virtual generated fields twice.
+  */
+  if (table->has_gcol())
+    update_generated_write_fields(table->write_set, table);
+
   DBUG_VOID_RETURN;
 }
 
