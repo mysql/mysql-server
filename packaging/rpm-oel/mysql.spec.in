@@ -671,7 +671,7 @@ rm -r $(readlink var) var
 
 %pre server
 /usr/sbin/groupadd -g 27 -o -r mysql >/dev/null 2>&1 || :
-/usr/sbin/useradd -M %{!?el5:-N} -g mysql -o -r -d /var/lib/mysql -s /bin/bash \
+/usr/sbin/useradd -M %{!?el5:-N} -g mysql -o -r -d /var/lib/mysql -s /bin/false \
     -c "MySQL Server" -u 27 mysql >/dev/null 2>&1 || :
 
 %post server
