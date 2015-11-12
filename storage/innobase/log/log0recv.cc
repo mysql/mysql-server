@@ -456,9 +456,9 @@ fil_name_parse(
 			break;
 		}
 		if (!fil_op_replay_rename(
-			space_id, first_page_no,
-			reinterpret_cast<const char*>(ptr),
-			reinterpret_cast<const char*>(new_name))) {
+			    space_id, first_page_no,
+			    reinterpret_cast<const char*>(ptr),
+			    reinterpret_cast<const char*>(new_name))) {
 			recv_sys->found_corrupt_fs = true;
 		}
 	}
