@@ -9095,18 +9095,9 @@ query_expression_body:
           {
             $$= NEW_PTN PT_query_expression_body_primary($1);
           }
-        | query_expression UNION_SYM union_option query_primary
+        | query_expression_body UNION_SYM union_option query_primary
           {
-            if ($1->has_procedure())
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
-
-            if ($1->has_order())
-              my_error(ER_WRONG_USAGE, MYF(0), "UNION", "ORDER BY");
-
-            if ($1->has_limit())
-              my_error(ER_WRONG_USAGE, MYF(0), "UNION", "LIMIT");
-
-            $$= NEW_PTN PT_union($1, $3, $4);
+            $$= NEW_PTN PT_union(NEW_PTN PT_query_expression($1), $3, $4);
           }
         | query_expression_parens UNION_SYM union_option query_primary
           {
@@ -9117,14 +9108,14 @@ query_expression_body:
 
             $$= NEW_PTN PT_union($1, $3, $4);
           }
-        | query_expression UNION_SYM union_option query_expression_parens
+        | query_expression_body UNION_SYM union_option query_expression_parens
           {
             if ($4->is_union())
               YYTHD->parse_error_at(@4, ER_THD(YYTHD, ER_SYNTAX_ERROR));
 
             PT_nested_query_expression *nested_qe=
               NEW_PTN PT_nested_query_expression($4);
-            $$= NEW_PTN PT_union($1, $3, nested_qe);
+            $$= NEW_PTN PT_union(NEW_PTN PT_query_expression($1), $3, nested_qe);
           }
         | query_expression_parens UNION_SYM union_option query_expression_parens
           {
