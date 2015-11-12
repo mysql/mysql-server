@@ -27,6 +27,9 @@ truncate table performance_schema.events_waits_history_long;
 
 show global variables like "thread_handling";
 
+# Make sure no thread instrumentation is lost
+show status like "Performance_schema_thread_instances_lost";
+
 # Code to test : in this main thread
 
 create table test.t1(a int) engine=MYISAM;
