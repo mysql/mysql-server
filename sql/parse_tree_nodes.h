@@ -46,16 +46,28 @@ public:
 
 /**
   Convenience function that calls Parse_tree_node::contextualize() on the node
-  if it's non-NULL.
+  if it's non-NULL. It also does some sanity checks.
 */
-bool contextualize(Parse_context *pc, Parse_tree_node *node);
+inline bool contextualize_safe(Parse_context *pc, Parse_tree_node *node)
+{
+  if (node == NULL)
+    return false;
+
+  return node->contextualize(pc);
+}
 
 
 /**
   Convenience function that calls Item::itemize() on the item if it's
   non-NULL.
 */
-bool itemize(Parse_context *pc, Item **item);
+inline bool itemize_safe(Parse_context *pc, Item **item)
+{
+  if (*item == NULL)
+    return false;
+  return (*item)->itemize(pc, item);
+}
+
 
 
 class PT_order_expr : public Parse_tree_node, public ORDER
@@ -2060,7 +2072,7 @@ public:
       if (contextualize_order_and_limit(pc))
         return true;
 
-    if (::contextualize(pc, m_procedure_analyse))
+    if (contextualize_safe(pc, m_procedure_analyse))
       return true;
 
     if (m_procedure_analyse && pc->select->master_unit()->outer_select() != NULL)
@@ -2093,7 +2105,7 @@ public:
     contextualized= true;
 
     pc->thd->where= "global ORDER clause";
-    if (::contextualize(pc, m_order) || ::contextualize(pc, m_limit))
+    if (contextualize_safe(pc, m_order) || contextualize_safe(pc, m_limit))
       return true;
 
     pc->thd->where= THD::DEFAULT_WHERE;
@@ -2243,7 +2255,7 @@ public:
   {
     if (Parse_tree_node::contextualize(pc) ||
         m_select_part2->contextualize(pc) ||
-        ::contextualize(pc, m_hints))
+        contextualize_safe(pc, m_hints))
       return true;
     return false;
   }
@@ -2525,7 +2537,7 @@ public:
     pc->thd->lex->sql_command= m_sql_command;
 
     return m_select_init->contextualize(pc) ||
-      ::contextualize(pc, m_into);
+      contextualize_safe(pc, m_into);
   }
 
 private:

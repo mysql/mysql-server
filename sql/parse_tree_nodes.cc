@@ -22,22 +22,6 @@
 #include "sp_pcontext.h"
 
 
-bool contextualize(Parse_context *pc, Parse_tree_node *node)
-{
-  if (node == NULL)
-    return false;
-  return node->contextualize(pc);
-}
-
-
-bool itemize(Parse_context *pc, Item **item)
-{
-  if (*item == NULL)
-    return false;
-  return (*item)->itemize(pc, item);
-}
-
-
 bool PT_option_value_no_option_type_charset:: contextualize(Parse_context *pc)
 {
   if (super::contextualize(pc))
@@ -973,19 +957,19 @@ bool PT_select_part2::contextualize(Parse_context *pc)
 {
   if (super::contextualize(pc) ||
       select_options_and_item_list->contextualize(pc) ||
-      ::contextualize(pc, opt_into1) ||
-      ::contextualize(pc, from_clause) ||
-      ::itemize(pc, &opt_where_clause) ||
-      ::contextualize(pc, opt_group_clause) ||
-      ::itemize(pc, &opt_having_clause))
+      contextualize_safe(pc, opt_into1) ||
+      contextualize_safe(pc, from_clause) ||
+      itemize_safe(pc, &opt_where_clause) ||
+      contextualize_safe(pc, opt_group_clause) ||
+      itemize_safe(pc, &opt_having_clause))
     return true;
 
   pc->select->set_where_cond(opt_where_clause);
   pc->select->set_having_cond(opt_having_clause);
 
-  if (::contextualize(pc, opt_order_clause) ||
-      ::contextualize(pc, opt_limit_clause) ||
-      ::contextualize(pc, opt_procedure_analyse_clause))
+  if (contextualize_safe(pc, opt_order_clause) ||
+      contextualize_safe(pc, opt_limit_clause) ||
+      contextualize_safe(pc, opt_procedure_analyse_clause))
     return true;
 
   DBUG_ASSERT(opt_procedure_analyse_clause == NULL || opt_into1 == NULL);
