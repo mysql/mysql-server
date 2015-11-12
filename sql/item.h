@@ -1607,10 +1607,8 @@ public:
   */
   virtual bool is_null() { return 0; }
 
-  /*
-   Make sure the null_value member has a correct value.
-  */
-  virtual void update_null_value () { (void) val_int(); }
+  /// Make sure the null_value member has a correct value.
+  void update_null_value();
 
   /*
     Inform the item that there will be no distinction between its result
@@ -2867,7 +2865,6 @@ public:
   bool get_time(MYSQL_TIME *ltime);
   bool get_timeval(struct timeval *tm, int *warnings);
   bool is_null() { return field->is_null(); }
-  void update_null_value();
   Item *get_tmp_table_item(THD *thd);
   bool collect_item_field_processor(uchar * arg);
   bool add_field_to_set_processor(uchar *arg);

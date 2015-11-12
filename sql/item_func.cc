@@ -7264,16 +7264,6 @@ bool Item_func_get_system_var::is_written_to_binlog()
 }
 
 
-void Item_func_get_system_var::update_null_value()
-{
-  THD *thd= current_thd;
-  int save_no_errors= thd->no_errors;
-  thd->no_errors= TRUE;
-  Item::update_null_value();
-  thd->no_errors= save_no_errors;
-}
-
-
 void Item_func_get_system_var::fix_length_and_dec()
 {
   char *cptr;
@@ -8565,27 +8555,6 @@ type_conversion_status
 Item_func_sp::save_in_field_inner(Field *field, bool no_conversions)
 {
   return save_possibly_as_json(field, no_conversions);
-}
-
-
-void Item_func_sp::update_null_value()
-{
-  /*
-    This method is called when we try to check if the item value is NULL.
-    We call Item_func_sp::execute() to get value of null_value attribute
-    as a side effect of its execution.
-    We ignore any error since update_null_value() doesn't return value.
-    We used to delegate nullability check to Item::update_null_value as
-    a result of a chain of function calls:
-     Item_func_isnull::val_int --> Item_func::is_null -->
-      Item::update_null_value -->Item_func_sp::val_int -->
-        Field_varstring::val_int
-    Such approach resulted in a call of push_warning_printf() in case
-    if a stored program value couldn't be cast to integer (the case when
-    for example there was a stored function that declared as returning
-    varchar(1) and a function's implementation returned "Y" from its body).
-  */
-  execute();
 }
 
 

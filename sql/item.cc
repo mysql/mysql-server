@@ -7550,6 +7550,13 @@ bool Item::send(Protocol *protocol, String *buffer)
 }
 
 
+void Item::update_null_value()
+{
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  String str(buff, sizeof(buff), collation.collation);
+  evaluate(current_thd, &str);
+}
+
 /**
   Evaluate item, possibly using the supplied buffer
 
@@ -7566,6 +7573,15 @@ bool Item::evaluate(THD *thd, String *buffer)
   switch (field_type())
   {
   default:
+    DBUG_ASSERT(false);
+    (void)val_str(buffer);
+    break;
+  case MYSQL_TYPE_JSON:
+    {
+      Json_wrapper wr;
+      (void) val_json(&wr);
+    }
+    break;
   case MYSQL_TYPE_NULL:
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_ENUM:
@@ -7581,7 +7597,6 @@ bool Item::evaluate(THD *thd, String *buffer)
   case MYSQL_TYPE_BIT:
   {
     (void)val_str(buffer);
-    result= thd->is_error();
     break;
   }
   case MYSQL_TYPE_TINY:
@@ -7592,14 +7607,12 @@ bool Item::evaluate(THD *thd, String *buffer)
   case MYSQL_TYPE_LONGLONG:
   {
     (void)val_int();
-    result= thd->is_error();
     break;
   }
   case MYSQL_TYPE_NEWDECIMAL:
   {
     my_decimal decimal_value;
     (void)val_decimal(&decimal_value);
-    result= thd->is_error();
     break;
   }
 
@@ -7607,7 +7620,6 @@ bool Item::evaluate(THD *thd, String *buffer)
   case MYSQL_TYPE_DOUBLE:
   {
     (void)val_real();
-    result= thd->is_error();
     break;
   }
   case MYSQL_TYPE_DATETIME:
@@ -7616,17 +7628,16 @@ bool Item::evaluate(THD *thd, String *buffer)
   {
     MYSQL_TIME tm;
     (void)get_date(&tm, TIME_FUZZY_DATE);
-    result= thd->is_error();
     break;
   }
   case MYSQL_TYPE_TIME:
   {
     MYSQL_TIME tm;
     (void)get_time(&tm);
-    result= thd->is_error();
     break;
   }
   }
+  result= thd->is_error();
   return result;
 }
 
@@ -7742,22 +7753,6 @@ Item* Item_field::item_field_by_name_transformer(uchar *arg)
 bool Item_field::send(Protocol *protocol, String *buffer)
 {
   return protocol->store(result_field);
-}
-
-
-void Item_field::update_null_value() 
-{ 
-  /* 
-    need to set no_errors to prevent warnings about type conversion 
-    popping up.
-  */
-  THD *thd= field->table->in_use;
-  int no_errors;
-
-  no_errors= thd->no_errors;
-  thd->no_errors= 1;
-  Item::update_null_value();
-  thd->no_errors= no_errors;
 }
 
 

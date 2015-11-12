@@ -153,12 +153,6 @@ public:
   void cleanup();
 
   Item_result cast_to_int_type () const { return INT_RESULT; }
-
-  void update_null_value ()
-  {
-    Json_wrapper wr;
-    val_json(&wr);
-  }
 };
 
 /**

@@ -523,7 +523,6 @@ public:
   double val_real();
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *);
-  void update_null_value () { (void) val_bool(); }
   bool val_bool();
   void top_level_item() { abort_on_null=1; }
   bool is_top_level_item() const { return abort_on_null; }

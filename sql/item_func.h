@@ -2461,7 +2461,6 @@ public:
                            LEX_STRING *component_arg, const char *name_arg,
                            size_t name_len_arg);
   enum Functype functype() const { return GSYSVAR_FUNC; }
-  void update_null_value();
   void fix_length_and_dec();
   void print(String *str, enum_query_type query_type);
   bool const_item() const { return true; }
@@ -2953,7 +2952,6 @@ public:
     return sp_result_field;
   }
 
-  virtual void update_null_value();
 };
 
 
