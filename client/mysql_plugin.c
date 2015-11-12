@@ -103,6 +103,9 @@ int main(int argc,char *argv[])
   char server_path[FN_REFLEN];
   char operation[16];
 
+  fprintf(stderr, "Warning: mysql_plugin is deprecated and will be removed in a future "
+          "version.\n");
+
   MY_INIT(argv[0]);
   plugin_data.name= 0; // initialize name
   
