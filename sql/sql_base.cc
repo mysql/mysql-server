@@ -2902,6 +2902,16 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
           (table_type == dd::Abstract_table::TT_USER_VIEW ||
            table_type == dd::Abstract_table::TT_SYSTEM_VIEW))
       {
+        /*
+          If parent_l of the table_list is non null then a merge table
+          has this view as child table, which is not supported.
+        */
+        if (table_list->parent_l)
+        {
+          my_error(ER_WRONG_MRG_TABLE, MYF(0));
+          DBUG_RETURN(true);
+        }
+
         if (!tdc_open_view(thd, table_list, alias, key, key_length,
                            CHECK_METADATA_VERSION))
         {
