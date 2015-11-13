@@ -16,7 +16,13 @@
 #ifndef SQL_CLASS_INCLUDED
 #define SQL_CLASS_INCLUDED
 
-/* Classes in mysql */
+/*
+  This file contains the declaration of the THD class and classes which THD
+  depends on. It should contain as little else as possible to increase
+  cohesion and reduce coupling. Since THD is used in many places, many files
+  are dependent on this header and thus require recompilation if it changes.
+  Historically this file contained "Classes in mysql". 
+*/
 
 #include "my_global.h"
 
@@ -80,9 +86,6 @@ extern LEX_STRING EMPTY_STR;
 extern LEX_STRING NULL_STR;
 extern LEX_CSTRING EMPTY_CSTR;
 extern LEX_CSTRING NULL_CSTR;
-
-LEX_CSTRING thd_query_unsafe(THD *thd);
-size_t thd_query_safe(THD *thd, char *buf, size_t buflen);
 
 /**
   To be used for pool-of-threads (implemented differently on various OSs)

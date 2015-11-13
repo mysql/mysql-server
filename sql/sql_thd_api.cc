@@ -18,9 +18,16 @@
 #include "my_global.h"
 #include "mysql/plugin.h"
 #include "mysql/service_thd_alloc.h"
+#include "mysql/service_thd_engine_lock.h"
+#include "mysql/service_thd_wait.h"
 #include "mysql/thread_pool_priv.h"
+
 #include "current_thd.h"                // current_thd
 #include "mysqld_thd_manager.h"         // Global_THD_manager
+#include "rpl_rli.h"                    // is_mts_worker
+#include "rpl_slave_commit_order_manager.h"
+                                        // commit_order_manager_check_deadlock
+#include "sql_callback.h"               // MYSQL_CALLBACK
 #include "sql_class.h"                  // THD
 #include "sql_plugin.h"                 // plugin_unlock
 #include "mysqld.h"                     // key_thread_one_connection
@@ -735,3 +742,96 @@ void *thd_memdup(MYSQL_THD thd, const void* str, size_t size)
 {
   return thd->memdup(str, size);
 }
+
+
+//////////////////////////////////////////////////////////
+//
+//  Definitions of functions declared in service_thd_wait.h
+//
+//////////////////////////////////////////////////////////
+
+#ifndef EMBEDDED_LIBRARY
+/*
+  Interface for MySQL Server, plugins and storage engines to report
+  when they are going to sleep/stall.
+  
+  SYNOPSIS
+  thd_wait_begin()
+  thd                     Thread object
+  wait_type               Type of wait
+                          1 -- short wait (e.g. for mutex)
+                          2 -- medium wait (e.g. for disk io)
+                          3 -- large wait (e.g. for locked row/table)
+  NOTES
+    This is used by the threadpool to have better knowledge of which
+    threads that currently are actively running on CPUs. When a thread
+    reports that it's going to sleep/stall, the threadpool scheduler is
+    free to start another thread in the pool most likely. The expected wait
+    time is simply an indication of how long the wait is expected to
+    become, the real wait time could be very different.
+
+  thd_wait_end MUST be called immediately after waking up again.
+*/
+extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
+{
+  MYSQL_CALLBACK(Connection_handler_manager::event_functions,
+                 thd_wait_begin, (thd, wait_type));
+}
+
+/**
+  Interface for MySQL Server, plugins and storage engines to report
+  when they waking up from a sleep/stall.
+
+  @param  thd   Thread handle
+*/
+extern "C" void thd_wait_end(MYSQL_THD thd)
+{
+  MYSQL_CALLBACK(Connection_handler_manager::event_functions,
+                 thd_wait_end, (thd));
+}
+#else
+extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
+{
+  /* do NOTHING for the embedded library */
+  return;
+}
+
+extern "C" void thd_wait_end(MYSQL_THD thd)
+{
+  /* do NOTHING for the embedded library */
+  return;
+}
+#endif
+
+
+//////////////////////////////////////////////////////////
+//
+//  Definitions of functions declared in service_thd_engine_lock.h
+//
+//////////////////////////////////////////////////////////
+
+#ifndef EMBEDDED_LIBRARY
+/**
+   Interface for Engine to report row lock conflict.
+   The caller should guarantee thd_wait_for does not be freed, when it is
+   called.
+*/
+extern "C"
+void thd_report_row_lock_wait(THD* self, THD *wait_for)
+{
+  DBUG_ENTER("thd_report_row_lock_wait");
+
+  if (self != NULL && wait_for != NULL &&
+      is_mts_worker(self) && is_mts_worker(wait_for))
+    commit_order_manager_check_deadlock(self, wait_for);
+
+  DBUG_VOID_RETURN;
+}
+#else
+extern "C"
+void thd_report_row_lock_wait(THD* self, THD *thd_wait_for)
+{
+  return;
+}
+#endif
+

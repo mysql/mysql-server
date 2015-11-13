@@ -51,6 +51,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_show.h>
 #include <sql_table.h>
 #include <sql_tablespace.h>
+#include <sql_thd_internal_api.h>
 #include <my_check_opt.h>
 #include <my_bitmap.h>
 #include <mysql/service_thd_alloc.h>
@@ -110,8 +111,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0xa.h"
 #include "ut0mem.h"
 #include "row0ext.h"
-
-enum_tx_isolation thd_get_trx_isolation(const THD* thd);
 
 #include "ha_innodb.h"
 #include "i_s.h"

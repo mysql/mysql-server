@@ -28,6 +28,7 @@ Smart ALTER TABLE
 #include <sql_lex.h>
 #include <sql_class.h>
 #include <sql_table.h>
+#include <sql_thd_internal_api.h>
 #include <mysql/plugin.h>
 #include <key_spec.h>
 
