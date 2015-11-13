@@ -1,4 +1,4 @@
-mysql-community (5.7.10-1debian7)) wheezy; urgency=low
+mysql-community (5.7.10-1debian7) wheezy; urgency=low
 
   * new upstream release
   * Added new decompression utilities lz4_decompress and zlib_decompress binaries.
