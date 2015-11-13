@@ -3160,6 +3160,36 @@ write_length_encoded_string3(uchar *buf, char *string, size_t length)
 }
 
 
+/**
+  A function to return the key from a connection attribute
+*/
+static uchar *
+get_attr_key(LEX_STRING *part, size_t *length,
+             my_bool not_used __attribute__((unused)))
+{
+  *length= part[0].length;
+  return (uchar *) part[0].str;
+}
+
+/*
+  The main purpose of this is to hide HASH from st_mysql_options_extention.
+ */
+struct My_hash : public HASH
+{
+  My_hash()
+  {
+    blength= 0;
+    my_hash_init(this,
+                 &my_charset_bin, 0, 0, 0, (my_hash_get_key) get_attr_key,
+                 my_free, HASH_UNIQUE,
+                 key_memory_mysql_options);
+  }
+  ~My_hash()
+  {
+    my_hash_free(this);
+  }
+};
+
 uchar *
 send_client_connect_attrs(MYSQL *mysql, uchar *buf)
 {
@@ -3175,9 +3205,9 @@ send_client_connect_attrs(MYSQL *mysql, uchar *buf)
 
     /* check if we have connection attributes */
     if (mysql->options.extension &&
-        my_hash_inited(&mysql->options.extension->connection_attributes))
+        mysql->options.extension->connection_attributes)
     {
-      HASH *attrs= &mysql->options.extension->connection_attributes;
+      HASH *attrs= mysql->options.extension->connection_attributes;
       ulong idx;
 
       /* loop over and dump the connection attributes */
@@ -4924,7 +4954,7 @@ void mysql_close_free_options(MYSQL *mysql)
     my_free(mysql->options.extension->plugin_dir);
     my_free(mysql->options.extension->default_auth);
     my_free(mysql->options.extension->server_public_key_path);
-    my_hash_free(&mysql->options.extension->connection_attributes);
+    delete mysql->options.extension->connection_attributes;
     my_free(mysql->options.extension);
   }
   memset(&mysql->options, 0, sizeof(mysql->options));
@@ -5492,15 +5522,16 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
 
   case MYSQL_OPT_CONNECT_ATTR_RESET:
     ENSURE_EXTENSIONS_PRESENT(&mysql->options);
-    if (my_hash_inited(&mysql->options.extension->connection_attributes))
+    if (mysql->options.extension->connection_attributes)
     {
-      my_hash_free(&mysql->options.extension->connection_attributes);
+      delete mysql->options.extension->connection_attributes;
+      mysql->options.extension->connection_attributes= NULL;
       mysql->options.extension->connection_attributes_length= 0;
     }
     break;
   case MYSQL_OPT_CONNECT_ATTR_DELETE:
     ENSURE_EXTENSIONS_PRESENT(&mysql->options);
-    if (my_hash_inited(&mysql->options.extension->connection_attributes))
+    if (mysql->options.extension->connection_attributes)
     {
       size_t len;
       uchar *elt;
@@ -5509,7 +5540,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
 
       if (len)
       {
-        elt= my_hash_search(&mysql->options.extension->connection_attributes,
+        elt= my_hash_search(mysql->options.extension->connection_attributes,
                             static_cast<const uchar*>(arg), len);
         if (elt)
         {
@@ -5520,7 +5551,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
             get_length_store_length(key->length) + key->length +
             get_length_store_length(value->length) + value->length;
 
-          my_hash_delete(&mysql->options.extension->connection_attributes,
+          my_hash_delete(mysql->options.extension->connection_attributes,
                          elt);
 
         }
@@ -5753,17 +5784,6 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
 }
 
 
-/**
-  A function to return the key from a connection attribute
-*/
-static uchar *
-get_attr_key(LEX_STRING *part, size_t *length,
-             my_bool not_used __attribute__((unused)))
-{
-  *length= part[0].length;
-  return (uchar *) part[0].str;
-}
-
 int STDCALL
 mysql_options4(MYSQL *mysql,enum mysql_option option,
                const void *arg1, const void *arg2)
@@ -5806,13 +5826,15 @@ mysql_options4(MYSQL *mysql,enum mysql_option option,
         DBUG_RETURN(1);
       }
 
-      if (!my_hash_inited(&mysql->options.extension->connection_attributes))
+      if (!mysql->options.extension->connection_attributes)
       {
-        if (my_hash_init(&mysql->options.extension->connection_attributes,
-                     &my_charset_bin, 0, 0, 0, (my_hash_get_key) get_attr_key,
-                     my_free, HASH_UNIQUE,
-                     key_memory_mysql_options))
+        mysql->options.extension->connection_attributes=
+          new (std::nothrow) My_hash();
+        if (!mysql->options.extension->connection_attributes ||
+            !my_hash_inited(mysql->options.extension->connection_attributes))
         {
+          delete mysql->options.extension->connection_attributes;
+          mysql->options.extension->connection_attributes= NULL;
           set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
           DBUG_RETURN(1);
         }
@@ -5835,7 +5857,7 @@ mysql_options4(MYSQL *mysql,enum mysql_option option,
       if (value_len)
         memcpy(value, arg2, value_len);
       value[value_len]= 0;
-      if (my_hash_insert(&mysql->options.extension->connection_attributes,
+      if (my_hash_insert(mysql->options.extension->connection_attributes,
                      (uchar *) elt))
       {
         /* can't insert the value */

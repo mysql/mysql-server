@@ -377,12 +377,6 @@ extern MY_CHARSET_HANDLER my_charset_ascii_handler;
 extern MY_CHARSET_HANDLER my_charset_ucs2_handler;
 
 
-/*
-  We define this CHARSET_INFO_DEFINED here to prevent a repeat of the
-  typedef in hash.c, which will cause a compiler error.
-*/
-#define CHARSET_INFO_DEFINED
-
 /* See strings/CHARSET_INFO.txt about information on this structure  */
 typedef struct charset_info_st
 {
