@@ -185,54 +185,53 @@ struct fil_space_t {
 
 /** File node of a tablespace or the log data space */
 struct fil_node_t {
-	fil_space_t*	space;	/*!< backpointer to the space where this node
-				belongs */
-	char*		name;	/*!< path to the file */
-	bool		is_open;/*!< true if file is open */
-	os_file_t	handle;	/*!< OS handle to the file, if file open */
-	os_event_t	sync_event;/*!< Condition event to group and
-				serialize calls to fsync */
-	bool		is_raw_disk;/*!< true if the 'file' is actually a raw
-				device or a raw disk partition */
-	ulint		size;	/*!< size of the file in database pages, 0 if
-				not known yet; the possible last incomplete
-				megabyte may be ignored if space == 0 */
+	/** tablespace containing this file */
+	fil_space_t*	space;
+	/** file name; protected by fil_system->mutex and log_sys->mutex. */
+	char*		name;
+	/** whether this file is open */
+	bool		is_open;
+	/** file handle (valid if is_open) */
+	os_file_t	handle;
+	/** event that groups and serializes calls to fsync */
+	os_event_t	sync_event;
+	/** whether the file actually is a raw device or disk partition */
+	bool		is_raw_disk;
+	/** size of the file in database pages (0 if not known yet);
+	the possible last incomplete megabyte may be ignored
+	if space->id == 0 */
+	ulint		size;
+	/** initial size of the file in database pages;
+	FIL_IBD_FILE_INITIAL_SIZE by default */
 	ulint		init_size;
-				/*!< initial size of the file in database pages,
-				defaults to FIL_IBD_FILE_INITIAL_SIZE. */
+	/** maximum size of the file in database pages (0 if unlimited) */
 	ulint		max_size;
-				/*!< maximum size of the file in database pages;
-				0 if there is no maximum size. */
+	/** count of pending i/o's; is_open must be true if nonzero */
 	ulint		n_pending;
-				/*!< count of pending i/o's on this file;
-				closing of the file is not allowed if
-				this is > 0 */
+	/** count of pending flushes; is_open must be true if nonzero */
 	ulint		n_pending_flushes;
-				/*!< count of pending flushes on this file;
-				closing of the file is not allowed if
-				this is > 0 */
+	/** whether the file is currently being extended */
 	bool		being_extended;
-				/*!< true if the node is currently
-				being extended. */
-	int64_t		modification_counter;/*!< when we write to the file we
-				increment this by one */
-	int64_t		flush_counter;/*!< up to what
-				modification_counter value we have
-				flushed the modifications to disk */
+	/** number of writes to the file since the system was started */
+	int64_t		modification_counter;
+	/** the modification_counter of the latest flush to disk */
+	int64_t		flush_counter;
+	/** link to other files in this tablespace */
 	UT_LIST_NODE_T(fil_node_t) chain;
-				/*!< link field for the file chain */
+	/** link to the fil_system->LRU list (keeping track of open files) */
 	UT_LIST_NODE_T(fil_node_t) LRU;
-				/*!< link field for the LRU list */
-	ulint		magic_n;/*!< FIL_NODE_MAGIC_N */
 
-	/** true if the FS where the file is located supports PUNCH HOLE */
+	/** whether the file system of this file supports PUNCH HOLE */
 	bool		punch_hole;
 
-	/** Block size to use for punching holes */
+	/** block size to use for punching holes */
 	ulint           block_size;
 
-	/** True if atomic write is enabled for this file */
+	/** whether atomic write is enabled for this file */
 	bool		atomic_write;
+
+	/** FIL_NODE_MAGIC_N */
+	ulint		magic_n;
 };
 
 /** Value of fil_node_t::magic_n */
