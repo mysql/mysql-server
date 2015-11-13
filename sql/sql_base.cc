@@ -2267,8 +2267,8 @@ void close_temporary_table(THD *thd, TABLE *table,
     slave_open_temp_tables.atomic_add(-1);
     thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(-1);
   }
-  close_temporary(thd, table, free_share, delete_table);
 #endif
+  close_temporary(thd, table, free_share, delete_table);
   DBUG_VOID_RETURN;
 }
 
