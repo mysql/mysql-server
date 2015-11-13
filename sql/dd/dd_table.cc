@@ -17,6 +17,7 @@
 
 #include "debug_sync.h"                       // DEBUG_SYNC
 #include "default_values.h"                   // max_pack_length
+#include "log.h"                              // sql_print_error
 #include "partition_info.h"                   // partition_info
 #include "psi_memory_key.h"                   // key_memory_frm
 #include "sql_class.h"                        // THD
@@ -195,11 +196,14 @@ static dd::Column::enum_column_types dd_get_new_field_type(enum_field_types type
   case MYSQL_TYPE_JSON:
     return dd::Column::TYPE_JSON;
 
-  default:
-    DBUG_ASSERT(!"Should not hit here"); /* purecov: deadcode */
   }
 
+  /* purecov: begin deadcode */
+  sql_print_error("Error: Invalid field type.");
+  DBUG_ASSERT(false);
+
   return dd::Column::TYPE_LONG;
+  /* purecov: end */
 }
 
 
@@ -450,12 +454,13 @@ fill_dd_columns_from_create_fields(THD *thd,
         //
         dd::Column_type_element *elem_obj= NULL;
 
+        DBUG_ASSERT(col_obj->type() == dd::Column::TYPE_SET ||
+                    col_obj->type() == dd::Column::TYPE_ENUM);
+
         if (col_obj->type() == dd::Column::TYPE_SET)
           elem_obj= col_obj->add_set_element();
         else if (col_obj->type() == dd::Column::TYPE_ENUM)
           elem_obj= col_obj->add_enum_element();
-        else
-          DBUG_ASSERT(!"There can't be intervals set for non-ENUM/SET types."); /* purecov: deadcode */
 
         //  Copy type_lengths[i] bytes including '\0'
         //  This helps store typelib names that are of different charsets.
@@ -496,11 +501,14 @@ static dd::Index::enum_index_algorithm dd_get_new_index_algorithm_type(enum ha_k
   case HA_KEY_ALG_FULLTEXT:
     return dd::Index::IA_FULLTEXT;
 
-  default:
-    DBUG_ASSERT(!"Should not hit here"); /* purecov: deadcode */
   }
 
+  /* purecov: begin deadcode */
+  sql_print_error("Error: Invalid index algorithm.");
+  DBUG_ASSERT(false);
+
   return dd::Index::IA_SE_SPECIFIC;
+  /* purecov: end */
 }
 
 
@@ -562,9 +570,7 @@ fill_dd_index_elements_from_key_parts(const dd::Table *tab_obj,
       while ((key_col_obj= it->next()) != NULL && i < key_part->fieldnr)
         i++;
     }
-
-    if (key_col_obj == NULL)
-      DBUG_ASSERT(!"Invalid key_part->fieldnr"); /* purecov: deadcode */
+    DBUG_ASSERT(key_col_obj);
 
     //
     // Create new index element object

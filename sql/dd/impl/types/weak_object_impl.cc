@@ -16,6 +16,7 @@
 #include "dd/impl/types/weak_object_impl.h"
 
 #include "mysqld_error.h"                 // ER_*
+#include "log.h"                          // sql_print_error
 
 #include "dd/types/object_table.h"        // Object_table
 #include "dd/impl/object_key.h"           // Needed for destructor
@@ -77,9 +78,11 @@ bool Weak_object_impl::store(Open_dictionary_tables_ctx *otx)
 
     if (!obj_key.get())
     {
-      DBUG_ASSERT(!"Key object creation cannot fail"); /* purecov: inspected */
-      my_error(ER_UNKNOWN_ERROR, MYF(0));
-      break;
+      /* purecov: begin deadcode */
+      sql_print_error("Error: Unable to create primary object key");
+      DBUG_ASSERT(false);
+      DBUG_RETURN(true);
+      /* purecov: end */
     }
 
     std::auto_ptr<Raw_record> r;
@@ -185,8 +188,11 @@ bool Weak_object_impl::drop(Open_dictionary_tables_ctx *otx)
 
   if (!r.get())
   {
-    DBUG_ASSERT(!"Not sure if we ever hit this case");
+    /* purecov: begin deadcode */
+    sql_print_error("Error: Unable to create object key");
+    DBUG_ASSERT(false);
     DBUG_RETURN(true);
+    /* purecov: end */
   }
 
   /**
@@ -205,7 +211,7 @@ bool Weak_object_impl::drop(Open_dictionary_tables_ctx *otx)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Weak_object_impl::check_parent_consistency(Entity_object *parent,
+bool Weak_object_impl::check_parent_consistency(Entity_object *parent,
                                                 Object_id parent_id) const
 {
   DBUG_ASSERT(parent);
@@ -213,23 +219,20 @@ void Weak_object_impl::check_parent_consistency(Entity_object *parent,
 
   if (!parent)
   {
-    fprintf(stderr,
-            "DD error: check_parent_consistency(): "
-            "invalid parent reference (NULL).\n");
-
-    return;
+    my_error(ER_INVALID_DD_OBJECT, MYF(0), this->object_table().name().c_str(),
+             "Invalid parent reference (NULL).");
+    return true;
   }
 
   if (parent->id() != parent_id)
   {
-    fprintf(stderr,
-            "DD error: check_parent_consistency(): "
-            "inconsistent parent reference: "
-            "parent->id(): %llu; parent_id: %llu\n",
-            parent->id(), parent_id);
+    my_error(ER_INVALID_DD_OBJECT, MYF(0), this->object_table().name().c_str(),
+             "Invalid parent ID");
 
-    return;
+    return true;
   }
+
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////

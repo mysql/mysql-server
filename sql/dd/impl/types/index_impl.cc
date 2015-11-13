@@ -181,7 +181,9 @@ bool Index_impl::drop_children(Open_dictionary_tables_ctx *otx)
 
 bool Index_impl::restore_attributes(const Raw_record &r)
 {
-  check_parent_consistency(m_table, r.read_ref_id(Indexes::FIELD_TABLE_ID));
+  if (check_parent_consistency(m_table,
+                               r.read_ref_id(Indexes::FIELD_TABLE_ID)))
+    return true;
 
   restore_id(r, Indexes::FIELD_ID);
   restore_name(r, Indexes::FIELD_NAME);

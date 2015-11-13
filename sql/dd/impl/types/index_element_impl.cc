@@ -83,8 +83,9 @@ bool Index_element_impl::validate() const
 
 bool Index_element_impl::restore_attributes(const Raw_record &r)
 {
-  check_parent_consistency(m_index,
-                           r.read_ref_id(Index_column_usage::FIELD_INDEX_ID));
+  if (check_parent_consistency(m_index,
+        r.read_ref_id(Index_column_usage::FIELD_INDEX_ID)))
+    return true;
 
   m_ordinal_position= r.read_uint(Index_column_usage::FIELD_ORDINAL_POSITION);
 

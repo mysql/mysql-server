@@ -86,9 +86,9 @@ bool View_table_impl::validate() const
 
 bool View_table_impl::restore_attributes(const Raw_record &r)
 {
-  check_parent_consistency(
-    m_view,
-    r.read_ref_id(View_table_usage::FIELD_VIEW_ID));
+  if (check_parent_consistency(
+        m_view, r.read_ref_id(View_table_usage::FIELD_VIEW_ID)))
+    return true;
 
   m_table_name=    r.read_str(View_table_usage::FIELD_TABLE_CATALOG);
   m_table_schema=  r.read_str(View_table_usage::FIELD_TABLE_SCHEMA);

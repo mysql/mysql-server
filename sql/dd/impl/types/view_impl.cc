@@ -137,7 +137,10 @@ bool View_impl::restore_attributes(const Raw_record &r)
 
   if (m_type != TT_USER_VIEW && m_type != TT_SYSTEM_VIEW)
   {
-    fprintf(stderr, "DD: wrong view type.\n");
+    my_error(ER_INVALID_DD_OBJECT,
+             MYF(0),
+             View_impl::OBJECT_TABLE().name().c_str(),
+             "Invalid view type found.");
     return true;
   }
 

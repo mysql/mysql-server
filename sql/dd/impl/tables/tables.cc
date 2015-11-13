@@ -112,7 +112,7 @@ ulonglong Tables::read_se_private_id(const Raw_record &r)
   @param [out] max_id  The resulting max id found.
 */
 /* purecov: begin deadcode */
-void Tables::max_se_private_id(Open_dictionary_tables_ctx *otx,
+bool Tables::max_se_private_id(Open_dictionary_tables_ctx *otx,
                                const std::string &engine,
                                ulonglong *max_id)
 {
@@ -126,10 +126,12 @@ void Tables::max_se_private_id(Open_dictionary_tables_ctx *otx,
   *max_id= 0;
   std::auto_ptr<Raw_record> r;
   if (t->find_last_record(*key, r))
-    DBUG_ASSERT(!"Find last record should not fail");
+    return true;
 
   if (r.get())
     *max_id= read_se_private_id(*r.get());
+
+  return false;
 }
 /* purecov: end */
 

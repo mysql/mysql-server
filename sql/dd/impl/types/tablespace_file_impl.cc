@@ -105,9 +105,9 @@ bool Tablespace_file_impl::validate() const
 
 bool Tablespace_file_impl::restore_attributes(const Raw_record &r)
 {
-  check_parent_consistency(
-    m_tablespace,
-    r.read_ref_id(Tablespace_files::FIELD_TABLESPACE_ID));
+  if (check_parent_consistency(
+        m_tablespace, r.read_ref_id(Tablespace_files::FIELD_TABLESPACE_ID)))
+    return true;
 
   m_ordinal_position= r.read_uint(Tablespace_files::FIELD_ORDINAL_POSITION);
   m_filename=         r.read_str(Tablespace_files::FIELD_FILE_NAME);

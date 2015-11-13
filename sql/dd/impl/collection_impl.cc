@@ -138,19 +138,16 @@ bool Base_collection::restore_items(
   while (r)
   {
     Collection_item *item= add(item_factory);
-    item->restore_attributes(*r);
 
-    if (item->restore_children(otx))
+    if (item->restore_attributes(*r) ||
+        item->restore_children(otx) ||
+        item->validate() ||
+        rs->next(r))
     {
       clear_all_items();
       DBUG_RETURN(true);
     }
 
-    if (rs->next(r))
-    {
-      clear_all_items();
-      DBUG_RETURN(true);
-    }
   }
 
   // The record fetched from DB may not be ordered based on ordinal position.

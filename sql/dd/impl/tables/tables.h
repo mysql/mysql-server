@@ -239,7 +239,7 @@ public:
   static Object_key *create_key_by_schema_id(
     Object_id schema_id);
 
-  static void max_se_private_id(
+  static bool max_se_private_id(
     Open_dictionary_tables_ctx *otx,
     const std::string &engine,
     ulonglong *max_id);

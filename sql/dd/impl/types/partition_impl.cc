@@ -192,8 +192,9 @@ bool Partition_impl::drop_children(Open_dictionary_tables_ctx *otx)
 
 bool Partition_impl::restore_attributes(const Raw_record &r)
 {
-  check_parent_consistency(m_table,
-                           r.read_ref_id(Table_partitions::FIELD_TABLE_ID));
+  if (check_parent_consistency(m_table,
+        r.read_ref_id(Table_partitions::FIELD_TABLE_ID)))
+    return true;
 
   restore_id(r, Table_partitions::FIELD_ID);
   restore_name(r, Table_partitions::FIELD_NAME);

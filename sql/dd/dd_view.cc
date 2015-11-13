@@ -16,6 +16,7 @@
 #include "dd_view.h"
 
 #include "dd_table_share.h"                   // dd_get_mysql_charset
+#include "log.h"                              // sql_print_error, sql_print_..
 #include "parse_file.h"                       // PARSE_FILE_TIMESTAMPLENGTH
 #include "sql_class.h"                        // THD
 #include "transaction.h"                      // trans_commit
@@ -42,11 +43,14 @@ static ulonglong dd_get_old_view_check_type(dd::View::enum_check_option type)
   case dd::View::CO_CASCADED:
     return VIEW_CHECK_CASCADED;
 
-  default:
-    DBUG_ASSERT(!"Should not hit here"); /* purecov: deadcode */
   }
 
+/* purecov: begin deadcode */
+  sql_print_error("Error: Invalid view check option.");
+  DBUG_ASSERT(false);
+
   return VIEW_CHECK_NONE;
+/* purecov: end */
 }
 
 
@@ -64,11 +68,14 @@ static dd::View::enum_check_option dd_get_new_view_check_type(ulonglong type)
   case VIEW_CHECK_CASCADED:
     return dd::View::CO_CASCADED;
 
-  default:
-    DBUG_ASSERT(!"Should not hit here"); /* purecov: deadcode */
   }
 
+/* purecov: begin deadcode */
+  sql_print_error("Error: Invalid view check option.");
+  DBUG_ASSERT(false);
+
   return dd::View::CO_NONE;
+/* purecov: end */
 }
 
 
@@ -86,11 +93,14 @@ dd_get_old_view_algorithm_type(dd::View::enum_algorithm type)
   case dd::View::VA_MERGE:
     return VIEW_ALGORITHM_MERGE;
 
-  default:
-    DBUG_ASSERT(!"Should not hit here"); /* purecov: deadcode */
   }
 
+/* purecov: begin deadcode */
+  sql_print_error("Error: Invalid view algorithm.");
+  DBUG_ASSERT(false);
+
   return VIEW_ALGORITHM_UNDEFINED;
+/* purecov: end */
 }
 
 
@@ -108,11 +118,14 @@ dd_get_new_view_algorithm_type(enum enum_view_algorithm type)
   case VIEW_ALGORITHM_MERGE:
     return dd::View::VA_MERGE;
 
-  default:
-    DBUG_ASSERT(!"Should not hit here"); /* purecov: deadcode */
   }
 
+/* purecov: begin deadcode */
+  sql_print_error("Error: Invalid view algorithm.");
+  DBUG_ASSERT(false);
+
   return dd::View::VA_UNDEFINED;
+/* purecov: end */
 }
 
 
@@ -130,11 +143,14 @@ dd_get_old_view_security_type(dd::View::enum_security_type type)
   case dd::View::ST_DEFINER:
     return VIEW_SUID_DEFINER;
 
-  default:
-    DBUG_ASSERT(!"Should not hit here"); /* purecov: deadcode */
   }
 
+/* purecov: begin deadcode */
+  sql_print_error("Error: Invalid view security type.");
+  DBUG_ASSERT(false);
+
   return VIEW_SUID_DEFAULT;
+/* purecov: end */
 }
 
 
@@ -152,11 +168,14 @@ dd_get_new_view_security_type(ulonglong type)
   case VIEW_SUID_DEFINER:
     return dd::View::ST_DEFINER;
 
-  default:
-    DBUG_ASSERT(!"Should not hit here"); /* purecov: deadcode */
   }
 
+/* purecov: begin deadcode */
+  sql_print_error("Error: Invalid view security type.");
+  DBUG_ASSERT(false);
+
   return dd::View::ST_DEFAULT;
+/* purecov: end */
 }
 
 

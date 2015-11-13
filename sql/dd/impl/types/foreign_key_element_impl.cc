@@ -103,9 +103,9 @@ bool Foreign_key_element_impl::validate() const
 
 bool Foreign_key_element_impl::restore_attributes(const Raw_record &r)
 {
-  check_parent_consistency(
-    m_foreign_key,
-    r.read_ref_id(Foreign_key_column_usage::FIELD_FOREIGN_KEY_ID));
+  if (check_parent_consistency(m_foreign_key,
+        r.read_ref_id(Foreign_key_column_usage::FIELD_FOREIGN_KEY_ID)))
+    return true;
 
   m_ordinal_position=
     r.read_uint(Foreign_key_column_usage::FIELD_ORDINAL_POSITION);

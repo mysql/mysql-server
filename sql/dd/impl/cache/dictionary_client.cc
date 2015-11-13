@@ -966,9 +966,7 @@ bool Dictionary_client::get_tables_max_se_private_id(const std::string &engine,
     return true;
   }
 
-  dd::tables::Tables::max_se_private_id(&trx.otx, engine, max_id);
-
-  return false;
+  return dd::tables::Tables::max_se_private_id(&trx.otx, engine, max_id);
 }
 /* purecov: end */
 
