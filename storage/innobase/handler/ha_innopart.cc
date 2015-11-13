@@ -3093,6 +3093,8 @@ ha_innopart::truncate_partition_low()
 		for file_per_table. */
 		info->min_rows = dict_table_is_file_per_table(table_part)
 			? 1 : 0;
+
+		info->key_block_size = table_share->key_block_size;
 		// TODO: WL#6205 Add:
 		//info->tablespace = mem_heap_strdup(heap,
 		//table_part->tablespace_name);
