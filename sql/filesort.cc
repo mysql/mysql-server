@@ -622,12 +622,17 @@ uint Filesort::make_sortorder()
     pos->field= 0; pos->item= 0;
     if (real_item->type() == Item::FIELD_ITEM)
     {
-      // Could be a field, or Item_direct_view_ref/Item_ref wrapping a field
-      DBUG_ASSERT(item->type() == Item::FIELD_ITEM ||
-                  (item->type() == Item::REF_ITEM &&
-                   (down_cast<Item_ref*>(item)->ref_type() == Item_ref::VIEW_REF
-                    || down_cast<Item_ref*>(item)->ref_type() == Item_ref::REF)
-                    ));
+      /*
+        Could be a field, or Item_direct_view_ref/Item_ref wrapping a field
+        If it is an Item_outer_ref, only_full_group_by has been switched off.
+      */
+      DBUG_ASSERT
+        (item->type() == Item::FIELD_ITEM ||
+         (item->type() == Item::REF_ITEM &&
+          (down_cast<Item_ref*>(item)->ref_type() == Item_ref::VIEW_REF
+           || down_cast<Item_ref*>(item)->ref_type() == Item_ref::OUTER_REF
+           || down_cast<Item_ref*>(item)->ref_type() == Item_ref::REF)
+          ));
       pos->field= down_cast<Item_field*>(real_item)->field;
     }
     else if (real_item->type() == Item::SUM_FUNC_ITEM &&

@@ -190,3 +190,18 @@ HAVING (SELECT a
       GROUP BY b, a);
 
 DROP TABLE t, g;
+
+--echo #
+--echo # Bug #22200984 ASSERTION IN FILESORT::MAKE_SORTORDER()
+--echo #
+
+# group by d below is incompatible with sql_mode=only_full_group_by
+SET sql_mode="";
+
+CREATE TABLE t1(a_t1 INT, c INT, d INT) ENGINE=INNODB;
+CREATE TABLE t2(a_t2 INT NOT NULL, UNIQUE KEY (a_t2)) ENGINE=INNODB;
+INSERT INTO t1 VALUES();
+SELECT (SELECT 1 FROM t2 GROUP BY d, a_t2 HAVING c) FROM t1 GROUP BY (1=2);
+DROP TABLE t1, t2;
+
+SET sql_mode=default;
