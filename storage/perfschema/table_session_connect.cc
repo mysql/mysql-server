@@ -252,7 +252,8 @@ void table_session_connect::make_row(PFS_thread *pfs, uint ordinal)
                     &m_row.m_attr_value_length))
   {
     /* we don't expect internal threads to have connection attributes */
-    DBUG_ASSERT(pfs->m_processlist_id != 0);
+    if (pfs->m_processlist_id == 0)
+	return;
 
     m_row.m_ordinal_position= ordinal;
     m_row.m_process_id= pfs->m_processlist_id;
