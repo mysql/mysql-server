@@ -52,7 +52,7 @@ insert into marker set a = 1;
 optimize table test.v1;
 Table	Op	Msg_type	Msg_text
 test.v1	optimize	Error	'test.v1' is not BASE TABLE
-test.v1	optimize	error	Corrupt
+test.v1	optimize	status	Operation failed
 insert into marker set a = 1;
 select * from test.v1;
 a	b
