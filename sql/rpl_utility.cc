@@ -700,6 +700,7 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
   return true;
 }
 
+
 /**
   Create a conversion table.
 
@@ -743,11 +744,13 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
 
     uint decimals= 0;
     TYPELIB* interval= NULL;
-    uint pack_length_override= 0;
+    uint pack_length_override= 0; // 0 => NA. Only assigned below when needed.
+    enum_field_types field_type= type(col);
     uint32 max_length=
-      max_display_length_for_field(type(col), field_metadata(col));
+      max_display_length_for_field(field_type, field_metadata(col));
 
-    switch(type(col))
+
+    switch(field_type)
     {
       int precision;
     case MYSQL_TYPE_ENUM:
@@ -784,6 +787,19 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
                       target_table->field[col]->field_name);
       goto err;
 
+    case MYSQL_TYPE_BLOB:
+      /*
+        Blobs are binlogged as MYSQL_TYPE_BLOB, even when pack_length
+        != 2. Need the exact blob type for the call to
+        Create_field::init_for_tmp_table() below. Note that
+        pack_length is NOT assigned to pack_length_override here, as
+        this should only be used when the pack_length cannot be
+        derived from the exact type, i.e. for ENUM and SET (see
+        above).
+      */
+      field_type= blob_type_from_pack_length(field_metadata(col) & 0x00ff);
+      break;
+
     default:
       break;
     }
@@ -792,7 +808,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
                          " maybe_null: %d, unsigned_flag: %d",
                          binlog_type(col), target_table->field[col]->field_name,
                          max_length, decimals, TRUE, unsigned_flag));
-    field_def->init_for_tmp_table(type(col),
+    field_def->init_for_tmp_table(field_type,
                                   max_length,
                                   decimals,
                                   TRUE,          // maybe_null

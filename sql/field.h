@@ -429,6 +429,32 @@ inline enum_field_types real_type_to_type(enum_field_types real_type)
 
 
 /**
+  Return the appropriate MYSQL_TYPE_X_BLOB value based on the
+  pack_length.
+
+  @param  pack_length pack_length for BLOB
+  @retval MYSQL_TYPE_X_BLOB corresponding to pack_length.
+*/
+inline enum_field_types blob_type_from_pack_length(uint pack_length)
+{
+  DBUG_ENTER("blob_type_from_pack_length");
+  switch (pack_length)
+  {
+  case 1:
+    DBUG_RETURN(MYSQL_TYPE_TINY_BLOB);
+  case 2:
+    DBUG_RETURN(MYSQL_TYPE_BLOB);
+  case 3:
+    DBUG_RETURN(MYSQL_TYPE_MEDIUM_BLOB);
+  case 4:
+    DBUG_RETURN(MYSQL_TYPE_LONG_BLOB);
+  default:
+    DBUG_ASSERT(false);
+    DBUG_RETURN(MYSQL_TYPE_LONG_BLOB);
+  }
+}
+
+/**
    Copies an integer value to a format comparable with memcmp(). The
    format is characterized by the following:
 
