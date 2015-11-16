@@ -1,0 +1,15 @@
+!include ../my.cnf
+[mysqld.1]
+log-slave-updates
+max_binlog_size = 4096
+[mysqld.2]
+log-slave-updates
+max_binlog_size = 4096
+log-slave-updates
+relay_log_info_repository = TABLE
+[mysqld.3]
+log-slave-updates
+max_binlog_size = 4096
+
+[ENV]
+SERVER_MYPORT_3= @mysqld.3.port
