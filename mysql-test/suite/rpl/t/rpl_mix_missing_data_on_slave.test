@@ -1,0 +1,66 @@
+###############################################################################
+# Bug#21630907: MISSING DATA DETECTED WHEN MAX_BINLOG_SIZE SMALLER ON SLAVE
+# FOR 3 NODE TOPOLOGY
+#
+# Bug#21053163: MIXED BASED REPLICATION LOOSES EVENTS WHEN
+# RELAY_LOG_INFO_REPOSITORY=TABLE
+#
+# Problem:
+# =======
+# 2 level replication M1 -> S1 ->S2 ( S1 is slave of M1; S2 is slave of S1)
+# replicating a non-transactional storage engine table (e.g. MyISAM) when set
+# relay_log_info_repository=TABLE; and binlog rotation occurs in the middle
+# of statement that was translated to multiple rows, then you loose part of
+# that events.
+#
+# When binlog rotation occurs, on S1 not all rows are written to it's binlog,
+# therefore S2 seamlessly looses part of rows that were translated from one
+# statement to several rows.
+#
+# Test:
+# =====
+# Have mixed based replication, relay_log_info_repository=TABLE and
+# max_binlog_size=4096 on all servers in 3 NODE TOPOLOGY. On master
+# generate a single WRITE_ROWS_EVENT which has multiple row updates. When
+# this event is replicated to slave, it will be split across relay logs.
+# Test will verify that the data on all servers is the same.
+# In the case of bug if
+# 1) GTID_MODE is set to ON on all three servers, the slave will fail with
+# error code:1837 i.e ER_GTID_NEXT_TYPE_UNDEFINED_GROUP.
+# 2) GTID_MODE is set to OFF on all three servers diff tables command will
+# fail.
+###############################################################################
+
+--source include/have_binlog_format_mixed.inc
+--let $rpl_server_count= 3
+--let $rpl_topology= 1->2->3
+--disable_warnings
+--source include/rpl_init.inc
+--enable_warnings
+
+--connection server_1
+--echo Server 1
+CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL auto_increment,
+  `val` varchar(255),
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+INSERT INTO t1 (val) VALUES (REPEAT('a', 255));
+INSERT INTO t1 (val) SELECT val FROM t1;
+INSERT INTO t1 (val) SELECT val FROM t1;
+INSERT INTO t1 (val) SELECT val FROM t1;
+INSERT INTO t1 (val) SELECT val FROM t1;
+INSERT INTO t1 (val) SELECT val FROM t1;
+INSERT INTO t1 (val) SELECT val FROM t1;
+
+--echo Syncing all three servers
+--source include/rpl_sync.inc
+--echo Verifying 't1' table contents on all three servers through diff tables.
+--let $diff_tables= server_1:t1, server_2:t1, server_3:t1
+--source include/diff_tables.inc
+
+# Clean up
+DROP TABLE t1;
+--source include/rpl_sync.inc
+--source include/rpl_end.inc
