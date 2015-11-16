@@ -11967,7 +11967,9 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, const Cost_estimate *cost_e
   else if (join->primary_tables != 1)  /* Query must reference one table. */
     cause= "not_single_table";
   else if (join->select_lex->olap == ROLLUP_TYPE) /* Check (B3) for ROLLUP */
-    cause= "rollup";
+	cause = "rollup";
+  else if (join->select_lex->olap == CUBE_TYPE)
+	cause = "cube";
   else if (table->s->keys == 0)        /* There are no indexes to use. */
     cause= "no_index";
   else if (param->order_direction == ORDER::ORDER_DESC)

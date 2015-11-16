@@ -177,7 +177,8 @@ JOIN::optimize()
   DBUG_ASSERT(tmp_table_param.sum_func_count == 0 ||
               group_list || implicit_grouping);
 
-  if (select_lex->olap == ROLLUP_TYPE && optimize_rollup())
+  if ((select_lex->olap == ROLLUP_TYPE || select_lex->olap == CUBE_TYPE) &&
+	  optimize_rollup())
     DBUG_RETURN(true); /* purecov: inspected */
 
   if (alloc_func_list())
@@ -7799,7 +7800,8 @@ is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args)
 
   if (join->primary_tables > 1 ||             /* reference more than 1 table */
       join->select_distinct ||                /* or a DISTINCT */
-      join->select_lex->olap == ROLLUP_TYPE)  /* Check (B3) for ROLLUP */
+      join->select_lex->olap == ROLLUP_TYPE ||/* Check (B3) for ROLLUP */
+	  join->select_lex->olap == CUBE_TYPE)
     return false;
 
   if (join->make_sum_func_list(join->all_fields, join->fields_list, true))
@@ -11133,9 +11135,9 @@ bool JOIN::compare_costs_of_subquery_strategies(
 
 
 /**
-  Optimize rollup specification.
+  Optimize rollup/cube specification.
 
-  Allocate objects needed for rollup processing.
+  Allocate objects needed for rollup/cube processing.
 
   @returns false if success, true if error.
 */
