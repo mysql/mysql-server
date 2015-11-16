@@ -1223,6 +1223,8 @@ binlog_cache_data::flush(THD *thd, my_off_t *bytes_written, bool *wrote_xid)
      */
     if (!(error= gtid_before_write_cache(thd, this)))
       error= mysql_bin_log.write_cache(thd, this);
+    else
+      thd->commit_error= THD::CE_FLUSH_ERROR;
 
     if (flags.with_xid && error == 0)
       *wrote_xid= true;
