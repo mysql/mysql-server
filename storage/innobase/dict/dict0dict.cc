@@ -5192,6 +5192,12 @@ dict_index_copy_rec_order_prefix(
 			n = dict_index_get_n_unique_in_tree(index);
 		} else {
 			n = dict_index_get_n_unique_in_tree_nonleaf(index);
+			/* For internal node of R-tree, since we need to
+			compare the page no field, so, we need to copy this
+			field as well. */
+			if (dict_index_is_spatial(index)) {
+				n++;
+			}
 		}
 	}
 

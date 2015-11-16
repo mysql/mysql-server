@@ -152,7 +152,9 @@ rtr_index_build_node_ptr(
 
 	tuple = dtuple_create(heap, n_unique + 1);
 
-	dtuple_set_n_fields_cmp(tuple, n_unique);
+	/* For rtree internal node, we need to compare page number
+	fields. */
+	dtuple_set_n_fields_cmp(tuple, n_unique + 1);
 
 	dict_index_copy_types(tuple, index, n_unique);
 
