@@ -1527,6 +1527,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     TABLE_LIST table_list;
     LEX_STRING table_name;
     LEX_STRING db;
+    push_deprecated_warn(thd, "COM_FIELD_LIST",
+                         "SHOW COLUMNS FROM statement");
     /*
       SHOW statements should not add the used tables to the list of tables
       used in a transaction.
@@ -1654,7 +1656,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
   case COM_REFRESH:
   {
     int not_used;
-
+    push_deprecated_warn(thd, "COM_REFRESH", "FLUSH statement");
     /*
       Initialize thd->lex since it's used in many base functions, such as
       open_tables(). Otherwise, it remains uninitialized and may cause crash
@@ -1770,6 +1772,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     break;
   case COM_PROCESS_INFO:
     thd->status_var.com_stat[SQLCOM_SHOW_PROCESSLIST]++;
+    push_deprecated_warn(thd, "COM_PROCESS_INFO",
+                         "SHOW PROCESSLIST statement");
     if (!thd->security_context()->priv_user().str[0] &&
         check_global_access(thd, PROCESS_ACL))
       break;
@@ -1781,6 +1785,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     break;
   case COM_PROCESS_KILL:
   {
+    push_deprecated_warn(thd, "COM_PROCESS_KILL",
+                         "KILL CONNECTION/QUERY statement");
     if (thd_manager->get_thread_id() & (~0xfffffffful))
       my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "thread_id", "mysql_kill()");
     else
