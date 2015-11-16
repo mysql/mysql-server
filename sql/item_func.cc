@@ -49,6 +49,7 @@
 #include "sql_time.h"            // TIME_from_longlong_packed
 #include "strfunc.h"             // find_type
 #include "item_json_func.h"      // Item_func_json_quote
+#include <cfloat>                // DBL_DIG
 
 using std::min;
 using std::max;
@@ -2621,7 +2622,7 @@ Item_func_latlongfromgeohash::decode_geohash(String *geohash,
                                              double *result_latitude,
                                              double *result_longitude)
 {
-  double latitiude_accuracy= (upper_latitude - lower_latitude) / 2.0;
+  double latitude_accuracy= (upper_latitude - lower_latitude) / 2.0;
   double longitude_accuracy= (upper_longitude - lower_longitude) / 2.0;
 
   double latitude_value= (upper_latitude + lower_latitude) / 2.0;
@@ -2631,7 +2632,7 @@ Item_func_latlongfromgeohash::decode_geohash(String *geohash,
   uint input_length= geohash->length();
 
   for (uint i= 0;
-       i < input_length && latitiude_accuracy > 0.0 && longitude_accuracy > 0.0;
+       i < input_length && latitude_accuracy > 0.0 && longitude_accuracy > 0.0;
        i++)
   {
     char input_character= my_tolower(&my_charset_latin1, (*geohash)[i]);
@@ -2684,12 +2685,12 @@ Item_func_latlongfromgeohash::decode_geohash(String *geohash,
       }
       else
       {
-        latitiude_accuracy/= 2.0;
+        latitude_accuracy/= 2.0;
 
         if (converted_character & (1 << bit_number))
-          latitude_value+= latitiude_accuracy;
+          latitude_value+= latitude_accuracy;
         else
-          latitude_value-= latitiude_accuracy;
+          latitude_value-= latitude_accuracy;
       }
 
       number_of_bits_used++;
@@ -2702,9 +2703,26 @@ Item_func_latlongfromgeohash::decode_geohash(String *geohash,
   }
 
   *result_latitude= round_latlongitude(latitude_value,
-                                       latitiude_accuracy * 2.0);
+                                       latitude_accuracy * 2.0,
+                                       latitude_value - latitude_accuracy,
+                                       latitude_value + latitude_accuracy);
   *result_longitude= round_latlongitude(longitude_value,
-                                        longitude_accuracy * 2.0);
+                                        longitude_accuracy * 2.0,
+                                        longitude_value - longitude_accuracy,
+                                        longitude_value + longitude_accuracy);
+
+  /*
+    Ensure that the rounded results are not ouside of the valid range. As
+    written in the specification:
+
+      Final rounding should be done carefully in a way that
+                min <= round(value) <= max
+  */
+  DBUG_ASSERT(latitude_value - latitude_accuracy <= *result_latitude);
+  DBUG_ASSERT(*result_latitude <= latitude_value + latitude_accuracy);
+
+  DBUG_ASSERT(longitude_value - longitude_accuracy <= *result_longitude);
+  DBUG_ASSERT(*result_longitude <= longitude_value + longitude_accuracy);
 
   return false;
 }
@@ -2718,14 +2736,24 @@ Item_func_latlongfromgeohash::decode_geohash(String *geohash,
   (e.g upper value of 45.0 and a lower value of 22.5, gives an error range of
   22.5).
 
+  The returned result will always be in the range [lower_limit, upper_limit]
+
   @param latlongitude The latitude or longitude to round.
   @param error_range The total error range of the calculated laglongitude.
+  @param lower_limit Lower limit of the returned result.
+  @param upper_limit Upper limit of the returned result.
 
   @return A rounded latitude or longitude.
 */
 double Item_func_latlongfromgeohash::round_latlongitude(double latlongitude,
-                                                        double error_range)
+                                                        double error_range,
+                                                        double lower_limit,
+                                                        double upper_limit)
 {
+  // Ensure that we don't start with an impossible case to solve.
+  DBUG_ASSERT(lower_limit <= latlongitude);
+  DBUG_ASSERT(upper_limit >= latlongitude);
+
   if (error_range == 0.0)
   {
     return latlongitude;
@@ -2733,18 +2761,31 @@ double Item_func_latlongfromgeohash::round_latlongitude(double latlongitude,
   else
   {
     uint number_of_decimals= 0;
-    while (error_range < 0.1)
+    while (error_range <= 0.1 && number_of_decimals <= DBL_DIG)
     {
       number_of_decimals++;
       error_range*= 10.0;
     }
 
-    double rounded_result= my_double_round(latlongitude,
-                                           number_of_decimals,
-                                           false,
-                                           false);
+    double return_value;
+    do
+    {
+      return_value= my_double_round(latlongitude, number_of_decimals, false,
+                                    false);
+      number_of_decimals++;
+    } while ((lower_limit > return_value || return_value > upper_limit) &&
+             number_of_decimals <= DBL_DIG);
+
+    /*
+      We may in some cases still be outside of the allowed range. If this is the
+      case, return the input value (which we know for sure to be within the
+      allowed range).
+    */
+    if (lower_limit > return_value || return_value > upper_limit)
+      return_value= latlongitude;
+
     // Avoid printing signed zero.
-    return rounded_result + 0.0;
+    return return_value + 0.0;
   }
 }
 
