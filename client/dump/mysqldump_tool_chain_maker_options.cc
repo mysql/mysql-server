@@ -43,7 +43,10 @@ void Mysqldump_tool_chain_maker_options::parallel_schemas_callback(char*)
   {
     threads= 0;
   }
-  m_thread_count+= threads;
+  if (threads)
+    m_parallel_thread_count+= threads;
+  else
+    m_def_thread_count++;
   m_last_parallel_schemas_queue_id++;
   m_object_queue_threads.insert(std::make_pair(
     m_last_parallel_schemas_queue_id, threads));
@@ -237,7 +240,8 @@ Mysqldump_tool_chain_maker_options::Mysqldump_tool_chain_maker_options(
   m_object_reader_options(
     new Mysql_object_reader_options(mysql_chain_element_options)),
   m_last_parallel_schemas_queue_id(0),
-  m_thread_count(0),
+  m_def_thread_count(0),
+  m_parallel_thread_count(0),
   m_object_filter(mysql_chain_element_options->get_program())
 {
   this->add_provider(m_formatter_options);
@@ -245,7 +249,13 @@ Mysqldump_tool_chain_maker_options::Mysqldump_tool_chain_maker_options(
   this->add_provider(&m_object_filter);
 }
 
+int Mysqldump_tool_chain_maker_options::
+  get_parallel_schemas_with_default_thread_count()
+{
+  return m_def_thread_count;
+}
+
 int Mysqldump_tool_chain_maker_options::get_parallel_schemas_thread_count()
 {
-  return m_thread_count;
+  return m_parallel_thread_count;
 }
