@@ -23,6 +23,7 @@
 #include "i_callable.h"
 #include "base/message_data.h"
 #include "base/mysql_query_runner.h"
+#include "base/mutex.h"
 
 namespace Mysql{
 namespace Tools{
@@ -33,11 +34,18 @@ class Single_transaction_connection_provider
 {
 public:
   Single_transaction_connection_provider(
-    Mysql::Tools::Base::I_connection_factory* connection_factory);
+    Mysql::Tools::Base::I_connection_factory* connection_factory,
+    unsigned int connections,
+    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    message_handler);
 
   virtual Mysql::Tools::Base::Mysql_query_runner* create_new_runner(
     Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
     message_handler);
+private:
+  std::vector<Mysql::Tools::Base::Mysql_query_runner*> m_runner_pool;
+  my_boost::mutex m_pool_mutex;
+  unsigned int m_connections;
 };
 
 }
