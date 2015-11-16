@@ -49,8 +49,13 @@ bool PT_group::contextualize(Parse_context *pc)
       return true;
     }
     select->olap= CUBE_TYPE;
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "CUBE");
-    return true;
+	if (select->is_distinct())
+	{
+		// DISTINCT+CUBE does not work
+		my_error(ER_WRONG_USAGE, MYF(0), "WITH CUBE", "DISTINCT");
+		return true;
+	}
+	break;
   case ROLLUP_TYPE:
     if (select->linkage == GLOBAL_OPTIONS_TYPE)
     {
