@@ -5744,6 +5744,13 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
   bool error= false;
 
   global_sid_lock->wrlock();
+
+  /*
+    ensures the commit of the transaction started when saving the
+    purged gtid set in the table
+  */
+  thd->lex->autocommit= true;
+
   char *previous_gtid_executed= NULL, *previous_gtid_purged= NULL,
     *current_gtid_executed= NULL, *current_gtid_purged= NULL;
   gtid_state->get_executed_gtids()->to_string(&previous_gtid_executed);

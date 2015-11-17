@@ -214,6 +214,7 @@ bool stmt_causes_implicit_commit(const THD *thd, uint mask)
     skip= (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE);
     break;
   case SQLCOM_SET_OPTION:
+    /* Implicitly commit a transaction started by a SET statement */
     skip= lex->autocommit ? FALSE : TRUE;
     break;
   default:
