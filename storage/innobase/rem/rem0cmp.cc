@@ -1138,15 +1138,6 @@ cmp_rec_rec_with_match(
 			break;
 		}
 
-		/* If this is comparing non-leaf node record on Rtree,
-		then avoid comparing node-ptr field.*/
-		if (dict_index_is_spatial(index)
-		    && cur_field == DICT_INDEX_SPATIAL_NODEPTR_SIZE
-		    && (!page_is_leaf(page_align(rec1))
-			|| !page_is_leaf(page_align(rec2)))) {
-			break;
-		}
-
 		if (dict_index_is_ibuf(index)) {
 			/* This is for the insert buffer B-tree. */
 			mtype = DATA_BINARY;
