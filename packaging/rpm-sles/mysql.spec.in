@@ -862,16 +862,14 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
-* Thu Nov 12 2015 Bjorn Munch <bjorn.munch@oracle.com> - 5.7.10-1
+* Thu Nov 12 2015 Bjorn Munch <bjorn.munch@oracle.com> - 5.8.0-0.1.m17
 - Added lines to remove man pages we are not ready to include yet
-
-* Mon Oct 19 2015 Bharathy Satish <bharathy.x.satish@oracle.com> - 5.7.10-1
-  Added new decompression utilities lz4_decompress and zlib_decompress binaries to
+- Added new decompression utilities lz4_decompress and zlib_decompress binaries to
   client subpackage.
 
 * Tue Sep 29 2015 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.9-1
 - Updated for 5.7.9
-- Added libtest_* plugins to test package subpackage
+- Added libtest_* plugins to test subpackage
 - Add mysqlpump man page
 - Obsolete mysql-connector-c-shared dependencies
 
