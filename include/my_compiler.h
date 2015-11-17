@@ -1,7 +1,7 @@
 #ifndef MY_COMPILER_INCLUDED
 #define MY_COMPILER_INCLUDED
 
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -162,6 +162,16 @@ struct my_aligned_storage
 */
 #if defined __SUNPRO_C || defined __SUNPRO_CC || defined _MSC_VER
 # define __attribute__(A)
+#endif
+
+#ifndef __has_attribute
+# define __has_attribute(x) 0
+#endif
+
+#if __has_attribute(no_sanitize_undefined)
+# define SUPPRESS_UBSAN __attribute__((no_sanitize_undefined))
+#else
+# define SUPPRESS_UBSAN
 #endif
 
 #endif /* MY_COMPILER_INCLUDED */
