@@ -322,9 +322,13 @@ bool Query_result_union_direct::initialize_tables(JOIN *join)
 
 bool Query_result_union_direct::send_eof()
 {
-  // Reset for each query block, so accumulate here
-  current_found_rows+= thd->current_found_rows -
-                     thd->lex->current_select()->get_offset();
+  /*
+    Accumulate the found_rows count for the current query block into the UNION.
+    Number of rows returned from a query block is always non-negative.
+  */
+  ulonglong offset= thd->lex->current_select()->get_offset();
+  current_found_rows+= thd->current_found_rows > offset ?
+                       thd->current_found_rows - offset : 0;
 
   if (unit->thd->lex->current_select() == last_select_lex)
   {
