@@ -13037,7 +13037,7 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
       the partial transaction being logged with the GTID on the slave,
       causing data corruption on replication.
     */
-    if (thd->get_transaction()->is_active(Transaction_ctx::SESSION))
+    if (thd->server_status & SERVER_STATUS_IN_TRANS)
     {
       /* This is not an error (XA is safe), just an information */
       rli->report(INFORMATION_LEVEL, 0,
