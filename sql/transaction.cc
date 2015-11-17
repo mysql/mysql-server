@@ -716,13 +716,22 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
   if (thd->get_transaction()->xid_state()->check_has_uncommitted_xa())
     DBUG_RETURN(true);
 
+  if (ha_rollback_to_savepoint(thd, sv))
+    res= TRUE;
+  else if (thd->get_transaction()->cannot_safely_rollback(
+           Transaction_ctx::SESSION) &&
+           !thd->slave_thread)
+    thd->get_transaction()->push_unsafe_rollback_warnings(thd);
+
+  thd->get_transaction()->m_savepoints= sv;
+
   /**
     Checking whether it is safe to release metadata locks acquired after
     savepoint, if rollback to savepoint is successful.
-  
+
     Whether it is safe to release MDL after rollback to savepoint depends
     on storage engines participating in transaction:
-  
+
     - InnoDB doesn't release any row-locks on rollback to savepoint so it
       is probably a bad idea to release MDL as well.
     - Binary log implementation in some cases (e.g when non-transactional
@@ -734,24 +743,9 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
       rollback ot it) can break replication, as concurrent DROP TABLES
       statements will be able to drop these tables before events will get
       into binary log,
-  
-    For backward-compatibility reasons we always release MDL if binary
-    logging is off.
   */
-  bool mdl_can_safely_rollback_to_savepoint=
-                (!(mysql_bin_log.is_open() && thd->variables.sql_log_bin) ||
-                 ha_rollback_to_savepoint_can_release_mdl(thd));
 
-  if (ha_rollback_to_savepoint(thd, sv))
-    res= TRUE;
-  else if (thd->get_transaction()->cannot_safely_rollback(
-           Transaction_ctx::SESSION) &&
-           !thd->slave_thread)
-    thd->get_transaction()->push_unsafe_rollback_warnings(thd);
-
-  thd->get_transaction()->m_savepoints= sv;
-
-  if (!res && mdl_can_safely_rollback_to_savepoint)
+  if (!res && ha_rollback_to_savepoint_can_release_mdl(thd))
     thd->mdl_context.rollback_to_savepoint(sv->mdl_savepoint);
 
   DBUG_RETURN(MY_TEST(res));

@@ -758,6 +758,10 @@ bool GRANT_TABLE::init(TABLE *col_privs)
     error=
       col_privs->file->ha_index_read_map(col_privs->record[0], (uchar*) key,
                                          (key_part_map)15, HA_READ_KEY_EXACT);
+    DBUG_ASSERT(col_privs->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+                error != HA_ERR_LOCK_DEADLOCK);
+    DBUG_ASSERT(col_privs->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+                error != HA_ERR_LOCK_WAIT_TIMEOUT);
     DBUG_EXECUTE_IF("wl7158_grant_table_2",
                     error= HA_ERR_LOCK_DEADLOCK;);
     if (error)
@@ -795,6 +799,10 @@ bool GRANT_TABLE::init(TABLE *col_privs)
       }
 
       error= col_privs->file->ha_index_next(col_privs->record[0]);
+      DBUG_ASSERT(col_privs->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+                  error != HA_ERR_LOCK_DEADLOCK);
+      DBUG_ASSERT(col_privs->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+                  error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_grant_table_3",
                       error= HA_ERR_LOCK_DEADLOCK;);
       if (error && error != HA_ERR_END_OF_FILE)
@@ -2346,6 +2354,10 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
   p_table->use_all_columns();
 
   error= p_table->file->ha_index_first(p_table->record[0]);
+  DBUG_ASSERT(p_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+              error != HA_ERR_LOCK_DEADLOCK);
+  DBUG_ASSERT(p_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+              error != HA_ERR_LOCK_WAIT_TIMEOUT);
   DBUG_EXECUTE_IF("wl7158_grant_load_proc_2",
                   error= HA_ERR_LOCK_DEADLOCK;);
 
@@ -2407,6 +2419,10 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
         goto end_unlock;
       }
       error= p_table->file->ha_index_next(p_table->record[0]);
+      DBUG_ASSERT(p_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+                  error != HA_ERR_LOCK_DEADLOCK);
+      DBUG_ASSERT(p_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+                  error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_grant_load_proc_3",
                       error= HA_ERR_LOCK_DEADLOCK;);
       if (error)
@@ -2476,6 +2492,10 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
   c_table->use_all_columns();
 
   error= t_table->file->ha_index_first(t_table->record[0]);
+  DBUG_ASSERT(t_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+              error != HA_ERR_LOCK_DEADLOCK);
+  DBUG_ASSERT(t_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+              error != HA_ERR_LOCK_WAIT_TIMEOUT);
   DBUG_EXECUTE_IF("wl7158_grant_load_2",
                   error= HA_ERR_LOCK_DEADLOCK;);
   if (error)
@@ -2527,6 +2547,10 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
         goto end_unlock;
       }
       error= t_table->file->ha_index_next(t_table->record[0]);
+      DBUG_ASSERT(t_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+                  error != HA_ERR_LOCK_DEADLOCK);
+      DBUG_ASSERT(t_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+                  error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_grant_load_3",
                       error= HA_ERR_LOCK_DEADLOCK;);
       if (error)
