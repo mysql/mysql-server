@@ -3993,7 +3993,8 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
         cmd_can_generate_row_events= cmd_must_go_to_trx_cache= TRUE;
         break;
       default:
-        cmd_can_generate_row_events= sqlcom_can_generate_row_events(thd);
+        cmd_can_generate_row_events=
+          sqlcom_can_generate_row_events(thd->lex->sql_command);
         break;
     }
   }

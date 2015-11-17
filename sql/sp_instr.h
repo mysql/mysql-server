@@ -388,6 +388,8 @@ protected:
   */
   virtual void cleanup_before_parsing(THD *thd);
 
+  /// LEX-object.
+  LEX *m_lex;
 private:
   /** 
     Mem-root for storing the LEX-tree during reparse. This
@@ -396,8 +398,6 @@ private:
   */
   MEM_ROOT m_lex_mem_root;
 
-  /// LEX-object.
-  LEX *m_lex;
 
   /**
     Indicates whether this sp_lex_instr instance is responsible for

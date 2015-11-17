@@ -9968,7 +9968,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         my_error((error= ER_BINLOG_ROW_INJECTION_AND_STMT_ENGINE), MYF(0));
       }
       else if (variables.binlog_format == BINLOG_FORMAT_ROW &&
-               sqlcom_can_generate_row_events(this))
+               sqlcom_can_generate_row_events(this->lex->sql_command))
       {
         /*
           2. Error: Cannot modify table that uses a storage engine
@@ -10008,7 +10008,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
           my_error((error= ER_BINLOG_ROW_INJECTION_AND_STMT_MODE), MYF(0));
         }
         else if ((flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0 &&
-                 sqlcom_can_generate_row_events(this))
+                 sqlcom_can_generate_row_events(this->lex->sql_command))
         {
           /*
             5. Error: Cannot modify table that uses a storage engine

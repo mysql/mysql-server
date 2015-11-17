@@ -203,7 +203,7 @@ bool thd_binlog_filter_ok(const THD *thd)
 
 bool thd_sqlcom_can_generate_row_events(const THD *thd)
 {
-  return sqlcom_can_generate_row_events(thd);
+  return sqlcom_can_generate_row_events(thd->lex->sql_command);
 }
 
 
