@@ -3968,7 +3968,7 @@ extern "C" bool thd_binlog_filter_ok(const MYSQL_THD thd)
 
 extern "C" bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd)
 {
-  return sqlcom_can_generate_row_events(thd);
+  return sqlcom_can_generate_row_events(thd->lex->sql_command);
 }
 
 extern "C" enum durability_properties thd_get_durability_property(const MYSQL_THD thd)
