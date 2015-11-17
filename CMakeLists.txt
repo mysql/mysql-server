@@ -303,6 +303,9 @@ IF(WITH_UBSAN)
   IF(NOT WITH_UBSAN_OK)
     MESSAGE(FATAL_ERROR
             "Do not know how to enable undefined behavior sanitizer")
+  ELSE()
+    MESSAGE(WARNING
+            "Note that Undefined Behavior support is currently experimental.")
   ENDIF()
 ENDIF()
 
