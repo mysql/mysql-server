@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -373,6 +373,8 @@ protected:
   */
   virtual void cleanup_before_parsing(THD *thd);
 
+  /// LEX-object.
+  LEX *m_lex;
 private:
   /** 
     Mem-root for storing the LEX-tree during reparse. This
@@ -381,8 +383,6 @@ private:
   */
   MEM_ROOT m_lex_mem_root;
 
-  /// LEX-object.
-  LEX *m_lex;
 
   /**
     Indicates whether this sp_lex_instr instance is responsible for
