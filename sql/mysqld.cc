@@ -3791,10 +3791,16 @@ int init_server_components()
   if (table_def_init() | hostname_cache_init(host_cache_size))
     unireg_abort(MYSQLD_ABORT_EXIT);
 
-  if (my_timer_initialize())
-    sql_print_error("Failed to initialize timer component (errno %d).", errno);
-  else
-    have_statement_timeout= SHOW_OPTION_YES;
+  /*
+    Timers not needed if only starting with --help.
+  */
+  if (!opt_help)
+  {
+    if (my_timer_initialize())
+      sql_print_error("Failed to initialize timer component (errno %d).", errno);
+    else
+      have_statement_timeout= SHOW_OPTION_YES;
+  }
 
   init_server_query_cache();
 
