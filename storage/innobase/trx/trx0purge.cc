@@ -65,6 +65,7 @@ trx_undo_rec_t	trx_purge_dummy_rec;
 
 #ifdef UNIV_DEBUG
 my_bool		srv_purge_view_update_only_debug;
+bool		trx_commit_disallowed = false;
 #endif /* UNIV_DEBUG */
 
 /** Sentinel value */
@@ -363,6 +364,8 @@ trx_purge_add_update_undo_to_history(
 			rseg_header + TRX_RSEG_HISTORY_SIZE,
 			hist_size + undo->size, MLOG_4BYTES, mtr);
 	}
+
+	ut_ad(!trx_commit_disallowed);
 
 	/* Add the log as the first in the history list */
 	flst_add_first(rseg_header + TRX_RSEG_HISTORY,
