@@ -2657,10 +2657,8 @@ innobase_shutdown_for_mysql(void)
 	}
 
 	if (!srv_read_only_mode) {
-		/* Shutdown the FTS optimize sub system. */
-		fts_optimize_start_shutdown();
-
-		fts_optimize_end();
+		fts_optimize_shutdown();
+		dict_stats_shutdown();
 	}
 
 	/* 1. Flush the buffer pool to disk, write the current lsn to

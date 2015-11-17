@@ -732,17 +732,9 @@ fts_optimize_remove_table(
 /*======================*/
 	dict_table_t*	table);			/*!< in: table to remove */
 
-/**********************************************************************//**
-Signal the optimize thread to prepare for shutdown. */
+/** Shutdown fts optimize thread. */
 void
-fts_optimize_start_shutdown(void);
-/*==============================*/
-
-/**********************************************************************//**
-Inform optimize to clean up. */
-void
-fts_optimize_end(void);
-/*===================*/
+fts_optimize_shutdown();
 
 /**********************************************************************//**
 Take a FTS savepoint. */
