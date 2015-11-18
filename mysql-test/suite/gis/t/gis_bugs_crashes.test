@@ -6576,3 +6576,16 @@ do st_buffer(
     linestring( point(-23530,-7131), point(-6,1), point(1,1), point(2,-6), point(32766,-4194302), point(-4,-6)),
     linestring( point(134217725,0), point(50336782742294697000000000000000000000.000000, 36696596077212901000000000000000000000.000000 ), point(7434,16486), point(3.025467e+307,8.926790e+307) ),
     linestring( point(2147483646,67108868), point(71328904281592545000000000000000000000.000000, 225041650340452780000000000000000000000.000000 ), point(-7,4), point(1.667154e+307,3.990414e+307 ) ) ) , ( 2061380362 ) );
+    
+--echo #####################################################################################################
+--echo # Bug#21965285 ST_DIFFERENCE(POLYGON, [MULTI]POLYGON) RETURNS INCORRECT RESULT
+--echo #####################################################################################################
+
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT('POLYGON((7 3,0 10,0
+-6,9 -5,7 7,7 3),(0 8,2 3,2 -2,0 8))'), ST_GEOMFROMTEXT('POLYGON((0 6,0 8,-14
+13,0 6))'))) AS result;
+
+# Not correct yet
+#SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT('POLYGON((3 0,15 0,-2
+#10,-7 3,-19 -19,3 0))'), ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1,-4 -3,19 -8,3
+#0,1 1)),((3 0,8 12,1 19,-3 16,-2 7,3 0)))'))) AS result;
