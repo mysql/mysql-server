@@ -6602,6 +6602,9 @@ SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10
 0,0 0),(0 8,4 4,4 6,0 8))'), ST_GEOMFROMTEXT('POLYGON((0 8,-8 8,-10 4,0
 8))')));
 
+SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((5 0,15 18,-14 11,5
+0),(0 3,-1 4,5 0,0 3))'), ST_GEOMFROMTEXT('POLYGON((6 0,-5 0,-1 -12,6 0))')));
+
 --echo #####################################################################################################
 --echo # Bug#21964049 ST_UNION() RETURNS ERROR WITH VALID GEOMETRY INPUT
 --echo #####################################################################################################
