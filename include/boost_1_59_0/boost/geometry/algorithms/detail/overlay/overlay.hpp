@@ -82,6 +82,11 @@ inline void get_ring_turn_info(TurnInfoMap& turn_info_map,
             && ! turn_info.both(operation_intersection)
             ;
 
+        if (! both_uu && turn_info.colocated)
+        {
+            skip = true;
+        }
+
         for (typename boost::range_iterator<container_type const>::type
                 op_it = boost::begin(turn_info.operations);
             op_it != boost::end(turn_info.operations);
@@ -109,7 +114,7 @@ inline void get_ring_turn_info(TurnInfoMap& turn_info_map,
 
 template
 <
-    typename GeometryOut, overlay_type Direction, bool ReverseOut,
+    typename GeometryOut, overlay_type OverlayType, bool ReverseOut,
     typename Geometry1, typename Geometry2,
     typename OutputIterator
 >
@@ -133,8 +138,8 @@ inline OutputIterator return_if_one_input_is_empty(Geometry1 const& geometry1,
     // Union: return either of them
     // Intersection: return nothing
     // Difference: return first of them
-    if (Direction == overlay_intersection
-        || (Direction == overlay_difference && geometry::is_empty(geometry1)))
+    if (OverlayType == overlay_intersection
+        || (OverlayType == overlay_difference && geometry::is_empty(geometry1)))
     {
         return out;
     }
@@ -147,7 +152,7 @@ inline OutputIterator return_if_one_input_is_empty(Geometry1 const& geometry1,
     std::map<ring_identifier, ring_turn_info> empty;
     std::map<ring_identifier, properties> all_of_one_of_them;
 
-    select_rings<Direction>(geometry1, geometry2, empty, all_of_one_of_them);
+    select_rings<OverlayType>(geometry1, geometry2, empty, all_of_one_of_them);
     ring_container_type rings;
     assign_parents(geometry1, geometry2, rings, all_of_one_of_them);
     return add_rings<GeometryOut>(all_of_one_of_them, geometry1, geometry2, rings, out);
@@ -159,7 +164,7 @@ template
     typename Geometry1, typename Geometry2,
     bool Reverse1, bool Reverse2, bool ReverseOut,
     typename GeometryOut,
-    overlay_type Direction
+    overlay_type OverlayType
 >
 class overlay
 {
@@ -171,6 +176,22 @@ private:
                 OutputIterator out,
                 Strategy const& )
     {
+        bool const is_empty1 = geometry::is_empty(geometry1);
+        bool const is_empty2 = geometry::is_empty(geometry2);
+
+        if (is_empty1 && is_empty2)
+        {
+            return out;
+        }
+
+        if (is_empty1 || is_empty2)
+        {
+            return return_if_one_input_is_empty
+                <
+                    GeometryOut, OverlayType, ReverseOut
+                >(geometry1, geometry2, out);
+        }
+
         typedef typename geometry::point_type<GeometryOut>::type point_type;
         typedef detail::overlay::traversal_turn_info
         <
@@ -200,8 +221,8 @@ std::cout << "get turns" << std::endl;
 std::cout << "enrich" << std::endl;
 #endif
         typename Strategy::side_strategy_type side_strategy;
-        geometry::enrich_intersection_points<Reverse1, Reverse2>(turn_points,
-                Direction == overlay_union
+        geometry::enrich_intersection_points<Reverse1, Reverse2, OverlayType>(turn_points,
+                OverlayType == overlay_union
                     ? geometry::detail::overlay::operation_union
                     : geometry::detail::overlay::operation_intersection,
                     geometry1, geometry2,
@@ -218,7 +239,7 @@ std::cout << "traverse" << std::endl;
         traverse<Reverse1, Reverse2, Geometry1, Geometry2>::apply
                 (
                     geometry1, geometry2,
-                    Direction == overlay_union
+                    OverlayType == overlay_union
                         ? geometry::detail::overlay::operation_union
                         : geometry::detail::overlay::operation_intersection,
                     robust_policy,
@@ -235,11 +256,11 @@ std::cout << "traverse" << std::endl;
 
         // Select all rings which are NOT touched by any intersection point
         std::map<ring_identifier, properties> selected_ring_properties;
-        select_rings<Direction>(geometry1, geometry2, turn_info_per_ring,
+        select_rings<OverlayType>(geometry1, geometry2, turn_info_per_ring,
                 selected_ring_properties);
 
         // split the rings into simple rings
-        split_rings<Direction>::apply(rings, robust_policy);
+        split_rings<OverlayType>::apply(rings, robust_policy);
 
         // Add rings created during traversal
         {
@@ -280,7 +301,7 @@ public:
         {
             return return_if_one_input_is_empty
                 <
-                    GeometryOut, Direction, ReverseOut
+                    GeometryOut, OverlayType, ReverseOut
                 >(geometry1, geometry2, out);
         }
 

@@ -861,8 +861,15 @@ struct buffered_piece_collection
                 m_robust_policy);
     }
 
-    inline void finish_ring(bool is_interior = false, bool has_interiors = false)
+    inline void finish_ring(strategy::buffer::result_code code,
+                            bool is_interior = false, bool has_interiors = false)
     {
+        if (code == strategy::buffer::result_error_numerical)
+        {
+            abort_ring();
+            return;
+        }
+
         if (m_first_piece_index == -1)
         {
             return;
@@ -1189,7 +1196,7 @@ struct buffered_piece_collection
             typename cs_tag<Ring>::type
         >::type side_strategy_type;
 
-        enrich_intersection_points<false, false>(m_turns,
+        enrich_intersection_points<false, false, overlay_union>(m_turns,
                     detail::overlay::operation_union,
                     offsetted_rings, offsetted_rings,
                     m_robust_policy, side_strategy_type());
