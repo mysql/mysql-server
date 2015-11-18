@@ -6616,3 +6616,11 @@ SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((7 0,10 -3,7 1,7
 SELECT ST_ISVALID(ST_UNION(ST_GEOMFROMTEXT('POLYGON((7 0,10 -3,7 1,7
 0))'), ST_GEOMFROMTEXT('POLYGON((7 4,-14 10,7 -17,7 4),(7 1,0 3,-2 4,7
 1))')));
+
+--echo #####################################################################################################
+--echo # Bug#21964465 ST_INTERSECTION(POLYGON, POLYGON) RETURNS INCORRECT RESULT
+--echo #####################################################################################################
+
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10
+10,10 0,0 0 ),(0 8,4 4,4 6,0 8))'), ST_GEOMFROMTEXT('POLYGON((0 8,-8 8,-2 2,0
+8))')));
