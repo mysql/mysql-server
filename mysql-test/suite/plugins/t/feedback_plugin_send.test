@@ -25,20 +25,15 @@ sleep 310;
 --let $shutdown_timeout= 60
 source include/restart_mysqld.inc;
 
-replace_result https http;
+replace_result https http 2 6;
 perl;
   $log_error= $ENV{'MYSQLTEST_VARDIR'} . '/log/mysqld.1.err';
   open(LOG, '<', $log_error) or die "open(< $log_error): $!";
 
-  # Get the first few rows (as there may be different number rows in the log)
-  $i= 0;
-  while ($_=<LOG>)
-  {
-    if (/feedback plugin:.*/)
-    {
-      print "$&\n";
-      break if ($i++ >= 3);
-    }
+  %logg=();
+  while ($_=<LOG>) {
+    $logg{$&}++ if /feedback plugin:.*/;
   }
+  print "$logg{$_}: $_\n" for sort keys %logg;
   close LOG;
 EOF

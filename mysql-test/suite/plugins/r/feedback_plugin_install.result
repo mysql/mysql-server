@@ -3,7 +3,8 @@ select plugin_status from information_schema.plugins where plugin_name='feedback
 plugin_status
 ACTIVE
 select * from information_schema.feedback where variable_name like 'feed%'
-       and variable_name not like  '%_uid';
+       and variable_name not like  '%_uid'
+       and variable_name not like '%debug%';
 VARIABLE_NAME	VARIABLE_VALUE
 FEEDBACK used	1
 FEEDBACK version	1.1

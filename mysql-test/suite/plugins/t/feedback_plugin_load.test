@@ -24,4 +24,5 @@ SELECT variable_value = @feedback_used + 1 FROM information_schema.feedback wher
 --replace_result https http
 --sorted_result
 select * from information_schema.feedback where variable_name like 'feed%'
-       and variable_name not like  '%_uid' and variable_name not like 'FEEDBACK used';
+       and variable_name not like '%_uid' and variable_name not like 'FEEDBACK used'
+       and variable_name not like '%debug%';

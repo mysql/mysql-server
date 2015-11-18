@@ -22,6 +22,10 @@ extern ST_SCHEMA_TABLE schema_tables[];
 
 namespace feedback {
 
+#ifndef DBUG_OFF
+ulong debug_startup_interval, debug_first_interval, debug_interval;
+#endif
+
 char server_uid_buf[SERVER_UID_SIZE+1]; ///< server uid will be written here
 
 /* backing store for system variables */
@@ -249,6 +253,18 @@ static int init(void *p)
 
   prepare_linux_info();
 
+#ifndef DBUG_OFF
+  if (startup_interval != debug_startup_interval ||
+      first_interval != debug_first_interval ||
+      interval != debug_interval)
+  {
+    startup_interval= debug_startup_interval;
+    first_interval= debug_first_interval;
+    interval= debug_interval;
+    user_info= "mysql-test";
+  }
+#endif
+
   url_count= 0;
   if (*url)
   {
@@ -347,12 +363,29 @@ static MYSQL_SYSVAR_ULONG(send_retry_wait, send_retry_wait, PLUGIN_VAR_RQCMDARG,
        "Wait this many seconds before retrying a failed send.",
        NULL, NULL, 60, 1, 60*60*24, 1);
 
+#ifndef DBUG_OFF
+static MYSQL_SYSVAR_ULONG(debug_startup_interval, debug_startup_interval,
+       PLUGIN_VAR_RQCMDARG, "for debugging only",
+       NULL, NULL, startup_interval, 1, INT_MAX32, 1);
+static MYSQL_SYSVAR_ULONG(debug_first_interval, debug_first_interval,
+       PLUGIN_VAR_RQCMDARG, "for debugging only",
+       NULL, NULL, first_interval, 1, INT_MAX32, 1);
+static MYSQL_SYSVAR_ULONG(debug_interval, debug_interval,
+       PLUGIN_VAR_RQCMDARG, "for debugging only",
+       NULL, NULL, interval, 1, INT_MAX32, 1);
+#endif
+
 static struct st_mysql_sys_var* settings[] = {
   MYSQL_SYSVAR(server_uid),
   MYSQL_SYSVAR(user_info),
   MYSQL_SYSVAR(url),
   MYSQL_SYSVAR(send_timeout),
   MYSQL_SYSVAR(send_retry_wait),
+#ifndef DBUG_OFF
+  MYSQL_SYSVAR(debug_startup_interval),
+  MYSQL_SYSVAR(debug_first_interval),
+  MYSQL_SYSVAR(debug_interval),
+#endif
   NULL
 };
 

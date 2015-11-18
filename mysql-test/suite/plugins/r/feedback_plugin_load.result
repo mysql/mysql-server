@@ -6,7 +6,8 @@ SELECT variable_value = @feedback_used + 1 FROM information_schema.feedback wher
 variable_value = @feedback_used + 1
 1
 select * from information_schema.feedback where variable_name like 'feed%'
-       and variable_name not like  '%_uid' and variable_name not like 'FEEDBACK used';
+       and variable_name not like '%_uid' and variable_name not like 'FEEDBACK used'
+       and variable_name not like '%debug%';
 VARIABLE_NAME	VARIABLE_VALUE
 FEEDBACK version	1.1
 FEEDBACK_SEND_RETRY_WAIT	60
