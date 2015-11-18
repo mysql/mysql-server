@@ -200,16 +200,41 @@ public:
 };
 
 
+class PT_table_ref_join_table;
 class PT_table_list : public Parse_tree_node
 {
 public:
   TABLE_LIST *value;
 
   virtual void nest() {}
+
+  /**
+    Lets us build a parse tree top-down, which is necessary due to the
+    context-dependent nature of the join syntax. This function adds
+    the <table_ref> cross join as the left-most leaf in this join tree.
+
+    This function may only be called if this PT_table_list is a join.
+  */
+  virtual PT_table_list *add_cross_join(PT_table_ref_join_table *cj)
+  {
+    DBUG_ASSERT(false);
+  }
+
+  /**
+    If this PT_table_list is a join, returns the PT_join_table. This is used
+    for building a parse tree top-down.
+  */
+  virtual PT_join_table *get_join_table() { return NULL; }
 };
 
 
-class PT_table_factor_table_ident : public PT_table_list
+class PT_table_factor : public PT_table_list
+{
+public:
+  virtual PT_table_list *add_cross_join(PT_table_ref_join_table *cj);
+};
+
+class PT_table_factor_table_ident : public PT_table_factor
 {
   typedef PT_table_list super;
 
@@ -250,20 +275,6 @@ public:
 };
 
 
-class PT_table_factor_joined_table : public PT_table_list
-{
-public:
-  PT_table_factor_joined_table(Parse_tree_node *joined_table) :
-  m_joined_table(joined_table)
-  {}
-
-  virtual bool contextualize(Parse_context *pc);
-
-private:
-  Parse_tree_node *m_joined_table;
-};
-
-
 class PT_derived_table_list;
 class PT_nested_derived_table_list : public PT_table_list
 {
@@ -278,20 +289,7 @@ private:
   PT_derived_table_list *m_derived_table_list;
 };
 
-enum PT_join_table_type
-{
-  JTT_NORMAL            = 0x01,
-  JTT_STRAIGHT          = 0x02,
-  JTT_NATURAL           = 0x04,
-  JTT_LEFT              = 0x08,
-  JTT_RIGHT             = 0x10,
 
-  JTT_NATURAL_LEFT      = JTT_NATURAL | JTT_LEFT,
-  JTT_NATURAL_RIGHT     = JTT_NATURAL | JTT_RIGHT
-};
-
-
-template<PT_join_table_type Type>
 class PT_join_table : public Parse_tree_node
 {
   typedef Parse_tree_node super;
@@ -299,6 +297,7 @@ class PT_join_table : public Parse_tree_node
 protected:
   PT_table_list *tab1_node;
   POS join_pos;
+  PT_join_table_type m_type;
   PT_table_list *tab2_node;
 
   TABLE_LIST *tr1;
@@ -307,8 +306,11 @@ protected:
 
 public:
   PT_join_table(PT_table_list *tab1_node_arg, const POS &join_pos_arg,
-                PT_table_list *tab2_node_arg)
-  : tab1_node(tab1_node_arg), join_pos(join_pos_arg), tab2_node(tab2_node_arg),
+                PT_join_table_type type, PT_table_list *tab2_node_arg)
+  : tab1_node(tab1_node_arg),
+    join_pos(join_pos_arg),
+    m_type(type),
+    tab2_node(tab2_node_arg),
     tr1(NULL), tr2(NULL)
   {
     DBUG_ASSERT(dbug_exclusive_flags(JTT_NORMAL | JTT_STRAIGHT | JTT_NATURAL));
@@ -319,21 +321,37 @@ public:
   bool dbug_exclusive_flags(unsigned int mask)
   {
 #ifdef __GNUC__
-    return __builtin_popcount(Type & mask) <= 1;
+    return __builtin_popcount(m_type & mask) <= 1;
 #else
     return true;
 #endif
   }
 #endif
 
-  virtual bool contextualize(Parse_context *pc)
+  PT_table_list *add_cross_join(PT_table_ref_join_table* cj)
+  {
+    tab1_node= tab1_node->add_cross_join(cj);
+    return tab1_node;
+  }
+
+  /**
+    Adds the table as the right-hand side of this join. May only be done if
+    that table is NULL.
+  */
+  void add_rhs(PT_table_factor *table)
+  {
+    DBUG_ASSERT(tab2_node == NULL);
+    tab2_node= table;
+  }
+
+  bool contextualize(Parse_context *pc)
   {
     if (super::contextualize(pc) || contextualize_tabs(pc))
       return true;
 
-    if (Type & (JTT_LEFT | JTT_RIGHT))
+    if (m_type & (JTT_LEFT | JTT_RIGHT))
     {
-      if (Type & JTT_LEFT)
+      if (m_type & JTT_LEFT)
         tr2->outer_join|= JOIN_TYPE_LEFT;
       else
       {
@@ -345,10 +363,10 @@ public:
       }
     }
 
-    if (Type & JTT_NATURAL)
+    if (m_type & JTT_NATURAL)
       add_join_natural(tr1, tr2, NULL, pc->select);
     
-    if (Type & JTT_STRAIGHT)
+    if (m_type & JTT_STRAIGHT)
       tr2->straight= true;
 
     return false;
@@ -376,17 +394,52 @@ protected:
 };
 
 
-template<PT_join_table_type Type>
-class PT_join_table_on : public PT_join_table<Type>
-{
-  typedef PT_join_table<Type> super;
 
+class PT_table_factor_joined_table : public PT_table_list
+{
+public:
+  PT_table_factor_joined_table(PT_join_table *joined_table) :
+  m_joined_table(joined_table)
+  {}
+
+  virtual bool contextualize(Parse_context *pc);
+
+  virtual PT_table_list *add_cross_join(PT_table_ref_join_table* cj)
+  {
+    m_joined_table->add_cross_join(cj);
+    return this;
+  }
+
+private:
+  PT_join_table *m_joined_table;
+};
+
+
+class PT_cross_join : public PT_join_table
+{
+public:
+
+  PT_cross_join(PT_table_list *tab1_node_arg, const POS &join_pos_arg,
+                PT_join_table_type Type_arg, PT_table_list *tab2_node_arg)
+    : PT_join_table(tab1_node_arg, join_pos_arg, Type_arg, tab2_node_arg) {}
+
+  void add_rhs(PT_table_list *rhs)
+  {
+    DBUG_ASSERT(tab2_node == NULL);
+    tab2_node= rhs;
+  }
+};
+
+
+class PT_join_table_on : public PT_join_table
+{
   Item *on;
 
 public:
   PT_join_table_on(PT_table_list *tab1_node_arg, const POS &join_pos_arg,
-                   PT_table_list *tab2_node_arg, Item *on_arg)
-  : super(tab1_node_arg, join_pos_arg, tab2_node_arg), on(on_arg)
+                   PT_join_table_type type, PT_table_list *tab2_node_arg,
+                   Item *on_arg)
+    : PT_join_table(tab1_node_arg, join_pos_arg, type, tab2_node_arg), on(on_arg)
   {}
 
   virtual bool contextualize(Parse_context *pc)
@@ -403,7 +456,7 @@ public:
     SELECT_LEX *sel= pc->select;
     sel->parsing_place= CTX_ON;
 
-    if (super::contextualize(pc) || on->itemize(pc, &on))
+    if (PT_join_table::contextualize(pc) || on->itemize(pc, &on))
       return true;
     DBUG_ASSERT(sel == pc->select);
 
@@ -416,24 +469,21 @@ public:
 };
 
 
-template<PT_join_table_type Type>
-class PT_join_table_using : public PT_join_table<Type>
+class PT_join_table_using : public PT_join_table
 {
-  typedef PT_join_table<Type> super;
-
   List<String> *using_fields;
 
 public:
   PT_join_table_using(PT_table_list *tab1_node_arg, const POS &join_pos_arg,
-                      PT_table_list *tab2_node_arg,
-                       List<String> *using_fields_arg)
-  : super(tab1_node_arg, join_pos_arg, tab2_node_arg),
-    using_fields(using_fields_arg)
+                      PT_join_table_type type, PT_table_list *tab2_node_arg,
+                      List<String> *using_fields_arg)
+    : PT_join_table(tab1_node_arg, join_pos_arg, type, tab2_node_arg),
+      using_fields(using_fields_arg)
   {}
 
   virtual bool contextualize(Parse_context *pc)
   {
-    if (super::contextualize(pc))
+    if (PT_join_table::contextualize(pc))
       return true;
 
     add_join_natural(this->tr1, this->tr2, using_fields, pc->select);
@@ -446,10 +496,10 @@ class PT_table_ref_join_table : public PT_table_list
 {
   typedef PT_table_list super;
 
-  Parse_tree_node *join_table;
+  PT_join_table *join_table;
 
 public:
-  explicit PT_table_ref_join_table(Parse_tree_node *join_table_arg)
+  explicit PT_table_ref_join_table(PT_join_table *join_table_arg)
   : join_table(join_table_arg)
   {}
 
@@ -460,6 +510,19 @@ public:
 
     value= pc->select->nest_last_join(pc->thd);
     return value == NULL;
+  }
+
+  PT_table_list *add_cross_join(PT_table_ref_join_table *cj)
+  {
+    join_table->add_cross_join(cj);
+    return this;
+  }
+
+  virtual PT_join_table *get_join_table() { return join_table; }
+
+  void add_rhs(PT_table_factor *table)
+  {
+    join_table->add_rhs(table);
   }
 };
 
@@ -756,7 +819,7 @@ public:
 };
 
 
-class PT_derived_table_list : public PT_table_list
+class PT_derived_table_list : public PT_table_factor
 {
   typedef PT_table_list super;
 
@@ -2214,7 +2277,7 @@ public:
 };
 
 
-class PT_derived_table : public PT_table_list
+class PT_derived_table : public PT_table_factor
 {
 public:
   PT_derived_table(PT_subquery *subquery, LEX_STRING *table_alias) :

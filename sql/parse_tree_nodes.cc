@@ -21,6 +21,12 @@
 #include "mysqld.h"         // global_system_variables
 #include "sp_pcontext.h"
 
+PT_table_list *PT_table_factor::add_cross_join(PT_table_ref_join_table *cj)
+{
+  cj->add_rhs(this);
+  return cj;
+}
+
 
 bool PT_option_value_no_option_type_charset:: contextualize(Parse_context *pc)
 {

@@ -1612,6 +1612,17 @@ enum delete_option_enum {
   DELETE_IGNORE       = 1 << 2
 };
 
+enum PT_join_table_type
+{
+  JTT_NORMAL            = 0x01,
+  JTT_STRAIGHT          = 0x02,
+  JTT_NATURAL           = 0x04,
+  JTT_LEFT              = 0x08,
+  JTT_RIGHT             = 0x10,
+
+  JTT_NATURAL_LEFT      = JTT_NATURAL | JTT_LEFT,
+  JTT_NATURAL_RIGHT     = JTT_NATURAL | JTT_RIGHT
+};
 
 union YYSTYPE {
   /*
@@ -1722,6 +1733,8 @@ union YYSTYPE {
   class PT_table_expression *table_expression;
   class PT_table_list *table_list2;
   class PT_join_table_list *join_table_list;
+  class PT_join_table *join_table;
+  enum PT_join_table_type join_type;
   class PT_select_paren_derived *select_paren_derived;
   class PT_select_lex *select_lex2;
   class PT_internal_variable_name *internal_variable_name;

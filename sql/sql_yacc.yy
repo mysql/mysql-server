@@ -424,7 +424,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %lex-param { class THD *YYTHD }
 %pure-parser                                    /* We have threads */
 /* We should not introduce new conflicts any more. */
-%expect 125
+%expect 121
 
 /*
    Comments for TOKENS.
@@ -1096,7 +1096,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 */
 %right UNIQUE_SYM KEY_SYM
 
-%left   JOIN_SYM INNER_SYM STRAIGHT_JOIN CROSS LEFT RIGHT
+%left CONDITIONLESS_JOIN
+%left   JOIN_SYM INNER_SYM CROSS STRAIGHT_JOIN NATURAL LEFT RIGHT ON USING
 /* A dummy token to force the priority of table_ref production in a join. */
 %left   TABLE_REF_PRIORITY
 %left   SET_VAR
@@ -1299,7 +1300,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         clear_privileges flush_options flush_option
         opt_flush_lock flush_options_list
         equal optional_braces
-        opt_mi_check_type opt_to mi_check_types normal_join
+        opt_mi_check_type opt_to mi_check_types normal_join_type
         table_to_table_list table_to_table opt_table_list opt_as
         opt_and charset
         help
@@ -1409,8 +1410,10 @@ END_OF_INPUT
 %type <select_options> select_option select_option_list select_options
         empty_select_options
 
-%type <node> join_table join_table_parens order_or_limit
+%type <node> order_or_limit
           option_value union_opt
+
+%type <join_table> joined_table joined_table_parens natural_join
 
 %type <table_reference_list> opt_from_clause from_clause from_tables
           table_reference_list
@@ -1431,10 +1434,10 @@ END_OF_INPUT
 
 %type <table_expression> table_expression
 
-%type <table_list2> table_factor table_factor_or_refs table_ref table_refs esc_table_ref derived_table_list
-        named_table named_table_parens nested_table_reference_list
-
-%type <derived_table_list> derived_table_list_parens
+%type <table_list2> table_factor table_ref
+          esc_table_ref derived_table_list
+          named_table table_reference_list_parens
+          named_table_parens
 
 %type <join_table_list> join_table_list
 
@@ -1531,6 +1534,9 @@ END_OF_INPUT
 %type <column_row_value_list_pair> insert_from_constructor
 
 %type <optimizer_hints> SELECT_SYM INSERT REPLACE UPDATE_SYM DELETE_SYM
+
+%type <join_type> any_join_type natural_join_type
+          context_dependent_join_type
 
 %%
 
@@ -10511,7 +10517,7 @@ when_list:
 /* Warning - may return NULL in case of incomplete SELECT */
 table_ref:
           table_factor
-        | join_table
+        | joined_table
           {
             $$= NEW_PTN PT_table_ref_join_table($1);
           }
@@ -10522,26 +10528,13 @@ join_table_list:
           {
             $$= NEW_PTN PT_join_table_list(@$, $1);
           }
-        | derived_table_list_parens
-          {
-            /*
-              Legacy compatibility: the old parser rules would make a <table
-              reference list> - that's <join_table_list> in this file -
-              'nested' if it was within parentheses. This is of couse
-              incorrect, since the parentheses have no meaning in this case,
-              but they are allowed. On the other hand it doesn't hurt either
-              since the nesting is removed in later stages anyway.
-            */
-            $1->nest();
-            $$= NEW_PTN PT_join_table_list(@$, $1);
-          }
         ;
 
 /*
-  The ODBC escape syntax for Outer Join is: '{' OJ join_table '}'
+  The ODBC escape syntax for Outer Join is: '{' OJ joined_table '}'
   The parser does not define OJ as a token, any ident is accepted
   instead in $2 (ident). Also, all productions from table_ref can
-  be escaped, not only join_table. Both syntax extensions are safe
+  be escaped, not only joined_table. Both syntax extensions are safe
   and are ignored.
 */
 esc_table_ref:
@@ -10559,149 +10552,136 @@ derived_table_list:
           }
         ;
 
-derived_table_list_parens:
-          '(' derived_table_list_parens ')' { $$= $2; }
-        | '(' derived_table_list ',' esc_table_ref ')'
-          {
-            $$= NEW_PTN PT_derived_table_list(@$, $2, $4);
-          }
-        | '(' derived_table_list ',' derived_table_list_parens ')'
-          {
-            $$= NEW_PTN PT_derived_table_list(@$, $2, $4);
-          }
-        | '(' derived_table_list_parens ',' esc_table_ref ')'
-          {
-            $$= NEW_PTN PT_derived_table_list(@$, $2, $4);
-          }
-        ;
-
-/**
-  This syntax is a non-standard MySQL specialty that makes life hard for
-  parser designers. In standard SQL, the <from clause> is defined as FROM
-  <table reference list>. That is, a comma separated list of <table
-  reference>. A table reference may be a table name, subquery, or a join, but
-  it may not be another comma-separated list of tables. In order to explain
-  this to Bison, there are really only three options:
-
-  # Define , to simply mean JOIN.
-
-  # Create a totally ambiguous grammar that accepts a superset of SQL syntax,
-    patch it up with %prec declarations and manually thrown parse errors, and
-    live with a higly bug-prone parser with literally hundreds of shift/reduce
-    conflicts.
-
-  # Make a special rule that disambguates a <table factor> within parentheses
-    from a <table reference list> within parentheses, and handles the nesting
-    of this list after it is parsed.
-
-  Option 1 is definitely feasible but would leave us with a grammar that is
-  very alien from a standard point of view. Option 2 is how the parser was
-  originally implemented, and is likely the reason why nested <table reference
-  list>s are allowed in the first place. Hence option 3 was chosen and
-  implemented as this rule. It's here only to make the call to the (recursive)
-  function PT_table_list::nest() which recursively nests the list as a
-  left-deep tree.
-*/
-nested_table_reference_list:
-          derived_table_list_parens
-          {
-            $1->nest();
-          }
-        ;
-
-table_refs:
-          nested_table_reference_list
-        | table_ref
-        ;
-
-table_factor_or_refs:
-          nested_table_reference_list
-        | table_factor
-        ;
-
 /*
-  Notice that JOIN is a left-associative operation, and it must be parsed
-  as such, that is, the parser must process first the left join operand
-  then the right one. Such order of processing ensures that the parser
-  produces correct join trees which is essential for semantic analysis
-  and subsequent optimization phases.
-*/
-join_table:
-          /* INNER JOIN variants */
-          /*
-            Use %prec to evaluate production 'table_ref' before 'normal_join'
-            so that [INNER | CROSS] JOIN is properly nested as other
-            left-associative joins.
-          */
-          table_refs normal_join table_refs %prec TABLE_REF_PRIORITY
-          {
-            $$= NEW_PTN PT_join_table<JTT_NORMAL>($1, @2, $3);
-          }
-        | table_refs STRAIGHT_JOIN table_factor
-          {
-            $$= NEW_PTN PT_join_table<JTT_STRAIGHT>($1, @2, $3);
-          }
-        | table_refs normal_join table_refs
-          ON
-          expr
-          {
-            $$= NEW_PTN PT_join_table_on<JTT_NORMAL>($1, @2, $3, $5);
-          }
-        | table_refs STRAIGHT_JOIN table_factor
-          ON
-          expr
-          {
-            $$= NEW_PTN PT_join_table_on<JTT_STRAIGHT>($1, @2, $3, $5);
-          }
-        | table_refs normal_join table_refs
-          USING
-          '(' using_list ')'
-          {
-            $$= NEW_PTN PT_join_table_using<JTT_NORMAL>($1, @2, $3, $6);
-          }
-        | table_refs NATURAL JOIN_SYM table_factor_or_refs
-          {
-            $$= NEW_PTN PT_join_table<JTT_NATURAL>($1, @2, $4);
-          }
-          /* LEFT JOIN variants */
-        | table_refs LEFT opt_outer JOIN_SYM table_refs
-          ON
-          expr
-          {
-            $$= NEW_PTN PT_join_table_on<JTT_LEFT>($1, @2, $5, $7);
-          }
-        | table_refs LEFT opt_outer JOIN_SYM table_factor
-          USING '(' using_list ')'
-          {
-            $$= NEW_PTN PT_join_table_using<JTT_LEFT>($1, @2, $5, $8);
-          }
-        | table_refs NATURAL LEFT opt_outer JOIN_SYM table_factor
-          {
-            $$= NEW_PTN PT_join_table<JTT_NATURAL_LEFT>($1, @2, $6);
-          }
+  Join operations are normally left-associative, as in
 
-          /* RIGHT JOIN variants */
-        | table_refs RIGHT opt_outer JOIN_SYM table_refs
-          ON
-          expr
+    t1 JOIN t2 ON t1.a = t2.a JOIN t3 ON t3.a = t2.a
+
+  This is equivalent to
+
+    (t1 JOIN t2 ON t1.a = t2.a) JOIN t3 ON t3.a = t2.a
+
+  They can also be right-associative without parentheses, e.g.
+
+    t1 JOIN t2 JOIN t3 ON t2.a = t3.a ON t1.a = t2.a
+
+  Which is equivalent to
+
+    t1 JOIN (t2 JOIN t3 ON t2.a = t3.a) ON t1.a = t2.a
+
+  MySQL has the specialty that cross joins have the same syntax as joins with
+  a condition - the word CROSS is optional - hence `t1 JOIN t2` denotes a
+  cross join. For the join operation above, this means that the parser can't
+  know until it has seen the last ON whether `t1 JOIN t2` was a cross join or
+  not. The only way to solve the abiguity is to keep shifting the tokens on
+  the stack, and not reduce until the last ON is seen. We tell Bison this by
+  adding a fake token CONDITIONLESS_JOIN which has lower precedence than all
+  tokens that would continue the join. These are JOIN_SYM, INNER_SYM, CROSS,
+  STRAIGHT_JOIN, NATURAL, LEFT, RIGHT, ON and USING. This way the automaton
+  only reduces to a cross join unless no other interpretation is
+  possible. This gives a right-deep join tree for join *with* conditions,
+  which is what is expected.
+
+  The challenge here is that t1 JOIN t2 *could* have been a cross join, we
+  just don't know it until afterwards. So if the query had been
+
+    t1 JOIN t2 JOIN t3 ON t2.a = t3.a
+
+  We will first reduce `t1 JOIN t2 ON t2.a = t3.a` to a <table_ref>, which is
+  correct, but a problem arises when reducing t1 JOIN <table_ref>. If we were
+  to do that, we'd get a right-deep tree. The solution is to build the tree
+  downwards instead of upwards, as is normally done. This concept may seem
+  outlandish at first, but it's really quite simple. When the semantic action
+  for table_ref JOIN table_ref is executed, the parse tree is (please pardon
+  the ASCII graphic):
+
+                       JOIN ON t2.a = t3.a
+                      /    \
+                     t2    t3
+
+  Now, normally we'd just add the cross join node on top of this tree, as:
+
+                    JOIN
+                   /    \
+                 t1    JOIN ON t2.a = t3.a
+                      /    \
+                     t2    t3
+
+  This is not the meaning of the query, however. The cross join should be
+  addded at the bottom:
+
+
+                       JOIN ON t2.a = t3.a
+                      /    \
+                    JOIN    t3
+                   /    \
+                  t1    t2
+
+  There is only one rule to pay attention to: If the right-hand side of a
+  cross join is a join tree, find its left-most leaf (which is a table
+  name). Then replace this table name with a cross join of the left-hand side
+  of the top cross join, and the right hand side with the original table.
+
+  Natural joins are also syntactically conditionless, but we need to make sure
+  that they are never right associative. We handle them in their own rule
+  natural_join, which is left-associative only. In this case we know that
+  there is no join condition to wait for, so we can reduce immediately.
+*/
+joined_table:
+          table_ref any_join_type table_ref ON expr
           {
-            $$= NEW_PTN PT_join_table_on<JTT_RIGHT>($1, @2, $5, $7);
+            $$= NEW_PTN PT_join_table_on($1, @2, $2, $3, $5);
           }
-        | table_refs RIGHT opt_outer JOIN_SYM table_factor
-          USING '(' using_list ')'
+        | table_ref any_join_type table_ref USING '(' using_list ')'
           {
-            $$= NEW_PTN PT_join_table_using<JTT_RIGHT>($1, @2, $5, $8);
+            $$= NEW_PTN PT_join_table_using($1, @2, $2, $3, $6);
           }
-        | table_refs NATURAL RIGHT opt_outer JOIN_SYM table_factor
+        | table_ref any_join_type table_ref
+          %prec CONDITIONLESS_JOIN
           {
-            $$= NEW_PTN PT_join_table<JTT_NATURAL_RIGHT>($1, @2, $6);
+            PT_join_table *rhs_join= $3->get_join_table();
+            if (rhs_join != NULL)
+            {
+              PT_table_ref_join_table *this_join=
+                NEW_PTN PT_table_ref_join_table
+                (NEW_PTN PT_cross_join($1, @2, $2, NULL));
+              $3->add_cross_join(this_join);
+              $$= rhs_join;
+            }
+            else
+              $$= NEW_PTN PT_cross_join($1, @2, $2, $3);
+          }
+        | natural_join
+        ;
+
+natural_join:
+          table_ref natural_join_type table_factor
+          {
+            $$= NEW_PTN PT_join_table($1, @2, $2, $3);
           }
         ;
 
-normal_join:
-          JOIN_SYM {}
-        | INNER_SYM JOIN_SYM {}
+any_join_type:
+          normal_join_type                 { $$= JTT_NORMAL; }
+        | context_dependent_join_type
+        ;
+
+normal_join_type:
+          INNER_SYM JOIN_SYM {}
         | CROSS JOIN_SYM {}
+        ;
+
+natural_join_type:
+          NATURAL JOIN_SYM                 { $$= JTT_NATURAL; }
+        | NATURAL RIGHT opt_outer JOIN_SYM { $$= JTT_NATURAL_RIGHT; }
+        | NATURAL LEFT opt_outer JOIN_SYM  { $$= JTT_NATURAL_LEFT; }
+        ;
+
+context_dependent_join_type:
+          JOIN_SYM                         { $$= JTT_NORMAL; }
+        | STRAIGHT_JOIN                    { $$= JTT_STRAIGHT; }
+        | LEFT opt_outer JOIN_SYM          { $$= JTT_LEFT; }
+        | RIGHT opt_outer JOIN_SYM         { $$= JTT_RIGHT; }
         ;
 
 /*
@@ -10720,16 +10700,43 @@ use_partition:
           }
         ;
 
+/**
+  MySQL has a syntax extension where a comma-separated list of table
+  references is allowed as a table reference in itself, for instance
+
+    SELECT * FROM (t1, t2) JOIN t3 ON 1
+
+  which is not allowed in standard SQL. The syntax is equivalent to
+
+    SELECT * FROM (t1 CROSS JOIN t2) JOIN t3 ON 1
+
+  We call this rule table_reference_list_parens.
+
+  A <table_factor> may be a <table_name>, a <subquery>, a <derived_table>, a
+  <joined_table>, or the bespoke <table_reference_list_parens>, each of those
+  enclosed in any number of parentheses. (There is also the extension that the
+  word CROSS is optional, i.e. a join operation without a join specification
+  (ON or USING) is interpreted, see the joined_table rule.) This makes for an
+  ambiguous grammar since a <table_factor> may also be enclosed in
+  parentheses. We get around this by designing the grammar so that a
+  <table_factor> does not have parentheses, but all the sub-cases of it have
+  their own parentheses-rules, i.e. <named_table_parens>,
+  <joined_table_parens> and <table_reference_list_parens>. It's a bit tedious
+  but the grammar is unambiguous and doesn't have shift/reduce conflicts.
+*/
 table_factor:
-          table_ident opt_use_partition opt_table_alias opt_key_definition
-          {
-            $$= NEW_PTN PT_table_factor_table_ident($1, $2, $3, $4);
-          }
+          named_table
         | named_table_parens
         | derived_table { $$ = $1; }
-        | join_table_parens
+        | joined_table_parens { $$= NEW_PTN PT_table_factor_joined_table($1); }
+        | table_reference_list_parens { $1->nest(); }
+        ;
+
+table_reference_list_parens:
+          '(' table_reference_list_parens ')' { $$= $2; }
+        | '(' derived_table_list ',' esc_table_ref ')'
           {
-            $$= NEW_PTN PT_table_factor_joined_table($1);
+            $$= NEW_PTN PT_derived_table_list(@$, $2, $4);
           }
         ;
 
@@ -10740,15 +10747,14 @@ named_table_parens:
 
 named_table:
           table_ident opt_use_partition opt_table_alias opt_key_definition
-
           {
             $$= NEW_PTN PT_table_factor_table_ident($1, $2, $3, $4);
           }
         ;
 
-join_table_parens:
-          '(' join_table_parens ')' { $$= $2; }
-        | '(' join_table ')' { $$= $2; }
+joined_table_parens:
+          '(' joined_table_parens ')' { $$= $2; }
+        | '(' joined_table ')' { $$= $2; }
         ;
 
 derived_table: table_subquery opt_table_alias
