@@ -6802,3 +6802,20 @@ ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10
 0,0 0),(0 8,4 4,4 6,0 8))'), ST_GEOMFROMTEXT('POLYGON((0 8,-8 8,-10 4,0
 8))')))
 MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 8,0 0),(0 8,4 6,4 4,0 8)),((0 8,-8 8,-10 4,0 8)))
+#####################################################################################################
+# Bug#21964049 ST_UNION() RETURNS ERROR WITH VALID GEOMETRY INPUT
+#####################################################################################################
+SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((7 0,10 -3,7 1,7
+0))'), ST_GEOMFROMTEXT('POLYGON((7 4,-14 10,7 -17,7 4),(7 1,0 3,-2 4,7
+1))')));
+ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((7 0,10 -3,7 1,7
+0))'), ST_GEOMFROMTEXT('POLYGON((7 4,-14 10,7 -17,7 4),(7 1,0 3,-2 4,7
+1))')))
+POLYGON((7 1,7 4,-14 10,7 -17,7 0,10 -3,7 1),(7 1,0 3,-2 4,7 1))
+SELECT ST_ISVALID(ST_UNION(ST_GEOMFROMTEXT('POLYGON((7 0,10 -3,7 1,7
+0))'), ST_GEOMFROMTEXT('POLYGON((7 4,-14 10,7 -17,7 4),(7 1,0 3,-2 4,7
+1))')));
+ST_ISVALID(ST_UNION(ST_GEOMFROMTEXT('POLYGON((7 0,10 -3,7 1,7
+0))'), ST_GEOMFROMTEXT('POLYGON((7 4,-14 10,7 -17,7 4),(7 1,0 3,-2 4,7
+1))')))
+1
