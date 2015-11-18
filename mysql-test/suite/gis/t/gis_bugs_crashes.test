@@ -6589,3 +6589,15 @@ SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT('POLYGON((7 3,0 10,0
 #SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT('POLYGON((3 0,15 0,-2
 #10,-7 3,-19 -19,3 0))'), ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1,-4 -3,19 -8,3
 #0,1 1)),((3 0,8 12,1 19,-3 16,-2 7,3 0)))'))) AS result;
+
+--echo #####################################################################################################
+--echo # Bug#21964079 ST_UNION(POLYGON, POLYGON) RETURNS INCORRECT RESULT
+--echo #####################################################################################################
+
+SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((7 3,0 10,0 -6,9
+-5,7 7,7 3),(0 8,2 3,2 -2,0 8))'), ST_GEOMFROMTEXT('POLYGON((0 8,-8 14,-11
+18,-19 11,-3 1,0 8))')));
+
+SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10
+0,0 0),(0 8,4 4,4 6,0 8))'), ST_GEOMFROMTEXT('POLYGON((0 8,-8 8,-10 4,0
+8))')));
