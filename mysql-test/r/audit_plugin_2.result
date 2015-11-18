@@ -251,6 +251,7 @@ a
 1
 2
 DELETE FROM test_table;
+# Check event order flow
 SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\";;'
                                      'MYSQL_AUDIT_PARSE_PREPARSE;;;'
                                      'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
@@ -363,6 +364,7 @@ a
 1
 2
 DELETE FROM test_table_2;
+# Check event order flow
 INSERT INTO test_table VALUES(1),(2),(3);
 INSERT INTO test_table_2 VALUES(1),(2),(3);
 SET @@null_audit_event_order_check_exact = <expected_check_exact>;
@@ -403,10 +405,13 @@ mysqltest: At line 1: change user failed: Access denied for user 'user2'@'%' to 
 SELECT USER(), CURRENT_USER();
 USER()	CURRENT_USER()
 user1@localhost	user1@%
+# Allow 'user2' to use 'mysql' database.
 GRANT ALL ON mysql.* TO user2;
+# Change user with 'mysql' as initial database
 SELECT USER(), CURRENT_USER();
 USER()	CURRENT_USER()
 user2@localhost	user2@%
+# Bring back user1 (no database specified)
 SELECT USER(), CURRENT_USER();
 USER()	CURRENT_USER()
 user1@localhost	user1@%
@@ -429,8 +434,14 @@ ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_CONNECTION_CONNECT';1).
 SET @@GLOBAL.null_audit_event_order_check = NULL,
 @@GLOBAL.null_audit_event_order_check_exact = 1;
 SET @@GLOBAL.null_audit_event_order_check = "MYSQL_AUDIT_COMMAND_START;command_id=\"17\";ABORT_RET";
+# Try to change user for a given connection (user and database specified)
 mysqltest: At line 1: change user failed: Aborted by Audit API ('MYSQL_AUDIT_COMMAND_START';1).
+# Allow 'user2' to use 'mysql' database.
 GRANT ALL ON mysql.* TO user2;
+# Change user with 'mysql' as initial database
+SELECT USER(), CURRENT_USER();
+USER()	CURRENT_USER()
+user1@localhost	user1@%
 SELECT USER(), CURRENT_USER();
 USER()	CURRENT_USER()
 user2@localhost	user2@%
@@ -528,6 +539,7 @@ EVENT-ORDER-INVALID-DATA
 #########################
 ## COMMAND_END - ABORT ##
 #########################
+# Abort the MYSQL_AUDIT_COMMAND_END event with the my_message function - should be disabled
 SET @@null_audit_abort_message = "Abort with my_message.";
 SET @@null_audit_event_order_check_exact = 1;
 SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_END;command_id="<expected_command_end_id>";ABORT_RET';
@@ -537,6 +549,7 @@ SELECT 1;
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-ABORT
+# Abort the MYSQL_AUDIT_COMMAND_END event by returning a non-zero value - should be disabled
 SET @@null_audit_event_order_check_exact = 1;
 SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_END;command_id="<expected_command_end_id>";ABORT_RET';
 SELECT 1;
