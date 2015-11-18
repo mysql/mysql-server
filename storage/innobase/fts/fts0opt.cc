@@ -3117,11 +3117,9 @@ fts_optimize_init(void)
 	os_thread_create(fts_optimize_thread, fts_optimize_wq, NULL);
 }
 
-/**********************************************************************//**
-Signal the optimize thread to prepare for shutdown. */
+/** Shutdown fts optimize thread. */
 void
-fts_optimize_start_shutdown(void)
-/*=============================*/
+fts_optimize_shutdown()
 {
 	ut_ad(!srv_read_only_mode);
 
@@ -3150,17 +3148,5 @@ fts_optimize_start_shutdown(void)
 	os_event_destroy(fts_opt_shutdown_event);
 
 	ib_wqueue_free(fts_optimize_wq);
-}
-
-/**********************************************************************//**
-Reset the work queue. */
-void
-fts_optimize_end(void)
-/*==================*/
-{
-	ut_ad(!srv_read_only_mode);
-
-	// FIXME: Potential race condition here: We should wait for
-	// the optimize thread to confirm shutdown.
 	fts_optimize_wq = NULL;
 }

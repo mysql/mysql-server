@@ -10,7 +10,6 @@
 #
 ##############################################################################
 innodb.alter_crash        : WL#7016 2015-05-11 jhauglid Uses functionality removed by WL#8186. To be enabled when WL#7016 is impemented
-innodb.index_merge_threshold : Bug#21747853 "INNODB.INDEX_MERGE_THRESHOLD IS UNSTABLE WITH SYSTEM TABLES IN INNODB"
 # For more details on tags WL6378_* refer sql/dd/mtr_readme.txt
 innodb_wl6501_crash_1     : WL#6795 2015-11-06 jhauglid WL6795_WL7016_RECOVERY
 innodb_wl6501_crash_2     : WL#6795 2015-11-06 jhauglid WL6795_WL7016_RECOVERY

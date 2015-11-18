@@ -2461,6 +2461,11 @@ srv_pre_dd_shutdown()
 		return;
 	}
 
+	if (srv_start_state_is_set(SRV_START_STATE_STAT)) {
+		fts_optimize_shutdown();
+		dict_stats_shutdown();
+	}
+
 	/* Here, we will only shut down the tasks that may be looking up
 	tables or other objects in the Global Data Dictionary.
 	The following background tasks will not be affected:
@@ -2473,12 +2478,6 @@ srv_pre_dd_shutdown()
 	srv_shutdown_state = SRV_SHUTDOWN_CLEANUP;
 	srv_purge_wakeup();
 	os_event_set(dict_stats_event);
-
-	if (srv_start_state_is_set(SRV_START_STATE_STAT)) {
-		/* Shut down the FULLTEXT INDEX optimizer. */
-		fts_optimize_start_shutdown();
-		fts_optimize_end();
-	}
 
 	for (ulint count = 1;;) {
 		bool	wait = srv_purge_threads_active();
