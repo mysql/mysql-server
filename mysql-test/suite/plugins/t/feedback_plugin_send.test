@@ -13,7 +13,11 @@ if (!$MTR_FEEDBACK_PLUGIN) {
 # Let's wait, and hope that mtr is started with --parallel and
 # is doing some work in other workers.
 #
-sleep 310;
+
+sleep 100;
+set global sql_mode=ONLY_FULL_GROUP_BY;
+sleep 210;
+
 
 # The test expects that the plugin will send a report at least 2 times,
 # now (5 min after loading) and on server shutdown which happens below. 

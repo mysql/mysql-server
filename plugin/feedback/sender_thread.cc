@@ -124,6 +124,7 @@ static int prepare_for_fill(TABLE_LIST *tables)
   if (!tables->table)
     return 1;
 
+  tables->select_lex= thd->lex->current_select;
   tables->table->pos_in_table_list= tables;
 
   return 0;
