@@ -19,6 +19,10 @@
 
 #include "mysqld_error.h"     // ER_*
 
+#ifdef MYSQL_CLIENT
+#include "mysqlbinlog.h"
+#endif
+
 #ifndef MYSQL_CLIENT
 #include "rpl_msr.h"
 #include "sql_class.h"        // THD

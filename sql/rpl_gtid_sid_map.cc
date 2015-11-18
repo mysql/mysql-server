@@ -19,6 +19,9 @@
 
 #include "mysqld_error.h"    // ER_*
 
+#ifdef MYSQL_CLIENT
+#include "mysqlbinlog.h"
+#endif
 
 extern "C" {
 PSI_memory_key key_memory_Sid_map_Node;

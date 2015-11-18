@@ -19,6 +19,13 @@
 #include "base64.h"            // base64_encode
 #include "binary_log_funcs.h"  // my_timestamp_binary_length
 #include "mysql/service_my_snprintf.h" // my_snprintf
+#include "mysql.h"             // MYSQL_OPT_MAX_ALLOWED_PACKET
+#include "my_decimal.h"        // my_decimal
+#include "my_time.h"           // MAX_DATE_STRING_REP_LENGTH
+
+#ifdef MYSQL_CLIENT
+#include "mysqlbinlog.h"
+#endif
 
 #ifndef MYSQL_CLIENT
 #include "current_thd.h"

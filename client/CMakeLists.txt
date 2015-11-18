@@ -164,10 +164,28 @@ MYSQL_ADD_EXECUTABLE(mysql_plugin mysql_plugin.c)
 TARGET_LINK_LIBRARIES(mysql_plugin mysqlclient)
 
 MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc)
+SET(MYSQLBINLOG_LIB_SOURCES
+  ${CMAKE_SOURCE_DIR}/strings/decimal.cc
+  ${CMAKE_SOURCE_DIR}/sql/log_event.cc
+  ${CMAKE_SOURCE_DIR}/sql/log_event_old.cc
+  ${CMAKE_SOURCE_DIR}/sql/rpl_utility.cc
+  ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_sid_map.cc
+  ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_misc.cc
+  ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_set.cc
+  ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_specification.cc
+  ${CMAKE_SOURCE_DIR}/sql/rpl_tblmap.cc
+)
+ADD_LIBRARY(mysqlbinlog_lib STATIC ${MYSQLBINLOG_LIB_SOURCES})
+ADD_DEPENDENCIES(mysqlbinlog_lib GenError)
 ADD_COMPILE_FLAGS(
   mysqlbinlog.cc
-  COMPILE_FLAGS "-I${CMAKE_SOURCE_DIR}/sql" "-DHAVE_REPLICATION" "-DDISABLE_PSI_MUTEX"
+  ${MYSQLBINLOG_LIB_SOURCES}
+  COMPILE_FLAGS
+  "-I${CMAKE_SOURCE_DIR}/sql" "-DHAVE_REPLICATION" "-DDISABLE_PSI_MUTEX"
+  "-DMYSQL_CLIENT" "-UMYSQL_SERVER"
 )
+
+TARGET_LINK_LIBRARIES(mysqlbinlog mysqlbinlog_lib)
 TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient binlogevents_static)
 
 MYSQL_ADD_EXECUTABLE(mysqladmin mysqladmin.cc)

@@ -14,6 +14,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "rpl_utility.h"
+#include "binary_log_funcs.h"
+#include "my_byteorder.h"
 
 #ifndef MYSQL_CLIENT
 

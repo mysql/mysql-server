@@ -22,6 +22,8 @@
 
 #include "my_global.h"
 #include "prealloced_array.h"   // Prealloced_array
+#include "binary_log_types.h"   // enum_field_types
+
 #ifdef MYSQL_SERVER
 #include "table.h"              // TABLE_LIST
 #endif

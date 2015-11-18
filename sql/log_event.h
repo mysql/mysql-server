@@ -32,6 +32,11 @@
 #include "my_bitmap.h"               // MY_BITMAP
 #include "binary_log.h"              // binary_log
 #include "rpl_utility.h"             // Hash_slave_rows
+#include "query_options.h"           // OPTION_AUTO_IS_NULL
+#include "mysql_com.h"               // SERVER_VERSION_LENGTH
+#include "atomic_class.h"            // Atomic_int32
+#include "typelib.h"                 // TYPELIB
+#include "rpl_gtid.h"                // enum_group_type
 
 #ifdef MYSQL_SERVER
 #include "rpl_filter.h"              // rpl_filter
