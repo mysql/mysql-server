@@ -8028,7 +8028,7 @@ bool Item_func_match::fix_index()
 
   for (i= 0; i < arg_count; i++)
   {
-    item=(Item_field*)args[i];
+    item=(Item_field*)(args[i]->real_item());
     for (keynr=0 ; keynr < fts ; keynr++)
     {
       KEY *ft_key=&table->key_info[ft_to_key[keynr]];
