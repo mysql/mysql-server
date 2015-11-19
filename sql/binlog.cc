@@ -9564,6 +9564,95 @@ THD::add_to_binlog_accessed_dbs(const char *db_param)
 }
 
 /*
+  Tells if two (or more) tables have auto_increment columns and we want to
+  lock those tables with a write lock.
+
+  SYNOPSIS
+    has_two_write_locked_tables_with_auto_increment
+      tables        Table list
+
+  NOTES:
+    Call this function only when you have established the list of all tables
+    which you'll want to update (including stored functions, triggers, views
+    inside your statement).
+*/
+
+static bool
+has_write_table_with_auto_increment(TABLE_LIST *tables)
+{
+  for (TABLE_LIST *table= tables; table; table= table->next_global)
+  {
+    /* we must do preliminary checks as table->table may be NULL */
+    if (!table->is_placeholder() &&
+        table->table->found_next_number_field &&
+        (table->lock_type >= TL_WRITE_ALLOW_WRITE))
+      return 1;
+  }
+
+  return 0;
+}
+
+/*
+   checks if we have select tables in the table list and write tables
+   with auto-increment column.
+
+  SYNOPSIS
+   has_two_write_locked_tables_with_auto_increment_and_select
+      tables        Table list
+
+  RETURN VALUES
+
+   -true if the table list has atleast one table with auto-increment column
+
+
+         and atleast one table to select from.
+   -false otherwise
+*/
+
+static bool
+has_write_table_with_auto_increment_and_select(TABLE_LIST *tables)
+{
+  bool has_select= false;
+  bool has_auto_increment_tables = has_write_table_with_auto_increment(tables);
+  for(TABLE_LIST *table= tables; table; table= table->next_global)
+  {
+     if (!table->is_placeholder() &&
+        (table->lock_type <= TL_READ_NO_INSERT))
+      {
+        has_select= true;
+        break;
+      }
+  }
+  return(has_select && has_auto_increment_tables);
+}
+
+/*
+  Tells if there is a table whose auto_increment column is a part
+  of a compound primary key while is not the first column in
+  the table definition.
+
+  @param tables Table list
+
+  @return true if the table exists, fais if does not.
+*/
+
+static bool
+has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables)
+{
+  for (TABLE_LIST *table= tables; table; table= table->next_global)
+  {
+    /* we must do preliminary checks as table->table may be NULL */
+    if (!table->is_placeholder() &&
+        table->table->found_next_number_field &&
+        (table->lock_type >= TL_WRITE_ALLOW_WRITE)
+        && table->table->s->next_number_keypart != 0)
+      return 1;
+  }
+
+  return 0;
+}
+
+/*
   Function to check whether the table in query uses a fulltext parser
   plugin or not.
 
@@ -9786,6 +9875,31 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     }
 #endif
 
+    if (variables.binlog_format != BINLOG_FORMAT_ROW && tables)
+    {
+      /*
+        DML statements that modify a table with an auto_increment column based on
+        rows selected from a table are unsafe as the order in which the rows are
+        fetched fron the select tables cannot be determined and may differ on
+        master and slave.
+       */
+      if (has_write_table_with_auto_increment_and_select(tables))
+        lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_WRITE_AUTOINC_SELECT);
+
+      if (has_write_table_auto_increment_not_first_in_pk(tables))
+        lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_AUTOINC_NOT_FIRST);
+
+      /*
+        A query that modifies autoinc column in sub-statement can make the
+        master and slave inconsistent.
+        We can solve these problems in mixed mode by switching to binlogging
+        if at least one updated table is used by sub-statement
+       */
+      if (lex->requires_prelocking() &&
+          has_write_table_with_auto_increment(lex->first_not_own_table()))
+        lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_AUTOINC_COLUMNS);
+    }
+
     /*
       Get the capabilities vector for all involved storage engines and
       mask out the flags for the binary log.
@@ -9875,6 +9989,24 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         {
           if (fulltext_unsafe_set(table->table->s))
             lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_FULLTEXT_PLUGIN);
+        }
+        /*
+          INSERT...ON DUPLICATE KEY UPDATE on a table with more than one unique keys
+          can be unsafe. Check for it if the flag is already not marked for the
+          given statement.
+        */
+        if (!lex->is_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_TWO_KEYS) &&
+            lex->sql_command == SQLCOM_INSERT && lex->duplicates == DUP_UPDATE)
+        {
+          uint keys= table->table->s->keys, i= 0, unique_keys= 0;
+          for (KEY* keyinfo= table->table->s->key_info;
+               i < keys && unique_keys <= 1; i++, keyinfo++)
+          {
+            if (keyinfo->flags & HA_NOSAME)
+              unique_keys++;
+          }
+          if (unique_keys > 1 )
+            lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_TWO_KEYS);
         }
       }
       if(lex->get_using_match())
