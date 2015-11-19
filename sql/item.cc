@@ -3576,8 +3576,7 @@ longlong_from_string_with_check (const CHARSET_INFO *cs,
     TODO: Give error if we wanted a signed integer and we got an unsigned
     one
   */
-  if (!current_thd->no_errors &&
-      (err > 0 ||
+  if ((err > 0 ||
        (end != org_end && !check_if_only_end_space(cs, end, org_end))))
   {
     ErrConvString err(cptr, cs);

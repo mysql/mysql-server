@@ -155,12 +155,12 @@ type_conversion_status set_field_to_null(Field *field)
   case CHECK_FIELD_IGNORE:
     return TYPE_OK;
   case CHECK_FIELD_ERROR_FOR_NULL:
-    if (!field->table->in_use->no_errors)
-      my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
+    my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
     return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }
   DBUG_ASSERT(false); // impossible
 
+  my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
   return TYPE_ERR_NULL_CONSTRAINT_VIOLATION; // to avoid compiler's warning
 }
 
@@ -237,11 +237,11 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
   case CHECK_FIELD_IGNORE:
     return TYPE_OK;
   case CHECK_FIELD_ERROR_FOR_NULL:
-    if (!field->table->in_use->no_errors)
-      my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
+    my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
     return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }
   DBUG_ASSERT(false); // impossible
+  my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
   return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
 }
 

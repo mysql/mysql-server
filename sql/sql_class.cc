@@ -513,7 +513,6 @@ THD::THD(bool enable_plugins)
   m_catalog.str= "std";
   m_catalog.length= 3;
   m_security_ctx= &m_main_security_ctx;
-  no_errors= 0;
   password= 0;
   query_start_usec_used= 0;
   count_cuted_fields= CHECK_FIELD_IGNORE;

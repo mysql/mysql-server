@@ -2055,7 +2055,7 @@ public:
 
   /// @todo: slave_thread is completely redundant, we should use 'system_thread' instead /sven
   bool       slave_thread;
-  bool	     no_errors;
+
   uchar      password;
   /**
     Set to TRUE if execution of the current compound statement
