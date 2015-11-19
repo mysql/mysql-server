@@ -41,7 +41,10 @@ bool unescape(std::string &dest)
   for (std::string::iterator d= dest.begin(); d != dest.end(); d++)
     if (*d == '\\')
     {
-      if ((*(d + 1) == '\\' || *(d + 1) == '=' || *(d + 1) == ';'))
+      // An escape character preceeding end is an error, it must be succeeded
+      // by an escapable character.
+      if ((d + 1) != dest.end() &&
+          (*(d + 1) == '\\' || *(d + 1) == '=' || *(d + 1) == ';'))
         d= dest.erase(d);
       else
         return true;
@@ -60,27 +63,28 @@ bool eat_to(std::string::const_iterator &it,
   if (c != '=' && c != ';')
     return true;
 
-  // Loop until stop character (return if end of string from within loop)
-  while (*it != c)
+  // Loop until end of string or stop character
+  while (it != end && *it != c)
   {
-    // Unexpected unescaped stop characters or end is an error
-    if ((*it == '=' && c == ';') || (*it == ';' && c == '=') ||
-        (it == end && c == '='))
+    // Unexpected unescaped stop character is an error
+    if ((*it == '=' && c == ';') || (*it == ';' && c == '='))
       return true;
 
-    // Hitting end while searching for ';' is ok
-    if (it == end && c == ';')
-      return false;
-
     // The escape character must be succeeded by an escapable character
-    if (*it == '\\' &&
-        (*(it + 1) == '\\' || *(it + 1) == '=' || *(it + 1) == ';'))
+    if (*it == '\\')
+    {
       it++;
+      // Hitting end here is an error, we must have an escapable character
+      if (it == end || (*it != '\\' && *it != '=' && *it != ';'))
+        return true;
+    }
 
-    // Advance iterator
+    // Advance iterator, also after finding an escapable character
     it++;
   }
-  return false;
+
+  // Hitting end searching for ';' is ok; if searching for '=', it is not
+  return (it == end && c == '=');
 }
 
 ///////////////////////////////////////////////////////////////////////////

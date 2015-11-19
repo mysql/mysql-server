@@ -205,18 +205,6 @@ bool acquire_shared_table_mdl(THD *thd,
                            MDL_SHARED, out_mdl_ticket);
 }
 
-/* purecov: begin deadcode */
-bool acquire_exclusive_table_mdl(THD *thd,
-                                 const char *schema_name,
-                                 const char *table_name,
-                                 bool no_wait,
-                                 MDL_ticket **out_mdl_ticket)
-{
-  return acquire_table_mdl(thd, schema_name, table_name, no_wait,
-                           MDL_EXCLUSIVE, out_mdl_ticket);
-}
-/* purecov: end */
-
 void release_mdl(THD *thd, MDL_ticket *mdl_ticket)
 {
   DBUG_ENTER("dd::release_mdl");
