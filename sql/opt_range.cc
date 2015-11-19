@@ -13426,7 +13426,12 @@ bool QUICK_GROUP_MIN_MAX_SELECT::add_range(SEL_ARG *sel_range)
     if (sel_range->maybe_null &&
         sel_range->min_value[0] && sel_range->max_value[0])
       range_flag|= NULL_RANGE; /* IS NULL condition */
-    else if (memcmp(sel_range->min_value, sel_range->max_value,
+    /*
+      Do not perform comparison if one of the argiment is NULL value.
+    */
+    else if (!sel_range->min_value[0] &&
+             !sel_range->max_value[0] &&
+             memcmp(sel_range->min_value, sel_range->max_value,
                     min_max_arg_len) == 0)
       range_flag|= EQ_RANGE;  /* equality condition */
   }
