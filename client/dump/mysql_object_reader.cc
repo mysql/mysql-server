@@ -16,6 +16,7 @@
 */
 
 #include "mysql_object_reader.h"
+#include <boost/algorithm/string.hpp>
 
 using namespace Mysql::Tools::Dump;
 
@@ -24,6 +25,7 @@ void Mysql_object_reader::Rows_fetching_context::acquire_fields_information(
 {
   MYSQL_FIELD* fields= mysql_fetch_fields(mysql_result);
   uint field_count= mysql_num_fields(mysql_result);
+  m_fields.reserve(field_count);
   for (uint i= 0; i < field_count; ++i)
     m_fields.push_back(Mysql_field(&fields[i]));
 }
@@ -56,11 +58,13 @@ int64 Mysql_object_reader::Rows_fetching_context::result_callback(
 }
 
 Mysql_object_reader::Rows_fetching_context::Rows_fetching_context(
-  Mysql_object_reader* parent, Item_processing_data* item_processing)
+  Mysql_object_reader* parent, Item_processing_data* item_processing,
+  bool has_generated_column)
   : m_parent(parent),
   m_item_processing(item_processing),
   m_row_group((Table*)item_processing
-    ->get_process_task_object()->get_related_db_object(), m_fields)
+    ->get_process_task_object()->get_related_db_object(), m_fields,
+    has_generated_column)
 {
   m_row_group.m_rows.reserve(
     (size_t)m_parent->m_options->m_row_group_size);
@@ -75,18 +79,44 @@ void Mysql_object_reader::read_table_rows_task(
   Table_rows_dump_task* table_rows_dump_task,
   Item_processing_data* item_to_process)
 {
+  bool has_generated_columns= 0;
   Mysql::Tools::Base::Mysql_query_runner* runner= this->get_runner();
   Table* table= table_rows_dump_task->get_related_table();
 
+  std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*> columns;
+  std::vector<std::string> field_names;
+
+  runner->run_query_store(
+    "SELECT `COLUMN_NAME`, `EXTRA` FROM " +
+    this->get_quoted_object_full_name("INFORMATION_SCHEMA", "COLUMNS") +
+    "WHERE TABLE_SCHEMA ='" + runner->escape_string(table->get_schema()) +
+    "' AND TABLE_NAME ='" + runner->escape_string(table->get_name()) + "'",
+    &columns);
+
+  std::string column_names;
+  for (std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*>::iterator
+    it= columns.begin(); it != columns.end(); ++it)
+  {
+    const Mysql::Tools::Base::Mysql_query_runner::Row& column_data= **it;
+    if (column_data[1] == "STORED GENERATED" ||
+        column_data[1] == "VIRTUAL GENERATED")
+      has_generated_columns= 1;
+    else
+      column_names+= this->quote_name(column_data[0]) + ",";
+  }
+  /* remove last comma from column_names */
+  column_names= boost::algorithm::replace_last_copy(column_names, ",", "");
+
   Rows_fetching_context* row_fetching_context=
-    new Rows_fetching_context(this, item_to_process);
+    new Rows_fetching_context(this, item_to_process, has_generated_columns);
 
   runner->run_query(
-    "SELECT SQL_NO_CACHE * FROM " + this->get_quoted_object_full_name(table),
+    "SELECT SQL_NO_CACHE " + column_names + "  FROM " +
+    this->get_quoted_object_full_name(table),
     new Mysql::Instance_callback<
       int64, const Mysql::Tools::Base::Mysql_query_runner::Row&,
-      Rows_fetching_context>(
-        row_fetching_context, &Rows_fetching_context::result_callback));
+        Rows_fetching_context>(
+          row_fetching_context, &Rows_fetching_context::result_callback));
 
   row_fetching_context->process_buffer();
   if (row_fetching_context->is_all_rows_processed())

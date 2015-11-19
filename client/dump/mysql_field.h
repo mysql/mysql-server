@@ -40,7 +40,10 @@ public:
   enum enum_field_types get_type() const;
 
 private:
-  MYSQL_FIELD m_field;
+  std::string m_name;
+  unsigned int m_charsetnr;
+  unsigned int m_flags;
+  enum enum_field_types m_type;
 };
 
 }

@@ -42,7 +42,9 @@ I_data_object* Row_group_dump_task::get_related_db_object() const
 }
 
 Row_group_dump_task::Row_group_dump_task(Table* source_table,
-  const std::vector<Mysql_field>& fields)
+  const std::vector<Mysql_field>& fields,
+  const bool has_generated_column)
   : m_source_table(source_table),
-  m_fields(fields)
+  m_fields(fields),
+  m_has_generated_columns(has_generated_column)
 {}

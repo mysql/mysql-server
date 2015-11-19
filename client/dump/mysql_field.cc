@@ -18,26 +18,32 @@
 #include "mysql_field.h"
 
 using namespace Mysql::Tools::Dump;
+using namespace std;
 
 enum enum_field_types Mysql_field::get_type() const
 {
-  return m_field.type;
+  return m_type;
 }
 
 uint Mysql_field::get_additional_flags() const
 {
-  return m_field.flags;
+  return m_flags;
 }
 
 uint Mysql_field::get_character_set_nr() const
 {
-  return m_field.charsetnr;
+  return m_charsetnr;
 }
 
 std::string Mysql_field::get_name() const
 {
-  return m_field.name;
+  return m_name;
 }
 
-Mysql_field::Mysql_field(MYSQL_FIELD* field) : m_field(*field)
-{}
+Mysql_field::Mysql_field(MYSQL_FIELD* field)
+  : m_name(field->name),
+    m_charsetnr(field->charsetnr),
+    m_flags(field->flags),
+    m_type(field->type)
+{
+}
