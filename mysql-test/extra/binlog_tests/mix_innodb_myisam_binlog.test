@@ -236,12 +236,7 @@ set autocommit=0;
 create table t2 (n int) engine=innodb;
 insert into t2 values (3); 
 disconnect con2;
-# Wait for connection to be disconnected which ensures time for 
-# dropping temporary tables created in that session.
---source include/wait_until_disconnected.inc
 connection con3;
-# To ensure that all the events are updated to the binary log
-FLUSH BINARY LOGS;
 select get_lock("lock1",60);
 source include/show_binlog_events.inc;
 do release_lock("lock1");
