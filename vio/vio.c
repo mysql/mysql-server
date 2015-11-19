@@ -227,10 +227,10 @@ my_bool vio_reset(Vio* vio, enum enum_vio_type type,
     such as the socket blocking mode.
   */
   if (vio->read_timeout >= 0)
-    ret|= vio_timeout(&new_vio, 0, vio->read_timeout);
+    ret|= vio_timeout(&new_vio, 0, vio->read_timeout / 1000);
 
   if (vio->write_timeout >= 0)
-    ret|= vio_timeout(&new_vio, 1, vio->write_timeout);
+    ret|= vio_timeout(&new_vio, 1, vio->write_timeout / 1000);
 
   if (ret)
   {
