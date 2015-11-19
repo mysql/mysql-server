@@ -548,3 +548,33 @@ ALTER TABLE t1 MODIFY COLUMN col4 INTEGER;
 SELECT * FROM t1;
 
 DROP TABLE t1;
+
+if ($support_virtual_index)
+{
+--echo #
+--echo # bug#22018979: RECORD NOT FOUND ON UPDATE,
+--echo #                VIRTUAL COLUMN, ASSERTION 0
+--disable_warnings
+SET @sql_mode_save= @@sql_mode;
+SET sql_mode= 'ANSI';
+CREATE TABLE t1 (
+  a INT,
+  b VARCHAR(10),
+  c CHAR(3) GENERATED ALWAYS AS (substr(b,1,3)) VIRTUAL,
+  PRIMARY KEY (a),
+  KEY c(c)
+);
+INSERT INTO t1(a, b) values(1, 'bbbb'), (2, 'cc');
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+SET sql_mode= '';
+FLUSH TABLE t1;
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+DELETE FROM t1 where a= 2;
+
+SET sql_mode= @sql_mode_save;
+DROP TABLE t1;
+--enable_warnings
+}

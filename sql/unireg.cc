@@ -725,7 +725,9 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
   Create_field *field;
   while ((field=it++))
   {
-    if (validate_comment_length(current_thd,
+    THD *thd= current_thd;
+
+    if (validate_comment_length(thd,
                                 field->comment.str,
                                 &field->comment.length,
                                 COLUMN_COMMENT_MAXLEN,
@@ -734,6 +736,9 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
       DBUG_RETURN(true);
     if (field->gcol_info)
     {
+      sql_mode_t sql_mode= thd->variables.sql_mode;
+      thd->variables.sql_mode&= ~MODE_ANSI_QUOTES;
+
       /*
         It is important to normalize the expression's text into the FRM, to
         make it independent from sql_mode. For example, 'a||b' means 'a OR b'
@@ -745,6 +750,8 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
       // Printing db and table name is useless
       field->gcol_info->expr_item->
         print(&s, enum_query_type(QT_NO_DB | QT_NO_TABLE));
+
+      thd->variables.sql_mode= sql_mode;
       /*
         The new text must have exactly the same lifetime as the old text, it's
         a replacement for it. So the same MEM_ROOT must be used: pass NULL.
