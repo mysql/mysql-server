@@ -9,14 +9,9 @@
 #    --source include/wait_innodb_all_purged.inc
 #
 
-if (!$skip_wait_for_purge) {
-  --let $skip_wait_for_purge= 0
-}
-
 --let $is_debug= `select (version() like '%debug%') as debug`
---let $do_wait_purge= `select !$skip_wait_for_purge AND $is_debug`
 
-if ($do_wait_purge)
+if ($is_debug)
 {
 --disable_query_log
 
