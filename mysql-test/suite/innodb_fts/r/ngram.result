@@ -373,8 +373,8 @@ Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 SELECT  @@ngram_token_size;
 @@ngram_token_size
 1
-INSERT INTO articles (title, body) VALUES
-('数据库管理系统','计算机是处理大量数据的理想工具');
+INSERT INTO articles VALUES
+(5, '数据库管理系统','计算机是处理大量数据的理想工具');
 # Some results are incorrect due to ngram_token_size mismatch
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数' IN BOOLEAN MODE);
@@ -432,8 +432,8 @@ id	title	body
 SELECT  @@ngram_token_size;
 @@ngram_token_size
 3
-INSERT INTO articles (title, body) VALUES
-('数据库管理系统','计算机是处理大量数据的理想工具');
+INSERT INTO articles VALUES
+(5, '数据库管理系统','计算机是处理大量数据的理想工具');
 # Some results are incorrect due to ngram_token_size mismatch
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数' IN BOOLEAN MODE);
@@ -485,8 +485,8 @@ id	title	body
 SELECT  @@ngram_token_size;
 @@ngram_token_size
 5
-INSERT INTO articles (title, body) VALUES
-('数据库管理系统','计算机是处理大量数据的理想工具');
+INSERT INTO articles VALUES
+(5, '数据库管理系统','计算机是处理大量数据的理想工具');
 # Some results are incorrect due to ngram_token_size mismatch
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数' IN BOOLEAN MODE);
@@ -533,8 +533,8 @@ id	title	body
 SELECT  @@ngram_token_size;
 @@ngram_token_size
 7
-INSERT INTO articles (title, body) VALUES
-('数据库管理系统','计算机是处理大量数据的理想工具');
+INSERT INTO articles VALUES
+(5, '数据库管理系统','计算机是处理大量数据的理想工具');
 # Some results are incorrect due to ngram_token_size mismatch
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数' IN BOOLEAN MODE);
@@ -577,8 +577,8 @@ id	title	body
 SELECT  @@ngram_token_size;
 @@ngram_token_size
 2
-INSERT INTO articles (title, body) VALUES
-('数据库管理系统','计算机是处理大量数据的理想工具');
+INSERT INTO articles VALUES
+(5, '数据库管理系统','计算机是处理大量数据的理想工具');
 # Some results are incorrect due to ngram_token_size mismatch
 SELECT * FROM articles WHERE
 MATCH(title, body) AGAINST('数' IN BOOLEAN MODE);

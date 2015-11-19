@@ -729,6 +729,10 @@ private:
 	/** Create the internal innodb table definition. */
 	int create_table_def();
 
+	/** Initialize the autoinc of this table if necessary, which should
+	be called before we flush logs, so autoinc counter can be persisted. */
+	void initialize_autoinc();
+
 	/** Connection thread handle. */
 	THD*		m_thd;
 

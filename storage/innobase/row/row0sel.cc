@@ -6141,29 +6141,7 @@ row_search_autoinc_read_column(
 
 	data = rec_get_nth_field(rec, offsets, col_no, &len);
 
-	switch (mtype) {
-	case DATA_INT:
-		ut_a(len <= sizeof value);
-		value = mach_read_int_type(data, len, unsigned_type);
-		break;
-
-	case DATA_FLOAT:
-		ut_a(len == sizeof(float));
-		value = (ib_uint64_t) mach_float_read(data);
-		break;
-
-	case DATA_DOUBLE:
-		ut_a(len == sizeof(double));
-		value = (ib_uint64_t) mach_double_read(data);
-		break;
-
-	default:
-		ut_error;
-	}
-
-	if (!unsigned_type && static_cast<int64_t>(value) < 0) {
-		value = 0;
-	}
+	value = row_parse_int(data, len, mtype, unsigned_type);
 
 func_exit:
 	if (UNIV_LIKELY_NULL(heap)) {

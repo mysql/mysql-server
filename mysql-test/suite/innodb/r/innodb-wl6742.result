@@ -1790,7 +1790,7 @@ a	b	aa	bb
 2	inserted by client 1	2	inserted by client 1
 3	inserted by client 1	3	inserted by client 1
 4	inserted by client 1	4	inserted by client 1
-6	inserted by client 1	NULL	NULL
+11	inserted by client 1	NULL	NULL
 UPDATE t5 SET a = a + 100;
 SELECT * FROM t5;
 a	b	aa	bb
@@ -1799,8 +1799,8 @@ a	b	aa	bb
 102	updated by client 2	2	inserted by client 1
 104	inserted by client 1	4	inserted by client 1
 105	inserted by client 2	NULL	NULL
-106	inserted by client 1	NULL	NULL
 110	inserted by client 1	1	inserted by client 1
+111	inserted by client 1	NULL	NULL
 SELECT COUNT(*) FROM t5;
 COUNT(*)
 7
@@ -1830,8 +1830,8 @@ a	b	aa	bb
 102	updated by client 2	2	inserted by client 1
 104	inserted by client 1	4	inserted by client 1
 105	inserted by client 2	NULL	NULL
-106	inserted by client 1	NULL	NULL
 110	inserted by client 1	1	inserted by client 1
+111	inserted by client 1	NULL	NULL
 SELECT COUNT(*) FROM t5;
 COUNT(*)
 5

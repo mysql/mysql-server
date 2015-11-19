@@ -119,6 +119,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /* for ha_innopart, Native InnoDB Partitioning. */
 #include "ha_innopart.h"
 
+/** TRUE if we don't have DDTableBuffer in the system tablespace,
+this should be due to we run the server against old data files.
+Please do NOT change this when server is running.
+FIXME: This should be removed away once we can upgrade for new DD. */
+extern bool	srv_missing_dd_table_buffer;
+
 /** to protect innobase_open_files */
 static mysql_mutex_t innobase_share_mutex;
 /** to force correct commit order in binlog */
@@ -457,6 +463,7 @@ performance schema instrumented if "UNIV_PFS_MUTEX"
 is defined */
 static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(autoinc_mutex),
+	PSI_KEY(autoinc_persisted_mutex),
 #  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 	PSI_KEY(buffer_block_mutex),
 #  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
@@ -5343,13 +5350,10 @@ innobase_index_lookup(
 	return(share->idx_trans_tbl.index_mapping[keynr]);
 }
 
-/************************************************************************
-Set the autoinc column max value. This should only be called once from
-ha_innobase::open(). Therefore there's no need for a covering lock. */
-
+/** Set the autoinc column max value. This should only be called from
+ha_innobase::open, therefore there's no need for a covering lock. */
 void
 ha_innobase::innobase_initialize_autoinc()
-/*======================================*/
 {
 	ulonglong	auto_inc;
 	const Field*	field = table->found_next_number_field;
@@ -5385,7 +5389,7 @@ ha_innobase::innobase_initialize_autoinc()
 		opening the table and return failure. */
 		my_error(ER_AUTOINC_READ_FAILED, MYF(0));
 	} else {
-		dict_index_t*	index;
+		dict_index_t*	index = NULL;
 		const char*	col_name;
 		ib_uint64_t	read_auto_inc;
 		ulint		err;
@@ -5394,22 +5398,33 @@ ha_innobase::innobase_initialize_autoinc()
 
 		col_name = field->field_name;
 
-		/* For intrinsic table, name of field has to be prefixed with
-		table name to maintain column-name uniqueness. */
-		if (m_prebuilt->table != NULL
-		    && dict_table_is_intrinsic(m_prebuilt->table)) {
+		read_auto_inc = dict_table_autoinc_read(m_prebuilt->table);
 
-			ulint	col_no = dict_col_get_no(dict_table_get_nth_col(
-				m_prebuilt->table, field->field_index));
+		ut_ad(!srv_missing_dd_table_buffer || read_auto_inc == 0);
 
-			col_name = dict_table_get_col_name(
-				m_prebuilt->table, col_no);
+		if (read_auto_inc == 0) {
+
+			index = innobase_get_index(table->s->next_number_index);
+
+			/* Execute SELECT MAX(col_name) FROM TABLE;
+			This is necessary when an imported tablespace
+			doesn't have a correct cfg file so autoinc
+			has not been initialized, or the table is empty. */
+			err = row_search_max_autoinc(
+				index, col_name, &read_auto_inc);
+
+			if (read_auto_inc > 0 && !srv_missing_dd_table_buffer) {
+				ib::warn() << "Reading max(auto_inc_col) = "
+					<< read_auto_inc << " for table "
+					<< index->table->name
+					<< ", because there was an IMPORT"
+					<< " without cfg file.";
+			}
+
+		} else {
+
+			err = DB_SUCCESS;
 		}
-
-		index = innobase_get_index(table->s->next_number_index);
-
-		/* Execute SELECT MAX(col_name) FROM TABLE; */
-		err = row_search_max_autoinc(index, col_name, &read_auto_inc);
 
 		switch (err) {
 		case DB_SUCCESS: {
@@ -5767,18 +5782,40 @@ ha_innobase::open(const char* name, int, uint)
 	if (m_prebuilt->table != NULL
 	    && !m_prebuilt->table->ibd_file_missing
 	    && table->found_next_number_field != NULL) {
-		dict_table_autoinc_lock(m_prebuilt->table);
+
+		dict_table_t*	ib_table = m_prebuilt->table;
+
+		dict_table_autoinc_lock(ib_table);
+
+		ib_uint64_t	autoinc = dict_table_autoinc_read(ib_table);
+		ib_uint64_t	autoinc_persisted = 0;
+
+		if (!srv_missing_dd_table_buffer) {
+			mutex_enter(ib_table->autoinc_persisted_mutex);
+			autoinc_persisted = ib_table->autoinc_persisted;
+			mutex_exit(ib_table->autoinc_persisted_mutex);
+		}
 
 		/* Since a table can already be "open" in InnoDB's internal
 		data dictionary, we only init the autoinc counter once, the
 		first time the table is loaded. We can safely reuse the
 		autoinc value from a previous MySQL open. */
-		if (dict_table_autoinc_read(m_prebuilt->table) == 0) {
-
+		if (autoinc == 0 || autoinc == autoinc_persisted) {
+			/* If autoinc is 0, it means the counter was never
+			used or imported from a tablespace without .cfg file.
+			We have to search the index to get proper counter.
+			If only the second condition is true, it means it's
+			the first time open for the table, we just want to
+			calculate the next counter */
 			innobase_initialize_autoinc();
 		}
 
-		dict_table_autoinc_unlock(m_prebuilt->table);
+		dict_table_autoinc_set_col_pos(
+			ib_table,
+			table->found_next_number_field->field_index);
+		ut_ad(dict_table_has_autoinc_col(ib_table));
+
+		dict_table_autoinc_unlock(ib_table);
 	}
 
 	/* Set plugin parser for fulltext index */
@@ -7717,6 +7754,7 @@ ha_innobase::update_row(
 
 	dberr_t		error;
 	trx_t*		trx = thd_to_trx(m_user_thd);
+	ib_uint64_t	new_counter = 0;
 
 	DBUG_ENTER("ha_innobase::update_row");
 
@@ -7785,7 +7823,18 @@ ha_innobase::update_row(
 
 	error = row_update_for_mysql((byte*) old_row, m_prebuilt);
 
-	/* We need to do some special AUTOINC handling for the following case:
+	if (dict_table_has_autoinc_col(m_prebuilt->table)
+	    && !srv_missing_dd_table_buffer) {
+		new_counter = row_upd_get_new_autoinc_counter(
+			uvect, m_prebuilt->table->autoinc_field_no);
+	} else {
+		new_counter = 0;
+	}
+
+	/* We should handle the case if the AUTOINC counter has been
+	updated, we want to update the counter accordingly.
+
+	We need to do some special AUTOINC handling for the following case:
 
 	INSERT INTO t (c1,c2) VALUES(x,y) ON DUPLICATE KEY UPDATE ...
 
@@ -7794,20 +7843,32 @@ ha_innobase::update_row(
 	value used in the INSERT statement. */
 
 	if (error == DB_SUCCESS
-	    && table->next_number_field
-	    && new_row == table->record[0]
-	    && thd_sql_command(m_user_thd) == SQLCOM_INSERT
-	    && trx->duplicates)  {
+	    && (new_counter != 0
+		|| (table->next_number_field
+		    && new_row == table->record[0]
+		    && thd_sql_command(m_user_thd) == SQLCOM_INSERT
+		    && trx->duplicates)))  {
 
 		ulonglong	auto_inc;
 		ulonglong	col_max_value;
 
-		auto_inc = table->next_number_field->val_int();
+		if (new_counter != 0) {
+			auto_inc = new_counter;
+		} else {
+			ut_ad(table->next_number_field != NULL);
+			auto_inc = table->next_number_field->val_int();
+		}
 
 		/* We need the upper limit of the col type to check for
 		whether we update the table autoinc counter or not. */
 		col_max_value =
-			table->next_number_field->get_max_int_value();
+			table->found_next_number_field->get_max_int_value();
+
+		/* TODO: To remove this whole 'if' in WL#7141 */
+		if (srv_missing_dd_table_buffer) {
+			col_max_value =
+				table->next_number_field->get_max_int_value();
+		}
 
 		if (auto_inc <= col_max_value && auto_inc != 0) {
 
@@ -11072,6 +11133,79 @@ create_table_info_t::initialize()
 	DBUG_RETURN(0);
 }
 
+/** Initialize the autoinc of this table if necessary, which should
+be called before we flush logs, so autoinc counter can be persisted. */
+void
+create_table_info_t::initialize_autoinc()
+{
+	dict_table_t*	innobase_table;
+
+	const bool persist = !(m_create_info->options & HA_LEX_CREATE_TMP_TABLE)
+			     && m_form->found_next_number_field
+			     && !srv_missing_dd_table_buffer;
+
+	if (!persist && m_create_info->auto_increment_value == 0) {
+
+		return;
+	}
+
+	innobase_table = thd_to_innodb_session(m_thd)->lookup_table_handler(
+		m_table_name);
+
+	if (innobase_table == NULL) {
+		innobase_table = dict_table_open_on_name(
+			m_table_name, true, false, DICT_ERR_IGNORE_NONE);
+	} else {
+		innobase_table->acquire();
+		ut_ad(dict_table_is_intrinsic(innobase_table));
+	}
+
+	DBUG_ASSERT(innobase_table != NULL);
+
+	if (persist) {
+		dict_table_autoinc_set_col_pos(
+			innobase_table,
+			m_form->found_next_number_field->field_index);
+		ut_ad(dict_table_has_autoinc_col(innobase_table));
+	}
+
+	/* We need to copy the AUTOINC value from the old table if
+	this is an ALTER|OPTIMIZE TABLE or CREATE INDEX because CREATE INDEX
+	does a table copy too. If query was one of :
+
+		CREATE TABLE ...AUTO_INCREMENT = x; or
+		ALTER TABLE...AUTO_INCREMENT = x;   or
+		OPTIMIZE TABLE t; or
+		CREATE INDEX x on t(...);
+
+	Find out a table definition from the dictionary and get
+	the current value of the auto increment field. Set a new
+	value to the auto increment field if the value is greater
+	than the maximum value in the column. */
+
+	enum_sql_command cmd = static_cast<enum_sql_command>(
+		thd_sql_command(m_thd));
+
+	if (m_create_info->auto_increment_value > 0
+	    && ((m_create_info->used_fields & HA_CREATE_USED_AUTO)
+		|| cmd == SQLCOM_ALTER_TABLE
+		|| cmd == SQLCOM_OPTIMIZE
+		|| cmd == SQLCOM_CREATE_INDEX)) {
+		ib_uint64_t	auto_inc_value;
+
+		auto_inc_value = m_create_info->auto_increment_value;
+
+		dict_table_autoinc_lock(innobase_table);
+		dict_table_autoinc_initialize(innobase_table, auto_inc_value);
+		if (persist) {
+			dict_table_set_and_persist_autoinc(
+				innobase_table, auto_inc_value - 1, false);
+		}
+		dict_table_autoinc_unlock(innobase_table);
+	}
+
+	dict_table_close(innobase_table, true, false);
+}
 
 /** Prepare to create a new table to an InnoDB database.
 @param[in]	name	Table name
@@ -11236,14 +11370,22 @@ create_table_info_t::create_table()
 		}
 	}
 
+	initialize_autoinc();
+
 	/* Cache all the FTS indexes on this table in the FTS specific
 	structure. They are used for FTS indexed column update handling. */
 	if (m_flags2 & DICT_TF2_FTS) {
+		innobase_table = dict_table_open_on_name(
+			m_table_name, true, false,
+			DICT_ERR_IGNORE_NONE);
+
 		fts_t*          fts = innobase_table->fts;
 
 		ut_a(fts != NULL);
 
 		dict_table_get_all_fts_indexes(innobase_table, fts->indexes);
+
+		dict_table_close(innobase_table, true, false);
 	}
 
 	stmt = innobase_get_stmt_unsafe(m_thd, &stmt_len);
@@ -11380,34 +11522,6 @@ create_table_info_t::create_table_update_dict()
 
 	/* Note: We can't call update_thd() as m_prebuilt will not be
 	setup at this stage and so we use thd. */
-
-	/* We need to copy the AUTOINC value from the old table if
-	this is an ALTER|OPTIMIZE TABLE or CREATE INDEX because CREATE INDEX
-	does a table copy too. If query was one of :
-
-		CREATE TABLE ...AUTO_INCREMENT = x; or
-		ALTER TABLE...AUTO_INCREMENT = x;   or
-		OPTIMIZE TABLE t; or
-		CREATE INDEX x on t(...);
-
-	Find out a table definition from the dictionary and get
-	the current value of the auto increment field. Set a new
-	value to the auto increment field if the value is greater
-	than the maximum value in the column. */
-
-	if (((m_create_info->used_fields & HA_CREATE_USED_AUTO)
-	     || thd_sql_command(m_thd) == SQLCOM_ALTER_TABLE
-	     || thd_sql_command(m_thd) == SQLCOM_OPTIMIZE
-	     || thd_sql_command(m_thd) == SQLCOM_CREATE_INDEX)
-	    && m_create_info->auto_increment_value > 0) {
-		ib_uint64_t	auto_inc_value;
-
-		auto_inc_value = m_create_info->auto_increment_value;
-
-		dict_table_autoinc_lock(innobase_table);
-		dict_table_autoinc_initialize(innobase_table, auto_inc_value);
-		dict_table_autoinc_unlock(innobase_table);
-	}
 
 	dict_table_close(innobase_table, FALSE, FALSE);
 
@@ -16731,6 +16845,12 @@ innodb_internal_table_validate(
 		}
 
 		dict_table_close(user_table, FALSE, TRUE);
+
+		DBUG_EXECUTE_IF("innodb_evict_autoinc_table",
+			mutex_enter(&dict_sys->mutex);
+			dict_table_remove_from_cache_debug(user_table, true);
+			mutex_exit(&dict_sys->mutex);
+		);
 	}
 
 	return(ret);

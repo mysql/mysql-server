@@ -173,3 +173,52 @@ row_build_row_ref_fast(
 		}
 	}
 }
+
+/** Parse the integer data from specified data, which could be
+DATA_INT, DATA_FLOAT or DATA_DOUBLE. If the value is less than 0
+and the type is not unsigned then we reset the value to 0
+@param[in]	data		data to read
+@param[in]	len		length of data
+@param[in]	mtype		mtype of data
+@param[in]	unsigned_type	if the data is unsigned
+@return the integer value from the data */
+ib_uint64_t
+row_parse_int(
+	const byte*	data,
+	ulint		len,
+	ulint		mtype,
+	bool		unsigned_type)
+{
+	ib_uint64_t	value = 0;
+
+	switch (mtype) {
+	case DATA_INT:
+
+		ut_a(len <= sizeof value);
+		value = mach_read_int_type(data, len, unsigned_type);
+		break;
+
+	case DATA_FLOAT:
+
+		ut_a(len == sizeof(float));
+		value = mach_float_read(data);
+		break;
+
+	case DATA_DOUBLE:
+
+		ut_a(len == sizeof(double));
+		value = mach_double_read(data);
+		break;
+
+	default:
+		ut_error;
+
+	}
+
+	if (!unsigned_type && static_cast<int64_t>(value) < 0) {
+		value = 0;
+	}
+
+	return(value);
+}
+

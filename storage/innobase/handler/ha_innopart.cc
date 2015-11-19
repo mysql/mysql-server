@@ -54,6 +54,12 @@ Created Nov 22, 2013 Mattias Jonsson */
 #include "partition_info.h"
 #include "key.h"
 
+/** TRUE if we don't have DDTableBuffer in the system tablespace,
+this should be due to we run the server against old data files.
+Please do NOT change this when server is running.
+FIXME: This should be removed away once we can upgrade for new DD. */
+extern bool	srv_missing_dd_table_buffer;
+
 /* To be backwards compatible we also fold partition separator on windows. */
 #ifdef _WIN32
 static const char* part_sep = "#p#";
@@ -881,6 +887,7 @@ ha_innopart::initialize_auto_increment(
 		dict_index_t*	index;
 		const char*	col_name;
 		ib_uint64_t	read_auto_inc;
+		ib_uint64_t	persisted_auto_inc;
 		ib_uint64_t	max_auto_inc = 0;
 		ulint		err;
 		dict_table_t*	ib_table;
@@ -893,18 +900,53 @@ ha_innopart::initialize_auto_increment(
 		col_name = field->field_name;
 		for (uint part = 0; part < m_tot_parts; part++) {
 			ib_table = m_part_share->get_table_part(part);
+
+			dict_table_autoinc_set_col_pos(
+				ib_table, field->field_index);
+
 			dict_table_autoinc_lock(ib_table);
 			read_auto_inc = dict_table_autoinc_read(ib_table);
-			if (read_auto_inc != 0) {
-				set_if_bigger(max_auto_inc, read_auto_inc);
+
+			persisted_auto_inc = ib_table->autoinc_persisted;
+
+			ut_ad(!srv_missing_dd_table_buffer
+			      || persisted_auto_inc == 0);
+
+			/* During startup, we may set both these two autoinc
+			to same value after recovery of the counter. In this
+			case, it's the first time we initialize the counter
+			here, and we have to calculate the next counter.
+			Otherwise, if they are not equal, we can use it
+			directly. */
+			if (read_auto_inc != 0
+			    && read_auto_inc != persisted_auto_inc) {
+				/* Sometimes, such as after UPDATE,
+				we may have the persisted counter bigger
+				than the in-memory one, because UPDATE in
+				partition tables still doesn't modify the
+				in-memory counter while persisted one could
+				be updated if it's updated to larger value. */
+				set_if_bigger(
+					max_auto_inc,
+					ut_max(read_auto_inc,
+					       persisted_auto_inc));
 				dict_table_autoinc_unlock(ib_table);
 				continue;
 			}
-			/* Execute SELECT MAX(col_name) FROM TABLE; */
-			index = m_part_share->get_index(
+
+			if (persisted_auto_inc == 0) {
+				/* Execute SELECT MAX(col_name) FROM TABLE; */
+				index = m_part_share->get_index(
 					part, table->s->next_number_index);
-			err = row_search_max_autoinc(
-				index, col_name, &read_auto_inc);
+				err = row_search_max_autoinc(
+					index, col_name, &read_auto_inc);
+			} else {
+
+				/* We have the persisted AUTOINC counter,
+				have to calculate the next one. */
+				ut_ad(read_auto_inc == persisted_auto_inc);
+				err = DB_SUCCESS;
+			}
 
 			switch (err) {
 			case DB_SUCCESS: {

@@ -6853,35 +6853,58 @@ commit_get_autoinc(
 		rebuilt. Get the user-supplied value or the last value from the
 		sequence. */
 		ib_uint64_t	max_value_table;
-		dberr_t		err;
 
 		Field*	autoinc_field =
 			old_table->found_next_number_field;
-
-		dict_index_t*	index = dict_table_get_index_on_first_col(
-			ctx->old_table, autoinc_field->field_index);
 
 		max_autoinc = ha_alter_info->create_info->auto_increment_value;
 
 		dict_table_autoinc_lock(ctx->old_table);
 
-		err = row_search_max_autoinc(
-			index, autoinc_field->field_name, &max_value_table);
+		max_value_table = ctx->old_table->autoinc_persisted;
 
-		if (err != DB_SUCCESS) {
-			ut_ad(0);
-			max_autoinc = 0;
-		} else if (max_autoinc <= max_value_table) {
-			ulonglong	col_max_value;
-			ulonglong	offset;
 
-			col_max_value = autoinc_field->get_max_int_value();
+		/* We still have to search the index here when we want to
+		set the AUTO_INCREMENT value to a smaller or equal one.
 
-			offset = ctx->prebuilt->autoinc_offset;
-			max_autoinc = innobase_next_autoinc(
-				max_value_table, 1, 1, offset,
-				col_max_value);
+		Here is an example:
+		Let's say we have a table t1 with one AUTOINC column, existing
+		rows (1), (2), (100), (200), (1000), after following SQLs:
+		DELETE FROM t1 WHERE a > 200;
+		ALTER TABLE t1 AUTO_INCREMENT = 150;
+		we expect the next value allocated from 201, but not 150.
+
+		We could only search the tree to know current max counter
+		in the table and compare. */
+		if (max_autoinc <= max_value_table
+		    || srv_missing_dd_table_buffer) {
+			dberr_t		err;
+			dict_index_t*	index;
+
+			index = dict_table_get_index_on_first_col(
+				ctx->old_table, autoinc_field->field_index);
+
+			err = row_search_max_autoinc(
+				index, autoinc_field->field_name,
+				&max_value_table);
+
+			if (err != DB_SUCCESS) {
+				ut_ad(0);
+				max_autoinc = 0;
+			} else if (max_autoinc <= max_value_table) {
+
+				ulonglong	col_max_value;
+				ulonglong	offset;
+
+				col_max_value = autoinc_field->
+					get_max_int_value();
+				offset = ctx->prebuilt->autoinc_offset;
+				max_autoinc = innobase_next_autoinc(
+					max_value_table, 1, 1, offset,
+					col_max_value);
+			}
 		}
+
 		dict_table_autoinc_unlock(ctx->old_table);
 	} else {
 		/* An AUTO_INCREMENT value was not specified.
@@ -8104,6 +8127,40 @@ ha_innobase::commit_inplace_alter_table(
 				DBUG_SUICIDE(););
 	}
 
+	/* Update the persistent autoinc counter if necessary, we should
+	do this before flushing logs. */
+	if (altered_table->found_next_number_field
+	    && !srv_missing_dd_table_buffer) {
+		for (inplace_alter_handler_ctx** pctx = ctx_array;
+		     *pctx; pctx++) {
+			ha_innobase_inplace_ctx*        ctx
+				= static_cast<ha_innobase_inplace_ctx*>
+				(*pctx);
+			DBUG_ASSERT(ctx->need_rebuild() == new_clustered);
+
+			dict_table_t* t = ctx->new_table;
+			Field* field = altered_table->found_next_number_field;
+
+			dict_table_autoinc_lock(t);
+
+			dict_table_autoinc_initialize(t, ctx->max_autoinc);
+
+			dict_table_autoinc_set_col_pos(t, field->field_index);
+
+			/* The same reason as comments on this function call
+			in row_rename_table_for_mysql(). Besides, we may write
+			redo logs here if we want to update the counter to a
+			smaller one. */
+			ib_uint64_t	autoinc = dict_table_autoinc_read(t);
+			dict_table_set_and_persist_autoinc(
+				t, autoinc - 1,
+				autoinc - 1 < t->autoinc_persisted);
+
+			dict_table_autoinc_unlock(t);
+		}
+	}
+
+
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs
 	with innodb_flush_log_at_trx_commit = 0 */
@@ -8283,8 +8340,10 @@ foreign_fail:
 			(*pctx);
 		DBUG_ASSERT(ctx->need_rebuild() == new_clustered);
 
-		if (altered_table->found_next_number_field) {
-			dict_table_t* t = ctx->new_table;
+		/* TODO: To remove the whole 'if' in WL#7141 */
+		if (altered_table->found_next_number_field
+		    && srv_missing_dd_table_buffer) {
+			dict_table_t*	t = ctx->new_table;
 
 			dict_table_autoinc_lock(t);
 			dict_table_autoinc_initialize(t, ctx->max_autoinc);

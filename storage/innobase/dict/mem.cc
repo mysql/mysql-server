@@ -187,6 +187,8 @@ dict_mem_table_create(
 	dict_table_autoinc_create_lazy(table);
 
 	table->autoinc = 0;
+	table->autoinc_persisted = 0;
+	table->autoinc_field_no = ULINT_UNDEFINED;
 	table->sess_row_id = 0;
 	table->sess_trx_id = 0;
 

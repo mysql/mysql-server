@@ -1352,6 +1352,15 @@ srv_prepare_to_delete_redo_log_files(
 	ulint	count = 0;
 
 	do {
+		/* Write back all dirty metadata first. To resize the logs
+		files to smaller ones, we will do the checkpoint at last,
+		if we write back there, it could be found that the new log
+		group was not big enough for the new redo logs, thus a
+		cascade checkpoint would be invoked, which is unexpected.
+		There should be no concurrent DML, so no need to require
+		dict_persist::lock. */
+		dict_persist_to_dd_table_buffer();
+
 		/* Clean the buffer pool. */
 		buf_flush_sync_all_buf_pools();
 

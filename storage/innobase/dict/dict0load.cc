@@ -3020,18 +3020,13 @@ err_exit:
 		: ignore_err;
 	err = dict_load_indexes(table, heap, index_load_err);
 
-	/* Load the corrupted index bits from DDTableBuffer */
-	if (!is_system_tablespace(table->space)
-	    && !dict_table_is_temporary(table)) {
+	dict_table_load_dynamic_metadata(table);
 
-		dict_table_load_dynamic_metadata(table);
-
-		/* Re-check like we do in dict_load_indexes() */
-		if (!srv_load_corrupted
-		    && !(index_load_err & DICT_ERR_IGNORE_CORRUPT)
-		    && dict_table_is_corrupted(table)) {
-			err = DB_INDEX_CORRUPT;
-		}
+	/* Re-check like we do in dict_load_indexes() */
+	if (!srv_load_corrupted
+	    && !(index_load_err & DICT_ERR_IGNORE_CORRUPT)
+	    && dict_table_is_corrupted(table)) {
+		err = DB_INDEX_CORRUPT;
 	}
 
 	if (err == DB_INDEX_CORRUPT) {
