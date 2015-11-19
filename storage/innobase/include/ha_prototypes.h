@@ -301,6 +301,14 @@ thd_set_lock_wait_time(
 	THD*	thd,	/*!< in/out: thread handle */
 	ulint	value);	/*!< in: time waited for the lock */
 
+/** Get status of innodb_tmpdir.
+@param[in]	thd	thread handle, or NULL to query
+			the global innodb_tmpdir.
+@retval NULL if innodb_tmpdir="" */
+const char*
+thd_innodb_tmpdir(
+	THD*	thd);
+
 /**********************************************************************//**
 Get the current setting of the table_cache_size global parameter. We do
 a dirty read because for one there is no synchronization object and
