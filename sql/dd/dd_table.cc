@@ -333,6 +333,8 @@ fill_dd_columns_from_create_fields(THD *thd,
     if (field->gcol_info)
     {
       col_obj->set_virtual(!field->stored_in_db);
+      sql_mode_t sql_mode= thd->variables.sql_mode;
+      thd->variables.sql_mode&= ~MODE_ANSI_QUOTES;
 
       /*
         It is important to normalize the expression's text into the FRM, to
@@ -345,6 +347,8 @@ fill_dd_columns_from_create_fields(THD *thd,
       // Printing db and table name is useless
       field->gcol_info->expr_item->
         print(&s, enum_query_type(QT_NO_DB | QT_NO_TABLE));
+
+      thd->variables.sql_mode= sql_mode;
       /*
         The new text must have exactly the same lifetime as the old text, it's
         a replacement for it. So the same MEM_ROOT must be used: pass NULL.
