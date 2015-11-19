@@ -114,6 +114,7 @@ IF (NOT (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro"))
     abstract_mysql_chain_element_extension.cc
     abstract_progress_watcher.cc
     mysql_chain_element_options.cc
+    mysql_object_reader.cc
     mysqldump_tool_chain_maker.cc
     mysqldump_tool_chain_maker_options.cc
     object_filter.cc
