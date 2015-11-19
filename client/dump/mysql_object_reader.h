@@ -60,7 +60,7 @@ private:
   {
   public:
     Rows_fetching_context(Mysql_object_reader* parent,
-        Item_processing_data* item_processing);
+        Item_processing_data* item_processing, bool has_generated_column);
 
     int64 result_callback(
       const Mysql::Tools::Base::Mysql_query_runner::Row& row_data);
