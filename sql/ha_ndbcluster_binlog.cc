@@ -2005,21 +2005,18 @@ end:
   {
     int max_timeout= DEFAULT_SYNC_TIMEOUT;
     pthread_mutex_lock(&ndb_schema_object->mutex);
-    while (1)
+    while (true)
     {
       struct timespec abstime;
       set_timespec(abstime, 1);
 
-      // Unlock the schema object and wait for injector to signal that
-      // something has happened. (NOTE! convoluted in order to
-      // only use injector_cond with injector_mutex)
-      pthread_mutex_unlock(&ndb_schema_object->mutex);
-      pthread_mutex_lock(&injector_mutex);
-      int ret= pthread_cond_timedwait(&injector_cond,
-                                      &injector_mutex,
-                                      &abstime);
-      pthread_mutex_unlock(&injector_mutex);
-      pthread_mutex_lock(&ndb_schema_object->mutex);
+      // Wait for operation on ndb_schema_object to complete.
+      // Condition for completion is that 'slock_bitmap' is cleared,
+      // which is signaled by ::handle_clear_slock() on
+      // 'ndb_schema_object->cond'
+      const int ret= pthread_cond_timedwait(&ndb_schema_object->cond,
+                                            &ndb_schema_object->mutex,
+                                            &abstime);
 
       if (thd->killed)
         break;
@@ -2035,7 +2032,7 @@ end:
       /* end protect ndb_schema_share */
 
       if (bitmap_is_clear_all(&ndb_schema_object->slock_bitmap))
-        break;
+        break; //Done, normal completion
 
       if (ret)
       {
@@ -2310,6 +2307,7 @@ public:
                             subscriber_bitmap[idx].bitmap[1],
                             subscriber_bitmap[idx].bitmap[0]);
     }
+    check_wakeup_clients();
   }
 
   void report_subscribe(unsigned data_node_id, unsigned subscriber_node_id)
@@ -2328,6 +2326,7 @@ public:
                             subscriber_bitmap[idx].bitmap[1],
                             subscriber_bitmap[idx].bitmap[0]);
     }
+    check_wakeup_clients();
   }
 
   void report_unsubscribe(unsigned data_node_id, unsigned subscriber_node_id)
@@ -2346,6 +2345,19 @@ public:
                             subscriber_bitmap[idx].bitmap[1],
                             subscriber_bitmap[idx].bitmap[0]);
     }
+    check_wakeup_clients();
+  }
+
+  void check_wakeup_clients()
+  {
+    // Build bitmask of current participants
+     uint32 participants_buf[256/32];
+     MY_BITMAP participants;
+     bitmap_init(&participants, participants_buf, 256, FALSE);
+     get_subscriber_bitmask(&participants);
+
+     // Check all Client's for wakeup
+     NDB_SCHEMA_OBJECT::check_waiters(participants);
   }
 
   void get_subscriber_bitmask(MY_BITMAP* servers)
@@ -3029,13 +3041,12 @@ class Ndb_schema_event_handler {
     DBUG_DUMP("ndb_schema_object->slock_bitmap.bitmap",
               (uchar*)ndb_schema_object->slock_bitmap.bitmap,
               no_bytes_in_map(&ndb_schema_object->slock_bitmap));
-    pthread_mutex_unlock(&ndb_schema_object->mutex);
-
-    ndb_free_schema_object(&ndb_schema_object);
 
     /* Wake up the waiter */
-    pthread_cond_signal(&injector_cond);
+    pthread_mutex_unlock(&ndb_schema_object->mutex);
+    pthread_cond_signal(&ndb_schema_object->cond);
 
+    ndb_free_schema_object(&ndb_schema_object);
     DBUG_VOID_RETURN;
   }
 
@@ -3817,7 +3828,6 @@ public:
     {
       /* Remove all subscribers for node */
       m_schema_dist_data.report_data_node_failure(pOp->getNdbdNodeId());
-      (void) pthread_cond_signal(&injector_cond);
       break;
     }
 
@@ -3825,7 +3835,6 @@ public:
     {
       /* Add node as subscriber */
       m_schema_dist_data.report_subscribe(pOp->getNdbdNodeId(), pOp->getReqNodeId());
-      (void) pthread_cond_signal(&injector_cond);
       break;
     }
 
@@ -3833,7 +3842,6 @@ public:
     {
       /* Remove node as subscriber */
       m_schema_dist_data.report_unsubscribe(pOp->getNdbdNodeId(), pOp->getReqNodeId());
-      (void) pthread_cond_signal(&injector_cond);
       break;
     }
 
