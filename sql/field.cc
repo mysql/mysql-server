@@ -45,7 +45,7 @@
 #include "sql_base.h"                    // is_equal
 
 #include <algorithm>
-#include <memory>                        // auto_ptr
+#include <memory>                        // unique_ptr
 
 using std::max;
 using std::min;
@@ -8885,7 +8885,8 @@ Field_json::store(const char *from, size_t length, const CHARSET_INFO *cs)
 
   const char *parse_err;
   size_t err_offset;
-  std::auto_ptr<Json_dom> dom(Json_dom::parse(s, ss, &parse_err, &err_offset));
+  std::unique_ptr<Json_dom>
+    dom(Json_dom::parse(s, ss, &parse_err, &err_offset));
 
   if (dom.get() == NULL)
   {

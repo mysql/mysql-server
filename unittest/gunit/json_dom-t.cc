@@ -226,7 +226,7 @@ TEST_F(JsonDomTest, BasicTest)
   EXPECT_EQ(m_d, m_out_d);
 
   a.append_clone(&jd);
-  std::auto_ptr<Json_array> b(static_cast<Json_array *>(a.clone()));
+  std::unique_ptr<Json_array> b(static_cast<Json_array *>(a.clone()));
   EXPECT_EQ(std::string("[\"val1\", \"val2\", 3.14]"), format(a));
   EXPECT_EQ(std::string("[\"val1\", \"val2\", 3.14]"), format(b.get()));
 
@@ -248,7 +248,7 @@ TEST_F(JsonDomTest, BasicTest)
   a.append_clone(&jn);
   a.append_clone(&jbf);
   a.append_clone(&jbt);
-  std::auto_ptr<const Json_dom> c(a.clone());
+  std::unique_ptr<const Json_dom> c(a.clone());
   EXPECT_EQ(std::string("[null, false, true]"), format(a));
   EXPECT_EQ(std::string("[null, false, true]"), format(c.get()));
 
@@ -309,9 +309,9 @@ TEST_F(JsonDomTest, BasicTest)
   size_t msg_offset;
   const char *sample_doc=
     "{\"abc\": 3, \"foo\": [1, 2, {\"foo\": 3.24}, null]}";
-  std::auto_ptr<Json_dom> dom(Json_dom::parse(sample_doc,
-                                              std::strlen(sample_doc),
-                                              &msg, &msg_offset));
+  std::unique_ptr<Json_dom> dom(Json_dom::parse(sample_doc,
+                                                std::strlen(sample_doc),
+                                                &msg, &msg_offset));
   EXPECT_TRUE(dom.get() != NULL);
   EXPECT_EQ(4U, dom->depth());
   EXPECT_EQ(std::string(sample_doc), format(dom.get()));

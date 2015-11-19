@@ -33,7 +33,7 @@
 #include "rapidjson/error/en.h"
 
 #include <algorithm>            // std::min, std::max
-#include <memory>               // std::auto_ptr
+#include <memory>               // std::unique_ptr
 
 using namespace rapidjson;
 
@@ -564,7 +564,7 @@ public:
   */
   bool seeing_scalar(Json_scalar *scalar)
   {
-    std::auto_ptr<Json_scalar> aptr(scalar);
+    std::unique_ptr<Json_scalar> uptr(scalar);
     if (scalar == NULL || check_json_depth(m_stack.size() + 1))
       return false;
     switch (m_state)
@@ -595,7 +595,7 @@ public:
       The scalar is owned by the Element_vector or m_dom_as_built now,
       so release it.
     */
-    aptr.release();
+    uptr.release();
     return true;
   }
 
@@ -732,7 +732,7 @@ public:
     {
     case expect_object_key:
       {
-        std::auto_ptr<Json_object> o(new (std::nothrow) Json_object());
+        std::unique_ptr<Json_object> o(new (std::nothrow) Json_object());
         if (o.get() == NULL)
           return false;                       /* purecov: inspected */
         for (Element_vector::const_iterator iter=
@@ -806,7 +806,7 @@ public:
     {
     case expect_array_value:
       {
-        std::auto_ptr<Json_array> a(new (std::nothrow) Json_array());
+        std::unique_ptr<Json_array> a(new (std::nothrow) Json_array());
         if (a.get() == NULL)
           return false;                         /* purecov: inspected */
         for (Element_vector::const_iterator iter=
@@ -1007,7 +1007,7 @@ Json_dom *Json_dom::parse(const json_binary::Value &v)
   {
   case json_binary::Value::OBJECT:
     {
-      std::auto_ptr<Json_object> jo(new (std::nothrow) Json_object());
+      std::unique_ptr<Json_object> jo(new (std::nothrow) Json_object());
       if (jo.get() == NULL)
         return NULL;                            /* purecov: inspected */
       for (uint32 i= 0; i < v.element_count(); ++i)
@@ -1028,17 +1028,17 @@ Json_dom *Json_dom::parse(const json_binary::Value &v)
     }
   case json_binary::Value::ARRAY:
     {
-      std::auto_ptr<Json_array> jarr(new (std::nothrow) Json_array());
+      std::unique_ptr<Json_array> jarr(new (std::nothrow) Json_array());
       if (jarr.get() == NULL)
         return NULL;                          /* purecov: inspected */
       for (uint32 i= 0; i < v.element_count(); ++i)
       {
         /*
           Add the element to the array. We need to make sure it is
-          deallocated if it cannot be added. std::auto_ptr does that
+          deallocated if it cannot be added. std::unique_ptr does that
           for us.
         */
-        std::auto_ptr<Json_dom> elt(parse(v.element(i)));
+        std::unique_ptr<Json_dom> elt(parse(v.element(i)));
         if (jarr->append_alias(elt.get()))
           return NULL;                        /* purecov: inspected */
         // The array owns the element now. Release it.
@@ -1155,11 +1155,11 @@ bool Json_object::add_alias(const std::string &key, Json_dom *value)
     return true;                                /* purecov: inspected */
 
   /*
-    Wrap value in an auto_ptr to make sure it's released if we cannot
+    Wrap value in a unique_ptr to make sure it's released if we cannot
     add it to the object. The contract of add_alias() requires that it
     either gets added to the object or gets deleted.
   */
-  std::auto_ptr<Json_dom> aptr(value);
+  std::unique_ptr<Json_dom> uptr(value);
 
   /*
     We have already an element with this key.  Note we compare utf-8 bytes
@@ -1189,7 +1189,7 @@ bool Json_object::add_alias(const std::string &key, Json_dom *value)
   {
     // the element was inserted
     value->set_parent(this);
-    aptr.release();
+    uptr.release();
   }
 
   return false;
@@ -1198,7 +1198,7 @@ bool Json_object::add_alias(const std::string &key, Json_dom *value)
 bool Json_object::consume(Json_object *other)
 {
   // We've promised to delete other before returning.
-  std::auto_ptr<Json_object> aptr(other);
+  std::unique_ptr<Json_object> uptr(other);
 
   Json_object_map &this_map= m_map;
   Json_object_map &other_map= other->m_map;
@@ -1376,7 +1376,7 @@ bool Json_array::append_alias(Json_dom *value)
 bool Json_array::consume(Json_array *other)
 {
   // We've promised to delete other before returning.
-  std::auto_ptr<Json_array> aptr(other);
+  std::unique_ptr<Json_array> aptr(other);
 
   Json_dom_vector &other_vector= other->m_v;
 

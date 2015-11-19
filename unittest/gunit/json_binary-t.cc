@@ -50,8 +50,8 @@ TEST_F(JsonBinaryTest, BasicTest)
   const char *msg;
   size_t msg_offset;
 
-  std::auto_ptr<Json_dom> dom(Json_dom::parse(doc, strlen(doc),
-                                              &msg, &msg_offset));
+  std::unique_ptr<Json_dom> dom(Json_dom::parse(doc, strlen(doc),
+                                                &msg, &msg_offset));
   String buf;
   EXPECT_FALSE(serialize(dom.get(), &buf));
   Value val1= parse_binary(buf.ptr(), buf.length());
