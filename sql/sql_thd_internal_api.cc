@@ -21,7 +21,7 @@
 #include "rpl_filter.h"           // binlog_filter
 #include "sql_class.h"            // THD
 #include "sql_parse.h"            // sqlcom_can_generate_row_events
-
+#include "mysqld.h"
 
 int thd_init(THD *thd, char *stack_start, bool bound, PSI_thread_key psi_key)
 {
@@ -228,4 +228,57 @@ void thd_get_autoinc(const THD *thd, ulong* off, ulong* inc)
 bool thd_is_strict_mode(const THD *thd)
 {
   return thd->is_strict_mode();
+}
+
+bool is_mysql_datadir_path(const char *path)
+{
+  if (path == NULL || strlen(path) >= FN_REFLEN)
+    return false;
+
+  char mysql_data_dir[FN_REFLEN], path_dir[FN_REFLEN];
+  convert_dirname(path_dir, path, NullS);
+  convert_dirname(mysql_data_dir, mysql_unpacked_real_data_home, NullS);
+  size_t mysql_data_home_len= dirname_length(mysql_data_dir);
+  size_t path_len= dirname_length(path_dir);
+
+  if (path_len < mysql_data_home_len)
+    return true;
+
+  if (!lower_case_file_system)
+    return memcmp(mysql_data_dir, path_dir, mysql_data_home_len);
+
+  return files_charset_info->coll->strnncoll(files_charset_info,
+                                             reinterpret_cast<uchar*>(path_dir),
+                                             path_len,
+                                             reinterpret_cast<uchar*>(mysql_data_dir),
+                                             mysql_data_home_len,
+                                             TRUE);
+}
+
+
+int mysql_tmpfile_path(const char *path, const char *prefix)
+{
+  DBUG_ASSERT(path != NULL);
+  DBUG_ASSERT((strlen(path) + strlen(prefix)) <= FN_REFLEN);
+
+  char filename[FN_REFLEN];
+  File fd = create_temp_file(filename, path, prefix,
+#ifdef _WIN32
+                             O_BINARY | O_TRUNC | O_SEQUENTIAL |
+                             O_SHORT_LIVED |
+#endif /* _WIN32 */
+                             O_CREAT | O_EXCL | O_RDWR | O_TEMPORARY,
+                             MYF(MY_WME));
+  if (fd >= 0) {
+#ifndef _WIN32
+    /*
+      This can be removed once the following bug is fixed:
+      Bug #28903  create_temp_file() doesn't honor O_TEMPORARY option
+                  (file not removed) (Unix)
+    */
+    unlink(filename);
+#endif /* !_WIN32 */
+  }
+
+  return fd;
 }

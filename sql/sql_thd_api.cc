@@ -351,6 +351,7 @@ int mysql_tmpfile(const char *prefix)
   }
 
   return fd;
+  return mysql_tmpfile_path(mysql_tmpdir, prefix);
 }
 
 

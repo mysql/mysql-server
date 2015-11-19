@@ -4140,6 +4140,10 @@ prepare_inplace_alter_table_dict(
 
 	ctx->num_to_add_index = ha_alter_info->index_add_count;
 
+	ut_ad(ctx->prebuilt->trx->mysql_thd != NULL);
+	const char*	path = thd_innodb_tmpdir(
+		ctx->prebuilt->trx->mysql_thd);
+
 	index_defs = innobase_create_key_defs(
 		ctx->heap, ha_alter_info, altered_table, ctx->num_to_add_index,
 		num_fts_index,
@@ -4600,7 +4604,8 @@ new_clustered_failed:
 					goto error_handling;);
 			rw_lock_x_lock(&ctx->add_index[a]->lock);
 			bool ok = row_log_allocate(ctx->add_index[a],
-						   NULL, true, NULL, NULL);
+						   NULL, true, NULL, NULL,
+						   path);
 			rw_lock_x_unlock(&ctx->add_index[a]->lock);
 
 			if (!ok) {
@@ -4634,7 +4639,7 @@ new_clustered_failed:
 				clust_index, ctx->new_table,
 				!(ha_alter_info->handler_flags
 				  & Alter_inplace_info::ADD_PK_INDEX),
-				ctx->add_cols, ctx->col_map);
+				ctx->add_cols, ctx->col_map, path);
 			rw_lock_x_unlock(&clust_index->lock);
 
 			if (!ok) {

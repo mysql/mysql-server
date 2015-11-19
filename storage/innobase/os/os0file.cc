@@ -1478,13 +1478,17 @@ AIO::release_with_mutex(Slot* slot)
 }
 
 /** Creates a temporary file.  This function is like tmpfile(3), but
-the temporary file is created in the MySQL temporary directory.
+the temporary file is created in the given parameter path. If the path
+is NULL then it will create the file in the MySQL server configuration
+parameter (--tmpdir).
+@param[in]	path	location for creating temporary file
 @return temporary file handle, or NULL on error */
 FILE*
-os_file_create_tmpfile()
+os_file_create_tmpfile(
+	const char*	path)
 {
 	FILE*	file	= NULL;
-	int	fd	= innobase_mysql_tmpfile();
+	int	fd	= innobase_mysql_tmpfile(path);
 
 	if (fd >= 0) {
 		file = fdopen(fd, "w+b");
@@ -2652,7 +2656,7 @@ AIO::is_linux_native_aio_supported()
 	} else if (!srv_read_only_mode) {
 
 		/* Now check if tmpdir supports native aio ops. */
-		fd = innobase_mysql_tmpfile();
+		fd = innobase_mysql_tmpfile(NULL);
 
 		if (fd < 0) {
 			ib::warn()
