@@ -3144,10 +3144,51 @@ bool JOIN::rollup_process_const_fields()
   }
   return 0;
 }
-  
 
 /**
-  Fill up rollup structures with pointers to fields to use.
+  Bitmap that mark columns need to be subtotaled in ROLLUP/CUBE
+  or mixed OLAP query.
+*/
+class Group_by_bitmap{
+  /*Constructor*/
+  Group_by_bitmap(olap_type type, uint group_list_length):
+	type_(type),
+	bitmap_size(group_list_length)
+	{
+	switch (type_)
+	{
+	case CUBE_TYPE:
+	  n = (uint) pow(2, group_list_length);
+	  break;
+	case ROLLUP_TYPE:
+	  n = group_list_length;
+	  break;
+	default:
+	  break;
+	}
+	bitmap_ = (bool *) sql_alloc(bitmap_size * sizeof(bool));
+	bitmap.reset(bitmap_, bitmap_size);
+	memset(bitmap_, 0, bitmap_size * sizeof(bool));
+	count = 0;
+  }
+  ~Group_by_bitmap(){}
+  /*Get a new combination, returns NULL if exhausted*/
+  Bounds_checked_array<bool> *GetNext(){
+	return &bitmap;
+  }
+  uint bitmap_size;
+  bool *bitmap_;
+  Bounds_checked_array<bool> bitmap;
+  /*index of current combination*/
+  uint count;
+  /*number of combinations*/
+  uint n;
+  /*type of OLAP*/
+  olap_type type_;
+};
+
+/**
+  Fill up rollup/cube structures with pointers to fields to use.
 
   Creates copies of item_sum items for each sum level.
 

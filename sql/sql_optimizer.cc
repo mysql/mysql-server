@@ -1283,7 +1283,6 @@ bool JOIN::optimize_distinct_group_order()
   }
 
   calc_group_buffer(this, group_list);
-  send_group_parts= tmp_table_param.group_parts; /* Save org parts */
 
   if (test_if_subpart(group_list, order) ||
       (!group_list && tmp_table_param.sum_func_count))
@@ -11154,9 +11153,9 @@ bool JOIN::optimize_rollup()
   tmp_table_param.group_parts= send_group_parts;
 
   Item_null_result **null_items=
-    static_cast<Item_null_result**>(thd->alloc(sizeof(Item*)*send_group_parts));
+    static_cast<Item_null_result**>(thd->alloc(sizeof(Item*)*group_list_size));
 
-  rollup.null_items= Item_null_array(null_items, send_group_parts);
+  rollup.null_items= Item_null_array(null_items, group_list_size);
   rollup.ref_pointer_arrays=
     static_cast<Ref_ptr_array*>
     (thd->alloc((sizeof(Ref_ptr_array) +
@@ -11174,22 +11173,22 @@ bool JOIN::optimize_rollup()
     These will be filled up in rollup_make_fields()
   */
   ORDER *group= group_list;
-  for (uint i= 0; i < send_group_parts; i++, group= group->next)
+  for (uint i= 0; i < group_list_size; i++, group= group->next)
   {
     rollup.null_items[i]=
       new (thd->mem_root) Item_null_result((*group->item)->field_type(),
                                            (*group->item)->result_type());
     if (rollup.null_items[i] == NULL)
       return true;           /* purecov: inspected */
-    List<Item> *rollup_fields= &rollup.fields[i];
-    rollup_fields->empty();
-    rollup.ref_pointer_arrays[i]= Ref_ptr_array(ref_array, all_fields.elements);
-    ref_array+= all_fields.elements;
   }
   for (uint i= 0; i < send_group_parts; i++)
   {
+	List<Item> *rollup_fields = &rollup.fields[i];
+	rollup_fields->empty();
+	rollup.ref_pointer_arrays[i] = Ref_ptr_array(ref_array, all_fields.elements);
+	ref_array += all_fields.elements;
     for (uint j= 0; j < fields_list.elements; j++)
-      rollup.fields[i].push_back(rollup.null_items[i]);
+      rollup.fields[i].push_back(rollup.null_items[0]);
   }
   return false;
 }

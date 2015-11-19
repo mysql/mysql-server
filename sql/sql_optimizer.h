@@ -67,6 +67,7 @@ public:
       primary_tables(0),
       const_tables(0),
       tmp_tables(0),
+	  group_list_size(0),
       send_group_parts(0),
       sort_and_group(false),
       first_record(false),
@@ -155,7 +156,11 @@ public:
       explain_flags.set(ESC_DISTINCT, ESP_EXISTS);
     // Calculate the number of groups
     for (ORDER *group= group_list; group; group= group->next)
-      send_group_parts++;
+      group_list_size++;
+	if (select->olap == CUBE_TYPE)
+	  send_group_parts = (int)(pow(2, group_list_size));
+	else
+	  send_group_parts = group_list_size;
   }
 
   /// Query block that is optimized and executed using this JOIN
@@ -215,6 +220,13 @@ public:
   uint     primary_tables; ///< Number of primary input tables in query block
   uint     const_tables;   ///< Number of primary tables deemed constant
   uint     tmp_tables;     ///< Number of temporary tables used by query
+  /**
+	The number of columns participating group by.
+  */
+  uint	   group_list_size;
+  /**
+	The number of different aggregate levels in rollup/cube
+  */
   uint     send_group_parts;
   /**
     Indicates that grouping will be performed on the result set during
