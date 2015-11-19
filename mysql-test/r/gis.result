@@ -2375,13 +2375,9 @@ rescol
 SELECT ST_GeomFromText('POINT(0 0)') IN (SELECT b FROM t) AS result;
 result
 0
-Warnings:
-Warning	1292	Incorrect date value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
 SELECT ST_AsWKB(ST_GeomFromText('POINT(0 0)')) IN (SELECT b FROM t) AS result;
 result
 0
-Warnings:
-Warning	1292	Incorrect date value: '\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
 INSERT INTO t VALUES(ST_GeomFromText('POINT(0 0)'), CURDATE());
 SELECT ST_GeomFromText('POINT(0 0)') IN (SELECT b FROM t) AS result;
 result

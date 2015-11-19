@@ -1882,8 +1882,7 @@ Item_in_subselect::single_value_transformer(SELECT_LEX *select,
     if (left == NULL)
       DBUG_RETURN(RES_ERROR);
 
-    // Make the left expression "outer" relative to the subquery
-    if (!left_expr->const_item())
+    if (mark_as_outer(left_expr))
       left->depended_from= select->outer_select();
 
     m_injected_left_expr= left;
@@ -2312,9 +2311,9 @@ Item_in_subselect::row_value_in_to_exists_transformer(SELECT_LEX *select)
       if (left == NULL)
         DBUG_RETURN(RES_ERROR);              /* purecov: inspected */
 
-      // Make the left expression "outer" relative to the subquery
-      if (!left_expr->element_index(i)->const_item())
-        left->depended_from= select->outer_select();
+      if (mark_as_outer(left_expr->element_index(i)))
+          left->depended_from= select->outer_select();
+
       Item_bool_func *item_eq=
         new Item_func_eq(left,
                          new
@@ -2403,8 +2402,7 @@ Item_in_subselect::row_value_in_to_exists_transformer(SELECT_LEX *select)
       if (left == NULL)
         DBUG_RETURN(RES_ERROR);
 
-      // Make the left expression "outer" relative to the subquery
-      if (!left_expr->element_index(i)->const_item())
+      if (mark_as_outer(left_expr->element_index(i)))
         left->depended_from= select->outer_select();
 
       Item_bool_func *item=

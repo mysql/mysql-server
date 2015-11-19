@@ -452,6 +452,33 @@ private:
 
   Item *remove_in2exists_conds(Item* conds);
 
+
+  /**
+    Decide whether to mark the left expression "outer" relative to the subquery
+    if the left expression is not constant, or if the left expression could be
+    a constant NULL and we care about the difference between UNKNOWN and
+    FALSE.
+
+    In the latter case, JOIN::optimize() for the subquery must be prevented
+    from evaluating any triggered condition, as the triggers for such
+    conditions have not yet been properly set by
+    Item_in_optimizer::val_int(). By marking the left expression as outer, a
+    triggered condition using it will not be considered constant, will not be
+    evaluated by JOIN::optimize(); it will only be evaluated by JOIN::exec()
+    which is called from Item_in_optimizer::val_int()
+
+    @param[in] leftexpr The expression to possiby mark as dependant of
+                        outer select
+
+    @returns true if we should mark the left expression "outer" relative to the
+                  subquery
+  */
+  bool mark_as_outer(const Item *leftexpr)
+  {
+    return !leftexpr->const_item() ||
+           (!abort_on_null && leftexpr->maybe_null);
+  }
+
 public:
   /* Used to trigger on/off conditions that were pushed down to subselect */
   bool *pushed_cond_guards;
