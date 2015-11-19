@@ -9135,6 +9135,40 @@ bool is_secure_file_path(char *path)
 }
 
 
+/**
+  Test a file path whether it is same as mysql data directory path.
+
+  @param path null terminated character string
+
+  @return
+    @retval TRUE The path is different from mysql data directory.
+    @retval FALSE The path is same as mysql data directory.
+*/
+bool is_mysql_datadir_path(const char *path)
+{
+  if (path == NULL)
+    return false;
+
+  char mysql_data_dir[FN_REFLEN], path_dir[FN_REFLEN];
+  convert_dirname(path_dir, path, NullS);
+  convert_dirname(mysql_data_dir, mysql_unpacked_real_data_home, NullS);
+  size_t mysql_data_home_len= dirname_length(mysql_data_dir);
+  size_t path_len = dirname_length(path_dir);
+
+  if (path_len < mysql_data_home_len)
+    return true;
+
+  if (!lower_case_file_system)
+    return(memcmp(mysql_data_dir, path_dir, mysql_data_home_len));
+
+  return(files_charset_info->coll->strnncoll(files_charset_info,
+                                            (uchar *) path_dir, path_len,
+                                            (uchar *) mysql_data_dir,
+                                            mysql_data_home_len,
+                                            TRUE));
+
+}
+
 static int fix_paths(void)
 {
   char buff[FN_REFLEN],*pos;
