@@ -6670,9 +6670,6 @@ SELECT 1 FROM t1 WHERE (SELECT 1, 2 FROM t1) IN (SELECT 1, 2 FROM t1);
 eval EXPLAIN $query;
 eval $query;
 
---echo # The next query is supposed to return zero rows. In some cases
---echo # it returns one row, because of bug#19822406.
-
 let $query=
 SELECT 1 FROM t1 WHERE
   (SELECT 1, 2 FROM t1 WHERE x = 2) IN (SELECT 1, 2 FROM t1);

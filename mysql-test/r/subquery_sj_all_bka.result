@@ -11845,8 +11845,6 @@ Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` semi join (`test`.`t1`
 SELECT 1 FROM t1 WHERE (SELECT 1, 2 FROM t1) IN (SELECT 1, 2 FROM t1);
 1
 1
-# The next query is supposed to return zero rows. In some cases
-# it returns one row, because of bug#19822406.
 EXPLAIN SELECT 1 FROM t1 WHERE
 (SELECT 1, 2 FROM t1 WHERE x = 2) IN (SELECT 1, 2 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
