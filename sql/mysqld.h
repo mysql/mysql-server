@@ -73,6 +73,7 @@ bool one_thread_per_connection_end(THD *thd, bool block_pthread);
 void kill_blocked_pthreads();
 void refresh_status(THD *thd);
 bool is_secure_file_path(char *path);
+bool is_mysql_datadir_path(const char *path);
 void dec_connection_count();
 
 // These are needed for unit testing.
