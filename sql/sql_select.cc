@@ -915,7 +915,22 @@ JOIN::optimize()
     conds= simplify_joins(this, join_list, conds, TRUE);
     build_bitmap_for_nested_joins(join_list, 0);
 
-    sel->prep_where= conds ? conds->copy_andor_structure(thd) : 0;
+    /*
+      After permanent transformations above, prep_where created in
+      st_select_lex::fix_prepare_information() is out-of-date, we need to
+      refresh it.
+      For that We must copy "conds" because it contains AND/OR items in a
+      non-permanent memroot. And this copy must contain real items only,
+      because the new AND/OR items will not have their argument pointers
+      restored by rollback_item_tree_changes().
+      @see st_select_lex::fix_prepare_information() for problems with this.
+      @todo in WL#7082 move transformations above to before
+      st_select_lex::fix_prepare_information(), and remove this second copy
+      below.
+    */
+    sel->prep_where= conds ? conds->copy_andor_structure(thd, true) : NULL;
+    if (conds)
+      thd->change_item_tree_place(&conds, &select_lex->prep_where);
 
     if (arena)
       thd->restore_active_arena(arena, &backup);
@@ -9061,7 +9076,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
           DBUG_ASSERT(expr);
 
           table->on_expr= expr;
-          table->prep_on_expr= expr->copy_andor_structure(join->thd);
+          table->prep_on_expr= expr->copy_andor_structure(join->thd, true);
         }
       }
       nested_join->used_tables= (table_map) 0;
