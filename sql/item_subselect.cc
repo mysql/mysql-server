@@ -2672,6 +2672,16 @@ void Item_in_subselect::fix_after_pullout(SELECT_LEX *parent_select,
 
 bool Item_in_subselect::init_left_expr_cache()
 {
+  /*
+    Check if the left operand is a subquery that yields an empty set of rows.
+    If so, skip initializing a cache; for an empty set the subquery
+    exec won't read any rows and so lead to uninitalized reads if attempted.
+  */
+  if (left_expr->type() == SUBSELECT_ITEM && left_expr->null_value)
+  {
+    return false;
+  }
+
   JOIN *outer_join;
   bool use_result_field= FALSE;
 

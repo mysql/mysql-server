@@ -10237,9 +10237,23 @@ bool Item_cache_row::cache_value()
   value_cached= TRUE;
   example->bring_value();
   null_value= example->null_value;
+
+  const bool cached_item_is_assigned=
+    example->type() != SUBSELECT_ITEM ||
+    down_cast<Item_subselect *>(example)->assigned();
+
   for (uint i= 0; i < item_count; i++)
   {
-    values[i]->cache_value();
+    if (!cached_item_is_assigned)
+    {
+      // Subquery with zero rows, so make cached item null also.
+      values[i]->store_null();
+    }
+    else
+    {
+      values[i]->cache_value();
+    }
+
     null_value|= values[i]->null_value;
   }
   return TRUE;

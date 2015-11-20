@@ -5167,6 +5167,19 @@ public:
   Field* field() { return cached_field; }
 
   virtual void store(Item *item);
+
+  /**
+    Force an item to be null. Used for empty subqueries to avoid attempts to
+    evaluate expressions which could have uninitialized columns due to
+    bypassing the subquery exec.
+  */
+  void store_null()
+  {
+    DBUG_ASSERT(maybe_null);
+    value_cached= true;
+    null_value= true;
+  }
+
   virtual bool cache_value()= 0;
   bool basic_const_item() const
   { return MY_TEST(example && example->basic_const_item());}
