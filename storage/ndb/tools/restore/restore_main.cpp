@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -934,17 +934,6 @@ static inline bool
 isSYSTAB_0(const TableS* table)
 {
   return table->isSYSTAB_0();
-}
-
-static inline bool
-isInList(BaseString &needle, Vector<BaseString> &lst){
-  unsigned int i= 0;
-  for (i= 0; i < lst.size(); i++)
-  {
-    if (strcmp(needle.c_str(), lst[i].c_str()) == 0)
-      return true;
-  }
-  return false;
 }
 
 const char*
