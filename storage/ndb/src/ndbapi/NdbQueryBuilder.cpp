@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -388,16 +388,8 @@ NdbQueryOperandImpl& getImpl(const NdbQueryOperand& op)
 { return op.getImpl();
 }
 inline static
-NdbConstOperandImpl& getImpl(const NdbConstOperand& op)
-{ return static_cast<NdbConstOperandImpl&>(op.getImpl());
-}
-inline static
 NdbParamOperandImpl& getImpl(const NdbParamOperand& op)
 { return static_cast<NdbParamOperandImpl&>(op.getImpl());
-}
-inline static
-NdbLinkedOperandImpl& getImpl(const NdbLinkedOperand& op)
-{ return static_cast<NdbLinkedOperandImpl&>(op.getImpl());
 }
 
 /**
@@ -615,19 +607,6 @@ inline static
 NdbQueryOperationDefImpl& getImpl(const NdbQueryOperationDef& op)
 { return op.getImpl();
 }
-inline static
-NdbQueryLookupOperationDefImpl& getImpl(const NdbQueryLookupOperationDef& op)
-{ return static_cast<NdbQueryLookupOperationDefImpl&>(op.getImpl());
-}
-inline static
-NdbQueryTableScanOperationDefImpl& getImpl(const NdbQueryTableScanOperationDef& op)
-{ return static_cast<NdbQueryTableScanOperationDefImpl&>(op.getImpl());
-}
-inline static
-NdbQueryIndexScanOperationDefImpl& getImpl(const NdbQueryIndexScanOperationDef& op)
-{ return static_cast<NdbQueryIndexScanOperationDefImpl&>(op.getImpl());
-}
-
 
 Uint32
 NdbQueryOperationDef::getOpNo() const
