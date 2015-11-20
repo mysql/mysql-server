@@ -597,8 +597,8 @@ innodb_tmpdir_validate(
 		return(1);
 	}
 
-	innodb_tmp_dir = static_cast<char*>(thd_memdup(
-					thd, tmp_abs_path, tmp_abs_len + 1));
+	innodb_tmp_dir = static_cast<char*>(
+		thd_memdup(thd, tmp_abs_path, tmp_abs_len + 1));
 	*static_cast<const char**>(save) = innodb_tmp_dir;
 	return(0);
 }
