@@ -1373,3 +1373,50 @@ c varbinary(1) generated always as (b) virtual
 alter table t change column b b varbinary(2), algorithm=inplace;
 alter table t change column c c varbinary(2) generated always as (b) virtual, algorithm=inplace;
 drop table t;
+SET @@SESSION.sql_mode=0;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TABLE t(
+c1 INT AUTO_INCREMENT,
+c2 INT,
+c3 INT GENERATED ALWAYS AS(c2 + c2)VIRTUAL,
+c3k INT GENERATED ALWAYS AS(c2 + c3)VIRTUAL,
+c4 DATE,
+c5 DATE GENERATED ALWAYS AS(DATE_ADD(c4,interval 30 day)) VIRTUAL,
+c5k DATE GENERATED ALWAYS AS(DATE_ADD(c4,interval 30 day)) VIRTUAL,
+c5time_gckey DATE,
+c6 TIME,
+c5time DATE GENERATED ALWAYS AS(ADDTIME(c5time_gckey,c6)) VIRTUAL,
+c7 TIME GENERATED ALWAYS AS(ADDTIME(c5time_gckey,c6)) VIRTUAL,
+c5timek DATE GENERATED ALWAYS AS(ADDTIME(c5time_gckey,c7)) VIRTUAL,
+c7k TIME GENERATED ALWAYS AS(ADDTIME(c5time,c6)) VIRTUAL,
+c8 CHAR(10),
+c9 CHAR(20)GENERATED ALWAYS AS (CONCAT(c8,c8)) VIRTUAL,
+c9k CHAR(15)GENERATED ALWAYS AS (CONCAT(c8,0)) VIRTUAL,
+PRIMARY KEY(c1),
+KEY(c3),
+KEY(c9(10)),
+UNIQUE KEY(c9k),
+UNIQUE KEY(c3k,c9k(5),c5k,c7k,c5timek,c3,c9(5),c5,c7,c5time)
+)ENGINE=INNODB;
+INSERT INTO
+t(c2,c4,c6,c5time_gckey,c8)VALUES(1,0,0,0,0),(0,0,0,0,'ityzg'),(0,0,1,0,'tyzgk
+t'),(0,1,0,1,'yzgktb'),(0,0,0,0,'zgktb'),(0,0,0,0,'gktbkj'),(0,0,0,0,0),(0,0,1
+,0,1),(0,0,0,0,1),(0,0,0,0,'tbkjrkm'),(0,0,0,0,'bkjr'),(0,0,0,0,0),(0,0,0,0,0)
+,(0,0,0,0,'rk'),(0,0,0,0,'kmqmknbtoe'),(1,0,0,0,'mqmknbt'),(0,1,0,0,'qmknb'),(
+0,0,0,0,'mkn'),(0,0,0,0,'knbtoervql'),(0,0,1,0,1),(0,0,0,0,'nbtoerv'),(0,0,0,0
+,'btoerv'),(0,0,1,0,'toer'),(1,0,0,0,0),(0,0,0,0,'ervq'),(0,0,0,0,'rvqlzsvasu'
+),(0,0,0,0,'vqlzs'),(0,0,0,0,0),(0,1,0,0,'lzsvasu'),(0,0,0,0,'zsvasurq');
+ERROR 23000: Duplicate entry '00' for key 'c9k'
+SELECT
+DISTINCT * FROM t
+FORCE KEY(PRIMARY,c3k,c3,c9k,c9)
+WHERE
+(c9 IS NULL AND (c9=0))
+OR(
+(c9k NOT IN ('ixfq','xfq','New Mexico','fq')OR c9 IS NULL)
+)
+OR(c9 BETWEEN 'hwstqua' AND 'wstquadcji' OR (c9k=0))
+AND(c3 IS NULL OR c3 IN (0,0,0));
+c1	c2	c3	c3k	c4	c5	c5k	c5time_gckey	c6	c5time	c7	c5timek	c7k	c8	c9	c9k
+drop table t;
