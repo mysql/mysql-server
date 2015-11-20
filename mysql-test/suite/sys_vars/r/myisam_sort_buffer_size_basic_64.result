@@ -73,35 +73,31 @@ Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '-1024'
 SELECT @@global.myisam_sort_buffer_size  ;
 @@global.myisam_sort_buffer_size
 4096
-SET @@global.myisam_sort_buffer_size   = 429496729533;
-SELECT @@global.myisam_sort_buffer_size  ;
-@@global.myisam_sort_buffer_size
-429496729533
 SET @@global.myisam_sort_buffer_size   = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'myisam_sort_buffer_size'
 SELECT @@global.myisam_sort_buffer_size  ;
 @@global.myisam_sort_buffer_size
-429496729533
+4096
 SET @@global.myisam_sort_buffer_size   = test;
 ERROR 42000: Incorrect argument type to variable 'myisam_sort_buffer_size'
 SELECT @@global.myisam_sort_buffer_size  ;
 @@global.myisam_sort_buffer_size
-429496729533
+4096
 SET @@global.myisam_sort_buffer_size   = "test";
 ERROR 42000: Incorrect argument type to variable 'myisam_sort_buffer_size'
 SELECT @@global.myisam_sort_buffer_size  ;
 @@global.myisam_sort_buffer_size
-429496729533
+4096
 SET @@global.myisam_sort_buffer_size   = 'test';
 ERROR 42000: Incorrect argument type to variable 'myisam_sort_buffer_size'
 SELECT @@global.myisam_sort_buffer_size  ;
 @@global.myisam_sort_buffer_size
-429496729533
+4096
 SET @@global.myisam_sort_buffer_size   = ON;
 ERROR 42000: Incorrect argument type to variable 'myisam_sort_buffer_size'
 SELECT @@global.myisam_sort_buffer_size  ;
 @@global.myisam_sort_buffer_size
-429496729533
+4096
 SET @@session.myisam_sort_buffer_size   = 0;
 Warnings:
 Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '0'
