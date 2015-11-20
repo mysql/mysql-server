@@ -2421,8 +2421,6 @@ DECLARE_THREAD(buf_resize_thread)(
 
 	srv_buf_resize_thread_active = true;
 
-	buf_resize_status("not started");
-
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 		os_event_wait(srv_buf_resize_event);
 		os_event_reset(srv_buf_resize_event);
