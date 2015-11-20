@@ -908,6 +908,33 @@ COUNT(*)
 connection con2;
 
 ================================================================================
+TEST 5 - BUG#22225549 MYSQL_CHANGE_USER/MYSQL_RESET_CONNECTION + SET INNODB...
+Update to plugin-defined session variable triggers resync with global
+variables and deadlocks on THD::LOCK_thd_sysvar.
+================================================================================
+SELECT @@global.show_compatibility_56;
+@@global.show_compatibility_56
+0
+select @@session.innodb_strict_mode;
+@@session.innodb_strict_mode
+1
+select user(), current_user();
+user()	current_user()
+root@localhost	root@localhost
+change_user root
+#
+# Trigger a resync of session variables with global variables.
+#
+set @@session.innodb_strict_mode=off;
+
+# Restore
+
+set @@session.innodb_strict_mode=1;
+select @@session.innodb_strict_mode;
+@@session.innodb_strict_mode
+1
+
+================================================================================
 CLEAN UP
 ================================================================================
 connection default;
