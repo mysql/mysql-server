@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -548,10 +548,12 @@ InitConfigFileParser::parseDefaultSectionHeader(const char* line) const {
   int no = sscanf(line, "[%120[A-Z_a-z] %120[A-Z_a-z]]", token1, token2);
 
   // Not correct no of tokens 
-  if (no != 2) return NULL;
+  if (no != 2)
+    return NULL;
 
   // Not correct keyword at end
-  if (!native_strcasecmp(token2, "DEFAULT") == 0) return NULL;
+  if (native_strcasecmp(token2, "DEFAULT") != 0)
+    return NULL;
 
   const char *token1_alias= m_info->getAlias(token1);
   if (token1_alias == 0)
