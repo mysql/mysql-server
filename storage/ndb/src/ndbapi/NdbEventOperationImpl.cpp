@@ -1786,7 +1786,8 @@ NdbEventBuffer::nextEvent2()
     m_ndb->theImpl->incClientStat(Ndb::EventBytesRecvdCount, data_size);
 
     NdbEventOperationImpl *op= data->m_event_op;
-    assert(!(op && op->m_state == 0xDead)); //event_op destructed?
+    // Check event_op magic state to detect destructed
+    assert(!(op && op->m_state == (NdbEventOperation::State)0xDead));
 
     /*
      * Exceptional events are not yet associated with an event operation,
