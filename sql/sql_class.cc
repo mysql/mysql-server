@@ -2064,6 +2064,21 @@ struct Item_change_record: public ilink
   static void operator delete(void *ptr, void *mem) { /* never called */ }
 };
 
+void THD::change_item_tree_place(Item **old_ref, Item **new_ref)
+{
+  I_List_iterator<Item_change_record> it(change_list);
+  Item_change_record *change;
+  while ((change= it++))
+  {
+    if (change->place == old_ref)
+    {
+      DBUG_PRINT("info", ("change_item_tree_place old_ref %p new_ref %p",
+                          old_ref, new_ref));
+      change->place= new_ref;
+      break;
+    }
+  }
+}
 
 /*
   Register an item tree tree transformation, performed by the query
