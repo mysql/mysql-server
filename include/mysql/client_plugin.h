@@ -89,7 +89,7 @@ extern "C" {
   const char *license;                                  \
   void *mysql_api;                                      \
   int (*init)(char *, size_t, int, va_list);            \
-  int (*deinit)();                                      \
+  int (*deinit)(void);                                  \
   int (*options)(const char *option, const void *);
 
 struct st_mysql_client_plugin
