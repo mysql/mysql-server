@@ -359,8 +359,13 @@ JOIN::optimize()
   error= -1;					// Error is sent to client
   sort_by_table= get_sort_by_table(order, group_list, select_lex->leaf_tables);
 
-  if (where_cond || group_list || order)
-    substitute_gc();
+  if ((where_cond || group_list || order) &&
+      substitute_gc(thd, select_lex, where_cond, group_list, order))
+  {
+    // We added hidden fields to the all_fields list, count them.
+    count_field_types(select_lex, &tmp_table_param, select_lex->all_fields,
+                      false, false);
+  }
 
   // Set up join order and initial access paths
   THD_STAGE_INFO(thd, stage_statistics);
@@ -747,9 +752,9 @@ setup_subq_exit:
 }
 
 
-/*
+/**
   Substitute all expressions in the WHERE condition and ORDER/GROUP lists
-  that matches generated columns (GC) expressions with GC fields, if any.
+  that match generated columns (GC) expressions with GC fields, if any.
 
   @details This function does 3 things:
   1) Creates list of all GC fields that are a part of a key and the GC
@@ -765,9 +770,19 @@ setup_subq_exit:
     list. When a match is found, the expression is replaced with a new
     Item_field for the matched GC field. Also, this new field is added to
     the hidden part of all_fields list.
+
+  @param thd         thread handle
+  @param select_lex  the current select
+  @param where_cond  the WHERE condition, possibly NULL
+  @param group_list  the GROUP BY clause, possibly NULL
+  @param order       the ORDER BY clause, possibly NULL
+
+  @return true if the GROUP BY clause or the ORDER BY clause was
+          changed, false otherwise
 */
 
-void JOIN::substitute_gc()
+bool substitute_gc(THD *thd, SELECT_LEX *select_lex, Item *where_cond,
+                   ORDER *group_list, ORDER *order)
 {
   List<Field> indexed_gc;
   Opt_trace_context * const trace= &thd->opt_trace;
@@ -795,7 +810,7 @@ void JOIN::substitute_gc()
   }
   // No GC in the tables used in the query
   if (indexed_gc.elements == 0)
-    return;
+    return false;
 
   if (where_cond)
   {
@@ -807,7 +822,7 @@ void JOIN::substitute_gc()
   }
 
   if (!(group_list || order))
-    return;
+    return false;
   // Filter out GCs that do not have index usable for GROUP/ORDER
   Field *gc;
   List_iterator<Field> li(indexed_gc);
@@ -821,7 +836,7 @@ void JOIN::substitute_gc()
       li.remove();
   }
   if (!indexed_gc.elements)
-    return;
+    return false;
 
   // Index could be used for ORDER only if there is no GROUP
   ORDER *list= group_list ? group_list : order;
@@ -845,24 +860,18 @@ void JOIN::substitute_gc()
       }
     }
   }
-  if (changed)
+  if (changed && trace->is_started())
   {
-    // We added hidden fields to the all_fields list, count them.
-    count_field_types(select_lex, &tmp_table_param, select_lex->all_fields,
-                      false, false);
-    if (trace->is_started())
-    {
-      String str;
-      SELECT_LEX::print_order(&str, list,
-                              enum_query_type(QT_TO_SYSTEM_CHARSET |
-                                              QT_SHOW_SELECT_NUMBER |
-                                              QT_NO_DEFAULT_DB));
-      subst_gc.add_utf8(group_list ? "resulting_GROUP_BY" :
-                          "resulting_ORDER_BY",
-                        str.ptr(), str.length());
-    }
+    String str;
+    SELECT_LEX::print_order(&str, list,
+                            enum_query_type(QT_TO_SYSTEM_CHARSET |
+                                            QT_SHOW_SELECT_NUMBER |
+                                            QT_NO_DEFAULT_DB));
+    subst_gc.add_utf8(group_list ? "resulting_GROUP_BY" :
+                      "resulting_ORDER_BY",
+                      str.ptr(), str.length());
   }
-  return;
+  return changed;
 }
 
 

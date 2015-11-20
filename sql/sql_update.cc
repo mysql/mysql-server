@@ -37,7 +37,7 @@
 #include "records.h"                  // READ_RECORD
 #include "sql_base.h"                 // open_tables_for_query
 #include "sql_cache.h"                // query_cache
-#include "sql_optimizer.h"            // build_equal_items
+#include "sql_optimizer.h"            // build_equal_items, substitute_gc
 #include "sql_resolver.h"             // setup_order
 #include "sql_select.h"               // free_underlaid_joins
 #include "sql_tmp_table.h"            // create_tmp_table
@@ -308,6 +308,17 @@ static bool mysql_update(THD *thd,
     DBUG_RETURN(1);
 
   ORDER *order= select_lex->order_list.first;
+
+  /*
+    See if we can substitute expressions with equivalent generated
+    columns in the WHERE and ORDER BY clauses of the UPDATE statement.
+    It is unclear if this is best to do before or after the other
+    substitutions performed by substitute_for_best_equal_field(). Do
+    it here for now, to keep it consistent with how multi-table
+    updates are optimized in JOIN::optimize().
+  */
+  if (conds || order)
+    static_cast<void>(substitute_gc(thd, select_lex, conds, NULL, order));
 
   if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) != 0 &&
       update.function_defaults_apply(table))

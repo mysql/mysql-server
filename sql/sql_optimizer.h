@@ -848,7 +848,6 @@ private:
       use by 'execute' or 'explain'
   */
   void test_skip_sort();
-  void substitute_gc();
 };
 
 /// RAII class to ease the call of LEX::mark_broken() if error.
@@ -902,5 +901,8 @@ inline bool field_time_cmp_date(const Field *f, const Item *v)
   return f->is_temporal() && !f->is_temporal_with_date() &&
     v->is_temporal_with_date();
 }
+
+bool substitute_gc(THD *thd, SELECT_LEX *select_lex, Item *where_cond,
+                   ORDER *group_list, ORDER *order);
 
 #endif /* SQL_OPTIMIZER_INCLUDED */

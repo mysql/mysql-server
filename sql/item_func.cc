@@ -942,7 +942,7 @@ Item_func::contributes_to_filter(table_map read_tables,
 /**
   Return new Item_field if given expression matches GC
 
-  @see JOIN::substitute_gc()
+  @see substitute_gc()
 
   @param func           Expression to be replaced
   @param fld            GCs field

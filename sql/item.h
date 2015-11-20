@@ -2116,17 +2116,17 @@ public:
   }
 
   /**
-    Analyzer function for GC substitution. @see JOIN::substitute_gc()
+    Analyzer function for GC substitution. @see substitute_gc()
   */
   virtual bool gc_subst_analyzer(uchar **arg) { return false; }
   /**
-    Transformer function for GC substitution. @see JOIN::substitute_gc()
+    Transformer function for GC substitution. @see substitute_gc()
   */
   virtual Item *gc_subst_transformer(uchar *arg) { return this; }
   /**
     Check if this item is of a type that is eligible for GC
     substitution. All items that belong to subclasses of Item_func are
-    eligible for substitution. @see JOIN::substitute_gc()
+    eligible for substitution. @see substitute_gc()
   */
   bool can_be_substituted_for_gc() const
   {
