@@ -966,7 +966,7 @@ ha_innopart::initialize_auto_increment(
 					" dictionaries are out of sync. Unable"
 					" to find the AUTOINC column "
 					<< col_name << " in the InnoDB table "
-					<< index->table->name << ". We set the"
+					<< ib_table->name << ". We set the"
 					" next AUTOINC column value to 0, in"
 					" effect disabling the AUTOINC next"
 					" value generation.";

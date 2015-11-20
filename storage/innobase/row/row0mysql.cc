@@ -5033,7 +5033,6 @@ row_rename_table_for_mysql(
 	mem_heap_t*	heap			= NULL;
 	const char**	constraints_to_drop	= NULL;
 	ulint		n_constraints_to_drop	= 0;
-	ibool		old_is_tmp, new_is_tmp;
 	pars_info_t*	info			= NULL;
 	int		retry;
 	bool		aux_fts_rename		= false;
@@ -5044,15 +5043,13 @@ row_rename_table_for_mysql(
 
 	if (srv_force_recovery) {
 		ib::info() << MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY;
-		err = DB_READ_ONLY;
-		goto funct_exit;
-
+		return(DB_READ_ONLY);
 	}
 
 	trx->op_info = "renaming table";
 
-	old_is_tmp = row_is_mysql_tmp_table_name(old_name);
-	new_is_tmp = row_is_mysql_tmp_table_name(new_name);
+	const bool	old_is_tmp = row_is_mysql_tmp_table_name(old_name);
+	const bool	new_is_tmp = row_is_mysql_tmp_table_name(new_name);
 
 	dict_locked = trx->dict_operation_lock_mode == RW_X_LATCH;
 
