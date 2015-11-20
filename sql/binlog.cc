@@ -8475,8 +8475,9 @@ bool THD::is_ddl_gtid_compatible() const
       inside a transaction because the table will stay and the
       transaction will be written to the slave's binary log with the
       GTID even if the transaction is rolled back.
+      This includes the execution inside Functions and Triggers.
     */
-    if (in_multi_stmt_transaction_mode())
+    if (in_multi_stmt_transaction_mode() || in_sub_stmt)
     {
       my_error(ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION,
                MYF(0));
