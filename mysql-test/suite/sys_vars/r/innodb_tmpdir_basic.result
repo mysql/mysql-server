@@ -14,13 +14,9 @@ innodb_tmpdir
 select * from information_schema.global_variables where variable_name='innodb_tmpdir';
 VARIABLE_NAME	VARIABLE_VALUE
 INNODB_TMPDIR	
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.global_variables instead
 select * from information_schema.session_variables where variable_name='innodb_tmpdir';
 VARIABLE_NAME	VARIABLE_VALUE
 INNODB_TMPDIR	
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.SESSION_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.session_variables instead
 set global innodb_tmpdir=@@global.tmpdir;
 set session innodb_tmpdir=@@global.tmpdir;
 set global innodb_tmpdir=1.1;
