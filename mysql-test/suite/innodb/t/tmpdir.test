@@ -53,8 +53,7 @@ set global innodb_tmpdir = @tmpdir;
 show session variables like 'innodb_tmpdir';
 --echo # Connection con3
 connect (con3,localhost,root);
---replace_regex /.*mysqld.1/mysqld.1/
-show session variables like 'innodb_tmpdir';
+# Following alter uses innodb_tmpdir as a path to create temporary files
 alter table t1 add fulltext(b);
 disconnect con3;
 connection default;

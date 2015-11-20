@@ -46,9 +46,6 @@ show session variables like 'innodb_tmpdir';
 Variable_name	Value
 innodb_tmpdir	
 # Connection con3
-show session variables like 'innodb_tmpdir';
-Variable_name	Value
-innodb_tmpdir	mysqld.1
 alter table t1 add fulltext(b);
 set global innodb_tmpdir=NULL;
 drop table t1;
