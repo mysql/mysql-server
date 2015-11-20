@@ -328,9 +328,9 @@ TAPTEST(NdbGetInAddr)
 }
 #endif
 
-
+#ifndef HAVE_POLL
 static inline
-int my_socket_nfds(ndb_socket_t s, int nfds)
+int ndb_socket_nfds(ndb_socket_t s, int nfds)
 {
 #ifdef _WIN32
   (void)s;
@@ -340,6 +340,7 @@ int my_socket_nfds(ndb_socket_t s, int nfds)
 #endif
   return nfds;
 }
+#endif
 
 #define my_FD_SET(sock,set)   FD_SET(ndb_socket_get_native(sock), set)
 #define my_FD_ISSET(sock,set) FD_ISSET(ndb_socket_get_native(sock), set)
@@ -373,8 +374,11 @@ int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock)
   my_FD_SET(sock, &writefds);
   my_FD_SET(sock, &errorfds);
 
-  if(select(my_socket_nfds(sock,0)+1, &readfds, &writefds, &errorfds, &tv)<0)
+  if(select(ndb_socket_nfds(sock,0)+1,
+            &readfds, &writefds, &errorfds, &tv)<0)
+  {
     return 1;
+  }
 
   if(my_FD_ISSET(sock,&errorfds))
     return 1;
