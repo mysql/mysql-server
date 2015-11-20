@@ -741,8 +741,8 @@ DECLARE_THREAD(buf_dump_thread)(
 
 	srv_buf_dump_thread_active = TRUE;
 
-	buf_dump_status(STATUS_VERBOSE, "not started");
-	buf_load_status(STATUS_VERBOSE, "not started");
+	buf_dump_status(STATUS_VERBOSE, "Dumping of buffer pool not started");
+	buf_load_status(STATUS_VERBOSE, "Loading of buffer pool not started");
 
 	if (srv_buffer_pool_load_at_startup) {
 		buf_load();

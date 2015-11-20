@@ -18,7 +18,7 @@ SELECT @orig;
 # it is then the following wait condition may be satisfied without the
 # dump actually being complete and file_exists may fail.
 let $status_var = innodb_buffer_pool_dump_status;
-let $status_var_value = not started;
+let $status_var_value = Dumping of buffer pool not started;
 -- source include/wait_for_status_var.inc
 --disable_warnings
 SELECT variable_value
