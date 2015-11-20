@@ -26,6 +26,11 @@
 #                           unzipping everything ~3 seconds 485M
 # 8,8M boost_headers.tar.gz unzipping everything <1 second
 
+# Invoke with -DWITH_BOOST=<directory> or set WITH_BOOST in environment.
+# If WITH_BOOST is *not* set, or is set to the special value "system",
+# we assume that the correct version (see below)
+# is installed on the compile host in the standard location.
+
 SET(BOOST_PACKAGE_NAME "boost_1_59_0")
 SET(BOOST_TARBALL "${BOOST_PACKAGE_NAME}.tar.gz")
 SET(BOOST_DOWNLOAD_URL
@@ -91,6 +96,11 @@ ENDIF()
 # Pick value from environment if not set on command line.
 IF(DEFINED ENV{BOOST_ROOT} AND NOT DEFINED WITH_BOOST)
   SET(WITH_BOOST "$ENV{BOOST_ROOT}")
+ENDIF()
+
+IF(WITH_BOOST AND WITH_BOOST STREQUAL "system")
+  UNSET(WITH_BOOST)
+  UNSET(WITH_BOOST CACHE)
 ENDIF()
 
 # Update the cache, to make it visible in cmake-gui.
@@ -262,9 +272,18 @@ ENDIF()
 MESSAGE(STATUS "BOOST_INCLUDE_DIR ${BOOST_INCLUDE_DIR}")
 
 # We have a limited set of patches/bugfixes here:
-SET(BOOST_PATCHES_DIR "${CMAKE_SOURCE_DIR}/include/boost_1_59_0")
+SET(BOOST_PATCHES_DIR "${CMAKE_SOURCE_DIR}/include/boost_1_59_0/patches")
+
+# We have a limited set of source files here:
+SET(BOOST_SOURCES_DIR "${CMAKE_SOURCE_DIR}/include/boost_1_59_0")
 
 # Bug in sqrt(NaN) on 32bit platforms
 IF(SIZEOF_VOIDP EQUAL 4)
   ADD_DEFINITIONS(-DBOOST_GEOMETRY_SQRT_CHECK_FINITENESS)
+ENDIF()
+
+IF(LOCAL_BOOST_DIR OR LOCAL_BOOST_ZIP)
+  SET(USING_LOCAL_BOOST 1)
+ELSE()
+  SET(USING_SYSTEM_BOOST 1)
 ENDIF()

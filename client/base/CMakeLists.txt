@@ -52,7 +52,7 @@ ADD_COMPILE_FLAGS(
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
 
-TARGET_LINK_LIBRARIES(client_base mysqlclient boost_lib)
+TARGET_LINK_LIBRARIES(client_base mysqlclient)
 
 # Do not build library unless it is needed by some other target.
 SET_PROPERTY(TARGET client_base PROPERTY EXCLUDE_FROM_ALL TRUE)

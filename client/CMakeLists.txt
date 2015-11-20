@@ -30,12 +30,6 @@ INCLUDE_DIRECTORIES(
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
-# Prevent Boost from including external precompiled Boost libraries, use
-# threading (not implemented for Solaris) and turn off unused functionality.
-ADD_DEFINITIONS(
-  -DBOOST_ALL_NO_LIB
-  -DBOOST_SYSTEM_NO_DEPRECATED)
-
 ## Subdirectory with common client code.
 ADD_SUBDIRECTORY(base)
 ## Subdirectory for mysqlpump code.
@@ -45,74 +39,6 @@ ADD_SUBDIRECTORY(dump)
 COPY_OPENSSL_DLLS(copy_openssl_client)
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-
-SET(BOOST_SOURCES_DIR ${BOOST_PATCHES_DIR})
-
-IF(WIN32)
-  LIST(APPEND BOOST_THREAD_SOURCES
-    ${BOOST_SOURCES_DIR}/libs/thread/src/win32/thread.cpp
-    ${BOOST_SOURCES_DIR}/libs/thread/src/win32/tss_dll.cpp
-    ${BOOST_SOURCES_DIR}/libs/thread/src/win32/tss_pe.cpp
-  )
-ELSE()
-  LIST(APPEND BOOST_THREAD_SOURCES
-    ${BOOST_SOURCES_DIR}/libs/thread/src/pthread/once.cpp
-    ${BOOST_SOURCES_DIR}/libs/thread/src/pthread/thread.cpp
-  )
-ENDIF()
-
-SET(BOOST_LIB_SOURCES
-  ${BOOST_SOURCES_DIR}/libs/atomic/src/lockpool.cpp
-  ${BOOST_SOURCES_DIR}/libs/chrono/src/chrono.cpp
-  ${BOOST_SOURCES_DIR}/libs/chrono/src/process_cpu_clocks.cpp
-  ${BOOST_SOURCES_DIR}/libs/chrono/src/thread_clock.cpp
-  ${BOOST_SOURCES_DIR}/libs/system/src/error_code.cpp
-  ${BOOST_SOURCES_DIR}/libs/thread/src/future.cpp
-)
-
-ADD_CONVENIENCE_LIBRARY(boost_lib
-  ${BOOST_LIB_SOURCES}
-  ${BOOST_THREAD_SOURCES}
-)
-
-SET_TARGET_PROPERTIES(boost_lib
-  PROPERTIES COMPILE_FLAGS "-DBOOST_THREAD_BUILD_LIB")
-
-IF(HAVE_clock_gettime_IN_rt)
-  TARGET_LINK_LIBRARIES(boost_lib ${LIBRT})
-ENDIF()
-
-# Do not build library unless it is needed by some other target.
-SET_PROPERTY(TARGET boost_lib PROPERTY EXCLUDE_FROM_ALL TRUE)
-
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-logical-op" HAVE_NO_LOGICAL_OP)
-IF(HAVE_NO_LOGICAL_OP)
-  ADD_COMPILE_FLAGS(
-    ${BOOST_SOURCES_DIR}/libs/thread/src/pthread/thread.cpp
-    COMPILE_FLAGS "-Wno-logical-op"
-  )
-ENDIF()
-
-# Boost source has unused local typedefs.
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
-IF(HAVE_NO_UNUSED_TYPEDEFS)
-  ADD_COMPILE_FLAGS(
-    ${BOOST_SOURCES_DIR}/libs/thread/src/pthread/once.cpp
-    ${BOOST_SOURCES_DIR}/libs/thread/src/pthread/thread.cpp
-    COMPILE_FLAGS "-Wno-unused-local-typedefs"
-  )
-ENDIF()
-
-ADD_COMPILE_FLAGS(
-  ${BOOST_LIB_SOURCES}
-  ${BOOST_THREAD_SOURCES}
-  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
-)
-
-# Need explicit pthread for gcc -fsanitize=address
-IF(CMAKE_USE_PTHREADS_INIT AND CMAKE_C_FLAGS MATCHES "-fsanitize=")
-  TARGET_LINK_LIBRARIES(boost_lib pthread)
-ENDIF()
 
 ADD_DEFINITIONS(${SSL_DEFINES})
 MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc ../sql-common/sql_string.cc)
