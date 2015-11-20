@@ -4889,8 +4889,24 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
             As this is an outer field it should be added to the list of
             non aggregated fields of the outer select.
           */
-          marker= select->cur_pos_in_select_list;
-          select->join->non_agg_fields.push_back(this);
+          if (select->join)
+          {
+            marker= select->cur_pos_in_select_list;
+            select->join->non_agg_fields.push_back(this);
+          }
+          else
+          {
+            /*
+              join is absent if it is upper SELECT_LEX of non-select
+              command
+            */
+            DBUG_ASSERT(select->master_unit()->outer_select() == NULL &&
+                        (thd->lex->sql_command != SQLCOM_SELECT &&
+                         thd->lex->sql_command != SQLCOM_UPDATE_MULTI &&
+                         thd->lex->sql_command != SQLCOM_DELETE_MULTI &&
+                         thd->lex->sql_command != SQLCOM_INSERT_SELECT &&
+                         thd->lex->sql_command != SQLCOM_REPLACE_SELECT));
+          }
         }
         if (*from_field != view_ref_found)
         {

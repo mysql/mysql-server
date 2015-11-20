@@ -3633,3 +3633,25 @@ SELECT 1 FROM t1 GROUP BY 0 OR 18446744073709551615+1;
 drop table t1;
 
 --echo # End of 5.3 tests
+
+--echo #
+--echo # MDEV-8756: MariaDB 10.0.21 crashes during PREPARE
+--echo #
+
+CREATE TABLE t1 ( id INT(10), value INT(10) );
+CREATE TABLE t2 ( id INT(10) );
+SET @save_sql_mode= @@sql_mode;
+SET SESSION sql_mode = 'ONLY_FULL_GROUP_BY';
+
+PREPARE stmt FROM 'UPDATE t1 t1 SET value = (SELECT 1 FROM t2 WHERE id = t1.id)'; 
+execute stmt;
+insert into t1 values (1,10),(2,10),(3,10);
+insert into t2 values (1),(2);
+execute stmt;
+select * from t1;
+deallocate prepare stmt;
+SET SESSION sql_mode = @save_sql_mode;
+DROP TABLE t1,t2;
+
+
+--echo # End of 10.0 tests
