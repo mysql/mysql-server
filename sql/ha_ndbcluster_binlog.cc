@@ -3725,8 +3725,7 @@ class Ndb_schema_event_handler {
       if (opt_ndb_extra_logging > 9)
         sql_print_information("%s - %s.%s",
                               get_schema_type_name(schema_type),
-                              schema->db ? schema->db : "(null)",
-                              schema->name ? schema->name : "(null)");
+                              schema->db, schema->name);
 
       switch (schema_type)
       {
