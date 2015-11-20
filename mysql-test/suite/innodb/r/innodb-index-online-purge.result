@@ -27,9 +27,6 @@ SET DEBUG_SYNC='row_log_apply_before SIGNAL created_t WAIT_FOR dml_done_t';
 CREATE INDEX c1 ON t (c(1));
 SET DEBUG_SYNC='now WAIT_FOR created_t';
 UPDATE t SET c='ab';
-SELECT SLEEP(10);
-SLEEP(10)
-0
 SET DEBUG_SYNC='now SIGNAL dml_done_u';
 SET DEBUG_SYNC='now SIGNAL dml_done_t';
 SET DEBUG_SYNC='RESET';
