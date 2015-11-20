@@ -2098,23 +2098,20 @@ end:
   {
     int max_timeout= DEFAULT_SYNC_TIMEOUT;
     pthread_mutex_lock(&ndb_schema_object->mutex);
-    while (1)
+    while (true)
     {
       struct timespec abstime;
       int i;
       int no_storage_nodes= g_ndb_cluster_connection->no_db_nodes();
       set_timespec(abstime, 1);
 
-      // Unlock the schema object and wait for injector to signal that
-      // something has happened. (NOTE! convoluted in order to
-      // only use injector_cond with injector_mutex)
-      pthread_mutex_unlock(&ndb_schema_object->mutex);
-      pthread_mutex_lock(&injector_mutex);
-      int ret= pthread_cond_timedwait(&injector_cond,
-                                      &injector_mutex,
-                                      &abstime);
-      pthread_mutex_unlock(&injector_mutex);
-      pthread_mutex_lock(&ndb_schema_object->mutex);
+      // Wait for operation on ndb_schema_object to complete.
+      // Condition for completion is that 'slock_bitmap' is cleared,
+      // which is signaled by ::handle_clear_slock() on
+      // 'ndb_schema_object->cond'
+      const int ret= pthread_cond_timedwait(&ndb_schema_object->cond,
+                                            &ndb_schema_object->mutex,
+                                            &abstime);
 
       if (thd->killed)
         break;
@@ -2146,7 +2143,7 @@ end:
       bitmap_free(&servers);
 
       if (bitmap_is_clear_all(&ndb_schema_object->slock_bitmap))
-        break;
+        break; //Done, normal completion
 
       if (ret)
       {
@@ -2985,13 +2982,12 @@ class Ndb_schema_event_handler {
     DBUG_DUMP("ndb_schema_object->slock_bitmap.bitmap",
               (uchar*)ndb_schema_object->slock_bitmap.bitmap,
               no_bytes_in_map(&ndb_schema_object->slock_bitmap));
-    pthread_mutex_unlock(&ndb_schema_object->mutex);
-
-    ndb_free_schema_object(&ndb_schema_object);
 
     /* Wake up the waiter */
-    pthread_cond_signal(&injector_cond);
-
+    pthread_mutex_unlock(&ndb_schema_object->mutex);
+    pthread_cond_signal(&ndb_schema_object->cond);
+  
+    ndb_free_schema_object(&ndb_schema_object);
     DBUG_VOID_RETURN;
   }
 
@@ -3681,6 +3677,12 @@ class Ndb_schema_event_handler {
     DBUG_VOID_RETURN;
   }
 
+  void check_wakeup_clients()
+  {
+    // Check all Client's for wakeup
+    NDB_SCHEMA_OBJECT::check_waiters();
+  }
+
   THD* m_thd;
   MEM_ROOT* m_mem_root;
   uint m_own_nodeid;
@@ -3784,7 +3786,7 @@ public:
                               tmp_share->subscriber_bitmap[node_id].bitmap[0]);
       }
       pthread_mutex_unlock(&tmp_share->mutex);
-      (void) pthread_cond_signal(&injector_cond);
+      check_wakeup_clients();
       break;
     }
 
@@ -3808,7 +3810,7 @@ public:
                               tmp_share->subscriber_bitmap[node_id].bitmap[0]);
       }
       pthread_mutex_unlock(&tmp_share->mutex);
-      (void) pthread_cond_signal(&injector_cond);
+      check_wakeup_clients();
       break;
     }
 
@@ -3832,7 +3834,7 @@ public:
                               tmp_share->subscriber_bitmap[node_id].bitmap[0]);
       }
       pthread_mutex_unlock(&tmp_share->mutex);
-      (void) pthread_cond_signal(&injector_cond);
+      check_wakeup_clients();
       break;
     }
 

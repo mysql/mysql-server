@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -85,6 +85,7 @@ NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
       break;
     }
     pthread_mutex_init(&ndb_schema_object->mutex, MY_MUTEX_INIT_FAST);
+    pthread_cond_init(&ndb_schema_object->cond, NULL);
     bitmap_init(&ndb_schema_object->slock_bitmap, ndb_schema_object->slock,
                 sizeof(ndb_schema_object->slock)*8, FALSE);
     bitmap_clear_all(&ndb_schema_object->slock_bitmap);
@@ -111,6 +112,7 @@ ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object)
   {
     DBUG_PRINT("info", ("use_count: %d", (*ndb_schema_object)->use_count));
     my_hash_delete(&ndb_schema_objects.m_hash, (uchar*) *ndb_schema_object);
+    pthread_cond_destroy(&(*ndb_schema_object)->cond);
     pthread_mutex_destroy(&(*ndb_schema_object)->mutex);
     my_free(*ndb_schema_object);
     *ndb_schema_object= 0;
@@ -121,4 +123,24 @@ ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object)
   }
   pthread_mutex_unlock(&ndbcluster_mutex);
   DBUG_VOID_RETURN;
+}
+
+//static
+void NDB_SCHEMA_OBJECT::check_waiters()
+{
+  pthread_mutex_lock(&ndbcluster_mutex);
+  for (ulong i = 0; i < ndb_schema_objects.m_hash.records; i++)
+  {
+    NDB_SCHEMA_OBJECT *schema_object =
+        (NDB_SCHEMA_OBJECT*)my_hash_element(&ndb_schema_objects.m_hash, i);
+    schema_object->check_waiter();
+  }
+  pthread_mutex_unlock(&ndbcluster_mutex);
+}
+
+void
+NDB_SCHEMA_OBJECT::check_waiter()
+{
+  // Wakeup waiting Client
+  pthread_cond_signal(&cond);
 }

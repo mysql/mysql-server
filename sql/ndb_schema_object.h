@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,7 +35,8 @@
 #include <my_bitmap.h>
 
 struct NDB_SCHEMA_OBJECT {
-  pthread_mutex_t mutex;
+  pthread_mutex_t mutex; //Protects NDB_SCHEMA_OBJ and 'cond'
+  pthread_cond_t cond;   //Signal/wait slock_bitmap changes
   char *key;
   uint key_length;
   uint use_count;
@@ -43,6 +44,13 @@ struct NDB_SCHEMA_OBJECT {
   uint32 slock[256/32]; // 256 bits for lock status of table
   uint32 table_id;
   uint32 table_version;
+
+public:
+  // Check all Clients if any should wakeup due to new participant status
+  static void check_waiters();
+
+private:
+  void check_waiter();
 };
 
 NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
