@@ -8146,7 +8146,9 @@ int THD::decide_logging_format(TABLE_LIST *tables)
           given statement.
         */
         if (!lex->is_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_TWO_KEYS) &&
-            lex->sql_command == SQLCOM_INSERT && lex->duplicates == DUP_UPDATE)
+            lex->sql_command == SQLCOM_INSERT &&
+            /* Duplicate key update is not supported by INSERT DELAYED */
+            get_command() != COM_DELAYED_INSERT && lex->duplicates == DUP_UPDATE)
         {
           uint keys= table->table->s->keys, i= 0, unique_keys= 0;
           for (KEY* keyinfo= table->table->s->key_info;
