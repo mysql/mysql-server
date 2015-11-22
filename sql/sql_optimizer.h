@@ -158,7 +158,7 @@ public:
     for (ORDER *group= group_list; group; group= group->next)
       group_list_size++;
 	if (select->olap == CUBE_TYPE)
-	  send_group_parts = (int)(pow(2, group_list_size));
+	  send_group_parts = (int)(pow(2, group_list_size)) - 1;
 	else
 	  send_group_parts = group_list_size;
   }

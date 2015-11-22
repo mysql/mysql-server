@@ -3160,7 +3160,7 @@ public:
 	switch (type_)
 	{
 	case CUBE_TYPE:
-	  n = (uint) pow(2, group_list_length);
+	  n = (uint) pow(2, group_list_length) - 1;
 	  break;
 	case ROLLUP_TYPE:
 	  n = group_list_length;
@@ -3174,10 +3174,23 @@ public:
 	memset(bitmap_, 0, bitmap_size * sizeof(bool));
 	count = 0;
   }
-  ~Group_by_bitmap(){}
-  /*Get a new combination, returns NULL if exhausted*/
-  Bounds_checked_array<bool> *GetNext(){
-	return &bitmap;
+  ~Group_by_bitmap(){ free(bitmap_); }
+  /*Get a new combination*/
+  Bounds_checked_array<bool> &GetNext(){
+	if (count >= n)
+	  return bitmap;
+	switch (type_)
+	{
+	case CUBE_TYPE:
+	  break;
+	case ROLLUP_TYPE:
+	  bitmap[bitmap_size - 1 - count] = TRUE;
+	  break;
+	default:
+	  break;
+	}
+	count++;
+	return bitmap;
   }
   THD *thd;
   uint bitmap_size;
@@ -3236,11 +3249,10 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
     ...
   */
   Group_by_bitmap *subtotal_bitmap;
-  Bounds_checked_array<bool> *bitmap;
-  subtotal_bitmap = new (thd->mem_root) Group_by_bitmap(thd, select_lex->olap, group_list_size);
+  //subtotal_bitmap = new (thd->mem_root) Group_by_bitmap(thd, select_lex->olap, group_list_size);
+  subtotal_bitmap = new Group_by_bitmap(thd, select_lex->olap, group_list_size);
   for (level = 0; level < send_group_parts; level++){
-	bitmap = subtotal_bitmap->GetNext();
-	if (bitmap == NULL)return TRUE;
+	Bounds_checked_array<bool> &bitmap = subtotal_bitmap->GetNext();
 	uint pos = send_group_parts - level - 1;
 	bool real_fields = 0;
 	Item *item;
@@ -3283,7 +3295,7 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 		ORDER *group_tmp = group_list;
 		uint i = 0;
 		for (; group_tmp; group_tmp = group_tmp->next, i++){
-		  if (*group_tmp->item == item && (&bitmap)[i])
+		  if (*group_tmp->item == item && bitmap[i])
 		  {
 			/*
 			This is an element that is used by the GROUP BY and should be
@@ -3313,6 +3325,7 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 	}
   }
   sum_funcs_end[0] = *func;			// Point to last function
+  delete subtotal_bitmap;
   return 0;
 }
 
