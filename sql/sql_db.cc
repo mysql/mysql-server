@@ -745,7 +745,7 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
 
   DBUG_ASSERT(sch_obj);
 
-  std::auto_ptr<dd::Iterator<const dd::Abstract_table> > iter;
+  std::unique_ptr<dd::Iterator<const dd::Abstract_table> > iter;
   if (thd->dd_client()->fetch_schema_components(sch_obj, &iter))
     DBUG_RETURN(true);
 

@@ -79,14 +79,14 @@ bool Table_partitions::get_partition_table_id(
   DBUG_ASSERT(oid);
   *oid= INVALID_OBJECT_ID;
 
-  const std::auto_ptr<Object_key> k(
+  const std::unique_ptr<Object_key> k(
     create_se_private_key(engine, se_private_id));
 
   Raw_table *t= trx.otx.get_table(table_name());
   DBUG_ASSERT(t);
 
   // Find record by the object-key.
-  std::auto_ptr<Raw_record> r;
+  std::unique_ptr<Raw_record> r;
   if (t->find_record(*k, r))
   {
     DBUG_RETURN(true);

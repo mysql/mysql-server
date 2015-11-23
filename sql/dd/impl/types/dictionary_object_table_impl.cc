@@ -44,7 +44,7 @@ bool Dictionary_object_table_impl::restore_object_from_record(
 
   // Create object instance.
 
-  std::auto_ptr<Dictionary_object> obj(
+  std::unique_ptr<Dictionary_object> obj(
     this->create_dictionary_object(record));
 
   /*

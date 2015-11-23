@@ -74,7 +74,7 @@ bool Weak_object_impl::store(Open_dictionary_tables_ctx *otx)
     if (this->has_new_primary_key())
       break;
 
-    std::auto_ptr<Object_key> obj_key(this->create_primary_key());
+    std::unique_ptr<Object_key> obj_key(this->create_primary_key());
 
     if (!obj_key.get())
     {
@@ -85,7 +85,7 @@ bool Weak_object_impl::store(Open_dictionary_tables_ctx *otx)
       /* purecov: end */
     }
 
-    std::auto_ptr<Raw_record> r;
+    std::unique_ptr<Raw_record> r;
     if (t->prepare_record_for_update(*obj_key, r))
       DBUG_RETURN(true);
 
@@ -111,7 +111,7 @@ bool Weak_object_impl::store(Open_dictionary_tables_ctx *otx)
 
   // No existing record exists -- do an INSERT.
 
-  std::auto_ptr<Raw_new_record> r(t->prepare_record_for_insert());
+  std::unique_ptr<Raw_new_record> r(t->prepare_record_for_insert());
 
   // Store attributes.
 
@@ -180,9 +180,9 @@ bool Weak_object_impl::drop(Open_dictionary_tables_ctx *otx)
 
   // Find object to be dropped
 
-  std::auto_ptr<Object_key> obj_key(this->create_primary_key());
+  std::unique_ptr<Object_key> obj_key(this->create_primary_key());
 
-  std::auto_ptr<Raw_record> r;
+  std::unique_ptr<Raw_record> r;
   if (t->prepare_record_for_update(*obj_key, r))
     DBUG_RETURN(true);
 

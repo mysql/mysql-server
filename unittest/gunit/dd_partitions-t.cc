@@ -52,7 +52,7 @@ protected:
   {
     const dd::Table_impl *table= m_table;
     std::vector<int> partition_levels;
-    std::auto_ptr<dd::Iterator<const dd::Partition> > it1(table->partitions());
+    std::unique_ptr<dd::Iterator<const dd::Partition> > it1(table->partitions());
 
     while(true) {
       const dd::Partition *p= it1->next();

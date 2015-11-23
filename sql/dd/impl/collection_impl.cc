@@ -20,7 +20,7 @@
 #include "dd/impl/raw/raw_record_set.h" // dd::Raw_record_set
 #include "dd/impl/raw/raw_table.h"      // dd::Raw_table
 
-#include <memory>     // std::auto_ptr
+#include <memory>     // std::unique_ptr
 
 namespace dd {
 
@@ -126,9 +126,9 @@ bool Base_collection::restore_items(
 
   DBUG_ASSERT(is_empty());
 
-  std::auto_ptr<Object_key> key_holder(key);
+  std::unique_ptr<Object_key> key_holder(key);
 
-  std::auto_ptr<Raw_record_set> rs;
+  std::unique_ptr<Raw_record_set> rs;
   if (table->open_record_set(key, rs))
     DBUG_RETURN(true);
 
@@ -228,7 +228,7 @@ bool Base_collection::drop_items(Open_dictionary_tables_ctx *otx,
   DBUG_ENTER("Base_collection::drop_items");
 
   // Make sure key gets deleted
-  std::auto_ptr<Object_key> key_holder(key);
+  std::unique_ptr<Object_key> key_holder(key);
 
   if (is_empty())
     DBUG_RETURN(false);
@@ -243,7 +243,7 @@ bool Base_collection::drop_items(Open_dictionary_tables_ctx *otx,
       DBUG_RETURN(true);
   }
 
-  std::auto_ptr<Raw_record_set> rs;
+  std::unique_ptr<Raw_record_set> rs;
   if (table->open_record_set(key, rs))
     DBUG_RETURN(true);
 

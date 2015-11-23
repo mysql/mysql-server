@@ -469,7 +469,7 @@ TEST_F(SchemaTest, GetSchema)
 
   // Get the raw table and lookup the object by the name key.
   Raw_table *t= ctx->otx.get_table<Schema>();
-  std::auto_ptr<Raw_record> r;
+  std::unique_ptr<Raw_record> r;
   EXPECT_FALSE(t->find_record(key, r));
 
   // Restore the object from the record.

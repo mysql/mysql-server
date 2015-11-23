@@ -202,7 +202,7 @@ bool create_view(THD *thd,
   }
 
   // Create dd::View object.
-  std::auto_ptr<dd::View> view_obj;
+  std::unique_ptr<dd::View> view_obj;
   if (dd::get_dictionary()->is_system_view_name(schema_name, view_name))
   {
     view_obj.reset(const_cast<dd::Schema *>(sch_obj)->create_system_view());

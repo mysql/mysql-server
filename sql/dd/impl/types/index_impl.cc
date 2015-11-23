@@ -274,7 +274,7 @@ void Index_impl::debug_print(std::string &outb) const
     << " [ ";
 
   {
-    std::auto_ptr<Index_element_const_iterator> it(elements());
+    std::unique_ptr<Index_element_const_iterator> it(elements());
 
     while (true)
     {
@@ -354,7 +354,7 @@ uint Index_impl::user_elements_count() const
   if (m_user_elements_count_cache == INVALID_USER_ELEMENTS_COUNT)
   {
     uint count= 0;
-    std::auto_ptr<Index_element_const_iterator> it(user_elements());
+    std::unique_ptr<Index_element_const_iterator> it(user_elements());
 
     while ((it->next()!= NULL))
       count++;

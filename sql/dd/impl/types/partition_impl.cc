@@ -269,7 +269,7 @@ void Partition_impl::debug_print(std::string &outb) const
     << " [ ";
 
   {
-    std::auto_ptr<Partition_value_const_iterator> it(values());
+    std::unique_ptr<Partition_value_const_iterator> it(values());
 
     while (true)
     {
@@ -289,7 +289,7 @@ void Partition_impl::debug_print(std::string &outb) const
     << " [ ";
 
   {
-    std::auto_ptr<Partition_index_const_iterator> it(indexes());
+    std::unique_ptr<Partition_index_const_iterator> it(indexes());
 
     while (true)
     {

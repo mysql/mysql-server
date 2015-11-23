@@ -67,7 +67,7 @@ bool Storage_adapter::get(THD *thd, const K &key, const T **object)
   Raw_table *t= trx.otx.get_table(table.name());
 
   // Find record by the object-id.
-  std::auto_ptr<Raw_record> r;
+  std::unique_ptr<Raw_record> r;
   if (t->find_record(key, r))
   {
     DBUG_ASSERT(thd->is_error() || thd->killed);

@@ -363,7 +363,7 @@ void Column_impl::debug_print(std::string &outb) const
   {
     ss << "m_enum_elements: [ ";
 
-    std::auto_ptr<Column_type_element_const_iterator> it(enum_elements());
+    std::unique_ptr<Column_type_element_const_iterator> it(enum_elements());
 
     while (true)
     {
@@ -383,7 +383,7 @@ void Column_impl::debug_print(std::string &outb) const
   {
     ss << "m_set_elements: [ ";
 
-    std::auto_ptr<Column_type_element_const_iterator> it(set_elements());
+    std::unique_ptr<Column_type_element_const_iterator> it(set_elements());
 
     while (true)
     {

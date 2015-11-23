@@ -448,7 +448,7 @@ size_t Dictionary_client::release(Object_registry *registry)
     // Clone the object before releasing it. The object is needed for checking
     // the meta data lock afterwards.
 #ifndef DBUG_OFF
-    std::auto_ptr<const T> object_clone(element->object()->clone());
+    std::unique_ptr<const T> object_clone(element->object()->clone());
 #endif
 
     // Release the element from the shared cache.
@@ -979,7 +979,7 @@ bool Dictionary_client::fetch_schema_component_names(
   DBUG_ASSERT(names);
 
   // Create the key based on the schema id.
-  std::auto_ptr<Object_key> object_key(
+  std::unique_ptr<Object_key> object_key(
     dd::tables::Tables::create_key_by_schema_id(schema->id()));
 
   // Retrieve a set of the schema components, and add the component names
@@ -996,7 +996,7 @@ bool Dictionary_client::fetch_schema_component_names(
     return true;
   }
 
-  std::auto_ptr<Raw_record_set> rs;
+  std::unique_ptr<Raw_record_set> rs;
   if (table->open_record_set(object_key.get(), rs))
   {
     DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
@@ -1024,14 +1024,14 @@ bool Dictionary_client::fetch_schema_component_names(
 template <typename Iterator_type>
 bool Dictionary_client::fetch_schema_components(
     const Schema *schema,
-    std::auto_ptr<Iterator_type> *iter) const
+    std::unique_ptr<Iterator_type> *iter) const
 {
-  std::auto_ptr<Dictionary_object_collection<
+  std::unique_ptr<Dictionary_object_collection<
     typename Iterator_type::Object_type> > c(
       new (std::nothrow) Dictionary_object_collection<
         typename Iterator_type::Object_type>(m_thd));
   {
-    std::auto_ptr<Object_key> k(
+    std::unique_ptr<Object_key> k(
       Iterator_type::Object_type::cache_partition_table_type::
         create_key_by_schema_id(schema->id()));
 
@@ -1052,14 +1052,14 @@ bool Dictionary_client::fetch_schema_components(
 /* purecov: begin deadcode */
 template <typename Iterator_type>
 bool Dictionary_client::fetch_catalog_components(
-    std::auto_ptr<Iterator_type> *iter) const
+    std::unique_ptr<Iterator_type> *iter) const
 {
-  std::auto_ptr<Dictionary_object_collection
+  std::unique_ptr<Dictionary_object_collection
     <typename Iterator_type::Object_type> > c(
       new (std::nothrow) Dictionary_object_collection
         <typename Iterator_type::Object_type>(m_thd));
   {
-    std::auto_ptr<Object_key> k(
+    std::unique_ptr<Object_key> k(
       Iterator_type::Object_type::cache_partition_table_type::
         create_key_by_catalog_id(1));
     if (c->fetch(k.get()))
@@ -1080,9 +1080,9 @@ bool Dictionary_client::fetch_catalog_components(
 /* purecov: begin deadcode */
 template <typename Iterator_type>
 bool Dictionary_client::fetch_global_components(
-    std::auto_ptr<Iterator_type> *iter) const
+    std::unique_ptr<Iterator_type> *iter) const
 {
-  std::auto_ptr<Dictionary_object_collection
+  std::unique_ptr<Dictionary_object_collection
     <typename Iterator_type::Object_type> > c(
       new (std::nothrow) Dictionary_object_collection
         <typename Iterator_type::Object_type>(m_thd));
@@ -1289,21 +1289,21 @@ void Dictionary_client::dump() const
 // Explicitly instantiate the types for the various usages.
 template bool Dictionary_client::fetch_schema_components(
     const Schema*,
-    std::auto_ptr<Abstract_table_const_iterator>*) const;
+    std::unique_ptr<Abstract_table_const_iterator>*) const;
 
 template bool Dictionary_client::fetch_schema_components(
     const Schema*,
-    std::auto_ptr<Table_const_iterator>*) const;
+    std::unique_ptr<Table_const_iterator>*) const;
 
 template bool Dictionary_client::fetch_schema_components(
     const Schema*,
-    std::auto_ptr<View_const_iterator>*) const;
+    std::unique_ptr<View_const_iterator>*) const;
 
 template bool Dictionary_client::fetch_catalog_components(
-    std::auto_ptr<Schema_const_iterator>*) const;
+    std::unique_ptr<Schema_const_iterator>*) const;
 
 template bool Dictionary_client::fetch_global_components(
-    std::auto_ptr<Tablespace_const_iterator>*) const;
+    std::unique_ptr<Tablespace_const_iterator>*) const;
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   const Abstract_table**);

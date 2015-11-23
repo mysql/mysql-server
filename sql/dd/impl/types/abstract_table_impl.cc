@@ -206,7 +206,7 @@ void Abstract_table_impl::debug_print(std::string &outb) const
     << "m_columns: " << m_columns->size() << " [ ";
 
   {
-    std::auto_ptr<Column_const_iterator> it(columns());
+    std::unique_ptr<Column_const_iterator> it(columns());
 
     while (true)
     {
@@ -270,7 +270,7 @@ Column_iterator *Abstract_table_impl::user_columns()
 
 Column *Abstract_table_impl::get_column(Object_id column_id)
 {
-  std::auto_ptr<Column_iterator> it(columns());
+  std::unique_ptr<Column_iterator> it(columns());
 
   while (true)
   {
@@ -290,7 +290,7 @@ Column *Abstract_table_impl::get_column(Object_id column_id)
 
 Column *Abstract_table_impl::get_column(const std::string name)
 {
-  std::auto_ptr<Column_iterator> it(columns());
+  std::unique_ptr<Column_iterator> it(columns());
 
   while (true)
   {

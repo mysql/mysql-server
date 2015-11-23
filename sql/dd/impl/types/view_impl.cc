@@ -230,7 +230,7 @@ void View_impl::debug_print(std::string &outb) const
     << "m_connection_collation: {OID: " << m_connection_collation_id << "}; "
     << "m_tables: " << m_tables->size() << " [ ";
 
-  std::auto_ptr<View_table_const_iterator> it(tables());
+  std::unique_ptr<View_table_const_iterator> it(tables());
 
   while (true)
   {

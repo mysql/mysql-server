@@ -23,7 +23,7 @@
 #include "dd/impl/os_specific.h"              // DD_HEADER_BEGIN
 #include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
 
-#include <memory>   // std::auto_ptr
+#include <memory>   // std::unique_ptr
 
 DD_HEADER_BEGIN
 
@@ -156,11 +156,11 @@ private:
   ulonglong m_created;
   ulonglong m_last_altered;
 
-  std::auto_ptr<Properties> m_options;
+  std::unique_ptr<Properties> m_options;
 
   // References to tightly-coupled objects.
 
-  std::auto_ptr<Column_collection> m_columns;
+  std::unique_ptr<Column_collection> m_columns;
 
   // References to other objects.
 

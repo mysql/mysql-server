@@ -785,7 +785,7 @@ public:
   { return m_dd_client.get(); }
 
 private:
-  std::auto_ptr<dd::cache::Dictionary_client > m_dd_client;
+  std::unique_ptr<dd::cache::Dictionary_client > m_dd_client;
 
   /**
     The query associated with this statement.
@@ -1472,7 +1472,7 @@ public:
 #endif /* MYSQL_CLIENT */
 
 private:
-  std::auto_ptr<Transaction_ctx> m_transaction;
+  std::unique_ptr<Transaction_ctx> m_transaction;
 
   class Attachable_trx;
 

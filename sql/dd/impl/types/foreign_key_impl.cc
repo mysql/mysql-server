@@ -221,7 +221,7 @@ void Foreign_key_impl::debug_print(std::string &outb) const
     << "m_delete_rule: " << m_delete_rule << "; ";
 
   {
-    std::auto_ptr<Foreign_key_element_const_iterator> it(elements());
+    std::unique_ptr<Foreign_key_element_const_iterator> it(elements());
 
     while (true)
     {

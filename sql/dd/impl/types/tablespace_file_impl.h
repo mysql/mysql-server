@@ -24,7 +24,7 @@
 #include "dd/types/object_type.h"           // dd::Object_type
 #include "dd/types/tablespace_file.h"       // dd::Tablespace_file
 
-#include <memory>   // std::auto_ptr
+#include <memory>   // std::unique_ptr
 
 DD_HEADER_BEGIN
 
@@ -151,7 +151,7 @@ private:
   uint m_ordinal_position;
 
   std::string m_filename;
-  std::auto_ptr<Properties> m_se_private_data;
+  std::unique_ptr<Properties> m_se_private_data;
 
   // References to other objects
   Tablespace_impl *m_tablespace;

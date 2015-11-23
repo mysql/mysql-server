@@ -48,7 +48,7 @@ bool Dictionary_impl::init(bool install)
   if (Dictionary_impl::s_instance)
     return false; /* purecov: inspected */
 
-  std::auto_ptr<Dictionary_impl> d(new Dictionary_impl());
+  std::unique_ptr<Dictionary_impl> d(new Dictionary_impl());
 
   Dictionary_impl::s_instance= d.release();
 
@@ -106,7 +106,7 @@ const Object_table *Dictionary_impl::get_dd_table(
   if (!is_dd_schema_name(schema_name))
     return NULL;
 
-  std::auto_ptr<Iterator<const Object_table> > it(
+  std::unique_ptr<Iterator<const Object_table> > it(
     Object_table_registry::instance()->types());
 
   for (const Object_table *t= it->next(); t != NULL; t= it->next())
@@ -124,7 +124,7 @@ bool Dictionary_impl::is_system_view_name(const std::string &schema_name,
   if (schema_name.compare("information_schema") != 0)
     return false;
 
-  std::auto_ptr<Iterator<const char> > it(
+  std::unique_ptr<Iterator<const char> > it(
     System_view_name_registry::instance()->names());
 
   while (true)

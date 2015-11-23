@@ -75,7 +75,7 @@ bool Dictionary_object_collection<Object_type>::fetch(
     // the record set is deleted before the transaction is committed (a
     // dependency in the Raw_record_set destructor.
     {
-      std::auto_ptr<Raw_record_set> rs;
+      std::unique_ptr<Raw_record_set> rs;
       if (table->open_record_set(object_key, rs))
       {
         DBUG_ASSERT(m_thd->is_error() || m_thd->killed);

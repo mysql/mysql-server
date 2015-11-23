@@ -116,7 +116,7 @@ bool Tables::max_se_private_id(Open_dictionary_tables_ctx *otx,
                                const std::string &engine,
                                ulonglong *max_id)
 {
-  std::auto_ptr<Object_key> key(
+  std::unique_ptr<Object_key> key(
     create_se_private_key(engine, INVALID_OBJECT_ID));
 
   Raw_table *t= otx->get_table(table_name());
@@ -124,7 +124,7 @@ bool Tables::max_se_private_id(Open_dictionary_tables_ctx *otx,
 
   // Find record by the object-key.
   *max_id= 0;
-  std::auto_ptr<Raw_record> r;
+  std::unique_ptr<Raw_record> r;
   if (t->find_last_record(*key, r))
     return true;
 

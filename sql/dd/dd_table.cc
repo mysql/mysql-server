@@ -47,7 +47,7 @@
 // TODO: Avoid exposing dd/impl headers in public files.
 #include "dd/impl/utils.h"                    // dd::escape
 
-#include <memory>                             // auto_ptr
+#include <memory>                             // unique_ptr
 
 
 // Explicit instanciation of some template functions
@@ -568,7 +568,7 @@ fill_dd_index_elements_from_key_parts(const dd::Table *tab_obj,
     const dd::Column *key_col_obj;
 
     {
-      std::auto_ptr<dd::Column_const_iterator> it(tab_obj->user_columns());
+      std::unique_ptr<dd::Column_const_iterator> it(tab_obj->user_columns());
       int i= 0;
 
       while ((key_col_obj= it->next()) != NULL && i < key_part->fieldnr)
@@ -1185,7 +1185,7 @@ static bool fill_dd_partition_from_create_info(THD *thd,
               If table is subpartitioned for each subpartition, index pair
               we need to create Partition_index object.
             */
-            std::auto_ptr<dd::Index_iterator> idx_it(tab_obj->indexes());
+            std::unique_ptr<dd::Index_iterator> idx_it(tab_obj->indexes());
             dd::Index *idx;
 
             while ((idx= idx_it->next()) != NULL)
@@ -1200,7 +1200,7 @@ static bool fill_dd_partition_from_create_info(THD *thd,
             If table is not subpartitioned then Partition_index object is
             required for each partition, index pair.
             */
-          std::auto_ptr<dd::Index_iterator> idx_it(tab_obj->indexes());
+          std::unique_ptr<dd::Index_iterator> idx_it(tab_obj->indexes());
           dd::Index *idx;
 
           while ((idx= idx_it->next()) != NULL)
@@ -1418,12 +1418,12 @@ static bool create_dd_system_table(THD *thd,
                                    const dd::Object_table &dd_table)
 {
   // For DD tables: create system schema using special DD operation.
-  std::auto_ptr<dd::Schema> sch_obj(dd::create_dd_schema());
+  std::unique_ptr<dd::Schema> sch_obj(dd::create_dd_schema());
 
   //
   // Create dd::Table object
   //
-  std::auto_ptr<dd::Table> tab_obj(sch_obj->create_table());
+  std::unique_ptr<dd::Table> tab_obj(sch_obj->create_table());
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,
@@ -1490,7 +1490,7 @@ static bool create_dd_user_table(THD *thd,
   }
 
   // Create dd::Table object.
-  std::auto_ptr<dd::Table> tab_obj(
+  std::unique_ptr<dd::Table> tab_obj(
     const_cast<dd::Schema *>(sch_obj)->create_table());
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
@@ -1570,7 +1570,7 @@ dd::Table *create_tmp_table(THD *thd,
   }
 
   // Create dd::Table object.
-  std::auto_ptr<dd::Table> tab_obj(
+  std::unique_ptr<dd::Table> tab_obj(
     const_cast<dd::Schema *>(sch_obj)->create_table());
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,

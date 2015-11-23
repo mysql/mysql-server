@@ -63,7 +63,7 @@ static bool create_schema(THD *thd)
 static bool create_tables(THD *thd)
 {
   // Iterate over DD tables, create tables.
-  std::auto_ptr<Iterator<const Object_table> > it(
+  std::unique_ptr<Iterator<const Object_table> > it(
       Object_table_registry::instance()->types());
 
   for (const Object_table *t= it->next(); t != NULL; t= it->next())
@@ -96,7 +96,7 @@ static bool end_transaction(THD *thd, bool error)
 // Store the temporarily saved meta data into the DD tables.
 static bool store_meta_data(THD *thd)
 {
-  std::auto_ptr<Iterator<const Object_table> > it(
+  std::unique_ptr<Iterator<const Object_table> > it(
       Object_table_registry::instance()->types());
 
   for (const Object_table *t= it->next(); t != NULL; t= it->next())
@@ -110,7 +110,7 @@ static bool store_meta_data(THD *thd)
 static bool populate_tables(THD *thd)
 {
   // Iterate over DD tables, populate tables
-  std::auto_ptr<Iterator<const Object_table> > it(
+  std::unique_ptr<Iterator<const Object_table> > it(
       Object_table_registry::instance()->types());
 
   bool error= false;
@@ -142,7 +142,7 @@ static bool populate_tables(THD *thd)
 static bool add_cyclic_foreign_keys(THD *thd)
 {
   // Iterate over DD tables, add foreign keys
-  std::auto_ptr<Iterator<const Object_table> > it(
+  std::unique_ptr<Iterator<const Object_table> > it(
       Object_table_registry::instance()->types());
 
   for (const Object_table *t= it->next(); t != NULL; t= it->next())
@@ -157,7 +157,7 @@ static bool add_cyclic_foreign_keys(THD *thd)
 // in the cache, to keep the objects from being evicted.
 static bool make_objects_sticky(THD *thd)
 {
-  std::auto_ptr<Iterator<const Object_table> > it(
+  std::unique_ptr<Iterator<const Object_table> > it(
       Object_table_registry::instance()->types());
 
   for (const Object_table *t= it->next(); t != NULL; t= it->next())

@@ -27,7 +27,7 @@
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/schema.h"                  // dd::Schema
 
-#include <memory> // auto_ptr
+#include <memory> // unique_ptr
 
 namespace dd {
 
@@ -57,7 +57,7 @@ bool create_schema(THD *thd, const char *schema_name,
     return false;
 
   // Create dd::Schema object.
-  std::auto_ptr<dd::Schema> sch_obj(dd::create_object<dd::Schema>());
+  std::unique_ptr<dd::Schema> sch_obj(dd::create_object<dd::Schema>());
 
   // Set schema name and collation id.
   sch_obj->set_name(schema_name);

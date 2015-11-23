@@ -43,7 +43,7 @@
 #include "dd/impl/utils.h"                    // dd::eat_str
 #include "dd/types/fwd.h"
 
-#include <memory>                             // auto_ptr
+#include <memory>                             // unique_ptr
 
 
 enum_field_types dd_get_old_field_type(dd::Column::enum_column_types type)
@@ -864,7 +864,7 @@ static bool fill_column_from_dd(TABLE_SHARE *share,
     //
     // Iterate through all the column elements
     //
-    std::auto_ptr<dd::Column_type_element_const_iterator> cte_iter;
+    std::unique_ptr<dd::Column_type_element_const_iterator> cte_iter;
     if (field_type == dd_get_old_field_type(dd::Column::TYPE_ENUM))
       cte_iter.reset(col_obj->enum_elements());
     else
@@ -1007,7 +1007,7 @@ static bool fill_columns_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
   share->fieldnames.type_names[share->fields]= 0;
 
   // Iterate through all the columns.
-  std::auto_ptr<dd::Column_const_iterator> it(tab_obj->user_columns());
+  std::unique_ptr<dd::Column_const_iterator> it(tab_obj->user_columns());
   const dd::Column *col_obj;
   uchar *null_flags __attribute__((unused));
   uchar *null_pos, *rec_pos;
@@ -1069,7 +1069,7 @@ static bool fill_columns_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
     null_bit_pos= (share->db_create_options & HA_OPTION_PACK_RECORD) ? 0 : 1;
     field_nr= 0;
 
-    std::auto_ptr<dd::Column_const_iterator> it2(tab_obj->user_columns());
+    std::unique_ptr<dd::Column_const_iterator> it2(tab_obj->user_columns());
 
     while ((col_obj= it2->next()))
     {
@@ -1150,7 +1150,7 @@ static void fill_index_elements_from_dd(TABLE_SHARE *share,
   // Iterate through all index elements
   //
 
-  std::auto_ptr<dd::Index_element_const_iterator> it(idx_obj->user_elements());
+  std::unique_ptr<dd::Index_element_const_iterator> it(idx_obj->user_elements());
   const dd::Index_element *idx_elem_obj;
   uint i= 0;
   if ((idx_elem_obj= it->next()) != NULL)
@@ -1245,7 +1245,7 @@ static bool fill_index_from_dd(TABLE_SHARE *share, const dd::Index *idx_obj,
   // key length
   keyinfo->key_length= 0;
   const dd::Index_element *idx_elem;
-  std::auto_ptr<dd::Index_element_const_iterator> it(idx_obj->user_elements());
+  std::unique_ptr<dd::Index_element_const_iterator> it(idx_obj->user_elements());
   while ((idx_elem= it->next())!= NULL)
     keyinfo->key_length+= idx_elem->length();
 
@@ -1331,7 +1331,7 @@ static bool fill_indexes_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
     ha_check_storage_engine_flag(share->db_type(),
                                  HTON_SUPPORTS_EXTENDED_KEYS);
 
-  std::auto_ptr<dd::Index_const_iterator> it_1(tab_obj->user_indexes());
+  std::unique_ptr<dd::Index_const_iterator> it_1(tab_obj->user_indexes());
 
   // Count number of keys and total number of key parts in the table.
 
@@ -1359,7 +1359,7 @@ static bool fill_indexes_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
     ulong *rec_per_key;
     rec_per_key_t *rec_per_key_float;
     uint total_key_parts= share->key_parts;
-    std::auto_ptr<dd::Index_const_iterator> it_2(tab_obj->user_indexes());
+    std::unique_ptr<dd::Index_const_iterator> it_2(tab_obj->user_indexes());
 
     if (use_extended_sk)
         total_key_parts+= (primary_key_parts * (share->keys-1));
@@ -1526,7 +1526,7 @@ static bool get_part_column_values(MEM_ROOT *mem_root,
   uint list_index= 0, entries= 0;
   uint max_column_id= 0, max_list_index= 0;
   const dd::Partition_value *part_value;
-  std::auto_ptr<dd::Partition_value_const_iterator> tmp_it(part_obj->values());
+  std::unique_ptr<dd::Partition_value_const_iterator> tmp_it(part_obj->values());
 
   while ((part_value= tmp_it->next()))
   {
@@ -1563,7 +1563,7 @@ static bool get_part_column_values(MEM_ROOT *mem_root,
     p_val->added_items= 1;
     p_val->col_val_array= &col_val_array[list_index * part_info->num_columns];
   }
-  std::auto_ptr<dd::Partition_value_const_iterator> it(part_obj->values());
+  std::unique_ptr<dd::Partition_value_const_iterator> it(part_obj->values());
   while ((part_value= it->next()))
   {
     p_val= &p_elem_values[part_value->list_num()];
@@ -1651,7 +1651,7 @@ static bool setup_partition_from_dd(THD *thd,
     }
     else
     {
-      std::auto_ptr<dd::Partition_value_const_iterator> it(part_obj->values());
+      std::unique_ptr<dd::Partition_value_const_iterator> it(part_obj->values());
       const dd::Partition_value *part_value= it->next();
       DBUG_ASSERT(part_value->list_num() == 0);
       DBUG_ASSERT(part_value->column_num() == 0);
@@ -1695,7 +1695,7 @@ static bool setup_partition_from_dd(THD *thd,
       uint list_index= 0, max_index= 0, entries= 0, null_entry= 0;
       const dd::Partition_value *part_value;
       part_elem_value *list_val, *list_val_array= NULL;
-      std::auto_ptr<dd::Partition_value_const_iterator> tmp_it(part_obj->values());
+      std::unique_ptr<dd::Partition_value_const_iterator> tmp_it(part_obj->values());
       while ((part_value= tmp_it->next()))
       {
         max_index= std::max(max_index, part_value->list_num());
@@ -1726,7 +1726,7 @@ static bool setup_partition_from_dd(THD *thd,
         memset(list_val_array, 0, sizeof(*list_val_array) * entries);
       }
 
-      std::auto_ptr<dd::Partition_value_const_iterator> it(part_obj->values());
+      std::unique_ptr<dd::Partition_value_const_iterator> it(part_obj->values());
       while ((part_value= it->next()))
       {
         DBUG_ASSERT(part_value->column_num() == 0);
@@ -1773,7 +1773,7 @@ static bool setup_partition_from_dd(THD *thd,
   else
   {
 #ifndef DBUG_OFF
-    std::auto_ptr<dd::Partition_value_const_iterator> it(part_obj->values());
+    std::unique_ptr<dd::Partition_value_const_iterator> it(part_obj->values());
     DBUG_ASSERT(part_info->part_type == HASH_PARTITION);
     DBUG_ASSERT(it->next() == NULL);
 #endif
@@ -2003,7 +2003,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
   uint num_subparts= 0, tot_partitions, part_id= 0, level= 0;
   bool is_subpart;
   List_iterator<partition_element> part_elem_it;
-  std::auto_ptr<dd::Partition_const_iterator> part_it(tab_obj->partitions());
+  std::unique_ptr<dd::Partition_const_iterator> part_it(tab_obj->partitions());
   /*
     tab_obj->partitions() will also guarantee that the collection is sorted
     first on level and then on number.

@@ -227,7 +227,7 @@ void Tablespace_impl::debug_print(std::string &outb) const
     << "m_engine: " << m_engine << "; "
     << "m_files: " << m_files->size() << " [ ";
 
-  std::auto_ptr<Tablespace_file_const_iterator> it(files());
+  std::unique_ptr<Tablespace_file_const_iterator> it(files());
 
   while (true)
   {
@@ -258,7 +258,7 @@ Tablespace_file *Tablespace_impl::add_file()
 
 bool Tablespace_impl::remove_file(std::string data_file)
 {
-  std::auto_ptr<dd::Tablespace_file_iterator> it(files());
+  std::unique_ptr<dd::Tablespace_file_iterator> it(files());
   Tablespace_file *tsf;
 
   while ((tsf= it->next()) != NULL)

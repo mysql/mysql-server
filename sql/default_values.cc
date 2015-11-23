@@ -133,7 +133,7 @@ static bool find_record_length(const dd::Table &table, size_t min_length,
   ulong leftover_bits= pack_record ? 0 : 1;
 
   // Loop over columns, count nullable and bit fields and find record length.
-  std::auto_ptr<dd::Column_const_iterator> col_it(table.user_columns());
+  std::unique_ptr<dd::Column_const_iterator> col_it(table.user_columns());
   for (const dd::Column *col_obj= col_it->next(); col_obj != NULL;
        col_obj= col_it->next(), share->fields++)
   {

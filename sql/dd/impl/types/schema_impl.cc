@@ -140,7 +140,7 @@ bool Schema::update_name_key(name_key_type *key,
 
 Table *Schema_impl::create_table()
 {
-  std::auto_ptr<Table> t(dd::create_object<Table>());
+  std::unique_ptr<Table> t(dd::create_object<Table>());
   t->set_schema_id(this->id());
   t->set_collation_id(default_collation_id());
 
@@ -161,7 +161,7 @@ Table *Schema_impl::create_table()
 
 View *Schema_impl::create_view()
 {
-  std::auto_ptr<View> v(dd::create_object<View>());
+  std::unique_ptr<View> v(dd::create_object<View>());
   v->set_schema_id(this->id());
 
   // Get statement start time.
@@ -180,7 +180,7 @@ View *Schema_impl::create_view()
 
 View *Schema_impl::create_system_view()
 {
-  std::auto_ptr<View> v(dd::create_object<View>());
+  std::unique_ptr<View> v(dd::create_object<View>());
   v->set_system_view(true);
   v->set_schema_id(this->id());
 
