@@ -88,8 +88,9 @@ SysTablespace::parse_file_name(char* ptr)
 	return(ptr);
 }
 
-/** Convert a numeric string that optionally ends in upper or lower
-case G, M, or K, rounding off to the nearest number of megabytes.
+/** Convert a numeric string representing a number of bytes
+optionally ending in upper or lower case G, M, or K,
+to a number of megabytes, rounding down to the nearest megabyte.
 Then return the number of pages in the file.
 @param[in,out]	ptr	Pointer to a numeric string
 @return the number of pages in the file. */
@@ -109,13 +110,15 @@ SysTablespace::parse_units(char*& ptr)
 		break;
 
 	case 'M': case 'm':
-		++ptr;
-	default:
 		megs = num;
+		++ptr;
 		break;
 	case 'K': case 'k':
 		megs = num / 1024;
 		++ptr;
+		break;
+	default:
+		megs = num / (1024 * 1024);
 		break;
 	}
 
