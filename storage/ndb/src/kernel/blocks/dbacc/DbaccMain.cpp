@@ -992,10 +992,18 @@ void Dbacc::execACCKEYREQ(Signal* signal)
   OperationrecPtr lockOwnerPtr;
   Page8Ptr bucketPageptr;
   Uint32 bucketConidx;
+  Page8Ptr elemPageptr;
+  Uint32 elemConptr;
+  Uint32 elemForward;
+  Uint32 elemptr;
   const Uint32 found = getElement(req,
                                   lockOwnerPtr,
                                   bucketPageptr,
-                                  bucketConidx);
+                                  bucketConidx,
+                                  elemPageptr,
+                                  elemConptr,
+                                  elemForward,
+                                  elemptr);
 
   Uint32 opbits = operationRecPtr.p->m_op_bits;
 
@@ -1058,17 +1066,17 @@ void Dbacc::execACCKEYREQ(Signal* signal)
 	  // It is not a dirty read. We proceed by locking and continue with
 	  // the operation.
 	  /*---------------------------------------------------------------*/
-          Uint32 eh = gePageptr.p->word32[tgeElementptr];
+          Uint32 eh = elemPageptr.p->word32[elemptr];
           operationRecPtr.p->scanBits = ElementHeader::getScanBits(eh);
           operationRecPtr.p->reducedHashValue = ElementHeader::getReducedHashValue(eh);
-          operationRecPtr.p->elementPage = gePageptr.i;
-          operationRecPtr.p->elementContainer = tgeContainerptr;
-          operationRecPtr.p->elementPointer = tgeElementptr;
-          operationRecPtr.p->elementIsforward = tgeForward;
+          operationRecPtr.p->elementPage = elemPageptr.i;
+          operationRecPtr.p->elementContainer = elemConptr;
+          operationRecPtr.p->elementPointer = elemptr;
+          operationRecPtr.p->elementIsforward = elemForward;
 
 	  eh = ElementHeader::setLocked(operationRecPtr.i);
-          dbgWord32(gePageptr, tgeElementptr, eh);
-          gePageptr.p->word32[tgeElementptr] = eh;
+          dbgWord32(elemPageptr, elemptr, eh);
+          elemPageptr.p->word32[elemptr] = eh;
 	  
 	  opbits |= Operationrec::OP_LOCK_OWNER;
 	  insertLockOwnersList(operationRecPtr);
@@ -3104,7 +3112,7 @@ Uint32 Dbacc::unsetPagePtr(DynArr256::Head& directory, Uint32 index)
 
 void Dbacc::getdirindex(Page8Ptr& pageptr, Uint32& conidx)
 {
-  const Uint32 hashValue = operationRecPtr.p->hashValue;
+  const LHBits32 hashValue = operationRecPtr.p->hashValue;
   const Uint32 address = fragrecptr.p->level.getBucketNumber(hashValue);
   conidx = fragrecptr.p->getPageIndex(address);
   pageptr.i = getPagePtr(fragrecptr.p->directory,
@@ -3149,23 +3157,26 @@ Dbacc::readTablePk(Uint32 localkey1, Uint32 localkey2,
   return ret;
 }
 
-/* --------------------------------------------------------------------------------- */
-/* GET_ELEMENT                                                                       */
-/*        INPUT:                                                                     */
-/*               OPERATION_REC_PTR                                                   */
-/*               FRAGRECPTR                                                          */
-/*        OUTPUT:                                                                    */
-/*               TGE_RESULT      RESULT SUCCESS = ZTRUE OTHERWISE ZFALSE             */
-/*               TGE_LOCKED      LOCK INFORMATION IF SUCCESSFUL RESULT               */
-/*               GE_PAGEPTR      PAGE POINTER OF FOUND ELEMENT                       */
-/*               TGE_CONTAINERPTR CONTAINER INDEX OF FOUND ELEMENT                   */
-/*               TGE_ELEMENTPTR  ELEMENT INDEX OF FOUND ELEMENT                      */
-/*               TGE_FORWARD     DIRECTION OF CONTAINER WHERE ELEMENT FOUND          */
-/*                                                                                   */
-/*        DESCRIPTION: THE SUBROUTIN GOES THROUGH ALL CONTAINERS OF THE ACTIVE       */
-/*                     BUCKET, AND SERCH FOR ELEMENT.THE PRIMARY KEYS WHICH IS SAVED */
-/*                     IN THE OPERATION REC ARE THE CHECK ITEMS IN THE SEARCHING.    */
-/* --------------------------------------------------------------------------------- */
+/** ---------------------------------------------------------------------------
+ * Find element.
+ *
+ * Method scan the bucket given by hashValue from operationRecPtr and look for
+ * the element with primary key given in signal.  If element found return
+ * pointer to element, if not found return only bucket information.
+ *
+ * @param[in]   signal         Signal containing primary key to look for.
+ * @param[out]  lockOwnerPtr   Lock owner if any of found element.
+ * @param[out]  bucketPageptr  Page of first container of bucket there element
+                               should be.
+ * @param[out]  bucketConidx   Index within page of first container of bucket
+                               there element should be.
+ * @param[out]  elemPageptr    Page of found element.
+ * @param[out]  elemConptr     Pointer within page to container of found
+                               element.
+ * @param[out]  elemForward    Direction of container for found element.
+ * @param[out]  elemptr        Pointer within page to found element.
+ * @return                     Returns ZTRUE if element was found.
+ * ------------------------------------------------------------------------- */
 #if __ia64 == 1
 #if __INTEL_COMPILER == 810
 int ndb_acc_ia64_icc810_dummy_var = 0;
@@ -3180,7 +3191,11 @@ Uint32
 Dbacc::getElement(const AccKeyReq* signal,
                   OperationrecPtr& lockOwnerPtr,
                   Page8Ptr& bucketPageptr,
-                  Uint32& bucketConidx)
+                  Uint32& bucketConidx,
+                  Page8Ptr& elemPageptr,
+                  Uint32& elemConptr,
+                  Uint32& elemForward,
+                  Uint32& elemptr)
 {
   Uint32 errcode;
   Uint32 tgeElementHeader;
@@ -3194,7 +3209,7 @@ Dbacc::getElement(const AccKeyReq* signal,
   Uint32 bucket_number = fragrecptr.p->level.getBucketNumber(operationRecPtr.p->hashValue);
 
   getdirindex(bucketPageptr, bucketConidx);
-  gePageptr = bucketPageptr;
+  elemPageptr = bucketPageptr;
   tgePageindex = bucketConidx;
   /*
    * The value seached is
@@ -3207,37 +3222,39 @@ Dbacc::getElement(const AccKeyReq* signal,
   tgeNextptrtype = ZLEFT;
 
   do {
-    tgeContainerptr = mul_ZBUF_SIZE(tgePageindex);
+    elemConptr = mul_ZBUF_SIZE(tgePageindex);
     if (tgeNextptrtype == ZLEFT) {
       jam();
-      tgeContainerptr = tgeContainerptr + ZHEAD_SIZE;
-      tgeElementptr = tgeContainerptr + Container::HEADER_SIZE;
+      elemConptr = elemConptr + ZHEAD_SIZE;
+      elemptr = elemConptr + Container::HEADER_SIZE;
       tgeElemStep = TelemLen;
-      tgeForward = 1;
-      if (unlikely(tgeContainerptr >= 2048)) 
+      elemForward = 1;
+      if (unlikely(elemConptr >= 2048)) 
       { 
 	errcode = 4;
 	goto error;
       }
-      tgeRemLen = ContainerHeader(gePageptr.p->word32[tgeContainerptr]).getLength();
-      if (unlikely(((tgeContainerptr + tgeRemLen - 1) >= 2048)))
+      ContainerHeader conhead(elemPageptr.p->word32[elemConptr]);
+      tgeRemLen = conhead.getLength();
+      if (unlikely(((elemConptr + tgeRemLen - 1) >= 2048)))
       { 
 	errcode = 5;
 	goto error;
       }
     } else if (tgeNextptrtype == ZRIGHT) {
       jam();
-      tgeContainerptr = tgeContainerptr + ((ZHEAD_SIZE + ZBUF_SIZE) - Container::HEADER_SIZE);
-      tgeElementptr = tgeContainerptr - 1;
+      elemConptr += ((ZHEAD_SIZE + ZBUF_SIZE) - Container::HEADER_SIZE);
+      elemptr = elemConptr - 1;
       tgeElemStep = 0 - TelemLen;
-      tgeForward = (Uint32)-1;
-      if (unlikely(tgeContainerptr >= 2048)) 
+      elemForward = (Uint32)-1;
+      if (unlikely(elemConptr >= 2048)) 
       { 
 	errcode = 4;
 	goto error;
       }
-      tgeRemLen = ContainerHeader(gePageptr.p->word32[tgeContainerptr]).getLength();
-      if (unlikely((tgeContainerptr - tgeRemLen) >= 2048)) 
+      ContainerHeader conhead(elemPageptr.p->word32[elemConptr]);
+      tgeRemLen = conhead.getLength();
+      if (unlikely((elemConptr - tgeRemLen) >= 2048)) 
       { 
 	errcode = 5;
 	goto error;
@@ -3258,7 +3275,7 @@ Dbacc::getElement(const AccKeyReq* signal,
       /* ------------------------------------------------------------------- */
       do {
         bool possible_match;
-        tgeElementHeader = gePageptr.p->word32[tgeElementptr];
+        tgeElementHeader = elemPageptr.p->word32[elemptr];
         tgeRemLen = tgeRemLen - TelemLen;
 	Uint32 localkey1, localkey2;
 	lockOwnerPtr.i = RNIL;
@@ -3275,8 +3292,8 @@ Dbacc::getElement(const AccKeyReq* signal,
         } else {
           jam();
           reducedHashValue = ElementHeader::getReducedHashValue(tgeElementHeader);
-          Uint32 pos = tgeElementptr + tgeForward;
-          localkey1 = gePageptr.p->word32[pos];
+          Uint32 pos = elemptr + elemForward;
+          localkey1 = elemPageptr.p->word32[pos];
           if (likely(localkeylen == 1))
           {
             localkey2 = Local_key::ref2page_idx(localkey1);
@@ -3284,7 +3301,7 @@ Dbacc::getElement(const AccKeyReq* signal,
           }
           else
           {
-            localkey2 = gePageptr.p->word32[pos + tgeForward];
+            localkey2 = elemPageptr.p->word32[pos + elemForward];
           }
           possible_match = true;
         }
@@ -3314,7 +3331,7 @@ Dbacc::getElement(const AccKeyReq* signal,
         if (tgeRemLen <= Container::HEADER_SIZE) {
           break;
         }
-        tgeElementptr = tgeElementptr + tgeElemStep;
+        elemptr = elemptr + tgeElemStep;
       } while (true);
     }//if
     if (unlikely(tgeRemLen != Container::HEADER_SIZE))
@@ -3322,7 +3339,7 @@ Dbacc::getElement(const AccKeyReq* signal,
       errcode = 8;
       goto error;
     }//if
-    ContainerHeader containerhead = gePageptr.p->word32[tgeContainerptr];
+    ContainerHeader containerhead = elemPageptr.p->word32[elemConptr];
     tgeNextptrtype = containerhead.getNextEnd();
     if (tgeNextptrtype == 0) {
       jam();
@@ -3336,8 +3353,8 @@ Dbacc::getElement(const AccKeyReq* signal,
     }//if
     if (!containerhead.isNextOnSamePage()) {
       jam();
-      gePageptr.i = gePageptr.p->word32[tgeContainerptr + 1];	/* NEXT PAGE ID */
-      ptrCheckGuard(gePageptr, cpagesize, page8);
+      elemPageptr.i = elemPageptr.p->word32[elemConptr + 1];	/* NEXT PAGE ID */
+      ptrCheckGuard(elemPageptr, cpagesize, page8);
     }//if
   } while (1);
 
@@ -5919,11 +5936,15 @@ Dbacc::shrink_adjust_reduced_hash_value(Uint32 bucket_number)
   Uint32 tgeElemStep;
   Uint32 tgePageindex;
   Uint32 tgeNextptrtype;
+  Uint32 tgeContainerptr;
+  Uint32 tgeForward;
+  Uint32 tgeElementptr;
   register Uint32 tgeRemLen;
   register Uint32 TelemLen = fragrecptr.p->elementLength;
   const Uint32 localkeylen = fragrecptr.p->localkeylen;
 
   tgePageindex = fragrecptr.p->getPageIndex(bucket_number);
+  Page8Ptr gePageptr;
   gePageptr.i = getPagePtr(fragrecptr.p->directory, fragrecptr.p->getPageNumber(bucket_number));
   ptrCheckGuard(gePageptr, cpagesize, page8);
 
