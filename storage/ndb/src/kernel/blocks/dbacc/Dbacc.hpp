@@ -774,7 +774,12 @@ private:
   void releaseAndCommitActiveOps(Signal* signal);
   void releaseAndCommitQueuedOps(Signal* signal);
   void releaseAndAbortLockedOps(Signal* signal);
-  void containerinfo(ContainerHeader& containerhead);
+  void containerinfo(Page8Ptr pageptr,
+                     Uint32 conidx,
+                     Uint32 forward,
+                     ContainerHeader& containerhead,
+                     Uint32& conptr,
+                     Uint32& conlen) const;
   bool getScanElement();
   void initScanOpRec(Page8Ptr pageptr, Uint32 conptr,
       Uint32 forward, Uint32 elemptr) const;
@@ -943,7 +948,6 @@ private:
   Page8Ptr ilcPageptr;
   Page8Ptr inpPageptr;
   Page8Ptr iopPageptr;
-  Page8Ptr ciPageidptr;
   Page8Ptr gsePageidptr;
   Page8Ptr nciPageidptr;
   Page8Ptr rsbPageidptr;
@@ -997,10 +1001,8 @@ private:
   Uint32 tgeForward;
   Uint32 texpDirInd;
   Uint32 tdata0;
-  Uint32 tciContainerptr;
   Uint32 tnciContainerptr;
   Uint32 tsscContainerptr;
-  Uint32 tciContainerlen;
   Uint32 tsscContainerlen;
   Uint32 tsscElementptr;
   Uint32 tfid;
@@ -1008,7 +1010,6 @@ private:
   Uint32 tgflBufType;
   Uint32 tgseIsforward;
   Uint32 tsscIsforward;
-  Uint32 tciIsforward;
   Uint32 tnciIsforward;
   Uint32 tgseIsLocked;
   Uint32 tsscIsLocked;
@@ -1020,7 +1021,6 @@ private:
   Uint32 tslPageindex;
   Uint32 tgsePageindex;
   Uint32 tslPrevfree;
-  Uint32 tciPageindex;
   Uint32 trsbPageindex;
   Uint32 tnciPageindex;
   Uint32 tresult;
