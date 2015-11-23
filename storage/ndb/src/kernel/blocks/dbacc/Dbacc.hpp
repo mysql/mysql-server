@@ -705,52 +705,52 @@ private:
   void execNODE_STATE_REP(Signal*);
 
   // Statement blocks
-  void ACCKEY_error(Uint32 fromWhere);
+  void ACCKEY_error(Uint32 fromWhere) const;
 
-  void commitDeleteCheck();
+  void commitDeleteCheck() const;
   void report_dealloc(Signal* signal, const Operationrec* opPtrP);
   
   typedef void * RootfragmentrecPtr;
-  void initRootFragPageZero(FragmentrecPtr, Page8Ptr);
-  void initFragAdd(Signal*, FragmentrecPtr);
-  void initFragPageZero(FragmentrecPtr, Page8Ptr);
-  void initFragGeneral(FragmentrecPtr);
-  void verifyFragCorrect(FragmentrecPtr regFragPtr);
+  void initRootFragPageZero(FragmentrecPtr, Page8Ptr) const;
+  void initFragAdd(Signal*, FragmentrecPtr) const;
+  void initFragPageZero(FragmentrecPtr, Page8Ptr) const;
+  void initFragGeneral(FragmentrecPtr) const;
+  void verifyFragCorrect(FragmentrecPtr regFragPtr) const;
   void releaseFragResources(Signal* signal, Uint32 fragIndex);
-  void releaseRootFragRecord(Signal* signal, RootfragmentrecPtr rootPtr);
+  void releaseRootFragRecord(Signal* signal, RootfragmentrecPtr rootPtr) const;
   void releaseRootFragResources(Signal* signal, Uint32 tableId);
   void releaseDirResources(Signal* signal);
   void releaseDirectoryResources(Signal* signal,
                                  Uint32 fragIndex,
                                  Uint32 dirIndex,
                                  Uint32 startIndex,
-                                 Uint32 directoryIndex);
+                                 Uint32 directoryIndex) const;
   void releaseFragRecord(FragmentrecPtr regFragPtr);
   void initScanFragmentPart();
   Uint32 checkScanExpand(Uint32 splitBucket);
   Uint32 checkScanShrink(Uint32 sourceBucket, Uint32 destBucket);
   void initialiseFragRec();
-  void initialiseFsConnectionRec(Signal* signal);
-  void initialiseFsOpRec(Signal* signal);
+  void initialiseFsConnectionRec(Signal* signal) const;
+  void initialiseFsOpRec(Signal* signal) const;
   void initialiseOperationRec();
   void initialisePageRec();
-  void initialiseRootfragRec(Signal* signal);
+  void initialiseRootfragRec(Signal* signal) const;
   void initialiseScanRec();
   void initialiseTableRec();
-  bool addfragtotab(Uint32 rootIndex, Uint32 fragId);
-  void initOpRec(const AccKeyReq* signal, Uint32 siglen);
-  void sendAcckeyconf(Signal* signal);
-  Uint32 getNoParallelTransaction(const Operationrec*);
+  bool addfragtotab(Uint32 rootIndex, Uint32 fragId) const;
+  void initOpRec(const AccKeyReq* signal, Uint32 siglen) const;
+  void sendAcckeyconf(Signal* signal) const;
+  Uint32 getNoParallelTransaction(const Operationrec*) const;
 
 #ifdef VM_TRACE
-  Uint32 getNoParallelTransactionFull(const Operationrec*);
+  Uint32 getNoParallelTransactionFull(const Operationrec*) const;
 #endif
 #ifdef ACC_SAFE_QUEUE
-  bool validate_lock_queue(OperationrecPtr opPtr);
-  Uint32 get_parallel_head(OperationrecPtr opPtr);
-  void dump_lock_queue(OperationrecPtr loPtr);
+  bool validate_lock_queue(OperationrecPtr opPtr) const;
+  Uint32 get_parallel_head(OperationrecPtr opPtr) const;
+  void dump_lock_queue(OperationrecPtr loPtr) const;
 #else
-  bool validate_lock_queue(OperationrecPtr) { return true;}
+  bool validate_lock_queue(OperationrecPtr) const { return true;}
 #endif
   /**
     Return true if the sum of per fragment pages counts matches the total
@@ -762,11 +762,11 @@ public:
   void startNext(Signal* signal, OperationrecPtr lastOp);
   
 private:
-  Uint32 placeReadInLockQueue(OperationrecPtr lockOwnerPtr);
-  Uint32 placeWriteInLockQueue(OperationrecPtr lockOwnerPtr);
-  void placeSerialQueue(OperationrecPtr lockOwner, OperationrecPtr op);
+  Uint32 placeReadInLockQueue(OperationrecPtr lockOwnerPtr) const;
+  Uint32 placeWriteInLockQueue(OperationrecPtr lockOwnerPtr) const;
+  void placeSerialQueue(OperationrecPtr lockOwner, OperationrecPtr op) const;
   void abortSerieQueueOperation(Signal* signal, OperationrecPtr op);  
-  void abortParallelQueueOperation(Signal* signal, OperationrecPtr op);  
+  void abortParallelQueueOperation(Signal* signal, OperationrecPtr op);
   
   void expandcontainer();
   void shrinkcontainer();
@@ -776,23 +776,23 @@ private:
   void releaseAndAbortLockedOps(Signal* signal);
   void containerinfo(ContainerHeader& containerhead);
   bool getScanElement();
-  void initScanOpRec();
+  void initScanOpRec() const;
   void nextcontainerinfo(ContainerHeader const containerhead);
-  void putActiveScanOp();
-  void putOpScanLockQue();
-  void putReadyScanQueue(Uint32 scanRecIndex);
+  void putActiveScanOp() const;
+  void putOpScanLockQue() const;
+  void putReadyScanQueue(Uint32 scanRecIndex) const;
   void releaseScanBucket();
-  void releaseScanContainer();
+  void releaseScanContainer() const;
   void releaseScanRec();
   bool searchScanContainer();
   void sendNextScanConf(Signal* signal);
-  void setlock();
-  void takeOutActiveScanOp();
-  void takeOutScanLockQueue(Uint32 scanRecIndex);
-  void takeOutReadyScanQueue();
+  void setlock() const;
+  void takeOutActiveScanOp() const;
+  void takeOutScanLockQueue(Uint32 scanRecIndex) const;
+  void takeOutReadyScanQueue() const;
   void insertElement();
   void insertContainer(ContainerHeader& containerhead);
-  void addnewcontainer();
+  void addnewcontainer() const;
   void getfreelist();
   void increaselistcont();
   void seizeLeftlist();
@@ -808,82 +808,84 @@ private:
   Uint32 unsetPagePtr(DynArr256::Head& directory, Uint32 index);
   void getdirindex();
   void commitdelete(Signal* signal);
-  void deleteElement();
+  void deleteElement() const;
   void getLastAndRemove(ContainerHeader& containerhead);
   void releaseLeftlist();
   void releaseRightlist();
   void checkoverfreelist();
   void abortOperation(Signal* signal);
   void commitOperation(Signal* signal);
-  void copyOpInfo(OperationrecPtr dst, OperationrecPtr src);
-  Uint32 executeNextOperation(Signal* signal);
-  void releaselock(Signal* signal);
+  void copyOpInfo(OperationrecPtr dst, OperationrecPtr src) const;
+  Uint32 executeNextOperation(Signal* signal) const;
+  void releaselock(Signal* signal) const;
   void release_lockowner(Signal* signal, OperationrecPtr, bool commit);
   void startNew(Signal* signal, OperationrecPtr newOwner);
-  void abortWaitingOperation(Signal*, OperationrecPtr);
-  void abortExecutedOperation(Signal*, OperationrecPtr);
+  void abortWaitingOperation(Signal*, OperationrecPtr) const;
+  void abortExecutedOperation(Signal*, OperationrecPtr) const;
   
-  void takeOutFragWaitQue(Signal* signal);
-  void check_lock_upgrade(Signal* signal, OperationrecPtr release_op, bool lo);
+  void takeOutFragWaitQue(Signal* signal) const;
+  void check_lock_upgrade(Signal* signal,
+                          OperationrecPtr release_op,
+                          bool lo) const;
   void check_lock_upgrade(Signal* signal, OperationrecPtr lock_owner,
-			  OperationrecPtr release_op);
+			  OperationrecPtr release_op) const;
   void allocOverflowPage();
   bool getfragmentrec(FragmentrecPtr&, Uint32 fragId);
-  void insertLockOwnersList(const OperationrecPtr&);
-  void takeOutLockOwnersList(const OperationrecPtr&);
+  void insertLockOwnersList(const OperationrecPtr&) const;
+  void takeOutLockOwnersList(const OperationrecPtr&) const;
 
-  void initFsOpRec(Signal* signal);
+  void initFsOpRec(Signal* signal) const;
   void initOverpage();
   void initPage();
-  void initRootfragrec(Signal* signal);
-  void putOpInFragWaitQue(Signal* signal);
-  void releaseFsConnRec(Signal* signal);
-  void releaseFsOpRec(Signal* signal);
+  void initRootfragrec(Signal* signal) const;
+  void putOpInFragWaitQue(Signal* signal) const;
+  void releaseFsConnRec(Signal* signal) const;
+  void releaseFsOpRec(Signal* signal) const;
   void releaseOpRec();
   void releaseOverpage();
   void releasePage();
-  void seizeDirectory(Signal* signal);
+  void seizeDirectory(Signal* signal) const;
   void seizeFragrec();
-  void seizeFsConnectRec(Signal* signal);
-  void seizeFsOpRec(Signal* signal);
+  void seizeFsConnectRec(Signal* signal) const;
+  void seizeFsOpRec(Signal* signal) const;
   void seizeOpRec();
   void seizePage();
-  void seizeRootfragrec(Signal* signal);
+  void seizeRootfragrec(Signal* signal) const;
   void seizeScanRec();
-  void sendSystemerror(int line);
+  void sendSystemerror(int line) const;
 
-  void addFragRefuse(Signal* signal, Uint32 errorCode);
-  void ndbsttorryLab(Signal* signal);
-  void acckeyref1Lab(Signal* signal, Uint32 result_code);
+  void addFragRefuse(Signal* signal, Uint32 errorCode) const;
+  void ndbsttorryLab(Signal* signal) const;
+  void acckeyref1Lab(Signal* signal, Uint32 result_code) const;
   void insertelementLab(Signal* signal);
   void checkNextFragmentLab(Signal* signal);
-  void endofexpLab(Signal* signal);
+  void endofexpLab(Signal* signal) const;
   void endofshrinkbucketLab(Signal* signal);
-  void senddatapagesLab(Signal* signal);
-  void sttorrysignalLab(Signal* signal);
-  void sendholdconfsignalLab(Signal* signal);
-  void accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr);
-  void insertExistElemLab(Signal* signal, OperationrecPtr lockOwnerPtr);
+  void senddatapagesLab(Signal* signal) const;
+  void sttorrysignalLab(Signal* signal) const;
+  void sendholdconfsignalLab(Signal* signal) const;
+  void accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) const;
+  void insertExistElemLab(Signal* signal, OperationrecPtr lockOwnerPtr) const;
   void refaccConnectLab(Signal* signal);
   void releaseScanLab(Signal* signal);
   void ndbrestart1Lab();
   void initialiseRecordsLab(Signal* signal, Uint32 ref, Uint32 data);
   void checkNextBucketLab(Signal* signal);
-  void storeDataPageInDirectoryLab(Signal* signal);
+  void storeDataPageInDirectoryLab(Signal* signal) const;
 
   void zpagesize_error(const char* where);
 
   // charsets
-  void xfrmKeyData(AccKeyReq* signal);
+  void xfrmKeyData(AccKeyReq* signal) const;
 
   // Initialisation
   void initData();
   void initRecords();
 
 #ifdef VM_TRACE
-  void debug_lh_vars(const char* where);
+  void debug_lh_vars(const char* where) const;
 #else
-  void debug_lh_vars(const char* where) {}
+  void debug_lh_vars(const char* where) const {}
 #endif
 
 public:

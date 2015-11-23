@@ -191,7 +191,7 @@ void Dbacc::execSTTOR(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 /* ZSPH1                                                                             */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::ndbrestart1Lab() 
+void Dbacc::ndbrestart1Lab()
 {
   cmynodeid = globalData.ownId;
   cownBlockref = calcInstanceBlockRef(DBACC);
@@ -201,7 +201,7 @@ void Dbacc::ndbrestart1Lab()
   return;
 }//Dbacc::ndbrestart1Lab()
 
-void Dbacc::initialiseRecordsLab(Signal* signal, Uint32 ref, Uint32 data) 
+void Dbacc::initialiseRecordsLab(Signal* signal, Uint32 ref, Uint32 data)
 {
   switch (tdata0) {
   case 0:
@@ -271,7 +271,7 @@ void Dbacc::initialiseRecordsLab(Signal* signal, Uint32 ref, Uint32 data)
 /* *********************************<< */
 /* NDB_STTORRY                         */
 /* *********************************<< */
-void Dbacc::ndbsttorryLab(Signal* signal) 
+void Dbacc::ndbsttorryLab(Signal* signal) const
 {
   signal->theData[0] = cownBlockref;
   sendSignal(cndbcntrRef, GSN_NDB_STTORRY, signal, 1, JBB);
@@ -314,7 +314,7 @@ void Dbacc::execREAD_CONFIG_REQ(Signal* signal)
 /* *********************************<< */
 /* STTORRY                             */
 /* *********************************<< */
-void Dbacc::sttorrysignalLab(Signal* signal) 
+void Dbacc::sttorrysignalLab(Signal* signal) const
 {
   signal->theData[0] = csignalkey;
   signal->theData[1] = 3;
@@ -333,7 +333,7 @@ void Dbacc::sttorrysignalLab(Signal* signal)
 /* INITIALISE_FRAG_REC                                                               */
 /*              INITIALATES THE FRAGMENT RECORDS.                                    */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::initialiseFragRec() 
+void Dbacc::initialiseFragRec()
 {
   FragmentrecPtr regFragPtr;
   ndbrequire(cfragmentsize > 0);
@@ -354,7 +354,7 @@ void Dbacc::initialiseFragRec()
 /* INITIALISE_OPERATION_REC                                                          */
 /*              INITIALATES THE OPERATION RECORDS.                                   */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::initialiseOperationRec() 
+void Dbacc::initialiseOperationRec()
 {
   ndbrequire(coprecsize > 0);
   for (operationRecPtr.i = 0; operationRecPtr.i < coprecsize; operationRecPtr.i++) {
@@ -373,7 +373,7 @@ void Dbacc::initialiseOperationRec()
 /* INITIALISE_PAGE_REC                                                               */
 /*              INITIALATES THE PAGE RECORDS.                                        */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::initialisePageRec() 
+void Dbacc::initialisePageRec()
 {
   ndbrequire(cpagesize > 0);
   cnoOfAllocatedPages = 0;
@@ -389,7 +389,7 @@ void Dbacc::initialisePageRec()
 /* INITIALISE_SCAN_REC                                                               */
 /*              INITIALATES THE QUE_SCAN RECORDS.                                    */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::initialiseScanRec() 
+void Dbacc::initialiseScanRec()
 {
   ndbrequire(cscanRecSize > 0);
   for (scanPtr.i = 0; scanPtr.i < cscanRecSize; scanPtr.i++) {
@@ -408,7 +408,7 @@ void Dbacc::initialiseScanRec()
 /* INITIALISE_TABLE_REC                                                              */
 /*              INITIALATES THE TABLE RECORDS.                                       */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::initialiseTableRec() 
+void Dbacc::initialiseTableRec()
 {
   ndbrequire(ctablesize > 0);
   for (tabptr.i = 0; tabptr.i < ctablesize; tabptr.i++) {
@@ -516,7 +516,7 @@ void Dbacc::execACCFRAGREQ(Signal* signal)
   sendSignal(retRef, GSN_ACCFRAGCONF, signal, AccFragConf::SignalLength, JBB);
 }//Dbacc::execACCFRAGREQ()
 
-void Dbacc::addFragRefuse(Signal* signal, Uint32 errorCode) 
+void Dbacc::addFragRefuse(Signal* signal, Uint32 errorCode) const
 {
   const AccFragReq * const req = (AccFragReq*)&signal->theData[0];  
   AccFragRef * const ref = (AccFragRef*)&signal->theData[0];  
@@ -668,7 +668,7 @@ void Dbacc::releaseFragResources(Signal* signal, Uint32 fragIndex)
   ndbassert(validatePageCount());
 }//Dbacc::releaseFragResources()
 
-void Dbacc::verifyFragCorrect(FragmentrecPtr regFragPtr)
+void Dbacc::verifyFragCorrect(FragmentrecPtr regFragPtr)const
 {
   ndbrequire(regFragPtr.p->lockOwnersList == RNIL);
 }//Dbacc::verifyFragCorrect()
@@ -726,7 +726,7 @@ void Dbacc::releaseDirResources(Signal* signal)
   }
 }//Dbacc::releaseDirResources()
 
-void Dbacc::releaseFragRecord(FragmentrecPtr regFragPtr) 
+void Dbacc::releaseFragRecord(FragmentrecPtr regFragPtr)
 {
   regFragPtr.p->nextfreefrag = cfirstfreefrag;
   cfirstfreefrag = regFragPtr.i;
@@ -739,7 +739,7 @@ void Dbacc::releaseFragRecord(FragmentrecPtr regFragPtr)
 /*       DESCRIPTION: PUTS A FRAGMENT ID AND A POINTER TO ITS RECORD INTO     */
 /*                                TABLE ARRRAY OF THE TABLE RECORD.           */
 /* -------------------------------------------------------------------------- */
-bool Dbacc::addfragtotab(Uint32 rootIndex, Uint32 fid) 
+bool Dbacc::addfragtotab(Uint32 rootIndex, Uint32 fid) const
 {
   for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabptr.p->fragholder); i++) {
     jam();
@@ -807,7 +807,7 @@ void Dbacc::execACCSEIZEREQ(Signal* signal)
   return;
 }//Dbacc::execACCSEIZEREQ()
 
-void Dbacc::refaccConnectLab(Signal* signal) 
+void Dbacc::refaccConnectLab(Signal* signal)
 {
   tresult = ZCONNECT_SIZE_ERROR;
   /* ******************************< */
@@ -840,7 +840,7 @@ void Dbacc::refaccConnectLab(Signal* signal)
 /*           INFORMATION WHICH IS RECIEVED BY ACCKEYREQ WILL BE SAVED                */
 /*           IN THE OPERATION RECORD.                                                */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::initOpRec(const AccKeyReq* signal, Uint32 siglen) 
+void Dbacc::initOpRec(const AccKeyReq* signal, Uint32 siglen) const
 {
   register Uint32 Treqinfo;
 
@@ -910,7 +910,7 @@ void Dbacc::initOpRec(const AccKeyReq* signal, Uint32 siglen)
 /* --------------------------------------------------------------------------------- */
 /* SEND_ACCKEYCONF                                                                   */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::sendAcckeyconf(Signal* signal) 
+void Dbacc::sendAcckeyconf(Signal* signal) const
 {
   signal->theData[0] = operationRecPtr.p->userptr;
   signal->theData[1] = operationRecPtr.p->m_op_bits & Operationrec::OP_MASK;
@@ -920,7 +920,7 @@ void Dbacc::sendAcckeyconf(Signal* signal)
 }//Dbacc::sendAcckeyconf()
 
 void 
-Dbacc::ACCKEY_error(Uint32 fromWhere)
+Dbacc::ACCKEY_error(Uint32 fromWhere)const
 {
   switch(fromWhere) {
   case 0:
@@ -1159,7 +1159,7 @@ Dbacc::execACCKEY_ORD(Signal* signal, Uint32 opPtrI)
 }
 
 void
-Dbacc::startNext(Signal* signal, OperationrecPtr lastOp) 
+Dbacc::startNext(Signal* signal, OperationrecPtr lastOp)
 {
   jam();
   OperationrecPtr nextOp;
@@ -1404,7 +1404,7 @@ ref:
 }
 
 void
-Dbacc::xfrmKeyData(AccKeyReq* signal)
+Dbacc::xfrmKeyData(AccKeyReq* signal)const
 {
   Uint32 table = fragrecptr.p->myTableId;
   Uint32 dst[MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY];
@@ -1417,7 +1417,7 @@ Dbacc::xfrmKeyData(AccKeyReq* signal)
 }
 
 void 
-Dbacc::accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) 
+Dbacc::accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) const
 {
   Uint32 bits = operationRecPtr.p->m_op_bits;
   validate_lock_queue(lockOwnerPtr);
@@ -1483,7 +1483,8 @@ Dbacc::accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr)
 /* ------------------------------------------------------------------------ */
 /*        I N S E R T      E X I S T      E L E M E N T                     */
 /* ------------------------------------------------------------------------ */
-void Dbacc::insertExistElemLab(Signal* signal, OperationrecPtr lockOwnerPtr) 
+void Dbacc::insertExistElemLab(Signal* signal,
+                               OperationrecPtr lockOwnerPtr) const
 {
   if (!lockOwnerPtr.p)
   {
@@ -1552,7 +1553,7 @@ void Dbacc::insertelementLab(Signal* signal)
 /* GET_NO_PARALLEL_TRANSACTION                                              */
 /* ------------------------------------------------------------------------ */
 Uint32
-Dbacc::getNoParallelTransaction(const Operationrec * op) 
+Dbacc::getNoParallelTransaction(const Operationrec * op) const
 {
   OperationrecPtr tmp;
   
@@ -1572,7 +1573,7 @@ Dbacc::getNoParallelTransaction(const Operationrec * op)
 
 #ifdef VM_TRACE
 Uint32
-Dbacc::getNoParallelTransactionFull(const Operationrec * op) 
+Dbacc::getNoParallelTransactionFull(const Operationrec * op) const
 {
   ConstPtr<Operationrec> tmp;
   
@@ -1597,7 +1598,7 @@ Dbacc::getNoParallelTransactionFull(const Operationrec * op)
 #ifdef ACC_SAFE_QUEUE
 
 Uint32
-Dbacc::get_parallel_head(OperationrecPtr opPtr) 
+Dbacc::get_parallel_head(OperationrecPtr opPtr) const
 {
   while ((opPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER) == 0 &&
 	 opPtr.p->prevParallelQue != RNIL)
@@ -1610,7 +1611,7 @@ Dbacc::get_parallel_head(OperationrecPtr opPtr)
 }
 
 bool
-Dbacc::validate_lock_queue(OperationrecPtr opPtr)
+Dbacc::validate_lock_queue(OperationrecPtr opPtr)const
 {
   OperationrecPtr loPtr;
   loPtr.i = get_parallel_head(opPtr);
@@ -1856,7 +1857,7 @@ operator<<(NdbOut & out, Dbacc::OperationrecPtr ptr)
 }
 
 void
-Dbacc::dump_lock_queue(OperationrecPtr loPtr)
+Dbacc::dump_lock_queue(OperationrecPtr loPtr)const
 {
   if ((loPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER) == 0)
   {
@@ -1936,7 +1937,7 @@ Dbacc::dump_lock_queue(OperationrecPtr loPtr)
  *			ERROR CODE	  OPERATION NEEDS ABORTING
  * ------------------------------------------------------------------------- */
 Uint32 
-Dbacc::placeWriteInLockQueue(OperationrecPtr lockOwnerPtr) 
+Dbacc::placeWriteInLockQueue(OperationrecPtr lockOwnerPtr) const
 {
   OperationrecPtr lastOpPtr;
   lastOpPtr.i = lockOwnerPtr.p->m_lo_last_parallel_op_ptr_i;
@@ -2065,7 +2066,7 @@ checkop:
 }//Dbacc::placeWriteInLockQueue()
 
 Uint32 
-Dbacc::placeReadInLockQueue(OperationrecPtr lockOwnerPtr) 
+Dbacc::placeReadInLockQueue(OperationrecPtr lockOwnerPtr) const
 {
   OperationrecPtr lastOpPtr;
   OperationrecPtr loopPtr = lockOwnerPtr;
@@ -2174,7 +2175,7 @@ checkop:
 }//Dbacc::placeReadInLockQueue
 
 void Dbacc::placeSerialQueue(OperationrecPtr lockOwnerPtr,
-			     OperationrecPtr opPtr)
+			     OperationrecPtr opPtr)const
 {
   OperationrecPtr lastOpPtr;
   lastOpPtr.i = lockOwnerPtr.p->m_lo_last_serial_op_ptr_i;
@@ -2198,7 +2199,7 @@ void Dbacc::placeSerialQueue(OperationrecPtr lockOwnerPtr,
 /* ------------------------------------------------------------------------- */
 /* ACC KEYREQ END                                                            */
 /* ------------------------------------------------------------------------- */
-void Dbacc::acckeyref1Lab(Signal* signal, Uint32 result_code) 
+void Dbacc::acckeyref1Lab(Signal* signal, Uint32 result_code) const
 {
   operationRecPtr.p->m_op_bits = Operationrec::OP_INITIAL;
   /* ************************<< */
@@ -2606,7 +2607,7 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
 /*               TIDR_FORWARD   (CONTAINER DIRECTION OF INSERTED ELEMENT)            */
 /*               NONE                                                                */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::insertElement() 
+void Dbacc::insertElement()
 {
   Page8Ptr inrNewPageptr;
 
@@ -2865,7 +2866,7 @@ void Dbacc::insertContainer(ContainerHeader& containerhead)
 /*               NONE                                                                */
 /*                                                                                   */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::addnewcontainer() 
+void Dbacc::addnewcontainer() const
 {
   /* --------------------------------------------------------------------------------- */
   /*       KEEP LENGTH INFORMATION IN BIT 26-31.                                       */
@@ -2894,7 +2895,7 @@ void Dbacc::addnewcontainer()
 /*                     THE FREE BUFFER CAN BE A RIGHT CONTAINER OR A LEFT ONE        */
 /*                     THE KIND OF THE CONTAINER IS NOTED BY TGFL_BUF_TYPE.          */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::getfreelist() 
+void Dbacc::getfreelist()
 {
   Uint32 tgflTmp;
 
@@ -2918,7 +2919,7 @@ void Dbacc::getfreelist()
 /*           IF THE NUMBER OF ALLOCATED CONTAINERS IS ABOVE THE FREE LIMIT WE WILL   */
 /*           REMOVE THE PAGE FROM THE FREE LIST.                                     */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::increaselistcont() 
+void Dbacc::increaselistcont()
 {
   dbgWord32(ilcPageptr, ZPOS_ALLOC_CONTAINERS, ilcPageptr.p->word32[ZPOS_ALLOC_CONTAINERS] + 1);
   ilcPageptr.p->word32[ZPOS_ALLOC_CONTAINERS] = ilcPageptr.p->word32[ZPOS_ALLOC_CONTAINERS] + 1;
@@ -2950,7 +2951,7 @@ void Dbacc::increaselistcont()
 /*                      (FREEPAGEPTR). PREVIOUS AND NEXT BUFFER OF REMOVED BUFFER    */
 /*                      WILL BE UPDATED.                                             */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::seizeLeftlist() 
+void Dbacc::seizeLeftlist()
 {
   Uint32 tsllTmp1;
   Uint32 tsllHeadIndex;
@@ -2996,7 +2997,7 @@ void Dbacc::seizeLeftlist()
 /*                      (SL_PAGEPTR). PREVIOUS AND NEXT BUFFER OF REMOVED BUFFER     */
 /*                      WILL BE UPDATED.                                             */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::seizeRightlist() 
+void Dbacc::seizeRightlist()
 {
   Uint32 tsrlHeadIndex;
   Uint32 tsrlTmp;
@@ -3102,7 +3103,7 @@ Uint32 Dbacc::unsetPagePtr(DynArr256::Head& directory, Uint32 index)
   return ptri;
 }
 
-void Dbacc::getdirindex() 
+void Dbacc::getdirindex()
 {
   Uint32 tgdiAddress;
 
@@ -3178,7 +3179,7 @@ void ndb_acc_ia64_icc810_dummy_func()
 #endif
 
 Uint32
-Dbacc::getElement(const AccKeyReq* signal, OperationrecPtr& lockOwnerPtr) 
+Dbacc::getElement(const AccKeyReq* signal, OperationrecPtr& lockOwnerPtr)
 {
   Uint32 errcode;
   Uint32 tgeElementHeader;
@@ -3461,7 +3462,7 @@ void Dbacc::commitdelete(Signal* signal)
 /*        DESCRIPTION: COPY LAST ELEMENT TO DELETED ELEMENT AND UPDATE UNDO LOG AND  */
 /*                     UPDATE ANY ACTIVE OPERATION ON THE MOVED ELEMENT.             */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::deleteElement() 
+void Dbacc::deleteElement() const
 {
   OperationrecPtr deOperationRecPtr;
   Uint32 tdeIndex;
@@ -3648,7 +3649,7 @@ void Dbacc::getLastAndRemove(ContainerHeader& containerhead)
 /*          THE FREE LIST OF LEFT FREE BUFFER IN THE PAGE WILL BE UPDATE             */
 /*     TULL_INDEX IS INDEX TO THE FIRST WORD IN THE LEFT SIDE OF THE BUFFER          */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::releaseLeftlist() 
+void Dbacc::releaseLeftlist()
 {
   Uint32 tullTmp;
   Uint32 tullTmp1;
@@ -3700,7 +3701,7 @@ void Dbacc::releaseLeftlist()
 /*         TURL_INDEX IS INDEX TO THE FIRST WORD IN THE RIGHT SIDE OF                */
 /*         THE BUFFER, WHICH IS THE LAST WORD IN THE BUFFER.                         */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::releaseRightlist() 
+void Dbacc::releaseRightlist()
 {
   Uint32 turlTmp1;
   Uint32 turlTmp;
@@ -3741,7 +3742,7 @@ void Dbacc::releaseRightlist()
 /*                     PAGES. WHEN IT HAVE TO, AN OVERFLOW REC PTR WILL BE ALLOCATED */
 /*                     TO KEEP NFORMATION  ABOUT THE PAGE.                           */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::checkoverfreelist() 
+void Dbacc::checkoverfreelist()
 {
   Uint32 tcolTmp;
 
@@ -3916,7 +3917,7 @@ Dbacc::abortParallelQueueOperation(Signal* signal, OperationrecPtr opPtr)
 }
 
 void 
-Dbacc::abortSerieQueueOperation(Signal* signal, OperationrecPtr opPtr) 
+Dbacc::abortSerieQueueOperation(Signal* signal, OperationrecPtr opPtr)
 {
   jam();
   OperationrecPtr prevS, nextS;
@@ -4081,7 +4082,7 @@ Dbacc::abortSerieQueueOperation(Signal* signal, OperationrecPtr opPtr)
 }
 
 
-void Dbacc::abortOperation(Signal* signal) 
+void Dbacc::abortOperation(Signal* signal)
 {
   Uint32 opbits = operationRecPtr.p->m_op_bits;
 
@@ -4146,7 +4147,7 @@ void Dbacc::abortOperation(Signal* signal)
 }
 
 void
-Dbacc::commitDeleteCheck()
+Dbacc::commitDeleteCheck()const
 {
   OperationrecPtr opPtr;
   OperationrecPtr lastOpPtr;
@@ -4233,7 +4234,7 @@ Dbacc::commitDeleteCheck()
 /* DESCRIPTION: THE OPERATION RECORD WILL BE TAKE OUT OF ANY LOCK QUEUE.     */
 /*         IF IT OWNS THE ELEMENT LOCK. HEAD OF THE ELEMENT WILL BE UPDATED. */
 /* ------------------------------------------------------------------------- */
-void Dbacc::commitOperation(Signal* signal) 
+void Dbacc::commitOperation(Signal* signal)
 {
   validate_lock_queue(operationRecPtr);
 
@@ -4642,7 +4643,7 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
 }
 
 void
-Dbacc::startNew(Signal* signal, OperationrecPtr newOwner) 
+Dbacc::startNew(Signal* signal, OperationrecPtr newOwner)
 {
   OperationrecPtr save = operationRecPtr;
   operationRecPtr = newOwner;
@@ -4729,7 +4730,7 @@ ref:
  * lock owners list on the fragment.
  *
  */
-void Dbacc::takeOutLockOwnersList(const OperationrecPtr& outOperPtr) 
+void Dbacc::takeOutLockOwnersList(const OperationrecPtr& outOperPtr) const
 {
   const Uint32 Tprev = outOperPtr.p->prevLockOwnerOp;
   const Uint32 Tnext = outOperPtr.p->nextLockOwnerOp;
@@ -4784,7 +4785,7 @@ void Dbacc::takeOutLockOwnersList(const OperationrecPtr& outOperPtr)
  * list on the fragment.
  *
  */
-void Dbacc::insertLockOwnersList(const OperationrecPtr& insOperPtr) 
+void Dbacc::insertLockOwnersList(const OperationrecPtr& insOperPtr) const
 {
   OperationrecPtr tmpOperPtr;
 #ifdef VM_TRACE
@@ -4829,7 +4830,7 @@ void Dbacc::insertLockOwnersList(const OperationrecPtr& insOperPtr)
 /* ALLOC_OVERFLOW_PAGE                                                               */
 /*          DESCRIPTION:                                                             */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::allocOverflowPage() 
+void Dbacc::allocOverflowPage()
 {
   tresult = 0;
   if (cfreepages.isEmpty())
@@ -4957,7 +4958,7 @@ Uint32 Dbacc::checkScanExpand(Uint32 splitBucket)
   return TreturnCode;
 }//Dbacc::checkScanExpand()
 
-void Dbacc::execEXPANDCHECK2(Signal* signal) 
+void Dbacc::execEXPANDCHECK2(Signal* signal)
 {
   jamEntry();
 
@@ -5102,7 +5103,7 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   return;
 }//Dbacc::execEXPANDCHECK2()
   
-void Dbacc::endofexpLab(Signal* signal) 
+void Dbacc::endofexpLab(Signal* signal) const
 {
   fragrecptr.p->slack += fragrecptr.p->maxloadfactor;
   fragrecptr.p->expandCounter++;
@@ -5222,7 +5223,7 @@ LHBits32 Dbacc::getElementHash(Uint32 const* elemptr, Int32 forward, Operationre
 /*        DESCRIPTION: THE HASH VALUE OF ALL ELEMENTS IN THE CONTAINER WILL BE       */
 /*                  CHECKED. SOME OF THIS ELEMENTS HAVE TO MOVE TO THE NEW CONTAINER */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::expandcontainer() 
+void Dbacc::expandcontainer()
 {
   ContainerHeader containerhead;
   LHBits32 texcHashvalue;
@@ -5776,7 +5777,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
   return;
 }//Dbacc::execSHRINKCHECK2()
 
-void Dbacc::endofshrinkbucketLab(Signal* signal) 
+void Dbacc::endofshrinkbucketLab(Signal* signal)
 {
   fragrecptr.p->level.shrink();
   fragrecptr.p->expandCounter--;
@@ -5964,7 +5965,7 @@ Dbacc::shrink_adjust_reduced_hash_value(Uint32 bucket_number)
   return;
 }//Dbacc::shrink_adjust_reduced_hash_value()
 
-void Dbacc::shrinkcontainer() 
+void Dbacc::shrinkcontainer()
 {
   Uint32 tshrElementptr;
   Uint32 tshrRemLen;
@@ -6076,7 +6077,7 @@ void Dbacc::nextcontainerinfoExp(ContainerHeader const containerhead)
 }//Dbacc::nextcontainerinfoExp()
 
 void Dbacc::initFragAdd(Signal* signal,
-                        FragmentrecPtr regFragPtr) 
+                        FragmentrecPtr regFragPtr) const
 {
   const AccFragReq * const req = (AccFragReq*)&signal->theData[0];  
   Uint32 minLoadFactor = (req->minLoadFactor * ZBUF_SIZE) / 100;
@@ -6130,7 +6131,7 @@ void Dbacc::initFragAdd(Signal* signal,
   regFragPtr.p->hasCharAttr = hasCharAttr;
 }//Dbacc::initFragAdd()
 
-void Dbacc::initFragGeneral(FragmentrecPtr regFragPtr)
+void Dbacc::initFragGeneral(FragmentrecPtr regFragPtr)const
 {
   new (&regFragPtr.p->directory) DynArr256::Head();
 
@@ -6293,7 +6294,7 @@ void Dbacc::execNEXT_SCANREQ(Signal* signal)
   return;
 }//Dbacc::execNEXT_SCANREQ()
 
-void Dbacc::checkNextBucketLab(Signal* signal) 
+void Dbacc::checkNextBucketLab(Signal* signal)
 {
   Page8Ptr nsPageptr;
   Page8Ptr cscPageidptr;
@@ -6491,7 +6492,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
 }//Dbacc::checkNextBucketLab()
 
 
-void Dbacc::checkNextFragmentLab(Signal* signal) 
+void Dbacc::checkNextFragmentLab(Signal* signal)
 {
   scanPtr.p->scanBucketState =  ScanRec::SCAN_COMPLETED;
   // The scan is completed. ACC_CHECK_SCAN will perform all the necessary 
@@ -6534,7 +6535,7 @@ void Dbacc::initScanFragmentPart()
  * ALL OPERATION IN THE ACTIVE OR WAIT QUEUE ARE RELEASED, 
  * SCAN FLAG OF ROOT FRAG IS RESET AND THE SCAN RECORD IS RELEASED.
  * ------------------------------------------------------------------------ */
-void Dbacc::releaseScanLab(Signal* signal) 
+void Dbacc::releaseScanLab(Signal* signal)
 {
   releaseAndCommitActiveOps(signal);
   releaseAndCommitQueuedOps(signal);
@@ -6563,7 +6564,7 @@ void Dbacc::releaseScanLab(Signal* signal)
 }//Dbacc::releaseScanLab()
 
 
-void Dbacc::releaseAndCommitActiveOps(Signal* signal) 
+void Dbacc::releaseAndCommitActiveOps(Signal* signal)
 {
   OperationrecPtr trsoOperPtr;
   operationRecPtr.i = scanPtr.p->scanFirstActiveOp;
@@ -6594,7 +6595,7 @@ void Dbacc::releaseAndCommitActiveOps(Signal* signal)
 }//Dbacc::releaseAndCommitActiveOps()
 
 
-void Dbacc::releaseAndCommitQueuedOps(Signal* signal) 
+void Dbacc::releaseAndCommitQueuedOps(Signal* signal)
 {
   OperationrecPtr trsoOperPtr;
   operationRecPtr.i = scanPtr.p->scanFirstQueuedOp;
@@ -6845,7 +6846,7 @@ void Dbacc::containerinfo(ContainerHeader& containerhead)
 /*                       GSE_PAGEIDPTR                                               */
 /*                       TGSE_PAGEINDEX                                              */
 /* --------------------------------------------------------------------------------- */
-bool Dbacc::getScanElement() 
+bool Dbacc::getScanElement()
 {
   ContainerHeader containerhead;
   tgseIsforward = ZTRUE;
@@ -6885,7 +6886,7 @@ bool Dbacc::getScanElement()
 /* --------------------------------------------------------------------------------- */
 /*  INIT_SCAN_OP_REC                                                                 */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::initScanOpRec() 
+void Dbacc::initScanOpRec() const
 {
   Uint32 tisoLocalPtr;
   Uint32 localkeylen = fragrecptr.p->localkeylen;
@@ -6970,7 +6971,7 @@ void Dbacc::nextcontainerinfo(ContainerHeader const containerhead)
 /* --------------------------------------------------------------------------------- */
 /* PUT_ACTIVE_SCAN_OP                                                                */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::putActiveScanOp() 
+void Dbacc::putActiveScanOp() const
 {
   OperationrecPtr pasOperationRecPtr;
   pasOperationRecPtr.i = scanPtr.p->scanFirstActiveOp;
@@ -6997,7 +6998,7 @@ void Dbacc::putActiveScanOp()
  *       from the list
  *
  */
-void Dbacc::putOpScanLockQue() 
+void Dbacc::putOpScanLockQue() const
 {
 
 #ifdef VM_TRACE
@@ -7042,7 +7043,7 @@ void Dbacc::putOpScanLockQue()
 /* --------------------------------------------------------------------------------- */
 /* PUT_READY_SCAN_QUEUE                                                              */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::putReadyScanQueue(Uint32 scanRecIndex) 
+void Dbacc::putReadyScanQueue(Uint32 scanRecIndex) const
 {
   OperationrecPtr prsOperationRecPtr;
   ScanRecPtr TscanPtr;
@@ -7071,7 +7072,7 @@ void Dbacc::putReadyScanQueue(Uint32 scanRecIndex)
 //   rsbPageidptr.p     Pointer to page where bucket starts
 //   trsbPageindex      Page index of starting container in bucket
 /* --------------------------------------------------------------------------------- */
-void Dbacc::releaseScanBucket() 
+void Dbacc::releaseScanBucket()
 {
   ContainerHeader containerhead;
   Uint32 trsbIsforward;
@@ -7114,7 +7115,7 @@ void Dbacc::releaseScanBucket()
 /*            DESCRIPTION: SEARCHS IN A CONTAINER, AND THE SCAN BIT OF THE ELEMENTS  */
 /*                            OF THE CONTAINER IS RESET                              */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::releaseScanContainer() 
+void Dbacc::releaseScanContainer() const
 {
   OperationrecPtr rscOperPtr;
   Uint32 trscElemStep;
@@ -7167,7 +7168,7 @@ void Dbacc::releaseScanContainer()
 /* --------------------------------------------------------------------------------- */
 /* RELEASE_SCAN_REC                                                                  */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::releaseScanRec() 
+void Dbacc::releaseScanRec()
 {  
   // Check that all ops this scan has allocated have been 
   // released
@@ -7208,7 +7209,7 @@ void Dbacc::releaseScanRec()
 /*                    TO DO THIS THE SCAN BIT OF THE ELEMENT HEADER IS CHECKED. IF   */
 /*                    THIS BIT IS ZERO, IT IS SET TO ONE AND THE ELEMENT IS RETURNED.*/
 /* --------------------------------------------------------------------------------- */
-bool Dbacc::searchScanContainer() 
+bool Dbacc::searchScanContainer()
 {
   OperationrecPtr sscOperPtr;
   Uint32 tsscScanBits;
@@ -7270,7 +7271,7 @@ bool Dbacc::searchScanContainer()
 /* --------------------------------------------------------------------------------- */
 /*  SEND THE RESPONSE NEXT_SCANCONF AND POSSIBLE KEYINFO SIGNALS AS WELL.            */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::sendNextScanConf(Signal* signal) 
+void Dbacc::sendNextScanConf(Signal* signal)
 {
   const Uint32 localKey1 = operationRecPtr.p->localdata[0];
   const Uint32 localKey2 = operationRecPtr.p->localdata[1];
@@ -7303,7 +7304,7 @@ void Dbacc::sendNextScanConf(Signal* signal)
 /*                       BE PUT IN THE OPERATION RECORD. A FIELD IN THE  HEADER OF   */
 /*                       THE ELEMENT POINTS TO THE OPERATION RECORD.                 */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::setlock() 
+void Dbacc::setlock() const
 {
   Uint32 tselTmp1;
 
@@ -7322,7 +7323,7 @@ void Dbacc::setlock()
 /*         DESCRIPTION: AN ACTIVE SCAN OPERATION IS BELOGED TO AN ACTIVE LIST OF THE */
 /*                      SCAN RECORD. BY THIS SUBRUTIN THE LIST IS UPDATED.           */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::takeOutActiveScanOp() 
+void Dbacc::takeOutActiveScanOp() const
 {
   OperationrecPtr tasOperationRecPtr;
 
@@ -7353,7 +7354,7 @@ void Dbacc::takeOutActiveScanOp()
  *       the list
  *
  */
-void Dbacc::takeOutScanLockQueue(Uint32 scanRecIndex) 
+void Dbacc::takeOutScanLockQueue(Uint32 scanRecIndex) const
 {
   OperationrecPtr tslOperationRecPtr;
   ScanRecPtr TscanPtr;
@@ -7408,7 +7409,7 @@ void Dbacc::takeOutScanLockQueue(Uint32 scanRecIndex)
 /* --------------------------------------------------------------------------------- */
 /* TAKE_OUT_READY_SCAN_QUEUE                                                         */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::takeOutReadyScanQueue() 
+void Dbacc::takeOutReadyScanQueue() const
 {
   OperationrecPtr trsOperationRecPtr;
 
@@ -7441,7 +7442,7 @@ void Dbacc::takeOutReadyScanQueue()
 /* --------------------------------------------------------------------------------- */
 /* --------------------------------------------------------------------------------- */
 
-bool Dbacc::getfragmentrec(FragmentrecPtr& rootPtr, Uint32 fid) 
+bool Dbacc::getfragmentrec(FragmentrecPtr& rootPtr, Uint32 fid)
 {
   for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabptr.p->fragholder); i++) {
     jam();
@@ -7461,7 +7462,7 @@ bool Dbacc::getfragmentrec(FragmentrecPtr& rootPtr, Uint32 fid)
 /*         DESCRIPTION: CONTAINERS AND FREE LISTS OF THE PAGE, GET INITIALE VALUE    */
 /*         ACCORDING TO LH3 AND PAGE STRUCTOR DESCRIPTION OF NDBACC BLOCK            */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::initOverpage() 
+void Dbacc::initOverpage()
 {
   Uint32 tiopPrevFree;
   Uint32 tiopNextFree;
@@ -7519,7 +7520,7 @@ void Dbacc::initOverpage()
 /*         DESCRIPTION: CONTAINERS AND FREE LISTS OF THE PAGE, GET INITIALE VALUE    */
 /*         ACCORDING TO LH3 AND PAGE STRUCTOR DISACRIPTION OF NDBACC BLOCK           */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::initPage() 
+void Dbacc::initPage()
 {
   Uint32 tinpIndex;
   Uint32 tinpTmp;
@@ -7613,7 +7614,7 @@ void Dbacc::initPage()
 /* RELEASE OP RECORD                                                                 */
 /*         PUT A FREE OPERATION IN A FREE LIST OF THE OPERATIONS                     */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::releaseOpRec() 
+void Dbacc::releaseOpRec()
 {
 #if 0
   // DEBUG CODE
@@ -7645,7 +7646,7 @@ void Dbacc::releaseOpRec()
 /* --------------------------------------------------------------------------------- */
 /* RELEASE_OVERPAGE                                                                  */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::releaseOverpage() 
+void Dbacc::releaseOverpage()
 {
   jam();
   {
@@ -7661,7 +7662,7 @@ void Dbacc::releaseOverpage()
 /* ------------------------------------------------------------------------- */
 /* RELEASE_PAGE                                                              */
 /* ------------------------------------------------------------------------- */
-void Dbacc::releasePage() 
+void Dbacc::releasePage()
 {
   jam();
   ndbassert(g_acc_pages_used[instance()] == cnoOfAllocatedPages);
@@ -7716,7 +7717,7 @@ Uint64 Dbacc::getLinHashByteSize(Uint32 fragId) const
 /* --------------------------------------------------------------------------------- */
 /* SEIZE    FRAGREC                                                                  */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::seizeFragrec() 
+void Dbacc::seizeFragrec()
 {
   RSS_OP_ALLOC(cnoOfFreeFragrec);
   fragrecptr.i = cfirstfreefrag;
@@ -7728,7 +7729,7 @@ void Dbacc::seizeFragrec()
 /* --------------------------------------------------------------------------------- */
 /* SEIZE_OP_REC                                                                      */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::seizeOpRec() 
+void Dbacc::seizeOpRec()
 {
   operationRecPtr.i = cfreeopRec;
   ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
@@ -7754,7 +7755,7 @@ void Dbacc::zpagesize_error(const char* where){
 /* --------------------------------------------------------------------------------- */
 /* SEIZE_PAGE                                                                        */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::seizePage() 
+void Dbacc::seizePage()
 {
   jam();
   ndbassert(g_acc_pages_used[instance()] == cnoOfAllocatedPages);
@@ -7792,7 +7793,7 @@ void Dbacc::seizePage()
 /* --------------------------------------------------------------------------------- */
 /* SEIZE_SCAN_REC                                                                    */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::seizeScanRec() 
+void Dbacc::seizeScanRec()
 {
   scanPtr.i = cfirstFreeScanRec;
   ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
@@ -7806,7 +7807,7 @@ void Dbacc::seizeScanRec()
 /* --------------------------------------------------------------------------------- */
 /* SEND_SYSTEMERROR                                                                  */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::sendSystemerror(int line)
+void Dbacc::sendSystemerror(int line)const
 {
   progError(line, NDBD_EXIT_PRGERR);
 }//Dbacc::sendSystemerror()
@@ -8240,7 +8241,7 @@ Dbacc::execNODE_STATE_REP(Signal* signal)
 
 #ifdef VM_TRACE
 void
-Dbacc::debug_lh_vars(const char* where)
+Dbacc::debug_lh_vars(const char* where)const
 {
   Uint32 b = fragrecptr.p->level.getTop();
   Uint32 di = fragrecptr.p->getPageNumber(b);
