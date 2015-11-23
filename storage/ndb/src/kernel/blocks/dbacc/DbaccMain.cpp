@@ -6849,16 +6849,15 @@ bool Dbacc::getScanElement()
                 containerhead,
                 conptr,
                 conlen);
-  sscPageidptr.i = gsePageidptr.i;
-  sscPageidptr.p = gsePageidptr.p;
-  tsscContainerlen = conlen;
-  tsscContainerptr = conptr;
-  tsscIsforward = tgseIsforward;
-  if (searchScanContainer()) {
+  if (searchScanContainer(gsePageidptr,
+                          conptr,
+                          tgseIsforward,
+                          conlen,
+                          tgseElementptr,
+                          tgseIsLocked))
+  {
     jam();
-    tgseIsLocked = tsscIsLocked;
-    tgseElementptr = tsscElementptr;
-    tgseContainerptr = tsscContainerptr;
+    tgseContainerptr = conptr;
     return true;
   }//if
   if (containerhead.getNextEnd() != 0) {
@@ -7195,60 +7194,71 @@ void Dbacc::releaseScanRec()
 /*                    TO DO THIS THE SCAN BIT OF THE ELEMENT HEADER IS CHECKED. IF   */
 /*                    THIS BIT IS ZERO, IT IS SET TO ONE AND THE ELEMENT IS RETURNED.*/
 /* --------------------------------------------------------------------------------- */
-bool Dbacc::searchScanContainer()
+bool Dbacc::searchScanContainer(Page8Ptr pageptr,
+                                Uint32 conptr,
+                                Uint32 isforward,
+                                Uint32 conlen,
+                                Uint32& elemptr,
+                                Uint32& islocked) const
 {
-  OperationrecPtr sscOperPtr;
-  Uint32 tsscScanBits;
-  Uint32 tsscElemlens;
-  Uint32 tsscElemlen;
-  Uint32 tsscElemStep;
+  OperationrecPtr operPtr;
+  Uint32 scanBits;
+  Uint32 elemlens;
+  Uint32 elemlen;
+  Uint32 elemStep;
+  Uint32 Telemptr;
+  Uint32 Tislocked;
 
-  if (tsscContainerlen < 4) {
+  if (conlen < 4) {
     jam();
     return false;	/* 2 IS THE MINIMUM SIZE OF THE ELEMENT */
   }//if
-  tsscElemlens = tsscContainerlen - Container::HEADER_SIZE;
-  tsscElemlen = fragrecptr.p->elementLength;
+  elemlens = conlen - Container::HEADER_SIZE;
+  elemlen = fragrecptr.p->elementLength;
   /* LENGTH OF THE ELEMENT */
-  if (tsscIsforward == 1) {
+  if (isforward == 1) {
     jam();
-    tsscElementptr = tsscContainerptr + Container::HEADER_SIZE;
-    tsscElemStep = tsscElemlen;
+    Telemptr = conptr + Container::HEADER_SIZE;
+    elemStep = elemlen;
   } else {
     jam();
-    tsscElementptr = tsscContainerptr - 1;
-    tsscElemStep = 0 - tsscElemlen;
+    Telemptr = conptr - 1;
+    elemStep = 0 - elemlen;
   }//if
  SCANELEMENTLOOP001:
-  arrGuard(tsscElementptr, 2048);
-  const Uint32 eh = sscPageidptr.p->word32[tsscElementptr];
-  tsscIsLocked = ElementHeader::getLocked(eh);
-  if (!tsscIsLocked){
+  arrGuard(Telemptr, 2048);
+  const Uint32 eh = pageptr.p->word32[Telemptr];
+  Tislocked = ElementHeader::getLocked(eh);
+  if (!Tislocked){
     jam();
-    tsscScanBits = ElementHeader::getScanBits(eh);
-    if ((scanPtr.p->scanMask & tsscScanBits) == 0) {
+    scanBits = ElementHeader::getScanBits(eh);
+    if ((scanPtr.p->scanMask & scanBits) == 0) {
       jam();
       const Uint32 tmp = ElementHeader::setScanBit(eh, scanPtr.p->scanMask);
-      dbgWord32(sscPageidptr, tsscElementptr, tmp);
-      sscPageidptr.p->word32[tsscElementptr] = tmp;
+      dbgWord32(pageptr, Telemptr, tmp);
+      pageptr.p->word32[Telemptr] = tmp;
+      elemptr = Telemptr;
+      islocked = Tislocked;
       return true;
     }//if
   } else {
     jam();
-    sscOperPtr.i = ElementHeader::getOpPtrI(eh);
-    ptrCheckGuard(sscOperPtr, coprecsize, operationrec);
-    if ((sscOperPtr.p->scanBits & scanPtr.p->scanMask) == 0) {
+    operPtr.i = ElementHeader::getOpPtrI(eh);
+    ptrCheckGuard(operPtr, coprecsize, operationrec);
+    if ((operPtr.p->scanBits & scanPtr.p->scanMask) == 0) {
       jam();
-      sscOperPtr.p->scanBits |= scanPtr.p->scanMask;
+      operPtr.p->scanBits |= scanPtr.p->scanMask;
+      elemptr = Telemptr;
+      islocked = Tislocked;
       return true;
     }//if
   }//if
   /* THE ELEMENT IS ALREADY SENT. */
   /* SEARCH FOR NEXT ONE */
-  tsscElemlens = tsscElemlens - tsscElemlen;
-  if (tsscElemlens > 1) {
+  elemlens = elemlens - elemlen;
+  if (elemlens > 1) {
     jam();
-    tsscElementptr = tsscElementptr + tsscElemStep;
+    Telemptr = Telemptr + elemStep;
     goto SCANELEMENTLOOP001;
   }//if
   return false;
