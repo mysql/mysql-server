@@ -44,6 +44,8 @@ IF(UNIX)
     ENDIF()
     SET(CMAKE_CXX_FLAGS_DEBUG          "${COMMON_CXX_FLAGS}")
     SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_CXX_FLAGS}")
+    # -std=c++11 must be set
+    SET(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} -std=c++11")
   ENDIF()
 
   # Default Clang flags
@@ -56,6 +58,8 @@ IF(UNIX)
     SET(COMMON_CXX_FLAGS               "-g -fno-omit-frame-pointer -fno-strict-aliasing -std=c++11")
     SET(CMAKE_CXX_FLAGS_DEBUG          "${COMMON_CXX_FLAGS}")
     SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_CXX_FLAGS}")
+    # -std=c++11 must be set
+    SET(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} -std=c++11")
   ENDIF()
 
   # Solaris flags
@@ -81,6 +85,8 @@ IF(UNIX)
 
     IF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
       SET(COMMON_CXX_FLAGS                  "-std=c++11")
+      # -std=c++11 must be set
+      SET(CMAKE_CXX_FLAGS_RELEASE           "${CMAKE_CXX_FLAGS_RELEASE} -std=c++11")
 
       IF(CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
         SET(COMMON_C_FLAGS                   "-g -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic")
