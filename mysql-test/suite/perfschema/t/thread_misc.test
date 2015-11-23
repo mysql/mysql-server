@@ -1,0 +1,11 @@
+
+# Bug#22118669 - ASSERTION `PFS_FILE != __NULL' FAILED
+ 
+# Cause a temporary file to be instrumented,
+# while there are no per thread statistics collected.
+
+--disable_result_log
+select * from information_schema.columns ORDER BY table_name;
+--enable_result_log
+
+

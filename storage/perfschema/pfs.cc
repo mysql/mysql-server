@@ -3314,16 +3314,20 @@ pfs_get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
   if (! pfs_file->m_enabled)
     return NULL;
 
+  /* Needed for the LF_HASH */
+  PFS_thread *pfs_thread= my_thread_get_THR_PFS();
+  if (unlikely(pfs_thread == NULL))
+    return NULL;
+
   uint flags;
+
+  /* Always populated */
+  state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= my_thread_get_THR_PFS();
-    if (unlikely(pfs_thread == NULL))
-      return NULL;
     if (! pfs_thread->m_enabled)
       return NULL;
-    state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
     flags= STATE_FLAG_THREAD;
 
     if (pfs_file->m_timed)
@@ -3363,7 +3367,6 @@ pfs_get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
   }
   else
   {
-    state->m_thread= NULL;
     if (pfs_file->m_timed)
     {
       flags= STATE_FLAG_TIMED;
@@ -3420,16 +3423,20 @@ pfs_get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
   DBUG_ASSERT(pfs_file->m_class != NULL);
   PFS_file_class *klass= pfs_file->m_class;
 
+  /* Needed for the LF_HASH */
+  PFS_thread *pfs_thread= my_thread_get_THR_PFS();
+  if (unlikely(pfs_thread == NULL))
+    return NULL;
+
   uint flags;
+
+  /* Always populated */
+  state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= my_thread_get_THR_PFS();
-    if (unlikely(pfs_thread == NULL))
-      return NULL;
     if (! pfs_thread->m_enabled)
       return NULL;
-    state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
     flags= STATE_FLAG_THREAD;
 
     if (pfs_file->m_timed)
@@ -3469,7 +3476,6 @@ pfs_get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
   }
   else
   {
-    state->m_thread= NULL;
     if (pfs_file->m_timed)
     {
       flags= STATE_FLAG_TIMED;
