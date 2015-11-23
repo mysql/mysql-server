@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -156,13 +156,9 @@ Dbacc::Dbacc(Block_context& ctx, Uint32 instanceNumber):
     void* tmp[] = { &fragrecptr,
                     &operationRecPtr,
                     &idrOperationRecPtr,
-                    &mlpqOperPtr,
                     &queOperPtr,
-                    &readWriteOpPtr,
                     &ancPageptr,
                     &colPageptr,
-                    &ccoPageptr,
-                    &datapageptr,
                     &delPageptr,
                     &excPageptr,
                     &expPageptr,
@@ -175,9 +171,6 @@ Dbacc::Dbacc(Block_context& ctx, Uint32 instanceNumber):
                     &iopPageptr,
                     &lastPageptr,
                     &lastPrevpageptr,
-                    &lcnPageptr,
-                    &lcnCopyPageptr,
-                    &lupPageptr,
                     &ciPageidptr,
                     &gsePageidptr,
                     &isoPageptr,
@@ -187,7 +180,6 @@ Dbacc::Dbacc(Block_context& ctx, Uint32 instanceNumber):
                     &slPageidptr,
                     &sscPageidptr,
                     &rlPageptr,
-                    &rlpPageptr,
                     &ropPageptr,
                     &rpPageptr,
                     &slPageptr,

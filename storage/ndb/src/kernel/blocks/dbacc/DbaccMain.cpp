@@ -197,7 +197,6 @@ void Dbacc::ndbrestart1Lab()
   cownBlockref = calcInstanceBlockRef(DBACC);
   czero = 0;
   cminusOne = czero - 1;
-  ctest = 0;
   return;
 }//Dbacc::ndbrestart1Lab()
 
