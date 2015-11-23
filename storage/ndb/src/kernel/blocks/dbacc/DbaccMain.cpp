@@ -4973,9 +4973,7 @@ Uint32 Dbacc::checkScanExpand(Uint32 splitBucket)
         jam();
         scanPtr.i = fragrecptr.p->scan[Ti];
         ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
-        rsbPageidptr = TPageptr;
-        trsbPageindex = TPageIndex;
-        releaseScanBucket();
+        releaseScanBucket(TPageptr, TPageIndex);
       }//if
     }//for
   }//if
@@ -5594,10 +5592,7 @@ Uint32 Dbacc::checkScanShrink(Uint32 sourceBucket, Uint32 destBucket)
         jam();
         scanPtr.i = fragrecptr.p->scan[Ti];
         ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
-        rsbPageidptr.i = TPageptr.i;
-        rsbPageidptr.p = TPageptr.p;
-        trsbPageindex = TPageIndex;
-        releaseScanBucket();
+        releaseScanBucket(TPageptr, TPageIndex);
         if (TmergeDest < scanPtr.p->minBucketIndexToRescan) {
           jam();
 	  //-------------------------------------------------------------
@@ -6308,7 +6303,6 @@ void Dbacc::execNEXT_SCANREQ(Signal* signal)
 void Dbacc::checkNextBucketLab(Signal* signal)
 {
   Page8Ptr nsPageptr;
-  Page8Ptr cscPageidptr;
   Page8Ptr gnsPageidptr;
   Page8Ptr tnsPageidptr;
   Uint32 tnsElementptr;
@@ -6383,21 +6377,14 @@ void Dbacc::checkNextBucketLab(Signal* signal)
       // We will only reset the scan indicator on the buckets that existed at the start of the
       // scan. The others will be handled by the split and merge code.
       /* --------------------------------------------------------------------------------- */
-      trsbPageindex = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
-      if (trsbPageindex != 0) {
+      Uint32 conidx = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
+      if (conidx == 0) {
         jam();
-        rsbPageidptr.i = gnsPageidptr.i;
-        rsbPageidptr.p = gnsPageidptr.p;
-      } else {
-        jam();
-        tmpP = fragrecptr.p->getPageNumber(scanPtr.p->nextBucketIndex);
-        cscPageidptr.i = getPagePtr(fragrecptr.p->directory, tmpP);
-        ptrCheckGuard(cscPageidptr, cpagesize, page8);
-        trsbPageindex = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
-        rsbPageidptr.i = cscPageidptr.i;
-        rsbPageidptr.p = cscPageidptr.p;
+        Uint32 pagei = fragrecptr.p->getPageNumber(scanPtr.p->nextBucketIndex);
+        gnsPageidptr.i = getPagePtr(fragrecptr.p->directory, pagei);
+        ptrCheckGuard(gnsPageidptr, cpagesize, page8);
       }//if
-      releaseScanBucket();
+      releaseScanBucket(gnsPageidptr, conidx);
     }//if
     signal->theData[0] = scanPtr.i;
     signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
@@ -6528,10 +6515,8 @@ void Dbacc::initScanFragmentPart()
   scanPtr.p->maxBucketIndexToRescan = 0;
   cnfPageidptr.i = getPagePtr(fragrecptr.p->directory, 0);
   ptrCheckGuard(cnfPageidptr, cpagesize, page8);
-  trsbPageindex = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
-  rsbPageidptr.i = cnfPageidptr.i;
-  rsbPageidptr.p = cnfPageidptr.p;
-  releaseScanBucket();
+  const Uint32 conidx = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
+  releaseScanBucket(cnfPageidptr, conidx);
 }//Dbacc::initScanFragmentPart()
 
 /* -------------------------------------------------------------------------
@@ -7083,33 +7068,25 @@ void Dbacc::putReadyScanQueue(Uint32 scanRecIndex) const
 }//Dbacc::putReadyScanQueue()
 
 /** ---------------------------------------------------------------------------
- * RELEASE_SCAN_BUCKET
- * Input:
- *   rsbPageidptr.i     Index to page where buckets starts
- *   rsbPageidptr.p     Pointer to page where bucket starts
- *   trsbPageindex      Page index of starting container in bucket
+ * Reset scan bit for all elements within a bucket.
+ *
+ * Which scan bit are determined by scanPtr.
+ *
+ * @param[in]  pageptr  Page of first container of bucket
+ * @param[in]  conidx   Index within page to first container of bucket
  * ------------------------------------------------------------------------- */
-void Dbacc::releaseScanBucket()
+void Dbacc::releaseScanBucket(Page8Ptr pageptr, Uint32 conidx) const
 {
   Uint32 isforward = ZTRUE;
  NEXTRELEASESCANLOOP:
   ContainerHeader containerhead;
   Uint32 conptr;
   Uint32 conlen;
-  containerinfo(rsbPageidptr,
-                trsbPageindex,
-                isforward,
-                containerhead,
-                conptr,
-                conlen);
-  releaseScanContainer(rsbPageidptr, conptr, isforward, conlen);
+  containerinfo(pageptr, conidx, isforward, containerhead, conptr, conlen);
+  releaseScanContainer(pageptr, conptr, isforward, conlen);
   if (containerhead.getNextEnd() != 0) {
     jam();
-    nextcontainerinfo(rsbPageidptr,
-                      conptr,
-                      containerhead,
-                      trsbPageindex,
-                      isforward);
+    nextcontainerinfo(pageptr, conptr, containerhead, conidx, isforward);
     goto NEXTRELEASESCANLOOP;
   }//if
 }//Dbacc::releaseScanBucket()
