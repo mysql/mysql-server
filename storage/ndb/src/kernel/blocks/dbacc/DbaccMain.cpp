@@ -191,7 +191,7 @@ void Dbacc::execSTTOR(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 /* ZSPH1                                                                             */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::ndbrestart1Lab(Signal* signal) 
+void Dbacc::ndbrestart1Lab() 
 {
   cmynodeid = globalData.ownId;
   cownBlockref = calcInstanceBlockRef(DBACC);
@@ -206,7 +206,7 @@ void Dbacc::initialiseRecordsLab(Signal* signal, Uint32 ref, Uint32 data)
   switch (tdata0) {
   case 0:
     jam();
-    initialiseTableRec(signal);
+    initialiseTableRec();
     break;
   case 1:
   case 2:
@@ -222,25 +222,25 @@ void Dbacc::initialiseRecordsLab(Signal* signal, Uint32 ref, Uint32 data)
     break;
   case 6:
     jam();
-    initialiseFragRec(signal);
+    initialiseFragRec();
     break;
   case 7:
     jam();
     break;
   case 8:
     jam();
-    initialiseOperationRec(signal);
+    initialiseOperationRec();
     break;
   case 9:
     jam();
-    initialisePageRec(signal);
+    initialisePageRec();
     break;
   case 10:
     jam();
     break;
   case 11:
     jam();
-    initialiseScanRec(signal);
+    initialiseScanRec();
     break;
   case 12:
     jam();
@@ -300,7 +300,7 @@ void Dbacc::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_ACC_TABLE, &ctablesize));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_ACC_SCAN, &cscanRecSize));
   initRecords();
-  ndbrestart1Lab(signal);
+  ndbrestart1Lab();
 
   c_memusage_report_frequency = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_MEMREPORT_FREQUENCY, 
@@ -333,7 +333,7 @@ void Dbacc::sttorrysignalLab(Signal* signal)
 /* INITIALISE_FRAG_REC                                                               */
 /*              INITIALATES THE FRAGMENT RECORDS.                                    */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::initialiseFragRec(Signal* signal) 
+void Dbacc::initialiseFragRec() 
 {
   FragmentrecPtr regFragPtr;
   ndbrequire(cfragmentsize > 0);
@@ -354,7 +354,7 @@ void Dbacc::initialiseFragRec(Signal* signal)
 /* INITIALISE_OPERATION_REC                                                          */
 /*              INITIALATES THE OPERATION RECORDS.                                   */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::initialiseOperationRec(Signal* signal) 
+void Dbacc::initialiseOperationRec() 
 {
   ndbrequire(coprecsize > 0);
   for (operationRecPtr.i = 0; operationRecPtr.i < coprecsize; operationRecPtr.i++) {
@@ -373,7 +373,7 @@ void Dbacc::initialiseOperationRec(Signal* signal)
 /* INITIALISE_PAGE_REC                                                               */
 /*              INITIALATES THE PAGE RECORDS.                                        */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::initialisePageRec(Signal* signal) 
+void Dbacc::initialisePageRec() 
 {
   ndbrequire(cpagesize > 0);
   cnoOfAllocatedPages = 0;
@@ -389,7 +389,7 @@ void Dbacc::initialisePageRec(Signal* signal)
 /* INITIALISE_SCAN_REC                                                               */
 /*              INITIALATES THE QUE_SCAN RECORDS.                                    */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::initialiseScanRec(Signal* signal) 
+void Dbacc::initialiseScanRec() 
 {
   ndbrequire(cscanRecSize > 0);
   for (scanPtr.i = 0; scanPtr.i < cscanRecSize; scanPtr.i++) {
@@ -408,7 +408,7 @@ void Dbacc::initialiseScanRec(Signal* signal)
 /* INITIALISE_TABLE_REC                                                              */
 /*              INITIALATES THE TABLE RECORDS.                                       */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::initialiseTableRec(Signal* signal) 
+void Dbacc::initialiseTableRec() 
 {
   ndbrequire(ctablesize > 0);
   for (tabptr.i = 0; tabptr.i < ctablesize; tabptr.i++) {
@@ -467,24 +467,24 @@ void Dbacc::execACCFRAGREQ(Signal* signal)
 #endif
   ptrCheckGuard(tabptr, ctablesize, tabrec);
   ndbrequire((req->reqInfo & 0xF) == ZADDFRAG);
-  ndbrequire(!getfragmentrec(signal, fragrecptr, req->fragId));
+  ndbrequire(!getfragmentrec(fragrecptr, req->fragId));
   if (cfirstfreefrag == RNIL) {
     jam();
     addFragRefuse(signal, ZFULL_FRAGRECORD_ERROR);
     return;
   }//if
 
-  seizeFragrec(signal);
+  seizeFragrec();
   initFragGeneral(fragrecptr);
   initFragAdd(signal, fragrecptr);
 
-  if (!addfragtotab(signal, fragrecptr.i, req->fragId)) {
+  if (!addfragtotab(fragrecptr.i, req->fragId)) {
     jam();
-    releaseFragRecord(signal, fragrecptr);
+    releaseFragRecord(fragrecptr);
     addFragRefuse(signal, ZFULL_FRAGRECORD_ERROR);
     return;
   }//if
-  seizePage(signal);
+  seizePage();
   if (tresult > ZLIMIT_OF_ERROR) {
     jam();
     addFragRefuse(signal, tresult);
@@ -499,7 +499,7 @@ void Dbacc::execACCFRAGREQ(Signal* signal)
 
   tipPageId = 0;
   inpPageptr = spPageptr;
-  initPage(signal);
+  initPage();
 
   Uint32 userPtr = req->userPtr;
   BlockReference retRef = req->userRef;
@@ -660,7 +660,7 @@ void Dbacc::releaseFragResources(Signal* signal, Uint32 fragIndex)
     }
     jam();
     Uint32 tab = regFragPtr.p->mytabptr;
-    releaseFragRecord(signal, regFragPtr);
+    releaseFragRecord(regFragPtr);
     signal->theData[0] = ZREL_ROOT_FRAG;
     signal->theData[1] = tab;
     sendSignal(cownBlockref, GSN_CONTINUEB, signal, 2, JBB);
@@ -709,7 +709,7 @@ void Dbacc::releaseDirResources(Signal* signal)
       rpPageptr.i = pagei;
       ptrCheckGuard(rpPageptr, cpagesize, page8);
       fragrecptr = regFragPtr;
-      releasePage(signal);
+      releasePage();
     }
   }
   if (ret != 0)
@@ -726,7 +726,7 @@ void Dbacc::releaseDirResources(Signal* signal)
   }
 }//Dbacc::releaseDirResources()
 
-void Dbacc::releaseFragRecord(Signal* signal, FragmentrecPtr regFragPtr) 
+void Dbacc::releaseFragRecord(FragmentrecPtr regFragPtr) 
 {
   regFragPtr.p->nextfreefrag = cfirstfreefrag;
   cfirstfreefrag = regFragPtr.i;
@@ -739,7 +739,7 @@ void Dbacc::releaseFragRecord(Signal* signal, FragmentrecPtr regFragPtr)
 /*       DESCRIPTION: PUTS A FRAGMENT ID AND A POINTER TO ITS RECORD INTO     */
 /*                                TABLE ARRRAY OF THE TABLE RECORD.           */
 /* -------------------------------------------------------------------------- */
-bool Dbacc::addfragtotab(Signal* signal, Uint32 rootIndex, Uint32 fid) 
+bool Dbacc::addfragtotab(Uint32 rootIndex, Uint32 fid) 
 {
   for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabptr.p->fragholder); i++) {
     jam();
@@ -793,7 +793,7 @@ void Dbacc::execACCSEIZEREQ(Signal* signal)
     refaccConnectLab(signal);
     return;
   }//if
-  seizeOpRec(signal);
+  seizeOpRec();
   ptrGuard(operationRecPtr);
   operationRecPtr.p->userptr = tuserptr;
   operationRecPtr.p->userblockref = tuserblockref;
@@ -1067,7 +1067,7 @@ void Dbacc::execACCKEYREQ(Signal* signal)
           gePageptr.p->word32[tgeElementptr] = eh;
 	  
 	  opbits |= Operationrec::OP_LOCK_OWNER;
-	  insertLockOwnersList(signal, operationRecPtr);
+	  insertLockOwnersList(operationRecPtr);
         } else {
           jam();
 	  /*---------------------------------------------------------------*/
@@ -1364,7 +1364,7 @@ conf:
   {
     jam();
     takeOutScanLockQueue(nextOp.p->scanRecPtr);
-    putReadyScanQueue(signal, nextOp.p->scanRecPtr);
+    putReadyScanQueue(nextOp.p->scanRecPtr);
   }
   else
   {
@@ -1388,7 +1388,7 @@ ref:
     jam();
     nextOp.p->m_op_bits |= Operationrec::OP_ELEMENT_DISAPPEARED;
     takeOutScanLockQueue(nextOp.p->scanRecPtr);
-    putReadyScanQueue(signal, nextOp.p->scanRecPtr);
+    putReadyScanQueue(nextOp.p->scanRecPtr);
   }
   else
   {
@@ -1402,14 +1402,6 @@ ref:
   operationRecPtr = save;
   return;
 }
-
-
-#if 0
-void
-Dbacc::execACCKEY_REP_REF(Signal* signal, Uint32 opPtrI)
-{
-}
-#endif
 
 void
 Dbacc::xfrmKeyData(AccKeyReq* signal)
@@ -1522,7 +1514,7 @@ void Dbacc::insertelementLab(Signal* signal)
   if (fragrecptr.p->sparsepages.isEmpty())
   {
     jam();
-    allocOverflowPage(signal);
+    allocOverflowPage();
     if (tresult > ZLIMIT_OF_ERROR) {
       jam();
       acckeyref1Lab(signal, tresult);
@@ -1533,7 +1525,7 @@ void Dbacc::insertelementLab(Signal* signal)
   ndbassert(!(operationRecPtr.p->m_op_bits & Operationrec::OP_LOCK_REQ));
   Uint32 localKey = ~(Uint32)0;
   
-  insertLockOwnersList(signal, operationRecPtr);
+  insertLockOwnersList(operationRecPtr);
 
   operationRecPtr.p->scanBits = 0;	/* NOT ANY ACTIVE SCAN */
   operationRecPtr.p->reducedHashValue = fragrecptr.p->level.reduce(operationRecPtr.p->hashValue);
@@ -1549,7 +1541,7 @@ void Dbacc::insertelementLab(Signal* signal)
   /* ----------------------------------------------------------------------- */
   /* WE SET THE LOCAL KEY TO MINUS ONE TO INDICATE IT IS NOT YET VALID.      */
   /* ----------------------------------------------------------------------- */
-  insertElement(signal);
+  insertElement();
   c_tup->prepareTUPKEYREQ(localKey, localKey, fragrecptr.p->tupFragptr);
   sendAcckeyconf(signal);
   return;
@@ -2464,7 +2456,7 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
     // seize operation to hold the lock
     if (cfreeopRec != RNIL) {
       jam();
-      seizeOpRec(signal);
+      seizeOpRec();
       // init as in ACCSEIZEREQ
       operationRecPtr.p->userptr = req->userPtr;
       operationRecPtr.p->userblockref = req->userRef;
@@ -2508,7 +2500,7 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
         req->accOpPtr = operationRecPtr.i;
       } else {
         ndbrequire(signal->theData[0] == (UintR)-1);
-        releaseOpRec(signal);
+        releaseOpRec();
         req->returnCode = AccLockReq::Refused;
         req->accOpPtr = RNIL;
       }
@@ -2524,7 +2516,7 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
     // do unlock via ACC_COMMITREQ (immediate)
     signal->theData[0] = req->accOpPtr;
     EXECUTE_DIRECT(DBACC, GSN_ACC_COMMITREQ, signal, 1);
-    releaseOpRec(signal);
+    releaseOpRec();
     req->returnCode = AccLockReq::Success;
     *sig = *req;
     return;
@@ -2535,7 +2527,7 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
     signal->theData[0] = req->accOpPtr;
     signal->theData[1] = 0; // Dont send abort
     execACC_ABORTREQ(signal);
-    releaseOpRec(signal);
+    releaseOpRec();
     req->returnCode = AccLockReq::Success;
     *sig = *req;
     return;
@@ -2546,7 +2538,7 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
     signal->theData[0] = req->accOpPtr;
     signal->theData[1] = 1; // send abort
     execACC_ABORTREQ(signal);
-    releaseOpRec(signal);
+    releaseOpRec();
     req->returnCode = AccLockReq::Success;
     *sig = *req;
     return;
@@ -2614,13 +2606,13 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
 /*               TIDR_FORWARD   (CONTAINER DIRECTION OF INSERTED ELEMENT)            */
 /*               NONE                                                                */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::insertElement(Signal* signal) 
+void Dbacc::insertElement() 
 {
   Page8Ptr inrNewPageptr;
 
   do {
     ContainerHeader containerhead;
-    insertContainer(signal, containerhead);
+    insertContainer(containerhead);
     if (tidrResult != ZFALSE) {
       jam();
       return;
@@ -2651,14 +2643,14 @@ void Dbacc::insertElement(Signal* signal)
     }//if
   } while (1);
   gflPageptr.p = idrPageptr.p;
-  getfreelist(signal);
+  getfreelist();
   if (tgflPageindex == Container::NO_CONTAINER_INDEX) {
     jam();
     /* NO FREE BUFFER IS FOUND */
     if (fragrecptr.p->sparsepages.isEmpty())
     {
       jam();
-      allocOverflowPage(signal);
+      allocOverflowPage();
       ndbrequire(tresult <= ZLIMIT_OF_ERROR);
     }//if
     {
@@ -2666,7 +2658,7 @@ void Dbacc::insertElement(Signal* signal)
       sparselist.first(inrNewPageptr);
     }
     gflPageptr.p = inrNewPageptr.p;
-    getfreelist(signal);
+    getfreelist();
     ndbrequire(tgflPageindex != Container::NO_CONTAINER_INDEX);
     tancNext = 0;
   } else {
@@ -2678,11 +2670,11 @@ void Dbacc::insertElement(Signal* signal)
   slPageptr = inrNewPageptr;
   Uint32 containerptr;
   if (tgflBufType == ZLEFT) {
-    seizeLeftlist(signal);
+    seizeLeftlist();
     tidrForward = ZTRUE;
     containerptr = mul_ZBUF_SIZE(tgflPageindex) + ZHEAD_SIZE;
   } else {
-    seizeRightlist(signal);
+    seizeRightlist();
     tidrForward = cminusOne;
     containerptr = mul_ZBUF_SIZE(tgflPageindex) + ZHEAD_SIZE + ZBUF_SIZE - Container::HEADER_SIZE;
   }//if
@@ -2694,11 +2686,11 @@ void Dbacc::insertElement(Signal* signal)
   tancBufType = tgflBufType;
   tancContainerptr = tidrContainerptr;
   ancPageptr.p = idrPageptr.p;
-  addnewcontainer(signal);
+  addnewcontainer();
 
   idrPageptr = inrNewPageptr;
   tidrPageindex = tgflPageindex;
-  insertContainer(signal, containerhead);
+  insertContainer(containerhead);
   ndbrequire(tidrResult == ZTRUE);
 }//Dbacc::insertElement()
 
@@ -2728,7 +2720,7 @@ void Dbacc::insertElement(Signal* signal)
 /*                                                                                   */
 /*       SHORT FORM: IDR                                                             */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::insertContainer(Signal* signal, ContainerHeader& containerhead)
+void Dbacc::insertContainer(ContainerHeader& containerhead)
 {
   Uint32 tidrContainerlen;
   Uint32 tidrConfreelen;
@@ -2808,11 +2800,12 @@ void Dbacc::insertContainer(Signal* signal, ContainerHeader& containerhead)
       slPageptr = idrPageptr;
       if (tidrForward == ZTRUE) {
         jam();
-        seizeRightlist(signal);	/* REMOVE THE RIGHT SIDE OF THE BUFFER FROM THE LIST */
+        /* REMOVE THE RIGHT SIDE OF THE BUFFER FROM THE FREE LIST */
+        seizeRightlist();
       } else {
         jam();
-	/* OF THE FREE CONTAINERS */
-        seizeLeftlist(signal);	/* REMOVE THE LEFT SIDE OF THE BUFFER FROM THE LIST */
+        /* REMOVE THE LEFT SIDE OF THE BUFFER FROM THE FREE LIST */
+        seizeLeftlist();
       }//if
     }//if
   }//if
@@ -2872,7 +2865,7 @@ void Dbacc::insertContainer(Signal* signal, ContainerHeader& containerhead)
 /*               NONE                                                                */
 /*                                                                                   */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::addnewcontainer(Signal* signal) 
+void Dbacc::addnewcontainer() 
 {
   /* --------------------------------------------------------------------------------- */
   /*       KEEP LENGTH INFORMATION IN BIT 26-31.                                       */
@@ -2901,7 +2894,7 @@ void Dbacc::addnewcontainer(Signal* signal)
 /*                     THE FREE BUFFER CAN BE A RIGHT CONTAINER OR A LEFT ONE        */
 /*                     THE KIND OF THE CONTAINER IS NOTED BY TGFL_BUF_TYPE.          */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::getfreelist(Signal* signal) 
+void Dbacc::getfreelist() 
 {
   Uint32 tgflTmp;
 
@@ -2925,7 +2918,7 @@ void Dbacc::getfreelist(Signal* signal)
 /*           IF THE NUMBER OF ALLOCATED CONTAINERS IS ABOVE THE FREE LIMIT WE WILL   */
 /*           REMOVE THE PAGE FROM THE FREE LIST.                                     */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::increaselistcont(Signal* signal) 
+void Dbacc::increaselistcont() 
 {
   dbgWord32(ilcPageptr, ZPOS_ALLOC_CONTAINERS, ilcPageptr.p->word32[ZPOS_ALLOC_CONTAINERS] + 1);
   ilcPageptr.p->word32[ZPOS_ALLOC_CONTAINERS] = ilcPageptr.p->word32[ZPOS_ALLOC_CONTAINERS] + 1;
@@ -2957,7 +2950,7 @@ void Dbacc::increaselistcont(Signal* signal)
 /*                      (FREEPAGEPTR). PREVIOUS AND NEXT BUFFER OF REMOVED BUFFER    */
 /*                      WILL BE UPDATED.                                             */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::seizeLeftlist(Signal* signal) 
+void Dbacc::seizeLeftlist() 
 {
   Uint32 tsllTmp1;
   Uint32 tsllHeadIndex;
@@ -2993,7 +2986,7 @@ void Dbacc::seizeLeftlist(Signal* signal)
     jam();
   }//if
   ilcPageptr = slPageptr;
-  increaselistcont(signal);
+  increaselistcont();
 }//Dbacc::seizeLeftlist()
 
 /* --------------------------------------------------------------------------------- */
@@ -3003,7 +2996,7 @@ void Dbacc::seizeLeftlist(Signal* signal)
 /*                      (SL_PAGEPTR). PREVIOUS AND NEXT BUFFER OF REMOVED BUFFER     */
 /*                      WILL BE UPDATED.                                             */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::seizeRightlist(Signal* signal) 
+void Dbacc::seizeRightlist() 
 {
   Uint32 tsrlHeadIndex;
   Uint32 tsrlTmp;
@@ -3034,7 +3027,7 @@ void Dbacc::seizeRightlist(Signal* signal)
     jam();
   }//if
   ilcPageptr = slPageptr;
-  increaselistcont(signal);
+  increaselistcont();
 }//Dbacc::seizeRightlist()
 
 /* --------------------------------------------------------------------------------- */
@@ -3424,7 +3417,7 @@ void Dbacc::commitdelete(Signal* signal)
   lastPrevpageptr.i = RNIL;
   ptrNull(lastPrevpageptr);
   tlastPrevconptr = 0;
-  getLastAndRemove(signal, containerhead);
+  getLastAndRemove(containerhead);
 
   delPageptr.i = operationRecPtr.p->elementPage;
   ptrCheckGuard(delPageptr, cpagesize, page8);
@@ -3452,7 +3445,7 @@ void Dbacc::commitdelete(Signal* signal)
   /* --------------------------------------------------------------------------------- */
   tdelContainerptr = operationRecPtr.p->elementContainer;
   tdelForward = operationRecPtr.p->elementIsforward;
-  deleteElement(signal);
+  deleteElement();
 }//Dbacc::commitdelete()
 
 /* --------------------------------------------------------------------------------- */
@@ -3468,7 +3461,7 @@ void Dbacc::commitdelete(Signal* signal)
 /*        DESCRIPTION: COPY LAST ELEMENT TO DELETED ELEMENT AND UPDATE UNDO LOG AND  */
 /*                     UPDATE ANY ACTIVE OPERATION ON THE MOVED ELEMENT.             */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::deleteElement(Signal* signal) 
+void Dbacc::deleteElement() 
 {
   OperationrecPtr deOperationRecPtr;
   Uint32 tdeIndex;
@@ -3542,7 +3535,7 @@ void Dbacc::deleteElement(Signal* signal)
 /*               CONTAINER.                                                          */
 /*               TLAST_ELEMENTPTR   LAST ELEMENT POINTER IN LAST CONTAINER           */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::getLastAndRemove(Signal* signal, ContainerHeader& containerhead)
+void Dbacc::getLastAndRemove(ContainerHeader& containerhead)
 {
  GLR_LOOP_10:
   if (containerhead.getNextEnd() != 0) {
@@ -3599,11 +3592,11 @@ void Dbacc::getLastAndRemove(Signal* signal, ContainerHeader& containerhead)
       if (tlastForward == ZTRUE) {
         jam();
         turlIndex = tlastContainerptr + (ZBUF_SIZE - Container::HEADER_SIZE);
-        releaseRightlist(signal);
+        releaseRightlist();
       } else {
         jam();
         tullIndex = tlastContainerptr - (ZBUF_SIZE - Container::HEADER_SIZE);
-        releaseLeftlist(signal);
+        releaseLeftlist();
       }//if
     }//if
   }//if
@@ -3624,11 +3617,11 @@ void Dbacc::getLastAndRemove(Signal* signal, ContainerHeader& containerhead)
       if (tlastForward == ZTRUE) {
         jam();
         tullIndex = tlastContainerptr;
-        releaseLeftlist(signal);
+        releaseLeftlist();
       } else {
         jam();
         turlIndex = tlastContainerptr;
-        releaseRightlist(signal);
+        releaseRightlist();
       }//if
       return;
     }//if
@@ -3655,7 +3648,7 @@ void Dbacc::getLastAndRemove(Signal* signal, ContainerHeader& containerhead)
 /*          THE FREE LIST OF LEFT FREE BUFFER IN THE PAGE WILL BE UPDATE             */
 /*     TULL_INDEX IS INDEX TO THE FIRST WORD IN THE LEFT SIDE OF THE BUFFER          */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::releaseLeftlist(Signal* signal) 
+void Dbacc::releaseLeftlist() 
 {
   Uint32 tullTmp;
   Uint32 tullTmp1;
@@ -3687,7 +3680,7 @@ void Dbacc::releaseLeftlist(Signal* signal)
     jam();
     colPageptr = rlPageptr;
     ptrCheck(colPageptr, cpagesize, page8);
-    checkoverfreelist(signal);
+    checkoverfreelist();
   }//if
 }//Dbacc::releaseLeftlist()
 
@@ -3707,7 +3700,7 @@ void Dbacc::releaseLeftlist(Signal* signal)
 /*         TURL_INDEX IS INDEX TO THE FIRST WORD IN THE RIGHT SIDE OF                */
 /*         THE BUFFER, WHICH IS THE LAST WORD IN THE BUFFER.                         */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::releaseRightlist(Signal* signal) 
+void Dbacc::releaseRightlist() 
 {
   Uint32 turlTmp1;
   Uint32 turlTmp;
@@ -3737,7 +3730,7 @@ void Dbacc::releaseRightlist(Signal* signal)
   if (((rlPageptr.p->word32[ZPOS_EMPTY_LIST] >> ZPOS_PAGE_TYPE_BIT) & 3) == 1) {
     jam();
     colPageptr = rlPageptr;
-    checkoverfreelist(signal);
+    checkoverfreelist();
   }//if
 }//Dbacc::releaseRightlist()
 
@@ -3748,7 +3741,7 @@ void Dbacc::releaseRightlist(Signal* signal)
 /*                     PAGES. WHEN IT HAVE TO, AN OVERFLOW REC PTR WILL BE ALLOCATED */
 /*                     TO KEEP NFORMATION  ABOUT THE PAGE.                           */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::checkoverfreelist(Signal* signal) 
+void Dbacc::checkoverfreelist() 
 {
   Uint32 tcolTmp;
 
@@ -3758,7 +3751,7 @@ void Dbacc::checkoverfreelist(Signal* signal)
   {
     jam();
     ropPageptr = colPageptr;
-    releaseOverpage(signal);
+    releaseOverpage();
   }
   else if (tcolTmp == ZFREE_LIMIT) // Just got sparse
   {
@@ -4096,7 +4089,7 @@ void Dbacc::abortOperation(Signal* signal)
 
   if (opbits & Operationrec::OP_LOCK_OWNER) 
   {
-    takeOutLockOwnersList(signal, operationRecPtr);
+    takeOutLockOwnersList(operationRecPtr);
     opbits &= ~(Uint32)Operationrec::OP_LOCK_OWNER;
     if (opbits & Operationrec::OP_INSERT_IS_DONE)
     { 
@@ -4268,7 +4261,7 @@ void Dbacc::commitOperation(Signal* signal)
   
   if (opbits & Operationrec::OP_LOCK_OWNER) 
   {
-    takeOutLockOwnersList(signal, operationRecPtr);
+    takeOutLockOwnersList(operationRecPtr);
     opbits &= ~(Uint32)Operationrec::OP_LOCK_OWNER;
     operationRecPtr.p->m_op_bits = opbits;
     
@@ -4596,7 +4589,7 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
     action = START_NEW;
   }
   
-  insertLockOwnersList(signal, newOwner);
+  insertLockOwnersList(newOwner);
   
   /**
    * Copy op info, and store op in element
@@ -4712,7 +4705,7 @@ scan:
   newOwner.p->m_op_bits = opbits;
   
   takeOutScanLockQueue(newOwner.p->scanRecPtr);
-  putReadyScanQueue(signal, newOwner.p->scanRecPtr);
+  putReadyScanQueue(newOwner.p->scanRecPtr);
 
   operationRecPtr = save;
   return;
@@ -4736,8 +4729,7 @@ ref:
  * lock owners list on the fragment.
  *
  */
-void Dbacc::takeOutLockOwnersList(Signal* signal,
-				  const OperationrecPtr& outOperPtr) 
+void Dbacc::takeOutLockOwnersList(const OperationrecPtr& outOperPtr) 
 {
   const Uint32 Tprev = outOperPtr.p->prevLockOwnerOp;
   const Uint32 Tnext = outOperPtr.p->nextLockOwnerOp;
@@ -4792,8 +4784,7 @@ void Dbacc::takeOutLockOwnersList(Signal* signal,
  * list on the fragment.
  *
  */
-void Dbacc::insertLockOwnersList(Signal* signal, 
-				 const OperationrecPtr& insOperPtr) 
+void Dbacc::insertLockOwnersList(const OperationrecPtr& insOperPtr) 
 {
   OperationrecPtr tmpOperPtr;
 #ifdef VM_TRACE
@@ -4838,7 +4829,7 @@ void Dbacc::insertLockOwnersList(Signal* signal,
 /* ALLOC_OVERFLOW_PAGE                                                               */
 /*          DESCRIPTION:                                                             */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::allocOverflowPage(Signal* signal) 
+void Dbacc::allocOverflowPage() 
 {
   tresult = 0;
   if (cfreepages.isEmpty())
@@ -4848,14 +4839,14 @@ void Dbacc::allocOverflowPage(Signal* signal)
     tresult = ZPAGESIZE_ERROR;
     return;
   }//if
-  seizePage(signal);
+  seizePage();
   ndbrequire(tresult <= ZLIMIT_OF_ERROR);
   {
     LocalContainerPageList sparselist(*this, fragrecptr.p->sparsepages);
     sparselist.addLast(spPageptr);
   }
   iopPageptr = spPageptr;
-  initOverpage(signal);
+  initOverpage();
 }//Dbacc::allocOverflowPage()
 
 /* --------------------------------------------------------------------------------- */
@@ -4881,7 +4872,7 @@ void Dbacc::allocOverflowPage(Signal* signal)
 /* BE EXPANDED ACORDING TO LH3,    */
 /* AND COMMIT TRANSACTION PROCESS  */
 /* WILL BE CONTINUED */
-Uint32 Dbacc::checkScanExpand(Signal* signal, Uint32 splitBucket)
+Uint32 Dbacc::checkScanExpand(Uint32 splitBucket)
 {
   Uint32 Ti;
   Uint32 TreturnCode = 0;
@@ -4959,7 +4950,7 @@ Uint32 Dbacc::checkScanExpand(Signal* signal, Uint32 splitBucket)
         ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
         rsbPageidptr = TPageptr;
         trsbPageindex = TPageIndex;
-        releaseScanBucket(signal);
+        releaseScanBucket();
       }//if
     }//for
   }//if
@@ -4998,7 +4989,7 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   if (fragrecptr.p->sparsepages.isEmpty())
   {
     jam();
-    allocOverflowPage(signal);
+    allocOverflowPage();
     if (tresult > ZLIMIT_OF_ERROR) {
       jam();
       /*--------------------------------------------------------------*/
@@ -5035,7 +5026,7 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   bool doSplit = fragrecptr.p->level.getSplitBucket(splitBucket, receiveBucket);
 
   // Check that splitted bucket is not currently scanned
-  if (doSplit && checkScanExpand(signal, splitBucket) == 1) {
+  if (doSplit && checkScanExpand(splitBucket) == 1) {
     jam();
     /*--------------------------------------------------------------*/
     // A scan state was inconsistent with performing an expand
@@ -5065,7 +5056,7 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   }
   if (expPageptr.i == RNIL) {
     jam();
-    seizePage(signal);
+    seizePage();
     if (tresult > ZLIMIT_OF_ERROR) {
       jam();
       return;
@@ -5079,7 +5070,7 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
     }
     tipPageId = texpDirInd;
     inpPageptr = spPageptr;
-    initPage(signal);
+    initPage();
     expPageptr = spPageptr;
   } else {
     ptrCheckGuard(expPageptr, cpagesize, page8);
@@ -5106,7 +5097,7 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   }//if
   fragrecptr.p->expReceiveForward = ZTRUE;
   ptrCheckGuard(excPageptr, cpagesize, page8);
-  expandcontainer(signal);
+  expandcontainer();
   endofexpLab(signal);
   return;
 }//Dbacc::execEXPANDCHECK2()
@@ -5231,7 +5222,7 @@ LHBits32 Dbacc::getElementHash(Uint32 const* elemptr, Int32 forward, Operationre
 /*        DESCRIPTION: THE HASH VALUE OF ALL ELEMENTS IN THE CONTAINER WILL BE       */
 /*                  CHECKED. SOME OF THIS ELEMENTS HAVE TO MOVE TO THE NEW CONTAINER */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::expandcontainer(Signal* signal) 
+void Dbacc::expandcontainer() 
 {
   ContainerHeader containerhead;
   LHBits32 texcHashvalue;
@@ -5340,7 +5331,7 @@ void Dbacc::expandcontainer(Signal* signal)
   idrPageptr.i = fragrecptr.p->expReceivePageptr;
   ptrCheckGuard(idrPageptr, cpagesize, page8);
   tidrForward = fragrecptr.p->expReceiveForward;
-  insertElement(signal);
+  insertElement();
   fragrecptr.p->expReceiveIndex = tidrPageindex;
   fragrecptr.p->expReceivePageptr = idrPageptr.i;
   fragrecptr.p->expReceiveForward = tidrForward;
@@ -5358,7 +5349,7 @@ void Dbacc::expandcontainer(Signal* signal)
   tlastContainerlen = containerhead.getLength();
   tlastForward = cexcForward;
   tlastPageindex = cexcPageindex;
-  getLastAndRemove(signal, containerhead);
+  getLastAndRemove(containerhead);
   }
   if (excPageptr.i == lastPageptr.i) {
     if (cexcElementptr == tlastElementptr) {
@@ -5420,7 +5411,7 @@ void Dbacc::expandcontainer(Signal* signal)
     tdelContainerptr = cexcContainerptr;
     tdelForward = cexcForward;
     tdelElementptr = cexcElementptr;
-    deleteElement(signal);
+    deleteElement();
   } else {
     jam();
     /* --------------------------------------------------------------------------------- */
@@ -5437,7 +5428,7 @@ void Dbacc::expandcontainer(Signal* signal)
     idrPageptr.i = fragrecptr.p->expReceivePageptr;
     ptrCheckGuard(idrPageptr, cpagesize, page8);
     tidrForward = fragrecptr.p->expReceiveForward;
-    insertElement(signal);
+    insertElement();
     fragrecptr.p->expReceiveIndex = tidrPageindex;
     fragrecptr.p->expReceivePageptr = idrPageptr.i;
     fragrecptr.p->expReceiveForward = tidrForward;
@@ -5465,7 +5456,7 @@ void Dbacc::expandcontainer(Signal* signal)
     /* --------------------------------------------------------------------------------- */
     cexcPrevpageptr = excPageptr.i;
     cexcPrevconptr = cexcContainerptr;
-    nextcontainerinfoExp(signal, containerhead);
+    nextcontainerinfoExp(containerhead);
     goto EXP_CONTAINER_LOOP;
   }//if
 }//Dbacc::expandcontainer()
@@ -5485,7 +5476,7 @@ void Dbacc::expandcontainer(Signal* signal)
 /* WILL BE JOINED  ACORDING TO LH3 */
 /* AND COMMIT TRANSACTION PROCESS  */
 /* WILL BE CONTINUED */
-Uint32 Dbacc::checkScanShrink(Signal* signal, Uint32 sourceBucket, Uint32 destBucket)
+Uint32 Dbacc::checkScanShrink(Uint32 sourceBucket, Uint32 destBucket)
 {
   Uint32 Ti;
   Uint32 TreturnCode = 0;
@@ -5545,7 +5536,7 @@ Uint32 Dbacc::checkScanShrink(Signal* signal, Uint32 sourceBucket, Uint32 destBu
 	  //-------------------------------------------------------------
         } else {
           jam();
-          sendSystemerror(signal, __LINE__);
+          sendSystemerror(__LINE__);
           return TreturnCode;
         }//if
       }//if
@@ -5566,7 +5557,7 @@ Uint32 Dbacc::checkScanShrink(Signal* signal, Uint32 sourceBucket, Uint32 destBu
         rsbPageidptr.i = TPageptr.i;
         rsbPageidptr.p = TPageptr.p;
         trsbPageindex = TPageIndex;
-        releaseScanBucket(signal);
+        releaseScanBucket();
         if (TmergeDest < scanPtr.p->minBucketIndexToRescan) {
           jam();
 	  //-------------------------------------------------------------
@@ -5615,7 +5606,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
   if (fragrecptr.p->sparsepages.isEmpty())
   {
     jam();
-    allocOverflowPage(signal);
+    allocOverflowPage();
     if (tresult > ZLIMIT_OF_ERROR) {
       jam();
       return;
@@ -5650,7 +5641,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
   ndbassert(doMerge); // Merge always needed since we never shrink below one page of buckets
 
   /* check that neither of source or destination bucket are currently scanned */
-  if (doMerge && checkScanShrink(signal, mergeSourceBucket, mergeDestBucket) == 1) {
+  if (doMerge && checkScanShrink(mergeSourceBucket, mergeDestBucket) == 1) {
     jam();
     /*--------------------------------------------------------------*/
     // A scan state was inconsistent with performing a shrink
@@ -5705,7 +5696,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     ndbrequire(cexcContainerlen == Container::HEADER_SIZE);
   } else {
     jam();
-    shrinkcontainer(signal);
+    shrinkcontainer();
   }//if
   /*--------------------------------------------------------------------------*/
   /*       THIS CONTAINER IS NOT YET EMPTY AND WE REMOVE ALL THE ELEMENTS.    */
@@ -5715,7 +5706,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     rlPageptr = excPageptr;
     trlPageindex = cexcPageindex;
     turlIndex = cexcContainerptr + (ZBUF_SIZE - Container::HEADER_SIZE);
-    releaseRightlist(signal);
+    releaseRightlist();
   }//if
   ContainerHeader conthead;
   conthead.initInUse();
@@ -5727,7 +5718,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     endofshrinkbucketLab(signal);
     return;
   }//if
-  nextcontainerinfoExp(signal, containerhead);
+  nextcontainerinfoExp(containerhead);
   do {
     cexcContainerptr = mul_ZBUF_SIZE(cexcPageindex);
     if (cexcForward == ZTRUE) {
@@ -5744,7 +5735,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     /*--------------------------------------------------------------------------*/
     /*       THIS CONTAINER IS NOT YET EMPTY AND WE REMOVE ALL THE ELEMENTS.    */
     /*--------------------------------------------------------------------------*/
-    shrinkcontainer(signal);
+    shrinkcontainer();
     cexcPrevpageptr = excPageptr.i;
     cexcPrevpageindex = cexcPageindex;
     cexcPrevforward = cexcForward;
@@ -5754,7 +5745,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
       /*       WE MUST CALL THE NEXT CONTAINER INFO ROUTINE BEFORE WE RELEASE THE */
       /*       CONTAINER SINCE THE RELEASE WILL OVERWRITE THE NEXT POINTER.       */
       /*--------------------------------------------------------------------------*/
-      nextcontainerinfoExp(signal, containerhead);
+      nextcontainerinfoExp(containerhead);
     }//if
     rlPageptr.i = cexcPrevpageptr;
     ptrCheckGuard(rlPageptr, cpagesize, page8);
@@ -5764,21 +5755,21 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
       if (containerhead.isUsingBothEnds()) {
         jam();
         turlIndex = cexcContainerptr + (ZBUF_SIZE - Container::HEADER_SIZE);
-        releaseRightlist(signal);
+        releaseRightlist();
       }//if
       ndbrequire(ContainerHeader(rlPageptr.p->word32[cexcContainerptr]).isInUse());
       tullIndex = cexcContainerptr;
-      releaseLeftlist(signal);
+      releaseLeftlist();
     } else {
       jam();
       if (containerhead.isUsingBothEnds()) {
         jam();
         tullIndex = cexcContainerptr - (ZBUF_SIZE - Container::HEADER_SIZE);
-        releaseLeftlist(signal);
+        releaseLeftlist();
       }//if
       ndbrequire(ContainerHeader(rlPageptr.p->word32[cexcContainerptr]).isInUse());
       turlIndex = cexcContainerptr;
-      releaseRightlist(signal);
+      releaseRightlist();
     }//if
   } while (containerhead.getNextEnd() != 0);
   endofshrinkbucketLab(signal);
@@ -5796,7 +5787,7 @@ void Dbacc::endofshrinkbucketLab(Signal* signal)
       jam();
       rpPageptr.i = fragrecptr.p->expSenderPageptr;
       ptrCheckGuard(rpPageptr, cpagesize, page8);
-      releasePage(signal);
+      releasePage();
       unsetPagePtr(fragrecptr.p->directory, fragrecptr.p->expSenderDirIndex);
     }//if
     if ((fragrecptr.p->getPageNumber(fragrecptr.p->level.getSize()) & 0xff) == 0) {
@@ -5973,7 +5964,7 @@ Dbacc::shrink_adjust_reduced_hash_value(Uint32 bucket_number)
   return;
 }//Dbacc::shrink_adjust_reduced_hash_value()
 
-void Dbacc::shrinkcontainer(Signal* signal) 
+void Dbacc::shrinkcontainer() 
 {
   Uint32 tshrElementptr;
   Uint32 tshrRemLen;
@@ -6029,7 +6020,7 @@ void Dbacc::shrinkcontainer(Signal* signal)
   idrPageptr.i = fragrecptr.p->expReceivePageptr;
   ptrCheckGuard(idrPageptr, cpagesize, page8);
   tidrForward = fragrecptr.p->expReceiveForward;
-  insertElement(signal);
+  insertElement();
   /* --------------------------------------------------------------------------------- */
   /*       TAKE CARE OF RESULT FROM INSERT_ELEMENT.                                    */
   /* --------------------------------------------------------------------------------- */
@@ -6038,7 +6029,7 @@ void Dbacc::shrinkcontainer(Signal* signal)
   fragrecptr.p->expReceiveForward = tidrForward;
   if (tshrRemLen < tshrInc) {
     jam();
-    sendSystemerror(signal, __LINE__);
+    sendSystemerror(__LINE__);
   }//if
   tshrRemLen = tshrRemLen - tshrInc;
   if (tshrRemLen != 0) {
@@ -6060,7 +6051,7 @@ void Dbacc::shrinkcontainer(Signal* signal)
 /*             EXC_PAGEPTR (PAGE REFERENCE OF NEXT CONTAINER)                        */
 /*             CEXC_FORWARD                                                          */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::nextcontainerinfoExp(Signal* signal, ContainerHeader const containerhead)
+void Dbacc::nextcontainerinfoExp(ContainerHeader const containerhead)
 {
   /* THE NEXT CONTAINER IS IN THE SAME PAGE */
   cexcPageindex = containerhead.getNextIndexNumber();	/* NEXT CONTAINER PAGE INDEX 7 BITS */
@@ -6072,7 +6063,7 @@ void Dbacc::nextcontainerinfoExp(Signal* signal, ContainerHeader const container
     cexcForward = cminusOne;
   } else {
     jam();
-    sendSystemerror(signal, __LINE__);
+    sendSystemerror(__LINE__);
     cexcForward = 0;	/* DUMMY FOR COMPILER */
   }//if
   if (!containerhead.isNextOnSamePage()) {
@@ -6171,7 +6162,7 @@ void Dbacc::execACC_SCANREQ(Signal* signal) //Direct Executed
   
   tresult = 0;
   ptrCheckGuard(tabptr, ctablesize, tabrec);
-  ndbrequire(getfragmentrec(signal, fragrecptr, tfid));
+  ndbrequire(getfragmentrec(fragrecptr, tfid));
   
   Uint32 i;
   for (i = 0; i < MAX_PARALLEL_SCANS_PER_FRAG; i++) {
@@ -6183,7 +6174,7 @@ void Dbacc::execACC_SCANREQ(Signal* signal) //Direct Executed
   }
   ndbrequire(i != MAX_PARALLEL_SCANS_PER_FRAG);
   ndbrequire(cfirstFreeScanRec != RNIL);
-  seizeScanRec(signal);
+  seizeScanRec();
 
   fragrecptr.p->scan[i] = scanPtr.i;
   scanPtr.p->scanBucketState =  ScanRec::FIRST_LAP;
@@ -6206,7 +6197,7 @@ void Dbacc::execACC_SCANREQ(Signal* signal) //Direct Executed
   scanPtr.p->scanFirstLockedOp = RNIL;
   scanPtr.p->scanLastLockedOp = RNIL;
   scanPtr.p->scanState = ScanRec::WAIT_NEXT;
-  initScanFragmentPart(signal);
+  initScanFragmentPart();
 
   /* ************************ */
   /*  ACC_SCANCONF            */
@@ -6268,8 +6259,8 @@ void Dbacc::execNEXT_SCANREQ(Signal* signal)
       commitOperation(signal);
     }//if
     operationRecPtr.p->m_op_bits = Operationrec::OP_INITIAL;
-    takeOutActiveScanOp(signal);
-    releaseOpRec(signal);
+    takeOutActiveScanOp();
+    releaseOpRec();
     scanPtr.p->scanOpsAllocated--;
     if (tscanNextFlag == NextScanReq::ZSCAN_COMMIT) {
       jam();
@@ -6321,7 +6312,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
   tgsePageindex = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
   gsePageidptr.i = gnsPageidptr.i;
   gsePageidptr.p = gnsPageidptr.p;
-  if (!getScanElement(signal)) {
+  if (!getScanElement()) {
     scanPtr.p->nextBucketIndex++;
     if (scanPtr.p->scanBucketState ==  ScanRec::SECOND_LAP) {
       if (scanPtr.p->nextBucketIndex > scanPtr.p->maxBucketIndexToRescan) {
@@ -6366,7 +6357,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
 	    /* --------------------------------------------------------------------------------- */
             if (scanPtr.p->minBucketIndexToRescan != 0) {
               jam();
-              sendSystemerror(signal, __LINE__);
+              sendSystemerror(__LINE__);
               return;
             }//if
             scanPtr.p->maxBucketIndexToRescan = fragrecptr.p->level.getTop();
@@ -6394,7 +6385,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
         rsbPageidptr.i = cscPageidptr.i;
         rsbPageidptr.p = cscPageidptr.p;
       }//if
-      releaseScanBucket(signal);
+      releaseScanBucket();
     }//if
     signal->theData[0] = scanPtr.i;
     signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
@@ -6412,21 +6403,21 @@ void Dbacc::checkNextBucketLab(Signal* signal)
   tnsContainerptr = tgseContainerptr;
   nsPageptr.i = gsePageidptr.i;
   nsPageptr.p = gsePageidptr.p;
-  seizeOpRec(signal);
+  seizeOpRec();
   tisoIsforward = tgseIsforward;
   tisoContainerptr = tnsContainerptr;
   tisoElementptr = tnsElementptr;
   isoPageptr.i = nsPageptr.i;
   isoPageptr.p = nsPageptr.p;
-  initScanOpRec(signal);
+  initScanOpRec();
  
   if (!tnsIsLocked){
     if (!scanPtr.p->scanReadCommittedFlag) {
       jam();
       slPageidptr = nsPageptr;
       tslElementptr = tnsElementptr;
-      setlock(signal);
-      insertLockOwnersList(signal, operationRecPtr);
+      setlock();
+      insertLockOwnersList(operationRecPtr);
       operationRecPtr.p->m_op_bits |= 
 	Operationrec::OP_STATE_RUNNING | Operationrec::OP_RUN_QUEUE;
     }//if
@@ -6445,7 +6436,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
       // we will not report this tuple. We will continue with the next tuple.
       /* ------------------------------------------------------------------ */
       operationRecPtr.p->m_op_bits = Operationrec::OP_INITIAL;
-      releaseOpRec(signal);
+      releaseOpRec();
       scanPtr.p->scanOpsAllocated--;
       signal->theData[0] = scanPtr.i;
       signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
@@ -6479,7 +6470,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
 	// Thus we simply continue with the next tuple.
 	/* ----------------------------------------------------------------- */
 	operationRecPtr.p->m_op_bits = Operationrec::OP_INITIAL;
-        releaseOpRec(signal);
+        releaseOpRec();
 	scanPtr.p->scanOpsAllocated--;
         signal->theData[0] = scanPtr.i;
         signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
@@ -6494,7 +6485,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
   // down here except when the tuple was deleted permanently 
   // and no new operation has inserted it again.
   /* ----------------------------------------------------------------------- */
-  putActiveScanOp(signal);
+  putActiveScanOp();
   sendNextScanConf(signal);
   return;
 }//Dbacc::checkNextBucketLab()
@@ -6512,7 +6503,7 @@ void Dbacc::checkNextFragmentLab(Signal* signal)
   return;
 }//Dbacc::checkNextFragmentLab()
 
-void Dbacc::initScanFragmentPart(Signal* signal)
+void Dbacc::initScanFragmentPart()
 {
   Page8Ptr cnfPageidptr;
   /* ----------------------------------------------------------------------- */
@@ -6535,7 +6526,7 @@ void Dbacc::initScanFragmentPart(Signal* signal)
   trsbPageindex = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
   rsbPageidptr.i = cnfPageidptr.i;
   rsbPageidptr.p = cnfPageidptr.p;
-  releaseScanBucket(signal);
+  releaseScanBucket();
 }//Dbacc::initScanFragmentPart()
 
 /* -------------------------------------------------------------------------
@@ -6563,7 +6554,7 @@ void Dbacc::releaseScanLab(Signal* signal)
   signal->theData[0] = scanPtr.p->scanUserptr;
   signal->theData[1] = RNIL;
   signal->theData[2] = RNIL;
-  releaseScanRec(signal);
+  releaseScanRec();
   EXECUTE_DIRECT(blockNo,
                  GSN_NEXT_SCANCONF,
                  signal,
@@ -6595,8 +6586,8 @@ void Dbacc::releaseAndCommitActiveOps(Signal* signal)
       }
     }//if
     operationRecPtr.p->m_op_bits = Operationrec::OP_INITIAL;
-    takeOutActiveScanOp(signal);
-    releaseOpRec(signal);
+    takeOutActiveScanOp();
+    releaseOpRec();
     scanPtr.p->scanOpsAllocated--;
     operationRecPtr.i = trsoOperPtr.i;
   }//if
@@ -6626,8 +6617,8 @@ void Dbacc::releaseAndCommitQueuedOps(Signal* signal)
       }
     }//if
     operationRecPtr.p->m_op_bits = Operationrec::OP_INITIAL;
-    takeOutReadyScanQueue(signal);
-    releaseOpRec(signal);
+    takeOutReadyScanQueue();
+    releaseOpRec();
     scanPtr.p->scanOpsAllocated--;
     operationRecPtr.i = trsoOperPtr.i;
   }//if
@@ -6649,7 +6640,7 @@ void Dbacc::releaseAndAbortLockedOps(Signal* signal) {
     }//if
     takeOutScanLockQueue(scanPtr.i);
     operationRecPtr.p->m_op_bits = Operationrec::OP_INITIAL;
-    releaseOpRec(signal);
+    releaseOpRec();
     scanPtr.p->scanOpsAllocated--;
     operationRecPtr.i = trsoOperPtr.i;
   }//if
@@ -6680,7 +6671,7 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
     //------------------------------------------------------------------------
     operationRecPtr.i = scanPtr.p->scanFirstQueuedOp;
     ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
-    takeOutReadyScanQueue(signal);
+    takeOutReadyScanQueue();
     fragrecptr.i = operationRecPtr.p->fragptr;
     ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
     if (operationRecPtr.p->m_op_bits & Operationrec::OP_ELEMENT_DISAPPEARED) 
@@ -6688,11 +6679,11 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
       jam();
       abortOperation(signal);
       operationRecPtr.p->m_op_bits = Operationrec::OP_INITIAL;
-      releaseOpRec(signal);
+      releaseOpRec();
       scanPtr.p->scanOpsAllocated--;
       continue;
     }//if
-    putActiveScanOp(signal);
+    putActiveScanOp();
     sendNextScanConf(signal);
     return;
   }//while
@@ -6831,7 +6822,7 @@ void Dbacc::execACC_TO_REQ(Signal* signal)
 /*        DESCRIPTION: THE ADDRESS OF THE CONTAINER WILL BE CALCULATED AND           */
 /*                     ALL INFORMATION ABOUT THE CONTAINER WILL BE READ              */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::containerinfo(Signal* signal, ContainerHeader& containerhead)
+void Dbacc::containerinfo(ContainerHeader& containerhead)
 {
   tciContainerptr = mul_ZBUF_SIZE(tciPageindex);
   if (tciIsforward == ZTRUE) {
@@ -6854,7 +6845,7 @@ void Dbacc::containerinfo(Signal* signal, ContainerHeader& containerhead)
 /*                       GSE_PAGEIDPTR                                               */
 /*                       TGSE_PAGEINDEX                                              */
 /* --------------------------------------------------------------------------------- */
-bool Dbacc::getScanElement(Signal* signal) 
+bool Dbacc::getScanElement() 
 {
   ContainerHeader containerhead;
   tgseIsforward = ZTRUE;
@@ -6863,13 +6854,13 @@ bool Dbacc::getScanElement(Signal* signal)
   ciPageidptr.p = gsePageidptr.p;
   tciPageindex = tgsePageindex;
   tciIsforward = tgseIsforward;
-  containerinfo(signal, containerhead);
+  containerinfo(containerhead);
   sscPageidptr.i = gsePageidptr.i;
   sscPageidptr.p = gsePageidptr.p;
   tsscContainerlen = tciContainerlen;
   tsscContainerptr = tciContainerptr;
   tsscIsforward = tciIsforward;
-  if (searchScanContainer(signal)) {
+  if (searchScanContainer()) {
     jam();
     tgseIsLocked = tsscIsLocked;
     tgseElementptr = tsscElementptr;
@@ -6881,7 +6872,7 @@ bool Dbacc::getScanElement(Signal* signal)
     nciPageidptr.i = gsePageidptr.i;
     nciPageidptr.p = gsePageidptr.p;
     tnciContainerptr = tciContainerptr;
-    nextcontainerinfo(signal, containerhead);
+    nextcontainerinfo(containerhead);
     tgsePageindex = tnciPageindex;
     gsePageidptr.i = nciPageidptr.i;
     gsePageidptr.p = nciPageidptr.p;
@@ -6894,7 +6885,7 @@ bool Dbacc::getScanElement(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 /*  INIT_SCAN_OP_REC                                                                 */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::initScanOpRec(Signal* signal) 
+void Dbacc::initScanOpRec() 
 {
   Uint32 tisoLocalPtr;
   Uint32 localkeylen = fragrecptr.p->localkeylen;
@@ -6956,7 +6947,7 @@ void Dbacc::initScanOpRec(Signal* signal)
 /*             TNCI_ISFORWARD (IS THE NEXT CONTAINER FORWARD (+1) OR BACKWARD (-1)   */
 /*             NCI_PAGEIDPTR (PAGE REFERENCE OF NEXT CONTAINER)                      */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::nextcontainerinfo(Signal* signal, ContainerHeader const containerhead)
+void Dbacc::nextcontainerinfo(ContainerHeader const containerhead)
 {
   /* THE NEXT CONTAINER IS IN THE SAME PAGE */
   tnciPageindex = containerhead.getNextIndexNumber();	/* NEXT CONTAINER PAGE INDEX 7 BITS */
@@ -6979,7 +6970,7 @@ void Dbacc::nextcontainerinfo(Signal* signal, ContainerHeader const containerhea
 /* --------------------------------------------------------------------------------- */
 /* PUT_ACTIVE_SCAN_OP                                                                */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::putActiveScanOp(Signal* signal) 
+void Dbacc::putActiveScanOp() 
 {
   OperationrecPtr pasOperationRecPtr;
   pasOperationRecPtr.i = scanPtr.p->scanFirstActiveOp;
@@ -7051,7 +7042,7 @@ void Dbacc::putOpScanLockQue()
 /* --------------------------------------------------------------------------------- */
 /* PUT_READY_SCAN_QUEUE                                                              */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::putReadyScanQueue(Signal* signal, Uint32 scanRecIndex) 
+void Dbacc::putReadyScanQueue(Uint32 scanRecIndex) 
 {
   OperationrecPtr prsOperationRecPtr;
   ScanRecPtr TscanPtr;
@@ -7080,7 +7071,7 @@ void Dbacc::putReadyScanQueue(Signal* signal, Uint32 scanRecIndex)
 //   rsbPageidptr.p     Pointer to page where bucket starts
 //   trsbPageindex      Page index of starting container in bucket
 /* --------------------------------------------------------------------------------- */
-void Dbacc::releaseScanBucket(Signal* signal) 
+void Dbacc::releaseScanBucket() 
 {
   ContainerHeader containerhead;
   Uint32 trsbIsforward;
@@ -7091,19 +7082,19 @@ void Dbacc::releaseScanBucket(Signal* signal)
   ciPageidptr.p = rsbPageidptr.p;
   tciPageindex = trsbPageindex;
   tciIsforward = trsbIsforward;
-  containerinfo(signal, containerhead);
+  containerinfo(containerhead);
   rscPageidptr.i = rsbPageidptr.i;
   rscPageidptr.p = rsbPageidptr.p;
   trscContainerlen = tciContainerlen;
   trscContainerptr = tciContainerptr;
   trscIsforward = trsbIsforward;
-  releaseScanContainer(signal);
+  releaseScanContainer();
   if (containerhead.getNextEnd() != 0) {
     jam();
     nciPageidptr.i = rsbPageidptr.i;
     nciPageidptr.p = rsbPageidptr.p;
     tnciContainerptr = tciContainerptr;
-    nextcontainerinfo(signal, containerhead);
+    nextcontainerinfo(containerhead);
     rsbPageidptr.i = nciPageidptr.i;
     rsbPageidptr.p = nciPageidptr.p;
     trsbPageindex = tnciPageindex;
@@ -7123,7 +7114,7 @@ void Dbacc::releaseScanBucket(Signal* signal)
 /*            DESCRIPTION: SEARCHS IN A CONTAINER, AND THE SCAN BIT OF THE ELEMENTS  */
 /*                            OF THE CONTAINER IS RESET                              */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::releaseScanContainer(Signal* signal) 
+void Dbacc::releaseScanContainer() 
 {
   OperationrecPtr rscOperPtr;
   Uint32 trscElemStep;
@@ -7134,7 +7125,7 @@ void Dbacc::releaseScanContainer(Signal* signal)
   if (trscContainerlen < 4) {
     if (trscContainerlen != Container::HEADER_SIZE) {
       jam();
-      sendSystemerror(signal, __LINE__);
+      sendSystemerror(__LINE__);
     }//if
     return;	/* 2 IS THE MINIMUM SIZE OF THE ELEMENT */
   }//if
@@ -7169,14 +7160,14 @@ void Dbacc::releaseScanContainer(Signal* signal)
   } while (trscElemlens > 1);
   if (trscElemlens != 0) {
     jam();
-    sendSystemerror(signal, __LINE__);
+    sendSystemerror(__LINE__);
   }//if
 }//Dbacc::releaseScanContainer()
 
 /* --------------------------------------------------------------------------------- */
 /* RELEASE_SCAN_REC                                                                  */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::releaseScanRec(Signal* signal) 
+void Dbacc::releaseScanRec() 
 {  
   // Check that all ops this scan has allocated have been 
   // released
@@ -7217,7 +7208,7 @@ void Dbacc::releaseScanRec(Signal* signal)
 /*                    TO DO THIS THE SCAN BIT OF THE ELEMENT HEADER IS CHECKED. IF   */
 /*                    THIS BIT IS ZERO, IT IS SET TO ONE AND THE ELEMENT IS RETURNED.*/
 /* --------------------------------------------------------------------------------- */
-bool Dbacc::searchScanContainer(Signal* signal) 
+bool Dbacc::searchScanContainer() 
 {
   OperationrecPtr sscOperPtr;
   Uint32 tsscScanBits;
@@ -7312,7 +7303,7 @@ void Dbacc::sendNextScanConf(Signal* signal)
 /*                       BE PUT IN THE OPERATION RECORD. A FIELD IN THE  HEADER OF   */
 /*                       THE ELEMENT POINTS TO THE OPERATION RECORD.                 */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::setlock(Signal* signal) 
+void Dbacc::setlock() 
 {
   Uint32 tselTmp1;
 
@@ -7331,7 +7322,7 @@ void Dbacc::setlock(Signal* signal)
 /*         DESCRIPTION: AN ACTIVE SCAN OPERATION IS BELOGED TO AN ACTIVE LIST OF THE */
 /*                      SCAN RECORD. BY THIS SUBRUTIN THE LIST IS UPDATED.           */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::takeOutActiveScanOp(Signal* signal) 
+void Dbacc::takeOutActiveScanOp() 
 {
   OperationrecPtr tasOperationRecPtr;
 
@@ -7417,7 +7408,7 @@ void Dbacc::takeOutScanLockQueue(Uint32 scanRecIndex)
 /* --------------------------------------------------------------------------------- */
 /* TAKE_OUT_READY_SCAN_QUEUE                                                         */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::takeOutReadyScanQueue(Signal* signal) 
+void Dbacc::takeOutReadyScanQueue() 
 {
   OperationrecPtr trsOperationRecPtr;
 
@@ -7450,7 +7441,7 @@ void Dbacc::takeOutReadyScanQueue(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 /* --------------------------------------------------------------------------------- */
 
-bool Dbacc::getfragmentrec(Signal* signal, FragmentrecPtr& rootPtr, Uint32 fid) 
+bool Dbacc::getfragmentrec(FragmentrecPtr& rootPtr, Uint32 fid) 
 {
   for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabptr.p->fragholder); i++) {
     jam();
@@ -7470,7 +7461,7 @@ bool Dbacc::getfragmentrec(Signal* signal, FragmentrecPtr& rootPtr, Uint32 fid)
 /*         DESCRIPTION: CONTAINERS AND FREE LISTS OF THE PAGE, GET INITIALE VALUE    */
 /*         ACCORDING TO LH3 AND PAGE STRUCTOR DESCRIPTION OF NDBACC BLOCK            */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::initOverpage(Signal* signal) 
+void Dbacc::initOverpage() 
 {
   Uint32 tiopPrevFree;
   Uint32 tiopNextFree;
@@ -7528,7 +7519,7 @@ void Dbacc::initOverpage(Signal* signal)
 /*         DESCRIPTION: CONTAINERS AND FREE LISTS OF THE PAGE, GET INITIALE VALUE    */
 /*         ACCORDING TO LH3 AND PAGE STRUCTOR DISACRIPTION OF NDBACC BLOCK           */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::initPage(Signal* signal) 
+void Dbacc::initPage() 
 {
   Uint32 tinpIndex;
   Uint32 tinpTmp;
@@ -7622,7 +7613,7 @@ void Dbacc::initPage(Signal* signal)
 /* RELEASE OP RECORD                                                                 */
 /*         PUT A FREE OPERATION IN A FREE LIST OF THE OPERATIONS                     */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::releaseOpRec(Signal* signal) 
+void Dbacc::releaseOpRec() 
 {
 #if 0
   // DEBUG CODE
@@ -7654,7 +7645,7 @@ void Dbacc::releaseOpRec(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 /* RELEASE_OVERPAGE                                                                  */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::releaseOverpage(Signal* signal) 
+void Dbacc::releaseOverpage() 
 {
   jam();
   {
@@ -7663,14 +7654,14 @@ void Dbacc::releaseOverpage(Signal* signal)
   }
   jam();
   rpPageptr = ropPageptr;
-  releasePage(signal);
+  releasePage();
 }//Dbacc::releaseOverpage()
 
 
 /* ------------------------------------------------------------------------- */
 /* RELEASE_PAGE                                                              */
 /* ------------------------------------------------------------------------- */
-void Dbacc::releasePage(Signal* signal) 
+void Dbacc::releasePage() 
 {
   jam();
   ndbassert(g_acc_pages_used[instance()] == cnoOfAllocatedPages);
@@ -7725,7 +7716,7 @@ Uint64 Dbacc::getLinHashByteSize(Uint32 fragId) const
 /* --------------------------------------------------------------------------------- */
 /* SEIZE    FRAGREC                                                                  */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::seizeFragrec(Signal* signal) 
+void Dbacc::seizeFragrec() 
 {
   RSS_OP_ALLOC(cnoOfFreeFragrec);
   fragrecptr.i = cfirstfreefrag;
@@ -7737,7 +7728,7 @@ void Dbacc::seizeFragrec(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 /* SEIZE_OP_REC                                                                      */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::seizeOpRec(Signal* signal) 
+void Dbacc::seizeOpRec() 
 {
   operationRecPtr.i = cfreeopRec;
   ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
@@ -7763,7 +7754,7 @@ void Dbacc::zpagesize_error(const char* where){
 /* --------------------------------------------------------------------------------- */
 /* SEIZE_PAGE                                                                        */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::seizePage(Signal* signal) 
+void Dbacc::seizePage() 
 {
   jam();
   ndbassert(g_acc_pages_used[instance()] == cnoOfAllocatedPages);
@@ -7801,7 +7792,7 @@ void Dbacc::seizePage(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 /* SEIZE_SCAN_REC                                                                    */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::seizeScanRec(Signal* signal) 
+void Dbacc::seizeScanRec() 
 {
   scanPtr.i = cfirstFreeScanRec;
   ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
@@ -7815,7 +7806,7 @@ void Dbacc::seizeScanRec(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 /* SEND_SYSTEMERROR                                                                  */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::sendSystemerror(Signal* signal, int line)
+void Dbacc::sendSystemerror(int line)
 {
   progError(line, NDBD_EXIT_PRGERR);
 }//Dbacc::sendSystemerror()
