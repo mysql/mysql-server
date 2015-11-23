@@ -9232,6 +9232,14 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   if (error)
     DBUG_RETURN(true);
 
+  /*
+    We want warnings/errors about data truncation emitted when new
+    version of table is created in COPY algorithm or when values of
+    virtual columns are evaluated in INPLACE algorithm.
+  */
+  thd->count_cuted_fields= CHECK_FIELD_WARN;
+  thd->cuted_fields= 0L;
+
   /* Remember that we have not created table in storage engine yet. */
   bool no_ha_table= true;
 
@@ -9386,6 +9394,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                     inplace_supported, &target_mdl_request,
                                     &alter_ctx))
       {
+        thd->count_cuted_fields= CHECK_FIELD_IGNORE;
         DBUG_RETURN(true);
       }
 
@@ -9484,10 +9493,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     copy data for MERGE tables. Only the children have data.
   */
 
-  /* Copy the data if necessary. */
-  thd->count_cuted_fields= CHECK_FIELD_WARN;	// calc cuted fields
-  thd->cuted_fields=0L;
-
   /*
     We do not copy data for MERGE tables. Only the children have data.
     MERGE tables have HA_NO_COPY_ON_ALTER set.
@@ -9542,7 +9547,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto err_new_table_cleanup;
   }
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 
   if (table->s->tmp_table != NO_TMP_TABLE)
   {
@@ -9573,7 +9577,10 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     /* We don't replicate alter table statement on temporary tables */
     if (!thd->is_current_stmt_binlog_format_row() &&
         write_bin_log(thd, true, thd->query().str, thd->query().length))
+    {
+      thd->count_cuted_fields= CHECK_FIELD_IGNORE;
       DBUG_RETURN(true);
+    }
     goto end_temporary;
   }
 
@@ -9680,6 +9687,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
 end_inplace:
 
+  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+
   if (thd->locked_tables_list.reopen_tables(thd))
     goto err_with_mdl;
 
@@ -9729,6 +9738,8 @@ end_inplace:
   }
 
 end_temporary:
+  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+
   my_snprintf(alter_ctx.tmp_name, sizeof(alter_ctx.tmp_name),
               ER(ER_INSERT_INFO),
 	      (long) (copied + deleted), (long) deleted,
@@ -9737,6 +9748,8 @@ end_temporary:
   DBUG_RETURN(false);
 
 err_new_table_cleanup:
+  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+
   if (new_table)
   {
     /* close_temporary_table() frees the new_table pointer. */
@@ -9789,6 +9802,8 @@ err_new_table_cleanup:
   DBUG_RETURN(true);
 
 err_with_mdl:
+  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+
   /*
     An error happened while we were holding exclusive name metadata lock
     on table being altered. To be safe under LOCK TABLES we should
