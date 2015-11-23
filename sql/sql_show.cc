@@ -49,7 +49,7 @@
 #include "sql_table.h"                      // filename_to_tablename
 #include "sql_time.h"                       // interval_type_to_name
 #include "sql_tmp_table.h"                  // create_tmp_table
-#include "sql_view.h"                       // mysql_make_view
+#include "sql_view.h"                       // open_and_read_view
 #include "table_trigger_dispatcher.h"       // Table_trigger_dispatcher
 #include "trigger.h"                        // Trigger
 #include "trigger_chain.h"                  // Trigger_chain
@@ -4425,13 +4425,19 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
 
   if (share->is_view)
   {
-    if (mysql_make_view(thd, share, &table_list, true))
-      goto end_share;
-    // Actual view query is not needed, just indicate that this is a view:
-    table_list.set_view_query((LEX *) 1);
-    res= schema_table->process_table(thd, &table_list, table,
-                                     res, db_name, table_name);
-    goto end_share;
+    bool view_open_result= open_and_read_view(thd, share, &table_list);
+
+    release_table_share(share);
+    mysql_mutex_unlock(&LOCK_open);
+
+    if (!view_open_result)
+    {
+      // Actual view query is not needed, just indicate that this is a view:
+      table_list.set_view_query((LEX *) 1);
+      res= schema_table->process_table(thd, &table_list, table,
+                                       res, db_name, table_name);
+    }
+    goto end;
   }
 
   {

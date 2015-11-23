@@ -3192,16 +3192,21 @@ retry_share:
     }
 
     /* Open view */
-    if (mysql_make_view(thd, share, table_list, false))
-      goto err_unlock;
+    bool view_open_result= open_and_read_view(thd, share, table_list);
 
     /* TODO: Don't free this */
     release_table_share(share);
+    mysql_mutex_unlock(&LOCK_open);
+
+    if (view_open_result)
+      DBUG_RETURN(true);
+
+    if (parse_view_definition(thd, table_list))
+      DBUG_RETURN(true);
 
     DBUG_ASSERT(table_list->is_view());
 
-    mysql_mutex_unlock(&LOCK_open);
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   }
 
 share_found:
@@ -4059,12 +4064,21 @@ bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
     }
   }
 
-  if (share->is_view &&
-      !mysql_make_view(thd, share, table_list, (flags & OPEN_VIEW_NO_PARSE)))
+  if (share->is_view)
   {
+    bool view_open_result= open_and_read_view(thd, share, table_list);
+
     release_table_share(share);
     mysql_mutex_unlock(&LOCK_open);
-    return FALSE;
+
+    if (view_open_result)
+      return true;
+
+    bool view_parse_result= false;
+    if (!(flags & OPEN_VIEW_NO_PARSE))
+      view_parse_result= parse_view_definition(thd, table_list);
+
+    return view_parse_result;
   }
 
   my_error(ER_WRONG_OBJECT, MYF(0), share->db.str, share->table_name.str, "VIEW");
