@@ -10657,7 +10657,7 @@ joined_table:
 natural_join:
           table_ref natural_join_type table_factor
           {
-            $$= NEW_PTN PT_join_table($1, @2, $2, $3);
+            $$= NEW_PTN PT_join_table_using($1, @2, $2, $3);
           }
         ;
 

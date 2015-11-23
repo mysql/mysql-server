@@ -372,6 +372,8 @@ public:
     return false;
   }
 
+  ~PT_join_table() = 0;
+
 protected:
   bool contextualize_tabs(Parse_context *pc)
   {
@@ -479,6 +481,13 @@ public:
                       List<String> *using_fields_arg)
     : PT_join_table(tab1_node_arg, join_pos_arg, type, tab2_node_arg),
       using_fields(using_fields_arg)
+  {}
+
+  /// A PT_join_table_using without a list of columns denotes a natural join.
+  PT_join_table_using(PT_table_list *tab1_node_arg, const POS &join_pos_arg,
+                      PT_join_table_type type, PT_table_list *tab2_node_arg)
+    : PT_join_table(tab1_node_arg, join_pos_arg, type, tab2_node_arg),
+      using_fields(NULL)
   {}
 
   virtual bool contextualize(Parse_context *pc)
