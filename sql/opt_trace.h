@@ -336,7 +336,7 @@ class Item;
   @c sp_lex_keeper::reset_lex_and_exec_core()), we check this LEX in the
   constructor of Opt_trace_start.
   Or it may be a LEX describing a view, we check this LEX when
-  opening the view (@c mysql_make_view()).
+  opening the view (@c open_and_read_view()).
 
   Those checks are greatly simplified by disabling traces in case of security
   context changes. @see opt_trace_disable_if_no_security_context_access().

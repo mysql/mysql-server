@@ -33,9 +33,6 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
 bool mysql_create_view(THD *thd, TABLE_LIST *view,
                        enum_view_create_mode mode);
 
-bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
-                     bool open_view_no_parse);
-
 bool mysql_drop_view(THD *thd, TABLE_LIST *view, enum_drop_mode drop_mode);
 
 bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref);
@@ -49,6 +46,11 @@ extern TYPELIB updatable_views_with_limit_typelib;
 bool check_duplicate_names(List<Item>& item_list, bool gen_unique_view_names);
 bool mysql_rename_view(THD *thd, const char *new_db, const char *new_name,
                        TABLE_LIST *view);
+
+bool open_and_read_view(THD *thd, TABLE_SHARE *share,
+                        TABLE_LIST *view_ref);
+
+bool parse_view_definition(THD *thd, TABLE_LIST *view_ref);
 
 #define VIEW_ANY_ACL (SELECT_ACL | UPDATE_ACL | INSERT_ACL | DELETE_ACL)
 

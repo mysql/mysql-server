@@ -709,9 +709,7 @@ public:
     An exception: this is the only function that needs to adjust
     explain_marker.
   */
-  friend bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
-                     bool open_view_no_parse);
-
+  friend bool parse_view_definition(THD *thd, TABLE_LIST *view_ref);
 };
 
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
