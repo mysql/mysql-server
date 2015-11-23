@@ -916,9 +916,7 @@ private:
   Operationrec *operationrec;
   OperationrecPtr operationRecPtr;
   OperationrecPtr idrOperationRecPtr;
-  OperationrecPtr mlpqOperPtr;
   OperationrecPtr queOperPtr;
-  OperationrecPtr readWriteOpPtr;
   Uint32 cfreeopRec;
   Uint32 coprecsize;
 
@@ -929,8 +927,6 @@ private:
   /* 8 KB PAGE                       */
   Page8Ptr ancPageptr;
   Page8Ptr colPageptr;
-  Page8Ptr ccoPageptr;
-  Page8Ptr datapageptr;
   Page8Ptr delPageptr;
   Page8Ptr excPageptr;
   Page8Ptr expPageptr;
@@ -943,9 +939,6 @@ private:
   Page8Ptr iopPageptr;
   Page8Ptr lastPageptr;
   Page8Ptr lastPrevpageptr;
-  Page8Ptr lcnPageptr;
-  Page8Ptr lcnCopyPageptr;
-  Page8Ptr lupPageptr;
   Page8Ptr ciPageidptr;
   Page8Ptr gsePageidptr;
   Page8Ptr isoPageptr;
@@ -955,7 +948,6 @@ private:
   Page8Ptr slPageidptr;
   Page8Ptr sscPageidptr;
   Page8Ptr rlPageptr;
-  Page8Ptr rlpPageptr;
   Page8Ptr ropPageptr;
   Page8Ptr rpPageptr;
   Page8Ptr slPageptr;
@@ -992,12 +984,6 @@ private:
   Uint32 ctablesize;
   Uint32 tgseElementptr;
   Uint32 tgseContainerptr;
-  Uint32 trlNextused;
-  Uint32 trlPrevused;
-  Uint32 tlcnChecksum;
-  Uint32 tlupElemIndex;
-  Uint32 tlupIndex;
-  Uint32 tlupForward;
   Uint32 tancNext;
   Uint32 tancBufType;
   Uint32 tancContainerptr;
@@ -1022,10 +1008,7 @@ private:
   Uint32 tgeElementptr;
   Uint32 tgeForward;
   Uint32 texpDirInd;
-  Uint32 texpDirRangeIndex;
-  Uint32 texpDirPageIndex;
   Uint32 tdata0;
-  Uint32 tcheckpointid;
   Uint32 tciContainerptr;
   Uint32 tnciContainerptr;
   Uint32 tisoContainerptr;
@@ -1048,17 +1031,13 @@ private:
   Uint32 tisoIsforward;
   Uint32 tgseIsLocked;
   Uint32 tsscIsLocked;
-  Uint32 tkeylen;
   Uint32 tmp;
   Uint32 tmpP;
-  Uint32 tmpP2;
   Uint32 tmp2;
   Uint32 tgflPageindex;
-  Uint32 tmpindex;
   Uint32 tslNextfree;
   Uint32 tslPageindex;
   Uint32 tgsePageindex;
-  Uint32 tnciNextSamePage;
   Uint32 tslPrevfree;
   Uint32 tciPageindex;
   Uint32 trsbPageindex;
@@ -1067,21 +1046,13 @@ private:
   Uint32 tresult;
   Uint32 tuserptr;
   BlockReference tuserblockref;
-  Uint32 tlqhPointer;
-  Uint32 tholdSentOp;
-  Uint32 tholdMore;
   Uint32 tgdiPageindex;
   Uint32 tiopIndex;
   Uint32 tullIndex;
   Uint32 turlIndex;
-  Uint32 tlfrTmp1;
-  Uint32 tlfrTmp2;
   Uint32 tscanTrid1;
   Uint32 tscanTrid2;
 
-  Uint32 ctest;
-  Uint32 clqhPtr;
-  BlockReference clqhBlockRef;
   Uint32 cminusOne;
   NodeId cmynodeid;
   BlockReference cownBlockref;
