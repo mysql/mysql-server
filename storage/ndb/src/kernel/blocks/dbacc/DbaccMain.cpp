@@ -6836,34 +6836,35 @@ void Dbacc::execACC_TO_REQ(Signal* signal)
   return;
 }//Dbacc::execACC_TO_REQ()
 
-/* --------------------------------------------------------------------------------- */
-/* CONTAINERINFO                                                                     */
-/*        INPUT:                                                                     */
-/*               CI_PAGEIDPTR (PAGE POINTER WHERE CONTAINER RESIDES)                 */
-/*               TCI_PAGEINDEX (INDEX OF CONTAINER, USED TO CALCULATE PAGE INDEX)    */
-/*               TCI_ISFORWARD (DIRECTION OF CONTAINER FORWARD OR BACKWARD)          */
-/*                                                                                   */
-/*        OUTPUT:                                                                    */
-/*               TCI_CONTAINERPTR (A POINTER TO THE HEAD OF THE CONTAINER)           */
-/*               TCI_CONTAINERLEN (LENGTH OF THE CONTAINER                           */
-/*               TCI_CONTAINERHEAD (THE HEADER OF THE CONTAINER)                     */
-/*                                                                                   */
-/*        DESCRIPTION: THE ADDRESS OF THE CONTAINER WILL BE CALCULATED AND           */
-/*                     ALL INFORMATION ABOUT THE CONTAINER WILL BE READ              */
-/* --------------------------------------------------------------------------------- */
-void Dbacc::containerinfo(ContainerHeader& containerhead)
+/** ---------------------------------------------------------------------------
+ * Calculates the container pointer within a page, and returns container header
+ * and size.
+ *
+ * @param[in]   pageptr  Page of container.
+ * @param[in]   conidx   Index in page of container.
+ * @param[in]   forward  Direction of container.
+ * @param[out]  conhead  Container header.
+ * @param[out]  conptr   Pointer within page of container.
+ * @param[out]  conlen   Container size.
+ * ------------------------------------------------------------------------- */
+void Dbacc::containerinfo(Page8Ptr pageptr,
+                          Uint32 conidx,
+                          Uint32 forward,
+                          ContainerHeader& conhead,
+                          Uint32& conptr,
+                          Uint32& conlen) const
 {
-  tciContainerptr = mul_ZBUF_SIZE(tciPageindex);
-  if (tciIsforward == ZTRUE) {
+  conptr = mul_ZBUF_SIZE(conidx);
+  if (forward == ZTRUE) {
     jam();
-    tciContainerptr = tciContainerptr + ZHEAD_SIZE;
+    conptr = conptr + ZHEAD_SIZE;
   } else {
     jam();
-    tciContainerptr = ((tciContainerptr + ZHEAD_SIZE) + ZBUF_SIZE) - Container::HEADER_SIZE;
+    conptr = ((conptr + ZHEAD_SIZE) + ZBUF_SIZE) - Container::HEADER_SIZE;
   }//if
-  arrGuard(tciContainerptr, 2048);
-  containerhead = ciPageidptr.p->word32[tciContainerptr];
-  tciContainerlen = containerhead.getLength();
+  arrGuard(conptr, 2048);
+  conhead = pageptr.p->word32[conptr];
+  conlen = conhead.getLength();
 }//Dbacc::containerinfo()
 
 /* --------------------------------------------------------------------------------- */
@@ -6876,19 +6877,22 @@ void Dbacc::containerinfo(ContainerHeader& containerhead)
 /* --------------------------------------------------------------------------------- */
 bool Dbacc::getScanElement()
 {
-  ContainerHeader containerhead;
   tgseIsforward = ZTRUE;
  NEXTSEARCH_SCAN_LOOP:
-  ciPageidptr.i = gsePageidptr.i;
-  ciPageidptr.p = gsePageidptr.p;
-  tciPageindex = tgsePageindex;
-  tciIsforward = tgseIsforward;
-  containerinfo(containerhead);
+  ContainerHeader containerhead;
+  Uint32 conptr;
+  Uint32 conlen;
+  containerinfo(gsePageidptr,
+                tgsePageindex,
+                tgseIsforward,
+                containerhead,
+                conptr,
+                conlen);
   sscPageidptr.i = gsePageidptr.i;
   sscPageidptr.p = gsePageidptr.p;
-  tsscContainerlen = tciContainerlen;
-  tsscContainerptr = tciContainerptr;
-  tsscIsforward = tciIsforward;
+  tsscContainerlen = conlen;
+  tsscContainerptr = conptr;
+  tsscIsforward = tgseIsforward;
   if (searchScanContainer()) {
     jam();
     tgseIsLocked = tsscIsLocked;
@@ -6900,7 +6904,7 @@ bool Dbacc::getScanElement()
     jam();
     nciPageidptr.i = gsePageidptr.i;
     nciPageidptr.p = gsePageidptr.p;
-    tnciContainerptr = tciContainerptr;
+    tnciContainerptr = conptr;
     nextcontainerinfo(containerhead);
     tgsePageindex = tnciPageindex;
     gsePageidptr.i = nciPageidptr.i;
@@ -7103,30 +7107,28 @@ void Dbacc::putReadyScanQueue(Uint32 scanRecIndex) const
  * ------------------------------------------------------------------------- */
 void Dbacc::releaseScanBucket()
 {
-  ContainerHeader containerhead;
-  Uint32 trsbIsforward;
-
-  trsbIsforward = ZTRUE;
+  Uint32 isforward = ZTRUE;
  NEXTRELEASESCANLOOP:
-  ciPageidptr.i = rsbPageidptr.i;
-  ciPageidptr.p = rsbPageidptr.p;
-  tciPageindex = trsbPageindex;
-  tciIsforward = trsbIsforward;
-  containerinfo(containerhead);
-  releaseScanContainer(rsbPageidptr,
-                       tciContainerptr,
-                       trsbIsforward,
-                       tciContainerlen);
+  ContainerHeader containerhead;
+  Uint32 conptr;
+  Uint32 conlen;
+  containerinfo(rsbPageidptr,
+                trsbPageindex,
+                isforward,
+                containerhead,
+                conptr,
+                conlen);
+  releaseScanContainer(rsbPageidptr, conptr, isforward, conlen);
   if (containerhead.getNextEnd() != 0) {
     jam();
     nciPageidptr.i = rsbPageidptr.i;
     nciPageidptr.p = rsbPageidptr.p;
-    tnciContainerptr = tciContainerptr;
+    tnciContainerptr = conptr;
     nextcontainerinfo(containerhead);
     rsbPageidptr.i = nciPageidptr.i;
     rsbPageidptr.p = nciPageidptr.p;
     trsbPageindex = tnciPageindex;
-    trsbIsforward = tnciIsforward;
+    isforward = tnciIsforward;
     goto NEXTRELEASESCANLOOP;
   }//if
 }//Dbacc::releaseScanBucket()
