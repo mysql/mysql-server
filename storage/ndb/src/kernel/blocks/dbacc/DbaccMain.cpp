@@ -5492,7 +5492,11 @@ void Dbacc::expandcontainer()
     /* --------------------------------------------------------------------------------- */
     cexcPrevpageptr = excPageptr.i;
     cexcPrevconptr = cexcContainerptr;
-    nextcontainerinfoExp(containerhead);
+    nextcontainerinfo(excPageptr,
+                      cexcContainerptr,
+                      containerhead,
+                      cexcPageindex,
+                      cexcForward);
     goto EXP_CONTAINER_LOOP;
   }//if
 }//Dbacc::expandcontainer()
@@ -5754,7 +5758,11 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     endofshrinkbucketLab(signal);
     return;
   }//if
-  nextcontainerinfoExp(containerhead);
+  nextcontainerinfo(excPageptr,
+                    cexcContainerptr,
+                    containerhead,
+                    cexcPageindex,
+                    cexcForward);
   do {
     cexcContainerptr = mul_ZBUF_SIZE(cexcPageindex);
     if (cexcForward == ZTRUE) {
@@ -5781,7 +5789,11 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
       /*       WE MUST CALL THE NEXT CONTAINER INFO ROUTINE BEFORE WE RELEASE THE */
       /*       CONTAINER SINCE THE RELEASE WILL OVERWRITE THE NEXT POINTER.       */
       /*--------------------------------------------------------------------------*/
-      nextcontainerinfoExp(containerhead);
+      nextcontainerinfo(excPageptr,
+                        cexcContainerptr,
+                        containerhead,
+                        cexcPageindex,
+                        cexcForward);
     }//if
     rlPageptr.i = cexcPrevpageptr;
     ptrCheckGuard(rlPageptr, cpagesize, page8);
@@ -6074,42 +6086,6 @@ void Dbacc::shrinkcontainer()
     goto SHR_LOOP;
   }//if
 }//Dbacc::shrinkcontainer()
-
-/* --------------------------------------------------------------------------------- */
-/* NEXTCONTAINERINFO_EXP                                                             */
-/*        DESCRIPTION:THE CONTAINER HEAD WILL BE CHECKED TO CALCULATE INFORMATION    */
-/*                    ABOUT NEXT CONTAINER IN THE BUCKET.                            */
-/*          INPUT:       CEXC_CONTAINERHEAD                                          */
-/*                       CEXC_CONTAINERPTR                                           */
-/*                       EXC_PAGEPTR                                                 */
-/*          OUTPUT:                                                                  */
-/*             CEXC_PAGEINDEX (INDEX FROM WHICH PAGE INDEX CAN BE CALCULATED.        */
-/*             EXC_PAGEPTR (PAGE REFERENCE OF NEXT CONTAINER)                        */
-/*             CEXC_FORWARD                                                          */
-/* --------------------------------------------------------------------------------- */
-void Dbacc::nextcontainerinfoExp(ContainerHeader const containerhead)
-{
-  /* THE NEXT CONTAINER IS IN THE SAME PAGE */
-  cexcPageindex = containerhead.getNextIndexNumber();	/* NEXT CONTAINER PAGE INDEX 7 BITS */
-  if (containerhead.getNextEnd() == ZLEFT) {
-    jam();
-    cexcForward = ZTRUE;
-  } else if (containerhead.getNextEnd() == ZRIGHT) {
-    jam();
-    cexcForward = cminusOne;
-  } else {
-    jam();
-    sendSystemerror(__LINE__);
-    cexcForward = 0;	/* DUMMY FOR COMPILER */
-  }//if
-  if (!containerhead.isNextOnSamePage()) {
-    jam();
-    /* NEXT CONTAINER IS IN AN OVERFLOW PAGE */
-    arrGuard(cexcContainerptr + 1, 2048);
-    excPageptr.i = excPageptr.p->word32[cexcContainerptr + 1];
-    ptrCheckGuard(excPageptr, cpagesize, page8);
-  }//if
-}//Dbacc::nextcontainerinfoExp()
 
 void Dbacc::initFragAdd(Signal* signal,
                         FragmentrecPtr regFragPtr) const
@@ -6902,14 +6878,11 @@ bool Dbacc::getScanElement()
   }//if
   if (containerhead.getNextEnd() != 0) {
     jam();
-    nciPageidptr.i = gsePageidptr.i;
-    nciPageidptr.p = gsePageidptr.p;
-    tnciContainerptr = conptr;
-    nextcontainerinfo(containerhead);
-    tgsePageindex = tnciPageindex;
-    gsePageidptr.i = nciPageidptr.i;
-    gsePageidptr.p = nciPageidptr.p;
-    tgseIsforward = tnciIsforward;
+    nextcontainerinfo(gsePageidptr,
+                      conptr,
+                      containerhead,
+                      tgsePageindex,
+                      tgseIsforward);
     goto NEXTSEARCH_SCAN_LOOP;
   }//if
   return false;
@@ -6969,35 +6942,46 @@ void Dbacc::initScanOpRec(Page8Ptr pageptr, Uint32 conptr,
   operationRecPtr.p->xfrmtupkeylen = 0; // not used
 }//Dbacc::initScanOpRec()
 
-/* --------------------------------------------------------------------------------- */
-/* NEXTCONTAINERINFO                                                                 */
-/*        DESCRIPTION:THE CONTAINER HEAD WILL BE CHECKED TO CALCULATE INFORMATION    */
-/*                    ABOUT NEXT CONTAINER IN THE BUCKET.                            */
-/*          INPUT:       TNCI_CONTAINERHEAD                                          */
-/*                       NCI_PAGEIDPTR                                               */
-/*                       TNCI_CONTAINERPTR                                           */
-/*          OUTPUT:                                                                  */
-/*             TNCI_PAGEINDEX (INDEX FROM WHICH PAGE INDEX CAN BE CALCULATED).       */
-/*             TNCI_ISFORWARD (IS THE NEXT CONTAINER FORWARD (+1) OR BACKWARD (-1)   */
-/*             NCI_PAGEIDPTR (PAGE REFERENCE OF NEXT CONTAINER)                      */
-/* --------------------------------------------------------------------------------- */
-void Dbacc::nextcontainerinfo(ContainerHeader const containerhead)
+/* ----------------------------------------------------------------------------
+ * Get information of next container.
+ *
+ * @param[in,out] pageptr          Page of current container, and on return to
+ *                                 next container.
+ * @param[in]     conptr           Pointer within page to current container.
+ * @param[in]     containerheader  Header of current container.
+ * @param[out]    nextConidx       Index within page to next container.
+ * @param[out]    nextForward      Direction of next container.
+ * ------------------------------------------------------------------------- */
+void Dbacc::nextcontainerinfo(Page8Ptr& pageptr,
+                              Uint32 conptr,
+                              ContainerHeader containerhead,
+                              Uint32& nextConidx,
+                              Uint32& nextForward) const
 {
   /* THE NEXT CONTAINER IS IN THE SAME PAGE */
-  tnciPageindex = containerhead.getNextIndexNumber();	/* NEXT CONTAINER PAGE INDEX 7 BITS */
-  if (containerhead.getNextEnd() == ZLEFT) {
+  nextConidx = containerhead.getNextIndexNumber();
+  if (containerhead.getNextEnd() == ZLEFT)
+  {
     jam();
-    tnciIsforward = ZTRUE;
-  } else {
+    nextForward = ZTRUE;
+  }
+  else if (containerhead.getNextEnd() == ZRIGHT)
+  {
     jam();
-    tnciIsforward = cminusOne;
-  }//if
-  if (!containerhead.isNextOnSamePage()) {
+    nextForward = cminusOne;
+  }
+  else
+  {
+    ndbrequire(containerhead.getNextEnd() == ZLEFT ||
+               containerhead.getNextEnd() == ZRIGHT);
+  }
+  if (!containerhead.isNextOnSamePage())
+  {
     jam();
     /* NEXT CONTAINER IS IN AN OVERFLOW PAGE */
-    arrGuard(tnciContainerptr + 1, 2048);
-    nciPageidptr.i = nciPageidptr.p->word32[tnciContainerptr + 1];
-    ptrCheckGuard(nciPageidptr, cpagesize, page8);
+    arrGuard(conptr + 1, 2048);
+    pageptr.i = pageptr.p->word32[conptr + 1];
+    ptrCheckGuard(pageptr, cpagesize, page8);
   }//if
 }//Dbacc::nextcontainerinfo()
 
@@ -7121,14 +7105,11 @@ void Dbacc::releaseScanBucket()
   releaseScanContainer(rsbPageidptr, conptr, isforward, conlen);
   if (containerhead.getNextEnd() != 0) {
     jam();
-    nciPageidptr.i = rsbPageidptr.i;
-    nciPageidptr.p = rsbPageidptr.p;
-    tnciContainerptr = conptr;
-    nextcontainerinfo(containerhead);
-    rsbPageidptr.i = nciPageidptr.i;
-    rsbPageidptr.p = nciPageidptr.p;
-    trsbPageindex = tnciPageindex;
-    isforward = tnciIsforward;
+    nextcontainerinfo(rsbPageidptr,
+                      conptr,
+                      containerhead,
+                      trsbPageindex,
+                      isforward);
     goto NEXTRELEASESCANLOOP;
   }//if
 }//Dbacc::releaseScanBucket()
