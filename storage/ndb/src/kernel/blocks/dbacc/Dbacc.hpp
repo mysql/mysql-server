@@ -823,7 +823,11 @@ private:
   Uint32 getElement(const AccKeyReq* signal,
                     OperationrecPtr& lockOwner,
                     Page8Ptr& bucketPageptr,
-                    Uint32& bucketConidx);
+                    Uint32& bucketConidx,
+                    Page8Ptr& elemPageptr,
+                    Uint32& elemConptr,
+                    Uint32& elemForward,
+                    Uint32& elemptr);
   LHBits32 getElementHash(OperationrecPtr& oprec);
   LHBits32 getElementHash(Uint32 const* element, Int32 forward);
   LHBits32 getElementHash(Uint32 const* element, Int32 forward, OperationrecPtr& oprec);
@@ -959,7 +963,6 @@ private:
   Page8Ptr colPageptr;
   Page8Ptr excPageptr;
   Page8Ptr expPageptr;
-  Page8Ptr gePageptr;
   Page8Ptr gflPageptr;
   Page8Ptr idrPageptr;
   Page8Ptr ilcPageptr;
@@ -1007,9 +1010,6 @@ private:
   Uint32 tidrContainerptr;
   Uint32 trlPageindex;
   Uint32 tipPageId;
-  Uint32 tgeContainerptr;
-  Uint32 tgeElementptr;
-  Uint32 tgeForward;
   Uint32 texpDirInd;
   Uint32 tdata0;
   Uint32 tfid;
