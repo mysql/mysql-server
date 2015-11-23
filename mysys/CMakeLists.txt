@@ -85,6 +85,7 @@ SET(MYSYS_SOURCES
   my_rename.cc
   my_seek.cc
   my_static.cc
+  my_string.cc
   my_symlink2.cc
   my_symlink.cc
   my_sync.cc
@@ -97,7 +98,6 @@ SET(MYSYS_SOURCES
   ptr_cmp.cc
   queues.cc
   stacktrace.cc
-  string.cc
   thr_cond.cc
   thr_lock.cc
   thr_mutex.cc

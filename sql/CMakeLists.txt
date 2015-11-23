@@ -406,13 +406,6 @@ IF(HAVE_LOGICAL_OP)
   ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES} COMPILE_FLAGS "-Wno-logical-op")
 ENDIF()
 
-# Boost source does not adhere to stricter C++11 rules
-MY_CHECK_CXX_COMPILER_FLAG("-Wc++11-extra-semi" HAVE_CPP11_EXTRA_SEMI)
-IF(HAVE_CPP11_EXTRA_SEMI)
-  ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
-    COMPILE_FLAGS "-Wno-c++11-extra-semi")
-ENDIF()
-
 # Bison output and Boost source use undefined symbols in #if checks
 MY_CHECK_CXX_COMPILER_FLAG("-Wundef" HAVE_UNDEF)
 IF(HAVE_UNDEF)

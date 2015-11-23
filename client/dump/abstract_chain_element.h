@@ -41,6 +41,9 @@ public:
    */
   uint64 get_id() const;
 
+  /** Disable move assignment to avoid Wvirtual-move-assign warning */
+  Abstract_chain_element& operator= (Abstract_chain_element&& other) = delete;
+
 protected:
   Abstract_chain_element(
     Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*

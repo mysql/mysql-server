@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys/string.cc
+  @file mysys/my_string.cc
   Code for handling strings with can grow dynamically.
 */
 
@@ -130,7 +130,7 @@ my_bool dynstr_trunc(DYNAMIC_STRING *str, size_t n)
 /*
   Concatenates any number of strings, escapes any OS quote in the result then
   surround the whole affair in another set of quotes which is finally appended
-  to specified DYNAMIC_STRING.  This function is especially useful when 
+  to specified DYNAMIC_STRING.  This function is especially useful when
   building strings to be executed with the system() function.
 
   @param str Dynamic String which will have addtional strings appended.

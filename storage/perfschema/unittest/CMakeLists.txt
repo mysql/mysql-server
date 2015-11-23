@@ -55,11 +55,11 @@ ENDIF()
 
 # We need the server libs to test the blob parser.
 # Add sql_builtin.cc here, to force linkage of plugins below.
-# Also add mysys/string.c (see Bug#45488)
+# Also add mysys/my_string.cc (see Bug#45488)
 ADD_EXECUTABLE(pfs_connect_attr-t
   pfs_connect_attr-t.cc
   ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
-  ${CMAKE_SOURCE_DIR}/mysys/string.cc
+  ${CMAKE_SOURCE_DIR}/mysys/my_string.cc
   ${MYSQLD_EXTRA_SOURCES}
 )
 ADD_DEPENDENCIES(pfs_connect_attr-t GenServerSource)

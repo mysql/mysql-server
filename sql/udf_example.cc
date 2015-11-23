@@ -129,6 +129,8 @@
 #include <mysql.h>
 #include <ctype.h>
 
+#include "cpp11_lib_check.h"
+
 #ifdef _WIN32
 /* inet_aton needs winsock library */
 #pragma comment(lib, "ws2_32")
@@ -1221,4 +1223,37 @@ longlong my_median(UDF_INIT* initid, UDF_ARGS* args,
   const size_t ix= data->vec.size() / 2;
   std::nth_element(data->vec.begin(), data->vec.begin() + ix, data->vec.end());
   return data->vec[ix];
+}
+
+C_MODE_START
+my_bool  my_cpp11_re_match_init  (UDF_INIT *initid, UDF_ARGS *args, char *message);
+void     my_cpp11_re_match_deinit(UDF_INIT* initid);
+
+long long my_cpp11_re_match      (UDF_INIT* initid, UDF_ARGS* args,
+                                  char* is_null, char *error);
+C_MODE_END
+
+
+my_bool my_cpp11_re_match_init (UDF_INIT *initid, UDF_ARGS *args,
+                                char *message)
+{
+  initid->maybe_null= TRUE;
+
+  args->arg_type[0]= STRING_RESULT;
+  args->arg_type[1]= STRING_RESULT;
+
+  return false;
+}
+
+void my_cpp11_re_match_deinit(UDF_INIT* initid)
+{
+}
+
+long long my_cpp11_re_match(UDF_INIT* initid, UDF_ARGS* args,
+                            char* is_null, char *error)
+{
+  char **av= args->args;
+  const unsigned long *lv= args->lengths;
+  std::string pat(av[0], lv[0]), val(av[1], lv[1]);
+  return cpp11_re_match(pat, val);
 }

@@ -14,11 +14,6 @@
 # Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
 # MA  02110-1301  USA.
 
-# Rebuild on OL5/RHEL5 needs following rpmbuild options:
-#  rpmbuild --define 'dist .el5' --define 'rhel 5' --define 'el5 1' mysql.spec
-
-# Install cmake28 from EPEL when building on OL5/RHEL5 and OL6/RHEL6.
-
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
 
@@ -46,13 +41,6 @@
 %{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community Server - Debug (GPL)}
 %{!?src_base:                    %global src_base mysql}
 
-# Version for compat libs
-%if 0%{?rhel} == 5
-%global compatver             5.0.96
-%global compatlib             15
-%global compatsrc             http://downloads.mysql.com/archives/mysql-5.0/mysql-%{compatver}.tar.gz
-%endif
-
 %if 0%{?rhel} == 6
 %global compatver             5.1.72
 %global compatlib             16
@@ -67,16 +55,6 @@
 
 # multiarch
 %global multiarchs            ppc %{power64} %{ix86} x86_64 %{sparc}
-
-# Hack to support el5 where __isa_bits not defined. Note: supports i386 and x86_64 only, sorry.
-%if x%{?__isa_bits} == x
-%ifarch %{ix86}
-%global __isa_bits            32
-%endif
-%ifarch x86_64
-%global __isa_bits            64
-%endif
-%endif
 
 %global src_dir               %{src_base}-%{version}%{?milestone:-%{milestone}}
 
@@ -114,20 +92,16 @@ Source10:       http://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
 Patch0:         mysql-5.7-libmysqlclient-symbols.patch
-%{?el5:BuildRequires:  cmake28 >= 2.8.2}
-%{?el6:BuildRequires:  cmake28 >= 2.8.2}
-%{?el7:BuildRequires:  cmake >= 2.8.2}
-%{?el5:BuildRequires:  gcc44}
-%{?el5:BuildRequires:  gcc44-c++}
+%{?el6:BuildRequires:  devtoolset-3-gcc}
+%{?el6:BuildRequires:  devtoolset-3-gcc-c++}
+BuildRequires:  cmake >= 2.8.2
 BuildRequires:  perl
 %{?el7:BuildRequires: perl(Time::HiRes)}
 %{?el7:BuildRequires: perl(Env)}
 BuildRequires:  time
 BuildRequires:  libaio-devel
 BuildRequires:  ncurses-devel
-%if 0%{?rhel} > 5
 BuildRequires:  numactl-devel
-%endif
 BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
 %if 0%{?systemd}
@@ -241,11 +215,9 @@ Requires:       mysql-community-libs%{?_isa} = %{version}-%{release}
 %endif
 Obsoletes:      MySQL-client < %{version}-%{release}
 Obsoletes:      mariadb
-%if 0%{?rhel} > 5
 Obsoletes:      mysql < %{version}-%{release}
 Provides:       mysql = %{version}-%{release}
 Provides:       mysql%{?_isa} = %{version}-%{release}
-%endif
 
 %description    client
 This package contains the standard MySQL clients and administration
@@ -259,7 +231,6 @@ Obsoletes:      mysql-community-common < %{version}-%{release}
 %endif
 Provides:       mysql-common = %{version}-%{release}
 Provides:       mysql-common%{?_isa} = %{version}-%{release}
-%{?el5:Requires: mysql%{?_isa} = %{version}-%{release}} 
 
 %description    common
 This packages contains common files needed by MySQL client library,
@@ -351,9 +322,7 @@ Provides:       MySQL-shared-compat%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-libs%{?_isa} = %{version}-%{release}
 %endif
 Obsoletes:      MySQL-shared-compat < %{version}-%{release}
-%if 0%{?rhel} > 5
 Obsoletes:      mysql-libs < %{version}-%{release}
-%endif
 Obsoletes:      mariadb-libs
 
 %description    libs-compat
@@ -427,28 +396,6 @@ Provides:       mysql-embedded-devel%{?_isa} = %{version}-%{release}
 This package contains files needed for developing applications using
 the embedded version of the MySQL server.
 
-%if 0%{?rhel} == 5
-%package -n     mysql
-Summary:        Convenience package for easy upgrades of MySQL package set
-Group:          Applications/Databases
-%if 0%{?commercial}
-Requires:       mysql-commercial-client%{?_isa} = %{version}-%{release}
-Requires:       mysql-commercial-libs%{?_isa} = %{version}-%{release}
-Requires:       mysql-commercial-libs-compat%{?_isa} = %{version}-%{release}
-%else
-Requires:       mysql-community-client%{?_isa} = %{version}-%{release}
-Requires:       mysql-community-libs%{?_isa} = %{version}-%{release}
-Requires:       mysql-community-libs-compat%{?_isa} = %{version}-%{release}
-%endif
-
-%description -n mysql
-This package has as sole purpose to require other MySQL packages such
-that upgrades will be more convenient.
-
-Technical background: this is done to reflect the fact that mysql
-package has been split into several subpackages.
-%endif
-
 %prep
 %if 0%{?compatlib}
 %setup -q -T -a 0 -a 7 -a 10 -c -n %{src_dir}
@@ -487,7 +434,6 @@ fi
     --enable-local-infile \
     --enable-largefile \
     --enable-thread-safe-client \
-%if 0%{?rhel} == 6
     --with-ssl=%{_prefix} \
     --with-embedded-server \
     --with-big-tables \
@@ -495,16 +441,6 @@ fi
     --with-plugin-innobase \
     --with-plugin-innodb_plugin \
     --with-plugin-partition \
-%endif
-%if 0%{?rhel} == 5
-    --with-openssl \
-    --with-bench \
-     -with-innodb \
-    --with-berkeley-db \
-    --enable-community-features \
-    --enable-profiling \
-    --with-named-thread-libs="-lpthread" \
-%endif
     --disable-dependency-tracking
   make %{?_smp_mflags}
   popd
@@ -537,8 +473,8 @@ fi
 %endif # 0%{?rhel} < 7
 %endif # 0%{?compatlib}
 
-%{?el5:export CC=gcc44}
-%{?el5:export CXX=g++44}
+%{?el6:export CC=/opt/rh/devtoolset-3/root/usr/bin/gcc}
+%{?el6:export CXX=/opt/rh/devtoolset-3/root/usr/bin/g++}
 
 # Build debug versions of mysqld and libmysqld.a
 mkdir debug
@@ -546,7 +482,7 @@ mkdir debug
   cd debug
   # Attempt to remove any optimisation flags from the debug build
   optflags=$(echo "%{optflags}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /')
-  cmake%{?el5:28}%{?el6:28} ../%{src_dir} \
+  cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
@@ -575,7 +511,7 @@ mkdir debug
 mkdir release
 (
   cd release
-  cmake%{?el5:28}%{?el6:28} ../%{src_dir} \
+  cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
@@ -677,7 +613,7 @@ rm -r $(readlink var) var
 
 %pre server
 /usr/sbin/groupadd -g 27 -o -r mysql >/dev/null 2>&1 || :
-/usr/sbin/useradd -M %{!?el5:-N} -g mysql -o -r -d /var/lib/mysql -s /bin/false \
+/usr/sbin/useradd -M -N -g mysql -o -r -d /var/lib/mysql -s /bin/false \
     -c "MySQL Server" -u 27 mysql >/dev/null 2>&1 || :
 
 %post server
@@ -1047,17 +983,11 @@ fi
 %attr(644, root, root) %{_libdir}/mysql/libmysqld-debug.a
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
-%if 0%{?rhel} == 5
-%files -n mysql
-%defattr(-, root, root, -)
-%doc %{?license_files_server}
-%endif
-
 %changelog
 * Thu Nov 12 2015 Bjorn Munch <bjorn.munch@oracle.com> - 5.8.0-0.1.m17
 - Added lines to remove man pages we are not ready to include yet
-- Added new decompression utilities lz4_decompress and zlib_decompress binaries to
-  client subpackage.
+- Added lz4_decompress and zlib_decompress binaries to client subpackage
+- Drop support for el5, use scl to build on el6
 
 * Tue Sep 29 2015 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.9-1
 - Updated for 5.7.9

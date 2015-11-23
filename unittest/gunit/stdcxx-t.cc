@@ -17,6 +17,8 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 
+#include <cpp11_lib_check.h>
+
 #if defined(_LIBCPP_VERSION)
 #include <unordered_map>
 #elif defined(__GNUC__)
@@ -74,4 +76,12 @@ TEST(STDfeatures, TwoHashMaps)
 #else
   EXPECT_TRUE(intmap1.end() == intmap2.end());
 #endif
+}
+
+TEST(Cpp11, Regex)
+{
+  EXPECT_FALSE(cpp11_re_match("foo", "bar"));
+  EXPECT_FALSE(cpp11_re_match("foo", "foobar"));
+  EXPECT_TRUE(cpp11_re_match("foo.*", "foobar"));
+  EXPECT_TRUE(cpp11_re_match("foo|bar", "bar"));
 }
