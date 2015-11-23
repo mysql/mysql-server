@@ -51,6 +51,7 @@ storage/innobase/dict/dict0dict.cc:*
 storage/innobase/dict/dict0mem.cc:*
 storage/innobase/fil/fil0fil.cc:*
 storage/innobase/fsp/fsp0fsp.cc:*
+storage/innobase/fsp/fsp0sysspace.cc
 storage/innobase/fts/fts0fts.cc:*
 storage/innobase/fts/fts0que.cc:*
 storage/innobase/handler/ha_innodb.cc:*
