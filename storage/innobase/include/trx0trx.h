@@ -892,6 +892,32 @@ struct TrxVersion {
 typedef std::list<TrxVersion, ut_allocator<TrxVersion> > hit_list_t;
 
 struct trx_t {
+
+	enum isolation_level_t {
+
+		/** dirty read: non-locking SELECTs are performed so that we
+		do not look at a possible earlier version of a record; thus
+		they are not 'consistent' reads under this isolation level;
+		otherwise like level 2 */
+		READ_UNCOMMITTED,
+
+		/** somewhat Oracle-like isolation, except that in range UPDATE
+		and DELETE we must block phantom rows with next-key locks;
+		SELECT ... FOR UPDATE and ...  LOCK IN SHARE MODE only lock
+		the index records, NOT the gaps before them, and thus allow
+		free inserting; each consistent read reads its own snapshot */
+		READ_COMMITTED,
+
+		/** this is the default; all consistent reads in the same trx
+		read the same snapshot; full next-key locking used in locking
+		reads to block insertions into gaps */
+		REPEATABLE_READ,
+
+		/** all plain SELECTs are converted to LOCK IN SHARE MODE
+		reads */
+		SERIALIZABLE
+	};
+
 	TrxMutex	mutex;		/*!< Mutex protecting the fields
 					state and lock (except some fields
 					of lock, which are protected by
@@ -1267,7 +1293,32 @@ struct trx_t {
 					Committed on DD tables */
 #endif /* UNIV_DEBUG */
 	ulint		magic_n;
+
+	bool skip_gap_locks() const
+	{
+		switch (isolation_level) {
+		case READ_UNCOMMITTED:
+		case READ_COMMITTED:
+			return(true);
+		case REPEATABLE_READ:
+		case SERIALIZABLE:
+			return(false);
+		}
+		ut_ad(0);
+		return(false);
+	}
+
+	bool allow_semi_consistent() const
+	{
+		return(skip_gap_locks());
+	}
 };
+
+/* Transaction isolation levels (trx->isolation_level) */
+#define TRX_ISO_READ_UNCOMMITTED	trx_t::READ_UNCOMMITTED
+#define TRX_ISO_READ_COMMITTED		trx_t::READ_COMMITTED
+#define TRX_ISO_REPEATABLE_READ		trx_t::REPEATABLE_READ
+#define TRX_ISO_SERIALIZABLE		trx_t::SERIALIZABLE
 
 /**
 Check if transaction is started.
@@ -1281,41 +1332,6 @@ trx_is_started(
 	return(trx->state != TRX_STATE_NOT_STARTED
 	       && trx->state != TRX_STATE_FORCED_ROLLBACK);
 }
-
-/* Transaction isolation levels (trx->isolation_level) */
-#define TRX_ISO_READ_UNCOMMITTED	0	/* dirty read: non-locking
-						SELECTs are performed so that
-						we do not look at a possible
-						earlier version of a record;
-						thus they are not 'consistent'
-						reads under this isolation
-						level; otherwise like level
-						2 */
-
-#define TRX_ISO_READ_COMMITTED		1	/* somewhat Oracle-like
-						isolation, except that in
-						range UPDATE and DELETE we
-						must block phantom rows
-						with next-key locks;
-						SELECT ... FOR UPDATE and ...
-						LOCK IN SHARE MODE only lock
-						the index records, NOT the
-						gaps before them, and thus
-						allow free inserting;
-						each consistent read reads its
-						own snapshot */
-
-#define TRX_ISO_REPEATABLE_READ		2	/* this is the default;
-						all consistent reads in the
-						same trx read the same
-						snapshot;
-						full next-key locking used
-						in locking reads to block
-						insertions into gaps */
-
-#define TRX_ISO_SERIALIZABLE		3	/* all plain SELECTs are
-						converted to LOCK IN SHARE
-						MODE reads */
 
 /* Treatment of duplicate values (trx->duplicates; for example, in inserts).
 Multiple flags can be combined with bitwise OR. */

@@ -203,10 +203,6 @@ extern	ulong	srv_thread_sleep_delay;
 /** Maximum sleep delay (in micro-seconds), value of 0 disables it.*/
 extern	ulong	srv_adaptive_max_sleep_delay;
 
-/** Place locks to records only i.e. do not use next-key locking except
-on duplicate key checking and foreign key checking */
-extern ibool	srv_locks_unsafe_for_binlog;
-
 /** Sort buffer size in index creation */
 extern ulong	srv_sort_buf_size;
 /** Maximum modification log file size for online index creation */

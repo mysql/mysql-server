@@ -6,7 +6,7 @@
 #
 # Notes:
 # 1. This test uses at least in case of InnoDB options
-#     innodb_locks_unsafe_for_binlog = true
+#     --transaction-isolation=READ-COMMITTED
 #     innodb_lock_timeout = 5
 # 2. The comments/expectations refer to InnoDB.
 #    They might be not valid for other storage engines.
@@ -81,9 +81,12 @@ eval create table t1(a int not null, b int, primary key(a)) engine = $engine_typ
 insert into t1 values(1,1),(2,2),(3,1),(4,2),(5,1),(6,2),(7,3);
 commit;
 set autocommit = 0;
+set transaction isolation level read committed;
+start transaction;
 update t1 set b = 5 where b = 1;
 connection b;
-set autocommit = 0;
+set transaction isolation level read committed;
+start transaction;
 #
 # X-lock to record (7,3) should be released in a update
 #
@@ -112,15 +115,20 @@ insert into t1 values (1,2),(5,3),(4,2);
 eval create table t2(d int not null, e int, primary key(d)) engine = $engine_type;
 insert into t2 values (8,6),(12,1),(3,1);
 commit;
-set autocommit = 0;
+set transaction isolation level read committed;
+start transaction;
 select * from t2 for update;
+
+--echo # Connection b:
 connection b;
-set autocommit = 0;
+set transaction isolation level read committed;
+start transaction;
 insert into t1 select * from t2;
 update t1 set b = (select e from t2 where a = d);
-eval create table t3(d int not null, e int, primary key(d)) engine = $engine_type
+eval create table t3(d int not null, e int, primary key(d)) engine = $engine_type;
 select * from t2;
 commit;
+
 connection a;
 commit;
 connection default;

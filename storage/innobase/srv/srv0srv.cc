@@ -147,9 +147,6 @@ my_bool	srv_read_only_mode;
 dictionary tables are in the system tablespace 0 */
 my_bool	srv_file_per_table;
 
-/** Place locks to records only i.e. do not use next-key locking except
-on duplicate key checking and foreign key checking */
-ibool	srv_locks_unsafe_for_binlog = FALSE;
 /** Sort buffer size in index creation */
 ulong	srv_sort_buf_size = 1048576;
 /** Maximum modification log file size for online index creation */

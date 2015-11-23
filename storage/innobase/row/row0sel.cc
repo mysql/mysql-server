@@ -940,21 +940,13 @@ row_sel_get_clust_rec(
 	if (!node->read_view) {
 		/* Try to place a lock on the index record */
 
-		/* If innodb_locks_unsafe_for_binlog option is used
-		or this session is using READ COMMITTED isolation level
-		we lock only the record, i.e., next-key locking is
-		not used. */
 		ulint	lock_type;
 		trx_t*	trx;
 
 		trx = thr_get_trx(thr);
 
-		if (srv_locks_unsafe_for_binlog
-		    || trx->isolation_level <= TRX_ISO_READ_COMMITTED) {
-			lock_type = LOCK_REC_NOT_GAP;
-		} else {
-			lock_type = LOCK_ORDINARY;
-		}
+		lock_type = trx->skip_gap_locks()
+			? LOCK_REC_NOT_GAP : LOCK_ORDINARY;
 
 		err = lock_clust_rec_read_check_and_lock(
 			0, btr_pcur_get_block(&plan->clust_pcur),
@@ -1756,11 +1748,6 @@ rec_loop:
 
 		if (!consistent_read) {
 
-			/* If innodb_locks_unsafe_for_binlog option is used
-			or this session is using READ COMMITTED isolation
-			level, we lock only the record, i.e., next-key
-			locking is not used. */
-
 			rec_t*	next_rec = page_rec_get_next(rec);
 			ulint	lock_type;
 			trx_t*	trx;
@@ -1770,9 +1757,7 @@ rec_loop:
 			offsets = rec_get_offsets(next_rec, index, offsets,
 						  ULINT_UNDEFINED, &heap);
 
-			if (srv_locks_unsafe_for_binlog
-			    || trx->isolation_level
-			    <= TRX_ISO_READ_COMMITTED) {
+			if (trx->skip_gap_locks()) {
 
 				if (page_rec_is_supremum(next_rec)) {
 
@@ -1819,11 +1804,6 @@ skip_lock:
 	if (!consistent_read) {
 		/* Try to place a lock on the index record */
 
-		/* If innodb_locks_unsafe_for_binlog option is used
-		or this session is using READ COMMITTED isolation level,
-		we lock only the record, i.e., next-key locking is
-		not used. */
-
 		ulint	lock_type;
 		trx_t*	trx;
 
@@ -1832,9 +1812,7 @@ skip_lock:
 
 		trx = thr_get_trx(thr);
 
-		if (srv_locks_unsafe_for_binlog
-		    || trx->isolation_level <= TRX_ISO_READ_COMMITTED
-		    || dict_index_is_spatial(index)) {
+		if (trx->skip_gap_locks() || dict_index_is_spatial(index)) {
 
 			if (page_rec_is_supremum(rec)) {
 
@@ -4370,7 +4348,7 @@ row_search_mvcc(
 	ibool		unique_search			= FALSE;
 	ibool		mtr_has_extra_clust_latch	= FALSE;
 	ibool		moves_up			= FALSE;
-	ibool		set_also_gap_locks		= TRUE;
+	bool		set_also_gap_locks		= true;
 	/* if the query is a plain locking SELECT, and the isolation level
 	is <= TRX_ISO_READ_COMMITTED, then this is set to FALSE */
 	ibool		did_semi_consistent_read	= FALSE;
@@ -4451,10 +4429,9 @@ row_search_mvcc(
 		trx_search_latch_release_if_reserved(trx);
 	}
 
-	/* Reset the new record lock info if srv_locks_unsafe_for_binlog
-	is set or session is using a READ COMMITED isolation level. Then
-	we are able to remove the record locks set here on an individual
-	row. */
+	/* Reset the new record lock info if trx_t::allow_semi_consistent().
+	Then we are able to remove the record locks set here on an
+	individual row. */
 	prebuilt->new_rec_locks = 0;
 
 	/*-------------------------------------------------------------*/
@@ -4716,14 +4693,14 @@ row_search_mvcc(
 
 	trx_start_if_not_started(trx, false);
 
-	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
+	if (trx->skip_gap_locks()
 	    && prebuilt->select_lock_type != LOCK_NONE
 	    && trx->mysql_thd != NULL
 	    && thd_is_select(trx->mysql_thd)) {
 		/* It is a plain locking SELECT and the isolation
 		level is low: do not lock gaps */
 
-		set_also_gap_locks = FALSE;
+		set_also_gap_locks = false;
 	}
 
 	/* Note that if the search mode was GE or G, then the cursor
@@ -4827,14 +4804,9 @@ wait_table_again:
 		pcur->btr_cur.thr = thr;
 
 		if (dict_index_is_spatial(index)) {
-			bool	need_pred_lock;
-
-			need_pred_lock = (set_also_gap_locks
-					  && !(srv_locks_unsafe_for_binlog
-					      || trx->isolation_level
-						 <= TRX_ISO_READ_COMMITTED)
-					  && prebuilt->select_lock_type
-						 != LOCK_NONE);
+			bool	need_pred_lock = set_also_gap_locks
+				&& !trx->skip_gap_locks()
+				&& prebuilt->select_lock_type != LOCK_NONE;
 
 			if (!prebuilt->rtr_info) {
 				prebuilt->rtr_info = rtr_create_rtr_info(
@@ -4864,8 +4836,7 @@ wait_table_again:
 		if (!moves_up
 		    && !page_rec_is_supremum(rec)
 		    && set_also_gap_locks
-		    && !(srv_locks_unsafe_for_binlog
-			 || trx->isolation_level <= TRX_ISO_READ_COMMITTED)
+		    && !trx->skip_gap_locks()
 		    && prebuilt->select_lock_type != LOCK_NONE
 		    && !dict_index_is_spatial(index)) {
 
@@ -4924,17 +4895,11 @@ rec_loop:
 	if (page_rec_is_supremum(rec)) {
 
 		if (set_also_gap_locks
-		    && !(srv_locks_unsafe_for_binlog
-			 || trx->isolation_level <= TRX_ISO_READ_COMMITTED)
+		    && !trx->skip_gap_locks()
 		    && prebuilt->select_lock_type != LOCK_NONE
 		    && !dict_index_is_spatial(index)) {
 
 			/* Try to place a lock on the index record */
-
-			/* If innodb_locks_unsafe_for_binlog option is used
-			or this session is using a READ COMMITTED isolation
-			level we do not lock gaps. Supremum record is really
-			a gap and therefore we do not set locks there. */
 
 			offsets = rec_get_offsets(rec, index, offsets,
 						  ULINT_UNDEFINED, &heap);
@@ -5057,16 +5022,9 @@ wrong_offs:
 		if (0 != cmp_dtuple_rec(search_tuple, rec, offsets)) {
 
 			if (set_also_gap_locks
-			    && !(srv_locks_unsafe_for_binlog
-				 || trx->isolation_level
-				 <= TRX_ISO_READ_COMMITTED)
+			    && !trx->skip_gap_locks()
 			    && prebuilt->select_lock_type != LOCK_NONE
 			    && !dict_index_is_spatial(index)) {
-
-				/* Try to place a gap lock on the index
-				record only if innodb_locks_unsafe_for_binlog
-				option is not set or this session is not
-				using a READ COMMITTED isolation level. */
 
 				err = sel_set_rec_lock(
 					pcur,
@@ -5102,16 +5060,9 @@ wrong_offs:
 		if (!cmp_dtuple_is_prefix_of_rec(search_tuple, rec, offsets)) {
 
 			if (set_also_gap_locks
-			    && !(srv_locks_unsafe_for_binlog
-				 || trx->isolation_level
-				 <= TRX_ISO_READ_COMMITTED)
+			    && !trx->skip_gap_locks()
 			    && prebuilt->select_lock_type != LOCK_NONE
 			    && !dict_index_is_spatial(index)) {
-
-				/* Try to place a gap lock on the index
-				record only if innodb_locks_unsafe_for_binlog
-				option is not set or this session is not
-				using a READ COMMITTED isolation level. */
 
 				err = sel_set_rec_lock(
 					pcur,
@@ -5152,16 +5103,10 @@ wrong_offs:
 		is a non-delete marked record, then it is enough to lock its
 		existence with LOCK_REC_NOT_GAP. */
 
-		/* If innodb_locks_unsafe_for_binlog option is used
-		or this session is using a READ COMMITED isolation
-		level we lock only the record, i.e., next-key locking is
-		not used. */
-
 		ulint	lock_type;
 
 		if (!set_also_gap_locks
-		    || srv_locks_unsafe_for_binlog
-		    || trx->isolation_level <= TRX_ISO_READ_COMMITTED
+		    || trx->skip_gap_locks()
 		    || (unique_search && !rec_get_deleted_flag(rec, comp))
 		    || dict_index_is_spatial(index)) {
 
@@ -5199,9 +5144,7 @@ no_gap_lock:
 		switch (err) {
 			const rec_t*	old_vers;
 		case DB_SUCCESS_LOCKED_REC:
-			if (srv_locks_unsafe_for_binlog
-			    || trx->isolation_level
-			    <= TRX_ISO_READ_COMMITTED) {
+			if (trx->allow_semi_consistent()) {
 				/* Note that a record of
 				prebuilt->index was locked. */
 				prebuilt->new_rec_locks = 1;
@@ -5364,8 +5307,7 @@ locks_ok:
 
 		/* The record is delete-marked: we can skip it */
 
-		if ((srv_locks_unsafe_for_binlog
-		     || trx->isolation_level <= TRX_ISO_READ_COMMITTED)
+		if (trx->allow_semi_consistent()
 		    && prebuilt->select_lock_type != LOCK_NONE
 		    && !did_semi_consistent_read) {
 
@@ -5453,9 +5395,7 @@ requires_clust_rec:
 			break;
 		case DB_SUCCESS_LOCKED_REC:
 			ut_a(clust_rec != NULL);
-			if (srv_locks_unsafe_for_binlog
-			     || trx->isolation_level
-			    <= TRX_ISO_READ_COMMITTED) {
+			if (trx->allow_semi_consistent()) {
 				/* Note that the clustered index record
 				was locked. */
 				prebuilt->new_rec_locks = 2;
@@ -5471,8 +5411,7 @@ requires_clust_rec:
 
 			/* The record is delete marked: we can skip it */
 
-			if ((srv_locks_unsafe_for_binlog
-			     || trx->isolation_level <= TRX_ISO_READ_COMMITTED)
+			if (trx->allow_semi_consistent()
 			    && prebuilt->select_lock_type != LOCK_NONE) {
 
 				/* No need to keep a lock on a delete-marked
@@ -5819,9 +5758,7 @@ lock_table_wait:
 				moves_up, &mtr);
 		}
 
-		if ((srv_locks_unsafe_for_binlog
-		     || trx->isolation_level <= TRX_ISO_READ_COMMITTED)
-		    && !same_user_rec) {
+		if (!same_user_rec && trx->allow_semi_consistent()) {
 
 			/* Since we were not able to restore the cursor
 			on the same user record, we cannot use

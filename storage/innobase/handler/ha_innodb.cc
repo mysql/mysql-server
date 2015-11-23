@@ -175,7 +175,6 @@ static char*	innobase_server_stopword_table		= NULL;
 values */
 
 static my_bool	innobase_use_doublewrite		= TRUE;
-static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
 static my_bool	innobase_rollback_on_timeout		= FALSE;
 static my_bool	innobase_create_status_file		= FALSE;
 my_bool	innobase_stats_on_metadata		= TRUE;
@@ -3617,14 +3616,6 @@ innodb_init_params()
 #endif
 
 	row_rollback_on_timeout = (ibool) innobase_rollback_on_timeout;
-
-	srv_locks_unsafe_for_binlog = (ibool) innobase_locks_unsafe_for_binlog;
-	if (innobase_locks_unsafe_for_binlog) {
-		ib::warn() << "Using innodb_locks_unsafe_for_binlog is"
-			" DEPRECATED. This option may be removed in future"
-			" releases. Please use READ COMMITTED transaction"
-			" isolation level instead; " << SET_TRANSACTION_MSG;
-	}
 
 	if (innobase_open_files < 10) {
 		innobase_open_files = 300;
@@ -8124,7 +8115,7 @@ ha_innobase::delete_all_rows()
 /**********************************************************************//**
 Removes a new lock set on a row, if it was not read optimistically. This can
 be called after a row has been read in the processing of an UPDATE or a DELETE
-query, if the option innodb_locks_unsafe_for_binlog is set. */
+query, when trx_t::allow_semi_consistent() is true. */
 
 void
 ha_innobase::unlock_row(void)
@@ -8158,9 +8149,7 @@ ha_innobase::unlock_row(void)
 
 	switch (m_prebuilt->row_read_type) {
 	case ROW_READ_WITH_LOCKS:
-		if (!srv_locks_unsafe_for_binlog
-		    && m_prebuilt->trx->isolation_level
-		    > TRX_ISO_READ_COMMITTED) {
+		if (!m_prebuilt->trx->allow_semi_consistent()) {
 			break;
 		}
 		/* fall through */
@@ -8192,15 +8181,7 @@ ha_innobase::try_semi_consistent_read(bool yes)
 {
 	ut_a(m_prebuilt->trx == thd_to_trx(ha_thd()));
 
-	/* Row read type is set to semi consistent read if this was
-	requested by the MySQL and either innodb_locks_unsafe_for_binlog
-	option is used or this session is using READ COMMITTED isolation
-	level. */
-
-	if (yes
-	    && (srv_locks_unsafe_for_binlog
-		|| m_prebuilt->trx->isolation_level
-		<= TRX_ISO_READ_COMMITTED)) {
+	if (yes && m_prebuilt->trx->allow_semi_consistent()) {
 
 		m_prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;
 
@@ -16035,9 +16016,7 @@ ha_innobase::store_lock(
 		/* Use consistent read for checksum table */
 
 		if (sql_command == SQLCOM_CHECKSUM
-		    || ((srv_locks_unsafe_for_binlog
-			|| trx->isolation_level <= TRX_ISO_READ_COMMITTED)
-			&& trx->isolation_level != TRX_ISO_SERIALIZABLE
+		    || (trx->skip_gap_locks()
 			&& (lock_type == TL_READ
 			    || lock_type == TL_READ_NO_INSERT)
 			&& (sql_command == SQLCOM_INSERT_SELECT
@@ -16045,15 +16024,12 @@ ha_innobase::store_lock(
 			    || sql_command == SQLCOM_UPDATE
 			    || sql_command == SQLCOM_CREATE_TABLE))) {
 
-			/* If we either have innobase_locks_unsafe_for_binlog
-			option set or this session is using READ COMMITTED
-			isolation level and isolation level of the transaction
-			is not set to serializable and MySQL is doing
-			INSERT INTO...SELECT or REPLACE INTO...SELECT
-			or UPDATE ... = (SELECT ...) or CREATE  ...
-			SELECT... without FOR UPDATE or IN SHARE
-			MODE in select, then we use consistent read
-			for select. */
+			/* If this session is using READ COMMITTED or READ
+			UNCOMMITTED isolation level and MySQL is doing INSERT
+			INTO... SELECT or REPLACE INTO...SELECT or UPDATE ...
+			= (SELECT ...) or CREATE  ...  SELECT... without FOR
+			UPDATE or IN SHARE MODE in select, then we use
+			consistent read for select. */
 
 			m_prebuilt->select_lock_type = LOCK_NONE;
 			m_stored_select_lock_type = LOCK_NONE;
@@ -18450,13 +18426,6 @@ static MYSQL_SYSVAR_BOOL(force_load_corrupted, srv_load_corrupted,
   "Force InnoDB to load metadata of corrupted table.",
   NULL, NULL, FALSE);
 
-static MYSQL_SYSVAR_BOOL(locks_unsafe_for_binlog, innobase_locks_unsafe_for_binlog,
-  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-  "DEPRECATED. This option may be removed in future releases."
-  " Please use READ COMMITTED transaction isolation level instead."
-  " Force InnoDB to not use next-key locking, to use only row-level locking.",
-  NULL, NULL, FALSE);
-
 static MYSQL_SYSVAR_STR(log_group_home_dir, srv_log_group_home_dir,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Path to InnoDB log files.", NULL, NULL, NULL);
@@ -19242,7 +19211,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(ft_num_word_optimize),
   MYSQL_SYSVAR(ft_sort_pll_degree),
   MYSQL_SYSVAR(force_load_corrupted),
-  MYSQL_SYSVAR(locks_unsafe_for_binlog),
   MYSQL_SYSVAR(lock_wait_timeout),
   MYSQL_SYSVAR(page_size),
   MYSQL_SYSVAR(log_buffer_size),
@@ -19990,9 +19958,6 @@ const char*	OPERATING_SYSTEM_ERROR_MSG =
 const char*	FOREIGN_KEY_CONSTRAINTS_MSG =
 	"Please refer to " REFMAN "innodb-foreign-key-constraints.html"
 	" for correct foreign key definition.";
-
-const char*	SET_TRANSACTION_MSG =
-	"Please refer to " REFMAN "set-transaction.html";
 
 const char*	INNODB_PARAMETERS_MSG =
 	"Please refer to " REFMAN "innodb-parameters.html";

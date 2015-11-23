@@ -2697,20 +2697,17 @@ lock_rec_inherit_to_gap(
 
 	ut_ad(lock_mutex_own());
 
-	/* If srv_locks_unsafe_for_binlog is TRUE or session is using
-	READ COMMITTED isolation level, we do not want locks set
-	by an UPDATE or a DELETE to be inherited as gap type locks. But we
-	DO want S-locks/X-locks(taken for replace) set by a consistency
-	constraint to be inherited also then. */
+	/* If session is using READ COMMITTED or READ UNCOMMITTED isolation
+	level, we do not want locks set by an UPDATE or a DELETE to be
+	inherited as gap type locks.  But we DO want S-locks/X-locks(taken for
+	replace) set by a consistency constraint to be inherited also then. */
 
 	for (lock = lock_rec_get_first(lock_sys->rec_hash, block, heap_no);
 	     lock != NULL;
 	     lock = lock_rec_get_next(heap_no, lock)) {
 
 		if (!lock_rec_get_insert_intention(lock)
-		    && !((srv_locks_unsafe_for_binlog
-			  || lock->trx->isolation_level
-			  <= TRX_ISO_READ_COMMITTED)
+		    && !(lock->trx->skip_gap_locks()
 			 && lock_get_mode(lock) ==
 			 (lock->trx->duplicates ? LOCK_S : LOCK_X))) {
 			lock_rec_add_to_queue(
