@@ -790,7 +790,7 @@ private:
   void putActiveScanOp() const;
   void putOpScanLockQue() const;
   void putReadyScanQueue(Uint32 scanRecIndex) const;
-  void releaseScanBucket();
+  void releaseScanBucket(Page8Ptr pageptr, Uint32 conidx) const;
   void releaseScanContainer(Page8Ptr pageptr, Uint32 conptr,
       Uint32 forward, Uint32 conlen) const;
   void releaseScanRec();
@@ -952,7 +952,6 @@ private:
   Page8Ptr inpPageptr;
   Page8Ptr iopPageptr;
   Page8Ptr gsePageidptr;
-  Page8Ptr rsbPageidptr;
   Page8Ptr sscPageidptr;
   Page8Ptr rlPageptr;
   Page8Ptr ropPageptr;
@@ -1021,7 +1020,6 @@ private:
   Uint32 tslPageindex;
   Uint32 tgsePageindex;
   Uint32 tslPrevfree;
-  Uint32 trsbPageindex;
   Uint32 tresult;
   Uint32 tuserptr;
   BlockReference tuserblockref;
