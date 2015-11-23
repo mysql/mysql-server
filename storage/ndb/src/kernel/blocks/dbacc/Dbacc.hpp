@@ -794,7 +794,12 @@ private:
   void releaseScanContainer(Page8Ptr pageptr, Uint32 conptr,
       Uint32 forward, Uint32 conlen) const;
   void releaseScanRec();
-  bool searchScanContainer();
+  bool searchScanContainer(Page8Ptr pageptr,
+                           Uint32 conptr,
+                           Uint32 isforward,
+                           Uint32 conlen,
+                           Uint32& elemptr,
+                           Uint32& islocked) const;
   void sendNextScanConf(Signal* signal);
   void setlock(Page8Ptr pageptr, Uint32 elemptr) const;
   void takeOutActiveScanOp() const;
@@ -952,7 +957,6 @@ private:
   Page8Ptr inpPageptr;
   Page8Ptr iopPageptr;
   Page8Ptr gsePageidptr;
-  Page8Ptr sscPageidptr;
   Page8Ptr rlPageptr;
   Page8Ptr ropPageptr;
   Page8Ptr rpPageptr;
@@ -1002,18 +1006,12 @@ private:
   Uint32 tgeForward;
   Uint32 texpDirInd;
   Uint32 tdata0;
-  Uint32 tsscContainerptr;
-  Uint32 tsscContainerlen;
-  Uint32 tsscElementptr;
   Uint32 tfid;
   Uint32 tscanFlag;
   Uint32 tgflBufType;
   Uint32 tgseIsforward;
-  Uint32 tsscIsforward;
   Uint32 tgseIsLocked;
-  Uint32 tsscIsLocked;
   Uint32 tmp;
-  Uint32 tmpP;
   Uint32 tmp2;
   Uint32 tgflPageindex;
   Uint32 tslNextfree;
