@@ -1056,6 +1056,12 @@ static void close_connections(void)
                      thd_manager->get_thd_count()));
   thd_manager->wait_till_no_thd();
 
+  /*
+    Connection threads might take a little while to go down after removing from
+    global thread list. Give it some time.
+  */
+  Connection_handler_manager::wait_till_no_connection();
+
   delete_slave_info_objects();
   DBUG_PRINT("quit",("close_connections thread"));
 

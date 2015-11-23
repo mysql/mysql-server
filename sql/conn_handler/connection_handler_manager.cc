@@ -35,6 +35,7 @@ ulong Connection_handler_manager::max_used_connections_time= 0;
 THD_event_functions* Connection_handler_manager::event_functions= NULL;
 THD_event_functions* Connection_handler_manager::saved_event_functions= NULL;
 mysql_mutex_t Connection_handler_manager::LOCK_connection_count;
+mysql_cond_t Connection_handler_manager::COND_connection_count;
 #ifndef EMBEDDED_LIBRARY
 Connection_handler_manager* Connection_handler_manager::m_instance= NULL;
 ulong Connection_handler_manager::thread_handling=
@@ -124,6 +125,13 @@ static PSI_mutex_info all_conn_manager_mutexes[]=
 {
   { &key_LOCK_connection_count, "LOCK_connection_count", PSI_FLAG_GLOBAL}
 };
+
+static PSI_cond_key key_COND_connection_count;
+
+static PSI_cond_info all_conn_manager_conds[]=
+{
+  { &key_COND_connection_count, "COND_connection_count", PSI_FLAG_GLOBAL}
+};
 #endif
 
 bool Connection_handler_manager::init()
@@ -168,11 +176,15 @@ bool Connection_handler_manager::init()
 #ifdef HAVE_PSI_INTERFACE
   int count= array_elements(all_conn_manager_mutexes);
   mysql_mutex_register("sql", all_conn_manager_mutexes, count);
+
+  count= array_elements(all_conn_manager_conds);
+  mysql_cond_register("sql", all_conn_manager_conds, count);
 #endif
 
   mysql_mutex_init(key_LOCK_connection_count,
                    &LOCK_connection_count, MY_MUTEX_INIT_FAST);
 
+  mysql_cond_init(key_COND_connection_count, &COND_connection_count);
   max_threads= connection_handler->get_max_threads();
 
   // Init common callback functions.
@@ -183,6 +195,15 @@ bool Connection_handler_manager::init()
   return false;
 }
 
+void Connection_handler_manager::wait_till_no_connection()
+{
+  mysql_mutex_lock(&LOCK_connection_count);
+  while (connection_count > 0)
+  {
+    mysql_cond_wait(&COND_connection_count, &LOCK_connection_count);
+  }
+  mysql_mutex_unlock(&LOCK_connection_count);
+}
 
 void Connection_handler_manager::destroy_instance()
 {
@@ -193,6 +214,7 @@ void Connection_handler_manager::destroy_instance()
     delete m_instance;
     m_instance= NULL;
     mysql_mutex_destroy(&LOCK_connection_count);
+    mysql_cond_destroy(&COND_connection_count);
   }
 }
 
