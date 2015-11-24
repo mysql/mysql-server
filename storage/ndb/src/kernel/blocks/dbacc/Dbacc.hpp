@@ -704,8 +704,6 @@ private:
   void execNODE_STATE_REP(Signal*);
 
   // Statement blocks
-  void ACCKEY_error(Uint32 fromWhere) const;
-
   void commitDeleteCheck() const;
   void report_dealloc(Signal* signal, const Operationrec* opPtrP);
   

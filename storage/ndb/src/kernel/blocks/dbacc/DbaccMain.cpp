@@ -918,35 +918,6 @@ void Dbacc::sendAcckeyconf(Signal* signal) const
   signal->theData[4] = operationRecPtr.p->localdata[1];
 }//Dbacc::sendAcckeyconf()
 
-void 
-Dbacc::ACCKEY_error(Uint32 fromWhere)const
-{
-  switch(fromWhere) {
-  case 0:
-    ndbrequire(false);
-  case 1:
-    ndbrequire(false);
-  case 2:
-    ndbrequire(false);
-  case 3:
-    ndbrequire(false);
-  case 4:
-    ndbrequire(false);
-  case 5:
-    ndbrequire(false);
-  case 6:
-    ndbrequire(false);
-  case 7:
-    ndbrequire(false);
-  case 8:
-    ndbrequire(false);
-  case 9:
-    ndbrequire(false);
-  default:
-    ndbrequire(false);
-  }//switch
-}//Dbacc::ACCKEY_error()
-
 /* ******************--------------------------------------------------------------- */
 /* ACCKEYREQ                                         REQUEST FOR INSERT, DELETE,     */
 /*                                                   RERAD AND UPDATE, A TUPLE.      */
@@ -967,11 +938,8 @@ void Dbacc::execACCKEYREQ(Signal* signal)
   AccKeyReq* const req = reinterpret_cast<AccKeyReq*>(&signal->theData[0]);
   operationRecPtr.i = req->connectPtr;   /* CONNECTION PTR */
   fragrecptr.i = req->fragmentPtr;        /* FRAGMENT RECORD POINTER         */
-  if (!((operationRecPtr.i < coprecsize) ||
-	(fragrecptr.i < cfragmentsize))) {
-    ACCKEY_error(0);
-    return;
-  }//if
+  ndbrequire((operationRecPtr.i < coprecsize) ||
+	     (fragrecptr.i < cfragmentsize));
   ptrAss(operationRecPtr, operationrec);
   ptrAss(fragrecptr, fragmentrec);  
 
@@ -3219,7 +3187,6 @@ Dbacc::getElement(const AccKeyReq* signal,
                   Uint32& elemConptr,
                   Uint32& elemptr)
 {
-  Uint32 errcode;
   Uint32 tgeElementHeader;
   Uint32 tgeElemStep;
   Uint32 tgePageindex;
@@ -3252,46 +3219,25 @@ Dbacc::getElement(const AccKeyReq* signal,
       elemptr = elemConptr + Container::HEADER_SIZE;
       tgeElemStep = TelemLen;
       elemForward = 1;
-      if (unlikely(elemConptr >= 2048)) 
-      { 
-	errcode = 4;
-	goto error;
-      }
+      ndbrequire(elemConptr < 2048);
       ContainerHeader conhead(elemPageptr.p->word32[elemConptr]);
       tgeRemLen = conhead.getLength();
-      if (unlikely(((elemConptr + tgeRemLen - 1) >= 2048)))
-      { 
-	errcode = 5;
-	goto error;
-      }
+      ndbrequire((elemConptr + tgeRemLen - 1) < 2048);
     } else if (tgeNextptrtype == ZRIGHT) {
       jam();
       elemConptr += ((ZHEAD_SIZE + ZBUF_SIZE) - Container::HEADER_SIZE);
       tgeElemStep = 0 - TelemLen;
       elemptr = elemConptr - TelemLen;
       elemForward = (Uint32)-1;
-      if (unlikely(elemConptr >= 2048)) 
-      { 
-	errcode = 4;
-	goto error;
-      }
+      ndbrequire(elemConptr < 2048);
       ContainerHeader conhead(elemPageptr.p->word32[elemConptr]);
       tgeRemLen = conhead.getLength();
-      if (unlikely((elemConptr - tgeRemLen) >= 2048)) 
-      { 
-	errcode = 5;
-	goto error;
-      }
+      ndbrequire((elemConptr - tgeRemLen) < 2048);
     } else {
-      errcode = 6;
-      goto error;
+      ndbrequire((tgeNextptrtype == ZLEFT) || (tgeNextptrtype == ZRIGHT));
     }//if
     if (tgeRemLen >= Container::HEADER_SIZE + TelemLen) {
-      if (unlikely(tgeRemLen > ZBUF_SIZE)) 
-      {
-	errcode = 7;
-	goto error;
-      }//if
+      ndbrequire(tgeRemLen <= ZBUF_SIZE);
       /* ------------------------------------------------------------------- */
       // There is at least one element in this container. 
       // Check if it is the element searched for.
@@ -3357,11 +3303,7 @@ Dbacc::getElement(const AccKeyReq* signal,
         elemptr = elemptr + tgeElemStep;
       } while (true);
     }//if
-    if (unlikely(tgeRemLen != Container::HEADER_SIZE))
-    {
-      errcode = 8;
-      goto error;
-    }//if
+    ndbrequire(tgeRemLen == Container::HEADER_SIZE);
     ContainerHeader containerhead = elemPageptr.p->word32[elemConptr];
     tgeNextptrtype = containerhead.getNextEnd();
     if (tgeNextptrtype == 0) {
@@ -3369,11 +3311,7 @@ Dbacc::getElement(const AccKeyReq* signal,
       return ZFALSE;	/* NO MORE CONTAINER */
     }//if
     tgePageindex = containerhead.getNextIndexNumber();	/* NEXT CONTAINER PAGE INDEX 7 BITS */
-    if (unlikely(tgePageindex > Container::NO_CONTAINER_INDEX))
-    {
-      errcode = 9;
-      goto error;
-    }//if
+    ndbrequire(tgePageindex <= Container::NO_CONTAINER_INDEX);
     if (!containerhead.isNextOnSamePage()) {
       jam();
       elemPageptr.i = elemPageptr.p->word32[elemConptr + 1];	/* NEXT PAGE ID */
@@ -3382,10 +3320,6 @@ Dbacc::getElement(const AccKeyReq* signal,
   } while (1);
 
   return ZFALSE;
-
-error:
-  ACCKEY_error(errcode);
-  return ~0;
 }//Dbacc::getElement()
 
 /* ------------------------------------------------------------------------- */
