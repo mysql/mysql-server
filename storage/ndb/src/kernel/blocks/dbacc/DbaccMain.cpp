@@ -2773,7 +2773,8 @@ void Dbacc::insertContainer(Page8Ptr& pageptr,
     /*       WE HAVE NOT EXPANDED TO THE ENTIRE BUFFER YET. WE CAN THUS READ THE OTHER   */
     /*       SIDE'S CONTAINER HEADER TO READ HIS LENGTH.                                 */
     /* --------------------------------------------------------------------------------- */
-    tidrNextConLen = pageptr.p->word32[tidrNextSide] >> 26;
+    ContainerHeader conhead(pageptr.p->word32[tidrNextSide]);
+    tidrNextConLen = conhead.getLength();
     tidrConfreelen = tidrConfreelen - tidrNextConLen;
     if (tidrConfreelen > ZBUF_SIZE) {
       ndbrequire(false);
