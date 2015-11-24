@@ -828,7 +828,7 @@ private:
   void addnewcontainer(Page8Ptr pageptr, Uint32 conptr,
     Uint32 nextConidx, Uint32 nextContype, bool nextSamepage,
     Uint32 nextPagei) const;
-  void getfreelist();
+  void getfreelist(Page8Ptr pageptr, Uint32& pageindex, Uint32& buftype);
   void increaselistcont();
   void seizeLeftlist();
   void seizeRightlist();
@@ -975,7 +975,6 @@ private:
   /* 8 KB PAGE                       */
   Page8Ptr colPageptr;
   Page8Ptr expPageptr;
-  Page8Ptr gflPageptr;
   Page8Ptr ilcPageptr;
   Page8Ptr inpPageptr;
   Page8Ptr iopPageptr;
@@ -1020,10 +1019,8 @@ private:
   Uint32 tdata0;
   Uint32 tfid;
   Uint32 tscanFlag;
-  Uint32 tgflBufType;
   Uint32 tmp;
   Uint32 tmp2;
-  Uint32 tgflPageindex;
   Uint32 tslNextfree;
   Uint32 tslPageindex;
   Uint32 tslPrevfree;
