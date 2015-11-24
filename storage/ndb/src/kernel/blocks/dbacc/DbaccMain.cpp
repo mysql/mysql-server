@@ -1513,7 +1513,7 @@ void Dbacc::insertelementLab(Signal* signal,
   Page8Ptr idrPageptr;
   idrPageptr = bucketPageptr;
   Uint32 tidrPageindex = bucketConidx;
-  Uint32 tidrForward = ZTRUE;
+  bool isforward = true;
   idrOperationRecPtr = operationRecPtr;
   clocalkey[0] = localKey;
   clocalkey[1] = localKey;
@@ -1523,7 +1523,7 @@ void Dbacc::insertelementLab(Signal* signal,
   /* WE SET THE LOCAL KEY TO MINUS ONE TO INDICATE IT IS NOT YET VALID.      */
   /* ----------------------------------------------------------------------- */
   Uint32 conptr;
-  insertElement(idrPageptr, tidrPageindex, tidrForward, tidrElemhead, conptr);
+  insertElement(idrPageptr, tidrPageindex, isforward, tidrElemhead, conptr);
   c_tup->prepareTUPKEYREQ(localKey, localKey, fragrecptr.p->tupFragptr);
   sendAcckeyconf(signal);
   return;
@@ -2589,7 +2589,7 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 void Dbacc::insertElement(Page8Ptr& pageptr,
                           Uint32& conidx,
-                          Uint32& isforward,
+                          bool& isforward,
                           const Uint32 elemhead,
                           Uint32& conptr)
 {
@@ -2616,10 +2616,10 @@ void Dbacc::insertElement(Page8Ptr& pageptr,
       conidx = containerhead.getNextIndexNumber();
       if (containerhead.getNextEnd() == ZLEFT) {
         jam();
-        isforward = ZTRUE;
+        isforward = true;
       } else if (containerhead.getNextEnd() == ZRIGHT) {
         jam();
-        isforward = cminusOne;
+        isforward = false;
       } else {
         ndbrequire(false);
         return;
@@ -2664,11 +2664,11 @@ void Dbacc::insertElement(Page8Ptr& pageptr,
   Uint32 containerptr;
   if (newBuftype == ZLEFT) {
     seizeLeftlist();
-    isforward = ZTRUE;
+    isforward = true;
     containerptr = mul_ZBUF_SIZE(newPageindex) + ZHEAD_SIZE;
   } else {
     seizeRightlist();
-    isforward = cminusOne;
+    isforward = false;
     containerptr = mul_ZBUF_SIZE(newPageindex) + ZHEAD_SIZE + ZBUF_SIZE -
                    Container::HEADER_SIZE;
   }//if
@@ -2718,7 +2718,7 @@ void Dbacc::insertElement(Page8Ptr& pageptr,
 /* --------------------------------------------------------------------------------- */
 void Dbacc::insertContainer(Page8Ptr& pageptr,
                             const Uint32 conidx,
-                            const Uint32 forward,
+                            const bool isforward,
                             const Uint32 elemhead,
                             Uint32& conptr,
                             ContainerHeader& containerhead,
@@ -2738,7 +2738,7 @@ void Dbacc::insertContainer(Page8Ptr& pageptr,
   /*       CALCULATE THE POINTER TO THE ELEMENT TO BE INSERTED AND THE POINTER TO THE  */
   /*       CONTAINER HEADER OF THE OTHER SIDE OF THE BUFFER.                           */
   /* --------------------------------------------------------------------------------- */
-  if (forward == ZTRUE) {
+  if (isforward) {
     jam();
     tidrNextSide = conptr + (ZBUF_SIZE - Container::HEADER_SIZE);
     arrGuard(tidrNextSide + 1, 2048);
@@ -2801,7 +2801,7 @@ void Dbacc::insertContainer(Page8Ptr& pageptr,
       pageptr.p->word32[conptr] = conthead;
       tslPageindex = conidx;
       slPageptr = pageptr;
-      if (forward == ZTRUE) {
+      if (isforward) {
         jam();
         /* REMOVE THE RIGHT SIDE OF THE BUFFER FROM THE FREE LIST */
         seizeRightlist();
@@ -3191,7 +3191,6 @@ Dbacc::getElement(const AccKeyReq* signal,
   Uint32 tgeElemStep;
   Uint32 tgePageindex;
   Uint32 tgeNextptrtype;
-  Uint32 elemForward;
   register Uint32 tgeRemLen;
   register Uint32 TelemLen = fragrecptr.p->elementLength;
   register const Uint32* Tkeydata = signal->keyInfo; /* or localKey if keyLen == 0 */
@@ -3218,7 +3217,6 @@ Dbacc::getElement(const AccKeyReq* signal,
       elemConptr = elemConptr + ZHEAD_SIZE;
       elemptr = elemConptr + Container::HEADER_SIZE;
       tgeElemStep = TelemLen;
-      elemForward = 1;
       ndbrequire(elemConptr < 2048);
       ContainerHeader conhead(elemPageptr.p->word32[elemConptr]);
       tgeRemLen = conhead.getLength();
@@ -3228,7 +3226,6 @@ Dbacc::getElement(const AccKeyReq* signal,
       elemConptr += ((ZHEAD_SIZE + ZBUF_SIZE) - Container::HEADER_SIZE);
       tgeElemStep = 0 - TelemLen;
       elemptr = elemConptr - TelemLen;
-      elemForward = (Uint32)-1;
       ndbrequire(elemConptr < 2048);
       ContainerHeader conhead(elemPageptr.p->word32[elemConptr]);
       tgeRemLen = conhead.getLength();
@@ -3379,7 +3376,7 @@ void Dbacc::commitdelete(Signal* signal)
 {
   Page8Ptr lastPageptr;
   Page8Ptr lastPrevpageptr;
-  Uint32 tlastForward;
+  bool lastIsforward;
   Uint32 tlastPageindex;
   Uint32 tlastElementptr;
   Uint32 tlastContainerptr;
@@ -3393,7 +3390,7 @@ void Dbacc::commitdelete(Signal* signal)
   getdirindex(lastBucketPageptr, lastBucketConidx);
   lastPageptr = lastBucketPageptr;
   tlastPageindex = lastBucketConidx;
-  tlastForward = ZTRUE;
+  lastIsforward = true;
   tlastContainerptr = mul_ZBUF_SIZE(tlastPageindex);
   tlastContainerptr = tlastContainerptr + ZHEAD_SIZE;
   arrGuard(tlastContainerptr, 2048);
@@ -3405,7 +3402,7 @@ void Dbacc::commitdelete(Signal* signal)
                    lastPageptr,
                    tlastPageindex,
                    tlastContainerptr,
-                   tlastForward,
+                   lastIsforward,
                    tlastElementptr);
 
   Page8Ptr delPageptr;
@@ -3528,7 +3525,7 @@ void Dbacc::deleteElement(Page8Ptr delPageptr,
  *                                    search, and on return the last container.
  * @param[in,out]  tlastContainerptr  Pointer within page to first container to
  *                                    search, and on return the last container.
- * @param[in,out]  tlastForward       Direction of first container to search,
+ * @param[in,out]  lastIsforward      Direction of first container to search,
  *                                    and on return the last container.
  * @param[out]     tlastElementptr    On return the pointer within page to last
  *                                    element.
@@ -3538,7 +3535,7 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr,
                              Page8Ptr& lastPageptr,
                              Uint32& tlastPageindex,
                              Uint32& tlastContainerptr,
-                             Uint32& tlastForward,
+                             bool& lastIsforward,
                              Uint32& tlastElementptr)
 {
   ContainerHeader containerhead(lastPageptr.p->word32[tlastContainerptr]);
@@ -3559,11 +3556,11 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr,
     tlastContainerptr = mul_ZBUF_SIZE(tlastPageindex);
     if (containerhead.getNextEnd() == ZLEFT) {
       jam();
-      tlastForward = ZTRUE;
+      lastIsforward = true;
       tlastContainerptr = tlastContainerptr + ZHEAD_SIZE;
     } else if (containerhead.getNextEnd() == ZRIGHT) {
       jam();
-      tlastForward = cminusOne;
+      lastIsforward = false;
       tlastContainerptr = ((tlastContainerptr + ZHEAD_SIZE) + ZBUF_SIZE) - Container::HEADER_SIZE;
     } else {
       ndbrequire(false);
@@ -3576,10 +3573,13 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr,
     goto GLR_LOOP_10;
   }//if
   tlastContainerlen = tlastContainerlen - fragrecptr.p->elementLength;
-  if (tlastForward == ZTRUE) {
+  if (lastIsforward)
+  {
     jam();
     tlastElementptr = tlastContainerptr + tlastContainerlen;
-  } else {
+  }
+  else
+  {
     jam();
     tlastElementptr = (tlastContainerptr + (Container::HEADER_SIZE -
                                             fragrecptr.p->elementLength)) -
@@ -3597,7 +3597,8 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr,
       /*       SIDE OF THE BUFFER.                                                         */
       /* --------------------------------------------------------------------------------- */
       containerhead.clearUsingBothEnds();
-      if (tlastForward == ZTRUE) {
+      if (lastIsforward)
+      {
         jam();
         turlIndex = tlastContainerptr + (ZBUF_SIZE - Container::HEADER_SIZE);
         releaseRightlist();
@@ -3622,11 +3623,14 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr,
       dbgWord32(lastPrevpageptr, tlastPrevconptr, tglrTmp);
       lastPrevpageptr.p->word32[tlastPrevconptr] = tglrTmp;
       ndbrequire(ContainerHeader(rlPageptr.p->word32[tlastContainerptr]).isInUse());
-      if (tlastForward == ZTRUE) {
+      if (lastIsforward)
+      {
         jam();
         tullIndex = tlastContainerptr;
         releaseLeftlist();
-      } else {
+      }
+      else
+      {
         jam();
         turlIndex = tlastContainerptr;
         releaseRightlist();
@@ -5101,7 +5105,7 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
     endofexpLab(signal);	/* EMPTY BUCKET */
     return;
   }//if
-  fragrecptr.p->expReceiveForward = ZTRUE;
+  fragrecptr.p->expReceiveIsforward = true;
   ptrCheckGuard(pageptr, cpagesize, page8);
   expandcontainer(pageptr, conidx);
   endofexpLab(signal);
@@ -5235,7 +5239,7 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
   Uint32 texcTmp;
   Uint32 texcIndex;
   Uint32 guard20;
-  Uint32 tidrForward;
+  bool tidrIsforward;
   Uint32 tidrContainerptr;
   Page8Ptr idrPageptr;
   Uint32 tidrPageindex;
@@ -5243,7 +5247,7 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
 
   Page8Ptr lastPageptr;
   Page8Ptr lastPrevpageptr;
-  Uint32 tlastForward;
+  bool lastIsforward;
   Uint32 tlastPageindex;
   Uint32 tlastElementptr;
   Uint32 tlastContainerptr;
@@ -5252,12 +5256,13 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
   Uint32 elemptr;
   Uint32 prevPageptr = RNIL;
   Uint32 prevConptr = 0;
-  Uint32 isforward = ZTRUE;
+  bool isforward = true;
   Uint32 elemStep;
   const Uint32 elemLen = fragrecptr.p->elementLength;
  EXP_CONTAINER_LOOP:
   Uint32 conptr = mul_ZBUF_SIZE(conidx);
-  if (isforward == ZTRUE) {
+  if (isforward)
+  {
     jam();
     conptr = conptr + ZHEAD_SIZE;
     elemptr = conptr + Container::HEADER_SIZE;
@@ -5360,15 +5365,15 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
   tidrPageindex = fragrecptr.p->expReceiveIndex;
   idrPageptr.i = fragrecptr.p->expReceivePageptr;
   ptrCheckGuard(idrPageptr, cpagesize, page8);
-  tidrForward = fragrecptr.p->expReceiveForward;
+  tidrIsforward = fragrecptr.p->expReceiveIsforward;
   insertElement(idrPageptr,
                 tidrPageindex,
-                tidrForward,
+                tidrIsforward,
                 tidrElemhead,
                 tidrContainerptr);
   fragrecptr.p->expReceiveIndex = tidrPageindex;
   fragrecptr.p->expReceivePageptr = idrPageptr.i;
-  fragrecptr.p->expReceiveForward = tidrForward;
+  fragrecptr.p->expReceiveIsforward = tidrIsforward;
  REMOVE_LAST_LOOP:
   jam();
   lastPageptr.i = pageptr.i;
@@ -5378,17 +5383,19 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
   ptrCheck(lastPrevpageptr, cpagesize, page8);
   tlastPrevconptr = prevConptr;
   arrGuard(tlastContainerptr, 2048);
-  tlastForward = isforward;
+  lastIsforward = isforward;
   tlastPageindex = conidx;
   getLastAndRemove(lastPrevpageptr,
                    tlastPrevconptr,
                    lastPageptr,
                    tlastPageindex,
                    tlastContainerptr,
-                   tlastForward,
+                   lastIsforward,
                    tlastElementptr);
-  if (pageptr.i == lastPageptr.i) {
-    if (elemptr == tlastElementptr) {
+  if (pageptr.i == lastPageptr.i)
+  {
+    if (elemptr == tlastElementptr)
+    {
       jam();
       /* --------------------------------------------------------------------------------- */
       /*       THE CURRENT ELEMENT WAS ALSO THE LAST ELEMENT.                              */
@@ -5470,15 +5477,15 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
     tidrPageindex = fragrecptr.p->expReceiveIndex;
     idrPageptr.i = fragrecptr.p->expReceivePageptr;
     ptrCheckGuard(idrPageptr, cpagesize, page8);
-    tidrForward = fragrecptr.p->expReceiveForward;
+    tidrIsforward = fragrecptr.p->expReceiveIsforward;
     insertElement(idrPageptr,
                   tidrPageindex,
-                  tidrForward,
+                  tidrIsforward,
                   tidrElemhead,
                   tidrContainerptr);
     fragrecptr.p->expReceiveIndex = tidrPageindex;
     fragrecptr.p->expReceivePageptr = idrPageptr.i;
-    fragrecptr.p->expReceiveForward = tidrForward;
+    fragrecptr.p->expReceiveIsforward = tidrIsforward;
     goto REMOVE_LAST_LOOP;
   }//if
  NEXT_ELEMENT:
@@ -5725,8 +5732,9 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
   texpDirInd = fragrecptr.p->getPageNumber(mergeDestBucket);
   fragrecptr.p->expReceivePageptr = getPagePtr(fragrecptr.p->directory, texpDirInd);
   fragrecptr.p->expReceiveIndex = fragrecptr.p->getPageIndex(mergeDestBucket);
-  fragrecptr.p->expReceiveForward = ZTRUE;
-  if (pageptr.i == RNIL) {
+  fragrecptr.p->expReceiveIsforward = true;
+  if (pageptr.i == RNIL)
+  {
     jam();
     endofshrinkbucketLab(signal);	/* EMPTY BUCKET */
     return;
@@ -5735,7 +5743,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
   /*       INITIALISE THE VARIABLES FOR THE SHRINK PROCESS.                   */
   /*--------------------------------------------------------------------------*/
   ptrCheckGuard(pageptr, cpagesize, page8);
-  Uint32 isforward = ZTRUE;
+  bool isforward = true;
   Uint32 conptr = mul_ZBUF_SIZE(cexcPageindex);
   conptr = conptr + ZHEAD_SIZE;
   arrGuard(conptr, 2048);
@@ -5774,10 +5782,13 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
                     isforward);
   do {
     conptr = mul_ZBUF_SIZE(cexcPageindex);
-    if (isforward == ZTRUE) {
+    if (isforward)
+    {
       jam();
       conptr = conptr + ZHEAD_SIZE;
-    } else {
+    }
+    else
+    {
       jam();
       conptr = ((conptr + ZHEAD_SIZE) + ZBUF_SIZE) - Container::HEADER_SIZE;
     }//if
@@ -5791,7 +5802,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     shrinkcontainer(pageptr, conptr, isforward, conlen);
     const Uint32 prevPageptr = pageptr.i;
     const Uint32 cexcPrevpageindex = cexcPageindex;
-    const Uint32 cexcPrevforward = isforward;
+    const Uint32 cexcPrevisforward = isforward;
     if (containerhead.getNextEnd() != 0) {
       jam();
       /*--------------------------------------------------------------------------*/
@@ -5807,7 +5818,8 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     rlPageptr.i = prevPageptr;
     ptrCheckGuard(rlPageptr, cpagesize, page8);
     trlPageindex = cexcPrevpageindex;
-    if (cexcPrevforward == ZTRUE) {
+    if (cexcPrevisforward)
+    {
       jam();
       if (containerhead.isUsingBothEnds()) {
         jam();
@@ -5817,7 +5829,9 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
       ndbrequire(ContainerHeader(rlPageptr.p->word32[conptr]).isInUse());
       tullIndex = conptr;
       releaseLeftlist();
-    } else {
+    }
+    else
+    {
       jam();
       if (containerhead.isUsingBothEnds()) {
         jam();
@@ -5924,7 +5938,7 @@ Dbacc::shrink_adjust_reduced_hash_value(Uint32 bucket_number)
   Uint32 tgePageindex;
   Uint32 tgeNextptrtype;
   Uint32 tgeContainerptr;
-  Uint32 tgeForward;
+  Uint32 tgeIsforward;
   Uint32 tgeElementptr;
   register Uint32 tgeRemLen;
   register Uint32 TelemLen = fragrecptr.p->elementLength;
@@ -5947,7 +5961,7 @@ Dbacc::shrink_adjust_reduced_hash_value(Uint32 bucket_number)
       tgeContainerptr = tgeContainerptr + ZHEAD_SIZE;
       tgeElementptr = tgeContainerptr + Container::HEADER_SIZE;
       tgeElemStep = TelemLen;
-      tgeForward = 1;
+      tgeIsforward = true;
       ndbrequire(tgeContainerptr < 2048);
       tgeRemLen = ContainerHeader(gePageptr.p->word32[tgeContainerptr]).getLength();
       ndbrequire((tgeContainerptr + tgeRemLen - 1) < 2048);
@@ -5958,7 +5972,7 @@ Dbacc::shrink_adjust_reduced_hash_value(Uint32 bucket_number)
       tgeContainerptr = tgeContainerptr + ((ZHEAD_SIZE + ZBUF_SIZE) - Container::HEADER_SIZE);
       tgeElementptr = tgeContainerptr - TelemLen;
       tgeElemStep = 0 - TelemLen;
-      tgeForward = (Uint32)-1;
+      tgeIsforward = false;
       ndbrequire(tgeContainerptr < 2048);
       tgeRemLen = ContainerHeader(gePageptr.p->word32[tgeContainerptr]).getLength();
       ndbrequire((tgeContainerptr - tgeRemLen) < 2048);
@@ -6027,7 +6041,7 @@ Dbacc::shrink_adjust_reduced_hash_value(Uint32 bucket_number)
 
 void Dbacc::shrinkcontainer(Page8Ptr pageptr,
                             Uint32 conptr,
-                            Uint32 isforward,
+                            bool isforward,
                             Uint32 conlen)
 {
   Uint32 tshrElementptr;
@@ -6035,7 +6049,7 @@ void Dbacc::shrinkcontainer(Page8Ptr pageptr,
   Uint32 tshrTmp;
   Uint32 tshrIndex;
   Uint32 guard21;
-  Uint32 tidrForward;
+  bool tidrIsforward;
   Uint32 tidrContainerptr;
   Page8Ptr idrPageptr;
   Uint32 tidrPageindex;
@@ -6043,11 +6057,14 @@ void Dbacc::shrinkcontainer(Page8Ptr pageptr,
   const Uint32 elemLen = fragrecptr.p->elementLength;
   Uint32 elemStep;
   tshrRemLen = conlen - Container::HEADER_SIZE;
-  if (isforward == ZTRUE) {
+  if (isforward)
+  {
     jam();
     tshrElementptr = conptr + Container::HEADER_SIZE;
     elemStep = elemLen;
-  } else {
+  }
+  else
+  {
     jam();
     elemStep = -elemLen;
     tshrElementptr = conptr + elemStep;
@@ -6090,10 +6107,10 @@ void Dbacc::shrinkcontainer(Page8Ptr pageptr,
   tidrPageindex = fragrecptr.p->expReceiveIndex;
   idrPageptr.i = fragrecptr.p->expReceivePageptr;
   ptrCheckGuard(idrPageptr, cpagesize, page8);
-  tidrForward = fragrecptr.p->expReceiveForward;
+  tidrIsforward = fragrecptr.p->expReceiveIsforward;
   insertElement(idrPageptr,
                 tidrPageindex,
-                tidrForward,
+                tidrIsforward,
                 tidrElemhead,
                 tidrContainerptr);
   /* --------------------------------------------------------------------------------- */
@@ -6101,7 +6118,7 @@ void Dbacc::shrinkcontainer(Page8Ptr pageptr,
   /* --------------------------------------------------------------------------------- */
   fragrecptr.p->expReceiveIndex = tidrPageindex;
   fragrecptr.p->expReceivePageptr = idrPageptr.i;
-  fragrecptr.p->expReceiveForward = tidrForward;
+  fragrecptr.p->expReceiveIsforward = tidrIsforward;
   if (tshrRemLen < elemLen) {
     jam();
     sendSystemerror(__LINE__);
@@ -6352,7 +6369,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
   pageptr.i = gnsPageidptr.i;
   pageptr.p = gnsPageidptr.p;
   Uint32 conptr;
-  Uint32 isforward;
+  bool isforward;
   Uint32 elemptr;
   Uint32 islocked;
   if (!getScanElement(pageptr, conidx, conptr, isforward, elemptr, islocked))
@@ -6839,25 +6856,28 @@ void Dbacc::execACC_TO_REQ(Signal* signal)
  * Calculates the container pointer within a page, and returns container header
  * and size.
  *
- * @param[in]   pageptr  Page of container.
- * @param[in]   conidx   Index in page of container.
- * @param[in]   forward  Direction of container.
- * @param[out]  conhead  Container header.
- * @param[out]  conptr   Pointer within page of container.
- * @param[out]  conlen   Container size.
+ * @param[in]   pageptr    Page of container.
+ * @param[in]   conidx     Index in page of container.
+ * @param[in]   isforward  Direction of container.
+ * @param[out]  conhead    Container header.
+ * @param[out]  conptr     Pointer within page of container.
+ * @param[out]  conlen     Container size.
  * ------------------------------------------------------------------------- */
 void Dbacc::containerinfo(Page8Ptr pageptr,
                           Uint32 conidx,
-                          Uint32 forward,
+                          bool isforward,
                           ContainerHeader& conhead,
                           Uint32& conptr,
                           Uint32& conlen) const
 {
   conptr = mul_ZBUF_SIZE(conidx);
-  if (forward == ZTRUE) {
+  if (isforward)
+  {
     jam();
     conptr = conptr + ZHEAD_SIZE;
-  } else {
+  }
+  else
+  {
     jam();
     conptr = ((conptr + ZHEAD_SIZE) + ZBUF_SIZE) - Container::HEADER_SIZE;
   }//if
@@ -6884,11 +6904,11 @@ void Dbacc::containerinfo(Page8Ptr pageptr,
 bool Dbacc::getScanElement(Page8Ptr& pageptr,
                            Uint32& conidx,
                            Uint32& conptr,
-                           Uint32& isforward,
+                           bool& isforward,
                            Uint32& elemptr,
                            Uint32& islocked) const
 {
-  isforward = ZTRUE;
+  isforward = true;
  NEXTSEARCH_SCAN_LOOP:
   ContainerHeader containerhead;
   Uint32 conlen;
@@ -6973,25 +6993,25 @@ void Dbacc::initScanOpRec(Page8Ptr pageptr,
  * @param[in]     conptr           Pointer within page to current container.
  * @param[in]     containerheader  Header of current container.
  * @param[out]    nextConidx       Index within page to next container.
- * @param[out]    nextForward      Direction of next container.
+ * @param[out]    nextIsforward    Direction of next container.
  * ------------------------------------------------------------------------- */
 void Dbacc::nextcontainerinfo(Page8Ptr& pageptr,
                               Uint32 conptr,
                               ContainerHeader containerhead,
                               Uint32& nextConidx,
-                              Uint32& nextForward) const
+                              bool& nextIsforward) const
 {
   /* THE NEXT CONTAINER IS IN THE SAME PAGE */
   nextConidx = containerhead.getNextIndexNumber();
   if (containerhead.getNextEnd() == ZLEFT)
   {
     jam();
-    nextForward = ZTRUE;
+    nextIsforward = true;
   }
   else if (containerhead.getNextEnd() == ZRIGHT)
   {
     jam();
-    nextForward = cminusOne;
+    nextIsforward = false;
   }
   else
   {
@@ -7115,7 +7135,7 @@ void Dbacc::putReadyScanQueue(Uint32 scanRecIndex) const
  * ------------------------------------------------------------------------- */
 void Dbacc::releaseScanBucket(Page8Ptr pageptr, Uint32 conidx) const
 {
-  Uint32 isforward = ZTRUE;
+  bool isforward = true;
  NEXTRELEASESCANLOOP:
   ContainerHeader containerhead;
   Uint32 conptr;
@@ -7139,7 +7159,7 @@ void Dbacc::releaseScanBucket(Page8Ptr pageptr, Uint32 conidx) const
  * @param[in]  conlen   Containers current size.
  * ------------------------------------------------------------------------- */
 void Dbacc::releaseScanContainer(Page8Ptr pageptr, Uint32 conptr,
-    Uint32 forward, Uint32 conlen) const
+    bool isforward, Uint32 conlen) const
 {
   OperationrecPtr rscOperPtr;
   Uint32 trscElemStep;
@@ -7156,11 +7176,14 @@ void Dbacc::releaseScanContainer(Page8Ptr pageptr, Uint32 conptr,
   }//if
   trscElemlens = conlen - Container::HEADER_SIZE;
   trscElemlen = fragrecptr.p->elementLength;
-  if (forward == 1) {
+  if (isforward)
+  {
     jam();
     trscElementptr = conptr + Container::HEADER_SIZE;
     trscElemStep = trscElemlen;
-  } else {
+  }
+  else
+  {
     jam();
     trscElementptr = conptr - trscElemlen;
     trscElemStep = 0 - trscElemlen;
@@ -7235,7 +7258,7 @@ void Dbacc::releaseScanRec()
 /* --------------------------------------------------------------------------------- */
 bool Dbacc::searchScanContainer(Page8Ptr pageptr,
                                 Uint32 conptr,
-                                Uint32 isforward,
+                                bool isforward,
                                 Uint32 conlen,
                                 Uint32& elemptr,
                                 Uint32& islocked) const
@@ -7255,11 +7278,14 @@ bool Dbacc::searchScanContainer(Page8Ptr pageptr,
   elemlens = conlen - Container::HEADER_SIZE;
   elemlen = fragrecptr.p->elementLength;
   /* LENGTH OF THE ELEMENT */
-  if (isforward == 1) {
+  if (isforward)
+  {
     jam();
     Telemptr = conptr + Container::HEADER_SIZE;
     elemStep = elemlen;
-  } else {
+  }
+  else
+  {
     jam();
     Telemptr = conptr - elemlen;
     elemStep = 0 - elemlen;

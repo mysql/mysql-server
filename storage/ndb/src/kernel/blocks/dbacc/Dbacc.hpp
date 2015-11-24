@@ -398,7 +398,7 @@ struct Fragmentrec {
 //-----------------------------------------------------------------------------
   Uint32 expReceivePageptr;
   Uint32 expReceiveIndex;
-  Uint32 expReceiveForward;
+  bool expReceiveIsforward;
   Uint32 expSenderDirIndex;
   Uint32 expSenderIndex;
   Uint32 expSenderPageptr;
@@ -768,21 +768,21 @@ private:
   void expandcontainer(Page8Ptr pageptr, Uint32 conidx);
   void shrinkcontainer(Page8Ptr pageptr,
                        Uint32 conptr,
-                       Uint32 isforward,
+                       bool isforward,
                        Uint32 conlen);
   void releaseAndCommitActiveOps(Signal* signal);
   void releaseAndCommitQueuedOps(Signal* signal);
   void releaseAndAbortLockedOps(Signal* signal);
   void containerinfo(Page8Ptr pageptr,
                      Uint32 conidx,
-                     Uint32 forward,
+                     bool isforward,
                      ContainerHeader& containerhead,
                      Uint32& conptr,
                      Uint32& conlen) const;
   bool getScanElement(Page8Ptr& pageptr,
                       Uint32& conidx,
                       Uint32& conptr,
-                      Uint32& isforward,
+                      bool& isforward,
                       Uint32& elemptr,
                       Uint32& islocked) const;
   void initScanOpRec(Page8Ptr pageptr,
@@ -792,17 +792,17 @@ private:
                          Uint32 conptr,
                          ContainerHeader containerhead,
                          Uint32& nextConidx,
-                         Uint32& nextForward) const;
+                         bool& nextIsforward) const;
   void putActiveScanOp() const;
   void putOpScanLockQue() const;
   void putReadyScanQueue(Uint32 scanRecIndex) const;
   void releaseScanBucket(Page8Ptr pageptr, Uint32 conidx) const;
   void releaseScanContainer(Page8Ptr pageptr, Uint32 conptr,
-      Uint32 forward, Uint32 conlen) const;
+      bool isforward, Uint32 conlen) const;
   void releaseScanRec();
   bool searchScanContainer(Page8Ptr pageptr,
                            Uint32 conptr,
-                           Uint32 isforward,
+                           bool isforward,
                            Uint32 conlen,
                            Uint32& elemptr,
                            Uint32& islocked) const;
@@ -813,12 +813,12 @@ private:
   void takeOutReadyScanQueue() const;
   void insertElement(Page8Ptr& pageptr,
                      Uint32& conidx,
-                     Uint32& forward,
+                     bool& isforward,
                      Uint32 elemhead,
                      Uint32& conptr);
   void insertContainer(Page8Ptr& pageptr,
                        Uint32 conidx,
-                       Uint32 forward,
+                       bool isforward,
                        Uint32 elemhead,
                        Uint32& conptr,
                        ContainerHeader& containerhead,
@@ -851,7 +851,7 @@ private:
       Uint32 delElemptr, Page8Ptr lastPageptr, Uint32 lastElemptr) const;
   void getLastAndRemove(Page8Ptr tlastPrevpageptr, Uint32 tlastPrevconptr,
      Page8Ptr& lastPageptr, Uint32& tlastPageindex, Uint32& tlastContainerptr,
-     Uint32& tlastForward, Uint32& tlastElementptr);
+     bool& tlastIsforward, Uint32& tlastElementptr);
   void releaseLeftlist();
   void releaseRightlist();
   void checkoverfreelist();
