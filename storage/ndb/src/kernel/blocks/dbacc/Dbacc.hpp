@@ -810,8 +810,18 @@ private:
   void takeOutActiveScanOp() const;
   void takeOutScanLockQueue(Uint32 scanRecIndex) const;
   void takeOutReadyScanQueue() const;
-  void insertElement();
-  void insertContainer(ContainerHeader& containerhead);
+  void insertElement(Page8Ptr& pageptr,
+                     Uint32& conidx,
+                     Uint32& forward,
+                     Uint32 elemhead,
+                     Uint32& conptr);
+  void insertContainer(Page8Ptr& pageptr,
+                       Uint32 conidx,
+                       Uint32 forward,
+                       Uint32 elemhead,
+                       Uint32& conptr,
+                       ContainerHeader& containerhead,
+                       Uint32& result);
   void addnewcontainer(Page8Ptr pageptr, Uint32 conptr,
     Uint32 nextConidx, Uint32 nextContype, bool nextSamepage,
     Uint32 nextPagei) const;
@@ -964,7 +974,6 @@ private:
   Page8Ptr excPageptr;
   Page8Ptr expPageptr;
   Page8Ptr gflPageptr;
-  Page8Ptr idrPageptr;
   Page8Ptr ilcPageptr;
   Page8Ptr inpPageptr;
   Page8Ptr iopPageptr;
@@ -1003,11 +1012,6 @@ private:
   Tabrec *tabrec;
   TabrecPtr tabptr;
   Uint32 ctablesize;
-  Uint32 tidrResult;
-  Uint32 tidrElemhead;
-  Uint32 tidrForward;
-  Uint32 tidrPageindex;
-  Uint32 tidrContainerptr;
   Uint32 trlPageindex;
   Uint32 tipPageId;
   Uint32 texpDirInd;

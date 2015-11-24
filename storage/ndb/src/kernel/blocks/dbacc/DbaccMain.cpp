@@ -1544,10 +1544,11 @@ void Dbacc::insertelementLab(Signal* signal,
 
   operationRecPtr.p->scanBits = 0;	/* NOT ANY ACTIVE SCAN */
   operationRecPtr.p->reducedHashValue = fragrecptr.p->level.reduce(operationRecPtr.p->hashValue);
-  tidrElemhead = ElementHeader::setLocked(operationRecPtr.i);
+  const Uint32 tidrElemhead = ElementHeader::setLocked(operationRecPtr.i);
+  Page8Ptr idrPageptr;
   idrPageptr = bucketPageptr;
-  tidrPageindex = bucketConidx;
-  tidrForward = ZTRUE;
+  Uint32 tidrPageindex = bucketConidx;
+  Uint32 tidrForward = ZTRUE;
   idrOperationRecPtr = operationRecPtr;
   clocalkey[0] = localKey;
   clocalkey[1] = localKey;
@@ -1556,7 +1557,8 @@ void Dbacc::insertelementLab(Signal* signal,
   /* ----------------------------------------------------------------------- */
   /* WE SET THE LOCAL KEY TO MINUS ONE TO INDICATE IT IS NOT YET VALID.      */
   /* ----------------------------------------------------------------------- */
-  insertElement();
+  Uint32 conptr;
+  insertElement(idrPageptr, tidrPageindex, tidrForward, tidrElemhead, conptr);
   c_tup->prepareTUPKEYREQ(localKey, localKey, fragrecptr.p->tupFragptr);
   sendAcckeyconf(signal);
   return;
@@ -2621,13 +2623,24 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
 /*               TIDR_FORWARD   (CONTAINER DIRECTION OF INSERTED ELEMENT)            */
 /*               NONE                                                                */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::insertElement()
+void Dbacc::insertElement(Page8Ptr& pageptr,
+                          Uint32& conidx,
+                          Uint32& isforward,
+                          const Uint32 elemhead,
+                          Uint32& conptr)
 {
   Page8Ptr inrNewPageptr;
+  Uint32 tidrResult;
 
   do {
     ContainerHeader containerhead;
-    insertContainer(containerhead);
+    insertContainer(pageptr,
+                    conidx,
+                    isforward,
+                    elemhead,
+                    conptr,
+                    containerhead,
+                    tidrResult);
     if (tidrResult != ZFALSE) {
       jam();
       return;
@@ -2636,28 +2649,28 @@ void Dbacc::insertElement()
     }//if
     if (containerhead.getNextEnd() != 0) {
       /* THE NEXT CONTAINER IS IN THE SAME PAGE */
-      tidrPageindex = containerhead.getNextIndexNumber();      /* NEXT CONTAINER PAGE INDEX 7 BITS */
+      conidx = containerhead.getNextIndexNumber();
       if (containerhead.getNextEnd() == ZLEFT) {
         jam();
-        tidrForward = ZTRUE;
+        isforward = ZTRUE;
       } else if (containerhead.getNextEnd() == ZRIGHT) {
         jam();
-        tidrForward = cminusOne;
+        isforward = cminusOne;
       } else {
         ndbrequire(false);
         return;
       }//if
       if (!containerhead.isNextOnSamePage()) {
         jam();     /* NEXT CONTAINER IS IN AN OVERFLOW PAGE */
-        idrPageptr.i = idrPageptr.p->word32[tidrContainerptr + 1];
-        ptrCheckGuard(idrPageptr, cpagesize, page8);
+        pageptr.i = pageptr.p->word32[conptr + 1];
+        ptrCheckGuard(pageptr, cpagesize, page8);
       }//if
-      ndbrequire(tidrPageindex <= Container::MAX_CONTAINER_INDEX);
+      ndbrequire(conidx <= Container::MAX_CONTAINER_INDEX);
     } else {
       break;
     }//if
   } while (1);
-  gflPageptr.p = idrPageptr.p;
+  gflPageptr.p = pageptr.p;
   getfreelist();
   bool nextOnSamePage;
   if (tgflPageindex == Container::NO_CONTAINER_INDEX) {
@@ -2679,7 +2692,7 @@ void Dbacc::insertElement()
     nextOnSamePage = false;
   } else {
     jam();
-    inrNewPageptr = idrPageptr;
+    inrNewPageptr = pageptr;
     nextOnSamePage = true;
   }//if
   tslPageindex = tgflPageindex;
@@ -2687,22 +2700,28 @@ void Dbacc::insertElement()
   Uint32 containerptr;
   if (tgflBufType == ZLEFT) {
     seizeLeftlist();
-    tidrForward = ZTRUE;
+    isforward = ZTRUE;
     containerptr = mul_ZBUF_SIZE(tgflPageindex) + ZHEAD_SIZE;
   } else {
     seizeRightlist();
-    tidrForward = cminusOne;
+    isforward = cminusOne;
     containerptr = mul_ZBUF_SIZE(tgflPageindex) + ZHEAD_SIZE + ZBUF_SIZE - Container::HEADER_SIZE;
   }//if
   ContainerHeader containerhead;
   containerhead.initInUse();
   inrNewPageptr.p->word32[containerptr] = containerhead;
-  addnewcontainer(idrPageptr, tidrContainerptr, tgflPageindex,
+  addnewcontainer(pageptr, conptr, tgflPageindex,
     tgflBufType, nextOnSamePage, inrNewPageptr.i);
 
-  idrPageptr = inrNewPageptr;
-  tidrPageindex = tgflPageindex;
-  insertContainer(containerhead);
+  pageptr = inrNewPageptr;
+  conidx = tgflPageindex;
+  insertContainer(pageptr,
+                  conidx,
+                  isforward,
+                  elemhead,
+                  conptr,
+                  containerhead,
+                  tidrResult);
   ndbrequire(tidrResult == ZTRUE);
 }//Dbacc::insertElement()
 
@@ -2732,7 +2751,13 @@ void Dbacc::insertElement()
 /*                                                                                   */
 /*       SHORT FORM: IDR                                                             */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::insertContainer(ContainerHeader& containerhead)
+void Dbacc::insertContainer(Page8Ptr& pageptr,
+                            const Uint32 conidx,
+                            const Uint32 forward,
+                            const Uint32 elemhead,
+                            Uint32& conptr,
+                            ContainerHeader& containerhead,
+                            Uint32& result)
 {
   Uint32 tidrContainerlen;
   Uint32 tidrConfreelen;
@@ -2742,27 +2767,27 @@ void Dbacc::insertContainer(ContainerHeader& containerhead)
   Uint32 tidrInputIndex;
   Uint32 guard26;
 
-  tidrResult = ZFALSE;
-  tidrContainerptr = mul_ZBUF_SIZE(tidrPageindex) + ZHEAD_SIZE;
+  result = ZFALSE;
+  conptr = mul_ZBUF_SIZE(conidx) + ZHEAD_SIZE;
   /* --------------------------------------------------------------------------------- */
   /*       CALCULATE THE POINTER TO THE ELEMENT TO BE INSERTED AND THE POINTER TO THE  */
   /*       CONTAINER HEADER OF THE OTHER SIDE OF THE BUFFER.                           */
   /* --------------------------------------------------------------------------------- */
-  if (tidrForward == ZTRUE) {
+  if (forward == ZTRUE) {
     jam();
-    tidrNextSide = tidrContainerptr + (ZBUF_SIZE - Container::HEADER_SIZE);
+    tidrNextSide = conptr + (ZBUF_SIZE - Container::HEADER_SIZE);
     arrGuard(tidrNextSide + 1, 2048);
-    containerhead = idrPageptr.p->word32[tidrContainerptr];
+    containerhead = pageptr.p->word32[conptr];
     tidrContainerlen = containerhead.getLength();
-    tidrIndex = tidrContainerptr + tidrContainerlen;
+    tidrIndex = conptr + tidrContainerlen;
   } else {
     jam();
-    tidrNextSide = tidrContainerptr;
-    tidrContainerptr = tidrContainerptr + (ZBUF_SIZE - Container::HEADER_SIZE);
-    arrGuard(tidrContainerptr + 1, 2048);
-    containerhead = idrPageptr.p->word32[tidrContainerptr];
+    tidrNextSide = conptr;
+    conptr = conptr + (ZBUF_SIZE - Container::HEADER_SIZE);
+    arrGuard(conptr + 1, 2048);
+    containerhead = pageptr.p->word32[conptr];
     tidrContainerlen = containerhead.getLength();
-    tidrIndex = (tidrContainerptr - tidrContainerlen) + (Container::HEADER_SIZE - 1);
+    tidrIndex = (conptr - tidrContainerlen) + (Container::HEADER_SIZE - 1);
   }//if
   if (tidrContainerlen > (ZBUF_SIZE - 3)) {
     return;
@@ -2778,7 +2803,7 @@ void Dbacc::insertContainer(ContainerHeader& containerhead)
     /*       WE HAVE NOT EXPANDED TO THE ENTIRE BUFFER YET. WE CAN THUS READ THE OTHER   */
     /*       SIDE'S CONTAINER HEADER TO READ HIS LENGTH.                                 */
     /* --------------------------------------------------------------------------------- */
-    tidrNextConLen = idrPageptr.p->word32[tidrNextSide] >> 26;
+    tidrNextConLen = pageptr.p->word32[tidrNextSide] >> 26;
     tidrConfreelen = tidrConfreelen - tidrNextConLen;
     if (tidrConfreelen > ZBUF_SIZE) {
       ndbrequire(false);
@@ -2804,13 +2829,13 @@ void Dbacc::insertContainer(ContainerHeader& containerhead)
     /* EACH SIDE OF THE BUFFER WHICH BELONG TO A FREE */
     /* LIST, HAS ZERO AS LENGTH. */
     if (tidrContainerlen > Container::UP_LIMIT) {
-      ContainerHeader conthead = idrPageptr.p->word32[tidrContainerptr];
+      ContainerHeader conthead = pageptr.p->word32[conptr];
       conthead.setUsingBothEnds();
-      dbgWord32(idrPageptr, tidrContainerptr, conthead);
-      idrPageptr.p->word32[tidrContainerptr] = conthead;
-      tslPageindex = tidrPageindex;
-      slPageptr = idrPageptr;
-      if (tidrForward == ZTRUE) {
+      dbgWord32(pageptr, conptr, conthead);
+      pageptr.p->word32[conptr] = conthead;
+      tslPageindex = conidx;
+      slPageptr = pageptr;
+      if (forward == ZTRUE) {
         jam();
         /* REMOVE THE RIGHT SIDE OF THE BUFFER FROM THE FREE LIST */
         seizeRightlist();
@@ -2833,9 +2858,9 @@ void Dbacc::insertContainer(ContainerHeader& containerhead)
   /* --------------------------------------------------------------------------------- */
   if (idrOperationRecPtr.i != RNIL) {
     jam();
-    idrOperationRecPtr.p->elementIsforward = tidrForward;
-    idrOperationRecPtr.p->elementPage = idrPageptr.i;
-    idrOperationRecPtr.p->elementContainer = tidrContainerptr;
+    idrOperationRecPtr.p->elementIsforward = forward;
+    idrOperationRecPtr.p->elementPage = pageptr.i;
+    idrOperationRecPtr.p->elementContainer = conptr;
     idrOperationRecPtr.p->elementPointer = tidrIndex;
   }//if
   /* --------------------------------------------------------------------------------- */
@@ -2846,22 +2871,22 @@ void Dbacc::insertContainer(ContainerHeader& containerhead)
   /*       STRUCTURE. IT IS RATHER DIFFICULT TO MAINTAIN A LOGICAL STRUCTURE WHERE     */
   /*       DELETES ARE INSERTS AND INSERTS ARE PURELY DELETES.                         */
   /* --------------------------------------------------------------------------------- */
-  dbgWord32(idrPageptr, tidrIndex, tidrElemhead);
-  idrPageptr.p->word32[tidrIndex] = tidrElemhead;	/* INSERTS THE HEAD OF THE ELEMENT */
-  tidrIndex += tidrForward;
+  dbgWord32(pageptr, tidrIndex, elemhead);
+  pageptr.p->word32[tidrIndex] = elemhead;
+  tidrIndex += forward;
   guard26 = fragrecptr.p->localkeylen - 1;
   arrGuard(guard26, 2);
   for (tidrInputIndex = 0; tidrInputIndex <= guard26; tidrInputIndex++) {
-    dbgWord32(idrPageptr, tidrIndex, clocalkey[tidrInputIndex]);
+    dbgWord32(pageptr, tidrIndex, clocalkey[tidrInputIndex]);
     arrGuard(tidrIndex, 2048);
-    idrPageptr.p->word32[tidrIndex] = clocalkey[tidrInputIndex];	/* INSERTS LOCALKEY */
-    tidrIndex += tidrForward;
+    pageptr.p->word32[tidrIndex] = clocalkey[tidrInputIndex];
+    tidrIndex += forward;
   }//for
-  ContainerHeader conthead = idrPageptr.p->word32[tidrContainerptr];
+  ContainerHeader conthead = pageptr.p->word32[conptr];
   conthead.setLength(tidrContainerlen);
-  dbgWord32(idrPageptr, tidrContainerptr, conthead);
-  idrPageptr.p->word32[tidrContainerptr] = conthead;
-  tidrResult = ZTRUE;
+  dbgWord32(pageptr, conptr, conthead);
+  pageptr.p->word32[conptr] = conthead;
+  result = ZTRUE;
 }//Dbacc::insertContainer()
 
 /** ---------------------------------------------------------------------------
@@ -5279,6 +5304,11 @@ void Dbacc::expandcontainer()
   Uint32 texcTmp;
   Uint32 texcIndex;
   Uint32 guard20;
+  Uint32 tidrForward;
+  Uint32 tidrContainerptr;
+  Page8Ptr idrPageptr;
+  Uint32 tidrPageindex;
+  Uint32 tidrElemhead;
 
   Page8Ptr lastPageptr;
   Page8Ptr lastPrevpageptr;
@@ -5389,7 +5419,11 @@ void Dbacc::expandcontainer()
   idrPageptr.i = fragrecptr.p->expReceivePageptr;
   ptrCheckGuard(idrPageptr, cpagesize, page8);
   tidrForward = fragrecptr.p->expReceiveForward;
-  insertElement();
+  insertElement(idrPageptr,
+                tidrPageindex,
+                tidrForward,
+                tidrElemhead,
+                tidrContainerptr);
   fragrecptr.p->expReceiveIndex = tidrPageindex;
   fragrecptr.p->expReceivePageptr = idrPageptr.i;
   fragrecptr.p->expReceiveForward = tidrForward;
@@ -5489,7 +5523,11 @@ void Dbacc::expandcontainer()
     idrPageptr.i = fragrecptr.p->expReceivePageptr;
     ptrCheckGuard(idrPageptr, cpagesize, page8);
     tidrForward = fragrecptr.p->expReceiveForward;
-    insertElement();
+    insertElement(idrPageptr,
+                  tidrPageindex,
+                  tidrForward,
+                  tidrElemhead,
+                  tidrContainerptr);
     fragrecptr.p->expReceiveIndex = tidrPageindex;
     fragrecptr.p->expReceivePageptr = idrPageptr.i;
     fragrecptr.p->expReceiveForward = tidrForward;
@@ -6046,6 +6084,12 @@ void Dbacc::shrinkcontainer()
   Uint32 tshrTmp;
   Uint32 tshrIndex;
   Uint32 guard21;
+  Uint32 tidrForward;
+  Uint32 tidrContainerptr;
+  Page8Ptr idrPageptr;
+  Uint32 tidrPageindex;
+  Uint32 tidrElemhead;
+
   tshrRemLen = cexcContainerlen - Container::HEADER_SIZE;
   tshrInc = fragrecptr.p->elementLength;
   if (cexcForward == ZTRUE) {
@@ -6094,7 +6138,11 @@ void Dbacc::shrinkcontainer()
   idrPageptr.i = fragrecptr.p->expReceivePageptr;
   ptrCheckGuard(idrPageptr, cpagesize, page8);
   tidrForward = fragrecptr.p->expReceiveForward;
-  insertElement();
+  insertElement(idrPageptr,
+                tidrPageindex,
+                tidrForward,
+                tidrElemhead,
+                tidrContainerptr);
   /* --------------------------------------------------------------------------------- */
   /*       TAKE CARE OF RESULT FROM INSERT_ELEMENT.                                    */
   /* --------------------------------------------------------------------------------- */
