@@ -1843,8 +1843,8 @@ Gis_polygon::Gis_polygon(const self &r) :Geometry(r), m_inn_rings(NULL)
   if (r.is_bg_adapter() == false || r.get_ptr() == NULL)
     return;
 
-  std::auto_ptr<Gis_polygon::ring_type> guard1;
-  std::auto_ptr<Gis_polygon::inner_container_type> guard2;
+  std::unique_ptr<Gis_polygon::ring_type> guard1;
+  std::unique_ptr<Gis_polygon::inner_container_type> guard2;
 
   if (r.get_ptr())
   {
@@ -4572,7 +4572,7 @@ Gis_wkb_vector(const void *ptr, size_t nbytes, const Flags_t &flags,
   if (!is_bg_adapter)
     return;
 
-  std::auto_ptr<Geo_vector> guard;
+  std::unique_ptr<Geo_vector> guard;
 
   wkbType geotype= get_geotype();
   // Points don't need it, polygon creates it when parsing.
@@ -4602,7 +4602,7 @@ Gis_wkb_vector(const Gis_wkb_vector<T> &v) :Geometry(v), m_geo_vect(NULL)
   if (!v.is_bg_adapter() || (v.get_ptr() == NULL && v.m_geo_vect == NULL))
     return;
   m_geo_vect= new Geo_vector();
-  std::auto_ptr<Geo_vector> guard(m_geo_vect);
+  std::unique_ptr<Geo_vector> guard(m_geo_vect);
 
   const_cast<self &>(v).reassemble();
   set_flags(v.get_flags());

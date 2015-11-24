@@ -54,8 +54,6 @@
 
 extern bool simplify_multi_geometry(String *str, String *result_buffer);
 
-using std::auto_ptr;
-
 
 /**
   Handle a GIS exception of any type.
