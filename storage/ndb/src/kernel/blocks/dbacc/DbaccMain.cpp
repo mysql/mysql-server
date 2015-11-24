@@ -990,7 +990,12 @@ void Dbacc::execACCKEYREQ(Signal* signal)
   /*       THE ITEM AFTER NOT FINDING THE ITEM.                    */
   /*---------------------------------------------------------------*/
   OperationrecPtr lockOwnerPtr;
-  const Uint32 found = getElement(req, lockOwnerPtr);
+  Page8Ptr bucketPageptr;
+  Uint32 bucketConidx;
+  const Uint32 found = getElement(req,
+                                  lockOwnerPtr,
+                                  bucketPageptr,
+                                  bucketConidx);
 
   Uint32 opbits = operationRecPtr.p->m_op_bits;
 
@@ -1103,7 +1108,7 @@ void Dbacc::execACCKEYREQ(Signal* signal)
       opbits |= Operationrec::OP_STATE_RUNNING;
       opbits |= Operationrec::OP_RUN_QUEUE;
       operationRecPtr.p->m_op_bits = opbits;
-      insertelementLab(signal);
+      insertelementLab(signal, bucketPageptr, bucketConidx);
       return;
       break;
     case ZREAD:
@@ -1497,7 +1502,9 @@ void Dbacc::insertExistElemLab(Signal* signal,
 /* --------------------------------------------------------------------------------- */
 /* INSERTELEMENT                                                                     */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::insertelementLab(Signal* signal)
+void Dbacc::insertelementLab(Signal* signal,
+                             Page8Ptr bucketPageptr,
+                             Uint32 bucketConidx)
 {
   if (unlikely(m_oom))
   {
@@ -1530,8 +1537,8 @@ void Dbacc::insertelementLab(Signal* signal)
   operationRecPtr.p->scanBits = 0;	/* NOT ANY ACTIVE SCAN */
   operationRecPtr.p->reducedHashValue = fragrecptr.p->level.reduce(operationRecPtr.p->hashValue);
   tidrElemhead = ElementHeader::setLocked(operationRecPtr.i);
-  idrPageptr = gdiPageptr;
-  tidrPageindex = tgdiPageindex;
+  idrPageptr = bucketPageptr;
+  tidrPageindex = bucketConidx;
   tidrForward = ZTRUE;
   idrOperationRecPtr = operationRecPtr;
   clocalkey[0] = localKey;
@@ -3095,14 +3102,14 @@ Uint32 Dbacc::unsetPagePtr(DynArr256::Head& directory, Uint32 index)
   return ptri;
 }
 
-void Dbacc::getdirindex()
+void Dbacc::getdirindex(Page8Ptr& pageptr, Uint32& conidx)
 {
-  Uint32 tgdiAddress;
-
-  tgdiAddress = fragrecptr.p->level.getBucketNumber(operationRecPtr.p->hashValue);
-  tgdiPageindex = fragrecptr.p->getPageIndex(tgdiAddress);
-  gdiPageptr.i = getPagePtr(fragrecptr.p->directory, fragrecptr.p->getPageNumber(tgdiAddress));
-  ptrCheckGuard(gdiPageptr, cpagesize, page8);
+  const Uint32 hashValue = operationRecPtr.p->hashValue;
+  const Uint32 address = fragrecptr.p->level.getBucketNumber(hashValue);
+  conidx = fragrecptr.p->getPageIndex(address);
+  pageptr.i = getPagePtr(fragrecptr.p->directory,
+                         fragrecptr.p->getPageNumber(address));
+  ptrCheckGuard(pageptr, cpagesize, page8);
 }//Dbacc::getdirindex()
 
 Uint32
@@ -3159,7 +3166,6 @@ Dbacc::readTablePk(Uint32 localkey1, Uint32 localkey2,
 /*                     BUCKET, AND SERCH FOR ELEMENT.THE PRIMARY KEYS WHICH IS SAVED */
 /*                     IN THE OPERATION REC ARE THE CHECK ITEMS IN THE SEARCHING.    */
 /* --------------------------------------------------------------------------------- */
-
 #if __ia64 == 1
 #if __INTEL_COMPILER == 810
 int ndb_acc_ia64_icc810_dummy_var = 0;
@@ -3171,7 +3177,10 @@ void ndb_acc_ia64_icc810_dummy_func()
 #endif
 
 Uint32
-Dbacc::getElement(const AccKeyReq* signal, OperationrecPtr& lockOwnerPtr)
+Dbacc::getElement(const AccKeyReq* signal,
+                  OperationrecPtr& lockOwnerPtr,
+                  Page8Ptr& bucketPageptr,
+                  Uint32& bucketConidx)
 {
   Uint32 errcode;
   Uint32 tgeElementHeader;
@@ -3184,9 +3193,9 @@ Dbacc::getElement(const AccKeyReq* signal, OperationrecPtr& lockOwnerPtr)
   const Uint32 localkeylen = fragrecptr.p->localkeylen;
   Uint32 bucket_number = fragrecptr.p->level.getBucketNumber(operationRecPtr.p->hashValue);
 
-  getdirindex();
-  tgePageindex = tgdiPageindex;
-  gePageptr = gdiPageptr;
+  getdirindex(bucketPageptr, bucketConidx);
+  gePageptr = bucketPageptr;
+  tgePageindex = bucketConidx;
   /*
    * The value seached is
    * - table key for ACCKEYREQ, stored in TUP
@@ -3401,14 +3410,15 @@ void Dbacc::commitdelete(Signal* signal)
   Uint32 tlastElementptr;
   Uint32 tlastContainerptr;
   Uint32 tlastPrevconptr;
+  Page8Ptr lastBucketPageptr;
+  Uint32 lastBucketConidx;
 
   jam();
   report_dealloc(signal, operationRecPtr.p);
   
-  getdirindex();
-  tlastPageindex = tgdiPageindex;
-  lastPageptr.i = gdiPageptr.i;
-  lastPageptr.p = gdiPageptr.p;
+  getdirindex(lastBucketPageptr, lastBucketConidx);
+  lastPageptr = lastBucketPageptr;
+  tlastPageindex = lastBucketConidx;
   tlastForward = ZTRUE;
   tlastContainerptr = mul_ZBUF_SIZE(tlastPageindex);
   tlastContainerptr = tlastContainerptr + ZHEAD_SIZE;

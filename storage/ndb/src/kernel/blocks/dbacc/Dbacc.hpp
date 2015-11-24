@@ -820,7 +820,10 @@ private:
   void seizeLeftlist();
   void seizeRightlist();
   Uint32 readTablePk(Uint32 lkey1, Uint32 lkey2, Uint32 eh, OperationrecPtr);
-  Uint32 getElement(const AccKeyReq* signal, OperationrecPtr& lockOwner);
+  Uint32 getElement(const AccKeyReq* signal,
+                    OperationrecPtr& lockOwner,
+                    Page8Ptr& bucketPageptr,
+                    Uint32& bucketConidx);
   LHBits32 getElementHash(OperationrecPtr& oprec);
   LHBits32 getElementHash(Uint32 const* element, Int32 forward);
   LHBits32 getElementHash(Uint32 const* element, Int32 forward, OperationrecPtr& oprec);
@@ -828,7 +831,7 @@ private:
   Uint32 getPagePtr(DynArr256::Head&, Uint32);
   bool setPagePtr(DynArr256::Head& directory, Uint32 index, Uint32 ptri);
   Uint32 unsetPagePtr(DynArr256::Head& directory, Uint32 index);
-  void getdirindex();
+  void getdirindex(Page8Ptr& pageptr, Uint32& conidx);
   void commitdelete(Signal* signal);
   void deleteElement(Page8Ptr delPageptr, Uint32 delConptr,
       Uint32 delForward, Uint32 delElemptr, Page8Ptr lastPageptr,
@@ -883,7 +886,9 @@ private:
   void addFragRefuse(Signal* signal, Uint32 errorCode) const;
   void ndbsttorryLab(Signal* signal) const;
   void acckeyref1Lab(Signal* signal, Uint32 result_code) const;
-  void insertelementLab(Signal* signal);
+  void insertelementLab(Signal* signal,
+                        Page8Ptr bucketPageptr,
+                        Uint32 bucketConidx);
   void checkNextFragmentLab(Signal* signal);
   void endofexpLab(Signal* signal) const;
   void endofshrinkbucketLab(Signal* signal);
@@ -954,7 +959,6 @@ private:
   Page8Ptr colPageptr;
   Page8Ptr excPageptr;
   Page8Ptr expPageptr;
-  Page8Ptr gdiPageptr;
   Page8Ptr gePageptr;
   Page8Ptr gflPageptr;
   Page8Ptr idrPageptr;
@@ -1020,7 +1024,6 @@ private:
   Uint32 tresult;
   Uint32 tuserptr;
   BlockReference tuserblockref;
-  Uint32 tgdiPageindex;
   Uint32 tiopIndex;
   Uint32 tullIndex;
   Uint32 turlIndex;
