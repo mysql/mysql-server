@@ -4505,8 +4505,10 @@ void pfs_end_temp_file_open_wait_and_bind_to_descriptor_v1
   pfs_end_file_open_wait_and_bind_to_descriptor_v1(locker, file);
 
   PFS_file *pfs_file= reinterpret_cast<PFS_file *> (state->m_file);
-  DBUG_ASSERT(pfs_file != NULL);
-  pfs_file->m_temporary= true;
+  if (pfs_file != NULL)
+  {
+    pfs_file->m_temporary= true;
+  }
 }
 
 
