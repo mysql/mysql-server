@@ -5157,22 +5157,23 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   /*       THE NEXT ACTION IS TO FIND THE PAGE, THE PAGE INDEX AND THE PAGE   */
   /*       DIRECTORY OF THE BUCKET TO BE SPLIT.                               */
   /*--------------------------------------------------------------------------*/
-  cexcPageindex = fragrecptr.p->getPageIndex(splitBucket);
+  Page8Ptr pageptr;
+  Uint32 conidx = fragrecptr.p->getPageIndex(splitBucket);
   texpDirInd = fragrecptr.p->getPageNumber(splitBucket);
-  excPageptr.i = getPagePtr(fragrecptr.p->directory, texpDirInd);
+  pageptr.i = getPagePtr(fragrecptr.p->directory, texpDirInd);
 #ifdef VM_TRACE
-  require(excPageptr.i != RNIL);
+  require(pageptr.i != RNIL);
 #endif
-  fragrecptr.p->expSenderIndex = cexcPageindex;
-  fragrecptr.p->expSenderPageptr = excPageptr.i;
-  if (excPageptr.i == RNIL) {
+  fragrecptr.p->expSenderIndex = conidx;
+  fragrecptr.p->expSenderPageptr = pageptr.i;
+  if (pageptr.i == RNIL) {
     jam();
     endofexpLab(signal);	/* EMPTY BUCKET */
     return;
   }//if
   fragrecptr.p->expReceiveForward = ZTRUE;
-  ptrCheckGuard(excPageptr, cpagesize, page8);
-  expandcontainer();
+  ptrCheckGuard(pageptr, cpagesize, page8);
+  expandcontainer(pageptr, conidx);
   endofexpLab(signal);
   return;
 }//Dbacc::execEXPANDCHECK2()
@@ -5297,7 +5298,7 @@ LHBits32 Dbacc::getElementHash(Uint32 const* elemptr, Int32 forward, Operationre
 /*        DESCRIPTION: THE HASH VALUE OF ALL ELEMENTS IN THE CONTAINER WILL BE       */
 /*                  CHECKED. SOME OF THIS ELEMENTS HAVE TO MOVE TO THE NEW CONTAINER */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::expandcontainer()
+void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
 {
   ContainerHeader containerhead;
   LHBits32 texcHashvalue;
@@ -5318,26 +5319,27 @@ void Dbacc::expandcontainer()
   Uint32 tlastContainerptr;
   Uint32 tlastPrevconptr;
 
-  cexcPrevpageptr = RNIL;
-  cexcPrevconptr = 0;
-  cexcForward = ZTRUE;
+  Uint32 elemptr;
+  Uint32 prevPageptr = RNIL;
+  Uint32 prevConptr = 0;
+  Uint32 isforward = ZTRUE;
  EXP_CONTAINER_LOOP:
-  cexcContainerptr = mul_ZBUF_SIZE(cexcPageindex);
-  if (cexcForward == ZTRUE) {
+  Uint32 conptr = mul_ZBUF_SIZE(conidx);
+  if (isforward == ZTRUE) {
     jam();
-    cexcContainerptr = cexcContainerptr + ZHEAD_SIZE;
-    cexcElementptr = cexcContainerptr + Container::HEADER_SIZE;
+    conptr = conptr + ZHEAD_SIZE;
+    elemptr = conptr + Container::HEADER_SIZE;
   } else {
     jam();
-    cexcContainerptr = ((cexcContainerptr + ZHEAD_SIZE) + ZBUF_SIZE) - Container::HEADER_SIZE;
-    cexcElementptr = cexcContainerptr - 1;
+    conptr = ((conptr + ZHEAD_SIZE) + ZBUF_SIZE) - Container::HEADER_SIZE;
+    elemptr = conptr - 1;
   }//if
-  arrGuard(cexcContainerptr, 2048);
-  containerhead = excPageptr.p->word32[cexcContainerptr];
-  cexcContainerlen = containerhead.getLength();
-  cexcMovedLen = Container::HEADER_SIZE;
-  if (cexcContainerlen <= Container::HEADER_SIZE) {
-    ndbrequire(cexcContainerlen >= Container::HEADER_SIZE);
+  arrGuard(conptr, 2048);
+  containerhead = pageptr.p->word32[conptr];
+  const Uint32 conlen = containerhead.getLength();
+  Uint32 cexcMovedLen = Container::HEADER_SIZE;
+  if (conlen <= Container::HEADER_SIZE) {
+    ndbrequire(conlen >= Container::HEADER_SIZE);
     jam();
     goto NEXT_ELEMENT;
   }//if
@@ -5353,8 +5355,8 @@ void Dbacc::expandcontainer()
   /*       CEXC_PREVCONPTR        INDEX OF PREVIOUS CONTAINER                          */
   /*       CEXC_FORWARD           DIRECTION OF CURRENT CONTAINER                       */
   /* --------------------------------------------------------------------------------- */
-  arrGuard(cexcElementptr, 2048);
-  tidrElemhead = excPageptr.p->word32[cexcElementptr];
+  arrGuard(elemptr, 2048);
+  tidrElemhead = pageptr.p->word32[elemptr];
   bool move;
   if (ElementHeader::getLocked(tidrElemhead))
   {
@@ -5364,11 +5366,13 @@ void Dbacc::expandcontainer()
     ndbassert(idrOperationRecPtr.p->reducedHashValue.valid_bits() >= 1);
     move = idrOperationRecPtr.p->reducedHashValue.get_bit(1);
     idrOperationRecPtr.p->reducedHashValue.shift_out();
-    if (!fragrecptr.p->enough_valid_bits(idrOperationRecPtr.p->reducedHashValue))
+    const LHBits16 reducedHashValue = idrOperationRecPtr.p->reducedHashValue;
+    if (!fragrecptr.p->enough_valid_bits(reducedHashValue))
     {
       jam();
+      const LHBits32 hashValue = getElementHash(idrOperationRecPtr);
       idrOperationRecPtr.p->reducedHashValue =
-        fragrecptr.p->level.reduceForSplit(getElementHash(idrOperationRecPtr));
+        fragrecptr.p->level.reduceForSplit(hashValue);
     }
   }
   else
@@ -5381,8 +5385,10 @@ void Dbacc::expandcontainer()
     if (!fragrecptr.p->enough_valid_bits(reducedHashValue))
     {
       jam();
+      const Uint32* elemwordptr = &pageptr.p->word32[elemptr];
+      const LHBits32 hashValue = getElementHash(elemwordptr, isforward);
       reducedHashValue =
-        fragrecptr.p->level.reduceForSplit(getElementHash(&excPageptr.p->word32[cexcElementptr], cexcForward));
+        fragrecptr.p->level.reduceForSplit(hashValue);
     }
     tidrElemhead = ElementHeader::setReducedHashValue(tidrElemhead, reducedHashValue);
   }
@@ -5390,7 +5396,7 @@ void Dbacc::expandcontainer()
   {
     jam();
     if (ElementHeader::getUnlocked(tidrElemhead))
-      excPageptr.p->word32[cexcElementptr] = tidrElemhead;
+      pageptr.p->word32[elemptr] = tidrElemhead;
     /* --------------------------------------------------------------------------------- */
     /*       THIS ELEMENT IS NOT TO BE MOVED. WE CALCULATE THE WHEREABOUTS OF THE NEXT   */
     /*       ELEMENT AND PROCEED WITH THAT OR END THE SEARCH IF THERE ARE NO MORE        */
@@ -5407,13 +5413,13 @@ void Dbacc::expandcontainer()
   /*       GET THE LAST ELEMENT AGAIN UNTIL WE EITHER FIND ONE THAT STAYS OR THIS      */
   /*       ELEMENT IS THE LAST ELEMENT.                                                */
   /* --------------------------------------------------------------------------------- */
-  texcTmp = cexcElementptr + cexcForward;
+  texcTmp = elemptr + isforward;
   guard20 = fragrecptr.p->localkeylen - 1;
   for (texcIndex = 0; texcIndex <= guard20; texcIndex++) {
     arrGuard(texcIndex, 2);
     arrGuard(texcTmp, 2048);
-    clocalkey[texcIndex] = excPageptr.p->word32[texcTmp];
-    texcTmp = texcTmp + cexcForward;
+    clocalkey[texcIndex] = pageptr.p->word32[texcTmp];
+    texcTmp = texcTmp + isforward;
   }//for
   tidrPageindex = fragrecptr.p->expReceiveIndex;
   idrPageptr.i = fragrecptr.p->expReceivePageptr;
@@ -5429,15 +5435,15 @@ void Dbacc::expandcontainer()
   fragrecptr.p->expReceiveForward = tidrForward;
  REMOVE_LAST_LOOP:
   jam();
-  lastPageptr.i = excPageptr.i;
-  lastPageptr.p = excPageptr.p;
-  tlastContainerptr = cexcContainerptr;
-  lastPrevpageptr.i = cexcPrevpageptr;
+  lastPageptr.i = pageptr.i;
+  lastPageptr.p = pageptr.p;
+  tlastContainerptr = conptr;
+  lastPrevpageptr.i = prevPageptr;
   ptrCheck(lastPrevpageptr, cpagesize, page8);
-  tlastPrevconptr = cexcPrevconptr;
+  tlastPrevconptr = prevConptr;
   arrGuard(tlastContainerptr, 2048);
-  tlastForward = cexcForward;
-  tlastPageindex = cexcPageindex;
+  tlastForward = isforward;
+  tlastPageindex = conidx;
   getLastAndRemove(lastPrevpageptr,
                    tlastPrevconptr,
                    lastPageptr,
@@ -5445,8 +5451,8 @@ void Dbacc::expandcontainer()
                    tlastContainerptr,
                    tlastForward,
                    tlastElementptr);
-  if (excPageptr.i == lastPageptr.i) {
-    if (cexcElementptr == tlastElementptr) {
+  if (pageptr.i == lastPageptr.i) {
+    if (elemptr == tlastElementptr) {
       jam();
       /* --------------------------------------------------------------------------------- */
       /*       THE CURRENT ELEMENT WAS ALSO THE LAST ELEMENT.                              */
@@ -5488,8 +5494,10 @@ void Dbacc::expandcontainer()
     if (!fragrecptr.p->enough_valid_bits(reducedHashValue))
     {
       jam();
+      const Uint32* elemwordptr = &lastPageptr.p->word32[tlastElementptr];
+      const LHBits32 hashValue = getElementHash(elemwordptr, tlastForward);
       reducedHashValue =
-        fragrecptr.p->level.reduceForSplit(getElementHash(&lastPageptr.p->word32[tlastElementptr], tlastForward));
+        fragrecptr.p->level.reduceForSplit(hashValue);
     }
     tidrElemhead = ElementHeader::setReducedHashValue(tidrElemhead, reducedHashValue);
   }
@@ -5501,10 +5509,10 @@ void Dbacc::expandcontainer()
     /* --------------------------------------------------------------------------------- */
     /*       THE LAST ELEMENT IS NOT TO BE MOVED. WE COPY IT TO THE CURRENT ELEMENT.     */
     /* --------------------------------------------------------------------------------- */
-    const Page8Ptr delPageptr = excPageptr;
-    const Uint32 delConptr = cexcContainerptr;
-    const Uint32 delForward = cexcForward;
-    const Uint32 delElemptr = cexcElementptr;
+    const Page8Ptr delPageptr = pageptr;
+    const Uint32 delConptr = conptr;
+    const Uint32 delForward = isforward;
+    const Uint32 delElemptr = elemptr;
     deleteElement(delPageptr, delConptr, delForward,
       delElemptr, lastPageptr, tlastForward, tlastElementptr);
   } else {
@@ -5534,8 +5542,8 @@ void Dbacc::expandcontainer()
     goto REMOVE_LAST_LOOP;
   }//if
  NEXT_ELEMENT:
-  arrGuard(cexcContainerptr, 2048);
-  containerhead = excPageptr.p->word32[cexcContainerptr];
+  arrGuard(conptr, 2048);
+  containerhead = pageptr.p->word32[conptr];
   cexcMovedLen = cexcMovedLen + fragrecptr.p->elementLength;
   if (containerhead.getLength() > cexcMovedLen) {
     jam();
@@ -5545,7 +5553,7 @@ void Dbacc::expandcontainer()
     /*       FROM THE CONTAINER HEADER SINCE IT MIGHT CHANGE BY REMOVING THE LAST        */
     /*       ELEMENT IN THE BUCKET.                                                      */
     /* --------------------------------------------------------------------------------- */
-    cexcElementptr = cexcElementptr + (cexcForward * fragrecptr.p->elementLength);
+    elemptr = elemptr + (isforward * fragrecptr.p->elementLength);
     goto NEXT_ELEMENT_LOOP;
   }//if
   if (containerhead.getNextEnd() != 0) {
@@ -5553,13 +5561,13 @@ void Dbacc::expandcontainer()
     /* --------------------------------------------------------------------------------- */
     /*       WE PROCEED TO THE NEXT CONTAINER IN THE BUCKET.                             */
     /* --------------------------------------------------------------------------------- */
-    cexcPrevpageptr = excPageptr.i;
-    cexcPrevconptr = cexcContainerptr;
-    nextcontainerinfo(excPageptr,
-                      cexcContainerptr,
+    prevPageptr = pageptr.i;
+    prevConptr = conptr;
+    nextcontainerinfo(pageptr,
+                      conptr,
                       containerhead,
-                      cexcPageindex,
-                      cexcForward);
+                      conidx,
+                      isforward);
     goto EXP_CONTAINER_LOOP;
   }//if
 }//Dbacc::expandcontainer()
@@ -5763,11 +5771,12 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
   /*       WE START BY FINDING THE NECESSARY INFORMATION OF THE BUCKET TO BE  */
   /*       REMOVED WHICH WILL SEND ITS ELEMENTS TO THE RECEIVING BUCKET.      */
   /*--------------------------------------------------------------------------*/
-  cexcPageindex = fragrecptr.p->getPageIndex(mergeSourceBucket);
+  Uint32 cexcPageindex = fragrecptr.p->getPageIndex(mergeSourceBucket);
   texpDirInd = fragrecptr.p->getPageNumber(mergeSourceBucket);
-  excPageptr.i = getPagePtr(fragrecptr.p->directory, texpDirInd);
+  Page8Ptr pageptr;
+  pageptr.i = getPagePtr(fragrecptr.p->directory, texpDirInd);
   fragrecptr.p->expSenderIndex = cexcPageindex;
-  fragrecptr.p->expSenderPageptr = excPageptr.i;
+  fragrecptr.p->expSenderPageptr = pageptr.i;
   fragrecptr.p->expSenderDirIndex = texpDirInd;
   /*--------------------------------------------------------------------------*/
   /*       WE NOW PROCEED BY FINDING THE NECESSARY INFORMATION ABOUT THE      */
@@ -5777,7 +5786,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
   fragrecptr.p->expReceivePageptr = getPagePtr(fragrecptr.p->directory, texpDirInd);
   fragrecptr.p->expReceiveIndex = fragrecptr.p->getPageIndex(mergeDestBucket);
   fragrecptr.p->expReceiveForward = ZTRUE;
-  if (excPageptr.i == RNIL) {
+  if (pageptr.i == RNIL) {
     jam();
     endofshrinkbucketLab(signal);	/* EMPTY BUCKET */
     return;
@@ -5785,98 +5794,98 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
   /*--------------------------------------------------------------------------*/
   /*       INITIALISE THE VARIABLES FOR THE SHRINK PROCESS.                   */
   /*--------------------------------------------------------------------------*/
-  ptrCheckGuard(excPageptr, cpagesize, page8);
-  cexcForward = ZTRUE;
-  cexcContainerptr = mul_ZBUF_SIZE(cexcPageindex);
-  cexcContainerptr = cexcContainerptr + ZHEAD_SIZE;
-  arrGuard(cexcContainerptr, 2048);
-  ContainerHeader containerhead = excPageptr.p->word32[cexcContainerptr];
-  cexcContainerlen = containerhead.getLength();
-  if (cexcContainerlen <= Container::HEADER_SIZE) {
-    ndbrequire(cexcContainerlen == Container::HEADER_SIZE);
+  ptrCheckGuard(pageptr, cpagesize, page8);
+  Uint32 isforward = ZTRUE;
+  Uint32 conptr = mul_ZBUF_SIZE(cexcPageindex);
+  conptr = conptr + ZHEAD_SIZE;
+  arrGuard(conptr, 2048);
+  ContainerHeader containerhead = pageptr.p->word32[conptr];
+  Uint32 conlen = containerhead.getLength();
+  if (conlen <= Container::HEADER_SIZE) {
+    ndbrequire(conlen == Container::HEADER_SIZE);
   } else {
     jam();
-    shrinkcontainer();
+    shrinkcontainer(pageptr, conptr, isforward, conlen);
   }//if
   /*--------------------------------------------------------------------------*/
   /*       THIS CONTAINER IS NOT YET EMPTY AND WE REMOVE ALL THE ELEMENTS.    */
   /*--------------------------------------------------------------------------*/
   if (containerhead.isUsingBothEnds()) {
     jam();
-    rlPageptr = excPageptr;
+    rlPageptr = pageptr;
     trlPageindex = cexcPageindex;
-    turlIndex = cexcContainerptr + (ZBUF_SIZE - Container::HEADER_SIZE);
+    turlIndex = conptr + (ZBUF_SIZE - Container::HEADER_SIZE);
     releaseRightlist();
   }//if
   ContainerHeader conthead;
   conthead.initInUse();
-  dbgWord32(excPageptr, cexcContainerptr, conthead);
-  arrGuard(cexcContainerptr, 2048);
-  excPageptr.p->word32[cexcContainerptr] = conthead;
+  dbgWord32(pageptr, conptr, conthead);
+  arrGuard(conptr, 2048);
+  pageptr.p->word32[conptr] = conthead;
   if (containerhead.getNextEnd() == 0) {
     jam();
     endofshrinkbucketLab(signal);
     return;
   }//if
-  nextcontainerinfo(excPageptr,
-                    cexcContainerptr,
+  nextcontainerinfo(pageptr,
+                    conptr,
                     containerhead,
                     cexcPageindex,
-                    cexcForward);
+                    isforward);
   do {
-    cexcContainerptr = mul_ZBUF_SIZE(cexcPageindex);
-    if (cexcForward == ZTRUE) {
+    conptr = mul_ZBUF_SIZE(cexcPageindex);
+    if (isforward == ZTRUE) {
       jam();
-      cexcContainerptr = cexcContainerptr + ZHEAD_SIZE;
+      conptr = conptr + ZHEAD_SIZE;
     } else {
       jam();
-      cexcContainerptr = ((cexcContainerptr + ZHEAD_SIZE) + ZBUF_SIZE) - Container::HEADER_SIZE;
+      conptr = ((conptr + ZHEAD_SIZE) + ZBUF_SIZE) - Container::HEADER_SIZE;
     }//if
-    arrGuard(cexcContainerptr, 2048);
-    containerhead = excPageptr.p->word32[cexcContainerptr];
-    cexcContainerlen = containerhead.getLength();
-    ndbrequire(cexcContainerlen > Container::HEADER_SIZE);
+    arrGuard(conptr, 2048);
+    containerhead = pageptr.p->word32[conptr];
+    conlen = containerhead.getLength();
+    ndbrequire(conlen > Container::HEADER_SIZE);
     /*--------------------------------------------------------------------------*/
     /*       THIS CONTAINER IS NOT YET EMPTY AND WE REMOVE ALL THE ELEMENTS.    */
     /*--------------------------------------------------------------------------*/
-    shrinkcontainer();
-    cexcPrevpageptr = excPageptr.i;
-    cexcPrevpageindex = cexcPageindex;
-    cexcPrevforward = cexcForward;
+    shrinkcontainer(pageptr, conptr, isforward, conlen);
+    const Uint32 prevPageptr = pageptr.i;
+    const Uint32 cexcPrevpageindex = cexcPageindex;
+    const Uint32 cexcPrevforward = isforward;
     if (containerhead.getNextEnd() != 0) {
       jam();
       /*--------------------------------------------------------------------------*/
       /*       WE MUST CALL THE NEXT CONTAINER INFO ROUTINE BEFORE WE RELEASE THE */
       /*       CONTAINER SINCE THE RELEASE WILL OVERWRITE THE NEXT POINTER.       */
       /*--------------------------------------------------------------------------*/
-      nextcontainerinfo(excPageptr,
-                        cexcContainerptr,
+      nextcontainerinfo(pageptr,
+                        conptr,
                         containerhead,
                         cexcPageindex,
-                        cexcForward);
+                        isforward);
     }//if
-    rlPageptr.i = cexcPrevpageptr;
+    rlPageptr.i = prevPageptr;
     ptrCheckGuard(rlPageptr, cpagesize, page8);
     trlPageindex = cexcPrevpageindex;
     if (cexcPrevforward == ZTRUE) {
       jam();
       if (containerhead.isUsingBothEnds()) {
         jam();
-        turlIndex = cexcContainerptr + (ZBUF_SIZE - Container::HEADER_SIZE);
+        turlIndex = conptr + (ZBUF_SIZE - Container::HEADER_SIZE);
         releaseRightlist();
       }//if
-      ndbrequire(ContainerHeader(rlPageptr.p->word32[cexcContainerptr]).isInUse());
-      tullIndex = cexcContainerptr;
+      ndbrequire(ContainerHeader(rlPageptr.p->word32[conptr]).isInUse());
+      tullIndex = conptr;
       releaseLeftlist();
     } else {
       jam();
       if (containerhead.isUsingBothEnds()) {
         jam();
-        tullIndex = cexcContainerptr - (ZBUF_SIZE - Container::HEADER_SIZE);
+        tullIndex = conptr - (ZBUF_SIZE - Container::HEADER_SIZE);
         releaseLeftlist();
       }//if
-      ndbrequire(ContainerHeader(rlPageptr.p->word32[cexcContainerptr]).isInUse());
-      turlIndex = cexcContainerptr;
+      ndbrequire(ContainerHeader(rlPageptr.p->word32[conptr]).isInUse());
+      turlIndex = conptr;
       releaseRightlist();
     }//if
   } while (containerhead.getNextEnd() != 0);
@@ -6076,7 +6085,10 @@ Dbacc::shrink_adjust_reduced_hash_value(Uint32 bucket_number)
   return;
 }//Dbacc::shrink_adjust_reduced_hash_value()
 
-void Dbacc::shrinkcontainer()
+void Dbacc::shrinkcontainer(Page8Ptr pageptr,
+                            Uint32 conptr,
+                            Uint32 isforward,
+                            Uint32 conlen)
 {
   Uint32 tshrElementptr;
   Uint32 tshrRemLen;
@@ -6090,14 +6102,14 @@ void Dbacc::shrinkcontainer()
   Uint32 tidrPageindex;
   Uint32 tidrElemhead;
 
-  tshrRemLen = cexcContainerlen - Container::HEADER_SIZE;
+  tshrRemLen = conlen - Container::HEADER_SIZE;
   tshrInc = fragrecptr.p->elementLength;
-  if (cexcForward == ZTRUE) {
+  if (isforward == ZTRUE) {
     jam();
-    tshrElementptr = cexcContainerptr + Container::HEADER_SIZE;
+    tshrElementptr = conptr + Container::HEADER_SIZE;
   } else {
     jam();
-    tshrElementptr = cexcContainerptr - 1;
+    tshrElementptr = conptr - 1;
   }//if
  SHR_LOOP:
   idrOperationRecPtr.i = RNIL;
@@ -6108,7 +6120,7 @@ void Dbacc::shrinkcontainer()
   /*       INTO ANOTHER BUCKET.                                                        */
   /* --------------------------------------------------------------------------------- */
   arrGuard(tshrElementptr, 2048);
-  tidrElemhead = excPageptr.p->word32[tshrElementptr];
+  tidrElemhead = pageptr.p->word32[tshrElementptr];
   if (ElementHeader::getLocked(tidrElemhead)) {
     jam();
     /* --------------------------------------------------------------------------------- */
@@ -6126,13 +6138,13 @@ void Dbacc::shrinkcontainer()
     reducedHashValue.shift_in(true);
     tidrElemhead = ElementHeader::setReducedHashValue(tidrElemhead, reducedHashValue);
   }
-  tshrTmp = tshrElementptr + cexcForward;
+  tshrTmp = tshrElementptr + isforward;
   guard21 = fragrecptr.p->localkeylen - 1;
   for (tshrIndex = 0; tshrIndex <= guard21; tshrIndex++) {
     arrGuard(tshrIndex, 2);
     arrGuard(tshrTmp, 2048);
-    clocalkey[tshrIndex] = excPageptr.p->word32[tshrTmp];
-    tshrTmp = tshrTmp + cexcForward;
+    clocalkey[tshrIndex] = pageptr.p->word32[tshrTmp];
+    tshrTmp = tshrTmp + isforward;
   }//for
   tidrPageindex = fragrecptr.p->expReceiveIndex;
   idrPageptr.i = fragrecptr.p->expReceivePageptr;
