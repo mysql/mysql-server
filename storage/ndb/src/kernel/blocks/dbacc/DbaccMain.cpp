@@ -2644,6 +2644,7 @@ void Dbacc::insertElement()
   } while (1);
   gflPageptr.p = idrPageptr.p;
   getfreelist();
+  bool nextOnSamePage;
   if (tgflPageindex == Container::NO_CONTAINER_INDEX) {
     jam();
     /* NO FREE BUFFER IS FOUND */
@@ -2660,11 +2661,11 @@ void Dbacc::insertElement()
     gflPageptr.p = inrNewPageptr.p;
     getfreelist();
     ndbrequire(tgflPageindex != Container::NO_CONTAINER_INDEX);
-    tancNext = 0;
+    nextOnSamePage = false;
   } else {
     jam();
     inrNewPageptr = idrPageptr;
-    tancNext = 1;
+    nextOnSamePage = true;
   }//if
   tslPageindex = tgflPageindex;
   slPageptr = inrNewPageptr;
@@ -2681,12 +2682,8 @@ void Dbacc::insertElement()
   ContainerHeader containerhead;
   containerhead.initInUse();
   inrNewPageptr.p->word32[containerptr] = containerhead;
-  tancPageindex = tgflPageindex;
-  tancPagei = inrNewPageptr.i;
-  tancBufType = tgflBufType;
-  tancContainerptr = tidrContainerptr;
-  ancPageptr.p = idrPageptr.p;
-  addnewcontainer();
+  addnewcontainer(idrPageptr, tidrContainerptr, tgflPageindex,
+    tgflBufType, nextOnSamePage, inrNewPageptr.i);
 
   idrPageptr = inrNewPageptr;
   tidrPageindex = tgflPageindex;
@@ -2852,34 +2849,30 @@ void Dbacc::insertContainer(ContainerHeader& containerhead)
   tidrResult = ZTRUE;
 }//Dbacc::insertContainer()
 
-/* --------------------------------------------------------------------------------- */
-/* ADDNEWCONTAINER                                                                   */
-/*       INPUT:                                                                      */
-/*               TANC_CONTAINERPTR                                                   */
-/*               ANC_PAGEPTR                                                         */
-/*               TANC_NEXT                                                           */
-/*               TANC_PAGEINDEX                                                      */
-/*               TANC_BUF_TYPE                                                       */
-/*               TANC_PAGEI                                                         */
-/*       OUTPUT:                                                                     */
-/*               NONE                                                                */
-/*                                                                                   */
-/* --------------------------------------------------------------------------------- */
-void Dbacc::addnewcontainer() const
+/** ---------------------------------------------------------------------------
+ * Set next link of a container to reference to next container.
+ *
+ * @param[in]  pageptr       Pointer to page of container to modify.
+ * @param[in]  conptr        Pointer within page of container to modify.
+ * @param[in]  nextConidx    Index within page of next container.
+ * @param[in]  nextContype   Type of next container, left or right end.
+ * @param[in]  nextSamepage  True if next container is on same page as modified
+ *                           container
+ * @param[in]  nextPagei     Overflow page number of next container.
+ * ------------------------------------------------------------------------- */
+void Dbacc::addnewcontainer(Page8Ptr pageptr,
+                            Uint32 conptr,
+                            Uint32 nextConidx,
+                            Uint32 nextContype,
+                            bool nextSamepage,
+                            Uint32 nextPagei) const
 {
-  /* --------------------------------------------------------------------------------- */
-  /*       KEEP LENGTH INFORMATION IN BIT 26-31.                                       */
-  /*       SET BIT 9  INDICATING IF NEXT BUFFER IN THE SAME PAGE USING TANC_NEXT.      */
-  /*       SET TYPE OF NEXT CONTAINER IN BIT 7-8.                                      */
-  /*       SET PAGE INDEX OF NEXT CONTAINER IN BIT 0-6.                                */
-  /*       KEEP INDICATOR OF OWNING OTHER SIDE OF BUFFER IN BIT 10.                    */
-  /* --------------------------------------------------------------------------------- */
-  ContainerHeader containerhead(ancPageptr.p->word32[tancContainerptr]);
-  containerhead.setNext(tancBufType, tancPageindex, tancNext);
-  dbgWord32(ancPageptr, tancContainerptr, containerhead);
-  ancPageptr.p->word32[tancContainerptr] = containerhead;	/* HEAD OF THE CONTAINER IS UPDATED */
-  dbgWord32(ancPageptr, tancContainerptr + 1, tancPagei);
-  ancPageptr.p->word32[tancContainerptr + 1] = tancPagei;
+  ContainerHeader containerhead(pageptr.p->word32[conptr]);
+  containerhead.setNext(nextContype, nextConidx, nextSamepage);
+  dbgWord32(pageptr, conptr, containerhead);
+  pageptr.p->word32[conptr] = containerhead;
+  dbgWord32(pageptr, conptr + 1, nextPagei);
+  pageptr.p->word32[conptr + 1] = nextPagei;
 }//Dbacc::addnewcontainer()
 
 /* --------------------------------------------------------------------------------- */
@@ -3419,9 +3412,10 @@ void Dbacc::commitdelete(Signal* signal)
   tlastPrevconptr = 0;
   getLastAndRemove(containerhead);
 
+  Page8Ptr delPageptr;
   delPageptr.i = operationRecPtr.p->elementPage;
   ptrCheckGuard(delPageptr, cpagesize, page8);
-  tdelElementptr = operationRecPtr.p->elementPointer;
+  const Uint32 delElemptr = operationRecPtr.p->elementPointer;
   /* --------------------------------------------------------------------------------- */
   // Here we have to take extreme care since we do not want locks to end up after the
   // log execution. Thus it is necessary to put back the element in unlocked shape.
@@ -3429,7 +3423,7 @@ void Dbacc::commitdelete(Signal* signal)
   // need to restore it later since it is deleted immediately anyway.
   /* --------------------------------------------------------------------------------- */
   const Uint32 eh = ElementHeader::setUnlocked(0, LHBits16());
-  delPageptr.p->word32[tdelElementptr] = eh;
+  delPageptr.p->word32[delElemptr] = eh;
   if (operationRecPtr.p->elementPage == lastPageptr.i) {
     if (operationRecPtr.p->elementPointer == tlastElementptr) {
       jam();
@@ -3443,25 +3437,33 @@ void Dbacc::commitdelete(Signal* signal)
   /*  THE DELETED ELEMENT IS NOT THE LAST. WE READ THE LAST ELEMENT AND OVERWRITE THE  */
   /*  DELETED ELEMENT.                                                                 */
   /* --------------------------------------------------------------------------------- */
-  tdelContainerptr = operationRecPtr.p->elementContainer;
-  tdelForward = operationRecPtr.p->elementIsforward;
-  deleteElement();
+  const Uint32 delConptr = operationRecPtr.p->elementContainer;
+  const Uint32 delForward = operationRecPtr.p->elementIsforward;
+  deleteElement(delPageptr, delConptr, delForward,
+      delElemptr, lastPageptr, tlastForward, tlastElementptr);
 }//Dbacc::commitdelete()
 
-/* --------------------------------------------------------------------------------- */
-/* DELETE_ELEMENT                                                                    */
-/*        INPUT: FRAGRECPTR, POINTER TO A FRAGMENT RECORD                            */
-/*               LAST_PAGEPTR, POINTER TO THE PAGE OF THE LAST ELEMENT               */
-/*               DEL_PAGEPTR, POINTER TO THE PAGE OF THE DELETED ELEMENT             */
-/*               TLAST_ELEMENTPTR, ELEMENT POINTER OF THE LAST ELEMENT               */
-/*               TDEL_ELEMENTPTR, ELEMENT POINTER OF THE DELETED ELEMENT             */
-/*               TLAST_FORWARD, DIRECTION OF LAST ELEMENT                            */
-/*               TDEL_FORWARD, DIRECTION OF DELETED ELEMENT                          */
-/*               TDEL_CONTAINERPTR, CONTAINER POINTER OF DELETED ELEMENT             */
-/*        DESCRIPTION: COPY LAST ELEMENT TO DELETED ELEMENT AND UPDATE UNDO LOG AND  */
-/*                     UPDATE ANY ACTIVE OPERATION ON THE MOVED ELEMENT.             */
-/* --------------------------------------------------------------------------------- */
-void Dbacc::deleteElement() const
+/** --------------------------------------------------------------------------
+ * Move last element over deleted element.
+ *
+ * And if moved element has an operation record update that with new element
+ * location.
+ *
+ * @param[in]  delPageptr   Pointer to page of deleted element.
+ * @param[in]  delConptr    Pointer within page to container of deleted element
+ * @param[in]  delForward   Growing direction of container of deleted element.
+ * @param[in]  delElemptr   Pointer within page to deleted element.
+ * @param[in]  lastPageptr  Pointer to page of last element.
+ * @param[in]  lastForward  Word order for element.
+ * @param[in]  lastElemptr  Pointer within page to last element.
+ * ------------------------------------------------------------------------- */
+void Dbacc::deleteElement(Page8Ptr delPageptr,
+                          Uint32 delConptr,
+                          Uint32 delForward,
+                          Uint32 delElemptr,
+                          Page8Ptr lastPageptr,
+                          Uint32 lastForward,
+                          Uint32 lastElemptr) const
 {
   OperationrecPtr deOperationRecPtr;
   Uint32 tdeIndex;
@@ -3469,12 +3471,12 @@ void Dbacc::deleteElement() const
   Uint32 tdelMoveElemptr;
   Uint32 guard31;
 
-  if (tlastElementptr >= 2048)
+  if (lastElemptr >= 2048)
     goto deleteElement_index_error1;
   {
-    const Uint32 tdeElemhead = lastPageptr.p->word32[tlastElementptr];
-    tlastMoveElemptr = tlastElementptr;
-    tdelMoveElemptr = tdelElementptr;
+    const Uint32 tdeElemhead = lastPageptr.p->word32[lastElemptr];
+    tlastMoveElemptr = lastElemptr;
+    tdelMoveElemptr = delElemptr;
     guard31 = fragrecptr.p->elementLength - 1;
     for (tdeIndex = 0; tdeIndex <= guard31; tdeIndex++) {
       dbgWord32(delPageptr, tdelMoveElemptr, lastPageptr.p->word32[tlastMoveElemptr]);
@@ -3482,8 +3484,8 @@ void Dbacc::deleteElement() const
 	  (tdelMoveElemptr >= 2048))
 	goto deleteElement_index_error2;
       delPageptr.p->word32[tdelMoveElemptr] = lastPageptr.p->word32[tlastMoveElemptr];
-      tdelMoveElemptr = tdelMoveElemptr + tdelForward;
-      tlastMoveElemptr = tlastMoveElemptr + tlastForward;
+      tdelMoveElemptr = tdelMoveElemptr + delForward;
+      tlastMoveElemptr = tlastMoveElemptr + lastForward;
     }//for
     if (ElementHeader::getLocked(tdeElemhead)) {
       /* --------------------------------------------------------------------------------- */
@@ -3493,22 +3495,22 @@ void Dbacc::deleteElement() const
       deOperationRecPtr.i = ElementHeader::getOpPtrI(tdeElemhead);
       ptrCheckGuard(deOperationRecPtr, coprecsize, operationrec);
       deOperationRecPtr.p->elementPage = delPageptr.i;
-      deOperationRecPtr.p->elementContainer = tdelContainerptr;
-      deOperationRecPtr.p->elementPointer = tdelElementptr;
-      deOperationRecPtr.p->elementIsforward = tdelForward;
+      deOperationRecPtr.p->elementContainer = delConptr;
+      deOperationRecPtr.p->elementPointer = delElemptr;
+      deOperationRecPtr.p->elementIsforward = delForward;
       /* --------------------------------------------------------------------------------- */
       // We need to take extreme care to not install locked records after system restart.
       // An undo of the delete will reinstall the moved record. We have to ensure that the
       // lock is removed to ensure that no such thing happen.
       /* --------------------------------------------------------------------------------- */
       Uint32 eh = ElementHeader::setUnlocked(0, LHBits16());
-      lastPageptr.p->word32[tlastElementptr] = eh;
+      lastPageptr.p->word32[lastElemptr] = eh;
     }//if
     return;
   }
 
  deleteElement_index_error1:
-  arrGuard(tlastElementptr, 2048);
+  arrGuard(lastElemptr, 2048);
   return;
 
  deleteElement_index_error2:
@@ -5407,11 +5409,12 @@ void Dbacc::expandcontainer()
     /* --------------------------------------------------------------------------------- */
     /*       THE LAST ELEMENT IS NOT TO BE MOVED. WE COPY IT TO THE CURRENT ELEMENT.     */
     /* --------------------------------------------------------------------------------- */
-    delPageptr = excPageptr;
-    tdelContainerptr = cexcContainerptr;
-    tdelForward = cexcForward;
-    tdelElementptr = cexcElementptr;
-    deleteElement();
+    const Page8Ptr delPageptr = excPageptr;
+    const Uint32 delConptr = cexcContainerptr;
+    const Uint32 delForward = cexcForward;
+    const Uint32 delElemptr = cexcElementptr;
+    deleteElement(delPageptr, delConptr, delForward,
+      delElemptr, lastPageptr, tlastForward, tlastElementptr);
   } else {
     jam();
     /* --------------------------------------------------------------------------------- */
@@ -6404,19 +6407,12 @@ void Dbacc::checkNextBucketLab(Signal* signal)
   nsPageptr.i = gsePageidptr.i;
   nsPageptr.p = gsePageidptr.p;
   seizeOpRec();
-  tisoIsforward = tgseIsforward;
-  tisoContainerptr = tnsContainerptr;
-  tisoElementptr = tnsElementptr;
-  isoPageptr.i = nsPageptr.i;
-  isoPageptr.p = nsPageptr.p;
-  initScanOpRec();
+  initScanOpRec(nsPageptr, tnsContainerptr, tgseIsforward, tnsElementptr);
  
   if (!tnsIsLocked){
     if (!scanPtr.p->scanReadCommittedFlag) {
       jam();
-      slPageidptr = nsPageptr;
-      tslElementptr = tnsElementptr;
-      setlock();
+      setlock(nsPageptr, tnsElementptr);
       insertLockOwnersList(operationRecPtr);
       operationRecPtr.p->m_op_bits |= 
 	Operationrec::OP_STATE_RUNNING | Operationrec::OP_RUN_QUEUE;
@@ -6885,7 +6881,8 @@ bool Dbacc::getScanElement()
 /* --------------------------------------------------------------------------------- */
 /*  INIT_SCAN_OP_REC                                                                 */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::initScanOpRec() const
+void Dbacc::initScanOpRec(Page8Ptr pageptr, Uint32 conptr,
+    Uint32 forward, Uint32 elemptr) const
 {
   Uint32 tisoLocalPtr;
   Uint32 localkeylen = fragrecptr.p->localkeylen;
@@ -6909,16 +6906,16 @@ void Dbacc::initScanOpRec() const
   operationRecPtr.p->prevSerialQue = RNIL;
   operationRecPtr.p->transId1 = scanPtr.p->scanTrid1;
   operationRecPtr.p->transId2 = scanPtr.p->scanTrid2;
-  operationRecPtr.p->elementIsforward = tisoIsforward;
-  operationRecPtr.p->elementContainer = tisoContainerptr;
-  operationRecPtr.p->elementPointer = tisoElementptr;
-  operationRecPtr.p->elementPage = isoPageptr.i;
+  operationRecPtr.p->elementIsforward = forward;
+  operationRecPtr.p->elementContainer = conptr;
+  operationRecPtr.p->elementPointer = elemptr;
+  operationRecPtr.p->elementPage = pageptr.i;
   operationRecPtr.p->m_op_bits = opbits;
-  tisoLocalPtr = tisoElementptr + tisoIsforward;
+  tisoLocalPtr = elemptr + forward;
 
   arrGuard(tisoLocalPtr, 2048);
-  Uint32 Tkey1 = isoPageptr.p->word32[tisoLocalPtr];
-  tisoLocalPtr = tisoLocalPtr + tisoIsforward;
+  Uint32 Tkey1 = pageptr.p->word32[tisoLocalPtr];
+  tisoLocalPtr = tisoLocalPtr + forward;
   if (localkeylen == 1)
   {
     operationRecPtr.p->localdata[0] = Local_key::ref2page_id(Tkey1);
@@ -6928,7 +6925,7 @@ void Dbacc::initScanOpRec() const
   {
     arrGuard(tisoLocalPtr, 2048);
     operationRecPtr.p->localdata[0] = Tkey1;
-    operationRecPtr.p->localdata[1] = isoPageptr.p->word32[tisoLocalPtr];
+    operationRecPtr.p->localdata[1] = pageptr.p->word32[tisoLocalPtr];
   }
   operationRecPtr.p->hashValue.clear();
   operationRecPtr.p->tupkeylen = fragrecptr.p->keyLength;
@@ -7064,13 +7061,13 @@ void Dbacc::putReadyScanQueue(Uint32 scanRecIndex) const
   }//if
 }//Dbacc::putReadyScanQueue()
 
-/* --------------------------------------------------------------------------------- */
-/* RELEASE_SCAN_BUCKET                                                               */
-// Input:
-//   rsbPageidptr.i     Index to page where buckets starts
-//   rsbPageidptr.p     Pointer to page where bucket starts
-//   trsbPageindex      Page index of starting container in bucket
-/* --------------------------------------------------------------------------------- */
+/** ---------------------------------------------------------------------------
+ * RELEASE_SCAN_BUCKET
+ * Input:
+ *   rsbPageidptr.i     Index to page where buckets starts
+ *   rsbPageidptr.p     Pointer to page where bucket starts
+ *   trsbPageindex      Page index of starting container in bucket
+ * ------------------------------------------------------------------------- */
 void Dbacc::releaseScanBucket()
 {
   ContainerHeader containerhead;
@@ -7083,12 +7080,10 @@ void Dbacc::releaseScanBucket()
   tciPageindex = trsbPageindex;
   tciIsforward = trsbIsforward;
   containerinfo(containerhead);
-  rscPageidptr.i = rsbPageidptr.i;
-  rscPageidptr.p = rsbPageidptr.p;
-  trscContainerlen = tciContainerlen;
-  trscContainerptr = tciContainerptr;
-  trscIsforward = trsbIsforward;
-  releaseScanContainer();
+  releaseScanContainer(rsbPageidptr,
+                       tciContainerptr,
+                       trsbIsforward,
+                       tciContainerlen);
   if (containerhead.getNextEnd() != 0) {
     jam();
     nciPageidptr.i = rsbPageidptr.i;
@@ -7103,18 +7098,17 @@ void Dbacc::releaseScanBucket()
   }//if
 }//Dbacc::releaseScanBucket()
 
-/* --------------------------------------------------------------------------------- */
-/*  RELEASE_SCAN_CONTAINER                                                           */
-/*       INPUT:           TRSC_CONTAINERLEN                                          */
-/*                        RSC_PAGEIDPTR                                              */
-/*                        TRSC_CONTAINERPTR                                          */
-/*                        TRSC_ISFORWARD                                             */
-/*                        SCAN_PTR                                                   */
-/*                                                                                   */
-/*            DESCRIPTION: SEARCHS IN A CONTAINER, AND THE SCAN BIT OF THE ELEMENTS  */
-/*                            OF THE CONTAINER IS RESET                              */
-/* --------------------------------------------------------------------------------- */
-void Dbacc::releaseScanContainer() const
+/** --------------------------------------------------------------------------
+ * Reset scan bit of the element for each element in a container.
+ * Which scan bit are determined by scanPtr.
+ *
+ * @param[in]  pageptr  Pointer to page holding container.
+ * @param[in]  conptr   Pointer within page to container.
+ * @param[in]  forward  Container growing direction.
+ * @param[in]  conlen   Containers current size.
+ * ------------------------------------------------------------------------- */
+void Dbacc::releaseScanContainer(Page8Ptr pageptr, Uint32 conptr,
+    Uint32 forward, Uint32 conlen) const
 {
   OperationrecPtr rscOperPtr;
   Uint32 trscElemStep;
@@ -7122,33 +7116,33 @@ void Dbacc::releaseScanContainer() const
   Uint32 trscElemlens;
   Uint32 trscElemlen;
 
-  if (trscContainerlen < 4) {
-    if (trscContainerlen != Container::HEADER_SIZE) {
+  if (conlen < 4) {
+    if (conlen != Container::HEADER_SIZE) {
       jam();
       sendSystemerror(__LINE__);
     }//if
     return;	/* 2 IS THE MINIMUM SIZE OF THE ELEMENT */
   }//if
-  trscElemlens = trscContainerlen - Container::HEADER_SIZE;
+  trscElemlens = conlen - Container::HEADER_SIZE;
   trscElemlen = fragrecptr.p->elementLength;
-  if (trscIsforward == 1) {
+  if (forward == 1) {
     jam();
-    trscElementptr = trscContainerptr + Container::HEADER_SIZE;
+    trscElementptr = conptr + Container::HEADER_SIZE;
     trscElemStep = trscElemlen;
   } else {
     jam();
-    trscElementptr = trscContainerptr - 1;
+    trscElementptr = conptr - 1;
     trscElemStep = 0 - trscElemlen;
   }//if
   do {
     arrGuard(trscElementptr, 2048);
-    const Uint32 eh = rscPageidptr.p->word32[trscElementptr];
+    const Uint32 eh = pageptr.p->word32[trscElementptr];
     const Uint32 scanMask = scanPtr.p->scanMask;
     if (ElementHeader::getUnlocked(eh)) {
       jam();
       const Uint32 tmp = ElementHeader::clearScanBit(eh, scanMask);
-      dbgWord32(rscPageidptr, trscElementptr, tmp);
-      rscPageidptr.p->word32[trscElementptr] = tmp;
+      dbgWord32(pageptr, trscElementptr, tmp);
+      pageptr.p->word32[trscElementptr] = tmp;
     } else {
       jam();
       rscOperPtr.i = ElementHeader::getOpPtrI(eh);
@@ -7296,25 +7290,28 @@ void Dbacc::sendNextScanConf(Signal* signal)
   return;
 }//Dbacc::sendNextScanConf()
 
-/* --------------------------------------------------------------------------------- */
-/* SETLOCK                                                                           */
-/*          DESCRIPTION:SETS LOCK ON AN ELEMENT. INFORMATION ABOUT THE ELEMENT IS    */
-/*                      SAVED IN THE ELEMENT HEAD.A COPY OF THIS INFORMATION WILL    */
-/*                       BE PUT IN THE OPERATION RECORD. A FIELD IN THE  HEADER OF   */
-/*                       THE ELEMENT POINTS TO THE OPERATION RECORD.                 */
-/* --------------------------------------------------------------------------------- */
-void Dbacc::setlock() const
+/** ---------------------------------------------------------------------------
+ * Sets lock on an element.
+ *
+ * Information about the element is copied from element head into operation
+ * record.  A pointer to operation record are inserted in element header
+ * instead.
+ *
+ * @param[in]  pageptr  Pointer to page holding element.
+ * @param[in]  elemptr  Pointer within page to element.
+ * ------------------------------------------------------------------------- */
+void Dbacc::setlock(Page8Ptr pageptr, Uint32 elemptr) const
 {
   Uint32 tselTmp1;
 
-  arrGuard(tslElementptr, 2048);
-  tselTmp1 = slPageidptr.p->word32[tslElementptr];
+  arrGuard(elemptr, 2048);
+  tselTmp1 = pageptr.p->word32[elemptr];
   operationRecPtr.p->scanBits = ElementHeader::getScanBits(tselTmp1);
   operationRecPtr.p->reducedHashValue = ElementHeader::getReducedHashValue(tselTmp1);
 
   tselTmp1 = ElementHeader::setLocked(operationRecPtr.i);
-  dbgWord32(slPageidptr, tslElementptr, tselTmp1);
-  slPageidptr.p->word32[tslElementptr] = tselTmp1;
+  dbgWord32(pageptr, elemptr, tselTmp1);
+  pageptr.p->word32[elemptr] = tselTmp1;
 }//Dbacc::setlock()
 
 /* --------------------------------------------------------------------------------- */

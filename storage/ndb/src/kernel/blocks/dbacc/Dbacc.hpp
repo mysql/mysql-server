@@ -776,23 +776,27 @@ private:
   void releaseAndAbortLockedOps(Signal* signal);
   void containerinfo(ContainerHeader& containerhead);
   bool getScanElement();
-  void initScanOpRec() const;
+  void initScanOpRec(Page8Ptr pageptr, Uint32 conptr,
+      Uint32 forward, Uint32 elemptr) const;
   void nextcontainerinfo(ContainerHeader const containerhead);
   void putActiveScanOp() const;
   void putOpScanLockQue() const;
   void putReadyScanQueue(Uint32 scanRecIndex) const;
   void releaseScanBucket();
-  void releaseScanContainer() const;
+  void releaseScanContainer(Page8Ptr pageptr, Uint32 conptr,
+      Uint32 forward, Uint32 conlen) const;
   void releaseScanRec();
   bool searchScanContainer();
   void sendNextScanConf(Signal* signal);
-  void setlock() const;
+  void setlock(Page8Ptr pageptr, Uint32 elemptr) const;
   void takeOutActiveScanOp() const;
   void takeOutScanLockQueue(Uint32 scanRecIndex) const;
   void takeOutReadyScanQueue() const;
   void insertElement();
   void insertContainer(ContainerHeader& containerhead);
-  void addnewcontainer() const;
+  void addnewcontainer(Page8Ptr pageptr, Uint32 conptr,
+    Uint32 nextConidx, Uint32 nextContype, bool nextSamepage,
+    Uint32 nextPagei) const;
   void getfreelist();
   void increaselistcont();
   void seizeLeftlist();
@@ -808,7 +812,9 @@ private:
   Uint32 unsetPagePtr(DynArr256::Head& directory, Uint32 index);
   void getdirindex();
   void commitdelete(Signal* signal);
-  void deleteElement() const;
+  void deleteElement(Page8Ptr delPageptr, Uint32 delConptr,
+      Uint32 delForward, Uint32 delElemptr, Page8Ptr lastPageptr,
+      Uint32 lastForward, Uint32 lastElemptr) const;
   void getLastAndRemove(ContainerHeader& containerhead);
   void releaseLeftlist();
   void releaseRightlist();
@@ -925,9 +931,7 @@ private:
 /* --------------------------------------------------------------------------------- */
   Page8 *page8;
   /* 8 KB PAGE                       */
-  Page8Ptr ancPageptr;
   Page8Ptr colPageptr;
-  Page8Ptr delPageptr;
   Page8Ptr excPageptr;
   Page8Ptr expPageptr;
   Page8Ptr gdiPageptr;
@@ -941,11 +945,8 @@ private:
   Page8Ptr lastPrevpageptr;
   Page8Ptr ciPageidptr;
   Page8Ptr gsePageidptr;
-  Page8Ptr isoPageptr;
   Page8Ptr nciPageidptr;
   Page8Ptr rsbPageidptr;
-  Page8Ptr rscPageidptr;
-  Page8Ptr slPageidptr;
   Page8Ptr sscPageidptr;
   Page8Ptr rlPageptr;
   Page8Ptr ropPageptr;
@@ -984,11 +985,6 @@ private:
   Uint32 ctablesize;
   Uint32 tgseElementptr;
   Uint32 tgseContainerptr;
-  Uint32 tancNext;
-  Uint32 tancBufType;
-  Uint32 tancContainerptr;
-  Uint32 tancPageindex;
-  Uint32 tancPagei;
   Uint32 tidrResult;
   Uint32 tidrElemhead;
   Uint32 tidrForward;
@@ -1000,9 +996,6 @@ private:
   Uint32 tlastElementptr;
   Uint32 tlastContainerptr;
   Uint32 trlPageindex;
-  Uint32 tdelContainerptr;
-  Uint32 tdelElementptr;
-  Uint32 tdelForward;
   Uint32 tipPageId;
   Uint32 tgeContainerptr;
   Uint32 tgeElementptr;
@@ -1011,24 +1004,17 @@ private:
   Uint32 tdata0;
   Uint32 tciContainerptr;
   Uint32 tnciContainerptr;
-  Uint32 tisoContainerptr;
-  Uint32 trscContainerptr;
   Uint32 tsscContainerptr;
   Uint32 tciContainerlen;
-  Uint32 trscContainerlen;
   Uint32 tsscContainerlen;
-  Uint32 tslElementptr;
-  Uint32 tisoElementptr;
   Uint32 tsscElementptr;
   Uint32 tfid;
   Uint32 tscanFlag;
   Uint32 tgflBufType;
   Uint32 tgseIsforward;
   Uint32 tsscIsforward;
-  Uint32 trscIsforward;
   Uint32 tciIsforward;
   Uint32 tnciIsforward;
-  Uint32 tisoIsforward;
   Uint32 tgseIsLocked;
   Uint32 tsscIsLocked;
   Uint32 tmp;
