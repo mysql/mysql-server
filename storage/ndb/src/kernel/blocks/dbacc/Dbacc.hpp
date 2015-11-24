@@ -759,12 +759,6 @@ private:
   void releaseAndCommitActiveOps(Signal* signal);
   void releaseAndCommitQueuedOps(Signal* signal);
   void releaseAndAbortLockedOps(Signal* signal);
-  void containerinfo(Page8Ptr pageptr,
-                     Uint32 conidx,
-                     bool isforward,
-                     ContainerHeader& containerhead,
-                     Uint32& conptr,
-                     Uint32& conlen) const;
   Uint32 getContainerPtr(Uint32 index, bool isforward) const;
   Uint32 getForwardContainerPtr(Uint32 index) const;
   Uint32 getBackwardContainerPtr(Uint32 index) const;
