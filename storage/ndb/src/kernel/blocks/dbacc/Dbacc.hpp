@@ -535,7 +535,6 @@ public:
 struct Operationrec {
   Uint32 m_op_bits;
   Uint32 localdata[2];
-  Uint32 elementIsforward;
   Uint32 elementPage;
   Uint32 elementPointer;
   Uint32 fid;
@@ -788,8 +787,9 @@ private:
                       Uint32& isforward,
                       Uint32& elemptr,
                       Uint32& islocked) const;
-  void initScanOpRec(Page8Ptr pageptr, Uint32 conptr,
-      Uint32 forward, Uint32 elemptr) const;
+  void initScanOpRec(Page8Ptr pageptr,
+                     Uint32 conptr,
+                     Uint32 elemptr) const;
   void nextcontainerinfo(Page8Ptr& pageptr,
                          Uint32 conptr,
                          ContainerHeader containerhead,
@@ -839,11 +839,10 @@ private:
                     Uint32& bucketConidx,
                     Page8Ptr& elemPageptr,
                     Uint32& elemConptr,
-                    Uint32& elemForward,
                     Uint32& elemptr);
   LHBits32 getElementHash(OperationrecPtr& oprec);
-  LHBits32 getElementHash(Uint32 const* element, Int32 forward);
-  LHBits32 getElementHash(Uint32 const* element, Int32 forward, OperationrecPtr& oprec);
+  LHBits32 getElementHash(Uint32 const* element);
+  LHBits32 getElementHash(Uint32 const* element, OperationrecPtr& oprec);
   void shrink_adjust_reduced_hash_value(Uint32 bucket_number);
   Uint32 getPagePtr(DynArr256::Head&, Uint32);
   bool setPagePtr(DynArr256::Head& directory, Uint32 index, Uint32 ptri);
@@ -851,8 +850,7 @@ private:
   void getdirindex(Page8Ptr& pageptr, Uint32& conidx);
   void commitdelete(Signal* signal);
   void deleteElement(Page8Ptr delPageptr, Uint32 delConptr,
-      Uint32 delForward, Uint32 delElemptr, Page8Ptr lastPageptr,
-      Uint32 lastForward, Uint32 lastElemptr) const;
+      Uint32 delElemptr, Page8Ptr lastPageptr, Uint32 lastElemptr) const;
   void getLastAndRemove(Page8Ptr tlastPrevpageptr, Uint32 tlastPrevconptr,
      Page8Ptr& lastPageptr, Uint32& tlastPageindex, Uint32& tlastContainerptr,
      Uint32& tlastForward, Uint32& tlastElementptr);
