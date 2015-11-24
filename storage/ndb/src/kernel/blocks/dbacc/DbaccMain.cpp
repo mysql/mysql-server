@@ -3394,6 +3394,14 @@ Dbacc::report_dealloc(Signal* signal, const Operationrec* opPtrP)
 
 void Dbacc::commitdelete(Signal* signal)
 {
+  Page8Ptr lastPageptr;
+  Page8Ptr lastPrevpageptr;
+  Uint32 tlastForward;
+  Uint32 tlastPageindex;
+  Uint32 tlastElementptr;
+  Uint32 tlastContainerptr;
+  Uint32 tlastPrevconptr;
+
   jam();
   report_dealloc(signal, operationRecPtr.p);
   
@@ -3405,12 +3413,16 @@ void Dbacc::commitdelete(Signal* signal)
   tlastContainerptr = mul_ZBUF_SIZE(tlastPageindex);
   tlastContainerptr = tlastContainerptr + ZHEAD_SIZE;
   arrGuard(tlastContainerptr, 2048);
-  ContainerHeader containerhead(lastPageptr.p->word32[tlastContainerptr]);
-  tlastContainerlen = containerhead.getLength();
   lastPrevpageptr.i = RNIL;
   ptrNull(lastPrevpageptr);
   tlastPrevconptr = 0;
-  getLastAndRemove(containerhead);
+  getLastAndRemove(lastPrevpageptr,
+                   tlastPrevconptr,
+                   lastPageptr,
+                   tlastPageindex,
+                   tlastContainerptr,
+                   tlastForward,
+                   tlastElementptr);
 
   Page8Ptr delPageptr;
   delPageptr.i = operationRecPtr.p->elementPage;
@@ -3520,25 +3532,36 @@ void Dbacc::deleteElement(Page8Ptr delPageptr,
 
 }//Dbacc::deleteElement()
 
-/* --------------------------------------------------------------------------------- */
-/* GET_LAST_AND_REMOVE                                                               */
-/*        INPUT:                                                                     */
-/*               LAST_PAGEPTR       PAGE POINTER OF FIRST CONTAINER IN SEARCH OF LAST*/
-/*               TLAST_CONTAINERPTR CONTAINER INDEX OF THE SAME                      */
-/*               TLAST_CONTAINERHEAD CONTAINER HEADER OF THE SAME                    */
-/*               TLAST_PAGEINDEX    PAGE INDEX OF THE SAME                           */
-/*               TLAST_FORWARD      CONTAINER DIRECTION OF THE SAME                  */
-/*               TLAST_CONTAINERLEN CONTAINER LENGTH OF THE SAME                     */
-/*               LAST_PREVPAGEPTR   PAGE POINTER OF PREVIOUS CONTAINER OF THE SAME   */
-/*               TLAST_PREVCONPTR   CONTAINER INDEX OF PREVIOUS CONTAINER OF THE SAME*/
-/*                                                                                   */
-/*       OUTPUT:                                                                     */
-/*               ALL VARIABLES FROM INPUT BUT NOW CONTAINING INFO ABOUT LAST         */
-/*               CONTAINER.                                                          */
-/*               TLAST_ELEMENTPTR   LAST ELEMENT POINTER IN LAST CONTAINER           */
-/* --------------------------------------------------------------------------------- */
-void Dbacc::getLastAndRemove(ContainerHeader& containerhead)
+/** ---------------------------------------------------------------------------
+ * Find last element in bucket.
+ *
+ * Shrink container of last element, but keep element words intact.  If
+ * container became empty and is not the first container in bucket, unlink it
+ * from previous container.
+ * 
+ * @param[in]      lastPrevpageptr    Page of previous container, if any.
+ * @param[in]      tlastPrevconptr    Pointer within page of previous container
+ * @param[in,out]  lastPageptr        Page of first container to search, and on
+ *                                    return the last container.
+ * @param[in,out]  tlastPageindex     Index of container within first page to
+ *                                    search, and on return the last container.
+ * @param[in,out]  tlastContainerptr  Pointer within page to first container to
+ *                                    search, and on return the last container.
+ * @param[in,out]  tlastForward       Direction of first container to search,
+ *                                    and on return the last container.
+ * @param[out]     tlastElementptr    On return the pointer within page to last
+ *                                    element.
+ * ------------------------------------------------------------------------ */
+void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr,
+                             Uint32 tlastPrevconptr,
+                             Page8Ptr& lastPageptr,
+                             Uint32& tlastPageindex,
+                             Uint32& tlastContainerptr,
+                             Uint32& tlastForward,
+                             Uint32& tlastElementptr)
 {
+  ContainerHeader containerhead(lastPageptr.p->word32[tlastContainerptr]);
+  Uint32 tlastContainerlen = containerhead.getLength();
  GLR_LOOP_10:
   if (containerhead.getNextEnd() != 0) {
     jam();
@@ -5232,6 +5255,14 @@ void Dbacc::expandcontainer()
   Uint32 texcIndex;
   Uint32 guard20;
 
+  Page8Ptr lastPageptr;
+  Page8Ptr lastPrevpageptr;
+  Uint32 tlastForward;
+  Uint32 tlastPageindex;
+  Uint32 tlastElementptr;
+  Uint32 tlastContainerptr;
+  Uint32 tlastPrevconptr;
+
   cexcPrevpageptr = RNIL;
   cexcPrevconptr = 0;
   cexcForward = ZTRUE;
@@ -5346,13 +5377,15 @@ void Dbacc::expandcontainer()
   ptrCheck(lastPrevpageptr, cpagesize, page8);
   tlastPrevconptr = cexcPrevconptr;
   arrGuard(tlastContainerptr, 2048);
-  {
-  ContainerHeader containerhead = lastPageptr.p->word32[tlastContainerptr];
-  tlastContainerlen = containerhead.getLength();
   tlastForward = cexcForward;
   tlastPageindex = cexcPageindex;
-  getLastAndRemove(containerhead);
-  }
+  getLastAndRemove(lastPrevpageptr,
+                   tlastPrevconptr,
+                   lastPageptr,
+                   tlastPageindex,
+                   tlastContainerptr,
+                   tlastForward,
+                   tlastElementptr);
   if (excPageptr.i == lastPageptr.i) {
     if (cexcElementptr == tlastElementptr) {
       jam();

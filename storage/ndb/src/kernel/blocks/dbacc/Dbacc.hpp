@@ -815,7 +815,9 @@ private:
   void deleteElement(Page8Ptr delPageptr, Uint32 delConptr,
       Uint32 delForward, Uint32 delElemptr, Page8Ptr lastPageptr,
       Uint32 lastForward, Uint32 lastElemptr) const;
-  void getLastAndRemove(ContainerHeader& containerhead);
+  void getLastAndRemove(Page8Ptr tlastPrevpageptr, Uint32 tlastPrevconptr,
+     Page8Ptr& lastPageptr, Uint32& tlastPageindex, Uint32& tlastContainerptr,
+     Uint32& tlastForward, Uint32& tlastElementptr);
   void releaseLeftlist();
   void releaseRightlist();
   void checkoverfreelist();
@@ -941,8 +943,6 @@ private:
   Page8Ptr ilcPageptr;
   Page8Ptr inpPageptr;
   Page8Ptr iopPageptr;
-  Page8Ptr lastPageptr;
-  Page8Ptr lastPrevpageptr;
   Page8Ptr ciPageidptr;
   Page8Ptr gsePageidptr;
   Page8Ptr nciPageidptr;
@@ -990,11 +990,6 @@ private:
   Uint32 tidrForward;
   Uint32 tidrPageindex;
   Uint32 tidrContainerptr;
-  Uint32 tlastForward;
-  Uint32 tlastPageindex;
-  Uint32 tlastContainerlen;
-  Uint32 tlastElementptr;
-  Uint32 tlastContainerptr;
   Uint32 trlPageindex;
   Uint32 tipPageId;
   Uint32 tgeContainerptr;
@@ -1028,7 +1023,6 @@ private:
   Uint32 tciPageindex;
   Uint32 trsbPageindex;
   Uint32 tnciPageindex;
-  Uint32 tlastPrevconptr;
   Uint32 tresult;
   Uint32 tuserptr;
   BlockReference tuserblockref;
