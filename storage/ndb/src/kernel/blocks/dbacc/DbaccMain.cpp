@@ -6831,30 +6831,6 @@ void Dbacc::execACC_TO_REQ(Signal* signal)
 }//Dbacc::execACC_TO_REQ()
 
 /** ---------------------------------------------------------------------------
- * Calculates the container pointer within a page, and returns container header
- * and size.
- *
- * @param[in]   pageptr    Page of container.
- * @param[in]   conidx     Index in page of container.
- * @param[in]   isforward  Direction of container.
- * @param[out]  conhead    Container header.
- * @param[out]  conptr     Pointer within page of container.
- * @param[out]  conlen     Container size.
- * ------------------------------------------------------------------------- */
-void Dbacc::containerinfo(Page8Ptr pageptr,
-                          Uint32 conidx,
-                          bool isforward,
-                          ContainerHeader& conhead,
-                          Uint32& conptr,
-                          Uint32& conlen) const
-{
-  conptr = getContainerPtr(conidx, isforward);
-  arrGuard(conptr, 2048);
-  conhead = pageptr.p->word32[conptr];
-  conlen = conhead.getLength();
-}//Dbacc::containerinfo()
-
-/** ---------------------------------------------------------------------------
  * Get next unscanned element in fragment.
  *
  * @param[in,out]  pageptr    Page of first container to scan, on return
@@ -6878,9 +6854,9 @@ bool Dbacc::getScanElement(Page8Ptr& pageptr,
 {
   isforward = true;
  NEXTSEARCH_SCAN_LOOP:
-  ContainerHeader containerhead;
-  Uint32 conlen;
-  containerinfo(pageptr, conidx, isforward, containerhead, conptr, conlen);
+  conptr = getContainerPtr(conidx, isforward);
+  ContainerHeader containerhead(pageptr.p->word32[conptr]);
+  Uint32 conlen = containerhead.getLength();
   if (searchScanContainer(pageptr,
                           conptr,
                           isforward,
@@ -7105,10 +7081,9 @@ void Dbacc::releaseScanBucket(Page8Ptr pageptr, Uint32 conidx) const
 {
   bool isforward = true;
  NEXTRELEASESCANLOOP:
-  ContainerHeader containerhead;
-  Uint32 conptr;
-  Uint32 conlen;
-  containerinfo(pageptr, conidx, isforward, containerhead, conptr, conlen);
+  Uint32 conptr = getContainerPtr(conidx, isforward);
+  ContainerHeader containerhead(pageptr.p->word32[conptr]);
+  Uint32 conlen = containerhead.getLength();
   releaseScanContainer(pageptr, conptr, isforward, conlen);
   if (containerhead.getNextEnd() != 0) {
     jam();
