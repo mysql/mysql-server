@@ -30,6 +30,7 @@ Created 2013/03/27 Allen Lai and Jimmy Yang
 #include "mach0data.h"
 
 #include <spatial.h>
+#include <cmath>
 
 /* These definitions are for comparing 2 mbrs. */
 
@@ -365,7 +366,7 @@ mbr_join_square(
 	} while (a != end);
 
 	/* Check for infinity or NaN, so we don't get NaN in calculations */
-	if (my_isinf(square) || my_isnan(square)) {
+	if (std::isinf(square) || std::isnan(square)) {
 		return DBL_MAX;
 	}
 

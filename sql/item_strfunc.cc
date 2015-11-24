@@ -56,6 +56,8 @@ C_MODE_END
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
 
+#include <cmath>                     // isnan
+
 using std::min;
 using std::max;
 
@@ -3177,7 +3179,7 @@ String *Item_func_format::val_str_ascii(String *str)
       return 0; /* purecov: inspected */
     nr= my_double_round(nr, (longlong) dec, FALSE, FALSE);
     str->set_real(nr, dec, &my_charset_numeric);
-    if (my_isnan(nr) || my_isinf(nr))
+    if (std::isnan(nr) || std::isinf(nr))
       return str;
     str_length=str->length();
   }

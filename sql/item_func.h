@@ -22,6 +22,8 @@
 #include "set_var.h"    // enum_var_type
 #include "sql_udf.h"    // udf_handler
 
+#include <cmath>        // isfinite
+
 class PT_item_list;
 
 /* Function items used by mysql */
@@ -327,7 +329,7 @@ public:
                      void * arg, traverse_order order);
   inline double fix_result(double value)
   {
-    if (my_isfinite(value))
+    if (std::isfinite(value))
       return value;
     null_value=1;
     return 0.0;
@@ -361,7 +363,7 @@ public:
   */
   inline double check_float_overflow(double value)
   {
-    return my_isfinite(value) ? value : raise_float_overflow();
+    return std::isfinite(value) ? value : raise_float_overflow();
   }
   /**
     Throw an error if the input BIGINT value represented by the

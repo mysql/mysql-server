@@ -49,6 +49,7 @@
 #include "sql_time.h"            // TIME_from_longlong_packed
 #include "strfunc.h"             // find_type
 #include "item_json_func.h"      // Item_func_json_quote
+
 #include <cfloat>                // DBL_DIG
 
 using std::min;
@@ -3333,10 +3334,10 @@ double my_double_round(double value, longlong dec, bool dec_unsigned,
   volatile double value_div_tmp= value / tmp;
   volatile double value_mul_tmp= value * tmp;
 
-  if (dec_negative && my_isinf(tmp))
+  if (dec_negative && std::isinf(tmp))
     tmp2= 0.0;
   else if (!dec_negative &&
-           (my_isinf(value_mul_tmp) || my_isnan(value_mul_tmp)))
+           (std::isinf(value_mul_tmp) || std::isnan(value_mul_tmp)))
     tmp2= value;
   else if (truncate)
   {

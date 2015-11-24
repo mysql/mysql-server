@@ -45,6 +45,7 @@
 #include "sql_base.h"                    // is_equal
 
 #include <algorithm>
+#include <cmath>                         // isnan
 #include <memory>                        // unique_ptr
 
 using std::max;
@@ -2674,7 +2675,7 @@ type_conversion_status Field_decimal::store(double nr)
     return TYPE_WARN_OUT_OF_RANGE;
   }
   
-  if (!my_isfinite(nr)) // Handle infinity as special case
+  if (!std::isfinite(nr)) // Handle infinity as special case
   {
     overflow(nr < 0.0);
     return TYPE_WARN_OUT_OF_RANGE;
@@ -4842,7 +4843,7 @@ type_conversion_status Field_double::store(longlong nr, bool unsigned_val)
 
 bool Field_real::truncate(double *nr, double max_value)
 {
-  if (my_isnan(*nr))
+  if (std::isnan(*nr))
   {
     *nr= 0;
     set_null();
@@ -4867,7 +4868,7 @@ bool Field_real::truncate(double *nr, double max_value)
     max_value-= 1.0 / log_10[dec];
 
     /* Check for infinity so we don't get NaN in calculations */
-    if (!my_isinf(*nr))
+    if (!std::isinf(*nr))
     {
       double tmp= rint((*nr - floor(*nr)) * log_10[dec]) / log_10[dec];
       *nr= floor(*nr) + tmp;

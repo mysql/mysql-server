@@ -18,6 +18,24 @@
 #include "rt_key.h"
 #include "rt_mbr.h"
 
+/* Our ifdef trickery for my_isfinite does not work with gcc/solaris unless we: */
+#ifdef HAVE_IEEEFP_H
+#include <ieeefp.h>
+#endif
+
+#if defined _WIN32
+  #define my_isfinite(X) _finite(X)
+#else
+  #define my_isfinite(X) finite(X)
+#endif
+#ifdef HAVE_ISINF
+  /* System-provided isinf() is available and safe to use */
+  #define my_isinf(X) isinf(X)
+#else /* !HAVE_ISINF */
+  #define my_isinf(X) (!my_isfinite(X) && !isnan(X))
+#endif
+
+
 typedef struct
 {
   double square;
@@ -66,7 +84,7 @@ static double mbr_join_square(const double *a, const double *b, int n_dim)
   }while (a != end);
 
   /* Check for infinity or NaN */
-  if (my_isinf(square) || my_isnan(square))
+  if (my_isinf(square) || isnan(square))
     square = DBL_MAX;
 
   return square;

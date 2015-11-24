@@ -29,6 +29,8 @@ Created 2013/03/27 Allen Lai and Jimmy Yang
 #include "page0zip.h"
 #include "gis0rtree.h"
 
+#include <cmath>
+
 #ifndef UNIV_HOTBACKUP
 #include "btr0cur.h"
 #include "btr0sea.h"
@@ -2008,7 +2010,7 @@ rtr_estimate_n_rows_in_range(
 	mtr_commit(&mtr);
 	mem_heap_free(heap);
 
-	if (my_isinf(area) || my_isnan(area)) {
+	if (std::isinf(area) || std::isnan(area)) {
 		return(HA_POS_ERROR);
 	}
 

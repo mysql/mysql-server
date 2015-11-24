@@ -32,6 +32,7 @@
 #include "parse_tree_helpers.h"
 #include "item_geofunc_internal.h"
 
+#include <cmath>          // isfinite
 #include <stack>
 
 static int check_geometry_valid(Geometry *geom);
@@ -2303,8 +2304,8 @@ String *Item_func_make_envelope::val_str(String *str)
   double x1= gpt1->get<0>(), y1= gpt1->get<1>();
   double x2= gpt2->get<0>(), y2= gpt2->get<1>();
 
-  if (!my_isfinite(x1) || !my_isfinite(x2) ||
-      !my_isfinite(y1) || !my_isfinite(y2))
+  if (!std::isfinite(x1) || !std::isfinite(x2) ||
+      !std::isfinite(y1) || !std::isfinite(y2))
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
@@ -4385,7 +4386,7 @@ double Item_func_area::val_real()
   if (null_value)
     return error_real();
 
-  if (!my_isfinite(res))
+  if (!std::isfinite(res))
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_real();
@@ -4410,7 +4411,7 @@ double Item_func_glength::val_real()
   }
   if ((null_value= geom->geom_length(&res)))
     return res;
-  if (!my_isfinite(res))
+  if (!std::isfinite(res))
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_real();
@@ -4747,7 +4748,7 @@ double Item_func_distance::val_real()
   if (null_value)
     DBUG_RETURN(error_real());
 
-  if (!my_isfinite(distance) || distance < 0)
+  if (!std::isfinite(distance) || distance < 0)
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     DBUG_RETURN(error_real());
