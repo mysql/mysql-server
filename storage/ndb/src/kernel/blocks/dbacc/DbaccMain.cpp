@@ -2661,17 +2661,21 @@ void Dbacc::insertElement(Page8Ptr& pageptr,
   }//if
   tslPageindex = newPageindex;
   slPageptr = inrNewPageptr;
-  Uint32 containerptr;
-  if (newBuftype == ZLEFT) {
+  if (newBuftype == ZLEFT)
+  {
     seizeLeftlist();
     isforward = true;
-    containerptr = mul_ZBUF_SIZE(newPageindex) + ZHEAD_SIZE;
-  } else {
+  }
+  else if (newBuftype == ZRIGHT)
+  {
     seizeRightlist();
     isforward = false;
-    containerptr = mul_ZBUF_SIZE(newPageindex) + ZHEAD_SIZE + ZBUF_SIZE -
-                   Container::HEADER_SIZE;
-  }//if
+  }
+  else
+  {
+    ndbrequire(newBuftype == ZLEFT || newBuftype == ZRIGHT);
+  }
+  Uint32 containerptr = getContainerPtr(newPageindex, isforward);
   ContainerHeader containerhead;
   containerhead.initInUse();
   inrNewPageptr.p->word32[containerptr] = containerhead;
@@ -2733,11 +2737,11 @@ void Dbacc::insertContainer(Page8Ptr& pageptr,
   Uint32 guard26;
 
   result = ZFALSE;
-  conptr = mul_ZBUF_SIZE(conidx) + ZHEAD_SIZE;
   /* --------------------------------------------------------------------------------- */
   /*       CALCULATE THE POINTER TO THE ELEMENT TO BE INSERTED AND THE POINTER TO THE  */
   /*       CONTAINER HEADER OF THE OTHER SIDE OF THE BUFFER.                           */
   /* --------------------------------------------------------------------------------- */
+  conptr = getForwardContainerPtr(conidx);
   if (isforward) {
     jam();
     tidrNextSide = conptr + (ZBUF_SIZE - Container::HEADER_SIZE);
@@ -2953,7 +2957,7 @@ void Dbacc::seizeLeftlist()
   Uint32 tsllHeadIndex;
   Uint32 tsllTmp;
 
-  tsllHeadIndex = mul_ZBUF_SIZE(tslPageindex) + ZHEAD_SIZE;
+  tsllHeadIndex = getForwardContainerPtr(tslPageindex);
   arrGuard(tsllHeadIndex + 1, 2048);
   tslNextfree = slPageptr.p->word32[tsllHeadIndex];
   tslPrevfree = slPageptr.p->word32[tsllHeadIndex + 1];
@@ -2969,13 +2973,13 @@ void Dbacc::seizeLeftlist()
   } else {
     ndbrequire(tslPrevfree <= Container::MAX_CONTAINER_INDEX);
     jam();
-    tsllTmp = mul_ZBUF_SIZE(tslPrevfree) + ZHEAD_SIZE;
+    tsllTmp = getForwardContainerPtr(tslPrevfree);
     dbgWord32(slPageptr, tsllTmp, tslNextfree);
     slPageptr.p->word32[tsllTmp] = tslNextfree;
   }//if
   if (tslNextfree <= Container::MAX_CONTAINER_INDEX) {
     jam();
-    tsllTmp = mul_ZBUF_SIZE(tslNextfree) + ZHEAD_SIZE + 1;
+    tsllTmp = getForwardContainerPtr(tslNextfree) + 1;
     dbgWord32(slPageptr, tsllTmp, tslPrevfree);
     slPageptr.p->word32[tsllTmp] = tslPrevfree;
   } else {
@@ -2998,8 +3002,7 @@ void Dbacc::seizeRightlist()
   Uint32 tsrlHeadIndex;
   Uint32 tsrlTmp;
 
-  tsrlHeadIndex = mul_ZBUF_SIZE(tslPageindex) +
-                  ((ZHEAD_SIZE + ZBUF_SIZE) - Container::HEADER_SIZE);
+  tsrlHeadIndex = getBackwardContainerPtr(tslPageindex);
   arrGuard(tsrlHeadIndex + 1, 2048);
   tslNextfree = slPageptr.p->word32[tsrlHeadIndex];
   tslPrevfree = slPageptr.p->word32[tsrlHeadIndex + 1];
@@ -3011,15 +3014,13 @@ void Dbacc::seizeRightlist()
   } else {
     ndbrequire(tslPrevfree <= Container::MAX_CONTAINER_INDEX);
     jam();
-    tsrlTmp = mul_ZBUF_SIZE(tslPrevfree) +
-              ((ZHEAD_SIZE + ZBUF_SIZE) - Container::HEADER_SIZE);
+    tsrlTmp = getBackwardContainerPtr(tslPrevfree);
     dbgWord32(slPageptr, tsrlTmp, tslNextfree);
     slPageptr.p->word32[tsrlTmp] = tslNextfree;
   }//if
   if (tslNextfree <= Container::MAX_CONTAINER_INDEX) {
     jam();
-    tsrlTmp = mul_ZBUF_SIZE(tslNextfree) +
-              ((ZHEAD_SIZE + ZBUF_SIZE) - (Container::HEADER_SIZE - 1));
+    tsrlTmp = getBackwardContainerPtr(tslNextfree) + 1;
     dbgWord32(slPageptr, tsrlTmp, tslPrevfree);
     slPageptr.p->word32[tsrlTmp] = tslPrevfree;
   } else {
@@ -3211,10 +3212,9 @@ Dbacc::getElement(const AccKeyReq* signal,
   tgeNextptrtype = ZLEFT;
 
   do {
-    elemConptr = mul_ZBUF_SIZE(tgePageindex);
     if (tgeNextptrtype == ZLEFT) {
       jam();
-      elemConptr = elemConptr + ZHEAD_SIZE;
+      elemConptr = getForwardContainerPtr(tgePageindex);
       elemptr = elemConptr + Container::HEADER_SIZE;
       tgeElemStep = TelemLen;
       ndbrequire(elemConptr < 2048);
@@ -3223,7 +3223,7 @@ Dbacc::getElement(const AccKeyReq* signal,
       ndbrequire((elemConptr + tgeRemLen - 1) < 2048);
     } else if (tgeNextptrtype == ZRIGHT) {
       jam();
-      elemConptr += ((ZHEAD_SIZE + ZBUF_SIZE) - Container::HEADER_SIZE);
+      elemConptr = getBackwardContainerPtr(tgePageindex);
       tgeElemStep = 0 - TelemLen;
       elemptr = elemConptr - TelemLen;
       ndbrequire(elemConptr < 2048);
@@ -3391,8 +3391,7 @@ void Dbacc::commitdelete(Signal* signal)
   lastPageptr = lastBucketPageptr;
   tlastPageindex = lastBucketConidx;
   lastIsforward = true;
-  tlastContainerptr = mul_ZBUF_SIZE(tlastPageindex);
-  tlastContainerptr = tlastContainerptr + ZHEAD_SIZE;
+  tlastContainerptr = getForwardContainerPtr(tlastPageindex);
   arrGuard(tlastContainerptr, 2048);
   lastPrevpageptr.i = RNIL;
   ptrNull(lastPrevpageptr);
@@ -3553,19 +3552,17 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr,
       lastPageptr.i = lastPageptr.p->word32[tlastContainerptr + 1];
       ptrCheckGuard(lastPageptr, cpagesize, page8);
     }//if
-    tlastContainerptr = mul_ZBUF_SIZE(tlastPageindex);
     if (containerhead.getNextEnd() == ZLEFT) {
       jam();
       lastIsforward = true;
-      tlastContainerptr = tlastContainerptr + ZHEAD_SIZE;
     } else if (containerhead.getNextEnd() == ZRIGHT) {
       jam();
       lastIsforward = false;
-      tlastContainerptr = ((tlastContainerptr + ZHEAD_SIZE) + ZBUF_SIZE) - Container::HEADER_SIZE;
     } else {
       ndbrequire(false);
       return;
     }//if
+    tlastContainerptr = getContainerPtr(tlastPageindex, lastIsforward);
     arrGuard(tlastContainerptr, 2048);
     containerhead = lastPageptr.p->word32[tlastContainerptr];
     tlastContainerlen = containerhead.getLength();
@@ -3674,8 +3671,7 @@ void Dbacc::releaseLeftlist()
   rlPageptr.p->word32[tullIndex] = tullTmp1;
   if (tullTmp1 <= Container::MAX_CONTAINER_INDEX) {
     jam();
-    tullTmp1 = mul_ZBUF_SIZE(tullTmp1);
-    tullTmp1 = (tullTmp1 + ZHEAD_SIZE) + 1;
+    tullTmp1 = getForwardContainerPtr(tullTmp1) + 1;
     dbgWord32(rlPageptr, tullTmp1, trlPageindex);
     rlPageptr.p->word32[tullTmp1] = trlPageindex;	/* UPDATES PREV POINTER IN THE NEXT FREE */
   } else {
@@ -3726,8 +3722,7 @@ void Dbacc::releaseRightlist()
   rlPageptr.p->word32[turlIndex] = turlTmp1;
   if (turlTmp1 <= Container::MAX_CONTAINER_INDEX) {
     jam();
-    turlTmp = mul_ZBUF_SIZE(turlTmp1);
-    turlTmp = turlTmp + ((ZHEAD_SIZE + ZBUF_SIZE) - (Container::HEADER_SIZE - 1));
+    turlTmp = getBackwardContainerPtr(turlTmp1) + 1;
     dbgWord32(rlPageptr, turlTmp, trlPageindex);
     rlPageptr.p->word32[turlTmp] = trlPageindex;	/* UPDATES PREV POINTER IN THE NEXT FREE */
   } else {
@@ -5260,18 +5255,16 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
   Uint32 elemStep;
   const Uint32 elemLen = fragrecptr.p->elementLength;
  EXP_CONTAINER_LOOP:
-  Uint32 conptr = mul_ZBUF_SIZE(conidx);
+  Uint32 conptr = getContainerPtr(conidx, isforward);
   if (isforward)
   {
     jam();
-    conptr = conptr + ZHEAD_SIZE;
     elemptr = conptr + Container::HEADER_SIZE;
     elemStep = elemLen;
   }
   else
   {
     jam();
-    conptr = ((conptr + ZHEAD_SIZE) + ZBUF_SIZE) - Container::HEADER_SIZE;
     elemStep = -elemLen;
     elemptr = conptr + elemStep;
   }
@@ -5744,8 +5737,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
   /*--------------------------------------------------------------------------*/
   ptrCheckGuard(pageptr, cpagesize, page8);
   bool isforward = true;
-  Uint32 conptr = mul_ZBUF_SIZE(cexcPageindex);
-  conptr = conptr + ZHEAD_SIZE;
+  Uint32 conptr = getForwardContainerPtr(cexcPageindex);
   arrGuard(conptr, 2048);
   ContainerHeader containerhead = pageptr.p->word32[conptr];
   Uint32 conlen = containerhead.getLength();
@@ -5781,17 +5773,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
                     cexcPageindex,
                     isforward);
   do {
-    conptr = mul_ZBUF_SIZE(cexcPageindex);
-    if (isforward)
-    {
-      jam();
-      conptr = conptr + ZHEAD_SIZE;
-    }
-    else
-    {
-      jam();
-      conptr = ((conptr + ZHEAD_SIZE) + ZBUF_SIZE) - Container::HEADER_SIZE;
-    }//if
+    conptr = getContainerPtr(cexcPageindex, isforward);
     arrGuard(conptr, 2048);
     containerhead = pageptr.p->word32[conptr];
     conlen = containerhead.getLength();
@@ -5938,7 +5920,6 @@ Dbacc::shrink_adjust_reduced_hash_value(Uint32 bucket_number)
   Uint32 tgePageindex;
   Uint32 tgeNextptrtype;
   Uint32 tgeContainerptr;
-  Uint32 tgeIsforward;
   Uint32 tgeElementptr;
   register Uint32 tgeRemLen;
   register Uint32 TelemLen = fragrecptr.p->elementLength;
@@ -5954,14 +5935,12 @@ Dbacc::shrink_adjust_reduced_hash_value(Uint32 bucket_number)
 
   /* Loop through all containers in a bucket */
   do {
-    tgeContainerptr = mul_ZBUF_SIZE(tgePageindex);
     if (tgeNextptrtype == ZLEFT)
     {
       jam();
-      tgeContainerptr = tgeContainerptr + ZHEAD_SIZE;
+      tgeContainerptr = getForwardContainerPtr(tgePageindex);
       tgeElementptr = tgeContainerptr + Container::HEADER_SIZE;
       tgeElemStep = TelemLen;
-      tgeIsforward = true;
       ndbrequire(tgeContainerptr < 2048);
       tgeRemLen = ContainerHeader(gePageptr.p->word32[tgeContainerptr]).getLength();
       ndbrequire((tgeContainerptr + tgeRemLen - 1) < 2048);
@@ -5969,10 +5948,9 @@ Dbacc::shrink_adjust_reduced_hash_value(Uint32 bucket_number)
     else if (tgeNextptrtype == ZRIGHT)
     {
       jam();
-      tgeContainerptr = tgeContainerptr + ((ZHEAD_SIZE + ZBUF_SIZE) - Container::HEADER_SIZE);
+      tgeContainerptr = getBackwardContainerPtr(tgePageindex);
       tgeElementptr = tgeContainerptr - TelemLen;
       tgeElemStep = 0 - TelemLen;
-      tgeIsforward = false;
       ndbrequire(tgeContainerptr < 2048);
       tgeRemLen = ContainerHeader(gePageptr.p->word32[tgeContainerptr]).getLength();
       ndbrequire((tgeContainerptr - tgeRemLen) < 2048);
@@ -6870,17 +6848,7 @@ void Dbacc::containerinfo(Page8Ptr pageptr,
                           Uint32& conptr,
                           Uint32& conlen) const
 {
-  conptr = mul_ZBUF_SIZE(conidx);
-  if (isforward)
-  {
-    jam();
-    conptr = conptr + ZHEAD_SIZE;
-  }
-  else
-  {
-    jam();
-    conptr = ((conptr + ZHEAD_SIZE) + ZBUF_SIZE) - Container::HEADER_SIZE;
-  }//if
+  conptr = getContainerPtr(conidx, isforward);
   arrGuard(conptr, 2048);
   conhead = pageptr.p->word32[conptr];
   conlen = conhead.getLength();

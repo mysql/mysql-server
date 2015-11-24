@@ -76,8 +76,6 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
  * ----------------------------------------------------------------------- */
 #define ZHEAD_SIZE 32
 #define ZBUF_SIZE 28
-#define ZSHIFT_PLUS 5
-#define ZSHIFT_MINUS 2
 #define ZFREE_LIMIT 65
 #define ZNO_CONTAINERS 64
 #define ZELEM_HEAD_SIZE 1
@@ -167,7 +165,6 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZSCAN_REFACC_CONNECT_ERROR 608 // ACC_SCANREF
 #define ZFOUR_ACTIVE_SCAN_ERROR 609 // ACC_SCANREF
 #define ZNULL_SCAN_REC_ERROR 610 // ACC_SCANREF
-
 #define ZDIRSIZE_ERROR 623
 #define ZOVER_REC_ERROR 624 // Insufficient Space
 #define ZPAGESIZE_ERROR 625
@@ -177,17 +174,6 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZTO_OP_STATE_ERROR 631
 #define ZTOO_EARLY_ACCESS_ERROR 632
 #define ZDIR_RANGE_FULL_ERROR 633 // on fragment
-
-#if ZBUF_SIZE != ((1 << ZSHIFT_PLUS) - (1 << ZSHIFT_MINUS))
-#error ZBUF_SIZE != ((1 << ZSHIFT_PLUS) - (1 << ZSHIFT_MINUS))
-#endif
-
-static
-inline
-Uint32 mul_ZBUF_SIZE(Uint32 i)
-{
-  return (i << ZSHIFT_PLUS) - (i << ZSHIFT_MINUS);
-}
 
 #endif
 
@@ -779,6 +765,9 @@ private:
                      ContainerHeader& containerhead,
                      Uint32& conptr,
                      Uint32& conlen) const;
+  Uint32 getContainerPtr(Uint32 index, bool isforward) const;
+  Uint32 getForwardContainerPtr(Uint32 index) const;
+  Uint32 getBackwardContainerPtr(Uint32 index) const;
   bool getScanElement(Page8Ptr& pageptr,
                       Uint32& conidx,
                       Uint32& conptr,
@@ -1045,6 +1034,8 @@ private:
   Uint32 c_memusage_report_frequency;
 };
 
+#ifdef DBACC_C
+
 inline Uint32 Dbacc::Fragmentrec::getPageNumber(Uint32 bucket_number) const
 {
   assert(bucket_number < RNIL);
@@ -1069,6 +1060,32 @@ inline void Dbacc::getPtr(Ptr<Page8>& page) const
   ptrCheckGuard(page, cpagesize, page8);
 }
 
+inline Uint32 Dbacc::getForwardContainerPtr(Uint32 index) const
+{
+  ndbassert(index <= Container::MAX_CONTAINER_INDEX);
+  return ZHEAD_SIZE + index * Container::CONTAINER_SIZE;
+}
+
+inline Uint32 Dbacc::getBackwardContainerPtr(Uint32 index) const
+{
+  ndbassert(index <= Container::MAX_CONTAINER_INDEX);
+  return ZHEAD_SIZE + index * Container::CONTAINER_SIZE +
+         Container::CONTAINER_SIZE - Container::HEADER_SIZE;
+}
+
+inline Uint32 Dbacc::getContainerPtr(Uint32 index, bool isforward) const
+{
+  if (isforward)
+  {
+    return getForwardContainerPtr(index);
+  }
+  else
+  {
+    return getBackwardContainerPtr(index);
+  }
+}
+
+#endif
 
 #undef JAM_FILE_ID
 
