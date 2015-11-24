@@ -6315,10 +6315,16 @@ void Dbacc::checkNextBucketLab(Signal* signal)
   ptrCheckGuard(tnsPageidptr, cpagesize, page8);
   gnsPageidptr.i = tnsPageidptr.i;
   gnsPageidptr.p = tnsPageidptr.p;
-  tgsePageindex = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
-  gsePageidptr.i = gnsPageidptr.i;
-  gsePageidptr.p = gnsPageidptr.p;
-  if (!getScanElement()) {
+  Uint32 conidx = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
+  Page8Ptr pageptr;
+  pageptr.i = gnsPageidptr.i;
+  pageptr.p = gnsPageidptr.p;
+  Uint32 conptr;
+  Uint32 isforward;
+  Uint32 elemptr;
+  Uint32 islocked;
+  if (!getScanElement(pageptr, conidx, conptr, isforward, elemptr, islocked))
+  {
     scanPtr.p->nextBucketIndex++;
     if (scanPtr.p->scanBucketState ==  ScanRec::SECOND_LAP) {
       if (scanPtr.p->nextBucketIndex > scanPtr.p->maxBucketIndexToRescan) {
@@ -6397,13 +6403,13 @@ void Dbacc::checkNextBucketLab(Signal* signal)
   /*    WE ASSUME THERE ARE OPERATION RECORDS AVAILABLE SINCE LQH SHOULD HAVE*/
   /*    GUARANTEED THAT THROUGH EARLY BOOKING.                               */
   /* ----------------------------------------------------------------------- */
-  tnsIsLocked = tgseIsLocked;
-  tnsElementptr = tgseElementptr;
-  tnsContainerptr = tgseContainerptr;
-  nsPageptr.i = gsePageidptr.i;
-  nsPageptr.p = gsePageidptr.p;
+  tnsIsLocked = islocked;
+  tnsElementptr = elemptr;
+  tnsContainerptr = conptr;
+  nsPageptr.i = pageptr.i;
+  nsPageptr.p = pageptr.p;
   seizeOpRec();
-  initScanOpRec(nsPageptr, tnsContainerptr, tgseIsforward, tnsElementptr);
+  initScanOpRec(nsPageptr, tnsContainerptr, isforward, tnsElementptr);
  
   if (!tnsIsLocked){
     if (!scanPtr.p->scanReadCommittedFlag) {
@@ -6828,45 +6834,46 @@ void Dbacc::containerinfo(Page8Ptr pageptr,
   conlen = conhead.getLength();
 }//Dbacc::containerinfo()
 
-/* --------------------------------------------------------------------------------- */
-/* GET_SCAN_ELEMENT                                                                  */
-/*       INPUT:          GSE_PAGEIDPTR                                               */
-/*                       TGSE_PAGEINDEX                                              */
-/*       OUTPUT:         TGSE_IS_LOCKED (IF TRESULT /= ZFALSE)                       */
-/*                       GSE_PAGEIDPTR                                               */
-/*                       TGSE_PAGEINDEX                                              */
-/* --------------------------------------------------------------------------------- */
-bool Dbacc::getScanElement()
+/** ---------------------------------------------------------------------------
+ * Get next unscanned element in fragment.
+ *
+ * @param[in,out]  pageptr    Page of first container to scan, on return
+ *                            container for found element.
+ * @param[in,out]  conidx     Index within page for first container to scan, on
+ *                            return container for found element.
+ * @param[out]     conptr     Pointer withing page of first container to scan,
+ *                            on return container for found element.
+ * @param[in,out]  isforward  Direction of first container to scan, on return
+ *                            the direction of container for found element.
+ * @param[out]     elemptr    Pointer within page of next element in scan.
+ * @param[out]     islocked   Indicates if element is locked.
+ * @return                    Return true if an unscanned element was found.
+ * ------------------------------------------------------------------------- */
+bool Dbacc::getScanElement(Page8Ptr& pageptr,
+                           Uint32& conidx,
+                           Uint32& conptr,
+                           Uint32& isforward,
+                           Uint32& elemptr,
+                           Uint32& islocked) const
 {
-  tgseIsforward = ZTRUE;
+  isforward = ZTRUE;
  NEXTSEARCH_SCAN_LOOP:
   ContainerHeader containerhead;
-  Uint32 conptr;
   Uint32 conlen;
-  containerinfo(gsePageidptr,
-                tgsePageindex,
-                tgseIsforward,
-                containerhead,
-                conptr,
-                conlen);
-  if (searchScanContainer(gsePageidptr,
+  containerinfo(pageptr, conidx, isforward, containerhead, conptr, conlen);
+  if (searchScanContainer(pageptr,
                           conptr,
-                          tgseIsforward,
+                          isforward,
                           conlen,
-                          tgseElementptr,
-                          tgseIsLocked))
+                          elemptr,
+                          islocked))
   {
     jam();
-    tgseContainerptr = conptr;
     return true;
   }//if
   if (containerhead.getNextEnd() != 0) {
     jam();
-    nextcontainerinfo(gsePageidptr,
-                      conptr,
-                      containerhead,
-                      tgsePageindex,
-                      tgseIsforward);
+    nextcontainerinfo(pageptr, conptr, containerhead, conidx, isforward);
     goto NEXTSEARCH_SCAN_LOOP;
   }//if
   return false;
