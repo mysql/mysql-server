@@ -5303,6 +5303,7 @@ extern "C" void *handle_slave_io(void *arg)
   uint retry_count_reg= 0, retry_count_dump= 0, retry_count_event= 0;
 #endif
   Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+  char *current_gtid_executed= NULL, *current_gtid_purged= NULL;
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
   DBUG_ENTER("handle_slave_io");
@@ -5380,6 +5381,12 @@ extern "C" void *handle_slave_io(void *arg)
                           mi->get_user(), mi->host, mi->port,
 			  mi->get_io_rpl_log_name(),
 			  llstr(mi->get_master_log_pos(), llbuff));
+    global_sid_lock->wrlock();
+    gtid_state->get_executed_gtids()->to_string(&current_gtid_executed);
+    gtid_state->get_lost_gtids()->to_string(&current_gtid_purged);
+    global_sid_lock->unlock();
+    sql_print_information("GTID Executed: %s", current_gtid_executed);
+    sql_print_information("GTID Purged:   %s", current_gtid_purged);
   }
   else
   {
@@ -5722,6 +5729,12 @@ err:
   sql_print_information("Slave I/O thread exiting%s, read up to log '%s', position %s",
                         mi->get_for_channel_str(), mi->get_io_rpl_log_name(),
                         llstr(mi->get_master_log_pos(), llbuff));
+  global_sid_lock->wrlock();
+  gtid_state->get_executed_gtids()->to_string(&current_gtid_executed);
+  gtid_state->get_lost_gtids()->to_string(&current_gtid_purged);
+  global_sid_lock->unlock();
+  sql_print_information("GTID Executed: %s", current_gtid_executed);
+  sql_print_information("GTID Purged:   %s", current_gtid_purged);
   (void) RUN_HOOK(binlog_relay_io, thread_stop, (thd, mi));
   thd->reset_query();
   thd->reset_db(NULL_CSTR);
@@ -6857,6 +6870,8 @@ extern "C" void *handle_slave_sql(void *arg)
   Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   Commit_order_manager *commit_order_mngr= NULL;
 
+  char *current_gtid_executed= NULL, *current_gtid_purged= NULL;
+
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
   DBUG_ENTER("handle_slave_sql");
@@ -7043,6 +7058,13 @@ extern "C" void *handle_slave_sql(void *arg)
                         llstr(rli->get_group_master_log_pos(),llbuff),
                         rli->get_group_relay_log_name(),
                         llstr(rli->get_group_relay_log_pos(),llbuff1));
+  global_sid_lock->wrlock();
+  gtid_state->get_executed_gtids()->to_string(&current_gtid_executed);
+  gtid_state->get_lost_gtids()->to_string(&current_gtid_purged);
+  global_sid_lock->unlock();
+  sql_print_information("GTID Executed: %s", current_gtid_executed);
+  sql_print_information("GTID Purged:   %s", current_gtid_purged);
+
 
   if (check_temp_dir(rli->slave_patternload_file, rli->get_channel()))
   {
@@ -7190,6 +7212,12 @@ llstr(rli->get_group_master_log_pos(), llbuff));
                         rli->get_for_channel_str(),
                         rli->get_rpl_log_name(),
                         llstr(rli->get_group_master_log_pos(), llbuff));
+  global_sid_lock->wrlock();
+  gtid_state->get_executed_gtids()->to_string(&current_gtid_executed);
+  gtid_state->get_lost_gtids()->to_string(&current_gtid_purged);
+  global_sid_lock->unlock();
+  sql_print_information("GTID Executed: %s", current_gtid_executed);
+  sql_print_information("GTID Purged:   %s", current_gtid_purged);
 
  err:
 
