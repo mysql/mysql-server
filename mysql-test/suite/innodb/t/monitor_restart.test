@@ -1,5 +1,6 @@
 source include/have_innodb.inc;
 source include/not_embedded.inc;
+source include/have_debug.inc;
 
 --echo #
 --echo # BUG#20080942 - ADAPTIVE_HASH_SEARCHES_BTREE NOT UPDATED
