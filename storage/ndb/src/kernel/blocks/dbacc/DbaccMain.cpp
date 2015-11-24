@@ -2670,10 +2670,11 @@ void Dbacc::insertElement(Page8Ptr& pageptr,
       break;
     }//if
   } while (1);
-  gflPageptr.p = pageptr.p;
-  getfreelist();
+  Uint32 newPageindex;;
+  Uint32 newBuftype;
+  getfreelist(pageptr, newPageindex, newBuftype);
   bool nextOnSamePage;
-  if (tgflPageindex == Container::NO_CONTAINER_INDEX) {
+  if (newPageindex == Container::NO_CONTAINER_INDEX) {
     jam();
     /* NO FREE BUFFER IS FOUND */
     if (fragrecptr.p->sparsepages.isEmpty())
@@ -2686,35 +2687,35 @@ void Dbacc::insertElement(Page8Ptr& pageptr,
       LocalContainerPageList sparselist(*this, fragrecptr.p->sparsepages);
       sparselist.first(inrNewPageptr);
     }
-    gflPageptr.p = inrNewPageptr.p;
-    getfreelist();
-    ndbrequire(tgflPageindex != Container::NO_CONTAINER_INDEX);
+    getfreelist(inrNewPageptr, newPageindex, newBuftype);
+    ndbrequire(newPageindex != Container::NO_CONTAINER_INDEX);
     nextOnSamePage = false;
   } else {
     jam();
     inrNewPageptr = pageptr;
     nextOnSamePage = true;
   }//if
-  tslPageindex = tgflPageindex;
+  tslPageindex = newPageindex;
   slPageptr = inrNewPageptr;
   Uint32 containerptr;
-  if (tgflBufType == ZLEFT) {
+  if (newBuftype == ZLEFT) {
     seizeLeftlist();
     isforward = ZTRUE;
-    containerptr = mul_ZBUF_SIZE(tgflPageindex) + ZHEAD_SIZE;
+    containerptr = mul_ZBUF_SIZE(newPageindex) + ZHEAD_SIZE;
   } else {
     seizeRightlist();
     isforward = cminusOne;
-    containerptr = mul_ZBUF_SIZE(tgflPageindex) + ZHEAD_SIZE + ZBUF_SIZE - Container::HEADER_SIZE;
+    containerptr = mul_ZBUF_SIZE(newPageindex) + ZHEAD_SIZE + ZBUF_SIZE -
+                   Container::HEADER_SIZE;
   }//if
   ContainerHeader containerhead;
   containerhead.initInUse();
   inrNewPageptr.p->word32[containerptr] = containerhead;
-  addnewcontainer(pageptr, conptr, tgflPageindex,
-    tgflBufType, nextOnSamePage, inrNewPageptr.i);
+  addnewcontainer(pageptr, conptr, newPageindex,
+    newBuftype, nextOnSamePage, inrNewPageptr.i);
 
   pageptr = inrNewPageptr;
-  conidx = tgflPageindex;
+  conidx = newPageindex;
   insertContainer(pageptr,
                   conidx,
                   isforward,
@@ -2927,19 +2928,18 @@ void Dbacc::addnewcontainer(Page8Ptr pageptr,
 /*                     THE FREE BUFFER CAN BE A RIGHT CONTAINER OR A LEFT ONE        */
 /*                     THE KIND OF THE CONTAINER IS NOTED BY TGFL_BUF_TYPE.          */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::getfreelist()
+void Dbacc::getfreelist(Page8Ptr pageptr, Uint32& pageindex, Uint32& buftype)
 {
-  Uint32 tgflTmp;
-
-  tgflTmp = gflPageptr.p->word32[ZPOS_EMPTY_LIST];
-  tgflPageindex = (tgflTmp >> 7) & 0x7f;	/* LEFT FREE LIST */
-  tgflBufType = ZLEFT;
-  if (tgflPageindex == Container::NO_CONTAINER_INDEX) {
+  const Uint32 emptylist = pageptr.p->word32[ZPOS_EMPTY_LIST];
+  pageindex = (emptylist >> 7) & 0x7f;	/* LEFT FREE LIST */
+  buftype = ZLEFT;
+  if (pageindex == Container::NO_CONTAINER_INDEX) {
     jam();
-    tgflPageindex = tgflTmp & 0x7f;	/* RIGHT FREE LIST */
-    tgflBufType = ZRIGHT;
+    pageindex = emptylist & 0x7f;	/* RIGHT FREE LIST */
+    buftype = ZRIGHT;
   }//if
-  ndbrequire((tgflPageindex <= Container::MAX_CONTAINER_INDEX) || (tgflPageindex == Container::NO_CONTAINER_INDEX));
+  ndbrequire((pageindex <= Container::MAX_CONTAINER_INDEX) ||
+             (pageindex == Container::NO_CONTAINER_INDEX));
 }//Dbacc::getfreelist()
 
 /* --------------------------------------------------------------------------------- */

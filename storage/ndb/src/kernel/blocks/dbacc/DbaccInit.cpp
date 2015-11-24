@@ -159,7 +159,6 @@ Dbacc::Dbacc(Block_context& ctx, Uint32 instanceNumber):
                     &queOperPtr,
                     &colPageptr,
                     &expPageptr,
-                    &gflPageptr,
                     &ilcPageptr,
                     &inpPageptr,
                     &iopPageptr,
