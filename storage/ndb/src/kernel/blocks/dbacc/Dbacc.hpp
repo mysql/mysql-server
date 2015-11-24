@@ -768,8 +768,11 @@ private:
   void abortSerieQueueOperation(Signal* signal, OperationrecPtr op);  
   void abortParallelQueueOperation(Signal* signal, OperationrecPtr op);
   
-  void expandcontainer();
-  void shrinkcontainer();
+  void expandcontainer(Page8Ptr pageptr, Uint32 conidx);
+  void shrinkcontainer(Page8Ptr pageptr,
+                       Uint32 conptr,
+                       Uint32 isforward,
+                       Uint32 conlen);
   void releaseAndCommitActiveOps(Signal* signal);
   void releaseAndCommitQueuedOps(Signal* signal);
   void releaseAndAbortLockedOps(Signal* signal);
@@ -971,7 +974,6 @@ private:
   Page8 *page8;
   /* 8 KB PAGE                       */
   Page8Ptr colPageptr;
-  Page8Ptr excPageptr;
   Page8Ptr expPageptr;
   Page8Ptr gflPageptr;
   Page8Ptr ilcPageptr;
@@ -1040,16 +1042,6 @@ private:
   BlockReference cndbcntrRef;
   Uint16 csignalkey;
   Uint32 czero;
-  Uint32 cexcForward;
-  Uint32 cexcPageindex;
-  Uint32 cexcContainerptr;
-  Uint32 cexcContainerlen;
-  Uint32 cexcElementptr;
-  Uint32 cexcPrevconptr;
-  Uint32 cexcMovedLen;
-  Uint32 cexcPrevpageptr;
-  Uint32 cexcPrevpageindex;
-  Uint32 cexcPrevforward;
   Uint32 clocalkey[32];
   union {
   Uint32 ckeys[2048 * MAX_XFRM_MULTIPLY];
