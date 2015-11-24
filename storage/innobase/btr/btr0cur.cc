@@ -912,6 +912,11 @@ btr_cur_search_to_nth_level(
 # endif /* BTR_CUR_HASH_ADAPT */
 #endif /* BTR_CUR_ADAPT */
 	btr_cur_n_non_sea++;
+	DBUG_EXECUTE_IF("non_ahi_search",
+			ib::info() << "Non ahi search: " << index->name
+			<< " table: " << index->table->name
+			<< " search_key: " << rec_printer(tuple).str();
+		       );
 
 	/* If the hash search did not succeed, do binary search down the
 	tree */
