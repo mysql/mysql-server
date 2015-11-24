@@ -779,7 +779,12 @@ private:
                      ContainerHeader& containerhead,
                      Uint32& conptr,
                      Uint32& conlen) const;
-  bool getScanElement();
+  bool getScanElement(Page8Ptr& pageptr,
+                      Uint32& conidx,
+                      Uint32& conptr,
+                      Uint32& isforward,
+                      Uint32& elemptr,
+                      Uint32& islocked) const;
   void initScanOpRec(Page8Ptr pageptr, Uint32 conptr,
       Uint32 forward, Uint32 elemptr) const;
   void nextcontainerinfo(Page8Ptr& pageptr,
@@ -956,7 +961,6 @@ private:
   Page8Ptr ilcPageptr;
   Page8Ptr inpPageptr;
   Page8Ptr iopPageptr;
-  Page8Ptr gsePageidptr;
   Page8Ptr rlPageptr;
   Page8Ptr ropPageptr;
   Page8Ptr rpPageptr;
@@ -992,8 +996,6 @@ private:
   Tabrec *tabrec;
   TabrecPtr tabptr;
   Uint32 ctablesize;
-  Uint32 tgseElementptr;
-  Uint32 tgseContainerptr;
   Uint32 tidrResult;
   Uint32 tidrElemhead;
   Uint32 tidrForward;
@@ -1009,14 +1011,11 @@ private:
   Uint32 tfid;
   Uint32 tscanFlag;
   Uint32 tgflBufType;
-  Uint32 tgseIsforward;
-  Uint32 tgseIsLocked;
   Uint32 tmp;
   Uint32 tmp2;
   Uint32 tgflPageindex;
   Uint32 tslNextfree;
   Uint32 tslPageindex;
-  Uint32 tgsePageindex;
   Uint32 tslPrevfree;
   Uint32 tresult;
   Uint32 tuserptr;
