@@ -17119,35 +17119,6 @@ innodb_make_page_dirty(
 	fil_space_release(space);
 }
 #endif // UNIV_DEBUG
-/*************************************************************//**
-Just emit a warning that the usage of the variable is deprecated.
-@return 0 */
-static
-void
-innodb_stats_sample_pages_update(
-/*=============================*/
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
-						system variable */
-	void*				var_ptr,/*!< out: where the
-						formal string goes */
-	const void*			save)	/*!< in: immediate result
-						from check function */
-{
-
-	const char*	STATS_SAMPLE_PAGES_DEPRECATED_MSG =
-		"Using innodb_stats_sample_pages is deprecated and"
-		" the variable may be removed in future releases."
-		" Please use innodb_stats_transient_sample_pages instead.";
-
-	push_warning(thd, Sql_condition::SL_WARNING,
-		     HA_ERR_WRONG_COMMAND, STATS_SAMPLE_PAGES_DEPRECATED_MSG);
-
-	ib::warn() << STATS_SAMPLE_PAGES_DEPRECATED_MSG;
-
-	srv_stats_transient_sample_pages =
-		*static_cast<const unsigned long long*>(save);
-}
 
 /****************************************************************//**
 Update the monitor counter according to the "set_option",  turn
@@ -18497,11 +18468,6 @@ static MYSQL_SYSVAR_BOOL(stats_on_metadata, innobase_stats_on_metadata,
   " SHOW TABLE STATUS for tables that use transient statistics (off by default)",
   NULL, NULL, FALSE);
 
-static MYSQL_SYSVAR_ULONGLONG(stats_sample_pages, srv_stats_transient_sample_pages,
-  PLUGIN_VAR_RQCMDARG,
-  "Deprecated, use innodb_stats_transient_sample_pages instead",
-  NULL, innodb_stats_sample_pages_update, 8, 1, ~0ULL, 0);
-
 static MYSQL_SYSVAR_ULONGLONG(stats_transient_sample_pages,
   srv_stats_transient_sample_pages,
   PLUGIN_VAR_RQCMDARG,
@@ -19238,7 +19204,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(ft_user_stopword_table),
   MYSQL_SYSVAR(disable_sort_file_cache),
   MYSQL_SYSVAR(stats_on_metadata),
-  MYSQL_SYSVAR(stats_sample_pages),
   MYSQL_SYSVAR(stats_transient_sample_pages),
   MYSQL_SYSVAR(stats_persistent),
   MYSQL_SYSVAR(stats_persistent_sample_pages),
