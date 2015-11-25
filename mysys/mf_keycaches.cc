@@ -68,13 +68,11 @@ typedef struct st_safe_hash_with_default
   This function is called by the hash object on delete
 */
 
-extern "C" {
 static void safe_hash_entry_free(void *entry)
 {
   DBUG_ENTER("free_assign_entry");
   my_free(entry);
   DBUG_VOID_RETURN;
-}
 }
 
 

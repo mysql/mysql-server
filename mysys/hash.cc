@@ -47,26 +47,10 @@ static int hashcmp(const HASH *hash, HASH_LINK *pos, const uchar *key,
 static my_hash_value_type calc_hash(const HASH *hash,
                                     const uchar *key, size_t length)
 {
-  return hash->hash_function(hash, key, length);
-}
-
-
-/**
-  Adaptor function which allows to use hash function from character
-  set with HASH.
-*/
-
-extern "C" {
-static my_hash_value_type cset_hash_sort_adapter(const HASH *hash,
-                                                 const uchar *key,
-                                                 size_t length)
-{
   ulong nr1=1, nr2=4;
   hash->charset->coll->hash_sort(hash->charset,(uchar*) key,length,&nr1,&nr2);
   return (my_hash_value_type)nr1;
 }
-}
-
 
 /**
   @brief Initialize the hash
@@ -82,9 +66,6 @@ static my_hash_value_type cset_hash_sort_adapter(const HASH *hash,
   @param[in,out] hash         The hash that is initialized
   @param[in]     growth_size  Growth size for the underlying array
   @param[in]     charset      The character set information
-  @param[in]     hash_function Hash function to be used. NULL -
-                               use standard hash from character
-                               set.
   @param[in]     size         The hash size
   @param[in]     key_offset   The key offset for the hash
   @param[in]     key_length   The length of the key used in
@@ -98,9 +79,8 @@ static my_hash_value_type cset_hash_sort_adapter(const HASH *hash,
     @retval 0 success
     @retval 1 failure
 */
-extern "C" my_bool
+my_bool
 _my_hash_init(HASH *hash, uint growth_size, CHARSET_INFO *charset,
-              my_hash_function hash_function,
               ulong size, size_t key_offset, size_t key_length,
               my_hash_get_key get_key,
               void (*free_element)(void*), uint flags,
@@ -119,7 +99,6 @@ _my_hash_init(HASH *hash, uint growth_size, CHARSET_INFO *charset,
   hash->free=free_element;
   hash->flags=flags;
   hash->charset=charset;
-  hash->hash_function= hash_function ? hash_function : cset_hash_sort_adapter;
   hash->m_psi_key= psi_key;
   retval= my_init_dynamic_array(&hash->array,
                                 psi_key,

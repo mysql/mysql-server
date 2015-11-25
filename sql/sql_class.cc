@@ -517,8 +517,6 @@ THD::THD(bool enable_plugins)
   killed= NOT_KILLED;
   col_access=0;
   is_slave_error= thread_specific_used= FALSE;
-  my_hash_clear(&handler_tables_hash);
-  my_hash_clear(&ull_hash);
   tmp_table=0;
   cuted_fields= 0L;
   m_sent_row_count= 0L;

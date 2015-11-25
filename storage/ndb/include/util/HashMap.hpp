@@ -83,7 +83,7 @@ public:
 
     assert(my_init_done);
 
-    if (my_hash_init2(&m_hash,
+    if (_my_hash_init(&m_hash,
                       grow_size,
                       &my_charset_bin, // charset
                       initial_size,    // default_array_elements

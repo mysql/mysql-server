@@ -125,7 +125,7 @@ static bool is_blank_string(char *input)
 }
 
 
-static uchar *version_token_get_key(const char *entry __attribute__((unused)),
+static uchar *version_token_get_key(const uchar *entry __attribute__((unused)),
                                     size_t *length __attribute__((unused)),
 	    	                    my_bool not_used __attribute__((unused)));
 
@@ -504,7 +504,7 @@ static int version_tokens_init(void *arg __attribute__((unused)))
   // Initialize hash.
   my_hash_init(&version_tokens_hash,
 	       &my_charset_bin,
-               4, 0, 0, (my_hash_get_key) version_token_get_key,
+               4, 0, 0, version_token_get_key,
                my_free, HASH_UNIQUE,
                key_memory_vtoken);
 
@@ -1061,7 +1061,7 @@ long long version_tokens_unlock(UDF_INIT *initid, UDF_ARGS *args,
 
 
 
-static uchar *version_token_get_key(const char *entry, size_t *length,
+static uchar *version_token_get_key(const uchar *entry, size_t *length,
 		                    my_bool not_used __attribute__((unused)))
 {
   char *key;

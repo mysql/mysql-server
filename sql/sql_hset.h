@@ -36,7 +36,6 @@ public:
   Hash_set(PSI_memory_key psi_key)
   {
     m_psi_key= psi_key;
-    my_hash_clear(&m_hash);
   }
   /**
     Destroy the hash by freeing the buckets table. Does

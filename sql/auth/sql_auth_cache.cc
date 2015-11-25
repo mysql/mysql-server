@@ -653,9 +653,9 @@ GRANT_TABLE::GRANT_TABLE(const char *h, const char *d,const char *u,
                          const char *t, ulong p, ulong c)
   :GRANT_NAME(h,d,u,t,p, FALSE), cols(c)
 {
-  (void) my_hash_init2(&hash_columns,4,system_charset_info,
-                   0,0,0, (my_hash_get_key) get_key_column,0,0,
-                   key_memory_acl_memex);
+  (void) _my_hash_init(&hash_columns,4,system_charset_info,
+                       0,0,0, (my_hash_get_key) get_key_column,0,0,
+                       key_memory_acl_memex);
 }
 
 
@@ -695,16 +695,15 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form)
   if (!db || !tname)
   {
     /* Wrong table row; Ignore it */
-    my_hash_clear(&hash_columns);               /* allow for destruction */
     cols= 0;
     return;
   }
   cols= (ulong) form->field[7]->val_int();
   cols =  fix_rights_for_column(cols);
 
-  (void) my_hash_init2(&hash_columns,4,system_charset_info,
-                   0,0,0, (my_hash_get_key) get_key_column,0,0,
-                   key_memory_acl_memex);
+  (void) _my_hash_init(&hash_columns,4,system_charset_info,
+                       0,0,0, (my_hash_get_key) get_key_column,0,0,
+                       key_memory_acl_memex);
 }
 
 

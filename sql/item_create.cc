@@ -6741,7 +6741,6 @@ static Native_func_registry func_array[] =
 
 static HASH native_functions_hash;
 
-extern "C" {
 static uchar*
 get_native_fct_hash_key(const uchar *buff, size_t *length,
                         my_bool /* unused */)
@@ -6750,7 +6749,7 @@ get_native_fct_hash_key(const uchar *buff, size_t *length,
   *length= func->name.length;
   return (uchar*) func->name.str;
 }
-} // extern "C"
+
 
 /*
   Load the hash table for native functions.
@@ -6769,7 +6768,7 @@ int item_create_init()
                    array_elements(func_array),
                    0,
                    0,
-                   (my_hash_get_key) get_native_fct_hash_key,
+                   get_native_fct_hash_key,
                    NULL,                          /* Nothing to free */
                    MYF(0),
                    key_memory_native_functions))

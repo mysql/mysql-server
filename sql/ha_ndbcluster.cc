@@ -12492,8 +12492,8 @@ int ndbcluster_table_exists_in_engine(handlerton *hton, THD* thd,
 }
 
 
-extern "C" uchar* tables_get_key(const char *entry, size_t *length,
-                                my_bool not_used __attribute__((unused)))
+uchar* tables_get_key(const char *entry, size_t *length,
+                      my_bool not_used __attribute__((unused)))
 {
   *length= strlen(entry);
   return (uchar*) entry;
