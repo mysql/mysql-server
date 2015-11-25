@@ -6482,7 +6482,10 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
       written to the binary log.
    */
   while (get_prep_xids() > 0)
+  {
+    DEBUG_SYNC(current_thd, "before_rotate_binlog_file");
     mysql_cond_wait(&m_prep_xids_cond, &LOCK_xids);
+  }
   mysql_mutex_unlock(&LOCK_xids);
 
   mysql_mutex_lock(&LOCK_index);
@@ -6572,6 +6575,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
      Note that at this point, log_state != LOG_CLOSED (important for is_open()).
   */
 
+  DEBUG_SYNC(current_thd, "before_rotate_binlog_file");
   /*
      new_file() is only used for rotation (in FLUSH LOGS or because size >
      max_binlog_size or max_relay_log_size).
@@ -8830,6 +8834,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   mysql_mutex_t *leave_mutex_before_commit_stage= NULL;
   my_off_t flush_end_pos= 0;
   bool update_binlog_end_pos_after_sync;
+  bool need_LOCK_log;
   if (unlikely(!is_open()))
   {
     final_queue= stage_manager.fetch_queue_for(Stage_manager::FLUSH_STAGE);
@@ -8887,8 +8892,16 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   /*
     Stage #2: Syncing binary log file to disk
   */
+  need_LOCK_log= sync_counter + 1 >= get_sync_period() && get_prep_xids() == 0;
 
-  if (change_stage(thd, Stage_manager::SYNC_STAGE, wait_queue, &LOCK_log, &LOCK_sync))
+  /*
+    LOCK_log is not released also when we are about to sync the binary log and
+    there is no transactional storage engine prepared transactions. This will
+    guarantee that the binary log rotation will not take place before syncing
+    the binary log file.
+  */
+  if (change_stage(thd, Stage_manager::SYNC_STAGE, wait_queue,
+                   need_LOCK_log ? NULL : &LOCK_log, &LOCK_sync))
   {
     DBUG_PRINT("return", ("Thread ID: %u, commit_error: %d",
                           thd->thread_id(), thd->commit_error));
@@ -8918,6 +8931,9 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     if (flush_error == 0 && sync_error == 0)
       update_binlog_end_pos(tmp_thd->get_trans_pos());
   }
+
+  if (need_LOCK_log)
+    mysql_mutex_unlock(&LOCK_log);
 
   DEBUG_SYNC(thd, "bgc_after_sync_stage_before_commit_stage");
 
