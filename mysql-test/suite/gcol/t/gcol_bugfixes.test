@@ -576,6 +576,19 @@ DEALLOCATE PREPARE r;
 
 DROP TABLE t;
 
+--echo #
+--echo # Bug#22239803 WITH NO MORE .FRM 64K LIMIT WE CAN CREATE MASSIVE TABLES,
+--echo #              BUT TOO SLOW (II)
+--echo #
+
+set @s:=concat("CREATE TABLE t(w INT, A INT GENERATED ALWAYS
+AS('",REPEAT("\\0",1024*1024),"') STORED) ENGINE=INNODB;");
+PREPARE r FROM @s;
+EXECUTE r;
+DEALLOCATE PREPARE r;
+
+DROP TABLE t;
+
 --echo # Bug#21875520 Problems with virtual column indexes
 
 CREATE TABLE t(
