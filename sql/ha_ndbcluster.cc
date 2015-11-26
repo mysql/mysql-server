@@ -2734,24 +2734,8 @@ int ha_ndbcluster::drop_indexes(Ndb *ndb, TABLE *tab)
     {
       const NdbDictionary::Index *index= m_index[i].index;
       const NdbDictionary::Index *unique_index= m_index[i].unique_index;
-      
-      if (index)
-      {
-        index_name= index->getName();
-        DBUG_PRINT("info", ("Dropping index %u: %s", i, index_name));  
-        // Drop ordered index from ndb
-        if (dict->dropIndexGlobal(*index) == 0)
-        {
-          dict->removeIndexGlobal(*index, 1);
-          m_index[i].index= NULL;
-        }
-        else
-        {
-          error= ndb_to_mysql_error(&dict->getNdbError());
-          m_dupkey= i; // for HA_ERR_DROP_INDEX_FK
-        }
-      }
-      if (!error && unique_index)
+
+      if (unique_index)
       {
         index_name= unique_index->getName();
         DBUG_PRINT("info", ("Dropping unique index %u: %s", i, index_name));
@@ -2760,6 +2744,22 @@ int ha_ndbcluster::drop_indexes(Ndb *ndb, TABLE *tab)
         {
           dict->removeIndexGlobal(*unique_index, 1);
           m_index[i].unique_index= NULL;
+        }
+        else
+        {
+          error= ndb_to_mysql_error(&dict->getNdbError());
+          m_dupkey= i; // for HA_ERR_DROP_INDEX_FK
+        }
+      }
+      if (!error && index)
+      {
+        index_name= index->getName();
+        DBUG_PRINT("info", ("Dropping index %u: %s", i, index_name));
+        // Drop ordered index from ndb
+        if (dict->dropIndexGlobal(*index) == 0)
+        {
+          dict->removeIndexGlobal(*index, 1);
+          m_index[i].index= NULL;
         }
         else
         {
