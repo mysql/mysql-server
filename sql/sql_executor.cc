@@ -317,7 +317,7 @@ err:
 
   @b SAMPLE
     @code
-      SELECT a, b, c SUM(b) FROM t1 GROUP BY a,b WITH ROLLUP
+      SELECT a, b, SUM(c) FROM t1 GROUP BY a,b WITH ROLLUP
   @endcode
 
   @param idx		Level we are on:

@@ -3182,6 +3182,13 @@ public:
 	switch (type_)
 	{
 	case CUBE_TYPE:
+	  {
+		uint k = count + 1;
+		for (uint i = 0; i < bitmap_size; i++){
+		  bitmap[bitmap_size - 1 - i] = (k & 1);
+		  k >>= 1;
+		}
+	  }
 	  break;
 	case ROLLUP_TYPE:
 	  bitmap[bitmap_size - 1 - count] = TRUE;
