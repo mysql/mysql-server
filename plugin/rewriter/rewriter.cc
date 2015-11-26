@@ -74,7 +74,7 @@ Rewriter::~Rewriter() { my_hash_free(&m_digests); }
 
 bool Rewriter::load_rule(MYSQL_THD thd, Persisted_rule *diskrule)
 {
-  std::auto_ptr<Rule> memrule_ptr(new Rule);
+  std::unique_ptr<Rule> memrule_ptr(new Rule);
   Rule *memrule= memrule_ptr.get();
   Rule::Load_status load_status= memrule->load(thd, diskrule);
 

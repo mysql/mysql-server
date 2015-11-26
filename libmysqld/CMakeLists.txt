@@ -144,6 +144,14 @@ IF(HAVE_UNDEF)
     COMPILE_FLAGS "-Wno-undef")
 ENDIF()
 
+# Boost source use auto_ptr, deprecated in C++11
+MY_CHECK_CXX_COMPILER_FLAG("-Wdeprecated-declarations"
+                           HAVE_DEPRECATED_DECLARATIONS)
+IF(HAVE_DEPRECATED_DECLARATIONS)
+  ADD_COMPILE_FLAGS(${LIBMYSQLD_BOOST_SOURCES}
+                    COMPILE_FLAGS "-Wno-deprecated-declarations")
+ENDIF()
+
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 
 # there

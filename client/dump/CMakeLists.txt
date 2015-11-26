@@ -204,6 +204,14 @@ IF(HAVE_NO_LOGICAL_OP)
   ADD_COMPILE_FLAGS(${MYSQLPUMP_BOOST_SOURCES} COMPILE_FLAGS "-Wno-logical-op")
 ENDIF()
 
+# Boost source use auto_ptr, deprecated in C++11
+MY_CHECK_CXX_COMPILER_FLAG("-Wdeprecated-declarations"
+                           HAVE_DEPRECATED_DECLARATIONS)
+IF(HAVE_DEPRECATED_DECLARATIONS)
+  ADD_COMPILE_FLAGS(${MYSQLPUMP_BOOST_SOURCES}
+                    COMPILE_FLAGS "-Wno-deprecated-declarations")
+ENDIF()
+
 ADD_COMPILE_FLAGS(
   compression_writer.cc
   mysqldump_tool_chain_maker.cc

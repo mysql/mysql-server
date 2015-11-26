@@ -48,10 +48,6 @@ MY_ADD_C_WARNING_FLAG("Wundef")
 MY_ADD_CXX_WARNING_FLAG("Wundef")
 
 # Temporarily convert C++11 related errors to warnings
-MY_CHECK_CXX_COMPILER_FLAG("-Wdeprecated-declarations" HAVE_DEPRECATED_DECLARATIONS)
-IF(HAVE_DEPRECATED_DECLARATIONS)
-  SET(MY_CXX_WARNING_FLAGS "${MY_CXX_WARNING_FLAGS} -Wno-error=deprecated-declarations")
-ENDIF()
 MY_CHECK_CXX_COMPILER_FLAG("-Wdeprecated-register" HAVE_DEPRECATED_REGISTER)
 IF(HAVE_DEPRECATED_REGISTER)
   SET(MY_CXX_WARNING_FLAGS "${MY_CXX_WARNING_FLAGS} -Wno-error=deprecated-register")

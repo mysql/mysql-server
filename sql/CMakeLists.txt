@@ -416,6 +416,14 @@ IF(HAVE_UNDEF)
     COMPILE_FLAGS "-Wno-undef")
 ENDIF()
 
+# Boost source use auto_ptr, deprecated in C++11
+MY_CHECK_CXX_COMPILER_FLAG("-Wdeprecated-declarations"
+                           HAVE_DEPRECATED_DECLARATIONS)
+IF(HAVE_DEPRECATED_DECLARATIONS)
+  ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
+                    COMPILE_FLAGS "-Wno-deprecated-declarations")
+ENDIF()
+
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 # See comments in filesort_compare-t.cc about __builtin_memcmp
 IF(HAVE_NO_BUILTIN_MEMCMP)
