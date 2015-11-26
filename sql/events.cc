@@ -308,6 +308,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
 {
   bool ret;
   bool save_binlog_row_based, event_already_exists;
+  ulong save_binlog_format= thd->variables.binlog_format;
   DBUG_ENTER("Events::create_event");
 
   if (check_if_system_tables_error())
@@ -345,6 +346,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
   */
   if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
     thd->clear_current_stmt_binlog_format_row();
+  thd->variables.binlog_format= BINLOG_FORMAT_STMT;
 
   /* On error conditions my_error() is called so no need to handle here */
   if (!(ret= db_repository->create_event(thd, parse_data, if_not_exists,
@@ -403,6 +405,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
+  thd->variables.binlog_format= save_binlog_format;
 
   DBUG_RETURN(ret);
 }
@@ -433,6 +436,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
 {
   int ret;
   bool save_binlog_row_based;
+  ulong save_binlog_format= thd->variables.binlog_format;
   Event_queue_element *new_element;
 
   DBUG_ENTER("Events::update_event");
@@ -498,6 +502,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
   */
   if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
     thd->clear_current_stmt_binlog_format_row();
+  thd->variables.binlog_format= BINLOG_FORMAT_STMT;
 
   /* On error conditions my_error() is called so no need to handle here */
   if (!(ret= db_repository->update_event(thd, parse_data,
@@ -539,6 +544,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
+  thd->variables.binlog_format= save_binlog_format;
 
   DBUG_RETURN(ret);
 }
