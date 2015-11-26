@@ -723,6 +723,14 @@ TEST_F(CacheStorageTest, TestTransactionMaxSePrivateId)
   delete tab1_new;
   delete tab2_new;
   delete tab3_new;
+
+  // Drop the objects
+  EXPECT_FALSE(dc.acquire<dd::Table>("mysql", "table1", &tab1_new));
+  EXPECT_FALSE(dc.acquire<dd::Table>("mysql", "table2", &tab2_new));
+  EXPECT_FALSE(dc.acquire<dd::Table>("mysql", "table3", &tab3_new));
+  EXPECT_FALSE(dc.drop(const_cast<dd::Table*>(tab1_new)));
+  EXPECT_FALSE(dc.drop(const_cast<dd::Table*>(tab2_new)));
+  EXPECT_FALSE(dc.drop(const_cast<dd::Table*>(tab3_new)));
 }
 
 
