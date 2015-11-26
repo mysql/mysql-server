@@ -18,7 +18,6 @@ usr/share/aclocal/mysql.m4
 usr/share/mysql/docs/ChangeLog
 usr/share/mysql/docs/INFO_SRC
 usr/share/mysql/docs/INFO_BIN
-usr/share/mysql/INSTALL-BINARY
 # localized error msgs
 usr/share/mysql/*/errmsg.sys
 usr/share/mysql/errmsg-utf8.txt
