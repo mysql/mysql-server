@@ -15,7 +15,7 @@
 
 #include <item_geofunc_internal.h>
 
-void handle_gis_exception(const char *funcname) noexcept
+void handle_gis_exception(const char *funcname)
 {
   try
   {

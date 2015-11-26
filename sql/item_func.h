@@ -3025,7 +3025,7 @@ extern bool volatile  mqh_used;
 
   @see handle_gis_exception
 */
-void handle_std_exception(const char *funcname) noexcept;
+void handle_std_exception(const char *funcname);
 
 
 #endif /* ITEM_FUNC_INCLUDED */

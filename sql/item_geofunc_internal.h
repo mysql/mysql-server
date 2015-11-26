@@ -83,7 +83,7 @@ extern bool simplify_multi_geometry(String *str, String *result_buffer);
 
   @see handle_std_exception
  */
-void handle_gis_exception(const char *funcname) noexcept;
+void handle_gis_exception(const char *funcname);
 
 
 /// A wrapper and interface for all geometry types used here. Make these

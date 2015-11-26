@@ -1322,7 +1322,7 @@ void unsupported_json_comparison(size_t arg_count, Item **args, const char *msg)
 }
 
 
-void handle_std_exception(const char *funcname) noexcept
+void handle_std_exception(const char *funcname)
 {
   try
   {
