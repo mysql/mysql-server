@@ -916,12 +916,12 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
   int ret= 1;
 
   /*
-    Turn off row binlogging of this statement and use statement-based so
-    that all supporting tables are updated for DROP EVENT command.
+    Turn off row binlogging of this statement and use statement-based
+    so that all supporting tables are updated for CREATE EVENT command.
+    When we are going out of the function scope, the original binary
+    format state will be restored.
   */
-  bool save_binlog_row_based;
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
   DBUG_ENTER("Event_db_repository::drop_event");
   DBUG_PRINT("enter", ("%s@%s", db.str, name.str));
@@ -951,12 +951,6 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
 end:
   close_thread_tables(thd);
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
-
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
-
   DBUG_RETURN(MY_TEST(ret));
 }
 
@@ -1152,18 +1146,17 @@ update_timing_fields_for_event(THD *thd,
   TABLE *table= NULL;
   Field **fields;
   int ret= 1;
-  bool save_binlog_row_based;
   MYSQL_TIME time;
 
   DBUG_ENTER("Event_db_repository::update_timing_fields_for_event");
 
   /*
-    Turn off row binlogging of event timing updates. These are not used
-    for RBR of events replicated to the slave.
+    Turn off row binlogging of this statement and use statement-based
+    so that all supporting tables are updated for CREATE EVENT command.
+    When we are going out of the function scope, the original binary
+    format state will be restored.
   */
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
-
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
   DBUG_ASSERT(thd->security_context()->check_access(SUPER_ACL));
 
   if (open_event_table(thd, TL_WRITE, &table))
@@ -1194,12 +1187,6 @@ update_timing_fields_for_event(THD *thd,
 end:
   if (table)
     close_mysql_tables(thd);
-
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
-
   DBUG_RETURN(MY_TEST(ret));
 }
 

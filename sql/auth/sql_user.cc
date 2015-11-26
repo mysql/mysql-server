@@ -620,7 +620,6 @@ bool change_password(THD *thd, const char *host, const char *user,
   char hash_str[MAX_FIELD_WIDTH]= {0};
   ulong query_length= 0;
   ulong what_to_set= 0;
-  bool save_binlog_row_based;
   size_t new_password_len= strlen(new_password);
   bool result= true, rollback_whole_statement= false;
   int ret;
@@ -676,11 +675,11 @@ bool change_password(THD *thd, const char *host, const char *user,
 
   /*
     This statement will be replicated as a statement, even when using
-    row-based replication.  The flag will be reset at the end of the
-    statement.
+    row-based replication.  The binlog state will be cleared here to
+    statement based replication and will be reset to the originals
+    values when we are out of this function scope
   */
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
   mysql_mutex_lock(&acl_cache->lock);
   ACL_USER *acl_user;
@@ -786,12 +785,6 @@ end:
 
   if (!result)
     acl_notify_htons(thd, buff, query_length);
-
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
-
   DBUG_RETURN(result);
 }
 
@@ -1301,30 +1294,22 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists)
   List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[GRANT_TABLES];
   bool some_users_created= FALSE;
-  bool save_binlog_row_based;
   bool transactional_tables;
   ulong what_to_update= 0;
   bool is_anonymous_user= false;
   bool rollback_whole_statement= false;
   DBUG_ENTER("mysql_create_user");
-
   /*
     This statement will be replicated as a statement, even when using
-    row-based replication.  The flag will be reset at the end of the
-    statement.
+    row-based replication.  The binlog state will be cleared here to
+    statement based replication and will be reset to the originals
+    values when we are out of this function scope
   */
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
   /* CREATE USER may be skipped on replication client. */
   if ((result= open_grant_tables(thd, tables, &transactional_tables)))
-  {
-    /* Restore the state of binlog format */
-    DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-    if (save_binlog_row_based)
-      thd->set_current_stmt_binlog_format_row();
     DBUG_RETURN(result != 1);
-  }
 
   Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
@@ -1448,10 +1433,6 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists)
   if (some_users_created && !result)
     acl_notify_htons(thd, thd->query().str, thd->query().length);
 
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(result);
 }
 
@@ -1478,28 +1459,21 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
   TABLE_LIST tables[GRANT_TABLES];
   bool some_users_deleted= false;
   sql_mode_t old_sql_mode= thd->variables.sql_mode;
-  bool save_binlog_row_based;
   bool transactional_tables;
   bool rollback_whole_statement= false;
   DBUG_ENTER("mysql_drop_user");
 
   /*
     This statement will be replicated as a statement, even when using
-    row-based replication.  The flag will be reset at the end of the
-    statement.
+    row-based replication.  The binlog state will be cleared here to
+    statement based replication and will be reset to the originals
+    values when we are out of this function scope
   */
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
   /* DROP USER may be skipped on replication client. */
   if ((result= open_grant_tables(thd, tables, &transactional_tables)))
-  {
-    /* Restore the state of binlog format */
-    DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-    if (save_binlog_row_based)
-      thd->set_current_stmt_binlog_format_row();
     DBUG_RETURN(result != 1);
-  }
 
   thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
 
@@ -1569,10 +1543,6 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
     acl_notify_htons(thd, thd->query().str, thd->query().length);
 
   thd->variables.sql_mode= old_sql_mode;
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(result);
 }
 
@@ -1599,28 +1569,21 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
   List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[GRANT_TABLES];
   bool some_users_renamed= FALSE;
-  bool save_binlog_row_based;
   bool transactional_tables;
   bool rollback_whole_statement= false;
   DBUG_ENTER("mysql_rename_user");
 
   /*
     This statement will be replicated as a statement, even when using
-    row-based replication.  The flag will be reset at the end of the
-    statement.
+    row-based replication.  The binlog state will be cleared here to
+    statement based replication and will be reset to the originals
+    values when we are out of this function scope
   */
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
   /* RENAME USER may be skipped on replication client. */
   if ((result= open_grant_tables(thd, tables, &transactional_tables)))
-  {
-    /* Restore the state of binlog format */
-    DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-    if (save_binlog_row_based)
-      thd->set_current_stmt_binlog_format_row();
     DBUG_RETURN(result != 1);
-  }
 
   Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
@@ -1708,11 +1671,6 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
 
   if (some_users_renamed && !result)
     acl_notify_htons(thd, thd->query().str, thd->query().length);
-
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(result);
 }
 
@@ -1740,7 +1698,6 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
   TABLE_LIST tables;
   TABLE *table;
   bool some_user_altered= false;
-  bool save_binlog_row_based;
   bool is_privileged_user= false;
   bool rollback_whole_statement= false;
 
@@ -1794,11 +1751,11 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
 
   /*
     This statement will be replicated as a statement, even when using
-    row-based replication.  The flag will be reset at the end of the
-    statement.
+    row-based replication.  The binlog state will be cleared here to
+    statement based replication and will be reset to the originals
+    values when we are out of this function scope
   */
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
   is_privileged_user= is_privileged_user_for_credential_change(thd);
 
@@ -1931,11 +1888,6 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
 
   if (some_user_altered && !result)
     acl_notify_htons(thd, thd->query().str, thd->query().length);
-
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(result);
 }
 

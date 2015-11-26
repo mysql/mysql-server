@@ -443,7 +443,6 @@ int mysql_create_function(THD *thd,udf_func *udf)
   TABLE *table;
   TABLE_LIST tables;
   udf_func *u_d;
-  bool save_binlog_row_based;
   DBUG_ENTER("mysql_create_function");
 
   if (!initialized)
@@ -483,9 +482,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
     Turn off row binlogging of this statement and use statement-based 
     so that all supporting tables are updated for CREATE FUNCTION command.
   */
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
-
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
   mysql_rwlock_wrlock(&THR_LOCK_udf);
   if ((my_hash_search(&udf_hash,(uchar*) udf->name.str, udf->name.length)))
   {
@@ -555,27 +552,14 @@ int mysql_create_function(THD *thd,udf_func *udf)
 
   /* Binlog the create function. */
   if (write_bin_log(thd, true, thd->query().str, thd->query().length))
-  {
-    /* Restore the state of binlog format */
-    DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-    if (save_binlog_row_based)
-      thd->set_current_stmt_binlog_format_row();
     DBUG_RETURN(1);
-  }
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
+
   DBUG_RETURN(0);
 
  err:
   if (new_dl)
     dlclose(dl);
   mysql_rwlock_unlock(&THR_LOCK_udf);
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(1);
 }
 
@@ -587,7 +571,6 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   udf_func *udf;
   char *exact_name_str;
   size_t exact_name_len;
-  bool save_binlog_row_based;
   int error= 1;
   DBUG_ENTER("mysql_drop_function");
 
@@ -608,9 +591,8 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
     Turn off row binlogging of this statement and use statement-based
     so that all supporting tables are updated for DROP FUNCTION command.
   */
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
 
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
   mysql_rwlock_wrlock(&THR_LOCK_udf);
   if (!(udf=(udf_func*) my_hash_search(&udf_hash,(uchar*) udf_name->str,
                                        (uint) udf_name->length)))
@@ -649,9 +631,5 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   if (!write_bin_log(thd, true, thd->query().str, thd->query().length))
     error= 0;
 exit:
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(error);
 }

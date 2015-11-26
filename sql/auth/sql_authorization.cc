@@ -1153,7 +1153,6 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   TABLE_LIST tables[3];
   bool create_new_users=0;
   const char *db_name, *table_name;
-  bool save_binlog_row_based;
   bool transactional_tables;
   ulong what_to_set= 0;
   bool is_privileged_user= false;
@@ -1285,11 +1284,11 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
   /*
     This statement will be replicated as a statement, even when using
-    row-based replication.  The flag will be reset at the end of the
-    statement.
+    row-based replication.  The binlog state will be cleared here to
+    statement based replication and will be reset to the originals
+    values when we are out of this function scope
   */
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
 #ifdef HAVE_REPLICATION
   /*
@@ -1304,13 +1303,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     */
     tables[0].updating= tables[1].updating= tables[2].updating= 1;
     if (!(thd->sp_runtime_ctx || rpl_filter->tables_ok(0, tables)))
-    {
-      /* Restore the state of binlog format */
-      DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-      if (save_binlog_row_based)
-        thd->set_current_stmt_binlog_format_row();
       DBUG_RETURN(FALSE);
-    }
   }
 #endif /* HAVE_REPLICATION */
 
@@ -1330,11 +1323,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT) ||
       check_acl_tables(tables, true))
   {
-    /* Restore the state of binlog format */
-    DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
     thd->lex->restore_backup_query_tables_list(&backup);
-    if (save_binlog_row_based)
-      thd->set_current_stmt_binlog_format_row();
     DBUG_RETURN(TRUE);                          /* purecov: deadcode */
   }
 
@@ -1563,10 +1552,6 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   }
 
   thd->lex->restore_backup_query_tables_list(&backup);
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(result);
 }
 
@@ -1595,7 +1580,6 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   TABLE_LIST tables[2];
   bool create_new_users=0, result=0;
   const char *db_name, *table_name;
-  bool save_binlog_row_based;
   bool transactional_tables;
   ulong what_to_set= 0;
   bool is_privileged_user= false;
@@ -1640,11 +1624,11 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   /*
     This statement will be replicated as a statement, even when using
-    row-based replication.  The flag will be reset at the end of the
-    statement.
+    row-based replication.  The binlog state will be cleared here to
+    statement based replication and will be reset to the originals
+    values when we are out of this function scope
   */
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
 #ifdef HAVE_REPLICATION
   /*
@@ -1659,26 +1643,13 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     */
     tables[0].updating= tables[1].updating= 1;
     if (!(thd->sp_runtime_ctx || rpl_filter->tables_ok(0, tables)))
-    {
-      /* Restore the state of binlog format */
-      DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-      if (save_binlog_row_based)
-        thd->set_current_stmt_binlog_format_row();
       DBUG_RETURN(FALSE);
-    }
   }
 #endif /* HAVE_REPLICATION */
 
   if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT) ||
       check_acl_tables(tables, true))
-  {
-    /* Restore the state of binlog format */
-    DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-    if (save_binlog_row_based)
-      thd->set_current_stmt_binlog_format_row();
-
     DBUG_RETURN(TRUE);
-  }
 
   transactional_tables= (tables[0].table->file->has_transactions() ||
                          tables[1].table->file->has_transactions());
@@ -1838,12 +1809,6 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   if (write_to_binlog && !result)
     acl_notify_htons(thd, thd->query().str, thd->query().length);
-
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
- 
   DBUG_RETURN(result);
 }
 
@@ -1856,7 +1821,6 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   char tmp_db[NAME_LEN+1];
   bool create_new_users=0;
   TABLE_LIST tables[2];
-  bool save_binlog_row_based;
   bool transactional_tables;
   ulong what_to_set= 0;
   bool is_privileged_user= false;
@@ -1909,11 +1873,11 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 
   /*
     This statement will be replicated as a statement, even when using
-    row-based replication.  The flag will be reset at the end of the
-    statement.
+    row-based replication.  The binlog state will be cleared here to
+    statement based replication and will be reset to the originals
+    values when we are out of this function scope
   */
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
 #ifdef HAVE_REPLICATION
   /*
@@ -1928,25 +1892,13 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     */
     tables[0].updating= tables[1].updating= 1;
     if (!(thd->sp_runtime_ctx || rpl_filter->tables_ok(0, tables)))
-    {
-      /* Restore the state of binlog format */
-      DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-      if (save_binlog_row_based)
-        thd->set_current_stmt_binlog_format_row();
       DBUG_RETURN(FALSE);
-    }
   }
 #endif /*HAVE_REPLICATION */
 
   if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT) ||
       check_acl_tables(tables, true))
-  {
-    /* Restore the state of binlog format */
-    DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-    if (save_binlog_row_based)
-      thd->set_current_stmt_binlog_format_row();
     DBUG_RETURN(TRUE);                  /* purecov: deadcode */
-  }
 
   transactional_tables= (tables[0].table->file->has_transactions() ||
                          tables[1].table->file->has_transactions());
@@ -2113,12 +2065,6 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     acl_notify_htons(thd, thd->query().str, thd->query().length);
     my_ok(thd);
   }
-
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
-
   DBUG_RETURN(result);
 }
 
@@ -3524,26 +3470,19 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 {
   int result;
   TABLE_LIST tables[GRANT_TABLES];
-  bool save_binlog_row_based;
   bool transactional_tables;
   DBUG_ENTER("mysql_revoke_all");
 
   /*
     This statement will be replicated as a statement, even when using
-    row-based replication.  The flag will be reset at the end of the
-    statement.
+    row-based replication.  The binlog state will be cleared here to
+    statement based replication and will be reset to the originals
+    values when we are out of this function scope
   */
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
   if ((result= open_grant_tables(thd, tables, &transactional_tables)))
-  {
-    /* Restore the state of binlog format */
-    DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-    if (save_binlog_row_based)
-      thd->set_current_stmt_binlog_format_row();
     DBUG_RETURN(result != 1);
-  }
 
   Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
@@ -3658,12 +3597,6 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 
   if (!result)
     acl_notify_htons(thd, thd->query().str, thd->query().length);
-
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
-
   DBUG_RETURN(result);
 }
 
@@ -3733,7 +3666,6 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
   TABLE_LIST tables[GRANT_TABLES];
   HASH *hash= is_proc ? &proc_priv_hash : &func_priv_hash;
   Silence_routine_definer_errors error_handler;
-  bool save_binlog_row_based;
   bool not_used;
   DBUG_ENTER("sp_revoke_privileges");
 
@@ -3748,11 +3680,11 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
 
   /*
     This statement will be replicated as a statement, even when using
-    row-based replication.  The flag will be reset at the end of the
-    statement.
+    row-based replication.  The binlog state will be cleared here to
+    statement based replication and will be reset to the originals
+    values when we are out of this function scope
   */
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
   /* Remove procedure access */
   bool rollback_whole_statement= false;
@@ -3801,12 +3733,6 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
                                    rollback_whole_statement);
 
   thd->pop_internal_handler();
-
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
-
   DBUG_RETURN(error_handler.has_errors() || result);
 }
 

@@ -4040,6 +4040,43 @@ private:
   bool m_save_skip_gtid_rollback;
 };
 
+/**
+  RAII class which allows to save, clear and store binlog format state
+  There are two variables in THD class that will decide the binlog
+  format of a statement
+    i) THD::current_stmt_binlog_format
+   ii) THD::variables.binlog_format
+  Saving or Clearing or Storing of binlog format state should be done
+  for these two variables together all the time.
+*/
+class Save_and_Restore_binlog_format_state
+{
+public:
+  Save_and_Restore_binlog_format_state(THD *thd)
+    : m_thd(thd),
+    m_global_binlog_format(thd->variables.binlog_format),
+    m_current_stmt_binlog_format(BINLOG_FORMAT_STMT)
+  {
+    if (thd->is_current_stmt_binlog_format_row())
+      m_current_stmt_binlog_format= BINLOG_FORMAT_ROW;
+
+    thd->variables.binlog_format= BINLOG_FORMAT_STMT;
+    thd->clear_current_stmt_binlog_format_row();
+  }
+
+  ~Save_and_Restore_binlog_format_state()
+  {
+    DBUG_ASSERT(!m_thd->is_current_stmt_binlog_format_row());
+    m_thd->variables.binlog_format= m_global_binlog_format;
+    if (m_current_stmt_binlog_format == BINLOG_FORMAT_ROW)
+      m_thd->set_current_stmt_binlog_format_row();
+  }
+private:
+  THD *m_thd;
+  ulong m_global_binlog_format;
+  enum_binlog_format m_current_stmt_binlog_format;
+};
+
 #endif /* MYSQL_SERVER */
 
 #endif /* SQL_CLASS_INCLUDED */
