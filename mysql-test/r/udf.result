@@ -546,14 +546,10 @@ my_cpp11_re_match('foo.*', 'foobar')
 1
 CREATE TABLE t1(a VARCHAR(32), b VARCHAR(64));
 INSERT INTO t1 VALUES
-('^prefix.*', 'prefix of longer string'),
-('.*suffix$', 'string with suffix'),
 ('.*middle.*', 'a value in the middle of a string'),
 ('missing', 'some string value');
 SELECT a, b FROM t1 WHERE my_cpp11_re_match(a, b) > 0;
 a	b
-^prefix.*	prefix of longer string
-.*suffix$	string with suffix
 .*middle.*	a value in the middle of a string
 DROP FUNCTION my_cpp11_re_match;
 DROP TABLE t1;
