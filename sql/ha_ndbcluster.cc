@@ -2679,36 +2679,19 @@ int ha_ndbcluster::open_indexes(THD *thd, Ndb *ndb, TABLE *tab,
 
 /*
   Renumber indexes in index list by shifting out
-  indexes that are to be dropped
+  the index that was dropped
  */
-void ha_ndbcluster::renumber_indexes(Ndb *ndb, TABLE *tab)
+void ha_ndbcluster::renumber_indexes(uint dropped_index_num)
 {
-  uint i;
-  const char *index_name;
-  KEY* key_info= tab->key_info;
-  const char **key_name= tab->s->keynames.type_names;
   DBUG_ENTER("ha_ndbcluster::renumber_indexes");
-  
-  for (i= 0; i < tab->s->keys; i++, key_info++, key_name++)
+
+  // Shift the dropped index out of list
+  for(uint i= dropped_index_num + 1;
+      i != MAX_KEY && m_index[i].status != UNDEFINED; i++)
   {
-    index_name= *key_name;
-    NDB_INDEX_TYPE idx_type= get_index_type_from_table(i);
-    m_index[i].type= idx_type;
-    if (m_index[i].status == TO_BE_DROPPED) 
-    {
-      DBUG_PRINT("info", ("Shifting index %s(%i) out of the list", 
-                          index_name, i));
-      NDB_INDEX_DATA tmp;
-      uint j= i + 1;
-      // Shift index out of list
-      while(j != MAX_KEY && m_index[j].status != UNDEFINED)
-      {
-        tmp=  m_index[j - 1];
-        m_index[j - 1]= m_index[j];
-        m_index[j]= tmp;
-        j++;
-      }
-    }
+    NDB_INDEX_DATA tmp=  m_index[i - 1];
+    m_index[i - 1]= m_index[i];
+    m_index[i]= tmp;
   }
 
   DBUG_VOID_RETURN;
@@ -2768,9 +2751,15 @@ int ha_ndbcluster::drop_indexes(Ndb *ndb, TABLE *tab)
         }
       }
       if (error)
+      {
+        // Change the status back to active. since it was not dropped
+        m_index[i].status = ACTIVE;
         DBUG_RETURN(error);
-      ndb_clear_index(dict, m_index[i]);
-      continue;
+      }
+      // Renumber the indexes by shifting out the dropped index
+      renumber_indexes(i);
+      // clear the dropped index at last now
+      ndb_clear_index(dict, m_index[tab->s->keys]);
     }
   }
   
@@ -10938,11 +10927,6 @@ int ha_ndbcluster::prepare_drop_index(TABLE *table_arg,
       }
     }
   }
-  // Renumber indexes
-  THD *thd= current_thd;
-  Thd_ndb *thd_ndb= get_thd_ndb(thd);
-  Ndb *ndb= thd_ndb->ndb;
-  renumber_indexes(ndb, table_arg);
   DBUG_RETURN(0);
 }
  

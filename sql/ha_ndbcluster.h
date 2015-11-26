@@ -425,7 +425,7 @@ private:
 // Index list management
   int create_indexes(THD *thd, Ndb *ndb, TABLE *tab) const;
   int open_indexes(THD *thd, Ndb *ndb, TABLE *tab, bool ignore_error);
-  void renumber_indexes(Ndb *ndb, TABLE *tab);
+  void renumber_indexes(uint dropped_index_num);
   int drop_indexes(Ndb *ndb, TABLE *tab);
   int add_index_handle(THD *thd, NdbDictionary::Dictionary *dict,
                        KEY *key_info, const char *key_name, uint index_no);
