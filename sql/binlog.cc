@@ -8672,8 +8672,9 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
           binlog_error_action == ABORT_SERVER ? "ABORT_SERVER" : "IGNORE_ERROR");
   if (binlog_error_action == ABORT_SERVER)
   {
-    sprintf(errmsg, "%s Hence aborting the server.", errmsg);
-    exec_binlog_error_action_abort(errmsg);
+    char err_buff[MYSQL_ERRMSG_SIZE];
+    sprintf(err_buff, "%s Hence aborting the server.", errmsg);
+    exec_binlog_error_action_abort(err_buff);
   }
   else
   {
