@@ -80,8 +80,10 @@ extern bool simplify_multi_geometry(String *str, String *result_buffer);
   after the call to handle_gis_exception(), must not throw exceptions.
 
   @param funcname Function name for use in error message
+
+  @see handle_std_exception
  */
-void handle_gis_exception(const char *funcname);
+void handle_gis_exception(const char *funcname) noexcept;
 
 
 /// A wrapper and interface for all geometry types used here. Make these
