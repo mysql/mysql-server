@@ -54,24 +54,22 @@ class NdbQueryOperationTypeWrapper;
 class NdbQueryParamValue;
 class ndb_pushed_join;
 
-typedef enum ndb_index_type {
+enum NDB_INDEX_TYPE {
   UNDEFINED_INDEX = 0,
   PRIMARY_KEY_INDEX = 1,
   PRIMARY_KEY_ORDERED_INDEX = 2,
   UNIQUE_INDEX = 3,
   UNIQUE_ORDERED_INDEX = 4,
   ORDERED_INDEX = 5
-} NDB_INDEX_TYPE;
+};
 
-typedef enum ndb_index_status {
-  UNDEFINED = 0,
-  ACTIVE = 1,
-  TO_BE_DROPPED = 2
-} NDB_INDEX_STATUS;
-
-typedef struct ndb_index_data {
+struct NDB_INDEX_DATA {
   NDB_INDEX_TYPE type;
-  NDB_INDEX_STATUS status;  
+  enum {
+    UNDEFINED = 0,
+    ACTIVE = 1,
+    TO_BE_DROPPED = 2
+  } status;
   const NdbDictionary::Index *index;
   const NdbDictionary::Index *unique_index;
   unsigned char *unique_index_attrid_map;
@@ -85,7 +83,7 @@ typedef struct ndb_index_data {
   NdbRecord *ndb_record_key;
   NdbRecord *ndb_unique_record_key;
   NdbRecord *ndb_unique_record_row;
-} NDB_INDEX_DATA;
+};
 
 // Wrapper class for list to hold NDBFKs
 class Ndb_fk_list :public List<NdbDictionary::ForeignKey>
