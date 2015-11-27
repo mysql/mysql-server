@@ -1,0 +1,22 @@
+--source setup.inc
+
+#
+# Check common behaviour of "partition management commands"
+# - don't support ALGORITHM= with comma after
+# - support ALGORITHM= without comma
+# - don't run inplace
+# - does copying ALTER
+
+#
+# Check ALTER TABLE ... PARTITION
+#
+let $query=
+ALTER TABLE t1
+  partition by key(b) partitions 6;
+--source alter_partition_mgm.inc
+
+
+--source verify_mysql_dd.inc
+
+--source cleanup.inc
+
