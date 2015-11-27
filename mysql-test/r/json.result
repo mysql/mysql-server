@@ -13410,3 +13410,31 @@ Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in th
 Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the LEAST and GREATEST operators'
 Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the LEAST and GREATEST operators'
 Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the LEAST and GREATEST operators'
+#
+#  Bug#22278524: ALTER TABLE SOMETIMES CONVERTS TEXT TO JSON WITHOUT
+#                SYNTAX CHECKING
+#
+CREATE TABLE t1(txt TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
+INSERT INTO t1 VALUES ('not JSON');
+ALTER TABLE t1 MODIFY COLUMN txt JSON;
+ERROR 22032: Invalid JSON text: "Invalid value." at position 1 in value (or column) 'not JSON'.
+SELECT * FROM t1;
+txt
+not JSON
+CREATE TABLE t2(j JSON);
+INSERT INTO t2 VALUES (JSON_OBJECT('a', 'b'));
+ALTER TABLE t2 MODIFY COLUMN j TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+SELECT * FROM t2;
+j
+{"a": "b"}
+CREATE TABLE t3 (j JSON);
+INSERT INTO t3 VALUES (JSON_OBJECT('a', 'b'));
+CREATE TABLE t4 AS SELECT UPPER(j) AS jj FROM t3;
+INSERT INTO t4 VALUES ('not JSON');
+ALTER TABLE t4 MODIFY COLUMN jj JSON;
+ERROR 22032: Invalid JSON text: "Invalid value." at position 1 in value (or column) 'not JSON'.
+SELECT * FROM t4;
+jj
+{"A": "B"}
+not JSON
+DROP TABLE t1, t2, t3, t4;
