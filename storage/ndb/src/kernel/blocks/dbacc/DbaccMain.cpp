@@ -473,6 +473,13 @@ void Dbacc::execACCFRAGREQ(Signal* signal)
     return;
   }//if
 
+  ndbassert(req->localKeyLen == 1);
+  if (req->localKeyLen != 1)
+  {
+    jam();
+    addFragRefuse(signal, ZLOCAL_KEY_LENGTH_ERROR);
+    return;
+  }
   seizeFragrec();
   initFragGeneral(fragrecptr);
   initFragAdd(signal, fragrecptr);
@@ -1516,7 +1523,6 @@ void Dbacc::insertelementLab(Signal* signal,
   bool isforward = true;
   idrOperationRecPtr = operationRecPtr;
   clocalkey[0] = localKey;
-  clocalkey[1] = localKey;
   operationRecPtr.p->localdata[0] = localKey;
   operationRecPtr.p->localdata[1] = localKey;
   /* ----------------------------------------------------------------------- */
@@ -2225,23 +2231,9 @@ void Dbacc::execACCMINUPDATE(Signal* signal)
     arrGuard(tulkLocalPtr, 2048);
     operationRecPtr.p->localdata[0] = tlocalkey1;
     operationRecPtr.p->localdata[1] = tlocalkey2;
-    if (likely(fragrecptr.p->localkeylen == 1))
-    {
-      ulkPageidptr.p->word32[tulkLocalPtr] = localref;
-      return;
-    }
-    else if (fragrecptr.p->localkeylen == 2)
-    {
-      jam();
-      ulkPageidptr.p->word32[tulkLocalPtr] = tlocalkey1;
-      tulkLocalPtr = tulkLocalPtr + 1;
-      dbgWord32(ulkPageidptr, tulkLocalPtr, tlocalkey2);
-      arrGuard(tulkLocalPtr, 2048);
-      ulkPageidptr.p->word32[tulkLocalPtr] = tlocalkey2;
-      return;
-    } else {
-      jam();
-    }//if
+    ndbrequire(fragrecptr.p->localkeylen == 1);
+    ulkPageidptr.p->word32[tulkLocalPtr] = localref;
+    return;
   }//if
   ndbrequire(false);
 }//Dbacc::execACCMINUPDATE()
@@ -2733,8 +2725,6 @@ void Dbacc::insertContainer(Page8Ptr& pageptr,
   Uint32 tidrNextSide;
   Uint32 tidrNextConLen;
   Uint32 tidrIndex;
-  Uint32 tidrInputIndex;
-  Uint32 guard26;
 
   result = ZFALSE;
   /* --------------------------------------------------------------------------------- */
@@ -2844,14 +2834,10 @@ void Dbacc::insertContainer(Page8Ptr& pageptr,
   dbgWord32(pageptr, tidrIndex, elemhead);
   pageptr.p->word32[tidrIndex] = elemhead;
   tidrIndex += 1;
-  guard26 = fragrecptr.p->localkeylen - 1;
-  arrGuard(guard26, 2);
-  for (tidrInputIndex = 0; tidrInputIndex <= guard26; tidrInputIndex++) {
-    dbgWord32(pageptr, tidrIndex, clocalkey[tidrInputIndex]);
-    arrGuard(tidrIndex, 2048);
-    pageptr.p->word32[tidrIndex] = clocalkey[tidrInputIndex];
-    tidrIndex += 1;
-  }//for
+  ndbrequire(fragrecptr.p->localkeylen == 1);
+  dbgWord32(pageptr, tidrIndex, clocalkey[0]);
+  arrGuard(tidrIndex, 2048);
+  pageptr.p->word32[tidrIndex] = clocalkey[0];	/* INSERTS LOCALKEY */
   ContainerHeader conthead = pageptr.p->word32[conptr];
   conthead.setLength(tidrContainerlen);
   dbgWord32(pageptr, conptr, conthead);
@@ -3194,7 +3180,7 @@ Dbacc::getElement(const AccKeyReq* signal,
   Uint32 tgePageindex;
   Uint32 tgeNextptrtype;
   register Uint32 tgeRemLen;
-  register Uint32 TelemLen = fragrecptr.p->elementLength;
+  const Uint32 TelemLen = fragrecptr.p->elementLength;
   register const Uint32* Tkeydata = signal->keyInfo; /* or localKey if keyLen == 0 */
   const Uint32 localkeylen = fragrecptr.p->localkeylen;
   Uint32 bucket_number = fragrecptr.p->level.getBucketNumber(operationRecPtr.p->hashValue);
@@ -3260,16 +3246,10 @@ Dbacc::getElement(const AccKeyReq* signal,
           jam();
           reducedHashValue = ElementHeader::getReducedHashValue(tgeElementHeader);
           const Uint32 pos = elemptr + 1;
+          ndbrequire(localkeylen == 1);
           localkey1 = elemPageptr.p->word32[pos];
-          if (likely(localkeylen == 1))
-          {
-            localkey2 = Local_key::ref2page_idx(localkey1);
-            localkey1 = Local_key::ref2page_id(localkey1);
-          }
-          else
-          {
-            localkey2 = elemPageptr.p->word32[pos + 1];
-          }
+          localkey2 = Local_key::ref2page_idx(localkey1);
+          localkey1 = Local_key::ref2page_id(localkey1);
           possible_match = true;
         }
         if (possible_match &&
@@ -3457,27 +3437,15 @@ void Dbacc::deleteElement(Page8Ptr delPageptr,
                           Uint32 lastElemptr) const
 {
   OperationrecPtr deOperationRecPtr;
-  Uint32 tdeIndex;
-  Uint32 tlastMoveElemptr;
-  Uint32 tdelMoveElemptr;
-  Uint32 guard31;
 
   if (lastElemptr >= 2048)
     goto deleteElement_index_error1;
   {
     const Uint32 tdeElemhead = lastPageptr.p->word32[lastElemptr];
-    tlastMoveElemptr = lastElemptr;
-    tdelMoveElemptr = delElemptr;
-    guard31 = fragrecptr.p->elementLength - 1;
-    for (tdeIndex = 0; tdeIndex <= guard31; tdeIndex++) {
-      dbgWord32(delPageptr, tdelMoveElemptr, lastPageptr.p->word32[tlastMoveElemptr]);
-      if ((tlastMoveElemptr >= 2048) ||
-	  (tdelMoveElemptr >= 2048))
-	goto deleteElement_index_error2;
-      delPageptr.p->word32[tdelMoveElemptr] = lastPageptr.p->word32[tlastMoveElemptr];
-      tdelMoveElemptr = tdelMoveElemptr + 1;
-      tlastMoveElemptr = tlastMoveElemptr + 1;
-    }//for
+    ndbrequire(fragrecptr.p->elementLength == 2);
+    delPageptr.p->word32[delElemptr] = lastPageptr.p->word32[lastElemptr];
+    delPageptr.p->word32[delElemptr + 1] =
+      lastPageptr.p->word32[lastElemptr + 1];
     if (ElementHeader::getLocked(tdeElemhead)) {
       /* --------------------------------------------------------------------------------- */
       /* THE LAST ELEMENT IS LOCKED AND IS THUS REFERENCED BY AN OPERATION RECORD. WE NEED */
@@ -3501,11 +3469,6 @@ void Dbacc::deleteElement(Page8Ptr delPageptr,
 
  deleteElement_index_error1:
   arrGuard(lastElemptr, 2048);
-  return;
-
- deleteElement_index_error2:
-  arrGuard(tdelMoveElemptr + guard31, 2048);
-  arrGuard(tlastMoveElemptr, 2048);
   return;
 
 }//Dbacc::deleteElement()
@@ -5167,19 +5130,10 @@ LHBits32 Dbacc::getElementHash(Uint32 const* elemptr)
   Uint32 elemhead = *elemptr;
   Uint32 localkey[2];
   elemptr += 1;
+  ndbrequire(fragrecptr.p->localkeylen == 1);
   localkey[0] = *elemptr;
-  if (likely(fragrecptr.p->localkeylen == 1))
-  {
-    jam();
-    localkey[1] = Local_key::ref2page_idx(localkey[0]);
-    localkey[0] = Local_key::ref2page_id(localkey[0]);
-  }
-  else
-  {
-    jam();
-    elemptr += 1;
-    localkey[1] = *elemptr;
-  }
+  localkey[1] = Local_key::ref2page_idx(localkey[0]);
+  localkey[0] = Local_key::ref2page_id(localkey[0]);
   OperationrecPtr oprec;
   oprec.i = RNIL;
   Uint32 len = readTablePk(localkey[0], localkey[1], elemhead, oprec);
@@ -5233,8 +5187,6 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
   ContainerHeader containerhead;
   LHBits32 texcHashvalue;
   Uint32 texcTmp;
-  Uint32 texcIndex;
-  Uint32 guard20;
   bool tidrIsforward;
   Uint32 tidrContainerptr;
   Page8Ptr idrPageptr;
@@ -5349,13 +5301,8 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
   /*       ELEMENT IS THE LAST ELEMENT.                                                */
   /* --------------------------------------------------------------------------------- */
   texcTmp = elemptr + 1;
-  guard20 = fragrecptr.p->localkeylen - 1;
-  for (texcIndex = 0; texcIndex <= guard20; texcIndex++) {
-    arrGuard(texcIndex, 2);
-    arrGuard(texcTmp, 2048);
-    clocalkey[texcIndex] = pageptr.p->word32[texcTmp];
-    texcTmp = texcTmp + 1;
-  }//for
+  ndbrequire(fragrecptr.p->localkeylen == 1);
+  clocalkey[0] = pageptr.p->word32[texcTmp];
   tidrPageindex = fragrecptr.p->expReceiveIndex;
   idrPageptr.i = fragrecptr.p->expReceivePageptr;
   ptrCheckGuard(idrPageptr, cpagesize, page8);
@@ -5462,12 +5409,8 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
     /*       THE LAST ELEMENT IS ALSO TO BE MOVED.                                       */
     /* --------------------------------------------------------------------------------- */
     texcTmp = tlastElementptr + 1;
-    for (texcIndex = 0; texcIndex < fragrecptr.p->localkeylen; texcIndex++) {
-      arrGuard(texcIndex, 2);
-      arrGuard(texcTmp, 2048);
-      clocalkey[texcIndex] = lastPageptr.p->word32[texcTmp];
-      texcTmp = texcTmp + 1;
-    }//for
+    ndbrequire(fragrecptr.p->localkeylen == 1);
+    clocalkey[0] = lastPageptr.p->word32[texcTmp];
     tidrPageindex = fragrecptr.p->expReceiveIndex;
     idrPageptr.i = fragrecptr.p->expReceivePageptr;
     ptrCheckGuard(idrPageptr, cpagesize, page8);
@@ -5923,7 +5866,7 @@ Dbacc::shrink_adjust_reduced_hash_value(Uint32 bucket_number)
   Uint32 tgeContainerptr;
   Uint32 tgeElementptr;
   register Uint32 tgeRemLen;
-  register Uint32 TelemLen = fragrecptr.p->elementLength;
+  const Uint32 TelemLen = fragrecptr.p->elementLength;
   const Uint32 localkeylen = fragrecptr.p->localkeylen;
 
   tgePageindex = fragrecptr.p->getPageIndex(bucket_number);
@@ -6026,8 +5969,6 @@ void Dbacc::shrinkcontainer(Page8Ptr pageptr,
   Uint32 tshrElementptr;
   Uint32 tshrRemLen;
   Uint32 tshrTmp;
-  Uint32 tshrIndex;
-  Uint32 guard21;
   bool tidrIsforward;
   Uint32 tidrContainerptr;
   Page8Ptr idrPageptr;
@@ -6076,13 +6017,8 @@ void Dbacc::shrinkcontainer(Page8Ptr pageptr,
     tidrElemhead = ElementHeader::setReducedHashValue(tidrElemhead, reducedHashValue);
   }
   tshrTmp = tshrElementptr + 1;
-  guard21 = fragrecptr.p->localkeylen - 1;
-  for (tshrIndex = 0; tshrIndex <= guard21; tshrIndex++) {
-    arrGuard(tshrIndex, 2);
-    arrGuard(tshrTmp, 2048);
-    clocalkey[tshrIndex] = pageptr.p->word32[tshrTmp];
-    tshrTmp = tshrTmp + 1;
-  }//for
+  ndbrequire(fragrecptr.p->localkeylen == 1);
+  clocalkey[0] = pageptr.p->word32[tshrTmp];
   tidrPageindex = fragrecptr.p->expReceiveIndex;
   idrPageptr.i = fragrecptr.p->expReceivePageptr;
   ptrCheckGuard(idrPageptr, cpagesize, page8);
@@ -6149,7 +6085,8 @@ void Dbacc::initFragAdd(Signal* signal,
   regFragPtr.p->nodetype = (req->reqInfo >> 4) & 0x3;
   regFragPtr.p->keyLength = req->keyLength;
   ndbrequire(req->keyLength != 0);
-  regFragPtr.p->elementLength = ZELEM_HEAD_SIZE + regFragPtr.p->localkeylen;
+  ndbrequire(regFragPtr.p->elementLength ==
+             ZELEM_HEAD_SIZE + regFragPtr.p->localkeylen);
   Uint32 Tmp1 = regFragPtr.p->level.getSize();
   Uint32 Tmp2 = regFragPtr.p->maxloadfactor - regFragPtr.p->minloadfactor;
   regFragPtr.p->slackCheck = Int64(Tmp1) * Tmp2;
@@ -6914,17 +6851,9 @@ void Dbacc::initScanOpRec(Page8Ptr pageptr,
   arrGuard(tisoLocalPtr, 2048);
   Uint32 Tkey1 = pageptr.p->word32[tisoLocalPtr];
   tisoLocalPtr = tisoLocalPtr + 1;
-  if (localkeylen == 1)
-  {
-    operationRecPtr.p->localdata[0] = Local_key::ref2page_id(Tkey1);
-    operationRecPtr.p->localdata[1] = Local_key::ref2page_idx(Tkey1);
-  }
-  else
-  {
-    arrGuard(tisoLocalPtr, 2048);
-    operationRecPtr.p->localdata[0] = Tkey1;
-    operationRecPtr.p->localdata[1] = pageptr.p->word32[tisoLocalPtr];
-  }
+  ndbrequire(localkeylen == 1)
+  operationRecPtr.p->localdata[0] = Local_key::ref2page_id(Tkey1);
+  operationRecPtr.p->localdata[1] = Local_key::ref2page_idx(Tkey1);
   operationRecPtr.p->hashValue.clear();
   operationRecPtr.p->tupkeylen = fragrecptr.p->keyLength;
   operationRecPtr.p->xfrmtupkeylen = 0; // not used

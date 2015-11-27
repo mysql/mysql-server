@@ -175,6 +175,8 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZTOO_EARLY_ACCESS_ERROR 632
 #define ZDIR_RANGE_FULL_ERROR 633 // on fragment
 
+#define ZLOCAL_KEY_LENGTH_ERROR 634 // From Dbdict via Dblqh
+
 #endif
 
 class ElementHeader {
@@ -439,7 +441,7 @@ struct Fragmentrec {
 // for slack will be within -2^43 and +2^43 words.
 //-----------------------------------------------------------------------------
   LHLevelRH level;
-  Uint32 localkeylen;
+  Uint32 localkeylen; // Currently only 1 is supported
   Uint32 maxloadfactor;
   Uint32 minloadfactor;
   Int64 slack;
@@ -472,7 +474,7 @@ struct Fragmentrec {
 // elementLength: Length of element in bucket and overflow pages
 // keyLength: Length of key
 //-----------------------------------------------------------------------------
-  Uint8 elementLength;
+  STATIC_CONST( elementLength = 2 );
   Uint16 keyLength;
 
 //-----------------------------------------------------------------------------
@@ -1018,7 +1020,7 @@ private:
   BlockReference cndbcntrRef;
   Uint16 csignalkey;
   Uint32 czero;
-  Uint32 clocalkey[32];
+  Uint32 clocalkey[1]; // 1 == localkeylen
   union {
   Uint32 ckeys[2048 * MAX_XFRM_MULTIPLY];
   Uint64 ckeys_align;
