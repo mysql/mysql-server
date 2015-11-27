@@ -95,11 +95,6 @@ public:
   }
 };
 
-typedef enum ndb_write_op {
-  NDB_INSERT = 0,
-  NDB_UPDATE = 1,
-  NDB_PK_UPDATE = 2
-} NDB_WRITE_OP;
 
 #include "ndb_ndbapi_util.h"
 #include "ndb_share.h"
@@ -485,6 +480,13 @@ private:
                                       const NdbOperation *first,
                                       const NdbOperation *last,
                                       uint errcode);
+
+  enum NDB_WRITE_OP {
+    NDB_INSERT = 0,
+    NDB_UPDATE = 1,
+    NDB_PK_UPDATE = 2
+  };
+
   int peek_indexed_rows(const uchar *record, NDB_WRITE_OP write_op);
   int scan_handle_lock_tuple(NdbScanOperation *scanOp, NdbTransaction *trans);
   int fetch_next(NdbScanOperation* op);
