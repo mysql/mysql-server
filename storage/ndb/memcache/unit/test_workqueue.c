@@ -73,12 +73,12 @@ int main() {
   struct workqueue *queue=
       (struct workqueue *) calloc(1, sizeof(struct workqueue));
 
-  struct threadinfo test0 = { queue, 32768, 1, 0, 0, 0, 10000000, 1000000 };
-  struct threadinfo test1 = { queue, 32768, 2, 0, 0, 0, 10000000, 1000000 };
-  struct threadinfo test2 = { queue, 8192, 2, 10, 800, 200, 100000, 25000 };
-  struct threadinfo test3 = { queue, 8192, 2, 1, 850, 50, 125000, 25000 };
-  struct threadinfo test4 = { queue, 8192, 2, 20, 50, 500, 100000, 25000 };
-  struct threadinfo test5 = { queue, 8192, 2, 1, 50, 0, 150000, 50000 };
+  struct threadinfo test0 = { queue, 32768, 1, 0, 0, 0, 50000, 1000000 };
+  struct threadinfo test1 = { queue, 32768, 2, 0, 0, 0, 50000, 1000000 };
+  struct threadinfo test2 = { queue, 8192, 2, 10, 400, 100, 10000, 25000 };
+  struct threadinfo test3 = { queue, 8192, 2, 1, 425, 25, 15000, 25000 };
+  struct threadinfo test4 = { queue, 8192, 2, 20, 25, 250, 10000, 25000 };
+  struct threadinfo test5 = { queue, 8192, 2, 1, 50, 0, 10000, 50000 };
   struct threadinfo test6 = { queue, 16384, 8, 1, 20, 160, 200000, 50000 };
   
   seed_randomizer(1);
