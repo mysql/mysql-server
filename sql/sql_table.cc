@@ -2502,7 +2502,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
   bool trans_tmp_table_deleted= 0, non_trans_tmp_table_deleted= 0;
   bool non_tmp_table_deleted= 0;
   bool have_nonexistent_tmp_table= 0;
-  bool is_drop_tmp_if_exists_added= 0;
+  bool is_drop_tmp_if_exists_with_no_defaultdb= 0;
   String built_query;
   String built_trans_tmp_query, built_non_trans_tmp_query;
   String nonexistent_tmp_tables;
@@ -2533,14 +2533,13 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     transaction and changes to non-transactional tables must be written
     ahead of the transaction in some circumstances.
 
-    6- Slave SQL thread ignores all replicate-* filter rules
-    for temporary tables with 'IF EXISTS' clause. (See sql/sql_parse.cc:
-    mysql_execute_command() for details). These commands will be binlogged
-    as they are, even if the default database (from USE `db`) is not present
-    on the Slave. This can cause point in time recovery failures later
-    when user uses the slave's binlog to re-apply. Hence at the time of binary
-    logging, these commands will be written with fully qualified table names
-    and use `db` will be suppressed.
+    6 - At the time of writing 'DROP TEMPORARY TABLE IF EXISTS'
+    statements into the binary log if the default database specified in
+    thd->db is present then they are binlogged as
+    'USE `default_db`; DROP TEMPORARY TABLE IF EXISTS `t1`;'
+    otherwise they will be binlogged with the actual database name to
+    which the table belongs to.
+    'DROP TEMPORARY TABLE IF EXISTS `actual_db`.`t1`
   */
   if (!dont_log_query)
   {
@@ -2555,7 +2554,14 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 
     if (thd->is_current_stmt_binlog_format_row() || if_exists)
     {
-      is_drop_tmp_if_exists_added= true;
+      /*
+        If default database doesnot exist in those cases set
+        'is_drop_tmp_if_exists_with_no_defaultdb flag to 'true' so that the
+        'DROP TEMPORARY TABLE IF EXISTS' command is logged with a qualified
+        table name.
+      */
+      if (thd->db().str != NULL && check_db_dir_existence(thd->db().str))
+        is_drop_tmp_if_exists_with_no_defaultdb= true;
       built_trans_tmp_query.set_charset(system_charset_info);
       built_trans_tmp_query.append("DROP TEMPORARY TABLE IF EXISTS ");
       built_non_trans_tmp_query.set_charset(system_charset_info);
@@ -2641,7 +2647,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           query.
         */
         if (thd->db().str == NULL || strcmp(db, thd->db().str) != 0
-            || is_drop_tmp_if_exists_added )
+            || is_drop_tmp_if_exists_with_no_defaultdb )
         {
           append_identifier(thd, built_ptr_query, db, db_len,
                             system_charset_info, thd->charset());
@@ -2932,7 +2938,7 @@ err:
                                    built_non_trans_tmp_query.ptr(),
                                    built_non_trans_tmp_query.length(),
                                    false/*is_trans*/, false/*direct*/,
-                                   is_drop_tmp_if_exists_added/*suppress_use*/,
+                                   is_drop_tmp_if_exists_with_no_defaultdb/*suppress_use*/,
                                    0)/*errcode*/;
       }
       if (trans_tmp_table_deleted ||
@@ -2994,7 +3000,7 @@ err:
                                    built_trans_tmp_query.ptr(),
                                    built_trans_tmp_query.length(),
                                    true/*is_trans*/, false/*direct*/,
-                                   is_drop_tmp_if_exists_added/*suppress_use*/,
+                                   is_drop_tmp_if_exists_with_no_defaultdb/*suppress_use*/,
                                    0/*errcode*/);
       }
       if (non_tmp_table_deleted)
