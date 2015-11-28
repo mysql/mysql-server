@@ -2550,6 +2550,19 @@ ha_innopart::update_part_elem(
 					ib_table->tablespace);
 		}
 	}
+	else {
+		ut_ad(part_elem->tablespace_name == NULL
+		      || 0 == strcmp(part_elem->tablespace_name,
+				     "innodb_file_per_table"));
+		if (part_elem->tablespace_name != NULL
+		    && 0 != strcmp(part_elem->tablespace_name,
+				   "innodb_file_per_table")) {
+
+			/* Update part_elem tablespace to NULL same as in
+			innodb data dictionary ib_table. */
+			part_elem->tablespace_name = NULL;
+		}
+	}
 }
 
 /** Update create_info.
