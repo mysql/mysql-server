@@ -8495,8 +8495,24 @@ MYSQL_BIN_LOG::sync_binlog_file(bool force)
   if (force || (sync_period && ++sync_counter >= sync_period))
   {
     sync_counter= 0;
+
+    /**
+      On *pure non-transactional* workloads there is a small window
+      in time where a concurrent rotate might be able to close
+      the file before the sync is actually done. In that case,
+      ignore the bad file descriptor errors.
+
+      Transactional workloads (InnoDB) are not affected since the
+      the rotation will not happen until all transactions have
+      committed to the storage engine, thence decreased the XID
+      counters.
+
+      TODO: fix this properly even for non-transactional storage
+            engines.
+     */
     if (DBUG_EVALUATE_IF("simulate_error_during_sync_binlog_file", 1,
-                         mysql_file_sync(log_file.file, MYF(MY_WME))))
+                         mysql_file_sync(log_file.file,
+                                         MYF(MY_WME | MY_IGNORE_BADFD))))
     {
       THD *thd= current_thd;
       thd->commit_error= THD::CE_SYNC_ERROR;
@@ -8835,7 +8851,6 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   mysql_mutex_t *leave_mutex_before_commit_stage= NULL;
   my_off_t flush_end_pos= 0;
   bool update_binlog_end_pos_after_sync;
-  bool need_LOCK_log;
   if (unlikely(!is_open()))
   {
     final_queue= stage_manager.fetch_queue_for(Stage_manager::FLUSH_STAGE);
@@ -8893,16 +8908,8 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   /*
     Stage #2: Syncing binary log file to disk
   */
-  need_LOCK_log= sync_counter + 1 >= get_sync_period() && get_prep_xids() == 0;
 
-  /*
-    LOCK_log is not released also when we are about to sync the binary log and
-    there is no transactional storage engine prepared transactions. This will
-    guarantee that the binary log rotation will not take place before syncing
-    the binary log file.
-  */
-  if (change_stage(thd, Stage_manager::SYNC_STAGE, wait_queue,
-                   need_LOCK_log ? NULL : &LOCK_log, &LOCK_sync))
+  if (change_stage(thd, Stage_manager::SYNC_STAGE, wait_queue, &LOCK_log, &LOCK_sync))
   {
     DBUG_PRINT("return", ("Thread ID: %u, commit_error: %d",
                           thd->thread_id(), thd->commit_error));
@@ -8932,9 +8939,6 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     if (flush_error == 0 && sync_error == 0)
       update_binlog_end_pos(tmp_thd->get_trans_pos());
   }
-
-  if (need_LOCK_log)
-    mysql_mutex_unlock(&LOCK_log);
 
   DEBUG_SYNC(thd, "bgc_after_sync_stage_before_commit_stage");
 
