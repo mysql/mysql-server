@@ -7,7 +7,7 @@ SET DEBUG_SYNC= 'NOW WAIT_FOR holding_before_bgc_sync_binlog_file';
 SET DEBUG_SYNC= 'before_rotate_binlog_file SIGNAL holding_before_rotate_binlog_file WAIT_FOR continue_rotate_binlog_file';
 FLUSH LOGS;
 [connection default]
-SET DEBUG_SYNC= 'now WAIT_FOR holding_before_rotate_binlog_file TIMEOUT 3';
+SET DEBUG_SYNC= 'now WAIT_FOR holding_before_rotate_binlog_file';
 SET DEBUG_SYNC= 'now SIGNAL continue_bgc_sync_binlog_file';
 SET DEBUG_SYNC= 'before_rotate_binlog_file CLEAR';
 SET DEBUG_SYNC = 'now SIGNAL continue_rotate_binlog_file';
@@ -25,7 +25,7 @@ SET DEBUG_SYNC= 'NOW WAIT_FOR holding_before_bgc_sync_binlog_file';
 SET DEBUG_SYNC= 'before_rotate_binlog_file SIGNAL holding_before_rotate_binlog_file WAIT_FOR continue_rotate_binlog_file';
 FLUSH LOGS;
 [connection default]
-SET DEBUG_SYNC= 'now WAIT_FOR holding_before_rotate_binlog_file TIMEOUT 3';
+SET DEBUG_SYNC= 'now WAIT_FOR holding_before_rotate_binlog_file';
 SET DEBUG_SYNC= 'now SIGNAL continue_bgc_sync_binlog_file';
 SET DEBUG_SYNC= 'before_rotate_binlog_file CLEAR';
 SET DEBUG_SYNC = 'now SIGNAL continue_rotate_binlog_file';
