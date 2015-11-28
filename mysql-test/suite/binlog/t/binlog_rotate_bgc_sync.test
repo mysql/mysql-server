@@ -62,9 +62,7 @@ while ($engine)
   # binary log
   --let $rpl_connection_name= default
   --source include/rpl_connection.inc
-  --disable_warnings
-  SET DEBUG_SYNC= 'now WAIT_FOR holding_before_rotate_binlog_file TIMEOUT 3';
-  --enable_warnings
+  SET DEBUG_SYNC= 'now WAIT_FOR holding_before_rotate_binlog_file';
 
   # Let the binary log group commit to sync and continue
   SET DEBUG_SYNC= 'now SIGNAL continue_bgc_sync_binlog_file';
