@@ -155,7 +155,6 @@ Dbacc::Dbacc(Block_context& ctx, Uint32 instanceNumber):
   {
     void* tmp[] = { &fragrecptr,
                     &operationRecPtr,
-                    &idrOperationRecPtr,
                     &queOperPtr,
                     &colPageptr,
                     &expPageptr,
