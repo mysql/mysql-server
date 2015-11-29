@@ -1510,7 +1510,6 @@ void Dbacc::insertelementLab(Signal* signal,
   }//if
   ndbrequire(operationRecPtr.p->tupkeylen <= fragrecptr.p->keyLength);
   ndbassert(!(operationRecPtr.p->m_op_bits & Operationrec::OP_LOCK_REQ));
-  Uint32 localKey = ~(Uint32)0;
   
   insertLockOwnersList(operationRecPtr);
 
@@ -1521,15 +1520,20 @@ void Dbacc::insertelementLab(Signal* signal,
   idrPageptr = bucketPageptr;
   Uint32 tidrPageindex = bucketConidx;
   bool isforward = true;
-  idrOperationRecPtr = operationRecPtr;
-  clocalkey[0] = localKey;
-  operationRecPtr.p->localdata[0] = localKey;
-  operationRecPtr.p->localdata[1] = localKey;
+  ndbrequire(fragrecptr.p->localkeylen == 1);
   /* ----------------------------------------------------------------------- */
   /* WE SET THE LOCAL KEY TO MINUS ONE TO INDICATE IT IS NOT YET VALID.      */
   /* ----------------------------------------------------------------------- */
+  const Uint32 localKey = ~(Uint32)0;
+  operationRecPtr.p->localdata[0] = localKey;
+  operationRecPtr.p->localdata[1] = localKey;
   Uint32 conptr;
-  insertElement(idrPageptr, tidrPageindex, isforward, tidrElemhead, conptr);
+  insertElement(Element(tidrElemhead, localKey),
+                operationRecPtr,
+                idrPageptr,
+                tidrPageindex,
+                isforward,
+                conptr);
   c_tup->prepareTUPKEYREQ(localKey, localKey, fragrecptr.p->tupFragptr);
   sendAcckeyconf(signal);
   return;
@@ -2579,21 +2583,23 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
 /*               TIDR_FORWARD   (CONTAINER DIRECTION OF INSERTED ELEMENT)            */
 /*               NONE                                                                */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::insertElement(Page8Ptr& pageptr,
-                          Uint32& conidx,
-                          bool& isforward,
-                          const Uint32 elemhead,
-                          Uint32& conptr)
+void Dbacc::insertElement(const Element   elem,
+                          OperationrecPtr oprecptr,
+                          Page8Ptr&       pageptr,
+                          Uint32&         conidx,
+                          bool&           isforward,
+                          Uint32&         conptr)
 {
   Page8Ptr inrNewPageptr;
   Uint32 tidrResult;
 
   do {
     ContainerHeader containerhead;
-    insertContainer(pageptr,
+    insertContainer(elem,
+                    oprecptr,
+                    pageptr,
                     conidx,
                     isforward,
-                    elemhead,
                     conptr,
                     containerhead,
                     tidrResult);
@@ -2676,10 +2682,11 @@ void Dbacc::insertElement(Page8Ptr& pageptr,
 
   pageptr = inrNewPageptr;
   conidx = newPageindex;
-  insertContainer(pageptr,
+  insertContainer(elem,
+                  oprecptr,
+                  pageptr,
                   conidx,
                   isforward,
-                  elemhead,
                   conptr,
                   containerhead,
                   tidrResult);
@@ -2712,13 +2719,14 @@ void Dbacc::insertElement(Page8Ptr& pageptr,
 /*                                                                                   */
 /*       SHORT FORM: IDR                                                             */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::insertContainer(Page8Ptr& pageptr,
-                            const Uint32 conidx,
-                            const bool isforward,
-                            const Uint32 elemhead,
-                            Uint32& conptr,
+void Dbacc::insertContainer(const Element    elem,
+                            OperationrecPtr  oprecptr,
+                            Page8Ptr&        pageptr,
+                            const Uint32     conidx,
+                            const bool       isforward,
+                            Uint32&          conptr,
                             ContainerHeader& containerhead,
-                            Uint32& result)
+                            Uint32&          result)
 {
   Uint32 tidrContainerlen;
   Uint32 tidrConfreelen;
@@ -2817,11 +2825,12 @@ void Dbacc::insertContainer(Page8Ptr& pageptr,
   /*       OR ABORT THE INSERT. IF NO OPERATION RECORD EXIST IT MEANS THAT WE ARE      */
   /*       PERFORMING THIS AS A PART OF THE EXPAND OR SHRINK PROCESS.                  */
   /* --------------------------------------------------------------------------------- */
-  if (idrOperationRecPtr.i != RNIL) {
+  if (oprecptr.i != RNIL)
+  {
     jam();
-    idrOperationRecPtr.p->elementPage = pageptr.i;
-    idrOperationRecPtr.p->elementContainer = conptr;
-    idrOperationRecPtr.p->elementPointer = tidrIndex;
+    oprecptr.p->elementPage = pageptr.i;
+    oprecptr.p->elementContainer = conptr;
+    oprecptr.p->elementPointer = tidrIndex;
   }//if
   /* --------------------------------------------------------------------------------- */
   /*       WE CHOOSE TO UNDO LOG INSERTS BY WRITING THE BEFORE VALUE TO THE UNDO LOG.  */
@@ -2831,13 +2840,10 @@ void Dbacc::insertContainer(Page8Ptr& pageptr,
   /*       STRUCTURE. IT IS RATHER DIFFICULT TO MAINTAIN A LOGICAL STRUCTURE WHERE     */
   /*       DELETES ARE INSERTS AND INSERTS ARE PURELY DELETES.                         */
   /* --------------------------------------------------------------------------------- */
-  dbgWord32(pageptr, tidrIndex, elemhead);
-  pageptr.p->word32[tidrIndex] = elemhead;
-  tidrIndex += 1;
   ndbrequire(fragrecptr.p->localkeylen == 1);
-  dbgWord32(pageptr, tidrIndex, clocalkey[0]);
-  arrGuard(tidrIndex, 2048);
-  pageptr.p->word32[tidrIndex] = clocalkey[0];	/* INSERTS LOCALKEY */
+  arrGuard(tidrIndex + 1, 2048);
+  pageptr.p->word32[tidrIndex] = elem.getHeader();
+  pageptr.p->word32[tidrIndex + 1] = elem.getData(); /* INSERTS LOCALKEY */
   ContainerHeader conthead = pageptr.p->word32[conptr];
   conthead.setLength(tidrContainerlen);
   dbgWord32(pageptr, conptr, conthead);
@@ -5186,11 +5192,7 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
 {
   ContainerHeader containerhead;
   LHBits32 texcHashvalue;
-  Uint32 texcTmp;
-  bool tidrIsforward;
   Uint32 tidrContainerptr;
-  Page8Ptr idrPageptr;
-  Uint32 tidrPageindex;
   Uint32 tidrElemhead;
 
   Page8Ptr lastPageptr;
@@ -5207,6 +5209,7 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
   bool isforward = true;
   Uint32 elemStep;
   const Uint32 elemLen = fragrecptr.p->elementLength;
+  OperationrecPtr oprecptr;
  EXP_CONTAINER_LOOP:
   Uint32 conptr = getContainerPtr(conidx, isforward);
   if (isforward)
@@ -5231,8 +5234,8 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
     goto NEXT_ELEMENT;
   }//if
  NEXT_ELEMENT_LOOP:
-  idrOperationRecPtr.i = RNIL;
-  ptrNull(idrOperationRecPtr);
+  oprecptr.i = RNIL;
+  ptrNull(oprecptr);
   /* --------------------------------------------------------------------------------- */
   /*       CEXC_PAGEINDEX         PAGE INDEX OF CURRENT CONTAINER BEING EXAMINED.      */
   /*       CEXC_CONTAINERPTR      INDEX OF CURRENT CONTAINER BEING EXAMINED.           */
@@ -5248,18 +5251,17 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
   if (ElementHeader::getLocked(tidrElemhead))
   {
     jam();
-    idrOperationRecPtr.i = ElementHeader::getOpPtrI(tidrElemhead);
-    ptrCheckGuard(idrOperationRecPtr, coprecsize, operationrec);
-    ndbassert(idrOperationRecPtr.p->reducedHashValue.valid_bits() >= 1);
-    move = idrOperationRecPtr.p->reducedHashValue.get_bit(1);
-    idrOperationRecPtr.p->reducedHashValue.shift_out();
-    const LHBits16 reducedHashValue = idrOperationRecPtr.p->reducedHashValue;
+    oprecptr.i = ElementHeader::getOpPtrI(tidrElemhead);
+    ptrCheckGuard(oprecptr, coprecsize, operationrec);
+    ndbassert(oprecptr.p->reducedHashValue.valid_bits() >= 1);
+    move = oprecptr.p->reducedHashValue.get_bit(1);
+    oprecptr.p->reducedHashValue.shift_out();
+    const LHBits16 reducedHashValue = oprecptr.p->reducedHashValue;
     if (!fragrecptr.p->enough_valid_bits(reducedHashValue))
     {
       jam();
-      const LHBits32 hashValue = getElementHash(idrOperationRecPtr);
-      idrOperationRecPtr.p->reducedHashValue =
-        fragrecptr.p->level.reduceForSplit(hashValue);
+      oprecptr.p->reducedHashValue =
+        fragrecptr.p->level.reduceForSplit(getElementHash(oprecptr));
     }
   }
   else
@@ -5300,21 +5302,24 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
   /*       GET THE LAST ELEMENT AGAIN UNTIL WE EITHER FIND ONE THAT STAYS OR THIS      */
   /*       ELEMENT IS THE LAST ELEMENT.                                                */
   /* --------------------------------------------------------------------------------- */
-  texcTmp = elemptr + 1;
-  ndbrequire(fragrecptr.p->localkeylen == 1);
-  clocalkey[0] = pageptr.p->word32[texcTmp];
-  tidrPageindex = fragrecptr.p->expReceiveIndex;
-  idrPageptr.i = fragrecptr.p->expReceivePageptr;
-  ptrCheckGuard(idrPageptr, cpagesize, page8);
-  tidrIsforward = fragrecptr.p->expReceiveIsforward;
-  insertElement(idrPageptr,
-                tidrPageindex,
-                tidrIsforward,
-                tidrElemhead,
-                tidrContainerptr);
-  fragrecptr.p->expReceiveIndex = tidrPageindex;
-  fragrecptr.p->expReceivePageptr = idrPageptr.i;
-  fragrecptr.p->expReceiveIsforward = tidrIsforward;
+  {
+    ndbrequire(fragrecptr.p->localkeylen == 1);
+    const Uint32 localkey = pageptr.p->word32[elemptr + 1];
+    Uint32 tidrPageindex = fragrecptr.p->expReceiveIndex;
+    Page8Ptr idrPageptr;
+    idrPageptr.i = fragrecptr.p->expReceivePageptr;
+    ptrCheckGuard(idrPageptr, cpagesize, page8);
+    bool tidrIsforward = fragrecptr.p->expReceiveIsforward;
+    insertElement(Element(tidrElemhead, localkey),
+                  oprecptr,
+                  idrPageptr,
+                  tidrPageindex,
+                  tidrIsforward,
+                  tidrContainerptr);
+    fragrecptr.p->expReceiveIndex = tidrPageindex;
+    fragrecptr.p->expReceivePageptr = idrPageptr.i;
+    fragrecptr.p->expReceiveIsforward = tidrIsforward;
+  }
  REMOVE_LAST_LOOP:
   jam();
   lastPageptr.i = pageptr.i;
@@ -5349,23 +5354,23 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
   /*       STAY WE COPY IT TO THE POSITION OF THE CURRENT ELEMENT, OTHERWISE WE INSERT */
   /*       INTO THE NEW BUCKET, REMOVE IT AND TRY WITH THE NEW LAST ELEMENT.           */
   /* --------------------------------------------------------------------------------- */
-  idrOperationRecPtr.i = RNIL;
-  ptrNull(idrOperationRecPtr);
+  oprecptr.i = RNIL;
+  ptrNull(oprecptr);
   arrGuard(tlastElementptr, 2048);
   tidrElemhead = lastPageptr.p->word32[tlastElementptr];
   if (ElementHeader::getLocked(tidrElemhead))
   {
     jam();
-    idrOperationRecPtr.i = ElementHeader::getOpPtrI(tidrElemhead);
-    ptrCheckGuard(idrOperationRecPtr, coprecsize, operationrec);
-    ndbassert(idrOperationRecPtr.p->reducedHashValue.valid_bits() >= 1);
-    move = idrOperationRecPtr.p->reducedHashValue.get_bit(1);
-    idrOperationRecPtr.p->reducedHashValue.shift_out();
-    if (!fragrecptr.p->enough_valid_bits(idrOperationRecPtr.p->reducedHashValue))
+    oprecptr.i = ElementHeader::getOpPtrI(tidrElemhead);
+    ptrCheckGuard(oprecptr, coprecsize, operationrec);
+    ndbassert(oprecptr.p->reducedHashValue.valid_bits() >= 1);
+    move = oprecptr.p->reducedHashValue.get_bit(1);
+    oprecptr.p->reducedHashValue.shift_out();
+    if (!fragrecptr.p->enough_valid_bits(oprecptr.p->reducedHashValue))
     {
       jam();
-      idrOperationRecPtr.p->reducedHashValue =
-        fragrecptr.p->level.reduceForSplit(getElementHash(idrOperationRecPtr));
+      oprecptr.p->reducedHashValue =
+        fragrecptr.p->level.reduceForSplit(getElementHash(oprecptr));
     }
   }
   else
@@ -5408,21 +5413,24 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
     /* --------------------------------------------------------------------------------- */
     /*       THE LAST ELEMENT IS ALSO TO BE MOVED.                                       */
     /* --------------------------------------------------------------------------------- */
-    texcTmp = tlastElementptr + 1;
-    ndbrequire(fragrecptr.p->localkeylen == 1);
-    clocalkey[0] = lastPageptr.p->word32[texcTmp];
-    tidrPageindex = fragrecptr.p->expReceiveIndex;
-    idrPageptr.i = fragrecptr.p->expReceivePageptr;
-    ptrCheckGuard(idrPageptr, cpagesize, page8);
-    tidrIsforward = fragrecptr.p->expReceiveIsforward;
-    insertElement(idrPageptr,
-                  tidrPageindex,
-                  tidrIsforward,
-                  tidrElemhead,
-                  tidrContainerptr);
-    fragrecptr.p->expReceiveIndex = tidrPageindex;
-    fragrecptr.p->expReceivePageptr = idrPageptr.i;
-    fragrecptr.p->expReceiveIsforward = tidrIsforward;
+    {
+      ndbrequire(fragrecptr.p->localkeylen == 1);
+      const Uint32 localkey = lastPageptr.p->word32[tlastElementptr + 1];
+      Uint32 tidrPageindex = fragrecptr.p->expReceiveIndex;
+      Page8Ptr idrPageptr;
+      idrPageptr.i = fragrecptr.p->expReceivePageptr;
+      ptrCheckGuard(idrPageptr, cpagesize, page8);
+      bool tidrIsforward = fragrecptr.p->expReceiveIsforward;
+      insertElement(Element(tidrElemhead, localkey),
+                    oprecptr,
+                    idrPageptr,
+                    tidrPageindex,
+                    tidrIsforward,
+                    tidrContainerptr);
+      fragrecptr.p->expReceiveIndex = tidrPageindex;
+      fragrecptr.p->expReceivePageptr = idrPageptr.i;
+      fragrecptr.p->expReceiveIsforward = tidrIsforward;
+    }
     goto REMOVE_LAST_LOOP;
   }//if
  NEXT_ELEMENT:
@@ -5968,14 +5976,11 @@ void Dbacc::shrinkcontainer(Page8Ptr pageptr,
 {
   Uint32 tshrElementptr;
   Uint32 tshrRemLen;
-  Uint32 tshrTmp;
-  bool tidrIsforward;
   Uint32 tidrContainerptr;
-  Page8Ptr idrPageptr;
-  Uint32 tidrPageindex;
   Uint32 tidrElemhead;
   const Uint32 elemLen = fragrecptr.p->elementLength;
   Uint32 elemStep;
+  OperationrecPtr oprecptr;
   tshrRemLen = conlen - Container::HEADER_SIZE;
   if (isforward)
   {
@@ -5990,8 +5995,8 @@ void Dbacc::shrinkcontainer(Page8Ptr pageptr,
     tshrElementptr = conptr + elemStep;
   }//if
  SHR_LOOP:
-  idrOperationRecPtr.i = RNIL;
-  ptrNull(idrOperationRecPtr);
+  oprecptr.i = RNIL;
+  ptrNull(oprecptr);
   /* --------------------------------------------------------------------------------- */
   /*       THE CODE BELOW IS ALL USED TO PREPARE FOR THE CALL TO INSERT_ELEMENT AND    */
   /*       HANDLE THE RESULT FROM INSERT_ELEMENT. INSERT_ELEMENT INSERTS THE ELEMENT   */
@@ -6006,9 +6011,9 @@ void Dbacc::shrinkcontainer(Page8Ptr pageptr,
     /*       RECORD OWNING THE LOCK. WE DO THIS BY READING THE OPERATION RECORD POINTER  */
     /*       FROM THE ELEMENT HEADER.                                                    */
     /* --------------------------------------------------------------------------------- */
-    idrOperationRecPtr.i = ElementHeader::getOpPtrI(tidrElemhead);
-    ptrCheckGuard(idrOperationRecPtr, coprecsize, operationrec);
-    idrOperationRecPtr.p->reducedHashValue.shift_in(true);
+    oprecptr.i = ElementHeader::getOpPtrI(tidrElemhead);
+    ptrCheckGuard(oprecptr, coprecsize, operationrec);
+    oprecptr.p->reducedHashValue.shift_in(true);
   }//if
   else
   {
@@ -6016,24 +6021,27 @@ void Dbacc::shrinkcontainer(Page8Ptr pageptr,
     reducedHashValue.shift_in(true);
     tidrElemhead = ElementHeader::setReducedHashValue(tidrElemhead, reducedHashValue);
   }
-  tshrTmp = tshrElementptr + 1;
-  ndbrequire(fragrecptr.p->localkeylen == 1);
-  clocalkey[0] = pageptr.p->word32[tshrTmp];
-  tidrPageindex = fragrecptr.p->expReceiveIndex;
-  idrPageptr.i = fragrecptr.p->expReceivePageptr;
-  ptrCheckGuard(idrPageptr, cpagesize, page8);
-  tidrIsforward = fragrecptr.p->expReceiveIsforward;
-  insertElement(idrPageptr,
-                tidrPageindex,
-                tidrIsforward,
-                tidrElemhead,
-                tidrContainerptr);
-  /* --------------------------------------------------------------------------------- */
-  /*       TAKE CARE OF RESULT FROM INSERT_ELEMENT.                                    */
-  /* --------------------------------------------------------------------------------- */
-  fragrecptr.p->expReceiveIndex = tidrPageindex;
-  fragrecptr.p->expReceivePageptr = idrPageptr.i;
-  fragrecptr.p->expReceiveIsforward = tidrIsforward;
+  {
+    ndbrequire(fragrecptr.p->localkeylen == 1);
+    const Uint32 localkey = pageptr.p->word32[tshrElementptr + 1];
+    Uint32 tidrPageindex = fragrecptr.p->expReceiveIndex;
+    Page8Ptr idrPageptr;
+    idrPageptr.i = fragrecptr.p->expReceivePageptr;
+    ptrCheckGuard(idrPageptr, cpagesize, page8);
+    bool tidrIsforward = fragrecptr.p->expReceiveIsforward;
+    insertElement(Element(tidrElemhead, localkey),
+                  oprecptr,
+                  idrPageptr,
+                  tidrPageindex,
+                  tidrIsforward,
+                  tidrContainerptr);
+    /* --------------------------------------------------------------- */
+    /*       TAKE CARE OF RESULT FROM INSERT_ELEMENT.                  */
+    /* --------------------------------------------------------------- */
+    fragrecptr.p->expReceiveIndex = tidrPageindex;
+    fragrecptr.p->expReceivePageptr = idrPageptr.i;
+    fragrecptr.p->expReceiveIsforward = tidrIsforward;
+  }
   if (tshrRemLen < elemLen) {
     jam();
     sendSystemerror(__LINE__);

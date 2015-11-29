@@ -275,6 +275,16 @@ ElementHeader::setReducedHashValue(Uint32 header, LHBits16 const& reducedHashVal
   return (Uint32(reducedHashValue.pack()) << 16) | (header & 0xffff);
 }
 
+class Element
+{
+  Uint32 m_header;
+  Uint32 m_data;
+public:
+  Element(Uint32 header, Uint32 data): m_header(header), m_data(data) {}
+  Uint32 getHeader() const { return m_header; }
+  Uint32 getData() const { return m_data; }
+};
+
 typedef Container::Header ContainerHeader;
 
 class Dbacc: public SimulatedBlock {
@@ -796,15 +806,17 @@ private:
   void takeOutActiveScanOp() const;
   void takeOutScanLockQueue(Uint32 scanRecIndex) const;
   void takeOutReadyScanQueue() const;
-  void insertElement(Page8Ptr& pageptr,
+  void insertElement(Element elem,
+                     OperationrecPtr oprecptr,
+                     Page8Ptr& pageptr,
                      Uint32& conidx,
                      bool& isforward,
-                     Uint32 elemhead,
                      Uint32& conptr);
-  void insertContainer(Page8Ptr& pageptr,
+  void insertContainer(Element elem,
+                       OperationrecPtr  oprecptr,
+                       Page8Ptr& pageptr,
                        Uint32 conidx,
                        bool isforward,
-                       Uint32 elemhead,
                        Uint32& conptr,
                        ContainerHeader& containerhead,
                        Uint32& result);
@@ -944,7 +956,6 @@ private:
 /* --------------------------------------------------------------------------------- */
   Operationrec *operationrec;
   OperationrecPtr operationRecPtr;
-  OperationrecPtr idrOperationRecPtr;
   OperationrecPtr queOperPtr;
   Uint32 cfreeopRec;
   Uint32 coprecsize;
@@ -1020,7 +1031,6 @@ private:
   BlockReference cndbcntrRef;
   Uint16 csignalkey;
   Uint32 czero;
-  Uint32 clocalkey[1]; // 1 == localkeylen
   union {
   Uint32 ckeys[2048 * MAX_XFRM_MULTIPLY];
   Uint64 ckeys_align;
