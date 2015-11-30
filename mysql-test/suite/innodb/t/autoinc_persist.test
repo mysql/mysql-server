@@ -505,4 +505,59 @@ COMMIT;
 INSERT INTO t33 VALUES(3, NULL);
 SELECT MAX(b) AS `Expect 4` FROM t33;
 
+--echo # Scenario 12: This should work with virtual column. We should make sure
+--echo # that the column position of autoinc counter is calculated correctly
+
+CREATE TABLE v1 (
+a INT NOT NULL,
+d INT NOT NULL,
+b BLOB NOT NULL,
+c TEXT,
+vadcol INT AS (a + length(d)) STORED,
+cbcol CHAR(2) AS (substr(b, 2, 2)) VIRTUAL,
+vbidxcol CHAR(3) AS (substr(b, 1, 3)) VIRTUAL,
+pkey INT NOT NULL AUTO_INCREMENT,
+leader INT NOT NULL,
+leaderpoint POINT NOT NULL,
+PRIMARY KEY(pkey)) ENGINE = InnoDB;
+
+INSERT INTO v1(a, d, b, c, pkey, leader, leaderpoint) VALUES
+(1, 2, 'abcdefg', 'qwertyu', 20, 5, ST_PointFromText('POINT(1 2)'));
+INSERT INTO v1(a, d, b, c, leader, leaderpoint) VALUES
+(1, 2, 'abcdefg', 'qwertyu', 5, ST_PointFromText('POINT(1 2)'));
+SELECT pkey, a, d, b, c FROM v1;
+
+CREATE TABLE v2 (
+a INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c CHAR(5) NOT NULL,
+vaccol INT AS (length(c) * 2) VIRTUAL) ENGINE = InnoDB;
+
+INSERT INTO v2(a, c) VALUES(5, 'ABC');
+SELECT * FROM v2;
+
+CREATE TABLE v3 (
+a INT NOT NULL,
+b INT NOT NULL,
+c INT NOT NULL,
+d VARCHAR(100) NOT NULL,
+vacol INT AS (a + b) VIRTUAL,
+vadcol CHAR(3) AS (substr(d, 1, 3)) STORED,
+pkey INT NOT NULL AUTO_INCREMENT,
+e CHAR(10) NOT NULL,
+vbecol CHAR(2) AS (substr(e, 2, 1)) VIRTUAL,
+g POINT NOT NULL,
+PRIMARY KEY(pkey)) ENGINE = InnoDB;
+
+INSERT INTO v3(a, b, c, d, pkey, e, g) VALUES
+(1, 2, 3, 'This is a test', 10, 'MySQL', ST_PointFromText('POINT(10 20)'));
+SELECT a, pkey, d FROM v3;
+
+ALTER TABLE v3 DROP COLUMN c;
+
+INSERT INTO v3(a, b, d, pkey, e, g) VALUES
+(1, 2, 'This is a test', 0, 'MySQL', ST_PointFromText('POINT(10 20)'));
+SELECT a, pkey, d FROM v3;
+
+DROP TABLE v1, v2, v3;
+
 DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t30, t32, t33;

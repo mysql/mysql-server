@@ -1900,7 +1900,9 @@ dict_table_autoinc_set_col_pos(
 	dict_table_t*	table,
 	ulint		pos)
 {
-	ulint	idx = dict_table_get_nth_col_pos(table, pos);
+	ulint	innodb_pos = dict_table_mysql_pos_to_innodb(table, pos);
+
+	ulint	idx = dict_table_get_nth_col_pos(table, innodb_pos);
 
 	table->autoinc_field_no = idx;
 }

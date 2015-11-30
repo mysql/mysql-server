@@ -1332,7 +1332,7 @@ dict_index_get_nth_field_pos(
 	ulint			n)	/*!< in: field number in index2 */
 	__attribute__((warn_unused_result));
 /********************************************************************//**
-Looks for column n position in the clustered index.
+Looks for non-virtual column n position in the clustered index.
 @return position in internal representation of the clustered index */
 ulint
 dict_table_get_nth_col_pos(
@@ -1340,6 +1340,17 @@ dict_table_get_nth_col_pos(
 	const dict_table_t*	table,	/*!< in: table */
 	ulint			n)	/*!< in: column number */
 	__attribute__((warn_unused_result));
+
+/** Get the innodb column position for a non-virtual column according to
+its original MySQL table position n
+@param[in]	table	table
+@param[in]	n	MySQL column position
+@return column position in InnoDB */
+ulint
+dict_table_mysql_pos_to_innodb(
+	const dict_table_t*	table,
+	ulint			n);
+
 /********************************************************************//**
 Returns the position of a system column in an index.
 @return position, ULINT_UNDEFINED if not contained */
