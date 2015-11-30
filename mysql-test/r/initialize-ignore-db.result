@@ -1,0 +1,30 @@
+# We don't care about innodb warnings at this point
+CALL mtr.add_suppression("InnoDB:");
+# shut server down
+# Server is down
+#
+# Bug #22213873: MYSQLD --INITIALIZE SHOULD ALLOW IRRELEVANT
+#   CONTENT (E.G. LOST+FOUND) IN DATADIR
+#
+# Making the data directory
+# adding a sub-directory in it
+# adding a "hidden" subdir
+# Run the server with --initialize. Should fail
+# Run the server with --initialize --ignore-db-dir=subdir
+extract the root password
+password found
+# Restart the server against DDIR
+# connect as root
+# reset the password
+SET PASSWORD='';
+CREATE DATABASE test;
+# shut server down
+# Server is down
+# close the test connection
+# remove the password file
+# delete mysqld log
+# delete datadir
+#
+# Cleanup
+#
+# Restarting the server

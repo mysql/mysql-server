@@ -3144,6 +3144,12 @@ int init_common_variables()
   use_temp_pool= 0;
 #endif
 
+  if (ignore_db_dirs_process_additions())
+  {
+    sql_print_error("An error occurred while storing ignore_db_dirs to a hash.");
+    return 1;
+  }
+
   /* create the data directory if requested */
   if (unlikely(opt_initialize) &&
       initialize_create_data_directory(mysql_real_data_home))
@@ -3205,12 +3211,6 @@ int init_common_variables()
   {
     sql_print_error("An error occurred while building do_table"
                     "and ignore_table rules to hush.");
-    return 1;
-  }
-
-  if (ignore_db_dirs_process_additions())
-  {
-    sql_print_error("An error occurred while storing ignore_db_dirs to a hash.");
     return 1;
   }
 

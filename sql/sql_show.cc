@@ -692,7 +692,7 @@ ignore_db_dirs_process_additions()
   @retval FALSE not found
 */
 
-static inline bool
+bool
 is_in_ignore_db_dirs_list(const char *directory)
 {
   return ignore_db_dirs_hash.records &&
