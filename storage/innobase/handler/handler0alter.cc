@@ -8712,10 +8712,22 @@ ha_innopart::prepare_inplace_alter_table(
 		ctx_parts->prebuilt_array[i] = tmp_prebuilt;
 	}
 
+	const char*	save_tablespace =
+		ha_alter_info->create_info->tablespace;
+
 	for (uint i = 0; i < m_tot_parts; i++) {
 		m_prebuilt = ctx_parts->prebuilt_array[i];
 		ha_alter_info->handler_ctx = ctx_parts->ctx_array[i];
 		set_partition(i);
+
+		/* Set the tablespace value of the alter_info to the tablespace
+		value that was existing for the partition originally, so that
+		for ALTER TABLE the tablespace clause in create option is
+		ignored for existing partitions, and later set it back to its
+		old value */
+		ha_alter_info->create_info->tablespace =
+			m_prebuilt->table->tablespace;
+
 		res = ha_innobase::prepare_inplace_alter_table(altered_table,
 							ha_alter_info);
 		update_partition(i);
@@ -8727,6 +8739,8 @@ ha_innopart::prepare_inplace_alter_table(
 	m_prebuilt = ctx_parts->prebuilt_array[0];
 	ha_alter_info->handler_ctx = ctx_parts;
 	ha_alter_info->group_commit_ctx = ctx_parts->ctx_array;
+	ha_alter_info->create_info->tablespace = save_tablespace;
+
 	DBUG_RETURN(res);
 }
 
