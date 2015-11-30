@@ -60,9 +60,7 @@ void cleanup_account(void)
   global_account_container.cleanup();
 }
 
-C_MODE_START
-static uchar *account_hash_get_key(const uchar *entry, size_t *length,
-                                my_bool)
+static const uchar *account_hash_get_key(const uchar *entry, size_t *length)
 {
   const PFS_account * const *typed_entry;
   const PFS_account *account;
@@ -73,9 +71,8 @@ static uchar *account_hash_get_key(const uchar *entry, size_t *length,
   DBUG_ASSERT(account != NULL);
   *length= account->m_key.m_key_length;
   result= account->m_key.m_hash_key;
-  return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
+  return reinterpret_cast<const uchar*> (result);
 }
-C_MODE_END
 
 /**
   Initialize the user hash.

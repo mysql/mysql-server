@@ -27,6 +27,7 @@
 #include <hash.h>
 #include <m_string.h>
 #include "mysql/service_mysql_alloc.h"
+#include "template_utils.h"
 
 /*****************************************************************************
   General functions to handle SAFE_HASH objects.
@@ -78,11 +79,11 @@ static void safe_hash_entry_free(void *entry)
 
 /* Get key and length for a SAFE_HASH_ENTRY */
 
-static uchar *safe_hash_entry_get(SAFE_HASH_ENTRY *entry, size_t *length,
-                                  my_bool not_used __attribute__((unused)))
+static const uchar *safe_hash_entry_get(const uchar *arg, size_t *length)
 {
+  const SAFE_HASH_ENTRY *entry= pointer_cast<const SAFE_HASH_ENTRY*>(arg);
   *length=entry->length;
-  return (uchar*) entry->key;
+  return entry->key;
 }
 
 
@@ -109,7 +110,7 @@ static my_bool safe_hash_init(SAFE_HASH *hash, uint elements,
 {
   DBUG_ENTER("safe_hash");
   if (my_hash_init(&hash->hash, &my_charset_bin, elements,
-                   0, 0, (my_hash_get_key) safe_hash_entry_get,
+                   0, 0, safe_hash_entry_get,
                    safe_hash_entry_free, 0,
                    key_memory_SAFE_HASH_ENTRY))
   {

@@ -374,7 +374,7 @@ static inline const uchar* hash_key(const LF_HASH *hash,
                                     const uchar *record, size_t *length)
 {
   if (hash->get_key)
-    return (*hash->get_key)(record, length, 0);
+    return (*hash->get_key)(record, length);
   *length= hash->key_length;
   return record + hash->key_offset;
 }
@@ -428,7 +428,8 @@ static uint cset_hash_sort_adapter(const LF_HASH *hash, const uchar *key,
   object passed as parameter to lf_hash_insert instead of doing simple memcpy.
 */
 void lf_hash_init2(LF_HASH *hash, uint element_size, uint flags,
-                   uint key_offset, uint key_length, my_hash_get_key get_key,
+                   uint key_offset, uint key_length,
+                   hash_get_key_function get_key,
                    CHARSET_INFO *charset, lf_hash_func *hash_function,
                    lf_allocator_func *ctor, lf_allocator_func *dtor,
                    lf_hash_init_func *init)

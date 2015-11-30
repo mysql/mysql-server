@@ -723,11 +723,8 @@ Rpl_filter::add_ignore_db(const char* table_spec)
   DBUG_RETURN(ret);
 }
 
-extern "C" uchar *get_table_key(const uchar *, size_t *, my_bool);
-extern "C" void free_table_ent(void* a);
 
-uchar *get_table_key(const uchar* a, size_t *len,
-                     my_bool __attribute__((unused)))
+static const uchar *get_table_key(const uchar* a, size_t *len)
 {
   TABLE_RULE_ENT *e= (TABLE_RULE_ENT *) a;
 

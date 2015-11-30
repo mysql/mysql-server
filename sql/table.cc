@@ -232,9 +232,9 @@ GRANT_INFO::GRANT_INFO()
 
 /* Get column name from column hash */
 
-uchar *get_field_name(Field **buff, size_t *length,
-                      my_bool not_used __attribute__((unused)))
+const uchar *get_field_name(const uchar *arg, size_t *length)
 {
+  const Field * const * buff= reinterpret_cast<const Field * const *>(arg);
   *length= strlen((*buff)->field_name);
   return (uchar*) (*buff)->field_name;
 }

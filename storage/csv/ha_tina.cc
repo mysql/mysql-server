@@ -52,6 +52,7 @@ TODO:
 #include "system_variables.h"
 #include "sql_class.h"
 #include "mysql/psi/mysql_memory.h"
+#include "template_utils.h"
 
 #include <algorithm>
 
@@ -105,9 +106,9 @@ static int sort_set (tina_set *a, tina_set *b)
   return ( a->begin > b->begin ? 1 : ( a->begin < b->begin ? -1 : 0 ) );
 }
 
-static uchar* tina_get_key(TINA_SHARE *share, size_t *length,
-                          my_bool not_used __attribute__((unused)))
+static const uchar* tina_get_key(const uchar *arg, size_t *length)
 {
+  const TINA_SHARE *share= pointer_cast<const TINA_SHARE*>(arg);
   *length=share->table_name_length;
   return (uchar*) share->table_name;
 }
@@ -185,7 +186,7 @@ static int tina_init_func(void *p)
   tina_hton= (handlerton *)p;
   mysql_mutex_init(csv_key_mutex_tina, &tina_mutex, MY_MUTEX_INIT_FAST);
   (void) my_hash_init(&tina_open_tables,system_charset_info,32,0,0,
-                      (my_hash_get_key) tina_get_key,0,0,
+                      tina_get_key,0,0,
                       csv_key_memory_tina_share);
   tina_hton->state= SHOW_OPTION_YES;
   tina_hton->db_type= DB_TYPE_CSV_DB;

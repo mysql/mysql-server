@@ -35,6 +35,7 @@
 #include "sql_parse.h"      // parse_sql
 #include "sql_show.h"       // append_identifier
 #include "sql_table.h"      // write_bin_log
+#include "template_utils.h"
 
 #include "dd/dd_schema.h"   // dd::schema_exists
 
@@ -1882,12 +1883,11 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc)
 }
 
 
-extern "C" uchar* sp_sroutine_key(const uchar *ptr, size_t *plen,
-                                  my_bool first)
+const uchar* sp_sroutine_key(const uchar *ptr, size_t *plen)
 {
-  Sroutine_hash_entry *rn= (Sroutine_hash_entry *)ptr;
+  const Sroutine_hash_entry *rn= pointer_cast<const Sroutine_hash_entry*>(ptr);
   *plen= rn->mdl_request.key.length();
-  return (uchar *)rn->mdl_request.key.ptr();
+  return rn->mdl_request.key.ptr();
 }
 
 

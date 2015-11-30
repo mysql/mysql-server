@@ -774,17 +774,13 @@ inline Query_cache_block_table * Query_cache_block::table(TABLE_COUNTER_TYPE n)
  *   Query_cache_table method(s)
  *****************************************************************************/
 
-extern "C"
-{
-uchar *query_cache_table_get_key(const uchar *record, size_t *length,
-				my_bool not_used __attribute__((unused)))
+static const uchar *query_cache_table_get_key(const uchar *record, size_t *length)
 {
   Query_cache_block* table_block = (Query_cache_block*) record;
   *length = (table_block->used - table_block->headers_len() -
 	     ALIGN_SIZE(sizeof(Query_cache_table)));
   return (table_block->data() +
 	  ALIGN_SIZE(sizeof(Query_cache_table)));
-}
 }
 
 /*****************************************************************************
@@ -872,17 +868,13 @@ void Query_cache_query::unlock_n_destroy()
 }
 
 
-extern "C"
-{
-uchar *query_cache_query_get_key(const uchar *record, size_t *length,
-				my_bool not_used)
+static const uchar *query_cache_query_get_key(const uchar *record, size_t *length)
 {
   Query_cache_block *query_block = (Query_cache_block*) record;
   *length = (query_block->used - query_block->headers_len() -
 	     ALIGN_SIZE(sizeof(Query_cache_query)));
   return (query_block->data() +
 	  ALIGN_SIZE(sizeof(Query_cache_query)));
-}
 }
 
 /*****************************************************************************
@@ -4026,9 +4018,9 @@ my_bool Query_cache::move_by_type(uchar **border,
 		      *new_block =(Query_cache_block *) *border;
     size_t tablename_offset = block->table()->table() - block->table()->db();
     char *data = (char*) block->data();
-    uchar *key;
+    const uchar *key;
     size_t key_length;
-    key=query_cache_table_get_key((uchar*) block, &key_length, 0);
+    key=query_cache_table_get_key((uchar*) block, &key_length);
     my_hash_first(&tables, key, key_length, &record_idx);
 
     block->destroy();
@@ -4086,9 +4078,9 @@ my_bool Query_cache::move_by_type(uchar **border,
     char *data = (char*) block->data();
     Query_cache_block *first_result_block = ((Query_cache_query *)
 					     block->data())->result();
-    uchar *key;
+    const uchar *key;
     size_t key_length;
-    key=query_cache_query_get_key((uchar*) block, &key_length, 0);
+    key=query_cache_query_get_key((uchar*) block, &key_length);
     my_hash_first(&queries, key, key_length, &record_idx);
     // Move table of used tables 
     memmove((char*) new_block->table(0), (char*) block->table(0),

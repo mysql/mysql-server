@@ -675,8 +675,7 @@ void Slave_worker::rollback_positions(Slave_job_group* ptr_g)
   }
 }
 
-static uchar *get_key(const uchar *record, size_t *length,
-                      my_bool not_used __attribute__((unused)))
+static const uchar *get_key(const uchar *record, size_t *length)
 {
   DBUG_ENTER("get_key");
 

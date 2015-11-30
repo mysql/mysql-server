@@ -39,6 +39,7 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/plugin_auth_common.h"
+#include "template_utils.h"
 
 #ifdef EMBEDDED_LIBRARY
 
@@ -3163,10 +3164,10 @@ write_length_encoded_string3(uchar *buf, char *string, size_t length)
 /**
   A function to return the key from a connection attribute
 */
-static uchar *
-get_attr_key(LEX_STRING *part, size_t *length,
-             my_bool not_used __attribute__((unused)))
+static const uchar *
+get_attr_key(const uchar *arg, size_t *length)
 {
+  const LEX_STRING *part= pointer_cast<const LEX_STRING*>(arg);
   *length= part[0].length;
   return (uchar *) part[0].str;
 }
@@ -3180,7 +3181,7 @@ struct My_hash : public HASH
   {
     blength= 0;
     my_hash_init(this,
-                 &my_charset_bin, 0, 0, 0, (my_hash_get_key) get_attr_key,
+                 &my_charset_bin, 0, 0, 0, get_attr_key,
                  my_free, HASH_UNIQUE,
                  key_memory_mysql_options);
   }

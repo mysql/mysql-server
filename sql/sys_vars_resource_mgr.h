@@ -89,8 +89,7 @@ public:
   */
   bool update(char **var, char *val, size_t val_len);
 
-  static uchar *sysvars_mgr_get_key(const char *entry, size_t *length,
-                                    my_bool not_used __attribute__((unused)));
+  static const uchar *sysvars_mgr_get_key(const uchar *entry, size_t *length);
 
   void claim_memory_ownership();
 

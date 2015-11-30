@@ -28,6 +28,7 @@
 #include "sql_show.h"            // append_identifier
 #include "sys_vars_shared.h"     // PolyLock_mutex
 #include "sql_audit.h"           // mysql_audit
+#include "template_utils.h"
 
 static HASH system_variable_hash;
 static PolyLock_mutex PLock_global_system_variables(&LOCK_global_system_variables);
@@ -37,9 +38,9 @@ ulonglong system_variable_hash_version= 0;
   Return variable name and length for hashing of variables.
 */
 
-static uchar *get_sys_var_length(const sys_var *var, size_t *length,
-                                 my_bool first)
+static const uchar *get_sys_var_length(const uchar *arg, size_t *length)
 {
+  const sys_var *var= pointer_cast<const sys_var*>(arg);
   *length= var->name.length;
   return (uchar*) var->name.str;
 }
@@ -54,7 +55,7 @@ int sys_var_init()
   DBUG_ASSERT(system_charset_info != NULL);
 
   if (my_hash_init(&system_variable_hash, system_charset_info, 100, 0,
-                   0, (my_hash_get_key) get_sys_var_length, 0, HASH_UNIQUE,
+                   0, get_sys_var_length, 0, HASH_UNIQUE,
                    PSI_INSTRUMENT_ME))
     goto error;
 

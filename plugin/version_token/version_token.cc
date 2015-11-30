@@ -125,9 +125,8 @@ static bool is_blank_string(char *input)
 }
 
 
-static uchar *version_token_get_key(const uchar *entry __attribute__((unused)),
-                                    size_t *length __attribute__((unused)),
-	    	                    my_bool not_used __attribute__((unused)));
+static const uchar *
+version_token_get_key(const uchar *entry, size_t *length);
 
 static void set_vtoken_string_length()
 {
@@ -1061,8 +1060,7 @@ long long version_tokens_unlock(UDF_INIT *initid, UDF_ARGS *args,
 
 
 
-static uchar *version_token_get_key(const uchar *entry, size_t *length,
-		                    my_bool not_used __attribute__((unused)))
+static const uchar *version_token_get_key(const uchar *entry, size_t *length)
 {
   char *key;
   key= (((version_token_st *) entry)->token_name).str;

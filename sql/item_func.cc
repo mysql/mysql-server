@@ -5321,13 +5321,12 @@ struct User_level_lock
 
 /** Extract a hash key from User_level_lock. */
 
-static uchar *ull_get_key(const uchar *ptr, size_t *length,
-                          my_bool not_used __attribute__((unused)))
+static const uchar *ull_get_key(const uchar *ptr, size_t *length)
 {
   const User_level_lock *ull = reinterpret_cast<const User_level_lock*>(ptr);
   const MDL_key *key = ull->ticket->get_key();
   *length= key->length();
-  return const_cast<uchar*>(key->ptr());
+  return key->ptr();
 }
 
 

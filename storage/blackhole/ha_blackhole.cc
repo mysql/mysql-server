@@ -19,6 +19,7 @@
 #include "ha_blackhole.h"
 #include "sql_class.h"                          // THD, SYSTEM_THREAD_SLAVE_*
 #include "mysql/psi/mysql_memory.h"
+#include "template_utils.h"
 
 static PSI_memory_key bh_key_memory_blackhole_share;
 
@@ -363,9 +364,9 @@ static void blackhole_free_key(st_blackhole_share *share)
   my_free(share);
 }
 
-static uchar* blackhole_get_key(st_blackhole_share *share, size_t *length,
-                                my_bool not_used __attribute__((unused)))
+static const uchar* blackhole_get_key(const uchar *arg, size_t *length)
 {
+  const st_blackhole_share *share= pointer_cast<const st_blackhole_share*>(arg);
   *length= share->table_name_length;
   return (uchar*) share->table_name;
 }
@@ -413,7 +414,7 @@ static int blackhole_init(void *p)
   mysql_mutex_init(bh_key_mutex_blackhole,
                    &blackhole_mutex, MY_MUTEX_INIT_FAST);
   (void) my_hash_init(&blackhole_open_tables, system_charset_info,32,0,0,
-                      (my_hash_get_key) blackhole_get_key,
+                      blackhole_get_key,
                       (my_hash_free_key) blackhole_free_key, 0,
                       bh_key_memory_blackhole_share);
 

@@ -6741,9 +6741,8 @@ static Native_func_registry func_array[] =
 
 static HASH native_functions_hash;
 
-static uchar*
-get_native_fct_hash_key(const uchar *buff, size_t *length,
-                        my_bool /* unused */)
+static const uchar*
+get_native_fct_hash_key(const uchar *buff, size_t *length)
 {
   Native_func_registry *func= (Native_func_registry*) buff;
   *length= func->name.length;

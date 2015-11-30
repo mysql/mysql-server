@@ -43,6 +43,7 @@
 #include "sql_time.h"                        // my_timeval_trunc
 #include "sql_timer.h"                       // thd_timer_destroy
 #include "transaction.h"                     // trans_rollback
+#include "template_utils.h"
 
 #ifdef HAVE_REPLICATION
 #include "rpl_slave.h"                       // rpl_master_erroneous_autoinc
@@ -324,10 +325,9 @@ THD::Attachable_trx::~Attachable_trx()
 }
 
 
-extern "C" {
-static uchar *get_var_key(user_var_entry *entry, size_t *length,
-                              my_bool not_used __attribute__((unused)))
+static const uchar *get_var_key(const uchar *arg, size_t *length)
 {
+  const user_var_entry *entry= pointer_cast<const user_var_entry*>(arg);
   *length= entry->entry_name.length();
   return (uchar*) entry->entry_name.ptr();
 }
@@ -336,7 +336,7 @@ static void free_user_var(user_var_entry *entry)
 {
   entry->destroy();
 }
-} // extern "C"
+
 
 PSI_thread* THD::get_psi()
 {
@@ -582,7 +582,7 @@ THD::THD(bool enable_plugins)
 #endif
   m_user_connect= NULL;
   my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
-               (my_hash_get_key) get_var_key,
+               get_var_key,
                (my_hash_free_key) free_user_var, 0,
                key_memory_user_var_entry);
 
@@ -1006,7 +1006,7 @@ void THD::cleanup_connection(void)
   init();
   stmt_map.reset();
   my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
-               (my_hash_get_key) get_var_key,
+               get_var_key,
                (my_hash_free_key) free_user_var, 0,
                key_memory_user_var_entry);
   sp_cache_clear(&sp_proc_cache);
@@ -1994,10 +1994,8 @@ void THD::restore_active_arena(Query_arena *set, Query_arena *backup)
 }
 
 
-extern "C" {
-static uchar *
-get_statement_id_as_hash_key(const uchar *record, size_t *key_length,
-                             my_bool not_used __attribute__((unused)))
+static const uchar *
+get_statement_id_as_hash_key(const uchar *record, size_t *key_length)
 {
   const Prepared_statement *statement= (const Prepared_statement *) record;
   *key_length= sizeof(statement->id);
@@ -2009,13 +2007,12 @@ static void delete_statement_as_hash_key(void *key)
   delete (Prepared_statement *) key;
 }
 
-static uchar *get_stmt_name_hash_key(Prepared_statement *entry, size_t *length,
-                                     my_bool not_used __attribute__((unused)))
+static const uchar *get_stmt_name_hash_key(const uchar *arg, size_t *length)
 {
+  Prepared_statement *entry= (Prepared_statement*) arg;
   *length= entry->name().length;
   return reinterpret_cast<uchar *>(const_cast<char *>(entry->name().str));
 }
-} // extern "C"
 
 
 Prepared_statement_map::Prepared_statement_map()
@@ -2031,7 +2028,7 @@ Prepared_statement_map::Prepared_statement_map()
                delete_statement_as_hash_key, MYF(0),
                key_memory_prepared_statement_map);
   my_hash_init(&names_hash, system_charset_info, START_NAME_HASH_SIZE, 0, 0,
-               (my_hash_get_key) get_stmt_name_hash_key,
+               get_stmt_name_hash_key,
                NULL, MYF(0),
                key_memory_prepared_statement_map);
 }

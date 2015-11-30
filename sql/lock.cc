@@ -85,6 +85,7 @@
 #include "mysqld.h"                        // opt_readonly
 #include "session_tracker.h"
 #include "my_atomic.h"
+#include "template_utils.h"
 
 #include <algorithm>
 
@@ -866,9 +867,7 @@ bool lock_tablespace_name(THD *thd, const char *tablespace)
 }
 
 // Function generating hash key for Tablespace_hash_set.
-extern "C" uchar *tablespace_set_get_key(const uchar *record,
-                                         size_t *length,
-                                         my_bool not_used __attribute__((unused)))
+const uchar *tablespace_set_get_key(const uchar *record, size_t *length)
 {
   const char *tblspace_name= reinterpret_cast<const char *>(record);
   *length= strlen(tblspace_name);

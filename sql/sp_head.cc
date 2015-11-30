@@ -93,7 +93,7 @@ struct SP_TABLE
 ///////////////////////////////////////////////////////////////////////////
 
 
-static uchar *sp_table_key(const uchar *ptr, size_t *plen, my_bool first)
+static const uchar *sp_table_key(const uchar *ptr, size_t *plen)
 {
   SP_TABLE *tab= (SP_TABLE *)ptr;
   *plen= tab->qname.length;

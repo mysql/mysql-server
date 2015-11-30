@@ -57,7 +57,7 @@ bool Session_sysvar_resource_manager::init(char **var, const CHARSET_INFO * char
     if (!my_hash_inited(&m_sysvar_string_alloc_hash))
       my_hash_init(&m_sysvar_string_alloc_hash,
 	           const_cast<CHARSET_INFO *> (charset),
-		   4, 0, 0, (my_hash_get_key) sysvars_mgr_get_key,
+		   4, 0, 0, sysvars_mgr_get_key,
 		   my_free, HASH_UNIQUE,
                    key_memory_THD_Session_sysvar_resource_manager);
     /* Create a new node & add it to the hash. */
@@ -213,9 +213,9 @@ void Session_sysvar_resource_manager::deinit()
   }
 }
 
-uchar *Session_sysvar_resource_manager::sysvars_mgr_get_key(const char *entry,
-							    size_t *length,
-							    my_bool not_used __attribute__((unused)))
+const uchar *
+Session_sysvar_resource_manager::sysvars_mgr_get_key(const uchar *entry,
+                                                     size_t *length)
 {
   char *key;
   key= (char *) ((sys_var_ptr *) entry)->data;

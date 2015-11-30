@@ -394,10 +394,8 @@ void cleanup_table_share(void)
   global_table_share_container.cleanup();
 }
 
-C_MODE_START
 /** get_key function for @c table_share_hash. */
-static uchar *table_share_hash_get_key(const uchar *entry, size_t *length,
-                                       my_bool)
+static const uchar *table_share_hash_get_key(const uchar *entry, size_t *length)
 {
   const PFS_table_share * const *typed_entry;
   const PFS_table_share *share;
@@ -408,9 +406,8 @@ static uchar *table_share_hash_get_key(const uchar *entry, size_t *length,
   DBUG_ASSERT(share != NULL);
   *length= share->m_key.m_key_length;
   result= &share->m_key.m_hash_key[0];
-  return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
+  return reinterpret_cast<const uchar*> (result);
 }
-C_MODE_END
 
 /** Initialize the table share hash table. */
 int init_table_share_hash(const PFS_global_param *param)

@@ -33,6 +33,7 @@
 #include "table.h"              // TABLE
 #include "derror.h"             // ER_THD
 #include "debug_sync.h"
+#include "template_utils.h"
 
 #define INVALID_DATE "0000-00-00 00:00:00"
 
@@ -595,17 +596,17 @@ bool hostname_requires_resolving(const char *hostname)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 
-static uchar* get_key_column(GRANT_COLUMN *buff, size_t *length,
-                             my_bool not_used __attribute__((unused)))
+static const uchar* get_key_column(const uchar *arg, size_t *length)
 {
+  const GRANT_COLUMN *buff= pointer_cast<const GRANT_COLUMN*>(arg);
   *length=buff->key_length;
   return (uchar*) buff->column;
 }
 
 
-static uchar* get_grant_table(GRANT_NAME *buff, size_t *length,
-                              my_bool not_used __attribute__((unused)))
+static const uchar* get_grant_table(const uchar *arg, size_t *length)
 {
+  const GRANT_NAME *buff= pointer_cast<const GRANT_NAME*>(arg);
   *length=buff->key_length;
   return (uchar*) buff->hash_key;
 }
@@ -654,7 +655,7 @@ GRANT_TABLE::GRANT_TABLE(const char *h, const char *d,const char *u,
   :GRANT_NAME(h,d,u,t,p, FALSE), cols(c)
 {
   (void) _my_hash_init(&hash_columns,4,system_charset_info,
-                       0,0,0, (my_hash_get_key) get_key_column,0,0,
+                       0,0,0, get_key_column,0,0,
                        key_memory_acl_memex);
 }
 
@@ -702,7 +703,7 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form)
   cols =  fix_rights_for_column(cols);
 
   (void) _my_hash_init(&hash_columns,4,system_charset_info,
-                       0,0,0, (my_hash_get_key) get_key_column,0,0,
+                       0,0,0, get_key_column,0,0,
                        key_memory_acl_memex);
 }
 
@@ -967,17 +968,17 @@ acl_find_proxy_user(const char *user, const char *host, const char *ip,
 }
 
 
-static uchar* acl_entry_get_key(acl_entry *entry, size_t *length,
-                                my_bool not_used __attribute__((unused)))
+static const uchar* acl_entry_get_key(const uchar *arg, size_t *length)
 {
+  const acl_entry *entry= pointer_cast<const acl_entry*>(arg);
   *length=(uint) entry->length;
   return (uchar*) entry->key;
 }
 
 
-static uchar* check_get_key(ACL_USER *buff, size_t *length,
-                            my_bool not_used __attribute__((unused)))
+static const uchar* check_get_key(const uchar *arg, size_t *length)
 {
+  const ACL_USER *buff= pointer_cast<const ACL_USER*>(arg);
   *length=buff->host.get_host_len();
   return (uchar*) buff->host.get_host();
 }
@@ -1087,7 +1088,7 @@ static void init_check_host(void)
 
   (void) my_hash_init(&acl_check_hosts,system_charset_info,
                       acl_users_size, 0, 0,
-                      (my_hash_get_key) check_get_key, 0, 0,
+                      check_get_key, 0, 0,
                       key_memory_acl_mem);
   if (acl_users_size && !allow_all_hosts)
   {
@@ -1380,7 +1381,7 @@ my_bool acl_init(bool dont_read_acl_tables)
 
   acl_cache= new hash_filo(key_memory_acl_cache,
                            ACL_CACHE_SIZE, 0, 0,
-                           (my_hash_get_key) acl_entry_get_key,
+                           acl_entry_get_key,
                            (my_hash_free_key) my_free,
                            &my_charset_utf8_bin);
 
@@ -2336,10 +2337,10 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
   MEM_ROOT **save_mem_root_ptr= my_thread_get_THR_MALLOC();
   DBUG_ENTER("grant_load_procs_priv");
   (void) my_hash_init(&proc_priv_hash, &my_charset_utf8_bin,
-                      0,0,0, (my_hash_get_key) get_grant_table,
+                      0,0,0, get_grant_table,
                       0, 0, key_memory_acl_memex);
   (void) my_hash_init(&func_priv_hash, &my_charset_utf8_bin,
-                      0,0,0, (my_hash_get_key) get_grant_table,
+                      0,0,0, get_grant_table,
                       0, 0, key_memory_acl_memex);
   error= p_table->file->ha_index_init(0, 1);
   DBUG_EXECUTE_IF("wl7158_grant_load_proc_1",
@@ -2472,7 +2473,7 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
   thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
 
   (void) my_hash_init(&column_priv_hash, &my_charset_utf8_bin,
-                      0,0,0, (my_hash_get_key) get_grant_table,
+                      0,0,0, get_grant_table,
                       (my_hash_free_key) free_grant_table,0,
                       key_memory_acl_memex);
 

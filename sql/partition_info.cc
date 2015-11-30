@@ -28,6 +28,7 @@
 #include "sql_class.h"                        // THD
 #include "derror.h"                           // ER_THD
 #include "sql_tablespace.h"                   // check_tablespace_name
+#include "template_utils.h"
 
 
 // TODO: Create ::get_copy() for getting a deep copy.
@@ -987,10 +988,9 @@ partition_element *partition_info::get_part_elem(const char *partition_name,
   Helper function to find_duplicate_name.
 */
 
-static const char *get_part_name_from_elem(const char *name, size_t *length,
-                                      my_bool not_used __attribute__((unused)))
+static const uchar *get_part_name_from_elem(const uchar *name, size_t *length)
 {
-  *length= strlen(name);
+  *length= strlen(pointer_cast<const char*>(name));
   return name;
 }
 
@@ -1030,7 +1030,7 @@ char *partition_info::find_duplicate_name()
   if (is_sub_partitioned())
     max_names+= num_parts * num_subparts;
   if (my_hash_init(&partition_names, system_charset_info, max_names, 0, 0,
-                   (my_hash_get_key) get_part_name_from_elem, 0, HASH_UNIQUE,
+                   get_part_name_from_elem, 0, HASH_UNIQUE,
                    PSI_INSTRUMENT_ME))
   {
     DBUG_ASSERT(0);

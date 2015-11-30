@@ -100,15 +100,12 @@ static char *init_syms(udf_func *tmp, char *nm)
 }
 
 
-extern "C" {
-static uchar* get_hash_key(const uchar *buff, size_t *length,
-			      my_bool not_used __attribute__((unused)))
+static const uchar* get_hash_key(const uchar *buff, size_t *length)
 {
   udf_func *udf=(udf_func*) buff;
   *length=(uint) udf->name.length;
   return (uchar*) udf->name.str;
 }
-} // extern "C"
 
 static PSI_memory_key key_memory_udf_mem;
 

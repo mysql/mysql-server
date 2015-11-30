@@ -1226,12 +1226,7 @@ err:
 }
 
 
-extern "C" uchar *get_plugin_hash_key(const uchar *, size_t *, my_bool);
-extern "C" uchar *get_bookmark_hash_key(const uchar *, size_t *, my_bool);
-
-
-uchar *get_plugin_hash_key(const uchar *buff, size_t *length,
-                           my_bool not_used __attribute__((unused)))
+static const uchar *get_plugin_hash_key(const uchar *buff, size_t *length)
 {
   st_plugin_int *plugin= (st_plugin_int *)buff;
   *length= (uint)plugin->name.length;
@@ -1239,8 +1234,7 @@ uchar *get_plugin_hash_key(const uchar *buff, size_t *length,
 }
 
 
-uchar *get_bookmark_hash_key(const uchar *buff, size_t *length,
-                             my_bool not_used __attribute__((unused)))
+static const uchar *get_bookmark_hash_key(const uchar *buff, size_t *length)
 {
   st_bookmark *var= (st_bookmark *)buff;
   *length= var->name_len + 1;

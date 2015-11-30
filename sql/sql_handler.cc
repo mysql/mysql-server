@@ -62,6 +62,7 @@
 #include "sql_select.h"
 #include "transaction.h"
 #include "log.h"
+#include "template_utils.h"
 
 #define HANDLER_TABLES_HASH_SIZE 120
 
@@ -89,12 +90,12 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *table);
     Pointer to the TABLE_LIST struct.
 */
 
-static const char *mysql_ha_hash_get_key(TABLE_LIST *tables,
-                                         size_t *key_len_p,
-                                         my_bool first __attribute__((unused)))
+static const uchar *mysql_ha_hash_get_key(const uchar *arg,
+                                          size_t *key_len_p)
 {
+  const TABLE_LIST *tables= pointer_cast<const TABLE_LIST*>(arg);
   *key_len_p= strlen(tables->alias) + 1 ; /* include '\0' in comparisons */
-  return tables->alias;
+  return pointer_cast<const uchar*>(tables->alias);
 }
 
 
@@ -195,7 +196,7 @@ bool Sql_cmd_handler_open::execute(THD *thd)
     */
     if (my_hash_init(&thd->handler_tables_hash, &my_charset_latin1,
                      HANDLER_TABLES_HASH_SIZE, 0, 0,
-                     (my_hash_get_key) mysql_ha_hash_get_key,
+                     mysql_ha_hash_get_key,
                      (my_hash_free_key) mysql_ha_hash_free, 0,
                      key_memory_THD_handler_tables_hash))
     {

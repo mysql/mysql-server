@@ -36,9 +36,20 @@ typedef struct charset_info_st CHARSET_INFO;
 /* flags for hash_init */
 #define HASH_UNIQUE     1       /* hash_insert fails on duplicate key */
 
-struct st_hash;
 typedef uint my_hash_value_type;
-typedef uchar *(*my_hash_get_key)(const uchar *,size_t*,my_bool);
+
+/**
+  Callback for extracting key and key length from user data in a HASH.
+  @param      arg    Pointer to user data.
+  @param[out] length Store key length here.
+  @return            Pointer to key to be hashed.
+
+  @note Was my_hash_get_key, with lots of C-style casting when calling
+        my_hash_init. Renamed to force build error (since signature changed)
+        in case someone keeps following that coding style.
+ */
+typedef const uchar *(*hash_get_key_function)(const uchar *arg, size_t *length);
+
 typedef void (*my_hash_free_key)(void *);
 
 typedef struct st_hash {
@@ -60,7 +71,7 @@ typedef struct st_hash {
   ulong records;
   uint flags;
   DYNAMIC_ARRAY array;				/* Place for hash_keys */
-  my_hash_get_key get_key;
+  hash_get_key_function get_key;
   void (*free)(void *);
   CHARSET_INFO *charset;
   PSI_memory_key m_psi_key;
@@ -74,7 +85,7 @@ typedef uint HASH_SEARCH_STATE;
 
 my_bool _my_hash_init(HASH *hash, uint growth_size, CHARSET_INFO *charset,
                       ulong default_array_elements, size_t key_offset,
-                      size_t key_length, my_hash_get_key get_key,
+                      size_t key_length, hash_get_key_function get_key,
                       void (*free_element)(void*),
                       uint flags,
                       PSI_memory_key psi_key);

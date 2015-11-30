@@ -966,9 +966,6 @@ char* XID::xid_to_str(char *buf) const
 #endif
 
 
-extern "C" uchar *transaction_get_hash_key(const uchar *, size_t *, my_bool);
-extern "C" void transaction_free_hash(void *);
-
 
 /**
   Callback that is called to get the key for a hash.
@@ -980,8 +977,7 @@ extern "C" void transaction_free_hash(void *);
   @return  pointer to a record stored in cache
 */
 
-extern "C" uchar *transaction_get_hash_key(const uchar *ptr, size_t *length,
-                                           my_bool not_used __attribute__((unused)))
+static const uchar *transaction_get_hash_key(const uchar *ptr, size_t *length)
 {
   *length= ((Transaction_ctx*)ptr)->xid_state()->get_xid()->key_length();
   return ((Transaction_ctx*)ptr)->xid_state()->get_xid()->key();

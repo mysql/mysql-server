@@ -159,7 +159,7 @@ extern const int LF_HASH_OVERHEAD;
 typedef struct st_lf_hash {
   LF_DYNARRAY array;                    /* hash itself */
   LF_ALLOCATOR alloc;                   /* allocator for elements */
-  my_hash_get_key get_key;              /* see HASH */
+  hash_get_key_function get_key;        /* see HASH */
   CHARSET_INFO *charset;                /* see HASH */
   lf_hash_func *hash_function;          /* see HASH */
   uint key_offset, key_length;          /* see HASH */
@@ -183,7 +183,8 @@ typedef struct st_lf_hash {
 #define lf_hash_init(A, B, C, D, E, F, G) \
           lf_hash_init2(A, B, C, D, E, F, G, NULL, NULL, NULL, NULL)
 void lf_hash_init2(LF_HASH *hash, uint element_size, uint flags,
-                   uint key_offset, uint key_length, my_hash_get_key get_key,
+                   uint key_offset, uint key_length,
+                   hash_get_key_function get_key,
                    CHARSET_INFO *charset, lf_hash_func *hash_function,
                    lf_allocator_func *ctor, lf_allocator_func *dtor,
                    lf_hash_init_func *init);
