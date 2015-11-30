@@ -281,7 +281,7 @@ bool initialize_create_data_directory(const char *data_home)
       Ignore files starting with . and in the --ignore-db list.
       This is exactly how find_files() in sql_show.cc operates.
     */
-    for (auto i=0; i < dir->number_off_files; i++)
+    for (uint i=0; i < dir->number_off_files; i++)
     {
       FILEINFO *file= dir->dir_entry + i;
       if (file->name[0] != '.' &&
