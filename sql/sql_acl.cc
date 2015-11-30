@@ -10302,8 +10302,6 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
     mpvio->client_capabilities= uint4korr(end);
     mpvio->max_client_packet_length= 0xfffff;
     charset_code= global_system_variables.character_set_client->number;
-    if (mpvio->charset_adapter->init_client_charset(charset_code))
-      return packet_error;
     goto skip_to_ssl;
   }
   
@@ -10341,10 +10339,6 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
     charset_code= global_system_variables.character_set_client->number;
   }
 
-  DBUG_PRINT("info", ("client_character_set: %u", charset_code));
-  if (mpvio->charset_adapter->init_client_charset(charset_code))
-    return packet_error;
-
 skip_to_ssl:
 #if defined(HAVE_OPENSSL)
   DBUG_PRINT("info", ("client capabilities: %lu", mpvio->client_capabilities));
@@ -10357,6 +10351,7 @@ skip_to_ssl:
   if (mpvio->client_capabilities & CLIENT_SSL)
   {
     unsigned long errptr;
+    uint ssl_charset_code= 0;
 
     /* Do the SSL layering. */
     if (!ssl_acceptor_fd)
@@ -10394,6 +10389,8 @@ skip_to_ssl:
     {
       packet_has_required_size= bytes_remaining_in_packet >= 
         AUTH_PACKET_HEADER_SIZE_PROTO_41;
+      ssl_charset_code= (uint)(uchar)*((char *)net->read_pos + 8);
+      DBUG_PRINT("info", ("client_character_set: %u", ssl_charset_code));
       end= (char *)net->read_pos + AUTH_PACKET_HEADER_SIZE_PROTO_41;
       bytes_remaining_in_packet -= AUTH_PACKET_HEADER_SIZE_PROTO_41;
     }
@@ -10403,12 +10400,21 @@ skip_to_ssl:
         AUTH_PACKET_HEADER_SIZE_PROTO_40;
       end= (char *)net->read_pos + AUTH_PACKET_HEADER_SIZE_PROTO_40;
       bytes_remaining_in_packet -= AUTH_PACKET_HEADER_SIZE_PROTO_40;
+      /**
+        Old clients didn't have their own charset. Instead the assumption
+        was that they used what ever the server used.
+      */
+      ssl_charset_code= global_system_variables.character_set_client->number;
     }
-    
+    DBUG_ASSERT(charset_code == ssl_charset_code);
     if (!packet_has_required_size)
       return packet_error;
   }
 #endif /* HAVE_OPENSSL */
+
+  DBUG_PRINT("info", ("client_character_set: %u", charset_code));
+  if (mpvio->charset_adapter->init_client_charset(charset_code))
+    return packet_error;
 
   if ((mpvio->client_capabilities & CLIENT_TRANSACTIONS) &&
       opt_using_transactions)
