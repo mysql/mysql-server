@@ -6641,8 +6641,11 @@ restart_cluster_failure:
     */
 
     // Calculate the epoch to handle events from in this iteration.
-    const Uint64 current_epoch = (s_pOp && s_pOp->getEpoch() < i_epoch)
-         ? s_pOp->getEpoch() : i_epoch;
+    const Uint64 current_epoch = (!ndb_binlog_running)
+         ? ((s_pOp != NULL)
+           ? s_pOp->getEpoch() : 0)
+         : ((s_pOp != NULL && s_pOp->getEpoch() < i_epoch)
+           ? s_pOp->getEpoch() : i_epoch);
 
     if ((is_stop_requested() ||
          binlog_thread_state) &&
@@ -6782,7 +6785,7 @@ restart_cluster_failure:
           ndb_binlog_index
         */
         DBUG_ASSERT(ndb_log_empty_epochs());
-	DBUG_ASSERT(current_epoch > ndb_latest_handled_binlog_epoch);
+        DBUG_ASSERT(current_epoch > ndb_latest_handled_binlog_epoch);
         DBUG_PRINT("info", ("Writing empty epoch for gci %llu", current_epoch));
         DBUG_PRINT("info", ("Initializing transaction"));
         inj->new_trans(thd, &trans);
