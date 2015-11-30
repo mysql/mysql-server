@@ -17089,6 +17089,24 @@ public:
   Uint32 old_table_version;
 };
 
+
+/*
+  Utility function to use when reporting that inplace alter
+  is not supported.
+*/
+
+static inline
+enum_alter_inplace_result
+inplace_unsupported(Alter_inplace_info *alter_info,
+                    const char* reason)
+{
+  DBUG_ENTER("inplace_unsupported");
+  DBUG_PRINT("info", ("%s", reason));
+  alter_info->unsupported_reason = reason;
+  DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+}
+
+
 enum_alter_inplace_result
   ha_ndbcluster::check_if_supported_inplace_alter(TABLE *altered_table,
                                                   Alter_inplace_info *ha_alter_info)
@@ -17126,7 +17144,6 @@ enum_alter_inplace_result
     Alter_inplace_info::DROP_INDEX |
     Alter_inplace_info::DROP_UNIQUE_INDEX;
 
-  enum_alter_inplace_result result= HA_ALTER_INPLACE_SHARED_LOCK;
 
   DBUG_ENTER("ha_ndbcluster::check_if_supported_inplace_alter");
   partition_info *part_info= altered_table->part_info;
@@ -17134,8 +17151,9 @@ enum_alter_inplace_result
 
   if (THDVAR(thd, use_copying_alter_table))
   {
-    DBUG_PRINT("info", ("On-line alter table disabled"));
-    DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+    // Usage of copying alter has been forced, don't allow inplace
+    DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                    "ndb_use_copying_alter_table is set"));
   }
 
   DBUG_PRINT("info", ("Passed alter flags 0x%llx", alter_flags));
@@ -17182,6 +17200,7 @@ enum_alter_inplace_result
     DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
   }
 
+  enum_alter_inplace_result result= HA_ALTER_INPLACE_SHARED_LOCK;
   if (alter_flags & Alter_inplace_info::ADD_COLUMN ||
       alter_flags & Alter_inplace_info::ADD_PARTITION ||
       alter_flags & Alter_inplace_info::ALTER_TABLE_REORG ||
