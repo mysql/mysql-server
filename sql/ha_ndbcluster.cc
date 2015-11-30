@@ -10000,7 +10000,6 @@ int ha_ndbcluster::create(const char *name,
   size_t pack_length, length;
   uint i, pk_length= 0;
   uchar *data= NULL, *pack_data= NULL;
-  bool create_temporary= (create_info->options & HA_LEX_CREATE_TMP_TABLE);
   bool create_from_engine= (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
   bool is_alter= (thd->lex->sql_command == SQLCOM_ALTER_TABLE);
   bool is_truncate= (thd->lex->sql_command == SQLCOM_TRUNCATE);
@@ -10014,17 +10013,24 @@ int ha_ndbcluster::create(const char *name,
   DBUG_ENTER("ha_ndbcluster::create");
   DBUG_PRINT("enter", ("name: %s", name));
 
-  if (create_temporary)
+  /*
+    Don't allow CREATE TEMPORARY TABLE, it's not allowed since there is
+    no guarantee that the table "is visible only to the current
+    session, and is dropped automatically when the session is closed".
+  */
+  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
+
     /*
-      Ndb does not support temporary tables
-     */
-    set_my_errno(ER_ILLEGAL_HA_CREATE_OPTION);
-    DBUG_PRINT("info", ("Ndb doesn't support temporary tables"));
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_ILLEGAL_HA_CREATE_OPTION,
-                        "Ndb doesn't support temporary tables");
-    DBUG_RETURN(my_errno());
+      NOTE! This path is just a safeguard, the mysqld should never try to
+      create a temporary table as long as the HTON_TEMPORARY_NOT_SUPPORTED
+      flag is set on the handlerton.
+    */
+    DBUG_ASSERT(false);
+
+    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+             ndbcluster_hton_name, "TEMPORARY");
+    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
   }
 
   DBUG_ASSERT(*fn_rext((char*)name) == 0);
@@ -13249,8 +13255,9 @@ int ndbcluster_init(void* p)
     h->fill_files_table= ndbcluster_fill_files_table;
 #endif
     ndbcluster_binlog_init(h);
-    h->flags=            HTON_CAN_RECREATE | HTON_TEMPORARY_NOT_SUPPORTED |
-      HTON_NO_BINLOG_ROW_OPT;
+    h->flags=            HTON_CAN_RECREATE |
+                         HTON_TEMPORARY_NOT_SUPPORTED |
+                         HTON_NO_BINLOG_ROW_OPT;
     h->discover=         ndbcluster_discover;
     h->find_files=       ndbcluster_find_files;
     h->table_exists_in_engine= ndbcluster_table_exists_in_engine;
