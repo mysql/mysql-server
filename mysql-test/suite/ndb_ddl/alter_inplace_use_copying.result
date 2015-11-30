@@ -1,0 +1,5 @@
+set @@ndb_use_copying_alter_table = 1;
+ALTER TABLE t1
+algorithm=inplace,
+add column c int;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: ndb_use_copying_alter_table is set. Try ALGORITHM=COPY.
