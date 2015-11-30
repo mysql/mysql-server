@@ -561,7 +561,11 @@ loop:
 
 	if (undo_trx_no >= limit->trx_no) {
 
-		if (undo_trx_no == limit->trx_no) {
+		/* limit space_id should match the rollback segment
+		space id to avoid freeing of the page belongs to
+		different rollback segment for the same trx_no. */
+		if (undo_trx_no == limit->trx_no
+		    && rseg->space == limit->undo_rseg_space) {
 
 			trx_undo_truncate_start(
 				rseg, hdr_addr.page,
