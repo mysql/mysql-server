@@ -9976,7 +9976,6 @@ int ha_ndbcluster::create(const char *name,
   uchar *data= NULL, *pack_data= NULL;
   bool create_temporary= (create_info->options & HA_LEX_CREATE_TMP_TABLE);
   bool create_from_engine= (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
-  bool is_alter= (thd->lex->sql_command == SQLCOM_ALTER_TABLE);
   bool is_truncate= (thd->lex->sql_command == SQLCOM_TRUNCATE);
   bool use_disk= FALSE;
   NdbDictionary::Table::SingleUserMode single_user_mode= NdbDictionary::Table::SingleUserModeLocked;
@@ -10488,7 +10487,9 @@ int ha_ndbcluster::create(const char *name,
     my_errno= create_fks(thd, ndb);
   }
 
-  if (is_alter && my_errno == 0)
+  if ((thd->lex->sql_command == SQLCOM_ALTER_TABLE ||
+       thd->lex->sql_command == SQLCOM_DROP_INDEX) &&
+      my_errno == 0)
   {
     /**
      * mysql doesnt know/care about FK (buhhh)
@@ -11320,7 +11321,8 @@ ha_ndbcluster::drop_table_impl(THD *thd, ha_ndbcluster *h, Ndb *ndb,
   bool skip_related= false;
   int drop_flags = 0;
   /* Copying alter can leave #sql table which is parent of old FKs */
-  if (thd->lex->sql_command == SQLCOM_ALTER_TABLE &&
+  if ((thd->lex->sql_command == SQLCOM_ALTER_TABLE ||
+       thd->lex->sql_command == SQLCOM_DROP_INDEX) &&
       strncmp(table_name, "#sql", 4) == 0)
   {
     DBUG_PRINT("info", ("Using cascade constraints for ALTER of temp table"));

@@ -1016,3 +1016,75 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 # cleanup
 drop table t2,t1;
+#
+# Bug#22110051 : ASSERTION IN PROTOCOL::END_STATEMENT DURING DROP INDEX
+#
+# Create table t1 with unique key
+create table t1(
+a int not null,
+b int not null,
+unique key uk1(a),
+unique key uk2(b)
+)engine=ndb;
+# Create table t2 with a fk mapped to t1(a)
+create table t2(
+a int,
+foreign key fk1(a) references t1(a)
+)engine=ndb;
+# desc t1 to show the implicit pk
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	NO	PRI	NULL	
+b	int(11)	NO	UNI	NULL	
+# Drop index uk1 - it should fail
+drop index uk1 on t1;
+ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint '10/14/fk1' in the referenced table '#sql-temporary'
+# Verify table is intact
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  UNIQUE KEY `uk1` (`a`),
+  UNIQUE KEY `uk2` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+# Modify column on t1 - remove not null
+alter table t1 modify column a int;
+# verify that pk is now on b.
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES	UNI	NULL	
+b	int(11)	NO	PRI	NULL	
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) NOT NULL,
+  UNIQUE KEY `uk2` (`b`),
+  UNIQUE KEY `uk1` (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+# Verify that the fk constraint is intact through inserts
+insert into t1 values (1,10), (2,20), (3,30);
+insert into t2 values (1), (2), (3);
+insert into t2 values (4);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+# Try removing uk2. should pass.
+alter table t1 drop index uk2;
+# Verify that everything is fine.
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES	UNI	NULL	
+b	int(11)	NO		NULL	
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) NOT NULL,
+  UNIQUE KEY `uk1` (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+# Verify that the fk constraint is intact through inserts
+insert into t2 values (1), (2), (3);
+insert into t2 values (4);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+#cleanup
+drop table t2, t1;

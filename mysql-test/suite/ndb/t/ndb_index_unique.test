@@ -658,4 +658,59 @@ show create table t1;
 --echo # cleanup
 drop table t2,t1;
 
+--echo #
+--echo # Bug#22110051 : ASSERTION IN PROTOCOL::END_STATEMENT DURING DROP INDEX
+--echo #
+
+--echo # Create table t1 with unique key
+create table t1(
+  a int not null,
+  b int not null,
+  unique key uk1(a),
+  unique key uk2(b)
+)engine=ndb;
+
+--echo # Create table t2 with a fk mapped to t1(a)
+create table t2(
+  a int,
+  foreign key fk1(a) references t1(a)
+)engine=ndb;
+
+--echo # desc t1 to show the implicit pk
+desc t1;
+
+--echo # Drop index uk1 - it should fail
+--replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
+--error ER_FK_NO_INDEX_PARENT
+drop index uk1 on t1;
+
+--echo # Verify table is intact
+show create table t1;
+
+--echo # Modify column on t1 - remove not null
+alter table t1 modify column a int;
+
+--echo # verify that pk is now on b.
+desc t1;
+show create table t1;
+--echo # Verify that the fk constraint is intact through inserts
+insert into t1 values (1,10), (2,20), (3,30);
+insert into t2 values (1), (2), (3);
+--error ER_NO_REFERENCED_ROW_2
+insert into t2 values (4);
+
+--echo # Try removing uk2. should pass.
+alter table t1 drop index uk2;
+
+--echo # Verify that everything is fine.
+desc t1;
+show create table t1;
+--echo # Verify that the fk constraint is intact through inserts
+insert into t2 values (1), (2), (3);
+--error ER_NO_REFERENCED_ROW_2
+insert into t2 values (4);
+
+--echo #cleanup
+drop table t2, t1;
+
 # end of tests
