@@ -20,4 +20,8 @@ main.mysqlpump_basic                         : Bug#21697494 2015-11-05 jhauglid
 main.mysqlpump_charset                       : Bug#21697494 2015-11-05 jhauglid
 main.mysqlpump_concurrency                   : Bug#21697494 2015-11-05 jhauglid
 main.mysqlpump_extended                      : Bug#21697494 2015-11-05 jhauglid
+rpl.rpl_row_mysqlbinlog                      : Bug#21255763 2015-11-30 jhauglid
+main.mysqlpump                               : Bug#21697494 2015-11-30 jhauglid
+main.mysqlpump_filters                       : Bug#21697494 2015-11-30 jhauglid
+main.mysqlpump_multi_thread                  : Bug#21697494 2015-11-30 jhauglid
 
