@@ -98,6 +98,8 @@ a	b	c
 # INSERT INTO new_table SELECT * from old_table
 create table t2 like t1;
 insert into t2 select * from t1;
+ERROR HY000: The value specified for generated column 'b' in table 't2' is not allowed.
+insert into t2(a) select a from t1;
 select * from t1;
 a	b	c
 2	-2	-2
@@ -111,6 +113,8 @@ a	b	c
 1	-1	-1
 create table t2 like t1;
 insert into t2 (a,b) select a,b from t1;
+ERROR HY000: The value specified for generated column 'b' in table 't2' is not allowed.
+insert into t2 (a) select a from t1;
 select * from t2;
 a	b	c
 2	-2	-2
@@ -500,6 +504,39 @@ SELECT * FROM t2;
 c1	c2
 1	2
 DROP TABLE t, t1, t2;
+# Bug#22179637: INSERT INTO TABLE FROM SELECT ACCEPTS TO INSERT INTO
+#              GENERATED COLUMNS
+CREATE TABLE t1 (
+i1 INTEGER,
+i2 INTEGER GENERATED ALWAYS AS (i1 + i1)
+);
+INSERT INTO t1 (i1, i2) SELECT 5, 6;
+ERROR HY000: The value specified for generated column 'i2' in table 't1' is not allowed.
+INSERT INTO t1 (i1) SELECT 5;
+INSERT INTO t1 (i1) SELECT 5 ON DUPLICATE KEY UPDATE i2= 4;
+ERROR HY000: The value specified for generated column 'i2' in table 't1' is not allowed.
+INSERT INTO t1 (i1) SELECT 5 ON DUPLICATE KEY UPDATE i2= DEFAULT;
+SELECT * FROM t1;
+i1	i2
+5	10
+5	10
+CREATE TABLE t2 (
+i1 INTEGER,
+i2 INTEGER GENERATED ALWAYS AS (i1 + i1) STORED
+);
+INSERT INTO t2 (i1, i2) SELECT 5, 6;
+ERROR HY000: The value specified for generated column 'i2' in table 't2' is not allowed.
+INSERT INTO t2 (i1, i2) SELECT * FROM t1;
+ERROR HY000: The value specified for generated column 'i2' in table 't2' is not allowed.
+INSERT INTO t2 (i1) SELECT 5;
+INSERT INTO t2 (i1) SELECT 5 ON DUPLICATE KEY UPDATE i2= 4;
+ERROR HY000: The value specified for generated column 'i2' in table 't2' is not allowed.
+INSERT INTO t2 (i1) SELECT 5 ON DUPLICATE KEY UPDATE i2= DEFAULT;
+SELECT * FROM t2;
+i1	i2
+5	10
+5	10
+DROP TABLE t1,t2;
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
 DROP PROCEDURE IF EXISTS p1;
