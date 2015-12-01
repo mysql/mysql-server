@@ -146,7 +146,7 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
   memcpy(&query_exec_time, buf + Q_EXEC_TIME_OFFSET, sizeof(query_exec_time));
   query_exec_time= le32toh(query_exec_time);
 
-  db_len= (unsigned int)buf[Q_DB_LEN_OFFSET];
+  db_len= (unsigned char)buf[Q_DB_LEN_OFFSET];
    // TODO: add a check of all *_len vars
   memcpy(&error_code, buf + Q_ERR_CODE_OFFSET, sizeof(error_code));
   error_code= le16toh(error_code);
