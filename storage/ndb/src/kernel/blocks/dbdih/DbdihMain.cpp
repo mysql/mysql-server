@@ -16484,10 +16484,15 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
       while (replicaPtr.i != RNIL)
       {
         ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
-        g_eventLogger->info("frag %u, replica %u, node %u, lastCompletedGCI %u, replicaLastGci %u,%u",
+        g_eventLogger->info("[1/3] frag %u, replica %u @%p, SYSFILE @%p",
+          fragPtr.i, replicaPtr.i, replicaPtr.p, SYSFILE);
+        g_eventLogger->info("[2/3] frag %u, replica %u, node %u, replicaLastGci %u,%u",
           fragPtr.i, replicaPtr.i, replicaPtr.p->procNode,
-          SYSFILE->lastCompletedGCI[replicaPtr.p->procNode],
           replicaPtr.p->replicaLastGci[0], replicaPtr.p->replicaLastGci[1]);
+        ndbrequire(replicaPtr.p->procNode < MAX_NDB_NODES)
+        g_eventLogger->info("[3/3] frag %u, replica %u, node %u, lastCompletedGCI %u",
+          fragPtr.i, replicaPtr.i, replicaPtr.p->procNode,
+          SYSFILE->lastCompletedGCI[replicaPtr.p->procNode]);
         replicaPtr.i = replicaPtr.p->nextPool;
       }
 #endif

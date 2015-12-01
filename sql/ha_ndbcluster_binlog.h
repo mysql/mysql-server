@@ -62,7 +62,8 @@ int ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
                                  const char *type_str,
                                  const char * db, const char * tabname);
 void ndb_rep_event_name(String *event_name,
-                        const char *db, const char *tbl, my_bool full);
+                        const char *db, const char *tbl,
+                        bool full, bool allow_hardcoded_name = true);
 #ifdef HAVE_NDB_BINLOG
 int
 ndbcluster_get_binlog_replication_info(THD *thd, Ndb *ndb,

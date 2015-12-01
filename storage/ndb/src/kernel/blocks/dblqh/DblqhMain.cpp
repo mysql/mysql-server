@@ -13719,6 +13719,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
     scanPtr->m_curr_batch_size_bytes= 0;
     scanPtr->m_exec_direct_batch_size_words = 0;
     scanPtr->readCommitted = 0;
+    scanPtr->prioAFlag = ZFALSE;
     scanPtr->scan_direct_count = ZMAX_SCAN_DIRECT_COUNT - 1;
     fragptr.p->m_scanNumberMask.clear(NR_ScanNo);
   }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,9 +82,11 @@ public:
 
   int getNumDbNodes();
   int insertErrorInNode(int _nodeId, int error);
+  int insertErrorInNodes(const int * _nodes, int _num_nodes, int error);
   int insertErrorInAllNodes(int error);
 
   int insertError2InNode(int _nodeId, int error, int extra);
+  int insertError2InNodes(const int * _nodes, int _num_nodes, int error, int extra);
   int insertError2InAllNodes(int error, int extra);
 
   int enterSingleUserMode(int _nodeId);
