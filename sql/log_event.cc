@@ -4968,7 +4968,7 @@ size_t Query_log_event::get_query(const char *buf, size_t length,
   if (fd_event->common_footer->checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF)
     checksum_size= 4;
 
-  db_len= (uint)buf[Q_DB_LEN_OFFSET];
+  db_len= (uchar)buf[Q_DB_LEN_OFFSET];
 
   /* Error if the event content is too small */
   if (length < (common_header_len + query_header_len +
