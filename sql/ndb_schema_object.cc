@@ -87,7 +87,7 @@ NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
       break;
     }
     native_mutex_init(&ndb_schema_object->mutex, MY_MUTEX_INIT_FAST);
-    native_cond_init(&ndb_schema_object->cond, NULL);
+    native_cond_init(&ndb_schema_object->cond);
     bitmap_init(&ndb_schema_object->slock_bitmap, ndb_schema_object->slock,
                 sizeof(ndb_schema_object->slock)*8, FALSE);
     // Expect answer from all other nodes by default(those
