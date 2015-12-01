@@ -368,6 +368,9 @@ int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
   /* Use nanosecond to calculate when wait_time has expired. */
   Int64 remain_wait_nano = ((Int64)wait_time) * 1000000;
   const int maxsleep = (wait_time == -1 || wait_time > 10) ? 10 : wait_time;
+#ifdef VM_TRACE
+  const bool verbose = (m_waiter->get_state() != WAIT_EVENT);
+#endif
   do
   {
     wait_for_input(maxsleep);
@@ -397,7 +400,10 @@ int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
     if (remain_wait_nano <= 0)
     {
 #ifdef VM_TRACE
-      ndbout << "Time-out state is " << m_waiter->get_state() << endl;
+      if (verbose)
+      {
+        ndbout << "Time-out state is " << m_waiter->get_state() << endl;
+      }
 #endif
       m_waiter->set_state(WST_WAIT_TIMEOUT);
       ret_val= -1;
@@ -410,8 +416,11 @@ int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
     m_clnt->flush_send_buffers();
   } while (1);
 #ifdef VM_TRACE
-  ndbout << "ERR: receiveResponse - theImpl->theWaiter.m_state = ";
-  ndbout << m_waiter->get_state() << endl;
+  if (verbose)
+  {
+    ndbout << "ERR: receiveResponse - theImpl->theWaiter.m_state = ";
+    ndbout << m_waiter->get_state() << endl;
+  }
 #endif
   return ret_val;
 }

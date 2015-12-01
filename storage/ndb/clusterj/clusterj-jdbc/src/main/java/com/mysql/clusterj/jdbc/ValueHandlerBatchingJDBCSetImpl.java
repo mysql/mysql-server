@@ -456,4 +456,9 @@ public class ValueHandlerBatchingJDBCSetImpl implements ValueHandlerBatching {
         this.fieldNumberToParameterNumber = null;
     }
 
+    @Override
+    public boolean wasReleased() {
+        return this.fieldNumberToParameterNumber == null;
+    }
+
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -729,6 +729,25 @@ int NdbRestarter::insertErrorInNode(int _nodeId, int _error){
   return 0;
 }
 
+int NdbRestarter::insertErrorInNodes(const int * _nodes, int _num_nodes, int _error)
+{
+  if (!isConnected())
+    return -1;
+
+  if (getStatus() != 0)
+    return -1;
+
+  int result = 0;
+
+  for(int i = 0; i < _num_nodes ; i++)
+  {
+    g_debug << "inserting error in node " << _nodes[i] << endl;
+    if (insertErrorInNode(_nodes[i], _error) == -1)
+      result = -1;
+  }
+  return result;
+}
+
 int NdbRestarter::insertErrorInAllNodes(int _error){
   if (!isConnected())
     return -1;
@@ -763,6 +782,25 @@ NdbRestarter::insertError2InNode(int _nodeId, int _error, int extra){
     g_err << "Error: " << reply.message << endl;
   }
   return 0;
+}
+
+int NdbRestarter::insertError2InNodes(const int * _nodes, int _num_nodes, int _error, int extra)
+{
+  if (!isConnected())
+    return -1;
+
+  if (getStatus() != 0)
+    return -1;
+
+  int result = 0;
+
+  for(int i = 0; i < _num_nodes ; i++)
+  {
+    g_debug << "inserting error in node " << _nodes[i] << endl;
+    if (insertError2InNode(_nodes[i], _error, extra) == -1)
+      result = -1;
+  }
+  return result;
 }
 
 int NdbRestarter::insertError2InAllNodes(int _error, int extra){
