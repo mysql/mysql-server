@@ -92,8 +92,14 @@ int view_store_create_info(THD *thd, TABLE_LIST *table, String *buff);
 int copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table);
 int get_quote_char_for_identifier(THD *thd, const char *name, uint length);
 
-void append_identifier(THD *thd, String *packet, const char *name,
-		       uint length);
+void append_identifier(THD *thd, String *packet, const char *name, uint length,
+                       CHARSET_INFO *from_cs, CHARSET_INFO *to_cs);
+inline void append_identifier(THD *thd, String *packet, const char *name,
+                              uint length)
+{
+  append_identifier(thd, packet, name, length, NULL, NULL);
+}
+
 void mysqld_list_fields(THD *thd,TABLE_LIST *table, const char *wild);
 int mysqld_dump_create_info(THD *thd, TABLE_LIST *table_list, int fd);
 bool mysqld_show_create(THD *thd, TABLE_LIST *table_list);
