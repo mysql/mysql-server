@@ -614,6 +614,108 @@ ALGORITHM=INPLACE, LOCK=EXCLUSIVE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 DROP TABLE t1;
 #
+# Bug#21980430 GCOLS: CRASHING
+#
+CREATE TABLE t (
+a INT,
+b BLOB,
+c BLOB GENERATED ALWAYS AS (a+b) VIRTUAL,
+UNIQUE KEY i0008 (a)
+);
+INSERT INTO t(a,b) VALUES(1,'cccc');
+EXPLAIN SELECT /*+ bka() */ 1 AS c FROM t AS b RIGHT JOIN t AS c ON b.a > c.c
+WHERE b.b>c.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+Warnings:
+Note	1003	/* select#1 */ select /*+ BKA(@`select#1`) */ 1 AS `c` from dual where (('cccc' > '1') and ('1' > '1'))
+SELECT /*+ bka() */ 1 AS c FROM t AS b RIGHT JOIN t AS c ON b.a > c.c
+WHERE b.b>c.a;
+c
+DROP TABLE t;
+set @optimizer_switch_save = @@optimizer_switch;
+set optimizer_switch='mrr_cost_based=off';
+set @read_rnd_buffer_size_save= @@read_rnd_buffer_size;
+set read_rnd_buffer_size=32;
+CREATE TABLE t0 (
+i1 INTEGER NOT NULL
+);
+INSERT INTO t0 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+CREATE TABLE t1 (
+pk INTEGER NOT NULL,
+i1 INTEGER NOT NULL,
+i2 INTEGER NOT NULL,
+v1 INTEGER GENERATED ALWAYS AS (i2 + 1) VIRTUAL,
+v2 INTEGER GENERATED ALWAYS AS (i1 / (i1 - i2 + 57)) VIRTUAL,
+PRIMARY KEY (pk),
+INDEX idx(i1)
+);
+INSERT INTO t1 (pk, i1, i2)
+SELECT a0.i1 + a1.i1*10 + a2.i1*100,
+a0.i1 + a1.i1*10,
+a0.i1 + a1.i1*10
+FROM t0 AS a0, t0 AS a1, t0 AS a2;
+EXPLAIN SELECT * FROM t1
+WHERE i1 > 41 AND i1 <= 43;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx	idx	4	NULL	19	100.00	Using index condition; Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t1`.`v1` AS `v1`,`test`.`t1`.`v2` AS `v2` from `test`.`t1` where ((`test`.`t1`.`i1` > 41) and (`test`.`t1`.`i1` <= 43))
+SELECT * FROM t1
+WHERE i1 > 41 AND i1 <= 43;
+pk	i1	i2	v1	v2
+42	42	42	43	1
+142	42	42	43	1
+242	42	42	43	1
+342	42	42	43	1
+442	42	42	43	1
+542	42	42	43	1
+642	42	42	43	1
+742	42	42	43	1
+43	43	43	44	1
+143	43	43	44	1
+842	42	42	43	1
+942	42	42	43	1
+243	43	43	44	1
+343	43	43	44	1
+443	43	43	44	1
+543	43	43	44	1
+643	43	43	44	1
+743	43	43	44	1
+843	43	43	44	1
+943	43	43	44	1
+EXPLAIN SELECT * FROM t1
+WHERE v1 > 41 AND v1 <= 43;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1000	11.11	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t1`.`v1` AS `v1`,`test`.`t1`.`v2` AS `v2` from `test`.`t1` where ((`test`.`t1`.`v1` > 41) and (`test`.`t1`.`v1` <= 43))
+SELECT * FROM t1
+WHERE v1 > 41 AND v1 <= 43;
+pk	i1	i2	v1	v2
+41	41	41	42	1
+42	42	42	43	1
+141	41	41	42	1
+142	42	42	43	1
+241	41	41	42	1
+242	42	42	43	1
+341	41	41	42	1
+342	42	42	43	1
+441	41	41	42	1
+442	42	42	43	1
+541	41	41	42	1
+542	42	42	43	1
+641	41	41	42	1
+642	42	42	43	1
+741	41	41	42	1
+742	42	42	43	1
+841	41	41	42	1
+842	42	42	43	1
+941	41	41	42	1
+942	42	42	43	1
+DROP TABLE t0, t1;
+set optimizer_switch= @optimizer_switch_save;
+set @@read_rnd_buffer_size= @read_rnd_buffer_size_save;
 SET optimizer_switch='derived_merge=default';
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
