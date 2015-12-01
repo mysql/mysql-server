@@ -5084,6 +5084,8 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
   }
   else
   {
+    state->m_statement= NULL;
+
     if (klass->m_timed)
       flags= STATE_FLAG_TIMED;
     else
