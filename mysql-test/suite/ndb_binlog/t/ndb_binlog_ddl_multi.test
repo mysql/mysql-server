@@ -200,10 +200,23 @@ reset master;
 --connection server2
 reset master;
 
+##################################################
+# Check whether we have a debug compiled binary:
+# @@global.debug can't be referred without this.
+# However, instead of skipping entire test without debug,
+# we run it without setting the specific debug flags.
+###################################################
 --connection server2
-# Force server2 to yield the CPU inbetween polling the event buffer
-set @save_debug= @@global.debug;
-set global debug='+d,ndb_binlog_injector_yield_before_schema_pollEvent';
+--let $have_debug= `select (version() like '%debug%')`
+
+disable_query_log;
+if ($have_debug)
+{
+  # Force server2 to yield the CPU inbetween polling the event buffer
+  set @save_debug= @@global.debug;
+  set global debug='+d,ndb_binlog_injector_yield_before_schema_pollEvent';
+}
+enable_query_log;
 
 --connection server1
 use test;
@@ -224,8 +237,12 @@ while ($i)
 create table dummy (dummyk int primary key) engine = ndb;
 
 --connection server2
-set global debug= @save_debug;
-
+disable_query_log;
+if ($have_debug)
+{
+  set global debug= @save_debug;
+}
+enable_query_log;
 
 --connection server2
 
