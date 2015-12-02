@@ -19643,8 +19643,17 @@ innobase_get_computed_value(
 
 	if (in_purge) {
 		if (vctempl->type == DATA_BLOB) {
-			ulint   max_len = DICT_MAX_FIELD_LEN_BY_FORMAT(
-				index->table) + 1;
+			ulint	max_len;
+
+			if (vctempl->mysql_col_len - 8 == 1) {
+				/* This is for TINYBLOB only, which needs
+				only 1 byte, other BLOBs won't be affected */
+				max_len = 255;
+			} else {
+				max_len = DICT_MAX_FIELD_LEN_BY_FORMAT(
+						index->table) + 1;
+			}
+
 			byte*   blob_mem = static_cast<byte*>(
 				mem_heap_alloc(heap, max_len));
 

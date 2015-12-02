@@ -8074,7 +8074,8 @@ static void extract_blob_space_and_length_from_record_buff(const TABLE *table,
     {
       blob_len_ptr_array[num].length= (*vfield)->data_length();
       // TODO: The following check is only for Innodb.
-      DBUG_ASSERT(blob_len_ptr_array[num].length == 768 ||
+      DBUG_ASSERT(blob_len_ptr_array[num].length == 255 ||
+                  blob_len_ptr_array[num].length == 768 ||
                   blob_len_ptr_array[num].length == 3073);
 
       uchar *ptr;
