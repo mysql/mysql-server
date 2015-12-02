@@ -53,8 +53,9 @@ protected:
   MEM_ROOT     *field_alloc;
   virtual bool net_store_data(const uchar *from, size_t length);
 #endif
-  bool net_store_data(const uchar *from, size_t length,
-                      const CHARSET_INFO *fromcs, const CHARSET_INFO *tocs);
+  virtual bool net_store_data(const uchar *from, size_t length,
+                              const CHARSET_INFO *fromcs,
+                              const CHARSET_INFO *tocs);
   bool store_string_aux(const char *from, size_t length,
                         const CHARSET_INFO *fromcs, const CHARSET_INFO *tocs);
 
@@ -252,6 +253,9 @@ public:
 #ifdef EMBEDDED_LIBRARY
   virtual bool end_row();
   bool net_store_data(const uchar *from, size_t length);
+  bool net_store_data(const uchar *from, size_t length,
+                      const CHARSET_INFO *fromcs,
+                      const CHARSET_INFO *tocs);
 #endif
   virtual bool store_null();
   virtual bool store_tiny(longlong from);
