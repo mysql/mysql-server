@@ -176,32 +176,44 @@ public:
   */
   int compress(THD *thd);
   /**
-    Push a waring to client if user is modifying
-    the gtid_executed table explicitly.
+    Push a warning to client if user is modifying the gtid_executed
+    table explicitly by a non-XA transaction. Push an error to client
+    if user is modifying it explicitly by a XA transaction.
 
     @param thd Thread requesting to access the table
     @param table The table is being accessed.
 
-    @retval true A warning was pushed to the client.
-    @retval false No warning was pushed to the client.
+    @retval true Push a warning or an error to client.
+    @retval false No warning or error was pushed to the client.
   */
-  bool warn_on_explicit_modification(THD *thd, TABLE_LIST *table)
+  bool warn_or_err_on_explicit_modification(THD *thd, TABLE_LIST *table)
   {
-    DBUG_ENTER("Gtid_table_persistor::warn_on_explicit_modification");
+    DBUG_ENTER("Gtid_table_persistor::warn_or_err_on_explicit_modification");
 
     if (!thd->is_operating_gtid_table_implicitly &&
         table->lock_type >= TL_WRITE_ALLOW_WRITE &&
         !strcmp(table->table_name, Gtid_table_access_context::TABLE_NAME.str))
     {
-      /*
-        Push a waring to client if user is modifying
-        the gtid_executed table explicitly.
-      */
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_WARN_ON_MODIFYING_GTID_EXECUTED_TABLE,
-                          ER(ER_WARN_ON_MODIFYING_GTID_EXECUTED_TABLE),
-                          table->table_name);
-      DBUG_RETURN(true);
+      if (thd->get_transaction()->xid_state()->has_state(XID_STATE::XA_ACTIVE))
+      {
+        /*
+          Push an error to client if user is modifying the gtid_executed
+          table explicitly by a XA transaction.
+        */
+        thd->raise_error_printf(ER_ERROR_ON_MODIFYING_GTID_EXECUTED_TABLE,
+                                table->table_name);
+        DBUG_RETURN(true);
+      }
+      else
+      {
+        /*
+          Push a warning to client if user is modifying the gtid_executed
+          table explicitly by a non-XA transaction.
+        */
+        thd->raise_warning_printf(ER_WARN_ON_MODIFYING_GTID_EXECUTED_TABLE,
+                                  table->table_name);
+        DBUG_RETURN(true);
+      }
     }
 
     DBUG_RETURN(false);
