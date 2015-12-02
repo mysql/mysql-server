@@ -9776,6 +9776,9 @@ static bool inline fulltext_unsafe_set(TABLE_SHARE *s)
      than one engine is involved and at least one engine is
      self-logging.
 
+  9. Error: Do not allow users to modify a gtid_executed table
+     explicitly by a XA transaction.
+
   For each error case above, the statement is prevented from being
   logged, we report an error, and roll back the statement.  For
   warnings, we set the thd->binlog_flags variable: the warning will be
@@ -9786,7 +9789,7 @@ static bool inline fulltext_unsafe_set(TABLE_SHARE *s)
   @param[in] tables Tables involved in the query
 
   @retval 0 No error; statement can be logged.
-  @retval -1 One of the error conditions above applies (1, 2, 4, 5, or 6).
+  @retval -1 One of the error conditions above applies (1, 2, 4, 5, 6 or 9).
 */
 
 int THD::decide_logging_format(TABLE_LIST *tables)
@@ -9938,8 +9941,16 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       if (table->table->no_replicate)
       {
         if (!warned_gtid_executed_table)
+        {
           warned_gtid_executed_table=
-            gtid_state->warn_on_modify_gtid_table(this, table);
+            gtid_state->warn_or_err_on_modify_gtid_table(this, table);
+          /*
+            Do not allow users to modify the gtid_executed table
+            explicitly by a XA transaction.
+          */
+          if (this->is_error())
+            DBUG_RETURN(-1);
+        }
         /*
           The statement uses a table that is not replicated.
           The following properties about the table:
@@ -10334,7 +10345,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     for (TABLE_LIST *table= tables; table; table= table->next_global)
     {
       if (!table->is_placeholder() && table->table->no_replicate &&
-          gtid_state->warn_on_modify_gtid_table(this, table))
+          gtid_state->warn_or_err_on_modify_gtid_table(this, table))
         break;
     }
   }

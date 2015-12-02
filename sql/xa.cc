@@ -411,6 +411,7 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
     }
     else
     {
+      DBUG_EXECUTE_IF("simulate_crash_on_commit_xa_trx", DBUG_SUICIDE(););
       DEBUG_SYNC(thd, "trans_xa_commit_after_acquire_commit_lock");
 
       if (tc_log)
