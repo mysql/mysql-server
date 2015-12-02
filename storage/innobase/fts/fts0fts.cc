@@ -221,19 +221,20 @@ fts_update_max_cache_size(
 	fts_sync_t*	sync);		/*!< in: sync state */
 #endif
 
-/*********************************************************************//**
-This function fetches the document just inserted right before
+/** This function fetches the document just inserted right before
 we commit the transaction, and tokenize the inserted text data
 and insert into FTS auxiliary table and its cache.
+@param[in]	ftt		FTS transaction table
+@param[in]	doc_id		doc id
+@param[in]	fts_indexes	affected FTS indexes
 @return TRUE if successful */
 static
 ulint
 fts_add_doc_by_id(
-/*==============*/
-	fts_trx_table_t*ftt,		/*!< in: FTS trx table */
-	doc_id_t	doc_id,		/*!< in: doc id */
+	fts_trx_table_t*ftt,
+	doc_id_t	doc_id,
 	ib_vector_t*	fts_indexes __attribute__((unused)));
-					/*!< in: affected fts indexes */
+
 /******************************************************************//**
 Update the last document id. This function could create a new
 transaction to update the last document id.
@@ -2280,15 +2281,12 @@ fts_savepoint_create(
 	return(savepoint);
 }
 
-/******************************************************************//**
-Create an FTS trx.
-@return FTS trx */
-static
+/** Create an FTS trx.
+@param[in,out]	trx	InnoDB Transaction
+@return FTS transaction. */
 fts_trx_t*
 fts_trx_create(
-/*===========*/
-	trx_t*	trx)				/*!< in/out: InnoDB
-						transaction */
+	trx_t*	trx)
 {
 	fts_trx_t*		ftt;
 	ib_alloc_t*		heap_alloc;
@@ -2877,36 +2875,31 @@ fts_doc_ids_free(
 	mem_heap_free(heap);
 }
 
-/*********************************************************************//**
-Do commit-phase steps necessary for the insertion of a new row.
-@return DB_SUCCESS or error code */
-static __attribute__((warn_unused_result))
-dberr_t
+/** Do commit-phase steps necessary for the insertion of a new row.
+@param[in]	ftt	FTS transaction table
+@param[in]	row	row to be inserted in index
+@return DB_SUCCESS. */
+static
+void
 fts_add(
-/*====*/
-	fts_trx_table_t*ftt,			/*!< in: FTS trx table */
-	fts_trx_row_t*	row)			/*!< in: row */
+	fts_trx_table_t*ftt,
+	fts_trx_row_t*  row)
 {
 	dict_table_t*	table = ftt->table;
-	dberr_t		error = DB_SUCCESS;
 	doc_id_t	doc_id = row->doc_id;
 
 	ut_a(row->state == FTS_INSERT || row->state == FTS_MODIFY);
 
 	fts_add_doc_by_id(ftt, doc_id, row->fts_indexes);
 
-	if (error == DB_SUCCESS) {
-		mutex_enter(&table->fts->cache->deleted_lock);
-		++table->fts->cache->added;
-		mutex_exit(&table->fts->cache->deleted_lock);
+	mutex_enter(&table->fts->cache->deleted_lock);
+	++table->fts->cache->added;
+	mutex_exit(&table->fts->cache->deleted_lock);
 
-		if (!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
-		    && doc_id >= table->fts->cache->next_doc_id) {
-			table->fts->cache->next_doc_id = doc_id + 1;
-		}
+	if (!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
+	    && doc_id >= table->fts->cache->next_doc_id) {
+		table->fts->cache->next_doc_id = doc_id + 1;
 	}
-
-	return(error);
 }
 
 /*********************************************************************//**
@@ -3021,7 +3014,7 @@ fts_modify(
 	error = fts_delete(ftt, row);
 
 	if (error == DB_SUCCESS) {
-		error = fts_add(ftt, row);
+		fts_add(ftt, row);
 	}
 
 	return(error);
@@ -3109,7 +3102,7 @@ fts_commit_table(
 
 		switch (row->state) {
 		case FTS_INSERT:
-			error = fts_add(ftt, row);
+			fts_add(ftt, row);
 			break;
 
 		case FTS_MODIFY:
@@ -3366,19 +3359,164 @@ fts_fetch_doc_from_rec(
 	}
 }
 
-/*********************************************************************//**
-This function fetches the document inserted during the committing
-transaction, and tokenize the inserted text data and insert into
-FTS auxiliary table and its cache.
+/** Fetch the data from tuple and tokenize the document.
+@param[in]	get_doc	FTS index's get_doc struct
+@param[in]	tuple	tuple should be arranged in table schema order
+@param[out]	doc	fts doc to hold parsed documents. */
+static
+void
+fts_fetch_doc_from_tuple(
+	fts_get_doc_t*	get_doc,
+	const dtuple_t*	tuple,
+	fts_doc_t*	doc)
+{
+	dict_index_t*		index;
+	st_mysql_ftparser*	parser;
+	ulint			doc_len = 0;
+	ulint			processed_doc = 0;
+	ulint			num_field;
+
+	if (get_doc == NULL) {
+		return;
+	}
+
+	index = get_doc->index_cache->index;
+	parser = get_doc->index_cache->index->parser;
+	num_field = dict_index_get_n_fields(index);
+
+	for (ulint i = 0; i < num_field; i++) {
+		const dict_field_t*	ifield;
+		const dict_col_t*	col;
+		ulint			pos;
+		dfield_t*		field;
+
+		ifield = dict_index_get_nth_field(index, i);
+		col = dict_field_get_col(ifield);
+		pos = dict_col_get_no(col);
+		field = dtuple_get_nth_field(tuple, pos);
+
+		if (!get_doc->index_cache->charset) {
+			get_doc->index_cache->charset = fts_get_charset(
+				ifield->col->prtype);
+		}
+
+		ut_ad(!dfield_is_ext(field));
+
+		doc->text.f_str = (byte*) dfield_get_data(field);
+		doc->text.f_len = dfield_get_len(field);
+		doc->found = TRUE;
+		doc->charset = get_doc->index_cache->charset;
+		doc->is_ngram = index->is_ngram;
+
+		/* field data is NULL. */
+		if (doc->text.f_len == UNIV_SQL_NULL || doc->text.f_len == 0) {
+			continue;
+		}
+
+		if (processed_doc == 0) {
+			fts_tokenize_document(doc, NULL, parser);
+		} else {
+			fts_tokenize_document_next(doc, doc_len, NULL, parser);
+		}
+
+		processed_doc++;
+		doc_len += doc->text.f_len + 1;
+	}
+}
+
+/** Fetch the document from tuple, tokenize the text data and
+insert the text data into fts auxiliary table and
+its cache. Moreover this tuple fields doesn't contain any information
+about externally stored field. This tuple contains data directly
+converted from mysql.
+@param[in]	ftt	FTS transaction table
+@param[in]	doc_id	doc id
+@param[in]	tuple	tuple from where data can be retrieved
+			and tuple should be arranged in table
+			schema order. */
+void
+fts_add_doc_from_tuple(
+	fts_trx_table_t*ftt,
+	doc_id_t	doc_id,
+	const dtuple_t*	tuple)
+{
+	mtr_t		mtr;
+	fts_get_doc_t*	get_doc;
+	fts_cache_t*	cache = ftt->table->fts->cache;
+
+	ut_ad(cache->get_docs);
+
+	if (!(ftt->table->fts->fts_status & ADDED_TABLE_SYNCED)) {
+		fts_init_index(ftt->table, FALSE);
+	}
+
+	/* Get the first FTS index's get_doc */
+	get_doc = static_cast<fts_get_doc_t*>(
+		ib_vector_get(cache->get_docs, 0));
+	ut_ad(get_doc);
+
+	mtr_start(&mtr);
+
+	ulint	num_idx = ib_vector_size(cache->get_docs);
+
+	for (ulint i = 0; i < num_idx; ++i) {
+		fts_doc_t	doc;
+		dict_table_t*	table;
+		fts_get_doc_t*	get_doc;
+
+		get_doc = static_cast<fts_get_doc_t*>(
+			ib_vector_get(cache->get_docs, i));
+		table = get_doc->index_cache->index->table;
+
+		fts_doc_init(&doc);
+		fts_fetch_doc_from_tuple(
+			get_doc, tuple, &doc);
+
+		if (doc.found) {
+			mtr_commit(&mtr);
+			rw_lock_x_lock(&table->fts->cache->lock);
+
+			if (table->fts->cache->stopword_info.status
+			    & STOPWORD_NOT_INIT) {
+				fts_load_stopword(table, NULL, NULL,
+						  NULL, TRUE, TRUE);
+			}
+
+			fts_cache_add_doc(
+				table->fts->cache,
+				get_doc->index_cache,
+				doc_id, doc.tokens);
+
+			rw_lock_x_unlock(&table->fts->cache->lock);
+
+			if (cache->total_size > fts_max_cache_size
+			    || fts_need_sync) {
+				fts_sync(cache->sync);
+			}
+
+			mtr_start(&mtr);
+
+		}
+
+		fts_doc_free(&doc);
+	}
+
+	mtr_commit(&mtr);
+}
+
+/** Fetch the document just inserted right before we commit
+the transaction, and tokenize the inserted text data
+and insert into FTS auxiliary table and its cache.
+@param[in]	ftt		FTS transaction table
+@param[in]	doc_id		doc id
+@param[in]	fts_indexes	affected FTS indexes
 @return TRUE if successful */
 static
 ulint
 fts_add_doc_by_id(
-/*==============*/
-	fts_trx_table_t*ftt,		/*!< in: FTS trx table */
-	doc_id_t	doc_id,		/*!< in: doc id */
+	fts_trx_table_t*ftt,
+	doc_id_t	doc_id,
 	ib_vector_t*	fts_indexes __attribute__((unused)))
-					/*!< in: affected fts indexes */
 {
 	mtr_t		mtr;
 	mem_heap_t*	heap;

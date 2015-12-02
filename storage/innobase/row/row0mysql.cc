@@ -1280,20 +1280,12 @@ run_again:
 	return(err);
 }
 
-/*********************************************************************//**
-Sets a table lock on the table mentioned in prebuilt.
+/** Sets a table lock on the table mentioned in prebuilt.
+@param[in]	prebuilt	table handle
 @return error code or DB_SUCCESS */
 dberr_t
-row_lock_table_for_mysql(
-/*=====================*/
-	row_prebuilt_t*	prebuilt,	/*!< in: prebuilt struct in the MySQL
-					table handle */
-	dict_table_t*	table,		/*!< in: table to lock, or NULL
-					if prebuilt->table should be
-					locked as
-					prebuilt->select_lock_type */
-	ulint		mode)		/*!< in: lock mode of table
-					(ignored if table==NULL) */
+row_lock_table(
+	row_prebuilt_t*	prebuilt)
 {
 	trx_t*		trx		= prebuilt->trx;
 	que_thr_t*	thr;
@@ -1323,17 +1315,11 @@ run_again:
 
 	trx_start_if_not_started_xa(trx, false);
 
-	if (table) {
-		err = lock_table(
-			0, table,
-			static_cast<enum lock_mode>(mode), thr);
-	} else {
-		err = lock_table(
-			0, prebuilt->table,
-			static_cast<enum lock_mode>(
-				prebuilt->select_lock_type),
-			thr);
-	}
+	err = lock_table(
+		0, prebuilt->table,
+		static_cast<enum lock_mode>(
+			prebuilt->select_lock_type),
+		thr);
 
 	trx->error_state = err;
 
@@ -1637,14 +1623,13 @@ row_insert_for_mysql_using_ins_graph(
 	const byte*	mysql_rec,
 	row_prebuilt_t*	prebuilt)
 {
-	trx_savept_t	savept;
-	que_thr_t*	thr;
-	dberr_t		err;
-	ibool		was_lock_wait;
-	trx_t*		trx		= prebuilt->trx;
-	ins_node_t*	node		= prebuilt->ins_node;
-	dict_table_t*	table		= prebuilt->table;
-
+	trx_savept_t		savept;
+	que_thr_t*		thr;
+	dberr_t			err;
+	ibool			was_lock_wait;
+	trx_t*			trx	= prebuilt->trx;
+	ins_node_t*		node	= prebuilt->ins_node;
+	dict_table_t*		table	= prebuilt->table;
 	/* FIX_ME: This blob heap is used to compensate an issue in server
 	for virtual column blob handling */
 	mem_heap_t*	blob_heap = NULL;
@@ -1794,9 +1779,23 @@ error_exit:
 			}
 		}
 
-		/* Pass NULL for the columns affected, since an INSERT affects
-		all FTS indexes. */
-		fts_trx_add_op(trx, table, doc_id, FTS_INSERT, NULL);
+		if (table->skip_alter_undo) {
+
+			if (trx->fts_trx == NULL) {
+				trx->fts_trx = fts_trx_create(trx);
+			}
+
+			fts_trx_table_t	ftt;
+			ftt.table = table;
+			ftt.fts_trx = trx->fts_trx;
+
+			fts_add_doc_from_tuple(&ftt, doc_id, node->row);
+
+		} else {
+			/* Pass NULL for the columns affected, since an INSERT
+			affects all FTS indexes. */
+			fts_trx_add_op(trx, table, doc_id, FTS_INSERT, NULL);
+		}
 	}
 
 	que_thr_stop_for_mysql_no_error(thr, trx);

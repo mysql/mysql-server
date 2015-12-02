@@ -2230,6 +2230,9 @@ trx_undo_prev_version_build(
 	For temporary objects NON-REDO rollback segments are used. */
 	bool is_redo_rseg =
 		dict_table_is_temporary(index->table) ? false : true;
+
+	ut_ad(!index->table->skip_alter_undo);
+
 	if (trx_undo_get_undo_rec(
 		roll_ptr, rec_trx_id, heap, is_redo_rseg,
 		index->table->name, &undo_rec)) {

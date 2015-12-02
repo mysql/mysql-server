@@ -506,9 +506,6 @@ protected:
 	ROW_SEL_EXACT_PREFIX, or undefined */
 	uint			m_last_match_mode;
 
-	/** number of write_row() calls */
-	uint			m_num_write_row;
-
 	/** this field is used to remember the original select_lock_type that
 	was decided in ha_innodb.cc, ::store_lock(), ::external_lock(), etc. */
 	ulint			m_stored_select_lock_type;

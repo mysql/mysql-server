@@ -209,7 +209,11 @@ enum ha_extra_function {
   /*
     Skip Serializable isolation level on Views on DD tables.
     This will make reads on DD Views non blocking */
-  HA_EXTRA_SKIP_SERIALIZABLE_DD_VIEW
+  HA_EXTRA_SKIP_SERIALIZABLE_DD_VIEW,
+  /* Begin of insertion into intermediate table during copy alter operation. */
+  HA_EXTRA_BEGIN_ALTER_COPY,
+  /* Insertion is done in intermediate table during copy alter operation. */
+  HA_EXTRA_END_ALTER_COPY
 };
 
 /* Compatible option, to be deleted in 6.0 */

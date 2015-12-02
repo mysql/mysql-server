@@ -10586,6 +10586,8 @@ copy_data_between_tables(THD * thd,
 
   set_column_defaults(to, create);
 
+  to->file->extra(HA_EXTRA_BEGIN_ALTER_COPY);
+
   while (!(error=info.read_record(&info)))
   {
     if (thd->killed)
@@ -10667,6 +10669,9 @@ copy_data_between_tables(THD * thd,
     error= 1;
   }
 
+  to->file->extra(HA_EXTRA_END_ALTER_COPY);
+
+  DBUG_EXECUTE_IF("crash_copy_before_commit", DBUG_SUICIDE(););
   if (mysql_trans_commit_alter_copy_data(thd))
     error= 1;
 

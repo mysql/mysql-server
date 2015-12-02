@@ -2772,7 +2772,6 @@ ha_innobase::ha_innobase(
 			  | HA_CAN_INDEX_VIRTUAL_GENERATED_COLUMN
 		  ),
 	m_start_of_scan(),
-	m_num_write_row(),
 	m_stored_select_lock_type(LOCK_NONE_UNSET),
 	m_mysql_has_locked()
 {}
@@ -7180,7 +7179,6 @@ ha_innobase::write_row(
 	uchar*	record)	/*!< in: a row in MySQL format */
 {
 	dberr_t		error;
-	ulint		sql_command;
 	int		error_result = 0;
 	bool		auto_inc_used = false;
 
@@ -7199,7 +7197,7 @@ ha_innobase::write_row(
 		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
 	}
 
-	/* Step-1: Validation checks before we commence write_row operation. */
+	/* Validation checks before we commence write_row operation. */
 	if (high_level_read_only) {
 		ib_senderrf(ha_thd(), IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
@@ -7222,75 +7220,7 @@ ha_innobase::write_row(
 
 	ha_statistic_increment(&System_status_var::ha_write_count);
 
-	/* Step-2: Intermediate commit if original operation involves ALTER
-	table with algorithm = copy. Intermediate commit ease pressure on
-	recovery if server crashes while ALTER is active. */
-	sql_command = thd_sql_command(m_user_thd);
-
-	if ((sql_command == SQLCOM_ALTER_TABLE
-	     || sql_command == SQLCOM_OPTIMIZE
-	     || sql_command == SQLCOM_CREATE_INDEX
-	     || sql_command == SQLCOM_DROP_INDEX)
-	    && m_num_write_row >= 10000) {
-		/* ALTER TABLE is COMMITted at every 10000 copied rows.
-		The IX table lock for the original table has to be re-issued.
-		As this method will be called on a temporary table where the
-		contents of the original table is being copied to, it is
-		a bit tricky to determine the source table.  The cursor
-		position in the source table need not be adjusted after the
-		intermediate COMMIT, since writes by other transactions are
-		being blocked by a MySQL table lock TL_WRITE_ALLOW_READ. */
-
-		dict_table_t*	src_table;
-		enum lock_mode	mode;
-
-		m_num_write_row = 0;
-
-		/* Commit the transaction.  This will release the table
-		locks, so they have to be acquired again. */
-
-		/* Altering an InnoDB table */
-		/* Get the source table. */
-		src_table = lock_get_src_table(
-				m_prebuilt->trx, m_prebuilt->table, &mode);
-		if (!src_table) {
-no_commit:
-			/* Unknown situation: do not commit */
-			;
-		} else if (src_table == m_prebuilt->table) {
-			/* Source table is not in InnoDB format:
-			no need to re-acquire locks on it. */
-
-			/* Altering to InnoDB format */
-			innobase_commit(ht, m_user_thd, 1);
-			/* Note that this transaction is still active. */
-			trx_register_for_2pc(m_prebuilt->trx);
-			/* We will need an IX lock on the destination table. */
-			m_prebuilt->sql_stat_start = TRUE;
-		} else {
-			/* Ensure that there are no other table locks than
-			LOCK_IX and LOCK_AUTO_INC on the destination table. */
-
-			if (!lock_is_table_exclusive(m_prebuilt->table,
-							m_prebuilt->trx)) {
-				goto no_commit;
-			}
-
-			/* Commit the transaction.  This will release the table
-			locks, so they have to be acquired again. */
-			innobase_commit(ht, m_user_thd, 1);
-			/* Note that this transaction is still active. */
-			trx_register_for_2pc(m_prebuilt->trx);
-			/* Re-acquire the table lock on the source table. */
-			row_lock_table_for_mysql(m_prebuilt, src_table, mode);
-			/* We will need an IX lock on the destination table. */
-			m_prebuilt->sql_stat_start = TRUE;
-		}
-	}
-
-	m_num_write_row++;
-
-	/* Step-3: Handling of Auto-Increment Columns. */
+	/* Handling of Auto-Increment Columns. */
 	if (table->next_number_field && record == table->record[0]) {
 
 		/* Reset the error code before calling
@@ -7319,7 +7249,7 @@ no_commit:
 		auto_inc_used = true;
 	}
 
-	/* Step-4: Prepare INSERT graph that will be executed for actual INSERT
+	/* Prepare INSERT graph that will be executed for actual INSERT
 	(This is a one time operation) */
 	if (m_prebuilt->mysql_template == NULL
 	    || m_prebuilt->template_type != ROW_MYSQL_WHOLE_ROW) {
@@ -7332,12 +7262,12 @@ no_commit:
 
 	innobase_srv_conc_enter_innodb(m_prebuilt);
 
-	/* Step-5: Execute insert graph that will result in actual insert. */
+	/* Execute insert graph that will result in actual insert. */
 	error = row_insert_for_mysql((byte*) record, m_prebuilt);
 
 	DEBUG_SYNC(m_user_thd, "ib_after_row_insert");
 
-	/* Step-6: Handling of errors related to auto-increment. */
+	/* Handling of errors related to auto-increment. */
 	if (auto_inc_used) {
 		ulonglong	auto_inc;
 		ulonglong	col_max_value;
@@ -7366,13 +7296,11 @@ no_commit:
 			must update the autoinc counter if we are performing
 			those statements. */
 
-			switch (sql_command) {
+			switch (thd_sql_command(m_user_thd)) {
 			case SQLCOM_LOAD:
-				if (trx->duplicates) {
-
-					goto set_max_autoinc;
+				if (!trx->duplicates) {
+					break;
 				}
-				break;
 
 			case SQLCOM_REPLACE:
 			case SQLCOM_INSERT_SELECT:
@@ -7427,7 +7355,7 @@ set_max_autoinc:
 	innobase_srv_conc_exit_innodb(m_prebuilt);
 
 report_error:
-	/* Step-7: Cleanup and exit. */
+	/* Cleanup and exit. */
 	if (error == DB_TABLESPACE_DELETED) {
 		ib_senderrf(
 			trx->mysql_thd, IB_LOG_LEVEL_ERROR,
@@ -7443,6 +7371,7 @@ report_error:
 	}
 
 func_exit:
+
 	innobase_active_small();
 
 	DBUG_RETURN(error_result);
@@ -14818,7 +14747,12 @@ ha_innobase::extra(
 	case HA_EXTRA_SKIP_SERIALIZABLE_DD_VIEW:
 		m_prebuilt->skip_serializable_dd_view = true;
 		break;
-
+	case HA_EXTRA_BEGIN_ALTER_COPY:
+		m_prebuilt->table->skip_alter_undo = 1;
+		break;
+	case HA_EXTRA_END_ALTER_COPY:
+		m_prebuilt->table->skip_alter_undo = 0;
+		break;
 	default:/* Do nothing */
 		;
 	}
@@ -14933,7 +14867,7 @@ ha_innobase::start_stmt(
 			init_table_handle_for_HANDLER();
 			m_prebuilt->select_lock_type = LOCK_X;
 			m_stored_select_lock_type = LOCK_X;
-			error = row_lock_table_for_mysql(m_prebuilt, NULL, 1);
+			error = row_lock_table(m_prebuilt);
 
 			if (error != DB_SUCCESS) {
 				int	st = convert_error_code_to_mysql(
@@ -15034,13 +14968,16 @@ ha_innobase::external_lock(
 
 	update_thd(thd);
 
-	trx_t*		trx = m_prebuilt->trx;
+	trx_t*			trx = m_prebuilt->trx;
+
+	enum_sql_command	sql_command =
+		(enum_sql_command) thd_sql_command(thd);
 
 	ut_ad(m_prebuilt->table);
 
 	if (dict_table_is_intrinsic(m_prebuilt->table)) {
 
-		if (thd_sql_command(thd) == SQLCOM_ALTER_TABLE) {
+		if (sql_command == SQLCOM_ALTER_TABLE) {
 
 			DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 		}
@@ -15081,19 +15018,19 @@ ha_innobase::external_lock(
 
 	/* Check for UPDATEs in read-only mode. */
 	if (srv_read_only_mode
-	    && (thd_sql_command(thd) == SQLCOM_UPDATE
-		|| thd_sql_command(thd) == SQLCOM_INSERT
-		|| thd_sql_command(thd) == SQLCOM_REPLACE
-		|| thd_sql_command(thd) == SQLCOM_DROP_TABLE
-		|| thd_sql_command(thd) == SQLCOM_ALTER_TABLE
-		|| thd_sql_command(thd) == SQLCOM_OPTIMIZE
-		|| (thd_sql_command(thd) == SQLCOM_CREATE_TABLE
+	    && (sql_command == SQLCOM_UPDATE
+		|| sql_command == SQLCOM_INSERT
+		|| sql_command == SQLCOM_REPLACE
+		|| sql_command == SQLCOM_DROP_TABLE
+		|| sql_command == SQLCOM_ALTER_TABLE
+		|| sql_command == SQLCOM_OPTIMIZE
+		|| (sql_command == SQLCOM_CREATE_TABLE
 		    && lock_type == F_WRLCK)
-		|| thd_sql_command(thd) == SQLCOM_CREATE_INDEX
-		|| thd_sql_command(thd) == SQLCOM_DROP_INDEX
-		|| thd_sql_command(thd) == SQLCOM_DELETE)) {
+		|| sql_command == SQLCOM_CREATE_INDEX
+		|| sql_command == SQLCOM_DROP_INDEX
+		|| sql_command == SQLCOM_DELETE)) {
 
-		if (thd_sql_command(thd) == SQLCOM_CREATE_TABLE) {
+		if (sql_command == SQLCOM_CREATE_TABLE) {
 			ib_senderrf(thd, IB_LOG_LEVEL_WARN,
 				    ER_INNODB_READ_ONLY);
 			DBUG_RETURN(HA_ERR_INNODB_READ_ONLY);
@@ -15113,7 +15050,7 @@ ha_innobase::external_lock(
 	case QUIESCE_START:
 		/* Check for FLUSH TABLE t WITH READ LOCK; */
 		if (!srv_read_only_mode
-		    && thd_sql_command(thd) == SQLCOM_FLUSH
+		    && sql_command == SQLCOM_FLUSH
 		    && lock_type == F_RDLCK) {
 
 			row_quiesce_table_start(m_prebuilt->table, trx);
@@ -15193,13 +15130,12 @@ ha_innobase::external_lock(
 
 		if (m_prebuilt->select_lock_type != LOCK_NONE) {
 
-			if (thd_sql_command(thd) == SQLCOM_LOCK_TABLES
+			if (sql_command == SQLCOM_LOCK_TABLES
 			    && THDVAR(thd, table_locks)
 			    && thd_test_options(thd, OPTION_NOT_AUTOCOMMIT)
 			    && thd_in_lock_tables(thd)) {
 
-				dberr_t	error = row_lock_table_for_mysql(
-					m_prebuilt, NULL, 0);
+				dberr_t	error = row_lock_table(m_prebuilt);
 
 				if (error != DB_SUCCESS) {
 

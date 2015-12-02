@@ -1003,5 +1003,28 @@ fts_check_corrupt(
 	dict_table_t*	base_table,
 	trx_t*		trx);
 
+/** Fetch the document from tuple, tokenize the text data and
+insert the text data into fts auxiliary table and
+its cache. Moreover this tuple fields doesn't contain any information
+about externally stored field. This tuple contains data directly
+converted from mysql.
+@param[in]	ftt	FTS transaction table
+@param[in]	doc_id	doc id
+@param[in]	tuple	tuple from where data can be retrieved
+			and tuple should be arranged in table
+			schema order. */
+void
+fts_add_doc_from_tuple(
+	fts_trx_table_t*ftt,
+	doc_id_t	doc_id,
+	const dtuple_t*	tuple);
+
+/** Create an FTS trx.
+@param[in,out]	trx	InnoDB Transaction
+@return FTS transaction. */
+fts_trx_t*
+fts_trx_create(
+	trx_t*	trx);
+
 #endif /*!< fts0fts.h */
 

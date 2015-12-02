@@ -213,20 +213,12 @@ row_lock_table_autoinc_for_mysql(
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in the MySQL
 					table handle */
 	__attribute__((warn_unused_result));
-/*********************************************************************//**
-Sets a table lock on the table mentioned in prebuilt.
+/** Sets a table lock on the table mentioned in prebuilt.
+@param[in,out]	prebuilt	table handle
 @return error code or DB_SUCCESS */
 dberr_t
-row_lock_table_for_mysql(
-/*=====================*/
-	row_prebuilt_t*	prebuilt,	/*!< in: prebuilt struct in the MySQL
-					table handle */
-	dict_table_t*	table,		/*!< in: table to lock, or NULL
-					if prebuilt->table should be
-					locked as
-					prebuilt->select_lock_type */
-	ulint		mode);		/*!< in: lock mode of table
-					(ignored if table==NULL) */
+row_lock_table(
+	row_prebuilt_t*	prebuilt);
 
 /** Does an insert for MySQL.
 @param[in]	mysql_rec	row in the MySQL format

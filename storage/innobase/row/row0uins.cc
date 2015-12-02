@@ -356,6 +356,8 @@ close_table:
 		dict_table_close(node->table, dict_locked, FALSE);
 		node->table = NULL;
 	} else {
+		ut_ad(!node->table->skip_alter_undo);
+
 		clust_index = dict_table_get_first_index(node->table);
 
 		if (clust_index != NULL) {

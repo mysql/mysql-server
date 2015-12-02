@@ -4606,6 +4606,9 @@ int ha_partition::extra(enum ha_extra_function operation)
     }
     break;
   }
+  case HA_EXTRA_BEGIN_ALTER_COPY:
+  case HA_EXTRA_END_ALTER_COPY:
+	break;
   default:
   {
     /* Temporary crash to discover what is wrong */
