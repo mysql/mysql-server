@@ -199,7 +199,6 @@ public:
   void fix_length_and_dec();
   enum_field_types field_type() const  { return MYSQL_TYPE_GEOMETRY; }
   Field *tmp_table_field(TABLE *t_arg);
-  bool is_null() { (void) val_int(); return null_value; }
 };
 
 class Item_func_geometry_from_text: public Item_geometry_func

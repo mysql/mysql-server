@@ -99,7 +99,7 @@ bool Item_row::fix_fields(THD *thd, Item **ref)
   for (arg= items, arg_end= items+arg_count; arg != arg_end ; arg++)
   {
     if ((!(*arg)->fixed && (*arg)->fix_fields(thd, arg)))
-      return TRUE;
+      return true;
     // we can't assign 'item' before, because fix_fields() can change arg
     Item *item= *arg;
     used_tables_cache |= item->used_tables();
@@ -116,12 +116,17 @@ bool Item_row::fix_fields(THD *thd, Item **ref)
           with_null|= 1;
       }
     }
+
+    // item->is_null() may have raised an error.
+    if (thd->is_error())
+      return true;
+
     maybe_null|= item->maybe_null;
     with_sum_func|= item->with_sum_func;
     with_subselect|= item->has_subquery();
   }
   fixed= 1;
-  return FALSE;
+  return false;
 }
 
 

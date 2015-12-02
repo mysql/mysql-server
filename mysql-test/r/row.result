@@ -599,3 +599,15 @@ al
 SELECT 1 <=>ALL (SELECT 1);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '<=>ALL (SELECT 1)' at line 1
 DROP TABLE t1;
+#
+# Bug #22299664 REGRESSION, ASSERTION FAILED: !THD->IS_ERROR() WITH
+#               ROW() + SPATIAL FUNCTIONS
+#
+SELECT ROW(ST_Intersection(POINT(1, 1), 1), (SELECT 1));
+ERROR 22023: Invalid GIS data provided to function st_intersection.
+SELECT ROW(1, ST_Intersection(POINT(1, 1), 1), (SELECT 1));
+ERROR 22023: Invalid GIS data provided to function st_intersection.
+SELECT ROW(POW(1000, 1000), (SELECT 1));
+ERROR 22003: DOUBLE value is out of range in 'pow(1000,1000)'
+SELECT ROW(1, 2, POW(1000, 1000), (SELECT 1));
+ERROR 22003: DOUBLE value is out of range in 'pow(1000,1000)'
