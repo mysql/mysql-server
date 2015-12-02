@@ -3441,7 +3441,6 @@ fts_add_doc_from_tuple(
 	const dtuple_t*	tuple)
 {
 	mtr_t		mtr;
-	fts_get_doc_t*	get_doc;
 	fts_cache_t*	cache = ftt->table->fts->cache;
 
 	ut_ad(cache->get_docs);
@@ -3449,11 +3448,6 @@ fts_add_doc_from_tuple(
 	if (!(ftt->table->fts->fts_status & ADDED_TABLE_SYNCED)) {
 		fts_init_index(ftt->table, FALSE);
 	}
-
-	/* Get the first FTS index's get_doc */
-	get_doc = static_cast<fts_get_doc_t*>(
-		ib_vector_get(cache->get_docs, 0));
-	ut_ad(get_doc);
 
 	mtr_start(&mtr);
 
