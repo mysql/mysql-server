@@ -18,12 +18,14 @@
 
 #include "my_global.h"
 #include "mysql_com.h"                     // SERVER_VERSION_LENGTH
-#include "my_atomic.h"                     // my_atomic_add64
+#include "my_atomic.h"                     // my_atomic_load32
 #include "my_thread.h"                     // my_thread_attr_t
 #include "my_thread_local.h"               // my_get_thread_local
 #include "sql_cmd.h"                       // SQLCOM_END
 #include "sql_const.h"                     // UUID_LENGTH
 #include "atomic_class.h"                  /* Atomic_int32 */
+
+#include <atomic>
 
 class my_decimal;
 class THD;
@@ -643,13 +645,12 @@ extern char *opt_disabled_storage_engines;
 
 /* query_id */
 typedef int64 query_id_t;
-extern query_id_t global_query_id;
+extern std::atomic<query_id_t> atomic_global_query_id;
 
 /* increment query_id and return it.  */
 inline __attribute__((warn_unused_result)) query_id_t next_query_id()
 {
-  query_id_t id= my_atomic_add64(&global_query_id, 1);
-  return (id+1);
+  return ++atomic_global_query_id;
 }
 
 #define ER(X) please_use_ER_THD_or_ER_DEFAULT_instead(X)

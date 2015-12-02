@@ -17,7 +17,6 @@
 
 #include "sql_base.h"
 
-#include "my_atomic.h"                // my_atomic_add32
 #include "auth_common.h"              // check_table_access
 #include "binlog.h"                   // mysql_bin_log
 #include "dd_table_share.h"           // open_table_def

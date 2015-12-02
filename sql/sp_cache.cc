@@ -16,9 +16,10 @@
 
 #include "sp_cache.h"
 
-#include "my_atomic.h"
 #include "sp_head.h"
 #include "psi_memory_key.h"
+
+#include <atomic>
 
 
 /*
@@ -97,7 +98,7 @@ private:
 }; // class sp_cache
 
 
-static int64 volatile Cversion= 0;
+static std::atomic<int64> atomic_Cversion { 0 };
 
 
 /*
@@ -194,7 +195,7 @@ sp_head *sp_cache_lookup(sp_cache **cp, sp_name *name)
 void sp_cache_invalidate()
 {
   DBUG_PRINT("info",("sp_cache: invalidating"));
-  my_atomic_add64(&Cversion, 1);
+  atomic_Cversion++;
 }
 
 
@@ -225,7 +226,7 @@ void sp_cache_flush_obsolete(sp_cache **cp, sp_head **sp)
 
 int64 sp_cache_version()
 {
-  return my_atomic_load64(&Cversion);
+  return atomic_Cversion;
 }
 
 

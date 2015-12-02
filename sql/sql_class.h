@@ -50,6 +50,7 @@
 #include <pfs_statement_provider.h>
 #include <mysql/psi/mysql_statement.h>
 
+#include <atomic>
 #include <memory>
 #include "mysql/thread_type.h"
 
@@ -658,7 +659,7 @@ public:
   */
   static bool global_read_lock_active()
   {
-    return my_atomic_load32(&m_active_requests) ? true : false;
+    return m_atomic_active_requests > 0;
   }
 
   /**
@@ -678,7 +679,7 @@ public:
   bool is_acquired() const { return m_state != GRL_NONE; }
   void set_explicit_lock_duration(THD *thd);
 private:
-  volatile static int32 m_active_requests;
+  static std::atomic<int32> m_atomic_active_requests;
   enum_grl_state m_state;
   /**
     In order to acquire the global read lock, the connection must

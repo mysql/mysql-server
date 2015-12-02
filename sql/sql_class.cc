@@ -895,7 +895,7 @@ void THD::init(void)
   {
     ulong tmp;
     tmp= sql_rnd_with_mutex();
-    randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::global_query_id);
+    randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::atomic_global_query_id);
   }
 
   server_status= SERVER_STATUS_AUTOCOMMIT;

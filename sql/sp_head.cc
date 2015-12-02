@@ -16,7 +16,7 @@
 
 #include "sp_head.h"
 
-#include "mysqld.h"            // global_query_id
+#include "mysqld.h"            // atomic_global_query_id
 #include "probes_mysql.h"
 #include "psi_memory_key.h"
 #include "sql_show.h"          // append_identifier
@@ -1258,7 +1258,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
       as one select and not resetting THD::user_var_events before
       each invocation.
     */
-    q= my_atomic_load64(&global_query_id); 
+    q= atomic_global_query_id;
     mysql_bin_log.start_union_events(thd, q + 1);
     binlog_save_options= thd->variables.option_bits;
     thd->variables.option_bits&= ~OPTION_BIN_LOG;
