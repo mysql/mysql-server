@@ -15,6 +15,23 @@ sleep(3)
 0
 SET global debug="-d,ib_purge_virtual_index_callback";
 DROP TABLE t;
+CREATE TABLE t (
+a TINYBLOB,
+b TINYBLOB,
+c TINYBLOB GENERATED ALWAYS AS (CONCAT(a,b)) VIRTUAL,
+h VARCHAR(10) DEFAULT NULL,
+i INT
+) ROW_FORMAT=COMPACT ENGINE=InnoDB;
+INSERT INTO t VALUES (REPEAT('g', 100), REPEAT('x', 100), DEFAULT, "kk", 1);
+INSERT INTO t VALUES (REPEAT('a', 100), REPEAT('b', 100), DEFAULT, "mm", 2);
+CREATE INDEX idx ON t(c(100));
+SET global debug="+d,ib_purge_virtual_index_callback";
+UPDATE t SET a = REPEAT('m', 100) WHERE a like "aaa%";
+select sleep(3);
+sleep(3)
+0
+SET global debug="-d,ib_purge_virtual_index_callback";
+DROP TABLE t;
 CREATE TABLE t1 (
 id INT NOT NULL,
 store_id INT NOT NULL,
