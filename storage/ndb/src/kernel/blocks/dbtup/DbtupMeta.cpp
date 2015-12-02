@@ -305,6 +305,12 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
       regTabPtr.p->m_attributes[ind].m_no_of_dyn_var++;
       regTabPtr.p->m_dyn_null_bits[ind]++;
     }
+    if (null_pos > AO_NULL_FLAG_POS_MASK)
+    {
+      jam();
+      terrorCode = ZTOO_MANY_BITS_ERROR;
+      goto error;
+    }
     AttributeOffset::setNullFlagPos(attrDes2, null_pos);
 
     ndbassert((regTabPtr.p->m_attributes[ind].m_no_of_dyn_var +
