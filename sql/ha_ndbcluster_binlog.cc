@@ -6895,7 +6895,7 @@ find_epoch_to_handle(const NdbEventOperation *s_pOp,
   {
     if (s_pOp != NULL)
     {
-      return std::min(i_pOp->getGCI(),s_pOp->getGCI());
+      return MIN(i_pOp->getGCI(),s_pOp->getGCI());
     }
     return i_pOp->getGCI();
   }
