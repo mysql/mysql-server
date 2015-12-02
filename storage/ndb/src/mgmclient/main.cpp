@@ -56,14 +56,14 @@ static struct my_option my_long_options[] =
     "Set prompt to string specified",
     (uchar**) &opt_prompt, (uchar**) &opt_prompt, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "try-reconnect", 't',
-    "Same as --ndb-connect-retries",
-    (uchar**) &opt_connect_retries, (uchar**) &opt_connect_retries, 0,
-    GET_UINT, REQUIRED_ARG, 3, 0, 0, 0, 0, 0 },
   { "verbose", 'v',
     "Control the amount of printout",
     (uchar**) &opt_verbose, (uchar**) &opt_verbose, 0,
-    GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
+    GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0}, \
+  {"try-reconnect", 't', \
+    "Same as --connect-retries", \
+    (uchar**) &opt_connect_retries, (uchar**) &opt_connect_retries, 0, \
+    GET_INT, REQUIRED_ARG, 12, 0, INT_MAX, 0, 0, 0 }, \
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
