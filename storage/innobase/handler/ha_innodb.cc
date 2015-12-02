@@ -3193,9 +3193,17 @@ ha_innobase::reset_template(void)
 	ut_ad(m_prebuilt->magic_n == ROW_PREBUILT_ALLOCATED);
 	ut_ad(m_prebuilt->magic_n2 == m_prebuilt->magic_n);
 
+	/* Force table to be freed in close_thread_table(). */
+	DBUG_EXECUTE_IF("free_table_in_fts_query",
+		if (m_prebuilt->in_fts_query) {
+			table->m_needs_reopen = true;
+		}
+	);
+
 	m_prebuilt->keep_other_fields_on_keyread = 0;
 	m_prebuilt->read_just_key = 0;
 	m_prebuilt->in_fts_query = 0;
+
 	/* Reset index condition pushdown state. */
 	if (m_prebuilt->idx_cond) {
 		m_prebuilt->idx_cond = NULL;
@@ -17856,9 +17864,6 @@ void
 innobase_fts_close_ranking(
 	FT_INFO*	fts_hdl)
 {
-	reinterpret_cast<NEW_FT_INFO*>(fts_hdl)->ft_prebuilt->in_fts_query =
-		false;
-
 	fts_result_t*	result;
 
 	result = reinterpret_cast<NEW_FT_INFO*>(fts_hdl)->ft_result;
