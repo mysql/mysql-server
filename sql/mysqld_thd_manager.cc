@@ -108,8 +108,8 @@ const my_thread_id Global_THD_manager::reserved_thread_id= 0;
 Global_THD_manager::Global_THD_manager()
   : thd_list(PSI_INSTRUMENT_ME),
     thread_ids(PSI_INSTRUMENT_ME),
-    num_thread_running(0),
-    thread_created(0),
+    atomic_num_thread_running(0),
+    atomic_thread_created(0),
     thread_id_counter(reserved_thread_id + 1),
     unit_test(false)
 {

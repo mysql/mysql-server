@@ -20,6 +20,7 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <my_atomic.h>
+#include <atomic>
 
 
 namespace mysys_my_atomic_unittest {
@@ -174,6 +175,38 @@ TEST(Mysys, Atomic)
   mysql_mutex_destroy(&mutex);
   mysql_cond_destroy(&cond);
   my_thread_attr_destroy(&thr_attr);
+}
+
+
+// A very simple perf test of load/store.
+
+#ifndef DBUG_OFF
+static const int num_iterations= 1; // No point in debug mode
+#else
+static const int num_iterations= 10000; // Should be increased for testing.
+#endif
+
+TEST(Mysys, AtomicPerfMy)
+{
+  volatile int64 a= 0;
+  for (int64 i = 0; i < num_iterations; i++)
+  {
+    int64 v= my_atomic_load64(&a);
+    EXPECT_EQ(v, i);
+    my_atomic_add64(&a, 1);
+  }
+}
+
+
+TEST(Mysys, AtomicPerfStd)
+{
+  std::atomic<int64> a { 0 };
+  for (int64 i = 0; i < num_iterations; i++)
+  {
+    int64 v= a;
+    EXPECT_EQ(v, i);
+    a++;
+  }
 }
 
 }

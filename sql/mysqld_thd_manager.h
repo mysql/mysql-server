@@ -17,9 +17,10 @@
 #define MYSQLD_THD_MANAGER_INCLUDED
 
 #include "my_global.h"
-#include "my_atomic.h"         // my_atomic_add32
 #include "my_thread_local.h"   // my_thread_id
 #include "prealloced_array.h"
+
+#include <atomic>
 
 class THD;
 
@@ -153,16 +154,15 @@ public:
   /**
     Retrieves thread running statistic variable.
     @return int Returns the total number of threads currently running
-    @note       This is a dirty read.
   */
-  int get_num_thread_running() const { return num_thread_running; }
+  int get_num_thread_running() const { return atomic_num_thread_running; }
 
   /**
     Increments thread running statistic variable.
   */
   void inc_thread_running()
   {
-    my_atomic_add32(&num_thread_running, 1);
+    atomic_num_thread_running++;
   }
 
   /**
@@ -170,18 +170,17 @@ public:
   */
   void dec_thread_running()
   {
-    my_atomic_add32(&num_thread_running, -1);
+    atomic_num_thread_running--;
   }
 
   /**
     Retrieves thread created statistic variable.
     @return ulonglong Returns the total number of threads created
                       after server start
-    @note             This is a dirty read.
   */
   ulonglong get_num_thread_created() const
   {
-    return static_cast<ulonglong>(thread_created);
+    return atomic_thread_created;
   }
 
   /**
@@ -189,7 +188,7 @@ public:
   */
   void inc_thread_created()
   {
-    my_atomic_add64(&thread_created, 1);
+    atomic_thread_created++;
   }
 
   /**
@@ -280,10 +279,10 @@ private:
   mysql_mutex_t LOCK_thread_ids;
 
   // Count of active threads which are running queries in the system.
-  volatile int32 num_thread_running;
+  std::atomic<int> atomic_num_thread_running;
 
   // Cumulative number of threads created by mysqld daemon.
-  volatile int64 thread_created;
+  std::atomic<ulonglong> atomic_thread_created;
 
   // Counter to assign thread id.
   my_thread_id thread_id_counter;
