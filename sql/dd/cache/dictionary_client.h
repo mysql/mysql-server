@@ -525,7 +525,7 @@ public:
   template <typename Iterator_type>
   bool fetch_schema_components(
     const Schema *schema,
-    std::auto_ptr<Iterator_type> *iter) const;
+    std::unique_ptr<Iterator_type> *iter) const;
 
 
   /**
@@ -544,7 +544,7 @@ public:
 
   template <typename Iterator_type>
   bool fetch_catalog_components(
-    std::auto_ptr<Iterator_type> *iter) const;
+    std::unique_ptr<Iterator_type> *iter) const;
 
 
   /**
@@ -560,7 +560,7 @@ public:
 
   template <typename Iterator_type>
   bool fetch_global_components(
-    std::auto_ptr<Iterator_type> *iter) const;
+    std::unique_ptr<Iterator_type> *iter) const;
 
 
   /**

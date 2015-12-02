@@ -2831,12 +2831,7 @@ dict_load_tablespace(
 		return;
 	}
 
-	if (!(ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK)
-	    /* FIXME: In WL#7141, the tweak below will be removed.
-	    On startup, mysql.* tables will be opened before
-	    dict_check_tablespaces_and_store_max_id() is called
-	    in srv_dict_recover_on_restart(). */
-	    && strncmp(table->name.m_name, "mysql/", 6)) {
+	if (!(ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK)) {
 		ib::error() << "Failed to find tablespace for table "
 			<< table->name << " in the cache. Attempting"
 			" to load the tablespace with space id "
@@ -3025,18 +3020,13 @@ err_exit:
 		: ignore_err;
 	err = dict_load_indexes(table, heap, index_load_err);
 
-	/* Load the corrupted index bits from DDTableBuffer */
-	if (!is_system_tablespace(table->space)
-	    && !dict_table_is_temporary(table)) {
+	dict_table_load_dynamic_metadata(table);
 
-		dict_table_load_dynamic_metadata(table);
-
-		/* Re-check like we do in dict_load_indexes() */
-		if (!srv_load_corrupted
-		    && !(index_load_err & DICT_ERR_IGNORE_CORRUPT)
-		    && dict_table_is_corrupted(table)) {
-			err = DB_INDEX_CORRUPT;
-		}
+	/* Re-check like we do in dict_load_indexes() */
+	if (!srv_load_corrupted
+	    && !(index_load_err & DICT_ERR_IGNORE_CORRUPT)
+	    && dict_table_is_corrupted(table)) {
+		err = DB_INDEX_CORRUPT;
 	}
 
 	if (err == DB_INDEX_CORRUPT) {

@@ -65,7 +65,7 @@ private:
       variables_list= NULL;
       my_hash_init(&m_registered_sysvars,
 		   const_cast<CHARSET_INFO *>(char_set),
-		   4, 0, 0, (my_hash_get_key) sysvars_get_key,
+		   4, 0, 0, sysvars_get_key,
 		   my_free, HASH_UNIQUE,
                    key_memory_THD_Session_tracker);
     }
@@ -175,8 +175,7 @@ public:
   bool store(THD *thd, String &buf);
   void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name);
   /* callback */
-  static uchar *sysvars_get_key(const char *entry, size_t *length,
-                                my_bool not_used __attribute__((unused)));
+  static const uchar *sysvars_get_key(const uchar *entry, size_t *length);
 
   virtual void claim_memory_ownership()
   {
@@ -761,9 +760,8 @@ void Session_sysvars_tracker::mark_as_changed(THD *thd, LEX_CSTRING *tracked_ite
   @return                   Pointer to the key buffer.
 */
 
-uchar *Session_sysvars_tracker::sysvars_get_key(const char *entry,
-                                                size_t *length,
-                                                my_bool not_used __attribute__((unused)))
+const uchar *Session_sysvars_tracker::sysvars_get_key(const uchar *entry,
+                                                      size_t *length)
 {
   char *key;
   key= ((sysvar_node_st *) entry)->m_sysvar_name.str;

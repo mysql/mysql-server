@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2014, 2015 Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -1160,8 +1160,15 @@ my @tags=
  ["include/have_debug.inc", "need_debug", 1],
  ["include/have_ndb.inc", "ndb_test", 1],
  ["include/have_multi_ndb.inc", "ndb_test", 1],
+
+#  The tests with below six .inc files are considered to be rpl tests.
  ["include/master-slave.inc", "rpl_test", 1],
+ ["include/rpl_connection.inc", "rpl_test", 1],
+ ["include/rpl_ip_mix.inc", "rpl_test", 1],
+ ["include/rpl_ip_mix2.inc", "rpl_test", 1],
+ ["include/rpl_ipv6.inc", "rpl_test", 1],
  ["include/ndb_master-slave.inc", "rpl_test", 1],
+
  ["include/ndb_master-slave.inc", "ndb_test", 1],
  ["federated.inc", "federated_test", 1],
  ["include/not_embedded.inc", "not_embedded", 1],

@@ -21,6 +21,11 @@
 #include "mysql/service_my_snprintf.h" // my_snprintf
 #include "mysqld_error.h"              // ER_*
 #include "sql_const.h"
+#include "m_string.h"                  // my_strtoll
+
+#ifdef MYSQL_CLIENT
+#include "mysqlbinlog.h"
+#endif
 
 #ifndef MYSQL_CLIENT
 #include "log.h"                 // sql_print_warning

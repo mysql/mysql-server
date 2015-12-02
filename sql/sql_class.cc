@@ -16,48 +16,38 @@
 */
 
 
-/*****************************************************************************
-**
-** This file implements classes defined in sql_class.h
-** Especially the classes to handle a result from a select
-**
-*****************************************************************************/
-
 #include "sql_class.h"
 
-#include "mysys_err.h"                       // EE_DELETE
+#include "mysys_err.h"                       // EE_OUTOFMEMORY
 #include "connection_handler_manager.h"      // Connection_handler_manager
 #include "current_thd.h"
 #include "debug_sync.h"                      // DEBUG_SYNC
 #include "derror.h"                          // ER_THD
+#include "item_func.h"                       // user_var_entry
 #include "lock.h"                            // mysql_lock_abort_for_thread
 #include "locking_service.h"                 // release_all_locking_service_locks
 #include "mysqld.h"                          // global_system_variables ...
 #include "mysqld_thd_manager.h"              // Global_THD_manager
-#include "parse_tree_nodes.h"                // PT_select_var
 #include "psi_memory_key.h"
-#include "replication.h"
-#include "rpl_filter.h"                      // binlog_filter
+#include "rpl_filter.h"                      // rpl_filter
 #include "rpl_rli.h"                         // Relay_log_info
 #include "sp_cache.h"                        // sp_cache_clear
-#include "sp_rcontext.h"                     // sp_rcontext
 #include "sql_audit.h"                       // mysql_audit_free_thd
 #include "sql_base.h"                        // close_temporary_tables
 #include "sql_cache.h"                       // query_cache
 #include "sql_callback.h"                    // MYSQL_CALLBACK
 #include "sql_handler.h"                     // mysql_ha_cleanup
 #include "sql_parse.h"                       // is_update_query
-#include "sql_plugin.h"                      // plugin_unlock
+#include "sql_plugin.h"                      // plugin_thdvar_init
 #include "sql_prepare.h"                     // Prepared_statement
 #include "sql_time.h"                        // my_timeval_trunc
 #include "sql_timer.h"                       // thd_timer_destroy
 #include "transaction.h"                     // trans_rollback
-#ifdef HAVE_REPLICATION
-#include "rpl_rli_pdb.h"                     // Slave_worker
-#include "rpl_slave_commit_order_manager.h"
-#endif
+#include "template_utils.h"
 
-#include "mysql/service_thd_engine_lock.h"
+#ifdef HAVE_REPLICATION
+#include "rpl_slave.h"                       // rpl_master_erroneous_autoinc
+#endif
 
 #include "dd/cache/dictionary_client.h"      // Dictionary_client
 #include "dd/dd_kill_immunizer.h"            // dd:DD_kill_immunizer
@@ -335,10 +325,9 @@ THD::Attachable_trx::~Attachable_trx()
 }
 
 
-extern "C" {
-static uchar *get_var_key(user_var_entry *entry, size_t *length,
-                              my_bool not_used __attribute__((unused)))
+static const uchar *get_var_key(const uchar *arg, size_t *length)
 {
+  const user_var_entry *entry= pointer_cast<const user_var_entry*>(arg);
   *length= entry->entry_name.length();
   return (uchar*) entry->entry_name.ptr();
 }
@@ -347,7 +336,7 @@ static void free_user_var(user_var_entry *entry)
 {
   entry->destroy();
 }
-} // extern "C"
+
 
 PSI_thread* THD::get_psi()
 {
@@ -400,47 +389,6 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
   }
 
   return;
-}
-
-extern "C"
-void thd_enter_cond(void *opaque_thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
-                    const PSI_stage_info *stage, PSI_stage_info *old_stage,
-                    const char *src_function, const char *src_file,
-                    int src_line)
-{
-  THD *thd= static_cast<THD*>(opaque_thd);
-  if (!thd)
-    thd= current_thd;
-
-  return thd->enter_cond(cond, mutex, stage, old_stage,
-                         src_function, src_file, src_line);
-}
-
-extern "C"
-void thd_exit_cond(void *opaque_thd, const PSI_stage_info *stage,
-                   const char *src_function, const char *src_file,
-                   int src_line)
-{
-  THD *thd= static_cast<THD*>(opaque_thd);
-  if (!thd)
-    thd= current_thd;
-
-  thd->exit_cond(stage, src_function, src_file, src_line);
-}
-
-
-/**
-  Returns the partition_info working copy.
-  Used to see if a table should be created with partitioning.
-
-  @param thd thread context
-
-  @return Pointer to the working copy of partition_info or NULL.
-*/
-
-partition_info *thd_get_work_part_info(THD *thd)
-{
-  return thd->work_part_info;
 }
 
 
@@ -569,8 +517,6 @@ THD::THD(bool enable_plugins)
   killed= NOT_KILLED;
   col_access=0;
   is_slave_error= thread_specific_used= FALSE;
-  my_hash_clear(&handler_tables_hash);
-  my_hash_clear(&ull_hash);
   tmp_table=0;
   cuted_fields= 0L;
   m_sent_row_count= 0L;
@@ -636,7 +582,7 @@ THD::THD(bool enable_plugins)
 #endif
   m_user_connect= NULL;
   my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
-               (my_hash_get_key) get_var_key,
+               get_var_key,
                (my_hash_free_key) free_user_var, 0,
                key_memory_user_var_entry);
 
@@ -1060,7 +1006,7 @@ void THD::cleanup_connection(void)
   init();
   stmt_map.reset();
   my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
-               (my_hash_get_key) get_var_key,
+               get_var_key,
                (my_hash_free_key) free_user_var, 0,
                key_memory_user_var_entry);
   sp_cache_clear(&sp_proc_cache);
@@ -1977,37 +1923,6 @@ void THD::rollback_item_tree_changes()
 }
 
 
-/*****************************************************************************
-** Functions to provide a interface to select results
-*****************************************************************************/
-
-static const String default_line_term("\n",default_charset_info);
-static const String default_escaped("\\",default_charset_info);
-static const String default_field_term("\t",default_charset_info);
-static const String default_xml_row_term("<row>", default_charset_info);
-static const String my_empty_string("",default_charset_info);
-
-
-sql_exchange::sql_exchange(const char *name, bool flag,
-                           enum enum_filetype filetype_arg)
-  :file_name(name), dumpfile(flag), skip_lines(0)
-{
-  field.opt_enclosed= 0;
-  filetype= filetype_arg;
-  field.field_term= &default_field_term;
-  field.enclosed= line.line_start= &my_empty_string;
-  line.line_term= filetype == FILETYPE_CSV ?
-              &default_line_term : &default_xml_row_term;
-  field.escaped= &default_escaped;
-  cs= NULL;
-}
-
-bool sql_exchange::escaped_given(void)
-{
-  return field.escaped != &default_escaped;
-}
-
-
 void Query_arena::free_items()
 {
   Item *next;
@@ -2078,11 +1993,9 @@ void THD::restore_active_arena(Query_arena *set, Query_arena *backup)
   DBUG_VOID_RETURN;
 }
 
-C_MODE_START
 
-static uchar *
-get_statement_id_as_hash_key(const uchar *record, size_t *key_length,
-                             my_bool not_used __attribute__((unused)))
+static const uchar *
+get_statement_id_as_hash_key(const uchar *record, size_t *key_length)
 {
   const Prepared_statement *statement= (const Prepared_statement *) record;
   *key_length= sizeof(statement->id);
@@ -2094,14 +2007,13 @@ static void delete_statement_as_hash_key(void *key)
   delete (Prepared_statement *) key;
 }
 
-static uchar *get_stmt_name_hash_key(Prepared_statement *entry, size_t *length,
-                                     my_bool not_used __attribute__((unused)))
+static const uchar *get_stmt_name_hash_key(const uchar *arg, size_t *length)
 {
+  Prepared_statement *entry= (Prepared_statement*) arg;
   *length= entry->name().length;
   return reinterpret_cast<uchar *>(const_cast<char *>(entry->name().str));
 }
 
-C_MODE_END
 
 Prepared_statement_map::Prepared_statement_map()
  :m_last_found_statement(NULL)
@@ -2116,7 +2028,7 @@ Prepared_statement_map::Prepared_statement_map()
                delete_statement_as_hash_key, MYF(0),
                key_memory_prepared_statement_map);
   my_hash_init(&names_hash, system_charset_info, START_NAME_HASH_SIZE, 0, 0,
-               (my_hash_get_key) get_stmt_name_hash_key,
+               get_stmt_name_hash_key,
                NULL, MYF(0),
                key_memory_prepared_statement_map);
 }
@@ -2250,87 +2162,6 @@ Prepared_statement_map::~Prepared_statement_map()
 }
 
 
-bool Query_dumpvar::send_data(List<Item> &items)
-{
-  List_iterator_fast<PT_select_var> var_li(var_list);
-  List_iterator<Item> it(items);
-  Item *item;
-  PT_select_var *mv;
-  DBUG_ENTER("Query_dumpvar::send_data");
-
-  if (unit->offset_limit_cnt)
-  {						// using limit offset,count
-    unit->offset_limit_cnt--;
-    DBUG_RETURN(false);
-  }
-  if (row_count++) 
-  {
-    my_error(ER_TOO_MANY_ROWS, MYF(0));
-    DBUG_RETURN(true);
-  }
-  while ((mv= var_li++) && (item= it++))
-  {
-    if (mv->is_local())
-    {
-      if (thd->sp_runtime_ctx->set_variable(thd, mv->get_offset(), &item))
-	    DBUG_RETURN(true);
-    }
-    else
-    {
-      /*
-        Create Item_func_set_user_vars with delayed non-constness. We
-        do this so that Item_get_user_var::const_item() will return
-        the same result during
-        Item_func_set_user_var::save_item_result() as they did during
-        optimization and execution.
-       */
-      Item_func_set_user_var *suv=
-        new Item_func_set_user_var(mv->name, item, true);
-      if (suv->fix_fields(thd, 0))
-        DBUG_RETURN(true);
-      suv->save_item_result(item);
-      if (suv->update())
-        DBUG_RETURN(true);
-    }
-  }
-  DBUG_RETURN(thd->is_error());
-}
-
-bool Query_dumpvar::send_eof()
-{
-  if (! row_count)
-    push_warning(thd, Sql_condition::SL_WARNING,
-                 ER_SP_FETCH_NO_DATA, ER_THD(thd, ER_SP_FETCH_NO_DATA));
-  /*
-    Don't send EOF if we're in error condition (which implies we've already
-    sent or are sending an error)
-  */
-  if (thd->is_error())
-    return true;
-
-  ::my_ok(thd,row_count);
-  return 0;
-}
-
-
-void thd_increment_bytes_sent(size_t length)
-{
-  THD *thd= current_thd;
-  if (likely(thd != NULL))
-  { /* current_thd==NULL when close_connection() calls net_send_error() */
-    thd->status_var.bytes_sent+= length;
-  }
-}
-
-
-void thd_increment_bytes_received(size_t length)
-{
-  THD *thd= current_thd;
-  if (likely(thd != NULL))
-    thd->status_var.bytes_received+= length;
-}
-
-
 void THD::set_status_var_init()
 {
   memset(&status_var, 0, sizeof(status_var));
@@ -2409,201 +2240,6 @@ void THD::end_attachable_transaction()
   m_attachable_trx= prev_trx;
 }
 
-
-enum_tx_isolation thd_get_trx_isolation(const THD *thd)
-{
-  return thd->tx_isolation;
-}
-
-
-const struct charset_info_st *thd_charset(THD *thd)
-{
-  return(thd->charset());
-}
-
-/**
-  Get the current query string for the thread.
-
-  @param thd   The MySQL internal thread pointer
-
-  @return query string and length. May be non-null-terminated.
-
-  @note This function is not thread safe and should only be called
-        from the thread owning thd. @see thd_query_safe().
-*/
-LEX_CSTRING thd_query_unsafe(THD *thd)
-{
-  DBUG_ASSERT(current_thd == thd);
-  return thd->query();
-}
-
-/**
-  Get the current query string for the thread.
-
-  @param thd     The MySQL internal thread pointer
-  @param buf     Buffer where the query string will be copied
-  @param buflen  Length of the buffer
-
-  @return Length of the query
-
-  @note This function is thread safe as the query string is
-        accessed under mutex protection and the string is copied
-        into the provided buffer. @see thd_query_unsafe().
-*/
-size_t thd_query_safe(THD *thd, char *buf, size_t buflen)
-{
-  mysql_mutex_lock(&thd->LOCK_thd_query);
-  LEX_CSTRING query_string= thd->query();
-  size_t len= MY_MIN(buflen - 1, query_string.length);
-  strncpy(buf, query_string.str, len);
-  buf[len]= '\0';
-  mysql_mutex_unlock(&thd->LOCK_thd_query);
-  return len;
-}
-
-int thd_slave_thread(const THD *thd)
-{
-  return(thd->slave_thread);
-}
-
-int thd_non_transactional_update(const THD *thd)
-{
-  return thd->get_transaction()->has_modified_non_trans_table(
-    Transaction_ctx::SESSION);
-}
-
-int thd_binlog_format(const THD *thd)
-{
-  if (mysql_bin_log.is_open() && (thd->variables.option_bits & OPTION_BIN_LOG))
-    return (int) thd->variables.binlog_format;
-  else
-    return BINLOG_FORMAT_UNSPEC;
-}
-
-bool thd_binlog_filter_ok(const THD *thd)
-{
-  return binlog_filter->db_ok(thd->db().str);
-}
-
-bool thd_sqlcom_can_generate_row_events(const THD *thd)
-{
-  return sqlcom_can_generate_row_events(thd);
-}
-
-enum durability_properties thd_get_durability_property(const THD *thd)
-{
-  enum durability_properties ret= HA_REGULAR_DURABILITY;
-
-  if (thd != NULL)
-    ret= thd->durability_property;
-
-  return ret;
-}
-
-/** Get the auto_increment_offset auto_increment_increment.
-Needed by InnoDB.
-@param thd	Thread object
-@param off	auto_increment_offset
-@param inc	auto_increment_increment */
-void thd_get_autoinc(const THD *thd, ulong* off, ulong* inc)
-{
-  *off = thd->variables.auto_increment_offset;
-  *inc = thd->variables.auto_increment_increment;
-}
-
-
-/**
-  Is strict sql_mode set.
-  Needed by InnoDB.
-  @param thd	Thread object
-  @return True if sql_mode has strict mode (all or trans).
-    @retval true  sql_mode has strict mode (all or trans).
-    @retval false sql_mode has not strict mode (all or trans).
-*/
-bool thd_is_strict_mode(const THD *thd)
-{
-  return thd->is_strict_mode();
-}
-
-
-#ifndef EMBEDDED_LIBRARY
-/*
-  Interface for MySQL Server, plugins and storage engines to report
-  when they are going to sleep/stall.
-  
-  SYNOPSIS
-  thd_wait_begin()
-  thd                     Thread object
-  wait_type               Type of wait
-                          1 -- short wait (e.g. for mutex)
-                          2 -- medium wait (e.g. for disk io)
-                          3 -- large wait (e.g. for locked row/table)
-  NOTES
-    This is used by the threadpool to have better knowledge of which
-    threads that currently are actively running on CPUs. When a thread
-    reports that it's going to sleep/stall, the threadpool scheduler is
-    free to start another thread in the pool most likely. The expected wait
-    time is simply an indication of how long the wait is expected to
-    become, the real wait time could be very different.
-
-  thd_wait_end MUST be called immediately after waking up again.
-*/
-extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
-{
-  MYSQL_CALLBACK(Connection_handler_manager::event_functions,
-                 thd_wait_begin, (thd, wait_type));
-}
-
-/**
-  Interface for MySQL Server, plugins and storage engines to report
-  when they waking up from a sleep/stall.
-
-  @param  thd   Thread handle
-*/
-extern "C" void thd_wait_end(MYSQL_THD thd)
-{
-  MYSQL_CALLBACK(Connection_handler_manager::event_functions,
-                 thd_wait_end, (thd));
-}
-#else
-extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
-{
-  /* do NOTHING for the embedded library */
-  return;
-}
-
-extern "C" void thd_wait_end(MYSQL_THD thd)
-{
-  /* do NOTHING for the embedded library */
-  return;
-}
-#endif
-
-
-#ifndef EMBEDDED_LIBRARY
-/**
-   Interface for Engine to report row lock conflict.
-   The caller should guarantee thd_wait_for does not be freed, when it is
-   called.
-*/
-extern "C"
-void thd_report_row_lock_wait(THD* self, THD *wait_for)
-{
-  DBUG_ENTER("thd_report_row_lock_wait");
-
-  if (self != NULL && wait_for != NULL &&
-      is_mts_worker(self) && is_mts_worker(wait_for))
-    commit_order_manager_check_deadlock(self, wait_for);
-
-  DBUG_VOID_RETURN;
-}
-#else
-extern "C"
-void thd_report_row_lock_wait(THD* self, THD *thd_wait_for)
-{
-  return;
-}
-#endif
 
 /****************************************************************************
   Handling of statement states in functions and triggers.

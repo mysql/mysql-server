@@ -934,14 +934,6 @@ public:
 		m_offset(offset)
 	{
 		ut_ad(m_n > 0);
-
-		/* If off_t is > 4 bytes in size, then we assume we can pass a
-		64-bit address */
-		off_t	offs = static_cast<off_t>(m_offset);
-
-		if (sizeof(off_t) <= 4 && m_offset != (os_offset_t) offs) {
-			ib::error() << "file write at offset > 4 GB.";
-		}
 	}
 
 	/** Destructor */
@@ -1486,13 +1478,17 @@ AIO::release_with_mutex(Slot* slot)
 }
 
 /** Creates a temporary file.  This function is like tmpfile(3), but
-the temporary file is created in the MySQL temporary directory.
+the temporary file is created in the given parameter path. If the path
+is NULL then it will create the file in the MySQL server configuration
+parameter (--tmpdir).
+@param[in]	path	location for creating temporary file
 @return temporary file handle, or NULL on error */
 FILE*
-os_file_create_tmpfile()
+os_file_create_tmpfile(
+	const char*	path)
 {
 	FILE*	file	= NULL;
-	int	fd	= innobase_mysql_tmpfile();
+	int	fd	= innobase_mysql_tmpfile(path);
 
 	if (fd >= 0) {
 		file = fdopen(fd, "w+b");
@@ -2660,7 +2656,7 @@ AIO::is_linux_native_aio_supported()
 	} else if (!srv_read_only_mode) {
 
 		/* Now check if tmpdir supports native aio ops. */
-		fd = innobase_mysql_tmpfile();
+		fd = innobase_mysql_tmpfile(NULL);
 
 		if (fd < 0) {
 			ib::warn()
@@ -4877,28 +4873,6 @@ AIO::simulated_put_read_threads_to_sleep()
 
 #endif /* !_WIN32*/
 
-/** Validate the type, offset and number of bytes to read *
-@param[in]	type		IO flags
-@param[in]	offset		Offset from start of the file
-@param[in]	n		Number of bytes to read from offset */
-static
-void
-os_file_check_args(const IORequest& type, os_offset_t offset, ulint n)
-{
-	ut_ad(type.validate());
-
-	ut_ad(n > 0);
-
-	/* If off_t is > 4 bytes in size, then we assume we can pass a
-	64-bit address */
-	off_t		offs = static_cast<off_t>(offset);
-
-	if (sizeof(off_t) <= 4 && offset != (os_offset_t) offs) {
-
-		ib::error() << "file write at offset > 4 GB.";
-	}
-}
-
 /** Does a syncronous read or write depending upon the type specified
 In case of partial reads/writes the function tries
 NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
@@ -5067,7 +5041,8 @@ os_file_write_page(
 {
 	dberr_t		err;
 
-	os_file_check_args(type, offset, n);
+	ut_ad(type.validate());
+	ut_ad(n > 0);
 
 	ssize_t	n_bytes = os_file_pwrite(type, file, buf, n, offset, &err);
 
@@ -5155,7 +5130,8 @@ os_file_read_page(
 
 	os_bytes_read_since_printout += n;
 
-	os_file_check_args(type, offset, n);
+	ut_ad(type.validate());
+	ut_ad(n > 0);
 
 	for (;;) {
 		ssize_t	n_bytes;

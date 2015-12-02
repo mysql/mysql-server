@@ -17,41 +17,11 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 
-#if defined(_LIBCPP_VERSION)
-#include <unordered_map>
-#elif defined(__GNUC__)
-#include <tr1/unordered_map>
-#elif (_MSC_VER == 1900)
-#include <unordered_map>
-#elif defined(_WIN32)
-#include <hash_map>
-#elif  defined(__SUNPRO_CC)
-#include <hash_map>
-#else 
-#error "Don't know how to implement hash_map"
-#endif
-
-
-template<typename K, typename T>
-struct MyHashMap
-{
-#if defined(_LIBCPP_VERSION)
-  typedef std::unordered_map<K, T> Type;
-#elif defined(__GNUC__)
-  typedef std::tr1::unordered_map<K, T> Type;
-#elif (_MSC_VER == 1900)
-  typedef std::unordered_map<K, T> Type;
-#elif defined(_WIN32)
-  typedef stdext::hash_map<K, T> Type;
-#elif defined(__SUNPRO_CC)
-  typedef std::hash_map<K, T> Type;
-#endif
-};
-
+#include "cpp11_lib_check.h"
 
 TEST(STDfeatures, HashMap)
 {
-  MyHashMap<int, int>::Type intmap;
+  std::unordered_map<int, int> intmap;
   for (int ix= 0; ix < 10; ++ix)
   {
     intmap[ix]= ix * ix;
@@ -65,8 +35,8 @@ TEST(STDfeatures, HashMap)
 
 TEST(STDfeatures, TwoHashMaps)
 {
-  MyHashMap<int, int>::Type intmap1;
-  MyHashMap<int, int>::Type intmap2;
+  std::unordered_map<int, int> intmap1;
+  std::unordered_map<int, int> intmap2;
   intmap1[0]= 42;
   intmap2[0]= 666;
 #if defined(_WIN32)
@@ -74,4 +44,46 @@ TEST(STDfeatures, TwoHashMaps)
 #else
   EXPECT_TRUE(intmap1.end() == intmap2.end());
 #endif
+}
+
+
+TEST(STDfeatures, Regex)
+{
+  EXPECT_FALSE(cpp11_re_match("foo", "bar"));
+  EXPECT_FALSE(cpp11_re_match("foo", "foobar"));
+  EXPECT_TRUE(cpp11_re_match("foo.*", "foobar"));
+  EXPECT_TRUE(cpp11_re_match("foo|bar", "bar"));
+}
+
+static std::atomic<int> intvar { 0 };
+
+void add_1000()
+{
+  for (int i= 0; i < 1000; i++)
+    intvar++;
+}
+
+TEST(STDfeatures, Thread)
+{
+  std::thread t0 { add_1000 };
+  std::thread t1 { add_1000 };
+  std::thread t2 { add_1000 };
+  std::thread t3 { add_1000 };
+  std::thread t4 { add_1000 };
+  std::thread t5 { add_1000 };
+  std::thread t6 { add_1000 };
+  std::thread t7 { add_1000 };
+  std::thread t8 { add_1000 };
+  std::thread t9 { add_1000 };
+  t0.join();
+  t1.join();
+  t2.join();
+  t3.join();
+  t4.join();
+  t5.join();
+  t6.join();
+  t7.join();
+  t8.join();
+  t9.join();
+  EXPECT_EQ(10000, intvar);
 }

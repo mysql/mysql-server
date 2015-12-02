@@ -754,9 +754,7 @@ public:
     An exception: this is the only function that needs to adjust
     explain_marker.
   */
-  friend bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
-                     bool open_view_no_parse);
-
+  friend bool parse_view_definition(THD *thd, TABLE_LIST *view_ref);
 };
 
 typedef Bounds_checked_array<Item*> Ref_ptr_array;
@@ -1429,6 +1427,8 @@ private:
                                          int hidden_order_field_count);
   void repoint_contexts_of_join_nests(List<TABLE_LIST> join_list);
   void empty_order_list(int hidden_order_field_count);
+  bool setup_join_cond(THD *thd, List<TABLE_LIST> *tables, bool in_update);
+
   /**
     Pointer to collection of subqueries candidate for semijoin
     conversion.

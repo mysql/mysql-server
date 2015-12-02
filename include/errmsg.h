@@ -107,7 +107,12 @@ extern const char *client_errors[];	/* Error messages */
 #define CR_ERROR_LAST  /*Copy last error nr:*/  2062
 /* Add error numbers before CR_ERROR_LAST and change it accordingly. */
 
+/* Visual Studio requires '__inline' for C code */
+#if !defined(__cplusplus) && defined(_MSC_VER)
+static __inline const char* ER_CLIENT(int client_errno)
+#else
 static inline const char* ER_CLIENT(int client_errno)
+#endif
 {
   if (client_errno >= CR_ERROR_FIRST && client_errno <= CR_ERROR_LAST)
     return client_errors[client_errno - CR_ERROR_FIRST];

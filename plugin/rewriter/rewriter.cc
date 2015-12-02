@@ -42,17 +42,12 @@ namespace messages = rewriter_messages;
 
 
 /** Functions used in the hash */
-static uchar *get_rule_hash_code(const uchar *entry, size_t *length,
-                                 my_bool __attribute__((unused)))
+static const uchar *get_rule_hash_code(const uchar *entry, size_t *length)
 {
   const Rule *rule= pointer_cast<const Rule*>(entry);
   *length= PARSER_SERVICE_DIGEST_LENGTH;
   const uchar *digest= pointer_cast<const uchar*>(rule->digest_buffer());
-  /*
-    What on earth is the hash table going to do with a non-const hash key?
-    Maybe I don't want to know...
-  */
-  return const_cast<uchar*>(digest);
+  return digest;
 }
 
 
@@ -74,7 +69,7 @@ Rewriter::~Rewriter() { my_hash_free(&m_digests); }
 
 bool Rewriter::load_rule(MYSQL_THD thd, Persisted_rule *diskrule)
 {
-  std::auto_ptr<Rule> memrule_ptr(new Rule);
+  std::unique_ptr<Rule> memrule_ptr(new Rule);
   Rule *memrule= memrule_ptr.get();
   Rule::Load_status load_status= memrule->load(thd, diskrule);
 

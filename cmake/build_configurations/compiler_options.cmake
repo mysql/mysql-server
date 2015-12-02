@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ IF(UNIX)
 
   # Default GCC flags
   IF(CMAKE_COMPILER_IS_GNUCC)
-    SET(COMMON_C_FLAGS               "-g -fabi-version=2 -fno-omit-frame-pointer -fno-strict-aliasing")
+    SET(COMMON_C_FLAGS               "-g -fno-omit-frame-pointer -fno-strict-aliasing")
     # Disable inline optimizations for valgrind testing to avoid false positives
     IF(WITH_VALGRIND)
       SET(COMMON_C_FLAGS             "-fno-inline ${COMMON_C_FLAGS}")
@@ -37,13 +37,15 @@ IF(UNIX)
     SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_C_FLAGS}")
   ENDIF()
   IF(CMAKE_COMPILER_IS_GNUCXX)
-    SET(COMMON_CXX_FLAGS               "-g -fabi-version=2 -fno-omit-frame-pointer -fno-strict-aliasing")
+    SET(COMMON_CXX_FLAGS               "-g -fno-omit-frame-pointer -fno-strict-aliasing -std=c++11")
     # Disable inline optimizations for valgrind testing to avoid false positives
     IF(WITH_VALGRIND)
       SET(COMMON_CXX_FLAGS             "-fno-inline ${COMMON_CXX_FLAGS}")
     ENDIF()
     SET(CMAKE_CXX_FLAGS_DEBUG          "${COMMON_CXX_FLAGS}")
     SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_CXX_FLAGS}")
+    # -std=c++11 must be set
+    SET(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} -std=c++11")
   ENDIF()
 
   # Default Clang flags
@@ -53,9 +55,11 @@ IF(UNIX)
     SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_C_FLAGS}")
   ENDIF()
   IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    SET(COMMON_CXX_FLAGS               "-g -fno-omit-frame-pointer -fno-strict-aliasing")
+    SET(COMMON_CXX_FLAGS               "-g -fno-omit-frame-pointer -fno-strict-aliasing -std=c++11")
     SET(CMAKE_CXX_FLAGS_DEBUG          "${COMMON_CXX_FLAGS}")
     SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_CXX_FLAGS}")
+    # -std=c++11 must be set
+    SET(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} -std=c++11")
   ENDIF()
 
   # Solaris flags
@@ -80,15 +84,13 @@ IF(UNIX)
     ENDIF()
 
     IF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
-
-      SET(SUNPRO_CXX_LIBRARY "stlport4" CACHE STRING
-        "What C++ library to use. The server needs stlport4. It is possible to build the client libraries with -DWITHOUT_SERVER=1 -DSUNPRO_CXX_LIBRARY=Cstd")
-
-      MESSAGE(STATUS "SUNPRO_CXX_LIBRARY ${SUNPRO_CXX_LIBRARY}")
+      SET(COMMON_CXX_FLAGS                  "-std=c++11")
+      # -std=c++11 must be set
+      SET(CMAKE_CXX_FLAGS_RELEASE           "${CMAKE_CXX_FLAGS_RELEASE} -std=c++11")
 
       IF(CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
         SET(COMMON_C_FLAGS                   "-g -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic")
-        SET(COMMON_CXX_FLAGS                 "-g0 -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic -library=${SUNPRO_CXX_LIBRARY}")
+        SET(COMMON_CXX_FLAGS                 "-g0 -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic ${COMMON_CXX_FLAGS}")
         # We have to specify "-xO1" for DEBUG flags here,
         # see http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=6879978
         SET(CMAKE_C_FLAGS_DEBUG              "-xO1 ${COMMON_C_FLAGS}")
@@ -103,7 +105,7 @@ IF(UNIX)
       ELSE() 
         # Assume !x86 is SPARC
         SET(COMMON_C_FLAGS                 "-g -Xa -xstrconst -mt")
-        SET(COMMON_CXX_FLAGS               "-g0 -mt -library=${SUNPRO_CXX_LIBRARY}")
+        SET(COMMON_CXX_FLAGS               "-g0 -mt ${COMMON_CXX_FLAGS}")
         IF(32BIT)
           SET(COMMON_C_FLAGS               "${COMMON_C_FLAGS} -xarch=sparc")
           SET(COMMON_CXX_FLAGS             "${COMMON_CXX_FLAGS} -xarch=sparc")

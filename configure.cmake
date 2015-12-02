@@ -62,19 +62,6 @@ IF(NOT SYSTEM_TYPE)
   ENDIF()
 ENDIF()
 
-# The default C++ library for SunPro is really old, and not standards compliant.
-# http://www.oracle.com/technetwork/server-storage/solaris10/cmp-stlport-libcstd-142559.html
-# Use stlport rather than Rogue Wave.
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
-  IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
-    IF(SUNPRO_CXX_LIBRARY)
-      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -library=${SUNPRO_CXX_LIBRARY}")
-    ELSE()
-      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -library=stlport4")
-    ENDIF()
-  ENDIF()
-ENDIF()
-
 # Check to see if we are using LLVM's libc++ rather than e.g. libstd++
 # Can then check HAVE_LLBM_LIBCPP later without including e.g. ciso646.
 CHECK_CXX_SOURCE_RUNS("
@@ -93,7 +80,7 @@ MACRO(DIRNAME IN OUT)
 ENDMACRO()
 
 MACRO(FIND_REAL_LIBRARY SOFTLINK_NAME REALNAME)
-  # We re-distribute libstlport.so/libstdc++.so which are both symlinks.
+  # We re-distribute libstdc++.so which is a symlink.
   # There is no 'readlink' on solaris, so we use perl to follow links:
   SET(PERLSCRIPT
     "my $link= $ARGV[0]; use Cwd qw(abs_path); my $file = abs_path($link); print $file;")
@@ -172,78 +159,6 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_COMPILER_IS_GNUCC)
     INSTALL(FILES ${GCC_LIBRARY_NAME} ${real_library}
             DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
     EXTEND_C_LINK_FLAGS(${GCC_LIBRARY_PATH})
-  ENDIF()
-ENDIF()
-
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
-   CMAKE_C_COMPILER_ID MATCHES "SunPro" AND
-   CMAKE_CXX_FLAGS MATCHES "stlport4")
-  DIRNAME(${CMAKE_CXX_COMPILER} CXX_PATH)
-  # Also extract real path to the compiler(which is normally
-  # in <install_path>/prod/bin) and try to find the
-  # stlport libs relative to that location as well.
-  GET_FILENAME_COMPONENT(CXX_REALPATH ${CMAKE_CXX_COMPILER} REALPATH)
-
-  # CC -V yields
-  # CC: Sun C++ 5.13 SunOS_sparc Beta 2014/03/11
-  # CC: Sun C++ 5.11 SunOS_sparc 2010/08/13
-
-  EXECUTE_PROCESS(
-    COMMAND ${CMAKE_CXX_COMPILER} "-V"
-    OUTPUT_VARIABLE stdout
-    ERROR_VARIABLE  stderr
-    RESULT_VARIABLE result
-  )
-  IF(result)
-    MESSAGE(FATAL_ERROR "Failed to execute ${CMAKE_CXX_COMPILER} -V")
-  ENDIF()
-
-  STRING(REGEX MATCH "CC: Sun C\\+\\+ 5\\.([0-9]+)" VERSION_STRING ${stderr})
-  SET(CC_MINOR_VERSION ${CMAKE_MATCH_1})
-
-  IF(${CC_MINOR_VERSION} EQUAL 13)
-    SET(STLPORT_SUFFIX "lib/compilers/stlport4")
-    IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
-      SET(STLPORT_SUFFIX "lib/compilers/stlport4/sparcv9")
-    ENDIF()
-    IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-      SET(STLPORT_SUFFIX "lib/compilers/stlport4/amd64")
-    ENDIF()
-  ELSE()
-    SET(STLPORT_SUFFIX "lib/stlport4")
-    IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
-      SET(STLPORT_SUFFIX "lib/stlport4/v9")
-    ENDIF()
-    IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-      SET(STLPORT_SUFFIX "lib/stlport4/amd64")
-    ENDIF()
-  ENDIF()
-
-  FIND_LIBRARY(STL_LIBRARY_NAME
-    NAMES "stlport"
-    PATHS ${CXX_PATH}/../${STLPORT_SUFFIX}
-          ${CXX_REALPATH}/../../${STLPORT_SUFFIX}
-  )
-  MESSAGE(STATUS "STL_LIBRARY_NAME ${STL_LIBRARY_NAME}")
-  IF(STL_LIBRARY_NAME)
-    DIRNAME(${STL_LIBRARY_NAME} STLPORT_PATH)
-    FIND_REAL_LIBRARY(${STL_LIBRARY_NAME} real_library)
-    MESSAGE(STATUS "INSTALL ${STL_LIBRARY_NAME} ${real_library}")
-    INSTALL(FILES ${STL_LIBRARY_NAME} ${real_library}
-            DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
-    EXTEND_C_LINK_FLAGS(${STLPORT_PATH})
-    EXTEND_CXX_LINK_FLAGS(${STLPORT_PATH})
-  ELSE()
-    MESSAGE(STATUS "Failed to find the required stlport library, print some"
-                   "variables to help debugging and bail out")
-    MESSAGE(STATUS "CMAKE_CXX_COMPILER ${CMAKE_CXX_COMPILER}")
-    MESSAGE(STATUS "CXX_PATH ${CXX_PATH}")
-    MESSAGE(STATUS "CXX_REALPATH ${CXX_REALPATH}")
-    MESSAGE(STATUS "STLPORT_SUFFIX ${STLPORT_SUFFIX}")
-    MESSAGE(STATUS "PATH: ${CXX_PATH}/../${STLPORT_SUFFIX}")
-    MESSAGE(STATUS "PATH: ${CXX_REALPATH}/../../${STLPORT_SUFFIX}")
-    MESSAGE(FATAL_ERROR
-      "Could not find the required stlport library.")
   ENDIF()
 ENDIF()
 

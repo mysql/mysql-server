@@ -16,7 +16,13 @@
 #ifndef SQL_CLASS_INCLUDED
 #define SQL_CLASS_INCLUDED
 
-/* Classes in mysql */
+/*
+  This file contains the declaration of the THD class and classes which THD
+  depends on. It should contain as little else as possible to increase
+  cohesion and reduce coupling. Since THD is used in many places, many files
+  are dependent on this header and thus require recompilation if it changes.
+  Historically this file contained "Classes in mysql". 
+*/
 
 #include "my_global.h"
 
@@ -80,9 +86,6 @@ extern LEX_STRING EMPTY_STR;
 extern LEX_STRING NULL_STR;
 extern LEX_CSTRING EMPTY_CSTR;
 extern LEX_CSTRING NULL_CSTR;
-
-LEX_CSTRING thd_query_unsafe(THD *thd);
-size_t thd_query_safe(THD *thd, char *buf, size_t buflen);
 
 /**
   To be used for pool-of-threads (implemented differently on various OSs)
@@ -782,7 +785,7 @@ public:
   { return m_dd_client.get(); }
 
 private:
-  std::auto_ptr<dd::cache::Dictionary_client > m_dd_client;
+  std::unique_ptr<dd::cache::Dictionary_client > m_dd_client;
 
   /**
     The query associated with this statement.
@@ -1469,7 +1472,7 @@ public:
 #endif /* MYSQL_CLIENT */
 
 private:
-  std::auto_ptr<Transaction_ctx> m_transaction;
+  std::unique_ptr<Transaction_ctx> m_transaction;
 
   class Attachable_trx;
 
@@ -4035,6 +4038,43 @@ private:
   THD *m_thd;
   bool m_save_is_operating_substatement_implicitly;
   bool m_save_skip_gtid_rollback;
+};
+
+/**
+  RAII class which allows to save, clear and store binlog format state
+  There are two variables in THD class that will decide the binlog
+  format of a statement
+    i) THD::current_stmt_binlog_format
+   ii) THD::variables.binlog_format
+  Saving or Clearing or Storing of binlog format state should be done
+  for these two variables together all the time.
+*/
+class Save_and_Restore_binlog_format_state
+{
+public:
+  Save_and_Restore_binlog_format_state(THD *thd)
+    : m_thd(thd),
+    m_global_binlog_format(thd->variables.binlog_format),
+    m_current_stmt_binlog_format(BINLOG_FORMAT_STMT)
+  {
+    if (thd->is_current_stmt_binlog_format_row())
+      m_current_stmt_binlog_format= BINLOG_FORMAT_ROW;
+
+    thd->variables.binlog_format= BINLOG_FORMAT_STMT;
+    thd->clear_current_stmt_binlog_format_row();
+  }
+
+  ~Save_and_Restore_binlog_format_state()
+  {
+    DBUG_ASSERT(!m_thd->is_current_stmt_binlog_format_row());
+    m_thd->variables.binlog_format= m_global_binlog_format;
+    if (m_current_stmt_binlog_format == BINLOG_FORMAT_ROW)
+      m_thd->set_current_stmt_binlog_format_row();
+  }
+private:
+  THD *m_thd;
+  ulong m_global_binlog_format;
+  enum_binlog_format m_current_stmt_binlog_format;
 };
 
 #endif /* MYSQL_SERVER */

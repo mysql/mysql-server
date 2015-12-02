@@ -315,7 +315,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
                      bool if_not_exists)
 {
   bool ret;
-  bool save_binlog_row_based, event_already_exists;
+  bool event_already_exists;
   DBUG_ENTER("Events::create_event");
 
   DBUG_EXECUTE_IF("thd_killed_injection",
@@ -351,12 +351,13 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
 
   if (parse_data->do_not_create)
     DBUG_RETURN(FALSE);
-  /* 
-    Turn off row binlogging of this statement and use statement-based 
+  /*
+    Turn off row binlogging of this statement and use statement-based
     so that all supporting tables are updated for CREATE EVENT command.
+    When we are going out of the function scope, the original binary
+    format state will be restored.
   */
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
   /* On error conditions my_error() is called so no need to handle here */
   if (!(ret= db_repository->create_event(thd, parse_data, if_not_exists,
@@ -411,11 +412,6 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
       }
     }
   }
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
-
   DBUG_RETURN(ret);
 }
 
@@ -444,7 +440,6 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
                      LEX_STRING *new_dbname, LEX_STRING *new_name)
 {
   int ret;
-  bool save_binlog_row_based;
   Event_queue_element *new_element;
 
   DBUG_ENTER("Events::update_event");
@@ -504,12 +499,13 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
     }
   }
 
-  /* 
-    Turn off row binlogging of this statement and use statement-based 
-    so that all supporting tables are updated for UPDATE EVENT command.
+  /*
+    Turn off row binlogging of this statement and use statement-based
+    so that all supporting tables are updated for CREATE EVENT command.
+    When we are going out of the function scope, the original binary
+    format state will be restored.
   */
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
   /* On error conditions my_error() is called so no need to handle here */
   if (!(ret= db_repository->update_event(thd, parse_data,
@@ -547,11 +543,6 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
       }
     }
   }
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
-
   DBUG_RETURN(ret);
 }
 

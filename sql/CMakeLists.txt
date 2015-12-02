@@ -331,7 +331,7 @@ SET(SQL_SOURCE
   ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
   ../libmysql/errmsg.c
-  ../sql-common/client.c
+  ../sql-common/client.cc
   ../sql-common/client_plugin.c
   ../sql-common/my_time.c
   ../sql-common/my_user.c 
@@ -406,13 +406,6 @@ IF(HAVE_LOGICAL_OP)
   ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES} COMPILE_FLAGS "-Wno-logical-op")
 ENDIF()
 
-# Boost source does not adhere to stricter C++11 rules
-MY_CHECK_CXX_COMPILER_FLAG("-Wc++11-extra-semi" HAVE_CPP11_EXTRA_SEMI)
-IF(HAVE_CPP11_EXTRA_SEMI)
-  ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
-    COMPILE_FLAGS "-Wno-c++11-extra-semi")
-ENDIF()
-
 # Bison output and Boost source use undefined symbols in #if checks
 MY_CHECK_CXX_COMPILER_FLAG("-Wundef" HAVE_UNDEF)
 IF(HAVE_UNDEF)
@@ -421,6 +414,14 @@ IF(HAVE_UNDEF)
     ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
     ${SQL_BOOST_SOURCES}
     COMPILE_FLAGS "-Wno-undef")
+ENDIF()
+
+# Boost source use auto_ptr, deprecated in C++11
+MY_CHECK_CXX_COMPILER_FLAG("-Wdeprecated-declarations"
+                           HAVE_DEPRECATED_DECLARATIONS)
+IF(HAVE_DEPRECATED_DECLARATIONS)
+  ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
+                    COMPILE_FLAGS "-Wno-deprecated-declarations")
 ENDIF()
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)

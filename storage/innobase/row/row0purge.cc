@@ -825,10 +825,13 @@ row_purge_parse_undo_rec(
 	node->table = NULL;
 	node->trx_id = trx_id;
 
+	/* TODO: Remove all INNODB_DD_VC_SUPPORT in WL#7141, nest opening
+	table should never happen again */
+#ifdef INNODB_DD_VC_SUPPORT
+try_again:
+#endif /* INNODB_DD_VC_SUPPORT */
 	/* Prevent DROP TABLE etc. from running when we are doing the purge
 	for this row */
-
-try_again:
 	rw_lock_s_lock_inline(dict_operation_lock, 0, __FILE__, __LINE__);
 
 	node->table = dict_table_open_on_id(
@@ -839,6 +842,7 @@ try_again:
 		goto err_exit;
 	}
 
+#ifdef INNODB_DD_VC_SUPPORT
 	if (node->table->n_v_cols && !node->table->vc_templ
 	    && dict_table_has_indexed_v_cols(node->table)) {
 		/* Need server fully up for virtual column computation */
@@ -856,6 +860,7 @@ try_again:
 		/* Initialize the template for the table */
 		innobase_init_vc_templ(node->table);
 	}
+#endif /* INNODB_DD_VC_SUPPORT */
 
 	/* Disable purging for temp-tables as they are short-lived
 	and no point in re-organzing such short lived tables */

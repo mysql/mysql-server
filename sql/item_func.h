@@ -22,6 +22,8 @@
 #include "set_var.h"    // enum_var_type
 #include "sql_udf.h"    // udf_handler
 
+#include <cmath>        // isfinite
+
 class PT_item_list;
 
 /* Function items used by mysql */
@@ -327,7 +329,7 @@ public:
                      void * arg, traverse_order order);
   inline double fix_result(double value)
   {
-    if (my_isfinite(value))
+    if (std::isfinite(value))
       return value;
     null_value=1;
     return 0.0;
@@ -361,7 +363,7 @@ public:
   */
   inline double check_float_overflow(double value)
   {
-    return my_isfinite(value) ? value : raise_float_overflow();
+    return std::isfinite(value) ? value : raise_float_overflow();
   }
   /**
     Throw an error if the input BIGINT value represented by the
@@ -1023,7 +1025,8 @@ public:
                              double lower_latitude, double upper_longitude,
                              double lower_longitude, double *result_latitude,
                              double *result_longitude);
-  static double round_latlongitude(double latlongitude, double error_range);
+  static double round_latlongitude(double latlongitude, double error_range,
+                                   double lower_limit, double upper_limit);
   static bool check_geohash_argument_valid_type(Item *item);
 };
 
@@ -2460,7 +2463,6 @@ public:
                            LEX_STRING *component_arg, const char *name_arg,
                            size_t name_len_arg);
   enum Functype functype() const { return GSYSVAR_FUNC; }
-  void update_null_value();
   void fix_length_and_dec();
   void print(String *str, enum_query_type query_type);
   bool const_item() const { return true; }
@@ -2952,7 +2954,6 @@ public:
     return sp_result_field;
   }
 
-  virtual void update_null_value();
 };
 
 
@@ -3010,5 +3011,21 @@ bool eval_const_cond(THD *thd, Item *cond, bool *value);
 Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type);
 
 extern bool volatile  mqh_used;
+
+/**
+  Handle an exception of any type.
+
+  Code that could throw exceptions should be wrapped in try/catch, and
+  the catch block should raise a corresponding MySQL error. If this
+  function is called from the catch block, it will raise a specialized
+  error message for many of the std::exception subclasses, or a more
+  generic error message if it is not a std::exception.
+
+  @param funcname the name of the function that caught an exception
+
+  @see handle_gis_exception
+*/
+void handle_std_exception(const char *funcname);
+
 
 #endif /* ITEM_FUNC_INCLUDED */

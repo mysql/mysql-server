@@ -587,3 +587,45 @@ DROP TABLE t;
 set sql_mode= @save_old_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+#
+# Bug#22157531 WITH NO MORE .FRM 64K LIMIT WE CAN CREATE MASSIVE TABLES,
+#              BUT TOO SLOWLY..
+#
+set @s:=concat("CREATE TABLE t(a LONGBLOB GENERATED ALWAYS AS
+('",REPEAT("a",1024*1024),"') STORED) ENGINE=INNODB;");
+PREPARE r FROM @s;
+EXECUTE r;
+DEALLOCATE PREPARE r;
+DROP TABLE t;
+#
+# Bug#22239803 WITH NO MORE .FRM 64K LIMIT WE CAN CREATE MASSIVE TABLES,
+#              BUT TOO SLOW (II)
+#
+set @s:=concat("CREATE TABLE t(w INT, A INT GENERATED ALWAYS
+AS('",REPEAT("\\0",1024*1024),"') STORED) ENGINE=INNODB;");
+PREPARE r FROM @s;
+EXECUTE r;
+DEALLOCATE PREPARE r;
+DROP TABLE t;
+# Bug#21875520 Problems with virtual column indexes
+CREATE TABLE t(
+a TIMESTAMP,
+b BLOB,
+c TIMESTAMP GENERATED ALWAYS AS (GREATEST(a, '2000-01-01 00:00:00')) VIRTUAL,
+UNIQUE KEY(c)
+);
+INSERT INTO t(b) VALUES ('');
+UPDATE t SET a='2001-01-01 00:00:00';
+SELECT c FROM t;
+c
+2001-01-01 00:00:00
+SELECT c, a FROM t;
+c	a
+2001-01-01 00:00:00	2001-01-01 00:00:00
+UPDATE t SET b='xyz';
+DO (SELECT @c1:= c FROM t);
+DO (SELECT (@c2:= c) - a FROM t);
+SELECT @c2 - @c1;
+@c2 - @c1
+0
+DROP TABLE t;

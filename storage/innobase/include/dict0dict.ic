@@ -1575,9 +1575,11 @@ dict_max_v_field_len_store_undo(
 	2) if atomic BLOB, upto col->max_prefix or
 	REC_VERSION_56_MAX_INDEX_COL_LEN, whichever is less */
 	if (dict_table_has_atomic_blobs(table)) {
-		max_log_len = (col->max_prefix > 0)
-			? col->max_prefix
-			: DICT_MAX_FIELD_LEN_BY_FORMAT(table);
+		if (DATA_BIG_COL(col) && col->max_prefix > 0) {
+			max_log_len = col->max_prefix;
+		} else {
+			max_log_len = DICT_MAX_FIELD_LEN_BY_FORMAT(table);
+		}
 	} else {
 		max_log_len = REC_ANTELOPE_MAX_INDEX_COL_LEN;
 	}
@@ -1860,6 +1862,49 @@ dict_table_has_temp_general_tablespace_name(
 	return(tablespace_name != NULL
 	       && strncmp(tablespace_name, general_space_name,
 			  strlen(general_space_name)) == 0);
+}
+
+/** Update the persisted autoinc counter to specified one, we should hold
+autoinc_persisted_mutex.
+@param[in,out]	table	table
+@param[in]	counter	set autoinc_persisted to this value */
+UNIV_INLINE
+void
+dict_table_autoinc_persisted_update(
+	dict_table_t*	table,
+	ib_uint64_t	autoinc)
+{
+	ut_ad(dict_table_has_autoinc_col(table));
+	ut_ad(mutex_own(table->autoinc_persisted_mutex));
+
+	table->autoinc_persisted = autoinc;
+}
+
+/** Check if a table has an autoinc counter column.
+@param[in]	table	table
+@return true if there is an autoinc column in the table, otherwise false. */
+UNIV_INLINE
+bool
+dict_table_has_autoinc_col(
+	const dict_table_t*	table)
+{
+	return(table->autoinc_field_no != ULINT_UNDEFINED);
+}
+
+/** Set the column position of autoinc column in clustered index for a table.
+@param[in]	table	table
+@param[in]	pos	column position in table definition */
+UNIV_INLINE
+void
+dict_table_autoinc_set_col_pos(
+	dict_table_t*	table,
+	ulint		pos)
+{
+	ulint	innodb_pos = dict_table_mysql_pos_to_innodb(table, pos);
+
+	ulint	idx = dict_table_get_nth_col_pos(table, innodb_pos);
+
+	table->autoinc_field_no = idx;
 }
 
 /** Encode the number of columns and number of virtual columns in a

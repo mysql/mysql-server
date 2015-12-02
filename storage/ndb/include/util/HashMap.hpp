@@ -65,8 +65,8 @@ class HashMap {
     be compared. Should return a pointer to where the key
     start and the key's length.
   */
-  static uchar* _get_key(const uchar* ptr,
-                         size_t* key_length, my_bool first) {
+  static const uchar* _get_key(const uchar* ptr,
+                         size_t* key_length) {
     const Entry * entry = reinterpret_cast<const Entry*>(ptr);
     const void* key_ptr = G(&entry->m_key, key_length);
     return (uchar*)key_ptr;
@@ -75,7 +75,7 @@ class HashMap {
   const void* get_key_ptr(const K* key, size_t *key_length) const {
     if (G == HashMap__get_key)
       return key;
-    return _get_key((const uchar*)key, key_length, false);
+    return _get_key((const uchar*)key, key_length);
   }
 
 public:
@@ -83,7 +83,7 @@ public:
 
     assert(my_init_done);
 
-    if (my_hash_init2(&m_hash,
+    if (_my_hash_init(&m_hash,
                       grow_size,
                       &my_charset_bin, // charset
                       initial_size,    // default_array_elements

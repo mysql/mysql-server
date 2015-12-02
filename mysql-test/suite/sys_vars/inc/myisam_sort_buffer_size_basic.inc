@@ -109,8 +109,12 @@ SELECT @@global.myisam_sort_buffer_size  ;
 SET @@global.myisam_sort_buffer_size   = -1024;
 SELECT @@global.myisam_sort_buffer_size  ;
 
-SET @@global.myisam_sort_buffer_size   = 429496729533;
-SELECT @@global.myisam_sort_buffer_size  ;
+#
+# BUG#13535584 : 32-BIT TESTS ARE RUNNING AND 64BIT TESTS ARE SKIPPED ON A 64-BIT WINDOWS MACHINE
+# BUG#22215955 : MYISAM_SORT_BUFFER_SIZE VARIABLE VALUE IS MORE THAN 4GB-1 ON 64-BIT WINDOWS
+#
+# SET @@global.myisam_sort_buffer_size   = 429496729533;
+# SELECT @@global.myisam_sort_buffer_size  ;
 
 
 --Error ER_WRONG_TYPE_FOR_VAR

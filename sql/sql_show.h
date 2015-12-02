@@ -144,12 +144,13 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
 /* These functions were under INNODB_COMPATIBILITY_HOOKS */
 int get_quote_char_for_identifier(THD *thd, const char *name, size_t length);
 
-/* Handle the ignored database directories list for SHOW/I_S. */
+/* Handle the ignored database directories list for SHOW/I_S/initialize. */
 void ignore_db_dirs_init();
 void ignore_db_dirs_free();
 void ignore_db_dirs_reset();
 bool ignore_db_dirs_process_additions();
 bool push_ignored_db_dir(char *path);
 extern char *opt_ignore_db_dirs;
+bool is_in_ignore_db_dirs_list(const char *directory);
 
 #endif /* SQL_SHOW_H */

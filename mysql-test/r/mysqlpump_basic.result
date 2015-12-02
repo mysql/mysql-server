@@ -204,15 +204,21 @@ trig1
 trig2
 SELECT 1 FROM db1_basic.t4 WHERE name= 'disk_temptable_create_cost' AND last_update = @val1;
 1
+1
 SELECT 2 FROM db1_basic.t4 WHERE name= 'disk_temptable_row_cost' AND last_update = @val2;
+2
 2
 SELECT 3 FROM db1_basic.t4 WHERE name= 'key_compare_cost' AND last_update = @val3;
 3
+3
 SELECT 4 FROM db1_basic.t4 WHERE name= 'memory_temptable_create_cost' AND last_update = @val4;
+4
 4
 SELECT 5 FROM db1_basic.t4 WHERE name= 'memory_temptable_row_cost' AND last_update = @val5;
 5
+5
 SELECT 6 FROM db1_basic.t4 WHERE name= 'row_evaluate_cost' AND last_update = @val6;
+6
 6
 # test for skip-triggers
 DROP DATABASE db1_basic;
@@ -495,3 +501,53 @@ disk_temptable_row_cost
 SELECT * FROM t5 ORDER BY 1;
 id	id2
 DROP DATABASE bug21644479;
+#
+# Bug #21650559 MYSQLPUMP MAKES CORRUPTED DUMP WHEN TABLE HAS GENERATED COLUMN
+#
+CREATE DATABASE bug21650559;
+USE bug21650559;
+CREATE TABLE t1 (pk INTEGER, a INTEGER, b INTEGER, c VARCHAR(16),
+sum INTEGER GENERATED ALWAYS AS (a+b),
+sub VARCHAR(4) GENERATED ALWAYS AS (SUBSTRING(c, 1, 4)),
+key k1(sum),
+key k2(sub)
+);
+CREATE TABLE t2 (pk INTEGER, a INTEGER, b INTEGER,
+sum INTEGER GENERATED ALWAYS AS (a+b),
+c VARCHAR(16),
+key k1(sum)
+);
+CREATE TABLE t3 (sum INTEGER GENERATED ALWAYS AS (a+(EXTRACT(YEAR from pk))),
+pk TIMESTAMP, a INTEGER,
+c VARCHAR(16)
+);
+INSERT INTO t1(pk, a, b, c) VALUES (1, 11, 12, 'oneone'), (2, 21, 22, 'twotwo');
+SELECT * FROM t1;
+pk	a	b	c	sum	sub
+1	11	12	oneone	23	oneo
+2	21	22	twotwo	43	twot
+INSERT INTO t2(pk, a, b, c) VALUES (1, 11, 12, 'oneone'), (2, 21, 22, 'twotwo');
+SELECT * FROM t2;
+pk	a	b	sum	c
+1	11	12	23	oneone
+2	21	22	43	twotwo
+INSERT INTO t3(pk, a, c) VALUES ('2003-01-02 10:30:00.000123', 11, 12), ('2015-11-22 00:30:00', 21, 22);
+SELECT * FROM t3;
+sum	pk	a	c
+2014	2003-01-02 10:30:00	11	12
+2036	2015-11-22 00:30:00	21	22
+DROP DATABASE bug21650559;
+USE bug21650559;
+SELECT * FROM t1;
+pk	a	b	c	sum	sub
+1	11	12	oneone	23	oneo
+2	21	22	twotwo	43	twot
+SELECT * FROM t2;
+pk	a	b	sum	c
+1	11	12	23	oneone
+2	21	22	43	twotwo
+SELECT * FROM t3;
+sum	pk	a	c
+2014	2003-01-02 10:30:00	11	12
+2036	2015-11-22 00:30:00	21	22
+DROP DATABASE bug21650559;

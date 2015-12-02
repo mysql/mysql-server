@@ -745,7 +745,7 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
 
   DBUG_ASSERT(sch_obj);
 
-  std::auto_ptr<dd::Iterator<const dd::Abstract_table> > iter;
+  std::unique_ptr<dd::Iterator<const dd::Abstract_table> > iter;
   if (thd->dd_client()->fetch_schema_components(sch_obj, &iter))
     DBUG_RETURN(true);
 
@@ -1260,6 +1260,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   if (get_default_db_collation(thd, new_db_file_name.str,
                                &db_default_cl))
   {
+    my_free(new_db_file_name.str);
     DBUG_ASSERT(thd->is_error() || thd->killed);
     DBUG_RETURN(TRUE);
   }

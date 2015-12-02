@@ -71,7 +71,7 @@ inline T pointer_cast(void *p)
 template<typename T>
 inline const T pointer_cast(const void *p)
 {
-  return static_cast<const T>(p);
+  return static_cast<T>(p);
 }
 
 /**

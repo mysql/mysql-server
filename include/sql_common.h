@@ -23,7 +23,6 @@
 */
 
 #include <mysql.h>
-#include <hash.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -103,7 +102,7 @@ struct st_mysql_options_extention {
   char *default_auth;
   char *ssl_crl;				/* PEM CRL file */
   char *ssl_crlpath;				/* PEM directory of CRL-s? */
-  HASH connection_attributes;
+  struct My_hash *connection_attributes;
   char *server_public_key_path;
   size_t connection_attributes_length;
   my_bool enable_cleartext_plugin;
@@ -156,7 +155,7 @@ typedef struct st_mysql_methods
                                            0, arg, length, 1, stmt) \
     : (set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate), 1))
 
-extern CHARSET_INFO *default_client_charset_info;
+extern struct charset_info_st *default_client_charset_info;
 MYSQL_FIELD *unpack_fields(MYSQL *mysql, MYSQL_ROWS *data,MEM_ROOT *alloc,
                            uint fields, my_bool default_value,
                            uint server_capabilities);

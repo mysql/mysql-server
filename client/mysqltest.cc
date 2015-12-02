@@ -2199,10 +2199,7 @@ static void strip_parentheses(struct st_command *command)
 }
 
 
-C_MODE_START
-
-static uchar *get_var_key(const uchar* var, size_t *len,
-                          my_bool __attribute__((unused)) t)
+static const uchar *get_var_key(const uchar* var, size_t *len)
 {
   char* key;
   key = ((VAR*)var)->name;
@@ -2218,8 +2215,6 @@ static void var_free(void *v)
   if (var->alloced)
     my_free(var);
 }
-
-C_MODE_END
 
 static void var_check_int(VAR *v)
 {

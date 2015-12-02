@@ -268,7 +268,7 @@ CREATE TABLE t0 (c1 INT);
 CREATE TABLE t2 (c1 INT);
 INSERT INTO t0 VALUES (1), (2), (3);
 INSERT INTO t2 VALUES (1), (2), (3);
---exec $MYSQL_PUMP --single-transaction --databases db1_basic --default-parallelism=0 > $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+--exec $MYSQL_PUMP --single-transaction --databases db1_basic > $MYSQLTEST_VARDIR/tmp/db1_basic.sql
 DROP DATABASE db1_basic;
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/db1_basic.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/db1_basic.sql
@@ -358,17 +358,11 @@ DROP DATABASE db4_basic;
 --error 1
 --exec $MYSQL_PUMP --add-locks
 --error 1
---exec $MYSQL_PUMP --single-transaction
---error 1
 --exec $MYSQL_PUMP --add-locks --parallel-schemas=1:db1
---error 1
---exec $MYSQL_PUMP --single-transaction --parallel-schemas=1:db1
 
 # parallel schema threads > 1
 --error 1
 --exec $MYSQL_PUMP --add-locks --parallel-schemas=5:db1 --default-parallelism=0
---error 1
---exec $MYSQL_PUMP --single-transaction --parallel-schemas=13:db1 --default-parallelism=0
 
 #echo
 #echo Bug #21644479 MYSQLPUMP DECOMPRESSION UTILITIES NOT BUILT
@@ -444,3 +438,42 @@ DROP DATABASE bug21644479;
 --remove_file $MYSQLTEST_VARDIR/tmp/bug21644479_zlib.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/bug21644479.lz4
 --remove_file $MYSQLTEST_VARDIR/tmp/bug21644479.zlib
+
+--echo #
+--echo # Bug #21650559 MYSQLPUMP MAKES CORRUPTED DUMP WHEN TABLE HAS GENERATED COLUMN
+--echo #
+
+CREATE DATABASE bug21650559;
+USE bug21650559;
+CREATE TABLE t1 (pk INTEGER, a INTEGER, b INTEGER, c VARCHAR(16),
+                 sum INTEGER GENERATED ALWAYS AS (a+b),
+                 sub VARCHAR(4) GENERATED ALWAYS AS (SUBSTRING(c, 1, 4)),
+                 key k1(sum),
+                 key k2(sub)
+);
+CREATE TABLE t2 (pk INTEGER, a INTEGER, b INTEGER,
+                 sum INTEGER GENERATED ALWAYS AS (a+b),
+                 c VARCHAR(16),
+                 key k1(sum)
+);
+CREATE TABLE t3 (sum INTEGER GENERATED ALWAYS AS (a+(EXTRACT(YEAR from pk))),
+                 pk TIMESTAMP, a INTEGER,
+                 c VARCHAR(16)
+);
+
+INSERT INTO t1(pk, a, b, c) VALUES (1, 11, 12, 'oneone'), (2, 21, 22, 'twotwo');
+SELECT * FROM t1;
+INSERT INTO t2(pk, a, b, c) VALUES (1, 11, 12, 'oneone'), (2, 21, 22, 'twotwo');
+SELECT * FROM t2;
+INSERT INTO t3(pk, a, c) VALUES ('2003-01-02 10:30:00.000123', 11, 12), ('2015-11-22 00:30:00', 21, 22);
+SELECT * FROM t3;
+
+--exec $MYSQL_PUMP --databases bug21650559 > $MYSQLTEST_VARDIR/tmp/bug21650559.sql
+DROP DATABASE bug21650559;
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug21650559.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/bug21650559.sql
+USE bug21650559;
+SELECT * FROM t1;
+SELECT * FROM t2;
+SELECT * FROM t3;
+DROP DATABASE bug21650559;

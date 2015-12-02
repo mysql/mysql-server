@@ -344,7 +344,7 @@ void Table_impl::debug_print(std::string &outb) const
     << "m_partitions: " << m_partitions->size() << " [ ";
 
   {
-    std::auto_ptr<Partition_const_iterator> it(partitions());
+    std::unique_ptr<Partition_const_iterator> it(partitions());
 
     while (true)
     {
@@ -362,7 +362,7 @@ void Table_impl::debug_print(std::string &outb) const
   ss << "] m_indexes: " << m_indexes->size() << " [ ";
 
   {
-    std::auto_ptr<Index_const_iterator> it(indexes());
+    std::unique_ptr<Index_const_iterator> it(indexes());
 
     while (true)
     {
@@ -380,7 +380,7 @@ void Table_impl::debug_print(std::string &outb) const
   ss << "] m_foreign_keys: " << m_foreign_keys->size() << " [ ";
 
   {
-    std::auto_ptr<Foreign_key_const_iterator> it(foreign_keys());
+    std::unique_ptr<Foreign_key_const_iterator> it(foreign_keys());
 
     while (true)
     {
@@ -452,7 +452,7 @@ Index_iterator *Table_impl::user_indexes()
 
 Index *Table_impl::get_index(Object_id index_id)
 {
-  std::auto_ptr<Index_iterator> it(indexes());
+  std::unique_ptr<Index_iterator> it(indexes());
 
   while (true)
   {
@@ -532,7 +532,7 @@ Partition_iterator *Table_impl::partitions()
 
 Partition *Table_impl::get_partition(Object_id partition_id)
 {
-  std::auto_ptr<Partition_iterator> it(partitions());
+  std::unique_ptr<Partition_iterator> it(partitions());
 
   while (true)
   {
@@ -553,7 +553,7 @@ Partition *Table_impl::get_partition(Object_id partition_id)
 const Partition *Table_impl::get_partition_by_se_private_id(
                                Object_id se_private_id) const
 {
-  std::auto_ptr<Partition_const_iterator> it(partitions());
+  std::unique_ptr<Partition_const_iterator> it(partitions());
 
   while (true)
   {

@@ -243,13 +243,6 @@ struct Query_cache_result
 };
 
 
-extern "C"
-{
-  uchar *query_cache_query_get_key(const uchar *record, size_t *length,
-                                   my_bool not_used);
-  uchar *query_cache_table_get_key(const uchar *record, size_t *length,
-                                   my_bool not_used);
-}
 extern "C" void query_cache_invalidate_by_MyISAM_filename(const char* filename);
 
 

@@ -46,6 +46,7 @@
 #include "transaction.h"      // trans_rollback_stmt, trans_commit_stmt
 #include "sql_class.h"
 #include "mysql/psi/mysql_memory.h"
+#include "template_utils.h"
 
 /*
   We only use 1 mutex to guard the data structures - THR_LOCK_servers.
@@ -74,9 +75,9 @@ enum enum_servers_table_field
 
 static bool get_server_from_table_to_cache(TABLE *table);
 
-static uchar *servers_cache_get_key(FOREIGN_SERVER *server, size_t *length,
-                                    my_bool not_used __attribute__((unused)))
+static const uchar *servers_cache_get_key(const uchar *arg, size_t *length)
 {
+  const FOREIGN_SERVER *server= pointer_cast<const FOREIGN_SERVER*>(arg);
   *length= (uint) server->server_name_length;
   return (uchar*) server->server_name;
 }
@@ -144,7 +145,7 @@ bool servers_init(bool dont_read_servers_table)
 
   /* initialise our servers cache */
   if (my_hash_init(&servers_cache, system_charset_info, 32, 0, 0,
-                   (my_hash_get_key) servers_cache_get_key, 0, 0,
+                   servers_cache_get_key, 0, 0,
                    key_memory_servers))
   {
     return_val= TRUE; /* we failed, out of memory? */

@@ -41,6 +41,7 @@ order by name limit 10;
 NAME	ENABLED	TIMED
 wait/synch/cond/sql/Commit_order_manager::m_workers.cond	YES	YES
 wait/synch/cond/sql/COND_compress_gtid_table	YES	YES
+wait/synch/cond/sql/COND_connection_count	YES	YES
 wait/synch/cond/sql/COND_flush_thread_cache	YES	YES
 wait/synch/cond/sql/COND_manager	YES	YES
 wait/synch/cond/sql/COND_queue_state	YES	YES
@@ -48,7 +49,6 @@ wait/synch/cond/sql/COND_server_started	YES	YES
 wait/synch/cond/sql/COND_thd_list	YES	YES
 wait/synch/cond/sql/COND_thread_cache	YES	YES
 wait/synch/cond/sql/COND_thr_lock	YES	YES
-wait/synch/cond/sql/Event_scheduler::COND_state	YES	YES
 select * from performance_schema.setup_instruments
 where name='Wait';
 select * from performance_schema.setup_instruments

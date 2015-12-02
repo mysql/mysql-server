@@ -24,7 +24,7 @@
 #include "dd/types/foreign_key.h"             // dd::Foreign_key
 #include "dd/types/object_type.h"             // dd::Object_type
 
-#include <memory>     // std::auto_ptr
+#include <memory>     // std::unique_ptr
 
 DD_HEADER_BEGIN
 
@@ -227,7 +227,7 @@ private:
 
   // Collections.
 
-  std::auto_ptr<Element_collection> m_elements;
+  std::unique_ptr<Element_collection> m_elements;
 
 #ifndef DBUG_OFF
   Foreign_key_impl(const Foreign_key_impl &src,

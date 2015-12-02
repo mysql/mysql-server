@@ -201,7 +201,7 @@ TEST(HashFiloTest, TestHashFiloZeroSize)
   hash_filo *t_cache;
   t_cache= new hash_filo(PSI_NOT_INSTRUMENTED,
                          5, 0, 0,
-                         (my_hash_get_key) NULL,
+                         NULL,
                          (my_hash_free_key) NULL,
                          NULL);
   t_cache->clear();

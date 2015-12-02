@@ -17,6 +17,7 @@
 
 #include "debug_sync.h"                       // DEBUG_SYNC
 #include "default_values.h"                   // max_pack_length
+#include "log.h"                              // sql_print_error
 #include "partition_info.h"                   // partition_info
 #include "psi_memory_key.h"                   // key_memory_frm
 #include "sql_class.h"                        // THD
@@ -46,7 +47,7 @@
 // TODO: Avoid exposing dd/impl headers in public files.
 #include "dd/impl/utils.h"                    // dd::escape
 
-#include <memory>                             // auto_ptr
+#include <memory>                             // unique_ptr
 
 
 // Explicit instanciation of some template functions
@@ -195,11 +196,14 @@ static dd::Column::enum_column_types dd_get_new_field_type(enum_field_types type
   case MYSQL_TYPE_JSON:
     return dd::Column::TYPE_JSON;
 
-  default:
-    DBUG_ASSERT(!"Should not hit here"); /* purecov: deadcode */
   }
 
+  /* purecov: begin deadcode */
+  sql_print_error("Error: Invalid field type.");
+  DBUG_ASSERT(false);
+
   return dd::Column::TYPE_LONG;
+  /* purecov: end */
 }
 
 
@@ -329,6 +333,8 @@ fill_dd_columns_from_create_fields(THD *thd,
     if (field->gcol_info)
     {
       col_obj->set_virtual(!field->stored_in_db);
+      sql_mode_t sql_mode= thd->variables.sql_mode;
+      thd->variables.sql_mode&= ~MODE_ANSI_QUOTES;
 
       /*
         It is important to normalize the expression's text into the FRM, to
@@ -341,6 +347,8 @@ fill_dd_columns_from_create_fields(THD *thd,
       // Printing db and table name is useless
       field->gcol_info->expr_item->
         print(&s, enum_query_type(QT_NO_DB | QT_NO_TABLE));
+
+      thd->variables.sql_mode= sql_mode;
       /*
         The new text must have exactly the same lifetime as the old text, it's
         a replacement for it. So the same MEM_ROOT must be used: pass NULL.
@@ -450,12 +458,13 @@ fill_dd_columns_from_create_fields(THD *thd,
         //
         dd::Column_type_element *elem_obj= NULL;
 
+        DBUG_ASSERT(col_obj->type() == dd::Column::TYPE_SET ||
+                    col_obj->type() == dd::Column::TYPE_ENUM);
+
         if (col_obj->type() == dd::Column::TYPE_SET)
           elem_obj= col_obj->add_set_element();
         else if (col_obj->type() == dd::Column::TYPE_ENUM)
           elem_obj= col_obj->add_enum_element();
-        else
-          DBUG_ASSERT(!"There can't be intervals set for non-ENUM/SET types."); /* purecov: deadcode */
 
         //  Copy type_lengths[i] bytes including '\0'
         //  This helps store typelib names that are of different charsets.
@@ -496,11 +505,14 @@ static dd::Index::enum_index_algorithm dd_get_new_index_algorithm_type(enum ha_k
   case HA_KEY_ALG_FULLTEXT:
     return dd::Index::IA_FULLTEXT;
 
-  default:
-    DBUG_ASSERT(!"Should not hit here"); /* purecov: deadcode */
   }
 
+  /* purecov: begin deadcode */
+  sql_print_error("Error: Invalid index algorithm.");
+  DBUG_ASSERT(false);
+
   return dd::Index::IA_SE_SPECIFIC;
+  /* purecov: end */
 }
 
 
@@ -556,15 +568,13 @@ fill_dd_index_elements_from_key_parts(const dd::Table *tab_obj,
     const dd::Column *key_col_obj;
 
     {
-      std::auto_ptr<dd::Column_const_iterator> it(tab_obj->user_columns());
+      std::unique_ptr<dd::Column_const_iterator> it(tab_obj->user_columns());
       int i= 0;
 
       while ((key_col_obj= it->next()) != NULL && i < key_part->fieldnr)
         i++;
     }
-
-    if (key_col_obj == NULL)
-      DBUG_ASSERT(!"Invalid key_part->fieldnr"); /* purecov: deadcode */
+    DBUG_ASSERT(key_col_obj);
 
     //
     // Create new index element object
@@ -1175,7 +1185,7 @@ static bool fill_dd_partition_from_create_info(THD *thd,
               If table is subpartitioned for each subpartition, index pair
               we need to create Partition_index object.
             */
-            std::auto_ptr<dd::Index_iterator> idx_it(tab_obj->indexes());
+            std::unique_ptr<dd::Index_iterator> idx_it(tab_obj->indexes());
             dd::Index *idx;
 
             while ((idx= idx_it->next()) != NULL)
@@ -1190,7 +1200,7 @@ static bool fill_dd_partition_from_create_info(THD *thd,
             If table is not subpartitioned then Partition_index object is
             required for each partition, index pair.
             */
-          std::auto_ptr<dd::Index_iterator> idx_it(tab_obj->indexes());
+          std::unique_ptr<dd::Index_iterator> idx_it(tab_obj->indexes());
           dd::Index *idx;
 
           while ((idx= idx_it->next()) != NULL)
@@ -1222,20 +1232,6 @@ static bool fill_dd_table_from_create_info(THD *thd,
 {
   // Table name must be set with the correct case depending on l_c_t_n
   tab_obj->set_name(table_case_name(create_info, table_name.c_str()));
-
-  // Version
-  //
-  // TODO-NOW: If we are to keep this version value we need to define
-  // when it needs to be changed/what its change means and give
-  // some examples of scenarios when it is going to be useful.
-  //
-  // dlenev: .FRM format version is no longer relevant. So we can try to make
-  // this field a row-format version, but then we need to define its semantics
-  // very clearly/provide rules when this value needs to be changed (and
-  // preferrably some way to enforce this rule). OTOH our experience with
-  // temporals shows that it might be a bad idea to have single version of
-  // format for the whole row and versioning per column might make more sense.
-  tab_obj->set_version(FRM_VER_TRUE_VARCHAR);
 
   // TODO-POST-MERGE-TO-TRUNK:
   // Initialize new field tab_obj->last_checked_for_upgrade
@@ -1422,12 +1418,12 @@ static bool create_dd_system_table(THD *thd,
                                    const dd::Object_table &dd_table)
 {
   // For DD tables: create system schema using special DD operation.
-  std::auto_ptr<dd::Schema> sch_obj(dd::create_dd_schema());
+  std::unique_ptr<dd::Schema> sch_obj(dd::create_dd_schema());
 
   //
   // Create dd::Table object
   //
-  std::auto_ptr<dd::Table> tab_obj(sch_obj->create_table());
+  std::unique_ptr<dd::Table> tab_obj(sch_obj->create_table());
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,
@@ -1494,7 +1490,7 @@ static bool create_dd_user_table(THD *thd,
   }
 
   // Create dd::Table object.
-  std::auto_ptr<dd::Table> tab_obj(
+  std::unique_ptr<dd::Table> tab_obj(
     const_cast<dd::Schema *>(sch_obj)->create_table());
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
@@ -1574,7 +1570,7 @@ dd::Table *create_tmp_table(THD *thd,
   }
 
   // Create dd::Table object.
-  std::auto_ptr<dd::Table> tab_obj(
+  std::unique_ptr<dd::Table> tab_obj(
     const_cast<dd::Schema *>(sch_obj)->create_table());
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,

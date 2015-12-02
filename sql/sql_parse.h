@@ -129,7 +129,7 @@ inline bool is_supported_parser_charset(const CHARSET_INFO *cs)
   return (cs->mbminlen == 1);
 }
 
-bool sqlcom_can_generate_row_events(const THD *thd);
+bool sqlcom_can_generate_row_events(enum enum_sql_command command);
 
 #ifdef HAVE_REPLICATION
 bool all_tables_not_ok(THD *thd, TABLE_LIST *tables);

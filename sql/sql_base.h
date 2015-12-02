@@ -35,6 +35,7 @@ class sp_head;
 class Sroutine_hash_entry;
 struct handlerton;
 struct Name_resolution_context;
+struct LEX;
 struct TABLE;
 struct TABLE_LIST;
 template <class T> class List;
@@ -227,6 +228,7 @@ bool fill_record_n_invoke_before_triggers(THD *thd, Field **field,
                                           TABLE *table,
                                           enum enum_trigger_event_type event,
                                           int num_fields);
+bool resolve_var_assignments(THD *thd, LEX *lex);
 bool insert_fields(THD *thd, Name_resolution_context *context,
 		   const char *db_name, const char *table_name,
                    List_iterator<Item> *it, bool any_privileges);

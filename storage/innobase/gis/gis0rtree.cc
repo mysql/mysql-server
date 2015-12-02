@@ -29,6 +29,8 @@ Created 2013/03/27 Allen Lai and Jimmy Yang
 #include "page0zip.h"
 #include "gis0rtree.h"
 
+#include <cmath>
+
 #ifndef UNIV_HOTBACKUP
 #include "btr0cur.h"
 #include "btr0sea.h"
@@ -152,7 +154,9 @@ rtr_index_build_node_ptr(
 
 	tuple = dtuple_create(heap, n_unique + 1);
 
-	dtuple_set_n_fields_cmp(tuple, n_unique);
+	/* For rtree internal node, we need to compare page number
+	fields. */
+	dtuple_set_n_fields_cmp(tuple, n_unique + 1);
 
 	dict_index_copy_types(tuple, index, n_unique);
 
@@ -2006,7 +2010,7 @@ rtr_estimate_n_rows_in_range(
 	mtr_commit(&mtr);
 	mem_heap_free(heap);
 
-	if (my_isinf(area) || my_isnan(area)) {
+	if (std::isinf(area) || std::isnan(area)) {
 		return(HA_POS_ERROR);
 	}
 

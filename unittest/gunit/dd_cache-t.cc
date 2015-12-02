@@ -393,7 +393,7 @@ void test_basic_store_and_get(CacheStorageTest *tst, THD *thd)
   dd::cache::Dictionary_client *dc= thd->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(dc);
 
-  std::auto_ptr<Impl_type> created(new Impl_type());
+  std::unique_ptr<Impl_type> created(new Impl_type());
   Intrfc_type *icreated= created.get();
   dd_unittest::set_attributes(created.get(), "global_test_object");
 
@@ -443,7 +443,7 @@ void test_basic_store_and_get_with_schema(CacheStorageTest *tst, THD *thd)
   dd::cache::Dictionary_client *dc= thd->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(dc);
 
-  std::auto_ptr<Impl_type> created(new Impl_type());
+  std::unique_ptr<Impl_type> created(new Impl_type());
   Intrfc_type *icreated= created.get();
   created->set_schema_id(tst->mysql->id());
   dd_unittest::set_attributes(created.get(), "schema_qualified_test_object",
@@ -488,7 +488,7 @@ TEST_F(CacheStorageTest, GetTableBySePrivateId)
   dd::cache::Dictionary_client *dc= thd()->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(dc);
 
-  std::auto_ptr<dd::Table> obj(dd::create_object<dd::Table>());
+  std::unique_ptr<dd::Table> obj(dd::create_object<dd::Table>());
   dd_unittest::set_attributes(obj.get(), "table_object", *mysql);
   obj->set_engine("innodb");
   obj->set_se_private_id(0xEEEE); // Storing some magic number
@@ -541,7 +541,7 @@ TEST_F(CacheStorageTest, TestRename)
   dd::cache::Dictionary_client &dc= *thd()->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(&dc);
 
-  std::auto_ptr<dd::Table> temp_table(dd::create_object<dd::Table>());
+  std::unique_ptr<dd::Table> temp_table(dd::create_object<dd::Table>());
   dd_unittest::set_attributes(temp_table.get(), "temp_table", *mysql);
 
   lock_object(*temp_table.get());
@@ -569,14 +569,14 @@ TEST_F(CacheStorageTest, TestRename)
       temp_table->set_name("updated_table_name");
 
       // Change name of columns and indexes
-      std::auto_ptr<dd::Iterator<dd::Column> > it_col(temp_table->columns());
+      std::unique_ptr<dd::Iterator<dd::Column> > it_col(temp_table->columns());
       dd::Column *c= it_col->next();
       while (c)
       {
         c->set_name(c->name() + "_changed");
         c= it_col->next();
       }
-      std::auto_ptr<dd::Iterator<dd::Index> > it_idx(temp_table->indexes());
+      std::unique_ptr<dd::Iterator<dd::Index> > it_idx(temp_table->indexes());
       dd::Index *i= it_idx->next();
       while (i)
       {
@@ -618,12 +618,12 @@ TEST_F(CacheStorageTest, TestSchema)
   dd::cache::Dictionary_client &dc= *thd()->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(&dc);
 
-  std::auto_ptr<dd::Schema_impl> s(new dd::Schema_impl());
+  std::unique_ptr<dd::Schema_impl> s(new dd::Schema_impl());
   s->set_name("schema1");
   EXPECT_FALSE(dc.store<dd::Schema>(s.get()));
   EXPECT_LT(9999u, s->id());
 
-  std::auto_ptr<dd::Table_impl> t(new dd::Table_impl());
+  std::unique_ptr<dd::Table_impl> t(new dd::Table_impl());
   t->set_name("table1");
   t->set_schema_id(s->id());
   EXPECT_FALSE(dc.store<dd::Table>(t.get()));
@@ -677,9 +677,9 @@ TEST_F(CacheStorageTest, TestTransactionMaxSePrivateId)
   dd::cache::Dictionary_client &dc= *thd()->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(&dc);
 
-  std::auto_ptr<dd::Table> tab1(dd::create_object<dd::Table>());
-  std::auto_ptr<dd::Table> tab2(dd::create_object<dd::Table>());
-  std::auto_ptr<dd::Table> tab3(dd::create_object<dd::Table>());
+  std::unique_ptr<dd::Table> tab1(dd::create_object<dd::Table>());
+  std::unique_ptr<dd::Table> tab2(dd::create_object<dd::Table>());
+  std::unique_ptr<dd::Table> tab3(dd::create_object<dd::Table>());
 
   dd_unittest::set_attributes(tab1.get(), "table1", *mysql);
   tab1->set_se_private_id(5);
@@ -723,6 +723,14 @@ TEST_F(CacheStorageTest, TestTransactionMaxSePrivateId)
   delete tab1_new;
   delete tab2_new;
   delete tab3_new;
+
+  // Drop the objects
+  EXPECT_FALSE(dc.acquire<dd::Table>("mysql", "table1", &tab1_new));
+  EXPECT_FALSE(dc.acquire<dd::Table>("mysql", "table2", &tab2_new));
+  EXPECT_FALSE(dc.acquire<dd::Table>("mysql", "table3", &tab3_new));
+  EXPECT_FALSE(dc.drop(const_cast<dd::Table*>(tab1_new)));
+  EXPECT_FALSE(dc.drop(const_cast<dd::Table*>(tab2_new)));
+  EXPECT_FALSE(dc.drop(const_cast<dd::Table*>(tab3_new)));
 }
 
 
@@ -740,7 +748,7 @@ TEST_F(CacheStorageTest, TestTransactionMaxSePrivateId)
 //   dd::cache::Dictionary_client &dc= *thd()->dd_client();
 //   dd::cache::Dictionary_client::Auto_releaser releaser(&dc);
 
-//   std::auto_ptr<dd::Iterator<const dd::Schema> > schemas;
+//   std::unique_ptr<dd::Iterator<const dd::Schema> > schemas;
 //   EXPECT_FALSE(dc.fetch_catalog_components(&schemas));
 
 //   while (true)
@@ -766,7 +774,7 @@ TEST_F(CacheStorageTest, TestTransactionMaxSePrivateId)
 //   EXPECT_FALSE(dc.acquire<dd::Schema>("mysql", &s));
 //   EXPECT_NE(nullp<dd::Schema>(), s);
 
-//   std::auto_ptr<dd::Iterator<const dd::Table> > tables;
+//   std::unique_ptr<dd::Iterator<const dd::Table> > tables;
 //   EXPECT_FALSE(dc.fetch_schema_components(s, &tables));
 
 //   while (true)
@@ -790,7 +798,7 @@ TEST_F(CacheStorageTest, TestTransactionMaxSePrivateId)
 //   // Create a new tablespace.
 //   dd::Object_id tablespace_id __attribute__((unused));
 //   {
-//     std::auto_ptr<dd::Tablespace> obj(dd::create_object<dd::Tablespace>());
+//     std::unique_ptr<dd::Tablespace> obj(dd::create_object<dd::Tablespace>());
 //     dd_unittest::set_attributes(obj.get(), "test_tablespace");
 
 //     //lock_object(thd, obj);
@@ -801,7 +809,7 @@ TEST_F(CacheStorageTest, TestTransactionMaxSePrivateId)
 
 //   // List all tablespaces
 //   {
-//     std::auto_ptr<dd::Iterator<const dd::Tablespace> > tablespaces;
+//     std::unique_ptr<dd::Iterator<const dd::Tablespace> > tablespaces;
 //     EXPECT_FALSE(dc.fetch_global_components(&tablespaces));
 
 //     while (true)
@@ -843,7 +851,7 @@ TEST_F(CacheStorageTest, TestCacheLookup)
   // Create table object
   //
   {
-    std::auto_ptr<dd::Table> obj(dd::create_object<dd::Table>());
+    std::unique_ptr<dd::Table> obj(dd::create_object<dd::Table>());
     dd_unittest::set_attributes(obj.get(), obj_name, *mysql);
 
     obj->set_engine("innodb");

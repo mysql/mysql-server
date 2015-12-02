@@ -51,19 +51,19 @@ public:
 
 public:
   bool find_record(const Object_key &key,
-                   std::auto_ptr<Raw_record> &r);
+                   std::unique_ptr<Raw_record> &r);
 
   bool find_last_record(const Object_key &key,
-                        std::auto_ptr<Raw_record> &r);
+                        std::unique_ptr<Raw_record> &r);
 
   bool prepare_record_for_update(const Object_key &key,
-                                 std::auto_ptr<Raw_record> &r);
+                                 std::unique_ptr<Raw_record> &r);
 
   Raw_new_record *prepare_record_for_insert();
 
 public:
   bool open_record_set(const Object_key *key,
-                       std::auto_ptr<Raw_record_set> &rs);
+                       std::unique_ptr<Raw_record_set> &rs);
 
 protected:
   TABLE_LIST m_table_list;

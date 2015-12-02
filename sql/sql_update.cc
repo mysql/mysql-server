@@ -37,7 +37,7 @@
 #include "records.h"                  // READ_RECORD
 #include "sql_base.h"                 // open_tables_for_query
 #include "sql_cache.h"                // query_cache
-#include "sql_optimizer.h"            // build_equal_items
+#include "sql_optimizer.h"            // build_equal_items, substitute_gc
 #include "sql_resolver.h"             // setup_order
 #include "sql_select.h"               // free_underlaid_joins
 #include "sql_tmp_table.h"            // create_tmp_table
@@ -308,6 +308,17 @@ static bool mysql_update(THD *thd,
     DBUG_RETURN(1);
 
   ORDER *order= select_lex->order_list.first;
+
+  /*
+    See if we can substitute expressions with equivalent generated
+    columns in the WHERE and ORDER BY clauses of the UPDATE statement.
+    It is unclear if this is best to do before or after the other
+    substitutions performed by substitute_for_best_equal_field(). Do
+    it here for now, to keep it consistent with how multi-table
+    updates are optimized in JOIN::optimize().
+  */
+  if (conds || order)
+    static_cast<void>(substitute_gc(thd, select_lex, conds, NULL, order));
 
   if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) != 0 &&
       update.function_defaults_apply(table))
@@ -1178,7 +1189,7 @@ bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,
 
   thd->mark_used_columns= mark_used_columns_saved;
 
-  if (setup_ftfuncs(select))
+  if (select->has_ft_funcs() && setup_ftfuncs(select))
     DBUG_RETURN(true);                          /* purecov: inspected */
 
   if (select->inner_refs_list.elements && select->fix_inner_refs(thd))
@@ -2125,11 +2136,6 @@ loop_end:
       if (!field)
         DBUG_RETURN(1);
       field->init(tbl);
-      /*
-        The field will be converted to varstring when creating tmp table if
-        table to be updated was created by mysql 4.1. Deny this.
-      */
-      field->can_alter_field_type= 0;
       Item_field *ifield= new Item_field((Field *) field);
       if (!ifield)
          DBUG_RETURN(1);

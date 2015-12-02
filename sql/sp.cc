@@ -35,6 +35,7 @@
 #include "sql_parse.h"      // parse_sql
 #include "sql_show.h"       // append_identifier
 #include "sql_table.h"      // write_bin_log
+#include "template_utils.h"
 
 #include "dd/dd_schema.h"   // dd::schema_exists
 
@@ -922,6 +923,8 @@ db_load_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp,
     if (cur_db_changed &&
         mysql_change_db(thd, to_lex_cstring(saved_cur_db_name), true))
     {
+      delete *sphp;
+      *sphp= NULL;
       ret= SP_INTERNAL_ERROR;
       goto end;
     }
@@ -1017,8 +1020,6 @@ bool sp_create_routine(THD *thd, sp_head *sp)
 
   bool store_failed= FALSE;
 
-  bool save_binlog_row_based;
-
   DBUG_ENTER("sp_create_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",sp->m_type,
                        (int) sp->m_name.length, sp->m_name.str));
@@ -1063,11 +1064,11 @@ bool sp_create_routine(THD *thd, sp_head *sp)
 
   /*
     This statement will be replicated as a statement, even when using
-    row-based replication.  The flag will be reset at the end of the
-    statement.
+    row-based replication.  The binlog state will be cleared here to
+    statement based replication and will be reset to the originals
+    values when we are out of this function scope
   */
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
   saved_count_cuted_fields= thd->count_cuted_fields;
   thd->count_cuted_fields= CHECK_FIELD_WARN;
@@ -1285,10 +1286,6 @@ bool sp_create_routine(THD *thd, sp_head *sp)
 done:
   thd->count_cuted_fields= saved_count_cuted_fields;
   thd->variables.sql_mode= saved_mode;
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(error);
 }
 
@@ -1312,7 +1309,6 @@ int sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
 {
   TABLE *table;
   int ret;
-  bool save_binlog_row_based;
   MDL_key::enum_mdl_namespace mdl_type= (type == SP_TYPE_FUNCTION) ?
                                         MDL_key::FUNCTION : MDL_key::PROCEDURE;
   DBUG_ENTER("sp_drop_routine");
@@ -1330,11 +1326,11 @@ int sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
 
   /*
     This statement will be replicated as a statement, even when using
-    row-based replication.  The flag will be reset at the end of the
-    statement.
+    row-based replication.  The binlog state will be cleared here to
+    statement based replication and will be reset to the originals
+    values when we are out of this function scope
   */
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
   if ((ret= db_find_routine_aux(thd, type, name, table)) == SP_OK)
   {
@@ -1369,10 +1365,6 @@ int sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
                   name->m_name.str, name->m_name.length);
 #endif 
   }
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(ret);
 }
 
@@ -1399,7 +1391,6 @@ int sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
 {
   TABLE *table;
   int ret;
-  bool save_binlog_row_based;
   MDL_key::enum_mdl_namespace mdl_type= (type == SP_TYPE_FUNCTION) ?
                                         MDL_key::FUNCTION : MDL_key::PROCEDURE;
   DBUG_ENTER("sp_update_routine");
@@ -1417,11 +1408,11 @@ int sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
 
   /*
     This statement will be replicated as a statement, even when using
-    row-based replication. The flag will be reset at the end of the
-    statement.
+    row-based replication.  The binlog state will be cleared here to
+    statement based replication and will be reset to the originals
+    values when we are out of this function scope
   */
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
+  Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
   if ((ret= db_find_routine_aux(thd, type, name, table)) == SP_OK)
   {
@@ -1474,10 +1465,6 @@ int sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
     sp_cache_invalidate();
   }
 err:
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(ret);
 }
 
@@ -1896,12 +1883,11 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc)
 }
 
 
-extern "C" uchar* sp_sroutine_key(const uchar *ptr, size_t *plen,
-                                  my_bool first)
+const uchar* sp_sroutine_key(const uchar *ptr, size_t *plen)
 {
-  Sroutine_hash_entry *rn= (Sroutine_hash_entry *)ptr;
+  const Sroutine_hash_entry *rn= pointer_cast<const Sroutine_hash_entry*>(ptr);
   *plen= rn->mdl_request.key.length();
-  return (uchar *)rn->mdl_request.key.ptr();
+  return rn->mdl_request.key.ptr();
 }
 
 

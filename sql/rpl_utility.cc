@@ -14,6 +14,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "rpl_utility.h"
+#include "binary_log_funcs.h"
+#include "my_byteorder.h"
 
 #ifndef MYSQL_CLIENT
 
@@ -932,10 +934,9 @@ table_def::~table_def()
   Utility methods for handling row based operations.
  */
 
-static uchar*
+static const uchar*
 hash_slave_rows_get_key(const uchar *record,
-                        size_t *length,
-                        my_bool not_used __attribute__((unused)))
+                        size_t *length)
 {
   DBUG_ENTER("get_key");
 

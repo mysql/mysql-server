@@ -912,6 +912,10 @@ btr_cur_search_to_nth_level(
 # endif /* BTR_CUR_HASH_ADAPT */
 #endif /* BTR_CUR_ADAPT */
 	btr_cur_n_non_sea++;
+	DBUG_EXECUTE_IF(
+		"non_ahi_search",
+		DBUG_ASSERT(!strcmp(index->table->name.m_name, "test/t1"));
+	);
 
 	/* If the hash search did not succeed, do binary search down the
 	tree */

@@ -242,10 +242,8 @@ void cleanup_instruments(void)
   global_instr_class_memory_array= NULL;
 }
 
-C_MODE_START
 /** Get hash table key for instrumented files. */
-static uchar *filename_hash_get_key(const uchar *entry, size_t *length,
-                                    my_bool)
+static const uchar *filename_hash_get_key(const uchar *entry, size_t *length)
 {
   const PFS_file * const *typed_entry;
   const PFS_file *file;
@@ -256,9 +254,8 @@ static uchar *filename_hash_get_key(const uchar *entry, size_t *length,
   DBUG_ASSERT(file != NULL);
   *length= file->m_filename_length;
   result= file->m_filename;
-  return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
+  return reinterpret_cast<const uchar*> (result);
 }
-C_MODE_END
 
 /**
   Initialize the file name hash.

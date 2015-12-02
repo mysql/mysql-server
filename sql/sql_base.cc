@@ -50,7 +50,10 @@
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "transaction.h"              // trans_rollback_stmt
 #include "trigger_loader.h"           // Trigger_loader
+
+#ifdef HAVE_REPLICATION
 #include "rpl_rli.h"                  //Relay_log_information
+#endif
 
 #include "dd/dd_table.h"              // dd::table_exists
 #include "dd/dd_tablespace.h"         // dd::fill_table_and_parts_tablespace_name
@@ -229,11 +232,6 @@ static bool check_and_update_table_version(THD *thd, TABLE_LIST *tables,
                                            TABLE_SHARE *table_share);
 static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry);
 static bool auto_repair_table(THD *thd, TABLE_LIST *table_list);
-static bool
-has_write_table_with_auto_increment(TABLE_LIST *tables);
-static bool
-has_write_table_with_auto_increment_and_select(TABLE_LIST *tables);
-static bool has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables);
 static TABLE *find_temporary_table(THD *thd,
                                    const char *table_key,
                                    size_t table_key_length);
@@ -327,15 +325,12 @@ size_t get_table_def_key(const TABLE_LIST *table_list, const char **key)
   Functions to handle table definition cach (TABLE_SHARE)
 *****************************************************************************/
 
-extern "C" {
-static uchar *table_def_key(const uchar *record, size_t *length,
-                            my_bool not_used __attribute__((unused)))
+static const uchar *table_def_key(const uchar *record, size_t *length)
 {
   TABLE_SHARE *entry=(TABLE_SHARE*) record;
   *length= entry->table_cache_key.length;
   return (uchar*) entry->table_cache_key.str;
 }
-} // extern "C"
 
 
 static void table_def_free_entry(TABLE_SHARE *share)
@@ -1619,11 +1614,13 @@ bool close_temporary_tables(THD *thd)
     }
 
     thd->temporary_tables= 0;
+#ifdef HAVE_REPLICATION
     if (thd->slave_thread)
     {
       slave_open_temp_tables.atomic_add(-slave_closed_temp_tables);
       thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(-slave_closed_temp_tables);
     }
+#endif
 
     DBUG_RETURN(FALSE);
   }
@@ -1844,11 +1841,13 @@ bool close_temporary_tables(THD *thd)
     thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
 
   thd->temporary_tables=0;
+#ifdef HAVE_REPLICATION
   if (thd->slave_thread)
   {
     slave_open_temp_tables.atomic_add(-slave_closed_temp_tables);
     thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(-slave_closed_temp_tables);
   }
+#endif
 
   DBUG_RETURN(error);
 }
@@ -2252,6 +2251,7 @@ void close_temporary_table(THD *thd, TABLE *table,
     if (thd->temporary_tables)
       table->next->prev= 0;
   }
+#ifdef HAVE_REPLICATION
   if (thd->slave_thread)
   {
     /* natural invariant of temporary_tables */
@@ -2259,6 +2259,7 @@ void close_temporary_table(THD *thd, TABLE *table,
     slave_open_temp_tables.atomic_add(-1);
     thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(-1);
   }
+#endif
   close_temporary(thd, table, free_share, delete_table);
   DBUG_VOID_RETURN;
 }
@@ -2893,6 +2894,16 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
           (table_type == dd::Abstract_table::TT_USER_VIEW ||
            table_type == dd::Abstract_table::TT_SYSTEM_VIEW))
       {
+        /*
+          If parent_l of the table_list is non null then a merge table
+          has this view as child table, which is not supported.
+        */
+        if (table_list->parent_l)
+        {
+          my_error(ER_WRONG_MRG_TABLE, MYF(0));
+          DBUG_RETURN(true);
+        }
+
         if (!tdc_open_view(thd, table_list, alias, key, key_length,
                            CHECK_METADATA_VERSION))
         {
@@ -3178,16 +3189,21 @@ retry_share:
     }
 
     /* Open view */
-    if (mysql_make_view(thd, share, table_list, false))
-      goto err_unlock;
+    bool view_open_result= open_and_read_view(thd, share, table_list);
 
     /* TODO: Don't free this */
     release_table_share(share);
+    mysql_mutex_unlock(&LOCK_open);
+
+    if (view_open_result)
+      DBUG_RETURN(true);
+
+    if (parse_view_definition(thd, table_list))
+      DBUG_RETURN(true);
 
     DBUG_ASSERT(table_list->is_view());
 
-    mysql_mutex_unlock(&LOCK_open);
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   }
 
 share_found:
@@ -4045,12 +4061,21 @@ bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
     }
   }
 
-  if (share->is_view &&
-      !mysql_make_view(thd, share, table_list, (flags & OPEN_VIEW_NO_PARSE)))
+  if (share->is_view)
   {
+    bool view_open_result= open_and_read_view(thd, share, table_list);
+
     release_table_share(share);
     mysql_mutex_unlock(&LOCK_open);
-    return FALSE;
+
+    if (view_open_result)
+      return true;
+
+    bool view_parse_result= false;
+    if (!(flags & OPEN_VIEW_NO_PARSE))
+      view_parse_result= parse_view_definition(thd, table_list);
+
+    return view_parse_result;
   }
 
   my_error(ER_WRONG_OBJECT, MYF(0), share->db.str, share->table_name.str, "VIEW");
@@ -4984,12 +5009,14 @@ end:
   DBUG_RETURN(error);
 }
 
-extern "C" uchar *schema_set_get_key(const uchar *record, size_t *length,
-                                     my_bool not_used __attribute__((unused)))
+namespace
+{
+const uchar *schema_set_get_key(const uchar *record, size_t *length)
 {
   TABLE_LIST *table=(TABLE_LIST*) record;
   *length= table->db_length;
   return (uchar*) table->db;
+}
 }
 
 
@@ -6339,62 +6366,6 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
 	*(ptr++)= table->table;
     }
 
-    /*
-    DML statements that modify a table with an auto_increment column based on
-    rows selected from a table are unsafe as the order in which the rows are
-    fetched fron the select tables cannot be determined and may differ on
-    master and slave.
-    */
-    if (thd->variables.binlog_format != BINLOG_FORMAT_ROW && tables &&
-        has_write_table_with_auto_increment_and_select(tables))
-      thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_WRITE_AUTOINC_SELECT);
-    /* Todo: merge all has_write_table_auto_inc with decide_logging_format */
-    if (thd->variables.binlog_format != BINLOG_FORMAT_ROW && tables)
-    {
-      if (has_write_table_auto_increment_not_first_in_pk(tables))
-        thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_AUTOINC_NOT_FIRST);
-    }
-
-    /* 
-     INSERT...ON DUPLICATE KEY UPDATE on a table with more than one unique keys
-     can be unsafe.
-     */
-    uint unique_keys= 0;
-    for (TABLE_LIST *query_table= tables; query_table && unique_keys <= 1;
-         query_table= query_table->next_global)
-      if(query_table->table)
-      {
-        uint keys= query_table->table->s->keys, i= 0;
-        unique_keys= 0;
-        for (KEY* keyinfo= query_table->table->s->key_info;
-             i < keys && unique_keys <= 1; i++, keyinfo++)
-        {
-          if (keyinfo->flags & HA_NOSAME)
-            unique_keys++;
-        }
-        if (!query_table->is_placeholder() &&
-            query_table->lock_type >= TL_WRITE_ALLOW_WRITE &&
-            unique_keys > 1 && thd->lex->sql_command == SQLCOM_INSERT &&
-            thd->lex->duplicates == DUP_UPDATE)
-          thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_TWO_KEYS);
-      }
- 
- 
-    /* We have to emulate LOCK TABLES if we are statement needs prelocking. */
-    if (thd->lex->requires_prelocking())
-    {
-
-      /*
-        A query that modifies autoinc column in sub-statement can make the 
-        master and slave inconsistent.
-        We can solve these problems in mixed mode by switching to binlogging 
-        if at least one updated table is used by sub-statement
-      */
-      if (thd->variables.binlog_format != BINLOG_FORMAT_ROW && tables && 
-          has_write_table_with_auto_increment(thd->lex->first_not_own_table()))
-        thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_AUTOINC_COLUMNS);
-    }
-
     DEBUG_SYNC(thd, "before_lock_tables_takes_lock");
 
     if (! (thd->lock= mysql_lock_tables(thd, start, (uint) (ptr - start),
@@ -6695,11 +6666,13 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
       tmp_table->next->prev= tmp_table;
     thd->temporary_tables= tmp_table;
     thd->temporary_tables->prev= 0;
+#ifdef HAVE_REPLICATION
     if (thd->slave_thread)
     {
       slave_open_temp_tables.atomic_add(1);
       thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(1);
     }
+#endif
   }
   tmp_table->pos_in_table_list= NULL;
 
@@ -8600,6 +8573,36 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
   DBUG_RETURN (false);
 }
 
+/**
+  Resolve variable assignments from LEX object
+
+  @param thd     Thread handler
+  @param lex     Lex object containing variable assignments
+
+  @returns false if success, true if error
+
+  @note
+  set_entry() must be called before fix_fields() of the whole list of
+  field items because:
+
+  1) the list of field items has same order as in the query, and the
+     Item_func_get_user_var item may go before the Item_func_set_user_var:
+        SELECT @a, @a := 10 FROM t;
+  2) The entry->update_query_id value controls constantness of
+     Item_func_get_user_var items, so in presence of Item_func_set_user_var
+     items we have to refresh their entries before fixing of
+     Item_func_get_user_var items.
+*/
+
+bool resolve_var_assignments(THD *thd, LEX *lex)
+{
+  List_iterator<Item_func_set_user_var> li(lex->set_var_list);
+  Item_func_set_user_var *var;
+  while ((var= li++))
+    var->set_entry(thd, false);
+
+  return false;
+}
 
 /****************************************************************************
 ** Check that all given fields exists and fill struct with current data
@@ -8673,22 +8676,6 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
     memset(ref_pointer_array.array(), 0, sizeof(Item *) * fields.elements);
   }
 
-  /*
-    We call set_entry() there (before fix_fields() of the whole list of field
-    items) because:
-    1) the list of field items has same order as in the query, and the
-       Item_func_get_user_var item may go before the Item_func_set_user_var:
-          SELECT @a, @a := 10 FROM t;
-    2) The entry->update_query_id value controls constantness of
-       Item_func_get_user_var items, so in presence of Item_func_set_user_var
-       items we have to refresh their entries before fixing of
-       Item_func_get_user_var items.
-  */
-  List_iterator<Item_func_set_user_var> li(thd->lex->set_var_list);
-  Item_func_set_user_var *var;
-  while ((var= li++))
-    var->set_entry(thd, FALSE);
-
   Ref_ptr_array ref= ref_pointer_array;
 
   Item *item;
@@ -8723,7 +8710,8 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
   thd->mark_used_columns= save_mark_used_columns;
   DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
 
-  DBUG_RETURN(thd->is_error());
+  DBUG_ASSERT(!thd->is_error());
+  DBUG_RETURN(false);
 }
 
 
@@ -9590,6 +9578,8 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
 
 int setup_ftfuncs(SELECT_LEX *select_lex)
 {
+  DBUG_ASSERT(select_lex->has_ft_funcs());
+
   List_iterator<Item_func_match> li(*(select_lex->ftfunc_list)),
                                  lj(*(select_lex->ftfunc_list));
   Item_func_match *ftf, *ftf2;
@@ -9638,98 +9628,6 @@ bool is_equal(const LEX_STRING *a, const LEX_STRING *b)
 {
   return a->length == b->length && !strncmp(a->str, b->str, a->length);
 }
-
-
-/*
-  Tells if two (or more) tables have auto_increment columns and we want to
-  lock those tables with a write lock.
-
-  SYNOPSIS
-    has_two_write_locked_tables_with_auto_increment
-      tables        Table list
-
-  NOTES:
-    Call this function only when you have established the list of all tables
-    which you'll want to update (including stored functions, triggers, views
-    inside your statement).
-*/
-
-static bool
-has_write_table_with_auto_increment(TABLE_LIST *tables)
-{
-  for (TABLE_LIST *table= tables; table; table= table->next_global)
-  {
-    /* we must do preliminary checks as table->table may be NULL */
-    if (!table->is_placeholder() &&
-        table->table->found_next_number_field &&
-        (table->lock_type >= TL_WRITE_ALLOW_WRITE))
-      return 1;
-  }
-
-  return 0;
-}
-
-/*
-   checks if we have select tables in the table list and write tables
-   with auto-increment column.
-
-  SYNOPSIS
-   has_two_write_locked_tables_with_auto_increment_and_select
-      tables        Table list
-
-  RETURN VALUES
-
-   -true if the table list has atleast one table with auto-increment column
-
-
-         and atleast one table to select from.
-   -false otherwise
-*/
-
-static bool
-has_write_table_with_auto_increment_and_select(TABLE_LIST *tables)
-{
-  bool has_select= false;
-  bool has_auto_increment_tables = has_write_table_with_auto_increment(tables);
-  for(TABLE_LIST *table= tables; table; table= table->next_global)
-  {
-     if (!table->is_placeholder() &&
-        (table->lock_type <= TL_READ_NO_INSERT))
-      {
-        has_select= true;
-        break;
-      }
-  }
-  return(has_select && has_auto_increment_tables);
-}
-
-/*
-  Tells if there is a table whose auto_increment column is a part
-  of a compound primary key while is not the first column in
-  the table definition.
-
-  @param tables Table list
-
-  @return true if the table exists, fais if does not.
-*/
-
-static bool
-has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables)
-{
-  for (TABLE_LIST *table= tables; table; table= table->next_global)
-  {
-    /* we must do preliminary checks as table->table may be NULL */
-    if (!table->is_placeholder() &&
-        table->table->found_next_number_field &&
-        (table->lock_type >= TL_WRITE_ALLOW_WRITE)
-        && table->table->s->next_number_keypart != 0)
-      return 1;
-  }
-
-  return 0;
-}
-
-
 
 /**
   Open and lock non-transactional system tables for read.

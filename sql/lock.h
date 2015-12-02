@@ -45,10 +45,7 @@ bool lock_schema_name(THD *thd, const char *db);
 bool lock_tablespace_name(THD *thd, const char *tablespace);
 
 // Function generating hash key for Tablespace_hash_set.
-extern "C" uchar *tablespace_set_get_key(
-                    const uchar *record,
-                    size_t *length,
-                    my_bool not_used);
+const uchar *tablespace_set_get_key(const uchar *record, size_t *length);
 
 // Hash_set to hold set of tablespace names.
 typedef Hash_set<char, tablespace_set_get_key> Tablespace_hash_set;

@@ -138,8 +138,9 @@ bool Partition_index_impl::validate() const
 
 bool Partition_index_impl::restore_attributes(const Raw_record &r)
 {
-  check_parent_consistency(
-    m_partition, r.read_ref_id(Index_partitions::FIELD_PARTITION_ID));
+  if (check_parent_consistency(
+        m_partition, r.read_ref_id(Index_partitions::FIELD_PARTITION_ID)))
+    return true;
 
   m_index=
     m_partition->table_impl().get_index(

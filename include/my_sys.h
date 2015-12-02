@@ -750,8 +750,7 @@ extern my_bool my_init_dynamic_array(DYNAMIC_ARRAY *array,
                                      uint init_alloc,
                                      uint alloc_increment);
 /* init_dynamic_array() function is deprecated */
-extern my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
-                                  uint init_alloc, uint alloc_increment);
+
 #define dynamic_element(array,array_index,type) \
   ((type)((array)->buffer) +(array_index))
 
@@ -759,7 +758,6 @@ extern my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
 extern my_bool insert_dynamic(DYNAMIC_ARRAY *array, const void *element);
 extern void *alloc_dynamic(DYNAMIC_ARRAY *array);
 extern void *pop_dynamic(DYNAMIC_ARRAY*);
-extern void get_dynamic(DYNAMIC_ARRAY *array, void *element, uint array_index);
 extern void claim_dynamic(DYNAMIC_ARRAY *array);
 extern void delete_dynamic(DYNAMIC_ARRAY *array);
 extern void freeze_size(DYNAMIC_ARRAY *array);

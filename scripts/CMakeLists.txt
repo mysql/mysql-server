@@ -229,6 +229,12 @@ FOREACH(option ${REPLACE_REGEX_OPTIONS})
   STRING(REGEX REPLACE "${option}" "" CXXFLAGS "${CXXFLAGS}")
 ENDFOREACH()
 
+# Do not remove -std=c++11 for Solaris Studio as it is required to get
+# the correct libraries. Only remove for GCC/Clang
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  STRING(REGEX REPLACE "-std=c..[0-9]+" "" CXXFLAGS "${CXXFLAGS}")
+ENDIF()
+
 FOREACH(option ${REPLACE_OPTIONS})
   STRING(REPLACE "${option}" " " CFLAGS   "${CFLAGS}")
   STRING(REPLACE "${option}" " " CXXFLAGS "${CXXFLAGS}")
@@ -375,6 +381,12 @@ ENDIF()
 # See WITH_EMBEDDED_SHARED_LIBRARY, "mysqld" is generated from mysqlserver
 IF(WITH_EMBEDDED_SERVER)
   GET_TARGET_PROPERTY(LIBEMBED_OS_OUTPUT_NAME mysqlserver OUTPUT_NAME)
+ENDIF()
+
+# As per Solaris Studio documentation, these three libraries need to be
+# added explicitly for cc when using -std=c++11
+IF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
+  SET(CLIENT_LIBS "${CLIENT_LIBS} -lstdc++ -lgcc_s -lCrunG3")
 ENDIF()
 
 SET(CONFIG_CLIENT_LIBS "${CLIENT_LIBS}")

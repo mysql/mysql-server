@@ -257,8 +257,8 @@ private:
   uint m_ordinal_position;
 
   std::string m_comment;
-  std::auto_ptr<Properties> m_options;
-  std::auto_ptr<Properties> m_se_private_data;
+  std::unique_ptr<Properties> m_options;
+  std::unique_ptr<Properties> m_se_private_data;
 
   Index::enum_index_type m_type;
   Index::enum_index_algorithm m_algorithm;
@@ -270,7 +270,7 @@ private:
 
   Table_impl *m_table;
 
-  std::auto_ptr<Element_collection> m_elements;
+  std::unique_ptr<Element_collection> m_elements;
 
   // References to loosely-coupled objects.
 

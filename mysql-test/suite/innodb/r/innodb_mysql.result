@@ -2277,7 +2277,7 @@ DROP TABLES t4,t5;
 CREATE TABLE t1 (i INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE t2 (a VARCHAR(100)) ENGINE=InnoDB;
 CREATE TABLE t3 (i INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
-CREATE TABLE t4 (i INT NOT NULL PRIMARY KEY, t1i INT, 
+CREATE TABLE t4 (i INT NOT NULL PRIMARY KEY, t1i INT,
 FOREIGN KEY (t1i) REFERENCES t1(i))
 ENGINE=InnoDB;
 CREATE TRIGGER trg AFTER DELETE ON t1 FOR EACH ROW
@@ -2412,7 +2412,7 @@ a	b
 DROP TABLE t1, t2, t3, t4;
 #
 # Bug#44886: SIGSEGV in test_if_skip_sort_order() -
-#            uninitialized variable used as subscript 
+#            uninitialized variable used as subscript
 #
 CREATE TABLE t1 (a INT, b INT, c INT, d INT, PRIMARY KEY (b), KEY (a,c))
 ENGINE=InnoDB;
@@ -2432,7 +2432,7 @@ a	b	c	d	a	b	e	a	b
 SET sql_mode=default;
 DROP TABLE t1, t2, t3;
 #
-# Bug #45828: Optimizer won't use partial primary key if another 
+# Bug #45828: Optimizer won't use partial primary key if another
 # index can prevent filesort
 #
 CREATE TABLE `t1` (
@@ -2522,40 +2522,40 @@ DROP TABLE t1;
 # Bug #47963: Wrong results when index is used
 #
 CREATE TABLE t1(
-a VARCHAR(5) NOT NULL, 
+a VARCHAR(5) NOT NULL,
 b VARCHAR(5) NOT NULL,
 c DATETIME NOT NULL,
-KEY (c) 
+KEY (c)
 ) ENGINE=InnoDB;
 INSERT INTO t1 VALUES('TEST', 'TEST', '2009-10-09 00:00:00');
-SELECT * FROM t1 WHERE a = 'TEST' AND 
+SELECT * FROM t1 WHERE a = 'TEST' AND
 c >= '2009-10-09 00:00:00' AND c <= '2009-10-09 00:00:00';
 a	b	c
 TEST	TEST	2009-10-09 00:00:00
-SELECT * FROM t1 WHERE a = 'TEST' AND 
+SELECT * FROM t1 WHERE a = 'TEST' AND
 c >= '2009-10-09 00:00:00.0' AND c <= '2009-10-09 00:00:00.0';
 a	b	c
 TEST	TEST	2009-10-09 00:00:00
-SELECT * FROM t1 WHERE a = 'TEST' AND 
+SELECT * FROM t1 WHERE a = 'TEST' AND
 c >= '2009-10-09 00:00:00.0' AND c <= '2009-10-09 00:00:00';
 a	b	c
 TEST	TEST	2009-10-09 00:00:00
-SELECT * FROM t1 WHERE a = 'TEST' AND 
+SELECT * FROM t1 WHERE a = 'TEST' AND
 c >= '2009-10-09 00:00:00' AND c <= '2009-10-09 00:00:00.0';
 a	b	c
 TEST	TEST	2009-10-09 00:00:00
-SELECT * FROM t1 WHERE a = 'TEST' AND 
+SELECT * FROM t1 WHERE a = 'TEST' AND
 c >= '2009-10-09 00:00:00.000' AND c <= '2009-10-09 00:00:00.000';
 a	b	c
 TEST	TEST	2009-10-09 00:00:00
-SELECT * FROM t1 WHERE a = 'TEST' AND 
+SELECT * FROM t1 WHERE a = 'TEST' AND
 c >= '2009-10-09 00:00:00.00' AND c <= '2009-10-09 00:00:00.001';
 a	b	c
 TEST	TEST	2009-10-09 00:00:00
-SELECT * FROM t1 WHERE a = 'TEST' AND 
+SELECT * FROM t1 WHERE a = 'TEST' AND
 c >= '2009-10-09 00:00:00.001' AND c <= '2009-10-09 00:00:00.00';
 a	b	c
-EXPLAIN SELECT * FROM t1 WHERE a = 'TEST' AND 
+EXPLAIN SELECT * FROM t1 WHERE a = 'TEST' AND
 c >= '2009-10-09 00:00:00.001' AND c <= '2009-10-09 00:00:00.00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
@@ -2569,7 +2569,7 @@ CREATE TABLE t1(a CHAR(13),KEY(a)) ENGINE=innodb;
 CREATE TABLE t2(b DATETIME,KEY(b)) ENGINE=innodb;
 INSERT INTO t1 VALUES (),();
 INSERT INTO t2 VALUES (),();
-CREATE OR REPLACE VIEW v1 AS SELECT 1 FROM t2 
+CREATE OR REPLACE VIEW v1 AS SELECT 1 FROM t2
 WHERE b =(SELECT a FROM t1 LIMIT 1);
 CREATE PROCEDURE p1(num INT)
 BEGIN
@@ -2645,7 +2645,7 @@ DROP TABLE t1;
 # Bug #49838: DROP INDEX and ADD UNIQUE INDEX for same index may
 #   corrupt definition at engine
 #
-CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, KEY k (a,b)) 
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, KEY k (a,b))
 ENGINE=InnoDB;
 ALTER TABLE t1 DROP INDEX k, ADD UNIQUE INDEX k (a,b);
 SHOW INDEXES FROM t1;;
@@ -2677,32 +2677,34 @@ Comment
 Index_comment	
 DROP TABLE t1;
 #
-# Bug #47453: InnoDB incorrectly changes TIMESTAMP columns when 
+# Bug #47453: InnoDB incorrectly changes TIMESTAMP columns when
 #  JOINed during an UPDATE
 #
 CREATE TABLE t1 (d INT) ENGINE=InnoDB;
-CREATE TABLE t2 (a INT, b INT, 
-c TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB;
+CREATE TABLE t2 (a INT, b INT,
+c TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+ON UPDATE CURRENT_TIMESTAMP(6)) ENGINE=InnoDB;
 # set up our data elements
 INSERT INTO t1 (d) VALUES (1);
 INSERT INTO t2 (a,b) VALUES (1,1);
-SELECT SECOND(c) INTO @bug47453 FROM t2;
-SELECT SECOND(c)-@bug47453 FROM t1 JOIN t2 ON d=a;
-SECOND(c)-@bug47453
+SELECT c INTO @bug47453 FROM t2;
+SELECT c!=@bug47453 FROM t1 JOIN t2 ON d=a;
+c!=@bug47453
 0
 UPDATE t1 JOIN t2 ON d=a SET b=1 WHERE a=1;
-SELECT SECOND(c)-@bug47453 FROM t1 JOIN t2 ON d=a;
-SECOND(c)-@bug47453
+SELECT c!=@bug47453 FROM t1 JOIN t2 ON d=a;
+c!=@bug47453
 0
-SELECT SLEEP(1);
-SLEEP(1)
-0
-UPDATE t1 JOIN t2 ON d=a SET b=1 WHERE a=1;
+UPDATE t1 JOIN t2 ON d=a SET b=1;
 # should be 0
-SELECT SECOND(c)-@bug47453 FROM t1 JOIN t2 ON d=a;
-SECOND(c)-@bug47453
+SELECT c!=@bug47453 FROM t1 JOIN t2 ON d=a;
+c!=@bug47453
 0
+UPDATE t1 JOIN t2 ON d=a SET b=2;
+# should not be 0
+SELECT c!=@bug47453 FROM t1 JOIN t2 ON d=a;
+c!=@bug47453
+1
 DROP TABLE t1, t2;
 #
 # Bug #53334: wrong result for outer join with impossible ON condition
@@ -2922,12 +2924,12 @@ Code	1003
 Message	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1`
 DROP TABLE t1;
 #
-# Bug#55826: create table .. select crashes with when KILL_BAD_DATA 
+# Bug#55826: create table .. select crashes with when KILL_BAD_DATA
 #  is returned
 #
 CREATE TABLE t1(a INT) ENGINE=innodb;
 INSERT INTO t1 VALUES (0);
-CREATE TABLE t2 
+CREATE TABLE t2
 SELECT LEAST((SELECT '' FROM t1),NOW()) FROM `t1`;
 ERROR 22007: Incorrect datetime value: '' for column 'NOW()' at row 2
 DROP TABLE t1;
@@ -2968,7 +2970,7 @@ UNLOCK TABLES;
 DROP TEMPORARY TABLE t1;
 # End of 5.1 tests
 #
-# Bug#49604 "6.0 processing compound WHERE clause incorrectly 
+# Bug#49604 "6.0 processing compound WHERE clause incorrectly
 #            with Innodb - extra rows"
 #
 CREATE TABLE t1 (
@@ -2990,7 +2992,7 @@ PRIMARY KEY (c1)
 INSERT INTO t2 VALUES (1,2);
 INSERT INTO t2 VALUES (2,9);
 SELECT STRAIGHT_JOIN t2.c2, t1.c2, t2.c1
-FROM t1 JOIN t2 ON t1.c2 = t2.c1  
+FROM t1 JOIN t2 ON t1.c2 = t2.c1
 WHERE t2.c1 IN (2, 1, 6) OR t2.c1 NOT IN (1);
 c2	c2	c1
 2	1	1
@@ -3045,7 +3047,7 @@ b
 1
 DROP TABLE t1,t2;
 #
-# Bug#48093: 6.0 Server not processing equivalent IN clauses properly 
+# Bug#48093: 6.0 Server not processing equivalent IN clauses properly
 #            with Innodb tables
 #
 CREATE TABLE t1 (
@@ -3060,7 +3062,7 @@ INSERT INTO t1 VALUES (2,'u','yes-u');
 INSERT INTO t1 VALUES (2,'h','yes-h');
 INSERT INTO t1 VALUES (3,'d','no');
 
-SELECT v2  
+SELECT v2
 FROM t1
 WHERE v1  IN  ('f', 'd', 'h', 'u' ) AND i  =  2;
 v2
@@ -3069,7 +3071,7 @@ yes-h
 
 # Should not use index_merge
 EXPLAIN
-SELECT v2  
+SELECT v2
 FROM t1
 WHERE v1  IN  ('f', 'd', 'h', 'u' ) AND i  =  2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -3078,12 +3080,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v2` AS `v2` from `test`.`t1` where ((`test`.`t1`.`i` = 2) and (`test`.`t1`.`v1` in ('f','d','h','u')))
 DROP TABLE t1;
 #
-# Bug#54606 innodb fast alter table + pack_keys=0 
+# Bug#54606 innodb fast alter table + pack_keys=0
 #           prevents adding new indexes
 #
 DROP TABLE IF EXISTS t1;
-CREATE TABLE t1 (a INT, b CHAR(9), c INT, key(b)) 
-ENGINE=InnoDB 
+CREATE TABLE t1 (a INT, b CHAR(9), c INT, key(b))
+ENGINE=InnoDB
 PACK_KEYS=0;
 CREATE INDEX a ON t1 (a);
 CREATE INDEX c on t1 (c);

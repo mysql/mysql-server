@@ -28,6 +28,7 @@ Smart ALTER TABLE
 #include <sql_lex.h>
 #include <sql_class.h>
 #include <sql_table.h>
+#include <sql_thd_internal_api.h>
 #include <mysql/plugin.h>
 #include <key_spec.h>
 
@@ -418,6 +419,37 @@ check_v_col_in_order(
 	Alter_inplace_info*	ha_alter_info)
 {
 	ulint	j = 0;
+
+	/* We don't support any adding new virtual column before
+	existed virtual column. */
+	if (ha_alter_info->handler_flags
+              & Alter_inplace_info::ADD_VIRTUAL_COLUMN) {
+		bool			has_new = false;
+
+		List_iterator_fast<Create_field> cf_it(
+			ha_alter_info->alter_info->create_list);
+
+		cf_it.rewind();
+
+		while (const Create_field* new_field = cf_it++) {
+			if (!new_field->is_virtual_gcol()) {
+				continue;
+			}
+
+			/* Found a new added virtual column. */
+			if (!new_field->field) {
+				has_new = true;
+				continue;
+			}
+
+			/* If there's any old virtual column
+			after the new added virtual column,
+			order must be changed. */
+			if (has_new) {
+				return(false);
+			}
+		}
+	}
 
 	/* directly return true if ALTER_VIRTUAL_COLUMN_ORDER is not on */
 	if (!(ha_alter_info->handler_flags
@@ -4108,6 +4140,10 @@ prepare_inplace_alter_table_dict(
 
 	ctx->num_to_add_index = ha_alter_info->index_add_count;
 
+	ut_ad(ctx->prebuilt->trx->mysql_thd != NULL);
+	const char*	path = thd_innodb_tmpdir(
+		ctx->prebuilt->trx->mysql_thd);
+
 	index_defs = innobase_create_key_defs(
 		ctx->heap, ha_alter_info, altered_table, ctx->num_to_add_index,
 		num_fts_index,
@@ -4568,7 +4604,8 @@ new_clustered_failed:
 					goto error_handling;);
 			rw_lock_x_lock(&ctx->add_index[a]->lock);
 			bool ok = row_log_allocate(ctx->add_index[a],
-						   NULL, true, NULL, NULL);
+						   NULL, true, NULL, NULL,
+						   path);
 			rw_lock_x_unlock(&ctx->add_index[a]->lock);
 
 			if (!ok) {
@@ -4602,7 +4639,7 @@ new_clustered_failed:
 				clust_index, ctx->new_table,
 				!(ha_alter_info->handler_flags
 				  & Alter_inplace_info::ADD_PK_INDEX),
-				ctx->add_cols, ctx->col_map);
+				ctx->add_cols, ctx->col_map, path);
 			rw_lock_x_unlock(&clust_index->lock);
 
 			if (!ok) {
@@ -6575,6 +6612,7 @@ processed_field:
 @param table_name Table name in MySQL
 @param nth_col 0-based index of the column
 @param new_len new column length, in bytes
+@param is_v if it's a virtual column
 @retval true Failure
 @retval false Success */
 static __attribute__((warn_unused_result))
@@ -6585,10 +6623,16 @@ innobase_enlarge_column_try(
 	trx_t*			trx,
 	const char*		table_name,
 	ulint			nth_col,
-	ulint			new_len)
+	ulint			new_len,
+	bool			is_v)
 {
 	pars_info_t*	info;
 	dberr_t		error;
+#ifdef UNIV_DEBUG
+	dict_col_t*	col;
+#endif /* UNIV_DEBUG */
+	dict_v_col_t*	v_col;
+	ulint		pos;
 
 	DBUG_ENTER("innobase_enlarge_column_try");
 
@@ -6596,9 +6640,23 @@ innobase_enlarge_column_try(
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
-	ut_ad(dict_table_get_nth_col(user_table, nth_col)->len < new_len);
+
+	if (is_v) {
+		v_col = dict_table_get_nth_v_col(user_table, nth_col);
+		pos = dict_create_v_col_pos(v_col->v_pos, v_col->m_col.ind);
 #ifdef UNIV_DEBUG
-	switch (dict_table_get_nth_col(user_table, nth_col)->mtype) {
+		col = &v_col->m_col;
+#endif /* UNIV_DEBUG */
+	} else {
+#ifdef UNIV_DEBUG
+		col = dict_table_get_nth_col(user_table, nth_col);
+#endif /* UNIV_DEBUG */
+		pos = nth_col;
+	}
+
+#ifdef UNIV_DEBUG
+	ut_ad(col->len < new_len);
+	switch (col->mtype) {
 	case DATA_MYSQL:
 		/* NOTE: we could allow this when !(prtype & DATA_BINARY_TYPE)
 		and ROW_FORMAT is not REDUNDANT and mbminlen<mbmaxlen.
@@ -6618,7 +6676,7 @@ innobase_enlarge_column_try(
 	info = pars_info_create();
 
 	pars_info_add_ull_literal(info, "tableid", user_table->id);
-	pars_info_add_int4_literal(info, "nth", nth_col);
+	pars_info_add_int4_literal(info, "nth", pos);
 	pars_info_add_int4_literal(info, "new", new_len);
 
 	trx->op_info = "resizing column in SYS_COLUMNS";
@@ -6666,9 +6724,22 @@ innobase_enlarge_columns_try(
 {
 	List_iterator_fast<Create_field> cf_it(
 		ha_alter_info->alter_info->create_list);
-	ulint i = 0;
+	ulint	i = 0;
+	ulint	num_v = 0;
+	bool	is_v;
 
 	for (Field** fp = table->field; *fp; fp++, i++) {
+		ulint	idx;
+
+		if ((*fp)->is_virtual_gcol()) {
+			is_v = true;
+			idx = num_v;
+			num_v++;
+		} else {
+			idx = i - num_v;
+			is_v = false;
+		}
+
 		cf_it.rewind();
 		while (Create_field* cf = cf_it++) {
 			if (cf->field == *fp) {
@@ -6676,7 +6747,7 @@ innobase_enlarge_columns_try(
 				    == IS_EQUAL_PACK_LENGTH
 				    && innobase_enlarge_column_try(
 					    user_table, trx, table_name,
-					    i, cf->length)) {
+					    idx, cf->length, is_v)) {
 					return(true);
 				}
 
@@ -6787,35 +6858,58 @@ commit_get_autoinc(
 		rebuilt. Get the user-supplied value or the last value from the
 		sequence. */
 		ib_uint64_t	max_value_table;
-		dberr_t		err;
 
 		Field*	autoinc_field =
 			old_table->found_next_number_field;
-
-		dict_index_t*	index = dict_table_get_index_on_first_col(
-			ctx->old_table, autoinc_field->field_index);
 
 		max_autoinc = ha_alter_info->create_info->auto_increment_value;
 
 		dict_table_autoinc_lock(ctx->old_table);
 
-		err = row_search_max_autoinc(
-			index, autoinc_field->field_name, &max_value_table);
+		max_value_table = ctx->old_table->autoinc_persisted;
 
-		if (err != DB_SUCCESS) {
-			ut_ad(0);
-			max_autoinc = 0;
-		} else if (max_autoinc <= max_value_table) {
-			ulonglong	col_max_value;
-			ulonglong	offset;
 
-			col_max_value = autoinc_field->get_max_int_value();
+		/* We still have to search the index here when we want to
+		set the AUTO_INCREMENT value to a smaller or equal one.
 
-			offset = ctx->prebuilt->autoinc_offset;
-			max_autoinc = innobase_next_autoinc(
-				max_value_table, 1, 1, offset,
-				col_max_value);
+		Here is an example:
+		Let's say we have a table t1 with one AUTOINC column, existing
+		rows (1), (2), (100), (200), (1000), after following SQLs:
+		DELETE FROM t1 WHERE a > 200;
+		ALTER TABLE t1 AUTO_INCREMENT = 150;
+		we expect the next value allocated from 201, but not 150.
+
+		We could only search the tree to know current max counter
+		in the table and compare. */
+		if (max_autoinc <= max_value_table
+		    || srv_missing_dd_table_buffer) {
+			dberr_t		err;
+			dict_index_t*	index;
+
+			index = dict_table_get_index_on_first_col(
+				ctx->old_table, autoinc_field->field_index);
+
+			err = row_search_max_autoinc(
+				index, autoinc_field->field_name,
+				&max_value_table);
+
+			if (err != DB_SUCCESS) {
+				ut_ad(0);
+				max_autoinc = 0;
+			} else if (max_autoinc <= max_value_table) {
+
+				ulonglong	col_max_value;
+				ulonglong	offset;
+
+				col_max_value = autoinc_field->
+					get_max_int_value();
+				offset = ctx->prebuilt->autoinc_offset;
+				max_autoinc = innobase_next_autoinc(
+					max_value_table, 1, 1, offset,
+					col_max_value);
+			}
 		}
+
 		dict_table_autoinc_unlock(ctx->old_table);
 	} else {
 		/* An AUTO_INCREMENT value was not specified.
@@ -8038,6 +8132,40 @@ ha_innobase::commit_inplace_alter_table(
 				DBUG_SUICIDE(););
 	}
 
+	/* Update the persistent autoinc counter if necessary, we should
+	do this before flushing logs. */
+	if (altered_table->found_next_number_field
+	    && !srv_missing_dd_table_buffer) {
+		for (inplace_alter_handler_ctx** pctx = ctx_array;
+		     *pctx; pctx++) {
+			ha_innobase_inplace_ctx*        ctx
+				= static_cast<ha_innobase_inplace_ctx*>
+				(*pctx);
+			DBUG_ASSERT(ctx->need_rebuild() == new_clustered);
+
+			dict_table_t* t = ctx->new_table;
+			Field* field = altered_table->found_next_number_field;
+
+			dict_table_autoinc_lock(t);
+
+			dict_table_autoinc_initialize(t, ctx->max_autoinc);
+
+			dict_table_autoinc_set_col_pos(t, field->field_index);
+
+			/* The same reason as comments on this function call
+			in row_rename_table_for_mysql(). Besides, we may write
+			redo logs here if we want to update the counter to a
+			smaller one. */
+			ib_uint64_t	autoinc = dict_table_autoinc_read(t);
+			dict_table_set_and_persist_autoinc(
+				t, autoinc - 1,
+				autoinc - 1 < t->autoinc_persisted);
+
+			dict_table_autoinc_unlock(t);
+		}
+	}
+
+
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs
 	with innodb_flush_log_at_trx_commit = 0 */
@@ -8217,8 +8345,10 @@ foreign_fail:
 			(*pctx);
 		DBUG_ASSERT(ctx->need_rebuild() == new_clustered);
 
-		if (altered_table->found_next_number_field) {
-			dict_table_t* t = ctx->new_table;
+		/* TODO: To remove the whole 'if' in WL#7141 */
+		if (altered_table->found_next_number_field
+		    && srv_missing_dd_table_buffer) {
+			dict_table_t*	t = ctx->new_table;
 
 			dict_table_autoinc_lock(t);
 			dict_table_autoinc_initialize(t, ctx->max_autoinc);
@@ -8582,10 +8712,22 @@ ha_innopart::prepare_inplace_alter_table(
 		ctx_parts->prebuilt_array[i] = tmp_prebuilt;
 	}
 
+	const char*	save_tablespace =
+		ha_alter_info->create_info->tablespace;
+
 	for (uint i = 0; i < m_tot_parts; i++) {
 		m_prebuilt = ctx_parts->prebuilt_array[i];
 		ha_alter_info->handler_ctx = ctx_parts->ctx_array[i];
 		set_partition(i);
+
+		/* Set the tablespace value of the alter_info to the tablespace
+		value that was existing for the partition originally, so that
+		for ALTER TABLE the tablespace clause in create option is
+		ignored for existing partitions, and later set it back to its
+		old value */
+		ha_alter_info->create_info->tablespace =
+			m_prebuilt->table->tablespace;
+
 		res = ha_innobase::prepare_inplace_alter_table(altered_table,
 							ha_alter_info);
 		update_partition(i);
@@ -8597,6 +8739,8 @@ ha_innopart::prepare_inplace_alter_table(
 	m_prebuilt = ctx_parts->prebuilt_array[0];
 	ha_alter_info->handler_ctx = ctx_parts;
 	ha_alter_info->group_commit_ctx = ctx_parts->ctx_array;
+	ha_alter_info->create_info->tablespace = save_tablespace;
+
 	DBUG_RETURN(res);
 }
 

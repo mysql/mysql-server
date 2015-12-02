@@ -26,6 +26,7 @@
 #include "myisam.h"                          // MI_MAX_MSG_BUF
 #include "derror.h"
 #include "mysql/psi/mysql_memory.h"
+#include "template_utils.h"
 
 // In sql_class.cc:
 int thd_binlog_format(const MYSQL_THD thd);
@@ -167,10 +168,9 @@ Partition_share::release_auto_inc_if_possible(THD *thd, TABLE_SHARE *table_share
   @return Partition name
 */
 
-static uchar *get_part_name_from_def(PART_NAME_DEF *part,
-                                     size_t *length,
-                                     my_bool not_used __attribute__((unused)))
+static const uchar *get_part_name_from_def(const uchar *arg, size_t *length)
 {
+  const PART_NAME_DEF *part= pointer_cast<const PART_NAME_DEF*>(arg);
   *length= part->length;
   return part->partition_name;
 }
@@ -223,7 +223,7 @@ bool Partition_share::populate_partition_name_hash(partition_info *part_info)
   }
   if (my_hash_init(&partition_name_hash,
                    system_charset_info, tot_names, 0, 0,
-                   (my_hash_get_key) get_part_name_from_def,
+                   get_part_name_from_def,
                    my_free, HASH_UNIQUE,
                    key_memory_Partition_share))
   {

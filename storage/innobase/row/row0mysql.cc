@@ -2733,14 +2733,14 @@ row_delete_all_rows(
 	}
 }
 
-/** This can only be used when srv_locks_unsafe_for_binlog is TRUE or this
-session is using a READ COMMITTED or READ UNCOMMITTED isolation level.
-Before calling this function row_search_for_mysql() must have
-initialized prebuilt->new_rec_locks to store the information which new
-record locks really were set. This function removes a newly set
-clustered index record lock under prebuilt->pcur or
-prebuilt->clust_pcur.  Thus, this implements a 'mini-rollback' that
-releases the latest clustered index record lock we set.
+/** This can only be used when this session is using a READ COMMITTED or READ
+UNCOMMITTED isolation level.  Before calling this function
+row_search_for_mysql() must have initialized prebuilt->new_rec_locks to store
+the information which new record locks really were set. This function removes
+a newly set clustered index record lock under prebuilt->pcur or
+prebuilt->clust_pcur.  Thus, this implements a 'mini-rollback' that releases
+the latest clustered index record lock we set.
+
 @param[in,out]	prebuilt		prebuilt struct in MySQL handle
 @param[in]	has_latches_on_recs	TRUE if called so that we have the
 					latches on the records under pcur
@@ -2757,17 +2757,8 @@ row_unlock_for_mysql(
 
 	ut_ad(prebuilt != NULL);
 	ut_ad(trx != NULL);
+	ut_ad(trx->allow_semi_consistent());
 
-	if (UNIV_UNLIKELY
-	    (!srv_locks_unsafe_for_binlog
-	     && trx->isolation_level > TRX_ISO_READ_COMMITTED)) {
-
-		ib::error() << "Calling row_unlock_for_mysql though"
-			" innodb_locks_unsafe_for_binlog is FALSE and this"
-			" session is not using READ COMMITTED isolation"
-			" level.";
-		return;
-	}
 	if (dict_index_is_spatial(prebuilt->index)) {
 		return;
 	}
@@ -3278,7 +3269,8 @@ row_create_index_for_mysql(
 		idx = dict_table_get_index_on_name(table, index_name);
 
 		ut_ad(idx);
-		err = fts_create_index_tables(trx, idx);
+		err = fts_create_index_tables_low(
+			trx, idx, table->name.m_name, table->id);
 	}
 
 error_handling:
@@ -5032,7 +5024,6 @@ row_rename_table_for_mysql(
 	mem_heap_t*	heap			= NULL;
 	const char**	constraints_to_drop	= NULL;
 	ulint		n_constraints_to_drop	= 0;
-	ibool		old_is_tmp, new_is_tmp;
 	pars_info_t*	info			= NULL;
 	int		retry;
 	bool		aux_fts_rename		= false;
@@ -5043,15 +5034,13 @@ row_rename_table_for_mysql(
 
 	if (srv_force_recovery) {
 		ib::info() << MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY;
-		err = DB_READ_ONLY;
-		goto funct_exit;
-
+		return(DB_READ_ONLY);
 	}
 
 	trx->op_info = "renaming table";
 
-	old_is_tmp = row_is_mysql_tmp_table_name(old_name);
-	new_is_tmp = row_is_mysql_tmp_table_name(new_name);
+	const bool	old_is_tmp = row_is_mysql_tmp_table_name(old_name);
+	const bool	new_is_tmp = row_is_mysql_tmp_table_name(new_name);
 
 	dict_locked = trx->dict_operation_lock_mode == RW_X_LATCH;
 
@@ -5407,6 +5396,31 @@ funct_exit:
 		trx_bg->dict_operation_lock_mode = 0;
 		trx_commit_for_mysql(trx_bg);
 		trx_free_for_background(trx_bg);
+	}
+
+	/* If this table has an autoinc column whose counter is non-zero,
+	and is renamed from mysql temporary table to normal table, we need
+	to write back the dynamic metadata of new table, since the table
+	id has been changed. */
+	if (err == DB_SUCCESS && dict_table_has_autoinc_col(table)
+	    && old_is_tmp && !new_is_tmp
+	    && !srv_missing_dd_table_buffer) {
+
+		dict_table_autoinc_lock(table);
+		ib_uint64_t	autoinc = dict_table_autoinc_read(table);
+		dict_table_autoinc_unlock(table);
+
+		if (autoinc != 0 && table->autoinc_persisted == 0) {
+
+			/* Update autoinc_persisted to autoinc - 1 instead of
+			autoinc. The autoinc here is already the counter to
+			be used for next value, if we set them as equal,
+			when we open table to use the counter, we will
+			calculate the next counter, then the autoinc could be
+			set to a bigger one, which is unnecessary. */
+			dict_table_set_and_persist_autoinc(
+				table, autoinc - 1, false);
+		}
 	}
 
 	if (table != NULL) {

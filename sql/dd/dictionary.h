@@ -118,27 +118,6 @@ bool acquire_shared_table_mdl(THD *thd,
 
 /**
   @brief
-    Acquire exclusive metadata lock on the given table name with
-    explicit duration.
-
-  @param thd - THD to which lock belongs to.
-  @param schema_name    - Schema name
-  @param table_name     - Table name
-  @param no_wait        - Use try_acquire_lock() if no_wait is true.
-                          else use acquire_lock() with
-                          thd->variables.lock_wait_timeout timeout value.
-  @param out_mdl_ticket - This is a OUT parameter, a pointer to MDL_ticket
-                          upon successful lock attempt.
-
-*/
-bool acquire_exclusive_table_mdl(THD *thd,
-                                 const char *schema_name,
-                                 const char *table_name,
-                                 bool no_wait,
-                                 MDL_ticket **out_mdl_ticket);
-
-/**
-  @brief
     Release MDL_EXPLICIT lock held by a ticket
 
   @param thd - THD to which lock belongs to.

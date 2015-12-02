@@ -40,6 +40,7 @@ extern char *	mysql_unix_port;
                              CLIENT_SESSION_TRACK | \
                              CLIENT_DEPRECATE_EOF)
 
+C_MODE_START
 void read_user_name(char *name);
 my_bool handle_local_infile(MYSQL *mysql, const char *net_filename);
 
@@ -62,6 +63,7 @@ int cli_read_binary_rows(MYSQL_STMT *stmt);
 int cli_unbuffered_fetch(MYSQL *mysql, char **row);
 const char * cli_read_statistics(MYSQL *mysql);
 int cli_read_change_user_result(MYSQL *mysql);
+C_MODE_END
 
 #ifdef EMBEDDED_LIBRARY
 C_MODE_START

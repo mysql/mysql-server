@@ -20,6 +20,16 @@
 
 /* Common defines for all clients */
 
+/*
+  This include needs to be before my_compiler.h (via my_global.h)
+  is included. This is because string conflicts with the define
+  of __attribute__ in my_compiler.h on Sun Studio x86.
+  TODO: Get rid of the __attribute__ define in my_compiler.h
+*/
+#ifdef __cplusplus
+#include <string>
+#endif
+
 #include <my_global.h>
 #include <my_sys.h>
 #include <m_string.h>
@@ -48,7 +58,6 @@ enum options_client
   OPT_SELECT_LIMIT, OPT_MAX_JOIN_SIZE, OPT_SSL_SSL,
   OPT_SSL_KEY, OPT_SSL_CERT, OPT_SSL_CA, OPT_SSL_CAPATH,
   OPT_SSL_CIPHER, OPT_SHUTDOWN_TIMEOUT, OPT_LOCAL_INFILE,
-  OPT_TLS_VERSION,
   OPT_DELETE_MASTER_LOGS, OPT_COMPACT,
   OPT_PROMPT, OPT_IGN_LINES, OPT_TRANSACTION, OPT_MYSQL_PROTOCOL,
   OPT_SHARED_MEMORY_BASE_NAME, OPT_FRM, OPT_SKIP_OPTIMIZATION,
@@ -106,6 +115,8 @@ enum options_client
   OPT_SERVER_PUBLIC_KEY,
   OPT_ENABLE_CLEARTEXT_PLUGIN,
   OPT_CONNECTION_SERVER_ID,
+  OPT_TLS_VERSION,
+  /* Add new option above this */
   OPT_MAX_CLIENT_OPTION
 };
 

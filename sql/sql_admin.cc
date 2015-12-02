@@ -134,23 +134,6 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   }
 
   /*
-    User gave us USE_FRM which means that the header in the index file is
-    trashed.
-    In this case we will try to fix the table the following way:
-    - Rename the data file to a temporary name
-    - Truncate the table
-    - Replace the new data file with the old one
-    - Run a normal repair using the new index file and the old data file
-  */
-
-  if (table->s->frm_version != FRM_VER_TRUE_VARCHAR)
-  {
-    error= send_check_errmsg(thd, table_list, "repair",
-                             "Failed repairing incompatible .frm file");
-    goto end;
-  }
-
-  /*
     Check if this is a table type that stores index and data separately,
     like ISAM or MyISAM. We assume fixed order of engine file name
     extentions array. First element of engine file name extentions array
@@ -260,7 +243,8 @@ static inline bool table_not_corrupt_error(uint sql_errno)
           sql_errno == ER_LOCK_WAIT_TIMEOUT ||
           sql_errno == ER_LOCK_DEADLOCK ||
           sql_errno == ER_CANT_LOCK_LOG_TABLE ||
-          sql_errno == ER_OPEN_AS_READONLY);
+          sql_errno == ER_OPEN_AS_READONLY ||
+          sql_errno == ER_WRONG_OBJECT);
 }
 
 
@@ -366,8 +350,13 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       lex->query_tables= table;
       lex->query_tables_last= &table->next_global;
       lex->query_tables_own_last= 0;
-
-      if (check_view != 1)
+      /*
+        CHECK TABLE command is allowed for views as well. Check on alter flags
+        to differentiate from ALTER TABLE...CHECK PARTITION on which view is not
+        allowed.
+      */
+      if (lex->alter_info.flags & Alter_info::ALTER_ADMIN_PARTITION ||
+        check_view != 1)
         table->required_type= dd::Abstract_table::TT_BASE_TABLE;
 
       if (!thd->locked_tables_mode && repair_table_use_frm)

@@ -181,7 +181,9 @@ bool Index_impl::drop_children(Open_dictionary_tables_ctx *otx)
 
 bool Index_impl::restore_attributes(const Raw_record &r)
 {
-  check_parent_consistency(m_table, r.read_ref_id(Indexes::FIELD_TABLE_ID));
+  if (check_parent_consistency(m_table,
+                               r.read_ref_id(Indexes::FIELD_TABLE_ID)))
+    return true;
 
   restore_id(r, Indexes::FIELD_ID);
   restore_name(r, Indexes::FIELD_NAME);
@@ -272,7 +274,7 @@ void Index_impl::debug_print(std::string &outb) const
     << " [ ";
 
   {
-    std::auto_ptr<Index_element_const_iterator> it(elements());
+    std::unique_ptr<Index_element_const_iterator> it(elements());
 
     while (true)
     {
@@ -352,7 +354,7 @@ uint Index_impl::user_elements_count() const
   if (m_user_elements_count_cache == INVALID_USER_ELEMENTS_COUNT)
   {
     uint count= 0;
-    std::auto_ptr<Index_element_const_iterator> it(user_elements());
+    std::unique_ptr<Index_element_const_iterator> it(user_elements());
 
     while ((it->next()!= NULL))
       count++;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 #include "my_global.h"
 #include "gstream.h"
 #include "spatial.h"
+
+#include <cmath>
 
 namespace gis_algo_unittest {
 
@@ -444,12 +446,12 @@ TEST_F(GisMiscTests, PointxyDistanceTest)
   const point_xy pt4(1, 1e300);
   const point_xy pt5(pt2);
 
-  EXPECT_FALSE(my_isfinite(pt1.distance(pt2)));
-  EXPECT_FALSE(my_isfinite(pt1.distance(pt3)));
-  EXPECT_FALSE(my_isfinite(pt1.distance(pt4)));
-  EXPECT_FALSE(my_isfinite(pt2.distance(pt3)));
-  EXPECT_FALSE(my_isfinite(pt2.distance(pt4)));
-  EXPECT_FALSE(my_isfinite(pt3.distance(pt4)));
+  EXPECT_FALSE(std::isfinite(pt1.distance(pt2)));
+  EXPECT_FALSE(std::isfinite(pt1.distance(pt3)));
+  EXPECT_FALSE(std::isfinite(pt1.distance(pt4)));
+  EXPECT_FALSE(std::isfinite(pt2.distance(pt3)));
+  EXPECT_FALSE(std::isfinite(pt2.distance(pt4)));
+  EXPECT_FALSE(std::isfinite(pt3.distance(pt4)));
   EXPECT_FLOAT_EQ(0.0, pt2.distance(pt5));
 }
 

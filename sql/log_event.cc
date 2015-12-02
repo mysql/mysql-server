@@ -14,11 +14,26 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+/*
+  This include needs to be before my_compiler.h (via my_global.h)
+  is included. This is because string conflicts with the define
+  of __attribute__ in my_compiler.h on Sun Studio x86.
+  TODO: Get rid of the __attribute__ define in my_compiler.h
+*/
+#include <string>
+
 #include "log_event.h"
 
 #include "base64.h"            // base64_encode
 #include "binary_log_funcs.h"  // my_timestamp_binary_length
 #include "mysql/service_my_snprintf.h" // my_snprintf
+#include "mysql.h"             // MYSQL_OPT_MAX_ALLOWED_PACKET
+#include "my_decimal.h"        // my_decimal
+#include "my_time.h"           // MAX_DATE_STRING_REP_LENGTH
+
+#ifdef MYSQL_CLIENT
+#include "mysqlbinlog.h"
+#endif
 
 #ifndef MYSQL_CLIENT
 #include "current_thd.h"
@@ -3993,7 +4008,8 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
         cmd_can_generate_row_events= cmd_must_go_to_trx_cache= TRUE;
         break;
       default:
-        cmd_can_generate_row_events= sqlcom_can_generate_row_events(thd);
+        cmd_can_generate_row_events=
+          sqlcom_can_generate_row_events(thd->lex->sql_command);
         break;
     }
   }
@@ -4952,7 +4968,7 @@ size_t Query_log_event::get_query(const char *buf, size_t length,
   if (fd_event->common_footer->checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF)
     checksum_size= 4;
 
-  db_len= (uint)buf[Q_DB_LEN_OFFSET];
+  db_len= (uchar)buf[Q_DB_LEN_OFFSET];
 
   /* Error if the event content is too small */
   if (length < (common_header_len + query_header_len +
@@ -13037,7 +13053,7 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
       the partial transaction being logged with the GTID on the slave,
       causing data corruption on replication.
     */
-    if (thd->get_transaction()->is_active(Transaction_ctx::SESSION))
+    if (thd->server_status & SERVER_STATUS_IN_TRANS)
     {
       /* This is not an error (XA is safe), just an information */
       rli->report(INFORMATION_LEVEL, 0,

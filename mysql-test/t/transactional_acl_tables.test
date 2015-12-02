@@ -2316,3 +2316,52 @@ FLUSH PRIVILEGES;
 
 DROP USER u1@h;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #21749169 -- ASSERTS 'ERROR != 146' PROVIDED BY WL#7158 AT VARIOUS PLACES ARE HIT
+--echo #
+
+CREATE TABLE t1 (a INT);
+CREATE USER u1;
+
+# Add record into mysql.tables_priv
+GRANT ALL ON test.t1 TO 'u1' ;
+SET autocommit = 0;
+
+--connect (con1, localhost, root,,)
+--echo connection con1
+SET autocommit = 0;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SAVEPOINT A;
+
+DELETE FROM mysql . tables_priv WHERE user = 'u1' LIMIT 1;
+
+# Without a patch the following statement would leave MDL lock unreleased
+# on mysql.tables_priv. This lock has been acquired when DELETE being executed.
+# It would led to the DBUG_ASSERT(error != HA_ERR_LOCK_WAIT_TIMEOUT) later
+# when GRANT ALL be handled.
+ROLLBACK WORK TO SAVEPOINT A;
+
+--connection default
+--echo connection default
+
+SET innodb_lock_wait_timeout= 1;
+# Without the patch the following statement would fire
+# DBUG_ASSERT(error != HA_ERR_LOCK_WAIT_TIMEOUT)
+
+--send GRANT ALL ON t1 TO 'u1'
+
+--connection con1
+let $wait_timeout= 2;
+let $wait_condition= SELECT 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+WHERE state = 'Waiting for table metadata lock' AND
+      info = 'GRANT ALL ON t1 TO \'u1\'';
+--source include/wait_condition.inc
+
+--connection default
+--disconnect con1
+# Reap result of GRANT ALL ON t1 TO 'u1'
+--reap
+
+DROP USER u1;
+DROP TABLE t1;

@@ -18,6 +18,7 @@
 #include <memory>
 #include <vector>
 
+#include "../sql/dd/properties.h"
 #include "../sql/dd/impl/collection_impl.h"
 #include "../sql/dd/impl/types/table_impl.h"
 #include "../sql/dd/types/column.h"

@@ -172,8 +172,8 @@ public:
 private:
   // Fields.
 
-  std::auto_ptr<Properties> m_options;
-  std::auto_ptr<Properties> m_se_private_data;
+  std::unique_ptr<Properties> m_options;
+  std::unique_ptr<Properties> m_se_private_data;
 
   // References to tightly-coupled objects.
 

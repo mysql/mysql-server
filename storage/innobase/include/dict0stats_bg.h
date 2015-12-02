@@ -139,6 +139,10 @@ DECLARE_THREAD(dict_stats_thread)(
 	void*	arg);	/*!< in: a dummy parameter
 			required by os_thread_create */
 
+/** Shutdown the dict stats thread. */
+void
+dict_stats_shutdown();
+
 # ifndef UNIV_NONINL
 #  include "dict0stats_bg.ic"
 # endif

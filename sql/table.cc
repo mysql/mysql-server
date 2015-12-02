@@ -232,9 +232,9 @@ GRANT_INFO::GRANT_INFO()
 
 /* Get column name from column hash */
 
-uchar *get_field_name(Field **buff, size_t *length,
-                      my_bool not_used __attribute__((unused)))
+const uchar *get_field_name(const uchar *arg, size_t *length)
 {
+  const Field * const * buff= reinterpret_cast<const Field * const *>(arg);
   *length= strlen((*buff)->field_name);
   return (uchar*) (*buff)->field_name;
 }
@@ -463,7 +463,6 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   share->path.str=               (char*) path;
   share->normalized_path.str=    (char*) path;
   share->path.length= share->normalized_path.length= strlen(path);
-  share->frm_version= 		 FRM_VER_TRUE_VARCHAR;
 
   share->cached_row_logging_check= -1;
 
@@ -1844,6 +1843,10 @@ int set_zone(int nr, int min_zone, int max_zone)
 void append_unescaped(String *res, const char *pos, size_t length)
 {
   const char *end= pos+length;
+
+  if (res->reserve(length + 2))
+    return;
+
   res->append('\'');
 
   for (; pos != end ; pos++)

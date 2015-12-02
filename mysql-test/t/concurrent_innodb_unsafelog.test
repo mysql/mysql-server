@@ -16,8 +16,11 @@
 
 let $engine_type= InnoDB;
 
-SET GLOBAL TRANSACTION ISOLATION LEVEL REPEATABLE READ;
-# innodb_locks_unsafe_for_binlog is set fro this test.
+SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED;
+SET @old_lock_wait_timeout= @@global.innodb_lock_wait_timeout;
+SET GLOBAL innodb_lock_wait_timeout=1;
 
 --source include/concurrent.inc
 
+SET GLOBAL TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+SET GLOBAL innodb_lock_wait_timeout= @old_lock_wait_timeout;

@@ -518,7 +518,7 @@ test/t6_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t
 test/t7_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s0.ibd
 test/t7_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s1.ibd
 test/t5_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd
-test/t6_restart#p#p2	Single	DEFAULT	8192	Compressed	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p2.ibd
+test/t6_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p2.ibd
 test/t7_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s2.ibd
 test/t7_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s3.ibd
 === information_schema.files ===
@@ -617,7 +617,7 @@ test/t6_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t
 test/t7_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s0.ibd
 test/t7_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s1.ibd
 test/t5_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd
-test/t6_restart#p#p2	Single	DEFAULT	8192	Compressed	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p2.ibd
+test/t6_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p2.ibd
 test/t7_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s2.ibd
 test/t7_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s3.ibd
 === information_schema.files ===
@@ -710,7 +710,7 @@ test/t66_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/
 test/t77_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s0.ibd
 test/t77_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s1.ibd
 test/t55_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
-test/t66_restart#p#p2	Single	DEFAULT	8192	Compressed	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
+test/t66_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
 test/t77_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s2.ibd
 test/t77_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s3.ibd
 === information_schema.files ===
@@ -804,7 +804,7 @@ test/t66_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/
 test/t77_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s0.ibd
 test/t77_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s1.ibd
 test/t55_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
-test/t66_restart#p#p2	Single	DEFAULT	8192	Compressed	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
+test/t66_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
 test/t77_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s2.ibd
 test/t77_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s3.ibd
 === information_schema.files ===
@@ -898,7 +898,7 @@ test/t66_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/
 test/t77_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s0.ibd
 test/t77_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s1.ibd
 test/t55_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
-test/t66_restart#p#p2	Single	DEFAULT	8192	Compressed	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
+test/t66_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
 test/t77_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s2.ibd
 test/t77_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s3.ibd
 === information_schema.files ===
@@ -995,7 +995,7 @@ test/t66_restart#p#p1	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/
 test/t77_restart#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s0.ibd
 test/t77_restart#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s1.ibd
 test/t55_restart	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
-test/t66_restart#p#p2	Single	DEFAULT	8192	Compressed	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
+test/t66_restart#p#p2	Single	DEFAULT	2048	Compressed	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
 test/t77_restart#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s2.ibd
 test/t77_restart#p#p1#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s3.ibd
 === information_schema.files ===

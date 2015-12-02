@@ -2128,7 +2128,14 @@ loop:
 			that we can recover all committed transactions in
 			a crash recovery. We must not write the lsn stamps
 			to the data files, since at a startup InnoDB deduces
-			from the stamps if the previous shutdown was clean. */
+			from the stamps if the previous shutdown was clean.
+
+			In this path, there is no checkpoint, so we have to
+			write back persistent metadata before flushing.
+			There should be no concurrent DML, so no need to
+			require dict_persist::lock. */
+
+			dict_persist_to_dd_table_buffer();
 
 			log_buffer_flush_to_disk();
 

@@ -27,6 +27,7 @@
 #include "tzfile.h"            // TZ_MAX_REV_RANGES
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_memory.h"
+#include "template_utils.h"
 
 #if !defined(TZINFO2SQL)
 #include "hash.h"              // HASH
@@ -1499,29 +1500,22 @@ public:
 };
 
 
-/*
-  We are going to call both of these functions from C code so
-  they should obey C calling conventions.
-*/
-
-extern "C" {
-static uchar *
-my_tz_names_get_key(Tz_names_entry *entry, size_t *length,
-                    my_bool not_used __attribute__((unused)))
+static const uchar *
+my_tz_names_get_key(const uchar *arg, size_t *length)
 {
+  const Tz_names_entry *entry= pointer_cast<const Tz_names_entry*>(arg);
   *length= entry->name.length();
   return (uchar*) entry->name.ptr();
 }
 
-static uchar *
-my_offset_tzs_get_key(Time_zone_offset *entry,
-                      size_t *length,
-                      my_bool not_used __attribute__((unused)))
+static const uchar *
+my_offset_tzs_get_key(const uchar *arg,
+                      size_t *length)
 {
+  const Time_zone_offset *entry= pointer_cast<const Time_zone_offset*>(arg);
   *length= sizeof(long);
   return (uchar*) &entry->offset;
 }
-} // extern "C"
 
 
 /*
@@ -1638,14 +1632,14 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
 
   /* Init all memory structures that require explicit destruction */
   if (my_hash_init(&tz_names, &my_charset_latin1, 20,
-                   0, 0, (my_hash_get_key) my_tz_names_get_key, 0, 0,
+                   0, 0, my_tz_names_get_key, 0, 0,
                    key_memory_tz_storage))
   {
     sql_print_error("Fatal error: OOM while initializing time zones");
     goto end;
   }
   if (my_hash_init(&offset_tzs, &my_charset_latin1, 26, 0, 0,
-                   (my_hash_get_key)my_offset_tzs_get_key, 0, 0,
+                   my_offset_tzs_get_key, 0, 0,
                    key_memory_tz_storage))
   {
     sql_print_error("Fatal error: OOM while initializing time zones");

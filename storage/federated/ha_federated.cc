@@ -385,6 +385,7 @@
 #include "mysqld.h"                             // my_localhost
 #include "sql_class.h"
 #include "mysql/psi/mysql_memory.h"
+#include "template_utils.h"
 
 #include <algorithm>
 
@@ -424,9 +425,9 @@ static handler *federated_create_handler(handlerton *hton,
 
 /* Function we use in the creation of our hash to get key */
 
-static uchar *federated_get_key(FEDERATED_SHARE *share, size_t *length,
-                                my_bool not_used __attribute__ ((unused)))
+static const uchar *federated_get_key(const uchar *arg, size_t *length)
 {
+  const FEDERATED_SHARE *share= pointer_cast<const FEDERATED_SHARE*>(arg);
   *length= share->share_key_length;
   return (uchar*) share->share_key;
 }
@@ -499,7 +500,7 @@ static int federated_db_init(void *p)
                        &federated_mutex, MY_MUTEX_INIT_FAST))
     goto error;
   if (!my_hash_init(&federated_open_tables, &my_charset_bin, 32, 0, 0,
-                    (my_hash_get_key) federated_get_key, 0, 0,
+                    federated_get_key, 0, 0,
                     fe_key_memory_federated_share))
   {
     DBUG_RETURN(FALSE);

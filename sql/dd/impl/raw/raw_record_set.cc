@@ -143,8 +143,8 @@ Raw_record_set::~Raw_record_set()
     if (rc)
     {
       /* purecov: begin inspected */
-      m_table->file->print_error(rc, MYF(0));
-      DBUG_ASSERT(!"Not suppose to hit here.");
+      m_table->file->print_error(rc, MYF(ME_ERRORLOG));
+      DBUG_ASSERT(false);
       /* purecov: end */
     }
   }

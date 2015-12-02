@@ -9,6 +9,4 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-query_cache_size_basic_32           : Bug#13535584
-query_cache_size_basic_64           : Bug#11748572
 #thread_cache_size_func             : Bug#11750172: 2008-11-07 joro main.thread_cache_size_func fails in pushbuild when run with pool of threads

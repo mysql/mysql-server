@@ -108,6 +108,12 @@ check.
 If you make a change in this module make sure that no codepath is
 introduced where a call to log_free_check() is bypassed. */
 
+/** TRUE if we don't have DDTableBuffer in the system tablespace,
+this should be due to we run the server against old data files.
+Please do NOT change this when server is running.
+FIXME: This should be removed away once we can upgrade for new DD. */
+extern bool	srv_missing_dd_table_buffer;
+
 /***********************************************************//**
 Checks if an update vector changes some of the first ordering fields of an
 index record. This is only used in foreign key checks and we can assume
@@ -897,9 +903,11 @@ row_upd_build_difference_binary(
 		}
 	}
 
-	/* Check the virtual columns updates, but there must be some non-virtual
-	column (base columns) change */
-	if (n_diff && n_v_fld) {
+	/* Check the virtual columns updates. Even if there is no non-virtual
+	column (base columns) change, we will still need to build the
+	indexed virtual column value so that undo log would log them (
+	for purge/mvcc purpose) */
+	if (n_v_fld > 0) {
 		row_ext_t*	ext;
 		mem_heap_t*	v_heap = NULL;
 
@@ -2492,6 +2500,97 @@ check_fk:
 	return(err);
 }
 
+/** Get the new autoinc counter from the update vector when there is
+an autoinc field defined in this table.
+@param[in]	update			update vector for the clustered index
+@param[in]	autoinc_field_no	autoinc field's order in clustered index
+@return the new counter if we find it in the update vector, otherwise 0.
+We don't mind that the new counter happens to be 0, we just care about
+non-zero counters. */
+ib_uint64_t
+row_upd_get_new_autoinc_counter(
+	const upd_t*	update,
+	ulint		autoinc_field_no)
+{
+	ulint		n_fields = update->n_fields;
+	dfield_t*	field = NULL;
+
+	for (ulint i = 0; i < n_fields; ++i) {
+		if (update->fields[i].field_no == autoinc_field_no) {
+			field = &update->fields[i].new_val;
+			break;
+		}
+	}
+
+	if (field != NULL) {
+
+		return(row_parse_int_from_field(field));
+	}
+
+	return(0);
+}
+
+/** If the table has autoinc column and the counter is updated to
+some bigger value, we need to log the new autoinc counter. We will
+use the given mtr to do logging for performance reasons.
+@param[in]	node	row update node
+@param[in,out]	mtr	mtr */
+static
+void
+row_upd_check_autoinc_counter(
+	const upd_node_t*	node,
+	AutoIncLogMtr*		mtr)
+{
+	dict_table_t*		table = node->table;
+
+	if (srv_missing_dd_table_buffer) {
+		return;
+	}
+
+	if (!dict_table_has_autoinc_col(table)
+	    || dict_table_is_temporary(table)
+	    || node->row == NULL) {
+
+		return;
+	}
+
+	/* If the node->row hasn't been prepared, there must
+	no order field change and autoinc field should keep
+	as is. Otherwise, we need to check if autoinc field
+	would be changed to a bigger number. */
+	ib_uint64_t		new_counter;
+
+	new_counter = row_upd_get_new_autoinc_counter(
+		node->update, table->autoinc_field_no);
+
+	if (new_counter == 0) {
+
+		return;
+	}
+
+	ib_uint64_t		old_counter;
+	const dict_index_t*	index;
+
+	index = dict_table_get_first_index(table);
+
+	/* The autoinc field order in row is not the
+	same as in clustered index, we need to get
+	the column number in the table instead. */
+	old_counter = row_get_autoinc_counter(
+		node->row,
+		dict_index_get_nth_col_no(
+			index, table->autoinc_field_no));
+
+	/* We just check if the updated counter is bigger than
+	the old one, which may result in more redo logs, since
+	this is safer than checking with the counter in table
+	object. */
+	if (new_counter > old_counter) {
+
+		mtr->log(table, new_counter);
+	}
+}
+
 /***********************************************************//**
 Updates a clustered index record of a row when the ordering fields do
 not change.
@@ -2516,6 +2615,7 @@ row_upd_clust_rec(
 	btr_cur_t*	btr_cur;
 	dberr_t		err;
 	const dtuple_t*	rebuilt_old_pk	= NULL;
+	AutoIncLogMtr	autoinc_mtr(mtr);
 
 	ut_ad(node);
 	ut_ad(dict_index_is_clust(index));
@@ -2542,19 +2642,21 @@ row_upd_clust_rec(
 		err = btr_cur_update_in_place(
 			flags | BTR_NO_LOCKING_FLAG, btr_cur,
 			offsets, node->update,
-			node->cmpl_info, thr, thr_get_trx(thr)->id, mtr);
+			node->cmpl_info, thr, thr_get_trx(thr)->id,
+			autoinc_mtr.get_mtr());
 	} else {
 		err = btr_cur_optimistic_update(
 			flags | BTR_NO_LOCKING_FLAG, btr_cur,
 			&offsets, offsets_heap, node->update,
-			node->cmpl_info, thr, thr_get_trx(thr)->id, mtr);
+			node->cmpl_info, thr, thr_get_trx(thr)->id,
+			autoinc_mtr.get_mtr());
 	}
 
 	if (err == DB_SUCCESS) {
 		goto success;
 	}
 
-	mtr_commit(mtr);
+	autoinc_mtr.commit();
 
 	if (buf_LRU_buf_pool_running_out()) {
 
@@ -2564,8 +2666,8 @@ row_upd_clust_rec(
 	/* We may have to modify the tree structure: do a pessimistic descent
 	down the index tree */
 
-	mtr_start(mtr);
-	mtr->set_named_space(index->space);
+	autoinc_mtr.start();
+	autoinc_mtr.get_mtr()->set_named_space(index->space);
 
 	/* Disable REDO logging as lifetime of temp-tables is limited to
 	server or connection lifetime and so REDO information is not needed
@@ -2573,7 +2675,7 @@ row_upd_clust_rec(
 	Disable locking as temp-tables are not shared across connection. */
 	if (dict_table_is_temporary(index->table)) {
 		flags |= BTR_NO_LOCKING_FLAG;
-		mtr->set_log_mode(MTR_LOG_NO_REDO);
+		autoinc_mtr.get_mtr()->set_log_mode(MTR_LOG_NO_REDO);
 
 		if (dict_table_is_intrinsic(index->table)) {
 			flags |= BTR_NO_UNDO_LOG_FLAG;
@@ -2586,7 +2688,8 @@ row_upd_clust_rec(
 	the same transaction do not modify the record in the meantime.
 	Therefore we can assert that the restoration of the cursor succeeds. */
 
-	ut_a(btr_pcur_restore_position(BTR_MODIFY_TREE, pcur, mtr));
+	ut_a(btr_pcur_restore_position(BTR_MODIFY_TREE, pcur,
+				       autoinc_mtr.get_mtr()));
 
 	ut_ad(!rec_get_deleted_flag(btr_pcur_get_rec(pcur),
 				    dict_table_is_comp(index->table)));
@@ -2599,13 +2702,14 @@ row_upd_clust_rec(
 		flags | BTR_NO_LOCKING_FLAG | BTR_KEEP_POS_FLAG, btr_cur,
 		&offsets, offsets_heap, heap, &big_rec,
 		node->update, node->cmpl_info,
-		thr, thr_get_trx(thr)->id, mtr);
+		thr, thr_get_trx(thr)->id, autoinc_mtr.get_mtr());
 	if (big_rec) {
 		ut_a(err == DB_SUCCESS);
 
 		DEBUG_SYNC_C("before_row_upd_extern");
 		err = btr_store_big_rec_extern_fields(
-			pcur, node->update, offsets, big_rec, mtr,
+			pcur, node->update, offsets, big_rec,
+			autoinc_mtr.get_mtr(),
 			BTR_STORE_UPDATE);
 		DEBUG_SYNC_C("after_row_upd_extern");
 	}
@@ -2626,9 +2730,12 @@ success:
 				index, offsets, rebuilt_old_pk, new_v_row,
 				old_v_row);
 		}
+
+		row_upd_check_autoinc_counter(node, &autoinc_mtr);
 	}
 
-	mtr_commit(mtr);
+	autoinc_mtr.commit();
+
 func_exit:
 	if (heap) {
 		mem_heap_free(heap);

@@ -45,6 +45,7 @@
 #include "mysql.h"
 #include "mysql_trace.h"
 #include "mysql/service_mysql_alloc.h"
+#include "my_sys.h"
 
 /*
   Definition of the global trace_plugin pointer - see plugin_trace.h

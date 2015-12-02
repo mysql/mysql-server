@@ -71,9 +71,9 @@ bool Column_type_element_impl::validate() const
 
 bool Column_type_element_impl::restore_attributes(const Raw_record &r)
 {
-  check_parent_consistency(
-    m_column,
-    r.read_ref_id(Column_type_elements::FIELD_COLUMN_ID));
+  if (check_parent_consistency(m_column,
+        r.read_ref_id(Column_type_elements::FIELD_COLUMN_ID)))
+    return true;
 
   m_index= r.read_uint(Column_type_elements::FIELD_INDEX);
   m_name= r.read_str(Column_type_elements::FIELD_NAME);

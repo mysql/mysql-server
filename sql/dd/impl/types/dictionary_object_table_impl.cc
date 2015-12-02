@@ -44,20 +44,17 @@ bool Dictionary_object_table_impl::restore_object_from_record(
 
   // Create object instance.
 
-  std::auto_ptr<Dictionary_object> obj(
+  std::unique_ptr<Dictionary_object> obj(
     this->create_dictionary_object(record));
 
-  // Restore object attributes from the found record.
-
-  if (obj->impl()->restore_attributes(record))
-  {
-    *o= NULL;
-    DBUG_RETURN(true);
-  }
-
-  // Restore collections within this object.
-
-  if (obj->impl()->restore_children(otx))
+  /*
+    Restore object attributes from the found record.
+    Validate if the object state is correct.
+    Restore collections within this object.
+  */
+  if (obj->impl()->restore_attributes(record) ||
+      obj->impl()->restore_children(otx) ||
+      obj->impl()->validate())
   {
     *o= NULL;
     DBUG_RETURN(true);

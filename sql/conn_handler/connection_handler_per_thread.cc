@@ -306,7 +306,6 @@ static void *handle_connection(void *arg)
       end_connection(thd);
     }
     close_connection(thd);
-    Connection_handler_manager::dec_connection_count();
 
     thd->get_stmt_da()->reset_diagnostics_area();
     thd->release_resources();
@@ -315,6 +314,7 @@ static void *handle_connection(void *arg)
     ERR_remove_state(0);
 
     thd_manager->remove_thd(thd);
+    Connection_handler_manager::dec_connection_count();
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
     /*

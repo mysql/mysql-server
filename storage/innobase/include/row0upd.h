@@ -425,6 +425,15 @@ row_upd_index_parse(
 				built */
 	upd_t**		update_out);/*!< out: update vector */
 
+/** Get the new autoinc counter from the update vector when there is
+an autoinc field defined in this table.
+@param[in]	update			update vector for the clustered index
+@param[in]	autoinc_field_no	autoinc field's order in clustered index
+@return the new counter if we find it in the update vector, otherwise 0 */
+ib_uint64_t
+row_upd_get_new_autoinc_counter(
+	const upd_t*	update,
+	ulint		autoinc_field_no);
 
 /* Update vector field */
 struct upd_field_t{

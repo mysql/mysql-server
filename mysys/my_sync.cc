@@ -68,7 +68,7 @@ int my_sync(File fd, myf my_flags)
     (*before_sync_wait)();
   do
   {
-#if defined(HAVE_FDATASYNC) && HAVE_DECL_FDATASYNC
+#if defined(HAVE_FDATASYNC) && defined(HAVE_DECL_FDATASYNC)
     res= fdatasync(fd);
 #elif defined(HAVE_FSYNC)
     res= fsync(fd);

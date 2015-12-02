@@ -615,7 +615,7 @@ MetadataRecover::apply()
 		dict_table_t*		table;
 
 		table = dict_table_open_on_id(
-			table_id, true, DICT_TABLE_OP_NORMAL);
+			table_id, true, DICT_TABLE_OP_LOAD_TABLESPACE);
 
 		/* If the table is NULL, it might be already dropped */
 		if (table == NULL) {
@@ -2571,20 +2571,6 @@ skip_this_recv_addr:
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/** Apply the table persistent dynamic metadata collected during redo
-to in-memory tables */
-void
-recv_apply_table_dynamic_metadata(void)
-{
-	ut_ad(recv_sys->metadata_recover != NULL);
-
-	recv_sys->metadata_recover->apply();
-
-	/* We don't need the followings any more */
-	UT_DELETE(recv_sys->metadata_recover);
-	recv_sys->metadata_recover = NULL;
-}
-
 /** Tries to parse a single log record.
 @param[out]	type		log record type
 @param[in]	ptr		pointer to a buffer
@@ -3918,9 +3904,10 @@ recv_recovery_from_checkpoint_start(
 	return(DB_SUCCESS);
 }
 
-/** Complete recovery from a checkpoint. */
-void
-recv_recovery_from_checkpoint_finish(void)
+/** Complete the recovery from the latest checkpoint.
+@return recovered persistent metadata */
+MetadataRecover*
+recv_recovery_from_checkpoint_finish()
 {
 	/* Make sure that the recv_writer thread is done. This is
 	required because it grabs various mutexes and we want to
@@ -3949,6 +3936,8 @@ recv_recovery_from_checkpoint_finish(void)
 		}
 	}
 
+	MetadataRecover* metadata = recv_sys->metadata_recover;
+	recv_sys->metadata_recover = NULL;
 	recv_sys_debug_free();
 
 	/* Validate a few system page types that were left uninitialized
@@ -3981,6 +3970,8 @@ recv_recovery_from_checkpoint_finish(void)
 
 	/* Free up the flush_rbt. */
 	buf_flush_free_flush_rbt();
+
+	return(metadata);
 }
 
 /******************************************************//**

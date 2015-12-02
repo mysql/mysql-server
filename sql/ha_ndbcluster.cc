@@ -62,6 +62,7 @@
 #include "../storage/ndb/src/common/util/parse_mask.hpp"
 #include "../storage/ndb/include/util/SparseBitmask.hpp"
 #include "m_ctype.h"
+#include "template_utils.h"
 
 using std::min;
 using std::max;
@@ -422,8 +423,7 @@ native_mutex_t ndbcluster_mutex;
 HASH ndbcluster_open_tables;
 HASH ndbcluster_dropped_tables;
 
-static uchar *ndbcluster_get_key(NDB_SHARE *share, size_t *length,
-                                my_bool);
+static const uchar *ndbcluster_get_key(const uchar *arg, size_t *length);
 
 static void modify_shared_stats(NDB_SHARE *share,
                                 Ndb_local_table_statistics *local_stat);
@@ -1212,9 +1212,9 @@ typedef struct st_thd_ndb_share {
   struct Ndb_local_table_statistics stat;
 } THD_NDB_SHARE;
 static
-uchar *thd_ndb_share_get_key(THD_NDB_SHARE *thd_ndb_share, size_t *length,
-                            my_bool not_used __attribute__((unused)))
+const uchar *thd_ndb_share_get_key(const uchar *arg, size_t *length)
 {
+  const THD_NDB_SHARE *thd_ndb_share= pointer_cast<const THD_NDB_SHARE*>(arg);
   *length= sizeof(thd_ndb_share->key);
   return (uchar*) &thd_ndb_share->key;
 }
@@ -1238,7 +1238,7 @@ Thd_ndb::Thd_ndb(THD* thd) :
   m_error= FALSE;
   options= 0;
   (void) my_hash_init(&open_tables, table_alias_charset, 5, 0, 0,
-                      (my_hash_get_key)thd_ndb_share_get_key, 0, 0,
+                      thd_ndb_share_get_key, 0, 0,
                       PSI_INSTRUMENT_ME);
   m_unsent_bytes= 0;
   m_execute_count= 0;
@@ -12492,11 +12492,10 @@ int ndbcluster_table_exists_in_engine(handlerton *hton, THD* thd,
 }
 
 
-extern "C" uchar* tables_get_key(const char *entry, size_t *length,
-                                my_bool not_used __attribute__((unused)))
+static const uchar* tables_get_key(const uchar *entry, size_t *length)
 {
-  *length= strlen(entry);
-  return (uchar*) entry;
+  *length= strlen(pointer_cast<const char*>(entry));
+  return entry;
 }
 
 
@@ -12719,7 +12718,7 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
     ERR_RETURN(dict->getNdbError());
 
   if (my_hash_init(&ndb_tables, table_alias_charset,list.count,0,0,
-                   (my_hash_get_key)tables_get_key,0,0,
+                   tables_get_key,0,0,
                    PSI_INSTRUMENT_ME))
   {
     DBUG_PRINT("error", ("Failed to init HASH ndb_tables"));
@@ -12727,7 +12726,7 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
   }
 
   if (my_hash_init(&ok_tables, system_charset_info,32,0,0,
-                   (my_hash_get_key)tables_get_key,0,0,
+                   tables_get_key,0,0,
                    PSI_INSTRUMENT_ME))
   {
     DBUG_PRINT("error", ("Failed to init HASH ok_tables"));
@@ -13240,10 +13239,10 @@ int ndbcluster_init(void* p)
   }
 
   (void) my_hash_init(&ndbcluster_open_tables,table_alias_charset,32,0,0,
-                      (my_hash_get_key) ndbcluster_get_key,0,0,
+                      ndbcluster_get_key,0,0,
                       PSI_INSTRUMENT_ME);
   (void) my_hash_init(&ndbcluster_dropped_tables,table_alias_charset,32,0,0,
-                      (my_hash_get_key) ndbcluster_get_key,0,0,
+                      ndbcluster_get_key,0,0,
                       PSI_INSTRUMENT_ME);
   /* start the ndb injector thread */
   if (ndbcluster_binlog_start())
@@ -14029,9 +14028,9 @@ ha_ndbcluster::register_query_cache_table(THD *thd,
 }
 
 
-static uchar *ndbcluster_get_key(NDB_SHARE *share, size_t *length,
-                                my_bool)
+static const uchar *ndbcluster_get_key(const uchar *arg, size_t *length)
 {
+  const NDB_SHARE *share= pointer_cast<const NDB_SHARE*>(arg);
   *length= share->key_length();
   return (uchar*) share->key_string();
 }

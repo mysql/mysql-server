@@ -56,7 +56,6 @@ public:
     FIELD_NAME,
     FIELD_TYPE,
     FIELD_ENGINE,
-    FIELD_VERSION,
     FIELD_MYSQL_VERSION_ID,
     FIELD_COLLATION_ID,
     FIELD_COMMENT,
@@ -107,9 +106,6 @@ public:
     m_target_def.add_field(FIELD_ENGINE,
                            "FIELD_ENGINE",
                            "engine VARCHAR(64)");
-    m_target_def.add_field(FIELD_VERSION,
-                           "FIELD_VERSION",
-                           "version INT UNSIGNED");
     m_target_def.add_field(FIELD_MYSQL_VERSION_ID,
                            "FIELD_MYSQL_VERSION_ID",
                            "mysql_version_id INT UNSIGNED NOT NULL");
@@ -243,7 +239,7 @@ public:
   static Object_key *create_key_by_schema_id(
     Object_id schema_id);
 
-  static void max_se_private_id(
+  static bool max_se_private_id(
     Open_dictionary_tables_ctx *otx,
     const std::string &engine,
     ulonglong *max_id);

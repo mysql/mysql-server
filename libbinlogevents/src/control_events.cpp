@@ -13,13 +13,20 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+/*
+  This include needs to be before my_compiler.h (via my_global.h)
+  is included. This is because string conflicts with the define
+  of __attribute__ in my_compiler.h on Sun Studio x86.
+  TODO: Get rid of the __attribute__ define in my_compiler.h
+*/
+#include <string>
+
 #include "binary_log_types.h"
 
 #include "statement_events.h"
 
 #include <algorithm>
 #include <cstdio>
-#include <string>
 
 namespace binary_log
 {
@@ -340,8 +347,8 @@ Format_description_event(const char* buf, unsigned int event_len,
 
   post_header_len.resize(number_of_event_types);
   post_header_len.insert(post_header_len.begin(),
-                         buf + ST_COMMON_HEADER_LEN_OFFSET + 1,
-                         (buf + ST_COMMON_HEADER_LEN_OFFSET + 1 +
+                         reinterpret_cast<const uint8_t*>(buf + ST_COMMON_HEADER_LEN_OFFSET + 1),
+                         reinterpret_cast<const uint8_t*>(buf + ST_COMMON_HEADER_LEN_OFFSET + 1 +
                           number_of_event_types));
 
   calc_server_version_split();

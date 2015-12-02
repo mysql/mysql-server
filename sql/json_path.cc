@@ -34,7 +34,7 @@
 #include <m_ctype.h>
 
 #include <cwctype>
-#include <memory>                               // auto_ptr
+#include <memory>                               // unique_ptr
 #include <string>
 
 // For use in Json_path::parse_path
@@ -610,7 +610,7 @@ const char *Json_path::parse_member_leg(const char *charptr,
 
     charptr= key_end;
 
-    std::auto_ptr<const Json_string> jstr;
+    std::unique_ptr<const Json_string> jstr;
 
     if (was_quoted)
     {

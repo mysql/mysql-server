@@ -2842,51 +2842,6 @@ fil_discard_tablespace(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/*******************************************************************//**
-Renames the memory cache structures of a single-table tablespace.
-@return true if success */
-static
-bool
-fil_rename_tablespace_in_mem(
-/*=========================*/
-	fil_space_t*	space,	/*!< in: tablespace memory object */
-	fil_node_t*	node,	/*!< in: file node of that tablespace */
-	const char*	new_name,	/*!< in: new name */
-	const char*	new_path)	/*!< in: new file path */
-{
-	fil_space_t*	space2;
-	const char*	old_name	= space->name;
-
-	ut_ad(mutex_own(&fil_system->mutex));
-
-	space2 = fil_space_get_by_name(old_name);
-	if (space != space2) {
-		ib::error() << "Cannot find " << old_name
-			<< " in tablespace memory cache";
-		return(false);
-	}
-
-	space2 = fil_space_get_by_name(new_name);
-	if (space2 != NULL) {
-		ib::error() << new_name
-			<< " is already in tablespace memory cache";
-
-		return(false);
-	}
-
-	HASH_DELETE(fil_space_t, name_hash, fil_system->name_hash,
-		    ut_fold_string(space->name), space);
-	ut_free(space->name);
-	ut_free(node->name);
-
-	space->name = mem_strdup(new_name);
-	node->name = mem_strdup(new_path);
-
-	HASH_INSERT(fil_space_t, name_hash, fil_system->name_hash,
-		    ut_fold_string(space->name), space);
-	return(true);
-}
-
 /** Allocate and build a file name from a path, a table or tablespace name
 and a suffix.
 @param[in]	path	NULL or the direcory path or the full path and filename
@@ -3052,22 +3007,16 @@ fil_rename_tablespace(
 	fil_space_t*	space;
 	fil_node_t*	node;
 	ulint		count		= 0;
-	char*		old_name	= NULL;
-	const char*	new_path	= new_path_in;
 	ut_a(id != 0);
 
-	if (new_path == NULL) {
-		new_path = fil_make_filepath(NULL, new_name, IBD, false);
-	}
-
 	ut_ad(strchr(new_name, '/') != NULL);
-	ut_ad(strchr(new_path, OS_PATH_SEPARATOR) != NULL);
 retry:
 	count++;
 
 	if (!(count % 1000)) {
-		ib::warn() << "Cannot rename " << old_path << " to "
-			<< new_path << ", retried " << count << " times."
+		ib::warn() << "Cannot rename file " << old_path
+			<< " (space id " << id << "), retried " << count
+			<< " times."
 			" There are either pending IOs or flushes or"
 			" the file is being extended.";
 	}
@@ -3076,8 +3025,6 @@ retry:
 
 	space = fil_space_get_by_id(id);
 
-	bool success = false;
-
 	DBUG_EXECUTE_IF("fil_rename_tablespace_failure_1", space = NULL; );
 
 	if (space == NULL) {
@@ -3085,11 +3032,26 @@ retry:
 			<< " in the tablespace memory cache, though the file '"
 			<< old_path
 			<< "' in a rename operation should have that id.";
-
-		goto func_exit;
+func_exit:
+		mutex_exit(&fil_system->mutex);
+		return(false);
 	}
 
 	if (count > 25000) {
+		space->stop_ios = false;
+		goto func_exit;
+	}
+
+	if (space != fil_space_get_by_name(space->name)) {
+		ib::error() << "Cannot find " << space->name
+			<< " in tablespace memory cache";
+		space->stop_ios = false;
+		goto func_exit;
+	}
+
+	if (fil_space_get_by_name(new_name)) {
+		ib::error() << new_name
+			<< " is already in tablespace memory cache";
 		space->stop_ios = false;
 		goto func_exit;
 	}
@@ -3123,10 +3085,9 @@ retry:
 		fil_node_close_file(node);
 	}
 
+	mutex_exit(&fil_system->mutex);
+
 	if (sleep) {
-
-		mutex_exit(&fil_system->mutex);
-
 		os_thread_sleep(20000);
 
 		if (flush) {
@@ -3137,54 +3098,86 @@ retry:
 		goto retry;
 	}
 
-	old_name = mem_strdup(space->name);
+	ut_ad(space->stop_ios);
 
-	/* Rename the tablespace and the node in the memory cache */
-	success = fil_rename_tablespace_in_mem(
-		space, node, new_name, new_path);
+	char*	new_file_name = new_path_in == NULL
+		? fil_make_filepath(NULL, new_name, IBD, false)
+		: mem_strdup(new_path_in);
+	char*	old_file_name = node->name;
+	char*	new_space_name = mem_strdup(new_name);
+	char*	old_space_name = space->name;
+	ulint	old_fold = ut_fold_string(old_space_name);
+	ulint	new_fold = ut_fold_string(new_space_name);
 
-	if (success) {
-
-		DBUG_EXECUTE_IF("fil_rename_tablespace_failure_2",
-			goto skip_second_rename; );
-
-		success = os_file_rename(
-			innodb_data_file_key, old_path, new_path);
-
-		DBUG_EXECUTE_IF("fil_rename_tablespace_failure_2",
-skip_second_rename:
-			success = false; );
-
-		if (!success) {
-			/* We have to revert the changes we made
-			to the tablespace memory cache */
-
-			bool	reverted = fil_rename_tablespace_in_mem(
-				space, node, old_name, old_path);
-
-			ut_a(reverted);
-		}
-	}
-
-	ut_free(old_name);
-	space->stop_ios = false;
-
-func_exit:
-	mutex_exit(&fil_system->mutex);
+	ut_ad(strchr(old_file_name, OS_PATH_SEPARATOR) != NULL);
+	ut_ad(strchr(new_file_name, OS_PATH_SEPARATOR) != NULL);
 
 #ifndef UNIV_HOTBACKUP
-	if (success && !recv_recovery_on) {
+	if (!recv_recovery_on) {
 		mtr_t		mtr;
 
-		mtr_start(&mtr);
-		fil_name_write_rename(id, 0, old_path, new_path, &mtr);
-		mtr_commit(&mtr);
+		mtr.start();
+		fil_name_write_rename(
+			id, 0, old_file_name, new_file_name, &mtr);
+		mtr.commit();
+		log_mutex_enter();
 	}
 #endif /* !UNIV_HOTBACKUP */
 
-	if (new_path != new_path_in) {
-		ut_free(const_cast<char*>(new_path));
+	/* log_sys->mutex is above fil_system->mutex in the latching order */
+	ut_ad(log_mutex_own());
+	mutex_enter(&fil_system->mutex);
+
+	ut_ad(space->name == old_space_name);
+	/* We already checked these. */
+	ut_ad(space == fil_space_get_by_name(old_space_name));
+	ut_ad(!fil_space_get_by_name(new_space_name));
+	ut_ad(node->name == old_file_name);
+
+	bool	success;
+
+	DBUG_EXECUTE_IF("fil_rename_tablespace_failure_2",
+			goto skip_rename; );
+
+	success = os_file_rename(
+		innodb_data_file_key, old_file_name, new_file_name);
+
+	DBUG_EXECUTE_IF("fil_rename_tablespace_failure_2",
+			skip_rename: success = false; );
+
+	ut_ad(node->name == old_file_name);
+
+	if (success) {
+		node->name = new_file_name;
 	}
+
+#ifndef UNIV_HOTBACKUP
+	if (!recv_recovery_on) {
+		log_mutex_exit();
+	}
+#endif /* !UNIV_HOTBACKUP */
+
+	ut_ad(space->name == old_space_name);
+
+	if (success) {
+		HASH_DELETE(fil_space_t, name_hash, fil_system->name_hash,
+			    old_fold, space);
+		space->name = new_space_name;
+		HASH_INSERT(fil_space_t, name_hash, fil_system->name_hash,
+			    new_fold, space);
+	} else {
+		/* Because nothing was renamed, we must free the new
+		names, not the old ones. */
+		old_file_name = new_file_name;
+		old_space_name = new_space_name;
+	}
+
+	ut_ad(space->stop_ios);
+	space->stop_ios = false;
+	mutex_exit(&fil_system->mutex);
+
+	ut_free(old_file_name);
+	ut_free(old_space_name);
 
 	return(success);
 }

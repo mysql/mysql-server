@@ -46,13 +46,7 @@ bool Open_dictionary_tables_ctx::open_tables()
 {
   DBUG_ENTER("Open_dictionary_tables_ctx::open_tables");
 
-  if (m_tables.empty())
-  {
-    /* purecov: begin inspected */
-    DBUG_ASSERT(!"No DD table to open.");
-    DBUG_RETURN(true);
-    /* purecov: end */
-  }
+  DBUG_ASSERT(!m_tables.empty());
 
   Object_table_map::iterator it= m_tables.begin();
   Object_table_map::iterator it_next= m_tables.begin();

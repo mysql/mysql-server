@@ -3717,6 +3717,9 @@ row_import_for_mysql(
 	dict_table_autoinc_lock(table);
 	dict_table_autoinc_initialize(table, autoinc);
 	dict_table_autoinc_unlock(table);
+	/* This should be set later in handler level, where we know the
+	autoinc counter field index */
+	table->autoinc_field_no = ULINT_UNDEFINED;
 
 	ut_a(err == DB_SUCCESS);
 

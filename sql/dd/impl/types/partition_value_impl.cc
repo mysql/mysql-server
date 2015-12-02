@@ -81,9 +81,9 @@ bool Partition_value_impl::validate() const
 
 bool Partition_value_impl::restore_attributes(const Raw_record &r)
 {
-  check_parent_consistency(
-    m_partition,
-    r.read_ref_id(Table_partition_values::FIELD_PARTITION_ID));
+  if (check_parent_consistency(
+        m_partition, r.read_ref_id(Table_partition_values::FIELD_PARTITION_ID)))
+    return true;
 
   m_list_num= r.read_uint(Table_partition_values::FIELD_LIST_NUM);
 

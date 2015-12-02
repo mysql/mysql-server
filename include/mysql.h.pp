@@ -213,7 +213,7 @@ extern int list_walk(LIST *,list_walk_action action,unsigned char * argument);
 #include "mysql/client_plugin.h"
 struct st_mysql_client_plugin
 {
-  int type; unsigned int interface_version; const char *name; const char *author; const char *desc; unsigned int version[3]; const char *license; void *mysql_api; int (*init)(char *, size_t, int, va_list); int (*deinit)(); int (*options)(const char *option, const void *);
+  int type; unsigned int interface_version; const char *name; const char *author; const char *desc; unsigned int version[3]; const char *license; void *mysql_api; int (*init)(char *, size_t, int, va_list); int (*deinit)(void); int (*options)(const char *option, const void *);
 };
 struct st_mysql;
 #include <mysql/plugin_auth_common.h>
@@ -234,7 +234,7 @@ typedef struct st_plugin_vio
 } MYSQL_PLUGIN_VIO;
 struct st_mysql_client_plugin_AUTHENTICATION
 {
-  int type; unsigned int interface_version; const char *name; const char *author; const char *desc; unsigned int version[3]; const char *license; void *mysql_api; int (*init)(char *, size_t, int, va_list); int (*deinit)(); int (*options)(const char *option, const void *);
+  int type; unsigned int interface_version; const char *name; const char *author; const char *desc; unsigned int version[3]; const char *license; void *mysql_api; int (*init)(char *, size_t, int, va_list); int (*deinit)(void); int (*options)(const char *option, const void *);
   int (*authenticate_user)(MYSQL_PLUGIN_VIO *vio, struct st_mysql *mysql);
 };
 struct st_mysql_client_plugin *
@@ -353,7 +353,6 @@ enum mysql_option
   MYSQL_OPT_BIND,
   MYSQL_OPT_SSL_KEY, MYSQL_OPT_SSL_CERT,
   MYSQL_OPT_SSL_CA, MYSQL_OPT_SSL_CAPATH, MYSQL_OPT_SSL_CIPHER,
-  MYSQL_OPT_TLS_VERSION,
   MYSQL_OPT_SSL_CRL, MYSQL_OPT_SSL_CRLPATH,
   MYSQL_OPT_CONNECT_ATTR_RESET, MYSQL_OPT_CONNECT_ATTR_ADD,
   MYSQL_OPT_CONNECT_ATTR_DELETE,
@@ -361,7 +360,8 @@ enum mysql_option
   MYSQL_ENABLE_CLEARTEXT_PLUGIN,
   MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
   MYSQL_OPT_SSL_ENFORCE,
-  MYSQL_OPT_MAX_ALLOWED_PACKET, MYSQL_OPT_NET_BUFFER_LENGTH
+  MYSQL_OPT_MAX_ALLOWED_PACKET, MYSQL_OPT_NET_BUFFER_LENGTH,
+  MYSQL_OPT_TLS_VERSION
 };
 struct st_mysql_options_extention;
 struct st_mysql_options {
@@ -369,7 +369,7 @@ struct st_mysql_options {
   unsigned int port, protocol;
   unsigned long client_flag;
   char *host,*user,*password,*unix_socket,*db;
-  struct st_dynamic_array *init_commands;
+  struct Init_commands_array *init_commands;
   char *my_cnf_file,*my_cnf_group, *charset_dir, *charset_name;
   char *ssl_key;
   char *ssl_cert;

@@ -18,13 +18,14 @@
 
 #include "my_global.h"
 
+#include "dd/properties.h"                    // dd::Properties
 #include "dd/impl/collection_item.h"          // dd::Collection_item
 #include "dd/impl/os_specific.h"              // DD_HEADER_BEGIN
 #include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
 #include "dd/types/column.h"                  // dd::Column
 #include "dd/types/object_type.h"             // dd::Object_type
 
-#include <memory>   // std::auto_ptr
+#include <memory>   // std::unique_ptr
 
 DD_HEADER_BEGIN
 
@@ -414,15 +415,15 @@ private:
   std::string m_generation_expression;
   std::string m_generation_expression_utf8;
 
-  std::auto_ptr<Properties> m_options;
-  std::auto_ptr<Properties> m_se_private_data;
+  std::unique_ptr<Properties> m_options;
+  std::unique_ptr<Properties> m_se_private_data;
 
   // References to tightly-coupled objects.
 
   Abstract_table_impl *m_table;
 
-  std::auto_ptr<Column_type_element_collection> m_enum_elements;
-  std::auto_ptr<Column_type_element_collection> m_set_elements;
+  std::unique_ptr<Column_type_element_collection> m_enum_elements;
+  std::unique_ptr<Column_type_element_collection> m_set_elements;
 
   // References to loosely-coupled objects.
 

@@ -1882,8 +1882,7 @@ Item_in_subselect::single_value_transformer(SELECT_LEX *select,
     if (left == NULL)
       DBUG_RETURN(RES_ERROR);
 
-    // Make the left expression "outer" relative to the subquery
-    if (!left_expr->const_item())
+    if (mark_as_outer(left_expr))
       left->depended_from= select->outer_select();
 
     m_injected_left_expr= left;
@@ -2312,9 +2311,9 @@ Item_in_subselect::row_value_in_to_exists_transformer(SELECT_LEX *select)
       if (left == NULL)
         DBUG_RETURN(RES_ERROR);              /* purecov: inspected */
 
-      // Make the left expression "outer" relative to the subquery
-      if (!left_expr->element_index(i)->const_item())
-        left->depended_from= select->outer_select();
+      if (mark_as_outer(left_expr->element_index(i)))
+          left->depended_from= select->outer_select();
+
       Item_bool_func *item_eq=
         new Item_func_eq(left,
                          new
@@ -2403,8 +2402,7 @@ Item_in_subselect::row_value_in_to_exists_transformer(SELECT_LEX *select)
       if (left == NULL)
         DBUG_RETURN(RES_ERROR);
 
-      // Make the left expression "outer" relative to the subquery
-      if (!left_expr->element_index(i)->const_item())
+      if (mark_as_outer(left_expr->element_index(i)))
         left->depended_from= select->outer_select();
 
       Item_bool_func *item=
@@ -2674,6 +2672,16 @@ void Item_in_subselect::fix_after_pullout(SELECT_LEX *parent_select,
 
 bool Item_in_subselect::init_left_expr_cache()
 {
+  /*
+    Check if the left operand is a subquery that yields an empty set of rows.
+    If so, skip initializing a cache; for an empty set the subquery
+    exec won't read any rows and so lead to uninitalized reads if attempted.
+  */
+  if (left_expr->type() == SUBSELECT_ITEM && left_expr->null_value)
+  {
+    return false;
+  }
+
   JOIN *outer_join;
   bool use_result_field= FALSE;
 

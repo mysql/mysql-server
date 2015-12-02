@@ -1,0 +1,32 @@
+#
+# BUG#21463167 - GTIDS: LOCK_OPEN DEADLOCK WITH REVOKE INCIDENT +
+#                SHOW TABLE STATUS CONCURRENTLY
+#
+CREATE USER u1;
+CREATE TABLE t1(a INT);
+CREATE VIEW v1 AS SELECT * FROM t1;
+CALL mtr.add_suppression("REVOKE failed while revoking all_privileges from a list of users.");
+connect  con1, localhost, root,,;
+SET debug="+d,force_mysql_revoke_all_fail";
+SET DEBUG_SYNC='revoke_all_before_write_incident_to_binlog SIGNAL revoke_all_has_lock_grant WAIT_FOR revoke_all_cont';
+connection default;
+SET debug="+d,force_check_table_access_return_ok";
+connection con1;
+# Sending REVOKE ALL PRIVILEGES
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'u1'@'%';
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR revoke_all_has_lock_grant';
+SET DEBUG_SYNC='fill_effective_table_privileges SIGNAL revoke_all_cont';
+SHOW TABLE STATUS;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	InnoDB	10	Dynamic	0	0	16384	0	0	0	NULL	x	NULL	NULL	latin1_swedish_ci	NULL		
+v1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	x	NULL	NULL	NULL	NULL	NULL	VIEW
+connection con1;
+# Reaping REVOKE ALL PRIVILEGES
+ERROR HY000: Can't revoke all privileges for one or more of the requested users
+connection default;
+disconnect con1;
+DROP USER u1;
+DROP VIEW v1;
+DROP TABLE t1;
+SET debug='';

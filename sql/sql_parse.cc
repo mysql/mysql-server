@@ -214,6 +214,7 @@ bool stmt_causes_implicit_commit(const THD *thd, uint mask)
     skip= (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE);
     break;
   case SQLCOM_SET_OPTION:
+    /* Implicitly commit a transaction started by a SET statement */
     skip= lex->autocommit ? FALSE : TRUE;
     break;
   default:
@@ -730,12 +731,11 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_ALTER_TABLESPACE]|= CF_NEEDS_AUTOCOMMIT_OFF;
 }
 
-bool sqlcom_can_generate_row_events(const THD *thd)
+bool sqlcom_can_generate_row_events(enum enum_sql_command command)
 {
-  return (sql_command_flags[thd->lex->sql_command] &
-          CF_CAN_GENERATE_ROW_EVENTS);
+  return (sql_command_flags[command] & CF_CAN_GENERATE_ROW_EVENTS);
 }
- 
+
 bool is_update_query(enum enum_sql_command command)
 {
   DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
@@ -1527,6 +1527,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     TABLE_LIST table_list;
     LEX_STRING table_name;
     LEX_STRING db;
+    push_deprecated_warn(thd, "COM_FIELD_LIST",
+                         "SHOW COLUMNS FROM statement");
     /*
       SHOW statements should not add the used tables to the list of tables
       used in a transaction.
@@ -1654,7 +1656,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
   case COM_REFRESH:
   {
     int not_used;
-
+    push_deprecated_warn(thd, "COM_REFRESH", "FLUSH statement");
     /*
       Initialize thd->lex since it's used in many base functions, such as
       open_tables(). Otherwise, it remains uninitialized and may cause crash
@@ -1770,6 +1772,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     break;
   case COM_PROCESS_INFO:
     thd->status_var.com_stat[SQLCOM_SHOW_PROCESSLIST]++;
+    push_deprecated_warn(thd, "COM_PROCESS_INFO",
+                         "SHOW PROCESSLIST statement");
     if (!thd->security_context()->priv_user().str[0] &&
         check_global_access(thd, PROCESS_ACL))
       break;
@@ -1781,6 +1785,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     break;
   case COM_PROCESS_KILL:
   {
+    push_deprecated_warn(thd, "COM_PROCESS_KILL",
+                         "KILL CONNECTION/QUERY statement");
     if (thd_manager->get_thread_id() & (~0xfffffffful))
       my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "thread_id", "mysql_kill()");
     else

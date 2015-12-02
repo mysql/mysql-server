@@ -33,7 +33,7 @@
 #include <sys/syscall.h>    /* SYS_gettid */
 #endif
 
-#if HAVE_EXECINFO_H
+#ifdef HAVE_EXECINFO_H
 #include <execinfo.h>
 #endif
 
@@ -178,7 +178,7 @@ void my_print_stacktrace(uchar* stack_bottom __attribute__((unused)),
       MYSQL_VERSION_MAJOR, MYSQL_VERSION_MINOR);
 }
 
-#elif HAVE_BACKTRACE
+#elif defined(HAVE_BACKTRACE)
 
 #ifdef HAVE_ABI_CXA_DEMANGLE
 

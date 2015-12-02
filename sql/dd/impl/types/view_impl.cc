@@ -137,7 +137,10 @@ bool View_impl::restore_attributes(const Raw_record &r)
 
   if (m_type != TT_USER_VIEW && m_type != TT_SYSTEM_VIEW)
   {
-    fprintf(stderr, "DD: wrong view type.\n");
+    my_error(ER_INVALID_DD_OBJECT,
+             MYF(0),
+             View_impl::OBJECT_TABLE().name().c_str(),
+             "Invalid view type found.");
     return true;
   }
 
@@ -227,7 +230,7 @@ void View_impl::debug_print(std::string &outb) const
     << "m_connection_collation: {OID: " << m_connection_collation_id << "}; "
     << "m_tables: " << m_tables->size() << " [ ";
 
-  std::auto_ptr<View_table_const_iterator> it(tables());
+  std::unique_ptr<View_table_const_iterator> it(tables());
 
   while (true)
   {

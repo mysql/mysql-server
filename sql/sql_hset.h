@@ -23,7 +23,7 @@
   A type-safe wrapper around mysys HASH.
 */
 
-template <typename T, my_hash_get_key K>
+template <typename T, hash_get_key_function K>
 class Hash_set
 {
 public:
@@ -36,7 +36,6 @@ public:
   Hash_set(PSI_memory_key psi_key)
   {
     m_psi_key= psi_key;
-    my_hash_clear(&m_hash);
   }
   /**
     Destroy the hash by freeing the buckets table. Does
@@ -60,7 +59,7 @@ public:
     my_hash_init_opt(&m_hash, &my_charset_bin, START_SIZE, 0, 0, K, 0, MYF(0),
                      m_psi_key);
     size_t key_len;
-    const uchar *key= K(reinterpret_cast<uchar*>(value), &key_len, FALSE);
+    const uchar *key= K(reinterpret_cast<uchar*>(value), &key_len);
     if (my_hash_search(&m_hash, key, key_len) == NULL)
       return my_hash_insert(&m_hash, reinterpret_cast<uchar *>(value));
     return FALSE;

@@ -47,6 +47,12 @@ MY_ADD_CXX_WARNING_FLAG("Wlogical-op")
 MY_ADD_C_WARNING_FLAG("Wundef")
 MY_ADD_CXX_WARNING_FLAG("Wundef")
 
+# Temporarily convert C++11 related errors to warnings
+MY_CHECK_CXX_COMPILER_FLAG("-Wdeprecated-register" HAVE_DEPRECATED_REGISTER)
+IF(HAVE_DEPRECATED_REGISTER)
+  SET(MY_CXX_WARNING_FLAGS "${MY_CXX_WARNING_FLAGS} -Wno-error=deprecated-register")
+ENDIF()
+
 # Turn on extra Clang warnings in maintainer mode
 IF(CMAKE_C_COMPILER_ID MATCHES "Clang" AND MYSQL_MAINTAINER_MODE)
   MY_ADD_C_WARNING_FLAG("Wconditional-uninitialized")
@@ -70,8 +76,6 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 
   # Turn on extra Clang++ warnings in maintainer mode
   IF(MYSQL_MAINTAINER_MODE)
-    MY_ADD_CXX_WARNING_FLAG("Wc++11-compat-reserved-user-defined-literal")
-    MY_ADD_CXX_WARNING_FLAG("Wc++11-extra-semi")
     MY_ADD_CXX_WARNING_FLAG("Wconditional-uninitialized")
     MY_ADD_CXX_WARNING_FLAG("Wheader-hygiene")
     MY_ADD_CXX_WARNING_FLAG("Wnon-virtual-dtor")

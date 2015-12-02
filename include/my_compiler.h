@@ -151,4 +151,14 @@ struct my_aligned_storage
 # define __attribute__(A)
 #endif
 
+#ifndef __has_attribute
+# define __has_attribute(x) 0
+#endif
+
+#if __has_attribute(no_sanitize_undefined)
+# define SUPPRESS_UBSAN __attribute__((no_sanitize_undefined))
+#else
+# define SUPPRESS_UBSAN
+#endif
+
 #endif /* MY_COMPILER_INCLUDED */

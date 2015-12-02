@@ -21,17 +21,14 @@
 #include "gstream.h"                            // Gis_read_stream
 #include "psi_memory_key.h"
 #include "gis_bg_traits.h"
+#include "mysqld_error.h"
+#include "prealloced_array.h"
 
-#include <mysqld_error.h>
+#include <cmath>                                // isfinite
 #include <map>
 #include <set>
 #include <utility>
-#include <prealloced_array.h>
 
-// Our ifdef trickery for my_isfinite does not work with gcc/sparc unless we:
-#ifdef HAVE_IEEEFP_H
-#include <ieeefp.h>
-#endif
 
 void *gis_wkb_alloc(size_t sz)
 {
@@ -221,10 +218,10 @@ double point_xy::distance(const point_xy& p) const
 {
   /* On 32bit platforms, sqrt(inf) may produce a wrong number that isn't inf. */
   const double a= pow(x - p.x, 2.0);
-  if (!my_isfinite(a))
+  if (!std::isfinite(a))
     return a;
   const double b= pow(y - p.y, 2.0);
-  if (!my_isfinite(a + b))
+  if (!std::isfinite(a + b))
     return a + b;
   return sqrt(a + b);
 }
@@ -1286,7 +1283,7 @@ bool Geometry::get_mbr_for_points(MBR *mbr, wkb_parser *wkb,
 
     point_xy p;
     wkb->scan_xy_unsafe(&p);
-    if (!my_isfinite(p.x) || !my_isfinite(p.y))
+    if (!std::isfinite(p.x) || !std::isfinite(p.y))
       return true;
     mbr->add_xy(p);
   }
@@ -1560,7 +1557,7 @@ bool Gis_point::get_data_as_wkt(String *txt, wkb_parser *wkb) const
     return true;
   if (txt->reserve(MAX_DIGITS_IN_DOUBLE * 2 + 1))
     return true;
-  if (!my_isfinite(p.x) || !my_isfinite(p.y))
+  if (!std::isfinite(p.x) || !std::isfinite(p.y))
     return true;
   txt->qs_append(p.x, MAX_DIGITS_IN_DOUBLE);
   txt->qs_append(' ');
@@ -1574,7 +1571,7 @@ bool Gis_point::get_mbr(MBR *mbr, wkb_parser *wkb) const
   point_xy p;
   if (wkb->scan_xy(&p))
     return true;
-  if (!my_isfinite(p.x) || !my_isfinite(p.y))
+  if (!std::isfinite(p.x) || !std::isfinite(p.y))
     return true;
   mbr->add_xy(p);
   return false;
@@ -1711,7 +1708,7 @@ bool Gis_line_string::get_data_as_wkt(String *txt, wkb_parser *wkb) const
   {
     point_xy p;
     wkb->scan_xy_unsafe(&p);
-    if (!my_isfinite(p.x) || !my_isfinite(p.y))
+    if (!std::isfinite(p.x) || !std::isfinite(p.y))
       return true;
     txt->qs_append(p.x, MAX_DIGITS_IN_DOUBLE);
     txt->qs_append(' ');
@@ -1745,7 +1742,7 @@ int Gis_line_string::geom_length(double *len) const
     point_xy p;
     wkb.scan_xy_unsafe(&p);
     *len+= prev.distance(p);
-    if (!my_isfinite(*len))
+    if (!std::isfinite(*len))
       return 1;
     prev= p;
   }
@@ -1843,8 +1840,8 @@ Gis_polygon::Gis_polygon(const self &r) :Geometry(r), m_inn_rings(NULL)
   if (r.is_bg_adapter() == false || r.get_ptr() == NULL)
     return;
 
-  std::auto_ptr<Gis_polygon::ring_type> guard1;
-  std::auto_ptr<Gis_polygon::inner_container_type> guard2;
+  std::unique_ptr<Gis_polygon::ring_type> guard1;
+  std::unique_ptr<Gis_polygon::inner_container_type> guard2;
 
   if (r.get_ptr())
   {
@@ -4572,7 +4569,7 @@ Gis_wkb_vector(const void *ptr, size_t nbytes, const Flags_t &flags,
   if (!is_bg_adapter)
     return;
 
-  std::auto_ptr<Geo_vector> guard;
+  std::unique_ptr<Geo_vector> guard;
 
   wkbType geotype= get_geotype();
   // Points don't need it, polygon creates it when parsing.
@@ -4602,7 +4599,7 @@ Gis_wkb_vector(const Gis_wkb_vector<T> &v) :Geometry(v), m_geo_vect(NULL)
   if (!v.is_bg_adapter() || (v.get_ptr() == NULL && v.m_geo_vect == NULL))
     return;
   m_geo_vect= new Geo_vector();
-  std::auto_ptr<Geo_vector> guard(m_geo_vect);
+  std::unique_ptr<Geo_vector> guard(m_geo_vect);
 
   const_cast<self &>(v).reassemble();
   set_flags(v.get_flags());

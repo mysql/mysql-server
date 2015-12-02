@@ -46,7 +46,7 @@ let $dd_index_ids= SELECT id FROM indexes
 --echo # timestamps, partitioning, view definitions and
 --echo # default values
 eval SELECT
-    id, name, type, engine, version, collation_id, comment, hidden,
+    id, name, type, engine, collation_id, comment, hidden,
     options, se_private_data, se_private_id, tablespace_id
   FROM tables
   WHERE id IN ($dd_table_ids)

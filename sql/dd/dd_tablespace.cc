@@ -73,7 +73,7 @@ fill_table_and_parts_tablespace_names(THD *thd,
   if (table_obj->partition_type() != dd::Table::PT_NONE)
   {
     // Iterate through tablespace names used by partition.
-    std::auto_ptr<dd::Partition_const_iterator>
+    std::unique_ptr<dd::Partition_const_iterator>
       part_it(table_obj->partitions());
     const dd::Partition *part_obj;
     std::string ts_name;
@@ -182,7 +182,7 @@ bool create_tablespace(THD *thd, st_alter_tablespace *ts_info,
   }
 
   // Create new tablespace.
-  std::auto_ptr<dd::Tablespace> tablespace(dd::create_object<dd::Tablespace>());
+  std::unique_ptr<dd::Tablespace> tablespace(dd::create_object<dd::Tablespace>());
 
   // Set tablespace name
   tablespace->set_name(ts_info->tablespace_name);

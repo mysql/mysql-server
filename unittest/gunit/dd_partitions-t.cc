@@ -18,6 +18,7 @@
 #include <memory>
 #include <vector>
 
+#include "../sql/dd/properties.h"
 #include "../sql/dd/impl/collection_impl.h"
 #include "../sql/dd/types/partition.h"
 #include "../sql/dd/impl/types/partition_impl.h"
@@ -52,7 +53,7 @@ protected:
   {
     const dd::Table_impl *table= m_table;
     std::vector<int> partition_levels;
-    std::auto_ptr<dd::Iterator<const dd::Partition> > it1(table->partitions());
+    std::unique_ptr<dd::Iterator<const dd::Partition> > it1(table->partitions());
 
     while(true) {
       const dd::Partition *p= it1->next();

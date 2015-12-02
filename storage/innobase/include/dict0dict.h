@@ -157,6 +157,13 @@ dict_persist_init(void);
 void
 dict_persist_close(void);
 
+/** Write back the dirty persistent dynamic metadata of the table
+to DDTableBuffer.
+@param[in,out]	table	table object */
+void
+dict_table_persist_to_dd_table_buffer(
+	dict_table_t*	table);
+
 /*********************************************************************//**
 Gets the minimum number of bytes per character.
 @return minimum multi-byte char size, in bytes */
@@ -318,6 +325,7 @@ void
 dict_table_autoinc_lock(
 /*====================*/
 	dict_table_t*	table);	/*!< in/out: table */
+
 /********************************************************************//**
 Unconditionally set the autoinc counter. */
 void
@@ -349,6 +357,53 @@ void
 dict_table_autoinc_unlock(
 /*======================*/
 	dict_table_t*	table);	/*!< in/out: table */
+
+/** Update the persisted autoinc counter to specified one, we should hold
+autoinc_persisted_mutex.
+@param[in,out]	table	table
+@param[in]	counter	set autoinc_persisted to this value */
+UNIV_INLINE
+void
+dict_table_autoinc_persisted_update(
+	dict_table_t*	table,
+	ib_uint64_t	autoinc);
+
+/** Set the column position of autoinc column in clustered index for a table.
+@param[in]	table	table
+@param[in]	pos	column position in table definition */
+UNIV_INLINE
+void
+dict_table_autoinc_set_col_pos(
+	dict_table_t*	table,
+	ulint		pos);
+
+/** Check if a table has an autoinc counter column.
+@param[in]	table	table
+@return true if there is an autoinc column in the table, otherwise false. */
+UNIV_INLINE
+bool
+dict_table_has_autoinc_col(
+	const dict_table_t*	table);
+
+/** Set the persisted autoinc value of the table to the new counter,
+and write the table's dynamic metadata back to DDTableBuffer. This function
+should only be used in DDL operation functions like
+1. create_table_info_t::initialize_autoinc()
+2. ha_innobase::commit_inplace_alter_table()
+3. row_rename_table_for_mysql()
+4. When we do TRUNCATE TABLE
+@param[in,out]	table		table
+@param[in]	counter		new autoinc counter
+@param[in]	log_reset	if true, it means that the persisted
+				autoinc is updated to a smaller one,
+				an autoinc change log with value of 0
+				would be written, otherwise nothing to do */
+void
+dict_table_set_and_persist_autoinc(
+	dict_table_t*	table,
+	ib_uint64_t	counter,
+	bool		log_reset);
+
 #endif /* !UNIV_HOTBACKUP */
 /**********************************************************************//**
 Adds system columns to a table object. */
@@ -381,6 +436,18 @@ void
 dict_table_remove_from_cache(
 /*=========================*/
 	dict_table_t*	table);	/*!< in, own: table */
+
+#ifndef DBUG_OFF
+/** Removes a table object from the dictionary cache, for debug purpose
+@param[in,out]	table		table object
+@param[in]	lru_evict	true if table being evicted to make room
+				in the table LRU list */
+void
+dict_table_remove_from_cache_debug(
+	dict_table_t*	table,
+	bool		lru_evict);
+#endif /* DBUG_OFF */
+
 /**********************************************************************//**
 Renames a table object.
 @return TRUE if success */
@@ -1265,7 +1332,7 @@ dict_index_get_nth_field_pos(
 	ulint			n)	/*!< in: field number in index2 */
 	__attribute__((warn_unused_result));
 /********************************************************************//**
-Looks for column n position in the clustered index.
+Looks for non-virtual column n position in the clustered index.
 @return position in internal representation of the clustered index */
 ulint
 dict_table_get_nth_col_pos(
@@ -1273,6 +1340,17 @@ dict_table_get_nth_col_pos(
 	const dict_table_t*	table,	/*!< in: table */
 	ulint			n)	/*!< in: column number */
 	__attribute__((warn_unused_result));
+
+/** Get the innodb column position for a non-virtual column according to
+its original MySQL table position n
+@param[in]	table	table
+@param[in]	n	MySQL column position
+@return column position in InnoDB */
+ulint
+dict_table_mysql_pos_to_innodb(
+	const dict_table_t*	table,
+	ulint			n);
+
 /********************************************************************//**
 Returns the position of a system column in an index.
 @return position, ULINT_UNDEFINED if not contained */
@@ -1861,9 +1939,10 @@ private:
 	void close();
 
 	/** Prepare for a update on METADATA field
-	@param[in]	entry	entry to insert
+	@param[in]	entry	clustered index entry to replace rec
 	@param[in]	rec	clustered index record
-	@return update vector of differing fields without system columns */
+	@return update vector of differing fields without system columns,
+	or NULL if there isn't any different field */
 	upd_t* update_set_metadata(
 		const dtuple_t*	entry,
 		const rec_t*	rec);
@@ -1889,6 +1968,13 @@ private:
 	by dict_persist->mutex */
 	dtuple_t*		m_replace_tuple;
 };
+
+/** Mark the dirty_status of a table as METADATA_DIRTY, and add it to the
+dirty_dict_tables list if necessary.
+@param[in,out]	table		table */
+void
+dict_table_mark_dirty(
+	dict_table_t*	table);
 
 /** Flags an index corrupted in the data dictionary cache only. This
 is used to mark a corrupted index when index's own dictionary

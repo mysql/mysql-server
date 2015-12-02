@@ -296,7 +296,7 @@ void set_attributes(dd::Table *obj, const std::string &name,
   idx2_obj->set_comment("Index3 comment");
 
   // Copy Index elements from first index.
-  std::auto_ptr<dd::Iterator<dd::Index_element> >
+  std::unique_ptr<dd::Iterator<dd::Index_element> >
     element_iter(idx_obj->elements());
   while(const dd::Index_element *e= element_iter->next())
     idx2_obj->add_element(*e);

@@ -37,9 +37,6 @@ static bool write_eof_packet(THD *, NET *, uint, uint);
 
 #ifndef EMBEDDED_LIBRARY
 bool Protocol_classic::net_store_data(const uchar *from, size_t length)
-#else
-bool Protocol_binary::net_store_data(const uchar *from, size_t length)
-#endif
 {
   size_t packet_length=packet->length();
   /*
@@ -54,6 +51,7 @@ bool Protocol_binary::net_store_data(const uchar *from, size_t length)
   packet->length((uint) (to+length-(uchar *) packet->ptr()));
   return 0;
 }
+#endif
 
 
 /**
@@ -1548,6 +1546,7 @@ bool Protocol_binary::start_result_metadata(uint num_cols, uint flags,
 }
 
 
+#ifndef EMBEDDED_LIBRARY
 void Protocol_binary::start_row()
 {
   if (send_metadata)
@@ -1556,6 +1555,7 @@ void Protocol_binary::start_row()
   memset(const_cast<char*>(packet->ptr()), 0, 1+bit_fields);
   field_pos=0;
 }
+#endif
 
 
 bool Protocol_binary::store(const char *from, size_t length,

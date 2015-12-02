@@ -13,31 +13,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#ifndef HASH_INCLUDED
+#define HASH_INCLUDED
+
 /**
   @file include/hash.h
   Dynamic hashing of record with different key-length.
 */
 
-#ifndef _hash_h
-#define _hash_h
 
 #include "my_global.h"                          /* uchar */
 #include "my_sys.h"                             /* DYNAMIC_ARRAY */
 
-/*
-  This forward declaration is used from C files where the real
-  definition is included before.  Since C does not allow repeated
-  typedef declarations, even when identical, the definition may not be
-  repeated.
-*/
-#ifndef CHARSET_INFO_DEFINED
-#define CHARSET_INFO_DEFINED
 typedef struct charset_info_st CHARSET_INFO;
-#endif  /* CHARSET_INFO_DEFINED */
-
-#ifdef	__cplusplus
-extern "C" {
-#endif
 
 /*
   Overhead to store an element in hash
@@ -48,30 +36,44 @@ extern "C" {
 /* flags for hash_init */
 #define HASH_UNIQUE     1       /* hash_insert fails on duplicate key */
 
-struct st_hash;
 typedef uint my_hash_value_type;
-typedef uchar *(*my_hash_get_key)(const uchar *,size_t*,my_bool);
-typedef void (*my_hash_free_key)(void *);
+
 /**
-  Function type representing a hash function to be used with the HASH
-  container.
-  Should accept pointer to HASH, pointer to key buffer and key length
-  as parameters.
-*/
-typedef my_hash_value_type (*my_hash_function)(const struct st_hash *,
-                                               const uchar *,
-                                               size_t);
+  Callback for extracting key and key length from user data in a HASH.
+  @param      arg    Pointer to user data.
+  @param[out] length Store key length here.
+  @return            Pointer to key to be hashed.
+
+  @note Was my_hash_get_key, with lots of C-style casting when calling
+        my_hash_init. Renamed to force build error (since signature changed)
+        in case someone keeps following that coding style.
+ */
+typedef const uchar *(*hash_get_key_function)(const uchar *arg, size_t *length);
+
+typedef void (*my_hash_free_key)(void *);
 
 typedef struct st_hash {
+  st_hash()
+    : key_offset(0),
+      key_length(0),
+      blength(0),
+      records(0),
+      flags(0),
+      get_key(NULL),
+      free(NULL),
+      charset(NULL),
+      m_psi_key(PSI_NOT_INSTRUMENTED)
+  {
+    array= st_dynamic_array();
+  }
   size_t key_offset,key_length;		/* Length of key if const length */
   size_t blength;
   ulong records;
   uint flags;
   DYNAMIC_ARRAY array;				/* Place for hash_keys */
-  my_hash_get_key get_key;
+  hash_get_key_function get_key;
   void (*free)(void *);
   CHARSET_INFO *charset;
-  my_hash_function hash_function;
   PSI_memory_key m_psi_key;
 } HASH;
 
@@ -79,15 +81,11 @@ typedef struct st_hash {
 typedef uint HASH_SEARCH_STATE;
 
 #define my_hash_init(A,B,C,D,E,F,G,H,I) \
-          _my_hash_init(A,0,B,NULL,C,D,E,F,G,H,I)
-#define my_hash_init2(A,B,C,D,E,F,G,H,I,J) \
-          _my_hash_init(A,B,C,NULL,D,E,F,G,H,I,J)
-#define my_hash_init3(A,B,C,D,E,F,G,H,I,J,K) \
-          _my_hash_init(A,B,C,D,E,F,G,H,I,J,K)
+          _my_hash_init(A,0,B,C,D,E,F,G,H,I)
+
 my_bool _my_hash_init(HASH *hash, uint growth_size, CHARSET_INFO *charset,
-                      my_hash_function hash_function,
                       ulong default_array_elements, size_t key_offset,
-                      size_t key_length, my_hash_get_key get_key,
+                      size_t key_length, hash_get_key_function get_key,
                       void (*free_element)(void*),
                       uint flags,
                       PSI_memory_key psi_key);
@@ -117,12 +115,10 @@ my_bool my_hash_update(HASH *hash, uchar *record, uchar *old_key,
 void my_hash_replace(HASH *hash, HASH_SEARCH_STATE *state, uchar *new_row);
 my_bool my_hash_check(HASH *hash); /* Only in debug library */
 
-#define my_hash_clear(H) memset((H), 0, sizeof(*(H)))
-#define my_hash_inited(H) ((H)->blength != 0)
-#define my_hash_init_opt(A,B,C,D,E,F,G,H,I) \
-          (!my_hash_inited(A) && _my_hash_init(A,0,B,NULL,C,D,E,F,G,H,I))
+inline void my_hash_clear(HASH *h) { new(h) st_hash(); }
+inline bool my_hash_inited(const HASH *h) { return h->blength != 0; }
 
-#ifdef	__cplusplus
-}
-#endif
-#endif
+#define my_hash_init_opt(A,B,C,D,E,F,G,H,I) \
+          (!my_hash_inited(A) && _my_hash_init(A,0,B,C,D,E,F,G,H,I))
+
+#endif  // HASH_INCLUDED

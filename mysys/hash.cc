@@ -47,26 +47,10 @@ static int hashcmp(const HASH *hash, HASH_LINK *pos, const uchar *key,
 static my_hash_value_type calc_hash(const HASH *hash,
                                     const uchar *key, size_t length)
 {
-  return hash->hash_function(hash, key, length);
-}
-
-
-/**
-  Adaptor function which allows to use hash function from character
-  set with HASH.
-*/
-
-extern "C" {
-static my_hash_value_type cset_hash_sort_adapter(const HASH *hash,
-                                                 const uchar *key,
-                                                 size_t length)
-{
   ulong nr1=1, nr2=4;
   hash->charset->coll->hash_sort(hash->charset,(uchar*) key,length,&nr1,&nr2);
   return (my_hash_value_type)nr1;
 }
-}
-
 
 /**
   @brief Initialize the hash
@@ -82,9 +66,6 @@ static my_hash_value_type cset_hash_sort_adapter(const HASH *hash,
   @param[in,out] hash         The hash that is initialized
   @param[in]     growth_size  Growth size for the underlying array
   @param[in]     charset      The character set information
-  @param[in]     hash_function Hash function to be used. NULL -
-                               use standard hash from character
-                               set.
   @param[in]     size         The hash size
   @param[in]     key_offset   The key offset for the hash
   @param[in]     key_length   The length of the key used in
@@ -98,11 +79,10 @@ static my_hash_value_type cset_hash_sort_adapter(const HASH *hash,
     @retval 0 success
     @retval 1 failure
 */
-extern "C" my_bool
+my_bool
 _my_hash_init(HASH *hash, uint growth_size, CHARSET_INFO *charset,
-              my_hash_function hash_function,
               ulong size, size_t key_offset, size_t key_length,
-              my_hash_get_key get_key,
+              hash_get_key_function get_key,
               void (*free_element)(void*), uint flags,
               PSI_memory_key psi_key)
 {
@@ -119,7 +99,6 @@ _my_hash_init(HASH *hash, uint growth_size, CHARSET_INFO *charset,
   hash->free=free_element;
   hash->flags=flags;
   hash->charset=charset;
-  hash->hash_function= hash_function ? hash_function : cset_hash_sort_adapter;
   hash->m_psi_key= psi_key;
   retval= my_init_dynamic_array(&hash->array,
                                 psi_key,
@@ -217,19 +196,13 @@ void my_hash_reset(HASH *hash)
 
 /* some helper functions */
 
-/*
-  This function is char* instead of uchar* as HPUX11 compiler can't
-  handle inline functions that are not defined as native types
-*/
-
-static inline char*
-my_hash_key(const HASH *hash, const uchar *record, size_t *length,
-            my_bool first)
+static inline const uchar*
+my_hash_key(const HASH *hash, const uchar *record, size_t *length)
 {
   if (hash->get_key)
-    return (char*) (*hash->get_key)(record,length,first);
+    return (*hash->get_key)(record,length);
   *length=hash->key_length;
-  return (char*) record+hash->key_offset;
+  return record+hash->key_offset;
 }
 
 	/* Calculate pos according to keys */
@@ -245,7 +218,7 @@ static uint my_hash_rec_mask(const HASH *hash, HASH_LINK *pos,
                              size_t buffmax, size_t maxlength)
 {
   size_t length;
-  uchar *key= (uchar*) my_hash_key(hash, pos->data, &length, 0);
+  const uchar *key= my_hash_key(hash, pos->data, &length);
   return my_hash_mask(calc_hash(hash, key, length), buffmax, maxlength);
 }
 
@@ -254,7 +227,7 @@ static uint my_hash_rec_mask(const HASH *hash, HASH_LINK *pos,
 static inline my_hash_value_type rec_hashnr(HASH *hash,const uchar *record)
 {
   size_t length;
-  uchar *key= (uchar*) my_hash_key(hash, record, &length, 0);
+  const uchar *key= my_hash_key(hash, record, &length);
   return calc_hash(hash,key,length);
 }
 
@@ -404,10 +377,10 @@ static int hashcmp(const HASH *hash, HASH_LINK *pos, const uchar *key,
                    size_t length)
 {
   size_t rec_keylength;
-  uchar *rec_key= (uchar*) my_hash_key(hash, pos->data, &rec_keylength, 1);
+  const uchar *rec_key= my_hash_key(hash, pos->data, &rec_keylength);
   return ((length && length != rec_keylength) ||
-	  my_strnncoll(hash->charset, (uchar*) rec_key, rec_keylength,
-		       (uchar*) key, rec_keylength));
+	  my_strnncoll(hash->charset, rec_key, rec_keylength,
+		       key, rec_keylength));
 }
 
 
@@ -423,7 +396,7 @@ my_bool my_hash_insert(HASH *info, const uchar *record)
 
   if (HASH_UNIQUE & info->flags)
   {
-    uchar *key= (uchar*) my_hash_key(info, record, &idx, 1);
+    const uchar *key= my_hash_key(info, record, &idx);
     if (my_hash_search(info, key, idx))
       return(TRUE);				/* Duplicate entry */
   }
@@ -519,7 +492,7 @@ my_bool my_hash_insert(HASH *info, const uchar *record)
   pos=data+idx;
   if (pos == empty)
   {
-    pos->data=(uchar*) record;
+    pos->data=const_cast<uchar*>(record);
     pos->next=NO_RECORD;
   }
   else
@@ -529,12 +502,12 @@ my_bool my_hash_insert(HASH *info, const uchar *record)
     gpos= data + my_hash_rec_mask(info, pos, info->blength, info->records + 1);
     if (pos == gpos)
     {
-      pos->data=(uchar*) record;
+      pos->data= const_cast<uchar*>(record);
       pos->next=(uint) (empty - data);
     }
     else
     {
-      pos->data=(uchar*) record;
+      pos->data= const_cast<uchar*>(record);
       pos->next=NO_RECORD;
       movelink(data,(uint) (pos-data),(uint) (gpos-data),(uint) (empty-data));
     }
@@ -631,7 +604,7 @@ my_bool my_hash_delete(HASH *hash, uchar *record)
 exit:
   (void) pop_dynamic(&hash->array);
   if (hash->free)
-    (*hash->free)((uchar*) record);
+    (*hash->free)(record);
   DBUG_RETURN(0);
 }
 
@@ -651,7 +624,7 @@ my_bool my_hash_update(HASH *hash, uchar *record, uchar *old_key,
   if (HASH_UNIQUE & hash->flags)
   {
     HASH_SEARCH_STATE state;
-    uchar *found, *new_key= (uchar*) my_hash_key(hash, record, &idx, 1);
+    const uchar *found, *new_key= my_hash_key(hash, record, &idx);
     if ((found= my_hash_first(hash, new_key, idx, &state)))
     {
       do 

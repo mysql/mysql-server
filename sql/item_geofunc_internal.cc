@@ -51,49 +51,9 @@ void handle_gis_exception(const char *funcname)
   {
     my_error(ER_BOOST_GEOMETRY_UNKNOWN_EXCEPTION, MYF(0), funcname);
   }
-  catch (const std::bad_alloc &e)
+  catch (const std::exception &)
   {
-    my_error(ER_STD_BAD_ALLOC_ERROR, MYF(0), e.what(), funcname);
-  }
-  catch (const std::domain_error &e)
-  {
-    my_error(ER_STD_DOMAIN_ERROR, MYF(0), e.what(), funcname);
-  }
-  catch (const std::length_error &e)
-  {
-    my_error(ER_STD_LENGTH_ERROR, MYF(0), e.what(), funcname);
-  }
-  catch (const std::invalid_argument &e)
-  {
-    my_error(ER_STD_INVALID_ARGUMENT, MYF(0), e.what(), funcname);
-  }
-  catch (const std::out_of_range &e)
-  {
-    my_error(ER_STD_OUT_OF_RANGE_ERROR, MYF(0), e.what(), funcname);
-  }
-  catch (const std::overflow_error &e)
-  {
-    my_error(ER_STD_OVERFLOW_ERROR, MYF(0), e.what(), funcname);
-  }
-  catch (const std::range_error &e)
-  {
-    my_error(ER_STD_RANGE_ERROR, MYF(0), e.what(), funcname);
-  }
-  catch (const std::underflow_error &e)
-  {
-    my_error(ER_STD_UNDERFLOW_ERROR, MYF(0), e.what(), funcname);
-  }
-  catch (const std::logic_error &e)
-  {
-    my_error(ER_STD_LOGIC_ERROR, MYF(0), e.what(), funcname);
-  }
-  catch (const std::runtime_error &e)
-  {
-    my_error(ER_STD_RUNTIME_ERROR, MYF(0), e.what(), funcname);
-  }
-  catch (const std::exception &e)
-  {
-    my_error(ER_STD_UNKNOWN_EXCEPTION, MYF(0), e.what(), funcname);
+    handle_std_exception(funcname);
   }
   catch (...)
   {

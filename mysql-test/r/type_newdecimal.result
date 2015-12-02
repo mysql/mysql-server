@@ -2224,3 +2224,18 @@ a - b
 -121441.00
 DROP TABLE t1, t2, t3;
 SET sql_mode=DEFAULT;
+#
+# Bug#22188058 CRASH IN MY_DECIMAL::SANITY_CHECK AND MY_DECIMAL2BINARY
+#
+SET sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TABLE t(
+a YEAR(4) NOT NULL,
+b DECIMAL(29,5) UNSIGNED ZEROFILL NOT NULL
+) ENGINE=INNODB;
+INSERT INTO t VALUES (2000,1),(2000,1),(2000,9999);
+SELECT * FROM t ORDER BY (a-b);
+ERROR 22003: DECIMAL UNSIGNED value is out of range in '(`test`.`t`.`a` - `test`.`t`.`b`)'
+DROP TABLE t;
+SET sql_mode= DEFAULT;

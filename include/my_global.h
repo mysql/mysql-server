@@ -366,33 +366,15 @@ inline unsigned long long my_double2ulonglong(double d)
 #define SIZE_T_MAX      (~((size_t) 0))
 #endif
 
-// Our ifdef trickery for my_isfinite does not work with gcc/solaris unless we:
-#ifdef HAVE_IEEEFP_H
-#include <ieeefp.h>
-#endif
-
-#if defined(__cplusplus) && (__cplusplus >= 201103L)
-  /* For C++11 use the new std functions rather than C99 macros. */
-  #include <cmath>
-  #define my_isfinite(X) std::isfinite(X)
-  #define my_isnan(X) std::isnan(X)
-  #define my_isinf(X) std::isinf(X)
-#else
-  #ifdef HAVE_LLVM_LIBCPP /* finite is deprecated in libc++ */
-    #define my_isfinite(X) isfinite(X)
-  #elif defined _WIN32
-    #define my_isfinite(X) _finite(X)
-  #else
-    #define my_isfinite(X) finite(X)
-  #endif
-  #define my_isnan(X) isnan(X)
-  #ifdef HAVE_ISINF
-    /* System-provided isinf() is available and safe to use */
-    #define my_isinf(X) isinf(X)
-  #else /* !HAVE_ISINF */
-    #define my_isinf(X) (!my_isfinite(X) && !my_isnan(X))
-  #endif
-#endif /* __cplusplus >= 201103L */
+#if defined(__cplusplus)
+  /*
+    For C++ use the new C++11 std functions rather than C99 macros.
+    For C use C99 macros - see storage/myisam/rt_split.c
+  */
+  #define my_isfinite please_use_std_isfinite_rather_than_my_isfinite
+  #define my_isnan(X) please_use_std_isnan_rather_than_my_isnan
+  #define my_isinf(X) please_use_std_isinf_rather_than_my_isinf
+#endif /* __cplusplus */
 
 /*
   Max size that must be added to a so that we know Size to make

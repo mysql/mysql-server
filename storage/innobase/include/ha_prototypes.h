@@ -273,6 +273,14 @@ thd_set_lock_wait_time(
 	THD*	thd,	/*!< in/out: thread handle */
 	ulint	value);	/*!< in: time waited for the lock */
 
+/** Get status of innodb_tmpdir.
+@param[in]	thd	thread handle, or NULL to query
+			the global innodb_tmpdir.
+@retval NULL if innodb_tmpdir="" */
+const char*
+thd_innodb_tmpdir(
+	THD*	thd);
+
 /**********************************************************************//**
 Get the current setting of the table_cache_size global parameter. We do
 a dirty read because for one there is no synchronization object and
@@ -400,15 +408,14 @@ ib_senderrf(
 	ib_uint32_t	code,		/*!< MySQL error code */
 	...);				/*!< Args */
 
-extern const char* 	TROUBLESHOOTING_MSG;
-extern const char* 	TROUBLESHOOT_DATADICT_MSG;
-extern const char* 	BUG_REPORT_MSG;
-extern const char* 	FORCE_RECOVERY_MSG;
-extern const char*      ERROR_CREATING_MSG;
-extern const char*      OPERATING_SYSTEM_ERROR_MSG;
-extern const char*      FOREIGN_KEY_CONSTRAINTS_MSG;
-extern const char*      SET_TRANSACTION_MSG;
-extern const char*      INNODB_PARAMETERS_MSG;
+extern const char*	TROUBLESHOOTING_MSG;
+extern const char*	TROUBLESHOOT_DATADICT_MSG;
+extern const char*	BUG_REPORT_MSG;
+extern const char*	FORCE_RECOVERY_MSG;
+extern const char*	ERROR_CREATING_MSG;
+extern const char*	OPERATING_SYSTEM_ERROR_MSG;
+extern const char*	FOREIGN_KEY_CONSTRAINTS_MSG;
+extern const char*	INNODB_PARAMETERS_MSG;
 
 /******************************************************************//**
 Returns the NUL terminated value of glob_hostname.

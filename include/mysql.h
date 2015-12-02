@@ -158,7 +158,6 @@ enum mysql_option
   MYSQL_OPT_BIND,
   MYSQL_OPT_SSL_KEY, MYSQL_OPT_SSL_CERT, 
   MYSQL_OPT_SSL_CA, MYSQL_OPT_SSL_CAPATH, MYSQL_OPT_SSL_CIPHER,
-  MYSQL_OPT_TLS_VERSION,
   MYSQL_OPT_SSL_CRL, MYSQL_OPT_SSL_CRLPATH,
   MYSQL_OPT_CONNECT_ATTR_RESET, MYSQL_OPT_CONNECT_ATTR_ADD,
   MYSQL_OPT_CONNECT_ATTR_DELETE,
@@ -166,7 +165,8 @@ enum mysql_option
   MYSQL_ENABLE_CLEARTEXT_PLUGIN,
   MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
   MYSQL_OPT_SSL_ENFORCE,
-  MYSQL_OPT_MAX_ALLOWED_PACKET, MYSQL_OPT_NET_BUFFER_LENGTH
+  MYSQL_OPT_MAX_ALLOWED_PACKET, MYSQL_OPT_NET_BUFFER_LENGTH,
+  MYSQL_OPT_TLS_VERSION
 };
 
 /**
@@ -180,7 +180,7 @@ struct st_mysql_options {
   unsigned int port, protocol;
   unsigned long client_flag;
   char *host,*user,*password,*unix_socket,*db;
-  struct st_dynamic_array *init_commands;
+  struct Init_commands_array *init_commands;
   char *my_cnf_file,*my_cnf_group, *charset_dir, *charset_name;
   char *ssl_key;				/* PEM key file */
   char *ssl_cert;				/* PEM cert file */

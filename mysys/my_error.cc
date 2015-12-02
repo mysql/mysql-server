@@ -131,7 +131,7 @@ char *my_strerror(char *buf, size_t len, int nr)
        (defined _XOPEN_SOURCE   && (_XOPEN_SOURCE >= 600)))      &&    \
       ! defined _GNU_SOURCE
     strerror_r(nr, buf, len);             /* I can build with or without GNU */
-#elif defined _GNU_SOURCE
+#elif defined _GNU_SOURCE && (!defined(__SUNPRO_C) && !defined(__SUNPRO_CC))
     char *r= strerror_r(nr, buf, len);
     if (r != buf)                         /* Want to help, GNU? */
       strmake(buf, r, len - 1);           /* Then don't. */

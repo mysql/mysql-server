@@ -147,9 +147,6 @@ my_bool	srv_read_only_mode;
 dictionary tables are in the system tablespace 0 */
 my_bool	srv_file_per_table;
 
-/** Place locks to records only i.e. do not use next-key locking except
-on duplicate key checking and foreign key checking */
-ibool	srv_locks_unsafe_for_binlog = FALSE;
 /** Sort buffer size in index creation */
 ulong	srv_sort_buf_size = 1048576;
 /** Maximum modification log file size for online index creation */
@@ -178,6 +175,9 @@ bool	innodb_calling_exit;
 my_bool	srv_master_thread_disabled_debug;
 /** Event used to inform that master thread is disabled. */
 static os_event_t	srv_master_thread_disabled_event;
+/** Debug variable to find if any background threads are adding
+to purge during slow shutdown. */
+extern bool		trx_commit_disallowed;
 #endif /* UNIV_DEBUG */
 
 /*------------------------- LOG FILES ------------------------ */
@@ -2750,6 +2750,12 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 		n_pages_purged = trx_purge(1, srv_purge_batch_size, false);
 	}
 
+#ifdef UNIV_DEBUG
+	if (srv_fast_shutdown == 0) {
+		trx_commit_disallowed = true;
+	}
+#endif /* UNIV_DEBUG */
+
 	/* This trx_purge is called to remove any undo records (added by
 	background threads) after completion of the above loop. When
 	srv_fast_shutdown != 0, a large batch size can cause significant
@@ -2883,20 +2889,4 @@ srv_purge_threads_active()
 	}
 
 	return(false);
-}
-
-/** Call exit(3) */
-void
-srv_fatal_error()
-{
-
-	ib::error() << "Cannot continue operation.";
-
-	fflush(stderr);
-
-	ut_d(innodb_calling_exit = true);
-
-	srv_shutdown_all_bg_threads();
-
-	exit(3);
 }

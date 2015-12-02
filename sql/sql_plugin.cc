@@ -1226,12 +1226,7 @@ err:
 }
 
 
-extern "C" uchar *get_plugin_hash_key(const uchar *, size_t *, my_bool);
-extern "C" uchar *get_bookmark_hash_key(const uchar *, size_t *, my_bool);
-
-
-uchar *get_plugin_hash_key(const uchar *buff, size_t *length,
-                           my_bool not_used __attribute__((unused)))
+static const uchar *get_plugin_hash_key(const uchar *buff, size_t *length)
 {
   st_plugin_int *plugin= (st_plugin_int *)buff;
   *length= (uint)plugin->name.length;
@@ -1239,8 +1234,7 @@ uchar *get_plugin_hash_key(const uchar *buff, size_t *length,
 }
 
 
-uchar *get_bookmark_hash_key(const uchar *buff, size_t *length,
-                             my_bool not_used __attribute__((unused)))
+static const uchar *get_bookmark_hash_key(const uchar *buff, size_t *length)
 {
   st_bookmark *var= (st_bookmark *)buff;
   *length= var->name_len + 1;
@@ -2855,8 +2849,10 @@ void alloc_and_copy_thd_dynamic_variables(THD *thd, bool global_lock)
 
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
 
-  /* Block system variable reads from other threads. */
-  mysql_mutex_lock(&thd->LOCK_thd_sysvar);
+  if (global_lock)
+    mysql_mutex_lock(&LOCK_global_system_variables);
+
+  mysql_mutex_assert_owner(&LOCK_global_system_variables);
 
   /*
     MAINTAINER:
@@ -2871,10 +2867,6 @@ void alloc_and_copy_thd_dynamic_variables(THD *thd, bool global_lock)
                global_variables_dynamic_size,
                MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
 
-  if (global_lock)
-    mysql_mutex_lock(&LOCK_global_system_variables);
-
-  mysql_mutex_assert_owner(&LOCK_global_system_variables);
   /*
     Debug hook which allows tests to check that this code is not
     called for InnoDB after connection was created.
@@ -2927,7 +2919,6 @@ void alloc_and_copy_thd_dynamic_variables(THD *thd, bool global_lock)
   thd->variables.dynamic_variables_size=
     global_system_variables.dynamic_variables_size;
 
-  mysql_mutex_unlock(&thd->LOCK_thd_sysvar);
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
 }
 
@@ -2952,7 +2943,8 @@ static uchar *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
   if (!thd->variables.dynamic_variables_ptr ||
       (uint)offset > thd->variables.dynamic_variables_head)
   {
-    if (current_thd == thd) /* TODO WL#6629: Supported for current_thd only. */
+    /* Current THD only. Don't trigger resync on remote THD. */
+    if (current_thd == thd)
       alloc_and_copy_thd_dynamic_variables(thd, global_lock);
     else
       return (uchar*) global_system_variables.dynamic_variables_ptr + offset;

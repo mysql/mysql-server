@@ -126,6 +126,10 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
 
   THD_STAGE_INFO(thd, stage_init);
 
+  if (thd->lex->set_var_list.elements &&
+      resolve_var_assignments(thd, lex))
+    goto err;
+
   if (single_query)
   {
     unit->set_limit(unit->global_parameters());

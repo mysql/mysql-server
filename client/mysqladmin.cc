@@ -26,7 +26,6 @@
 #include <sql_common.h>
 #include <welcome_copyright_notice.h>           /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include <mysqld_error.h>                       /* to check server error codes */
-#include <string>  /* std::string */
 #include "mysql/service_mysql_alloc.h"
 
 #define ADMIN_VERSION "8.42"

@@ -107,6 +107,9 @@ Created 2/16/1996 Heikki Tuuri
 extern bool srv_lzo_disabled;
 #endif /* HAVE_LZO1X */
 
+/** Recovered persistent metadata */
+static MetadataRecover* srv_dict_metadata;
+
 /** TRUE if we don't have DDTableBuffer in the system tablespace,
 this should be due to we run the server against old data files.
 Please do NOT change this when server is running.
@@ -681,12 +684,6 @@ srv_undo_tablespace_open(
 		/* Load the tablespace into InnoDB's internal
 		data structures. */
 
-		/* We set the biggest space id to the undo tablespace
-		because InnoDB hasn't opened any other tablespace apart
-		from the system tablespace. */
-
-		fil_set_max_space_id_if_bigger(space_id);
-
 		/* Set the compressed page size to 0 (non-compressed) */
 		flags = fsp_flags_init(
 			univ_page_size, false, false, false, false);
@@ -1208,6 +1205,7 @@ srv_start_state_is_set(
 
 /**
 Shutdown all background threads created by InnoDB. */
+static
 void
 srv_shutdown_all_bg_threads()
 {
@@ -1215,9 +1213,12 @@ srv_shutdown_all_bg_threads()
 
 	srv_shutdown_state = SRV_SHUTDOWN_EXIT_THREADS;
 
-	if (!srv_start_state) {
+	if (srv_start_state == SRV_START_STATE_NONE) {
 		return;
 	}
+
+	UT_DELETE(srv_dict_metadata);
+	srv_dict_metadata = NULL;
 
 	/* All threads end up waiting for certain events. Put those events
 	to the signaled state. Then the threads will exit themselves after
@@ -1351,6 +1352,15 @@ srv_prepare_to_delete_redo_log_files(
 	ulint	count = 0;
 
 	do {
+		/* Write back all dirty metadata first. To resize the logs
+		files to smaller ones, we will do the checkpoint at last,
+		if we write back there, it could be found that the new log
+		group was not big enough for the new redo logs, thus a
+		cascade checkpoint would be invoked, which is unexpected.
+		There should be no concurrent DML, so no need to require
+		dict_persist::lock. */
+		dict_persist_to_dd_table_buffer();
+
 		/* Clean the buffer pool. */
 		buf_flush_sync_all_buf_pools();
 
@@ -1428,6 +1438,7 @@ srv_start(
 	size_t		dirnamelen;
 	unsigned	i = 0;
 
+	DBUG_ASSERT(srv_dict_metadata == NULL);
 	/* Reset the start state. */
 	srv_start_state = SRV_START_STATE_NONE;
 
@@ -1543,7 +1554,7 @@ srv_start(
 		} else {
 
 			srv_monitor_file_name = NULL;
-			srv_monitor_file = os_file_create_tmpfile();
+			srv_monitor_file = os_file_create_tmpfile(NULL);
 
 			if (!srv_monitor_file) {
 				return(srv_init_abort(DB_ERROR));
@@ -1553,7 +1564,7 @@ srv_start(
 		mutex_create(LATCH_ID_SRV_DICT_TMPFILE,
 			     &srv_dict_tmpfile_mutex);
 
-		srv_dict_tmpfile = os_file_create_tmpfile();
+		srv_dict_tmpfile = os_file_create_tmpfile(NULL);
 
 		if (!srv_dict_tmpfile) {
 			return(srv_init_abort(DB_ERROR));
@@ -1562,7 +1573,7 @@ srv_start(
 		mutex_create(LATCH_ID_SRV_MISC_TMPFILE,
 			     &srv_misc_tmpfile_mutex);
 
-		srv_misc_tmpfile = os_file_create_tmpfile();
+		srv_misc_tmpfile = os_file_create_tmpfile(NULL);
 
 		if (!srv_misc_tmpfile) {
 			return(srv_init_abort(DB_ERROR));
@@ -1887,6 +1898,8 @@ files_checked:
 		dict_stats_thread_init();
 	}
 
+	fil_set_max_space_id_if_bigger(srv_undo_tablespaces);
+
 	if (create_new_db) {
 		ut_a(!srv_read_only_mode);
 
@@ -1962,31 +1975,6 @@ files_checked:
 			return(srv_init_abort(err));
 		}
 
-		err = srv_undo_tablespaces_init(
-			false, srv_undo_tablespaces,
-			&srv_undo_tablespaces_open);
-
-		if (err != DB_SUCCESS
-		    && srv_force_recovery
-		    < SRV_FORCE_NO_UNDO_LOG_SCAN) {
-
-			if (err == DB_TABLESPACE_NOT_FOUND) {
-				/* A tablespace was not found.
-				The user must force recovery. */
-
-				srv_fatal_error();
-			}
-
-			return(srv_init_abort(err));
-		}
-
-		purge_queue = trx_sys_init_at_db_start();
-
-		/* We should apply the table persistent metadata immediately
-		after the trx initialization, so that all tables are in the
-		latest status. */
-		recv_apply_table_dynamic_metadata();
-
 		if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
 			/* Apply the hashed log records to the
 			respective file pages, for the last batch of
@@ -2015,7 +2003,24 @@ files_checked:
 			buf_flush_sync_all_buf_pools();
 		}
 
-		recv_recovery_from_checkpoint_finish();
+		srv_dict_metadata = recv_recovery_from_checkpoint_finish();
+
+		err = srv_undo_tablespaces_init(
+			false, srv_undo_tablespaces,
+			&srv_undo_tablespaces_open);
+
+		if (err != DB_SUCCESS
+		    && srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
+
+			if (err == DB_TABLESPACE_NOT_FOUND) {
+				/* A tablespace was not found.
+				The user must force recovery. */
+
+				srv_fatal_error();
+			}
+
+			return(srv_init_abort(err));
+		}
 
 		if (!srv_force_recovery
 		    && !recv_sys->found_corrupt_log
@@ -2089,6 +2094,8 @@ files_checked:
 
 			log_buffer_flush_to_disk();
 		}
+
+		purge_queue = trx_sys_init_at_db_start();
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys and trx lists were
@@ -2277,6 +2284,12 @@ any tables (including data dictionary tables) can be accessed. */
 void
 srv_dict_recover_on_restart()
 {
+	if (srv_dict_metadata != NULL) {
+		srv_dict_metadata->apply();
+		UT_DELETE(srv_dict_metadata);
+		srv_dict_metadata = NULL;
+	}
+
 	trx_resurrect_locks();
 
 	/* Roll back any recovered data dictionary transactions, so
@@ -2457,6 +2470,11 @@ srv_pre_dd_shutdown()
 		return;
 	}
 
+	if (srv_start_state_is_set(SRV_START_STATE_STAT)) {
+		fts_optimize_shutdown();
+		dict_stats_shutdown();
+	}
+
 	/* Here, we will only shut down the tasks that may be looking up
 	tables or other objects in the Global Data Dictionary.
 	The following background tasks will not be affected:
@@ -2469,12 +2487,6 @@ srv_pre_dd_shutdown()
 	srv_shutdown_state = SRV_SHUTDOWN_CLEANUP;
 	srv_purge_wakeup();
 	os_event_set(dict_stats_event);
-
-	if (srv_start_state_is_set(SRV_START_STATE_STAT)) {
-		/* Shut down the FULLTEXT INDEX optimizer. */
-		fts_optimize_start_shutdown();
-		fts_optimize_end();
-	}
 
 	for (ulint count = 1;;) {
 		bool	wait = srv_purge_threads_active();
@@ -2580,6 +2592,8 @@ srv_shutdown()
 	dict_close();
 	dict_persist_close();
 	btr_search_sys_free();
+
+	UT_DELETE(srv_dict_metadata);
 
 	/* 3. Free all InnoDB's own mutexes and the os_fast_mutexes inside
 	them */
@@ -2725,4 +2739,20 @@ srv_get_meta_data_filename(
 	strcpy(filename, path);
 
 	ut_free(path);
+}
+
+/** Call exit(3) */
+void
+srv_fatal_error()
+{
+
+	ib::error() << "Cannot continue operation.";
+
+	fflush(stderr);
+
+	ut_d(innodb_calling_exit = true);
+
+	srv_shutdown_all_bg_threads();
+
+	exit(3);
 }

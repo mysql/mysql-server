@@ -1663,7 +1663,7 @@ public:
     Cleanup data and comparator arrays.
 
     @note Used during regular cleanup and to free arrays after GC substitution.
-    @see JOIN::substitute_gc().
+    @see substitute_gc().
   */
   void cleanup_arrays()
   {

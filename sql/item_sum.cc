@@ -1256,7 +1256,7 @@ Item_sum_num::fix_fields(THD *thd, Item **ref)
   DBUG_ASSERT(fixed == 0);
 
   if (init_sum_func_check(thd))
-    return TRUE;
+    return true;
 
   Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
 
@@ -1266,7 +1266,7 @@ Item_sum_num::fix_fields(THD *thd, Item **ref)
   {
     if ((!args[i]->fixed && args[i]->fix_fields(thd, args + i)) ||
         args[i]->check_cols(1))
-      return TRUE;
+      return true;
     set_if_bigger(decimals, args[i]->decimals);
     maybe_null |= args[i]->maybe_null;
   }
@@ -1274,12 +1274,14 @@ Item_sum_num::fix_fields(THD *thd, Item **ref)
   max_length=float_length(decimals);
   null_value=1;
   fix_length_and_dec();
+  if (thd->is_error())
+    return true;
 
   if (check_sum_func(thd, ref))
-    return TRUE;
+    return true;
 
-  fixed= 1;
-  return FALSE;
+  fixed= true;
+  return false;
 }
 
 
@@ -1291,14 +1293,14 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
   Item *item= args[0];
 
   if (init_sum_func_check(thd))
-    return TRUE;
+    return true;
 
   Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
 
   // 'item' can be changed during fix_fields
   if ((!item->fixed && item->fix_fields(thd, args)) ||
       (item= args[0])->check_cols(1))
-    return TRUE;
+    return true;
   decimals=item->decimals;
 
   switch (hybrid_type= item->result_type()) {
@@ -1330,10 +1332,10 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
     hybrid_field_type= Item::field_type();
 
   if (check_sum_func(thd, ref))
-    return TRUE;
+    return true;
 
-  fixed= 1;
-  return FALSE;
+  fixed= true;
+  return false;
 }
 
 

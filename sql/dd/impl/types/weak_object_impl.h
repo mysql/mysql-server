@@ -133,7 +133,7 @@ protected:
 protected:
 
   // Check if the parent object id matches with this object.
-  void check_parent_consistency(Entity_object *parent,
+  bool check_parent_consistency(Entity_object *parent,
                                 Object_id parent_id) const;
 };
 

@@ -44,7 +44,7 @@ class ACL_HOST_AND_IP
 
 public:
   const char *get_host() const { return hostname; }
-  size_t get_host_len() { return hostname_length; }
+  size_t get_host_len() const { return hostname_length; }
 
   bool has_wildcard()
   {

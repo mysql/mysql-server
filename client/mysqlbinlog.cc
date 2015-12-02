@@ -28,32 +28,25 @@
    Format_desc_of_slave, Rotate_of_master, Format_desc_of_master.
 */
 
-#define MYSQL_CLIENT
-#undef MYSQL_SERVER
+/*
+  This include needs to be before my_compiler.h (via my_global.h)
+  is included. This is because string conflicts with the define
+  of __attribute__ in my_compiler.h on Sun Studio x86.
+  TODO: Get rid of the __attribute__ define in my_compiler.h
+*/
+#include <string>
+
+#include "mysqlbinlog.h"
+
 #include "client_priv.h"
 #include "my_default.h"
 #include <my_time.h>
 #include <sslopt-vars.h>
-/* That one is necessary for defines of OPTION_NO_FOREIGN_KEY_CHECKS etc */
-#include "query_options.h"
 #include <signal.h>
 #include <my_dir.h>
 
 #include "prealloced_array.h"
 #include "mysql/service_my_snprintf.h"
-
-/*
-  error() is used in macro BINLOG_ERROR which is invoked in
-  rpl_gtid.h, hence the early forward declaration.
-*/
-static void error(const char *format, ...)
-  __attribute__((format(printf, 1, 2)));
-static void warning(const char *format, ...)
-  __attribute__((format(printf, 1, 2)));
-static void error_or_warning(const char *format, va_list args, const char *msg)
-  __attribute__((format(printf, 1, 0)));
-static void sql_print_error(const char *format,...)
-  __attribute__((format(printf, 1, 2)));
 
 #include "rpl_gtid.h"
 #include "log_event.h"
@@ -324,7 +317,7 @@ static char *opt_remote_proto_str= 0;
 static char *database= 0;
 static char *output_file= 0;
 static char *rewrite= 0;
-static my_bool force_opt= 0, short_form= 0, idempotent_mode= 0;
+my_bool force_opt= 0, short_form= 0, idempotent_mode= 0;
 static my_bool debug_info_flag, debug_check_flag;
 static my_bool force_if_open_opt= 1, raw_mode= 0;
 static my_bool to_last_remote_log= 0, stop_never= 0;
@@ -359,7 +352,7 @@ static ulonglong rec_count= 0;
 static MYSQL* mysql = NULL;
 static char* dirname_for_local_load= 0;
 static uint opt_server_id_bits = 0;
-static ulong opt_server_id_mask = 0;
+ulong opt_server_id_mask = 0;
 Sid_map *global_sid_map= NULL;
 Checkable_rwlock *global_sid_lock= NULL;
 Gtid_set *gtid_set_included= NULL;
@@ -371,7 +364,7 @@ Gtid_set *gtid_set_excluded= NULL;
   This will be changed each time a new Format_description_log_event is
   found in the binlog. It is finally destroyed at program termination.
 */
-static Format_description_log_event* glob_description_event= NULL;
+Format_description_log_event* glob_description_event= NULL;
 
 /**
   Exit status for functions in this file.
@@ -1975,7 +1968,7 @@ static struct my_option my_long_options[] =
   @param args List of arguments for the format string.
   @param msg Text to print before the string.
 */
-static void error_or_warning(const char *format, va_list args, const char *msg)
+void error_or_warning(const char *format, va_list args, const char *msg)
 {
   fprintf(stderr, "%s: ", msg);
   vfprintf(stderr, format, args);
@@ -1989,7 +1982,7 @@ static void error_or_warning(const char *format, va_list args, const char *msg)
   @param format Printf-style format string, followed by printf
   varargs.
 */
-static void error(const char *format,...)
+void error(const char *format,...)
 {
   va_list args;
   va_start(args, format);
@@ -2004,7 +1997,7 @@ static void error(const char *format,...)
   @param format Printf-style format string, followed by printf
   varargs.
 */
-static void sql_print_error(const char *format,...)
+void sql_print_error(const char *format,...)
 {
   va_list args;
   va_start(args, format);
@@ -2019,7 +2012,7 @@ static void sql_print_error(const char *format,...)
   @param format Printf-style format string, followed by printf
   varargs.
 */
-static void warning(const char *format,...)
+void warning(const char *format,...)
 {
   va_list args;
   va_start(args, format);
@@ -3464,18 +3457,3 @@ int main(int argc, char** argv)
   /* Keep compilers happy. */
   DBUG_RETURN(retval == ERROR_STOP ? 1 : 0);
 }
-
-/*
-  We must include this here as it's compiled with different options for
-  the server
-*/
-
-#include "decimal.cc"
-#include "log_event.cc"
-#include "log_event_old.cc"
-#include "rpl_utility.cc"
-#include "rpl_gtid_sid_map.cc"
-#include "rpl_gtid_misc.cc"
-#include "rpl_gtid_set.cc"
-#include "rpl_gtid_specification.cc"
-#include "rpl_tblmap.cc"

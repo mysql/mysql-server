@@ -49,7 +49,7 @@
 #include "sql_table.h"                      // filename_to_tablename
 #include "sql_time.h"                       // interval_type_to_name
 #include "sql_tmp_table.h"                  // create_tmp_table
-#include "sql_view.h"                       // mysql_make_view
+#include "sql_view.h"                       // open_and_read_view
 #include "table_trigger_dispatcher.h"       // Table_trigger_dispatcher
 #include "trigger.h"                        // Trigger
 #include "trigger_chain.h"                  // Trigger_chain
@@ -159,6 +159,9 @@ using std::min;
 #define IS_PARAMETERS_ROUTINE_TYPE             15
 
 #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
+
+// For backward compatibility
+static const longlong FRM_VER_TRUE_VARCHAR= 10;
 
 /**
   @class CSET_STRING
@@ -496,9 +499,8 @@ void ignore_db_dirs_init()
   @return                 a pointer to the key
 */
 
-static uchar *
-db_dirs_hash_get_key(const uchar *data, size_t *len_ret,
-                     my_bool __attribute__((unused)))
+static const uchar *
+db_dirs_hash_get_key(const uchar *data, size_t *len_ret)
 {
   LEX_STRING *e= (LEX_STRING *) data;
 
@@ -689,7 +691,7 @@ ignore_db_dirs_process_additions()
   @retval FALSE not found
 */
 
-static inline bool
+bool
 is_in_ignore_db_dirs_list(const char *directory)
 {
   return ignore_db_dirs_hash.records &&
@@ -2863,13 +2865,12 @@ inline void make_upper(char *buf)
   @param variable       Details of the variable.
   @param value_type     Variable type.
   @param show_type      Variable show type.
+  @param status_var     Status values or NULL if for system variable.
   @param [out] charset  Character set of the value.
   @param [in,out] buff  Buffer to store the value.
-                             (Needs to have enough memory
-                             to hold the value of variable.)
   @param [out] length   Length of the value.
 
-  @return                    Pointer to the value buffer.
+  @returns              Pointer to the value buffer.
 */
 
 const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
@@ -2890,13 +2891,12 @@ const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
   @param variable        Details of the variable.
   @param value_type      Variable type.
   @param show_type       Variable show type.
+  @param status_var      Status values or NULL if for system variable.
   @param [out] charset   Character set of the value.
   @param [in,out] buff   Buffer to store the value.
-                              (Needs to have enough memory
-                              to hold the value of variable.)
   @param [out] length    Length of the value.
 
-  @return                     Pointer to the value buffer.
+  @returns               Pointer to the value buffer.
 */
 
 const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
@@ -3883,6 +3883,7 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
   Fill I_S table with data obtained by performing full-blown table open.
 
   @param  thd                       Thread handler.
+  @param  mem_root                  Designated mem_root for query.
   @param  is_show_fields_or_keys    Indicates whether it is a legacy SHOW
                                     COLUMNS or SHOW KEYS statement.
   @param  table                     TABLE object for I_S table to be filled.
@@ -3896,9 +3897,9 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
                                     due to metadata locks, so to avoid
                                     them we should not wait in case if
                                     conflicting lock is present.
-
-  @retval FALSE - Success.
-  @retval TRUE  - Failure.
+  @return Operation status
+    @retval  FALSE on success
+    @retval  TRUE  fatal error
 */
 static bool
 fill_schema_table_by_open(THD *thd, MEM_ROOT *mem_root, 
@@ -4423,13 +4424,19 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
 
   if (share->is_view)
   {
-    if (mysql_make_view(thd, share, &table_list, true))
-      goto end_share;
-    // Actual view query is not needed, just indicate that this is a view:
-    table_list.set_view_query((LEX *) 1);
-    res= schema_table->process_table(thd, &table_list, table,
-                                     res, db_name, table_name);
-    goto end_share;
+    bool view_open_result= open_and_read_view(thd, share, &table_list);
+
+    release_table_share(share);
+    mysql_mutex_unlock(&LOCK_open);
+
+    if (!view_open_result)
+    {
+      // Actual view query is not needed, just indicate that this is a view:
+      table_list.set_view_query((LEX *) 1);
+      res= schema_table->process_table(thd, &table_list, table,
+                                       res, db_name, table_name);
+    }
+    goto end;
   }
 
   {
@@ -4989,7 +4996,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
 
     tmp_buff= (char *) ha_resolve_storage_engine_name(tmp_db_type);
     table->field[4]->store(tmp_buff, strlen(tmp_buff), cs);
-    table->field[5]->store((longlong) share->frm_version, TRUE);
+    table->field[5]->store(FRM_VER_TRUE_VARCHAR, TRUE);
 
     ptr=option_buff;
 

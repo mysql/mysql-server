@@ -29,6 +29,11 @@ Mysql::Tools::Base::Mysql_query_runner*
   {
     runner= this->create_new_runner(message_handler);
     runner->run_query("SET SQL_QUOTE_SHOW_CREATE= 1");
+    /*
+      Do not allow server to make any timezone converstion even if it
+      has a different time zone set.
+    */
+    runner->run_query("SET TIME_ZONE='+00:00'");
     m_runner.reset(runner);
   }
   // Deliver copy of original runner.

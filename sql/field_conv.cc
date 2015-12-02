@@ -749,7 +749,13 @@ Copy_field::get_copy_func(Field *to,Field *from)
   }
   else if (to->flags & BLOB_FLAG)
   {
-    if (!(from->flags & BLOB_FLAG) || from->charset() != to->charset())
+    /*
+      We need to do conversion if we are copying from BLOB to
+      non-BLOB, or if we are copying between BLOBs with different
+      character sets, or if we are copying between JSON and non-JSON.
+    */
+    if (!(from->flags & BLOB_FLAG) || from->charset() != to->charset() ||
+        ((to->type() == MYSQL_TYPE_JSON) != (from->type() == MYSQL_TYPE_JSON)))
       return do_conv_blob;
     if (m_from_length != m_to_length || !compatible_db_low_byte_first)
     {

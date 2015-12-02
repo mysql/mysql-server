@@ -31,7 +31,7 @@
 #include "records.h"                  // READ_RECORD
 #include "sql_base.h"                 // open_tables_for_query
 #include "sql_cache.h"                // query_cache
-#include "sql_optimizer.h"            // optimize_cond
+#include "sql_optimizer.h"            // optimize_cond, substitute_gc
 #include "sql_resolver.h"             // setup_order
 #include "sql_select.h"               // free_underlaid_joins
 #include "sql_view.h"                 // check_key_in_view
@@ -94,6 +94,17 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
   Item *conds;
   if (select_lex->get_optimizable_conditions(thd, &conds, NULL))
     DBUG_RETURN(TRUE);
+
+  /*
+    See if we can substitute expressions with equivalent generated
+    columns in the WHERE and ORDER BY clauses of the DELETE statement.
+    It is unclear if this is best to do before or after the other
+    substitutions performed by substitute_for_best_equal_field(). Do
+    it here for now, to keep it consistent with how multi-table
+    deletes are optimized in JOIN::optimize().
+  */
+  if (conds || order)
+    static_cast<void>(substitute_gc(thd, select_lex, conds, NULL, order));
 
   QEP_TAB_standalone qep_tab_st;
   QEP_TAB &qep_tab= qep_tab_st.as_QEP_TAB();
@@ -668,7 +679,7 @@ bool Sql_cmd_delete::mysql_prepare_delete(THD *thd)
   thd->want_privilege= want_privilege_saved;
   thd->mark_used_columns= mark_used_columns_saved;
 
-  if (setup_ftfuncs(select))
+  if (select->has_ft_funcs() && setup_ftfuncs(select))
     DBUG_RETURN(true);                       /* purecov: inspected */
 
   // check_key_in_view() may send an SQL note, but we only want it once.

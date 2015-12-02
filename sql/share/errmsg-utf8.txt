@@ -6732,7 +6732,7 @@ ER_GTID_UNSAFE_CREATE_SELECT
   eng "Statement violates GTID consistency: CREATE TABLE ... SELECT."
 
 ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
-  eng "Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context."
+  eng "Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions."
 
 ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME
   eng "The value of @@GLOBAL.GTID_MODE can only be changed one step at a time: OFF <-> OFF_PERMISSIVE <-> ON_PERMISSIVE <-> ON. Also note that this value must be stepped up or down simultaneously on all servers. See the Manual for instructions."
@@ -7607,6 +7607,9 @@ ER_CANNOT_ADD_FOREIGN_BASE_COL_VIRTUAL
 
 ER_CANNOT_CREATE_VIRTUAL_INDEX_CONSTRAINT
   eng "Cannot create index on virtual column whose base column has foreign constraint."
+
+ER_ERROR_ON_MODIFYING_GTID_EXECUTED_TABLE
+  eng "Please do not modify the %s table with an XA transaction. This is an internal system table used to store GTIDs for committed transactions. Although modifying it can lead to an inconsistent GTID state, if neccessary you can modify it with a non-XA transaction."
 #
 #  End of 5.7 error messages.
 #

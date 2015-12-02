@@ -65,6 +65,12 @@ check.
 If you make a change in this module make sure that no codepath is
 introduced where a call to log_free_check() is bypassed. */
 
+/** TRUE if we don't have DDTableBuffer in the system tablespace,
+this should be due to we run the server against old data files.
+Please do NOT change this when server is running.
+FIXME: This should be removed away once we can upgrade for new DD. */
+extern bool	srv_missing_dd_table_buffer;
+
 /*********************************************************************//**
 Creates an insert node struct.
 @return own: insert node struct */
@@ -2371,6 +2377,8 @@ row_ins_clust_index_entry_low(
 	dberr_t		err		= DB_SUCCESS;
 	big_rec_t*	big_rec		= NULL;
 	mtr_t		mtr;
+	AutoIncLogMtr	autoinc_mtr(&mtr);
+	ib_uint64_t	counter		= 0;
 	mem_heap_t*	offsets_heap	= NULL;
 	ulint           offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*          offsets         = offsets_;
@@ -2386,8 +2394,7 @@ row_ins_clust_index_entry_low(
 	      || !thr_get_trx(thr)->in_rollback);
 	ut_ad(thr != NULL || !dup_chk_only);
 
-	mtr_start(&mtr);
-	mtr.set_named_space(index->space);
+	autoinc_mtr.start();
 
 	if (dict_table_is_temporary(index->table)) {
 		/* Disable REDO logging as the lifetime of temp-tables is
@@ -2399,18 +2406,22 @@ row_ins_clust_index_entry_low(
 		ut_ad(!dict_table_is_intrinsic(index->table)
 		      || (flags & BTR_NO_UNDO_LOG_FLAG));
 
-		mtr.set_log_mode(MTR_LOG_NO_REDO);
+		autoinc_mtr.get_mtr()->set_log_mode(MTR_LOG_NO_REDO);
+	} else {
+
+		autoinc_mtr.get_mtr()->set_named_space(index->space);
 	}
 
 	if (mode == BTR_MODIFY_LEAF && dict_index_is_online_ddl(index)) {
 		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
-		mtr_s_lock(dict_index_get_lock(index), &mtr);
+		mtr_s_lock(dict_index_get_lock(index), autoinc_mtr.get_mtr());
 	}
 
 	/* Note that we use PAGE_CUR_LE as the search mode, because then
 	the function will return in both low_match and up_match of the
 	cursor sensible values */
-	btr_pcur_open(index, entry, PAGE_CUR_LE, mode, &pcur, &mtr);
+	btr_pcur_open(index, entry, PAGE_CUR_LE, mode, &pcur,
+		      autoinc_mtr.get_mtr());
 	cursor = btr_pcur_get_btr_cur(&pcur);
 	cursor->thr = thr;
 
@@ -2427,6 +2438,20 @@ row_ins_clust_index_entry_low(
 		      || rec_n_fields_is_sane(index, first_rec, entry));
 	}
 #endif /* UNIV_DEBUG */
+
+	/* Temporary tables don't require persistent counters.
+	But for 'ALTER TABLE ... ALGORITHM = COPY', MySQL temporary tables
+	need this, but we can set it only once when necessary to prevent
+	writing so many logs. This is why row_is_mysql_tmp_table_name()
+	is necessary here */
+	if (dict_table_has_autoinc_col(index->table)
+	    && !dict_table_is_temporary(index->table)
+	    && !row_is_mysql_tmp_table_name(index->table->name.m_name)
+	    && !srv_missing_dd_table_buffer) {
+
+		counter = row_get_autoinc_counter(
+			entry, index->table->autoinc_field_no);
+	}
 
 	/* Allowing duplicates in clustered index is currently enabled
 	only for intrinsic table and caller understand the limited
@@ -2466,18 +2491,26 @@ row_ins_clust_index_entry_low(
 			DB_LOCK_WAIT */
 
 			err = row_ins_duplicate_error_in_clust(
-				flags, cursor, entry, thr, &mtr);
+				flags, cursor, entry, thr,
+				autoinc_mtr.get_mtr());
 		}
 
 		if (err != DB_SUCCESS) {
 err_exit:
-			mtr_commit(&mtr);
+			if (err == DB_DUPLICATE_KEY && counter != 0) {
+				/* Although it's duplicate in clustered index,
+				the counter could be still bigger and should
+				still be logged. */
+				autoinc_mtr.log(index->table, counter);
+			}
+
+			autoinc_mtr.commit();
 			goto func_exit;
 		}
 	}
 
 	if (dup_chk_only) {
-		mtr_commit(&mtr);
+		autoinc_mtr.commit();
 		goto func_exit;
 	}
 
@@ -2499,14 +2532,17 @@ err_exit:
 		ut_ad(thr != NULL);
 		err = row_ins_clust_index_entry_by_modify(
 			&pcur, flags, mode, &offsets, &offsets_heap,
-			entry_heap, entry, thr, &mtr);
+			entry_heap, entry, thr, autoinc_mtr.get_mtr());
 
 		if (err == DB_SUCCESS && dict_index_is_online_ddl(index)) {
 			row_log_table_insert(btr_cur_get_rec(cursor), entry,
 					     index, offsets);
 		}
 
-		mtr_commit(&mtr);
+		if (err == DB_SUCCESS && counter != 0) {
+			autoinc_mtr.log(index->table, counter);
+		}
+		autoinc_mtr.commit();
 		mem_heap_free(entry_heap);
 	} else {
 		rec_t*	insert_rec;
@@ -2517,7 +2553,7 @@ err_exit:
 			err = btr_cur_optimistic_insert(
 				flags, cursor, &offsets, &offsets_heap,
 				entry, &insert_rec, &big_rec,
-				n_ext, thr, &mtr);
+				n_ext, thr, autoinc_mtr.get_mtr());
 		} else {
 			if (buf_LRU_buf_pool_running_out()) {
 
@@ -2531,19 +2567,23 @@ err_exit:
 				flags, cursor,
 				&offsets, &offsets_heap,
 				entry, &insert_rec, &big_rec,
-				n_ext, thr, &mtr);
+				n_ext, thr, autoinc_mtr.get_mtr());
 
 			if (err == DB_FAIL) {
 				err = btr_cur_pessimistic_insert(
 					flags, cursor,
 					&offsets, &offsets_heap,
 					entry, &insert_rec, &big_rec,
-					n_ext, thr, &mtr);
+					n_ext, thr, autoinc_mtr.get_mtr());
 			}
 		}
 
 		if (big_rec != NULL) {
-			mtr_commit(&mtr);
+			if (err == DB_SUCCESS && counter != 0) {
+				autoinc_mtr.log(index->table, counter);
+			}
+
+			autoinc_mtr.commit();
 
 			/* Online table rebuild could read (and
 			ignore) the incomplete record at this point.
@@ -2565,7 +2605,11 @@ err_exit:
 					insert_rec, entry, index, offsets);
 			}
 
-			mtr_commit(&mtr);
+			if (err == DB_SUCCESS && counter != 0) {
+				autoinc_mtr.log(index->table, counter);
+			}
+
+			autoinc_mtr.commit();
 		}
 	}
 

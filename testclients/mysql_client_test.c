@@ -20600,6 +20600,136 @@ static void test_bug20821550()
 
 }
 
+static void check_warning(MYSQL *conn)
+{
+  MYSQL_RES *result;
+  int        rc;
+
+  rc= mysql_query(conn, "SHOW WARNINGS");
+  myquery(rc);
+  result= mysql_store_result(conn);
+  mytest(result);
+  rc= my_process_result_set(result);
+  DIE_UNLESS(rc == 1);
+  mysql_free_result(result);
+}
+
+static void test_wl8754()
+{
+  MYSQL_RES     *res;
+  MYSQL         *conn;
+  int           rc;
+  unsigned long thread_id;
+  const char    *stmt_text;
+
+  myheader("test_wl8754");
+
+  /* Check that mysql_list_fields reports deprecated warning. */
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+  stmt_text= "CREATE TABLE t1 (a int, b char(255), c decimal)";
+  rc= mysql_real_query(mysql, stmt_text, (ulong) strlen(stmt_text));
+  myquery(rc);
+
+  res= mysql_list_fields(mysql, "t1", "%");
+  mysql_free_result(res);
+
+  check_warning(mysql);
+
+  stmt_text= "DROP TABLE t1";
+  rc= mysql_real_query(mysql, stmt_text, (ulong) strlen(stmt_text));
+  myquery(rc);
+
+  /* Check that mysql_refresh() reports deprecated warning. */
+  rc= mysql_refresh(mysql, REFRESH_TABLES);
+  myquery(rc);
+
+  check_warning(mysql);
+
+  /* Run a dummy query to clear diagnostics. */
+  rc= mysql_query(mysql, "SELECT 1");
+  myquery(rc);
+  /* Get the result. */
+  res= mysql_store_result(mysql);
+  mytest(res);
+  (void) my_process_result_set(res);
+  mysql_free_result(res);
+
+  /* Check that mysql_list_processes() reports deprecated warning. */
+  res= mysql_list_processes(mysql);
+  mysql_free_result(res);
+
+  check_warning(mysql);
+
+  /* Check that mysql_kill() reports deprecated warning. */
+  if (!(conn= mysql_client_init(NULL)))
+  {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+  conn->reconnect= 1;
+  if (!(mysql_real_connect(conn, opt_host, opt_user,
+                           opt_password, current_db, opt_port,
+                           opt_unix_socket, 0)))
+  {
+    myerror("connection failed");
+    exit(1);
+  }
+  thread_id= mysql_thread_id(conn);
+  /*
+    Kill connection would have killed the existing connection which clears
+    the THD state and reconnects with a new THD thus there will be no
+    warnings.
+  */
+  mysql_kill(conn, (unsigned long) thread_id);
+  mysql_close(conn);
+ }
+
+/*
+  BUG#17883203: MYSQL EMBEDDED MYSQL_STMT_EXECUTE RETURN
+                "MALFORMED COMMUNICATION PACKET" ERROR
+*/
+#define BUG17883203_STRING_SIZE 50
+
+static void test_bug17883203()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind;
+  char str_data[BUG17883203_STRING_SIZE];
+  my_bool is_null;
+  my_bool error;
+  unsigned long length;
+  const char stmt_text[] ="SELECT VERSION()";
+  int rc;
+
+  myheader("test_bug17883203");
+
+  stmt = mysql_stmt_init(mysql);
+  check_stmt(stmt);
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  memset(&bind, 0, sizeof(bind));
+
+  bind.buffer_type= MYSQL_TYPE_STRING;
+  bind.buffer= (char *)str_data;
+  bind.buffer_length= BUG17883203_STRING_SIZE;
+  bind.is_null= &is_null;
+  bind.length= &length;
+  bind.error= &error;
+
+  rc= mysql_stmt_bind_result(stmt, &bind);
+  check_execute(stmt, rc);
+  rc= mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  if (!opt_silent)
+  {
+    fprintf(stdout, "\n Version: %s", str_data);
+  }
+  mysql_stmt_close(stmt);
+}
 
 static struct my_tests_st my_tests[]= {
   { "disable_query_logs", disable_query_logs },
@@ -20887,6 +21017,8 @@ static struct my_tests_st my_tests[]= {
   { "test_bug21293012", test_bug21293012 },
   { "test_bug21199582", test_bug21199582 },
   { "test_bug20821550", test_bug20821550 },
+  { "test_wl8754", test_wl8754 },
+  { "test_bug17883203", test_bug17883203 },
   { 0, 0 }
 };
 

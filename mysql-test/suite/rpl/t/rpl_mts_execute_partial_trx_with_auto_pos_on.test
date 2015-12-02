@@ -1,11 +1,16 @@
 # ==== Purpose ====
 #
-# Bug#19545298 REPLICATION FAILS WITH ERRNO 1755
-#
 # Verify that the replication does not fail with MTS enabled even if
 # slave IO thread left a partial group in relay log, when both auto
-# position and GTID mode are enabled.
+# position and GTID mode are enabled on binlog slave.
 #
+# ==== Implementation ====
+#
+# See extra/rpl_tests/rpl_mts_execute_partial_trx_in_relay_log.inc
+#
+# ==== References ====
+#
+# Bug#19545298 REPLICATION FAILS WITH ERRNO 1755
 
 --source include/not_group_replication_plugin.inc
 --source include/have_gtid.inc

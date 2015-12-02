@@ -280,14 +280,14 @@ void
 row_delete_all_rows(
 	dict_table_t*	table);
 
-/** This can only be used when srv_locks_unsafe_for_binlog is TRUE or this
-session is using a READ COMMITTED or READ UNCOMMITTED isolation level.
-Before calling this function row_search_for_mysql() must have
-initialized prebuilt->new_rec_locks to store the information which new
-record locks really were set. This function removes a newly set
-clustered index record lock under prebuilt->pcur or
-prebuilt->clust_pcur.  Thus, this implements a 'mini-rollback' that
-releases the latest clustered index record lock we set.
+/** This can only be used when this session is using a READ COMMITTED or READ
+UNCOMMITTED isolation level.  Before calling this function
+row_search_for_mysql() must have initialized prebuilt->new_rec_locks to store
+the information which new record locks really were set. This function removes
+a newly set clustered index record lock under prebuilt->pcur or
+prebuilt->clust_pcur.  Thus, this implements a 'mini-rollback' that releases
+the latest clustered index record lock we set.
+
 @param[in,out]	prebuilt		prebuilt struct in MySQL handle
 @param[in]	has_latches_on_recs	TRUE if called so that we have the
 					latches on the records under pcur
@@ -751,8 +751,8 @@ struct row_prebuilt_t {
 	ulint		row_read_type;	/*!< ROW_READ_WITH_LOCKS if row locks
 					should be the obtained for records
 					under an UPDATE or DELETE cursor.
-					If innodb_locks_unsafe_for_binlog
-					is TRUE, this can be set to
+					If trx_t::allow_semi_consistent()
+					returns true, this can be set to
 					ROW_READ_TRY_SEMI_CONSISTENT, so that
 					if the row under an UPDATE or DELETE
 					cursor was locked by another
@@ -773,10 +773,8 @@ struct row_prebuilt_t {
 					This eliminates lock waits in some
 					cases; note that this breaks
 					serializability. */
-	ulint		new_rec_locks;	/*!< normally 0; if
-					srv_locks_unsafe_for_binlog is
-					TRUE or session is using READ
-					COMMITTED or READ UNCOMMITTED
+	ulint		new_rec_locks;	/*!< normally 0; if session is using
+					READ COMMITTED or READ UNCOMMITTED
 					isolation level, set in
 					row_search_for_mysql() if we set a new
 					record lock on the secondary

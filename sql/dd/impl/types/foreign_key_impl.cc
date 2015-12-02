@@ -160,8 +160,8 @@ bool Foreign_key_impl::drop_children(Open_dictionary_tables_ctx *otx)
 
 bool Foreign_key_impl::restore_attributes(const Raw_record &r)
 {
-  check_parent_consistency(
-    m_table, r.read_ref_id(Foreign_keys::FIELD_TABLE_ID));
+  if (check_parent_consistency(m_table, r.read_ref_id(Foreign_keys::FIELD_TABLE_ID)))
+    return true;
 
   restore_id(r, Foreign_keys::FIELD_ID);
   restore_name(r, Foreign_keys::FIELD_NAME);
@@ -221,7 +221,7 @@ void Foreign_key_impl::debug_print(std::string &outb) const
     << "m_delete_rule: " << m_delete_rule << "; ";
 
   {
-    std::auto_ptr<Foreign_key_element_const_iterator> it(elements());
+    std::unique_ptr<Foreign_key_element_const_iterator> it(elements());
 
     while (true)
     {

@@ -1,0 +1,85 @@
+--source include/have_debug_sync.inc
+--source include/have_gtid.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo #
+--echo # BUG#21463167 - GTIDS: LOCK_OPEN DEADLOCK WITH REVOKE INCIDENT +
+--echo #                SHOW TABLE STATUS CONCURRENTLY
+--echo #
+
+CREATE USER u1;
+CREATE TABLE t1(a INT);
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+CALL mtr.add_suppression("REVOKE failed while revoking all_privileges from a list of users.");
+
+--enable_connect_log
+
+--connect (con1, localhost, root,,)
+# Set force_mysql_revoke_all_fail in order to simulate partial execution failure
+# in mysql_revoke_all(). In this case execution flow go to the 'if' branch where
+# mysql_bin_log.write_incident is called.
+SET debug="+d,force_mysql_revoke_all_fail";
+# When the sync point revoke_all_before_write_incident_to_binlog
+# will be hit a write lock for LOCK_grant has already been acquired
+# in mysql_revoke_all() and we are waiting for the signal revoke_all_cont
+# be emitted to go inside mysql_bin_log.write_incident() where LOCK_open
+# will be acquired.
+SET DEBUG_SYNC='revoke_all_before_write_incident_to_binlog SIGNAL revoke_all_has_lock_grant WAIT_FOR revoke_all_cont';
+
+--connection default
+# Set the debug variable force_check_table_access_return_ok
+# in order to avoid calling of check_grant as part of handling
+# the statement SET DEBUG_SYNC="....". If we didn't do so we would be suspended on
+# waiting for LOCK_grant be released that had been acquired on handling REVOKE ALL.
+SET debug="+d,force_check_table_access_return_ok";
+
+--connection con1
+# Processing of the following REVOKE ALL will be suspended on
+# the sync point revoke_all_before_write_incident_to_binlog waiting until
+# the signal revoke_all_cont be emitted. While suspending it holds
+# the lock LOCK_grant on write.
+--echo # Sending REVOKE ALL PRIVILEGES
+--send REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'u1'@'%'
+
+--connection default
+# In the default connection we are waiting until processing of the statement
+# REVOKE ALL PRIVILEGES hit the sync point revoke_all_before_write_incident_to_binlog.
+# When this happen the connection con1 holds LOCK_grant on write.
+SET DEBUG_SYNC='now WAIT_FOR revoke_all_has_lock_grant';
+
+# When processing the statement SHOW TABLE STATUS we will hit the sync point
+# fill_effective_table_privileges that will emit signal revoke_all_cont.
+# At this point we know that REVOKE ALL PRIVILEGES has already acquired LOCK_grant.
+# Waken up thread that is handling REVOKE ALL PRIVILEGES will try to acquire
+# LOCK_open while executing mysql_bin_log.write_incident().
+SET DEBUG_SYNC='fill_effective_table_privileges SIGNAL revoke_all_cont';
+
+--replace_column 12 x
+# When there is a view while handling SHOW TABLE STATUS the function mysql_make_view()
+# is called from open_table(). LOCK_open has been acquired within open_table before calling
+# mysql_make_view and when we are trying to lock LOCK_grant on read from
+# revoke_all_before_write_incident_to_binlog we would get a deadlock without the patch.
+SHOW TABLE STATUS;
+
+--connection con1
+# Get execution result of REVOKE ALL PRIVILEGES.
+# We expect the error ER_REVOKE_GRANTS since the debug variable force_mysql_revoke_all_fail
+# was set to simulate failure of REVOKE ALL PRIVILEGES
+--echo # Reaping REVOKE ALL PRIVILEGES
+--error ER_REVOKE_GRANTS
+--reap
+
+--connection default
+--disconnect con1
+DROP USER u1;
+DROP VIEW v1;
+DROP TABLE t1;
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc
+--disable_connect_log
+
+SET debug='';
+

@@ -125,14 +125,3 @@ innodb_zip.wl6501_scale_1                      : WL6795_WL7016_RECOVERY
 
 (16:16:46) marko: innodb_zip.wl6501_scale_1 needs some WL#6795 (http://wl.no.oracle.com/?tid=6795) adjustment
 (16:16:58) marko: or re-recording (warnings on TRUNCATE)
-
-
-///////////////////////////////////////////////////////////////////
-// NEW DISABLED TESTS - NOT ASSIGNED
-///////////////////////////////////////////////////////////////////
-
-
-innodb.alter_foreign_crash                     :WL6378_TEMPORARY_FILES
-
-(09:41:55) dmitry.lenev: joh: and innodb.alter_foreign_crash has to wait until WL#7743 I am afraid
-

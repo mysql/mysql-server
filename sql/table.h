@@ -694,7 +694,6 @@ struct TABLE_SHARE
   uint next_number_keypart;             /* autoinc keypart number in a key */
   bool error;                           /* error during open_table_def() */
   uint column_bitmap_size;
-  uchar frm_version;
   uint vfields;                         /* Number of generated fields */
   bool system;                          /* Set if system table (one record) */
   bool crypted;                         /* If .frm file is crypted */
@@ -3009,8 +3008,7 @@ void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
                           uint primary_key_n, KEY *keyinfo, uint key_n,
                           uint key_part_n, uint *usable_parts);
 
-uchar *get_field_name(Field **buff, size_t *length,
-                      my_bool not_used __attribute__((unused)));
+const uchar *get_field_name(const uchar *arg, size_t *length);
 
 void repoint_field_to_record(TABLE *table, uchar *old_rec, uchar *new_rec);
 bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table);

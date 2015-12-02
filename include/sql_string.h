@@ -363,6 +363,11 @@ public:
   bool real_alloc(size_t arg_length);			// Empties old string
   bool mem_realloc(size_t arg_length, bool force_on_heap= false);
 
+private:
+  size_t next_realloc_exp_size(size_t sz);
+  bool mem_realloc_exp(size_t arg_length);
+
+public:
   // Shrink the buffer, but only if it is allocated on the heap.
   void shrink(size_t arg_length)
   {
@@ -480,7 +485,7 @@ public:
     }
     else
     {
-      if (mem_realloc(m_length+1))
+      if (mem_realloc_exp(m_length+1))
 	return 1;
       m_ptr[m_length++]= chr;
     }
@@ -562,7 +567,7 @@ public:
   bool append(const char *s, size_t arg_length, size_t step_alloc)
   {
     size_t new_length= arg_length + m_length;
-    if (new_length > m_alloced_length && mem_realloc(new_length + step_alloc))
+    if (new_length > m_alloced_length && mem_realloc_exp(new_length + step_alloc))
       return true;
     memcpy(m_ptr+m_length, s, arg_length);
     m_length+= arg_length;

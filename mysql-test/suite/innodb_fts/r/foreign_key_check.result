@@ -1,0 +1,29 @@
+CREATE TABLE t1 (
+id       INT NOT NULL,
+title    TEXT,
+PRIMARY  KEY (id),
+FULLTEXT KEY (title),
+FOREIGN  KEY (id) REFERENCES t2 (id)
+) ENGINE=InnoDB;
+ERROR HY000: Cannot add foreign key constraint
+CREATE TABLE t1 (
+id       INT NOT NULL,
+title    TEXT,
+PRIMARY  KEY (id)
+) ENGINE=InnoDB;
+ALTER TABLE t1 ADD FULLTEXT KEY (title), ADD FOREIGN KEY (id) REFERENCES t2 (id);
+ERROR HY000: Cannot add foreign key constraint
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE t1 ADD FULLTEXT KEY (title), ADD FOREIGN KEY (id) REFERENCES t2 (id);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+DROP TABLE t1;
+CREATE TABLE t1 (
+id       INT NOT NULL,
+title    TEXT,
+PRIMARY  KEY (id),
+FULLTEXT KEY (title),
+FOREIGN  KEY (id) REFERENCES t2 (id)
+) ENGINE=InnoDB;
+DROP TABLE t1;
+SET FOREIGN_KEY_CHECKS = 1;

@@ -517,59 +517,6 @@ protected:
 	bool                    m_mysql_has_locked;
 };
 
-const CHARSET_INFO *thd_charset(THD *thd);
-
-/** Check if a user thread is a replication slave thread
-@param thd user thread
-@retval 0 the user thread is not a replication slave thread
-@retval 1 the user thread is a replication slave thread */
-int thd_slave_thread(const THD *thd);
-
-/** Check if a user thread is running a non-transactional update
-@param thd user thread
-@retval 0 the user thread is not running a non-transactional update
-@retval 1 the user thread is running a non-transactional update */
-int thd_non_transactional_update(const THD *thd);
-
-/** Get the user thread's binary logging format
-@param thd user thread
-@return Value to be used as index into the binlog_format_names array */
-int thd_binlog_format(const THD *thd);
-
-/** Check if binary logging is filtered for thread's current db.
-@param thd Thread handle
-@retval 1 the query is not filtered, 0 otherwise. */
-bool thd_binlog_filter_ok(const THD *thd);
-
-/** Check if the query may generate row changes which may end up in the binary.
-@param thd Thread handle
-@retval 1 the query may generate row changes, 0 otherwise.
-*/
-bool thd_sqlcom_can_generate_row_events(const THD *thd);
-
-/** Gets information on the durability property requested by a thread.
-@param thd Thread handle
-@return a durability property. */
-durability_properties thd_get_durability_property(const THD *thd);
-
-/** Get the auto_increment_offset auto_increment_increment.
-@param thd Thread object
-@param off auto_increment_offset
-@param inc auto_increment_increment */
-void thd_get_autoinc(const THD *thd, ulong* off, ulong* inc);
-
-/** Is strict sql_mode set.
-@param thd Thread object
-@return True if sql_mode has strict mode (all or trans), false otherwise. */
-bool thd_is_strict_mode(const THD *thd);
-
-/** Get the partition_info working copy.
-@param	thd	Thread object.
-@return	NULL or pointer to partition_info working copy. */
-partition_info*
-thd_get_work_part_info(
-	THD*	thd);
-
 struct trx_t;
 
 extern const struct _ft_vft ft_vft_result;
@@ -781,6 +728,10 @@ private:
 
 	/** Create the internal innodb table definition. */
 	int create_table_def();
+
+	/** Initialize the autoinc of this table if necessary, which should
+	be called before we flush logs, so autoinc counter can be persisted. */
+	void initialize_autoinc();
 
 	/** Connection thread handle. */
 	THD*		m_thd;

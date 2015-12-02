@@ -165,7 +165,7 @@ SET(CLIENT_SOURCES
   get_password.c 
   libmysql.c
   errmsg.c
-  ../sql-common/client.c 
+  ../sql-common/client.cc
   ../sql-common/my_time.c 
   ../sql-common/client_plugin.c 
   ../sql-common/client_authentication.cc
@@ -241,15 +241,6 @@ IF(UNIX)
       SET(${OUTNAME} ${LIBNAME}${EXTENSION}${DOT_VERSION})
     ENDIF() 
   ENDMACRO()
-ENDIF()
-
-# In our special "mixed" builds, also install libstlport which will
-# be injected into the build tree by the Sun Studio part of the build.
-
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND DEFINED ENV{PB2WORKDIR})
-  INSTALL(FILES ${CMAKE_BINARY_DIR}/libstlport.so
-                ${CMAKE_BINARY_DIR}/libstlport.so.1
-          DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries OPTIONAL)
 ENDIF()
 
 IF(NOT DISABLE_SHARED)

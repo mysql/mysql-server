@@ -303,6 +303,9 @@ IF(WITH_UBSAN)
   IF(NOT WITH_UBSAN_OK)
     MESSAGE(FATAL_ERROR
             "Do not know how to enable undefined behavior sanitizer")
+  ELSE()
+    MESSAGE(WARNING
+            "Note that Undefined Behavior support is currently experimental.")
   ENDIF()
 ENDIF()
 
@@ -656,15 +659,11 @@ IF(NOT INSTALL_LAYOUT MATCHES "RPM")
   INSTALL(FILES README DESTINATION ${INSTALL_DOCREADMEDIR} COMPONENT Readme)
   INSTALL(FILES ${CMAKE_BINARY_DIR}/Docs/INFO_SRC ${CMAKE_BINARY_DIR}/Docs/INFO_BIN DESTINATION ${INSTALL_DOCDIR})
 
-  IF(UNIX)
-    INSTALL(FILES Docs/INSTALL-BINARY DESTINATION ${INSTALL_DOCREADMEDIR} COMPONENT Readme)
-  ENDIF()
   # MYSQL_DOCS_LOCATON is used in "make dist", points to the documentation directory
   SET(MYSQL_DOCS_LOCATION "" CACHE PATH "Location from where documentation is copied")
   MARK_AS_ADVANCED(MYSQL_DOCS_LOCATION)
   INSTALL(DIRECTORY Docs/ DESTINATION ${INSTALL_DOCDIR}
     COMPONENT Documentation
-    PATTERN "INSTALL-BINARY" EXCLUDE
     PATTERN "Makefile.*" EXCLUDE
     PATTERN "glibc*" EXCLUDE
     PATTERN "linuxthreads.txt" EXCLUDE

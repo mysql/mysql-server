@@ -521,6 +521,7 @@ LatchDebug::LatchDebug()
 	LEVEL_MAP_INSERT(SYNC_INDEX_TREE);
 	LEVEL_MAP_INSERT(SYNC_PERSIST_METADATA_BUFFER);
 	LEVEL_MAP_INSERT(SYNC_PERSIST_DIRTY_TABLES);
+	LEVEL_MAP_INSERT(SYNC_PERSIST_AUTOINC);
 	LEVEL_MAP_INSERT(SYNC_PERSIST_CHECKPOINT);
 	LEVEL_MAP_INSERT(SYNC_IBUF_PESS_INSERT_MUTEX);
 	LEVEL_MAP_INSERT(SYNC_IBUF_HEADER);
@@ -1005,11 +1006,18 @@ LatchDebug::check_order(
 		ut_a(find(latches, SYNC_PERSIST_METADATA_BUFFER) == NULL);
 		break;
 
+	case SYNC_PERSIST_AUTOINC:
+
+		basic_check(latches, level, SYNC_LOG);
+		ut_a(find(latches, SYNC_PERSIST_METADATA_BUFFER) == NULL);
+		ut_a(find(latches, SYNC_PERSIST_DIRTY_TABLES) == NULL);
+
 	case SYNC_PERSIST_CHECKPOINT:
 
 		basic_check(latches, level, SYNC_LOG);
 		ut_a(find(latches, SYNC_PERSIST_METADATA_BUFFER) == NULL);
 		ut_a(find(latches, SYNC_PERSIST_DIRTY_TABLES) == NULL);
+		ut_a(find(latches, SYNC_PERSIST_AUTOINC) == NULL);
 		break;
 
 	case SYNC_DICT:
@@ -1391,6 +1399,10 @@ sync_latch_meta_init()
 	LATCH_ADD(DICT_PERSIST_DIRTY_TABLES,
 		  SYNC_PERSIST_DIRTY_TABLES,
 		  dict_persist_dirty_tables_mutex_key);
+
+	LATCH_ADD(PERSIST_AUTOINC,
+		  SYNC_PERSIST_AUTOINC,
+		  autoinc_persisted_mutex_key);
 
 	LATCH_ADD(DICT_PERSIST_CHECKPOINT,
 		  SYNC_PERSIST_CHECKPOINT,

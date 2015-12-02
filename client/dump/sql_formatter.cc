@@ -42,14 +42,13 @@ void Sql_formatter::format_row_group(Row_group_dump_task* row_group)
       row_data_length+= row->m_row_data.size_of_element(column) * 2 + 3;
     }
   }
-  if (m_options->m_dump_column_names)
+  if (m_options->m_dump_column_names || row_group->m_has_generated_columns)
   {
     row_data_length+= 3; // Space for enclosing parentheses and space.
-    const std::vector<Field>& fields=
-      row_group->m_source_table->get_fields();
-    for (std::vector<Field>::const_iterator field_iterator= fields.begin();
-      field_iterator != fields.end();
-      ++field_iterator)
+    const std::vector<Mysql_field>& fields= row_group->m_fields;
+    for (std::vector<Mysql_field>::const_iterator
+       field_iterator= fields.begin(); field_iterator != fields.end();
+       ++field_iterator)
     {
       row_data_length+= field_iterator->get_name().size() * 2 + 3;
     }
@@ -73,13 +72,12 @@ void Sql_formatter::format_row_group(Row_group_dump_task* row_group)
   else
     row_string+= "INSERT INTO ";
   row_string+= this->get_quoted_object_full_name(row_group->m_source_table);
-  if (m_options->m_dump_column_names)
+  if (m_options->m_dump_column_names || row_group->m_has_generated_columns)
   {
     row_string+= " (";
-    const std::vector<Field>& fields=
-      row_group->m_source_table->get_fields();
-    for (std::vector<Field>::const_iterator field_iterator= fields.begin();
-      field_iterator != fields.end();
+    const std::vector<Mysql_field>& fields= row_group->m_fields;
+    for (std::vector<Mysql_field>::const_iterator
+      field_iterator= fields.begin(); field_iterator != fields.end();
       ++field_iterator)
     {
       if (field_iterator != fields.begin())
@@ -143,8 +141,7 @@ void Sql_formatter::format_row_group(Row_group_dump_task* row_group)
         {
           row_string+= "NULL";
         }
-        else if (row_group->m_fields[column].get_type()
-          == MYSQL_TYPE_DECIMAL)
+        else if (row_group->m_fields[column].get_type() == MYSQL_TYPE_DECIMAL)
         {
           row_string+= '\'';
           row_string.append(column_data, column_length);

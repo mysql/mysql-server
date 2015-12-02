@@ -279,7 +279,7 @@ private:
 
   std::string m_engine;
   std::string m_comment;
-  std::auto_ptr<Properties> m_se_private_data;
+  std::unique_ptr<Properties> m_se_private_data;
 
   // - Partitioning related fields.
 
@@ -293,9 +293,9 @@ private:
 
   // References to tightly-coupled objects.
 
-  std::auto_ptr<Index_collection> m_indexes;
-  std::auto_ptr<Foreign_key_collection> m_foreign_keys;
-  std::auto_ptr<Partition_collection> m_partitions;
+  std::unique_ptr<Index_collection> m_indexes;
+  std::unique_ptr<Foreign_key_collection> m_foreign_keys;
+  std::unique_ptr<Partition_collection> m_partitions;
 
   // References to other objects.
 

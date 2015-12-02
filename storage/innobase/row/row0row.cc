@@ -1046,6 +1046,44 @@ row_get_clust_rec(
 	return(clust_rec);
 }
 
+/** Parse the integer data from specified field, which could be
+DATA_INT, DATA_FLOAT or DATA_DOUBLE. We could return 0 if
+1) the value is less than 0 and the type is not unsigned
+or 2) the field is null.
+@param[in]	field		field to read the int value
+@return the integer value read from the field, 0 for negative signed
+int or NULL field */
+ib_uint64_t
+row_parse_int_from_field(
+	const dfield_t*	field)
+{
+	const dtype_t*	dtype = dfield_get_type(field);
+	ulint		len = dfield_get_len(field);
+	const byte*	data = static_cast<const byte*>(dfield_get_data(field));
+	ulint		mtype = dtype_get_mtype(dtype);
+	bool		unsigned_type = dtype->prtype & DATA_UNSIGNED;
+
+	if (dfield_is_null(field)) {
+		return(0);
+	} else {
+		return(row_parse_int(data, len, mtype, unsigned_type));
+	}
+}
+
+/** Read the autoinc counter from the clustered index row.
+@param[in]	row	row to read the autoinc counter
+@param[in]	n	autoinc counter is in the nth field
+@return the autoinc counter read */
+ib_uint64_t
+row_get_autoinc_counter(
+	const dtuple_t*		row,
+	ulint			n)
+{
+	const dfield_t*	field = dtuple_get_nth_field(row, n);
+
+	return(row_parse_int_from_field(field));
+}
+
 /***************************************************************//**
 Searches an index record.
 @return whether the record was found or buffered */

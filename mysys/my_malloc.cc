@@ -110,7 +110,7 @@ my_realloc(PSI_memory_key key, void *ptr, size_t size, myf flags)
   return NULL;
 }
 
-extern "C" void my_claim(void *ptr)
+extern "C" void my_claim(const void *ptr)
 {
   my_memory_header *mh;
 

@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <memory>
+#include <cmath>
 
 #include <m_ctype.h>
 #include "item_geofunc.h"
@@ -53,8 +54,6 @@
 #define GIS_ZERO 0.00000000001
 
 extern bool simplify_multi_geometry(String *str, String *result_buffer);
-
-using std::auto_ptr;
 
 
 /**
@@ -81,6 +80,8 @@ using std::auto_ptr;
   after the call to handle_gis_exception(), must not throw exceptions.
 
   @param funcname Function name for use in error message
+
+  @see handle_std_exception
  */
 void handle_gis_exception(const char *funcname);
 
@@ -155,10 +156,10 @@ inline void make_bg_box(const Geometry *g, BG_box *box)
 inline bool is_box_valid(const BG_box &box)
 {
   return
-    !(!my_isfinite(box.min_corner().get<0>()) ||
-      !my_isfinite(box.min_corner().get<1>()) ||
-      !my_isfinite(box.max_corner().get<0>()) ||
-      !my_isfinite(box.max_corner().get<1>()) ||
+    !(!std::isfinite(box.min_corner().get<0>()) ||
+      !std::isfinite(box.min_corner().get<1>()) ||
+      !std::isfinite(box.max_corner().get<0>()) ||
+      !std::isfinite(box.max_corner().get<1>()) ||
       box.max_corner().get<0>() < box.min_corner().get<0>() ||
       box.max_corner().get<1>() < box.min_corner().get<1>());
 }

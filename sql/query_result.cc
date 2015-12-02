@@ -16,6 +16,7 @@
 #include "query_result.h"
 
 #include "derror.h"            // ER_THD
+#include "parse_tree_nodes.h"  // PT_select_var
 #include "sp_rcontext.h"       // sp_rcontext
 #include "sql_class.h"         // THD
 #include "mysqld.h"            // key_select_to_file
@@ -106,6 +107,34 @@ bool Query_result_send::send_eof()
   ::my_eof(thd);
   is_result_set_started= 0;
   return false;
+}
+
+
+static const String default_line_term("\n",default_charset_info);
+static const String default_escaped("\\",default_charset_info);
+static const String default_field_term("\t",default_charset_info);
+static const String default_xml_row_term("<row>", default_charset_info);
+static const String my_empty_string("",default_charset_info);
+
+
+sql_exchange::sql_exchange(const char *name, bool flag,
+                           enum enum_filetype filetype_arg)
+  :file_name(name), dumpfile(flag), skip_lines(0)
+{
+  field.opt_enclosed= 0;
+  filetype= filetype_arg;
+  field.field_term= &default_field_term;
+  field.enclosed= line.line_start= &my_empty_string;
+  line.line_term= filetype == FILETYPE_CSV ?
+              &default_line_term : &default_xml_row_term;
+  field.escaped= &default_escaped;
+  cs= NULL;
+}
+
+
+bool sql_exchange::escaped_given(void)
+{
+  return field.escaped != &default_escaped;
 }
 
 
@@ -748,4 +777,67 @@ bool Query_dumpvar::check_simple_select() const
 {
   my_error(ER_SP_BAD_CURSOR_SELECT, MYF(0));
   return true;
+}
+
+
+bool Query_dumpvar::send_data(List<Item> &items)
+{
+  List_iterator_fast<PT_select_var> var_li(var_list);
+  List_iterator<Item> it(items);
+  Item *item;
+  PT_select_var *mv;
+  DBUG_ENTER("Query_dumpvar::send_data");
+
+  if (unit->offset_limit_cnt)
+  {						// using limit offset,count
+    unit->offset_limit_cnt--;
+    DBUG_RETURN(false);
+  }
+  if (row_count++) 
+  {
+    my_error(ER_TOO_MANY_ROWS, MYF(0));
+    DBUG_RETURN(true);
+  }
+  while ((mv= var_li++) && (item= it++))
+  {
+    if (mv->is_local())
+    {
+      if (thd->sp_runtime_ctx->set_variable(thd, mv->get_offset(), &item))
+	    DBUG_RETURN(true);
+    }
+    else
+    {
+      /*
+        Create Item_func_set_user_vars with delayed non-constness. We
+        do this so that Item_get_user_var::const_item() will return
+        the same result during
+        Item_func_set_user_var::save_item_result() as they did during
+        optimization and execution.
+       */
+      Item_func_set_user_var *suv=
+        new Item_func_set_user_var(mv->name, item, true);
+      if (suv->fix_fields(thd, 0))
+        DBUG_RETURN(true);
+      suv->save_item_result(item);
+      if (suv->update())
+        DBUG_RETURN(true);
+    }
+  }
+  DBUG_RETURN(thd->is_error());
+}
+
+bool Query_dumpvar::send_eof()
+{
+  if (! row_count)
+    push_warning(thd, Sql_condition::SL_WARNING,
+                 ER_SP_FETCH_NO_DATA, ER_THD(thd, ER_SP_FETCH_NO_DATA));
+  /*
+    Don't send EOF if we're in error condition (which implies we've already
+    sent or are sending an error)
+  */
+  if (thd->is_error())
+    return true;
+
+  ::my_ok(thd,row_count);
+  return 0;
 }

@@ -50,6 +50,9 @@
 #include "strfunc.h"             // find_type
 #include "item_json_func.h"      // Item_func_json_quote
 
+#include <cfloat>                // DBL_DIG
+#include <exception>             // std::exception subclasses
+
 using std::min;
 using std::max;
 
@@ -941,7 +944,7 @@ Item_func::contributes_to_filter(table_map read_tables,
 /**
   Return new Item_field if given expression matches GC
 
-  @see JOIN::substitute_gc()
+  @see substitute_gc()
 
   @param func           Expression to be replaced
   @param fld            GCs field
@@ -1315,6 +1318,63 @@ void unsupported_json_comparison(size_t arg_count, Item **args, const char *msg)
                           msg);
       break;
     }
+  }
+}
+
+
+void handle_std_exception(const char *funcname)
+{
+  try
+  {
+    throw;
+  }
+  catch (const std::bad_alloc &e)
+  {
+    my_error(ER_STD_BAD_ALLOC_ERROR, MYF(0), e.what(), funcname);
+  }
+  catch (const std::domain_error &e)
+  {
+    my_error(ER_STD_DOMAIN_ERROR, MYF(0), e.what(), funcname);
+  }
+  catch (const std::length_error &e)
+  {
+    my_error(ER_STD_LENGTH_ERROR, MYF(0), e.what(), funcname);
+  }
+  catch (const std::invalid_argument &e)
+  {
+    my_error(ER_STD_INVALID_ARGUMENT, MYF(0), e.what(), funcname);
+  }
+  catch (const std::out_of_range &e)
+  {
+    my_error(ER_STD_OUT_OF_RANGE_ERROR, MYF(0), e.what(), funcname);
+  }
+  catch (const std::overflow_error &e)
+  {
+    my_error(ER_STD_OVERFLOW_ERROR, MYF(0), e.what(), funcname);
+  }
+  catch (const std::range_error &e)
+  {
+    my_error(ER_STD_RANGE_ERROR, MYF(0), e.what(), funcname);
+  }
+  catch (const std::underflow_error &e)
+  {
+    my_error(ER_STD_UNDERFLOW_ERROR, MYF(0), e.what(), funcname);
+  }
+  catch (const std::logic_error &e)
+  {
+    my_error(ER_STD_LOGIC_ERROR, MYF(0), e.what(), funcname);
+  }
+  catch (const std::runtime_error &e)
+  {
+    my_error(ER_STD_RUNTIME_ERROR, MYF(0), e.what(), funcname);
+  }
+  catch (const std::exception &e)
+  {
+    my_error(ER_STD_UNKNOWN_EXCEPTION, MYF(0), e.what(), funcname);
+  }
+  catch (...)
+  {
+    my_error(ER_UNKNOWN_ERROR, MYF(0));
   }
 }
 
@@ -1990,17 +2050,28 @@ my_decimal *Item_func_minus::decimal_op(my_decimal *decimal_value)
        check_decimal_overflow(my_decimal_sub(E_DEC_FATAL_ERROR &
                                              ~E_DEC_OVERFLOW,
                                              decimal_value, val1, val2)) > 3))
-    return NULL;
-
+  {
+    /*
+      Do not return a NULL pointer, as the result may be used in subsequent
+      arithmetic operations.
+     */
+    my_decimal_set_zero(decimal_value);
+    return decimal_value;
+  }
   /*
    Allow sign mismatch only if sql_mode includes MODE_NO_UNSIGNED_SUBTRACTION
    See Item_func_minus::fix_length_and_dec.
   */
   if (unsigned_flag && decimal_value->sign())
   {
-    null_value= true;
+    /*
+      Do not return a NULL pointer, as the result may be used in subsequent
+      arithmetic operations.
+     */
+    my_decimal_set_zero(decimal_value);
+    null_value= maybe_null;
     raise_decimal_overflow();
-    return NULL;
+    return decimal_value;
   }
   return decimal_value;
 }
@@ -2621,7 +2692,7 @@ Item_func_latlongfromgeohash::decode_geohash(String *geohash,
                                              double *result_latitude,
                                              double *result_longitude)
 {
-  double latitiude_accuracy= (upper_latitude - lower_latitude) / 2.0;
+  double latitude_accuracy= (upper_latitude - lower_latitude) / 2.0;
   double longitude_accuracy= (upper_longitude - lower_longitude) / 2.0;
 
   double latitude_value= (upper_latitude + lower_latitude) / 2.0;
@@ -2631,7 +2702,7 @@ Item_func_latlongfromgeohash::decode_geohash(String *geohash,
   uint input_length= geohash->length();
 
   for (uint i= 0;
-       i < input_length && latitiude_accuracy > 0.0 && longitude_accuracy > 0.0;
+       i < input_length && latitude_accuracy > 0.0 && longitude_accuracy > 0.0;
        i++)
   {
     char input_character= my_tolower(&my_charset_latin1, (*geohash)[i]);
@@ -2684,12 +2755,12 @@ Item_func_latlongfromgeohash::decode_geohash(String *geohash,
       }
       else
       {
-        latitiude_accuracy/= 2.0;
+        latitude_accuracy/= 2.0;
 
         if (converted_character & (1 << bit_number))
-          latitude_value+= latitiude_accuracy;
+          latitude_value+= latitude_accuracy;
         else
-          latitude_value-= latitiude_accuracy;
+          latitude_value-= latitude_accuracy;
       }
 
       number_of_bits_used++;
@@ -2702,9 +2773,26 @@ Item_func_latlongfromgeohash::decode_geohash(String *geohash,
   }
 
   *result_latitude= round_latlongitude(latitude_value,
-                                       latitiude_accuracy * 2.0);
+                                       latitude_accuracy * 2.0,
+                                       latitude_value - latitude_accuracy,
+                                       latitude_value + latitude_accuracy);
   *result_longitude= round_latlongitude(longitude_value,
-                                        longitude_accuracy * 2.0);
+                                        longitude_accuracy * 2.0,
+                                        longitude_value - longitude_accuracy,
+                                        longitude_value + longitude_accuracy);
+
+  /*
+    Ensure that the rounded results are not ouside of the valid range. As
+    written in the specification:
+
+      Final rounding should be done carefully in a way that
+                min <= round(value) <= max
+  */
+  DBUG_ASSERT(latitude_value - latitude_accuracy <= *result_latitude);
+  DBUG_ASSERT(*result_latitude <= latitude_value + latitude_accuracy);
+
+  DBUG_ASSERT(longitude_value - longitude_accuracy <= *result_longitude);
+  DBUG_ASSERT(*result_longitude <= longitude_value + longitude_accuracy);
 
   return false;
 }
@@ -2718,14 +2806,24 @@ Item_func_latlongfromgeohash::decode_geohash(String *geohash,
   (e.g upper value of 45.0 and a lower value of 22.5, gives an error range of
   22.5).
 
+  The returned result will always be in the range [lower_limit, upper_limit]
+
   @param latlongitude The latitude or longitude to round.
   @param error_range The total error range of the calculated laglongitude.
+  @param lower_limit Lower limit of the returned result.
+  @param upper_limit Upper limit of the returned result.
 
   @return A rounded latitude or longitude.
 */
 double Item_func_latlongfromgeohash::round_latlongitude(double latlongitude,
-                                                        double error_range)
+                                                        double error_range,
+                                                        double lower_limit,
+                                                        double upper_limit)
 {
+  // Ensure that we don't start with an impossible case to solve.
+  DBUG_ASSERT(lower_limit <= latlongitude);
+  DBUG_ASSERT(upper_limit >= latlongitude);
+
   if (error_range == 0.0)
   {
     return latlongitude;
@@ -2733,18 +2831,31 @@ double Item_func_latlongfromgeohash::round_latlongitude(double latlongitude,
   else
   {
     uint number_of_decimals= 0;
-    while (error_range < 0.1)
+    while (error_range <= 0.1 && number_of_decimals <= DBL_DIG)
     {
       number_of_decimals++;
       error_range*= 10.0;
     }
 
-    double rounded_result= my_double_round(latlongitude,
-                                           number_of_decimals,
-                                           false,
-                                           false);
+    double return_value;
+    do
+    {
+      return_value= my_double_round(latlongitude, number_of_decimals, false,
+                                    false);
+      number_of_decimals++;
+    } while ((lower_limit > return_value || return_value > upper_limit) &&
+             number_of_decimals <= DBL_DIG);
+
+    /*
+      We may in some cases still be outside of the allowed range. If this is the
+      case, return the input value (which we know for sure to be within the
+      allowed range).
+    */
+    if (lower_limit > return_value || return_value > upper_limit)
+      return_value= latlongitude;
+
     // Avoid printing signed zero.
-    return rounded_result + 0.0;
+    return return_value + 0.0;
   }
 }
 
@@ -3281,10 +3392,10 @@ double my_double_round(double value, longlong dec, bool dec_unsigned,
   volatile double value_div_tmp= value / tmp;
   volatile double value_mul_tmp= value * tmp;
 
-  if (dec_negative && my_isinf(tmp))
+  if (dec_negative && std::isinf(tmp))
     tmp2= 0.0;
   else if (!dec_negative &&
-           (my_isinf(value_mul_tmp) || my_isnan(value_mul_tmp)))
+           (std::isinf(value_mul_tmp) || std::isnan(value_mul_tmp)))
     tmp2= value;
   else if (truncate)
   {
@@ -5210,13 +5321,12 @@ struct User_level_lock
 
 /** Extract a hash key from User_level_lock. */
 
-static uchar *ull_get_key(const uchar *ptr, size_t *length,
-                          my_bool not_used __attribute__((unused)))
+static const uchar *ull_get_key(const uchar *ptr, size_t *length)
 {
   const User_level_lock *ull = reinterpret_cast<const User_level_lock*>(ptr);
   const MDL_key *key = ull->ticket->get_key();
   *length= key->length();
-  return const_cast<uchar*>(key->ptr());
+  return key->ptr();
 }
 
 
@@ -7223,16 +7333,6 @@ bool Item_func_get_system_var::is_written_to_binlog()
 }
 
 
-void Item_func_get_system_var::update_null_value()
-{
-  THD *thd= current_thd;
-  int save_no_errors= thd->no_errors;
-  thd->no_errors= TRUE;
-  Item::update_null_value();
-  thd->no_errors= save_no_errors;
-}
-
-
 void Item_func_get_system_var::fix_length_and_dec()
 {
   char *cptr;
@@ -7987,7 +8087,7 @@ bool Item_func_match::fix_index()
 
   for (i= 0; i < arg_count; i++)
   {
-    item=(Item_field*)args[i];
+    item=(Item_field*)(args[i]->real_item());
     for (keynr=0 ; keynr < fts ; keynr++)
     {
       KEY *ft_key=&table->key_info[ft_to_key[keynr]];
@@ -8524,27 +8624,6 @@ type_conversion_status
 Item_func_sp::save_in_field_inner(Field *field, bool no_conversions)
 {
   return save_possibly_as_json(field, no_conversions);
-}
-
-
-void Item_func_sp::update_null_value()
-{
-  /*
-    This method is called when we try to check if the item value is NULL.
-    We call Item_func_sp::execute() to get value of null_value attribute
-    as a side effect of its execution.
-    We ignore any error since update_null_value() doesn't return value.
-    We used to delegate nullability check to Item::update_null_value as
-    a result of a chain of function calls:
-     Item_func_isnull::val_int --> Item_func::is_null -->
-      Item::update_null_value -->Item_func_sp::val_int -->
-        Field_varstring::val_int
-    Such approach resulted in a call of push_warning_printf() in case
-    if a stored program value couldn't be cast to integer (the case when
-    for example there was a stored function that declared as returning
-    varchar(1) and a function's implementation returned "Y" from its body).
-  */
-  execute();
 }
 
 

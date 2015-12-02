@@ -48,12 +48,12 @@ Raw_table::Raw_table(thr_lock_type lock_type,
   @return true - On failure and error is reported.
 */
 bool Raw_table::find_record(const Object_key &key,
-                            std::auto_ptr<Raw_record> &r)
+                            std::unique_ptr<Raw_record> &r)
 {
   DBUG_ENTER("Raw_table::find_record");
 
   TABLE *table= get_table();
-  std::auto_ptr<Raw_key> k(key.create_access_key(this));
+  std::unique_ptr<Raw_key> k(key.create_access_key(this));
 
   int rc= table->file->ha_index_read_idx_map(
     table->record[0],
@@ -94,7 +94,7 @@ bool Raw_table::find_record(const Object_key &key,
   @return true - On failure and error is reported.
 */
 bool Raw_table::prepare_record_for_update(const Object_key &key,
-                                          std::auto_ptr<Raw_record> &r)
+                                          std::unique_ptr<Raw_record> &r)
 {
   DBUG_ENTER("Raw_table::prepare_record_for_update");
  
@@ -130,7 +130,7 @@ Raw_new_record *Raw_table::prepare_record_for_insert()
   @return true - on failure and error is reported.
 */
 bool Raw_table::open_record_set(const Object_key *key,
-                                std::auto_ptr<Raw_record_set> &rs)
+                                std::unique_ptr<Raw_record_set> &rs)
 {
   DBUG_ENTER("Raw_table::open_record_set");
 
@@ -140,13 +140,13 @@ bool Raw_table::open_record_set(const Object_key *key,
   if (key)
     access_key= key->create_access_key(this);
 
-  std::auto_ptr<Raw_record_set> rs1(
+  std::unique_ptr<Raw_record_set> rs1(
     new (std::nothrow) Raw_record_set(get_table(), access_key));
 
   if (rs1->open())
     DBUG_RETURN(true);
 
-  rs= rs1;
+  rs= std::move(rs1);
 
   DBUG_RETURN(false);
 }
@@ -166,12 +166,12 @@ bool Raw_table::open_record_set(const Object_key *key,
 */
 /* purecov: begin deadcode */
 bool Raw_table::find_last_record(const Object_key &key,
-                                 std::auto_ptr<Raw_record> &r)
+                                 std::unique_ptr<Raw_record> &r)
 {
   DBUG_ENTER("Raw_table::find_last_record");
 
   TABLE *table= get_table();
-  std::auto_ptr<Raw_key> k(key.create_access_key(this));
+  std::unique_ptr<Raw_key> k(key.create_access_key(this));
 
   int rc= table->file->ha_index_read_idx_map(table->record[0],
                                              k->index_no,

@@ -32,6 +32,7 @@
 #include "rpl_handler.h"                        // RUN_HOOK
 #include "sql_class.h"                          // THD
 #include "current_thd.h"
+#include "template_utils.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -64,20 +65,20 @@ extern TYPELIB binlog_checksum_typelib;
   p+= len; \
 }\
 
-extern "C" {
-static uint32
-*slave_list_key(SLAVE_INFO* si, size_t *len,
-		my_bool not_used __attribute__((unused)))
+
+static const uchar
+*slave_list_key(const uchar *arg, size_t *len)
 {
+  const SLAVE_INFO *si= pointer_cast<const SLAVE_INFO*>(arg);
   *len = 4;
-  return &si->server_id;
+  return pointer_cast<const uchar*>(&si->server_id);
 }
 
 static void slave_info_free(void *s)
 {
   my_free(s);
 }
-} // extern "C"
+
 
 static mysql_mutex_t LOCK_slave_list;
 #ifdef HAVE_PSI_INTERFACE
@@ -104,7 +105,7 @@ void init_slave_list()
 #endif
 
   my_hash_init(&slave_list, system_charset_info, SLAVE_LIST_CHUNK, 0, 0,
-               (my_hash_get_key) slave_list_key,
+               slave_list_key,
                (my_hash_free_key) slave_info_free, 0,
                key_memory_SLAVE_INFO);
   mysql_mutex_init(key_LOCK_slave_list, &LOCK_slave_list, MY_MUTEX_INIT_FAST);

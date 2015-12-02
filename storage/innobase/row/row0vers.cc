@@ -819,6 +819,7 @@ row_vers_old_has_index_entry(
 			columns need to be computed */
 			if (trx_undo_roll_ptr_is_insert(t_roll_ptr)
 			    || dbug_v_purge) {
+#ifdef INNODB_DD_VC_SUPPORT
 				row_vers_build_clust_v_col(
 					row, clust_index, index, heap);
 
@@ -834,6 +835,9 @@ row_vers_old_has_index_entry(
 
 					return(TRUE);
 				}
+#else
+				return(TRUE);
+#endif /* INNODB_DD_VC_SUPPORT */
 			} else {
 				if (row_vers_vc_matches_cluster(
 					also_curr, rec, row, ext, clust_index,

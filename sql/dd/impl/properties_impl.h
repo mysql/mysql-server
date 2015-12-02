@@ -269,7 +269,7 @@ private:
   static const std::string EMPTY_STR;
 
 private:
-  std::auto_ptr<Properties::Map> m_map;
+  std::unique_ptr<Properties::Map> m_map;
 };
 
 ///////////////////////////////////////////////////////////////////////////

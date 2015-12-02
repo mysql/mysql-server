@@ -446,7 +446,7 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
 {
   uint i, j;
   DBUG_ENTER("check_definition");
-  my_bool mysql_40_compat= table_arg && table_arg->s->frm_version < FRM_VER_TRUE_VARCHAR;
+
   if ((strict ? t1_keys != t2_keys : t1_keys > t2_keys))
   {
     DBUG_PRINT("error", ("Number of keys differs: t1_keys=%u, t2_keys=%u",
@@ -485,8 +485,7 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
                             MY_TEST(t2_keyinfo[i].flag & HA_SPATIAL)));
        DBUG_RETURN(1);
     }
-    if ((!mysql_40_compat &&
-        t1_keyinfo[i].key_alg != t2_keyinfo[i].key_alg) ||
+    if (t1_keyinfo[i].key_alg != t2_keyinfo[i].key_alg ||
         t1_keyinfo[i].keysegs != t2_keyinfo[i].keysegs)
     {
       DBUG_PRINT("error", ("Key %d has different definition", i));
@@ -517,8 +516,7 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
           t1_keysegs_j__type= HA_KEYTYPE_VARBINARY1; /* purecov: inspected */
       }
 
-      if ((!mysql_40_compat &&
-          t1_keysegs[j].language != t2_keysegs[j].language) ||
+      if (t1_keysegs[j].language != t2_keysegs[j].language ||
           t1_keysegs_j__type != t2_keysegs[j].type ||
           t1_keysegs[j].null_bit != t2_keysegs[j].null_bit ||
           t1_keysegs[j].length != t2_keysegs[j].length ||

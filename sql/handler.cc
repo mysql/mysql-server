@@ -4177,8 +4177,6 @@ int handler::ha_check_for_upgrade(HA_CHECK_OPT *check_opt)
       }
     }
   }
-  if (table->s->frm_version != FRM_VER_TRUE_VARCHAR)
-    return HA_ADMIN_NEEDS_ALTER;
 
   if ((error= check_collation_compatibility()))
     return error;
@@ -6655,6 +6653,18 @@ int DsMrr_impl::dsmrr_fill_buffer()
   DBUG_ENTER("DsMrr_impl::dsmrr_fill_buffer");
   DBUG_ASSERT(rowids_buf < rowids_buf_end);
 
+  /*
+    Set key_read to TRUE since we only read fields from the index.
+    This ensures that any virtual columns are read from index and are not
+    attempted to be evaluated from base columns.
+    (Do not use TABLE::set_keyread() since the MRR implementation operates
+    with two handler objects, and set_keyread() would manipulate the keyread
+    property of the wrong handler. MRR sets the handlers' keyread properties
+    when initializing the MRR operation, independent of this call).
+  */
+  DBUG_ASSERT(table->key_read == FALSE);
+  table->key_read= TRUE;
+
   rowids_buf_cur= rowids_buf;
   while ((rowids_buf_cur < rowids_buf_end) && 
          !(res= h2->handler::multi_range_read_next(&range_info)))
@@ -6675,6 +6685,9 @@ int DsMrr_impl::dsmrr_fill_buffer()
       rowids_buf_cur += sizeof(void*);
     }
   }
+
+  // Restore key_read since the next read operation will read complete rows
+  table->key_read= FALSE;
 
   if (res && res != HA_ERR_END_OF_FILE)
     DBUG_RETURN(res); 
@@ -8061,7 +8074,8 @@ static void extract_blob_space_and_length_from_record_buff(const TABLE *table,
     {
       blob_len_ptr_array[num].length= (*vfield)->data_length();
       // TODO: The following check is only for Innodb.
-      DBUG_ASSERT(blob_len_ptr_array[num].length == 768 ||
+      DBUG_ASSERT(blob_len_ptr_array[num].length == 255 ||
+                  blob_len_ptr_array[num].length == 768 ||
                   blob_len_ptr_array[num].length == 3073);
 
       uchar *ptr;

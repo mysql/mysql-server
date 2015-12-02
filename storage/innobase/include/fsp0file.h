@@ -380,13 +380,6 @@ private:
 		m_open_flags = open_flags;
 	};
 
-	/** Determine if this datafile is on a Raw Device
-	@return true if it is a RAW device. */
-	bool is_raw_device()
-	{
-		return(m_type != SRV_NOT_RAW);
-	}
-
 	/* DATA MEMBERS */
 
 	/** Datafile name at the tablespace location.
@@ -422,8 +415,7 @@ private:
 	/** Flags to use for opening the data file */
 	os_file_create_t	m_open_flags;
 
-	/** size in megabytes or pages; converted from megabytes to
-	pages in SysTablespace::normalize_size() */
+	/** size in pages */
 	ulint			m_size;
 
 	/** ordinal position of this datafile in the tablespace */

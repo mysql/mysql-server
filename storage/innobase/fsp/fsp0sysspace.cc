@@ -64,39 +64,65 @@ Please do NOT change this when server is running.
 FIXME: This should be removed away once we can upgrade for new DD. */
 extern bool	srv_missing_dd_table_buffer;
 
-/** Convert a numeric string that optionally ends in G or M or K,
-    to a number containing megabytes.
-@param[in]	ptr	String with a quantity in bytes
-@param[out]	megs	The number in megabytes
-@return next character in string */
+/** Put the pointer to the next byte after a valid file name.
+Note that we must step over the ':' in a Windows filepath.
+A Windows path normally looks like C:\ibdata\ibdata1:1G, but
+a Windows raw partition may have a specification like
+\\.\C::1Gnewraw or \\.\PHYSICALDRIVE2:1Gnewraw.
+@param[in]	str		system tablespace file path spec
+@return next character in string after the file name */
 char*
-SysTablespace::parse_units(
-	char*	ptr,
-	ulint*	megs)
+SysTablespace::parse_file_name(char* ptr)
 {
-	char*		endp;
+	const char*	start = ptr;
 
-	*megs = strtoul(ptr, &endp, 10);
+	while ((*ptr != ':' && *ptr != '\0')
+	       || (ptr != start
+	           && *ptr == ':'
+	           && (*(ptr + 1) == '\\'
+	               || *(ptr + 1) == '/'
+	               || *(ptr + 1) == ':'))) {
+		ptr++;
+	}
+
+	return(ptr);
+}
+
+/** Convert a numeric string representing a number of bytes
+optionally ending in upper or lower case G, M, or K,
+to a number of megabytes, rounding down to the nearest megabyte.
+Then return the number of pages in the file.
+@param[in,out]	ptr	Pointer to a numeric string
+@return the number of pages in the file. */
+ulint
+SysTablespace::parse_units(char*& ptr)
+{
+	char*	endp;
+	ulint	num = strtoul(ptr, &endp, 10);
+	ulint	megs;
 
 	ptr = endp;
 
 	switch (*ptr) {
 	case 'G': case 'g':
-		*megs *= 1024;
-		/* fall through */
+		megs = num * 1024;
+		++ptr;
+		break;
+
 	case 'M': case 'm':
+		megs = num;
 		++ptr;
 		break;
 	case 'K': case 'k':
-		*megs /= 1024;
+		megs = num / 1024;
 		++ptr;
 		break;
 	default:
-		*megs /= 1024 * 1024;
+		megs = num / (1024 * 1024);
 		break;
 	}
 
-	return(ptr);
+	return((megs * 1024 * 1024) / UNIV_PAGE_SIZE);
 }
 
 /** Parse the input params and populate member variables.
@@ -110,183 +136,161 @@ SysTablespace::parse_params(
 {
 	char*	filepath;
 	ulint	size;
-	char*	input_str;
 	ulint	n_files = 0;
 
 	ut_ad(m_last_file_size_max == 0);
 	ut_ad(!m_auto_extend_last_file);
 
-	char*	new_str = mem_strdup(filepath_spec);
-	char*	str = new_str;
-
-	input_str = str;
+	char*	input_str = mem_strdup(filepath_spec);
+	char*	ptr = input_str;
 
 	/*---------------------- PASS 1 ---------------------------*/
-	/* First calculate the number of data files and check syntax:
-	filepath:size[K |M | G];filepath:size[K |M | G]... .
-	Note that a Windows path may contain a drive name and a ':'. */
-	while (*str != '\0') {
-		filepath = str;
+	/* First calculate the number of data files and check syntax. */
+	while (*ptr != '\0') {
+		filepath = ptr;
 
-		while ((*str != ':' && *str != '\0')
-		       || (*str == ':'
-			   && (*(str + 1) == '\\' || *(str + 1) == '/'
-			       || *(str + 1) == ':'))) {
-			str++;
-		}
+		ptr = parse_file_name(ptr);
 
-		if (*str == '\0') {
-			ut_free(new_str);
-
+		if (ptr == filepath) {
 			ib::error()
-				<< "syntax error in file path or size"
-				" specified is less than 1 megabyte";
+				<< "File Path Specification '"
+				<< filepath_spec
+				<< "' is missing a file name.";
+
+			ut_free(input_str);
 			return(false);
 		}
 
-		str++;
+		if (*ptr == '\0') {
+			ib::error()
+				<< "File Path Specification '"
+				<< filepath_spec
+				<< "' is missing a file size.";
 
-		str = parse_units(str, &size);
-
-		if (0 == strncmp(str, ":autoextend",
-				 (sizeof ":autoextend") - 1)) {
-
-			str += (sizeof ":autoextend") - 1;
-
-			if (0 == strncmp(str, ":max:",
-					 (sizeof ":max:") - 1)) {
-
-				str += (sizeof ":max:") - 1;
-
-				str = parse_units(str, &size);
-			}
-
-			if (*str != '\0') {
-				ut_free(new_str);
-				ib::error()
-					<< "syntax error in file path or"
-					<< " size specified is less than"
-					<< " 1 megabyte";
-				return(false);
-			}
+			ut_free(input_str);
+			return(false);
 		}
 
-		if (::strlen(str) >= 6
-		    && *str == 'n'
-		    && *(str + 1) == 'e'
-		    && *(str + 2) == 'w') {
+		ptr++;
 
-			if (!supports_raw) {
-				ib::error()
-					<< "Tablespace doesn't support raw"
-					" devices";
-				ut_free(new_str);
-				return(false);
-			}
-
-			str += 3;
-		}
-
-		if (*str == 'r' && *(str + 1) == 'a' && *(str + 2) == 'w') {
-			str += 3;
-
-			if (!supports_raw) {
-				ib::error()
-					<< "Tablespace doesn't support raw"
-					" devices";
-				ut_free(new_str);
-				return(false);
-			}
-		}
+		size = parse_units(ptr);
 
 		if (size == 0) {
-
-			ut_free(new_str);
-
+invalid_size:
 			ib::error()
-				<< "syntax error in file path or size"
-				" specified is less than 1 megabyte";
+				<< "Invalid File Path Specification: '"
+				<< filepath_spec
+				<< "'. An invalid file size was specified.";
 
+			ut_free(input_str);
 			return(false);
+		}
+
+		if (0 == strncmp(ptr, ":autoextend",
+				 (sizeof ":autoextend") - 1)) {
+
+			ptr += (sizeof ":autoextend") - 1;
+
+			if (0 == strncmp(ptr, ":max:",
+					 (sizeof ":max:") - 1)) {
+
+				ptr += (sizeof ":max:") - 1;
+
+				ulint max = parse_units(ptr);
+
+				if (max < size) {
+					goto invalid_size;
+				}
+			}
+
+			if (*ptr == ';') {
+				ib::error()
+					<< "Invalid File Path Specification: '"
+					<< filepath_spec << "'. Only the last"
+					" file defined can be 'autoextend'.";
+
+				ut_free(input_str);
+				return(false);
+			}
+		}
+
+		if (0 == strncmp(ptr, "new", (sizeof "new") - 1)) {
+			ptr += (sizeof "new") - 1;
+		}
+
+		if (0 == strncmp(ptr, "raw", (sizeof "raw") - 1)) {
+			if (!supports_raw) {
+				ib::error()
+					<< "Invalid File Path Specification: '"
+					<< filepath_spec << "' Tablespace"
+					" doesn't support raw devices";
+
+				ut_free(input_str);
+				return(false);
+			}
+
+			ptr += (sizeof "raw") - 1;
 		}
 
 		++n_files;
 
-		if (*str == ';') {
-			str++;
-		} else if (*str != '\0') {
-			ut_free(new_str);
-
+		if (*ptr == ';') {
+			ptr++;
+		} else if (*ptr != '\0') {
+			ptr[0] = '\0';
 			ib::error()
-				<< "syntax error in file path or size"
-				" specified is less than 1 megabyte";
+				<< "File Path Specification: '"
+				<< filepath_spec
+				<< "' has unrecognized characters after '"
+				<< input_str << "'";
+
+			ut_free(input_str);
 			return(false);
 		}
 	}
 
 	if (n_files == 0) {
-
-		/* filepath_spec must contain at least one data file
-		definition */
-
-		ut_free(new_str);
-
 		ib::error()
-			<< "syntax error in file path or size specified"
-			" is less than 1 megabyte";
+			<< "File Path Specification: '"
+			<< filepath_spec << "' must contain"
+			" at least one data file definition";
 
+		ut_free(input_str);
 		return(false);
 	}
 
 	/*---------------------- PASS 2 ---------------------------*/
 	/* Then store the actual values to our arrays */
-	str = input_str;
+	ptr = input_str;
 	ulint order = 0;
 
-	while (*str != '\0') {
-		filepath = str;
+	while (*ptr != '\0') {
+		filepath = ptr;
 
-		/* Note that we must step over the ':' in a Windows filepath;
-		a Windows path normally looks like C:\ibdata\ibdata1:1G, but
-		a Windows raw partition may have a specification like
-		\\.\C::1Gnewraw or \\.\PHYSICALDRIVE2:1Gnewraw */
+		ptr = parse_file_name(ptr);
 
-		while ((*str != ':' && *str != '\0')
-		       || (*str == ':'
-			   && (*(str + 1) == '\\' || *(str + 1) == '/'
-			       || *(str + 1) == ':'))) {
-			str++;
-		}
-
-		if (*str == ':') {
+		if (*ptr == ':') {
 			/* Make filepath a null-terminated string */
-			*str = '\0';
-			str++;
+			*ptr = '\0';
+			ptr++;
 		}
 
-		str = parse_units(str, &size);
+		size = parse_units(ptr);
+		ut_ad(size > 0);
 
-		if (0 == strncmp(str, ":autoextend",
+		if (0 == strncmp(ptr, ":autoextend",
 				 (sizeof ":autoextend") - 1)) {
 
 			m_auto_extend_last_file = true;
 
-			str += (sizeof ":autoextend") - 1;
+			ptr += (sizeof ":autoextend") - 1;
 
-			if (0 == strncmp(str, ":max:",
+			if (0 == strncmp(ptr, ":max:",
 					 (sizeof ":max:") - 1)) {
 
-				str += (sizeof ":max:") - 1;
+				ptr += (sizeof ":max:") - 1;
 
-				str = parse_units(str, &m_last_file_size_max);
-			}
-
-			if (*str != '\0') {
-				ut_free(new_str);
-				ib::error() << "syntax error in file path or"
-					" size specified is less than 1"
-					" megabyte";
-				return(false);
+				m_last_file_size_max = parse_units(ptr);
 			}
 		}
 
@@ -294,42 +298,29 @@ SysTablespace::parse_params(
 		Datafile* datafile = &m_files.back();
 		datafile->make_filepath(path(), filepath, NO_EXT);
 
-		if (::strlen(str) >= 6
-		    && *str == 'n'
-		    && *(str + 1) == 'e'
-		    && *(str + 2) == 'w') {
+		if (0 == strncmp(ptr, "new", (sizeof "new") - 1)) {
+			ptr += (sizeof "new") - 1;
+		}
 
+		if (0 == strncmp(ptr, "raw", (sizeof "raw") - 1)) {
 			ut_a(supports_raw);
 
-			str += 3;
+			ptr += (sizeof "raw") - 1;
 
 			/* Initialize new raw device only during initialize */
 			m_files.back().m_type =
-			opt_initialize ? SRV_NEW_RAW : SRV_OLD_RAW;
-		}
-
-		if (*str == 'r' && *(str + 1) == 'a' && *(str + 2) == 'w') {
-
-			ut_a(supports_raw);
-
-			str += 3;
-
-			/* Initialize new raw device only during initialize */
-			if (m_files.back().m_type == SRV_NOT_RAW) {
-				m_files.back().m_type =
 				opt_initialize ? SRV_NEW_RAW : SRV_OLD_RAW;
-			}
 		}
 
-		if (*str == ';') {
-			++str;
+		if (*ptr == ';') {
+			++ptr;
 		}
 		order++;
 	}
 
 	ut_ad(n_files == ulint(m_files.size()));
 
-	ut_free(new_str);
+	ut_free(input_str);
 
 	return(true);
 }
@@ -362,7 +353,7 @@ SysTablespace::check_size(
 	could contain an incomplete extent at the end. When we
 	extend a data file and if some failure happens, then
 	also the data file could contain an incomplete extent.
-	So we need to round the size downward to a  megabyte.*/
+	So we need to round the size downward to a megabyte. */
 
 	ulint	rounded_size_pages = get_pages_from_size(size);
 
@@ -557,7 +548,7 @@ SysTablespace::check_dd_table_buffer()
 		if (err != DB_SUCCESS) {
 			return(err);
 		}
-        }
+	}
 
 	byte*		unaligned_read_buf;
 	byte*		read_buf;
@@ -621,16 +612,7 @@ SysTablespace::read_lsn_and_check_flags(lsn_t* flushed_lsn)
 	files_t::iterator it = m_files.begin();
 
 	ut_a(it->m_exists);
-
-	if (it->m_handle == OS_FILE_CLOSED) {
-
-		err = it->open_or_create(
-			m_ignore_read_only ?  false : srv_read_only_mode);
-
-		if (err != DB_SUCCESS) {
-			return(err);
-		}
-	}
+	ut_ad(it->m_handle != OS_FILE_CLOSED);
 
 	err = it->read_first_page(
 		m_ignore_read_only ?  false : srv_read_only_mode);
@@ -752,7 +734,7 @@ SysTablespace::check_file_status(
 /** Note that the data file was not found.
 @param[in]	file		data file object
 @param[out]	create_new_db	true if a new instance to be created
-@return DB_SUCESS or error code */
+@return DB_SUCCESS or error code */
 dberr_t
 SysTablespace::file_not_found(
 	Datafile&	file,
@@ -846,11 +828,7 @@ SysTablespace::check_file_spec(
 		return(DB_ERROR);
 	}
 
-	ulint tablespace_size = get_sum_of_sizes();
-	if (tablespace_size == ULINT_UNDEFINED) {
-		return(DB_ERROR);
-	} else if (tablespace_size
-		   < min_expected_size / UNIV_PAGE_SIZE) {
+	if (get_sum_of_sizes() < min_expected_size / UNIV_PAGE_SIZE) {
 
 		ib::error() << "Tablespace size must be at least "
 			<< min_expected_size / (1024 * 1024) << " MB";
@@ -1065,21 +1043,6 @@ SysTablespace::open_or_create(
 	return(err);
 }
 
-/** Normalize the file size, convert from megabytes to number of pages. */
-void
-SysTablespace::normalize_size()
-{
-	files_t::iterator	end = m_files.end();
-
-	for (files_t::iterator it = m_files.begin(); it != end; ++it) {
-
-		it->m_size *= (1024 * 1024) / UNIV_PAGE_SIZE;
-	}
-
-	m_last_file_size_max *= (1024 * 1024) / UNIV_PAGE_SIZE;
-}
-
-
 /**
 @return next increment size */
 ulint
@@ -1091,13 +1054,6 @@ SysTablespace::get_increment() const
 		increment = get_autoextend_increment();
 	} else {
 
-		if (!is_valid_size()) {
-			ib::error() << "The last data file in " << name()
-				<< " has a size of " << last_file_size()
-				<< " but the max size allowed is "
-				<< m_last_file_size_max;
-		}
-
 		increment = m_last_file_size_max - last_file_size();
 	}
 
@@ -1106,22 +1062,4 @@ SysTablespace::get_increment() const
 	}
 
 	return(increment);
-}
-
-
-/**
-@return true if configured to use raw devices */
-bool
-SysTablespace::has_raw_device()
-{
-	files_t::iterator	end = m_files.end();
-
-	for (files_t::iterator it = m_files.begin(); it != end; ++it) {
-
-		if (it->is_raw_device()) {
-			return(true);
-		}
-	}
-
-	return(false);
 }

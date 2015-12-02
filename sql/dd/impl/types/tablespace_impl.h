@@ -25,7 +25,7 @@
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/tablespace.h"              // dd::Tablespace
 
-#include <memory>   // std::auto_ptr
+#include <memory>   // std::unique_ptr
 
 DD_HEADER_BEGIN
 
@@ -129,13 +129,13 @@ private:
   // Fields
 
   std::string m_comment;
-  std::auto_ptr<Properties> m_options;
-  std::auto_ptr<Properties> m_se_private_data;
+  std::unique_ptr<Properties> m_options;
+  std::unique_ptr<Properties> m_se_private_data;
   std::string m_engine;
 
   // Collections.
 
-  std::auto_ptr<Tablespace_file_collection> m_files;
+  std::unique_ptr<Tablespace_file_collection> m_files;
 
 #ifndef DBUG_OFF
   Tablespace_impl(const Tablespace_impl &src);

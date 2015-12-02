@@ -517,9 +517,11 @@ struct os_file_stat_t {
 the temporary file is created in the given parameter path. If the path
 is null then it will create the file in the mysql server configuration
 parameter (--tmpdir).
+@param[in]	path	location for creating temporary file
 @return temporary file handle, or NULL on error */
 FILE*
-os_file_create_tmpfile();
+os_file_create_tmpfile(
+	const char*	path);
 #endif /* !UNIV_HOTBACKUP */
 
 /**
@@ -1467,11 +1469,14 @@ os_file_get_status(
 	bool		read_only);
 
 #if !defined(UNIV_HOTBACKUP)
-/** Creates a temporary file that will be deleted on close.
+/** Creates a temporary file in the location specified by the parameter
+path. If the path is NULL then it will be created on --tmpdir location.
 This function is defined in ha_innodb.cc.
+@param[in]	path	location for creating temporary file
 @return temporary file descriptor, or < 0 on error */
 int
-innobase_mysql_tmpfile();
+innobase_mysql_tmpfile(
+	const char*	path);
 #endif /* !UNIV_HOTBACKUP */
 
 

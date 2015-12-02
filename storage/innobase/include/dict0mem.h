@@ -1187,8 +1187,15 @@ struct dict_vcol_templ_t {
 dynamic metadata changed to be written back */
 enum table_dirty_status {
 	/** Some persistent metadata is now dirty in memory, need to be
-	written back to DDTableBuffer table and(or directly to)
-	DD table. There could be either one row or no row for this table in
+	written back to DDTableBuffer table and(or directly to) DD table.
+	There could be some exceptions, when it's marked as dirty, but
+	the metadata has already been written back to DDTableBuffer.
+	For example, if a corrupted index is found and marked as corrupted,
+	then it gets dropped. At this time, the dirty_status is still of
+	this dirty value. Also a concurrent checkpoint make this bit
+	out-of-date for other working threads, which still think the
+	status is dirty and write-back is necessary.
+	There could be either one row or no row for this table in
 	DDTableBuffer table */
 	METADATA_DIRTY = 0,
 	/** Some persistent metadata is buffered in DDTableBuffer table,
@@ -1527,6 +1534,32 @@ struct dict_table_t {
 	/** Autoinc counter value to give to the next inserted row. */
 	ib_uint64_t				autoinc;
 
+	/** Mutex protecting the persisted autoincrement counter. */
+	ib_mutex_t*				autoinc_persisted_mutex;
+
+	/** Autoinc counter value that has been persisted in redo logs or
+	DDTableBuffer. It's mainly used when we want to write counter back
+	to DDTableBuffer.
+	This is different from the 'autoinc' above, which could be bigger
+	than this one, because 'autoinc' will get updated right after
+	some counters are allocated, but we will write the counter to redo
+	logs and update this counter later. Once all allocated counters
+	have been written to redo logs, 'autoinc' should be exact the next
+	counter of this persisted one.
+	We want this counter because when we need to write the counter back
+	to DDTableBuffer, we had better keep it consistency with the counter
+	that has been written to redo logs. Besides, we can't read the 'autoinc'
+	directly easily, because the autoinc_lock is required and there could
+	be a deadlock.
+	This variable is protected by autoinc_persisted_mutex. */
+	ib_uint64_t				autoinc_persisted;
+
+	/** The position of autoinc counter field in clustered index. This would
+	be set when CREATE/ALTER/OPEN TABLE and IMPORT TABLESPACE, and used in
+	modifications to clustered index, such as INSERT/UPDATE. There should
+	be no conflict to access it, so no protection is needed. */
+	ulint					autoinc_field_no;
+
 	/** This counter is used to track the number of granted and pending
 	autoinc locks on this table. This value is set after acquiring the
 	lock_sys_t::mutex but we peek the contents to determine whether other
@@ -1608,8 +1641,10 @@ enum persistent_type_t {
 	/** Persistent Metadata type for corrupted indexes */
 	PM_INDEX_CORRUPTED = 1,
 
-	/* TODO: Will add following types
+	/** Persistent Metadata type for autoinc counter */
 	PM_TABLE_AUTO_INC = 2,
+
+	/* TODO: Will add following types
 	PM_TABLE_UPDATE_TIME = 3,
 	Maybe something tablespace related
 	PM_TABLESPACE_SIZE = 4,
@@ -1617,7 +1652,7 @@ enum persistent_type_t {
 
 	/** The biggest type, which should be 1 bigger than the last
 	true type */
-	PM_BIGGEST_TYPE = 2
+	PM_BIGGEST_TYPE = 3
 };
 
 typedef std::vector<index_id_t, ut_allocator<index_id_t > >
@@ -1630,7 +1665,10 @@ public:
 	@param[in]	id	table id */
 	explicit PersistentTableMetadata(
 		table_id_t	id)
-	: m_id(id), m_corrupted_ids()
+		:
+		m_id(id),
+		m_corrupted_ids(),
+		m_autoinc(0)
 	{}
 
 	/** Get the corrupted indexes' IDs
@@ -1661,6 +1699,30 @@ public:
 		return(m_id);
 	}
 
+	/** Set the autoinc counter of the table if it's bigger
+	@param[in]	autoinc	autoinc counter */
+	void set_autoinc_if_bigger(
+		ib_uint64_t	autoinc) {
+		/* We only set the biggest autoinc counter. Callers don't
+		guarantee passing a bigger number in. */
+		if (autoinc > m_autoinc) {
+			m_autoinc = autoinc;
+		}
+	}
+
+	/** Set the autoinc counter of the table
+	@param[in]	autoinc	autoinc counter */
+	void set_autoinc(
+		ib_uint64_t	autoinc) {
+		m_autoinc = autoinc;
+	}
+
+	/** Get the autoinc counter of the table
+	@return the autoinc counter */
+	ib_uint64_t get_autoinc() const {
+		return(m_autoinc);
+	}
+
 private:
 	/** Table ID which this metadata belongs to */
 	table_id_t		m_id;
@@ -1668,8 +1730,10 @@ private:
 	/** Storing the corrupted indexes' ID if exist, or else empty */
 	corrupted_ids_t		m_corrupted_ids;
 
-	/* TODO: We will add update_time, auto_inc, etc. here and APIs
-	accordingly */
+	/** Autoinc counter of the table */
+	ib_uint64_t		m_autoinc;
+
+	/* TODO: We will add update_time, etc. here and APIs accordingly */
 };
 
 /** Interface for persistent dynamic table metadata. */
@@ -1688,13 +1752,13 @@ public:
 	virtual ulint write(
 		const PersistentTableMetadata&	metadata,
 		byte*				buffer,
-		ulint				size) = 0;
+		ulint				size) const = 0;
 
 	/** Pre-calculate the size of metadata to be written
 	@param[in]	metadata	metadata to be written
 	@return the size of metadata */
 	virtual ulint get_write_size(
-		const PersistentTableMetadata&	metadata) = 0;
+		const PersistentTableMetadata&	metadata) const = 0;
 
 	/** Read the dynamic metadata from buffer, and store them to
 	metadata object
@@ -1710,7 +1774,7 @@ public:
 		PersistentTableMetadata&metadata,
 		const byte*		buffer,
 		ulint			size,
-		bool*			corrupt) = 0;
+		bool*			corrupt) const = 0;
 
 	/** Write MLOG_TABLE_DYNAMIC_META for persistent dynamic
 	metadata of table
@@ -1720,7 +1784,7 @@ public:
 	void write_log(
 		table_id_t			id,
 		const PersistentTableMetadata&	metadata,
-		mtr_t*				mtr);
+		mtr_t*				mtr) const ;
 };
 
 /** Persister used for corrupted indexes */
@@ -1736,13 +1800,13 @@ public:
 	ulint write(
 		const PersistentTableMetadata&	metadata,
 		byte*				buffer,
-		ulint				size);
+		ulint				size) const;
 
 	/** Pre-calculate the size of metadata to be written
 	@param[in]	metadata	metadata to be written
 	@return the size of metadata */
 	ulint get_write_size(
-		const PersistentTableMetadata&	metadata);
+		const PersistentTableMetadata&	metadata) const;
 
 	/** Read the corrupted indexes from buffer, and store them to
 	metadata object
@@ -1758,11 +1822,115 @@ public:
 		PersistentTableMetadata&metadata,
 		const byte*		buffer,
 		ulint			size,
-		bool*			corrupt);
+		bool*			corrupt) const;
 
 private:
 	/** The length of index_id_t we will write */
 	static const size_t		INDEX_ID_LENGTH = 12;
+};
+
+/** Persister used for autoinc counters */
+class AutoIncPersister : public Persister {
+public:
+	/** Write the autoinc counter of a table, we can pre-calculate
+	the size by calling get_write_size()
+        @param[in]	metadata	persistent metadata
+        @param[out]	buffer		write buffer
+        @param[in]	size		size of write buffer, should be
+					at least get_write_size()
+	@return the length of bytes written */
+	ulint write(
+		const PersistentTableMetadata&	metadata,
+		byte*				buffer,
+		ulint				size) const;
+
+	/** Pre-calculate the size of metadata to be written
+	@param[in]	metadata	metadata to be written
+	@return the size of metadata */
+	inline ulint
+	get_write_size(
+		const PersistentTableMetadata&	metadata) const
+	{
+		/* We just return the max possible size that would be used
+		if the counter exists, so we don't calculate every time.
+		Here we need 1 byte for dynamic metadata type and 11 bytes
+		for the max possible size of counter. */
+		return(12);
+	}
+
+	/** Read the autoinc counter from buffer, and store them to
+	metadata object
+	@param[out]	metadata	metadata where we store the read data
+	@param[in]	buffer		buffer to read
+	@param[in]	size		size of buffer
+	@param[out]	corrupt		true if we found something wrong in
+					the buffer except incomplete buffer,
+					otherwise false
+	@return the bytes we read from the buffer if the buffer data
+	is complete and we get everything, 0 if the buffer is incomplete */
+	ulint read(
+		PersistentTableMetadata&metadata,
+		const byte*		buffer,
+		ulint			size,
+		bool*			corrupt) const;
+};
+
+/** We can use this class to log autoinc counter. Since we want to
+acquire dict_persist_t::lock before logging and release the lock
+after the mtr commits, so we wrap these details in this class. */
+class AutoIncLogMtr {
+public:
+
+	/** Constructor
+	@param[in]	mtr	the mtr to be used */
+	AutoIncLogMtr(mtr_t* mtr)
+		: m_mtr(mtr),
+#ifdef UNIV_DEBUG
+		m_locked(),
+#endif /* UNIV_DEBUG */
+		m_logged()
+	{}
+
+	/** Destructor */
+	~AutoIncLogMtr() {
+		ut_ad(!m_locked);
+	}
+
+	/** Start the internal mtr */
+	void start() {
+		m_mtr->start();
+	}
+
+	/** Get the internal mtr object, if we want to call functions in mtr_t
+	@return the mtr */
+	mtr_t* get_mtr() {
+		return(m_mtr);
+	}
+
+	/** Write redo logs for autoinc counter that is to be inserted or to
+	update the existing one, if the counter is bigger than current one
+	or the counter is 0 as the special mark.
+	This function should be called only once at most per mtr, and work with
+	the commit() to finish the complete logging & commit
+	@param[in]	table	table
+	@param[in]	counter	counter to be logged */
+	void log(dict_table_t*  table, ib_uint64_t counter);
+
+	/** Commit the internal mtr, and some cleanup if necessary */
+	void commit();
+
+private:
+
+	/** mtr to be used */
+	mtr_t*		m_mtr;
+
+#ifdef UNIV_DEBUG
+	/** True if dict_persist_t::lock is held now, otherwise false */
+	bool		m_locked;
+#endif /* UNIV_DEBUG */
+
+	/** True if counter has been logged, otherwise false */
+	bool		m_logged;
 };
 
 /** Container of persisters used in the system. Currently we don't need
@@ -1838,10 +2006,16 @@ void
 dict_table_autoinc_destroy(
 	dict_table_t*	table)
 {
-	if (table->autoinc_mutex_created == os_once::DONE
-	    && table->autoinc_mutex != NULL) {
-		mutex_free(table->autoinc_mutex);
-		UT_DELETE(table->autoinc_mutex);
+	if (table->autoinc_mutex_created == os_once::DONE) {
+		if (table->autoinc_mutex != NULL) {
+			mutex_free(table->autoinc_mutex);
+			UT_DELETE(table->autoinc_mutex);
+		}
+
+		if (table->autoinc_persisted_mutex != NULL) {
+			mutex_free(table->autoinc_persisted_mutex);
+			UT_DELETE(table->autoinc_persisted_mutex);
+		}
 	}
 }
 
@@ -1855,6 +2029,7 @@ dict_table_autoinc_create_lazy(
 	dict_table_t*	table)
 {
 	table->autoinc_mutex = NULL;
+	table->autoinc_persisted_mutex = NULL;
 	table->autoinc_mutex_created = os_once::NEVER_DONE;
 }
 

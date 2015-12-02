@@ -1167,6 +1167,11 @@ static void close_connections(void)
   DBUG_PRINT("quit",("Waiting for threads to die (count=%u)",
                      thd_manager->get_thd_count()));
   thd_manager->wait_till_no_thd();
+  /*
+    Connection threads might take a little while to go down after removing from
+    global thread list. Give it some time.
+  */
+  Connection_handler_manager::wait_till_no_connection();
 
   delete_slave_info_objects();
   DBUG_PRINT("quit",("close_connections thread"));
@@ -1255,7 +1260,6 @@ static void mysqld_exit(int exit_code)
 {
   DBUG_ASSERT(exit_code >= MYSQLD_SUCCESS_EXIT
               && exit_code <= MYSQLD_FAILURE_EXIT);
-  log_syslog_exit();
   mysql_audit_finalize();
 #ifndef EMBEDDED_LIBRARY
   Srv_session::module_deinit();
@@ -1492,6 +1496,8 @@ void clean_up(bool print_message)
     my_timer_deinitialize();
 
   have_statement_timeout= SHOW_OPTION_DISABLED;
+
+  log_syslog_exit();
 
   /*
     The following lines may never be executed as the main thread may have
@@ -3138,6 +3144,12 @@ int init_common_variables()
   use_temp_pool= 0;
 #endif
 
+  if (ignore_db_dirs_process_additions())
+  {
+    sql_print_error("An error occurred while storing ignore_db_dirs to a hash.");
+    return 1;
+  }
+
   /* create the data directory if requested */
   if (unlikely(opt_initialize) &&
       initialize_create_data_directory(mysql_real_data_home))
@@ -3199,12 +3211,6 @@ int init_common_variables()
   {
     sql_print_error("An error occurred while building do_table"
                     "and ignore_table rules to hush.");
-    return 1;
-  }
-
-  if (ignore_db_dirs_process_additions())
-  {
-    sql_print_error("An error occurred while storing ignore_db_dirs to a hash.");
     return 1;
   }
 
@@ -3790,10 +3796,16 @@ int init_server_components()
   if (table_def_init() | hostname_cache_init(host_cache_size))
     unireg_abort(MYSQLD_ABORT_EXIT);
 
-  if (my_timer_initialize())
-    sql_print_error("Failed to initialize timer component (errno %d).", errno);
-  else
-    have_statement_timeout= SHOW_OPTION_YES;
+  /*
+    Timers not needed if only starting with --help.
+  */
+  if (!opt_help)
+  {
+    if (my_timer_initialize())
+      sql_print_error("Failed to initialize timer component (errno %d).", errno);
+    else
+      have_statement_timeout= SHOW_OPTION_YES;
+  }
 
   init_server_query_cache();
 
@@ -8978,7 +8990,7 @@ static PSI_socket_info all_server_sockets[]=
 #endif // !EMBEDDED_LIBRARY
 
 /* TODO: find a good header */
-extern "C" void init_client_psi_keys(void);
+void init_client_psi_keys(void);
 
 /**
   Initialise all the performance schema instrumentation points

@@ -334,69 +334,6 @@ static bool json_is_valid(Item **args,
 }
 
 
-
-#define CATCH_ALL(funcname, expr) \
-  catch (const std::bad_alloc &e)\
-  {\
-    my_error(ER_STD_BAD_ALLOC_ERROR, MYF(0), e.what(), (funcname));\
-    expr;\
-  }\
-  catch (const std::domain_error &e)\
-  {\
-    my_error(ER_STD_DOMAIN_ERROR, MYF(0), e.what(), (funcname));\
-    expr;\
-  }\
-  catch (const std::length_error &e)\
-  {\
-    my_error(ER_STD_LENGTH_ERROR, MYF(0), e.what(), (funcname));\
-    expr;\
-  }\
-  catch (const std::invalid_argument &e)\
-  {\
-    my_error(ER_STD_INVALID_ARGUMENT, MYF(0), e.what(), (funcname));\
-    expr;\
-  }\
-  catch (const std::out_of_range &e)\
-   {\
-    my_error(ER_STD_OUT_OF_RANGE_ERROR, MYF(0), e.what(), (funcname));\
-    expr;\
-  }\
-  catch (const std::overflow_error &e)\
-  {\
-    my_error(ER_STD_OVERFLOW_ERROR, MYF(0), e.what(), (funcname));\
-    expr;\
-  }\
-  catch (const std::range_error &e)\
-  {\
-    my_error(ER_STD_RANGE_ERROR, MYF(0), e.what(), (funcname));\
-    expr;\
-  }\
-  catch (const std::underflow_error &e)\
-  {\
-    my_error(ER_STD_UNDERFLOW_ERROR, MYF(0), e.what(), (funcname));\
-    expr;\
-  }\
-  catch (const std::logic_error &e)\
-  {\
-    my_error(ER_STD_LOGIC_ERROR, MYF(0), e.what(), (funcname));\
-    expr;\
-  }\
-  catch (const std::runtime_error &e)\
-  {\
-    my_error(ER_STD_RUNTIME_ERROR, MYF(0), e.what(), (funcname));\
-    expr;\
-  }\
-  catch (const std::exception &e)\
-  {\
-    my_error(ER_STD_UNKNOWN_EXCEPTION, MYF(0), e.what(), (funcname));\
-    expr;\
-  }\
-  catch (...)\
-  {\
-    my_error(ER_STD_UNKNOWN_EXCEPTION, MYF(0), (funcname));\
-    expr;\
-  }
-
 /**
   Helper method for Item_func_json_* methods. Assumes that the caller
   has already verified that the path expression is not null. Raises an
@@ -624,9 +561,6 @@ Item_json_func::save_in_field_inner(Field *field, bool no_conversions)
 longlong Item_func_json_valid::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  bool result= 1;
-  null_value= false;
-
   try
   {
     bool ok;
@@ -635,21 +569,20 @@ longlong Item_func_json_valid::val_int()
       return error_int();
     }
 
-    if (!ok)
-    {
-      null_value= false;
+    null_value= args[0]->null_value;
+
+    if (null_value || !ok)
       return 0;
-    }
 
-    if (args[0]->null_value)
-    {
-      null_value= true;
-      return 0;
-    }
-
-  } CATCH_ALL("json_valid", result= 0)        /* purecov: inspected */
-
-  return result;
+    return 1;
+  }
+  catch (...)
+  {
+    /* purecov: begin inspected */
+    handle_std_exception(func_name());
+    return error_int();
+    /* purecov: end */
+  }
 }
 
 
@@ -941,7 +874,14 @@ longlong Item_func_json_contains::val_int()
       null_value= false;
       return ret;
     }
-  } CATCH_ALL("json_contains", return error_int()) /* purecov: inspected */
+  }
+  catch (...)
+  {
+    /* purecov: begin inspected */
+    handle_std_exception(func_name());
+    return error_int();
+    /* purecov: end */
+  }
 }
 
 
@@ -1028,8 +968,14 @@ longlong Item_func_json_contains_path::val_int()
         }
       }
     }
-
-  } CATCH_ALL("json_contains_path", return error_int()) /* purecov: inspected */
+  }
+  catch (...)
+  {
+    /* purecov: begin inspected */
+    handle_std_exception(func_name());
+    return error_int();
+    /* purecov: end */
+  }
 
   return result;
 }
@@ -1194,7 +1140,14 @@ String *Item_func_json_type::val_str(String *str)
     if (m_value.append(Json_dom::json_type_string_map[typename_idx]))
       return error_str();                     /* purecov: inspected */
 
-  } CATCH_ALL("json_type", return error_str()) /* purecov: inspected */
+  }
+  catch (...)
+  {
+    /* purecov: begin inspected */
+    handle_std_exception(func_name());
+    return error_str();
+    /* purecov: end */
+  }
 
   null_value= false;
   return &m_value;
@@ -1731,7 +1684,14 @@ bool get_json_atom_wrapper(Item **args,
     result= val_json_func_field_subselect(arg, calling_function, value, tmp, wr,
                                           scalar, accept_string);
 
-  } CATCH_ALL("CAST(... AS JSON)", result= true) /* purecov: inspected */
+  }
+  catch (...)
+  {
+    /* purecov: begin inspected */
+    handle_std_exception(calling_function);
+    return true;
+    /* purecov: end */
+  }
 
   return result;
 }
@@ -1860,7 +1820,14 @@ longlong Item_func_json_length::val_int()
       null_value= true;
       return 0;
     }
-  } CATCH_ALL("json_length", return 0)        /* purecov: inspected */
+  }
+  catch (...)
+  {
+    /* purecov: begin inspected */
+    handle_std_exception(func_name());
+    return error_int();
+    /* purecov: end */
+  }
 
   if (arg_count > 1)
   {
@@ -1910,7 +1877,14 @@ longlong Item_func_json_depth::val_int()
       null_value= true;
       return 0;
     }
-  } CATCH_ALL("json_depth", return error_int()) /* purecov: inspected */
+  }
+  catch (...)
+  {
+    /* purecov: begin inspected */
+    handle_std_exception(func_name());
+    return error_int();
+    /* purecov: end */
+  }
 
   result= wrapper.depth();
 
@@ -1980,7 +1954,14 @@ bool Item_func_json_keys::val_json(Json_wrapper *wr)
     Json_wrapper resw(res);
     wr->steal(&resw);
 
-  } CATCH_ALL("json_keys", return error_json()) /* purecov: inspected */
+  }
+  catch (...)
+  {
+    /* purecov: begin inspected */
+    handle_std_exception(func_name());
+    return error_json();
+    /* purecov: end */
+  }
 
   null_value= false;
   return false;
@@ -2055,8 +2036,14 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr)
       DBUG_ASSERT(v.size() == 1);
       wr->steal(&v[0]);
     }
-
-  } CATCH_ALL("json_extract", return error_json()) /* purecov: inspected */
+  }
+  catch (...)
+  {
+    /* purecov: begin inspected */
+    handle_std_exception(func_name());
+    return error_json();
+    /* purecov: end */
+  }
 
   null_value= false;
   return false;
@@ -2188,8 +2175,14 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr)
 
     // docw still owns the augmented doc, so hand it over to result
     wr->steal(&docw);
-
-  } CATCH_ALL("json_array_append", return error_json()) /* purecov: inspected */
+  }
+  catch (...)
+  {
+    /* purecov: begin inspected */
+    handle_std_exception(func_name());
+    return error_json();
+    /* purecov: end */
+  }
 
   null_value= false;
   return false;
@@ -2348,7 +2341,14 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
     // docw still owns the augmented doc, so hand it over to result
     wr->steal(&docw);
 
-  } CATCH_ALL("json_insert", return error_json()) /* purecov: inspected */
+  }
+  catch (...)
+  {
+    /* purecov: begin inspected */
+    handle_std_exception(func_name());
+    return error_json();
+    /* purecov: end */
+  }
 
   null_value= false;
   return false;
@@ -2455,7 +2455,14 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
     // docw still owns the augmented doc, so hand it over to result
     wr->steal(&docw);
 
-  } CATCH_ALL("json_array_insert", return error_json()) /* purecov: inspected */
+  }
+  catch (...)
+  {
+    /* purecov: begin inspected */
+    handle_std_exception(func_name());
+    return error_json();
+    /* purecov: end */
+  }
 
   null_value= false;
   return false;
@@ -2716,7 +2723,14 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
     // docw still owns the augmented doc, so hand it over to result
     wr->steal(&docw);
 
-  } CATCH_ALL(func_name(), return error_json()) /* purecov: inspected */
+  }
+  catch (...)
+  {
+    /* purecov: begin inspected */
+    handle_std_exception(func_name());
+    return error_json();
+    /* purecov: end */
+  }
 
   null_value= false;
   return false;
@@ -2752,7 +2766,14 @@ bool Item_func_json_array::val_json(Json_wrapper *wr)
     // docw still owns the augmented doc, so hand it over to result
     wr->steal(&docw);
 
-  } CATCH_ALL("json_array", return error_json()) /* purecov: inspected */
+  }
+  catch (...)
+  {
+    /* purecov: begin inspected */
+    handle_std_exception(func_name());
+    return error_json();
+    /* purecov: end */
+  }
 
   null_value= false;
   return false;
@@ -2810,7 +2831,14 @@ bool Item_func_json_row_object::val_json(Json_wrapper *wr)
     // docw still owns the augmented doc, so hand it over to result
     wr->steal(&docw);
 
-  } CATCH_ALL("json_object", return error_json()) /* purecov: inspected */
+  }
+  catch (...)
+  {
+    /* purecov: begin inspected */
+    handle_std_exception(func_name());
+    return error_json();
+    /* purecov: end */
+  }
 
   null_value= false;
   return false;
@@ -3151,7 +3179,14 @@ bool Item_func_json_search::val_json(Json_wrapper *wr)
       }   // end of loop through user-supplied path expressions
     }     // end if there are user-supplied path expressions
 
-  } CATCH_ALL("json_search", return error_json()) /* purecov: inspected */
+  }
+  catch (...)
+  {
+    /* purecov: begin inspected */
+    handle_std_exception(func_name());
+    return error_json();
+    /* purecov: end */
+  }
 
   if (matches.size() == 0)
   {
@@ -3199,7 +3234,6 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr)
 
   Json_wrapper wrapper;
   uint32  path_count= arg_count - 1;
-  bool  had_error= false;
   null_value= false;
 
   try
@@ -3217,15 +3251,17 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr)
       if (m_path_cache.parse_and_cache_path(args, path_idx + 1, true))
       {
         null_value= true;
-        break;
+        return false;
       }
     }
 
-  } CATCH_ALL("json_remove", (had_error= true)) /* purecov: inspected */
-
-  if (had_error || null_value)
+  }
+  catch (...)
   {
-    return had_error ? error_json() : false;
+    /* purecov: begin inspected */
+    handle_std_exception(func_name());
+    return error_json();
+    /* purecov: end */
   }
 
   for (uint path_idx= 0; path_idx < path_count; ++path_idx)
@@ -3327,7 +3363,14 @@ bool Item_func_json_merge::val_json(Json_wrapper *wr)
       next_wrapper.set_alias();
       result_dom= (idx == 0) ? next_dom : merge_doms(result_dom, next_dom);
     }
-  } CATCH_ALL("json_merge", (had_error= true)) /* purecov: inspected */
+  }
+  catch (...)
+  {
+    /* purecov: begin inspected */
+    handle_std_exception(func_name());
+    had_error= true;
+    /* purecov: end */
+  }
 
   if (had_error || null_value)
   {
@@ -3397,7 +3440,14 @@ String *Item_func_json_quote::val_str(String *str)
     res->set_charset(&my_charset_utf8mb4_bin);
     if (double_quote(safep, safep_size, res))
       return error_str();                 /* purecov: inspected */
-  } CATCH_ALL("json_quote", return error_str()) /* purecov: inspected */
+  }
+  catch (...)
+  {
+    /* purecov: begin inspected */
+    handle_std_exception(func_name());
+    return error_str();
+    /* purecov: end */
+  }
 
   null_value= false;
   return res;
@@ -3485,8 +3535,14 @@ String *Item_func_json_unquote::val_str(String *str)
     Json_wrapper wr(dom);
     if (str->copy(wr.get_data(), wr.get_data_length(), collation.collation))
       return error_str();                     /* purecov: inspected */
-  } CATCH_ALL("json_unquote", return error_str()) /* purecov: inspected */
-
+  }
+  catch (...)
+  {
+    /* purecov: begin inspected */
+    handle_std_exception(func_name());
+    return error_str();
+    /* purecov: end */
+  }
 
   null_value= false;
   return str;

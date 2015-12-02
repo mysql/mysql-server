@@ -57,6 +57,7 @@
 #include "mysql/service_mysql_alloc.h"
 
 #include "prealloced_array.h"
+#include "template_utils.h"
 
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
@@ -795,11 +796,10 @@ static void write_footer(FILE *sql_file)
 } /* write_footer */
 
 
-static uchar* get_table_key(const char *entry, size_t *length,
-                            my_bool not_used __attribute__((unused)))
+static const uchar* get_table_key(const uchar *entry, size_t *length)
 {
-  *length= strlen(entry);
-  return (uchar*) entry;
+  *length= strlen(pointer_cast<const char*>(entry));
+  return entry;
 }
 
 
@@ -1012,7 +1012,7 @@ static int get_options(int *argc, char ***argv)
   defaults_argv= *argv;
 
   if (my_hash_init(&ignore_table, charset_info, 16, 0, 0,
-                   (my_hash_get_key) get_table_key, my_free, 0,
+                   get_table_key, my_free, 0,
                    PSI_NOT_INSTRUMENTED))
     return(EX_EOM);
   /* Don't copy internal log tables */

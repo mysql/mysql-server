@@ -1607,10 +1607,8 @@ public:
   */
   virtual bool is_null() { return 0; }
 
-  /*
-   Make sure the null_value member has a correct value.
-  */
-  virtual void update_null_value () { (void) val_int(); }
+  /// Make sure the null_value member has a correct value.
+  void update_null_value();
 
   /*
     Inform the item that there will be no distinction between its result
@@ -2118,17 +2116,17 @@ public:
   }
 
   /**
-    Analyzer function for GC substitution. @see JOIN::substitute_gc()
+    Analyzer function for GC substitution. @see substitute_gc()
   */
   virtual bool gc_subst_analyzer(uchar **arg) { return false; }
   /**
-    Transformer function for GC substitution. @see JOIN::substitute_gc()
+    Transformer function for GC substitution. @see substitute_gc()
   */
   virtual Item *gc_subst_transformer(uchar *arg) { return this; }
   /**
     Check if this item is of a type that is eligible for GC
     substitution. All items that belong to subclasses of Item_func are
-    eligible for substitution. @see JOIN::substitute_gc()
+    eligible for substitution. @see substitute_gc()
   */
   bool can_be_substituted_for_gc() const
   {
@@ -2867,7 +2865,6 @@ public:
   bool get_time(MYSQL_TIME *ltime);
   bool get_timeval(struct timeval *tm, int *warnings);
   bool is_null() { return field->is_null(); }
-  void update_null_value();
   Item *get_tmp_table_item(THD *thd);
   bool collect_item_field_processor(uchar * arg);
   bool add_field_to_set_processor(uchar *arg);
@@ -4941,6 +4938,7 @@ public:
     return super::itemize(pc, res) || arg->itemize(pc, &arg);
   }
 
+  virtual enum Type type() const { return INSERT_VALUE_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, Item **);
   virtual void print(String *str, enum_query_type query_type);
@@ -5169,6 +5167,19 @@ public:
   Field* field() { return cached_field; }
 
   virtual void store(Item *item);
+
+  /**
+    Force an item to be null. Used for empty subqueries to avoid attempts to
+    evaluate expressions which could have uninitialized columns due to
+    bypassing the subquery exec.
+  */
+  void store_null()
+  {
+    DBUG_ASSERT(maybe_null);
+    value_cached= true;
+    null_value= true;
+  }
+
   virtual bool cache_value()= 0;
   bool basic_const_item() const
   { return MY_TEST(example && example->basic_const_item());}

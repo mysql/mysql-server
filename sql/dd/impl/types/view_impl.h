@@ -23,7 +23,7 @@
 #include "dd/types/dictionary_object_table.h"  // dd::Dictionary_object_table
 #include "dd/types/view.h"                     // dd::View
 
-#include <memory>   // std::auto_ptr
+#include <memory>   // std::unique_ptr
 
 typedef struct charset_info_st CHARSET_INFO;
 
@@ -194,7 +194,7 @@ private:
 
   // Collections.
 
-  std::auto_ptr<View_table_collection> m_tables;
+  std::unique_ptr<View_table_collection> m_tables;
 
   // References.
 

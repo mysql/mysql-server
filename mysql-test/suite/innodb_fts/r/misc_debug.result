@@ -16,8 +16,8 @@ BEGIN;
 INSERT INTO articles (title,body) VALUES
 ('MySQL Tutorial','DBMS stands for DataBase ...');
 # Kill and restart
-INSERT INTO articles (title,body) VALUES
-('MySQL Tutorial','DBMS stands for DataBase ...');
+INSERT INTO articles VALUES
+(8, 'MySQL Tutorial','DBMS stands for DataBase ...');
 CREATE FULLTEXT INDEX idx ON articles (title,body);
 SELECT * FROM articles
 WHERE MATCH (title,body)
@@ -25,7 +25,7 @@ AGAINST ('Database' IN NATURAL LANGUAGE MODE);
 id	title	body
 1	MySQL Tutorial	DBMS stands for DataBase ...
 5	MySQL vs. YourSQL	In the following database comparison ...
-7	MySQL Tutorial	DBMS stands for DataBase ...
+8	MySQL Tutorial	DBMS stands for DataBase ...
 INSERT INTO articles (title,body) VALUES
 ('MySQL Tutorial','DBMS stands for DataBase ...')  ,
 ('How To Use MySQL Well','After you went through a ...'),
@@ -37,18 +37,18 @@ BEGIN;
 INSERT INTO articles (title,body) VALUES
 ('MySQL Tutorial','DBMS stands for DataBase ...');
 # Kill and restart
-INSERT INTO articles (title,body) VALUES
-('MySQL Tutorial','DBMS stands for DataBase ...');
+INSERT INTO articles VALUES
+(16, 'MySQL Tutorial','DBMS stands for DataBase ...');
 SELECT * FROM articles
 WHERE MATCH (title,body)
 AGAINST ('Database' IN NATURAL LANGUAGE MODE);
 id	title	body
 1	MySQL Tutorial	DBMS stands for DataBase ...
 5	MySQL vs. YourSQL	In the following database comparison ...
-7	MySQL Tutorial	DBMS stands for DataBase ...
 8	MySQL Tutorial	DBMS stands for DataBase ...
-12	MySQL vs. YourSQL	In the following database comparison ...
-14	MySQL Tutorial	DBMS stands for DataBase ...
+9	MySQL Tutorial	DBMS stands for DataBase ...
+13	MySQL vs. YourSQL	In the following database comparison ...
+16	MySQL Tutorial	DBMS stands for DataBase ...
 DROP TABLE articles;
 CREATE TABLE articles (
 id int PRIMARY KEY,

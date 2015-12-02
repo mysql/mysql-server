@@ -19,16 +19,18 @@
 
 #include "hash.h"
 #include "mysql/service_mysql_alloc.h"
+#include "template_utils.h"
 
 
 extern native_mutex_t ndbcluster_mutex;
 
 
-static uchar *
-ndb_schema_objects_get_key(NDB_SCHEMA_OBJECT *schema_object,
-                           size_t *length,
-                           my_bool)
+static const uchar *
+ndb_schema_objects_get_key(const uchar *arg,
+                           size_t *length)
 {
+  const NDB_SCHEMA_OBJECT *schema_object=
+    pointer_cast<const NDB_SCHEMA_OBJECT*>(arg);
   *length= schema_object->key_length;
   return (uchar*) schema_object->key;
 }
@@ -40,7 +42,7 @@ public:
   Ndb_schema_objects()
   {
     (void)my_hash_init(&m_hash, &my_charset_bin, 1, 0, 0,
-                       (my_hash_get_key)ndb_schema_objects_get_key, 0, 0,
+                       ndb_schema_objects_get_key, 0, 0,
                        PSI_INSTRUMENT_ME);
   }
 
