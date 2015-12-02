@@ -6178,6 +6178,32 @@ void Ndb_binlog_thread::do_wakeup()
 }
 
 
+/*
+  Events are handled one epoch at a time.
+  Handle the lowest available epoch first.
+*/
+static
+Uint64
+find_epoch_to_handle(const NdbEventOperation *s_pOp, 
+                     const NdbEventOperation *i_pOp)
+{
+  if (i_pOp != NULL)
+  {
+    if (s_pOp != NULL)
+    {
+      return std::min(i_pOp->getEpoch(),s_pOp->getEpoch());
+    }
+    return i_pOp->getEpoch();
+  }
+  if (s_pOp != NULL)
+  {
+    return s_pOp->getEpoch();
+  }
+  // 'latest_received' is '0' if not binlogging
+  return ndb_latest_received_binlog_epoch;
+}
+
+
 void
 Ndb_binlog_thread::do_run()
 {
@@ -6570,18 +6596,22 @@ restart_cluster_failure:
 
     // If there are remaining unhandled injector eventOp we continue
     // handling of these, else poll for more.
-    if (i_pOp == NULL && ndb_binlog_running)
+    if (i_pOp == NULL)
     {
       // Capture any dynamic changes to max_alloc
       i_ndb->set_eventbuf_max_alloc(opt_ndb_eventbuffer_max_alloc);
 
       pthread_mutex_lock(&injector_mutex);
       Uint64 latest_epoch= 0;
-      const int res= i_ndb->pollEvents(tot_poll_wait, &latest_epoch);
+      const int poll_wait= (ndb_binlog_running) ? tot_poll_wait : 0;
+      const int res= i_ndb->pollEvents(poll_wait, &latest_epoch);
       pthread_mutex_unlock(&injector_mutex);
       i_pOp = i_ndb->nextEvent();
-      ndb_latest_received_binlog_epoch= latest_epoch;
-      tot_poll_wait= 0;
+      if (ndb_binlog_running)
+      {
+        ndb_latest_received_binlog_epoch= latest_epoch;
+        tot_poll_wait= 0;
+      }
       DBUG_PRINT("info", ("pollEvents res: %d", res));
     }
 
@@ -6641,11 +6671,8 @@ restart_cluster_failure:
     */
 
     // Calculate the epoch to handle events from in this iteration.
-    const Uint64 current_epoch = (!ndb_binlog_running)
-         ? ((s_pOp != NULL)
-           ? s_pOp->getEpoch() : 0)
-         : ((s_pOp != NULL && s_pOp->getEpoch() < i_epoch)
-           ? s_pOp->getEpoch() : i_epoch);
+    const Uint64 current_epoch = find_epoch_to_handle(s_pOp,i_pOp);
+    DBUG_ASSERT(current_epoch != 0 || !ndb_binlog_running);
 
     if ((is_stop_requested() ||
          binlog_thread_state) &&
@@ -6726,22 +6753,15 @@ restart_cluster_failure:
         Just consume any events, not used if no binlogging
         e.g. node failure events
       */
-      Uint64 tmp_epoch;
-      pthread_mutex_lock(&injector_mutex);
-      const int res = i_ndb->pollEvents(0, &tmp_epoch);
-      pthread_mutex_unlock(&injector_mutex);
-      if (res != 0)
+      while (i_pOp != NULL && i_pOp->getEpoch() == current_epoch)
       {
-        while (i_pOp != NULL && i_pOp->getEpoch() == current_epoch)
+        if ((unsigned) i_pOp->getEventType() >=
+            (unsigned) NDBEVENT::TE_FIRST_NON_DATA_EVENT)
         {
-          if ((unsigned) i_pOp->getEventType() >=
-              (unsigned) NDBEVENT::TE_FIRST_NON_DATA_EVENT)
-          {
-            ndb_binlog_index_row row;
-            handle_non_data_event(thd, i_pOp, row);
-          }
-          i_pOp= i_ndb->nextEvent();
+          ndb_binlog_index_row row;
+          handle_non_data_event(thd, i_pOp, row);
         }
+        i_pOp= i_ndb->nextEvent();
       }
       updateInjectorStats(s_ndb, i_ndb);
     }
