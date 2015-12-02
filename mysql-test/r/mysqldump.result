@@ -5312,3 +5312,29 @@ Usage: mysqldump [OPTIONS] database [tables]
 OR     mysqldump [OPTIONS] --databases [OPTIONS] DB1 [DB2 DB3...]
 OR     mysqldump [OPTIONS] --all-databases [OPTIONS]
 For more options, use mysqldump --help
+#
+# MDEV-9001 - [PATCH] Fix DB name quoting in mysqldump --routine
+#
+CREATE DATABASE `a\"'``b`;
+USE `a\"'``b`;
+CREATE PROCEDURE p1() BEGIN END;
+ALTER DATABASE `a\"'``b` COLLATE utf8_general_ci;
+ALTER DATABASE `a\"'``b` CHARACTER SET latin1 COLLATE latin1_swedish_ci ;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = '' */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+BEGIN END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+ALTER DATABASE `a\"'``b` CHARACTER SET utf8 COLLATE utf8_general_ci ;
+DROP DATABASE `a\"'``b`;

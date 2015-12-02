@@ -2494,3 +2494,13 @@ DROP DATABASE db_20772273;
 --exec $MYSQL_DUMP --user=foo 2>&1 > $MYSQLTEST_VARDIR/tmp/bug6056.out
 --exec $MYSQL_DUMP --help > $MYSQLTEST_VARDIR/tmp/bug6056.out
 
+
+--echo #
+--echo # MDEV-9001 - [PATCH] Fix DB name quoting in mysqldump --routine
+--echo #
+CREATE DATABASE `a\"'``b`;
+USE `a\"'``b`;
+CREATE PROCEDURE p1() BEGIN END;
+ALTER DATABASE `a\"'``b` COLLATE utf8_general_ci;
+--exec $MYSQL_DUMP --routines --compact a\\\"\'\`b 2>&1
+DROP DATABASE `a\"'``b`;
