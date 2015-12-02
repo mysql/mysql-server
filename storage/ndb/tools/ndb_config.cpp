@@ -587,7 +587,7 @@ fetch_configuration(int from_node)
     goto noconnect;
   }
 
-  if(ndb_mgm_connect(mgm, opt_connect_retries, opt_connect_retry_delay, 1))
+  if(ndb_mgm_connect(mgm, opt_connect_retries - 1, opt_connect_retry_delay, 1))
   {
     fprintf(stderr, "Connect failed");
     fprintf(stderr, " code: %d, msg: %s\n",

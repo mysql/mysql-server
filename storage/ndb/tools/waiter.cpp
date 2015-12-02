@@ -199,7 +199,7 @@ getStatus(){
       MGMERR(handle);
       retries++;
       ndb_mgm_disconnect(handle);
-      if (ndb_mgm_connect(handle, opt_connect_retries, opt_connect_retry_delay, 1)) {
+      if (ndb_mgm_connect(handle, opt_connect_retries - 1, opt_connect_retry_delay, 1)) {
         MGMERR(handle);
         g_err  << "Reconnect failed" << endl;
         break;
@@ -291,7 +291,7 @@ waitClusterStatus(const char* _addr,
     g_err  << "Connectstring " << _addr << " invalid" << endl;
     return -1;
   }
-  if (ndb_mgm_connect(handle, opt_connect_retries, opt_connect_retry_delay, 1)) {
+  if (ndb_mgm_connect(handle, opt_connect_retries - 1, opt_connect_retry_delay, 1)) {
     MGMERR(handle);
     g_err  << "Connection to " << _addr << " failed" << endl;
     return -1;
