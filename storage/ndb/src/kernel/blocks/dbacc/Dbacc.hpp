@@ -824,9 +824,9 @@ private:
     Uint32 nextConidx, Uint32 nextContype, bool nextSamepage,
     Uint32 nextPagei) const;
   void getfreelist(Page8Ptr pageptr, Uint32& pageindex, Uint32& buftype);
-  void increaselistcont();
-  void seizeLeftlist();
-  void seizeRightlist();
+  void increaselistcont(Page8Ptr);
+  void seizeLeftlist(Page8Ptr slPageptr, Uint32 conidx);
+  void seizeRightlist(Page8Ptr slPageptr, Uint32 conidx);
   Uint32 readTablePk(Uint32 lkey1, Uint32 lkey2, Uint32 eh, OperationrecPtr);
   Uint32 getElement(const AccKeyReq* signal,
                     OperationrecPtr& lockOwner,
@@ -849,9 +849,9 @@ private:
   void getLastAndRemove(Page8Ptr tlastPrevpageptr, Uint32 tlastPrevconptr,
      Page8Ptr& lastPageptr, Uint32& tlastPageindex, Uint32& tlastContainerptr,
      bool& tlastIsforward, Uint32& tlastElementptr);
-  void releaseLeftlist();
-  void releaseRightlist();
-  void checkoverfreelist();
+  void releaseLeftlist(Page8Ptr rlPageptr, Uint32 conidx, Uint32 conptr);
+  void releaseRightlist(Page8Ptr rlPageptr, Uint32 conidx, Uint32 conptr);
+  void checkoverfreelist(Page8Ptr colPageptr);
   void abortOperation(Signal* signal);
   void commitOperation(Signal* signal);
   void copyOpInfo(OperationrecPtr dst, OperationrecPtr src) const;
@@ -874,21 +874,21 @@ private:
   void takeOutLockOwnersList(const OperationrecPtr&) const;
 
   void initFsOpRec(Signal* signal) const;
-  void initOverpage();
-  void initPage();
+  void initOverpage(Page8Ptr);
+  void initPage(Page8Ptr);
   void initRootfragrec(Signal* signal) const;
   void putOpInFragWaitQue(Signal* signal) const;
   void releaseFsConnRec(Signal* signal) const;
   void releaseFsOpRec(Signal* signal) const;
   void releaseOpRec();
-  void releaseOverpage();
-  void releasePage();
+  void releaseOverpage(Page8Ptr ropPageptr);
+  void releasePage(Page8Ptr rpPageptr);
   void seizeDirectory(Signal* signal) const;
   void seizeFragrec();
   void seizeFsConnectRec(Signal* signal) const;
   void seizeFsOpRec(Signal* signal) const;
   void seizeOpRec();
-  void seizePage();
+  void seizePage(Page8Ptr& spPageptr);
   void seizeRootfragrec(Signal* signal) const;
   void seizeScanRec();
   void sendSystemerror(int line) const;
@@ -965,16 +965,7 @@ private:
 /* --------------------------------------------------------------------------------- */
   Page8 *page8;
   /* 8 KB PAGE                       */
-  Page8Ptr colPageptr;
   Page8Ptr expPageptr;
-  Page8Ptr ilcPageptr;
-  Page8Ptr inpPageptr;
-  Page8Ptr iopPageptr;
-  Page8Ptr rlPageptr;
-  Page8Ptr ropPageptr;
-  Page8Ptr rpPageptr;
-  Page8Ptr slPageptr;
-  Page8Ptr spPageptr;
   Page8List::Head cfreepages;
   Uint32 cpagesize;
   Uint32 cpageCount;
@@ -1005,7 +996,6 @@ private:
   Tabrec *tabrec;
   TabrecPtr tabptr;
   Uint32 ctablesize;
-  Uint32 trlPageindex;
   Uint32 tipPageId;
   Uint32 texpDirInd;
   Uint32 tdata0;
@@ -1013,15 +1003,10 @@ private:
   Uint32 tscanFlag;
   Uint32 tmp;
   Uint32 tmp2;
-  Uint32 tslNextfree;
-  Uint32 tslPageindex;
-  Uint32 tslPrevfree;
   Uint32 tresult;
   Uint32 tuserptr;
   BlockReference tuserblockref;
   Uint32 tiopIndex;
-  Uint32 tullIndex;
-  Uint32 turlIndex;
   Uint32 tscanTrid1;
   Uint32 tscanTrid2;
 
