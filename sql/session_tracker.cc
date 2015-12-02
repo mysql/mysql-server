@@ -755,7 +755,6 @@ void Session_sysvars_tracker::mark_as_changed(THD *thd, LEX_CSTRING *tracked_ite
 
   @param entry         A single entry.
   @param [out] length  Length of the key.
-  @param not_used           Unused.
 
   @return                   Pointer to the key buffer.
 */

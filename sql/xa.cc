@@ -972,7 +972,6 @@ char* XID::xid_to_str(char *buf) const
 
   @param ptr  pointer to the record
   @param length  length of the record
-  @param not_used Unused
 
   @return  pointer to a record stored in cache
 */
