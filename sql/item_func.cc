@@ -719,7 +719,7 @@ void Item_func::count_real_length()
 bool Item_func::count_string_result_length(enum_field_types field_type,
                                            Item **items, uint nitems)
 {
-  if (agg_arg_charsets(collation, items, nitems, MY_COLL_ALLOW_CONV, 1))
+  if (agg_arg_charsets_for_string_result(collation, items, nitems, 1))
     return true;
   if (is_temporal_type(field_type))
     count_datetime_length(items, nitems);
