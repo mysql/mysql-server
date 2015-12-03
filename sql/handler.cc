@@ -1801,7 +1801,9 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
       handlerton *ht= ha_info->ht();
       if ((err= ht->commit(ht, thd, all)))
       {
-        my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
+        char errbuf[MYSQL_ERRMSG_SIZE];
+        my_error(ER_ERROR_DURING_COMMIT, MYF(0), err,
+                 my_strerror(errbuf, MYSQL_ERRMSG_SIZE, err));
         error=1;
       }
       thd->status_var.ha_commit_count++;
@@ -1866,7 +1868,9 @@ int ha_rollback_low(THD *thd, bool all)
       handlerton *ht= ha_info->ht();
       if ((err= ht->rollback(ht, thd, all)))
       { // cannot happen
-        my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
+        char errbuf[MYSQL_ERRMSG_SIZE];
+        my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err,
+                 my_strerror(errbuf, MYSQL_ERRMSG_SIZE, err));
         error= 1;
       }
       thd->status_var.ha_rollback_count++;
@@ -2162,7 +2166,9 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
     if ((err= ht->savepoint_rollback(ht, thd,
                                      (uchar *)(sv+1)+ht->savepoint_offset)))
     { // cannot happen
-      my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
+      char errbuf[MYSQL_ERRMSG_SIZE];
+      my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err,
+               my_strerror(errbuf, MYSQL_ERRMSG_SIZE, err));
       error=1;
     }
     thd->status_var.ha_savepoint_rollback_count++;
@@ -2181,7 +2187,9 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
     handlerton *ht= ha_info->ht();
     if ((err= ht->rollback(ht, thd, !thd->in_sub_stmt)))
     { // cannot happen
-      my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
+      char errbuf[MYSQL_ERRMSG_SIZE];
+      my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err,
+               my_strerror(errbuf, MYSQL_ERRMSG_SIZE, err));
       error=1;
     }
     thd->status_var.ha_rollback_count++;
@@ -2222,7 +2230,9 @@ int ha_prepare_low(THD *thd, bool all)
         continue;
       if ((err= ht->prepare(ht, thd, all)))
       {
-        my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
+        char errbuf[MYSQL_ERRMSG_SIZE];
+        my_error(ER_ERROR_DURING_COMMIT, MYF(0), err,
+                 my_strerror(errbuf, MYSQL_ERRMSG_SIZE, err));
         error= 1;
       }
       thd->status_var.ha_prepare_count++;
@@ -2262,7 +2272,9 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv)
     }
     if ((err= ht->savepoint_set(ht, thd, (uchar *)(sv+1)+ht->savepoint_offset)))
     { // cannot happen
-      my_error(ER_GET_ERRNO, MYF(0), err);
+      char errbuf[MYSQL_ERRMSG_SIZE];
+      my_error(ER_GET_ERRNO, MYF(0), err,
+               my_strerror(errbuf, MYSQL_ERRMSG_SIZE, err));
       error=1;
     }
     thd->status_var.ha_savepoint_count++;
@@ -2298,7 +2310,9 @@ int ha_release_savepoint(THD *thd, SAVEPOINT *sv)
     if ((err= ht->savepoint_release(ht, thd,
                                     (uchar *)(sv+1) + ht->savepoint_offset)))
     { // cannot happen
-      my_error(ER_GET_ERRNO, MYF(0), err);
+      char errbuf[MYSQL_ERRMSG_SIZE];
+      my_error(ER_GET_ERRNO, MYF(0), err,
+               my_strerror(errbuf, MYSQL_ERRMSG_SIZE, err));
       error=1;
     }
   }
@@ -4080,7 +4094,11 @@ void handler::print_error(int error, myf errflag)
 	  my_error(ER_GET_ERRMSG, errflag, error, str.ptr(), engine);
       }
       else
-	my_error(ER_GET_ERRNO,errflag,error);
+      {
+        char errbuf[MYSQL_ERRMSG_SIZE];
+        my_error(ER_GET_ERRNO, errflag, error,
+                 my_strerror(errbuf, MYSQL_ERRMSG_SIZE, error));
+      }
       DBUG_VOID_RETURN;
     }
   }

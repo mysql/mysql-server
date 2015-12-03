@@ -361,6 +361,7 @@ EOF
 SET GTID_NEXT = 'AUTOMATIC';
 
 --replace_result \\ /
+--replace_regex /errno: [0-9]+ - .*\)/errno: ## - ...)/
 --error ER_DB_DROP_RMDIR
 DROP DATABASE db1;
 
@@ -372,6 +373,7 @@ DROP DATABASE db1;
 SET GTID_NEXT = 'AUTOMATIC';
 
 --replace_result \\ /
+--replace_regex /errno: [0-9]+ - .*\)/errno: ## - ...)/
 --error ER_DB_DROP_RMDIR
 DROP DATABASE db4;
 
@@ -390,6 +392,7 @@ if (!$gtid_mode_on)
 SET GTID_NEXT = 'AUTOMATIC';
 
 --replace_result \\ /
+--replace_regex /errno: [0-9]+ - .*\)/errno: ## - ...)/
 --error ER_DB_DROP_RMDIR
 DROP DATABASE db7;
 
@@ -433,6 +436,7 @@ DROP DATABASE db13;
 if (!$gtid_mode_on)
 {
   --replace_result \\ /
+  --replace_regex /errno: [0-9]+ - .*\)/errno: ## - ...)/
   --error ER_DB_DROP_RMDIR
   DROP DATABASE db2;
 
@@ -455,7 +459,8 @@ SET GTID_NEXT = 'AUTOMATIC';
 --source include/set_gtid_next_gtid_mode_agnostic.inc
 if (!$gtid_mode_on)
 {
-  --replace_result \\ /
+  --replace_result \\ / 
+  --replace_regex /errno: [0-9]+ - .*\)/errno: ## - ...)/
   --error ER_DB_DROP_RMDIR
   DROP DATABASE db5;
 
@@ -479,6 +484,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 if (!$gtid_mode_on)
 {
   --replace_result \\ /
+  --replace_regex /errno: [0-9]+ - .*\)/errno: ## - ...)/
   --error ER_DB_DROP_RMDIR
   DROP DATABASE db8;
 

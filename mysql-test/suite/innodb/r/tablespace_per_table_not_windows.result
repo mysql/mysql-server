@@ -68,7 +68,7 @@ CREATE TABLE `test`.`#################################################_long_` (a
 # A 252-byte tablename is too long
 #
 CREATE TABLE `test`.`#################################################_long___` (a SERIAL);
-ERROR HY000: Got error 168 from storage engine
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
 CREATE DATABASE twenty_byte_db_name_;
 USE `twenty_byte_db_name_`;
 #
@@ -79,7 +79,7 @@ CREATE TABLE `twenty_byte_db_name_`.`###########################################
 # A 252 byte expanded table name is also too long in a longer database name
 #
 CREATE TABLE `twenty_byte_db_name_`.`#################################################_long___` (a SERIAL);
-ERROR HY000: Got error 168 from storage engine
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
 #
 # Another limitation is a 512 byte length to an expanded path that includes
 # the datadir which is './' in this test, the expanded database name,

@@ -63,7 +63,7 @@ call mtr.add_suppression("Failed to delete the row: .* from "
                          "the gtid_executed table.");
 SET @@GLOBAL.DEBUG= '+d, simulate_error_on_delete_gtid_from_table';
 RESET MASTER;
-ERROR HY000: Got error -1 from storage engine
+ERROR HY000: Got error -1 - 'Unknown error -1' from storage engine
 SET GLOBAL DEBUG= @debug_save;
 # restart
 RESET MASTER;

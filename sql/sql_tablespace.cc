@@ -217,7 +217,9 @@ int mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
         my_error(ER_TABLESPACE_EXISTS, MYF(0), ts_info->tablespace_name);
         break;
       default:
-        my_error(ER_GET_ERRNO, MYF(0), error);
+        char errbuf[MYSQL_ERRMSG_SIZE];
+        my_error(ER_GET_ERRNO, MYF(0), error,
+                 my_strerror(errbuf, MYSQL_ERRMSG_SIZE, error));
       }
       DBUG_RETURN(error);
     }

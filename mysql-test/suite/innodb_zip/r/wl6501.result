@@ -1060,7 +1060,7 @@ i	j
 3	3
 set session debug="+d,ib_err_trunc_oom_logging";
 truncate table t;
-ERROR HY000: Got error 168 from storage engine
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
 set session debug="-d,ib_err_trunc_oom_logging";
 select * from t;
 i	j

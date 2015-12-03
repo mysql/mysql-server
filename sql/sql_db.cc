@@ -224,7 +224,9 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     }
     if (my_mkdir(path,0777,MYF(0)) < 0)
     {
-      my_error(ER_CANT_CREATE_DB, MYF(0), db, my_errno());
+      char errbuf[MYSQL_ERRMSG_SIZE];
+      my_error(ER_CANT_CREATE_DB, MYF(0), db, my_errno(),
+               my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
       DBUG_RETURN(true);
     }
   }
@@ -635,7 +637,9 @@ update_binlog:
   */
   if (found_other_files)
   {
-    my_error(ER_DB_DROP_RMDIR, MYF(0), path, EEXIST);
+    char errbuf[MYSQL_ERRMSG_SIZE];
+    my_error(ER_DB_DROP_RMDIR, MYF(0), path, EEXIST,
+               my_strerror(errbuf, MYSQL_ERRMSG_SIZE, EEXIST));
     DBUG_RETURN(true);
   }
 
@@ -834,7 +838,9 @@ static my_bool rm_dir_w_symlink(const char *org_path, my_bool send_error)
     *--pos=0;
   if (rmdir(path) < 0 && send_error)
   {
-    my_error(ER_DB_DROP_RMDIR, MYF(0), path, errno);
+    char errbuf[MYSQL_ERRMSG_SIZE];
+    my_error(ER_DB_DROP_RMDIR, MYF(0), path, errno,
+             my_strerror(errbuf, MYSQL_ERRMSG_SIZE, errno));
     DBUG_RETURN(1);
   }
   DBUG_RETURN(0);

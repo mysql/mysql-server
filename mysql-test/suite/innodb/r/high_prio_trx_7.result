@@ -152,7 +152,7 @@ XA END 'xa_high_prio';
 XA PREPARE 'xa_high_prio';
 XA COMMIT 'xa_high_prio';
 COMMIT;
-ERROR HY000: Got error 149 during COMMIT
+ERROR HY000: Got error 149 - 'Lock deadlock; Retry transaction' during COMMIT
 SELECT * FROM t1;
 c1
 1
@@ -174,7 +174,7 @@ XA END 'xa_high_prio';
 XA PREPARE 'xa_high_prio';
 XA COMMIT 'xa_high_prio';
 COMMIT;
-ERROR HY000: Got error 149 during COMMIT
+ERROR HY000: Got error 149 - 'Lock deadlock; Retry transaction' during COMMIT
 SELECT * FROM t1;
 c1
 1
@@ -198,5 +198,5 @@ UPDATE t1 SET col2 = 20 where col1 > 10 and col1 <30 and col2 = 30;
 COMMIT WORK;
 #connection 0
 ROLLBACK WORK;
-ERROR HY000: Got error 149 during ROLLBACK
+ERROR HY000: Got error 149 - 'Lock deadlock; Retry transaction' during ROLLBACK
 DROP TABLE t1;

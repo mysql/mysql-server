@@ -231,8 +231,12 @@ static int err2mysql(int error)
   default:
     break;
   }
-  push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                      ER_GET_ERRNO, ER_THD(current_thd, ER_GET_ERRNO), error);
+  {
+    char errbuf[MYSQL_ERRMSG_SIZE];
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING, ER_GET_ERRNO,
+                        ER_THD(current_thd, ER_GET_ERRNO), error,
+                        my_strerror(errbuf, MYSQL_ERRMSG_SIZE, error));
+  }
   DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
 }
 

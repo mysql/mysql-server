@@ -11,12 +11,12 @@ select * from mysqltest1.t1 into outfile 'mysqltest1/f1.txt';
 create table mysqltest1.t2 (n int);
 create table mysqltest1.t3 (n int);
 drop database mysqltest1;
-ERROR HY000: Error dropping database (can't rmdir './mysqltest1/', errno: 17)
+ERROR HY000: Error dropping database (can't rmdir './mysqltest1/', errno: ## - ...)
 use mysqltest1;
 show tables;
 Tables_in_mysqltest1
 drop database mysqltest1;
-ERROR HY000: Error dropping database (can't rmdir './mysqltest1/', errno: 17)
+ERROR HY000: Error dropping database (can't rmdir './mysqltest1/', errno: ## - ...)
 use mysqltest1;
 show tables;
 Tables_in_mysqltest1

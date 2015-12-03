@@ -1669,7 +1669,11 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   }
   mysql_mutex_unlock(&LOCK_plugin);
   if (error > 0)
-    sql_print_error(ER_THD(new_thd, ER_GET_ERRNO), my_errno);
+  {
+    char errbuf[MYSQL_ERRMSG_SIZE];
+    sql_print_error(ER_THD(new_thd, ER_GET_ERRNO), my_errno(),
+                    my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+  }
   end_read_record(&read_record_info);
   table->m_needs_reopen= TRUE;                  // Force close to free memory
 
