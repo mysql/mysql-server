@@ -30,8 +30,8 @@
 extern "C" {
 #endif
 
-#define HA_FT_MAXBYTELEN 254
-#define HA_FT_MAXCHARLEN (HA_FT_MAXBYTELEN/3)
+#define HA_FT_MAXBYTELEN 336
+#define HA_FT_MAXCHARLEN (HA_FT_MAXBYTELEN/4)
 
 #define DEFAULT_FTB_SYNTAX "+ -><()~*:\"\"&|"
 
