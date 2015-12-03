@@ -92,7 +92,7 @@ pars_sql(
 /*************************************************************//**
 Retrieves characters to the lexical analyzer.
 @return number of characters copied or 0 on EOF */
-size_t
+int
 pars_get_lex_chars(
 /*===============*/
 	char*	buf,		/*!< in/out: buffer where to copy */

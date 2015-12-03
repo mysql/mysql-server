@@ -1990,7 +1990,7 @@ int
 pars_get_lex_chars(
 /*===============*/
 	char*	buf,		/*!< in/out: buffer where to copy */
-	int	max_size)	/*!< in: maximum number of characters which fit
+	size_t	max_size)	/*!< in: maximum number of characters which fit
 				in the buffer */
 {
 	int	len;
@@ -2002,8 +2002,8 @@ pars_get_lex_chars(
 		return(0);
 	}
 
-	if (len > max_size) {
-		len = max_size;
+	if (len > static_cast<int>(max_size)) {
+		len =  static_cast<int>(max_size);
 	}
 
 	ut_memcpy(buf, pars_sym_tab_global->sql_string
