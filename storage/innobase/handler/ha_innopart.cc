@@ -3041,6 +3041,26 @@ ha_innopart::extra(
 		}
 		return(0);
 	}
+
+	/* In case of alter copy operation, set/unset the skip_undo_flag
+	for all partitions depends on the operation. */
+	if (operation == HA_EXTRA_BEGIN_ALTER_COPY
+	    || operation == HA_EXTRA_END_ALTER_COPY) {
+
+		for (uint i = m_part_info->get_first_used_partition();
+		     i < m_tot_parts;
+		     i = m_part_info->get_next_used_partition(i)) {
+
+			dict_table_t*   table_part =
+				m_part_share->get_table_part(i);
+
+			table_part->skip_alter_undo =
+				(operation == HA_EXTRA_BEGIN_ALTER_COPY);
+		}
+
+		return(0);
+	}
+
 	return(ha_innobase::extra(operation));
 }
 
