@@ -6664,9 +6664,10 @@ i_s_innodb_buffer_pool_pages_blob_fill(
 		buf_pool = buf_pool_from_array(i);
 
 		buf_pool_mutex_enter(buf_pool);
-	
+
 		for (n_block = 0; n_block < buf_pool->curr_size; n_block++) {
 			buf_block_t*	block = buf_page_from_array(buf_pool, n_block);
+			mutex_t* block_mutex = buf_page_get_mutex_enter((buf_page_t*)block);
 			page_zip_des_t*	block_page_zip = buf_block_get_page_zip(block);
 			const buf_frame_t* frame = block->frame;
 
@@ -6676,16 +6677,16 @@ i_s_innodb_buffer_pool_pages_blob_fill(
 					part_len = 0; /* hmm, can't figure it out */
 
 					next_page_no = mach_read_from_4(
-							buf_block_get_frame(block)
-							+ FIL_PAGE_NEXT);        
+							frame
+							+ FIL_PAGE_NEXT);
 				} else {
 					part_len = mach_read_from_4(
-							buf_block_get_frame(block)
+							frame
 							+ FIL_PAGE_DATA
 							+ 0 /*BTR_BLOB_HDR_PART_LEN*/);
 
 					next_page_no = mach_read_from_4(
-							buf_block_get_frame(block)
+							frame
 							+ FIL_PAGE_DATA
 							+ 4 /*BTR_BLOB_HDR_NEXT_PAGE_NO*/);
 				}
@@ -6712,7 +6713,9 @@ i_s_innodb_buffer_pool_pages_blob_fill(
 				}
 
 			}
-		}      
+
+			mutex_exit(block_mutex);
+		}
 
 		buf_pool_mutex_exit(buf_pool);
 	}
