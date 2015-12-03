@@ -1723,6 +1723,7 @@ i_s_cmp_per_index_fill_low(
 	TABLE*	table = tables->table;
 	Field**	fields = table->field;
 	int	status = 0;
+	int	error;
 
 	DBUG_ENTER("i_s_cmp_per_index_fill_low");
 
@@ -1788,9 +1789,13 @@ i_s_cmp_per_index_fill_low(
 		fields[IDX_UNCOMPRESS_TIME]->store(
 			   iter->second.decompressed_usec / 1000000, true);
 
-		if (schema_table_store_record(thd, table)) {
-			status = 1;
-			break;
+		if ((error = schema_table_store_record2(thd, table, false))) {
+			mutex_exit(&dict_sys->mutex);
+			if (convert_heap_table_to_ondisk(thd, table, error) != 0) {
+				status = 1;
+				goto err;
+			}
+			mutex_enter(&dict_sys->mutex);
 		}
 
 		/* Release and reacquire the dict mutex to allow other
@@ -1804,6 +1809,7 @@ i_s_cmp_per_index_fill_low(
 	}
 
 	mutex_exit(&dict_sys->mutex);
+err:
 
 	if (reset) {
 		page_zip_reset_stat_per_index();

@@ -3198,7 +3198,6 @@ typedef struct st_lookup_field_values
   bool wild_table_value;
 } LOOKUP_FIELD_VALUES;
 
-
 /*
   Store record to I_S table, convert HEAP table
   to MyISAM if necessary
@@ -3225,6 +3224,46 @@ bool schema_table_store_record(THD *thd, TABLE *table)
       return 1;
   }
   return 0;
+}
+
+/**
+  Store record to I_S table, convert HEAP table to InnoDB table if necessary.
+
+  @param[in]  thd            thread handler
+  @param[in]  table          Information schema table to be updated
+  @param[in]  make_ondisk    if true, convert heap table to on disk table.
+                             default value is true.
+  @return 0 on success
+  @return error code on failure.
+*/
+int schema_table_store_record2(THD *thd, TABLE *table, bool make_ondisk)
+{
+  int error;
+  if ((error= table->file->ha_write_row(table->record[0])))
+  {
+    if (!make_ondisk)
+        return error;
+
+    if (convert_heap_table_to_ondisk(thd, table, error))
+        return 1;
+  }
+  return 0;
+}
+
+/**
+  Convert HEAP table to InnoDB table if necessary
+
+  @param[in] thd     thread handler
+  @param[in] table   Information schema table to be converted.
+  @param[in] error   the error code returned previously.
+  @return false on success, true on error.
+*/
+bool convert_heap_table_to_ondisk(THD *thd, TABLE *table, int error)
+{
+  Temp_table_param *param= table->pos_in_table_list->schema_table_param;
+
+  return (create_ondisk_from_heap(thd, table, param->start_recinfo,
+                              &param->recinfo, error, FALSE, NULL));
 }
 
 
