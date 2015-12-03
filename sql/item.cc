@@ -9556,7 +9556,10 @@ void Item_cache::store(Item *item)
 {
   example= item;
   if (!item)
+  {
+    DBUG_ASSERT(maybe_null);
     null_value= TRUE;
+  }
   value_cached= FALSE;
 }
 
@@ -9576,6 +9579,22 @@ bool Item_cache::walk(Item_processor processor, enum_walk walk, uchar *arg)
          (example && example->walk(processor, walk, arg)) ||
          ((walk & WALK_POSTFIX) && (this->*processor)(arg));
 }
+
+
+bool Item_cache::has_value()
+{
+  if (value_cached || cache_value())
+  {
+    /*
+      Only expect NULL if the cache is nullable, or if an error was
+      raised when reading the value into the cache.
+    */
+    DBUG_ASSERT(!null_value || maybe_null || current_thd->is_error());
+    return !null_value;
+  }
+  return false;
+}
+
 
 bool  Item_cache_int::cache_value()
 {
@@ -10222,6 +10241,7 @@ void Item_cache_row::store(Item * item)
   example= item;
   if (!item)
   {
+    DBUG_ASSERT(maybe_null);
     null_value= TRUE;
     return;
   }

@@ -2181,7 +2181,17 @@ private:
 public:
   bool fixed;                      ///< True if item has been resolved
   uint8 decimals;
-  bool maybe_null;                 ///< True if item is nullable
+  /**
+    True if this item may be null.
+
+    For items that represent rows, it is true if one of the columns
+    may be null.
+
+    For items that represent scalar or row subqueries, it is true if
+    one of the returned columns could be null, or if the subquery
+    could return zero rows.
+  */
+  bool maybe_null;
   my_bool null_value;              ///< True if item is null
   bool unsigned_flag;
   bool with_sum_func;              ///< True if item is aggregated
@@ -5154,10 +5164,7 @@ public:
      Will cache value of saved item if not already done. 
      @return TRUE if cached value is non-NULL.
    */
-  bool has_value()
-  {
-    return (value_cached || cache_value()) && !null_value;
-  }
+  bool has_value();
 
   /** 
     If this item caches a field value, return pointer to underlying field.
@@ -5166,6 +5173,10 @@ public:
   */
   Field* field() { return cached_field; }
 
+  /**
+    Assigns to the cache the expression to be cached. Does not evaluate it.
+    @param item  the expression to be cached
+  */
   virtual void store(Item *item);
 
   /**
