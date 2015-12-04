@@ -4692,8 +4692,9 @@ ha_innobase::open(
 		DBUG_RETURN(1);
 	}
 
-	if (UNIV_UNLIKELY(share->ib_table && share->ib_table->is_corrupt &&
-			  srv_pass_corrupt_table <= 1)) {
+	if (UNIV_UNLIKELY(share->ib_table &&
+			 share->ib_table->is_corrupt &&
+			 srv_pass_corrupt_table <= 1)) {
 		free_share(share);
 
 		DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
@@ -4721,8 +4722,9 @@ ha_innobase::open(
 	/* Get pointer to a table object in InnoDB dictionary cache */
 	ib_table = dict_table_get(norm_name, TRUE, ignore_err);
 
-	if (UNIV_UNLIKELY(ib_table && ib_table->is_corrupt &&
-			  srv_pass_corrupt_table <= 1)) {
+	if (UNIV_UNLIKELY(ib_table &&
+			 ib_table->is_corrupt &&
+			 srv_pass_corrupt_table <= 1)) {
 		free_share(share);
 		my_free(upd_buf);
 		upd_buf = NULL;
@@ -4775,8 +4777,9 @@ ha_innobase::open(
 				}
 
 				ib_table = dict_table_get(
-					par_case_name, FALSE, ignore_err);
+					par_case_name, TRUE, ignore_err);
 			}
+
 			if (ib_table) {
 #ifndef __WIN__
 				sql_print_warning("Partition table %s opened "
@@ -4798,6 +4801,10 @@ ha_innobase::open(
 						  "current file system\n",
 						  norm_name);
 #endif
+				/* We allow use of table if it is found.
+				this is consistent to current behavior
+				to innodb_plugin */
+				share->ib_table = ib_table;
 				goto table_opened;
 			}
 		}
@@ -6174,9 +6181,9 @@ ha_innobase::write_row(
 	DBUG_ENTER("ha_innobase::write_row");
 
 	if (prebuilt->trx != trx) {
-	  sql_print_error("The transaction object for the table handle is at "
-			  "%p, but for the current thread it is at %p",
-			  (const void*) prebuilt->trx, (const void*) trx);
+		sql_print_error("The transaction object for the table handle is at "
+			"%p, but for the current thread it is at %p",
+			(const void*) prebuilt->trx, (const void*) trx);
 
 		fputs("InnoDB: Dump of 200 bytes around prebuilt: ", stderr);
 		ut_print_buf(stderr, ((const byte*)prebuilt) - 100, 200);
@@ -6190,7 +6197,7 @@ ha_innobase::write_row(
 
 	ha_statistic_increment(&SSV::ha_write_count);
 
-	if (share->ib_table->is_corrupt) {
+	if (!share->ib_table || share->ib_table->is_corrupt) {
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
@@ -6416,7 +6423,7 @@ report_error:
 func_exit:
 	innobase_active_small();
 
-	if (share->ib_table->is_corrupt) {
+	if (!share->ib_table || share->ib_table->is_corrupt) {
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
@@ -6618,7 +6625,7 @@ ha_innobase::update_row(
 
 	ha_statistic_increment(&SSV::ha_update_count);
 
-	if (share->ib_table->is_corrupt) {
+	if (!share->ib_table || share->ib_table->is_corrupt) {
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
@@ -6711,7 +6718,7 @@ ha_innobase::update_row(
 
 	innobase_active_small();
 
-	if (share->ib_table->is_corrupt) {
+	if (!share->ib_table || share->ib_table->is_corrupt) {
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
@@ -6736,7 +6743,7 @@ ha_innobase::delete_row(
 
 	ha_statistic_increment(&SSV::ha_delete_count);
 
-	if (share->ib_table->is_corrupt) {
+	if (!share->ib_table || share->ib_table->is_corrupt) {
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
@@ -6768,7 +6775,7 @@ ha_innobase::delete_row(
 
 	innobase_active_small();
 
-	if (share->ib_table->is_corrupt) {
+	if (!share->ib_table || share->ib_table->is_corrupt) {
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
@@ -7017,8 +7024,10 @@ ha_innobase::index_read(
 
 	ha_statistic_increment(&SSV::ha_read_key_count);
 
-	if (UNIV_UNLIKELY(share->ib_table->is_corrupt &&
-			  srv_pass_corrupt_table <= 1)) {
+	if (UNIV_UNLIKELY(!share->ib_table ||
+			(share->ib_table &&
+			 share->ib_table->is_corrupt &&
+			 srv_pass_corrupt_table <= 1))) {
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
@@ -7089,8 +7098,10 @@ ha_innobase::index_read(
 		ret = DB_UNSUPPORTED;
 	}
 
-	if (UNIV_UNLIKELY(share->ib_table->is_corrupt &&
-			  srv_pass_corrupt_table <= 1)) {
+	if (UNIV_UNLIKELY(!share->ib_table ||
+			(share->ib_table &&
+			 share->ib_table->is_corrupt &&
+			 srv_pass_corrupt_table <= 1))) {
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
@@ -7208,8 +7219,10 @@ ha_innobase::change_active_index(
 {
 	DBUG_ENTER("change_active_index");
 
-	if (UNIV_UNLIKELY(share->ib_table->is_corrupt &&
-			  srv_pass_corrupt_table <= 1)) {
+	if (UNIV_UNLIKELY(!share->ib_table ||
+			(share->ib_table &&
+			 share->ib_table->is_corrupt &&
+			 srv_pass_corrupt_table <= 1))) {
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
@@ -7332,8 +7345,10 @@ ha_innobase::general_fetch(
 		DBUG_RETURN(HA_ERR_END_OF_FILE);
 	}
 
-	if (UNIV_UNLIKELY(share->ib_table->is_corrupt &&
-			  srv_pass_corrupt_table <= 1)) {
+	if (UNIV_UNLIKELY(!share->ib_table ||
+			(share->ib_table &&
+			 share->ib_table->is_corrupt &&
+			 srv_pass_corrupt_table <= 1))) {
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
@@ -7346,8 +7361,10 @@ ha_innobase::general_fetch(
 
 	innodb_srv_conc_exit_innodb(prebuilt->trx);
 
-	if (UNIV_UNLIKELY(share->ib_table->is_corrupt &&
-			  srv_pass_corrupt_table <= 1)) {
+	if (UNIV_UNLIKELY(!share->ib_table ||
+			(share->ib_table &&
+			 share->ib_table->is_corrupt &&
+			 srv_pass_corrupt_table <= 1))) {
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
@@ -8628,7 +8645,7 @@ ha_innobase::truncate(void)
 
 	update_thd(ha_thd());
 
-	if (share->ib_table->is_corrupt) {
+	if (!share->ib_table || share->ib_table->is_corrupt) {
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
@@ -8640,7 +8657,7 @@ ha_innobase::truncate(void)
 
 	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
 
-	if (share->ib_table->is_corrupt) {
+	if (!share->ib_table || share->ib_table->is_corrupt) {
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
@@ -9365,7 +9382,8 @@ ha_innobase::info_low(
 	ib_table = prebuilt->table;
 
 	if (flag & HA_STATUS_TIME) {
-		if ((called_from_analyze || innobase_stats_on_metadata) && !share->ib_table->is_corrupt) {
+		if ((called_from_analyze || innobase_stats_on_metadata) &&
+		     share->ib_table && !share->ib_table->is_corrupt) {
 			/* In sql_show we call with this flag: update
 			then statistics so that they are up-to-date */
 
@@ -9719,7 +9737,7 @@ ha_innobase::analyze(
 	THD*		thd,		/*!< in: connection thread handle */
 	HA_CHECK_OPT*	check_opt)	/*!< in: currently ignored */
 {
-	if (share->ib_table->is_corrupt) {
+	if (!share->ib_table || share->ib_table->is_corrupt) {
 		return(HA_ADMIN_CORRUPT);
 	}
 
@@ -9727,7 +9745,7 @@ ha_innobase::analyze(
 	info_low(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE,
 		 true /* called from analyze */);
 
-	if (share->ib_table->is_corrupt) {
+	if (!share->ib_table || share->ib_table->is_corrupt) {
 		return(HA_ADMIN_CORRUPT);
 	}
 
@@ -9980,7 +9998,7 @@ ha_innobase::check(
 		my_error(ER_QUERY_INTERRUPTED, MYF(0));
 	}
 
-	if (share->ib_table->is_corrupt) {
+	if (!share->ib_table || share->ib_table->is_corrupt) {
 		return(HA_ADMIN_CORRUPT);
 	}
 
@@ -10783,7 +10801,7 @@ ha_innobase::transactional_table_lock(
 
 	update_thd(thd);
 
-	if (share->ib_table->is_corrupt) {
+	if (!share->ib_table || share->ib_table->is_corrupt) {
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
