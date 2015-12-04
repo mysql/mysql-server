@@ -134,7 +134,6 @@ static void compute_tokens()
     String terminal tokens, used in sql_yacc.yy
   */
   set_token(NEG, "~");
-  set_token(TABLE_REF_PRIORITY, "TABLE_REF_PRIORITY");
 
   /*
     Tokens hard coded in sql_lex.cc

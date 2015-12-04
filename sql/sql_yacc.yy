@@ -1002,7 +1002,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  SYSDATE
 %token  TABLES
 %token  TABLESPACE_SYM
-%token  TABLE_REF_PRIORITY
 %token  TABLE_SYM                     /* SQL-2003-R */
 %token  TABLE_CHECKSUM_SYM
 %token  TABLE_NAME_SYM                /* SQL-2003-N */
@@ -1098,8 +1097,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %left CONDITIONLESS_JOIN
 %left   JOIN_SYM INNER_SYM CROSS STRAIGHT_JOIN NATURAL LEFT RIGHT ON USING
-/* A dummy token to force the priority of table_ref production in a join. */
-%left   TABLE_REF_PRIORITY
 %left   SET_VAR
 %left   OR_OR_SYM OR_SYM OR2_SYM
 %left   XOR
