@@ -73,13 +73,12 @@ using std::max;
 */
 
 #ifdef MYSQL_SERVER
+#include "sql_cache.h" // query_cache_insert
 /*
   The following variables/functions should really not be declared
   extern, but as it's hard to include sql_class.h here, we have to
   live with this for a while.
 */
-extern void query_cache_insert(const char *packet, ulong length,
-                               unsigned pkt_nr);
 extern void thd_increment_bytes_sent(size_t length);
 extern void thd_increment_bytes_received(size_t length);
 
