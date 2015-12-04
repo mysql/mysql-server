@@ -1,7 +1,7 @@
 # ==== Purpose ====
 #
-# Finish a sync-point wait that was previously started by
-# execute_to_sync_point.inc
+# Finish a sync-point wait with suppressing an error that was
+# previously started by execute_to_sync_point.inc
 #
 # See also: execute_to_sync_point.inc, execute_at_sync_point.inc
 #
@@ -10,11 +10,16 @@
 # --let $statement_connection= CONNECTION_NAME
 # --let $statement= STATEMENT
 # --let $sync_point= SYNC_POINT_NAME
+# --let $suppress_error_number= N
 # [--let $quiet= [0|2]]
 # --source include/execute_statement_at_sync_point.inc
 #
 # Parameters:
 #   See execute_at_sync_point.inc
+#
+#   $suppress_error_number
+#     Suppress the error set by $suppress_error_number. Suppress
+#     nothing if $suppress_error_number is not set.
 
 
 --let $include_silent= 1
@@ -23,6 +28,10 @@
 --let $include_silent= 0
 
 # Sanity check.
+if ($suppress_error_number == '')
+{
+  --die !!!ERROR IN TEST: set $suppress_error_number
+}
 if ($statement_connection == '')
 {
   --die !!!ERROR IN TEST: set $statement_connection
@@ -62,6 +71,7 @@ if ($_esp_quiet != 2)
 --connection $statement_connection
 if (!$skip_reap)
 {
+  --error $suppress_error_number
   reap;
 }
 --connection $_esp_auxiliary_connection
