@@ -46,6 +46,11 @@ DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t1;
 
 --echo ---- CREATE ... SELECT (value, 1 row, ongoing trx) ----
+if ($gtid_next == GTID)
+{
+  --let $error_code= ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
+  --let $error_message= Cannot execute statements with implicit commit inside a transaction
+}
 --let $pre_statement= BEGIN; INSERT INTO t0 VALUES (1);
 --let $statement= CREATE TABLE t1 (a INT) SELECT 1
 --source extra/binlog_tests/enforce_gtid_consistency_statement.inc

@@ -3576,7 +3576,7 @@ public:
   is_dml_gtid_compatible(bool some_transactional_table,
                          bool some_non_transactional_table,
                          bool non_transactional_tables_are_tmp);
-  bool is_ddl_gtid_compatible(bool handle_error, bool handle_nonerror);
+  bool is_ddl_gtid_compatible();
   void binlog_invoker() { m_binlog_invoker= TRUE; }
   bool need_binlog_invoker() { return m_binlog_invoker; }
   void get_definer(LEX_USER *definer);
