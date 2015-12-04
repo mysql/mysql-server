@@ -137,13 +137,8 @@ build_query(const POS &pos,
   if (table_factor == NULL)
     return NULL;
 
-  PT_join_table_list *join_table_list;
-  join_table_list= new (thd->mem_root) PT_join_table_list(pos, table_factor);
-  if (join_table_list == NULL)
-    return NULL;
-
   PT_table_reference_list *table_reference_list;
-  table_reference_list= new (thd->mem_root) PT_table_reference_list(join_table_list);
+  table_reference_list= new (thd->mem_root) PT_table_reference_list(pos, table_factor);
   if (table_reference_list == NULL)
     return NULL;
 

@@ -883,45 +883,24 @@ public:
 };
 
 
-class PT_join_table_list : public PT_table_list
-{
-  typedef PT_table_list super;
-
-  POS pos;
-  PT_table_list *derived_table_list;
-
-public:
-  PT_join_table_list(const POS &pos, PT_table_list *derived_table_list_arg)
-  : pos(pos), derived_table_list(derived_table_list_arg)
-  {}
-
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc) || derived_table_list->contextualize(pc))
-      return true;
-
-    value= derived_table_list->value;
-    return false;
-  }
-};
-
-
-class PT_table_reference_list : public Parse_tree_node
+class PT_table_reference_list : public PT_table_list
 {
   typedef Parse_tree_node super;
 
-  PT_join_table_list *join_table_list;
+  POS m_pos;
+  PT_table_list *m_derived_table_list;
 
 public:
-  PT_table_reference_list(PT_join_table_list *join_table_list_arg)
-  : join_table_list(join_table_list_arg)
+  PT_table_reference_list(const POS &pos, PT_table_list *derived_table_list)
+  : m_pos(pos), m_derived_table_list(derived_table_list)
   {}
 
   virtual bool contextualize(Parse_context *pc)
   {
-    if (super::contextualize(pc) || join_table_list->contextualize(pc))
+    if (super::contextualize(pc) || m_derived_table_list->contextualize(pc))
       return true;
 
+    value= m_derived_table_list->value;
     SELECT_LEX *sel= pc->select;
     sel->context.table_list=
       sel->context.first_name_resolution_table=
@@ -2628,7 +2607,7 @@ class PT_delete : public PT_statement
   Table_ident *table_ident;
   Mem_root_array_YY<Table_ident *> table_list;
   List<String> *opt_use_partition;
-  PT_join_table_list *join_table_list;
+  PT_table_reference_list *join_table_list;
   Item *opt_where_clause;
   PT_order *opt_order_clause;
   Item *opt_delete_limit_clause;
@@ -2659,7 +2638,7 @@ public:
   PT_delete(PT_hint_list *opt_hints_arg,
             int opt_delete_options_arg,
             const Mem_root_array_YY<Table_ident *> &table_list_arg,
-            PT_join_table_list *join_table_list_arg,
+            PT_table_reference_list *join_table_list_arg,
             Item *opt_where_clause_arg)
   : opt_hints(opt_hints_arg),
     opt_delete_options(opt_delete_options_arg),
@@ -2694,7 +2673,7 @@ class PT_update : public PT_statement
   PT_hint_list *opt_hints;
   thr_lock_type opt_low_priority;
   bool opt_ignore;
-  PT_join_table_list *join_table_list;
+  Parse_tree_node *join_table_list;
   PT_item_list *column_list;
   PT_item_list *value_list;
   Item *opt_where_clause;
@@ -2707,7 +2686,7 @@ public:
   PT_update(PT_hint_list *opt_hints_arg,
             thr_lock_type opt_low_priority_arg,
             bool opt_ignore_arg,
-            PT_join_table_list *join_table_list_arg,
+            Parse_tree_node *join_table_list_arg,
             PT_item_list *column_list_arg,
             PT_item_list *value_list_arg,
             Item *opt_where_clause_arg,

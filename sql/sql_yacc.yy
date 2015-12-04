@@ -1434,12 +1434,10 @@ END_OF_INPUT
 
 %type <table_expression> table_expression
 
-%type <table_list2> table_factor table_ref
+%type <table_list2> table_factor table_reference
           esc_table_ref derived_table_list
           named_table table_reference_list_parens
           named_table_parens
-
-%type <join_table_list> join_table_list
 
 %type <query_expression_body> query_expression_body
 
@@ -1535,7 +1533,7 @@ END_OF_INPUT
 
 %type <optimizer_hints> SELECT_SYM INSERT REPLACE UPDATE_SYM DELETE_SYM
 
-%type <join_type> any_join_type natural_join_type
+%type <join_type> non_natural_join natural_join_type
           context_dependent_join_type
 
 %%
@@ -9070,32 +9068,6 @@ query_expression:
           }
         ;
 
-/**
-  This rule is defined in a non-standard way. The standard defines a
-  query_expression_body as
-
-    <query expression body> ::=
-        <query term>
-      | <query expression body> UNION <query term>
-
-  We have a full query_expression on the left-hand side instead, the reason is
-  the procedure and locking clauses. A locking clause is allowed before a
-  union, e.g.
-
-    SELECT ... FOR UPDATE UNION SELECT ...
-
-  At the same time, the locking clause comes after order and limit clauses in
-  a query_expression. Naively, we could define <query expression body> as
-
-    <query expression body> ::=
-        <query term>
-      | <query expression body> <locking clause> UNION <query term>
-
-  But such a grammar is ambiguous and would require special precedence
-  rules. In this case we choose to define a superset of the grammar, and
-  prohibit syntax that we can't (and don't want to) support by throwing parse
-  errors in the semantic actions.
-*/
 query_expression_body:
           query_primary
           {
@@ -9297,9 +9269,9 @@ from_tables:
         ;
 
 table_reference_list:
-          join_table_list
+          derived_table_list
           {
-            $$= NEW_PTN PT_table_reference_list($1);
+            $$= NEW_PTN PT_table_reference_list(@$, $1);
           }
         ;
 
@@ -10515,18 +10487,11 @@ when_list:
 
 /* Equivalent to <table reference> in the SQL:2003 standard. */
 /* Warning - may return NULL in case of incomplete SELECT */
-table_ref:
+table_reference:
           table_factor
         | joined_table
           {
             $$= NEW_PTN PT_table_ref_join_table($1);
-          }
-        ;
-
-join_table_list:
-          derived_table_list
-          {
-            $$= NEW_PTN PT_join_table_list(@$, $1);
           }
         ;
 
@@ -10538,8 +10503,8 @@ join_table_list:
   and are ignored.
 */
 esc_table_ref:
-        table_ref
-      | '{' ident table_ref '}' { $$= $3; }
+        table_reference
+      | '{' ident table_reference '}' { $$= $3; }
       ;
 
 /* Equivalent to <table reference list> in the SQL:2003 standard. */
@@ -10587,13 +10552,13 @@ derived_table_list:
 
     t1 JOIN t2 JOIN t3 ON t2.a = t3.a
 
-  We will first reduce `t1 JOIN t2 ON t2.a = t3.a` to a <table_ref>, which is
-  correct, but a problem arises when reducing t1 JOIN <table_ref>. If we were
-  to do that, we'd get a right-deep tree. The solution is to build the tree
-  downwards instead of upwards, as is normally done. This concept may seem
-  outlandish at first, but it's really quite simple. When the semantic action
-  for table_ref JOIN table_ref is executed, the parse tree is (please pardon
-  the ASCII graphic):
+  We will first reduce `t1 JOIN t2 ON t2.a = t3.a` to a <table_reference>,
+  which is correct, but a problem arises when reducing t1 JOIN
+  <table_reference>. If we were to do that, we'd get a right-deep tree. The
+  solution is to build the tree downwards instead of upwards, as is normally
+  done. This concept may seem outlandish at first, but it's really quite
+  simple. When the semantic action for table_reference JOIN table_reference is
+  executed, the parse tree is (please pardon the ASCII graphic):
 
                        JOIN ON t2.a = t3.a
                       /    \
@@ -10628,15 +10593,16 @@ derived_table_list:
   there is no join condition to wait for, so we can reduce immediately.
 */
 joined_table:
-          table_ref any_join_type table_ref ON expr
+          table_reference non_natural_join table_reference ON expr
           {
             $$= NEW_PTN PT_join_table_on($1, @2, $2, $3, $5);
           }
-        | table_ref any_join_type table_ref USING '(' using_list ')'
+        | table_reference non_natural_join table_reference USING
+          '(' using_list ')'
           {
             $$= NEW_PTN PT_join_table_using($1, @2, $2, $3, $6);
           }
-        | table_ref any_join_type table_ref
+        | table_reference non_natural_join table_reference
           %prec CONDITIONLESS_JOIN
           {
             PT_join_table *rhs_join= $3->get_join_table();
@@ -10655,13 +10621,13 @@ joined_table:
         ;
 
 natural_join:
-          table_ref natural_join_type table_factor
+          table_reference natural_join_type table_factor
           {
             $$= NEW_PTN PT_join_table_using($1, @2, $2, $3);
           }
         ;
 
-any_join_type:
+non_natural_join:
           normal_join_type                 { $$= JTT_NORMAL; }
         | context_dependent_join_type
         ;
@@ -10714,15 +10680,13 @@ use_partition:
 
   A <table_factor> may be a <table_name>, a <subquery>, a <derived_table>, a
   <joined_table>, or the bespoke <table_reference_list_parens>, each of those
-  enclosed in any number of parentheses. (There is also the extension that the
-  word CROSS is optional, i.e. a join operation without a join specification
-  (ON or USING) is interpreted, see the joined_table rule.) This makes for an
-  ambiguous grammar since a <table_factor> may also be enclosed in
-  parentheses. We get around this by designing the grammar so that a
-  <table_factor> does not have parentheses, but all the sub-cases of it have
-  their own parentheses-rules, i.e. <named_table_parens>,
-  <joined_table_parens> and <table_reference_list_parens>. It's a bit tedious
-  but the grammar is unambiguous and doesn't have shift/reduce conflicts.
+  enclosed in any number of parentheses. This makes for an ambiguous grammar
+  since a <table_factor> may also be enclosed in parentheses. We get around
+  this by designing the grammar so that a <table_factor> does not have
+  parentheses, but all the sub-cases of it have their own parentheses-rules,
+  i.e. <named_table_parens>, <joined_table_parens> and
+  <table_reference_list_parens>. It's a bit tedious but the grammar is
+  unambiguous and doesn't have shift/reduce conflicts.
 */
 table_factor:
           named_table
@@ -11783,7 +11747,7 @@ update_stmt:
           UPDATE_SYM            /* #1 */
           opt_low_priority      /* #2 */
           opt_ignore            /* #3 */
-          join_table_list       /* #4 */
+          table_reference_list  /* #4 */
           SET                   /* #5 */
           update_list           /* #6 */
           opt_where_clause      /* #7 */
@@ -11845,7 +11809,7 @@ delete_stmt:
           opt_delete_options
           table_alias_ref_list
           FROM
-          join_table_list
+          table_reference_list
           opt_where_clause
           {
             $$= NEW_PTN PT_delete($1, $2, $3, $5, $6);
@@ -11855,7 +11819,7 @@ delete_stmt:
           FROM
           table_alias_ref_list
           USING
-          join_table_list
+          table_reference_list
           opt_where_clause
           {
             $$= NEW_PTN PT_delete($1, $2, $4, $6, $7);
