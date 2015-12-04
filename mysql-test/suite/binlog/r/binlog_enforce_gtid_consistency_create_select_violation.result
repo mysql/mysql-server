@@ -444,9 +444,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT 1;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -462,9 +462,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -480,9 +480,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -498,9 +498,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -516,9 +516,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -937,9 +937,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT 1;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -955,9 +955,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -973,9 +973,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -991,9 +991,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1009,9 +1009,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1619,9 +1619,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=3 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT 1;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1637,9 +1637,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=3 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1655,9 +1655,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=3 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1673,9 +1673,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=3 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1691,9 +1691,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=3 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2172,9 +2172,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT 1;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2190,9 +2190,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2208,9 +2208,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2226,9 +2226,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2244,9 +2244,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2725,9 +2725,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT 1;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2743,9 +2743,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2761,9 +2761,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2779,9 +2779,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2797,9 +2797,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3660,9 +3660,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT 1;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3678,9 +3678,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3696,9 +3696,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3714,9 +3714,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3732,9 +3732,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -4233,9 +4233,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT 1;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -4251,9 +4251,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -4269,9 +4269,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -4287,9 +4287,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -4305,9 +4305,9 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
-error ER_GTID_UNSAFE_CREATE_SELECT
+error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
 CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
+ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
