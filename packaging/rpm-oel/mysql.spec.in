@@ -596,6 +596,9 @@ rm -rf %{buildroot}%{_bindir}/mysql_embedded
 # rm -f %{buildroot}%{_mandir}/man1/<manpage>.1
 rm -f %{buildroot}%{_mandir}/man1/lz4_decompress.1
 rm -f %{buildroot}%{_mandir}/man1/zlib_decompress.1
+ 
+# Remove removed manpages here until they are removed from the docs repo
+rm -f  %{buildroot}%{_mandir}/man1/mysql_plugin.1
 
 %check
 %if 0%{?runselftest}
@@ -679,7 +682,6 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysqld_safe.1*
 %attr(644, root, root) %{_mandir}/man1/mysqldumpslow.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_install_db.1*
-%attr(644, root, root) %{_mandir}/man1/mysql_plugin.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_secure_installation.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_upgrade.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlman.1*
@@ -701,7 +703,6 @@ fi
 %attr(755, root, root) %{_bindir}/myisamlog
 %attr(755, root, root) %{_bindir}/myisampack
 %attr(755, root, root) %{_bindir}/mysql_install_db
-%attr(755, root, root) %{_bindir}/mysql_plugin
 %attr(755, root, root) %{_bindir}/mysql_secure_installation
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/mysql_upgrade

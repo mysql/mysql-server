@@ -78,9 +78,6 @@ TARGET_LINK_LIBRARIES(mysqlimport mysqlclient)
 MYSQL_ADD_EXECUTABLE(mysqlshow mysqlshow.c)
 TARGET_LINK_LIBRARIES(mysqlshow mysqlclient)
 
-MYSQL_ADD_EXECUTABLE(mysql_plugin mysql_plugin.c)
-TARGET_LINK_LIBRARIES(mysql_plugin mysqlclient)
-
 MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc)
 SET(MYSQLBINLOG_LIB_SOURCES
   ${CMAKE_SOURCE_DIR}/strings/decimal.cc
@@ -140,7 +137,6 @@ IF(WIN32)
 ENDIF(WIN32)
 
 SET_TARGET_PROPERTIES (
-  mysql_plugin
   mysqlcheck
   mysqldump
   mysqlimport
