@@ -486,6 +486,7 @@ sub get_mysqladmin_options
 
 # Return a list of option files which can be opened.  Similar, but not
 # identical, to behavior of my_search_option_files()
+# TODO implement and use my_print_defaults --list-groups instead
 sub list_defaults_files
 {
   my %opt;
@@ -497,9 +498,7 @@ sub list_defaults_files
 
   return ($opt{file}) if exists $opt{file};
 
-  my %seen;  # Don't list the same file more than once
-  return grep { defined $_ and not $seen{$_}++ and -f $_ and -r $_ }
-              ('/etc/my.cnf',
+  return      ('/etc/my.cnf',
                '/etc/mysql/my.cnf',
                '@sysconfdir@/my.cnf',
                ($ENV{MYSQL_HOME} ? "$ENV{MYSQL_HOME}/my.cnf" : undef),
@@ -539,11 +538,12 @@ sub find_groups
     }
   }
 
+  my %seen;
   my @defaults_files = list_defaults_files();
-  #warn "@{[sort keys %gids]} -> @defaults_files\n";
-  foreach my $file (@defaults_files)
+  while (@defaults_files)
   {
-    next unless open CONF, "< $file";
+    my $file = shift @defaults_files;
+    next unless defined $file and not $seen{$file}++ and open CONF, '<', $file;
 
     while (<CONF>)
     {
@@ -555,6 +555,14 @@ sub find_groups
         {
           push @groups, "$1$2";
         }
+      }
+      elsif (/^\s*!include\s+(\S.*?)\s*$/)
+      {
+        push @defaults_files, $1;
+      }
+      elsif (/^\s*!includedir\s+(\S.*?)\s*$/)
+      {
+        push @defaults_files, <$1/*.cnf>;
       }
     }
 
