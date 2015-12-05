@@ -401,6 +401,7 @@ CREATE TABLE t2 (
 INSERT INTO t2 (n,o) VALUES
   (1 , 'true'), (1 , 'false'), (2 , 'true'), (2 , 'false'), (3 , 'true'),
   (3 , 'false'), (4 , 'true'), (4 , 'false'), (5 , 'true'), (5 , 'false');
+SELECT * FROM t2;
 SHOW CREATE TABLE t2;
 INSERT INTO t1 (b,c) SELECT n,o FROM t2 ;
 SHOW CREATE TABLE t1;

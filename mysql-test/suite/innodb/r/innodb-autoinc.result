@@ -641,6 +641,18 @@ PRIMARY KEY (m)) ENGINE = InnoDB;
 INSERT INTO t2 (n,o) VALUES
 (1 , 'true'), (1 , 'false'), (2 , 'true'), (2 , 'false'), (3 , 'true'),
 (3 , 'false'), (4 , 'true'), (4 , 'false'), (5 , 'true'), (5 , 'false');
+SELECT * FROM t2;
+m	n	o
+1	1	TRUE
+2	1	FALSE
+3	2	TRUE
+4	2	FALSE
+5	3	TRUE
+6	3	FALSE
+7	4	TRUE
+8	4	FALSE
+9	5	TRUE
+10	5	FALSE
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
