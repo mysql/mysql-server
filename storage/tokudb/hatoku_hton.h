@@ -193,10 +193,6 @@ static MYSQL_THDVAR_BOOL(disable_slow_alter,
     false
 );
 
-static bool get_disable_slow_alter(THD* thd) {
-    return (THDVAR(thd, disable_slow_alter) != 0);
-}
-
 static MYSQL_THDVAR_BOOL(disable_hot_alter,
     0,
     "if on, hot alter table is disabled",
@@ -204,10 +200,6 @@ static MYSQL_THDVAR_BOOL(disable_hot_alter,
     NULL, 
     false
 );
-
-static bool get_disable_hot_alter(THD* thd) {
-    return THDVAR(thd, disable_hot_alter) != 0;
-}
 
 static MYSQL_THDVAR_BOOL(create_index_online,
     0,

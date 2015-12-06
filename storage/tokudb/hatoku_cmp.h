@@ -208,10 +208,6 @@ static bool is_variable_field(KEY_AND_COL_INFO *kcinfo, uint field_num) {
     return kcinfo->field_types[field_num] == KEY_AND_COL_INFO::TOKUDB_VARIABLE_FIELD;
 }
 
-static bool is_blob_field(KEY_AND_COL_INFO *kcinfo, uint field_num) {
-    return kcinfo->field_types[field_num] == KEY_AND_COL_INFO::TOKUDB_BLOB_FIELD;
-}
-
 static bool field_valid_for_tokudb_table(Field* field);
 
 static void get_var_field_info(
@@ -470,21 +466,6 @@ static uint32_t pack_key_from_desc(
     uint32_t row_desc_size,
     const DBT* pk_key,
     const DBT* pk_val
-    );
-
-static bool fields_have_same_name(
-    Field* a,
-    Field* b
-    );
-
-static bool fields_are_same_type(
-    Field* a, 
-    Field* b
-    );
-
-static bool are_two_fields_same(
-    Field* a,
-    Field* b
     );
 
 #endif
