@@ -1662,6 +1662,20 @@ int ha_federated::open(const char *name, int mode, uint test_if_locked)
   DBUG_RETURN(0);
 }
 
+class Net_error_handler : public Internal_error_handler
+{
+public:
+  Net_error_handler() {}
+
+public:
+  bool handle_condition(THD *thd, uint sql_errno, const char* sqlstate,
+                        MYSQL_ERROR::enum_warning_level level,
+                        const char* msg, MYSQL_ERROR ** cond_hdl)
+  {
+    return sql_errno >= ER_ABORTING_CONNECTION &&
+           sql_errno <= ER_NET_WRITE_INTERRUPTED;
+  }
+};
 
 /*
   Closes a table. We call the free_share() function to free any resources
@@ -1683,18 +1697,15 @@ int ha_federated::close(void)
   delete_dynamic(&results);
 
   /* Disconnect from mysql */
+  THD *thd= ha_thd();
+  Net_error_handler err_handler;
+  if (thd)
+    thd->push_internal_handler(&err_handler);
   mysql_close(mysql);
-  mysql= NULL;
+  if (thd)
+    thd->pop_internal_handler();
 
-  /*
-    mysql_close() might return an error if a remote server's gone
-    for some reason. If that happens while removing a table from
-    the table cache, the error will be propagated to a client even
-    if the original query was not issued against the FEDERATED table.
-    So, don't propagate errors from mysql_close().
-  */
-  if (table->in_use)
-    table->in_use->clear_error();
+  mysql= NULL;
 
   DBUG_RETURN(free_share(share));
 }

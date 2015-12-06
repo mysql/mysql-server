@@ -1,0 +1,38 @@
+#
+# MDEV-8313 Got an error writing communication packets
+#
+source include/federated.inc;
+
+enable_connect_log;
+
+connection slave;
+create table t1 (foo int, bar int);
+
+connection master;
+
+--replace_result $SLAVE_MYSOCK SLAVE_MYSOCK
+eval create server 's1' foreign data wrapper 'mysql' options
+  (HOST 'localhost',
+  DATABASE 'test',
+  USER 'root',
+  PASSWORD '',
+  SOCKET '$SLAVE_MYSOCK');
+
+
+eval create table t1 (foo integer, bar integer) engine=federated
+  connection='s1';
+
+select * from t1;
+
+connection slave;
+source include/restart_mysqld.inc;
+
+connection master;
+drop table t1;
+drop server s1;
+
+connection slave;
+drop table t1;
+
+source include/federated_cleanup.inc;
+

@@ -1795,6 +1795,20 @@ int ha_federatedx::open(const char *name, int mode, uint test_if_locked)
   DBUG_RETURN(0);
 }
 
+class Net_error_handler : public Internal_error_handler
+{
+public:
+  Net_error_handler() {}
+
+public:
+  bool handle_condition(THD *thd, uint sql_errno, const char* sqlstate,
+                        MYSQL_ERROR::enum_warning_level level,
+                        const char* msg, MYSQL_ERROR ** cond_hdl)
+  {
+    return sql_errno >= ER_ABORTING_CONNECTION &&
+           sql_errno <= ER_NET_WRITE_INTERRUPTED;
+  }
+};
 
 /*
   Closes a table. We call the free_share() function to free any resources
@@ -1825,7 +1839,12 @@ int ha_federatedx::close(void)
   txn->release(&io);
   DBUG_ASSERT(io == NULL);
 
+  Net_error_handler err_handler;
+  if (thd)
+    thd->push_internal_handler(&err_handler);
   free_share(txn, share);
+  if (thd)
+    thd->pop_internal_handler();
 
   DBUG_RETURN(retval);
 }
