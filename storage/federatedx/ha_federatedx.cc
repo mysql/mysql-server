@@ -1639,6 +1639,7 @@ error:
 }
 
 
+static federatedx_txn zero_txn;
 static int free_server(federatedx_txn *txn, FEDERATEDX_SERVER *server)
 {
   bool destroy;
@@ -1654,12 +1655,9 @@ static int free_server(federatedx_txn *txn, FEDERATEDX_SERVER *server)
     MEM_ROOT mem_root;
 
     if (!txn)
-    {
-      federatedx_txn tmp_txn;
-      tmp_txn.close(server);
-    }
-    else
-      txn->close(server);
+      txn= &zero_txn;
+
+    txn->close(server);
 
     DBUG_ASSERT(server->io_count == 0);
 
@@ -1678,7 +1676,7 @@ static int free_server(federatedx_txn *txn, FEDERATEDX_SERVER *server)
   free memory associated with it.
 */
 
-static int free_share(federatedx_txn *txn, FEDERATEDX_SHARE *share)
+static void free_share(federatedx_txn *txn, FEDERATEDX_SHARE *share)
 {
   bool destroy;
   DBUG_ENTER("free_share");
@@ -1701,7 +1699,7 @@ static int free_share(federatedx_txn *txn, FEDERATEDX_SHARE *share)
     free_server(txn, server);
   }
 
-  DBUG_RETURN(0);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1767,7 +1765,7 @@ int ha_federatedx::disconnect(handlerton *hton, MYSQL_THD thd)
 int ha_federatedx::open(const char *name, int mode, uint test_if_locked)
 {
   int error;
-  THD *thd= current_thd;
+  THD *thd= ha_thd();
   DBUG_ENTER("ha_federatedx::open");
 
   if (!(share= get_share(name, table)))
@@ -1811,8 +1809,8 @@ int ha_federatedx::open(const char *name, int mode, uint test_if_locked)
 
 int ha_federatedx::close(void)
 {
-  int retval= 0, error;
-  THD *thd= current_thd;
+  int retval= 0;
+  THD *thd= ha_thd();
   DBUG_ENTER("ha_federatedx::close");
 
   /* free the result set */
@@ -1822,24 +1820,13 @@ int ha_federatedx::close(void)
 
   /* Disconnect from mysql */
   if (!thd || !(txn= get_txn(thd, true)))
-  {
-    federatedx_txn tmp_txn;
+    txn= &zero_txn;
 
-    tmp_txn.release(&io);
+  txn->release(&io);
+  DBUG_ASSERT(io == NULL);
 
-    DBUG_ASSERT(io == NULL);
+  free_share(txn, share);
 
-    if ((error= free_share(&tmp_txn, share)))
-      retval= error;
-  }
-  else
-  {
-    txn->release(&io);
-    DBUG_ASSERT(io == NULL);
-
-    if ((error= free_share(txn, share)))
-      retval= error;
-  }
   DBUG_RETURN(retval);
 }
 
@@ -1862,9 +1849,8 @@ int ha_federatedx::close(void)
       0    otherwise
 */
 
-static inline uint field_in_record_is_null(TABLE *table,
-                                    Field *field,
-                                    char *record)
+static inline uint field_in_record_is_null(TABLE *table, Field *field,
+                                           char *record)
 {
   int null_offset;
   DBUG_ENTER("ha_federatedx::field_in_record_is_null");
@@ -2203,7 +2189,7 @@ int ha_federatedx::end_bulk_insert()
 */
 void ha_federatedx::update_auto_increment(void)
 {
-  THD *thd= current_thd;
+  THD *thd= ha_thd();
   DBUG_ENTER("ha_federatedx::update_auto_increment");
 
   ha_federatedx::info(HA_STATUS_AUTO);
@@ -3058,7 +3044,7 @@ error:
 int ha_federatedx::info(uint flag)
 {
   uint error_code;
-  THD *thd= current_thd;
+  THD *thd= ha_thd();
   federatedx_txn *tmp_txn;
   federatedx_io *tmp_io= 0, **iop= 0;
   DBUG_ENTER("ha_federatedx::info");
@@ -3189,7 +3175,7 @@ int ha_federatedx::reset(void)
     federatedx_io *tmp_io= 0, **iop;
 
     // external_lock may not have been called so txn may not be set
-    tmp_txn= get_txn(current_thd);
+    tmp_txn= get_txn(ha_thd());
 
     if (!*(iop= &io) && (error= tmp_txn->acquire(share, TRUE, (iop= &tmp_io))))
     {
@@ -3364,7 +3350,7 @@ int ha_federatedx::create(const char *name, TABLE *table_arg,
                          HA_CREATE_INFO *create_info)
 {
   int retval;
-  THD *thd= current_thd;
+  THD *thd= ha_thd();
   FEDERATEDX_SHARE tmp_share; // Only a temporary share, to test the url
   federatedx_txn *tmp_txn;
   federatedx_io *tmp_io= NULL;
