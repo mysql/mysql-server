@@ -261,7 +261,7 @@ static int init(void *p)
     startup_interval= debug_startup_interval;
     first_interval= debug_first_interval;
     interval= debug_interval;
-    user_info= "mysql-test";
+    user_info= const_cast<char*>("mysql-test");
   }
 #endif
 

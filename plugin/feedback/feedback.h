@@ -58,9 +58,9 @@ class Url {
 extern Url **urls;
 extern uint url_count;
 
-extern time_t startup_interval;
-extern time_t first_interval;
-extern time_t interval;
+extern ulong startup_interval;
+extern ulong first_interval;
+extern ulong interval;
 
 /* these are used to communicate with the background thread */
 extern mysql_mutex_t sleep_mutex;
