@@ -210,7 +210,7 @@ else
   fi
 fi
 
-parse_server_arguments `$print_defaults $extra_args mysqld server mysql_server mysql.server`
+parse_server_arguments `$print_defaults $extra_args --mysqld mysql.server`
 
 # wait for the pid file to disappear
 wait_for_gone () {
