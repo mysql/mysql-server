@@ -334,17 +334,33 @@ err:
 int JOIN::rollup_send_data(uint idx)
 {
   uint i;
-  for (i= send_group_parts ; i-- > idx ; )
+  if (cube_plan){
+	for (i = cube_plan->start(idx); i != cube_plan->end(); i++){
+	  /* Get reference pointers to sum functions in place */
+	  copy_ref_ptr_array(ref_ptrs, rollup.ref_pointer_arrays[i]);
+	  if ((!having_cond || having_cond->val_int()))
+	  {
+		if (send_records < unit->select_limit_cnt && do_send_rows &&
+		  select_lex->query_result()->send_data(rollup.fields[i]))
+		  return 1;
+		send_records++;
+	  }
+	}
+  }
+  else
   {
-    /* Get reference pointers to sum functions in place */
-    copy_ref_ptr_array(ref_ptrs, rollup.ref_pointer_arrays[i]);
-    if ((!having_cond || having_cond->val_int()))
-    {
-      if (send_records < unit->select_limit_cnt && do_send_rows &&
-	  select_lex->query_result()->send_data(rollup.fields[i]))
-	return 1;
-      send_records++;
-    }
+	for (i = send_group_parts; i-- > idx;)
+	{
+	  /* Get reference pointers to sum functions in place */
+	  copy_ref_ptr_array(ref_ptrs, rollup.ref_pointer_arrays[i]);
+	  if ((!having_cond || having_cond->val_int()))
+	  {
+		if (send_records < unit->select_limit_cnt && do_send_rows &&
+		  select_lex->query_result()->send_data(rollup.fields[i]))
+		  return 1;
+		send_records++;
+	  }
+	}
   }
   /* Restore ref_pointer_array */
   set_items_ref_array(current_ref_ptrs);
@@ -933,6 +949,35 @@ do_select(JOIN *join)
     */
     if (join->thd->is_error())
       error= NESTED_LOOP_ERROR;
+  }
+  else if (join->select_lex->olap == CUBE_TYPE)
+	/*
+	This is the begining of cube code!
+	*/
+  {	
+	QEP_TAB *qep_tab = join->qep_tab + join->const_tables;
+	DBUG_ASSERT(join->primary_tables);
+	error = join->first_select(join, qep_tab, 0);
+	if (error >= NESTED_LOOP_OK)
+	  error = join->first_select(join, qep_tab, 1);
+	ORDER *group_start = join->group_list;
+	join->group_list.order = group_start->next;
+	group_start->next->next = group_start;
+	group_start->next = NULL;
+	qep_tab->filesort->order = join->group_list;
+	qep_tab->sort_table();
+	list_node *a = join->group_fields.first_node();
+	list_node *b = a->next;
+	void * tmp = a->info;
+	a->info = b->info;
+	b->info = tmp;
+	join->cube_plan->next_pass();
+	error = join->first_select(join, qep_tab, 0);
+	error = join->first_select(join, qep_tab, 1);
+	//group_start = join->group_list;
+	//join->group_list.order = group_start->next;
+	//group_start->next->next = group_start;
+	//group_start->next = NULL;
   }
   else
   {
@@ -3016,7 +3061,8 @@ end_send_group(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
 	  }
 	  if (join->having_cond && join->having_cond->val_int() == 0)
 	    error= -1;				// Didn't satisfy having
-	  else
+	  else if (!join->cube_plan || 
+		((join->cube_plan->is_first_pass()) && (join->group_sent=true)))
 	  {
 	    if (join->do_send_rows)
 	      error= join->select_lex->query_result()->send_data(*fields);
@@ -3073,9 +3119,14 @@ end_send_group(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
       */
       if (copy_fields(&join->tmp_table_param, join->thd))
         DBUG_RETURN(NESTED_LOOP_ERROR);
-      if (init_sum_functions(join->sum_funcs, join->sum_funcs_end[idx+1]))
-	DBUG_RETURN(NESTED_LOOP_ERROR);
-      join->group_sent= false;
+	  if ((!join->cube_plan || join->cube_plan->is_first_pass())
+		&& init_sum_functions(join->sum_funcs, join->sum_funcs_end[idx + 1]))
+		DBUG_RETURN(NESTED_LOOP_ERROR);
+	  else if ((join->cube_plan && !join->cube_plan->is_first_pass())
+		&& init_sum_functions(join->sum_funcs_end[join->cube_plan->end()]
+		, join->sum_funcs_end[join->cube_plan->start(idx+1)]))
+		DBUG_RETURN(NESTED_LOOP_ERROR);
+	  join->group_sent = false;
       DBUG_RETURN(ok_code);
     }
   }

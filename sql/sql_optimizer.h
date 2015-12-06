@@ -31,6 +31,44 @@
 
 class Cost_model_server;
 
+/**
+Execution plan for CUBE
+*/
+class Cube_plan{
+public:
+  Cube_plan(uint size){
+	pass = 1;
+  }
+  ~Cube_plan(){
+
+  }
+  bool next_pass(){
+	if (pass == 2) return 1;
+	pass = 2;
+	return 0;
+  }
+  uint end(){
+	if (pass == 2){
+	  return 3;
+	}
+	else {
+	  return 2;
+	}
+  }
+  uint start(uint idx){
+	if (pass == 2){
+	  if (idx == 1 || idx == 0) return 2;
+	  return 3;
+	}
+	else {
+	  return idx;
+	}
+  }
+  inline bool is_first_pass(){
+	return pass == 1;
+  }
+  uint pass;
+};
 
 typedef struct st_sargable_param
 {
@@ -144,6 +182,7 @@ public:
       calc_found_rows(false),
       optimized(false),
       executed(false),
+	  cube_plan(NULL),
       plan_state(NO_PLAN)
   {
     rollup.state= ROLLUP::STATE_NONE;
@@ -158,7 +197,10 @@ public:
     for (ORDER *group= group_list; group; group= group->next)
       group_list_size++;
 	if (select->olap == CUBE_TYPE)
+	{
 	  send_group_parts = (int)(pow(2, group_list_size)) - 1;
+	  cube_plan = new Cube_plan(group_list_size);
+	}
 	else
 	  send_group_parts = group_list_size;
   }
@@ -303,6 +345,7 @@ public:
   MYSQL_LOCK *lock;
   
   ROLLUP rollup;                  ///< Used with rollup
+  Cube_plan * cube_plan;
   bool implicit_grouping;         ///< True if aggregated but no GROUP BY
   bool select_distinct;           ///< Set if SELECT DISTINCT
   /**

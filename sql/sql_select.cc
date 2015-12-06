@@ -3183,10 +3183,17 @@ public:
 	{
 	case CUBE_TYPE:
 	  {
-		uint k = count + 1;
-		for (uint i = 0; i < bitmap_size; i++){
-		  bitmap[bitmap_size - 1 - i] = (k & 1);
-		  k >>= 1;
+		if (count == 0){
+		  bitmap[0] = 1;
+		  bitmap[1] = 0;
+		}
+		else if (count == 1){
+		  bitmap[0] = 0;
+		  bitmap[1] = 1;
+		}
+		else {
+		  bitmap[0] = 1;
+		  bitmap[1] = 1;
 		}
 	  }
 	  break;
