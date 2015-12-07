@@ -1289,7 +1289,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         field_opt_list table_lock_list table_lock
         ref_list opt_match_clause opt_on_update_delete use
         varchar nchar nvarchar
-        opt_outer table_list table_name
+        table_list table_name
         opt_place
         opt_attribute opt_attribute_list attribute column_list column_list_id
         opt_column_list grant_privileges grant_ident grant_list grant_option
@@ -1297,7 +1297,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         clear_privileges flush_options flush_option
         opt_flush_lock flush_options_list
         equal optional_braces
-        opt_mi_check_type opt_to mi_check_types normal_join_type
+        opt_mi_check_type opt_to mi_check_types
         table_to_table_list table_to_table opt_table_list opt_as
         opt_and charset
         help
@@ -1413,7 +1413,6 @@ END_OF_INPUT
 %type <join_table> joined_table joined_table_parens natural_join
 
 %type <table_reference_list> opt_from_clause from_clause from_tables
-          table_reference_list
 
 %type <olap_type> olap_opt
 
@@ -1432,8 +1431,8 @@ END_OF_INPUT
 %type <table_expression> table_expression
 
 %type <table_list2> table_factor table_reference
-          esc_table_ref derived_table_list
-          named_table table_reference_list_parens
+          esc_table_ref table_reference_list
+          single_table table_reference_list_parens
           named_table_parens
 
 %type <query_expression_body> query_expression_body
@@ -1530,8 +1529,7 @@ END_OF_INPUT
 
 %type <optimizer_hints> SELECT_SYM INSERT REPLACE UPDATE_SYM DELETE_SYM
 
-%type <join_type> non_natural_join natural_join_type
-          context_dependent_join_type
+%type <join_type> outer_join natural_join_type context_dependent_join
 
 %%
 
@@ -9263,12 +9261,16 @@ from_clause:
 from_tables:
           DUAL_SYM { $$= NULL; }
         | table_reference_list
+          {
+            $$= NEW_PTN PT_table_reference_list(@$, $1);
+          }
         ;
 
 table_reference_list:
-          derived_table_list
+          esc_table_ref
+        | table_reference_list ',' esc_table_ref
           {
-            $$= NEW_PTN PT_table_reference_list(@$, $1);
+            $$= NEW_PTN PT_derived_table_list(@$, $1, $3);
           }
         ;
 
@@ -10504,16 +10506,6 @@ esc_table_ref:
       | '{' ident table_reference '}' { $$= $3; }
       ;
 
-/* Equivalent to <table reference list> in the SQL:2003 standard. */
-/* Warning - may return NULL in case of incomplete SELECT */
-derived_table_list:
-          esc_table_ref
-        | derived_table_list ',' esc_table_ref
-          {
-            $$= NEW_PTN PT_derived_table_list(@$, $1, $3);
-          }
-        ;
-
 /*
   Join operations are normally left-associative, as in
 
@@ -10531,14 +10523,17 @@ derived_table_list:
 
     t1 JOIN (t2 JOIN t3 ON t2.a = t3.a) ON t1.a = t2.a
 
-  MySQL has the specialty that cross joins have the same syntax as joins with
-  a condition - the word CROSS is optional - hence `t1 JOIN t2` denotes a
-  cross join. For the join operation above, this means that the parser can't
-  know until it has seen the last ON whether `t1 JOIN t2` was a cross join or
-  not. The only way to solve the abiguity is to keep shifting the tokens on
-  the stack, and not reduce until the last ON is seen. We tell Bison this by
-  adding a fake token CONDITIONLESS_JOIN which has lower precedence than all
-  tokens that would continue the join. These are JOIN_SYM, INNER_SYM, CROSS,
+  In MySQL, JOIN and CROSS JOIN mean the same thing, i.e.:
+
+  - A join without <join specification> is the same as a cross join.
+  - A cross join with <join specification> is the same as an inner join.
+
+  For the join operation above, this means that the parser can't know until it
+  has seen the last ON whether `t1 JOIN t2` was a cross join or not. The only
+  way to solve the abiguity is to keep shifting the tokens on the stack, and
+  not reduce until the last ON is seen. We tell Bison this by adding a fake
+  token CONDITIONLESS_JOIN which has lower precedence than all tokens that
+  would continue the join. These are JOIN_SYM, INNER_SYM, CROSS,
   STRAIGHT_JOIN, NATURAL, LEFT, RIGHT, ON and USING. This way the automaton
   only reduces to a cross join unless no other interpretation is
   possible. This gives a right-deep join tree for join *with* conditions,
@@ -10590,16 +10585,24 @@ derived_table_list:
   there is no join condition to wait for, so we can reduce immediately.
 */
 joined_table:
-          table_reference non_natural_join table_reference ON expr
+          table_reference context_dependent_join table_reference ON expr
           {
             $$= NEW_PTN PT_join_table_on($1, @2, $2, $3, $5);
           }
-        | table_reference non_natural_join table_reference USING
+        | table_reference context_dependent_join table_reference USING
           '(' using_list ')'
           {
             $$= NEW_PTN PT_join_table_using($1, @2, $2, $3, $6);
           }
-        | table_reference non_natural_join table_reference
+        | table_reference outer_join table_reference ON expr
+          {
+            $$= NEW_PTN PT_join_table_on($1, @2, $2, $3, $5);
+          }
+        | table_reference outer_join table_reference USING '(' using_list ')'
+          {
+            $$= NEW_PTN PT_join_table_using($1, @2, $2, $3, $6);
+          }
+        | table_reference context_dependent_join table_reference
           %prec CONDITIONLESS_JOIN
           {
             PT_join_table *rhs_join= $3->get_join_table();
@@ -10624,27 +10627,31 @@ natural_join:
           }
         ;
 
-non_natural_join:
-          normal_join_type                 { $$= JTT_NORMAL; }
-        | context_dependent_join_type
-        ;
-
-normal_join_type:
-          INNER_SYM JOIN_SYM {}
-        | CROSS JOIN_SYM {}
-        ;
-
 natural_join_type:
-          NATURAL JOIN_SYM                 { $$= JTT_NATURAL; }
+          NATURAL opt_inner JOIN_SYM       { $$= JTT_NATURAL; }
         | NATURAL RIGHT opt_outer JOIN_SYM { $$= JTT_NATURAL_RIGHT; }
         | NATURAL LEFT opt_outer JOIN_SYM  { $$= JTT_NATURAL_LEFT; }
         ;
 
-context_dependent_join_type:
+context_dependent_join:
           JOIN_SYM                         { $$= JTT_NORMAL; }
+        | INNER_SYM JOIN_SYM               { $$= JTT_NORMAL; }
+        | CROSS JOIN_SYM                   { $$= JTT_NORMAL; }
         | STRAIGHT_JOIN                    { $$= JTT_STRAIGHT; }
-        | LEFT opt_outer JOIN_SYM          { $$= JTT_LEFT; }
+
+outer_join:
+          LEFT opt_outer JOIN_SYM          { $$= JTT_LEFT; }
         | RIGHT opt_outer JOIN_SYM         { $$= JTT_RIGHT; }
+        ;
+
+opt_inner:
+          // Empty.
+        | INNER_SYM
+        ;
+
+opt_outer:
+          /* empty */
+        | OUTER
         ;
 
 /*
@@ -10686,7 +10693,7 @@ use_partition:
   unambiguous and doesn't have shift/reduce conflicts.
 */
 table_factor:
-          named_table
+          single_table
         | named_table_parens
         | derived_table { $$ = $1; }
         | joined_table_parens { $$= NEW_PTN PT_table_factor_joined_table($1); }
@@ -10695,7 +10702,7 @@ table_factor:
 
 table_reference_list_parens:
           '(' table_reference_list_parens ')' { $$= $2; }
-        | '(' derived_table_list ',' esc_table_ref ')'
+        | '(' table_reference_list ',' esc_table_ref ')'
           {
             $$= NEW_PTN PT_derived_table_list(@$, $2, $4);
           }
@@ -10703,10 +10710,10 @@ table_reference_list_parens:
 
 named_table_parens:
           '(' named_table_parens ')' { $$= $2; }
-        | '(' named_table ')' { $$= $2; }
+        | '(' single_table ')' { $$= $2; }
         ;
 
-named_table:
+single_table:
           table_ident opt_use_partition opt_table_alias opt_key_definition
           {
             $$= NEW_PTN PT_table_factor_table_ident($1, $2, $3, $4);
@@ -10731,11 +10738,6 @@ derived_table: table_subquery opt_table_alias
 
             $$= NEW_PTN PT_derived_table($1, $2);
           }
-
-opt_outer:
-          /* empty */ {}
-        | OUTER {}
-        ;
 
 index_hint_clause:
           /* empty */
@@ -11809,7 +11811,8 @@ delete_stmt:
           table_reference_list
           opt_where_clause
           {
-            $$= NEW_PTN PT_delete($1, $2, $3, $5, $6);
+            auto *trl= NEW_PTN PT_table_reference_list(@$, $5);
+            $$= NEW_PTN PT_delete($1, $2, $3, trl, $6);
           }
         | DELETE_SYM
           opt_delete_options
@@ -11819,7 +11822,8 @@ delete_stmt:
           table_reference_list
           opt_where_clause
           {
-            $$= NEW_PTN PT_delete($1, $2, $4, $6, $7);
+            auto *trl= NEW_PTN PT_table_reference_list(@$, $6);
+            $$= NEW_PTN PT_delete($1, $2, $4, trl, $7);
           }
         ;
 
