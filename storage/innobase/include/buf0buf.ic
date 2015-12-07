@@ -49,6 +49,11 @@ struct buf_chunk_t{
 					alloc method and later passed to the
 					deallocate method. */
 	buf_block_t*	blocks;		/*!< array of buffer control blocks */
+
+	/** Get the size of 'mem' in bytes. */
+	size_t	mem_size() const {
+		return(mem_pfx.m_size);
+	}
 };
 
 /*********************************************************************//**
