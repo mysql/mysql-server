@@ -922,7 +922,7 @@ buf_chunk_init(
 
 #if defined(HAVE_LIBNUMA) && defined(WITH_NUMA)
 	if (srv_numa_interleave) {
-		int	st = mbind(chunk->mem, mem_size,
+		int	st = mbind(chunk->mem, chunk->mem_size(),
 				   MPOL_INTERLEAVE,
 				   numa_all_nodes_ptr->maskp,
 				   numa_all_nodes_ptr->size,
