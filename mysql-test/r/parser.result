@@ -1744,12 +1744,28 @@ SELECT * FROM t1 t11 JOIN t1 t12 USING ( a );
 a
 SELECT * FROM t1 INNER JOIN t2;
 a	b
+SELECT * FROM t1 INNER JOIN t2 ON a = b;
+a	b
+SELECT * FROM t1 t11 INNER JOIN t1 t12 USING ( a );
+a
 SELECT * FROM t1 CROSS JOIN t2;
 a	b
+SELECT * FROM t1 CROSS JOIN t2 ON a = b;
+a	b
+SELECT * FROM t1 t11 CROSS JOIN t1 t12 USING ( a );
+a
 SELECT * FROM t1 STRAIGHT_JOIN t2;
 a	b
+SELECT * FROM t1 STRAIGHT_JOIN t2 ON a = b;
+a	b
+SELECT * FROM t1 t11 STRAIGHT_JOIN t1 t12 USING ( a );
+a
 SELECT * FROM t1 t11 NATURAL JOIN t1 t12;
 a
+SELECT * FROM t1 t11 NATURAL JOIN t1 t12 ON t11.a = t12.a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ON t11.a = t12.a' at line 1
+SELECT * FROM t1 t11 NATURAL JOIN t1 t12 USING ( a );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USING ( a )' at line 1
 SELECT * FROM t1 t11 NATURAL INNER JOIN t1 t12;
 a
 SELECT * FROM t1 LEFT JOIN t2;
