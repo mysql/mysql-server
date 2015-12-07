@@ -190,7 +190,14 @@
               %define distro_buildreq     gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils zlib-devel cmake libaio-devel libnuma-devel
               %define distro_requires     aaa_base coreutils grep procps pwdutils
             %else
-              %{error:SuSE %{susever} is unsupported}
+              %if "%susever" == "12"
+                %define distro_description  SUSE Linux Enterprise Server 12
+                %define distro_releasetag   sles12
+                %define distro_buildreq     ncurses-devel zlib-devel cmake libaio-devel libnuma-devel
+                %define distro_requires     aaa_base coreutils grep procps pwdutils
+              %else
+                %{error:SuSE %{susever} is unsupported}
+              %endif
             %endif
           %endif
         %else
@@ -491,6 +498,7 @@ mkdir debug
   CFLAGS=`echo " ${CFLAGS} " | \
             sed -e 's/ -O[0-9]* / /' \
                 -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /' \
+                -e 's/ -D_FORTIFY_SOURCE=2/ /' \
                 -e 's/ -unroll2 / /' \
                 -e 's/ -ip / /' \
                 -e 's/^ //' \
@@ -498,6 +506,7 @@ mkdir debug
   CXXFLAGS=`echo " ${CXXFLAGS} " | \
               sed -e 's/ -O[0-9]* / /' \
                   -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /' \
+                  -e 's/ -D_FORTIFY_SOURCE=2/ /' \
                   -e 's/ -unroll2 / /' \
                   -e 's/ -ip / /' \
                   -e 's/^ //' \
