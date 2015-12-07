@@ -487,8 +487,6 @@ rm -rf %{buildroot}%{_bindir}/mysql_embedded
 # Remove upcoming man pages, to avoid breakage when they materialize
 # Keep this comment as a placeholder for future cases
 # rm -f %{buildroot}%{_mandir}/man1/<manpage>.1
-rm -f %{buildroot}%{_mandir}/man1/lz4_decompress.1
-rm -f %{buildroot}%{_mandir}/man1/zlib_decompress.1
 
 # Remove removed manpages here until they are removed from the docs repo
 rm -f  %{buildroot}%{_mandir}/man1/mysql_plugin.1
@@ -560,6 +558,8 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(644, root, root) %{_mandir}/man1/resolve_stack_dump.1*
 %attr(644, root, root) %{_mandir}/man1/resolveip.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_ssl_rsa_setup.1*
+%attr(644, root, root) %{_mandir}/man1/lz4_decompress.1*
+%attr(644, root, root) %{_mandir}/man1/zlib_decompress.1*
 
 %config(noreplace) %{_sysconfdir}/my.cnf
 %dir %{_sysconfdir}/my.cnf.d
@@ -825,7 +825,10 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
-* Thu Nov 12 2015 Bjorn Munch <bjorn.munch@oracle.com> - 5.8.0-0.1.m17
+* Tue Nov 24 2015 Bjorn Munch <bjorn.munch@oracle.com> - 5.7.10-1
+- Included man pages for lz4_decompress and zlib_decompress
+
+* Thu Nov 12 2015 Bjorn Munch <bjorn.munch@oracle.com> - 5.7.10-1
 - Added lines to remove man pages we are not ready to include yet
 - Added new decompression utilities lz4_decompress and zlib_decompress binaries to
   client subpackage.
