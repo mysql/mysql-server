@@ -254,6 +254,7 @@ ret:
   {
     if (tables.table)
       free_tmp_table(thd, tables.table);
+    thd->cleanup_after_query();
     /*
       clean up, free the thd.
       reset all thread local status variables to minimize
