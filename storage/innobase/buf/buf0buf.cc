@@ -65,7 +65,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "sync0sync.h"
 #include "buf0dump.h"
 #include "ut0new.h"
-
 #include <new>
 #include <map>
 #include <sstream>
@@ -73,6 +72,44 @@ Created 11/5/1995 Heikki Tuuri
 #if defined(HAVE_LIBNUMA) && defined(WITH_NUMA)
 #include <numa.h>
 #include <numaif.h>
+
+struct set_numa_interleave_t
+{
+	set_numa_interleave_t()
+	{
+		if (srv_numa_interleave) {
+
+			ib::info() << "Setting NUMA memory policy to"
+				" MPOL_INTERLEAVE";
+			if (set_mempolicy(MPOL_INTERLEAVE,
+					  numa_all_nodes_ptr->maskp,
+					  numa_all_nodes_ptr->size) != 0) {
+
+				ib::warn() << "Failed to set NUMA memory"
+					" policy to MPOL_INTERLEAVE: "
+					<< strerror(errno);
+			}
+		}
+	}
+
+	~set_numa_interleave_t()
+	{
+		if (srv_numa_interleave) {
+
+			ib::info() << "Setting NUMA memory policy to"
+				" MPOL_DEFAULT";
+			if (set_mempolicy(MPOL_DEFAULT, NULL, 0) != 0) {
+				ib::warn() << "Failed to set NUMA memory"
+					" policy to MPOL_DEFAULT: "
+					<< strerror(errno);
+			}
+		}
+	}
+};
+
+#define NUMA_MEMPOLICY_INTERLEAVE_IN_SCOPE set_numa_interleave_t scoped_numa
+#else
+#define NUMA_MEMPOLICY_INTERLEAVE_IN_SCOPE
 #endif /* HAVE_LIBNUMA && WITH_NUMA */
 
 /*
@@ -1314,21 +1351,11 @@ buf_pool_init(
 	ut_ad(n_instances <= MAX_BUFFER_POOLS);
 	ut_ad(n_instances == srv_buf_pool_instances);
 
+	NUMA_MEMPOLICY_INTERLEAVE_IN_SCOPE;
+
 	buf_pool_resizing = false;
 	buf_pool_withdrawing = false;
 	buf_withdraw_clock = 0;
-
-#if defined(HAVE_LIBNUMA) && defined(WITH_NUMA)
-	if (srv_numa_interleave) {
-		ib::info() << "Setting NUMA memory policy to MPOL_INTERLEAVE";
-		if (set_mempolicy(MPOL_INTERLEAVE,
-				  numa_all_nodes_ptr->maskp,
-				  numa_all_nodes_ptr->size) != 0) {
-			ib::warn() << "Failed to set NUMA memory policy to"
-				" MPOL_INTERLEAVE: " << strerror(errno);
-		}
-	}
-#endif /* HAVE_LIBNUMA && WITH_NUMA */
 
 	buf_pool_ptr = (buf_pool_t*) ut_zalloc_nokey(
 		n_instances * sizeof *buf_pool_ptr);
@@ -1362,16 +1389,6 @@ buf_pool_init(
 
 	buf_stat_per_index = UT_NEW(buf_stat_per_index_t(),
 				    mem_key_buf_stat_per_index_t);
-
-#if defined(HAVE_LIBNUMA) && defined(WITH_NUMA)
-	if (srv_numa_interleave) {
-		ib::info() << "Setting NUMA memory policy to MPOL_DEFAULT";
-		if (set_mempolicy(MPOL_DEFAULT, NULL, 0) != 0) {
-			ib::warn() << "Failed to set NUMA memory policy to"
-				" MPOL_DEFAULT: " << strerror(errno);
-		}
-	}
-#endif /* HAVE_LIBNUMA && WITH_NUMA */
 
 	return(DB_SUCCESS);
 }
@@ -1947,6 +1964,8 @@ buf_pool_resize()
 	buf_pool_t*	buf_pool;
 	ulint		new_instance_size;
 	bool		warning = false;
+
+	NUMA_MEMPOLICY_INTERLEAVE_IN_SCOPE;
 
 	ut_ad(!buf_pool_resizing);
 	ut_ad(!buf_pool_withdrawing);
