@@ -201,7 +201,7 @@ public:
 
 
 class PT_table_ref_join_table;
-class PT_table_list : public Parse_tree_node
+class PT_table_reference : public Parse_tree_node
 {
 public:
   TABLE_LIST *value;
@@ -213,30 +213,30 @@ public:
     context-dependent nature of the join syntax. This function adds
     the <table_ref> cross join as the left-most leaf in this join tree.
 
-    This function may only be called if this PT_table_list is a join.
+    This function may only be called if this PT_table_reference is a join.
   */
-  virtual PT_table_list *add_cross_join(PT_table_ref_join_table *cj)
+  virtual PT_table_reference *add_cross_join(PT_table_ref_join_table *cj)
   {
     DBUG_ASSERT(false);
   }
 
   /**
-    If this PT_table_list is a join, returns the PT_join_table. This is used
+    If this PT_table_reference is a join, returns the PT_join_table. This is used
     for building a parse tree top-down.
   */
   virtual PT_join_table *get_join_table() { return NULL; }
 };
 
 
-class PT_table_factor : public PT_table_list
+class PT_table_factor : public PT_table_reference
 {
 public:
-  virtual PT_table_list *add_cross_join(PT_table_ref_join_table *cj);
+  virtual PT_table_reference *add_cross_join(PT_table_ref_join_table *cj);
 };
 
 class PT_table_factor_table_ident : public PT_table_factor
 {
-  typedef PT_table_list super;
+  typedef PT_table_reference super;
 
   Table_ident *table_ident;
   List<String> *opt_use_partition;
@@ -276,7 +276,7 @@ public:
 
 
 class PT_derived_table_list;
-class PT_nested_derived_table_list : public PT_table_list
+class PT_nested_derived_table_list : public PT_table_reference
 {
 public:
   PT_nested_derived_table_list(PT_derived_table_list *derived_table_list) :
@@ -295,18 +295,18 @@ class PT_join_table : public Parse_tree_node
   typedef Parse_tree_node super;
 
 protected:
-  PT_table_list *tab1_node;
+  PT_table_reference *tab1_node;
   POS join_pos;
   PT_join_table_type m_type;
-  PT_table_list *tab2_node;
+  PT_table_reference *tab2_node;
 
   TABLE_LIST *tr1;
   TABLE_LIST *tr2;
 
 
 public:
-  PT_join_table(PT_table_list *tab1_node_arg, const POS &join_pos_arg,
-                PT_join_table_type type, PT_table_list *tab2_node_arg)
+  PT_join_table(PT_table_reference *tab1_node_arg, const POS &join_pos_arg,
+                PT_join_table_type type, PT_table_reference *tab2_node_arg)
   : tab1_node(tab1_node_arg),
     join_pos(join_pos_arg),
     m_type(type),
@@ -328,7 +328,7 @@ public:
   }
 #endif
 
-  PT_table_list *add_cross_join(PT_table_ref_join_table* cj)
+  PT_table_reference *add_cross_join(PT_table_ref_join_table* cj)
   {
     tab1_node= tab1_node->add_cross_join(cj);
     return tab1_node;
@@ -397,7 +397,7 @@ protected:
 
 
 
-class PT_table_factor_joined_table : public PT_table_list
+class PT_table_factor_joined_table : public PT_table_reference
 {
 public:
   PT_table_factor_joined_table(PT_join_table *joined_table) :
@@ -406,7 +406,7 @@ public:
 
   virtual bool contextualize(Parse_context *pc);
 
-  virtual PT_table_list *add_cross_join(PT_table_ref_join_table* cj)
+  virtual PT_table_reference *add_cross_join(PT_table_ref_join_table* cj)
   {
     m_joined_table->add_cross_join(cj);
     return this;
@@ -421,11 +421,11 @@ class PT_cross_join : public PT_join_table
 {
 public:
 
-  PT_cross_join(PT_table_list *tab1_node_arg, const POS &join_pos_arg,
-                PT_join_table_type Type_arg, PT_table_list *tab2_node_arg)
+  PT_cross_join(PT_table_reference *tab1_node_arg, const POS &join_pos_arg,
+                PT_join_table_type Type_arg, PT_table_reference *tab2_node_arg)
     : PT_join_table(tab1_node_arg, join_pos_arg, Type_arg, tab2_node_arg) {}
 
-  void add_rhs(PT_table_list *rhs)
+  void add_rhs(PT_table_reference *rhs)
   {
     DBUG_ASSERT(tab2_node == NULL);
     tab2_node= rhs;
@@ -438,8 +438,8 @@ class PT_join_table_on : public PT_join_table
   Item *on;
 
 public:
-  PT_join_table_on(PT_table_list *tab1_node_arg, const POS &join_pos_arg,
-                   PT_join_table_type type, PT_table_list *tab2_node_arg,
+  PT_join_table_on(PT_table_reference *tab1_node_arg, const POS &join_pos_arg,
+                   PT_join_table_type type, PT_table_reference *tab2_node_arg,
                    Item *on_arg)
     : PT_join_table(tab1_node_arg, join_pos_arg, type, tab2_node_arg), on(on_arg)
   {}
@@ -476,16 +476,20 @@ class PT_join_table_using : public PT_join_table
   List<String> *using_fields;
 
 public:
-  PT_join_table_using(PT_table_list *tab1_node_arg, const POS &join_pos_arg,
-                      PT_join_table_type type, PT_table_list *tab2_node_arg,
+  PT_join_table_using(PT_table_reference *tab1_node_arg,
+                      const POS &join_pos_arg,
+                      PT_join_table_type type,
+                      PT_table_reference *tab2_node_arg,
                       List<String> *using_fields_arg)
     : PT_join_table(tab1_node_arg, join_pos_arg, type, tab2_node_arg),
       using_fields(using_fields_arg)
   {}
 
   /// A PT_join_table_using without a list of columns denotes a natural join.
-  PT_join_table_using(PT_table_list *tab1_node_arg, const POS &join_pos_arg,
-                      PT_join_table_type type, PT_table_list *tab2_node_arg)
+  PT_join_table_using(PT_table_reference *tab1_node_arg,
+                      const POS &join_pos_arg,
+                      PT_join_table_type type,
+                      PT_table_reference *tab2_node_arg)
     : PT_join_table(tab1_node_arg, join_pos_arg, type, tab2_node_arg),
       using_fields(NULL)
   {}
@@ -501,9 +505,9 @@ public:
 };
 
 
-class PT_table_ref_join_table : public PT_table_list
+class PT_table_ref_join_table : public PT_table_reference
 {
-  typedef PT_table_list super;
+  typedef PT_table_reference super;
 
   PT_join_table *join_table;
 
@@ -521,7 +525,7 @@ public:
     return value == NULL;
   }
 
-  PT_table_list *add_cross_join(PT_table_ref_join_table *cj)
+  PT_table_reference *add_cross_join(PT_table_ref_join_table *cj)
   {
     join_table->add_cross_join(cj);
     return this;
@@ -768,16 +772,16 @@ public:
 };
 
 
-class PT_select_derived_union_select : public PT_table_list
+class PT_select_derived_union_select : public PT_table_reference
 {
-  typedef PT_table_list super;
+  typedef PT_table_reference super;
 
-  PT_table_list *select_derived;
+  PT_table_reference *select_derived;
   Parse_tree_node *opt_union_order_or_limit;
   POS union_or_limit_pos;
 
 public:
-  PT_select_derived_union_select(PT_table_list *select_derived_arg,
+  PT_select_derived_union_select(PT_table_reference *select_derived_arg,
                                  Parse_tree_node *opt_union_order_or_limit_arg,
                                  const POS &union_or_limit_pos_arg)
   : select_derived(select_derived_arg),
@@ -806,19 +810,19 @@ public:
 };
 
 
-class PT_table_factor_parenthesis : public PT_table_list
+class PT_table_factor_parenthesis : public PT_table_reference
 {
-  typedef PT_table_list super;
+  typedef PT_table_reference super;
 
-  PT_table_list *select_derived_union;
+  PT_table_reference *select_derived_union;
   LEX_STRING *opt_table_alias;
   POS alias_pos;
 
 public:
 
-  PT_table_factor_parenthesis(PT_table_list *select_derived_union_arg,
-                               LEX_STRING *opt_table_alias_arg,
-                               const POS &alias_pos_arg)
+  PT_table_factor_parenthesis(PT_table_reference *select_derived_union_arg,
+                              LEX_STRING *opt_table_alias_arg,
+                              const POS &alias_pos_arg)
   : select_derived_union(select_derived_union_arg),
     opt_table_alias(opt_table_alias_arg),
     alias_pos(alias_pos_arg)
@@ -830,7 +834,7 @@ public:
 
 class PT_derived_table_list : public PT_table_factor
 {
-  typedef PT_table_list super;
+  typedef PT_table_reference super;
 
   POS pos;
 
@@ -839,7 +843,7 @@ class PT_derived_table_list : public PT_table_factor
     If the list has more than one element, the sub-list is found here, not in
     'tail' as one would perhaps expect.
   */
-  PT_table_list *head;
+  PT_table_reference *head;
 
 
   /**
@@ -847,12 +851,13 @@ class PT_derived_table_list : public PT_table_factor
     constructs the list it is a left-deep tree. This element is always an
     <esc_table_ref>.
   */
-  PT_table_list *tail;
+  PT_table_reference *tail;
   bool m_is_nested;
 
 public:
   PT_derived_table_list(const POS &pos,
-                        PT_table_list *head_arg, PT_table_list *tail_arg)
+                        PT_table_reference *head_arg,
+                        PT_table_reference *tail_arg)
   : pos(pos), head(head_arg), tail(tail_arg), m_is_nested(false)
   {}
 
@@ -883,15 +888,16 @@ public:
 };
 
 
-class PT_table_reference_list : public PT_table_list
+class PT_table_reference_list : public PT_table_reference
 {
   typedef Parse_tree_node super;
 
   POS m_pos;
-  PT_table_list *m_derived_table_list;
+  PT_table_reference *m_derived_table_list;
 
 public:
-  PT_table_reference_list(const POS &pos, PT_table_list *derived_table_list)
+  PT_table_reference_list(const POS &pos,
+                          PT_table_reference *derived_table_list)
   : m_pos(pos), m_derived_table_list(derived_table_list)
   {}
 

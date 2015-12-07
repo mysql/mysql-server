@@ -1731,7 +1731,7 @@ union YYSTYPE {
   Select_lock_type select_lock_type;
   class PT_union_order_or_limit *union_order_or_limit;
   class PT_table_expression *table_expression;
-  class PT_table_list *table_list2;
+  class PT_table_reference *table_reference;
   class PT_join_table_list *join_table_list;
   class PT_join_table *join_table;
   enum PT_join_table_type join_type;

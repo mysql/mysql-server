@@ -1430,9 +1430,8 @@ END_OF_INPUT
 
 %type <table_expression> table_expression
 
-%type <table_list2> table_factor table_reference
-          esc_table_ref table_reference_list
-          single_table table_reference_list_parens
+%type <table_reference> table_factor table_reference esc_table_ref
+          table_reference_list single_table table_reference_list_parens
           named_table_parens
 
 %type <query_expression_body> query_expression_body
