@@ -1963,7 +1963,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
   THD_STAGE_INFO(thd, stage_sending_cached_result_to_client);
   do
   {
-    DBUG_PRINT("qcache", ("Results  (len: %lu  used: %lu  headers: %lu)",
+    DBUG_PRINT("qcache", ("Results  (len: %lu  used: %lu  headers: %zu)",
 			  result_block->length, result_block->used,
 			  result_block->headers_len() +
                           ALIGN_SIZE(sizeof(Query_cache_result))));
