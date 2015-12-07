@@ -2477,3 +2477,9 @@ t1	CREATE TABLE `t1` (
   `c` char(32) AS (convert(cast(n as char), char)) PERSISTENT
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+set @@session.collation_server=filename;
+create table t1(a enum('',''));
+Warnings:
+Note	1291	Column 'a' has duplicated value '' in ENUM
+drop table t1;
+set @@session.collation_server=default;
