@@ -1885,8 +1885,11 @@ static int ssl_verify_server_cert(Vio *vio, const char* server_hostname, const c
 {
   SSL *ssl;
   X509 *server_cert;
-  char *cp1, *cp2;
-  char *buf;
+  X509_NAME *x509sn;
+  int cn_pos;
+  X509_NAME_ENTRY *cn_entry;
+  ASN1_STRING *cn_asn1;
+  const char *cn_str;
   DBUG_ENTER("ssl_verify_server_cert");
   DBUG_PRINT("enter", ("server_hostname: %s", server_hostname));
 
@@ -1920,34 +1923,32 @@ static int ssl_verify_server_cert(Vio *vio, const char* server_hostname, const c
     are what we expect.
   */
 
-  buf= X509_NAME_oneline(X509_get_subject_name(server_cert), 0, 0);
+  x509sn= X509_get_subject_name(server_cert);
+
+  if ((cn_pos= X509_NAME_get_index_by_NID(x509sn, NID_commonName, -1)) < 0)
+    goto err;
+
+  if (!(cn_entry= X509_NAME_get_entry(x509sn, cn_pos)))
+    goto err;
+
+  if (!(cn_asn1 = X509_NAME_ENTRY_get_data(cn_entry)))
+    goto err;
+
+  cn_str = (char *)ASN1_STRING_data(cn_asn1);
+
+  /* Make sure there is no embedded \0 in the CN */
+  if ((size_t)ASN1_STRING_length(cn_asn1) != strlen(cn_str))
+    goto err;
+
+  if (strcmp(cn_str, server_hostname))
+    goto err;
+
   X509_free (server_cert);
+  DBUG_RETURN(0);
 
-  if (!buf)
-  {
-    *errptr= "Out of memory";
-    DBUG_RETURN(1);
-  }
-
-  DBUG_PRINT("info", ("hostname in cert: %s", buf));
-  cp1= strstr(buf, "/CN=");
-  if (cp1)
-  {
-    cp1+= 4; /* Skip the "/CN=" that we found */
-    /* Search for next / which might be the delimiter for email */
-    cp2= strchr(cp1, '/');
-    if (cp2)
-      *cp2= '\0';
-    DBUG_PRINT("info", ("Server hostname in cert: %s", cp1));
-    if (!strcmp(cp1, server_hostname))
-    {
-      free(buf);
-      /* Success */
-      DBUG_RETURN(0);
-    }
-  }
+err:
+  X509_free(server_cert);
   *errptr= "SSL certificate validation failure";
-  free(buf);
   DBUG_RETURN(1);
 }
 
