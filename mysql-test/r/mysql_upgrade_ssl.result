@@ -1,6 +1,7 @@
 #
 # Bug#55672 mysql_upgrade dies with internal error 
 #
+mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
@@ -65,6 +66,7 @@ FLUSH PRIVILEGES;
 #have 5.7 layout thus no need to restore the dropped columns from
 #the begining of the test
 mysql_upgrade: [Warning] Using a password on the command line interface can be insecure.
+mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK

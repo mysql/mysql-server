@@ -6,6 +6,7 @@ mysql
 test
 show tables in mysql;
 Tables_in_mysql
+column_stats
 columns_priv
 db
 engine_cost

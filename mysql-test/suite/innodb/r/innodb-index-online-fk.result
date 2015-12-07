@@ -378,6 +378,7 @@ SYS_VIRTUAL
 mysql/catalogs
 mysql/character_sets
 mysql/collations
+mysql/column_stats
 mysql/column_type_elements
 mysql/columns
 mysql/columns_priv
@@ -1033,6 +1034,7 @@ SYS_VIRTUAL
 mysql/catalogs
 mysql/character_sets
 mysql/collations
+mysql/column_stats
 mysql/column_type_elements
 mysql/columns
 mysql/columns_priv
@@ -1186,6 +1188,7 @@ SYS_VIRTUAL
 mysql/catalogs
 mysql/character_sets
 mysql/collations
+mysql/column_stats
 mysql/column_type_elements
 mysql/columns
 mysql/columns_priv
@@ -1350,6 +1353,7 @@ SYS_VIRTUAL
 mysql/catalogs
 mysql/character_sets
 mysql/collations
+mysql/column_stats
 mysql/column_type_elements
 mysql/columns
 mysql/columns_priv
@@ -1514,6 +1518,7 @@ SYS_VIRTUAL
 mysql/catalogs
 mysql/character_sets
 mysql/collations
+mysql/column_stats
 mysql/column_type_elements
 mysql/columns
 mysql/columns_priv

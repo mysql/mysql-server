@@ -1,0 +1,111 @@
+SHOW CREATE TABLE mysql.column_stats;
+Table	Create Table
+column_stats	CREATE TABLE `column_stats` (
+  `database_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `table_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `column_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `histogram` json NOT NULL,
+  PRIMARY KEY (`database_name`,`table_name`,`column_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='Column statistics'
+INSERT INTO mysql.column_stats
+(database_name,
+table_name,
+column_name,
+histogram)
+VALUES      ('test-db-1',
+'test-tbl-1',
+'test-col-1',
+'{"key": "value"}'),
+('test-db-1',
+'test-tbl-1',
+'test-col-2',
+'{"key": "value"}'),
+('test-db-1',
+'test-tbl-2',
+'test-col-1',
+'{"key": "value"}'),
+('test-db-2',
+'test-tbl-1',
+'test-col-1',
+'{"key": "value"}'),
+('test-db-2',
+'test-tbl-1',
+'test-col-2',
+'{"key": "value"}'),
+('TEST-DB-1',
+'TEST-TBL-1',
+'TEST-COL-1',
+'{"key": "value"}');
+SELECT * FROM mysql.column_stats;
+database_name	table_name	column_name	histogram
+TEST-DB-1	TEST-TBL-1	TEST-COL-1	{"key": "value"}
+test-db-1	test-tbl-1	test-col-1	{"key": "value"}
+test-db-1	test-tbl-1	test-col-2	{"key": "value"}
+test-db-1	test-tbl-2	test-col-1	{"key": "value"}
+test-db-2	test-tbl-1	test-col-1	{"key": "value"}
+test-db-2	test-tbl-1	test-col-2	{"key": "value"}
+INSERT INTO mysql.column_stats
+(database_name,
+table_name,
+column_name,
+histogram)
+VALUES      ('test-db-1',
+'test-tbl-1',
+'test-col-1',
+'{"key": "value"}');
+ERROR 23000: Duplicate entry 'test-db-1-test-tbl-1-test-col-1' for key 'PRIMARY'
+SELECT * FROM mysql.column_stats;
+database_name	table_name	column_name	histogram
+TEST-DB-1	TEST-TBL-1	TEST-COL-1	{"key": "value"}
+test-db-1	test-tbl-1	test-col-1	{"key": "value"}
+test-db-1	test-tbl-1	test-col-2	{"key": "value"}
+test-db-1	test-tbl-2	test-col-1	{"key": "value"}
+test-db-2	test-tbl-1	test-col-1	{"key": "value"}
+test-db-2	test-tbl-1	test-col-2	{"key": "value"}
+UPDATE mysql.column_stats
+SET    histogram = '{"new_key": "new_value"}'
+WHERE  database_name IN ('test-db-1',
+'test-db-2',
+'TEST-DB-1');
+SELECT * FROM mysql.column_stats;
+database_name	table_name	column_name	histogram
+TEST-DB-1	TEST-TBL-1	TEST-COL-1	{"new_key": "new_value"}
+test-db-1	test-tbl-1	test-col-1	{"new_key": "new_value"}
+test-db-1	test-tbl-1	test-col-2	{"new_key": "new_value"}
+test-db-1	test-tbl-2	test-col-1	{"new_key": "new_value"}
+test-db-2	test-tbl-1	test-col-1	{"new_key": "new_value"}
+test-db-2	test-tbl-1	test-col-2	{"new_key": "new_value"}
+INSERT INTO mysql.column_stats
+(database_name,
+table_name,
+column_name,
+histogram)
+VALUES      ('test-db-2',
+'test-tbl-2',
+'test-col-2',
+'{"key": value}');
+ERROR 22032: Invalid JSON text: "Invalid value." at position 8 in value for column 'column_stats.histogram'.
+DELETE FROM mysql.column_stats WHERE database_name IN ('test-db-1',
+'test-db-2',
+'TEST-DB-1');
+SELECT * FROM mysql.column_stats;
+database_name	table_name	column_name	histogram
+CREATE USER user1;
+SELECT * FROM mysql.column_stats;
+ERROR 42000: SELECT command denied to user 'user1'@'localhost' for table 'column_stats'
+INSERT INTO mysql.column_stats
+(database_name,
+table_name,
+column_name,
+histogram)
+VALUES      ('test-db-1',
+'test-tbl-1',
+'test-col-1',
+'{"key": "value"}');
+ERROR 42000: INSERT command denied to user 'user1'@'localhost' for table 'column_stats'
+UPDATE mysql.column_stats
+SET    histogram = '{"new_key": "new_value"}';
+ERROR 42000: UPDATE command denied to user 'user1'@'localhost' for table 'column_stats'
+DELETE FROM mysql.column_stats;
+ERROR 42000: DELETE command denied to user 'user1'@'localhost' for table 'column_stats'
+DROP USER user1;

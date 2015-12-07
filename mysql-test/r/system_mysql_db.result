@@ -1,5 +1,6 @@
 show tables;
 Tables_in_db
+column_stats
 columns_priv
 db
 engine_cost

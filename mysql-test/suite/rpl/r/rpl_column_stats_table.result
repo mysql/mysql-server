@@ -1,0 +1,64 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Verify that inserts are replicated.
+#
+# Connection master
+INSERT INTO mysql.column_stats
+(database_name,
+table_name,
+column_name,
+histogram)
+VALUES      ('replication-db-test',
+'test-tbl-1',
+'test-col-1',
+'{"key": "value"}'),
+('replication-db-test',
+'test-tbl-1',
+'test-col-2',
+'{"key": "value"}');
+SELECT * FROM mysql.column_stats;
+database_name	table_name	column_name	histogram
+replication-db-test	test-tbl-1	test-col-1	{"key": "value"}
+replication-db-test	test-tbl-1	test-col-2	{"key": "value"}
+include/sync_slave_sql_with_master.inc
+# Connection slave
+SELECT * FROM mysql.column_stats;
+database_name	table_name	column_name	histogram
+replication-db-test	test-tbl-1	test-col-1	{"key": "value"}
+replication-db-test	test-tbl-1	test-col-2	{"key": "value"}
+#
+# Verify that updates are replicated.
+#
+# Connection master
+UPDATE mysql.column_stats
+SET    histogram = '{"new_key": "new_value"}'
+WHERE  database_name = 'replication-db-test';
+SELECT * FROM mysql.column_stats;
+database_name	table_name	column_name	histogram
+replication-db-test	test-tbl-1	test-col-1	{"new_key": "new_value"}
+replication-db-test	test-tbl-1	test-col-2	{"new_key": "new_value"}
+include/sync_slave_sql_with_master.inc
+# Connection slave
+SELECT * FROM mysql.column_stats;
+database_name	table_name	column_name	histogram
+replication-db-test	test-tbl-1	test-col-1	{"new_key": "new_value"}
+replication-db-test	test-tbl-1	test-col-2	{"new_key": "new_value"}
+#
+# Verify that deletes are replicated.
+#
+# Connection master
+DELETE FROM mysql.column_stats WHERE database_name = 'replication-db-test';
+SELECT * FROM mysql.column_stats;
+database_name	table_name	column_name	histogram
+include/sync_slave_sql_with_master.inc
+# Connection slave
+SELECT * FROM mysql.column_stats;
+database_name	table_name	column_name	histogram
+#
+# Cleanup
+#
+include/rpl_end.inc

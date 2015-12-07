@@ -379,6 +379,20 @@ INSERT IGNORE INTO engine_cost VALUES
 INSERT IGNORE INTO engine_cost VALUES
   ("default", 0, "io_block_read_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
 
+
+--
+-- Column statistics
+--
+
+CREATE TABLE IF NOT EXISTS column_stats (
+  database_name VARCHAR(64) NOT NULL,
+  table_name VARCHAR(64) NOT NULL,
+  column_name VARCHAR(64) NOT NULL,
+  histogram JSON NOT NULL,
+  PRIMARY KEY (database_name, table_name, column_name)
+) ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_bin
+COMMENT="Column statistics";
+
 --
 -- PERFORMANCE SCHEMA INSTALLATION
 -- Note that this script is also reused by mysql_upgrade,

@@ -85,6 +85,9 @@ INDEX_COMMENT	varchar(1024)	NO
 SELECT table_catalog, table_schema, table_name, index_schema, index_name
 FROM information_schema.statistics WHERE table_catalog IS NOT NULL;
 table_catalog	table_schema	table_name	index_schema	index_name
+def	mysql	column_stats	mysql	PRIMARY
+def	mysql	column_stats	mysql	PRIMARY
+def	mysql	column_stats	mysql	PRIMARY
 def	mysql	columns_priv	mysql	PRIMARY
 def	mysql	columns_priv	mysql	PRIMARY
 def	mysql	columns_priv	mysql	PRIMARY
