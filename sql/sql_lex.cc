@@ -2340,6 +2340,7 @@ SELECT_LEX::SELECT_LEX
   first_execution(true),
   sj_pullout_done(false),
   exclude_from_table_unique_test(false),
+  allow_merge_derived(true),
   prev_join_using(NULL),
   select_list_tables(0),
   outer_join(0),

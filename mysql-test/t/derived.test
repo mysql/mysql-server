@@ -2526,3 +2526,40 @@ FROM (SELECT t2.c2n AS dt_field
 
 DROP VIEW vl, vr;
 DROP TABLE t1, t2, empty;
+
+--echo # Bug#22239474: Unexpected error 1093 on nested subquery for update
+
+CREATE TABLE t1 (id INTEGER PRIMARY KEY, d INTEGER);
+
+INSERT INTO t1 VALUES(1, 10), (2, 20);
+
+let $query=
+DELETE FROM t1
+WHERE id IN (SELECT * FROM (SELECT id FROM t1) AS dt);
+
+eval explain $query;
+eval $query;
+
+INSERT INTO t1 VALUES(1, 10), (2, 20);
+
+let $query=
+UPDATE t1 SET d= NULL
+WHERE id IN (SELECT * FROM (SELECT id FROM t1) AS dt);
+
+eval explain $query;
+eval $query;
+
+let $query=
+INSERT INTO t1 SELECT id+10, d FROM t1;
+
+eval explain $query;
+eval $query;
+
+let $query=
+INSERT INTO t1 SELECT id+20, d FROM (SELECT * FROM t1) AS dt;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1;
+

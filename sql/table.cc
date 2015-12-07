@@ -4910,12 +4910,19 @@ void init_mdl_requests(TABLE_LIST *table_list)
 }
 
 
-///  @returns true if view or derived table and can be merged
+/**
+  @returns true if view or derived table and
+            - algorithm (for view) does not force materialization
+            - the derived table definition is mergeable
+            - this is a view, or, if unnamed derived table, the enclosing
+              query block allows merging of derived tables.
+*/
 bool TABLE_LIST::is_mergeable() const
 {
   return is_view_or_derived() &&
          algorithm != VIEW_ALGORITHM_TEMPTABLE &&
-         derived->is_mergeable();
+         derived->is_mergeable() &&
+         (is_view() || select_lex->allow_merge_derived);
 }
 
 ///  @returns true if materializable table contains one or zero rows

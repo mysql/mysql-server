@@ -1114,6 +1114,8 @@ public:
   bool sj_pullout_done;
   /// exclude this query block from unique_table() check
   bool exclude_from_table_unique_test;
+  /// Allow merge of immediate unnamed derived tables
+  bool allow_merge_derived;
   /**
     This is a copy of the original JOIN USING list that comes from
     the parser. The parser :

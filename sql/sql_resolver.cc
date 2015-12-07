@@ -109,6 +109,23 @@ bool SELECT_LEX::prepare(THD *thd)
 
   is_item_list_lookup= true;
 
+  /*
+    Determine whether immediate derived tables can be merged:
+      - DTs belonging to outermost query block: always
+      - DTs belonging to first level subqueries: Yes if inside SELECT statement,
+        no otherwise (including UPDATE and DELETE).
+        This is required to support a workaround for allowing subqueries
+        containing the same table as is target for delete or update,
+        by forcing a materialization of the subquery.
+      - All other cases inherit status of parent query block.
+  */
+  allow_merge_derived=
+    outer_select() == NULL ||
+    master_unit()->item == NULL ||
+    (outer_select()->outer_select() == NULL ?
+      parent_lex->sql_command == SQLCOM_SELECT :
+      outer_select()->allow_merge_derived);
+
   Opt_trace_context * const trace= &thd->opt_trace;
   Opt_trace_object trace_wrapper(trace);
   Opt_trace_object trace_prepare(trace, "join_preparation");
