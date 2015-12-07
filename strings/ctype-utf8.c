@@ -4585,7 +4585,7 @@ my_wc_mb_filename(CHARSET_INFO *cs __attribute__((unused)),
   }
 
   /* Non letter */
-  if (s + 5 > e)
+  if (s + 4 > e)
     return MY_CS_TOOSMALL5;
 
   *s++= hex[(wc >> 12) & 15];
