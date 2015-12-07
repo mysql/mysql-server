@@ -1,0 +1,14 @@
+--source include/not_embedded.inc
+--source include/have_udf.inc
+
+#
+# MDEV-8644 Using a UDF in a virtual column causes a crash when stopping the server
+#
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
+eval create function sequence returns integer soname "$UDF_EXAMPLE_SO";
+create table t1 (n int key not null auto_increment,  msg int as (sequence()) virtual);
+select * from t1;
+source include/restart_mysqld.inc;
+drop table t1;
+drop function sequence;
+
