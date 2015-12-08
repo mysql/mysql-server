@@ -11263,3 +11263,29 @@ static uint32 get_key_length_tmp_table(Item *item)
   return len;
 }
 
+bool Cube_plan::next_pass(){
+  if (pass == total_pass_count) return 1;
+  pass ++;
+  return 0;
+}
+
+uint Cube_plan::end(){
+  return pos_map[pass - 1][cube_dim];
+}
+
+uint Cube_plan::start(uint idx){
+  DBUG_ASSERT(idx >= 0 && idx <= cube_dim);
+  return pos_map[pass - 1][idx];
+}
+
+bool Cube_plan::write_plan(uint input_pass, uint idx, uint pos){
+  for (uint i = 0; i <= idx; i++){
+	pos_map[input_pass - 1][i] = pos;
+  }
+  return FALSE;
+}
+
+bool Cube_plan::write_end(uint input_pass, uint pos){
+  write_plan(input_pass, cube_dim, pos);
+  return FALSE;
+}

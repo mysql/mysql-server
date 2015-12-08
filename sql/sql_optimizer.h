@@ -38,35 +38,39 @@ class Cube_plan{
 public:
   Cube_plan(uint size){
 	pass = 1;
+	cube_dim = size;
+	total_pass_count = 1;
+	//total_pass_count = combination (n, n/2)
+	for (uint i = 1; i <= size / 2; i++){
+	  total_pass_count *= (size + 1 - i);
+	  total_pass_count /= i;
+	}
+	pos_map = (uint **)malloc(total_pass_count * sizeof(uint *));
+	for (uint i = 0; i < total_pass_count; i++){
+	  pos_map[i] = (uint *)calloc(size + 2, sizeof(uint));
+	}
   }
   ~Cube_plan(){
+	for (uint i = 0; i < total_pass_count; i++){
+	  delete pos_map[i];
+	}
+	delete pos_map;
+  }
 
-  }
-  bool next_pass(){
-	if (pass == 2) return 1;
-	pass = 2;
-	return 0;
-  }
-  uint end(){
-	if (pass == 2){
-	  return 3;
-	}
-	else {
-	  return 2;
-	}
-  }
-  uint start(uint idx){
-	if (pass == 2){
-	  if (idx == 1 || idx == 0) return 2;
-	  return 3;
-	}
-	else {
-	  return idx;
-	}
+  bool next_pass();
+  uint end();
+  uint start(uint idx);
+  bool write_plan(uint input_pass, uint idx, uint pos);
+  bool write_end(uint input_pass, uint pos);
+  inline void reset_pass(){
+	pass = 1;
   }
   inline bool is_first_pass(){
 	return pass == 1;
   }
+  uint cube_dim;
+  uint total_pass_count;
+  uint ** pos_map;
   uint pass;
 };
 

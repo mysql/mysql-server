@@ -3175,6 +3175,17 @@ public:
 	count = 0;
   }
   ~Group_by_bitmap(){ free(bitmap_); }
+  uint get_pass_id(){ return pass_; }
+  /**
+	see rollup_send_data() for usage of idx.
+  */
+  uint get_idx(){
+	uint c = 0;
+	for (uint i = 0; i < bitmap_size; i++){
+	  if (bitmap[i]) c++;
+	}
+	return bitmap_size - c;
+  }
   /*Get a new combination*/
   Bounds_checked_array<bool> &GetNext(){
 	if (count >= n)
@@ -3186,14 +3197,17 @@ public:
 		if (count == 0){
 		  bitmap[0] = 1;
 		  bitmap[1] = 0;
+		  pass_ = 2;
 		}
 		else if (count == 1){
 		  bitmap[0] = 0;
 		  bitmap[1] = 1;
+		  pass_ = 1;
 		}
 		else {
 		  bitmap[0] = 1;
 		  bitmap[1] = 1;
+		  pass_ = 1;
 		}
 	  }
 	  break;
@@ -3212,6 +3226,8 @@ public:
   Bounds_checked_array<bool> bitmap;
   /*index of current combination*/
   uint count;
+  /*index of current pass*/
+  uint pass_;
   /*number of combinations*/
   uint n;
   /*type of OLAP*/
@@ -3265,9 +3281,20 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
   Group_by_bitmap *subtotal_bitmap;
   //subtotal_bitmap = new (thd->mem_root) Group_by_bitmap(thd, select_lex->olap, group_list_size);
   subtotal_bitmap = new Group_by_bitmap(thd, select_lex->olap, group_list_size);
+  uint last_pass = 0;
+
   for (level = 0; level < send_group_parts; level++){
 	Bounds_checked_array<bool> &bitmap = subtotal_bitmap->GetNext();
+	uint cur_pass = subtotal_bitmap->get_pass_id();
 	uint pos = send_group_parts - level - 1;
+	//mark the end of current pass
+	if (cube_plan && cur_pass != last_pass){
+	  cube_plan->write_end(cur_pass, pos + 1);
+	  last_pass = cur_pass;
+	}
+	if (cube_plan){
+	  cube_plan->write_plan(cur_pass, subtotal_bitmap->get_idx(), pos);
+	}
 	bool real_fields = 0;
 	Item *item;
 	List_iterator<Item> new_it(rollup.fields[pos]);

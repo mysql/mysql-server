@@ -335,7 +335,7 @@ int JOIN::rollup_send_data(uint idx)
 {
   uint i;
   if (cube_plan){
-	for (i = cube_plan->start(idx); i != cube_plan->end(); i++){
+	for (i = cube_plan->end(); i-- > cube_plan->start(idx);){
 	  /* Get reference pointers to sum functions in place */
 	  copy_ref_ptr_array(ref_ptrs, rollup.ref_pointer_arrays[i]);
 	  if ((!having_cond || having_cond->val_int()))
