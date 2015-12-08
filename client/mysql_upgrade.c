@@ -53,6 +53,8 @@ static DYNAMIC_STRING conn_args;
 static char *opt_password= 0;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 
+static char *cnf_file_path= 0, defaults_file[FN_REFLEN + 32];
+
 static my_bool tty_password= 0;
 
 static char opt_tmpdir[FN_REFLEN] = "";
@@ -184,6 +186,8 @@ static void free_used_memory(void)
 
   dynstr_free(&ds_args);
   dynstr_free(&conn_args);
+  if (cnf_file_path)
+    my_delete(cnf_file_path, MYF(MY_WME));
 }
 
 
@@ -235,8 +239,8 @@ static void verbose(const char *fmt, ...)
   this way we pass the same arguments on to mysql and mysql_check
 */
 
-static void add_one_option(DYNAMIC_STRING* ds,
-                           const struct my_option *opt,
+static void add_one_option_cmd_line(DYNAMIC_STRING *ds,
+                                    const struct my_option *opt,
                                     const char* arg)
 {
   dynstr_append(ds, "--");
@@ -249,6 +253,18 @@ static void add_one_option(DYNAMIC_STRING* ds,
   dynstr_append(ds, " ");
 }
 
+static void add_one_option_cnf_file(DYNAMIC_STRING *ds,
+                                    const struct my_option *opt,
+                                    const char* arg)
+{
+  dynstr_append(ds, opt->name);
+  if (arg)
+  {
+    dynstr_append(ds, "=");
+    dynstr_append_os_quoted(ds, arg, NullS);
+  }
+  dynstr_append(ds, "\n");
+}
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt,
@@ -283,7 +299,7 @@ get_one_option(int optid, const struct my_option *opt,
     if (argument)
     {
       /* Add password to ds_args before overwriting the arg with x's */
-      add_one_option(&ds_args, opt, argument);
+      add_one_option_cnf_file(&ds_args, opt, argument);
       while (*argument)
         *argument++= 'x';                       /* Destroy argument */
       tty_password= 0;
@@ -336,7 +352,7 @@ get_one_option(int optid, const struct my_option *opt,
   case OPT_SHARED_MEMORY_BASE_NAME: /* --shared-memory-base-name */
   case OPT_PLUGIN_DIR:                          /* --plugin-dir */
   case OPT_DEFAULT_AUTH:                        /* --default-auth */
-    add_one_option(&conn_args, opt, argument);
+    add_one_option_cmd_line(&conn_args, opt, argument);
     break;
   }
 
@@ -347,7 +363,7 @@ get_one_option(int optid, const struct my_option *opt,
       it can be passed on to "mysql" and "mysqlcheck"
       Save it in the ds_args string
     */
-    add_one_option(&ds_args, opt, argument);
+    add_one_option_cnf_file(&ds_args, opt, argument);
   }
   return 0;
 }
@@ -550,8 +566,7 @@ static int run_query(const char *query, DYNAMIC_STRING *ds_res,
 
   ret= run_tool(mysql_path,
                 ds_res,
-                "--no-defaults",
-                ds_args.str,
+                defaults_file,
                 "--database=mysql",
                 "--batch", /* Turns off pager etc. */
                 force ? "--force": "--skip-force",
@@ -740,8 +755,7 @@ static int run_mysqlcheck_upgrade(void)
   print_conn_args("mysqlcheck");
   retch= run_tool(mysqlcheck_path,
                   NULL, /* Send output from mysqlcheck directly to screen */
-                  "--no-defaults",
-                  ds_args.str,
+                  defaults_file,
                   "--check-upgrade",
                   "--all-databases",
                   "--auto-repair",
@@ -794,8 +808,7 @@ static int run_mysqlcheck_views(void)
   print_conn_args("mysqlcheck");
   return run_tool(mysqlcheck_path,
                   NULL, /* Send output from mysqlcheck directly to screen */
-                  "--no-defaults",
-                  ds_args.str,
+                  defaults_file,
                   "--all-databases", "--repair",
                   upgrade_views,
                   "--skip-process-tables",
@@ -819,8 +832,7 @@ static int run_mysqlcheck_fixnames(void)
   print_conn_args("mysqlcheck");
   return run_tool(mysqlcheck_path,
                   NULL, /* Send output from mysqlcheck directly to screen */
-                  "--no-defaults",
-                  ds_args.str,
+                  defaults_file,
                   "--all-databases",
                   "--fix-db-names",
                   "--fix-table-names",
@@ -1020,12 +1032,21 @@ int main(int argc, char **argv)
   {
     opt_password= get_tty_password(NullS);
     /* add password to defaults file */
-    add_one_option(&ds_args, &my_long_options[PASSWORD_OPT], opt_password);
+    add_one_option_cnf_file(&ds_args, &my_long_options[PASSWORD_OPT], opt_password);
     DBUG_ASSERT(strcmp(my_long_options[PASSWORD_OPT].name, "password") == 0);
   }
   /* add user to defaults file */
-  add_one_option(&ds_args, &my_long_options[USER_OPT], opt_user);
+  add_one_option_cnf_file(&ds_args, &my_long_options[USER_OPT], opt_user);
   DBUG_ASSERT(strcmp(my_long_options[USER_OPT].name, "user") == 0);
+
+  cnf_file_path= strmov(defaults_file, "--defaults-file=");
+  {
+    int fd= create_temp_file(cnf_file_path, opt_tmpdir[0] ? opt_tmpdir : NULL,
+                             "mysql_upgrade-", O_CREAT | O_WRONLY, MYF(MY_FAE));
+    my_write(fd, USTRING_WITH_LEN( "[client]\n"), MYF(MY_FAE));
+    my_write(fd, (uchar*)ds_args.str, ds_args.length, MYF(MY_FAE));
+    my_close(fd, MYF(0));
+  }
 
   /* Find mysql */
   find_tool(mysql_path, IF_WIN("mysql.exe", "mysql"), self_name);
