@@ -455,6 +455,7 @@ uint cached_table_definitions(void)
   @param key         table cache key
   @param key_length  length of key
   @param open_view   allow open of view
+  @param hash_value  hash value to use for lookup in THD
 
   @return Pointer to the new TABLE_SHARE, or NULL if there was an error
 */
@@ -2679,6 +2680,8 @@ open_table_get_mdl_lock(THD *thd, Open_table_context *ot_ctx,
   cache and, if yes, wait until the flush is complete.
 
   @param thd             Thread context.
+  @param db              Database name.
+  @param table_name      Table name.
   @param wait_timeout    Timeout for waiting.
   @param deadlock_weight Weight of this wait for deadlock detector.
 
@@ -9082,6 +9085,7 @@ bool check_record(THD *thd, Field **ptr)
   was created before.
 
   @param event         event type for triggers to be invoked
+  @param sql_command   Type of SQL statement
 
   @return Test result
     @retval true    SQL-statement is

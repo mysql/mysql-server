@@ -803,7 +803,7 @@ public:
   Evidently not all template arguments have clone() method with
   the right signature.
 
-  @return You must query the error state in THD for out-of-memory
+  You must query the error state in THD for out-of-memory
   situation after calling this function.
 */
 

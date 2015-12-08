@@ -667,9 +667,10 @@ static int unlock_external(THD *thd, TABLE **table,uint count)
 /**
   Get lock structures from table structs and initialize locks.
 
-  @param thd		    Thread handler
-  @param table_ptr	    Pointer to tables that should be locks
-  @param flags		    One of:
+  @param thd                Thread handler
+  @param table_ptr          Pointer to tables that should be locks
+  @param count              Number of tables
+  @param flags              One of:
            - GET_LOCK_UNLOCK      : If we should send TL_IGNORE to store lock
            - GET_LOCK_STORE_LOCKS : Store lock info in TABLE
 */

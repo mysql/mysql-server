@@ -905,7 +905,7 @@ struct handlerton
 
     @param[in]      hton   Handlerton for storage engine.
     @param[in]      thd    Thread context.
-    @param[in/out]  files  List of files in directories for temporary files
+    @param[in,out]  files  List of files in directories for temporary files
                            which match tmp_file_prefix and thus can belong to
                            temporary tables (but not necessarily in this SE).
                            It is recommended to remove file from the list if

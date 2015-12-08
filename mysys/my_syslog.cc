@@ -216,7 +216,9 @@ static int windows_eventlog_create_registry_entry(const char *key)
   be invoked from the main thread or some extra thread
   safety measures need to be taken.
 
-  @param name    Name of the event source / syslog ident
+  @param name     Name of the event source / syslog ident.
+  @param option   MY_SYSLOG_PIDS to log PID with each message.
+  @param facility Type of program. Passed to openlog().
 
   @return
      0 Success

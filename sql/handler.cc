@@ -1528,6 +1528,9 @@ ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
 
 
 /**
+  @param[in] thd                       Thread handle.
+  @param[in] all                       Session transaction if true, statement
+                                       otherwise.
   @param[in] ignore_global_read_lock   Allow commit to complete even if a
                                        global read lock is active. This can be
                                        used to allow changes to internal tables
@@ -1755,6 +1758,7 @@ end:
   @note This function does not care about global read lock; the caller
   should.
 
+  @param[in]  thd  Thread handle.
   @param[in]  all  Is set in case of explicit commit
                    (COMMIT statement), or implicit commit
                    issued by DDL. Is not set when called
@@ -5040,8 +5044,9 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
 
 
 /**
-  Try to find a table in a storage engine. 
+  Try to find a table in a storage engine.
 
+  @param thd  Thread handle
   @param db   Normalized table schema name
   @param name Normalized table name.
   @param[out] exists Only valid if the function succeeded.
@@ -5351,7 +5356,7 @@ static my_bool rm_tmp_tables_handlerton(THD *thd, plugin_ref plugin,
   previous server run. Used on server start-up.
 
   @param[in]      thd    Thread context.
-  @param[in/out]  files  List of files in directories for temporary files
+  @param[in,out]  files  List of files in directories for temporary files
                          which match tmp_file_prefix and thus can belong to
                          temporary tables. If any SE recognizes some file as
                          belonging to temporary table in this SE and deletes
@@ -6015,6 +6020,7 @@ Cost_estimate handler::read_cost(uint index, double ranges, double rows)
   (we'll have their prefixes from the index) and will not be able to check
   if we've reached the end the range.
 
+  @param table  Table to check keys for
   @param keyno  Key to check
 
   @todo

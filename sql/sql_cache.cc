@@ -2109,6 +2109,7 @@ void Query_cache::invalidate(THD *thd, CHANGED_TABLE_LIST *tables_used)
 /**
   Invalidate locked for write
 
+  @param thd         - thread handle
   @param tables_used - table list
 
   @note can be used only for opened tables
@@ -3740,6 +3741,7 @@ void double_linked_list_join(Query_cache_block *head_tail,
   Collect information about table types, check that tables are cachable and
   count them
 
+  @param thd             thread handle
   @param tables_used     table list for processing
   @param tables_type     pointer to variable for table types collection
 

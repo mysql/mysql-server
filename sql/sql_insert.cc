@@ -351,6 +351,9 @@ void prepare_triggers_for_insert_stmt(THD *thd, TABLE *table)
     List of fields representing LHS_FIELD of all expressions
     in 'UPDATE' clause.
 
+  @param [in] mem_root
+    MEM_ROOT for blob copy.
+
   @return - Can fail only when we are out of memory.
     @retval false   Success
     @retval true    Failure

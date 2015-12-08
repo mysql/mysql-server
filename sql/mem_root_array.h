@@ -36,12 +36,12 @@
    Note that MEM_ROOT has no facility for reusing free space,
    so don't use this if multiple re-expansions are likely to happen.
 
-   @param Element_type The type of the elements of the container.
-          Elements must be copyable.
-   @param has_trivial_destructor If true, we don't destroy elements.
-          We could have used type traits to determine this.
-          __has_trivial_destructor is supported by some (but not all)
-          compilers we use.
+   @tparam Element_type The type of the elements of the container.
+           Elements must be copyable.
+   @tparam has_trivial_destructor If true, we don't destroy elements.
+           We could have used type traits to determine this.
+           __has_trivial_destructor is supported by some (but not all)
+           compilers we use.
 */
 template<typename Element_type, bool has_trivial_destructor = true>
 class Mem_root_array_YY

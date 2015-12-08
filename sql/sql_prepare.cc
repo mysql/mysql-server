@@ -1171,6 +1171,7 @@ error:
 /**
   Validate INSERT statement.
 
+  @param thd                    thread handle
   @param table_list             global/local table list
 
   @retval

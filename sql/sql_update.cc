@@ -1111,7 +1111,8 @@ exit_without_my_ok:
   @param update_table_ref Reference to table being updated
   @param[out] covering_keys_for_cond Keys which are covering for conditions
                                      and ORDER BY clause.
-
+  @param update_value_list list of expressions, populated with resolved
+                           data about expressions.
   @return false if success, true if error
 */
 bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,

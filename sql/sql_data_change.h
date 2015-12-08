@@ -219,6 +219,7 @@ public:
      Initializes this data change operation as an SQL @c UPDATE (multi- or
      not).
 
+     @param optype  The data change operation type.
      @param fields  The column objects that are to be updated.
      @param values  The values to be assigned to the fields.
      @note that UPDATE always lists columns, so non-listed columns may need a

@@ -6,6 +6,9 @@
 
   Copyright Abandoned 1998 Irena Pancirov - Irnet Snc
   This file is public domain and comes with NO WARRANTY of any kind
+
+  Modifications copyright (c) 2000, 2015. Oracle and/or its affiliates.
+  All rights reserved.
 */
 #include <windows.h>
 #include <process.h>
@@ -81,6 +84,7 @@ BOOL NTService::GetOS()
 /**
   Registers the main service thread with the service manager.
 
+  @param szInternName   Name of service to run in this process.
   @param ServiceThread  pointer to the main programs entry function
                         when the service is started
 */

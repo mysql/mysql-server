@@ -240,6 +240,7 @@ public:
   /**
      Log command to the general log.
 
+     @param  thd               THD of the query
      @param  event_utime       Command start timestamp in micro seconds
      @param  user_host         The pointer to the string with user\@host info
      @param  user_host_len     Length of the user_host string. this is computed
@@ -249,6 +250,7 @@ public:
      @param  command_type_len  The length of the string above
      @param  sql_text          The very text of the query being executed
      @param  sql_text_len      The length of sql_text string
+     @param  client_cs         Character set to use for strings
 
      @return This function attempts to never call my_error(). This is
      necessary, because general logging happens already after a statement
@@ -719,6 +721,7 @@ public:
 
   /**
     @param threshold     suppress after this many queries ...
+    @param lock          mutex to use for consistency of calculations
     @param window_usecs  ... in this many micro-seconds
     @param logger        call this function to log a single line (our summary)
     @param msg           use this template containing %lu as only non-literal

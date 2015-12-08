@@ -22,7 +22,7 @@
 
 /**
   Clears a container, but deletes all objects that the elements point to first.
-  @tparam Container of pointers.
+  @tparam Container_type Container of pointers.
  */
 template<typename Container_type>
 void delete_container_pointers(Container_type &container)
@@ -38,7 +38,7 @@ void delete_container_pointers(Container_type &container)
 
 /**
   Clears a container, but frees all objects that the elements point to first.
-  @tparam Container of pointers.
+  @tparam Container_type Container of pointers.
  */
 template<typename Container_type>
 void my_free_container_pointers(Container_type &container)
@@ -58,7 +58,7 @@ void my_free_container_pointers(Container_type &container)
   reinterpret_cast or C-style cast:
     foo *f; bar *b= pointer_cast<bar*>(f);
   This avoids having to do:
-    foo *f; bar *b= static_cast<b*>(static_cast<void*>(f));
+    foo *f; bar *b= static_cast<bar*>(static_cast<void*>(f));
  */
 template<typename T>
 inline T pointer_cast(void *p)

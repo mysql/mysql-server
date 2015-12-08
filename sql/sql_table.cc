@@ -5189,6 +5189,8 @@ static void sp_prepare_create_field(THD *thd, Create_field *sql_field)
   @param[out] key_info       Array of KEY objects describing keys in table
                              which was created.
   @param[out] key_count      Number of keys in table which was created.
+  @param[in] is_sql_layer_system_table
+                             We skip certain index checks for system tables.
   @param[out] tmp_table_def  Data-dictionary object for temporary table
                              which was created, but was not open because
                              of "no_ha_table" flag. NULL otherwise (if
@@ -6755,8 +6757,6 @@ static bool lock_fk_dependent_tables(THD *thd, TABLE *table)
 
    @param          thd                Thread
    @param          table              The original table.
-   @param          varchar            Indicates that new definition has new
-                                      VARCHAR column.
    @param[in,out]  ha_alter_info      Data structure which already contains
                                       basic information about create options,
                                       field and keys for the new version of
