@@ -116,7 +116,9 @@
 #     the expected events. The timeout is given by $slave_timeout.
 #
 #   $slave_timeout
-#     Timeout used if $wait_for_binlog_events is enabled.
+#     Default timeout used if $wait_for_binlog_events is enabled.
+#     The default timeout is 300 seconds. You can change the timeout by
+#     setting $slave_timeout. The unit for time is seconds.
 #
 #   $rpl_debug
 #     Print lots of debug info.
@@ -171,6 +173,7 @@ if ($wait_for_binlog_events)
 {
   --let $_abe_counter= 0
   --let $_abe_timeout= $slave_timeout
+  # Wait 300 seconds for binlog events
   if (!$_abe_timeout)
   {
     --let $_abe_timeout= 300
