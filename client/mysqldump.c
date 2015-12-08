@@ -1116,7 +1116,6 @@ static int fetch_db_collation(const char *db_name,
                               int db_cl_size)
 {
   my_bool err_status= FALSE;
-  char query[QUERY_LENGTH];
   MYSQL_RES *db_cl_res;
   MYSQL_ROW db_cl_row;
 
