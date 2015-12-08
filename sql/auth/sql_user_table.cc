@@ -2015,7 +2015,7 @@ static int modify_grant_table(TABLE *table, Field *host_field,
 
 /**
   Handle a privilege table.
-
+  @param  thd                 The thead handler
   @param  tables              The array with the four open tables.
   @param  table_no            The number of the table to handle (0..4).
   @param  drop                If user_from is to be dropped.

@@ -890,8 +890,11 @@ bool is_acl_user(const char *host, const char *user)
   Validate if a user can proxy as another user
 
   @param user              the logged in user (proxy user)
+  @param host              the hostname part of the logged in userid
+  @param ip                the ip of the logged in userid
   @param authenticated_as  the effective user a plugin is trying to 
                            impersonate as (proxied user)
+  @param proxy_used[out]   True if a proxy is found
   @return                  proxy user definition
     @retval NULL           proxy user definition not found or not applicable
     @retval non-null       the proxy user data

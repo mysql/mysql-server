@@ -708,7 +708,7 @@ check_routine_access(THD *thd, ulong want_access, const char *db, char *name,
 
   @param thd		 Thread handler
   @param want_access	 Bitmap of possible privileges to check for
-
+  @param table The table for which access needs to be validated
   @retval
     0  ok
   @retval
@@ -744,7 +744,7 @@ bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
   @param thd	       Thread handler
   @param db           Database name
   @param name         Routine name
-
+  @param is_proc     True if this is a SP rather than a function
   @retval
     0            ok
   @retval
@@ -1565,6 +1565,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   @param user_list List of users to give grant
   @param rights Table level grant
   @param revoke_grant Is this is a REVOKE command?
+  @param write_to_binlog True if this statement should be written to binlog
 
   @return
     @retval FALSE Success.
@@ -3651,7 +3652,8 @@ private:
   @param thd       The current thread.
   @param sp_db     DB of the stored procedure
   @param sp_name   Name of the stored procedure
-
+  @param is_proc   True if this is a SP rather than a function.
+  
   @retval
     0           OK.
   @retval

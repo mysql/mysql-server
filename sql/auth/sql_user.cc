@@ -1050,7 +1050,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
 
 /**
   Handle all privilege tables and in-memory privilege structures.
-
+    @param  thd                 Thread handle
     @param  tables              The array with the four open tables.
     @param  drop                If user_from is to be dropped.
     @param  user_from           The the user to be searched/dropped/renamed.
