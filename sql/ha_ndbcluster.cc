@@ -17183,9 +17183,12 @@ enum_alter_inplace_result
   partition_info *part_info= altered_table->part_info;
   const NDBTAB *old_tab= m_table;
 
-  if (THDVAR(thd, use_copying_alter_table))
+  if (THDVAR(thd, use_copying_alter_table) &&
+      (thd->lex->alter_info.requested_algorithm ==
+       Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT))
   {
-    // Usage of copying alter has been forced, don't allow inplace
+    // Usage of copying alter has been forced and user has not specified
+    // any ALGORITHM=, don't allow inplace
     DBUG_RETURN(inplace_unsupported(ha_alter_info,
                                     "ndb_use_copying_alter_table is set"));
   }

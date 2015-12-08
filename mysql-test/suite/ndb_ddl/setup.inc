@@ -139,8 +139,14 @@ INSERT INTO t7 VALUES
   (4,REPEAT('4b', 374),4,REPEAT('4d', 65534)),
   (5,REPEAT('5b', 375),5,REPEAT('5d', 65535));
 
---enable_query_log
+# Create a view on top of  ndbinfo.ndb$dict_obj_info (as otherwise
+# the dollar sign is evaluated as a dollar-variable and there seem
+# to be no way to escape it)
+CREATE VIEW test.ndbinfo_dict_obj_info as
+  SELECT id, type, version, state, parent_obj_type, parent_obj_id, fq_name
+    FROM ndbinfo.ndb$dict_obj_info;
 
+--enable_query_log
 
 #
 # List all objects for the created tables and store them
