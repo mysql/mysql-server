@@ -19,7 +19,7 @@ file_exists $MYSQLD_DATADIR/mysql_upgrade_info;
 # It should have created a file in the MySQL Servers datadir
 file_exists $MYSQLD_DATADIR/mysql_upgrade_info;
 
---echo Force should run it regardless of wether it's been run before
+--echo Force should run it regardless of whether it has been run before
 --exec $MYSQL_UPGRADE --force 2>&1
 
 # It should have created a file in the MySQL Servers datadir

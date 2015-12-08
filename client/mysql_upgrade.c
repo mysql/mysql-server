@@ -109,6 +109,7 @@ static struct my_option my_long_options[]=
    &opt_force, &opt_force, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host.", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#define PASSWORD_OPT 12
   {"password", 'p',
    "Password to use when connecting to server. If password is not given,"
    " it's solicited on the tty.", &opt_password,&opt_password,
@@ -146,6 +147,7 @@ static struct my_option my_long_options[]=
    "do not try to upgrade the data.",
    &opt_systables_only, &opt_systables_only, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#define USER_OPT (array_elements(my_long_options) - 6)
   {"user", 'u', "User for login if not current user.", &opt_user,
    &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Display more output about the process.",
@@ -235,26 +237,15 @@ static void verbose(const char *fmt, ...)
 
 static void add_one_option(DYNAMIC_STRING* ds,
                            const struct my_option *opt,
-                           const char* argument)
-
+                                    const char* arg)
 {
-  const char* eq= NullS;
-  const char* arg= NullS;
-  if (opt->arg_type != NO_ARG)
+  dynstr_append(ds, "--");
+  dynstr_append(ds, opt->name);
+  if (arg)
   {
-    eq= "=";
-    switch (opt->var_type & GET_TYPE_MASK) {
-    case GET_STR:
-      arg= argument;
-      break;
-    case GET_BOOL:
-      arg= (*(my_bool *)opt->value) ? "1" : "0";
-      break;
-    default:
-      die("internal error at %s: %d",__FILE__, __LINE__);
-    }
+    dynstr_append(ds, "=");
+    dynstr_append_os_quoted(ds, arg, NullS);
   }
-  dynstr_append_os_quoted(ds, "--", opt->name, eq, arg, NullS);
   dynstr_append(ds, " ");
 }
 
@@ -288,7 +279,6 @@ get_one_option(int optid, const struct my_option *opt,
   case 'p':
     if (argument == disabled_my_option)
       argument= (char*) "";			/* Don't require password */
-    tty_password= 1;
     add_option= FALSE;
     if (argument)
     {
@@ -298,6 +288,8 @@ get_one_option(int optid, const struct my_option *opt,
         *argument++= 'x';                       /* Destroy argument */
       tty_password= 0;
     }
+    else
+      tty_password= 1;
     break;
 
   case 't':
@@ -351,7 +343,7 @@ get_one_option(int optid, const struct my_option *opt,
   if (add_option)
   {
     /*
-      This is an option that is accpted by mysql_upgrade just so
+      This is an option that is accepted by mysql_upgrade just so
       it can be passed on to "mysql" and "mysqlcheck"
       Save it in the ds_args string
     */
@@ -415,11 +407,8 @@ static int run_tool(char *tool_path, DYNAMIC_STRING *ds_res, ...)
 
   while ((arg= va_arg(args, char *)))
   {
-    /* Options should be os quoted */
-    if (strncmp(arg, "--", 2) == 0)
-      dynstr_append_os_quoted(&ds_cmdline, arg, NullS);
-    else
-      dynstr_append(&ds_cmdline, arg);
+    /* Options should already be os quoted */
+    dynstr_append(&ds_cmdline, arg);
     dynstr_append(&ds_cmdline, " ");
   }
 
@@ -1031,12 +1020,12 @@ int main(int argc, char **argv)
   {
     opt_password= get_tty_password(NullS);
     /* add password to defaults file */
-    dynstr_append_os_quoted(&ds_args, "--password=", opt_password, NullS);
-    dynstr_append(&ds_args, " ");
+    add_one_option(&ds_args, &my_long_options[PASSWORD_OPT], opt_password);
+    DBUG_ASSERT(strcmp(my_long_options[PASSWORD_OPT].name, "password") == 0);
   }
   /* add user to defaults file */
-  dynstr_append_os_quoted(&ds_args, "--user=", opt_user, NullS);
-  dynstr_append(&ds_args, " ");
+  add_one_option(&ds_args, &my_long_options[USER_OPT], opt_user);
+  DBUG_ASSERT(strcmp(my_long_options[USER_OPT].name, "user") == 0);
 
   /* Find mysql */
   find_tool(mysql_path, IF_WIN("mysql.exe", "mysql"), self_name);

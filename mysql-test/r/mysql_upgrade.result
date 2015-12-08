@@ -36,7 +36,7 @@ Phase 4/4: Running 'mysql_fix_privilege_tables'
 OK
 Run it again - should say already completed
 This installation of MySQL is already upgraded to VERSION, use --force if you still need to run mysql_upgrade
-Force should run it regardless of wether it's been run before
+Force should run it regardless of whether it has been run before
 Phase 1/4: Fixing views
 Phase 2/4: Fixing table and database names
 Phase 3/4: Checking and upgrading tables
