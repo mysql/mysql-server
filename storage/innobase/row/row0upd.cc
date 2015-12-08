@@ -928,7 +928,7 @@ row_upd_build_difference_binary(
 			dfield = dtuple_get_nth_v_field(entry, i);
 
 			dfield_t*	vfield = innobase_get_computed_value(
-				update->old_vrow, col, index, NULL,
+				update->old_vrow, col, index,
 				&v_heap, heap, NULL, false);
 
 			if (!dfield_data_is_binary_equal(
@@ -1929,7 +1929,7 @@ row_upd_store_v_row(
 					/* Need to compute, this happens when
 					deleting row */
 					innobase_get_computed_value(
-						node->row, col, index, NULL,
+						node->row, col, index,
 						&heap, node->heap, NULL,
 						false);
 				}
