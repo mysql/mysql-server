@@ -87,11 +87,6 @@ public:
     m_target_def.add_option("DEFAULT CHARSET=utf8");
     m_target_def.add_option("COLLATE=utf8_bin");
     m_target_def.add_option("STATS_PERSISTENT=0");
-
-    m_target_def.add_populate_statement(
-      "INSERT INTO tablespaces (id, name, options, se_private_data, "
-                               "comment, engine)"
-        "VALUES (1, 'def', 0, 1, 'Default Tablespace', 'innodb')");
   }
 
   virtual const std::string &name() const

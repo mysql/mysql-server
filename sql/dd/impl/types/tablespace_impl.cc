@@ -128,15 +128,6 @@ bool Tablespace_impl::restore_children(Open_dictionary_tables_ctx *otx)
 
 bool Tablespace_impl::store_children(Open_dictionary_tables_ctx *otx)
 {
-  if (!has_new_primary_key())
-  {
-    /*
-      We delete all existing files and create new ones. We do this as DD
-      framework does not support add/remove single child object for now.
-    */
-    this->drop_children(otx);
-  }
-
   return m_files->store_items(otx);
 }
 
