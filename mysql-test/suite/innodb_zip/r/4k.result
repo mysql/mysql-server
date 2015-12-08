@@ -34,7 +34,7 @@ mysql/innodb_table_stats	9	33	PRIMARY	3	3	2	50
 mysql/plugin	5	33	PRIMARY	3	3	1	50
 mysql/servers	12	33	PRIMARY	3	3	1	50
 mysql/server_cost	7	33	PRIMARY	3	3	1	50
-mysql/slave_master_info	27	33	PRIMARY	3	3	1	50
+mysql/slave_master_info	28	33	PRIMARY	3	3	1	50
 mysql/slave_relay_log_info	12	33	PRIMARY	3	3	1	50
 mysql/slave_worker_info	16	33	PRIMARY	3	3	2	50
 mysql/time_zone	5	33	PRIMARY	3	3	1	50
