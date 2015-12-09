@@ -85,10 +85,6 @@ sql/trigger_loader.h:*
 sql/sql_trigger.cc:*
 sql/sql_trigger.h:*
 
-# Bug#22016152 - DOXYGEN ERRORS IN AUTH CODE 
-# 14-OCT-2015 Marc ALFF
-sql/auth/*
-
 # Bug#22078873 - DOXYGEN ERRORS IN REPLICATION CODE
 # 21-OCT-2015 Marc ALFF
 libbinlogevents/include/control_events.h:*
@@ -122,51 +118,29 @@ sql/opt_trace.h:*
 sql/sql_optimizer.cc:*
 sql/sql_resolver.cc:*
 
-# Bug#22079158 - DOXYGEN ERRORS IN SQL_SHOW CODE 
-# 21-OCT-2015 Marc ALFF
-sql/sql_show.cc:*
-sql/sql_show.h:*
-
-# Bug#22083791 - DOXYGEN ERRORS IN RUNTIME CODE 
-# 22-OCT-2015 Marc ALFF
 sql/field.h:*
-sql/handler.cc:*
-sql/handler.h:*
-sql/inplace_vector.h:*
 sql/item.cc:*
 sql/item_cmpfunc.h:*
 sql/item_func.cc:*
 sql/item_func.h:*
 sql/item_geofunc.h:*
-sql/item_geofunc_internal.h:*
 sql/item.h:*
 sql/item_json_func.h:*
 sql/item_sum.h:*
 sql/item_timefunc.cc:*
 sql/item_timefunc.h:*
 sql/json_dom.h:*
-sql/lock.cc:*
-sql/log.h:*
-sql/nt_servc.h:*
 sql/protocol_callback.h:*
 sql/protocol.h:*
 sql/set_var.h:*
 sql/spatial.cc:*
 sql/spatial.h:*
-sql/sp_rcontext.h:*
 sql/sql_audit.cc:*
 sql/sql_base.cc:*
-sql/sql_cache.h:*
-sql/sql_data_change.h:*
-sql/sql_insert.cc:*
-sql/sql_insert.h:*
 sql/sql_lex.h:*
 sql/sql_parse.cc:*
 sql/sql_parse.h:*
-sql/sql_table.cc:*
 sql/sql_union.h:*
-sql/sql_update.cc:*
-sql/sql_update.h:*
 sql/srv_session.cc:*
 sql/srv_session.h:*
 

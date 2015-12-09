@@ -8590,7 +8590,7 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
 
   1) the list of field items has same order as in the query, and the
      Item_func_get_user_var item may go before the Item_func_set_user_var:
-        SELECT @a, @a := 10 FROM t;
+        SELECT \@a, \@a := 10 FROM t;
   2) The entry->update_query_id value controls constantness of
      Item_func_get_user_var items, so in presence of Item_func_set_user_var
      items we have to refresh their entries before fixing of
