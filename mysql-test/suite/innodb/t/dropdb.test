@@ -1,0 +1,12 @@
+--source include/have_innodb.inc
+
+--echo #
+--echo # Bug #19929435 DROP DATABASE HANGS WITH MALFORMED TABLE
+--echo #
+
+set session default_storage_engine=innodb;
+create database `b`;
+use `b`;
+--error ER_WRONG_TABLE_NAME
+create table `#mysql50#q.q` select 1;
+drop database `b`;

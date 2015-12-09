@@ -298,6 +298,13 @@ test
 Phase 4/4: Running 'mysql_fix_privilege_tables'
 OK
 #
+# Bug #21489398: MYSQL_UPGRADE: FATAL ERROR: UPGRADE FAILED - IMPROVE ERROR
+#
+Run mysql_upgrade with unauthorized access
+Version check failed. Got the following error when calling the 'mysql' command line client
+ERROR 1045 (28000): Access denied for user 'root'@'localhost' (using password: YES)
+FATAL ERROR: Upgrade failed
+#
 # MDEV-4332 Increase username length from 16 characters
 # MDEV-6068, MDEV-6178 mysql_upgrade breaks databases with long user names
 #

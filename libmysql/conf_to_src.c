@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -118,7 +118,7 @@ print_arrays_for(char *set)
 {
   FILE *f;
 
-  sprintf(buf, "%s.conf", set);
+  snprintf(buf, sizeof(buf), "%s.conf", set);
 
   if ((f = fopen(buf, "r")) == NULL) {
     fprintf(stderr, "%s: can't read conf file for charset %s\n", prog, set);

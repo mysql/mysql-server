@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates.
    Copyright (c) 2008, 2015, MariaDB
 
    This program is free software; you can redistribute it and/or modify
@@ -2444,21 +2444,6 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     else
       outparam->record[1]= outparam->record[0];   // Safety
   }
-
-#ifdef HAVE_valgrind
-  /*
-    We need this because when we read var-length rows, we are not updating
-    bytes after end of varchar
-  */
-  if (records > 1)
-  {
-    memcpy(outparam->record[0], share->default_values, share->rec_buff_length);
-    memcpy(outparam->record[1], share->default_values, share->null_bytes);
-    if (records > 2)
-      memcpy(outparam->record[1], share->default_values,
-             share->rec_buff_length);
-  }
-#endif
 
   if (!(field_ptr = (Field **) alloc_root(&outparam->mem_root,
                                           (uint) ((share->fields+1)*

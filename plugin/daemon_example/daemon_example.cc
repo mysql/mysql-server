@@ -1,4 +1,5 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,7 +47,6 @@ pthread_handler_t mysql_heartbeat(void *p)
   DBUG_ENTER("mysql_heartbeat");
   struct mysql_heartbeat_context *con= (struct mysql_heartbeat_context *)p;
   char buffer[HEART_STRING_BUFFER];
-  unsigned int x= 0;
   time_t result;
   struct tm tm_tmp;
 
@@ -65,7 +65,6 @@ pthread_handler_t mysql_heartbeat(void *p)
                 tm_tmp.tm_min,
                 tm_tmp.tm_sec);
     my_write(con->heartbeat_file, (uchar*) buffer, strlen(buffer), MYF(0));
-    x++;
   }
 
   DBUG_RETURN(0);
@@ -174,6 +173,13 @@ static int daemon_example_plugin_deinit(void *p __attribute__ ((unused)))
               tm_tmp.tm_min,
               tm_tmp.tm_sec);
   my_write(con->heartbeat_file, (uchar*) buffer, strlen(buffer), MYF(0));
+
+  /*
+    Need to wait for the hearbeat thread to terminate before closing
+    the file it writes to and freeing the memory it uses.
+  */
+  pthread_join(con->heartbeat_thread, NULL);
+
   my_close(con->heartbeat_file, MYF(0));
 
   my_free(con);
