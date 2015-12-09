@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -287,8 +287,13 @@ btr_cur_latch_leaves(
 #ifdef UNIV_BTR_DEBUG
 			ut_a(page_is_comp(get_block->frame)
 			     == page_is_comp(page));
-			ut_a(btr_page_get_next(get_block->frame, mtr)
-			     == page_get_page_no(page));
+
+			/* For fake_change mode we avoid a detailed validation
+			as it operate in tweaked format where-in validation
+			may fail. */
+			ut_a(sibling_mode == RW_NO_LATCH
+			     || btr_page_get_next(get_block->frame, mtr)
+				== page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 			if (sibling_mode == RW_NO_LATCH) {
 				/* btr_block_get() called with RW_NO_LATCH will
@@ -2139,6 +2144,7 @@ btr_cur_optimistic_update(
 	ulint		max_size;
 	ulint		new_rec_size;
 	ulint		old_rec_size;
+	ulint		max_ins_size = 0;
 	dtuple_t*	new_entry;
 	roll_ptr_t	roll_ptr;
 	trx_t*		trx;
@@ -2250,6 +2256,11 @@ any_extern:
 		: (old_rec_size
 		   + page_get_max_insert_size_after_reorganize(page, 1));
 
+	if (!page_zip) {
+		max_ins_size = page_get_max_insert_size_after_reorganize(
+					page, 1);
+	}
+
 	if (!(((max_size >= BTR_CUR_PAGE_REORGANIZE_LIMIT)
 	       && (max_size >= new_rec_size))
 	      || (page_get_n_recs(page) <= 1))) {
@@ -2306,10 +2317,14 @@ any_extern:
 	rec = btr_cur_insert_if_possible(cursor, new_entry, 0/*n_ext*/, mtr);
 	ut_a(rec); /* <- We calculated above the insert would fit */
 
-	if (page_zip && !dict_index_is_clust(index)
+	if (!dict_index_is_clust(index)
 	    && page_is_leaf(page)) {
 		/* Update the free bits in the insert buffer. */
-		ibuf_update_free_bits_zip(block, mtr);
+		if (page_zip) {
+			ibuf_update_free_bits_zip(block, mtr);
+		} else {
+			ibuf_update_free_bits_low(block, max_ins_size, mtr);
+		}
 	}
 
 	/* Restore the old explicit lock state on the record */
@@ -2418,6 +2433,7 @@ btr_cur_pessimistic_update(
 	ulint		n_reserved;
 	ulint		n_ext;
 	ulint*		offsets		= NULL;
+	ulint		max_ins_size	= 0;
 
 	*big_rec = NULL;
 
@@ -2570,6 +2586,11 @@ make_external:
 		/* skip CHANGE, LOG */
 		err = DB_SUCCESS;
 		goto return_after_reservations;
+  }
+
+  if (!page_zip) {
+		max_ins_size = page_get_max_insert_size_after_reorganize(
+					page, 1);
 	}
 
 	/* Store state of explicit locks on rec on the page infimum record,
@@ -2617,10 +2638,15 @@ make_external:
 			big_rec_vec != NULL && (flags & BTR_KEEP_POS_FLAG),
 			mtr);
 
-		if (page_zip && !dict_index_is_clust(index)
+		if (!dict_index_is_clust(index)
 		    && page_is_leaf(page)) {
 			/* Update the free bits in the insert buffer. */
-			ibuf_update_free_bits_zip(block, mtr);
+			if (page_zip) {
+				ibuf_update_free_bits_zip(block, mtr);
+			} else {
+				ibuf_update_free_bits_low(block, max_ins_size,
+							  mtr);
+			}
 		}
 
 		err = DB_SUCCESS;
@@ -3882,7 +3908,14 @@ btr_estimate_number_of_different_key_vals(
 
 		page = btr_cur_get_page(&cursor);
 
-		SRV_CORRUPT_TABLE_CHECK(page, goto exit_loop;);
+		DBUG_EXECUTE_IF("ib_corrupt_page_while_stats_calc",
+				page = NULL;);
+
+		SRV_CORRUPT_TABLE_CHECK(page,
+		{
+			mtr_commit(&mtr);
+			goto exit_loop;
+		});
 
 		rec = page_rec_get_next(page_get_infimum_rec(page));
 

@@ -1028,6 +1028,19 @@ thd_supports_xa(
 }
 
 /******************************************************************//**
+Check the status of fake changes mode (innodb_fake_changes)
+@return	true	if fake change mode is enabled. */
+extern "C" UNIV_INTERN
+ibool
+thd_fake_changes(
+/*=============*/
+	void*	thd)	/*!< in: thread handle, or NULL to query
+			the global innodb_supports_xa */
+{
+	return(THDVAR((THD*) thd, fake_changes));
+}
+
+/******************************************************************//**
 Returns the lock wait timeout for the current connection.
 @return	the lock wait timeout, in seconds */
 extern "C" UNIV_INTERN
@@ -1795,7 +1808,15 @@ innobase_trx_init(
 	trx->check_unique_secondary = !thd_test_options(
 		thd, OPTION_RELAXED_UNIQUE_CHECKS);
 
-	trx->fake_changes = THDVAR(thd, fake_changes);
+	/* Transaction on start caches the fake_changes state and uses it for
+	complete transaction lifetime.
+	There are some APIs that doesn't need an active transaction object
+	but transaction object are just use as a cache object/data carrier.
+	Before using transaction object for such APIs refresh the state of
+	fake_changes. */
+	if (trx->state == TRX_NOT_STARTED) {
+		trx->fake_changes = thd_fake_changes(thd);
+	}
 
 #ifdef EXTENDED_SLOWLOG
 	if (thd_log_slow_verbosity(thd) & (1ULL << SLOG_V_INNODB)) {
@@ -3644,12 +3665,26 @@ innobase_commit(
 	/* No-op in XtraDB */
 	trx_search_latch_release_if_reserved(trx);
 
+	/* If fake-changes mode = ON then allow
+	SELECT (they are read-only) and
+	CREATE ... SELECT * from table (Well this doesn't open up DDL for InnoDB
+	as ha_innobase::create will return appropriate error if fake-change = ON
+	but if create is trying to use other SE and SELECT is executing on
+	InnoDB table then we allow SELECT to proceed.
+	Ideally, statement like this should be marked CREATE_SELECT like
+	INSERT_SELECT but unfortunately it doesn't). */
 	if (UNIV_UNLIKELY(trx->fake_changes
+			  && (thd_sql_command(thd) != SQLCOM_SELECT
+			      && thd_sql_command(thd) != SQLCOM_CREATE_TABLE)
 			  && (all || (!thd_test_options(thd,
 				OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))))) {
 
-		innobase_rollback(hton, thd, all); /* rollback implicitly */
-		thd->stmt_da->reset_diagnostics_area(); /* because debug assertion code complains, if something left */
+		/* rollback implicitly */
+		innobase_rollback(hton, thd, all);
+
+		/* because debug assertion code complains, if something left */
+		thd->stmt_da->reset_diagnostics_area();
+
 		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 	}
 	/* Transaction is deregistered only in a commit or a rollback. If
@@ -12476,6 +12511,46 @@ innodb_change_buffering_update(
 		 *static_cast<const char*const*>(save);
 }
 
+#ifdef UNIV_DEBUG
+/*************************************************************//**
+Check if it is a valid value of innodb_track_changed_pages.
+Changed pages tracking is not working correctly without initialization
+procedure on server startup. The function allows to temporary
+disable tracking, but only if the feature was enabled on startup.
+This function is registered as a callback with MySQL.
+@return	0 for valid innodb_track_changed_pages */
+static
+int
+innodb_track_changed_pages_validate(
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
+						variable */
+	void*				save,	/*!< out: immediate result
+						for update function */
+	struct st_mysql_value*		value)	/*!< in: incoming bool */
+{
+	static bool     enabled_on_startup = false;
+	long long	intbuf = 0;
+
+	if (value->val_int(value, &intbuf)) {
+		/* The value is NULL. That is invalid. */
+		return 1;
+	}
+
+	if (srv_track_changed_pages || enabled_on_startup) {
+		enabled_on_startup = true;
+		*reinterpret_cast<ulong*>(save)
+			= static_cast<ulong>(intbuf);
+		return 0;
+	}
+
+	if (intbuf == srv_track_changed_pages)
+		return 0;
+
+	return 1;
+}
+#endif
+
 #ifndef DBUG_OFF
 static char* srv_buffer_pool_evict;
 
@@ -13168,7 +13243,12 @@ static MYSQL_SYSVAR_BOOL(track_changed_pages, srv_track_changed_pages,
 #endif
   ,
   "Track the redo log for changed pages and output a changed page bitmap",
-  NULL, NULL, FALSE);
+#ifdef UNIV_DEBUG
+  innodb_track_changed_pages_validate,
+#else
+  NULL,
+#endif
+  NULL, FALSE);
 
 static MYSQL_SYSVAR_ULONGLONG(max_bitmap_file_size, srv_max_bitmap_file_size,
     PLUGIN_VAR_RQCMDARG,
