@@ -360,8 +360,14 @@ bool Group_check::is_fd_on_source(Item *item)
       Item *const item2= fd.at(j)->real_item(); // Go down view field
       if (item2->type() != Item::FIELD_ITEM)
         continue;
-      const TABLE_LIST *const tl=
-        static_cast<Item_field *>(item2)->table_ref;
+
+      Item_field *const item_field= down_cast<Item_field*>(item2); 
+      /**
+        @todo make table_ref non-NULL for gcols, then use it for 'tl'.
+        Do the same in Item_field::used_tables_for_level().
+      */
+      TABLE_LIST *const tl= item_field->field->table->pos_in_table_list; 
+
       if (tested_map_for_keys & tl->map())
         continue;
       tested_map_for_keys|= tl->map();
