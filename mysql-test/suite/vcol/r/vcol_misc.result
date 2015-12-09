@@ -322,3 +322,11 @@ drop table t1;
 create table t1 (a int, b int as (b is null) virtual);
 ERROR HY000: A computed column cannot be based on a computed column
 # end of 5.3 tests
+create table t1 (v1 varchar(255) as (c1) persistent, c1 varchar(50)) collate=latin1_general_ci;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v1` varchar(255) AS (c1) PERSISTENT,
+  `c1` varchar(50) COLLATE latin1_general_ci DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci
+drop table t1;

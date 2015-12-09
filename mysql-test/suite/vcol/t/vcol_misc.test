@@ -283,3 +283,10 @@ drop table t1;
 create table t1 (a int, b int as (b is null) virtual);
 
 --echo # end of 5.3 tests
+
+#
+# MDEV-7655 SHOW CREATE TABLE returns invalid DDL when using virtual columns along with a table collation
+#
+create table t1 (v1 varchar(255) as (c1) persistent, c1 varchar(50)) collate=latin1_general_ci;
+show create table t1;
+drop table t1;
