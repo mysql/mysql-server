@@ -1430,7 +1430,7 @@ END_OF_INPUT
 
 %type <table_expression> table_expression
 
-%type <table_reference> table_factor table_reference esc_table_ref
+%type <table_reference> table_factor table_reference esc_table_reference
           table_reference_list single_table table_reference_list_parens
           named_table_parens
 
@@ -9266,8 +9266,8 @@ from_tables:
         ;
 
 table_reference_list:
-          esc_table_ref
-        | table_reference_list ',' esc_table_ref
+          table_reference
+        | table_reference_list ',' table_reference
           {
             $$= NEW_PTN PT_derived_table_list(@$, $1, $3);
           }
@@ -10491,6 +10491,7 @@ table_reference:
           {
             $$= NEW_PTN PT_table_ref_join_table($1);
           }
+        | '{' ident esc_table_reference '}' { $$= $3; }
         ;
 
 /*
@@ -10500,11 +10501,13 @@ table_reference:
   be escaped, not only joined_table. Both syntax extensions are safe
   and are ignored.
 */
-esc_table_ref:
-        table_reference
-      | '{' ident table_reference '}' { $$= $3; }
-      ;
-
+esc_table_reference:
+          table_factor
+        | joined_table
+          {
+            $$= NEW_PTN PT_table_ref_join_table($1);
+          }
+        ;
 /*
   Join operations are normally left-associative, as in
 
@@ -10701,7 +10704,7 @@ table_factor:
 
 table_reference_list_parens:
           '(' table_reference_list_parens ')' { $$= $2; }
-        | '(' table_reference_list ',' esc_table_ref ')'
+        | '(' table_reference_list ',' table_reference ')'
           {
             $$= NEW_PTN PT_derived_table_list(@$, $2, $4);
           }
