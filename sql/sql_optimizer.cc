@@ -10175,7 +10175,7 @@ bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
 	  (thd->first_successful_insert_id_in_prev_stmt > 0 &&
            thd->substitute_null_with_insert_id))
       {
-	query_cache.abort(thd, &thd->query_cache_tls);
+	query_cache.abort(thd);
 
         cond= new Item_func_eq(
                 args[0],

@@ -435,6 +435,7 @@ THD::THD(bool enable_plugins)
 #ifdef EMBEDDED_LIBRARY
    mysql(NULL),
 #endif
+   first_query_cache_block(NULL),
    initial_status_var(NULL),
    status_var_aggregated(false),
    query_plan(this),
@@ -836,7 +837,7 @@ Sql_condition* THD::raise_condition(uint sql_errno,
   if (level == Sql_condition::SL_NOTE || level == Sql_condition::SL_WARNING)
     got_warning= true;
 
-  query_cache.abort(this, &query_cache_tls);
+  query_cache.abort(this);
 
   Diagnostics_area *da= get_stmt_da();
   if (level == Sql_condition::SL_ERROR)
@@ -1768,28 +1769,6 @@ void THD::update_charset()
                               variables.character_set_client,
                               variables.character_set_filesystem,
                               &not_used);
-}
-
-
-/* add table to list of changed in transaction tables */
-
-void THD::add_changed_table(TABLE *table)
-{
-  DBUG_ENTER("THD::add_changed_table(table)");
-
-  DBUG_ASSERT(in_multi_stmt_transaction_mode() && table->file->has_transactions());
-  add_changed_table(table->s->table_cache_key.str,
-                    (long) table->s->table_cache_key.length);
-  DBUG_VOID_RETURN;
-}
-
-
-void THD::add_changed_table(const char *key, long key_length)
-{
-  DBUG_ENTER("THD::add_changed_table(key)");
-  if (get_transaction()->add_changed_table(key, key_length))
-    killed= KILL_CONNECTION;
-  DBUG_VOID_RETURN;
 }
 
 

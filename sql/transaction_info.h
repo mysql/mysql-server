@@ -28,14 +28,7 @@ class THD;
 class Ha_trx_info;
 struct handlerton;
 typedef struct st_savepoint SAVEPOINT;
-
-
-typedef struct st_changed_table_list
-{
-  struct	st_changed_table_list *next;
-  char		*key;
-  uint32        key_length;
-} CHANGED_TABLE_LIST;
+typedef struct st_changed_table_list CHANGED_TABLE_LIST;
 
 
 struct st_savepoint
@@ -318,7 +311,7 @@ public:
 
   void invalidate_changed_tables_in_cache(THD *thd);
 
-  bool add_changed_table(const char *key, long key_length);
+  void add_changed_table(const char *key, uint32 key_length);
 
   Ha_trx_info* ha_trx_info(enum_trx_scope scope)
   {
@@ -437,25 +430,6 @@ public:
     m_scope_info[scope].m_rw_ha_count= 0;
   }
 
-private:
-  CHANGED_TABLE_LIST* changed_table_dup(const char *key, long key_length);
-
-  /* routings to adding tables to list of changed in transaction tables */
-  bool list_include(CHANGED_TABLE_LIST** prev,
-                    CHANGED_TABLE_LIST* curr,
-                    CHANGED_TABLE_LIST* new_table)
-  {
-    if (new_table)
-    {
-      *prev= new_table;
-      (*prev)->next= curr;
-      return false;
-    }
-    else
-      return true;
-  }
-
-public:
   Rpl_transaction_ctx *get_rpl_transaction_ctx()
   {
     return &m_rpl_transaction_ctx;

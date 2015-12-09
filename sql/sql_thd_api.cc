@@ -724,7 +724,7 @@ void mysql_query_cache_invalidate4(THD *thd,
                                      sizeof(qcache_key_name) - dbname_len - 1);
 
   query_cache.invalidate(thd, qcache_key_name, (dbname_len + tabname_len + 2),
-                         (my_bool) using_trx);
+                         using_trx);
 }
 
 

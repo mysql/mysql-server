@@ -602,7 +602,7 @@ net_write_packet(NET *net, const uchar *packet, size_t length)
   DBUG_ENTER("net_write_packet");
 
 #if defined(MYSQL_SERVER)
-  query_cache_insert((char*) packet, length, net->pkt_nr);
+  query_cache_insert(packet, length, net->pkt_nr);
 #endif
 
   /* Socket can't be used */

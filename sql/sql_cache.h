@@ -20,24 +20,18 @@
 
 #include "my_global.h"
 #include "hash.h"         // HASH
-#include "my_base.h"      // ha_rows
 
-class MY_LOCALE;
 class THD;
-class Time_zone;
 struct Query_cache_block_table;
 struct Query_cache_memory_bin;
 struct Query_cache_memory_bin_step;
 struct Query_cache_query;
 struct Query_cache_result;
 struct Query_cache_table;
-struct Query_cache_tls;
 struct TABLE;
 struct TABLE_LIST;
 struct LEX;
-typedef ulonglong sql_mode_t;
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
-typedef struct st_changed_table_list CHANGED_TABLE_LIST;
 
 
 /* minimal result data size when data allocated */
@@ -45,15 +39,14 @@ static const ulong QUERY_CACHE_MIN_RESULT_DATA_SIZE= 1024*4;
 
 typedef size_t TABLE_COUNTER_TYPE;
 
-typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
+typedef my_bool (*qc_engine_callback)(THD *thd, const char *table_key,
                                       uint key_length,
                                       ulonglong *engine_data);
 
 /**
   libmysql convenience wrapper to insert data into query cache.
 */
-void query_cache_insert(const char *packet, ulong length,
-                        unsigned pkt_nr);
+void query_cache_insert(const uchar *packet, size_t length, uint pkt_nr);
 
 
 extern "C" void query_cache_invalidate_by_MyISAM_filename(const char* filename);
@@ -77,9 +70,15 @@ struct Query_cache_block
   block_type type;
   TABLE_COUNTER_TYPE n_tables;			// number of tables in query
 
-  bool is_free() { return type == FREE; }
-  void init(ulong length);
-  void destroy();
+  bool is_free() const { return type == FREE; }
+  void init(ulong block_length)
+  {
+    length= block_length;
+    used= 0;
+    type= Query_cache_block::FREE;
+    n_tables= 0;
+  }
+  void destroy() { type= INCOMPLETE; }
   inline uint headers_len() const;
   inline uchar* data();
   inline Query_cache_query *query();
@@ -161,7 +160,7 @@ private:
   bool free_old_query();
   void free_query(Query_cache_block *point);
   bool allocate_data_chain(Query_cache_block **result_block,
-                           ulong data_len,
+                           size_t data_len,
                            Query_cache_block *query_block,
                            bool first_block);
   void invalidate_table(THD *thd, TABLE_LIST *table);
@@ -176,14 +175,12 @@ private:
                               Query_cache_block_table *block_table);
   bool register_all_tables(Query_cache_block *block,
                            TABLE_LIST *tables_used);
-  bool insert_table(size_t key_len, const char *key,
-                    Query_cache_block_table *node,
-                    size_t db_length, uint8 cache_type,
-                    qc_engine_callback callback,
+  bool insert_table(size_t key_len, const uchar *key,
+                    Query_cache_block_table *node, size_t db_length,
+                    uint8 cache_type, qc_engine_callback callback,
                     ulonglong engine_data);
   void unlink_table(Query_cache_block_table *node);
-  Query_cache_block *get_free_block (size_t len, bool not_less,
-                                     size_t min);
+  Query_cache_block *get_free_block (size_t len, bool not_less, size_t min);
   void free_memory_block(Query_cache_block *point);
   void split_block(Query_cache_block *block, ulong len);
   Query_cache_block *join_free_blocks(Query_cache_block *first_block,
@@ -199,12 +196,6 @@ private:
   void insert_into_free_memory_sorted_list(Query_cache_block *new_block,
 					   Query_cache_block **list);
   void pack_cache();
-  void relink(Query_cache_block *oblock,
-	      Query_cache_block *nblock,
-	      Query_cache_block *next,
-	      Query_cache_block *prev,
-	      Query_cache_block *pnext,
-	      Query_cache_block *pprev);
   bool join_results(ulong join_limit);
 
   /*
@@ -219,16 +210,15 @@ private:
                                       Query_cache_block::block_type type,
                                       TABLE_COUNTER_TYPE ntab);
   bool append_result_data(THD *thd, Query_cache_block **result,
-                          ulong data_len, const uchar* data,
+                          size_t data_len, const uchar* data,
                           Query_cache_block *parent);
   bool write_result_data(THD *thd, Query_cache_block **result,
-                         ulong data_len, const uchar* data,
+                         size_t data_len, const uchar* data,
                          Query_cache_block *parent,
                          Query_cache_block::block_type type);
   inline ulong get_min_first_result_data_size() const;
   ulong get_min_append_result_data_size() const { return min_result_data_size; }
-  Query_cache_block *allocate_block(size_t len, bool not_less,
-                                    size_t min);
+  Query_cache_block *allocate_block(size_t len, bool not_less, size_t min);
   /*
     If query is cacheable return number tables in query
     (query without tables not cached)
@@ -239,7 +229,10 @@ private:
                                               TABLE_LIST *tables_used,
                                               uint8 *tables_type) const;
 
-  static bool ask_handler_allowance(THD *thd, TABLE_LIST *tables_used);
+  bool try_lock(THD *thd, bool use_timeout);
+  void lock(THD *thd);
+  void lock_and_suspend(THD *thd);
+  void unlock(THD *thd);
 
 public:
   Query_cache();
@@ -272,13 +265,11 @@ public:
   void invalidate(THD* thd, TABLE_LIST *tables_used,
 		  bool using_transactions);
 
-  void invalidate(THD *thd, CHANGED_TABLE_LIST *tables_used);
-
   void invalidate_locked_for_write(THD *thd, TABLE_LIST *tables_used);
 
   void invalidate(THD* thd, TABLE *table, bool using_transactions);
 
-  void invalidate(THD *thd, const char *key, uint32  key_length,
+  void invalidate(THD *thd, const char *key, uint32 key_length,
 		  bool using_transactions);
 
   /** Remove all queries that uses any of the tables in following database */
@@ -293,45 +284,13 @@ public:
 
   void destroy(THD *thd);
 
-  void insert(THD *thd, Query_cache_tls *query_cache_tls,
-              const char *packet,
-              ulong length,
-              unsigned pkt_nr);
+  void insert(THD *thd, const uchar *packet, size_t length, uint pkt_nr);
 
   void end_of_result(THD *thd);
 
-  void abort(THD *thd, Query_cache_tls *query_cache_tls);
-
-private:
-  bool try_lock(THD *thd, bool use_timeout);
-  void lock(THD *thd);
-  void lock_and_suspend(THD *thd);
-  void unlock(THD *thd);
+  void abort(THD *thd);
 };
 
-
-struct Query_cache_query_flags
-{
-  unsigned int client_long_flag:1;
-  unsigned int client_protocol_41:1;
-  unsigned int protocol_type:2;
-  unsigned int more_results_exists:1;
-  unsigned int in_trans:1;
-  unsigned int autocommit:1;
-  unsigned int pkt_nr;
-  uint character_set_client_num;
-  uint character_set_results_num;
-  uint collation_connection_num;
-  ha_rows limit;
-  Time_zone *time_zone;
-  sql_mode_t sql_mode;
-  ulong max_sort_length;
-  ulong group_concat_max_len;
-  ulong default_week_format;
-  ulong div_precision_increment;
-  MY_LOCALE *lc_time_names;
-};
-#define QUERY_CACHE_FLAGS_SIZE sizeof(Query_cache_query_flags)
 
 extern Query_cache query_cache;
 #endif

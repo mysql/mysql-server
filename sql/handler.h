@@ -57,7 +57,7 @@ typedef struct st_key_create_information KEY_CREATE_INFO;
 typedef struct st_savepoint SAVEPOINT;
 typedef struct xid_t XID;
 namespace dd { class Table; }
-typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
+typedef my_bool (*qc_engine_callback)(THD *thd, const char *table_key,
                                       uint key_length,
                                       ulonglong *engine_data);
 typedef bool (stat_print_fn)(THD *thd, const char *type, size_t type_len,

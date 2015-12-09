@@ -122,25 +122,6 @@ typedef struct rpl_event_coordinates
 } LOG_POS_COORD;
 
 
-/**
-  Query_cache_tls -- query cache thread local data.
-*/
-
-struct Query_cache_tls
-{
-  /*
-    'first_query_block' should be accessed only via query cache
-    functions and methods to maintain proper locking.
-  */
-  Query_cache_block *first_query_block;
-  void set_first_query_block(Query_cache_block *first_query_block_arg)
-  {
-    first_query_block= first_query_block_arg;
-  }
-
-  Query_cache_tls() :first_query_block(NULL) {}
-};
-
 #define THD_SENTRY_MAGIC 0xfeedd1ff
 #define THD_SENTRY_GONE  0xdeadbeef
 
@@ -864,7 +845,11 @@ public:
   */
   struct st_mysql_stmt *current_stmt;
 #endif
-  Query_cache_tls query_cache_tls;
+  /*
+    'first_query_cache_block' should be accessed only via query cache
+    functions and methods to maintain proper locking.
+  */
+  Query_cache_block *first_query_cache_block;
   /** Aditional network instrumentation for the server only. */
   NET_SERVER m_net_server_extension;
   /**
@@ -2563,8 +2548,6 @@ public:
   bool convert_string(String *s, const CHARSET_INFO *from_cs,
                       const CHARSET_INFO *to_cs);
 
-  void add_changed_table(TABLE *table);
-  void add_changed_table(const char *key, long key_length);
   int send_explain_fields(Query_result *result);
 
   /**

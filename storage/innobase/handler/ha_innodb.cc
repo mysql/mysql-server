@@ -2938,7 +2938,7 @@ innobase_query_caching_of_table_permitted(
 	THD*	thd,		/*!< in: thd of the user who is trying to
 				store a result to the query cache or
 				retrieve it */
-	char*	full_name,	/*!< in: normalized path to the table */
+	const char*	full_name,	/*!< in: normalized path to the table */
 	uint	full_name_len,	/*!< in: length of the normalized path
 				to the table */
 	ulonglong *unused)	/*!< unused for this engine */
