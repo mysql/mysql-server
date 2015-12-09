@@ -4114,17 +4114,6 @@ add_key_field(JOIN *join,
               Field *field, bool eq_func, Item **value, uint num_values,
               table_map usable_tables, SARGABLE_PARAM **sargables)
 {
-  if (field->table->reginfo.join_tab == NULL)
-  {
-    /*
-       Due to a bug in IN-to-EXISTS (grep for real_item() in item_subselect.cc
-       for more info), an index over a field from an outer query might be
-       considered here, which is incorrect. Their query has been fully
-       optimized already so their reginfo.join_tab is NULL and we reject them.
-    */
-    return;
-  }
-
   uint optimize= 0;  
   if (eq_func &&
       ((join->is_allowed_hash_join_access() &&
