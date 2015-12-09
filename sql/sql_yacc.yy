@@ -1410,7 +1410,7 @@ END_OF_INPUT
 %type <node> order_or_limit
           option_value union_opt
 
-%type <join_table> joined_table joined_table_parens natural_join
+%type <join_table> joined_table joined_table_parens
 
 %type <table_reference_list> opt_from_clause from_clause from_tables
 
@@ -10619,11 +10619,7 @@ joined_table:
             else
               $$= NEW_PTN PT_cross_join($1, @2, $2, $3);
           }
-        | natural_join
-        ;
-
-natural_join:
-          table_reference natural_join_type table_factor
+        | table_reference natural_join_type table_factor
           {
             $$= NEW_PTN PT_join_table_using($1, @2, $2, $3);
           }
