@@ -1528,7 +1528,7 @@ END_OF_INPUT
 
 %type <optimizer_hints> SELECT_SYM INSERT REPLACE UPDATE_SYM DELETE_SYM
 
-%type <join_type> outer_join natural_join_type context_dependent_join
+%type <join_type> outer_join_type natural_join_type inner_join_type
 
 %%
 
@@ -10587,24 +10587,24 @@ esc_table_reference:
   there is no join condition to wait for, so we can reduce immediately.
 */
 joined_table:
-          table_reference context_dependent_join table_reference ON expr
+          table_reference inner_join_type table_reference ON expr
           {
             $$= NEW_PTN PT_join_table_on($1, @2, $2, $3, $5);
           }
-        | table_reference context_dependent_join table_reference USING
+        | table_reference inner_join_type table_reference USING
           '(' using_list ')'
           {
             $$= NEW_PTN PT_join_table_using($1, @2, $2, $3, $6);
           }
-        | table_reference outer_join table_reference ON expr
+        | table_reference outer_join_type table_reference ON expr
           {
             $$= NEW_PTN PT_join_table_on($1, @2, $2, $3, $5);
           }
-        | table_reference outer_join table_reference USING '(' using_list ')'
+        | table_reference outer_join_type table_reference USING '(' using_list ')'
           {
             $$= NEW_PTN PT_join_table_using($1, @2, $2, $3, $6);
           }
-        | table_reference context_dependent_join table_reference
+        | table_reference inner_join_type table_reference
           %prec CONDITIONLESS_JOIN
           {
             PT_join_table *rhs_join= $3->get_join_table();
@@ -10635,13 +10635,13 @@ natural_join_type:
         | NATURAL LEFT opt_outer JOIN_SYM  { $$= JTT_NATURAL_LEFT; }
         ;
 
-context_dependent_join:
+inner_join_type:
           JOIN_SYM                         { $$= JTT_NORMAL; }
         | INNER_SYM JOIN_SYM               { $$= JTT_NORMAL; }
         | CROSS JOIN_SYM                   { $$= JTT_NORMAL; }
         | STRAIGHT_JOIN                    { $$= JTT_STRAIGHT; }
 
-outer_join:
+outer_join_type:
           LEFT opt_outer JOIN_SYM          { $$= JTT_LEFT; }
         | RIGHT opt_outer JOIN_SYM         { $$= JTT_RIGHT; }
         ;
