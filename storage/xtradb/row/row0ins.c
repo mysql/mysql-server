@@ -247,8 +247,9 @@ row_ins_sec_index_entry_by_modify(
 	rec = btr_cur_get_rec(cursor);
 
 	ut_ad(!dict_index_is_clust(cursor->index));
-	ut_ad(rec_get_deleted_flag(rec,
-				   dict_table_is_comp(cursor->index->table)));
+	ut_ad(UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)
+	      || rec_get_deleted_flag(rec,
+			dict_table_is_comp(cursor->index->table)));
 
 	/* We know that in the alphabetical ordering, entry and rec are
 	identified. But in their binary form there may be differences if

@@ -276,6 +276,16 @@ thd_supports_xa(
 			the global innodb_supports_xa */
 
 /******************************************************************//**
+Check the status of fake changes mode (innodb_fake_changes)
+@return	true	if fake change mode is enabled. */
+
+ibool
+thd_fake_changes(
+/*=============*/
+	void*	thd);	/*!< in: thread handle, or NULL to query
+			the global innodb_supports_xa */
+
+/******************************************************************//**
 Returns the lock wait timeout for the current connection.
 @return	the lock wait timeout, in seconds */
 

@@ -1319,9 +1319,10 @@ os_file_create_simple_no_error_handling_func(
 				OS_FILE_CREATE if a new file is created
 				(if exists, error) */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY,
-				OS_FILE_READ_WRITE, or
-				OS_FILE_READ_ALLOW_DELETE; the last option is
-				used by a backup program reading the file */
+				OS_FILE_READ_WRITE, OS_FILE_READ_ALLOW_DELETE
+				(used by a backup program reading the file), or
+				OS_FILE_READ_WRITE_CACHED (disable O_DIRECT if
+				it would be enabled otherwise). */
 	ibool*		success)/*!< out: TRUE if succeed, FALSE if error */
 {
 #ifdef __WIN__
@@ -1344,7 +1345,8 @@ os_file_create_simple_no_error_handling_func(
 
 	if (access_type == OS_FILE_READ_ONLY) {
 		access = GENERIC_READ;
-	} else if (access_type == OS_FILE_READ_WRITE) {
+	} else if (access_type == OS_FILE_READ_WRITE
+		   || access_type == OS_FILE_READ_WRITE_CACHED) {
 		access = GENERIC_READ | GENERIC_WRITE;
 	} else if (access_type == OS_FILE_READ_ALLOW_DELETE) {
 		access = GENERIC_READ;
@@ -1405,7 +1407,8 @@ os_file_create_simple_no_error_handling_func(
 	if (file == -1) {
 		*success = FALSE;
 #ifdef USE_FILE_LOCK
-	} else if (access_type == OS_FILE_READ_WRITE
+	} else if ((access_type == OS_FILE_READ_WRITE
+		    || access_type == OS_FILE_READ_WRITE_CACHED)
 		   && os_file_lock(file, name)) {
 		*success = FALSE;
 		close(file);
@@ -1418,7 +1421,9 @@ os_file_create_simple_no_error_handling_func(
 		disable OS caching (O_DIRECT) here as we do in
 		os_file_create_func(), so we open the same file in the same
 		mode, see man page of open(2). */
-		if (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) {
+		if ((srv_unix_file_flush_method == SRV_UNIX_O_DIRECT
+		    || srv_unix_file_flush_method == SRV_UNIX_ALL_O_DIRECT)
+		    && access_type != OS_FILE_READ_WRITE_CACHED) {
 			os_file_set_nocache(file, name, mode_str);
 		}
 	}

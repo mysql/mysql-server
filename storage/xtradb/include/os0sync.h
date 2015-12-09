@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -36,6 +36,21 @@ Created 9/6/1995 Heikki Tuuri
 
 #include "univ.i"
 #include "ut0lst.h"
+
+#if defined __i386__ || defined __x86_64__ || defined _M_IX86 \
+    || defined _M_X64 || defined __WIN__
+
+#define IB_STRONG_MEMORY_MODEL
+#undef HAVE_IB_GCC_ATOMIC_TEST_AND_SET // Quick-and-dirty fix for bug 1519094
+
+#endif /* __i386__ || __x86_64__ || _M_IX86 || M_X64 || __WIN__ */
+
+#ifdef HAVE_WINDOWS_ATOMICS
+typedef LONG lock_word_t;	/*!< On Windows, InterlockedExchange operates
+				on LONG variable */
+#else
+typedef byte lock_word_t;
+#endif
 
 #ifdef __WIN__
 /** Native event (slow)*/
@@ -354,6 +369,62 @@ Returns the old value of *ptr, atomically sets *ptr to new_val */
 # define os_atomic_test_and_set_byte_acquire(ptr, new_val) \
 	__sync_lock_test_and_set(ptr, (byte) new_val)
 
+# if defined(HAVE_IB_GCC_ATOMIC_TEST_AND_SET)
+
+/** Do an atomic test-and-set.
+@param[in,out]	ptr		Memory location to set to non-zero
+@return the previous value */
+static inline
+lock_word_t
+os_atomic_test_and_set(volatile lock_word_t* ptr)
+{
+       return(__atomic_test_and_set(ptr, __ATOMIC_ACQUIRE));
+}
+
+/** Do an atomic clear.
+@param[in,out]	ptr		Memory location to set to zero */
+static inline
+void
+os_atomic_clear(volatile lock_word_t* ptr)
+{
+	__atomic_clear(ptr, __ATOMIC_RELEASE);
+}
+
+# elif defined(IB_STRONG_MEMORY_MODEL)
+
+/** Do an atomic test and set.
+@param[in,out]	ptr		Memory location to set to non-zero
+@return the previous value */
+static inline
+lock_word_t
+os_atomic_test_and_set(volatile lock_word_t* ptr)
+{
+	return(__sync_lock_test_and_set(ptr, 1));
+}
+
+/** Do an atomic release.
+
+In theory __sync_lock_release should be used to release the lock.
+Unfortunately, it does not work properly alone. The workaround is
+that more conservative __sync_lock_test_and_set is used instead.
+
+Performance regression was observed at some conditions for Intel
+architecture. Disable release barrier on Intel architecture for now.
+@param[in,out]	ptr		Memory location to write to
+@return the previous value */
+static inline
+lock_word_t
+os_atomic_clear(volatile lock_word_t* ptr)
+{
+	return(__sync_lock_test_and_set(ptr, 0));
+}
+
+# else
+
+#  error "Unsupported platform"
+
+# endif /* HAVE_IB_GCC_ATOMIC_TEST_AND_SET */
+
 #elif defined(HAVE_IB_SOLARIS_ATOMICS)
 
 # define HAVE_ATOMIC_BUILTINS
@@ -413,6 +484,26 @@ Returns the old value of *ptr, atomically sets *ptr to new_val */
 # define os_atomic_test_and_set_byte_release(ptr, new_val) \
 	atomic_swap_uchar(ptr, new_val)
 
+/** Do an atomic xchg and set to non-zero.
+@param[in,out]	ptr		Memory location to set to non-zero
+@return the previous value */
+static inline
+lock_word_t
+os_atomic_test_and_set(volatile lock_word_t* ptr)
+{
+	return(atomic_swap_uchar(ptr, 1));
+}
+
+/** Do an atomic xchg and set to zero.
+@param[in,out]	ptr		Memory location to set to zero
+@return the previous value */
+static inline
+lock_word_t
+os_atomic_clear(volatile lock_word_t* ptr)
+{
+	return(atomic_swap_uchar(ptr, 0));
+}
+
 #elif defined(HAVE_WINDOWS_ATOMICS)
 
 # define HAVE_ATOMIC_BUILTINS
@@ -471,6 +562,28 @@ clobbered */
 	((byte) InterlockedExchange(ptr, new_val))
 # define os_atomic_test_and_set_byte_release(ptr, new_val) \
 	((byte) InterlockedExchange(ptr, new_val))
+
+/** Do an atomic test and set.
+InterlockedExchange() operates on LONG, and the LONG will be clobbered
+@param[in,out]	ptr		Memory location to set to non-zero
+@return the previous value */
+static inline
+lock_word_t
+os_atomic_test_and_set(volatile lock_word_t* ptr)
+{
+	return(InterlockedExchange(ptr, 1));
+}
+
+/** Do an atomic release.
+InterlockedExchange() operates on LONG, and the LONG will be clobbered
+@param[in,out]	ptr		Memory location to set to zero
+@return the previous value */
+static inline
+lock_word_t
+os_atomic_clear(volatile lock_word_t* ptr)
+{
+	return(InterlockedExchange(ptr, 0));
+}
 
 #else
 # define IB_ATOMICS_STARTUP_MSG \

@@ -880,6 +880,12 @@ trx_start_low(
 
 	trx->no = IB_ULONGLONG_MAX;
 
+	/* Cache the state of fake_changes that transaction will use for
+	lifetime. Any change in session/global fake_changes configuration during
+	lifetime of transaction will not be honored by already started
+	transaction. */
+	trx->fake_changes = thd_fake_changes(trx->mysql_thd);
+
 	trx->rseg = rseg;
 
 	trx->state = TRX_ACTIVE;

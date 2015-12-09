@@ -1255,7 +1255,7 @@ dict_create_index_step(
 			>= DICT_TF_FORMAT_ZIP);
 
 		node->index = dict_index_get_if_in_cache_low(index_id);
-		ut_a(err == DB_SUCCESS ? node->index != NULL : node->index == NULL);
+		ut_a((node->index == 0) == (err != DB_SUCCESS));
 
 		if (err != DB_SUCCESS) {
 
