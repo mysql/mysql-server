@@ -113,8 +113,8 @@ static void ssl_set_sys_error(int ssl_error)
 
   @param vio  VIO object representing a SSL connection.
   @param ret  Value returned by a SSL I/O function.
-  @param event[out]             The type of I/O event to wait/retry.
-  @param ssl_errno_holder[out]  The SSL error code.
+  @param [out] event             The type of I/O event to wait/retry.
+  @param [out] ssl_errno_holder  The SSL error code.
 
   @return Whether a SSL I/O operation should be deferred.
   @retval TRUE    Temporary failure, retry operation.
@@ -327,7 +327,7 @@ typedef int (*ssl_handshake_func_t)(SSL*);
   @param vio    VIO object representing a SSL connection.
   @param ssl    SSL structure for the connection.
   @param func   SSL handshake handler.
-  @param ssl_errno_holder[out]  The SSL error code.
+  @param [out] ssl_errno_holder  The SSL error code.
 
   @return Return value is 1 on success.
 */

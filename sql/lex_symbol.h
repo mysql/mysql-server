@@ -34,7 +34,8 @@ struct SYMBOL {
   const char *name;
   const unsigned int length;
   const unsigned int tok;
-  int group; //< group mask, see SYM_GROUP enum for bits
+  /** group mask, see SYM_GROUP enum for bits. */
+  int group;
 };
 
 struct LEX_SYMBOL

@@ -53,10 +53,8 @@ static my_hash_value_type calc_hash(const HASH *hash,
 }
 
 /**
-  @brief Initialize the hash
+  Initialize the hash.
   
-  @details
-
   Initialize the hash, by defining and giving valid values for
   its elements. The failure to allocate memory for the
   hash->array element will not result in a fatal failure. The
