@@ -879,7 +879,6 @@ struct SysIndexCallback {
 @param[in,out]	row		the data row
 @param[in]	col		virtual column
 @param[in]	index		index on the virtual column
-@param[in,out]	my_rec		MySQL record to store the rows
 @param[in,out]	local_heap	heap memory for processing large data etc.
 @param[in,out]	heap		memory heap that copies the actual index row
 @param[in]	ifield		index field
@@ -890,7 +889,6 @@ innobase_get_computed_value(
 	const dtuple_t*		row,
 	const dict_v_col_t*	col,
 	const dict_index_t*	index,
-	byte*			my_rec,
 	mem_heap_t**		local_heap,
 	mem_heap_t*		heap,
 	const dict_field_t*	ifield,

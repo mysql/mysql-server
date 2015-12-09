@@ -8177,7 +8177,7 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
   repoint_field_to_record(table, old_buf, record);
 
   blob_len_ptr blob_len_ptr_array[MAX_FIELDS];
-  
+
   /*
     If it's purge thread, we need get the space allocated by storage engine
     for blob.
@@ -8213,7 +8213,20 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
    /*
      Evaluate all requested columns and all base columns these depends
      on that are virtual.
+
+     This function is called by the storage engine, which may request to
+     evaluate more generated columns than read_set/write_set says.
+     For example, InnoDB's row_sel_sec_rec_is_for_clust_rec() reads the full
+     record from the clustered index and asks us to compute generated columns
+     that match key fields in the used secondary index. So we trust that the
+     engine has filled all base columns necessary to requested computations,
+     and we ignore read_set/write_set.
   */
+
+  my_bitmap_map *old_maps[2];
+  dbug_tmp_use_all_columns(table, old_maps,
+                           table->read_set, table->write_set);
+
   for (Field **vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
   {
     Field *field= *vfield_ptr;
@@ -8223,16 +8236,6 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
         field->is_virtual_gcol())
     {
       DBUG_ASSERT(field->gcol_info && field->gcol_info->expr_item->fixed);
-      if (in_purge)
-      {
-        /*
-          Adding to read_set/write_set is normally done up-front by high-level
-          layers before calling any handler's read/delete/etc functions.
-          But, for the specific case of the purge thread, it has no high-level
-          layer to manage read_set/write_set.
-        */
-        table->mark_column_used(thd, field, MARK_COLUMNS_WRITE);
-      }
 
       const type_conversion_status save_in_field_status=
         field->gcol_info->expr_item->save_in_field(field, 0);
@@ -8252,6 +8255,8 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
       }
     }
   }
+
+  dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_maps);
 
   /*
     If it's a purge thread, we need copy the blob data into specified place

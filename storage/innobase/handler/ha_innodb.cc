@@ -19471,7 +19471,6 @@ innobase_init_vc_templ(
 @param[in,out]	row		the data row
 @param[in]	col		virtual column
 @param[in]	index		index
-@param[in,out]	my_rec		mysql record to store the data
 @param[in,out]	local_heap	heap memory for processing large data etc.
 @param[in,out]	heap		memory heap that copies the actual index row
 @param[in]	ifield		index field
@@ -19483,7 +19482,6 @@ innobase_get_computed_value(
 	const dtuple_t*		row,
 	const dict_v_col_t*	col,
 	const dict_index_t*	index,
-	byte*			my_rec,
 	mem_heap_t**		local_heap,
 	mem_heap_t*		heap,
 	const dict_field_t*	ifield,
@@ -19510,22 +19508,12 @@ innobase_get_computed_value(
 			*local_heap = mem_heap_create(UNIV_PAGE_SIZE);
 		}
 
-		if (!my_rec) {
-			mysql_rec = static_cast<byte*>(mem_heap_alloc(
-				*local_heap, index->table->vc_templ->rec_len));
-		} else {
-			mysql_rec = my_rec;
-		}
-
+		mysql_rec = static_cast<byte*>(mem_heap_alloc(
+			    *local_heap, index->table->vc_templ->rec_len));
 		buf = static_cast<byte*>(mem_heap_alloc(
 				*local_heap, index->table->vc_templ->rec_len));
 	} else {
-		if (!my_rec) {
-			mysql_rec = rec_buf1;
-		} else {
-			mysql_rec = my_rec;
-		}
-
+		mysql_rec = rec_buf1;
 		buf = rec_buf2;
 	}
 
@@ -19630,7 +19618,7 @@ innobase_get_computed_value(
 	}
 
 	/* we just want to store the data in passed in MySQL record */
-	if (my_rec || ret != 0) {
+	if (ret != 0) {
 		return(NULL);
 	}
 

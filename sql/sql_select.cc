@@ -2078,12 +2078,29 @@ void QEP_TAB::init_join_cache(JOIN_TAB *join_tab)
                   });
   if (!op || op->init())
   {
-    // See Bug #19031409 REVISIT WHAT HAPPENS IF ALLOCATION OF THE JOIN BUFFER FAILS
-    join_tab->set_use_join_cache(JOIN_CACHE::ALG_NONE);
-    // Unlink cache
-    if (prev_cache)
-      prev_cache->next_cache= NULL;
-    op= NULL;
+    /*
+      OOM. If it's in creation of "op" it has thrown error.
+      If it's in init() (allocation of the join buffer) it has not,
+      and there's a chance to execute the query:
+      we remove this join buffer, and all others (as there may be
+      dependencies due to outer joins).
+      @todo Consider sending a notification of this problem (a warning to the
+      client, or to the error log).
+    */
+    for (uint i= join_->const_tables; i < join_->tables; i++)
+    {
+      QEP_TAB *const q= &join_->qep_tab[i];
+      if (!q->position())
+        continue;
+      JOIN_TAB *const t= join_->best_ref[i];
+      if (t->use_join_cache() == JOIN_CACHE::ALG_NONE)
+        continue;
+      t->set_use_join_cache(JOIN_CACHE::ALG_NONE);
+      delete q->op;
+      q->op= NULL;
+      DBUG_ASSERT(i > 0);
+      q[-1].next_select= sub_select;
+    }
   }
   else
     this[-1].next_select= sub_select_op;

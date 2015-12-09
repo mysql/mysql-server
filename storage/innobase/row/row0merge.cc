@@ -581,7 +581,7 @@ row_merge_buf_add(
 					= dict_table_get_first_index(new_table);
 
 				row_field = innobase_get_computed_value(
-					row, v_col, clust_index, NULL,
+					row, v_col, clust_index,
 					v_heap, NULL, ifield, false);
 
 				if (row_field == NULL) {

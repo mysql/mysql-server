@@ -7269,13 +7269,13 @@ void Item_hex_string::print(String *str, enum_query_type query_type)
     str->append("?");
     return;
   }
-  char *end= (char*) str_value.ptr() + str_value.length(),
-       *ptr= end - min<size_t>(str_value.length(), sizeof(longlong));
+  const uchar *ptr= pointer_cast<const uchar*>(str_value.ptr());
+  const uchar *end= ptr + str_value.length();
   str->append("0x");
   for (; ptr != end ; ptr++)
   {
-    str->append(_dig_vec_lower[((uchar) *ptr) >> 4]);
-    str->append(_dig_vec_lower[((uchar) *ptr) & 0x0F]);
+    str->append(_dig_vec_lower[*ptr >> 4]);
+    str->append(_dig_vec_lower[*ptr & 0x0F]);
   }
 }
 
