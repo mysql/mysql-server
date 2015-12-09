@@ -957,27 +957,44 @@ do_select(JOIN *join)
   {	
 	QEP_TAB *qep_tab = join->qep_tab + join->const_tables;
 	DBUG_ASSERT(join->primary_tables);
-	error = join->first_select(join, qep_tab, 0);
-	if (error >= NESTED_LOOP_OK)
-	  error = join->first_select(join, qep_tab, 1);
-	ORDER *group_start = join->group_list;
-	join->group_list.order = group_start->next;
-	group_start->next->next = group_start;
-	group_start->next = NULL;
-	qep_tab->filesort->order = join->group_list;
-	qep_tab->sort_table();
-	list_node *a = join->group_fields.first_node();
-	list_node *b = a->next;
-	void * tmp = a->info;
-	a->info = b->info;
-	b->info = tmp;
-	join->cube_plan->next_pass();
-	error = join->first_select(join, qep_tab, 0);
-	error = join->first_select(join, qep_tab, 1);
-	//group_start = join->group_list;
-	//join->group_list.order = group_start->next;
-	//group_start->next->next = group_start;
-	//group_start->next = NULL;
+	ORDER **group_perm = 
+	  (ORDER **)malloc(join->group_list_size * sizeof(ORDER *));
+	void **field_perm = 
+	  (void**)malloc(join->group_list_size * sizeof(list_node*));
+	while (1){
+	  if (error >= NESTED_LOOP_OK)
+		error = join->first_select(join, qep_tab, 0);
+	  if (error >= NESTED_LOOP_OK)
+		error = join->first_select(join, qep_tab, 1);
+	  if (join->cube_plan->next_pass()){
+		break;
+	  }
+
+	  ORDER *group_it = join->group_list;
+	  Cube_plan *cp = join->cube_plan;
+	  for (uint i = 0; group_it; i++, group_it = group_it->next){
+		group_perm[i] = group_it;
+	  }
+	  for (uint i = 0; i < join->group_list_size; i++){
+		group_perm[cp->permutation[cp->pass - 1][i]]->next =
+		  (i == join->group_list_size - 1) ? NULL :
+		  group_perm[cp->permutation[cp->pass - 1][i + 1]];
+	  }
+	  join->group_list.order = group_perm[cp->permutation[cp->pass - 1][0]];
+	  qep_tab->filesort->order = join->group_list;
+	  qep_tab->sort_table();
+
+	  list_node *field_it = join->group_fields.first_node();
+	  for (uint i = 0; i < join->group_list_size; i++, field_it = field_it->next){
+		field_perm[i] = field_it->info;
+	  }
+	  field_it = join->group_fields.first_node();
+	  for (uint i = 0; i < join->group_list_size; i++, field_it = field_it->next){
+		field_it->info = field_perm[cp->permutation[cp->pass - 1][i]];
+	  }
+	}
+	free(group_perm);
+	free(field_perm);
   }
   else
   {

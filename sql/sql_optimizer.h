@@ -46,15 +46,23 @@ public:
 	  total_pass_count /= i;
 	}
 	pos_map = (uint **)malloc(total_pass_count * sizeof(uint *));
+	permutation = (uint **)malloc(total_pass_count * sizeof(uint *));
 	for (uint i = 0; i < total_pass_count; i++){
-	  pos_map[i] = (uint *)calloc(size + 2, sizeof(uint));
+	  pos_map[i] = (uint *)calloc(size + 1, sizeof(uint));
+	  permutation[i] = (uint *)malloc(size * sizeof(uint));
 	}
+	permutation[0][0] = 0;
+	permutation[0][1] = 1;
+	permutation[1][0] = 1;
+	permutation[1][1] = 0;
   }
   ~Cube_plan(){
 	for (uint i = 0; i < total_pass_count; i++){
-	  delete pos_map[i];
+	  free (permutation[i]);
+	  free (pos_map[i]);
 	}
-	delete pos_map;
+	free (pos_map);
+	free (permutation);
   }
 
   bool next_pass();
@@ -71,6 +79,7 @@ public:
   uint cube_dim;
   uint total_pass_count;
   uint ** pos_map;
+  uint ** permutation;
   uint pass;
 };
 
@@ -208,7 +217,9 @@ public:
 	else
 	  send_group_parts = group_list_size;
   }
-
+	  ~JOIN(){
+		delete cube_plan;
+	  }
   /// Query block that is optimized and executed using this JOIN
   SELECT_LEX *const select_lex;
   /// Query expression referring this query block
