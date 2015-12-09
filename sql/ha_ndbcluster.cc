@@ -13772,7 +13772,7 @@ uint8 ha_ndbcluster::table_cache_type()
    @return 1 if an error occured.
 */
 
-uint ndb_get_commitcount(THD *thd, char *norm_name,
+uint ndb_get_commitcount(THD *thd, const char *norm_name,
                          Uint64 *commit_count)
 {
   char dbname[NAME_LEN + 1];
@@ -13896,7 +13896,7 @@ uint ndb_get_commitcount(THD *thd, char *norm_name,
 
 static my_bool
 ndbcluster_cache_retrieval_allowed(THD *thd,
-                                   char *full_name, uint full_name_len,
+                                   const char *full_name, uint full_name_len,
                                    ulonglong *engine_data)
 {
   Uint64 commit_count;
