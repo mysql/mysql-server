@@ -349,7 +349,7 @@ public:
     DBUG_ENTER("Field::pack_length_from_metadata");
     DBUG_RETURN(field_metadata);
   }
-  virtual uint row_pack_length() { return 0; }
+  virtual uint row_pack_length() const { return 0; }
   virtual int save_field_metadata(uchar *first_byte)
   { return do_save_field_metadata(first_byte); }
 
@@ -757,7 +757,7 @@ public:
   int store_decimal(const my_decimal *);
   my_decimal *val_decimal(my_decimal *);
   uint is_equal(Create_field *new_field);
-  uint row_pack_length() { return pack_length(); }
+  uint row_pack_length() const { return pack_length(); }
   uint32 pack_length_from_metadata(uint field_metadata) {
     uint32 length= pack_length();
     DBUG_PRINT("result", ("pack_length_from_metadata(%d): %u",
@@ -940,7 +940,7 @@ public:
   uint size_of() const { return sizeof(*this); } 
   uint32 pack_length() const { return (uint32) bin_size; }
   uint pack_length_from_metadata(uint field_metadata);
-  uint row_pack_length() { return pack_length(); }
+  uint row_pack_length() const { return pack_length(); }
   bool compatible_field_size(uint field_metadata, Relay_log_info *rli,
                              uint16 mflags, int *order_var);
   uint is_equal(Create_field *new_field);
@@ -1189,7 +1189,7 @@ public:
   int cmp(const uchar *,const uchar *);
   void sort_string(uchar *buff,uint length);
   uint32 pack_length() const { return sizeof(float); }
-  uint row_pack_length() { return pack_length(); }
+  uint row_pack_length() const { return pack_length(); }
   void sql_type(String &str) const;
 private:
   int do_save_field_metadata(uchar *first_byte);
@@ -1229,7 +1229,7 @@ public:
   int cmp(const uchar *,const uchar *);
   void sort_string(uchar *buff,uint length);
   uint32 pack_length() const { return sizeof(double); }
-  uint row_pack_length() { return pack_length(); }
+  uint row_pack_length() const { return pack_length(); }
   void sql_type(String &str) const;
 private:
   int do_save_field_metadata(uchar *first_byte);
@@ -1718,7 +1718,7 @@ public:
   }
   bool compatible_field_size(uint field_metadata, Relay_log_info *rli,
                              uint16 mflags, int *order_var);
-  uint row_pack_length() { return field_length; }
+  uint row_pack_length() const { return field_length; }
   int pack_cmp(const uchar *a,const uchar *b,uint key_length,
                bool insert_or_update);
   int pack_cmp(const uchar *b,uint key_length,bool insert_or_update);
@@ -1768,7 +1768,7 @@ public:
   enum_field_types type() const { return MYSQL_TYPE_VARCHAR; }
   bool match_collation_to_optimize_range() const { return TRUE; }
   enum ha_base_keytype key_type() const;
-  uint row_pack_length() { return field_length; }
+  uint row_pack_length() const { return field_length; }
   bool zero_pack() const { return 0; }
   int  reset(void) { bzero(ptr,field_length+length_bytes); return 0; }
   uint32 pack_length() const { return (uint32) field_length+length_bytes; }
@@ -1893,7 +1893,7 @@ public:
   */
   uint32 pack_length_no_ptr() const
   { return (uint32) (packlength); }
-  uint row_pack_length() { return pack_length_no_ptr(); }
+  uint row_pack_length() const { return pack_length_no_ptr(); }
   uint32 sort_length() const;
   virtual uint32 max_data_length() const
   {
@@ -2055,7 +2055,7 @@ public:
   enum_field_types real_type() const { return MYSQL_TYPE_ENUM; }
   uint pack_length_from_metadata(uint field_metadata)
   { return (field_metadata & 0x00ff); }
-  uint row_pack_length() { return pack_length(); }
+  uint row_pack_length() const { return pack_length(); }
   virtual bool zero_pack() const { return 0; }
   bool optimize_range(uint idx, uint part) { return 0; }
   bool eq_def(Field *field);
@@ -2176,7 +2176,7 @@ public:
   uint32 pack_length() const { return (uint32) (field_length + 7) / 8; }
   uint32 pack_length_in_rec() const { return bytes_in_rec; }
   uint pack_length_from_metadata(uint field_metadata);
-  uint row_pack_length()
+  uint row_pack_length() const
   { return (bytes_in_rec + ((bit_len > 0) ? 1 : 0)); }
   bool compatible_field_size(uint metadata, Relay_log_info *rli,
                              uint16 mflags, int *order_var);

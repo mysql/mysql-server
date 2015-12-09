@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates
+   Copyright (c) 2010, 2015, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -473,7 +474,6 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     key_del[i]=HA_OFFSET_ERROR;
 
   unique_key_parts=0;
-  offset=reclength-uniques*MI_UNIQUE_HASH_LENGTH;
   for (i=0, uniquedef=uniquedefs ; i < uniques ; i++ , uniquedef++)
   {
     uniquedef->key=keys+i;
@@ -739,7 +739,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 #endif
   }
   /* Create extra keys for unique definitions */
-  offset=reclength-uniques*MI_UNIQUE_HASH_LENGTH;
+  offset=real_reclength - uniques * MI_UNIQUE_HASH_LENGTH;
   bzero((char*) &tmp_keydef,sizeof(tmp_keydef));
   bzero((char*) &tmp_keyseg,sizeof(tmp_keyseg));
   for (i=0; i < uniques ; i++)

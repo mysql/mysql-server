@@ -1,0 +1,9 @@
+#
+# Bug #19929435 DROP DATABASE HANGS WITH MALFORMED TABLE
+#
+set session default_storage_engine=innodb;
+create database `b`;
+use `b`;
+create table `#mysql50#q.q` select 1;
+ERROR 42000: Incorrect table name '#mysql50#q.q'
+drop database `b`;

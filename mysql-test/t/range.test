@@ -1677,3 +1677,15 @@ select count(*) from t1 ignore index (ix_fd) where fd <'😁';
 
 drop table t1;
 set names default;
+
+#
+# Bug#17755540 VALGRIND ERROR WHEN SETTING UP ROW COMPARATORS
+#
+create table t2 (a int, b int, c int, d int, key x(a, b));
+insert into t2 values (2, 2, 2, 2), (3, 3, 3, 3), (4, 4, 4, 4), (5, 5, 5, 5),
+  (6, 6, 6, 6), (7, 7, 7, 7), (8, 8, 8, 8), (9, 9, 9, 9);
+insert into t2 select * from t2;
+insert into t2 values (0, 0, 0, 0), (1, 1, 1, 1);
+analyze table t2;
+select a, b from t2 where (a, b) in ((0, 0), (1, 1));
+drop table t2;
