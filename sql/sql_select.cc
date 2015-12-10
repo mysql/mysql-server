@@ -15433,9 +15433,7 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
              field->real_type() == MYSQL_TYPE_STRING &&
 	     length >= MIN_STRING_LENGTH_TO_PACK_ROWS)
       recinfo->type= FIELD_SKIP_ENDSPACE;
-    else if (use_packed_rows &&
-             field->real_type() == MYSQL_TYPE_VARCHAR &&
-             length >= MIN_STRING_LENGTH_TO_PACK_ROWS)
+    else if (field->real_type() == MYSQL_TYPE_VARCHAR)
       recinfo->type= FIELD_VARCHAR;
     else
       recinfo->type= FIELD_NORMAL;
