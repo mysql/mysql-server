@@ -7534,7 +7534,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       value->result_type() == INT_RESULT &&
       ((field->type() == FIELD_TYPE_BIT || 
        ((Field_num *) field)->unsigned_flag) && 
-       !((Item_int*) value)->unsigned_flag))
+       !(value)->unsigned_flag))
   {
     longlong item_val= value->val_int();
     if (item_val < 0)

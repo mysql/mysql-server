@@ -11807,7 +11807,9 @@ Write_rows_log_event::Write_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
                                            const Table_id& tid_arg,
                                            bool is_transactional,
                                            const uchar* extra_row_info)
-: binary_log::Rows_event(m_type),
+  : binary_log::Rows_event(log_bin_use_v1_row_events ?
+                           binary_log::WRITE_ROWS_EVENT_V1 :
+                           binary_log::WRITE_ROWS_EVENT),
   Rows_log_event(thd_arg, tbl_arg, tid_arg, tbl_arg->write_set, is_transactional,
                    log_bin_use_v1_row_events?
                    binary_log::WRITE_ROWS_EVENT_V1:
@@ -12314,7 +12316,9 @@ Delete_rows_log_event::Delete_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
                                              const Table_id& tid,
                                              bool is_transactional,
                                              const uchar* extra_row_info)
-: binary_log::Rows_event(m_type),
+: binary_log::Rows_event(log_bin_use_v1_row_events ?
+                         binary_log::DELETE_ROWS_EVENT_V1 :
+                         binary_log::DELETE_ROWS_EVENT),
   Rows_log_event(thd_arg, tbl_arg, tid, tbl_arg->read_set, is_transactional,
                  log_bin_use_v1_row_events?
                  binary_log::DELETE_ROWS_EVENT_V1:
@@ -12401,7 +12405,9 @@ Update_rows_log_event::Update_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
                                              const Table_id& tid,
                                              bool is_transactional,
                                              const uchar* extra_row_info)
-: binary_log::Rows_event(m_type),
+: binary_log::Rows_event(log_bin_use_v1_row_events ?
+                         binary_log::UPDATE_ROWS_EVENT_V1 :
+                         binary_log::UPDATE_ROWS_EVENT),
   Rows_log_event(thd_arg, tbl_arg, tid, tbl_arg->read_set, is_transactional,
                  log_bin_use_v1_row_events?
                  binary_log::UPDATE_ROWS_EVENT_V1:

@@ -1082,6 +1082,10 @@ enum enum_stats_auto_recalc { HA_STATS_AUTO_RECALC_DEFAULT= 0,
 /* struct to hold information about the table that should be created */
 typedef struct st_ha_create_information
 {
+  st_ha_create_information()
+  {
+    memset(this, 0, sizeof(*this));
+  }
   const CHARSET_INFO *table_charset, *default_table_charset;
   LEX_STRING connect_string;
   const char *password, *tablespace;

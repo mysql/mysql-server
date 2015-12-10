@@ -587,8 +587,9 @@ public:
   class Table_trigger_dispatcher *m_trg_list;
 
 public:
-  static void *operator new(size_t size) throw ();
-  static void operator delete(void *ptr, size_t size) throw ();
+  // SUPPRESS_UBSAN: see implementation in .cc file
+  static void *operator new(size_t size) throw () SUPPRESS_UBSAN;
+  static void operator delete(void *ptr, size_t size) throw () SUPPRESS_UBSAN;
 
   ~sp_head();
 

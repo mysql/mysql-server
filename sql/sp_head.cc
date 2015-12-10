@@ -222,7 +222,7 @@ void *sp_head::operator new(size_t size) throw()
   if (!sp)
     return NULL;
 
-  sp->main_mem_root= own_root;
+  sp->main_mem_root= own_root; // Undefined behaviour!
   DBUG_PRINT("info", ("mem_root 0x%lx", (ulong) &sp->mem_root));
   return sp;
 }
@@ -235,7 +235,8 @@ void sp_head::operator delete(void *ptr, size_t size) throw()
   sp_head *sp= (sp_head *) ptr;
 
   /* Make a copy of main_mem_root as free_root will free the sp */
-  MEM_ROOT own_root= sp->main_mem_root;
+  MEM_ROOT own_root= sp->main_mem_root; // Undefined behaviour!
+
   DBUG_PRINT("info", ("mem_root 0x%lx moved to 0x%lx",
                       (ulong) &sp->mem_root, (ulong) &own_root));
   free_root(&own_root, MYF(0));

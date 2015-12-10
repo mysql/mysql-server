@@ -682,7 +682,7 @@ static bool update_const_equal_items(THD *thd, Item *cond, JOIN_TAB *tab)
     }
   }
   else if (cond->type() == Item::FUNC_ITEM && 
-           ((Item_cond*) cond)->functype() == Item_func::MULT_EQUAL_FUNC)
+           down_cast<Item_func*>(cond)->functype() == Item_func::MULT_EQUAL_FUNC)
   {
     Item_equal *item_equal= (Item_equal *) cond;
     bool contained_const= item_equal->get_const() != NULL;

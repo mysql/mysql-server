@@ -74,7 +74,8 @@ typename A::pointer StdReallocate(A& a, T* p, typename A::size_type oldSize,
     if (preserve) {
         A b = A();
         typename A::pointer newPointer = b.allocate(newSize, 0);
-        memcpy(newPointer, p, sizeof(T) * min(oldSize, newSize));
+        if (min(oldSize, newSize) > 0)
+          memcpy(newPointer, p, sizeof(T) * min(oldSize, newSize));
         a.deallocate(p, oldSize);
         STL::swap(a, b);
         return newPointer;
@@ -105,7 +106,8 @@ public:
 
     void deallocate(void* p, size_type n)
     {
-        memset(p, 0, n * sizeof(T));
+        if (n > 0)
+          memset(p, 0, n * sizeof(T));
         tcArrayDelete((T*)p);
     }
 
@@ -163,7 +165,8 @@ public:
     void CleanNew(word32 newSize)
     {
         New(newSize);
-        memset(buffer_, 0, sz_ * sizeof(T));
+        if (sz_ > 0)
+          memset(buffer_, 0, sz_ * sizeof(T));
     }
 
     void New(word32 newSize)

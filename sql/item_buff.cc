@@ -50,7 +50,7 @@ Cached_item *new_Cached_item(THD *thd, Item *item, bool use_result_field)
       return new Cached_item_json(item);
     return new Cached_item_str(thd, (Item_field *) item);
   case INT_RESULT:
-    return new Cached_item_int((Item_field *) item);
+    return new Cached_item_int(item);
   case REAL_RESULT:
     return new Cached_item_real(item);
   case DECIMAL_RESULT:

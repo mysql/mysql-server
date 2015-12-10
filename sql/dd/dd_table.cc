@@ -1961,7 +1961,6 @@ bool recreate_table(THD *thd, const char *schema_name,
               schema_name, table_name, MDL_EXCLUSIVE));
 
   HA_CREATE_INFO create_info;
-  memset(&create_info, 0, sizeof(create_info));
 
   // Create a path to the table, but without a extension
   char path[FN_REFLEN + 1];

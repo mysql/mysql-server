@@ -258,18 +258,21 @@ MACRO (MY_CHECK_CXX_COMPILER_FLAG FLAG RESULT)
   SET(CMAKE_REQUIRED_FLAGS "${SAVE_CMAKE_REQUIRED_FLAGS}")
 ENDMACRO()
 
-MACRO(MY_SANITIZER_CHECK SAN_OPT RESULT)
+MACRO(MY_SANITIZER_CHECK SAN_OPT ADD_OPTIMIZATION RESULT)
   MY_CHECK_C_COMPILER_FLAG("${SAN_OPT}" C_RESULT)
   MY_CHECK_CXX_COMPILER_FLAG("${SAN_OPT}" CXX_RESULT)
-  IF(C_RESULT AND CXX_RESULT)
+  IF(C_RESULT AND CXX_RESULT AND ${ADD_OPTIMIZATION})
     # We switch on basic optimization also for debug builds.
     # With optimization we may get some warnings, so we switch off -Werror
+    SET(OPT_FLAG " -O1 ")
+  ENDIF()
+  IF(C_RESULT AND CXX_RESULT)
     SET(CMAKE_C_FLAGS_DEBUG
-      "${CMAKE_C_FLAGS_DEBUG} ${SAN_OPT} -O1 -Wno-error -fPIC")
+      "${CMAKE_C_FLAGS_DEBUG} ${SAN_OPT} ${OPT_FLAG} -Wno-error -fPIC")
     SET(CMAKE_C_FLAGS_RELWITHDEBINFO
       "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${SAN_OPT} -fPIC")
     SET(CMAKE_CXX_FLAGS_DEBUG
-      "${CMAKE_CXX_FLAGS_DEBUG} ${SAN_OPT} -O1 -Wno-error -fPIC")
+      "${CMAKE_CXX_FLAGS_DEBUG} ${SAN_OPT} ${OPT_FLAG} -Wno-error -fPIC")
     SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
       "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${SAN_OPT} -fPIC")
     SET(${RESULT} 1)
@@ -280,7 +283,7 @@ ENDMACRO()
 
 OPTION(WITH_ASAN "Enable address sanitizer" OFF)
 IF(WITH_ASAN)
-  MY_SANITIZER_CHECK("-fsanitize=address" WITH_ASAN_OK)
+  MY_SANITIZER_CHECK("-fsanitize=address" TRUE WITH_ASAN_OK)
   IF(WITH_ASAN_OK)
     SET(HAVE_ASAN 1)
   ELSE()
@@ -291,7 +294,7 @@ ENDIF()
 OPTION(WITH_MSAN "Enable memory sanitizer" OFF)
 IF(WITH_MSAN)
   MY_SANITIZER_CHECK("-fsanitize=memory -fsanitize-memory-track-origins"
-                     WITH_MSAN_OK)
+    TRUE WITH_MSAN_OK)
   IF(NOT WITH_MSAN_OK)
     MESSAGE(FATAL_ERROR "Do not know how to enable memory sanitizer")
   ENDIF()
@@ -299,7 +302,7 @@ ENDIF()
 
 OPTION(WITH_UBSAN "Enable undefined behavior sanitizer" OFF)
 IF(WITH_UBSAN)
-  MY_SANITIZER_CHECK("-fsanitize=undefined" WITH_UBSAN_OK)
+  MY_SANITIZER_CHECK("-fsanitize=undefined" FALSE WITH_UBSAN_OK)
   IF(NOT WITH_UBSAN_OK)
     MESSAGE(FATAL_ERROR
             "Do not know how to enable undefined behavior sanitizer")

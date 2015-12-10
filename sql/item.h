@@ -2008,7 +2008,7 @@ public:
   inline bool has_compatible_context(Item *item) const
   {
     /* Same context. */
-    if (cmp_context == (Item_result)-1 || item->cmp_context == cmp_context)
+    if (cmp_context == INVALID_RESULT || item->cmp_context == cmp_context)
       return TRUE;
     /* DATETIME comparison context. */
     if (is_temporal_with_date())

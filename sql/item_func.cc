@@ -6432,6 +6432,7 @@ double user_var_entry::val_real(my_bool *null_value) const
   case STRING_RESULT:
     return my_atof(m_ptr);                    // This is null terminated
   case ROW_RESULT:
+  case INVALID_RESULT:
     DBUG_ASSERT(false);                         // Impossible
     break;
   }
@@ -6463,6 +6464,7 @@ longlong user_var_entry::val_int(my_bool *null_value) const
     return my_strtoll10(m_ptr, (char**) 0, &error);// String is null terminated
   }
   case ROW_RESULT:
+  case INVALID_RESULT:
     DBUG_ASSERT(false);                         // Impossible
     break;
   }
@@ -6496,6 +6498,7 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
       str= 0;					// EOM error
     break;
   case ROW_RESULT:
+  case INVALID_RESULT:
     DBUG_ASSERT(false);                         // Impossible
     break;
   }
@@ -6524,6 +6527,7 @@ my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val) co
                    collation.collation, val);
     break;
   case ROW_RESULT:
+  case INVALID_RESULT:
     DBUG_ASSERT(false);                         // Impossible
     break;
   }

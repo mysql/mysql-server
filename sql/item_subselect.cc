@@ -941,6 +941,7 @@ bool Query_result_max_min_subquery::send_data(List<Item> &items)
         op= &Query_result_max_min_subquery::cmp_decimal;
         break;
       case ROW_RESULT:
+      case INVALID_RESULT:
         // This case should never be choosen
 	DBUG_ASSERT(0);
 	op= 0;

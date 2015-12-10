@@ -26,6 +26,7 @@
 #include "thr_malloc.h"                         /* sql_alloc */
 
 #include <algorithm>
+#include <type_traits>
 
 /**
   Simple intrusive linked list.
@@ -618,8 +619,8 @@ template <typename T> class base_ilist;
 template <typename T> class base_ilist_iterator;
 
 /*
-  A simple intrusive list which automaticly removes element from list
-  on delete (for THD element)
+  A simple intrusive list.
+
   NOTE: this inherently unsafe, since we rely on <T> to have
   the same layout as ilink<T> (see base_ilist::sentinel).
   Please consider using a different strategy for linking objects.
@@ -640,8 +641,6 @@ public:
     prev= NULL;
     next= NULL;
   }
-
-  virtual ~ilink() { unlink(); }		/*lint -e1740 */
 
   friend class base_ilist<T>;
   friend class base_ilist_iterator<T>;
@@ -678,13 +677,21 @@ class base_ilist
 {
   T *first;
   ilink<T> sentinel;
+
+  static_assert(! std::is_polymorphic<T>::value,
+                "Do not use this for classes with virtual members");
+
 public:
-  void empty() {
+  // The sentinel is not a T, but at least it is a POD
+  void empty() SUPPRESS_UBSAN {
     first= static_cast<T*>(&sentinel);
     sentinel.prev= &first;
   }
   base_ilist() { empty(); }
-  bool is_empty() const { return first == static_cast<const T*>(&sentinel); }
+
+  // The sentinel is not a T, but at least it is a POD
+  bool is_empty() const SUPPRESS_UBSAN
+  { return first == static_cast<const T*>(&sentinel); }
 
   /// Pushes new element in front of list.
   void push_front(T *a)
@@ -755,7 +762,8 @@ public:
     current(NULL)
   {}
 
-  T *next(void)
+  // The sentinel is not a T, but at least it is a POD
+  T *next(void) SUPPRESS_UBSAN
   {
     /* This is coded to allow push_back() while iterating */
     current= *el;

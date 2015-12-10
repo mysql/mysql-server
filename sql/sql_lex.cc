@@ -545,6 +545,7 @@ void LEX::reset()
   name.length= 0;
   event_parse_data= NULL;
   profile_options= PROFILE_NONE;
+  uint_geom_type= 0;
   select_number= 0;
   allow_sum_func= 0;
   in_sum_func= NULL;

@@ -158,7 +158,12 @@ public:
 
     /** Lock for protecting the queue. */
     mysql_mutex_t m_lock;
-  } __attribute__((aligned(CPU_LEVEL1_DCACHE_LINESIZE)));
+
+    /*
+      This attribute did not have the desired effect, at least not according
+      to -fsanitize=undefined with gcc 5.2.1
+     */
+  }; // __attribute__((aligned(CPU_LEVEL1_DCACHE_LINESIZE)));
 
 public:
   Stage_manager()

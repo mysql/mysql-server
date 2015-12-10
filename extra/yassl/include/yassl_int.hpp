@@ -147,7 +147,8 @@ public:
     const ConnectState&     GetConnect()   const;
     const AcceptState&      GetAccept()    const;
     const char*             getString()    const;
-          YasslError        What()         const;
+// SUPPRESS_UBSAN: Can also return TaoCrypt errors
+          YasslError        What()         const SUPPRESS_UBSAN;
 
     RecordLayerState& useRecord();
     HandShakeState&   useHandShake();

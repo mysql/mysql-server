@@ -284,8 +284,6 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
   handlerton *table_type= table->s->db_type();
   DBUG_ENTER("recreate_temporary_table");
 
-  memset(&create_info, 0, sizeof(create_info));
-
   table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
 
   /*

@@ -140,7 +140,8 @@ struct rand_struct {
   unsigned long seed1,seed2,max_value;
   double max_value_dbl;
 };
-enum Item_result {STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT,
+enum Item_result {INVALID_RESULT=-1,
+                  STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT,
                   DECIMAL_RESULT};
 typedef struct st_udf_args
 {

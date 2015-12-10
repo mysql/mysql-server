@@ -2697,8 +2697,8 @@ Item_row *Item_func_interval::alloc_row(const POS &pos, MEM_ROOT *mem_root,
   if (list == NULL)
     return NULL;
   list->push_front(expr2);
-  row= new (mem_root) Item_row(pos, expr1, *list);
-  return row;
+  Item_row *tmprow= new (mem_root) Item_row(pos, expr1, *list);
+  return tmprow;
 }
 
 

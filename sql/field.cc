@@ -1561,6 +1561,7 @@ Field::Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
    m_null_ptr(null_ptr_arg),
    m_is_tmp_nullable(false),
    m_is_tmp_null(false),
+   m_count_cuted_fields_saved(CHECK_FIELD_IGNORE),
    table(0), orig_table(0), table_name(0),
    field_name(field_name_arg),
    field_length(length_arg), null_bit(null_bit_arg), 
@@ -11263,6 +11264,7 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
   key_length(old_field->key_length()),
   auto_flags(old_field->auto_flags),
   charset(old_field->charset()),		// May be NULL ptr
+  geom_type(Field::GEOM_GEOMETRY),
   field(old_field),
   treat_bit_as_char(false),  // Init to avoid valgrind warnings in opt. build
   gcol_info(old_field->gcol_info),

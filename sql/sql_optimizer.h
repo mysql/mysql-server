@@ -570,7 +570,8 @@ public:
     DBUG_ASSERT(dst_arr.size() >= src_arr.size());
     void *dest= dst_arr.array();
     const void *src= src_arr.array();
-    memcpy(dest, src, src_arr.size() * src_arr.element_size());
+    if (!src_arr.is_null())
+      memcpy(dest, src, src_arr.size() * src_arr.element_size());
   }
 
   /// Overwrites 'ref_ptrs' and remembers the the source as 'current'.

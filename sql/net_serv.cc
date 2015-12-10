@@ -468,7 +468,8 @@ net_write_buff(NET *net, const uchar *packet, size_t len)
       return net_write_packet(net, packet, len);
     /* Send out rest of the blocks as full sized blocks */
   }
-  memcpy(net->write_pos, packet, len);
+  if (len > 0)
+    memcpy(net->write_pos, packet, len);
   net->write_pos+= len;
   return 0;
 }

@@ -5011,7 +5011,6 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   DBUG_ENTER("ha_create_table_from_engine");
   DBUG_PRINT("enter", ("name '%s'.'%s'", db, name));
 
-  memset(&create_info, 0, sizeof(create_info));
   if ((error= ha_discover(thd, db, name, &sdi_blob, &sdi_len)))
   {
     /* Table could not be discovered and thus not created */

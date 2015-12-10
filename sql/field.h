@@ -2500,7 +2500,7 @@ protected:
   /**
     Adjust number of decimal digits from NOT_FIXED_DEC to DATETIME_MAX_DECIMALS
   */
-  uint8 normalize_dec(uint8 dec_arg)
+  static uint8 normalize_dec(uint8 dec_arg)
   { return dec_arg == NOT_FIXED_DEC ? DATETIME_MAX_DECIMALS : dec_arg; }
 
   /**
@@ -2648,10 +2648,10 @@ public:
                  uchar auto_flags_arg, const char *field_name_arg,
                  uint32 len_arg, uint8 dec_arg)
     :Field(ptr_arg,
-           len_arg + ((dec= normalize_dec(dec_arg)) ? normalize_dec(dec_arg) + 1 : 0),
+           len_arg + ((normalize_dec(dec_arg)) ? normalize_dec(dec_arg) + 1 : 0),
            null_ptr_arg, null_bit_arg,
            auto_flags_arg, field_name_arg)
-    { flags|= BINARY_FLAG; }
+  { flags|= BINARY_FLAG; dec= normalize_dec(dec_arg); }
   /**
     Constructor for Field_temporal
     @param maybe_null_arg    See Field definition
@@ -4343,6 +4343,10 @@ public:
 
   Create_field()
    :after(NULL),
+    geom_type(Field::GEOM_GEOMETRY),
+    maybe_null(false),
+    is_zerofill(false),
+    is_unsigned(false),
     /*
       Initialize treat_bit_as_char for all field types even if
       it is only used for MYSQL_TYPE_BIT. This avoids bogus

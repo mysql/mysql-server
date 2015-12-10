@@ -962,6 +962,7 @@ public:
   Item_func_interval(const POS &pos, MEM_ROOT *mem_root, Item *expr1,
                      Item *expr2, class PT_item_list *opt_expr_list= NULL)
     :super(pos, alloc_row(pos, mem_root, expr1, expr2, opt_expr_list)),
+     row(down_cast<Item_row*>(args[0])),
      intervals(0)
   {
     allowed_arg_cols= 0;    // Fetch this value from first argument
@@ -975,8 +976,9 @@ public:
   void print(String *str, enum_query_type query_type);
 
 private:
-  Item_row *alloc_row(const POS &pos, MEM_ROOT *mem_root, Item *expr1,
-                      Item *expr2, class PT_item_list *opt_expr_list);
+  // Runs in CTOR init list, cannot access *this as Item_func_interval
+  static Item_row *alloc_row(const POS &pos, MEM_ROOT *mem_root, Item *expr1,
+                             Item *expr2, class PT_item_list *opt_expr_list);
 };
 
 

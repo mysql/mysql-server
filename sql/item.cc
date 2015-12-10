@@ -207,7 +207,7 @@ Item::Item():
   item_name(), orig_name(),
   max_length(0),
   marker(0),
-  cmp_context((Item_result)-1),
+  cmp_context(INVALID_RESULT),
   is_parser_item(false),
   runtime_item(false),
   is_expensive_cache(-1),
@@ -273,7 +273,7 @@ Item::Item(const POS &):
   item_name(), orig_name(),
   max_length(0),
   marker(0),
-  cmp_context((Item_result)-1),
+  cmp_context(INVALID_RESULT),
   is_parser_item(true),
   runtime_item(false),
   is_expensive_cache(-1),
@@ -1446,6 +1446,7 @@ bool Item::get_date_from_numeric(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
     return get_date_from_int(ltime, fuzzydate);
   case STRING_RESULT:
   case ROW_RESULT:
+  case INVALID_RESULT:
     DBUG_ASSERT(0);
   }
   return (null_value= true);  // Impossible result_type
@@ -1472,6 +1473,7 @@ bool Item::get_date_from_non_temporal(MYSQL_TIME *ltime,
   case INT_RESULT:
     return get_date_from_int(ltime, fuzzydate);
   case ROW_RESULT:
+  case INVALID_RESULT:
     DBUG_ASSERT(0);
   }
   return (null_value= true);  // Impossible result_type
@@ -1561,6 +1563,7 @@ bool Item::get_time_from_numeric(MYSQL_TIME *ltime)
     return get_time_from_int(ltime);
   case STRING_RESULT:
   case ROW_RESULT:
+  case INVALID_RESULT:
     DBUG_ASSERT(0);
   }
   return (null_value= true); // Impossible result type
@@ -1589,6 +1592,7 @@ bool Item::get_time_from_non_temporal(MYSQL_TIME *ltime)
   case INT_RESULT:
     return get_time_from_int(ltime);
   case ROW_RESULT:
+  case INVALID_RESULT:
     DBUG_ASSERT(0);
   }
   return (null_value= true); // Impossible result type

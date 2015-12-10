@@ -579,7 +579,8 @@ static uchar *net_store_length_fast(uchar *packet, size_t length)
 uchar *net_store_data(uchar *to, const uchar *from, size_t length)
 {
   to=net_store_length_fast(to,length);
-  memcpy(to,from,length);
+  if (length > 0)
+    memcpy(to,from,length);
   return to+length;
 }
 
