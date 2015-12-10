@@ -50,39 +50,45 @@ extern "C" {
 enum enum_locking_service_lock_type
 { LOCKING_SERVICE_READ, LOCKING_SERVICE_WRITE };
 
+/**
+  Acquire locking service locks.
+
+  @param opaque_thd      Thread handle. If NULL, current_thd will be used.
+  @param lock_namespace  Namespace of the locks to acquire.
+  @param lock_names      Array of names of the locks to acquire.
+  @param lock_num        Number of elements in 'lock_names'.
+  @param lock_type       Lock type to acquire. LOCKING_SERVICE_READ or _WRITE.
+  @param lock_timeout    Number of seconds to wait before giving up.
+
+  @retval 1              Acquisition failed, error has been reported.
+  @retval 0              Acquisition successful, all locks acquired.
+
+  @note both lock_namespace and lock_names are limited to 64 characters max.
+  Names are compared using binary comparison.
+*/
+typedef int (*mysql_acquire_locks_t)(MYSQL_THD opaque_thd,
+                                     const char* lock_namespace,
+                                     const char**lock_names,
+                                     size_t lock_num,
+                                     enum enum_locking_service_lock_type lock_type,
+                                     unsigned long lock_timeout);
+
+/**
+  Release all lock service locks taken by the given connection
+  in the given namespace.
+
+  @param opaque_thd      Thread handle. If NULL, current_thd will be used.
+  @param lock_namespace  Namespace of the locks to release.
+
+  @retval 1              Release failed, error has been reported.
+  @retval 0              Release successful, all locks acquired.
+*/
+typedef int (*mysql_release_locks_t)(MYSQL_THD opaque_thd,
+                                     const char* lock_namespace);
+
 extern struct mysql_locking_service_st {
-  /**
-    Acquire locking service locks.
-
-    @param opaque_thd      Thread handle. If NULL, current_thd will be used.
-    @param lock_namespace  Namespace of the locks to acquire.
-    @param lock_names      Array of names of the locks to acquire.
-    @param lock_num        Number of elements in 'lock_names'.
-    @param lock_type       Lock type to acquire. LOCKING_SERVICE_READ or _WRITE.
-    @param lock_timeout    Number of seconds to wait before giving up.
-
-    @retval 1              Acquisition failed, error has been reported.
-    @retval 0              Acquisition successful, all locks acquired.
-
-    @note both lock_namespace and lock_names are limited to 64 characters max.
-    Names are compared using binary comparison.
-  */
-  int (*mysql_acquire_locks)(MYSQL_THD opaque_thd, const char* lock_namespace,
-                             const char**lock_names, size_t lock_num,
-                             enum enum_locking_service_lock_type lock_type,
-                             unsigned long lock_timeout);
-
-  /**
-    Release all lock service locks taken by the given connection
-    in the given namespace.
-
-    @param opaque_thd      Thread handle. If NULL, current_thd will be used.
-    @param lock_namespace  Namespace of the locks to release.
-
-    @retval 1              Release failed, error has been reported.
-    @retval 0              Release successful, all locks acquired.
-  */
-  int (*mysql_release_locks)(MYSQL_THD opaque_thd, const char* lock_namespace);
+  mysql_acquire_locks_t mysql_acquire_locks;
+  mysql_release_locks_t mysql_release_locks;
 } *mysql_locking_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN

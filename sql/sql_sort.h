@@ -331,7 +331,7 @@ public:
     @param table     Table to be sorted.
     @param max_length_for_sort_data From thd->variables.
     @param maxrows   HA_POS_ERROR or possible LIMIT value.
-    @param sort_positions @see documentation for the filesort() function.
+    @param sort_positions see documentation for the filesort() function.
   */
   void init_for_filesort(Filesort *file_sort,
                          uint sortlen, TABLE *table,

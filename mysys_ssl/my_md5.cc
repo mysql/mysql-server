@@ -50,11 +50,9 @@ static void my_md5_hash(unsigned char* digest, unsigned const char *buf, int len
 /**
     Wrapper function to compute MD5 message digest.
 
-    @param digest [out]  Computed MD5 digest
-    @param buf    [in]   Message to be computed
-    @param len    [in]   Length of the message
-
-    @return              void
+    @param [out] digest Computed MD5 digest
+    @param [in] buf     Message to be computed
+    @param [in] len     Length of the message
 */
 void compute_md5_hash(char *digest, const char *buf, int len)
 {

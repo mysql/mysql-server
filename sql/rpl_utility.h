@@ -365,7 +365,7 @@ public:
         converted according to the current settings of @c
         SLAVE_TYPE_CONVERSIONS.
 
-    @param thd
+    @param thd   Current thread
     @param rli   Pointer to relay log info
     @param table Pointer to table to compare with.
 

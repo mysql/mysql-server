@@ -497,7 +497,9 @@ int my_decimal_mod(uint mask, my_decimal *res, const my_decimal *a,
 
 /**
   @return
-    -1 if a<b, 1 if a>b and 0 if a==b
+    @retval -1 if a @< b
+    @retval 1 if a @> b
+    @retval 0 if a == b
 */
 inline
 int my_decimal_cmp(const my_decimal *a, const my_decimal *b)

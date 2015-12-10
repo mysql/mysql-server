@@ -115,8 +115,10 @@ public:
 */
 class PT_qb_level_hint : public PT_hint
 {
-  const LEX_CSTRING qb_name;  //< Name of query block
-  uint args;                  //< Bit mask of arguments to hint
+  /** Name of query block. */
+  const LEX_CSTRING qb_name;
+  /** Bit mask of arguments to hint. */
+  uint args;
 
   typedef PT_hint super;
 public:

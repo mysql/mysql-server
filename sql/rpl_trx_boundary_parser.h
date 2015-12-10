@@ -110,7 +110,7 @@ public:
 
      @param buf            Pointer to the event buffer.
      @param length         The size of the event buffer.
-     @param fd_event       The description event of the master which logged
+     @param description_event The description event of the master which logged
                            the event.
      @param throw_warnings If the function should throw warning messages while
                            updating the boundary parser state.

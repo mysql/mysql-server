@@ -191,7 +191,6 @@ public:
      @param inserted_columns2 A second list like inserted_columns
      @param manage_defaults   Whether this object should manage function
                               defaults.
-     @param ignore_duplicates   Whether duplicate rows are ignored.
      @param duplicates_handling How to handle duplicates.
      @param escape_character    The escape character.
   */

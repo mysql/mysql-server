@@ -29,11 +29,9 @@
 /**
   Compute SHA1 message digest using YaSSL.
 
-  @param digest [out]  Computed SHA1 digest
-  @param buf    [in]   Message to be computed
-  @param len    [in]   Length of the message
-
-  @return              void
+  @param [out] digest   Computed SHA1 digest
+  @param [in] buf       Message to be computed
+  @param [in] len       Length of the message
 */
 static void mysql_sha1_yassl(uint8 *digest, const char *buf, size_t len)
 {
@@ -46,13 +44,11 @@ static void mysql_sha1_yassl(uint8 *digest, const char *buf, size_t len)
   Compute SHA1 message digest for two messages in order to
   emulate sha1(msg1, msg2) using YaSSL.
 
-  @param digest [out]  Computed SHA1 digest
-  @param buf1   [in]   First message
-  @param len1   [in]   Length of first message
-  @param buf2   [in]   Second message
-  @param len2   [in]   Length of second message
-
-  @return              void
+  @param [out] digest  Computed SHA1 digest
+  @param [in] buf1     First message
+  @param [in] len1     Length of first message
+  @param [in] buf2     Second message
+  @param [in] len2     Length of second message
 */
 static void mysql_sha1_multi_yassl(uint8 *digest, const char *buf1, int len1,
                                    const char *buf2, int len2)
@@ -90,11 +86,9 @@ static int mysql_sha1_result(SHA_CTX *context,
 /**
   Wrapper function to compute SHA1 message digest.
 
-  @param digest [out]  Computed SHA1 digest
-  @param buf    [in]   Message to be computed
-  @param len    [in]   Length of the message
-
-  @return              void
+  @param [out] digest  Computed SHA1 digest
+  @param [in] buf      Message to be computed
+  @param [in] len      Length of the message
 */
 void compute_sha1_hash(uint8 *digest, const char *buf, size_t len)
 {
@@ -114,13 +108,11 @@ void compute_sha1_hash(uint8 *digest, const char *buf, size_t len)
   Wrapper function to compute SHA1 message digest for
   two messages in order to emulate sha1(msg1, msg2).
 
-  @param digest [out]  Computed SHA1 digest
-  @param buf1   [in]   First message
-  @param len1   [in]   Length of first message
-  @param buf2   [in]   Second message
-  @param len2   [in]   Length of second message
-
-  @return              void
+  @param [out] digest  Computed SHA1 digest
+  @param [in] buf1     First message
+  @param [in] len1     Length of first message
+  @param [in] buf2     Second message
+  @param [in] len2     Length of second message
 */
 void compute_sha1_hash_multi(uint8 *digest, const char *buf1, int len1,
                              const char *buf2, int len2)

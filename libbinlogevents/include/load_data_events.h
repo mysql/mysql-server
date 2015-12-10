@@ -127,6 +127,7 @@ namespace binary_log
         ESCAPED_EMPTY==0x10.
     </td>
   </tr>
+  </table>
 */
 struct old_sql_ex
 {
@@ -249,6 +250,7 @@ enum enum_load_dup_handling
      <td>Represents information on how to handle duplicates:
           LOAD_DUP_ERROR= 0, LOAD_DUP_IGNORE= 1, LOAD_DUP_REPLACE= 2</td>
    </tr>
+   </table>
 */
 class Execute_load_query_event : public virtual Query_event
 {
@@ -831,6 +833,7 @@ public:
     <td>32 bit integer</td>
     <td>The ID of the file to load</td>
   </tr>
+  </table>
 */
 class Execute_load_event: public Binary_log_event
 {

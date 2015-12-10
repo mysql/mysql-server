@@ -16,7 +16,7 @@ extern struct srv_session_service_st
 } *srv_session_service;
 int srv_session_init_thread(const void *plugin);
 void srv_session_deinit_thread();
-MYSQL_SESSION srv_session_open(srv_session_error_cb cb, void *plugix_ctx);
+MYSQL_SESSION srv_session_open(srv_session_error_cb cb, void *plugin_ctx);
 int srv_session_detach(MYSQL_SESSION session);
 int srv_session_close(MYSQL_SESSION session);
 int srv_session_server_is_available();
@@ -163,35 +163,54 @@ struct st_send_field
   unsigned int decimals;
   enum_field_types type;
 };
+typedef int (*start_result_metadata_t)(void *ctx, uint num_cols, uint flags,
+                                       const CHARSET_INFO *resultcs);
+typedef int (*field_metadata_t)(void *ctx, struct st_send_field *field,
+                                const CHARSET_INFO *charset);
+typedef int (*end_result_metadata_t)(void *ctx, uint server_status,
+                                     uint warn_count);
+typedef int (*start_row_t)(void *ctx);
+typedef int (*end_row_t)(void *ctx);
+typedef void (*abort_row_t)(void *ctx);
+typedef ulong (*get_client_capabilities_t)(void *ctx);
+typedef int (*get_null_t)(void * ctx);
+typedef int (*get_integer_t)(void * ctx, longlong value);
+typedef int (*get_longlong_t)(void * ctx, longlong value, uint is_unsigned);
+typedef int (*get_decimal_t)(void * ctx, const decimal_t * value);
+typedef int (*get_double_t)(void * ctx, double value, uint32_t decimals);
+typedef int (*get_date_t)(void * ctx, const MYSQL_TIME * value);
+typedef int (*get_time_t)(void * ctx, const MYSQL_TIME * value, uint decimals);
+typedef int (*get_datetime_t)(void * ctx, const MYSQL_TIME * value, uint decimals);
+typedef int (*get_string_t)(void * ctx, const char * value, size_t length,
+                            const CHARSET_INFO * valuecs);
+typedef void (*handle_ok_t)(void * ctx,
+                            uint server_status, uint statement_warn_count,
+                            ulonglong affected_rows, ulonglong last_insert_id,
+                            const char * message);
+typedef void (*handle_error_t)(void * ctx, uint sql_errno, const char * err_msg,
+                               const char * sqlstate);
+typedef void (*shutdown_t)(void *ctx, int server_shutdown);
 struct st_command_service_cbs
 {
-  int (*start_result_metadata)(void *ctx, uint num_cols, uint flags,
-                               const CHARSET_INFO *resultcs);
-  int (*field_metadata)(void *ctx, struct st_send_field *field,
-                        const CHARSET_INFO *charset);
-  int (*end_result_metadata)(void *ctx, uint server_status,
-                             uint warn_count);
-  int (*start_row)(void *ctx);
-  int (*end_row)(void *ctx);
-  void (*abort_row)(void *ctx);
-  ulong (*get_client_capabilities)(void *ctx);
-  int (*get_null)(void * ctx);
-  int (*get_integer)(void * ctx, longlong value);
-  int (*get_longlong)(void * ctx, longlong value, uint is_unsigned);
-  int (*get_decimal)(void * ctx, const decimal_t * value);
-  int (*get_double)(void * ctx, double value, uint32_t decimals);
-  int (*get_date)(void * ctx, const MYSQL_TIME * value);
-  int (*get_time)(void * ctx, const MYSQL_TIME * value, uint decimals);
-  int (*get_datetime)(void * ctx, const MYSQL_TIME * value, uint decimals);
-  int (*get_string)(void * ctx, const char * value, size_t length,
-                    const CHARSET_INFO * valuecs);
-  void (*handle_ok)(void * ctx,
-                    uint server_status, uint statement_warn_count,
-                    ulonglong affected_rows, ulonglong last_insert_id,
-                    const char * message);
-  void (*handle_error)(void * ctx, uint sql_errno, const char * err_msg,
-                       const char * sqlstate);
-  void (*shutdown)(void *ctx, int server_shutdown);
+  start_result_metadata_t start_result_metadata;
+  field_metadata_t field_metadata;
+  end_result_metadata_t end_result_metadata;
+  start_row_t start_row;
+  end_row_t end_row;
+  abort_row_t abort_row;
+  get_client_capabilities_t get_client_capabilities;
+  get_null_t get_null;
+  get_integer_t get_integer;
+  get_longlong_t get_longlong;
+  get_decimal_t get_decimal;
+  get_double_t get_double;
+  get_date_t get_date;
+  get_time_t get_time;
+  get_datetime_t get_datetime;
+  get_string_t get_string;
+  handle_ok_t handle_ok;
+  handle_error_t handle_error;
+  shutdown_t shutdown;
 };
 enum cs_text_or_binary
 {
@@ -377,28 +396,45 @@ int (*sql_condition_handler_function)(int sql_errno,
                                       const char* msg,
                                       void *state);
 struct st_my_thread_handle;
+typedef void* (*mysql_current_session_t)();
+typedef void* (*mysql_open_session_t)();
+typedef void (*mysql_start_thread_t)(void* thd,
+                                     void *(*callback_fun)(void*),
+                                     void *arg,
+                                     struct st_my_thread_handle *thread_handle);
+typedef void (*mysql_join_thread_t)(struct st_my_thread_handle *thread_handle);
+typedef void (*mysql_set_current_database_t)(void* thd, const MYSQL_LEX_STRING db);
+typedef int (*mysql_parse_t)(void* thd, const MYSQL_LEX_STRING query,
+                             unsigned char is_prepared,
+                             sql_condition_handler_function handle_condition,
+                             void *condition_handler_state);
+typedef int (*mysql_get_statement_type_t)(void* thd);
+typedef int (*mysql_get_statement_digest_t)(void* thd, unsigned char *digest);
+typedef int (*mysql_get_number_params_t)(void* thd);
+typedef int (*mysql_extract_prepared_params_t)(void* thd, int *positions);
+typedef int (*mysql_visit_tree_t)(void* thd,
+                                  parse_node_visit_function processor,
+                                  unsigned char* arg);
+typedef MYSQL_LEX_STRING (*mysql_item_string_t)(MYSQL_ITEM item);
+typedef void (*mysql_free_string_t)(MYSQL_LEX_STRING string);
+typedef MYSQL_LEX_STRING (*mysql_get_query_t)(void* thd);
+typedef MYSQL_LEX_STRING (*mysql_get_normalized_query_t)(void* thd);
 extern struct mysql_parser_service_st {
-  void* (*mysql_current_session)();
-  void* (*mysql_open_session)();
-  void (*mysql_start_thread)(void* thd, void *(*callback_fun)(void*),
-                             void *arg,
-                             struct st_my_thread_handle *thread_handle);
-  void (*mysql_join_thread)(struct st_my_thread_handle *thread_handle);
-  void (*mysql_set_current_database)(void* thd, const MYSQL_LEX_STRING db);
-  int (*mysql_parse)(void* thd, const MYSQL_LEX_STRING query,
-                     unsigned char is_prepared,
-                     sql_condition_handler_function handle_condition,
-                     void *condition_handler_state);
-  int (*mysql_get_statement_type)(void* thd);
-  int (*mysql_get_statement_digest)(void* thd, unsigned char *digest);
-  int (*mysql_get_number_params)(void* thd);
-  int (*mysql_extract_prepared_params)(void* thd, int *positions);
-  int (*mysql_visit_tree)(void* thd, parse_node_visit_function processor,
-                          unsigned char* arg);
-  MYSQL_LEX_STRING (*mysql_item_string)(MYSQL_ITEM item);
-  void (*mysql_free_string)(MYSQL_LEX_STRING string);
-  MYSQL_LEX_STRING (*mysql_get_query)(void* thd);
-  MYSQL_LEX_STRING (*mysql_get_normalized_query)(void* thd);
+  mysql_current_session_t mysql_current_session;
+  mysql_open_session_t mysql_open_session;
+  mysql_start_thread_t mysql_start_thread;
+  mysql_join_thread_t mysql_join_thread;
+  mysql_set_current_database_t mysql_set_current_database;
+  mysql_parse_t mysql_parse;
+  mysql_get_statement_type_t mysql_get_statement_type;
+  mysql_get_statement_digest_t mysql_get_statement_digest;
+  mysql_get_number_params_t mysql_get_number_params;
+  mysql_extract_prepared_params_t mysql_extract_prepared_params;
+  mysql_visit_tree_t mysql_visit_tree;
+  mysql_item_string_t mysql_item_string;
+  mysql_free_string_t mysql_free_string;
+  mysql_get_query_t mysql_get_query;
+  mysql_get_normalized_query_t mysql_get_normalized_query;
 } *mysql_parser_service;
 typedef void *(*callback_function)(void*);
 void* mysql_parser_current_session();
@@ -476,12 +512,17 @@ extern struct security_context_service_st {
 #include <mysql/service_locking.h>
 enum enum_locking_service_lock_type
 { LOCKING_SERVICE_READ, LOCKING_SERVICE_WRITE };
+typedef int (*mysql_acquire_locks_t)(void* opaque_thd,
+                                     const char* lock_namespace,
+                                     const char**lock_names,
+                                     size_t lock_num,
+                                     enum enum_locking_service_lock_type lock_type,
+                                     unsigned long lock_timeout);
+typedef int (*mysql_release_locks_t)(void* opaque_thd,
+                                     const char* lock_namespace);
 extern struct mysql_locking_service_st {
-  int (*mysql_acquire_locks)(void* opaque_thd, const char* lock_namespace,
-                             const char**lock_names, size_t lock_num,
-                             enum enum_locking_service_lock_type lock_type,
-                             unsigned long lock_timeout);
-  int (*mysql_release_locks)(void* opaque_thd, const char* lock_namespace);
+  mysql_acquire_locks_t mysql_acquire_locks;
+  mysql_release_locks_t mysql_release_locks;
 } *mysql_locking_service;
 int mysql_acquire_locking_service_locks(void* opaque_thd,
                                         const char* lock_namespace,

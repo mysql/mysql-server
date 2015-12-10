@@ -124,7 +124,7 @@ void compute_digest_md5(const sql_digest_storage *digest_storage, unsigned char 
   - literal values are replaced with a special '?' marker,
   - lists of values are collapsed using a shorter notation
   @param digest_storage The digest
-  @param [out] digest_text
+  @param [out] digest_text The digest text
 */
 void compute_digest_text(const sql_digest_storage *digest_storage,
                          String *digest_text);

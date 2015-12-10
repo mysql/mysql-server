@@ -1540,8 +1540,10 @@ struct Query_options {
 
 struct Proc_analyse_params
 {
-  uint max_tree_elements; //< maximum number of distinct values per column
-  uint max_treemem; //< maximum amount of memory to allocate per column
+  /** Maximum number of distinct values per column. */
+  uint max_tree_elements;
+  /** Maximum amount of memory to allocate per column. */
+  uint max_treemem;
 
   static const uint default_max_tree_elements= 256;
   static const uint default_max_treemem= 8192;

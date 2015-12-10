@@ -252,7 +252,6 @@ public:
     Sends field metadata.
 
     @param field                   Field metadata to be send to the client
-    @param field                   Field to be send to the client
     @param charset                 Field's charset: in case it is different
                                    than the one used by the connection it will
                                    be used to convert the value to

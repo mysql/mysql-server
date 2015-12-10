@@ -603,6 +603,7 @@ public:
              @endverbatim
     </td>
   </tr>
+  </table>
 */
 class Rows_event: public Binary_log_event
 {

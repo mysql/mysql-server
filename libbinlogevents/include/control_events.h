@@ -632,7 +632,7 @@ public:
     An XID event is generated for a commit of a transaction that modifies one or
     more tables of an XA-capable storage engine
     @param buf                Contains the serialized event.
-    @param description_event  An FDE event, used to get the
+    @param fde                An FDE event, used to get the
                               following information
                               -binlog_version
                               -server_version
@@ -854,11 +854,12 @@ struct gtid_info
     <th>Description</th>
   </tr>
   <tr>
-    <td>byte</th>
-    <td>unsigned char array</th>
+    <td>byte</td>
+    <td>unsigned char array</td>
     <td>This stores the Uuid of the server on which transaction
-        is originated</th>
+        is originated</td>
   </tr>
+  </table>
 */
 
 struct Uuid
@@ -937,8 +938,6 @@ struct Uuid
         (file, offset)
 
   @section Gtid_event_binary_format Binary Format
-
-  @todo
 */
 class Gtid_event: public Binary_log_event
 {

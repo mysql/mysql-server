@@ -163,6 +163,7 @@ extern "C" void myrg_print_wrong_table(const char *table_name)
   my_error(ER_ADMIN_WRONG_MRG_TABLE, MYF(0), buf);
 }
 
+namespace {
 
 /**
   Callback function for open of a MERGE parent table.
@@ -175,8 +176,6 @@ extern "C" void myrg_print_wrong_table(const char *table_name)
   @return status
     @retval     0               OK
     @retval     != 0            Error
-
-  @details
 
     This function adds a TABLE_LIST object for a MERGE child table to a
     list of tables in the parent handler object. It is called for each
@@ -202,8 +201,6 @@ extern "C" void myrg_print_wrong_table(const char *table_name)
     #                                                        |
     children_last_l -----------------------------------------+
 */
-
-namespace {
 
 extern "C" int myisammrg_parent_open_callback(void *callback_param,
                                               const char *filename)
@@ -574,6 +571,7 @@ public:
   }
 };
 
+namespace {
 
 /**
   Callback function for attaching a MERGE child table.
@@ -589,8 +587,6 @@ public:
     This function retrieves the MyISAM table handle from the
     next child table. It is called for each child table.
 */
-
-namespace {
 
 extern "C" MI_INFO *myisammrg_attach_children_callback(void *callback_param)
 {
