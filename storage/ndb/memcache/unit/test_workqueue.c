@@ -81,42 +81,82 @@ int main() {
   
   seed_randomizer(1);
 
+  /* Note! Note! For TAP, tests are numbered 1 to 7 */
+  printf("1..7\n");
+  fflush(stdout);
+
   /* Test 0: no-sleep with 1 consumer */
   printf("No-sleep test with 1 consumer\n");
-  if(run_test(& test0)) printf("Test OK \n\n");
+  fflush(stdout);
+  if(run_test(& test0))
+  {
+    printf("Test OK \n\n");
+    fflush(stdout);
+  }
   else exit(1);
 
   /* Test 1: the no-sleep test */
   printf("No-sleep wham!bam! test with %d iterations: \n", test1.iterations);
-  if(run_test(& test1)) printf("Test OK \n\n");
+  fflush(stdout);
+  if(run_test(& test1))
+  {
+      printf("Test OK \n\n");
+      fflush(stdout);
+  }
   else exit(1);
   
   /* Test 2: fast producer, slow consumer */
   printf("Fast producer / slow consumer test: \n");
-  if(run_test(& test2)) printf("Test OK \n\n");
+  fflush(stdout);
+  if(run_test(& test2))
+  {
+    printf("Test OK \n\n");
+    fflush(stdout);
+  }
   else exit(1);
 
   /* Test 3: slow producer, fast consumer */
-  printf("Slow producer / fast consumer test : \n");  
-  if(run_test(& test3)) printf("Test OK \n\n");
+  printf("Slow producer / fast consumer test : \n");
+  fflush(stdout);
+  if(run_test(& test3))
+  {
+    printf("Test OK \n\n");
+    fflush(stdout);
+  }
   else exit(1);
 
   /* Test 4: very slow consumer */  
-  printf("very slow consumer test: \n");  
-  if(run_test(& test4)) printf("Test OK \n\n");
+  printf("very slow consumer test: \n");
+  fflush(stdout);
+  if(run_test(& test4))
+  {
+    printf("Test OK \n\n");
+    fflush(stdout);
+  }
   else exit(1);
 
   /* Test 5: whambam! consumer */  
-  printf("Sluggish producer, whambam! consumer test: \n");  
-  if(run_test(& test5)) printf("Test OK \n\n");
+  printf("Sluggish producer, whambam! consumer test: \n");
+  fflush(stdout);
+  if(run_test(& test5))
+  {
+    printf("Test OK \n\n");
+    fflush(stdout);
+  }
   else exit(1);
 
   /* Test 6: simulation */
-  printf("Memcached simluation test: \n");  
-  if(run_test(& test6)) printf("Test OK \n\n");
+  printf("Memcached simluation test: \n");
+  fflush(stdout);
+  if(run_test(& test6))
+  {
+    printf("Test OK \n\n");
+    fflush(stdout);
+  }
   else exit(1);
 
   printf("Passed.\n");
+  fflush(stdout);
   exit(0);
 }
 
