@@ -60,6 +60,7 @@
 #include "psi_memory_key.h"
 #include "sql_base.h"                           // insert_fields
 #include "sql_select.h"
+#include "sql_audit.h"                          // mysql_audit_table_access_notify
 #include "transaction.h"
 #include "log.h"
 #include "template_utils.h"
@@ -673,6 +674,11 @@ retry:
                   DBUG_SET("-d,simulate_net_write_failure"););
   if (res)
     goto err;
+
+#ifndef EMBEDDED_LIBRARY
+  if (mysql_audit_table_access_notify(thd, hash_tables))
+    goto err;
+#endif /* !EMBEDDED_LIBRARY */
 
   /*
     In ::external_lock InnoDB resets the fields which tell it that

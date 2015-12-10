@@ -140,7 +140,7 @@ int mysql_audit_notify(THD *thd, mysql_event_parse_subclass_t subclass,
 /**
   Call audit plugins of AUTHORIZATION audit class.
 
-  @param[in] thd
+  @param[in] thd              Thread data.
   @param[in] subclass         Type of the connection audit event.
   @param[in] subclass_name    Name of the subclass.
   @param[in] database         object database
@@ -154,24 +154,20 @@ int mysql_audit_notify(THD *thd, mysql_event_authorization_subclass_t subclass,
                        const char *subclass_name,
                        const char *database, unsigned int database_length,
                        const char *name, unsigned int name_length);
-
-#if 0 /* Function commented out. No Audit API calls yet. */
 /**
-  Call audit plugins of TABLE DATA audit class.
+  Call audit plugins of TABLE ACCESS audit class events for all tables
+  available in the list.
 
-  @param[in] thd
-  @param[in] subclass         Type of the connection audit event.
-  @param[in] subclass_name    Name of the subclass.
-  @param[in] database         table database
-  @param[in] table            table name
+  Event subclass value depends on the thd->lex->sql_command value.
 
-  @return 0 continue server flow, otherwise abort.
+  The event is generated for 'USER' and 'SYS' tables only.
+
+  @param[in] thd    Current thread data.
+  @param[in] table  Connected list of tables, for which event is generated.
+
+  @return 0 - continue server flow, otherwise abort.
 */
-
-int mysql_audit_notify(THD *thd, mysql_event_table_access_subclass_t subclass,
-                       const char *subclass_name,
-                       const char *database, const char *table);
-#endif
+int mysql_audit_table_access_notify(THD *thd, TABLE_LIST *table);
 
 /**
   Call audit plugins of GLOBAL VARIABLE audit class.

@@ -49,6 +49,7 @@
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "transaction.h"              // trans_rollback_stmt
 #include "trigger_loader.h"           // Trigger_loader
+#include "sql_audit.h"                // mysql_audit_table_access_notify
 
 #ifdef HAVE_REPLICATION
 #include "rpl_rli.h"                  //Relay_log_information
@@ -5410,7 +5411,9 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   bool some_routine_modifies_data= FALSE;
   bool has_prelocking_list;
   DBUG_ENTER("open_tables");
-
+#ifndef EMBEDDED_LIBRARY
+  bool audit_notified= false;
+#endif /* !EMBEDDED_LIBRARY */
 
 restart:
   /*
@@ -5541,6 +5544,25 @@ restart:
 
       DEBUG_SYNC(thd, "open_tables_after_open_and_process_table");
     }
+
+    /*
+      Iterate through set of tables and generate table access audit events.
+    */
+#ifndef EMBEDDED_LIBRARY
+    if (!audit_notified && mysql_audit_table_access_notify(thd, *start))
+    {
+      error= true;
+      goto err;
+    }
+
+    /*
+      Event is not generated in the next loop. It may contain duplicated
+      table entries as well as new tables discovered for stored procedures.
+      Events for these tables will be generated during the queries of these
+      stored procedures.
+    */
+    audit_notified= true;
+#endif /* !EMBEDDED_LIBRARY */
 
     /*
       If we are not already in prelocked mode and extended table list is

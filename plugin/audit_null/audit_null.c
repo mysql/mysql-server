@@ -362,7 +362,7 @@ static int process_command(MYSQL_THD thd, LEX_CSTRING event_command)
   @retval Value indicating, whether the server should abort continuation
           of the current oparation.
 */
-static int audit_null_notify(MYSQL_THD thd __attribute__((unused)),
+static int audit_null_notify(MYSQL_THD thd,
                              mysql_event_class_t event_class,
                              const void *event)
 {
@@ -451,6 +451,14 @@ static int audit_null_notify(MYSQL_THD thd __attribute__((unused)),
     const struct mysql_event_authorization *event_grant =
                              (const struct mysql_event_authorization *)event;
 
+    buffer_data= sprintf(buffer, "db=\"%s\" table=\"%s\" object=\"%s\" "
+                         "requested=\"0x%08x\" granted=\"0x%08x\"",
+                         event_grant->database.str ? event_grant->database.str : "<NULL>",
+                         event_grant->table.str ? event_grant->table.str : "<NULL>",
+                         event_grant->object.str ? event_grant->object.str : "<NULL>",
+                         event_grant->requested_privilege,
+                         event_grant->granted_privilege);
+
     switch (event_grant->event_subclass)
     {
     case MYSQL_AUDIT_AUTHORIZATION_USER:
@@ -511,6 +519,10 @@ static int audit_null_notify(MYSQL_THD thd __attribute__((unused)),
   {
     const struct mysql_event_query *event_query=
                                       (const struct mysql_event_query *)event;
+
+    buffer_data= sprintf(buffer, "sql_command_id=\"%d\"",
+                         (int) event_query->sql_command_id);
+
     switch (event_query->event_subclass)
     {
     case MYSQL_AUDIT_QUERY_START:
@@ -529,13 +541,15 @@ static int audit_null_notify(MYSQL_THD thd __attribute__((unused)),
       break;
     }
   }
-  /**
-    Currently events not active.
-
   else if (event_class == MYSQL_AUDIT_TABLE_ACCESS_CLASS)
   {
-    const struct mysql_event_table_access *event_table =
+    const struct mysql_event_table_access *event_table=
                                (const struct mysql_event_table_access *)event;
+
+    buffer_data= sprintf(buffer, "db=\"%s\" table=\"%s\"",
+                         event_table->table_database.str,
+                         event_table->table_name.str);
+
     switch (event_table->event_subclass)
     {
     case MYSQL_AUDIT_TABLE_ACCESS_INSERT:
@@ -554,7 +568,6 @@ static int audit_null_notify(MYSQL_THD thd __attribute__((unused)),
       break;
     }
   }
-  */
   else if (event_class == MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS)
   {
     const struct mysql_event_global_variable *event_gvar =
@@ -563,10 +576,16 @@ static int audit_null_notify(MYSQL_THD thd __attribute__((unused)),
     /* Copy the variable content into the buffer. We do not guarantee that the
        variable value will fit into buffer. The buffer should be large enough
        to be used for the test purposes. */
-    buffer_data= sprintf(buffer, "value=\"%.*s\"",
-                         MY_MIN((int)event_gvar->variable_value.length,
-                                (int)(sizeof(buffer) - 9)), /* excluding value=""\0 */
-                         event_gvar->variable_value.str);
+    buffer_data= sprintf(buffer, "name=\"%.*s\"",
+                         MY_MIN((int) event_gvar->variable_name.length,
+                                (int) (sizeof(buffer) - 8)),
+                          event_gvar->variable_name.str);
+
+    buffer_data+= sprintf(buffer + buffer_data, " value=\"%.*s\"",
+                         MY_MIN((int) event_gvar->variable_value.length,
+                                (int) (sizeof(buffer) - 16)),
+                          event_gvar->variable_value.str);
+    buffer[buffer_data]= '\0';
 
     switch (event_gvar->event_subclass)
     {
@@ -611,16 +630,24 @@ static int audit_null_notify(MYSQL_THD thd __attribute__((unused)),
   }
   else
   {
+    LEX_CSTRING ignore= { C_STRING_WITH_LEN("<IGNORE>") };
+
     /* When we are not in the event order check, check if the specified
        data corresponds to the actual event data. */
     if (my_charset_latin1.coll->strnncoll(&my_charset_latin1,
                                           (const uchar *)event_data.str,
+                                          event_data.length,
+                                          (const uchar *) ignore.str,
+                                          ignore.length, 0) &&
+        my_charset_latin1.coll->strnncoll(&my_charset_latin1,
+                                          (const uchar *) event_data.str,
                                           event_data.length,
                                           (const uchar *)buffer,
                                           (size_t)buffer_data, 0))
     {
       if (exact_check == 1 && event_order_started == 1)
       {
+        char invalid_data_buffer[sizeof(buffer)]= { 0, };
         LEX_CSTRING status= { C_STRING_WITH_LEN("EVENT-ORDER-INVALID-DATA") };
         LEX_CSTRING order_cstr;
 
@@ -630,9 +657,9 @@ static int audit_null_notify(MYSQL_THD thd __attribute__((unused)),
         memmove((char *)order_cstr.str,
                 (void *)status.str, status.length + 1);
 
-        strxnmov(buffer, sizeof(buffer), "Invalid data for '",
-                 event_name.str, "'", NullS);
-        my_message(ER_AUDIT_API_ABORT, buffer, MYF(0));
+        strxnmov(invalid_data_buffer, sizeof(invalid_data_buffer),
+                 "Invalid data for '", event_name.str, "' -> ", buffer, NullS);
+        my_message(ER_AUDIT_API_ABORT, invalid_data_buffer, MYF(0));
 
         THDVAR(thd, event_order_started)= 0;
         THDVAR(thd, event_order_check)= (char *)order_cstr.str;
@@ -687,7 +714,7 @@ static struct st_mysql_audit audit_null_descriptor=
     (unsigned long) MYSQL_AUDIT_CONNECTION_ALL,
     (unsigned long) MYSQL_AUDIT_PARSE_ALL,
     0, /* This event class is currently not supported. */
-    0, /* This event class is currently not supported. */
+    (unsigned long) MYSQL_AUDIT_TABLE_ACCESS_ALL,
     (unsigned long) MYSQL_AUDIT_GLOBAL_VARIABLE_ALL,
     (unsigned long) MYSQL_AUDIT_SERVER_STARTUP_ALL,
     (unsigned long) MYSQL_AUDIT_SERVER_SHUTDOWN_ALL,
