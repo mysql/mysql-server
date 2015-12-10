@@ -383,7 +383,8 @@ int decimal2string(const decimal_t *from, char *to, int *to_len,
     }
     else
       frac-=j;
-    len= from->sign + intg_len + test(frac) + frac_len;
+    frac_len= frac;
+    len= from->sign + intg_len + test(frac) + frac;
   }
   *to_len=len;
   s[len]=0;
