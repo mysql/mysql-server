@@ -10626,16 +10626,16 @@ joined_table:
         ;
 
 natural_join_type:
-          NATURAL opt_inner JOIN_SYM       { $$= JTT_NATURAL; }
+          NATURAL opt_inner JOIN_SYM       { $$= JTT_NATURAL_INNER; }
         | NATURAL RIGHT opt_outer JOIN_SYM { $$= JTT_NATURAL_RIGHT; }
         | NATURAL LEFT opt_outer JOIN_SYM  { $$= JTT_NATURAL_LEFT; }
         ;
 
 inner_join_type:
-          JOIN_SYM                         { $$= JTT_NORMAL; }
-        | INNER_SYM JOIN_SYM               { $$= JTT_NORMAL; }
-        | CROSS JOIN_SYM                   { $$= JTT_NORMAL; }
-        | STRAIGHT_JOIN                    { $$= JTT_STRAIGHT; }
+          JOIN_SYM                         { $$= JTT_INNER; }
+        | INNER_SYM JOIN_SYM               { $$= JTT_INNER; }
+        | CROSS JOIN_SYM                   { $$= JTT_INNER; }
+        | STRAIGHT_JOIN                    { $$= JTT_STRAIGHT_INNER; }
 
 outer_join_type:
           LEFT opt_outer JOIN_SYM          { $$= JTT_LEFT; }

@@ -290,6 +290,13 @@ private:
 };
 
 
+#ifdef __GNUC__
+#define IS_SINGLE_FLAG(X) (__builtin_popcount(X) == 1)
+#else
+#define IS_SINGLE_FLAG(X) true
+#endif // __GNUC__
+
+
 class PT_join_table : public Parse_tree_node
 {
   typedef Parse_tree_node super;
@@ -313,20 +320,20 @@ public:
     tab2_node(tab2_node_arg),
     tr1(NULL), tr2(NULL)
   {
-    DBUG_ASSERT(dbug_exclusive_flags(JTT_NORMAL | JTT_STRAIGHT | JTT_NATURAL));
-    DBUG_ASSERT(dbug_exclusive_flags(JTT_LEFT | JTT_RIGHT));
-  }
+    compile_time_assert(IS_SINGLE_FLAG(JTT_INNER));
+    compile_time_assert(IS_SINGLE_FLAG(JTT_STRAIGHT));
+    compile_time_assert(IS_SINGLE_FLAG(JTT_NATURAL));
+    compile_time_assert(IS_SINGLE_FLAG(JTT_LEFT));
+    compile_time_assert(IS_SINGLE_FLAG(JTT_RIGHT));
 
-#ifndef DBUG_OFF
-  bool dbug_exclusive_flags(unsigned int mask)
-  {
-#ifdef __GNUC__
-    return __builtin_popcount(m_type & mask) <= 1;
-#else
-    return true;
-#endif
+    DBUG_ASSERT(type == JTT_INNER ||
+                type == JTT_STRAIGHT_INNER ||
+                type == JTT_NATURAL_INNER ||
+                type == JTT_NATURAL_LEFT ||
+                type == JTT_NATURAL_RIGHT ||
+                type == JTT_LEFT ||
+                type == JTT_RIGHT);
   }
-#endif
 
   PT_table_reference *add_cross_join(PT_table_ref_join_table* cj)
   {

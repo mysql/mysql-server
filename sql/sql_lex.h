@@ -1612,17 +1612,26 @@ enum delete_option_enum {
   DELETE_IGNORE       = 1 << 2
 };
 
+
+/**
+  Internally there is no CROSS JOIN join type, as cross joins are just a
+  special case of inner joins with a join condition that is always true. The
+  only difference is the nesting, and that is handled by the parser.
+*/
 enum PT_join_table_type
 {
-  JTT_NORMAL            = 0x01,
+  JTT_INNER             = 0x01,
   JTT_STRAIGHT          = 0x02,
   JTT_NATURAL           = 0x04,
   JTT_LEFT              = 0x08,
   JTT_RIGHT             = 0x10,
 
+  JTT_STRAIGHT_INNER    = JTT_STRAIGHT | JTT_INNER,
+  JTT_NATURAL_INNER     = JTT_NATURAL | JTT_INNER,
   JTT_NATURAL_LEFT      = JTT_NATURAL | JTT_LEFT,
   JTT_NATURAL_RIGHT     = JTT_NATURAL | JTT_RIGHT
 };
+
 
 union YYSTYPE {
   /*
