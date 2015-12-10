@@ -76,10 +76,12 @@ static int no_io_wait(Vio *vio __attribute__((unused)),
 
 #endif
 
+extern "C" {
 static my_bool has_no_data(Vio *vio __attribute__((unused)))
 {
   return FALSE;
 }
+} // extern "C"
 
 /*
  * Helper to fill most of the Vio* with defaults.
@@ -333,14 +335,14 @@ Vio *vio_new_win32shared_memory(HANDLE handle_file_map, HANDLE handle_map,
   {
     vio_init(vio, VIO_TYPE_SHARED_MEMORY, 0, VIO_LOCALHOST);
     vio->handle_file_map= handle_file_map;
-    vio->handle_map= handle_map;
+    vio->handle_map= reinterpret_cast<char*>(handle_map);
     vio->event_server_wrote= event_server_wrote;
     vio->event_server_read= event_server_read;
     vio->event_client_wrote= event_client_wrote;
     vio->event_client_read= event_client_read;
     vio->event_conn_closed= event_conn_closed;
     vio->shared_memory_remain= 0;
-    vio->shared_memory_pos= handle_map;
+    vio->shared_memory_pos= reinterpret_cast<char*>(handle_map);
     my_stpcpy(vio->desc, "shared memory");
   }
   DBUG_RETURN(vio);

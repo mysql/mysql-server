@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@ size_t vio_read_shared_memory(Vio *vio, uchar *buf, size_t size)
 {
   size_t length;
   size_t remain_local;
-  char *current_position;
+  uchar *current_position;
   HANDLE events[2];
   DWORD timeout;
   DBUG_ENTER("vio_read_shared_memory");
@@ -169,16 +169,16 @@ void vio_delete_shared_memory(Vio *vio)
   */
   if (UnmapViewOfFile(vio->handle_map) == 0)
     DBUG_PRINT("vio_error", ("UnmapViewOfFile() failed"));
-  
+
   if (CloseHandle(vio->event_server_wrote) == 0)
     DBUG_PRINT("vio_error", ("CloseHandle(vio->esw) failed"));
-  
+
   if (CloseHandle(vio->event_server_read) == 0)
     DBUG_PRINT("vio_error", ("CloseHandle(vio->esr) failed"));
-  
+
   if (CloseHandle(vio->event_client_wrote) == 0)
     DBUG_PRINT("vio_error", ("CloseHandle(vio->ecw) failed"));
-  
+
   if (CloseHandle(vio->event_client_read) == 0)
     DBUG_PRINT("vio_error", ("CloseHandle(vio->ecr) failed"));
 

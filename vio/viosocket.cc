@@ -680,7 +680,7 @@ static my_bool socket_peek_read(Vio *vio, uint *bytes)
 {
   my_socket sd= mysql_socket_getfd(vio->mysql_socket);
 #if defined(_WIN32)
-  int len;
+  u_long len;
   if (ioctlsocket(sd, FIONREAD, &len))
     return TRUE;
   *bytes= len;

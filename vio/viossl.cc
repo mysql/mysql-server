@@ -126,7 +126,7 @@ static my_bool ssl_should_retry(Vio *vio, int ret,
                                 unsigned long *ssl_errno_holder)
 {
   int ssl_error;
-  SSL *ssl= vio->ssl_arg;
+  SSL *ssl= static_cast<SSL*>(vio->ssl_arg);
   my_bool should_retry= TRUE;
 
   /* Retrieve the result for the SSL I/O operation. */
@@ -165,7 +165,7 @@ static my_bool ssl_should_retry(Vio *vio, int ret,
 size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size)
 {
   int ret;
-  SSL *ssl= vio->ssl_arg;
+  SSL *ssl= static_cast<SSL*>(vio->ssl_arg);
   unsigned long ssl_errno_not_used;
 
   DBUG_ENTER("vio_ssl_read");
@@ -204,7 +204,7 @@ size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size)
 size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size)
 {
   int ret;
-  SSL *ssl= vio->ssl_arg;
+  SSL *ssl= static_cast<SSL*>(vio->ssl_arg);
   unsigned long ssl_errno_not_used;
 
   DBUG_ENTER("vio_ssl_write");
@@ -241,18 +241,22 @@ size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size)
 
 #ifdef HAVE_YASSL
 
+extern "C" {
 /* Emulate a blocking recv() call with vio_read(). */
 static long yassl_recv(void *ptr, void *buf, size_t len)
 {
-  return (long)vio_read(ptr, buf, len);
+  return static_cast<long>(vio_read(static_cast<Vio*>(ptr),
+                                    static_cast<uchar*>(buf), len));
 }
 
 
 /* Emulate a blocking send() call with vio_write(). */
 static long yassl_send(void *ptr, const void *buf, size_t len)
 {
-  return (long)vio_write(ptr, buf, len);
+  return static_cast<long>(vio_write(static_cast<Vio*>(ptr),
+                                     static_cast<const uchar*>(buf), len));
 }
+} // extern "C"
 
 #endif
 
@@ -272,8 +276,8 @@ int vio_ssl_shutdown(Vio *vio)
     describing with length, we aren't vunerable to these attacks. Therefore,
     we just shutdown by closing the socket (quiet shutdown).
     */
-    SSL_set_quiet_shutdown(ssl, 1); 
-    
+    SSL_set_quiet_shutdown(ssl, 1);
+
     switch ((r= SSL_shutdown(ssl))) {
     case 1:
       /* Shutdown successful */
@@ -318,7 +322,9 @@ void vio_ssl_delete(Vio *vio)
 
 
 /** SSL handshake handler. */
+extern "C" {
 typedef int (*ssl_handshake_func_t)(SSL*);
+}
 
 
 /**
@@ -505,7 +511,7 @@ int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
 
 my_bool vio_ssl_has_data(Vio *vio)
 {
-  return SSL_pending(vio->ssl_arg) > 0 ? TRUE : FALSE;
+  return SSL_pending(static_cast<SSL*>(vio->ssl_arg)) > 0 ? TRUE : FALSE;
 }
 
 #endif /* HAVE_OPENSSL */
