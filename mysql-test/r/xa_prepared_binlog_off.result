@@ -2,6 +2,7 @@ call mtr.add_suppression("You need to use --log-bin to make --log-slave-updates 
 include/gtid_utils.inc
 CREATE VIEW v_processlist  as SELECT * FROM performance_schema.threads where type = 'FOREGROUND';
 call mtr.add_suppression("Found 10 prepared XA transactions");
+call mtr.add_suppression("Found 1 prepared XA transactions");
 CREATE TABLE t (a INT) ENGINE=innodb;
 SET @@sql_log_bin = OFF;
 CREATE TEMPORARY TABLE tmp1 (a int) ENGINE=innodb;
@@ -809,5 +810,19 @@ include/assert.inc [committed gno 130]
 All transactions must be completed, to empty-list the following:
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
+CREATE TABLE t(a INT);
+XA START 'xa1';
+INSERT INTO t SET a = 1;
+XA END 'xa1';
+SET @@SESSION.pseudo_slave_mode=1;
+XA PREPARE 'xa1';
 # restart
+XA ROLLBACK 'xa1';
+XA START 'xa1';
+INSERT INTO t SET a = 1;
+XA END 'xa1';
+XA PREPARE 'xa1';
+SET @@SESSION.pseudo_slave_mode=1;
+XA COMMIT 'xa1';
+DROP TABLE t;
 include/gtid_utils_end.inc
