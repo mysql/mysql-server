@@ -715,7 +715,17 @@ drop table t1;
 #
 # Bug #9854  hex() and out of range handling
 #
-select hex(29223372036854775809), hex(-29223372036854775809);
+select hex(29223372036854775809) as hex_signed,
+       hex(cast(29223372036854775809 as unsigned)) as hex_unsigned;
+select conv(29223372036854775809, -10, 16) as conv_signed,
+       conv(29223372036854775809, 10, 16) as conv_unsigned;
+
+## decimal2ulonglong does *to=0ULL; return E_DEC_OVERFLOW;
+## hence the difference in output for hex_unsigned and conv_unsigned below
+select hex(-29223372036854775809) as hex_signed,
+       hex(cast(-29223372036854775809 as unsigned)) as hex_unsigned;
+select conv(-29223372036854775809, -10, 16) as conv_signed,
+       conv(-29223372036854775809, 10, 16) as conv_unsigned;
 
 #
 # Bug #11311: Incorrect length returned from LPAD() and RPAD()
@@ -1867,3 +1877,16 @@ SELECT * FROM t1 WHERE c1 <=  REPEAT( SUBSTR( UPPER('Rdlpikti') , 1 , 2 ), 8);
 DROP TABLE t1;
 DROP DATABASE testt;
 SET NAMES DEFAULT;
+
+--echo #
+--echo # Bug#22297983 HEX() FUNCTION CONVERTS DECIMAL TO DOUBLE AND
+--echo #              THUS RETURNS WRONG RESULT
+--echo #
+
+select hex(cast(9007199254740992 as decimal(30,0)));
+select hex(cast(9007199254740993 as decimal(30,0)));
+select hex(cast(9007199254740994 as decimal(30,0)));
+
+select hex(cast(0x20000000000000 as unsigned) + 1);
+select hex(cast(0x20000000000000 as decimal(30,0)) + 1);
+select hex(cast(0x20000000000000 as decimal(30,0)) + 2);

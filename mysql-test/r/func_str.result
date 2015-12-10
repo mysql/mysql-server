@@ -1282,9 +1282,28 @@ abc	abc	c	bc	abc
 abcd	abcd	d	cd	bcd	abcd	
 abcde	abcde	e	de	cde	bcde	abcde
 drop table t1;
-select hex(29223372036854775809), hex(-29223372036854775809);
-hex(29223372036854775809)	hex(-29223372036854775809)
-FFFFFFFFFFFFFFFF	FFFFFFFFFFFFFFFF
+select hex(29223372036854775809) as hex_signed,
+hex(cast(29223372036854775809 as unsigned)) as hex_unsigned;
+hex_signed	hex_unsigned
+7FFFFFFFFFFFFFFF	FFFFFFFFFFFFFFFF
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '29223372036854775809'
+Warning	1292	Truncated incorrect DECIMAL value: '29223372036854775809'
+select conv(29223372036854775809, -10, 16) as conv_signed,
+conv(29223372036854775809, 10, 16) as conv_unsigned;
+conv_signed	conv_unsigned
+7FFFFFFFFFFFFFFF	FFFFFFFFFFFFFFFF
+select hex(-29223372036854775809) as hex_signed,
+hex(cast(-29223372036854775809 as unsigned)) as hex_unsigned;
+hex_signed	hex_unsigned
+8000000000000000	0
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '-29223372036854775809'
+Warning	1292	Truncated incorrect DECIMAL value: '-29223372036854775809'
+select conv(-29223372036854775809, -10, 16) as conv_signed,
+conv(-29223372036854775809, 10, 16) as conv_unsigned;
+conv_signed	conv_unsigned
+8000000000000000	FFFFFFFFFFFFFFFF
 create table t1 (i int);
 insert into t1 values (1000000000),(1);
 select lpad(i, 7, ' ') as t from t1;
@@ -4810,3 +4829,25 @@ c1
 DROP TABLE t1;
 DROP DATABASE testt;
 SET NAMES DEFAULT;
+#
+# Bug#22297983 HEX() FUNCTION CONVERTS DECIMAL TO DOUBLE AND
+#              THUS RETURNS WRONG RESULT
+#
+select hex(cast(9007199254740992 as decimal(30,0)));
+hex(cast(9007199254740992 as decimal(30,0)))
+20000000000000
+select hex(cast(9007199254740993 as decimal(30,0)));
+hex(cast(9007199254740993 as decimal(30,0)))
+20000000000001
+select hex(cast(9007199254740994 as decimal(30,0)));
+hex(cast(9007199254740994 as decimal(30,0)))
+20000000000002
+select hex(cast(0x20000000000000 as unsigned) + 1);
+hex(cast(0x20000000000000 as unsigned) + 1)
+20000000000001
+select hex(cast(0x20000000000000 as decimal(30,0)) + 1);
+hex(cast(0x20000000000000 as decimal(30,0)) + 1)
+20000000000001
+select hex(cast(0x20000000000000 as decimal(30,0)) + 2);
+hex(cast(0x20000000000000 as decimal(30,0)) + 2)
+20000000000002

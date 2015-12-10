@@ -4290,28 +4290,16 @@ String *Item_func_hex::val_str_ascii(String *str)
   DBUG_ASSERT(fixed == 1);
   if (args[0]->result_type() != STRING_RESULT)
   {
-    ulonglong dec;
-    char ans[65],*ptr;
-    /* Return hex of unsigned longlong value */
-    if (args[0]->result_type() == REAL_RESULT ||
-        args[0]->result_type() == DECIMAL_RESULT)
-    {
-      double val= args[0]->val_real();
-      if ((val <= (double) LLONG_MIN) || 
-          (val >= (double) (ulonglong) ULLONG_MAX))
-        dec=  ~(longlong) 0;
-      else
-        dec= (ulonglong) (val + (val > 0 ? 0.5 : -0.5));
-    }
-    else
-      dec= (ulonglong) args[0]->val_int();
+    /* Return hex of signed longlong value */
+    longlong dec= args[0]->val_int();
 
     if ((null_value= args[0]->null_value))
       return 0;
     
+    char ans[65],*ptr;
     if (!(ptr= longlong2str(dec, ans, 16)) ||
         str->copy(ans,(uint32) (ptr - ans),
-        &my_charset_numeric))
+                  &my_charset_numeric))
       return make_empty_result();		// End of memory
     return str;
   }
