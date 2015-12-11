@@ -632,7 +632,7 @@ public:
     An XID event is generated for a commit of a transaction that modifies one or
     more tables of an XA-capable storage engine
     @param buf                Contains the serialized event.
-    @param fde                An FDE event, used to get the
+    @param description_event  An FDE event, used to get the
                               following information
                               -binlog_version
                               -server_version
@@ -641,7 +641,7 @@ public:
                               The content of this object
                               depends on the binlog-version currently in use.
   */
-  Xid_event(const char *buf, const Format_description_event *fde);
+  Xid_event(const char *buf, const Format_description_event *description_event);
   uint64_t xid;
 #ifndef HAVE_MYSYS
   void print_event_info(std::ostream& info);

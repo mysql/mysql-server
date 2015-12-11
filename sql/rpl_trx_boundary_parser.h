@@ -110,7 +110,7 @@ public:
 
      @param buf            Pointer to the event buffer.
      @param length         The size of the event buffer.
-     @param description_event The description event of the master which logged
+     @param fd_event       The description event of the master which logged
                            the event.
      @param throw_warnings If the function should throw warning messages while
                            updating the boundary parser state.
@@ -123,7 +123,7 @@ public:
               true if the transaction boundary parser didn't accepted the event.
   */
   bool feed_event(const char *buf, size_t length,
-                  const Format_description_log_event *description_event,
+                  const Format_description_log_event *fd_event,
                   bool throw_warnings);
 
 private:

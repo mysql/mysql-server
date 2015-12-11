@@ -112,14 +112,14 @@ void srv_session_deinit_thread();
   In a thread not initialized by the server itself, this function should be
   called only after srv_session_init_thread() has already been called.
 
-  @param cb          session error callback
+  @param error_cb    session error callback
   @param plugin_ctx  Plugin's context, opaque pointer that would
                      be provided to callbacks. Might be NULL.
   @return
     session   on success
     NULL      on failure
 */
-MYSQL_SESSION srv_session_open(srv_session_error_cb cb, void *plugin_ctx);
+MYSQL_SESSION srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx);
 
 /**
   Detaches a session from current physical thread.

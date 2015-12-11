@@ -16,7 +16,7 @@ extern struct srv_session_service_st
 } *srv_session_service;
 int srv_session_init_thread(const void *plugin);
 void srv_session_deinit_thread();
-MYSQL_SESSION srv_session_open(srv_session_error_cb cb, void *plugin_ctx);
+MYSQL_SESSION srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx);
 int srv_session_detach(MYSQL_SESSION session);
 int srv_session_close(MYSQL_SESSION session);
 int srv_session_server_is_available();
