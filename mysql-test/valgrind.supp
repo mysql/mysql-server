@@ -987,6 +987,49 @@
 }
 
 
+{
+   OpenSSL libstdc++ version 5 / one
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:sk_new
+   obj:/lib/x86_64-linux-gnu/libssl.so.1.0.0
+   fun:SSL_COMP_get_compression_methods
+   fun:SSL_library_init
+   fun:ssl_start
+   fun:_ZL8init_sslv
+   fun:_Z11mysqld_mainiPPc
+   fun:main
+}
+
+{
+   OpenSSL libstdc++ version 5 / two
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:sk_new
+   obj:/lib/x86_64-linux-gnu/libssl.so.1.0.0
+   fun:SSL_COMP_get_compression_methods
+   fun:SSL_library_init
+   fun:ssl_start
+   fun:_ZL8init_sslv
+   fun:_Z11mysqld_mainiPPc
+   fun:main
+}
+
+{
+   OpenSSL libstdc++ version 5 / three
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   obj:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.21
+   fun:call_init.part.0
+   fun:call_init
+   fun:_dl_init
+}
+
 # supress uninitialized because some SSL libraries do random like that
 {
    OpenSSL conditional jump in generate_user_salt due to randomness

@@ -501,6 +501,7 @@ THD::THD(bool enable_plugins)
    duplicate_slave_uuid(false),
    is_a_srv_session_thd(false)
 {
+  main_lex.reset();
   set_psi(NULL);
   mdl_context.init(this);
   init_sql_alloc(key_memory_thd_main_mem_root,
