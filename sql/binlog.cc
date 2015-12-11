@@ -9090,8 +9090,8 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
   bool in_transaction= FALSE;
 
   if (! fdle->is_valid() ||
-      my_hash_init(&xids, &my_charset_bin, TC_LOG_PAGE_SIZE/3, 0,
-                   sizeof(my_xid), 0, 0, MYF(0),
+      my_hash_init(&xids, &my_charset_bin, TC_LOG_PAGE_SIZE/3,
+                   sizeof(my_xid), nullptr, nullptr, 0,
                    key_memory_binlog_recover_exec))
     goto err1;
 

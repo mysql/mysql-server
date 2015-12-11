@@ -79,15 +79,13 @@ class HashMap {
   }
 
 public:
-  HashMap(ulong initial_size = 1024, uint grow_size = 256) {
+  HashMap(ulong initial_size = 1024) {
 
     assert(my_init_done);
 
-    if (_my_hash_init(&m_hash,
-                      grow_size,
+    if (my_hash_init(&m_hash,
                       &my_charset_bin, // charset
                       initial_size,    // default_array_elements
-                      0,               // key_offset
                       sizeof(K),       // key_length
                       G == HashMap__get_key ? NULL : _get_key, // get_key,
                       free_element,    // free_element

@@ -50,45 +50,44 @@ typedef uint my_hash_value_type;
  */
 typedef const uchar *(*hash_get_key_function)(const uchar *arg, size_t *length);
 
-typedef void (*my_hash_free_key)(void *);
+typedef void (*hash_free_element_function)(void *);
 
 typedef struct st_hash {
   st_hash()
-    : key_offset(0),
-      key_length(0),
+    : key_length(0),
       blength(0),
       records(0),
       flags(0),
-      get_key(NULL),
-      free(NULL),
-      charset(NULL),
+      get_key(nullptr),
+      free_element(nullptr),
+      charset(nullptr),
       m_psi_key(PSI_NOT_INSTRUMENTED)
   {
     array= st_dynamic_array();
   }
-  size_t key_offset,key_length;		/* Length of key if const length */
+  size_t key_length;               /* Length of key if const length */
   size_t blength;
   ulong records;
   uint flags;
   DYNAMIC_ARRAY array;				/* Place for hash_keys */
   hash_get_key_function get_key;
-  void (*free)(void *);
-  CHARSET_INFO *charset;
+  hash_free_element_function free_element;
+  const CHARSET_INFO *charset;
   PSI_memory_key m_psi_key;
 } HASH;
 
 /* A search iterator state */
 typedef uint HASH_SEARCH_STATE;
 
-#define my_hash_init(A,B,C,D,E,F,G,H,I) \
-          _my_hash_init(A,0,B,C,D,E,F,G,H,I)
 
-my_bool _my_hash_init(HASH *hash, uint growth_size, CHARSET_INFO *charset,
-                      ulong default_array_elements, size_t key_offset,
-                      size_t key_length, hash_get_key_function get_key,
-                      void (*free_element)(void*),
-                      uint flags,
-                      PSI_memory_key psi_key);
+bool my_hash_init(HASH *hash,
+                  const CHARSET_INFO *charset,
+                  ulong reserve_size,
+                  size_t key_length,
+                  hash_get_key_function get_key,
+                  hash_free_element_function free_element,
+                  uint flags,
+                  PSI_memory_key psi_key);
 void my_hash_claim(HASH *tree);
 void my_hash_free(HASH *tree);
 void my_hash_reset(HASH *hash);
@@ -117,8 +116,5 @@ my_bool my_hash_check(HASH *hash); /* Only in debug library */
 
 inline void my_hash_clear(HASH *h) { new(h) st_hash(); }
 inline bool my_hash_inited(const HASH *h) { return h->blength != 0; }
-
-#define my_hash_init_opt(A,B,C,D,E,F,G,H,I) \
-          (!my_hash_inited(A) && _my_hash_init(A,0,B,C,D,E,F,G,H,I))
 
 #endif  // HASH_INCLUDED

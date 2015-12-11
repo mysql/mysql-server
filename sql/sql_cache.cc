@@ -2434,8 +2434,8 @@ ulong Query_cache::init_cache()
   free_memory = free_memory_blocks = 0;
   insert_into_free_memory_list(first_block);
 
-  (void) my_hash_init(&queries, &my_charset_bin, def_query_hash_size, 0, 0,
-                      query_cache_query_get_key, 0, 0,
+  (void) my_hash_init(&queries, &my_charset_bin, def_query_hash_size, 0,
+                      query_cache_query_get_key, nullptr, 0,
                       key_memory_Query_cache);
 #ifndef FN_NO_CASE_SENSE
   /*
@@ -2446,8 +2446,8 @@ ulong Query_cache::init_cache()
     lower_case_table_names == 0 then we should distinguish my_table
     and MY_TABLE cases and so again can use binary collation.
   */
-  (void) my_hash_init(&tables, &my_charset_bin, def_table_hash_size, 0, 0,
-                      query_cache_table_get_key, 0, 0,
+  (void) my_hash_init(&tables, &my_charset_bin, def_table_hash_size, 0,
+                      query_cache_table_get_key, nullptr, 0,
                       key_memory_Query_cache);
 #else
   /*
@@ -2461,8 +2461,8 @@ ulong Query_cache::init_cache()
   (void) my_hash_init(&tables,
                       lower_case_table_names ? &my_charset_bin :
                       files_charset_info,
-                      def_table_hash_size, 0, 0,query_cache_table_get_key,
-                      0, 0,
+                      def_table_hash_size, 0, query_cache_table_get_key,
+                      nullptr, 0,
                       key_memory_Query_cache);
 #endif
 

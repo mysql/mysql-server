@@ -144,8 +144,8 @@ bool servers_init(bool dont_read_servers_table)
     DBUG_RETURN(TRUE);
 
   /* initialise our servers cache */
-  if (my_hash_init(&servers_cache, system_charset_info, 32, 0, 0,
-                   servers_cache_get_key, 0, 0,
+  if (my_hash_init(&servers_cache, system_charset_info, 32, 0,
+                   servers_cache_get_key, nullptr, 0,
                    key_memory_servers))
   {
     return_val= TRUE; /* we failed, out of memory? */

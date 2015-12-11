@@ -64,8 +64,8 @@ enum_return_status Owned_gtids::ensure_sidno(rpl_sidno sidno)
                                     sizeof(HASH), MYF(MY_WME));
       if (hash == NULL)
         goto error;
-      my_hash_init(hash, &my_charset_bin, 20,
-                   offsetof(Node, gno), sizeof(rpl_gno), NULL,
+      my_hash_init(hash, &my_charset_bin, 20, 0,
+                   node_get_key,
                    my_free, 0,
                    key_memory_Owned_gtids_sidno_to_hash);
       sidno_to_hash[i]= hash;

@@ -109,8 +109,8 @@ static my_bool safe_hash_init(SAFE_HASH *hash, uint elements,
 			      uchar *default_value)
 {
   DBUG_ENTER("safe_hash");
-  if (my_hash_init(&hash->hash, &my_charset_bin, elements,
-                   0, 0, safe_hash_entry_get,
+  if (my_hash_init(&hash->hash, &my_charset_bin, elements, 0,
+                   safe_hash_entry_get,
                    safe_hash_entry_free, 0,
                    key_memory_SAFE_HASH_ENTRY))
   {

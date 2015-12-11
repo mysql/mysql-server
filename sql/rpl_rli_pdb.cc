@@ -24,6 +24,7 @@
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
+#include "template_utils.h"
 
 #ifndef DBUG_OFF
   ulong w_rr= 0;
@@ -688,8 +689,9 @@ static const uchar *get_key(const uchar *record, size_t *length)
 }
 
 
-static void free_entry(db_worker_hash_entry *entry)
+static void free_entry(void *arg)
 {
+  db_worker_hash_entry *entry= pointer_cast<db_worker_hash_entry*>(arg);
   THD *c_thd= current_thd;
 
   DBUG_ENTER("free_entry");
@@ -721,8 +723,8 @@ bool init_hash_workers(Relay_log_info *rli)
 
   rli->inited_hash_workers=
     (my_hash_init(&rli->mapping_db_to_worker, &my_charset_bin,
-                 0, 0, 0, get_key,
-                 (my_hash_free_key) free_entry, 0,
+                 0, 0, get_key,
+                 free_entry, 0,
                  key_memory_db_worker_hash_entry) == 0);
   if (rli->inited_hash_workers)
   {

@@ -516,8 +516,8 @@ int TC_LOG_MMAP::recover()
     goto err1;
   }
 
-  if (my_hash_init(&xids, &my_charset_bin, tc_log_page_size/3, 0,
-                   sizeof(my_xid), 0, 0, MYF(0),
+  if (my_hash_init(&xids, &my_charset_bin, tc_log_page_size/3,
+                   sizeof(my_xid), nullptr, nullptr, 0,
                    PSI_INSTRUMENT_ME))
     goto err1;
 

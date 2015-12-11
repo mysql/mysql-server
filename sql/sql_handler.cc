@@ -114,8 +114,9 @@ static const uchar *mysql_ha_hash_get_key(const uchar *arg,
     Nothing
 */
 
-static void mysql_ha_hash_free(TABLE_LIST *tables)
+static void mysql_ha_hash_free(void *arg)
 {
+  TABLE_LIST *tables= pointer_cast<TABLE_LIST*>(arg);
   my_free(tables);
 }
 
@@ -196,9 +197,9 @@ bool Sql_cmd_handler_open::execute(THD *thd)
       HASH entries are of type TABLE_LIST.
     */
     if (my_hash_init(&thd->handler_tables_hash, &my_charset_latin1,
-                     HANDLER_TABLES_HASH_SIZE, 0, 0,
+                     HANDLER_TABLES_HASH_SIZE, 0,
                      mysql_ha_hash_get_key,
-                     (my_hash_free_key) mysql_ha_hash_free, 0,
+                     mysql_ha_hash_free, 0,
                      key_memory_THD_handler_tables_hash))
     {
       DBUG_PRINT("exit",("ERROR"));

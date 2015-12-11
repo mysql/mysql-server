@@ -3904,8 +3904,8 @@ static bool remove_dup_with_hash_index(THD *thd, TABLE *table,
     extra_length= ALIGN_SIZE(key_length)-key_length;
   }
 
-  if (my_hash_init(&hash, &my_charset_bin, (uint) file->stats.records, 0, 
-                   key_length, NULL, 0, 0,
+  if (my_hash_init(&hash, &my_charset_bin, (uint) file->stats.records,
+                   key_length, nullptr, nullptr, 0,
                    key_memory_hash_index_key_buffer))
   {
     my_free(key_buffer);

@@ -499,8 +499,8 @@ static int federated_db_init(void *p)
   if (mysql_mutex_init(fe_key_mutex_federated,
                        &federated_mutex, MY_MUTEX_INIT_FAST))
     goto error;
-  if (!my_hash_init(&federated_open_tables, &my_charset_bin, 32, 0, 0,
-                    federated_get_key, 0, 0,
+  if (!my_hash_init(&federated_open_tables, &my_charset_bin, 32, 0,
+                    federated_get_key, nullptr, 0,
                     fe_key_memory_federated_share))
   {
     DBUG_RETURN(FALSE);

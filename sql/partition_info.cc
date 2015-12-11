@@ -1029,8 +1029,8 @@ char *partition_info::find_duplicate_name()
   max_names= num_parts;
   if (is_sub_partitioned())
     max_names+= num_parts * num_subparts;
-  if (my_hash_init(&partition_names, system_charset_info, max_names, 0, 0,
-                   get_part_name_from_elem, 0, HASH_UNIQUE,
+  if (my_hash_init(&partition_names, system_charset_info, max_names, 0,
+                   get_part_name_from_elem, nullptr, HASH_UNIQUE,
                    PSI_INSTRUMENT_ME))
   {
     DBUG_ASSERT(0);

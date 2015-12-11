@@ -54,8 +54,8 @@ int sys_var_init()
   /* Must be already initialized. */
   DBUG_ASSERT(system_charset_info != NULL);
 
-  if (my_hash_init(&system_variable_hash, system_charset_info, 100, 0,
-                   0, get_sys_var_length, 0, HASH_UNIQUE,
+  if (my_hash_init(&system_variable_hash, system_charset_info, 100,
+                   0, get_sys_var_length, nullptr, HASH_UNIQUE,
                    PSI_INSTRUMENT_ME))
     goto error;
 

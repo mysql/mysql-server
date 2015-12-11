@@ -1011,7 +1011,7 @@ static int get_options(int *argc, char ***argv)
 
   defaults_argv= *argv;
 
-  if (my_hash_init(&ignore_table, charset_info, 16, 0, 0,
+  if (my_hash_init(&ignore_table, charset_info, 16, 0,
                    get_table_key, my_free, 0,
                    PSI_NOT_INSTRUMENTED))
     return(EX_EOM);

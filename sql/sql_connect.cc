@@ -352,8 +352,9 @@ static const uchar *get_key_conn(const uchar *arg, size_t *length)
 }
 
 
-static void free_user(struct user_conn *uc)
+static void free_user(void *arg)
 {
+  struct user_conn *uc= pointer_cast<user_conn*>(arg);
   my_free(uc);
 }
 #endif
@@ -364,8 +365,8 @@ void init_max_user_conn(void)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   (void)
     my_hash_init(&hash_user_connections,system_charset_info,max_connections,
-                 0,0, get_key_conn,
-                 (my_hash_free_key) free_user, 0,
+                 0, get_key_conn,
+                 free_user, 0,
                  key_memory_user_conn);
 #endif
 }

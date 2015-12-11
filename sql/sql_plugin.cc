@@ -1306,13 +1306,13 @@ static bool plugin_init_internals()
 
   init_alloc_root(key_memory_plugin_mem_root, &plugin_mem_root, 4096, 4096);
 
-  if (my_hash_init(&bookmark_hash, &my_charset_bin, 16, 0, 0,
-                   get_bookmark_hash_key, NULL, HASH_UNIQUE,
+  if (my_hash_init(&bookmark_hash, &my_charset_bin, 16, 0,
+                   get_bookmark_hash_key, nullptr, HASH_UNIQUE,
                    key_memory_plugin_bookmark))
       goto err;
 
   if (my_hash_init(&malloced_string_type_sysvars_bookmark_hash, &my_charset_bin,
-                   16, 0, 0, get_bookmark_hash_key, NULL, HASH_UNIQUE,
+                   16, 0, get_bookmark_hash_key, nullptr, HASH_UNIQUE,
                    key_memory_plugin_bookmark))
       goto err;
 
@@ -1328,8 +1328,8 @@ static bool plugin_init_internals()
 
   for (uint i= 0; i < MYSQL_MAX_PLUGIN_TYPE_NUM; i++)
   {
-    if (my_hash_init(&plugin_hash[i], system_charset_info, 16, 0, 0,
-                     get_plugin_hash_key, NULL, HASH_UNIQUE,
+    if (my_hash_init(&plugin_hash[i], system_charset_info, 16, 0,
+                     get_plugin_hash_key, nullptr, HASH_UNIQUE,
                      key_memory_plugin_mem_root))
       goto err;
   }

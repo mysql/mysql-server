@@ -56,8 +56,8 @@ bool Session_sysvar_resource_manager::init(char **var, const CHARSET_INFO * char
 
     if (!my_hash_inited(&m_sysvar_string_alloc_hash))
       my_hash_init(&m_sysvar_string_alloc_hash,
-	           const_cast<CHARSET_INFO *> (charset),
-		   4, 0, 0, sysvars_mgr_get_key,
+	           charset,
+		   4, 0, sysvars_mgr_get_key,
 		   my_free, HASH_UNIQUE,
                    key_memory_THD_Session_sysvar_resource_manager);
     /* Create a new node & add it to the hash. */

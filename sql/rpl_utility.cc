@@ -30,6 +30,7 @@
 #include "rpl_rli.h"                     // Relay_log_info
 #include "sql_class.h"                   // THD
 #include "sql_tmp_table.h"               // create_virtual_tmp_table
+#include "template_utils.h"
 
 #include <algorithm>
 
@@ -948,9 +949,10 @@ hash_slave_rows_get_key(const uchar *record,
 }
 
 static void
-hash_slave_rows_free_entry(HASH_ROW_ENTRY *entry)
+hash_slave_rows_free_entry(void *ptr)
 {
   DBUG_ENTER("free_entry");
+  HASH_ROW_ENTRY *entry= pointer_cast<HASH_ROW_ENTRY*>(ptr);
   if (entry)
   {
     if (entry->preamble)
@@ -975,12 +977,11 @@ bool Hash_slave_rows::init(void)
 {
   if (my_hash_init(&m_hash,
                    &my_charset_bin,                /* the charater set information */
-                   16 /* TODO */,                  /* growth size */
-                   0,                              /* key offset */
+                   16 /* TODO */,                  /* size */
                    0,                              /* key length */
-                   hash_slave_rows_get_key,                        /* get function pointer */
-                   (my_hash_free_key) hash_slave_rows_free_entry,  /* freefunction pointer */
-                   MYF(0),                         /* flags */
+                   hash_slave_rows_get_key,        /* get function pointer */
+                   hash_slave_rows_free_entry,     /* freefunction pointer */
+                   0,                              /* flags */
                    key_memory_HASH_ROW_ENTRY))     /* memory instrumentation key */
     return true;
   return false;

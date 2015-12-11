@@ -41,8 +41,8 @@ public:
   HASH m_hash;
   Ndb_schema_objects()
   {
-    (void)my_hash_init(&m_hash, &my_charset_bin, 1, 0, 0,
-                       ndb_schema_objects_get_key, 0, 0,
+    (void)my_hash_init(&m_hash, &my_charset_bin, 1, 0,
+                       ndb_schema_objects_get_key, nullptr, 0,
                        PSI_INSTRUMENT_ME);
   }
 

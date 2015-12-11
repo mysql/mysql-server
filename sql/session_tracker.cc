@@ -64,8 +64,8 @@ private:
     {
       variables_list= NULL;
       my_hash_init(&m_registered_sysvars,
-		   const_cast<CHARSET_INFO *>(char_set),
-		   4, 0, 0, sysvars_get_key,
+		   char_set,
+		   4, 0, sysvars_get_key,
 		   my_free, HASH_UNIQUE,
                    key_memory_THD_Session_tracker);
     }

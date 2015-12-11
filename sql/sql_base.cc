@@ -47,6 +47,7 @@
 #include "table.h"                    // TABLE_LIST
 #include "table_cache.h"              // table_cache_manager
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "template_utils.h"
 #include "transaction.h"              // trans_rollback_stmt
 #include "trigger_loader.h"           // Trigger_loader
 #include "sql_audit.h"                // mysql_audit_table_access_notify
@@ -333,9 +334,10 @@ static const uchar *table_def_key(const uchar *record, size_t *length)
 }
 
 
-static void table_def_free_entry(TABLE_SHARE *share)
+static void table_def_free_entry(void *arg)
 {
   DBUG_ENTER("table_def_free_entry");
+  TABLE_SHARE *share= pointer_cast<TABLE_SHARE*>(arg);
   mysql_mutex_assert_owner(&LOCK_open);
   if (share->prev)
   {
@@ -372,8 +374,8 @@ bool table_def_init(void)
   table_def_inited= true;
 
   return my_hash_init(&table_def_cache, &my_charset_bin, table_def_size,
-                      0, 0, table_def_key,
-                      (my_hash_free_key) table_def_free_entry, 0,
+                      0, table_def_key,
+                      table_def_free_entry, 0,
                       key_memory_table_share) != 0;
 }
 

@@ -56,7 +56,7 @@ static void free_rule(void *entry) { delete pointer_cast<Rule*>(entry); }
 
 Rewriter::Rewriter()
 {
-  my_hash_init(&m_digests, &my_charset_bin, 10, 0,
+  my_hash_init(&m_digests, &my_charset_bin, 10,
                PARSER_SERVICE_DIGEST_LENGTH,
                get_rule_hash_code,
                free_rule, 0,

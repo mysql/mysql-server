@@ -503,7 +503,7 @@ static int version_tokens_init(void *arg __attribute__((unused)))
   // Initialize hash.
   my_hash_init(&version_tokens_hash,
 	       &my_charset_bin,
-               4, 0, 0, version_token_get_key,
+               4, 0, version_token_get_key,
                my_free, HASH_UNIQUE,
                key_memory_vtoken);
 

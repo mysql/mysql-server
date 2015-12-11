@@ -185,8 +185,8 @@ static int tina_init_func(void *p)
 
   tina_hton= (handlerton *)p;
   mysql_mutex_init(csv_key_mutex_tina, &tina_mutex, MY_MUTEX_INIT_FAST);
-  (void) my_hash_init(&tina_open_tables,system_charset_info,32,0,0,
-                      tina_get_key,0,0,
+  (void) my_hash_init(&tina_open_tables,system_charset_info,32,0,
+                      tina_get_key, nullptr, 0,
                       csv_key_memory_tina_share);
   tina_hton->state= SHOW_OPTION_YES;
   tina_hton->db_type= DB_TYPE_CSV_DB;

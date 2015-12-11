@@ -358,8 +358,9 @@ static void free_share(st_blackhole_share *share)
   mysql_mutex_unlock(&blackhole_mutex);
 }
 
-static void blackhole_free_key(st_blackhole_share *share)
+static void blackhole_free_key(void *arg)
 {
+  st_blackhole_share *share= pointer_cast<st_blackhole_share*>(arg);
   thr_lock_delete(&share->lock);
   my_free(share);
 }
@@ -413,9 +414,9 @@ static int blackhole_init(void *p)
 
   mysql_mutex_init(bh_key_mutex_blackhole,
                    &blackhole_mutex, MY_MUTEX_INIT_FAST);
-  (void) my_hash_init(&blackhole_open_tables, system_charset_info,32,0,0,
+  (void) my_hash_init(&blackhole_open_tables, system_charset_info,32,0,
                       blackhole_get_key,
-                      (my_hash_free_key) blackhole_free_key, 0,
+                      blackhole_free_key, 0,
                       bh_key_memory_blackhole_share);
 
   return 0;

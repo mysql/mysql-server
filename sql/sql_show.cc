@@ -602,7 +602,7 @@ ignore_db_dirs_process_additions()
   if (my_hash_init(&ignore_db_dirs_hash, 
                    lower_case_table_names ?
                      character_set_filesystem : &my_charset_bin,
-                   0, 0, 0, db_dirs_hash_get_key,
+                   0, 0, db_dirs_hash_get_key,
                    my_free,
                    HASH_UNIQUE,
                    key_memory_ignored_db))

@@ -27,6 +27,7 @@
 #include <list>
 #include "atomic_class.h"
 #include "typelib.h"
+#include "template_utils.h"
 
 struct TABLE_LIST;
 
@@ -718,6 +719,13 @@ private:
     rpl_sidno sidno;
     rpl_sid sid;
   };
+
+  static const uchar *sid_map_get_key(const uchar *ptr, size_t *length)
+  {
+    const Node *node= pointer_cast<const Node*>(ptr);
+    *length= binary_log::Uuid::BYTE_LENGTH;
+    return node->sid.bytes;
+  }
 
   /**
     Create a Node from the given SIDNO and SID and add it to
@@ -2192,6 +2200,12 @@ private:
     /// Owner of the group.
     my_thread_id owner;
   };
+  static const uchar* node_get_key(const uchar *ptr, size_t *size)
+  {
+    const Node *node= pointer_cast<const Node*>(ptr);
+    *size= sizeof(rpl_gno);
+    return pointer_cast<const uchar*>(&node->gno);
+  }
   /// Read-write lock that protects updates to the number of SIDs.
   mutable Checkable_rwlock *sid_lock;
   /// Returns the HASH for the given SIDNO.

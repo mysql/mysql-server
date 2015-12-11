@@ -3181,7 +3181,7 @@ struct My_hash : public HASH
   {
     blength= 0;
     my_hash_init(this,
-                 &my_charset_bin, 0, 0, 0, get_attr_key,
+                 &my_charset_bin, 0, 0, get_attr_key,
                  my_free, HASH_UNIQUE,
                  key_memory_mysql_options);
   }

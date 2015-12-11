@@ -1025,7 +1025,7 @@ bool transaction_cache_init()
 
   mysql_mutex_init(key_LOCK_transaction_cache, &LOCK_transaction_cache,
                    MY_MUTEX_INIT_FAST);
-  return my_hash_init(&transaction_cache, &my_charset_bin, 100, 0, 0,
+  return my_hash_init(&transaction_cache, &my_charset_bin, 100, 0,
                       transaction_get_hash_key, transaction_free_hash, 0,
                       key_memory_XID) != 0;
 }

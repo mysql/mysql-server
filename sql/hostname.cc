@@ -34,6 +34,7 @@
 #include "psi_memory_key.h"
 #include "violite.h"                            // vio_getnameinfo,
                                                 // vio_get_normalized_ip_string
+#include "template_utils.h"
 
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
@@ -139,15 +140,19 @@ void hostname_cache_resize(uint size)
   hostname_cache->resize(size);
 }
 
+static const uchar* hostname_get_key(const uchar *arg, size_t *length)
+{
+  const Host_entry *entry= pointer_cast<const Host_entry*>(arg);
+  *length= HOST_ENTRY_KEY_SIZE;
+  return pointer_cast<const uchar*>(entry->ip_key);
+}
+
 bool hostname_cache_init(uint size)
 {
-  Host_entry tmp;
-  uint key_offset= (uint) ((char*) (&tmp.ip_key) - (char*) &tmp);
-
   if (!(hostname_cache= new hash_filo(key_memory_host_cache_hostname,
                                       size,
-                                      key_offset, HOST_ENTRY_KEY_SIZE,
-                                      NULL, (my_hash_free_key) free,
+                                      HOST_ENTRY_KEY_SIZE,
+                                      hostname_get_key, free,
                                       &my_charset_bin)))
     return 1;
 
