@@ -80,7 +80,6 @@ EXPORTS
 	mysql_row_tell
 	mysql_select_db
 	mysql_send_query
-	mysql_shutdown
 	mysql_ssl_set
 	mysql_stat
 	mysql_store_result

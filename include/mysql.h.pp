@@ -39,7 +39,7 @@ enum enum_server_command
   COM_CREATE_DB,
   COM_DROP_DB,
   COM_REFRESH,
-  COM_SHUTDOWN,
+  COM_DEPRECATED_1,
   COM_STATISTICS,
   COM_PROCESS_INFO,
   COM_CONNECT,
@@ -547,9 +547,6 @@ mysql_set_local_infile_handler(MYSQL *mysql,
                                void *);
 void
 mysql_set_local_infile_default(MYSQL *mysql);
-int mysql_shutdown(MYSQL *mysql,
-                                       enum mysql_enum_shutdown_level
-                                       shutdown_level);
 int mysql_dump_debug_info(MYSQL *mysql);
 int mysql_refresh(MYSQL *mysql,
          unsigned int refresh_options);

@@ -837,12 +837,6 @@ bool Protocol_classic::parse_packet(union COM_DATA *data,
     data->com_refresh.options= raw_packet[0];
     break;
   }
-  case COM_SHUTDOWN:
-  {
-    data->com_shutdown.level= packet_length == 0 ?
-      SHUTDOWN_DEFAULT : (enum mysql_enum_shutdown_level) raw_packet[0];
-    break;
-  }
   case COM_PROCESS_KILL:
   {
     if (packet_length < 4)

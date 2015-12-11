@@ -253,7 +253,6 @@ void init_update_queries(void)
   server_command_flags[COM_QUERY]=               CF_ALLOW_PROTOCOL_PLUGIN;
   server_command_flags[COM_FIELD_LIST]=          CF_ALLOW_PROTOCOL_PLUGIN;
   server_command_flags[COM_REFRESH]=             CF_ALLOW_PROTOCOL_PLUGIN;
-  server_command_flags[COM_SHUTDOWN]=            CF_ALLOW_PROTOCOL_PLUGIN;
   server_command_flags[COM_STATISTICS]=          CF_SKIP_QUESTIONS;
   server_command_flags[COM_PROCESS_KILL]=        CF_ALLOW_PROTOCOL_PLUGIN;
   server_command_flags[COM_PING]=                CF_SKIP_QUESTIONS;
@@ -1184,7 +1183,7 @@ void reset_statement_timer(THD *thd)
     0   ok
   @retval
     1   request of thread shutdown, i. e. if command is
-        COM_QUIT/COM_SHUTDOWN
+        COM_QUIT
 */
 bool dispatch_command(THD *thd, const COM_DATA *com_data,
                       enum enum_server_command command)
@@ -1227,7 +1226,10 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     */
     ulong master_access= thd->security_context()->master_access();
     thd->security_context()->set_master_access(master_access | SHUTDOWN_ACL);
-    command= COM_SHUTDOWN;
+    error= TRUE;
+#ifndef EMBEDDED_LIBRARY
+    kill_mysql();
+#endif
   }
   thd->set_query_id(next_query_id());
   thd->rewritten_query.mem_free();
@@ -1704,27 +1706,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     my_ok(thd);
     break;
   }
-#ifndef EMBEDDED_LIBRARY
-  case COM_SHUTDOWN:
-  {
-    thd->status_var.com_other++;
-    /*
-      If the client is < 4.1.3, it is going to send us no argument; then
-      packet_length is 0, packet[0] is the end 0 of the packet. Note that
-      SHUTDOWN_DEFAULT is 0. If client is >= 4.1.3, the shutdown level is in
-      packet[0].
-    */
-    enum mysql_enum_shutdown_level level;
-    if (!thd->is_valid_time())
-      level= SHUTDOWN_DEFAULT;
-    else
-      level= com_data->com_shutdown.level;
-    if(!shutdown(thd, level, command))
-      break;
-    error= TRUE;
-    break;
-  }
-#endif
   case COM_STATISTICS:
   {
     System_status_var current_global_status_var;
@@ -1904,7 +1885,6 @@ done:
 
   @param  thd        Thread (session) context.
   @param  level      Shutdown level.
-  @param command     type of command to perform
 
   @retval
     true                 success
@@ -1913,7 +1893,7 @@ done:
 
 */
 #ifndef EMBEDDED_LIBRARY
-bool shutdown(THD *thd, enum mysql_enum_shutdown_level level, enum enum_server_command command)
+bool shutdown(THD *thd, enum mysql_enum_shutdown_level level)
 {
   DBUG_ENTER("shutdown");
   bool res= FALSE;
@@ -1930,18 +1910,10 @@ bool shutdown(THD *thd, enum mysql_enum_shutdown_level level, enum enum_server_c
     goto error;;
   }
 
-  if(command == COM_SHUTDOWN)
-    my_eof(thd);
-  else if(command == COM_QUERY)
-    my_ok(thd);
-  else
-  {
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "shutdown from this server command");
-    goto error;
-  }
+  my_ok(thd);
 
   DBUG_PRINT("quit",("Got shutdown command for level %u", level));
-  query_logger.general_log_print(thd, command, NullS);
+  query_logger.general_log_print(thd, COM_QUERY, NullS);
   kill_mysql();
   res= TRUE;
 
