@@ -1,0 +1,31 @@
+--source include/have_innodb.inc
+
+#
+# Fix MySQL Bug#20755615: InnoDB compares column names case sensitively,
+# while according to Storage Engine API column names should be compared
+# case insensitively. This can cause FRM and InnoDB data dictionary to
+# go out of sync:
+#
+
+CREATE TABLE t1 (D INT) ENGINE=innodb;
+INSERT INTO t1 VALUES (10);
+ALTER TABLE t1 MODIFY COLUMN d INT;
+ALTER TABLE t1 ADD INDEX my_d (d);
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9);
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+EXPLAIN SELECT d FROM t1 WHERE d = 5;
+EXPLAIN SELECT D FROM t1 WHERE D = 5;
+ALTER TABLE t1 DROP INDEX my_d;
+ALTER TABLE t1 MODIFY COLUMN D INT;
+ALTER TABLE t1 ADD INDEX my_d (D);
+EXPLAIN SELECT d FROM t1 WHERE d = 5;
+EXPLAIN SELECT D FROM t1 WHERE D = 5;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;

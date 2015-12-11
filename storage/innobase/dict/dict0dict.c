@@ -2010,7 +2010,7 @@ dict_index_find_cols(
 		dict_field_t*	field = dict_index_get_nth_field(index, i);
 
 		for (j = 0; j < table->n_cols; j++) {
-			if (!strcmp(dict_table_get_col_name(table, j),
+			if (!innobase_strcasecmp(dict_table_get_col_name(table, j),
 				    field->name)) {
 				field->col = dict_table_get_nth_col(table, j);
 
