@@ -3155,12 +3155,18 @@ public:
   Group_by_bitmap(THD* thd_arg, olap_type type, uint group_list_length):
 	thd(thd_arg),
 	type_(type),
+	pass_(2),
 	bitmap_size(group_list_length)
 	{
 	switch (type_)
 	{
 	case CUBE_TYPE:
-	  n = (uint) pow(2, group_list_length) - 1;
+	{
+	  n = (uint)pow(2, group_list_length) - 1;
+	  generator = (uint*)malloc(bitmap_size * sizeof(uint));
+	  zeros = (uint*)malloc(bitmap_size * sizeof(uint));
+	  pos = (uint*)malloc(bitmap_size * sizeof(uint));
+	}
 	  break;
 	case ROLLUP_TYPE:
 	  n = group_list_length;
@@ -3174,7 +3180,14 @@ public:
 	memset(bitmap_, 0, bitmap_size * sizeof(bool));
 	count = 0;
   }
-  ~Group_by_bitmap(){ free(bitmap_); }
+  ~Group_by_bitmap(){ 
+	free(bitmap_);
+	if (type_ == CUBE_TYPE){
+	  free(generator);
+	  free(pos);
+	  free(zeros);
+	}
+  }
   uint get_pass_id(){ return pass_; }
   /**
 	see rollup_send_data() for usage of idx.
@@ -3195,20 +3208,33 @@ public:
 	case CUBE_TYPE:
 	  {
 		if (count == 0){
-		  bitmap[0] = 1;
-		  bitmap[1] = 0;
+		  init_();
+		  mark_zeros_();
 		  pass_ = 2;
 		}
-		else if (count == 1){
-		  bitmap[0] = 0;
-		  bitmap[1] = 1;
-		  pass_ = 1;
+		else{
+		  if (zero_count){
+			reverse_zero_();
+		  }
+		  else if(inc_(pivot_count-1)){
+			//has to increase number of pivot
+			pivot_count++;
+			pass_++;
+			if (pivot_count > bitmap_size / 2){
+			  init_main_pass_();
+			  pass_ = 1;
+			}
+			else{
+			  reset_(0);
+			}
+			mark_zeros_();
+		  }
+		  else{
+			mark_zeros_();
+			pass_++;
+		  }
 		}
-		else {
-		  bitmap[0] = 1;
-		  bitmap[1] = 1;
-		  pass_ = 1;
-		}
+		write_bitmap_();
 	  }
 	  break;
 	case ROLLUP_TYPE:
@@ -3232,6 +3258,88 @@ public:
   uint n;
   /*type of OLAP*/
   olap_type type_;
+
+  /*Generator variables*/
+  void reset_(uint pivot){
+	if (pivot == pivot_count)return;
+	uint head = max(pivot * 2 + 1, pivot == 0 ? 0 : pos[pivot - 1] + 1);
+	pos[pivot] = head;
+	reset_(pivot + 1);
+  }
+
+  bool inc_(uint pivot){
+	uint end = 
+	  min(bitmap_size, pivot==pivot_count-1?bitmap_size:pos[pivot+1]) - 1;
+	if (pos[pivot] < end){
+	  pos[pivot]++;
+	  if (pivot != pivot_count - 1){
+		reset_(pivot + 1);
+	  }
+	  return FALSE;
+	}
+	else{
+	  if (pivot == 0){
+		return TRUE;
+	  }
+	  else{
+		return inc_(pivot - 1);
+	  }
+	}
+  }
+  void init_(){
+	pivot_count = 1;
+	reset_(0);
+  }
+  void write_bitmap_(){
+	for (uint i = 0; i < bitmap_size; i++){
+	  if (generator[i] == -1){
+		bitmap[bitmap_size - i - 1] = FALSE;
+	  }
+	  else{
+		bitmap[bitmap_size - i - 1] = TRUE;
+	  }
+	}
+	for (uint i = 0; i < zero_count; i++){
+	  bitmap[bitmap_size - zeros[i] - 1] = FALSE;
+	}
+  }
+  void mark_zeros_(){
+	uint *tmp = generator;
+	for (uint i = 0; i < bitmap_size; i++){
+	  tmp[i] = 0;
+	}
+	if (pass_ == 1){
+	  //the '000..0' is handled by group by so we go over it.
+	  generator[0] = 1;
+	}
+	for (uint i = 0; i < pivot_count; i++){
+	  tmp[pos[i]] = 1;
+	}
+	for (uint i = 0; i < bitmap_size; i++){
+	  if (tmp[i] == 1)for (int j = (int)i - 1; j >= 0; j--){
+		if (tmp[j] == 0)tmp[j] = -1;
+	  }
+	}
+	zero_count = 0;
+	for (int i = (int)bitmap_size - 1; i >= 0; i--){
+	  if (tmp[i] == 0){
+		zeros[zero_count] = i;
+		zero_count++;
+	  }
+	}
+  }
+  void init_main_pass_(){
+	pivot_count = 0;
+  }
+  void reverse_zero_(){
+	zero_count--;
+  }
+  uint * generator;
+  uint * zeros;
+  uint zero_count;
+  uint zero_idx;
+  uint * pos; //pivot location
+  uint pivot_count; //number of active pivots
 };
 
 /**
