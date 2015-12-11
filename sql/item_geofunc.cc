@@ -2215,7 +2215,7 @@ String *Item_func_geometry_type::val_str_ascii(String *str)
   /* String will not move */
   str->copy(geom->get_class_info()->m_name.str,
 	    geom->get_class_info()->m_name.length,
-	    default_charset());
+	    &my_charset_latin1);
   return str;
 }
 
