@@ -2418,3 +2418,24 @@ CREATE TABLE cc (pk int,  i int, c varchar(1),
 SELECT c, i, pk FROM cc WHERE (cc.pk = 1)  GROUP BY c, i, pk;
 
 DROP TABLE cc;
+
+--echo #
+--echo # Bug#22132822 CRASH IN GROUP_CHECK::IS_FD_ON_SOURCE
+--echo #
+
+CREATE TABLE t1
+(
+  a INT GENERATED ALWAYS AS (1) VIRTUAL,
+  b INT GENERATED ALWAYS AS (a) VIRTUAL,
+  c INT GENERATED ALWAYS AS (1) VIRTUAL
+);
+
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT a.b FROM t1 AS a
+RIGHT JOIN t1 AS b ON 1
+INNER JOIN t1 AS c ON 1
+WHERE b.b = c.b
+GROUP BY c.c;
+
+DROP TABLE t1;
+
