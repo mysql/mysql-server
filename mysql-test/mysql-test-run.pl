@@ -348,7 +348,9 @@ my $opt_max_save_core= env_or_val(MTR_MAX_SAVE_CORE => 5);
 my $opt_max_save_datadir= env_or_val(MTR_MAX_SAVE_DATADIR => 20);
 my $opt_max_test_fail= env_or_val(MTR_MAX_TEST_FAIL => 10);
 
-my $opt_parallel= $ENV{MTR_PARALLEL} || 1;
+my $opt_parallel= $ENV{MTR_PARALLEL};
+
+our $opt_run_non_parallel_tests;
 
 select(STDOUT);
 $| = 1; # Automatically flush STDOUT
@@ -1088,6 +1090,9 @@ sub command_line_setup {
 	     # Max number of parallel threads to use
 	     'parallel=s'               => \$opt_parallel,
 
+             # Option to run the tests having 'not_parallel.inc' file
+             'run-non-parallel-tests'   => \$opt_run_non_parallel_tests,
+
              # Config file to use as template for all tests
 	     'defaults-file=s'          => \&collect_option,
 	     # Extra config file to append to all generated configs
@@ -1495,6 +1500,19 @@ sub command_line_setup {
   }
 
   set_vardir($opt_vardir);
+
+  # Check if both "parallel" and "run-non-parallel-tests" options are set
+  if ( $opt_parallel )
+  {
+    if ( $opt_run_non_parallel_tests )
+    {
+      mtr_error("Can't use --parallel with --run-non-parallel-tests");
+    }
+  }
+  else
+  {
+    $opt_parallel= 1;
+  }
 
   # --------------------------------------------------------------------------
   # Set the "tmp" directory
@@ -7225,6 +7243,8 @@ Misc options
   force-restart         Always restart servers between tests
   parallel=N            Run tests in N parallel threads (default=1)
                         Use parallel=auto for auto-setting of N
+  run-non-parallel-tests
+                        Option to run the tests having 'not_parallel.inc' file
   repeat=N              Run each test N number of times
   retry=N               Retry tests that fail N times, limit number of failures
                         to $opt_retry_failure
