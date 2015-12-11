@@ -24,6 +24,7 @@
 
 class THD;
 
+struct MDL_key;
 class MDL_context;
 class MDL_lock;
 class MDL_ticket;
@@ -114,6 +115,20 @@ public:
    */
   virtual void notify_shared_lock(MDL_context_owner *in_use,
                                   bool needs_thr_lock_abort) = 0;
+
+  /**
+    Notify/get permission from interested storage engines before acquiring
+    exclusive lock for the key.
+
+    @return False if notification was successful and it is OK to acquire lock,
+            True if one of SEs asks to abort lock acquisition.
+  */
+  virtual bool notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key) = 0;
+  /**
+    Notify interested storage engines that we have just released exclusive
+    lock for the key.
+  */
+  virtual void notify_hton_post_release_exclusive(const MDL_key *mdl_key) = 0;
 
   /**
     Get random seed specific to this THD to be used for initialization
@@ -550,8 +565,6 @@ public:
 #define MDL_REQUEST_INIT_BY_KEY(R, P1, P2, P3) \
   (*R).init_by_key_with_source(P1, P2, P3, __FILE__, __LINE__)
 
-typedef void (*mdl_cached_object_release_hook)(void *);
-
 
 /**
   An abstract class for inspection of a connected
@@ -663,6 +676,14 @@ public:
   /** Implement MDL_wait_for_subgraph interface. */
   virtual bool accept_visitor(MDL_wait_for_graph_visitor *dvisitor);
   virtual uint get_deadlock_weight() const;
+
+public:
+  /**
+    Status of lock request represented by the ticket as reflected in P_S.
+  */
+  enum enum_psi_status { PENDING = 0, GRANTED,
+                         PRE_ACQUIRE_NOTIFY, POST_RELEASE_NOTIFY };
+
 private:
   friend class MDL_context;
 
@@ -678,6 +699,7 @@ private:
      m_ctx(ctx_arg),
      m_lock(NULL),
      m_is_fast_path(false),
+     m_hton_notified(false),
      m_psi(NULL)
   {}
 
@@ -719,6 +741,13 @@ private:
     MDL_lock::m_fast_path_locks_granted_counter
   */
   bool m_is_fast_path;
+
+  /**
+    Indicates that ticket corresponds to lock request which required
+    storage engine notification during its acquisition and requires
+    storage engine notification after its release.
+  */
+  bool m_hton_notified;
 
   PSI_metadata_lock *m_psi;
 

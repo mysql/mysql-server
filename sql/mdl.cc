@@ -643,6 +643,9 @@ public:
            m_strategy->m_needs_connection_check(this) : false;
   }
 
+  inline static bool needs_hton_notification(MDL_key::enum_mdl_namespace
+                                             mdl_namespace);
+
   bool is_affected_by_max_write_lock_count() const
   {
     return m_strategy->m_is_affected_by_max_write_lock_count;
@@ -1648,6 +1651,29 @@ MDL_lock::get_unobtrusive_lock_increment(const MDL_request *request)
   }
 }
 
+
+/**
+  Indicates whether object belongs to namespace which requires storage engine
+  to be notified before acquiring and after releasing exclusive lock.
+*/
+
+bool
+MDL_lock::needs_hton_notification(MDL_key::enum_mdl_namespace mdl_namespace)
+{
+  switch (mdl_namespace)
+  {
+    case MDL_key::TABLESPACE:
+    case MDL_key::SCHEMA:
+    case MDL_key::TABLE:
+    case MDL_key::FUNCTION:
+    case MDL_key::PROCEDURE:
+    case MDL_key::TRIGGER:
+    case MDL_key::EVENT:
+      return true;
+    default:
+      return false;
+  }
+}
 
 /**
   Auxiliary functions needed for creation/destruction of MDL_ticket
@@ -2844,6 +2870,17 @@ MDL_context::try_acquire_lock(MDL_request *mdl_request)
     }
 
     mysql_prlock_unlock(&lock->m_rwlock);
+
+    /*
+      If SEs were notified about impending lock acquisition, the failure
+      to acquire it requires the same notification as lock release.
+    */
+    if (ticket->m_hton_notified)
+    {
+      mysql_mdl_set_status(ticket->m_psi, MDL_ticket::POST_RELEASE_NOTIFY);
+      m_owner->notify_hton_post_release_exclusive(&mdl_request->key);
+    }
+
     MDL_ticket::destroy(ticket);
   }
 
@@ -3013,9 +3050,29 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
   ticket->m_psi= mysql_mdl_create(ticket, key,
                                   mdl_request->type,
                                   mdl_request->duration,
-                                  MDL_wait::EMPTY,
+                                  MDL_ticket::PENDING,
                                   mdl_request->m_src_file,
                                   mdl_request->m_src_line);
+
+  /*
+    We need to notify/get permission from storage engines before acquiring
+    X lock if it is requested in one of namespaces interesting for SEs.
+  */
+  if (mdl_request->type == MDL_EXCLUSIVE &&
+      MDL_lock::needs_hton_notification(key->mdl_namespace()))
+  {
+    mysql_mdl_set_status(ticket->m_psi, MDL_ticket::PRE_ACQUIRE_NOTIFY);
+
+    if (m_owner->notify_hton_pre_acquire_exclusive(key))
+    {
+      MDL_ticket::destroy(ticket);
+      my_error(ER_LOCK_REFUSED_BY_ENGINE, MYF(0));
+      return TRUE;
+    }
+    ticket->m_hton_notified= true;
+
+    mysql_mdl_set_status(ticket->m_psi, MDL_ticket::PENDING);
+  }
 
 retry:
   /*
@@ -3024,6 +3081,15 @@ retry:
   */
   if (!(lock= mdl_locks.find_or_insert(m_pins, key, &pinned)))
   {
+    /*
+      If SEs were notified about impending lock acquisition, the failure
+      to acquire it requires the same notification as lock release.
+    */
+    if (ticket->m_hton_notified)
+    {
+      mysql_mdl_set_status(ticket->m_psi, MDL_ticket::POST_RELEASE_NOTIFY);
+      m_owner->notify_hton_post_release_exclusive(key);
+    }
     MDL_ticket::destroy(ticket);
     return TRUE;
   }
@@ -3137,7 +3203,7 @@ retry:
 
     mdl_request->ticket= ticket;
 
-    mysql_mdl_set_status(ticket->m_psi, MDL_wait::GRANTED);
+    mysql_mdl_set_status(ticket->m_psi, MDL_ticket::GRANTED);
     return FALSE;
   }
 
@@ -3259,7 +3325,7 @@ slow_path:
 
     mdl_request->ticket= ticket;
 
-    mysql_mdl_set_status(ticket->m_psi, MDL_wait::GRANTED);
+    mysql_mdl_set_status(ticket->m_psi, MDL_ticket::GRANTED);
   }
   else
     *out_ticket= ticket;
@@ -3310,8 +3376,41 @@ MDL_context::clone_ticket(MDL_request *mdl_request)
                                    )))
     return TRUE;
 
+  DBUG_ASSERT(ticket->m_psi == NULL);
+  ticket->m_psi= mysql_mdl_create(ticket,
+                                  &mdl_request->key,
+                                  mdl_request->type,
+                                  mdl_request->duration,
+                                  MDL_ticket::PENDING,
+                                  mdl_request->m_src_file,
+                                  mdl_request->m_src_line);
+
   /* clone() is not supposed to be used to get a stronger lock. */
   DBUG_ASSERT(mdl_request->ticket->has_stronger_or_equal_type(ticket->m_type));
+
+
+  /*
+    If we are to clone exclusive lock in namespace requiring notification
+    of storage engines we need to notify/get permission from SEs similarly
+    to situation when lock acquired.
+  */
+  if (mdl_request->type == MDL_EXCLUSIVE &&
+      MDL_lock::needs_hton_notification(mdl_request->key.mdl_namespace()))
+  {
+    DBUG_ASSERT(mdl_request->ticket->m_hton_notified);
+
+    mysql_mdl_set_status(ticket->m_psi, MDL_ticket::PRE_ACQUIRE_NOTIFY);
+
+    if (m_owner->notify_hton_pre_acquire_exclusive(&mdl_request->key))
+    {
+      MDL_ticket::destroy(ticket);
+      my_error(ER_LOCK_REFUSED_BY_ENGINE, MYF(0));
+      return TRUE;
+    }
+    ticket->m_hton_notified= true;
+
+    mysql_mdl_set_status(ticket->m_psi, MDL_ticket::PENDING);
+  }
 
   ticket->m_lock= mdl_request->ticket->m_lock;
 
@@ -3368,14 +3467,7 @@ MDL_context::clone_ticket(MDL_request *mdl_request)
 
   m_tickets[mdl_request->duration].push_front(ticket);
 
-  DBUG_ASSERT(ticket->m_psi == NULL);
-  ticket->m_psi= mysql_mdl_create(ticket,
-                                  &mdl_request->key,
-                                  mdl_request->type,
-                                  mdl_request->duration,
-                                  MDL_wait::GRANTED,
-                                  mdl_request->m_src_file,
-                                  mdl_request->m_src_line);
+  mysql_mdl_set_status(ticket->m_psi, MDL_ticket::GRANTED);
 
   return FALSE;
 }
@@ -3585,6 +3677,17 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
   if (wait_status != MDL_wait::GRANTED)
   {
     lock->remove_ticket(this, m_pins, &MDL_lock::m_waiting, ticket);
+
+    /*
+      If SEs were notified about impending lock acquisition, the failure
+      to acquire it requires the same notification as lock release.
+    */
+    if (ticket->m_hton_notified)
+    {
+      mysql_mdl_set_status(ticket->m_psi, MDL_ticket::POST_RELEASE_NOTIFY);
+      m_owner->notify_hton_post_release_exclusive(&mdl_request->key);
+    }
+
     MDL_ticket::destroy(ticket);
     switch (wait_status)
     {
@@ -3619,7 +3722,7 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
 
   mdl_request->ticket= ticket;
 
-  mysql_mdl_set_status(ticket->m_psi, MDL_wait::GRANTED);
+  mysql_mdl_set_status(ticket->m_psi, MDL_ticket::GRANTED);
 
   return FALSE;
 }
@@ -3858,6 +3961,15 @@ MDL_context::upgrade_shared_lock(MDL_ticket *mdl_ticket,
   ++lock->m_obtrusive_locks_granted_waiting_count;
 
   mysql_prlock_unlock(&lock->m_rwlock);
+
+  /*
+    The below code can't handle situation when we upgrade to lock requiring
+    SE notification and it turns out that we already have lock of this type
+    associated with different ticket.
+  */
+  DBUG_ASSERT(is_new_ticket || ! mdl_new_lock_request.ticket->m_hton_notified);
+
+  mdl_ticket->m_hton_notified= mdl_new_lock_request.ticket->m_hton_notified;
 
   if (is_new_ticket)
   {
@@ -4137,12 +4249,23 @@ void MDL_context::find_deadlock()
 void MDL_context::release_lock(enum_mdl_duration duration, MDL_ticket *ticket)
 {
   MDL_lock *lock= ticket->m_lock;
+  MDL_key key_for_hton;
   DBUG_ENTER("MDL_context::release_lock");
   DBUG_PRINT("enter", ("db=%s name=%s", lock->key.db_name(),
                                         lock->key.name()));
 
   DBUG_ASSERT(this == ticket->get_ctx());
   mysql_mutex_assert_not_owner(&LOCK_open);
+
+
+  /*
+    If lock we are about to release requires post-release notification
+    of SEs, we need to save its MDL_key on stack. This is necessary to
+    be able to pass this key to SEs after corresponding MDL_lock object
+    might be freed as result of lock release.
+  */
+  if (ticket->m_hton_notified)
+    key_for_hton.mdl_key_init(&lock->key);
 
   if (ticket->m_is_fast_path)
   {
@@ -4234,6 +4357,13 @@ end_fast_path:
   }
 
   m_tickets[duration].remove(ticket);
+
+  if (ticket->m_hton_notified)
+  {
+    mysql_mdl_set_status(ticket->m_psi, MDL_ticket::POST_RELEASE_NOTIFY);
+    m_owner->notify_hton_post_release_exclusive(&key_for_hton);
+  }
+
   MDL_ticket::destroy(ticket);
 
   DBUG_VOID_RETURN;
@@ -4399,6 +4529,19 @@ void MDL_ticket::downgrade_lock(enum_mdl_type new_type)
   m_lock->m_granted.add_ticket(this);
   m_lock->reschedule_waiters();
   mysql_prlock_unlock(&m_lock->m_rwlock);
+
+  /*
+    When we downgrade X lock for which SEs were notified about lock
+    acquisition we treat situation in the same way as lock release
+    (from SEs notification point of view).
+  */
+  if (m_hton_notified)
+  {
+    mysql_mdl_set_status(m_psi, MDL_ticket::POST_RELEASE_NOTIFY);
+    m_ctx->get_owner()->notify_hton_post_release_exclusive(&m_lock->key);
+    m_hton_notified= false;
+    mysql_mdl_set_status(m_psi, MDL_ticket::GRANTED);
+  }
 }
 
 
