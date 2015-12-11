@@ -2502,5 +2502,10 @@ CREATE DATABASE `a\"'``b`;
 USE `a\"'``b`;
 CREATE PROCEDURE p1() BEGIN END;
 ALTER DATABASE `a\"'``b` COLLATE utf8_general_ci;
---exec $MYSQL_DUMP --routines --compact a\\\"\'\`b 2>&1
+--let shell_ready_db_name="a\\\\\\"'`b"
+if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows") = 0`)
+{
+  --let shell_ready_db_name=a\\\\\\"\\'\\`b
+}
+--exec $MYSQL_DUMP --routines --compact $shell_ready_db_name
 DROP DATABASE `a\"'``b`;
