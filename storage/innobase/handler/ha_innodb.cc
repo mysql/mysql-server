@@ -9813,6 +9813,7 @@ err_col:
 				"temporary tables");
 
 			err = DB_UNSUPPORTED;
+			dict_mem_table_free(table);
 
 		} else {
 
@@ -9869,6 +9870,7 @@ err_col:
 			algorithm = NULL;
 
 			err = DB_UNSUPPORTED;
+			dict_mem_table_free(table);
 
 		} else if (Compression::validate(algorithm) != DB_SUCCESS
 			   || m_form->s->row_type == ROW_TYPE_COMPRESSED
