@@ -971,6 +971,7 @@ do_select(JOIN *join)
 	  field_perm[join->group_list_size - i - 1] = field_it->info;
 	}
 	while (1){
+	  join->first_record = false;
 	  if (error >= NESTED_LOOP_OK)
 		error = join->first_select(join, qep_tab, 0);
 	  if (error >= NESTED_LOOP_OK)
@@ -3096,6 +3097,7 @@ end_send_group(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
 	  {
 	    if (join->rollup_send_data((uint) (idx+1)))
 	      error= 1;
+		join->group_sent = true;
 	  }
           if (save_nullinfo)
             restore_const_null_info(join, save_nullinfo);
