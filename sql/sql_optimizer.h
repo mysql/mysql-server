@@ -31,6 +31,57 @@
 
 class Cost_model_server;
 
+/**
+Execution plan for CUBE
+*/
+class Cube_plan{
+public:
+  Cube_plan(uint size){
+	pass = 1;
+	cube_dim = size;
+	total_pass_count = 1;
+	//total_pass_count = combination (n, n/2)
+	for (uint i = 1; i <= size / 2; i++){
+	  total_pass_count *= (size + 1 - i);
+	  total_pass_count /= i;
+	}
+	pos_map = (uint **)malloc(total_pass_count * sizeof(uint *));
+	permutation = (uint **)malloc(total_pass_count * sizeof(uint *));
+	for (uint i = 0; i < total_pass_count; i++){
+	  pos_map[i] = (uint *)calloc(size + 1, sizeof(uint));
+	  permutation[i] = (uint *)malloc(size * sizeof(uint));
+	}
+	//permutation[0][0] = 0;
+	//permutation[0][1] = 1;
+	//permutation[1][0] = 1;
+	//permutation[1][1] = 0;
+  }
+  ~Cube_plan(){
+	for (uint i = 0; i < total_pass_count; i++){
+	  free (permutation[i]);
+	  free (pos_map[i]);
+	}
+	free (pos_map);
+	free (permutation);
+  }
+
+  bool next_pass();
+  uint end();
+  uint start(uint idx);
+  bool write_plan(uint input_pass, uint idx, uint pos);
+  bool write_end(uint input_pass, uint pos);
+  inline void reset_pass(){
+	pass = 1;
+  }
+  inline bool is_first_pass(){
+	return pass == 1;
+  }
+  uint cube_dim;
+  uint total_pass_count;
+  uint ** pos_map;
+  uint ** permutation;
+  uint pass;
+};
 
 typedef struct st_sargable_param
 {
@@ -67,6 +118,7 @@ public:
       primary_tables(0),
       const_tables(0),
       tmp_tables(0),
+	  group_list_size(0),
       send_group_parts(0),
       sort_and_group(false),
       first_record(false),
@@ -143,6 +195,7 @@ public:
       calc_found_rows(false),
       optimized(false),
       executed(false),
+	  cube_plan(NULL),
       plan_state(NO_PLAN)
   {
     rollup.state= ROLLUP::STATE_NONE;
@@ -155,9 +208,18 @@ public:
       explain_flags.set(ESC_DISTINCT, ESP_EXISTS);
     // Calculate the number of groups
     for (ORDER *group= group_list; group; group= group->next)
-      send_group_parts++;
+      group_list_size++;
+	if (select->olap == CUBE_TYPE)
+	{
+	  send_group_parts = (int)(pow(2, group_list_size)) - 1;
+	  cube_plan = new Cube_plan(group_list_size);
+	}
+	else
+	  send_group_parts = group_list_size;
   }
-
+	  ~JOIN(){
+		delete cube_plan;
+	  }
   /// Query block that is optimized and executed using this JOIN
   SELECT_LEX *const select_lex;
   /// Query expression referring this query block
@@ -215,6 +277,13 @@ public:
   uint     primary_tables; ///< Number of primary input tables in query block
   uint     const_tables;   ///< Number of primary tables deemed constant
   uint     tmp_tables;     ///< Number of temporary tables used by query
+  /**
+	The number of columns participating group by.
+  */
+  uint	   group_list_size;
+  /**
+	The number of different aggregate levels in rollup/cube
+  */
   uint     send_group_parts;
   /**
     Indicates that grouping will be performed on the result set during
@@ -291,6 +360,7 @@ public:
   MYSQL_LOCK *lock;
   
   ROLLUP rollup;                  ///< Used with rollup
+  Cube_plan * cube_plan;
   bool implicit_grouping;         ///< True if aggregated but no GROUP BY
   bool select_distinct;           ///< Set if SELECT DISTINCT
   /**

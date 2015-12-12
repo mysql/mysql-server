@@ -336,7 +336,7 @@ bool SELECT_LEX::prepare(THD *thd)
   if (query_result() && query_result()->prepare(fields_list, unit))
     DBUG_RETURN(true);
 
-  if (olap == ROLLUP_TYPE && resolve_rollup(thd))
+  if ((olap == ROLLUP_TYPE || olap == CUBE_TYPE) && resolve_rollup(thd))
     DBUG_RETURN(true); /* purecov: inspected */
 
   if (flatten_subqueries())
@@ -3423,7 +3423,7 @@ bool SELECT_LEX::setup_group(THD *thd)
 
 
 /****************************************************************************
-  ROLLUP handling
+  ROLLUP and CUBE handling
 ****************************************************************************/
 
 /**
@@ -3502,7 +3502,7 @@ bool SELECT_LEX::change_group_ref(THD *thd, Item_func *expr, bool *changed)
 
 
 /**
-  Resolve items for rollup processing
+  Resolve items for rollup and cube processing
 
   @param   thd   Thread handler
 

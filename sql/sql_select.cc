@@ -3090,7 +3090,7 @@ void free_underlaid_joins(THD *thd, SELECT_LEX *select)
 }
 
 /****************************************************************************
-  ROLLUP handling
+  ROLLUP/CUBE handling
 ****************************************************************************/
 
 /**
@@ -3145,16 +3145,226 @@ bool JOIN::rollup_process_const_fields()
   }
   return 0;
 }
-  
 
 /**
-  Fill up rollup structures with pointers to fields to use.
+  Bitmap that mark columns need to be subtotaled in ROLLUP/CUBE
+  or mixed OLAP query.
+*/
+class Group_by_bitmap{
+public:
+  /*Constructor*/
+  Group_by_bitmap(THD* thd_arg, olap_type type, uint group_list_length):
+	thd(thd_arg),
+	type_(type),
+	pass_(2),
+	bitmap_size(group_list_length)
+	{
+	switch (type_)
+	{
+	case CUBE_TYPE:
+	{
+	  n = (uint)pow(2, group_list_length) - 1;
+	  generator = (uint*)malloc(bitmap_size * sizeof(uint));
+	  zeros = (uint*)malloc(bitmap_size * sizeof(uint));
+	  pos = (uint*)malloc(bitmap_size * sizeof(uint));
+	  permutation = (uint*)malloc(bitmap_size * sizeof(uint));
+	}
+	  break;
+	case ROLLUP_TYPE:
+	  n = group_list_length;
+	  break;
+	default:
+	  break;
+	}
+	//bitmap_ = static_cast<bool *> (thd->alloc(bitmap_size * sizeof(bool)));
+	bitmap_ = (bool *)malloc(bitmap_size * sizeof(bool));
+	bitmap.reset(bitmap_, bitmap_size);
+	memset(bitmap_, 0, bitmap_size * sizeof(bool));
+	count = 0;
+  }
+  ~Group_by_bitmap(){ 
+	free(bitmap_);
+	if (type_ == CUBE_TYPE){
+	  free(generator);
+	  free(pos);
+	  free(zeros);
+	}
+  }
+  uint get_pass_id(){ return pass_; }
+  /**
+	see rollup_send_data() for usage of idx.
+  */
+  uint get_idx(){
+	uint c = 0;
+	for (uint i = 0; i < bitmap_size; i++){
+	  if (bitmap[i]) c++;
+	}
+	return bitmap_size - c;
+  }
+  /*Get a new combination*/
+  Bounds_checked_array<bool> &GetNext(){
+	if (count >= n)
+	  return bitmap;
+	switch (type_)
+	{
+	case CUBE_TYPE:
+	  {
+		if (count == 0){
+		  init_();
+		  mark_zeros_();
+		  pass_ = 2;
+		}
+		else{
+		  if (zero_count){
+			reverse_zero_();
+		  }
+		  else if(inc_(pivot_count-1)){
+			//has to increase number of pivot
+			pivot_count++;
+			pass_++;
+			if (pivot_count > bitmap_size / 2){
+			  init_main_pass_();
+			  pass_ = 1;
+			}
+			else{
+			  reset_(0);
+			}
+			mark_zeros_();
+		  }
+		  else{
+			mark_zeros_();
+			pass_++;
+		  }
+		}
+		write_bitmap_();
+	  }
+	  break;
+	case ROLLUP_TYPE:
+	  bitmap[bitmap_size - 1 - count] = TRUE;
+	  break;
+	default:
+	  break;
+	}
+	count++;
+	return bitmap;
+  }
+  THD *thd;
+  uint bitmap_size;
+  bool *bitmap_;
+  Bounds_checked_array<bool> bitmap;
+  /*index of current combination*/
+  uint count;
+  /*index of current pass*/
+  uint pass_;
+  /*number of combinations*/
+  uint n;
+  /*type of OLAP*/
+  olap_type type_;
+
+  /*Generator variables*/
+  void reset_(uint pivot){
+	if (pivot == pivot_count)return;
+	uint head = max(pivot * 2 + 1, pivot == 0 ? 0 : pos[pivot - 1] + 1);
+	pos[pivot] = head;
+	reset_(pivot + 1);
+  }
+
+  bool inc_(uint pivot){
+	uint end = 
+	  min(bitmap_size, pivot==pivot_count-1?bitmap_size:pos[pivot+1]) - 1;
+	if (pos[pivot] < end){
+	  pos[pivot]++;
+	  if (pivot != pivot_count - 1){
+		reset_(pivot + 1);
+	  }
+	  return FALSE;
+	}
+	else{
+	  if (pivot == 0){
+		return TRUE;
+	  }
+	  else{
+		return inc_(pivot - 1);
+	  }
+	}
+  }
+  void init_(){
+	pivot_count = 1;
+	reset_(0);
+  }
+  void write_bitmap_(){
+	for (uint i = 0; i < bitmap_size; i++){
+	  if (generator[i] == 2){
+		bitmap[bitmap_size - i - 1] = FALSE;
+	  }
+	  else{
+		bitmap[bitmap_size - i - 1] = TRUE;
+	  }
+	}
+	for (uint i = 0; i < zero_count; i++){
+	  bitmap[bitmap_size - zeros[i] - 1] = FALSE;
+	}
+  }
+  void mark_zeros_(){
+	uint perm_count2 = bitmap_size - 1;
+	uint perm_count1 = 0;
+	//note that generator is reversed comparing to output bitmap
+	uint *tmp = generator;
+	for (uint i = 0; i < bitmap_size; i++){
+	  tmp[i] = 0;
+	}
+	if (pass_ == 1){
+	  //the '000..0' is handled by group by so we go over it.
+	  generator[0] = 1;
+	}
+	for (uint i = 0; i < pivot_count; i++){
+	  tmp[pos[i]] = 1;
+	  permutation[perm_count2--] = bitmap_size - pos[i] - 1;
+	}
+	for (uint i = 0; i < bitmap_size; i++){
+	  if (tmp[i] == 1)for (int j = (int)i - 1; j >= 0; j--){
+		if (tmp[j] == 0){
+		  tmp[j] = 2;
+		  permutation[perm_count1++] = bitmap_size - j - 1;
+		  break;
+		}
+	  }
+	}
+	zero_count = 0;
+	for (int i = (int)bitmap_size - 1; i >= 0; i--){
+	  if (tmp[i] == 0){
+		zeros[zero_count] = i;
+		zero_count++;
+		permutation[perm_count1++] = bitmap_size - i - 1;
+	  }
+	}
+  }
+  void init_main_pass_(){
+	pivot_count = 0;
+  }
+  void reverse_zero_(){
+	zero_count--;
+  }
+  //The data[perm[i]]==>sorted_data[i]. Updated every time we update
+  //generator, by calling mark_zeros_()
+  uint * permutation; 
+  uint * generator;
+  uint * zeros;
+  uint zero_count;
+  uint zero_idx;
+  uint * pos; //pivot location
+  uint pivot_count; //number of active pivots
+};
+
+/**
+  Fill up rollup/cube structures with pointers to fields to use.
 
   Creates copies of item_sum items for each sum level.
 
   @param fields_arg		List of all fields (hidden and real ones)
   @param sel_fields		Pointer to selected fields
   @param func			Store here a pointer to all fields
+						(it's a pointer to array of pointers)
 
   @retval
     0	if ok;
@@ -3190,93 +3400,97 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
     sum_funcs_end[1] points to all sum functions, except grand totals
     ...
   */
+  Group_by_bitmap *subtotal_bitmap;
+  //subtotal_bitmap = new (thd->mem_root) Group_by_bitmap(thd, select_lex->olap, group_list_size);
+  subtotal_bitmap = new Group_by_bitmap(thd, select_lex->olap, group_list_size);
+  uint last_pass = 0;
 
-  for (level=0 ; level < send_group_parts ; level++)
-  {
-    uint i;
-    uint pos= send_group_parts - level -1;
-    bool real_fields= 0;
-    Item *item;
-    List_iterator<Item> new_it(rollup.fields[pos]);
-    Ref_ptr_array ref_array_start= rollup.ref_pointer_arrays[pos];
-    ORDER *start_group;
-
-    /* Point to first hidden field */
-    uint ref_array_ix= fields_arg.elements-1;
-
-    /* Remember where the sum functions ends for the previous level */
-    sum_funcs_end[pos+1]= *func;
-
-    /* Find the start of the group for this level */
-    for (i= 0, start_group= group_list ;
-	 i++ < pos ;
-	 start_group= start_group->next)
-      ;
-
-    it.rewind();
-    while ((item= it++))
-    {
-      if (item == first_field)
-      {
-	real_fields= 1;				// End of hidden fields
-        ref_array_ix= 0;
-      }
-
-      if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item() &&
-          (!((Item_sum*) item)->depended_from() ||
-           ((Item_sum *)item)->depended_from() == select_lex))
-          
-      {
-	/*
-	  This is a top level summary function that must be replaced with
-	  a sum function that is reset for this level.
-
-	  NOTE: This code creates an object which is not that nice in a
-	  sub select.  Fortunately it's not common to have rollup in
-	  sub selects.
-	*/
-	item= item->copy_or_same(thd);
-	((Item_sum*) item)->make_unique();
-	*(*func)= (Item_sum*) item;
-	(*func)++;
-      }
-      else 
-      {
-	/* Check if this is something that is part of this group by */
-	ORDER *group_tmp;
-	for (group_tmp= start_group, i= pos ;
-             group_tmp ; group_tmp= group_tmp->next, i++)
-	{
-          if (*group_tmp->item == item)
-	  {
-	    /*
-	      This is an element that is used by the GROUP BY and should be
-	      set to NULL in this level
-	    */
-            Item_null_result *null_item=
-              new (thd->mem_root) Item_null_result(item->field_type(),
-                                                   item->result_type());
-            if (!null_item)
-              return 1;
-	    item->maybe_null= 1;		// Value will be null sometimes
-            null_item->result_field= item->get_tmp_table_field();
-            item= null_item;
-	    break;
-	  }
+  for (level = 0; level < send_group_parts; level++){
+	Bounds_checked_array<bool> &bitmap = subtotal_bitmap->GetNext();
+	uint cur_pass = subtotal_bitmap->get_pass_id();
+	uint pos = send_group_parts - level - 1;
+	//mark the end of current pass
+	if (cube_plan && cur_pass != last_pass){
+	  cube_plan->write_end(cur_pass, pos + 1);
+	  memcpy(cube_plan->permutation[cur_pass - 1], subtotal_bitmap->permutation,
+		group_list_size * sizeof(uint));
+	  last_pass = cur_pass;
 	}
-      }
-      ref_array_start[ref_array_ix]= item;
-      if (real_fields)
-      {
-	(void) new_it++;			// Point to next item
-	new_it.replace(item);			// Replace previous
-	ref_array_ix++;
-      }
-      else
-	ref_array_ix--;
-    }
+	if (cube_plan){
+	  cube_plan->write_plan(cur_pass, subtotal_bitmap->get_idx(), pos);
+	}
+	bool real_fields = 0;
+	Item *item;
+	List_iterator<Item> new_it(rollup.fields[pos]);
+	Ref_ptr_array ref_array_start = rollup.ref_pointer_arrays[pos];
+
+	/* Point to first hidden field */
+	uint ref_array_ix = fields_arg.elements - 1;
+
+	/* Remember where the sum functions ends for the previous level */
+	sum_funcs_end[pos + 1] = *func;
+
+	it.rewind();
+	while ((item = it++)){
+	  uint bitmap_idx = 0;
+	  if (item == first_field)
+	  {
+		real_fields = 1;				// End of hidden fields
+		ref_array_ix = 0;
+	  }
+	  if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item() &&
+		(!((Item_sum*)item)->depended_from() ||
+		((Item_sum *)item)->depended_from() == select_lex))
+
+	  {
+		/*
+		This is a top level summary function that must be replaced with
+		a sum function that is reset for this level.
+
+		NOTE: This code creates an object which is not that nice in a
+		sub select.  Fortunately it's not common to have rollup in
+		sub selects.
+		*/
+		item = item->copy_or_same(thd);
+		((Item_sum*)item)->make_unique();
+		*(*func) = (Item_sum*)item;
+		(*func)++;
+	  }
+	  else{
+		ORDER *group_tmp = group_list;
+		uint i = 0;
+		for (; group_tmp; group_tmp = group_tmp->next, i++){
+		  if (*group_tmp->item == item && bitmap[i])
+		  {
+			/*
+			This is an element that is used by the GROUP BY and should be
+			set to NULL in this level
+			*/
+			Item_null_result *null_item =
+			  new (thd->mem_root) Item_null_result(item->field_type(),
+			  item->result_type());
+			if (!null_item)
+			  return 1;
+			item->maybe_null = 1;		// Value will be null sometimes
+			null_item->result_field = item->get_tmp_table_field();
+			item = null_item;
+			break;
+		  }
+		}
+	  }
+	  ref_array_start[ref_array_ix] = item;
+	  if (real_fields)
+	  {
+		(void)new_it++;			// Point to next item
+		new_it.replace(item);			// Replace previous
+		ref_array_ix++;
+	  }
+	  else
+		ref_array_ix--;
+	}
   }
-  sum_funcs_end[0]= *func;			// Point to last function
+  sum_funcs_end[0] = *func;			// Point to last function
+  delete subtotal_bitmap;
   return 0;
 }
 

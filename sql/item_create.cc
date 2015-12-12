@@ -2003,6 +2003,17 @@ protected:
   virtual ~Create_func_greatest() {}
 };
 
+class Create_func_grouping : public Create_func_arg1
+{
+public:
+	virtual Item *create(THD *thd, Item *arg1);
+
+	static Create_func_grouping s_singleton;
+
+protected:
+	Create_func_grouping() {}
+	virtual ~Create_func_grouping() {}
+};
 
 class Create_func_gtid_subtract : public Create_func_arg2
 {
@@ -5428,6 +5439,14 @@ Create_func_greatest::create_native(THD *thd, LEX_STRING name,
   return new (thd->mem_root) Item_func_max(POS(), item_list);
 }
 
+Create_func_grouping Create_func_grouping::s_singleton;
+
+Item*
+Create_func_grouping::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_grouping(POS(), arg1);
+}
+
 
 Create_func_gtid_subtract Create_func_gtid_subtract::s_singleton;
 
@@ -7502,6 +7521,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("GET_LOCK") }, BUILDER(Create_func_get_lock)},
   { { C_STRING_WITH_LEN("GLENGTH") }, GEOM_BUILDER(Create_func_glength_deprecated)},
   { { C_STRING_WITH_LEN("GREATEST") }, BUILDER(Create_func_greatest)},
+  { { C_STRING_WITH_LEN("GROUPING") }, BUILDER(Create_func_grouping)},
   { { C_STRING_WITH_LEN("GTID_SUBTRACT") }, BUILDER(Create_func_gtid_subtract) },
   { { C_STRING_WITH_LEN("GTID_SUBSET") }, BUILDER(Create_func_gtid_subset) },
   { { C_STRING_WITH_LEN("HEX") }, BUILDER(Create_func_hex)},

@@ -177,7 +177,8 @@ JOIN::optimize()
   DBUG_ASSERT(tmp_table_param.sum_func_count == 0 ||
               group_list || implicit_grouping);
 
-  if (select_lex->olap == ROLLUP_TYPE && optimize_rollup())
+  if ((select_lex->olap == ROLLUP_TYPE || select_lex->olap == CUBE_TYPE) &&
+	  optimize_rollup())
     DBUG_RETURN(true); /* purecov: inspected */
 
   if (alloc_func_list())
@@ -1282,7 +1283,6 @@ bool JOIN::optimize_distinct_group_order()
   }
 
   calc_group_buffer(this, group_list);
-  send_group_parts= tmp_table_param.group_parts; /* Save org parts */
 
   if (test_if_subpart(group_list, order) ||
       (!group_list && tmp_table_param.sum_func_count))
@@ -7811,7 +7811,8 @@ is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args)
 
   if (join->primary_tables > 1 ||             /* reference more than 1 table */
       join->select_distinct ||                /* or a DISTINCT */
-      join->select_lex->olap == ROLLUP_TYPE)  /* Check (B3) for ROLLUP */
+      join->select_lex->olap == ROLLUP_TYPE ||/* Check (B3) for ROLLUP */
+	  join->select_lex->olap == CUBE_TYPE)
     return false;
 
   if (join->make_sum_func_list(join->all_fields, join->fields_list, true))
@@ -11134,9 +11135,9 @@ bool JOIN::compare_costs_of_subquery_strategies(
 
 
 /**
-  Optimize rollup specification.
+  Optimize rollup/cube specification.
 
-  Allocate objects needed for rollup processing.
+  Allocate objects needed for rollup/cube processing.
 
   @returns false if success, true if error.
 */
@@ -11153,9 +11154,9 @@ bool JOIN::optimize_rollup()
   tmp_table_param.group_parts= send_group_parts;
 
   Item_null_result **null_items=
-    static_cast<Item_null_result**>(thd->alloc(sizeof(Item*)*send_group_parts));
+    static_cast<Item_null_result**>(thd->alloc(sizeof(Item*)*group_list_size));
 
-  rollup.null_items= Item_null_array(null_items, send_group_parts);
+  rollup.null_items= Item_null_array(null_items, group_list_size);
   rollup.ref_pointer_arrays=
     static_cast<Ref_ptr_array*>
     (thd->alloc((sizeof(Ref_ptr_array) +
@@ -11173,22 +11174,22 @@ bool JOIN::optimize_rollup()
     These will be filled up in rollup_make_fields()
   */
   ORDER *group= group_list;
-  for (uint i= 0; i < send_group_parts; i++, group= group->next)
+  for (uint i= 0; i < group_list_size; i++, group= group->next)
   {
     rollup.null_items[i]=
       new (thd->mem_root) Item_null_result((*group->item)->field_type(),
                                            (*group->item)->result_type());
     if (rollup.null_items[i] == NULL)
       return true;           /* purecov: inspected */
-    List<Item> *rollup_fields= &rollup.fields[i];
-    rollup_fields->empty();
-    rollup.ref_pointer_arrays[i]= Ref_ptr_array(ref_array, all_fields.elements);
-    ref_array+= all_fields.elements;
   }
   for (uint i= 0; i < send_group_parts; i++)
   {
+	List<Item> *rollup_fields = &rollup.fields[i];
+	rollup_fields->empty();
+	rollup.ref_pointer_arrays[i] = Ref_ptr_array(ref_array, all_fields.elements);
+	ref_array += all_fields.elements;
     for (uint j= 0; j < fields_list.elements; j++)
-      rollup.fields[i].push_back(rollup.null_items[i]);
+      rollup.fields[i].push_back(rollup.null_items[0]);
   }
   return false;
 }
@@ -11263,3 +11264,29 @@ static uint32 get_key_length_tmp_table(Item *item)
   return len;
 }
 
+bool Cube_plan::next_pass(){
+  if (pass == total_pass_count) return 1;
+  pass ++;
+  return 0;
+}
+
+uint Cube_plan::end(){
+  return pos_map[pass - 1][cube_dim];
+}
+
+uint Cube_plan::start(uint idx){
+  DBUG_ASSERT(idx >= 0 && idx <= cube_dim);
+  return pos_map[pass - 1][idx];
+}
+
+bool Cube_plan::write_plan(uint input_pass, uint idx, uint pos){
+  for (uint i = 0; i <= idx; i++){
+	pos_map[input_pass - 1][i] = pos;
+  }
+  return FALSE;
+}
+
+bool Cube_plan::write_end(uint input_pass, uint pos){
+  write_plan(input_pass, cube_dim, pos);
+  return FALSE;
+}
