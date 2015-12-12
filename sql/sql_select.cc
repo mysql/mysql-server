@@ -3166,6 +3166,7 @@ public:
 	  generator = (uint*)malloc(bitmap_size * sizeof(uint));
 	  zeros = (uint*)malloc(bitmap_size * sizeof(uint));
 	  pos = (uint*)malloc(bitmap_size * sizeof(uint));
+	  permutation = (uint*)malloc(bitmap_size * sizeof(uint));
 	}
 	  break;
 	case ROLLUP_TYPE:
@@ -3292,7 +3293,7 @@ public:
   }
   void write_bitmap_(){
 	for (uint i = 0; i < bitmap_size; i++){
-	  if (generator[i] == -1){
+	  if (generator[i] == 2){
 		bitmap[bitmap_size - i - 1] = FALSE;
 	  }
 	  else{
@@ -3304,6 +3305,9 @@ public:
 	}
   }
   void mark_zeros_(){
+	uint perm_count2 = bitmap_size - 1;
+	uint perm_count1 = 0;
+	//note that generator is reversed comparing to output bitmap
 	uint *tmp = generator;
 	for (uint i = 0; i < bitmap_size; i++){
 	  tmp[i] = 0;
@@ -3314,10 +3318,15 @@ public:
 	}
 	for (uint i = 0; i < pivot_count; i++){
 	  tmp[pos[i]] = 1;
+	  permutation[perm_count2--] = bitmap_size - pos[i] - 1;
 	}
 	for (uint i = 0; i < bitmap_size; i++){
 	  if (tmp[i] == 1)for (int j = (int)i - 1; j >= 0; j--){
-		if (tmp[j] == 0)tmp[j] = -1;
+		if (tmp[j] == 0){
+		  tmp[j] = 2;
+		  permutation[perm_count1++] = bitmap_size - j - 1;
+		  break;
+		}
 	  }
 	}
 	zero_count = 0;
@@ -3325,6 +3334,7 @@ public:
 	  if (tmp[i] == 0){
 		zeros[zero_count] = i;
 		zero_count++;
+		permutation[perm_count1++] = bitmap_size - i - 1;
 	  }
 	}
   }
@@ -3334,6 +3344,9 @@ public:
   void reverse_zero_(){
 	zero_count--;
   }
+  //The data[perm[i]]==>sorted_data[i]. Updated every time we update
+  //generator, by calling mark_zeros_()
+  uint * permutation; 
   uint * generator;
   uint * zeros;
   uint zero_count;
@@ -3398,6 +3411,8 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 	//mark the end of current pass
 	if (cube_plan && cur_pass != last_pass){
 	  cube_plan->write_end(cur_pass, pos + 1);
+	  memcpy(cube_plan->permutation[cur_pass - 1], subtotal_bitmap->permutation,
+		group_list_size * sizeof(uint));
 	  last_pass = cur_pass;
 	}
 	if (cube_plan){

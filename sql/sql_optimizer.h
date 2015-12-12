@@ -51,10 +51,10 @@ public:
 	  pos_map[i] = (uint *)calloc(size + 1, sizeof(uint));
 	  permutation[i] = (uint *)malloc(size * sizeof(uint));
 	}
-	permutation[0][0] = 0;
-	permutation[0][1] = 1;
-	permutation[1][0] = 1;
-	permutation[1][1] = 0;
+	//permutation[0][0] = 0;
+	//permutation[0][1] = 1;
+	//permutation[1][0] = 1;
+	//permutation[1][1] = 0;
   }
   ~Cube_plan(){
 	for (uint i = 0; i < total_pass_count; i++){

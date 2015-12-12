@@ -961,6 +961,15 @@ do_select(JOIN *join)
 	  (ORDER **)malloc(join->group_list_size * sizeof(ORDER *));
 	void **field_perm = 
 	  (void**)malloc(join->group_list_size * sizeof(list_node*));
+	ORDER *group_it = join->group_list;
+	Cube_plan *cp = join->cube_plan;
+	for (uint i = 0; group_it; i++, group_it = group_it->next){
+	  group_perm[i] = group_it;
+	}
+	list_node *field_it = join->group_fields.first_node();
+	for (uint i = 0; i < join->group_list_size; i++, field_it = field_it->next){
+	  field_perm[join->group_list_size - i - 1] = field_it->info;
+	}
 	while (1){
 	  if (error >= NESTED_LOOP_OK)
 		error = join->first_select(join, qep_tab, 0);
@@ -970,11 +979,6 @@ do_select(JOIN *join)
 		break;
 	  }
 
-	  ORDER *group_it = join->group_list;
-	  Cube_plan *cp = join->cube_plan;
-	  for (uint i = 0; group_it; i++, group_it = group_it->next){
-		group_perm[i] = group_it;
-	  }
 	  for (uint i = 0; i < join->group_list_size; i++){
 		group_perm[cp->permutation[cp->pass - 1][i]]->next =
 		  (i == join->group_list_size - 1) ? NULL :
@@ -984,14 +988,16 @@ do_select(JOIN *join)
 	  qep_tab->filesort->order = join->group_list;
 	  qep_tab->sort_table();
 
-	  list_node *field_it = join->group_fields.first_node();
-	  for (uint i = 0; i < join->group_list_size; i++, field_it = field_it->next){
-		field_perm[i] = field_it->info;
-	  }
 	  field_it = join->group_fields.first_node();
 	  for (uint i = 0; i < join->group_list_size; i++, field_it = field_it->next){
-		field_it->info = field_perm[cp->permutation[cp->pass - 1][i]];
+		//Note: Has to be tricky since field_it is reversed.
+		field_it->info = field_perm
+		  [cp->permutation[cp->pass - 1][join->group_list_size - i - 1]];
 	  }
+	}
+	field_it = join->group_fields.first_node();
+	for (uint i = 0; i < join->group_list_size; i++, field_it = field_it->next){
+	  field_it->info = field_perm[join->group_list_size - i - 1];
 	}
 	free(group_perm);
 	free(field_perm);
