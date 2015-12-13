@@ -1011,7 +1011,7 @@
    fun:SSL_COMP_get_compression_methods
    fun:SSL_library_init
    fun:ssl_start
-   fun:_Z8init_sslv
+   fun:_ZL8init_sslv
    fun:_Z11mysqld_mainiPPc
    fun:main
 }
