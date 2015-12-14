@@ -893,6 +893,15 @@ protected:
   */
   bool tables_locked_cache;
   const bool is_parser_item; // true if allocated directly by the parser
+
+  /*
+    Checks if the items provided as parameter offend the deprecated behaviour
+    on binary operations and if so, a warning will be sent.
+
+    @param      a item to check
+    @param      b item to check, may be NULL
+   */
+  static void check_deprecated_bin_op(const Item *a, const Item *b);
  public:
   // alloc & destruct is done as start of select using sql_alloc
   Item();
