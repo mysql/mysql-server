@@ -24,6 +24,19 @@ srv_session_open 1 - Success
 srv_session_close 1 - Success
 srv_session_close 1 - Failed
 deinit thread
+Follows threaded run and leaves open session (Bug#21966621)
+========================================================================
+init thread
+nb_sessions = 1
+srv_session_open 1 - Success
+deinit thread
+========================================================================
+init thread
+nb_sessions = 1
+srv_session_open 1 - Success
+srv_session_close 1 - Success
+srv_session_close 1 - Failed
+deinit thread
 Follows threaded run and leaves open session (Bug#21983102)
 ========================================================================
 init thread
