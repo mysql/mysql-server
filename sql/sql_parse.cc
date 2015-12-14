@@ -4876,7 +4876,7 @@ end_with_restore_list:
       }
 
       if (update_password_only &&
-          !opt_bootstrap &&
+          likely((get_server_state() == SERVER_OPERATING)) &&
           !strcmp(thd->security_context()->priv_user().str,""))
       {
         my_message(ER_PASSWORD_ANONYMOUS_USER, ER(ER_PASSWORD_ANONYMOUS_USER),
