@@ -97,7 +97,7 @@ bool drop_table(THD *thd,
 /**
   Check if a table or view exists
 
-  dd_table_exists<dd::Abstract_table>() sets exists=true if such a
+  dd_table_exists < dd::Abstract_table > () sets exists=true if such a
   table or a view exists.
 
   When checking whether the table is in the new DD, we distinguish
@@ -106,9 +106,9 @@ bool drop_table(THD *thd,
   we have to pretend it does not exist to allow the CREATE TABLE
   statement to execute.
 
-  dd_table_exists<dd::Table>() sets exists=true if such a table exists.
+  dd_table_exists < dd::Table > () sets exists=true if such a table exists.
 
-  dd_table_exists<dd::View>() sets exists=true if such a view exists.
+  dd_table_exists < dd::View > () sets exists=true if such a view exists.
 
   @param       client       The dictionary client.
   @param       schema_name  The schema in which the object should be defined.
