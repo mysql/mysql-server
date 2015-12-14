@@ -7020,7 +7020,7 @@ bool parse_sql(THD *thd,
     /*
       We need to put any errors in the DA as well as the condition list.
     */
-    if (parser_da->is_error())
+    if (parser_da->is_error() && !da->is_error())
     {
       da->set_error_status(parser_da->mysql_errno(),
                            parser_da->message_text(),

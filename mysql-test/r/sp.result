@@ -7891,3 +7891,16 @@ DROP DATABASE db1;
 DROP USER myuser@localhost;
 DROP FUNCTION f1;
 #
+# Bug #22222013 ASSERTION `! IS_SET() || M_CAN_OVERWRITE_STATUS' FAILED
+#               IN ::SET_ERROR_STATUS
+#
+CREATE DATABASE bug22222013;
+USE bug22222013;
+SET NAMES swe7;
+CREATE FUNCTION f1() RETURNS INT RETURN (1);
+CREATE FUNCTION f21(p1 CHAR) RETURNS CHAR RETURN (p1);
+SELECT sql_data_access FROM information_schema.routines WHERE
+specific_name like 'p%' and routine_schema=0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '??@?? FUNCTION ?bug22222013?.?f1?() RETURNS int(11)
+RETURN NULL' at line 1
+DROP DATABASE bug22222013;
