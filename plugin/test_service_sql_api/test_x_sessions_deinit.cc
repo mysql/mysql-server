@@ -48,6 +48,35 @@ static struct st_mysql_sys_var *test_services_sysvars[]= {
 
 static File outfile;
 
+
+static void test_session_open(void *p)
+{
+  char buffer[STRING_BUFFER_SIZE];
+  DBUG_ENTER("test_session_open");
+
+  MYSQL_SESSION sessions[MAX_SESSIONS];
+  void *plugin_ctx= NULL;
+
+  WRITE_VAL("nb_sessions = %d\n", nb_sessions);
+  /* Open sessions: Must pass */
+  for (int i= 0; i < nb_sessions; i++)
+  {
+    WRITE_VAL("srv_session_open %d - ", i+1);
+    sessions[i]= srv_session_open(NULL, plugin_ctx);
+    if (!sessions[i])
+    {
+      WRITE_STR("Failed\n");
+    }
+    else
+    {
+      WRITE_STR("Success\n");
+    }
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+
 static void test_session(void *p)
 {
   char buffer[STRING_BUFFER_SIZE];
@@ -192,6 +221,12 @@ static int test_session_service_plugin_deinit(void *p)
   /* Test in a new thread */
   WRITE_STR("Follows threaded run\n");
   test_in_spawned_thread(p, test_session);
+
+  WRITE_STR("Follows threaded run and leaves open session (Bug#21983102)\n");
+  // Bug#21983102 - iterates through sessions list in which elements are removed
+  //                thus the iterator becomes invalid causing random crashes and
+  //                hangings
+  test_in_spawned_thread(p, test_session_open);
 
   my_close(outfile, MYF(0));
 
