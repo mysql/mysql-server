@@ -453,7 +453,7 @@ slave_worker_info	CREATE TABLE `slave_worker_info` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Worker Information'
 ==== end rpl_mts_crash_safe.inc:configure ====
 ########################################################################
-#                                TEST 
+#                                TEST
 ########################################################################
 SET @@global.slave_parallel_workers= 1;
 SET @@global.slave_checkpoint_period= 0;
