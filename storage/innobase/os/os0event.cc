@@ -205,14 +205,12 @@ private:
 
 	/**
 	Do a timed wait on condition variable.
-	@param	abstime		timeout
-	@param	time_in_ms	timeout in milliseconds.
 	@return true if timed out, false otherwise */
 	bool timed_wait(
 #ifndef _WIN32
-		const timespec*	abstime
+		const timespec*	abstime		/*!< Timeout. */
 #else
-		DWORD		time_in_ms
+		DWORD		time_in_ms	/*!< Timeout in milliseconds. */
 #endif /* !_WIN32 */
 	);
 
@@ -241,9 +239,6 @@ protected:
 	os_event& operator=(const os_event&);
 };
 
-/** Do a timed wait on condition variable.
-@param	abstime		absolute time to wait
-@return true if timed out */
 bool
 os_event::timed_wait(
 #ifndef _WIN32

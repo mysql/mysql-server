@@ -104,7 +104,7 @@ e.g., For an auxiliary table name
 
 	"FTS_@<TABLE_ID@>_SUFFIX"
 
-This constant is for the minimum length required to store the <TABLE_ID>
+This constant is for the minimum length required to store the @<TABLE_ID@>
 component.
 */
 #define FTS_AUX_MIN_TABLE_ID_LENGTH	48
