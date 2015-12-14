@@ -703,3 +703,51 @@ disconnect con1;
 connection default;
 #cleanup
 DROP USER bug20634154@localhost;
+
+--echo
+--echo Bug #22205360 ALTER USER/SET PASSWORD DO NOT WORK FOR --INIT-FILE EXECUTION
+--echo
+
+CREATE USER bug22205360@localhost;
+
+--write_file $MYSQLTEST_VARDIR/tmp/set_password.sql
+SET PASSWORD FOR bug22205360@localhost= 'abc';
+EOF
+
+--echo # shutdown the server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # Restart server with init-file option
+--exec echo "restart:--init-file=$MYSQLTEST_VARDIR/tmp/set_password.sql" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--connect(con1, localhost, bug22205360, abc)
+SELECT 1;
+connection default;
+
+--write_file $MYSQLTEST_VARDIR/tmp/alter_password.sql
+ALTER USER bug22205360@localhost IDENTIFIED BY 'def';
+EOF
+
+--echo # shutdown the server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # Restart server with init-file option
+--exec echo "restart:--init-file=$MYSQLTEST_VARDIR/tmp/alter_password.sql" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--connect(con2, localhost, bug22205360, def)
+SELECT 1;
+
+disconnect con1;
+disconnect con2;
+connection default;
+DROP USER bug22205360@localhost;
+--remove_file $MYSQLTEST_VARDIR/tmp/alter_password.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/set_password.sql
