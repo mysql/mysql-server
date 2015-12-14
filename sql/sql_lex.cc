@@ -3801,6 +3801,21 @@ void SELECT_LEX_UNIT::include_chain(LEX *lex, SELECT_LEX *outer)
    - A query that modifies variables (When variables are modified, try to
      preserve the original structure of the query. This is less likely to cause
      changes in variable assignment order).
+
+  A view/derived table will also not be merged if it contains subqueries
+  in the SELECT list that depend on columns from itself.
+  Merging such objects is possible, but we assume they are made derived
+  tables because the user wants them to be materialized, for performance
+  reasons.
+
+  One possible case is a derived table with dependent subqueries in the select
+  list, used as the inner table of a left outer join. Such tables will always
+  be read as many times as there are qualifying rows in the outer table,
+  and the select list subqueries are evaluated for each row combination.
+  The select list subqueries are evaluated the same number of times also with
+  join buffering enabled, even though the table then only will be read once.
+
+  When materialization hints are implemented, this decision may be reconsidered.
 */
 
 bool SELECT_LEX_UNIT::is_mergeable() const
@@ -3808,11 +3823,19 @@ bool SELECT_LEX_UNIT::is_mergeable() const
   if (is_union())
     return false;
 
-  return !first_select()->is_grouped() &&
-         !first_select()->having_cond() &&
-         !first_select()->is_distinct() &&
-         first_select()->table_list.elements > 0 &&
-         !first_select()->has_limit() &&
+  SELECT_LEX *const select= first_select();
+  Item *item;
+  List_iterator<Item> it(select->fields_list);
+  while ((item= it++))
+  {
+    if (item->has_subquery() && item->used_tables())
+      return false;
+  }
+  return !select->is_grouped() &&
+         !select->having_cond() &&
+         !select->is_distinct() &&
+         select->table_list.elements > 0 &&
+         !select->has_limit() &&
          thd->lex->set_var_list.elements == 0;
 }
 
