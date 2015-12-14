@@ -40,37 +40,10 @@
 # BUG#21501098 - DOXYGEN ERRORS IN INNODB
 # 24-JUL-2015 Marc ALFF
 # 05-NOV-2015 Marc ALFF (reopened)
-storage/innobase/include/*
-storage/innobase/btr/btr0cur.cc:*
-storage/innobase/btr/btr0sea.cc:*
-storage/innobase/buf/buf0buf.cc:*
-storage/innobase/buf/buf0dump.cc:*
-storage/innobase/buf/buf0flu.cc:*
-storage/innobase/buf/buf0rea.cc:*
-storage/innobase/dict/dict0dict.cc:*
-storage/innobase/dict/dict0mem.cc:*
-storage/innobase/fil/fil0fil.cc:*
-storage/innobase/fsp/fsp0fsp.cc:*
-storage/innobase/fsp/fsp0sysspace.cc
-storage/innobase/fts/fts0fts.cc:*
-storage/innobase/fts/fts0que.cc:*
-storage/innobase/handler/ha_innodb.cc:*
-storage/innobase/handler/ha_innodb.h:*
+# 14-DEC-2015 Marc ALFF (reopened)
+storage/innobase/include/fts0priv.h:*
 storage/innobase/handler/ha_innopart.cc:*
-storage/innobase/handler/ha_innopart.h:*
-storage/innobase/handler/handler0alter.cc:*
-storage/innobase/handler/i_s.cc:*
-storage/innobase/ibuf/ibuf0ibuf.cc:*
-storage/innobase/log/log0log.cc:*
-storage/innobase/log/log0recv.cc:*
 storage/innobase/os/os0event.cc:*
-storage/innobase/os/os0file.cc:*
-storage/innobase/page/zipdecompress.cc:*
-storage/innobase/pars/pars0pars.cc:*
-storage/innobase/row/row0ftsort.cc:*
-storage/innobase/row/row0import.cc:*
-storage/innobase/row/row0ins.cc:*
-storage/innobase/row/row0merge.cc:*
 storage/innobase/trx/trx0rec.cc:*
 
 # BUG#22007730 - DOXYGEN ERRORS IN SERVER LOGGING
