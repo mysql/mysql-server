@@ -496,6 +496,10 @@ int mysql_audit_table_access_notify(THD *thd, TABLE_LIST *table)
   const char *subclass_name;
   int ret;
 
+  /* Do not generate events for non query table access. */
+  if (!thd->lex->query_tables)
+    return 0;
+
   switch (thd->lex->sql_command)
   {
     case SQLCOM_REPLACE_SELECT:
