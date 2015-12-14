@@ -2096,9 +2096,21 @@ void QEP_TAB::init_join_cache(JOIN_TAB *join_tab)
       if (t->use_join_cache() == JOIN_CACHE::ALG_NONE)
         continue;
       t->set_use_join_cache(JOIN_CACHE::ALG_NONE);
-      delete q->op;
-      q->op= NULL;
+      /*
+        Detach the join buffer from QEP_TAB so that EXPLAIN doesn't show
+        'Using join buffer'. Destroy the join buffer.
+      */
+      if (q->op)
+      {
+        q->op->mem_free();
+        delete q->op;
+        q->op= NULL;
+      }
       DBUG_ASSERT(i > 0);
+      /*
+        Make the immediately preceding QEP_TAB channel the work to the
+        non-buffered nested loop algorithm:
+      */
       q[-1].next_select= sub_select;
     }
   }
