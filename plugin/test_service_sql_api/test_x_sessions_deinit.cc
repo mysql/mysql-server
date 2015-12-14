@@ -222,6 +222,16 @@ static int test_session_service_plugin_deinit(void *p)
   WRITE_STR("Follows threaded run\n");
   test_in_spawned_thread(p, test_session);
 
+  WRITE_STR("Follows threaded run and leaves open session (Bug#21966621)\n");
+  // Bug#21966621 - Leave session open at srv thread exit which is doing the release in following way:
+  //                1) Lock LOCK_collection while doing release callback for every session
+  //                2) Second attempt of LOCK_collection fails while removing session by the callback.
+  //                While exiting both function LOCK_collection is left in invalid state because
+  //                it was released 2 times, lock 1 time
+  //                3) at next attempt of LOCK_collection usage causes deadlock
+  test_in_spawned_thread(p, test_session_open); // step 1, 2
+  test_in_spawned_thread(p, test_session);      // step 3
+
   WRITE_STR("Follows threaded run and leaves open session (Bug#21983102)\n");
   // Bug#21983102 - iterates through sessions list in which elements are removed
   //                thus the iterator becomes invalid causing random crashes and

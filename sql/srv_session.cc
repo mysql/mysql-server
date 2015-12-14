@@ -58,10 +58,10 @@ static bool srv_session_THRs_initialized= false;
 class Auto_rw_lock_read
 {
 public:
-  explicit Auto_rw_lock_read(mysql_rwlock_t *lock) : rw_lock(lock)
+  explicit Auto_rw_lock_read(mysql_rwlock_t *lock) : rw_lock(NULL)
   {
-    if (rw_lock)
-      mysql_rwlock_rdlock(rw_lock);
+    if (lock && 0 == mysql_rwlock_rdlock(lock))
+      rw_lock = lock;
   }
 
   ~Auto_rw_lock_read()
@@ -80,10 +80,10 @@ private:
 class Auto_rw_lock_write
 {
 public:
-  explicit Auto_rw_lock_write(mysql_rwlock_t *lock) : rw_lock(lock)
+  explicit Auto_rw_lock_write(mysql_rwlock_t *lock) : rw_lock(NULL)
   {
-    if (rw_lock)
-      mysql_rwlock_wrlock(rw_lock);
+    if (lock && 0 == mysql_rwlock_wrlock(lock))
+      rw_lock = lock;
   }
 
   ~Auto_rw_lock_write()
