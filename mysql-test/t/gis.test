@@ -2868,3 +2868,11 @@ INNER JOIN r ON d.r_id = r.id
 ORDER BY d.i);
 
 DROP TABLE d, dp, r;
+
+--echo #
+--echo # Bug #22340858 CRASH AT GET_INTERVAL_VALUEITEMINTERVAL_TYPE
+--echo #
+
+SET collation_connection='utf32_bin';
+SELECT '2010-10-10 10:10:10' + INTERVAL
+  ST_GeometryType(ST_GeomFromText('POINT(1 1)')) HOUR_SECOND;
