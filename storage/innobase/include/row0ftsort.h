@@ -237,16 +237,18 @@ row_merge_fts_sel_propagate(
 	const mrec_t**	 mrec,		/*<! in: sort record */
 	ulint**		offsets,	/*<! in: record offsets */
 	dict_index_t*	index);		/*<! in: FTS index */
-/********************************************************************//**
-Read sorted file containing index data tuples and insert these data
+
+/** Read sorted file containing index data tuples and insert these data
 tuples to the index
+@param[in]	index		index
+@param[in]	table		new table
+@param[in]	psort_info	parallel sort info
+@param[in]	id		which auxiliary table's data to insert to
 @return DB_SUCCESS or error number */
 dberr_t
 row_fts_merge_insert(
-/*=================*/
-	dict_index_t*	index,		/*!< in: index */
-	dict_table_t*	table,		/*!< in: new table */
-	fts_psort_t*	psort_info,	/*!< parallel sort info */
-	ulint		id);		/* !< in: which auxiliary table's data
-					to insert to */
+	dict_index_t*	index,
+	dict_table_t*	table,
+	fts_psort_t*	psort_info,
+	ulint		id);
 #endif /* row0ftsort_h */

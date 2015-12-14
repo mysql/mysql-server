@@ -808,9 +808,10 @@ private:
 
 	/** A hash function used to map a key to its suggested position in the
 	array. A linear search to the right is done after this position to find
-	the tuple with the given key or find a tuple with key == UNUSED or AVOID
-	which means that the key is not present in the array.
-	@param[in]	key	key to map into a position
+	the tuple with the given key or find a tuple with key == UNUSED or
+	AVOID which means that the key is not present in the array.
+	@param[in]	key		key to map into a position
+	@param[in]	arr_size	number of elements in the array
 	@return a position (index) in the array where the tuple is guessed
 	to be */
 	size_t

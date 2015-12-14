@@ -1769,28 +1769,28 @@ pars_column_def(
 	return(sym_node);
 }
 
-/*********************************************************************//**
-Parses a table creation operation.
+/** Parses a table creation operation.
+@param[in]	table_sym		table name node in the symbol table
+@param[in]	column_defs		list of column names
+@param[in]	not_fit_in_memory	a non-NULL pointer means that this is a
+					table which in simulations should be
+					simulated as not fitting in memory;
+					thread is put to sleep to simulate disk
+					accesses; NOTE that this flag is not
+					stored to the data dictionary on disk,
+					and the database will forget about
+					non-NULL value if it has to reload the
+					table definition from disk
+@param[in]	compact			non-NULL if COMPACT table
+@param[in]	block_size		block size (can be NULL)
 @return table create subgraph */
 tab_node_t*
 pars_create_table(
-/*==============*/
-	sym_node_t*	table_sym,	/*!< in: table name node in the symbol
-					table */
-	sym_node_t*	column_defs,	/*!< in: list of column names */
-	sym_node_t*	compact,	/* in: non-NULL if COMPACT table. */
-	sym_node_t*	block_size,	/* in: block size (can be NULL) */
+	sym_node_t*	table_sym,
+	sym_node_t*	column_defs,
+	sym_node_t*	compact,
+	sym_node_t*	block_size,
 	void*		not_fit_in_memory __attribute__((unused)))
-					/*!< in: a non-NULL pointer means that
-					this is a table which in simulations
-					should be simulated as not fitting
-					in memory; thread is put to sleep
-					to simulate disk accesses; NOTE that
-					this flag is not stored to the data
-					dictionary on disk, and the database
-					will forget about non-NULL value if
-					it has to reload the table definition
-					from disk */
 {
 	dict_table_t*	table;
 	sym_node_t*	column;
@@ -2271,15 +2271,16 @@ pars_info_add_int4_literal(
 	pars_info_add_literal(info, name, buf, 4, DATA_INT, 0);
 }
 
-/********************************************************************
-If the literal value already exists then it rebinds otherwise it
-creates a new entry. */
+/** If the literal value already exists then it rebinds otherwise it creates a
+new entry.
+@param[in]	info	info struct
+@param[in]	name 	name
+@param[in]	val	value */
 void
 pars_info_bind_int4_literal(
-/*========================*/
-	pars_info_t*		info,   /* in: info struct */
-	const char*		name,   /* in: name */
-	const ib_uint32_t*	val)    /* in: value */
+	pars_info_t*		info,
+	const char*		name,
+	const ib_uint32_t*	val)
 {
 	pars_bound_lit_t*       pbl;
 
@@ -2296,15 +2297,16 @@ pars_info_bind_int4_literal(
 	}
 }
 
-/********************************************************************
-If the literal value already exists then it rebinds otherwise it
-creates a new entry. */
+/** If the literal value already exists then it rebinds otherwise it creates a
+new entry.
+@param[in]	info	info struct
+@param[in]	name 	name
+@param[in]	val	value */
 void
 pars_info_bind_int8_literal(
-/*========================*/
-	pars_info_t*		info,	/* in: info struct */
-	const char*		name,	/* in: name */
-	const ib_uint64_t*	val)	/* in: value */
+	pars_info_t*		info,
+	const char*		name,
+	const ib_uint64_t*	val)
 {
 	pars_bound_lit_t*	pbl;
 
@@ -2405,15 +2407,17 @@ pars_info_bind_function(
 	puf->func = func;
 }
 
-/********************************************************************
-Add bound id. */
+/** Add bound id.
+@param[in]	info		info struct
+@param[in]	copy_name	copy name if TRUE
+@param[in]	name		name
+@param[in]	id		id */
 void
 pars_info_bind_id(
-/*==============*/
-	pars_info_t*	info,		/*!< in: info struct */
-	ibool		copy_name,	/* in: copy name if TRUE */
-	const char*	name,		/*!< in: name */
-	const char*	id)		/*!< in: id */
+	pars_info_t*	info,
+	ibool		copy_name,
+	const char*	name,
+	const char*	id)
 {
 	pars_bound_id_t*	bid;
 
@@ -2441,15 +2445,14 @@ pars_info_bind_id(
 	bid->id = id;
 }
 
-/********************************************************************
-Get bound identifier with the given name.*/
+/** Get bound identifier with the given name.
+@param[in]	info	info struct
+@param[in]	name	bound id name to find
+@return bound id, or NULL if not found */
 pars_bound_id_t*
 pars_info_get_bound_id(
-/*===================*/
-					/* out: bound id, or NULL if not
-					found */
-	pars_info_t*		info,	/* in: info struct */
-	const char*		name)	/* in: bound id name to find */
+	pars_info_t*		info,
+	const char*		name)
 {
 	return(pars_info_lookup_bound_id(info, name));
 }

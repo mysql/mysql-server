@@ -39,15 +39,16 @@ Created 3/26/1996 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "que0types.h"
 
-/***********************************************************************//**
-Copies the undo record to the heap.
+/** Copies the undo record to the heap.
+@param[in]	undo_rec	undo log record
+@param[in]	heap		heap where copied
 @return own: copy of undo log record */
 UNIV_INLINE
 trx_undo_rec_t*
 trx_undo_rec_copy(
-/*==============*/
-	const trx_undo_rec_t*	undo_rec,	/*!< in: undo log record */
-	mem_heap_t*		heap);		/*!< in: heap where copied */
+	const trx_undo_rec_t*	undo_rec,
+	mem_heap_t*		heap);
+
 /**********************************************************************//**
 Reads the undo log record type.
 @return record type */
@@ -223,37 +224,41 @@ fetching the purge record */
 the undo log (which is the after image for an update) */
 #define		TRX_UNDO_GET_OLD_V_VALUE	0x2
 
-/*******************************************************************//**
-Build a previous version of a clustered index record. The caller must
-hold a latch on the index page of the clustered index record.
-@retval true if previous version was built, or if it was an insert
-or the table has been rebuilt
-@retval false if the previous version is earlier than purge_view,
-which means that it may have been removed */
+/** Build a previous version of a clustered index record. The caller must hold
+a latch on the index page of the clustered index record.
+@param[in]	index_rec	clustered index record in the index tree
+@param[in]	index_mtr	mtr which contains the latch to index_rec page
+				and purge_view
+@param[in]	rec		version of a clustered index record
+@param[in]	index		clustered index
+@param[in,out]	offsets		rec_get_offsets(rec, index)
+@param[in]	heap		memory heap from which the memory needed is
+				allocated
+@param[out]	old_vers	previous version, or NULL if rec is the first
+				inserted version, or if history data has been
+				deleted
+@param[in]	v_heap		memory heap used to create vrow dtuple if it is
+				not yet created. This heap diffs from "heap"
+				above in that it could be
+				prebuilt->old_vers_heap for selection
+@param[out]	vrow		virtual column info, if any
+@param[in]	v_status	status determine if it is going into this
+				function by purge thread or not. And if we read
+				"after image" of undo log has been rebuilt
+@retval false if the previous version is earlier than purge_view, which means
+that it may have been removed */
 bool
 trx_undo_prev_version_build(
-/*========================*/
-	const rec_t*	index_rec,/*!< in: clustered index record in the
-				index tree */
-	mtr_t*		index_mtr,/*!< in: mtr which contains the latch to
-				index_rec page and purge_view */
-	const rec_t*	rec,	/*!< in: version of a clustered index record */
-	dict_index_t*	index,	/*!< in: clustered index */
-	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
-	mem_heap_t*	heap,	/*!< in: memory heap from which the memory
-				needed is allocated */
-	rec_t**		old_vers,/*!< out, own: previous version, or NULL if
-				rec is the first inserted version, or if
-				history data has been deleted */
-	mem_heap_t*     v_heap, /* !< in: memory heap used to create vrow
-				dtuple if it is not yet created. This heap
-				diffs from "heap" above in that it could be
-				prebuilt->old_vers_heap for selection */
-	const dtuple_t**vrow,	/*!< out: virtual column info, if any */
+	const rec_t*	index_rec,
+	mtr_t*		index_mtr,
+	const rec_t*	rec,
+	dict_index_t*	index,
+	ulint*		offsets,
+	mem_heap_t*	heap,
+	rec_t**		old_vers,
+	mem_heap_t*     v_heap,
+	const dtuple_t**vrow,
 	ulint		v_status);
-				/*!< in: status determine if it is going
-				into this function by purge thread or not.
-				And if we read "after image" of undo log */
 
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**

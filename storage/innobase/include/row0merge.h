@@ -310,14 +310,16 @@ row_merge_build_indexes(
 	const dict_add_v_col_t*	add_v)
 __attribute__((warn_unused_result));
 
-/********************************************************************//**
-Write a buffer to a block. */
+/** Write a buffer to a block.
+@param[in]	buf	sorted buffer
+@param[in]	of	output file
+@param[out]	block	buffer for writing to file */
 void
 row_merge_buf_write(
-/*================*/
-	const row_merge_buf_t*	buf,	/*!< in: sorted buffer */
-	const merge_file_t*	of,	/*!< in: output file */
-	row_merge_block_t*	block);	/*!< out: buffer for writing to file */
+	const row_merge_buf_t*	buf,
+	const merge_file_t*	of,
+	row_merge_block_t*	block);
+
 /********************************************************************//**
 Sort a buffer. */
 void

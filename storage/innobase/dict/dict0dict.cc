@@ -6145,7 +6145,8 @@ dict_index_set_merge_threshold(
 
 #ifdef UNIV_DEBUG
 /** Sets merge_threshold for all indexes in the list of tables
-@param[in]	list	pointer to the list of tables */
+@param[in]	list			pointer to the list of tables
+@param[in]	merge_threshold_all	value to set for all indexes */
 inline
 void
 dict_set_merge_threshold_list_debug(
@@ -6560,20 +6561,23 @@ dict_table_schema_check(
 }
 /* @} */
 
-/*********************************************************************//**
-Converts a database and table name from filesystem encoding
-(e.g. @code d@i1b/a@q1b@1Kc @endcode, same format as used in dict_table_t::name) in two
-strings in UTF8 encoding (e.g. dцb and aюbØc). The output buffers must be
-at least MAX_DB_UTF8_LEN and MAX_TABLE_UTF8_LEN bytes. */
+/** Converts a database and table name from filesystem encoding (e.g.
+"@code d@i1b/a@q1b@1Kc @endcode", same format as used in  dict_table_t::name)
+in two strings in UTF8 encoding (e.g. dцb and aюbØc). The output buffers must
+be at least MAX_DB_UTF8_LEN and MAX_TABLE_UTF8_LEN bytes.
+@param[in]	db_and_table	database and table names,
+				e.g. "@code d@i1b/a@q1b@1Kc @endcode"
+@param[out]	db_utf8		database name, e.g. dцb
+@param[in]	db_utf8_size	dbname_utf8 size
+@param[out]	table_utf8	table name, e.g. aюbØc
+@param[in]	table_utf8_size	table_utf8 size */
 void
 dict_fs2utf8(
-/*=========*/
-	const char*	db_and_table,	/*!< in: database and table names,
-					e.g. @code d@i1b/a@q1b@1Kc @endcode */
-	char*		db_utf8,	/*!< out: database name, e.g. dцb */
-	size_t		db_utf8_size,	/*!< in: dbname_utf8 size */
-	char*		table_utf8,	/*!< out: table name, e.g. aюbØc */
-	size_t		table_utf8_size)/*!< in: table_utf8 size */
+	const char*	db_and_table,
+	char*		db_utf8,
+	size_t		db_utf8_size,
+	char*		table_utf8,
+	size_t		table_utf8_size)
 {
 	char	db[MAX_DATABASE_NAME_LEN + 1];
 	ulint	db_len;

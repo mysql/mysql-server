@@ -2527,18 +2527,19 @@ page_zip_dir_insert(
 	mach_write_to_2(slot_rec - PAGE_ZIP_DIR_SLOT_SIZE, page_offset(rec));
 }
 
-/**********************************************************************//**
-Shift the dense page directory and the array of BLOB pointers
-when a record is deleted. */
+/** Shift the dense page directory when a record is deleted.
+@param[in,out]	page_zip	compressed page
+@param[in]	rec		deleted record
+@param[in]	index		index of rec
+@param[in]	offsets		rec_get_offsets(rec)
+@param[in]	free		previous start of the free list */
 void
 page_zip_dir_delete(
-/*================*/
-	page_zip_des_t*		page_zip,	/*!< in/out: compressed page */
-	byte*			rec,		/*!< in: deleted record */
-	const dict_index_t*	index,		/*!< in: index of rec */
-	const ulint*		offsets,	/*!< in: rec_get_offsets(rec) */
-	const byte*		free)		/*!< in: previous start of
-						the free list */
+	page_zip_des_t*		page_zip,
+	byte*			rec,
+	const dict_index_t*	index,
+	const ulint*		offsets,
+	const byte*		free)
 {
 	byte*	slot_rec;
 	byte*	slot_free;

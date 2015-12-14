@@ -56,18 +56,17 @@ buf_buddy_alloc(
 				       	temporarily released */
 	__attribute__((malloc));
 
-/**********************************************************************//**
-Deallocate a block. */
+/** Deallocate a block.
+@param[in,out]	buf_pool	buffer pool in which the block resides
+@param[in]	buf		block to be freed, must not be pointed to by
+				the buffer pool
+@param[in]	size		block size, up to UNIV_PAGE_SIZE */
 UNIV_INLINE
 void
 buf_buddy_free(
-/*===========*/
-	buf_pool_t*	buf_pool,	/*!< in/out: buffer pool in which
-					the block resides */
-	void*		buf,		/*!< in: block to be freed, must not
-					be pointed to by the buffer pool */
-	ulint		size);		/*!< in: block size,
-					up to UNIV_PAGE_SIZE */
+	buf_pool_t*	buf_pool,
+	void*		buf,
+	ulint		size);
 
 /** Reallocate a block.
 @param[in]	buf_pool	buffer pool instance

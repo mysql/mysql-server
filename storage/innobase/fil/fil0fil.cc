@@ -3848,20 +3848,21 @@ fil_report_missing_tablespace(
 /** Returns true if a matching tablespace exists in the InnoDB tablespace
 memory cache. Note that if we have not done a crash recovery at the database
 startup, there may be many tablespaces which are not yet in the memory cache.
-@param[in]	id		Tablespace ID
-@param[in]	name		Tablespace name used in fil_space_create().
-@param[in]	print_error_if_does_not_exist
-				Print detailed error information to the
-error log if a matching tablespace is not found from memory.
-@param[in]	adjust_space	Whether to adjust space id on mismatch
-@param[in]	heap		Heap memory
-@param[in]	table_id	table id
+@param[in]	id			Tablespace ID
+@param[in]	name			Tablespace name used in
+					fil_space_create().
+@param[in]	print_err_if_not_exist	Print detailed error information to the
+					error log if a matching tablespace is
+					not found from memory.
+@param[in]	adjust_space		Whether to adjust space id on mismatch
+@param[in]	heap			Heap memory
+@param[in]	table_id		table id
 @return true if a matching tablespace exists in the memory cache */
 bool
 fil_space_for_table_exists_in_mem(
 	ulint		id,
 	const char*	name,
-	bool		print_error_if_does_not_exist,
+	bool		print_err_if_not_exist,
 	bool		adjust_space,
 	mem_heap_t*	heap,
 	table_id_t	table_id)
@@ -3964,7 +3965,7 @@ fil_space_for_table_exists_in_mem(
 		return(true);
 	}
 
-	if (!print_error_if_does_not_exist) {
+	if (!print_err_if_not_exist) {
 
 		mutex_exit(&fil_system->mutex);
 
@@ -3973,7 +3974,7 @@ fil_space_for_table_exists_in_mem(
 
 	if (space == NULL) {
 		if (fnamespace == NULL) {
-			if (print_error_if_does_not_exist) {
+			if (print_err_if_not_exist) {
 				fil_report_missing_tablespace(name, id);
 			}
 		} else {
@@ -6315,7 +6316,7 @@ void fil_space_t::print_xdes_pages(const char* filename) const
 
 /** Print the extent descriptor pages of this tablespace into
 the given file.
-@param[in]	filename	the output file name.
+@param[in]	out	the output file name.
 @return	the output stream. */
 std::ostream& fil_space_t::print_xdes_pages(std::ostream& out) const
 {

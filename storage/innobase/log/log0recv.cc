@@ -997,7 +997,7 @@ recv_synchronize_groups(void)
 #endif /* !UNIV_HOTBACKUP */
 
 /** Check the consistency of a log header block.
-@param[in]	log header block
+@param[in]	buf	header block
 @return true if ok */
 static
 bool
@@ -1252,12 +1252,12 @@ recv_read_checkpoint_info_for_backup(
 
 /** Check the 4-byte checksum to the trailer checksum field of a log
 block.
-@param[in]	log block
+@param[in]	block	pointer to a log block
 @return whether the checksum matches */
 static
 bool
 log_block_checksum_is_ok(
-	const byte*	block)	/*!< in: pointer to a log block */
+	const byte*	block)
 {
 	return(!innodb_log_checksums
 	       || log_block_get_checksum(block)
@@ -2575,7 +2575,7 @@ skip_this_recv_addr:
 @param[out]	type		log record type
 @param[in]	ptr		pointer to a buffer
 @param[in]	end_ptr		end of the buffer
-@param[out]	space_id	tablespace identifier
+@param[out]	space		tablespace identifier
 @param[out]	page_no		page number
 @param[in]	apply		whether to apply MLOG_FILE_* records
 @param[out]	body		start of log record body

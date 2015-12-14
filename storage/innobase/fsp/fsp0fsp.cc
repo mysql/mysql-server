@@ -745,20 +745,22 @@ xdes_get_descriptor(
 						  mtr));
 }
 
-/********************************************************************//**
-Gets pointer to a the extent descriptor if the file address
-of the descriptor list node is known. The page where the
-extent descriptor resides is x-locked.
+/** Gets pointer to a the extent descriptor if the file address of the
+descriptor list node is known. The page where the extent descriptor resides
+is x-locked.
+@param[in]	space		space id
+@param[in]	page_size	page size
+@param[in]	lst_node	file address of the list node contained in the
+				descriptor
+@param[in,out]	mtr		mini-transaction
 @return pointer to the extent descriptor */
 UNIV_INLINE
 xdes_t*
 xdes_lst_get_descriptor(
-/*====================*/
-	ulint		space,	/*!< in: space id */
+	ulint			space,
 	const page_size_t&	page_size,
-	fil_addr_t	lst_node,/*!< in: file address of the list node
-				contained in the descriptor */
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	fil_addr_t		lst_node,
+	mtr_t*			mtr)
 {
 	xdes_t*	descr;
 
@@ -2661,7 +2663,7 @@ fsp_get_last_free_frag_extent(
 }
 
 /** Allocate an extent from free fragment extent to a segment.
-@param[in,out]	header		tablespace header
+@param[in]	space		space id
 @param[in,out]	inode		segment to which extent is leased
 @param[in]	page_size	page size
 @param[in,out]	mtr		mini-transaction
@@ -3641,19 +3643,23 @@ fseg_page_is_free(
 	return(is_free);
 }
 
-/**********************************************************************//**
-Frees an extent of a segment to the space free list. */
+/** Frees an extent of a segment to the space free list.
+@param[in]	seg_inode	segment inode
+@param[in]	space		space id
+@param[in]	page		a page in the extent
+@param[in]	page_size	page size
+@param[in]	ahi		whether we may need to drop the adaptive hash
+				index
+@param[in,out]	mtr		mini-transaction */
 static
 void
 fseg_free_extent(
-/*=============*/
-	fseg_inode_t*	seg_inode, /*!< in: segment inode */
-	ulint		space,	/*!< in: space id */
+	fseg_inode_t*		seg_inode,
+	ulint			space,
 	const page_size_t&	page_size,
-	ulint		page,	/*!< in: a page in the extent */
-	bool		ahi,	/*!< in: whether we may need to drop
-				the adaptive hash index */
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	ulint			page,
+	bool			ahi,
+	mtr_t*			mtr)
 {
 	ulint	first_page_in_extent;
 	xdes_t*	descr;

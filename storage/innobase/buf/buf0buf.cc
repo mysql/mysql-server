@@ -3539,17 +3539,18 @@ buf_wait_for_read(
 }
 
 /** This is the general function used to get access to a database page.
-@param[in]	page_id		page id
-@param[in]	rw_latch	RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH
-@param[in]	guess		guessed block or NULL
-@param[in]	mode		BUF_GET, BUF_GET_IF_IN_POOL,
-BUF_PEEK_IF_IN_POOL, BUF_GET_NO_LATCH, or BUF_GET_IF_IN_POOL_OR_WATCH
-@param[in]	file		file name
-@param[in]	line		line where called
-@param[in]	mtr		mini-transaction
-@param[in]	dirty_with_no_latch
-				mark page as dirty even if page
-				is being pinned without any latch
+@param[in]	page_id			page id
+@param[in]	page_size		page size
+@param[in]	rw_latch		RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH
+@param[in]	guess			guessed block or NULL
+@param[in]	mode			BUF_GET, BUF_GET_IF_IN_POOL,
+					BUF_PEEK_IF_IN_POOL, BUF_GET_NO_LATCH,
+					or BUF_GET_IF_IN_POOL_OR_WATCH
+@param[in]	file			file name
+@param[in]	line			line where called
+@param[in]	mtr			mini-transaction
+@param[in]	dirty_with_no_latch	mark page as dirty even if page is
+					being pinned without any latch
 @return pointer to the block or NULL */
 buf_block_t*
 buf_page_get_gen(
@@ -4497,6 +4498,7 @@ buf_page_init_low(
 /** Inits a page to the buffer buf_pool.
 @param[in,out]	buf_pool	buffer pool
 @param[in]	page_id		page id
+@param[in]	page_size	page size
 @param[in,out]	block		block to init */
 static
 void
@@ -4593,6 +4595,7 @@ and the lock released later.
 @param[out]	err			DB_SUCCESS or DB_TABLESPACE_DELETED
 @param[in]	mode			BUF_READ_IBUF_PAGES_ONLY, ...
 @param[in]	page_id			page id
+@param[in]	page_size		page size
 @param[in]	unzip			TRUE=request uncompressed page
 @return pointer to the block or NULL */
 buf_page_t*

@@ -277,31 +277,31 @@ lock_rec_insert_check_and_lock(
 				record */
 	__attribute__((warn_unused_result));
 
-/*********************************************************************//**
-Enqueues a waiting request for a lock which cannot be granted immediately.
+/** Enqueues a waiting request for a lock which cannot be granted immediately.
 Checks for deadlocks.
+@param[in]	type_mode	lock mode this transaction is requesting:
+				LOCK_S or LOCK_X, possibly ORed with LOCK_GAP
+				or LOCK_REC_NOT_GAP, ORed with
+				LOCK_INSERT_INTENTION if this waiting lock
+				request is set when performing an insert of an
+				index record
+@param[in]	block		buffer block containing the record
+@param[in]	heap_no		heap number of the record
+@param[in]	index		index of record
+@param[in]	thr		query thread
+@param[in]	prdt		Minimum Bounding Box
 @return DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED, or
-DB_SUCCESS_LOCKED_REC; DB_SUCCESS_LOCKED_REC means that
-there was a deadlock, but another transaction was chosen as a victim,
-and we got the lock immediately: no need to wait then */
+DB_SUCCESS_LOCKED_REC; DB_SUCCESS_LOCKED_REC means that there was a deadlock,
+but another transaction was chosen as a victim, and we got the lock
+immediately: no need to wait then */
 dberr_t
 lock_rec_enqueue_waiting(
-/*=====================*/
-	ulint			type_mode,/*!< in: lock mode this
-					transaction is requesting:
-					LOCK_S or LOCK_X, possibly
-					ORed with LOCK_GAP or
-					LOCK_REC_NOT_GAP, ORed with
-					LOCK_INSERT_INTENTION if this
-					waiting lock request is set
-					when performing an insert of
-					an index record */
-	const buf_block_t*	block,	/*!< in: buffer block containing
-					the record */
-	ulint			heap_no,/*!< in: heap number of the record */
-	dict_index_t*		index,	/*!< in: index of record */
-	que_thr_t*		thr,	/*!< in: query thread */
-	lock_prdt_t*		prdt);	/*!< in: Minimum Bounding Box */
+	ulint			type_mode,
+	const buf_block_t*	block,
+	ulint			heap_no,
+	dict_index_t*		index,
+	que_thr_t*		thr,
+	lock_prdt_t*		prdt);
 
 /*********************************************************************//**
 Checks if locks of other transactions prevent an immediate modify (update,
@@ -523,16 +523,17 @@ lock_rec_fold(
 	ulint	space,	/*!< in: space */
 	ulint	page_no)/*!< in: page number */
 	__attribute__((const));
-/*********************************************************************//**
-Calculates the hash value of a page file address: used in inserting or
+
+/** Calculates the hash value of a page file address: used in inserting or
 searching for a lock in the hash table.
+@param[in]	space	space
+@param[in]	page_no	page number
 @return hashed value */
 UNIV_INLINE
 ulint
 lock_rec_hash(
-/*==========*/
-	ulint	space,	/*!< in: space */
-	ulint	page_no);/*!< in: page number */
+	ulint	space,
+	ulint	page_no);
 
 /*************************************************************//**
 Get the lock hash table */

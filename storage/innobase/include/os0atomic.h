@@ -60,7 +60,7 @@ typedef ulint	lock_word_t;
 Atomic compare-and-swap and increment for InnoDB. */
 
 /** Do an atomic test and set.
-@param[in/out]	ptr	Memory location to set
+@param[in,out]	ptr	Memory location to set
 @param[in]	new_val	new value
 @return	old value of memory location. */
 UNIV_INLINE
@@ -71,7 +71,7 @@ os_atomic_test_and_set(
 
 
 /** Do an atomic compare and set
-@param[in/out]	ptr	Memory location to set
+@param[in,out]	ptr	Memory location to set
 @param[in]	old_val	old value to compare
 @param[in]	new_val	new value to set
 @return the value of ptr before the operation. */

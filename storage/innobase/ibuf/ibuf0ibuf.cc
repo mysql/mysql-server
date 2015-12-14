@@ -4416,11 +4416,15 @@ function deletes its buffered entries from the insert buffer; there can
 exist entries for such a page if the page belonged to an index which
 subsequently was dropped.
 @param[in,out]	block			if page has been read from disk,
-pointer to the page x-latched, else NULL
+					pointer to the page x-latched, else
+					NULL
 @param[in]	page_id			page id of the index page
-@param[in]	update_ibuf_bitmap	normally this is set to TRUE, but
-if we have deleted or are deleting the tablespace, then we naturally do not
-want to update a non-existent bitmap page */
+@param[in]	update_ibuf_bitmap	normally this is set to TRUE, but if
+					we have deleted or are deleting the
+					tablespace, then we naturally do not
+					want to update a non-existent bitmap
+					page
+@param[in]	page_size		page size */
 void
 ibuf_merge_or_delete_for_page(
 	buf_block_t*		block,

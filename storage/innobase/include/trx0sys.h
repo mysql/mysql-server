@@ -87,16 +87,18 @@ trx_sysf_rseg_find_free(
 					for temp-tablespace as free slots. */
 	ulint	nth_free_slots);	/*!< in: allocate nth free slot.
 					0 means next free slot. */
-/***************************************************************//**
-Gets the pointer in the nth slot of the rseg array.
+/** Gets the pointer in the nth slot of the rseg array.
+@param[in]	sys		trx system
+@param[in]	n		index of slot
+@param[in]	is_redo_rseg	true if redo rseg.
 @return pointer to rseg object, NULL if slot not in use */
 UNIV_INLINE
 trx_rseg_t*
 trx_sys_get_nth_rseg(
-/*=================*/
-	trx_sys_t*	sys,		/*!< in: trx system */
-	ulint		n,		/*!< in: index of slot */
-	bool		is_redo_rseg);	/*!< in: true if redo rseg. */
+	trx_sys_t*	sys,
+	ulint		n,
+	bool		is_redo_rseg);
+
 /**********************************************************************//**
 Gets a pointer to the transaction system file copy and x-locks its page.
 @return pointer to system file copy, page x-locked */
@@ -105,51 +107,62 @@ trx_sysf_t*
 trx_sysf_get(
 /*=========*/
 	mtr_t*	mtr);	/*!< in: mtr */
-/*****************************************************************//**
-Gets the space of the nth rollback segment slot in the trx system
+
+/** Gets the space of the nth rollback segment slot in the trx system
 file copy.
+@param[in]	sys_header	trx sys file copy
+@param[in]	i		slot index == rseg id
+@param[in]	mtr		mtr
 @return space id */
 UNIV_INLINE
 ulint
 trx_sysf_rseg_get_space(
-/*====================*/
-	trx_sysf_t*	sys_header,	/*!< in: trx sys file copy */
-	ulint		i,		/*!< in: slot index == rseg id */
-	mtr_t*		mtr);		/*!< in: mtr */
-/*****************************************************************//**
-Gets the page number of the nth rollback segment slot in the trx system
+	trx_sysf_t*	sys_header,
+	ulint		i,
+	mtr_t*		mtr);
+
+/** Gets the page number of the nth rollback segment slot in the trx system
 file copy.
+@param[in]	sys_header	trx sys file copy
+@param[in]	i		slot index == rseg id
+@param[in]	mtr		mtr
 @return page number, FIL_NULL if slot unused */
 UNIV_INLINE
 ulint
 trx_sysf_rseg_get_page_no(
-/*======================*/
-	trx_sysf_t*	sys_header,	/*!< in: trx sys file copy */
-	ulint		i,		/*!< in: slot index == rseg id */
-	mtr_t*		mtr);		/*!< in: mtr */
-/*****************************************************************//**
-Sets the space id of the nth rollback segment slot in the trx system
-file copy. */
+	trx_sysf_t*	sys_header,
+	ulint		i,
+	mtr_t*		mtr);
+
+/** Sets the space id of the nth rollback segment slot in the trx system
+file copy.
+@param[in]	sys_header	trx sys file copy
+@param[in]	i		slot index == rseg id
+@param[in]	space		space id
+@param[in]	mtr		mtr */
 UNIV_INLINE
 void
 trx_sysf_rseg_set_space(
-/*====================*/
-	trx_sysf_t*	sys_header,	/*!< in: trx sys file copy */
-	ulint		i,		/*!< in: slot index == rseg id */
-	ulint		space,		/*!< in: space id */
-	mtr_t*		mtr);		/*!< in: mtr */
-/*****************************************************************//**
-Sets the page number of the nth rollback segment slot in the trx system
-file copy. */
+	trx_sysf_t*	sys_header,
+	ulint		i,
+	ulint		space,
+	mtr_t*		mtr);
+
+/** Sets the page number of the nth rollback segment slot in the trx system
+file copy.
+@param[in]	sys_header	trx sys file copy
+@param[in]	i		slot index == rseg id
+@param[in]	page_no		page number, FIL_NULL if the slot is reset to
+				unused
+@param[in]	mtr		mtr */
 UNIV_INLINE
 void
 trx_sysf_rseg_set_page_no(
-/*======================*/
-	trx_sysf_t*	sys_header,	/*!< in: trx sys file copy */
-	ulint		i,		/*!< in: slot index == rseg id */
-	ulint		page_no,	/*!< in: page number, FIL_NULL if
-					the slot is reset to unused */
-	mtr_t*		mtr);		/*!< in: mtr */
+	trx_sysf_t*	sys_header,
+	ulint		i,
+	ulint		page_no,
+	mtr_t*		mtr);
+
 /*****************************************************************//**
 Allocates a new transaction id.
 @return new, allocated trx id */
@@ -171,24 +184,23 @@ trx_sys_get_max_trx_id(void);
 extern uint			trx_rseg_n_slots_debug;
 #endif
 
-/*****************************************************************//**
-Check if slot-id is reserved slot-id for noredo rsegs. */
+/** Check if slot-id is reserved slot-id for noredo rsegs.
+@param[in]	slot_id	slot_id to check */
 UNIV_INLINE
 bool
 trx_sys_is_noredo_rseg_slot(
-/*========================*/
-	ulint	slot_id);	/*!< in: slot_id to check */
+	ulint	slot_id);
 
-/*****************************************************************//**
-Writes a trx id to an index page. In case that the id size changes in
-some future version, this function should be used instead of
-mach_write_... */
+/** Writes a trx id to an index page. In case that the id size changes in some
+future version, this function should be used instead of mach_write_...
+@param[in]	ptr	pointer to memory where written
+@param[in]	id	id */
 UNIV_INLINE
 void
 trx_write_trx_id(
-/*=============*/
-	byte*		ptr,	/*!< in: pointer to memory where written */
-	trx_id_t	id);	/*!< in: id */
+	byte*		ptr,
+	trx_id_t	id);
+
 /*****************************************************************//**
 Reads a trx id from an index page. In case that the id size changes in
 some future version, this function should be used instead of
@@ -217,30 +229,32 @@ UNIV_INLINE
 trx_id_t
 trx_rw_min_trx_id(void);
 /*===================*/
-/****************************************************************//**
-Checks if a rw transaction with the given id is active.
+
+/** Checks if a rw transaction with the given id is active.
+@param[in]	trx_id		trx id of the transaction
+@param[in]	corrupt		NULL or pointer to a flag that will be set if
+				corrupt
 @return transaction instance if active, or NULL */
 UNIV_INLINE
 trx_t*
 trx_rw_is_active_low(
-/*=================*/
-	trx_id_t	trx_id,		/*!< in: trx id of the transaction */
-	ibool*		corrupt);	/*!< in: NULL or pointer to a flag
-					that will be set if corrupt */
-/****************************************************************//**
-Checks if a rw transaction with the given id is active. If the caller is
-not holding trx_sys->mutex, the transaction may already have been
-committed.
+	trx_id_t	trx_id,
+	ibool*		corrupt);
+
+/** Checks if a rw transaction with the given id is active. If the caller is
+not holding trx_sys->mutex, the transaction may already have been committed.
+@param[in]	trx_id		trx id of the transaction
+@param[in]	corrupt		NULL or pointer to a flag that will be set if
+				corrupt
+@param[in]	do_ref_count	if true then increment the trx_t::n_ref_count
 @return transaction instance if active, or NULL; */
 UNIV_INLINE
 trx_t*
 trx_rw_is_active(
-/*=============*/
-	trx_id_t	trx_id,		/*!< in: trx id of the transaction */
-	ibool*		corrupt,	/*!< in: NULL or pointer to a flag
-					that will be set if corrupt */
-	bool		do_ref_count);	/*!< in: if true then increment the
-					trx_t::n_ref_count */
+	trx_id_t	trx_id,
+	ibool*		corrupt,
+	bool		do_ref_count);
+
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 /***********************************************************//**
 Assert that a transaction has been recovered.

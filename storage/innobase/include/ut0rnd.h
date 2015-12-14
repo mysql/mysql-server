@@ -58,27 +58,29 @@ UNIV_INLINE
 ulint
 ut_rnd_gen_ulint(void);
 /*==================*/
-/********************************************************//**
-Generates a random integer from a given interval.
+
+/** Generates a random integer from a given interval.
+@param[in]	low	low limit; can generate also this value
+@param[in]	high	high limit; can generate also this value
 @return the 'random' number */
 UNIV_INLINE
 ulint
 ut_rnd_interval(
-/*============*/
-	ulint	low,	/*!< in: low limit; can generate also this value */
-	ulint	high);	/*!< in: high limit; can generate also this value */
+	ulint	low,
+	ulint	high);
 
-/*******************************************************//**
-The following function generates a hash value for a ulint integer
-to a hash table of size table_size, which should be a prime or some
-random number to work reliably.
+/** The following function generates a hash value for a ulint integer to a
+hash table of size table_size, which should be a prime or some random number
+to work reliably.
+@param[in]	key		value to be hashed
+@param[in]	table_size	hash table size
 @return hash value */
 UNIV_INLINE
 ulint
 ut_hash_ulint(
-/*==========*/
-	ulint	 key,		/*!< in: value to be hashed */
-	ulint	 table_size);	/*!< in: hash table size */
+	ulint	 key,
+	ulint	 table_size);
+
 /*************************************************************//**
 Folds a 64-bit integer.
 @return folded value */

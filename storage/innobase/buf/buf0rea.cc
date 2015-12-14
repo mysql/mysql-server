@@ -54,18 +54,20 @@ i/o-fixed buffer blocks */
 buffer buf_pool if it is not already there, in which case does nothing.
 Sets the io_fix flag and sets an exclusive lock on the buffer frame. The
 flag is cleared and the x-lock released by an i/o-handler thread.
-@param[out]	err			DB_SUCCESS or DB_TABLESPACE_DELETED
-if we are trying to read from a non-existent tablespace or a tablespace
-which is just now being dropped
-@param[in]	sync			whether if synchronous aio is desired
-@param[in]	mode			BUF_READ_IBUF_PAGES_ONLY, ...
-@param[in]	page_id			page id
-@param[in]	page_size		page size
-@param[in]	unzip			true=request uncompressed page
-@return 1 if a read request was queued, 0 if the page already resided
-in buf_pool, or if the page is in the doublewrite buffer blocks in
-which case it is never read into the pool, or if the tablespace does
-not exist or is being dropped */
+@param[out]	err		DB_SUCCESS or DB_TABLESPACE_DELETED
+				if we are trying to read from a non-existent
+				tablespace or a tablespace which is just now
+				being dropped
+@param[in]	sync		whether synchronous aio is desired
+@param[in]	type		Request type
+@param[in]	mode		BUF_READ_IBUF_PAGES_ONLY, ...
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in]	unzip		true=request uncompressed page
+@return 1 if a read request was queued, 0 if the page already resided in
+buf_pool, or if the page is in the doublewrite buffer blocks in which case it
+is never read into the pool, or if the tablespace does not exist or is being
+dropped */
 static
 ulint
 buf_read_page_low(

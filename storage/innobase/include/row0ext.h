@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -53,35 +53,35 @@ row_ext_create(
 				to prevent deletion (rollback or purge). */
 	mem_heap_t*	heap);	/*!< in: heap where created */
 
-/********************************************************************//**
-Looks up a column prefix of an externally stored column.
+/** Looks up a column prefix of an externally stored column.
+@param[in,out]	ext	column prefix cache
+@param[in]	i	index of ext->ext[]
+@param[out]	len	length of prefix, in bytes, at most the length
+			determined by DICT_MAX_FIELD_LEN_BY_FORMAT()
 @return column prefix, or NULL if the column is not stored externally,
 or pointer to field_ref_zero if the BLOB pointer is unset */
 UNIV_INLINE
 const byte*
 row_ext_lookup_ith(
-/*===============*/
-	const row_ext_t*	ext,	/*!< in/out: column prefix cache */
-	ulint			i,	/*!< in: index of ext->ext[] */
-	ulint*			len);	/*!< out: length of prefix, in bytes,
-					at most the length determined by
-					DICT_MAX_FIELD_LEN_BY_FORMAT() */
-/********************************************************************//**
-Looks up a column prefix of an externally stored column.
+	const row_ext_t*	ext,
+	ulint			i,
+	ulint*			len);
+
+/** Looks up a column prefix of an externally stored column.
+@param[in]	ext	column prefix cache
+@param[in]	col	column number in the InnoDB table object, as reported
+			by dict_col_get_no(); NOT relative to the records in
+			the clustered index
+@param[out]	len	length of prefix, in bytes, at most the length
+			determined by DICT_MAX_FIELD_LEN_BY_FORMAT()
 @return column prefix, or NULL if the column is not stored externally,
 or pointer to field_ref_zero if the BLOB pointer is unset */
 UNIV_INLINE
 const byte*
 row_ext_lookup(
-/*===========*/
-	const row_ext_t*	ext,	/*!< in: column prefix cache */
-	ulint			col,	/*!< in: column number in the InnoDB
-					table object, as reported by
-					dict_col_get_no(); NOT relative to the
-					records in the clustered index */
-	ulint*			len);	/*!< out: length of prefix, in bytes,
-					at most the length determined by
-					DICT_MAX_FIELD_LEN_BY_FORMAT() */
+	const row_ext_t*	ext,
+	ulint			col,
+	ulint*			len);
 
 /** Prefixes of externally stored columns */
 struct row_ext_t{

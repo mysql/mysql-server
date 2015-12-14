@@ -4213,15 +4213,14 @@ i_s_innodb_temp_table_info_fill(
 	DBUG_RETURN(schema_table_store_record(thd, table));
 }
 
-/*******************************************************************//**
-Populate current table information to cache */
+/** Populate current table information to cache
+@param[in]	table	table
+@param[in,out]	cache	populate data in this cache */
 static
 void
 innodb_temp_table_populate_cache(
-/*=============================*/
-	const dict_table_t*	table,  /*! in: table */
-	temp_table_info_t*	cache)  /*! in/out: populate data in this
-					cache */
+	const dict_table_t*	table,
+	temp_table_info_t*	cache)
 {
 	cache->m_table_id = table->id;
 

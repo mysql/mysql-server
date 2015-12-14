@@ -725,17 +725,17 @@ xdes_calc_descriptor_index(
 	const page_size_t&	page_size,
 	ulint			offset);
 
-/**********************************************************************//**
-Gets a descriptor bit of a page.
+/** Gets a descriptor bit of a page.
+@param[in]	descr	descriptor
+@param[in]	bit	XDES_FREE_BIT or XDES_CLEAN_BIT
+@param[in]	offset	page offset within extent: 0 ... FSP_EXTENT_SIZE - 1
 @return TRUE if free */
 UNIV_INLINE
 ibool
 xdes_get_bit(
-/*=========*/
-	const xdes_t*	descr,	/*!< in: descriptor */
-	ulint		bit,	/*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
-	ulint		offset);/*!< in: page offset within extent:
-				0 ... FSP_EXTENT_SIZE - 1 */
+	const xdes_t*	descr,
+	ulint		bit,
+	ulint		offset);
 
 /** Calculates the page where the descriptor of a page resides.
 @param[in]	page_size	page size

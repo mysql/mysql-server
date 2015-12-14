@@ -4487,21 +4487,21 @@ fts_add_token(
 	}
 }
 
-/********************************************************************
-Process next token from document starting at the given position, i.e., add
+/** Process next token from document starting at the given position, i.e., add
 the token's start position to the token's list of positions.
+@param[in,out]	doc		document to tokenize
+@param[out]	result		if provided, save result here
+@param[in]	start_pos	start position in text
+@param[in]	add_pos		add this position to all tokens from this
+				tokenization
 @return number of characters handled in this call */
 static
 ulint
 fts_process_token(
-/*==============*/
-	fts_doc_t*	doc,		/* in/out: document to
-					tokenize */
-	fts_doc_t*	result,		/* out: if provided, save
-					result here */
-	ulint		start_pos,	/*!< in: start position in text */
-	ulint		add_pos)	/*!< in: add this position to all
-					tokens from this tokenization */
+	fts_doc_t*	doc,
+	fts_doc_t*	result,
+	ulint		start_pos,
+	ulint		add_pos)
 {
 	ulint		ret;
 	fts_string_t	str;

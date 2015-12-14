@@ -109,36 +109,39 @@ ut_str3cat(
 	const char*	s2,	/* in: string 2 */
 	const char*	s3);	/* in: string 3 */
 
-/**********************************************************************//**
-Converts a raw binary data to a NUL-terminated hex string. The output is
+/** Converts a raw binary data to a NUL-terminated hex string. The output is
 truncated if there is not enough space in "hex", make sure "hex_size" is at
-least (2 * raw_size + 1) if you do not want this to happen. Returns the
-actual number of characters written to "hex" (including the NUL).
+least (2 * raw_size + 1) if you do not want this to happen. Returns the actual
+number of characters written to "hex" (including the NUL).
+@param[in]	raw		raw data
+@param[in]	raw_size	"raw" length in bytes
+@param[out]	hex		hex string
+@param[in]	hex_size	"hex" size in bytes
 @return number of chars written */
 UNIV_INLINE
 ulint
 ut_raw_to_hex(
-/*==========*/
-	const void*	raw,		/*!< in: raw data */
-	ulint		raw_size,	/*!< in: "raw" length in bytes */
-	char*		hex,		/*!< out: hex string */
-	ulint		hex_size);	/*!< in: "hex" size in bytes */
+	const void*	raw,
+	ulint		raw_size,
+	char*		hex,
+	ulint		hex_size);
 
-/*******************************************************************//**
-Adds single quotes to the start and end of string and escapes any quotes
-by doubling them. Returns the number of bytes that were written to "buf"
-(including the terminating NUL). If buf_size is too small then the
-trailing bytes from "str" are discarded.
+/** Adds single quotes to the start and end of string and escapes any quotes by
+doubling them. Returns the number of bytes that were written to "buf"
+(including the terminating NUL). If buf_size is too small then the trailing
+bytes from "str" are discarded.
+@param[in]	str		string
+@param[in]	str_len		string length in bytes
+@param[out]	buf		output buffer
+@param[in]	buf_size	output buffer size in bytes
 @return number of bytes that were written */
 UNIV_INLINE
 ulint
 ut_str_sql_format(
-/*==============*/
-	const char*	str,		/*!< in: string */
-	ulint		str_len,	/*!< in: string length in bytes */
-	char*		buf,		/*!< out: output buffer */
-	ulint		buf_size);	/*!< in: output buffer size
-					in bytes */
+	const char*	str,
+	ulint		str_len,
+	char*		buf,
+	ulint		buf_size);
 
 #ifndef UNIV_NONINL
 #include "ut0mem.ic"

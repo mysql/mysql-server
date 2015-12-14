@@ -112,7 +112,8 @@ public:
 	/** Print crc32 checksum and the checksum fields in page.
 	@param[in]	checksum_field1	Checksum in page header
 	@param[in]	checksum_field2	Checksum in page trailer
-	@param[in]	crc32		Calculated crc32 checksum */
+	@param[in]	crc32		Calculated crc32 checksum
+	@param[in]	algo		Current checksum algorithm */
 	virtual inline
 	void
 	print_strict_crc32(
@@ -132,7 +133,8 @@ public:
 
 	/** Print none checksum and the checksum fields in page.
 	@param[in]	checksum_field1	Checksum in page header
-	@param[in]	checksum_field2	Checksum in page trailer */
+	@param[in]	checksum_field2	Checksum in page trailer
+	@param[in]	algo		Current checksum algorithm */
 	virtual inline
 	void
 	print_strict_none(

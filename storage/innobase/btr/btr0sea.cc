@@ -138,22 +138,23 @@ btr_search_get_n_fields(
 	return(btr_search_get_n_fields(cursor->n_fields, cursor->n_bytes));
 }
 
-/********************************************************************//**
-Builds a hash index on a page with the given parameters. If the page already
-has a hash index with different parameters, the old hash index is removed.
-If index is non-NULL, this function checks if n_fields and n_bytes are
-sensible values, and does not build a hash index if not. */
+/** Builds a hash index on a page with the given parameters. If the page
+already has a hash index with different parameters, the old hash index is
+removed. If index is non-NULL, this function checks if n_fields and n_bytes
+are sensible values, and does not build a hash index if not.
+@param[in]	index		index for which to build, or NULL if not known
+@param[in]	block		index page, s- or x-latched
+@param[in]	n_fields	hash this many full fields
+@param[in]	n_bytes		hash this many bytes from the next field
+@param[in]	left_side	hash for searches from left side */
 static
 void
 btr_search_build_page_hash_index(
-/*=============================*/
-	dict_index_t*	index,	/*!< in: index for which to build, or NULL if
-				not known */
-	buf_block_t*	block,	/*!< in: index page, s- or x-latched */
-	ulint		n_fields,/*!< in: hash this many full fields */
-	ulint		n_bytes,/*!< in: hash this many bytes from the next
-				field */
-	ibool		left_side);/*!< in: hash for searches from left side? */
+	dict_index_t*	index,
+	buf_block_t*	block,
+	ulint		n_fields,
+	ulint		n_bytes,
+	ibool		left_side);
 
 /** This function should be called before reserving any btr search mutex, if
 the intended operation might add nodes to the search system hash table.

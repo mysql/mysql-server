@@ -123,15 +123,17 @@ ut_pair_min(
 	ulint	a_lo,
 	ulint	b_hi,
 	ulint	b_lo);
-/******************************************************//**
-Compares two ulints.
+
+/** Compares two ulints.
+@param[in]	a	ulint
+@param[in]	b	ulint
 @return 1 if a > b, 0 if a == b, -1 if a < b */
 UNIV_INLINE
 int
 ut_ulint_cmp(
-/*=========*/
-	ulint	a,	/*!< in: ulint */
-	ulint	b);	/*!< in: ulint */
+	ulint	a,
+	ulint	b);
+
 /** Compare two pairs of integers.
 @param[in]	a_h	more significant part of first pair
 @param[in]	a_l	less significant part of first pair

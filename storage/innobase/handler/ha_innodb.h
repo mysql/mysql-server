@@ -207,6 +207,19 @@ public:
 
 	int external_lock(THD *thd, int lock_type);
 
+	/** MySQL calls this function at the start of each SQL statement
+	inside LOCK TABLES. Inside LOCK TABLES the "::external_lock" method
+	does not work to mark SQL statement borders. Note also a special case:
+	if a temporary table is created inside LOCK TABLES, MySQL has not
+	called external_lock() at all on that table.
+	MySQL-5.0 also calls this before each statement in an execution of a
+	stored procedure. To make the execution more deterministic for
+	binlogging, MySQL-5.0 locks all tables involved in a stored procedure
+	with full explicit table locks (thd_in_lock_tables(thd) holds in
+	store_lock()) before executing the procedure.
+	@param[in]	thd		handle to the user thread
+	@param[in]	lock_type	lock type
+	@return 0 or error code */
 	int start_stmt(THD *thd, thr_lock_type lock_type);
 
 	void position(uchar *record);
@@ -467,7 +480,12 @@ protected:
 	false if accessing individual fields is enough */
 	void build_template(bool whole_row);
 
-	virtual int info_low(uint, bool);
+	/** Returns statistics information of the table to the MySQL
+	interpreter, in various fields of the handle object.
+	@param[in]	flag		what information is requested
+	@param[in]	is_analyze	True if called from "::analyze()"
+	@return HA_ERR_* error code or 0 */
+	virtual int info_low(uint flag, bool is_analyze);
 
 	/**
 	MySQL calls this method at the end of each statement. This method
@@ -507,7 +525,8 @@ protected:
 	uint			m_last_match_mode;
 
 	/** this field is used to remember the original select_lock_type that
-	was decided in ha_innodb.cc, ::store_lock(), ::external_lock(), etc. */
+	was decided in ha_innodb.cc,":: store_lock()", "::external_lock()",
+	etc. */
 	ulint			m_stored_select_lock_type;
 
 	/** If mysql has locked with external_lock() */

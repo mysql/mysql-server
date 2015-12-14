@@ -166,42 +166,42 @@ void
 buf_flush_wait_flushed(
 	lsn_t		new_oldest);
 
-/******************************************************************//**
-Waits until a flush batch of the given type ends. This is called by
-a thread that only wants to wait for a flush to end but doesn't do
-any flushing itself. */
+/** Waits until a flush batch of the given type ends. This is called by a
+thread that only wants to wait for a flush to end but doesn't do any flushing
+itself.
+@param[in]	buf_pool	buffer pool instance
+@param[in]	type		BUF_FLUSH_LRU or BUF_FLUSH_LIST */
 void
 buf_flush_wait_batch_end_wait_only(
-/*===============================*/
-	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
-	buf_flush_t	type);		/*!< in: BUF_FLUSH_LRU
-					or BUF_FLUSH_LIST */
-/********************************************************************//**
-This function should be called at a mini-transaction commit, if a page was
+	buf_pool_t*	buf_pool,
+	buf_flush_t	type);
+
+/** This function should be called at a mini-transaction commit, if a page was
 modified in it. Puts the block to the list of modified blocks, if it not
-already in it. */
+already in it.
+@param[in]	block		block which is modified
+@param[in]	start_lsn	start lsn of the first mtr in a set of mtr's
+@param[in]	end_lsn		end lsn of the last mtr in the set of mtr's
+@param[in]	observer	flush observer */
 UNIV_INLINE
 void
 buf_flush_note_modification(
-/*========================*/
-	buf_block_t*	block,		/*!< in: block which is modified */
-	lsn_t		start_lsn,	/*!< in: start lsn of the first mtr in a
-					set of mtr's */
-	lsn_t		end_lsn,	/*!< in: end lsn of the last mtr in the
-					set of mtr's */
-	FlushObserver*	observer);	/*!< in: flush observer */
+	buf_block_t*	block,
+	lsn_t		start_lsn,
+	lsn_t		end_lsn,
+	FlushObserver*	observer);
 
-/********************************************************************//**
-This function should be called when recovery has modified a buffer page. */
+/** This function should be called when recovery has modified a buffer page.
+@param[in]	block		block which is modified
+@param[in]	start_lsn	start lsn of the first mtr in a set of mtr's
+@param[in]	end_lsn		end lsn of the last mtr in the set of mtr's */
 UNIV_INLINE
 void
 buf_flush_recv_note_modification(
-/*=============================*/
-	buf_block_t*	block,		/*!< in: block which is modified */
-	lsn_t		start_lsn,	/*!< in: start lsn of the first mtr in a
-					set of mtr's */
-	lsn_t		end_lsn);	/*!< in: end lsn of the last mtr in the
-					set of mtr's */
+	buf_block_t*	block,
+	lsn_t		start_lsn,
+	lsn_t		end_lsn);
+
 /********************************************************************//**
 Returns TRUE if the file page block is immediately suitable for replacement,
 i.e., transition FILE_PAGE => NOT_USED allowed.

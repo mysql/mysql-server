@@ -202,6 +202,7 @@ btr_rec_free_externally_stored_fields(
 /** Latches the leaf page or pages requested.
 @param[in]	block		leaf page where the search converged
 @param[in]	page_id		page id of the leaf
+@param[in]	page_size	page size
 @param[in]	latch_mode	BTR_SEARCH_LEAF, ...
 @param[in]	cursor		cursor
 @param[in]	mtr		mini-transaction
@@ -2445,14 +2446,14 @@ btr_cur_open_at_index_side_func(
 Avoid taking latches on buffer, just pin (by incrementing fix_count)
 to keep them in buffer pool. This mode is used by intrinsic table
 as they are not shared and so there is no need of latching.
-@param[in]	from_left	true if open to low end, false if open
-				to high end.
+@param[in]	from_left	true if open to low end, false if open to high
+				end.
 @param[in]	index		index
 @param[in,out]	cursor		cursor
+@param[in]	level		level to search for (0=leaf)
 @param[in]	file		file name
 @param[in]	line		line where called
-@param[in,out]	mtr		mini transaction
-*/
+@param[in,out]	mtr		mini transaction */
 void
 btr_cur_open_at_index_side_with_no_latch_func(
 	bool		from_left,
@@ -6701,35 +6702,37 @@ struct btr_blob_log_check_t {
 };
 
 
-/*******************************************************************//**
-Stores the fields in big_rec_vec to the tablespace and puts pointers to
-them in rec.  The extern flags in rec will have to be set beforehand.
-The fields are stored on pages allocated from leaf node
-file segment of the index tree.
+/** Stores the fields in big_rec_vec to the tablespace and puts pointers to
+them in rec.  The extern flags in rec will have to be set beforehand. The
+fields are stored on pages allocated from leaf node file segment of the index
+tree.
 
 TODO: If the allocation extends the tablespace, it will not be redo logged, in
 any mini-transaction.  Tablespace extension should be redo-logged, so that
 recovery will not fail when the big_rec was written to the extended portion of
 the file, in case the file was somehow truncated in the crash.
 
+@param[in,out]	pcur		a persistent cursor. if btr_mtr is restarted,
+				then this can be repositioned.
+@param[in]	upd		update vector
+@param[in,out]	offsets		rec_get_offsets() on pcur. the "external in
+				offsets will correctly correspond storage"
+				flagsin offsets will correctly correspond to
+				rec when this function returns
+@param[in]	big_rec_vec	vector containing fields to be stored
+				externally
+@param[in,out]	btr_mtr		mtr containing the latches to the clustered
+				index. can be committed and restarted.
+@param[in]	op		operation code
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 dberr_t
 btr_store_big_rec_extern_fields(
-/*============================*/
-	btr_pcur_t*	pcur,		/*!< in/out: a persistent cursor. if
-					btr_mtr is restarted, then this can
-					be repositioned. */
-	const upd_t*	upd,		/*!< in: update vector */
-	ulint*		offsets,	/*!< in/out: rec_get_offsets() on
-					pcur. the "external storage" flags
-					in offsets will correctly correspond
-					to rec when this function returns */
-	const big_rec_t*big_rec_vec,	/*!< in: vector containing fields
-					to be stored externally */
-	mtr_t*		btr_mtr,	/*!< in/out: mtr containing the
-					latches to the clustered index. can be
-					committed and restarted. */
-	enum blob_op	op)		/*! in: operation code */
+	btr_pcur_t*	pcur,
+	const upd_t*	upd,
+	ulint*		offsets,
+	const big_rec_t*big_rec_vec,
+	mtr_t*		btr_mtr,
+	enum blob_op	op)
 {
 	ulint		rec_page_no;
 	byte*		field_ref;
@@ -7521,11 +7524,12 @@ btr_copy_blob_prefix(
 /** Copies the prefix of a compressed BLOB.
 The clustered index record that points to this BLOB must be protected
 by a lock or a page latch.
-@param[out]	buf		the externally stored part of the field,
-or a prefix of it
+@param[out]	buf		the externally stored part of the field, or a
+				prefix of it
 @param[in]	len		length of buf, in bytes
 @param[in]	page_size	compressed BLOB page size
 @param[in]	space_id	space id of the BLOB pages
+@param[in]	page_no		page number of the first BLOB page
 @param[in]	offset		offset on the first BLOB page
 @return number of bytes written to buf */
 static

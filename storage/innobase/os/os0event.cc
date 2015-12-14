@@ -241,10 +241,8 @@ protected:
 	os_event& operator=(const os_event&);
 };
 
-/**
-Do a timed wait on condition variable.
+/** Do a timed wait on condition variable.
 @param	abstime		absolute time to wait
-@param	time_in_ms	timeout in milliseconds
 @return true if timed out */
 bool
 os_event::timed_wait(

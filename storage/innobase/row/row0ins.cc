@@ -2623,17 +2623,16 @@ func_exit:
 	DBUG_RETURN(err);
 }
 
-/** This is a specialized function meant for direct insertion to
-auto-generated clustered index based on cached position from
-last successful insert. To be used when data is sorted.
-
+/** This is a specialized function meant for direct insertion to auto-generated
+clustered index based on cached position from last successful insert. To be
+used when data is sorted.
 @param[in]	mode	BTR_MODIFY_LEAF or BTR_MODIFY_TREE.
-			depending on whether we wish optimistic or
-			pessimistic descent down the index tree
+			depending on whether we wish optimistic or pessimistic
+			descent down the index tree
 @param[in,out]	index	clustered index
 @param[in,out]	entry	index entry to insert
+@param[in]	n_ext	number of externally stored columns
 @param[in]	thr	query thread
-
 @return error code */
 static
 dberr_t

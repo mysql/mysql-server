@@ -1455,6 +1455,7 @@ row_merge_tmpfile_if_needed(
 
 /** Create a temporary file for merge sort if it was not created already.
 @param[in,out]	file	merge file structure
+@param[in]	tmpfd	temporary file handle
 @param[in]	nrec	number of records in the file
 @param[in]	path	location for creating temporary file
 @return file descriptor, or -1 on failure */

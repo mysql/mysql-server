@@ -165,19 +165,20 @@ void
 log_io_complete(
 /*============*/
 	log_group_t*	group);	/*!< in: log group */
-/******************************************************//**
-This function is called, e.g., when a transaction wants to commit. It checks
-that the log has been written to the log file up to the last log entry written
-by the transaction. If there is a flush running, it waits and checks if the
-flush flushed enough. If not, starts a new flush. */
+
+/** This function is called, e.g., when a transaction wants to commit. It
+checks that the log has been written to the log file up to the last log entry
+written by the transaction. If there is a flush running, it waits and checks if
+the flush flushed enough. If not, starts a new flush.
+@param[in]	lsn		log sequence number up to which the log should
+				be written, LSN_MAX if not specified
+@param[in]	flush_to_disk	true if we want the written log also to be
+				flushed to disk */
 void
 log_write_up_to(
-/*============*/
-	lsn_t	lsn,	/*!< in: log sequence number up to which
-			the log should be written, LSN_MAX if not specified */
+	lsn_t	lsn,
 	bool	flush_to_disk);
-			/*!< in: true if we want the written log
-			also to be flushed to disk */
+
 /** write to the log file up to the last log entry.
 @param[in]	sync	whether we want the written log
 also to be flushed to disk. */
@@ -308,14 +309,16 @@ ulint
 log_block_get_data_len(
 /*===================*/
 	const byte*	log_block);	/*!< in: log block */
-/************************************************************//**
-Sets the log block data length. */
+
+/** Sets the log block data length.
+@param[in,out]	log_block	log block
+@param[in]	len		data length */
 UNIV_INLINE
 void
 log_block_set_data_len(
-/*===================*/
-	byte*	log_block,	/*!< in/out: log block */
-	ulint	len);		/*!< in: data length */
+	byte*	log_block,
+	ulint	len);
+
 /************************************************************//**
 Calculates the checksum for a log block.
 @return checksum */
@@ -348,14 +351,16 @@ ulint
 log_block_get_checksum(
 /*===================*/
 	const byte*	log_block);	/*!< in: log block */
-/************************************************************//**
-Sets a log block checksum field value. */
+
+/** Sets a log block checksum field value.
+@param[in,out]	log_block	log block
+@param[in]	checksum	checksum */
 UNIV_INLINE
 void
 log_block_set_checksum(
-/*===================*/
-	byte*	log_block,	/*!< in/out: log block */
-	ulint	checksum);	/*!< in: checksum */
+	byte*	log_block,
+	ulint	checksum);
+
 /************************************************************//**
 Gets a log block first mtr log record group offset.
 @return first mtr log record group byte offset from the block start, 0
@@ -365,14 +370,16 @@ ulint
 log_block_get_first_rec_group(
 /*==========================*/
 	const byte*	log_block);	/*!< in: log block */
-/************************************************************//**
-Sets the log block first mtr log record group offset. */
+
+/** Sets the log block first mtr log record group offset.
+@param[in,out]	log_block	log block
+@param[in]	offset		offset, 0 if none */
 UNIV_INLINE
 void
 log_block_set_first_rec_group(
-/*==========================*/
-	byte*	log_block,	/*!< in/out: log block */
-	ulint	offset);	/*!< in: offset, 0 if none */
+	byte*	log_block,
+	ulint	offset);
+
 /************************************************************//**
 Gets a log block checkpoint number field (4 lowest bytes).
 @return checkpoint no (4 lowest bytes) */
@@ -381,14 +388,16 @@ ulint
 log_block_get_checkpoint_no(
 /*========================*/
 	const byte*	log_block);	/*!< in: log block */
-/************************************************************//**
-Initializes a log block in the log buffer. */
+
+/** Initializes a log block in the log buffer.
+@param[in]	log_block	pointer to the log buffer
+@param[in]	lsn		lsn within the log block */
 UNIV_INLINE
 void
 log_block_init(
-/*===========*/
-	byte*	log_block,	/*!< in: pointer to the log buffer */
-	lsn_t	lsn);		/*!< in: lsn within the log block */
+	byte*	log_block,
+	lsn_t	lsn);
+
 #ifdef UNIV_HOTBACKUP
 /************************************************************//**
 Initializes a log block in the log buffer in the old, < 3.23.52 format, where

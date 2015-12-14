@@ -7361,21 +7361,20 @@ get_col_list_to_be_dropped(
 	}
 }
 
-/** Commit the changes made during prepare_inplace_alter_table()
-and inplace_alter_table() inside the data dictionary tables,
-when not rebuilding the table.
-@param ha_alter_info Data used during in-place alter
-@param ctx In-place ALTER TABLE context
-@param old_table MySQL table as it is before the ALTER operation
-@param trx Data dictionary transaction
-@param table_name Table name in MySQL
+/** Commit the changes made during prepare_inplace_alter_table() and
+inplace_alter_table() inside the data dictionary tables, when not rebuilding
+the table.
+@param[in]	ha_alter_info	Data used during in-place alter
+@param[in]	ctx		In-place ALTER TABLE context
+@param[in]	altered_table	MySQL table that is being altered
+@param[in]	old_table	MySQL table as it is before the ALTER operation
+@param[in]	trx		Data dictionary transaction
+@param[in]	table_name	Table name in MySQL
 @retval true Failure
-@retval false Success
-*/
+@retval false Success */
 inline __attribute__((warn_unused_result))
 bool
 commit_try_norebuild(
-/*=================*/
 	Alter_inplace_info*	ha_alter_info,
 	ha_innobase_inplace_ctx*ctx,
 	TABLE*			altered_table,

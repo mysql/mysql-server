@@ -270,22 +270,23 @@ row_build_row_ref_in_tuple(
 	ulint*			offsets,/*!< in: rec_get_offsets(rec, index)
 					or NULL */
 	trx_t*			trx);	/*!< in: transaction or NULL */
-/*******************************************************************//**
-Builds from a secondary index record a row reference with which we can
-search the clustered index record. */
+
+/** Builds from a secondary index record a row reference with which we can
+search the clustered index record.
+@param[in,out]	ref	typed data tuple where the reference is built
+@param[in]	map	array of field numbers in rec telling how ref should
+			be built from the fields of rec
+@param[in]	rec	record in the index; must be preserved while ref is
+			used, as we do not copy field values to heap
+@param[in]	offsets	array returned by rec_get_offsets() */
 UNIV_INLINE
 void
 row_build_row_ref_fast(
-/*===================*/
-	dtuple_t*	ref,	/*!< in/out: typed data tuple where the
-				reference is built */
-	const ulint*	map,	/*!< in: array of field numbers in rec
-				telling how ref should be built from
-				the fields of rec */
-	const rec_t*	rec,	/*!< in: record in the index; must be
-				preserved while ref is used, as we do
-				not copy field values to heap */
-	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
+	dtuple_t*	ref,
+	const ulint*	map,
+	const rec_t*	rec,
+	const ulint*	offsets);
+
 /***************************************************************//**
 Searches the clustered index record for a row, if we have the row
 reference.

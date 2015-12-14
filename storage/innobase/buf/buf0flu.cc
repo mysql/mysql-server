@@ -707,7 +707,7 @@ Note that it is assumed that the contents of bpage have already been
 copied to dpage.
 IMPORTANT: When this function is called bpage and dpage are not
 exact copies of each other. For example, they both will have different
-::state. Also the ::list pointers in dpage may be stale. We need to
+"::state". Also the "::list" pointers in dpage may be stale. We need to
 use the current list node (bpage) to do the list manipulation because
 the list pointers could have changed between the time that we copied
 the contents of bpage to the dpage and the flush list manipulation

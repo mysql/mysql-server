@@ -69,24 +69,25 @@ rec_get_next_offs(
 	const rec_t*	rec,	/*!< in: physical record */
 	ulint		comp)	/*!< in: nonzero=compact page format */
 	__attribute__((warn_unused_result));
-/******************************************************//**
-The following function is used to set the next record offset field
-of an old-style record. */
+
+/** The following function is used to set the next record offset field of an
+old-style record.
+@param[in]	rec	old-style physical record
+@param[in]	next	offset of the next record */
 UNIV_INLINE
 void
 rec_set_next_offs_old(
-/*==================*/
-	rec_t*	rec,	/*!< in: old-style physical record */
-	ulint	next);	/*!< in: offset of the next record */
-/******************************************************//**
-The following function is used to set the next record offset field
-of a new-style record. */
+	rec_t*	rec,
+	ulint	next);
+
+/** The following function is used to set the next record offset field of a
+new-style record. */
 UNIV_INLINE
 void
 rec_set_next_offs_new(
-/*==================*/
-	rec_t*	rec,	/*!< in/out: new-style physical record */
-	ulint	next);	/*!< in: offset of the next record */
+	rec_t*	rec,
+	ulint	next);
+
 /******************************************************//**
 The following function is used to get the number of records owned by the
 previous directory record.
@@ -97,14 +98,16 @@ rec_get_n_owned_old(
 /*================*/
 	const rec_t*	rec)	/*!< in: old-style physical record */
 	__attribute__((warn_unused_result));
-/******************************************************//**
-The following function is used to set the number of owned records. */
+
+/** The following function is used to set the number of owned records.
+@param[in]	rec		old-style physical record
+@param[in]	n_owned		the number of owned */
 UNIV_INLINE
 void
 rec_set_n_owned_old(
-/*================*/
-	rec_t*	rec,		/*!< in: old-style physical record */
-	ulint	n_owned);	/*!< in: the number of owned */
+	rec_t*	rec,
+	ulint	n_owned);
+
 /******************************************************//**
 The following function is used to get the number of records owned by the
 previous directory record.
@@ -115,15 +118,18 @@ rec_get_n_owned_new(
 /*================*/
 	const rec_t*	rec)	/*!< in: new-style physical record */
 	__attribute__((warn_unused_result));
-/******************************************************//**
-The following function is used to set the number of owned records. */
+
+/** The following function is used to set the number of owned records.
+@param[in,out]	rec		new-style physical record
+@param[in,out]	page_zip	compressed page, or NULL
+@param[in]	n_owned		the number of owned */
 UNIV_INLINE
 void
 rec_set_n_owned_new(
-/*================*/
-	rec_t*		rec,	/*!< in/out: new-style physical record */
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page, or NULL */
-	ulint		n_owned);/*!< in: the number of owned */
+	rec_t*		rec,
+	page_zip_des_t*	page_zip,
+	ulint		n_owned);
+
 /******************************************************//**
 The following function is used to retrieve the info bits of
 a record.
@@ -135,30 +141,33 @@ rec_get_info_bits(
 	const rec_t*	rec,	/*!< in: physical record */
 	ulint		comp)	/*!< in: nonzero=compact page format */
 	__attribute__((warn_unused_result));
-/******************************************************//**
-The following function is used to set the info bits of a record. */
+
+/** The following function is used to set the info bits of a record.
+@param[in]	rec	old-style physical record
+@param[in]	bits	info bits */
 UNIV_INLINE
 void
 rec_set_info_bits_old(
-/*==================*/
-	rec_t*	rec,	/*!< in: old-style physical record */
-	ulint	bits);	/*!< in: info bits */
-/******************************************************//**
-The following function is used to set the info bits of a record. */
+	rec_t*	rec,
+	ulint	bits);
+
+/** The following function is used to set the info bits of a record.
+@param[in,out]	rec	new-style physical record
+@param[in]	bits	info bits */
 UNIV_INLINE
 void
 rec_set_info_bits_new(
-/*==================*/
-	rec_t*	rec,	/*!< in/out: new-style physical record */
-	ulint	bits);	/*!< in: info bits */
-/******************************************************//**
-The following function is used to set the status bits of a new-style record. */
+	rec_t*	rec,
+	ulint	bits);
+
+/** The following function is used to set the status bits of a new-style record.
+@param[in,out]	rec	physical record
+@param[in]	bits	info bits */
 UNIV_INLINE
 void
 rec_set_status(
-/*===========*/
-	rec_t*	rec,	/*!< in/out: physical record */
-	ulint	bits);	/*!< in: info bits */
+	rec_t*	rec,
+	ulint	bits);
 
 /******************************************************//**
 The following function is used to retrieve the info and status
@@ -171,15 +180,16 @@ rec_get_info_and_status_bits(
 	const rec_t*	rec,	/*!< in: physical record */
 	ulint		comp)	/*!< in: nonzero=compact page format */
 	__attribute__((warn_unused_result));
-/******************************************************//**
-The following function is used to set the info and status
-bits of a record.  (Only compact records have status bits.) */
+
+/** The following function is used to set the info and status bits of a record.
+(Only compact records have status bits.)
+@param[in,out]	rec	compact physical record
+@param[in]	bits	info bits */
 UNIV_INLINE
 void
 rec_set_info_and_status_bits(
-/*=========================*/
-	rec_t*	rec,	/*!< in/out: compact physical record */
-	ulint	bits);	/*!< in: info bits */
+	rec_t*	rec,
+	ulint	bits);
 
 /******************************************************//**
 The following function tells if record is delete marked.
@@ -191,23 +201,27 @@ rec_get_deleted_flag(
 	const rec_t*	rec,	/*!< in: physical record */
 	ulint		comp)	/*!< in: nonzero=compact page format */
 	__attribute__((warn_unused_result));
-/******************************************************//**
-The following function is used to set the deleted bit. */
+
+/** The following function is used to set the deleted bit.
+@param[in]	rec		old-style physical record
+@param[in]	flag		nonzero if delete marked */
 UNIV_INLINE
 void
 rec_set_deleted_flag_old(
-/*=====================*/
-	rec_t*	rec,	/*!< in: old-style physical record */
-	ulint	flag);	/*!< in: nonzero if delete marked */
-/******************************************************//**
-The following function is used to set the deleted bit. */
+	rec_t*	rec,
+	ulint	flag);
+
+/** The following function is used to set the deleted bit.
+@param[in,out]	rec		new-style physical record
+@param[in,out]	page_zip	compressed page, or NULL
+@param[in]	flag		nonzero if delete marked */
 UNIV_INLINE
 void
 rec_set_deleted_flag_new(
-/*=====================*/
-	rec_t*		rec,	/*!< in/out: new-style physical record */
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page, or NULL */
-	ulint		flag);	/*!< in: nonzero if delete marked */
+	rec_t*		rec,
+	page_zip_des_t*	page_zip,
+	ulint		flag);
+
 /******************************************************//**
 The following function tells if a new-style record is a node pointer.
 @return TRUE if node pointer */
@@ -217,44 +231,47 @@ rec_get_node_ptr_flag(
 /*==================*/
 	const rec_t*	rec)	/*!< in: physical record */
 	__attribute__((warn_unused_result));
-/******************************************************//**
-The following function is used to get the order number
-of an old-style record in the heap of the index page.
+
+/** The following function is used to get the order number of an old-style
+record in the heap of the index page.
+@param[in]	rec	physical record
 @return heap order number */
 UNIV_INLINE
 ulint
 rec_get_heap_no_old(
-/*================*/
-	const rec_t*	rec)	/*!< in: physical record */
+	const rec_t*	rec)
 	__attribute__((warn_unused_result));
-/******************************************************//**
-The following function is used to set the heap number
-field in an old-style record. */
+
+/** The following function is used to set the heap number field in an old-style
+record.
+@param[in]	rec	physical record
+@param[in]	heap_no	the heap number */
 UNIV_INLINE
 void
 rec_set_heap_no_old(
-/*================*/
-	rec_t*	rec,	/*!< in: physical record */
-	ulint	heap_no);/*!< in: the heap number */
-/******************************************************//**
-The following function is used to get the order number
-of a new-style record in the heap of the index page.
+	rec_t*	rec,
+	ulint	heap_no);
+
+/** The following function is used to get the order number of a new-style
+record in the heap of the index page.
+@param[in]	rec	physical record
 @return heap order number */
 UNIV_INLINE
 ulint
 rec_get_heap_no_new(
-/*================*/
-	const rec_t*	rec)	/*!< in: physical record */
+	const rec_t*	rec)
 	__attribute__((warn_unused_result));
-/******************************************************//**
-The following function is used to set the heap number
-field in a new-style record. */
+
+/** The following function is used to set the heap number field in a new-style
+record.
+@param[in,out]	rec	physical record
+@param[in]	heap_no	the heap number */
 UNIV_INLINE
 void
 rec_set_heap_no_new(
-/*================*/
-	rec_t*	rec,	/*!< in/out: physical record */
-	ulint	heap_no);/*!< in: the heap number */
+	rec_t*	rec,
+	ulint	heap_no);
+
 /******************************************************//**
 The following function is used to test whether the data offsets
 in the record are stored in one-byte or two-byte format.
@@ -266,14 +283,14 @@ rec_get_1byte_offs_flag(
 	const rec_t*	rec)	/*!< in: physical record */
 	__attribute__((warn_unused_result));
 
-/******************************************************//**
-The following function is used to set the 1-byte offsets flag. */
+/** The following function is used to set the 1-byte offsets flag.
+@param[in]	rec	physical record
+@param[in]	flag	TRUE if 1byte form */
 UNIV_INLINE
 void
 rec_set_1byte_offs_flag(
-/*====================*/
-	rec_t*	rec,	/*!< in: physical record */
-	ibool	flag);	/*!< in: TRUE if 1byte form */
+	rec_t*	rec,
+	ibool	flag);
 
 /******************************************************//**
 Returns the offset of nth field end if the record is stored in the 1-byte
@@ -359,18 +376,20 @@ rec_get_nth_field_size(
 	const rec_t*	rec,	/*!< in: record */
 	ulint		n)	/*!< in: index of the field */
 	__attribute__((warn_unused_result));
-/************************************************************//**
-The following function is used to get an offset to the nth
-data field in a record.
+
+/** The following function is used to get an offset to the nth data field in a
+record.
+@param[in]	offsets	array returned by rec_get_offsets()
+@param[in]	n	index of the field
+@param[out]	len	length of the field; UNIV_SQL_NULL if SQL null
 @return offset from the origin of rec */
 UNIV_INLINE
 ulint
 rec_get_nth_field_offs(
-/*===================*/
-	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
-	ulint		n,	/*!< in: index of the field */
-	ulint*		len);	/*!< out: length of the field; UNIV_SQL_NULL
-				if SQL null */
+	const ulint*	offsets,
+	ulint		n,
+	ulint*		len);
+
 #define rec_get_nth_field(rec, offsets, n, len) \
 ((rec) + rec_get_nth_field_offs(offsets, n, len))
 /******************************************************//**
@@ -451,25 +470,29 @@ rec_offs_n_extern(
 /*==============*/
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
 	__attribute__((warn_unused_result));
-/***********************************************************//**
-This is used to modify the value of an already existing field in a record.
-The previous value must have exactly the same size as the new value. If len
-is UNIV_SQL_NULL then the field is treated as an SQL null.
+
+/** This is used to modify the value of an already existing field in a record.
+The previous value must have exactly the same size as the new value. If len is
+UNIV_SQL_NULL then the field is treated as an SQL null.
 For records in ROW_FORMAT=COMPACT (new-style records), len must not be
-UNIV_SQL_NULL unless the field already is SQL null. */
+UNIV_SQL_NULL unless the field already is SQL null.
+@param[in]	rec	record
+@param[in]	offsets	array returned by rec_get_offsets()
+@param[in]	n	index number of the field
+@param[in]	len	length of the data or UNIV_SQL_NULL.
+			If not SQL null, must have the same length as the
+			previous value.
+			If SQL null, previous value must be SQL null.
+@param[in]	data	pointer to the data if not SQL null */
 UNIV_INLINE
 void
 rec_set_nth_field(
-/*==============*/
-	rec_t*		rec,	/*!< in: record */
-	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
-	ulint		n,	/*!< in: index number of the field */
-	const void*	data,	/*!< in: pointer to the data if not SQL null */
-	ulint		len);	/*!< in: length of the data or UNIV_SQL_NULL.
-				If not SQL null, must have the same
-				length as the previous value.
-				If SQL null, previous value must be
-				SQL null. */
+	rec_t*		rec,
+	const ulint*	offsets,
+	ulint		n,
+	const void*	data,
+	ulint		len);
+
 /**********************************************************//**
 The following function returns the data size of an old-style physical
 record, that is the sum of field lengths. SQL null fields

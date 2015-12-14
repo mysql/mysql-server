@@ -48,7 +48,8 @@ Created 2012-02-08 by Sunny Bains.
 /** The size of the buffer to use for IO. Note: os_file_read() doesn't expect
 reads to fail. If you set the buffer size to be greater than a multiple of the
 file size then it will assert. TODO: Fix this limitation of the IO functions.
-@param n page size of the tablespace.
+@param	m	page size of the tablespace.
+@param	n	page size of the tablespace.
 @retval number of pages */
 #define IO_BUFFER_SIZE(m, n)	((m) / (n))
 

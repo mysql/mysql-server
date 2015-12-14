@@ -1049,13 +1049,14 @@ innobase_release_savepoint(
 					savepoint should be released */
 	void*		savepoint);	/*!< in: savepoint data */
 
-/************************************************************************//**
-Function for constructing an InnoDB table handler instance. */
+/** Function for constructing an InnoDB table handler instance.
+@param[in,out]	hton		handlerton for InnoDB
+@param[in]	table		MySQL table
+@param[in]	mem_root	memory context */
 static
 handler*
 innobase_create_handler(
-/*====================*/
-	handlerton*	hton,		/*!< in/out: handlerton for InnoDB */
+	handlerton*	hton,
 	TABLE_SHARE*	table,
 	MEM_ROOT*	mem_root);
 
@@ -1237,28 +1238,30 @@ innobase_flush_logs(
 	handlerton*	hton,
 	bool		binlog_group_flush);
 
-/************************************************************************//**
-Implements the SHOW ENGINE INNODB STATUS command. Sends the output of the
+/** Implements the SHOW ENGINE INNODB STATUS command. Sends the output of the
 InnoDB Monitor to the client.
+@param[in]	hton		the innodb handlerton
+@param[in]	thd		the MySQL query thread of the caller
+@param[in]	stat_print	print function
 @return 0 on success */
 static
 int
 innodb_show_status(
-/*===============*/
-	handlerton*	hton,		/*!< in: the innodb handlerton */
-	THD*		thd,		/*!< in: the MySQL query thread of
-					the caller */
+	handlerton*	hton,
+	THD*		thd,
 	stat_print_fn*	stat_print);
-/************************************************************************//**
-Return 0 on success and non-zero on failure. Note: the bool return type
-seems to be abused here, should be an int. */
+
+/** Return 0 on success and non-zero on failure. Note: the bool return type
+seems to be abused here, should be an int.
+@param[in]	hton		the innodb handlerton
+@param[in]	thd		the MySQL query thread of the caller
+@param[in]	stat_print	print function
+@param[in]	stat_type	status to show */
 static
 bool
 innobase_show_status(
-/*=================*/
-	handlerton*		hton,	/*!< in: the innodb handlerton */
-	THD*			thd,	/*!< in: the MySQL query thread of
-					the caller */
+	handlerton*		hton,
+	THD*			thd,
 	stat_print_fn*		stat_print,
 	enum ha_stat_type	stat_type);
 
@@ -1274,10 +1277,10 @@ innodb_enable_monitor_at_startup(
 	char*	str);	/*!< in: monitor counter enable list */
 
 /** Fill handlerton based INFORMATION_SCHEMA tables.
-@param[in]		(unused) Handle to the handlerton structure
+@param[in]	-	(unused) Handle to the handlerton structure
 @param[in]	thd	Thread/connection descriptor
 @param[in,out]	tables	Information Schema tables to fill
-@param[in]		(unused) Intended for conditional pushdown
+@param[in]	-	(unused) Intended for conditional pushdown
 @param[in]	idx	Table id that indicates which I_S table to fill
 @return Operation status */
 static
@@ -1347,13 +1350,14 @@ innobase_commit_concurrency_validate(
 	DBUG_RETURN(!(!commit_concurrency == !innobase_commit_concurrency));
 }
 
-/*******************************************************************//**
-Function for constructing an InnoDB table handler instance. */
+/** Function for constructing an InnoDB table handler instance.
+@param[in,out]	hton		handlerton for InnoDB
+@param[in]	table		MySQL table
+@param[in]	mem_root	memory context */
 static
 handler*
 innobase_create_handler(
-/*====================*/
-	handlerton*	hton,	/*!< in: InnoDB handlerton */
+	handlerton*	hton,
 	TABLE_SHARE*	table,
 	MEM_ROOT*	mem_root)
 {
@@ -11955,7 +11959,6 @@ ha_innobase::truncate()
 
 /** Drop a table.
 @param[in]	name	table name
-@param[in]	sqlcom	type of operation that the DROP is part of
 @return error number */
 
 int
@@ -13416,15 +13419,14 @@ index_pct_cached(
 	return(std::max(std::min(ratio, 1.0), 0.0));
 }
 
-/*********************************************************************//**
-Returns statistics information of the table to the MySQL interpreter,
-in various fields of the handle object.
+/** Returns statistics information of the table to the MySQL interpreter, in
+various fields of the handle object.
+@param[in]	flag		what information is requested
+@param[in]	is_analyze	True if called from "::analyze()".
 @return HA_ERR_* error code or 0 */
-
 int
 ha_innobase::info_low(
-/*==================*/
-	uint	flag,	/*!< in: what information is requested */
+	uint	flag,
 	bool	is_analyze)
 {
 	dict_table_t*	ib_table;
@@ -14807,23 +14809,21 @@ ha_innobase::reset()
 	return(end_stmt());
 }
 
-/******************************************************************//**
-MySQL calls this function at the start of each SQL statement inside LOCK
-TABLES. Inside LOCK TABLES the ::external_lock method does not work to
-mark SQL statement borders. Note also a special case: if a temporary table
-is created inside LOCK TABLES, MySQL has not called external_lock() at all
-on that table.
+/** MySQL calls this function at the start of each SQL statement inside LOCK
+TABLES. Inside LOCK TABLES the "::external_lock" method does not work to mark
+SQL statement borders. Note also a special case: if a temporary table is
+created inside LOCK TABLES, MySQL has not called external_lock() at all on
+that table.
 MySQL-5.0 also calls this before each statement in an execution of a stored
 procedure. To make the execution more deterministic for binlogging, MySQL-5.0
-locks all tables involved in a stored procedure with full explicit table
-locks (thd_in_lock_tables(thd) holds in store_lock()) before executing the
-procedure.
+locks all tables involved in a stored procedure with full explicit table locks
+(thd_in_lock_tables(thd) holds in store_lock()) before executing the procedure.
+@param[in]	thd		handle to the user thread
+@param[in]	lock_type	lock type
 @return 0 or error code */
-
 int
 ha_innobase::start_stmt(
-/*====================*/
-	THD*		thd,	/*!< in: handle to the user thread */
+	THD*		thd,
 	thr_lock_type	lock_type)
 {
 	trx_t*		trx = m_prebuilt->trx;
@@ -15237,16 +15237,17 @@ innodb_export_status()
 	}
 }
 
-/************************************************************************//**
-Implements the SHOW ENGINE INNODB STATUS command. Sends the output of the
+/** Implements the SHOW ENGINE INNODB STATUS command. Sends the output of the
 InnoDB Monitor to the client.
+@param[in]	hton		the innodb handlerton
+@param[in]	thd		the MySQL query thread of the caller
+@param[in]	stat_print	print function
 @return 0 on success */
 static
 int
 innodb_show_status(
-/*===============*/
-	handlerton*	hton,	/*!< in: the innodb handlerton */
-	THD*		thd,	/*!< in: the MySQL query thread of the caller */
+	handlerton*	hton,
+	THD*		thd,
 	stat_print_fn*	stat_print)
 {
 	static const char	truncated_msg[] = "... truncated...\n";
@@ -15679,16 +15680,17 @@ innodb_show_latch_status(
 	return(innodb_show_rwlock_status(hton, thd, stat_print));
 }
 
-/************************************************************************//**
-Return 0 on success and non-zero on failure. Note: the bool return type
-seems to be abused here, should be an int. */
+/** Return 0 on success and non-zero on failure. Note: the bool return type
+seems to be abused here, should be an int.
+@param[in]	hton		the innodb handlerton
+@param[in]	thd		the MySQL query thread of the caller
+@param[in]	stat_print	print function
+@param[in]	stat_type	status to show */
 static
 bool
 innobase_show_status(
-/*=================*/
-	handlerton*		hton,	/*!< in: the innodb handlerton */
-	THD*			thd,	/*!< in: the MySQL query thread
-					of the caller */
+	handlerton*		hton,
+	THD*			thd,
 	stat_print_fn*		stat_print,
 	enum ha_stat_type	stat_type)
 {
@@ -15810,7 +15812,7 @@ InnoDB no longer relies on THR_LOCK locks so 0 value is returned.
 Instead of THR_LOCK locks InnoDB relies on combination of metadata locks
 (e.g. for LOCK TABLES and DDL) and its own locking subsystem.
 Note that even though this method returns 0, SQL-layer still calls
-::store_lock(), ::start_stmt() and ::external_lock() methods for InnoDB
+"::store_lock()", "::start_stmt()" and "::external_lock()" methods for InnoDB
 tables. */
 
 uint

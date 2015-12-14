@@ -112,17 +112,19 @@ rtr_page_split_and_insert(
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	mtr_t*		mtr);	/*!< in: mtr */
 
-/**************************************************************//**
-Sets the child node mbr in a node pointer. */
+/** Sets the child node mbr in a node pointer.
+@param[in]	index	index
+@param[in]	block	bufer block
+@param[out]	mbr	MBR encapsulates the page
+@param[in]	heap	heap for the memory allocation */
 UNIV_INLINE
 void
 rtr_page_cal_mbr(
-/*=============*/
-	const dict_index_t*	index,	/*!< in: index */
-	const buf_block_t*	block,	/*!< in: buffer block */
-	rtr_mbr_t*		mbr,	/*!< out: MBR encapsulates the page */
-	mem_heap_t*		heap);	/*!< in: heap for the memory
-					allocation */
+	const dict_index_t*	index,
+	const buf_block_t*	block,
+	rtr_mbr_t*		mbr,
+	mem_heap_t*		heap);
+
 /*************************************************************//**
 Find the next matching record. This function will first exhaust
 the copied record listed in the rtr_info->matches vector before
@@ -197,33 +199,40 @@ rtr_get_father_node(
 	ulint		page_no,/*!< in: current page no */
 	mtr_t*		mtr);	/*!< in: mtr */
 
-/**************************************************************//**
-push a nonleaf index node to the search path */
+/** Push a nonleaf index node to the search path
+@param[in,out]	path		search path
+@param[in]	pageno		pageno to insert
+@param[in]	seq_no		Node sequence num
+@param[in]	level		index level
+@param[in]	child_no	child page no
+@param[in]	cursor		position cursor
+@param[in]	mbr_inc		MBR needs to be enlarged */
 UNIV_INLINE
 void
 rtr_non_leaf_stack_push(
-/*====================*/
-	rtr_node_path_t*	path,		/*!< in/out: search path */
-	ulint			pageno,		/*!< in: pageno to insert */
-	node_seq_t		seq_no,		/*!< in: Node sequence num */
-	ulint			level,		/*!< in: index level */
-	ulint			child_no,	/*!< in: child page no */
-	btr_pcur_t*		cursor,		/*!< in: position cursor */
-	double			mbr_inc);	/*!< in: MBR needs to be
-						enlarged */
+	rtr_node_path_t*	path,
+	ulint			pageno,
+	node_seq_t		seq_no,
+	ulint			level,
+	ulint			child_no,
+	btr_pcur_t*		cursor,
+	double			mbr_inc);
 
-/**************************************************************//**
-push a nonleaf index node to the search path for insertion */
+/** Push a nonleaf index node to the search path for insertion
+@param[in]	index	index descriptor
+@param[in,out]	path	search path
+@param[in]	level	index level
+@param[in]	block	block of the page
+@param[in]	rec	positioned record
+@param[in]	mbr_inc	MBR needs to be enlarged */
 void
 rtr_non_leaf_insert_stack_push(
-/*===========================*/
-	dict_index_t*		index,		/*!< in: index descriptor */
-	rtr_node_path_t*	path,		/*!< in/out: search path */
-	ulint			level,		/*!< in: index level */
-	const buf_block_t*	block,		/*!< in: block of the page */
-	const rec_t*		rec,		/*!< in: positioned record */
-	double			mbr_inc);	/*!< in: MBR needs to be
-						enlarged */
+	dict_index_t*		index,
+	rtr_node_path_t*	path,
+	ulint			level,
+	const buf_block_t*	block,
+	const rec_t*		rec,
+	double			mbr_inc);
 
 /*****************************************************************//**
 Allocates a new Split Sequence Number.
@@ -358,27 +367,29 @@ rtr_pcur_open_low(
 
 struct btr_cur_t;
 
-/*********************************************************//**
-Returns the R-Tree node stored in the parent search path
+/** Returns the R-Tree node stored in the parent search path
+@param[in]	btr_cur		persistent cursor
+@param[in]	level		index level of buffer page
+@param[in]	is_insert	whether insert operation
 @return pointer to R-Tree cursor component */
 UNIV_INLINE
 node_visit_t*
 rtr_get_parent_node(
-/*================*/
-	btr_cur_t*	btr_cur,	/*!< in: persistent cursor */
-	ulint		level,		/*!< in: index level of buffer page */
-	ulint		is_insert);	/*!< in: whether it is insert */
+	btr_cur_t*	btr_cur,
+	ulint		level,
+	ulint		is_insert);
 
-/*********************************************************//**
-Returns the R-Tree cursor stored in the parent search path
+/** Returns the R-Tree cursor stored in the parent search path
+@param[in]	btr_cur		persistent cursor
+@param[in]	level		index level of buffer page
+@param[in]	is_insert	whether insert operation
 @return pointer to R-Tree cursor component */
 UNIV_INLINE
 btr_pcur_t*
 rtr_get_parent_cursor(
-/*==================*/
-	btr_cur_t*	btr_cur,	/*!< in: persistent cursor */
-	ulint		level,		/*!< in: index level of buffer page */
-	ulint		is_insert);	/*!< in: whether insert operation */
+	btr_cur_t*	btr_cur,
+	ulint		level,
+	ulint		is_insert);
 
 /*************************************************************//**
 Copy recs from a page to new_block of rtree. */
@@ -481,23 +492,23 @@ rtr_check_same_block(
 	buf_block_t*	childb, /*!< in: child Page */
 	mem_heap_t*	heap);	/*!< in: memory heap */
 
-/*********************************************************************//**
-Sets pointer to the data and length in a field. */
+/** Sets pointer to the data and length in a field.
+@param[out]	data	data
+@param[in]	mbr	data */
 UNIV_INLINE
 void
 rtr_write_mbr(
-/*==========*/
-	byte*			data,	/*!< out: data */
-	const rtr_mbr_t*	mbr);	/*!< in: data */
+	byte*			data,
+	const rtr_mbr_t*	mbr);
 
-/*********************************************************************//**
-Sets pointer to the data and length in a field. */
+/** Sets pointer to the data and length in a field.
+@param[in]	data	data
+@param[out]	mbr	data */
 UNIV_INLINE
 void
 rtr_read_mbr(
-/*==========*/
-	const byte*		data,	/*!< in: data */
-	rtr_mbr_t*		mbr);	/*!< out: data */
+	const byte*		data,
+	rtr_mbr_t*		mbr);
 
 /**************************************************************//**
 Check whether a discarding page is in anyone's search path */
@@ -509,16 +520,16 @@ rtr_check_discard_page(
 				the root page */
 	buf_block_t*	block);	/*!< in: block of page to be discarded */
 
-/********************************************************************//**
-Reinitialize a RTree search info */
+/** Reinitialize a RTree search info
+@param[in,out]	cursor		tree cursor
+@param[in]	index		index struct
+@param[in]	need_prdt	Whether predicate lock is needed */
 UNIV_INLINE
 void
 rtr_info_reinit_in_cursor(
-/************************/
-	btr_cur_t*	cursor,		/*!< in/out: tree cursor */
-	dict_index_t*	index,		/*!< in: index struct */
-	bool		need_prdt);	/*!< in: Whether predicate lock is
-					needed */
+	btr_cur_t*	cursor,
+	dict_index_t*	index,
+	bool		need_prdt);
 
 /** Estimates the number of rows in a given area.
 @param[in]	index	index

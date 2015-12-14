@@ -182,25 +182,26 @@ dict_col_get_mbmaxlen(
 /*==================*/
 	const dict_col_t*	col)	/*!< in: column */
 	__attribute__((warn_unused_result));
-/*********************************************************************//**
-Sets the minimum and maximum number of bytes per character. */
+
+/** Sets the minimum and maximum number of bytes per character.
+@param[in,out]	col		column
+@param[in]	mbminlen	minimum multi-byte character size, in bytes
+@param[in]	mbmaxlen	maximum multi-byte character size, in bytes */
 UNIV_INLINE
 void
 dict_col_set_mbminmaxlen(
-/*=====================*/
-	dict_col_t*	col,		/*!< in/out: column */
-	ulint		mbminlen,	/*!< in: minimum multi-byte
-					character size, in bytes */
-	ulint		mbmaxlen);	/*!< in: minimum multi-byte
-					character size, in bytes */
-/*********************************************************************//**
-Gets the column data type. */
+	dict_col_t*	col,
+	ulint		mbminlen,
+	ulint		mbmaxlen);
+
+/** Gets the column data type.
+@param[in]	col	column
+@param[out]	type	data type */
 UNIV_INLINE
 void
 dict_col_copy_type(
-/*===============*/
-	const dict_col_t*	col,	/*!< in: column */
-	dtype_t*		type);	/*!< out: data type */
+	const dict_col_t*	col,
+	dtype_t*		type);
 
 /**********************************************************************//**
 Determine bytes of column prefix to be stored in the undo log. Please
@@ -361,7 +362,7 @@ dict_table_autoinc_unlock(
 /** Update the persisted autoinc counter to specified one, we should hold
 autoinc_persisted_mutex.
 @param[in,out]	table	table
-@param[in]	counter	set autoinc_persisted to this value */
+@param[in]	autoinc	set autoinc_persisted to this value */
 UNIV_INLINE
 void
 dict_table_autoinc_persisted_update(
@@ -1471,14 +1472,16 @@ dict_index_get_space(
 /*=================*/
 	const dict_index_t*	index)	/*!< in: index */
 	__attribute__((warn_unused_result));
-/*********************************************************************//**
-Sets the space id of the root of the index tree. */
+
+/** Sets the space id of the root of the index tree.
+@param[in,out]	index	index
+@param[in]	space	space id */
 UNIV_INLINE
 void
 dict_index_set_space(
-/*=================*/
-	dict_index_t*	index,	/*!< in/out: index */
-	ulint		space);	/*!< in: space id */
+	dict_index_t*	index,
+	ulint		space);
+
 /*********************************************************************//**
 Gets the page number of the root of the index tree.
 @return page number */
@@ -1517,14 +1520,16 @@ dict_index_get_online_status(
 /*=========================*/
 	const dict_index_t*	index)	/*!< in: secondary index */
 	__attribute__((warn_unused_result));
-/********************************************************************//**
-Sets the status of online index creation. */
+
+/** Sets the status of online index creation.
+@param[in,out]	index	index
+@param[in]	status	status */
 UNIV_INLINE
 void
 dict_index_set_online_status(
-/*=========================*/
-	dict_index_t*			index,	/*!< in/out: index */
-	enum online_index_status	status);	/*!< in: status */
+	dict_index_t*			index,
+	enum online_index_status	status);
+
 /********************************************************************//**
 Determines if a secondary index is being or has been created online,
 or if the table is being rebuilt online, allowing concurrent modifications
@@ -1833,20 +1838,23 @@ dict_table_schema_check(
 	__attribute__((warn_unused_result));
 /* @} */
 
-/*********************************************************************//**
-Converts a database and table name from filesystem encoding
-(e.g. d@i1b/a@q1b@1Kc, same format as used in dict_table_t::name) in two
-strings in UTF8 encoding (e.g. dцb and aюbØc). The output buffers must be
-at least MAX_DB_UTF8_LEN and MAX_TABLE_UTF8_LEN bytes. */
+/** Converts a database and table name from filesystem encoding (e.g.
+"@code d@i1b/a@q1b@1Kc @endcode", same format as used in  dict_table_t::name)
+in two strings in UTF8 encoding (e.g. dцb and aюbØc). The output buffers must
+be at least MAX_DB_UTF8_LEN and MAX_TABLE_UTF8_LEN bytes.
+@param[in]	db_and_table	database and table names,
+				e.g. "@code d@i1b/a@q1b@1Kc @endcode"
+@param[out]	db_utf8		database name, e.g. dцb
+@param[in]	db_utf8_size	dbname_utf8 size
+@param[out]	table_utf8	table name, e.g. aюbØc
+@param[in]	table_utf8_size	table_utf8 size */
 void
 dict_fs2utf8(
-/*=========*/
-	const char*	db_and_table,	/*!< in: database and table names,
-					e.g. d@i1b/a@q1b@1Kc */
-	char*		db_utf8,	/*!< out: database name, e.g. dцb */
-	size_t		db_utf8_size,	/*!< in: dbname_utf8 size */
-	char*		table_utf8,	/*!< out: table name, e.g. aюbØc */
-	size_t		table_utf8_size);/*!< in: table_utf8 size */
+	const char*	db_and_table,
+	char*		db_utf8,
+	size_t		db_utf8_size,
+	char*		table_utf8,
+	size_t		table_utf8_size);
 
 /** Resize the hash tables besed on the current buffer pool size. */
 void
@@ -2108,14 +2116,14 @@ dict_table_is_locking_disabled(
 	const dict_table_t*	table)
 	__attribute__((warn_unused_result));
 
-/********************************************************************//**
-Turn-off redo-logging if temporary table. */
+/** Turn-off redo-logging if temporary table.
+@param[in]	table	table to check
+@param[out]	mtr	mini-transaction */
 UNIV_INLINE
 void
 dict_disable_redo_if_temporary(
-/*===========================*/
-	const dict_table_t*	table,	/*!< in: table to check */
-	mtr_t*			mtr);	/*!< out: mini-transaction */
+	const dict_table_t*	table,
+	mtr_t*			mtr);
 
 /** Get table session row-id and increment the row-id counter for next use.
 @param[in,out]	table	table handler
@@ -2180,17 +2188,18 @@ dict_index_node_ptr_max_size(
 /*=========================*/
 	const dict_index_t*	index)	/*!< in: index */
 	__attribute__((warn_unused_result));
-/*****************************************************************//**
-Get index by first field of the index
-@return index which is having first field matches
-with the field present in field_index position of table */
+
+/** Get index by first field of the index.
+@param[in]	table		table
+@param[in]	col_index	position of column in table
+@return index which is having first field matches with the field present in
+field_index position of table */
 UNIV_INLINE
 dict_index_t*
 dict_table_get_index_on_first_col(
-/*==============================*/
-	const dict_table_t*	table,		/*!< in: table */
-	ulint			col_index);	/*!< in: position of column
-						in table */
+	const dict_table_t*	table,
+	ulint			col_index);
+
 /** Check if a column is a virtual column
 @param[in]	col	column
 @return true if it is a virtual column, false otherwise */

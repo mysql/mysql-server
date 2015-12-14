@@ -326,23 +326,29 @@ dict_mem_table_col_rename(
 	const char*	to,	/*!< in: new column name */
 	bool		is_virtual);
 				/*!< in: if this is a virtual column */
-/**********************************************************************//**
-This function poplulates a dict_index_t index memory structure with
-supplied information. */
+
+/** This function poplulates a dict_index_t index memory structure with
+supplied information.
+@param[out]	index		index to be filled
+@param[in]	heap		memory heap
+@param[in]	table_name	table name
+@param[in]	index_name	index name
+@param[in]	space		space where the index tree is placed, the
+				clustered type ignored if the index is of the
+				clustered type
+@param[in]	type		DICT_UNIQUE, DICT_CLUSTERED, ... ORed
+@param[in]	n_fields	number of fields */
 UNIV_INLINE
 void
 dict_mem_fill_index_struct(
-/*=======================*/
-	dict_index_t*	index,		/*!< out: index to be filled */
-	mem_heap_t*	heap,		/*!< in: memory heap */
-	const char*	table_name,	/*!< in: table name */
-	const char*	index_name,	/*!< in: index name */
-	ulint		space,		/*!< in: space where the index tree is
-					placed, ignored if the index is of
-					the clustered type */
-	ulint		type,		/*!< in: DICT_UNIQUE,
-					DICT_CLUSTERED, ... ORed */
-	ulint		n_fields);	/*!< in: number of fields */
+	dict_index_t*	index,
+	mem_heap_t*	heap,
+	const char*	table_name,
+	const char*	index_name,
+	ulint		space,
+	ulint		type,
+	ulint		n_fields);
+
 /**********************************************************************//**
 Frees an index memory object. */
 void
@@ -378,7 +384,7 @@ dict_mem_referenced_table_name_lookup_set(
 	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
 	ibool		do_alloc);	/*!< in: is an alloc needed */
 
-/** Create a temporary tablename like "#sql-ibtid-inc where
+/** Create a temporary tablename like "#sql-ibtid-inc" where
   tid = the Table ID
   inc = a randomly initialized number that is incremented for each file
 The table ID is a 64 bit integer, can use up to 20 digits, and is
@@ -1415,14 +1421,14 @@ struct dict_table_t {
 	volatile os_once::state_t		stats_latch_created;
 
 	/** This latch protects:
-	dict_table_t::stat_initialized,
-	dict_table_t::stat_n_rows (*),
-	dict_table_t::stat_clustered_index_size,
-	dict_table_t::stat_sum_of_other_index_sizes,
-	dict_table_t::stat_modified_counter (*),
-	dict_table_t::indexes*::stat_n_diff_key_vals[],
-	dict_table_t::indexes*::stat_index_size,
-	dict_table_t::indexes*::stat_n_leaf_pages.
+	"dict_table_t::stat_initialized",
+	"dict_table_t::stat_n_rows (*)",
+	"dict_table_t::stat_clustered_index_size",
+	"dict_table_t::stat_sum_of_other_index_sizes",
+	"dict_table_t::stat_modified_counter (*)",
+	"dict_table_t::indexes*::stat_n_diff_key_vals[]",
+	"dict_table_t::indexes*::stat_index_size",
+	"dict_table_t::indexes*::stat_n_leaf_pages".
 	(*) Those are not always protected for
 	performance reasons. */
 	rw_lock_t*				stats_latch;

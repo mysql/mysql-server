@@ -119,16 +119,19 @@ Returns the index of a cursor.
 @param cursor b-tree cursor
 @return index */
 #define btr_cur_get_index(cursor) ((cursor)->index)
-/*********************************************************//**
-Positions a tree cursor at a given record. */
+
+/** Positions a tree cursor at a given record.
+@param[in]	index	index
+@param[in]	rec	record in tree
+@param[in]	block	buffer block of rec
+@param[in]	cursor	cursor */
 UNIV_INLINE
 void
 btr_cur_position(
-/*=============*/
-	dict_index_t*	index,	/*!< in: index */
-	rec_t*		rec,	/*!< in: record in tree */
-	buf_block_t*	block,	/*!< in: buffer block of rec */
-	btr_cur_t*	cursor);/*!< in: cursor */
+	dict_index_t*	index,
+	rec_t*		rec,
+	buf_block_t*	block,
+	btr_cur_t*	cursor);
 
 /** Optimistically latches the leaf page or pages requested.
 @param[in]	block		guessed buffer block
@@ -702,29 +705,35 @@ btr_blob_op_is_update(
 	enum blob_op	op)	/*!< in: operation */
 	__attribute__((warn_unused_result));
 
-/*******************************************************************//**
-Stores the fields in big_rec_vec to the tablespace and puts pointers to
-them in rec.  The extern flags in rec will have to be set beforehand.
-The fields are stored on pages allocated from leaf node
-file segment of the index tree.
+/** Stores the fields in big_rec_vec to the tablespace and puts pointers to
+them in rec. The extern flags in rec will have to be set beforehand. The fields
+are stored on pages allocated from leaf node file segment of the index tree.
+
+TODO: If the allocation extends the tablespace, it will not be redo logged, in
+any mini-transaction.  Tablespace extension should be redo-logged, so that
+recovery will not fail when the big_rec was written to the extended portion of
+the file, in case the file was somehow truncated in the crash.
+
+@param[in,out]	pcur		a persistent cursor. if btr_mtr is restarted,
+				then this can be repositioned.
+@param[in]	upd		update vector
+@param[in,out]	offsets		rec_get_offsets() on pcur. the "external in
+				offsets will correctly correspond storage"
+				flagsin offsets will correctly correspond to
+				rec when this function returns
+@param[in]	big_rec_vec	vector containing fields to be stored externally
+@param[in,out]	btr_mtr		mtr containing the latches to the clustered
+				index. can be committed and restarted.
+@param[in]	op		operation code
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 dberr_t
 btr_store_big_rec_extern_fields(
-/*============================*/
-	btr_pcur_t*	pcur,		/*!< in/out: a persistent cursor. if
-					btr_mtr is restarted, then this can
-					be repositioned. */
-	const upd_t*	upd,		/*!< in: update vector */
-	ulint*		offsets,	/*!< in/out: rec_get_offsets() on
-					pcur. the "external storage" flags
-					in offsets will correctly correspond
-					to rec when this function returns */
-	const big_rec_t*big_rec_vec,	/*!< in: vector containing fields
-					to be stored externally */
-	mtr_t*		btr_mtr,	/*!< in/out: mtr containing the
-					latches to the clustered index. can be
-					committed and restarted. */
-	enum blob_op	op)		/*! in: operation code */
+	btr_pcur_t*	pcur,
+	const upd_t*	upd,
+	ulint*		offsets,
+	const big_rec_t*big_rec_vec,
+	mtr_t*		btr_mtr,
+	enum blob_op	op)
 	__attribute__((warn_unused_result));
 
 /*******************************************************************//**
@@ -833,15 +842,16 @@ btr_cur_set_deleted_flag_for_ibuf(
 	ibool		val,		/*!< in: value to set */
 	mtr_t*		mtr);		/*!< in/out: mini-transaction */
 
-/******************************************************//**
-The following function is used to set the deleted bit of a record. */
+/** The following function is used to set the deleted bit of a record.
+@param[in,out]	rec		physical record
+@param[in,out]	page_zip	compressed page (or NULL)
+@param[in]	flag		nonzero if delete marked */
 UNIV_INLINE
 void
 btr_rec_set_deleted_flag(
-/*=====================*/
-	rec_t*		rec,	/*!< in/out: physical record */
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page (or NULL) */
-	ulint		flag);	/*!< in: nonzero if delete marked */
+	rec_t*		rec,
+	page_zip_des_t*	page_zip,
+	ulint		flag);
 
 /** Latches the leaf page or pages requested.
 @param[in]	block		leaf page where the search converged
@@ -986,15 +996,16 @@ struct btr_cur_t {
 					/* default values */
 };
 
-/******************************************************//**
-The following function is used to set the deleted bit of a record. */
+/** The following function is used to set the deleted bit of a record.
+@param[in,out]	rec		physical record
+@param[in,out]	page_zip	compressed page (or NULL)
+@param[in]	flag		nonzero if delete marked */
 UNIV_INLINE
 void
 btr_rec_set_deleted_flag(
-/*=====================*/
-	rec_t*		rec,	/*!< in/out: physical record */
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page (or NULL) */
-	ulint		flag);	/*!< in: nonzero if delete marked */
+	rec_t*		rec,
+	page_zip_des_t*	page_zip,
+	ulint		flag);
 
 
 /** If pessimistic delete fails because of lack of file space, there

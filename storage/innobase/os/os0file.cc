@@ -766,19 +766,20 @@ os_file_handle_error_no_exit(
 @param[in,out]	buf		Buffer to transform
 @param[in,out]	scratch		Scratch area for read decompression
 @param[in]	src_len		Length of the buffer before compression
+@param[in]	offset		file offset from the start where to read
 @param[in]	len		Compressed buffer length for write and size
 				of buf len for read
 @return DB_SUCCESS or error code */
 static
 dberr_t
 os_file_io_complete(
-	const IORequest&type,
-	os_file_t	fh,
-	byte*		buf,
-	byte*		scratch,
-	ulint		src_len,
-	ulint		offset,
-	ulint		len);
+	const IORequest&	type,
+	os_file_t		fh,
+	byte*			buf,
+	byte*			scratch,
+	ulint			src_len,
+	ulint			offset,
+	ulint			len);
 
 /** Does simulated AIO. This function should be called by an i/o-handler
 thread.
@@ -918,7 +919,7 @@ private:
 
 /** Helper class for doing synchronous file IO. Currently, the objective
 is to hide the OS specific code, so that the higher level functions aren't
-peppered with #ifdef. Makes the code flow difficult to follow.  */
+peppered with "#ifdef". Makes the code flow difficult to follow.  */
 class SyncFileIO {
 public:
 	/** Constructor
@@ -1153,7 +1154,8 @@ AIO::pending_io_count() const
 }
 
 /** Compress a data page
-#param[in]	block_size	File system block size
+@param[in]	compression	Compression algorithm
+@param[in]	block_size	File system block size
 @param[in]	src		Source contents to compress
 @param[in]	src_len		Length in bytes of the source
 @param[out]	dst		Compressed page contents
@@ -1701,8 +1703,8 @@ os_file_make_data_dir_path(
 
 /** Check if the path refers to the root of a drive using a pointer
 to the last directory separator that the caller has fixed.
-@param[in]	path	path name
-@param[in]	path	last directory separator in the path
+@param[in]	path		path name
+@param[in]	last_slash	last directory separator in the path
 @return true if this path is a drive root, false if not */
 UNIV_INLINE
 bool
@@ -5024,6 +5026,8 @@ os_file_pwrite(
 
 /** Requests a synchronous write operation.
 @param[in]	type		IO flags
+@param[in]	name		name of the file or path as a null-terminated
+				string
 @param[in]	file		handle to an open file
 @param[out]	buf		buffer from which to write
 @param[in]	offset		file offset from the start where to read
@@ -5560,6 +5564,8 @@ os_file_read_no_error_handling_func(
 /** NOTE! Use the corresponding macro os_file_write(), not directly
 Requests a synchronous write operation.
 @param[in]	type		IO flags
+@param[in]	name		name of the file or path as a null-terminated
+				string
 @param[in]	file		handle to an open file
 @param[out]	buf		buffer from which to write
 @param[in]	offset		file offset from the start where to read

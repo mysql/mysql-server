@@ -224,19 +224,21 @@ page_zip_dir_decode(
 	return(TRUE);
 }
 
-/**********************************************************************//**
-Read the index information for the compressed page.
+/** Read the index information for the compressed page.
+@param[in]	buf		index information
+@param[in]	end		end of buf
+@param[in]	trx_id_col	NULL for non-leaf pages; for leaf pages,
+				pointer to where to store the position of the
+				trx_id column
+@param[in]	is_spatial	is spatial index or not
 @return own: dummy index describing the page, or NULL on error */
 static
 dict_index_t*
 page_zip_fields_decode(
-/*===================*/
-	const byte*	buf,	/*!< in: index information */
-	const byte*	end,	/*!< in: end of buf */
-	ulint*		trx_id_col,/*!< in: NULL for non-leaf pages;
-				for leaf pages, pointer to where to store
-				the position of the trx_id column */
-	bool		is_spatial)/*< in: is spatial index or not */
+	const byte*	buf,
+	const byte*	end,
+	ulint*		trx_id_col,
+	bool		is_spatial)
 {
 	const byte*	b;
 	ulint		n;

@@ -64,12 +64,12 @@ Please do NOT change this when server is running.
 FIXME: This should be removed away once we can upgrade for new DD. */
 extern bool	srv_missing_dd_table_buffer;
 
-/** Put the pointer to the next byte after a valid file name.
-Note that we must step over the ':' in a Windows filepath.
-A Windows path normally looks like C:\ibdata\ibdata1:1G, but
-a Windows raw partition may have a specification like
-\\.\C::1Gnewraw or \\.\PHYSICALDRIVE2:1Gnewraw.
-@param[in]	str		system tablespace file path spec
+/** Put the pointer to the next byte after a valid file name. Note that we must
+step over the ':' in a Windows filepath.
+A Windows path normally looks like "C:\ibdata\ibdata1:1G", but a Windows raw
+partition may have a specification like "\\.\C::1Gnewraw" or
+"\\.\PHYSICALDRIVE2:1Gnewraw".
+@param[in]	ptr		system tablespace file path spec
 @return next character in string after the file name */
 char*
 SysTablespace::parse_file_name(char* ptr)

@@ -1039,6 +1039,12 @@ private:
 	/* Private handler:: functions specific for native InnoDB partitioning.
 	@see handler.h @{ */
 
+	/** Open an InnoDB table.
+	@param[in]	name		table name
+	@param[in]	mode		access mode
+	@param[in]	test_if_locked	test if the file to be opened is locked
+	@retval 1 if error
+	@retval 0 if success */
 	int
 	open(
 		const char*	name,
@@ -1315,7 +1321,7 @@ protected:
 	Returns statistics information of the table to the MySQL interpreter,
 	in various fields of the handle object.
 	@param[in]	flag		Flags for what to update and return.
-	@param[in]	is_analyze	True if called from ::analyze().
+	@param[in]	is_analyze	True if called from "::analyze()".
 	@return	HA_ERR_* error code or 0. */
 	int
 	info_low(

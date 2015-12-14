@@ -104,15 +104,15 @@ dict_build_index_def(
 	dict_index_t*		index,	/*!< in/out: index */
 	trx_t*			trx);	/*!< in/out: InnoDB transaction
 					handle */
-/***************************************************************//**
-Creates an index tree for the index if it is not a member of a cluster.
+/** Creates an index tree for the index if it is not a member of a cluster.
 Don't update SYSTEM TABLES.
+@param[in,out]	index	index
+@param[in]	trx	InnoDB transaction handle
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 dberr_t
 dict_create_index_tree(
-/*===================*/
-	dict_index_t*	index,	/*!< in/out: index */
-	const trx_t*	trx);	/*!< in: InnoDB transaction handle */
+	dict_index_t*	index,
+	const trx_t*	trx);
 
 /** Drop the index tree associated with a row in SYS_INDEXES table.
 @param[in,out]	rec	SYS_INDEXES record
@@ -152,19 +152,19 @@ dberr_t
 dict_create_or_check_foreign_constraint_tables(void);
 /*================================================*/
 
-/********************************************************************//**
-Generate a foreign key constraint name when it was not named by the user.
+/** Generate a foreign key constraint name when it was not named by the user.
 A generated constraint has a name of the format dbname/tablename_ibfk_NUMBER,
 where the numbers start from 1, and are given locally for this table, that is,
-the number is not global, as it used to be before MySQL 4.0.18.  */
+the number is not global, as it used to be before MySQL 4.0.18.
+@param[in,out]	id_nr	number to use in id generation; incremented if used
+@param[in]	name	table name
+@param[in,out]	foreign	foreign key */
 UNIV_INLINE
 dberr_t
 dict_create_add_foreign_id(
-/*=======================*/
-	ulint*		id_nr,		/*!< in/out: number to use in id
-					generation; incremented if used */
-	const char*	name,		/*!< in: table name */
-	dict_foreign_t*	foreign);	/*!< in/out: foreign key */
+	ulint*		id_nr,
+	const char*	name,
+	dict_foreign_t*	foreign);
 
 /** Adds the given set of foreign key objects to the dictionary tables
 in the database. This function does not modify the dictionary cache. The

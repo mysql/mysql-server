@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -60,44 +60,50 @@ trx_rsegf_get_new(
 	const page_size_t&	page_size,
 	mtr_t*			mtr);
 
-/***************************************************************//**
-Gets the file page number of the nth undo log slot.
+/** Gets the file page number of the nth undo log slot.
+@param[in]	rsegf	rollback segment header
+@param[in]	n	index of slot
+@param[in]	mtr	mtr
 @return page number of the undo log segment */
 UNIV_INLINE
 ulint
 trx_rsegf_get_nth_undo(
-/*===================*/
-	trx_rsegf_t*	rsegf,	/*!< in: rollback segment header */
-	ulint		n,	/*!< in: index of slot */
-	mtr_t*		mtr);	/*!< in: mtr */
-/***************************************************************//**
-Sets the file page number of the nth undo log slot. */
+	trx_rsegf_t*	rsegf,
+	ulint		n,
+	mtr_t*		mtr);
+
+/** Sets the file page number of the nth undo log slot.
+@param[in]	rsegf	rollback segment header
+@param[in]	n	index of slot
+@param[in]	page_no	page number of the undo log segment
+@param[in]	mtr	mtr */
 UNIV_INLINE
 void
 trx_rsegf_set_nth_undo(
-/*===================*/
-	trx_rsegf_t*	rsegf,	/*!< in: rollback segment header */
-	ulint		n,	/*!< in: index of slot */
-	ulint		page_no,/*!< in: page number of the undo log segment */
-	mtr_t*		mtr);	/*!< in: mtr */
-/****************************************************************//**
-Looks for a free slot for an undo log segment.
+	trx_rsegf_t*	rsegf,
+	ulint		n,
+	ulint		page_no,
+	mtr_t*		mtr);
+
+/** Looks for a free slot for an undo log segment.
+@param[in]	rsegf	rollback segment header
+@param[in]	mtr	mtr
 @return slot index or ULINT_UNDEFINED if not found */
 UNIV_INLINE
 ulint
 trx_rsegf_undo_find_free(
-/*=====================*/
-	trx_rsegf_t*	rsegf,	/*!< in: rollback segment header */
-	mtr_t*		mtr);	/*!< in: mtr */
-/******************************************************************//**
-Looks for a rollback segment, based on the rollback segment id.
+	trx_rsegf_t*	rsegf,
+	mtr_t*		mtr);
+
+/** Looks for a rollback segment, based on the rollback segment id.
+@param[in]	id		rollback segment id
+@param[in]	is_redo_rseg	true if redo rseg else false.
 @return rollback segment */
 UNIV_INLINE
 trx_rseg_t*
 trx_rseg_get_on_id(
-/*===============*/
-	ulint	id,		/*!< in: rollback segment id */
-	bool	is_redo_rseg);	/*!< in: true if redo rseg else false. */
+	ulint	id,
+	bool	is_redo_rseg);
 
 /** Creates a rollback segment header.
 This function is called only when a new rollback segment is created in

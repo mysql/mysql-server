@@ -468,14 +468,14 @@ dict_mem_index_free(
 	mem_heap_free(index->heap);
 }
 
-/** Create a temporary tablename like "#sql-ibtid-inc where
+/** Create a temporary tablename like "#sql-ibtid-inc" where
   tid = the Table ID
   inc = a randomly initialized number that is incremented for each file
-The table ID is a 64 bit integer, can use up to 20 digits, and is
-initialized at bootstrap. The second number is 32 bits, can use up to 10
-digits, and is initialized at startup to a randomly distributed number.
-It is hoped that the combination of these two numbers will provide a
-reasonably unique temporary file name.
+The table ID is a 64 bit integer, can use up to 20 digits, and is initialized
+at bootstrap. The second number is 32 bits, can use up to 10 digits, and is
+initialized at startup to a randomly distributed number. It is hoped that the
+combination of these two numbers will provide a reasonably unique temporary
+file name.
 @param[in]	heap	A memory heap
 @param[in]	dbtab	Table name in the form database/table name
 @param[in]	id	Table id

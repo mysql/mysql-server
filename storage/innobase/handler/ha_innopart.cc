@@ -833,7 +833,7 @@ ha_innopart::innobase_initialize_autoinc()
 /** Set the autoinc column max value.
 This should only be called once from ha_innobase::open().
 Therefore there's no need for a covering lock.
-@param[in]	no_lock	Ignored!
+@param[in]	-	no_lock Ignored!
 @return	0 for success or error code. */
 inline
 int
@@ -3474,7 +3474,7 @@ ha_innopart::scan_time()
 
 /** Updates the statistics for one partition (table).
 @param[in]	table		Table to update the statistics for.
-@param[in]	is_analyze	True if called from ::analyze().
+@param[in]	is_analyze	True if called from "::analyze()".
 @return	error code. */
 static
 int
@@ -3510,7 +3510,7 @@ update_table_stats(
 Returns statistics information of the table to the MySQL interpreter,
 in various fields of the handle object.
 @param[in]	flag		Flags for what to update and return.
-@param[in]	is_analyze	True if called from ::analyze().
+@param[in]	is_analyze	True if called from "::analyze()".
 @return	HA_ERR_* error code or 0. */
 int
 ha_innopart::info_low(
@@ -4141,7 +4141,7 @@ ha_innopart::referenced_by_foreign_key()
 
 /** Start statement.
 MySQL calls this function at the start of each SQL statement inside LOCK
-TABLES. Inside LOCK TABLES the ::external_lock method does not work to
+TABLES. Inside LOCK TABLES the "::external_lock" method does not work to
 mark SQL statement borders. Note also a special case: if a temporary table
 is created inside LOCK TABLES, MySQL has not called external_lock() at all
 on that table.

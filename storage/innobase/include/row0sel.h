@@ -59,15 +59,17 @@ void
 sel_col_prefetch_buf_free(
 /*======================*/
 	sel_buf_t*	prefetch_buf);	/*!< in, own: prefetch buffer */
-/*********************************************************************//**
-Gets the plan node for the nth table in a join.
+
+/** Gets the plan node for the nth table in a join.
+@param[in]	node	select node
+@param[in]	i	get ith plan node
 @return plan node */
 UNIV_INLINE
 plan_t*
 sel_node_get_nth_plan(
-/*==================*/
-	sel_node_t*	node,	/*!< in: select node */
-	ulint		i);	/*!< in: get ith plan node */
+	sel_node_t*	node,
+	ulint		i);
+
 /**********************************************************************//**
 Performs a select step. This is a high-level function used in SQL execution
 graphs.

@@ -134,6 +134,7 @@ Add instrumentation to monitor file creation/open.
 				and srv_.. variables whether we really us
 				async I/O or unbuffered I/O: look in the
 				function source code for the exact rules
+@param[in]	type		OS_DATA_FILE or OS_LOG_FILE
 @param[in]	read_only	if true read only mode checks are enforced
 @param[out]	success		true if succeeded
 @param[in]	src_file	file name where func invoked

@@ -396,21 +396,22 @@ buf_dump(
 			"Buffer pool(s) dump completed at %s", now);
 }
 
-/*****************************************************************//**
-Artificially delay the buffer pool loading if necessary. The idea of
-this function is to prevent hogging the server with IO and slowing down
-too much normal client queries. */
+/** Artificially delay the buffer pool loading if necessary. The idea of this
+function is to prevent hogging the server with IO and slowing down too much
+normal client queries.
+@param[in,out]	last_check_time		milliseconds since epoch of the last
+					time we did check if throttling is
+					needed, we do the check every
+					srv_io_capacity IO ops.
+@param[in]	last_activity_count	activity count
+@param[in]	n_io			number of IO ops done since buffer
+					pool load has started */
 UNIV_INLINE
 void
 buf_load_throttle_if_needed(
-/*========================*/
-	ulint*	last_check_time,	/*!< in/out: milliseconds since epoch
-					of the last time we did check if
-					throttling is needed, we do the check
-					every srv_io_capacity IO ops. */
+	ulint*	last_check_time,
 	ulint*	last_activity_count,
-	ulint	n_io)			/*!< in: number of IO ops done since
-					buffer pool load has started */
+	ulint	n_io)
 {
 	if (n_io % srv_io_capacity < srv_io_capacity - 1) {
 		return;

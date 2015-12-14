@@ -953,26 +953,27 @@ fil_ibd_load(
 	fil_space_t*&	space)
 	__attribute__((warn_unused_result));
 
-/*******************************************************************//**
-Returns true if a matching tablespace exists in the InnoDB tablespace memory
-cache. Note that if we have not done a crash recovery at the database startup,
-there may be many tablespaces which are not yet in the memory cache.
+/** Returns true if a matching tablespace exists in the InnoDB tablespace
+memory cache. Note that if we have not done a crash recovery at the database
+startup, there may be many tablespaces which are not yet in the memory cache.
+@param[in]	id			Tablespace ID
+@param[in]	name			Tablespace name used in
+					fil_space_create().
+@param[in]	print_err_if_not_exist	Print detailed error information to the
+					error log if a matching tablespace is
+					not found from memory.
+@param[in]	adjust_space		Whether to adjust spaceid on mismatch
+@param[in]	heap			Heap memory
+@param[in]	table_id		table id
 @return true if a matching tablespace exists in the memory cache */
 bool
 fil_space_for_table_exists_in_mem(
-/*==============================*/
-	ulint		id,		/*!< in: space id */
-	const char*	name,		/*!< in: table name used in
-					fil_space_create() */
-	bool		print_error_if_does_not_exist,
-					/*!< in: print detailed error
-					information to the .err log if a
-					matching tablespace is not found from
-					memory */
-	bool		adjust_space,	/*!< in: whether to adjust space id
-					when find table space mismatch */
-	mem_heap_t*	heap,		/*!< in: heap memory */
-	table_id_t	table_id);	/*!< in: table id */
+	ulint		id,
+	const char*	name,
+	bool		print_err_if_not_exist,
+	bool		adjust_space,
+	mem_heap_t*	heap,
+	table_id_t	table_id);
 #else /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 Extends all tablespaces to the size stored in the space header. During the

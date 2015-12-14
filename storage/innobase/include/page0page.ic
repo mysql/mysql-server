@@ -103,14 +103,13 @@ page_update_max_trx_id(
 	}
 }
 
-/*************************************************************//**
-Returns the RTREE SPLIT SEQUENCE NUMBER (FIL_RTREE_SPLIT_SEQ_NUM).
-@return	SPLIT SEQUENCE NUMBER */
+/** Returns the RTREE SPLIT SEQUENCE NUMBER (FIL_RTREE_SPLIT_SEQ_NUM).
+@param[in]	page	page
+@return SPLIT SEQUENCE NUMBER */
 UNIV_INLINE
 node_seq_t
 page_get_ssn_id(
-/*============*/
-	const page_t*	page)	/*!< in: page */
+	const page_t*	page)
 {
 	ut_ad(page);
 
@@ -118,17 +117,19 @@ page_get_ssn_id(
 		mach_read_from_8(page + FIL_RTREE_SPLIT_SEQ_NUM)));
 }
 
-/*************************************************************//**
-Sets the RTREE SPLIT SEQUENCE NUMBER field value */
+/** Sets the RTREE SPLIT SEQUENCE NUMBER field value
+@param[in,out]	block		page
+@param[in,out]	page_zip	compressed page whose uncompressed part will
+				be updated, or NULL
+@param[in]	ssn_id		transaction id
+@param[in,out]	mtr		mini-transaction */
 UNIV_INLINE
 void
 page_set_ssn_id(
-/*============*/
-	buf_block_t*	block,	/*!< in/out: page */
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page whose
-				uncompressed part will be updated, or NULL */
-	node_seq_t	ssn_id,	/*!< in: transaction id */
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	buf_block_t*	block,
+	page_zip_des_t*	page_zip,
+	node_seq_t	ssn_id,
+	mtr_t*		mtr)
 {
 	page_t*	page = buf_block_get_frame(block);
 #ifndef UNIV_HOTBACKUP
