@@ -2234,6 +2234,12 @@ int multi_update::do_updates()
       if (!can_compare_record || compare_record(table))
       {
         int error;
+        if (table->vfield &&
+            update_virtual_fields(thd, table,
+                                  (table->triggers ?
+                                   VCOL_UPDATE_ALL :
+                                   VCOL_UPDATE_FOR_WRITE)))
+          goto err2;
         if ((error= cur_table->view_check_option(thd, ignore)) !=
             VIEW_CHECK_OK)
         {

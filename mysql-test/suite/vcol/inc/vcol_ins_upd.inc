@@ -287,3 +287,30 @@ select * from t1;
 
 set sql_warnings = 0;
 drop table t1;
+
+--echo #
+--echo # MDEV-9093: Persistent computed column is not updated when
+--echo # update query contains join
+--echo #
+
+CREATE TABLE `t1` (
+  `id` bigint(20) NOT NULL,
+  `name` varchar(254) DEFAULT NULL,
+  `name_hash` varchar(64) AS (sha1(name)) PERSISTENT,
+  PRIMARY KEY (`id`)
+);
+
+insert into t1(id,name) values (2050, 'name1'),(2051, 'name2'),(2041, 'name3');
+
+create table t2 (id bigint);
+insert into t2 values (2050),(2051),(2041);
+
+select * from t1;
+
+update t1 join t2 using(id) set name = concat(name,
+'+1') where t1.id in (2051,2041);
+
+select * from t1;
+
+drop table t1,t2;
+
