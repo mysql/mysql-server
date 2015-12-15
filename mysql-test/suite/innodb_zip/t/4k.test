@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 # Tests for setting innodb-page-size=4k
 
 --source include/have_innodb.inc
@@ -15,14 +13,14 @@ call mtr.add_suppression("Cannot add field .* in table .* because after adding i
 
 --echo # Test 1) Show the page size from Information Schema
 --disable_warnings
-SELECT variable_value FROM performance_schema.global_status
+SELECT variable_value FROM information_schema.global_status
        WHERE LOWER(variable_name) = 'innodb_page_size';
 --enable_warnings
 
 --echo # Test 2) The number of buffer pool pages is dependent upon the page size.
 --disable_warnings
 --replace_result 6144 {checked_valid}
-SELECT variable_value FROM performance_schema.global_status
+SELECT variable_value FROM information_schema.global_status
        WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 --enable_warnings
 

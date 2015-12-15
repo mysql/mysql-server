@@ -22,10 +22,10 @@ show global variables like 'performance_schema_max_prepared_statements_instances
 show session variables like 'performance_schema_max_prepared_statements_instances';
 
 --disable_warnings
-select * from performance_schema.global_variables
+select * from information_schema.global_variables
   where variable_name='performance_schema_max_prepared_statements_instances';
 
-select * from performance_schema.session_variables
+select * from information_schema.session_variables
   where variable_name='performance_schema_max_prepared_statements_instances';
 --enable_warnings
 
@@ -45,14 +45,14 @@ set session performance_schema_max_prepared_statements_instances=1;
 
 --disable_warnings
 SELECT @@GLOBAL.performance_schema_max_prepared_statements_instances = VARIABLE_VALUE
-FROM performance_schema.global_variables
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='performance_schema_max_prepared_statements_instances';
 --enable_warnings
 
 select @@global.performance_schema_max_prepared_statements_instances;
 
 --disable_warnings
-select * from performance_schema.global_variables
+select * from information_schema.global_variables
   where variable_name='performance_schema_max_prepared_statements_instances';
 --enable_warnings
 

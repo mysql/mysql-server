@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 ################################################################################
 # gtid_executed_compression_period
 #
@@ -20,7 +18,7 @@ SELECT @@GLOBAL.gtid_executed_compression_period;
 SHOW GLOBAL VARIABLES LIKE 'gtid_executed_compression_period';
 
 --disable_warnings
-SELECT * FROM performance_schema.global_variables WHERE
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE
   VARIABLE_NAME = 'gtid_executed_compression_period';
 --enable_warnings
 
@@ -37,7 +35,7 @@ SHOW SESSION VARIABLES LIKE 'gtid_executed_compression_period';
 SHOW SESSION VARIABLES LIKE 'gtid_executed_compression_period';
 
 --disable_warnings
-SELECT * FROM performance_schema.session_variables WHERE
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE
   VARIABLE_NAME ='gtid_executed_compression_period';
 --enable_warnings
 

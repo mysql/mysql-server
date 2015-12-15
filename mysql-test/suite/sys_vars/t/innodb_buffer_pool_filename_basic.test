@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 #
 # Basic test for innodb_buffer_pool_filename
 #
@@ -24,7 +22,7 @@ let $status_var_value = Dumping of buffer pool not started;
 -- source include/wait_for_status_var.inc
 --disable_warnings
 SELECT variable_value
-FROM performance_schema.global_status
+FROM information_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_dump_status';
 --enable_warnings
 
@@ -38,7 +36,7 @@ SET GLOBAL innodb_buffer_pool_dump_now = ON;
 # Wait for the dump to complete
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) dump completed at '
-  FROM performance_schema.global_status
+  FROM information_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_dump_status';
 --disable_warnings
 -- source include/wait_condition.inc

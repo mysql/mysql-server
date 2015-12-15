@@ -5,9 +5,6 @@
 source include/master-slave.inc;
 
 connection slave;
-# Running with show_compatibility_56=ON until WL#9001 is pushed.
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
 --disable_warnings
 select * from Information_schema.GLOBAL_VARIABLES where variable_name like 'report_host';
 select * from Information_schema.GLOBAL_VARIABLES where variable_name like 'report_port';
@@ -22,7 +19,7 @@ query_vertical show global variables like 'report_password';
 # to demonstrate that report global variables are read-only
 error ER_INCORRECT_GLOBAL_LOCAL_VAR;
 set @@global.report_host='my.new.address.net';
-# Restoring the value of show_compatibility_56
-set @@global.show_compatibility_56=@show_compatibility_56_save;
+
+
 --echo end of tests
 --source include/rpl_end.inc

@@ -12,11 +12,11 @@ Variable_name	Value
 show session variables like 'transaction_allow_batching';
 Variable_name	Value
 transaction_allow_batching	OFF
-select * from performance_schema.global_variables where variable_name='transaction_allow_batching';
+select * from information_schema.global_variables where variable_name='transaction_allow_batching';
 VARIABLE_NAME	VARIABLE_VALUE
-select * from performance_schema.session_variables where variable_name='transaction_allow_batching';
+select * from information_schema.session_variables where variable_name='transaction_allow_batching';
 VARIABLE_NAME	VARIABLE_VALUE
-transaction_allow_batching	OFF
+TRANSACTION_ALLOW_BATCHING	OFF
 set global transaction_allow_batching = 1;
 ERROR HY000: Variable 'transaction_allow_batching' is a SESSION variable and can't be used with SET GLOBAL
 set session transaction_allow_batching = TRUE;

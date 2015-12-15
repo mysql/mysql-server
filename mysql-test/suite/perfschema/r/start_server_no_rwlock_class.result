@@ -158,7 +158,7 @@ select count(*) from performance_schema.setup_instruments
 where name like "wait/synch/rwlock/%";
 count(*)
 0
-select variable_value > 0 from performance_schema.global_status
+select variable_value > 0 from information_schema.global_status
 where variable_name like 'PERFORMANCE_SCHEMA_RWLOCK_CLASSES_LOST';
 variable_value > 0
 1

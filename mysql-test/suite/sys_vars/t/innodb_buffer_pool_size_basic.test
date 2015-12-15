@@ -22,9 +22,6 @@
 #                                                                             #
 ###############################################################################
 
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
-
 --source include/have_innodb.inc
 
 --disable_query_log
@@ -37,7 +34,7 @@ if (`select (version() like '%debug%') > 0`)
 
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 34) = 'Completed resizing buffer pool at '
-  FROM performance_schema.global_status
+  FROM information_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
 
 SET @start_buffer_pool_size = @@GLOBAL.innodb_buffer_pool_size;
@@ -72,7 +69,7 @@ SELECT COUNT(@@GLOBAL.innodb_buffer_pool_size);
 
 --disable_warnings
 SELECT @@GLOBAL.innodb_buffer_pool_size = VARIABLE_VALUE
-FROM performance_schema.global_variables
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_buffer_pool_size';
 --enable_warnings
 --echo 1 Expected
@@ -82,7 +79,7 @@ SELECT COUNT(@@GLOBAL.innodb_buffer_pool_size);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM performance_schema.global_variables 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='innodb_buffer_pool_size';
 --enable_warnings
 --echo 1 Expected

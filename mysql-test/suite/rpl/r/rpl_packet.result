@@ -21,8 +21,6 @@ include/sync_slave_sql_with_master.inc
 select count(*) from `DB_NAME_OF_MAX_LENGTH_AKA_NAME_LEN_64_BYTES_____________________`.`t1` /* must be 1 */;
 count(*)
 1
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
 SHOW STATUS LIKE 'Slave_running';
 Variable_name	Value
 Slave_running	ON
@@ -105,7 +103,6 @@ SET @@global.net_buffer_length= 1024;
 SET @@global.slave_max_allowed_packet= 4096;
 SET @@global.max_allowed_packet= 2048;
 DROP TABLE t1;
-set @@global.show_compatibility_56=@show_compatibility_56_save;
 include/stop_slave_sql.inc
 RESET SLAVE;
 include/rpl_end.inc

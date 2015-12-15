@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 # ************************************************************
 # wl6504: This testcase is to check the functionality of the
 # innodb_buffer_pool_dump_pct flag
@@ -32,7 +30,7 @@ SET GLOBAL innodb_buffer_pool_dump_pct=100;
 
 #***********************************************************
 # SELECT *
-# FROM performance_schema.global_status
+# FROM information_schema.global_status
 # WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS'
 # gives
 # a) VARIABLE_NAME                   VARIABLE_VALUE
@@ -56,7 +54,7 @@ SET GLOBAL innodb_buffer_pool_dump_pct=100;
 # Read the current value to compare with the new value.
 --disable_warnings
 SELECT variable_value INTO @IBPDS
-FROM performance_schema.global_status
+FROM information_schema.global_status
 WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS';
 --enable_warnings
 
@@ -70,7 +68,7 @@ SET GLOBAL innodb_buffer_pool_dump_now=ON;
 --echo # Wait until the system table get updated & dump get created
 --disable_warnings
 let $wait_condition = SELECT count(*) = 1
-FROM performance_schema.global_status
+FROM information_schema.global_status
 WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS'
 AND variable_value != @IBPDS
 AND variable_value like 'Buffer pool(s) dump completed at%';
@@ -91,7 +89,7 @@ SELECT @@global.innodb_buffer_pool_dump_pct;
 # Read the current value to compare with the new value.
 --disable_warnings
 SELECT variable_value INTO @IBPDS
-FROM performance_schema.global_status
+FROM information_schema.global_status
 WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS';
 --enable_warnings
 
@@ -105,7 +103,7 @@ SET GLOBAL innodb_buffer_pool_dump_now=ON;
 --echo # Wait until the system table get updated & dump get created
 --disable_warnings
 let $wait_condition = SELECT count(*) = 1
-FROM performance_schema.global_status
+FROM information_schema.global_status
 WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS'
 AND variable_value != @IBPDS
 AND variable_value like 'Buffer pool(s) dump completed at%'; 

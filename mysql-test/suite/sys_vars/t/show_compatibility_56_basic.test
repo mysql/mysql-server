@@ -19,10 +19,10 @@ show global variables like 'show_compatibility_56';
 show session variables like 'show_compatibility_56';
 
 --disable_warnings
-select * from performance_schema.global_variables
+select * from information_schema.global_variables
   where variable_name='show_compatibility_56';
 
-select * from performance_schema.session_variables
+select * from information_schema.session_variables
   where variable_name='show_compatibility_56';
 --enable_warnings
 

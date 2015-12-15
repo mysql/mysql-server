@@ -205,7 +205,7 @@ if($mach64)
 
 --disable_warnings
 SELECT VARIABLE_VALUE 
-FROM performance_schema.global_variables 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='max_tmp_tables'
 into @tmp;
 --enable_warnings
@@ -219,7 +219,7 @@ SELECT @@global.max_tmp_tables = @tmp;
 
 --disable_warnings
 SELECT VARIABLE_VALUE 
-FROM performance_schema.session_variables 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='max_tmp_tables'
 into @tmp;
 --enable_warnings

@@ -149,11 +149,11 @@ SELECT @@query_cache_limit;
 
 --disable_warnings
 SELECT @@global.query_cache_limit = VARIABLE_VALUE 
-FROM performance_schema.global_variables 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='query_cache_limit';
 
 SELECT @@query_cache_limit = VARIABLE_VALUE 
-FROM performance_schema.session_variables 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='query_cache_limit';
 --enable_warnings
 

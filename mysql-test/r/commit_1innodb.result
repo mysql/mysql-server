@@ -357,7 +357,7 @@ declare c_res int;
 # and amounts for over 90% of test CPU time
 declare c cursor for
 select variable_value
-from performance_schema.session_status
+from information_schema.session_status
 where variable_name='Handler_commit' or variable_name='Handler_prepare'
      order by variable_name;
 if @binlog_format = 'ROW' then

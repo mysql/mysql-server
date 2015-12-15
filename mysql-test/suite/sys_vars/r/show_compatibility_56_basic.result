@@ -1,22 +1,22 @@
 select @@global.show_compatibility_56;
 @@global.show_compatibility_56
-0
+1
 select @@session.show_compatibility_56;
 ERROR HY000: Variable 'show_compatibility_56' is a GLOBAL variable
 show global variables like 'show_compatibility_56';
 Variable_name	Value
-show_compatibility_56	OFF
+show_compatibility_56	ON
 show session variables like 'show_compatibility_56';
 Variable_name	Value
-show_compatibility_56	OFF
-select * from performance_schema.global_variables
+show_compatibility_56	ON
+select * from information_schema.global_variables
 where variable_name='show_compatibility_56';
 VARIABLE_NAME	VARIABLE_VALUE
-show_compatibility_56	OFF
-select * from performance_schema.session_variables
+SHOW_COMPATIBILITY_56	ON
+select * from information_schema.session_variables
 where variable_name='show_compatibility_56';
 VARIABLE_NAME	VARIABLE_VALUE
-show_compatibility_56	OFF
+SHOW_COMPATIBILITY_56	ON
 set global show_compatibility_56=1;
 show variables like "show_compatibility_56";
 Variable_name	Value

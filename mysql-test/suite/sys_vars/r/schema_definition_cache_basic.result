@@ -9,9 +9,9 @@ schema_definition_cache	256
 show session variables like 'schema_definition_cache';
 Variable_name	Value
 schema_definition_cache	256
-select * from performance_schema.global_variables where variable_name='schema_definition_cache';
+select * from information_schema.global_variables where variable_name='schema_definition_cache';
 VARIABLE_NAME	VARIABLE_VALUE
-schema_definition_cache	256
-select * from performance_schema.session_variables where variable_name='schema_definition_cache';
+SCHEMA_DEFINITION_CACHE	256
+select * from information_schema.session_variables where variable_name='schema_definition_cache';
 VARIABLE_NAME	VARIABLE_VALUE
-schema_definition_cache	256
+SCHEMA_DEFINITION_CACHE	256

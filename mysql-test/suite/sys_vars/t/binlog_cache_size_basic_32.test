@@ -5,7 +5,5 @@
 ################################################################################
 
 --source include/have_32bit.inc
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 --source suite/sys_vars/inc/binlog_cache_size_basic.inc
 

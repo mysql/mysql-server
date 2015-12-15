@@ -140,7 +140,7 @@ SELECT @@Session.delayed_insert_limit;
 ##############################################################################
 
 --disable_warnings
-SELECT VARIABLE_VALUE FROM performance_schema.global_variables
+SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
   WHERE VARIABLE_NAME='delayed_insert_limit'
   into @tmp;
 --enable_warnings
@@ -148,7 +148,7 @@ SELECT VARIABLE_VALUE FROM performance_schema.global_variables
 SELECT @@global.delayed_insert_limit = @tmp;
 
 --disable_warnings
-SELECT VARIABLE_VALUE FROM performance_schema.session_variables
+SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
   WHERE VARIABLE_NAME='delayed_insert_limit'
   into @tmp;
 --enable_warnings

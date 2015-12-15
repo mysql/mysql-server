@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 #
 # 2011-08-05 - Added
 #
@@ -21,9 +19,9 @@ SELECT @@session.innodb_stats_method;
 SHOW global variables LIKE 'innodb_stats_method';
 SHOW session variables LIKE 'innodb_stats_method';
 --disable_warnings
-SELECT * FROM performance_schema.global_variables 
+SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_stats_method';
-SELECT * FROM performance_schema.session_variables 
+SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_stats_method';
 --enable_warnings
 
@@ -33,25 +31,25 @@ WHERE variable_name='innodb_stats_method';
 SET global innodb_stats_method='nulls_equal';
 SELECT @@global.innodb_stats_method;
 --disable_warnings
-SELECT * FROM performance_schema.global_variables 
+SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_stats_method';
-SELECT * FROM performance_schema.session_variables 
+SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_stats_method';
 --enable_warnings
 SET @@global.innodb_stats_method='nulls_unequal';
 SELECT @@global.innodb_stats_method;
 --disable_warnings
-SELECT * FROM performance_schema.global_variables 
+SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_stats_method';
-SELECT * FROM performance_schema.session_variables 
+SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_stats_method';
 --enable_warnings
 SET global innodb_stats_method=2;
 SELECT @@global.innodb_stats_method;
 --disable_warnings
-SELECT * FROM performance_schema.global_variables 
+SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_stats_method';
-SELECT * FROM performance_schema.session_variables 
+SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_stats_method';
 --enable_warnings
 

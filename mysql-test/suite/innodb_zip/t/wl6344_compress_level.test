@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 #*******************************************************************
 # This testcase is to test the funcitionality of wl#6344
 # When the innodb_compression_level=0 create a table with page size

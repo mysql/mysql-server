@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 ############## mysql-test\t\updatable_views_with_limit_basic.test #############
 #                                                                             #
 # Variable Name: updatable_views_with_limit                                   #
@@ -205,7 +203,7 @@ SET @@session.updatable_views_with_limit = 123456789031;
 
 --disable_warnings
 SELECT @@global.updatable_views_with_limit = VARIABLE_VALUE 
-FROM performance_schema.global_variables 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='updatable_views_with_limit';
 --enable_warnings
 
@@ -216,7 +214,7 @@ WHERE VARIABLE_NAME='updatable_views_with_limit';
 
 --disable_warnings
 SELECT @@session.updatable_views_with_limit = VARIABLE_VALUE 
-FROM performance_schema.session_variables 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='updatable_views_with_limit';
 --enable_warnings
 

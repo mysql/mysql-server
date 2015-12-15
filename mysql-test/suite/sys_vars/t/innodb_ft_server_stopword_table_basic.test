@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 
 
 # 2011-11-15 - Added
@@ -18,8 +16,8 @@ select @@session.innodb_ft_server_stopword_table;
 show global variables like 'innodb_ft_server_stopword_table';
 show session variables like 'innodb_ft_server_stopword_table';
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_ft_server_stopword_table';
-select * from performance_schema.session_variables where variable_name='innodb_ft_server_stopword_table';
+select * from information_schema.global_variables where variable_name='innodb_ft_server_stopword_table';
+select * from information_schema.session_variables where variable_name='innodb_ft_server_stopword_table';
 --enable_warnings
 
 call mtr.add_suppression("\\[ERROR\\] InnoDB: user stopword table Salmon does not exist.");

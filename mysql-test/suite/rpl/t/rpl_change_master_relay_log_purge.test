@@ -25,9 +25,7 @@
 FLUSH BINARY LOGS;
 
 --source include/sync_slave_sql_with_master.inc
-# Running with show_compatibility_56=ON until WL#9001 is pushed.
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
+
 #save old values to restore after test in the cleanup section.
 let $slave_heartbeat_timeout_before_test= query_get_value(SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period', Value, 1);
 let $delay_before_test= query_get_value(SHOW SLAVE STATUS, SQL_Delay, 1);
@@ -116,6 +114,6 @@ let $relay_log_file_after_CM= query_get_value(SHOW SLAVE STATUS, Relay_Log_File,
 eval CHANGE MASTER TO MASTER_DELAY= $delay_before_test;
 eval CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= $slave_heartbeat_timeout_before_test;
 --enable_query_log
-set @@global.show_compatibility_56=@show_compatibility_56_save;
+
 --source include/start_slave.inc
 --source include/rpl_end.inc

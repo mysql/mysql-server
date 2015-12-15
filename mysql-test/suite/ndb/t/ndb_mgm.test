@@ -33,7 +33,7 @@ let $mysql_version = mysql-$mysql_version;
 # load ndb-X.X.X from the "ndb_version_string" vaioable
 let $ndb_version=
   `select VARIABLE_VALUE
-     from performance_schema.global_variables
+     from INFORMATION_SCHEMA.GLOBAL_VARIABLES
        where VARIABLE_NAME='ndb_version_string'`;
 # echo ndb_version: $ndb_version;
 

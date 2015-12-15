@@ -30,9 +30,6 @@ connection master;
 sync_slave_with_master;
 
 connection slave;
-# Running with show_compatibility_56=ON until WL#9001 is pushed.
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
 show status like 'Slave_open_temp_tables';
 # Cleanup
 connection master;
@@ -67,8 +64,6 @@ DROP TEMPORARY TABLE tmp3;
 connection slave;
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 START SLAVE;
-# Restoring the value of show-compatibility_56.
-set @@global.show_compatibility_56=@show_compatibility_56_save;
 
 connection master;
 sync_slave_with_master;
@@ -99,5 +94,6 @@ SHOW STATUS LIKE 'Slave_open_temp_tables';
 --connection master
 --source include/show_binlog_events.inc
 DROP TABLE t1;
+
 # End of 4.1 tests
 --source include/rpl_end.inc

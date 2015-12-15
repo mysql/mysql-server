@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 --source include/have_innodb.inc
 --source include/have_debug.inc
 
@@ -16,8 +14,8 @@ select @@session.innodb_log_checkpoint_now;
 show global variables like 'innodb_log_checkpoint_now';
 show session variables like 'innodb_log_checkpoint_now';
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_log_checkpoint_now';
-select * from performance_schema.session_variables where variable_name='innodb_log_checkpoint_now';
+select * from information_schema.global_variables where variable_name='innodb_log_checkpoint_now';
+select * from information_schema.session_variables where variable_name='innodb_log_checkpoint_now';
 --enable_warnings
 
 #
@@ -27,32 +25,32 @@ set global innodb_log_checkpoint_now=1;
 # Should always be OFF
 select @@global.innodb_log_checkpoint_now;
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_log_checkpoint_now';
-select * from performance_schema.session_variables where variable_name='innodb_log_checkpoint_now';
+select * from information_schema.global_variables where variable_name='innodb_log_checkpoint_now';
+select * from information_schema.session_variables where variable_name='innodb_log_checkpoint_now';
 --enable_warnings
 
 set @@global.innodb_log_checkpoint_now=0;
 # Should always be OFF
 select @@global.innodb_log_checkpoint_now;
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_log_checkpoint_now';
-select * from performance_schema.session_variables where variable_name='innodb_log_checkpoint_now';
+select * from information_schema.global_variables where variable_name='innodb_log_checkpoint_now';
+select * from information_schema.session_variables where variable_name='innodb_log_checkpoint_now';
 --enable_warnings
 
 set global innodb_log_checkpoint_now=ON;
 # Should always be OFF
 select @@global.innodb_log_checkpoint_now;
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_log_checkpoint_now';
-select * from performance_schema.session_variables where variable_name='innodb_log_checkpoint_now';
+select * from information_schema.global_variables where variable_name='innodb_log_checkpoint_now';
+select * from information_schema.session_variables where variable_name='innodb_log_checkpoint_now';
 --enable_warnings
 
 set global innodb_log_checkpoint_now=OFF;
 # Should always be OFF
 select @@global.innodb_log_checkpoint_now;
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_log_checkpoint_now';
-select * from performance_schema.session_variables where variable_name='innodb_log_checkpoint_now';
+select * from information_schema.global_variables where variable_name='innodb_log_checkpoint_now';
+select * from information_schema.session_variables where variable_name='innodb_log_checkpoint_now';
 --enable_warnings
 
 --error ER_GLOBAL_VARIABLE

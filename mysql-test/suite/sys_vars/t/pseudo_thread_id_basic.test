@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 
 #
 # exists as a session only
@@ -24,12 +22,12 @@ show session variables like 'pseudo_thread_id';
 # Global I_S variable is empty
 --echo should be empty
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='pseudo_thread_id';
+select * from information_schema.global_variables where variable_name='pseudo_thread_id';
 --enable_warnings
 
 # Check that I_S value is same as variable
 --disable_warnings
-select @@session.pseudo_thread_id = variable_value from performance_schema.session_variables where variable_name='pseudo_thread_id';
+select @@session.pseudo_thread_id = variable_value from information_schema.session_variables where variable_name='pseudo_thread_id';
 --enable_warnings
 
 #
@@ -38,8 +36,8 @@ select @@session.pseudo_thread_id = variable_value from performance_schema.sessi
 set session pseudo_thread_id=42;
 select @@session.pseudo_thread_id;
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='pseudo_thread_id';
-select variable_value from performance_schema.session_variables where variable_name='pseudo_thread_id';
+select * from information_schema.global_variables where variable_name='pseudo_thread_id';
+select variable_value from information_schema.session_variables where variable_name='pseudo_thread_id';
 --enable_warnings
 --error ER_LOCAL_VARIABLE
 set global pseudo_thread_id=1;

@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 ################## mysql-test/t/innodb_undo_directory_basic.test ##############
 #                                                                             #
 # Variable Name: innodb_undo_directory                                        #
@@ -45,7 +43,7 @@ SELECT COUNT(@@GLOBAL.innodb_undo_directory);
 
 --disable_warnings
 SELECT @@GLOBAL.innodb_undo_directory = VARIABLE_VALUE
-FROM performance_schema.global_variables
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_undo_directory';
 --enable_warnings
 --echo 1 Expected
@@ -55,7 +53,7 @@ SELECT COUNT(@@GLOBAL.innodb_undo_directory);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM performance_schema.global_variables 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='innodb_undo_directory';
 --enable_warnings
 --echo 1 Expected

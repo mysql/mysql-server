@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 
 
 # 2010-01-27 - Added
@@ -24,8 +22,8 @@ select @@session.innodb_io_capacity;
 show global variables like 'innodb_io_capacity';
 show session variables like 'innodb_io_capacity';
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_io_capacity';
-select * from performance_schema.session_variables where variable_name='innodb_io_capacity';
+select * from information_schema.global_variables where variable_name='innodb_io_capacity';
+select * from information_schema.session_variables where variable_name='innodb_io_capacity';
 --enable_warnings
 
 #
@@ -34,8 +32,8 @@ select * from performance_schema.session_variables where variable_name='innodb_i
 set global innodb_io_capacity=123;
 select @@global.innodb_io_capacity;
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_io_capacity';
-select * from performance_schema.session_variables where variable_name='innodb_io_capacity';
+select * from information_schema.global_variables where variable_name='innodb_io_capacity';
+select * from information_schema.session_variables where variable_name='innodb_io_capacity';
 --enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_io_capacity=233;
@@ -61,12 +59,12 @@ set global innodb_io_capacity="foo";
 set global innodb_io_capacity=7;
 select @@global.innodb_io_capacity;
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_io_capacity';
+select * from information_schema.global_variables where variable_name='innodb_io_capacity';
 --enable_warnings
 set global innodb_io_capacity=-7;
 select @@global.innodb_io_capacity;
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_io_capacity';
+select * from information_schema.global_variables where variable_name='innodb_io_capacity';
 --enable_warnings
 
 #

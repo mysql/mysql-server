@@ -16,19 +16,19 @@ count(1)
 0
 Cluster A servers have no max replicated epoch value
 Master(1)
-select variable_name, variable_value from performance_schema.global_status
+select variable_name, variable_value from information_schema.global_status
 where variable_name='Ndb_slave_max_replicated_epoch';
 variable_name	variable_value
 NDB_SLAVE_MAX_REPLICATED_EPOCH	0
 Warnings:
-Warning	1287	'performance_schema.global_status' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 Master1(3)
-select variable_name, variable_value from performance_schema.global_status
+select variable_name, variable_value from information_schema.global_status
 where variable_name='Ndb_slave_max_replicated_epoch';
 variable_name	variable_value
 NDB_SLAVE_MAX_REPLICATED_EPOCH	0
 Warnings:
-Warning	1287	'performance_schema.global_status' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 Make a change originating at Cluster A
 Master(1)
 use test;
@@ -47,19 +47,19 @@ server_id
 1
 4
 Non-slave server on Cluster A will have no value for Max Replicated Epoch
-select variable_name, variable_value from performance_schema.global_status
+select variable_name, variable_value from information_schema.global_status
 where variable_name='Ndb_slave_max_replicated_epoch';
 variable_name	variable_value
 NDB_SLAVE_MAX_REPLICATED_EPOCH	0
 Warnings:
-Warning	1287	'performance_schema.global_status' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 Slave server on Cluster A has current value for Max Replicated Epoch
 Master1 (3)
 Expect count 1
 select
 count(1)
 from
-performance_schema.global_status,
+information_schema.global_status,
 mysql.ndb_apply_status
 where
 server_id = 1
@@ -70,7 +70,7 @@ variable_value = epoch;
 count(1)
 1
 Warnings:
-Warning	1287	'performance_schema.global_status' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 Now wait for all replication to quiesce
 Now swap replication channels around
 include/rpl_stop_slaves.inc
@@ -97,18 +97,18 @@ Setup slave on Cluster A to use it
 Master (1)
 Master (1)
 Show that Cluster A Slave server (old master) has no Max replicated epoch before receiving data
-select variable_name, variable_value from performance_schema.global_status
+select variable_name, variable_value from information_schema.global_status
 where variable_name='Ndb_slave_max_replicated_epoch';
 variable_name	variable_value
 NDB_SLAVE_MAX_REPLICATED_EPOCH	0
 Warnings:
-Warning	1287	'performance_schema.global_status' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 Master1 (3)
 Cluster A Master server (old slave) has old Max replicated epoch
 select
 count(1)
 from
-performance_schema.global_status,
+information_schema.global_status,
 mysql.ndb_apply_status
 where
 server_id = 1
@@ -119,7 +119,7 @@ variable_value = epoch;
 count(1)
 1
 Warnings:
-Warning	1287	'performance_schema.global_status' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 Now start slaves up
 include/rpl_start_slaves.inc
 Show that applying something from Cluster B causes the
@@ -139,7 +139,7 @@ server_id
 select
 @result:=count(1)
 from
-performance_schema.global_status,
+information_schema.global_status,
 mysql.ndb_apply_status
 where
 server_id = 1
@@ -150,7 +150,7 @@ variable_value = epoch;
 @result:=count(1)
 1
 Warnings:
-Warning	1287	'performance_schema.global_status' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 Now make a new Cluster A change and see that the Max Replicated Epoch advances
 once it has propagated
 Master1 (3)
@@ -172,7 +172,7 @@ server_id
 select
 count(1)
 from
-performance_schema.global_status,
+information_schema.global_status,
 mysql.ndb_apply_status
 where
 server_id = 3
@@ -183,7 +183,7 @@ variable_value = epoch;
 count(1)
 1
 Warnings:
-Warning	1287	'performance_schema.global_status' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 local_server_with_max_epoch
 3
 Done

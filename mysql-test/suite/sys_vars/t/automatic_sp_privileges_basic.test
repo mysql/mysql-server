@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 ############## mysql-test\t\automatic_sp_privileges_basic.test #################
 #                                                                              #
 # Variable Name: automatic_sp_privileges                                       #
@@ -117,7 +115,7 @@ SELECT @@session.automatic_sp_privileges;
 
 --disable_warnings
 SELECT IF(@@global.automatic_sp_privileges, "ON", "OFF") = VARIABLE_VALUE 
-FROM performance_schema.global_variables 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='automatic_sp_privileges';
 --enable_warnings
 

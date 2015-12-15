@@ -1,6 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
-
 --source include/have_innodb.inc
 --source include/have_debug.inc
 
@@ -28,7 +25,7 @@ SET GLOBAL innodb_buffer_pool_size=@before_innodb_buffer_pool_size + 10485760;
 let $wait_timeout = 60;
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 27) = 'Resizing buffer pool failed'
-  FROM performance_schema.global_status
+  FROM information_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
 
 --source include/wait_condition.inc
@@ -42,7 +39,7 @@ SET GLOBAL innodb_buffer_pool_size=@before_innodb_buffer_pool_size;
 let $wait_timeout = 60;
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 9) = 'Completed'
-  FROM performance_schema.global_status
+  FROM information_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
 
 --source include/wait_condition.inc

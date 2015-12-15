@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 #
 # show the global and session values;
 #
@@ -9,8 +7,8 @@ select @@session.back_log;
 show global variables like 'back_log';
 show session variables like 'back_log';
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='back_log';
-select * from performance_schema.session_variables where variable_name='back_log';
+select * from information_schema.global_variables where variable_name='back_log';
+select * from information_schema.session_variables where variable_name='back_log';
 --enable_warnings
 
 #

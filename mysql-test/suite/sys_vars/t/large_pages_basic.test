@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 #
 # show the global and session values;
 #
@@ -9,8 +7,8 @@ select @@session.large_pages;
 show global variables like 'large_pages';
 show session variables like 'large_pages';
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='large_pages';
-select * from performance_schema.session_variables where variable_name='large_pages';
+select * from information_schema.global_variables where variable_name='large_pages';
+select * from information_schema.session_variables where variable_name='large_pages';
 --enable_warnings
 
 #

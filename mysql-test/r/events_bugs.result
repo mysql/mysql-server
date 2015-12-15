@@ -5,9 +5,9 @@ create database events_test;
 use events_test;
 set @concurrent_insert= @@global.concurrent_insert;
 set @@global.concurrent_insert = 0;
-select * from performance_schema.global_variables where variable_name like 'event_scheduler';
+select * from information_schema.global_variables where variable_name like 'event_scheduler';
 VARIABLE_NAME	VARIABLE_VALUE
-event_scheduler	ON
+EVENT_SCHEDULER	ON
 SET GLOBAL event_scheduler = 'OFF';
 CREATE EVENT lower_case ON SCHEDULE EVERY 1 MINUTE DO SELECT 1;
 CREATE EVENT Lower_case ON SCHEDULE EVERY 2 MINUTE DO SELECT 2;

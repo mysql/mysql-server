@@ -60,7 +60,7 @@ BEGIN
 
   -- Dump all global variables except those that may change.
   -- timestamp changes if time passes. server_uuid changes if server restarts.
-  SELECT * FROM performance_schema.global_variables
+  SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
     WHERE variable_name NOT IN ('timestamp', 'server_uuid',
                                 'gtid_executed', 'gtid_purged',
                                 'group_replication_group_name')

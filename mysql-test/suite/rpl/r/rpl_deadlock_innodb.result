@@ -38,8 +38,6 @@ INSERT INTO t3 VALUES (3);
 COMMIT;
 
 *** Test deadlock ***
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-SET @@global.show_compatibility_56=ON;
 BEGIN;
 SELECT * FROM t1 FOR UPDATE;
 a
@@ -147,6 +145,5 @@ DROP TABLE t1,t2,t3;
 SET global max_relay_log_size= @my_max_relay_log_size;
 CALL mtr.add_suppression(".*worker thread retried transaction.*");
 CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
-set @@global.show_compatibility_56=@show_compatibility_56_save;
 End of 5.1 tests
 include/rpl_end.inc

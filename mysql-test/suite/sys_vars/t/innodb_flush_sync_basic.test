@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 --source include/have_innodb.inc
 
 SET @start_global_value = @@global.innodb_flush_sync;
@@ -16,8 +14,8 @@ select @@session.innodb_flush_sync;
 show global variables like 'innodb_flush_sync';
 show session variables like 'innodb_flush_sync';
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_flush_sync';
-select * from performance_schema.session_variables where variable_name='innodb_flush_sync';
+select * from information_schema.global_variables where variable_name='innodb_flush_sync';
+select * from information_schema.session_variables where variable_name='innodb_flush_sync';
 --enable_warnings
 
 #
@@ -26,26 +24,26 @@ select * from performance_schema.session_variables where variable_name='innodb_f
 set global innodb_flush_sync='OFF';
 select @@global.innodb_flush_sync;
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_flush_sync';
-select * from performance_schema.session_variables where variable_name='innodb_flush_sync';
+select * from information_schema.global_variables where variable_name='innodb_flush_sync';
+select * from information_schema.session_variables where variable_name='innodb_flush_sync';
 --enable_warnings
 set @@global.innodb_flush_sync=1;
 select @@global.innodb_flush_sync;
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_flush_sync';
-select * from performance_schema.session_variables where variable_name='innodb_flush_sync';
+select * from information_schema.global_variables where variable_name='innodb_flush_sync';
+select * from information_schema.session_variables where variable_name='innodb_flush_sync';
 --enable_warnings
 set global innodb_flush_sync=0;
 select @@global.innodb_flush_sync;
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_flush_sync';
-select * from performance_schema.session_variables where variable_name='innodb_flush_sync';
+select * from information_schema.global_variables where variable_name='innodb_flush_sync';
+select * from information_schema.session_variables where variable_name='innodb_flush_sync';
 --enable_warnings
 set @@global.innodb_flush_sync='ON';
 select @@global.innodb_flush_sync;
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_flush_sync';
-select * from performance_schema.session_variables where variable_name='innodb_flush_sync';
+select * from information_schema.global_variables where variable_name='innodb_flush_sync';
+select * from information_schema.session_variables where variable_name='innodb_flush_sync';
 --enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_flush_sync='OFF';
@@ -65,8 +63,8 @@ set global innodb_flush_sync=2;
 set global innodb_flush_sync=-3;
 select @@global.innodb_flush_sync;
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_flush_sync';
-select * from performance_schema.session_variables where variable_name='innodb_flush_sync';
+select * from information_schema.global_variables where variable_name='innodb_flush_sync';
+select * from information_schema.session_variables where variable_name='innodb_flush_sync';
 --enable_warnings
 --error ER_WRONG_VALUE_FOR_VAR
 set global innodb_flush_sync='AUTO';

@@ -145,11 +145,11 @@ SELECT @@session.key_cache_age_threshold;
 
 --disable_warnings
 SELECT @@global.key_cache_age_threshold = VARIABLE_VALUE 
-FROM performance_schema.global_variables 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='key_cache_age_threshold';
 
 SELECT @@key_cache_age_threshold = VARIABLE_VALUE 
-FROM performance_schema.session_variables 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='key_cache_age_threshold';
 --enable_warnings
 

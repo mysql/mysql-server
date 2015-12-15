@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 ##### mysql-test\t\innodb_compression_failure_threshold_pct_basic.test ########
 #                                                                             #
 # Variable Name: innodb_compression_failure_threshold_pct                     #
@@ -113,12 +111,12 @@ SELECT @@global.innodb_compression_failure_threshold_pct;
 
 --disable_warnings
 SELECT @@global.innodb_compression_failure_threshold_pct =
- VARIABLE_VALUE FROM performance_schema.global_variables
+ VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
   WHERE VARIABLE_NAME='innodb_compression_failure_threshold_pct';
 --enable_warnings
 SELECT @@global.innodb_compression_failure_threshold_pct;
 --disable_warnings
-SELECT VARIABLE_VALUE FROM performance_schema.global_variables
+SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
  WHERE VARIABLE_NAME='innodb_compression_failure_threshold_pct';
 --enable_warnings
 

@@ -818,13 +818,13 @@ END|
 
 CREATE PROCEDURE show_vars()
 BEGIN
--- select on performance_schema.global_variables
+-- select on information_schema.global_variables
 -- will fail, still need to cover execution of the code
 -- to verify potential dead locks.
 declare continue handler for sqlexception
 begin
 end;
-SELECT COUNT(*) FROM performance_schema.global_variables;
+SELECT COUNT(*) FROM information_schema.global_variables;
 SELECT COUNT(*) FROM performance_schema.global_variables;
 END|
 
@@ -843,8 +843,6 @@ call install_no_such_plugin();;
 connection con1;
 
 # Without fix, reap will hang.
-COUNT(*)
-#
 COUNT(*)
 #
 SET DEBUG_SYNC='RESET';
@@ -877,8 +875,6 @@ ERROR HY000: Can't open shared library
 connection default;
 COUNT(*)
 #
-COUNT(*)
-#
 
 disconnect con2;
 
@@ -906,8 +902,6 @@ connection default;
 SET DEBUG_SYNC='now SIGNAL go';
 # Connect con1 - reap
 connection con1;
-COUNT(*)
-#
 COUNT(*)
 #
 # Connect con2 - reap

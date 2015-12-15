@@ -1,5 +1,3 @@
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
 drop temporary table if exists t1, t2, t3;
 drop table if exists t1, t2, t3;
 drop procedure if exists p_verify_reprepare_count;
@@ -734,7 +732,7 @@ drop temporary table t1;
 deallocate prepare stmt;
 #
 # Test 3: View referencing an Information schema table
-# Not referencing P_S table until Bug#21789221 is fixed.
+#
 create view t1 as select table_name from information_schema.views where table_schema != 'sys';
 prepare stmt from "select * from t1";
 execute stmt;
@@ -2507,4 +2505,3 @@ EXECUTE stmt3;
 EXECUTE stmt3;
 DEALLOCATE PREPARE stmt3;
 DROP TEMPORARY TABLES tm, t1;
-set @@global.show_compatibility_56=@show_compatibility_56_save;

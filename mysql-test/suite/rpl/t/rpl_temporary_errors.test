@@ -11,11 +11,6 @@ CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4);
 --echo **** On Slave ****
 --source include/sync_slave_sql_with_master.inc
-
-# Running with show_compatibility_56=ON until WL#9001 is pushed.
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
-
 SHOW STATUS LIKE 'Slave_retried_transactions';
 # since bug#31552/31609 idempotency is not default any longer. In order
 # the following UPDATE t1 to pass the mode is switched temprorarily
@@ -36,8 +31,6 @@ source include/check_slave_is_running.inc;
 
 connection slave;
 call mtr.add_suppression("Slave SQL.*Could not execute Update_rows event on table test.t1");
-# Restoring the value of show_compatibility_56.
-set @@global.show_compatibility_56=@show_compatibility_56_save;
 
 --echo **** On Master ****
 connection master;

@@ -18,7 +18,6 @@
 --connection master
 let $master_binlog= query_get_value(SHOW MASTER STATUS, File, 1);
 --connection slave
-set @@global.show_compatibility_56=ON;
 --source include/stop_slave.inc
 RESET SLAVE;
 # Connect to master with SSL
@@ -45,7 +44,7 @@ let $status_var_comparsion= >;
 --source include/wait_for_status_var.inc
 --echo Heartbeat event has received
 --echo
-set @@global.show_compatibility_56=OFF;
+
 #
 # Clean up
 #

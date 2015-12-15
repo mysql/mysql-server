@@ -6,12 +6,12 @@ explicit_defaults_for_timestamp	OFF
 show session variables like 'explicit_defaults_for_timestamp';
 Variable_name	Value
 explicit_defaults_for_timestamp	OFF
-select * from performance_schema.global_variables where variable_name='explicit_defaults_for_timestamp';
+select * from information_schema.global_variables where variable_name='explicit_defaults_for_timestamp';
 VARIABLE_NAME	VARIABLE_VALUE
-explicit_defaults_for_timestamp	OFF
-select * from performance_schema.session_variables where variable_name='explicit_defaults_for_timestamp';
+EXPLICIT_DEFAULTS_FOR_TIMESTAMP	OFF
+select * from information_schema.session_variables where variable_name='explicit_defaults_for_timestamp';
 VARIABLE_NAME	VARIABLE_VALUE
-explicit_defaults_for_timestamp	OFF
+EXPLICIT_DEFAULTS_FOR_TIMESTAMP	OFF
 SET GLOBAL explicit_defaults_for_timestamp=TRUE;
 SET SESSION explicit_defaults_for_timestamp=TRUE;
 SET GLOBAL explicit_defaults_for_timestamp=@save_global_explicit_defaults_for_timestamp;

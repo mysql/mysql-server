@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 #
 # WL6117 : Resize the InnoDB Buffer Pool Online
 # (concurrent sql; allocation fail;)
@@ -61,7 +59,7 @@ set global innodb_buffer_pool_size = 12*1024*1024;
 
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 30) = 'Latching whole of buffer pool.'
-  FROM performance_schema.global_status
+  FROM information_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
 --source include/wait_condition.inc
 
@@ -113,7 +111,7 @@ set global DEBUG="-d,ib_buf_pool_resize_wait_before_resize";
 
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 34) = 'Completed resizing buffer pool at '
-  FROM performance_schema.global_status
+  FROM information_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
 --source include/wait_condition.inc
 
@@ -159,7 +157,7 @@ set global DEBUG="+d,ib_buf_chunk_init_fails";
 set global innodb_buffer_pool_size = 16*1024*1024;
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 27) = 'Resizing buffer pool failed'
-  FROM performance_schema.global_status
+  FROM information_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
 --source include/wait_condition.inc
 set global DEBUG="-d,ib_buf_chunk_init_fails";
@@ -185,7 +183,7 @@ set global innodb_disable_resize_buffer_pool_debug = @old_innodb_disable_resize;
 
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 34) = 'Completed resizing buffer pool at '
-  FROM performance_schema.global_status
+  FROM information_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
 --source include/wait_condition.inc
 

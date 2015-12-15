@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 
 #
 #  2010-01-27 OBN - Added 
@@ -18,8 +16,8 @@ select @@session.innodb_version;
 --echo show global variables like 'innodb_version' disabled so to not change with every version;
 --echo show session variables like 'innodb_version' disabled so to not change with every version;
 --disable_warnings
-select VARIABLE_VALUE=@@global.innodb_version from performance_schema.global_variables where variable_name='innodb_version';
-select VARIABLE_VALUE=@@global.innodb_version from performance_schema.session_variables where variable_name='innodb_version';
+select VARIABLE_VALUE=@@global.innodb_version from information_schema.global_variables where variable_name='innodb_version';
+select VARIABLE_VALUE=@@global.innodb_version from information_schema.session_variables where variable_name='innodb_version';
 --enable_warnings
 
 #

@@ -185,7 +185,7 @@ create procedure mixset(x char(16), y int)
 begin
   declare z int;
 
-  set @z = y, z = 666;
+  set @z = y, z = 666, max_join_size = 100;
   insert into test.t1 values (x, z);
 end|
 
@@ -9131,6 +9131,7 @@ SELECT f2();
 DROP DATABASE db1;
 DROP USER myuser@localhost;
 DROP FUNCTION f1;
+
 --echo #
 --echo # Bug #22222013 ASSERTION `! IS_SET() || M_CAN_OVERWRITE_STATUS' FAILED
 --echo #               IN ::SET_ERROR_STATUS

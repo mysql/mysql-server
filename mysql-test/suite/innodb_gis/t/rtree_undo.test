@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 #
 # BUG#21340268 INNODB: BOGUS CHECK FOR MAXIMUM RECORD LENGTH WITH SPATIAL KEY
 # BUG#21508582 UNDO LOG DOES NOT CONTAIN ENOUGH INFORMATION ON SPATIAL COLUMNS

@@ -1,10 +1,7 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
+
 # 
 # Run explain_json.inc without any of the socalled 6.0 features.
-# Test is temporarily run with show_compatibility_56=ON until Bug#21783883 is fixed. 
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
+#
 
 --disable_query_log
 if (`select locate('semijoin', @@optimizer_switch) > 0`) 
@@ -28,4 +25,3 @@ if (`select locate('mrr', @@optimizer_switch) > 0`)
 --source include/explain_json.inc
 
 set optimizer_switch=default;
-set @@global.show_compatibility_56=@show_compatibility_56_save;

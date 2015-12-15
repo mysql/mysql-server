@@ -1,9 +1,6 @@
 -- source include/have_innodb.inc
 -- source include/have_innodb_max_16k.inc
 
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
-
 let $MYSQLD_DATADIR= `select @@datadir`;
 # Save the original values of some variables in order to be able to
 # estimate how much they have changed during the tests. Previously this

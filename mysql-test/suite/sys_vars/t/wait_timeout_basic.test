@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 ############## mysql-test\t\wait_timeout_basic.test ###########################
 #                                                                             #
 # Variable Name: wait_timeout                                                 #
@@ -173,7 +171,7 @@ SELECT @@session.wait_timeout;
 
 --disable_warnings
 SELECT @@global.wait_timeout = VARIABLE_VALUE 
-FROM performance_schema.global_variables 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='wait_timeout';
 --enable_warnings
 
@@ -184,7 +182,7 @@ WHERE VARIABLE_NAME='wait_timeout';
 
 --disable_warnings
 SELECT @@session.wait_timeout = VARIABLE_VALUE 
-FROM performance_schema.session_variables
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES
 WHERE VARIABLE_NAME='wait_timeout';
 --enable_warnings
 

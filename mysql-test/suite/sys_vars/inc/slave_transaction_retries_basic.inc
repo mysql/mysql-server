@@ -155,19 +155,19 @@ if($mach64)
 SET @@global.slave_transaction_retries = 3000;
 --disable_warnings
 SELECT @@global.slave_transaction_retries = VARIABLE_VALUE 
-FROM performance_schema.global_variables 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='slave_transaction_retries';
 --enable_warnings
 
 
 --echo '#------------------FN_DYNVARS_149_07-----------------------#'
 ###########################################################################
-#  Check if the value is present in performance_schema.session_variables  #
+#  Check if the value is present in INFORMATION_SCHEMA.SESSION_VARIABLES  #
 ###########################################################################
 
 --disable_warnings
 SELECT count(VARIABLE_VALUE) 
-FROM performance_schema.session_variables 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='slave_transaction_retries';
 --enable_warnings
 

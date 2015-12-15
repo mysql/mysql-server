@@ -186,12 +186,12 @@ from performance_schema.table_io_waits_summary_by_index_usage
 where OBJECT_SCHEMA='db1'
   order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
 COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME
-select variable_value > 0 from performance_schema.global_status
+select variable_value > 0 from information_schema.global_status
 where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
 variable_value > 0
 1
 FLUSH STATUS;
-select variable_value from performance_schema.global_status
+select variable_value from information_schema.global_status
 where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
 variable_value
 0
@@ -236,7 +236,7 @@ from performance_schema.table_io_waits_summary_by_index_usage
 where OBJECT_SCHEMA='db1'
   order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
 COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME
-select variable_value > 0 from performance_schema.global_status
+select variable_value > 0 from information_schema.global_status
 where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
 variable_value > 0
 1
@@ -273,7 +273,7 @@ from performance_schema.table_io_waits_summary_by_index_usage
 where OBJECT_SCHEMA='db1'
   order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
 COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME
-select variable_value from performance_schema.global_status
+select variable_value from information_schema.global_status
 where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
 variable_value
 0

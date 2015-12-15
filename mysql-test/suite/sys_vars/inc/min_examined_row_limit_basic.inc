@@ -201,7 +201,7 @@ if($mach64)
 
 --disable_warnings
 SELECT @@global.min_examined_row_limit = VARIABLE_VALUE 
-FROM performance_schema.global_variables 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='min_examined_row_limit';
 --enable_warnings
 
@@ -212,7 +212,7 @@ WHERE VARIABLE_NAME='min_examined_row_limit';
 
 --disable_warnings
 SELECT @@session.min_examined_row_limit = VARIABLE_VALUE 
-FROM performance_schema.session_variables 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='min_examined_row_limit';
 --enable_warnings
 

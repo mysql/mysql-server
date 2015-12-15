@@ -124,12 +124,13 @@ SELECT @@query_cache_size;
 ###############################################################################
 
 --disable_warnings
-SELECT @@global.query_cache_size = VARIABLE_VALUE 
-FROM performance_schema.global_variables 
+
+SELECT @@global.query_cache_size = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='query_cache_size';
 
-SELECT @@query_cache_size = VARIABLE_VALUE 
-FROM performance_schema.session_variables
+SELECT @@query_cache_size = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES
 WHERE VARIABLE_NAME='query_cache_size';
 
 --enable_warnings

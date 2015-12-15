@@ -23,8 +23,8 @@ set @@session.gtid_mode = @start_global_value;
 show global variables like 'gtid_mode';
 show session variables like 'gtid_mode';
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='gtid_mode';
-select * from performance_schema.session_variables where variable_name='gtid_mode';
+select * from information_schema.global_variables where variable_name='gtid_mode';
+select * from information_schema.session_variables where variable_name='gtid_mode';
 --enable_warnings
 
 #

@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 
 #
 #  2010-01-27 OBN - Added (this variable is also covered in innodb_file_io_threads_basic.test)
@@ -16,8 +14,8 @@ select @@session.innodb_read_io_threads;
 show global variables like 'innodb_read_io_threads';
 show session variables like 'innodb_read_io_threads';
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_read_io_threads';
-select * from performance_schema.session_variables where variable_name='innodb_read_io_threads';
+select * from information_schema.global_variables where variable_name='innodb_read_io_threads';
+select * from information_schema.session_variables where variable_name='innodb_read_io_threads';
 --enable_warnings
 
 #

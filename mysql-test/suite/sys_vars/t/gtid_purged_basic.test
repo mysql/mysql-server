@@ -16,8 +16,8 @@ select @@session.gtid_purged;
 show global variables like 'gtid_purged';
 show session variables like 'gtid_purged';
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='gtid_purged';
-select * from performance_schema.session_variables where variable_name='gtid_purged';
+select * from information_schema.global_variables where variable_name='gtid_purged';
+select * from information_schema.session_variables where variable_name='gtid_purged';
 --enable_warnings
 
 --error ER_WRONG_VALUE_FOR_VAR

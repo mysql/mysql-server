@@ -63,9 +63,7 @@ INSERT INTO t1 VALUES ('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 --let $space_total= query_get_value(SHOW MASTER STATUS, Position, 1)
 
 --connection slave
-# Running with show_compatibility_56=ON until WL#9001 is pushed.
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
+
 --let $relay_log_space_limit= `select variable_value from information_schema.global_variables where variable_name like 'relay_log_space_limit'`
 if (`select $relay_log_space_limit >= $space_total`)
 {
@@ -104,8 +102,7 @@ while (`select $relay_log_space > $relay_log_space_limit`)
 --source include/sync_slave_sql_with_master.inc
 --let $diff_tables=master:test.t1,slave:test.t1
 --source include/diff_tables.inc
-# Restoring the value of show_compatibility_56
-set @@global.show_compatibility_56=@show_compatibility_56_save;
+
 --connection master
 DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc

@@ -129,20 +129,6 @@ wait/io/table/sql/handler	handler.cc:	TABLE	mysql	servers	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	tables	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	columns	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	columns	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	columns	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	indexes	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	foreign_keys	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	table_partitions	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	tables	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	columns	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	columns	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	columns	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	indexes	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	foreign_keys	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	table_partitions	fetch	1
 show global status like 'performance_schema_%';
 Variable_name	Value
 Performance_schema_accounts_lost	0

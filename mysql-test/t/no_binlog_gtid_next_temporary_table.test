@@ -1,6 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
-
 # ==== Purpose ====
 #
 # When binlog is disabled, verify that a transaction with a specified

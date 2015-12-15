@@ -150,7 +150,7 @@ SET @@session.binlog_stmt_cache_size = 0;
 SET @@global.binlog_stmt_cache_size = 4294967295;
 
 --disable_warnings
-SELECT @@global.binlog_stmt_cache_size = VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME='binlog_stmt_cache_size';
+SELECT @@global.binlog_stmt_cache_size = VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='binlog_stmt_cache_size';
 --enable_warnings
 
 --echo '#---------------------FN_DYNVARS_006_07----------------------#'

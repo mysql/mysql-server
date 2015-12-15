@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 #
 # only global
 #
@@ -9,8 +7,8 @@ select @@session.skip_show_database;
 show global variables like 'skip_show_database';
 show session variables like 'skip_show_database';
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='skip_show_database';
-select * from performance_schema.session_variables where variable_name='skip_show_database';
+select * from information_schema.global_variables where variable_name='skip_show_database';
+select * from information_schema.session_variables where variable_name='skip_show_database';
 --enable_warnings
 
 #

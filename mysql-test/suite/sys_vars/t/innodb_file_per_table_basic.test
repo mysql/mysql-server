@@ -24,9 +24,6 @@
 
 --source include/have_innodb.inc
 
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
-
 SET @start_global_value = @@global.innodb_file_per_table;
 SELECT @start_global_value;
 
@@ -63,7 +60,7 @@ SELECT @@global.innodb_file_per_table;
 
 --disable_warnings
 SELECT IF(@@GLOBAL.innodb_file_per_table,'ON','OFF') = VARIABLE_VALUE
-FROM performance_schema.global_variables
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_file_per_table';
 --enable_warnings
 --echo 1 Expected
@@ -73,7 +70,7 @@ SELECT COUNT(@@GLOBAL.innodb_file_per_table);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM performance_schema.global_variables 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='innodb_file_per_table';
 --enable_warnings
 --echo 1 Expected

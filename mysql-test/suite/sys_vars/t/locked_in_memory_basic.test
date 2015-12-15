@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 --source include/not_windows.inc
 #
 # only global
@@ -10,8 +8,8 @@ select @@session.locked_in_memory;
 show global variables like 'locked_in_memory';
 show session variables like 'locked_in_memory';
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='locked_in_memory';
-select * from performance_schema.session_variables where variable_name='locked_in_memory';
+select * from information_schema.global_variables where variable_name='locked_in_memory';
+select * from information_schema.session_variables where variable_name='locked_in_memory';
 --enable_warnings
 
 #

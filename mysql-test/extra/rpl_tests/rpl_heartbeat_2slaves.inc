@@ -38,21 +38,12 @@ CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 1;
 
 # Check that heartbeat events sent to both slaves with correct periods
 --connection slave_1
-# Running with show_compatibility_56=ON until WL#9001 is pushed.
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-SET @@global.show_compatibility_56=ON;
- 
 let $status_var= slave_received_heartbeats;
 let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
 let $status_var_comparsion= >;
 --source include/wait_for_status_var.inc
 --echo Slave has received heartbeat event
-
 --connection slave_2
-# Running with show_compatibility_56=ON until WL#9001 is pushed.
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-SET @@global.show_compatibility_56=ON;
-
 let $status_var= slave_received_heartbeats;
 let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
 let $status_var_comparsion= >;
@@ -111,8 +102,6 @@ while ($i) {
   eval UPDATE t1 SET a=$j, c=@c_text;
   --connection slave_2
   let $slave_2_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);  
-  # Restoring the value of show_compatibility_56 for slave_2 connection.
-  set @@global.show_compatibility_56=@show_compatibility_56_save;
   if (`SELECT ($k*($slave_2_pos - $slave_2_pos_before)) > 0`) {
     --connection slave_1
     let $slave_1_rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);    
@@ -133,12 +122,12 @@ while ($i) {
 --let $assert_text= slave_1 should have received heartbeats
 --source include/assert.inc
 --echo
-# Restoring the value of show_compatibility_56 for slave_1 connection.
-set @@global.show_compatibility_56=@show_compatibility_56_save;
+
 #
 # Clean up
 #
 --echo *** Clean up ***
 --connection master
 DROP TABLE t1;
+
 --source include/rpl_end.inc

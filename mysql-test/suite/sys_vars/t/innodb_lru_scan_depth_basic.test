@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 
 
 # 2011-02-23 - Added
@@ -21,8 +19,8 @@ select @@session.innodb_lru_scan_depth;
 show global variables like 'innodb_lru_scan_depth';
 show session variables like 'innodb_lru_scan_depth';
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_lru_scan_depth';
-select * from performance_schema.session_variables where variable_name='innodb_lru_scan_depth';
+select * from information_schema.global_variables where variable_name='innodb_lru_scan_depth';
+select * from information_schema.session_variables where variable_name='innodb_lru_scan_depth';
 --enable_warnings
 
 #
@@ -31,8 +29,8 @@ select * from performance_schema.session_variables where variable_name='innodb_l
 set global innodb_lru_scan_depth=325;
 select @@global.innodb_lru_scan_depth;
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_lru_scan_depth';
-select * from performance_schema.session_variables where variable_name='innodb_lru_scan_depth';
+select * from information_schema.global_variables where variable_name='innodb_lru_scan_depth';
+select * from information_schema.session_variables where variable_name='innodb_lru_scan_depth';
 --enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_lru_scan_depth=444;
@@ -50,12 +48,12 @@ set global innodb_lru_scan_depth="foo";
 set global innodb_lru_scan_depth=7;
 select @@global.innodb_lru_scan_depth;
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_lru_scan_depth';
+select * from information_schema.global_variables where variable_name='innodb_lru_scan_depth';
 --enable_warnings
 set global innodb_lru_scan_depth=-7;
 select @@global.innodb_lru_scan_depth;
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_lru_scan_depth';
+select * from information_schema.global_variables where variable_name='innodb_lru_scan_depth';
 --enable_warnings
 
 #

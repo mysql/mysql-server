@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 
 # 2010-01-25 - Added
 #
@@ -20,9 +18,9 @@ SELECT @@session.innodb_print_all_deadlocks;
 SHOW global variables LIKE 'innodb_print_all_deadlocks';
 SHOW session variables LIKE 'innodb_print_all_deadlocks';
 --disable_warnings
-SELECT * FROM performance_schema.global_variables 
+SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
-SELECT * FROM performance_schema.session_variables 
+SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
 --enable_warnings
 
@@ -32,33 +30,33 @@ WHERE variable_name='innodb_print_all_deadlocks';
 SET global innodb_print_all_deadlocks='OFF';
 SELECT @@global.innodb_print_all_deadlocks;
 --disable_warnings
-SELECT * FROM performance_schema.global_variables 
+SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
-SELECT * FROM performance_schema.session_variables 
+SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
 --enable_warnings
 SET @@global.innodb_print_all_deadlocks=1;
 SELECT @@global.innodb_print_all_deadlocks;
 --disable_warnings
-SELECT * FROM performance_schema.global_variables 
+SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
-SELECT * FROM performance_schema.session_variables 
+SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
 --enable_warnings
 SET global innodb_print_all_deadlocks=0;
 SELECT @@global.innodb_print_all_deadlocks;
 --disable_warnings
-SELECT * FROM performance_schema.global_variables 
+SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
-SELECT * FROM performance_schema.session_variables 
+SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
 --enable_warnings
 SET @@global.innodb_print_all_deadlocks='ON';
 SELECT @@global.innodb_print_all_deadlocks;
 --disable_warnings
-SELECT * FROM performance_schema.global_variables 
+SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
-SELECT * FROM performance_schema.session_variables 
+SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
 --enable_warnings
 --error ER_GLOBAL_VARIABLE
@@ -79,9 +77,9 @@ SET global innodb_print_all_deadlocks=2;
 SET global innodb_print_all_deadlocks=-3;
 SELECT @@global.innodb_print_all_deadlocks;
 --disable_warnings
-SELECT * FROM performance_schema.global_variables 
+SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
-SELECT * FROM performance_schema.session_variables 
+SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
 --enable_warnings
 --error ER_WRONG_VALUE_FOR_VAR

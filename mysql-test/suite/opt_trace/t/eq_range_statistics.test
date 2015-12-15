@@ -1,6 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
-
 # Tests for eq_range_index_dive_limit variable: 
 #   test that the number of ranges are counted correctly and 
 #   index statistics kicks in when more than 

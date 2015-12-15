@@ -20,12 +20,12 @@ gtid_mode	OFF
 show session variables like 'gtid_mode';
 Variable_name	Value
 gtid_mode	OFF
-select * from performance_schema.global_variables where variable_name='gtid_mode';
+select * from information_schema.global_variables where variable_name='gtid_mode';
 VARIABLE_NAME	VARIABLE_VALUE
-gtid_mode	OFF
-select * from performance_schema.session_variables where variable_name='gtid_mode';
+GTID_MODE	OFF
+select * from information_schema.session_variables where variable_name='gtid_mode';
 VARIABLE_NAME	VARIABLE_VALUE
-gtid_mode	OFF
+GTID_MODE	OFF
 set global gtid_mode = OFF;
 set global gtid_mode = ON_PERMISSIVE;
 ERROR HY000: The value of @@GLOBAL.GTID_MODE can only be changed one step at a time: OFF <-> OFF_PERMISSIVE <-> ON_PERMISSIVE <-> ON. Also note that this value must be stepped up or down simultaneously on all servers. See the Manual for instructions.

@@ -28,9 +28,7 @@ let $assert_cond= [select count(*) from performance_schema.replication_applier_s
 source include/assert.inc;
 
 --connection slave
-# Running with show_compatibility_56=ON until WL#9001 is pushed.
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
+
 --echo
 --echo # Verify that SELECT works and produces an output similar to
 --echo # the corresponding field in SHOW SLAVE STATUS(SSS) in all scenarios.
@@ -69,8 +67,7 @@ let $ps_value= query_get_value(select count_transactions_retries from performanc
 let $assert_text= COUNT_TRANSACTION_RETRIES should be equal to Slave_retried_transactions.;
 let $assert_cond= "$ps_value"= "$ss_value";
 source include/assert.inc;
-# Restoring the value of show_compatibility_56.
-set @@global.show_compatibility_56=@show_compatibility_56_save;
+
 source include/start_slave.inc;
 source include/rpl_end.inc;
 

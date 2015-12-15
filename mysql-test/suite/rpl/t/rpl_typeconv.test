@@ -7,9 +7,6 @@
 --source include/master-slave.inc
 
 connection slave;
-# Running the test with show_compatibility_56=ON until WL#9001 is pushed.
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-SET @@global.show_compatibility_56=ON;
 --let $saved_log_error_verbosity=`SELECT @@global.log_error_verbosity`
 set @saved_slave_type_conversions = @@global.slave_type_conversions;
 CREATE TABLE type_conversions (
@@ -86,8 +83,7 @@ DROP TABLE type_conversions;
 
 call mtr.add_suppression("Slave SQL.*Column 1 of table .test.t1. cannot be converted from type.* Error_code: 1677");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
-# Restoring the value of show_compatibility_56.
-set @@global.show_compatibility_56=@show_compatibility_56_save;
+
 connection master;
 DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc

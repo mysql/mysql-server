@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 #
 # Basic test for range_optimizer_max_mem_size
 #
@@ -36,7 +34,7 @@ SET @@session.range_optimizer_max_mem_size = 0.5;
 
 --disable_warnings
 SET @@session.range_optimizer_max_mem_size = DEFAULT;
-SELECT * FROM performance_schema.session_variables
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES
 WHERE VARIABLE_NAME='range_optimizer_max_mem_size';
 --enable_warnings
 

@@ -29,7 +29,7 @@ COUNT(@@GLOBAL.innodb_log_file_size)
 1 Expected
 '#---------------------WL6372_VAR_9_03----------------------#'
 SELECT @@GLOBAL.innodb_log_file_size = VARIABLE_VALUE
-FROM performance_schema.global_variables
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_log_file_size';
 @@GLOBAL.innodb_log_file_size = VARIABLE_VALUE
 1
@@ -39,7 +39,7 @@ COUNT(@@GLOBAL.innodb_log_file_size)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM performance_schema.global_variables 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='innodb_log_file_size';
 COUNT(VARIABLE_VALUE)
 1

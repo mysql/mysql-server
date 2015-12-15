@@ -4,7 +4,6 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 include/assert.inc [On master, the table should return an empty set.]
-set @@global.show_compatibility_56=ON;
 include/assert.inc [On slave, the group_name should be set NULL]
 
 # Verify that SELECT works for every field and produces an output similar
@@ -102,7 +101,6 @@ include/assert.inc [Received_Transaction_Set should not have changed after STOP 
 # Verify that the value for 'Received_Transaction_Set' is cleared
 # after RESET SLAVE.
 
-set @@global.show_compatibility_56=OFF;
 RESET SLAVE;
 include/assert.inc [Received_Transaction_Set should be empty after RESET SLAVE]
 include/start_slave.inc

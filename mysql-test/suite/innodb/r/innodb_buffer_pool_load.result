@@ -12,7 +12,7 @@ COUNT(*)
 {checked_valid}
 # restart
 SELECT variable_value
-FROM performance_schema.global_status
+FROM information_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 variable_value
 Buffer pool(s) load completed at TIMESTAMP_NOW
@@ -26,7 +26,7 @@ call mtr.add_suppression("InnoDB: Error parsing");
 # should be valid but all the page no should be out of bound of the file
 # restart
 SELECT variable_value
-FROM performance_schema.global_status
+FROM information_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 variable_value
 Buffer pool(s) load completed at TIMESTAMP_NOW

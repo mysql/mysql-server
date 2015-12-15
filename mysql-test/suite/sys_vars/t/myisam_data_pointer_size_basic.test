@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 
 ############## mysql-test\t\myisam_data_pointer_size_basic.test ################
 #                                                                              #
@@ -123,19 +121,19 @@ SELECT @@global.myisam_data_pointer_size;
 --disable_warnings
 SET @@global.myisam_data_pointer_size = 3;
 SELECT @@global.myisam_data_pointer_size = VARIABLE_VALUE 
-FROM performance_schema.global_variables 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='myisam_data_pointer_size';
 --enable_warnings
 
 
 --echo '#------------------FN_DYNVARS_093_07-----------------------#'
 ###########################################################################
-#  Check if the value is present in performance_schema.session_variables  #
+#  Check if the value is present in INFORMATION_SCHEMA.SESSION_VARIABLES  #
 ###########################################################################
 
 --disable_warnings
 SELECT count(VARIABLE_VALUE) 
-FROM performance_schema.session_variables 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='myisam_data_pointer_size';
 --enable_warnings
 
