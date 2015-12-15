@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1005,6 +1005,14 @@ longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
   return num;
 }
 
+static inline my_bool is_negative_num(char* num)
+{
+  while (my_isspace(&my_charset_latin1, *num))
+    num++;
+
+  return (*num == '-');
+}
+
 /*
   function: getopt_ull
 
@@ -1014,7 +1022,20 @@ longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
 
 static ulonglong getopt_ull(char *arg, const struct my_option *optp, int *err)
 {
-  ulonglong num= eval_num_suffix(arg, err, (char*) optp->name);
+  char buf[255];
+  ulonglong num;
+
+  /* If a negative number is specified as a value for the option. */
+  if (arg == NULL || is_negative_num(arg) == TRUE)
+  {
+    num= (ulonglong) optp->min_value;
+    my_getopt_error_reporter(WARNING_LEVEL,
+                             "option '%s': value %s adjusted to %s",
+                             optp->name, arg, ullstr(num, buf));
+  }
+  else
+    num= eval_num_suffix(arg, err, (char*) optp->name);
+
   return getopt_ull_limit_value(num, optp, NULL);
 }
 

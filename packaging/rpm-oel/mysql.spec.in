@@ -301,6 +301,7 @@ Obsoletes:      mysql-devel < %{version}-%{release}
 Obsoletes:      mariadb-devel
 Provides:       mysql-devel = %{version}-%{release}
 Provides:       mysql-devel%{?_isa} = %{version}-%{release}
+Conflicts:      mysql-connector-c-devel < 6.2
 
 %description    devel
 This package contains the development header files and libraries necessary
@@ -323,6 +324,7 @@ Obsoletes:      mysql-libs < %{version}-%{release}
 Obsoletes:      mariadb-libs
 Provides:       mysql-libs = %{version}-%{release}
 Provides:       mysql-libs%{?_isa} = %{version}-%{release}
+Conflicts:      mysql-connector-c-shared < 6.2
 
 %description    libs
 This package contains the shared libraries for MySQL client
@@ -620,7 +622,7 @@ rm -r $(readlink var) var
 
 %pre server
 /usr/sbin/groupadd -g 27 -o -r mysql >/dev/null 2>&1 || :
-/usr/sbin/useradd -M -N -g mysql -o -r -d /var/lib/mysql -s /bin/bash \
+/usr/sbin/useradd -M %{!?el5:-N} -g mysql -o -r -d /var/lib/mysql -s /bin/bash \
     -c "MySQL Server" -u 27 mysql >/dev/null 2>&1 || :
 
 %post server
@@ -913,6 +915,9 @@ fi
 %endif
 
 %changelog
+* Tue Sep 29 2015 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.5.47-1
+- Added conflicts to mysql-connector-c-shared dependencies
+
 * Tue Jul 22 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.5.39-5
 - Provide mysql-compat-server dependencies
 
