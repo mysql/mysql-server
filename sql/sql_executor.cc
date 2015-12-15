@@ -299,7 +299,10 @@ JOIN::create_intermediate_table(JOIN_TAB *tab, List<Item> *tmp_table_fields,
 
 err:
   if (table != NULL)
+  {
     free_tmp_table(thd, table);
+    tab->table= NULL;
+  }
   DBUG_RETURN(true);
 }
 

@@ -909,7 +909,8 @@ bool JOIN::destroy()
     {
       if (tab->op->type() == QEP_operation::OT_TMP_TABLE)
       {
-        free_tmp_table(thd, tab->table);
+        if (tab->table) // Check tmp table is not yet freed.
+          free_tmp_table(thd, tab->table);
         delete tab->tmp_table_param;
         tab->tmp_table_param= NULL;
       }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -763,7 +763,7 @@ static int run_mysqlcheck_mysql_db_upgrade(void)
 }
 
 
-/** performs the same operation as mysqlcheck_upgrade, but on the mysql db */
+/** performs the same operation as mysqlcheck_fixnames, but on the mysql db */
 static int run_mysqlcheck_mysql_db_fixnames(void)
 {
   print_conn_args("mysqlcheck");
@@ -929,10 +929,16 @@ static int check_version_match(void)
   if (init_dynamic_string(&ds_version, NULL, NAME_CHAR_LEN, NAME_CHAR_LEN))
     die("Out of memory");
 
-  if (run_query("show variables like 'version'",
-                &ds_version, FALSE) ||
-      extract_variable_from_show(&ds_version, version_str))
+  if (run_query("show variables like 'version'", &ds_version, FALSE))
   {
+    fprintf(stderr, "Error: Failed while fetching Server version! Could be"
+            " due to unauthorized access.\n");
+    dynstr_free(&ds_version);
+    return 1;                                   /* Query failed */
+  }
+  if (extract_variable_from_show(&ds_version, version_str))
+  {
+    fprintf(stderr, "Error: Failed while extracting Server version!\n");
     dynstr_free(&ds_version);
     return 1;                                   /* Query failed */
   }
@@ -1027,17 +1033,37 @@ int main(int argc, char **argv)
     Then do the upgrade.
     And then run mysqlcheck on all tables.
   */
-  if ((!opt_systables_only &&
-       (run_mysqlcheck_mysql_db_fixnames() || run_mysqlcheck_mysql_db_upgrade())) ||
-      run_sql_fix_privilege_tables() ||
-      (!opt_systables_only &&
-      (run_mysqlcheck_fixnames() || run_mysqlcheck_upgrade())))
+  if (!opt_systables_only)
   {
-    /*
-      The upgrade failed to complete in some way or another,
-      significant error message should have been printed to the screen
-    */
-    die("Upgrade failed" );
+    if (run_mysqlcheck_mysql_db_fixnames())
+    {
+      die("Error during call to mysql_check for fixing the db/tables names on "
+          "mysql db");
+    }
+    if (run_mysqlcheck_mysql_db_upgrade())
+    {
+      die("Error during call to mysql_check for upgrading the tables names on "
+          "mysql db");
+    }
+  }
+  if (run_sql_fix_privilege_tables())
+  {
+    /* Specific error msg (if present) would be printed in the function call
+     * above */
+    die("Upgrade failed");
+  }
+  if (!opt_systables_only)
+  {
+    if (run_mysqlcheck_fixnames())
+    {
+      die("Error during call to mysql_check for fixing the db/tables names on "
+          "all db(s) except mysql");
+    }
+    if (run_mysqlcheck_upgrade())
+    {
+      die("Error during call to mysql_check for upgrading the tables names on "
+          "all db(s) except mysql");
+    }
   }
   verbose("OK");
 

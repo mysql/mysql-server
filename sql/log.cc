@@ -47,7 +47,7 @@
 using std::min;
 using std::max;
 
-/* max size of the log message */
+/* max size of log messages (error log, plugins' logging, general log) */
 #define MAX_LOG_BUFFER_SIZE 1024
 #define MAX_TIME_SIZE 32
 
@@ -1607,20 +1607,9 @@ bool MYSQL_LOG::open(
 err:
   if (log_type == LOG_BIN && binlog_error_action == ABORT_SERVER)
   {
-    THD *thd= current_thd;
-    /*
-      On fatal error when code enters here we should forcefully clear the
-      previous errors so that a new critical error message can be pushed
-      to the client side.
-     */
-    thd->clear_error();
-    my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disk is full or "
-             "file system is read only while opening the binlog. Aborting the "
-             "server");
-    sql_print_error("Either disk is full or file system is read only while "
-                    "opening the binlog. Aborting the server");
-    thd->protocol->end_statement();
-    _exit(EXIT_FAILURE);
+    exec_binlog_error_action_abort("Either disk is full or file system is read "
+                                   "only while opening the binlog. Aborting the"
+                                   " server.");
   }
   else
     sql_print_error("Could not open %s for logging (error %d). "
@@ -2352,7 +2341,7 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer,
 */
 int vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
 {
-  char   buff[1024];
+  char   buff[MAX_LOG_BUFFER_SIZE];
   size_t length;
   DBUG_ENTER("vprint_msg_to_log");
 
@@ -2411,7 +2400,7 @@ extern "C"
 int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
                           const char *format, ...)
 {
-  char format2[MYSQL_ERRMSG_SIZE];
+  char format2[MAX_LOG_BUFFER_SIZE];
   int ret;
   loglevel lvl;
   struct st_plugin_int *plugin = static_cast<st_plugin_int *> (*plugin_ptr);
@@ -2958,3 +2947,48 @@ int TC_LOG::using_heuristic_recover()
   sql_print_information("Please restart mysqld without --tc-heuristic-recover");
   return 1;
 }
+
+/**
+  When a fatal error occurs due to which binary logging becomes impossible and
+  the user specified binlog_error_action= ABORT_SERVER the following function is
+  invoked. This function pushes the appropriate error message to client and logs
+  the same to server error log and then aborts the server.
+
+  @param err_string          Error string which specifies the exact error
+                             message from the caller.
+
+  @retval
+    none
+*/
+void exec_binlog_error_action_abort(const char* err_string)
+{
+  THD *thd= current_thd;
+  /*
+    When the code enters here it means that there was an error at higher layer
+    and my_error function could have been invoked to let the client know what
+    went wrong during the execution.
+
+    But these errors will not let the client know that the server is going to
+    abort. Even if we add an additional my_error function call at this point
+    client will be able to see only the first error message that was set
+    during the very first invocation of my_error function call.
+
+    The advantage of having multiple my_error function calls are visible when
+    the server is up and running and user issues SHOW WARNINGS or SHOW ERROR
+    calls. In this special scenario server will be immediately aborted and
+    user will not be able execute the above SHOW commands.
+
+    Hence we clear the previous errors and push one critical error message to
+    clients.
+   */
+  thd->clear_error();
+  /*
+    Adding ME_NOREFRESH flag will ensure that the error is sent to both
+    client and to the server error log as well.
+   */
+  my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(ME_NOREFRESH + ME_FATALERROR),
+           err_string);
+  thd->protocol->end_statement();
+  abort();
+}
+

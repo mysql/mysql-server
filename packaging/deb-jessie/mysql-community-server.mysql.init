@@ -37,18 +37,36 @@ umask 077
 MYSQLDATA=/var/lib/mysql
 VERSION=$(mysqld --version | grep mysqld | cut -d' ' -f4)
 
-get_pcount () {
-	PSCOUNT=$(ps -ef | grep "/usr/sbin/mysqld" | wc -l)
-	echo "${PSCOUNT}"
+get_mysql_option() {
+	RESULT=$(my_print_defaults "$1" | sed -n "s/^--$2=//p" | tail -n 1)
+	if [ -z "$RESULT" ];
+	then
+		RESULT="$3"
+	fi
+	echo $RESULT
+}
+
+get_running () {
+	PIDFILE=$(get_mysql_option mysqld_safe pid-file "")
+	if [ -z "$PIDFILE" ];
+	then
+		PIDFILE=$(get_mysql_option mysqld pid-file "$MYSQLDATA/$(hostname).pid")
+	fi
+	if [ -e "$PIDFILE" ] && [ -d "/proc/$(cat "$PIDFILE")" ];
+	then
+		echo 1
+	else
+		echo 0
+	fi
 }
 
 server_stop () {
-	PSCOUNT=$(get_pcount)
+	RUNNING=$(get_running)
 	COUNT=0
 	while :; do
 		COUNT=$(( COUNT+1 ))
 		echo -n .
-		if [ "${PSCOUNT}" -eq 1 ];
+		if [ "${RUNNING}" -eq 0 ];
 		then
 			echo
 			break
@@ -58,7 +76,7 @@ server_stop () {
 			echo
 			return 1
 		fi
-		PSCOUNT=$(get_pcount)
+		RUNNING=$(get_running)
 		sleep 1
 	done
 	return 0
@@ -66,8 +84,8 @@ server_stop () {
 
 case "$1" in
   'start')
-	PSCOUNT=$(get_pcount)
-	if [ "${PSCOUNT}" -gt 1 ];
+	RUNNING=$(get_running)
+	if [ "${RUNNING}" -eq 1 ];
 	then
 		log_action_msg "A MySQL Server is already started"
 	else
@@ -118,8 +136,8 @@ case "$1" in
 			echo -n .
 		done
 		echo
-		PSCOUNT=$(get_pcount)
-		if [ "${PSCOUNT}" -gt 1 ];
+		RUNNING=$(get_running)
+		if [ "${RUNNING}" -eq 1 ];
 		then
 			log_action_msg "MySQL Community Server ${VERSION} is started"
 		else
@@ -129,8 +147,8 @@ case "$1" in
 	;;
 
   'stop')
-	PSCOUNT=$(get_pcount)
-	if [ "${PSCOUNT}" -gt 1 ];
+	RUNNING=$(get_running)
+	if [ "${RUNNING}" -eq 1 ];
 	then
 		killall -15 mysqld
 		server_stop
@@ -153,8 +171,8 @@ case "$1" in
 	;;
 
   'status')
-	PSCOUNT=$(get_pcount)
-	if [ ${PSCOUNT} -gt 1 ];
+	RUNNING=$(get_running)
+	if [ ${RUNNING} -eq 1 ];
 	then
 		log_action_msg "MySQL Community Server ${VERSION} is running"
 	else

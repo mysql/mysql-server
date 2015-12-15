@@ -29,17 +29,20 @@ FLUSH LOGS;
 #  3) While dump thread is sending data to slave, kill it.
 SET GLOBAL DEBUG='+d,simulate_dump_thread_kill';
 --connection slave
---source include/start_slave.inc
+SET GLOBAL DEBUG='+d,simulate_no_master_reconnect';
+START SLAVE IO_THREAD;
 
-#  4) Make sure that dump thread is killed
+#  4) Make sure that dump thread is killed and IO thread is stopped.
+--source include/wait_for_slave_io_to_stop.inc
+
 --connection master
 --let $wait_condition= SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE COMMAND = 'Binlog dump' OR COMMAND = 'Binlog Dump GTID'
 --source include/wait_condition.inc
 SET GLOBAL DEBUG='-d,simulate_dump_thread_kill';
 
-#  5) Start dump thread
+#  5) Start dump thread and replication threads
 --connection slave
---source include/stop_slave.inc
+SET GLOBAL DEBUG='-d,simulate_no_master_reconnect';
 --source include/start_slave.inc
 
 #  6) See that there is no issue in replication
