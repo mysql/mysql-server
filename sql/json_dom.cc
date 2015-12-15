@@ -24,6 +24,7 @@
 #include "psi_memory_key.h"     // key_memory_JSON
 #include "sql_class.h"          // THD
 #include "sql_const.h"
+#include "sql_parse.h"          // check_stack_overrun
 #include "sql_time.h"
 #include "template_utils.h"     // down_cast, pointer_cast
 
@@ -999,7 +1000,7 @@ bjson2json(const json_binary::Value::enum_type bintype)
 }
 
 
-Json_dom *Json_dom::parse(const json_binary::Value &v)
+Json_dom *Json_dom::parse(const THD* thd, const json_binary::Value &v)
 {
   Json_dom *result= NULL;
 
@@ -1007,6 +1008,9 @@ Json_dom *Json_dom::parse(const json_binary::Value &v)
   {
   case json_binary::Value::OBJECT:
     {
+      // Check that we haven't run out of stack before we dive into the object.
+      if (check_stack_overrun(thd, STACK_MIN_SIZE, nullptr))
+        return NULL;                            /* purecov: inspected */
       std::unique_ptr<Json_object> jo(new (std::nothrow) Json_object());
       if (jo.get() == NULL)
         return NULL;                            /* purecov: inspected */
@@ -1018,7 +1022,7 @@ Json_dom *Json_dom::parse(const json_binary::Value &v)
         */
         if (jo->add_alias(std::string(v.key(i).get_data(),
                                       v.key(i).get_data_length()),
-                          parse(v.element(i))))
+                          parse(thd, v.element(i))))
         {
           return NULL;                        /* purecov: inspected */
         }
@@ -1028,6 +1032,9 @@ Json_dom *Json_dom::parse(const json_binary::Value &v)
     }
   case json_binary::Value::ARRAY:
     {
+      // Check that we haven't run out of stack before we dive into the array.
+      if (check_stack_overrun(thd, STACK_MIN_SIZE, nullptr))
+        return NULL;                          /* purecov: inspected */
       std::unique_ptr<Json_array> jarr(new (std::nothrow) Json_array());
       if (jarr.get() == NULL)
         return NULL;                          /* purecov: inspected */
@@ -1038,7 +1045,7 @@ Json_dom *Json_dom::parse(const json_binary::Value &v)
           deallocated if it cannot be added. std::unique_ptr does that
           for us.
         */
-        std::unique_ptr<Json_dom> elt(parse(v.element(i)));
+        std::unique_ptr<Json_dom> elt(parse(thd, v.element(i)));
         if (jarr->append_alias(elt.get()))
           return NULL;                        /* purecov: inspected */
         // The array owns the element now. Release it.
@@ -1860,13 +1867,13 @@ Json_wrapper &Json_wrapper::operator=(const Json_wrapper& from)
 }
 
 
-Json_dom *Json_wrapper::to_dom()
+Json_dom *Json_wrapper::to_dom(const THD *thd)
 {
   if (!m_is_dom)
   {
     // Build a DOM from the binary JSON value and
     // convert this wrapper to hold the DOM instead
-    m_dom_value= Json_dom::parse(m_value);
+    m_dom_value= Json_dom::parse(thd, m_value);
     m_is_dom= true;
     m_dom_alias= false;
   }
@@ -1875,14 +1882,14 @@ Json_dom *Json_wrapper::to_dom()
 }
 
 
-Json_dom *Json_wrapper::clone_dom()
+Json_dom *Json_wrapper::clone_dom(const THD *thd)
 {
   // If we already have a DOM, return a clone of it.
   if (m_is_dom)
     return m_dom_value ? m_dom_value->clone() : NULL;
 
   // Otherwise, produce a new DOM tree from the binary representation.
-  return Json_dom::parse(m_value);
+  return Json_dom::parse(thd, m_value);
 }
 
 
@@ -2623,7 +2630,7 @@ bool Json_wrapper::seek(const Json_seekable_path &path,
     Materialize the dom if the path contains ellipses. Duplicate
     detection is difficult on binary values.
    */
-  to_dom();
+  to_dom(current_thd);
 
   Json_dom_vector dhits(key_memory_JSON);
   if (m_dom_value->seek(path, &dhits, auto_wrap, only_need_one))
@@ -2671,7 +2678,7 @@ size_t Json_wrapper::length() const
 }
 
 
-size_t Json_wrapper::depth() const
+size_t Json_wrapper::depth(const THD *thd) const
 {
   if (empty())
   {
@@ -2683,7 +2690,7 @@ size_t Json_wrapper::depth() const
     return m_dom_value->depth();
   }
 
-  Json_dom *d= Json_dom::parse(m_value);
+  Json_dom *d= Json_dom::parse(thd, m_value);
   size_t result= d->depth();
   delete d;
   return result;

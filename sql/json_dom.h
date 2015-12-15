@@ -275,8 +275,12 @@ public:
   /**
     Construct a DOM object based on a binary JSON value. The ownership
     of the returned object is henceforth with the caller.
+
+    @param thd  current session
+    @param v    the binary value to parse
+    @return a DOM representation of the binary value, or NULL on error
   */
-  static Json_dom* parse(const json_binary::Value &v);
+  static Json_dom* parse(const THD *thd, const json_binary::Value &v);
 
   /**
     Replace oldv contained inside this container array or object) with
@@ -1207,17 +1211,19 @@ public:
     wrapper. If this wrapper originally held a value, it is now converted
     to hold (and eventually release) the DOM version.
 
+    @param thd current session
     @return pointer to a DOM object, or NULL if the DOM could not be allocated
   */
-  Json_dom *to_dom();
+  Json_dom *to_dom(const THD *thd);
 
   /**
     Get the wrapped contents in DOM form. Same as to_dom(), except it returns
     a clone of the original DOM instead of the actual, internal DOM tree.
 
+    @param thd current session
     @return pointer to a DOM object, or NULL if the DOM could not be allocated
   */
-  Json_dom *clone_dom();
+  Json_dom *clone_dom(const THD *thd);
 
   /**
     Get the wrapped contents in binary value form.
@@ -1458,8 +1464,11 @@ public:
     For example:
     "abc", [] and {} have depth 1.
     ["abc", [3]] and {"a": "abc", "b": [3]} have depth 3.
+
+    @param thd current session
+    @return the depth of the document
   */
-  size_t depth() const;
+  size_t depth(const THD *thd) const;
 
   /**
     Compare this JSON value to another JSON value.

@@ -22,6 +22,7 @@
 */
 
 #include "sql_class.h"          // THD
+#include "current_thd.h"        // current_thd
 #include "item.h"               // Cached_item, Cached_item_field, ...
 #include "json_dom.h"           // Json_wrapper
 
@@ -161,7 +162,7 @@ bool Cached_item_json::cmp()
     representation pointed to by m_value. Convert to DOM so that we
     own the copy.
   */
-  m_value->to_dom();
+  m_value->to_dom(current_thd);
 
   return true;
 }

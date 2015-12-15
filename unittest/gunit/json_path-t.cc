@@ -39,10 +39,16 @@ class JsonPathTest : public ::testing::Test
 protected:
   virtual void SetUp() { initializer.SetUp(); }
   virtual void TearDown() { initializer.TearDown(); }
-
-  THD *thd() { return initializer.thd(); }
-
+  THD *thd() const { return initializer.thd(); }
   my_testing::Server_initializer initializer;
+  void vet_wrapper_seek(Json_wrapper *wrapper, const Json_path &path,
+                        const std::string &expected, bool expected_null) const;
+  void vet_wrapper_seek(const char *json_text, const char *path_text,
+                        const std::string &expected, bool expected_null) const;
+  void vet_remove(Json_dom *parent, const Json_path &path,
+                  const std::string &expected, bool expect_match) const;
+  void vet_remove(const char *json_text, const char *path_text,
+                  const std::string& expected, bool expect_match) const;
 };
 
 /**
@@ -325,12 +331,14 @@ void bad_identifier(const char *identifier, size_t expected_index)
   Helper functions for Json_wrapper tests.
 */
 
-void vet_wrapper_seek(Json_wrapper &wrapper, const Json_path &path,
-                      std::string expected, bool expected_null)
+void JsonPathTest::vet_wrapper_seek(Json_wrapper *wrapper,
+                                    const Json_path &path,
+                                    const std::string &expected,
+                                    bool expected_null) const
 {
   Json_wrapper_vector hits(PSI_NOT_INSTRUMENTED);
-  wrapper.seek(path, &hits, true, false);
-  String  result_buffer;
+  wrapper->seek(path, &hits, true, false);
+  String result_buffer;
 
   if (hits.size() == 1)
   {
@@ -341,7 +349,7 @@ void vet_wrapper_seek(Json_wrapper &wrapper, const Json_path &path,
     Json_array *a= new (std::nothrow) Json_array();
     for (uint i= 0; i < hits.size(); ++i)
     {
-      a->append_clone(hits[i].to_dom());
+      a->append_clone(hits[i].to_dom(thd()));
     }
     Json_wrapper w(a);
     EXPECT_FALSE(w.to_string(&result_buffer, true, "test"));
@@ -358,7 +366,7 @@ void vet_wrapper_seek(Json_wrapper &wrapper, const Json_path &path,
     if (hits.size() > 0)
     {
       String  source_buffer;
-      EXPECT_FALSE(wrapper.to_string(&source_buffer, true, "test"));
+      EXPECT_FALSE(wrapper->to_string(&source_buffer, true, "test"));
       source_output= source_buffer.ptr();
       result_output= actual.c_str();
     }
@@ -375,8 +383,10 @@ void vet_wrapper_seek(Json_wrapper &wrapper, const Json_path &path,
   }
 }
 
-void vet_wrapper_seek(char *json_text, char *path_text,
-                      std::string expected, bool expected_null)
+void JsonPathTest::vet_wrapper_seek(const char *json_text,
+                                    const char *path_text,
+                                    const std::string &expected,
+                                    bool expected_null) const
 {
   const char *msg;
   size_t msg_offset;
@@ -394,8 +404,8 @@ void vet_wrapper_seek(char *json_text, char *path_text,
 
   Json_path path;
   good_path_common(false, path_text, &path);
-  vet_wrapper_seek(dom_wrapper, path, expected, expected_null);
-  vet_wrapper_seek(binary_wrapper, path, expected, expected_null);
+  vet_wrapper_seek(&dom_wrapper, path, expected, expected_null);
+  vet_wrapper_seek(&binary_wrapper, path, expected, expected_null);
 }
 
 void vet_dom_location(bool begins_with_column_id,
@@ -501,10 +511,10 @@ std::string format(Json_dom *dom)
   return std::string(buffer.ptr(), buffer.length());
 }
 
-void vet_remove(Json_dom *parent,
-                const Json_path &path,
-                std::string expected,
-                bool expect_match)
+void JsonPathTest::vet_remove(Json_dom *parent,
+                              const Json_path &path,
+                              const std::string &expected,
+                              bool expect_match) const
 {
   Json_dom_vector hits(PSI_NOT_INSTRUMENTED);
 
@@ -542,8 +552,9 @@ void vet_remove(Json_dom *parent,
 }
 
 
-void vet_remove(char *json_text, char *path_text, std::string expected,
-                bool expect_match)
+void JsonPathTest::vet_remove(const char *json_text, const char *path_text,
+                              const std::string& expected, bool expect_match)
+  const
 {
   const char *msg;
   size_t msg_offset;
@@ -557,7 +568,7 @@ void vet_remove(char *json_text, char *path_text, std::string expected,
   json_binary::Value parent_binary=
     json_binary::parse_binary(
                               serialized_form.ptr(), serialized_form.length());
-  Json_dom *reparsed_parent= Json_dom::parse(parent_binary);
+  Json_dom *reparsed_parent= Json_dom::parse(thd(), parent_binary);
 
   vet_remove(parent, path, expected, expect_match);
   vet_remove(reparsed_parent, path, expected, expect_match);

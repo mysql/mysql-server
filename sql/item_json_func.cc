@@ -17,6 +17,7 @@
 /* JSON Function items used by mysql */
 
 #include "item_json_func.h"
+#include "current_thd.h"        // current_thd
 #include "derror.h"             // ER_THD
 #include "item_cmpfunc.h"       // Item_func_like
 #include "json_dom.h"
@@ -649,6 +650,7 @@ static bool sort_array(const Json_wrapper &orig, Sorted_index_array *v)
   Check if one Json_wrapper contains all the elements of another
   Json_wrapper.
 
+  @param[in]  thd           THD handle
   @param[in]  doc_wrapper   the containing document
   @param[in]  containee_wr  the possibly contained document
   @param[out] result        true if doc_wrapper contains containee_wr,
@@ -656,7 +658,8 @@ static bool sort_array(const Json_wrapper &orig, Sorted_index_array *v)
   @retval false on success
   @retval true on failure
 */
-static bool contains_wr(const Json_wrapper &doc_wrapper,
+static bool contains_wr(const THD *thd,
+                        const Json_wrapper &doc_wrapper,
                         const Json_wrapper &containee_wr,
                         bool *result)
 {
@@ -684,7 +687,7 @@ static bool contains_wr(const Json_wrapper &doc_wrapper,
       }
 
       // key is the same, now compare values
-      if (contains_wr(d_oi.elt().second, c_oi.elt().second, result))
+      if (contains_wr(thd, d_oi.elt().second, c_oi.elt().second, result))
         return true;                          /* purecov: inspected */
       if (!*result)
       {
@@ -707,7 +710,7 @@ static bool contains_wr(const Json_wrapper &doc_wrapper,
       // auto-wrap scalar or object in an array for uniform treatment later
       Json_wrapper scalar= containee_wr;
       Json_array *array_dom= new (std::nothrow) Json_array();
-      if (!array_dom || array_dom->append_clone(scalar.to_dom()))
+      if (!array_dom || array_dom->append_clone(scalar.to_dom(thd)))
       {
         delete array_dom;                       /* purecov: inspected */
         return true;                            /* purecov: inspected */
@@ -748,7 +751,7 @@ static bool contains_wr(const Json_wrapper &doc_wrapper,
              tmp < d.size() && doc_wrapper[d[tmp]].type() == Json_dom::J_ARRAY;
              tmp++)
         {
-          if (contains_wr(doc_wrapper[d[tmp]], (*wr)[c[c_i]], result))
+          if (contains_wr(thd, doc_wrapper[d[tmp]], (*wr)[c[c_i]], result))
             return true;                      /* purecov: inspected */
           if (*result)
           {
@@ -773,7 +776,7 @@ static bool contains_wr(const Json_wrapper &doc_wrapper,
           if (doc_wrapper[d[tmp]].type() == Json_dom::J_ARRAY ||
               doc_wrapper[d[tmp]].type() == Json_dom::J_OBJECT)
           {
-            if (contains_wr(doc_wrapper[d[tmp]], (*wr)[c[c_i]], result))
+            if (contains_wr(thd, doc_wrapper[d[tmp]], (*wr)[c[c_i]], result))
               return true;                    /* purecov: inspected */
             if (*result)
             {
@@ -861,7 +864,7 @@ longlong Item_func_json_contains::val_int()
       }
 
       bool ret;
-      if (contains_wr(v[0], containee_wr, &ret))
+      if (contains_wr(current_thd, v[0], containee_wr, &ret))
         return error_int();                /* purecov: inspected */
       null_value= false;
       return ret;
@@ -869,7 +872,7 @@ longlong Item_func_json_contains::val_int()
     else
     {
       bool ret;
-      if (contains_wr(doc_wrapper, containee_wr, &ret))
+      if (contains_wr(current_thd, doc_wrapper, containee_wr, &ret))
         return error_int();                /* purecov: inspected */
       null_value= false;
       return ret;
@@ -1886,7 +1889,7 @@ longlong Item_func_json_depth::val_int()
     /* purecov: end */
   }
 
-  result= wrapper.depth();
+  result= wrapper.depth(current_thd);
 
   null_value= false;
   return result;
@@ -2019,9 +2022,10 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr)
       Json_array *a= new (std::nothrow) Json_array();
       if (!a)
         return error_json();              /* purecov: inspected */
-      for (Json_wrapper_vector::iterator it= v.begin(); it != v.end(); ++it)
+      const THD *thd= current_thd;
+      for (Json_wrapper &w : v)
       {
-        if (a->append_clone(it->to_dom()))
+        if (a->append_clone(w.to_dom(thd)))
         {
           delete a;                             /* purecov: inspected */
           return error_json();            /* purecov: inspected */
@@ -2093,10 +2097,11 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr)
       return false;
     }
 
+    const THD *thd= current_thd;
     for (uint32 i= 1; i < arg_count; i += 2)
     {
       // Need a DOM to be able to manipulate arrays
-      Json_dom *doc= docw.to_dom();
+      Json_dom *doc= docw.to_dom(thd);
       if (!doc)
         return error_json();              /* purecov: inspected */
 
@@ -2138,7 +2143,7 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr)
         if ((*it)->json_type() == Json_dom::J_ARRAY)
         {
           Json_array *arr= down_cast<Json_array *>(*it);
-          if (arr->append_alias(valuew.to_dom()))
+          if (arr->append_alias(valuew.to_dom(thd)))
             return error_json();   /* purecov: inspected */
           valuew.set_alias(); // we have taken over the DOM
         }
@@ -2147,7 +2152,7 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr)
           Json_array *arr= new (std::nothrow) Json_array();
           if (!arr ||
               arr->append_clone(*it) ||
-              arr->append_alias(valuew.to_dom()))
+              arr->append_alias(valuew.to_dom(thd)))
           {
             delete arr;                         /* purecov: inspected */
             return error_json();          /* purecov: inspected */
@@ -2206,10 +2211,11 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
       return false;
     }
 
+    const THD *thd= current_thd;
     for (uint32 i= 1; i < arg_count; i += 2)
     {
       // Need a DOM to be able to manipulate arrays and objects
-      Json_dom *doc= docw.to_dom();
+      Json_dom *doc= docw.to_dom(thd);
       if (!doc)
         return error_json();              /* purecov: inspected */
 
@@ -2287,7 +2293,8 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
           {
             Json_array *arr= down_cast<Json_array *>(*it);
             DBUG_ASSERT(leg->get_type() == jpl_array_cell);
-            if (arr->insert_clone(leg->get_array_cell_index(), valuew.to_dom()))
+            if (arr->insert_clone(leg->get_array_cell_index(),
+                                  valuew.to_dom(thd)))
               return error_json();        /* purecov: inspected */
           }
           else if (leg->get_array_cell_index() > 0)
@@ -2301,7 +2308,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
             if (!newarr ||
                 newarr->append_clone(a) /* auto-wrap this */ ||
                 newarr->insert_clone(leg->get_array_cell_index(),
-                                     valuew.to_dom()))
+                                     valuew.to_dom(thd)))
             {
               delete newarr;                    /* purecov: inspected */
               return error_json();        /* purecov: inspected */
@@ -2332,7 +2339,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
           Json_object *o= down_cast<Json_object *>(*it);
           const char *ename= leg->get_member_name();
           size_t enames= leg->get_member_name_length();
-          if (o->add_clone(std::string(ename, enames), valuew.to_dom()))
+          if (o->add_clone(std::string(ename, enames), valuew.to_dom(thd)))
             return error_json();          /* purecov: inspected */
         }
       }
@@ -2371,10 +2378,11 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
       return false;
     }
 
+    const THD *thd= current_thd;
     for (uint32 i= 1; i < arg_count; i+= 2)
     {
       // Need a DOM to be able to manipulate arrays and objects
-      Json_dom *doc= docw.to_dom();
+      Json_dom *doc= docw.to_dom(thd);
       if (!doc)
         return error_json();              /* purecov: inspected */
 
@@ -2446,7 +2454,8 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
           // Excellent. Insert the value at that location.
           Json_array *arr= down_cast<Json_array *>(*it);
           DBUG_ASSERT(leg->get_type() == jpl_array_cell);
-          if (arr->insert_clone(leg->get_array_cell_index(), valuew.to_dom()))
+          if (arr->insert_clone(leg->get_array_cell_index(),
+                                valuew.to_dom(thd)))
             return error_json();        /* purecov: inspected */
         }
       }
@@ -2550,10 +2559,11 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
       return false;
     }
 
+    const THD *thd= current_thd;
     for (uint32 i= 1; i < arg_count; i += 2)
     {
       // Need a DOM to be able to manipulate arrays and objects
-      Json_dom *doc= docw.to_dom();
+      Json_dom *doc= docw.to_dom(thd);
       if (!doc)
         return error_json();                    /* purecov: inspected */
 
@@ -2622,7 +2632,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
               Json_array *arr= down_cast<Json_array *>(*it);
               DBUG_ASSERT(leg->get_type() == jpl_array_cell);
               if (arr->insert_clone(leg->get_array_cell_index(),
-                                    valuew.to_dom()))
+                                    valuew.to_dom(thd)))
                 return error_json();            /* purecov: inspected */
             }
             else
@@ -2637,7 +2647,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
 
               if (leg->get_array_cell_index() == 0)
               {
-                res= valuew.clone_dom();
+                res= valuew.clone_dom(thd);
                 if (!res)
                   return error_json();          /* purecov: inspected */
               }
@@ -2651,7 +2661,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
                 if (!newarr ||
                     newarr->append_clone(a) ||
                     newarr->insert_clone(leg->get_array_cell_index(),
-                                         valuew.to_dom()))
+                                         valuew.to_dom(thd)))
                 {
                   delete newarr;                /* purecov: inspected */
                   return error_json();          /* purecov: inspected */
@@ -2687,7 +2697,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
             Json_object *o= down_cast<Json_object *>(*it);
             const char *ename= leg->get_member_name();
             size_t enames= leg->get_member_name_length();
-            if (o->add_clone(std::string(ename, enames), valuew.to_dom()))
+            if (o->add_clone(std::string(ename, enames), valuew.to_dom(thd)))
               return error_json();              /* purecov: inspected */
           }
         } // end of loop through hits
@@ -2703,7 +2713,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
           Json_dom *parent= child->parent();
           if (!parent)
           {
-            Json_dom *dom= valuew.clone_dom();
+            Json_dom *dom= valuew.clone_dom(thd);
             if (!dom)
               return error_json();              /* purecov: inspected */
             Json_wrapper w(dom);
@@ -2711,7 +2721,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
           }
           else
           {
-            Json_dom *dom= valuew.clone_dom();
+            Json_dom *dom= valuew.clone_dom(thd);
             if (!dom)
               return error_json();              /* purecov: inspected */
             parent->replace_dom_in_container(child, dom);
@@ -2748,6 +2758,7 @@ bool Item_func_json_array::val_json(Json_wrapper *wr)
       return error_json();                /* purecov: inspected */
     Json_wrapper docw(arr);
 
+    const THD *thd= current_thd;
     for (uint32 i= 0; i < arg_count; ++i)
     {
       Json_wrapper valuew;
@@ -2758,7 +2769,7 @@ bool Item_func_json_array::val_json(Json_wrapper *wr)
         return error_json();
       }
 
-      if (arr->append_alias(valuew.to_dom()))
+      if (arr->append_alias(valuew.to_dom(thd)))
         return error_json();              /* purecov: inspected */
       valuew.set_alias(); // release the DOM
     }
@@ -2790,6 +2801,7 @@ bool Item_func_json_row_object::val_json(Json_wrapper *wr)
       return error_json();                /* purecov: inspected */
     Json_wrapper docw(object);
 
+    const THD *thd= current_thd;
     for (uint32 i= 0; i < arg_count; ++i)
     {
       /*
@@ -2823,7 +2835,7 @@ bool Item_func_json_row_object::val_json(Json_wrapper *wr)
         return error_json();
       }
 
-      if (object->add_alias(key, valuew.to_dom()))
+      if (object->add_alias(key, valuew.to_dom(thd)))
         return error_json();              /* purecov: inspected */
       valuew.set_alias(); // release the DOM
     }
@@ -3128,7 +3140,7 @@ bool Item_func_json_search::val_json(Json_wrapper *wr)
         */
         if (path->contains_wildcard_or_ellipsis())
         {
-          Json_dom *dom= docw.to_dom();
+          Json_dom *dom= docw.to_dom(current_thd);
           if (!dom)
             return error_json();          /* purecov: inspected */
           Json_dom_vector dom_hits(key_memory_JSON);
@@ -3277,7 +3289,7 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr)
   // good document, good paths. do some work
 
   // no binary support for removal. must convert to a dom.
-  Json_dom *dom= wrapper.to_dom();
+  Json_dom *dom= wrapper.to_dom(current_thd);
 
   // remove elements identified by the paths, one after the other
   Json_dom_vector hits(key_memory_JSON);
@@ -3335,6 +3347,7 @@ bool Item_func_json_merge::val_json(Json_wrapper *wr)
 
   try
   {
+    const THD *thd= current_thd;
     for (uint idx= 0; idx < arg_count; idx++)
     {
       Json_wrapper next_wrapper;
@@ -3354,7 +3367,7 @@ bool Item_func_json_merge::val_json(Json_wrapper *wr)
         Grab the next DOM, release it from its wrapper, and merge it
         into the previous DOM.
       */
-      Json_dom *next_dom= next_wrapper.to_dom();
+      Json_dom *next_dom= next_wrapper.to_dom(thd);
       if (!next_dom)
       {
         delete result_dom;

@@ -5138,7 +5138,7 @@ long max_stack_used;
     corresponding exec. (Thus we only have to check in fix_fields.)
   - Passing to check_stack_overrun() prevents the compiler from removing it.
 */
-bool check_stack_overrun(THD *thd, long margin,
+bool check_stack_overrun(const THD *thd, long margin,
 			 uchar *buf __attribute__((unused)))
 {
   long stack_used;

@@ -4712,7 +4712,8 @@ bool Item_copy_json::copy(const THD *thd)
 
   if (!null_value)
   {
-    m_value->to_dom(); // need own copy, cf. also Item_cache_json::cache_value
+    // need own copy, cf. also Item_cache_json::cache_value
+    m_value->to_dom(thd);
   }
 
   return false;
@@ -7435,7 +7436,7 @@ public:
   }
   Item *clone_item()
   {
-    Json_wrapper wr(m_value.clone_dom());
+    Json_wrapper wr(m_value.clone_dom(current_thd));
     return new Item_json(&wr, item_name, collation);
   }
   /* purecov: end */
@@ -9922,7 +9923,8 @@ bool Item_cache_json::cache_value()
 
   if (!null_value)
   {
-    m_value->to_dom(); // the row buffer might change, so need own copy
+    // the row buffer might change, so need own copy
+    m_value->to_dom(current_thd);
   }
 
   return true;

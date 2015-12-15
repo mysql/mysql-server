@@ -40,6 +40,7 @@ protected:
   virtual void SetUp() { initializer.SetUp(); }
   virtual void TearDown() { initializer.TearDown(); }
   my_testing::Server_initializer initializer;
+  THD *thd() const { return initializer.thd(); }
 };
 
 /**
@@ -418,30 +419,31 @@ TEST_F(JsonDomTest, WrapperTest)
   // Constructors, assignment, copy constructors, aliasing
   Json_dom *d= new (std::nothrow) Json_null();
   Json_wrapper w(d);
-  EXPECT_EQ(w.to_dom(), d);
+  const THD *thd= this->thd();
+  EXPECT_EQ(w.to_dom(thd), d);
   Json_wrapper w_2(w);
-  EXPECT_NE(w.to_dom(), w_2.to_dom()); // deep copy
+  EXPECT_NE(w.to_dom(thd), w_2.to_dom(thd)); // deep copy
 
   Json_wrapper w_2b;
   EXPECT_TRUE(w_2b.empty());
   w_2b= w;
-  EXPECT_NE(w.to_dom(), w_2b.to_dom()); // deep copy
+  EXPECT_NE(w.to_dom(thd), w_2b.to_dom(thd)); // deep copy
 
   w.set_alias(); // d is now "free" again
   Json_wrapper w_3(w);
-  EXPECT_EQ(w.to_dom(), w_3.to_dom()); // alias copy
+  EXPECT_EQ(w.to_dom(thd), w_3.to_dom(thd)); // alias copy
   w_3= w;
-  EXPECT_EQ(w.to_dom(), w_3.to_dom()); // alias copy
+  EXPECT_EQ(w.to_dom(thd), w_3.to_dom(thd)); // alias copy
 
   Json_wrapper w_4(d); // give d a new owner
   Json_wrapper w_5;
   w_5.steal(&w_4); // takes over d
-  EXPECT_EQ(w_4.to_dom(), w_5.to_dom());
+  EXPECT_EQ(w_4.to_dom(thd), w_5.to_dom(thd));
 
   Json_wrapper w_6;
   EXPECT_EQ(Json_dom::J_ERROR, w_6.type());
   EXPECT_EQ(0U, w_6.length());
-  EXPECT_EQ(0U, w_6.depth());
+  EXPECT_EQ(0U, w_6.depth(thd));
 
   Json_dom *i= new (std::nothrow) Json_int(1);
   Json_wrapper w_7(i);
