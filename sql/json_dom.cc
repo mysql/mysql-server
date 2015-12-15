@@ -38,6 +38,14 @@
 
 using namespace rapidjson;
 
+static Json_dom *json_binary_to_dom_template(const json_binary::Value &v);
+static bool populate_object_or_array(const THD *thd, Json_dom *dom,
+                                     const json_binary::Value &v);
+static bool populate_object(const THD *thd, Json_object *jo,
+                            const json_binary::Value &v);
+static bool populate_array(const THD *thd, Json_array *ja,
+                           const json_binary::Value &v);
+
 const char * Json_dom::json_type_string_map[]= {
   "NULL",
   "DECIMAL",
@@ -1002,76 +1010,54 @@ bjson2json(const json_binary::Value::enum_type bintype)
 
 Json_dom *Json_dom::parse(const THD* thd, const json_binary::Value &v)
 {
-  Json_dom *result= NULL;
+  std::unique_ptr<Json_dom> dom(json_binary_to_dom_template(v));
+  if (dom.get() == NULL || populate_object_or_array(thd, dom.get(), v))
+    return NULL;                              /* purecov: inspected */
+  return dom.release();
+}
 
+
+/// Get string data as std::string from a json_binary::Value.
+static std::string get_string_data(const json_binary::Value &v)
+{
+  return std::string(v.get_data(), v.get_data_length());
+}
+
+
+/**
+  Create a DOM template for the provided json_binary::Value.
+
+  If the binary value represents a scalar, create a Json_dom object
+  that represents the scalar and return a pointer to it.
+
+  If the binary value represents an object or an array, create an
+  empty Json_object or Json_array object and return a pointer to it.
+
+  @param v  the binary value to convert to DOM
+
+  @return a DOM template for the top-level the binary value, or NULL
+  if an error is detected.
+*/
+static Json_dom *json_binary_to_dom_template(const json_binary::Value &v)
+{
   switch (v.type())
   {
   case json_binary::Value::OBJECT:
-    {
-      // Check that we haven't run out of stack before we dive into the object.
-      if (check_stack_overrun(thd, STACK_MIN_SIZE, nullptr))
-        return NULL;                            /* purecov: inspected */
-      std::unique_ptr<Json_object> jo(new (std::nothrow) Json_object());
-      if (jo.get() == NULL)
-        return NULL;                            /* purecov: inspected */
-      for (uint32 i= 0; i < v.element_count(); ++i)
-      {
-        /*
-          Add the key/value pair. Json_object::add_alias() guarantees
-          that the value is deallocated if it cannot be added.
-        */
-        if (jo->add_alias(std::string(v.key(i).get_data(),
-                                      v.key(i).get_data_length()),
-                          parse(thd, v.element(i))))
-        {
-          return NULL;                        /* purecov: inspected */
-        }
-      }
-      result= jo.release();
-      break;
-    }
+    return new (std::nothrow) Json_object();
   case json_binary::Value::ARRAY:
-    {
-      // Check that we haven't run out of stack before we dive into the array.
-      if (check_stack_overrun(thd, STACK_MIN_SIZE, nullptr))
-        return NULL;                          /* purecov: inspected */
-      std::unique_ptr<Json_array> jarr(new (std::nothrow) Json_array());
-      if (jarr.get() == NULL)
-        return NULL;                          /* purecov: inspected */
-      for (uint32 i= 0; i < v.element_count(); ++i)
-      {
-        /*
-          Add the element to the array. We need to make sure it is
-          deallocated if it cannot be added. std::unique_ptr does that
-          for us.
-        */
-        std::unique_ptr<Json_dom> elt(parse(thd, v.element(i)));
-        if (jarr->append_alias(elt.get()))
-          return NULL;                        /* purecov: inspected */
-        // The array owns the element now. Release it.
-        elt.release();
-      }
-      result= jarr.release();
-      break;
-    }
+    return new (std::nothrow) Json_array();
   case json_binary::Value::DOUBLE:
-    result= new (std::nothrow) Json_double(v.get_double());
-    break;
+    return new (std::nothrow) Json_double(v.get_double());
   case json_binary::Value::INT:
-    result= new (std::nothrow) Json_int(v.get_int64());
-    break;
+    return new (std::nothrow) Json_int(v.get_int64());
   case json_binary::Value::UINT:
-    result= new (std::nothrow) Json_uint(v.get_uint64());
-    break;
+    return new (std::nothrow) Json_uint(v.get_uint64());
   case json_binary::Value::LITERAL_FALSE:
-    result= new (std::nothrow) Json_boolean(false);
-    break;
+    return new (std::nothrow) Json_boolean(false);
   case json_binary::Value::LITERAL_TRUE:
-    result= new (std::nothrow) Json_boolean(true);
-    break;
+    return new (std::nothrow) Json_boolean(true);
   case json_binary::Value::LITERAL_NULL:
-    result= new (std::nothrow) Json_null();
-    break;
+    return new (std::nothrow) Json_null();
   case json_binary::Value::OPAQUE:
     {
       const enum_field_types ftyp= v.field_type();
@@ -1083,41 +1069,126 @@ Json_dom *Json_dom::parse(const THD* thd, const json_binary::Value &v)
                                               v.get_data_length(),
                                               &m))
           return NULL;                        /* purecov: inspected */
-        result= new (std::nothrow) Json_decimal(m);
+        return new (std::nothrow) Json_decimal(m);
       }
-      else if (ftyp == MYSQL_TYPE_DATE ||
-               ftyp == MYSQL_TYPE_TIME ||
-               ftyp == MYSQL_TYPE_DATETIME ||
-               ftyp == MYSQL_TYPE_TIMESTAMP)
+
+      if (ftyp == MYSQL_TYPE_DATE ||
+          ftyp == MYSQL_TYPE_TIME ||
+          ftyp == MYSQL_TYPE_DATETIME ||
+          ftyp == MYSQL_TYPE_TIMESTAMP)
       {
         MYSQL_TIME t;
         Json_datetime::from_packed(v.get_data(), ftyp, &t);
-        result= new (std::nothrow) Json_datetime(t, ftyp);
+        return new (std::nothrow) Json_datetime(t, ftyp);
       }
-      else
-      {
-        result= new (std::nothrow) Json_opaque(v.field_type(),
-                                               v.get_data(),
-                                               v.get_data_length());
-      }
-      break;
+
+      return new (std::nothrow) Json_opaque(v.field_type(),
+                                            v.get_data(),
+                                            v.get_data_length());
     }
   case json_binary::Value::STRING:
-    result= new (std::nothrow) Json_string(std::string(v.get_data(),
-                                                       v.get_data_length()));
-    break;
-
+    return new (std::nothrow) Json_string(get_string_data(v));
   case json_binary::Value::ERROR:
-    {
-      /* purecov: begin inspected */
-      DBUG_ABORT();
-      my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
-      break;
-      /* purecov: end inspected */
-    }
+    break;                                    /* purecov: inspected */
   }
 
-  return result;
+  /* purecov: begin inspected */
+  my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
+  return NULL;
+  /* purecov: end */
+}
+
+
+/**
+  Populate the DOM representation of a JSON object or array with the
+  elements found in a binary JSON object or array. If the supplied
+  value does not represent an object or an array, do nothing.
+
+  @param[in]     thd    THD handle
+  @param[in,out] dom    the Json_dom object to populate
+  @param[in]     v      the binary JSON value to read from
+
+  @retval true on error
+  @retval false on success
+*/
+static bool populate_object_or_array(const THD *thd, Json_dom *dom,
+                                     const json_binary::Value &v)
+{
+  switch (v.type())
+  {
+  case json_binary::Value::OBJECT:
+    // Check that we haven't run out of stack before we dive into the object.
+    return check_stack_overrun(thd, STACK_MIN_SIZE, nullptr) ||
+      populate_object(thd, down_cast<Json_object *>(dom), v);
+  case json_binary::Value::ARRAY:
+    // Check that we haven't run out of stack before we dive into the array.
+    return check_stack_overrun(thd, STACK_MIN_SIZE, nullptr) ||
+      populate_array(thd, down_cast<Json_array *>(dom), v);
+  default:
+    return false;
+  }
+}
+
+
+/**
+  Populate the DOM representation of a JSON object with the key/value
+  pairs found in a binary JSON object.
+
+  @param[in]     thd    THD handle
+  @param[in,out] jo     the JSON object to populate
+  @param[in]     v      the binary JSON object to read from
+
+  @retval true on error
+  @retval false on success
+*/
+static bool populate_object(const THD *thd, Json_object *jo,
+                            const json_binary::Value &v)
+{
+  for (uint32 i= 0; i < v.element_count(); i++)
+  {
+    auto key= get_string_data(v.key(i));
+    auto val= v.element(i);
+    auto dom= json_binary_to_dom_template(val);
+    if (jo->add_alias(key, dom) || populate_object_or_array(thd, dom, val))
+    {
+      // No need to delete dom on error, as Json_object does that for us.
+      return true;                            /* purecov: inspected */
+    }
+  }
+  return false;
+}
+
+
+/**
+  Populate the DOM representation of a JSON array with the elements
+  found in a binary JSON array.
+
+  @param[in]     thd    THD handle
+  @param[in,out] ja     the JSON array to populate
+  @param[in]     v      the binary JSON array to read from
+
+  @retval true on error
+  @retval false on success
+*/
+static bool populate_array(const THD *thd, Json_array *ja,
+                           const json_binary::Value &v)
+{
+  for (uint32 i= 0; i < v.element_count(); i++)
+  {
+    auto elt= v.element(i);
+    auto dom= json_binary_to_dom_template(elt);
+    if (ja->append_alias(dom))
+    {
+      // Need to delete dom on error. append_alias() doesn't do it for us.
+      /* purecov: begin inspected */
+      delete dom;
+      return true;
+      /* purecov: end */
+    }
+    if (populate_object_or_array(thd, dom, elt))
+      return true;                            /* purecov: inspected */
+  }
+  return false;
 }
 
 

@@ -188,6 +188,26 @@ static void insert_offset_or_size(String *dest, size_t pos,
 
 
 /**
+  Check if the size of a document exceeds the maximum JSON binary size
+  (4 GB, aka UINT_MAX32). Raise an error if it is too big.
+
+  @param size  the size of the document
+  @return true if the document is too big, false otherwise
+*/
+static bool check_document_size(size_t size)
+{
+  if (size > UINT_MAX32)
+  {
+    /* purecov: begin inspected */
+    my_error(ER_JSON_VALUE_TOO_BIG, MYF(0));
+    return true;
+    /* purecov: end */
+  }
+  return false;
+}
+
+
+/**
   Append a length to a String. The number of bytes used to store the length
   uses a variable number of bytes depending on how large the length is. If the
   highest bit in a byte is 1, then the length is continued on the next byte.
@@ -218,6 +238,9 @@ static bool append_variable_length(String *dest, size_t length)
   }
   while (length != 0);
 
+  if (check_document_size(dest->length() + length))
+    return true;                              /* purecov: inspected */
+
   // Successfully appended the length.
   return false;
 }
@@ -233,7 +256,7 @@ static bool append_variable_length(String *dest, size_t length)
   @return  false on success, true on error
 */
 static bool read_variable_length(const char *data, size_t data_length,
-                                 size_t *length, size_t *num)
+                                 uint32 *length, uint8 *num)
 {
   /*
     It takes five bytes to represent UINT_MAX32, which is the largest
@@ -253,8 +276,8 @@ static bool read_variable_length(const char *data, size_t data_length,
         return true;                          /* purecov: inspected */
 
       // This was the last byte. Return successfully.
-      *num= i + 1;
-      *length= len;
+      *num= static_cast<uint8>(i + 1);
+      *length= static_cast<uint32>(len);
       return false;
     }
   }
@@ -287,14 +310,7 @@ static bool is_too_big_for_json(size_t offset_or_size, bool large)
   {
     if (!large)
       return true;
-
-    if (offset_or_size > UINT_MAX32)
-    {
-      /* purecov: begin inspected */
-      my_error(ER_JSON_VALUE_TOO_BIG, MYF(0));
-      return true;
-      /* purecov: end */
-    }
+    return check_document_size(offset_or_size);
   }
 
   return false;
@@ -786,8 +802,8 @@ serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
 
 // Constructor for literals and errors.
 Value::Value(enum_type t)
-  : m_type(t), m_field_type(), m_data(), m_element_count(), m_length(),
-    m_int_value(), m_double_value(), m_large()
+  : m_data(nullptr), m_element_count(), m_length(), m_field_type(), m_type(t),
+    m_large()
 {
   DBUG_ASSERT(t == LITERAL_NULL || t == LITERAL_TRUE || t == LITERAL_FALSE ||
               t == ERROR);
@@ -796,8 +812,8 @@ Value::Value(enum_type t)
 
 // Constructor for int and uint.
 Value::Value(enum_type t, int64 val)
-  : m_type(t), m_field_type(), m_data(), m_element_count(), m_length(),
-    m_int_value(val), m_double_value(), m_large()
+  : m_int_value(val), m_element_count(), m_length(), m_field_type(), m_type(t),
+    m_large()
 {
   DBUG_ASSERT(t == INT || t == UINT);
 }
@@ -805,32 +821,32 @@ Value::Value(enum_type t, int64 val)
 
 // Constructor for double.
 Value::Value(double d)
-  : m_type(DOUBLE), m_field_type(), m_data(), m_element_count(), m_length(),
-    m_int_value(), m_double_value(d), m_large()
+  : m_double_value(d), m_element_count(), m_length(), m_field_type(),
+    m_type(DOUBLE), m_large()
 {}
 
 
 // Constructor for string.
-Value::Value(const char *data, size_t len)
-  : m_type(STRING), m_field_type(), m_data(data), m_element_count(),
-    m_length(len), m_int_value(), m_double_value(), m_large()
+Value::Value(const char *data, uint32 len)
+  : m_data(data), m_element_count(), m_length(len), m_field_type(),
+    m_type(STRING), m_large()
 {}
 
 
 // Constructor for arrays and objects.
-Value::Value(enum_type t, const char *data, size_t bytes,
-             size_t element_count, bool large)
-  : m_type(t), m_field_type(), m_data(data), m_element_count(element_count),
-    m_length(bytes), m_int_value(), m_double_value(), m_large(large)
+Value::Value(enum_type t, const char *data, uint32 bytes,
+             uint32 element_count, bool large)
+  : m_data(data), m_element_count(element_count), m_length(bytes),
+    m_field_type(), m_type(t), m_large(large)
 {
   DBUG_ASSERT(t == ARRAY || t == OBJECT);
 }
 
 
 // Constructor for opaque values.
-Value::Value(enum_field_types ft, const char *data, size_t len)
-  : m_type(OPAQUE), m_field_type(ft), m_data(data), m_element_count(),
-    m_length(len), m_int_value(), m_double_value(), m_large()
+Value::Value(enum_field_types ft, const char *data, uint32 len)
+  : m_data(data), m_element_count(), m_length(len), m_field_type(ft),
+    m_type(OPAQUE), m_large()
 {}
 
 
@@ -896,7 +912,7 @@ const char *Value::get_data() const
   Get the length in bytes of the STRING or OPAQUE value represented by
   this instance.
 */
-size_t Value::get_data_length() const
+uint32 Value::get_data_length() const
 {
   DBUG_ASSERT(m_type == STRING || m_type == OPAQUE);
   return m_length;
@@ -937,7 +953,7 @@ double Value::get_double() const
   Get the number of elements in an array, or the number of members in
   an object.
 */
-size_t Value::element_count() const
+uint32 Value::element_count() const
 {
   DBUG_ASSERT(m_type == ARRAY || m_type == OBJECT);
   return m_element_count;
@@ -1024,8 +1040,8 @@ static Value parse_scalar(uint8 type, const char *data, size_t len)
     }
   case JSONB_TYPE_STRING:
     {
-      size_t str_len;
-      size_t n;
+      uint32 str_len;
+      uint8 n;
       if (read_variable_length(data, len, &str_len, &n))
         return err();                         /* purecov: inspected */
       if (len < n + str_len)
@@ -1046,8 +1062,8 @@ static Value parse_scalar(uint8 type, const char *data, size_t len)
       enum_field_types field_type= static_cast<enum_field_types>(type_byte);
 
       // Then there's the length of the value.
-      size_t val_len;
-      size_t n;
+      uint32 val_len;
+      uint8 n;
       if (read_variable_length(data + 1, len - 1, &val_len, &n))
         return err();                         /* purecov: inspected */
       if (len < 1 + n + val_len)
@@ -1069,7 +1085,7 @@ static Value parse_scalar(uint8 type, const char *data, size_t len)
   @param large tells if the large or small storage format is used; true
                means read four bytes, false means read two bytes
 */
-static size_t read_offset_or_size(const char *data, bool large)
+static uint32 read_offset_or_size(const char *data, bool large)
 {
   return large ? uint4korr(data) : uint2korr(data);
 }
@@ -1098,8 +1114,8 @@ static Value parse_array_or_object(Value::enum_type t, const char *data,
   const size_t offset_size= large ? LARGE_OFFSET_SIZE : SMALL_OFFSET_SIZE;
   if (len < 2 * offset_size)
     return err();
-  const size_t element_count= read_offset_or_size(data, large);
-  const size_t bytes= read_offset_or_size(data + offset_size, large);
+  const uint32 element_count= read_offset_or_size(data, large);
+  const uint32 bytes= read_offset_or_size(data + offset_size, large);
 
   // The value can't have more bytes than what's available in the data buffer.
   if (bytes > len)
@@ -1209,7 +1225,7 @@ Value Value::element(size_t pos) const
     Otherwise, it's a non-inlined value, and the offset to where the value
     is stored, can be found right after the type byte in the entry.
   */
-  size_t value_offset= read_offset_or_size(m_data + entry_offset + 1, m_large);
+  uint32 value_offset= read_offset_or_size(m_data + entry_offset + 1, m_large);
 
   if (m_length < value_offset)
     return err();                             /* purecov: inspected */
@@ -1243,10 +1259,10 @@ Value Value::key(size_t pos) const
   const size_t entry_offset= 2 * offset_size + key_entry_size * pos;
 
   // The offset of the key is the first part of the key entry.
-  const size_t key_offset= read_offset_or_size(m_data + entry_offset, m_large);
+  const uint32 key_offset= read_offset_or_size(m_data + entry_offset, m_large);
 
   // The length of the key is the second part of the entry, always two bytes.
-  const size_t key_length= uint2korr(m_data + entry_offset + offset_size);
+  const uint16 key_length= uint2korr(m_data + entry_offset + offset_size);
 
   /*
     The key must start somewhere after the last value entry, and it must

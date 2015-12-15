@@ -23,7 +23,6 @@ rpl.rpl_gtid_stress_failover             # Bug#20630589  2015-03-19 agopi Origin
 
 binlog.binlog_xa_prepared_disconnect     # Bug#19502202 2015-12-02 erlend experimental while waiting for a fix
 main.xa_prepared_binlog_off              # Bug#19502202 2015-12-02 erlend experimental while waiting for a fix
-main.json				 # Bug#22280780 2015-12-11 erlend experimental to reduce noise
 main.user_var				 # Bug#21907546 2015-12-11 erlend experimental to reduce noise
 main.locking_service			 # Bug#22304322 2015-12-11 erlend experimental to reduce noise
 main.partition_pruning			 # Bug#20597049 2015-12-11 erlend experimental to reduce noise
