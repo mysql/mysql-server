@@ -115,7 +115,7 @@ DROP USER mysqltest1@'%';
 Run mysql_upgrade with a non existing server socket
 Warning: Using a password on the command line interface can be insecure.
 mysqlcheck: Got error: 2005: Unknown MySQL server host 'not_existing_host' (errno) when trying to connect
-FATAL ERROR: Upgrade failed
+FATAL ERROR: Error during call to mysql_check for fixing the db/tables names on mysql db
 set GLOBAL sql_mode='STRICT_ALL_TABLES,ANSI_QUOTES,NO_ZERO_DATE';
 Warnings:
 Warning	1681	'NO_ZERO_DATE' is deprecated and will be removed in a future release.
@@ -502,5 +502,12 @@ DROP USER B20023823_empty@localhost;
 DROP USER B20023823_def@localhost;
 DROP USER B20023823_41hash@localhost;
 DROP USER B20023823_16hash@localhost;
+#
+# Bug #21489398: MYSQL_UPGRADE: FATAL ERROR: UPGRADE FAILED - IMPROVE ERROR
+#
+Run mysql_upgrade with unauthorized access
+Warning: Using a password on the command line interface can be insecure.
+Error: Failed while fetching Server version! Could be due to unauthorized access.
+FATAL ERROR: Upgrade failed
 
 End of tests

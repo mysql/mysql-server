@@ -3310,7 +3310,9 @@ void Item_func_group_concat::cleanup()
   ORDER **order_ptr= order;
   for (uint i= 0; i < arg_count_order; i++)
   {
-    (*order_ptr)->item= &args[arg_count_field + i];
+
+    if ((*order_ptr)->counter_used)
+      args[arg_count_field + i]= (*order_ptr)->item_ptr;
     order_ptr++;
   }
   DBUG_VOID_RETURN;

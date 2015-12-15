@@ -156,10 +156,13 @@ my_error_innodb(
 		/* TODO: report the row, as we do for DB_DUPLICATE_KEY */
 		my_error(ER_INVALID_USE_OF_NULL, MYF(0));
 		break;
+	case DB_TABLESPACE_EXISTS:
+		my_error(ER_TABLESPACE_EXISTS, MYF(0), table);
+		break;
+
 #ifdef UNIV_DEBUG
 	case DB_SUCCESS:
 	case DB_DUPLICATE_KEY:
-	case DB_TABLESPACE_EXISTS:
 	case DB_ONLINE_LOG_TOO_BIG:
 		/* These codes should not be passed here. */
 		ut_error;
@@ -5026,6 +5029,61 @@ commit_cache_rebuild(
 	DBUG_VOID_RETURN;
 }
 
+/** Store the column number of the columns in a list belonging
+to indexes which are not being dropped.
+@param[in]	ctx		In-place ALTER TABLE context
+@param[out]	drop_col_list	list which will be set, containing columns
+				which is part of index being dropped */
+static
+void
+get_col_list_to_be_dropped(
+	ha_innobase_inplace_ctx*	ctx,
+	std::set<ulint>&		drop_col_list)
+{
+	for (ulint index_count = 0; index_count < ctx->num_to_drop_index;
+	     index_count++) {
+		dict_index_t*	index = ctx->drop_index[index_count];
+
+		for (ulint col = 0; col < index->n_user_defined_cols; col++) {
+			ulint	col_no = dict_index_get_nth_col_no(index, col);
+			drop_col_list.insert(col_no);
+		}
+	}
+}
+
+/** For each column, which is part of an index which is not going to be
+dropped, it checks if the column number of the column is same as col_no
+argument passed.
+@param[in]	table	table object
+@param[in]	col_no	column number of the column which is to be checked
+@retval true column exists
+@retval false column does not exist. */
+static
+bool
+check_col_exists_in_indexes(
+	const dict_table_t*	table,
+	ulint			col_no)
+{
+	for (dict_index_t* index = dict_table_get_first_index(table); index;
+	     index = dict_table_get_next_index(index)) {
+
+		if (index->to_be_dropped) {
+			continue;
+		}
+
+		for (ulint col = 0; col < index->n_user_defined_cols; col++) {
+
+			ulint	index_col_no = dict_index_get_nth_col_no(
+						index, col);
+			if (col_no == index_col_no) {
+				return(true);
+			}
+		}
+	}
+
+	return(false);
+}
+
 /** Commit the changes made during prepare_inplace_alter_table()
 and inplace_alter_table() inside the data dictionary tables,
 when not rebuilding the table.
@@ -5160,6 +5218,20 @@ commit_cache_norebuild(
 	bool	found = true;
 
 	DBUG_ASSERT(!ctx->need_rebuild());
+
+	std::set<ulint>			drop_list;
+	std::set<ulint>::const_iterator	col_it;
+
+	/* Check if the column, part of an index to be dropped is part of any
+	other index which is not being dropped. If it so, then set the ord_part
+	of the column to 0. */
+	get_col_list_to_be_dropped(ctx, drop_list);
+
+	for(col_it = drop_list.begin(); col_it != drop_list.end(); ++col_it) {
+		if (!check_col_exists_in_indexes(ctx->new_table, *col_it)) {
+			ctx->new_table->cols[*col_it].ord_part = 0;
+		}
+	}
 
 	for (ulint i = 0; i < ctx->num_to_add_index; i++) {
 		dict_index_t*	index = ctx->add_index[i];
@@ -5361,6 +5433,7 @@ ha_innobase::commit_inplace_alter_table(
 	Alter_inplace_info*	ha_alter_info,
 	bool			commit)
 {
+	dberr_t				error;
 	ha_innobase_inplace_ctx*	ctx0
 		= static_cast<ha_innobase_inplace_ctx*>
 		(ha_alter_info->handler_ctx);
@@ -5442,7 +5515,7 @@ ha_innobase::commit_inplace_alter_table(
 		transactions collected during crash recovery could be
 		holding InnoDB locks only, not MySQL locks. */
 
-		dberr_t error = row_merge_lock_table(
+		error = row_merge_lock_table(
 			prebuilt->trx, ctx->old_table, LOCK_X);
 
 		if (error != DB_SUCCESS) {
@@ -5577,14 +5650,20 @@ ha_innobase::commit_inplace_alter_table(
 				= static_cast<ha_innobase_inplace_ctx*>(*pctx);
 
 			DBUG_ASSERT(ctx->need_rebuild());
-			/* Generate the redo log for the file
-			operations that will be performed in
-			commit_cache_rebuild(). */
-			fil_mtr_rename_log(ctx->old_table->space,
-					   ctx->old_table->name,
-					   ctx->new_table->space,
-					   ctx->new_table->name,
-					   ctx->tmp_name, &mtr);
+			/* Check for any possible problems for any
+			file operations that will be performed in
+			commit_cache_rebuild(), and if none, generate
+			the redo log for these operations. */
+			error = fil_mtr_rename_log(ctx->old_table,
+						   ctx->new_table,
+						   ctx->tmp_name, &mtr);
+			if (error != DB_SUCCESS) {
+				/* Out of memory or a problem will occur
+				when renaming files. */
+				fail = true;
+				my_error_innodb(error, ctx->old_table->name,
+						ctx->old_table->flags);
+			}
 			DBUG_INJECT_CRASH("ib_commit_inplace_crash",
 					  crash_inject_count++);
 		}
@@ -5597,18 +5676,25 @@ ha_innobase::commit_inplace_alter_table(
 		DBUG_EXECUTE_IF("innodb_alter_commit_crash_before_commit",
 				log_buffer_flush_to_disk();
 				DBUG_SUICIDE(););
-		ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
 		ut_ad(!trx->fts_trx);
-		ut_ad(trx->insert_undo || trx->update_undo);
 
-		/* The following call commits the
-		mini-transaction, making the data dictionary
-		transaction committed at mtr.end_lsn. The
-		transaction becomes 'durable' by the time when
-		log_buffer_flush_to_disk() returns. In the
-		logical sense the commit in the file-based
-		data structures happens here. */
-		trx_commit_low(trx, &mtr);
+		if (fail) {
+			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+			mtr_commit(&mtr);
+			trx_rollback_for_mysql(trx);
+		} else {
+			/* The following call commits the
+			mini-transaction, making the data dictionary
+			transaction committed at mtr.end_lsn. The
+			transaction becomes 'durable' by the time when
+			log_buffer_flush_to_disk() returns. In the
+			logical sense the commit in the file-based
+			data structures happens here. */
+			ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
+			ut_ad(trx->insert_undo || trx->update_undo);
+
+			trx_commit_low(trx, &mtr);
+		}
 
 		/* If server crashes here, the dictionary in
 		InnoDB and MySQL will differ.  The .ibd files
@@ -5630,7 +5716,6 @@ ha_innobase::commit_inplace_alter_table(
 	update the in-memory structures, close some handles, release
 	temporary files, and (unless we rolled back) update persistent
 	statistics. */
-	dberr_t	error		= DB_SUCCESS;
 
 	for (inplace_alter_handler_ctx** pctx = ctx_array;
 	     *pctx; pctx++) {

@@ -3881,8 +3881,8 @@ Prepared_statement::swap_prepared_statement(Prepared_statement *copy)
   swap_variables(LEX_STRING, name, copy->name);
   /* Ditto */
   swap_variables(char *, db, copy->db);
+  std::swap(db_length, copy->db_length);
 
-  DBUG_ASSERT(db_length == copy->db_length);
   DBUG_ASSERT(param_count == copy->param_count);
   DBUG_ASSERT(thd == copy->thd);
   last_error[0]= '\0';

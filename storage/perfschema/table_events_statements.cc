@@ -337,9 +337,32 @@ void table_events_statements_common::make_row_part_1(PFS_events_statements *stat
   m_row.m_name= klass->m_name;
   m_row.m_name_length= klass->m_name_length;
 
-  m_row.m_sqltext_length= statement->m_sqltext_length;
-  if (m_row.m_sqltext_length > 0)
-    memcpy(m_row.m_sqltext, statement->m_sqltext, m_row.m_sqltext_length);
+  CHARSET_INFO *cs= get_charset(statement->m_sqltext_cs_number, MYF(0));
+  size_t valid_length= statement->m_sqltext_length;
+
+  if (cs->mbmaxlen > 1)
+  {
+    int well_formed_error;
+    valid_length= cs->cset->well_formed_len(cs, statement->m_sqltext, statement->m_sqltext + valid_length,
+                                            valid_length, &well_formed_error);
+  }
+
+  m_row.m_sqltext.set_charset(cs);
+  m_row.m_sqltext.length(0);
+  m_row.m_sqltext.append(statement->m_sqltext, (uint32)valid_length, cs);
+
+  /* Indicate that sqltext is truncated or not well-formed. */
+  if (statement->m_sqltext_truncated || valid_length < statement->m_sqltext_length)
+  {
+    size_t chars= m_row.m_sqltext.numchars();
+    if (chars > 3)
+    {
+      chars-= 3;
+      size_t bytes_offset= m_row.m_sqltext.charpos(chars, 0);
+      m_row.m_sqltext.length(bytes_offset);
+      m_row.m_sqltext.append("...", 3);
+    }
+  }
 
   m_row.m_current_schema_name_length= statement->m_current_schema_name_length;
   if (m_row.m_current_schema_name_length > 0)
@@ -482,8 +505,8 @@ int table_events_statements_common::read_row_values(TABLE *table,
           f->set_null();
         break;
       case 9: /* SQL_TEXT */
-        if (m_row.m_sqltext_length)
-          set_field_longtext_utf8(f, m_row.m_sqltext, m_row.m_sqltext_length);
+        if (m_row.m_sqltext.length())
+          set_field_longtext_utf8(f, m_row.m_sqltext.ptr(), m_row.m_sqltext.length());
         else
           f->set_null();
         break;

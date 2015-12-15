@@ -2165,18 +2165,6 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
       outparam->record[1]= outparam->record[0];   // Safety
   }
 
-#ifdef HAVE_purify
-  /*
-    We need this because when we read var-length rows, we are not updating
-    bytes after end of varchar
-  */
-  if (records > 1)
-  {
-    memcpy(outparam->record[0], share->default_values, share->rec_buff_length);
-    memcpy(outparam->record[1], share->default_values, share->null_bytes);
-  }
-#endif
-
   if (!(field_ptr = (Field **) alloc_root(&outparam->mem_root,
                                           (uint) ((share->fields+1)*
                                                   sizeof(Field*)))))
@@ -3707,6 +3695,7 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   fulltext_searched= 0;
   file->ft_handler= 0;
   reginfo.impossible_range= 0;
+  reginfo.join_tab= NULL;
 
   /* Catch wrong handling of the auto_increment_field_not_null. */
   DBUG_ASSERT(!auto_increment_field_not_null);
