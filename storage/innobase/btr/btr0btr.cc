@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -2101,7 +2101,7 @@ the tuple. It is assumed that mtr contains an x-latch on the tree.
 NOTE that the operation of this function must always succeed,
 we cannot reverse it: therefore enough free disk space must be
 guaranteed to be available before this function is called.
-@return	inserted record */
+@return	inserted record or NULL if run out of space */
 UNIV_INTERN
 rec_t*
 btr_root_raise_and_insert(
@@ -2162,6 +2162,11 @@ btr_root_raise_and_insert(
 	level = btr_page_get_level(root, mtr);
 
 	new_block = btr_page_alloc(index, 0, FSP_NO_DIR, level, mtr, mtr);
+
+	if (new_block == NULL && os_has_said_disk_full) {
+		return(NULL);
+        }
+
 	new_page = buf_block_get_frame(new_block);
 	new_page_zip = buf_block_get_page_zip(new_block);
 	ut_a(!new_page_zip == !root_page_zip);
@@ -2938,7 +2943,7 @@ function must always succeed, we cannot reverse it: therefore enough
 free disk space (2 pages) must be guaranteed to be available before
 this function is called.
 
-@return inserted record */
+@return inserted record or NULL if run out of space */
 UNIV_INTERN
 rec_t*
 btr_page_split_and_insert(
@@ -3052,9 +3057,18 @@ func_start:
 		}
 	}
 
+	DBUG_EXECUTE_IF("disk_is_full",
+			os_has_said_disk_full = true;
+                        return(NULL););
+
 	/* 2. Allocate a new page to the index */
 	new_block = btr_page_alloc(cursor->index, hint_page_no, direction,
 				   btr_page_get_level(page, mtr), mtr, mtr);
+
+	if (new_block == NULL && os_has_said_disk_full) {
+		return(NULL);
+        }
+
 	new_page = buf_block_get_frame(new_block);
 	new_page_zip = buf_block_get_page_zip(new_block);
 	btr_page_create(new_block, new_page_zip, cursor->index,

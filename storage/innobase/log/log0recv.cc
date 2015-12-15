@@ -827,6 +827,10 @@ not_consistent:
 
 		fprintf(stderr,
 			"InnoDB: No valid checkpoint found.\n"
+			"InnoDB: If you are attempting downgrade"
+			" from MySQL 5.7.9 or later,\n"
+			"InnoDB: please refer to " REFMAN
+			"upgrading-downgrading.html\n"
 			"InnoDB: If this error appears when you are"
 			" creating an InnoDB database,\n"
 			"InnoDB: the problem may be that during"
