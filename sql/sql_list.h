@@ -570,6 +570,7 @@ public:
 
   T *operator[] (int index) const
   {
+    DBUG_ASSERT(index < elements);
     T *current= first;
     for (int i= 0; i < index; ++i)
       current= current->next;

@@ -8917,10 +8917,14 @@ opt_ignore_leaves:
 select_stmt:
           query_expression
           {
+            if ($1 == NULL)
+              MYSQL_YYABORT; // OOM
             $$= NEW_PTN PT_select($1);
           }
         | query_expression_parens
           {
+            if ($1 == NULL)
+              MYSQL_YYABORT; // OOM
             $1->set_parentheses();
             $$= NEW_PTN PT_select($1);
           }
@@ -8966,6 +8970,9 @@ select_stmt_with_into:
           }
         | query_expression into_clause
           {
+            if ($1 == NULL)
+              MYSQL_YYABORT; // OOM
+
             if ($1->has_into_clause())
               YYTHD->parse_error_at(@2, ER_THD(YYTHD, ER_SYNTAX_ERROR));
 
@@ -9026,6 +9033,9 @@ query_expression:
           opt_procedure_analyse_clause
           opt_select_lock_type
           {
+            if ($1 == NULL)
+              MYSQL_YYABORT; // OOM
+
             if ($1->is_union() && $4 != NULL)
               my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
 
@@ -9043,6 +9053,8 @@ query_expression:
           opt_procedure_analyse_clause
           opt_select_lock_type
           {
+            if ($1 == NULL)
+              MYSQL_YYABORT; // OOM
             if ($1->is_union() && $4 != NULL)
               my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
             PT_nested_query_expression *nested=
@@ -9056,6 +9068,8 @@ query_expression:
           opt_procedure_analyse_clause
           opt_select_lock_type
           {
+            if ($1 == NULL)
+              MYSQL_YYABORT; // OOM
             if ($1->is_union() && $3 != NULL)
               my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
             $$= NEW_PTN PT_query_expression($1, NULL, @$, $2, $3, $4);
@@ -9069,38 +9083,40 @@ query_expression_body:
           }
         | query_expression_body UNION_SYM union_option query_primary
           {
-            $$= NEW_PTN PT_union(NEW_PTN PT_query_expression($1), $3, $4);
+            $$= NEW_PTN PT_union(NEW_PTN PT_query_expression($1), @1, $3, $4);
           }
         | query_expression_parens UNION_SYM union_option query_primary
           {
+            if ($1 == NULL)
+              MYSQL_YYABORT; // OOM
+
             $1->set_parentheses();
 
-            if ($1->is_union())
-              YYTHD->parse_error_at(@4, ER_THD(YYTHD, ER_SYNTAX_ERROR));
-
-            $$= NEW_PTN PT_union($1, $3, $4);
+            $$= NEW_PTN PT_union($1, @1, $3, $4);
           }
         | query_expression_body UNION_SYM union_option query_expression_parens
           {
+            if ($4 == NULL)
+              MYSQL_YYABORT; // OOM
+
             if ($4->is_union())
               YYTHD->parse_error_at(@4, ER_THD(YYTHD, ER_SYNTAX_ERROR));
 
+            auto lhs_qe= NEW_PTN PT_query_expression($1);
             PT_nested_query_expression *nested_qe=
               NEW_PTN PT_nested_query_expression($4);
-            $$= NEW_PTN PT_union(NEW_PTN PT_query_expression($1), $3, nested_qe);
+
+            $$= NEW_PTN PT_union(lhs_qe, @1, $3, nested_qe);
           }
         | query_expression_parens UNION_SYM union_option query_expression_parens
           {
-            if ($1->is_union())
-              YYTHD->parse_error_at(@1, ER_THD(YYTHD, ER_SYNTAX_ERROR));
-
             if ($4->is_union())
               YYTHD->parse_error_at(@4, ER_THD(YYTHD, ER_SYNTAX_ERROR));
 
             $1->set_parentheses();
             PT_nested_query_expression *nested_qe=
               NEW_PTN PT_nested_query_expression($4);
-            $$= NEW_PTN PT_union($1, $3, nested_qe);
+            $$= NEW_PTN PT_union($1, @1, $3, nested_qe);
           }
         ;
 
@@ -9108,31 +9124,28 @@ query_expression_body:
 query_expression_parens:
           '(' query_expression_parens ')' { $$= $2; }
         | '(' query_expression ')'
-        {
-          /*
-            We don't call set_parentheses() on a query expression here. It
-            makes no difference to the contextualization phase whether a query
-            expression was within parentheses unless it is used in conjunction
-            with UNION. Therefore set_parentheses() is called only in the
-            rules producing UNION syntax.
+          {
+            /*
+              We don't call set_parentheses() on a query expression here. It
+              makes no difference to the contextualization phase whether a
+              query expression was within parentheses unless it is used in
+              conjunction with UNION. Therefore set_parentheses() is called
+              only in the rules producing UNION syntax.
 
-            The need for set_parentheses() is purely to support legacy parse
-            rules, and we are gradually moving away from them and using the
-            query_expression_body to define UNION syntax. When this move is
-            complete, we will not need set_parentheses() any more, and the
-            contextualize() phase can be greatly simplified.
-          */
-          $$= $2;
+              The need for set_parentheses() is purely to support legacy parse
+              rules, and we are gradually moving away from them and using the
+              query_expression_body to define UNION syntax. When this move is
+              complete, we will not need set_parentheses() any more, and the
+              contextualize() phase can be greatly simplified.
+            */
+            $$= $2;
           }
         ;
 
 query_primary:
           query_specification
           {
-            /*
-              Bison doesn't always get polymorphism. We need to give it a
-              friendly nudge sometimes.
-            */
+            // Bison doesn't get polymorphism.
             $$= $1;
           }
         ;
@@ -9156,6 +9169,9 @@ select_part2:
           opt_limit_clause
           opt_select_lock_type
           {
+            if ($1 == NULL)
+              MYSQL_YYABORT; // OOM
+
             $$= NEW_PTN PT_select_part2($1, NULL, NULL, NULL, NULL, NULL,
                                         $2, $3, NULL, $4);
           }
@@ -10546,7 +10562,7 @@ esc_table_reference:
 
     t1 JOIN t2 JOIN t3 ON t2.a = t3.a
 
-  We will first reduce `t1 JOIN t2 ON t2.a = t3.a` to a <table_reference>,
+  we will first reduce `t1 JOIN t2 ON t2.a = t3.a` to a <table_reference>,
   which is correct, but a problem arises when reducing t1 JOIN
   <table_reference>. If we were to do that, we'd get a right-deep tree. The
   solution is to build the tree downwards instead of upwards, as is normally
@@ -10613,6 +10629,9 @@ joined_table:
               PT_table_ref_join_table *this_join=
                 NEW_PTN PT_table_ref_join_table
                 (NEW_PTN PT_cross_join($1, @2, $2, NULL));
+
+              if ($3 == NULL)
+                MYSQL_YYABORT; // OOM
               $3->add_cross_join(this_join);
               $$= rhs_join;
             }
@@ -10643,7 +10662,7 @@ outer_join_type:
         ;
 
 opt_inner:
-          // Empty.
+          /* empty */
         | INNER_SYM
         ;
 
@@ -10694,8 +10713,14 @@ table_factor:
           single_table
         | named_table_parens
         | derived_table { $$ = $1; }
-        | joined_table_parens { $$= NEW_PTN PT_table_factor_joined_table($1); }
-        | table_reference_list_parens { $1->nest(); }
+        | joined_table_parens
+          { $$= NEW_PTN PT_table_factor_joined_table($1); }
+        | table_reference_list_parens
+          {
+            if ($1 == NULL)
+              MYSQL_YYABORT; // OOM
+            $1->nest();
+          }
         ;
 
 table_reference_list_parens:
@@ -10723,7 +10748,8 @@ joined_table_parens:
         | '(' joined_table ')' { $$= $2; }
         ;
 
-derived_table: table_subquery opt_table_alias
+derived_table:
+          table_subquery opt_table_alias
           {
             /*
               The alias is actually not optional at all, but being MySQL we
@@ -10736,6 +10762,7 @@ derived_table: table_subquery opt_table_alias
 
             $$= NEW_PTN PT_derived_table($1, $2);
           }
+        ;
 
 index_hint_clause:
           /* empty */
@@ -14848,6 +14875,9 @@ table_subquery:
 subquery:
           query_expression_parens %prec SUBQUERY_AS_EXPR
           {
+            if ($1 == NULL)
+              MYSQL_YYABORT; // OOM
+
             if ($1->has_into_clause())
               YYTHD->parse_error_at(@1, ER_THD(YYTHD, ER_SYNTAX_ERROR));
 

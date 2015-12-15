@@ -518,9 +518,6 @@ public:
   explicit
   Item_in_subselect(Item * left_expr, SELECT_LEX *select_lex);
   Item_in_subselect(const POS &pos, Item * left_expr, PT_subquery *pt_subselect_arg);
-  Item_in_subselect(const POS &pos, Item *left_expr,
-                    PT_query_expression *qe)
-  {}
 
   Item_in_subselect()
     :Item_exists_subselect(), left_expr(NULL), left_expr_cache(NULL),

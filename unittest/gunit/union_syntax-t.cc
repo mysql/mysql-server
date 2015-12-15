@@ -28,7 +28,7 @@ namespace union_syntax_unittest {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
-
+using my_testing::expect_null;
 
 class UnionSyntaxTest : public ParserTest
 {

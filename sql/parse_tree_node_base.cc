@@ -21,7 +21,8 @@
 Parse_context::Parse_context(THD *thd, SELECT_LEX *select)
 : thd(thd),
   mem_root(thd->mem_root),
-  select(select)
+  select(select),
+  is_top_level(true)
 {}
 
 

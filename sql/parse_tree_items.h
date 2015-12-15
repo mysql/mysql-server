@@ -100,13 +100,6 @@ public:
     is_all(is_all_arg), subselect(subselect_arg)
   {}
 
-  PTI_comp_op_all(const POS &pos, Item *left_arg,
-                  chooser_compare_func_creator comp_op_arg, bool is_all_arg,
-                  PT_query_expression *query_expression_arg)
-  : super(pos), left(left_arg), comp_op(comp_op_arg),
-    is_all(is_all_arg), subselect(NULL)
-  {}
-
   virtual bool itemize(Parse_context *pc, Item **res);
 };
 
@@ -734,10 +727,6 @@ public:
   : super(pos), subselect(subselect_arg)
   {}
 
-  // PTI_singlerow_subselect(const POS &pos, PT_query_expression *qe)
-  // : super(pos), subselect(NULL)
-  // {}
-
   bool itemize(Parse_context *pc, Item **res);
 };
 
@@ -751,10 +740,6 @@ class PTI_exists_subselect : public Parse_tree_item
 public:
   PTI_exists_subselect(const POS &pos, PT_subquery *subselect_arg)
   : super(pos), subselect(subselect_arg)
-  {}
-
-  PTI_exists_subselect(const POS &pos, PT_query_expression *qe)
-  : super(pos), subselect(NULL)
   {}
 
   bool itemize(Parse_context *pc, Item **res);

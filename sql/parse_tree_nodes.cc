@@ -20,7 +20,7 @@
 #include "sql_insert.h"     // Sql_cmd_insert...
 #include "mysqld.h"         // global_system_variables
 #include "sp_pcontext.h"
-
+#include "sql_locale.h"
 
 /**
   Gcc can't or won't allow a pure virtual destructor without an implementation.
@@ -1061,21 +1061,54 @@ bool PT_table_factor_joined_table::contextualize(Parse_context *pc)
 }
 
 
-bool PT_nested_derived_table_list::contextualize(Parse_context *pc)
+  /**
+    A SELECT_LEX_UNIT has to be built in a certain order: First the SELECT_LEX
+    representing the left-hand side of the union is built ("contextualized",)
+    then the right hand side, and lastly the "fake" SELECT_LEX is built and
+    made the "current" one. Only then can the order and limit clauses be
+    contextualized, because they are attached to the fake SELECT_LEX. This is
+    a bit unnatural, as these clauses belong to the surrounding <query
+    expression>, not the <query expression body> which is the union (and
+    represented by this class). For this reason, the PT_query_expression is
+    expected to call `set_containing_qe(this)` on this object, so that during
+    this contextualize() call, a call to contextualize_order_and_limit() can
+    be made at just the right time.
+   */
+bool PT_union::contextualize(Parse_context *pc)
 {
-  if (Parse_tree_node::contextualize(pc))
+  THD *thd= pc->thd;
+
+  if (pc->is_top_level && m_lhs->is_union() && m_lhs->has_parentheses())
+    thd->parse_error_at(m_lhs_pos, NULL);
+
+  if (PT_query_expression_body::contextualize(pc))
     return true;
 
-  SELECT_LEX *outer_select= pc->select;
-  if (outer_select->init_nested_join(pc->thd))
+  if (m_lhs->contextualize(pc))
     return true;
 
-  if (m_derived_table_list->contextualize(pc))
+  pc->select=
+    pc->thd->lex->new_union_query(pc->select, m_is_distinct, false);
+
+  if (pc->select == NULL || m_rhs->contextualize(pc))
     return true;
 
-  value= pc->select->nest_last_join(pc->thd);
+  SELECT_LEX_UNIT *unit= pc->select->master_unit();
+  if (unit->fake_select_lex == NULL && unit->add_fake_select_lex(thd))
+    return true;
 
-  outer_select->end_nested_join(pc->thd);
+  SELECT_LEX *select_lex= pc->select;
+  pc->select= unit->fake_select_lex;
+  pc->select->no_table_names_allowed= true;
+
+  if (m_containing_qe != NULL &&
+      m_containing_qe->contextualize_order_and_limit(pc))
+    return true;
+
+  pc->select->no_table_names_allowed= false;
+  pc->select= select_lex;
+
+  pc->thd->lex->pop_context();
 
   return false;
 }

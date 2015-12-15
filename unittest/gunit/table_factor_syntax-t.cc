@@ -28,13 +28,13 @@ namespace table_factor_syntax_unittest {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
-
+using my_testing::expect_null;
 
 class TableFactorSyntaxTest : public ParserTest
 {
 protected:
   void test_table_factor_syntax(const char *query, int num_terms,
-                         bool expect_syntax_error)
+                                bool expect_syntax_error)
   {
     SELECT_LEX *term1= parse(query, expect_syntax_error ? ER_PARSE_ERROR : 0);
     expect_null<SELECT_LEX_UNIT>(term1->first_inner_unit());
@@ -53,17 +53,20 @@ protected:
       EXPECT_EQ(term1, term2->next_select_in_list());
       EXPECT_EQ(2, term2->get_item_list()->head()->val_int());
 
-      if (num_terms > 2)
-      {
-      }
-      else
+      if (num_terms <= 2)
         expect_null<SELECT_LEX>(term2->next_select());
 
       EXPECT_EQ(top_union, term2->master_unit());
     }
   }
 
-
+  void test_global_limit(const char *query)
+  {
+    SELECT_LEX *first_term= parse(query);
+    SELECT_LEX_UNIT *unit= first_term->master_unit();
+    EXPECT_EQ(1, unit->global_parameters()->order_list.elements) << query;
+    EXPECT_FALSE(unit->global_parameters()->select_limit == NULL) << query;
+  }
 };
 
 
@@ -221,6 +224,13 @@ TEST_F(TableFactorSyntaxTest, NestedTableReferenceList)
   EXPECT_STREQ("t4", t3_join_t4->nested_join->join_list.head()->alias);
 }
 
+
+TEST_F(TableFactorSyntaxTest, LimitAndOrder)
+{
+  test_global_limit("SELECT 1 AS c UNION (SELECT 1 AS c) ORDER BY c LIMIT 1");
+  test_global_limit("(SELECT 1 AS c UNION SELECT 1 AS c) ORDER BY c LIMIT 1");
+  test_global_limit("((SELECT 1 AS c) UNION SELECT 1 AS c) ORDER BY c LIMIT 1");
+  test_global_limit("(SELECT 1 AS c UNION (SELECT 1 AS c)) ORDER BY c LIMIT 1");
 }
 
-// b table_factor_syntax-t.cc:168
+}

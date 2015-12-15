@@ -5883,11 +5883,11 @@ a	b
 SELECT 1 UNION ( SELECT 1 UNION SELECT 1 );
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 )' at line 1
 ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 ) UNION SELECT 1' at line 1
 SELECT ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 ) )' at line 1
 SELECT ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 SELECT ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
 ( SELECT 1 UNION SELECT 1 UNION SELECT 1 )
 1
@@ -5897,9 +5897,10 @@ SELECT ((SELECT 1 UNION SELECT 1 UNION SELECT 1));
 SELECT * FROM ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 ) )' at line 1
 SELECT * FROM ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1 )' at line 1
+ERROR 42000: Every derived table must have its own alias
 SELECT * FROM ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 ) a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1 ) a' at line 1
+1
+1
 SELECT * FROM ( SELECT 1 UNION SELECT 1 UNION SELECT 1 ) a;
 1
 1
@@ -5912,13 +5913,17 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT * FROM t1 WHERE a IN    ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 ) )' at line 1
 SELECT * FROM t1 WHERE a =     ( ( SELECT 1 UNION SELECT 1 )  UNION SELECT 1 );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1 )' at line 1
+a
+1
 SELECT * FROM t1 WHERE a = ALL ( ( SELECT 1 UNION SELECT 1 )  UNION SELECT 1 );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1 )' at line 1
+a
+1
 SELECT * FROM t1 WHERE a = ANY ( ( SELECT 1 UNION SELECT 1 )  UNION SELECT 1 );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1 )' at line 1
+a
+1
 SELECT * FROM t1 WHERE a IN    ( ( SELECT 1 UNION SELECT 1 )  UNION SELECT 1 );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1 )' at line 1
+a
+1
 SELECT * FROM t1 WHERE a =     ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
 a
 1
