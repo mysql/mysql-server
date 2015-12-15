@@ -93,12 +93,12 @@ SELECT @@session.key_cache_division_limit;
 ERROR HY000: Variable 'key_cache_division_limit' is a GLOBAL variable
 '#----------------------FN_DYNVARS_058_06------------------------#'
 SELECT @@global.key_cache_division_limit = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='key_cache_division_limit';
 @@global.key_cache_division_limit = VARIABLE_VALUE
 1
 SELECT @@key_cache_division_limit = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='key_cache_division_limit';
 @@key_cache_division_limit = VARIABLE_VALUE
 1

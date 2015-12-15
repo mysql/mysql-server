@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 ############## mysql-test\t\concurrent_insert_basic.test #######################
 #                                                                              #
 # Variable Name: concurrent_insert                                             #
@@ -123,7 +125,7 @@ SELECT @@session.concurrent_insert = 1;
 
 --disable_warnings
 SELECT @@global.concurrent_insert = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='concurrent_insert';
 --enable_warnings
 

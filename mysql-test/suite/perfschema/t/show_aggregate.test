@@ -7,7 +7,7 @@
 # 3. Status totals for user, host and account are retained after related       #
 #    threads disconnect.                                                       #
 ################################################################################
-
+#Running this test with show_compatibility_56=ON set in the opt file until Bug#21847100 is fixed.
 --source include/have_perfschema.inc
 --source include/not_embedded.inc
 --source include/no_protocol.inc
@@ -287,4 +287,4 @@ DROP USER 'user3'@localhost;
 --echo
 --echo # Restore SHOW_COMPATIBILITY_56 setting
 SET @@global.show_compatibility_56 = @show_compatibility_56_save;
- 
+

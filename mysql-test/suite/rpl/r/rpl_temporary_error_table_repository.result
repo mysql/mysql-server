@@ -21,12 +21,14 @@ INSERT INTO t1 VALUES (7,7);
 [connection slave]
 SET @@GLOBAL.slave_transaction_retries = 0;
 include/start_slave.inc
+set @@global.show_compatibility_56=ON;
 ### Specified retry number is expected ###
 ### Timeout error is expected ###
 include/wait_for_slave_sql_error.inc [errno=1205]
 [connection slave]
 SET @@GLOBAL.slave_transaction_retries = 1;
 include/start_slave.inc
+set @@global.show_compatibility_56=ON;
 ### Specified retry number is expected ###
 ### Timeout error is expected ###
 include/wait_for_slave_sql_error.inc [errno=1205]
@@ -39,6 +41,7 @@ SET @@GLOBAL.slave_transaction_retries = @saved_slave_transaction_retries;
 SET @@GLOBAL.master_info_repository = @saved_master_info_repository;
 SET @@GLOBAL.relay_log_info_repository = @saved_relay_log_info_repository;
 SET @@GLOBAL.innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout ;
+set @@global.show_compatibility_56=OFF;
 include/start_slave.inc
 [connection master]
 DROP TABLE t1;

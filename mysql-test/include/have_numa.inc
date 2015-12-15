@@ -1,5 +1,5 @@
 let $numa_support = `SELECT COUNT(VARIABLE_VALUE) = 1 FROM
-  INFORMATION_SCHEMA.GLOBAL_VARIABLES
+  performance_schema.global_variables
   WHERE VARIABLE_NAME='innodb_numa_interleave'`;
 
 if ( $numa_support == 0 )

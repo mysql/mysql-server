@@ -15,7 +15,7 @@ connection spj;
 # Save old mysqld counter values.
 --disable_warnings ONCE
 create temporary table server_counts_at_startup
-       select * from information_schema.global_status 
+       select * from performance_schema.global_status 
        where variable_name in 
        ('Ndb_pruned_scan_count',
         'Ndb_sorted_scan_count',
@@ -2901,7 +2901,7 @@ select * from t1 t1, t1 t2
 # Save old mysqld counter values.
 --disable_warnings ONCE
 create temporary table server_counts
-       select * from information_schema.global_status 
+       select * from performance_schema.global_status 
        where variable_name in 
        ('Ndb_scan_count',
         'Ndb_pruned_scan_count',
@@ -2931,7 +2931,7 @@ select count(*) from t1 t1, t1 t2
 --disable_warnings ONCE
 select new.variable_name, new.variable_value - old.variable_value
        from server_counts as old,
-         information_schema.global_status as new
+         performance_schema.global_status as new
        where new.variable_name = old.variable_name
        order by new.variable_name;
 
@@ -4446,7 +4446,7 @@ explain extended select * from t1 as x1 left join (t1 as x2 join t1 as x3 on x2.
 # Record value before query.
 --disable_warnings ONCE
 create temporary table scan_count
-       select * from information_schema.global_status 
+       select * from performance_schema.global_status 
        where variable_name = 'Ndb_scan_count';
 
 # Query gives wrong result on mysql-trunk-cluster, and extra scan on both
@@ -4457,7 +4457,7 @@ select * from t1 as x1 left join (t1 as x2 join t1 as x3 on x2.d=x3.c) on x1.b=x
 --disable_warnings ONCE
 select scan_count.VARIABLE_NAME,
        old.VARIABLE_VALUE - scan_count.VARIABLE_VALUE  
-       from scan_count,information_schema.global_status as old 
+       from scan_count,performance_schema.global_status as old 
        where old.variable_name = 'Ndb_scan_count';
 
 drop table scan_count;
@@ -4669,7 +4669,7 @@ connection spj;
 --disable_warnings ONCE
 select new.variable_name, new.variable_value - old.variable_value
        from server_counts_at_startup as old,
-         information_schema.global_status as new
+         performance_schema.global_status as new
        where new.variable_name = old.variable_name
        order by new.variable_name;
 

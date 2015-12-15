@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 ############## mysql-test\t\sql_quote_show_create_basic.test ##################
 #                                                                             #
 # Variable Name: sql_quote_show_create                                        #
@@ -124,7 +126,7 @@ SELECT @@global.sql_quote_show_create;
 
 --disable_warnings
 SELECT count(VARIABLE_VALUE) 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='sql_quote_show_create';
 --enable_warnings
 
@@ -135,13 +137,13 @@ WHERE VARIABLE_NAME='sql_quote_show_create';
 
 --disable_warnings
 SELECT IF(@@session.sql_quote_show_create, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_quote_show_create';
 --enable_warnings
 SELECT @@session.sql_quote_show_create;
 --disable_warnings
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_quote_show_create';
 --enable_warnings
 

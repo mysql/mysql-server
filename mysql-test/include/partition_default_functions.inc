@@ -3,7 +3,7 @@
 # Needs $get_handler_status_counts defined
 # normally as:
 # let $get_handler_status_counts=
-# SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+# SELECT * FROM performance_schema.session_status
 # WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 #
 # And a table t3 where a is a DATETIME/DATE/TIME/TIMESTAMP column

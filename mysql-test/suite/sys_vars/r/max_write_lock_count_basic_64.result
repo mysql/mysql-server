@@ -68,7 +68,7 @@ SELECT @@global.max_write_lock_count;
 1
 '#------------------FN_DYNVARS_088_05-----------------------#'
 SELECT @@global.max_write_lock_count = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='max_write_lock_count';
 @@global.max_write_lock_count = VARIABLE_VALUE
 1

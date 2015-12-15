@@ -142,14 +142,14 @@ SET @@session.query_alloc_block_size = 12;
 Warnings:
 Warning	1292	Truncated incorrect query_alloc_block_size value: '12'
 SELECT @@global.query_alloc_block_size = 
-VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+VARIABLE_VALUE FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='query_alloc_block_size';
 @@global.query_alloc_block_size = 
 VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_130_07-----------------------#'
 SELECT @@session.query_alloc_block_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='query_alloc_block_size';
 @@session.query_alloc_block_size = VARIABLE_VALUE
 1

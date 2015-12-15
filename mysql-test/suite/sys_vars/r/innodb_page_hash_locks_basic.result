@@ -12,12 +12,12 @@ innodb_page_hash_locks	16
 show session variables like 'innodb_page_hash_locks';
 Variable_name	Value
 innodb_page_hash_locks	16
-select * from information_schema.global_variables where variable_name='innodb_page_hash_locks';
+select * from performance_schema.global_variables where variable_name='innodb_page_hash_locks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_PAGE_HASH_LOCKS	16
-select * from information_schema.session_variables where variable_name='innodb_page_hash_locks';
+innodb_page_hash_locks	16
+select * from performance_schema.session_variables where variable_name='innodb_page_hash_locks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_PAGE_HASH_LOCKS	16
+innodb_page_hash_locks	16
 set global innodb_page_hash_locks=1;
 ERROR HY000: Variable 'innodb_page_hash_locks' is a read only variable
 set @@session.innodb_page_hash_locks='some';

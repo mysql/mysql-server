@@ -1,3 +1,6 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
+
 # The block size influence cost estimates in JSON EXPLAIN.
 # To produce the same cost estimates this test can only run with 16K pages.
 --source include/have_innodb_16k.inc 

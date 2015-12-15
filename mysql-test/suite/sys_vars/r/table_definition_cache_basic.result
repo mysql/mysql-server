@@ -72,7 +72,7 @@ SELECT @@session.table_definition_cache;
 ERROR HY000: Variable 'table_definition_cache' is a GLOBAL variable
 '#----------------------FN_DYNVARS_019_06------------------------#'
 SELECT @@global.table_definition_cache = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='table_definition_cache';
 @@global.table_definition_cache = VARIABLE_VALUE
 1

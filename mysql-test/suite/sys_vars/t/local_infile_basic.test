@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 ############## mysql-test\t\local_infile_basic.test ############################
 #                                                                              #
 # Variable Name: local_infile                                                  #
@@ -114,7 +116,7 @@ SELECT @@session.local_infile = 1;
 
 --disable_warnings
 SELECT IF(@@global.local_infile, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='local_infile';
 --enable_warnings
 

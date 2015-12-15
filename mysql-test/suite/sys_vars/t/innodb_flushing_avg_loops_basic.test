@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 ############ mysql-test\t\innodb_flushing_avg_loops_basic.test ################
 #                                                                             #
 # Variable Name: innodb_flushing_avg_loops                                    #
@@ -108,12 +110,12 @@ SELECT @@global.innodb_flushing_avg_loops;
 
 --disable_warnings
 SELECT @@global.innodb_flushing_avg_loops =
- VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+ VARIABLE_VALUE FROM performance_schema.global_variables
   WHERE VARIABLE_NAME='innodb_flushing_avg_loops';
 --enable_warnings
 SELECT @@global.innodb_flushing_avg_loops;
 --disable_warnings
-SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
  WHERE VARIABLE_NAME='innodb_flushing_avg_loops';
 --enable_warnings
 

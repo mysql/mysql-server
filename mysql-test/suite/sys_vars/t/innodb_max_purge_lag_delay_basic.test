@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 # Variable Name: innodb_max_purge_lag_delay
 # Scope: Global                                                               #
 # Access Type: Static                                                         #
@@ -15,7 +17,7 @@ SELECT COUNT(@@GLOBAL.innodb_max_purge_lag_delay);
 
 --disable_warnings
 SELECT VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_max_purge_lag_delay';
 --enable_warnings
 --echo 1 Expected

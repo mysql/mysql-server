@@ -11,10 +11,10 @@ AFTER_SYNC
 SHOW GLOBAL VARIABLES LIKE 'rpl_semi_sync_master_wait_point';
 Variable_name	Value
 rpl_semi_sync_master_wait_point	AFTER_SYNC
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE
+SELECT * FROM performance_schema.global_variables WHERE
 VARIABLE_NAME = 'rpl_semi_sync_master_wait_point';
 VARIABLE_NAME	VARIABLE_VALUE
-RPL_SEMI_SYNC_MASTER_WAIT_POINT	AFTER_SYNC
+rpl_semi_sync_master_wait_point	AFTER_SYNC
 #
 # Verify it is not a session variable
 #
@@ -23,10 +23,10 @@ ERROR HY000: Variable 'rpl_semi_sync_master_wait_point' is a GLOBAL variable
 SHOW SESSION VARIABLES LIKE 'rpl_semi_sync_master_wait_point';
 Variable_name	Value
 rpl_semi_sync_master_wait_point	AFTER_SYNC
-SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE
+SELECT * FROM performance_schema.session_variables WHERE
 VARIABLE_NAME ='rpl_semi_sync_master_wait_point';
 VARIABLE_NAME	VARIABLE_VALUE
-RPL_SEMI_SYNC_MASTER_WAIT_POINT	AFTER_SYNC
+rpl_semi_sync_master_wait_point	AFTER_SYNC
 #
 # Verify it can be set correctly
 #

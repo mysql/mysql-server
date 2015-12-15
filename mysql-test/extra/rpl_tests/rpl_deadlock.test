@@ -46,6 +46,9 @@ save_master_pos;
 --echo *** Test deadlock ***
 
 connection slave;
+# Running with show_compatibility_56=ON until WL#9001 is pushed.
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+SET @@global.show_compatibility_56=ON;
 BEGIN;
 SELECT * FROM t1 FOR UPDATE;
 # Save variable 'Slave_retried_transactions' before deadlock
@@ -204,5 +207,6 @@ sync_slave_with_master;
 SET global max_relay_log_size= @my_max_relay_log_size;
 CALL mtr.add_suppression(".*worker thread retried transaction.*");
 CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 --echo End of 5.1 tests
 --source include/rpl_end.inc

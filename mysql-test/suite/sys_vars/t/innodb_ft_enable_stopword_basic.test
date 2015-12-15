@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 
 
 # 2011-11-15 - Added
@@ -19,8 +21,8 @@ select @@session.innodb_ft_enable_stopword;
 show global variables like 'innodb_ft_enable_stopword';
 show session variables like 'innodb_ft_enable_stopword';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_ft_enable_stopword';
-select * from information_schema.session_variables where variable_name='innodb_ft_enable_stopword';
+select * from performance_schema.global_variables where variable_name='innodb_ft_enable_stopword';
+select * from performance_schema.session_variables where variable_name='innodb_ft_enable_stopword';
 --enable_warnings
 
 #
@@ -31,32 +33,32 @@ set session innodb_ft_enable_stopword='OFF';
 select @@global.innodb_ft_enable_stopword;
 select @@session.innodb_ft_enable_stopword;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_ft_enable_stopword';
-select * from information_schema.session_variables where variable_name='innodb_ft_enable_stopword';
+select * from performance_schema.global_variables where variable_name='innodb_ft_enable_stopword';
+select * from performance_schema.session_variables where variable_name='innodb_ft_enable_stopword';
 --enable_warnings
 set @@global.innodb_ft_enable_stopword=1;
 set @@session.innodb_ft_enable_stopword=1;
 select @@global.innodb_ft_enable_stopword;
 select @@session.innodb_ft_enable_stopword;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_ft_enable_stopword';
-select * from information_schema.session_variables where variable_name='innodb_ft_enable_stopword';
+select * from performance_schema.global_variables where variable_name='innodb_ft_enable_stopword';
+select * from performance_schema.session_variables where variable_name='innodb_ft_enable_stopword';
 --enable_warnings
 set global innodb_ft_enable_stopword=0;
 set session innodb_ft_enable_stopword=0;
 select @@global.innodb_ft_enable_stopword;
 select @@session.innodb_ft_enable_stopword;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_ft_enable_stopword';
-select * from information_schema.session_variables where variable_name='innodb_ft_enable_stopword';
+select * from performance_schema.global_variables where variable_name='innodb_ft_enable_stopword';
+select * from performance_schema.session_variables where variable_name='innodb_ft_enable_stopword';
 --enable_warnings
 set @@global.innodb_ft_enable_stopword='ON';
 set @@session.innodb_ft_enable_stopword='ON';
 select @@global.innodb_ft_enable_stopword;
 select @@session.innodb_ft_enable_stopword;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_ft_enable_stopword';
-select * from information_schema.session_variables where variable_name='innodb_ft_enable_stopword';
+select * from performance_schema.global_variables where variable_name='innodb_ft_enable_stopword';
+select * from performance_schema.session_variables where variable_name='innodb_ft_enable_stopword';
 --enable_warnings
 
 #
@@ -84,8 +86,8 @@ set session innodb_ft_enable_stopword=-7;
 select @@global.innodb_ft_enable_stopword;
 select @@session.innodb_ft_enable_stopword;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_ft_enable_stopword';
-select * from information_schema.session_variables where variable_name='innodb_ft_enable_stopword';
+select * from performance_schema.global_variables where variable_name='innodb_ft_enable_stopword';
+select * from performance_schema.session_variables where variable_name='innodb_ft_enable_stopword';
 --enable_warnings
 
 #

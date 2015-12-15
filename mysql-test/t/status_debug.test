@@ -24,7 +24,7 @@ INSERT INTO t1(name, val) VALUES ('dummy', 0);
 connect (con1, localhost, root,,);
 SET DEBUG_SYNC='before_preparing_global_status_array SIGNAL change_user WAIT_FOR continue';
 SET DEBUG_SYNC='after_preparing_global_status_array SIGNAL continue_change_user';
---SEND INSERT INTO t1(name, val) SELECT * FROM INFORMATION_SCHEMA.global_status WHERE variable_name='com_insert';
+--SEND INSERT INTO t1(name, val) SELECT * FROM information_schema.global_status WHERE variable_name='com_insert';
 
 CONNECTION default;
 SET DEBUG_SYNC='now WAIT_FOR change_user';
@@ -37,7 +37,7 @@ CONNECTION con1;
 SET DEBUG_SYNC='RESET';
 CONNECTION default;
 INSERT INTO t1(name, val)
-  SELECT * FROM INFORMATION_SCHEMA.global_status WHERE variable_name='com_insert';
+  SELECT * FROM information_schema.global_status WHERE variable_name='com_insert';
 
 --echo # With fix, difference of com_insert status should be "0" here.
 SELECT (SELECT val FROM t1 WHERE id = 2) - (SELECT val FROM t1 WHERE id = 3);

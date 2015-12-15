@@ -137,13 +137,13 @@ SET @@session.updatable_views_with_limit = 123456789031;
 ERROR 42000: Variable 'updatable_views_with_limit' can't be set to the value of '123456789031'
 '#------------------FN_DYNVARS_005_06-----------------------#'
 SELECT @@global.updatable_views_with_limit = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='updatable_views_with_limit';
 @@global.updatable_views_with_limit = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_005_07-----------------------#'
 SELECT @@session.updatable_views_with_limit = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='updatable_views_with_limit';
 @@session.updatable_views_with_limit = VARIABLE_VALUE
 1

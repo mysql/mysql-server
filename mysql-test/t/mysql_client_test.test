@@ -35,3 +35,4 @@ echo ok;
 
 SET @@global.general_log= @old_general_log;
 SET @@global.slow_query_log= @old_slow_query_log;
+#set @@global.show_compatibility_56=@show_compatibility_56_save;

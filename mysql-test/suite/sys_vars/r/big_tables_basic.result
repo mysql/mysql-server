@@ -50,7 +50,7 @@ SELECT @@global.big_tables;
 SET @@global.big_tables = 1-@@global.big_tables;
 '#----------------------FN_DYNVARS_005_05------------------------#'
 SELECT IF(@@big_tables, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='big_tables';
 IF(@@big_tables, "ON", "OFF") = VARIABLE_VALUE
 1

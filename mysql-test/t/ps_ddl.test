@@ -1,3 +1,10 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
+
+# Test is temporarily run with show_compatibility_56=ON until Bug#21789221 is fixed.
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
+
 #
 # Testing the behavior of 'PREPARE', 'DDL', 'EXECUTE' scenarios
 #
@@ -671,7 +678,7 @@ deallocate prepare stmt;
 
 --echo #
 --echo # Test 3: View referencing an Information schema table
---echo #
+--echo # Not referencing P_S table until Bug#21789221 is fixed.
 create view t1 as select table_name from information_schema.views where table_schema != 'sys';
 
 prepare stmt from "select * from t1";
@@ -2218,3 +2225,5 @@ EXECUTE stmt3;
 EXECUTE stmt3;
 DEALLOCATE PREPARE stmt3;
 DROP TEMPORARY TABLES tm, t1;
+# Restore the value of show_compatiblity_56
+set @@global.show_compatibility_56=@show_compatibility_56_save;

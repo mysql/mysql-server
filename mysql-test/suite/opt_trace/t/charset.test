@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 # Check that non-utf8 characters are ok
 
 --source include/have_optimizer_trace.inc

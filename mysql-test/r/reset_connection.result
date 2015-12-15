@@ -63,6 +63,7 @@ set autocommit=0;
 set tx_isolation='SERIALIZABLE';
 set names 'big5';
 set max_join_size=100;
+set max_join_size=1000;
 SHOW SESSION VARIABLES like 'autocommit';
 Variable_name	Value
 autocommit	OFF
@@ -77,7 +78,8 @@ Variable_name	Value
 character_set_connection	big5
 SHOW SESSION VARIABLES like 'max_join_size';
 Variable_name	Value
-max_join_size	100
+max_join_size	1000
+set max_join_size=100;
 resetconnection;
 SHOW SESSION VARIABLES like 'autocommit';
 Variable_name	Value

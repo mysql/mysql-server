@@ -164,13 +164,13 @@ SELECT @@session.max_length_for_sort_data;
 8388608
 '#------------------FN_DYNVARS_080_06-----------------------#'
 SELECT @@global.max_length_for_sort_data = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='max_length_for_sort_data';
 @@global.max_length_for_sort_data = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_080_07-----------------------#'
 SELECT @@session.max_length_for_sort_data = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='max_length_for_sort_data';
 @@session.max_length_for_sort_data = VARIABLE_VALUE
 1

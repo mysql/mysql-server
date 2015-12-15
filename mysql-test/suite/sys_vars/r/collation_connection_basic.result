@@ -1218,7 +1218,7 @@ SET @@global.collation_connection = ON;
 ERROR HY000: Unknown collation: 'ON'
 '#--------------------FN_DYNVARS_015_12-------------------------#'
 SELECT @@global.collation_connection =
-(SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+(SELECT VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='collation_connection') AS res;
 res
 1
@@ -1227,23 +1227,23 @@ SELECT @@global.collation_connection;
 @@global.collation_connection
 big5_chinese_ci
 SELECT @@global.collation_connection =
-(SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+(SELECT VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='collation_connection') AS res;
 res
 1
 '#--------------------FN_DYNVARS_015_13-------------------------#'
 SELECT @@collation_connection =
-(SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+(SELECT VARIABLE_VALUE FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='collation_connection') AS res;
 res
 1
 SELECT @@local.collation_connection =
-(SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+(SELECT VARIABLE_VALUE FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='collation_connection') AS res;
 res
 1
 SELECT @@session.collation_connection =
-(SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+(SELECT VARIABLE_VALUE FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='collation_connection') AS res;
 res
 1

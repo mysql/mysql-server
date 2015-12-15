@@ -1,11 +1,11 @@
 SET default_storage_engine=InnoDB;
 # Test 1) Show the page size from Information Schema
-SELECT variable_value FROM information_schema.global_status
+SELECT variable_value FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_page_size';
 variable_value
 16384
 # Test 2) The number of buffer pool pages is dependent upon the page size.
-SELECT variable_value FROM information_schema.global_status
+SELECT variable_value FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 variable_value
 {checked_valid}

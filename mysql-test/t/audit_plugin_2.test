@@ -1,3 +1,6 @@
+--echo # Test is temporarily run with show_compatibility_56=ON until Bug#21783798 is fixed.
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
 --source include/have_null_audit_plugin.inc
 --source include/not_embedded.inc
 
@@ -190,7 +193,7 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                           'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;name="null_audit_abort_value" value="1";ABORT_RET';
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_AUDIT_API_ABORT
-SELECT * FROM information_schema.global_variables WHERE VARIABLE_NAME = 'null_audit_abort_value';
+SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'null_audit_abort_value';
 SELECT @@null_audit_event_order_check;
 
 --echo ###############################
@@ -1723,3 +1726,4 @@ SELECT @@null_audit_event_order_check;
 --echo ## CUSTOM ERROR MESSAGE - END ##
 
 eval UNINSTALL PLUGIN null_audit;
+set @@global.show_compatibility_56=@show_compatibility_56_save;

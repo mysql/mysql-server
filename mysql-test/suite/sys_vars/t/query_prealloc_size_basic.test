@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 ################# mysql-test\t\query_prealloc_size_basic.test ##################
 #                                                                              #
 # Variable Name: query_prealloc_size                                           #
@@ -143,7 +145,7 @@ SET @@session.query_prealloc_size   = " ";
 
 --disable_warnings
 SELECT @@global.query_prealloc_size   = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='query_prealloc_size  ';
 --enable_warnings
 
@@ -154,7 +156,7 @@ WHERE VARIABLE_NAME='query_prealloc_size  ';
 
 --disable_warnings
 SELECT @@session.query_prealloc_size   = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='query_prealloc_size  ';
 --enable_warnings
 

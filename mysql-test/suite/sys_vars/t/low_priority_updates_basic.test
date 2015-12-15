@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 ############## mysql-test\t\low_priority_updates_basic.test ###################
 #                                                                             #
 # Variable Name: low_priority_updates                                         #
@@ -154,7 +156,7 @@ SET @@session.low_priority_updates = test;
 
 --disable_warnings
 SELECT IF(@@global.low_priority_updates, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='low_priority_updates';
 --enable_warnings
 
@@ -165,7 +167,7 @@ WHERE VARIABLE_NAME='low_priority_updates';
 
 --disable_warnings
 SELECT IF(@@session.low_priority_updates, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='low_priority_updates';
 --enable_warnings
 

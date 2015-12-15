@@ -5,18 +5,18 @@ SET @@global.optimizer_trace_offset=5;
 show global variables like 'optimizer_trace_offset';
 Variable_name	Value
 optimizer_trace_offset	5
-select * from information_schema.global_variables where variable_name='optimizer_trace_offset';
+select * from performance_schema.global_variables where variable_name='optimizer_trace_offset';
 VARIABLE_NAME	VARIABLE_VALUE
-OPTIMIZER_TRACE_OFFSET	5
+optimizer_trace_offset	5
 select @@session.optimizer_trace_offset;
 @@session.optimizer_trace_offset
 -1
 show session variables like 'optimizer_trace_offset';
 Variable_name	Value
 optimizer_trace_offset	-1
-select * from information_schema.session_variables where variable_name='optimizer_trace_offset';
+select * from performance_schema.session_variables where variable_name='optimizer_trace_offset';
 VARIABLE_NAME	VARIABLE_VALUE
-OPTIMIZER_TRACE_OFFSET	-1
+optimizer_trace_offset	-1
 set session optimizer_trace_offset=10;
 select @@session.optimizer_trace_offset;
 @@session.optimizer_trace_offset

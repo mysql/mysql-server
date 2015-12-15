@@ -2,8 +2,11 @@
 
 -- source include/have_innodb.inc
 
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
+
 --disable_warnings
-if (`select count(*)=0 from information_schema.global_variables where variable_name = 'INNODB_TRX_RSEG_N_SLOTS_DEBUG'`)
+if (`select count(*)=0 from performance_schema.global_variables where variable_name = 'INNODB_TRX_RSEG_N_SLOTS_DEBUG'`)
 {
   --skip Test requires InnoDB built with UNIV_DEBUG definition.
 }

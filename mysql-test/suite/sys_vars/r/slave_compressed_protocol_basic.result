@@ -61,13 +61,13 @@ SELECT @@local.slave_compressed_protocol;
 ERROR HY000: Variable 'slave_compressed_protocol' is a GLOBAL variable
 '#----------------------FN_DYNVARS_147_06------------------------#'
 SELECT count(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='slave_compressed_protocol';
 count(VARIABLE_VALUE)
 1
 '#----------------------FN_DYNVARS_147_07------------------------#'
 SELECT IF(@@global.slave_compressed_protocol, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='slave_compressed_protocol';
 IF(@@global.slave_compressed_protocol, "ON", "OFF") = VARIABLE_VALUE
 1
@@ -75,7 +75,7 @@ SELECT @@global.slave_compressed_protocol;
 @@global.slave_compressed_protocol
 1
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='slave_compressed_protocol';
 VARIABLE_VALUE
 ON

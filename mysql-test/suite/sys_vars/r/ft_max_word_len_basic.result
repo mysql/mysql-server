@@ -9,12 +9,12 @@ ft_max_word_len	84
 show session variables like 'ft_max_word_len';
 Variable_name	Value
 ft_max_word_len	84
-select * from information_schema.global_variables where variable_name='ft_max_word_len';
+select * from performance_schema.global_variables where variable_name='ft_max_word_len';
 VARIABLE_NAME	VARIABLE_VALUE
-FT_MAX_WORD_LEN	84
-select * from information_schema.session_variables where variable_name='ft_max_word_len';
+ft_max_word_len	84
+select * from performance_schema.session_variables where variable_name='ft_max_word_len';
 VARIABLE_NAME	VARIABLE_VALUE
-FT_MAX_WORD_LEN	84
+ft_max_word_len	84
 set global ft_max_word_len=1;
 ERROR HY000: Variable 'ft_max_word_len' is a read only variable
 set session ft_max_word_len=1;

@@ -7,9 +7,9 @@ slave_pending_jobs_size_max	16777216
 show session variables like 'slave_pending_jobs_size_max';
 Variable_name	Value
 slave_pending_jobs_size_max	16777216
-select * from information_schema.global_variables where variable_name='$var';
+select * from performance_schema.global_variables where variable_name='$var';
 VARIABLE_NAME	VARIABLE_VALUE
-select * from information_schema.session_variables where variable_name='$var';
+select * from performance_schema.session_variables where variable_name='$var';
 VARIABLE_NAME	VARIABLE_VALUE
 set @@global.slave_pending_jobs_size_max= 0;
 Warnings:

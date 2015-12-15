@@ -8,8 +8,8 @@ select @@session.report_user;
 show global variables like 'report_user';
 show session variables like 'report_user';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='report_user';
-select * from information_schema.session_variables where variable_name='report_user';
+select * from performance_schema.global_variables where variable_name='report_user';
+select * from performance_schema.session_variables where variable_name='report_user';
 --enable_warnings
 
 #

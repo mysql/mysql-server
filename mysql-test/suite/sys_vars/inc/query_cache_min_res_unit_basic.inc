@@ -159,11 +159,11 @@ SELECT @@query_cache_min_res_unit;
 
 --disable_warnings
 SELECT @@global.query_cache_min_res_unit = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='query_cache_min_res_unit';
 
 SELECT @@query_cache_min_res_unit = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='query_cache_min_res_unit';
 --enable_warnings
 

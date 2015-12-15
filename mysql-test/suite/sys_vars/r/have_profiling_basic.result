@@ -11,12 +11,12 @@ have_profiling	#
 show session variables like 'have_profiling';
 Variable_name	Value
 have_profiling	#
-select * from information_schema.global_variables where variable_name='have_profiling';
+select * from performance_schema.global_variables where variable_name='have_profiling';
 VARIABLE_NAME	VARIABLE_VALUE
-HAVE_PROFILING	#
-select * from information_schema.session_variables where variable_name='have_profiling';
+have_profiling	#
+select * from performance_schema.session_variables where variable_name='have_profiling';
 VARIABLE_NAME	VARIABLE_VALUE
-HAVE_PROFILING	#
+have_profiling	#
 set global have_profiling=1;
 ERROR HY000: Variable 'have_profiling' is a read only variable
 set session have_profiling=1;

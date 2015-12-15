@@ -9,12 +9,12 @@ locked_in_memory	OFF
 show session variables like 'locked_in_memory';
 Variable_name	Value
 locked_in_memory	OFF
-select * from information_schema.global_variables where variable_name='locked_in_memory';
+select * from performance_schema.global_variables where variable_name='locked_in_memory';
 VARIABLE_NAME	VARIABLE_VALUE
-LOCKED_IN_MEMORY	OFF
-select * from information_schema.session_variables where variable_name='locked_in_memory';
+locked_in_memory	OFF
+select * from performance_schema.session_variables where variable_name='locked_in_memory';
 VARIABLE_NAME	VARIABLE_VALUE
-LOCKED_IN_MEMORY	OFF
+locked_in_memory	OFF
 set global locked_in_memory=1;
 ERROR HY000: Variable 'locked_in_memory' is a read only variable
 set session locked_in_memory=1;

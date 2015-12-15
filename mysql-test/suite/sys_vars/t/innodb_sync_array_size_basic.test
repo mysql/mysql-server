@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 # 2010-01-27 - Added
 
 --source include/have_innodb.inc
@@ -13,9 +15,9 @@ SELECT @@session.innodb_sync_array_size;
 SHOW GLOBAL variables LIKE 'innodb_sync_array_size';
 SHOW SESSION variables LIKE 'innodb_sync_array_size';
 --disable_warnings
-SELECT * FROM information_schema.global_variables 
+SELECT * FROM performance_schema.global_variables 
 WHERE variable_name='innodb_sync_array_size';
-SELECT * FROM information_schema.session_variables 
+SELECT * FROM performance_schema.session_variables 
 WHERE variable_name='innodb_sync_array_size';
 --enable_warnings
 

@@ -17,52 +17,52 @@ innodb_status_output_locks	OFF
 show session variables like 'innodb_status_output_locks';
 Variable_name	Value
 innodb_status_output_locks	OFF
-select * from information_schema.global_variables where variable_name='innodb_status_output_locks';
+select * from performance_schema.global_variables where variable_name='innodb_status_output_locks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT_LOCKS	OFF
-select * from information_schema.session_variables where variable_name='innodb_status_output_locks';
+innodb_status_output_locks	OFF
+select * from performance_schema.session_variables where variable_name='innodb_status_output_locks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT_LOCKS	OFF
+innodb_status_output_locks	OFF
 set global innodb_status_output_locks='OFF';
 select @@global.innodb_status_output_locks;
 @@global.innodb_status_output_locks
 0
-select * from information_schema.global_variables where variable_name='innodb_status_output_locks';
+select * from performance_schema.global_variables where variable_name='innodb_status_output_locks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT_LOCKS	OFF
-select * from information_schema.session_variables where variable_name='innodb_status_output_locks';
+innodb_status_output_locks	OFF
+select * from performance_schema.session_variables where variable_name='innodb_status_output_locks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT_LOCKS	OFF
+innodb_status_output_locks	OFF
 set @@global.innodb_status_output_locks=1;
 select @@global.innodb_status_output_locks;
 @@global.innodb_status_output_locks
 1
-select * from information_schema.global_variables where variable_name='innodb_status_output_locks';
+select * from performance_schema.global_variables where variable_name='innodb_status_output_locks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT_LOCKS	ON
-select * from information_schema.session_variables where variable_name='innodb_status_output_locks';
+innodb_status_output_locks	ON
+select * from performance_schema.session_variables where variable_name='innodb_status_output_locks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT_LOCKS	ON
+innodb_status_output_locks	ON
 set global innodb_status_output_locks=0;
 select @@global.innodb_status_output_locks;
 @@global.innodb_status_output_locks
 0
-select * from information_schema.global_variables where variable_name='innodb_status_output_locks';
+select * from performance_schema.global_variables where variable_name='innodb_status_output_locks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT_LOCKS	OFF
-select * from information_schema.session_variables where variable_name='innodb_status_output_locks';
+innodb_status_output_locks	OFF
+select * from performance_schema.session_variables where variable_name='innodb_status_output_locks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT_LOCKS	OFF
+innodb_status_output_locks	OFF
 set @@global.innodb_status_output_locks='ON';
 select @@global.innodb_status_output_locks;
 @@global.innodb_status_output_locks
 1
-select * from information_schema.global_variables where variable_name='innodb_status_output_locks';
+select * from performance_schema.global_variables where variable_name='innodb_status_output_locks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT_LOCKS	ON
-select * from information_schema.session_variables where variable_name='innodb_status_output_locks';
+innodb_status_output_locks	ON
+select * from performance_schema.session_variables where variable_name='innodb_status_output_locks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT_LOCKS	ON
+innodb_status_output_locks	ON
 set session innodb_status_output_locks='OFF';
 ERROR HY000: Variable 'innodb_status_output_locks' is a GLOBAL variable and should be set with SET GLOBAL
 set @@session.innodb_status_output_locks='ON';
@@ -78,22 +78,22 @@ set global innodb_status_output_locks=-3;
 select @@global.innodb_status_output_locks;
 @@global.innodb_status_output_locks
 1
-select * from information_schema.global_variables where variable_name='innodb_status_output_locks';
+select * from performance_schema.global_variables where variable_name='innodb_status_output_locks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT_LOCKS	ON
-select * from information_schema.session_variables where variable_name='innodb_status_output_locks';
+innodb_status_output_locks	ON
+select * from performance_schema.session_variables where variable_name='innodb_status_output_locks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT_LOCKS	ON
+innodb_status_output_locks	ON
 set global innodb_status_output_locks=DEFAULT;
 select @@global.innodb_status_output_locks;
 @@global.innodb_status_output_locks
 0
-select * from information_schema.global_variables where variable_name='innodb_status_output_locks';
+select * from performance_schema.global_variables where variable_name='innodb_status_output_locks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT_LOCKS	OFF
-select * from information_schema.session_variables where variable_name='innodb_status_output_locks';
+innodb_status_output_locks	OFF
+select * from performance_schema.session_variables where variable_name='innodb_status_output_locks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT_LOCKS	OFF
+innodb_status_output_locks	OFF
 set global innodb_status_output_locks='AUTO';
 ERROR 42000: Variable 'innodb_status_output_locks' can't be set to the value of 'AUTO'
 SET @@global.innodb_status_output_locks = @start_global_value;

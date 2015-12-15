@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 
 #
 #  2011-11-17 - Added 
@@ -14,8 +16,8 @@ select @@session.innodb_ft_total_cache_size;
 show global variables like 'innodb_ft_total_cache_size';
 show session variables like 'innodb_ft_total_cache_size';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_ft_total_cache_size';
-select * from information_schema.session_variables where variable_name='innodb_ft_total_cache_size';
+select * from performance_schema.global_variables where variable_name='innodb_ft_total_cache_size';
+select * from performance_schema.session_variables where variable_name='innodb_ft_total_cache_size';
 --enable_warnings
 
 #

@@ -14,6 +14,9 @@
 # Test needs myisam for a few testcases
 --source include/have_myisam.inc
 
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
+
 drop table if exists t5, t6, t7, t8;
 drop database if exists mysqltest ;
 

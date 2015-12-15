@@ -23,7 +23,7 @@ SELECT @@SESSION.binlog_rows_query_log_events;
 '#---------------------BS_STVARS_002_03----------------------#'
 SELECT
 IF(@@GLOBAL.binlog_rows_query_log_events, "ON", "OFF") = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='binlog_rows_query_log_events';
 IF(@@GLOBAL.binlog_rows_query_log_events, "ON", "OFF") = VARIABLE_VALUE
 1
@@ -33,7 +33,7 @@ COUNT(@@GLOBAL.binlog_rows_query_log_events)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='binlog_rows_query_log_events';
 COUNT(VARIABLE_VALUE)
 1
@@ -41,7 +41,7 @@ COUNT(VARIABLE_VALUE)
 '#---------------------BS_STVARS_002_04----------------------#'
 SELECT
 IF(@@SESSION.binlog_rows_query_log_events, "ON", "OFF") = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='binlog_rows_query_log_events';
 IF(@@SESSION.binlog_rows_query_log_events, "ON", "OFF") = VARIABLE_VALUE
 1
@@ -51,7 +51,7 @@ COUNT(@@SESSION.binlog_rows_query_log_events)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='binlog_rows_query_log_events';
 COUNT(VARIABLE_VALUE)
 1

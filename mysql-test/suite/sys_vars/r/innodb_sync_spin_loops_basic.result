@@ -86,7 +86,7 @@ SELECT @@global.innodb_sync_spin_loops;
 0
 '#----------------------FN_DYNVARS_046_06------------------------#'
 SELECT @@global.innodb_sync_spin_loops =
-VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_sync_spin_loops';
 @@global.innodb_sync_spin_loops =
 VARIABLE_VALUE
@@ -94,7 +94,7 @@ VARIABLE_VALUE
 SELECT @@global.innodb_sync_spin_loops;
 @@global.innodb_sync_spin_loops
 0
-SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_sync_spin_loops';
 VARIABLE_VALUE
 0

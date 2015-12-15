@@ -9,12 +9,12 @@ init_file
 show session variables like 'init_file';
 Variable_name	Value
 init_file	
-select * from information_schema.global_variables where variable_name='init_file';
+select * from performance_schema.global_variables where variable_name='init_file';
 VARIABLE_NAME	VARIABLE_VALUE
-INIT_FILE	
-select * from information_schema.session_variables where variable_name='init_file';
+init_file	
+select * from performance_schema.session_variables where variable_name='init_file';
 VARIABLE_NAME	VARIABLE_VALUE
-INIT_FILE	
+init_file	
 set global init_file=1;
 ERROR HY000: Variable 'init_file' is a read only variable
 set session init_file=1;

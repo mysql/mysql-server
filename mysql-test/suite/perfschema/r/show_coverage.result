@@ -30,9 +30,7 @@ Variable_name	Value
 # CREATE..SELECT -- Expect correct ER_WARN_DEPRECATED_SYNTAX
 #
 USE test;
-CREATE TABLE t0 SELECT * FROM information_schema.global_status WHERE variable_name = 'COM_SELECT';
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
+CREATE TABLE t0 SELECT * FROM performance_schema.global_status WHERE variable_name = 'COM_SELECT';
 DROP TABLE t0;
 
 ================================================================================

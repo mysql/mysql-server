@@ -2,6 +2,9 @@
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
+# Running test with show_compatibility_56=ON to retain I_S compatibility until it is permanently removed.
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
 
 --source include/no_valgrind_without_big.inc
 
@@ -1993,3 +1996,4 @@ DROP USER очень_очень_очень_длинный_юзер__@localhost;
 set names default;
 
 set sql_mode= @orig_sql_mode;
+set @@global.show_compatibility_56=@show_compatibility_56_save;

@@ -12,7 +12,7 @@ SET @@global.slow_query_log_file = 12;
 ERROR 42000: Incorrect argument type to variable 'slow_query_log_file'
 '#----------------------FN_DYNVARS_004_03------------------------#'
 SELECT @@global.slow_query_log_file = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='slow_query_log_file';
 @@global.slow_query_log_file = VARIABLE_VALUE
 1

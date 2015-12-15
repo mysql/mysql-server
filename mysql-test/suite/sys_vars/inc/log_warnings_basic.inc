@@ -126,7 +126,7 @@ if($mach64)
 
 --disable_warnings
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='log_warnings'
 into @tmp;
 --enable_warnings

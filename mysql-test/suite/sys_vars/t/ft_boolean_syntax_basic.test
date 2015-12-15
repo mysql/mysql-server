@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 ############## mysql-test\t\ft_boolean_syntax_basic.test ######################
 #                                                                             #
 # Variable Name: ft_boolean_syntax                                            #
@@ -136,7 +138,7 @@ SET @@global.ft_boolean_syntax = 'IGNORE';
 #############################################################################
 --disable_warnings
 SELECT @@global.ft_boolean_syntax = (SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='ft_boolean_syntax') AS res;
 --enable_warnings
 

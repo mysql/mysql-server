@@ -17,22 +17,22 @@ innodb_ft_num_word_optimize	2000
 show session variables like 'innodb_ft_num_word_optimize';
 Variable_name	Value
 innodb_ft_num_word_optimize	2000
-select * from information_schema.global_variables where variable_name='innodb_ft_num_word_optimize';
+select * from performance_schema.global_variables where variable_name='innodb_ft_num_word_optimize';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_NUM_WORD_OPTIMIZE	2000
-select * from information_schema.session_variables where variable_name='innodb_ft_num_word_optimize';
+innodb_ft_num_word_optimize	2000
+select * from performance_schema.session_variables where variable_name='innodb_ft_num_word_optimize';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_NUM_WORD_OPTIMIZE	2000
+innodb_ft_num_word_optimize	2000
 set global innodb_ft_num_word_optimize=1000;
 select @@global.innodb_ft_num_word_optimize;
 @@global.innodb_ft_num_word_optimize
 1000
-select * from information_schema.global_variables where variable_name='innodb_ft_num_word_optimize';
+select * from performance_schema.global_variables where variable_name='innodb_ft_num_word_optimize';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_NUM_WORD_OPTIMIZE	1000
-select * from information_schema.session_variables where variable_name='innodb_ft_num_word_optimize';
+innodb_ft_num_word_optimize	1000
+select * from performance_schema.session_variables where variable_name='innodb_ft_num_word_optimize';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_NUM_WORD_OPTIMIZE	1000
+innodb_ft_num_word_optimize	1000
 set session innodb_ft_num_word_optimize=1000;
 ERROR HY000: Variable 'innodb_ft_num_word_optimize' is a GLOBAL variable and should be set with SET GLOBAL
 set global innodb_ft_num_word_optimize=1.1;
@@ -47,9 +47,9 @@ Warning	1292	Truncated incorrect innodb_ft_num_word_optimize value: '-7'
 select @@global.innodb_ft_num_word_optimize;
 @@global.innodb_ft_num_word_optimize
 1000
-select * from information_schema.global_variables where variable_name='innodb_ft_num_word_optimize';
+select * from performance_schema.global_variables where variable_name='innodb_ft_num_word_optimize';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_NUM_WORD_OPTIMIZE	1000
+innodb_ft_num_word_optimize	1000
 SET @@global.innodb_ft_num_word_optimize = @start_global_value;
 SELECT @@global.innodb_ft_num_word_optimize;
 @@global.innodb_ft_num_word_optimize

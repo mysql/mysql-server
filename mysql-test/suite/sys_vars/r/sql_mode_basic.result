@@ -389,13 +389,13 @@ SET @@session.sql_mode = DISABLE;
 ERROR 42000: Variable 'sql_mode' can't be set to the value of 'DISABLE'
 '#-------------------FN_DYNVARS_152_05----------------------------#'
 SELECT @@session.sql_mode = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_mode';
 @@session.sql_mode = VARIABLE_VALUE
 1
 '#----------------------FN_DYNVARS_152_06------------------------#'
 SELECT @@global.sql_mode = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='sql_mode';
 @@global.sql_mode = VARIABLE_VALUE
 1

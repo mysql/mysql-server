@@ -417,7 +417,7 @@ static void test_com_query(void *p)
   WRITE_STR("-----------------------------------------------------------------\n");
   memset(&sql_str_value, 0, 64 * 64 * 256 * sizeof(char));
   memset(&sql_str_len, 0, 64 * 64 * sizeof(size_t));
-  cmd.com_query.query= "SELECT * FROM information_schema.global_variables WHERE variable_name LIKE 'INNODB_READ_IO_THREADS'";
+  cmd.com_query.query= "SELECT * FROM performance_schema.global_variables WHERE variable_name LIKE 'INNODB_READ_IO_THREADS'";
   cmd.com_query.length= strlen(cmd.com_query.query);
   WRITE_VAL("%s\n", cmd.com_query.query);
   cbd.reset();

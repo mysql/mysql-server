@@ -9,12 +9,12 @@ named_pipe	ON
 show session variables like 'named_pipe';
 Variable_name	Value
 named_pipe	ON
-select * from information_schema.global_variables where variable_name='named_pipe';
+select * from performance_schema.global_variables where variable_name='named_pipe';
 VARIABLE_NAME	VARIABLE_VALUE
-NAMED_PIPE	ON
-select * from information_schema.session_variables where variable_name='named_pipe';
+named_pipe	ON
+select * from performance_schema.session_variables where variable_name='named_pipe';
 VARIABLE_NAME	VARIABLE_VALUE
-NAMED_PIPE	ON
+named_pipe	ON
 set global named_pipe=1;
 ERROR HY000: Variable 'named_pipe' is a read only variable
 set session named_pipe=1;

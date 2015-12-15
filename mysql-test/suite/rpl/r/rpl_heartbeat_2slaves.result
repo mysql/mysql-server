@@ -14,7 +14,11 @@ include/start_slave.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 1;
 include/start_slave.inc
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+SET @@global.show_compatibility_56=ON;
 Slave has received heartbeat event
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+SET @@global.show_compatibility_56=ON;
 include/assert.inc [slave_1 should have received more heartbeats than slave_2]
 
 include/rpl_stop_slaves.inc
@@ -47,6 +51,7 @@ creating updates on master and send to slave_2 during 5 second
 [on slave_1]
 include/assert.inc [slave_1 should have received heartbeats]
 
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 *** Clean up ***
 DROP TABLE t1;
 include/rpl_end.inc

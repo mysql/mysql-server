@@ -39,6 +39,9 @@ call mtr.add_suppression("Unsafe statement written to the binary log using state
 
 SET @start_max_connections= @@global.max_connections;
 SET @start_init_slave= @@global.init_slave;
+# Running the value with show_compatibility_56=ON until WL#9001 is pushed.
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+SET @@global.show_compatibility_56=ON;
 
 # setting of a global value with an effect on the next start of the slave server
 # check that @@global.init_slave could be set
@@ -107,4 +110,6 @@ SET @@global.init_slave= @start_init_slave;
 # End of functionality Testing for init_slave    #
 ##################################################
 
+# Restoring the value of show-compatibility_56
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 --source include/rpl_end.inc

@@ -200,7 +200,7 @@ if($mach64)
 
 --disable_warnings
 SELECT @@global.net_retry_count = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='net_retry_count';
 --enable_warnings
 
@@ -211,7 +211,7 @@ WHERE VARIABLE_NAME='net_retry_count';
 
 --disable_warnings
 SELECT @@session.net_retry_count = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='net_retry_count';
 --enable_warnings
 

@@ -130,13 +130,13 @@ SELECT @@session.net_retry_count;
 1
 '#------------------FN_DYNVARS_111_06-----------------------#'
 SELECT @@global.net_retry_count = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='net_retry_count';
 @@global.net_retry_count = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_111_07-----------------------#'
 SELECT @@session.net_retry_count = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='net_retry_count';
 @@session.net_retry_count = VARIABLE_VALUE
 1
