@@ -498,7 +498,7 @@ MATCH(a) AGAINST('aaa1* aaa14 aaa15 aaa16' IN BOOLEAN MODE)
 DROP TABLE t1;
 CREATE TABLE t1(a TEXT) ENGINE = InnoDB;
 SELECT GROUP_CONCAT(a) AS st FROM t1 HAVING MATCH(st) AGAINST('test' IN BOOLEAN MODE);
-ERROR HY000: Incorrect arguments to AGAINST
+ERROR HY000: Incorrect arguments to MATCH
 DROP TABLE t1;
 CREATE TABLE t1(a VARCHAR(64), FULLTEXT(a)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES('awrd bwrd cwrd'),('awrd bwrd cwrd'),('awrd bwrd cwrd');

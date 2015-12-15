@@ -4883,6 +4883,18 @@ add_key_field(Key_field **key_fields,uint and_level, Item_func *cond,
   DBUG_PRINT("info",("add_key_field for field %s",field->field_name));
   uint exists_optimize= 0;
   TABLE_LIST *table= field->table->pos_in_table_list;
+
+  if (field->table->reginfo.join_tab == NULL)
+  {
+    /*
+       Due to a bug in IN-to-EXISTS (grep for real_item() in item_subselect.cc
+       for more info), an index over a field from an outer query might be
+       considered here, which is incorrect. Their query has been fully
+       optimized already so their reginfo.join_tab is NULL and we reject them.
+    */
+    return;
+  }
+
   if (!table->derived_keys_ready && table->uses_materialization() &&
       !field->table->is_created() &&
       table->update_derived_keys(field, value, num_values))

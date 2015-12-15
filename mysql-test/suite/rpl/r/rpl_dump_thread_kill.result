@@ -7,9 +7,11 @@ CREATE TABLE t1(i INT) engine=innodb;
 INSERT INTO t1 VALUES (1);
 FLUSH LOGS;
 SET GLOBAL DEBUG='+d,simulate_dump_thread_kill';
-include/start_slave.inc
+SET GLOBAL DEBUG='+d,simulate_no_master_reconnect';
+START SLAVE IO_THREAD;
+include/wait_for_slave_io_to_stop.inc
 SET GLOBAL DEBUG='-d,simulate_dump_thread_kill';
-include/stop_slave.inc
+SET GLOBAL DEBUG='-d,simulate_no_master_reconnect';
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1,slave:t1]

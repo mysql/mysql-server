@@ -1,0 +1,93 @@
+--echo #
+--echo # Show what happens during ALTER TABLE when an existing file
+--echo # exists in the target location.
+--echo #
+--echo # Bug #19218794: IF TABLESPACE EXISTS, CAN'T CREATE TABLE,
+--echo #                BUT CAN ALTER ENGINE=INNODB
+--echo #
+
+--source include/have_innodb.inc
+
+--disable_query_log
+LET $MYSQLD_DATADIR = `select @@datadir`;
+SET @old_innodb_file_per_table = @@innodb_file_per_table;
+--enable_query_log
+
+CREATE TABLE t1 (a SERIAL, b CHAR(10)) ENGINE=Memory;
+INSERT INTO t1(b) VALUES('one'), ('two'), ('three');
+
+--echo #
+--echo # Create a file called MYSQLD_DATADIR/test/t1.ibd
+--exec echo "This is not t1.ibd" > $MYSQLD_DATADIR/test/t1.ibd
+
+--echo # Directory listing of test/*.ibd
+--echo #
+--list_files $MYSQLD_DATADIR/test/ *.ibd
+
+--replace_regex  /Error on rename of '.*' to '.*'/Error on rename of 'OLD_FILE_NAME' to 'NEW_FILE_NAME'/
+--error ER_ERROR_ON_RENAME
+ALTER TABLE t1 ENGINE = InnoDB;
+
+--echo #
+--echo # Move the file to InnoDB as t2
+--echo #
+ALTER TABLE t1 RENAME TO t2, ENGINE = INNODB;
+SHOW CREATE TABLE t2;
+SELECT * from t2;
+
+--replace_regex  /Error on rename of '.*' to '.*'/Error on rename of 'OLD_FILE_NAME' to 'NEW_FILE_NAME'/
+--error ER_ERROR_ON_RENAME
+ALTER TABLE t2 RENAME TO t1;
+
+--echo #
+--echo # Create another t1, but in the system tablespace.
+--echo #
+SET GLOBAL innodb_file_per_table=OFF;
+CREATE TABLE t1 (a SERIAL, b CHAR(20)) ENGINE=InnoDB;
+INSERT INTO t1(b) VALUES('one'), ('two'), ('three');
+SHOW CREATE TABLE t1;
+SELECT name, space=0 FROM information_schema.innodb_sys_tables WHERE name = 'test/t1';
+
+--echo #
+--echo # ALTER TABLE from system tablespace to system tablespace
+--echo #
+ALTER TABLE t1 ADD COLUMN c INT, ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD COLUMN d INT, ALGORITHM=COPY;
+
+--echo #
+--echo # Try to move t1 from the system tablespace to a file-per-table
+--echo # while a blocking t1.ibd file exists.
+--echo #
+SET GLOBAL innodb_file_per_table=ON;
+--replace_regex /$MYSQLD_DATADIR/MYSQLD_DATADIR/
+--error ER_TABLESPACE_EXISTS
+ALTER TABLE t1 ADD COLUMN e1 INT, ALGORITHM=INPLACE;
+--replace_regex  /Error on rename of '.*' to '.*'/Error on rename of 'OLD_FILE_NAME' to 'NEW_FILE_NAME'/
+--error ER_ERROR_ON_RENAME
+ALTER TABLE t1 ADD COLUMN e2 INT, ALGORITHM=COPY;
+
+--echo #
+--echo # Delete the blocking file called MYSQLD_DATADIR/test/t1.ibd
+--remove_file $MYSQLD_DATADIR/test/t1.ibd
+
+--echo # Move t1 to file-per-table using ALGORITHM=INPLACE with no blocking t1.ibd.
+--echo #
+ALTER TABLE t1 ADD COLUMN e INT, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+SELECT name, space=0 FROM information_schema.innodb_sys_tables WHERE name = 'test/t1';
+
+DROP TABLE t1;
+
+--echo #
+--echo # Rename t2.ibd to t1.ibd.
+--echo #
+ALTER TABLE t2 RENAME TO t1;
+SELECT name, space=0 FROM information_schema.innodb_sys_tables WHERE name = 'test/t1';
+SELECT * from t1;
+
+DROP TABLE t1;
+
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot rename '.*' to '.*' for space ID .* because the target file exists. Remove the target file and try again");
+SET GLOBAL innodb_file_per_table = @old_innodb_file_per_table;
+--enable_query_log
