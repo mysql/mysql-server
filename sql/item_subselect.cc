@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1072,6 +1072,27 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       runtime created Ref item which is deleted at the end
       of the statement. Thus one of 'substitution' arguments
       can be broken in case of PS.
+
+      @todo
+      Why do we use real_item()/substitutional_item() instead of the plain
+      left_expr?
+      Because left_expr might be a rollbackable item, and we fail to properly
+      rollback all copies of left_expr at end of execution, so we want to
+      avoid creating copies of left_expr as much as possible, so we use
+      real_item() instead.
+      Doing a proper rollback is difficult: the change was registered for the
+      original item which was the left argument of IN. Then this item was
+      copied to left_expr, which is copied below to substitution->args[0]. To
+      do a proper rollback, we would have to restore the content
+      of both copies as well as the original item. There might be more copies,
+      if AND items have been constructed.
+      The same applies to the right expression.
+      However, using real_item()/substitutional_item() brings its own
+      problems: for example, we lose information that the item is an outer
+      reference; the item can thus wrongly be considered for a Keyuse (causing
+      bug#17766653).
+      When WL#6570 removes the "rolling back" system, all
+      real_item()/substitutional_item() in this file should be removed.
     */ 
     substitution= func->create(left_expr->real_item(), subs);
     DBUG_RETURN(RES_OK);
@@ -1157,6 +1178,9 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   }
   else
   {
+    /*
+      Grep for "WL#6570" to see the relevant comment about real_item.
+    */
     Item *item= (Item*) select_lex->item_list.head()->real_item();
 
     if (select_lex->table_list.elements)
