@@ -76,8 +76,6 @@ SET @@global.slave_transaction_retries = 2147483648;
 SELECT @@global.slave_transaction_retries;
 SET @@global.slave_transaction_retries = 2147483648*2-1;
 SELECT @@global.slave_transaction_retries;
-SET @@global.slave_transaction_retries = 2147483649*2;
-SELECT @@global.slave_transaction_retries;
 SET @@global.slave_transaction_retries = 4294967295;
 SELECT @@global.slave_transaction_retries;
 
