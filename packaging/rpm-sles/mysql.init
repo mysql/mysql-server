@@ -60,7 +60,7 @@ get_option () {
     local section=$1
     local option=$2
     local default=$3
-    ret=$(/usr/bin/my_print_defaults $section | grep '^--'${option}'=' | cut -d= -f2-)
+    ret=$(/usr/bin/my_print_defaults $section | grep '^--'${option}'=' | cut -d= -f2- | tail -n 1)
     [ -z $ret ] && ret=$default
     echo $ret
 }
