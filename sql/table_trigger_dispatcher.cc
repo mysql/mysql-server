@@ -743,10 +743,10 @@ void Table_trigger_dispatcher::parse_triggers(THD *thd)
   The operation executes trigger for the specified event (insert, update,
   delete) and time (after, before) if it is set.
 
-  @param thd
-  @param event
-  @param action_time
-  @param old_row_is_record1
+  @param thd                 Thread handle
+  @param event               Insert, update or delete
+  @param action_time         Before or after
+  @param old_row_is_record1  If record1 contains old or new field.
 
   @return Operation status.
     @retval false Success

@@ -294,7 +294,7 @@ private:
   LEX_STRING m_trigger_name;
 
   /**
-    A pointer to the "ON <table name>" part of the trigger definition. It is
+    A pointer to the "ON < table name >" part of the trigger definition. It is
     used for updating trigger definition in RENAME TABLE.
   */
   LEX_STRING m_on_table_name;

@@ -182,6 +182,18 @@ static File_option sql_modes_parameters=
 ///////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
 
+/**
+  Create path name to a .TRN file for a specified trigger.
+
+  @param [in,out] trn_file_name_buffer       Buffer to store a path value.
+  @param [in] trn_file_name_buffer_size      Buffer size.
+  @param [in] db_name                        Name of schema.
+  @param [in] trigger_name                   Trigger name.
+
+  @return LEX_STRING object contained a path name.
+    @retval NULL_STR in case of error.
+*/
+
 LEX_STRING Trigger_loader::build_trn_path(char *trn_file_name_buffer,
                                           int trn_file_name_buffer_size,
                                           const char *db_name,
@@ -208,11 +220,13 @@ LEX_STRING Trigger_loader::build_trn_path(char *trn_file_name_buffer,
   return trn_file_name;
 }
 
+
 /**
   This method saves .TRG file for the table specified by arguments.
 
   @param db_name     Name of database for subject table
   @param table_name  Name of subject table
+  @param trg         Pointer to a structure representing content of .TRG file.
 
   @return Operation status.
     @retval false  Success
@@ -304,12 +318,13 @@ static bool fill_trg_data(Trg_file_data *trg,
 /**
   Change the subject table in the given list of triggers.
 
-  @param new_db_name         New database of subject table
-  @param new_table_name      New subject table's name
+  @param triggers            List of all triggers associated with a table.
+  @param new_db_name         New database of subject table.
+  @param new_table_name      New subject table's name.
   @param stopper             Pointer to a trigger_name for
                              which we should stop updating.
 
-  @retval NULL      Success
+  @retval NULL      Success.
   @retval not-NULL  Failure, pointer to Table_trigger_dispatcher::names_list
                     element for which update failed.
 */
@@ -531,6 +546,7 @@ bool Trigger_loader::check_trn_exists(const LEX_STRING &trn_path)
 
   @return true if TRG-file exists, false otherwise.
 */
+
 bool Trigger_loader::trg_file_exists(const char *db_name,
                                      const char *table_name)
 {
@@ -550,11 +566,12 @@ bool Trigger_loader::trg_file_exists(const char *db_name,
 /**
   Load table triggers from the data dictionary.
 
-  @param [in]  thd                thread handle
-  @param [in]  db_name            name of schema
-  @param [in]  table_name         subject table name
+  @param [in]  thd                thread handle.
+  @param [in]  mem_root           MEM_ROOT for buffer allocation.
+  @param [in]  db_name            name of schema.
+  @param [in]  table_name         subject table name.
   @param [out] triggers           pointer to the list where new Trigger
-                                  objects will be inserted
+                                  objects will be inserted.
 
   @return Operation status
     @retval true   Failure
@@ -726,9 +743,12 @@ bool Trigger_loader::load_triggers(THD *thd,
 /**
   Store a table trigger into the data dictionary.
 
-  @param [in]  new_trigger  trigger to save
+  @param [in]  db_name      schema name.
+  @param [in]  table_name   subject table name.
+  @param [in]  mem_root     MEM_ROOT for memory allocation.
+  @param [in]  new_trigger  trigger to save.
   @param [in]  triggers     pointer to the list where new trigger object has to
-                            be added
+                            be added.
 
   @return Operation status
     @retval true   Failure
@@ -790,10 +810,13 @@ bool Trigger_loader::store_trigger(const LEX_STRING &db_name,
 /**
   Drop trigger in the data dictionary.
 
-  @param [in]  trigger_name   name of the trigger to drop
-  @param [in]  triggers       list of all table triggers
+  @param [in]  db_name        schema name.
+  @param [in]  table_name     subject table name.
+  @param [in]  trigger_name   name of the trigger to drop.
+  @param [in]  mem_root       MEM_ROOT for memory allocation.
+  @param [in]  triggers       list of all table's triggers.
   @param [out] trigger_found  flag to store a result whether
-                              the named trigger was found
+                              the named trigger was found.
 
   @return Operation status.
     @retval true   Failure
@@ -912,6 +935,14 @@ bool Trigger_loader::load_trn_file(THD *thd,
 
 /**
   Drop all triggers for the given table.
+
+  @param [in]  db_name        schema name.
+  @param [in]  table_name     subject table name.
+  @param [in]  triggers       list of all table's triggers to drop.
+
+  @return Operation status
+    @retval true   Failure.
+    @retval false  Success.
 */
 
 bool Trigger_loader::drop_all_triggers(const char *db_name,
@@ -944,6 +975,22 @@ bool Trigger_loader::drop_all_triggers(const char *db_name,
 }
 
 ///////////////////////////////////////////////////////////////////////////
+
+
+/**
+  Rename a table name in all triggers related with a subject table.
+
+  @param [in] mem_root         MEM_ROOT for memory allocation.
+  @param [in] triggers         List of all triggers associated with a table.
+  @param [in] db_name          Old database of subject table.
+  @param [in] table_name       Old subject table's name.
+  @param [in] new_db_name      New database of subject table.
+  @param [in] new_table_name   New subject table's name.
+
+  @return Operation status
+    @retval true   Failure.
+    @retval false  Success.
+*/
 
 bool Trigger_loader::rename_subject_table(MEM_ROOT *mem_root,
                                           List<Trigger> *triggers,
