@@ -781,6 +781,8 @@ ha_innobase::check_if_supported_inplace_alter(
 	     & Alter_inplace_info::ADD_VIRTUAL_COLUMN)
 	    && (ha_alter_info->handler_flags
 	        & Alter_inplace_info::ADD_INDEX)) {
+		ha_alter_info->unsupported_reason = innobase_get_err_msg(
+			ER_UNSUPPORTED_ALTER_INPLACE_ON_VIRTUAL_COLUMN);
 		online = false;
 	}
 
