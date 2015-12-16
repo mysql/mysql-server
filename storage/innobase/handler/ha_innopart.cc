@@ -833,7 +833,7 @@ ha_innopart::innobase_initialize_autoinc()
 /** Set the autoinc column max value.
 This should only be called once from ha_innobase::open().
 Therefore there's no need for a covering lock.
-@param[in]	-	no_lock Ignored!
+@param[in]	-	If locking should be skipped. Not used!
 @return	0 for success or error code. */
 inline
 int

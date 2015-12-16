@@ -756,7 +756,7 @@ private:
 	/** Set the autoinc column max value.
 	This should only be called once from ha_innobase::open().
 	Therefore there's no need for a covering lock.
-	@param[in]	no_lock	If locking should be skipped. Not used!
+	@param[in]	-	If locking should be skipped. Not used!
 	@return 0 on success else error code. */
 	int
 	initialize_auto_increment(
