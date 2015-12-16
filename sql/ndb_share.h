@@ -183,11 +183,10 @@ NDB_SHARE *ndbcluster_get_share(const char *key,
 NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share);
 void ndbcluster_free_share(NDB_SHARE **share, bool have_lock);
 void ndbcluster_real_free_share(NDB_SHARE **share);
-int handle_trailing_share(THD *thd, NDB_SHARE *share);
 int ndbcluster_rename_share(THD *thd,
                             NDB_SHARE *share,
                             struct NDB_SHARE_KEY* new_key);
-void ndbcluster_mark_share_dropped(NDB_SHARE*);
+void ndbcluster_mark_share_dropped(NDB_SHARE** share);
 inline NDB_SHARE *get_share(const char *key,
                             struct TABLE *table,
                             bool create_if_not_exists= TRUE,
