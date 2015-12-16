@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -179,11 +179,10 @@ NDB_SHARE *ndbcluster_get_share(const char *key,
 NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share);
 void ndbcluster_free_share(NDB_SHARE **share, bool have_lock);
 void ndbcluster_real_free_share(NDB_SHARE **share);
-int handle_trailing_share(THD *thd, NDB_SHARE *share);
 int ndbcluster_prepare_rename_share(NDB_SHARE *share, const char *new_key);
 int ndbcluster_rename_share(THD *thd, NDB_SHARE *share);
 int ndbcluster_undo_rename_share(THD *thd, NDB_SHARE *share);
-void ndbcluster_mark_share_dropped(NDB_SHARE*);
+void ndbcluster_mark_share_dropped(NDB_SHARE** share);
 inline NDB_SHARE *get_share(const char *key,
                             struct TABLE *table,
                             bool create_if_not_exists= TRUE,
