@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -167,6 +167,25 @@ buf_load_status(
 	va_end(ap);
 }
 
+/** Returns the directory path where the buffer pool dump file will be created.
+@return directory path */
+static
+const char*
+get_buf_dump_dir()
+{
+	const char*	dump_dir;
+
+	/* The dump file should be created in the default data directory if
+	innodb_data_home_dir is set as an empty string. */
+	if (strcmp(srv_data_home, "") == 0) {
+		dump_dir = fil_path_to_mysql_datadir;
+	} else {
+		dump_dir = srv_data_home;
+	}
+
+	return(dump_dir);
+}
+
 /*****************************************************************//**
 Perform a buffer pool dump into the file specified by
 innodb_buffer_pool_filename. If any errors occur then the value of
@@ -190,7 +209,7 @@ buf_dump(
 	int	ret;
 
 	ut_snprintf(full_filename, sizeof(full_filename),
-		    "%s%c%s", srv_data_home, SRV_PATH_SEPARATOR,
+		    "%s%c%s", get_buf_dump_dir(), SRV_PATH_SEPARATOR,
 		    srv_buf_dump_filename);
 
 	ut_snprintf(tmp_filename, sizeof(tmp_filename),
@@ -387,7 +406,7 @@ buf_load()
 	buf_load_abort_flag = FALSE;
 
 	ut_snprintf(full_filename, sizeof(full_filename),
-		    "%s%c%s", srv_data_home, SRV_PATH_SEPARATOR,
+		    "%s%c%s", get_buf_dump_dir(), SRV_PATH_SEPARATOR,
 		    srv_buf_dump_filename);
 
 	buf_load_status(STATUS_NOTICE,
