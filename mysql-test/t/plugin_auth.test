@@ -91,7 +91,6 @@ CREATE DATABASE test_grant_db;
 --echo # create new user via GRANT WITH
 GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user 
 IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-GRANT ALL PRIVILEGES ON test_grant_db.* TO plug_dest;
 GRANT PROXY ON plug_dest TO new_grant_user;  
 
 connect(plug_con_grant,localhost,new_grant_user,plug_dest);

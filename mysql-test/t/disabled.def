@@ -26,4 +26,3 @@ system_mysql_db_fix40123  : WL#6378 2015-11-06 jhauglid WL6378_DDL_ON_DD_TABLE
 system_mysql_db_fix50030  : WL#6378 2015-11-06 jhauglid WL6378_DDL_ON_DD_TABLE
 system_mysql_db_fix50117  : WL#6378 2015-11-06 jhauglid WL6378_DDL_ON_DD_TABLE
 main.mysqldump            : WL#6378 2015-11-06 jhauglid WL6378_DDL_ON_DD_TABLE
-main.transactional_acl_tables             :Bug#22173632 2015-11-11 sayadutt disabled it, timestamp column gets filled with null with initialize.
