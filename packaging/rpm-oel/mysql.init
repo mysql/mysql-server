@@ -99,7 +99,7 @@ start(){
 	    if [ -x /sbin/restorecon ] ; then
 		/sbin/restorecon "$datadir"
 		if [ -x /usr/sbin/semanage -a -d /var/lib/mysql -a -d /var/lib/mysql-files ] ; then
-		    /usr/sbin/semanage fcontext -a -e /var/lib/mysql /var/lib/mysql-files
+		    /usr/sbin/semanage fcontext -a -e /var/lib/mysql /var/lib/mysql-files >/dev/null 2>&1 
 		    /sbin/restorecon /var/lib/mysql-files
 		fi
 	    fi
