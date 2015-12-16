@@ -303,6 +303,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
                                        THD *thd, 
                                        TABLE_LIST *tables, 
                                        Item *cond);
+static int handle_trailing_share(THD *thd, NDB_SHARE *share);
 
 #if MYSQL_VERSION_ID >= 50501
 /**
@@ -10114,7 +10115,7 @@ cleanup_failed:
       get a new share
     */
 
-    /* ndb_share reference create */
+    /* Get a temporary ref AND a ref from open_tables iff share created */
     if (!(share= get_share(name, form, TRUE, TRUE)))
     {
       sql_print_error("NDB: allocating table share for %s failed", name);
@@ -10189,6 +10190,8 @@ cleanup_failed:
 			       NULL, NULL);
       break;
     }
+    if (share)
+      free_share(&share); // temporary ref.
   }
 
   m_table= 0;
@@ -10723,13 +10726,9 @@ do_drop:
     if (share->state != NSS_DROPPED)
     {
       /*
-        The share kept by the server has not been freed, free it
+        The share ref from 'ndbcluster_open_tables' has not been freed, free it
       */
-      ndbcluster_mark_share_dropped(share);
-      /* ndb_share reference create free */
-      DBUG_PRINT("NDB_SHARE", ("%s create free  use_count: %u",
-                               share->key, share->use_count));
-      free_share(&share, TRUE);
+      ndbcluster_mark_share_dropped(&share);
     }
     /* ndb_share reference temporary free */
     DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
@@ -13408,6 +13407,7 @@ static void print_ndbcluster_open_tables()
   
   Must be called with previous pthread_mutex_lock(&ndbcluster_mutex)
 */
+static
 int handle_trailing_share(THD *thd, NDB_SHARE *share)
 {
   static ulong trailing_share_id= 0;
@@ -13450,23 +13450,12 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
   */
   if (share->state != NSS_DROPPED)
   {
-    ndbcluster_mark_share_dropped(share);
-    /* ndb_share reference create free */
-    DBUG_PRINT("NDB_SHARE", ("%s create free  use_count: %u",
-                             share->key, share->use_count));
-    --share->use_count;
     if (opt_ndb_extra_logging > 9)
       sql_print_information ("handle_trailing_share: %s use_count: %u", share->key, share->use_count);
 
-    if (share->use_count == 0)
-    {
-      if (opt_ndb_extra_logging)
-        sql_print_information("NDB_SHARE: trailing share %s, "
-                              "released after NSS_DROPPED check",
-                              share->key);
-      ndbcluster_real_free_share(&share);
+    ndbcluster_mark_share_dropped(&share);
+    if (share == NULL) //Last share ref dropped
       DBUG_RETURN(0);
-    }
   }
 
   DBUG_PRINT("info", ("NDB_SHARE: %s already exists use_count=%d, op=0x%lx.",
@@ -13492,9 +13481,14 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
   /*
     This is probably an error.  We can however save the situation
     at the cost of a possible mem leak, by "renaming" the share
-    - First remove from hash
   */
-  my_hash_delete(&ndbcluster_open_tables, (uchar*) share);
+  // As share is now NSS_DROPPED, it should not be in the open_tables list
+  DBUG_ASSERT(share->state == NSS_DROPPED);
+  DBUG_ASSERT(my_hash_delete(&ndbcluster_open_tables, (uchar*)share) != 0);
+
+  // Remove entry with existing 'key' from dropped_tables list
+  bool was_dropped= (my_hash_delete(&ndbcluster_dropped_tables, (uchar*)share) == 0);
+  DBUG_ASSERT(was_dropped); (void)was_dropped;
 
   /*
     now give it a new name, just a running number
@@ -13511,9 +13505,12 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
       (uint)my_snprintf(share->key, min_key_length + 1, "#leak%lu",
                   trailing_share_id++);
   }
-  /* Keep it for possible the future trailing free */
-  my_hash_insert(&ndbcluster_open_tables, (uchar*) share);
-
+  // Reinsert into dropped_tables with new key
+  // NOTE: The only reason to maintain a ref to it at all, seems
+  //   to be that a potential later ndbcluster_real_free_share()
+  //   expect to find it in either the open_ or dropped_tables list.
+  //   ... and it would provide some help in debugging leaked shares.
+  my_hash_insert(&ndbcluster_dropped_tables, (uchar*) share);
   DBUG_RETURN(0);
 }
 
@@ -13552,30 +13549,26 @@ int ndbcluster_rename_share(THD *thd, NDB_SHARE *share)
                                         new_length)))
     handle_trailing_share(thd, tmp);
 
-  /* remove the share from hash */
-  my_hash_delete(&ndbcluster_open_tables, (uchar*) share);
   dbug_print_open_tables();
 
-  /* save old stuff if insert should fail */
+  /* save old stuff if hash_update should fail */
   uint old_length= share->key_length;
   char *old_key= share->key;
 
   share->key= share->new_key;
   share->key_length= new_length;
 
-  if (my_hash_insert(&ndbcluster_open_tables, (uchar*) share))
+  /* Update the share hash key.
+     A failure will leave it in the the hash with the old_key.
+  */
+  if (my_hash_update(&ndbcluster_open_tables, (uchar*)share, 
+                     (uchar*)old_key, old_length))
   {
     // ToDo free the allocated stuff above?
     DBUG_PRINT("error", ("ndbcluster_rename_share: my_hash_insert %s failed",
                          share->key));
     share->key= old_key;
     share->key_length= old_length;
-    if (my_hash_insert(&ndbcluster_open_tables, (uchar*) share))
-    {
-      sql_print_error("ndbcluster_rename_share: failed to recover %s", share->key);
-      DBUG_PRINT("error", ("ndbcluster_rename_share: my_hash_insert %s failed",
-                           share->key));
-    }
     dbug_print_open_tables();
     pthread_mutex_unlock(&ndbcluster_mutex);
     return -1;
@@ -13750,8 +13743,11 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
       NDB_SHARE::destroy(share);
       DBUG_RETURN(0);
     }
+    share->use_count++; // Add share refcount from 'ndbcluster_open_tables'
+    if (opt_ndb_extra_logging > 9)
+      sql_print_information ("ndbcluster_get_share: %s use_count: %u", share->key, share->use_count);
   }
-  share->use_count++;
+  share->use_count++; //Add refcount for returned 'share'.
   if (opt_ndb_extra_logging > 9)
     sql_print_information ("ndbcluster_get_share: %s use_count: %u", share->key, share->use_count);
 
@@ -13805,8 +13801,8 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
   {
     found= my_hash_delete(&ndbcluster_dropped_tables, (uchar*) *share) == 0;
 
-    // If this is a 'trailing share', it might still be 'open'
-    my_hash_delete(&ndbcluster_open_tables, (uchar*) *share);
+    // A DROPPED share, even if 'trailing', should not be in the open list.
+    assert(my_hash_delete(&ndbcluster_open_tables, (uchar*) *share) != 0);
   }
   else
   {
@@ -13843,22 +13839,60 @@ void ndbcluster_free_share(NDB_SHARE **share, bool have_lock)
     pthread_mutex_unlock(&ndbcluster_mutex);
 }
 
+/**
+ * ndbcluster_mark_share_dropped(): Set the share state to NSS_DROPPED.
+ *
+ * As a 'DROPPED' share could no longer be in the 'ndbcluster_open_tables' hash,
+ * it is removed from this hash list.
+ *
+ * The share reference count related to the 'open_tables' ref is decremented,
+ * and the share is permanently deleted if '==0'.
+ * Else, the share is put into the 'ndbcluster_dropped_tables' where it may 
+ * exist until the last reference has been removed.
+ *
+ * The lock on the ndbcluster_mutex should be held when calling function.
+ */
 void
-ndbcluster_mark_share_dropped(NDB_SHARE* share)
+ndbcluster_mark_share_dropped(NDB_SHARE** share)
 {
-  share->state= NSS_DROPPED;
-  if (my_hash_delete(&ndbcluster_open_tables, (uchar*) share) == 0)
+  if ((*share)->state == NSS_DROPPED)
   {
-    my_hash_insert(&ndbcluster_dropped_tables, (uchar*) share);
+    // A DROPPED share should not be in the open_tables list
+    DBUG_ASSERT(my_hash_delete(&ndbcluster_open_tables, (uchar*)(*share)) != 0);
+    return;
+  }
+  // A non-DROPPED share should not be in dropped_tables list yet.
+  DBUG_ASSERT(my_hash_delete(&ndbcluster_dropped_tables, (uchar*)(*share)) != 0);
+
+  (*share)->state= NSS_DROPPED;
+  (*share)->use_count--;
+  if (opt_ndb_extra_logging > 9)
+  {
+    sql_print_information ("ndbcluster_mark_share_dropped: %s use_count: %u",
+                           (*share)->key, (*share)->use_count);
+  }
+  dbug_print_share("ndbcluster_mark_share_dropped:", *share);
+
+  if (my_hash_delete(&ndbcluster_open_tables, (uchar*)(*share)) == 0)
+  {
+    // When dropped a share is either immediately destroyed, or 
+    // put in 'dropped' list awaiting remaining refs to be freed.
+    if ((*share)->use_count == 0)
+    {
+      if (opt_ndb_extra_logging > 9)
+        sql_print_information ("ndbcluster_mark_share_dropped: destroys share %s", (*share)->key);
+      NDB_SHARE::destroy(*share);
+      *share= NULL;
+    }
+    else
+    {
+      my_hash_insert(&ndbcluster_dropped_tables, (uchar*)(*share));
+    }
+    dbug_print_open_tables();
   }
   else
   {
     assert(false);
-  }
-  if (opt_ndb_extra_logging > 9)
-  {
-    sql_print_information ("ndbcluster_mark_share_dropped: %s use_count: %u",
-                           share->key, share->use_count);
   }
 }
 
