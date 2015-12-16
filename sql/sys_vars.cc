@@ -694,7 +694,7 @@ static Sys_var_uint Sys_default_password_lifetime(
        "default_password_lifetime", "The number of days after which the "
        "password will expire.",
        GLOBAL_VAR(default_password_lifetime), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, UINT_MAX16), DEFAULT(360), BLOCK_SIZE(1),
+       VALID_RANGE(0, UINT_MAX16), DEFAULT(0), BLOCK_SIZE(1),
        &Plock_default_password_lifetime);
 
 #ifndef EMBEDDED_LIBRARY
