@@ -25,6 +25,7 @@
 #include "mysqld_thd_manager.h"
 #include "mysqld.h"                             // glob_hostname mysqld_port ..
 #include "mysql/group_replication_priv.h"
+#include "log.h"
 
 extern ulong opt_mi_repository_id;
 extern ulong opt_rli_repository_id;
@@ -181,7 +182,7 @@ bool is_group_replication_plugin_loaded()
 
 int group_replication_start()
 {
-  if (group_replication_handler)
+  if (is_group_replication_plugin_loaded())
   {
     /*
       We need to take global_sid_lock because
@@ -201,26 +202,29 @@ int group_replication_start()
     gtid_mode_lock->unlock();
     return ret;
   }
+  sql_print_error("Group Replication plugin is not installed.");
   return 1;
 }
 
 int group_replication_stop()
 {
-  if (group_replication_handler)
+  if (is_group_replication_plugin_loaded())
    return group_replication_handler->stop();
+
+  sql_print_error("Group Replication plugin is not installed.");
   return 1;
 }
 
 bool is_group_replication_running()
 {
-  if (group_replication_handler)
+  if (is_group_replication_plugin_loaded())
     return group_replication_handler->is_running();
   return false;
 }
 
 int set_group_replication_retrieved_certification_info(View_change_log_event *view_change_event)
 {
-  if (group_replication_handler)
+  if (is_group_replication_plugin_loaded())
     return group_replication_handler->set_retrieved_certification_info(view_change_event);
   return 1;
 }
@@ -228,7 +232,7 @@ int set_group_replication_retrieved_certification_info(View_change_log_event *vi
 bool get_group_replication_connection_status_info(
     const GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS& callbacks)
 {
-  if (group_replication_handler)
+  if (is_group_replication_plugin_loaded())
     return group_replication_handler->get_connection_status_info(callbacks);
   return true;
 }
@@ -237,7 +241,7 @@ bool get_group_replication_group_members_info(
     unsigned int index,
     const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS& callbacks)
 {
-  if (group_replication_handler)
+  if (is_group_replication_plugin_loaded())
     return group_replication_handler->get_group_members_info(index, callbacks);
   return true;
 }
@@ -245,14 +249,14 @@ bool get_group_replication_group_members_info(
 bool get_group_replication_group_member_stats_info(
     const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks)
 {
-  if (group_replication_handler)
+  if (is_group_replication_plugin_loaded())
     return group_replication_handler->get_group_member_stats_info(callbacks);
   return true;
 }
 
 unsigned int get_group_replication_members_number_info()
 {
-  if (group_replication_handler)
+  if (is_group_replication_plugin_loaded())
     return group_replication_handler->get_members_number_info();
   return 0;
 }
