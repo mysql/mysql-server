@@ -1420,3 +1420,12 @@ OR(c9 BETWEEN 'hwstqua' AND 'wstquadcji' OR (c9k=0))
 AND(c3 IS NULL OR c3 IN (0,0,0));
 c1	c2	c3	c3k	c4	c5	c5k	c5time_gckey	c6	c5time	c7	c5timek	c7k	c8	c9	c9k
 drop table t;
+#
+# Bug#22374827 ALTER TABLE..LOCK NONE INVOLVING VIRTUAL COL IS REFUSED
+# WITHOUT STATING A REASON
+#
+CREATE TABLE t1(a int NOT NULL) ENGINE=innodb;
+ALTER TABLE t1 ADD INDEX idx1(a), ADD COLUMN (c int as (1) VIRTUAL), LOCK=NONE;
+ERROR 0A000: LOCK=NONE is not supported. Reason: INPLACE ADD or DROP of virtual columns cannot be combined with other ALTER TABLE actions. Try LOCK=SHARED.
+ALTER TABLE t1 ADD INDEX idx1(a), ADD COLUMN (c int as (1) VIRTUAL);
+DROP TABLE t1;
