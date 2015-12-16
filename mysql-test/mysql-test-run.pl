@@ -3648,7 +3648,7 @@ sub initialize_servers {
       remove_stale_vardir();
       setup_vardir();
 
-      mysql_install_db(default_mysqld(), "$opt_vardir/install.db");
+      mysql_install_db(default_mysqld(), "$opt_vardir/data/");
     }
   }
 }
@@ -3740,6 +3740,7 @@ sub mysql_install_db {
   mtr_add_arg($args, "--log-syslog=0");
   mtr_add_arg($args, "--basedir=%s", $install_basedir);
   mtr_add_arg($args, "--datadir=%s", $install_datadir);
+  mtr_add_arg($args, "--initialize-insecure");
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=%s", "$opt_vardir/tmp/");
   mtr_add_arg($args, "--secure-file-priv=%s", "$opt_vardir");
@@ -3796,12 +3797,13 @@ sub mysql_install_db {
   my $exe_mysqld_bootstrap =
     $ENV{'MYSQLD_BOOTSTRAP'} || find_mysqld($install_basedir);
 
+ # mtr_add_arg($args, "--datadir=%s", $install_datadir);
+
   # ----------------------------------------------------------------------
   # export MYSQLD_BOOTSTRAP_CMD variable containing <path>/mysqld <args>
   # ----------------------------------------------------------------------
-  $ENV{'MYSQLD_BOOTSTRAP_CMD'}= "$exe_mysqld_bootstrap " . join(" --bootstrap ", @$args);
+  $ENV{'MYSQLD_BOOTSTRAP_CMD'}= "$exe_mysqld_bootstrap " . join(" ", @$args);
 
-  mtr_add_arg($args, "--install-server");
 
   # ----------------------------------------------------------------------
   # export MYSQLD_INSTALL_CMD variable containing <path>/mysqld <args>
@@ -3832,8 +3834,7 @@ sub mysql_install_db {
 			      "mysql_system_tables.sql",
 			     NOT_REQUIRED);
 
-  if (-f $path_sql && -f "include/mtr_system_tables_data.sql" &&
-      -f "include/mtr_test_data_timezone.sql")
+  if (-f $path_sql && -f "include/mtr_test_data_timezone.sql")
   {
     # Add the offical mysql system tables
     # for a production system
@@ -3841,14 +3842,6 @@ sub mysql_install_db {
     mtr_appendfile_to_file($path_sql,
 	                         $bootstrap_sql_file);
 
-
-
-    # Add the mysql system tables initial data
-    # for the test system. This should in most cases be the same as the
-    # for the production system, but will for historial reasons contain 
-    # more inital root accounts.
-    mtr_appendfile_to_file("include/mtr_system_tables_data.sql",
-		                       $bootstrap_sql_file);
 
     # Add test data for timezone - this is just a subset, on a real
     # system these tables will be populated either by mysql_tzinfo_to_sql
@@ -3858,30 +3851,13 @@ sub mysql_install_db {
   }
   else
   {
-    mtr_error("Error: The system table definition '".
-              "include/mtr_system_tables_data.sql' could not be found".
+    mtr_error("Error: The test_data_timezone.sql not found".
               "in working directory.");
   }
 
-  # Only load the full sys schema if enabled and not running embedded tests,
-  # otherwise create an empty schema
-  if ( ! $opt_skip_sys_schema && ! $opt_embedded_server )
+  if (  $opt_skip_sys_schema &&  $opt_embedded_server )
   {
-    # Add the sys schema, but only in non-embedded installs
-    my $path_sys_schema= my_find_file($install_basedir,
-            ["mysql", "sql/share", "share/mysql",
-             "share", "scripts"],
-            "mysql_sys_schema.sql",
-             NOT_REQUIRED);
-
-    if (-f $path_sys_schema)
-    {
-      mtr_appendfile_to_file($path_sys_schema, $bootstrap_sql_file);
-    }
-  }
-  else
-  {
-      mtr_tofile($bootstrap_sql_file, "CREATE DATABASE sys;\n");
+    mtr_tofile($bootstrap_sql_file, "CREATE DATABASE sys;\n");
   }
 
   # Make sure no anonymous accounts exists as a safety precaution
@@ -3896,6 +3872,10 @@ sub mysql_install_db {
   mtr_tofile($bootstrap_sql_file,
 	     "CREATE DATABASE mtr;\n");
 
+  mtr_tofile($bootstrap_sql_file,
+            "insert into mysql.db values('%','test','','Y','Y','Y','Y','Y',
+            'Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y','Y'); \n");
+
   # Add help tables and data for warning detection and supression
   mtr_tofile($bootstrap_sql_file,
              sql_to_bootstrap(mtr_grab_file("include/mtr_warnings.sql")));
@@ -3909,13 +3889,13 @@ sub mysql_install_db {
   mtr_tofile($path_bootstrap_log,
 	     "$exe_mysqld_bootstrap " . join(" ", @$args) . "\n");
 
-  # Create data directory
-  mkpath("$install_datadir");
+
+  mtr_add_arg($args, "--init-file=$bootstrap_sql_file");
 
   if ( My::SafeProcess->run
        (
-	name          => "bootstrap",
-	path          => $exe_mysqld_bootstrap,
+        name          => "bootstrap",
+        path          => $exe_mysqld_bootstrap,
 	args          => \$args,
 	input         => $bootstrap_sql_file,
 	output        => $path_bootstrap_log,
@@ -3924,9 +3904,9 @@ sub mysql_install_db {
 	verbose       => $opt_verbose,
        ) != 0)
   {
-    mtr_error("Error executing mysqld --install-server\n" .
+    mtr_error("Error executing mysqld --initialize\n" .
               "Could not install system database from $bootstrap_sql_file\n" .
-	      "see $path_bootstrap_log for errors");
+              "see $path_bootstrap_log for errors");
   }
 
   # Remove the auto.cnf so that a new auto.cnf is generated
@@ -6215,10 +6195,11 @@ sub start_servers($) {
     {
       if (! $opt_start_dirty)	# If dirty, keep possibly grown system db
       {
+        my $install_db;
 	# Copy datadir from installed system db
 	for my $path ( "$opt_vardir", "$opt_vardir/..") {
-	  my $install_db= "$path/install.db";
-	  copytree($install_db, $datadir)
+         $install_db= "$path/data/";
+         copytree($install_db, $datadir)
 	    if -d $install_db;
 	}
 	mtr_error("Failed to copy system db to '$datadir'")

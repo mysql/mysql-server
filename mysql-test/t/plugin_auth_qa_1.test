@@ -15,6 +15,8 @@ CREATE DATABASE test_user_db;
 CREATE USER plug_user IDENTIFIED WITH test_plugin_server AS 'plug_dest';
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
 GRANT PROXY ON plug_dest TO plug_user;
+GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest;
+
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK $PLUGIN_AUTH_OPT PLUGIN_AUTH_OPT
 --exec $MYSQL -S $MASTER_MYSOCK -u plug_user $PLUGIN_AUTH_OPT --password=plug_dest -e "SELECT current_user();SELECT user();USE test_user_db;CREATE TABLE t1(a int);SHOW TABLES;DROP TABLE t1;" 2>&1
 REVOKE PROXY ON plug_dest FROM plug_user;
@@ -48,6 +50,7 @@ DROP USER plug_user,plug_dest;
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug_user
   IDENTIFIED WITH test_plugin_server AS 'plug_dest';
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest;
 --echo 1)
 --error 1
 --exec $MYSQL -S $MASTER_MYSOCK -u plug_user $PLUGIN_AUTH_OPT --password=plug_dest -e "SELECT current_user();SELECT user();USE test_user_db;CREATE TABLE t1(a int);SHOW TABLES;DROP TABLE t1;" 2>&1
