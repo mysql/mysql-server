@@ -1382,3 +1382,13 @@ AND(c3 IS NULL OR c3 IN (0,0,0));
 drop table t;
 
 --source include/wait_until_count_sessions.inc
+
+--echo #
+--echo # Bug#22374827 ALTER TABLE..LOCK NONE INVOLVING VIRTUAL COL IS REFUSED
+--echo # WITHOUT STATING A REASON
+--echo #
+CREATE TABLE t1(a int NOT NULL) ENGINE=innodb;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ADD INDEX idx1(a), ADD COLUMN (c int as (1) VIRTUAL), LOCK=NONE;
+ALTER TABLE t1 ADD INDEX idx1(a), ADD COLUMN (c int as (1) VIRTUAL);
+DROP TABLE t1;
