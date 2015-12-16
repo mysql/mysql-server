@@ -7356,7 +7356,7 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
       {
         DBUG_ASSERT(ref && *ref && (*ref)->fixed);
         DBUG_ASSERT(*actual_table ==
-                    ((Item_direct_view_ref *)(*ref))->cached_table);
+                    (down_cast<Item_ident*>(*ref))->cached_table);
 
         Column_privilege_tracker tracker(thd, want_privilege);
         if ((*ref)->walk(&Item::check_column_privileges, Item::WALK_PREFIX,

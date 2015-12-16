@@ -36,6 +36,7 @@
 #include "sql_base.h"            // setup_fields
 #include "sql_optimizer.h"       // Prepare_error_tracker
 #include "sql_test.h"            // print_where
+#include "template_utils.h"
 
 
 static void propagate_nullability(List<TABLE_LIST> *tables, bool nullable);
@@ -3623,7 +3624,7 @@ validate_gc_assignment(THD * thd, List<Item> *fields,
     Field *rfield;
 
     if (!use_table_field)
-      rfield= ((Item_field *)f++)->field;
+      rfield= (down_cast<Item_field*>((f++)->real_item()))->field;
     else
       rfield= *(fld++);
     if (rfield->table != table)

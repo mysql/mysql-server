@@ -45,10 +45,10 @@ Cached_item *new_Cached_item(THD *thd, Item *item, bool use_result_field)
   switch (item->result_type()) {
   case STRING_RESULT:
     if (item->is_temporal())
-      return new Cached_item_temporal((Item_field *) item);
+      return new Cached_item_temporal(item);
     if (item->field_type() == MYSQL_TYPE_JSON)
       return new Cached_item_json(item);
-    return new Cached_item_str(thd, (Item_field *) item);
+    return new Cached_item_str(thd, item);
   case INT_RESULT:
     return new Cached_item_int(item);
   case REAL_RESULT:

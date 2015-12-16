@@ -1568,7 +1568,8 @@ rtr_copy_buf(
 	matches->block.made_dirty_with_no_latch
 		= block->made_dirty_with_no_latch;
 
-	ut_d(matches->block.debug_latch = block->debug_latch);
+	/* Use copy CTOR rather than assignment operator */
+	ut_d(new (&matches->block.debug_latch) rw_lock_t(block->debug_latch));
 
 #endif /* !UNIV_HOTBACKUP */
 }

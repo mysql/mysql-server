@@ -33,6 +33,7 @@
 #include "sql_time.h"        // make_truncated_value_warning
 #include "strfunc.h"         // check_word
 #include "tztime.h"          // Time_zone
+#include "template_utils.h"
 
 #include <time.h>
 
@@ -2477,9 +2478,10 @@ bool Item_date_add_interval::val_datetime(MYSQL_TIME *ltime,
 
 bool Item_date_add_interval::eq(const Item *item, bool binary_cmp) const
 {
-  Item_date_add_interval *other= (Item_date_add_interval*) item;
   if (!Item_func::eq(item, binary_cmp))
     return 0;
+  const Item_date_add_interval *other=
+    down_cast<const Item_date_add_interval*>(item);
   return ((int_type == other->int_type) &&
           (date_sub_interval == other->date_sub_interval));
 }
