@@ -399,6 +399,7 @@ public:
 
     @param key     key
     @param plugin  secondary key
+    @param session
 
     @return
       false  success

@@ -1501,6 +1501,7 @@ public:
 
     @param[in,out] ltime a value buffer
     @param[in]     fuzzydate
+    @param msgnam
     @returns json value coerced to date
    */
   bool coerce_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate,
@@ -1510,6 +1511,8 @@ public:
     Extract a time value from the JSON if possible, coercing if need be.
 
     @param[in,out] ltime a value buffer
+    @param msgnam
+
     @returns json value coerced to time
   */
   bool coerce_time(MYSQL_TIME *ltime, const char *msgnam) const;

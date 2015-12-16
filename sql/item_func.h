@@ -270,9 +270,11 @@ public:
     more Item subclasses. And that feels like pulling on a
     ball of yarn late in the release cycle for 5.7. FIXME.
 
-    @param[out] field  The field to set the value to.
-    @retval 0         On success.
-    @retval > 0       On error.
+    @param[out] field          The field to set the value to.
+    @param      no_conversions Passed to save_in_field_inner().
+
+    @retval 0  On success.
+    @retval >0 On error.
   */
   virtual type_conversion_status save_possibly_as_json(Field *field,
                                                        bool no_conversions);
@@ -502,6 +504,8 @@ protected:
                              rely on values from these tables can be part of
                              the filter effect.
     @param filter_for_table  The table we are calculating filter effect for
+    @param fields_to_ignore Columns that should be ignored.
+
 
     @return Item_field that participates in the predicate if none of the
             requirements are broken, NULL otherwise
@@ -2160,6 +2164,8 @@ class user_var_entry
 
   /**
     Initialize all members
+
+    @param thd    Current session.
     @param name    Name of the user_var_entry instance.
     @param cs      charset information of the user_var_entry instance.
   */
@@ -2238,12 +2244,14 @@ public:
   }
 
   /**
-    Allocate and initialize a user variable instance.
+    Allocates and initializes a user variable instance.
+
+    @param thd    Current session.
     @param name   Name of the variable.
     @param cs     Charset of the variable.
-    @return
-    @retval  Address of the allocated and initialized user_var_entry instance.
-    @retval  NULL on allocation error.
+
+    @return Address of the allocated and initialized user_var_entry instance.
+    @retval NULL On allocation error.
   */
   static user_var_entry *create(THD *thd,
                                 const Name_string &name,
@@ -2532,10 +2540,12 @@ public:
   String search_value;       // key_item()'s value converted to cmp_collation
 
   /**
-     Constructor for Item_func_match class.
+    Constructor for Item_func_match class.
 
-     @param a  List of arguments.
-     @param b  FT Flags.
+    @param pos         Position of token in the parser.
+    @param a           List of arguments.
+    @param against_arg Expression to match against.
+    @param b           FT Flags.
   */
   Item_func_match(const POS &pos, PT_item_list *a, Item *against_arg, uint b):
     Item_real_func(pos, a), against(against_arg), key(0), flags(b),

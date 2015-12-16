@@ -1107,7 +1107,8 @@ protected:
 public:
   /**
     Constructor for Item_func_curtime.
-    @param dec_arg  Number of fractional digits.
+    @param pos     Position of token in the parser.
+    @param dec_arg Number of fractional digits.
   */
   Item_func_curtime(const POS &pos, uint8 dec_arg) :Item_time_func(pos)
   { decimals= dec_arg; }

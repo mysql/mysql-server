@@ -448,6 +448,7 @@ Geometry *Geometry::construct(Geometry_buffer *buffer,
   object.
   @param init_stream Whether set WKB buffer pointer to returned Geometry
   object.
+  @param check_trailing
   @return A Geometry object with data specified by the WKT.
  */
 Geometry *Geometry::create_from_wkt(Geometry_buffer *buffer,
@@ -640,6 +641,7 @@ public:
 
     @param type Expected geometry type. If set to
                 Geometry::wkb_invalid_type, any geometry is allowed.
+    @param required_byte_order
    */
   Geometry_well_formed_checker(Geometry::wkbType type,
                                Geometry::wkbByteOrder required_byte_order)
@@ -3896,6 +3898,7 @@ Gis_polygon::inner_container_type *inner_rings(const Geometry *g)
   where we don't convert to a polygon pointer although it is a polygon.
 
   @param g a geometry that must be a polygon.
+  @param inns
   @return the polygon's inner rings object.
  */
 static inline
@@ -4553,6 +4556,8 @@ exit:
 /// @param ptr points to the geometry's wkb data's 1st byte, right after its
 /// wkb header if any.
 /// @param nbytes the byte order indicated by ptr's wkb header.
+/// @param flags
+/// @param srid
 /// @param is_bg_adapter Whether this object is created to be used by
 ///        Boost Geometry, or to be only used in MySQL code.
 template <typename T>
@@ -5181,24 +5186,24 @@ template void Gis_wkb_vector<Gis_point_spherical>::shallow_push(Geometry const*)
 
 template
 Gis_wkb_vector<Gis_line_string>::
-Gis_wkb_vector(void const*, size_t,
-               Geometry::Flags_t const&, srid_t, bool);
+Gis_wkb_vector(const void*, size_t,
+               const Geometry::Flags_t&, srid_t, bool);
 template
 Gis_wkb_vector<Gis_point_spherical>::
-Gis_wkb_vector(void const*, size_t,
-               Geometry::Flags_t const&, srid_t, bool);
+Gis_wkb_vector(const void*, size_t,
+               const Geometry::Flags_t&, srid_t, bool);
 template
 Gis_wkb_vector<Gis_polygon>::
-Gis_wkb_vector(void const*, size_t,
-               Geometry::Flags_t const&, srid_t, bool);
+Gis_wkb_vector(const void*, size_t,
+               const Geometry::Flags_t&, srid_t, bool);
 template
 Gis_wkb_vector<Gis_point>::
-Gis_wkb_vector(void const*, size_t,
-               Geometry::Flags_t const&, srid_t, bool);
+Gis_wkb_vector(const void*, size_t,
+               const Geometry::Flags_t&, srid_t, bool);
 
 template
 Gis_wkb_vector<Gis_point>&
 Gis_wkb_vector<Gis_point>::operator=(Gis_wkb_vector<Gis_point> const&);
 
 template
-Gis_wkb_vector<Gis_polygon>::Gis_wkb_vector(Gis_wkb_vector<Gis_polygon> const&);
+Gis_wkb_vector<Gis_polygon>::Gis_wkb_vector(const Gis_wkb_vector<Gis_polygon> &);

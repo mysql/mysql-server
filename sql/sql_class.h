@@ -2497,10 +2497,12 @@ public:
     For example, these scenarios don't start an active transaction
     (even though the server is in multi-statement transaction mode):
 
+    @verbatim
     set @@autocommit=0;
     select * from nontrans_table;
-    set @var=TRUE;
+    set @var = true;
     flush tables;
+    @endverbatim
 
     Note, that even for a statement that starts a multi-statement
     transaction (i.e. select * from trans_table), this

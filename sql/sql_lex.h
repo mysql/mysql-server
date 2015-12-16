@@ -3444,7 +3444,8 @@ public:
   /**
     Set the current query as uncacheable.
 
-    @param cause why this query is uncacheable.
+    @param curr_select
+    @param cause       Why this query is uncacheable.
 
     @details
     All query blocks representing subqueries, from the current one up to

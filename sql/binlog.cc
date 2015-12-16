@@ -7121,6 +7121,7 @@ void MYSQL_BIN_LOG::purge()
   The method is a shortcut of @c rotate() and @c purge().
   LOCK_log is acquired prior to rotate and is released after it.
 
+  @param thd           Current session.
   @param force_rotate  caller can request the log rotation
 
   @retval

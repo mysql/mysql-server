@@ -789,7 +789,8 @@ class Item_sum_count :public Item_sum_int
   /**
     Constructs an instance for COUNT(DISTINCT)
 
-    @param list  a list of the arguments to the aggregate function
+    @param pos  Position of token in the parser.
+    @param list A list of the arguments to the aggregate function
 
     This constructor is called by the parser only for COUNT (DISTINCT).
   */

@@ -287,6 +287,7 @@ public:
     @brief Construction.
 
     @param thd             Current thread data.
+    @param event_name
   */
   Ignore_event_error_handler(THD *thd, const char *event_name) :
     Audit_error_handler(thd, "Event '%s' cannot be aborted."),
@@ -682,6 +683,7 @@ public:
 
     @param thd     Current thread data.
     @param command Current command that the handler will be active against.
+    @param command_text
   */
   Ignore_command_start_error_handler(THD *thd,
                                      enum_server_command command,

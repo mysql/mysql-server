@@ -670,8 +670,9 @@ public:
   /**
    Construct a JSON_SEARCH() node.
 
+   @param     thd Current session.
    @param[in] pos Parser position
-   @param[in] a Nodes which must be fixed (i.e. bound/resolved)
+   @param[in] a   Nodes which must be fixed (i.e. bound/resolved)
 
    @returns a JSON_SEARCH() node.
   */

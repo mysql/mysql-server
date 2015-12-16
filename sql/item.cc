@@ -2137,7 +2137,7 @@ public:
 /**
   Move SUM items out from item tree and replace with reference.
 
-  @param thd			Thread handler
+  @param thd			Current session.
   @param ref_pointer_array	Pointer to array of reference fields
   @param fields		All fields in select
   @param ref			Pointer to item
@@ -5076,7 +5076,7 @@ bool Item_ref_null_helper::get_date(MYSQL_TIME *ltime,
   Mark item and SELECT_LEXs as dependent if item was resolved in
   outer SELECT.
 
-  @param thd             thread handler
+  @param thd             Current session.
   @param last            select from which current item depend
   @param current         current select
   @param resolved_item   item which was resolved in outer SELECT
@@ -5128,7 +5128,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
   Mark range of selects and resolved identifier (field/reference)
   item as dependent.
 
-  @param thd             thread handler
+  @param thd             Current session.
   @param last_select     select where resolved_item was resolved
   @param current_sel     current select (select where resolved_item was placed)
   @param found_field     field which was found during resolving
@@ -6301,6 +6301,7 @@ enum_field_types Item::field_type() const
 
 /**
   Verifies that the input string is well-formed according to its character set.
+  @param str
   @param send_error   If true, call my_error if string is not well-formed.
   @param truncate     If true, set to null/truncate if not well-formed.
 
@@ -6661,6 +6662,11 @@ Item_field::save_in_field_inner(Field *to, bool no_conversions)
   Allow NULL to be inserted in timestamp and auto_increment values.
 
   @param field		Field where we want to store NULL
+  @param no_conversions  Set to 1 if we should return 1 if field can't
+                         take null values.
+                         If set to 0 we will do store the 'default value'
+                         if the field is a special field. If not we will
+                         give an error.
 
   @retval
     0   ok
@@ -8649,7 +8655,7 @@ bool Item_direct_ref::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 /**
   Prepare referenced field then call usual Item_direct_ref::fix_fields .
 
-  @param thd         thread handler
+  @param thd         Current session.
   @param reference   reference on reference where this item stored
 
   @retval
@@ -9285,7 +9291,7 @@ Item_result item_cmp_type(Item_result a,Item_result b)
 /**
   Substitute a const item with a simpler const item, if possible.
 
-  @param thd         Thread handler
+  @param thd         Current session.
   @param[in,out] ref Const item to be processed, contains simplest possible
                      item on return.
   @param comp_item   Item that provides result type for generated const item
@@ -9417,6 +9423,7 @@ bool resolve_const_item(THD *thd, Item **ref, Item *comp_item)
 /**
   Compare the value stored in field with the expression from the query.
 
+  @param thd     Current session.
   @param field   Field which the Item is stored in after conversion
   @param item    Original expression from query
 
@@ -10440,7 +10447,7 @@ enum_field_types Item_type_holder::get_real_type(Item *item)
   Find field type which can carry current Item_type_holder type and
   type of given Item.
 
-  @param thd     thread handler
+  @param thd     Current session.
   @param item    given item to join its parameters with this item ones
 
   @retval

@@ -8839,6 +8839,7 @@ bool JOIN::cache_const_exprs()
 /**
   Extract a condition that can be checked after reading given table
   
+  @param thd        Current session.
   @param cond       Condition to analyze
   @param tables     Tables for which "current field values" are available
   @param used_table Table(s) that we are extracting the condition for (may 

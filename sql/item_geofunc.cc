@@ -721,6 +721,8 @@ get_positions(const Json_array *coordinates, Gis_point *point)
   @param rollback Pointer to a boolean indicating if parsed data should
          be reverted/rolled back.
   @param buffer A String buffer to be used by GeometryCollection.
+  @param is_parent_featurecollection Indicating if the current geometry is a
+         child of a FeatureCollection.
   @param[out] geometry A pointer to the parsed Geometry.
 
   @return true on failure, false otherwise.

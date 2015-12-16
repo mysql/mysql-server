@@ -807,7 +807,8 @@ int set_var::update(THD *thd)
 /**
   Self-print assignment
 
-  @param   str    string buffer to append the partial assignment to
+  @param thd Current session.
+  @param str String buffer to append the partial assignment to.
 */
 void set_var::print(THD *thd, String *str)
 {

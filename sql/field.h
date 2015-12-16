@@ -667,7 +667,7 @@ public:
   Key_map part_of_sortkey;          /* ^ but only keys usable for sorting */
 
   /**
-    Flags for Field/Create_field::auto_flags bitmap.
+    Flags for Proto_field::auto_flags / Create_field::auto_flags bitmaps.
 
     @note NEXT_NUMBER and DEFAULT_NOW/ON_UPDATE_NOW flags are
           never set at the same time.
@@ -943,8 +943,8 @@ public:
     table, which is located on disk).
   */
   virtual uint32 pack_length_in_rec() const { return pack_length(); }
-  virtual bool compatible_field_size(uint metadata, Relay_log_info *rli,
-                                     uint16 mflags, int *order);
+  virtual bool compatible_field_size(uint metadata, Relay_log_info *,
+                                     uint16, int *order);
   virtual uint pack_length_from_metadata(uint field_metadata)
   {
     DBUG_ENTER("Field::pack_length_from_metadata");
@@ -2015,8 +2015,8 @@ public:
   uint32 pack_length() const { return (uint32) bin_size; }
   uint pack_length_from_metadata(uint field_metadata);
   uint row_pack_length() const { return pack_length(); }
-  bool compatible_field_size(uint field_metadata, Relay_log_info *rli,
-                             uint16 mflags, int *order_var);
+  bool compatible_field_size(uint field_metadata, Relay_log_info *,
+                             uint16, int *order_var);
   uint is_equal(Create_field *new_field);
   Field_new_decimal *clone(MEM_ROOT *mem_root) const { 
     DBUG_ASSERT(type() == MYSQL_TYPE_NEWDECIMAL);
@@ -2589,6 +2589,8 @@ protected:
     @param[in]  unsigned_val  SIGNED/UNSIGNED flag
     @param[in]  nanoseconds   Fractional part in nanoseconds
     @param[out] ltime         The value is stored here
+    @param warning
+
     @return Conversion status
     @retval     false         On success
     @retval     true          On error
@@ -2605,6 +2607,8 @@ protected:
     @param[in]  nr            Number
     @param[in]  unsigned_val  SIGNED/UNSIGNED flag
     @param[out] ltime         The value is stored here
+    @param warning
+
     @retval     false         On success
     @retval     true          On error
   */
@@ -4199,13 +4203,13 @@ public:
   uint pack_length_from_metadata(uint field_metadata);
   uint row_pack_length() const
   { return (bytes_in_rec + ((bit_len > 0) ? 1 : 0)); }
-  bool compatible_field_size(uint metadata, Relay_log_info *rli,
+  bool compatible_field_size(uint metadata, Relay_log_info *,
                              uint16 mflags, int *order_var);
   void sql_type(String &str) const;
   virtual uchar *pack(uchar *to, const uchar *from,
-                      uint max_length, bool low_byte_first);
+                      uint max_length, bool);
   virtual const uchar *unpack(uchar *to, const uchar *from,
-                              uint param_data, bool low_byte_first);
+                              uint param_data, bool);
   virtual void set_default();
 
   Field *new_key_field(MEM_ROOT *root, TABLE *new_table,

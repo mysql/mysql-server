@@ -145,6 +145,7 @@ static Date_time_format time_24hrs_format= {{0}, '\0', 0,
                             %r) and this parameter is pointer to place where
                             pointer to end of string matching this specifier
                             should be stored.
+  @param date_time_type
 
   @note
     Possibility to parse strings matching to patterns equivalent to compound

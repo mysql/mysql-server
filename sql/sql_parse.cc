@@ -2368,6 +2368,7 @@ static inline void binlog_gtid_end_transaction(THD *thd)
   Execute command saved in thd and lex->sql_command.
 
   @param thd                       Thread handle
+  @param first_level
 
   @todo
     - Invalidate the table in the query cache if something changed
@@ -5360,7 +5361,8 @@ void mysql_init_multi_delete(LEX *lex)
 /**
   Parse a query.
 
-  @param       thd     Current thread
+  @param thd          Current session.
+  @param parser_state Parser state.
 */
 
 void mysql_parse(THD *thd, Parser_state *parser_state)
@@ -5739,6 +5741,7 @@ void add_to_list(SQL_I_List<ORDER> &list, ORDER *order)
 /**
   Add a table to list of used tables.
 
+  @param thd      Current session.
   @param table		Table to add
   @param alias		alias for table (or null if no alias)
   @param table_options	A set of the following bits:
@@ -5747,6 +5750,9 @@ void add_to_list(SQL_I_List<ORDER> &list, ORDER *order)
                          - TL_OPTION_ALIAS : an alias in multi table DELETE
   @param lock_type	How table should be locked
   @param mdl_type       Type of metadata lock to acquire on the table.
+  @param index_hints_arg
+  @param partition_names
+  @param option
 
   @return Pointer to TABLE_LIST element added to the total table list
   @retval
@@ -6316,9 +6322,10 @@ void add_join_on(TABLE_LIST *b, Item *expr)
     SELECT * FROM t1, t2 WHERE (t1.j=t2.j and <some_cond>)
    @endverbatim
 
-  @param a		  Left join argument
-  @param b		  Right join argument
-  @param using_fields    Field names from USING clause
+  @param a            Left join argument.
+  @param b            Right join argument.
+  @param using_fields Column names from USING clause.
+  @param lex          Current lex.
 */
 
 void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields,

@@ -1601,6 +1601,8 @@ int terminate_slave_threads(Master_info* mi, int thread_mask,
    owned by the caller of this function and will remain acquired after
    return from the function.
 
+   @param thd
+          Current session.
    @param term_lock
           Associated lock to use when waiting for @c term_cond
 

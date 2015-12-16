@@ -1769,7 +1769,6 @@ bool Field::send_binary(Protocol *protocol)
    type, 0 is returned in <code>*order_var</code>.
 
    @param   field_metadata   Encoded size in field metadata
-   @param   mflags           Flags from the table map event for the table.
    @param   order_var        Pointer to variable where the order
                              between the source field and this field
                              will be returned.
@@ -1778,8 +1777,8 @@ bool Field::send_binary(Protocol *protocol)
    master's field size, @c false otherwise.
 */
 bool Field::compatible_field_size(uint field_metadata,
-                                  Relay_log_info *rli_arg __attribute__((unused)),
-                                  uint16 mflags __attribute__((unused)),
+                                  Relay_log_info *,
+                                  uint16,
                                   int *order_var)
 {
   uint const source_size= pack_length_from_metadata(field_metadata);
@@ -3289,8 +3288,8 @@ uint Field_new_decimal::pack_length_from_metadata(uint field_metadata)
    @return @c true
 */
 bool Field_new_decimal::compatible_field_size(uint field_metadata,
-                                              Relay_log_info * __attribute__((unused)),
-                                              uint16 mflags __attribute__((unused)),
+                                              Relay_log_info *,
+                                              uint16,
                                               int *order_var)
 {
   uint const source_precision= (field_metadata >> 8U) & 0x00ff;
@@ -5289,6 +5288,12 @@ Field_temporal::store(const char *str, size_t len, const CHARSET_INFO *cs)
 
 
 /**
+
+  @param nr
+  @param unsigned_val
+  @param ltime
+  @param warnings
+
   @retval -1              Timestamp with wrong values
   @retval anything else   DATETIME as integer in YYYYMMDDHHMMSS format
 */
@@ -8586,6 +8591,7 @@ uchar *Field_blob::pack(uchar *to, const uchar *from,
    @param   param_data @c TRUE if base types should be stored in little-
                        endian format, @c FALSE if native format should
                        be used.
+   @param low_byte_first
 
    @return  New pointer into memory based on from + length of the data
 */
@@ -10148,6 +10154,7 @@ uint Field_bit::pack_length_from_metadata(uint field_metadata)
    to the size of this field (the slave or destination). 
 
    @param   field_metadata   Encoded size in field metadata
+   @param   mflags           Flags from the table map event for the table.
    @param   order_var        Pointer to variable where the order
                              between the source field and this field
                              will be returned.
@@ -10244,7 +10251,7 @@ Field_bit::pack(uchar *to, const uchar *from, uint max_length,
 */
 const uchar *
 Field_bit::unpack(uchar *to, const uchar *from, uint param_data,
-                  bool low_byte_first __attribute__((unused)))
+                  bool __attribute__((unused)))
 {
   DBUG_ENTER("Field_bit::unpack");
   DBUG_PRINT("enter", ("to: %p, from: %p, param_data: 0x%x",

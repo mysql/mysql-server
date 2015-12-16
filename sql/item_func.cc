@@ -2675,9 +2675,9 @@ Item_func_latlongfromgeohash::check_geohash_argument_valid_type(Item *item)
 
   @param geohash The geohash to decode.
   @param upper_latitude Upper limit of returned latitude (normally 90.0).
-  @param upper_latitude Lower limit of returned latitude (normally -90.0).
-  @param upper_latitude Upper limit of returned longitude (normally 180.0).
-  @param upper_latitude Lower limit of returned longitude (normally -180.0).
+  @param lower_latitude Lower limit of returned latitude (normally -90.0).
+  @param upper_longitude Upper limit of returned longitude (normally 180.0).
+  @param lower_longitude Lower limit of returned longitude (normally -180.0).
   @param[out] result_latitude Calculated latitude.
   @param[out] result_longitude Calculated longitude.
 
@@ -6986,8 +6986,9 @@ longlong Item_func_get_user_var::val_int()
   written to the binlog (will be written just before the query is written, see
   log.cc).
 
-  @param      thd        Current thread
-  @param      name       Variable name
+  @param      thd         Current session.
+  @param      sql_command The command the variable participates in.
+  @param      name        Variable name
   @param[out] out_entry  variable structure or NULL. The pointer is set
                          regardless of whether function succeeded or not.
 

@@ -128,7 +128,8 @@ public:
   /**
     Send \\0 end terminated string.
 
-    @param from	NullS or \\0 terminated string
+    @param from   NullS or \\0 terminated string.
+    @param fromcs
 
     @note In most cases one should use store(from, length, cs) instead of
     this function
