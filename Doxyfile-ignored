@@ -37,26 +37,10 @@
 # include/m_ctype.h:*
 #===========================================================================
 
-# BUG#21501098 - DOXYGEN ERRORS IN INNODB
-# 24-JUL-2015 Marc ALFF
-# 05-NOV-2015 Marc ALFF (reopened)
-# 14-DEC-2015 Marc ALFF (reopened)
-storage/innobase/include/fts0priv.h:*
-storage/innobase/handler/ha_innopart.cc:*
-storage/innobase/os/os0event.cc:*
-storage/innobase/trx/trx0rec.cc:*
-
 # BUG#22007730 - DOXYGEN ERRORS IN SERVER LOGGING
 # 13-OCT-2015 Marc ALFF
 include/my_sys.h:*
 mysys/my_syslog.cc:*
-
-# Bug#22016108 - DOXYGEN ERRORS IN TRIGGERS 
-# 14-OCT-2015 Marc ALFF
-sql/trigger_loader.cc:*
-sql/trigger_loader.h:*
-sql/sql_trigger.cc:*
-sql/sql_trigger.h:*
 
 # Bug#22078873 - DOXYGEN ERRORS IN REPLICATION CODE
 # 21-OCT-2015 Marc ALFF
