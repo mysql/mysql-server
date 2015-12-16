@@ -34,7 +34,7 @@ lockfile=/var/lock/subsys/$prog
 # We use my_print_defaults which prints all options from multiple files,
 # with the more specific ones later; hence take the last match.
 get_mysql_option(){
-	result=`/usr/bin/my_print_defaults "$1" | sed -n "s/^--$2=//p" | tail -n 1`
+	result=$(/usr/bin/my_print_defaults "$1" | sed -n "s/^--$2=//p" | tail -n 1)
 	if [ -z "$result" ]; then
 	    # not found, use default
 	    result="$3"
