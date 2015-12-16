@@ -148,7 +148,7 @@ at least ENUM and SET, and unsigned integer types are 'unsigned types'
 ulint
 get_innobase_type_from_mysql_type(
 	ulint*			unsigned_flag,
-	const void*		field);
+	const void*		f);
 
 /******************************************************************//**
 Get the variable length bounds of the given character set. */
@@ -161,7 +161,7 @@ innobase_get_cset_width(
 
 /******************************************************************//**
 Compares NUL-terminated UTF-8 strings case insensitively.
-@return 0 if a=b, <0 if a<b, >1 if a>b */
+@return 0 if a=b, < 0 if a < b, > 1 if a > b */
 int
 innobase_strcasecmp(
 /*================*/

@@ -198,8 +198,8 @@ enum command {
          list with the input or checks the input against the global according
 	 to which function the caller is.
 
-  @param input          [IN]   List of semicolon separated token name/value pairs
-  @param enum command   [IN]   Helps determining the caller function.
+  @param [in] input  List of semicolon separated token name/value pairs
+  @param [in] type   Helps determining the caller function.
 
   @return (error)    -1 in case of error.
   @return (success)  Number of tokens updated/set on EDIT_VTOKEN and SET_VTOKEN.

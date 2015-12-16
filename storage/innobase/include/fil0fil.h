@@ -879,7 +879,7 @@ char*
 fil_make_filepath(
 	const char*	path,
 	const char*	name,
-	ib_extention	suffix,
+	ib_extention	ext,
 	bool		trim);
 
 /** Create a tablespace file.

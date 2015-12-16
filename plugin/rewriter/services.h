@@ -90,13 +90,10 @@ public:
     condition by returning true, in which case the server does not raise it.
 
     @param sql_errno The condition number.
-
     @param sqlstate The SQLSTATE, allocated in the server.
-
-    @param sqlstate The condition's message, allocated in the server.
+    @param message The condition's message, allocated in the server.
 
     @retval true The condition is handled entirely by this object.
-
     @retval false The condition is not handled.
   */
   virtual bool handle(int sql_errno, const char* sqlstate, const char* message)

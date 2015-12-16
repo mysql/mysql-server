@@ -193,7 +193,7 @@ the write (+ possible flush) to finish. */
 void
 log_buffer_sync_in_background(
 /*==========================*/
-	bool	flush);	/*<! in: flush the logs to disk */
+	bool	flush);	/*!< in: flush the logs to disk */
 /** Make a checkpoint. Note that this function does not flush dirty
 blocks from the buffer pool: it only checks what is lsn of the oldest
 modification in the pool, and writes information about the lsn in

@@ -192,8 +192,8 @@ static int audit_null_plugin_deinit(void *arg __attribute__((unused)))
 /**
   @brief Converts event_class and event_subclass into a string.
 
-  @param event_class[in]    Event class value.
-  @param event_subclass[in] Event subclass value.
+  @param [in] event_class    Event class value.
+  @param [in] event_subclass Event subclass value.
 
   @retval Event name.
 */
@@ -209,7 +209,7 @@ static LEX_CSTRING event_to_str(unsigned int event_class,
 /**
   @brief Read token delimited by a semicolon from a string.
 
-  @param str[in,out] Pointer to a string containing text.
+  @param [in,out] str Pointer to a string containing text.
                      Pointer is moved to a new token after the function ends.
 
   @retval Token retrieved from a string.
@@ -355,12 +355,12 @@ static int process_command(MYSQL_THD thd, LEX_CSTRING event_command)
 /**
   @brief Plugin function handler.
 
-  @param thd[in]         Connection context.
-  @param event_class[in] Event class value.
-  @param event[in]       Event data.
+  @param [in] thd         Connection context.
+  @param [in] event_class Event class value.
+  @param [in] event       Event data.
 
   @retval Value indicating, whether the server should abort continuation
-          of the current oparation.
+          of the current operation.
 */
 static int audit_null_notify(MYSQL_THD thd,
                              mysql_event_class_t event_class,

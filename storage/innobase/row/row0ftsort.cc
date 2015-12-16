@@ -1315,11 +1315,11 @@ static
 int
 row_fts_sel_tree_propagate(
 /*=======================*/
-	int		propogated,	/*<! in: tree node propagated */
-	int*		sel_tree,	/*<! in: selection tree */
-	const mrec_t**	mrec,		/*<! in: sort record */
-	ulint**		offsets,	/*<! in: record offsets */
-	dict_index_t*	index)		/*<! in/out: FTS index */
+	int		propogated,	/*!< in: tree node propagated */
+	int*		sel_tree,	/*!< in: selection tree */
+	const mrec_t**	mrec,		/*!< in: sort record */
+	ulint**		offsets,	/*!< in: record offsets */
+	dict_index_t*	index)		/*!< in/out: FTS index */
 {
 	ulint	parent;
 	int	child_left;
@@ -1364,12 +1364,12 @@ static
 int
 row_fts_sel_tree_update(
 /*====================*/
-	int*		sel_tree,	/*<! in/out: selection tree */
-	ulint		propagated,	/*<! in: node to propagate up */
-	ulint		height,		/*<! in: tree height */
-	const mrec_t**	mrec,		/*<! in: sort record */
-	ulint**		offsets,	/*<! in: record offsets */
-	dict_index_t*	index)		/*<! in: index dictionary */
+	int*		sel_tree,	/*!< in/out: selection tree */
+	ulint		propagated,	/*!< in: node to propagate up */
+	ulint		height,		/*!< in: tree height */
+	const mrec_t**	mrec,		/*!< in: sort record */
+	ulint**		offsets,	/*!< in: record offsets */
+	dict_index_t*	index)		/*!< in: index dictionary */
 {
 	ulint	i;
 
@@ -1387,11 +1387,11 @@ static
 void
 row_fts_build_sel_tree_level(
 /*=========================*/
-	int*		sel_tree,	/*<! in/out: selection tree */
-	ulint		level,		/*<! in: selection tree level */
-	const mrec_t**	mrec,		/*<! in: sort record */
-	ulint**		offsets,	/*<! in: record offsets */
-	dict_index_t*	index)		/*<! in: index dictionary */
+	int*		sel_tree,	/*!< in/out: selection tree */
+	ulint		level,		/*!< in: selection tree level */
+	const mrec_t**	mrec,		/*!< in: sort record */
+	ulint**		offsets,	/*!< in: record offsets */
+	dict_index_t*	index)		/*!< in: index dictionary */
 {
 	ulint	start;
 	int	child_left;
@@ -1449,10 +1449,10 @@ static
 ulint
 row_fts_build_sel_tree(
 /*===================*/
-	int*		sel_tree,	/*<! in/out: selection tree */
-	const mrec_t**	mrec,		/*<! in: sort record */
-	ulint**		offsets,	/*<! in: record offsets */
-	dict_index_t*	index)		/*<! in: index dictionary */
+	int*		sel_tree,	/*!< in/out: selection tree */
+	const mrec_t**	mrec,		/*!< in: sort record */
+	ulint**		offsets,	/*!< in: record offsets */
+	dict_index_t*	index)		/*!< in: index dictionary */
 {
 	ulint	treelevel = 1;
 	ulint	num = 2;

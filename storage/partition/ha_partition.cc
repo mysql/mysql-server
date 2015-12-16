@@ -319,8 +319,6 @@ ha_partition::ha_partition(handlerton *hton, TABLE_SHARE *share)
   @param part_info_arg      partition_info to use
   @param clone_arg          ha_partition to clone
   @param clone_mem_root_arg MEM_ROOT to use
-
-  @return New partition handler
 */
 
 ha_partition::ha_partition(handlerton *hton, TABLE_SHARE *share,
@@ -4123,8 +4121,6 @@ void ha_partition::get_dynamic_partition_info(ha_statistics *stat_info,
   @return       status
     @retval     0               success
     @retval     >0              error code
-
-  @details
 
   extra() is called whenever the server wishes to send a hint to
   the storage engine. The MyISAM engine implements the most hints.

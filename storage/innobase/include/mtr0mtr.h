@@ -438,7 +438,7 @@ struct mtr_t {
 
 	/** Read 1 - 4 bytes from a file page buffered in the buffer pool.
 	@param ptr	pointer from where to read
-	@param type)	MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES
+	@param type	MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES
 	@return	value read */
 	inline ulint read_ulint(const byte* ptr, mlog_id_t type) const
 		__attribute__((warn_unused_result));
@@ -549,7 +549,7 @@ struct mtr_t {
 #ifdef UNIV_DEBUG
 	/** Check if memo contains the given item.
 	@param memo	memo stack
-	@param object,	object to search
+	@param object	object to search
 	@param type	type of object
 	@return	true if contains */
 	static bool memo_contains(

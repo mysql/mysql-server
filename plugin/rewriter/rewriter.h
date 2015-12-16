@@ -75,7 +75,7 @@ public:
     table in this function, intended to be run in a new thread. The main
     thread will do join().
 
-    @param sessions_thd The session to be used for loading rules.
+    @param session_thd The session to be used for loading rules.
   */
   void do_refresh(MYSQL_THD session_thd);
 

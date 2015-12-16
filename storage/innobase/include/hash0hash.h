@@ -469,7 +469,7 @@ struct hash_cell_t{
 
 /* The hash table structure */
 struct hash_table_t {
-	enum hash_table_sync_t	type;	/*<! type of hash_table. */
+	enum hash_table_sync_t	type;	/*!< type of hash_table. */
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 # ifndef UNIV_HOTBACKUP
 	ibool			adaptive;/* TRUE if this is the hash

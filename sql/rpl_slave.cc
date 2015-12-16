@@ -1979,7 +1979,7 @@ void delete_slave_info_objects()
    Check if multi-statement transaction mode and master and slave info
    repositories are set to table.
 
-   @param THD    THD object
+   @param thd    THD object
 
    @retval true  Success
    @retval false Failure

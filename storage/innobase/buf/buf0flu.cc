@@ -182,7 +182,7 @@ struct page_cleaner_t {
 
 #ifdef UNIV_DEBUG
 	ulint			n_disabled_debug;
-						/*<! how many of pc threads
+						/*!< how many of pc threads
 						have been disabled */
 #endif /* UNIV_DEBUG */
 };

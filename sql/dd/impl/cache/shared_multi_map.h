@@ -360,7 +360,7 @@ public:
            the same keys is already present.
 
     @note  The function may add a new object which is not registered as being
-           missed, i.e., without a preceeding cache miss In this case, the
+           missed, i.e., without a preceding cache miss In this case, the
            submitted key is NULL.
 
     @tparam      K           Key type.

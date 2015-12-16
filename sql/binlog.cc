@@ -8675,8 +8675,6 @@ static inline int call_after_sync_hook(THD *queue_head)
                        > Indicates false if LOCK_log is already acquired
                          by the thread (happens when we are handling flush
                          error)
-
-  @return void
 */
 void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
                                                       bool need_lock_log)

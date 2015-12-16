@@ -177,8 +177,8 @@ public:
   {
     const char *str;
     size_t length;
-    Lazy *deferred; //< encapsulated expression to evaluate it later (on demand)
-    
+    Lazy *deferred; ///< encapsulated expression to evaluate it later (on demand)
+
     mem_root_str() { cleanup(); }
     void cleanup()
     {
@@ -448,12 +448,12 @@ enum Explain_sort_clause
 enum Explain_sort_property
 {
   ESP_none           = 0,
-  ESP_EXISTS         = 1 << 0, //< Original query has this clause
-  ESP_IS_SIMPLE      = 1 << 1, //< Clause is effective for single JOIN_TAB only
-  ESP_USING_FILESORT = 1 << 2, //< Clause causes a filesort
-  ESP_USING_TMPTABLE = 1 << 3, //< Clause creates an intermediate table
-  ESP_DUPS_REMOVAL   = 1 << 4, //< Duplicate removal for DISTINCT
-  ESP_CHECKED        = 1 << 5  //< Properties were already checked
+  ESP_EXISTS         = 1 << 0, ///< Original query has this clause
+  ESP_IS_SIMPLE      = 1 << 1, ///< Clause is effective for single JOIN_TAB only
+  ESP_USING_FILESORT = 1 << 2, ///< Clause causes a filesort
+  ESP_USING_TMPTABLE = 1 << 3, ///< Clause creates an intermediate table
+  ESP_DUPS_REMOVAL   = 1 << 4, ///< Duplicate removal for DISTINCT
+  ESP_CHECKED        = 1 << 5  ///< Properties were already checked
 };
 
 

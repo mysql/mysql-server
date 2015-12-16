@@ -316,7 +316,7 @@ bool key_cmp_if_same(TABLE *table,const uchar *key,uint idx,uint key_length)
 /**
   Unpack a field and append it.
 
-  @param[inout] to           String to append the field contents to.
+  @param[in,out] to          String to append the field contents to.
   @param        field        Field to unpack.
   @param        rec          Record which contains the field data.
   @param        max_length   Maximum length of field to unpack

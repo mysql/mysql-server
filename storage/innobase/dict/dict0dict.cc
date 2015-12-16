@@ -3130,8 +3130,8 @@ calling this. */
 void
 dict_table_wait_for_bg_threads_to_exit(
 /*===================================*/
-	dict_table_t*	table,	/*< in: table */
-	ulint		delay)	/*< in: time in microseconds to wait between
+	dict_table_t*	table,	/*!< in: table */
+	ulint		delay)	/*!< in: time in microseconds to wait between
 				checks of bg_threads. */
 {
 	fts_t*		fts = table->fts;
@@ -6901,8 +6901,8 @@ static
 void
 dict_index_zip_pad_update(
 /*======================*/
-	zip_pad_info_t*	info,	/*<! in/out: info to be updated */
-	ulint	zip_threshold)	/*<! in: zip threshold value */
+	zip_pad_info_t*	info,	/*!< in/out: info to be updated */
+	ulint	zip_threshold)	/*!< in: zip threshold value */
 {
 	ulint	total;
 	ulint	fail_pct;

@@ -607,7 +607,6 @@ public:
      Ownership of the dom belongs to this array.
 
      @param [in] innards The dom to autowrap.
-     @return the auto-wrapped dom.
   */
   explicit Json_array(Json_dom *innards);
 

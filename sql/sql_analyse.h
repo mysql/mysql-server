@@ -326,18 +326,18 @@ public:
 
 class Query_result_analyse : public Query_result_send
 {
-  Query_result *result; //< real output stream
-  
-  Item_proc    *func_items[10]; //< items for output metadata and column data
-  List<Item>   result_fields; //< same as func_items but capable for send_data()
-  field_info   **f_info, **f_end; //< bounds for column data accumulator array
-  
-  ha_rows      rows; //< counter of original SELECT query output rows
-  size_t       output_str_length; //< max.width for the Optimal_fieldtype column
+  Query_result *result; ///< real output stream
+
+  Item_proc    *func_items[10]; ///< items for output metadata and column data
+  List<Item>   result_fields; ///< same as func_items but capable for send_data()
+  field_info   **f_info, **f_end; ///< bounds for column data accumulator array
+
+  ha_rows      rows; ///< counter of original SELECT query output rows
+  size_t       output_str_length; ///< max.width for the Optimal_fieldtype column
 
 public:
-  const uint max_tree_elements; //< maximum number of distinct values per column
-  const uint max_treemem; //< maximum amount of memory to allocate per column
+  const uint max_tree_elements; ///< maximum number of distinct values per column
+  const uint max_treemem; ///< maximum amount of memory to allocate per column
 
 public:
   Query_result_analyse(THD *thd, Query_result *result,

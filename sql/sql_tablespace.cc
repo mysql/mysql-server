@@ -53,8 +53,8 @@ static bool update_tablespace_dictionary(
 
 enum_ident_name_check check_tablespace_name(const char *tablespace_name)
 {
-  size_t name_length= 0;                       //< Length as number of bytes
-  size_t name_length_symbols= 0;               //< Length as number of symbols
+  size_t name_length= 0;                       ///< Length as number of bytes
+  size_t name_length_symbols= 0;               ///< Length as number of symbols
 
   // Name must be != NULL and length must be > 0
   if (!tablespace_name || (name_length= strlen(tablespace_name)) == 0)
@@ -67,8 +67,8 @@ enum_ident_name_check check_tablespace_name(const char *tablespace_name)
   // provided the system character set may use more than one byte per symbol.
   if (name_length <= NAME_LEN && use_mb(system_charset_info))
   {
-    const char *name= tablespace_name;   //< The actual tablespace name
-    const char *end= name + name_length; //< Pointer to first byte after name
+    const char *name= tablespace_name;   ///< The actual tablespace name
+    const char *end= name + name_length; ///< Pointer to first byte after name
 
     // Loop over all symbols as long as we don't have too many already
     while (name != end && name_length_symbols <= NAME_CHAR_LEN)

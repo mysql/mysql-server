@@ -545,7 +545,7 @@ public:
 class table_base_ctx : virtual public context, virtual public qep_row
 {
 protected:
-  bool is_hidden_id; //< if true, don't output K_SELECT_ID property
+  bool is_hidden_id; ///< if true, don't output K_SELECT_ID property
 
 public:
   table_base_ctx(enum_parsing_context type_arg,

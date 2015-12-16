@@ -379,11 +379,11 @@ public:
     struct null {};
 
   public:
-    ORDER *order;  //< ORDER expression that we are wrapping with this class
-    Explain_sort_clause src; //< origin of order list
+    ORDER *order;  ///< ORDER expression that we are wrapping with this class
+    Explain_sort_clause src; ///< origin of order list
 
   private:
-    int flags; //< bitmap of Explain_sort_property
+    int flags; ///< bitmap of Explain_sort_property
 
   public:
     ORDER_with_src() { clean(); }

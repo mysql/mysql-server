@@ -5003,8 +5003,6 @@ void mysql_close_free(MYSQL *mysql)
   The remaining pruned list of statements (if any) is kept in mysql->stmts.
 
   @param mysql       pointer to the MYSQL object
-
-  @return none
 */
 static void mysql_prune_stmt_list(MYSQL *mysql)
 {

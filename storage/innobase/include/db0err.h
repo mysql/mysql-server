@@ -75,7 +75,7 @@ enum dberr_t {
 					name already exists */
 	DB_TABLESPACE_DELETED,		/*!< tablespace was deleted or is
 					being dropped right now */
-	DB_TABLESPACE_NOT_FOUND,	/*<! Attempt to delete a tablespace
+	DB_TABLESPACE_NOT_FOUND,	/*!< Attempt to delete a tablespace
 					instance that was not found in the
 					tablespace hash table */
 	DB_LOCK_TABLE_FULL,		/*!< lock structs have exhausted the
@@ -133,7 +133,7 @@ enum dberr_t {
 					data object */
 	DB_CANNOT_OPEN_FILE,		/*!< Cannot open a file */
 	DB_FTS_TOO_MANY_WORDS_IN_PHRASE,
-					/*< Too many words in a phrase */
+					/*!< Too many words in a phrase */
 
 	DB_IO_ERROR = 100,		/*!< Generic IO error */
 
