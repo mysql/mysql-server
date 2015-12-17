@@ -859,4 +859,19 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
  PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir' ENGINE = InnoDB) */
 t1#P#p1.ibd
+ALTER TABLE t1 ADD extracol VARCHAR(32) NULL;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `f2` mediumtext NOT NULL,
+  `f3` char(100) NOT NULL,
+  `f4` tinyint(1) unsigned NOT NULL,
+  `extracol` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`f1`,`f4`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (`f4`)
+(PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
+ PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir' ENGINE = InnoDB) */
+t1#P#p1.ibd
 DROP TABLE t1;
