@@ -335,9 +335,6 @@ enum { /* ssl Constants */
     SSL_OP_ALL                              = 61,
     SSL_OP_SINGLE_DH_USE                    = 62,
     SSL_OP_EPHEMERAL_RSA                    = 63,
-    SSL_OP_NO_SSLv2                         = 64,
-    SSL_OP_NO_SSLv3                         = 65,
-    SSL_OP_NO_TLSv1                         = 66,
     SSL_OP_PKCS1_CHECK_1                    = 67,
     SSL_OP_PKCS1_CHECK_2                    = 68,
     SSL_OP_NETSCAPE_CA_DN_BUG               = 69,
@@ -358,8 +355,12 @@ enum { /* ssl Constants */
     SSL_RECEIVED_SHUTDOWN = 94,
     SSL_CB_ALERT          = 95,
     SSL_CB_READ           = 96,
-    SSL_CB_HANDSHAKE_DONE = 97
+    SSL_CB_HANDSHAKE_DONE = 97,
 
+    SSL_OP_NO_SSLv2                         = 128,
+    SSL_OP_NO_SSLv3                         = 256,
+    SSL_OP_NO_TLSv1                         = 512,
+    SSL_OP_NO_TLSv1_1                       = 1024,
 };
 
 

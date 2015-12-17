@@ -890,6 +890,8 @@ public:
   static bool type_can_have_key_part(enum_field_types);
   static enum_field_types field_type_merge(enum_field_types, enum_field_types);
   static Item_result result_merge_type(enum_field_types);
+  bool gcol_expr_is_equal(const Field *field) const;
+  bool gcol_expr_is_equal(const Create_field *field) const;
   virtual bool eq(Field *field)
   {
     return (ptr == field->ptr && m_null_ptr == field->m_null_ptr &&
@@ -1467,11 +1469,13 @@ public:
   virtual uint32 max_display_length()= 0;
 
   /**
-    Whether a field being created is compatible with a existing one.
+    Whether a field being created is type-compatible with an existing one.
 
     Used by the ALTER TABLE code to evaluate whether the new definition
     of a table is compatible with the old definition so that it can
     determine if data needs to be copied over (table data change).
+    Constraints and generation clause (default value, generation expression)
+    are not checked by this function.
   */
   virtual uint is_equal(Create_field *new_field);
   /* convert decimal to longlong with overflow check */
@@ -4325,6 +4329,7 @@ public:
   /* Used to make a clone of this object for ALTER/CREATE TABLE */
   Create_field *clone(MEM_ROOT *mem_root) const
     { return new (mem_root) Create_field(*this); }
+  bool is_gcol() const { return gcol_info; }
   bool is_virtual_gcol() const
   { return gcol_info && !gcol_info->get_field_stored(); }
   void create_length_to_internal_length(void);

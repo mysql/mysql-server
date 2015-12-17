@@ -24,7 +24,8 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/sql/auth
   ${CMAKE_SOURCE_DIR}/sql/conn_handler
-  ${CMAKE_BINARY_DIR}/sql 
+  ${CMAKE_BINARY_DIR}/libmysqld
+  ${CMAKE_BINARY_DIR}/sql
   ${CMAKE_SOURCE_DIR}/regex
   ${ZLIB_INCLUDE_DIR}
   ${SSL_INCLUDE_DIRS}
@@ -109,6 +110,7 @@ ADD_COMPILE_FLAGS(
   ../sql/item_geofunc_relchecks_bgwrap.cc
   ../sql/item_geofunc_setops.cc
   ../sql/item_json_func.cc
+  ../sql/debug_sync.cc
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
 
@@ -123,6 +125,7 @@ IF(HAVE_NO_UNUSED_TYPEDEFS)
     ../sql/item_geofunc_relchecks_bgwrap.cc
     ../sql/item_geofunc_setops.cc
     ../sql/item_json_func.cc
+    ../sql/debug_sync.cc
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
   )
 ENDIF()
@@ -157,6 +160,22 @@ RUN_BISON(
   ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
   ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h
   HINT_PARSER_
+)
+
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h
+  COMMAND gen_lex_token > lex_token.h
+  DEPENDS gen_lex_token
+)
+
+SET_SOURCE_FILES_PROPERTIES(
+  ${CMAKE_CURRENT_BINARY_DIR}/sql/lex_token.h
+  PROPERTIES GENERATED 1)
+
+SET_SOURCE_FILES_PROPERTIES(
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+  ${CMAKE_SOURCE_DIR}/sql/sql_digest.cc
+  PROPERTIES OBJECT_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h
 )
 
 ADD_CUSTOM_TARGET(GenYaccEmbeddedSource DEPENDS ${GEN_YACC_SOURCES})

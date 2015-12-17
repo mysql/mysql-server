@@ -170,7 +170,6 @@ my_bool init_compiled_charsets(myf flags __attribute__((unused)))
   CHARSET_INFO *cs;
 
   add_compiled_collation(&my_charset_bin);
-  add_compiled_collation(&my_charset_filename);
   
   add_compiled_collation(&my_charset_latin1);
   add_compiled_collation(&my_charset_latin1_bin);

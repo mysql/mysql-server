@@ -27,18 +27,22 @@ Refactored 2013-7-26 by Kevin Lewis
 #include "ha_prototypes.h"
 
 #include "fsp0sysspace.h"
+#include "srv0start.h"
+#include "trx0sys.h"
+#ifndef UNIV_HOTBACKUP
 #include "dict0load.h"
 #include "mem0mem.h"
 #include "os0file.h"
 #include "row0mysql.h"
-#include "srv0start.h"
-#include "trx0sys.h"
 #include "ut0new.h"
 
 /** The server header file is included to access opt_initialize global variable.
 If server passes the option for create/open DB to SE, we should remove such
 direct reference to server header and global variable */
 #include "mysqld.h"
+#else
+my_bool opt_initialize = 0;
+#endif /* !UNIV_HOTBACKUP */
 
 /** The control info of the system tablespace. */
 SysTablespace srv_sys_space;
@@ -351,8 +355,14 @@ SysTablespace::check_size(
 	os_offset_t	size = os_file_get_size(file.m_handle);
 	ut_a(size != (os_offset_t) -1);
 
-	/* Round size downward to megabytes */
-	ulint	rounded_size_pages = (ulint) (size >> UNIV_PAGE_SIZE_SHIFT);
+	/* Under some error conditions like disk full scenarios
+	or file size reaching filesystem limit the data file
+	could contain an incomplete extent at the end. When we
+	extend a data file and if some failure happens, then
+	also the data file could contain an incomplete extent.
+	So we need to round the size downward to a  megabyte.*/
+
+	ulint	rounded_size_pages = get_pages_from_size(size);
 
 	/* If last file */
 	if (&file == &m_files.back() && m_auto_extend_last_file) {
@@ -525,6 +535,7 @@ SysTablespace::open_file(
 	return(err);
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Check the tablespace header for this tablespace.
 @param[out]	flushed_lsn	the value of FIL_PAGE_FILE_FLUSH_LSN
 @return DB_SUCCESS or error code */
@@ -597,7 +608,7 @@ SysTablespace::read_lsn_and_check_flags(lsn_t* flushed_lsn)
 
 	return(DB_SUCCESS);
 }
-
+#endif /* !UNIV_HOTBACKUP */
 /** Check if a file can be opened in the correct mode.
 @param[in]	file	data file object
 @param[out]	reason	exact reason if file_status check failed.
@@ -744,7 +755,7 @@ SysTablespace::file_found(
 	/* Need to create the system tablespace for new raw device. */
 	return(file.m_type == SRV_NEW_RAW);
 }
-
+#ifndef UNIV_HOTBACKUP
 /** Check the data file specification.
 @param[out] create_new_db	true if a new database is to be created
 @param[in] min_expected_size	Minimum expected tablespace size in bytes
@@ -970,7 +981,7 @@ SysTablespace::open_or_create(
 
 	return(err);
 }
-
+#endif /* UNIV_HOTBACKUP */
 /** Normalize the file size, convert from megabytes to number of pages. */
 void
 SysTablespace::normalize()

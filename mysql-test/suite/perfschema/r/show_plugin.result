@@ -6,6 +6,10 @@ SETUP
 
 # Save current SHOW_COMPATIBILITY_56 setting
 SELECT @@global.show_compatibility_56 INTO @show_compatibility_56_save;
+#
+# SET COMPATIBILITY MODE = OFF
+#
+SET @@global.show_compatibility_56 = OFF;
 
 # Verify EXAMPLE plugin is not loaded
 SELECT COUNT(*) = 0 AS "Expect 1" FROM information_schema.plugins WHERE plugin_name = "EXAMPLE";
@@ -19,35 +23,6 @@ connection default;
 ================================================================================
 TEST 1- NO PLUGIN VARS
 ================================================================================
-#
-# SET COMPATIBILITY MODE = ON
-#
-SET @@global.show_compatibility_56 = ON;
-
-SHOW GLOBAL STATUS LIKE "example_%";
-Variable_name	Value
-
-SHOW GLOBAL VARIABLES LIKE "example_%";
-Variable_name	Value
-
-SHOW SESSION VARIABLES LIKE "example_%";
-Variable_name	Value
-
-SELECT variable_name, variable_value FROM information_schema.global_status WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-
-SELECT variable_name, variable_value FROM information_schema.session_status WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-
-SELECT variable_name, variable_value FROM information_schema.global_variables WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-
-SELECT variable_name, variable_value FROM information_schema.session_variables WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-#
-# SET COMPATIBILITY MODE = OFF
-#
-SET @@global.show_compatibility_56 = OFF;
 
 SHOW GLOBAL STATUS LIKE "example_%";
 Variable_name	Value
@@ -84,72 +59,6 @@ INSTALL PLUGIN example SONAME 'ha_example.so';
 ================================================================================
 2.1a - FORCE SYNC OF LOCAL AND GLOBAL SYSTEM VARS
 ================================================================================
-#
-# SET COMPATIBILITY MODE = ON
-#
-SET @@global.show_compatibility_56 = ON;
-
-SHOW GLOBAL STATUS LIKE "example_%";
-Variable_name	Value
-example_func_example	enum_var is 0, ulong_var is 8, double_var is 8.500000, really
-example_status_array_var1	100
-example_status_array_var2	20.010000
-example_status_var3	three hundred
-example_status_var4	ON
-example_status_var5	OFF
-example_status_var6	8250
-
-SHOW GLOBAL VARIABLES LIKE "example_%";
-Variable_name	Value
-example_double_thdvar	8.500000
-example_double_var	8.500000
-example_enum_var	e1
-example_ulong_var	8
-
-SHOW SESSION VARIABLES LIKE "example_%";
-Variable_name	Value
-example_double_thdvar	8.500000
-example_double_var	8.500000
-example_enum_var	e1
-example_ulong_var	8
-
-SELECT variable_name, variable_value FROM information_schema.global_status WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-EXAMPLE_FUNC_EXAMPLE	enum_var is 0, ulong_var is 8, double_var is 8.500000, really
-EXAMPLE_STATUS_ARRAY_VAR1	100
-EXAMPLE_STATUS_ARRAY_VAR2	20.010000
-EXAMPLE_STATUS_VAR3	three hundred
-EXAMPLE_STATUS_VAR4	ON
-EXAMPLE_STATUS_VAR5	OFF
-EXAMPLE_STATUS_VAR6	8250
-
-SELECT variable_name, variable_value FROM information_schema.session_status WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-EXAMPLE_FUNC_EXAMPLE	enum_var is 0, ulong_var is 8, double_var is 8.500000, really
-EXAMPLE_STATUS_ARRAY_VAR1	100
-EXAMPLE_STATUS_ARRAY_VAR2	20.010000
-EXAMPLE_STATUS_VAR3	three hundred
-EXAMPLE_STATUS_VAR4	ON
-EXAMPLE_STATUS_VAR5	OFF
-EXAMPLE_STATUS_VAR6	8250
-
-SELECT variable_name, variable_value FROM information_schema.global_variables WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-EXAMPLE_ENUM_VAR	e1
-EXAMPLE_DOUBLE_THDVAR	8.500000
-EXAMPLE_ULONG_VAR	8
-EXAMPLE_DOUBLE_VAR	8.500000
-
-SELECT variable_name, variable_value FROM information_schema.session_variables WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-EXAMPLE_ENUM_VAR	e1
-EXAMPLE_DOUBLE_THDVAR	8.500000
-EXAMPLE_ULONG_VAR	8
-EXAMPLE_DOUBLE_VAR	8.500000
-#
-# SET COMPATIBILITY MODE = OFF
-#
-SET @@global.show_compatibility_56 = OFF;
 
 SHOW GLOBAL STATUS LIKE "example_%";
 Variable_name	Value
@@ -234,72 +143,6 @@ SET SESSION example_double_thdvar = 102.9992;
 ================================================================================
 2.3 - VERIFY UPDATED PLUGIN VARS
 ================================================================================
-#
-# SET COMPATIBILITY MODE = ON
-#
-SET @@global.show_compatibility_56 = ON;
-
-SHOW GLOBAL STATUS LIKE "example_%";
-Variable_name	Value
-example_func_example	enum_var is 0, ulong_var is 100, double_var is 100.999000, really
-example_status_array_var1	100
-example_status_array_var2	20.010000
-example_status_var3	three hundred
-example_status_var4	ON
-example_status_var5	OFF
-example_status_var6	8250
-
-SHOW GLOBAL VARIABLES LIKE "example_%";
-Variable_name	Value
-example_double_thdvar	101.999100
-example_double_var	100.999000
-example_enum_var	e1
-example_ulong_var	100
-
-SHOW SESSION VARIABLES LIKE "example_%";
-Variable_name	Value
-example_double_thdvar	102.999200
-example_double_var	100.999000
-example_enum_var	e1
-example_ulong_var	100
-
-SELECT variable_name, variable_value FROM information_schema.global_status WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-EXAMPLE_FUNC_EXAMPLE	enum_var is 0, ulong_var is 100, double_var is 100.999000, really
-EXAMPLE_STATUS_ARRAY_VAR1	100
-EXAMPLE_STATUS_ARRAY_VAR2	20.010000
-EXAMPLE_STATUS_VAR3	three hundred
-EXAMPLE_STATUS_VAR4	ON
-EXAMPLE_STATUS_VAR5	OFF
-EXAMPLE_STATUS_VAR6	8250
-
-SELECT variable_name, variable_value FROM information_schema.session_status WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-EXAMPLE_FUNC_EXAMPLE	enum_var is 0, ulong_var is 100, double_var is 100.999000, really
-EXAMPLE_STATUS_ARRAY_VAR1	100
-EXAMPLE_STATUS_ARRAY_VAR2	20.010000
-EXAMPLE_STATUS_VAR3	three hundred
-EXAMPLE_STATUS_VAR4	ON
-EXAMPLE_STATUS_VAR5	OFF
-EXAMPLE_STATUS_VAR6	8250
-
-SELECT variable_name, variable_value FROM information_schema.global_variables WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-EXAMPLE_ENUM_VAR	e1
-EXAMPLE_DOUBLE_THDVAR	101.999100
-EXAMPLE_ULONG_VAR	100
-EXAMPLE_DOUBLE_VAR	100.999000
-
-SELECT variable_name, variable_value FROM information_schema.session_variables WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-EXAMPLE_ENUM_VAR	e1
-EXAMPLE_DOUBLE_THDVAR	102.999200
-EXAMPLE_ULONG_VAR	100
-EXAMPLE_DOUBLE_VAR	100.999000
-#
-# SET COMPATIBILITY MODE = OFF
-#
-SET @@global.show_compatibility_56 = OFF;
 
 SHOW GLOBAL STATUS LIKE "example_%";
 Variable_name	Value
@@ -377,35 +220,6 @@ UNINSTALL PLUGIN example;
 ================================================================================
 2.5 - VERIFY NO PLUGIN VARS
 ================================================================================
-#
-# SET COMPATIBILITY MODE = ON
-#
-SET @@global.show_compatibility_56 = ON;
-
-SHOW GLOBAL STATUS LIKE "example_%";
-Variable_name	Value
-
-SHOW GLOBAL VARIABLES LIKE "example_%";
-Variable_name	Value
-
-SHOW SESSION VARIABLES LIKE "example_%";
-Variable_name	Value
-
-SELECT variable_name, variable_value FROM information_schema.global_status WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-
-SELECT variable_name, variable_value FROM information_schema.session_status WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-
-SELECT variable_name, variable_value FROM information_schema.global_variables WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-
-SELECT variable_name, variable_value FROM information_schema.session_variables WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-#
-# SET COMPATIBILITY MODE = OFF
-#
-SET @@global.show_compatibility_56 = OFF;
 
 SHOW GLOBAL STATUS LIKE "example_%";
 Variable_name	Value
@@ -451,72 +265,6 @@ SET SESSION example_double_thdvar = 202.8882;
 ================================================================================
 2.8 - VERIFY PLUGIN VARS
 ================================================================================
-#
-# SET COMPATIBILITY MODE = ON
-#
-SET @@global.show_compatibility_56 = ON;
-
-SHOW GLOBAL STATUS LIKE "example_%";
-Variable_name	Value
-example_func_example	enum_var is 1, ulong_var is 200, double_var is 200.888000, really
-example_status_array_var1	100
-example_status_array_var2	20.010000
-example_status_var3	three hundred
-example_status_var4	ON
-example_status_var5	OFF
-example_status_var6	8250
-
-SHOW GLOBAL VARIABLES LIKE "example_%";
-Variable_name	Value
-example_double_thdvar	201.888100
-example_double_var	200.888000
-example_enum_var	e2
-example_ulong_var	200
-
-SHOW SESSION VARIABLES LIKE "example_%";
-Variable_name	Value
-example_double_thdvar	202.888200
-example_double_var	200.888000
-example_enum_var	e2
-example_ulong_var	200
-
-SELECT variable_name, variable_value FROM information_schema.global_status WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-EXAMPLE_FUNC_EXAMPLE	enum_var is 1, ulong_var is 200, double_var is 200.888000, really
-EXAMPLE_STATUS_ARRAY_VAR1	100
-EXAMPLE_STATUS_ARRAY_VAR2	20.010000
-EXAMPLE_STATUS_VAR3	three hundred
-EXAMPLE_STATUS_VAR4	ON
-EXAMPLE_STATUS_VAR5	OFF
-EXAMPLE_STATUS_VAR6	8250
-
-SELECT variable_name, variable_value FROM information_schema.session_status WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-EXAMPLE_FUNC_EXAMPLE	enum_var is 1, ulong_var is 200, double_var is 200.888000, really
-EXAMPLE_STATUS_ARRAY_VAR1	100
-EXAMPLE_STATUS_ARRAY_VAR2	20.010000
-EXAMPLE_STATUS_VAR3	three hundred
-EXAMPLE_STATUS_VAR4	ON
-EXAMPLE_STATUS_VAR5	OFF
-EXAMPLE_STATUS_VAR6	8250
-
-SELECT variable_name, variable_value FROM information_schema.global_variables WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-EXAMPLE_ENUM_VAR	e2
-EXAMPLE_DOUBLE_THDVAR	201.888100
-EXAMPLE_ULONG_VAR	200
-EXAMPLE_DOUBLE_VAR	200.888000
-
-SELECT variable_name, variable_value FROM information_schema.session_variables WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-EXAMPLE_ENUM_VAR	e2
-EXAMPLE_DOUBLE_THDVAR	202.888200
-EXAMPLE_ULONG_VAR	200
-EXAMPLE_DOUBLE_VAR	200.888000
-#
-# SET COMPATIBILITY MODE = OFF
-#
-SET @@global.show_compatibility_56 = OFF;
 
 SHOW GLOBAL STATUS LIKE "example_%";
 Variable_name	Value
@@ -594,35 +342,6 @@ UNINSTALL PLUGIN example;
 ================================================================================
 2.10 - VERIFY NO PLUGIN VARS
 ================================================================================
-#
-# SET COMPATIBILITY MODE = ON
-#
-SET @@global.show_compatibility_56 = ON;
-
-SHOW GLOBAL STATUS LIKE "example_%";
-Variable_name	Value
-
-SHOW GLOBAL VARIABLES LIKE "example_%";
-Variable_name	Value
-
-SHOW SESSION VARIABLES LIKE "example_%";
-Variable_name	Value
-
-SELECT variable_name, variable_value FROM information_schema.global_status WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-
-SELECT variable_name, variable_value FROM information_schema.session_status WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-
-SELECT variable_name, variable_value FROM information_schema.global_variables WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-
-SELECT variable_name, variable_value FROM information_schema.session_variables WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-#
-# SET COMPATIBILITY MODE = OFF
-#
-SET @@global.show_compatibility_56 = OFF;
 
 SHOW GLOBAL STATUS LIKE "example_%";
 Variable_name	Value
@@ -684,72 +403,6 @@ connection default;
 ================================================================================
 3.4 - VERIFY GLOBAL AND SESSION PLUGIN VARS
 ================================================================================
-#
-# SET COMPATIBILITY MODE = ON
-#
-SET @@global.show_compatibility_56 = ON;
-
-SHOW GLOBAL STATUS LIKE "example_%";
-Variable_name	Value
-example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000, really
-example_status_array_var1	100
-example_status_array_var2	20.010000
-example_status_var3	three hundred
-example_status_var4	ON
-example_status_var5	OFF
-example_status_var6	8250
-
-SHOW GLOBAL VARIABLES LIKE "example_%";
-Variable_name	Value
-example_double_thdvar	302.000000
-example_double_var	301.000000
-example_enum_var	e1
-example_ulong_var	300
-
-SHOW SESSION VARIABLES LIKE "example_%";
-Variable_name	Value
-example_double_thdvar	300.000000
-example_double_var	301.000000
-example_enum_var	e1
-example_ulong_var	300
-
-SELECT variable_name, variable_value FROM information_schema.global_status WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-EXAMPLE_FUNC_EXAMPLE	enum_var is 0, ulong_var is 300, double_var is 301.000000, really
-EXAMPLE_STATUS_ARRAY_VAR1	100
-EXAMPLE_STATUS_ARRAY_VAR2	20.010000
-EXAMPLE_STATUS_VAR3	three hundred
-EXAMPLE_STATUS_VAR4	ON
-EXAMPLE_STATUS_VAR5	OFF
-EXAMPLE_STATUS_VAR6	8250
-
-SELECT variable_name, variable_value FROM information_schema.session_status WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-EXAMPLE_FUNC_EXAMPLE	enum_var is 0, ulong_var is 300, double_var is 301.000000, really
-EXAMPLE_STATUS_ARRAY_VAR1	100
-EXAMPLE_STATUS_ARRAY_VAR2	20.010000
-EXAMPLE_STATUS_VAR3	three hundred
-EXAMPLE_STATUS_VAR4	ON
-EXAMPLE_STATUS_VAR5	OFF
-EXAMPLE_STATUS_VAR6	8250
-
-SELECT variable_name, variable_value FROM information_schema.global_variables WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-EXAMPLE_ENUM_VAR	e1
-EXAMPLE_DOUBLE_THDVAR	302.000000
-EXAMPLE_ULONG_VAR	300
-EXAMPLE_DOUBLE_VAR	301.000000
-
-SELECT variable_name, variable_value FROM information_schema.session_variables WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-EXAMPLE_ENUM_VAR	e1
-EXAMPLE_DOUBLE_THDVAR	300.000000
-EXAMPLE_ULONG_VAR	300
-EXAMPLE_DOUBLE_VAR	301.000000
-#
-# SET COMPATIBILITY MODE = OFF
-#
-SET @@global.show_compatibility_56 = OFF;
 
 SHOW GLOBAL STATUS LIKE "example_%";
 Variable_name	Value
@@ -839,72 +492,6 @@ disconnect con3;
 ================================================================================
 3.6 - VERIFY SESSION VARS ARE REMOVED
 ================================================================================
-#
-# SET COMPATIBILITY MODE = ON
-#
-SET @@global.show_compatibility_56 = ON;
-
-SHOW GLOBAL STATUS LIKE "example_%";
-Variable_name	Value
-example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000, really
-example_status_array_var1	100
-example_status_array_var2	20.010000
-example_status_var3	three hundred
-example_status_var4	ON
-example_status_var5	OFF
-example_status_var6	8250
-
-SHOW GLOBAL VARIABLES LIKE "example_%";
-Variable_name	Value
-example_double_thdvar	302.000000
-example_double_var	301.000000
-example_enum_var	e1
-example_ulong_var	300
-
-SHOW SESSION VARIABLES LIKE "example_%";
-Variable_name	Value
-example_double_thdvar	300.000000
-example_double_var	301.000000
-example_enum_var	e1
-example_ulong_var	300
-
-SELECT variable_name, variable_value FROM information_schema.global_status WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-EXAMPLE_FUNC_EXAMPLE	enum_var is 0, ulong_var is 300, double_var is 301.000000, really
-EXAMPLE_STATUS_ARRAY_VAR1	100
-EXAMPLE_STATUS_ARRAY_VAR2	20.010000
-EXAMPLE_STATUS_VAR3	three hundred
-EXAMPLE_STATUS_VAR4	ON
-EXAMPLE_STATUS_VAR5	OFF
-EXAMPLE_STATUS_VAR6	8250
-
-SELECT variable_name, variable_value FROM information_schema.session_status WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-EXAMPLE_FUNC_EXAMPLE	enum_var is 0, ulong_var is 300, double_var is 301.000000, really
-EXAMPLE_STATUS_ARRAY_VAR1	100
-EXAMPLE_STATUS_ARRAY_VAR2	20.010000
-EXAMPLE_STATUS_VAR3	three hundred
-EXAMPLE_STATUS_VAR4	ON
-EXAMPLE_STATUS_VAR5	OFF
-EXAMPLE_STATUS_VAR6	8250
-
-SELECT variable_name, variable_value FROM information_schema.global_variables WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-EXAMPLE_ENUM_VAR	e1
-EXAMPLE_DOUBLE_THDVAR	302.000000
-EXAMPLE_ULONG_VAR	300
-EXAMPLE_DOUBLE_VAR	301.000000
-
-SELECT variable_name, variable_value FROM information_schema.session_variables WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-EXAMPLE_ENUM_VAR	e1
-EXAMPLE_DOUBLE_THDVAR	300.000000
-EXAMPLE_ULONG_VAR	300
-EXAMPLE_DOUBLE_VAR	301.000000
-#
-# SET COMPATIBILITY MODE = OFF
-#
-SET @@global.show_compatibility_56 = OFF;
 
 SHOW GLOBAL STATUS LIKE "example_%";
 Variable_name	Value
@@ -997,72 +584,6 @@ connection default;
 ================================================================================
 3.8 - VERIFY GLOBAL AND SESSION VARS
 ================================================================================
-#
-# SET COMPATIBILITY MODE = ON
-#
-SET @@global.show_compatibility_56 = ON;
-
-SHOW GLOBAL STATUS LIKE "example_%";
-Variable_name	Value
-example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000, really
-example_status_array_var1	100
-example_status_array_var2	20.010000
-example_status_var3	three hundred
-example_status_var4	ON
-example_status_var5	OFF
-example_status_var6	8250
-
-SHOW GLOBAL VARIABLES LIKE "example_%";
-Variable_name	Value
-example_double_thdvar	302.000000
-example_double_var	301.000000
-example_enum_var	e1
-example_ulong_var	300
-
-SHOW SESSION VARIABLES LIKE "example_%";
-Variable_name	Value
-example_double_thdvar	300.000000
-example_double_var	301.000000
-example_enum_var	e1
-example_ulong_var	300
-
-SELECT variable_name, variable_value FROM information_schema.global_status WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-EXAMPLE_FUNC_EXAMPLE	enum_var is 0, ulong_var is 300, double_var is 301.000000, really
-EXAMPLE_STATUS_ARRAY_VAR1	100
-EXAMPLE_STATUS_ARRAY_VAR2	20.010000
-EXAMPLE_STATUS_VAR3	three hundred
-EXAMPLE_STATUS_VAR4	ON
-EXAMPLE_STATUS_VAR5	OFF
-EXAMPLE_STATUS_VAR6	8250
-
-SELECT variable_name, variable_value FROM information_schema.session_status WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-EXAMPLE_FUNC_EXAMPLE	enum_var is 0, ulong_var is 300, double_var is 301.000000, really
-EXAMPLE_STATUS_ARRAY_VAR1	100
-EXAMPLE_STATUS_ARRAY_VAR2	20.010000
-EXAMPLE_STATUS_VAR3	three hundred
-EXAMPLE_STATUS_VAR4	ON
-EXAMPLE_STATUS_VAR5	OFF
-EXAMPLE_STATUS_VAR6	8250
-
-SELECT variable_name, variable_value FROM information_schema.global_variables WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-EXAMPLE_ENUM_VAR	e1
-EXAMPLE_DOUBLE_THDVAR	302.000000
-EXAMPLE_ULONG_VAR	300
-EXAMPLE_DOUBLE_VAR	301.000000
-
-SELECT variable_name, variable_value FROM information_schema.session_variables WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-EXAMPLE_ENUM_VAR	e1
-EXAMPLE_DOUBLE_THDVAR	300.000000
-EXAMPLE_ULONG_VAR	300
-EXAMPLE_DOUBLE_VAR	301.000000
-#
-# SET COMPATIBILITY MODE = OFF
-#
-SET @@global.show_compatibility_56 = OFF;
 
 SHOW GLOBAL STATUS LIKE "example_%";
 Variable_name	Value
@@ -1149,35 +670,6 @@ UNINSTALL PLUGIN example;
 ================================================================================
 3.10 - VERIFY SESSION VARS ARE REMOVED
 ================================================================================
-#
-# SET COMPATIBILITY MODE = ON
-#
-SET @@global.show_compatibility_56 = ON;
-
-SHOW GLOBAL STATUS LIKE "example_%";
-Variable_name	Value
-
-SHOW GLOBAL VARIABLES LIKE "example_%";
-Variable_name	Value
-
-SHOW SESSION VARIABLES LIKE "example_%";
-Variable_name	Value
-
-SELECT variable_name, variable_value FROM information_schema.global_status WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-
-SELECT variable_name, variable_value FROM information_schema.session_status WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-
-SELECT variable_name, variable_value FROM information_schema.global_variables WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-
-SELECT variable_name, variable_value FROM information_schema.session_variables WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-#
-# SET COMPATIBILITY MODE = OFF
-#
-SET @@global.show_compatibility_56 = OFF;
 
 SHOW GLOBAL STATUS LIKE "example_%";
 Variable_name	Value
@@ -1219,35 +711,6 @@ disconnect con3;
 ================================================================================
 3.12 - VERIFY CLIENTS ARE REMOVED
 ================================================================================
-#
-# SET COMPATIBILITY MODE = ON
-#
-SET @@global.show_compatibility_56 = ON;
-
-SHOW GLOBAL STATUS LIKE "example_%";
-Variable_name	Value
-
-SHOW GLOBAL VARIABLES LIKE "example_%";
-Variable_name	Value
-
-SHOW SESSION VARIABLES LIKE "example_%";
-Variable_name	Value
-
-SELECT variable_name, variable_value FROM information_schema.global_status WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-
-SELECT variable_name, variable_value FROM information_schema.session_status WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-
-SELECT variable_name, variable_value FROM information_schema.global_variables WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-
-SELECT variable_name, variable_value FROM information_schema.session_variables WHERE variable_name LIKE "example_%";
-variable_name	variable_value
-#
-# SET COMPATIBILITY MODE = OFF
-#
-SET @@global.show_compatibility_56 = OFF;
 
 SHOW GLOBAL STATUS LIKE "example_%";
 Variable_name	Value
@@ -1281,10 +744,6 @@ variable_name	variable_value
 ================================================================================
 TEST 4 - BUG#18008907: DEADLOCK WITH CHANGE_USER, SHOW VARIABLES, INSTALL PLUGIN
 ================================================================================
-#
-# SET COMPATIBILITY MODE = OFF
-#
-SET @@global.show_compatibility_56 = OFF;
 
 CREATE PROCEDURE install_no_such_plugin()
 BEGIN
@@ -1381,6 +840,33 @@ COUNT(*)
 #
 # Connect con2 - reap
 connection con2;
+
+================================================================================
+TEST 5 - BUG#22225549 MYSQL_CHANGE_USER/MYSQL_RESET_CONNECTION + SET INNODB...
+Update to plugin-defined session variable triggers resync with global
+variables and deadlocks on THD::LOCK_thd_sysvar.
+================================================================================
+SELECT @@global.show_compatibility_56;
+@@global.show_compatibility_56
+0
+select @@session.innodb_strict_mode;
+@@session.innodb_strict_mode
+1
+select user(), current_user();
+user()	current_user()
+root@localhost	root@localhost
+change_user root
+#
+# Trigger a resync of session variables with global variables.
+#
+set @@session.innodb_strict_mode=off;
+
+# Restore
+
+set @@session.innodb_strict_mode=1;
+select @@session.innodb_strict_mode;
+@@session.innodb_strict_mode
+1
 
 ================================================================================
 CLEAN UP

@@ -735,3 +735,32 @@ SELECT a FROM t WHERE (CASE WHEN (a AND b) THEN a ELSE b END) = 1;
 DROP TABLE t;
 
 --echo #
+--echo # Bug#21854241: QUERY USING JSON_EXTRACT() RETURNS WRONG RESULT
+--echo #               AFTER ADDING VIRTUAL INDEX
+--echo #
+CREATE TABLE employees (
+  data JSON,
+  name1 VARCHAR(30) AS (JSON_EXTRACT(data, "$.name")) STORED,
+  name2 VARCHAR(30) AS (JSON_UNQUOTE(JSON_EXTRACT(data, "$.name"))) STORED
+);
+INSERT INTO employees (data) VALUES('{"id": 1, "name": "Jane"}');
+INSERT INTO employees (data) VALUES('{"id": 2, "name": "Joe"}');
+let $query= SELECT * FROM employees WHERE JSON_EXTRACT(data, '\$.name') = 'Jane';
+ANALYZE TABLE employees;
+--eval EXPLAIN $query
+--eval $query
+# The index on name1 should not be used, since it contains
+# double-quoted values which don't match the string literal in the
+# predicate. The query used to return zero rows.
+ALTER TABLE employees ADD INDEX name_idx1(name1);
+ANALYZE TABLE employees;
+--eval EXPLAIN $query
+--eval $query
+# The index on name2 contains unquoted strings and can be used.
+ALTER TABLE employees ADD INDEX name_idx2(name2);
+ANALYZE TABLE employees;
+--eval EXPLAIN $query
+--eval $query
+DROP TABLE employees;
+
+--echo #

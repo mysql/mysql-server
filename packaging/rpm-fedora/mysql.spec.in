@@ -482,6 +482,10 @@ rm -rf %{buildroot}%{_datadir}/mysql/mysql.server
 rm -rf %{buildroot}%{_datadir}/mysql/mysqld_multi.server
 rm -rf %{buildroot}%{_bindir}/mysql_embedded
 
+# Remove upcoming man pages, to avoid breakage when they materialize
+# Keep this comment as a placeholder for future cases
+# rm -f %{buildroot}%{_mandir}/man1/<manpage>.1
+
 %check
 %if 0%{?runselftest}
 pushd release
@@ -550,6 +554,8 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(644, root, root) %{_mandir}/man1/resolve_stack_dump.1*
 %attr(644, root, root) %{_mandir}/man1/resolveip.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_ssl_rsa_setup.1*
+%attr(644, root, root) %{_mandir}/man1/lz4_decompress.1*
+%attr(644, root, root) %{_mandir}/man1/zlib_decompress.1*
 
 %config(noreplace) %{_sysconfdir}/my.cnf
 %dir %{_sysconfdir}/my.cnf.d
@@ -572,6 +578,8 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_bindir}/resolve_stack_dump
 %attr(755, root, root) %{_bindir}/resolveip
 %attr(755, root, root) %{_bindir}/mysqld_pre_systemd
+%attr(755, root, root) %{_bindir}/lz4_decompress
+%attr(755, root, root) %{_bindir}/zlib_decompress
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 
@@ -814,6 +822,16 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
+* Tue Nov 24 2015 Bjorn Munch <bjorn.munch@oracle.com> - 5.7.10-1
+- Included man pages for lz4_decompress and zlib_decompress
+
+* Thu Nov 12 2015 Bjorn Munch <bjorn.munch@oracle.com> - 5.7.10-1
+- Added lines to remove man pages we are not ready to include yet
+
+* Mon Oct 19 2015 Bharathy Satish <bharathy.x.satish@oracle.com> - 5.7.10-1
+- Added new decompression utilities lz4_decompress and zlib_decompress binaries to
+  client subpackage.
+
 * Sun Aug 2 2015 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.9-1
 - Updated for 5.7.9
 - Added libtest_* plugins to test package subpackage

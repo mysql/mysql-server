@@ -80,8 +80,8 @@ drop table t1;
 #
 # Bug#21618: NULL shown as empty string in client
 #
---exec $MYSQL test -e "select unhex('zz');" 
---exec $MYSQL -t test -e "select unhex('zz');" 
+--exec $MYSQL test -e "select concat(null);"
+--exec $MYSQL -t test -e "select concat(null);"
 
 # Bug#19265 describe command does not work from mysql prompt
 #

@@ -396,6 +396,7 @@ int chk_key(MI_CHECK *param, MI_INFO *info)
   ha_checksum old_record_checksum,init_checksum;
   my_off_t all_keydata,all_totaldata,key_totlength,length;
   ulong   *rec_per_key_part;
+  uint number_of_rec_per_key_estimates= 0;
   MYISAM_SHARE *share=info->s;
   MI_KEYDEF *keyinfo;
   char buff[22],buff2[22];
@@ -423,9 +424,21 @@ int chk_key(MI_CHECK *param, MI_INFO *info)
     old_record_checksum=calc_checksum(info->state->records+info->state->del-1)*
       share->base.pack_reclength;
   rec_per_key_part= param->rec_per_key_part;
-  for (key= 0,keyinfo= &share->keyinfo[0]; key < share->base.keys ;
-       rec_per_key_part+=keyinfo->keysegs, key++, keyinfo++)
+  for (key= 0,keyinfo= &share->keyinfo[0]; key < share->base.keys;
+       rec_per_key_part+= number_of_rec_per_key_estimates, key++, keyinfo++)
   {
+    /*
+      R-tree indexes have 1 key part (column) and 4 key segments. Only
+      one rec_per_key estimate should be produced for those indexes.
+
+      B-tree indexes have the same number of segments as key parts
+      (columns). Generate one rec_per_key estimate per key part.
+    */
+    if (keyinfo->flag & HA_SPATIAL)
+      number_of_rec_per_key_estimates= 1;
+    else
+      number_of_rec_per_key_estimates= keyinfo->keysegs;
+
     param->key_crc[key]=0;
     if (! mi_is_key_active(share->state.key_map, key))
     {
@@ -433,7 +446,7 @@ int chk_key(MI_CHECK *param, MI_INFO *info)
       memcpy((char*) rec_per_key_part,
 	     (char*) (share->state.rec_per_key_part +
 		      (uint) (rec_per_key_part - param->rec_per_key_part)),
-	     keyinfo->keysegs*sizeof(*rec_per_key_part));
+	     number_of_rec_per_key_estimates * sizeof(*rec_per_key_part));
       continue;
     }
     found_keys++;
@@ -4564,7 +4577,14 @@ void update_key_parts(MI_KEYDEF *keyinfo, ulong *rec_per_key_part,
   ulonglong count=0,tmp, unique_tuples;
   ulonglong tuples= records;
   uint parts;
-  for (parts=0 ; parts < keyinfo->keysegs  ; parts++)
+  uint maxparts;
+
+  if (keyinfo->flag & HA_SPATIAL)
+    maxparts= 1; /* Only 1 key part (but 4 segments) */
+  else
+    maxparts= keyinfo->keysegs; /* parts == segments == columns */
+
+  for (parts=0 ; parts < maxparts  ; parts++)
   {
     count+=unique[parts];
     unique_tuples= count + 1;    

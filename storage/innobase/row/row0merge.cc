@@ -4197,6 +4197,7 @@ row_merge_create_index(
 					my_error(ER_CANNOT_CREATE_VIRTUAL_INDEX_CONSTRAINT,
 						 MYF(0));
 					trx->error_state = DB_NO_VIRTUAL_INDEX_ON_FK;
+					dict_mem_index_free(index);
 					DBUG_RETURN(NULL);
 				}
 			}
@@ -4211,6 +4212,7 @@ row_merge_create_index(
 				my_error(ER_CANNOT_CREATE_VIRTUAL_INDEX_CONSTRAINT,
 					 MYF(0));
 				trx->error_state = DB_NO_VIRTUAL_INDEX_ON_FK;
+				dict_mem_index_free(index);
 				DBUG_RETURN(NULL);
 			}
 		}

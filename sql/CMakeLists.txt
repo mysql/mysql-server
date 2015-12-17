@@ -301,6 +301,7 @@ ADD_COMPILE_FLAGS(
   item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
   item_json_func.cc
+  debug_sync.cc
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
 
@@ -315,6 +316,7 @@ IF(HAVE_NO_UNUSED_TYPEDEFS)
     item_geofunc_relchecks_bgwrap.cc
     item_geofunc_setops.cc
     item_json_func.cc
+    debug_sync.cc
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
   )
 ENDIF()
@@ -335,7 +337,7 @@ IF (WIN32 AND OPENSSL_APPLINK_C)
   )
 ENDIF()
 
-ADD_LIBRARY(sql STATIC ${SQL_SOURCE})
+ADD_CONVENIENCE_LIBRARY(sql ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql GenServerSource)
 ADD_DEPENDENCIES(sql GenDigestServerSource)
 ADD_DEPENDENCIES(sql GenBootstrapPriv)
@@ -362,15 +364,15 @@ SET (BINLOG_SOURCE rpl_gtid_misc.cc
                    log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
                    rpl_filter.cc rpl_record.cc rpl_record_old.cc
                    rpl_utility.cc rpl_injector.cc rpl_table_access.cc)
-ADD_LIBRARY(binlog ${BINLOG_SOURCE})
+ADD_CONVENIENCE_LIBRARY(binlog ${BINLOG_SOURCE})
 TARGET_LINK_LIBRARIES(binlog binlogevents_static)
 
 SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc rpl_context.cc)
 ADD_DEPENDENCIES(binlog GenError)
-ADD_LIBRARY(rpl ${RPL_SOURCE})
+ADD_CONVENIENCE_LIBRARY(rpl ${RPL_SOURCE})
 SET (MASTER_SOURCE rpl_master.cc rpl_binlog_sender.cc)
 ADD_DEPENDENCIES(rpl GenError)
-ADD_LIBRARY(master ${MASTER_SOURCE})
+ADD_CONVENIENCE_LIBRARY(master ${MASTER_SOURCE})
 ADD_DEPENDENCIES(master GenError)
 SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
 		  rpl_info_handler.cc rpl_info_file.cc
@@ -379,7 +381,7 @@ SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
                   rpl_rli_pdb.cc rpl_info_dummy.cc rpl_mts_submode.cc
                   rpl_slave_commit_order_manager.cc rpl_msr.cc
                   rpl_trx_boundary_parser.cc rpl_channel_service_interface.cc)
-ADD_LIBRARY(slave ${SLAVE_SOURCE})
+ADD_CONVENIENCE_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
 
 ######################### GUnit Lib #################################
@@ -396,7 +398,7 @@ IF(WIN32)
   LIST(APPEND SQL_GUNIT_LIB_SOURCE named_pipe.cc)
 ENDIF()
 
-ADD_LIBRARY(sqlgunitlib ${SQL_GUNIT_LIB_SOURCE})
+ADD_CONVENIENCE_LIBRARY(sqlgunitlib ${SQL_GUNIT_LIB_SOURCE})
 ADD_DEPENDENCIES(sqlgunitlib GenError)
 
 ######################### GUnit Lib #################################
@@ -530,6 +532,7 @@ RUN_BISON(
 
 SET_SOURCE_FILES_PROPERTIES(
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/sql_digest.cc
   PROPERTIES OBJECT_DEPENDS ${GEN_DIGEST_SOURCES}
 )
 

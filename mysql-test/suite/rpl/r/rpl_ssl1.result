@@ -29,7 +29,7 @@ select * from t1;
 t
 stop slave;
 include/wait_for_slave_to_stop.inc
-change master to master_ssl=1 , master_ssl_ca ='MYSQL_TEST_DIR/std_data/cacert.pem', master_ssl_cert='MYSQL_TEST_DIR/std_data/client-cert.pem', master_ssl_key='MYSQL_TEST_DIR/std_data/client-key.pem';
+change master to master_ssl=1 , master_ssl_ca ='MYSQL_TEST_DIR/std_data/cacert.pem', master_ssl_cert='MYSQL_TEST_DIR/std_data/client-cert.pem', master_ssl_key='MYSQL_TEST_DIR/std_data/client-key.pem', master_tls_version='TLSv1.1';
 start slave;
 include/wait_for_slave_to_start.inc
 include/sync_slave_sql_with_master.inc
@@ -43,6 +43,7 @@ Master_SSL_CA_Path = ''
 Master_SSL_CA_File = 'MYSQL_TEST_DIR/std_data/cacert.pem'
 Master_SSL_Cert = 'MYSQL_TEST_DIR/std_data/client-cert.pem'
 Master_SSL_Key = 'MYSQL_TEST_DIR/std_data/client-key.pem'
+Master_TLS_Version = 'TLSv1.1'
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 include/check_slave_is_running.inc
@@ -66,6 +67,7 @@ Master_SSL_CA_Path = ''
 Master_SSL_CA_File = 'MYSQL_TEST_DIR/std_data/cacert.pem'
 Master_SSL_Cert = 'MYSQL_TEST_DIR/std_data/client-cert.pem'
 Master_SSL_Key = 'MYSQL_TEST_DIR/std_data/client-key.pem'
+Master_TLS_Version = 'TLSv1.1'
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 include/check_slave_is_running.inc
@@ -94,6 +96,7 @@ Master_SSL_CA_Path = ''
 Master_SSL_CA_File = 'MYSQL_TEST_DIR/std_data/cacert.pem'
 Master_SSL_Cert = 'MYSQL_TEST_DIR/std_data/client-cert.pem'
 Master_SSL_Key = 'MYSQL_TEST_DIR/std_data/client-key.pem'
+Master_TLS_Version = 'TLSv1.1'
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 include/check_slave_is_running.inc
@@ -116,5 +119,6 @@ master_ssl_ca ='',
 master_ssl_cert='',
 master_ssl_key='',
 master_ssl_verify_server_cert=0,
-master_ssl=0;
+master_ssl=0,
+master_tls_version='';
 include/rpl_end.inc

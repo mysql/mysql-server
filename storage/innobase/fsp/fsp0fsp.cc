@@ -31,29 +31,25 @@ Created 11/29/1995 Heikki Tuuri
 #include "fsp0fsp.ic"
 #endif
 
+#ifdef UNIV_HOTBACKUP
+# include "fut0lst.h"
+#else /* UNIV_HOTBACKUP */
 #include "buf0buf.h"
 #include "fil0fil.h"
 #include "mtr0log.h"
 #include "ut0byte.h"
 #include "page0page.h"
-#include "page0zip.h"
-#ifdef UNIV_HOTBACKUP
-# include "fut0lst.h"
-#else /* UNIV_HOTBACKUP */
-# include "fut0fut.h"
-# include "srv0srv.h"
-# include "srv0start.h"
-# include "ibuf0ibuf.h"
-# include "btr0btr.h"
-# include "btr0sea.h"
-# include "dict0boot.h"
-# include "log0log.h"
-#endif /* UNIV_HOTBACKUP */
-#include "dict0mem.h"
+#include "fut0fut.h"
+#include "srv0srv.h"
+#include "srv0start.h"
+#include "ibuf0ibuf.h"
+#include "btr0btr.h"
+#include "btr0sea.h"
+#include "dict0boot.h"
+#include "log0log.h"
 #include "fsp0sysspace.h"
+#include "dict0mem.h"
 #include "fsp0types.h"
-
-#ifndef UNIV_HOTBACKUP
 
 /** Returns an extent to the free list of a space.
 @param[in]	page_id		page id in the extent
@@ -210,6 +206,7 @@ fsp_flags_to_dict_tf(
 
 	return(flags);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Validate the tablespace flags.
 These flags are stored in the tablespace header at offset FSP_SPACE_FLAGS.
@@ -316,7 +313,7 @@ fsp_is_file_per_table(
 	return(!is_system_tablespace(space_id)
 		&& !fsp_is_shared_tablespace(fsp_flags));
 }
-
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 
 /** Skip some of the sanity checks that are time consuming even in debug mode
@@ -2883,24 +2880,27 @@ fseg_alloc_free_page_general(
 	return(block);
 }
 
-/** Check that we have at least 2 frag pages free in the first extent of a
-single-table tablespace, and they are also physically initialized to the data
-file. That is we have already extended the data file so that those pages are
-inside the data file. If not, this function extends the tablespace with
-pages.
+/** Check that we have at least n_pages frag pages free in the first extent
+of a single-table tablespace, and they are also physically initialized to
+the data file. That is we have already extended the data file so that those
+pages are inside the data file. If not, this function extends the tablespace
+with pages.
 @param[in,out]	space		tablespace
 @param[in,out]	space_header	tablespace header, x-latched
 @param[in]	size		size of the tablespace in pages,
-must be less than FSP_EXTENT_SIZE/2
+must be less than FSP_EXTENT_SIZE
 @param[in,out]	mtr		mini-transaction
-@return true if there were at least 3 free pages, or we were able to extend */
+@param[in]	n_pages		number of pages to reserve
+@return true if there were at least n_pages free pages, or we were able
+to extend */
 static
 bool
 fsp_reserve_free_pages(
 	fil_space_t*	space,
 	fsp_header_t*	space_header,
 	ulint		size,
-	mtr_t*		mtr)
+	mtr_t*		mtr,
+	ulint		n_pages)
 {
 	xdes_t*	descr;
 	ulint	n_used;
@@ -2914,13 +2914,12 @@ fsp_reserve_free_pages(
 
 	ut_a(n_used <= size);
 
-	return(size >= n_used + 2
+	return(size >= n_used + n_pages
 	       || fsp_try_extend_data_file_with_pages(
-		       space, n_used + 1, space_header, mtr));
+		       space, n_used + n_pages - 1, space_header, mtr));
 }
 
-/**********************************************************************//**
-Reserves free pages from a tablespace. All mini-transactions which may
+/** Reserves free pages from a tablespace. All mini-transactions which may
 use several pages from the tablespace should call this function beforehand
 and reserve enough free extents so that they certainly will be able
 to do their operation, like a B-tree page split, fully. Reservations
@@ -2939,23 +2938,33 @@ The purpose is to avoid dead end where the database is full but the
 user cannot free any space because these freeing operations temporarily
 reserve some space.
 
-Single-table tablespaces whose size is < 32 pages are a special case. In this
-function we would liberally reserve several 64 page extents for every page
-split or merge in a B-tree. But we do not want to waste disk space if the table
-only occupies < 32 pages. That is why we apply different rules in that special
-case, just ensuring that there are 3 free pages available.
-@return TRUE if we were able to make the reservation */
+Single-table tablespaces whose size is < FSP_EXTENT_SIZE pages are a special
+case. In this function we would liberally reserve several extents for
+every page split or merge in a B-tree. But we do not want to waste disk space
+if the table only occupies < FSP_EXTENT_SIZE pages. That is why we apply
+different rules in that special case, just ensuring that there are n_pages
+free pages available.
+
+@param[out]	n_reserved	number of extents actually reserved; if we
+				return true and the tablespace size is <
+				FSP_EXTENT_SIZE pages, then this can be 0,
+				otherwise it is n_ext
+@param[in]	space_id	tablespace identifier
+@param[in]	n_ext		number of extents to reserve
+@param[in]	alloc_type	page reservation type (FSP_BLOB, etc)
+@param[in,out]	mtr		the mini transaction
+@param[in]	n_pages		for small tablespaces (tablespace size is
+				less than FSP_EXTENT_SIZE), number of free
+				pages to reserve.
+@return true if we were able to make the reservation */
 bool
 fsp_reserve_free_extents(
-/*=====================*/
-	ulint*	n_reserved,/*!< out: number of extents actually reserved; if we
-			return TRUE and the tablespace size is < 64 pages,
-			then this can be 0, otherwise it is n_ext */
-	ulint	space_id,/*!< in: space id */
-	ulint	n_ext,	/*!< in: number of extents to reserve */
+	ulint*		n_reserved,
+	ulint		space_id,
+	ulint		n_ext,
 	fsp_reserve_t	alloc_type,
-			/*!< in: page reservation type */
-	mtr_t*	mtr)	/*!< in/out: mini-transaction */
+	mtr_t*		mtr,
+	ulint		n_pages)
 {
 	fsp_header_t*	space_header;
 	ulint		n_free_list_ext;
@@ -2976,10 +2985,11 @@ try_again:
 	size = mach_read_from_4(space_header + FSP_SIZE);
 	ut_ad(size == space->size_in_header);
 
-	if (alloc_type != FSP_BLOB && size < FSP_EXTENT_SIZE) {
+	if (size < FSP_EXTENT_SIZE && n_pages < FSP_EXTENT_SIZE / 2) {
 		/* Use different rules for small single-table tablespaces */
 		*n_reserved = 0;
-		return(fsp_reserve_free_pages(space, space_header, size, mtr));
+		return(fsp_reserve_free_pages(space, space_header, size,
+					      mtr, n_pages));
 	}
 
 	n_free_list_ext = flst_get_len(space_header + FSP_FREE);
