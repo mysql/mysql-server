@@ -2484,7 +2484,7 @@ NdbDictInterface::getTable(int tableId, bool fullyQualifiedNames)
   GetTabInfoReq * req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
   
   req->senderRef = m_reference;
-  req->senderData = 0;
+  req->senderData = m_tx.nextRequestId();
   req->requestType =
     GetTabInfoReq::RequestById | GetTabInfoReq::LongSignalConf;
   req->tableId = tableId;
@@ -2514,7 +2514,7 @@ NdbDictInterface::getTable(const BaseString& name, bool fullyQualifiedNames)
   const Uint32 namelen_words= (namelen + 3) >> 2; // Size in words
 
   req->senderRef= m_reference;
-  req->senderData= 0;
+  req->senderData = m_tx.nextRequestId();
   req->requestType=
     GetTabInfoReq::RequestByName | GetTabInfoReq::LongSignalConf;
   req->tableNameLen= namelen;
@@ -2556,11 +2556,18 @@ NdbDictInterface::getTable(class NdbApiSignal * signal,
 {
   int errCodes[] = {GetTabInfoRef::Busy, 0 };
   int timeout = DICT_WAITFOR_TIMEOUT;
-  DBUG_EXECUTE_IF("ndb_timeout_gettabinforeq", {
-    fprintf(stderr, "NdbDictInterface::getTable() times out in dictSignal WAIT_GET_TAB_INFO_REQ\n");
-    timeout = 1000; 
+  DBUG_EXECUTE_IF("ndb_dictsignal_timeout", {
+    DBUG_PRINT("info", ("Reducing timeout for dictSignal GSN_GET_TABINFOREQ in NdbDictInterface::getTable"));
+    timeout = 1000;
   });
 
+  /* If timeout occurs while waiting for response to dict signal, timeout
+   * state WST_WAIT_TIMEOUT is mapped to m_error.code = 4008 and dictSignal
+   * returns -1. E.g. if getTable returns NULL, it does not necessarily mean
+   * that the table was not found. The caller should check for error 4008,
+   * and ensure that the error code is not overwritten by 'does not exist'
+   * errors.
+   */
   int r = dictSignal(signal, ptr, noOfSections,
 		     -1, // any node
 		     WAIT_GET_TAB_INFO_REQ,
@@ -2610,6 +2617,10 @@ NdbDictInterface::execGET_TABINFO_CONF(const NdbApiSignal * signal,
 {
   const GetTabInfoConf* conf = CAST_CONSTPTR(GetTabInfoConf, signal->getDataPtr());
   const Uint32 i = GetTabInfoConf::DICT_TAB_INFO;
+
+  if(!m_tx.checkRequestId(conf->senderData, "GET_TABINFO_CONF"))
+    return; // signal from different (possibly timed-out) transaction
+
   if(signal->isFirstFragment()){
     m_fragmentId = signal->getFragmentId();
     if (m_buffer.grow(4 * conf->totalLen))
@@ -2642,7 +2653,9 @@ NdbDictInterface::execGET_TABINFO_REF(const NdbApiSignal * signal,
   DBUG_ENTER("NdbDictInterface::execGET_TABINFO_REF");
   const GetTabInfoRef* ref = CAST_CONSTPTR(GetTabInfoRef, 
 					   signal->getDataPtr());
-  
+  if(!m_tx.checkRequestId(ref->senderData, "GET_TABINFO_REF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
+
   if (likely(signal->getLength() == GetTabInfoRef::SignalLength))
   {
     m_error.code= ref->errorCode;
@@ -3880,7 +3893,7 @@ NdbDictInterface::sendAlterTable(const NdbTableImpl &impl,
   AlterTableReq * req = CAST_PTR(AlterTableReq, tSignal.getDataPtrSend());
 
   req->clientRef = m_reference;
-  req->clientData = 0;
+  req->clientData = m_tx.nextRequestId();
   req->transId = m_tx.transId();
   req->transKey = m_tx.transKey();
   req->requestInfo = 0;
@@ -3890,10 +3903,17 @@ NdbDictInterface::sendAlterTable(const NdbTableImpl &impl,
   req->changeMask = change_mask;
 
   int errCodes[] = { AlterTableRef::NotMaster, AlterTableRef::Busy, 0 };
+
+  int timeout = DICT_WAITFOR_TIMEOUT;
+  DBUG_EXECUTE_IF("ndb_dictsignal_timeout", {
+    DBUG_PRINT("info", ("Reducing timeout for dictSignal GSN_ALTER_TAB_REQ in NdbDictInterface::sendAlterTable"));
+    timeout = 1000;
+  });
+
   int ret= dictSignal(&tSignal, ptr, 1,
                       0,                        // master
                       WAIT_ALTER_TAB_REQ,
-                      DICT_WAITFOR_TIMEOUT, 100,
+                      timeout, 100,
                       errCodes);
 
   if(m_error.code == AlterTableRef::InvalidTableVersion) {
@@ -3918,17 +3938,24 @@ NdbDictInterface::sendCreateTable(const NdbTableImpl &impl,
 
   CreateTableReq * req = CAST_PTR(CreateTableReq, tSignal.getDataPtrSend());
   req->clientRef = m_reference;
-  req->clientData = 0;
+  req->clientData = m_tx.nextRequestId();
   req->requestInfo = 0;
   req->requestInfo |= m_tx.requestFlags();
   req->transId = m_tx.transId();
   req->transKey = m_tx.transKey();
 
   int errCodes[]= { CreateTableRef::Busy, CreateTableRef::NotMaster, 0 };
+
+  int timeout = DICT_WAITFOR_TIMEOUT;
+  DBUG_EXECUTE_IF("ndb_dictsignal_timeout", {
+    DBUG_PRINT("info", ("Reducing timeout for dictSignal GSN_CREATE_TABLE_REQ in NdbDictInterface::sendCreateTable"));
+    timeout = 1000;
+  });
+
   int ret= dictSignal(&tSignal, ptr, 1,
                       0,                        // master node
                       WAIT_CREATE_INDX_REQ,
-                      DICT_WAITFOR_TIMEOUT, 100,
+                      timeout, 100,
                       errCodes);
 
   return ret;
@@ -3941,6 +3968,10 @@ NdbDictInterface::execCREATE_TABLE_CONF(const NdbApiSignal * signal,
   DBUG_ENTER("NdbDictInterface::execCREATE_TABLE_CONF");
   const CreateTableConf* const conf=
     CAST_CONSTPTR(CreateTableConf, signal->getDataPtr());
+
+  if(!m_tx.checkRequestId(conf->clientData, "CREATE_TABLE_CONF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
+
   m_buffer.grow(4 * 2); // 2 words
   Uint32* data = (Uint32*)m_buffer.get_data();
   data[0] = conf->tableId;
@@ -3955,6 +3986,10 @@ NdbDictInterface::execCREATE_TABLE_REF(const NdbApiSignal * sig,
 {
   DBUG_ENTER("NdbDictInterface::execCREATE_TABLE_REF");
   const CreateTableRef* ref = CAST_CONSTPTR(CreateTableRef, sig->getDataPtr());
+
+  if(!m_tx.checkRequestId(ref->clientData, "CREATE_TABLE_REF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
+
   m_error.code= ref->errorCode;
   DBUG_PRINT("info", ("Error code = %d", m_error.code));
   m_masterNodeId = ref->masterNodeId;
@@ -3967,6 +4002,11 @@ NdbDictInterface::execALTER_TABLE_CONF(const NdbApiSignal * signal,
                                        const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER("NdbDictInterface::execALTER_TABLE_CONF");
+  const AlterTableConf * conf = CAST_CONSTPTR(AlterTableConf, signal->getDataPtr());
+
+  if(!m_tx.checkRequestId(conf->clientData, "ALTER_TABLE_CONF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
+
   m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
@@ -3977,6 +4017,10 @@ NdbDictInterface::execALTER_TABLE_REF(const NdbApiSignal * sig,
 {
   DBUG_ENTER("NdbDictInterface::execALTER_TABLE_REF");
   const AlterTableRef * ref = CAST_CONSTPTR(AlterTableRef, sig->getDataPtr());
+
+  if(!m_tx.checkRequestId(ref->clientData, "ALTER_TABLE_REF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
+
   m_error.code= ref->errorCode;
   DBUG_PRINT("info", ("Error code = %d", m_error.code));
   m_masterNodeId = ref->masterNodeId;
@@ -4294,7 +4338,7 @@ NdbDictInterface::dropTable(const NdbTableImpl & impl)
   
   DropTableReq * req = CAST_PTR(DropTableReq, tSignal.getDataPtrSend());
   req->clientRef = m_reference;
-  req->clientData = 0;
+  req->clientData = m_tx.nextRequestId();
   req->transId = m_tx.transId();
   req->transKey = m_tx.transKey();
   req->requestInfo = 0;
@@ -4306,10 +4350,17 @@ NdbDictInterface::dropTable(const NdbTableImpl & impl)
     { DropTableRef::NoDropTableRecordAvailable,
       DropTableRef::NotMaster,
       DropTableRef::Busy, 0 };
+
+  int timeout = DICT_WAITFOR_TIMEOUT;
+  DBUG_EXECUTE_IF("ndb_dictsignal_timeout", {
+    DBUG_PRINT("info", ("Reducing timeout for dictSignal GSN_DROP_TAB_REQ in NdbDictInterface::dropTable"));
+    timeout = 1000;
+  });
+
   int r = dictSignal(&tSignal, 0, 0,
 		     0, // master
 		     WAIT_DROP_TAB_REQ, 
-		     DICT_WAITFOR_TIMEOUT, 100,
+		     timeout, 100,
 		     errCodes);
   if(m_error.code == DropTableRef::InvalidTableVersion) {
     // Clear caches and try again
@@ -4323,7 +4374,10 @@ NdbDictInterface::execDROP_TABLE_CONF(const NdbApiSignal * signal,
 				      const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER("NdbDictInterface::execDROP_TABLE_CONF");
-  //DropTableConf* const conf = CAST_CONSTPTR(DropTableConf, signal->getDataPtr());
+  const DropTableConf* conf = CAST_CONSTPTR(DropTableConf, signal->getDataPtr());
+
+  if(!m_tx.checkRequestId(conf->clientData, "DROP_TABLE_CONF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
 
   m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
@@ -4335,6 +4389,10 @@ NdbDictInterface::execDROP_TABLE_REF(const NdbApiSignal * signal,
 {
   DBUG_ENTER("NdbDictInterface::execDROP_TABLE_REF");
   const DropTableRef* ref = CAST_CONSTPTR(DropTableRef, signal->getDataPtr());
+
+  if(!m_tx.checkRequestId(ref->clientData, "DROP_TABLE_REF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
+
   m_error.code= ref->errorCode;
   DBUG_PRINT("info", ("Error code = %d", m_error.code));
   m_masterNodeId = ref->masterNodeId;
@@ -4479,8 +4537,10 @@ NdbDictionaryImpl::createIndex(NdbIndexImpl &ix, bool offline)
 {
   ASSERT_NOT_MYSQLD;
   NdbTableImpl* tab = getTable(ix.getTable());
-  if(tab == 0){
-    m_error.code = 4249;
+  if(tab == 0)
+  {
+    if(m_error.code == 0)
+      m_error.code = 4249;
     return -1;
   }
   
@@ -4522,7 +4582,7 @@ NdbDictInterface::createIndex(Ndb & ndb,
   
   CreateIndxReq * const req = CAST_PTR(CreateIndxReq, tSignal.getDataPtrSend());
   req->clientRef = m_reference;
-  req->clientData = 0;
+  req->clientData = m_tx.nextRequestId();
   req->transId = m_tx.transId();
   req->transKey = m_tx.transKey();
   req->requestInfo = offline ? CreateIndxReq::RF_BUILD_OFFLINE : 0;
@@ -4573,10 +4633,17 @@ NdbDictInterface::createIndex(Ndb & ndb,
   ptr[1].sz = m_buffer.length() >> 2;                //BUG?
 
   int errCodes[] = { CreateIndxRef::Busy, CreateIndxRef::NotMaster, 0 };
+
+  int timeout = DICT_WAITFOR_TIMEOUT;
+  DBUG_EXECUTE_IF("ndb_dictsignal_timeout", {
+    DBUG_PRINT("info", ("Reducing timeout for dictSignal GSN_CREATE_INDX_REQ in NdbDictInterface::createIndex()"));
+    timeout = 1000;
+  });
+
   return dictSignal(&tSignal, ptr, 2,
 		    0, // master
 		    WAIT_CREATE_INDX_REQ,
-		    DICT_WAITFOR_TIMEOUT, 100,
+		    timeout, 100,
 		    errCodes);
 }
 
@@ -4585,6 +4652,11 @@ NdbDictInterface::execCREATE_INDX_CONF(const NdbApiSignal * signal,
 				       const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER("NdbDictInterface::execCREATE_INDX_CONF");
+  const CreateIndxConf* conf = CAST_CONSTPTR(CreateIndxConf, signal->getDataPtr());
+
+  if(!m_tx.checkRequestId(conf->clientData, "CREATE_INDX_CONF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
+
   m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
@@ -4595,6 +4667,10 @@ NdbDictInterface::execCREATE_INDX_REF(const NdbApiSignal * sig,
 {
   DBUG_ENTER("NdbDictInterface::execCREATE_INDX_REF");
   const CreateIndxRef* ref = CAST_CONSTPTR(CreateIndxRef, sig->getDataPtr());
+
+  if(!m_tx.checkRequestId(ref->clientData, "CREATE_INDX_REF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
+
   m_error.code = ref->errorCode;
   DBUG_PRINT("info", ("Error code = %d", m_error.code));
   if (m_error.code == ref->NotMaster)
@@ -4662,7 +4738,7 @@ NdbDictInterface::doIndexStatReq(Ndb& ndb,
 
   IndexStatReq* req = CAST_PTR(IndexStatReq, tSignal.getDataPtrSend());
   req->clientRef = m_reference;
-  req->clientData = 0;
+  req->clientData = m_tx.nextRequestId();
   req->transId = m_tx.transId();
   req->transKey = m_tx.transKey();
   req->requestInfo = requestType;
@@ -4672,10 +4748,16 @@ NdbDictInterface::doIndexStatReq(Ndb& ndb,
   req->tableId = tableId;
 
   int errCodes[] = { IndexStatRef::Busy, IndexStatRef::NotMaster, 0 };
+  int timeout = DICT_WAITFOR_TIMEOUT;
+  DBUG_EXECUTE_IF("ndb_dictsignal_timeout", {
+    DBUG_PRINT("info", ("Reducing timeout for dictSignal GSN_INDEX_STAT_REQ in NdbDictInterface::doIndexStatReq()"));
+    timeout = 1000;
+  });
+
   return dictSignal(&tSignal, 0, 0,
                     0,
                     WAIT_CREATE_INDX_REQ,
-                    DICT_WAITFOR_TIMEOUT, 100,
+                    timeout, 100,
                     errCodes);
 }
 
@@ -4684,6 +4766,11 @@ NdbDictInterface::execINDEX_STAT_CONF(const NdbApiSignal * signal,
 				      const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER("NdbDictInterface::execINDEX_STAT_CONF");
+  const IndexStatConf* conf = CAST_CONSTPTR(IndexStatConf, signal->getDataPtr());
+
+  if(!m_tx.checkRequestId(conf->clientData, "INDX_STAT_CONF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
+
   m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
@@ -4694,6 +4781,10 @@ NdbDictInterface::execINDEX_STAT_REF(const NdbApiSignal * signal,
 {
   DBUG_ENTER("NdbDictInterface::execINDEX_STAT_REF");
   const IndexStatRef* ref = CAST_CONSTPTR(IndexStatRef, signal->getDataPtr());
+
+  if(!m_tx.checkRequestId(ref->clientData, "INDX_STAT_REF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
+
   m_error.code = ref->errorCode;
   DBUG_PRINT("info", ("Error code = %d", m_error.code));
   if (m_error.code == ref->NotMaster)
@@ -4720,7 +4811,8 @@ NdbDictionaryImpl::dropIndex(const char * indexName,
   ASSERT_NOT_MYSQLD;
   NdbIndexImpl * idx = getIndex(indexName, tableName);
   if (idx == 0) {
-    m_error.code = 4243;
+    if(m_error.code == 0)
+      m_error.code = 4243;
     return -1;
   }
   int ret = dropIndex(*idx, tableName, ignoreFKs);
@@ -4782,8 +4874,8 @@ NdbDictionaryImpl::dropIndex(NdbIndexImpl & impl, const char * tableName,
     }
     return ret;
   }
-
-  m_error.code = 4243;
+  if(m_error.code == 0)
+    m_error.code = 4243;
   return -1;
 }
 
@@ -4862,7 +4954,7 @@ NdbDictInterface::dropIndex(const NdbIndexImpl & impl,
 
   DropIndxReq * const req = CAST_PTR(DropIndxReq, tSignal.getDataPtrSend());
   req->clientRef = m_reference;
-  req->clientData = 0;
+  req->clientData = m_tx.nextRequestId();
   req->transId = m_tx.transId();
   req->transKey = m_tx.transKey();
   req->requestInfo = 0;
@@ -4871,10 +4963,17 @@ NdbDictInterface::dropIndex(const NdbIndexImpl & impl,
   req->indexVersion = timpl.m_version;
 
   int errCodes[] = { DropIndxRef::Busy, DropIndxRef::NotMaster, 0 };
+
+  int timeout = DICT_WAITFOR_TIMEOUT;
+  DBUG_EXECUTE_IF("ndb_dictsignal_timeout", {
+    DBUG_PRINT("info", ("Reducing timeout for dictSignal GSN_DROP_INDX_REQ in NdbDictInterface::dropIndex()"));
+    timeout = 1000;
+  });
+
   int r = dictSignal(&tSignal, 0, 0,
 		     0, // master
 		     WAIT_DROP_INDX_REQ,
-		     DICT_WAITFOR_TIMEOUT, 100,
+		     timeout, 100,
 		     errCodes);
   if(m_error.code == DropIndxRef::InvalidIndexVersion) {
     // Clear caches and try again
@@ -4888,6 +4987,11 @@ NdbDictInterface::execDROP_INDX_CONF(const NdbApiSignal * signal,
 				       const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER("NdbDictInterface::DROP_INDX_CONF");
+  const DropIndxConf* conf = CAST_CONSTPTR(DropIndxConf, signal->getDataPtr());
+
+  if(!m_tx.checkRequestId(conf->clientData, "DROP_INDX_CONF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
+
   m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
@@ -4898,6 +5002,10 @@ NdbDictInterface::execDROP_INDX_REF(const NdbApiSignal * signal,
 {
   DBUG_ENTER("NdbDictInterface::execDROP_INDX_REF");
   const DropIndxRef* ref = CAST_CONSTPTR(DropIndxRef, signal->getDataPtr());
+
+  if(!m_tx.checkRequestId(ref->clientData, "DROP_INDX_REF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
+
   m_error.code = ref->errorCode;
   DBUG_PRINT("info", ("Error code = %d", m_error.code));
   if (m_error.code == ref->NotMaster)
@@ -5954,7 +6062,7 @@ NdbDictInterface::listObjects(NdbDictionary::Dictionary::List& list,
   ListTablesReq* const req = CAST_PTR(ListTablesReq, tSignal.getDataPtrSend());
   memcpy(req, &ltreq, sizeof(ListTablesReq));
   req->senderRef = m_reference;
-  req->senderData = 0;
+  req->senderData = m_tx.nextRequestId();
   if (ltreq.getTableId() > 4096)
   {
     /*
@@ -6270,10 +6378,24 @@ NdbDictInterface::listObjects(NdbApiSignal* signal,
     }
     m_impl->incClientStat(Ndb::WaitMetaRequestCount, 1);
     m_error.code= 0;
-    int ret_val= poll_guard.wait_n_unlock(DICT_WAITFOR_TIMEOUT,
+
+    int timeout = DICT_WAITFOR_TIMEOUT;
+    DBUG_EXECUTE_IF("ndb_dictsignal_timeout", {
+    DBUG_PRINT("info", ("Reducing timeout for dictSignal GSN_LIST_TABLES_REQ in NdbDictInterface::listObjects()"));
+      timeout = 1000;
+    });
+
+    int ret_val= poll_guard.wait_n_unlock(timeout,
                                           aNodeId, WAIT_LIST_TABLES_CONF,
                                           true);
     // end protected
+    if(m_error.code == 0 && m_impl->theWaiter.get_state() == WST_WAIT_TIMEOUT)
+    {
+      DBUG_PRINT("info", ("wait_n_unlock caught time-out"));
+      m_error.code = 4008;
+      return -1;
+    }
+
     if (ret_val == 0 && m_error.code == 0)
       return 0;
     if (ret_val == -2) //WAIT_NODE_FAILURE
@@ -6298,6 +6420,11 @@ NdbDictInterface::execLIST_TABLES_CONF(const NdbApiSignal* signal,
     return;
   }
 
+  const ListTablesConf* const conf=
+    CAST_CONSTPTR(ListTablesConf, signal->getDataPtr());
+  if(!m_tx.checkRequestId(conf->senderData, "LIST_TABLES_CONF"))
+    return; // signal from different (possibly timed-out) transaction
+
   if (signal->isFirstFragment())
   {
     m_fragmentId = signal->getFragmentId();
@@ -6316,8 +6443,6 @@ NdbDictInterface::execLIST_TABLES_CONF(const NdbApiSignal* signal,
   /*
     Save the count
    */
-  const ListTablesConf* const conf=
-    CAST_CONSTPTR(ListTablesConf, signal->getDataPtr());
   m_noOfTables+= conf->noOfTables;
 
   bool fragmented = signal->isFragmented();
@@ -6391,7 +6516,7 @@ NdbDictInterface::forceGCPWait(int type)
   {
     WaitGCPReq* const req = CAST_PTR(WaitGCPReq, tSignal.getDataPtrSend());
     req->senderRef = m_reference;
-    req->senderData = 0;
+    req->senderData = m_tx.nextRequestId();
     req->requestType = 
       type == 0 ? 
       WaitGCPReq::CompleteForceStart : WaitGCPReq::RestartGCI;
@@ -6424,9 +6549,22 @@ NdbDictInterface::forceGCPWait(int type)
       m_error.code= 0;
       
       m_impl->incClientStat(Ndb::WaitMetaRequestCount, 1);
-      int ret_val= pg.wait_n_unlock(DICT_WAITFOR_TIMEOUT,
+      int timeout = DICT_WAITFOR_TIMEOUT;
+      DBUG_EXECUTE_IF("ndb_dictsignal_timeout", {
+        DBUG_PRINT("info", ("Reducing timeout for dictSignal GSN_WAIT_GCP_REQ in NdbDictInterface::forceGCPWait()"));
+        timeout = 1000;
+      });
+
+      int ret_val= pg.wait_n_unlock(timeout,
                                     aNodeId, WAIT_LIST_TABLES_CONF);
       // end protected
+      if(m_error.code == 0 && m_impl->theWaiter.get_state() == WST_WAIT_TIMEOUT)
+      {
+        DBUG_PRINT("info", ("wait_n_unlock caught time-out"));
+        m_error.code = 4008;
+        return -1;
+      }
+
       if (ret_val == 0 && m_error.code == 0)
         return 0;
       if (ret_val == -2) //WAIT_NODE_FAILURE
@@ -6493,6 +6631,9 @@ NdbDictInterface::execWAIT_GCP_CONF(const NdbApiSignal* signal,
 {
   const WaitGCPConf* conf = CAST_CONSTPTR(WaitGCPConf, signal->getDataPtr());
 
+  if(!m_tx.checkRequestId(conf->senderData, "WAIT_GCP_CONF"))
+    return; // signal from different (possibly timed-out) transaction
+
   m_data.m_wait_gcp_conf.gci_lo = conf->gci_lo;
   m_data.m_wait_gcp_conf.gci_hi = conf->gci_hi;
   m_impl->theWaiter.signal(NO_WAIT);
@@ -6504,6 +6645,10 @@ NdbDictInterface::execWAIT_GCP_REF(const NdbApiSignal* signal,
 {
   DBUG_ENTER("NdbDictInterface::WAIT_GCP_REF");
   const WaitGCPRef* ref = CAST_CONSTPTR(WaitGCPRef, signal->getDataPtr());
+
+  if(!m_tx.checkRequestId(ref->senderData, "WAIT_GCP_REF"))
+    return; // signal from different (possibly timed-out) transaction
+
   m_error.code = ref->errorCode;
   DBUG_PRINT("info", ("Error code = %d", m_error.code));
 
@@ -6713,7 +6858,8 @@ NdbDictionaryImpl::createUndofile(const NdbUndofileImpl & file,
     DBUG_RETURN(m_receiver.create_file(file, tmp, force, obj));
   }
   DBUG_PRINT("info", ("Failed to find filegroup"));
-  m_error.code = 789;
+  if(m_error.code == 0)
+    m_error.code = 789;
   DBUG_RETURN(-1);
 }
 
@@ -7950,7 +8096,7 @@ NdbDictInterface::create_file(const NdbFileImpl & file,
   
   CreateFileReq* req = CAST_PTR(CreateFileReq, tSignal.getDataPtrSend());
   req->senderRef = m_reference;
-  req->senderData = 0;
+  req->senderData = m_tx.nextRequestId();
   req->objType = file.m_type;
   req->requestInfo = 0;
   if (overwrite)
@@ -7996,6 +8142,10 @@ NdbDictInterface::execCREATE_FILE_CONF(const NdbApiSignal * signal,
   DBUG_ENTER("NdbDictInterface::execCREATE_FILE_CONF");
   const CreateFileConf* conf=
     CAST_CONSTPTR(CreateFileConf, signal->getDataPtr());
+
+  if(!m_tx.checkRequestId(conf->senderData, "CREATE_FILE_CONF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
+
   m_buffer.grow(4 * 3); // 3 words
   Uint32* data = (Uint32*)m_buffer.get_data();
   data[0] = conf->fileId;
@@ -8013,6 +8163,10 @@ NdbDictInterface::execCREATE_FILE_REF(const NdbApiSignal * signal,
   DBUG_ENTER("NdbDictInterface::execCREATE_FILE_REF");
   const CreateFileRef* ref = 
     CAST_CONSTPTR(CreateFileRef, signal->getDataPtr());
+
+  if(!m_tx.checkRequestId(ref->senderData, "CREATE_FILE_REF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
+
   m_error.code = ref->errorCode;
   DBUG_PRINT("info", ("Error code = %d", m_error.code));
   m_masterNodeId = ref->masterNodeId;
@@ -8031,7 +8185,7 @@ NdbDictInterface::drop_file(const NdbFileImpl & file)
   
   DropFileReq* req = CAST_PTR(DropFileReq, tSignal.getDataPtrSend());
   req->senderRef = m_reference;
-  req->senderData = 0;
+  req->senderData = m_tx.nextRequestId();
   req->file_id = file.m_id;
   req->file_version = file.m_version;
   req->requestInfo = 0;
@@ -8040,10 +8194,17 @@ NdbDictInterface::drop_file(const NdbFileImpl & file)
   req->transKey = m_tx.transKey();
 
   int err[] = { DropFileRef::Busy, DropFileRef::NotMaster, 0};
+
+  int timeout = DICT_WAITFOR_TIMEOUT;
+  DBUG_EXECUTE_IF("ndb_dictsignal_timeout", {
+    DBUG_PRINT("info", ("Reducing timeout for dictSignal GSN_DROP_FILE_REQ in NdbDictInterface::drop_file()"));
+    timeout = 1000;
+  });
+
   DBUG_RETURN(dictSignal(&tSignal, 0, 0,
 	                 0, // master
 		         WAIT_CREATE_INDX_REQ,
-		         DICT_WAITFOR_TIMEOUT, 100,
+		         timeout, 100,
 		         err));
 }
 
@@ -8052,6 +8213,12 @@ NdbDictInterface::execDROP_FILE_CONF(const NdbApiSignal * signal,
 					    const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER("NdbDictInterface::execDROP_FILE_CONF");
+  const DropFileConf* conf =
+    CAST_CONSTPTR(DropFileConf, signal->getDataPtr());
+
+  if(!m_tx.checkRequestId(conf->senderData, "DROP_FILE_CONF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
+
   m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
@@ -8063,6 +8230,10 @@ NdbDictInterface::execDROP_FILE_REF(const NdbApiSignal * signal,
   DBUG_ENTER("NdbDictInterface::execDROP_FILE_REF");
   const DropFileRef* ref = 
     CAST_CONSTPTR(DropFileRef, signal->getDataPtr());
+
+  if(!m_tx.checkRequestId(ref->senderData, "DROP_FILE_REF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
+
   m_error.code = ref->errorCode;
   DBUG_PRINT("info", ("Error code = %d", m_error.code));
   m_masterNodeId = ref->masterNodeId;
@@ -8135,7 +8306,7 @@ NdbDictInterface::create_filegroup(const NdbFilegroupImpl & group,
   CreateFilegroupReq* req = 
     CAST_PTR(CreateFilegroupReq, tSignal.getDataPtrSend());
   req->senderRef = m_reference;
-  req->senderData = 0;
+  req->senderData = m_tx.nextRequestId();
   req->objType = fg.FilegroupType;
   req->requestInfo = 0;
   req->requestInfo |= m_tx.requestFlags();
@@ -8147,10 +8318,15 @@ NdbDictInterface::create_filegroup(const NdbFilegroupImpl & group,
   ptr[0].sz = m_buffer.length() / 4;
 
   int err[] = { CreateFilegroupRef::Busy, CreateFilegroupRef::NotMaster, 0};
+  int timeout = DICT_WAITFOR_TIMEOUT;
+  DBUG_EXECUTE_IF("ndb_dictsignal_timeout", {
+    DBUG_PRINT("info", ("Reducing timeout for dictSignal GSN_CREATE_FILEGROUP_REQ in NdbDictInterface::create_filegroup()"));
+    timeout = 1000;
+  });
   int ret = dictSignal(&tSignal, ptr, 1,
 		       0, // master
 		       WAIT_CREATE_INDX_REQ,
-		       DICT_WAITFOR_TIMEOUT, 100,
+		       timeout, 100,
 		       err);
   
   if (ret == 0)
@@ -8175,6 +8351,10 @@ NdbDictInterface::execCREATE_FILEGROUP_CONF(const NdbApiSignal * signal,
   DBUG_ENTER("execCREATE_FILEGROUP_CONF");
   const CreateFilegroupConf* conf=
     CAST_CONSTPTR(CreateFilegroupConf, signal->getDataPtr());
+
+  if(!m_tx.checkRequestId(conf->senderData, "CREATE_FILEGROUP_CONF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
+
   m_buffer.grow(4 * 3); // 3 words
   Uint32* data = (Uint32*)m_buffer.get_data();
   data[0] = conf->filegroupId;
@@ -8191,6 +8371,10 @@ NdbDictInterface::execCREATE_FILEGROUP_REF(const NdbApiSignal * signal,
   DBUG_ENTER("NdbDictInterface::execCREATE_FILEGROUP_REF");
   const CreateFilegroupRef* ref = 
     CAST_CONSTPTR(CreateFilegroupRef, signal->getDataPtr());
+
+  if(!m_tx.checkRequestId(ref->senderData, "CREATE_FILEGROUP_REF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
+
   m_error.code = ref->errorCode;
   DBUG_PRINT("info", ("Error code = %d", m_error.code));
   m_masterNodeId = ref->masterNodeId;
@@ -8209,7 +8393,7 @@ NdbDictInterface::drop_filegroup(const NdbFilegroupImpl & group)
   
   DropFilegroupReq* req = CAST_PTR(DropFilegroupReq, tSignal.getDataPtrSend());
   req->senderRef = m_reference;
-  req->senderData = 0;
+  req->senderData = m_tx.nextRequestId();
   req->filegroup_id = group.m_id;
   req->filegroup_version = group.m_version;
   req->requestInfo = 0;
@@ -8218,10 +8402,15 @@ NdbDictInterface::drop_filegroup(const NdbFilegroupImpl & group)
   req->transKey = m_tx.transKey();
 
   int err[] = { DropFilegroupRef::Busy, DropFilegroupRef::NotMaster, 0};
+  int timeout = DICT_WAITFOR_TIMEOUT;
+  DBUG_EXECUTE_IF("ndb_dictsignal_timeout", {
+    DBUG_PRINT("info", ("Reducing timeout for dictSignal GSN_DROP_FILEGROUP_REQ in NdbDictInterface::drop_filegroup()"));
+    timeout = 1000;
+  });
   DBUG_RETURN(dictSignal(&tSignal, 0, 0,
                          0, // master
 		         WAIT_CREATE_INDX_REQ,
-		         DICT_WAITFOR_TIMEOUT, 100,
+		         timeout, 100,
 		         err));
 }
 
@@ -8230,6 +8419,12 @@ NdbDictInterface::execDROP_FILEGROUP_CONF(const NdbApiSignal * signal,
 					    const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER("NdbDictInterface::execDROP_FILEGROUP_CONF");
+  const DropFilegroupConf* conf =
+    CAST_CONSTPTR(DropFilegroupConf, signal->getDataPtr());
+
+  if(!m_tx.checkRequestId(conf->senderData, "DROP_FILEGROUP_CONF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
+
   m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
@@ -8241,6 +8436,10 @@ NdbDictInterface::execDROP_FILEGROUP_REF(const NdbApiSignal * signal,
   DBUG_ENTER("NdbDictInterface::execDROP_FILEGROUP_REF");
   const DropFilegroupRef* ref = 
     CAST_CONSTPTR(DropFilegroupRef, signal->getDataPtr());
+
+  if(!m_tx.checkRequestId(ref->senderData, "DROP_FILEGROUP_REF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
+
   m_error.code = ref->errorCode;
   DBUG_PRINT("info", ("Error code = %d", m_error.code));
   m_masterNodeId = ref->masterNodeId;
@@ -8260,7 +8459,7 @@ NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
   Uint32 strLen = (Uint32)strlen(name) + 1;
 
   req->senderRef = m_reference;
-  req->senderData = 0;
+  req->senderData = m_tx.nextRequestId();
   req->requestType = 
     GetTabInfoReq::RequestByName | GetTabInfoReq::LongSignalConf;
   req->tableNameLen = strLen;
@@ -8284,10 +8483,16 @@ NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
   }
 #endif
   
+  int timeout = DICT_WAITFOR_TIMEOUT;
+  DBUG_EXECUTE_IF("ndb_dictsignal_timeout", {
+    DBUG_PRINT("info", ("Reducing timeout for dictSignal GSN_GET_TABINFOREQ in NdbDictInterface::get_filegroup()"));
+    timeout = 1000;
+  });
+
   int r = dictSignal(&tSignal, ptr, 1,
 		     -1, // any node
 		     WAIT_GET_TAB_INFO_REQ,
-		     DICT_WAITFOR_TIMEOUT, 100);
+		     timeout, 100);
   if (r)
   {
     dst.m_id = RNIL;
@@ -8370,7 +8575,7 @@ NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
   GetTabInfoReq * req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
 
   req->senderRef = m_reference;
-  req->senderData = 0;
+  req->senderData = m_tx.nextRequestId();
   req->requestType =
     GetTabInfoReq::RequestById | GetTabInfoReq::LongSignalConf;
   req->tableId = id;
@@ -8379,10 +8584,16 @@ NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
   tSignal.theVerId_signalNumber   = GSN_GET_TABINFOREQ;
   tSignal.theLength = GetTabInfoReq::SignalLength;
 
+  int timeout = DICT_WAITFOR_TIMEOUT;
+  DBUG_EXECUTE_IF("ndb_dictsignal_timeout", {
+    DBUG_PRINT("info", ("Reducing timeout for dictSignal GSN_GET_TABINFOREQ in NdbDictInterface::get_filegroup()"));
+    timeout = 1000;
+  });
+
   int r = dictSignal(&tSignal, NULL, 1,
 		     -1, // any node
 		     WAIT_GET_TAB_INFO_REQ,
-		     DICT_WAITFOR_TIMEOUT, 100);
+		     timeout, 100);
   if (r)
   {
     DBUG_PRINT("info", ("get_filegroup failed dictSignal"));
@@ -8420,7 +8631,7 @@ NdbDictInterface::get_file(NdbFileImpl & dst,
   Uint32 strLen = (Uint32)strlen(name) + 1;
 
   req->senderRef = m_reference;
-  req->senderData = 0;
+  req->senderData = m_tx.nextRequestId();
   req->requestType =
     GetTabInfoReq::RequestByName | GetTabInfoReq::LongSignalConf;
   req->tableNameLen = strLen;
@@ -8444,10 +8655,16 @@ NdbDictInterface::get_file(NdbFileImpl & dst,
   }
 #endif
   
+  int timeout = DICT_WAITFOR_TIMEOUT;
+  DBUG_EXECUTE_IF("ndb_dictsignal_timeout", {
+    DBUG_PRINT("info", ("Reducing timeout for dictSignal GSN_GET_TABINFOREQ in NdbDictInterface::get_file()"));
+    timeout = 1000;
+  });
+
   int r = dictSignal(&tSignal, ptr, 1,
 		     node,
 		     WAIT_GET_TAB_INFO_REQ,
-		     DICT_WAITFOR_TIMEOUT, 100);
+		     timeout, 100);
   if (r)
   {
     DBUG_PRINT("info", ("get_file failed dictSignal"));
@@ -8569,7 +8786,7 @@ NdbDictInterface::get_hashmap(NdbHashMapImpl & dst,
   Uint32 strLen = (Uint32)strlen(name) + 1;
 
   req->senderRef = m_reference;
-  req->senderData = 0;
+  req->senderData = m_tx.nextRequestId();
   req->requestType =
     GetTabInfoReq::RequestByName | GetTabInfoReq::LongSignalConf;
   req->tableNameLen = strLen;
@@ -8594,10 +8811,15 @@ NdbDictInterface::get_hashmap(NdbHashMapImpl & dst,
 #endif
 
   int errCodes[] = {GetTabInfoRef::Busy, 0 };
+  int timeout = DICT_WAITFOR_TIMEOUT;
+  DBUG_EXECUTE_IF("ndb_dictsignal_timeout", {
+    DBUG_PRINT("info", ("Reducing timeout for dictSignal GSN_GET_TABINFOREQ in NdbDictInterface::get_hashmap"));
+    timeout = 1000;
+  });
   int r = dictSignal(&tSignal, ptr, 1,
 		     -1, // any node
 		     WAIT_GET_TAB_INFO_REQ,
-		     DICT_WAITFOR_TIMEOUT, 100, errCodes);
+		     timeout, 100, errCodes);
   if (r)
   {
     dst.m_id = -1;
@@ -8621,7 +8843,7 @@ NdbDictInterface::get_hashmap(NdbHashMapImpl & dst,
   GetTabInfoReq * req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
 
   req->senderRef = m_reference;
-  req->senderData = 0;
+  req->senderData = m_tx.nextRequestId();
   req->requestType =
     GetTabInfoReq::RequestById | GetTabInfoReq::LongSignalConf;
   req->tableId = id;
@@ -8631,10 +8853,15 @@ NdbDictInterface::get_hashmap(NdbHashMapImpl & dst,
   tSignal.theLength = GetTabInfoReq::SignalLength;
 
   int errCodes[] = {GetTabInfoRef::Busy, 0 };
+  int timeout = DICT_WAITFOR_TIMEOUT;
+  DBUG_EXECUTE_IF("ndb_dictsignal_timeout", {
+    DBUG_PRINT("info", ("Reducing timeout for dictSignal GSN_GET_TABINFOREQ in NdbDictInterface::get_hashmap()"));
+    timeout = 1000;
+  });
   int r = dictSignal(&tSignal, 0, 0,
 		     -1, // any node
 		     WAIT_GET_TAB_INFO_REQ,
-		     DICT_WAITFOR_TIMEOUT, 100, errCodes);
+		     timeout, 100, errCodes);
   if (r)
   {
     dst.m_id = -1;
@@ -8734,7 +8961,7 @@ NdbDictInterface::create_hashmap(const NdbHashMapImpl& src,
 
   CreateHashMapReq* req = CAST_PTR(CreateHashMapReq, tSignal.getDataPtrSend());
   req->clientRef = m_reference;
-  req->clientData = 0;
+  req->clientData = m_tx.nextRequestId();
   req->requestInfo = flags;
   req->requestInfo |= m_tx.requestFlags();
   req->transId = m_tx.transId();
@@ -8780,6 +9007,10 @@ NdbDictInterface::execCREATE_HASH_MAP_REF(const NdbApiSignal * signal,
   DBUG_ENTER("NdbDictInterface::execCREATE_HASH_MAP_REF");
   const CreateHashMapRef* ref =
     CAST_CONSTPTR(CreateHashMapRef, signal->getDataPtr());
+
+  if(!m_tx.checkRequestId(ref->senderData, "CREATE_HASH_MAP_REF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
+
   m_error.code = ref->errorCode;
   DBUG_PRINT("info", ("Error code = %d", m_error.code));
   m_masterNodeId = ref->masterNodeId;
@@ -8795,6 +9026,10 @@ NdbDictInterface::execCREATE_HASH_MAP_CONF(const NdbApiSignal * signal,
   DBUG_ENTER("NdbDictInterface::execCREATE_HASH_MAP_CONF");
   const CreateHashMapConf* conf=
     CAST_CONSTPTR(CreateHashMapConf, signal->getDataPtr());
+
+  if(!m_tx.checkRequestId(conf->senderData, "CREATE_HASH_MAP_CONF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
+
   m_buffer.grow(4 * 2); // 2 words
   Uint32* data = (Uint32*)m_buffer.get_data();
   data[0] = conf->objectId;
@@ -8961,7 +9196,7 @@ NdbDictInterface::create_fk(const NdbForeignKeyImpl& src,
 
   CreateFKReq* req = CAST_PTR(CreateFKReq, tSignal.getDataPtrSend());
   req->clientRef = m_reference;
-  req->clientData = 0;
+  req->clientData = m_tx.nextRequestId();
   req->requestInfo = flags;
   req->requestInfo |= m_tx.requestFlags();
   req->transId = m_tx.transId();
@@ -9000,6 +9235,10 @@ NdbDictInterface::execCREATE_FK_REF(const NdbApiSignal * signal,
 {
   DBUG_ENTER("NdbDictInterface::execCREATE_FK_REF");
   const CreateFKRef* ref = CAST_CONSTPTR(CreateFKRef, signal->getDataPtr());
+
+  if(!m_tx.checkRequestId(ref->senderData, "CREATE_FK_REF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
+
   m_error.code = ref->errorCode;
   DBUG_PRINT("info", ("Error code = %d", m_error.code));
   m_masterNodeId = ref->masterNodeId;
@@ -9013,6 +9252,10 @@ NdbDictInterface::execCREATE_FK_CONF(const NdbApiSignal * signal,
 {
   DBUG_ENTER("NdbDictInterface::execCREATE_FK_CONF");
   const CreateFKConf* conf= CAST_CONSTPTR(CreateFKConf, signal->getDataPtr());
+
+  if(!m_tx.checkRequestId(conf->senderData, "CREATE_FK_CONF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
+
   m_buffer.grow(4 * 2); // 2 words
   Uint32* data = (Uint32*)m_buffer.get_data();
   data[0] = conf->fkId;
@@ -9033,7 +9276,7 @@ NdbDictInterface::get_fk(NdbForeignKeyImpl & dst,
   Uint32 strLen = (Uint32)strlen(name) + 1;
 
   req->senderRef = m_reference;
-  req->senderData = 0;
+  req->senderData = m_tx.nextRequestId();
   req->requestType =
     GetTabInfoReq::RequestByName | GetTabInfoReq::LongSignalConf;
   req->tableNameLen = strLen;
@@ -9057,10 +9300,15 @@ NdbDictInterface::get_fk(NdbForeignKeyImpl & dst,
   }
 #endif
 
+  int timeout = DICT_WAITFOR_TIMEOUT;
+  DBUG_EXECUTE_IF("ndb_dictsignal_timeout", {
+    DBUG_PRINT("info", ("Reducing timeout for dictSignal GSN_GET_TABINFOREQ in NdbDictInterface::get_fk()"));
+    timeout = 1000;
+  });
   int r = dictSignal(&tSignal, ptr, 1,
 		     -1, // any node
 		     WAIT_GET_TAB_INFO_REQ,
-		     DICT_WAITFOR_TIMEOUT, 100);
+		     timeout, 100);
   if (r)
   {
     DBUG_PRINT("info", ("get_fk failed dictSignal"));
@@ -9151,7 +9399,7 @@ NdbDictInterface::drop_fk(const NdbDictObjectImpl & impl)
 
   DropFKReq * req = CAST_PTR(DropFKReq, tSignal.getDataPtrSend());
   req->clientRef = m_reference;
-  req->clientData = 0;
+  req->clientData = m_tx.nextRequestId();
   req->transId = m_tx.transId();
   req->transKey = m_tx.transKey();
   req->requestInfo = 0;
@@ -9164,10 +9412,15 @@ NdbDictInterface::drop_fk(const NdbDictObjectImpl & impl)
       DropTableRef::NotMaster,
       DropTableRef::Busy, 0 };
 
+  int timeout = DICT_WAITFOR_TIMEOUT;
+  DBUG_EXECUTE_IF("ndb_dictsignal_timeout", {
+    DBUG_PRINT("info", ("Reducing timeout for dictSignal GSN_DROP_FK_REQ in NdbDictInterface::drop_fk()"));
+    timeout = 1000;
+  });
   return dictSignal(&tSignal, 0, 0,
                     0, // master
                     WAIT_DROP_TAB_REQ,
-                    DICT_WAITFOR_TIMEOUT, 100,
+                    timeout, 100,
                     errCodes);
 }
 
@@ -9176,7 +9429,10 @@ NdbDictInterface::execDROP_FK_CONF(const NdbApiSignal * signal,
                                    const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER("NdbDictInterface::execDROP_FK_CONF");
-  //DropTableConf* const conf = CAST_CONSTPTR(DropTableConf, signal->getDataPtr());
+  const DropFKConf* conf = CAST_CONSTPTR(DropFKConf, signal->getDataPtr());
+
+  if(!m_tx.checkRequestId(conf->senderData, "DROP_FK_CONF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
 
   m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
@@ -9188,6 +9444,10 @@ NdbDictInterface::execDROP_FK_REF(const NdbApiSignal * signal,
 {
   DBUG_ENTER("NdbDictInterface::execDROP_FK_REF");
   const DropFKRef* ref = CAST_CONSTPTR(DropFKRef, signal->getDataPtr());
+
+  if(!m_tx.checkRequestId(ref->senderData, "DROP_FK_REF"))
+    DBUG_VOID_RETURN; // signal from different (possibly timed-out) transaction
+
   m_error.code= ref->errorCode;
   DBUG_PRINT("info", ("Error code = %d", m_error.code));
   m_masterNodeId = ref->masterNodeId;
