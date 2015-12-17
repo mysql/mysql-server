@@ -167,13 +167,13 @@ let $MYSQLD_BASEDIR= `select @@basedir`;
 --mkdir $MYSQL_TMP_DIR/datadir1
 
 let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql;
-
+let $start_page_size=`SELECT variable_value FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE LOWER(variable_name) = 'innodb_page_size'`;
 # Create bootstrap file
 write_file $BOOTSTRAP_SQL;
 CREATE DATABASE test;
 EOF
 
-let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR --innodb-data-home-dir= --innodb_data_file_path=$MYSQL_TMP_DIR/datadir1/ibdata:12M --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL</dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1 --innodb_undo_tablespaces=0;
+let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR --innodb-data-home-dir= --innodb_data_file_path=$MYSQL_TMP_DIR/datadir1/ibdata:12M --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL</dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1 --innodb_undo_tablespaces=0 --innodb-page-size=$start_page_size;
 
 # Run the bootstrap command
 --exec $NEW_CMD
