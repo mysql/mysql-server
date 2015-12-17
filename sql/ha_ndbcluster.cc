@@ -12145,12 +12145,14 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
         (NDB_SHARE*) my_hash_element(&ndbcluster_open_tables, 0);
 #ifndef DBUG_OFF
       fprintf(stderr,
-              "NDB: table share %s with use_count %d state: %s(%u) not freed\n",
+              "NDB: table share %s with use_count %d state: %s(%u) still open\n",
               share->key, share->use_count,
               get_share_state_string(share->state),
               (uint)share->state);
 #endif
-      ndbcluster_real_free_share(&share);
+
+      // If last ref, share is destructed, else moved to dropped_tables (see below)
+      ndbcluster_mark_share_dropped(&share);
     }
     pthread_mutex_unlock(&ndbcluster_mutex);
     DBUG_ASSERT(save == 0);
@@ -13035,7 +13037,7 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
   // Reinsert into dropped_tables with new key
   // NOTE: The only reason to maintain a ref to it at all, seems
   //   to be that a potential later ndbcluster_real_free_share()
-  //   expect to find it in either the open_ or dropped_tables list.
+  //   expect to find it in the ndbcluster_dropped_tables list.
   //   ... and it would provide some help in debugging leaked shares.
   my_hash_insert(&ndbcluster_dropped_tables, (uchar*) share);
   DBUG_RETURN(0);
@@ -13313,6 +13315,16 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
   DBUG_RETURN(share);
 }
 
+/**
+ * Permanently free a share which is no longer referred.
+ * Share is assumed to already be in state NSS_DROPPED,
+ * which also implies that there are no remaining 'index_stat'
+ *
+ * The table should be in the dropped_tables list, from which it
+ * is removed. It should *not* be in the dropped_tables list.
+ *
+ * Precondition: ndbcluster_mutex lock should be held.
+ */
 void ndbcluster_real_free_share(NDB_SHARE **share)
 {
   DBUG_ENTER("ndbcluster_real_free_share");
@@ -13321,21 +13333,20 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
   if (opt_ndb_extra_logging > 9)
     sql_print_information ("ndbcluster_real_free_share: %s use_count: %u", (*share)->key, (*share)->use_count);
 
-  ndb_index_stat_free(*share);
-
-  bool found= false;
-  if ((* share)->state == NSS_DROPPED)
+  if ((*share)->state == NSS_DROPPED)
   {
-    found= my_hash_delete(&ndbcluster_dropped_tables, (uchar*) *share) == 0;
+    // Remove from dropped_tables hash-list.
+    const bool found= my_hash_delete(&ndbcluster_dropped_tables, (uchar*) *share) == 0;
+    assert(found); (void)found;
 
     // A DROPPED share, even if 'trailing', should not be in the open list.
     assert(my_hash_delete(&ndbcluster_open_tables, (uchar*) *share) != 0);
   }
   else
   {
-    found= my_hash_delete(&ndbcluster_open_tables, (uchar*) *share) == 0;
+    sql_print_warning("ndbcluster_real_free_share: %s, still open - ignored 'free' (leaked?)", (*share)->key);
+    assert(false); // Don't free a share not yet DROPPED
   }
-  assert(found);
 
   NDB_SHARE::destroy(*share);
   *share= 0;
@@ -13370,7 +13381,8 @@ void ndbcluster_free_share(NDB_SHARE **share, bool have_lock)
  * ndbcluster_mark_share_dropped(): Set the share state to NSS_DROPPED.
  *
  * As a 'DROPPED' share could no longer be in the 'ndbcluster_open_tables' hash,
- * it is removed from this hash list.
+ * it is removed from this hash list. As we are not interested in any index_stat
+ * for a dropped table, it is also freed now.
  *
  * The share reference count related to the 'open_tables' ref is decremented,
  * and the share is permanently deleted if '==0'.
@@ -13402,6 +13414,9 @@ ndbcluster_mark_share_dropped(NDB_SHARE** share)
 
   if (my_hash_delete(&ndbcluster_open_tables, (uchar*)(*share)) == 0)
   {
+    // index_stat not needed anymore, free it.
+    ndb_index_stat_free(*share);
+
     // When dropped a share is either immediately destroyed, or 
     // put in 'dropped' list awaiting remaining refs to be freed.
     if ((*share)->use_count == 0)
