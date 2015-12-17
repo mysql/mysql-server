@@ -113,7 +113,7 @@ create table t2(id int primary key, id2 int, constraint t2_fk foreign key(id2) r
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6216" >> $NDB_TOOLS_OUTPUT
 SET SESSION debug="+d,ndb_dictsignal_timeout";
 --error 1296
-alter online table t2 drop foreign key t2_fk;
+alter table t2 algorithm=inplace, drop foreign key t2_fk;
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
 SET SESSION debug=@save_debug;
@@ -217,7 +217,7 @@ create table t2(id int primary key, id2 int, constraint t2_fk foreign key(id2) r
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6219" >> $NDB_TOOLS_OUTPUT
 SET SESSION debug="+d,ndb_dictsignal_timeout";
 --error 1296
-alter online table t2 drop foreign key t2_fk;
+alter table t2 algorithm=inplace, drop foreign key t2_fk;
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
 SET SESSION debug=@save_debug;
