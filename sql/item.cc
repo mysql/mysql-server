@@ -9915,19 +9915,16 @@ bool Item_cache_json::cache_value()
   if (!example || !m_value)
     return false;
 
-  if (json_value(&example, 0, m_value))
-    return false;
-
+  value_cached= !json_value(&example, 0, m_value);
   null_value= example->null_value;
-  value_cached= true;
 
-  if (!null_value)
+  if (value_cached && !null_value)
   {
     // the row buffer might change, so need own copy
     m_value->to_dom(current_thd);
   }
 
-  return true;
+  return value_cached;
 }
 
 
