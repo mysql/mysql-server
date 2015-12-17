@@ -9102,6 +9102,32 @@ bool check_record(THD *thd, Field **ptr)
 
 
 /**
+  Check the NOT NULL constraint on all the fields explicitly set
+  in INSERT INTO statement or implicitly set in BEFORE trigger.
+
+  @param thd  Thread context.
+  @param ptr  Fields.
+
+  @return Error status.
+*/
+
+static bool check_inserting_record(THD *thd, Field **ptr)
+{
+  Field *field;
+
+  while ((field = *ptr++) && !thd->is_error())
+  {
+    if (bitmap_is_set(field->table->fields_set_during_insert,
+                      field->field_index) &&
+        field->check_constraints(ER_BAD_NULL_ERROR) != TYPE_OK)
+      return true;
+  }
+
+  return thd->is_error();
+}
+
+
+/**
   Check if SQL-statement is INSERT/INSERT SELECT/REPLACE/REPLACE SELECT
   and trigger event is ON INSERT. When this condition is true that means
   that the statement basically can invoke BEFORE INSERT trigger if it
@@ -9237,7 +9263,7 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
 
     table->triggers->disable_fields_temporary_nullability();
 
-    return rc || check_record(thd, table->field);
+    return rc || check_inserting_record(thd, table->field);
   }
   else
   {
@@ -9392,7 +9418,7 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
   if (rc)
     return true;
 
-  return check_record(thd, ptr);
+  return check_inserting_record(thd, ptr);
 }
 
 
