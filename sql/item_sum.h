@@ -1144,23 +1144,19 @@ protected:
 
 public:
   Item_sum_bit(const POS &pos, Item *item_par,ulonglong reset_arg)
-    :Item_sum_int(pos, item_par), reset_bits(reset_arg), bits(reset_arg)
+    :Item_sum_int(pos, item_par),reset_bits(reset_arg),bits(reset_arg)
   {}
 
-  Item_sum_bit(THD *thd, Item_sum_bit *item)
-    :Item_sum_int(thd, item), reset_bits(item->reset_bits), bits(item->bits)
-  {}
+  Item_sum_bit(THD *thd, Item_sum_bit *item):
+    Item_sum_int(thd, item), reset_bits(item->reset_bits), bits(item->bits) {}
   enum Sumfunctype sum_func () const {return SUM_BIT_FUNC;}
   void clear();
   longlong val_int();
   void reset_field();
   void update_field();
   void fix_length_and_dec()
-  {
-    decimals= 0; max_length=21; unsigned_flag= true; maybe_null= false;
-    null_value= FALSE;
-    check_deprecated_bin_op(args[0], NULL);
-  }
+  { decimals= 0; max_length=21; unsigned_flag= true; maybe_null= false;
+    null_value= FALSE; }
   void cleanup()
   {
     bits= reset_bits;
