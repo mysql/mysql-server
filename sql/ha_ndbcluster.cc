@@ -10855,20 +10855,6 @@ void ha_ndbcluster::prepare_for_alter()
   set_ndb_share_state(m_share, NSS_ALTERED);
 }
 
-/*
-  Add an index on-line to a table
-*/
-/*
-int ha_ndbcluster::add_index(TABLE *table_arg, 
-                             KEY *key_info, uint num_of_keys,
-                             handler_add_index **add)
-{
-  // TODO: As we don't yet implement ::final_add_index(),
-  // we don't need a handler_add_index object either..?
-  *add= NULL; // new handler_add_index(table_arg, key_info, num_of_keys);
-  return add_index_impl(current_thd, table_arg, key_info, num_of_keys);
-}
-*/
 
 int ha_ndbcluster::add_index_impl(THD *thd, TABLE *table_arg, 
                                   KEY *key_info, uint num_of_keys)
@@ -10897,37 +10883,35 @@ int ha_ndbcluster::add_index_impl(THD *thd, TABLE *table_arg,
   DBUG_RETURN(error);  
 }
 
+
 /*
-  Mark one or several indexes for deletion. and
-  renumber the remaining indexes
+  Mark the index at m_index[key_num] as to be dropped
+
+  * key_num - position of index in m_index
 */
-int ha_ndbcluster::prepare_drop_index(TABLE *table_arg, 
-                                      uint *key_num, uint num_of_keys)
+
+void ha_ndbcluster::prepare_drop_index(uint key_num)
 {
   DBUG_ENTER("ha_ndbcluster::prepare_drop_index");
   DBUG_ASSERT(m_share->state == NSS_ALTERED);
   // Mark indexes for deletion
-  uint idx;
-  for (idx= 0; idx < num_of_keys; idx++)
+  DBUG_PRINT("info", ("marking index as dropped: %u", key_num));
+  m_index[key_num].status= TO_BE_DROPPED;
+
+  // Prepare delete of index stat entry
+  if (m_index[key_num].type == PRIMARY_KEY_ORDERED_INDEX ||
+      m_index[key_num].type == UNIQUE_ORDERED_INDEX ||
+      m_index[key_num].type == ORDERED_INDEX)
   {
-    DBUG_PRINT("info", ("ha_ndbcluster::prepare_drop_index %u", *key_num));
-    uint i = *key_num++;
-    m_index[i].status= TO_BE_DROPPED;
-    // Prepare delete of index stat entry
-    if (m_index[i].type == PRIMARY_KEY_ORDERED_INDEX ||
-        m_index[i].type == UNIQUE_ORDERED_INDEX ||
-        m_index[i].type == ORDERED_INDEX)
+    const NdbDictionary::Index *index= m_index[key_num].index;
+    if (index) // safety
     {
-      const NdbDictionary::Index *index= m_index[i].index;
-      if (index) // safety
-      {
-        int index_id= index->getObjectId();
-        int index_version= index->getObjectVersion();
-        ndb_index_stat_free(m_share, index_id, index_version);
-      }
+      int index_id= index->getObjectId();
+      int index_version= index->getObjectVersion();
+      ndb_index_stat_free(m_share, index_id, index_version);
     }
   }
-  DBUG_RETURN(0);
+  DBUG_VOID_RETURN;
 }
  
 /*
@@ -17466,40 +17450,21 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
 
   if (alter_flags & dropping)
   {
-    uint          *key_numbers;
-    uint          *keyno_p;
-    KEY           **idx_p;
-    KEY           **idx_end_p;
-    DBUG_PRINT("info", ("Renumbering indexes"));
-    /* The prepare_drop_index() method takes an array of key numbers. */
-    key_numbers= (uint*) thd->alloc(sizeof(uint) * ha_alter_info->index_drop_count);
-    keyno_p= key_numbers;
-    /* Get the number of each key. */
-    for (idx_p= ha_alter_info->index_drop_buffer,
-	 idx_end_p= idx_p + ha_alter_info->index_drop_count;
-	 idx_p < idx_end_p;
-	 idx_p++, keyno_p++)
+    for (uint i =0; i < ha_alter_info->index_drop_count; i++)
     {
-      // Find the key number matching the key to be dropped
-      KEY *keyp= *idx_p;
-      uint i;
-      for(i=0; i < table->s->keys; i++)
+      const KEY* key_ptr = ha_alter_info->index_drop_buffer[i];
+      for(uint key_num=0; key_num < table->s->keys; key_num++)
       {
-	if (keyp == table->key_info + i)
-	  break;
+        /*
+           Find the key_num of the key to be dropped and
+           mark it as dropped
+        */
+        if (key_ptr == table->key_info + key_num)
+        {
+          prepare_drop_index(key_num);
+          break;
+        }
       }
-      DBUG_PRINT("info", ("Dropping index %u", i)); 
-      *keyno_p= i;
-    }
-    /*
-      Tell the handler to prepare for drop indexes.
-      This re-numbers the indexes to get rid of gaps.
-    */
-    if ((error= prepare_drop_index(table, key_numbers,
-				   ha_alter_info->index_drop_count)))
-    {
-      table->file->print_error(error, MYF(0));
-      goto abort;
     }
   }
 
