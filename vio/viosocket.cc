@@ -745,6 +745,7 @@ static my_bool socket_peek_read(Vio *vio, uint *bytes)
 int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
 {
   int ret;
+  int retry_count= 0;
 #ifndef DBUG_OFF
   short revents= 0;
 #endif
@@ -784,7 +785,14 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
     Wait for the I/O event and return early in case of
     error or timeout.
   */
-  switch ((ret= poll(&pfd, 1, timeout)))
+  do
+  {
+    ret= poll(&pfd, 1, timeout);
+  }
+  while (ret < 0 && vio_should_retry(vio)
+                 && (retry_count++ < vio->retry_count));
+
+  switch (ret)
   {
   case -1:
     /* On error, -1 is returned. */
@@ -811,6 +819,7 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
 int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
 {
   int ret;
+  int retry_count= 0;
   struct timeval tm;
   my_socket fd;
   fd_set readfds, writefds, exceptfds;
@@ -857,8 +866,13 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
   MYSQL_START_SOCKET_WAIT(locker, &state, vio->mysql_socket, PSI_SOCKET_SELECT, 0);
 
   /* The first argument is ignored on Windows. */
-  ret= select((int)(fd + 1), &readfds, &writefds, &exceptfds, 
-              (timeout >= 0) ? &tm : NULL);
+  do
+  {
+    ret= select((int)(fd + 1), &readfds, &writefds, &exceptfds,
+                (timeout >= 0) ? &tm : NULL);
+  }
+  while (ret < 0 && vio_should_retry(vio)
+                 && (retry_count++ < vio->retry_count));
 
   MYSQL_END_SOCKET_WAIT(locker, 0);
 
@@ -917,6 +931,7 @@ my_bool
 vio_socket_connect(Vio *vio, struct sockaddr *addr, socklen_t len, int timeout)
 {
   int ret, wait;
+  int retry_count= 0;
   DBUG_ENTER("vio_socket_connect");
 
   /* Only for socket-based transport types. */
@@ -927,7 +942,12 @@ vio_socket_connect(Vio *vio, struct sockaddr *addr, socklen_t len, int timeout)
     DBUG_RETURN(TRUE);
 
   /* Initiate the connection. */
-  ret= mysql_socket_connect(vio->mysql_socket, addr, len);
+  do
+  {
+    ret= mysql_socket_connect(vio->mysql_socket, addr, len);
+  }
+  while (ret < 0 && vio_should_retry(vio)
+                 && (retry_count++ < vio->retry_count));
 
 #ifdef _WIN32
   wait= (ret == SOCKET_ERROR) &&
