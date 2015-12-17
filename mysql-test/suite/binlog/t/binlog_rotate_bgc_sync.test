@@ -1,0 +1,101 @@
+# ==== Purpose ====
+#
+# This test will try to rotate the binary log of the server while binary log
+# group commit sync stage tries to sync the recently flushed binary log group.
+#
+# As binary log group commit releases the binary log's LOCK_log right after
+# finishing the flush stage and entering the sync stage, the rotate procedure
+# (executed by MYSQL_BIN_LOG::new_file_impl) will be able take LOCK_log, but
+# it will delay the binary log rotation until the amount of prepared
+# transactions not yet committed be zero or the binary log group commit sync
+# stage has finished.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#22245619 SERVER ABORT AFTER SYNC STAGE OF THE COMMIT FAILS
+#
+
+# This test case is binary log format agnostic
+--source include/have_binlog_format_row.inc
+--source include/have_debug_sync.inc
+--source include/have_myisam.inc
+--source include/have_innodb.inc
+
+# Create two additional connections
+# conn1 will do the binary log group commit
+# conn2 will rotate the binary log
+# the default connection will coordinate the test case activity
+--connect(conn1,localhost,root,,test)
+--connect(conn2,localhost,root,,test)
+
+--let $engine= MyISAM
+
+while ($engine)
+{
+  --let $rpl_connection_name= conn1
+  --source include/rpl_connection.inc
+  # Create a new table
+  --eval CREATE TABLE t1 (c1 INT) ENGINE=$engine
+
+  # Make the server to hold before syncing the binary log group
+  SET DEBUG_SYNC= 'before_sync_binlog_file SIGNAL holding_before_bgc_sync_binlog_file WAIT_FOR continue_bgc_sync_binlog_file';
+  --send INSERT INTO t1 VALUES (1)
+
+  --let $rpl_connection_name= conn2
+  --source include/rpl_connection.inc
+  # Wait until it reached the sync binary log group
+  SET DEBUG_SYNC= 'NOW WAIT_FOR holding_before_bgc_sync_binlog_file';
+
+  # Make the server to hold while rotating the binary log
+  # It can hold in two places:
+  # a) waiting before all flushed transactions with Xid to be committed;
+  # b) after closing the old and before opening the new binary log file;
+  #
+  # The debug sync will happen at (a) if there are transactions for a
+  # transactional storage engine or at (b) if there are no transactions
+  # for a transactional storage engine in the group to be committed.
+  SET DEBUG_SYNC= 'before_rotate_binlog_file SIGNAL holding_before_rotate_binlog_file WAIT_FOR continue_rotate_binlog_file';
+  # Rotate the binary log
+  --send FLUSH LOGS
+
+  # Wait until the server reaches the debug sync point while rotating the
+  # binary log
+  --let $rpl_connection_name= default
+  --source include/rpl_connection.inc
+  SET DEBUG_SYNC= 'now WAIT_FOR holding_before_rotate_binlog_file';
+
+  # Let the binary log group commit to sync and continue
+  SET DEBUG_SYNC= 'now SIGNAL continue_bgc_sync_binlog_file';
+  # Clear the binary log rotate debug sync point to avoid it to stop twice
+  SET DEBUG_SYNC= 'before_rotate_binlog_file CLEAR';
+  # Let the binary log rotate to continue
+  SET DEBUG_SYNC = 'now SIGNAL continue_rotate_binlog_file';
+
+  --let $rpl_connection_name= conn1
+  --source include/rpl_connection.inc
+  --reap
+
+  --let $rpl_connection_name= conn2
+  --source include/rpl_connection.inc
+  --reap
+
+  --let $rpl_connection_name= default
+  --source include/rpl_connection.inc
+
+  # Cleanup
+  DROP TABLE t1;
+  SET DEBUG_SYNC= 'RESET';
+
+  if ($engine == InnoDB)
+  {
+    --let $engine=
+  }
+  if ($engine == MyISAM)
+  {
+    --let $engine= InnoDB
+  }
+}
+
+# Disconnect the additional connections
+--disconnect conn1
+--disconnect conn2

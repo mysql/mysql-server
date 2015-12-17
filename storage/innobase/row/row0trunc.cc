@@ -1480,9 +1480,41 @@ row_truncate_update_sys_tables_during_fix_up(
 		table_id, new_table_id, reserve_dict_mutex, trx);
 
 	if (err == DB_SUCCESS) {
-		trx_commit_for_mysql(trx);
-		trx_free_for_background(trx);
+		dict_mutex_enter_for_mysql();
+
+		/* Remove the table with old table_id from cache. */
+		dict_table_t*	old_table = dict_table_open_on_id(
+			table_id, true, DICT_TABLE_OP_NORMAL);
+
+		if (old_table != NULL) {
+			dict_table_close(old_table, true, false);
+			dict_table_remove_from_cache(old_table);
+		}
+
+		/* Open table with new table_id and set table as
+		corrupted if it has FTS index. */
+
+		dict_table_t*	table = dict_table_open_on_id(
+			new_table_id, true, DICT_TABLE_OP_NORMAL);
+		ut_ad(table->id == new_table_id);
+
+		bool	has_internal_doc_id =
+			dict_table_has_fts_index(table)
+			|| DICT_TF2_FLAG_IS_SET(
+				table, DICT_TF2_FTS_HAS_DOC_ID);
+
+		if (has_internal_doc_id) {
+			trx->dict_operation_lock_mode = RW_X_LATCH;
+			fts_check_corrupt(table, trx);
+			trx->dict_operation_lock_mode = 0;
+		}
+
+		dict_table_close(table, true, false);
+		dict_mutex_exit_for_mysql();
 	}
+
+	trx_commit_for_mysql(trx);
+	trx_free_for_background(trx);
 
 	return(err);
 }
@@ -1891,7 +1923,7 @@ row_truncate_table_for_mysql(
 	we need to use index locks to sync up */
 	dict_table_x_lock_indexes(table);
 
-	if (!dict_table_is_temporary(table) && !has_internal_doc_id) {
+	if (!dict_table_is_temporary(table)) {
 
 		if (is_file_per_table) {
 
@@ -2581,7 +2613,9 @@ truncate_t::parse(
 		index.m_trx_id_pos = mach_read_from_4(start_ptr);
 		start_ptr += 4;
 
-		m_indexes.push_back(index);
+		if (!(index.m_type & DICT_FTS)) {
+			m_indexes.push_back(index);
+		}
 	}
 
 	ut_ad(!m_indexes.empty());

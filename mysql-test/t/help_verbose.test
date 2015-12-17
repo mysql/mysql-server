@@ -72,3 +72,29 @@
 # Cleanup
 --remove_files_wildcard $BUGDIR *
 --rmdir $BUGDIR
+
+###########################################################################
+# 4. Run --help --verbose and --log-bin on an existing but empty datadir.
+###########################################################################
+
+--let $BUGDIR=           $MYSQL_TMP_DIR/help_verbose_tc4
+--let $LOG_FILE =        $BUGDIR/mysqld.log
+--let $TEST_DATADIR=     $BUGDIR/data
+
+--mkdir $BUGDIR
+--mkdir $TEST_DATADIR
+
+--exec $MYSQLD --no-defaults --help --verbose --log-bin --server-id=1 --datadir=$TEST_DATADIR --lc-messages-dir=$MESSAGES_DIR  --secure-file-priv="" > $LOG_FILE 2>&1
+
+--echo # There should be no errors
+--let SEARCH_FILE=    $LOG_FILE
+--let SEARCH_PATTERN= \[ERROR\]
+--source include/search_pattern.inc
+
+--echo # There should be no leftovers in the datadir.
+--list_files $TEST_DATADIR
+
+# Cleanup
+--remove_files_wildcard $BUGDIR *
+--rmdir $TEST_DATADIR
+--rmdir $BUGDIR

@@ -427,7 +427,7 @@ extern char *master_info_file, *relay_log_info_file, *report_user;
 extern char *report_host, *report_password;
 
 extern my_bool master_ssl;
-extern char *master_ssl_ca, *master_ssl_capath, *master_ssl_cert;
+extern char *master_ssl_ca, *master_ssl_capath, *master_ssl_cert, *master_tls_version;
 extern char *master_ssl_cipher, *master_ssl_key;
        
 bool mts_recovery_groups(Relay_log_info *rli);

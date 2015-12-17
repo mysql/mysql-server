@@ -4576,7 +4576,8 @@ fts_sync_table(
 
 	ut_ad(table->fts);
 
-	if (!dict_table_is_discarded(table) && table->fts->cache) {
+	if (!dict_table_is_discarded(table) && table->fts->cache
+	    && !dict_table_is_corrupted(table)) {
 		err = fts_sync(table->fts->cache->sync);
 	}
 
@@ -7832,10 +7833,9 @@ func_exit:
 consistent state. For now consistency is check only by ensuring
 index->page_no != FIL_NULL
 @param[out]	base_table	table has host fts index
-@param[in,out]	trx		trx handler
-@return true if check certifies auxillary tables are sane false otherwise. */
-bool
-fts_is_corrupt(
+@param[in,out]	trx		trx handler */
+void
+fts_check_corrupt(
 	dict_table_t*	base_table,
 	trx_t*		trx)
 {
@@ -7853,7 +7853,7 @@ fts_is_corrupt(
 		fts_get_table_name(&fts_table, table_name);
 
 		dict_table_t*	aux_table = dict_table_open_on_name(
-			table_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+			table_name, true, FALSE, DICT_ERR_IGNORE_NONE);
 
 		if (aux_table == NULL) {
 			dict_set_corrupted(
@@ -7882,6 +7882,4 @@ fts_is_corrupt(
 
 		dict_table_close(aux_table, FALSE, FALSE);
 	}
-
-	return(sane);
 }

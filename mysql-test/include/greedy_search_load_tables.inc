@@ -27,7 +27,7 @@ WHILE ($i < 10)
   --let $stmt= INSERT INTO t100_$i (colidx, col) SELECT a.k, a.k FROM tbl10 a JOIN tbl10 b;
   --eval $stmt;
   # Update index statistics
-  ANALYZE TABLE t10_$i;
+  ANALYZE TABLE t100_$i;
 
   inc $i;
 }  

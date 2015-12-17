@@ -73,6 +73,7 @@ change master to master_ssl=0;
 change master to master_ssl_crl= 'MYSQL_TEST_DIR/std_data/crl-client-revoked.crl', master_ssl_crlpath= 'MYSQL_TEST_DIR/std_data/crldir';
 include/assert.inc [Value returned by SSS and PS table for SSL_Crl_File should be same.]
 include/assert.inc [Value returned by SSS and PS table for SSL_Crl_Path should be same.]
+include/assert.inc [Value returned by SSS and PS table for TLS version should be same.]
 
 # Test with servers in gtid-mode=on.
 

@@ -22,6 +22,7 @@
 #include <boost/range.hpp>
 #include <boost/mpl/assert.hpp>
 
+#include <boost/geometry/core/ring_type.hpp>
 
 #include <boost/geometry/algorithms/detail/overlay/enrich_intersection_points.hpp>
 #include <boost/geometry/algorithms/detail/overlay/enrichment_info.hpp>
@@ -38,8 +39,10 @@
 
 #include <boost/geometry/algorithms/detail/overlay/add_rings.hpp>
 #include <boost/geometry/algorithms/detail/overlay/assign_parents.hpp>
+#include <boost/geometry/algorithms/detail/overlay/insert_touch_interior_turns.hpp>
 #include <boost/geometry/algorithms/detail/overlay/ring_properties.hpp>
 #include <boost/geometry/algorithms/detail/overlay/select_rings.hpp>
+#include <boost/geometry/algorithms/detail/overlay/self_turn_points.hpp>
 #include <boost/geometry/algorithms/detail/overlay/split_rings.hpp>
 #include <boost/geometry/algorithms/detail/overlay/do_reverse.hpp>
 
@@ -158,31 +161,16 @@ template
     typename GeometryOut,
     overlay_type Direction
 >
-struct overlay
+class overlay
 {
+private:
     template <typename RobustPolicy, typename OutputIterator, typename Strategy>
-    static inline OutputIterator apply(
+    static inline OutputIterator do_overlay(
                 Geometry1 const& geometry1, Geometry2 const& geometry2,
                 RobustPolicy const& robust_policy,
                 OutputIterator out,
                 Strategy const& )
     {
-        bool const is_empty1 = geometry::is_empty(geometry1);
-        bool const is_empty2 = geometry::is_empty(geometry2);
-
-        if (is_empty1 && is_empty2)
-        {
-            return out;
-        }
-
-        if (is_empty1 || is_empty2)
-        {
-            return return_if_one_input_is_empty
-                <
-                    GeometryOut, Direction, ReverseOut
-                >(geometry1, geometry2, out);
-        }
-
         typedef typename geometry::point_type<GeometryOut>::type point_type;
         typedef detail::overlay::traversal_turn_info
         <
@@ -270,6 +258,62 @@ std::cout << "traverse" << std::endl;
         assign_parents(geometry1, geometry2, rings, selected_ring_properties);
 
         return add_rings<GeometryOut>(selected_ring_properties, geometry1, geometry2, rings, out);
+    }
+
+public:
+    template <typename RobustPolicy, typename OutputIterator, typename Strategy>
+    static inline OutputIterator apply(
+                Geometry1 const& geometry1, Geometry2 const& geometry2,
+                RobustPolicy const& robust_policy,
+                OutputIterator out,
+                Strategy const& strategy)
+    {
+        bool const is_empty1 = geometry::is_empty(geometry1);
+        bool const is_empty2 = geometry::is_empty(geometry2);
+
+        if (is_empty1 && is_empty2)
+        {
+            return out;
+        }
+
+        if (is_empty1 || is_empty2)
+        {
+            return return_if_one_input_is_empty
+                <
+                    GeometryOut, Direction, ReverseOut
+                >(geometry1, geometry2, out);
+        }
+
+        Geometry1 modified_geometry1;
+        bool modified1 = insert_touch_interior_turns(geometry1,
+                                                     modified_geometry1,
+                                                     robust_policy);
+
+        Geometry2 modified_geometry2;
+        bool modified2 = insert_touch_interior_turns(geometry2,
+                                                     modified_geometry2,
+                                                     robust_policy);
+
+        if (modified1 && modified2)
+        {
+            return do_overlay(modified_geometry1, modified_geometry2,
+                              robust_policy, out, strategy);
+        }
+        else if (! modified1 && modified2)
+        {
+            return do_overlay(geometry1, modified_geometry2,
+                              robust_policy, out, strategy);
+        }
+        else if (modified1 && ! modified2)
+        {
+            return do_overlay(modified_geometry1, geometry2,
+                              robust_policy, out, strategy);
+        }
+        else
+        {
+            return do_overlay(geometry1, geometry2,
+                              robust_policy, out, strategy);
+        }
     }
 };
 

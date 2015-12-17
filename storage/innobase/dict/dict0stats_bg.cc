@@ -44,6 +44,13 @@ Created Apr 25, 2012 Vasil Dimov
 /** Event to wake up the stats thread */
 os_event_t			dict_stats_event = NULL;
 
+#ifdef UNIV_DEBUG
+/** Used by SET GLOBAL innodb_dict_stats_disabled_debug = 1; */
+my_bool				innodb_dict_stats_disabled_debug;
+
+static os_event_t		dict_stats_disabled_event;
+#endif /* UNIV_DEBUG */
+
 /** This mutex protects the "recalc_pool" variable. */
 static ib_mutex_t		recalc_pool_mutex;
 
@@ -223,6 +230,8 @@ dict_stats_thread_init()
 
 	dict_stats_event = os_event_create(0);
 
+	ut_d(dict_stats_disabled_event = os_event_create(0));
+
 	/* The recalc_pool_mutex is acquired from:
 	1) the background stats gathering thread before any other latch
 	   and released without latching anything else in between (thus
@@ -255,6 +264,11 @@ dict_stats_thread_deinit()
 	dict_stats_recalc_pool_deinit();
 
 	mutex_free(&recalc_pool_mutex);
+
+#ifdef UNIV_DEBUG
+	os_event_destroy(dict_stats_disabled_event);
+	dict_stats_disabled_event = NULL;
+#endif /* UNIV_DEBUG */
 
 	os_event_destroy(dict_stats_event);
 	dict_stats_event = NULL;
@@ -332,6 +346,36 @@ dict_stats_process_entry_from_recalc_pool()
 	mutex_exit(&dict_sys->mutex);
 }
 
+#ifdef UNIV_DEBUG
+/** Disables dict stats thread. It's used by:
+	SET GLOBAL innodb_dict_stats_disabled_debug = 1 (0).
+@param[in]	thd		thread handle
+@param[in]	var		pointer to system variable
+@param[out]	var_ptr		where the formal string goes
+@param[in]	save		immediate result from check function */
+void
+dict_stats_disabled_debug_update(
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				var_ptr,
+	const void*			save)
+{
+	/* This method is protected by mutex, as every SET GLOBAL .. */
+	ut_ad(dict_stats_disabled_event != NULL);
+
+	const bool disable = *static_cast<const my_bool*>(save);
+
+	const int sig_count = os_event_reset(dict_stats_disabled_event);
+
+	innodb_dict_stats_disabled_debug = disable;
+
+	if (disable) {
+		os_event_set(dict_stats_event);
+		os_event_wait_low(dict_stats_disabled_event, sig_count);
+	}
+}
+#endif /* UNIV_DEBUG */
+
 /*****************************************************************//**
 This is the thread for background stats gathering. It pops tables, from
 the auto recalc list and proceeds them, eventually recalculating their
@@ -345,6 +389,8 @@ DECLARE_THREAD(dict_stats_thread)(
 						required by os_thread_create */
 {
 	ut_a(!srv_read_only_mode);
+
+	my_thread_init();
 
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(dict_stats_thread_key);
@@ -362,6 +408,17 @@ DECLARE_THREAD(dict_stats_thread)(
 		os_event_wait_time(
 			dict_stats_event, MIN_RECALC_INTERVAL * 1000000);
 
+#ifdef UNIV_DEBUG
+		while (innodb_dict_stats_disabled_debug) {
+			os_event_set(dict_stats_disabled_event);
+			if (SHUTTING_DOWN()) {
+				break;
+			}
+			os_event_wait_time(
+				dict_stats_event, 100000);
+		}
+#endif /* UNIV_DEBUG */
+
 		if (SHUTTING_DOWN()) {
 			break;
 		}
@@ -372,6 +429,8 @@ DECLARE_THREAD(dict_stats_thread)(
 	}
 
 	srv_dict_stats_thread_active = FALSE;
+
+	my_thread_end();
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit instead of return(). */

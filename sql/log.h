@@ -386,9 +386,6 @@ class Query_logger
   */
   static const uint MAX_LOG_HANDLERS_NUM= 2;
 
-  /** Max size of the log message. */
-  static const uint MAX_LOG_BUFFER_SIZE= 1024;
-
   /**
      RW-lock protecting Query_logger.
      R-lock taken when writing to slow/general query log.

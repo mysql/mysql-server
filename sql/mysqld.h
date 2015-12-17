@@ -823,7 +823,7 @@ extern mysql_cond_t COND_manager;
 extern int32 thread_running;
 
 extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
-            *opt_ssl_key, *opt_ssl_crl, *opt_ssl_crlpath;
+            *opt_ssl_key, *opt_ssl_crl, *opt_ssl_crlpath, *opt_tls_version;
 
 
 extern char *opt_disabled_storage_engines;
@@ -875,6 +875,7 @@ enum options_mysqld
   OPT_SSL_CAPATH,
   OPT_SSL_CERT,
   OPT_SSL_CIPHER,
+  OPT_TLS_VERSION,
   OPT_SSL_KEY,
   OPT_UPDATE_LOG,
   OPT_WANT_CORE,

@@ -122,13 +122,13 @@ include/sync_slave_sql_with_master.inc
 # [On slave]
 SELECT * FROM t1;
 c1
-@
+skip-grants user@skip-grants host
 1234
 # [On server_3]
 include/sync_slave_sql_with_master.inc
 SELECT * FROM t1;
 c1
-@
+skip-grants user@skip-grants host
 1234
 # [On master]
 UPDATE t1 SET c1=CURRENT_USER() WHERE c1='1234';
@@ -142,14 +142,14 @@ include/sync_slave_sql_with_master.inc
 # [On slave]
 SELECT * FROM t1;
 c1
-@
-@
+skip-grants user@skip-grants host
+skip-grants user@skip-grants host
 include/sync_slave_sql_with_master.inc
 # [On server_3]
 SELECT * FROM t1;
 c1
-@
-@
+skip-grants user@skip-grants host
+skip-grants user@skip-grants host
 # [On master]
 DELETE FROM t1 WHERE c1=CURRENT_USER();
 Warnings:
@@ -185,18 +185,18 @@ include/sync_slave_sql_with_master.inc
 # [On slave]
 SELECT * FROM t1;
 c1
-@
+skip-grants user@skip-grants host
 SELECT * FROM t2;
 c1
-@
+skip-grants user@skip-grants host
 include/sync_slave_sql_with_master.inc
 # [On server_3]
 SELECT * FROM t1;
 c1
-@
+skip-grants user@skip-grants host
 SELECT * FROM t2;
 c1
-@
+skip-grants user@skip-grants host
 
 # END
 DROP TABLE t1, t2;

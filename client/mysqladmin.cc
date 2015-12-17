@@ -1295,8 +1295,7 @@ static void usage(void)
   flush-privileges      Reload grant tables (same as reload)\n\
   kill id,id,...	Kill mysql threads");
   puts("\
-  password [new-password] Change old password to new-password in current format\n\
-  old-password [new-password] Change old password to new-password in old format");
+  password [new-password] Change old password to new-password in current format");
   puts("\
   ping			Check if mysqld is alive\n\
   processlist		Show list of active threads in server\n\

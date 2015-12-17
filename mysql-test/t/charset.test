@@ -1,0 +1,68 @@
+--echo #
+--echo #Bug#21958734: INNODB: FAILING ASSERTION: *MBMAXLEN < 5 IN
+--echo #              FILE HA_INNODB.CC LINE 1803
+--echo #
+SHOW CHARACTER SET LIKE '%filename%';
+SHOW COLLATION LIKE '%filename%';
+--error ER_BAD_FIELD_ERROR
+SELECT _filename'abcd';
+--error ER_UNKNOWN_CHARACTER_SET
+SELECT CONVERT(_latin1'abcd' USING filename);
+--error ER_UNKNOWN_CHARACTER_SET
+SELECT CAST(_latin1'abcd' AS CHAR CHARACTER SET filename);
+--error ER_UNKNOWN_CHARACTER_SET
+SET NAMES 'filename';
+SET NAMES 'utf8';
+--error ER_UNKNOWN_CHARACTER_SET
+SET CHARACTER_SET_CLIENT=17;
+SET CHARACTER_SET_CLIENT=33;
+
+--disable_warnings
+DROP DATABASE IF EXISTS db21958734;
+--enable_warnings
+
+--error ER_UNKNOWN_CHARACTER_SET
+CREATE DATABASE db21958734 CHARACTER SET filename;
+--error ER_UNKNOWN_COLLATION
+CREATE DATABASE db21958734 COLLATE filename;
+CREATE DATABASE db21958734 CHARACTER SET utf8;
+--error ER_UNKNOWN_CHARACTER_SET
+ALTER DATABASE db21958734 CHARACTER SET filename;
+--error ER_UNKNOWN_COLLATION
+ALTER DATABASE db21958734 COLLATE filename;
+ALTER DATABASE db21958734 CHARACTER SET latin1;
+USE db21958734;
+--error ER_UNKNOWN_CHARACTER_SET
+CREATE TABLE t1(a VARCHAR(10)) CHARACTER SET filename;
+--error ER_UNKNOWN_COLLATION
+CREATE TABLE t1(a VARCHAR(10)) COLLATE filename;
+--error ER_UNKNOWN_CHARACTER_SET
+CREATE TABLE t1(a VARCHAR(10) CHARACTER SET filename);
+--error ER_UNKNOWN_COLLATION
+CREATE TABLE t1(a VARCHAR(10) COLLATE filename);
+CREATE TABLE t1(a VARCHAR(10) CHARACTER SET utf8) CHARACTER SET latin1;
+--error ER_UNKNOWN_CHARACTER_SET
+ALTER TABLE t1 CHARACTER SET filename;
+--error ER_UNKNOWN_COLLATION
+ALTER TABLE t1 COLLATE filename;
+ALTER TABLE t1 CHARACTER SET gbk;
+--error ER_UNKNOWN_CHARACTER_SET
+ALTER TABLE t1 MODIFY a VARCHAR(10) CHARACTER SET filename;
+--error ER_UNKNOWN_COLLATION
+ALTER TABLE t1 MODIFY a VARCHAR(10) COLLATE filename;
+ALTER TABLE t1 MODIFY a VARCHAR(10) CHARACTER SET cp932;
+DROP DATABASE db21958734;
+
+--source include/not_embedded.inc
+--source include/not_valgrind.inc
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--error 1
+--exec $MYSQLD --datadir=../data  --basedir=. --lc-messages-dir=$MYSQLTEST_VARDIR/../../sql/share/english --character-set-server=filename >$MYSQLTEST_VARDIR/log/mysqld_out_err.log 2>&1
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect

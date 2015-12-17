@@ -3593,7 +3593,10 @@ geocol_difference(const BG_geometry_collection &bggc1,
 
       wkbres= wkbstrs.append_object();
       if (wkbres == NULL)
+      {
+        null_value= TRUE;
         return NULL;
+      }
       Geometry *g0= bg_geo_set_op<Coord_type, Coordsys>(g11, geom,
                                                         wkbres);
       auto_ptr<Geometry> guard0(g0);
@@ -3645,11 +3648,10 @@ geocol_difference(const BG_geometry_collection &bggc1,
 
 
 /**
-  Do symdifference operation on geometry collections. We do so according to
-  this formula:
-  g1 symdifference g2 <==> (g1 union g2) difference (g1 intersection g2).
-  Since we've implemented the other 3 types of set operations for geometry
-  collections, we can do so.
+  Symmetric difference of geometry collections.
+
+  Symdifference(g1, g2) is implemented as
+  union(difference(g1, g2), difference(g2, g1)).
 
   @tparam Coord_type The numeric type for a coordinate value, most often
           it's double.
@@ -3667,51 +3669,51 @@ geocol_symdifference(const BG_geometry_collection &bggc1,
                      const BG_geometry_collection &bggc2,
                      String *result)
 {
-  Geometry *gres= NULL;
-  String wkbres;
-  String union_res, dif_res, isct_res;
-  Geometry *gc_union= NULL, *gc_isct= NULL;
+  Geometry *res= NULL;
+  auto_ptr<Geometry> diff12(NULL);
+  auto_ptr<Geometry> diff21(NULL);
+  String diff12_wkb;
+  String diff21_wkb;
 
   Var_resetter<op_type>
     var_reset(&spatial_op, op_symdifference);
 
+  spatial_op= op_difference;
+  diff12.reset(geocol_difference<Coord_type, Coordsys>(bggc1, bggc2,
+                                                       &diff12_wkb));
+  if (null_value)
+    return NULL;
+  DBUG_ASSERT(diff12.get() != NULL);
+
+  diff21.reset(geocol_difference<Coord_type, Coordsys>(bggc2, bggc1,
+                                                       &diff21_wkb));
+  if (null_value)
+    return NULL;
+  DBUG_ASSERT(diff21.get() != NULL);
+
   spatial_op= op_union;
-  gc_union= geocol_union<Coord_type, Coordsys>(bggc1, bggc2,
-                                               &union_res);
-  auto_ptr<Geometry> guard_union(gc_union);
-
-  if (null_value)
-    return NULL;
-  DBUG_ASSERT(gc_union != NULL);
-
-  spatial_op= op_intersection;
-  gc_isct= geocol_intersection<Coord_type, Coordsys>(bggc1, bggc2,
-                                                     &isct_res);
-  auto_ptr<Geometry> guard_isct(gc_isct);
-
-  if (null_value)
-    return NULL;
-
-  auto_ptr<Geometry> guard_dif;
-  if (gc_isct != NULL && !is_empty_geocollection(isct_res))
+  res= geometry_collection_set_operation<Coord_type, Coordsys>(diff12.get(),
+                                                               diff21.get(),
+                                                               result);
+  if (diff12.get() == res)
   {
-    spatial_op= op_difference;
-    gres= geometry_collection_set_operation<Coord_type, Coordsys>
-      (gc_union, gc_isct, result);
-    guard_dif.reset(gres);
-
-    if (null_value)
-      return NULL;
+    result->takeover(diff12_wkb);
+    diff12.release();
   }
-  else
+  else if (diff21.get() == res)
   {
-    gres= gc_union;
-    result->takeover(union_res);
-    guard_union.release();
+    result->takeover(diff21_wkb);
+    diff21.release();
   }
 
-  guard_dif.release();
-  return gres;
+  if (null_value)
+  {
+    if (res != NULL)
+      delete res;
+    return NULL;
+  }
+
+  return res;
 }
 
 

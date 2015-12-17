@@ -36,6 +36,10 @@
 --echo
 --echo # Save current SHOW_COMPATIBILITY_56 setting
 SELECT @@global.show_compatibility_56 INTO @show_compatibility_56_save;
+--echo #
+--echo # SET COMPATIBILITY MODE = OFF
+--echo #
+SET @@global.show_compatibility_56 = OFF;
 --echo
 --echo # Verify EXAMPLE plugin is not loaded
 SELECT COUNT(*) = 0 AS "Expect 1" FROM information_schema.plugins WHERE plugin_name = "EXAMPLE";
@@ -265,15 +269,6 @@ WHERE variable_name LIKE "example_%" ORDER BY variable_value;
 --echo ================================================================================
 --echo TEST 4 - BUG#18008907: DEADLOCK WITH CHANGE_USER, SHOW VARIABLES, INSTALL PLUGIN
 --echo ================================================================================
-#
-# The following tests are executed by main/plugin.test with show_compatibility_56 = ON.
-# Here they are executed with the compatibility mode disabled.
-#
---echo #
---echo # SET COMPATIBILITY MODE = OFF
---echo #
-SET @@global.show_compatibility_56 = OFF;
-
 --echo
 --disable_result_log
 DELIMITER |;
@@ -408,6 +403,37 @@ connection con2;
 --disable_warnings
 --reap
 --enable_warnings
+
+--echo
+--echo ================================================================================
+--echo TEST 5 - BUG#22225549 MYSQL_CHANGE_USER/MYSQL_RESET_CONNECTION + SET INNODB...
+--echo          Update to plugin-defined session variable triggers resync with global
+--echo          variables and deadlocks on THD::LOCK_thd_sysvar.
+--echo ================================================================================
+#
+# THD:LOCK_thd_sysvar is only used when SHOW_COMPATIBILITY_56 = OFF
+#
+SELECT @@global.show_compatibility_56;
+#
+# The deadlock occurs when plugin-defined session variables are resynced with the global
+# variables. To force a resync, change the user and update a session variable from a
+# plugin, in this case InnoDB.
+#
+select @@session.innodb_strict_mode;
+let $innodb_strict_mode_save = `select @@session.innodb_strict_mode`;
+select user(), current_user();
+--echo change_user root
+--change_user root
+--echo #
+--echo # Trigger a resync of session variables with global variables.
+--echo #
+set @@session.innodb_strict_mode=off;
+
+--echo
+--echo # Restore
+--echo
+eval set @@session.innodb_strict_mode=$innodb_strict_mode_save;
+select @@session.innodb_strict_mode;
 
 --echo
 --echo ================================================================================

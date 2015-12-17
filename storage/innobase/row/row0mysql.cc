@@ -989,6 +989,7 @@ row_create_prebuilt(
 	prebuilt->blob_heap = NULL;
 
 	prebuilt->m_no_prefetch = false;
+	prebuilt->m_read_virtual_key = false;
 
 	DBUG_RETURN(prebuilt);
 }

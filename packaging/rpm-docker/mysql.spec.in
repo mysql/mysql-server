@@ -182,17 +182,20 @@ for f in innochecksum myisamchk myisam_ftdump myisamlog myisampack mysqladmin \
          mysqlbinlog mysqlcheck mysql_client_test mysql_config_editor \
          mysqld_multi mysqld_safe mysqldumpslow mysql_embedded mysqlimport \
          mysql_plugin mysql_secure_installation mysqlshow mysqlslap  mysqltest \
-         perror replace  resolveip  resolve_stack_dump; do
+         perror replace  resolveip  resolve_stack_dump lz4_decompress \
+         zlib_decompress; do
     rm -f %{buildroot}%{_bindir}/$f
 done
 
 #  Remove test plugins
 for p in auth.so auth_test_plugin.so daemon_example.ini libdaemon_example.so qa_auth_client.so \
     qa_auth_interface.so qa_auth_server.so replication_observers_example_plugin.so ha_example.so \
-    libtest_framework.so libtest_services.so libtest_services_threaded.so \
     test_security_context.so ; do
     rm -f %{buildroot}%{_libdir}/mysql/plugin/$p
 done
+
+rm -f %{buildroot}%{_libdir}/mysql/plugin/libtest_*.so
+rm -f %{buildroot}%{_libdir}/pkgconfig/mysqlclient.pc
 
 # No need for these scripts
 rm -f %{buildroot}%{_datadir}/mysql/{mysql.server,mysqld_multi.server,my-*.cnf,mysql-log-rotate}
@@ -300,6 +303,10 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-files
 
 %changelog
+* Mon Oct 19 2015 Bharathy Satish <bharathy.x.satish@oracle.com> - 5.7.10-1
+  Added new decompression utilities lz4_decompress and zlib_decompress binaries to
+  client subpackage.
+
 * Mon Jul 6 2015 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.9-1
 - Updated for 5.7.9
 

@@ -914,7 +914,7 @@ c
 1
 SELECT * FROM t2;
 s
-@
+skip-grants user@skip-grants host
 INSERT INTO t1 VALUES(2);
 SELECT * FROM t1;
 c
@@ -922,7 +922,7 @@ c
 2
 SELECT * FROM t2;
 s
-@
+skip-grants user@skip-grants host
 root@localhost
 DROP TRIGGER trg1;
 DROP TABLE t1;

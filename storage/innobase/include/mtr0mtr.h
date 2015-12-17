@@ -230,6 +230,13 @@ struct mtr_t {
 
 	~mtr_t() { }
 
+	/** Release the free extents that was reserved using
+	fsp_reserve_free_extents().  This is equivalent to calling
+	fil_space_release_free_extents().  This is intended for use
+	with index pages.
+	@param[in]	n_reserved	number of reserved extents */
+	void release_free_extents(ulint n_reserved);
+
 	/** Start a mini-transaction.
 	@param sync		true if it is a synchronous mini-transaction
 	@param read_only	true if read only mini-transaction */
