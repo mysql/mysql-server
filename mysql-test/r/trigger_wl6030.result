@@ -875,12 +875,10 @@ END|
 
 INSERT INTO t1(a) VALUES (1), (2), (3), (4), (5), (6);
 Warnings:
-Warning	1048	Column 'b' cannot be null
 Warning	1364	Field 'b' doesn't have a default value
 
 REPLACE INTO t1(a) VALUES (1), (2), (3), (4), (5), (6);
 Warnings:
-Warning	1048	Column 'b' cannot be null
 Warning	1364	Field 'b' doesn't have a default value
 
 SELECT * FROM t1;
@@ -2220,4 +2218,22 @@ Warning	1364	Field 'b' doesn't have a default value
 SET sql_mode = @sql_mode_saved;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+DROP TABLE t1;
+SET @sql_mode_saved = @@sql_mode;
+SET sql_mode='';
+CREATE TABLE t1(a INT NOT NULL, b INT NOT NULL);
+INSERT INTO t1(a) VALUES (1);
+Warnings:
+Warning	1364	Field 'b' doesn't have a default value
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1364	Field 'b' doesn't have a default value
+CREATE TRIGGER t1_trg_before_ins BEFORE INSERT ON t1 FOR EACH ROW SET NEW.a=2;
+INSERT INTO t1(a) VALUES (1);
+Warnings:
+Warning	1364	Field 'b' doesn't have a default value
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1364	Field 'b' doesn't have a default value
+SET sql_mode = @sql_mode_saved;
 DROP TABLE t1;
