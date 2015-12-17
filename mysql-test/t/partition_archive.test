@@ -135,6 +135,7 @@ CREATE TABLE t1 (fld1 INT PRIMARY KEY) ENGINE= MYISAM PARTITION BY HASH(fld1)
 PARTITIONS 5;
 SHOW CREATE TABLE t1;
 
+--replace_regex /'Unknown error -.*'/'Unknown error'/
 --error ER_GET_ERRNO
 ALTER TABLE t1 ENGINE= ARCHIVE;
 

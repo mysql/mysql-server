@@ -459,7 +459,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 --source include/set_gtid_next_gtid_mode_agnostic.inc
 if (!$gtid_mode_on)
 {
-  --replace_result \\ / 
+  --replace_result \\ /
   --replace_regex /errno: [0-9]+ - .*\)/errno: ## - ...)/
   --error ER_DB_DROP_RMDIR
   DROP DATABASE db5;

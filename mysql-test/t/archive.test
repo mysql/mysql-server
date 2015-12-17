@@ -1695,9 +1695,10 @@ CREATE TABLE t1 (c1 decimal(19,14) NOT NULL) ENGINE=ARCHIVE;
 CALL mtr.add_suppression("Found wrong key definition in #sql.* Please do \"ALTER TABLE `#sql.*` FORCE \" to fix it!");
 --replace_regex /#sql-[0-9a-f_]*/#sql-temporary/
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
+--replace_regex /'Unknown error -.*'/'Unknown error'/
 --error ER_GET_ERRNO
 CREATE INDEX i1 ON t1(c1);
---replace_regex /#sql-[0-9a-f_]*/#sql-temporary/
+--replace_regex /'Unknown error -.*'/'Unknown error'/ /#sql-[0-9a-f_]*/#sql-temporary/
 SHOW WARNINGS;
 SET sql_mode= default;
 DROP TABLE t1;

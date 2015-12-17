@@ -56,8 +56,7 @@ eval SELECT 'hello' INTO OUTFILE 'fake_file.$prefix';
 
 # Use '/' instead of '\' in the error message. On windows platform, dir is
 # formed with '\'.
---replace_regex /\\testing_1\\*/\/testing_1\//
---replace_regex /errno: [0-9]+ - .*\)/errno: ## - ...)/
+--replace_regex /\\testing_1\\*/\/testing_1\// /errno: [0-9]+ - .*\)/errno: ## - ...)/
 --error ER_DB_DROP_RMDIR
 DROP DATABASE testing_1;
 let $wait_binlog_event= DROP TABLE IF EXIST;

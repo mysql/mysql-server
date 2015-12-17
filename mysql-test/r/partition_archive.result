@@ -140,7 +140,7 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY HASH (fld1)
 PARTITIONS 5 */
 ALTER TABLE t1 ENGINE= ARCHIVE;
-ERROR HY000: Got error -1 - 'Unknown error -1' from storage engine
+ERROR HY000: Got error -1 - 'Unknown error' from storage engine
 #After the patch, the ENGINE is correctly displayed as MyISAM
 SHOW CREATE TABLE t1;
 Table	Create Table
