@@ -20731,6 +20731,35 @@ static void test_bug17883203()
   mysql_stmt_close(stmt);
 }
 
+/**
+  BUG#22336527: MYSQL_REAL_CONNECT CAN FAIL WITH SYSTEM ERROR: 4
+*/
+
+static void test_bug22336527()
+{
+  int        rc;
+  MYSQL      *l_mysql;
+  uint       opt_before= 10;
+  uint       opt_after= 0;
+
+  myheader("test_bug22336527");
+
+  /* prepare the connection */
+  l_mysql = mysql_client_init(NULL);
+  DIE_UNLESS(l_mysql != NULL);
+
+  rc= mysql_options(l_mysql, MYSQL_OPT_RETRY_COUNT, &opt_before);
+  DIE_UNLESS(rc == 0);
+
+  rc = mysql_get_option(l_mysql, MYSQL_OPT_RETRY_COUNT, &opt_after);
+  DIE_UNLESS(rc == 0);
+
+  DIE_UNLESS(opt_before == opt_after);
+
+  /* clean up */
+  mysql_close(l_mysql);
+}
+
 static struct my_tests_st my_tests[]= {
   { "disable_query_logs", disable_query_logs },
   { "test_view_sp_list_fields", test_view_sp_list_fields },
@@ -21019,6 +21048,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug20821550", test_bug20821550 },
   { "test_wl8754", test_wl8754 },
   { "test_bug17883203", test_bug17883203 },
+  { "test_bug22336527", test_bug22336527 },
   { 0, 0 }
 };
 

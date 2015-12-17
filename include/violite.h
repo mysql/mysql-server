@@ -282,7 +282,8 @@ struct st_vio
   char                  *read_end;      /* end of unfetched data */
   int                   read_timeout;   /* Timeout value (ms) for read ops. */
   int                   write_timeout;  /* Timeout value (ms) for write ops. */
-  
+  int                   retry_count;    /* Retry count */
+
   /* 
      VIO vtable interface to be implemented by VIO's like SSL, Socket,
      Named Pipe, etc.

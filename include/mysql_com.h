@@ -501,6 +501,7 @@ unsigned long my_net_read(NET *net);
 #ifdef MY_GLOBAL_INCLUDED
 void my_net_set_write_timeout(NET *net, uint timeout);
 void my_net_set_read_timeout(NET *net, uint timeout);
+void my_net_set_retry_count(NET *net, uint retry_count);
 #endif
 
 struct rand_struct {

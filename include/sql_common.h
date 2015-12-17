@@ -110,6 +110,7 @@ struct st_mysql_options_extention {
   my_bool ssl_enforce;
   char *tls_version; /* TLS version option */
   long ssl_ctx_flags; /* SSL ctx options flag */
+  unsigned int retry_count;
 };
 
 typedef struct st_mysql_methods

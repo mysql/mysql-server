@@ -4294,6 +4294,9 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     UNIXaddr.sun_family= AF_UNIX;
     strmake(UNIXaddr.sun_path, unix_socket, sizeof(UNIXaddr.sun_path)-1);
 
+    if (mysql->options.extension && mysql->options.extension->retry_count)
+      my_net_set_retry_count(net, mysql->options.extension->retry_count);
+
     if (vio_socket_connect(net->vio, (struct sockaddr *) &UNIXaddr,
                            sizeof(UNIXaddr), get_vio_connect_timeout(mysql)))
     {
@@ -4496,6 +4499,10 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       }
 
       DBUG_PRINT("info", ("Connect socket"));
+
+      if (mysql->options.extension && mysql->options.extension->retry_count)
+        my_net_set_retry_count(net, mysql->options.extension->retry_count);
+
       status= vio_socket_connect(net->vio, t_res->ai_addr,
                                  (socklen_t)t_res->ai_addrlen,
                                  get_vio_connect_timeout(mysql));
@@ -4564,6 +4571,10 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   /* If user set write_timeout, let it override the default */
   if (mysql->options.write_timeout)
     my_net_set_write_timeout(net, mysql->options.write_timeout);
+
+  /* If user set retry_count, let it override the default */
+  if (mysql->options.extension && mysql->options.extension->retry_count)
+    my_net_set_retry_count(net, mysql->options.extension->retry_count);
 
   if (mysql->options.max_allowed_packet)
     net->max_packet_size= mysql->options.max_allowed_packet;
@@ -5562,6 +5573,11 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     mysql->options.extension->enable_cleartext_plugin= 
       (*(my_bool*) arg) ? TRUE : FALSE;
     break;
+  case MYSQL_OPT_RETRY_COUNT:
+     ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+     mysql->options.extension->retry_count=
+       (*(uint*) arg);
+    break;
   case MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS:
     if (*(my_bool*) arg)
       mysql->options.client_flag|= CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS;
@@ -5598,7 +5614,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
 
   uint
     MYSQL_OPT_CONNECT_TIMEOUT, MYSQL_OPT_READ_TIMEOUT, MYSQL_OPT_WRITE_TIMEOUT,
-    MYSQL_OPT_PROTOCOL
+    MYSQL_OPT_PROTOCOL MYSQL_OPT_RETRY_COUNT
 
   my_bool
     MYSQL_OPT_COMPRESS, MYSQL_OPT_LOCAL_INFILE, MYSQL_OPT_USE_REMOTE_CONNECTION,
@@ -5730,6 +5746,10 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
     break;
   case MYSQL_OPT_SSL_CIPHER:
     *((char **)arg)= mysql->options.ssl_cipher;
+    break;
+  case MYSQL_OPT_RETRY_COUNT:
+    *((uint *)arg)= mysql->options.extension ?
+                    mysql->options.extension->retry_count : 1;
     break;
   case MYSQL_OPT_TLS_VERSION:
     *((char **)arg)= mysql->options.extension ?

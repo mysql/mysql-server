@@ -67,6 +67,7 @@ typedef int my_socket;
 extern unsigned int mysql_port;
 extern char *mysql_unix_port;
 
+#define CLIENT_NET_RETRY_COUNT          1               /* Retry count */
 #define CLIENT_NET_READ_TIMEOUT		365*24*3600	/* Timeout on read */
 #define CLIENT_NET_WRITE_TIMEOUT	365*24*3600	/* Timeout on write */
 
@@ -166,7 +167,8 @@ enum mysql_option
   MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
   MYSQL_OPT_SSL_ENFORCE,
   MYSQL_OPT_MAX_ALLOWED_PACKET, MYSQL_OPT_NET_BUFFER_LENGTH,
-  MYSQL_OPT_TLS_VERSION
+  MYSQL_OPT_TLS_VERSION,
+  MYSQL_OPT_RETRY_COUNT
 };
 
 /**

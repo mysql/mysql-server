@@ -1042,3 +1042,13 @@ void my_net_set_write_timeout(NET *net, uint timeout)
   DBUG_VOID_RETURN;
 }
 
+
+void my_net_set_retry_count(NET *net, uint retry_count)
+{
+  DBUG_ENTER("my_net_set_retry_count");
+  DBUG_PRINT("enter", ("retry_count: %d", retry_count));
+  net->retry_count= retry_count;
+  if (net->vio)
+    net->vio->retry_count= retry_count;
+  DBUG_VOID_RETURN;
+}
