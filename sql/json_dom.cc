@@ -1821,9 +1821,8 @@ Json_wrapper_object_iterator::elt() const
 }
 
 
-Json_wrapper::Json_wrapper(Json_dom *dom_value) :
-  m_is_dom(true), m_dom_alias(false), m_value(),
-  m_id(NULL), m_dom_value(dom_value)
+Json_wrapper::Json_wrapper(Json_dom *dom_value)
+  : m_dom_value(dom_value), m_dom_alias(false), m_is_dom(true)
 {
   if (!dom_value)
   {
@@ -1849,28 +1848,24 @@ void Json_wrapper::steal(Json_wrapper *old)
   }
 }
 
-Json_wrapper::Json_wrapper(const json_binary::Value &value) :
-  m_is_dom(false), m_dom_alias(false), m_value(value),
-  m_id(NULL), m_dom_value(NULL)
+Json_wrapper::Json_wrapper(const json_binary::Value &value)
+  : m_value(value), m_is_dom(false)
 {}
 
 
-Json_wrapper::Json_wrapper(const json_binary::Value &value, const char *id) :
-  m_is_dom(false), m_dom_alias(false), m_value(value),
-  m_id(id), m_dom_value(NULL)
-{}
-
-
-Json_wrapper::Json_wrapper(const Json_wrapper &old) :
-  m_is_dom(old.m_is_dom),
-  m_dom_alias(old.m_dom_alias),
-  m_value(old.m_value),
-  m_id(old.m_id),
-  m_dom_value(old.m_is_dom ?
-              (m_dom_alias? old.m_dom_value : old.m_dom_value->clone()) :
-              NULL),
-  m_tmp(old.m_tmp)
-{}
+Json_wrapper::Json_wrapper(const Json_wrapper &old)
+  : m_is_dom(old.m_is_dom)
+{
+  if (m_is_dom)
+  {
+    m_dom_alias= old.m_dom_alias;
+    m_dom_value= m_dom_alias ? old.m_dom_value : old.m_dom_value->clone();
+  }
+  else
+  {
+    m_value= old.m_value;
+  }
+}
 
 
 Json_wrapper::~Json_wrapper()
@@ -1896,29 +1891,9 @@ Json_wrapper &Json_wrapper::operator=(const Json_wrapper& from)
     delete m_dom_value;
   }
 
-  m_is_dom= from.m_is_dom;
+  // Copy the value into this.
+  new (this) Json_wrapper(from);
 
-  if (from.m_is_dom)
-  {
-    if (from.m_dom_alias)
-    {
-      m_dom_value= from.m_dom_value;
-    }
-    else
-    {
-      m_dom_value= from.m_dom_value->clone();
-    }
-
-    m_dom_alias= from.m_dom_alias;
-  }
-  else
-  {
-    m_dom_value= NULL;
-    m_value= from.m_value;
-    m_id= from.m_id;
-  }
-
-  m_tmp= from.m_tmp;
   return *this;
 }
 
@@ -1949,22 +1924,20 @@ Json_dom *Json_wrapper::clone_dom(const THD *thd)
 }
 
 
-json_binary::Value Json_wrapper::to_value()
+bool Json_wrapper::to_binary(String *str) const
 {
   if (empty())
   {
-    return json_binary::Value();
+    /* purecov: begin inspected */
+    my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
+    return true;
+    /* purecov: end */
   }
 
   if (m_is_dom)
-  {
-    if (json_binary::serialize(m_dom_value, &m_tmp))
-      return json_binary::Value(json_binary::Value::ERROR);
+    return json_binary::serialize(m_dom_value, str);
 
-    return json_binary::parse_binary(m_tmp.ptr(), m_tmp.length());
-  }
-
-  return m_value;
+  return m_value.raw_binary(str);
 }
 
 

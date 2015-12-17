@@ -1107,12 +1107,22 @@ typedef bool *warning_method(Sql_condition::enum_severity_level,
 class Json_wrapper : Sql_alloc
 {
 private:
+  /*
+    A Json_wrapper wraps either a Json_dom or a json_binary::Value,
+    never both at the same time.
+  */
+  union
+  {
+    /// The DOM representation, only used if m_is_dom is true.
+    struct {
+      Json_dom *m_dom_value;
+      /// If true, don't deallocate m_dom_value in destructor.
+      bool m_dom_alias;
+    };
+    /// The binary representation, only used if m_is_dom is false.
+    json_binary::Value m_value;
+  };
   bool m_is_dom;      //!< Wraps a DOM iff true
-  bool m_dom_alias;   //!< If true, don't deallocate in destructor
-  json_binary::Value m_value;
-  const char *m_id;   //!< Unused for now
-  Json_dom *m_dom_value;
-  String m_tmp;       //!< Area for building binary value from DOM
 
   /**
     Get the wrapped datetime value in the packed format.
@@ -1128,9 +1138,7 @@ public:
   /**
     Create an empty wrapper. Cf #empty().
   */
-  Json_wrapper() : m_is_dom(true), m_dom_alias(true), m_value(),
-                   m_id(NULL), m_dom_value(NULL)
-  {}
+  Json_wrapper() : m_dom_value(nullptr), m_dom_alias(true), m_is_dom(true) {}
 
   using Sql_alloc::operator new;
   using Sql_alloc::operator delete;
@@ -1189,13 +1197,6 @@ public:
   */
   Json_wrapper &operator=(const Json_wrapper &old);
 
-  /**
-    @param[in] value  the binary JSON value to wrap
-    @param[in] id     the pointer into the original field containing the
-                      binary JSON value.  This allows caching any DOMs
-                      built for the query, to avoid rebuilding it.
-  */
-  Json_wrapper(const json_binary::Value &value, const char *id);
   ~Json_wrapper();
 
   /**
@@ -1227,13 +1228,11 @@ public:
 
   /**
     Get the wrapped contents in binary value form.
-    The lifetime is same as that of the wrapped value iff the wrapper
-    wraps a binary value. If it is a DOM, the lifetime is the
-    same as that of the wrapper.
-
-    @return the binary value.
+    @param[in,out] str  a string that will be filled with the binary value
+    @retval false on success
+    @retval true  on error
   */
-  json_binary::Value to_value();
+  bool to_binary(String *str) const;
 
   /**
     Format the JSON value to an external JSON string in buffer in
