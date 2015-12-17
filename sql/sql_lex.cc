@@ -611,7 +611,7 @@ void lex_end(LEX *lex)
   }
   lex->plugins.clear();
 
-  delete lex->sphead;
+  sp_head::destroy(lex->sphead);
   lex->sphead= NULL;
   lex->clear_values_map();
 
@@ -3446,7 +3446,7 @@ void LEX::cleanup_lex_after_parse_error(THD *thd)
     //  Do not delete sp_head if is invoked in the context of sp execution.
     if (thd->sp_runtime_ctx == NULL)
     {
-      delete sp;
+      sp_head::destroy(sp);
       thd->lex->sphead= NULL;
     }
   }

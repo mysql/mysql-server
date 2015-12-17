@@ -465,7 +465,7 @@ Trigger::Trigger(MEM_ROOT *mem_root,
 */
 Trigger::~Trigger()
 {
-  delete m_sp;
+  sp_head::destroy(m_sp);
 }
 
 

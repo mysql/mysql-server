@@ -27,6 +27,7 @@
 #include "log.h"            // sql_print_warning
 #include "log_event.h"      // append_query_string
 #include "mysqld.h"         // trust_function_creators
+#include "psi_memory_key.h" // key_memory_sp_head_main_root
 #include "sp_cache.h"       // sp_cache_invalidate
 #include "sp_head.h"        // Stored_program_creation_ctx
 #include "sp_pcontext.h"    // sp_pcontext
@@ -783,7 +784,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   if (parse_sql(thd, & parser_state, creation_ctx) || thd->lex == NULL)
   {
     sp= thd->lex->sphead;
-    delete sp;
+    sp_head::destroy(sp);
     sp= 0;
   }
   else
@@ -923,7 +924,7 @@ db_load_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp,
     if (cur_db_changed &&
         mysql_change_db(thd, to_lex_cstring(saved_cur_db_name), true))
     {
-      delete *sphp;
+      sp_head::destroy(*sphp);
       *sphp= NULL;
       ret= SP_INTERNAL_ERROR;
       goto end;
@@ -2357,11 +2358,16 @@ sp_head *sp_start_parsing(THD *thd,
 {
   // The order is important:
   // 1. new sp_head()
+  MEM_ROOT own_root;
 
-  sp_head *sp= new sp_head(sp_type);
+  init_sql_alloc(key_memory_sp_head_main_root,
+                 &own_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
 
-  if (!sp)
+  void *rawmem= alloc_root(&own_root, sizeof(sp_head));
+  if (!rawmem)
     return NULL;
+
+  sp_head *sp= new (rawmem) sp_head(own_root, sp_type);
 
   // 2. start_parsing_sp_body()
 

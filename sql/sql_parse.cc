@@ -3885,7 +3885,7 @@ end_with_restore_list:
   /* Don't do it, if we are inside a SP */
   if (!thd->sp_runtime_ctx)
   {
-    delete lex->sphead;
+    sp_head::destroy(lex->sphead);
     lex->sphead= NULL;
   }
   /* lex->unit->cleanup() is called outside, no need to call it here */
