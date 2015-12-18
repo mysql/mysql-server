@@ -952,9 +952,9 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY LIST (`f4`)
 (PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
  PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir/' ENGINE = InnoDB) */
-t1#P#p1.ibd
-t1#P#p0.ibd
-t1#P#p1.isl
+t1#p#p1.ibd
+t1#p#p0.ibd
+t1#p#p1.isl
 t1.frm
 ALTER TABLE t1 OPTIMIZE PARTITION p0;
 Table	Op	Msg_type	Msg_text
@@ -972,9 +972,9 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY LIST (`f4`)
 (PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
  PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir/' ENGINE = InnoDB) */
-t1#P#p1.ibd
-t1#P#p0.ibd
-t1#P#p1.isl
+t1#p#p1.ibd
+t1#p#p0.ibd
+t1#p#p1.isl
 t1.frm
 ALTER TABLE t1 OPTIMIZE PARTITION p1;
 Table	Op	Msg_type	Msg_text
@@ -992,9 +992,9 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY LIST (`f4`)
 (PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
  PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir/' ENGINE = InnoDB) */
-t1#P#p1.ibd
-t1#P#p0.ibd
-t1#P#p1.isl
+t1#p#p1.ibd
+t1#p#p0.ibd
+t1#p#p1.isl
 t1.frm
 ALTER TABLE t1 REBUILD PARTITION ALL;
 SHOW CREATE TABLE t1;
@@ -1009,9 +1009,9 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY LIST (`f4`)
 (PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
  PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir' ENGINE = InnoDB) */
-t1#P#p1.ibd
-t1#P#p0.ibd
-t1#P#p1.isl
+t1#p#p1.ibd
+t1#p#p0.ibd
+t1#p#p1.isl
 t1.frm
 ALTER TABLE t1 ADD extracol VARCHAR(32) NULL;
 SHOW CREATE TABLE t1;
@@ -1027,9 +1027,9 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY LIST (`f4`)
 (PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
  PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir' ENGINE = InnoDB) */
-t1#P#p1.ibd
-t1#P#p0.ibd
-t1#P#p1.isl
+t1#p#p1.ibd
+t1#p#p0.ibd
+t1#p#p1.isl
 t1.frm
 DROP TABLE t1;
 CREATE TABLESPACE ts1 ADD DATAFILE 'MYSQL_TMP_DIR/ts1.ibd' ENGINE=Innodb;

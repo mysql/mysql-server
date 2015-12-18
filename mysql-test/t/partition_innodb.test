@@ -1016,34 +1016,44 @@ SHOW CREATE TABLE t1;
 OPTIMIZE TABLE t1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_TMP_DIR/temp_dir/test
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_DATA_DIR/test
 
 
 ALTER TABLE t1 OPTIMIZE PARTITION p0;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_TMP_DIR/temp_dir/test
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_DATA_DIR/test
 
 ALTER TABLE t1 OPTIMIZE PARTITION p1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_TMP_DIR/temp_dir/test
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_DATA_DIR/test
 
 
 ALTER TABLE t1 REBUILD PARTITION ALL;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_TMP_DIR/temp_dir/test
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_DATA_DIR/test
 
 
 ALTER TABLE t1 ADD extracol VARCHAR(32) NULL;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_TMP_DIR/temp_dir/test
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_DATA_DIR/test
 
 DROP TABLE t1;
