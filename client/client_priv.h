@@ -105,6 +105,8 @@ enum options_client
   OPT_SERVER_PUBLIC_KEY,
   OPT_ENABLE_CLEARTEXT_PLUGIN,
   OPT_CONNECTION_SERVER_ID,
+  OPT_TLS_VERSION,
+  /* Add new option above this */
   OPT_MAX_CLIENT_OPTION
 };
 

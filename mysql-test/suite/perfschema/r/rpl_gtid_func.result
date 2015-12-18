@@ -56,7 +56,7 @@ select digest, digest_text, count_star
 from performance_schema.events_statements_summary_by_digest
 where digest_text like "%in_%_digest%";
 digest	digest_text	count_star
-8ba54d63b59bcf9dbe99708ba529bfa1	SELECT ? AS `in_master_digest` 	1
+4e24df21de494e04a92b00bd4fff706f	SELECT ? AS `in_master_digest` 	1
 insert into test.marker values (2);
 **** On Slave ****
 select * from test.marker;
@@ -99,7 +99,7 @@ select digest, digest_text, count_star
 from performance_schema.events_statements_summary_by_digest
 where digest_text like "%in_%_digest%";
 digest	digest_text	count_star
-f2e83f8cc427b5a36e649eb344410b26	SELECT ? AS `in_slave_digest` 	1
+da11bb6b2668226891c201e30ac66c7c	SELECT ? AS `in_slave_digest` 	1
 **** On Master ****
 delete from performance_schema.setup_objects
 where object_schema='master';

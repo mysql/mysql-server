@@ -11,7 +11,7 @@ call mtr.add_suppression("SSL error: SSL_CTX_set_default_verify_paths failed");
 # Try to establish SSL connection : This must succeed.
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
-Ssl_cipher	DHE-RSA-AES256-SHA
+Ssl_cipher	SSL_CIPHER
 SHOW VARIABLES LIKE 'have_ssl';
 Variable_name	Value
 have_ssl	YES
@@ -28,7 +28,7 @@ Variable_name	Value
 ssl_key	server-key.pem
 # Connect using mysql client : This must succeed.
 Variable_name	Value
-Ssl_cipher	DHE-RSA-AES256-SHA
+Ssl_cipher	SSL_CIPHER
 # Case 2 : Remove server-key.pem and observe that server starts
 #          without SSL capability
 # Remove one of the certificates/keys.
@@ -46,5 +46,5 @@ have_ssl	DISABLED
 # Search for : CA certificate is self signed.;
 # Try creating SSL connection
 Variable_name	Value
-Ssl_cipher	DHE-RSA-AES256-SHA
+Ssl_cipher	SSL_CIPHER
 # Global Cleanup

@@ -6779,10 +6779,25 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
     DBUG_RETURN(0);				/* purecov: inspected */
 
 #ifndef DBUG_OFF
-  mysql_mutex_lock(&LOCK_open);
-  DBUG_ASSERT(!my_hash_search(&table_def_cache, (uchar*) cache_key,
-                              key_length));
-  mysql_mutex_unlock(&LOCK_open);
+  // In order to let purge thread callback call open_table_uncached()
+  // we cannot grab LOCK_open here, as that will cause a deadlock.
+
+  // The assert below safeguards against opening a table which is
+  // already found in the table definition cache. Iff the table will
+  // be opened in the SE below, we may get two conflicting copies of
+  // SE private data in the two table_shares.
+
+  // By only grabbing LOCK_open and check the assert only when
+  // open_in_engine is true, we safeguard the engine private data while
+  // also allowing the purge threads callbacks since they always call
+  // with open_in_engine=false.
+  if (open_in_engine)
+  {
+    mysql_mutex_lock(&LOCK_open);
+    DBUG_ASSERT(!my_hash_search(&table_def_cache, (uchar*) cache_key,
+                                key_length));
+    mysql_mutex_unlock(&LOCK_open);
+  }
 #endif
 
   share= (TABLE_SHARE*) (tmp_table+1);
@@ -9152,9 +9167,19 @@ bool fill_record(THD *thd, TABLE *table, List<Item> &fields,
 
     Field *const rfield= field->field;
     Item *const value= v++;
+
     /* If bitmap over wanted fields are set, skip non marked fields. */
     if (bitmap && !bitmap_is_set(bitmap, rfield->field_index))
       continue;
+
+    bitmap_set_bit(table->fields_set_during_insert, rfield->field_index);
+    if (insert_into_fields_bitmap)
+      bitmap_set_bit(insert_into_fields_bitmap, rfield->field_index);
+
+    /* Generated columns will be filled after all base columns are done. */
+    if (rfield->is_gcol())
+      continue;
+
     if (rfield == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
     if (value->save_in_field(rfield, false) < 0)
@@ -9162,9 +9187,6 @@ bool fill_record(THD *thd, TABLE *table, List<Item> &fields,
       my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
       goto err;
     }
-    bitmap_set_bit(table->fields_set_during_insert, rfield->field_index);
-    if (insert_into_fields_bitmap)
-      bitmap_set_bit(insert_into_fields_bitmap, rfield->field_index);
   }
 
   if (table->has_gcol() &&
@@ -9411,13 +9433,11 @@ bool fill_record(THD *thd, TABLE *table, Field **ptr, List<Item> &values,
   {
     Item *const value= v++;
     DBUG_ASSERT(field->table == table);
+
     /* If bitmap over wanted fields are set, skip non marked fields. */
     if (bitmap && !bitmap_is_set(bitmap, field->field_index))
       continue;
-    if (field == table->next_number_field)
-      table->auto_increment_field_not_null= TRUE;
-    if (value->save_in_field(field, false) == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
-      goto err;
+
     /*
       fill_record could be called as part of multi update and therefore
       table->fields_set_during_insert could be NULL.
@@ -9426,6 +9446,15 @@ bool fill_record(THD *thd, TABLE *table, Field **ptr, List<Item> &values,
       bitmap_set_bit(table->fields_set_during_insert, field->field_index);
     if (insert_into_fields_bitmap)
       bitmap_set_bit(insert_into_fields_bitmap, field->field_index);
+
+    /* Generated columns will be filled after all base columns are done. */
+    if (field->is_gcol())
+      continue;
+
+    if (field == table->next_number_field)
+      table->auto_increment_field_not_null= TRUE;
+    if (value->save_in_field(field, false) == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
+      goto err;
   }
 
   if (table->has_gcol() &&

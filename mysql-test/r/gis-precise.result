@@ -377,7 +377,7 @@ ST_astext(st_difference(ST_GeomFromText('multipoint(2 2, 3 3)'), ST_GeomFromText
 GEOMETRYCOLLECTION()
 select ST_astext(st_symdifference(ST_GeomFromText('multipoint(2 2, 3 3)'), ST_GeomFromText('multipoint(0 0, 4 4)')));
 ST_astext(st_symdifference(ST_GeomFromText('multipoint(2 2, 3 3)'), ST_GeomFromText('multipoint(0 0, 4 4)')))
-GEOMETRYCOLLECTION(MULTIPOINT((2 2),(3 3)),MULTIPOINT((0 0),(4 4)))
+MULTIPOINT((0 0),(2 2),(3 3),(4 4))
 select ST_astext(st_symdifference(ST_GeomFromText('multipoint(2 2, 3 3)'), ST_GeomFromText('multipoint(2 2, 3 3)')));
 ST_astext(st_symdifference(ST_GeomFromText('multipoint(2 2, 3 3)'), ST_GeomFromText('multipoint(2 2, 3 3)')))
 GEOMETRYCOLLECTION()

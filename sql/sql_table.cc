@@ -5871,6 +5871,26 @@ int mysql_discard_or_import_tablespace(THD *thd,
     ALTER TABLE
   */
 
+   /*
+     DISCARD/IMPORT TABLESPACE do not respect ALGORITHM and LOCK clauses.
+   */
+  if (thd->lex->alter_info.requested_lock !=
+      Alter_info::ALTER_TABLE_LOCK_DEFAULT)
+  {
+    my_error(ER_ALTER_OPERATION_NOT_SUPPORTED, MYF(0),
+             "LOCK=NONE/SHARED/EXCLUSIVE",
+             "LOCK=DEFAULT");
+    DBUG_RETURN(true);
+  }
+  else if (thd->lex->alter_info.requested_algorithm !=
+           Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT)
+  {
+    my_error(ER_ALTER_OPERATION_NOT_SUPPORTED, MYF(0),
+             "ALGORITHM=COPY/INPLACE",
+             "ALGORITHM=DEFAULT");
+    DBUG_RETURN(true);
+  }
+
   THD_STAGE_INFO(thd, stage_discard_or_import_tablespace);
 
   /*
@@ -6417,6 +6437,31 @@ static bool fill_alter_inplace_info(THD *thd,
         break;
       default:
         DBUG_ASSERT(0);
+      }
+
+      // Conversion to and from generated column is supported if stored:
+      if (field->is_gcol() != new_field->is_gcol())
+      {
+        DBUG_ASSERT((field->is_gcol() && !field->is_virtual_gcol()) ||
+                    (new_field->is_gcol() && !new_field->is_virtual_gcol()));
+        ha_alter_info->handler_flags|=
+          Alter_inplace_info::ALTER_STORED_COLUMN_TYPE;
+      }
+
+      // Modification of generation expression is supported:
+      if (field->is_gcol() && new_field->is_gcol())
+      {
+        // Modification of storage attribute is not supported
+        DBUG_ASSERT(field->is_virtual_gcol() == new_field->is_virtual_gcol());
+        if (!field->gcol_expr_is_equal(new_field))
+        {
+          if (field->is_virtual_gcol())
+            ha_alter_info->handler_flags|=
+              Alter_inplace_info::ALTER_VIRTUAL_COLUMN_TYPE;
+          else
+            ha_alter_info->handler_flags|=
+              Alter_inplace_info::ALTER_STORED_COLUMN_TYPE;
+        }
       }
 
       bool field_renamed;
@@ -8341,6 +8386,10 @@ fk_check_column_changes(THD *thd, Alter_info *alter_info,
           return FK_COLUMN_DATA_CHANGE;
         }
       }
+      DBUG_ASSERT(old_field->is_gcol() == new_field->is_gcol() &&
+                  old_field->is_virtual_gcol() == new_field->is_virtual_gcol());
+      DBUG_ASSERT(!old_field->is_gcol() ||
+                  old_field->gcol_expr_is_equal(new_field));
     }
     else
     {

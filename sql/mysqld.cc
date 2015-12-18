@@ -844,7 +844,7 @@ Query_cache query_cache;
 my_bool opt_use_ssl= 1;
 char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
      *opt_ssl_cipher= NULL, *opt_ssl_key= NULL, *opt_ssl_crl= NULL,
-     *opt_ssl_crlpath= NULL;
+     *opt_ssl_crlpath= NULL, *opt_tls_version= NULL;
 
 #ifdef HAVE_OPENSSL
 char *des_key_file;
@@ -1271,8 +1271,8 @@ void clean_up(bool print_message)
   my_tz_free();
   my_dboptions_cache_free();
   ignore_db_dirs_free();
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   servers_free(1);
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   acl_free(1);
   grant_free();
 #endif
@@ -3337,12 +3337,12 @@ static int init_ssl()
 #endif
 
     enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
-
+    long ssl_ctx_flags= process_tls_version(opt_tls_version);
     /* having ssl_acceptor_fd != 0 signals the use of SSL */
     ssl_acceptor_fd= new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
 					  opt_ssl_ca, opt_ssl_capath,
 					  opt_ssl_cipher, &error,
-                                          opt_ssl_crl, opt_ssl_crlpath);
+                                          opt_ssl_crl, opt_ssl_crlpath, ssl_ctx_flags);
     DBUG_PRINT("info",("ssl_acceptor_fd: 0x%lx", (long) ssl_acceptor_fd));
     ERR_remove_state(0);
     if (!ssl_acceptor_fd)
@@ -3857,7 +3857,13 @@ a file name for --log-bin-index option", opt_binlog_index_name);
       opt_bin_logname=my_strdup(key_memory_opt_bin_logname,
                                 buf, MYF(0));
     }
-    if (mysql_bin_log.open_index_file(opt_binlog_index_name, ln, TRUE))
+
+    /*
+      Skip opening the index file if we start with --help. This is necessary
+      to avoid creating the file in an otherwise empty datadir, which will
+      cause a succeeding 'mysqld --initialize' to fail.
+    */
+    if (!opt_help && mysql_bin_log.open_index_file(opt_binlog_index_name, ln, TRUE))
     {
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
@@ -4519,16 +4525,36 @@ int mysqld_main(int argc, char **argv)
 #ifndef _WIN32
   if ((user_info= check_user(mysqld_user)))
   {
-    /* need to change the owner of the freshly created data directory */
-    if (unlikely(opt_initialize)
 #if HAVE_CHOWN
-        && chown(mysql_real_data_home, user_info->pw_uid, user_info->pw_gid)
-#endif
-       )
+    if (unlikely(opt_initialize))
     {
-      sql_print_error("Can't change data directory owner to %s", mysqld_user);
-      unireg_abort(1);
+      /* need to change the owner of the freshly created data directory */
+      MY_STAT stat;
+      char errbuf[MYSYS_STRERROR_SIZE];
+      bool must_chown= true;
+
+      /* fetch the directory's owner */
+      if (!my_stat(mysql_real_data_home, &stat, MYF(0)))
+      {
+        sql_print_information("Can't read data directory's stats (%d): %s."
+                              "Assuming that it's not owned by the same user/group",
+                              my_errno(),
+                              my_strerror(errbuf, sizeof(errbuf), my_errno()));
+      }
+      /* Don't change it if it's already the same as SElinux stops this */
+      else if(stat.st_uid == user_info->pw_uid &&
+              stat.st_gid == user_info->pw_gid)
+        must_chown= false;
+
+      if (must_chown &&
+          chown(mysql_real_data_home, user_info->pw_uid, user_info->pw_gid)
+         )
+      {
+        sql_print_error("Can't change data directory owner to %s", mysqld_user);
+        unireg_abort(1);
+      }
     }
+#endif
 
 
 #if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)

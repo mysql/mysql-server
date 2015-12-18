@@ -2549,9 +2549,15 @@ private:
 
     Callback callback;
     bool ok = findCallback(callback, ref->senderData);
-    ndbrequire(ok);
-    ndbrequire(ref->errorCode != 0);
-    execute(signal, callback, ref->errorCode);
+    if(ok)
+    {
+      ndbrequire(ref->errorCode != 0);
+      execute(signal, callback, ref->errorCode);
+    }
+    else
+    {
+      D("handleDictRef - failed to find callback function, invalid schema transaction key"); 
+    }
   }
 
   /*

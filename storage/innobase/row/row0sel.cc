@@ -3228,9 +3228,10 @@ row_sel_store_mysql_rec(
 		if (templ->is_virtual && dict_index_is_clust(index)) {
 
 			/* Skip virtual columns if it is not a covered
-			search */
+			search or virtual key read is not requested. */
 			if (!dict_index_has_virtual(prebuilt->index)
-			    || !prebuilt->read_just_key
+			    || (!prebuilt->read_just_key
+				&& !prebuilt->m_read_virtual_key)
 			    || !rec_clust) {
 				continue;
 			}
@@ -4517,10 +4518,12 @@ row_search_mvcc(
 		DBUG_RETURN(DB_CORRUPTION);
 	}
 
-	/* We need to get the virtual row value only if this is covered
-	index scan */
+	/* We need to get the virtual column values stored in secondary
+	index key, if this is covered index scan or virtual key read is
+	requested. */
 	bool    need_vrow = dict_index_has_virtual(prebuilt->index)
-			    && prebuilt->read_just_key;
+		&& (prebuilt->read_just_key
+		    || prebuilt->m_read_virtual_key);
 
 	/*-------------------------------------------------------------*/
 	/* PHASE 0: Release a possible s-latch we are holding on the

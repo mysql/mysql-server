@@ -105,6 +105,8 @@ struct st_mysql_options_extention {
   my_bool enable_cleartext_plugin;
   /** false if it is possible to fall back on unencrypted connections */
   my_bool ssl_enforce;
+  char *tls_version; /* TLS version option */
+  long ssl_ctx_flags; /* SSL ctx options flag */
 };
 
 typedef struct st_mysql_methods

@@ -3714,6 +3714,16 @@ static Sys_var_charptr Sys_ssl_capath(
        READ_ONLY GLOBAL_VAR(opt_ssl_capath), SSL_OPT(OPT_SSL_CAPATH),
        IN_FS_CHARSET, DEFAULT(0));
 
+static Sys_var_charptr Sys_tls_version(
+       "tls_version",
+       "TLS version, permitted values are TLSv1, TLSv1.1, TLSv1.2(Only for openssl)",
+       READ_ONLY GLOBAL_VAR(opt_tls_version), SSL_OPT(OPT_TLS_VERSION),
+#ifdef HAVE_YASSL
+       IN_FS_CHARSET, "TLSv1,TLSv1.1");
+#else
+       IN_FS_CHARSET, "TLSv1,TLSv1.1,TLSv1.2");
+#endif
+
 static Sys_var_charptr Sys_ssl_cert(
        "ssl_cert", "X509 cert in PEM format (implies --ssl)",
        READ_ONLY GLOBAL_VAR(opt_ssl_cert), SSL_OPT(OPT_SSL_CERT),

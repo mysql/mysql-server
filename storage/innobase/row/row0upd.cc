@@ -1290,6 +1290,7 @@ row_upd_replace_vcol(
 	}
 
 	bool	first_v_col = true;
+	bool	is_undo_log = true;
 
 	/* We will read those unchanged (but indexed) virtual columns in */
 	if (ptr != NULL) {
@@ -1311,7 +1312,8 @@ row_upd_replace_vcol(
 
 			if (is_v) {
 				ptr = trx_undo_read_v_idx(
-					table, ptr, first_v_col, &field_no);
+					table, ptr, first_v_col, &is_undo_log,
+					&field_no);
 				first_v_col = false;
 			}
 

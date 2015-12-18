@@ -151,6 +151,15 @@ public:
 		       * ((1024 * 1024) / UNIV_PAGE_SIZE));
 	}
 
+	/** Roundoff to MegaBytes is similar as done in
+	SysTablespace::parse_units() function.
+	@return the pages when given size of file (bytes). */
+	ulint get_pages_from_size(os_offset_t size)
+	{
+		return (ulint)((size / (1024 * 1024))
+			       * ((1024 * 1024) / UNIV_PAGE_SIZE));
+	}
+
 	/**
 	@return next increment size */
 	ulint get_increment() const;

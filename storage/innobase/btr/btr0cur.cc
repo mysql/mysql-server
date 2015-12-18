@@ -6669,6 +6669,8 @@ struct btr_blob_log_check_t {
 
 		log_free_check();
 
+		DEBUG_SYNC_C("blob_write_middle_after_check");
+
 		const mtr_log_t log_mode = m_mtr->get_log_mode();
 		m_mtr->start();
 		m_mtr->set_log_mode(log_mode);
@@ -6757,6 +6759,7 @@ btr_store_big_rec_extern_fields(
 	ulint		hint_page_no;
 	ulint		i;
 	mtr_t		mtr;
+	mtr_t		mtr_bulk;
 	mem_heap_t*	heap = NULL;
 	page_zip_des_t*	page_zip;
 	z_stream	c_stream;
@@ -6823,10 +6826,7 @@ btr_store_big_rec_extern_fields(
 	}
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
-	/* Calculate the total number of pages for blob data */
-	ulint	total_blob_pages = 0;
 	const page_size_t	page_size(dict_table_page_size(index->table));
-	const ulint pages_in_extent = dict_table_extent_size(index->table);
 
 	/* Space available in compressed page to carry blob data */
 	const ulint	payload_size_zip = page_size.physical()
@@ -6835,55 +6835,6 @@ btr_store_big_rec_extern_fields(
 	/* Space available in uncompressed page to carry blob data */
 	const ulint	payload_size = page_size.physical()
 		- FIL_PAGE_DATA - BTR_BLOB_HDR_SIZE - FIL_PAGE_DATA_END;
-
-	if (page_size.is_compressed()) {
-		for (ulint i = 0; i < big_rec_vec->n_fields; i++) {
-			total_blob_pages
-				+= static_cast<ulint>
-				   (compressBound(static_cast<uLong>
-						  (big_rec_vec->fields[i].len))
-				    + payload_size_zip - 1)
-				   / payload_size_zip;
-		}
-	} else {
-		for (ulint i = 0; i < big_rec_vec->n_fields; i++) {
-			total_blob_pages += (big_rec_vec->fields[i].len
-					     + payload_size - 1)
-				/ payload_size;
-		}
-	}
-
-	const ulint	n_extents = (total_blob_pages + pages_in_extent - 1)
-		/ pages_in_extent;
-	ulint	n_reserved = 0;
-#ifdef UNIV_DEBUG
-	ulint	n_used = 0;	/* number of pages used */
-#endif /* UNIV_DEBUG */
-
-	if (op == BTR_STORE_INSERT_BULK) {
-		mtr_t	alloc_mtr;
-
-		mtr_start(&alloc_mtr);
-		alloc_mtr.set_named_space(index->space);
-
-		if (!fsp_reserve_free_extents(&n_reserved, space_id, n_extents,
-					      FSP_BLOB, &alloc_mtr)) {
-			mtr_commit(&alloc_mtr);
-			error = DB_OUT_OF_FILE_SPACE;
-			goto func_exit;
-		}
-
-		mtr_commit(&alloc_mtr);
-	} else {
-		if (!fsp_reserve_free_extents(&n_reserved, space_id, n_extents,
-					      FSP_BLOB, btr_mtr)) {
-			error = DB_OUT_OF_FILE_SPACE;
-			goto func_exit;
-		}
-	}
-
-	ut_ad(n_reserved > 0);
-	ut_ad(n_reserved == n_extents);
 
 	/* We have to create a file segment to the tablespace
 	for each field and put the pointer to the field in rec */
@@ -6918,6 +6869,7 @@ btr_store_big_rec_extern_fields(
 			buf_block_t*	block;
 			page_t*		page;
 			const ulint	commit_freq = 4;
+			ulint		r_extents;
 
 			ut_ad(page_align(field_ref) == page_align(rec));
 
@@ -6946,23 +6898,35 @@ btr_store_big_rec_extern_fields(
 				hint_page_no = prev_page_no + 1;
 			}
 
+			mtr_t	*alloc_mtr;
+
 			if (op == BTR_STORE_INSERT_BULK) {
-				mtr_t	alloc_mtr;
-
-				mtr_start(&alloc_mtr);
-				alloc_mtr.set_named_space(index->space);
-
-				block = btr_page_alloc(index, hint_page_no,
-					FSP_NO_DIR, 0, &alloc_mtr, &mtr);
-				mtr_commit(&alloc_mtr);
-
+				mtr_start(&mtr_bulk);
+				mtr_bulk.set_spaces(mtr);
+				alloc_mtr = &mtr_bulk;
 			} else {
-				block = btr_page_alloc(index, hint_page_no,
-					FSP_NO_DIR, 0, &mtr, &mtr);
+				alloc_mtr = &mtr;
+			}
+
+			if (!fsp_reserve_free_extents(&r_extents, space_id, 1,
+						      FSP_BLOB, alloc_mtr,
+						      1)) {
+
+				mtr_commit(alloc_mtr);
+				error = DB_OUT_OF_FILE_SPACE;
+				goto func_exit;
+			}
+
+			block = btr_page_alloc(index, hint_page_no, FSP_NO_DIR,
+					       0, alloc_mtr, &mtr);
+
+			alloc_mtr->release_free_extents(r_extents);
+
+			if (op == BTR_STORE_INSERT_BULK) {
+				mtr_commit(&mtr_bulk);
 			}
 
 			ut_a(block != NULL);
-			ut_ad(++n_used <= (n_reserved * pages_in_extent));
 
 			page_no = block->page.id.page_no();
 			page = buf_block_get_frame(block);
@@ -7200,13 +7164,6 @@ next_zip_page:
 		rec_offs_make_nth_extern(offsets, field_no);
 	}
 
-	/* Verify that the number of extents used is the same as the number
-	of extents reserved. */
-	ut_ad(page_zip != NULL
-	      || ((n_used + pages_in_extent - 1) / pages_in_extent
-		  == n_reserved));
-	ut_ad((n_used + pages_in_extent - 1) / pages_in_extent <= n_reserved);
-
 func_exit:
 	if (page_zip) {
 		deflateEnd(&c_stream);
@@ -7215,8 +7172,6 @@ func_exit:
 	if (heap != NULL) {
 		mem_heap_free(heap);
 	}
-
-	fil_space_release_free_extents(space_id, n_reserved);
 
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 	/* All pointers to externally stored columns in the record

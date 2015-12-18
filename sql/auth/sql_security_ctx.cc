@@ -72,8 +72,8 @@ void Security_context::skip_grants()
 
   /* privileges for the user are unknown everything is allowed */
   set_host_or_ip_ptr("", 0);
-  assign_priv_user("", 0);
-  assign_priv_host("", 0);
+  assign_priv_user(C_STRING_WITH_LEN("skip-grants user"));
+  assign_priv_host(C_STRING_WITH_LEN("skip-grants host"));
   m_master_access= ~NO_ACCESS;
 
   DBUG_VOID_RETURN;
