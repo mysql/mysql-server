@@ -186,6 +186,7 @@ def	mysql	slave_master_info	Ssl_crl	21	NULL	YES	text	65535	65535	NULL	NULL	NULL	
 def	mysql	slave_master_info	Ssl_crlpath	22	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text				The path used for Certificate Revocation List (CRL) files	
 def	mysql	slave_master_info	Ssl_key	14	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text				The name of the SSL key file.	
 def	mysql	slave_master_info	Ssl_verify_server_cert	15	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)				Whether to verify the server certificate.	
+def	mysql	slave_master_info	Tls_version	25	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text				Tls version	
 def	mysql	slave_master_info	User_name	5	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text				The user name used to connect to the master.	
 def	mysql	slave_master_info	User_password	6	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text				The password used to connect to the master.	
 def	mysql	slave_master_info	Uuid	19	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text				The master server uuid.	
@@ -546,6 +547,7 @@ NULL	mysql	slave_master_info	Retry_count	bigint	NULL	NULL	NULL	NULL	bigint(20) u
 1.0000	mysql	slave_master_info	Ssl_crlpath	text	65535	65535	utf8	utf8_bin	text
 NULL	mysql	slave_master_info	Enabled_auto_position	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
 3.0000	mysql	slave_master_info	Channel_name	char	64	192	utf8	utf8_general_ci	char(64)
+1.0000	mysql	slave_master_info	Tls_version	text	65535	65535	utf8	utf8_bin	text
 NULL	mysql	slave_relay_log_info	Number_of_lines	int	NULL	NULL	NULL	NULL	int(10) unsigned
 1.0000	mysql	slave_relay_log_info	Relay_log_name	text	65535	65535	utf8	utf8_bin	text
 NULL	mysql	slave_relay_log_info	Relay_log_pos	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned

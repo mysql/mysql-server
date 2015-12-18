@@ -6132,6 +6132,15 @@ Dbdict::execCREATE_TABLE_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  if(ERROR_INSERTED(6217))
+  {
+    ndbout_c("Delaying GSN_CREATE_TABLE_REQ");
+    sendSignalWithDelay(reference(), GSN_CREATE_TABLE_REQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
+
 
   if (check_sender_version(signal, MAKE_VERSION(6,4,0)) < 0)
   {
@@ -7827,6 +7836,14 @@ Dbdict::execDROP_TABLE_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  if(ERROR_INSERTED(6217))
+  {
+    ndbout_c("Delaying GSN_DROP_TABLE_REQ");
+    sendSignalWithDelay(reference(), GSN_DROP_TABLE_REQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
 
   if (check_sender_version(signal, MAKE_VERSION(6,4,0)) < 0)
   {
@@ -8512,6 +8529,14 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
   }
   SectionHandle handle(this, signal);
 
+  if(ERROR_INSERTED(6217))
+  {
+    ndbout_c("Delaying GSN_ALTER_TABLE_REQ");
+    sendSignalWithDelay(reference(), GSN_ALTER_TABLE_REQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
   if (check_sender_version(signal, MAKE_VERSION(6,4,0)) < 0)
   {
     jam();
@@ -10494,6 +10519,15 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
   {
     return;
   }
+  if(ERROR_INSERTED(6216))
+  {
+    ndbout_c("Delaying GSN_GET_TABINFOREQ");
+    SectionHandle handle(this, signal);
+    sendSignalWithDelay(reference(), GSN_GET_TABINFOREQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
 
   /**
    * First stage response / queueing handled here
@@ -10571,17 +10605,7 @@ Dbdict::doGET_TABINFOREQ(Signal* signal)
 {
   jam();
   GetTabInfoReq * const req = (GetTabInfoReq *)&signal->theData[0];
-
   SectionHandle handle(this, signal);
-
-  if(ERROR_INSERTED(6216))
-  {
-    ndbout_c("Delaying GSN_GET_TABINFOREQ\n");
-    sendSignalWithDelay(reference(), GSN_GET_TABINFOREQ, signal, 10000,
-                       signal->length(),
-                       &handle);
-    return;
-  }
 
   const bool useLongSig = (req->requestType & GetTabInfoReq::LongSignalConf);
   const bool byName = (req->requestType & GetTabInfoReq::RequestByName);
@@ -10805,6 +10829,15 @@ Dbdict::execLIST_TABLES_REQ(Signal* signal)
 {
   jamEntry();
   ListTablesReq * req = (ListTablesReq*)signal->getDataPtr();
+  if(ERROR_INSERTED(6220))
+  {
+    ndbout_c("Delaying LIST_TABLES_REQ");
+    SectionHandle handle(this, signal);
+    sendSignalWithDelay(reference(), GSN_LIST_TABLES_REQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
 
   Uint32 senderRef  = req->senderRef;
   Uint32 receiverVersion = getNodeInfo(refToNode(senderRef)).m_version;
@@ -11550,6 +11583,15 @@ Dbdict::execCREATE_INDX_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  if(ERROR_INSERTED(6218))
+  {
+    ndbout_c("Delaying GSN_CREATE_INDX_REQ");
+    sendSignalWithDelay(reference(), GSN_CREATE_INDX_REQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
+
 
   if (check_sender_version(signal, MAKE_VERSION(6,4,0)) < 0)
   {
@@ -12314,6 +12356,14 @@ Dbdict::execDROP_INDX_REQ(Signal* signal)
   }
   SectionHandle handle(this, signal);
 
+  if(ERROR_INSERTED(6219))
+  {
+    ndbout_c("Delaying GSN_DROP_INDX_REQ");
+    sendSignalWithDelay(reference(), GSN_DROP_INDX_REQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
   if (check_sender_version(signal, MAKE_VERSION(6,4,0)) < 0)
   {
     jam();
@@ -14843,6 +14893,14 @@ Dbdict::execINDEX_STAT_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  if(ERROR_INSERTED(6221))
+  {
+    ndbout_c("Delaying GSN_INDEX_STAT_REQ");
+    sendSignalWithDelay(reference(), GSN_INDEX_STAT_REQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
 
   const IndexStatReq req_copy =
     *(const IndexStatReq*)signal->getDataPtr();
@@ -22503,6 +22561,14 @@ Dbdict::execCREATE_FILEGROUP_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  if(ERROR_INSERTED(6218))
+  {
+    ndbout_c("Delaying CREATE_FILEGROUP_REQ");
+    sendSignalWithDelay(reference(), GSN_CREATE_FILEGROUP_REQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
 
   const CreateFilegroupReq req_copy =
     *(const CreateFilegroupReq*)signal->getDataPtr();
@@ -23102,6 +23168,14 @@ Dbdict::execDROP_FILE_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  if(ERROR_INSERTED(6219))
+  {
+    ndbout_c("Delaying GSN_DROP_FILE_REQ");
+    sendSignalWithDelay(reference(), GSN_DROP_FILE_REQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
 
   const DropFileReq req_copy =
     *(const DropFileReq*)signal->getDataPtr();
@@ -23459,6 +23533,14 @@ Dbdict::execDROP_FILEGROUP_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  if(ERROR_INSERTED(6219))
+  {
+    ndbout_c("Delaying DROP_FILEGROUP_REQ");
+    sendSignalWithDelay(reference(), GSN_DROP_FILEGROUP_REQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
 
   const DropFilegroupReq req_copy =
     *(const DropFilegroupReq*)signal->getDataPtr();
@@ -26497,6 +26579,14 @@ Dbdict::execDROP_FK_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  if(ERROR_INSERTED(6219))
+  {
+    ndbout_c("Delaying GSN_DROP_FK_REQ");
+    sendSignalWithDelay(reference(), GSN_DROP_FK_REQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
 
   const DropFKReq req_copy =
     *(const DropFKReq*)signal->getDataPtr();

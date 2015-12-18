@@ -778,6 +778,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  MASTER_RETRY_COUNT_SYM
 %token  MASTER_SERVER_ID_SYM
 %token  MASTER_SSL_CAPATH_SYM
+%token  MASTER_TLS_VERSION_SYM
 %token  MASTER_SSL_CA_SYM
 %token  MASTER_SSL_CERT_SYM
 %token  MASTER_SSL_CIPHER_SYM
@@ -2091,6 +2092,10 @@ master_def:
         | MASTER_SSL_CAPATH_SYM EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.ssl_capath= $3.str;
+          }
+        | MASTER_TLS_VERSION_SYM EQ TEXT_STRING_sys_nonewline
+          {
+            Lex->mi.tls_version= $3.str;
           }
         | MASTER_SSL_CERT_SYM EQ TEXT_STRING_sys_nonewline
           {
@@ -7792,8 +7797,22 @@ ident_or_empty:
         ;
 
 alter_commands:
-          /* empty */
-        | DISCARD TABLESPACE_SYM
+          alter_command_list
+        | alter_command_list partitioning
+        | alter_command_list remove_partitioning
+        | standalone_alter_commands
+        | alter_commands_modifier_list ',' standalone_alter_commands
+        ;
+
+alter_command_list:
+	  /* empty */
+        | alter_commands_modifier_list
+        | alter_list
+        | alter_commands_modifier_list ',' alter_list
+        ;
+
+standalone_alter_commands:
+          DISCARD TABLESPACE_SYM
           {
             Lex->m_sql_cmd= new (YYTHD->mem_root)
               Sql_cmd_discard_import_tablespace(
@@ -7809,12 +7828,6 @@ alter_commands:
             if (Lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
-        | alter_list
-          opt_partitioning
-        | alter_list
-          remove_partitioning
-        | remove_partitioning
-        | partitioning
 /*
   This part was added for release 5.1 by Mikael Ronström.
   From here we insert a number of commands to manage the partitions of a
@@ -8073,6 +8086,12 @@ alt_part_name_item:
 alter_list:
           alter_list_item
         | alter_list ',' alter_list_item
+        | alter_list ',' alter_commands_modifier
+        ;
+
+alter_commands_modifier_list:
+          alter_commands_modifier
+        | alter_commands_modifier_list ',' alter_commands_modifier
         ;
 
 add_column:
@@ -8278,12 +8297,15 @@ alter_list_item:
             LEX *lex=Lex;
             lex->alter_info.flags|= Alter_info::ALTER_ORDER;
           }
-        | alter_algorithm_option
-        | alter_lock_option
         | UPGRADE_SYM PARTITIONING_SYM
           {
             Lex->alter_info.flags|= Alter_info::ALTER_UPGRADE_PARTITIONING;
           }
+        ;
+
+alter_commands_modifier:
+          alter_algorithm_option
+        | alter_lock_option
         | alter_opt_validation
         ;
 
@@ -13410,6 +13432,7 @@ keyword_sp:
         | MASTER_SSL_SYM           {}
         | MASTER_SSL_CA_SYM        {}
         | MASTER_SSL_CAPATH_SYM    {}
+        | MASTER_TLS_VERSION_SYM   {}
         | MASTER_SSL_CERT_SYM      {}
         | MASTER_SSL_CIPHER_SYM    {}
         | MASTER_SSL_CRL_SYM       {}

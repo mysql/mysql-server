@@ -628,19 +628,21 @@ private:
    */
   int64 get_upgrade_info_file_name(char* name)
   {
-    string datadir;
     bool exists;
 
-    int64 res= Show_variable_query_extractor::get_variable_value(
-      this->m_query_runner, "datadir", datadir, exists);
-
-    res |= !exists;
-    if (res != 0)
+    if (m_datadir.empty())
     {
-      return res;
+      int64 res= Show_variable_query_extractor::get_variable_value(
+        this->m_query_runner, "datadir", m_datadir, exists);
+
+      res |= !exists;
+      if (res != 0)
+      {
+        return res;
+      }
     }
 
-    fn_format(name, "mysql_upgrade_info", datadir.c_str(), "", MYF(0));
+    fn_format(name, "mysql_upgrade_info", m_datadir.c_str(), "", MYF(0));
 
     return 0;
   }
@@ -931,6 +933,7 @@ private:
 
   MYSQL* m_mysql_connection;
   Mysql_query_runner* m_query_runner;
+  string m_datadir;
   bool m_write_binlog;
   bool m_upgrade_systables_only;
   bool m_skip_sys_schema;

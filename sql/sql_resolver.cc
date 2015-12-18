@@ -460,8 +460,8 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune)
       check_only_full_group_by() cannot run, any error will be raised only
       when the view is later used (SELECTed...)
     */
-    if ((thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY) &&
-        (is_distinct() || is_grouped()) &&
+    if ((is_distinct() || is_grouped()) &&
+        (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY) &&
         check_only_full_group_by(thd))
       DBUG_RETURN(true);
   }
@@ -3335,10 +3335,7 @@ bool SELECT_LEX::check_only_full_group_by(THD *thd)
     free_root(&root, MYF(0));
   }
 
-  if (!rc &&
-      is_distinct() &&
-      // aggregate without GROUP => single-row result => don't bother user
-      !(!group_list.elements && agg_func_used()))
+  if (!rc && is_distinct())
   {
     Distinct_check dc(this);
     rc= dc.check_query(thd);
@@ -3634,11 +3631,29 @@ void SELECT_LEX::delete_unused_merged_columns(List<TABLE_LIST> *tables)
            transl < tl->field_translation_end;
            transl++)
       {
-        DBUG_ASSERT(transl->item->fixed);
-        if (transl->item->has_subquery() && !transl->item->is_derived_used())
+        Item *const item= transl->item;
+
+        DBUG_ASSERT(item->fixed);
+        if (!item->has_subquery())
+          continue;
+
+        /*
+          All used columns selected from derived tables are already marked
+          as such. But unmarked columns may still refer to other columns
+          from underlying derived tables, and in that case we cannot
+          delete these columns as they share the same items.
+          Thus, dive into the expression and mark such columns as "used".
+          (This is a bit incorrect, as only a part of its underlying expression
+          is "used", but that has no practical meaning.)
+        */
+        if (!item->is_derived_used() &&
+            item->walk(&Item::propagate_derived_used, Item::WALK_POSTFIX, NULL))
+          item->set_derived_used();
+
+        if (!item->is_derived_used())
         {
-          transl->item->walk(&Item::clean_up_after_removal,
-                             walk_subquery, (uchar *)this);
+          item->walk(&Item::clean_up_after_removal, walk_subquery,
+                     pointer_cast<uchar *>(this));
           transl->item= NULL;
         }
       }

@@ -478,7 +478,7 @@ public:
     void SetUserData(void*);
     void SetSessionCacheOff();
     void SetSessionCacheFlushOff();
-   
+    void SetMethod(SSL_METHOD* meth);
     void            IncrementStats(StatsField);
     void            AddCA(x509* ca);
     const CertList& GetCA_List() const;

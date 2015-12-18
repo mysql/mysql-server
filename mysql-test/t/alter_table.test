@@ -2702,3 +2702,54 @@ CREATE TABLE t1 (a INT PRIMARY KEY, b INT,
 ALTER TABLE t1 RENAME INDEX b TO w, ADD FOREIGN KEY (b) REFERENCES t1(a);
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#22017616: ASSERTION FAILED: TABLE_SHARE->IS_MISSING_PRIMARY_KEY()
+--echo # == M_PREBUILT->CLUST_IND
+--echo #
+--echo # Ensure that adding indexes with virtual columns are not promoted to
+--echo # primary keys
+--echo #
+--echo # Base line with normal column - should be promoted
+CREATE TABLE t0(a INT NOT NULL) ENGINE=INNODB;
+ALTER TABLE t0 ADD UNIQUE INDEX (a);
+
+--echo # Case a: Create table with virtual unique not null column
+CREATE TABLE t1(a POINT GENERATED ALWAYS AS (POINT(1,1)) VIRTUAL UNIQUE NOT NULL) ENGINE=INNODB;
+SELECT * FROM t1;
+
+--echo # Case b: Create table with index on virtual point column
+CREATE TABLE t2(a POINT GENERATED ALWAYS AS (POINT(1,1)) VIRTUAL NOT NULL, UNIQUE INDEX no_pk(a(1))) ENGINE=INNODB;
+SELECT * FROM t2;
+
+--echo # Case c: Add unique index on virtual point column
+CREATE TABLE t3(a POINT GENERATED ALWAYS AS (POINT(1,1)) VIRTUAL NOT NULL)
+ENGINE=INNODB;
+ALTER TABLE t3 ADD UNIQUE INDEX (a(1));
+SELECT * FROM t3;
+
+--echo # Case d: Add unique index on virtual blob column
+CREATE TABLE t4 (a BLOB, b BLOB GENERATED ALWAYS AS (a) VIRTUAL NOT NULL) ENGINE=INNODB;
+ALTER TABLE t4 ADD UNIQUE INDEX (b(1));
+SELECT * FROM t4;
+
+--echo # Query I_S to verify that 'a' is promoted to pk only when it
+--echo # isn't virtual
+SELECT T.NAME AS TABLE_NAME, I.NAME AS INDEX_NAME,
+       CASE (I.TYPE & 3)
+            WHEN 3 THEN "yes"
+            ELSE "no" END AS IS_PRIMARY_KEY,
+       F.NAME AS FIELD_NAME, F.POS AS FIELD_POS FROM
+              INFORMATION_SCHEMA.INNODB_SYS_TABLES AS T JOIN
+              INFORMATION_SCHEMA.INNODB_SYS_INDEXES AS I JOIN
+              INFORMATION_SCHEMA.INNODB_SYS_FIELDS AS F
+              ON I.INDEX_ID = F.INDEX_ID AND I.TABLE_ID = T.TABLE_ID
+       WHERE T.NAME LIKE 'test/%';
+
+
+DROP TABLE t0;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;

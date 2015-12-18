@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,6 +63,10 @@ void Mysql_connection_options::Ssl_options::create_options()
       Mysql_connection_options::Ssl_options>(callback));
   this->create_new_option(&::opt_ssl_crlpath, "ssl-crlpath",
       "Certificate revocation list path.")
+    ->add_callback(new Instance_callback<void, char*,
+      Mysql_connection_options::Ssl_options>(callback));
+  this->create_new_option(&::opt_tls_version, "tls-version",
+      "TLS version to use.")
     ->add_callback(new Instance_callback<void, char*,
       Mysql_connection_options::Ssl_options>(callback));
 

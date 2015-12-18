@@ -24,7 +24,9 @@
 */
 
 /**
-   @page AGGREGATE_CHECKS ONLY_FULL_GROUP_BY Checks for some semantic constraints on queries using GROUP BY, or aggregate functions, or DISTINCT.
+  @defgroup AGGREGATE_CHECKS Aggregate checks of ONLY_FULL_GROUP_BY
+
+Checks for some semantic constraints on queries using GROUP BY, or aggregate functions, or DISTINCT.
 
 We call "aggregation" the operation of taking a group of rows and replacing
 it with a single row. There are three types of aggregation: DISTINCT,
@@ -34,8 +36,8 @@ This text describes MySQL's checks (why certain queries are rejected) and the
 rationale behind them.
 
 References:
-@li WL#2489 "better only_full_group_by".
-@li if you have access to the SQL standard, we recommend those parts of
+- WL#2489 "better only_full_group_by".
+- if you have access to the SQL standard, we recommend the following parts of
 "SQL2011 Foundation": query expression Syntax rule 28; column reference Syntax
 rule 7 and Conformance rule 2; 4.19 functional dependencies.
 
@@ -71,8 +73,8 @@ ordering. In the end, we have arbitrary ordering, which is problematic.
 To prevent this, if, in a query block 'sl', an ORDER BY expression
 is not the same expression as one in the SELECT list of 'sl'
 and contains a column which:
-@li is of a table whose qualifying query block is 'sl'
-@li and is not in the SELECT list of 'sl'
+- is of a table whose qualifying query block is 'sl'
+- and is not in the SELECT list of 'sl'
 
 then 'sl' should not have DISTINCT.
 This rule makes the query above invalid.
@@ -152,12 +154,19 @@ Here are the functional dependencies which we recognize.
 
 @subsection KEYFD Key-based, in a base table
 
+A key in this text is a unique constraint made of only non-NULLable
+columns. For example, a primary key.
 Considering a base table T, if two rows have the same values of all columns of
-a primary key of T they are actually one single row, so:
-{ all columns of PK} -> { T.* } (notation: what is on the right of the arrow
+a key of T they are actually one single row, so:
+{ all columns of key} -> { T.* } (notation: what is on the right of the arrow
 is functionally dependent on what is on the left).
-Likewise, if U is a unique key of T, and made of only non-nullable columns:
-{ all columns of U} -> { T.* } .
+
+@subsection GCOLFD Generated-column-based, in a base table
+
+Considering a base table T, a generated column is functionally dependent on
+the set of columns it references (the so-called parametric
+columns). Note that the SQL standard doesn't allow a parametric column
+to be a generated column, but MySQL does.
 
 @subsection INNEREQ Equality-based, in the result of an inner join
 
@@ -172,9 +181,9 @@ are forbidden by MySQL in join conditions).
 
 Assuming that C is a conjunction (i.e. is made of one or more conditions,
                                   "conjuncts", chained together with AND):
-@li If one conjunct is of the form T1.A=constant, then {} -> {A} holds in R (the
+- If one conjunct is of the form T1.A=constant, then {} -> {A} holds in R (the
 value of A is "the constant" in all rows of R).
-@li If one conjunct is of the form T1.A=T2.B, then {T1.A} -> {T2.B} (and vice
+- If one conjunct is of the form T1.A=T2.B, then {T1.A} -> {T2.B} (and vice
 versa) holds in R (the value of T2.B is that of T1.A in all rows of R).
 
 @subsection OUTEREQ Equality-based, in the result of an outer join
@@ -185,8 +194,8 @@ said to be the weak table (the one which might be NULL-complemented in the
 result of this join).
 To make this really clear, note that, if we have
 "t1 left join (t2 left join t3 on C) on D":
-@li in the t2-t3 join, t2 is strong and t3 is weak.
-@li in the t1-(t2-t3) join, t1 is strong, t2 is weak, t3 is weak.
+- in the t2-t3 join, t2 is strong and t3 is weak.
+- in the t1-(t2-t3) join, t1 is strong, t2 is weak, t3 is weak.
 
 If C is deterministic and one conjunct is of the form TW.A=constant or
 TW.A=TS.B, then DJS -> {TW.A} holds in R, where DJS is the set of all columns
@@ -194,27 +203,27 @@ of TS referenced by C.
 Proof: consider in R two rows r1 and r2 which have the same values of DJS
 columns. Consider r1. There are two possibilities when r1 was built from a row
 of TS:
-@li no row in TW matched the row of TS (for no row of TW has C been true): so,
+- no row in TW matched the row of TS (for no row of TW has C been true): so,
 r1 is NULL-complemented for the columns of TW. Given that r2 has the same
 values of DJS columns as r1, and given that C is deterministic, it is sure
 that no row in TW matched when r2 was built. So r2 is also NULL-complemented
 for the columns of TW. So r1 and r2 have the same value of TW.A (NULL).
-@li At least one row in TW matched: so, r1 contains real values from TW (not
+- At least one row in TW matched: so, r1 contains real values from TW (not
 NULL-complemented), matching C, and thus TW.A in r1 is equal to the constant
 or to TS.B. Following the same reasoning as above, it is sure that it is also
 the case for r2.
-@li In conclusion, we can see that r1 and r2 always have the same value of
+- In conclusion, we can see that r1 and r2 always have the same value of
 TW.A.
 
 If one conjunct is of the form TW.A=TW.B then {TW.A} -> {TW.B} holds in R
 Proof: consider r1 and r2 two rows in R having the same value of TW.A. Two
 cases are possible:
-@li this value is NULL. Then both rows are NULL-complemented (if not, the
+- this value is NULL. Then both rows are NULL-complemented (if not, the
 value of TW.A in TW would be NULL, which cannot match in an equality, so C is
 not true, which is absurd). Thus, in r1 and r2 TW.B is NULL.
-@li This value is not NULL. Then both rows are not NULL-complemented, C
+- This value is not NULL. Then both rows are not NULL-complemented, C
 matched for both, so TW.B in r1/r2 is equal to TW.A in r1/r2.
-@li In conclusion, r1 and r2 have the same value of TW.B.
+- In conclusion, r1 and r2 have the same value of TW.B.
 
 @subsection WHEREEQ Equality-based, in the result of a WHERE clause
 
@@ -232,32 +241,32 @@ Proof: trivial.
 The same is not necessarily true for TW.
 Let's define a "NULL-friendly functional dependency" (NFFD) as a functional
 dependency between two sets A and B, which has two properties:
-@li A is not empty
-@li if, in a row, all values of A are NULL, then all values of B are NULL.
+- A is not empty
+- if, in a row, all values of A are NULL, then all values of B are NULL.
 
 All NFFDs in TW are also NFFDs in R.
-Proof: consider a NFFD A -> B in TW, and r1 and r2 two rows in R having the
+Proof: consider an NFFD A -> B in TW, and r1 and r2 two rows in R having the
 same values of A columns. Two cases are possible:
-@li In r1 and r2, at least one value of A is not NULL. Then r1 is not
+- In r1 and r2, at least one value of A is not NULL. Then r1 is not
 NULL-complemented. Its values for A and B come from TW. By application of the
 functional dependency in TW, because values in A are equal in TW, values in B
 are equal in TW and thus in r1/r2.
-@li In r1 and r2, all values of A are NULL. Two cases are possible:
+- In r1 and r2, all values of A are NULL. Two cases are possible:
 i) r1 is not NULL-complemented.  Its values for A and B come from TW. In the
 row of TW values of A are all NULL. Because the functional dependency in
 NULL-friendly, all values of B are NULL in the row of TW and thus in r1.
 ii) r1 is NULL-complemented. Then all values of B in r1 are NULL.
 iii) In conclusion, all values of B in r1 are NULL. The same reasoning applies
 to r2. So, values of B are identical (NULL) in r1 and r2.
-@li In conclusion, values of B are identical in r1/r2, we have proved that
+- In conclusion, values of B are identical in r1/r2, we have proved that
 this is a functional dependency in R, and a NULL-friendly one.
 
-The concept of a NFFD is Guilhem's invention. It was felt it was necessary, to
+The concept of an NFFD is Guilhem's invention. It was felt it was necessary, to
 have easy propagation of FDs from TW to R. It was preferred to the
 alternative, simpler rule which says that a functional dependency A-> B in TW
 is also a functional dependency in R if A contains a non-nullable
 column. There are two points to note:
-- the functional dependency of the simpler rule is a NFFD, so our rule is not
+- the functional dependency of the simpler rule is an NFFD, so our rule is not
 more restrictive than the simpler one
 - this simpler rule prevents free propagation of functional dependencies
 through join nests, which complicates implementation and leads to rejecting
@@ -296,9 +305,12 @@ side of an outer join.
 
 @subsection NFFDS Which functional dependencies are NULL-friendly
 
-A functional dependency A -> B in the base table is NULL-friendly, because it
-is based on a key and there can never be a NULL value in A by definition of
-the key.
+A key-based functional dependency A -> B in the base table is NULL-friendly,
+because, by definition, there can never be a NULL value in any column of A.
+
+A functional dependency A -> B in a base table, between parametric columns A
+and a generated column B, is not NULL-friendly; for more details, see
+@ref FDVIEW .
 
 A functional dependency A->B in the result of T1 JOIN T2 ON C, if based on
 equality of two columns, is NULL-friendly. Indeed, A is not empty and if there
@@ -315,17 +327,17 @@ A functional dependency in the result of TS LEFT JOIN TW ON C, if based on
 equality of two columns, is NULL-friendly.
 Proof: let's consider, in turn, the two types of equality-based functional
 dependencies which exist in this result R. Let r1 be a row of R.
-@li If C is deterministic and one conjunct is of the form TW.A=constant or
+- If C is deterministic and one conjunct is of the form TW.A=constant or
 TW.A=TS.B, then DJS -> {TW.A} holds in R, where DJS is the set of all columns
 of TS referenced by C. For NULL-friendliness, we need DJS to not be
 empty. Thus, we exclude the form TW.A= constant and consider only
 TW.A=TS.B. We suppose that in r1 DJS contains all NULLs. Conjunct is TW.A=TS.B
 then this equality is not true, so r1 is NULL-complemented: TW.A is NULL in
 r1.
-@li If one conjunct is of the form TW.A=TW.B then {TW.A} -> {TW.B} holds in
+- If one conjunct is of the form TW.A=TW.B then {TW.A} -> {TW.B} holds in
 R. If in r1 TW.A is NULL, again the equality in C is not true, and TW.B is
 NULL in R1.
-@li In conclusion, this is NULL-friendly.
+- In conclusion, this is NULL-friendly.
 
 A functional dependency in the result of a WHERE clause, if based on equality
 of two columns, is NULL-friendly. If based on T1.A=constant, it is not, as it
@@ -333,7 +345,7 @@ has an empty set of source columns.
 
 Summary: all functional dependencies which we have seen so far are
 NULL-friendly, except those inferred from TW.A=constant in an outer join
-condition or in a WHERE clause.
+condition or in a WHERE clause, and those about generated columns.
 
 Thus, in the query with T1-T2-T3 previously seen, T3.PK->T3.A is
 NULL-friendly and propagates, query is accepted.
@@ -341,11 +353,11 @@ NULL-friendly and propagates, query is accepted.
 In our implementation, we take special care of TW.A=constant in an outer join
 condition: we infer a functional dependency DJS->TW.A from such equality only
 if one of these requirements are met:
-@li the join nest "TS LEFT JOIN TW ON TW.A=constant [AND...]" is not on the
+- the join nest "TS LEFT JOIN TW ON TW.A=constant [AND...]" is not on the
 weak side of any embedding join nest - in that case, propagation will not meet
 any weak tables so we do not need the dependency to be NULL-friendly, it will
 propagate anyway.
-@li DJS contains at least one column from a strong-side table which, if NULL,
+- DJS contains at least one column from a strong-side table which, if NULL,
 makes the join condition not evaluate to TRUE - in that case, DJS->TW.A is
 NULL-friendly.
 
@@ -386,6 +398,10 @@ deterministic expression depending only on VE1 and VE2, then {C1, C2} ->
 It is not always NULL-friendly, for example: VE3 could be COALESCE(VE1,VE2,3):
 if VE1 (C1) and VE2 (C2) are NULL, VE3 (C3) is 3: not NULL. Another example:
 VE3 could be a literal; {}->{C3}, the left set is empty.
+The same examples apply to a generated column in a base table - it is like a
+merged view's expression. For example, in a base table T which has a generated
+column C3 AS COALESCE(C1,C2,3): {C1, C2} -> { C3 } holds in T but is not
+NULL-friendly.
 
 If VS is a grouped query (which, in MySQL, implies that the view is
 materialized), then in the result of the grouping there is a functional
@@ -408,25 +424,26 @@ and the case of T1.A=constant in the WHERE clause of VS.
 
 Thus, when we know of a functional dependency A -> B in the query expression
 of a view, we deduce from it a functional dependency in the view only if:
-@li this view is not on the weak side of any embedding join nest (so
+- this view is not on the weak side of any embedding join nest (so
 NULL-friendliness is not required for propagation).
-@li or A contains at least one non-nullable expression, which makes A -> B
+- or A contains at least one non-nullable expression, which makes A -> B
 NULL-friendly.
 
-Implementation of view merging makes it difficult to use rule above for a
-merged view. Indeed, if the view is merged, it is difficult to identify in
-which join nest it was and what its columns were [this may be solvable after
-WL#5275 is pushed, using Item_view_ref::cached_table]. So, for a merged view,
-we use a different rule:
-@li a merged view is similar to a join nest inserted in the parent query, so
+The above is fine for materialized views. For merged views, we cannot study the
+query expression of the view, it has been merged (and scattered), so we use a
+different rule:
+- a merged view is similar to a join nest inserted in the parent query, so
 for dependencies based on keys or join conditions, we simply follow
 propagation rules of the non-view sections.
-@li For expression-based dependencies (VE3 depends on VE1 and VE2), which may
-not be NULL-friendly, we determine (approximately - using slightly too broad
-criteria) whether the view belongs to some embedding join nest which is on the
-weak side of some outer join, and if it does, we require that the left set be
-non-empty and that if VE1 and VE2 are NULL then VE3 must be NULL, which makes
-the dependency NULL-friendly.
+- For expression-based dependencies (VE3 depends on VE1 and VE2, VE3
+belonging to the view SELECT list), which may not be NULL-friendly, we require
+- the same non-weak-side criterion as above
+- or that the left set of the dependency be non-empty and that if VE1 and
+VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
+- The same solution is used for generated columns in a base table.
+
+  @{
+
 */
 
 #include "my_global.h"
@@ -569,8 +586,13 @@ private:
   st_select_lex *const select;
 
   /**
-     "Underlying" == view or derived table, both merged or materialized.
+     "Underlying" == expressions which are underlying in an identifier.
+     The identifier can be a column of a view or derived table, both merged or
+     materialized, or a generated column: all of those have an underlying
+     expression.
      "Materialized table (mat table)" == view or derived table, materialized.
+     If this is true, is_in_fd() will look for FDs in underlying expressions
+     of columns.
   */
   bool search_in_underlying;
 
@@ -680,3 +702,4 @@ private:
 };
 
 #endif
+/// @} (end of group AGGREGATE_CHECKS ONLY_FULL_GROUP_BY)

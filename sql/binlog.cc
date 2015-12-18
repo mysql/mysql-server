@@ -6400,7 +6400,10 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
       written to the binary log.
    */
   while (get_prep_xids() > 0)
+  {
+    DEBUG_SYNC(current_thd, "before_rotate_binlog_file");
     mysql_cond_wait(&m_prep_xids_cond, &LOCK_xids);
+  }
   mysql_mutex_unlock(&LOCK_xids);
 
   mysql_mutex_lock(&LOCK_index);
@@ -6489,6 +6492,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
      Note that at this point, log_state != LOG_CLOSED (important for is_open()).
   */
 
+  DEBUG_SYNC(current_thd, "before_rotate_binlog_file");
   /*
      new_file() is only used for rotation (in FLUSH LOGS or because size >
      max_binlog_size or max_relay_log_size).
@@ -8413,8 +8417,24 @@ MYSQL_BIN_LOG::sync_binlog_file(bool force)
   if (force || (sync_period && ++sync_counter >= sync_period))
   {
     sync_counter= 0;
+
+    /**
+      On *pure non-transactional* workloads there is a small window
+      in time where a concurrent rotate might be able to close
+      the file before the sync is actually done. In that case,
+      ignore the bad file descriptor errors.
+
+      Transactional workloads (InnoDB) are not affected since the
+      the rotation will not happen until all transactions have
+      committed to the storage engine, thence decreased the XID
+      counters.
+
+      TODO: fix this properly even for non-transactional storage
+            engines.
+     */
     if (DBUG_EVALUATE_IF("simulate_error_during_sync_binlog_file", 1,
-                         mysql_file_sync(log_file.file, MYF(MY_WME))))
+                         mysql_file_sync(log_file.file,
+                                         MYF(MY_WME | MY_IGNORE_BADFD))))
     {
       THD *thd= current_thd;
       thd->commit_error= THD::CE_SYNC_ERROR;

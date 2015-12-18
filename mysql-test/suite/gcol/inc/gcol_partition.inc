@@ -146,3 +146,15 @@ SELECT c FROM t WHERE d >= 1 GROUP BY d LIMIT 2;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#21779554: CHECK_MISPLACED_ROWS BOGUS "FOUND A MISPLACED ROW"
+--echo #               AND CRASHES
+--echo #
+CREATE TABLE t(a INT,b INT GENERATED ALWAYS AS (1) VIRTUAL,c INT)
+PARTITION BY KEY (b)PARTITIONS 6;
+INSERT INTO t VALUES();
+CHECK TABLE t EXTENDED;
+FLUSH TABLES;
+CHECK TABLE t EXTENDED;
+DROP TABLE t;

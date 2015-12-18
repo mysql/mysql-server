@@ -5615,26 +5615,6 @@ ha_innobase::open(
 		no_tablespace = false;
 	}
 
-	if (dict_table_has_fts_index(ib_table)) {
-
-		/* Check if table is in a consistent state.
-		Crash during truncate can put table in an inconsistent state. */
-		trx_t*	trx = innobase_trx_allocate(ha_thd());
-		bool	sane = fts_is_corrupt(ib_table, trx);
-		innobase_commit_low(trx);
-		trx_free_for_mysql(trx);
-		trx = NULL;
-
-		if (!sane) {
-			/* In-consistent fts index found. */
-			free_share(m_share);
-			set_my_errno(ENOENT);
-
-			dict_table_close(ib_table, FALSE, FALSE);
-			DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
-		}
-	}
-
 	if (!thd_tablespace_op(thd) && no_tablespace) {
 		free_share(m_share);
 		set_my_errno(ENOENT);
@@ -6872,11 +6852,6 @@ ha_innobase::build_template(
 				    && !dict_index_contains_col_or_prefix(
 					m_prebuilt->index, num_v, true))
 				{
-					ut_ad(!bitmap_is_set(
-						table->read_set, i));
-					ut_ad(!bitmap_is_set(
-						table->write_set, i));
-
 					num_v++;
 					continue;
 				}
@@ -11378,7 +11353,9 @@ create_table_info_t::create_table()
 				"Create table '%s' with foreign key constraint"
 				" failed. Cannot add foreign key constraint"
 				" placed on the base column of indexed"
-				" virtual column.\n", m_table_name);
+				" virtual column, or constraint placed"
+				" on columns being part of virtual index.\n",
+				m_table_name);
 			break;
 		default:
 			break;
@@ -19399,6 +19376,24 @@ static MYSQL_SYSVAR_BOOL(disable_resize_buffer_pool_debug,
   "Disable resizing buffer pool to make assertion code not expensive.",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_BOOL(page_cleaner_disabled_debug,
+  innodb_page_cleaner_disabled_debug,
+  PLUGIN_VAR_OPCMDARG,
+  "Disable page cleaner",
+  NULL, buf_flush_page_cleaner_disabled_debug_update, FALSE);
+
+static MYSQL_SYSVAR_BOOL(dict_stats_disabled_debug,
+  innodb_dict_stats_disabled_debug,
+  PLUGIN_VAR_OPCMDARG,
+  "Disable dict_stats thread",
+  NULL, dict_stats_disabled_debug_update, FALSE);
+
+static MYSQL_SYSVAR_BOOL(master_thread_disabled_debug,
+  srv_master_thread_disabled_debug,
+  PLUGIN_VAR_OPCMDARG,
+  "Disable master thread",
+  NULL, srv_master_thread_disabled_debug_update, FALSE);
+
 static MYSQL_SYSVAR_BOOL(sync_debug, srv_sync_debug,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Enable the sync debug checks",
@@ -19569,6 +19564,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(saved_page_number_debug),
   MYSQL_SYSVAR(compress_debug),
   MYSQL_SYSVAR(disable_resize_buffer_pool_debug),
+  MYSQL_SYSVAR(page_cleaner_disabled_debug),
+  MYSQL_SYSVAR(dict_stats_disabled_debug),
+  MYSQL_SYSVAR(master_thread_disabled_debug),
   MYSQL_SYSVAR(sync_debug),
 #endif /* UNIV_DEBUG */
   NULL
@@ -19934,9 +19932,8 @@ innobase_get_computed_value(
 				vctempl->mysql_col_len, blob_mem, max_len);
                 }
 
-		ret = handler::my_eval_gcolumn_expr(
-			current_thd, false,
-			index->table->vc_templ->db_name.c_str(),
+		ret = handler::my_eval_gcolumn_expr_with_open(
+			current_thd, index->table->vc_templ->db_name.c_str(),
 			index->table->vc_templ->tb_name.c_str(), &column_map,
 			(uchar *)mysql_rec);
         } else {

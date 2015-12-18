@@ -1,0 +1,34 @@
+#
+# WL#8196 TLSv1.2 support
+#
+#T1: Default TLS connection
+Variable_name	Value
+Ssl_version	TLS_VERSION
+#T2: Default SSL cipher
+Variable_name	Value
+Ssl_cipher	SSL_CIPHER
+#T3: Setting TLS version TLSv1.2 (for yassl TLSv1.1) from the client
+Variable_name	Value
+Ssl_version	TLS_VERSION
+#T4: Setting TLS version TLSv1.1 from the client
+Variable_name	Value
+Ssl_version	TLSv1.1
+#T5: Setting TLS version TLSv1 from the client
+Variable_name	Value
+Ssl_version	TLSv1
+#T6: Setting TLS version TLSv1, TLSv1.1 from the client
+Variable_name	Value
+Ssl_version	TLSv1.1
+#T7: Setting invalid TLS version value from the client, it should give error.
+#T8: Cipher which is not in the cipher list but not restricted permanently
+#T9: Cipher which is not in the cipher list but not restricted permanently, setting the server cipher as well
+Restart server and provide ssl-cipher at server startup
+Variable_name	Value
+Ssl_cipher	CAMELLIA256-SHA
+#T10: Permanently restricted cipher, setting in the server as well
+Connection will be possible, but server will not be enabled with ssl and connection is not ssl-enabled
+Variable_name	Value
+Ssl_cipher	
+#T11: Setting TLS version1.2 in the server and from client giving TLSv1.1, connection should fail
+# restart server using restart
+Restart server and provide ssl-cipher at server startup

@@ -513,12 +513,14 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var,
 
   enum_mysql_show_type show_var_type= show_var->type;
   DBUG_ASSERT(show_var_type == SHOW_SYS);
+  THD *current_thread= current_thd;
 
   m_name= show_var->name;
   m_name_length= strlen(m_name);
 
-  /* Block target thread from updating this system variable. */
-  mysql_mutex_lock(&target_thd->LOCK_thd_sysvar);
+  /* Block remote target thread from updating this system variable. */
+  if (target_thd != current_thread)
+    mysql_mutex_lock(&target_thd->LOCK_thd_sysvar);
   /* Block system variable additions or deletions. */
   mysql_mutex_lock(&LOCK_global_system_variables);
 
@@ -541,7 +543,8 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var,
   m_value_str[m_value_length]= 0;
 
   mysql_mutex_unlock(&LOCK_global_system_variables);
-  mysql_mutex_unlock(&target_thd->LOCK_thd_sysvar);
+  if (target_thd != current_thread)
+    mysql_mutex_unlock(&target_thd->LOCK_thd_sysvar);
 
   m_initialized= true;
 }

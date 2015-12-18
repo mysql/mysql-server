@@ -126,12 +126,17 @@ static const TABLE_FIELD_TYPE field_types[]=
     {C_STRING_WITH_LEN("HEARTBEAT_INTERVAL")},
     {C_STRING_WITH_LEN("double(10,3)")},
     {NULL, 0}
-   }
+   },
+  {
+    {C_STRING_WITH_LEN("TLS_VERSION")},
+    {C_STRING_WITH_LEN("varchar(255)")},
+    {NULL, 0}
+  }
 };
 
 TABLE_FIELD_DEF
 table_replication_connection_configuration::m_field_def=
-{ 18, field_types };
+{ 19, field_types };
 
 PFS_engine_table_share
 table_replication_connection_configuration::m_share=
@@ -304,6 +309,10 @@ void table_replication_connection_configuration::make_row(Master_info *mi)
 
   m_row.heartbeat_interval= (double)mi->heartbeat_period;
 
+  temp_store= (char*)mi->tls_version;
+  m_row.tls_version_length= strlen(temp_store);
+  memcpy(m_row.tls_version, temp_store, m_row.tls_version_length);
+
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
 
@@ -387,6 +396,10 @@ int table_replication_connection_configuration::read_row_values(TABLE *table,
         break;
       case 17:/** number of seconds after which heartbeat will be sent */
         set_field_double(f, m_row.heartbeat_interval);
+        break;
+      case 18: /** tls_version */
+        set_field_varchar_utf8(f, m_row.tls_version,
+                               m_row.tls_version_length);
         break;
       default:
         DBUG_ASSERT(false);

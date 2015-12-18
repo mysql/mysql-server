@@ -465,6 +465,14 @@ static void mysql_rewrite_change_master(THD *thd, String *rlb)
     rlb->append(lex->mi.ssl_capath);
     rlb->append(STRING_WITH_LEN("'"));
   }
+
+  if (lex->mi.tls_version)
+  {
+    rlb->append(STRING_WITH_LEN(" MASTER_TLS_VERSION = '"));
+    rlb->append(lex->mi.tls_version);
+    rlb->append(STRING_WITH_LEN("'"));
+  }
+
   if (lex->mi.ssl_cert)
   {
     rlb->append(STRING_WITH_LEN(" MASTER_SSL_CERT = '"));

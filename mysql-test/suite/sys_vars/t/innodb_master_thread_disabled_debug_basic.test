@@ -1,0 +1,10 @@
+--source include/have_innodb.inc
+--source include/have_debug.inc
+
+--echo #
+--echo # Basic test for innodb_master_thread_disabled_debug
+--echo #
+
+let $var_name = innodb_master_thread_disabled_debug;
+
+--source suite/sys_vars/inc/global_boolean_var_basic.inc

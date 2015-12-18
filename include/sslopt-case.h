@@ -43,4 +43,10 @@
       opt_ssl_crlpath= NULL;
 #endif
       break;
+    case OPT_TLS_VERSION:
+#ifdef MYSQL_CLIENT
+      opt_ssl_enforce= TRUE;
+#endif
+      opt_use_ssl= TRUE;
+      break;
 #endif

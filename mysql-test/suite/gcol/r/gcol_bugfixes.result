@@ -573,3 +573,17 @@ SELECT * FROM t1;
 a	b	c
 1	1	11
 DROP TABLE t1;
+# Bug#22018999: gcols: assertion failed: !error
+SET @save_old_sql_mode= @@sql_mode;
+SET sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TABLE t (a INTEGER AS (SUBSTR('','a',1))) engine=innodb;
+ERROR 22007: Truncated incorrect INTEGER value: 'a'
+CREATE TABLE t (a INTEGER) engine=innodb;
+ALTER TABLE t ADD b INTEGER AS (SUBSTR('','a',1));
+ERROR 22007: Truncated incorrect INTEGER value: 'a'
+DROP TABLE t;
+set sql_mode= @save_old_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.

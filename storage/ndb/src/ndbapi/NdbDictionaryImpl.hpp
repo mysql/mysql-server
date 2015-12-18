@@ -621,11 +621,13 @@ public:
     NdbError m_error;
     Uint32 m_transId;   // API
     Uint32 m_transKey;  // DICT
+    Uint32 m_requestId;
     Vector<Op> m_op;
     Tx() :
       m_state(NotStarted),
       m_transId(0),
-      m_transKey(0)
+      m_transKey(0),
+      m_requestId(0)
     {
       m_error.code = 0;
     }
@@ -634,6 +636,21 @@ public:
     }
     Uint32 transKey() const {
       return (m_state == Started) ? m_transKey : 0;
+    }
+    Uint32 nextRequestId() {
+      return ++m_requestId;
+    }
+    bool checkRequestId(Uint32 requestId, const char *signalName) {
+      /* NdbDictInterface protocols are synchronous/serial, so each
+       * NdbDictInterface object will have only one outstanding
+       * request at a time */
+      if(m_requestId != 0 && m_requestId != requestId)
+      {
+        // signal from different (possibly timed-out) transaction
+        DBUG_PRINT("info", ("Discarding %s with bad request ID, expected: %u, received: %u", signalName, m_requestId, requestId));
+        return false;
+      }
+      return true;
     }
     Uint32 requestFlags() const {
       Uint32 flags = 0;
@@ -1512,7 +1529,8 @@ NdbDictionaryImpl::getIndexGlobal(const char * index_name,
       break;
     }
   }
-  m_error.code= 4243;
+  if(m_error.code == 0)
+    m_error.code= 4243;
   DBUG_RETURN(0);
 }
 
@@ -1558,7 +1576,8 @@ NdbDictionaryImpl::getIndex(const char * index_name,
   if (table_name == 0)
   {
     assert(0);
-    m_error.code= 4243;
+    if(m_error.code == 0)
+      m_error.code= 4243;
     return 0;
   }
   
@@ -1566,7 +1585,8 @@ NdbDictionaryImpl::getIndex(const char * index_name,
   NdbTableImpl* prim = getTable(table_name);
   if (prim == 0)
   {
-    m_error.code= 4243;
+    if(m_error.code == 0)
+      m_error.code= 4243;
     return 0;
   }
 
@@ -1627,7 +1647,8 @@ retry:
   return tab->m_index;
   
 err:
-  m_error.code= 4243;
+  if(m_error.code == 0)
+    m_error.code= 4243;
   return 0;
 }
 

@@ -44,6 +44,14 @@
     "Certificate revocation list path.",
    &opt_ssl_crlpath, &opt_ssl_crlpath, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
+   {"tls-version", OPT_TLS_VERSION, "TLS version to use, "
+#ifndef HAVE_YASSL
+    "permitted values are: TLSv1, TLSv1.1, TLSv1.2",
+#else
+    "permitted values are: TLSv1, TLSv1.1",
+#endif
+    &opt_tls_version, &opt_tls_version, 0, GET_STR, REQUIRED_ARG,
+    0, 0, 0, 0, 0, 0},
 #ifdef MYSQL_CLIENT
   {"ssl-verify-server-cert", OPT_SSL_VERIFY_SERVER_CERT,
    "Verify server's \"Common Name\" in its cert against hostname used "

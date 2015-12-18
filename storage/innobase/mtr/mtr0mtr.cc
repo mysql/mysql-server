@@ -885,6 +885,38 @@ mtr_t::Command::execute()
 	release_resources();
 }
 
+/** Release the free extents that was reserved using
+fsp_reserve_free_extents().  This is equivalent to calling
+fil_space_release_free_extents().  This is intended for use
+with index pages.
+@param[in]	n_reserved	number of reserved extents */
+void
+mtr_t::release_free_extents(ulint n_reserved)
+{
+	fil_space_t*	space;
+
+	ut_ad(m_impl.m_undo_space == NULL);
+
+	if (m_impl.m_user_space != NULL) {
+
+		ut_ad(m_impl.m_user_space->id
+		      == m_impl.m_user_space_id);
+		ut_ad(memo_contains(get_memo(), &m_impl.m_user_space->latch,
+				    MTR_MEMO_X_LOCK));
+
+		space = m_impl.m_user_space;
+	} else {
+
+		ut_ad(m_impl.m_sys_space->id == TRX_SYS_SPACE);
+		ut_ad(memo_contains(get_memo(), &m_impl.m_sys_space->latch,
+				    MTR_MEMO_X_LOCK));
+
+		space = m_impl.m_sys_space;
+	}
+
+	space->release_free_extents(n_reserved);
+}
+
 #ifdef UNIV_DEBUG
 /** Check if memo contains the given item.
 @return	true if contains */
