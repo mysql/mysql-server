@@ -111,6 +111,54 @@ ELSEIF(NOT HAVE_CMAKE_BUILD_TYPE OR OLD_WITH_DEBUG)
   SET(OLD_WITH_DEBUG 0 CACHE INTERNAL "" FORCE)
 ENDIF()
 
+# On Linux el6/el7 the default gcc is too old, see if devtoolset is installed.
+# We need to look for gcc before calling PROJECT below.
+OPTION(FORCE_UNSUPPORTED_COMPILER "Disable compiler version checks" OFF)
+MARK_AS_ADVANCED(WITHOUT_SERVER DISABLE_SHARED FORCE_UNSUPPORTED_COMPILER)
+IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
+    AND NOT CMAKE_C_COMPILER AND NOT CMAKE_CXX_COMPILER)
+  # Cannot INCLUDE(CMakeDetermineSystem) prior to PROJECT initialization below.
+  SET (ENV_CC "$ENV{CC}")
+  SET (ENV_CXX "$ENV{CXX}")
+  IF (ENV_CC STREQUAL "" AND ENV_CXX STREQUAL "")
+    FIND_PROGRAM(MY_UNAME uname /bin /usr/bin /usr/local/bin )
+    IF(MY_UNAME)
+      EXEC_PROGRAM(uname ARGS -s OUTPUT_VARIABLE MY_HOST_SYSTEM_NAME)
+      EXEC_PROGRAM(uname ARGS -r OUTPUT_VARIABLE MY_HOST_SYSTEM_VERSION)
+      IF(MY_HOST_SYSTEM_NAME MATCHES "Linux" AND
+          MY_HOST_SYSTEM_VERSION MATCHES "\\.el[67](uek)?\\.")
+        MESSAGE(STATUS
+          "This is ${MY_HOST_SYSTEM_NAME} version ${MY_HOST_SYSTEM_VERSION}")
+        FIND_PROGRAM(MY_GCC_COMPILER gcc)
+        IF (MY_GCC_COMPILER)
+          MESSAGE(STATUS "gcc is ${MY_GCC_COMPILER}")
+          MESSAGE(STATUS
+            "We probably need /opt/rh/devtoolset-3/root/usr/bin/gcc")
+          EXECUTE_PROCESS(COMMAND ${MY_GCC_COMPILER} -dumpversion
+            OUTPUT_VARIABLE MY_GCC_VERSION)
+          IF(MY_GCC_VERSION VERSION_LESS 4.8)
+            MESSAGE(STATUS "${MY_GCC_COMPILER} is version ${MY_GCC_VERSION}")
+            FIND_PROGRAM(ALTERNATIVE_GCC gcc
+              NO_DEFAULT_PATH
+              PATHS "/opt/rh/devtoolset-3/root/usr/bin")
+            FIND_PROGRAM(ALTERNATIVE_GPP g++
+              NO_DEFAULT_PATH
+              PATHS "/opt/rh/devtoolset-3/root/usr/bin")
+            IF(ALTERNATIVE_GCC AND ALTERNATIVE_GPP)
+              SET(CMAKE_C_COMPILER ${ALTERNATIVE_GCC})
+              SET(CMAKE_CXX_COMPILER ${ALTERNATIVE_GPP})
+              MESSAGE(STATUS "Using ${ALTERNATIVE_GCC}")
+              MESSAGE(STATUS "Using ${ALTERNATIVE_GPP}")
+            ELSE()
+              MESSAGE(WARNING "Could not find devtoolset gcc")
+            ENDIF()
+          ENDIF()
+        ENDIF()
+      ENDIF()
+    ENDIF()
+  ENDIF()
+ENDIF()
+
 # Optionally set project name, e.g.
 # foo.xcodeproj (mac) or foo.sln (windows)
 SET(MYSQL_PROJECT_NAME_DOCSTRING "MySQL project name")
@@ -222,8 +270,6 @@ ENDIF()
 IF(NOT WITHOUT_SERVER)
   OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
 ENDIF()
-OPTION(FORCE_UNSUPPORTED_COMPILER "Disable compiler version checks" OFF)
-MARK_AS_ADVANCED(WITHOUT_SERVER DISABLE_SHARED FORCE_UNSUPPORTED_COMPILER)
 
 
 include(CheckCSourceCompiles)
