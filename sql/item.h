@@ -855,6 +855,14 @@ protected:
     return !is_parser_item;
   }
 
+  /*
+    Checks if the items provided as parameter offend the deprecated behaviour
+    on binary operations and if so, a warning will be sent.
+
+    @param      a item to check
+    @param      b item to check, may be NULL
+   */
+  static void check_deprecated_bin_op(const Item *a, const Item *b);
 public:
   /**
     The same as contextualize()/contextualize_() but with additional parameter
