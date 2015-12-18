@@ -691,13 +691,13 @@ void Item_sum::cleanup()
 
 /**
   Compare keys consisting of single field that cannot be compared as binary.
- 
+
   Used by the Unique class to compare keys. Will do correct comparisons
   for all field types.
 
   @param    arg     Pointer to the relevant Field class instance
-  @param    key1    left key image
-  @param    key2    right key image
+  @param    a       left key image
+  @param    b       right key image
   @return   comparison result
     @retval < 0       if key1 < key2
     @retval = 0       if key1 = key2
@@ -715,13 +715,13 @@ static int simple_str_key_cmp(const void* arg, const void* a, const void* b)
 
 /**
   Correctly compare composite keys.
- 
+
   Used by the Unique class to compare keys. Will do correct comparisons
   for composite keys with various field types.
 
   @param arg     Pointer to the relevant Aggregator_distinct instance
-  @param key1    left key image
-  @param key2    right key image
+  @param a       left key image
+  @param b       right key image
   @return        comparison result
     @retval <0       if key1 < key2
     @retval =0       if key1 = key2
