@@ -44,13 +44,13 @@ if (`select '$crash_safe_small' <> ''`)
   let $max_groups= 4;
   let $max_workers= 4;
   # Bug#18890771: RPL.RPL_STM_MIXED_MTS_REC_CRASH_SAFE_SMALL NOT SUITABLE FOR
-  # PER PUSH RUNS: Generating the four random numbers corresponding to the
-  # initial four while loop variables below. These random numbers are further
+  # PER PUSH RUNS: Declaring the four maximum numbers corresponding to the
+  # initial four while loop variables below. These maximum numbers are further
   # used in while loops.
-  let $random_count_debug_groups= `select floor(rand()*($maxgroups+1-1) + 1)`;
-  let $random_count_workers= `select floor(1 + (rand() * ($maxgroups+1-1)))`;
-  let $random_count_checkpoint= `select floor(rand() * $random_count_debug_groups)`;
-  let $random_count_groups= `select floor($random_count_debug_groups + (rand() * ($max_groups+1-$random_count_debug_groups)))`;
+  let $max_count_debug_groups= 3;
+  let $max_count_workers= 4;
+  let $max_count_checkpoint= 2;
+  let $max_count_groups= 4;
 }
 if (`select '$crash_safe_small' = ''`)
 {
@@ -83,22 +83,20 @@ while ($count_debug_groups <= $max_groups)
         # Bug#18890771: RPL.RPL_STM_MIXED_MTS_REC_CRASH_SAFE_SMALL NOT SUITABLE
         # FOR PER PUSH RUN: Entering into the two innermost while loops only if
         # the current four while loop variables are equal to the corresponding
-        # four random numbers. Varable $random is set to disable the logging
-        # which is sensitive to the random numbers used.
+        # four maximum numbers.
         --let $equal= 1
         if (`select '$crash_safe_small' <> ''`)
         {
           --let $equal= 0
-          if ($count_debug_groups == $random_count_debug_groups)
+          if ($count_debug_groups == $max_count_debug_groups)
           {
-            if ($count_workers == $random_count_workers)
+            if ($count_workers == $max_count_workers)
             {
-              if ($count_checkpoint == $random_count_checkpoint)
+              if ($count_checkpoint == $max_count_checkpoint)
               {
-                if ($count_groups == $random_count_groups)
+                if ($count_groups == $max_count_groups)
                   {
                     --let $equal= 1
-                    --let $random= 1
                   }
               }
             }
@@ -107,16 +105,8 @@ while ($count_debug_groups <= $max_groups)
         if ($equal == 1)
         {
           --connection slave
-          if ($random)
-          {
-            --disable_query_log
-          }
           --eval SET @@global.slave_parallel_workers= $count_workers
           --eval SET @@global.slave_checkpoint_period= $count_checkpoint
-          if ($random)
-          {
-          --enable_query_log
-          }
           let $count_transactions= 1;
           while ($count_transactions <= $count_groups)
           {
@@ -125,30 +115,9 @@ while ($count_debug_groups <= $max_groups)
             {
               --connection master
               --let $database_name= test_$count_database
-              if (!$random)
-              {
-                --echo Generating Number of Workers $count_workers --- Number of Groups per worker $count_groups --- Debugging Groups $count_debug_groups --- Database $database_name
-              }
-              # Bug#18890771: RPL.RPL_STM_MIXED_MTS_REC_CRASH_SAFE_SMALL NOT
-              # SUITABLE FOR PER PUSH RUNS: Including the file
-              # assert_binlog_events.inc to verify the binlog events when
-              # the file show_binlog_events.inc is not included.
-              if ($random)
-              {
-                let $binlog_position= query_get_value("SHOW MASTER STATUS", Position, 1);
-                let $binlog_file= query_get_value("SHOW MASTER STATUS", File, 1);
-              }
+              --echo Generating Number of Workers $count_workers --- Number of Groups per worker $count_groups --- Debugging Groups $count_debug_groups --- Database $database_name
               --let $commands= B T T C
               --source extra/rpl_tests/rpl_mts_crash_safe.inc
-
-              if ($random)
-              {
-                --let $event_sequence= Query/.*BEGIN # Query/.*INSERT.* # Query/.*INSERT.* # Xid/.*COMMIT.*
-                --let $dont_print_pattern= 1
-                --let $include_silent= 1
-                --let $limit= 1,4
-                --source include/assert_binlog_events.inc
-              }
               inc $count_database;
             }
             inc $count_transactions;
