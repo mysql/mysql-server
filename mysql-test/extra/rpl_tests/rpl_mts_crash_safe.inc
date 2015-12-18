@@ -101,15 +101,7 @@ if ($commands == recovery)
   --connection slave
 
   --let $mts_run=`select @@global.slave_parallel_workers > 0`
-  if ($random)
-  {
-    --disable_query_log
-  }
   eval SET @@global.slave_checkpoint_group= $count_debug_groups;
-  if ($random)
-  {
-    --enable_query_log
-  }
   SET GLOBAL debug="d,check_slave_debug_group";
   SET GLOBAL debug="+d,mts_distribute_round_robin";
   --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
@@ -123,18 +115,18 @@ if ($commands == recovery)
 
   if ($mts_run)
   {
-  --echo ** fixing gaps **
-  --let $rpl_server_number= 2
-  --let $rpl_server_parameters= --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0
+    --echo ** fixing gaps **
+    --let $rpl_server_number= 2
+    --let $rpl_server_parameters= --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0
 
-  --source include/rpl_start_server.inc
+    --source include/rpl_start_server.inc
 
-  START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
-  --let $slave_param= Until_Condition
-  --let $slave_param_value= DONE
-  --source include/wait_for_slave_param.inc
-  # there's a chance it will hang at this point (thanks to pre-exec UNTIL check)
-  --source include/wait_for_slave_sql_to_stop.inc
+    START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+    --let $slave_param= Until_Condition
+    --let $slave_param_value= DONE
+    --source include/wait_for_slave_param.inc
+    # there's a chance it will hang at this point (thanks to pre-exec UNTIL check)
+    --source include/wait_for_slave_sql_to_stop.inc
   }
 
   --echo ** regular restart **
@@ -154,16 +146,8 @@ if ($commands == recovery)
   --source include/wait_condition_or_abort.inc
 
   --source include/stop_slave.inc
-  if ($random)
-  {
-    --disable_query_log
-  }
   eval SET @@global.slave_parallel_workers= $saved_current_workers;
   eval SET @@global.slave_checkpoint_period= $saved_current_checkpoint;
-  if ($random)
-  {
-    --enable_query_log
-  }
 
   --let $commands=
   --echo ==== end rpl_mts_crash_safe.inc:recovery ====
@@ -171,16 +155,10 @@ if ($commands == recovery)
 
 if ($commands != '')
 {
-  if (!$random)
-  {
   --echo ==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-  }
   --connection master
   --source extra/rpl_tests/rpl_mixing_engines.inc
-  if (!$random)
-  {
   --echo ==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
-  }
 }
 
 --let $commands= $rmcs_initial_commands

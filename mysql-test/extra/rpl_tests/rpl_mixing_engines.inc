@@ -29,16 +29,7 @@
 #       commands. If this flag is set, then show_binlog_events.inc is
 #       also sourced once after each command, showing only the result
 #       of that command.
-#     $random
-#       If this variable is set then some of the logging of the output
-#       into the result file is disabled. echo statements in this file
-#       are not printed. File show_binlog_events.inc is not included.
---source include/have_myisam.inc
-
-if (!$random)
-{
-  --echo rpl_mixing_engines.inc [commands=$commands]
-}
+--echo rpl_mixing_engines.inc [commands=$commands]
 
 --let $rme_initial_commands= $commands
 
@@ -235,10 +226,6 @@ while ($commands != '')
     let $pos_command= query_get_value("SHOW MASTER STATUS", Position, 1);
   }
   --enable_query_log
-  if ($random)
-  {
-    --disable_query_log
-  }
   if ($command == 'B')
   {
     eval BEGIN;
@@ -633,23 +620,16 @@ while ($commands != '')
   }
   if ($commands == '')
   {
-    if (!$random)
-    {
-      let $binlog_start= $pos_trans_command;
-      --echo -b-b-b-b-b-b-b-b-b-b-b- >> $rme_initial_commands << -b-b-b-b-b-b-b-b-b-b-b-
-      --connection server_1
-      --source include/show_binlog_events.inc
-      --connection master
-      --echo -e-e-e-e-e-e-e-e-e-e-e- >> $rme_initial_commands << -e-e-e-e-e-e-e-e-e-e-e-
-      --echo
-      let $pos_trans_command= query_get_value("SHOW MASTER STATUS", Position, 1);
-    }
+    let $binlog_start= $pos_trans_command;
+    --echo -b-b-b-b-b-b-b-b-b-b-b- >> $rme_initial_commands << -b-b-b-b-b-b-b-b-b-b-b-
+    --connection server_1
+    --source include/show_binlog_events.inc
+    --connection master
+    --echo -e-e-e-e-e-e-e-e-e-e-e- >> $rme_initial_commands << -e-e-e-e-e-e-e-e-e-e-e-
+    --echo
+    let $pos_trans_command= query_get_value("SHOW MASTER STATUS", Position, 1);
     let $stmt_id= 1;
     inc $trans_id;
-  }
- if ($random)
-  {
-    --enable_query_log
   }
 }
 
