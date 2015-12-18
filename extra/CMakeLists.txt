@@ -111,7 +111,7 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
   ADD_DEFINITIONS("-DUNIV_INNOCHECKSUM")
   SET(INNOBASE_SOURCES
       ../storage/innobase/buf/buf0checksum.cc
-      ../storage/innobase/ut/ut0crc32.cc
+      ../mysys/ut0crc32.cc
       ../storage/innobase/ut/ut0ut.cc
       ../storage/innobase/buf/buf0buf.cc
       ../storage/innobase/page/page0zip.cc
@@ -123,7 +123,7 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
      CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
     INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
     ADD_COMPILE_FLAGS(
-      ../storage/innobase/ut/ut0crc32.cc
+      ../mysys/ut0crc32.cc
       COMPILE_FLAGS "-Wa,-nH"
     )
   ENDIF()

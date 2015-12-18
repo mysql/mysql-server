@@ -54,6 +54,15 @@ IF(HAVE_KQUEUE_TIMERS)
   SET(MYSYS_SOURCES ${MYSYS_SOURCES} kqueue_timers.c)
 ENDIF()
 
+# Avoid generating Hardware Capabilities due to crc32 instructions
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
+  INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+  ADD_COMPILE_FLAGS(
+    ut0crc32.cc
+    COMPILE_FLAGS "-Wa,-nH"
+  )
+ENDIF()
+
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
   # Inline assembly template for rdtsc
   SET_SOURCE_FILES_PROPERTIES(my_rdtsc.c
