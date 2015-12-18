@@ -680,7 +680,7 @@ create table t2(
 desc t1;
 
 --echo # Drop index uk1 - it should fail
---replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
+--replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/ /[0-9]*\/[0-9]*\/fk1/<parent_table_id>\/<child_table_id>\/fk1/
 --error ER_FK_NO_INDEX_PARENT
 drop index uk1 on t1;
 
