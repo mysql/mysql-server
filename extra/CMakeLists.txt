@@ -118,6 +118,13 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
       ../storage/innobase/os/os0file.cc
      )
 
+  IF(CMAKE_SYSTEM_PROCESSOR MATCHES "ppc64le")
+      enable_language(ASM)
+      LIST(APPEND INNOBASE_SOURCES
+         ../mysys/crc32_power8/crc32.S
+         ../mysys/crc32_power8/crc32_wrapper.c)
+  ENDIF()
+
   # Avoid generating Hardware Capabilities due to crc32 instructions
   IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
      CMAKE_SYSTEM_PROCESSOR MATCHES "i386")

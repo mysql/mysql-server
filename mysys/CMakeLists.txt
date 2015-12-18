@@ -36,6 +36,13 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c
 				my_rdtsc.c psi_noop.c my_syslog.c
 				my_chmod.c my_thread.c)
 
+IF(CMAKE_SYSTEM_PROCESSOR MATCHES "ppc64le")
+  enable_language(ASM)
+  LIST(APPEND MYSYS_SOURCES
+      crc32_power8/crc32.S
+      crc32_power8/crc32_wrapper.c)
+ENDIF()
+
 IF (WIN32)
   LIST(APPEND MYSYS_SOURCES
     my_conio.c
