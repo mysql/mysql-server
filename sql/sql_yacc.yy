@@ -8917,8 +8917,6 @@ opt_ignore_leaves:
 select_stmt:
           query_expression
           {
-            if ($1 == NULL)
-              MYSQL_YYABORT; // OOM
             $$= NEW_PTN PT_select($1);
           }
         | query_expression_parens
@@ -9110,10 +9108,14 @@ query_expression_body:
           }
         | query_expression_parens UNION_SYM union_option query_expression_parens
           {
+            if ($1 == NULL || $4 == NULL)
+              MYSQL_YYABORT; // OOM
+
             if ($4->is_union())
               YYTHD->parse_error_at(@4, ER_THD(YYTHD, ER_SYNTAX_ERROR));
 
             $1->set_parentheses();
+
             PT_nested_query_expression *nested_qe=
               NEW_PTN PT_nested_query_expression($4);
             $$= NEW_PTN PT_union($1, @1, $3, nested_qe);
@@ -9169,9 +9171,6 @@ select_part2:
           opt_limit_clause
           opt_select_lock_type
           {
-            if ($1 == NULL)
-              MYSQL_YYABORT; // OOM
-
             $$= NEW_PTN PT_select_part2($1, NULL, NULL, NULL, NULL, NULL,
                                         $2, $3, NULL, $4);
           }
@@ -10562,7 +10561,7 @@ esc_table_reference:
 
     t1 JOIN t2 JOIN t3 ON t2.a = t3.a
 
-  we will first reduce `t1 JOIN t2 ON t2.a = t3.a` to a <table_reference>,
+  we will first reduce `t2 JOIN t3 ON t2.a = t3.a` to a <table_reference>,
   which is correct, but a problem arises when reducing t1 JOIN
   <table_reference>. If we were to do that, we'd get a right-deep tree. The
   solution is to build the tree downwards instead of upwards, as is normally

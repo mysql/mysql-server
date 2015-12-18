@@ -20,7 +20,7 @@
 #include "sql_insert.h"     // Sql_cmd_insert...
 #include "mysqld.h"         // global_system_variables
 #include "sp_pcontext.h"
-#include "sql_locale.h"
+
 
 /**
   Gcc can't or won't allow a pure virtual destructor without an implementation.

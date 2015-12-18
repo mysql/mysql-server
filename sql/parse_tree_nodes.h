@@ -2101,7 +2101,7 @@ public:
       m_parentheses(false)
   {}
 
-  PT_query_expression(PT_query_expression_body *body)
+  explicit PT_query_expression(PT_query_expression_body *body)
     : contextualized(false),
       m_body(body),
       m_order(NULL),
