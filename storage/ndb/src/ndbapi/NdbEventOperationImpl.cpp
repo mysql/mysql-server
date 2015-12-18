@@ -1370,6 +1370,7 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_latestGCI(0), m_latest_complete_GCI(0),
   m_highest_sub_gcp_complete_GCI(0),
   m_latest_poll_GCI(),
+  m_latest_consumed_epoch(0),
   m_failure_detected(false),
   m_prevent_nodegroup_change(true),
   m_mutex(NULL),
@@ -1665,6 +1666,7 @@ void NdbEventBuffer::remove_consumed_epoch()
 
   const MonotonicEpoch consumedGci = m_available_data.first_gci_ops()->m_gci;
   NdbMutex_Lock(m_mutex);
+  m_latest_consumed_epoch = consumedGci.getGCI();
   free_list(m_used_data);  //Recycle used_data while we already hold the mutex
   deleteUsedEventOperations(consumedGci);
   NdbMutex_Unlock(m_mutex);
@@ -4223,19 +4225,6 @@ NdbEventBuffer::dropEventOperation(NdbEventOperation* tOp)
 void
 NdbEventBuffer::reportStatus(bool force_report)
 {
-  EventBufData *apply_buf= m_available_data.m_head;
-  Uint64 apply_gci, latest_gci= m_latestGCI;
-  if (apply_buf == 0)
-    apply_buf= m_complete_data.m_data.m_head;
-  if (apply_buf && apply_buf->sdata)
-  {
-    Uint32 gci_hi = apply_buf->sdata->gci_hi;
-    Uint32 gci_lo = apply_buf->sdata->gci_lo;
-    apply_gci= gci_lo | (Uint64(gci_hi) << 32);
-  }
-  else
-    apply_gci= latest_gci;
-
   if (force_report)
       goto send_report;
 
@@ -4264,7 +4253,7 @@ NdbEventBuffer::reportStatus(bool force_report)
     }
   }
   if (m_gci_slip_thresh &&
-      (latest_gci-apply_gci >= m_gci_slip_thresh))
+      (m_latestGCI - m_latest_consumed_epoch >= m_gci_slip_thresh))
   {
     goto send_report;
   }
@@ -4276,10 +4265,10 @@ send_report:
   data[1]= m_total_alloc-m_free_data_sz;
   data[2]= m_total_alloc;
   data[3]= m_max_alloc;
-  data[4]= (Uint32)(apply_gci);
-  data[5]= (Uint32)(apply_gci >> 32);
-  data[6]= (Uint32)(latest_gci);
-  data[7]= (Uint32)(latest_gci >> 32);
+  data[4]= (Uint32)(m_latest_consumed_epoch);
+  data[5]= (Uint32)(m_latest_consumed_epoch >> 32);
+  data[6]= (Uint32)(m_latestGCI);
+  data[7]= (Uint32)(m_latestGCI >> 32);
   Ndb_internal::send_event_report(true, m_ndb, data,8);
 #ifdef VM_TRACE
   assert(m_total_alloc >= m_free_data_sz);

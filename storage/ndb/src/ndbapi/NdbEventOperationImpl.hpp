@@ -811,6 +811,7 @@ public:
   Uint64 m_highest_sub_gcp_complete_GCI; // highest gci seen in api
   // "latest gci" variables updated in user thread
   MonotonicEpoch m_latest_poll_GCI; // latest gci handed over to user thread
+  Uint64 m_latest_consumed_epoch; // latest epoch consumed by user thread
 
   bool m_failure_detected; // marker that event operations have failure events
 
