@@ -141,6 +141,7 @@
 #include "item_cmpfunc.h"               // arg_cmp_func
 #include "item_strfunc.h"               // Item_func_uuid
 #include "handler.h"
+#include "ut0crc32.h"                   // ut_crc32_init
 
 #ifndef EMBEDDED_LIBRARY
 #include "srv_session.h"
@@ -4427,6 +4428,8 @@ int mysqld_main(int argc, char **argv)
 #endif /* HAVE_PSI_INTERFACE */
 
   init_error_log();
+
+  ut_crc32_init();
 
   /* Initialize audit interface globals. Audit plugins are inited later. */
   mysql_audit_initialize();
