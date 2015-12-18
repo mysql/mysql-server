@@ -9216,6 +9216,44 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
 
 
 /**
+  Auxiliary class implementing RAII principle for getting permission for/
+  notification about finished ALTER TABLE from interested storage engines.
+
+  @see handlerton::notify_alter_table for details.
+*/
+
+class Alter_table_hton_notification_guard
+{
+public:
+  Alter_table_hton_notification_guard(THD *thd, const MDL_key *key)
+    : m_hton_notified(false), m_thd(thd), m_key(key)
+  {
+  }
+
+  bool notify()
+  {
+    if (!ha_notify_alter_table(m_thd, &m_key, HA_NOTIFY_PRE_EVENT))
+    {
+      m_hton_notified= true;
+      return false;
+    }
+    my_error(ER_LOCK_REFUSED_BY_ENGINE, MYF(0));
+    return true;
+  }
+
+  ~Alter_table_hton_notification_guard()
+  {
+    if (m_hton_notified)
+      (void) ha_notify_alter_table(m_thd, &m_key, HA_NOTIFY_POST_EVENT);
+  }
+private:
+  bool m_hton_notified;
+  THD *m_thd;
+  const MDL_key m_key;
+};
+
+
+/**
   Alter table
 
   @param thd              Thread handle
@@ -9336,6 +9374,16 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     has been already processed.
   */
   table_list->required_type= dd::Abstract_table::TT_BASE_TABLE;
+
+  /*
+    If we are about to ALTER non-temporary table we need to get permission
+    from/notify interested storage engines.
+  */
+  Alter_table_hton_notification_guard notification_guard(thd,
+                                        &table_list->mdl_request.key);
+
+  if (!is_temporary_table(table_list) && notification_guard.notify())
+    DBUG_RETURN(true);
 
   Alter_table_prelocking_strategy alter_prelocking_strategy;
 

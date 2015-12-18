@@ -673,23 +673,21 @@ void set_field_mdl_duration(Field *f, opaque_mdl_duration mdl_duration)
 
 void set_field_mdl_status(Field *f, opaque_mdl_status mdl_status)
 {
-  MDL_wait::enum_wait_status e= (MDL_wait::enum_wait_status) mdl_status;
+  MDL_ticket::enum_psi_status e=
+    static_cast<MDL_ticket::enum_psi_status>(mdl_status);
   switch (e)
   {
-  case MDL_wait::EMPTY:
+  case MDL_ticket::PENDING:
     PFS_engine_table::set_field_varchar_utf8(f, "PENDING", 7);
     break;
-  case MDL_wait::GRANTED:
+  case MDL_ticket::GRANTED:
     PFS_engine_table::set_field_varchar_utf8(f, "GRANTED", 7);
     break;
-  case MDL_wait::VICTIM:
-    PFS_engine_table::set_field_varchar_utf8(f, "VICTIM", 6);
+  case MDL_ticket::PRE_ACQUIRE_NOTIFY:
+    PFS_engine_table::set_field_varchar_utf8(f, "PRE_ACQUIRE_NOTIFY", 18);
     break;
-  case MDL_wait::TIMEOUT:
-    PFS_engine_table::set_field_varchar_utf8(f, "TIMEOUT", 7);
-    break;
-  case MDL_wait::KILLED:
-    PFS_engine_table::set_field_varchar_utf8(f, "KILLED", 6);
+  case MDL_ticket::POST_RELEASE_NOTIFY:
+    PFS_engine_table::set_field_varchar_utf8(f, "POST_RELEASE_NOTIFY", 19);
     break;
   default:
     DBUG_ASSERT(false);

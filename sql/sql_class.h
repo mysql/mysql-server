@@ -2335,6 +2335,16 @@ public:
   virtual void notify_shared_lock(MDL_context_owner *ctx_in_use,
                                   bool needs_thr_lock_abort);
 
+  virtual bool notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key)
+  {
+    return ha_notify_exclusive_mdl(this, mdl_key, HA_NOTIFY_PRE_EVENT);
+  }
+
+  virtual void notify_hton_post_release_exclusive(const MDL_key *mdl_key)
+  {
+    ha_notify_exclusive_mdl(this, mdl_key, HA_NOTIFY_POST_EVENT);
+  }
+
   /**
     Provide thread specific random seed for MDL_context's PRNG.
 

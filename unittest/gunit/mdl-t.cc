@@ -4062,6 +4062,503 @@ TEST_F(MDLTest, FindLockOwner)
 }
 
 
+/** Test class for SE notification testing. */
+
+class MDLHtonNotifyTest : public MDLTest
+{
+protected:
+  MDLHtonNotifyTest()
+  { }
+
+  void SetUp()
+  {
+    MDLTest::SetUp();
+    reset_counts_and_keys();
+  }
+
+  void TearDown()
+  {
+    MDLTest::TearDown();
+  }
+
+  virtual bool notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key)
+  {
+    m_pre_acquire_count++;
+    m_pre_acquire_key.mdl_key_init(mdl_key);
+    return m_refuse_acquire;
+  }
+  virtual void notify_hton_post_release_exclusive(const MDL_key *mdl_key)
+  {
+    m_post_release_key.mdl_key_init(mdl_key);
+    m_post_release_count++;
+  }
+
+  uint pre_acquire_count() const { return m_pre_acquire_count; }
+
+  uint post_release_count() const { return m_post_release_count; }
+
+  const MDL_key& pre_acquire_key() const { return m_pre_acquire_key; }
+
+  const MDL_key& post_release_key() const { return m_post_release_key; }
+
+  void reset_counts_and_keys()
+  {
+    m_pre_acquire_count= 0;
+    m_post_release_count= 0;
+    m_pre_acquire_key.reset();
+    m_post_release_key.reset();
+    m_refuse_acquire= false;
+  }
+
+  void set_refuse_acquire() { m_refuse_acquire= true; }
+
+private:
+  GTEST_DISALLOW_COPY_AND_ASSIGN_(MDLHtonNotifyTest);
+
+  uint m_pre_acquire_count, m_post_release_count;
+  MDL_key m_pre_acquire_key, m_post_release_key;
+  bool m_refuse_acquire;
+};
+
+
+/**
+  Test that SE notification is performed only for prescribed namespaces and
+  not others.
+*/
+
+TEST_F(MDLHtonNotifyTest, NotifyNamespaces)
+{
+  bool notify_or_not[MDL_key::NAMESPACE_END]= { false, // GLOBAL
+                                                true,  // TABLESPACE
+                                                true,  // SCHEMA
+                                                true,  // TABLE
+                                                true,  // FUNCTION
+                                                true,  // PROCEDURE
+                                                true,  // TRIGGER
+                                                true,  // EVENT
+                                                false, // COMMIT
+                                                false, // USER_LEVEL_LOCK
+                                                false  // LOCKING_SERVICE
+                                              };
+
+  for (uint i=0; i < static_cast<uint>(MDL_key::NAMESPACE_END); i++)
+  {
+    MDL_request request;
+    MDL_REQUEST_INIT(&request,
+                     static_cast<MDL_key::enum_mdl_namespace>(i),
+                     "", "", // To work with GLOBAL/COMMIT spaces
+                     MDL_EXCLUSIVE, MDL_TRANSACTION);
+    EXPECT_FALSE(m_mdl_context.acquire_lock(&request, long_timeout));
+    m_mdl_context.release_transactional_locks();
+
+    if (notify_or_not[i])
+    {
+      EXPECT_EQ(1U, pre_acquire_count());
+      EXPECT_EQ(1U, post_release_count());
+      reset_counts_and_keys();
+    }
+    else
+    {
+      EXPECT_EQ(0U, pre_acquire_count());
+      EXPECT_EQ(0U, post_release_count());
+    }
+  }
+}
+
+
+/**
+  Test that SE notification is performed only for X requests and not others.
+*/
+
+TEST_F(MDLHtonNotifyTest, NotifyLockTypes)
+{
+  MDL_request request;
+
+  // IX type can only be used for scoped locks. Doesn't cause notification.
+  MDL_REQUEST_INIT(&request, MDL_key::SCHEMA, db_name, "",
+                   MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
+
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&request, long_timeout));
+  m_mdl_context.release_transactional_locks();
+
+  EXPECT_EQ(0U, pre_acquire_count());
+  EXPECT_EQ(0U, post_release_count());
+
+  /*
+    All other lock types can be used with tables and don't cause
+    notification except X requests.
+  */
+  for (uint i= static_cast<uint>(MDL_INTENTION_EXCLUSIVE) + 1;
+            i < static_cast<uint>(MDL_EXCLUSIVE); i++)
+  {
+    MDL_REQUEST_INIT(&request,
+                     MDL_key::TABLE, db_name, table_name1,
+                     static_cast<enum_mdl_type>(i), MDL_TRANSACTION);
+
+    EXPECT_FALSE(m_mdl_context.acquire_lock(&request, long_timeout));
+    m_mdl_context.release_transactional_locks();
+
+    EXPECT_EQ(0U, pre_acquire_count());
+    EXPECT_EQ(0U, post_release_count());
+  }
+
+  // X lock causes notifications.
+  MDL_REQUEST_INIT(&request,
+                   MDL_key::TABLE, db_name, table_name1,
+                   MDL_EXCLUSIVE, MDL_TRANSACTION);
+
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&request, long_timeout));
+  m_mdl_context.release_transactional_locks();
+
+  EXPECT_EQ(1U, pre_acquire_count());
+  EXPECT_EQ(1U, post_release_count());
+
+  // There are no other lock types!
+  DBUG_ASSERT(static_cast<uint>(MDL_EXCLUSIVE) + 1 ==
+              static_cast<uint>(MDL_TYPE_END));
+}
+
+
+/**
+  Test for SE notification in some acquire/release scenarios
+  including case when SE refuses lock acquisition.
+*/
+
+TEST_F(MDLHtonNotifyTest, NotifyAcquireRelease)
+{
+  MDL_request request1, request2;
+
+  // Straightforward acquire/release cycle.
+  MDL_REQUEST_INIT(&request1, MDL_key::TABLE, db_name, table_name1,
+                   MDL_EXCLUSIVE, MDL_TRANSACTION);
+
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&request1, long_timeout));
+  EXPECT_EQ(1U, pre_acquire_count());
+  EXPECT_EQ(0U, post_release_count());
+  EXPECT_TRUE(pre_acquire_key().is_equal(&request1.key));
+  EXPECT_TRUE(m_mdl_context.
+              owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                          MDL_EXCLUSIVE));
+
+  m_mdl_context.release_transactional_locks();
+  EXPECT_EQ(1U, pre_acquire_count());
+  EXPECT_EQ(1U, post_release_count());
+  EXPECT_TRUE(post_release_key().is_equal(&request1.key));
+
+  reset_counts_and_keys();
+
+  // Case when we try to acquire lock several times.
+  MDL_REQUEST_INIT(&request1, MDL_key::TABLE, db_name, table_name1,
+                   MDL_EXCLUSIVE, MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&request2, MDL_key::TABLE, db_name, table_name1,
+                   MDL_EXCLUSIVE, MDL_TRANSACTION);
+
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&request1, long_timeout));
+  EXPECT_EQ(1U, pre_acquire_count());
+  EXPECT_EQ(0U, post_release_count());
+  EXPECT_TRUE(pre_acquire_key().is_equal(&request1.key));
+
+  // The second acquisition should not cause notification.
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&request2, long_timeout));
+  EXPECT_EQ(1U, pre_acquire_count());
+  EXPECT_EQ(0U, post_release_count());
+
+  // On release there is only one notification call.
+  m_mdl_context.release_transactional_locks();
+  EXPECT_EQ(1U, pre_acquire_count());
+  EXPECT_EQ(1U, post_release_count());
+  EXPECT_TRUE(post_release_key().is_equal(&request1.key));
+
+  reset_counts_and_keys();
+
+  // Case when lock acquisition is refused by SE.
+  MDL_REQUEST_INIT(&request1, MDL_key::TABLE, db_name, table_name1,
+                   MDL_EXCLUSIVE, MDL_TRANSACTION);
+
+  expected_error= ER_LOCK_REFUSED_BY_ENGINE;
+  set_refuse_acquire();
+
+  EXPECT_TRUE(m_mdl_context.acquire_lock(&request1, long_timeout));
+  EXPECT_EQ(1U, pre_acquire_count());
+  EXPECT_EQ(0U, post_release_count());
+  EXPECT_FALSE(m_mdl_context.
+               owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                           MDL_EXCLUSIVE));
+
+  // Nothing to release and nothing to notify about.
+  m_mdl_context.release_transactional_locks();
+  EXPECT_EQ(0U, post_release_count());
+}
+
+
+/**
+  Test for SE notification in some scenarios when we successfully perform
+  SE notification but then fail to acquire lock for some reason.
+*/
+
+TEST_F(MDLHtonNotifyTest, NotifyAcquireFail)
+{
+  Notification lock_grabbed, release_lock;
+  MDL_request request;
+
+  // Acquire S lock on the table in another thread.
+  MDL_thread mdl_thread(table_name1, MDL_SHARED,
+                       &lock_grabbed, &release_lock, NULL, NULL);
+  mdl_thread.start();
+  lock_grabbed.wait_for_notification();
+
+  /*
+    Try to acquire X lock on the table using try_acquire_lock().
+  */
+  MDL_REQUEST_INIT(&request, MDL_key::TABLE, db_name, table_name1,
+                   MDL_EXCLUSIVE, MDL_TRANSACTION);
+  EXPECT_FALSE(m_mdl_context.try_acquire_lock(&request));
+  EXPECT_EQ(m_null_ticket, request.ticket);
+  /*
+    We treat failure to acquire X lock after successfull pre-acquire
+    notification in the same way as lock release.
+  */
+  EXPECT_EQ(1U, pre_acquire_count());
+  EXPECT_EQ(1U, post_release_count());
+  EXPECT_TRUE(pre_acquire_key().is_equal(&request.key));
+  EXPECT_TRUE(post_release_key().is_equal(&request.key));
+
+  reset_counts_and_keys();
+
+  /*
+    Now do the same thing using acquire_lock() and zero timeout,
+  */
+  expected_error= ER_LOCK_WAIT_TIMEOUT;
+
+  EXPECT_TRUE(m_mdl_context.acquire_lock(&request, zero_timeout));
+  /*
+    Again we treat failure to acquire X lock after successfull pre-acquire
+    notification in the same way as lock release.
+  */
+  EXPECT_EQ(1U, pre_acquire_count());
+  EXPECT_EQ(1U, post_release_count());
+  EXPECT_TRUE(pre_acquire_key().is_equal(&request.key));
+  EXPECT_TRUE(post_release_key().is_equal(&request.key));
+
+  release_lock.notify();
+  mdl_thread.join();
+}
+
+
+/**
+  Test for SE notification in lock upgrade scenarios.
+*/
+
+TEST_F(MDLHtonNotifyTest, NotifyUpgrade)
+{
+  MDL_request request;
+
+  MDL_REQUEST_INIT(&request, MDL_key::TABLE, db_name, table_name1,
+                   MDL_SHARED_UPGRADABLE, MDL_TRANSACTION);
+
+  // Check that we notify SE about upgrade.
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&request, long_timeout));
+  EXPECT_FALSE(m_mdl_context.
+               upgrade_shared_lock(request.ticket, MDL_EXCLUSIVE, long_timeout));
+
+  EXPECT_EQ(1U, pre_acquire_count());
+  EXPECT_EQ(0U, post_release_count());
+  EXPECT_TRUE(pre_acquire_key().is_equal(&request.key));
+  EXPECT_TRUE(m_mdl_context.
+              owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                          MDL_EXCLUSIVE));
+
+  // Second attempt to upgrade should not cause additional notification.
+  EXPECT_FALSE(m_mdl_context.
+               upgrade_shared_lock(request.ticket, MDL_EXCLUSIVE, long_timeout));
+  EXPECT_EQ(1U, pre_acquire_count());
+  EXPECT_EQ(0U, post_release_count());
+
+  m_mdl_context.release_transactional_locks();
+  EXPECT_EQ(1U, pre_acquire_count());
+  EXPECT_EQ(1U, post_release_count());
+  EXPECT_TRUE(post_release_key().is_equal(&request.key));
+
+  reset_counts_and_keys();
+
+  // Case when lock upgrade is refused by SE.
+  MDL_REQUEST_INIT(&request, MDL_key::TABLE, db_name, table_name1,
+                   MDL_SHARED_UPGRADABLE, MDL_TRANSACTION);
+
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&request, long_timeout));
+
+  expected_error= ER_LOCK_REFUSED_BY_ENGINE;
+  set_refuse_acquire();
+
+  EXPECT_TRUE(m_mdl_context.
+               upgrade_shared_lock(request.ticket, MDL_EXCLUSIVE, long_timeout));
+  EXPECT_EQ(1U, pre_acquire_count());
+  EXPECT_EQ(0U, post_release_count());
+  EXPECT_FALSE(m_mdl_context.
+               owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                           MDL_EXCLUSIVE));
+
+  // Nothing to notify about during release.
+  m_mdl_context.release_transactional_locks();
+  EXPECT_EQ(0U, post_release_count());
+
+  reset_counts_and_keys();
+
+  /*
+    Now case when notification is successfull but we fail to upgrade for some
+    other reason.
+  */
+
+  // Acquire S lock on the table in another thread.
+  Notification lock_grabbed, release_lock;
+  MDL_thread mdl_thread(table_name1, MDL_SHARED,
+                       &lock_grabbed, &release_lock, NULL, NULL);
+  mdl_thread.start();
+  lock_grabbed.wait_for_notification();
+
+  MDL_REQUEST_INIT(&request, MDL_key::TABLE, db_name, table_name1,
+                   MDL_SHARED_UPGRADABLE, MDL_TRANSACTION);
+
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&request, long_timeout));
+
+  expected_error= ER_LOCK_WAIT_TIMEOUT;
+
+  EXPECT_TRUE(m_mdl_context.
+               upgrade_shared_lock(request.ticket, MDL_EXCLUSIVE, zero_timeout));
+
+  /*
+    Failure to upgrade lock after successful notification is treated as release.
+  */
+  EXPECT_EQ(1U, pre_acquire_count());
+  EXPECT_EQ(1U, post_release_count());
+  EXPECT_TRUE(pre_acquire_key().is_equal(&request.key));
+  EXPECT_TRUE(post_release_key().is_equal(&request.key));
+
+  m_mdl_context.release_transactional_locks();
+
+  // No additional notifications!
+  EXPECT_EQ(1U, pre_acquire_count());
+  EXPECT_EQ(1U, post_release_count());
+
+  release_lock.notify();
+  mdl_thread.join();
+}
+
+
+/**
+  Test for SE notification in lock downgrade scenarios.
+*/
+
+TEST_F(MDLHtonNotifyTest, NotifyDowngrade)
+{
+  MDL_request request;
+
+  MDL_REQUEST_INIT(&request, MDL_key::TABLE, db_name, table_name1,
+                   MDL_EXCLUSIVE, MDL_TRANSACTION);
+
+  // Acquire X lock.
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&request, long_timeout));
+  EXPECT_EQ(1U, pre_acquire_count());
+  EXPECT_EQ(0U, post_release_count());
+  EXPECT_TRUE(pre_acquire_key().is_equal(&request.key));
+
+  // First try no-op downgrade. No notification should be done.
+  request.ticket->downgrade_lock(MDL_EXCLUSIVE);
+
+  EXPECT_EQ(1U, pre_acquire_count());
+  EXPECT_EQ(0U, post_release_count());
+
+  // Now downgrade to SNRW lock.
+  request.ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+
+  // We should notify SE as if doing lock release.
+  EXPECT_EQ(1U, pre_acquire_count());
+  EXPECT_EQ(1U, post_release_count());
+  EXPECT_TRUE(post_release_key().is_equal(&request.key));
+
+  m_mdl_context.release_transactional_locks();
+
+  // No additional notifications!
+  EXPECT_EQ(1U, pre_acquire_count());
+  EXPECT_EQ(1U, post_release_count());
+}
+
+
+/**
+  Test for SE notification in scenarios involving clone operation.
+*/
+
+TEST_F(MDLHtonNotifyTest, NotifyClone)
+{
+  MDL_request request1, request2, request3, request4;
+
+  // Acquire X lock.
+  MDL_REQUEST_INIT(&request1, MDL_key::TABLE, db_name, table_name1,
+                   MDL_EXCLUSIVE, MDL_TRANSACTION);
+
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&request1, long_timeout));
+  EXPECT_EQ(1U, pre_acquire_count());
+  EXPECT_EQ(0U, post_release_count());
+  EXPECT_TRUE(pre_acquire_key().is_equal(&request1.key));
+  EXPECT_TRUE(m_mdl_context.
+              owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                          MDL_EXCLUSIVE));
+
+  // Now try to clone it to S lock.
+  MDL_REQUEST_INIT(&request2, MDL_key::TABLE, db_name, table_name1,
+                   MDL_SHARED, MDL_EXPLICIT);
+  request2.ticket= request1.ticket;
+  EXPECT_FALSE(m_mdl_context.clone_ticket(&request2));
+
+  // There should be no additional notification in this case
+  EXPECT_EQ(1U, pre_acquire_count());
+  EXPECT_EQ(0U, post_release_count());
+
+  reset_counts_and_keys();
+
+  // Now try to clone it to another X lock instance.
+  MDL_REQUEST_INIT(&request3, MDL_key::TABLE, db_name, table_name1,
+                   MDL_EXCLUSIVE, MDL_EXPLICIT);
+  request3.ticket= request1.ticket;
+  EXPECT_FALSE(m_mdl_context.clone_ticket(&request3));
+
+  // This should cause additional SE notification
+  EXPECT_EQ(1U, pre_acquire_count());
+  EXPECT_EQ(0U, post_release_count());
+  EXPECT_TRUE(pre_acquire_key().is_equal(&request1.key));
+
+  reset_counts_and_keys();
+
+  // Finally try to clone it X lock and see what happens when SE refuses.
+  MDL_REQUEST_INIT(&request4, MDL_key::TABLE, db_name, table_name1,
+                   MDL_EXCLUSIVE, MDL_EXPLICIT);
+
+  request4.ticket= request1.ticket;
+  expected_error= ER_LOCK_REFUSED_BY_ENGINE;
+  set_refuse_acquire();
+
+  EXPECT_TRUE(m_mdl_context.clone_ticket(&request4));
+
+  // This should cause additional SE notification (which fails).
+  EXPECT_EQ(1U, pre_acquire_count());
+  EXPECT_EQ(0U, post_release_count());
+  EXPECT_TRUE(pre_acquire_key().is_equal(&request1.key));
+
+  // Release all locks and see how much SE notifications it will cause.
+  m_mdl_context.release_transactional_locks();
+  m_mdl_context.release_lock(request2.ticket);
+  m_mdl_context.release_lock(request3.ticket);
+
+  // All locks are released.
+  EXPECT_FALSE(m_mdl_context.has_locks());
+
+  // Two instances of X locks were released so 2 post-release calls.
+  EXPECT_EQ(1U, pre_acquire_count());
+  EXPECT_EQ(2U, post_release_count());
+  EXPECT_TRUE(post_release_key().is_equal(&request1.key));
+}
+
+
 /** Test class for MDL_key class testing. Doesn't require MDL initialization. */
 
 class MDLKeyTest : public ::testing::Test

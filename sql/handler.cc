@@ -8445,3 +8445,148 @@ bool handler::my_eval_gcolumn_expr(THD *thd,
   DBUG_RETURN(res);
 }
 
+
+/**
+  Auxiliary structure for passing information to notify_*_helper()
+  functions.
+*/
+
+struct HTON_NOTIFY_PARAMS
+{
+  const MDL_key *key;
+  const ha_notification_type notification_type;
+  bool some_htons_were_notified;
+};
+
+
+static my_bool
+notify_exclusive_mdl_helper(THD *thd, plugin_ref plugin, void *arg)
+{
+  handlerton *hton= plugin_data<handlerton*>(plugin);
+  if (hton->state == SHOW_OPTION_YES && hton->notify_exclusive_mdl)
+  {
+    HTON_NOTIFY_PARAMS *params= reinterpret_cast<HTON_NOTIFY_PARAMS*>(arg);
+
+    if (hton->notify_exclusive_mdl(thd, params->key,
+                                   params->notification_type))
+    {
+      // Ignore failures from post event notification.
+      if (params->notification_type == HA_NOTIFY_PRE_EVENT)
+        return TRUE;
+    }
+    else
+      params->some_htons_were_notified= true;
+  }
+  return FALSE;
+}
+
+
+/**
+  Notify/get permission from all interested storage engines before
+  acquisition or after release of exclusive metadata lock on object
+  represented by key.
+
+  @param thd                Thread context.
+  @param mdl_key            MDL key identifying object on which exclusive
+                            lock is to be acquired/was released.
+  @param notification_type  Indicates whether this is pre-acquire or
+                            post-release notification.
+
+  @note @see handlerton::notify_exclusive_mdl for details about
+        calling convention and error reporting.
+
+  @return False - if notification was successful/lock can be acquired,
+          True - if it has failed/lock should not be acquired.
+*/
+
+bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
+                             ha_notification_type notification_type)
+{
+  HTON_NOTIFY_PARAMS params = {mdl_key, notification_type, false};
+  if (plugin_foreach(thd, notify_exclusive_mdl_helper,
+                     MYSQL_STORAGE_ENGINE_PLUGIN, &params))
+  {
+    /*
+      If some SE hasn't given its permission to acquire lock and some SEs
+      has given their permissions, we need to notify the latter group about
+      failed lock acquisition. We do this by calling post-release notification
+      for all interested SEs unconditionally.
+    */
+    if (notification_type == HA_NOTIFY_PRE_EVENT &&
+        params.some_htons_were_notified)
+    {
+      HTON_NOTIFY_PARAMS rollback_params = {mdl_key, HA_NOTIFY_POST_EVENT,
+                                            false};
+      (void) plugin_foreach(thd, notify_exclusive_mdl_helper,
+                            MYSQL_STORAGE_ENGINE_PLUGIN, &rollback_params);
+    }
+    return true;
+  }
+  return false;
+}
+
+
+static my_bool
+notify_alter_table_helper(THD *thd, plugin_ref plugin, void *arg)
+{
+  handlerton *hton= plugin_data<handlerton*>(plugin);
+  if (hton->state == SHOW_OPTION_YES && hton->notify_alter_table)
+  {
+    HTON_NOTIFY_PARAMS *params= reinterpret_cast<HTON_NOTIFY_PARAMS*>(arg);
+
+    if (hton->notify_alter_table(thd, params->key, params->notification_type))
+    {
+      // Ignore failures from post event notification.
+      if (params->notification_type == HA_NOTIFY_PRE_EVENT)
+        return TRUE;
+    }
+    else
+      params->some_htons_were_notified= true;
+  }
+  return FALSE;
+}
+
+
+/**
+  Notify/get permission from all interested storage engines before
+  or after executed ALTER TABLE on the table identified by key.
+
+  @param thd                Thread context.
+  @param mdl_key            MDL key identifying table.
+  @param notification_type  Indicates whether this is pre-ALTER or
+                            post-ALTER notification.
+
+  @note @see handlerton::notify_alter_table for rationale,
+        details about calling convention and error reporting.
+
+  @return False - if notification was successful/ALTER TABLE can
+                  proceed.
+          True -  if it has failed/ALTER TABLE should fail.
+*/
+
+bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
+                           ha_notification_type notification_type)
+{
+  HTON_NOTIFY_PARAMS params = {mdl_key, notification_type, false};
+
+  if (plugin_foreach(thd, notify_alter_table_helper,
+                     MYSQL_STORAGE_ENGINE_PLUGIN, &params))
+  {
+    /*
+      If some SE hasn't given its permission to do ALTER TABLE and some SEs
+      has given their permissions, we need to notify the latter group about
+      failed attemopt. We do this by calling post-ALTER TABLE notification
+      for all interested SEs unconditionally.
+    */
+    if (notification_type == HA_NOTIFY_PRE_EVENT &&
+        params.some_htons_were_notified)
+    {
+      HTON_NOTIFY_PARAMS rollback_params = {mdl_key, HA_NOTIFY_POST_EVENT,
+                                            false};
+      (void) plugin_foreach(thd, notify_alter_table_helper,
+                            MYSQL_STORAGE_ENGINE_PLUGIN, &rollback_params);
+    }
+    return true;
+  }
+  return false;
+}
