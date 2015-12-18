@@ -149,7 +149,7 @@ do_install_db() {
     then OUTFILE=`mktemp XXXXXX`
     else OUTFILE=`mktemp`
   fi
-  $MYQSL_SERVER_DIR/mysqld --initialize-insecure \
+  $MYSQL_SERVER_DIR/mysqld --initialize-insecure \
     --basedir=$INSTALL_DIR --datadir=$HOME_BASE/sandbox/data \
     --skip-name-resolve --user=$MYSELF > $OUTFILE
   if test ! -d $HOME_BASE/sandbox/data/mysql 
