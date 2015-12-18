@@ -54,7 +54,7 @@ extern ut_crc32_func_t	ut_crc32_legacy_big_endian;
 but very slow). */
 extern ut_crc32_func_t	ut_crc32_byte_by_byte;
 
-/** Flag that tells whether the CPU supports CRC32 or not */
-extern bool		ut_crc32_sse2_enabled;
+/** Text description of CRC32 implementation */
+extern const char *ut_crc32_implementation;
 
 #endif /* ut0crc32_h */

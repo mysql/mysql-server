@@ -1672,8 +1672,7 @@ innobase_start_or_create_for_mysql(void)
 
 	srv_boot();
 
-	ib::info() << (ut_crc32_sse2_enabled ? "Using" : "Not using")
-		<< " CPU crc32 instructions";
+	ib::info() << "Using " << ut_crc32_implementation;
 
 	if (!srv_read_only_mode) {
 
