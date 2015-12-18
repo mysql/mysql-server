@@ -6386,6 +6386,26 @@ int mysql_discard_or_import_tablespace(THD *thd,
     ALTER TABLE
   */
 
+   /*
+     DISCARD/IMPORT TABLESPACE do not respect ALGORITHM and LOCK clauses.
+   */
+  if (thd->lex->alter_info.requested_lock !=
+      Alter_info::ALTER_TABLE_LOCK_DEFAULT)
+  {
+    my_error(ER_ALTER_OPERATION_NOT_SUPPORTED, MYF(0),
+             "LOCK=NONE/SHARED/EXCLUSIVE",
+             "LOCK=DEFAULT");
+    DBUG_RETURN(true);
+  }
+  else if (thd->lex->alter_info.requested_algorithm !=
+           Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT)
+  {
+    my_error(ER_ALTER_OPERATION_NOT_SUPPORTED, MYF(0),
+             "ALGORITHM=COPY/INPLACE",
+             "ALGORITHM=DEFAULT");
+    DBUG_RETURN(true);
+  }
+
   THD_STAGE_INFO(thd, stage_discard_or_import_tablespace);
 
   /*
