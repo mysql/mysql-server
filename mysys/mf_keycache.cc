@@ -115,6 +115,7 @@
 #include "probes_mysql.h"
 #include "my_thread_local.h"
 #include "mysql/service_mysql_alloc.h"
+#include "template_utils.h"
 
 #define STRUCT_PTR(TYPE, MEMBER, a)                                           \
           (TYPE *) ((char *) (a) - offsetof(TYPE, MEMBER))
@@ -3205,8 +3206,10 @@ static void free_block(KEY_CACHE *keycache,
 }
 
 
-static int cmp_sec_link(BLOCK_LINK **a, BLOCK_LINK **b)
+static int cmp_sec_link(const void *a_arg, const void *b_arg)
 {
+  BLOCK_LINK **a= pointer_cast<BLOCK_LINK**>(const_cast<void *>(a_arg));
+  BLOCK_LINK **b= pointer_cast<BLOCK_LINK**>(const_cast<void *>(b_arg));
   return (((*a)->hash_link->diskpos < (*b)->hash_link->diskpos) ? -1 :
       ((*a)->hash_link->diskpos > (*b)->hash_link->diskpos) ? 1 : 0);
 }
@@ -3233,7 +3236,7 @@ static int flush_cached_blocks(KEY_CACHE *keycache,
      As all blocks referred in 'cache' are marked by BLOCK_IN_FLUSH
      we are guarunteed no thread will change them
   */
-  my_qsort((uchar*) cache, count, sizeof(*cache), (qsort_cmp) cmp_sec_link);
+  my_qsort((uchar*) cache, count, sizeof(*cache), cmp_sec_link);
 
   mysql_mutex_lock(&keycache->cache_lock);
   /*

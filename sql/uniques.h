@@ -45,7 +45,7 @@ class Unique :public Sql_alloc
 
 public:
   ulong elements;
-  Unique(qsort_cmp2 comp_func, void *comp_func_fixed_arg,
+  Unique(qsort2_cmp comp_func, void *comp_func_fixed_arg,
 	 uint size_arg, ulonglong max_in_memory_size_arg);
   ~Unique();
   ulong elements_in_tree() { return tree.elements_in_tree; }

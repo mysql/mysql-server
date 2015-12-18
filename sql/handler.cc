@@ -6648,9 +6648,11 @@ void DsMrr_impl::reset()
 }
 
 
-static int rowid_cmp(void *h, uchar *a, uchar *b)
+static int rowid_cmp(const void *h, const void *a, const void *b)
 {
-  return ((handler*)h)->cmp_ref(a, b);
+  return
+    pointer_cast<const handler*>(h)->cmp_ref(pointer_cast<const uchar*>(a),
+                                             pointer_cast<const uchar*>(b));
 }
 
 
@@ -6720,7 +6722,7 @@ int DsMrr_impl::dsmrr_fill_buffer()
   uint elem_size= h->ref_length + (int)is_mrr_assoc * sizeof(void*);
   size_t n_rowids= (rowids_buf_cur - rowids_buf) / elem_size;
   
-  my_qsort2(rowids_buf, n_rowids, elem_size, (qsort2_cmp)rowid_cmp,
+  my_qsort2(rowids_buf, n_rowids, elem_size, rowid_cmp,
             (void*)h);
   rowids_buf_last= rowids_buf_cur;
   rowids_buf_cur=  rowids_buf;

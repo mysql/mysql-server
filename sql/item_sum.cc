@@ -704,9 +704,11 @@ void Item_sum::cleanup()
     @retval > 0       if key1 > key2
 */
 
-static int simple_str_key_cmp(void* arg, uchar* key1, uchar* key2)
+static int simple_str_key_cmp(const void* arg, const void* a, const void* b)
 {
-  Field *f= (Field*) arg;
+  Field *f= const_cast<Field*>(pointer_cast<const Field*>(arg));
+  const uchar *key1= pointer_cast<const uchar*>(a);
+  const uchar *key2= pointer_cast<const uchar*>(b);
   return f->cmp(key1, key2);
 }
 
@@ -726,9 +728,12 @@ static int simple_str_key_cmp(void* arg, uchar* key1, uchar* key2)
     @retval >0       if key1 > key2
 */
 
-int Aggregator_distinct::composite_key_cmp(void* arg, uchar* key1, uchar* key2)
+int Aggregator_distinct::composite_key_cmp(const void *arg,
+                                           const void *a, const void *b)
 {
   Aggregator_distinct *aggr= (Aggregator_distinct *) arg;
+  const uchar* key1= pointer_cast<const uchar*>(a);
+  const uchar* key2= pointer_cast<const uchar*>(b);
   Field **field    = aggr->table->field;
   Field **field_end= field + aggr->table->s->fields;
   uint32 *lengths=aggr->field_lengths;
@@ -896,7 +901,7 @@ bool Aggregator_distinct::setup(THD *thd)
         No blobs, otherwise it would have been MyISAM: set up a compare
         function and its arguments to use with Unique.
       */
-      qsort_cmp2 compare_key;
+      qsort2_cmp compare_key;
       void* cmp_arg;
       Field **field= table->field;
       Field **field_end= field + table->s->fields;
@@ -918,7 +923,7 @@ bool Aggregator_distinct::setup(THD *thd)
       if (all_binary)
       {
         cmp_arg= (void*) &tree_key_length;
-        compare_key= (qsort_cmp2) simple_raw_key_cmp;
+        compare_key= simple_raw_key_cmp;
       }
       else
       {
@@ -930,14 +935,14 @@ bool Aggregator_distinct::setup(THD *thd)
             compare method that can take advantage of not having to worry
             about other fields.
           */
-          compare_key= (qsort_cmp2) simple_str_key_cmp;
+          compare_key= simple_str_key_cmp;
           cmp_arg= (void*) table->field[0];
           /* tree_key_length has been set already */
         }
         else
         {
           uint32 *length;
-          compare_key= (qsort_cmp2) composite_key_cmp;
+          compare_key= composite_key_cmp;
           cmp_arg= (void*) this;
           field_lengths= (uint32*) thd->alloc(table->s->fields * sizeof(uint32));
           for (tree_key_length= 0, length= field_lengths, field= table->field;

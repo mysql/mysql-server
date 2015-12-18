@@ -7678,8 +7678,10 @@ add_ft_keys(Key_use_array *keyuse_array,
   @retval <0 If a < b.
   @retval >0 If a > b.
 */
-static int sort_keyuse(Key_use *a, Key_use *b)
+static int sort_keyuse(const void *a_arg, const void *b_arg)
 {
+  const Key_use *a= pointer_cast<const Key_use*>(a_arg);
+  const Key_use *b= pointer_cast<const Key_use*>(b_arg);
   int res;
   if (a->table_ref->tableno() != b->table_ref->tableno())
     return (int) (a->table_ref->tableno() - b->table_ref->tableno());
@@ -8162,7 +8164,7 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
     Key_use *save_pos, *use;
 
     my_qsort(keyuse->begin(), keyuse->size(), keyuse->element_size(),
-             reinterpret_cast<qsort_cmp>(sort_keyuse));
+             sort_keyuse);
 
     const Key_use key_end(NULL, NULL, 0, 0, 0, 0, 0, 0, false, NULL, 0);
     if (keyuse->push_back(key_end)) // added for easy testing

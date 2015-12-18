@@ -3157,10 +3157,12 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
    that PK has number 0).
 */
 
-static int sort_keys(KEY *a, KEY *b)
+static int sort_keys(const void *a_arg, const void *b_arg)
 {
+  const KEY *a= pointer_cast<const KEY*>(a_arg);
+  const KEY *b= pointer_cast<const KEY*>(b_arg);
   ulong a_flags= a->flags, b_flags= b->flags;
-  
+
   if (a_flags & HA_NOSAME)
   {
     if (!(b_flags & HA_NOSAME))
@@ -4912,7 +4914,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
   }
   /* Sort keys in optimized order */
   my_qsort((uchar*) *key_info_buffer, *key_count, sizeof(KEY),
-	   (qsort_cmp) sort_keys);
+	   sort_keys);
   create_info->null_bits= null_fields;
 
   /* Check fields. */
@@ -6701,8 +6703,10 @@ static bool has_index_def_changed(Alter_inplace_info *ha_alter_info,
 }
 
 
-static int compare_uint(const uint *s, const uint *t)
+static int compare_uint(const void *a, const void *b)
 {
+  const uint *s= pointer_cast<const uint*>(a);
+  const uint *t= pointer_cast<const uint*>(b);
   return (*s < *t) ? -1 : ((*s > *t) ? 1 : 0);
 }
 
@@ -7191,7 +7195,7 @@ static bool fill_alter_inplace_info(THD *thd,
   */
   my_qsort(ha_alter_info->index_add_buffer,
            ha_alter_info->index_add_count,
-           sizeof(uint), (qsort_cmp) compare_uint);
+           sizeof(uint), compare_uint);
 
   /* Now let us calculate flags for storage engine API. */
 

@@ -73,7 +73,7 @@ struct Sort_addon_field {/* Sort addon packed field */
 
 struct Merge_chunk_compare_context
 {
-  qsort_cmp2 key_compare;
+  qsort2_cmp key_compare;
   const void *key_compare_arg;
 };
 

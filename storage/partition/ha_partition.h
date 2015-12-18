@@ -143,9 +143,9 @@ private:
   /** Sorted array of partition ids in descending order of number of rows. */
   uint32 *m_part_ids_sorted_by_num_of_records;
   /* Compare function for my_qsort2, for reversed order. */
-  static int compare_number_of_records(ha_partition *me,
-                                       const uint32 *a,
-                                       const uint32 *b);
+  static int compare_number_of_records(const void *cmp_arg,
+                                       const void *a_arg,
+                                       const void *b_arg);
   /** keep track of partitions to call ha_reset */
   MY_BITMAP m_partitions_to_reset;
 public:
@@ -934,7 +934,7 @@ public:
     to check whether the rest of the reference part is also the same.
     -------------------------------------------------------------------------
   */
-  virtual int cmp_ref(const uchar * ref1, const uchar * ref2);
+  virtual int cmp_ref(const uchar * ref1, const uchar * ref2) const;
 
   /*
     -------------------------------------------------------------------------

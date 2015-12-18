@@ -26,6 +26,7 @@ extern "C" {
 
 #include "my_base.h"		/* get 'enum ha_rkey_function' */
 #include "my_alloc.h"           /* MEM_ROOT */
+#include "my_sys.h"             /* qsort2_cmp */
 
 /* Worst case tree is half full. This gives use 2^(MAX_TREE_HEIGHT/2) leafs */
 #define MAX_TREE_HEIGHT	64
@@ -58,7 +59,7 @@ typedef struct st_tree {
   TREE_ELEMENT **parents[MAX_TREE_HEIGHT];
   uint offset_to_key,elements_in_tree,size_of_element;
   ulong memory_limit, allocated;
-  qsort_cmp2 compare;
+  qsort2_cmp compare;
   const void *custom_arg;
   MEM_ROOT mem_root;
   my_bool with_delete;
@@ -68,7 +69,7 @@ typedef struct st_tree {
 
 	/* Functions on whole tree */
 void init_tree(TREE *tree, ulong default_alloc_size, ulong memory_limit,
-               int size, qsort_cmp2 compare, my_bool with_delete,
+               int size, qsort2_cmp compare, my_bool with_delete,
 	       tree_element_free free_element, const void *custom_arg);
 void delete_tree(TREE*);
 void reset_tree(TREE*);

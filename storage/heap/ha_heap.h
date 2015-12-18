@@ -106,7 +106,7 @@ public:
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     enum thr_lock_type lock_type);
-  int cmp_ref(const uchar *ref1, const uchar *ref2)
+  int cmp_ref(const uchar *ref1, const uchar *ref2) const
   {
     return memcmp(ref1, ref2, sizeof(HEAP_PTR));
   }

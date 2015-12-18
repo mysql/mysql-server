@@ -51,9 +51,11 @@ typedef struct st_ft_superdoc
     double   tmp_weight;
 } FT_SUPERDOC;
 
-static int FT_SUPERDOC_cmp(void* cmp_arg __attribute__((unused)),
-			   FT_SUPERDOC *p1, FT_SUPERDOC *p2)
+static int FT_SUPERDOC_cmp(const void* cmp_arg __attribute__((unused)),
+			   const void* a, const void *b)
 {
+  FT_SUPERDOC *p1= (FT_SUPERDOC*)a;
+  FT_SUPERDOC *p2= (FT_SUPERDOC*)b;
   if (p1->doc.dpos < p2->doc.dpos)
     return -1;
   if (p1->doc.dpos == p2->doc.dpos)
@@ -202,9 +204,11 @@ static int walk_and_push(FT_SUPERDOC *from,
 }
 
 
-static int FT_DOC_cmp(void *unused __attribute__((unused)),
-                      FT_DOC *a, FT_DOC *b)
+static int FT_DOC_cmp(const void *unused __attribute__((unused)),
+                      const void *a_arg, const void *b_arg)
 {
+  FT_DOC *a= (FT_DOC*)a_arg;
+  FT_DOC *b= (FT_DOC*)b_arg;
   double c= b->weight - a->weight;
   return ((c < 0) ? -1 : (c > 0) ? 1 : 0);
 }
@@ -239,7 +243,7 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
 
   memset(&wtree, 0, sizeof(wtree));
 
-  init_tree(&aio.dtree,0,0,sizeof(FT_SUPERDOC),(qsort_cmp2)&FT_SUPERDOC_cmp,0,
+  init_tree(&aio.dtree,0,0,sizeof(FT_SUPERDOC),&FT_SUPERDOC_cmp,0,
             NULL, NULL);
 
   ft_parse_init(&wtree, aio.charset);
@@ -304,7 +308,7 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
 	    &dptr, left_root_right);
 
   if (flags & FT_SORTED)
-    my_qsort2(dlist->doc, dlist->ndocs, sizeof(FT_DOC), (qsort2_cmp)&FT_DOC_cmp,
+    my_qsort2(dlist->doc, dlist->ndocs, sizeof(FT_DOC), &FT_DOC_cmp,
               0);
 
 err:

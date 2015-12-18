@@ -5264,8 +5264,12 @@ void Item_func_in::fix_after_pullout(SELECT_LEX *parent_select,
 }
 
 
-static int srtcmp_in(CHARSET_INFO *cs, const String *x,const String *y)
+static int srtcmp_in(const void *cmp_arg, const void *a, const void *b)
 {
+  CHARSET_INFO *cs=
+    const_cast<CHARSET_INFO*>(pointer_cast<const CHARSET_INFO*>(cmp_arg));
+  const String *x= pointer_cast<const String*>(a);
+  const String *y= pointer_cast<const String*>(b);
   return cs->coll->strnncollsp(cs,
                                (uchar *) x->ptr(),x->length(),
                                (uchar *) y->ptr(),y->length(), 0);
@@ -5468,7 +5472,7 @@ void Item_func_in::fix_length_and_dec()
       }
       switch (cmp_type) {
       case STRING_RESULT:
-        array=new in_string(thd, arg_count-1, (qsort2_cmp) srtcmp_in, 
+        array=new in_string(thd, arg_count-1, srtcmp_in,
                             cmp_collation.collation);
         break;
       case INT_RESULT:

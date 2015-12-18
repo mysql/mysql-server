@@ -27,6 +27,7 @@
 #include "mysys_err.h"
 #include "my_thread_local.h"
 #include "mysql/service_mysql_alloc.h"
+#include "template_utils.h"
 #if defined(HAVE_DIRENT_H)
 # include <dirent.h>
 #else
@@ -49,9 +50,6 @@ typedef Prealloced_array<FILEINFO, 100, true> Entries_array;
 
 #define NAMES_START_SIZE   32768
 
-static int	comp_names(struct fileinfo *a,struct fileinfo *b);
-
-
 	/* We need this because program don't know with malloc we used */
 
 void my_dirend(MY_DIR *buffer)
@@ -72,8 +70,10 @@ void my_dirend(MY_DIR *buffer)
 
 	/* Compare in sort of filenames */
 
-static int comp_names(struct fileinfo *a, struct fileinfo *b)
+static int comp_names(const void *a_arg, const void *b_arg)
 {
+  const struct fileinfo *a= pointer_cast<const struct fileinfo*>(a_arg);
+  const struct fileinfo *b= pointer_cast<const struct fileinfo*>(b_arg);
   return (strcmp(a->name,b->name));
 } /* comp_names */
 
@@ -156,7 +156,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   
   if (!(MyFlags & MY_DONT_SORT))
     my_qsort((void *) result->dir_entry, result->number_off_files,
-          sizeof(FILEINFO), (qsort_cmp) comp_names);
+          sizeof(FILEINFO), comp_names);
   DBUG_RETURN(result);
 
  error:
@@ -318,7 +318,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
 
   if (!(MyFlags & MY_DONT_SORT))
     my_qsort((void *) result->dir_entry, result->number_off_files,
-          sizeof(FILEINFO), (qsort_cmp) comp_names);
+          sizeof(FILEINFO), comp_names);
   DBUG_PRINT("exit", ("found %d files", result->number_off_files));
   DBUG_RETURN(result);
 error:

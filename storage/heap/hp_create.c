@@ -16,7 +16,7 @@
 #include "heapdef.h"
 #include "mysql/service_mysql_alloc.h"
 
-static int keys_compare(heap_rb_param *param, uchar *key1, uchar *key2);
+static int keys_compare(const void *a, const void *b, const void *c);
 static void init_block(HP_BLOCK *block,uint reclength,ulong min_records,
 		       ulong max_records);
 
@@ -161,7 +161,7 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
 	keyseg++;
 
 	init_tree(&keyinfo->rb_tree, 0, 0, sizeof(uchar*),
-		  (qsort_cmp2)keys_compare, 1, NULL, NULL);
+		  keys_compare, 1, NULL, NULL);
 	keyinfo->delete_key= hp_rb_delete_key;
 	keyinfo->write_key= hp_rb_write_key;
       }
@@ -227,9 +227,12 @@ err:
 } /* heap_create */
 
 
-static int keys_compare(heap_rb_param *param, uchar *key1, uchar *key2)
+static int keys_compare(const void *a, const void *b, const void *c)
 {
   uint not_used[2];
+  heap_rb_param *param= (heap_rb_param*)a;
+  uchar *key1= (uchar*)b;
+  uchar *key2= (uchar*)c;
   return ha_key_cmp(param->keyseg, key1, key2, param->key_length, 
 		    param->search_flag, not_used);
 }

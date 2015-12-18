@@ -161,8 +161,11 @@ static int FTB_WORD_cmp(my_off_t *v, FTB_WORD *a, FTB_WORD *b)
   return i;
 }
 
-static int FTB_WORD_cmp_list(CHARSET_INFO *cs, FTB_WORD **a, FTB_WORD **b)
+static int FTB_WORD_cmp_list(const void *cmp_arg, const void *a_arg, const void *b_arg)
 {
+  CHARSET_INFO *cs= (CHARSET_INFO*)cmp_arg;
+  FTB_WORD **a= (FTB_WORD**)a_arg;
+  FTB_WORD **b= (FTB_WORD**)b_arg;
   /* ORDER BY word, ndepth */
   int i= ha_compare_text(cs, (uchar*) (*a)->word + 1, (*a)->len - 1,
                              (uchar*) (*b)->word + 1, (*b)->len - 1, 0, 0);
@@ -617,7 +620,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
                                      sizeof(FTB_WORD *)*ftb->queue.elements);
   memcpy(ftb->list, ftb->queue.root+1, sizeof(FTB_WORD *)*ftb->queue.elements);
   my_qsort2(ftb->list, ftb->queue.elements, sizeof(FTB_WORD *),
-            (qsort2_cmp)FTB_WORD_cmp_list, ftb->charset);
+            FTB_WORD_cmp_list, ftb->charset);
   if (ftb->queue.elements<2) ftb->with_scan &= ~FTB_FLAG_TRUNC;
   ftb->state=READY;
   return ftb;

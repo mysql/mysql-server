@@ -4342,7 +4342,7 @@ format.
 int
 ha_innopart::cmp_ref(
 	const uchar*	ref1,
-	const uchar*	ref2)
+	const uchar*	ref2) const
 {
 	int	cmp;
 

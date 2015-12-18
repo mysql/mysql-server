@@ -1690,9 +1690,10 @@ bool SELECT_LEX::record_join_nest_info(List<TABLE_LIST> *tables)
 }
 
 
-static int subq_sj_candidate_cmp(Item_exists_subselect* const *el1, 
-                                 Item_exists_subselect* const *el2)
+static int subq_sj_candidate_cmp(const void *a, const void *b)
 {
+  Item_exists_subselect* const *el1= pointer_cast<Item_exists_subselect* const*>(a);
+  Item_exists_subselect* const *el2= pointer_cast<Item_exists_subselect* const*>(b);
   /*
     Remove this assert when we support semijoin on non-IN subqueries.
   */
@@ -2620,7 +2621,7 @@ bool SELECT_LEX::flatten_subqueries()
   */
   my_qsort(subq_begin,
            sj_candidates->size(), sj_candidates->element_size(),
-           reinterpret_cast<qsort_cmp>(subq_sj_candidate_cmp));
+           subq_sj_candidate_cmp);
 
   // A permanent transformation is going to start, so:
   Prepared_stmt_arena_holder ps_arena_holder(thd);

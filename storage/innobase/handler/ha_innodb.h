@@ -306,7 +306,7 @@ public:
 
 	bool primary_key_is_clustered() const;
 
-	int cmp_ref(const uchar* ref1, const uchar* ref2);
+	int cmp_ref(const uchar* ref1, const uchar* ref2) const;
 
 	/** On-line ALTER TABLE interface @see handler0alter.cc @{ */
 

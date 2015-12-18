@@ -31,8 +31,11 @@ typedef struct st_my_ft_parser_param
   MEM_ROOT *mem_root;
 } MY_FT_PARSER_PARAM;
 
-static int FT_WORD_cmp(CHARSET_INFO* cs, FT_WORD *w1, FT_WORD *w2)
+static int FT_WORD_cmp(const void* a, const void* b, const void *c)
 {
+  CHARSET_INFO *cs= (CHARSET_INFO*)a;
+  FT_WORD *w1= (FT_WORD*)b;
+  FT_WORD *w2= (FT_WORD*)c;
   return ha_compare_text(cs, (uchar*) w1->pos, w1->len,
                          (uchar*) w2->pos, w2->len, 0, 0);
 }
@@ -252,7 +255,7 @@ void ft_parse_init(TREE *wtree, const CHARSET_INFO *cs)
 {
   DBUG_ENTER("ft_parse_init");
   if (!is_tree_inited(wtree))
-    init_tree(wtree,0,0,sizeof(FT_WORD),(qsort_cmp2)&FT_WORD_cmp,0,NULL, cs);
+    init_tree(wtree,0,0,sizeof(FT_WORD),&FT_WORD_cmp,0,NULL, cs);
   DBUG_VOID_RETURN;
 }
 

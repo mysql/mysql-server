@@ -407,7 +407,7 @@ public:
 	int
 	cmp_ref(
 		const uchar*	ref1,
-		const uchar*	ref2);
+		const uchar*	ref2) const;
 
 	int
 	read_range_first(

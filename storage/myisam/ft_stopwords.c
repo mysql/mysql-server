@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,9 +30,11 @@ typedef struct st_ft_stopwords
 
 static TREE *stopwords3=NULL;
 
-static int FT_STOPWORD_cmp(void* cmp_arg __attribute__((unused)),
-			   FT_STOPWORD *w1, FT_STOPWORD *w2)
+static int FT_STOPWORD_cmp(const void* cmp_arg __attribute__((unused)),
+			   const void* a, const void* b)
 {
+  FT_STOPWORD *w1= (FT_STOPWORD*)a;
+  FT_STOPWORD *w2= (FT_STOPWORD*)b;
   return ha_compare_text(ft_stopword_cs,
 			 (uchar *)w1->pos,w1->len,
 			 (uchar *)w2->pos,w2->len,0,0);
@@ -60,7 +62,7 @@ int ft_init_stopwords()
     if (!(stopwords3=(TREE *)my_malloc(mi_key_memory_ft_stopwords,
                                        sizeof(TREE),MYF(0))))
       return -1;
-    init_tree(stopwords3,0,0,sizeof(FT_STOPWORD),(qsort_cmp2)&FT_STOPWORD_cmp,
+    init_tree(stopwords3,0,0,sizeof(FT_STOPWORD),&FT_STOPWORD_cmp,
               0,
               (ft_stopword_file ? (tree_element_free)&FT_STOPWORD_free : 0),
               NULL);

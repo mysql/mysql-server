@@ -640,7 +640,7 @@ public:
   virtual bool arg_is_null(bool use_null_value);
 
   bool unique_walk_function(void *element);
-  static int composite_key_cmp(void* arg, uchar* key1, uchar* key2);
+  static int composite_key_cmp(const void* arg, const void* a, const void* b);
 };
 
 

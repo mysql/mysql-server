@@ -97,8 +97,10 @@ static handler *tina_create_handler(handlerton *hton,
 /*
   Used for sorting chains with qsort().
 */
-static int sort_set (tina_set *a, tina_set *b)
+static int sort_set(const void *a_arg, const void *b_arg)
 {
+  const tina_set *a= pointer_cast<const tina_set*>(a_arg);
+  const tina_set *b= pointer_cast<const tina_set*>(b_arg);
   /*
     We assume that intervals do not intersect. So, it is enought to compare
     any two points. Here we take start of intervals for comparison.
@@ -1372,7 +1374,7 @@ int ha_tina::rnd_end()
       It sorts so that we move the firts blocks to the beginning.
     */
     my_qsort(chain, (size_t)(chain_ptr - chain), sizeof(tina_set),
-             (qsort_cmp)sort_set);
+             sort_set);
 
     my_off_t write_begin= 0, write_end;
 

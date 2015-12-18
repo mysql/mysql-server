@@ -16293,6 +16293,7 @@ ha_innobase::cmp_ref(
 				MySQL key value format */
 	const uchar*	ref2)	/*!< in: an (internal) primary key value in the
 				MySQL key value format */
+        const
 {
 	enum_field_types mysql_type;
 	Field*		field;

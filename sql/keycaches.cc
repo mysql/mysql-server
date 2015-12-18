@@ -15,6 +15,7 @@
 
 #include "keycaches.h"
 #include "../mysys/mysys_priv.h"
+#include "template_utils.h"
 
 
 /****************************************************************************
@@ -41,13 +42,14 @@ static uchar* find_named(I_List<NAMED_ILINK> *list, const char *name,
 }
 
 
-void NAMED_ILIST::delete_elements(void (*free_element)(const char *name, uchar*))
+void NAMED_ILIST::delete_elements()
 {
   NAMED_ILINK *element;
   DBUG_ENTER("NAMED_ILIST::delete_elements");
   while ((element= get()))
   {
-    (*free_element)(element->name, element->data);
+    end_key_cache(pointer_cast<KEY_CACHE*>(element->data), TRUE); // Can never fail
+    my_free(element->data);
     delete element;
   }
   DBUG_VOID_RETURN;
@@ -110,13 +112,6 @@ KEY_CACHE *get_or_create_key_cache(const char *name, size_t length)
   if (!(key_cache= get_key_cache(&key_cache_name)))
     key_cache= create_key_cache(name, length);
   return key_cache;
-}
-
-
-void free_key_cache(const char *name, KEY_CACHE *key_cache)
-{
-  end_key_cache(key_cache, 1);		// Can never fail
-  my_free(key_cache);
 }
 
 

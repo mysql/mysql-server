@@ -1426,7 +1426,7 @@ void clean_up(bool print_message)
   transaction_cache_free();
   table_def_free();
   mdl_destroy();
-  key_caches.delete_elements((void (*)(const char*, uchar*)) free_key_cache);
+  key_caches.delete_elements();
   multi_keycache_free();
   free_status_vars();
   query_logger.cleanup();

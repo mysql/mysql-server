@@ -184,10 +184,6 @@ typedef char	pbool;		/* Mixed prototypes can take char */
 typedef int	pchar;		/* Mixed prototypes can't take char */
 typedef int	pbool;		/* Mixed prototypes can't take char */
 #endif
-C_MODE_START
-typedef int	(*qsort_cmp)(const void *,const void *);
-typedef int	(*qsort_cmp2)(const void*, const void *,const void *);
-C_MODE_END
 #ifdef _WIN32
 typedef int       socket_len_t;
 typedef int       sigset_t;

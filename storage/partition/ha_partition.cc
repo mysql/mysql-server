@@ -3779,10 +3779,13 @@ int ha_partition::read_range_next_in_part(uint part, uchar *buf)
   Helper function for sorting according to number of rows in descending order.
 */
 
-int ha_partition::compare_number_of_records(ha_partition *me,
-                                            const uint32 *a,
-                                            const uint32 *b)
+int ha_partition::compare_number_of_records(const void *cmp_arg,
+                                            const void *a_arg,
+                                            const void *b_arg)
 {
+  const ha_partition *me= pointer_cast<const ha_partition*>(cmp_arg);
+  const uint32 *a= pointer_cast<const uint32*>(a_arg);
+  const uint32 *b= pointer_cast<const uint32*>(b_arg);
   handler **file= me->m_file;
   /* Note: sorting in descending order! */
   if (file[*a]->stats.records > file[*b]->stats.records)
@@ -4031,7 +4034,7 @@ int ha_partition::info(uint flag)
     my_qsort2((void*) m_part_ids_sorted_by_num_of_records,
               m_tot_parts,
               sizeof(uint32),
-              (qsort2_cmp) compare_number_of_records,
+              compare_number_of_records,
               this);
 
     file= m_file[handler_instance];
@@ -5620,7 +5623,7 @@ bool ha_partition::is_index_algorithm_supported(enum ha_key_alg key_alg) const
     they are the same. Sort in partition id order if not equal.
 */
 
-int ha_partition::cmp_ref(const uchar *ref1, const uchar *ref2)
+int ha_partition::cmp_ref(const uchar *ref1, const uchar *ref2) const
 {
   int cmp;
   my_ptrdiff_t diff1, diff2;

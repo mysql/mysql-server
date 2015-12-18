@@ -3134,7 +3134,7 @@ public:
  */
 
  virtual bool primary_key_is_clustered() const { return false; }
- virtual int cmp_ref(const uchar *ref1, const uchar *ref2)
+ virtual int cmp_ref(const uchar *ref1, const uchar *ref2) const
  {
    return memcmp(ref1, ref2, ref_length);
  }
