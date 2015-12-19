@@ -679,16 +679,16 @@ private:
     __attribute__((nonnull))
     void rebalance(subtree *const subtree);
 
-    __attribute__((nonnull))
+    __attribute__((nonnull(3)))
     static void copyout(uint32_t *const outlen, dmtdata_t *const out, const dmt_node *const n);
 
-    __attribute__((nonnull))
+    __attribute__((nonnull(3)))
     static void copyout(uint32_t *const outlen, dmtdata_t **const out, dmt_node *const n);
 
-    __attribute__((nonnull))
+    __attribute__((nonnull(4)))
     static void copyout(uint32_t *const outlen, dmtdata_t *const out, const uint32_t len, const dmtdata_t *const stored_value_ptr);
 
-    __attribute__((nonnull))
+    __attribute__((nonnull(4)))
     static void copyout(uint32_t *const outlen, dmtdata_t **const out, const uint32_t len, dmtdata_t *const stored_value_ptr);
 
     template<typename dmtcmp_t,
