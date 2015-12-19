@@ -481,7 +481,9 @@ static void print_db_key_range_struct (void) {
 
 static void print_db_lsn_struct (void) {
     field_counter=0;
-    sort_and_dump_fields("db_lsn", false, NULL);
+    /* A dummy field to make sizeof(DB_LSN) equal in C and C++ */
+    const char *extra[] = { "char dummy", NULL };
+    sort_and_dump_fields("db_lsn", false, extra);
 }
 
 static void print_dbt_struct (void) {
