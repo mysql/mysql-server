@@ -147,9 +147,7 @@ static inline PAIR_ATTR make_rollback_pair_attr(long size) {
 PAIR_ATTR
 rollback_memory_size(ROLLBACK_LOG_NODE log) {
     size_t size = sizeof(*log);
-    if (&log->rollentry_arena) {
-        size += log->rollentry_arena.total_footprint();
-    }
+    size += log->rollentry_arena.total_footprint();
     return make_rollback_pair_attr(size);
 }
 
