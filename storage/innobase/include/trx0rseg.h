@@ -128,9 +128,8 @@ rseg array in trx_sys at a database startup. */
 void
 trx_rseg_array_init(
 /*================*/
-	trx_sysf_t*	sys_header,	/*!< in/out: trx system header */
-	purge_pq_t*	purge_queue,	/*!< in: rseg queue */
-	mtr_t*		mtr);		/*!< in/out: mtr */
+	purge_pq_t*	purge_queue);	/*!< in: rseg queue */
+
 /***************************************************************************
 Free's an instance of the rollback segment in memory. */
 void
