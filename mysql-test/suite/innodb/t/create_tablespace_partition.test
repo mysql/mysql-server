@@ -164,9 +164,9 @@ SHOW CREATE TABLE t1;
 SHOW CREATE TABLE t2;
 
 --echo # DISCARD will only work on the first partitions that use file_per_table
---replace_result #P# #p#  #SP# #sp#
 --error ER_ALTER_OPERATION_NOT_SUPPORTED
 ALTER TABLE t1 ALGORITHM=INPLACE, DISCARD TABLESPACE;
+--replace_result #P# #p#  #SP# #sp#
 --error ER_NOT_ALLOWED_COMMAND
 ALTER TABLE t1 ALGORITHM=DEFAULT, DISCARD TABLESPACE;
 SET @@sql_mode = @old_sql_mode;
