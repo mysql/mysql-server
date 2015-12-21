@@ -528,6 +528,19 @@ lock_table_ix_resurrect(
 /*====================*/
 	dict_table_t*	table,	/*!< in/out: table */
 	trx_t*		trx);	/*!< in/out: transaction */
+
+/** Sets a lock on a table based on the given mode.
+@param[in]	table	table to lock
+@param[in,out]	trx	transaction
+@param[in]	mode	LOCK_X or LOCK_S
+@return error code or DB_SUCCESS. */
+dberr_t
+lock_table_for_trx(
+	dict_table_t*	table,
+	trx_t*		trx,
+	enum lock_mode	mode)
+	__attribute__((nonnull, warn_unused_result));
+
 /*************************************************************//**
 Removes a granted record lock of a transaction from the queue and grants
 locks to other transactions waiting in the queue if they now are entitled

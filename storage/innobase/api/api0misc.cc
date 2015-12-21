@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -45,69 +45,9 @@ ib_trx_lock_table_with_retry(
 	dict_table_t*	table,		/*!< in: table to lock */
 	enum lock_mode	mode)		/*!< in: LOCK_X or LOCK_S */
 {
-	que_thr_t*	thr;
-	dberr_t		err;
-	mem_heap_t*	heap;
-	sel_node_t*	node;
-
-	heap = mem_heap_create(512);
-
 	trx->op_info = "setting table lock";
 
-	node = sel_node_create(heap);
-	thr = pars_complete_graph_for_exec(node, trx, heap);
-	thr->graph->state = QUE_FORK_ACTIVE;
-
-	/* We use the select query graph as the dummy graph needed
-	in the lock module call */
-
-	thr = que_fork_get_first_thr(static_cast<que_fork_t*>(
-		que_node_get_parent(thr)));
-	que_thr_move_to_run_state_for_mysql(thr, trx);
-
-run_again:
-	thr->run_node = thr;
-	thr->prev_node = thr->common.parent;
-
-	err = lock_table(0, table, mode, thr);
-
-	trx->error_state = err;
-
-	if (UNIV_LIKELY(err == DB_SUCCESS)) {
-		que_thr_stop_for_mysql_no_error(thr, trx);
-	} else {
-		que_thr_stop_for_mysql(thr);
-
-		if (err != DB_QUE_THR_SUSPENDED) {
-			ibool	was_lock_wait;
-
-			was_lock_wait = ib_handle_errors(&err, trx, thr, NULL);
-
-			if (was_lock_wait) {
-				goto run_again;
-			}
-		} else {
-			que_thr_t*	run_thr;
-			que_node_t*	parent;
-
-			parent = que_node_get_parent(thr);
-			run_thr = que_fork_start_command(
-				static_cast<que_fork_t*>(parent));
-
-			ut_a(run_thr == thr);
-
-			/* There was a lock wait but the thread was not
-			in a ready to run or running state. */
-			trx->error_state = DB_LOCK_WAIT;
-
-			goto run_again;
-		}
-	}
-
-	que_graph_free(thr->graph);
-	trx->op_info = "";
-
-	return(err);
+	return(lock_table_for_trx(table, trx, mode));
 }
 /****************************************************************//**
 Handles user errors and lock waits detected by the database engine.

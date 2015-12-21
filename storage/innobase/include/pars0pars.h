@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -33,6 +33,7 @@ Created 11/19/1996 Heikki Tuuri
 #include "row0types.h"
 #include "trx0types.h"
 #include "ut0vec.h"
+#include "row0mysql.h"
 
 /** Type of the user functions. The first argument is always InnoDB-supplied
 and varies in type, while 'user_arg' is a user-supplied argument. The
@@ -418,18 +419,21 @@ que_fork_t*
 pars_stored_procedure_call(
 /*=======================*/
 	sym_node_t*	sym_node);	/*!< in: stored procedure name */
-/******************************************************************//**
-Completes a query graph by adding query thread and fork nodes
+/** Completes a query graph by adding query thread and fork nodes
 above it and prepares the graph for running. The fork created is of
 type QUE_FORK_MYSQL_INTERFACE.
+@param[in]	node		root node for an incomplete query
+				graph, or NULL for dummy graph
+@param[in]	trx		transaction handle
+@param[in]	heap		memory heap from which allocated
+@param[in]	prebuilt	row prebuilt structure
 @return query thread node to run */
 que_thr_t*
 pars_complete_graph_for_exec(
-/*=========================*/
-	que_node_t*	node,	/*!< in: root node for an incomplete
-				query graph, or NULL for dummy graph */
-	trx_t*		trx,	/*!< in: transaction handle */
-	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
+	que_node_t*	node,
+	trx_t*		trx,
+	mem_heap_t*	heap,
+	row_prebuilt_t*	prebuilt)
 	__attribute__((nonnull(2,3), warn_unused_result));
 
 /****************************************************************//**

@@ -153,14 +153,17 @@ que_fork_create(
 	return(fork);
 }
 
-/***********************************************************************//**
-Creates a query graph thread node.
+
+/** Creates a query graph thread node.
+@param[in]	parent		parent node, i.e., a fork node
+@param[in]	heap		memory heap where created
+@param[in]	prebuilt	row prebuilt structure
 @return own: query thread node */
 que_thr_t*
 que_thr_create(
-/*===========*/
-	que_fork_t*	parent,	/*!< in: parent node, i.e., a fork node */
-	mem_heap_t*	heap)	/*!< in: memory heap where created */
+	que_fork_t*	parent,
+	mem_heap_t*	heap,
+	row_prebuilt_t*	prebuilt)
 {
 	que_thr_t*	thr;
 
@@ -180,6 +183,8 @@ que_thr_create(
 	thr->state = QUE_THR_COMMAND_WAIT;
 
 	thr->lock_state = QUE_THR_LOCK_NOLOCK;
+
+	thr->prebuilt = prebuilt;
 
 	UT_LIST_ADD_LAST(parent->thrs, thr);
 
