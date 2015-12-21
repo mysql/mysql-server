@@ -43,6 +43,7 @@
 #include "password.h"                // my_make_scrambled_password
 #include "sql_class.h"               // THD
 #include "strfunc.h"                 // hexchar_to_int
+#include "ut0crc32.h"                // checksum_crc32
 
 C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
@@ -4892,7 +4893,7 @@ longlong Item_func_crc32::val_int()
     return 0; /* purecov: inspected */
   }
   null_value=0;
-  return (longlong) crc32(0L, (uchar*)res->ptr(), res->length());
+  return (longlong) checksum_crc32(0L, (uchar*)res->ptr(), res->length());
 }
 
 #ifdef HAVE_COMPRESS
