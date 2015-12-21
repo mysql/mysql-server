@@ -88,8 +88,41 @@ mysys/my_perf.c, contributed by Facebook under the following license.
 #include <bits/hwcap.h>
 #endif /* defined(__linux__) && defined(__powerpc__) */
 
-#include "univ.i"
 #include "ut0crc32.h"
+
+#ifndef UINT32PF
+#ifdef _WIN32
+typedef unsigned __int64 ib_uint64_t;
+typedef unsigned __int32 ib_uint32_t;
+#else
+typedef uint64_t ib_uint64_t;
+typedef uint32_t ib_uint32_t;
+#endif /* _WIN32 */
+#endif /* UINT32PF */
+
+/* previously from ut0dbg.h */
+#ifdef UNIV_INNOCHECKSUM
+#include <assert.h>
+#define ut_a            assert
+#define ut_ad           assert
+#define ut_error        assert(0)
+#else /* !UNIV_INNOCHECKSUM */
+#define ut_a(EXPR)
+#define ut_ad(EXPR)
+#define ut_error
+#endif
+
+#ifndef UNIV_INLINE
+#ifndef UNIV_MUST_NOT_INLINE
+/* Definition for inline version */
+#define UNIV_INLINE static inline
+#else /* !UNIV_MUST_NOT_INLINE */
+/* If we want to compile a noninlined version we use the following macro
+ * definitions: */
+#define UNIV_NONINL
+#define UNIV_INLINE
+#endif /* !UNIV_MUST_NOT_INLINE */
+#endif /* !UNIV_INLINE */
 
 /** Pointer to CRC32 calculation function. */
 ut_crc32_func_t	ut_crc32;

@@ -26,7 +26,25 @@ Created Aug 10, 2011 Vasil Dimov
 #ifndef ut0crc32_h
 #define ut0crc32_h
 
-#include "univ.i"
+#ifndef byte
+#define byte                    unsigned char
+#endif
+
+#include <stdint.h>
+#include <inttypes.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+/* #include "univ.i" defines ULINTPF and types within storage/innodb but
+ * we duplicated those here since crc32 is used globally */
+#ifndef ULINTPF
+#ifdef _WIN64
+typedef unsigned __int64        ulint;
+#else
+typedef unsigned long int       ulint;
+#endif /* _WIN64 */
+#endif
+
 
 /********************************************************************//**
 Initializes the data structures used by ut_crc32*(). Does not do any
