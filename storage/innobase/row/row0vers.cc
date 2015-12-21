@@ -48,6 +48,7 @@ Created 2/6/1997 Heikki Tuuri
 #include "read0read.h"
 #include "lock0lock.h"
 #include "row0mysql.h"
+#include "current_thd.h"
 
 /** Check whether all non-virtual columns in a virtual index match that of in
 the cluster index

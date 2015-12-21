@@ -56,6 +56,7 @@ Created 12/27/1996 Heikki Tuuri
 #include "fts0fts.h"
 #include "fts0types.h"
 #include <algorithm>
+#include "current_thd.h"
 
 /* What kind of latch and lock can we assume when the control comes to
    -------------------------------------------------------------------
