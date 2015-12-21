@@ -336,7 +336,7 @@ SUBPARTITION BY KEY (b)
 ALTER TABLE t1 ALGORITHM=INPLACE, DISCARD TABLESPACE;
 ERROR 0A000: ALGORITHM=COPY/INPLACE is not supported for this operation. Try ALGORITHM=DEFAULT.
 ALTER TABLE t1 ALGORITHM=DEFAULT, DISCARD TABLESPACE;
-ERROR 42000: InnoDB: Cannot discard table `test/t1#P#hundreds#SP#subpart21` because it is in a general tablespace. It must be file-per-table.
+ERROR 42000: InnoDB: Cannot discard table `test/t1#p#hundreds#sp#subpart21` because it is in a general tablespace. It must be file-per-table.
 SET @@sql_mode = @old_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
