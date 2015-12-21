@@ -655,31 +655,31 @@ fill_innodb_trx_from_cache(
 
 		/* trx_tables_in_use */
 		OK(fields[IDX_TRX_TABLES_IN_USE]->store(
-			   (longlong) row->trx_tables_in_use, true));
+			   row->trx_tables_in_use, true));
 
 		/* trx_tables_locked */
 		OK(fields[IDX_TRX_TABLES_LOCKED]->store(
-			   (longlong) row->trx_tables_locked, true));
+			   row->trx_tables_locked, true));
 
 		/* trx_lock_structs */
 		OK(fields[IDX_TRX_LOCK_STRUCTS]->store(
-			   (longlong) row->trx_lock_structs, true));
+			   row->trx_lock_structs, true));
 
 		/* trx_lock_memory_bytes */
 		OK(fields[IDX_TRX_LOCK_MEMORY_BYTES]->store(
-			   (longlong) row->trx_lock_memory_bytes, true));
+			   row->trx_lock_memory_bytes, true));
 
 		/* trx_rows_locked */
 		OK(fields[IDX_TRX_ROWS_LOCKED]->store(
-			   (longlong) row->trx_rows_locked, true));
+			   row->trx_rows_locked, true));
 
 		/* trx_rows_modified */
 		OK(fields[IDX_TRX_ROWS_MODIFIED]->store(
-			   (longlong) row->trx_rows_modified, true));
+			   row->trx_rows_modified, true));
 
 		/* trx_concurrency_tickets */
 		OK(fields[IDX_TRX_CONNCURRENCY_TICKETS]->store(
-			   (longlong) row->trx_concurrency_tickets, true));
+			   row->trx_concurrency_tickets, true));
 
 		/* trx_isolation_level */
 		OK(field_store_string(fields[IDX_TRX_ISOLATION_LEVEL],
@@ -703,7 +703,7 @@ fill_innodb_trx_from_cache(
 
 		/* trx_is_read_only*/
 		OK(fields[IDX_TRX_READ_ONLY]->store(
-			   (longlong) row->trx_is_read_only, true));
+			   row->trx_is_read_only, true));
 
 		/* trx_is_autocommit_non_locking */
 		OK(fields[IDX_TRX_AUTOCOMMIT_NON_LOCKING]->store(
@@ -952,7 +952,7 @@ fill_innodb_locks_from_cache(
 					       strlen(row->lock_table),
 					       thd);
 		OK(fields[IDX_LOCK_TABLE]->store(
-			buf, static_cast<uint>(bufend - buf),
+			buf, static_cast<size_t>(bufend - buf),
 			system_charset_info));
 
 		/* lock_index */
@@ -3008,7 +3008,7 @@ i_s_fts_deleted_generic_fill(
 
 		doc_id = *(doc_id_t*) ib_vector_get_const(deleted->doc_ids, j);
 
-		OK(fields[I_S_FTS_DOC_ID]->store((longlong) doc_id, true));
+		OK(fields[I_S_FTS_DOC_ID]->store(doc_id, true));
 
 		OK(schema_table_store_record(thd, table));
 	}
@@ -5172,10 +5172,10 @@ i_s_innodb_buffer_page_fill(
 		}
 
 		OK(fields[IDX_BUFFER_PAGE_NEWEST_MOD]->store(
-			   (longlong) page_info->newest_mod, true));
+			   page_info->newest_mod, true));
 
 		OK(fields[IDX_BUFFER_PAGE_OLDEST_MOD]->store(
-			   (longlong) page_info->oldest_mod, true));
+			   page_info->oldest_mod, true));
 
 		OK(fields[IDX_BUFFER_PAGE_ACCESS_TIME]->store(
 			   page_info->access_time));
@@ -5204,7 +5204,7 @@ i_s_innodb_buffer_page_fill(
 
 				OK(fields[IDX_BUFFER_PAGE_TABLE_NAME]->store(
 					table_name,
-					static_cast<uint>(table_name_end - table_name),
+					static_cast<size_t>(table_name_end - table_name),
 					system_charset_info));
 				fields[IDX_BUFFER_PAGE_TABLE_NAME]->set_notnull();
 
@@ -5925,7 +5925,7 @@ i_s_innodb_buf_page_lru_fill(
 
 				OK(fields[IDX_BUF_LRU_PAGE_TABLE_NAME]->store(
 					table_name,
-					static_cast<uint>(table_name_end - table_name),
+					static_cast<size_t>(table_name_end - table_name),
 					system_charset_info));
 				fields[IDX_BUF_LRU_PAGE_TABLE_NAME]->set_notnull();
 
@@ -6338,10 +6338,9 @@ i_s_dict_fill_sys_tables(
 
 	OK(field_store_string(fields[SYS_TABLES_ROW_FORMAT], row_format));
 
-	OK(fields[SYS_TABLES_ZIP_PAGE_SIZE]->store(static_cast<double>(
-				page_size.is_compressed()
-				? page_size.physical()
-				: 0)));
+	OK(fields[SYS_TABLES_ZIP_PAGE_SIZE]->store(page_size.is_compressed()
+						   ? page_size.physical()
+						   : 0, true));
 
 	OK(field_store_string(fields[SYS_TABLES_SPACE_TYPE], space_type));
 
