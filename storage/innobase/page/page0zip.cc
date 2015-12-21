@@ -5067,11 +5067,6 @@ page_zip_verify_checksum(
 			return(TRUE);
 		}
 
-		if (stored == page_zip_calc_checksum(data, size, curr_algo,
-						     true)) {
-			return(TRUE);
-		}
-
 		if (stored == page_zip_calc_checksum(
 			data, size, SRV_CHECKSUM_ALGORITHM_INNODB)) {
 
@@ -5085,6 +5080,11 @@ page_zip_verify_checksum(
 			}
 #endif	/* UNIV_INNOCHECKSUM */
 
+			return(TRUE);
+		}
+
+		if (stored == page_zip_calc_checksum(data, size, curr_algo,
+						     true)) {
 			return(TRUE);
 		}
 
