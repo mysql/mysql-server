@@ -5195,12 +5195,26 @@ compare_tables(THD *thd,
 
       /* Check if field was renamed */
       field->flags&= ~FIELD_IS_RENAMED;
-      if (my_strcasecmp(system_charset_info,
-                        field->field_name,
-                        tmp_new_field->field_name))
+      /*
+        InnoDB data dictionary is case sensitive so we should use string case
+        sensitive comparison between fields. Note: strcmp branch is to be
+        removed in future when we fix it in InnoDB.
+      */
+      if ((table->s->db_type())->db_type == DB_TYPE_INNODB &&
+      strcmp(field->field_name,tmp_new_field->field_name))
       {
         field->flags|= FIELD_IS_RENAMED;
         *alter_flags|= HA_ALTER_COLUMN_NAME;
+      }
+      else
+      {
+        if (my_strcasecmp(system_charset_info,
+                          field->field_name,
+                          tmp_new_field->field_name))
+        {
+          field->flags|= FIELD_IS_RENAMED;
+          *alter_flags|= HA_ALTER_COLUMN_NAME;
+        }
       }
 
       *table_changes&= table_changes_local;
