@@ -17,7 +17,7 @@
 
 #ifndef MYSQL_CLIENT
 
-#include "binlog_event.h"                // checksum_crv32
+#include "ut0crc32.h"                    // checksum_crv32
 #include "template_utils.h"              // delete_container_pointers
 #include "field.h"                       // Field
 #include "log.h"                         // sql_print_error
@@ -30,7 +30,6 @@
 
 using std::min;
 using std::max;
-using binary_log::checksum_crc32;
 
 /**
    Function to compare two size_t integers for their relative

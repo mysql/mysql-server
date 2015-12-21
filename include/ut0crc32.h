@@ -64,6 +64,14 @@ typedef uint32_t	(*ut_crc32_func_t)(const byte* ptr, ulint len);
 /** Pointer to CRC32 calculation function. */
 extern ut_crc32_func_t	ut_crc32;
 
+/********************************************************************//**
+Appends CRC32 onto intial value.
+This mirrors the zlib crc32 interface
+@param crc - initial crc32 value
+@param ptr - data over which to calculate CRC32. ptr==NULL to initialize
+@param len - data length in bytes. */
+uint32_t checksum_crc32(uint32_t crc, const byte* ptr, ulint len);
+
 /** Pointer to CRC32 calculation function, which uses big-endian byte order
 when converting byte strings to integers internally. */
 extern ut_crc32_func_t	ut_crc32_legacy_big_endian;

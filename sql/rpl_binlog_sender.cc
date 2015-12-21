@@ -24,6 +24,7 @@
 #include "rpl_master.h"              // opt_sporadic_binlog_dump_fail
 #include "rpl_reporting.h"           // MAX_SLAVE_ERRMSG
 #include "sql_class.h"               // THD
+#include "ut0crc32.h"                // checksum_crc32
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -31,7 +32,6 @@
 #ifndef DBUG_OFF
   static uint binlog_dump_count= 0;
 #endif
-using binary_log::checksum_crc32;
 
 const uint32 Binlog_sender::PACKET_MIN_SIZE= 4096;
 const uint32 Binlog_sender::PACKET_MAX_SIZE= UINT_MAX32;

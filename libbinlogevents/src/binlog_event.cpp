@@ -16,6 +16,7 @@
 #include "binary_log_types.h"
 
 #include "statement_events.h"
+#include "ut0crc32.h"
 
 #include <algorithm>
 #include <stdint.h>
@@ -255,9 +256,9 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
 
     computed= checksum_crc32(0L, NULL, 0);
     /* checksum the event content but not the checksum part itself */
-    computed= binary_log::checksum_crc32(computed,
-                                         (const unsigned char*) event_buf,
-                                         event_len - BINLOG_CHECKSUM_LEN);
+    computed= checksum_crc32(computed,
+                             (const unsigned char*) event_buf,
+                             event_len - BINLOG_CHECKSUM_LEN);
 
     if (flags != 0)
     {

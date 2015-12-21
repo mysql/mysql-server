@@ -18,6 +18,7 @@
 
 #include "base64.h"            // base64_encode
 #include "binary_log_funcs.h"  // my_timestamp_binary_length
+#include "ut0crc32.h"
 
 #ifndef MYSQL_CLIENT
 #include "debug_sync.h"        // debug_sync_set_action
@@ -663,6 +664,10 @@ const char* Log_event::get_type_str()
   return get_type_str(get_type_code());
 }
 
+#ifdef MYSQL_CLIENT
+Log_event::init_crc32::init_crc32() { ut_crc32_init(); }
+static Log_event::init_crc32 Log_event_crc32;
+#endif
 
 /*
   Log_event::Log_event()

@@ -51,6 +51,7 @@
 #include "transaction.h"                       // trans_begin
 #include "tztime.h"                            // Time_zone
 #include "rpl_group_replication.h"
+#include "ut0crc32.h"
 
 // Sic: Must be after mysqld.h to get the right ER macro.
 #include "errmsg.h"                            // CR_*
@@ -63,7 +64,6 @@
 
 using std::min;
 using std::max;
-using binary_log::checksum_crc32;
 using binary_log::Log_event_header;
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")

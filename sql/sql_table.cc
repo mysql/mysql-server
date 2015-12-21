@@ -61,6 +61,7 @@
 #include "binlog.h"
 #include "sql_tablespace.h"            // check_tablespace_name())
 #include "item_timefunc.h"             // Item_func_now_local
+#include "ut0crc32.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -68,7 +69,6 @@
 #include <algorithm>
 using std::max;
 using std::min;
-using binary_log::checksum_crc32;
 
 #define ER_THD_OR_DEFAULT(thd,X) ((thd) ? ER_THD(thd, X) : ER_DEFAULT(X))
 

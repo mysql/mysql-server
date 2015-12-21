@@ -127,6 +127,9 @@ typedef uint32_t ib_uint32_t;
 /** Pointer to CRC32 calculation function. */
 ut_crc32_func_t	ut_crc32;
 
+/** Pointer to CRC32 function which takes additional crc arg */
+uint32_t (*ut_crc32_ex)(const byte* ptr, ulint len, uint32_t crc);
+
 /** Text description of CRC32 implementation */
 const char *ut_crc32_implementation = NULL;
 
@@ -300,11 +303,13 @@ ut_crc32_64_legacy_big_endian_hw(
 @param[in]	len	data length
 @return CRC-32C (polynomial 0x11EDC6F41) */
 uint32_t
-ut_crc32_hw(
+ut_crc32_hw_ex(
 	const byte*	buf,
-	ulint		len)
+	ulint		len,
+	uint32_t	crc
+)
 {
-	uint32_t	crc = 0xFFFFFFFFU;
+	crc ^= 0xFFFFFFFFU;
 
 	/* Calculate byte-by-byte up to an 8-byte aligned address. After
 	this consume the input 8-bytes at a time. */
@@ -380,6 +385,15 @@ ut_crc32_hw(
 	}
 
 	return(~crc);
+}
+
+uint32_t
+ut_crc32_hw(
+	const byte*	buf,
+	ulint		len
+)
+{
+	return ut_crc32_hw_ex(buf, len, 0U);
 }
 
 /** Calculates CRC32 using hardware/CPU instructions.
@@ -475,6 +489,23 @@ ut_crc32_power8(
 {
 #if defined(__powerpc__)
   return crc32_vpmsum(0, buf, len);
+#else
+		 ut_error;
+		 /* silence compiler warning about unused parameters */
+		 return((ib_uint32_t) buf[len]);
+#endif /* __powerpc__ */
+}
+
+UNIV_INLINE
+ib_uint32_t
+ut_crc32_power8_ex(
+/*===========*/
+		 const byte*		 buf,		 /*!< in: data over which to calculate CRC32 */
+		 ulint	 		 len,		 /*!< in: data length */
+		 ib_uint32_t	 	 crc=0U)	 /*!< in: intial crc */
+{
+#if defined(__powerpc__)
+  return crc32_vpmsum(crc, buf, len);
 #else
 		 ut_error;
 		 /* silence compiler warning about unused parameters */
@@ -616,11 +647,12 @@ ut_crc32_64_legacy_big_endian_sw(
 @param[in]	len	data length
 @return CRC-32C (polynomial 0x11EDC6F41) */
 uint32_t
-ut_crc32_sw(
+ut_crc32_sw_ex(
 	const byte*	buf,
-	ulint		len)
+	ulint		len,
+	uint32_t	crc)
 {
-	uint32_t	crc = 0xFFFFFFFFU;
+	crc ^= 0xFFFFFFFFU;
 
 	ut_a(ut_crc32_slice8_table_initialized);
 
@@ -659,6 +691,14 @@ ut_crc32_sw(
 	}
 
 	return(~crc);
+}
+
+uint32_t
+ut_crc32_sw(
+	const byte*	buf,
+	ulint		len)
+{
+	return ut_crc32_sw_ex(buf, len, 0x0U);
 }
 
 /** Calculates CRC32 in software, without using CPU instructions.
@@ -776,6 +816,7 @@ ut_crc32_init()
 
 	if (ut_crc32_sse2_enabled) {
 		ut_crc32 = ut_crc32_hw;
+		ut_crc32_ex = ut_crc32_hw_ex;
 		ut_crc32_legacy_big_endian = ut_crc32_legacy_big_endian_hw;
 		ut_crc32_byte_by_byte = ut_crc32_byte_by_byte_hw;
 		ut_crc32_implementation = "SSE2 crc32 instructions";
@@ -787,6 +828,7 @@ ut_crc32_init()
 	if (getauxval(AT_HWCAP2) & PPC_FEATURE2_ARCH_2_07) {
 		ut_crc32_implementation = "POWER8 crc32 instructions";
 		ut_crc32 = ut_crc32_power8;
+		ut_crc32_ex = ut_crc32_power8_ex;
 		ut_crc32_legacy_big_endian = ut_crc32_legacy_big_endian_sw;
 		ut_crc32_byte_by_byte = ut_crc32_byte_by_byte_sw;
 		/* needed for ut_crc32_legacy_big_endian_sw */
@@ -796,8 +838,15 @@ ut_crc32_init()
 	if (!ut_crc32_sse2_enabled) {
 		ut_crc32_slice8_table_init();
 		ut_crc32 = ut_crc32_sw;
+		ut_crc32_ex = ut_crc32_sw_ex;
 		ut_crc32_legacy_big_endian = ut_crc32_legacy_big_endian_sw;
 		ut_crc32_byte_by_byte = ut_crc32_byte_by_byte_sw;
 		ut_crc32_implementation = "Software implemented crc32";
 	}
+}
+
+uint32_t checksum_crc32(uint32_t crc, const byte* ptr, ulint len)
+{
+	if (ptr == NULL) return 0x0U;
+	return ut_crc32_ex(ptr, len, crc);
 }
