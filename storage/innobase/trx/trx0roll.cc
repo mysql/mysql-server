@@ -107,7 +107,7 @@ trx_rollback_to_savepoint_low(
 		ut_ad(trx->rsegs.m_redo.rseg != 0
 		      || trx->rsegs.m_noredo.rseg != 0);
 
-		thr = pars_complete_graph_for_exec(roll_node, trx, heap);
+		thr = pars_complete_graph_for_exec(roll_node, trx, heap, NULL);
 
 		ut_a(thr == que_fork_start_command(
 			static_cast<que_fork_t*>(que_node_get_parent(thr))));
@@ -642,7 +642,7 @@ trx_rollback_active(
 	fork = que_fork_create(NULL, NULL, QUE_FORK_RECOVERY, heap);
 	fork->trx = trx;
 
-	thr = que_thr_create(fork, heap);
+	thr = que_thr_create(fork, heap, NULL);
 
 	roll_node = roll_node_create(heap);
 
@@ -1104,7 +1104,7 @@ trx_roll_graph_build(
 	fork = que_fork_create(NULL, NULL, QUE_FORK_ROLLBACK, heap);
 	fork->trx = trx;
 
-	thr = que_thr_create(fork, heap);
+	thr = que_thr_create(fork, heap, NULL);
 
 	thr->child = row_undo_node_create(trx, thr, heap);
 

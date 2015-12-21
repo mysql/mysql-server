@@ -2098,6 +2098,14 @@ void
 dict_free_vc_templ(
 	dict_vcol_templ_t*	vc_templ);
 
+/** Check whether the table have virtual index.
+@param[in]	table	InnoDB table
+@return true if the table have virtual index, false otherwise. */
+UNIV_INLINE
+bool
+dict_table_have_virtual_index(
+	dict_table_t*	table);
+
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL

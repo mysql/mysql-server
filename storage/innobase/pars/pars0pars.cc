@@ -2035,7 +2035,7 @@ pars_procedure_definition(
 	fork = que_fork_create(NULL, NULL, QUE_FORK_PROCEDURE, heap);
 	fork->trx = NULL;
 
-	thr = que_thr_create(fork, heap);
+	thr = que_thr_create(fork, heap, NULL);
 
 	node = static_cast<proc_node_t*>(
 		mem_heap_alloc(heap, sizeof(proc_node_t)));
@@ -2170,18 +2170,21 @@ pars_sql(
 	return(graph);
 }
 
-/******************************************************************//**
-Completes a query graph by adding query thread and fork nodes
+/** Completes a query graph by adding query thread and fork nodes
 above it and prepares the graph for running. The fork created is of
 type QUE_FORK_MYSQL_INTERFACE.
+@param[in]	node		root node for an incomplete query
+				graph, or NULL for dummy graph
+@param[in]	trx		transaction handle
+@param[in]	heap		memory heap from which allocated
+@param[in]	prebuilt	row prebuilt structure
 @return query thread node to run */
 que_thr_t*
 pars_complete_graph_for_exec(
-/*=========================*/
-	que_node_t*	node,	/*!< in: root node for an incomplete
-				query graph, or NULL for dummy graph */
-	trx_t*		trx,	/*!< in: transaction handle */
-	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
+	que_node_t*	node,
+	trx_t*		trx,
+	mem_heap_t*	heap,
+	row_prebuilt_t*	prebuilt)
 {
 	que_fork_t*	fork;
 	que_thr_t*	thr;
@@ -2189,7 +2192,7 @@ pars_complete_graph_for_exec(
 	fork = que_fork_create(NULL, NULL, QUE_FORK_MYSQL_INTERFACE, heap);
 	fork->trx = trx;
 
-	thr = que_thr_create(fork, heap);
+	thr = que_thr_create(fork, heap, prebuilt);
 
 	thr->child = node;
 
