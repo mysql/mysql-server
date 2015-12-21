@@ -644,6 +644,14 @@ static const Good_path good_paths_no_column_scope[]=
 
   // backslash in front of a quote
   { false, "$.\"\\\\\"", "$.\"\\\\\"" },
+
+  // 0-length member names must be quoted
+  { false, "$.\"\"", "$.\"\"" },
+  { false, "$.\"\".\"\"", "$.\"\".\"\"" },
+  { false, "$.\"\".a.\"\"", "$.\"\".a.\"\"" },
+  { false, "$.abc.\"\"", "$.abc.\"\"" },
+  { false, "$.abc.\"\".def", "$.abc.\"\".def" },
+  { false, "$.\"abc\".\"\".def", "$.abc.\"\".def" },
 };
 
 /** Test good paths without column scope */
@@ -869,10 +877,13 @@ static const Bad_path bad_paths_no_column_scope[]=
   // unterminated double-quoted name
   { false, "$.\"bar", 6 },
 
-  // 0-length member name
+  // 0-length member names must be quoted
   { false, "$..ab", 2 },
   { false, "$.", 2 },
-  { false, "$.\"\"", 4 },
+  { false, "$. ", 3 },
+  { false, "$.abc.", 6 },
+  { false, "$.abc..def", 6 },
+  { false, "$.\"abc\"..def", 8 },
 
   // backslash in front of a quote, and no end quote
   { false, "$.\"\\\"", 5 },
@@ -937,11 +948,6 @@ static const Bad_path bad_quoted_key_names[]=
   { false, "$.a.\"bcd", 8 },
   { false, "$.a.\"", 5 },
   { false, "$.\"a\".\"bcd", 10 },
-
-  // empty key name
-  { false, "$.abc.\"\"", 8 },
-  { false, "$.abc.\"\".def", 8 },
-  { false, "$.\"abc\".\"\".def", 10 },
 
   // not followed by a member or array cell
   { false, "$.abc.\"def\"ghi", 11 },

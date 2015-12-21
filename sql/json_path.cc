@@ -640,10 +640,6 @@ const char *Json_path::parse_member_leg(const char *charptr,
     if (jstr.get() == NULL)
       PARSER_RETURN(false);
 
-    // empty key names are illegal
-    if (jstr->size() == 0)
-      PARSER_RETURN(false);
-
     // unquoted names must be valid ECMAScript identifiers
     if (!was_quoted &&
         !is_ecmascript_identifier(jstr->value().data(), jstr->size()))
@@ -749,6 +745,10 @@ static bool is_connector_punctuation(unsigned codepoint)
 */
 bool is_ecmascript_identifier(const char *name, size_t name_length)
 {
+  // An empty string is not a valid identifier.
+  if (name_length == 0)
+    return false;
+
   /*
     At this point, The unicode escape sequences have already
     been replaced with the corresponding UTF-8 bytes. Now we apply

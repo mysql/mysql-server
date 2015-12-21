@@ -13438,3 +13438,26 @@ jj
 {"A": "B"}
 not JSON
 DROP TABLE t1, t2, t3, t4;
+#
+# Bug#22366102: EMPTY STRINGS AS KEYS PROBABLY NOT HANDLED CORRECTLY
+#               BY JSON_EXTRACT()
+#
+CREATE TABLE t(j JSON);
+INSERT INTO t VALUES ('{"":"a"}'), ('{"":{"":"a"}}'), ('{"a":{"":{"b":"a"}}}');
+SELECT JSON_UNQUOTE(JSON_SEARCH(j, 'one', 'a')) AS path FROM t;
+path
+$.""
+$."".""
+$.a."".b
+SELECT j->'$.""' AS c1, j->'$."".""' AS c2, j->'$.a."".b' AS c3 FROM t;
+c1	c2	c3
+"a"	NULL	NULL
+{"": "a"}	"a"	NULL
+NULL	NULL	"a"
+DROP TABLE t;
+SELECT JSON_EXTRACT('[1]', '$.');
+ERROR 42000: Invalid JSON path expression. The error is around character position 2 in '$.'.
+SELECT JSON_EXTRACT('[1]', '$..');
+ERROR 42000: Invalid JSON path expression. The error is around character position 2 in '$..'.
+SELECT JSON_EXTRACT('[1]', '$.a..b');
+ERROR 42000: Invalid JSON path expression. The error is around character position 4 in '$.a..b'.

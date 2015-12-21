@@ -6166,6 +6166,22 @@ ALTER TABLE t4 MODIFY COLUMN jj JSON;
 SELECT * FROM t4;
 DROP TABLE t1, t2, t3, t4;
 
+--echo #
+--echo # Bug#22366102: EMPTY STRINGS AS KEYS PROBABLY NOT HANDLED CORRECTLY
+--echo #               BY JSON_EXTRACT()
+--echo #
+CREATE TABLE t(j JSON);
+INSERT INTO t VALUES ('{"":"a"}'), ('{"":{"":"a"}}'), ('{"a":{"":{"b":"a"}}}');
+SELECT JSON_UNQUOTE(JSON_SEARCH(j, 'one', 'a')) AS path FROM t;
+SELECT j->'$.""' AS c1, j->'$."".""' AS c2, j->'$.a."".b' AS c3 FROM t;
+DROP TABLE t;
+--error ER_INVALID_JSON_PATH
+SELECT JSON_EXTRACT('[1]', '$.');
+--error ER_INVALID_JSON_PATH
+SELECT JSON_EXTRACT('[1]', '$..');
+--error ER_INVALID_JSON_PATH
+SELECT JSON_EXTRACT('[1]', '$.a..b');
+
 
 # Local Variables:
 # mode: sql
