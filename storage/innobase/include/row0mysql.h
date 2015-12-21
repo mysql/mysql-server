@@ -863,6 +863,9 @@ struct row_prebuilt_t {
 					isolation level on views on DD tables */
 	/** Return materialized key for secondary index scan */
 	bool		m_read_virtual_key;
+
+	/** The MySQL table object */
+	TABLE*		m_mysql_table;
 };
 
 /** Callback for row_mysql_sys_index_iterate() */
@@ -882,7 +885,8 @@ struct SysIndexCallback {
 @param[in,out]	local_heap	heap memory for processing large data etc.
 @param[in,out]	heap		memory heap that copies the actual index row
 @param[in]	ifield		index field
-@param[in]	in_purge	whether this is called by purge
+@param[in]	thd		MySQL thread handle
+@param[in,out]	mysql_table	mysql table object
 @return the field filled with computed value */
 dfield_t*
 innobase_get_computed_value(
@@ -892,7 +896,8 @@ innobase_get_computed_value(
 	mem_heap_t**		local_heap,
 	mem_heap_t*		heap,
 	const dict_field_t*	ifield,
-	bool			in_purge);
+	THD*			thd,
+	TABLE*			mysql_table);
 
 #define ROW_PREBUILT_FETCH_MAGIC_N	465765687
 

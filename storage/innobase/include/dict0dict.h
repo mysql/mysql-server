@@ -2255,6 +2255,14 @@ dict_table_get_v_col_name_mysql(
 	const dict_table_t*	table,
 	ulint			col_nr);
 
+/** Check whether the table have virtual index.
+@param[in]	table	InnoDB table
+@return true if the table have virtual index, false otherwise. */
+UNIV_INLINE
+bool
+dict_table_have_virtual_index(
+       dict_table_t*	table);
+
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL

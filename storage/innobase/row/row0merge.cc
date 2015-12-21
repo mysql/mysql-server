@@ -482,6 +482,8 @@ row_merge_buf_redundant_convert(
 				row_merge_buf_redundant_convert()
 @param[in,out]	err		set if error occurs
 @param[in,out]	v_heap		heap memory to process data for virtual column
+@param[in,out]	my_table	mysql table object
+@param[in]	trx		transaction object
 @return number of rows added, 0 if out of space */
 static
 ulint
@@ -496,7 +498,9 @@ row_merge_buf_add(
 	doc_id_t*		doc_id,
 	mem_heap_t*		conv_heap,
 	dberr_t*		err,
-	mem_heap_t**		v_heap)
+	mem_heap_t**		v_heap,
+	TABLE*			my_table,
+	trx_t*			trx)
 {
 	ulint			i;
 	const dict_index_t*	index;
@@ -582,7 +586,8 @@ row_merge_buf_add(
 
 				row_field = innobase_get_computed_value(
 					row, v_col, clust_index,
-					v_heap, NULL, ifield, false);
+					v_heap, NULL, ifield, trx->mysql_thd,
+					my_table);
 
 				if (row_field == NULL) {
 					*err = DB_COMPUTE_VALUE_FAILED;
@@ -2158,7 +2163,7 @@ write_buffers:
 					buf, fts_index, old_table, new_table,
 					psort_info, row, ext, &doc_id,
 					conv_heap, &err,
-					&v_heap)))) {
+					&v_heap, table, trx)))) {
 
 				/* If we are creating FTS index,
 				a single row can generate more
@@ -2472,7 +2477,7 @@ write_buffers:
 						buf, fts_index, old_table,
 						new_table, psort_info, row, ext,
 						&doc_id, conv_heap,
-						&err, &v_heap)))) {
+						&err, &v_heap, table, trx)))) {
 					/* An empty buffer should have enough
 					room for at least one record. */
 					ut_error;
@@ -3332,79 +3337,15 @@ row_merge_lock_table(
 	dict_table_t*	table,		/*!< in: table to lock */
 	enum lock_mode	mode)		/*!< in: LOCK_X or LOCK_S */
 {
-	mem_heap_t*	heap;
-	que_thr_t*	thr;
-	dberr_t		err;
-	sel_node_t*	node;
-
 	ut_ad(!srv_read_only_mode);
 	ut_ad(mode == LOCK_X || mode == LOCK_S);
-
-	heap = mem_heap_create(512);
 
 	trx->op_info = "setting table lock for creating or dropping index";
 	trx->ddl = true;
 	/* Trx for DDL should not be forced to rollback for now */
 	trx->in_innodb |= TRX_FORCE_ROLLBACK_DISABLE;
 
-	node = sel_node_create(heap);
-	thr = pars_complete_graph_for_exec(node, trx, heap);
-	thr->graph->state = QUE_FORK_ACTIVE;
-
-	/* We use the select query graph as the dummy graph needed
-	in the lock module call */
-
-	thr = static_cast<que_thr_t*>(
-		que_fork_get_first_thr(
-			static_cast<que_fork_t*>(que_node_get_parent(thr))));
-
-	que_thr_move_to_run_state_for_mysql(thr, trx);
-
-run_again:
-	thr->run_node = thr;
-	thr->prev_node = thr->common.parent;
-
-	err = lock_table(0, table, mode, thr);
-
-	trx->error_state = err;
-
-	if (UNIV_LIKELY(err == DB_SUCCESS)) {
-		que_thr_stop_for_mysql_no_error(thr, trx);
-	} else {
-		que_thr_stop_for_mysql(thr);
-
-		if (err != DB_QUE_THR_SUSPENDED) {
-			bool	was_lock_wait;
-
-			was_lock_wait = row_mysql_handle_errors(
-				&err, trx, thr, NULL);
-
-			if (was_lock_wait) {
-				goto run_again;
-			}
-		} else {
-			que_thr_t*	run_thr;
-			que_node_t*	parent;
-
-			parent = que_node_get_parent(thr);
-
-			run_thr = que_fork_start_command(
-				static_cast<que_fork_t*>(parent));
-
-			ut_a(run_thr == thr);
-
-			/* There was a lock wait but the thread was not
-			in a ready to run or running state. */
-			trx->error_state = DB_LOCK_WAIT;
-
-			goto run_again;
-		}
-	}
-
-	que_graph_free(thr->graph);
-	trx->op_info = "";
-
-	return(err);
+	return(lock_table_for_trx(table, trx, mode));
 }
 
 /*********************************************************************//**
@@ -4141,7 +4082,7 @@ row_merge_create_index_graph(
 
 	index->table = table;
 	node = ind_create_graph_create(index, heap, add_v);
-	thr = pars_complete_graph_for_exec(node, trx, heap);
+	thr = pars_complete_graph_for_exec(node, trx, heap, NULL);
 
 	ut_a(thr == que_fork_start_command(
 			static_cast<que_fork_t*>(que_node_get_parent(thr))));

@@ -241,7 +241,8 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 		}
 #endif /* UNIV_DEBUG */
 
-		thr = pars_complete_graph_for_exec(NULL, prebuilt->trx, heap);
+		thr = pars_complete_graph_for_exec(NULL, prebuilt->trx, heap,
+						   prebuilt);
 	}
 
 	~ha_innobase_inplace_ctx()

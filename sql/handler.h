@@ -3832,10 +3832,29 @@ public:
                                              const char *table_name,
                                              const MY_BITMAP *const fields,
                                              uchar *record);
-  static bool my_eval_gcolumn_expr(THD *thd,
-                                   const char *db_name,
-                                   const char *table_name,
-                                   const MY_BITMAP *const fields,
+
+  /**
+   Callback for computing generated column values.
+
+   Storage engines that need to have virtual column values for a row
+   can use this function to get the values computed. The storage
+   engine must have filled in the values for the base columns that
+   the virutal columns depend on.
+
+   @param  thd	        thread handle
+   @param  table	table object
+   @param  fields	bitmap of field index of evaluated generated
+			column
+   @param  record	buff of base columns generated column depends.
+			After calling this function, it will be
+			used to return the value of the generated
+			columns.
+
+   @retval true in case of error
+   @retval false on success.
+  */
+  static bool my_eval_gcolumn_expr(THD *thd, TABLE *table,
+				   const MY_BITMAP *const fields,
                                    uchar *record);
 
   /* This must be implemented if the handlerton's partition_flags() is set. */

@@ -199,7 +199,7 @@ trx_purge_graph_build(
 	for (i = 0; i < n_purge_threads; ++i) {
 		que_thr_t*	thr;
 
-		thr = que_thr_create(fork, heap);
+		thr = que_thr_create(fork, heap, NULL);
 
 		thr->child = row_purge_node_create(thr, heap);
 	}

@@ -5767,6 +5767,8 @@ ha_innobase::open(const char* name, int, uint)
 	m_prebuilt->default_rec = table->s->default_values;
 	ut_ad(m_prebuilt->default_rec);
 
+	m_prebuilt->m_mysql_table = table;
+
 	key_used_on_scan = table_share->primary_key;
 
 	if (ib_table->n_v_cols) {
@@ -19479,7 +19481,8 @@ innobase_init_vc_templ(
 @param[in,out]	local_heap	heap memory for processing large data etc.
 @param[in,out]	heap		memory heap that copies the actual index row
 @param[in]	ifield		index field
-@param[in]	in_purge	whether this is called by purge
+@param[in]	thd		MySQL thread handle
+@param[in,out]	mysql_table	mysql table object
 @return the field filled with computed value, or NULL if just want
 to store the value in passed in "my_rec" */
 dfield_t*
@@ -19490,7 +19493,8 @@ innobase_get_computed_value(
 	mem_heap_t**		local_heap,
 	mem_heap_t*		heap,
 	const dict_field_t*	ifield,
-	bool			in_purge)
+	THD*			thd,
+	TABLE*			mysql_table)
 {
 	byte		rec_buf1[REC_VERSION_56_MAX_INDEX_COL_LEN];
 	byte		rec_buf2[REC_VERSION_56_MAX_INDEX_COL_LEN];
@@ -19502,6 +19506,7 @@ innobase_get_computed_value(
 	ulint		ret = 0;
 
 	ut_ad(index->table->vc_templ);
+	ut_ad(thd != NULL);
 
 	const mysql_row_templ_t*
 			vctempl =  index->table->vc_templ->vtempl[
@@ -19573,14 +19578,15 @@ innobase_get_computed_value(
 
 	/* Bitmap for specifying which virtual columns the server
 	should evaluate */
-	MY_BITMAP column_map;
-	my_bitmap_map col_map_storage[bitmap_buffer_size(REC_MAX_N_FIELDS)];
+	MY_BITMAP	column_map;
+	my_bitmap_map	col_map_storage[bitmap_buffer_size(REC_MAX_N_FIELDS)];
+
 	bitmap_init(&column_map, col_map_storage, REC_MAX_N_FIELDS, false);
 
 	/* Specify the column the server should evaluate */
 	bitmap_set_bit(&column_map, col->m_col.ind);
 
-	if (in_purge) {
+	if (mysql_table == NULL) {
 		if (vctempl->type == DATA_BLOB) {
 			ulint	max_len;
 
@@ -19602,13 +19608,12 @@ innobase_get_computed_value(
                 }
 
 		ret = handler::my_eval_gcolumn_expr_with_open(
-			current_thd, index->table->vc_templ->db_name.c_str(),
+			thd, index->table->vc_templ->db_name.c_str(),
 			index->table->vc_templ->tb_name.c_str(), &column_map,
 			(uchar *)mysql_rec);
         } else {
 		ret = handler::my_eval_gcolumn_expr(
-			current_thd, index->table->vc_templ->db_name.c_str(),
-			index->table->vc_templ->tb_name.c_str(), &column_map,
+			thd, mysql_table, &column_map,
 			(uchar *)mysql_rec);
 	}
 

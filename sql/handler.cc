@@ -8406,7 +8406,7 @@ bool handler::my_eval_gcolumn_expr_with_open(THD *thd,
 }
 
 
-/*
+/**
   Evaluate generated Column's value. If the engine has to write an index entry
   to its UNDO log (in a DELETE or UPDATE), and the index is on a virtual
   generated column, engine needs to calculate the column's value. This variant
@@ -8414,34 +8414,25 @@ bool handler::my_eval_gcolumn_expr_with_open(THD *thd,
   TABLE.
 
   @param thd        Thread handle
-  @param db_name    name of database
-  @param table_name name of the opened table
-  @param fields     bitmap of field index of evaluated generated column
-  @param[in,out]    record buff of base columns generated column depends.
-                    After calling this function, it will be used to return
-                    the value of generated column.
+  @param table      mysql table object
+  @param fields     bitmap of field index of evaluated
+	            generated column
+  @param record     buff of base columns generated column depends.
+                    After calling this function, it will be used to
+                    return the value of generated column.
 
-  @return true in case of error, false otherwise.
+  @retval true in case of error
+  @retval false on success.
 */
 
-bool handler::my_eval_gcolumn_expr(THD *thd,
-                                   const char *db_name,
-                                   const char *table_name,
-                                   const MY_BITMAP *const fields,
+bool handler::my_eval_gcolumn_expr(THD *thd, TABLE *table,
+				   const MY_BITMAP *const fields,
                                    uchar *record)
 {
   DBUG_ENTER("my_eval_gcolumn_expr");
 
-  TABLE *table= find_locked_table(thd->open_tables, db_name, table_name);
-  if (!table)
-  {
-    if (!(table= find_temporary_table(thd, db_name, table_name)))
-    {
-      my_error(ER_TABLE_NOT_LOCKED, MYF(0), table_name);
-      DBUG_RETURN(true);
-    }
-  }
-  const bool res= my_eval_gcolumn_expr_helper(thd, table, fields, record, false);
+  const bool res=
+     my_eval_gcolumn_expr_helper(thd, table, fields, record, false);
   DBUG_RETURN(res);
 }
 

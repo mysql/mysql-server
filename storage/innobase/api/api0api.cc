@@ -1169,12 +1169,14 @@ ib_insert_query_graph_create(
 		row = dtuple_create(heap, dict_table_get_n_cols(table));
 		dict_table_copy_types(row, table);
 
+		ut_ad(!dict_table_have_virtual_index(table));
+
 		ins_node_set_new_row(node->ins, row);
 
 		grph->ins = static_cast<que_fork_t*>(
 			que_node_get_parent(
 				pars_complete_graph_for_exec(node->ins, trx,
-							     heap)));
+							     heap, NULL)));
 
 		grph->ins->state = QUE_FORK_ACTIVE;
 	}
@@ -1283,9 +1285,12 @@ ib_update_vector_create(
 			row_create_update_node_for_mysql(table, heap));
 	}
 
+	ut_ad(!dict_table_have_virtual_index(table));
+
 	grph->upd = static_cast<que_fork_t*>(
 		que_node_get_parent(
-			pars_complete_graph_for_exec(node->upd, trx, heap)));
+			pars_complete_graph_for_exec(node->upd, trx,
+						     heap, NULL)));
 
 	grph->upd->state = QUE_FORK_ACTIVE;
 

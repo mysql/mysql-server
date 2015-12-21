@@ -33,6 +33,7 @@ Created 11/19/1996 Heikki Tuuri
 #include "row0types.h"
 #include "trx0types.h"
 #include "ut0vec.h"
+#include "row0mysql.h"
 
 /** Type of the user functions. The first argument is always InnoDB-supplied
 and varies in type, while 'user_arg' is a user-supplied argument. The
@@ -385,18 +386,21 @@ pars_procedure_definition(
 	sym_node_t*	param_list,	/*!< in: parameter declaration list */
 	que_node_t*	stat_list);	/*!< in: statement list */
 
-/******************************************************************//**
-Completes a query graph by adding query thread and fork nodes
+/** Completes a query graph by adding query thread and fork nodes
 above it and prepares the graph for running. The fork created is of
 type QUE_FORK_MYSQL_INTERFACE.
+@param[in]	node		root node for an incomplete query
+				graph, or NULL for dummy graph
+@param[in]	trx		transaction handle
+@param[in]	heap		memory heap which allocated
+@param[in]	prebuilt	row prebuilt structure
 @return query thread node to run */
 que_thr_t*
 pars_complete_graph_for_exec(
-/*=========================*/
-	que_node_t*	node,	/*!< in: root node for an incomplete
-				query graph, or NULL for dummy graph */
-	trx_t*		trx,	/*!< in: transaction handle */
-	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
+	que_node_t*	node,
+	trx_t*		trx,
+	mem_heap_t*	heap,
+	row_prebuilt_t*	prebuilt)
 	__attribute__((warn_unused_result));
 
 /****************************************************************//**

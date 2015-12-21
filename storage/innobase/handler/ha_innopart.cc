@@ -1140,6 +1140,9 @@ share_error:
 	m_prebuilt->default_rec = table->s->default_values;
 	ut_ad(m_prebuilt->default_rec);
 
+	DBUG_ASSERT(table != NULL);
+	m_prebuilt->m_mysql_table = table;
+
 	if (ib_table->n_v_cols > 0) {
 		mutex_enter(&dict_sys->mutex);
 		m_part_share->set_v_templ(table, ib_table, name);

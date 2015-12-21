@@ -1150,7 +1150,7 @@ row_get_prebuilt_insert_row(
 		que_node_get_parent(
 			pars_complete_graph_for_exec(
 				node,
-				prebuilt->trx, prebuilt->heap)));
+				prebuilt->trx, prebuilt->heap, prebuilt)));
 
 	prebuilt->ins_graph->state = QUE_FORK_ACTIVE;
 
@@ -1858,7 +1858,8 @@ row_prebuild_sel_graph(
 			que_node_get_parent(
 				pars_complete_graph_for_exec(
 					static_cast<sel_node_t*>(node),
-					prebuilt->trx, prebuilt->heap)));
+					prebuilt->trx, prebuilt->heap,
+					prebuilt)));
 
 		prebuilt->sel_graph->state = QUE_FORK_ACTIVE;
 	}
@@ -1937,7 +1938,8 @@ row_get_prebuilt_update_vector(
 			que_node_get_parent(
 				pars_complete_graph_for_exec(
 					static_cast<upd_node_t*>(node),
-					prebuilt->trx, prebuilt->heap)));
+					prebuilt->trx, prebuilt->heap,
+					prebuilt)));
 
 		prebuilt->upd_graph->state = QUE_FORK_ACTIVE;
 	}
@@ -2318,7 +2320,13 @@ row_del_upd_for_mysql_using_cursor(
 		btr_pcur_copy_stored_position(node->pcur,
 					      prebuilt->clust_pcur);
 	}
-	row_upd_store_row(node);
+
+	ut_ad(dict_table_is_intrinsic(prebuilt->table));
+	ut_ad(!prebuilt->table->n_v_cols);
+
+	/* Internal table is created by optimiser. So there
+	should not be any virtual columns. */
+	row_upd_store_row(node, NULL, NULL);
 
 	/* Step-2: Execute DELETE operation. */
 	err = row_delete_for_mysql_using_cursor(node, delete_entries, false);
@@ -3003,7 +3011,7 @@ row_create_table_for_mysql(
 
 	node = tab_create_graph_create(table, heap);
 
-	thr = pars_complete_graph_for_exec(node, trx, heap);
+	thr = pars_complete_graph_for_exec(node, trx, heap, NULL);
 
 	ut_a(thr == que_fork_start_command(
 			static_cast<que_fork_t*>(que_node_get_parent(thr))));
@@ -3210,7 +3218,7 @@ row_create_index_for_mysql(
 
 		node = ind_create_graph_create(index, heap, NULL);
 
-		thr = pars_complete_graph_for_exec(node, trx, heap);
+		thr = pars_complete_graph_for_exec(node, trx, heap, NULL);
 
 		ut_a(thr == que_fork_start_command(
 				static_cast<que_fork_t*>(
@@ -3944,7 +3952,7 @@ row_mysql_lock_table(
 	trx->op_info = op_info;
 
 	node = sel_node_create(heap);
-	thr = pars_complete_graph_for_exec(node, trx, heap);
+	thr = pars_complete_graph_for_exec(node, trx, heap, NULL);
 	thr->graph->state = QUE_FORK_ACTIVE;
 
 	/* We use the select query graph as the dummy graph needed
