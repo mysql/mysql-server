@@ -785,13 +785,19 @@ retry:
           item->save_in_field(key_part->field, true);
         dbug_tmp_restore_column_map(table->write_set, old_map);
         /*
-          If conversion status is TYPE_ERR_BAD_VALUE, the target index value
+          If conversion status is TYPE_ERR_BAD_VALUE or
+          TYPE_ERR_NULL_CONSTRAINT_VIOLATION, the target index value
           is not stored into record buffer, so we can't proceed with the
           index search.
         */
         if (conv_status == TYPE_ERR_BAD_VALUE)
         {
           my_error(ER_WRONG_ARGUMENTS, MYF(0), "HANDLER ... READ");
+          goto err;
+        }
+        if (conv_status == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
+        {
+          my_error(ER_BAD_NULL_ERROR, MYF(0), m_key_name);
           goto err;
         }
 
