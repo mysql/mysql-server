@@ -106,30 +106,4 @@ static inline void my_atomic_storeptr(void * volatile *a, void *v)
   (void)InterlockedExchangePointer(a, v);
 }
 
-
-/*
-  my_yield_processor (equivalent of x86 PAUSE instruction) should be used
-  to improve performance on hyperthreaded CPUs. Intel recommends to use it in
-  spin loops also on non-HT machines to reduce power consumption (see e.g
-  http://softwarecommunity.intel.com/articles/eng/2004.htm)
-
-  Running benchmarks for spinlocks implemented with InterlockedCompareExchange
-  and YieldProcessor shows that much better performance is achieved by calling
-  YieldProcessor in a loop - that is, yielding longer. On Intel boxes setting
-  loop count in the range 200-300 brought best results.
- */
-#define YIELD_LOOPS 200
-
-static inline int my_yield_processor()
-{
-  int i;
-  for (i=0; i<YIELD_LOOPS; i++)
-  {
-    YieldProcessor();
-  }
-  return 1;
-}
-
-#define LF_BACKOFF my_yield_processor()
-
 #endif /* ATOMIC_MSC_INCLUDED */

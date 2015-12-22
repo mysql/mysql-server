@@ -23,6 +23,8 @@
 
 C_MODE_START
 
+#define LF_BACKOFF my_yield_processor()
+
 /*
   wait-free dynamic array, see lf_dynarray.c
 
