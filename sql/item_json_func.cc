@@ -2956,13 +2956,12 @@ static bool find_matches(const Json_wrapper &wrapper, Json_path *path,
         if (path->to_string(&str))
           return true;                        /* purecov: inspected */
 
-        std::string string_contents(str.ptr(), str.length());
         std::pair<String_set::iterator, bool> res=
-          duplicates->insert_unique(string_contents);
+          duplicates->insert_unique(std::string(str.ptr(), str.length()));
 
         if (res.second)
         {
-          Json_string *jstr= new (std::nothrow) Json_string(string_contents);
+          Json_string *jstr= new (std::nothrow) Json_string(*res.first);
           if (!jstr || matches->push_back(jstr))
             return true;                      /* purecov: inspected */
         }
@@ -2976,13 +2975,9 @@ static bool find_matches(const Json_wrapper &wrapper, Json_path *path,
            !jwot.empty(); jwot.next())
       {
         std::pair<const std::string, Json_wrapper> pair= jwot.elt();
-        const std::string key= pair.first;
-        Json_wrapper value= pair.second;
-        Json_path_leg next_leg(key);
-
         // recurse
-        if (path->append(next_leg) ||
-            find_matches(value, path, matches, duplicates, one_match,
+        if (path->append(Json_path_leg(pair.first)) ||
+            find_matches(pair.second, path, matches, duplicates, one_match,
                          like_node, source_string))
           return true;                        /* purecov: inspected */
         path->pop();
@@ -2999,12 +2994,9 @@ static bool find_matches(const Json_wrapper &wrapper, Json_path *path,
     {
       for (size_t idx= 0; idx < wrapper.length(); idx++)
       {
-        Json_wrapper value= wrapper[idx];
-        Json_path_leg next_leg(idx);
-
         // recurse
-        if (path->append(next_leg) ||
-            find_matches(value, path, matches, duplicates, one_match,
+        if (path->append(Json_path_leg(idx)) ||
+            find_matches(wrapper[idx], path, matches, duplicates, one_match,
                          like_node, source_string))
           return true;                        /* purecov: inspected */
         path->pop();
