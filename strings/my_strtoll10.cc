@@ -224,6 +224,8 @@ end4:
   {
    if (li > MAX_NEGATIVE_NUMBER)
      goto overflow;
+   if (li == MAX_NEGATIVE_NUMBER)
+     return LLONG_MIN;
    return -((longlong) li);
   }
   return (longlong) li;

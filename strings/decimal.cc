@@ -1106,7 +1106,8 @@ int ulonglong2decimal(ulonglong from, decimal_t *to)
 int longlong2decimal(longlong from, decimal_t *to)
 {
   if ((to->sign= from < 0))
-    return ull2dec(-from, to);
+    return
+      ull2dec(from == LLONG_MIN ? static_cast<ulonglong>(from) : -from, to);
   return ull2dec(from, to);
 }
 
@@ -1154,8 +1155,17 @@ int decimal2longlong(decimal_t *from, longlong *to)
       because |LLONG_MIN| > LLONG_MAX
       so we can convert -9223372036854775808 correctly
     */
+    if (unlikely(y < (LLONG_MIN/DIG_BASE)))
+    {
+      /*
+        the decimal is bigger than any possible integer
+        return border integer depending on the sign
+      */
+      *to= from->sign ? LLONG_MIN : LLONG_MAX;
+      return E_DEC_OVERFLOW;
+    }
     x=x*DIG_BASE - *buf++;
-    if (unlikely(y < (LLONG_MIN/DIG_BASE) || x > y))
+    if (unlikely(x > y))
     {
       /*
         the decimal is bigger than any possible integer

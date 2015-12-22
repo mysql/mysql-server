@@ -6948,6 +6948,8 @@ sub valgrind_exit_reports() {
       # This line marks the start of a valgrind report
       $found_report= 1 if $line =~ /^==\d+== .* SUMMARY:/;
       $found_report= 1 if $line =~ /.*runtime error: downcast of address.*/;
+      $found_report= 1 if $line =~ /.*runtime error: left shift.*/;
+      $found_report= 1 if $line =~ /.*runtime error: negation of.*/;
 
       if ($ignore_report && $found_report) {
         $ignore_report= 0;
@@ -6961,7 +6963,7 @@ sub valgrind_exit_reports() {
         $err_in_report= 1 if $line =~ /definitely lost: [1-9]/;
         $err_in_report= 1 if $line =~ /possibly lost: [1-9]/;
         $err_in_report= 1 if $line =~ /still reachable: [1-9]/;
-	$err_in_report= 1 if $line =~ /.*runtime error: downcast of address.*/;
+	$err_in_report= 1 if $line =~ /.*runtime error: .*/;
       }
     }
 

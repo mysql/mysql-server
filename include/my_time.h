@@ -128,8 +128,8 @@ ulonglong TIME_to_ulonglong(const MYSQL_TIME *);
 
 #define MY_PACKED_TIME_GET_INT_PART(x)     ((x) >> 24)
 #define MY_PACKED_TIME_GET_FRAC_PART(x)    ((x) % (1LL << 24))
-#define MY_PACKED_TIME_MAKE(i, f)          ((((longlong) (i)) << 24) + (f))
-#define MY_PACKED_TIME_MAKE_INT(i)         ((((longlong) (i)) << 24))
+#define MY_PACKED_TIME_MAKE(i, f)          ((((ulonglong) (i)) << 24) + (f))
+#define MY_PACKED_TIME_MAKE_INT(i)         ((((ulonglong) (i)) << 24))
 
 longlong year_to_longlong_datetime_packed(long year);
 longlong TIME_to_longlong_datetime_packed(const MYSQL_TIME *);

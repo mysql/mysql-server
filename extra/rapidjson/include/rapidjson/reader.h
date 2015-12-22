@@ -973,7 +973,8 @@ private:
         else {
             if (use64bit) {
                 if (minus)
-                    cont = handler.Int64(-(int64_t)i64);
+                    cont = handler.Int64(i64 == (uint64_t)LLONG_MIN ?
+                                         LLONG_MIN : -(int64_t)i64);
                 else
                     cont = handler.Uint64(i64);
             }
@@ -982,7 +983,8 @@ private:
                     if (i == 0)
                         cont = handler.Double(-(double)i, true);
                     else
-                        cont = handler.Int(-(int)i);
+                        cont = handler.Int(i == (unsigned)INT_MIN ?
+                                           INT_MIN : -(int)i);
                 }
                 else
                     cont = handler.Uint(i);

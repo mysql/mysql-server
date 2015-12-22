@@ -4353,10 +4353,10 @@ String *Item_func_unhex::val_str(String *str)
   }
   for (end=res->ptr()+res->length(); from < end ; from+=2, to++)
   {
-    int hex_char;
-    *to= (hex_char= hexchar_to_int(from[0])) << 4;
+    int hex_char= hexchar_to_int(from[0]);
     if (hex_char == -1)
       goto err;
+    *to= (hex_char) << 4;
     *to|= hex_char= hexchar_to_int(from[1]);
     if (hex_char == -1)
       goto err;

@@ -25,23 +25,42 @@
 */
 
 /* these two are for uniformity */
-#define mi_sint1korr(A) ((int8)(*A))
-#define mi_uint1korr(A) ((uint8)(*A))
 
-#define mi_sint2korr(A) ((int16) (((int16) (((uchar*) (A))[1])) +\
-                                  ((int16) ((int16) ((char*) (A))[0]) << 8)))
-#define mi_sint3korr(A) ((int32) (((((uchar*) (A))[0]) & 128) ? \
-                                  (((uint32) 255L << 24) | \
-                                   (((uint32) ((uchar*) (A))[0]) << 16) |\
-                                   (((uint32) ((uchar*) (A))[1]) << 8) | \
-                                   ((uint32) ((uchar*) (A))[2])) : \
-                                  (((uint32) ((uchar*) (A))[0]) << 16) |\
-                                  (((uint32) ((uchar*) (A))[1]) << 8) | \
-                                  ((uint32) ((uchar*) (A))[2])))
-#define mi_sint4korr(A) ((int32) (((int32) (((uchar*) (A))[3])) +\
-                                  ((int32) (((uchar*) (A))[2]) << 8) +\
-                                  ((int32) (((uchar*) (A))[1]) << 16) +\
-                                  ((int32) ((int16) ((char*) (A))[0]) << 24)))
+static inline int8 mi_sint1korr(const uchar *A)
+{
+  return *A;
+}
+
+static inline uint8 mi_uint1korr(const uchar *A)
+{
+  return *A;
+}
+
+static inline int16 mi_sint2korr(const uchar *A)
+{
+  return (int16)((uint32)(A[1]) + ((uint32)(A[0]) << 8));
+}
+
+static inline int32 mi_sint3korr(const uchar *A)
+{
+  return (int32) ((A[0] & 128) ?
+                  ((255U << 24) |
+                   ((uint32)(A[0]) << 16) |
+                   ((uint32)(A[1]) << 8) |
+                   ((uint32)A[2])) :
+                  (((uint32)(A[0]) << 16) |
+                   ((uint32)(A[1]) << 8) |
+                   ((uint32)(A[2]))));
+}
+
+static inline int32 mi_sint4korr(const uchar *A)
+{
+  return (int32) ((uint32)(A[3]) +
+                  ((uint32)(A[2]) << 8) +
+                  ((uint32)(A[1]) << 16) +
+                  ((uint32)(A[0]) << 24) );
+}
+
 #define mi_sint8korr(A) ((longlong) mi_uint8korr(A))
 #define mi_uint2korr(A) ((uint16) (((uint16) (((uchar*) (A))[1])) +\
                                    ((uint16) (((uchar*) (A))[0]) << 8)))

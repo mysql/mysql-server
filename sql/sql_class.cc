@@ -2949,15 +2949,23 @@ void THD::claim_memory_ownership()
 
 bool THD::binlog_applier_need_detach_trx()
 {
+#ifdef HAVE_REPLICATION
   return is_binlog_applier() ? rli_fake->is_native_trx_detached= true : false;
+#else
+  return false;
+#endif
 };
 
 
 bool THD::binlog_applier_has_detached_trx()
 {
+#ifdef HAVE_REPLICATION
   bool rc= is_binlog_applier() && rli_fake->is_native_trx_detached;
 
   if (rc)
     rli_fake->is_native_trx_detached= false;
   return rc;
+#else
+  return false;
+#endif
 }

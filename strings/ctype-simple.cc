@@ -1637,6 +1637,8 @@ ret_sign:
         return (ulonglong) LLONG_MIN;
       }
       *error= 0;
+      if (ull == static_cast<ulonglong>(LLONG_MIN))
+        return static_cast<ulonglong>(LLONG_MIN);
       return (ulonglong) -(longlong) ull;
     }
     else
