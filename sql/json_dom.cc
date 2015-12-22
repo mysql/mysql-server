@@ -1814,10 +1814,8 @@ Json_wrapper_object_iterator::elt() const
     return std::make_pair(m_iter->first, wr);
   }
 
-  std::string key(m_value->key(m_curr_element).get_data(),
-                  m_value->key(m_curr_element).get_data_length());
-  Json_wrapper wr(m_value->element(m_curr_element));
-  return std::make_pair(key, wr);
+  return std::make_pair(get_string_data(m_value->key(m_curr_element)),
+                        Json_wrapper(m_value->element(m_curr_element)));
 }
 
 
