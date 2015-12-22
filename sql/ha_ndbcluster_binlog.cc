@@ -6602,6 +6602,7 @@ restart_cluster_failure:
       Uint64 latest_epoch= 0;
       const int poll_wait= (ndb_binlog_running) ? tot_poll_wait : 0;
       const int res= i_ndb->pollEvents(poll_wait, &latest_epoch);
+      (void)res; // Unused except DBUG_PRINT
       pthread_mutex_unlock(&injector_mutex);
       i_pOp = i_ndb->nextEvent();
       if (ndb_binlog_running)
