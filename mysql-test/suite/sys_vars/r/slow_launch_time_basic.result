@@ -88,12 +88,12 @@ SELECT @@slow_launch_time;
 31536000
 '#----------------------FN_DYNVARS_150_06------------------------#'
 SELECT @@global.slow_launch_time = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='slow_launch_time';
 @@global.slow_launch_time = VARIABLE_VALUE
 1
 SELECT @@slow_launch_time = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='slow_launch_time';
 @@slow_launch_time = VARIABLE_VALUE
 1

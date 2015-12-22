@@ -190,7 +190,7 @@ if($mach64)
 
 --disable_warnings
 SELECT @@global.bulk_insert_buffer_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='bulk_insert_buffer_size';
 --enable_warnings
 
@@ -201,7 +201,7 @@ WHERE VARIABLE_NAME='bulk_insert_buffer_size';
 
 --disable_warnings
 SELECT @@session.bulk_insert_buffer_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='bulk_insert_buffer_size';
 --enable_warnings
 

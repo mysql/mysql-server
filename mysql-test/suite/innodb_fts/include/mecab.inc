@@ -22,7 +22,7 @@ call mtr.add_suppression("Plugin 'mecab' init function returned error");
 -- error 0, ER_CANT_INITIALIZE_UDF
 eval INSTALL PLUGIN mecab SONAME '$MECAB';
 
-let $mecab_charset=`SELECT variable_value FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME='mecab_charset'`;
+let $mecab_charset=`SELECT variable_value FROM performance_schema.global_status WHERE VARIABLE_NAME='mecab_charset'`;
 if ($mecab_charset == '') {
   # Restart with package dictionary.
   let $MYSQL_DATADIR=`select @@datadir`;
@@ -44,7 +44,7 @@ if ($mecab_charset == '') {
   -- error 0, ER_CANT_INITIALIZE_UDF
   eval INSTALL PLUGIN mecab SONAME '$MECAB';
 
-  let $mecab_charset=`SELECT variable_value FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME='mecab_charset'`;
+  let $mecab_charset=`SELECT variable_value FROM performance_schema.global_status WHERE VARIABLE_NAME='mecab_charset'`;
 }
 
 if ($mecab_charset == '') {

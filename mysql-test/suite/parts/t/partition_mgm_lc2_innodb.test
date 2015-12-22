@@ -13,6 +13,9 @@
 # The server must support partitioning.
 --source include/have_partition.inc
 
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
+
 #
 # NOTE: PLEASE DO NOT ADD NOT INNODB SPECIFIC TESTCASES HERE !
 #       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN

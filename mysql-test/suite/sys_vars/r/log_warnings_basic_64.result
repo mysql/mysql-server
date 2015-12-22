@@ -130,7 +130,7 @@ Warnings:
 Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
 '#------------------FN_DYNVARS_067_05-----------------------#'
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='log_warnings'
 into @tmp;
 SELECT @@global.log_warnings = @tmp;

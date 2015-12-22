@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 #
 # Make sure that files created with --innodb-checksum-algorithm=crc32
 # on both big and little endian machines are readable. The two .ibd files

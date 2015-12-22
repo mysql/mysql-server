@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 ############## mysql-test\t\check_proxy_users_basic.test ######################
 #                                                                             #
 # Variable Name: check_proxy_users                                            #
@@ -112,11 +114,11 @@ SELECT @@check_proxy_users;
 
 --disable_warnings
 SELECT IF(@@global.check_proxy_users, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='check_proxy_users';
 
 SELECT IF(@@check_proxy_users, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='check_proxy_users';
 --enable_warnings
 

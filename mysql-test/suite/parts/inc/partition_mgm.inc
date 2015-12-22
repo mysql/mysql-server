@@ -123,7 +123,7 @@ SELECT * FROM TableA;
 
 --echo # Checking name comparision Upper vs Lower case
 --echo # Error if lower_case_table_names != 0
-let $lower_case_table_names= `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'lower_case_table_names'`;
+let $lower_case_table_names= `SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'lower_case_table_names'`;
 --echo # lower_case_table_names: $lower_case_table_names
 if ($lower_case_table_names)
 {
@@ -256,7 +256,7 @@ SELECT * FROM TableA;
 
 --echo # Checking name comparision Upper vs Lower case
 --echo # Error if lower_case_table_names != 0
-let $lower_case_table_names= `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'lower_case_table_names'`;
+let $lower_case_table_names= `SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'lower_case_table_names'`;
 --echo # lower_case_table_names: $lower_case_table_names
 if ($lower_case_table_names)
 {
@@ -376,7 +376,7 @@ SELECT * FROM TableA;
 
 --echo # Checking name comparision Upper vs Lower case
 --echo # Error if lower_case_table_names != 0
-let $lower_case_table_names= `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'lower_case_table_names'`;
+let $lower_case_table_names= `SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'lower_case_table_names'`;
 --echo # lower_case_table_names: $lower_case_table_names
 if ($lower_case_table_names)
 {
@@ -498,7 +498,7 @@ SELECT * FROM TableA;
 
 --echo # Checking name comparision Upper vs Lower case
 --echo # Error if lower_case_table_names != 0
-let $lower_case_table_names= `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'lower_case_table_names'`;
+let $lower_case_table_names= `SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'lower_case_table_names'`;
 --echo # lower_case_table_names: $lower_case_table_names
 if ($lower_case_table_names)
 {

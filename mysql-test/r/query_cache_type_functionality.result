@@ -54,7 +54,7 @@ OFF
 OFF Expected
 '#---------------------WL6372_VAR_3_04----------------------#'
 SELECT @@GLOBAL.query_cache_type = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='query_cache_type';
 @@GLOBAL.query_cache_type = VARIABLE_VALUE
 1
@@ -64,7 +64,7 @@ COUNT(@@GLOBAL.query_cache_type)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='query_cache_type';
 COUNT(VARIABLE_VALUE)
 1
@@ -122,19 +122,19 @@ select 1 from tab1 limit 1;
 1
 1
 1 Expected
-select variable_value from information_schema.global_status where variable_name ='Qcache_hits';
+select variable_value from performance_schema.global_status where variable_name ='Qcache_hits';
 variable_value
 0
 0 Expected
-select variable_value from information_schema.global_status where variable_name ='Qcache_inserts';
+select variable_value from performance_schema.global_status where variable_name ='Qcache_inserts';
 variable_value
 0
 0 Expected
-select variable_value from information_schema.global_status where variable_name ='Qcache_queries_in_cache';
+select variable_value from performance_schema.global_status where variable_name ='Qcache_queries_in_cache';
 variable_value
 0
 0 Expected
-select variable_value from information_schema.global_status where variable_name ='Qcache_not_cached';
+select variable_value from performance_schema.global_status where variable_name ='Qcache_not_cached';
 variable_value
 25
 25 Expected
@@ -142,19 +142,19 @@ select 1 from tab1 limit 1;
 1
 1
 1 Expected
-select variable_value from information_schema.global_status where variable_name ='Qcache_hits';
+select variable_value from performance_schema.global_status where variable_name ='Qcache_hits';
 variable_value
 0
 0 Expected
-select variable_value from information_schema.global_status where variable_name ='Qcache_inserts';
+select variable_value from performance_schema.global_status where variable_name ='Qcache_inserts';
 variable_value
 0
 0 Expected
-select variable_value from information_schema.global_status where variable_name ='Qcache_queries_in_cache';
+select variable_value from performance_schema.global_status where variable_name ='Qcache_queries_in_cache';
 variable_value
 0
 0 Expected
-select variable_value from information_schema.global_status where variable_name ='Qcache_not_cached';
+select variable_value from performance_schema.global_status where variable_name ='Qcache_not_cached';
 variable_value
 30
 30 Expected
@@ -163,19 +163,19 @@ select 1 from tab1 limit 2;
 1
 1
 1 Expected
-select variable_value from information_schema.global_status where variable_name ='Qcache_hits';
+select variable_value from performance_schema.global_status where variable_name ='Qcache_hits';
 variable_value
 0
 0 Expected
-select variable_value from information_schema.global_status where variable_name ='Qcache_inserts';
+select variable_value from performance_schema.global_status where variable_name ='Qcache_inserts';
 variable_value
 0
 0 Expected
-select variable_value from information_schema.global_status where variable_name ='Qcache_queries_in_cache';
+select variable_value from performance_schema.global_status where variable_name ='Qcache_queries_in_cache';
 variable_value
 0
 0 Expected
-select variable_value from information_schema.global_status where variable_name ='Qcache_not_cached';
+select variable_value from performance_schema.global_status where variable_name ='Qcache_not_cached';
 variable_value
 35
 35 Expected
@@ -184,19 +184,19 @@ select 1 from tab1 limit 1;
 1
 1
 1 Expected
-select variable_value from information_schema.global_status where variable_name ='Qcache_hits';
+select variable_value from performance_schema.global_status where variable_name ='Qcache_hits';
 variable_value
 0
 0 Expected
-select variable_value from information_schema.global_status where variable_name ='Qcache_inserts';
+select variable_value from performance_schema.global_status where variable_name ='Qcache_inserts';
 variable_value
 1
 1 Expected
-select variable_value from information_schema.global_status where variable_name ='Qcache_queries_in_cache';
+select variable_value from performance_schema.global_status where variable_name ='Qcache_queries_in_cache';
 variable_value
 1
 1 Expected
-select variable_value from information_schema.global_status where variable_name ='Qcache_not_cached';
+select variable_value from performance_schema.global_status where variable_name ='Qcache_not_cached';
 variable_value
 8
 8 Expected
@@ -205,19 +205,19 @@ select 1 from tab1 limit 2;
 1
 1
 1 Expected
-select variable_value from information_schema.global_status where variable_name ='Qcache_hits';
+select variable_value from performance_schema.global_status where variable_name ='Qcache_hits';
 variable_value
 0
 0 Expected
-select variable_value from information_schema.global_status where variable_name ='Qcache_inserts';
+select variable_value from performance_schema.global_status where variable_name ='Qcache_inserts';
 variable_value
 2
 2 Expected
-select variable_value from information_schema.global_status where variable_name ='Qcache_queries_in_cache';
+select variable_value from performance_schema.global_status where variable_name ='Qcache_queries_in_cache';
 variable_value
 2
 2 Expected
-select variable_value from information_schema.global_status where variable_name ='Qcache_not_cached';
+select variable_value from performance_schema.global_status where variable_name ='Qcache_not_cached';
 variable_value
 12
 12 Expected
@@ -225,24 +225,24 @@ select 1 from tab1 limit 1;
 1
 1
 1 Expected
-select variable_value from information_schema.global_status where variable_name ='Qcache_hits';
+select variable_value from performance_schema.global_status where variable_name ='Qcache_hits';
 variable_value
 1
 1 Expected
-select variable_value from information_schema.global_status where variable_name ='Qcache_inserts';
+select variable_value from performance_schema.global_status where variable_name ='Qcache_inserts';
 variable_value
 2
 2 Expected
-select variable_value from information_schema.global_status where variable_name ='Qcache_queries_in_cache';
+select variable_value from performance_schema.global_status where variable_name ='Qcache_queries_in_cache';
 variable_value
 2
 2 Expected
-select variable_value from information_schema.global_status where variable_name ='Qcache_not_cached';
+select variable_value from performance_schema.global_status where variable_name ='Qcache_not_cached';
 variable_value
 16
 16 Expected
 # opening another client session
-select variable_value from information_schema.global_status where variable_name ='Qcache_not_cached';
+select variable_value from performance_schema.global_status where variable_name ='Qcache_not_cached';
 variable_value
 17
 17 Expected

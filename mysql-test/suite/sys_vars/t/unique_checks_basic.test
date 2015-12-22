@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 ############## mysql-test\t\unique_checks_basic.test ##########################
 #                                                                             #
 # Variable Name: unique_checks                                                #
@@ -113,7 +115,7 @@ SET @@session.unique_checks = 123456789031;
 
 --disable_warnings
 SELECT IF(@@session.unique_checks, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='unique_checks';
 --enable_warnings
 

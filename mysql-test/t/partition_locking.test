@@ -1,3 +1,10 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
+
+# Test is temporarily run with show_compatibility_56=ON until Bug#21789221 is fixed.
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
+
 --source include/have_innodb.inc
 --source include/have_partition.inc
 # Different page sizes gives different query plans
@@ -15,7 +22,8 @@ SET @@global.innodb_stats_persistent= 0;
 SET @old_default_storage_engine = @@default_storage_engine;
 SET @@default_storage_engine = 'InnoDB';
 
-let $get_handler_status_counts= SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+#Not using P_S table until Bug21789221 is fixed.
+let $get_handler_status_counts= SELECT * FROM information_schema.session_status
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 
 --let $MYSQLD_DATADIR= `SELECT @@datadir`
@@ -2109,3 +2117,4 @@ DROP FUNCTION sf_a_from_t1b;
 DROP TABLE tq, tsq, t1, t2;
 
 SET @@global.innodb_stats_persistent= @old_innodb_stats_persistent;
+set @@global.show_compatibility_56=@show_compatibility_56_save;

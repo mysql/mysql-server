@@ -141,19 +141,19 @@ SET @@global.myisam_max_sort_file_size = 1G;
 SET @@global.myisam_max_sort_file_size = 3000;
 --disable_warnings
 SELECT @@global.myisam_max_sort_file_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='myisam_max_sort_file_size';
 --enable_warnings
 
 
 --echo '#------------------FN_DYNVARS_094_07-----------------------#'
 ###########################################################################
-#  Check if the value is present in INFORMATION_SCHEMA.SESSION_VARIABLES  #
+#  Check if the value is present in performance_schema.session_variables  #
 ###########################################################################
 
 --disable_warnings
 SELECT count(VARIABLE_VALUE) 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='myisam_max_sort_file_size';
 --enable_warnings
 

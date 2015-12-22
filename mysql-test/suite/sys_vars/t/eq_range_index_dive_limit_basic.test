@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 SET @start_global_value = @@global.eq_range_index_dive_limit;
 SELECT @start_global_value;
 
@@ -11,11 +13,11 @@ show session variables like 'eq_range_index_dive_limit';
 
 --disable_warnings
 select * 
-from information_schema.global_variables 
+from performance_schema.global_variables 
 where variable_name='eq_range_index_dive_limit';
 
 select * 
-from information_schema.session_variables 
+from performance_schema.session_variables 
 where variable_name='eq_range_index_dive_limit';
 --enable_warnings
 

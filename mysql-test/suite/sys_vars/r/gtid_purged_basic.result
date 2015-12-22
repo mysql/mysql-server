@@ -15,12 +15,12 @@ gtid_purged
 show session variables like 'gtid_purged';
 Variable_name	Value
 gtid_purged	
-select * from information_schema.global_variables where variable_name='gtid_purged';
+select * from performance_schema.global_variables where variable_name='gtid_purged';
 VARIABLE_NAME	VARIABLE_VALUE
-GTID_PURGED	
-select * from information_schema.session_variables where variable_name='gtid_purged';
+gtid_purged	
+select * from performance_schema.session_variables where variable_name='gtid_purged';
 VARIABLE_NAME	VARIABLE_VALUE
-GTID_PURGED	
+gtid_purged	
 set @@global.gtid_purged = NULL;
 ERROR 42000: Variable 'gtid_purged' can't be set to the value of 'NULL'
 select @@global.gtid_purged;

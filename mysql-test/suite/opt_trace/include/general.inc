@@ -529,13 +529,6 @@ explain select * from v1 where id="b";
 select * from information_schema.OPTIMIZER_TRACE;
 drop view v1;
 
-# I_S tables
---disable_warnings
-select * from information_schema.session_variables where
-VARIABLE_NAME="optimizer_trace";
---enable_warnings
-select * from information_schema.OPTIMIZER_TRACE;
-
 # test that DUMPFILE does no escaping of \n
 # otherwise a JSON parser could not read
 set end_markers_in_json=off;

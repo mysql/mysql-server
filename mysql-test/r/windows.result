@@ -58,10 +58,10 @@ deallocate prepare abc;
 #
 # Bug#45498: Socket variable not available on Windows
 #
-SELECT VARIABLE_NAME FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+SELECT VARIABLE_NAME FROM performance_schema.global_variables
 WHERE VARIABLE_NAME = 'socket';
 VARIABLE_NAME
-SOCKET
+socket
 #
 # Bug#16581605: REPLACE.EXE UTILITY IS BROKEN IN 5.5
 #

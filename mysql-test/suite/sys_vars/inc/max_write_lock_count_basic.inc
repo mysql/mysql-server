@@ -162,7 +162,7 @@ if($mach64)
 
 --disable_warnings
 SELECT @@global.max_write_lock_count = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='max_write_lock_count';
 --enable_warnings
 

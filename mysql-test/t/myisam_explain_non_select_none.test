@@ -1,7 +1,10 @@
-
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 # 
 # Run explain_non_select.inc on MyISAM without any of the socalled 6.0 features.
-#
+# Test is temporarily run with show_compatibility_56=ON until Bug#21783883 is fixed.
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
@@ -32,3 +35,4 @@ set session default_storage_engine = MyISAM;
 set default_storage_engine= @save_storage_engine;
 
 set optimizer_switch=default;
+set @@global.show_compatibility_56=@show_compatibility_56_save;

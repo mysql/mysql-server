@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 #
 #  2011-08-01  Added
 #
@@ -20,9 +22,9 @@ SELECT @@session.innodb_rollback_segments;
 SHOW global variables LIKE 'innodb_rollback_segments';
 SHOW session variables LIKE 'innodb_rollback_segments';
 --disable_warnings
-SELECT * FROM information_schema.global_variables 
+SELECT * FROM performance_schema.global_variables 
 WHERE variable_name='innodb_rollback_segments';
-SELECT * FROM information_schema.session_variables 
+SELECT * FROM performance_schema.session_variables 
 WHERE variable_name='innodb_rollback_segments';
 --enable_warnings
 
@@ -32,9 +34,9 @@ WHERE variable_name='innodb_rollback_segments';
 SET global innodb_rollback_segments=100;
 SELECT @@global.innodb_rollback_segments;
 --disable_warnings
-SELECT * FROM information_schema.global_variables 
+SELECT * FROM performance_schema.global_variables 
 WHERE variable_name='innodb_rollback_segments';
-SELECT * FROM information_schema.session_variables 
+SELECT * FROM performance_schema.session_variables 
 WHERE variable_name='innodb_rollback_segments';
 --enable_warnings
 --error ER_GLOBAL_VARIABLE
@@ -52,7 +54,7 @@ SET global innodb_rollback_segments="foo";
 SET global innodb_rollback_segments=-7;
 SELECT @@global.innodb_rollback_segments;
 --disable_warnings
-SELECT * FROM information_schema.global_variables 
+SELECT * FROM performance_schema.global_variables 
 WHERE variable_name='innodb_rollback_segments';
 --enable_warnings
 

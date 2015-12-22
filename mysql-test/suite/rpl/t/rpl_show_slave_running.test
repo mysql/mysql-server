@@ -9,6 +9,9 @@ source include/have_debug_sync.inc;
 source include/master-slave.inc;
 
 connection slave;
+# Running with show_compatibility_56=ON until WL#9001 is pushed.
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
 
 SET DEBUG_SYNC= 'RESET';
 source include/stop_slave.inc;
@@ -75,6 +78,7 @@ echo Slave_IO_Running= $status;
 let $status= query_get_value("show slave status", Slave_SQL_Running, 1);
 echo Slave_SQL_Running= $status;
 
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 # cleanup
 
 connection master;

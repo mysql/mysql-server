@@ -453,7 +453,7 @@ SELECT X.I FROM t100 AS X, t100 AS Y;
 
 --disable_warnings
 let $total_handler_reads=
-select sum(variable_value) from information_schema.session_status
+select sum(variable_value) from performance_schema.session_status
  where VARIABLE_NAME like 'Handler_read%';
 --enable_warnings
 

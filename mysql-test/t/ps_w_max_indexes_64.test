@@ -3,6 +3,9 @@
 # This test should skip with QC until Bug#16451494 is fixed.
 --source include/have_query_cache_disabled.inc
 
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
+
 ###################### ps_general.test #######################
 #                                                            #
 #   basic and miscellaneous tests for prepared statements    #

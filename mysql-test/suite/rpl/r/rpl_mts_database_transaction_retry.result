@@ -30,6 +30,8 @@ SET GLOBAL max_relay_log_size = 4096;
 include/stop_slave_sql.inc
 SET GLOBAL slave_parallel_type = "DATABASE";
 include/start_slave_sql.inc
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
 #
 # Case 1: slave will stop if slave_transaction_retries is 0
 #
@@ -128,6 +130,7 @@ SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
 SET GLOBAL slave_parallel_workers = @saved_slave_parallel_workers;
 SET GLOBAL max_relay_log_size = @saved_max_relay_log_size;
 SET GLOBAL slave_transaction_retries = @saved_slave_transaction_retries;
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 include/stop_slave_sql.inc
 SET GLOBAL slave_parallel_type= @saved_slave_parallel_type;
 include/start_slave_sql.inc

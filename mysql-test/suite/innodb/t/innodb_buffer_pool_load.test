@@ -75,7 +75,7 @@ EOF
 --disable_warnings
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) load completed at '
-  FROM information_schema.global_status
+  FROM performance_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 --enable_warnings
 --source include/wait_condition.inc
@@ -84,7 +84,7 @@ let $wait_condition =
 --disable_warnings
 --replace_regex /[0-9]{6}[[:space:]]+[0-9]{1,2}:[0-9]{2}:[0-9]{2}/TIMESTAMP_NOW/
 SELECT variable_value
-FROM information_schema.global_status
+FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 --enable_warnings
 
@@ -111,7 +111,7 @@ EOF
 --disable_warnings
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 13) = 'Error parsing'
-  FROM information_schema.global_status
+  FROM performance_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 --enable_warnings
 --source include/wait_condition.inc
@@ -137,7 +137,7 @@ EOF
 --disable_warnings
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) load completed at '
-  FROM information_schema.global_status
+  FROM performance_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 --enable_warnings
 --source include/wait_condition.inc
@@ -146,7 +146,7 @@ let $wait_condition =
 --disable_warnings
 --replace_regex /[0-9]{6}[[:space:]]+[0-9]{1,2}:[0-9]{2}:[0-9]{2}/TIMESTAMP_NOW/
 SELECT variable_value
-FROM information_schema.global_status
+FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 --enable_warnings
 
@@ -167,7 +167,7 @@ let $MYSQLD_BASEDIR= `select @@basedir`;
 --mkdir $MYSQL_TMP_DIR/datadir1
 
 let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql;
-let $start_page_size=`SELECT variable_value FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE LOWER(variable_name) = 'innodb_page_size'`;
+let $start_page_size=`SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size'`;
 # Create bootstrap file
 write_file $BOOTSTRAP_SQL;
 CREATE DATABASE test;

@@ -69,13 +69,13 @@ SELECT @@local.secure_auth;
 ERROR HY000: Variable 'secure_auth' is a GLOBAL variable
 '#----------------------FN_DYNVARS_143_06------------------------#'
 SELECT count(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='secure_auth';
 count(VARIABLE_VALUE)
 1
 '#----------------------FN_DYNVARS_143_07------------------------#'
 SELECT IF(@@global.secure_auth, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='secure_auth';
 IF(@@global.secure_auth, "ON", "OFF") = VARIABLE_VALUE
 1
@@ -83,7 +83,7 @@ SELECT @@global.secure_auth;
 @@global.secure_auth
 1
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='secure_auth';
 VARIABLE_VALUE
 ON

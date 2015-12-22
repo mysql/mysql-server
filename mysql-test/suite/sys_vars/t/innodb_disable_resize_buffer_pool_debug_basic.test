@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 --echo #
 --echo # Basic test for innodb_disable_resize_buffer_pool_debug
 --echo #
@@ -27,7 +29,7 @@ SELECT @@global.innodb_disable_resize_buffer_pool_debug;
 
 --disable_warnings
 SELECT IF(@@GLOBAL.innodb_disable_resize_buffer_pool_debug,'ON','OFF') = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_disable_resize_buffer_pool_debug';
 --enable_warnings
 --echo 1 Expected
@@ -37,7 +39,7 @@ SELECT COUNT(@@GLOBAL.innodb_disable_resize_buffer_pool_debug);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_disable_resize_buffer_pool_debug';
 --enable_warnings
 --echo 1 Expected

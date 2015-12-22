@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 #
 # only global
 #
@@ -10,9 +12,9 @@ show global variables like 'have_profiling';
 show session variables like 'have_profiling';
 --disable_warnings
 --replace_column 2 #
-select * from information_schema.global_variables where variable_name='have_profiling';
+select * from performance_schema.global_variables where variable_name='have_profiling';
 --replace_column 2 #
-select * from information_schema.session_variables where variable_name='have_profiling';
+select * from performance_schema.session_variables where variable_name='have_profiling';
 --enable_warnings
 
 #

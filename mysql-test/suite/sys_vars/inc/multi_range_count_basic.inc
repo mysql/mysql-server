@@ -202,7 +202,7 @@ if($mach64)
 
 --disable_warnings
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='multi_range_count'
 into @tmp;
 --enable_warnings
@@ -216,7 +216,7 @@ SELECT @@global.multi_range_count = @tmp;
 
 --disable_warnings
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='multi_range_count'
 into @tmp;
 --enable_warnings

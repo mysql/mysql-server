@@ -91,7 +91,7 @@ select @@global.Host_Cache_Size=@Default_host_cache_size;
 # Check if the value in GLOBAL Table matches value in variable  #
 #################################################################
 SELECT @@GLOBAL.Host_Cache_Size = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='Host_Cache_Size';
 --echo 1 Expected
 
@@ -99,7 +99,7 @@ SELECT COUNT(@@GLOBAL.Host_Cache_Size);
 --echo 1 Expected
 
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='Host_Cache_Size';
 --echo 1 Expected
 

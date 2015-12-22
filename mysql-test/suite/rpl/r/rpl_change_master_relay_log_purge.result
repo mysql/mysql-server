@@ -5,6 +5,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 FLUSH BINARY LOGS;
 include/sync_slave_sql_with_master.inc
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
 
 We now stop the IO thread and ensure that the relaylog files
 are not deleted on doing a change master with a running SQL thread.
@@ -37,5 +39,6 @@ include/assert.inc [With both the threads stopped and no use of relay_log_file o
 
 cleanup
 
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 include/start_slave.inc
 include/rpl_end.inc

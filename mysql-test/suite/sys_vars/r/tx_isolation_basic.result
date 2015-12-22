@@ -83,13 +83,13 @@ SET @@tx_isolation = 'ALL';
 ERROR 42000: Variable 'tx_isolation' can't be set to the value of 'ALL'
 '#-------------------FN_DYNVARS_183_05----------------------------#'
 SELECT @@session.tx_isolation = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='tx_isolation';
 @@session.tx_isolation = VARIABLE_VALUE
 1
 '#----------------------FN_DYNVARS_183_06------------------------#'
 SELECT @@global.tx_isolation = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='tx_isolation';
 @@global.tx_isolation = VARIABLE_VALUE
 1

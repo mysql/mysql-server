@@ -35,7 +35,10 @@ INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 INSERT INTO t1 VALUES(3);
 TRUNCATE t1;
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+SET @@global.show_compatibility_56=ON;
 include/assert.inc [rpl_semi_sync_master_yes_tx increases 4]
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 include/rpl_sync.inc
 ####################################################################
 # Test Case: Semisync should work when more than one semisync slaves
@@ -48,7 +51,10 @@ INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 INSERT INTO t1 VALUES(3);
 TRUNCATE t1;
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+SET @@global.show_compatibility_56=ON;
 include/assert.inc [rpl_semi_sync_master_yes_tx increases 4]
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 include/rpl_sync.inc
 [connection server_4]
 include/install_semisync_slave.inc
@@ -57,7 +63,10 @@ INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 INSERT INTO t1 VALUES(3);
 TRUNCATE t1;
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+SET @@global.show_compatibility_56=ON;
 include/assert.inc [rpl_semi_sync_master_yes_tx increases 4]
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 include/rpl_sync.inc
 ###################################################################
 # Test Case: Semisync should work after semisync master is disabled
@@ -72,7 +81,10 @@ INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 INSERT INTO t1 VALUES(3);
 TRUNCATE t1;
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+SET @@global.show_compatibility_56=ON;
 include/assert.inc [rpl_semi_sync_master_yes_tx increases 4]
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 include/rpl_sync.inc
 ###################################################################
 # Test Case: Semisync should still work after some semisync slaves
@@ -86,7 +98,10 @@ INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 INSERT INTO t1 VALUES(3);
 TRUNCATE t1;
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+SET @@global.show_compatibility_56=ON;
 include/assert.inc [rpl_semi_sync_master_yes_tx increases 4]
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 include/rpl_sync.inc
 [connection server_3]
 include/stop_slave_io.inc
@@ -96,7 +111,10 @@ INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 INSERT INTO t1 VALUES(3);
 TRUNCATE t1;
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+SET @@global.show_compatibility_56=ON;
 include/assert.inc [rpl_semi_sync_master_yes_tx increases 4]
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 include/rpl_sync.inc
 ###################################################################
 # Test Case: Semisync should still work after some semisync slaves
@@ -109,7 +127,10 @@ INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 INSERT INTO t1 VALUES(3);
 TRUNCATE t1;
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+SET @@global.show_compatibility_56=ON;
 include/assert.inc [rpl_semi_sync_master_yes_tx increases 4]
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 include/rpl_sync.inc
 [connection server_3]
 include/uninstall_semisync_slave.inc
@@ -118,7 +139,10 @@ INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 INSERT INTO t1 VALUES(3);
 TRUNCATE t1;
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+SET @@global.show_compatibility_56=ON;
 include/assert.inc [rpl_semi_sync_master_yes_tx increases 4]
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 include/rpl_sync.inc
 #####################################################################
 # Test Case: PS threads table includes ACK thread's status correctly.

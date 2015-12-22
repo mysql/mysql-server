@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 --source include/have_innodb.inc
 
 # Can only be set from the command line.
@@ -10,8 +12,8 @@ select @@session.innodb_read_only;
 show global variables like 'innodb_read_only';
 show session variables like 'innodb_read_only';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_read_only';
-select * from information_schema.session_variables where variable_name='innodb_read_only';
+select * from performance_schema.global_variables where variable_name='innodb_read_only';
+select * from performance_schema.session_variables where variable_name='innodb_read_only';
 --enable_warnings
 
 # Show that it's read-only

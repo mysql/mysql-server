@@ -220,7 +220,7 @@ if($mach64)
 
 --disable_warnings
 SELECT @@global.myisam_repair_threads  = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='myisam_repair_threads ';
 --enable_warnings
 
@@ -231,7 +231,7 @@ WHERE VARIABLE_NAME='myisam_repair_threads ';
 
 --disable_warnings
 SELECT @@session.myisam_repair_threads  = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='myisam_repair_threads ';
 --enable_warnings
 

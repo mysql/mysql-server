@@ -42,7 +42,7 @@ select @@global.Host_Cache_Size=@Default_host_cache_size;
 1 Expected
 '#---------------------WL6372_VAR_6_04----------------------#'
 SELECT @@GLOBAL.Host_Cache_Size = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='Host_Cache_Size';
 @@GLOBAL.Host_Cache_Size = VARIABLE_VALUE
 1
@@ -52,7 +52,7 @@ COUNT(@@GLOBAL.Host_Cache_Size)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='Host_Cache_Size';
 COUNT(VARIABLE_VALUE)
 1

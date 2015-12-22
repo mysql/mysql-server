@@ -19,7 +19,7 @@ SELECT @@global.innodb_disable_resize_buffer_pool_debug;
 @@global.innodb_disable_resize_buffer_pool_debug
 1
 SELECT IF(@@GLOBAL.innodb_disable_resize_buffer_pool_debug,'ON','OFF') = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_disable_resize_buffer_pool_debug';
 IF(@@GLOBAL.innodb_disable_resize_buffer_pool_debug,'ON','OFF') = VARIABLE_VALUE
 1
@@ -29,7 +29,7 @@ COUNT(@@GLOBAL.innodb_disable_resize_buffer_pool_debug)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_disable_resize_buffer_pool_debug';
 COUNT(VARIABLE_VALUE)
 1

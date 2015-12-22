@@ -9,12 +9,12 @@ innodb_ft_result_cache_limit	2000000000
 show session variables like 'innodb_ft_result_cache_limit';
 Variable_name	Value
 innodb_ft_result_cache_limit	2000000000
-select * from information_schema.global_variables where variable_name='innodb_ft_result_cache_limit';
+select * from performance_schema.global_variables where variable_name='innodb_ft_result_cache_limit';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_RESULT_CACHE_LIMIT	2000000000
-select * from information_schema.session_variables where variable_name='innodb_ft_result_cache_limit';
+innodb_ft_result_cache_limit	2000000000
+select * from performance_schema.session_variables where variable_name='innodb_ft_result_cache_limit';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_RESULT_CACHE_LIMIT	2000000000
+innodb_ft_result_cache_limit	2000000000
 set global innodb_ft_result_cache_limit=900000;
 Warnings:
 Warning	1292	Truncated incorrect innodb_ft_result_cache_limit value: '900000'

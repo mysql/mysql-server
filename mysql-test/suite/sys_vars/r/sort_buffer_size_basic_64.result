@@ -105,12 +105,12 @@ SELECT @@session.sort_buffer_size;
 32768
 '#------------------FN_DYNVARS_151_06-----------------------#'
 SELECT @@global.sort_buffer_size = VARIABLE_VALUE FROM 
-INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='sort_buffer_size';
+performance_schema.global_variables WHERE VARIABLE_NAME='sort_buffer_size';
 @@global.sort_buffer_size = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_151_07-----------------------#'
 SELECT @@session.sort_buffer_size = VARIABLE_VALUE FROM
-INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='sort_buffer_size';
+performance_schema.session_variables WHERE VARIABLE_NAME='sort_buffer_size';
 @@session.sort_buffer_size = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_151_08-----------------------#'

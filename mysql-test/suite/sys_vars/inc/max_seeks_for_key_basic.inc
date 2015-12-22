@@ -253,7 +253,7 @@ if($mach64)
 
 --disable_warnings
 SELECT @@global.max_seeks_for_key = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='max_seeks_for_key';
 --enable_warnings
 
@@ -264,7 +264,7 @@ WHERE VARIABLE_NAME='max_seeks_for_key';
 
 --disable_warnings
 SELECT @@session.max_seeks_for_key = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='max_seeks_for_key';
 --enable_warnings
 

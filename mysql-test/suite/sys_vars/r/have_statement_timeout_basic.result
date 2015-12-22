@@ -13,7 +13,7 @@ COUNT(@@GLOBAL.have_statement_timeout)
 1 Expected
 # Check if the value in GLOBAL Table matches value in variable
 SELECT @@GLOBAL.have_statement_timeout = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='have_statement_timeout';
 @@GLOBAL.have_statement_timeout = VARIABLE_VALUE
 1
@@ -23,7 +23,7 @@ COUNT(@@GLOBAL.have_statement_timeout)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='have_statement_timeout';
 COUNT(VARIABLE_VALUE)
 1

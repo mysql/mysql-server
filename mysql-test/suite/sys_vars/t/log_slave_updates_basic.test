@@ -8,8 +8,8 @@ select @@session.log_slave_updates;
 show global variables like 'log_slave_updates';
 show session variables like 'log_slave_updates';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='log_slave_updates';
-select * from information_schema.session_variables where variable_name='log_slave_updates';
+select * from performance_schema.global_variables where variable_name='log_slave_updates';
+select * from performance_schema.session_variables where variable_name='log_slave_updates';
 --enable_warnings
 
 #

@@ -156,7 +156,6 @@ while ($_eval_rbracket)
   --let $_eval_expr_interp= `SELECT QUOTE(REPLACE($_eval_expr_interp, '<$_eval_substmt_number>', '$_eval_substmt_result'))`
 
   --let $_eval_rbracket= `SELECT LOCATE(']', $_eval_expr_interp)`
-
   --inc $_eval_substmt_number
 }
 

@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 ############## mysql-test\t\expire_logs_days_basic.test ###############
 #                                                                             #
 # Variable Name: expire_logs_days                                             #
@@ -117,11 +119,11 @@ SELECT @@expire_logs_days;
 
 --disable_warnings
 SELECT @@global.expire_logs_days = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='expire_logs_days';
 
 SELECT @@expire_logs_days = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='expire_logs_days';
 --enable_warnings
 

@@ -200,7 +200,7 @@ SET @@global.join_buffer_size = 4294967295;
 
 --disable_warnings
 SELECT @@global.join_buffer_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='join_buffer_size';
 --enable_warnings
 
@@ -213,7 +213,7 @@ SET @@session.join_buffer_size = 4294967295;
 
 --disable_warnings
 SELECT @@session.join_buffer_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='join_buffer_size';
 --enable_warnings
 

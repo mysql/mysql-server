@@ -9,12 +9,12 @@ slave_load_tmpdir	MYSQL_TMP_DIR/mysqld.1
 show session variables like 'slave_load_tmpdir';
 Variable_name	Value
 slave_load_tmpdir	MYSQL_TMP_DIR/mysqld.1
-select * from information_schema.global_variables where variable_name='slave_load_tmpdir';
+select * from performance_schema.global_variables where variable_name='slave_load_tmpdir';
 VARIABLE_NAME	VARIABLE_VALUE
-SLAVE_LOAD_TMPDIR	MYSQL_TMP_DIR/mysqld.1
-select * from information_schema.session_variables where variable_name='slave_load_tmpdir';
+slave_load_tmpdir	MYSQL_TMP_DIR/mysqld.1
+select * from performance_schema.session_variables where variable_name='slave_load_tmpdir';
 VARIABLE_NAME	VARIABLE_VALUE
-SLAVE_LOAD_TMPDIR	MYSQL_TMP_DIR/mysqld.1
+slave_load_tmpdir	MYSQL_TMP_DIR/mysqld.1
 set global slave_load_tmpdir=1;
 ERROR HY000: Variable 'slave_load_tmpdir' is a read only variable
 set session slave_load_tmpdir=1;

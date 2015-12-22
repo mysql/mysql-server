@@ -20,6 +20,9 @@
 # Created: 2008-04-18 mleich
 #
 
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
+
 --disable_warnings
 drop temporary table if exists t1;
 drop table if exists t1, t2;
@@ -36,7 +39,7 @@ begin
   declare old_reprepare_count int default @reprepare_count;
 
   select variable_value from
-  information_schema.session_status where
+  performance_schema.session_status where
   variable_name='com_stmt_reprepare'
   into @reprepare_count;
 

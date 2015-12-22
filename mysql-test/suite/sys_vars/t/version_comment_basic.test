@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 
 
 ################## mysql-test\t\version_comment_basic.test ####################
@@ -52,7 +54,7 @@ SELECT COUNT(@@GLOBAL.version_comment);
 
 --disable_warnings
 SELECT @@GLOBAL.version_comment = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='version_comment';
 --enable_warnings
 --echo 1 Expected
@@ -62,7 +64,7 @@ SELECT COUNT(@@GLOBAL.version_comment);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='version_comment';
 --enable_warnings
 --echo 1 Expected

@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 ############# mysql-test\t\log_bin_use_v1_row_events_basic.test ###############
 #                                                                             #
 # Variable Name: log_bin_use_v1_row_events                                    #
@@ -69,7 +71,7 @@ SELECT @@session.log_bin_use_v1_row_events;
 
 --disable_warnings
 SELECT IF(@@GLOBAL.log_bin_use_v1_row_events, "ON", "OFF") = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='log_bin_use_v1_row_events';
 --enable_warnings
 --echo 1 Expected
@@ -79,7 +81,7 @@ SELECT COUNT(@@GLOBAL.log_bin_use_v1_row_events);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='log_bin_use_v1_row_events';
 --enable_warnings
 --echo 1 Expected

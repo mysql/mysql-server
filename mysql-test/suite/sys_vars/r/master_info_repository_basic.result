@@ -16,7 +16,7 @@ SELECT @@GLOBAL.master_info_repository;
 TABLE
 '#---------------------BS_STVARS_002_03----------------------#'
 SELECT @@GLOBAL.master_info_repository = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='master_info_repository';
 @@GLOBAL.master_info_repository = VARIABLE_VALUE
 1
@@ -26,7 +26,7 @@ COUNT(@@GLOBAL.master_info_repository)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='master_info_repository';
 COUNT(VARIABLE_VALUE)
 1

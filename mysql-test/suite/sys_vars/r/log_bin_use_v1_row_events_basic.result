@@ -44,7 +44,7 @@ SELECT @@session.log_bin_use_v1_row_events;
 ERROR HY000: Variable 'log_bin_use_v1_row_events' is a GLOBAL variable
 '#---------------------BS_STVARS_002_03----------------------#'
 SELECT IF(@@GLOBAL.log_bin_use_v1_row_events, "ON", "OFF") = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='log_bin_use_v1_row_events';
 IF(@@GLOBAL.log_bin_use_v1_row_events, "ON", "OFF") = VARIABLE_VALUE
 1
@@ -54,7 +54,7 @@ COUNT(@@GLOBAL.log_bin_use_v1_row_events)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='log_bin_use_v1_row_events';
 COUNT(VARIABLE_VALUE)
 1

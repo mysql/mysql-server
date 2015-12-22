@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 #
 # only global
 #
@@ -7,6 +9,6 @@ select @@session.stored_program_definition_cache;
 show global variables like 'stored_program_definition_cache';
 show session variables like 'stored_program_definition_cache';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='stored_program_definition_cache';
-select * from information_schema.session_variables where variable_name='stored_program_definition_cache';
+select * from performance_schema.global_variables where variable_name='stored_program_definition_cache';
+select * from performance_schema.session_variables where variable_name='stored_program_definition_cache';
 --enable_warnings

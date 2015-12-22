@@ -209,7 +209,7 @@ if($mach64)
 
 
 SELECT @@global.sort_buffer_size = VARIABLE_VALUE FROM 
-       INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='sort_buffer_size';
+       performance_schema.global_variables WHERE VARIABLE_NAME='sort_buffer_size';
 
 --echo '#------------------FN_DYNVARS_151_07-----------------------#'
 ####################################################################
@@ -217,7 +217,7 @@ SELECT @@global.sort_buffer_size = VARIABLE_VALUE FROM
 ####################################################################
 
 SELECT @@session.sort_buffer_size = VARIABLE_VALUE FROM
-INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='sort_buffer_size';
+performance_schema.session_variables WHERE VARIABLE_NAME='sort_buffer_size';
 
 
 --echo '#------------------FN_DYNVARS_151_08-----------------------#'

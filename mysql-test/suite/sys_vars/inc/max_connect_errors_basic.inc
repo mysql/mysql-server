@@ -148,11 +148,11 @@ SELECT @@session.max_connect_errors;
 
 --disable_warnings
 SELECT @@global.max_connect_errors = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='max_connect_errors';
 
 SELECT @@max_connect_errors = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='max_connect_errors';
 --enable_warnings
 

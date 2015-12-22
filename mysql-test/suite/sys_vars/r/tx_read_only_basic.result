@@ -121,7 +121,7 @@ SELECT @@session.tx_read_only;
 #   Check if the value in GLOBAL Table matches value in variable   #
 ####################################################################
 SELECT IF(@@global.tx_read_only, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='tx_read_only';
 IF(@@global.tx_read_only, "ON", "OFF") = VARIABLE_VALUE
 1
@@ -129,7 +129,7 @@ IF(@@global.tx_read_only, "ON", "OFF") = VARIABLE_VALUE
 #  Check if the value in SESSION Table matches value in variable   #
 ####################################################################
 SELECT IF(@@session.tx_read_only, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='tx_read_only';
 IF(@@session.tx_read_only, "ON", "OFF") = VARIABLE_VALUE
 1

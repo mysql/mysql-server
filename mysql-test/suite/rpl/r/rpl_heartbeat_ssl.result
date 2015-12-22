@@ -5,6 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 
 *** Heartbeat over SSL ***
+set @@global.show_compatibility_56=ON;
 include/stop_slave.inc
 RESET SLAVE;
 CHANGE MASTER TO 
@@ -25,6 +26,7 @@ include/start_slave.inc
 Master_SSL_Allowed: Yes
 Heartbeat event has received
 
+set @@global.show_compatibility_56=OFF;
 *** Clean up ***
 include/stop_slave.inc
 CHANGE MASTER TO 

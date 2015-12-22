@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 ############## mysql-test\t\read_only_basic.test ###############
 #                                                                             #
 # Variable Name: read_only                                                    #
@@ -122,11 +124,11 @@ SELECT @@read_only;
 
 --disable_warnings
 SELECT IF(@@global.read_only, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='read_only';
 
 SELECT IF(@@read_only, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='read_only';
 --enable_warnings
 

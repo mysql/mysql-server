@@ -54,7 +54,7 @@ SET @@session.unique_checks = 123456789031;
 ERROR 42000: Variable 'unique_checks' can't be set to the value of '123456789031'
 '#------------------FN_DYNVARS_005_07-----------------------#'
 SELECT IF(@@session.unique_checks, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='unique_checks';
 IF(@@session.unique_checks, "ON", "OFF") = VARIABLE_VALUE
 1

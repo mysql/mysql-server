@@ -13,32 +13,32 @@ innodb_limit_optimistic_insert_debug	0
 show session variables like 'innodb_limit_optimistic_insert_debug';
 Variable_name	Value
 innodb_limit_optimistic_insert_debug	0
-select * from information_schema.global_variables where variable_name='innodb_limit_optimistic_insert_debug';
+select * from performance_schema.global_variables where variable_name='innodb_limit_optimistic_insert_debug';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_LIMIT_OPTIMISTIC_INSERT_DEBUG	0
-select * from information_schema.session_variables where variable_name='innodb_limit_optimistic_insert_debug';
+innodb_limit_optimistic_insert_debug	0
+select * from performance_schema.session_variables where variable_name='innodb_limit_optimistic_insert_debug';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_LIMIT_OPTIMISTIC_INSERT_DEBUG	0
+innodb_limit_optimistic_insert_debug	0
 set global innodb_limit_optimistic_insert_debug=1;
 select @@global.innodb_limit_optimistic_insert_debug;
 @@global.innodb_limit_optimistic_insert_debug
 1
-select * from information_schema.global_variables where variable_name='innodb_limit_optimistic_insert_debug';
+select * from performance_schema.global_variables where variable_name='innodb_limit_optimistic_insert_debug';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_LIMIT_OPTIMISTIC_INSERT_DEBUG	1
-select * from information_schema.session_variables where variable_name='innodb_limit_optimistic_insert_debug';
+innodb_limit_optimistic_insert_debug	1
+select * from performance_schema.session_variables where variable_name='innodb_limit_optimistic_insert_debug';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_LIMIT_OPTIMISTIC_INSERT_DEBUG	1
+innodb_limit_optimistic_insert_debug	1
 set @@global.innodb_limit_optimistic_insert_debug=0;
 select @@global.innodb_limit_optimistic_insert_debug;
 @@global.innodb_limit_optimistic_insert_debug
 0
-select * from information_schema.global_variables where variable_name='innodb_limit_optimistic_insert_debug';
+select * from performance_schema.global_variables where variable_name='innodb_limit_optimistic_insert_debug';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_LIMIT_OPTIMISTIC_INSERT_DEBUG	0
-select * from information_schema.session_variables where variable_name='innodb_limit_optimistic_insert_debug';
+innodb_limit_optimistic_insert_debug	0
+select * from performance_schema.session_variables where variable_name='innodb_limit_optimistic_insert_debug';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_LIMIT_OPTIMISTIC_INSERT_DEBUG	0
+innodb_limit_optimistic_insert_debug	0
 set session innodb_limit_optimistic_insert_debug='some';
 ERROR HY000: Variable 'innodb_limit_optimistic_insert_debug' is a GLOBAL variable and should be set with SET GLOBAL
 set @@session.innodb_limit_optimistic_insert_debug='some';

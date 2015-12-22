@@ -1,8 +1,15 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
+
+# Test is temporarily run with show_compatibility_56=ON until Bug#21789221 is fixed.
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
 --source include/have_innodb.inc
 --source include/have_partition.inc
 
 # Helper statement
-let $get_handler_status_counts= SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+# Not using P_S tables until Bug#21789221 is fixed.
+let $get_handler_status_counts= SELECT * FROM information_schema.session_status
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 
 --echo #
@@ -827,3 +834,4 @@ CREATE TABLE t2 LIKE t1 PARTITION (p0, p2);
 DROP TABLE t1;
 
 SET @@default_storage_engine = @old_default_storage_engine;
+set @@global.show_compatibility_56=@show_compatibility_56_save;

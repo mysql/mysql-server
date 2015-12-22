@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 # The include statement below is a temp one for tests that are yet to
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
@@ -101,7 +103,7 @@ deallocate prepare abc;
 --echo # Bug#45498: Socket variable not available on Windows
 --echo #
 --disable_warnings
-SELECT VARIABLE_NAME FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+SELECT VARIABLE_NAME FROM performance_schema.global_variables
   WHERE VARIABLE_NAME = 'socket';
 --enable_warnings
 

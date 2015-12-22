@@ -13,7 +13,7 @@ COUNT(@@GLOBAL.server_uuid)
 1 Expected
 '#---------------------BS_STVARS_004_03----------------------#'
 SELECT @@GLOBAL.server_uuid = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='server_uuid';
 @@GLOBAL.server_uuid = VARIABLE_VALUE
 1
@@ -23,7 +23,7 @@ COUNT(@@GLOBAL.server_uuid)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='server_uuid';
 COUNT(VARIABLE_VALUE)
 1

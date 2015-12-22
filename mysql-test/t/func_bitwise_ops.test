@@ -448,7 +448,9 @@ SELECT HEX(_bin ^ _bin), HEX(_bin ^ _vbn), HEX(_vbn ^ _bin), HEX(_vbn ^ _vbn) FR
 INSERT INTO at(_bin) (SELECT _bin ^ x'cafebabe' FROM at);
 --echo #Turn strict mode OFF
 --source include/turn_off_strict_mode.inc
+--disable_ps_protocol
 INSERT INTO at(_bin) (SELECT _bin ^ x'cafebabe' FROM at);
+--enable_ps_protocol
 DROP TABLE at;
 
 --echo #

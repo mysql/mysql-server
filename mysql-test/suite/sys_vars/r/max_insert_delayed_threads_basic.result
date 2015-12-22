@@ -231,7 +231,7 @@ Warnings:
 Warning	1287	'@@max_insert_delayed_threads' is deprecated and will be removed in a future release.
 '#------------------FN_DYNVARS_075_06-----------------------#'
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='max_insert_delayed_threads'
 into @tmp;
 SELECT @@global.max_insert_delayed_threads = @tmp;
@@ -241,7 +241,7 @@ Warnings:
 Warning	1287	'@@max_insert_delayed_threads' is deprecated and will be removed in a future release.
 '#------------------FN_DYNVARS_075_07-----------------------#'
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='max_insert_delayed_threads'
 into @tmp;
 SELECT @@session.max_insert_delayed_threads = @tmp;

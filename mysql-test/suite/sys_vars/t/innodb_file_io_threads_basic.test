@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 
 
 ################## mysql-test\t\innodb_file_io_threads_basic.test #############
@@ -63,7 +65,7 @@ SELECT COUNT(@@GLOBAL.innodb_write_io_threads);
 
 --disable_warnings
 SELECT @@GLOBAL.innodb_read_io_threads = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_read_io_threads';
 --enable_warnings
 --echo 1 Expected
@@ -73,14 +75,14 @@ SELECT COUNT(@@GLOBAL.innodb_read_io_threads);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='innodb_read_io_threads';
 --enable_warnings
 --echo 1 Expected
 
 --disable_warnings
 SELECT @@GLOBAL.innodb_write_io_threads = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_write_io_threads';
 --enable_warnings
 --echo 1 Expected
@@ -90,7 +92,7 @@ SELECT COUNT(@@GLOBAL.innodb_write_io_threads);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='innodb_write_io_threads';
 --enable_warnings
 --echo 1 Expected

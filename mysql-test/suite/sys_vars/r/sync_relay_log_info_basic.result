@@ -13,12 +13,12 @@ sync_relay_log_info	10000
 show session variables like 'sync_relay_log_info';
 Variable_name	Value
 sync_relay_log_info	10000
-select * from information_schema.global_variables where variable_name='sync_relay_log_info';
+select * from performance_schema.global_variables where variable_name='sync_relay_log_info';
 VARIABLE_NAME	VARIABLE_VALUE
-SYNC_RELAY_LOG_INFO	10000
-select * from information_schema.session_variables where variable_name='sync_relay_log_info';
+sync_relay_log_info	10000
+select * from performance_schema.session_variables where variable_name='sync_relay_log_info';
 VARIABLE_NAME	VARIABLE_VALUE
-SYNC_RELAY_LOG_INFO	10000
+sync_relay_log_info	10000
 set global sync_relay_log_info=1;
 select @@global.sync_relay_log_info;
 @@global.sync_relay_log_info
