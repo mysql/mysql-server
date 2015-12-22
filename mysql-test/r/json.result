@@ -10551,6 +10551,15 @@ JSON_CONTAINS('[1,2]', '[[1]]')
 SELECT JSON_CONTAINS('[1,2]', '1', '$.abc');
 JSON_CONTAINS('[1,2]', '1', '$.abc')
 NULL
+SELECT JSON_CONTAINS('{}', '{}');
+JSON_CONTAINS('{}', '{}')
+1
+SELECT JSON_CONTAINS('{}', '{"a":1}');
+JSON_CONTAINS('{}', '{"a":1}')
+0
+SELECT JSON_CONTAINS('{"a":1}', '{"a":1,"b":2}');
+JSON_CONTAINS('{"a":1}', '{"a":1,"b":2}')
+0
 SELECT JSON_CONTAINS
 (
 CAST('[1, 4, 6]' AS JSON),

@@ -4479,6 +4479,9 @@ SELECT JSON_CONTAINS('[null,1,[2,3],true,false]', '[null,1,[4],false]');
 SELECT JSON_CONTAINS('[true,false]', '[[true]]');
 SELECT JSON_CONTAINS('[1,2]', '[[1]]');
 SELECT JSON_CONTAINS('[1,2]', '1', '$.abc');
+SELECT JSON_CONTAINS('{}', '{}');
+SELECT JSON_CONTAINS('{}', '{"a":1}');
+SELECT JSON_CONTAINS('{"a":1}', '{"a":1,"b":2}');
 
 # examples from the wl7909 spec
 # returns 1
