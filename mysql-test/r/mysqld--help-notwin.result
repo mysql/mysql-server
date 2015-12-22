@@ -416,6 +416,10 @@ The following options may be given as the first argument:
  --log-slow-slave-statements 
  Log slow statements executed by slave thread to the slow
  log if it is open.
+ --log-statements-unsafe-for-binlog 
+ Log statements considered unsafe when using statement
+ based binary logging.
+ (Defaults to on; use --skip-log-statements-unsafe-for-binlog to disable.)
  --log-syslog        Errors, warnings, and similar issues eligible for MySQL's
  error log file may additionally be sent to the host
  operating system's system log ("syslog").
@@ -1336,6 +1340,7 @@ log-short-format FALSE
 log-slave-updates FALSE
 log-slow-admin-statements FALSE
 log-slow-slave-statements FALSE
+log-statements-unsafe-for-binlog TRUE
 log-syslog FALSE
 log-syslog-facility daemon
 log-syslog-include-pid TRUE

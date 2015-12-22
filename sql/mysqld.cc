@@ -479,6 +479,7 @@ my_bool binlog_gtid_simple_recovery;
 ulong binlog_error_action;
 const char *binlog_error_action_list[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
 uint32 gtid_executed_compression_period= 0;
+my_bool opt_log_unsafe_statements;
 
 #ifdef HAVE_INITGROUPS
 volatile sig_atomic_t calling_initgroups= 0; /**< Used in SIGSEGV handler. */

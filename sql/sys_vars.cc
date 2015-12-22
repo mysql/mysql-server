@@ -2043,6 +2043,12 @@ static Sys_var_enum Sys_log_timestamps(
        timestamp_type_names, DEFAULT(0),
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
+static Sys_var_mybool Sys_log_statements_unsafe_for_binlog(
+       "log_statements_unsafe_for_binlog",
+       "Log statements considered unsafe when using statement based binary logging.",
+       GLOBAL_VAR(opt_log_unsafe_statements),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE));
+
 /* logging to host OS's syslog */
 
 static bool fix_syslog(sys_var *self, THD *thd, enum_var_type type)
