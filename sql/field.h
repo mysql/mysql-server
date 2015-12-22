@@ -2607,13 +2607,13 @@ protected:
     @param[in]  nr            Number
     @param[in]  unsigned_val  SIGNED/UNSIGNED flag
     @param[out] ltime         The value is stored here
-    @param warning
+    @param warnings
 
     @retval     false         On success
     @retval     true          On error
   */
   longlong convert_number_to_datetime(longlong nr, bool unsigned_val,
-                                      MYSQL_TIME *ltime, int *warning);
+                                      MYSQL_TIME *ltime, int *warnings);
 
   /**
     Set a warning according to warning bit flag vector.
