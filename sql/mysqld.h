@@ -121,6 +121,7 @@ extern MY_BITMAP temp_pool;
 extern bool opt_large_files, server_id_supplied;
 extern bool opt_update_log, opt_bin_log;
 extern my_bool opt_log_slave_updates;
+extern my_bool opt_log_unsafe_statements;
 extern bool opt_general_log, opt_slow_log, opt_general_log_raw;
 extern my_bool opt_backup_history_log;
 extern my_bool opt_backup_progress_log;
