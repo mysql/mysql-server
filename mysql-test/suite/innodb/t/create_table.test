@@ -12,6 +12,6 @@ create temporary table t (i int) COMPRESSION = "ZLIB" ENGINE = InnoDB;
 create table t1(i INT) COMPRESSION="ZLIB" ENGINE=InnoDB TABLESPACE=innodb_system;
 
 SET DEBUG ='+d, simulate_max_char_col';
---error 1030
+--error ER_GET_ERRNO, ER_GET_ERRNO
 create table t1(f1 varchar(1000))engine=innodb;
 SET DEBUG ='-d, simulate_max_char_col';

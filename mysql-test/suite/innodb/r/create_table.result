@@ -7,5 +7,5 @@ create table t1(i INT) COMPRESSION="ZLIB" ENGINE=InnoDB TABLESPACE=innodb_system
 ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
 SET DEBUG ='+d, simulate_max_char_col';
 create table t1(f1 varchar(1000))engine=innodb;
-ERROR HY000: Got error 1005 - 'Unknown error 1005' from storage engine
+Got one of the listed errors
 SET DEBUG ='-d, simulate_max_char_col';
