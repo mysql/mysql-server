@@ -585,7 +585,6 @@ SELECT a + 1 AS num FROM t1 GROUP BY 30 - num;
 SELECT a + 1 AS num FROM t1 HAVING 30 - num;
 --error ER_BAD_FIELD_ERROR
 SELECT a + 1 AS num, num + 1 FROM t1;
---error ER_BAD_FIELD_ERROR
 SELECT a + 1 AS num, (select num + 2 FROM t1 LIMIT 1) FROM t1;
 --error ER_BAD_FIELD_ERROR
 SELECT a.a + 1 AS num FROM t1 a JOIN t1 b ON num = b.a;
