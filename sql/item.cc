@@ -45,15 +45,17 @@ using std::max;
 const String my_null_string("NULL", 4, default_charset_info);
 
 /**
-  Alias from select list can be referenced only from ORDER
-  BY (SQL Standard) or from HAVING and GROUP BY (MySQL
-  extension).
+  Alias from select list can be referenced only from ORDER BY (SQL Standard) or
+  from HAVING, GROUP BY and a subquery in the select list (MySQL extension).
+
+  We don't allow it be referenced from the SELECT list, with one exception:
+  it's accepted if nested in a subquery, which is inconsistent but necessary
+  as our users have shown to rely on this workaround.
 */
-static inline bool
-select_alias_referencable(enum_parsing_context place)
+static inline bool select_alias_referencable(enum_parsing_context place)
 {
-  return (place == CTX_HAVING || place == CTX_GROUP_BY ||
-          place == CTX_ORDER_BY);
+  return (place == CTX_SELECT_LIST || place == CTX_GROUP_BY ||
+          place == CTX_HAVING || place == CTX_ORDER_BY);
 }
 
 /****************************************************************************/
