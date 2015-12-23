@@ -65,5 +65,44 @@ connection default;
 SELECT * FROM t;
 DROP TABLE t;
 
+# drop virtual column and alter index
+CREATE TABLE t (
+  a INT,
+  b INT,
+  c INT GENERATED ALWAYS AS(a+b),
+  d INT GENERATED ALWAYS AS(a+b+b),
+  KEY(c, d)
+)ENGINE=INNODB;
+
+INSERT INTO t (a,b) VALUES (9, 10);
+SELECT * FROM t;
+
+connect (con1,localhost,root,,);
+connection con1;
+
+# This DEBUG_SYNC should not kick in yet, because the duplicate key will be
+# detected before we get a chance to apply the online log.
+
+SET DEBUG_SYNC = 'row_log_apply_after SIGNAL created WAIT_FOR dml_done';
+--send
+ALTER TABLE t DROP COLUMN c, ALGORITHM=INPLACE;
+
+connection default;
+SET DEBUG_SYNC = 'now WAIT_FOR created';
+BEGIN;
+INSERT INTO t (a,b) VALUES (10, 12);
+SELECT * FROM t;
+ROLLBACK;
+SET DEBUG_SYNC = 'now SIGNAL dml_done';
+
+connection con1;
+reap;
+disconnect con1;
+connection default;
+
+SELECT * FROM t;
+
+DROP TABLE t;
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
