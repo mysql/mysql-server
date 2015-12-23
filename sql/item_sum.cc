@@ -3657,7 +3657,7 @@ bool Item_func_group_concat::setup(THD *thd)
     tmp table columns.
   */
   if (arg_count_order &&
-      setup_order(thd, Ref_ptr_array(args, arg_count),
+      setup_order(thd, Ref_item_array(args, arg_count),
                   context->table_list, list, all_fields, order_array.begin()))
     DBUG_RETURN(TRUE);
 

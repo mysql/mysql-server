@@ -2040,7 +2040,7 @@ public:
   table_map used_tables() const { return used_tables_cache; }
   void update_used_tables();
   virtual void print(String *str, enum_query_type query_type);
-  void split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
+  void split_sum_func(THD *thd, Ref_item_array ref_item_array,
                       List<Item> &fields);
   void top_level_item() { abort_on_null=1; }
   void copy_andor_arguments(THD *thd, Item_cond *item);

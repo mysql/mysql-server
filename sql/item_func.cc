@@ -461,12 +461,12 @@ Item *Item_func::compile(Item_analyzer analyzer, uchar **arg_p,
   See comments in Item_cmp_func::split_sum_func()
 */
 
-void Item_func::split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
+void Item_func::split_sum_func(THD *thd, Ref_item_array ref_item_array,
                                List<Item> &fields)
 {
   Item **arg, **arg_end;
   for (arg= args, arg_end= args+arg_count; arg != arg_end ; arg++)
-    (*arg)->split_sum_func2(thd, ref_pointer_array, fields, arg, TRUE);
+    (*arg)->split_sum_func2(thd, ref_item_array, fields, arg, TRUE);
 }
 
 

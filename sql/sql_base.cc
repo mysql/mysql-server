@@ -8642,7 +8642,7 @@ bool resolve_var_assignments(THD *thd, LEX *lex)
   Resolve a list of expressions and setup appropriate data
 
   @param thd                    thread handler
-  @param[out] ref_pointer_array filled in with reference pointers.
+  @param[out] ref_item_array    filled in with references to items.
   @param[in,out] fields         list of expressions, populated with resolved
                                 data about expressions.
   @param want_privilege         privilege representing desired operation.
@@ -8657,7 +8657,7 @@ bool resolve_var_assignments(THD *thd, LEX *lex)
   @returns false if success, true if error
 */
 
-bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
+bool setup_fields(THD *thd, Ref_item_array ref_item_array,
                   List<Item> &fields, ulong want_privilege,
                   List<Item> *sum_func_list,
                   bool allow_sum_func, bool column_update)
@@ -8697,16 +8697,15 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
     There is other way to solve problem: fill array with pointers to list,
     but it will be slower.
 
-    TODO: remove it when (if) we made one list for allfields and
-    ref_pointer_array
+    TODO: remove it when (if) we made one list for allfields and ref_item_array
   */
-  if (!ref_pointer_array.is_null())
+  if (!ref_item_array.is_null())
   {
-    DBUG_ASSERT(ref_pointer_array.size() >= fields.elements);
-    memset(ref_pointer_array.array(), 0, sizeof(Item *) * fields.elements);
+    DBUG_ASSERT(ref_item_array.size() >= fields.elements);
+    memset(ref_item_array.array(), 0, sizeof(Item *) * fields.elements);
   }
 
-  Ref_ptr_array ref= ref_pointer_array;
+  Ref_item_array ref= ref_item_array;
 
   Item *item;
   List_iterator<Item> it(fields);
@@ -8731,7 +8730,7 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
     }
     if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
 	sum_func_list)
-      item->split_sum_func(thd, ref_pointer_array, *sum_func_list);
+      item->split_sum_func(thd, ref_item_array, *sum_func_list);
     select->select_list_tables|= item->used_tables();
     thd->lex->used_tables|= item->used_tables();
   }

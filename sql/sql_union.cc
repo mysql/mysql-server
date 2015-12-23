@@ -407,7 +407,7 @@ bool SELECT_LEX_UNIT::prepare_fake_select_lex(THD *thd_arg)
     Don't add more sum_items if we have already done SELECT_LEX::prepare
     for this (with a different join object)
   */
-  if (fake_select_lex->ref_pointer_array.is_null())
+  if (fake_select_lex->base_ref_items.is_null())
     fake_select_lex->n_child_sum_items+= fake_select_lex->n_sum_items;
 
   DBUG_ASSERT(fake_select_lex->with_wild == 0 &&

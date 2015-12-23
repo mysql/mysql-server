@@ -850,9 +850,9 @@ void JOIN::reset()
     }
   }
   clear_sj_tmp_tables(this);
-  if (current_ref_ptrs != items0)
+  if (current_ref_item_slice != REF_SLICE_SAVE)
   {
-    set_items_ref_array(items0);
+    set_ref_item_slice(REF_SLICE_SAVE);
     set_group_rpa= false;
   }
 
@@ -980,8 +980,8 @@ bool JOIN::destroy()
   tmp_table_param.copy_funcs.empty();
   tmp_table_param.cleanup();
  /* Cleanup items referencing temporary table columns */
-  cleanup_item_list(tmp_all_fields1);
-  cleanup_item_list(tmp_all_fields3);
+  cleanup_item_list(tmp_all_fields[REF_SLICE_TMP1]);
+  cleanup_item_list(tmp_all_fields[REF_SLICE_TMP3]);
   destroy_sj_tmp_tables(this);
 
   List_iterator<Semijoin_mat_exec> sjm_list_it(sjm_exec_list);
@@ -2630,9 +2630,9 @@ void JOIN::cleanup()
   }
 
   /* Restore ref array to original state */
-  if (current_ref_ptrs != items0)
+  if (current_ref_item_slice != REF_SLICE_SAVE)
   {
-    set_items_ref_array(items0);
+    set_ref_item_slice(REF_SLICE_SAVE);
     set_group_rpa= false;
   }
   DBUG_VOID_RETURN;
@@ -3229,7 +3229,7 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
     rollup.fields[0] will contain list where a,b,c is NULL
     rollup.fields[1] will contain list where b,c is NULL
     ...
-    rollup.ref_pointer_array[#] points to fields for rollup.fields[#]
+    rollup.ref_item_array[#] points to fields for rollup.fields[#]
     ...
     sum_funcs_end[0] points to all sum functions
     sum_funcs_end[1] points to all sum functions, except grand totals
@@ -3243,7 +3243,7 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
     bool real_fields= 0;
     Item *item;
     List_iterator<Item> new_it(rollup.fields[pos]);
-    Ref_ptr_array ref_array_start= rollup.ref_pointer_arrays[pos];
+    Ref_item_array ref_array_start= rollup.ref_item_arrays[pos];
     ORDER *start_group;
 
     /* Point to first hidden field */
@@ -3476,7 +3476,7 @@ bool JOIN::add_having_as_tmp_table_cond(uint curr_tmp_table)
     .) tmp tables are created, but not instantiated (this is done during
        execution). JOIN_TABs dedicated to tmp tables are filled appropriately.
        see JOIN::create_intermediate_table.
-    .) prepare fields lists (fields, all_fields, ref_pointer_array slices) for
+    .) prepare fields lists (fields, all_fields, ref_item_array slices) for
        each required stage of execution. These fields lists are set for
        tmp tables' tabs and for the tab of last table in the join.
     .) fill info for sorting/grouping/dups removal is prepared and saved to
@@ -3544,7 +3544,10 @@ bool JOIN::make_tmp_tables_info()
     tmp_table_param.precomputed_group_by=
       !qep_tab[0].quick()->is_agg_loose_index_scan();
 
-  /* Create a tmp table if distinct or if the sort is too complicated */
+  /*
+    Create the first temporary table if distinct elimination is requested or
+    if the sort is too complicated to be evaluated as a filesort.
+  */
   if (need_tmp)
   {
     curr_tmp_table= primary_tables;
@@ -3553,11 +3556,23 @@ bool JOIN::make_tmp_tables_info()
       first_select= sub_select_op;
 
     /*
-      Create temporary table on first execution of this join.
-      (Will be reused if this is a subquery that is executed several times.)
+      Make a copy of the base slice in the save slice.
+      This is needed because later steps will overwrite the base slice with
+      another slice (1-3).
+      After this slice has been used, overwrite the base slice again with
+      the copy in the save slice.
     */
-    init_items_ref_array();
+    if (alloc_ref_item_slice(thd, REF_SLICE_SAVE))
+      DBUG_RETURN(true);
 
+    copy_ref_item_slice(REF_SLICE_SAVE, REF_SLICE_BASE);
+    current_ref_item_slice= REF_SLICE_SAVE;
+
+    /*
+      Create temporary table for use in a single execution.
+      (Will be reused if this is a subquery that is executed several times
+       for one execution of the statement)
+    */
     ORDER_with_src tmp_group;
     if (!simple_group && !(test_flags & TEST_NO_KEY_GROUP))
       tmp_group= group_list;
@@ -3586,31 +3601,42 @@ bool JOIN::make_tmp_tables_info()
         qep_tab[const_tables].position()->sj_strategy != SJ_OPT_LOOSE_SCAN &&
         qep_tab[const_tables].use_order()));
 
-    /* Change sum_fields reference to calculated fields in tmp_table */
-    DBUG_ASSERT(items1.is_null());
-    items1= select_lex->ref_ptr_array_slice(2);
+    /*
+      Allocate a slice of ref items that describe the items to be copied
+      from the first temporary table.
+    */
+    if (alloc_ref_item_slice(thd, REF_SLICE_TMP1))
+      DBUG_RETURN(true);
+
+    // Change sum_fields reference to calculated fields in tmp_table
     if (sort_and_group || qep_tab[curr_tmp_table].table()->group ||
         tmp_table_param.precomputed_group_by)
     {
-      if (change_to_use_tmp_fields(thd, items1,
-                                   tmp_fields_list1, tmp_all_fields1,
-                                   fields_list.elements, all_fields))
+      if (change_to_use_tmp_fields(thd,
+                                   ref_items[REF_SLICE_TMP1],
+                                   tmp_fields_list[REF_SLICE_TMP1],
+                                   tmp_all_fields[REF_SLICE_TMP1],
+                                   fields_list.elements,
+                                   all_fields))
         DBUG_RETURN(true);
     }
     else
     {
-      if (change_refs_to_tmp_fields(thd, items1,
-                                    tmp_fields_list1, tmp_all_fields1,
-                                    fields_list.elements, all_fields))
+      if (change_refs_to_tmp_fields(thd,
+                                    ref_items[REF_SLICE_TMP1],
+                                    tmp_fields_list[REF_SLICE_TMP1],
+                                    tmp_all_fields[REF_SLICE_TMP1],
+                                    fields_list.elements,
+                                    all_fields))
         DBUG_RETURN(true);
     }
-    curr_all_fields= &tmp_all_fields1;
-    curr_fields_list= &tmp_fields_list1;
+    curr_all_fields= &tmp_all_fields[REF_SLICE_TMP1];
+    curr_fields_list= &tmp_fields_list[REF_SLICE_TMP1];
     // Need to set them now for correct group_fields setup, reset at the end.
-    set_items_ref_array(items1);
-    qep_tab[curr_tmp_table].ref_array= &items1;
-    qep_tab[curr_tmp_table].all_fields= &tmp_all_fields1;
-    qep_tab[curr_tmp_table].fields= &tmp_fields_list1;
+    set_ref_item_slice(REF_SLICE_TMP1);
+    qep_tab[curr_tmp_table].ref_item_slice= REF_SLICE_TMP1;
+    qep_tab[curr_tmp_table].all_fields= &tmp_all_fields[REF_SLICE_TMP1];
+    qep_tab[curr_tmp_table].fields= &tmp_fields_list[REF_SLICE_TMP1];
     setup_tmptable_write_func(&qep_tab[curr_tmp_table]);
 
     /*
@@ -3655,7 +3681,7 @@ bool JOIN::make_tmp_tables_info()
     }
     /*
       If we have different sort & group then we must sort the data by group
-      and copy it to another tmp table
+      and copy it to a second temporary table.
       This code is also used if we are using distinct something
       we haven't been able to store in the temporary table yet
       like SEC_TO_TIME(SUM(...)).
@@ -3664,14 +3690,16 @@ bool JOIN::make_tmp_tables_info()
     if ((group_list &&
          (!test_if_subpart(group_list, order) || select_distinct)) ||
         (select_distinct && tmp_table_param.using_outer_summary_function))
-    {					/* Must copy to another table */
+    {
       DBUG_PRINT("info",("Creating group table"));
       
       calc_group_buffer(this, group_list);
-      count_field_types(select_lex, &tmp_table_param, tmp_all_fields1,
+      count_field_types(select_lex, &tmp_table_param,
+                        tmp_all_fields[REF_SLICE_TMP1],
                         select_distinct && !group_list, false);
       tmp_table_param.hidden_field_count= 
-        tmp_all_fields1.elements - tmp_fields_list1.elements;
+        tmp_all_fields[REF_SLICE_TMP1].elements -
+        tmp_fields_list[REF_SLICE_TMP1].elements;
       
       if (!exec_tmp_table->group && !exec_tmp_table->distinct)
       {
@@ -3726,21 +3754,29 @@ bool JOIN::make_tmp_tables_info()
         if (setup_sum_funcs(thd, sum_funcs))
           DBUG_RETURN(true);
       }
-      // No sum funcs anymore
-      DBUG_ASSERT(items2.is_null());
 
-      items2= select_lex->ref_ptr_array_slice(3);
-      if (change_to_use_tmp_fields(thd, items2,
-                                   tmp_fields_list2, tmp_all_fields2, 
-                                   fields_list.elements, tmp_all_fields1))
+      /*
+        Allocate a slice of ref items that describe the items to be copied
+        from the second temporary table.
+      */
+      if (alloc_ref_item_slice(thd, REF_SLICE_TMP2))
         DBUG_RETURN(true);
 
-      curr_fields_list= &tmp_fields_list2;
-      curr_all_fields= &tmp_all_fields2;
-      set_items_ref_array(items2);
-      qep_tab[curr_tmp_table].ref_array= &items2;
-      qep_tab[curr_tmp_table].all_fields= &tmp_all_fields2;
-      qep_tab[curr_tmp_table].fields= &tmp_fields_list2;
+      // No sum funcs anymore
+      if (change_to_use_tmp_fields(thd,
+                                   ref_items[REF_SLICE_TMP2],
+                                   tmp_fields_list[REF_SLICE_TMP2],
+                                   tmp_all_fields[REF_SLICE_TMP2],
+                                   fields_list.elements,
+                                   tmp_all_fields[REF_SLICE_TMP1]))
+        DBUG_RETURN(true);
+
+      curr_fields_list= &tmp_fields_list[REF_SLICE_TMP2];
+      curr_all_fields= &tmp_all_fields[REF_SLICE_TMP2];
+      set_ref_item_slice(REF_SLICE_TMP2);
+      qep_tab[curr_tmp_table].ref_item_slice= REF_SLICE_TMP2;
+      qep_tab[curr_tmp_table].all_fields= &tmp_all_fields[REF_SLICE_TMP2];
+      qep_tab[curr_tmp_table].fields= &tmp_fields_list[REF_SLICE_TMP2];
       setup_tmptable_write_func(&qep_tab[curr_tmp_table]);
 
       tmp_table_param.field_count+= tmp_table_param.sum_func_count;
@@ -3794,34 +3830,63 @@ bool JOIN::make_tmp_tables_info()
                       false);
   }
 
-  if (grouped || implicit_grouping || tmp_table_param.sum_func_count)
+  /*
+    Set up structures for a temporary table but do not actually create
+    the temporary table if one of these conditions are true:
+    - The query is implicitly grouped.
+    - The query is explicitly grouped and
+        + implemented as a simple grouping, or
+        + LIMIT 1 is specified, or
+        + ROLLUP is specified, or
+        + <some unknown condition>.
+  */
+
+  if (grouped || implicit_grouping)
   {
     if (make_group_fields(this, this))
       DBUG_RETURN(true);
 
-    DBUG_ASSERT(items3.is_null());
+    // "save" slice of ref_items array is needed due to overwriting strategy.
+    if (ref_items[REF_SLICE_SAVE].is_null())
+    {
+      if (alloc_ref_item_slice(thd, REF_SLICE_SAVE))
+        DBUG_RETURN(true);
 
-    if (items0.is_null())
-      init_items_ref_array();
-    items3= select_lex->ref_ptr_array_slice(4);
-    setup_copy_fields(thd, &tmp_table_param,
-                      items3, tmp_fields_list3, tmp_all_fields3,
-                      curr_fields_list->elements, *curr_all_fields);
+      copy_ref_item_slice(REF_SLICE_SAVE, REF_SLICE_BASE);
+      current_ref_item_slice= REF_SLICE_SAVE;
+    }
 
-    curr_fields_list= &tmp_fields_list3;
-    curr_all_fields= &tmp_all_fields3;
-    set_items_ref_array(items3);
+    /*
+      Allocate a slice of ref items that describe the items to be copied
+      from the record buffer for this temporary table.
+    */
+    if (alloc_ref_item_slice(thd, REF_SLICE_TMP3))
+      DBUG_RETURN(true);
+    setup_copy_fields(thd,
+                      &tmp_table_param,
+                      ref_items[REF_SLICE_TMP3],
+                      tmp_fields_list[REF_SLICE_TMP3],
+                      tmp_all_fields[REF_SLICE_TMP3],
+                      curr_fields_list->elements,
+                      *curr_all_fields);
+
+    curr_fields_list= &tmp_fields_list[REF_SLICE_TMP3];
+    curr_all_fields= &tmp_all_fields[REF_SLICE_TMP3];
+    set_ref_item_slice(REF_SLICE_TMP3);
     if (qep_tab)
     {
       // Set grouped fields on the last table
-      qep_tab[primary_tables + tmp_tables - 1].ref_array= &items3;
-      qep_tab[primary_tables + tmp_tables - 1].all_fields= &tmp_all_fields3;
-      qep_tab[primary_tables + tmp_tables - 1].fields= &tmp_fields_list3;
+      qep_tab[primary_tables + tmp_tables - 1].ref_item_slice= REF_SLICE_TMP3;
+      qep_tab[primary_tables + tmp_tables - 1].all_fields=
+        &tmp_all_fields[REF_SLICE_TMP3];
+      qep_tab[primary_tables + tmp_tables - 1].fields=
+        &tmp_fields_list[REF_SLICE_TMP3];
     }
     if (make_sum_func_list(*curr_all_fields, *curr_fields_list, true, true))
       DBUG_RETURN(true);
     const bool need_distinct=
-      !(qep_tab && qep_tab[0].quick() && qep_tab[0].quick()->is_agg_loose_index_scan());
+      !(qep_tab && qep_tab[0].quick() &&
+        qep_tab[0].quick()->is_agg_loose_index_scan());
     if (prepare_sum_aggregators(sum_funcs, need_distinct))
       DBUG_RETURN(true);
     if (setup_sum_funcs(thd, sum_funcs) || thd->is_fatal_error)
@@ -3909,7 +3974,7 @@ bool JOIN::make_tmp_tables_info()
   }
   fields= curr_fields_list;
   // Reset before execution
-  set_items_ref_array(items0);
+  set_ref_item_slice(REF_SLICE_SAVE);
   if (qep_tab)
   {
     qep_tab[primary_tables + tmp_tables - 1].next_select=

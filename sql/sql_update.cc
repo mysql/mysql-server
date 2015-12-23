@@ -1143,10 +1143,10 @@ bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,
 #endif
   if (select->setup_conds(thd))
     DBUG_RETURN(true);
-  if (select->setup_ref_array(thd))
+  if (select->setup_base_ref_items(thd))
     DBUG_RETURN(true);                          /* purecov: inspected */
   if (select->order_list.first &&
-      setup_order(thd, select->ref_pointer_array,
+      setup_order(thd, select->base_ref_items,
                   table_list, all_fields, all_fields,
                   select->order_list.first))
     DBUG_RETURN(true);
@@ -1167,7 +1167,7 @@ bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table_list->set_want_privilege(UPDATE_ACL);
 #endif
-  if (setup_fields(thd, Ref_ptr_array(), select->item_list, UPDATE_ACL, NULL,
+  if (setup_fields(thd, Ref_item_array(), select->item_list, UPDATE_ACL, NULL,
                    false, true))
     DBUG_RETURN(true);                     /* purecov: inspected */
 
@@ -1184,7 +1184,7 @@ bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,
 
   table_list->set_want_privilege(SELECT_ACL);
 
-  if (setup_fields(thd, Ref_ptr_array(), update_value_list, SELECT_ACL, NULL,
+  if (setup_fields(thd, Ref_item_array(), update_value_list, SELECT_ACL, NULL,
                    false, false))
     DBUG_RETURN(true);                          /* purecov: inspected */
 
@@ -1486,7 +1486,7 @@ int Sql_cmd_update::mysql_multi_update_prepare(THD *thd)
     to determine updatable tables, those tables are prepared for update,
     and finally the columns can be checked for proper update privileges.
   */
-  if (setup_fields(thd, Ref_ptr_array(), *fields, 0, NULL, false, true))
+  if (setup_fields(thd, Ref_item_array(), *fields, 0, NULL, false, true))
     DBUG_RETURN(true);
 
   List<Item> original_update_fields;
@@ -1583,7 +1583,7 @@ int Sql_cmd_update::mysql_multi_update_prepare(THD *thd)
   */
   if (thd->stmt_arena->is_stmt_prepare())
   {
-    if (setup_fields(thd, Ref_ptr_array(), update_value_list, SELECT_ACL,
+    if (setup_fields(thd, Ref_item_array(), update_value_list, SELECT_ACL,
                      NULL, false, false))
       DBUG_RETURN(true);
   }
@@ -1750,8 +1750,8 @@ int Query_result_update::prepare(List<Item> &not_used_values,
     reference tables
   */
 
-  int error= setup_fields(thd, Ref_ptr_array(), *values, SELECT_ACL, NULL,
-                          false, false);
+  const bool error= setup_fields(thd, Ref_item_array(), *values, SELECT_ACL,
+                                 NULL, false, false);
 
   for (table_ref= leaves; table_ref; table_ref= table_ref->next_leaf)
   {

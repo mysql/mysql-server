@@ -59,10 +59,12 @@ static bool list_contains_unique_index(JOIN_TAB *tab,
                           bool (*find_func) (Field *, void *), void *data);
 static bool find_field_in_item_list (Field *field, void *data);
 static bool find_field_in_order_list (Field *field, void *data);
-static ORDER *create_distinct_group(THD *thd, Ref_ptr_array ref_pointer_array,
-                                    ORDER *order, List<Item> &fields,
+static ORDER *create_distinct_group(THD *thd,
+                                    Ref_item_array ref_item_array,
+                                    ORDER *order,
+                                    List<Item> &fields,
                                     List<Item> &all_fields,
-				    bool *all_order_by_fields_used);
+                                    bool *all_order_by_fields_used);
 static TABLE *get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables);
 static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab);
 static Item *remove_additional_cond(Item* conds);
@@ -193,6 +195,9 @@ JOIN::optimize()
   set_optimized();
 
   tables_list= select_lex->get_table_list();
+
+  // The base ref items from query block are assigned as JOIN's ref items
+  ref_items[REF_SLICE_BASE]= select_lex->base_ref_items;
 
   /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */
   /*
@@ -631,9 +636,10 @@ JOIN::optimize()
     creation for the DISTINCT clause just because there are only const tables.
   */
   need_tmp= ((!plan_is_const() &&
-	     ((select_distinct || (order && !simple_order) ||
+             ((select_distinct ||
+               (order && !simple_order) ||
                (group_list && !simple_group)) ||
-	      (group_list && order) ||
+              (group_list && order) ||
               (select_lex->active_options() & OPTION_BUFFER_RESULT))) ||
              (rollup.state != ROLLUP::STATE_NONE && select_distinct));
 
@@ -1218,7 +1224,7 @@ bool JOIN::optimize_distinct_group_order()
     }
     ORDER *o;
     bool all_order_fields_used;
-    if ((o= create_distinct_group(thd, ref_ptrs,
+    if ((o= create_distinct_group(thd, ref_items[REF_SLICE_BASE],
                                   order, fields_list, all_fields,
 				  &all_order_fields_used)))
     {
@@ -10352,10 +10358,12 @@ find_field_in_item_list (Field *field, void *data)
 */
 
 static ORDER *
-create_distinct_group(THD *thd, Ref_ptr_array ref_pointer_array,
-                      ORDER *order_list, List<Item> &fields,
+create_distinct_group(THD *thd,
+                      Ref_item_array ref_item_array,
+                      ORDER *order_list,
+                      List<Item> &fields,
                       List<Item> &all_fields,
-		      bool *all_order_by_fields_used)
+                      bool *all_order_by_fields_used)
 {
   List_iterator<Item> li(fields);
   Item *item;
@@ -10416,17 +10424,17 @@ create_distinct_group(THD *thd, Ref_ptr_array ref_pointer_array,
       {
         /*
           We have here only field_list (not all_field_list), so we can use
-          simple indexing of ref_pointer_array (order in the array and in the
+          simple indexing of ref_item_array (order in the array and in the
           list are same)
         */
-        ord->item= &ref_pointer_array[0];
+        ord->item= &ref_item_array[0];
       }
       ord->direction= ORDER::ORDER_ASC;
       *prev=ord;
       prev= &ord->next;
     }
 next_item:
-    ref_pointer_array.pop_front();
+    ref_item_array.pop_front();
   }
   *prev=0;
   return group;
@@ -11148,17 +11156,17 @@ bool JOIN::optimize_rollup()
     static_cast<Item_null_result**>(thd->alloc(sizeof(Item*)*send_group_parts));
 
   rollup.null_items= Item_null_array(null_items, send_group_parts);
-  rollup.ref_pointer_arrays=
-    static_cast<Ref_ptr_array*>
-    (thd->alloc((sizeof(Ref_ptr_array) +
+  rollup.ref_item_arrays=
+    static_cast<Ref_item_array *>
+    (thd->alloc((sizeof(Ref_item_array) +
                  all_fields.elements * sizeof(Item*)) * send_group_parts));
   rollup.fields=
     static_cast<List<Item>*>(thd->alloc(sizeof(List<Item>) * send_group_parts));
 
-  if (!null_items || !rollup.ref_pointer_arrays || !rollup.fields)
+  if (!null_items || !rollup.ref_item_arrays || !rollup.fields)
     return true;
 
-  Item **ref_array= (Item**) (rollup.ref_pointer_arrays+send_group_parts);
+  Item **ref_array= (Item**) (rollup.ref_item_arrays+send_group_parts);
 
   /*
     Prepare space for field list for the different levels
@@ -11174,7 +11182,7 @@ bool JOIN::optimize_rollup()
       return true;           /* purecov: inspected */
     List<Item> *rollup_fields= &rollup.fields[i];
     rollup_fields->empty();
-    rollup.ref_pointer_arrays[i]= Ref_ptr_array(ref_array, all_fields.elements);
+    rollup.ref_item_arrays[i]= Ref_item_array(ref_array, all_fields.elements);
     ref_array+= all_fields.elements;
   }
   for (uint i= 0; i < send_group_parts; i++)

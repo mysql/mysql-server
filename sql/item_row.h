@@ -109,7 +109,7 @@ public:
   void fix_after_pullout(SELECT_LEX *parent_select,
                          SELECT_LEX *removed_select);
   void cleanup();
-  void split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
+  void split_sum_func(THD *thd, Ref_item_array ref_item_array,
                       List<Item> &fields);
   table_map used_tables() const { return used_tables_cache; };
   bool const_item() const { return const_item_cache; };

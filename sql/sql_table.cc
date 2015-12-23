@@ -10632,9 +10632,9 @@ copy_data_between_tables(THD * thd,
 
       Column_privilege_tracker column_privilege(thd, SELECT_ACL);
 
-      if (select_lex->setup_ref_array(thd))
+      if (select_lex->setup_base_ref_items(thd))
         goto err;            /* purecov: inspected */
-      if (setup_order(thd, select_lex->ref_pointer_array,
+      if (setup_order(thd, select_lex->base_ref_items,
                       &tables, fields, all_fields, order))
         goto err;
       qep_tab.set_table(from);

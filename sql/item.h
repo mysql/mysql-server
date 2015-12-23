@@ -27,7 +27,7 @@
 class user_var_entry;
 class Json_wrapper;
 
-typedef Bounds_checked_array<Item*> Ref_ptr_array;
+typedef Bounds_checked_array<Item*> Ref_item_array;
 
 void item_init(void);			/* Init item functions */
 
@@ -1590,10 +1590,10 @@ public:
 
   virtual void update_used_tables() {}
 
-  virtual void split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
+  virtual void split_sum_func(THD *thd, Ref_item_array ref_item_array,
                               List<Item> &fields) {}
   /* Called for items that really have to be split */
-  void split_sum_func2(THD *thd, Ref_ptr_array ref_pointer_array,
+  void split_sum_func2(THD *thd, Ref_item_array ref_item_array,
                        List<Item> &fields,
                        Item **ref, bool skip_registered);
   virtual bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)= 0;

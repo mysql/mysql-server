@@ -2317,7 +2317,6 @@ SELECT_LEX::SELECT_LEX
   order_list_ptrs(NULL),
   select_limit(NULL),
   offset_limit(NULL),
-  ref_pointer_array(),
   select_n_having_items(0),
   cond_count(0),
   between_count(0),
@@ -2707,7 +2706,7 @@ bool SELECT_LEX::set_braces(bool value)
 }
 
 
-bool SELECT_LEX::setup_ref_array(THD *thd)
+bool SELECT_LEX::setup_base_ref_items(THD *thd)
 {
   uint order_group_num= order_list.elements + group_list.elements;
 
@@ -2724,7 +2723,7 @@ bool SELECT_LEX::setup_ref_array(THD *thd)
     {
       /*
         Same test as in create_distinct_group, when it pushes new items to the
-        end of ref_pointer_array. An extra test for 'fixed' which, at this
+        end of base_ref_items. An extra test for 'fixed' which, at this
         stage, will be true only for columns inserted for a '*' wildcard.
       */
       if (item->fixed &&
@@ -2745,7 +2744,7 @@ bool SELECT_LEX::setup_ref_array(THD *thd)
                        item_list.elements +
                        select_n_having_items +
                        select_n_where_fields +
-                       order_group_num) * 5;
+                       order_group_num);
   DBUG_PRINT("info", ("setup_ref_array this %p %4u : %4u %4u %4u %4u %4u %4u",
                       this,
                       n_elems, // :
@@ -2755,7 +2754,7 @@ bool SELECT_LEX::setup_ref_array(THD *thd)
                       select_n_having_items,
                       select_n_where_fields,
                       order_group_num));
-  if (!ref_pointer_array.is_null())
+  if (!base_ref_items.is_null())
   {
     /*
       We need to take 'n_sum_items' into account when allocating the array,
@@ -2764,20 +2763,20 @@ bool SELECT_LEX::setup_ref_array(THD *thd)
       In the usual case we can reuse the array from the prepare phase.
       If we need a bigger array, we must allocate a new one.
      */
-    if (ref_pointer_array.size() >= n_elems)
+    if (base_ref_items.size() >= n_elems)
       return false;
   }
   /*
-    ref_pointer_array could become bigger when a subquery gets transformed
+    base_ref_items could become bigger when a subquery gets transformed
     into a MIN/MAX subquery. Reallocate array in this case.
   */
   Item **array= static_cast<Item**>(arena->alloc(sizeof(Item*) * n_elems));
-  if (array != NULL)
-  {
-    ref_pointer_array= Ref_ptr_array(array, n_elems);
-    ref_ptrs= ref_ptr_array_slice(0);
-  }
-  return array == NULL;
+  if (array == NULL)
+    return true;
+
+  base_ref_items= Ref_item_array(array, n_elems);
+
+  return false;
 }
 
 

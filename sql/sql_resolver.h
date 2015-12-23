@@ -26,7 +26,7 @@ struct TABLE_LIST;
 class SELECT_LEX;
 typedef struct st_order ORDER;
 template <typename Element_type> class Bounds_checked_array;
-typedef Bounds_checked_array<Item*> Ref_ptr_array;
+typedef Bounds_checked_array<Item*> Ref_item_array;
 template <class T> class List;
 
 /**
@@ -34,7 +34,7 @@ template <class T> class List;
   Name resolution functions.
 */
 
-bool setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
+bool setup_order(THD *thd, Ref_item_array ref_item_array, TABLE_LIST *tables,
                  List<Item> &fields, List <Item> &all_fields, ORDER *order);
 bool subquery_allows_materialization(Item_in_subselect *predicate,
                                      THD *thd, SELECT_LEX *select_lex,

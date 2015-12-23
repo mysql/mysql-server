@@ -43,7 +43,7 @@ template <class T> class List_iterator;
 typedef struct st_bitmap MY_BITMAP;
 typedef struct st_open_table_list OPEN_TABLE_LIST;
 class SELECT_LEX;
-typedef Bounds_checked_array<Item*> Ref_ptr_array;
+typedef Bounds_checked_array<Item *> Ref_item_array;
 namespace dd { class Table; }
 
 
@@ -232,7 +232,7 @@ bool resolve_var_assignments(THD *thd, LEX *lex);
 bool insert_fields(THD *thd, Name_resolution_context *context,
 		   const char *db_name, const char *table_name,
                    List_iterator<Item> *it, bool any_privileges);
-bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
+bool setup_fields(THD *thd, Ref_item_array ref_item_array,
                   List<Item> &item, ulong privilege,
                   List<Item> *sum_func_list,
                   bool allow_sum_func, bool column_update);

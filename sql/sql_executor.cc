@@ -343,30 +343,26 @@ err:
                         - 1 = First group changed  (a)
                         - 2 = Second group changed (a,b)
 
-  @retval
-    0   ok
-  @retval
-    1   If send_data_failed()
+  @returns false if success, true if error
 */
 
-int JOIN::rollup_send_data(uint idx)
+bool JOIN::rollup_send_data(uint idx)
 {
-  uint i;
-  for (i= send_group_parts ; i-- > idx ; )
+  for (uint i= send_group_parts; i-- > idx; )
   {
-    /* Get reference pointers to sum functions in place */
-    copy_ref_ptr_array(ref_ptrs, rollup.ref_pointer_arrays[i]);
+    // Get references to sum functions in place
+    copy_ref_item_slice(ref_items[REF_SLICE_BASE], rollup.ref_item_arrays[i]);
     if ((!having_cond || having_cond->val_int()))
     {
       if (send_records < unit->select_limit_cnt && do_send_rows &&
 	  select_lex->query_result()->send_data(rollup.fields[i]))
-	return 1;
+	return true;
       send_records++;
     }
   }
-  /* Restore ref_pointer_array */
-  set_items_ref_array(current_ref_ptrs);
-  return 0;
+  // Restore ref_items array
+  set_ref_item_slice(current_ref_item_slice);
+  return false;
 }
 
 
@@ -384,19 +380,15 @@ int JOIN::rollup_send_data(uint idx)
                                - 2 = Second group changed (a,b)
   @param table_arg           Reference to temp table
 
-  @retval
-    0   ok
-  @retval
-    1   if write_data_failed()
+  @returns false if success, true if error
 */
 
-int JOIN::rollup_write_data(uint idx, TABLE *table_arg)
+bool JOIN::rollup_write_data(uint idx, TABLE *table_arg)
 {
-  uint i;
-  for (i= send_group_parts ; i-- > idx ; )
+  for (uint i= send_group_parts; i-- > idx; )
   {
-    /* Get reference pointers to sum functions in place */
-    copy_ref_ptr_array(ref_ptrs, rollup.ref_pointer_arrays[i]);
+    // Get references to sum functions in place
+    copy_ref_item_slice(ref_items[REF_SLICE_BASE], rollup.ref_item_arrays[i]);
     if ((!having_cond || having_cond->val_int()))
     {
       int write_error;
@@ -410,17 +402,17 @@ int JOIN::rollup_write_data(uint idx, TABLE *table_arg)
       copy_sum_funcs(sum_funcs_end[i+1], sum_funcs_end[i]);
       if ((write_error= table_arg->file->ha_write_row(table_arg->record[0])))
       {
-  if (create_ondisk_from_heap(thd, table_arg, 
+        if (create_ondisk_from_heap(thd, table_arg,
                                     tmp_table_param.start_recinfo,
                                     &tmp_table_param.recinfo,
                                     write_error, FALSE, NULL))
-	  return 1;		     
+          return true;
       }
     }
   }
-  /* Restore ref_pointer_array */
-  set_items_ref_array(current_ref_ptrs);
-  return 0;
+  // Restore ref_items array
+  set_ref_item_slice(current_ref_item_slice);
+  return false;
 }
 
 
@@ -2984,10 +2976,10 @@ end_send_group(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
   DBUG_ENTER("end_send_group");
 
 
-  if (!join->items3.is_null() && !join->set_group_rpa)
+  if (!join->ref_items[JOIN::REF_SLICE_TMP3].is_null() && !join->set_group_rpa)
   {
     join->set_group_rpa= true;
-    join->set_items_ref_array(join->items3);
+    join->set_ref_item_slice(JOIN::REF_SLICE_TMP3);
   }
 
   if (!join->first_record || end_of_records ||
@@ -4147,7 +4139,7 @@ int test_if_item_cache_changed(List<Cached_item> &list)
 
   @param thd                   THD pointer
   @param param                 temporary table parameters
-  @param ref_pointer_array     array of pointers to top elements of filed list
+  @param ref_item_array        array of pointers to top elements of filed list
   @param res_selected_fields   new list of items of select item list
   @param res_all_fields        new list of all items
   @param elements              number of elements in select item list
@@ -4159,15 +4151,12 @@ int test_if_item_cache_changed(List<Cached_item> &list)
     on how the value is to be used: In some cases this may be an
     argument in a group function, like: IF(ISNULL(col),0,COUNT(*))
 
-  @retval
-    0     ok
-  @retval
-    !=0   error
+  @returns false if success, true if error
 */
 
 bool
 setup_copy_fields(THD *thd, Temp_table_param *param,
-		  Ref_ptr_array ref_pointer_array,
+		  Ref_item_array ref_item_array,
 		  List<Item> &res_selected_fields, List<Item> &res_all_fields,
 		  uint elements, List<Item> &all_fields)
 {
@@ -4275,8 +4264,7 @@ setup_copy_fields(THD *thd, Temp_table_param *param,
 	goto err;
     }
     res_all_fields.push_back(pos);
-    ref_pointer_array[((i < border)? all_fields.elements-i-1 : i-border)]=
-      pos;
+    ref_item_array[((i < border) ? all_fields.elements-i-1 : i-border)]= pos;
   }
   param->copy_field_end= copy;
 
@@ -4334,20 +4322,17 @@ copy_fields(Temp_table_param *param, const THD *thd)
   new list of all items.
 
   @param thd                   THD pointer
-  @param ref_pointer_array     array of pointers to top elements of filed list
+  @param ref_item_array        array of pointers to top elements of filed list
   @param res_selected_fields   new list of items of select item list
   @param res_all_fields        new list of all items
   @param elements              number of elements in select item list
   @param all_fields            all fields list
 
-  @retval
-    0     ok
-  @retval
-    !=0   error
+  @returns false if success, true if error
 */
 
 bool
-change_to_use_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
+change_to_use_tmp_fields(THD *thd, Ref_item_array ref_item_array,
 			 List<Item> &res_selected_fields,
 			 List<Item> &res_all_fields,
 			 uint elements, List<Item> &all_fields)
@@ -4425,7 +4410,7 @@ change_to_use_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
       item_field= item;
 
     res_all_fields.push_back(item_field);
-    ref_pointer_array[((i < border)? all_fields.elements-i-1 : i-border)]=
+    ref_item_array[((i < border) ? all_fields.elements-i-1 : i-border)]=
       item_field;
   }
 
@@ -4442,20 +4427,17 @@ change_to_use_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
   Change all funcs to be fields in tmp table.
 
   @param thd                   THD pointer
-  @param ref_pointer_array     array of pointers to top elements of filed list
+  @param ref_item_array        array of pointers to top elements of filed list
   @param res_selected_fields   new list of items of select item list
   @param res_all_fields        new list of all items
   @param elements              number of elements in select item list
   @param all_fields            all fields list
 
-  @retval
-    0	ok
-  @retval
-    1	error
+  @returns false if success, true if error
 */
 
 bool
-change_refs_to_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
+change_refs_to_tmp_fields(THD *thd, Ref_item_array ref_item_array,
 			  List<Item> &res_selected_fields,
 			  List<Item> &res_all_fields, uint elements,
 			  List<Item> &all_fields)
@@ -4465,16 +4447,16 @@ change_refs_to_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
   res_selected_fields.empty();
   res_all_fields.empty();
 
-  uint i, border= all_fields.elements - elements;
-  for (i= 0; (item= it++); i++)
+  uint border= all_fields.elements - elements;
+  for (uint i= 0; (item= it++); i++)
   {
     res_all_fields.push_back(new_item= item->get_tmp_table_item(thd));
-    ref_pointer_array[((i < border)? all_fields.elements-i-1 : i-border)]=
+    ref_item_array[((i < border) ? all_fields.elements-i-1 : i-border)]=
       new_item;
   }
 
   List_iterator_fast<Item> itr(res_all_fields);
-  for (i= 0; i < border; i++)
+  for (uint i= 0; i < border; i++)
     itr++;
   itr.sublist(res_selected_fields, elements);
 
@@ -4665,7 +4647,7 @@ QEP_tmp_table::end_send()
     return NESTED_LOOP_ERROR;
   }
   // Update ref array
-  join->set_items_ref_array(*qep_tab->ref_array);
+  join->set_ref_item_slice(qep_tab->ref_item_slice);
   table->reginfo.lock_type= TL_UNLOCK;
 
   bool in_first_read= true;

@@ -1804,7 +1804,7 @@ Item_in_subselect::single_value_transformer(SELECT_LEX *select,
 	  (ALL && (> || =>)) || (ANY && (< || =<))
 	  for ALL condition is inverted
 	*/
-	item= new Item_sum_max(select->ref_ptrs[0]);
+	item= new Item_sum_max(select->base_ref_items[0]);
       }
       else
       {
@@ -1812,11 +1812,11 @@ Item_in_subselect::single_value_transformer(SELECT_LEX *select,
 	  (ALL && (< || =<)) || (ANY && (> || =>))
 	  for ALL condition is inverted
 	*/
-	item= new Item_sum_min(select->ref_ptrs[0]);
+	item= new Item_sum_min(select->base_ref_items[0]);
       }
       if (upper_item)
         upper_item->set_sum_test(item);
-      select->ref_ptrs[0]= item;
+      select->base_ref_items[0]= item;
       {
 	List_iterator<Item> it(select->item_list);
 	it++;
@@ -2007,12 +2007,13 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
       select->group_list.elements)
   {
     bool tmp;
-    Item_bool_func *item= func->create(m_injected_left_expr,
-                             new Item_ref_null_helper(&select->context,
-                                                      this,
-                                                      &select->ref_ptrs[0],
-                                                      (char *)"<ref>",
-                                                      this->full_name()));
+    Item_bool_func *item=
+      func->create(m_injected_left_expr,
+                   new Item_ref_null_helper(&select->context,
+                                            this,
+                                            &select->base_ref_items[0],
+                                            (char *)"<ref>",
+                                            this->full_name()));
     item->set_created_by_in2exists();
     if (!abort_on_null && left_expr->maybe_null)
     {
@@ -2151,7 +2152,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
         Item_bool_func *new_having=
           func->create(m_injected_left_expr,
                        new Item_ref_null_helper(&select->context, this,
-                                            &select->ref_ptrs[0],
+                                            &select->base_ref_items[0],
                                             (char *)"<no matter>",
                                             (char *)"<result>"));
         new_having->set_created_by_in2exists();
@@ -2335,8 +2336,8 @@ Item_in_subselect::row_value_in_to_exists_transformer(SELECT_LEX *select)
     Item *item_having_part2= 0;
     for (uint i= 0; i < cols_num; i++)
     {
-      Item *item_i= select->ref_ptrs[i];
-      Item **pitem_i= &select->ref_ptrs[i];
+      Item *item_i= select->base_ref_items[i];
+      Item **pitem_i= &select->base_ref_items[i];
       DBUG_ASSERT((left_expr->fixed && item_i->fixed) ||
                   (item_i->type() == REF_ITEM &&
                    ((Item_ref*)(item_i))->ref_type() == Item_ref::OUTER_REF));
@@ -2426,8 +2427,8 @@ Item_in_subselect::row_value_in_to_exists_transformer(SELECT_LEX *select)
     Item *where_item= 0;
     for (uint i= 0; i < cols_num; i++)
     {
-      Item *item_i= select->ref_ptrs[i];
-      Item **pitem_i= &select->ref_ptrs[i];
+      Item *item_i= select->base_ref_items[i];
+      Item **pitem_i= &select->base_ref_items[i];
       DBUG_ASSERT((left_expr->fixed && item_i->fixed) ||
                   (item_i->type() == REF_ITEM &&
                    ((Item_ref*)(item_i))->ref_type() == Item_ref::OUTER_REF));

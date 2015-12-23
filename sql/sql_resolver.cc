@@ -185,10 +185,10 @@ bool SELECT_LEX::prepare(THD *thd)
 
   if (with_wild && setup_wild(thd))
     DBUG_RETURN(true);
-  if (setup_ref_array(thd))
+  if (setup_base_ref_items(thd))
     DBUG_RETURN(true); /* purecov: inspected */
   
-  if (setup_fields(thd, ref_ptrs, fields_list, thd->want_privilege,
+  if (setup_fields(thd, base_ref_items, fields_list, thd->want_privilege,
                    &all_fields, true, false))
     DBUG_RETURN(true);
 
@@ -235,8 +235,8 @@ bool SELECT_LEX::prepare(THD *thd)
   int hidden_order_field_count= 0;
   if (order_list.elements)
   {
-    if (setup_order(thd, ref_ptrs, get_table_list(), fields_list, all_fields,
-                    order_list.first))
+    if (setup_order(thd, base_ref_items, get_table_list(), fields_list,
+                    all_fields, order_list.first))
       DBUG_RETURN(true);
     hidden_order_field_count= all_fields.elements - all_fields_count;
    }
@@ -314,8 +314,8 @@ bool SELECT_LEX::prepare(THD *thd)
   }
 
   if (m_having_cond && m_having_cond->with_sum_func)
-    m_having_cond->split_sum_func2(thd, ref_ptrs, all_fields, &m_having_cond,
-                                   true);
+    m_having_cond->split_sum_func2(thd, base_ref_items, all_fields,
+                                   &m_having_cond, true);
   if (inner_sum_func_list)
   {
     Item_sum *end=inner_sum_func_list;
@@ -323,7 +323,7 @@ bool SELECT_LEX::prepare(THD *thd)
     do
     { 
       item_sum= item_sum->next;
-      item_sum->split_sum_func2(thd, ref_ptrs,
+      item_sum->split_sum_func2(thd, base_ref_items,
                                 all_fields, item_sum->ref_by, false);
     } while (item_sum != end);
   }
@@ -2121,10 +2121,10 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
         (left_subquery->substype() == Item_subselect::SINGLEROW_SUBS))
     {
       List<Item> ref_list;
-      Item *header= subq_select->ref_pointer_array[0];
+      Item *header= subq_select->base_ref_items[0];
       for (uint i= 1; i < in_subq_pred->left_expr->cols(); i++)
       {
-        ref_list.push_back(subq_select->ref_pointer_array[i]);
+        ref_list.push_back(subq_select->base_ref_items[i]);
       }
 
       Item_row *right_expr= new Item_row(header, ref_list);
@@ -2149,10 +2149,10 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
       {
         Item *const li= in_subq_pred->left_expr->element_index(i);
         nested_join->sj_outer_exprs.push_back(li);
-        nested_join->sj_inner_exprs.push_back(subq_select->ref_pointer_array[i]);
+        nested_join->sj_inner_exprs.push_back(subq_select->base_ref_items[i]);
 
         Item_func_eq *item_eq= 
-          new Item_func_eq(li, subq_select->ref_pointer_array[i]);
+          new Item_func_eq(li, subq_select->base_ref_items[i]);
 
         if (item_eq == NULL)
           DBUG_RETURN(true);      /* purecov: inspected */
@@ -2831,9 +2831,9 @@ void SELECT_LEX::merge_contexts(SELECT_LEX *inner)
 
     - fixes references (Item_ref objects) to these fields.
 
-    If a field isn't already on the select list and the ref_ptrs array
+    If a field isn't already on the select list and the base_ref_items array
     is provided then it is added to the all_fields list and the pointer to
-    it is saved in the ref_ptrs array.
+    it is saved in the base_ref_items array.
 
     The class to access the outer field is determined by the following rules:
 
@@ -2875,12 +2875,12 @@ bool SELECT_LEX::fix_inner_refs(THD *thd)
       existing one. The change will lead to less operations for copying fields,
       smaller temporary tables and less data passed through filesort.
     */
-    if (!ref_ptrs.is_null() && !ref->found_in_select_list)
+    if (!base_ref_items.is_null() && !ref->found_in_select_list)
     {
       /* 
         Add the field item to the select list of the current select.
         If it's needed reset each Item_ref item that refers this field with
-        a new reference taken from ref_pointer_array.
+        a new reference taken from ref_item_array.
       */
       item_ref= add_hidden_item(item);
     }
@@ -3019,7 +3019,7 @@ void SELECT_LEX::remove_redundant_subquery_clauses(THD *thd,
     while (hidden_group_field_count-- > 0)
     {
       all_fields.pop();
-      ref_ptrs[all_fields.elements]= NULL;
+      base_ref_items[all_fields.elements]= NULL;
     }
   }
 
@@ -3043,7 +3043,7 @@ void SELECT_LEX::remove_redundant_subquery_clauses(THD *thd,
 
 /**
   Empty the ORDER list.
-  Delete corresponding elements from all_fields and ref_ptrs too.
+  Delete corresponding elements from all_fields and base_ref_items too.
   If ORDER list contain any subqueries, delete them from the query block list.
 
   @param hidden_order_field_count Number of hidden order fields to remove
@@ -3061,7 +3061,7 @@ void SELECT_LEX::empty_order_list(int hidden_order_field_count)
   while (hidden_order_field_count-- > 0)
   {
     all_fields.pop();
-    ref_ptrs[all_fields.elements]= NULL;
+    base_ref_items[all_fields.elements]= NULL;
   }
 }
 
@@ -3082,12 +3082,12 @@ void SELECT_LEX::empty_order_list(int hidden_order_field_count)
   If 'order' is resolved to an Item, then order->item is set to the found
   Item. If there is no item for the found column (that is, it was resolved
   into a table field), order->item is 'fixed' and is added to all_fields and
-  ref_pointer_array.
+  ref_item_array.
 
-  ref_pointer_array and all_fields are updated.
+  ref_item_array and all_fields are updated.
 
-  @param[in] thd		     Pointer to current thread structure
-  @param[in,out] ref_pointer_array  All select, group and order by fields
+  @param[in] thd                    Pointer to current thread structure
+  @param[in,out] ref_item_array     All select, group and order by fields
   @param[in] tables                 List of tables to search in (usually
     FROM clause)
   @param[in] order                  Column reference to be resolved
@@ -3104,7 +3104,7 @@ void SELECT_LEX::empty_order_list(int hidden_order_field_count)
 */
 
 static bool
-find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array,
+find_order_in_list(THD *thd, Ref_item_array ref_item_array,
                    TABLE_LIST *tables, ORDER *order,
                    List<Item> &fields, List<Item> &all_fields,
                    bool is_group_field)
@@ -3129,7 +3129,7 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array,
                order_item->full_name(), thd->where);
       return TRUE;
     }
-    order->item= &ref_pointer_array[count - 1];
+    order->item= &ref_item_array[count - 1];
     order->in_field_list= 1;
     order->is_position= true;
     return FALSE;
@@ -3202,7 +3202,7 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array,
       if (*order->item != *select_item)
         (*order->item)->walk(&Item::clean_up_after_removal, walk_subquery,
                              NULL);
-      order->item= &ref_pointer_array[counter];
+      order->item= &ref_item_array[counter];
       order->in_field_list=1;
       if (resolution == RESOLVED_AGAINST_ALIAS)
         order->used_alias= true;
@@ -3260,7 +3260,7 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array,
 
   uint el= all_fields.elements;
   all_fields.push_front(order_item); /* Add new field to field list. */
-  ref_pointer_array[el]= order_item;
+  ref_item_array[el]= order_item;
   /*
     If the order_item is a SUM_FUNC_ITEM, when fix_fields is called
     ref_by is set to order->item which is the address of order_item.
@@ -3279,8 +3279,8 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array,
     with clean_up_after_removal() on the old order->item.
   */
   DBUG_ASSERT(order_item == *order->item);
-  order->item= &ref_pointer_array[el];
-  return FALSE;
+  order->item= &ref_item_array[el];
+  return false;
 }
 
 
@@ -3296,7 +3296,7 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array,
   @returns false if success, true if error
 */
 
-bool setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
+bool setup_order(THD *thd, Ref_item_array ref_item_array, TABLE_LIST *tables,
                  List<Item> &fields, List<Item> &all_fields, ORDER *order)
 {
   DBUG_ASSERT(order);
@@ -3311,7 +3311,7 @@ bool setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
 
   for (uint number= 1; order; order=order->next, number++)
   {
-    if (find_order_in_list(thd, ref_pointer_array, tables, order, fields,
+    if (find_order_in_list(thd, ref_item_array, tables, order, fields,
 			   all_fields, false))
       return true;
     if ((*order->item)->with_sum_func)
@@ -3422,7 +3422,7 @@ bool SELECT_LEX::setup_order_final(THD *thd, int hidden_order_field_count)
 
     if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM)
     {
-      item->split_sum_func(thd, ref_ptrs, all_fields);
+      item->split_sum_func(thd, base_ref_items, all_fields);
       if (thd->is_error())
         return true;       /* purecov: inspected */
     }
@@ -3450,8 +3450,8 @@ bool SELECT_LEX::setup_group(THD *thd)
   thd->where="group statement";
   for (ORDER *group= group_list.first; group; group= group->next)
   {
-    if (find_order_in_list(thd, ref_ptrs, get_table_list(), group, fields_list,
-			   all_fields, true))
+    if (find_order_in_list(thd, base_ref_items, get_table_list(), group,
+                           fields_list, all_fields, true))
       return true;
     if ((*group->item)->with_sum_func)
     {
@@ -3711,15 +3711,15 @@ void SELECT_LEX::delete_unused_merged_columns(List<TABLE_LIST> *tables)
 
   @param item  item to add
 
-  @return Pointer to ref_ptr for the added item
+  @return Pointer to reference to the added item
 */
 
 Item **SELECT_LEX::add_hidden_item(Item *item)
 {
   uint el= all_fields.elements;
-  ref_ptrs[el]= item;
+  base_ref_items[el]= item;
   all_fields.push_front(item);
-  return &ref_ptrs[el];
+  return &base_ref_items[el];
 }
 
 /**

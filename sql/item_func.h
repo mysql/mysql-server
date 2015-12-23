@@ -226,7 +226,7 @@ public:
   void set_arguments(List<Item> &list, bool context_free);
   inline uint argument_count() const { return arg_count; }
   inline void remove_arguments() { arg_count=0; }
-  void split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
+  void split_sum_func(THD *thd, Ref_item_array ref_item_array,
                       List<Item> &fields);
   virtual void print(String *str, enum_query_type query_type);
   void print_op(String *str, enum_query_type query_type);

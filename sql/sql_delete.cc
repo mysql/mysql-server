@@ -669,9 +669,9 @@ bool Sql_cmd_delete::mysql_prepare_delete(THD *thd)
     tables.alias = table_list->alias;
 
     DBUG_ASSERT(!select->group_list.elements);
-    if (select->setup_ref_array(thd))
+    if (select->setup_base_ref_items(thd))
       DBUG_RETURN(true);                     /* purecov: inspected */
-    if (setup_order(thd, select->ref_pointer_array, &tables,
+    if (setup_order(thd, select->base_ref_items, &tables,
                     fields, all_fields, select->order_list.first))
       DBUG_RETURN(true);
   }

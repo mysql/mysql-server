@@ -2139,12 +2139,11 @@ public:
 /**
   Move SUM items out from item tree and replace with reference.
 
-  @param thd			Current session.
-  @param ref_pointer_array	Pointer to array of reference fields
-  @param fields		All fields in select
-  @param ref			Pointer to item
-  @param skip_registered       <=> function be must skipped for registered
-                               SUM items
+  @param thd             Current session
+  @param ref_item_array  Pointer to array of reference fields
+  @param fields          All fields in select
+  @param ref             Pointer to item
+  @param skip_registered <=> function be must skipped for registered SUM items
 
   @note
     This is from split_sum_func2() for items that should be split
@@ -2155,7 +2154,7 @@ public:
     thd->fatal_error() may be called if we are out of memory
 */
 
-void Item::split_sum_func2(THD *thd, Ref_ptr_array ref_pointer_array,
+void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
                            List<Item> &fields, Item **ref, 
                            bool skip_registered)
 {
@@ -2170,7 +2169,7 @@ void Item::split_sum_func2(THD *thd, Ref_ptr_array ref_pointer_array,
       type() == ROW_ITEM)
   {
     /* Will split complicated items and ignore simple ones */
-    split_sum_func(thd, ref_pointer_array, fields);
+    split_sum_func(thd, ref_item_array, fields);
   }
   else if ((type() == SUM_FUNC_ITEM || (used_tables() & ~PARAM_TABLE_BIT)) &&
            type() != SUBSELECT_ITEM &&
@@ -2191,9 +2190,9 @@ void Item::split_sum_func2(THD *thd, Ref_ptr_array ref_pointer_array,
     uint el= fields.elements;
     Item *real_itm= real_item();
 
-    ref_pointer_array[el]= real_itm;
+    ref_item_array[el]= real_itm;
     if (!(item_ref= new Item_aggregate_ref(&thd->lex->current_select()->context,
-                                           &ref_pointer_array[el], 0,
+                                           &ref_item_array[el], 0,
                                            item_name.ptr())))
       return;                                   // fatal_error is set
     if (type() == SUM_FUNC_ITEM)
@@ -5403,7 +5402,7 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
     if (select_ref != not_found_item && !ambiguous_fields)
     {
       DBUG_ASSERT(*select_ref != 0);
-      if (!select->ref_pointer_array[counter])
+      if (!select->base_ref_items[counter])
       {
         my_error(ER_ILLEGAL_REFERENCE, MYF(0),
                  ref->item_name.ptr(), "forward reference in item list");
@@ -5415,7 +5414,7 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
       */
       DBUG_ASSERT(is_fixed_or_outer_ref(*select_ref));
 
-      return &select->ref_pointer_array[counter];
+      return &select->base_ref_items[counter];
     }
     if (group_by_ref)
       return group_by_ref;
@@ -7777,7 +7776,7 @@ bool Item_field::send(Protocol *protocol, String *buffer)
 
   DESCRIPTION
     If the field doesn't belong to the table being inserted into then it is
-    added to the select list, pointer to it is stored in the ref_pointer_array
+    added to the select list, pointer to it is stored in the ref_item_array
     of the select and the field itself is substituted for the Item_ref object.
     This is done in order to get correct values from update fields that
     belongs to the SELECT part in the INSERT .. SELECT .. ON DUPLICATE KEY

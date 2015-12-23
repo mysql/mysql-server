@@ -6027,22 +6027,22 @@ void Item_cond::traverse_cond(Cond_traverser traverser,
   (Calculation done by update_sum_func() and copy_sum_funcs() in
   sql_select.cc)
 
-  @param thd			Thread handler
-  @param ref_pointer_array	Pointer to array of reference fields
-  @param fields		All fields in select
+  @param thd            Thread handler
+  @param ref_item_array Pointer to array of pointers to items
+  @param fields         All fields in select
 
   @note
     This function is run on all expression (SELECT list, WHERE, HAVING etc)
     that have or refer (HAVING) to a SUM expression.
 */
 
-void Item_cond::split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
+void Item_cond::split_sum_func(THD *thd, Ref_item_array ref_item_array,
                                List<Item> &fields)
 {
   List_iterator<Item> li(list);
   Item *item;
   while ((item= li++))
-    item->split_sum_func2(thd, ref_pointer_array, fields, li.ref(), TRUE);
+    item->split_sum_func2(thd, ref_item_array, fields, li.ref(), TRUE);
 }
 
 

@@ -757,7 +757,7 @@ public:
   friend bool parse_view_definition(THD *thd, TABLE_LIST *view_ref);
 };
 
-typedef Bounds_checked_array<Item*> Ref_ptr_array;
+typedef Bounds_checked_array<Item*> Ref_item_array;
 
 /**
   This class represents a query block, aka a query specification, which is
@@ -767,15 +767,6 @@ typedef Bounds_checked_array<Item*> Ref_ptr_array;
 class SELECT_LEX: public Sql_alloc
 {
 public:
-  /// @returns a slice of ref_pointer_array
-  Ref_ptr_array ref_ptr_array_slice(size_t slice_num)
-  {
-    size_t slice_sz= ref_pointer_array.size() / 5U;
-    DBUG_ASSERT(ref_pointer_array.size() % 5 == 0);
-    DBUG_ASSERT(slice_num < 5U);
-    return Ref_ptr_array(&ref_pointer_array[slice_num * slice_sz], slice_sz);
-  }
-
   Item  *where_cond() const { return m_where_cond; }
   void   set_where_cond(Item *cond) { m_where_cond= cond; }
   Item **where_cond_ref() { return &m_where_cond; }
@@ -1032,10 +1023,12 @@ public:
   /// LIMIT ... OFFSET clause, NULL if no offset is given
   Item *offset_limit;
 
-  /// The complete ref pointer array, with 5 slices (see class JOIN too)
-  Ref_ptr_array ref_pointer_array;
-  /// Slice 0 of array, with pointers to all expressions in all_fields
-  Ref_ptr_array ref_ptrs;
+  /**
+    Array of pointers to "base" items; one each for every selected expression
+    and referenced item in the query block. All references to fields are to
+    buffers associated with the primary input tables.
+  */
+  Ref_item_array base_ref_items;
 
   /**
     number of items in select_list and HAVING clause used to get number
@@ -1297,7 +1290,8 @@ public:
   /// Assign a default name resolution object for this query block.
   bool set_context(Name_resolution_context *outer_context);
 
-  bool setup_ref_array(THD *thd);
+  /// Setup the array containing references to base items
+  bool setup_base_ref_items(THD *thd);
   void print(THD *thd, String *str, enum_query_type query_type);
   static void print_order(String *str,
                           ORDER *order,
@@ -1490,7 +1484,7 @@ public:
 
     @param item  item to add
 
-    @return Pointer to ref_ptr for the added item
+    @return Pointer to reference of the added item
   */
   Item **add_hidden_item(Item *item);
 };
