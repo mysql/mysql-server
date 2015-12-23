@@ -1383,14 +1383,58 @@ AND(c3 IS NULL OR c3 IN (0,0,0));
 
 drop table t;
 
---source include/wait_until_count_sessions.inc
+#
+# BUG#22082762 RE-ENABLE SUPPORT FOR ADDING VIRTUAL INDEX WHILE DROPPING VIRTUAL COLUMN
+#
 
---echo #
---echo # Bug#22374827 ALTER TABLE..LOCK NONE INVOLVING VIRTUAL COL IS REFUSED
---echo # WITHOUT STATING A REASON
---echo #
-CREATE TABLE t1(a int NOT NULL) ENGINE=innodb;
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), d INT
+GENERATED ALWAYS AS(a+b+b), e INT  GENERATED ALWAYS AS(a), h VARCHAR(10));
+
+INSERT INTO t VALUES (11, 3, DEFAULT, DEFAULT, DEFAULT, 'mm');
+INSERT INTO t VALUES (18, 1, DEFAULT, DEFAULT, DEFAULT, 'mm');
+INSERT INTO t VALUES (28, 1, DEFAULT, DEFAULT, DEFAULT, 'mm');
+INSERT INTO t VALUES (null, null, DEFAULT, DEFAULT, DEFAULT, 'mm');
+CREATE INDEX idx ON t(c, d);
+CREATE INDEX idx1 ON t(c);
+CREATE INDEX idx2 ON t(e, c, d);
+
+# This will drop column c, drop index idx1 on column c, and build index
+# idx and idx2, so they become idx(d) and idx2(e, d) respectively.
+ALTER TABLE t DROP COLUMN c, ALGORITHM=INPLACE;
+
+SELECT d FROM t;
+
+SHOW CREATE TABLE t;
+
+# Drop a column, adding a new column and also adding a index on this new column
+# is not allowed for INPLACE algorithm
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
-ALTER TABLE t1 ADD INDEX idx1(a), ADD COLUMN (c int as (1) VIRTUAL), LOCK=NONE;
-ALTER TABLE t1 ADD INDEX idx1(a), ADD COLUMN (c int as (1) VIRTUAL);
-DROP TABLE t1;
+ALTER TABLE t DROP COLUMN d, ADD COLUMN c INT GENERATED ALWAYS AS(a+b), ADD INDEX idx (c), ALGORITHM=INPLACE;
+
+# Add an index on existing column along with dropping a column is allowed
+ALTER TABLE t DROP COLUMN d, ADD COLUMN c INT GENERATED ALWAYS AS(a+b), ADD INDEX idx (e), ALGORITHM=INPLACE, LOCK=NONE;
+SHOW CREATE TABLE t;
+
+# Add an index on existing column along with adding a virtual column and droping a virtual index
+ALTER TABLE t ADD INDEX idx4(c, e), ADD COLUMN x VARCHAR(10) GENERATED ALWAYS AS(h), DROP INDEX idx, ALGORITHM=INPLACE, LOCK=NONE;
+SHOW CREATE TABLE t;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t ADD COLUMN i INT GENERATED ALWAYS AS(a+a+b), ADD COLUMN j INT, ALGORITHM=INPLACE;
+
+# Add an index along with adding a regular column is allowed.
+ALTER TABLE t ADD INDEX (x), ADD COLUMN j INT, ALGORITHM=INPLACE, LOCK=NONE;
+SHOW CREATE TABLE t;
+
+# Online add an index on newly added virtual column is not allowed.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t ADD COLUMN i INT GENERATED ALWAYS AS(a+a+b), ADD INDEX (i), ALGORITHM=INPLACE, LOCK=NONE;
+
+ALTER TABLE t ADD COLUMN i INT GENERATED ALWAYS AS(a+a+b), ADD INDEX (i), ALGORITHM=INPLACE, LOCK=SHARED;
+SHOW CREATE TABLE t;
+
+SELECT * FROM t;
+
+DROP TABLE t;
+
+--source include/wait_until_count_sessions.inc

@@ -7614,6 +7614,9 @@ ER_ERROR_ON_MODIFYING_GTID_EXECUTED_TABLE
 ER_LOCK_REFUSED_BY_ENGINE
   eng "Lock acquisition refused by storage engine."
 
+ER_UNSUPPORTED_ALTER_ONLINE_ON_VIRTUAL_COLUMN
+  eng "ADD COLUMN col...VIRTUAL, ADD INDEX(col)"
+
 #
 #  End of 5.7 error messages.
 #

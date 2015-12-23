@@ -4114,6 +4114,7 @@ row_merge_create_index(
 	dberr_t		err;
 	ulint		n_fields = index_def->n_fields;
 	ulint		i;
+	bool		has_new_v_col;
 
 	DBUG_ENTER("row_merge_create_index");
 
@@ -4141,6 +4142,8 @@ row_merge_create_index(
 				ut_ad(ifield->col_no >= table->n_v_def);
 				name = add_v->v_col_name[
 					ifield->col_no - table->n_v_def];
+
+				has_new_v_col = true;
 			} else {
 				name = dict_table_get_v_col_name(
 					table, ifield->col_no);
@@ -4185,6 +4188,7 @@ row_merge_create_index(
 
 		index->parser = index_def->parser;
 		index->is_ngram = index_def->is_ngram;
+		index->has_new_v_col = has_new_v_col;
 
 		/* Note the id of the transaction that created this
 		index, we use it to restrict readers from accessing

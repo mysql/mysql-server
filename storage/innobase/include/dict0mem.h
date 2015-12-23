@@ -828,6 +828,9 @@ struct dict_index_t{
 			parser;	/*!< fulltext parser plugin */
 	bool		is_ngram;
 				/*!< true if it's ngram parser */
+	bool		has_new_v_col;
+				/*!< whether it has a newly added virtual
+				column in ALTER */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/*!< list of indexes of the table */

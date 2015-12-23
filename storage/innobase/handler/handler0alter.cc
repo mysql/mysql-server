@@ -669,19 +669,6 @@ ha_innobase::check_if_supported_inplace_alter(
 				ER_UNSUPPORTED_ALTER_INPLACE_ON_VIRTUAL_COLUMN);
 			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 		}
-
-		/* Do not support inplace alter table drop virtual
-		columns and add index together yet */
-		if ((ha_alter_info->handler_flags
-		     & Alter_inplace_info::ADD_INDEX)
-		    && (ha_alter_info->handler_flags
-			& Alter_inplace_info::DROP_VIRTUAL_COLUMN)) {
-
-			ha_alter_info->unsupported_reason =
-				innobase_get_err_msg(
-				ER_UNSUPPORTED_ALTER_INPLACE_ON_VIRTUAL_COLUMN);
-			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
-		}
 	}
 
 	/* We should be able to do the operation in-place.
@@ -760,7 +747,22 @@ ha_innobase::check_if_supported_inplace_alter(
 				online = false;
 			}
 
-			if (innobase_is_v_fld(key_part->field)) {
+			if (key_part->field->is_virtual_gcol()) {
+				/* Do not support adding index on newly added
+				virtual column, while there is also a drop
+				virtual column in the same clause */
+				if (ha_alter_info->handler_flags
+				    & Alter_inplace_info::DROP_VIRTUAL_COLUMN) {
+					ha_alter_info->unsupported_reason =
+						innobase_get_err_msg(
+							ER_UNSUPPORTED_ALTER_INPLACE_ON_VIRTUAL_COLUMN);
+
+					DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+				}
+
+				ha_alter_info->unsupported_reason =
+					innobase_get_err_msg(
+						ER_UNSUPPORTED_ALTER_ONLINE_ON_VIRTUAL_COLUMN);
 				online = false;
 			}
 		}
@@ -775,15 +777,6 @@ ha_innobase::check_if_supported_inplace_alter(
 	    & Alter_inplace_info::ADD_SPATIAL_INDEX) {
 		ha_alter_info->unsupported_reason = innobase_get_err_msg(
 			ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_GIS);
-		online = false;
-	}
-
-	if ((ha_alter_info->handler_flags
-	     & Alter_inplace_info::ADD_VIRTUAL_COLUMN)
-	    && (ha_alter_info->handler_flags
-	        & Alter_inplace_info::ADD_INDEX)) {
-		ha_alter_info->unsupported_reason = innobase_get_err_msg(
-			ER_UNSUPPORTED_ALTER_INPLACE_ON_VIRTUAL_COLUMN);
 		online = false;
 	}
 
@@ -4040,6 +4033,89 @@ innobase_drop_virtual_try(
 	return(false);
 }
 
+/** Adjust the create index column number from "New table" to
+"old InnoDB table" while we are doing dropping virtual column. Since we do
+not create separate new table for the dropping/adding virtual columns.
+To correctly find the indexed column, we will need to find its col_no
+in the "Old Table", not the "New table".
+@param[in]	ha_alter_info	Data used during in-place alter
+@param[in]	old_table	MySQL table as it is before the ALTER operation
+@param[in]	num_v_dropped	number of virtual column dropped
+@param[in,out]	index_def	index definition */
+static
+void
+innodb_v_adjust_idx_col(
+	const Alter_inplace_info*	ha_alter_info,
+	const TABLE*			old_table,
+	ulint				num_v_dropped,
+	index_def_t*			index_def)
+{
+	List_iterator_fast<Create_field> cf_it(
+		ha_alter_info->alter_info->create_list);
+	for (ulint i = 0; i < index_def->n_fields; i++) {
+#ifdef UNIV_DEBUG
+		bool	col_found = false;
+#endif /* UNIV_DEBUG */
+		ulint	num_v = 0;
+
+		index_field_t*	index_field = &index_def->fields[i];
+
+		/* Only adjust virtual column col_no, since non-virtual
+		column position (in non-vcol list) won't change unless
+		table rebuild */
+		if (!index_field->is_v_col) {
+			continue;
+		}
+
+		const Field*	field;
+
+		cf_it.rewind();
+
+		/* Found the field in the new table */
+		while (const Create_field* new_field = cf_it++) {
+			if (!new_field->is_virtual_gcol()) {
+				continue;
+			}
+
+			field = new_field->field;
+
+			if (num_v == index_field->col_no) {
+				break;
+			}
+			num_v++;
+		}
+
+		if (!field) {
+			/* this means the field is a newly added field, this
+			should have been blocked when we drop virtual column
+			at the same time */
+			ut_ad(num_v_dropped > 0);
+			ut_a(0);
+		}
+
+		ut_ad(field->is_virtual_gcol());
+
+		num_v = 0;
+
+		/* Look for its position in old table */
+		for (uint old_i = 0; old_table->field[old_i]; old_i++) {
+			if (old_table->field[old_i] == field) {
+				/* Found it, adjust its col_no to its position
+				in old table */
+				index_def->fields[i].col_no = num_v;
+				ut_d(col_found = true);
+				break;
+			}
+
+			if (old_table->field[old_i]->is_virtual_gcol()) {
+				num_v++;
+			}
+		}
+
+		ut_ad(col_found);
+	}
+}
+
 /** Update internal structures with concurrent writes blocked,
 while preparing ALTER TABLE.
 
@@ -4565,6 +4641,13 @@ new_clustered_failed:
 	/* Create the indexes in SYS_INDEXES and load into dictionary. */
 
 	for (ulint a = 0; a < ctx->num_to_add_index; a++) {
+
+		if (index_defs[a].ind_type & DICT_VIRTUAL
+		    && ctx->num_to_drop_vcol > 0 && !new_clustered) {
+			innodb_v_adjust_idx_col(ha_alter_info, old_table,
+						ctx->num_to_drop_vcol,
+						&index_defs[a]);
+		}
 
 		ctx->add_index[a] = row_merge_create_index(
 			ctx->trx, ctx->new_table,
@@ -5920,8 +6003,12 @@ ok_exit:
 			NULL, false, NULL);
 
 		ctx->new_table->vc_templ = s_templ;
-	} else if (ctx->num_to_add_vcol > 0) {
-		ut_ad(!ctx->online);
+	} else if (ctx->num_to_add_vcol > 0 && ctx->num_to_drop_vcol == 0) {
+		/* if there is ongoing drop virtual column, then we disallow
+		inplace add index on newly added virtual column, so it does
+		not need to come in here to rebuild template with add_v.
+		Please also see the assertion in innodb_v_adjust_idx_col() */
+
 		s_templ = UT_NEW_NOKEY(dict_vcol_templ_t());
 
 		add_v = static_cast<dict_add_v_col_t*>(
