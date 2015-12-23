@@ -1,26 +1,47 @@
-# Embedded server doesn't support restarting.
 --source include/not_embedded.inc
+--source include/have_no_undo_tablespaces.inc
 
-# Prepare MYSQLD_DATADIR and MYSQLD_BOOTSTRAP_CMD.
-# Add the datadir to the bootstrap command.
---let $MYSQLD_DATADIR = `SELECT @@datadir`
---let $MYSQLD_BOOTSTRAP_CMD = $MYSQLD_BOOTSTRAP_CMD --datadir=$MYSQLD_DATADIR --default-storage-engine=MyISAM --default-tmp-storage-engine=MyISAM
+
+let BASEDIR= `select @@basedir`;
+let DDIR=$MYSQL_TMP_DIR/installdb_test;
+let MYSQLD_LOG=$MYSQL_TMP_DIR/server.log;
+let extra_args=--no-defaults --console --log-syslog=0 --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
+let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/tiny_bootstrap.sql;
+let PASSWD_FILE=$MYSQL_TMP_DIR/password_file.txt;
+
+--echo # We don't care about innodb warnings at this point
+CALL mtr.add_suppression("InnoDB:");
+
+
+--echo # shut server down
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--echo # Server is down
 
 ###########################################################################
 # 1. Check that --bootstrap reads from stdin
 ###########################################################################
 
-# Stop server
---source include/shutdown_mysqld.inc
-
---write_file $MYSQLTEST_VARDIR/tmp/bootstrap_test.sql
+--echo # create bootstrap file
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test;
 USE test;
-CREATE TABLE t1(a INT);
+CREATE TABLE t1(a INT) ENGINE=innodb;
 EOF
 
---exec $MYSQLD_BOOTSTRAP_CMD < $MYSQLTEST_VARDIR/tmp/bootstrap_test.sql >> $MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1
+--echo # play tiny_bootstrap.sql
 
---remove_file $MYSQLTEST_VARDIR/tmp/bootstrap_test.sql
+--echo # First start the server with --initialize
+--exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --log-error-verbosity=1 > $MYSQLD_LOG 2>&1
+
+--echo # then try --bootstrap
+--exec $MYSQLD $extra_args --bootstrap --datadir=$DDIR < $BOOTSTRAP_SQL >$MYSQLD_LOG 2>&1
+
+--echo # delete bootstrap file
+remove_file $BOOTSTRAP_SQL;
+--echo # delete mysqld log
+remove_file $MYSQLD_LOG;
 
 ###########################################################################
 # 2. Check that --bootstrap of file with SQL error returns error
@@ -32,12 +53,15 @@ CREATE TABLE t2;
 EOF
 
 --error 1
---exec $MYSQLD_BOOTSTRAP_CMD  < $MYSQLTEST_VARDIR/tmp/bootstrap_error.sql >> $MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1
+--exec $MYSQLD $extra_args --bootstrap --datadir=$DDIR < $MYSQLTEST_VARDIR/tmp/bootstrap_error.sql >> $MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1
 
 --remove_file $MYSQLTEST_VARDIR/tmp/bootstrap_error.sql
 
-# Start server
---source include/start_mysqld.inc
+--echo # Restart the server against DDIR
+--exec echo "restart:--datadir=$DDIR " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
 
 # Drop t1 from the previous test (1).
 DROP TABLE t1;
@@ -45,7 +69,7 @@ DROP TABLE t1;
 # Table t2 should not exists
 --error ER_BAD_TABLE_ERROR
 DROP TABLE t2;
-
+ 
 ###########################################################################
 # 3. Bootstrap with a query larger than 2*thd->net.max_packet
 ###########################################################################
@@ -64,15 +88,29 @@ CREATE TABLE t1 SELECT 2 AS a, CONCAT(REPEAT('MySQL', @@max_allowed_packet/10), 
 --source include/shutdown_mysqld.inc
 
 --error 1
---exec $MYSQLD_BOOTSTRAP_CMD < $MYSQLTEST_VARDIR/tmp/long_query.sql >> $MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1
+--exec $MYSQLD $extra_args --bootstrap --datadir=$DDIR  < $MYSQLTEST_VARDIR/tmp/long_query.sql >> $MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1
 
 --remove_file $MYSQLTEST_VARDIR/tmp/long_query.sql
 
-# Start server
---source include/start_mysqld.inc
+
+--echo # Restart the server against DDIR
+--exec echo "restart:--datadir=$DDIR " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
 
 SHOW CREATE TABLE t1;
 SELECT a, LENGTH(b) FROM t1;
 
 DROP TABLE t1;
+
+--source include/restart_mysqld.inc
+
 --remove_file $MYSQLTEST_VARDIR/tmp/bootstrap.log
+
+--echo # delete datadir
+--perl
+use File::Path 'rmtree';
+$DDIR=$ENV{"DDIR"};
+rmtree([ "$DDIR" ]);
+EOF
+
