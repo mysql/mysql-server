@@ -2764,7 +2764,7 @@ bool SELECT_LEX::add_ftfunc_list(List<Item_func_match> *ftfuncs)
   List_iterator_fast<Item_func_match> li(*ftfuncs);
   while ((ifm= li++))
   {
-    if (ftfunc_list->push_front(ifm))
+    if (ftfunc_list->push_back(ifm))
       return true;        /* purecov: inspected */
   }
   return false;

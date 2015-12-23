@@ -2568,6 +2568,7 @@ public:
     ft_handler= NULL;
     concat_ws= NULL;
     table_ref= NULL;           // required by Item_func_match::eq()
+    master= NULL;
     DBUG_VOID_RETURN;
   }
   virtual Item *key_item() const { return against; }
