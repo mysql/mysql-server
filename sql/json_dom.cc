@@ -3035,14 +3035,13 @@ int Json_wrapper::compare(const Json_wrapper &other) const
         const std::pair<const std::string, Json_wrapper> elt1= it1.elt();
         const std::pair<const std::string, Json_wrapper> elt2= it2.elt();
 
-        const std::string key1= elt1.first;
-        const std::string key2= elt2.first;
-
-        cmp= compare_json_strings(key1.data(), key1.size(),
-                                  key2.data(), key2.size());
+        // Compare the keys of the two members.
+        cmp= compare_json_strings(elt1.first.data(), elt1.first.size(),
+                                  elt2.first.data(), elt2.first.size());
         if (cmp != 0)
           return cmp;
 
+        // Compare the values of the two members.
         cmp= elt1.second.compare(elt2.second);
         if (cmp != 0)
           return cmp;
