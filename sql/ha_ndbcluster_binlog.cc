@@ -6946,6 +6946,10 @@ find_epoch_to_handle(const NdbEventOperation *s_pOp,
   }
   if (s_pOp != NULL)
   {
+    if (ndb_binlog_running)
+    {
+      return std::min(ndb_latest_received_binlog_epoch,s_pOp->getGCI());
+    }
     return s_pOp->getGCI();
   }
   // 'latest_received' is '0' if not binlogging
