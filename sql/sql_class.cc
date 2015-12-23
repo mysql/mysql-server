@@ -2946,3 +2946,18 @@ void THD::claim_memory_ownership()
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 }
 
+
+bool THD::binlog_applier_need_detach_trx()
+{
+  return is_binlog_applier() ? rli_fake->is_native_trx_detached= true : false;
+};
+
+
+bool THD::binlog_applier_has_detached_trx()
+{
+  bool rc= is_binlog_applier() && rli_fake->is_native_trx_detached;
+
+  if (rc)
+    rli_fake->is_native_trx_detached= false;
+  return rc;
+}

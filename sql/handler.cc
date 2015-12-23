@@ -1787,8 +1787,8 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
       have to restore its local thread native transaction
       context, previously saved at XA START.
     */
-    if (thd->variables.pseudo_slave_mode &&
-        thd->lex->sql_command == SQLCOM_XA_COMMIT)
+    if (thd->lex->sql_command == SQLCOM_XA_COMMIT &&
+        thd->binlog_applier_has_detached_trx())
     {
       DBUG_ASSERT(static_cast<Sql_cmd_xa_commit*>(thd->lex->m_sql_cmd)->
                   get_xa_opt() == XA_ONE_PHASE);
