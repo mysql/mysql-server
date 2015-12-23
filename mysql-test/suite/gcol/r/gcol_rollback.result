@@ -47,3 +47,29 @@ SELECT * FROM t;
 a	b	c
 9	9	10
 DROP TABLE t;
+CREATE TABLE t (
+a INT,
+b INT,
+c INT GENERATED ALWAYS AS(a+b),
+d INT GENERATED ALWAYS AS(a+b+b),
+KEY(c, d)
+)ENGINE=INNODB;
+INSERT INTO t (a,b) VALUES (9, 10);
+SELECT * FROM t;
+a	b	c	d
+9	10	19	29
+SET DEBUG_SYNC = 'row_log_apply_after SIGNAL created WAIT_FOR dml_done';
+ALTER TABLE t DROP COLUMN c, ALGORITHM=INPLACE;
+SET DEBUG_SYNC = 'now WAIT_FOR created';
+BEGIN;
+INSERT INTO t (a,b) VALUES (10, 12);
+SELECT * FROM t;
+a	b	c	d
+9	10	19	29
+10	12	22	34
+ROLLBACK;
+SET DEBUG_SYNC = 'now SIGNAL dml_done';
+SELECT * FROM t;
+a	b	d
+9	10	29
+DROP TABLE t;

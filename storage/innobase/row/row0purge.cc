@@ -598,6 +598,25 @@ retry:
 	ut_a(success);
 }
 
+/** Skip uncommitted virtual indexes on newly added virtual column.
+@param[in,out]	index	dict index object */
+static
+inline
+void
+row_purge_skip_uncommitted_virtual_index(
+	dict_index_t*&	index)
+{
+	/* We need to skip virtual indexes which is not
+	committed yet. It's safe because these indexes are
+	newly created by alter table, and because we do
+	not support LOCK=NONE when adding an index on newly
+	added virtual column.*/
+	while (index != NULL && dict_index_has_virtual(index)
+	       && !index->is_committed() && index->has_new_v_col) {
+		index = dict_table_get_next_index(index);
+	}
+}
+
 /***********************************************************//**
 Purges a delete marking of a record.
 @retval true if the row was not found, or it was successfully removed
@@ -616,6 +635,8 @@ row_purge_del_mark(
 	while (node->index != NULL) {
 		/* skip corrupted secondary index */
 		dict_table_skip_corrupt_index(node->index);
+
+		row_purge_skip_uncommitted_virtual_index(node->index);
 
 		if (!node->index) {
 			break;
@@ -664,6 +685,8 @@ row_purge_upd_exist_or_extern_func(
 
 	while (node->index != NULL) {
 		dict_table_skip_corrupt_index(node->index);
+
+		row_purge_skip_uncommitted_virtual_index(node->index);
 
 		if (!node->index) {
 			break;
