@@ -1,4 +1,5 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -141,65 +142,62 @@ public:
   // Set for DISABLE KEYS | ENABLE KEYS
   static const uint ALTER_KEYS_ONOFF            = 1L <<  9;
 
-  // Set for CONVERT TO CHARACTER SET
-  static const uint ALTER_CONVERT               = 1L << 10;
-
   // Set for FORCE
   // Set for ENGINE(same engine)
   // Set by mysql_recreate_table()
-  static const uint ALTER_RECREATE              = 1L << 11;
+  static const uint ALTER_RECREATE              = 1L << 10;
 
   // Set for ADD PARTITION
-  static const uint ALTER_ADD_PARTITION         = 1L << 12;
+  static const uint ALTER_ADD_PARTITION         = 1L << 11;
 
   // Set for DROP PARTITION
-  static const uint ALTER_DROP_PARTITION        = 1L << 13;
+  static const uint ALTER_DROP_PARTITION        = 1L << 12;
 
   // Set for COALESCE PARTITION
-  static const uint ALTER_COALESCE_PARTITION    = 1L << 14;
+  static const uint ALTER_COALESCE_PARTITION    = 1L << 13;
 
   // Set for REORGANIZE PARTITION ... INTO
-  static const uint ALTER_REORGANIZE_PARTITION  = 1L << 15;
+  static const uint ALTER_REORGANIZE_PARTITION  = 1L << 14;
 
   // Set for partition_options
-  static const uint ALTER_PARTITION             = 1L << 16;
+  static const uint ALTER_PARTITION             = 1L << 15;
 
   // Set for LOAD INDEX INTO CACHE ... PARTITION
   // Set for CACHE INDEX ... PARTITION
-  static const uint ALTER_ADMIN_PARTITION       = 1L << 17;
+  static const uint ALTER_ADMIN_PARTITION       = 1L << 16;
 
   // Set for REORGANIZE PARTITION
-  static const uint ALTER_TABLE_REORG           = 1L << 18;
+  static const uint ALTER_TABLE_REORG           = 1L << 17;
 
   // Set for REBUILD PARTITION
-  static const uint ALTER_REBUILD_PARTITION     = 1L << 19;
+  static const uint ALTER_REBUILD_PARTITION     = 1L << 18;
 
   // Set for partitioning operations specifying ALL keyword
-  static const uint ALTER_ALL_PARTITION         = 1L << 20;
+  static const uint ALTER_ALL_PARTITION         = 1L << 19;
 
   // Set for REMOVE PARTITIONING
-  static const uint ALTER_REMOVE_PARTITIONING   = 1L << 21;
+  static const uint ALTER_REMOVE_PARTITIONING   = 1L << 20;
 
   // Set for ADD FOREIGN KEY
-  static const uint ADD_FOREIGN_KEY             = 1L << 22;
+  static const uint ADD_FOREIGN_KEY             = 1L << 21;
 
   // Set for DROP FOREIGN KEY
-  static const uint DROP_FOREIGN_KEY            = 1L << 23;
+  static const uint DROP_FOREIGN_KEY            = 1L << 22;
 
   // Set for EXCHANGE PARITION
-  static const uint ALTER_EXCHANGE_PARTITION    = 1L << 24;
+  static const uint ALTER_EXCHANGE_PARTITION    = 1L << 23;
 
   // Set by Sql_cmd_alter_table_truncate_partition::execute()
-  static const uint ALTER_TRUNCATE_PARTITION    = 1L << 25;
+  static const uint ALTER_TRUNCATE_PARTITION    = 1L << 24;
 
   // Set for ADD [COLUMN] FIRST | AFTER
-  static const uint ALTER_COLUMN_ORDER          = 1L << 26;
+  static const uint ALTER_COLUMN_ORDER          = 1L << 25;
 
   // Set for RENAME INDEX
-  static const uint ALTER_RENAME_INDEX          = 1L << 27;
+  static const uint ALTER_RENAME_INDEX          = 1L << 26;
 
   // Set for UPGRADE PARTITIONING
-  static const uint ALTER_UPGRADE_PARTITIONING  = 1L << 30;
+  static const uint ALTER_UPGRADE_PARTITIONING  = 1L << 27;
 
   enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 
