@@ -8388,6 +8388,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         Also note that we ignore the LOCK clause here.
       */
       close_temporary_table(thd, altered_table, true, false);
+      (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
+                            alter_ctx.tmp_name, FN_IS_TMP | NO_HA_TABLE);
       goto end_inplace;
     }
 
