@@ -4114,7 +4114,7 @@ row_merge_create_index(
 	dberr_t		err;
 	ulint		n_fields = index_def->n_fields;
 	ulint		i;
-	bool		has_new_v_col;
+	bool		has_new_v_col = false;
 
 	DBUG_ENTER("row_merge_create_index");
 
