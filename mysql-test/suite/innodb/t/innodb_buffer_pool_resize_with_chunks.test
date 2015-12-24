@@ -3,6 +3,9 @@
 # (innodb_buffer_pool_chunk_size used case)
 #
 
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
+
 --source include/have_innodb.inc
 --source include/have_innodb_zip.inc
 --source include/big_test.inc

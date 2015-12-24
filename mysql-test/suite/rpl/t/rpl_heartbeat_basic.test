@@ -36,11 +36,16 @@ call mtr.add_suppression("The master's UUID has changed, although this should no
 --source include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;
+# Running with show_compatibility_56=ON until WL#9001 is pushed.
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
+
 SET @restore_slave_net_timeout=@@global.slave_net_timeout;
 let $slave_heartbeat_timeout= query_get_value(SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period', Value, 1);
 --disable_query_log
 eval SET @restore_slave_heartbeat_timeout=$slave_heartbeat_timeout;
 --enable_query_log
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 
 --connection master
 RESET MASTER;
@@ -53,6 +58,9 @@ SET @restore_event_scheduler=@@global.event_scheduler;
 #
 
 --connection slave
+# Running with show_compatibility_56=ON until WL#9001 is pushed.
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
 
 # Default value of slave_heartbeat_timeout = slave_net_timeout/2
 --echo *** Default value ***
@@ -63,6 +71,9 @@ let $slave_net_timeout= query_get_value(SHOW VARIABLES LIKE 'slave_net_timeout',
 let $slave_heartbeat_timeout= query_get_value(SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period', Value, 1);
 let $result= query_get_value(SELECT $slave_net_timeout/$slave_heartbeat_timeout AS Result, Result, 1);
 --echo slave_net_timeout/slave_heartbeat_timeout=$result
+# Restoring
+set @@global.show_compatibility_56=@show_compatibility_56_save;
+
 RESET SLAVE;
 RESET MASTER;
 --echo
@@ -77,6 +88,10 @@ SET @@global.slave_net_timeout=30;
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=5;
 RESET SLAVE;
 RESET MASTER;
+# Running with show_compatibility_56=ON until WL#9001 is pushed.
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
+
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 --echo
 
@@ -90,8 +105,15 @@ SET @@global.slave_net_timeout=50;
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry;
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+# Restoring
+set @@global.show_compatibility_56=@show_compatibility_56_save;
+
 RESET SLAVE;
 RESET MASTER;
+# Running with show_compatibility_56=ON until WL#9001 is pushed.
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
+
 --echo
 
 # Set slave_net_timeout less than current value of slave_heartbeat_period
@@ -100,6 +122,8 @@ let $slave_heartbeat_timeout= query_get_value(SHOW GLOBAL STATUS LIKE 'slave_hea
 --replace_result $slave_heartbeat_timeout SLAVE_HEARTBEAT_TIMEOUT
 eval SET @@global.slave_net_timeout=FLOOR($slave_heartbeat_timeout)-1;
 SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+# Restoring
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 RESET SLAVE;
 RESET MASTER;
 --echo
@@ -113,6 +137,10 @@ inc $slave_net_timeout;
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=$slave_net_timeout;
 RESET SLAVE;
 RESET MASTER;
+# Running with show_compatibility_56=ON until WL#9001 is pushed.
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
+
 --echo 
 
 # Changing of slave_net_timeout shouldn't affect to current value of slave_heartbeat_period
@@ -129,6 +157,8 @@ SET @@global.slave_net_timeout=2*@@global.slave_net_timeout;
 SHOW VARIABLES LIKE 'slave_net_timeout';
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+# Restoring
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 RESET SLAVE;
 RESET MASTER;
 --echo
@@ -156,6 +186,10 @@ SET @@global.slave_net_timeout=@restore_slave_net_timeout;
 RESET SLAVE;
 RESET MASTER;
 --connection master
+#Running the test with show_compatibility_56=ON until WL#9001 is pushed.
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
+
 SET @@global.slave_net_timeout=@restore_slave_net_timeout;
 --echo
 
@@ -163,6 +197,10 @@ SET @@global.slave_net_timeout=@restore_slave_net_timeout;
 --echo *** Start/stop slave ***
 --connection slave
 --disable_warnings
+#Running the test with show_compatibility_56=ON until WL#9001 is pushed.
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
+
 SET @@global.slave_net_timeout=100;
 --enable_warnings
 --replace_result $MASTER_MYPORT MASTER_PORT
@@ -174,6 +212,9 @@ eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTE
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 --source include/stop_slave.inc
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+#Restoring the value of show_compatibility_56 to the previous state.
+set @@global.show_compatibility_56=@show_compatibility_56_save;
+
 --echo
 
 # Reload slave shouldn't change slave_heartbeat_period
@@ -187,8 +228,10 @@ SET @@global.slave_net_timeout=50;
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=30;
 --let $rpl_server_number= 2
 --source include/rpl_restart_server.inc
+set @@global.show_compatibility_56=ON;
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 SET @restore_slave_net_timeout=@@global.slave_net_timeout;
+set @@global.show_compatibility_56=OFF;
 --echo
 
 # Disable heartbeat
@@ -207,13 +250,16 @@ SHOW STATUS LIKE 'slave_received_heartbeats';
 --source include/stop_slave.inc
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 SHOW STATUS LIKE 'slave_received_heartbeats';
+
 RESET SLAVE;
 RESET MASTER;
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
 let $slave_heartbeat_timeout= query_get_value(SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period', Value, 1);
 --replace_result $slave_heartbeat_timeout SLAVE_HEARTBEAT_TIMEOUT
 --eval SELECT $slave_heartbeat_timeout = 0 AS Result
 --echo 
-
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 #
 # Check limits for slave_heartbeat_timeout
 #
@@ -281,6 +327,8 @@ RESET MASTER;
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD='';
 RESET SLAVE;
 RESET MASTER;
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
 --echo
 
 #
@@ -309,6 +357,7 @@ if (`SELECT @time_1 - @time_0 < $hb_period`)
     --echo "Heartbeat is received ealier than specified."
     --die
 }
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 --echo Heartbeat event received
 --echo
 
@@ -318,6 +367,9 @@ if (`SELECT @time_1 - @time_0 < $hb_period`)
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD= 0.1;
+
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
 
 let $rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
 sleep 2;
@@ -448,7 +500,6 @@ SET @@global.slave_compressed_protocol=0;
 SET @@global.slave_compressed_protocol=0;
 --echo
 
-
 # Check received heartbeat events after reset of master
 --echo *** Reset master ***
 --connection slave
@@ -540,10 +591,15 @@ INSERT INTO t1 VALUES(2, 'on slave');
 SELECT * FROM t1 ORDER BY a;
 let $master_rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
 --connection slave
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
 SELECT * FROM t1 ORDER BY a;
 
 # Wait for heartbeat event on master
 --connection master
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
+
 let $status_var= slave_received_heartbeats;
 let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
 let $status_var_comparsion= >;
@@ -571,3 +627,4 @@ SET @@global.slave_net_timeout=@restore_slave_net_timeout;
 
 #--let $rpl_only_running_threads= 1
 --source include/rpl_end.inc
+select @@global.show_compatibility_56;
