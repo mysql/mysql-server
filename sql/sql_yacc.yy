@@ -8252,7 +8252,7 @@ alter_list_item:
             cinfo->table_charset= cinfo->default_table_charset= $5;
             cinfo->used_fields|= (HA_CREATE_USED_CHARSET |
                                   HA_CREATE_USED_DEFAULT_CHARSET);
-            lex->alter_info.flags|= Alter_info::ALTER_CONVERT;
+            lex->alter_info.flags|= Alter_info::ALTER_OPTIONS;
           }
         | create_table_options_space_separated
           {
