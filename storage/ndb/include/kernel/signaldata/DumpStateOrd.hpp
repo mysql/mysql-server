@@ -76,6 +76,10 @@ public:
     LQHLogFileInitStatus = 102000,
     _LQHMax = 102999,
 
+    _CMVMIMin = 103000,
+    SetSchedulerResponsiveness = 103000,
+    _CMVMIMax = 103099,
+
     // 1 QMGR Dump information about phase 1 variables
     // 13 CMVMI Dump signal counter
     // 13 NDBCNTR Dump start phase information

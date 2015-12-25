@@ -81,6 +81,13 @@ public:
 
   Uint32 maxSendDelay() const;
 
+  Uint32 schedulerResponsiveness() const
+  { return _schedulerResponsiveness; }
+  void setSchedulerResponsiveness(Uint32 val)
+  {
+    _schedulerResponsiveness = val;
+  }
+
   bool realtimeScheduler() const;
   void realtimeScheduler(bool realtime_on);
 
@@ -152,6 +159,7 @@ private:
   Uint32 _schedulerSpinTimer;
   Uint32 _realtimeScheduler;
   Uint32 _maxSendDelay;
+  Uint32 _schedulerResponsiveness;
   Uint32 _timeBetweenWatchDogCheckInitial;
 #ifdef ERROR_INSERT
   Uint32 _mixologyLevel;

@@ -1113,6 +1113,9 @@ struct MY_ALIGNED(NDB_CL) thr_data
   pthread_t m_thr_id;
   NdbThread* m_thread;
   Signal *m_signal;
+  Uint32 m_sched_responsiveness;
+  Uint32 m_max_signals_before_send;
+  Uint32 m_max_signals_before_send_flush;
 };
 
 struct mt_send_handle  : public TransporterSendBufferHandle
@@ -4933,6 +4936,62 @@ mt_finalize_thr_map()
   }
 }
 
+static
+void
+calculate_max_signals_parameters(thr_data *selfptr)
+{
+  switch (selfptr->m_sched_responsiveness)
+  {
+    case 0:
+      selfptr->m_max_signals_before_send = 700;
+      selfptr->m_max_signals_before_send_flush = 340;
+      break;
+    case 1:
+      selfptr->m_max_signals_before_send = 500;
+      selfptr->m_max_signals_before_send_flush = 270;
+      break;
+    case 2:
+      selfptr->m_max_signals_before_send = 340;
+      selfptr->m_max_signals_before_send_flush = 200;
+      break;
+    case 3:
+      selfptr->m_max_signals_before_send = 270;
+      selfptr->m_max_signals_before_send_flush = 135;
+      break;
+    case 4:
+      selfptr->m_max_signals_before_send = 200;
+      selfptr->m_max_signals_before_send_flush = 100;
+      break;
+    case 5:
+      selfptr->m_max_signals_before_send = 200;
+      selfptr->m_max_signals_before_send_flush = 80;
+      break;
+    case 6:
+      selfptr->m_max_signals_before_send = 135;
+      selfptr->m_max_signals_before_send_flush = 60;
+      break;
+    case 7:
+      selfptr->m_max_signals_before_send = 135;
+      selfptr->m_max_signals_before_send_flush = 40;
+      break;
+    case 8:
+      selfptr->m_max_signals_before_send = 70;
+      selfptr->m_max_signals_before_send_flush = 30;
+      break;
+    case 9:
+      selfptr->m_max_signals_before_send = 70;
+      selfptr->m_max_signals_before_send_flush = 20;
+      break;
+    case 10:
+      selfptr->m_max_signals_before_send = 50;
+      selfptr->m_max_signals_before_send_flush = 10;
+      break;
+    default:
+      assert(FALSE);
+  }
+  return;
+}
+
 static void
 init_thread(thr_data *selfptr)
 {
@@ -4978,6 +5037,10 @@ init_thread(thr_data *selfptr)
   selfptr->m_spintime = conf.do_get_spintime(selfptr->m_instance_list,
                                              selfptr->m_instance_count);
 
+  selfptr->m_sched_responsiveness =
+    globalEmulatorData.theConfiguration->schedulerResponsiveness();
+  calculate_max_signals_parameters(selfptr);
+
   selfptr->m_thr_id = pthread_self();
 
   for (Uint32 i = 0; i < selfptr->m_instance_count; i++) 
@@ -4987,6 +5050,14 @@ init_thread(thr_data *selfptr)
     Uint32 instance = blockToInstance(block);
     tmp.appfmt("%s(%u) ", getBlockName(main), instance);
   }
+  /* Report parameters used by thread to node log */
+  tmp.appfmt("realtime=%u, spintime=%u, max_signals_before_send=%u"
+             ", max_signals_before_send_flush=%u",
+             selfptr->m_realtime,
+             selfptr->m_spintime,
+             selfptr->m_max_signals_before_send,
+             selfptr->m_max_signals_before_send_flush);
+
   printf("%s\n", tmp.c_str());
   fflush(stdout);
 }
@@ -5560,6 +5631,7 @@ mt_job_thread_main(void *thr_arg)
         NdbTick_Invalidate(&start_spin_ticks);
         update_rt_config(selfptr, real_time, BlockThread);
         update_spin_config(selfptr, min_spin_timer);
+        calculate_max_signals_parameters(selfptr);
       }
     }
     else

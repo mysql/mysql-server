@@ -340,6 +340,9 @@ Configuration::setupConfiguration(){
 	      "TimeBetweenWatchDogCheck missing");
   }
 
+  _schedulerResponsiveness = 5;
+  iter.get(CFG_DB_SCHED_RESPONSIVENESS, &_schedulerResponsiveness);
+
   _schedulerExecutionTimer = 50;
   iter.get(CFG_DB_SCHED_EXEC_TIME, &_schedulerExecutionTimer);
 
