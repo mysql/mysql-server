@@ -597,7 +597,7 @@ public:
  * Mainly used to avoid overextending the stack and to some
  * extent keeping the scheduling rules.
  */
-#define ZMAX_SCAN_DIRECT_COUNT 5
+#define ZMAX_SCAN_DIRECT_COUNT 6
 
   struct Fragrecord {
     Fragrecord() {}
@@ -3151,6 +3151,7 @@ private:
   Uint32 c_free_mb_force_lcp_limit; // Force lcp when less than this free mb
   Uint32 c_free_mb_tail_problem_limit; // Set TAIL_PROBLEM when less than this..
 
+  Uint32 c_max_scan_direct_count;
 /* ------------------------------------------------------------------------- */
 // cmaxWordsAtNodeRec keeps track of how many words that currently are
 // outstanding in a node recovery situation.
