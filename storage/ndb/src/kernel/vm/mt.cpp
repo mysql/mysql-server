@@ -1027,6 +1027,9 @@ struct MY_ALIGNED(NDB_CL) thr_data
    */
   bool m_sent_local_prioa_signal;
 
+  /* Last read of current ticks */
+  NDB_TICKS m_curr_ticks;
+
   NDB_TICKS m_ticks;
   struct thr_tq m_tq;
 
@@ -3981,6 +3984,7 @@ do_send(struct thr_data* selfptr, bool must_send)
   if (g_send_threads)
   {
     const NDB_TICKS now = NdbTick_getCurrentTicks();
+    selfptr->m_curr_ticks = now;
 
     /**
      * We're using send threads, in this case we simply alert any send
@@ -5007,6 +5011,7 @@ mt_receiver_thread_main(void *thr_arg)
 
   NdbTick_Invalidate(&start_spin_ticks);
   NDB_TICKS now = NdbTick_getCurrentTicks();
+  selfptr->m_curr_ticks = now;
   selfptr->m_ticks = yield_ticks = now;
 
   while (globalData.theRestartFlag != perform_stop)
@@ -5021,6 +5026,7 @@ mt_receiver_thread_main(void *thr_arg)
     watchDogCounter = 2;
 
     now = NdbTick_getCurrentTicks();
+    selfptr->m_curr_ticks = now;
     const Uint32 lagging_timers = scan_time_queues(selfptr, now);
 
     Uint32 sum = run_job_buffers(selfptr, signal);
@@ -5331,6 +5337,7 @@ mt_job_thread_main(void *thr_arg)
   NDB_TICKS now = NdbTick_getCurrentTicks();
   selfptr->m_ticks = start_spin_ticks = yield_ticks = now;
   selfptr->m_signal = signal;
+  selfptr->m_curr_ticks = now;
 
   while (globalData.theRestartFlag != perform_stop)
   { 
@@ -5421,6 +5428,7 @@ mt_job_thread_main(void *thr_arg)
             waits++;
             /* Update current time after sleeping */
             now = NdbTick_getCurrentTicks();
+            selfptr->m_curr_ticks = now;
             yield_ticks = now;
             NdbTick_Invalidate(&start_spin_ticks);
             selfptr->m_stat.m_wait_cnt += waits;
@@ -5451,6 +5459,7 @@ mt_job_thread_main(void *thr_arg)
       {
         /* Update current time after sleeping */
         now = NdbTick_getCurrentTicks();
+        selfptr->m_curr_ticks = now;
         selfptr->m_stat.m_wait_cnt += waits;
         selfptr->m_stat.m_loop_cnt += loops;
         waits = loops = 0;
@@ -5471,6 +5480,7 @@ mt_job_thread_main(void *thr_arg)
     if (loops > maxloops)
     {
       now = NdbTick_getCurrentTicks();
+      selfptr->m_curr_ticks = now;
       if (real_time)
       {
         check_real_time_break(now,
@@ -5513,6 +5523,14 @@ mt_getSignalsInJBB(Uint32 self)
     pending_signals += w->get_pending_signals();
   }
   return pending_signals;
+}
+
+NDB_TICKS
+mt_getHighResTimer(Uint32 self)
+{
+  struct thr_repository* rep = g_thr_repository;
+  struct thr_data *selfptr = &rep->m_thread[self];
+  return selfptr->m_curr_ticks;
 }
 
 void
