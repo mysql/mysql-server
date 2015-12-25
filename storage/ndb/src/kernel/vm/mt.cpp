@@ -4473,6 +4473,7 @@ execute_signals(thr_data *selfptr,
                 Signal *sig, Uint32 max_signals)
 {
   Uint32 num_signals;
+  Uint32 extra_signals = 0;
   Uint32 read_index = r->m_read_index;
   Uint32 write_index = r->m_write_index;
   Uint32 read_pos = r->m_read_pos;
@@ -4571,11 +4572,32 @@ execute_signals(thr_data *selfptr,
     }
 #endif
 
+    /**
+     * In 7.4 we introduced the ability for scans in LDM threads to scan
+     * several rows in the same signal execution without issuing a
+     * CONTINUEB signal. This means that we effectively changed the
+     * real-time characteristics of the scheduler. This change ensures
+     * that we behave the same way as in 7.3 and earlier with respect to
+     * how many signals are executed. So the m_extra_signals variable can
+     * be used in the future for other cases where we combine several
+     * signal executions into one signal and thus ensure that we don't
+     * change the scheduler algorithms.
+     *
+     * This variable is incremented every time we decide to execute more
+     * signals without real-time breaks in scans in DBLQH.
+     */
     block->jamBuffer()->markEndOfSigExec();
+    sig->m_extra_signals = 0;
     block->executeFunction_async(gsn, sig);
+    extra_signals += sig->m_extra_signals;
   }
+  /**
+   * Only count signals causing real-time break and not the one used to
+   * balance the scheduler.
+   */
+  selfptr->m_stat.m_exec_cnt += num_signals;
 
-  return num_signals;
+  return num_signals + extra_signals;
 }
 
 static
@@ -4943,47 +4965,47 @@ calculate_max_signals_parameters(thr_data *selfptr)
   switch (selfptr->m_sched_responsiveness)
   {
     case 0:
-      selfptr->m_max_signals_before_send = 700;
+      selfptr->m_max_signals_before_send = 1000;
       selfptr->m_max_signals_before_send_flush = 340;
       break;
     case 1:
-      selfptr->m_max_signals_before_send = 500;
+      selfptr->m_max_signals_before_send = 800;
       selfptr->m_max_signals_before_send_flush = 270;
       break;
     case 2:
-      selfptr->m_max_signals_before_send = 340;
+      selfptr->m_max_signals_before_send = 600;
       selfptr->m_max_signals_before_send_flush = 200;
       break;
     case 3:
-      selfptr->m_max_signals_before_send = 270;
-      selfptr->m_max_signals_before_send_flush = 135;
+      selfptr->m_max_signals_before_send = 450;
+      selfptr->m_max_signals_before_send_flush = 155;
       break;
     case 4:
-      selfptr->m_max_signals_before_send = 200;
-      selfptr->m_max_signals_before_send_flush = 100;
+      selfptr->m_max_signals_before_send = 350;
+      selfptr->m_max_signals_before_send_flush = 130;
       break;
     case 5:
-      selfptr->m_max_signals_before_send = 200;
-      selfptr->m_max_signals_before_send_flush = 80;
+      selfptr->m_max_signals_before_send = 300;
+      selfptr->m_max_signals_before_send_flush = 110;
       break;
     case 6:
-      selfptr->m_max_signals_before_send = 135;
-      selfptr->m_max_signals_before_send_flush = 60;
+      selfptr->m_max_signals_before_send = 250;
+      selfptr->m_max_signals_before_send_flush = 90;
       break;
     case 7:
-      selfptr->m_max_signals_before_send = 135;
-      selfptr->m_max_signals_before_send_flush = 40;
+      selfptr->m_max_signals_before_send = 200;
+      selfptr->m_max_signals_before_send_flush = 70;
       break;
     case 8:
-      selfptr->m_max_signals_before_send = 70;
-      selfptr->m_max_signals_before_send_flush = 30;
+      selfptr->m_max_signals_before_send = 170;
+      selfptr->m_max_signals_before_send_flush = 50;
       break;
     case 9:
-      selfptr->m_max_signals_before_send = 70;
-      selfptr->m_max_signals_before_send_flush = 20;
+      selfptr->m_max_signals_before_send = 135;
+      selfptr->m_max_signals_before_send_flush = 30;
       break;
     case 10:
-      selfptr->m_max_signals_before_send = 50;
+      selfptr->m_max_signals_before_send = 70;
       selfptr->m_max_signals_before_send_flush = 10;
       break;
     default:
@@ -5265,7 +5287,6 @@ mt_receiver_thread_main(void *thr_arg)
       }
     }
     selfptr->m_stat.m_loop_cnt++;
-    selfptr->m_stat.m_exec_cnt += sum;
   }
 
   globalEmulatorData.theWatchDog->unregisterWatchedThread(thr_no);
@@ -5666,7 +5687,6 @@ mt_job_thread_main(void *thr_arg)
       selfptr->m_stat.m_loop_cnt += loops;
       waits = loops = 0;
     }
-    selfptr->m_stat.m_exec_cnt += sum;
   }
 
   globalEmulatorData.theWatchDog->unregisterWatchedThread(thr_no);
