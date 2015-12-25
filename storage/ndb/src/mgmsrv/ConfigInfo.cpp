@@ -732,6 +732,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "500" },
 
   {
+    CFG_DB_SCHED_RESPONSIVENESS,
+    "SchedulerResponsiveness",
+    DB_TOKEN,
+    "Value between 0 and 10, high means very responsive, low means throughput-optimised",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "5",
+    "0",
+    "10" },
+
+  {
     CFG_DB_WATCHDOG_INTERVAL_INITIAL,
     "TimeBetweenWatchDogCheckInitial",
     DB_TOKEN,
