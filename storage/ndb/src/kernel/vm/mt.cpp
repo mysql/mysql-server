@@ -71,6 +71,7 @@ GlobalData::mt_getBlock(BlockNumber blockNo, Uint32 instanceNo)
 
 /* Maximum number of signals to execute before sending to remote nodes. */
 static const Uint32 MAX_SIGNALS_BEFORE_SEND = 200;
+static const Uint32 MAX_SIGNALS_BEFORE_SEND_FLUSH = 80;
 
 /*
  * Max. signals to execute from one job buffer before considering other
@@ -4387,6 +4388,74 @@ check_queues_empty(thr_data *selfptr)
   return true;
 }
 
+static
+inline
+void
+sendpacked(struct thr_data* thr_ptr, Signal* signal)
+{
+  Uint32 i;
+  signal->header.m_noOfSections = 0; /* valgrind */
+  for (i = 0; i < thr_ptr->m_instance_count; i++)
+  {
+    BlockReference block = thr_ptr->m_instance_list[i];
+    Uint32 main = blockToMain(block);
+    Uint32 instance = blockToInstance(block);
+    SimulatedBlock* b = globalData.getBlock(main, instance);
+    // wl4391_todo remove useless assert
+    assert(b != 0 && b->getThreadId() == thr_ptr->m_thr_no);
+    /* b->send_at_job_buffer_end(); */
+    b->executeFunction_async(GSN_SEND_PACKED, signal);
+  }
+}
+
+/**
+ * We check whether it is time to call do_send or do_flush. These are
+ * central decisions to the data node scheduler in a multithreaded data
+ * node. If we wait for too long to make this decision it will severely
+ * impact our response times since messages will be waiting in the send
+ * buffer without being sent for up to several milliseconds.
+ *
+ * Since we call this function now after executing jobs from one thread,
+ * we will never call this function with more than 75 signals executed.
+ * The decision to send/flush is determined by config parameters that
+ * control the responsiveness of MySQL Cluster. Setting it to a be highly
+ * responsive means that we will send very often at the expense of
+ * throughput. Setting it to a high throughput means that we will send
+ * seldom at the expense of response time to gain higher throughput.
+ *
+ * It is possible to change this variable through a DUMP command and can
+ * thus be changed as the environment changes.
+ */
+static
+void handle_scheduling_decisions(thr_data *selfptr,
+                                 Signal *signal,
+                                 Uint32 & send_sum,
+                                 Uint32 & flush_sum,
+                                 Int32 & pending_send)
+{
+  if (send_sum >= MAX_SIGNALS_BEFORE_SEND)
+  {
+    /* Try to send, but skip for now in case of lock contention. */
+    sendpacked(selfptr, signal);
+    selfptr->m_watchdog_counter = 6;
+    flush_jbb_write_state(selfptr);
+    pending_send = do_send(selfptr, FALSE);
+    selfptr->m_watchdog_counter = 1;
+    send_sum = 0;
+    flush_sum = 0;
+  }
+  else if (flush_sum >= MAX_SIGNALS_BEFORE_SEND_FLUSH)
+  {
+    /* Send buffers append to send queues to dst. nodes. */
+    sendpacked(selfptr, signal);
+    selfptr->m_watchdog_counter = 6;
+    flush_jbb_write_state(selfptr);
+    do_flush(selfptr);
+    selfptr->m_watchdog_counter = 1;
+    flush_sum = 0;
+  }
+}
+
 /*
  * Execute at most MAX_SIGNALS signals from one job queue, updating local read
  * state as appropriate.
@@ -4508,7 +4577,11 @@ execute_signals(thr_data *selfptr,
 
 static
 Uint32
-run_job_buffers(thr_data *selfptr, Signal *sig)
+run_job_buffers(thr_data *selfptr,
+                Signal *sig,
+                Uint32 & send_sum,
+                Uint32 & flush_sum,
+                Int32 & pending_send)
 {
   Uint32 thr_count = g_thr_repository->m_thread_count;
   Uint32 signal_count = 0;
@@ -4533,11 +4606,14 @@ run_job_buffers(thr_data *selfptr, Signal *sig)
     {
       selfptr->m_sent_local_prioa_signal = false;
       static Uint32 max_prioA = thr_job_queue::SIZE * thr_job_buffer::SIZE;
-      signal_count += execute_signals(selfptr,
-                                      &(selfptr->m_jba),
-                                      &(selfptr->m_jba_head),
-                                      &(selfptr->m_jba_read_state), sig,
-                                      max_prioA);
+      Uint32 num_signals = execute_signals(selfptr,
+                                           &(selfptr->m_jba),
+                                           &(selfptr->m_jba_head),
+                                           &(selfptr->m_jba_read_state), sig,
+                                           max_prioA);
+      signal_count += num_signals;
+      send_sum += num_signals;
+      flush_sum += num_signals;
       if (!selfptr->m_sent_local_prioa_signal)
       {
         /**
@@ -4609,26 +4685,38 @@ run_job_buffers(thr_data *selfptr, Signal *sig)
 #endif
 
     /* Now execute prio B signals from one thread. */
-    signal_count += execute_signals(selfptr, queue, head, read_state,
-                                    sig, perjb+extra);
+    Uint32 num_signals = execute_signals(selfptr, queue, head, read_state,
+                                         sig, perjb+extra);
 
-    if (signal_count - signal_count_since_last_zero_time_queue >
-        (MAX_SIGNALS_EXECUTED_BEFORE_ZERO_TIME_QUEUE_SCAN -
-         MAX_SIGNALS_PER_JB))
+    if (num_signals > 0)
     {
-      /**
-       * Each execution of execute_signals can at most execute 75 signals
-       * from one node. We want to ensure that we execute no more than
-       * 100 signals before we arrive here to get the signals from the
-       * zero time queue. This implements the bounded delay signal
-       * concept which is required for rate controlled activities.
-       *
-       * We scan the zero time queue if more than 25 signals were executed.
-       * This means that at most 100 signals will be executed before we arrive
-       * here again to check the bounded delay signals.
-       */
-      signal_count_since_last_zero_time_queue = signal_count;
-      scan_zero_queue(selfptr);
+      signal_count += num_signals;
+      send_sum += num_signals;
+      flush_sum += num_signals;
+      handle_scheduling_decisions(selfptr,
+                                  sig,
+                                  send_sum,
+                                  flush_sum,
+                                  pending_send);
+
+      if (signal_count - signal_count_since_last_zero_time_queue >
+          (MAX_SIGNALS_EXECUTED_BEFORE_ZERO_TIME_QUEUE_SCAN -
+           MAX_SIGNALS_PER_JB))
+      {
+        /**
+         * Each execution of execute_signals can at most execute 75 signals
+         * from one node. We want to ensure that we execute no more than
+         * 100 signals before we arrive here to get the signals from the
+         * zero time queue. This implements the bounded delay signal
+         * concept which is required for rate controlled activities.
+         *
+         * We scan the zero time queue if more than 25 signals were executed.
+         * This means that at most 100 signals will be executed before we arrive
+         * here again to check the bounded delay signals.
+         */
+        signal_count_since_last_zero_time_queue = signal_count;
+        scan_zero_queue(selfptr);
+      }
     }
   }
 
@@ -5028,8 +5116,11 @@ mt_receiver_thread_main(void *thr_arg)
     now = NdbTick_getCurrentTicks();
     selfptr->m_curr_ticks = now;
     const Uint32 lagging_timers = scan_time_queues(selfptr, now);
+    Uint32 dummy1 = 0;
+    Uint32 dummy2 = 0;
+    Int32 dummy3 = 0;
 
-    Uint32 sum = run_job_buffers(selfptr, signal);
+    Uint32 sum = run_job_buffers(selfptr, signal, dummy1, dummy2, dummy3);
 
     if (sum || has_received)
     {
@@ -5108,25 +5199,6 @@ mt_receiver_thread_main(void *thr_arg)
 
   globalEmulatorData.theWatchDog->unregisterWatchedThread(thr_no);
   return NULL;                  // Return value not currently used
-}
-
-static
-inline
-void
-sendpacked(struct thr_data* thr_ptr, Signal* signal)
-{
-  Uint32 i;
-  for (i = 0; i < thr_ptr->m_instance_count; i++)
-  {
-    BlockReference block = thr_ptr->m_instance_list[i];
-    Uint32 main = blockToMain(block);
-    Uint32 instance = blockToInstance(block);
-    SimulatedBlock* b = globalData.getBlock(main, instance);
-    // wl4391_todo remove useless assert
-    assert(b != 0 && b->getThreadId() == thr_ptr->m_thr_no);
-    /* b->send_at_job_buffer_end(); */
-    b->executeFunction_async(GSN_SEND_PACKED, signal);
-  }
 }
 
 /**
@@ -5225,7 +5297,10 @@ has_full_in_queues(struct thr_data* selfptr)
  */
 static
 bool
-update_sched_config(struct thr_data* selfptr, Int32 pending_send)
+update_sched_config(struct thr_data* selfptr,
+                    Int32 pending_send,
+                    Uint32 & send_sum,
+                    Uint32 & flush_sum)
 {
   Uint32 sleeploop = 0;
   Uint32 thr_no = selfptr->m_thr_no;
@@ -5276,6 +5351,8 @@ loop:
     {
       /* About to sleep, _must_ send now. */
       pending_send = do_send(selfptr, TRUE);
+      send_sum = 0;
+      flush_sum = 0;
     }
 
     /**
@@ -5320,6 +5397,7 @@ mt_job_thread_main(void *thr_arg)
 
   Int32 pending_send = 0;
   Uint32 send_sum = 0;
+  Uint32 flush_sum = 0;
   Uint32 loops = 0;
   Uint32 maxloops = 10;/* Loops before reading clock, fuzzy adapted to 1ms freq. */
   Uint32 waits = 0;
@@ -5360,30 +5438,41 @@ mt_job_thread_main(void *thr_arg)
     watchDogCounter = 2;
     const Uint32 lagging_timers = scan_time_queues(selfptr, now);
 
-    Uint32 sum = run_job_buffers(selfptr, signal);
+    Uint32 sum = run_job_buffers(selfptr,
+                                 signal,
+                                 send_sum,
+                                 flush_sum,
+                                 pending_send);
     
     watchDogCounter = 1;
-    signal->header.m_noOfSections = 0; /* valgrind */
     sendpacked(selfptr, signal);
 
     if (sum)
     {
+      /**
+       * It is imperative that we flush signals within our node after
+       * each round of execution. This makes sure that the receiver
+       * thread are woken up to do their work which often means that
+       * they will send some signals back to us (e.g. the commit
+       * protocol for updates). Quite often we continue executing one
+       * more loop and while so doing the other threads can return
+       * new signals to us and thus we avoid going back and forth to
+       * sleep too often which otherwise would happen.
+       *
+       * Many of the optimisations of having TC and LDM colocated
+       * for transactions would go away unless we use this principle.
+       *
+       * No need to flush however if no signals have been executed since
+       * last flush.
+       */
       watchDogCounter = 6;
-      flush_jbb_write_state(selfptr);
-      send_sum += sum;
-      NdbTick_Invalidate(&start_spin_ticks);
-
-      if (send_sum > MAX_SIGNALS_BEFORE_SEND)
+      if (flush_sum > 0)
       {
-        /* Try to send, but skip for now in case of lock contention. */
-        pending_send = do_send(selfptr, FALSE);
-        send_sum = 0;
-      }
-      else
-      {
-        /* Send buffers append to send queues to dst. nodes. */
+        flush_jbb_write_state(selfptr);
         do_flush(selfptr);
+        flush_sum = 0;
       }
+      NdbTick_Invalidate(&start_spin_ticks);
     }
     /**
      * Scheduler is not allowed to yield until its internal
@@ -5395,8 +5484,10 @@ mt_job_thread_main(void *thr_arg)
       if (send_sum > 0 || pending_send != 0)
       {
         /* About to sleep, _must_ send now. */
+        flush_jbb_write_state(selfptr);
         pending_send = do_send(selfptr, TRUE);
         send_sum = 0;
+        flush_sum = 0;
       }
 
       /**
@@ -5455,7 +5546,10 @@ mt_job_thread_main(void *thr_arg)
      */
     if (sum >= selfptr->m_max_exec_signals)
     {
-      if (update_sched_config(selfptr, send_sum + abs(pending_send)))
+      if (update_sched_config(selfptr,
+                              send_sum + abs(pending_send),
+                              send_sum,
+                              flush_sum))
       {
         /* Update current time after sleeping */
         now = NdbTick_getCurrentTicks();
