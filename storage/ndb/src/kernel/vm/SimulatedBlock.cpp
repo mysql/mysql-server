@@ -523,6 +523,15 @@ SimulatedBlock::getSignalsInJBB()
   return num_signals;
 }
 
+NDB_TICKS
+SimulatedBlock::getHighResTimer()
+{
+#ifdef NDBD_MULTITHREADED
+  return mt_getHighResTimer(m_threadId);
+#else
+  return globalScheduler.getHighResTimer();
+#endif
+}
 void 
 SimulatedBlock::sendSignal(BlockReference ref, 
 			   GlobalSignalNumber gsn, 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,10 +38,15 @@
 #include <trigger_definitions.h>
 #include <SignalCounter.hpp>
 #include <KeyTable.hpp>
+#include <portlib/NdbTick.h>
 #endif
 
 
 #define JAM_FILE_ID 350
+
+#define TIME_TRACK_HISTOGRAM_RANGES 32
+#define TIME_TRACK_LOG_HISTOGRAM_RANGES 5
+#define TIME_TRACK_INITIAL_RANGE_VALUE 50
 
 #ifdef DBTC_C
 /*
@@ -746,7 +751,9 @@ public:
       m_special_op_flags(0),
       theFiredTriggers(firedTriggerPool),
       theSeizedIndexOperations(seizedIndexOpPool) 
-    {}
+    {
+      NdbTick_Invalidate(&m_start_ticks);
+    }
     
     //---------------------------------------------------
     // First 16 byte cache line. Hot variables.
@@ -889,6 +896,7 @@ public:
     UintR accumulatingIndexOp;
     UintR executingIndexOp;
     UintR tcIndxSendArray[6];
+    NDB_TICKS m_start_ticks;
     DLList<TcIndexOperation> theSeizedIndexOperations;
 
 #ifdef ERROR_INSERT
@@ -925,6 +933,10 @@ public:
   /*       TC_CONNECT RECORD ALIGNED TO BE 128 BYTES                   */
   /*******************************************************************>*/
   struct TcConnectRecord {
+    TcConnectRecord()
+    {
+      NdbTick_Invalidate(&m_start_ticks);
+    }
     //---------------------------------------------------
     // First 16 byte cache line. Those variables are only
     // used in error cases.
@@ -1008,6 +1020,7 @@ public:
       Uint32 attrInfoLen;
       Uint32 triggerErrorCode;
     };
+    NDB_TICKS m_start_ticks;
   };
   
   friend struct TcConnectRecord;
@@ -1017,7 +1030,7 @@ public:
   // ********************** CACHE RECORD **************************************
   //---------------------------------------------------------------------------
   // This record is used between reception of TCKEYREQ and sending of LQHKEYREQ
-  // It is separatedso as to improve the cache hit rate and also to minimise 
+  // It is separated so as to improve the cache hit rate and also to minimise 
   // the necessary memory storage in NDB Cluster.
   //---------------------------------------------------------------------------
 
@@ -1098,6 +1111,26 @@ public:
     };
     Uint32 m_nf_bits;
     NdbNodeBitmask m_lqh_trans_conf;
+    /**
+     * Indicator if any history to track yet
+     *
+     * Tracking scan and scan errors (API node)
+     * Tracking read key, write key and index key operations
+     * (API node and primary DB node)
+     * Tracking scan frag and scan frag errors (API node)
+     * Tracking transactions (API node)
+     */
+    Uint32 time_tracked;
+    Uint64 time_track_scan_histogram[TIME_TRACK_HISTOGRAM_RANGES];
+    Uint64 time_track_scan_error_histogram[TIME_TRACK_HISTOGRAM_RANGES];
+    Uint64 time_track_read_key_histogram[TIME_TRACK_HISTOGRAM_RANGES];
+    Uint64 time_track_write_key_histogram[TIME_TRACK_HISTOGRAM_RANGES];
+    Uint64 time_track_index_key_histogram[TIME_TRACK_HISTOGRAM_RANGES];
+    Uint64 time_track_key_error_histogram[TIME_TRACK_HISTOGRAM_RANGES];
+    Uint64 time_track_scan_frag_histogram[TIME_TRACK_HISTOGRAM_RANGES];
+    Uint64 time_track_scan_frag_error_histogram[TIME_TRACK_HISTOGRAM_RANGES];
+    Uint64 time_track_transaction_histogram[TIME_TRACK_HISTOGRAM_RANGES];
+    Uint64 time_track_transaction_error_histogram[TIME_TRACK_HISTOGRAM_RANGES];
   };
   
   typedef Ptr<HostRecord> HostRecordPtr;
@@ -1175,6 +1208,7 @@ public:
       lqhBlockref = 0;
       scanFragState = COMPLETED;
       scanRec = RNIL;
+      NdbTick_Invalidate(&m_start_ticks);
     }
     /**
      * ScanFragState      
@@ -1238,6 +1272,7 @@ public:
       Uint32 nextList;
     };
     Uint32 prevList;
+    NDB_TICKS m_start_ticks;
   };
   
   typedef Ptr<ScanFragRec> ScanFragRecPtr;
@@ -1249,7 +1284,10 @@ public:
    *
    */
   struct ScanRecord {
-    ScanRecord() {}
+    ScanRecord()
+    {
+      NdbTick_Invalidate(&m_start_ticks);
+    }
     /** NOTE! This is the old comment for ScanState. - MASV
      *       STATE TRANSITIONS OF SCAN_STATE. SCAN_STATE IS THE STATE 
      *       VARIABLE OF THE RECEIVE AND DELIVERY PROCESS.
@@ -1381,6 +1419,7 @@ public:
      */
     bool m_scan_dist_key_flag;
     Uint32 m_scan_dist_key;
+    NDB_TICKS m_start_ticks;
   };
   typedef Ptr<ScanRecord> ScanRecordPtr;
   
@@ -1394,9 +1433,7 @@ public:
   /*       GCP RECORD ALIGNED TO BE 32 BYTES                                 */
   /*************************************************************************>*/
   struct GcpRecord {
-    Uint16 gcpUnused0;
     Uint16 gcpNomoretransRec;
-    UintR gcpUnused1[2];	/* p2c: Not used */
     UintR firstApiConnect;
     UintR lastApiConnect;
     UintR nextGcp;
@@ -1907,7 +1944,7 @@ private:
   void startphase1x010Lab(Signal* signal);
 
   void lqhKeyConf_checkTransactionState(Signal * signal,
-					Ptr<ApiConnectRecord> regApiPtr);
+                                        Ptr<ApiConnectRecord> regApiPtr);
 
   void checkDropTab(Signal* signal);
 
@@ -1928,11 +1965,43 @@ private:
   void initData();
   void initRecords();
 
+  /**
+   * Functions used at completion of activities tracked for timing.
+   * Currently we track
+   * 1) Transactions
+   * 2) Key operations
+   * 3) Scan operations
+   * 4) Execution of SCAN_FRAGREQ's (local scans)
+   */
+   void time_track_init_histogram_limits(void);
+   Uint32 time_track_calculate_histogram_position(NDB_TICKS & start_ticks);
+
+   void time_track_complete_scan(ScanRecord * const scanPtr,
+                                 Uint32 apiNodeId);
+   void time_track_complete_scan_error(ScanRecord * const scanPtr,
+                                       Uint32 apiNodeId);
+   void time_track_complete_key_operation(TcConnectRecord * const tcConnectPtr,
+                                          Uint32 apiNodeId,
+                                          Uint32 dbNodeId);
+   void time_track_complete_index_key_operation(
+     TcConnectRecord * const tcConnectPtr,
+     Uint32 apiNodeId,
+     Uint32 dbNodeId);
+   void time_track_complete_key_operation_error(
+     TcConnectRecord * const tcConnectPtr,
+     Uint32 apiNodeId,
+     Uint32 dbNodeId);
+   void time_track_complete_scan_frag(ScanFragRec * const scanFragPtr);
+   void time_track_complete_scan_frag_error(ScanFragRec *const scanFragPtr);
+   void time_track_complete_transaction(ApiConnectRecord *const apiConnectPtr);
+   void time_track_complete_transaction_error(
+     ApiConnectRecord * const apiConnectPtr);
 protected:
   virtual bool getParam(const char* name, Uint32* count);
   
 private:
-
+   Uint32 c_time_track_histogram_boundary[TIME_TRACK_HISTOGRAM_RANGES];
+   bool c_time_track_activated;
   // Transit signals
 
 
