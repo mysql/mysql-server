@@ -1,0 +1,19 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
+#
+# second_frac
+#
+--disable_warnings
+DROP VIEW IF EXISTS v1;
+--enable_warnings
+
+# bug 60628
+CREATE VIEW v1 AS SELECT TIMESTAMPDIFF(MICROSECOND, '1970-01-01 00:00:00.000000', '1970-01-01 00:00:00.000001');
+
+SELECT * FROM v1;
+
+DROP VIEW v1;
+# end of bug
