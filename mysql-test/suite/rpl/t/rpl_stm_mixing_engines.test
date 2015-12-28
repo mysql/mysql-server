@@ -3,7 +3,6 @@
 # tables. For further details, please, read WL#2687 and WL#5072.
 ###################################################################################
 --source include/not_gtid_enabled.inc
---source include/big_test.inc
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
 --source include/have_innodb.inc
