@@ -4067,7 +4067,7 @@ innodb_v_adjust_idx_col(
 			continue;
 		}
 
-		const Field*	field;
+		const Field*	field = NULL;
 
 		cf_it.rewind();
 
