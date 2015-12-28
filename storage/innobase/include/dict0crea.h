@@ -317,6 +317,19 @@ struct tab_node_t{
 					storage */
 };
 
+/** Create in-memory tablespace dictionary index & table
+@param[in]	space		tablespace id
+@param[in]	copy_num	copy of sdi table
+@param[in]	space_discarded	true if space is discarded
+@param[in]	in_flags	space flags to use when space_discarded is true
+@return in-memory index structure for tablespace dictionary or NULL */
+dict_index_t*
+dict_sdi_create_idx_in_mem(
+	ulint		space,
+	ulint		copy_num,
+	bool		space_discarded,
+	ulint		in_flags);
+
 /* Table create node states */
 #define	TABLE_BUILD_TABLE_DEF	1
 #define	TABLE_BUILD_COL_DEF	2

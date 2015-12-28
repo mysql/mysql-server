@@ -842,6 +842,7 @@ buf_dblwr_check_block(
 	switch (fil_page_get_type(block->frame)) {
 	case FIL_PAGE_INDEX:
 	case FIL_PAGE_RTREE:
+	case FIL_PAGE_SDI:
 		if (page_is_comp(block->frame)) {
 			if (page_simple_validate_new(block->frame)) {
 				return;
@@ -868,6 +869,8 @@ buf_dblwr_check_block(
 	case FIL_PAGE_TYPE_BLOB:
 	case FIL_PAGE_TYPE_ZBLOB:
 	case FIL_PAGE_TYPE_ZBLOB2:
+	case FIL_PAGE_SDI_BLOB:
+	case FIL_PAGE_SDI_ZBLOB:
 		/* TODO: validate also non-index pages */
 		return;
 	case FIL_PAGE_TYPE_ALLOCATED:

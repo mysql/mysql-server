@@ -89,13 +89,17 @@ PageBulk::init()
 		new_page_zip = buf_block_get_page_zip(new_block);
 		new_page_no = page_get_page_no(new_page);
 
+		ut_ad(!dict_index_is_spatial(m_index));
+		ut_ad(!dict_index_is_sdi(m_index));
+ 
 		if (new_page_zip) {
-			page_create_zip(new_block, m_index, m_level, 0, mtr);
+			page_create_zip(new_block, m_index, m_level, 0,
+					mtr, FIL_PAGE_INDEX);
 		} else {
 			ut_ad(!dict_index_is_spatial(m_index));
 			page_create(new_block, mtr,
 				    dict_table_is_comp(m_index->table),
-				    false);
+				    FIL_PAGE_INDEX);
 			btr_page_set_level(new_page, NULL, m_level, mtr);
 		}
 

@@ -789,31 +789,37 @@ page_mem_free(
 	const dict_index_t*	index,
 	const ulint*		offsets);
 
-/**********************************************************//**
-Create an uncompressed B-tree index page.
+/** Create an uncompressed B-tree or R-tree or SDI index page.
+@param[in]	block		a buffer block where the page is created
+@param[in]	mtr		mini-transaction handle
+@param[in]	comp		nonzero=compact page format
+@param[in]	page_type	page type
 @return pointer to the page */
 page_t*
 page_create(
-/*========*/
-	buf_block_t*	block,		/*!< in: a buffer block where the
-					page is created */
-	mtr_t*		mtr,		/*!< in: mini-transaction handle */
-	ulint		comp,		/*!< in: nonzero=compact page format */
-	bool		is_rtree);	/*!< in: if creating R-tree page */
-/**********************************************************//**
-Create a compressed B-tree index page.
-@return pointer to the page */
+	buf_block_t*	block,
+	mtr_t*		mtr,
+	ulint		comp,
+	page_type_t	page_type);
+
+/** Create a compressed B-tree index page.
+@param[in,out]	block		buffer frame where the page is created
+@param[in]	index		index of the page, or NULL when applying
+				TRUNCATE log record during recovery
+@param[in]	level		the B-tree level of the page
+@param[in]	max_trx_id	PAGE_MAX_TRX_ID
+@param[in]	mtr		mini-transaction handle
+@param[in]	page_type	page_type to be created. Only FIL_PAGE_INDEX,
+				FIL_PAGE_RTREE, FIL_PAGE_SDI allowed */
 page_t*
 page_create_zip(
-/*============*/
-	buf_block_t*		block,		/*!< in/out: a buffer frame
-						where the page is created */
-	dict_index_t*		index,		/*!< in: index tree */
-	ulint			level,		/*!< in: the B-tree level of
-						the page */
-	trx_id_t		max_trx_id,	/*!< in: PAGE_MAX_TRX_ID */
-	mtr_t*			mtr);		/*!< in/out: mini-transaction
-						handle */
+	buf_block_t*			block,
+	dict_index_t*			index,
+	ulint				level,
+	trx_id_t			max_trx_id,
+	mtr_t*				mtr,
+	page_type_t			page_type);
+
 /**********************************************************//**
 Empty a previously created B-tree index page. */
 void
@@ -975,15 +981,16 @@ page_parse_delete_rec_list(
 	buf_block_t*	block,	/*!< in/out: buffer block or NULL */
 	dict_index_t*	index,	/*!< in: record descriptor */
 	mtr_t*		mtr);	/*!< in: mtr or NULL */
+
 /** Parses a redo log record of creating a page.
-@param[in,out]	block	buffer block, or NULL
-@param[in]	comp	nonzero=compact page format
-@param[in]	is_rtree whether it is rtree page */
+@param[in,out]	block		buffer block, or NULL
+@param[in]	comp		nonzero=compact page format
+@param[in]	page_type	page type */
 void
 page_parse_create(
 	buf_block_t*	block,
 	ulint		comp,
-	bool		is_rtree);
+	page_type_t	page_type);
 #ifndef UNIV_HOTBACKUP
 /************************************************************//**
 Prints record contents including the data relevant only in
@@ -1104,6 +1111,16 @@ page_warn_strict_checksum(
 	srv_checksum_algorithm_t	curr_algo,
 	srv_checksum_algorithm_t	page_checksum,
 	const page_id_t&		page_id);
+
+/** Check that a page_size is correct for InnoDB.
+If correct, set the associated page_size_shift which is the power of 2
+for this page size.
+@param[in]	page_size	Page Size to evaluate
+@return an associated page_size_shift if valid, 0 if invalid. */
+inline
+ulong
+page_size_validate(
+	ulong	page_size);
 
 #ifdef UNIV_MATERIALIZE
 #undef UNIV_INLINE

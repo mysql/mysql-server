@@ -414,23 +414,39 @@ row_merge_buf_free(
 	mem_heap_free(buf->heap);
 }
 
+#ifdef UNIV_DEBUG
+# define row_merge_buf_redundant_convert(row_field, field, len,			\
+	page_size, is_sdi, heap)						\
+	row_merge_buf_redundant_convert_func(row_field, field, len,		\
+	page_size, is_sdi, heap)
+# else /* UNIV_DEBUG */
+# define row_merge_buf_redundant_convert(row_field, field, len,			\
+	page_size, is_sdi, heap)						\
+	row_merge_buf_redundant_convert_func(row_field, field, len, 		\
+	page_size, heap)
+# endif /* UNIV_DEBUG */
+
 /** Convert the field data from compact to redundant format.
 @param[in]	row_field	field to copy from
 @param[out]	field		field to copy to
 @param[in]	len		length of the field data
 @param[in]	page_size	compressed BLOB page size,
 				zero for uncompressed BLOBs
+@param[in]	is_sdi		true for SDI indexes
 @param[in,out]	heap		memory heap where to allocate data when
 				converting to ROW_FORMAT=REDUNDANT, or NULL
 				when not to invoke
 				row_merge_buf_redundant_convert(). */
 static
 void
-row_merge_buf_redundant_convert(
+row_merge_buf_redundant_convert_func(
 	const dfield_t*		row_field,
 	dfield_t*		field,
 	ulint			len,
 	const page_size_t&	page_size,
+#ifdef UNIV_DEBUG
+	bool			is_sdi,
+#endif /* UNIV_DEBUG */
 	mem_heap_t*		heap)
 {
 	ut_ad(DATA_MBMINLEN(field->type.mbminmaxlen) == 1);
@@ -450,7 +466,8 @@ row_merge_buf_redundant_convert(
 			    field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE));
 
 		byte*	data = btr_copy_externally_stored_field(
-			&ext_len, field_data, page_size, field_len, heap);
+			&ext_len, field_data, page_size, field_len, is_sdi,
+			heap);
 
 		ut_ad(ext_len < len);
 
@@ -683,6 +700,7 @@ row_merge_buf_add(
 					row_merge_buf_redundant_convert(
 						row_field, field, col->len,
 						dict_table_page_size(old_table),
+						dict_table_is_sdi(old_table->id),
 						conv_heap);
 				} else {
 					/* Field length mismatch should not
@@ -3063,20 +3081,36 @@ row_merge_sort(
 	DBUG_RETURN(error);
 }
 
+#ifdef UNIV_DEBUG
+# define row_merge_copy_blobs(					\
+		mrec, offsets, page_size, tuple, is_sdi, heap)	\
+	row_merge_copy_blobs_func(				\
+		mrec, offsets, page_size, tuple, is_sdi, heap)
+#else /* UNIV_DEBUG */
+# define row_merge_copy_blobs(					\
+		mrec, offsets, page_size, tuple, is_sdi, heap)	\
+	row_merge_copy_blobs_func(				\
+		mrec, offsets, page_size, tuple, heap)
+#endif /* UNIV_DEBUG */
+
 /** Copy externally stored columns to the data tuple.
 @param[in]	mrec		record containing BLOB pointers,
 				or NULL to use tuple instead
 @param[in]	offsets		offsets of mrec
 @param[in]	page_size	compressed page size in bytes, or 0
 @param[in,out]	tuple		data tuple
+@param[in]	is_sdi		true for SDI Indexes
 @param[in,out]	heap		memory heap */
 static
 void
-row_merge_copy_blobs(
+row_merge_copy_blobs_func(
 	const mrec_t*		mrec,
 	const ulint*		offsets,
 	const page_size_t&	page_size,
 	dtuple_t*		tuple,
+#ifdef UNIV_DEBUG
+	bool			is_sdi,
+#endif /* UNIV_DEBUG */
 	mem_heap_t*		heap)
 {
 	ut_ad(mrec == NULL || rec_offs_any_extern(offsets));
@@ -3113,10 +3147,12 @@ row_merge_copy_blobs(
 				     BTR_EXTERN_FIELD_REF_SIZE));
 
 			data = btr_copy_externally_stored_field(
-				&len, field_data, page_size, field_len, heap);
+				&len, field_data, page_size, field_len, is_sdi,
+				heap);
 		} else {
 			data = btr_rec_copy_externally_stored_field(
-				mrec, offsets, page_size, i, &len, heap);
+				mrec, offsets, page_size, i, &len,
+				is_sdi, heap);
 		}
 
 		/* Because we have locked the table, any records
@@ -3306,7 +3342,7 @@ row_merge_insert_index_tuples(
 			row_merge_copy_blobs(
 				mrec, offsets,
 				dict_table_page_size(old_table),
-				dtuple, tuple_heap);
+				dtuple, dict_index_is_sdi(index), tuple_heap);
 		}
 
 		ut_ad(dtuple_validate(dtuple));

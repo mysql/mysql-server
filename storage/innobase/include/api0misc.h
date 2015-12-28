@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -31,6 +31,7 @@ InnoDB Native API
 #include "os0file.h"
 #include "que0que.h"
 #include "trx0trx.h"
+#include "handler.h"
 
 /** Whether binlog is enabled for applications using InnoDB APIs */
 extern my_bool                  ib_binlog_enabled;
@@ -46,6 +47,14 @@ extern ulong			ib_trx_level_setting;
 
 /** configure value for background commit interval (in seconds) */
 extern ulong			ib_bk_commit_interval;
+
+struct ib_sdi_key {
+	const dd::sdi_key_t*	sdi_key;
+};
+
+struct ib_sdi_vector {
+	dd::sdi_vector_t*	sdi_vector;
+};
 
 /********************************************************************
 Handles user errors and lock waits detected by the database engine.

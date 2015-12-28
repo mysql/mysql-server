@@ -3331,6 +3331,7 @@ fts_fetch_doc_from_rec(
 					clust_rec, offsets,
 					dict_table_page_size(table),
 					clust_pos, &doc->text.f_len,
+					false,
 					static_cast<mem_heap_t*>(
 						doc->self_heap->arg));
 		} else {
@@ -7388,7 +7389,7 @@ fts_init_recover_doc(
 			doc.text.f_str = btr_copy_externally_stored_field(
 				&doc.text.f_len,
 				static_cast<byte*>(dfield_get_data(dfield)),
-				dict_table_page_size(table), len,
+				dict_table_page_size(table), len, false,
 				static_cast<mem_heap_t*>(doc.self_heap->arg));
 		} else {
 			doc.text.f_str = static_cast<byte*>(

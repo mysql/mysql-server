@@ -124,7 +124,8 @@ struct fil_space_t {
 				/*!< contents of FSP_FREE_LIMIT */
 	ulint		flags;	/*!< tablespace flags; see
 				fsp_flags_is_valid(),
-				page_size_t(ulint) (constructor) */
+				page_size_t(ulint) (constructor). This is
+				protected by space->latch and tablespace MDL */
 	ulint		n_reserved_extents;
 				/*!< number of reserved free extents for
 				ongoing operations like B-tree page split */
@@ -351,7 +352,7 @@ extern const char*	fil_path_to_mysql_datadir;
 extern Folder		folder_mysql_datadir;
 
 /** Initial size of a single-table tablespace in pages */
-#define FIL_IBD_FILE_INITIAL_SIZE	4
+#define FIL_IBD_FILE_INITIAL_SIZE	6
 
 /** 'null' (undefined) page offset in the context of file spaces */
 #define	FIL_NULL	ULINT32_UNDEFINED
@@ -388,10 +389,12 @@ operator<<(std::ostream& out, const fil_addr_t&	obj)
 
 /** The null file address */
 extern fil_addr_t	fil_addr_null;
+typedef	uint16_t	page_type_t;
 
 /** File page types (values of FIL_PAGE_TYPE) @{ */
 #define FIL_PAGE_INDEX		17855	/*!< B-tree node */
-#define FIL_PAGE_RTREE		17854	/*!< B-tree node */
+#define FIL_PAGE_RTREE		17854	/*!< R-tree node */
+#define FIL_PAGE_SDI		17853	/*!< Tablespace SDI Index page */
 #define FIL_PAGE_UNDO_LOG	2	/*!< Undo log page */
 #define FIL_PAGE_INODE		3	/*!< Index node */
 #define FIL_PAGE_IBUF_FREE_LIST	4	/*!< Insert buffer free list */
@@ -409,15 +412,18 @@ extern fil_addr_t	fil_addr_null;
 					in FIL_PAGE_TYPE is replaced with this
 					value when flushing pages. */
 #define FIL_PAGE_COMPRESSED	14	/*!< Compressed page */
+#define FIL_PAGE_SDI_BLOB	15	/*!< Uncompressed SDI BLOB page */
+#define FIL_PAGE_SDI_ZBLOB	16	/*!< Commpressed SDI BLOB page */
 
 /** Used by i_s.cc to index into the text description. */
-#define FIL_PAGE_TYPE_LAST	FIL_PAGE_TYPE_UNKNOWN
+#define FIL_PAGE_TYPE_LAST	FIL_PAGE_SDI_ZBLOB
 					/*!< Last page type */
 /* @} */
 
-/** macro to check whether the page type is index (Btree or Rtree) type */
+/** Check whether the page type is index (Btree or Rtree or SDI) type */
 #define fil_page_type_is_index(page_type)                          \
-        (page_type == FIL_PAGE_INDEX || page_type == FIL_PAGE_RTREE)
+	(page_type == FIL_PAGE_INDEX || page_type == FIL_PAGE_SDI  \
+	 || page_type == FIL_PAGE_RTREE)
 
 /** Check whether the page is index page (either regular Btree index or Rtree
 index */
@@ -571,6 +577,15 @@ ulint
 fil_space_get_flags(
 /*================*/
 	ulint	id);	/*!< in: space id */
+
+/** Sets the flags of the tablespace. The tablespace must be locked
+in MDL_EXCLUSIVE MODE.
+@param[in]	space	tablespace in-memory struct
+@param[in]	flags	tablespace flags */
+void
+fil_space_set_flags(
+	fil_space_t*	space,
+	ulint		flags);
 
 /** Open each file of a tablespace if not already open.
 @param[in]	space_id	tablespace identifier
@@ -1118,11 +1133,12 @@ fil_page_reset_type(
 @param[in]	page	file page
 @return page type */
 inline
-ulint
+page_type_t
 fil_page_get_type(
 	const byte*	page)
 {
-	return(mach_read_from_2(page + FIL_PAGE_TYPE));
+	return(static_cast<page_type_t>(
+			mach_read_from_2(page + FIL_PAGE_TYPE)));
 }
 /** Check (and if needed, reset) the page type.
 Data files created before MySQL 5.1 may contain

@@ -1179,6 +1179,14 @@ srv_open_tmp_tablespace(
 	return(err);
 }
 
+/** Create SDI Indexes in system tablespace. */
+static
+void
+srv_create_sdi_indexes()
+{
+	btr_sdi_create_indexes(SYSTEM_TABLE_SPACE, false);
+}
+
 /****************************************************************//**
 Set state to indicate start of particular group of threads in InnoDB. */
 UNIV_INLINE
@@ -1940,6 +1948,8 @@ files_checked:
 		if (err != DB_SUCCESS) {
 			return(srv_init_abort(err));
 		}
+
+		srv_create_sdi_indexes();
 
 		buf_flush_sync_all_buf_pools();
 

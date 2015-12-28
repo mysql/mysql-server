@@ -40,6 +40,8 @@ Created 9/17/2000 Heikki Tuuri
 #include "dict0crea.h"
 #include <sql_const.h>
 #include "dict0dict.h"
+#include "dict0priv.h"
+#include "dict0crea.h"
 #include "dict0load.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
@@ -4074,7 +4076,9 @@ row_drop_table_from_cache(
 	is going to be destroyed below. */
 	trx->mod_tables.erase(table);
 
+	/* Remove SDI tables of the tablespace from cache */
 	if (!dict_table_is_intrinsic(table)) {
+		dict_sdi_remove_from_cache(table->space, NULL, true);
 		dict_table_remove_from_cache(table);
 	} else {
 		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);

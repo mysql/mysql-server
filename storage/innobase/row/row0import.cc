@@ -42,6 +42,7 @@ Created 2012-02-08 by Sunny Bains.
 #include "srv0start.h"
 #include "row0quiesce.h"
 #include "ut0new.h"
+#include "dict0crea.h"
 
 #include <vector>
 
@@ -120,7 +121,8 @@ struct row_import {
 		m_col_names(),
 		m_n_indexes(),
 		m_indexes(),
-		m_missing(true) { }
+		m_missing(true),
+		m_has_sdi(false) { }
 
 	~row_import() UNIV_NOTHROW;
 
@@ -215,6 +217,8 @@ struct row_import {
 
 	bool		m_missing;		/*!< true if a .cfg file was
 						found and was readable */
+	bool		m_has_sdi;		/*!< true if tablespace has
+						SDI */
 };
 
 /** Use the page cursor to iterate over records in a block. */
@@ -565,7 +569,6 @@ AbstractCallback::init(
 	m_size  = mach_read_from_4(page + FSP_SIZE);
 	m_free_limit = mach_read_from_4(page + FSP_FREE_LIMIT);
 	m_space = mach_read_from_4(page + FSP_HEADER_OFFSET + FSP_SPACE_ID);
-
 	dberr_t	err = set_current_xdes(0, page);
 
 	return(err);
@@ -706,7 +709,9 @@ FetchIndexRootPages::operator() (
 
 		m_indexes.push_back(Index(id, block->page.id.page_no()));
 
-		if (m_indexes.size() == 1) {
+		/* Since there are SDI Indexes before normal indexes, we
+		check for FIL_PAGE_INDEX type. */
+		if (page_type == FIL_PAGE_INDEX) {
 
 			m_table_flags = fsp_flags_to_dict_tf(
 				m_space_flags,
@@ -730,6 +735,7 @@ FetchIndexRootPages::build_row_import(row_import* cfg) const UNIV_NOTHROW
 	ut_a(cfg->m_table == m_table);
 	cfg->m_page_size.copy_from(m_page_size);
 	cfg->m_n_indexes = m_indexes.size();
+	cfg->m_has_sdi = FSP_FLAGS_HAS_SDI(m_space_flags);
 
 	if (cfg->m_n_indexes == 0) {
 
@@ -1304,7 +1310,8 @@ row_import::match_schema(
 			 (ulong) m_table->n_cols, (ulong) m_n_cols);
 
 		return(DB_ERROR);
-	} else if (UT_LIST_GET_LEN(m_table->indexes) != m_n_indexes) {
+	} else if (UT_LIST_GET_LEN(m_table->indexes)
+		   + (m_has_sdi ? MAX_SDI_COPIES : 0) != m_n_indexes) {
 
 		/* If the number of indexes don't match then it is better
 		to abort the IMPORT. It is easy for the user to create a
@@ -1326,12 +1333,47 @@ row_import::match_schema(
 		return(err);
 	}
 
-	/* Check if the index definitions match. */
-
+	/* Check if the SDI index definitions match */
 	const dict_index_t* index;
 
+	if (m_has_sdi) {
+		for (uint32_t copy_num = 0; copy_num < MAX_SDI_COPIES;
+			++copy_num) {
+
+			dict_mutex_enter_for_mysql();
+
+			index = dict_sdi_get_index(m_table->space, copy_num);
+
+			if (index == NULL) {
+				dict_sdi_create_idx_in_mem(
+					m_table->space,
+					copy_num,
+					true,
+					dict_tf_to_fsp_flags(m_flags));
+
+				index = dict_sdi_get_index(
+					m_table->space, copy_num);
+			}
+
+			dict_mutex_exit_for_mysql();
+
+			ut_ad(index != NULL);
+
+			dberr_t	index_err = match_index_columns(thd, index);
+
+			if (index_err != DB_SUCCESS) {
+				err = index_err;
+			}
+		}
+	}
+
+	if (err != DB_SUCCESS) {
+		return(err);
+	}
+
+	/* Check if the index definitions match. */
 	for (index = UT_LIST_GET_FIRST(m_table->indexes);
-	     index != 0;
+	     index != NULL;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
 
 		dberr_t	index_err;
@@ -1352,9 +1394,29 @@ void
 row_import::set_root_by_name() UNIV_NOTHROW
 {
 	row_index_t*	cfg_index = m_indexes;
+	dict_index_t*	index;
+	ulint		i = 0;
+	ulint		normal_indexes_count = m_has_sdi
+		? (m_n_indexes - MAX_SDI_COPIES)
+		: m_n_indexes;
 
-	for (ulint i = 0; i < m_n_indexes; ++i, ++cfg_index) {
-		dict_index_t*	index;
+	if (m_has_sdi) {
+		for (ib_uint32_t copy_num = 0;
+			copy_num < MAX_SDI_COPIES && i < m_n_indexes;
+			++copy_num, ++i, ++cfg_index) {
+
+			dict_mutex_enter_for_mysql();
+			index = dict_sdi_get_index(
+				m_table->space, copy_num);
+			dict_mutex_exit_for_mysql();
+
+			ut_ad(index != 0);
+			index->space = m_table->space;
+			index->page = cfg_index->m_page_no;
+		}
+	}
+
+	for (i = 0; i < normal_indexes_count; ++i, ++cfg_index) {
 
 		const char*	index_name;
 
@@ -1383,10 +1445,11 @@ row_import::set_root_by_heuristic() UNIV_NOTHROW
 
 	// TODO: For now use brute force, based on ordinality
 
-	if (UT_LIST_GET_LEN(m_table->indexes) != m_n_indexes) {
-
+	ulint	num_indexes = UT_LIST_GET_LEN(m_table->indexes)
+		+ (m_has_sdi ? MAX_SDI_COPIES : 0);
+	if (num_indexes != m_n_indexes) {
 		ib::warn() << "Table " << m_table->name << " should have "
-			<< UT_LIST_GET_LEN(m_table->indexes) << " indexes but"
+			<< num_indexes  << " indexes but"
 			" the tablespace has " << m_n_indexes << " indexes";
 	}
 
@@ -1394,6 +1457,34 @@ row_import::set_root_by_heuristic() UNIV_NOTHROW
 
 	ulint	i = 0;
 	dberr_t	err = DB_SUCCESS;
+
+	if (m_has_sdi) {
+		for (uint32_t copy_num = 0;
+		     copy_num < MAX_SDI_COPIES && i < m_n_indexes;
+		     ++i, ++copy_num) {
+
+			dict_index_t*	index = dict_sdi_get_index(
+				m_table->space, copy_num);
+			ut_ad(index != 0);
+			UT_DELETE_ARRAY(cfg_index[i].m_name);
+
+			ulint	len = strlen(index->name) + 1;
+
+			cfg_index[i].m_name = UT_NEW_ARRAY_NOKEY(byte, len);
+
+			if (cfg_index[i].m_name == NULL) {
+				err = DB_OUT_OF_MEMORY;
+				break;
+			}
+
+			memcpy(cfg_index[i].m_name, index->name, len);
+
+			cfg_index[i].m_srv_index = index;
+
+			index->space = m_table->space;
+			index->page = cfg_index[i].m_page_no;
+		}
+	}
 
 	for (dict_index_t* index = UT_LIST_GET_FIRST(m_table->indexes);
 	     index != 0;
@@ -1428,7 +1519,6 @@ row_import::set_root_by_heuristic() UNIV_NOTHROW
 
 			index->space = m_table->space;
 			index->page = cfg_index[i].m_page_no;
-
 			++i;
 		}
 	}
@@ -1926,6 +2016,7 @@ PageConverter::update_page(
 
 	case FIL_PAGE_INDEX:
 	case FIL_PAGE_RTREE:
+	case FIL_PAGE_SDI:
 		/* We need to decompress the contents into block->frame
 		before we can do any thing with Btree pages. */
 
@@ -1956,6 +2047,8 @@ PageConverter::update_page(
 	case FIL_PAGE_TYPE_BLOB:
 	case FIL_PAGE_TYPE_ZBLOB:
 	case FIL_PAGE_TYPE_ZBLOB2:
+	case FIL_PAGE_SDI_BLOB:
+	case FIL_PAGE_SDI_ZBLOB:
 
 		/* Work directly on the uncompressed page headers. */
 		/* This is on every page in the tablespace. */
@@ -3032,12 +3125,61 @@ row_import_read_v1(
 
 		return(DB_CORRUPTION);
 
-	} else if ((err = row_import_read_columns(file, thd, cfg))
+	}
+
+	return(err);
+}
+
+/** Read tablespace flags from <tablespace>.cfg file
+@param[in]	file	File to read from
+@param[in]	thd	session
+@param[in,out]	cfg	meta data
+@return DB_SUCCESS or error code. */
+static	__attribute__((nonnull, warn_unused_result))
+dberr_t
+row_import_read_v2(
+	FILE*		file,
+	THD*		thd,
+	row_import*	cfg)
+{
+	byte		value[sizeof(uint32_t)];
+
+	/* Read the tablespace flags */
+	if (fread(value, 1, sizeof(value), file) != sizeof(value)) {
+		ib_senderrf(
+			thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
+			errno, strerror(errno),
+			"while reading meta-data tablespace flags.");
+
+		return(DB_IO_ERROR);
+	}
+
+	ulint	space_flags  = mach_read_from_4(value);
+	ut_ad(space_flags != ULINT_UNDEFINED);
+	cfg->m_has_sdi = FSP_FLAGS_HAS_SDI(space_flags);
+
+	return(DB_SUCCESS);
+}
+
+/** Read the contents of the <tablespace>.cfg file
+@param[in]	file	File to read from
+@param[in]	thd	session
+@param[in,out]	cfg	meta data
+@return DB_SUCCESS or error code. */
+static	__attribute__((nonnull, warn_unused_result))
+dberr_t
+row_import_read_common(
+	FILE*		file,
+	THD*		thd,
+	row_import*	cfg)
+{
+	dberr_t	err;
+	if ((err = row_import_read_columns(file, thd, cfg))
 		   != DB_SUCCESS) {
 
 		return(err);
 
-	} else  if ((err = row_import_read_indexes(file, thd, cfg))
+	} else if ((err = row_import_read_indexes(file, thd, cfg))
 		   != DB_SUCCESS) {
 
 		return(err);
@@ -3078,9 +3220,25 @@ row_import_read_meta_data(
 
 	/* Check the version number. */
 	switch (cfg.m_version) {
+	dberr_t	err;
 	case IB_EXPORT_CFG_VERSION_V1:
+		err = row_import_read_v1(file, thd, &cfg);
+		if (err == DB_SUCCESS) {
+			err = row_import_read_common(file, thd, &cfg);
+		}
+		return(err);
 
-		return(row_import_read_v1(file, thd, &cfg));
+	case IB_EXPORT_CFG_VERSION_V2:
+		err = row_import_read_v1(file, thd, &cfg);
+
+		if (err == DB_SUCCESS) {
+			err = row_import_read_v2(file, thd, &cfg);
+		}
+
+		if (err == DB_SUCCESS) {
+			err = row_import_read_common(file, thd, &cfg);
+		}
+		return(err);
 	default:
 		ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
 			"Unsupported meta-data version number (%lu),"

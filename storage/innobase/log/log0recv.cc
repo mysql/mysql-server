@@ -1459,7 +1459,38 @@ recv_parse_or_apply_log_rec_body(
 		/* The LSN is checked in recv_parse_log_rec(). */
 		break;
 #endif /* UNIV_LOG_LSN_DEBUG */
-	case MLOG_1BYTE: case MLOG_2BYTES: case MLOG_4BYTES: case MLOG_8BYTES:
+	case MLOG_4BYTES:
+		ut_ad(page == NULL || end_ptr > ptr + 2);
+
+		/* Most FSP flags can only be changed by CREATE or ALTER with
+		ALGORITHM=COPY, so they do not change once the file
+		is created. The SDI flag is the only one that can be
+		changed by a recoverable transaction. So if there is
+		change in FSP flags, update the in-memory space structure
+		(fil_space_t) */
+		if (page != NULL && page_no == 0
+		    && mach_read_from_2(ptr)
+		    == FSP_HEADER_OFFSET + FSP_SPACE_FLAGS) {
+			ptr = mlog_parse_nbytes(
+				MLOG_4BYTES, ptr, end_ptr, page, page_zip);
+			/* When applying log, we have complete records.
+			They can be incomplete (ptr=NULL) only during
+			scanning (page==NULL) */
+			ut_ad(ptr != NULL);
+			fil_space_t*	space = fil_space_acquire(space_id);
+			ut_ad(space != NULL);
+
+			fil_space_set_flags(
+				space, mach_read_from_4(
+					FSP_HEADER_OFFSET
+					+ FSP_SPACE_FLAGS
+					+ page));
+
+			fil_space_release(space);
+			break;
+		}
+		// fall through
+	case MLOG_1BYTE: case MLOG_2BYTES: case MLOG_8BYTES:
 #ifdef UNIV_DEBUG
 		if (page && page_type == FIL_PAGE_TYPE_ALLOCATED
 		    && end_ptr >= ptr + 2) {
@@ -1679,11 +1710,16 @@ recv_parse_or_apply_log_rec_body(
 	case MLOG_PAGE_CREATE: case MLOG_COMP_PAGE_CREATE:
 		/* Allow anything in page_type when creating a page. */
 		ut_a(!page_zip);
-		page_parse_create(block, type == MLOG_COMP_PAGE_CREATE, false);
+		page_parse_create(block, type == MLOG_COMP_PAGE_CREATE,
+				  FIL_PAGE_INDEX);
 		break;
 	case MLOG_PAGE_CREATE_RTREE: case MLOG_COMP_PAGE_CREATE_RTREE:
 		page_parse_create(block, type == MLOG_COMP_PAGE_CREATE_RTREE,
-				  true);
+				  FIL_PAGE_RTREE);
+		break;
+	case MLOG_PAGE_CREATE_SDI: case MLOG_COMP_PAGE_CREATE_SDI:
+		page_parse_create(block, type == MLOG_COMP_PAGE_CREATE_SDI,
+				  FIL_PAGE_SDI);
 		break;
 	case MLOG_UNDO_INSERT:
 		ut_ad(!page || page_type == FIL_PAGE_UNDO_LOG);
@@ -4336,6 +4372,12 @@ get_mlog_string(mlog_id_t type)
 
 	case MLOG_TABLE_DYNAMIC_META:
 		return("MLOG_TABLE_DYNAMIC_META");
+
+	case MLOG_PAGE_CREATE_SDI:
+		return("MLOG_PAGE_CREATE_SDI");
+
+	case MLOG_COMP_PAGE_CREATE_SDI:
+		return("MLOG_COMP_PAGE_CREATE_SDI");
 	}
 	DBUG_ASSERT(0);
 	return(NULL);

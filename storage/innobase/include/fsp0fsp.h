@@ -747,6 +747,47 @@ xdes_calc_descriptor_page(
 	const page_size_t&	page_size,
 	ulint			offset);
 
+/** Gets a pointer to the space header and x-locks its page.
+@param[in]	id		space id
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
+@return pointer to the space header, page x-locked */
+fsp_header_t*
+fsp_get_space_header(
+	ulint			id,
+	const page_size_t&	page_size,
+	mtr_t*			mtr);
+
+/** Retrieve tablespace dictionary index root page number stored in the
+page 1.
+@param[in]	space		tablespace id
+@param[in]	copy_num	sdi index copy number
+@parm[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
+@return root page num of the tablespace dictionary index copy */
+ulint
+fsp_sdi_get_root_page_num(
+	ulint			space,
+	ulint			copy_num,
+	const page_size_t&	page_size,
+	mtr_t*			mtr);
+
+/** Write SDI Index root page num to page 1 or 2 of tablespace
+@param[in]	space		tablespace id
+@param[in]	page_num	page number in tablespace.
+@param[in]	page_size	size of page
+@param[in]	root_page_num_0	root page number of SDI copy 0
+@param[in]	root_page_num_1	root page number of SDI copy 1
+@param[in,out]	mtr		mini-transaction */
+void
+fsp_sdi_write_root_to_page(
+	ulint			space,
+	ulint			page_num,
+	const page_size_t&	page_size,
+	ulint			root_page_num_0,
+	ulint			root_page_num_1,
+	mtr_t*			mtr);
+
 #ifndef UNIV_NONINL
 #include "fsp0fsp.ic"
 #endif

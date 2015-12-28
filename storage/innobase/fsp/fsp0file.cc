@@ -397,10 +397,14 @@ Datafile::validate_to_dd(
 	/* Make sure the datafile we found matched the space ID.
 	If the datafile is a file-per-table tablespace then also match
 	the row format and zip page size. */
+
+	/* We exclude SDI & DATA_DIR space flags because they are not stored
+	in table flags in dictionary */
+
 	if (m_space_id == space_id
-	    && (m_flags & FSP_FLAGS_MASK_SHARED
-	        || (m_flags & ~FSP_FLAGS_MASK_DATA_DIR)
-	            == (flags & ~FSP_FLAGS_MASK_DATA_DIR))) {
+	    && !((m_flags ^ flags)
+		& ~(FSP_FLAGS_MASK_DATA_DIR
+		    | FSP_FLAGS_MASK_SHARED | FSP_FLAGS_MASK_SDI))) {
 		/* Datafile matches the tablespace expected. */
 		return(DB_SUCCESS);
 	}

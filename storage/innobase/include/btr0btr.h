@@ -696,6 +696,15 @@ btr_validate_index(
 	bool		lockout)/*!< in: true if X-latch index is intended */
 	__attribute__((warn_unused_result));
 
+/** Creates SDI indexes and stores the root page numbers in page 1 & 2
+@param[in]	space_id	tablespace id
+@param[in]	dict_locked	true if dict_sys mutex is acquired
+@return DB_SUCCESS on success, else DB_ERROR on failure */
+dberr_t
+btr_sdi_create_indexes(
+	ulint	space_id,
+	bool	dict_locked);
+
 #define BTR_N_LEAF_PAGES	1
 #define BTR_TOTAL_SIZE		2
 #endif /* !UNIV_HOTBACKUP */

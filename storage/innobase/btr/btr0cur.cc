@@ -6969,10 +6969,18 @@ btr_store_big_rec_extern_fields(
 				FIL_PAGE_TYPE was logged as part of
 				the mlog_log_string() below. */
 
+				page_type_t	page_type;
+
+				if (dict_index_is_sdi(index)) {
+					page_type = FIL_PAGE_SDI_ZBLOB;
+				} else if (prev_page_no == FIL_NULL) {
+					page_type = FIL_PAGE_TYPE_ZBLOB;
+				} else {
+					page_type = FIL_PAGE_TYPE_ZBLOB2;
+				}
+
 				mlog_write_ulint(page + FIL_PAGE_TYPE,
-						 prev_page_no == FIL_NULL
-						 ? FIL_PAGE_TYPE_ZBLOB
-						 : FIL_PAGE_TYPE_ZBLOB2,
+						 page_type,
 						 MLOG_2BYTES, &mtr);
 
 				c_stream.next_out = page
@@ -7078,8 +7086,13 @@ next_zip_page:
 					break;
 				}
 			} else {
+				page_type_t	page_type =
+					dict_index_is_sdi(index)
+					? FIL_PAGE_SDI_BLOB
+					: FIL_PAGE_TYPE_BLOB;
+
 				mlog_write_ulint(page + FIL_PAGE_TYPE,
-						 FIL_PAGE_TYPE_BLOB,
+						 page_type,
 						 MLOG_2BYTES, &mtr);
 
 				if (extern_len > payload_size) {
@@ -7184,9 +7197,14 @@ btr_check_blob_fil_page_type(
 	ut_a(space_id == page_get_space_id(page));
 	ut_a(page_no == page_get_page_no(page));
 
-	if (UNIV_UNLIKELY(type != FIL_PAGE_TYPE_BLOB)) {
-		ulint	flags = fil_space_get_flags(space_id);
+	switch (type) {
+		ulint	flags;
+	case FIL_PAGE_TYPE_BLOB:
+	case FIL_PAGE_SDI_BLOB:
+		break;
 
+	default:
+		flags = fil_space_get_flags(space_id);
 #ifndef UNIV_DEBUG /* Improve debug test coverage */
 		if (!DICT_TF_HAS_ATOMIC_BLOBS(flags)) {
 			/* Old versions of InnoDB did not initialize
@@ -7335,6 +7353,7 @@ btr_free_externally_stored_field(
 			switch (fil_page_get_type(page)) {
 			case FIL_PAGE_TYPE_ZBLOB:
 			case FIL_PAGE_TYPE_ZBLOB2:
+			case FIL_PAGE_SDI_ZBLOB:
 				break;
 			default:
 				ut_error;
@@ -7521,6 +7540,28 @@ btr_copy_blob_prefix(
 	}
 }
 
+#ifdef UNIV_DEBUG
+# define btr_copy_zblob_prefix(						\
+		buf, len, page_size, space_id, page_no, is_sdi, offset)	\
+	btr_copy_zblob_prefix_func(					\
+		buf, len, page_size, space_id, page_no, is_sdi, offset)
+
+# define btr_copy_externally_stored_field_prefix_low(			\
+		buf, len, page_size, space_id, page_no, is_sdi, offset)	\
+	btr_copy_externally_stored_field_prefix_low_func(		\
+		buf, len, page_size, space_id, page_no, is_sdi, offset)
+#else /* UNIV_DEBUG */
+# define btr_copy_zblob_prefix(						\
+		buf, len, page_size, space_id, page_no, is_sdi, offset)	\
+	btr_copy_zblob_prefix_func(					\
+		buf, len, page_size, space_id, page_no, offset)
+
+# define btr_copy_externally_stored_field_prefix_low(			\
+		buf, len, page_size, space_id, page_no, is_sdi, offset)	\
+	btr_copy_externally_stored_field_prefix_low_func(		\
+		buf, len, page_size, space_id, page_no, offset)
+#endif /* UNIV_DEBUG */
+
 /** Copies the prefix of a compressed BLOB.
 The clustered index record that points to this BLOB must be protected
 by a lock or a page latch.
@@ -7529,20 +7570,23 @@ by a lock or a page latch.
 @param[in]	len		length of buf, in bytes
 @param[in]	page_size	compressed BLOB page size
 @param[in]	space_id	space id of the BLOB pages
+@param[in]	is_sdi		true for SDI Indexes
 @param[in]	page_no		page number of the first BLOB page
 @param[in]	offset		offset on the first BLOB page
 @return number of bytes written to buf */
 static
 ulint
-btr_copy_zblob_prefix(
+btr_copy_zblob_prefix_func(
 	byte*			buf,
 	ulint			len,
 	const page_size_t&	page_size,
 	ulint			space_id,
 	ulint			page_no,
+#ifdef UNIV_DEBUG
+	bool			is_sdi,
+#endif /* UNIV_DEBUG */
 	ulint			offset)
 {
-	ulint		page_type = FIL_PAGE_TYPE_ZBLOB;
 	mem_heap_t*	heap;
 	int		err;
 	z_stream	d_stream;
@@ -7551,6 +7595,12 @@ btr_copy_zblob_prefix(
 	d_stream.avail_out = static_cast<uInt>(len);
 	d_stream.next_in = Z_NULL;
 	d_stream.avail_in = 0;
+
+#ifdef UNIV_DEBUG
+	page_type_t	page_type_ex = is_sdi
+		? FIL_PAGE_SDI_ZBLOB
+		: FIL_PAGE_TYPE_ZBLOB;
+#endif /* UNIV_DEBUG */
 
 	/* Zlib inflate needs 32 kilobytes for the default
 	window size, plus a few kilobytes for small objects. */
@@ -7580,17 +7630,18 @@ btr_copy_zblob_prefix(
 			goto func_exit;
 		}
 
-		if (UNIV_UNLIKELY
-		    (fil_page_get_type(bpage->zip.data) != page_type)) {
-
+#ifdef UNIV_DEBUG
+		ulint page_type = fil_page_get_type(bpage->zip.data);
+		if (page_type != page_type_ex) {
 			ib::error() << "Unexpected type "
-				<< fil_page_get_type(bpage->zip.data)
+				<< page_type
 				<< " of compressed BLOB page "
 				<< page_id_t(space_id, page_no);
 
 			ut_ad(0);
 			goto end_of_blob;
 		}
+#endif /* UNIV_DEBUG */
 
 		next_page_no = mach_read_from_4(bpage->zip.data + offset);
 
@@ -7659,7 +7710,13 @@ end_of_blob:
 
 		page_no = next_page_no;
 		offset = FIL_PAGE_NEXT;
-		page_type = FIL_PAGE_TYPE_ZBLOB2;
+
+#ifdef UNIV_DEBUG
+		if (!is_sdi) {
+			page_type_ex = FIL_PAGE_TYPE_ZBLOB2;
+		}
+#endif /* UNIV_DEBUG */
+
 	}
 
 func_exit:
@@ -7678,16 +7735,20 @@ field, or a prefix of it
 @param[in]	page_size	BLOB page size
 @param[in]	space_id	space id of the first BLOB page
 @param[in]	page_no		page number of the first BLOB page
+@param[in]	is_sdi		true for SDI Indexes
 @param[in]	offset		offset on the first BLOB page
 @return number of bytes written to buf */
 static
 ulint
-btr_copy_externally_stored_field_prefix_low(
+btr_copy_externally_stored_field_prefix_low_func(
 	byte*			buf,
 	ulint			len,
 	const page_size_t&	page_size,
 	ulint			space_id,
 	ulint			page_no,
+#ifdef UNIV_DEBUG
+	bool			is_sdi,
+#endif /* UNIV_DEBUG */
 	ulint			offset)
 {
 	if (len == 0) {
@@ -7695,8 +7756,9 @@ btr_copy_externally_stored_field_prefix_low(
 	}
 
 	if (page_size.is_compressed()) {
-		return(btr_copy_zblob_prefix(buf, len, page_size,
-					     space_id, page_no, offset));
+		return(btr_copy_zblob_prefix(
+			buf, len, page_size, space_id, page_no, is_sdi,
+			offset));
 	} else {
 		ut_ad(page_size.equals_to(univ_page_size));
 		return(btr_copy_blob_prefix(buf, len, space_id,
@@ -7712,15 +7774,19 @@ The clustered index record must be protected by a lock or a page latch.
 @param[in]	data		'internally' stored part of the field
 containing also the reference to the external part; must be protected by
 a lock or a page latch
+@param[in]	is_sdi		true for SDI indexes
 @param[in]	local_len	length of data, in bytes
 @return the length of the copied field, or 0 if the column was being
 or has been deleted */
 ulint
-btr_copy_externally_stored_field_prefix(
+btr_copy_externally_stored_field_prefix_func(
 	byte*			buf,
 	ulint			len,
 	const page_size_t&	page_size,
 	const byte*		data,
+#ifdef UNIV_DEBUG
+	bool			is_sdi,
+#endif /* UNIV_DEBUG */
 	ulint			local_len)
 {
 	ulint	space_id;
@@ -7760,7 +7826,7 @@ btr_copy_externally_stored_field_prefix(
 							     len - local_len,
 							     page_size,
 							     space_id, page_no,
-							     offset));
+							     is_sdi, offset));
 }
 
 /** Copies an externally stored field of a record to mem heap.
@@ -7771,14 +7837,18 @@ containing also the reference to the external part; must be protected by
 a lock or a page latch
 @param[in]	page_size	BLOB page size
 @param[in]	local_len	length of data
+@param[in]	is_sdi		true for SDI Indexes
 @param[in,out]	heap		mem heap
 @return the whole field copied to heap */
 byte*
-btr_copy_externally_stored_field(
+btr_copy_externally_stored_field_func(
 	ulint*			len,
 	const byte*		data,
 	const page_size_t&	page_size,
 	ulint			local_len,
+#ifdef UNIV_DEBUG
+	bool			is_sdi,
+#endif /* UNIV_DEBUG */
 	mem_heap_t*		heap)
 {
 	ulint	space_id;
@@ -7810,7 +7880,8 @@ btr_copy_externally_stored_field(
 							      extern_len,
 							      page_size,
 							      space_id,
-							      page_no, offset);
+							      page_no, is_sdi,
+							      offset);
 
 	return(buf);
 }
@@ -7822,15 +7893,19 @@ btr_copy_externally_stored_field(
 @param[in]	page_size	BLOB page size
 @param[in]	no		field number
 @param[out]	len		length of the field
+@param[in]	is_sdi		true for SDI Indexes
 @param[in,out]	heap		mem heap
 @return the field copied to heap, or NULL if the field is incomplete */
 byte*
-btr_rec_copy_externally_stored_field(
+btr_rec_copy_externally_stored_field_func(
 	const rec_t*		rec,
 	const ulint*		offsets,
 	const page_size_t&	page_size,
 	ulint			no,
 	ulint*			len,
+#ifdef UNIV_DEBUG
+	bool			is_sdi,
+#endif /* UNIV_DEBUG */
 	mem_heap_t*		heap)
 {
 	ulint		local_len;
@@ -7862,6 +7937,7 @@ btr_rec_copy_externally_stored_field(
 	}
 
 	return(btr_copy_externally_stored_field(len, data,
-						page_size, local_len, heap));
+						page_size, local_len, is_sdi,
+						heap));
 }
 #endif /* !UNIV_HOTBACKUP */

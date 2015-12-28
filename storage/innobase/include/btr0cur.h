@@ -763,6 +763,39 @@ btr_free_externally_stored_field(
 					ignored if rec == NULL */
 	bool		rollback,	/*!< in: performing rollback? */
 	mtr_t*		local_mtr);	/*!< in: mtr containing the latch */
+
+#ifdef UNIV_DEBUG
+# define btr_copy_externally_stored_field_prefix(		\
+		buf, len, page_size, data, is_sdi, local_len)	\
+	btr_copy_externally_stored_field_prefix_func(		\
+		buf, len, page_size, data, is_sdi, local_len)
+
+# define btr_copy_externally_stored_field(			\
+		len, data, page_size, local_len, is_sdi, heap)	\
+	btr_copy_externally_stored_field_func(			\
+		len, data, page_size, local_len, is_sdi, heap)
+
+# define btr_rec_copy_externally_stored_field(			\
+	rec, offsets, page_size, no, len, is_sdi, heap)		\
+	btr_rec_copy_externally_stored_field_func(		\
+	rec, offsets, page_size, no, len, is_sdi, heap)
+#else /* UNIV_DEBUG */
+# define btr_copy_externally_stored_field_prefix(		\
+		buf, len, page_size, data, is_sdi, local_len)	\
+	btr_copy_externally_stored_field_prefix_func(		\
+		buf, len, page_size, data, local_len)
+
+# define btr_copy_externally_stored_field(			\
+		len, data, page_size, local_len, is_sdi, heap)	\
+	btr_copy_externally_stored_field_func(			\
+		len, data, page_size, local_len, heap)
+
+# define btr_rec_copy_externally_stored_field(			\
+	rec, offsets, page_size, no, len, is_sdi, heap)		\
+	btr_rec_copy_externally_stored_field_func(		\
+	rec, offsets, page_size, no, len, heap)
+#endif /* UNIV_DEBUG */
+
 /** Copies the prefix of an externally stored field of a record.
 The clustered index record must be protected by a lock or a page latch.
 @param[out]	buf		the field, or a prefix of it
@@ -771,15 +804,19 @@ The clustered index record must be protected by a lock or a page latch.
 @param[in]	data		'internally' stored part of the field
 containing also the reference to the external part; must be protected by
 a lock or a page latch
+@param[in]	is_sdi		true for SDI indexes
 @param[in]	local_len	length of data, in bytes
 @return the length of the copied field, or 0 if the column was being
 or has been deleted */
 ulint
-btr_copy_externally_stored_field_prefix(
+btr_copy_externally_stored_field_prefix_func(
 	byte*			buf,
 	ulint			len,
 	const page_size_t&	page_size,
 	const byte*		data,
+#ifdef UNIV_DEBUG
+	bool			is_sdi,
+#endif /* UNIV_DEBUG */
 	ulint			local_len);
 
 /** Copies an externally stored field of a record to mem heap.
@@ -790,14 +827,18 @@ containing also the reference to the external part; must be protected by
 a lock or a page latch
 @param[in]	page_size	BLOB page size
 @param[in]	local_len	length of data
+@param[in]	is_sdi		true for SDI Indexes
 @param[in,out]	heap		mem heap
 @return the whole field copied to heap */
 byte*
-btr_copy_externally_stored_field(
+btr_copy_externally_stored_field_func(
 	ulint*			len,
 	const byte*		data,
 	const page_size_t&	page_size,
 	ulint			local_len,
+#ifdef UNIV_DEBUG
+	bool			is_sdi,
+#endif /* UNIV_DEBUG */
 	mem_heap_t*		heap);
 
 /** Copies an externally stored field of a record to mem heap.
@@ -807,15 +848,19 @@ btr_copy_externally_stored_field(
 @param[in]	page_size	BLOB page size
 @param[in]	no		field number
 @param[out]	len		length of the field
+@param[in]	is_sdi		true for SDI Indexes
 @param[in,out]	heap		mem heap
 @return the field copied to heap, or NULL if the field is incomplete */
 byte*
-btr_rec_copy_externally_stored_field(
+btr_rec_copy_externally_stored_field_func(
 	const rec_t*		rec,
 	const ulint*		offsets,
 	const page_size_t&	page_size,
 	ulint			no,
 	ulint*			len,
+#ifdef UNIV_DEBUG
+	bool			is_sdi,
+#endif /* UNIV_DEBUG */
 	mem_heap_t*		heap);
 
 /*******************************************************************//**

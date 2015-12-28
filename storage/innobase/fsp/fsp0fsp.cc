@@ -196,7 +196,6 @@ xdes_get_segment_id(
 @param[in]	page_size	page size
 @param[in,out]	mtr		mini-transaction
 @return pointer to the space header, page x-locked */
-UNIV_INLINE
 fsp_header_t*
 fsp_get_space_header(
 	ulint			id,
@@ -316,7 +315,7 @@ fsp_flags_is_valid(
 		return(false);
 	}
 
-#if FSP_FLAGS_POS_UNUSED != 13
+#if FSP_FLAGS_POS_UNUSED != 14
 # error You have added a new FSP_FLAG without adding a validation check.
 #endif
 
@@ -3999,6 +3998,88 @@ fseg_print(
 	fseg_print_low(inode, mtr);
 }
 #endif /* UNIV_BTR_PRINT */
+
+/** Retrieve tablespace dictionary index root page number stored in the
+page 1
+@param[in]	space		tablespace id
+@param[in]	copy_num	sdi index copy number
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
+@return root page num of the tablspace dictionary index copy */
+ulint
+fsp_sdi_get_root_page_num(
+	ulint			space,
+	ulint			copy_num,
+	const page_size_t&	page_size,
+	mtr_t*			mtr)
+{
+	ut_ad(mtr != NULL);
+	ut_ad(copy_num < MAX_SDI_COPIES);
+
+	buf_block_t*	block2 = buf_page_get(
+		page_id_t(space, 2), page_size, RW_S_LATCH, mtr);
+	buf_block_dbg_add_level(block2, SYNC_FSP_PAGE);
+
+	page_t*	page2 = buf_block_get_frame(block2);
+
+	ulint	root_from_page2 = mach_read_from_4(
+		page2 + FIL_SDI_ROOT_PAGE_NUM + 4 * copy_num);
+
+	buf_block_t*	block1 = buf_page_get(
+		page_id_t(space, 1), page_size, RW_S_LATCH, mtr);
+	buf_block_dbg_add_level(block1, SYNC_IBUF_BITMAP);
+
+	page_t*	page1 = buf_block_get_frame(block1);
+
+	ulint	root_from_page1 = mach_read_from_4(
+		page1 + FIL_SDI_ROOT_PAGE_NUM + 4 * copy_num);
+
+	if (root_from_page1 != root_from_page2) {
+		ib::error() << "SDI Root page number for copy number "
+			<< copy_num << " mismatches. From page 1: "
+			<< root_from_page1 << " From page 2: "
+			<< root_from_page2;
+		ut_ad(0);
+	}
+
+	return(root_from_page1);
+}
+
+/** Write SDI Index root page num to page 1 or 2 of tablespace.
+@param[in]	space		tablespace id
+@param[in]	page_num	page number in tablespace
+@param[in]	page_size	size of page
+@param[in]	root_page_num_0	root page number of SDI copy 0
+@param[in]	root_page_num_1	root page number of SDI copy 1
+@param[in,out]	mtr		mini-transaction */
+void
+fsp_sdi_write_root_to_page(
+	ulint			space,
+	ulint			page_num,
+	const page_size_t&	page_size,
+	ulint			root_page_num_0,
+	ulint			root_page_num_1,
+	mtr_t*			mtr)
+{
+	/* We store SDI Index root page numbers only in page 1 & 2 of a
+	tablespace */
+	ut_ad(page_num == FSP_IBUF_BITMAP_OFFSET
+	      || page_num == FSP_FIRST_INODE_PAGE_NO);
+
+	buf_block_t*	block = buf_page_get(page_id_t(space, page_num),
+					     page_size, RW_SX_LATCH, mtr);
+
+	buf_block_dbg_add_level(block, page_num == FSP_IBUF_BITMAP_OFFSET
+		? SYNC_IBUF_BITMAP : SYNC_FSP_PAGE);
+
+	page_t*	page = buf_block_get_frame(block);
+
+	mlog_write_ulint(FIL_SDI_ROOT_PAGE_NUM + page,
+			 root_page_num_0, MLOG_4BYTES, mtr);
+
+	mlog_write_ulint(FIL_SDI_ROOT_PAGE_NUM + page + 4,
+			 root_page_num_1, MLOG_4BYTES, mtr);
+}
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG

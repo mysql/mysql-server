@@ -988,6 +988,28 @@ row_upd_build_difference_binary(
 	return(update);
 }
 
+#ifdef UNIV_DEBUG
+# define row_upd_ext_fetch(						\
+		data, local_len, page_size, len, is_sdi, heap)		\
+	row_upd_ext_fetch_func(						\
+		data, local_len, page_size, len, is_sdi, heap)
+
+# define row_upd_index_replace_new_col_val(				\
+		dfield, field, col, uf, heap, is_sdi, page_size)	\
+	row_upd_index_replace_new_col_val_func(				\
+		dfield, field, col, uf, heap, is_sdi, page_size)
+#else /* UNIV_DEBUG */
+# define row_upd_ext_fetch(						\
+		data, local_len, page_size, len, is_sdi, heap)		\
+	row_upd_ext_fetch_func(						\
+		data, local_len, page_size, len, heap)
+
+# define row_upd_index_replace_new_col_val(				\
+		dfield, field, col, uf, heap, is_sdi, page_size)	\
+	row_upd_index_replace_new_col_val_func(				\
+		dfield, field, col, uf, heap, page_size)
+#endif /* UNIV_DEBUG */
+
 /** Fetch a prefix of an externally stored column.
 This is similar to row_ext_lookup(), but the row_ext_t holds the old values
 of the column and must not be poisoned with the new values.
@@ -997,21 +1019,25 @@ containing also the reference to the external part
 @param[in]	page_size	BLOB page size
 @param[in,out]	len		input - length of prefix to
 fetch; output: fetched length of the prefix
+@param[in]	is_sdi		true for SDI indexes
 @param[in,out]	heap		heap where to allocate
 @return BLOB prefix */
 static
 byte*
-row_upd_ext_fetch(
+row_upd_ext_fetch_func(
 	const byte*		data,
 	ulint			local_len,
 	const page_size_t&	page_size,
 	ulint*			len,
+#ifdef UNIV_DEBUG
+	bool			is_sdi,
+#endif /* UNIV_DEBUG */
 	mem_heap_t*		heap)
 {
 	byte*	buf = static_cast<byte*>(mem_heap_alloc(heap, *len));
 
 	*len = btr_copy_externally_stored_field_prefix(
-		buf, *len, page_size, data, local_len);
+		buf, *len, page_size, data, is_sdi, local_len);
 
 	/* We should never update records containing a half-deleted BLOB. */
 	ut_a(*len);
@@ -1027,15 +1053,19 @@ the given index entry field.
 @param[in]	uf		update field
 @param[in,out]	heap		memory heap for allocating and copying
 the new value
+@param[in]	is_sdi		true for SDI indexes
 @param[in]	page_size	page size */
 static
 void
-row_upd_index_replace_new_col_val(
+row_upd_index_replace_new_col_val_func(
 	dfield_t*		dfield,
 	const dict_field_t*	field,
 	const dict_col_t*	col,
 	const upd_field_t*	uf,
 	mem_heap_t*		heap,
+#ifdef UNIV_DEBUG
+	bool			is_sdi,
+#endif /* UNIV_DEBUG */
 	const page_size_t&	page_size)
 {
 	ulint		len;
@@ -1061,7 +1091,7 @@ row_upd_index_replace_new_col_val(
 			len = field->prefix_len;
 
 			data = row_upd_ext_fetch(data, l, page_size,
-						 &len, heap);
+						 &len, is_sdi, heap);
 		}
 
 		len = dtype_get_at_most_n_mbchars(col->prtype,
@@ -1175,7 +1205,9 @@ row_upd_index_replace_new_col_vals_index_pos(
 		if (uf) {
 			row_upd_index_replace_new_col_val(
 				dtuple_get_nth_field(entry, i),
-				field, col, uf, heap, page_size);
+				field, col, uf, heap,
+				dict_index_is_sdi(index),
+				page_size);
 		}
 	}
 }
@@ -1231,7 +1263,9 @@ row_upd_index_replace_new_col_vals(
 		if (uf) {
 			row_upd_index_replace_new_col_val(
 				dtuple_get_nth_field(entry, i),
-				field, col, uf, heap, page_size);
+				field, col, uf, heap,
+				dict_index_is_sdi(index),
+				page_size);
 		}
 	}
 }
@@ -1453,7 +1487,7 @@ row_upd_replace(
 
 	if (n_ext_cols) {
 		*ext = row_ext_create(n_ext_cols, ext_cols, table->flags, row,
-				      heap);
+				      dict_index_is_sdi(index), heap);
 	} else {
 		*ext = NULL;
 	}
@@ -1584,6 +1618,7 @@ row_upd_changes_ord_field_binary_func(
 					&dlen, dptr,
 					page_size,
 					flen,
+					false,
 					temp_heap);
 			} else {
 				dptr = static_cast<uchar*>(dfield->data);
@@ -1625,6 +1660,7 @@ row_upd_changes_ord_field_binary_func(
 					&dlen, dptr,
 					page_size,
 					flen,
+					dict_table_is_sdi(index->table->id),
 					temp_heap);
 			} else {
 				dptr = static_cast<uchar*>(upd_field->new_val.data);

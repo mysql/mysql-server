@@ -127,6 +127,12 @@ dict_hdr_get_new_id(
 	if (table_id) {
 		id = mach_read_from_8(dict_hdr + DICT_HDR_TABLE_ID);
 		id++;
+
+		if (id >= dict_sdi_get_table_id(0, 1)) {
+			id = DICT_HDR_FIRST_ID;
+			ut_ad(0); // WL#7141 TODO: handle wrap-around
+		}
+
 		mlog_write_ull(dict_hdr + DICT_HDR_TABLE_ID, id, &mtr);
 		*table_id = id;
 	}

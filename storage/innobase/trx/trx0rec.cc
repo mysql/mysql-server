@@ -700,27 +700,58 @@ trx_undo_rec_skip_row_ref(
 	return(ptr);
 }
 
+#ifdef UNIV_DEBUG
+# define trx_undo_page_fetch_ext(					\
+		ext_buf, prefix_len, page_size, field, is_sdi, len)	\
+	trx_undo_page_fetch_ext_func(					\
+		ext_buf, prefix_len, page_size, field, is_sdi, len)
+
+# define trx_undo_page_report_modify_ext(				\
+		ptr, ext_buf, prefix_len, page_size, field, len,	\
+		is_sdi, spatial_status)					\
+	trx_undo_page_report_modify_ext_func(				\
+		ptr, ext_buf, prefix_len, page_size, field, len,	\
+		is_sdi, spatial_status)
+#else /* UNIV_DEBUG */
+# define trx_undo_page_fetch_ext(					\
+		ext_buf, prefix_len, page_size, field, is_sdi, len)	\
+	trx_undo_page_fetch_ext_func(					\
+		ext_buf, prefix_len, page_size, field, len)
+
+# define trx_undo_page_report_modify_ext(				\
+		ptr, ext_buf, prefix_len, page_size, field, len,	\
+		is_sdi, spatial_status)					\
+	trx_undo_page_report_modify_ext_func(				\
+		ptr, ext_buf, prefix_len, page_size, field, len,	\
+		spatial_status)
+#endif /* UNIV_DEBUG */
+
 /** Fetch a prefix of an externally stored column, for writing to the undo
 log of an update or delete marking of a clustered index record.
 @param[out]	ext_buf		buffer to hold the prefix data and BLOB pointer
 @param[in]	prefix_len	prefix size to store in the undo log
 @param[in]	page_size	page size
 @param[in]	field		an externally stored column
+@param[in]	is_sdi		true for SDI indexes
 @param[in,out]	len		input: length of field; output: used length of
 ext_buf
 @return ext_buf */
 static
 byte*
-trx_undo_page_fetch_ext(
+trx_undo_page_fetch_ext_func(
 	byte*			ext_buf,
 	ulint			prefix_len,
 	const page_size_t&	page_size,
 	const byte*		field,
+#ifdef UNIV_DEBUG
+	bool			is_sdi,
+#endif /* UNIV_DEBUG */
 	ulint*			len)
 {
 	/* Fetch the BLOB. */
 	ulint	ext_len = btr_copy_externally_stored_field_prefix(
-		ext_buf, prefix_len, page_size, field, *len);
+		ext_buf, prefix_len, page_size, field, is_sdi, *len);
+
 	/* BLOBs should always be nonempty. */
 	ut_a(ext_len);
 	/* Append the BLOB pointer to the prefix. */
@@ -742,18 +773,22 @@ available
 @param[in,out]	field		the locally stored part of the externally
 stored column
 @param[in,out]	len		length of field, in bytes
+@param[in]	is_sdi		true for SDI indexes
 @param[in]	spatial_status	whether the column is used by spatial index or
 				regular index
 @return undo log position */
 static
 byte*
-trx_undo_page_report_modify_ext(
+trx_undo_page_report_modify_ext_func(
 	byte*			ptr,
 	byte*			ext_buf,
 	ulint			prefix_len,
 	const page_size_t&	page_size,
 	const byte**		field,
 	ulint*			len,
+#ifdef UNIV_DEBUG
+	bool			is_sdi,
+#endif /* UNIV_DEBUG */
 	spatial_status_t	spatial_status)
 {
 	ulint	spatial_len= 0;
@@ -793,7 +828,8 @@ trx_undo_page_report_modify_ext(
 		ptr += mach_write_compressed(ptr, *len);
 
 		*field = trx_undo_page_fetch_ext(ext_buf, prefix_len,
-						 page_size, *field, len);
+						 page_size, *field, is_sdi,
+						 len);
 
 		ptr += mach_write_compressed(ptr, *len + spatial_len);
 	} else {
@@ -824,7 +860,7 @@ trx_undo_get_mbr_from_ext(
 	mem_heap_t*	heap = mem_heap_create(100);
 
 	dptr = btr_copy_externally_stored_field(
-		&dlen, field, page_size, *len, heap);
+		&dlen, field, page_size, *len, false, heap);
 
 	if (dlen <= GEO_DATA_HEADER_SIZE) {
 		for (uint i = 0; i < SPDIMS; ++i) {
@@ -1078,7 +1114,9 @@ trx_undo_page_report_modify(
 					&& flen < REC_ANTELOPE_MAX_INDEX_COL_LEN
 					? ext_buf : NULL, prefix_len,
 					dict_table_page_size(table),
-					&field, &flen, SPATIAL_UNKNOWN);
+					&field, &flen,
+					dict_table_is_sdi(table->id),
+					SPATIAL_UNKNOWN);
 
 				/* Notify purge that it eventually has to
 				free the old externally stored field */
@@ -1225,6 +1263,7 @@ trx_undo_page_report_modify(
 						? ext_buf : NULL, prefix_len,
 						dict_table_page_size(table),
 						&field, &flen,
+						dict_table_is_sdi(table->id),
 						spatial_status);
 				} else {
 					ptr += mach_write_compressed(

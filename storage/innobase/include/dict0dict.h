@@ -52,6 +52,14 @@ Created 1/8/1996 Heikki Tuuri
 #define	DICT_HEAP_SIZE		100	/*!< initial memory heap size when
 					creating a table or index object */
 
+/** The Maximum number of SDI Indexes in a tablespace
+Note: Increasing this will not increase number of SDI copies stored
+in tablespace because we only have limited space in Page 0 & 1 to
+store the SDI Index root page numbers */
+const ulint	MAX_SDI_COPIES	= 2;
+/** Space id of system tablespace */
+const ulint	SYSTEM_TABLE_SPACE = TRX_SYS_SPACE;
+
 /********************************************************************//**
 Get the database name length in a table name.
 @return database name length */
@@ -2262,6 +2270,60 @@ UNIV_INLINE
 bool
 dict_table_have_virtual_index(
        dict_table_t*	table);
+
+/** Retrieve in-memory index for SDI table.
+@param[in]	tablespace_id	innodb tablespace id
+@param[in]	copy_num	SDI table copy
+@return dict_index_t structure or NULL*/
+dict_index_t*
+dict_sdi_get_index(
+	ulint	tablespace_id,
+	ulint	copy_num);
+
+/** Retrieve in-memory table object for SDI table.
+@param[in]	tablespace_id	innodb tablespace id
+@param[in]	copy_num	SDI table copy
+@param[in]	dict_locked	true if dict_sys mutex is acquired
+@return dict_table_t structure */
+dict_table_t*
+dict_sdi_get_table(
+	ulint	tablespace_id,
+	ulint	copy_num,
+	bool	dict_locked);
+
+/** Remove the SDI table from table cache.
+@param[in]	space_id	InnoDB tablesapce_id
+@param[in,out]	sdi_tables	Array of sdi table
+@param[in]	dict_locked	true if dict_sys mutex acquired */
+void
+dict_sdi_remove_from_cache(
+	ulint		space_id,
+	dict_table_t**	sdi_tables,
+	bool		dict_locked);
+
+/** Check if the index is SDI index
+@param[in]	index	in-memory index structure
+@return true if index is SDI index else false */
+UNIV_INLINE
+bool
+dict_index_is_sdi(
+	const dict_index_t*	index);
+
+/** Check if an table id belongs SDI table
+@param[in]	table_id	dict_table_t id
+@return true if table_id is SDI table_id else false */
+UNIV_INLINE
+bool
+dict_table_is_sdi(
+	uint64_t	table_id);
+
+/** Extract SDI copy number from table id
+@param[in]	table_id	InnoDB table id
+@return SDI copy number */
+UNIV_INLINE
+ulint
+dict_sdi_get_copy_num(
+	table_id_t	table_id);
 
 #endif /* !UNIV_HOTBACKUP */
 

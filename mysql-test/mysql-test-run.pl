@@ -2661,6 +2661,22 @@ sub environment_setup {
     $ENV{'INNOCHECKSUM'}= mtr_args2str($exe_innochecksum, @$args);
   }
 
+ # ----------------------------------------------------
+  # Setup env so childs can execute ibd2sdi
+  # ----------------------------------------------------
+  my $exe_ibd2sdi=
+    mtr_exe_exists(vs_config_dirs('extra', 'ibd2sdi'),
+                   "$path_client_bindir/ibd2sdi",
+                   "$basedir/extra/ibd2sdi");
+  $ENV{'IBD2SDI'}= native_path($exe_ibd2sdi);
+
+  if ( $opt_valgrind_clients )
+  {
+    my $args;
+    mtr_init_args(\$args);
+    valgrind_client_arguments($args, \$exe_ibd2sdi);
+    $ENV{'IBD2SDI'}= mtr_args2str($exe_ibd2sdi, @$args);
+   }
   # ----------------------------------------------------
   # Setup env so childs can execute myisampack and myisamchk
   # ----------------------------------------------------

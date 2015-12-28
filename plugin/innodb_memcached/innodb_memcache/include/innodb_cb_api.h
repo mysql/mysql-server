@@ -366,6 +366,50 @@ ib_u32_t
 /*==================*/
 	ib_trx_t	ib_trx);
 
+#ifdef UNIV_MEMCACHED_SDI
+typedef
+ib_err_t
+(*cb_sdi_get)(
+	ib_crsr_t	ib_crsr,
+	const char*	key,
+	void*		sdi,
+	uint64_t*	sdi_len,
+	ib_trx_t	trx);
+
+typedef
+ib_err_t
+(*cb_sdi_delete)(
+	ib_crsr_t	ib_crsr,
+	const char*	key,
+	ib_trx_t	trx);
+
+typedef
+ib_err_t
+(*cb_sdi_set)(
+	ib_crsr_t	ib_crsr,
+	const char*	key,
+	const void*	sdi,
+	uint64_t*	sdi_len,
+	ib_trx_t	trx);
+
+typedef
+ib_err_t
+(*cb_sdi_create_copies)(
+	ib_crsr_t	ib_crsr);
+
+typedef
+ib_err_t
+(*cb_sdi_drop_copies)(
+	ib_crsr_t	ib_crsr);
+
+typedef
+ib_err_t
+(*cb_sdi_get_keys)(
+	ib_crsr_t	ib_crsr,
+	const char*	key,
+	void*		sdi,
+	uint64_t	list_buf_len);
+#endif /* UNIV_MEMCACHED_SDI */
 
 cb_open_table_t			ib_cb_open_table;
 cb_read_row_t			ib_cb_read_row;
@@ -414,6 +458,14 @@ cb_trx_get_start_time		ib_cb_trx_get_start_time;
 cb_bk_commit_interval		ib_cb_cfg_bk_commit_interval;
 cb_ut_strerr			ib_cb_ut_strerr;
 cb_cursor_stmt_begin		ib_cb_cursor_stmt_begin;
+#ifdef UNIV_MEMCACHED_SDI
+cb_sdi_get			ib_cb_sdi_get;
+cb_sdi_delete			ib_cb_sdi_delete;
+cb_sdi_set			ib_cb_sdi_set;
+cb_sdi_create_copies		ib_cb_sdi_create_copies;
+cb_sdi_drop_copies		ib_cb_sdi_drop_copies;
+cb_sdi_get_keys			ib_cb_sdi_get_keys;
+#endif /* UNIV_MEMCACHED_SDI */
 cb_trx_read_only_t		ib_cb_trx_read_only;
 
 #endif /* innodb_cb_api_h */

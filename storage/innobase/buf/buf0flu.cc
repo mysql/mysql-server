@@ -872,7 +872,9 @@ buf_flush_init_for_writing(
 			/* fall through */
 		case FIL_PAGE_TYPE_ZBLOB:
 		case FIL_PAGE_TYPE_ZBLOB2:
+		case FIL_PAGE_SDI_ZBLOB:
 		case FIL_PAGE_INDEX:
+		case FIL_PAGE_SDI:
 		case FIL_PAGE_RTREE:
 
 			buf_flush_update_zip_checksum(
@@ -919,6 +921,7 @@ buf_flush_init_for_writing(
 				switch (page_type) {
 				case FIL_PAGE_INDEX:
 				case FIL_PAGE_RTREE:
+				case FIL_PAGE_SDI:
 				case FIL_PAGE_UNDO_LOG:
 				case FIL_PAGE_INODE:
 				case FIL_PAGE_IBUF_FREE_LIST:
@@ -928,6 +931,8 @@ buf_flush_init_for_writing(
 				case FIL_PAGE_TYPE_BLOB:
 				case FIL_PAGE_TYPE_ZBLOB:
 				case FIL_PAGE_TYPE_ZBLOB2:
+				case FIL_PAGE_SDI_BLOB:
+				case FIL_PAGE_SDI_ZBLOB:
 					break;
 				case FIL_PAGE_TYPE_FSP_HDR:
 				case FIL_PAGE_TYPE_XDES:

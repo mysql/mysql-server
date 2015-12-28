@@ -147,6 +147,14 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
   TARGET_LINK_LIBRARIES(innochecksum
     mysys_ssl innodb_zipdecompress ${LZ4_LIBRARY})
   ADD_DEPENDENCIES(innochecksum GenError)
+
+ MYSQL_ADD_EXECUTABLE(ibd2sdi ibd2sdi.cc)
+  SET_TARGET_PROPERTIES(ibd2sdi
+    PROPERTIES COMPILE_DEFINITIONS "UNIV_LIBRARY")
+  TARGET_LINK_LIBRARIES(ibd2sdi
+    mysys_ssl innodb_zipdecompress ${LZ4_LIBRARY})
+  ADD_DEPENDENCIES(ibd2sdi GenError)
+
 ENDIF()
 
 IF(UNIX)

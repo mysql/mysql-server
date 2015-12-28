@@ -2825,7 +2825,7 @@ page_zip_reorganize(
 	/* Recreate the page: note that global data on page (possible
 	segment headers, next page-field, etc.) is preserved intact */
 
-	page_create(block, mtr, TRUE, dict_index_is_spatial(index));
+	page_create(block, mtr, TRUE, fil_page_get_type(page));
 
 	/* Copy the records from the temporary space to the recreated page;
 	do not copy the lock bits yet */

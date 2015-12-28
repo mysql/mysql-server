@@ -56,7 +56,14 @@ typedef struct st_key_cache KEY_CACHE;
 typedef struct st_key_create_information KEY_CREATE_INFO;
 typedef struct st_savepoint SAVEPOINT;
 typedef struct xid_t XID;
-namespace dd { class Table; }
+
+namespace dd {
+  class  Table;
+  class  Tablespace;
+  typedef struct sdi_key sdi_key_t;
+  typedef struct sdi_vector sdi_vector_t;
+};
+
 typedef my_bool (*qc_engine_callback)(THD *thd, const char *table_key,
                                       uint key_length,
                                       ulonglong *engine_data);
@@ -1064,6 +1071,113 @@ struct handlerton
   make_pushed_join_t make_pushed_join;
   system_database_t system_database;
   is_supported_system_table_t is_supported_system_table;
+
+  /*
+    APIs for retrieving Serialized Dictionary Information by tablespace id
+  */
+
+  /**
+    Create SDI in a tablespace. This API should be used when upgrading
+    a tablespace with no SDI or after invoking sdi_drop().
+    @param[in]  tablespace     tablespace object
+    @param[in]  num_of_copies  number of SDI copies
+    @retval     false          success
+    @retval     true           failure
+  */
+  bool (*sdi_create)(const dd::Tablespace &tablespace,
+                     uint32 num_of_copies);
+
+  /**
+    Drop SDI in a tablespace. This API should be used only when
+    SDI is corrupted.
+    @param[in]  tablespace  tablespace object
+    @retval     false       success
+    @retval     true        failure
+  */
+  bool (*sdi_drop)(const dd::Tablespace &tablespace);
+
+  /**
+    Get the SDI keys in a tablespace into vector.
+    @param[in]      tablespace  tablespace object
+    @param[in,out]  vector      vector of SDI Keys
+    @param[in]      copy_num    SDI copy to operate on
+    @retval         false       success
+    @retval         true        failure
+  */
+  bool (*sdi_get_keys)(const dd::Tablespace &tablespace,
+                       dd::sdi_vector_t &vector,
+                       uint32 copy_num);
+
+  /*
+    Since the caller of this api will not know the SDI length, SDI retrieval
+    should be done in the following way.
+
+    i.   Allocate initial memory of some size (Lets say 64KB)
+    ii.  Pass the allocated memory to the below api.
+    iii. If passed buffer is sufficient, sdi_get_by_id() copies the sdi
+         to the buffer passed and returns success, else sdi_len is modified
+         with the actual length of the SDI (and returns false on failure).
+         For genuine errors, sdi_len is returned as UINT64_MAX
+    iv.  If sdi_len != UINT64_MAX, retry the call after allocating the memory
+         of sdi_len
+    v.   Free the memory after using SDI (responsibility of caller)
+  */
+
+  /**
+    Retrieve SDI for a given SDI key.
+    @param[in]      tablespace  tablespace object
+    @param[in]      sdi_key     SDI key to uniquely identify SDI obj
+    @param[in,out]  sdi         SDI retrieved from tablespace
+                                A non-null pointer must be passed in
+    @param[in,out]  sdi_len     in: length of the memory allocated
+                                out: actual length of SDI
+    @param[in]      copy_num    SDI copy to operate on
+    @retval         false       success
+    @retval         true        failure
+  */
+  bool (*sdi_get)(const dd::Tablespace &tablespace,
+                  const dd::sdi_key_t *sdi_key,
+                  void *sdi, uint64 *sdi_len, uint32 copy_num);
+
+  /**
+    Insert/Update SDI for a given SDI key.
+    @param[in]  tablespace  tablespace object
+    @param[in]  sdi_key     SDI key to uniquely identify SDI obj
+    @param[in]  sdi         SDI to write into the tablespace
+    @param[in]  sdi_len     length of SDI BLOB returned
+    @retval     false       success
+    @retval     true        failure
+  */
+  bool (*sdi_set)(const dd::Tablespace &tablespace,
+                  const dd::sdi_key_t *sdi_key,
+                  const void *sdi, uint64 sdi_len);
+
+  /**
+    Delete SDI for a given SDI key.
+    @param[in]  tablespace  tablespace object
+    @param[in]  sdi_key     SDI key to uniquely identify SDI obj
+    @retval     false       success
+    @retval     true        failure
+  */
+  bool (*sdi_delete)(const dd::Tablespace &tablespace,
+                     const dd::sdi_key_t *sdi_key);
+
+  /**
+    Flush the SDI copies.
+    @param[in]  tablespace  tablespace object
+    @retval     false       success
+    @retval     true        failure
+  */
+  bool (*sdi_flush)(const dd::Tablespace &tablespace);
+
+  /**
+    Return the number of SDI copies stored in tablespace.
+    @param[in]  tablespace     tablespace object
+    @retval     0              if there are no SDI copies
+    @retval     MAX_SDI_COPIES if the SDI is present
+    @retval     UINT32_MAX     in case of failure
+  */
+  uint32 (*sdi_get_num_copies)(const dd::Tablespace &tablespace);
 
   /**
     Null-ended array of file extentions that exist for the storage engine.

@@ -129,7 +129,7 @@ row_sel_sec_rec_is_for_blob(
 
 	len = btr_copy_externally_stored_field_prefix(
 		buf, prefix_len, dict_tf_get_page_size(table->flags),
-		clust_field, clust_len);
+		clust_field, dict_table_is_sdi(table->id), clust_len);
 
 	if (len == 0) {
 		/* The BLOB was being deleted as the server crashed.
@@ -295,7 +295,9 @@ row_sel_sec_rec_is_for_clust_rec(
 					&clust_len, dptr,
 					dict_tf_get_page_size(
 						sec_index->table->flags),
-					len, heap);
+					len,
+					dict_index_is_sdi(sec_index),
+					heap);
 			}
 
 			rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
@@ -516,7 +518,8 @@ row_sel_fetch_columns(
 				data = btr_rec_copy_externally_stored_field(
 					rec, offsets,
 					dict_table_page_size(index->table),
-					field_no, &len, heap);
+					field_no, &len,
+					dict_index_is_sdi(index), heap);
 
 				/* data == NULL means that the
 				externally stored field was not
@@ -2986,7 +2989,7 @@ row_sel_store_mysql_field_func(
 		data = btr_rec_copy_externally_stored_field(
 			rec, offsets,
 			dict_table_page_size(prebuilt->table),
-			field_no, &len, heap);
+			field_no, &len, dict_index_is_sdi(index), heap);
 
 		if (UNIV_UNLIKELY(!data)) {
 			/* The externally stored field was not written

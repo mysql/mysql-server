@@ -33,25 +33,37 @@ Created September 2006 Marko Makela
 #include "dict0types.h"
 #include "page0size.h"
 
-/********************************************************************//**
-Creates a cache of column prefixes of externally stored columns.
+#ifdef UNIV_DEBUG
+# define row_ext_create(n_ext, ext, flags, tuple, is_sdi, heap)	\
+	row_ext_create_func(n_ext, ext, flags, tuple, is_sdi, heap)
+#else /* UNIV_DEBUG */
+# define row_ext_create(n_ext, ext, flags, tuple, is_sdi, heap)	\
+	row_ext_create_func(n_ext, ext, flags, tuple, heap)
+#endif /* UNIV_DEBUG */
+
+/** Creates a cache of column prefixes of externally stored columns.
+@param[in]	n_ext	number of externally stored columns
+@param[in]	ext	col_no's of externally stored columns in the InnoDB
+table object, as reported by dict_col_get_no(); NOT relative to the records
+in the clustered index
+@param[in]	flags	table->flags
+@param[in]	tuple	data tuple containing the field references of the
+externally stored columns; must be indexed by col_no; the clustered index record
+must be covered by a lock or a page latch to prevent deletion (rollback
+or purge)
+@param[in]	is_sdi	true for SDI Indexes
+@param[in]	heap	heap where created
 @return own: column prefix cache */
 row_ext_t*
-row_ext_create(
-/*===========*/
-	ulint		n_ext,	/*!< in: number of externally stored columns */
-	const ulint*	ext,	/*!< in: col_no's of externally stored columns
-				in the InnoDB table object, as reported by
-				dict_col_get_no(); NOT relative to the records
-				in the clustered index */
-	ulint		flags, /*!< in: table->flags */
-	const dtuple_t*	tuple,	/*!< in: data tuple containing the field
-				references of the externally stored
-				columns; must be indexed by col_no;
-				the clustered index record must be
-				covered by a lock or a page latch
-				to prevent deletion (rollback or purge). */
-	mem_heap_t*	heap);	/*!< in: heap where created */
+row_ext_create_func(
+	ulint		n_ext,
+	const ulint*	ext,
+	ulint		flags,
+	const dtuple_t*	tuple,
+#ifdef UNIV_DEBUG
+	bool		is_sdi,
+#endif /* UNIV_DEBUG */
+	mem_heap_t*	heap);
 
 /** Looks up a column prefix of an externally stored column.
 @param[in,out]	ext	column prefix cache

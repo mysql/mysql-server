@@ -1133,6 +1133,27 @@ dict_table_open_on_id(
 		table->acquire();
 
 		MONITOR_INC(MONITOR_TABLE_REFERENCE);
+	} else if (dict_table_is_sdi(table_id)) {
+
+		/* The table is SDI table */
+		ulint	space_id = dict_sdi_get_space_id(table_id);
+		ulint	copy_num = dict_sdi_get_copy_num(table_id);
+
+		/* Create in-memory table oject for SDI table */
+		dict_index_t*	sdi_index = dict_sdi_create_idx_in_mem(
+			space_id, copy_num, false, 0);
+
+		if (sdi_index == NULL) {
+			if (!dict_locked) {
+				mutex_exit(&dict_sys->mutex);
+			}
+			return(NULL);
+		}
+
+		table = sdi_index->table;
+
+		ut_ad(table != NULL);
+		table->acquire();
 	}
 
 	if (!dict_locked) {
@@ -7990,5 +8011,101 @@ Persisters::remove(
 	if (iter != m_persisters.end()) {
 		UT_DELETE(iter->second);
 		m_persisters.erase(iter);
+	}
+}
+
+/** Close SDI table.
+@param[in]	table		the in-meory SDI table object */
+UNIV_INLINE
+void
+dict_sdi_close_table(
+	dict_table_t*	table)
+{
+	ut_ad(dict_table_is_sdi(table->id));
+	dict_table_close(table, true, false);
+}
+
+/* TODO: Remove this function after WL#7412. This function is
+use only in IMPORT/EXPORT as of now. */
+
+/** Retrieve in-memory index for SDI table.
+@param[in]	tablespace_id	innodb tablespace id
+@param[in]	copy_num	SDI table copy
+@return dict_index_t structure or NULL*/
+dict_index_t*
+dict_sdi_get_index(
+	ulint	tablespace_id,
+	ulint	copy_num)
+{
+	ut_ad(copy_num < MAX_SDI_COPIES);
+
+	dict_table_t*	table = dict_table_open_on_id(
+		dict_sdi_get_table_id(tablespace_id, copy_num),
+		true,
+		DICT_TABLE_OP_NORMAL);
+
+	if (table != NULL) {
+		dict_sdi_close_table(table);
+		return(dict_table_get_first_index(table));
+	}
+	return(NULL);
+}
+
+/** Retrieve in-memory table object for SDI table.
+@param[in]	tablespace_id	innodb tablespace id
+@param[in]	copy_num	SDI table copy
+@param[in]	dict_locked	true if dict_sys mutex is acquired
+@return dict_table_t structure */
+dict_table_t*
+dict_sdi_get_table(
+	ulint	tablespace_id,
+	ulint	copy_num,
+	bool	dict_locked)
+{
+	ut_ad(copy_num < MAX_SDI_COPIES);
+
+	dict_table_t*	table = dict_table_open_on_id(
+		dict_sdi_get_table_id(tablespace_id, copy_num),
+		dict_locked,
+		DICT_TABLE_OP_NORMAL);
+	return(table);
+}
+
+/* TODO: WL#7141 Check if we can disable the locking on the SDI tables
+altogether. If purge or rollback needs to access the SDI table, it can create
+the SDI table object for the table_id on demand. */
+
+/** Remove the SDI table from table cache.
+@param[in]	space_id	InnoDB tablesapce_id
+@param[in,out]	sdi_tables	Array of sdi table
+@param[in]	dict_locked	true if dict_sys mutex acquired */
+void
+dict_sdi_remove_from_cache(
+	ulint		space_id,
+	dict_table_t**	sdi_tables,
+	bool		dict_locked)
+{
+	if (space_id == SYSTEM_TABLE_SPACE) {
+		return;
+	}
+
+	for (uint32_t	copy_num = 0; copy_num < MAX_SDI_COPIES; ++copy_num) {
+
+		dict_table_t*	sdi_table;
+
+		if (sdi_tables == NULL || sdi_tables[copy_num] ==  NULL) {
+			/* Remove SDI table from table cache for copy 0. */
+			sdi_table = dict_table_open_on_id_low(
+				dict_sdi_get_table_id(space_id, copy_num),
+				DICT_ERR_IGNORE_NONE);
+		} else {
+			dict_table_close(sdi_tables[copy_num], dict_locked,
+					 false);
+			sdi_table = sdi_tables[copy_num];
+		}
+
+		if (sdi_table) {
+			dict_table_remove_from_cache(sdi_table);
+		}
 	}
 }

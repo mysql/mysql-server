@@ -15,6 +15,7 @@
 
 # binaries
 usr/bin/innochecksum
+usr/bin/ibd2sdi
 usr/bin/myisam_ftdump
 usr/bin/mysql
 usr/bin/mysql_embedded

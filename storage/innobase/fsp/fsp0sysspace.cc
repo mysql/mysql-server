@@ -657,6 +657,11 @@ SysTablespace::read_lsn_and_check_flags(lsn_t* flushed_lsn)
 		return(err);
 	}
 
+	/* The flags of srv_sys_space do not have SDI Flag set.
+	Update the flags of system tablespace to indicate the presence
+	of SDI */
+	set_flags(it->flags());
+
 	it->close();
 
 	return(DB_SUCCESS);

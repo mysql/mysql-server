@@ -89,6 +89,14 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_cfg_bk_commit_interval,
 	(ib_cb_t*) &ib_cb_ut_strerr,
 	(ib_cb_t*) &ib_cb_cursor_stmt_begin,
+#ifdef UNIV_MEMCACHED_SDI
+	(ib_cb_t*) &ib_cb_sdi_get,
+	(ib_cb_t*) &ib_cb_sdi_delete,
+	(ib_cb_t*) &ib_cb_sdi_set,
+	(ib_cb_t*) &ib_cb_sdi_create_copies,
+	(ib_cb_t*) &ib_cb_sdi_drop_copies,
+	(ib_cb_t*) &ib_cb_sdi_get_keys,
+#endif /* UNIV_MEMCACHED_SDI */
 	(ib_cb_t*) &ib_cb_trx_read_only
 };
 

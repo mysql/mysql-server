@@ -76,9 +76,12 @@ in i_s_page_type[] array */
 /** Change buffer B-tree page */
 #define	I_S_PAGE_TYPE_IBUF		(FIL_PAGE_TYPE_LAST + 2)
 
-#define I_S_PAGE_TYPE_LAST		I_S_PAGE_TYPE_IBUF
+/** SDI B-tree page */
+#define	I_S_PAGE_TYPE_SDI		(FIL_PAGE_TYPE_LAST + 3)
 
-#define I_S_PAGE_TYPE_BITS		4
+#define I_S_PAGE_TYPE_LAST		I_S_PAGE_TYPE_SDI
+
+#define I_S_PAGE_TYPE_BITS		5
 
 /* Check if we can hold all page types */
 #if I_S_PAGE_TYPE_LAST >= 1 << I_S_PAGE_TYPE_BITS
@@ -101,8 +104,12 @@ static buf_page_desc_t	i_s_page_type[] = {
 	{"COMPRESSED_BLOB", FIL_PAGE_TYPE_ZBLOB},
 	{"COMPRESSED_BLOB2", FIL_PAGE_TYPE_ZBLOB2},
 	{"UNKNOWN", I_S_PAGE_TYPE_UNKNOWN},
+	{"PAGE_IO_COMPRESSED", FIL_PAGE_COMPRESSED},
+	{"SDI_BLOB", FIL_PAGE_SDI_BLOB},
+	{"SDI_COMPRESSED_BLOB", FIL_PAGE_SDI_ZBLOB},
 	{"RTREE_INDEX", I_S_PAGE_TYPE_RTREE},
 	{"IBUF_INDEX", I_S_PAGE_TYPE_IBUF},
+	{"SDI_INDEX", I_S_PAGE_TYPE_SDI}
 };
 
 /** This structure defines information we will fetch from pages
@@ -1750,6 +1757,9 @@ i_s_cmp_per_index_fill_low(
 		const dict_index_t*	index = dict_index_find(iter->first);
 
 		if (index != NULL) {
+			if (dict_index_is_sdi(index)) {
+				continue;
+			}
 			char	db_utf8[MAX_DB_UTF8_LEN];
 			char	table_utf8[MAX_TABLE_UTF8_LEN];
 
@@ -5186,13 +5196,19 @@ i_s_innodb_buffer_page_fill(
 
 		/* If this is an index page, fetch the index name
 		and table name */
-		if (page_info->page_type == I_S_PAGE_TYPE_INDEX) {
-			index_id_t		id(page_info->space_id,
-						   page_info->index_id);
+		switch (page_info->page_type) {
 			const dict_index_t*	index;
 
-			mutex_enter(&dict_sys->mutex);
-			index = dict_index_find(id);
+		case I_S_PAGE_TYPE_INDEX:
+		case I_S_PAGE_TYPE_RTREE:
+		case I_S_PAGE_TYPE_SDI:
+			{
+				index_id_t	id(page_info->space_id,
+						   page_info->index_id);
+
+				mutex_enter(&dict_sys->mutex);
+				index = dict_index_find(id);
+			}
 
 			if (index) {
 
@@ -5322,6 +5338,8 @@ i_s_innodb_set_page_type(
 			page_info->page_type = I_S_PAGE_TYPE_IBUF;
 		} else if (page_type == FIL_PAGE_RTREE) {
 			page_info->page_type = I_S_PAGE_TYPE_RTREE;
+		} else if (page_type == FIL_PAGE_SDI) {
+			page_info->page_type = I_S_PAGE_TYPE_SDI;
 		} else {
 			page_info->page_type = I_S_PAGE_TYPE_INDEX;
 		}
@@ -5344,8 +5362,10 @@ i_s_innodb_set_page_type(
 		page_info->page_type = page_type;
 	}
 
-	if (page_info->page_type == FIL_PAGE_TYPE_ZBLOB
-	    || page_info->page_type == FIL_PAGE_TYPE_ZBLOB2) {
+	switch (page_info->page_type) {
+	case FIL_PAGE_TYPE_ZBLOB:
+	case FIL_PAGE_TYPE_ZBLOB2:
+	case FIL_PAGE_SDI_ZBLOB:
 		page_info->page_num = mach_read_from_4(
 			frame + FIL_PAGE_OFFSET);
 		page_info->space_id = mach_read_from_4(

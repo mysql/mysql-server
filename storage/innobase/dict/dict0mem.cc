@@ -49,9 +49,6 @@ Created 1/8/1996 Heikki Tuuri
 #include "sync0sync.h"
 #include <iostream>
 
-#define	DICT_HEAP_SIZE		100	/*!< initial memory heap size when
-					creating a table or index object */
-
 /** An interger randomly initialized at startup used to make a temporary
 table name as unuique as possible. */
 static ib_uint32_t	dict_temp_file_num;

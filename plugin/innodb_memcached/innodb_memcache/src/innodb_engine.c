@@ -56,11 +56,23 @@ time */
 it candidate for background thread to commit it */
 #define CONN_IDLE_TIME_TO_BK_COMMIT		5
 
+#ifdef UNIV_MEMCACHED_SDI
+static const char SDI_PREFIX[]        = "sdi_";
+static const char SDI_CREATE_PREFIX[] = "sdi_create_";
+static const char SDI_DROP_PREFIX[]   = "sdi_drop_";
+static const char SDI_LIST_PREFIX[]   = "sdi_list_";
+#endif /* UNIV_MEMCACHED_SDI */
+
 /** Tells whether memcached plugin is being shutdown */
 static bool	memcached_shutdown	= false;
 
 /** Tells whether the background thread is exited */
 static bool	bk_thd_exited		= true;
+
+/** The SDI buffer length for storing list of SDI keys. Example output
+looks like "1:2|2:2|3:4|..". So SDI list of key retrieval has this limit of
+characters from memcached plugin. This is sufficent for testing. */
+const uint32_t	SDI_LIST_BUF_MAX_LEN = 10000;
 
 /** Tells whether all connections need to release MDL locks */
 bool	release_mdl_lock        = false;
@@ -135,6 +147,58 @@ default_handle(
 {
 	return((struct default_engine*) eng->default_engine);
 }
+
+#ifdef UNIV_MEMCACHED_SDI
+/** Remove SDI entry from tablespace
+@param[in,out]	innodb_eng	innodb engine structure
+@param[in,out]	conn_data	innodb connection data
+@param[in,out]	err_ret		error code
+@param[in]	key		memcached key
+@param[in]	nkey		memcached key length
+@return true if key is SDI key else false */
+static
+bool
+innodb_sdi_remove(
+	struct innodb_engine*	innodb_eng,
+	innodb_conn_data_t*	conn_data,
+	ENGINE_ERROR_CODE*	err_ret,
+	const void*		key,
+	const size_t		nkey);
+
+/** Retrieve SDI for a given SDI key from tablespace
+@param[in,out]	conn_data	innodb connection data
+@param[in,out]	err_ret		error code
+@param[in]	key		memcached key
+@param[in]	nkey		memcached key length
+@param[in,out]	item		memcached item to fill
+@return true if key is SDI key else false */
+static
+bool
+innodb_sdi_get(
+	innodb_conn_data_t*	conn_data,
+	ENGINE_ERROR_CODE*	err_ret,
+	const void*		key,
+	const size_t		nkey,
+	item***			item);
+
+/** Store SDI entry into a tablespace
+@param[in,out]	innodb_eng	innodb engine structure
+@param[in,out]	conn_data	innodb connection data
+@param[in,out]	err_ret		error code
+@param[in]	value		memcached value
+@param[in]	value_len	memcached value length
+@param[in]	nkey		memcached key length
+@return true if key is SDI key else false */
+static
+bool
+innodb_sdi_store(
+	struct innodb_engine*	innodb_eng,
+	innodb_conn_data_t*	conn_data,
+	ENGINE_ERROR_CODE*	err_ret,
+	char*			value,
+	uint32_t		val_len,
+	const size_t		nkey);
+#endif /* UNIV_MEMCACHED_SDI */
 
 /****** Gateway to the default_engine's create_instance() function */
 ENGINE_ERROR_CODE
@@ -619,6 +683,10 @@ innodb_conn_clean_data(
 			conn_data->row_buf = NULL;
 			conn_data->row_buf_len = 0;
 		}
+#ifdef UNIV_MEMCACHED_SDI
+		free(conn_data->sdi_buf);
+		conn_data->sdi_buf = NULL;
+#endif /* UNIV_MEMCACHED_SDI */
 
 		if (conn_data->cmd_buf) {
 			free(conn_data->cmd_buf);
@@ -917,6 +985,9 @@ innodb_conn_init(
                }
 		conn_data->cmd_buf_len = 1024;
 
+#ifdef UNIV_MEMCACHED_SDI
+		conn_data->sdi_buf = NULL;
+#endif /* UNIV_MEMCACHED_SDI */
 		conn_data->is_flushing = false;
 
 		conn_data->conn_cookie = (void*) cookie;
@@ -1359,6 +1430,32 @@ innodb_allocate(
 
 	return(ENGINE_SUCCESS);
 }
+
+#ifdef UNIV_MEMCACHED_SDI
+# define check_key_name_for_sdi(key, nkey, pattern)	\
+	check_key_name_for_sdi_pattern(			\
+		key, nkey, pattern, (sizeof pattern) - 1)
+
+/** Checks memcached key for SDI prefix patterns(sdi_, sdi_create_,
+sdi_list_). If the prefix exists, then operation is for SDI table
+@param[in]	key		Memcached Key
+@param[in]	nkey		Length of Memcached Key
+@param[in]	pattern		SDI patterns (sdi_, sdi_create_, sdi_list_)
+@param[in]	pattern_len	SDI pattern len
+@return true if it has prefix, else false */
+static
+bool
+check_key_name_for_sdi_pattern(
+	const void*	key,
+	const size_t	nkey,
+	const char*	pattern,
+	const size_t	pattern_len)
+{
+	return(nkey >= pattern_len
+	       && strncmp(key, pattern, pattern_len) == 0);
+}
+#endif /* UNIV_MEMCACHED_SDI */
+
 /*******************************************************************//**
 Cleanup connections
 @return number of connection cleaned */
@@ -1409,6 +1506,12 @@ innodb_remove(
 	if (!conn_data) {
 		return(ENGINE_TMPFAIL);
 	}
+
+#ifdef UNIV_MEMCACHED_SDI
+	if (innodb_sdi_remove(innodb_eng, conn_data, &err_ret, key, nkey)) {
+		return(err_ret);
+	}
+#endif /* UNIV_MEMCACHED_SDI */
 
 	/* In the binary protocol there is such a thing as a CAS delete.
 	This is the CAS check. If we will also be deleting from the database,
@@ -1806,6 +1909,12 @@ innodb_get(
 
 	result = (mci_item_t*)(conn_data->result);
 
+#ifdef UNIV_MEMCACHED_SDI
+	if (innodb_sdi_get(conn_data, &err_ret, key, nkey, &item)) {
+		goto func_exit;
+	}
+#endif /* UNIV_MEMCACHED_SDI */
+
 	err = innodb_api_search(conn_data, &crsr, key + nkey - key_len,
 				key_len, result, NULL, true);
 
@@ -2100,6 +2209,13 @@ innodb_store(
 	}
 
 	input_cas = hash_item_get_cas(item);
+
+#ifdef UNIV_MEMCACHED_SDI
+	if (innodb_sdi_store(innodb_eng, conn_data, &result, value, val_len,
+			     key_len)) {
+		return(result);
+	}
+#endif /* UNIV_MEMACHED_SDI */
 
 	result = innodb_api_store(innodb_eng, conn_data, value + len - key_len,
 				  key_len, val_len, exptime, cas, input_cas,
@@ -2418,3 +2534,278 @@ innodb_get_item_info(
 
 	return(true);
 }
+
+#ifdef UNIV_MEMCACHED_SDI
+/** Remove SDI entry from tablespace
+@param[in,out]	innodb_eng	innodb engine structure
+@param[in,out]	conn_data	innodb connection data
+@param[in,out]	err_ret		error code
+@param[in]	key		memcached key
+@param[in]	nkey		memcached key length
+@return true if key is SDI key else false */
+static
+bool
+innodb_sdi_remove(
+	struct innodb_engine*	innodb_eng,
+	innodb_conn_data_t*	conn_data,
+	ENGINE_ERROR_CODE*	err_ret,
+	const void*		key,
+	const size_t		nkey)
+{
+	if (!check_key_name_for_sdi(key, nkey, SDI_PREFIX)) {
+		return(false);
+	}
+
+	ib_trx_t	trx = conn_data->crsr_trx;
+	ib_crsr_t	crsr;
+	/* +2 for the '/' and trailing '\0' */
+	char		table_name[MAX_TABLE_NAME_LEN
+		+ MAX_DATABASE_NAME_LEN + 2];
+	char*		name;
+	char*		dbname;
+	ib_err_t	err;
+
+	assert(nkey > 0);
+
+	name = conn_data->conn_meta->col_info[CONTAINER_TABLE].col_name;
+	dbname = conn_data->conn_meta->col_info[CONTAINER_DB].col_name;
+
+	snprintf(table_name, sizeof(table_name), "%s/%s", dbname, name);
+
+	err = innodb_cb_open_table(table_name, trx, &crsr);
+
+	/* Mapped InnoDB table must be able to open */
+	if (err != DB_SUCCESS) {
+		fprintf(stderr, "InnoDB_Memcached: failed to open table"
+			" '%s' \n", table_name);
+		err = DB_ERROR;
+	} else {
+		err = ib_cb_sdi_delete(crsr, key, trx);
+	}
+
+	ib_cb_cursor_close(crsr);
+
+	if (err != DB_SUCCESS) {
+		*err_ret = ENGINE_KEY_ENOENT;
+	} else {
+		*err_ret = ENGINE_SUCCESS;
+	}
+
+	innodb_api_cursor_reset(innodb_eng, conn_data, CONN_OP_DELETE,
+				*err_ret == ENGINE_SUCCESS);
+
+	return(true);
+}
+
+/** Retrieve SDI for a given SDI key from tablespace
+@param[in,out]	conn_data	innodb connection data
+@param[in,out]	err_ret		error code
+@param[in]	key		memcached key
+@param[in]	nkey		memcached key length
+@param[in,out]	item		memcached item to fill
+@return true if key is SDI key else false */
+static
+bool
+innodb_sdi_get(
+	innodb_conn_data_t*	conn_data,
+	ENGINE_ERROR_CODE*	err_ret,
+	const void*		key,
+	const size_t		nkey,
+	item***			item)
+{
+	if (!check_key_name_for_sdi(key, nkey, SDI_PREFIX)) {
+		return(false);
+	}
+
+	mci_item_t*	result = conn_data->result;
+
+	ib_trx_t	trx = conn_data->crsr_trx;
+	ib_crsr_t	crsr;
+
+	/* +2 for the '/' and trailing '\0' */
+	char		table_name[MAX_TABLE_NAME_LEN
+		+ MAX_DATABASE_NAME_LEN + 2];
+	char*		name;
+	char*		dbname;
+	ib_err_t	err;
+
+	assert(nkey > 0);
+
+	name = conn_data->conn_meta->col_info[CONTAINER_TABLE].col_name;
+	dbname = conn_data->conn_meta->col_info[CONTAINER_DB].col_name;
+
+	snprintf(table_name, sizeof(table_name), "%s/%s", dbname, name);
+
+	err = innodb_cb_open_table(table_name, trx, &crsr);
+
+	/* Mapped InnoDB table must be able to open */
+	if (err != DB_SUCCESS) {
+		fprintf(stderr, "InnoDB_Memcached: failed to open table"
+			" '%s' \n", table_name);
+
+		ib_cb_cursor_close(crsr);
+		*err_ret = ENGINE_KEY_ENOENT;
+		return(true);
+	}
+
+	uint64_t	ret_len;
+	if (check_key_name_for_sdi(key, nkey, SDI_CREATE_PREFIX)) {
+		/* Create SDI Index in the tablespace */
+		err = ib_cb_sdi_create_copies(crsr);
+		ib_cb_cursor_close(crsr);
+		*err_ret = ENGINE_KEY_ENOENT;
+		return(true);
+	}
+
+	if (check_key_name_for_sdi(key, nkey, SDI_DROP_PREFIX)) {
+		/* Create SDI Index in the tablespace */
+		err = ib_cb_sdi_drop_copies(crsr);
+		ib_cb_cursor_close(crsr);
+		*err_ret = ENGINE_KEY_ENOENT;
+		return(true);
+	}
+
+	if (check_key_name_for_sdi(key, nkey, SDI_LIST_PREFIX)) {
+		if (conn_data->sdi_buf) {
+			free(conn_data->sdi_buf);
+		}
+		conn_data->sdi_buf = malloc(SDI_LIST_BUF_MAX_LEN);
+
+		err = ib_cb_sdi_get_keys(
+			crsr, key, (char*)conn_data->sdi_buf,
+			SDI_LIST_BUF_MAX_LEN);
+		ret_len = strlen((char*)conn_data->sdi_buf);
+	} else {
+
+		/* Allocate memory of 64 KB, assuming SDI will fit into
+		it. If retrieval fails, we will get actual length of SDI.
+		We retry afer allocating the required memory */
+		const uint32_t	mem_size = 64 * 1024;
+		void *new_mem = realloc(conn_data->sdi_buf, mem_size);
+
+		if (new_mem == NULL) {
+			free(conn_data->sdi_buf);
+			conn_data->sdi_buf = NULL;
+			*err_ret = ENGINE_KEY_ENOENT;
+			ib_cb_cursor_close(crsr);
+			return(true);
+		}
+
+		conn_data->sdi_buf = new_mem;
+		err = ib_cb_sdi_get(
+			crsr, key, conn_data->sdi_buf, &ret_len, trx);
+
+		if (err == DB_SUCCESS) {
+			assert(ret_len < mem_size);
+		} else if (ret_len != UINT64_MAX) {
+			/* Retry with required memory */
+			void *new_mem = realloc(
+				conn_data->sdi_buf, ret_len);
+
+			if (new_mem == NULL) {
+				free(conn_data->sdi_buf);
+				conn_data->sdi_buf = NULL;
+				*err_ret = ENGINE_KEY_ENOENT;
+				ib_cb_cursor_close(crsr);
+				return(true);
+			}
+
+			conn_data->sdi_buf = new_mem;
+			err = ib_cb_sdi_get(
+				crsr, key, conn_data->sdi_buf, &ret_len, trx);
+		}
+	}
+
+	ib_cb_cursor_close(crsr);
+
+	if (err != DB_SUCCESS) {
+		*err_ret = ENGINE_KEY_ENOENT;
+	} else {
+		*err_ret = ENGINE_SUCCESS;
+
+		memset(result, 0, sizeof(*result));
+		result->col_value[MCI_COL_KEY].value_str = (char*)key;
+		result->col_value[MCI_COL_KEY].value_len = nkey;
+		result->col_value[MCI_COL_KEY].is_str = true;
+		result->col_value[MCI_COL_KEY].is_valid = true;
+
+		result->col_value[MCI_COL_VALUE].value_str =
+			(char*) conn_data->sdi_buf;
+		result->col_value[MCI_COL_VALUE].value_len = ret_len;
+		result->col_value[MCI_COL_VALUE].is_str = true;
+		result->col_value[MCI_COL_VALUE].is_valid = true;
+
+		result->col_value[MCI_COL_CAS].is_null = true;
+		result->col_value[MCI_COL_EXP].is_null = true;
+		result->col_value[MCI_COL_FLAG].is_null = true;
+		conn_data->result_in_use = true;
+		**item = result;
+	}
+	return(true);
+}
+
+/** Store SDI entry into a tablespace
+@param[in,out]	innodb_eng	innodb engine structure
+@param[in,out]	conn_data	innodb connection data
+@param[in,out]	err_ret		error code
+@param[in]	value		memcached value
+@param[in]	value_len	memcached value length
+@param[in]	nkey		memcached key length
+@return true if key is SDI key else false */
+static
+bool
+innodb_sdi_store(
+	struct innodb_engine*	innodb_eng,
+	innodb_conn_data_t*	conn_data,
+	ENGINE_ERROR_CODE*	err_ret,
+	char*			value,
+	uint32_t		val_len,
+	const size_t		nkey)
+{
+	if (!check_key_name_for_sdi(value, nkey, SDI_PREFIX)) {
+		return(false);
+	}
+
+	ib_trx_t	trx = conn_data->crsr_trx;
+	ib_crsr_t	crsr;
+
+	/* +2 for the '/' and trailing '\0' */
+	char		table_name[MAX_TABLE_NAME_LEN
+		+ MAX_DATABASE_NAME_LEN + 2];
+	char*		name;
+	char*		dbname;
+
+	name = conn_data->conn_meta->col_info[CONTAINER_TABLE].col_name;
+	dbname = conn_data->conn_meta->col_info[CONTAINER_DB].col_name;
+
+	snprintf(table_name, sizeof(table_name), "%s/%s", dbname, name);
+
+	ib_err_t err = innodb_cb_open_table(table_name, trx, &crsr);
+
+	/* Mapped InnoDB table must be able to open */
+	if (err != DB_SUCCESS) {
+		fprintf(stderr, "InnoDB_Memcached: failed to open table"
+			" '%s' \n", table_name);
+	} else {
+		uint64_t	sdi_len = val_len;
+		char*		sdi = value + nkey;
+		char		key[100];
+		/* Extract key from value */
+		assert(nkey < 100);
+		strncpy(key, value, nkey);
+		key[nkey] = 0;
+		err = ib_cb_sdi_set(crsr, key, sdi, &sdi_len, trx);
+	}
+
+	ib_cb_cursor_close(crsr);
+
+	if (err != DB_SUCCESS) {
+		*err_ret = ENGINE_NOT_STORED;
+	} else {
+		*err_ret = ENGINE_SUCCESS;
+	}
+	innodb_api_cursor_reset(innodb_eng, conn_data, CONN_OP_WRITE,
+				*err_ret == ENGINE_SUCCESS);
+	return(true);
+}
+#endif /* UNIV_MEMCACHED_SDI */

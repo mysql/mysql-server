@@ -143,6 +143,16 @@ row_purge_remove_clust_if_poss_low(
 
 	index = dict_table_get_first_index(node->table);
 
+	fil_space_t*	space = fil_space_acquire_silent(index->space);
+	if (space == NULL) {
+		/* This can happen only for SDI in General Tablespaces.
+		*/
+		ut_ad(dict_table_is_sdi(node->table->id));
+		return(true);
+	} else {
+		fil_space_release(space);
+	}
+
 	log_free_check();
 	mtr_start(&mtr);
 	mtr.set_named_space(index->space);
@@ -993,6 +1003,12 @@ row_purge_record_func(
 	if (node->found_clust) {
 		btr_pcur_close(&node->pcur);
 		node->found_clust = FALSE;
+	}
+
+	/* If table is SDI table, we will try to flush as early
+	as possible. */
+	if (dict_table_is_sdi(node->table->id)) {
+		buf_flush_sync_all_buf_pools();
 	}
 
 	if (node->table != NULL) {

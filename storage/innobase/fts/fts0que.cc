@@ -2023,7 +2023,7 @@ fts_query_fetch_document(
 		if (dfield_is_ext(dfield)) {
 			data = btr_copy_externally_stored_field(
 				&cur_len, data, phrase->page_size,
-				dfield_get_len(dfield), phrase->heap);
+				dfield_get_len(dfield), false, phrase->heap);
 		} else {
 			cur_len = dfield_get_len(dfield);
 		}

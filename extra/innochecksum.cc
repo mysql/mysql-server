@@ -137,6 +137,9 @@ struct innodb_page_type {
 	int n_fil_page_type_zblob;
 	int n_fil_page_type_other;
 	int n_fil_page_type_zblob2;
+	int n_fil_page_sdi_index;
+	int n_fil_page_sdi_blob;
+	int n_fil_page_sdi_zblob;
 } page_type;
 
 /* Possible values for "--strict-check" for strictly verify checksum
@@ -388,24 +391,6 @@ ulong read_file(
 	if (!page_size.is_compressed() || mach_read_from_4(buf + FIL_PAGE_OFFSET) < 3) {
 		return(bytes);
 	}
-
-	/* Decompress a compressed page */
-
-	byte*	uncomp_buf = static_cast<byte*>(
-               ut_malloc_nokey(2 * page_size.logical()));
-	byte*	uncomp_page = static_cast<byte*>(
-                ut_align(uncomp_buf, page_size.logical()));
-	memset(uncomp_page, 0, page_size.logical());
-
-	page_zip_des_t*	page_zip = static_cast<page_zip_des_t*>(
-                        malloc(sizeof(page_zip_des_t)));
-	page_zip_des_init(page_zip);
-	page_zip->data = buf;
-	page_zip->ssize = page_size_to_ssize(
-                page_size.physical());
-	page_zip_decompress_low(page_zip, uncomp_page, true);
-	free(uncomp_buf);
-	free(page_zip);
 
 	return(bytes);
 }
@@ -995,6 +980,23 @@ parse_page(
 		}
 		break;
 
+	case FIL_PAGE_SDI:
+		page_type.n_fil_page_sdi_index++;
+		id = mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID);
+		if (page_type_dump) {
+			fprintf(file, "#::%8" PRIuMAX "\t\t|\t\tSDI Index page"
+				"\t\t\t|\tindex id=%llu (copy_num=%llu),",
+				cur_page_num, id, IB_UINT64_MAX - id);
+
+			fprintf(file,
+				" page level=%lu, No. of records=%lu,"
+				" garbage=%lu, %s\n",
+				page_header_get_field(page, PAGE_LEVEL),
+				page_header_get_field(page, PAGE_N_RECS),
+				page_header_get_field(page, PAGE_GARBAGE), str);
+		}
+		break;
+
 	case FIL_PAGE_UNDO_LOG:
 		page_type.n_fil_page_undo_log++;
 		undo_page_type = mach_read_from_2(page +
@@ -1143,6 +1145,14 @@ parse_page(
 		}
 		break;
 
+	case FIL_PAGE_SDI_BLOB:
+		page_type.n_fil_page_sdi_blob++;
+		if (page_type_dump) {
+			fprintf(file, "#::%8" PRIuMAX "\t\t|\t\tSDI BLOB page"
+				"\t\t\t|\t%s\n", cur_page_num, str);
+		}
+		break;
+
 	case FIL_PAGE_TYPE_ZBLOB:
 		page_type.n_fil_page_type_zblob++;
 		if (page_type_dump) {
@@ -1157,7 +1167,14 @@ parse_page(
 			fprintf(file, "#::%8" PRIuMAX "\t\t|\t\tSubsequent Compressed "
 				"BLOB page\t|\t%s\n", cur_page_num, str);
 		}
-			break;
+		break;
+	case FIL_PAGE_SDI_ZBLOB:
+		page_type.n_fil_page_sdi_zblob++;
+		if (page_type_dump) {
+			fprintf(file, "#::%8" PRIuMAX "\t\t|\t\tCompressed SDI"
+				" BLOB page\t\t|\t%s\n", cur_page_num, str);
+		}
+		break;
 
 	default:
 		page_type.n_fil_page_type_other++;
@@ -1222,6 +1239,8 @@ print_summary(
 	fprintf(fil_out, "\n===============================================\n");
 	fprintf(fil_out, "%8d\tIndex page\n",
 		page_type.n_fil_page_index);
+	fprintf(fil_out, "%8d\tSDI Index page\n",
+		page_type.n_fil_page_sdi_index);
 	fprintf(fil_out, "%8d\tUndo log page\n",
 		page_type.n_fil_page_undo_log);
 	fprintf(fil_out, "%8d\tInode page\n",
@@ -1244,6 +1263,12 @@ print_summary(
 		page_type.n_fil_page_type_blob);
 	fprintf(fil_out, "%8d\tCompressed BLOB page\n",
 		page_type.n_fil_page_type_zblob);
+	fprintf(fil_out, "%8d\tSubsequent Compressed BLOB page\n",
+		page_type.n_fil_page_type_zblob2);
+	fprintf(fil_out, "%8d\tSDI BLOB page\n",
+		page_type.n_fil_page_sdi_blob);
+	fprintf(fil_out, "%8d\tCompressed SDI BLOB page\n",
+		page_type.n_fil_page_sdi_zblob);
 	fprintf(fil_out, "%8d\tOther type of page",
 		page_type.n_fil_page_type_other);
 	fprintf(fil_out, "\n===============================================\n");

@@ -783,6 +783,11 @@ fil_node_open_file(
 				<< ib::hex(space->flags) << ")!";
 		}
 
+		/* TODO: Remove this adjustment and enable the below assert
+		after dict_tf_to_fsp_flags() removal. */
+		space->flags |= flags & FSP_FLAGS_MASK_SDI;
+		/* ut_ad(space->flags == flags); */
+
 		if (space->flags != flags) {
 
 			ib::fatal()
@@ -6244,6 +6249,22 @@ Folder::exists()
 #endif /* WIN32 */
 
 	return(ret && exists && type == OS_FILE_TYPE_DIR);
+}
+
+/** Sets the flags of the tablespace. The tablespace must be locked
+in MDL_EXCLUSIVE MODE.
+@param[in]	space	tablespace in-memory struct
+@param[in]	flags	tablespace flags */
+void
+fil_space_set_flags(
+	fil_space_t*	space,
+	ulint		flags)
+{
+	ut_ad(fsp_flags_is_valid(flags));
+
+	rw_lock_x_lock(&space->latch);
+	space->flags = flags;
+	rw_lock_x_unlock(&space->latch);
 }
 
 /* Unit Tests */

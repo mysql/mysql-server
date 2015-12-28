@@ -240,8 +240,14 @@ enum mlog_id_t {
 	/** log for some persistent dynamic metadata change */
 	MLOG_TABLE_DYNAMIC_META = 62,
 
+	/** create a SDI index page */
+	MLOG_PAGE_CREATE_SDI = 63,
+
+	/** create a SDI compact page */
+	MLOG_COMP_PAGE_CREATE_SDI = 64,
+
 	/** biggest value (used in assertions) */
-	MLOG_BIGGEST_TYPE = MLOG_TABLE_DYNAMIC_META
+	MLOG_BIGGEST_TYPE = MLOG_COMP_PAGE_CREATE_SDI
 };
 
 /* @} */

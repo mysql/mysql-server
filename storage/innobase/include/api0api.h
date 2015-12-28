@@ -30,6 +30,9 @@ InnoDB Native API
 #include "db0err.h"
 #include <stdio.h>
 
+typedef struct ib_sdi_key	ib_sdi_key_t;
+typedef struct ib_sdi_vector	ib_sdi_vector_t;
+
 #if defined(__GNUC__)
 #define UNIV_NO_IGNORE		__attribute__ ((warn_unused_result))
 #else
@@ -970,5 +973,170 @@ const char*
 ib_ut_strerr(
 /*=========*/
 	ib_err_t	num);		/*!< in: error number */
+
+/** Get the SDI keys in a tablespace into vector.
+@param[in]	tablespace_id	tablespace id
+@param[in,out]	vector		vector to hold objects with tablespace types
+and ids
+@param[in]	copy_num	SDI copy number to operate on. Should be 0 or 1
+@param[in,out]	trx		data dictionary transaction
+@return DB_SUCCESS if SDI keys retrieval is successful, else error */
+ib_err_t
+ib_sdi_get_keys(
+	uint32_t		tablespace_id,
+	ib_sdi_vector_t*	ib_sdi_vector,
+	uint32_t		copy_num,
+	ib_trx_t		trx);
+
+/** Retrieve SDI from tablespace.
+@param[in]	tablespace_id	tablespace id
+@param[in]	sdi_key		SDI key to uniquely identify the tablespace
+object
+@param[in,out]	sdi		SDI retrieved from tablespace
+@param[in,out]	sdi_len		in:  Size of memory allocated
+				out: Actual SDI length
+@param[in]	copy_num	the copy from which SDI has to retrieved
+@param[in,out]	trx		innodb transaction
+@return DB_SUCCESS if SDI retrieval is successful, else error */
+ib_err_t
+ib_sdi_get(
+	uint32_t		tablespace_id,
+	const ib_sdi_key_t*	sdi_key,
+	void*			sdi,
+	uint64_t*		sdi_len,
+	uint32_t		copy_num,
+	ib_trx_t		trx);
+
+/** Insert/Update SDI in tablespace.
+@param[in]	tablespace_id	tablespace id
+@param[in]	sdi_key		SDI key to uniquely identify the tablespace
+object
+@param[in]	sdi		SDI to be stored in tablespace
+@param[in]	sdi_len		SDI length
+@param[in]	copy_num	SDI copy number to operate on. Should be 0 or 1
+@param[in,out]	trx		innodb transaction
+@return DB_SUCCESS if SDI Insert/Update is successful, else error */
+ib_err_t
+ib_sdi_set(
+	uint32_t		tablespace_id,
+	const ib_sdi_key_t*	sdi_key,
+	const void*		sdi,
+	uint64_t		sdi_len,
+	uint32_t		copy_num,
+	ib_trx_t		trx);
+
+/** Delete SDI from tablespace.
+@param[in]	tablespace_id	tablespace id
+@param[in]	sdi_key		SDI key to uniquely identify the tablespace
+object
+@param[in]	copy_num	the copy from which SDI has to be deleted
+@param[in,out]	trx		innodb transaction
+@return DB_SUCCESS if SDI deletion is successful, else error */
+ib_err_t
+ib_sdi_delete(
+	uint32_t		tablespace_id,
+	const ib_sdi_key_t*	sdi_key,
+	uint32_t		copy_num,
+	ib_trx_t		trx);
+
+/** Return the number of SDI copies stored in tablespace.
+@param[in]	tablespace_id	Tablespace id
+@retval		0		if there are no SDI copies
+@retval		MAX_SDI_COPIES	if the SDI is present
+@retval		UINT32_MAX	in case of failure */
+uint32_t
+ib_sdi_get_num_copies(
+	uint32_t	tablespace_id);
+
+/** Create SDI Copies in a tablespace. The number of allowed copies is always
+two for InnoDB.
+@param[in]	tablespace_id	InnoDB tablespace id
+@param[in]	num_of_copies	number of SDI copies to create
+@return DB_SUCCESS if SDI index creation is successful, else error */
+ib_err_t
+ib_sdi_create_copies(
+	uint32_t	tablespace_id,
+	uint32_t	num_of_copies);
+
+/** Drop SDI Indexes from tablespace. This should be used only when SDI
+is corrupted.
+@param[in]	tablespace_id	InnoDB tablespace id
+@return DB_SUCCESS if dropping of SDI indexes  is successful, else error */
+ib_err_t
+ib_sdi_drop_copies(
+	uint32_t	tablespace_id);
+
+/** Flush SDI copy in a tablespace. The pages of a SDI copy modified by the
+transaction will be flushed to disk.
+@param[in]	space_id	tablespace id
+@return DB_SUCCESS always*/
+ib_err_t
+ib_sdi_flush(
+	uint32_t	space_id);
+
+#ifdef UNIV_MEMCACHED_SDI
+/** Wrapper function to retrieve SDI from tablespace.
+@param[in]	crsr		Memcached cursor
+@param[in]	key_str		Memcached key
+@param[in,out]	sdi		SDI data retrieved
+@param[in,out]	sdi_len		in:  Size of allocated memory
+				out: Actual SDI length
+@return DB_SUCCESS if SDI retrieval is successful, else error */
+ib_err_t
+ib_memc_sdi_get(
+	ib_crsr_t	ib_crsr,
+	const char*	key,
+	void*		sdi,
+	uint64_t*	sdi_len);
+
+/** Wrapper function to delete SDI from tablespace.
+@param[in,out]	crsr		Memcached cursor
+@param[in]	key_str		Memcached key
+@return DB_SUCCESS if SDI deletion is successful, else error */
+ib_err_t
+ib_memc_sdi_delete(
+	ib_crsr_t	ib_crsr,
+	const char*	key);
+
+/** Wrapper function to insert SDI into tablespace.
+@param[in]	crsr		Memcached cursor
+@param[in]	key_str		Memcached key
+@param[in]	sdi		SDI to be stored in tablespace
+@param[in]	sdi_len		SDI length
+@return DB_SUCCESS if SDI insertion is successful, else error */
+ib_err_t
+ib_memc_sdi_set(
+	ib_crsr_t	ib_crsr,
+	const char*	key,
+	const void*	sdi,
+	uint64_t*	sdi_len);
+
+/** Wrapper function to create SDI copies in a tablespace.
+@param[in,out]	crsr		Memcached cursor
+@return DB_SUCCESS if SDI creation is successful, else error */
+ib_err_t
+ib_memc_sdi_create_copies(
+	ib_crsr_t	ib_crsr);
+
+/** Wrapper function to drop SDI copies in a tablespace.
+@param[in,out]	crsr		Memcached cursor
+@return DB_SUCCESS if dropping of SDI is successful, else error */
+ib_err_t
+ib_memc_sdi_drop_copies(
+	ib_crsr_t	ib_crsr);
+
+/* Wrapper function to retreive list of SDI keys into the buffer
+The SDI keys are copied in the from x:y and separated by '|'.
+@param[in,out]	crsr		Memcached cursor
+@param[in]	key_str		Memcached key
+@param[out]	sdi		The keys are copies into this buffer
+@return DB_SUCCESS if SDI keys retrieval is successful, else error */
+ib_err_t
+ib_memc_sdi_get_keys(
+	ib_crsr_t	crsr,
+	const char*	key,
+	void*		sdi,
+	uint64_t	list_buf_len);
+#endif /* UNIV_MEMCACHED_SDI */
 
 #endif /* api0api_h */

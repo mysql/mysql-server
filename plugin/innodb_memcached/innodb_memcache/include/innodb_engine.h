@@ -60,9 +60,13 @@ struct innodb_conn_data_struct {
 	ib_tpl_t	idx_tpl;	/*!< read tuple */
 	void*		result;		/*!< result info */
 	void*		row_buf;	/*!< row buffer to cache row read */
-	ib_ulint_t	row_buf_len;	/*!< row buffer len */
+	uint64_t	row_buf_len;	/*!< row buffer len */
 	void*		cmd_buf;	/*!< buffer for incoming command */
 	ib_ulint_t	cmd_buf_len;	/*!< cmd buffer len */
+#ifdef UNIV_MEMCACHED_SDI
+	void*		sdi_buf;
+	uint64_t	sdi_buf_len;
+#endif /* UNIV_MEMCACHED_SDI */
 	bool		result_in_use;	/*!< result set or above row_buf
 					contain active result set */
 	bool		use_default_mem;/*!<  whether to use default engine

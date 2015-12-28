@@ -2169,8 +2169,10 @@ buf_LRU_block_remove_hashed(
 				break;
 			case FIL_PAGE_TYPE_ZBLOB:
 			case FIL_PAGE_TYPE_ZBLOB2:
+			case FIL_PAGE_SDI_ZBLOB:
 				break;
 			case FIL_PAGE_INDEX:
+			case FIL_PAGE_SDI:
 			case FIL_PAGE_RTREE:
 #ifdef UNIV_ZIP_DEBUG
 				ut_a(page_zip_validate(

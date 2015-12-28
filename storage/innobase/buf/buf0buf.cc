@@ -563,23 +563,6 @@ buf_block_alloc(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/** Checks if a page contains only zeroes.
-@param[in]	read_buf	database page
-@param[in]	page_size	page size
-@return true if page is filled with zeroes */
-bool
-buf_page_is_zeroes(
-	const byte*		read_buf,
-	const page_size_t&	page_size)
-{
-	for (ulint i = 0; i < page_size.logical(); i++) {
-		if (read_buf[i] != 0) {
-			return(false);
-		}
-	}
-	return(true);
-}
-
 /** Prints a page to stderr.
 @param[in]	read_buf	a database page
 @param[in]	page_size	page size
@@ -749,9 +732,17 @@ buf_page_print(
 		fputs("InnoDB: Page may be a BLOB page\n",
 		      stderr);
 		break;
+	case FIL_PAGE_SDI_BLOB:
+		fputs("InnoDB: Page may be a SDI BLOB page\n",
+		      stderr);
+		break;
 	case FIL_PAGE_TYPE_ZBLOB:
 	case FIL_PAGE_TYPE_ZBLOB2:
 		fputs("InnoDB: Page may be a compressed BLOB page\n",
+		      stderr);
+		break;
+	case FIL_PAGE_SDI_ZBLOB:
+		fputs("InnoDB: Page may be a compressed SDI BLOB page\n",
 		      stderr);
 		break;
 	}
@@ -3248,6 +3239,7 @@ buf_zip_decompress(
 
 	switch (fil_page_get_type(frame)) {
 	case FIL_PAGE_INDEX:
+	case FIL_PAGE_SDI:
 	case FIL_PAGE_RTREE:
 		if (page_zip_decompress(&block->page.zip,
 					block->frame, TRUE)) {
@@ -3267,6 +3259,7 @@ buf_zip_decompress(
 	case FIL_PAGE_TYPE_XDES:
 	case FIL_PAGE_TYPE_ZBLOB:
 	case FIL_PAGE_TYPE_ZBLOB2:
+	case FIL_PAGE_SDI_ZBLOB:
 		/* Copy to uncompressed storage. */
 		memcpy(block->frame, frame, block->page.size.physical());
 		return(TRUE);

@@ -77,7 +77,10 @@ combination of types */
 				other flags */
 #define	DICT_VIRTUAL	128	/* Index on Virtual column */
 
-#define	DICT_IT_BITS	8	/*!< number of bits used for
+#define DICT_SDI	256	/* Tablespace dictionary Index. Set only in
+				in-memory index structure. */
+
+#define	DICT_IT_BITS	9	/*!< number of bits used for
 				SYS_INDEXES.TYPE */
 /* @} */
 
@@ -790,11 +793,11 @@ struct dict_index_t{
 	unsigned	nulls_equal:1;
 				/*!< if true, SQL NULL == SQL NULL */
 	unsigned	disable_ahi:1;
-				/*!< in true, then disable AHI.
-				Currently limited to intrinsic
-				temporary table as index id is not
-				unqiue for such table which is one of the
-				validation criterion for ahi. */
+				/*!< if true, then disable AHI. Currently
+				limited to intrinsic temporary table and SDI
+				table as index id is not unique for such table
+				which is one of the validation criterion for
+				ahi. */
 	unsigned	n_uniq:10;/*!< number of fields from the beginning
 				which are enough to determine an index
 				entry uniquely */

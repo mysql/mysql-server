@@ -17,6 +17,7 @@
 #define DD__TABLESPACE_INCLUDED
 
 #include "my_global.h"
+#include <vector>
 
 #include "dd/types/dictionary_object.h"   // dd::Dictionary_object
 
@@ -130,6 +131,24 @@ public:
 };
 
 ///////////////////////////////////////////////////////////////////////////
+
+const uint32 SDI_KEY_LEN = 8;
+const uint32 SDI_TYPE_LEN = 4;
+
+/** Key to identify a dictionary object */
+struct sdi_key {
+  /** Object id which should be unique in tablespsace */
+  uint64 id;
+  /** Type of Object, For ex: column, index, etc */
+  uint32 type;
+};
+
+typedef std::vector<sdi_key> sdi_container;
+
+struct sdi_vector {
+  sdi_container m_vec;
+};
+
 
 }
 
