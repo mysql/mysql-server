@@ -451,6 +451,14 @@ int opt_sum_query(THD *thd,
                  get_index_min_value(table, &ref, item_field, range_fl,
                                      prefix_len);
 
+          /*
+            Set TABLE::status to STATUS_GARBAGE since original and
+            real read_set are different, i.e. some field values
+            from original read set could be unread.
+          */
+          if (!bitmap_is_subset(&table->def_read_set, &table->tmp_set))
+            table->status|= STATUS_GARBAGE;
+
           table->read_set= &table->def_read_set;
           bitmap_clear_all(&table->tmp_set);
           /* Verify that the read tuple indeed matches the search key */
