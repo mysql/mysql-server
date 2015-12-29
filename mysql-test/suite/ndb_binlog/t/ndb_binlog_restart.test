@@ -23,11 +23,10 @@
 --enable_query_log
 --let $node_id= `SELECT @node_id`
 
-
 reset master;
 
 #############################################################
-# A TE_FAILURE event will be recived by the binlog thread 
+# A TE_FAILURE event will be received by the binlog thread 
 # due to the DUMP disconnecting mysqld from datanodes.
 # When binlog handles the FAILURE event, mysqld is put into
 # readonly mode. A restart of the Binlog thread is required
@@ -35,6 +34,16 @@ reset master;
 #############################################################
 --echo Disconnect mysqld from all datanodes
 --exec $NDB_MGM --no-defaults -e "ALL DUMP 900 $node_id" > $NDB_TOOLS_OUTPUT
+
+#############################################################
+# The disconnect will create a GAP event in the binlog.
+# To avoid 'disconnect failures' while probing for 'not_readonly',
+# we use the binlog GAP as an indicator that disconnect has
+# already completed.
+#############################################################
+--echo Wait for binlog rotate to indicate disconnect
+--let $wait_binlog_event= mysqld-bin.000002
+--source include/wait_for_binlog_event.inc
 
 #############################################################
 # Until the binlog injector has completed the restart all tables
@@ -89,6 +98,10 @@ reset master;
 
 --echo Disconnect mysqld from all datanodes
 --exec $NDB_MGM --no-defaults -e "ALL DUMP 900 $node_id" > $NDB_TOOLS_OUTPUT
+
+--echo Wait for binlog rotate to indicate disconnect
+--let $wait_binlog_event= mysqld-bin.000002
+--source include/wait_for_binlog_event.inc
 
 --echo Wait to get out of read-only mode
 --source include/ndb_not_readonly.inc
