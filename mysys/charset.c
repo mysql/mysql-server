@@ -21,6 +21,7 @@
 #include <my_dir.h>
 #include <my_xml.h>
 #include "mysql/psi/mysql_file.h"
+#include "sql_chars.h"
 
 /*
   The code below implements this functionality:
@@ -87,6 +88,8 @@ static int cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
     if (!(to->ctype= (uchar*) my_once_memdup((char*) from->ctype,
 					     MY_CS_CTYPE_TABLE_SIZE,
 					     MYF(MY_WME))))
+      goto err;
+    if (init_state_maps(to))
       goto err;
   }
   if (from->to_lower)
@@ -197,6 +200,8 @@ static int add_collation(CHARSET_INFO *cs)
 #if defined (HAVE_CHARSET_utf8) && defined(HAVE_UCA_COLLATIONS)
         copy_uca_collation(newcs, &my_charset_utf8_unicode_ci);
         newcs->ctype= my_charset_utf8_unicode_ci.ctype;
+        if (init_state_maps(newcs))
+          return MY_XML_ERROR;
 #endif
       }
       else if (!strcmp(cs->csname, "utf8mb4"))
