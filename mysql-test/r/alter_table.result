@@ -2956,9 +2956,6 @@ DROP TABLE t;
 #
 # Bug#21345391: ALTER TABLE ... CONVERT TO CHARACTER SET NOT EFFECT
 #               AND REMAIN A TEMP TABLE
-#Setup.
-SELECT @@global.show_compatibility_56 INTO @show_compatibility_56_save;
-SET @@global.show_compatibility_56=ON;
 CREATE TABLE t1 (fld1 INT PRIMARY KEY) ENGINE = INNODB CHARACTER SET gbk;
 ALTER TABLE t1 CONVERT TO CHARACTER SET UTF8, ALGORITHM = INPLACE;
 # Without fix, the CHARSET SET for table remains gbk.
@@ -2989,4 +2986,3 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`fld1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 DROP TABLE t1;
-SET @@global.show_compatibility_56=@show_compatibility_56_save;
