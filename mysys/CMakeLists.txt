@@ -29,7 +29,7 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c
 				my_mkdir.c my_mmap.c my_once.c my_open.c my_pread.c
 				my_read.c my_redel.c my_rename.c my_seek.c
 				my_static.c my_symlink.c my_symlink2.c my_sync.c my_thr_init.c 
-				my_write.c ptr_cmp.c queues.c stacktrace.c
+				my_write.c ptr_cmp.c queues.c sql_chars.c stacktrace.c
 				string.c thr_cond.c thr_lock.c thr_mutex.c
 				thr_rwlock.c tree.c typelib.c base64.c my_memmem.c
 				lf_alloc-pin.c lf_dynarray.c lf_hash.c

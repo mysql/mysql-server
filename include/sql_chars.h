@@ -22,6 +22,7 @@
 #ifndef SQL_LEX_CHARS_INCLUDED
 #define SQL_LEX_CHARS_INCLUDED
 
+#include "my_global.h"
 
 enum __attribute__((__packed__)) my_lex_states
 {
@@ -59,9 +60,16 @@ enum __attribute__((__packed__)) hint_lex_char_classes
 
 struct lex_state_maps_st
 {
-  my_lex_states main_map[256];
-  hint_lex_char_classes hint_map[256];
+  enum my_lex_states main_map[256];
+  enum hint_lex_char_classes hint_map[256];
 };
+
+C_MODE_START
+typedef struct lex_state_maps_st lex_state_maps_st;
+typedef struct charset_info_st charset_info_st;
+
+my_bool init_state_maps(struct charset_info_st *cs);
+C_MODE_END
 
 #endif /* SQL_LEX_CHARS_INCLUDED */
 
