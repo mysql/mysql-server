@@ -5804,5 +5804,21 @@ c0	c1	c2	c3	c4
 2012-06-11 15:18:24	2012-06-11 15:18:24	2012-06-11 15:18:24	2012-06-11 15:18:24	2012-06-11 15:18:24
 DROP TABLE t2, t1;
 #
+# MDEV-9319 ALTER from a bigger to a smaller blob type truncates too much data
+#
+SET NAMES utf8;
+CREATE TABLE t1 (a TEXT CHARACTER SET utf8);
+INSERT INTO t1 VALUES (REPEAT('Ａ',100));
+SELECT OCTET_LENGTH(a) FROM t1;
+OCTET_LENGTH(a)
+300
+ALTER TABLE t1 MODIFY a TINYTEXT CHARACTER SET utf8;
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+SELECT OCTET_LENGTH(a),a FROM t1;
+OCTET_LENGTH(a)	a
+255	ＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡ
+DROP TABLE t1;
+#
 # End of 5.5 tests
 #

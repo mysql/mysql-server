@@ -643,6 +643,10 @@ DROP TABLE t1;
 
 --echo End of 5.1 tests
 
+--echo #
+--echo # Start of 5.5 tests
+--echo #
+
 #
 # Problem when comparing blobs #778901
 #
@@ -651,3 +655,24 @@ CREATE TABLE t1 ( f1 blob, f2 blob );
 INSERT INTO t1 VALUES ('','');
 SELECT f1,f2,"found row" FROM t1 WHERE f1 = f2 ;
 DROP TABLE t1;
+
+--echo #
+--echo # MDEV-9319 ALTER from a bigger to a smaller blob type truncates too much data
+--echo #
+CREATE TABLE t1 (a MEDIUMBLOB);
+INSERT INTO t1 VALUES (REPEAT(0x61,128000));
+SELECT LENGTH(a) FROM t1;
+ALTER TABLE t1 MODIFY a BLOB;
+SELECT LENGTH(a) FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a BLOB);
+INSERT INTO t1 VALUES (REPEAT(0x61,65000));
+SELECT LENGTH(a) FROM t1;
+ALTER TABLE t1 MODIFY a TINYBLOB;
+SELECT LENGTH(a) FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # End of 5.5 tests
+--echo #

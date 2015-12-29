@@ -7068,6 +7068,35 @@ uint32 Field_blob::get_length(const uchar *pos, uint packlength_arg)
 }
 
 
+/**
+  Copy a value from another BLOB field of the same character set.
+  This method is used by Copy_field, e.g. during ALTER TABLE.
+*/
+int Field_blob::copy_value(Field_blob *from)
+{
+  DBUG_ASSERT(field_charset == from->charset());
+  int rc= 0;
+  uint32 length= from->get_length();
+  uchar *data;
+  from->get_ptr(&data);
+  if (packlength < from->packlength)
+  {
+    int well_formed_errors;
+    set_if_smaller(length, Field_blob::max_data_length());
+    length= field_charset->cset->well_formed_len(field_charset,
+                                                 (const char *) data,
+                                                 (const char *) data + length,
+                                                 length, &well_formed_errors);
+    rc= report_if_important_data((const char *) data + length,
+                                 (const char *) data + from->get_length(),
+                                 true);
+  }
+  store_length(length);
+  bmove(ptr + packlength, (uchar*) &data, sizeof(char*));
+  return rc;
+}
+
+
 int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE_OR_COMPUTED;

@@ -1649,5 +1649,16 @@ SELECT * FROM t2;
 DROP TABLE t2, t1;
 
 --echo #
+--echo # MDEV-9319 ALTER from a bigger to a smaller blob type truncates too much data
+--echo #
+SET NAMES utf8;
+CREATE TABLE t1 (a TEXT CHARACTER SET utf8);
+INSERT INTO t1 VALUES (REPEAT('Ａ',100));
+SELECT OCTET_LENGTH(a) FROM t1;
+ALTER TABLE t1 MODIFY a TINYTEXT CHARACTER SET utf8;
+SELECT OCTET_LENGTH(a),a FROM t1;
+DROP TABLE t1;
+
+--echo #
 --echo # End of 5.5 tests
 --echo #

@@ -1000,9 +1000,42 @@ COUNT(*)
 DROP FUNCTION f1;
 DROP TABLE t1;
 End of 5.1 tests
+#
+# Start of 5.5 tests
+#
 CREATE TABLE t1 ( f1 blob, f2 blob );
 INSERT INTO t1 VALUES ('','');
 SELECT f1,f2,"found row" FROM t1 WHERE f1 = f2 ;
 f1	f2	found row
 		found row
 DROP TABLE t1;
+#
+# MDEV-9319 ALTER from a bigger to a smaller blob type truncates too much data
+#
+CREATE TABLE t1 (a MEDIUMBLOB);
+INSERT INTO t1 VALUES (REPEAT(0x61,128000));
+SELECT LENGTH(a) FROM t1;
+LENGTH(a)
+128000
+ALTER TABLE t1 MODIFY a BLOB;
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+SELECT LENGTH(a) FROM t1;
+LENGTH(a)
+65535
+DROP TABLE t1;
+CREATE TABLE t1 (a BLOB);
+INSERT INTO t1 VALUES (REPEAT(0x61,65000));
+SELECT LENGTH(a) FROM t1;
+LENGTH(a)
+65000
+ALTER TABLE t1 MODIFY a TINYBLOB;
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+SELECT LENGTH(a) FROM t1;
+LENGTH(a)
+255
+DROP TABLE t1;
+#
+# End of 5.5 tests
+#
