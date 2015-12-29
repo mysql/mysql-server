@@ -73,10 +73,7 @@ typedef time_t	ib_time_t;
    independent way by using YieldProcessor. */
 #  define UT_RELAX_CPU() YieldProcessor()
 # else
-#  define UT_RELAX_CPU() do { \
-     volatile lint	volatile_var; \
-     os_compare_and_swap_lint(&volatile_var, 0, 1); \
-   } while (0)
+#  define UT_RELAX_CPU() __asm__ __volatile__ ("":::"memory")
 # endif
 
 # if defined(HAVE_HMT_PRIORITY_INSTRUCTION)
