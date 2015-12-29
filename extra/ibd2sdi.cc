@@ -2429,7 +2429,7 @@ ibd2sdi::parse_fields_in_rec(
 
 	uint64_t	rec_data_length;
 	bool		is_rec_data_external = false;
-	uint32_t	rec_data_in_page_len;
+	uint32_t	rec_data_in_page_len = 0;
 
 	if (rec_data_len_partial & 0x80) {
 		/* Rec length is store in two bytes. Read next
