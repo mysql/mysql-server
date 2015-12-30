@@ -627,7 +627,7 @@ public:
   /**
     Overwrite the base slice of ref_items with the slice supplied as argument.
 
-    @param slice number to overwrite the base slice with, must be 1-4.
+    @param sliceno number to overwrite the base slice with, must be 1-4.
   */
   void set_ref_item_slice(uint sliceno)
   {
