@@ -3826,15 +3826,11 @@ retry:
 	}
 #endif /* UNIV_DEBUG */
 	buf_pool_chunk_map_t*	chunk_map = buf_chunk_map_ref;
+	buf_chunk_t*		chunk;
 
-	if (ptr < reinterpret_cast<byte*>(srv_buf_pool_chunk_unit)) {
-		it = chunk_map->upper_bound(0);
-	} else {
-		it = chunk_map->upper_bound(
-			ptr - srv_buf_pool_chunk_unit);
-	}
+	it = chunk_map->upper_bound(ptr);
 
-	if (it == chunk_map->end()) {
+	if (it == chunk_map->begin()) {
 #ifdef UNIV_DEBUG
 		if (!resize_disabled) {
 			rw_lock_s_unlock(buf_chunk_map_latch);
@@ -3845,9 +3841,12 @@ retry:
 		ut_a(counter < 10);
 		os_thread_sleep(100000); /* 0.1 sec */
 		goto retry;
+	} else if (it == chunk_map->end()) {
+		chunk = chunk_map->rbegin()->second;
+	} else {
+		chunk = (--it)->second;
 	}
 
-	buf_chunk_t*	chunk = it->second;
 #ifdef UNIV_DEBUG
 	if (!resize_disabled) {
 		rw_lock_s_unlock(buf_chunk_map_latch);
