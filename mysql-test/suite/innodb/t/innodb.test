@@ -1329,7 +1329,7 @@ drop table t1;
 # Test for testable InnoDB status variables. This test
 # uses previous ones(pages_created, rows_deleted, ...).
 --disable_warnings
---replace_result 1535 {checked_valid} 1536 {checked_valid} 3071 {checked_valid} 3072 {checked_valid} 6144 {checked_valid}
+--replace_result 1535 {checked_valid} 1536 {checked_valid} 3071 {checked_valid} 3072 {checked_valid} 6144 {checked_valid} 1463 {checked_valid}
 SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 --replace_result 4096 {checked_valid} 8192 {checked_valid} 16384 {checked_valid}
 SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
