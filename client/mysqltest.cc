@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -9590,7 +9590,9 @@ int main(int argc, char **argv)
       check_eol_junk(command->last_argument);
 
     if (command->type != Q_ERROR &&
-        command->type != Q_COMMENT)
+        command->type != Q_COMMENT &&
+        command->type != Q_IF &&
+        command->type != Q_END_BLOCK)
     {
       /*
         As soon as any non "error" command or comment has been executed,
