@@ -807,6 +807,19 @@ void SSL::set_random(const opaque* random, ConnectionEnd sender)
 // store client pre master secret
 void SSL::set_preMaster(const opaque* pre, uint sz)
 {
+    uint i(0);  // trim leading zeros
+    uint fullSz(sz);
+
+    while (i++ < fullSz && *pre == 0) {
+        sz--;
+        pre++;
+    }
+
+    if (sz == 0) {
+        SetError(bad_input);
+        return;
+    }
+
     secure_.use_connection().AllocPreSecret(sz);
     memcpy(secure_.use_connection().pre_master_secret_, pre, sz);
 }
@@ -924,6 +937,8 @@ void SSL::order_error()
 // Create and store the master secret see page 32, 6.1
 void SSL::makeMasterSecret()
 {
+    if (GetError()) return;
+
     if (isTLS())
         makeTLSMasterSecret();
     else {
