@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1165,6 +1165,7 @@ static bool fill_dd_partition_from_create_info(THD *thd,
           {
             dd::Partition *sub_obj= tab_obj->add_partition();
             sub_obj->set_level(1);
+            sub_obj->set_engine(tab_obj->engine());
             if (sub_elem->part_comment)
               sub_obj->set_comment(sub_elem->part_comment);
             sub_obj->set_name(sub_elem->partition_name);
