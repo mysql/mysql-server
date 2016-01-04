@@ -598,7 +598,7 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
                                      (*item)->val_date_temporal(),
                                      *item) :
 #endif
-          new Item_int_with_ref(field->val_int(), *item,
+          new Item_int_with_ref(field->type(), field->val_int(), *item,
                                 MY_TEST(field->flags & UNSIGNED_FLAG));
         if (tmp)
           thd->change_item_tree(item, tmp);
