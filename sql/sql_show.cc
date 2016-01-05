@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -8109,7 +8109,7 @@ bool get_schema_tables_result(JOIN *join,
         table_list->table->file->ha_delete_all_rows();
         free_io_cache(table_list->table);
         filesort_free_buffers(table_list->table,1);
-        table_list->table->null_row= 0;
+        table_list->table->reset_null_row();
       }
       else
         table_list->table->file->stats.records= 0;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -253,7 +253,9 @@ bool TABLE_LIST::create_derived(THD *thd)
     if (table != NULL)
     {
       QEP_TAB *tab= table->reginfo.qep_tab;
-      DBUG_ASSERT(tab == NULL || tab->type() != JT_CONST || table->null_row);
+      DBUG_ASSERT(tab == NULL ||
+                  tab->type() != JT_CONST ||
+                  table->has_null_row());
     }
 #endif
     DBUG_RETURN(false);
