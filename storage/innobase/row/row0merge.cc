@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1649,6 +1649,8 @@ existing order
 @param[in,out]	stage		performance schema accounting object, used by
 ALTER TABLE. stage->n_pk_recs_inc() will be called for each record read and
 stage->inc() will be called for each page read.
+@param[in]	eval_table	mysql table used to evaluate virtual column
+				value, see innobase_get_computed_value().
 @return DB_SUCCESS or error */
 static __attribute__((warn_unused_result))
 dberr_t
@@ -1672,7 +1674,8 @@ row_merge_read_clustered_index(
 	row_merge_block_t*	block,
 	bool			skip_pk_sort,
 	int*			tmpfd,
-	ut_stage_alter_t*	stage)
+	ut_stage_alter_t*	stage,
+	struct TABLE*		eval_table)
 {
 	dict_index_t*		clust_index;	/* Clustered index */
 	mem_heap_t*		row_heap;	/* Heap memory to create
@@ -2181,7 +2184,7 @@ write_buffers:
 					buf, fts_index, old_table, new_table,
 					psort_info, row, ext, &doc_id,
 					conv_heap, &err,
-					&v_heap, table, trx)))) {
+					&v_heap, eval_table, trx)))) {
 
 				/* If we are creating FTS index,
 				a single row can generate more
@@ -4329,6 +4332,8 @@ existing order
 ALTER TABLE. stage->begin_phase_read_pk() will be called at the beginning of
 this function and it will be passed to other functions for further accounting.
 @param[in]	add_v		new virtual columns added along with indexes
+@param[in]	eval_table	mysql table used to evaluate virtual column
+				value, see innobase_get_computed_value().
 @return DB_SUCCESS or error code */
 dberr_t
 row_merge_build_indexes(
@@ -4346,7 +4351,8 @@ row_merge_build_indexes(
 	ib_sequence_t&		sequence,
 	bool			skip_pk_sort,
 	ut_stage_alter_t*	stage,
-	const dict_add_v_col_t*	add_v)
+	const dict_add_v_col_t*	add_v,
+	struct TABLE*		eval_table)
 {
 	merge_file_t*		merge_files;
 	row_merge_block_t*	block;
@@ -4461,7 +4467,7 @@ row_merge_build_indexes(
 		trx, table, old_table, new_table, online, indexes,
 		fts_sort_idx, psort_info, merge_files, key_numbers,
 		n_indexes, add_cols, add_v, col_map, add_autoinc,
-		sequence, block, skip_pk_sort, &tmpfd, stage);
+		sequence, block, skip_pk_sort, &tmpfd, stage, eval_table);
 
 	stage->end_phase_read_pk();
 

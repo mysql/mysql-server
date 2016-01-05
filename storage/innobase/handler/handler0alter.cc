@@ -5944,6 +5944,7 @@ ha_innobase::inplace_alter_table(
 	dict_add_v_col_t*	add_v = NULL;
 	dict_vcol_templ_t*	s_templ = NULL;
 	dict_vcol_templ_t*	old_templ = NULL;
+	struct TABLE*		eval_table = altered_table;
 
 
 	DBUG_ENTER("inplace_alter_table");
@@ -6026,6 +6027,13 @@ ok_exit:
 		ctx->new_table->vc_templ = s_templ;
 	}
 
+	/* Drop virtual column without rebuild will keep dict table
+	unchanged, we use old table to evaluate virtual column value
+	in innobase_get_computed_value(). */
+	if (!ctx->need_rebuild() && ctx->num_to_drop_vcol > 0) {
+		eval_table = table;
+	}
+
 	/* Read the clustered index of the table and build
 	indexes based on this information using temporary
 	files and merge sort. */
@@ -6038,7 +6046,7 @@ ok_exit:
 		ctx->add_index, ctx->add_key_numbers, ctx->num_to_add_index,
 		altered_table, ctx->add_cols, ctx->col_map,
 		ctx->add_autoinc, ctx->sequence, ctx->skip_pk_sort,
-		ctx->m_stage, add_v);
+		ctx->m_stage, add_v, eval_table);
 
 	if (s_templ) {
 		ut_ad(ctx->need_rebuild() || ctx->num_to_add_vcol > 0);
