@@ -184,7 +184,7 @@ void vio_end(void);
 
 /* shutdown(2) flags */
 #ifndef SHUT_RD
-#define SHUT_RD SD_BOTH
+#define SHUT_RD SD_RECEIVE
 #endif
 
 /*
