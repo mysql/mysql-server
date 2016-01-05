@@ -8180,7 +8180,7 @@ double Item_func_match::val_real()
     DBUG_RETURN(-1.0);
 
   TABLE *const table= table_ref->table;
-  if (key != NO_SUCH_KEY && table->null_row) /* NULL row from an outer join */
+  if (key != NO_SUCH_KEY && table->has_null_row()) // NULL row from outer join
     DBUG_RETURN(0.0);
 
   if (get_master()->join_key)

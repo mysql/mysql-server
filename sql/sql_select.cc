@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3343,7 +3343,7 @@ bool JOIN::clear()
     are not re-calculated.
   */
   for (uint tableno= const_tables; tableno < primary_tables; tableno++)
-    mark_as_null_row(qep_tab[tableno].table());  // All fields are NULL
+    qep_tab[tableno].table()->set_null_row();  // All fields are NULL
 
   if (copy_fields(&tmp_table_param, thd))
     return true;

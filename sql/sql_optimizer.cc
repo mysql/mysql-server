@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5435,7 +5435,7 @@ bool JOIN::extract_func_dependent_tables()
           if (!(keyuse->val->used_tables() & ~const_table_map) &&
               keyuse->val->is_null() && keyuse->null_rejecting)
           {
-            mark_as_null_row(table);
+            table->set_null_row();
             found_const_table_map|= tl->map();
             mark_const_table(tab, keyuse);
             goto more_const_tables_found;
@@ -5595,7 +5595,7 @@ bool JOIN::estimate_rowcount()
     {
       trace_table.add("rows", 1).add("cost", 1)
         .add_alnum("table_type", (tab->type() == JT_SYSTEM) ? "system": "const")
-        .add("empty", static_cast<bool>(tab->table()->null_row));
+        .add("empty", tab->table()->has_null_row());
 
       // Only one matching row and one block to read
       tab->set_records(tab->found_records= 1);
@@ -5670,7 +5670,7 @@ bool JOIN::estimate_rowcount()
           trace_table.add("returning_empty_null_row", true).
             add_alnum("cause", "impossible_on_condition");
           found_const_table_map|= tl->map();
-          mark_as_null_row(tab->table());  // All fields are NULL
+          tab->table()->set_null_row();  // All fields are NULL
         }
         else
         {

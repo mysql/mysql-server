@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4302,7 +4302,7 @@ private:
   /// @return true if item is from a null-extended row from an outer join
   bool has_null_row() const
   {
-    return first_inner_table && first_inner_table->table->null_row;
+    return first_inner_table && first_inner_table->table->has_null_row();
   }
 
   /**
