@@ -2826,7 +2826,7 @@ real block. buf_page_watch_clear() or buf_page_watch_occurred() will notice
 that the block has been replaced with the real block.
 @param[in,out]	buf_pool	buffer pool instance
 @param[in,out]	watch		sentinel for watch
-@return reference count, to be added to the replacement block */
+*/
 static
 void
 buf_pool_watch_remove(

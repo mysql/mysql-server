@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1418,7 +1418,7 @@ on the leaf page.
 when comparing records
 @param[out]	n_diff			number of distinct records
 @param[out]	n_external_pages	number of external pages
-@return number of distinct records on the leaf page */
+*/
 static
 void
 dict_stats_analyze_index_below_cur(

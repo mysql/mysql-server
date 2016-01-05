@@ -166,7 +166,7 @@ struct LatchDebug {
 	@param[in]	level		to lookup
 	@return	latch if found or 0 */
 	const latch_t* find(
-		const Latches*	Latches,
+		const Latches*	latches,
 		latch_level_t	level) const
 		UNIV_NOTHROW;
 

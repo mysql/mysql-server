@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3130,7 +3130,7 @@ row_import_read_v1(
 	return(err);
 }
 
-/** Read tablespace flags from <tablespace>.cfg file
+/** Read tablespace flags from @<tablespace@>.cfg file
 @param[in]	file	File to read from
 @param[in]	thd	session
 @param[in,out]	cfg	meta data
@@ -3161,7 +3161,7 @@ row_import_read_v2(
 	return(DB_SUCCESS);
 }
 
-/** Read the contents of the <tablespace>.cfg file
+/** Read the contents of the @<tablespace@>.cfg file
 @param[in]	file	File to read from
 @param[in]	thd	session
 @param[in,out]	cfg	meta data

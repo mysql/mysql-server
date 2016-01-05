@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -115,9 +115,9 @@ struct os_event {
 	/**
 	Waits for an event object until it is in the signaled state or
 	a timeout is exceeded.
-	@param time_in_usec - timeout in microseconds,
+	@param time_in_usec timeout in microseconds,
 			or OS_SYNC_INFINITE_TIME
-	@param reset_sig_count- zero or the value returned by
+	@param reset_sig_count zero or the value returned by
 			previous call of os_event_reset().
 	@return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
 	ulint wait_time_low(

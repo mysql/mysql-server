@@ -2489,7 +2489,7 @@ into segments. The thread specifies which segment or slot it wants to wait
 for. NOTE: this function will also take care of freeing the aio slot,
 therefore no other thread is allowed to do the freeing!
 
-@param[in]	global_seg	segment number in the aio array
+@param[in]	global_segment	segment number in the aio array
 				to wait for; segment 0 is the ibuf
 				i/o thread, segment 1 is log i/o thread,
 				then follow the non-ibuf read threads,
