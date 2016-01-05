@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -8043,6 +8043,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
 
   if (!master)
   {
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
     hints= new Ft_hints(flags);
     if (!hints)
     {
