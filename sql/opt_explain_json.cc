@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -961,11 +961,14 @@ public:
 class simple_sort_ctx : public joinable_ctx
 {
 protected:
-  joinable_ctx *join_tab; //< single JOIN_TAB that we sort
+  /** Single JOIN_TAB that we sort. */
+  joinable_ctx *join_tab;
 
 private:
-  const bool using_tmptable; //< true if the clause creates intermediate table
-  const bool using_filesort; //< true if the clause uses filesort
+  /** True if the clause creates intermediate table. */
+  const bool using_tmptable;
+  /** True if the clause uses filesort. */
+  const bool using_filesort;
 
 public:
   simple_sort_ctx(enum_parsing_context type_arg, const char *name_arg,
@@ -1020,7 +1023,8 @@ protected:
 
 class simple_sort_with_subqueries_ctx : public simple_sort_ctx
 {
-  const subquery_list_enum subquery_type; //< type of this clause subqueries
+  /** Type of this clause subqueries. */
+  const subquery_list_enum subquery_type;
   List<subquery_ctx> subqueries;
 
 public:
@@ -1144,8 +1148,10 @@ TODO
 
 class sort_ctx : public join_ctx
 {
-  const bool using_tmptable; //< the clause creates temporary table
-  const bool using_filesort; //< the clause uses filesort
+  /** The clause creates temporary table. */
+  const bool using_tmptable;
+  /** The clause uses filesort. */
+  const bool using_filesort;
 
 public:
   sort_ctx(enum_parsing_context type_arg, const char *name_arg,
@@ -1176,7 +1182,8 @@ protected:
 
 class sort_with_subqueries_ctx : public sort_ctx
 {
-  const subquery_list_enum subquery_type; //< subquery type for this clause
+  /** Subquery type for this clause. */
+  const subquery_list_enum subquery_type;
   List<subquery_ctx> subqueries;
 
 public:

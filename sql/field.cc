@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1751,8 +1751,6 @@ bool Field::send_binary(Protocol *protocol)
    size. The encoded field metadata (from the master or source) is
    decoded and compared to the size of this field (the slave or
    destination).
-
-   @note
 
    The comparison is made so that if the source data (from the master)
    is less than the target data (on the slave), -1 is returned in @c

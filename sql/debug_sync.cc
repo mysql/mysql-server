@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1725,7 +1725,7 @@ static bool debug_sync_eval_action(THD *thd, char *action_str)
   Set the system variable 'debug_sync'.
 
   @param[in]    thd             thread handle
-  @param[in]    var             set variable request
+  @param[in]    val_str         set variable request
 
   @return       status
     @retval     FALSE           ok, variable is set
@@ -1817,14 +1817,14 @@ uchar *debug_sync_value_ptr(THD *thd)
 /**
   Return true if the signal is found in global signal list.
 
-  @param signal Signal name identifying the signal.
+  @param signal_name Signal name identifying the signal.
 
   @note
     If signal is found in the global signal set, it means that the
     signal thread has signalled to the waiting thread. This method
     must be called with the debug_sync_global.ds_mutex held.
 
-  @eretval true  if signal is found in the global signal list.
+  @retval true  if signal is found in the global signal list.
   @retval false otherwise.
 */
 
@@ -1838,7 +1838,7 @@ static inline bool is_signalled(const std::string *signal_name)
 /**
   Return false if signal has been added to global signal list.
 
-  @param signal signal name that is to be added to the global signal
+  @param signal_name signal name that is to be added to the global signal
          list.
 
   @note
@@ -1856,7 +1856,7 @@ static inline void add_signal_event(const std::string *signal_name)
 /**
   Remove the signal from the global signal list.
 
-  @param signal signal name to be removed from the global signal list.
+  @param signal_name signal name to be removed from the global signal list.
 
   @note
     This method erases the signal from the signal list.  This happens

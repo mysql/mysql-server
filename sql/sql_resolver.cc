@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2712,8 +2712,8 @@ bool SELECT_LEX::flatten_subqueries()
 /**
   Propagate nullability into inner tables of outer join operation
 
-  @param tables: List of tables and join nests, start at top_join_list
-  @param nullable: true: Set all underlying tables as nullable
+  @param tables  List of tables and join nests, start at top_join_list
+  @param nullable  true: Set all underlying tables as nullable
 */
 static void propagate_nullability(List<TABLE_LIST> *tables, bool nullable)
 {

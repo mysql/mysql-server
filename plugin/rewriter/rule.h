@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by the
@@ -177,7 +177,7 @@ public:
     Applies the rule on a query, thereby creating a new one. This is done by
     merging the replacement and literals from the query.
 
-    @param query Pointer to the query string.
+    @param thd Pointer to the query string.
 
     @retval false Everything worked, the new query is pointed to by 'query'.
     @retval true The query did not match the pattern, nothing is allocated.

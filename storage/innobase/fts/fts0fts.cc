@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2878,7 +2878,7 @@ fts_doc_ids_free(
 /** Do commit-phase steps necessary for the insertion of a new row.
 @param[in]	ftt	FTS transaction table
 @param[in]	row	row to be inserted in index
-@return DB_SUCCESS. */
+*/
 static
 void
 fts_add(
@@ -6626,7 +6626,7 @@ fts_drop_aux_table_from_vector(
 /**********************************************************************//**
 Check and drop all orphaned FTS auxiliary tables, those that don't have
 a parent table or FTS index defined on them.
-@return DB_SUCCESS or error code */
+*/
 static
 void
 fts_check_and_drop_orphaned_tables(

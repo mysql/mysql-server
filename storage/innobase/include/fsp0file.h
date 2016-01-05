@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -367,7 +367,7 @@ private:
 	@param[in]	read_only_mode	if true, then readonly mode checks
 					are enforced.
 	@return DB_SUCCESS or DB_IO_ERROR if page cannot be read */
-	dberr_t read_first_page(bool read_first_page)
+	dberr_t read_first_page(bool read_only_mode)
 		__attribute__((warn_unused_result));
 
 	/** Free the first page from memory when it is no longer needed. */

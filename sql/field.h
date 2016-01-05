@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2589,7 +2589,7 @@ protected:
     @param[in]  unsigned_val  SIGNED/UNSIGNED flag
     @param[in]  nanoseconds   Fractional part in nanoseconds
     @param[out] ltime         The value is stored here
-    @param warning
+    @param[in,out] warning    Warnings found during execution
 
     @return Conversion status
     @retval     false         On success
@@ -2607,7 +2607,7 @@ protected:
     @param[in]  nr            Number
     @param[in]  unsigned_val  SIGNED/UNSIGNED flag
     @param[out] ltime         The value is stored here
-    @param warnings
+    @param[in,out] warnings   Warnings found during execution
 
     @retval     false         On success
     @retval     true          On error

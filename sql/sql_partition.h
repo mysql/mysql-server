@@ -1,7 +1,7 @@
 #ifndef SQL_PARTITION_INCLUDED
 #define SQL_PARTITION_INCLUDED
 
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -186,7 +186,7 @@ Copy info from partition to the table share so the created partition
 has the correct info.
   @param thd               THD object
   @param share             Table share to be updated.
-  @param partition_name_with_path
+  @param partition_name_with_path Partition name, including the path.
   @param info              Create info to be updated.
   @param part_elem         partition_element containing the info.
 

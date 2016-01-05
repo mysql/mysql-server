@@ -1,7 +1,7 @@
 #ifndef PROTOCOL_INCLUDED
 #define PROTOCOL_INCLUDED
 
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -129,7 +129,7 @@ public:
     Send \\0 end terminated string.
 
     @param from   NullS or \\0 terminated string.
-    @param fromcs
+    @param fromcs Character set of the from string.
 
     @note In most cases one should use store(from, length, cs) instead of
     this function

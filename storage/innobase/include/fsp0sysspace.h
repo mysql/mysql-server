@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -105,7 +105,7 @@ public:
 	@return DB_SUCCESS if all OK else error code */
 	dberr_t check_file_spec(
 		bool*	create_new_db,
-		ulint	min_expected_tablespace_size);
+		ulint	min_expected_size);
 
 	/** Free the memory allocated by parse() */
 	void shutdown();

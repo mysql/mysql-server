@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3707,9 +3707,7 @@ bool Prepared_statement::validate_metadata(Prepared_statement *copy)
   Replace the original prepared statement with a prepared copy.
 
   This is a private helper that is used as part of statement
-  reprepare
-
-  @return This function does not return any errors.
+  reprepare.
 */
 
 void

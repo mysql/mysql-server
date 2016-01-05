@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -289,7 +289,7 @@ bool partition_info::set_partition_bitmaps(TABLE_LIST *table_list)
   @param[out] prune_needs_default_values  Set on return if copying of default
                                           values is needed
   @param[out] can_prune_partitions        Enum showing if possible to prune
-  @param[inout] used_partitions           If possible to prune the bitmap
+  @param[in,out] used_partitions          If possible to prune the bitmap
                                           is initialized and cleared
 
   @return Operation status
@@ -2393,10 +2393,6 @@ part_column_list_val *partition_info::add_column_value()
 
   @param col_val  Column value object to be initialised
   @param item     Item object representing column value
-
-  @return Operation status
-    @retval TRUE   Failure
-    @retval FALSE  Success
 
   @note Helper functions to functions called by parser.
 */

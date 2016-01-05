@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -3015,7 +3015,7 @@ buf_page_reset_file_page_was_freed(
 /** Attempts to discard the uncompressed frame of a compressed page.
 The caller should not be holding any mutexes when this function is called.
 @param[in]	page_id	page id
-@return TRUE if successful, FALSE otherwise. */
+*/
 static
 void
 buf_block_try_discard_uncompressed(

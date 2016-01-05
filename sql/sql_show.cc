@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5246,8 +5246,6 @@ err:
   @param[in]      field             processed field
   @param[in]      cs                I_S table charset
   @param[in]      offset            offset from beginning of table
-                                    to DATE_TYPE column in I_S table
-  @return         void
 */
 
 static void store_column_type(THD *thd, TABLE *table, Field *field,

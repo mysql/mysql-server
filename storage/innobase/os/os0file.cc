@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -2500,7 +2500,7 @@ therefore no other thread is allowed to do the freeing!
 				AIO operation failed, these output
 				parameters are valid and can be used to
 				restart the operation.
-@param[out]xi	 request	IO context
+@param[out]	request		IO context
 @return DB_SUCCESS if the IO was successful */
 static
 dberr_t

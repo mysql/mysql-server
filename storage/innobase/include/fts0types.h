@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -331,7 +331,7 @@ fts_decode_vlc(
 @param[in]	dst	dup to here
 @param[in]	src	src string
 @param[in]	heap	heap to use
-@return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
+*/
 UNIV_INLINE
 void
 fts_string_dup(

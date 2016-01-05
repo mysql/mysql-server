@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -753,9 +753,9 @@ bool make_date_time(Date_time_format *format, MYSQL_TIME *l_time,
   @param args            item expression which we convert to an ASCII string
   @param str_value       string buffer
   @param is_negative     set to true if interval is prefixed by '-'
-  @param count:          count of elements in result array
-  @param values:         array of results
-  @param transform_msec: if value is true we suppose
+  @param count           count of elements in result array
+  @param values          array of results
+  @param transform_msec  if value is true we suppose
                          that the last part of string value is microseconds
                          and we should transform value to six digit value.
                          For example, '1.1' -> '1.100000'

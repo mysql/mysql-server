@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -352,8 +352,7 @@ thd_start_time_in_secs(
 
 /*****************************************************************//**
 A wrapper function of innobase_convert_name(), convert a table name
-to the MySQL system_charset_info (UTF-8) and quote it if needed.
-@return pointer to the end of buf */
+to the MySQL system_charset_info (UTF-8) and quote it if needed. */
 void
 innobase_format_name(
 /*==================*/

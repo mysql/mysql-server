@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -8483,8 +8483,8 @@ notify_exclusive_mdl_helper(THD *thd, plugin_ref plugin, void *arg)
   @param notification_type  Indicates whether this is pre-acquire or
                             post-release notification.
 
-  @note @see handlerton::notify_exclusive_mdl for details about
-        calling convention and error reporting.
+  See @sa handlerton::notify_exclusive_mdl for details about
+  calling convention and error reporting.
 
   @return False - if notification was successful/lock can be acquired,
           True - if it has failed/lock should not be acquired.
@@ -8547,8 +8547,8 @@ notify_alter_table_helper(THD *thd, plugin_ref plugin, void *arg)
   @param notification_type  Indicates whether this is pre-ALTER or
                             post-ALTER notification.
 
-  @note @see handlerton::notify_alter_table for rationale,
-        details about calling convention and error reporting.
+  See @sa handlerton::notify_alter_table for rationale,
+  details about calling convention and error reporting.
 
   @return False - if notification was successful/ALTER TABLE can
                   proceed.

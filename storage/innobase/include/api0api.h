@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -976,7 +976,7 @@ ib_ut_strerr(
 
 /** Get the SDI keys in a tablespace into vector.
 @param[in]	tablespace_id	tablespace id
-@param[in,out]	vector		vector to hold objects with tablespace types
+@param[in,out]	ib_sdi_vector	vector to hold objects with tablespace types
 and ids
 @param[in]	copy_num	SDI copy number to operate on. Should be 0 or 1
 @param[in,out]	trx		data dictionary transaction

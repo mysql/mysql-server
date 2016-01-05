@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1477,8 +1477,6 @@ static int last_uniq_key(TABLE *table,uint keynr)
               and deleted.
       update - COPY_INFO structure describing the UPDATE part (only used for
                INSERT ON DUPLICATE KEY UPDATE)
-
-  @note
 
   Once this record is written to the table buffer, any AFTER INSERT trigger
   will be invoked. If instead of inserting a new record we end up updating an
