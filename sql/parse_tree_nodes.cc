@@ -36,6 +36,30 @@ PT_table_reference *PT_table_factor::add_cross_join(PT_table_ref_joined_table
 }
 
 
+bool PT_table_ref_joined_table::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc) || join_table->contextualize(pc))
+    return true;
+
+  value= pc->select->nest_last_join(pc->thd);
+  return value == NULL;
+}
+
+
+PT_table_reference
+*PT_table_ref_joined_table::add_cross_join(PT_table_ref_joined_table *cj)
+{
+  join_table->add_cross_join(cj);
+  return this;
+}
+
+
+void PT_table_ref_joined_table::add_rhs(PT_table_factor *table)
+{
+  join_table->add_rhs(table);
+}
+
+
 bool PT_option_value_no_option_type_charset:: contextualize(Parse_context *pc)
 {
   if (super::contextualize(pc))
@@ -999,9 +1023,18 @@ bool PT_select_part2::contextualize(Parse_context *pc)
 }
 
 
+PT_derived_table::PT_derived_table(PT_subquery *subquery,
+                                   LEX_STRING *table_alias)
+  : m_subquery(subquery),
+    m_table_alias(table_alias)
+{
+  m_subquery->m_is_derived_table= true;
+}
+
+
 bool PT_derived_table::contextualize(Parse_context *pc)
 {
-  if (Parse_tree_node::contextualize(pc))
+  if (super::contextualize(pc))
     return true;
 
   SELECT_LEX *outer_select= pc->select;
@@ -1062,19 +1095,27 @@ bool PT_table_factor_joined_table::contextualize(Parse_context *pc)
 }
 
 
-  /**
-    A SELECT_LEX_UNIT has to be built in a certain order: First the SELECT_LEX
-    representing the left-hand side of the union is built ("contextualized",)
-    then the right hand side, and lastly the "fake" SELECT_LEX is built and
-    made the "current" one. Only then can the order and limit clauses be
-    contextualized, because they are attached to the fake SELECT_LEX. This is
-    a bit unnatural, as these clauses belong to the surrounding <query
-    expression>, not the <query expression body> which is the union (and
-    represented by this class). For this reason, the PT_query_expression is
-    expected to call `set_containing_qe(this)` on this object, so that during
-    this contextualize() call, a call to contextualize_order_and_limit() can
-    be made at just the right time.
-   */
+PT_table_reference
+*PT_table_factor_joined_table::add_cross_join(PT_table_ref_joined_table* cj)
+{
+  m_joined_table->add_cross_join(cj);
+  return this;
+}
+
+
+/**
+  A SELECT_LEX_UNIT has to be built in a certain order: First the SELECT_LEX
+  representing the left-hand side of the union is built ("contextualized",)
+  then the right hand side, and lastly the "fake" SELECT_LEX is built and made
+  the "current" one. Only then can the order and limit clauses be
+  contextualized, because they are attached to the fake SELECT_LEX. This is a
+  bit unnatural, as these clauses belong to the surrounding <query
+  expression>, not the <query expression body> which is the union (and
+  represented by this class). For this reason, the PT_query_expression is
+  expected to call `set_containing_qe(this)` on this object, so that during
+  this contextualize() call, a call to contextualize_order_and_limit() can be
+  made at just the right time.
+*/
 bool PT_union::contextualize(Parse_context *pc)
 {
   THD *thd= pc->thd;

@@ -1,7 +1,7 @@
 #ifndef ITEM_SUBSELECT_INCLUDED
 #define ITEM_SUBSELECT_INCLUDED
 
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -517,7 +517,8 @@ public:
 
   explicit
   Item_in_subselect(Item * left_expr, SELECT_LEX *select_lex);
-  Item_in_subselect(const POS &pos, Item * left_expr, PT_subquery *pt_subselect_arg);
+  Item_in_subselect(const POS &pos, Item * left_expr,
+                    PT_subquery *pt_subquery_arg);
 
   Item_in_subselect()
     :Item_exists_subselect(), left_expr(NULL), left_expr_cache(NULL),

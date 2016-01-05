@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1401,7 +1401,7 @@ bool Item_in_subselect::test_limit()
 }
 
 Item_in_subselect::Item_in_subselect(Item * left_exp,
-				     SELECT_LEX *select):
+                                     SELECT_LEX *select):
   Item_exists_subselect(), left_expr(left_exp), left_expr_cache(NULL),
   left_expr_cache_filled(false), need_expr_cache(TRUE), m_injected_left_expr(NULL),
   optimizer(NULL), was_null(FALSE), abort_on_null(FALSE),
@@ -1419,12 +1419,12 @@ Item_in_subselect::Item_in_subselect(Item * left_exp,
 
 
 Item_in_subselect::Item_in_subselect(const POS &pos, Item * left_exp,
-				     PT_subquery *pt_subselect_arg)
+                                     PT_subquery *pt_subquery_arg)
 : super(pos), left_expr(left_exp), left_expr_cache(NULL),
   left_expr_cache_filled(false), need_expr_cache(TRUE), m_injected_left_expr(NULL),
   optimizer(NULL), was_null(FALSE), abort_on_null(FALSE),
   in2exists_info(NULL), pushed_cond_guards(NULL), upper_item(NULL),
-  pt_subselect(pt_subselect_arg)
+  pt_subselect(pt_subquery_arg)
 {
   DBUG_ENTER("Item_in_subselect::Item_in_subselect");
   max_columns= UINT_MAX;

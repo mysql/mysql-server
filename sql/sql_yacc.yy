@@ -1432,7 +1432,7 @@ END_OF_INPUT
 
 %type <table_reference> table_factor table_reference esc_table_reference
           table_reference_list single_table table_reference_list_parens
-          named_table_parens
+          single_table_parens
 
 %type <query_expression_body> query_expression_body
 
@@ -1486,7 +1486,7 @@ END_OF_INPUT
 
 %type <derived_table> derived_table
 
-%type <select> select_stmt do_stmt select_stmt_with_into
+%type <select_stmt> select_stmt do_stmt select_stmt_with_into
 
 %type <param_marker> param_marker
 
@@ -8917,14 +8917,14 @@ opt_ignore_leaves:
 select_stmt:
           query_expression
           {
-            $$= NEW_PTN PT_select($1);
+            $$= NEW_PTN PT_select_stmt($1);
           }
         | query_expression_parens
           {
             if ($1 == NULL)
               MYSQL_YYABORT; // OOM
             $1->set_parentheses();
-            $$= NEW_PTN PT_select($1);
+            $$= NEW_PTN PT_select_stmt($1);
           }
         | select_stmt_with_into
         ;
@@ -8980,7 +8980,7 @@ select_stmt_with_into:
               MYSQL_YYABORT;
             }
 
-            $$= NEW_PTN PT_select($1, $2);
+            $$= NEW_PTN PT_select_stmt($1, $2);
           }
         ;
 
@@ -9000,13 +9000,13 @@ select_init:
         ;
 
 /**
-  A <query_expression> can be used an <expr>. Now, because both a
-  <query_expression> and an <expr> can appear syntactically within any number
-  of parentheses, we get an ambiguous grammar: Where do the parentheses
+  A <query_expression> within parentheses can be used an <expr>. Now, because
+  both a <query_expression> and an <expr> can appear syntactically within any
+  number of parentheses, we get an ambiguous grammar: Where do the parentheses
   belong? Techically, we have to tell Bison by which rule to reduce the extra
   pair of parentheses. We solve it in a somewhat tedious way by defining a
-  query_expression so that it can't have outer parentheses. This forces us to
-  be very explicit about exactly where we allow parentheses; while the
+  query_expression so that it can't have enclosing parentheses. This forces us
+  to be very explicit about exactly where we allow parentheses; while the
   standard defines only one rule for <query expression> parentheses, we have
   to do it in several places. But this is a blessing in disguise, as we are
   able to define our syntax in a more fine-grained manner, and this is
@@ -9022,7 +9022,7 @@ select_init:
   query_expression within parentheses. For example, if the lookahead token is
   UNION it's just a query_expression within parentheses and the parentheses
   don't mean it's a subquery. If the next token is PLUS, we know it must be an
-  <expr> and the parentheses really mean it's a nested query expression.
+  <expr> and the parentheses really mean it's a subquery.
 */
 query_expression:
           query_expression_body
@@ -10498,8 +10498,6 @@ when_list:
           }
         ;
 
-/* Equivalent to <table reference> in the SQL:2003 standard. */
-/* Warning - may return NULL in case of incomplete SELECT */
 table_reference:
           table_factor
         | joined_table
@@ -10542,8 +10540,8 @@ esc_table_reference:
 
   In MySQL, JOIN and CROSS JOIN mean the same thing, i.e.:
 
-  - A join without <join specification> is the same as a cross join.
-  - A cross join with <join specification> is the same as an inner join.
+  - A join without a <join specification> is the same as a cross join.
+  - A cross join with a <join specification> is the same as an inner join.
 
   For the join operation above, this means that the parser can't know until it
   has seen the last ON whether `t1 JOIN t2` was a cross join or not. The only
@@ -10698,19 +10696,19 @@ use_partition:
 
   We call this rule table_reference_list_parens.
 
-  A <table_factor> may be a <table_name>, a <subquery>, a <derived_table>, a
+  A <table_factor> may be a <single_table>, a <subquery>, a <derived_table>, a
   <joined_table>, or the bespoke <table_reference_list_parens>, each of those
   enclosed in any number of parentheses. This makes for an ambiguous grammar
   since a <table_factor> may also be enclosed in parentheses. We get around
   this by designing the grammar so that a <table_factor> does not have
   parentheses, but all the sub-cases of it have their own parentheses-rules,
-  i.e. <named_table_parens>, <joined_table_parens> and
+  i.e. <single_table_parens>, <joined_table_parens> and
   <table_reference_list_parens>. It's a bit tedious but the grammar is
   unambiguous and doesn't have shift/reduce conflicts.
 */
 table_factor:
           single_table
-        | named_table_parens
+        | single_table_parens
         | derived_table { $$ = $1; }
         | joined_table_parens
           { $$= NEW_PTN PT_table_factor_joined_table($1); }
@@ -10730,8 +10728,8 @@ table_reference_list_parens:
           }
         ;
 
-named_table_parens:
-          '(' named_table_parens ')' { $$= $2; }
+single_table_parens:
+          '(' single_table_parens ')' { $$= $2; }
         | '(' single_table ')' { $$= $2; }
         ;
 
@@ -11261,7 +11259,7 @@ into_destination:
 do_stmt:
           DO_SYM empty_select_options select_item_list
           {
-            $$= NEW_PTN PT_select(SQLCOM_DO,
+            $$= NEW_PTN PT_select_stmt(SQLCOM_DO,
                   NEW_PTN PT_query_expression(
                     NEW_PTN PT_query_expression_body_primary(
                       NEW_PTN PT_query_specification(

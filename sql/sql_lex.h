@@ -1768,7 +1768,7 @@ union YYSTYPE {
   class PT_select_paren *select_paren;
   class PT_select_init *select_init;
   class PT_select_init2 *select_init2;
-  class PT_select *select;
+  class PT_select_stmt *select_stmt;
   class Item_param *param_marker;
   class PTI_text_literal *text_literal;
   class PT_query_expression *query_expression;
