@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1618,7 +1618,7 @@ enum delete_option_enum {
   special case of inner joins with a join condition that is always true. The
   only difference is the nesting, and that is handled by the parser.
 */
-enum PT_join_table_type
+enum PT_joined_table_type
 {
   JTT_INNER             = 0x01,
   JTT_STRAIGHT          = 0x02,
@@ -1741,9 +1741,8 @@ union YYSTYPE {
   class PT_union_order_or_limit *union_order_or_limit;
   class PT_table_expression *table_expression;
   class PT_table_reference *table_reference;
-  class PT_join_table_list *join_table_list;
-  class PT_join_table *join_table;
-  enum PT_join_table_type join_type;
+  class PT_joined_table *join_table;
+  enum PT_joined_table_type join_type;
   class PT_select_paren_derived *select_paren_derived;
   class PT_select_lex *select_lex2;
   class PT_internal_variable_name *internal_variable_name;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10504,7 +10504,7 @@ table_reference:
           table_factor
         | joined_table
           {
-            $$= NEW_PTN PT_table_ref_join_table($1);
+            $$= NEW_PTN PT_table_ref_joined_table($1);
           }
         | '{' ident esc_table_reference '}' { $$= $3; }
         ;
@@ -10520,7 +10520,7 @@ esc_table_reference:
           table_factor
         | joined_table
           {
-            $$= NEW_PTN PT_table_ref_join_table($1);
+            $$= NEW_PTN PT_table_ref_joined_table($1);
           }
         ;
 /*
@@ -10604,29 +10604,29 @@ esc_table_reference:
 joined_table:
           table_reference inner_join_type table_reference ON expr
           {
-            $$= NEW_PTN PT_join_table_on($1, @2, $2, $3, $5);
+            $$= NEW_PTN PT_joined_table_on($1, @2, $2, $3, $5);
           }
         | table_reference inner_join_type table_reference USING
           '(' using_list ')'
           {
-            $$= NEW_PTN PT_join_table_using($1, @2, $2, $3, $6);
+            $$= NEW_PTN PT_joined_table_using($1, @2, $2, $3, $6);
           }
         | table_reference outer_join_type table_reference ON expr
           {
-            $$= NEW_PTN PT_join_table_on($1, @2, $2, $3, $5);
+            $$= NEW_PTN PT_joined_table_on($1, @2, $2, $3, $5);
           }
         | table_reference outer_join_type table_reference USING '(' using_list ')'
           {
-            $$= NEW_PTN PT_join_table_using($1, @2, $2, $3, $6);
+            $$= NEW_PTN PT_joined_table_using($1, @2, $2, $3, $6);
           }
         | table_reference inner_join_type table_reference
           %prec CONDITIONLESS_JOIN
           {
-            PT_join_table *rhs_join= $3->get_join_table();
+            PT_joined_table *rhs_join= $3->get_joined_table();
             if (rhs_join != NULL)
             {
-              PT_table_ref_join_table *this_join=
-                NEW_PTN PT_table_ref_join_table
+              PT_table_ref_joined_table *this_join=
+                NEW_PTN PT_table_ref_joined_table
                 (NEW_PTN PT_cross_join($1, @2, $2, NULL));
 
               if ($3 == NULL)
@@ -10639,7 +10639,7 @@ joined_table:
           }
         | table_reference natural_join_type table_factor
           {
-            $$= NEW_PTN PT_join_table_using($1, @2, $2, $3);
+            $$= NEW_PTN PT_joined_table_using($1, @2, $2, $3);
           }
         ;
 

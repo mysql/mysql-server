@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,10 +25,11 @@
 /**
   Gcc can't or won't allow a pure virtual destructor without an implementation.
 */
-PT_join_table::~PT_join_table() {}
+PT_joined_table::~PT_joined_table() {}
 
 
-PT_table_reference *PT_table_factor::add_cross_join(PT_table_ref_join_table *cj)
+PT_table_reference *PT_table_factor::add_cross_join(PT_table_ref_joined_table
+                                                    *cj)
 {
   cj->add_rhs(this);
   return cj;
