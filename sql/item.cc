@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -503,11 +503,12 @@ longlong Item::val_time_temporal()
 longlong Item::val_date_temporal()
 {
   MYSQL_TIME ltime;
-  my_time_flags_t flags= TIME_FUZZY_DATE | TIME_INVALID_DATES;
-  if (current_thd->variables.sql_mode & MODE_NO_ZERO_IN_DATE)
-    flags|= TIME_NO_ZERO_IN_DATE;
-  if (current_thd->variables.sql_mode & MODE_NO_ZERO_DATE)
-    flags|= TIME_NO_ZERO_DATE;
+  const sql_mode_t mode= current_thd->variables.sql_mode;
+  const my_time_flags_t flags=
+    TIME_FUZZY_DATE |
+    (mode & MODE_INVALID_DATES ? TIME_INVALID_DATES : 0) |
+    (mode & MODE_NO_ZERO_IN_DATE ? TIME_NO_ZERO_IN_DATE : 0) |
+    (mode & MODE_NO_ZERO_DATE ? TIME_NO_ZERO_DATE : 0);
   if ((null_value= get_date(&ltime, flags)))
     return 0;
   return TIME_to_longlong_datetime_packed(&ltime);
