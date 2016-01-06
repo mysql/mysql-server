@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -712,8 +712,6 @@ mtr_t::Command::prepare_write()
 
 	log_mutex_enter();
 
-	log_margin_checkpoint_age(len);
-
 	/* Note: we must invoke fil_names_write_if_was_clean()
 	on each tablespace. We are using the + operator instead of ||
 	because it avoids the short-circuit evaluation. */
@@ -753,6 +751,9 @@ mtr_t::Command::prepare_write()
 			len++;
 		}
 	}
+
+	/* check and attempt a checkpoint if exceeding capacity */
+	log_margin_checkpoint_age(len);
 
 	return(len);
 }

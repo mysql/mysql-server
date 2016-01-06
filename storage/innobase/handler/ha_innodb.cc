@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -19089,7 +19089,7 @@ static MYSQL_SYSVAR_ULONG(log_buffer_size, innodb_log_buffer_size,
 static MYSQL_SYSVAR_ULONGLONG(log_file_size, innodb_log_file_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Size of each log file in a log group.",
-  NULL, NULL, 48*1024*1024L, 1*1024*1024L, ULLONG_MAX, 1024*1024L);
+  NULL, NULL, 48*1024*1024L, 4*1024*1024L, ULLONG_MAX, 1024*1024L);
 
 static MYSQL_SYSVAR_ULONG(log_files_in_group, srv_n_log_files,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,

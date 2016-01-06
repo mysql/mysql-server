@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3141,15 +3141,15 @@ row_upd(
 		}
 	}
 
+	DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
+			    "after_row_upd_clust");
+
 	if (node->index == NULL
 	    || (!node->is_delete
 		&& (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE))) {
 
 		DBUG_RETURN(DB_SUCCESS);
 	}
-
-	DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
-			    "after_row_upd_clust");
 
 	DBUG_EXECUTE_IF("row_upd_skip_sec", node->index = NULL;);
 
