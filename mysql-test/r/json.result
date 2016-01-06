@@ -13461,3 +13461,31 @@ SELECT JSON_EXTRACT('[1]', '$..');
 ERROR 42000: Invalid JSON path expression. The error is around character position 2 in '$..'.
 SELECT JSON_EXTRACT('[1]', '$.a..b');
 ERROR 42000: Invalid JSON path expression. The error is around character position 4 in '$.a..b'.
+#
+# Bug#22477046: HANDLE_FATAL_SIGNAL (SIG=6) IN ITEM_FUNC_SP::VAL_JSON
+#
+CREATE TABLE t1(j JSON);
+CREATE TABLE t2(vc VARCHAR(10));
+CREATE FUNCTION f1(i INT) RETURNS INT RETURN i;
+INSERT INTO t1 SELECT f1(3);
+ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value (or column) 'column t1.j'.
+INSERT INTO t2 SELECT f1(3);
+CREATE FUNCTION f2(vc VARCHAR(10)) RETURNS VARCHAR(10) RETURN vc;
+INSERT INTO t1 SELECT f2('[1,2,3]');
+INSERT INTO t2 SELECT f2('[1,2,3]');
+CREATE FUNCTION f3(j JSON) RETURNS JSON RETURN j;
+INSERT INTO t1 SELECT f3('[4,5,6]');
+INSERT INTO t2 SELECT f3('[4,5,6]');
+SELECT * FROM t1;
+j
+[1, 2, 3]
+[4, 5, 6]
+SELECT * FROM t2;
+vc
+3
+[1,2,3]
+[4, 5, 6]
+DROP TABLE t1, t2;
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;

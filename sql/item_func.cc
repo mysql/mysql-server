@@ -608,7 +608,7 @@ my_decimal *Item_func::val_decimal(my_decimal *decimal_value)
 type_conversion_status Item_func::save_possibly_as_json(Field *field,
                                                         bool no_conversions)
 {
-  if (field->type() == MYSQL_TYPE_JSON)
+  if (field_type() == MYSQL_TYPE_JSON && field->type() == MYSQL_TYPE_JSON)
   {
     // Store the value in the JSON binary format.
     Field_json *f= down_cast<Field_json *>(field);
@@ -621,11 +621,8 @@ type_conversion_status Item_func::save_possibly_as_json(Field *field,
     field->set_notnull();
     return f->store_json(&wr);
   }
-  else
-  {
-    // TODO Convert the JSON value to text.
-    return Item_func::save_in_field_inner(field, no_conversions);
-  }
+
+  return Item_func::save_in_field_inner(field, no_conversions);
 }
 
 String *Item_real_func::val_str(String *str)

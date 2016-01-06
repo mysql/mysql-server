@@ -260,9 +260,23 @@ public:
   my_decimal *val_decimal(my_decimal *);
 
   /**
-    Same as save_in_field except that special logic is added
-    to handle JSON values. If the target field has JSON type,
-    then do NOT first serialize the JSON value into a string form.
+    Same as save_in_field() except that special logic is added to
+    avoid serialization to string followed by parsing of the string
+    when saving a JSON value in a JSON column.
+
+    Unless both the return type of the function and the type of the
+    target column are JSON, this function works exactly as
+    save_in_field(). For the JSON type, this means:
+
+    - JSON values saved in non-JSON columns: The JSON value is
+      serialized to a character string and then attempted saved in the
+      target column. The usual conversions are performed if the target
+      column is not a character string column.
+
+    - Non-JSON values saved in JSON columns: Strings are parsed as
+      JSON text, converted to JSON binary representation and saved in
+      the target column. Non-strings cause a conversion error to be
+      raised.
 
     A better solution might be to put this logic into
     Item_func::save_in_field_inner() or even Item::save_in_field_inner().
