@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -235,11 +235,17 @@ IF(NOT DISABLE_SHARED)
       VERSION "${OS_SHARED_LIB_VERSION}" 
       SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
     CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
+
+    GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
+    IF(NOT libmysql_link_flag)
+      SET(libmysql_link_flags)
+    ENDIF()
+    SET(libmysql_link_flags
+      "${CMAKE_SHARED_LIBRARY_C_FLAGS} ${libmysql_link_flags}")
+    SET_TARGET_PROPERTIES(libmysql
+      PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
+
     IF(LINK_FLAG_NO_UNDEFINED)
-      GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
-      IF(NOT libmysql_link_flag)
-        SET(libmysql_link_flags)
-      ENDIF()
       SET(libmysql_link_flags
         "${libmysql_link_flags} ${LINK_FLAG_NO_UNDEFINED}")
       SET(libmysql_link_flags

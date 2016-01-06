@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -419,6 +419,8 @@ IF(WIN32 OR HAVE_DLOPEN AND NOT DISABLE_SHARED)
   ELSE()
     # udf_example is using safemutex exported by mysqld
     TARGET_LINK_LIBRARIES(udf_example mysqld)
+    SET_TARGET_PROPERTIES(udf_example
+      PROPERTIES LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS}")
   ENDIF()
 ENDIF()
 
