@@ -40,7 +40,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SET DEBUG='+d,row_merge_ins_spatial_fail';
 create spatial index idx2 on t1(c2);
-ERROR HY000: Got error 1000 from storage engine
+ERROR HY000: Got error 1000 - 'InnoDB error' from storage engine
 SET DEBUG='-d,row_merge_ins_spatial_fail';
 show create table t1;
 Table	Create Table
