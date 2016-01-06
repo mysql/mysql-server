@@ -1,3 +1,6 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
+
 --source include/have_innodb.inc
 --source include/have_debug_sync.inc
 # This test fails sporadically on valgrind, hence skipping
