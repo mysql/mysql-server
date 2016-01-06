@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -128,8 +128,13 @@ sub sleep_until_file_created ($$$) {
 
     mtr_debug("Sleep $sleeptime milliseconds waiting for $pidfile");
 
-    # Print extra message every 60 seconds
-    if ( $seconds > 1 && int($seconds * 10) % 600 == 0 && $seconds < $timeout )
+    my $message_timeout = 600; # 60 seconds wait between each message
+    if ($ENV{'VALGRIND_TEST'}) {
+      $message_timeout = $message_timeout * 5;
+    }
+
+    # Print extra message every $message_timeout seconds
+    if ( $seconds > 1 && int($seconds * 10) % $message_timeout == 0 && $seconds < $timeout )
     {
       my $left= $timeout - $seconds;
       mtr_warning("Waited $seconds seconds for $pidfile to be created, " .
