@@ -2632,3 +2632,60 @@ eval explain $query;
 eval $query;
 
 DROP TABLE t1, t2, t3;
+
+--echo # Bug#22343301: Error 1093 (HY000): You can't specify target table'.'
+--echo #               for update in FROM clause
+
+CREATE TABLE users (
+ id int unsigned AUTO_INCREMENT,
+ name varchar(255),
+ position int DEFAULT NULL,
+ PRIMARY KEY (id));
+
+INSERT INTO users (name, position) VALUES
+ ('user1','1'), ('user2','2'), ('user3','3'), ('user4','4'), ('user5','5');
+
+--echo # Single-table update with non-mergeable derived table
+UPDATE users
+SET position = (SELECT COUNT(pos) + 1
+                FROM (SELECT DISTINCT position AS pos FROM users) AS t2
+                WHERE t2.pos < users.position)
+WHERE id = 3;
+
+--echo # Single-table update with mergeable derived table
+--echo # (but not merged due to being used in a subquery of an UPDATE statement)
+UPDATE users
+SET position = (SELECT COUNT(pos) + 1
+                FROM (SELECT position AS pos FROM users) AS t2
+                WHERE t2.pos < users.position)
+WHERE id = 3;
+
+--echo # Multi-table update with non-mergeable derived table
+UPDATE users, (SELECT 1) AS dummy
+SET position = (SELECT COUNT(pos) + 1
+                FROM (SELECT DISTINCT position AS pos FROM users) AS t2
+                WHERE t2.pos < users.position)
+WHERE id = 3;
+
+--echo # Multi-table update with mergeable derived table
+UPDATE users, (SELECT 1) AS dummy
+SET position = (SELECT COUNT(pos) + 1
+                FROM (SELECT position AS pos FROM users) AS t2
+                WHERE t2.pos < users.position)
+WHERE id = 3;
+
+--error ER_UPDATE_TABLE_USED
+UPDATE users
+SET position = (SELECT COUNT(t2.position) + 1
+                FROM users AS t2
+                WHERE t2.position < users.position)
+WHERE id = 3;
+
+--error ER_UPDATE_TABLE_USED
+UPDATE users, (SELECT 1) AS dummy
+SET position = (SELECT COUNT(t2.position) + 1
+                FROM users AS t2
+                WHERE t2.position < users.position)
+WHERE id = 3;
+
+DROP TABLE users;
