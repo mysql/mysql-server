@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -709,9 +709,7 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *))
 {
   my_thread_attr_t attr;          /* Thread attributes */
   my_thread_attr_init(&attr);
-#ifndef _WIN32
-  (void) pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-#endif
+  (void) my_thread_attr_setdetachstate(&attr, MY_THREAD_CREATE_JOINABLE);
 
   struct test_thread_context context;
 

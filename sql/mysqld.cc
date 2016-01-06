@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2139,7 +2139,7 @@ static void start_signal_handler()
 
   (void) my_thread_attr_init(&thr_attr);
   (void) pthread_attr_setscope(&thr_attr, PTHREAD_SCOPE_SYSTEM);
-  (void) pthread_attr_setdetachstate(&thr_attr, PTHREAD_CREATE_JOINABLE);
+  (void) my_thread_attr_setdetachstate(&thr_attr, MY_THREAD_CREATE_JOINABLE);
 
   size_t guardize= 0;
   (void) pthread_attr_getguardsize(&thr_attr, &guardize);
@@ -3283,8 +3283,8 @@ static int init_thread_environment()
 #endif // !EMBEDDED_LIBRARY
   /* Parameter for threads created for connections */
   (void) my_thread_attr_init(&connection_attrib);
+  my_thread_attr_setdetachstate(&connection_attrib, MY_THREAD_CREATE_DETACHED);
 #ifndef _WIN32
-  pthread_attr_setdetachstate(&connection_attrib, PTHREAD_CREATE_DETACHED);
   pthread_attr_setscope(&connection_attrib, PTHREAD_SCOPE_SYSTEM);
 #endif
 
