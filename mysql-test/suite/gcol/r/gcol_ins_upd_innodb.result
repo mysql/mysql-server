@@ -636,6 +636,33 @@ Warning	1292	Incorrect datetime value: '' for column 'b' at row 1
 Warning	1292	Incorrect datetime value: '' for column 'b' at row 1
 Warning	1292	Incorrect datetime value: '' for column 'b' at row 1
 DROP TABLE t;
+#
+# Bug#22195458:GCOLS: ASSERTION 0 AND CORRUPTION...
+#
+CREATE TABLE t (
+a INT,
+b YEAR GENERATED ALWAYS AS ('a') VIRTUAL,
+c YEAR GENERATED ALWAYS AS ('aaaa') VIRTUAL,
+b1 YEAR GENERATED ALWAYS AS ('a') STORED,
+c1 YEAR GENERATED ALWAYS AS ('aaaa') STORED,
+UNIQUE(b),
+UNIQUE(b1)
+);
+INSERT INTO t VALUES();
+SELECT b from t;
+b
+0000
+SELECT b1 from t;
+b1
+0000
+SELECT * from t;
+a	b	c	b1	c1
+NULL	0000	0000	0000	0000
+DELETE FROM t;
+CHECK TABLE t EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 #Bug#21929967:GCOLS:GCOL VALUE CHANGES WHEN SESSION CHANGES SQL_MODE
 CREATE TABLE t(c1 INT GENERATED ALWAYS AS (1) VIRTUAL NOT NULL,
 c2 INT GENERATED ALWAYS AS(2) STORED NOT NULL);

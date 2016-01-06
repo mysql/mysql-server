@@ -515,7 +515,31 @@ DELETE IGNORE FROM t;
 DROP TABLE t;
 
 --source include/restore_strict_mode.inc
-} 
+
+--echo #
+--echo # Bug#22195458:GCOLS: ASSERTION 0 AND CORRUPTION...
+--echo #
+--disable_warnings
+--source include/turn_off_strict_mode.inc
+CREATE TABLE t (
+  a INT,
+  b YEAR GENERATED ALWAYS AS ('a') VIRTUAL,
+  c YEAR GENERATED ALWAYS AS ('aaaa') VIRTUAL,
+  b1 YEAR GENERATED ALWAYS AS ('a') STORED,
+  c1 YEAR GENERATED ALWAYS AS ('aaaa') STORED,
+  UNIQUE(b),
+  UNIQUE(b1)
+);
+INSERT INTO t VALUES();
+SELECT b from t;
+SELECT b1 from t;
+SELECT * from t;
+DELETE FROM t;
+CHECK TABLE t EXTENDED;
+DROP TABLE t;
+--source include/restore_strict_mode.inc
+--enable_warnings
+}
 
 --echo #Bug#21929967:GCOLS:GCOL VALUE CHANGES WHEN SESSION CHANGES SQL_MODE
 CREATE TABLE t(c1 INT GENERATED ALWAYS AS (1) VIRTUAL NOT NULL,
