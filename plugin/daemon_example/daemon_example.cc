@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -134,9 +134,7 @@ static int daemon_example_plugin_init(void *p)
   my_write(con->heartbeat_file, (uchar*) buffer, strlen(buffer), MYF(0));
 
   my_thread_attr_init(&attr);
-#ifndef _WIN32
-  pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-#endif
+  my_thread_attr_setdetachstate(&attr, MY_THREAD_CREATE_JOINABLE);
 
 
   /* now create the thread */

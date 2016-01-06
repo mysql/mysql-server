@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -258,8 +258,8 @@ int bootstrap(MYSQL_FILE *file)
   my_thread_attr_init(&thr_attr);
 #ifndef _WIN32
   pthread_attr_setscope(&thr_attr, PTHREAD_SCOPE_SYSTEM);
-  pthread_attr_setdetachstate(&thr_attr, PTHREAD_CREATE_JOINABLE);
 #endif
+  my_thread_attr_setdetachstate(&thr_attr, MY_THREAD_CREATE_JOINABLE);
   my_thread_handle thread_handle;
   // What about setting THD::real_id?
   int error= mysql_thread_create(key_thread_bootstrap,
