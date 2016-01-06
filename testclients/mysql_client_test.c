@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20689,7 +20689,7 @@ static void test_wl8754()
   BUG#17883203: MYSQL EMBEDDED MYSQL_STMT_EXECUTE RETURN
                 "MALFORMED COMMUNICATION PACKET" ERROR
 */
-#define BUG17883203_STRING_SIZE 50
+#define BUG17883203_STRING_SIZE 100
 
 static void test_bug17883203()
 {
