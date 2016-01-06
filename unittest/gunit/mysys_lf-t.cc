@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -204,9 +204,7 @@ TEST(Mysys, LockFree)
   mysql_mutex_init(0, &mutex, 0);
   mysql_cond_init(0, &cond);
   my_thread_attr_init(&thr_attr);
-#ifndef _WIN32
-  pthread_attr_setdetachstate(&thr_attr, PTHREAD_CREATE_DETACHED);
-#endif
+  my_thread_attr_setdetachstate(&thr_attr, MY_THREAD_CREATE_DETACHED);
 
   do_tests();
 
