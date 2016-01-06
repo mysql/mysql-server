@@ -1,4 +1,4 @@
-# Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -932,4 +932,36 @@
    ...
    fun:mi_arena.*
    fun:malloc_info
+}
+
+#supress warnings from openssl
+
+{
+   OpenSSL PB2 / 1
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:sk_new
+   fun:SSL_COMP_get_compression_methods
+   fun:SSL_library_init
+   fun:ssl_start
+   fun:_Z8init_sslv
+   fun:_Z11mysqld_mainiPPc
+   fun:main
+}
+
+{
+   OpenSSL PB2 / 2
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:sk_new
+   fun:SSL_COMP_get_compression_methods
+   fun:SSL_library_init
+   fun:ssl_start
+   fun:_ZL8init_sslv
+   fun:_Z11mysqld_mainiPPc
+   fun:main
 }
