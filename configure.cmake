@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -741,7 +741,7 @@ MY_CHECK_TYPE_SIZE(char CHAR)
 MY_CHECK_TYPE_SIZE(short SHORT)
 MY_CHECK_TYPE_SIZE(int INT)
 MY_CHECK_TYPE_SIZE("long long" LONG_LONG)
-SET(CMAKE_EXTRA_INCLUDE_FILES stdio.h sys/types.h)
+SET(CMAKE_EXTRA_INCLUDE_FILES stdio.h sys/types.h time.h)
 MY_CHECK_TYPE_SIZE(off_t OFF_T)
 MY_CHECK_TYPE_SIZE(uchar UCHAR)
 MY_CHECK_TYPE_SIZE(uint UINT)
@@ -756,6 +756,7 @@ MY_CHECK_TYPE_SIZE(u_int32_t U_INT32_T)
 MY_CHECK_TYPE_SIZE(int64 INT64)
 MY_CHECK_TYPE_SIZE(uint64 UINT64)
 MY_CHECK_TYPE_SIZE(time_t TIME_T)
+MY_CHECK_TYPE_SIZE("struct timespec" STRUCT_TIMESPEC)
 SET (CMAKE_EXTRA_INCLUDE_FILES sys/types.h)
 MY_CHECK_TYPE_SIZE(bool  BOOL)
 SET(CMAKE_EXTRA_INCLUDE_FILES)

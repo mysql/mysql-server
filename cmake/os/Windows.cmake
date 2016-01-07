@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -186,12 +186,13 @@ CHECK_SYMBOL_REPLACEMENT(SIGQUIT SIGTERM signal.h)
 CHECK_SYMBOL_REPLACEMENT(SIGPIPE SIGINT signal.h)
 CHECK_SYMBOL_REPLACEMENT(isnan _isnan float.h)
 CHECK_SYMBOL_REPLACEMENT(finite _finite float.h)
+CHECK_SYMBOL_REPLACEMENT(tzname _tzname time.h)
+CHECK_SYMBOL_REPLACEMENT(snprintf _snprintf stdio.h)
 CHECK_FUNCTION_REPLACEMENT(popen _popen)
 CHECK_FUNCTION_REPLACEMENT(pclose _pclose)
 CHECK_FUNCTION_REPLACEMENT(access _access)
 CHECK_FUNCTION_REPLACEMENT(strcasecmp _stricmp)
 CHECK_FUNCTION_REPLACEMENT(strncasecmp _strnicmp)
-CHECK_FUNCTION_REPLACEMENT(snprintf _snprintf)
 CHECK_FUNCTION_REPLACEMENT(strtok_r strtok_s)
 CHECK_FUNCTION_REPLACEMENT(strtoll _strtoi64)
 CHECK_FUNCTION_REPLACEMENT(strtoull _strtoui64)
