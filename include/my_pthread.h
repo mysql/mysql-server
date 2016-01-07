@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -90,6 +90,7 @@ typedef volatile LONG my_pthread_once_t;
   windows implementation of pthread_cond_timedwait
 */
 
+#ifndef HAVE_STRUCT_TIMESPEC
 /*
    Declare a union to make sure FILETIME is properly aligned
    so it can be used directly as a 64 bit value. The value
@@ -128,6 +129,7 @@ struct timespec {
   ((TS1.tv.i64 > TS2.tv.i64) ? 1 : \
    ((TS1.tv.i64 < TS2.tv.i64) ? -1 : 0))
 
+#endif
 
 int win_pthread_mutex_trylock(pthread_mutex_t *mutex);
 int pthread_create(pthread_t *, const pthread_attr_t *, pthread_handler, void *);
@@ -433,13 +435,7 @@ int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
 #endif /* !set_timespec_nsec */
 #else
 #ifndef set_timespec
-#define set_timespec(ABSTIME,SEC) \
-{\
-  struct timeval tv;\
-  gettimeofday(&tv,0);\
-  (ABSTIME).tv_sec=tv.tv_sec+(time_t) (SEC);\
-  (ABSTIME).tv_nsec=tv.tv_usec*1000;\
-}
+#define set_timespec(ABSTIME,SEC) set_timespec_nsec((ABSTIME),(SEC)*1000000000ULL)
 #endif /* !set_timespec */
 #ifndef set_timespec_nsec
 #define set_timespec_nsec(ABSTIME,NSEC) \
