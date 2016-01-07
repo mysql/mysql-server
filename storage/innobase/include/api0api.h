@@ -576,8 +576,13 @@ ib_cursor_read_row(
 /*===============*/
 	ib_crsr_t	ib_crsr,	/*!< in: InnoDB cursor instance */
 	ib_tpl_t	ib_tpl,		/*!< out: read cols into this tuple */
+	ib_tpl_t	cmp_tpl,	/*!< in: tuple to compare and stop
+					reading */
+	int		mode,		/*!< in: mode determine when to
+					stop read */
 	void**		row_buf,	/*!< in/out: row buffer */
-	ib_ulint_t*	row_len);	/*!< in/out: row buffer len */
+	ib_ulint_t*	row_len,	/*!< in/out: row buffer len */
+	ib_ulint_t*	used_len);	/*!< in/out: row buffer len used */
 
 /*****************************************************************//**
 Move cursor to the first record in the table.
@@ -603,7 +608,8 @@ ib_cursor_moveto(
 /*=============*/
 	ib_crsr_t	ib_crsr,	/*!< in: InnoDB cursor instance */
 	ib_tpl_t	ib_tpl,		/*!< in: Key to search for */
-	ib_srch_mode_t	ib_srch_mode);	/*!< in: search mode */
+	ib_srch_mode_t	ib_srch_mode,	/*!< in: search mode */
+	ib_ulint_t	direction);	/*!< in: search direction */
 
 /*****************************************************************//**
 Set the match mode for ib_cursor_move(). */

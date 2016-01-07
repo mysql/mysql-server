@@ -280,14 +280,19 @@ ib_wake_master_thread(void)
 /*****************************************************************//**
 Read the columns from a rec into a tuple. */
 static
-void
+ib_err_t
 ib_read_tuple(
 /*==========*/
 	const rec_t*	rec,		/*!< in: Record to read */
 	ib_bool_t	page_format,	/*!< in: IB_TRUE if compressed format */
 	ib_tuple_t*	tuple,		/*!< in: tuple to read into */
-	void**		rec_buf,        /*!< in/out: row buffer */
-        ulint*          len)            /*!< in/out: buffer len */
+	ib_tuple_t*	cmp_tuple,	/*!< in: tuple to compare and stop
+					reading  */
+	int		mode,		/*!< in: mode determine when to
+					stop read */
+	void**		rec_buf_list,	/*!< in/out: row buffer */
+	ulint*		cur_slot,	/*!< in/out: buffer slot being used */
+	ulint*		used_len)	/*!< in/out: used buf len */
 {
 	ulint		i;
 	void*		ptr;
@@ -299,6 +304,9 @@ ib_read_tuple(
 	dtuple_t*	dtuple = tuple->ptr;
 	const dict_index_t* index = tuple->index;
 	ulint		offset_size;
+	byte*		next_ptr;
+	int		cmp;
+	ulint		match = 0;
 
 	rec_offs_init(offsets_);
 
@@ -310,13 +318,48 @@ ib_read_tuple(
 
 	offset_size = rec_offs_size(offsets);
 
-	if (rec_buf && *rec_buf) {
-		if (*len < offset_size) {
-			free(*rec_buf);
-			*rec_buf = malloc(offset_size);
-			*len = offset_size;
+	if (cmp_tuple && mode) {
+		/* This is a case of "read upto" certain value. Used for
+		index scan for "<" or "<=" case */
+		cmp = cmp_dtuple_rec_with_match(
+			cmp_tuple->ptr, rec, offsets, &match);
+
+		if ((mode == IB_CUR_LE && cmp < 0)
+		    || (mode == IB_CUR_L && cmp <= 0)) {
+			return(DB_END_OF_INDEX);
 		}
-		ptr = *rec_buf;
+	}
+
+	if (rec_buf_list && *rec_buf_list) {
+		void*	rec_buf = rec_buf_list[*cur_slot];
+
+		if ((16384  - *used_len) < offset_size + 8) {
+			(*cur_slot) += 1;
+
+			/* Limit the record buffer size to 16 MB */
+			if (*cur_slot >= 1024) {
+				return(DB_END_OF_INDEX);
+			}
+
+			if (rec_buf_list[*cur_slot] == NULL) {
+				rec_buf_list[*cur_slot] = malloc(16384);
+			}
+
+			rec_buf = rec_buf_list[*cur_slot];
+
+			if (rec_buf == NULL) {
+				return(DB_END_OF_INDEX);
+			}
+			*used_len = 0;
+		}
+
+		ptr = ((byte*)rec_buf + *used_len);
+
+		next_ptr = static_cast<byte*>(
+			ut_align((byte*)(rec_buf) + *used_len
+			+ offset_size + 8, 8));
+
+		*used_len = next_ptr - (byte*)(rec_buf);
 	} else {
 		/* Make a copy of the rec. */
 		ptr = mem_heap_alloc(tuple->heap, offset_size);
@@ -364,6 +407,8 @@ ib_read_tuple(
 
 		dfield_set_data(dfield, data, len);
 	}
+
+	return(DB_SUCCESS);
 }
 
 /*****************************************************************//**
@@ -1589,7 +1634,8 @@ ib_delete_row(
 
 	page_format = static_cast<ib_bool_t>(
 		dict_table_is_comp(index->table));
-	ib_read_tuple(rec, page_format, tuple, NULL, NULL);
+
+	ib_read_tuple(rec, page_format, tuple, NULL, 0, NULL, NULL, NULL);
 
 	upd->n_fields = ib_tuple_get_n_cols(ib_tpl);
 
@@ -1703,11 +1749,17 @@ ib_cursor_read_row(
 /*===============*/
 	ib_crsr_t	ib_crsr,	/*!< in: InnoDB cursor instance */
 	ib_tpl_t	ib_tpl,		/*!< out: read cols into this tuple */
-	void**		row_buf,        /*!< in/out: row buffer */
-	ib_ulint_t*	row_len)        /*!< in/out: row buffer len */
+	ib_tpl_t	cmp_tpl,	/*!< in: tuple to compare and stop
+					reading */
+	int		mode,		/*!< in: mode determine when to
+					stop read */
+	void**		row_buf,	/*!< in/out: row buffer */
+	ib_ulint_t*	slot,		/*!< in/out: slot being used */
+	ib_ulint_t*	used_len)	/*!< in/out: buffer len used */
 {
 	ib_err_t	err;
 	ib_tuple_t*	tuple = (ib_tuple_t*) ib_tpl;
+	ib_tuple_t*	cmp_tuple = (ib_tuple_t*) cmp_tpl;
 	ib_cursor_t*	cursor = (ib_cursor_t*) ib_crsr;
 
 	ut_a(trx_is_started(cursor->prebuilt->trx));
@@ -1749,9 +1801,10 @@ ib_cursor_read_row(
 			}
 
 			if (!rec_get_deleted_flag(rec, page_format)) {
-				ib_read_tuple(rec, page_format, tuple,
-					      row_buf, (ulint*) row_len);
-				err = DB_SUCCESS;
+				err = ib_read_tuple(
+					rec, page_format, tuple, cmp_tuple,
+					mode, row_buf, (ulint*) slot,
+					(ulint*) used_len);
 			} else{
 				err = DB_RECORD_NOT_FOUND;
 			}
@@ -1781,10 +1834,10 @@ ib_cursor_position(
 	unsigned char*	buf;
 
 	buf = static_cast<unsigned char*>(ut_malloc_nokey(UNIV_PAGE_SIZE));
+	dtuple_set_n_fields(prebuilt->search_tuple, 0);
 
 	/* We want to position at one of the ends, row_search_for_mysql()
 	uses the search_tuple fields to work out what to do. */
-	dtuple_set_n_fields(prebuilt->search_tuple, 0);
 
 	err = static_cast<ib_err_t>(row_search_for_mysql(
 		buf, static_cast<page_cur_mode_t>(mode), prebuilt, 0, 0));
@@ -1837,7 +1890,8 @@ ib_cursor_moveto(
 /*=============*/
 	ib_crsr_t	ib_crsr,	/*!< in: InnoDB cursor instance */
 	ib_tpl_t	ib_tpl,		/*!< in: Key to search for */
-	ib_srch_mode_t	ib_srch_mode)	/*!< in: search mode */
+	ib_srch_mode_t	ib_srch_mode,	/*!< in: search mode */
+	ib_ulint_t	direction)	/*!< in: search direction */
 {
 	ulint		i;
 	ulint		n_fields;
@@ -1873,7 +1927,7 @@ ib_cursor_moveto(
 
 	err = static_cast<ib_err_t>(row_search_for_mysql(
 		buf, static_cast<page_cur_mode_t>(ib_srch_mode), prebuilt,
-		cursor->match_mode, 0));
+		cursor->match_mode, direction));
 
 	ut_free(buf);
 
@@ -3253,14 +3307,14 @@ ib_sdi_set(
 
 	ib_cursor_set_match_mode(ib_crsr, IB_EXACT_MATCH);
 	ib_cursor_set_lock_mode(ib_crsr, IB_LOCK_X);
-	err = ib_cursor_moveto(ib_crsr, key_tpl, IB_CUR_LE);
+	err = ib_cursor_moveto(ib_crsr, key_tpl, IB_CUR_LE, 0);
 
 	if (err == DB_SUCCESS) {
 		/* Existing row found. We should update it. */
 		ib_tpl_t	old_tuple = ib_clust_read_tuple_create(ib_crsr);
-		ulint		row_len;
 		ib_cursor_stmt_begin(ib_crsr);
-		ib_cursor_read_row(ib_crsr, old_tuple, NULL, &row_len);
+		ib_cursor_read_row(ib_crsr, old_tuple, NULL, 0,
+				   NULL, NULL, NULL);
 		err = ib_cursor_update_row(ib_crsr, old_tuple, new_tuple);
 		ib_tuple_delete(old_tuple);
 	} else {
@@ -3309,9 +3363,9 @@ ib_sdi_get_keys(
 
 	ib_tpl_t	tuple = ib_clust_read_tuple_create(ib_crsr);
 	do {
-		ulint		row_len;
 		/* Read the current row from cursor position */
-		err = ib_cursor_read_row(ib_crsr, tuple, NULL, &row_len);
+		err = ib_cursor_read_row(ib_crsr, tuple, NULL, 0,
+					 NULL, NULL, NULL);
 		if (err != DB_SUCCESS) {
 			break;
 		}
@@ -3370,13 +3424,13 @@ ib_sdi_get(
 
 	ib_cursor_set_match_mode(ib_crsr, IB_EXACT_MATCH);
 
-	err = ib_cursor_moveto(ib_crsr, key_tpl, IB_CUR_GE);
+	err = ib_cursor_moveto(ib_crsr, key_tpl, IB_CUR_GE, 0);
 	if (err == DB_SUCCESS) {
 		/* Read the current row from cursor position */
 		ib_tpl_t	tuple = ib_clust_read_tuple_create(ib_crsr);
-		ulint		row_len;
 		ib_cursor_stmt_begin(ib_crsr);
-		err = ib_cursor_read_row(ib_crsr, tuple, NULL, &row_len);
+		err = ib_cursor_read_row(ib_crsr, tuple, NULL, 0,
+					 NULL, NULL, NULL);
 		if (err == DB_SUCCESS) {
 			uint64_t	actual_sdi_len = ib_col_get_len(
 				tuple, 2);
@@ -3437,7 +3491,7 @@ ib_sdi_delete(
 
 	ib_cursor_set_match_mode(ib_crsr, IB_EXACT_MATCH);
 	ib_cursor_set_lock_mode(ib_crsr, IB_LOCK_X);
-	err = ib_cursor_moveto(ib_crsr, key_tpl, IB_CUR_LE);
+	err = ib_cursor_moveto(ib_crsr, key_tpl, IB_CUR_LE, 0);
 	if (err == DB_SUCCESS) {
 		ib_cursor_stmt_begin(ib_crsr);
 		err = ib_cursor_delete_row(ib_crsr);

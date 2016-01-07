@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -602,6 +602,8 @@ innodb_close_mysql_table(
 	}
 }
 
+#define	NUM_MAX_MEM_SLOT	1024
+
 /*******************************************************************//**
 Cleanup idle connections if "clear_all" is false, and clean up all
 connections if "clear_all" is true.
@@ -614,6 +616,8 @@ innodb_conn_clean_data(
 	bool			has_lock,
 	bool			free_all)
 {
+	mem_buf_t*	mem_buf;
+
 	if (!conn_data) {
 		return;
 	}
@@ -673,15 +677,24 @@ innodb_conn_clean_data(
 	UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(has_lock, conn_data);
 
 	if (free_all) {
+		conn_data->is_stale = false;
+
 		if (conn_data->result) {
 			free(conn_data->result);
 			conn_data->result = NULL;
 		}
 
 		if (conn_data->row_buf) {
+			for (int i = 0; i < NUM_MAX_MEM_SLOT; i++) {
+				if (conn_data->row_buf[i]) {
+					free(conn_data->row_buf[i]);
+					conn_data->row_buf[i] = NULL;
+				}
+			}
+
 			free(conn_data->row_buf);
 			conn_data->row_buf = NULL;
-			conn_data->row_buf_len = 0;
+			conn_data->row_buf_slot = 0;
 		}
 #ifdef UNIV_MEMCACHED_SDI
 		free(conn_data->sdi_buf);
@@ -698,6 +711,16 @@ innodb_conn_clean_data(
 			free(conn_data->mul_col_buf);
 			conn_data->mul_col_buf = NULL;
 			conn_data->mul_col_buf_len = 0;
+		}
+
+		mem_buf = UT_LIST_GET_FIRST(conn_data->mul_used_buf);
+
+		while (mem_buf) {
+
+			UT_LIST_REMOVE(mem_list, conn_data->mul_used_buf,
+				       mem_buf);
+			free(mem_buf->mem);
+			mem_buf = UT_LIST_GET_FIRST(conn_data->mul_used_buf);
 		}
 
 		pthread_mutex_destroy(&conn_data->curr_conn_mutex);
@@ -897,7 +920,6 @@ innodb_open_mysql_table(
 	return (DB_SUCCESS);
 }
 
-
 /*******************************************************************//**
 Cleanup connections
 @return number of connection cleaned */
@@ -930,7 +952,8 @@ innodb_conn_init(
 	/* Get this connection's conn_data */
 	conn_data = engine->server.cookie->get_engine_specific(cookie);
 
-	assert(!conn_data || !conn_data->in_use);
+	assert(!conn_data || !conn_data->in_use || conn_data->range
+	       || conn_data->multi_get);
 
 	if (!conn_data) {
 		LOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
@@ -964,15 +987,22 @@ innodb_conn_init(
 		conn_data->conn_meta = new_meta_info
 					 ? new_meta_info
 					 : engine->meta_info;
-		conn_data->row_buf = malloc(1024);
-                if (!conn_data->row_buf) {
+
+		/* FIX_ME: to make this dynamic extensible */
+		conn_data->row_buf = (void**)malloc(NUM_MAX_MEM_SLOT * sizeof(void*));
+		memset(conn_data->row_buf, 0, NUM_MAX_MEM_SLOT * sizeof(void*));
+
+		conn_data->row_buf[0] = (void*)malloc(16384);
+
+		if (conn_data->row_buf[0] == NULL) {
 			UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
 			free(conn_data->result);
 			free(conn_data);
 			conn_data = NULL;
 			return(NULL);
-               }
-		conn_data->row_buf_len = 1024;
+		}
+
+		conn_data->row_buf_slot = 0;
 
 		conn_data->cmd_buf = malloc(1024);
                 if (!conn_data->cmd_buf) {
@@ -998,15 +1028,26 @@ innodb_conn_init(
 			cookie, conn_data);
 
 		pthread_mutex_init(&conn_data->curr_conn_mutex, NULL);
+		UT_LIST_INIT(conn_data->mul_used_buf);
 		UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
 	}
 have_conn:
+	if (memcached_shutdown) {
+		return(NULL);
+	}
+
 	meta_info = conn_data->conn_meta;
 	meta_index = &meta_info->index_info;
 
 	assert(engine->conn_data.count > 0);
 
 	if (conn_option == CONN_MODE_NONE) {
+		return(conn_data);
+	}
+
+	/* If this is a range search or multi-key search, we do not
+	need to reset search cursor, continue with the one being used */
+	if (conn_data->range || conn_data->multi_get) {
 		return(conn_data);
 	}
 
@@ -1597,7 +1638,12 @@ innodb_switch_mapping(
 		== conn_data->conn_meta->col_info[CONTAINER_NAME].col_name_len)
 	    && (strcmp(
 		new_map_name,
-		conn_data->conn_meta->col_info[CONTAINER_NAME].col_name) == 0)) {
+		conn_data->conn_meta->col_info[
+			CONTAINER_NAME].col_name) == 0)) {
+		goto get_key_name;
+	}
+
+	if (conn_data && conn_data->multi_get) {
 		goto get_key_name;
 	}
 
@@ -1722,6 +1768,7 @@ innodb_release(
 {
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
 	innodb_conn_data_t*	conn_data;
+	mem_buf_t*		mem_buf;
 
 	conn_data = innodb_eng->server.cookie->get_engine_specific(cookie);
 
@@ -1730,6 +1777,20 @@ innodb_release(
 	}
 
 	conn_data->result_in_use = false;
+	conn_data->row_buf_slot = 0;
+	conn_data->row_buf_used = 0;
+	conn_data->range = false;
+	conn_data->multi_get = false;
+	conn_data->mul_col_buf_used = 0;
+
+	mem_buf = UT_LIST_GET_FIRST(conn_data->mul_used_buf);
+
+	while (mem_buf) {
+
+		UT_LIST_REMOVE(mem_list, conn_data->mul_used_buf, mem_buf);
+		free(mem_buf->mem);
+		mem_buf = UT_LIST_GET_FIRST(conn_data->mul_used_buf);
+	}
 
 	/* If item's memory comes from Memcached default engine, release it
 	through Memcached APIs */
@@ -1738,6 +1799,11 @@ innodb_release(
 
 		item_release(def_eng, (hash_item *) item);
 		conn_data->use_default_mem = false;
+	}
+
+	if (conn_data->range_key) {
+		free(conn_data->range_key);
+		conn_data->range_key = NULL;
 	}
 
 	return;
@@ -1835,9 +1901,7 @@ innodb_get(
 	item**			item,		/*!< out: item to fill */
 	const void*		key,		/*!< in: search key */
 	const int		nkey,		/*!< in: key length */
-	uint16_t		vbucket __attribute__((unused)))
-						/*!< in: bucket, used by default
-						engine only */
+	uint16_t		next_get)	/*!< in: has more item to get */
 {
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
 	ib_crsr_t		crsr;
@@ -1851,6 +1915,12 @@ innodb_get(
 	size_t			key_len = nkey;
 	int			lock_mode;
 	bool			report_table_switch = false;
+	void*			newkey;
+	bool			is_range_srch = false;;
+
+	if (memcached_shutdown) {
+		return(ENGINE_TMPFAIL);
+	}
 
 	if (meta_info->get_option == META_CACHE_OPT_DISABLE) {
 		return(ENGINE_KEY_ENOENT);
@@ -1909,6 +1979,109 @@ innodb_get(
 
 	result = (mci_item_t*)(conn_data->result);
 
+	newkey = (void*)key + nkey - key_len;
+
+	/* This signifies a range search, so set up the range search info */
+	if (*(char*)newkey == '@' && !conn_data->range) {
+		assert(!conn_data->range_key);
+
+		if (((char*)newkey)[1] == '<') {
+			char*	start_key;
+
+			is_range_srch = true;
+
+			conn_data->range_key = (innodb_range_key_t*) malloc(
+                                sizeof *(conn_data->range_key));
+
+			if (((char*)newkey)[2] == '=') {
+				conn_data->range_key->end_mode = IB_CUR_LE;
+				key_len -= 3;
+			} else {
+				conn_data->range_key->end_mode = IB_CUR_L;
+				key_len -= 2;
+			}
+
+			conn_data->range_key->end = (char*)key + nkey - key_len;
+			conn_data->range_key->end_len = key_len;
+
+			start_key = strstr((char*)newkey, "@>");
+			if (start_key) {
+				conn_data->range_key->bound = RANGE_BOUND;
+				uint	cmp_len = 2;
+
+				if (start_key[2] == '=') {
+					conn_data->range_key->start_mode
+						= IB_CUR_GE;
+					cmp_len = 3;
+				} else {
+					conn_data->range_key->start_mode
+						= IB_CUR_G;
+				}
+				conn_data->range_key->end_len
+					= start_key - conn_data->range_key->end;
+				conn_data->range_key->start
+					= &start_key[cmp_len];
+				conn_data->range_key->start_len
+					= key_len
+					  - conn_data->range_key->end_len
+					  - cmp_len;
+			} else {
+				conn_data->range_key->start = NULL;
+				conn_data->range_key->start_len = 0;
+				conn_data->range_key->start_mode = 0;
+				conn_data->range_key->bound = UPPER_BOUND;
+			}
+		} else if (((char*)newkey)[1] == '>') {
+			char*	end_key;
+
+			is_range_srch = true;
+
+			conn_data->range_key = (innodb_range_key_t*) malloc(
+                                sizeof *(conn_data->range_key));
+
+			if (((char*)newkey)[2] == '=') {
+				conn_data->range_key->start_mode = IB_CUR_GE;
+				key_len -= 3;
+			}  else {
+				conn_data->range_key->start_mode = IB_CUR_G;
+				key_len -= 2;
+			}
+
+			conn_data->range_key->start_len = key_len;
+			conn_data->range_key->start
+				= (char*)key + nkey - key_len;
+
+			end_key = strstr((char*)newkey, "@<");
+			if (end_key) {
+				conn_data->range_key->bound = RANGE_BOUND;
+				uint	cmp_len = 2;
+
+				if (end_key[2] == '=') {
+					conn_data->range_key->end_mode
+						= IB_CUR_LE;
+					cmp_len = 3;
+				} else {
+					conn_data->range_key->end_mode
+						= IB_CUR_L;
+				}
+				conn_data->range_key->start_len
+					 = end_key - conn_data->range_key->start;
+				conn_data->range_key->end = &end_key[cmp_len];
+				conn_data->range_key->end_len =
+					key_len - conn_data->range_key->start_len - cmp_len;
+			} else {
+				conn_data->range_key->end = NULL;
+				conn_data->range_key->end_len = 0;
+				conn_data->range_key->end_mode = 0;
+				conn_data->range_key->bound = LOW_BOUND;
+			}
+		}
+	}
+
+	if (conn_data->range) {
+		is_range_srch = true;
+	}
+
 #ifdef UNIV_MEMCACHED_SDI
 	if (innodb_sdi_get(conn_data, &err_ret, key, nkey, &item)) {
 		goto func_exit;
@@ -1916,7 +2089,23 @@ innodb_get(
 #endif /* UNIV_MEMCACHED_SDI */
 
 	err = innodb_api_search(conn_data, &crsr, key + nkey - key_len,
-				key_len, result, NULL, true);
+				key_len, result, NULL, true,
+				is_range_srch ? conn_data->range_key : NULL);
+
+	if (is_range_srch && err != DB_END_OF_INDEX) {
+		/* we set it only after the first search. This is used to
+		tell innodb_api_search() if it is the first search, which
+		might need to do the intial position of cursor */
+		conn_data->range = true;
+	}
+
+	if (next_get) {
+		conn_data->multi_get = true;
+	}
+
+	if (conn_data->multi_get && next_get == 0) {
+		conn_data->multi_get = false;
+	}
 
 	if (err != DB_SUCCESS) {
 		err_ret = ENGINE_KEY_ENOENT;
@@ -1948,14 +2137,16 @@ search_done:
 
 		memset(result, 0, sizeof(*result));
 
-		memcpy(conn_data->row_buf, table_name, strlen(table_name));
+		memcpy((conn_data->row_buf[conn_data->row_buf_slot]) + conn_data->row_buf_used, table_name, strlen(table_name));
 
-		result->col_value[MCI_COL_VALUE].value_str = conn_data->row_buf;
+		result->col_value[MCI_COL_VALUE].value_str = ((char*)conn_data->row_buf[conn_data->row_buf_slot]) + conn_data->row_buf_used;
 		result->col_value[MCI_COL_VALUE].value_len = strlen(table_name);
 	}
 
-	result->col_value[MCI_COL_KEY].value_str = (char*)key;
-	result->col_value[MCI_COL_KEY].value_len = nkey;
+	if (!conn_data->range) {
+		result->col_value[MCI_COL_KEY].value_str = (char*)key;
+		result->col_value[MCI_COL_KEY].value_len = nkey;
+	}
 
 	/* Only if expiration field is enabled, and the value is not zero,
 	we will check whether the item is expired */
@@ -1976,6 +2167,7 @@ search_done:
 		char*		value_end;
 		unsigned int	total_len = 0;
 		char		int_buf[MAX_INT_CHAR_LEN];
+		ib_ulint_t	new_len;
 
 		GET_OPTION(meta_info, OPTION_ID_COL_SEP, option_delimiter,
 			   option_length);
@@ -2008,18 +2200,29 @@ search_done:
 
 		/* No need to add the last separator */
 		total_len -= option_length;
+		new_len = total_len + conn_data->mul_col_buf_used;
 
-		if (total_len > conn_data->mul_col_buf_len) {
+		if (new_len >= conn_data->mul_col_buf_len) {
+			/* Need to keep the old result buffer, since its
+			point is already registered with memcached output
+			buffer. These result buffers will be release
+			once results are all reported */
 			if (conn_data->mul_col_buf) {
-				free(conn_data->mul_col_buf);
+				mem_buf_t* new_temp = (mem_buf_t*)malloc(
+							sizeof(mem_buf_t));
+				new_temp->mem = conn_data->mul_col_buf;
+				UT_LIST_ADD_LAST(
+					mem_list, conn_data->mul_used_buf,
+					new_temp);
 			}
 
-			conn_data->mul_col_buf = malloc(total_len + 1);
-			conn_data->mul_col_buf_len = total_len;
+			conn_data->mul_col_buf = malloc(new_len + 1);
+			conn_data->mul_col_buf_len = new_len + 1;
+			conn_data->mul_col_buf_used = 0;
 		}
 
-		c_value = conn_data->mul_col_buf;
-		value_end = conn_data->mul_col_buf + total_len;
+		c_value = &conn_data->mul_col_buf[conn_data->mul_col_buf_used];
+		value_end = &conn_data->mul_col_buf[new_len];
 
 		for (i = 0; i < result->n_extra_col; i++) {
 			mci_column_t*   col_value;
@@ -2059,9 +2262,12 @@ search_done:
 			}
 		}
 
-		result->col_value[MCI_COL_VALUE].value_str = conn_data->mul_col_buf;
+		result->col_value[MCI_COL_VALUE].value_str =
+			&conn_data->mul_col_buf[conn_data->mul_col_buf_used];
 		result->col_value[MCI_COL_VALUE].value_len = total_len;
-		((char*)result->col_value[MCI_COL_VALUE].value_str)[total_len] = 0;
+		conn_data->mul_col_buf_used += total_len;
+		((char*)result->col_value[MCI_COL_VALUE].value_str)[
+			total_len] = 0;
 
 		free(result->extra_col_value);
 	} else if (!result->col_value[MCI_COL_VALUE].is_str
@@ -2095,7 +2301,9 @@ search_done:
 
 func_exit:
 
-	if (!report_table_switch) {
+	if ((!report_table_switch && !is_range_srch && !next_get)
+	    || err == DB_END_OF_INDEX
+	    || (conn_data->range && err != DB_SUCCESS)) {
 		innodb_api_cursor_reset(innodb_eng, conn_data,
 					CONN_OP_READ, true);
 	}
@@ -2106,6 +2314,12 @@ err_exit:
 	callback function "innodb_release" to reset the result_in_use
 	value. So we reset it here */
 	if (err_ret != ENGINE_SUCCESS && conn_data) {
+		if (conn_data->range_key) {
+			free(conn_data->range_key);
+			conn_data->range_key = NULL;
+		}
+		conn_data->range = false;
+
 		conn_data->result_in_use = false;
 	}
 	return(err_ret);

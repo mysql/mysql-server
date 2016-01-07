@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -42,10 +42,13 @@ typedef
 ib_err_t
 (*cb_read_row_t)(
 /*=============*/
-        ib_crsr_t	ib_crsr,
-        ib_tpl_t	ib_tpl,
+	ib_crsr_t	ib_crsr,
+	ib_tpl_t	ib_tpl,
+	ib_tpl_t	cmp_tpl,
+	int		mode,
 	void**		row_buf,
-	ib_ulint_t*	row_buf_len);
+	ib_ulint_t*	row_buf_len,
+	ib_ulint_t*	row_buf_used);
 
 typedef
 ib_err_t
@@ -74,7 +77,8 @@ ib_err_t
 /*==================*/
 	ib_crsr_t	ib_crsr,
 	ib_tpl_t	ib_tpl,
-	ib_srch_mode_t	ib_srch_mode);
+	ib_srch_mode_t	ib_srch_mode,
+	unsigned int	direction);
 
 typedef
 ib_tpl_t
