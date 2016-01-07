@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1004,6 +1004,16 @@ ib_cursor_open_table(
 	}
 
 	return(err);
+}
+
+/** Check the table whether it contains virtual columns.
+@param[in]	crsr	InnoDB Cursor
+@return true if table contains virtual column else false. */
+ib_bool_t
+ib_is_virtual_table(
+	ib_crsr_t	crsr)
+{
+	return(crsr->prebuilt->table->n_v_cols > 0);
 }
 
 /********************************************************************//**

@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -1154,6 +1154,14 @@ innodb_verify(
 	if (err != DB_SUCCESS) {
 		fprintf(stderr, " InnoDB_Memcached: failed to open table"
 				" '%s' \n", table_name);
+		err = DB_ERROR;
+		goto func_exit;
+	}
+
+	if (ib_cb_is_virtual_table(crsr)) {
+		fprintf(stderr, " InnoDB_Memcached: table '%s' cannot"
+				" be mapped since it contains virtual"
+				" columns. \n", table_name);
 		err = DB_ERROR;
 		goto func_exit;
 	}
