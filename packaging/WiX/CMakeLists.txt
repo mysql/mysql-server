@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,7 +23,14 @@ FIND_PATH(WIX_DIR heat.exe
   "$ENV{ProgramFiles}/Windows Installer XML v3/bin"
   "$ENV{ProgramFiles}/Windows Installer XML v3.5/bin"
   "$ENV{ProgramFiles}/WiX Toolset V3.6/bin"
+  "$ENV{ProgramFiles}/WiX Toolset V3.8/bin"
 )
+
+IF(NOT WIX_DIR)
+  FIND_PATH(WIX_DIR heat.exe
+    "$ENV{ProgramFiles}/WiX Toolset V3.10/bin"
+  )
+ENDIF()
 
 IF(NOT WIX_DIR)
   IF(NOT _WIX_DIR_CHECKED)
@@ -101,6 +108,7 @@ IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
   SET(WixWin64 " Win64='yes'")
 ELSE()
   SET(WixWin64)
+  SET(WixWin64 " Win64='no'")
 ENDIF()
 
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_server_extra.wxs.in

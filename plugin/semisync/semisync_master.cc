@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,7 +51,7 @@ static int getWaitTime(const struct timespec& start_ts);
 
 static unsigned long long timespec_to_usec(const struct timespec *ts)
 {
-#ifndef __WIN__
+#ifdef HAVE_STRUCT_TIMESPEC
   return (unsigned long long) ts->tv_sec * TIME_MILLION + ts->tv_nsec / TIME_THOUSAND;
 #else
   return ts->tv.i64 / 10;
@@ -702,7 +702,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
     }
 
     /* Calcuate the waiting period. */
-#ifdef __WIN__
+#ifndef HAVE_STRUCT_TIMESPEC
       abstime.tv.i64 = start_ts.tv.i64 + (__int64)wait_timeout_ * TIME_THOUSAND * 10;
       abstime.max_timeout_msec= (long)wait_timeout_;
 #else
