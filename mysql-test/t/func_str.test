@@ -1835,3 +1835,20 @@ WHERE trim(leading  'A' FROM COUNTRY) = 'ustralia'
   AND trim(trailing 'a' FROM COUNTRY) = 'Australi';
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#22391186 TRUE WHERE CLAUSE DOESN'T RETURN EXPECTED ROW, 
+--echo #              BUT EMPTY SET
+--echo #
+
+CREATE DATABASE testt CHARACTER SET utf8mb4;
+USE testt;
+SET NAMES 'utf8mb4';
+CREATE TABLE t1(c1 CHAR(20));
+INSERT INTO t1 VALUES('11');
+SELECT c1 <=  REPEAT( SUBSTR( UPPER('Rdlpikti') , 1 , 2 ), 8 ) FROM t1;
+SELECT * FROM t1 WHERE c1 <=  REPEAT( SUBSTR( UPPER('Rdlpikti') , 1 , 2 ), 8);
+SELECT * FROM t1 WHERE c1 <=  REPEAT( SUBSTR( UPPER('Rdlpikti') , 1 , 2 ), 8);
+DROP TABLE t1;
+DROP DATABASE testt;
+SET NAMES DEFAULT;

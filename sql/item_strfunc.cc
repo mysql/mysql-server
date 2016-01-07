@@ -3591,7 +3591,14 @@ String *Item_func_repeat::val_str(String *str)
     goto err;
   }
   tot_length= length*(uint) count;
-  if (!(res= alloc_buffer(res,str,&tmp_value,tot_length)))
+  if (res->uses_buffer_owned_by(str))
+  {
+    if (tmp_value.alloc(tot_length) || tmp_value.copy(*res))
+      goto err;
+    tmp_value.length(tot_length);
+    res= &tmp_value;
+  }
+  else if (!(res= alloc_buffer(res,str,&tmp_value,tot_length)))
     goto err;
 
   to=(char*) res->ptr()+length;
