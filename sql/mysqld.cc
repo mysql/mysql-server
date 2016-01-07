@@ -7189,7 +7189,27 @@ mysqld_get_one_option(int optid,
   case OPT_BINLOG_MAX_FLUSH_QUEUE_TIME:
     push_deprecated_warn_no_replacement(NULL, "--binlog_max_flush_queue_time");
     break;
-#include <sslopt-case.h>
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+  case OPT_SSL_KEY:
+  case OPT_SSL_CERT:
+  case OPT_SSL_CA:  
+  case OPT_SSL_CAPATH:
+  case OPT_SSL_CIPHER:
+  case OPT_SSL_CRL:   
+  case OPT_SSL_CRLPATH:
+  case OPT_TLS_VERSION:
+    /*
+      Enable use of SSL if we are using any ssl option.
+      One can disable SSL later by using --skip-ssl or --ssl=0.
+    */
+    opt_use_ssl= true;
+#ifdef HAVE_YASSL
+    /* crl has no effect in yaSSL. */
+    opt_ssl_crl= NULL;
+    opt_ssl_crlpath= NULL;
+#endif /* HAVE_YASSL */   
+    break;
+#endif /* HAVE_OPENSSL */
 #ifndef EMBEDDED_LIBRARY
   case 'V':
     print_version();

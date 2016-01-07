@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -8503,7 +8503,6 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
 #ifdef HAVE_OPENSSL
   if (mi->ssl)
   {
-    const static my_bool ssl_enforce_true= TRUE;
     mysql_ssl_set(mysql,
                   mi->ssl_key[0]?mi->ssl_key:0,
                   mi->ssl_cert[0]?mi->ssl_cert:0,
@@ -8520,10 +8519,14 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                   mi->tls_version[0] ? mi->tls_version : 0);
     mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH,
                   mi->ssl_crlpath[0] ? mi->ssl_crlpath : 0);
-    mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
-                  &mi->ssl_verify_server_cert);
-    /* we always enforce SSL if SSL is turned on */
-    mysql_options(mysql, MYSQL_OPT_SSL_ENFORCE, &ssl_enforce_true);
+    enum mysql_ssl_mode ssl_mode;
+    if (mi->ssl_verify_server_cert)
+      ssl_mode= SSL_MODE_VERIFY_IDENTITY;
+    else if (mi->ssl_ca[0] || mi->ssl_capath[0])
+      ssl_mode= SSL_MODE_VERIFY_CA;
+    else
+      ssl_mode= SSL_MODE_REQUIRED;
+    mysql_options(mysql, MYSQL_OPT_SSL_MODE, &ssl_mode);
   }
 #endif
 

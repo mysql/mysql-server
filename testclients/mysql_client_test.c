@@ -18605,14 +18605,14 @@ static void test_bug47485()
 static void test_bug58036()
 {
   MYSQL *conn;
-  my_bool con_ssl= FALSE;
+  enum mysql_ssl_mode ssl_mode= SSL_MODE_DISABLED;
   DBUG_ENTER("test_bug47485");
   myheader("test_bug58036");
 
   /* Part1: try to connect with ucs2 client character set */
   conn= mysql_client_init(NULL);
   mysql_options(conn, MYSQL_SET_CHARSET_NAME, "ucs2");
-  mysql_options(conn, MYSQL_OPT_SSL_ENFORCE, &con_ssl);
+  mysql_options(conn, MYSQL_OPT_SSL_MODE, &ssl_mode);
   if (mysql_real_connect(conn, opt_host, opt_user,
                          opt_password,  opt_db ? opt_db : "test",
                          opt_port, opt_unix_socket, 0))
@@ -18972,7 +18972,7 @@ static void test_bug54790()
   int rc;
   MYSQL *lmysql;
   uint timeout= 2;
-  my_bool con_ssl= FALSE;
+  enum mysql_ssl_mode ssl_mode= SSL_MODE_DISABLED;
 
   DBUG_ENTER("test_bug54790");
   myheader("test_bug54790");
@@ -18983,7 +18983,7 @@ static void test_bug54790()
   rc= mysql_options(lmysql, MYSQL_OPT_READ_TIMEOUT, &timeout);
   DIE_UNLESS(!rc);
 
-  mysql_options(lmysql, MYSQL_OPT_SSL_ENFORCE, &con_ssl);
+  mysql_options(lmysql, MYSQL_OPT_SSL_MODE, &ssl_mode);
   if (!mysql_real_connect(lmysql, opt_host, opt_user, opt_password,
                           opt_db ? opt_db : "test", opt_port,
                           opt_unix_socket, 0))
@@ -19588,7 +19588,7 @@ static void test_wl6791()
   enum mysql_option
   uint_opts[] = {
     MYSQL_OPT_CONNECT_TIMEOUT, MYSQL_OPT_READ_TIMEOUT, MYSQL_OPT_WRITE_TIMEOUT,
-    MYSQL_OPT_PROTOCOL, MYSQL_OPT_LOCAL_INFILE
+    MYSQL_OPT_PROTOCOL, MYSQL_OPT_LOCAL_INFILE, MYSQL_OPT_SSL_MODE
   },
   my_bool_opts[] = {
     MYSQL_OPT_COMPRESS, MYSQL_OPT_USE_REMOTE_CONNECTION,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1635,6 +1635,7 @@ static const char *default_options[]=
   "multi-results", "multi-statements", "multi-queries", "secure-auth",
   "report-data-truncation", "plugin-dir", "default-auth",
   "bind-address", "ssl-crl", "ssl-crlpath", "enable-cleartext-plugin", "tls-version",
+  "ssl_mode",
   NullS
 };
 enum option_id {
@@ -1647,7 +1648,7 @@ enum option_id {
   OPT_multi_results, OPT_multi_statements, OPT_multi_queries, OPT_secure_auth, 
   OPT_report_data_truncation, OPT_plugin_dir, OPT_default_auth,
   OPT_bind_address, OPT_ssl_crl, OPT_ssl_crlpath, OPT_enable_cleartext_plugin,
-  OPT_tls_version,
+  OPT_tls_version, OPT_ssl_mode,
   OPT_keep_this_one_last
 };
 
@@ -1718,25 +1719,28 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
   } while (0)
 
 
-#define SET_SSL_OPTION(opt_var,arg) \
+#define SET_SSL_OPTION(opt_var, arg, mode) \
   do { \
     SET_OPTION(opt_var, static_cast<const char*>(arg)); \
     if (mysql->options.opt_var) \
-      mysql->options.use_ssl = TRUE; \
+    { \
+      ENSURE_EXTENSIONS_PRESENT(&mysql->options); \
+      mysql->options.extension->ssl_mode= mode; \
+    } \
   } while (0)
 
-#define EXTENSION_SET_SSL_STRING(OPTS, X, STR) \
+#define EXTENSION_SET_SSL_STRING(OPTS, X, STR, mode) \
   do { \
     EXTENSION_SET_STRING(OPTS, X, static_cast<const char*>(STR));       \
     if ((OPTS)->extension->X) \
-      (OPTS)->use_ssl = TRUE; \
+      (OPTS)->extension->ssl_mode= mode; \
   } while (0)
 #else
-#define SET_SSL_OPTION(opt_var,arg) \
+#define SET_SSL_OPTION(opt_var, arg, mode) \
     do { \
       ; \
     } while(0)
-#define EXTENSION_SET_SSL_STRING(OPTS, X, STR) \
+#define EXTENSION_SET_SSL_STRING(OPTS, X, STR, mode) \
     do { \
       ; \
     } while(0)
@@ -1872,13 +1876,13 @@ void mysql_read_default_options(struct st_mysql_options *options,
           options->ssl_cipher= my_strdup(key_memory_mysql_options,
                                          opt_arg, MYF(MY_WME));
         case OPT_tls_version:
-          EXTENSION_SET_SSL_STRING(options, tls_version, opt_arg);
+          EXTENSION_SET_SSL_STRING(options, tls_version, opt_arg, SSL_MODE_PREFERRED);
           break;
 	case OPT_ssl_crl:
-          EXTENSION_SET_SSL_STRING(options, ssl_crl, opt_arg);
+          EXTENSION_SET_SSL_STRING(options, ssl_crl, opt_arg, SSL_MODE_PREFERRED);
           break;
 	case OPT_ssl_crlpath:
-          EXTENSION_SET_SSL_STRING(options, ssl_crlpath, opt_arg);
+          EXTENSION_SET_SSL_STRING(options, ssl_crlpath, opt_arg, SSL_MODE_PREFERRED);
           break;
 #else
 	case OPT_ssl_key:
@@ -1888,7 +1892,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
         case OPT_ssl_cipher:
         case OPT_ssl_crl:
         case OPT_ssl_crlpath:
-        case OPT_tls_version:
+        case OPT_tls_version :
 	  break;
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
 	case OPT_character_sets_dir:
@@ -2495,7 +2499,8 @@ mysql_init(MYSQL *mysql)
   */
   mysql->reconnect= 0;
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY) && !defined(MYSQL_SERVER)
-  mysql->options.use_ssl= TRUE;
+  ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+  mysql->options.extension->ssl_mode= SSL_MODE_PREFERRED;
 #endif
 
   return mysql;
@@ -2598,8 +2603,8 @@ mysql_ssl_free(MYSQL *mysql)
     mysql->options.extension->ssl_crlpath = 0;
     mysql->options.extension->ssl_ctx_flags= 0;
     mysql->options.extension->tls_version= 0;
+    mysql->options.extension->ssl_mode= SSL_MODE_DISABLED;
   }
-  mysql->options.use_ssl = FALSE;
   mysql->connector_fd = 0;
   DBUG_VOID_RETURN;
 }
@@ -3437,7 +3442,8 @@ cli_calculate_client_flag(MYSQL *mysql, const char *db, ulong client_flag)
     mysql->client_flag|= CLIENT_MULTI_RESULTS;
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-  if (mysql->options.use_ssl)
+  if (mysql->options.extension &&
+      mysql->options.extension->ssl_mode != SSL_MODE_DISABLED)
     mysql->client_flag |= CLIENT_SSL;
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY*/
 
@@ -3452,10 +3458,11 @@ cli_calculate_client_flag(MYSQL *mysql, const char *db, ulong client_flag)
     | mysql->server_capabilities);
 
   if(mysql->options.protocol == MYSQL_PROTOCOL_SOCKET &&
-     mysql->options.extension->ssl_enforce == FALSE)
+     mysql->options.extension &&
+     mysql->options.extension->ssl_mode <= SSL_MODE_PREFERRED)
   {
     mysql->client_flag&= ~CLIENT_SSL;
-    mysql->options.use_ssl= FALSE;
+    mysql->options.extension->ssl_mode= SSL_MODE_DISABLED;
   }
 }
 
@@ -3473,37 +3480,26 @@ cli_establish_ssl(MYSQL *mysql)
 #ifdef HAVE_OPENSSL
   NET *net= &mysql->net;
 
-  if (mysql->options.extension && mysql->options.extension->ssl_enforce)
+  /* Don't fallback on unencrypted connection if SSL required. */
+  if (mysql->options.extension &&
+      mysql->options.extension->ssl_mode >= SSL_MODE_REQUIRED &&
+      !(mysql->server_capabilities & CLIENT_SSL))
   {
-    /*
-    ssl_enforce=1 means enforce ssl
-    Don't fallback on unencrypted connection.
-    */
-    /* can't turn enforce on without turning on use_ssl too */
-    DBUG_ASSERT(mysql->options.use_ssl);
-    /* enforce=true takes precendence over use=false */
-    if (!(mysql->server_capabilities & CLIENT_SSL))
-    {
-      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
-                               ER_CLIENT(CR_SSL_CONNECTION_ERROR),
-                               "SSL is required but the server doesn't "
-                               "support it"
-                               );
-      goto error;
-    }
+    set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
+                             ER_CLIENT(CR_SSL_CONNECTION_ERROR),
+                             "SSL is required but the server doesn't "
+                             "support it"
+                             );
+    goto error;
   }
 
   /*
-
-  use_ssl=0 => Disable ssl and connect using unencrypted channel if server
-  allows it
-
-  use_ssl=1, ssl_enforce=0 (default) => attempt ssl connection if possible but
-  fallback on unencrypted connection if possible. Do not attempt ssl connection
-  if we are connecting with unix socket.
-
+    Attempt SSL connection if ssl_mode != SSL_MODE_DISABLED and the
+    server supports SSL. Fallback on unencrypted connection otherwise.
   */
-  if ((mysql->server_capabilities & CLIENT_SSL) && mysql->options.use_ssl)
+  if (mysql->options.extension &&
+      mysql->options.extension->ssl_mode != SSL_MODE_DISABLED &&
+      (mysql->server_capabilities & CLIENT_SSL))
   {
     /* Do the SSL layering. */
     struct st_mysql_options *options= &mysql->options;
@@ -4716,10 +4712,12 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   MYSQL_TRACE_STAGE(mysql, AUTHENTICATE);
 
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
-  if (!(mysql->options.extension && mysql->options.extension->ssl_enforce) &&
-      (mysql->options.protocol == MYSQL_PROTOCOL_MEMORY || mysql->options.protocol == MYSQL_PROTOCOL_PIPE))
+  if ((mysql->options.extension &&
+       mysql->options.extension->ssl_mode <= SSL_MODE_PREFERRED) &&
+      (mysql->options.protocol == MYSQL_PROTOCOL_MEMORY ||
+       mysql->options.protocol == MYSQL_PROTOCOL_PIPE))
   {
-    mysql->options.use_ssl= FALSE;
+    mysql->options.extension->ssl_mode= SSL_MODE_DISABLED;
   }
 #endif
   /* try and bring up SSL if possible */
@@ -4730,7 +4728,9 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     to attempt TLS connection. This would prevent a possible
     overwrite through my_net_write.
   */
-  if (scramble_data_len && mysql->options.use_ssl)
+  if (scramble_data_len &&
+      mysql->options.extension &&
+      mysql->options.extension->ssl_mode != SSL_MODE_DISABLED)
   {
     if (!(scramble_buffer= (char *) my_malloc(key_memory_MYSQL_HANDSHAKE,
                                               scramble_data_len, MYF(MY_WME))))
@@ -5496,35 +5496,54 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     EXTENSION_SET_STRING(&mysql->options, default_auth,
                          static_cast<const char*>(arg));
     break;
-  case MYSQL_OPT_SSL_KEY:      SET_SSL_OPTION(ssl_key, arg);     break;
-  case MYSQL_OPT_SSL_CERT:     SET_SSL_OPTION(ssl_cert, arg);    break;
-  case MYSQL_OPT_SSL_CA:       SET_SSL_OPTION(ssl_ca, arg);      break;
-  case MYSQL_OPT_SSL_CAPATH:   SET_SSL_OPTION(ssl_capath, arg);  break;
-  case MYSQL_OPT_SSL_CIPHER:   SET_SSL_OPTION(ssl_cipher, arg);  break;
+  case MYSQL_OPT_SSL_KEY:
+    SET_SSL_OPTION(ssl_key, arg, SSL_MODE_PREFERRED);
+    break;
+  case MYSQL_OPT_SSL_CERT:
+    SET_SSL_OPTION(ssl_cert, arg, SSL_MODE_PREFERRED);
+    break;
+  case MYSQL_OPT_SSL_CA:
+    SET_SSL_OPTION(ssl_ca, arg, SSL_MODE_VERIFY_CA);
+    break;
+  case MYSQL_OPT_SSL_CAPATH:
+    SET_SSL_OPTION(ssl_capath, arg, SSL_MODE_VERIFY_CA);
+    break;
+  case MYSQL_OPT_SSL_CIPHER:
+    SET_SSL_OPTION(ssl_cipher, arg, SSL_MODE_PREFERRED);
+    break;
+  case MYSQL_OPT_SSL_CRL:
+    EXTENSION_SET_SSL_STRING(&mysql->options, ssl_crl, arg,
+                             SSL_MODE_PREFERRED);
+    break;
+  case MYSQL_OPT_SSL_CRLPATH:
+    EXTENSION_SET_SSL_STRING(&mysql->options, ssl_crlpath, arg,
+                             SSL_MODE_PREFERRED);
+    break;
   case MYSQL_OPT_TLS_VERSION:
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-                               ENSURE_EXTENSIONS_PRESENT(&mysql->options);
-                               EXTENSION_SET_SSL_STRING(&mysql->options,
-                                                        tls_version, arg);
-                               if((mysql->options.extension->ssl_ctx_flags=
-                                   process_tls_version(mysql->options.extension->tls_version)) == -1)
-                                 DBUG_RETURN(1);
+    EXTENSION_SET_SSL_STRING(&mysql->options, tls_version, arg,
+                             SSL_MODE_PREFERRED);
+    if ((mysql->options.extension->ssl_ctx_flags=
+           process_tls_version(mysql->options.extension->tls_version)) == -1)
+      DBUG_RETURN(1);
 #endif
-                               break;
-  case MYSQL_OPT_SSL_CRL:      EXTENSION_SET_SSL_STRING(&mysql->options,
-                                                        ssl_crl, arg);
-                               break;
-  case MYSQL_OPT_SSL_CRLPATH:  EXTENSION_SET_SSL_STRING(&mysql->options,
-                                                        ssl_crlpath, arg);
-                               break;
+    break;
   case MYSQL_OPT_SSL_ENFORCE:
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-                               ENSURE_EXTENSIONS_PRESENT(&mysql->options);
-	                       mysql->options.extension->ssl_enforce=
-				 (*(my_bool *) arg) ? TRUE : FALSE;
-                               mysql->options.use_ssl= mysql->options.extension->ssl_enforce;
+    ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+    mysql->options.extension->ssl_mode= SSL_MODE_REQUIRED;
 #endif
-                               break;
+    break;
+  case MYSQL_OPT_SSL_MODE:
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+    ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+    mysql->options.extension->ssl_mode= *(uint *) arg;
+    if (mysql->options.extension->ssl_mode == SSL_MODE_VERIFY_IDENTITY)
+      mysql->options.client_flag|= CLIENT_SSL_VERIFY_SERVER_CERT;
+    else
+      mysql->options.client_flag&= ~CLIENT_SSL_VERIFY_SERVER_CERT;
+#endif
+    break;
   case MYSQL_SERVER_PUBLIC_KEY:
     EXTENSION_SET_STRING(&mysql->options, server_public_key_path,
                          static_cast<const char*>(arg));
@@ -5614,7 +5633,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
 
   uint
     MYSQL_OPT_CONNECT_TIMEOUT, MYSQL_OPT_READ_TIMEOUT, MYSQL_OPT_WRITE_TIMEOUT,
-    MYSQL_OPT_PROTOCOL MYSQL_OPT_RETRY_COUNT
+    MYSQL_OPT_PROTOCOL, MYSQL_OPT_SSL_MODE, MYSQL_OPT_RETRY_COUNT
 
   my_bool
     MYSQL_OPT_COMPRESS, MYSQL_OPT_LOCAL_INFILE, MYSQL_OPT_USE_REMOTE_CONNECTION,
@@ -5720,9 +5739,18 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
   case MYSQL_OPT_BIND:
     *((char **)arg)= mysql->options.ci.bind_address;
     break;
-  case MYSQL_OPT_SSL_VERIFY_SERVER_CERT:
+  case MYSQL_OPT_SSL_VERIFY_SERVER_CERT:               /* Deprecated. */
     *((my_bool *)arg) = (mysql->options.client_flag &
                          CLIENT_SSL_VERIFY_SERVER_CERT) ? TRUE : FALSE;
+    break;
+  case MYSQL_OPT_SSL_ENFORCE:                          /* Deprecated. */
+    *((my_bool *) arg)= (mysql->options.extension &&
+                         mysql->options.extension->ssl_mode >= SSL_MODE_REQUIRED) ?
+                        TRUE : FALSE;
+    break;
+  case MYSQL_OPT_SSL_MODE:
+    *((uint *) arg)= mysql->options.extension ?
+                     mysql->options.extension->ssl_mode : 0;
     break;
   case MYSQL_PLUGIN_DIR:
     *((char **)arg)= mysql->options.extension ?
@@ -5762,10 +5790,6 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
   case MYSQL_OPT_SSL_CRLPATH:
     *((char **)arg)= mysql->options.extension ?
                      mysql->options.extension->ssl_crlpath : NULL;
-    break;
-  case MYSQL_OPT_SSL_ENFORCE:
-    *((my_bool *)arg)= (mysql->options.extension &&
-                        mysql->options.extension->ssl_enforce) ? TRUE : FALSE;
     break;
   case MYSQL_SERVER_PUBLIC_KEY:
     *((char **)arg)= mysql->options.extension ?

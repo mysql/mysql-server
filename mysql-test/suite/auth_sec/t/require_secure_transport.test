@@ -27,11 +27,11 @@ connect(sock_con3,localhost,user_requiressl,,,,,SSL);
 --echo
 --echo # Connection type testing for TCP/IP  protocol
 --echo
---exec $MYSQL --host=127.0.0.1 --user=user_tcp --skip-ssl --protocol=TCP -e "select 1;"
+--exec $MYSQL --host=127.0.0.1 --user=user_tcp --ssl-mode=DISABLED --protocol=TCP -e "select 1;"
 #
 --echo # Testing TCP/IP connections over SSL/TLS
 #
---exec $MYSQL --host=127.0.0.1 --user=user_ssl --protocol=TCP --ssl -e "select 2;"
+--exec $MYSQL --host=127.0.0.1 --user=user_ssl --protocol=TCP --ssl-mode=REQUIRED -e "select 2;"
 --echo
 --echo # Testing TCP/IP connections over SSL/TLS having user with REQUIRE SSL clause
 #
@@ -50,11 +50,11 @@ disconnect sock_con4;
 --echo # Connection type testing for TCP/IP protocol, secure transport required.
 --echo
 --error 1
---exec $MYSQL --host=127.0.0.1 --user=user_tcp --skip-ssl --protocol=TCP -e "select 3;"
+--exec $MYSQL --host=127.0.0.1 --user=user_tcp --ssl-mode=DISABLED --protocol=TCP -e "select 3;"
 #
 --echo # Testing TCP/IP connections over SSL/TLS, secure transport required.
 #
---exec $MYSQL --host=127.0.0.1 --user=user_ssl --protocol=TCP --ssl -e "select 4;"
+--exec $MYSQL --host=127.0.0.1 --user=user_ssl --protocol=TCP --ssl-mode=REQUIRED -e "select 4;"
 --echo
 #
 --echo # Testing TCP/IP connections over SSL/TLS with an user created with REQUIRE SSL

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,10 +57,16 @@ public:
     void apply_for_connection(MYSQL* connection);
 
 private:
-    void option_callback(char* argument __attribute__((unused)));
-    void use_ssl_option_callback(char* argument __attribute__((unused)));
-  };
+    Nullable<std::string> m_ssl_mode_string;
+    bool m_ssl;
+    bool m_ssl_verify_server_cert;
 
+    void ca_option_callback(char *argument);
+    void mode_option_callback(char *argument);
+    void use_ssl_option_callback(char *argument);
+    void ssl_verify_server_cert_callback(char *argument);
+  };
+ 
 public:
   /**
     Constructs new MySQL server connection options provider. Calling this
