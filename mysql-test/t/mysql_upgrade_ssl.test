@@ -7,7 +7,7 @@
 --echo #
 --echo # Bug#55672 mysql_upgrade dies with internal error 
 --echo #
---exec $MYSQL_UPGRADE --skip-verbose --ssl --force 2>&1
+--exec $MYSQL_UPGRADE --skip-verbose --ssl-mode=REQUIRED --force 2>&1
 
 --echo #
 --echo # WL #8350 ENSURE 5.7 SUPPORTS SMOOTH LIVE UPGRADE FROM 5.6
@@ -36,7 +36,7 @@ FLUSH PRIVILEGES;
 --echo #password set. After mysql_upgrade finishes the mysql.user table should
 --echo #have 5.7 layout thus no need to restore the dropped columns from
 --echo #the begining of the test
---exec $MYSQL_UPGRADE --skip-verbose --force --ssl --user=user_sha_pass_wp --password=lala 2>&1
+--exec $MYSQL_UPGRADE --skip-verbose --force --ssl-mode=REQUIRED --user=user_sha_pass_wp --password=lala 2>&1
 
 DROP USER 'user_sha_pass_wp'@'%';
 #

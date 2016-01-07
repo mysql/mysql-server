@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1433,12 +1433,17 @@ int main(int argc,char *argv[])
 	  "Type 'help;' or '\\h' for help. Type '\\c' to clear the current input "
     "statement.\n");
   put_info(buff,INFO_INFO);
-  if (mysql.options.protocol == MYSQL_PROTOCOL_SOCKET &&
-      mysql.options.extension->ssl_enforce == TRUE)
-  put_info("You are enforcing ssl conection via unix socket. Please consider\n"
-           "switching ssl off as it does not make connection via unix socket\n"
-           "any more secure.", INFO_INFO);
 
+  uint protocol, ssl_mode;
+  if (!mysql_get_option(&mysql, MYSQL_OPT_PROTOCOL, &protocol) &&
+      !mysql_get_option(&mysql, MYSQL_OPT_SSL_MODE, &ssl_mode))
+  {
+    if (protocol == MYSQL_PROTOCOL_SOCKET &&
+        ssl_mode >= SSL_MODE_REQUIRED)
+      put_info("You are enforcing ssl conection via unix socket. Please consider\n"
+               "switching ssl off as it does not make connection via unix socket\n"
+               "any more secure.", INFO_INFO);
+  }
   status.exit_status= read_and_execute(!status.batch);
   if (opt_outfile)
     end_tee();

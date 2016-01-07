@@ -61,16 +61,16 @@ disconnect socket_con3;
 --source include/wait_until_count_sessions.inc
 
 # For SSL enabled server mysql and mysqladmin should connect using CONNECTION_TYPE: SSL/TLS.
---exec $MYSQLADMIN --host=localhost -S $MASTER_MYSOCK -uroot --ssl ping
---exec $MYSQLADMIN --host=localhost -S $MASTER_MYSOCK -uroot --ssl --protocol=SOCKET ping
+--exec $MYSQLADMIN --host=localhost -S $MASTER_MYSOCK -uroot --ssl-mode=REQUIRED ping
+--exec $MYSQLADMIN --host=localhost -S $MASTER_MYSOCK -uroot --ssl-mode=REQUIRED --protocol=SOCKET ping
 --echo
 # Skipping SSL
---exec $MYSQLADMIN --host=localhost -S $MASTER_MYSOCK -P $MASTER_MYPORT -uroot --skip-ssl --protocol=SOCKET ping
+--exec $MYSQLADMIN --host=localhost -S $MASTER_MYSOCK -P $MASTER_MYPORT -uroot --ssl-mode=DISABLED --protocol=SOCKET ping
 
 # Mysql client with SSL enabled server.
---exec $MYSQL --host=localhost --user=root --socket=$MASTER_MYSOCK --ssl --protocol=SOCKET -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
+--exec $MYSQL --host=localhost --user=root --socket=$MASTER_MYSOCK --ssl-mode=REQUIRED --protocol=SOCKET -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
 # Skipping SSL
---exec $MYSQL --host=localhost --user=root --socket=$MASTER_MYSOCK --skip-ssl --protocol=SOCKET -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
+--exec $MYSQL --host=localhost --user=root --socket=$MASTER_MYSOCK --ssl-mode=DISABLED --protocol=SOCKET -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
@@ -95,12 +95,12 @@ disconnect tcp_con2;
 # For SSL enabled server mysql and mysqladmin should connect using CONNECTION_TYPE: SSL/TLS.
 --exec $MYSQLADMIN --host=127.0.0.1 -S $MASTER_MYSOCK -P $MASTER_MYPORT -uuser_tcp --protocol=TCP ping
 # Skipping SSL
---exec $MYSQLADMIN --host=127.0.0.1 -S $MASTER_MYSOCK -P $MASTER_MYPORT -uuser_tcp --skip-ssl --protocol=TCP ping
+--exec $MYSQLADMIN --host=127.0.0.1 -S $MASTER_MYSOCK -P $MASTER_MYPORT -uuser_tcp --ssl-mode=DISABLED --protocol=TCP ping
 
 # Mysql client with SSL enabled server.
 --exec $MYSQL --host=localhost --user=root --socket=$MASTER_MYSOCK --protocol=TCP -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
 # Skipping SSL
---exec $MYSQL --host=127.0.0.1 --user=user_tcp --socket=$MASTER_MYSOCK --skip-ssl --protocol=TCP -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
+--exec $MYSQL --host=127.0.0.1 --user=user_tcp --socket=$MASTER_MYSOCK --ssl-mode=DISABLED --protocol=TCP -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
 
 --echo
 --echo # Testing TCP/IP connections over SSL/TLS.
@@ -130,14 +130,14 @@ disconnect ssl_con4;
 --echo
 --echo # MYSQLADMIN test
 # For SSL enabled server mysql and mysqladmin should connect using CONNECTION_TYPE: SSL/TLS.
---exec $MYSQLADMIN --host=127.0.0.1 -S $MASTER_MYSOCK -P $MASTER_MYPORT -uuser_tcp --ssl  ping
+--exec $MYSQLADMIN --host=127.0.0.1 -S $MASTER_MYSOCK -P $MASTER_MYPORT -uuser_tcp --ssl-mode=REQUIRED  ping
 --echo
---exec $MYSQLADMIN --host=127.0.0.1 -S $MASTER_MYSOCK -P $MASTER_MYPORT -uuser_ssl --protocol=TCP --ssl ping
+--exec $MYSQLADMIN --host=127.0.0.1 -S $MASTER_MYSOCK -P $MASTER_MYPORT -uuser_ssl --protocol=TCP --ssl-mode=REQUIRED ping
 
 # Mysql client with SSL enabled server.
---exec $MYSQL --host=localhost --user=root --socket=$MASTER_MYSOCK --ssl  -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
+--exec $MYSQL --host=localhost --user=root --socket=$MASTER_MYSOCK --ssl-mode=REQUIRED  -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
 
---exec $MYSQL --host=127.0.0.1 --user=user_ssl --socket=$MASTER_MYSOCK --protocol=TCP --ssl -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
+--exec $MYSQL --host=127.0.0.1 --user=user_ssl --socket=$MASTER_MYSOCK --protocol=TCP --ssl-mode=REQUIRED -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
 --echo
 
 CREATE TABLE test_log (argument TEXT);
