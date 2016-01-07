@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 #
 
 SET(SHARED_LIB_MAJOR_VERSION "20")
-SET(SHARED_LIB_MINOR_VERSION "1")
+SET(SHARED_LIB_MINOR_VERSION "2")
 SET(PROTOCOL_VERSION "10")
 SET(DOT_FRM_VERSION "6")
 
@@ -83,7 +83,7 @@ SET(SHARED_LIB_PATCH_VERSION ${PATCH_VERSION})
 
 # Beware : This is a hack to reset SHARED_LIB_PATCH_VERSION in accordance
 # with the change in value of SHARED_LIB_MINOR_VERSION.
-MATH(EXPR SHARED_LIB_PATCH_VERSION "${SHARED_LIB_PATCH_VERSION}-10")
+MATH(EXPR SHARED_LIB_PATCH_VERSION "${SHARED_LIB_PATCH_VERSION}-11")
 
 SET(MYSQL_TCP_PORT_DEFAULT "3306")
 

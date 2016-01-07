@@ -13,7 +13,7 @@
 
 --echo # verify that --ssl makes SSL required against a no-ssl server
 --error 1
---exec $MYSQL --ssl -e "SHOW STATUS like 'Ssl_cipher'"
+--exec $MYSQL --ssl-mode=REQUIRED -e "SHOW STATUS like 'Ssl_cipher'"
 
 
 --echo End of 5.7 tests

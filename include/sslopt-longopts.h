@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,12 +14,24 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-
+#ifdef MYSQL_CLIENT
+  {"ssl-mode", OPT_SSL_MODE,
+   "SSL connection mode.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"ssl", OPT_SSL_SSL,
+   "Deprecated. Use --ssl-mode instead.",
+   &opt_use_ssl_arg, &opt_use_ssl_arg, 0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+  {"ssl-verify-server-cert", OPT_SSL_VERIFY_SERVER_CERT,
+   "Deprecated. Use --ssl-mode=VERIFY_IDENTITY instead.",
+   &opt_ssl_verify_server_cert_arg, &opt_ssl_verify_server_cert_arg,
+    0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#else
   {"ssl", OPT_SSL_SSL,
    "If set to ON, this option enforces that SSL is established before client "
    "attempts to authenticate to the server. To disable client SSL capabilities "
    "use --ssl=OFF.",
    &opt_use_ssl, &opt_use_ssl, 0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+#endif
   {"ssl-ca", OPT_SSL_CA,
    "CA file in PEM format.",
    &opt_ssl_ca, &opt_ssl_ca, 0, GET_STR, REQUIRED_ARG,
@@ -52,11 +64,4 @@
 #endif
     &opt_tls_version, &opt_tls_version, 0, GET_STR, REQUIRED_ARG,
     0, 0, 0, 0, 0, 0},
-#ifdef MYSQL_CLIENT
-  {"ssl-verify-server-cert", OPT_SSL_VERIFY_SERVER_CERT,
-   "Verify server's \"Common Name\" in its cert against hostname used "
-   "when connecting. This option is disabled by default.",
-   &opt_ssl_verify_server_cert, &opt_ssl_verify_server_cert,
-   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#endif
 #endif /* HAVE_OPENSSL */
