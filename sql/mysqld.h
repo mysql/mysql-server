@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -431,7 +431,13 @@ enum enum_query_type
   /// In utf8.
   QT_TO_SYSTEM_CHARSET= (1 << 0),
   /// Without character set introducers.
-  QT_WITHOUT_INTRODUCERS= (1 << 1)
+  QT_WITHOUT_INTRODUCERS= (1 << 1),
+  /**
+    If an expression is constant, print the expression, not the value
+    it evaluates to. Should be used for error messages, so that they
+    don't reveal values.
+  */
+  QT_NO_DATA_EXPANSION= (1 << 9),
 };
 
 /* query_id */
