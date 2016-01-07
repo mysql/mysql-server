@@ -97,7 +97,8 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_sdi_drop_copies,
 	(ib_cb_t*) &ib_cb_sdi_get_keys,
 #endif /* UNIV_MEMCACHED_SDI */
-	(ib_cb_t*) &ib_cb_trx_read_only
+	(ib_cb_t*) &ib_cb_trx_read_only,
+	(ib_cb_t*) &ib_cb_is_virtual_table
 };
 
 /** Set expiration time. If the exp sent by client is larger than

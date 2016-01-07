@@ -1145,4 +1145,11 @@ ib_memc_sdi_get_keys(
 	uint64_t	list_buf_len);
 #endif /* UNIV_MEMCACHED_SDI */
 
+/** Check the table whether it contains virtual columns.
+@param[in]	crsr	InnoDB Cursor
+@return true if table contains virtual column else false. */
+ib_bool_t
+ib_is_virtual_table(
+	ib_crsr_t	crsr);
+
 #endif /* api0api_h */

@@ -983,6 +983,16 @@ ib_cursor_open_table(
 	return(err);
 }
 
+/** Check the table whether it contains virtual columns.
+@param[in]	crsr	InnoDB Cursor
+@return true if the table contains virtual column else failure. */
+ib_bool_t
+ib_is_virtual_table(
+	ib_crsr_t	crsr)
+{
+	return(crsr->prebuilt->table->n_v_cols > 0);
+}
+
 /********************************************************************//**
 Free a context struct for a table handle. */
 static

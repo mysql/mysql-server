@@ -415,6 +415,11 @@ ib_err_t
 	uint64_t	list_buf_len);
 #endif /* UNIV_MEMCACHED_SDI */
 
+typedef
+ib_u32_t
+(*cb_is_virtual_table)(
+	ib_crsr_t	ib_crsr);
+
 cb_open_table_t			ib_cb_open_table;
 cb_read_row_t			ib_cb_read_row;
 cb_insert_row_t			ib_cb_insert_row;
@@ -471,5 +476,6 @@ cb_sdi_drop_copies		ib_cb_sdi_drop_copies;
 cb_sdi_get_keys			ib_cb_sdi_get_keys;
 #endif /* UNIV_MEMCACHED_SDI */
 cb_trx_read_only_t		ib_cb_trx_read_only;
+cb_is_virtual_table		ib_cb_is_virtual_table;
 
 #endif /* innodb_cb_api_h */

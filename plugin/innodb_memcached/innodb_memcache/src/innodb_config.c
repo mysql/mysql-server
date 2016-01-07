@@ -1158,6 +1158,14 @@ innodb_verify(
 		goto func_exit;
 	}
 
+	if (ib_cb_is_virtual_table(crsr)) {
+		fprintf(stderr, " InnoDB_Memcached: table '%s' cannot"
+				" be mapped since it contains virtual"
+				" columns. \n", table_name);
+		err = DB_ERROR;
+		goto func_exit;
+	}
+
 	err = innodb_verify_low(info, crsr, false);
 func_exit:
 	if (crsr) {

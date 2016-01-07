@@ -647,7 +647,8 @@ static ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_memc_sdi_drop_copies,
 	(ib_cb_t) ib_memc_sdi_get_keys,
 #endif /* UNIV_MEMCACHED_SDI */
-	(ib_cb_t) ib_trx_read_only
+	(ib_cb_t) ib_trx_read_only,
+	(ib_cb_t) ib_is_virtual_table
 };
 
 /*************************************************************//**
