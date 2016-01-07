@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -90,7 +90,7 @@ private:
   /**
     Number of modules that have pending or are executing this task.
    */
-  uint32 m_active_executions;
+  my_boost::atomic_uint32_t m_active_executions;
   /**
     Indicates if this item led to creation of at least one new chain.
   */
