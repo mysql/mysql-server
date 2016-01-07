@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@ private:
   std::vector<Abstract_dump_task*> m_dependents;
   std::vector<Mysql::I_callable<void, const Abstract_dump_task*>*>
     m_availability_callbacks;
-  my_boost::mutex m_availability_callbacks_mutex;
+  my_boost::mutex m_task_mutex;
 };
 
 }
