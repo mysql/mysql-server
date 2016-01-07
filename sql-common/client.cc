@@ -4860,6 +4860,7 @@ my_bool mysql_reconnect(MYSQL *mysql)
     DBUG_RETURN(1);
   }
   mysql_init(&tmp_mysql);
+  mysql_close_free_options(&tmp_mysql);
   tmp_mysql.options= mysql->options;
   tmp_mysql.options.my_cnf_file= tmp_mysql.options.my_cnf_group= 0;
 
