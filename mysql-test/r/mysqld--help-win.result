@@ -143,7 +143,6 @@ The following options may be given as the first argument:
  can increase this to get more performance
  --block-encryption-mode=name 
  mode for AES_ENCRYPT/AES_DECRYPT
- --bootstrap         Used by mysql installation scripts.
  --bulk-insert-buffer-size=# 
  Size of tree cache used in bulk insert optimisation. Note
  that this is a limit per thread!
@@ -331,7 +330,6 @@ The following options may be given as the first argument:
  --initialize-insecure 
  Create the default database and exit. Create a super user
  with empty password.
- --install-server    Install the data dictionary for a new server instance.
  --interactive-timeout=# 
  The number of seconds the server waits for activity on an
  interactive connection before closing it

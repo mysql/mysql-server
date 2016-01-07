@@ -1,7 +1,7 @@
 #ifndef AUTH_ACLS_INCLUDED
 #define AUTH_ACLS_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,7 +55,6 @@
   3. mysql_system_tables.sql and mysql_system_tables_fix.sql
   4. acl_init() or whatever - to define behaviour for old privilege tables
   5. sql_yacc.yy - for GRANT/REVOKE to work
-  6. auth_utils.h - for mysql_install_db
 */
 
 #define NO_ACCESS       (1L << 30)

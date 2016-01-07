@@ -57,11 +57,8 @@ BEGIN {
   my $version= $ENV{MTR_VERSION} || 2;
   if ( $version == 1 )
   {
-    print "=======================================================\n";
-    print "  WARNING: Using mysql-test-run.pl version 1!  \n";
-    print "=======================================================\n";
-    # Should use exec() here on *nix but this appears not to work on Windows
-    exit(system($^X, "lib/v1/mysql-test-run.pl", @ARGV) >> 8);
+    print "ERROR: Version 1 of mysql-test-run is not supported!\n";
+    exit(1);
   }
   elsif ( $version == 2 )
   {
@@ -2603,11 +2600,6 @@ sub environment_setup {
   $ENV{'MYSQL_SHOW'}=                  client_arguments("mysqlshow");
   $ENV{'MYSQL_CONFIG_EDITOR'}=         client_arguments_no_grp_suffix("mysql_config_editor");
   $ENV{'MYSQL_PUMP'}=                  mysqlpump_arguments(".1");
-
-  if (!IS_WINDOWS)
-  {
-    $ENV{'MYSQL_INSTALL_DB'}=         client_arguments_no_grp_suffix("mysql_install_db");
-  }
   $ENV{'MYSQL_BINLOG'}=                client_arguments("mysqlbinlog");
   $ENV{'MYSQL'}=                       client_arguments("mysql");
   $ENV{'MYSQL_SLAVE'}=                 client_arguments("mysql", ".2");
@@ -3836,7 +3828,7 @@ sub mysql_install_db {
   }
  
   # The user can set MYSQLD_BOOTSTRAP to the full path to a mysqld
-  # to run a different mysqld during --bootstrap or --install-server.
+  # to run a different mysqld during --initialize.
   my $exe_mysqld_bootstrap =
     $ENV{'MYSQLD_BOOTSTRAP'} || find_mysqld($install_basedir);
 

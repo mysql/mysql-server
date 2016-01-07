@@ -326,10 +326,6 @@ SET(TESTS
   val_int_compare
   )
  
-IF (UNIX)
-  LIST(APPEND TESTS path auth_utils)
-ENDIF()
-
 IF(WIN32)
   LIST(APPEND TESTS win_tests)
 ENDIF()

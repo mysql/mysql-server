@@ -1250,7 +1250,7 @@ static bool check_storage_engine(sys_var *self, THD *thd, set_var *var)
   if (check_not_null(self,thd,var))
     return true;
 
-  if (!opt_bootstrap && !opt_noacl)
+  if (!opt_initialize && !opt_noacl)
   {
     char buff[STRING_BUFFER_USUAL_SIZE];
     String str(buff,sizeof(buff), system_charset_info), *res;

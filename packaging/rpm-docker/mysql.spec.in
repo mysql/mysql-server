@@ -238,7 +238,6 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_bindir}/mysqldump
 %attr(755, root, root) %{_bindir}/mysqlpump
 %attr(755, root, root) %{_bindir}/mysql_config
-%attr(755, root, root) %{_bindir}/mysql_install_db
 %attr(755, root, root) %{_bindir}/mysql_ssl_rsa_setup
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/mysql_upgrade

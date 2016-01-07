@@ -1063,7 +1063,7 @@ static void reap_plugins(void)
   list= reap;
   while ((plugin= *(--list)))
   {
-    if (!(opt_bootstrap || opt_install_server))
+    if (!opt_initialize)
       sql_print_information("Shutting down plugin '%s'", plugin->name.str);
     plugin_deinitialize(plugin, true);
   }
@@ -1428,7 +1428,7 @@ bool plugin_register_early_plugins(int *argc, char **argv, int flags)
     DBUG_RETURN(retval);
 
   /* --early-plugin-load will not work with --initialize */
-  if (opt_bootstrap)
+  if (opt_initialize)
     DBUG_RETURN(retval);
 
   /* Allocate the temporary mem root, will be freed before returning */

@@ -5846,7 +5846,7 @@ bool mysql_create_table_no_lock(THD *thd,
 
   // Don't create the DD tables in the DDSE unless installing the DD
   bool no_ha_table= false;
-  if (!opt_install_server &&
+  if (!opt_initialize &&
         dd::get_dictionary()->is_dd_table_name(db, table_name))
     no_ha_table= true;
 

@@ -18,7 +18,6 @@ usr/bin/myisamchk
 usr/bin/myisamlog
 usr/bin/myisampack
 usr/bin/my_print_defaults
-usr/bin/mysql_install_db
 usr/bin/mysql_secure_installation
 usr/bin/mysql_ssl_rsa_setup
 usr/bin/mysql_tzinfo_to_sql
@@ -41,7 +40,6 @@ usr/share/man/man1/myisampack.1
 usr/share/man/man1/my_print_defaults.1
 usr/share/man/man1/mysql.server.1
 usr/share/man/man1/mysql-stress-test.pl.1
-usr/share/man/man1/mysql_install_db.1
 usr/share/man/man1/mysql_secure_installation.1
 usr/share/man/man1/mysql_ssl_rsa_setup.1
 usr/share/man/man1/mysql_tzinfo_to_sql.1

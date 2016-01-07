@@ -90,7 +90,7 @@
 
   @subsection deploy_install Installation
 
-  See #opt_install_server, #bootstrap::run_bootstrap_thread.
+  See #opt_initialize, #bootstrap::run_bootstrap_thread.
 
   @subsection deploy_startup Startup
 
@@ -584,8 +584,6 @@ my_bool show_compatibility_56= TRUE;
 ulong slow_start_timeout;
 #endif
 
-my_bool opt_bootstrap= 0;
-bool opt_install_server= false;
 my_bool opt_initialize= 0;
 my_bool opt_skip_slave_start = 0; ///< If set, slave is not autostarted
 my_bool opt_reckless_slave = 0;
@@ -1011,9 +1009,9 @@ static void option_error_reporter(enum loglevel level, const char *format, ...)
   va_start(args, format);
 
   /*
-    Don't print warnings for --loose options during bootstrap or install-server
+    Don't print warnings for --loose options during initialize.
   */
-  if (level == ERROR_LEVEL || !(opt_bootstrap || opt_install_server) ||
+  if (level == ERROR_LEVEL || !opt_initialize ||
       (log_error_verbosity > 1))
   {
     error_log_print(level, format, args);
@@ -1429,7 +1427,7 @@ static void unireg_abort(int exit_code)
 #endif // !EMBEDDED_LIBRARY
 
   clean_up(!opt_help && (exit_code ||
-           !(opt_bootstrap || opt_install_server))); /* purecov: inspected */
+           !opt_initialize)); /* purecov: inspected */
   DBUG_PRINT("quit",("done with cleanup in unireg_abort"));
 #ifndef EMBEDDED_LIBRARY
   mysqld_exit(exit_code);
@@ -1796,7 +1794,7 @@ static struct passwd *check_user(const char *user)
   }
   if (!user)
   {
-    if (!(opt_bootstrap || opt_install_server) && !opt_help)
+    if (!opt_initialize && !opt_help)
     {
       sql_print_error("Fatal error: Please read \"Security\" section of the manual to find out how to run mysqld as root!\n");
       unireg_abort(MYSQLD_ABORT_EXIT);
@@ -1895,7 +1893,7 @@ static void set_root(const char *path)
 
 static bool network_init(void)
 {
-  if (opt_bootstrap || opt_install_server)
+  if (opt_initialize)
     return false;
 
   set_ports();
@@ -3675,7 +3673,7 @@ int init_ssl()
         auto-generation disabled explcitly while SSL is still on.
       */
 #ifdef HAVE_YASSL
-      if (!opt_bootstrap || SSL_ARTIFACTS_NOT_FOUND != auto_detection_status)
+      if (!opt_initialize || SSL_ARTIFACTS_NOT_FOUND != auto_detection_status)
 #endif
       {
         sql_print_warning("Failed to set up SSL because of the"
@@ -3943,7 +3941,7 @@ initialize_storage_engine(char *se_name, const char *se_kind,
   }
   if (!ha_storage_engine_is_enabled(hton))
   {
-    if (!(opt_bootstrap || opt_install_server))
+    if (!opt_initialize)
     {
       sql_print_error("Default%s storage engine (%s) is not available",
                       se_kind, se_name);
@@ -4288,7 +4286,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   }
 
   /* Initialize DD, plugin_register_dynamic_and_init_all() needs it */
-  if (!opt_help && dd::init(opt_install_server))
+  if (!opt_help && dd::init(opt_initialize))
   {
     sql_print_error("Data Dictionary initialization failed.");
     unireg_abort(1);
@@ -4381,7 +4379,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
-  if (opt_bootstrap || opt_install_server)
+  if (opt_initialize)
     log_output_options= LOG_FILE;
 
   /*
@@ -4425,7 +4423,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
                                 &global_system_variables.temp_table_plugin))
     unireg_abort(MYSQLD_ABORT_EXIT);
 
-  if (!opt_bootstrap && !opt_noacl)
+  if (!opt_initialize && !opt_noacl)
   {
     std::string disabled_se_str(opt_disabled_storage_engines);
     ha_set_normalized_disabled_se_str(disabled_se_str);
@@ -4688,9 +4686,9 @@ int mysqld_main(int argc, char **argv)
 
 #if !defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
 
-  if (opt_bootstrap && opt_daemonize)
+  if (opt_initialize && opt_daemonize)
   {
-    fprintf(stderr, "Bootstrap and daemon options are incompatible.\n");
+    fprintf(stderr, "Initialize and daemon options are incompatible.\n");
     exit(MYSQLD_ABORT_EXIT);
   }
 
@@ -4726,7 +4724,7 @@ int mysqld_main(int argc, char **argv)
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   if (ho_error == 0)
   {
-    if (!opt_help && !(opt_bootstrap || opt_install_server))
+    if (!opt_help && !opt_initialize)
     {
       int pfs_rc;
       /* Add sizing hints from the server sizing parameters. */
@@ -5249,7 +5247,7 @@ int mysqld_main(int argc, char **argv)
 #ifndef EMBEDDED_LIBRARY
   if (opt_require_secure_transport &&
       !opt_enable_shared_memory && !opt_use_ssl &&
-      !opt_initialize && !opt_bootstrap)
+      !opt_initialize)
   {
     sql_print_error("Server is started with --require-secure-transport=ON "
                     "but no secure transports (SSL or Shared Memory) are "
@@ -5270,16 +5268,16 @@ int mysqld_main(int argc, char **argv)
   error_handler_hook= my_message_sql;
 
   /* Save pid of this process in a file */
-  if (!(opt_bootstrap || opt_install_server))
+  if (!opt_initialize)
     create_pid_file();
 
 
   /* Read the optimizer cost model configuration tables */
-  if (!(opt_bootstrap || opt_install_server))
+  if (!opt_initialize)
     reload_optimizer_cost_constants();
 
   if (mysql_rm_tmp_tables() || acl_init(opt_noacl) ||
-      my_tz_init((THD *)0, default_tz_name, opt_bootstrap || opt_install_server) ||
+      my_tz_init((THD *)0, default_tz_name, opt_initialize) ||
       grant_init(opt_noacl))
   {
     set_connection_events_loop_aborted(true);
@@ -5289,7 +5287,7 @@ int mysqld_main(int argc, char **argv)
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
-  if (!(opt_bootstrap || opt_install_server))
+  if (!opt_initialize)
     servers_init(0);
 
   if (!opt_noacl)
@@ -5298,8 +5296,8 @@ int mysqld_main(int argc, char **argv)
   }
 
   init_status_vars();
-  /* If running with bootstrap or install-server, do not start replication. */
-  if (opt_bootstrap || opt_install_server)
+  /* If running with --initialize, do not start replication. */
+  if (opt_initialize)
     opt_skip_slave_start= 1;
 
   check_binlog_cache_size(NULL);
@@ -5307,8 +5305,8 @@ int mysqld_main(int argc, char **argv)
 
   binlog_unsafe_map_init();
 
-  /* If running with bootstrap or install-server, do not start replication. */
-  if (!(opt_bootstrap || opt_install_server))
+  /* If running with --initialize, do not start replication. */
+  if (!opt_initialize)
   {
     // Make @@slave_skip_errors show the nice human-readable value.
     set_slave_skip_errors(&opt_slave_skip_errors);
@@ -5321,14 +5319,14 @@ int mysqld_main(int argc, char **argv)
   }
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-  initialize_performance_schema_acl((opt_bootstrap || opt_install_server));
+  initialize_performance_schema_acl(opt_initialize);
   /*
     Do not check the structure of the performance schema tables
     during bootstrap:
     - the tables are not supposed to exist yet, bootstrap will create them
     - a check would print spurious error messages
   */
-  if (!(opt_bootstrap || opt_install_server))
+  if (!opt_initialize)
     check_performance_schema();
 #endif
 
@@ -5337,7 +5335,7 @@ int mysqld_main(int argc, char **argv)
   execute_ddl_log_recovery();
   (void) RUN_HOOK(server_state, after_recovery, (NULL));
 
-  if (Events::init(opt_noacl || opt_bootstrap || opt_install_server))
+  if (Events::init(opt_noacl || opt_initialize))
     unireg_abort(MYSQLD_ABORT_EXIT);
 
 #ifndef _WIN32
@@ -5345,7 +5343,7 @@ int mysqld_main(int argc, char **argv)
   start_signal_handler();
 #endif
 
-  if (opt_bootstrap || opt_install_server)
+  if (opt_initialize)
   {
     // Make sure we can process SIGHUP during bootstrap.
     server_components_initialized();
@@ -5370,8 +5368,7 @@ int mysqld_main(int argc, char **argv)
                         my_progname,
                         server_version,
 #ifdef HAVE_SYS_UN_H
-                        ((opt_bootstrap || opt_install_server) ?
-                          (char*) "" : mysqld_unix_port),
+                        (opt_initialize ? (char*) "" : mysqld_unix_port),
 #else
                         (char*) "",
 #endif
@@ -5768,25 +5765,8 @@ int handle_early_options()
     remaining_argc++;
     remaining_argv--;
 
-    /* adjust the bootstrap options */
-    if (opt_bootstrap)
-    {
-      sql_print_warning("--bootstrap is deprecated. "
-                        "Please consider using --initialize instead");
-    }
     if (opt_initialize_insecure)
       opt_initialize= TRUE;
-    if (opt_initialize)
-    {
-      if (opt_bootstrap)
-      {
-        sql_print_error("Both --bootstrap and --initialize specified."
-                        " Please pick one. Exiting.");
-        ho_error= EXIT_AMBIGUOUS_OPTION;
-      }
-      opt_bootstrap= TRUE;
-      opt_install_server= true;
-    }
   }
 
   // Swap with an empty vector, i.e. delete elements and free allocated space.
@@ -5899,9 +5879,9 @@ static void adjust_table_def_size()
 void adjust_related_options(ulong *requested_open_files)
 {
   /*
-    In bootstrap or install-server, disable grant tables (about to be created)
+    In bootstrap, disable grant tables (about to be created)
   */
-  if (opt_bootstrap || opt_install_server)
+  if (opt_initialize)
     opt_noacl= 1;
 
   /* The order is critical here, because of dependencies. */
@@ -5915,8 +5895,6 @@ vector<my_option> all_options;
 
 struct my_option my_long_early_options[]=
 {
-  {"bootstrap", OPT_BOOTSTRAP, "Used by mysql installation scripts.", 0, 0, 0,
-   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #if !defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
   {"daemonize", 0, "Run mysqld as sysv daemon", &opt_daemonize,
     &opt_daemonize, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,0},
@@ -5928,9 +5906,6 @@ struct my_option my_long_early_options[]=
   {"help", '?', "Display this help and exit.",
    &opt_help, &opt_help, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
-  {"install-server", OPT_INSTALL_SERVER,
-   "Install the data dictionary for a new server instance.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Used with --help option for detailed help.",
    &opt_verbose, &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
@@ -7713,12 +7688,6 @@ mysqld_get_one_option(int optid,
   case (int) OPT_SKIP_STACK_TRACE:
     test_flags|=TEST_NO_STACKTRACE;
     break;
-  case OPT_BOOTSTRAP:
-    opt_bootstrap= 1;
-    break;
-  case OPT_INSTALL_SERVER:
-    opt_install_server= true;
-    break;
   case OPT_SERVER_ID:
     /*
      Consider that one received a Server Id when 2 conditions are present:
@@ -8026,14 +7995,14 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   sys_var_add_options(&all_options, sys_var::PARSE_NORMAL);
   add_terminator(&all_options);
 
-  if (opt_help || opt_bootstrap || opt_install_server)
+  if (opt_help || opt_initialize)
   {
     /*
       Show errors during --help, but gag everything else so the info the
       user actually wants isn't lost in the spam.  (For --help --verbose,
       we need to set up far enough to be able to print variables provided
       by plugins, so a good number of warnings/notes might get printed.)
-      Likewise for --bootstrap.
+      Likewise for --initialize.
     */
     struct my_option *opt= &all_options[0];
     for (; opt->name; opt++)
@@ -8330,7 +8299,7 @@ bool is_secure_file_path(char *path)
   check_secure_file_priv_path : Checks path specified through
   --secure-file-priv and raises warning in following cases:
   1. If path is empty string or NULL and mysqld is not running
-     with --bootstrap or --install-server mode.
+     with --initialize (bootstrap mode).
   2. If path can access data directory
   3. If path points to a directory which is accessible by
      all OS users (non-Windows build only)
@@ -8366,15 +8335,14 @@ static bool check_secure_file_priv_path()
 
   if (!opt_secure_file_priv[0])
   {
-    if (opt_bootstrap || opt_install_server)
+    if (opt_initialize)
     {
       /*
         Do not impose --secure-file-priv restriction
-        in --bootstrap or --install_server mode
+        in bootstrap mode
       */
       sql_print_information("Ignoring --secure-file-priv value as server is "
-                            "running with --initialize(-insecure), "
-                            "--bootstrap or --install-server.");
+                            "running with --initialize(-insecure).");
     }
     else
     {
@@ -8559,7 +8527,7 @@ static int fix_paths(void)
     Convert the secure-file-priv option to system format, allowing
     a quick strcmp to check if read or write is in an allowed dir
   */
-  if (opt_bootstrap || opt_install_server)
+  if (opt_initialize)
     opt_secure_file_priv= EMPTY_STR.str;
   secure_file_priv_nonempty= opt_secure_file_priv[0] ? true : false;
 
@@ -8691,8 +8659,7 @@ static void create_pid_file()
 static void delete_pid_file(myf flags)
 {
   File file;
-  if (opt_bootstrap || opt_install_server ||
-      !pid_file_created ||
+  if (opt_initialize || !pid_file_created ||
       !(file= mysql_file_open(key_file_pid, pidfile_name,
                               O_RDONLY, flags)))
     return;

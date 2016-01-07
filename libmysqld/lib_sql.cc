@@ -579,7 +579,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
     Each server should have one UUID. We will create it automatically, if it
     does not exist.
    */
-  if (!(opt_bootstrap || opt_install_server) && init_server_auto_options())
+  if (!opt_initialize && init_server_auto_options())
   {
     mysql_server_end();
     return 1;
@@ -594,8 +594,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   acl_error= acl_init(opt_noacl) || grant_init(opt_noacl);
 #endif
-  if (acl_error || my_tz_init((THD *)0, default_tz_name,
-                              (opt_bootstrap || opt_install_server)))
+  if (acl_error || my_tz_init((THD *)0, default_tz_name, opt_initialize))
   {
     mysql_server_end();
     return 1;
@@ -604,7 +603,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
   init_max_user_conn();
   init_update_queries();
 
-  if (!(opt_bootstrap || opt_install_server))
+  if (!opt_initialize)
     servers_init(0);
 
   start_handle_manager();
