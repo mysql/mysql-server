@@ -989,9 +989,6 @@ char *mysqld_unix_port, *opt_mysql_tmpdir;
 
 /** name of reference on left expression in rewritten IN subquery */
 const char *in_left_expr_name= "<left expr>";
-/** name of additional condition */
-const char *in_additional_cond= "<IN COND>";
-const char *in_having_cond= "<IN HAVING>";
 
 my_decimal decimal_zero;
 #ifndef EMBEDDED_LIBRARY

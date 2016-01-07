@@ -295,10 +295,6 @@ bool Item_in_subselect::finalize_exists_transform(SELECT_LEX *select_lex)
   remove only the conditions of IN->EXISTS which index lookup already
   satisfies (they are just an optimization).
 
-  Code reading suggests that remove_additional_cond() is equivalent to
-  "if in_subs->left_expr->cols()==1 then remove_in2exists_conds(where)"
-  but that would still not fix Bug#13915291 of remove_additional_cond().
-
   @param conds  condition
   @returns      new condition
 */
@@ -2084,8 +2080,6 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
       argument (reference) to fix_fields()
     */
     select->set_having_cond(and_items(select->having_cond(), item));
-    if (select->having_cond() == item)
-      item->item_name.set(in_having_cond);
     select->having_cond()->top_level_item();
     select->having_fix_field= true;
     /*
@@ -2133,7 +2127,6 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
           we can assign select_lex->having_cond() here, and pass NULL as last
           argument (reference) to fix_fields()
 	*/
-        having->item_name.set(in_having_cond);
 	select->set_having_cond(having);
 	select->having_fix_field= true;
         /*
@@ -2163,12 +2156,6 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
           DBUG_RETURN(RES_ERROR);
         item->set_created_by_in2exists();
       }
-      /*
-        The following is intentionally not done in row_value_transformer(),
-        see comment of JOIN::remove_subq_pushed_predicates().
-      */
-      item->item_name.set(in_additional_cond);
-
       /*
         AND can't be changed during fix_fields()
         we can assign select_lex->having_cond() here, and pass NULL as last
@@ -2217,7 +2204,6 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
             DBUG_RETURN(RES_ERROR);
           new_having->set_created_by_in2exists();
         }
-        new_having->item_name.set(in_having_cond);
 	select->set_having_cond(new_having);
 	select->having_fix_field= true;
         
@@ -2352,7 +2338,7 @@ Item_subselect::trans_res
 Item_in_subselect::row_value_in_to_exists_transformer(SELECT_LEX *select)
 {
   THD * const thd= unit->thd;
-  Item *having_item= 0;
+  Item_bool_func *having_item= NULL;
   uint cols_num= left_expr->cols();
   bool is_having_used= select->having_cond() ||
                        select->with_sum_func ||
@@ -2384,7 +2370,7 @@ Item_in_subselect::row_value_in_to_exists_transformer(SELECT_LEX *select)
       not found matching to return correct NULL value
       TODO: say here explicitly if the order of AND parts matters or not.
     */
-    Item *item_having_part2= 0;
+    Item_bool_func *item_having_part2= NULL;
     for (uint i= 0; i < cols_num; i++)
     {
       Item *item_i= select->base_ref_items[i];
@@ -2432,8 +2418,9 @@ Item_in_subselect::row_value_in_to_exists_transformer(SELECT_LEX *select)
           DBUG_RETURN(RES_ERROR);
         col_item->set_created_by_in2exists();
       }
+
       having_item= and_items(having_item, col_item);
-      
+      having_item->set_created_by_in2exists();
       Item_bool_func *item_nnull_test= 
          new Item_is_not_null_test(this,
                                    new Item_ref(&select->context,
@@ -2451,9 +2438,11 @@ Item_in_subselect::row_value_in_to_exists_transformer(SELECT_LEX *select)
         item_nnull_test->set_created_by_in2exists();
       }
       item_having_part2= and_items(item_having_part2, item_nnull_test);
+      item_having_part2->set_created_by_in2exists();
       item_having_part2->top_level_item();
     }
     having_item= and_items(having_item, item_having_part2);
+    having_item->set_created_by_in2exists();
     having_item->top_level_item();
   }
   else
@@ -2475,7 +2464,7 @@ Item_in_subselect::row_value_in_to_exists_transformer(SELECT_LEX *select)
                                (l2 = v2) and
                                (l3 = v3)
     */
-    Item *where_item= 0;
+    Item_bool_func *where_item= NULL;
     for (uint i= 0; i < cols_num; i++)
     {
       Item *item_i= select->base_ref_items[i];
@@ -2545,9 +2534,11 @@ Item_in_subselect::row_value_in_to_exists_transformer(SELECT_LEX *select)
           having_col_item->set_created_by_in2exists();
         }
         having_item= and_items(having_item, having_col_item);
+        having_item->set_created_by_in2exists();
       }
 
       where_item= and_items(where_item, item);
+      where_item->set_created_by_in2exists();
     }
     /*
       AND can't be changed during fix_fields()
@@ -2566,8 +2557,6 @@ Item_in_subselect::row_value_in_to_exists_transformer(SELECT_LEX *select)
   {
     bool res;
     select->set_having_cond(and_items(select->having_cond(), having_item));
-    if (having_item == select->having_cond())
-      having_item->item_name.set(in_having_cond);
     select->having_cond()->top_level_item();
     /*
       AND can't be changed during fix_fields()
