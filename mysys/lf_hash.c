@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@ const int LF_HASH_OVERHEAD= sizeof(LF_SLIST);
 
 /*
   a structure to pass the context (pointers two the three successive elements
-  in a list) from lfind to linsert/ldelete
+  in a list) from my_lfind to linsert/ldelete
 */
 typedef struct {
   intptr volatile *prev;
@@ -72,7 +72,7 @@ typedef struct {
     cursor is positioned in either case
     pins[0..2] are used, they are NOT removed on return
 */
-static int lfind(LF_SLIST * volatile *head, CHARSET_INFO *cs, uint32 hashnr,
+static int my_lfind(LF_SLIST * volatile *head, CHARSET_INFO *cs, uint32 hashnr,
                  const uchar *key, uint keylen, CURSOR *cursor, LF_PINS *pins)
 {
   uint32       cur_hashnr;
@@ -140,7 +140,7 @@ retry:
 /*
   DESCRIPTION
     insert a 'node' in the list that starts from 'head' in the correct
-    position (as found by lfind)
+    position (as found by my_lfind)
 
   RETURN
     0     - inserted
@@ -158,7 +158,7 @@ static LF_SLIST *linsert(LF_SLIST * volatile *head, CHARSET_INFO *cs,
 
   for (;;)
   {
-    if (lfind(head, cs, node->hashnr, node->key, node->keylen,
+    if (my_lfind(head, cs, node->hashnr, node->key, node->keylen,
               &cursor, pins) &&
         (flags & LF_HASH_UNIQUE))
     {
@@ -209,7 +209,7 @@ static int ldelete(LF_SLIST * volatile *head, CHARSET_INFO *cs, uint32 hashnr,
 
   for (;;)
   {
-    if (!lfind(head, cs, hashnr, key, keylen, &cursor, pins))
+    if (!my_lfind(head, cs, hashnr, key, keylen, &cursor, pins))
     {
       res= 1; /* not found */
       break;
@@ -233,7 +233,7 @@ static int ldelete(LF_SLIST * volatile *head, CHARSET_INFO *cs, uint32 hashnr,
             (to ensure the number of "set DELETED flag" actions
             is equal to the number of "remove from the list" actions)
           */
-          lfind(head, cs, hashnr, key, keylen, &cursor, pins);
+          my_lfind(head, cs, hashnr, key, keylen, &cursor, pins);
         }
         res= 0;
         break;
@@ -259,12 +259,12 @@ static int ldelete(LF_SLIST * volatile *head, CHARSET_INFO *cs, uint32 hashnr,
     it uses pins[0..2], on return the pin[2] keeps the node found
     all other pins are removed.
 */
-static LF_SLIST *lsearch(LF_SLIST * volatile *head, CHARSET_INFO *cs,
+static LF_SLIST *my_lsearch(LF_SLIST * volatile *head, CHARSET_INFO *cs,
                          uint32 hashnr, const uchar *key, uint keylen,
                          LF_PINS *pins)
 {
   CURSOR cursor;
-  int res= lfind(head, cs, hashnr, key, keylen, &cursor, pins);
+  int res= my_lfind(head, cs, hashnr, key, keylen, &cursor, pins);
   if (res)
     _lf_pin(pins, 2, cursor.curr);
   _lf_unpin(pins, 0);
@@ -445,7 +445,7 @@ int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
     MY_ERRPTR    if OOM
 
   NOTE
-    see lsearch() for pin usage notes
+    see my_lsearch() for pin usage notes
 */
 void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
 {
@@ -459,7 +459,7 @@ void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
     return MY_ERRPTR;
   if (*el == NULL && unlikely(initialize_bucket(hash, el, bucket, pins)))
     return MY_ERRPTR;
-  found= lsearch(el, hash->charset, my_reverse_bits(hashnr) | 1,
+  found= my_lsearch(el, hash->charset, my_reverse_bits(hashnr) | 1,
                  (uchar *)key, keylen, pins);
   lf_rwunlock_by_pins(pins);
   return found ? found+1 : 0;
