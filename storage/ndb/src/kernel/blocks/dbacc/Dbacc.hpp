@@ -822,7 +822,8 @@ private:
                             Uint32 conptr,
                             bool isforward,
                             Uint32 conlen,
-                            Uint16 scanMask) const;
+                            Uint16 scanMask,
+                            Uint16 allScanned) const;
   void releaseScanRec();
   bool searchScanContainer(Page8Ptr pageptr,
                            Uint32 conptr,
