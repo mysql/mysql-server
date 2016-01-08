@@ -977,7 +977,7 @@ __attribute__((unused)) static void yyset_debug (int debug_flag  );
 
 YY_EXTRA_TYPE yyget_extra (void );
 
-__attribute__((unused)) static void yyset_extra (YY_EXTRA_TYPE user_defined  );
+
 
 __attribute__((unused)) static FILE *yyget_in (void );
 

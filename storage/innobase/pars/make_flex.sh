@@ -38,6 +38,7 @@ s/\(void yy\(restart\|_\(delete\|flush\)_buffer\)\)/static \1/;
 s/\(void yy_switch_to_buffer\)/__attribute__((unused)) static \1/;
 s/\(void yy\(push\|pop\)_buffer_state\)/__attribute__((unused)) static \1/;
 s/\(YY_BUFFER_STATE yy_create_buffer\)/static \1/;
+s/^void yyset_extra.*;//;
 s/\(\(int\|void\) yy[gs]et_\)/__attribute__((unused)) static \1/;
 s/\(void \*\?yy\(\(re\)\?alloc\|free\)\)/static \1/;
 s/\(extern \)\?\(int yy\(leng\|lineno\|_flex_debug\)\)/static \2/;
