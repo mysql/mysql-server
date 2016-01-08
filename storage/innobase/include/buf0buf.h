@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -594,24 +594,22 @@ buf_page_get_newest_modification(
 /*=============================*/
 	const buf_page_t*	bpage);	/*!< in: block containing the
 					page frame */
-/********************************************************************//**
-Increments the modify clock of a frame by 1. The caller must (1) own the
-buf_pool->mutex and block bufferfix count has to be zero, (2) or own an x-lock
-on the block. */
+
+/** Increment the modify clock.
+The caller must
+(1) own the buf_pool->mutex and block bufferfix count has to be zero,
+(2) own X or SX latch on the block->lock, or
+(3) operate on a thread-private temporary table
+@param[in,out]	block	buffer block */
 UNIV_INLINE
 void
-buf_block_modify_clock_inc(
-/*=======================*/
-	buf_block_t*	block);	/*!< in: block */
-/********************************************************************//**
-Returns the value of the modify clock. The caller must have an s-lock
-or x-lock on the block.
-@return value */
+buf_block_modify_clock_inc(buf_block_t* block);
+/** Read the modify clock.
+@param[in]	block	buffer block
+@return modify_clock value */
 UNIV_INLINE
 ib_uint64_t
-buf_block_get_modify_clock(
-/*=======================*/
-	buf_block_t*	block);	/*!< in: block */
+buf_block_get_modify_clock(const buf_block_t* block);
 
 /** Increments the bufferfix count.
 @param[in]	file	file name

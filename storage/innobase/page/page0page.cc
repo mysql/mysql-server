@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -90,11 +90,11 @@ page_dir_find_owner_slot(
 /*=====================*/
 	const rec_t*	rec)	/*!< in: the physical record */
 {
-	const page_t*			page;
-	register uint16			rec_offs_bytes;
-	register const page_dir_slot_t*	slot;
-	register const page_dir_slot_t*	first_slot;
-	register const rec_t*		r = rec;
+	const page_t*		page;
+	uint16			rec_offs_bytes;
+	const page_dir_slot_t*	slot;
+	const page_dir_slot_t*	first_slot;
+	const rec_t*		r = rec;
 
 	ut_ad(page_rec_check(rec));
 
