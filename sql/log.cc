@@ -289,8 +289,8 @@ static void log_syslog_close()
 {
   if (log_syslog_enabled)
   {
-    my_closelog();
     log_syslog_enabled= false;
+    my_closelog();
   }
 }
 
