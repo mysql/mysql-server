@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -95,11 +95,15 @@ ENDIF()
 MYSQL_ADD_EXECUTABLE(replace replace.c)
 TARGET_LINK_LIBRARIES(replace mysys)
 
-MYSQL_ADD_EXECUTABLE(lz4_decompress lz4_decompress.cc)
-TARGET_LINK_LIBRARIES(lz4_decompress ${LZ4_LIBRARY})
+IF (BUILD_BUNDLED_LZ4)
+  MYSQL_ADD_EXECUTABLE(lz4_decompress lz4_decompress.cc)
+  TARGET_LINK_LIBRARIES(lz4_decompress ${LZ4_LIBRARY})
+ENDIF()
 
-MYSQL_ADD_EXECUTABLE(zlib_decompress zlib_decompress.cc)
-TARGET_LINK_LIBRARIES(zlib_decompress ${ZLIB_LIBRARY})
+IF (BUILD_BUNDLED_ZLIB)
+  MYSQL_ADD_EXECUTABLE(zlib_decompress zlib_decompress.cc)
+  TARGET_LINK_LIBRARIES(zlib_decompress ${ZLIB_LIBRARY})
+ENDIF()
 
 IF(WITH_INNOBASE_STORAGE_ENGINE)
 
