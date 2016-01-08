@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -42,8 +42,9 @@ public:
       - Disable binlog temporarily if we are going to modify the table
       - Open and lock a table.
 
-    @param[in,out] thd        Thread requesting to open the table
-    @param[out]    table      We will store the open table here
+    @param[in,out] thd       Thread requesting to open the table
+    @param[out]    table     We will store the open table here
+    @param[in]     is_write  If true, the access will be for modifying the table
 
     @return
       @retval TRUE  failed

@@ -3162,6 +3162,7 @@ private:
   /**
     Private member function called while handling idempotent errors.
 
+    @param rli Pointer to relay log info structure.
     @param [in,out] err the error to handle. If it is listed as
                        idempotent/ignored related error, then it is cleared.
     @returns true if the slave should stop executing rows.
@@ -3174,6 +3175,7 @@ private:
      m_curr_row so that the next row is processed during the row
      execution main loop (@c Rows_log_event::do_apply_event()).
 
+     @param rli Pointer to relay log info structure.
      @param err the current error code.
    */
   void do_post_row_operations(Relay_log_info const *rli, int err);

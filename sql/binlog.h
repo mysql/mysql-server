@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -802,6 +802,9 @@ public:
     @param need_sid_lock If true, the read lock on global_sid_lock
     will be acquired.  Otherwise, the caller must hold the read lock
     on global_sid_lock.
+    @param extra_description_event The master's FDE to be written by the I/O
+    thread while creating a new relay log file. This should be NULL for
+    binary log files.
   */
   bool open_binlog(const char *log_name,
                    const char *new_name,

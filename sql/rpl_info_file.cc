@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -614,9 +614,10 @@ int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val)
    shorter or equal of @c long and separated by the single space.
 
    @param  buffer      Put the read values in this static buffer
-   @param  buffer      Size of the static buffer
+   @param  size        Size of the static buffer
    @param  buffer_act  Points to the final buffer as dynamic buffer may
                        be used if the static buffer is not big enough.
+   @param  f           IO_CACHE of the replication info file.
 
    @retval 0           All OK
    @retval non-zero  An error

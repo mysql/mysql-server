@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -385,7 +385,9 @@ err:
   Creates a Slave worker repository whose type is defined as a parameter.
   
   @param[in]  rli_option Type of the repository, e.g. FILE TABLE.
+  @param[in]  worker_id  ID of the worker to be created.
   @param[in]  rli        Pointer to Relay_log_info.
+  @param[in]  is_gaps_collecting_phase See Slave_worker::rli_init_info
 
   The execution fails if a user requests a type but a different type
   already exists in the system. This is done to avoid that a user
@@ -1266,7 +1268,7 @@ end:
    @param[in]    to_decide_repo   For this channel, check if repositories
                                   are allowed to convert from one type to other.
    @param[in]    pchannel_map     a pointer to channel_map
-   @param[in]    channel type     If the given channel is a slave channel.
+   @param[in]    channel_type     If the given channel is a slave channel.
                                   Default is true.
 
    @return      Pointer         pointer to the created Master_info

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1148,7 +1148,10 @@ err:
 /**
    Get the least occupied worker.
 
+   @param rli pointer to Relay_log_info of Coordinator
    @param ws  dynarray of pointers to Slave_worker
+   @param ev event for which we are searching for a worker
+
    @return a pointer to chosen Slave_worker instance
 
 */

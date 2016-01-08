@@ -6651,7 +6651,9 @@ err:
    communication channels such as Assigned Partition Hash (APH),
    and starting the Worker pool.
 
-   @param  n   Number of configured Workers in the upcoming session.
+   @param rli             Pointer to Coordinator's Relay_log_info instance.
+   @param n               Number of configured Workers in the upcoming session.
+   @param[out] mts_inited If the initialization processed was started.
 
    @return 0         success
            non-zero  as failure
@@ -10318,6 +10320,8 @@ static bool have_change_master_execute_option(const LEX_MASTER_INFO* lex_mi,
 
   @param mi     Pointer to Master_info object belonging to the slave's IO
                 thread.
+
+  @param need_relay_log_purge If the slave need to purge the current relay log
 
   @retval 0    no error i.e., success.
   @retval !=0  error.

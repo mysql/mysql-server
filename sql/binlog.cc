@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3433,6 +3433,7 @@ bool MYSQL_BIN_LOG::init_and_set_log_file_name(const char *log_name,
 /**
   Open the logfile and init IO_CACHE.
 
+  @param log_file_key        The file instrumentation key for this file
   @param log_name            The name of the log to open
   @param new_name            The new name for the logfile.
                              NULL forces generate_new_name() to be called.
@@ -5308,12 +5309,14 @@ int MYSQL_BIN_LOG::find_next_relay_log(char log_name[FN_REFLEN+1])
 
 /**
   Removes files, as part of a RESET MASTER or RESET SLAVE statement,
-  by deleting all logs refered to in the index file. Then, it starts
-  writing to a new log file.
+  by deleting all logs referred to in the index file and the index
+  file. Then, it creates a new index file and a new log file.
 
-  The new index file will only contain this file.
+  The new index file will only contain the new log file.
 
   @param thd Thread
+  @param delete_only If true, do not create a new index file and
+  a new log file.
 
   @note
     If not called from slave thread, write start event to new log
@@ -6358,7 +6361,9 @@ err:
 /**
   Create a new log file name.
 
-  @param buf		buf of at least FN_REFLEN where new name is stored
+  @param[out] buf       Buffer allocated with at least FN_REFLEN bytes where
+                        new name is stored.
+  @param      log_ident Identity of the binary/relay log.
 
   @note
     If file name will be longer then FN_REFLEN it will be truncated
@@ -6447,6 +6452,10 @@ int MYSQL_BIN_LOG::new_file_without_locking(Format_description_log_event *extra_
 
   @param need_lock_log If true, this function acquires LOCK_log;
   otherwise the caller should already have acquired it.
+
+  @param extra_description_event The master's FDE to be written by the I/O
+  thread while creating a new relay log file. This should be NULL for
+  binary log files.
 
   @retval 0 success
   @retval nonzero - error
@@ -7306,7 +7315,7 @@ bool MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache, Binlog_event_writer *writer)
   @param need_lock_log If true, will acquire LOCK_log; otherwise the
   caller should already have acquired LOCK_log.
   @param err_msg Error message written to log file for the incident.
-  @c do_flush_and_sync If true, will call flush_and_sync(), rotate() and
+  @param do_flush_and_sync If true, will call flush_and_sync(), rotate() and
   purge().
 
   @retval false error
@@ -7384,6 +7393,8 @@ bool MYSQL_BIN_LOG::write_dml_directly(THD* thd, const char *stmt, size_t stmt_l
   @param thd  Thread variable
   @param need_lock_log If the binary lock should be locked or not
   @param err_msg Error message written to log file for the incident.
+  @param do_flush_and_sync If true, will call flush_and_sync(), rotate() and
+  purge().
 
   @retval
     0    error
@@ -8193,12 +8204,14 @@ MYSQL_BIN_LOG::flush_thread_caches(THD *thd)
 /**
   Execute the flush stage.
 
-  @param total_bytes_var Pointer to variable that will be set to total
+  @param[out] total_bytes_var Pointer to variable that will be set to total
   number of bytes flushed, or NULL.
 
-  @param rotate_var Pointer to variable that will be set to true if
+  @param[out] rotate_var Pointer to variable that will be set to true if
   binlog rotation should be performed after releasing locks. If rotate
   is not necessary, the variable will not be touched.
+
+  @param[out] out_queue_var  Pointer to the sessions queue in flush stage.
 
   @return Error code on error, zero on success
  */
@@ -8429,6 +8442,8 @@ static const char* g_stage_name[] = {
   @param thd    Session structure
   @param stage  The stage to enter
   @param queue  Queue of threads to enqueue for the stage
+  @param leave_mutex  Mutex that will be released when changing stage
+  @param enter_mutex  Mutex that will be taken when changing stage
 
   @retval true  The thread should "bail out" and go waiting for the
                 commit to finish

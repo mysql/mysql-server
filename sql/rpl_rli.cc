@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1176,7 +1176,8 @@ void Relay_log_info::close_temporary_tables()
   @param[in]   thd         connection,
   @param[in]   just_reset  if false, it tells that logs should be purged
                            and @c init_relay_log_pos() should be called,
-  @param[out] errmsg      store pointer to an error message.
+  @param[out]  errmsg      store pointer to an error message.
+  @param[in]   delete_only If true, do not start writing to a new log file.
 
   @retval 0 successfully executed,
   @retval 1 otherwise error, where errmsg is set to point to the error message.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -1016,6 +1016,7 @@ struct Gtid
   /**
     Parses the given string and stores in this Gtid.
 
+    @param sid_map sid_map to use when converting SID to a sidno.
     @param text The text to parse
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
@@ -2943,7 +2944,8 @@ public:
     - Send a broadcast on the condition variable for every sidno for
       which we released ownership.
 
-    @param[in] thd - Thread for which owned groups are updated.
+    @param[in] thd Thread for which owned groups are updated.
+    @param[in] is_commit If true, the update is for a commit (not a rollback).
   */
   void update_gtids_impl(THD *thd, bool is_commit);
 
@@ -3174,6 +3176,7 @@ struct Gtid_specification
   /**
     Parses the given string and stores in this Gtid_specification.
 
+    @param sid_map sid_map to use when converting SID to a sidno.
     @param text The text to parse
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
