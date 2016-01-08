@@ -2832,6 +2832,8 @@ void Dbacc::insertContainer(const Element    elem,
   /* --------------------------------------------------------------------------------- */
   const Uint32 elemhead = elem.getHeader();
   ContainerHeader conthead = pageptr.p->word32[conptr];
+  Uint32 scanmask = conthead.getScanBits();
+  Uint32 elemscanmask;
   if (oprecptr.i != RNIL)
   {
     jam();
@@ -2839,10 +2841,16 @@ void Dbacc::insertContainer(const Element    elem,
     oprecptr.p->elementPage = pageptr.i;
     oprecptr.p->elementContainer = conptr;
     oprecptr.p->elementPointer = tidrIndex;
+    elemscanmask = oprecptr.p->scanBits;
   }
   else
   {
     ndbrequire(!ElementHeader::getLocked(elemhead));
+    elemscanmask = ElementHeader::getScanBits(elemhead);
+  }
+  if (elemscanmask != scanmask)
+  {
+    conthead.copyScanBits(scanmask & elemscanmask);
   }
   /* --------------------------------------------------------------------------------- */
   /*       WE CHOOSE TO UNDO LOG INSERTS BY WRITING THE BEFORE VALUE TO THE UNDO LOG.  */
@@ -3449,6 +3457,9 @@ void Dbacc::deleteElement(Page8Ptr delPageptr,
     delPageptr.p->word32[delElemptr] = lastPageptr.p->word32[lastElemptr];
     delPageptr.p->word32[delElemptr + 1] =
       lastPageptr.p->word32[lastElemptr + 1];
+    ContainerHeader delConhead = delPageptr.p->word32[delConptr];
+    const Uint32 delscanmask = delConhead.getScanBits();
+    Uint32 elemscanmask;
     if (ElementHeader::getLocked(tdeElemhead)) {
       /* --------------------------------------------------------------------------------- */
       /* THE LAST ELEMENT IS LOCKED AND IS THUS REFERENCED BY AN OPERATION RECORD. WE NEED */
@@ -3459,9 +3470,19 @@ void Dbacc::deleteElement(Page8Ptr delPageptr,
       deOperationRecPtr.p->elementPage = delPageptr.i;
       deOperationRecPtr.p->elementContainer = delConptr;
       deOperationRecPtr.p->elementPointer = delElemptr;
+      elemscanmask = deOperationRecPtr.p->scanBits;
       /*  Writing an invalid value only for sanity, the value should never be read.  */
       lastPageptr.p->word32[lastElemptr] = ElementHeader::setInvalid();
     }//if
+    else
+    {
+      elemscanmask = ElementHeader::getScanBits(tdeElemhead);
+    }
+    if (delscanmask != elemscanmask)
+    {
+      delPageptr.p->word32[delConptr] =
+        delConhead.copyScanBits(delscanmask & elemscanmask);
+    }
     return;
   }
 
@@ -6073,6 +6094,7 @@ Dbacc::shrink_adjust_reduced_hash_value(Uint32 bucket_number)
     }//if
     ndbrequire(tgeRemLen == Container::HEADER_SIZE);
     ContainerHeader containerhead = gePageptr.p->word32[tgeContainerptr];
+    ndbassert((containerhead.getScanBits() & ~fragrecptr.p->activeScanMask) == 0);
     tgeNextptrtype = containerhead.getNextEnd();
     if (tgeNextptrtype == 0)
     {
@@ -6966,9 +6988,19 @@ bool Dbacc::getScanElement(Page8Ptr& pageptr,
   }//if
   if (containerhead.getNextEnd() != 0) {
     jam();
+    if ((containerhead.getScanBits() & scanPtr.p->scanMask) == 0)
+    {
+      containerhead.setScanBits(scanPtr.p->scanMask);
+      pageptr.p->word32[conptr] = Uint32(containerhead);
+    }
     nextcontainerinfo(pageptr, conptr, containerhead, conidx, isforward);
     goto NEXTSEARCH_SCAN_LOOP;
   }//if
+  if ((containerhead.getScanBits() & scanPtr.p->scanMask) == 0)
+  {
+    containerhead.setScanBits(scanPtr.p->scanMask);
+    pageptr.p->word32[conptr] = Uint32(containerhead);
+  }
   pageptr.p->word32[conptr] = Uint32(containerhead);
   return false;
 }//Dbacc::getScanElement()
@@ -7179,7 +7211,13 @@ void Dbacc::releaseScanBucket(Page8Ptr pageptr,
   Uint32 conptr = getContainerPtr(conidx, isforward);
   ContainerHeader containerhead(pageptr.p->word32[conptr]);
   Uint32 conlen = containerhead.getLength();
-  releaseScanContainer(pageptr, conptr, isforward, conlen, scanMask);
+  const Uint16 isScanned = containerhead.getScanBits() & scanMask;
+  releaseScanContainer(pageptr, conptr, isforward, conlen, scanMask, isScanned);
+  if (isScanned)
+  {
+    containerhead.clearScanBits(isScanned);
+    pageptr.p->word32[conptr] = Uint32(containerhead);
+  }
   if (containerhead.getNextEnd() != 0) {
     jam();
     nextcontainerinfo(pageptr, conptr, containerhead, conidx, isforward);
@@ -7196,12 +7234,14 @@ void Dbacc::releaseScanBucket(Page8Ptr pageptr,
  * @param[in]  forward  Container growing direction.
  * @param[in]  conlen   Containers current size.
  * @param[in]  scanMask   Scan bits that should be cleared if set
+ * @param[in]  allScanned All elements should have this bits set (debug)
  * ------------------------------------------------------------------------- */
 void Dbacc::releaseScanContainer(const Page8Ptr pageptr,
                                  const Uint32 conptr,
                                  const bool isforward,
                                  const Uint32 conlen,
-                                 const Uint16 scanMask) const
+                                 const Uint16 scanMask,
+                                 const Uint16 allScanned) const
 {
   OperationrecPtr rscOperPtr;
   Uint32 trscElemStep;
@@ -7235,6 +7275,7 @@ void Dbacc::releaseScanContainer(const Page8Ptr pageptr,
     const Uint32 eh = pageptr.p->word32[trscElementptr];
     if (ElementHeader::getUnlocked(eh)) {
       jam();
+      ndbassert(allScanned == (ElementHeader::getScanBits(eh) & scanMask & allScanned));
       const Uint32 tmp = ElementHeader::clearScanBit(eh, scanMask);
       dbgWord32(pageptr, trscElementptr, tmp);
       pageptr.p->word32[trscElementptr] = tmp;
@@ -7242,6 +7283,7 @@ void Dbacc::releaseScanContainer(const Page8Ptr pageptr,
       jam();
       rscOperPtr.i = ElementHeader::getOpPtrI(eh);
       ptrCheckGuard(rscOperPtr, coprecsize, operationrec);
+      ndbrequire(allScanned == (rscOperPtr.p->scanBits & scanMask & allScanned));
       rscOperPtr.p->scanBits &= ~scanMask;
     }//if
     trscElemlens = trscElemlens - trscElemlen;
