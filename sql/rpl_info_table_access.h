@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,12 +17,7 @@
 
 #include "my_global.h"
 #include "rpl_table_access.h"    // System_table_access
-/*
-#include <table.h>
-#include <key.h>
-#include "rpl_info_handler.h"
-#include "rpl_info_values.h"
-*/
+
 class Field;
 class Rpl_info_values;
 

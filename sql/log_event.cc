@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include "mysql.h"             // MYSQL_OPT_MAX_ALLOWED_PACKET
 #include "my_decimal.h"        // my_decimal
 #include "my_time.h"           // MAX_DATE_STRING_REP_LENGTH
+#include "derror.h"            // ER_THD
 
 #ifdef MYSQL_CLIENT
 #include "mysqlbinlog.h"

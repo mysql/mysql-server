@@ -25,6 +25,7 @@
 #include "binlog.h"                   // mysql_bin_log
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "derror.h"
+#include "error_handler.h"            // Ignore_error_handler
 #include "field.h"                    // Field
 #include "filesort.h"                 // Filesort
 #include "item.h"                     // Item

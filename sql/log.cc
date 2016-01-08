@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 
 #include "current_thd.h"    // current_thd
 #include "derror.h"         // ER_DEFAULT
+#include "error_handler.h"  // Internal_error_handler
 #include "mysqld.h"         // opt_log_syslog_enable
 #include "psi_memory_key.h" // key_memory_File_query_log_name
 #include "sql_audit.h"      // mysql_audit_general_log

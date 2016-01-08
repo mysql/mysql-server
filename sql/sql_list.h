@@ -1,6 +1,6 @@
 #ifndef INCLUDES_MYSQL_SQL_LIST_H
 #define INCLUDES_MYSQL_SQL_LIST_H
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,18 +15,13 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_alloc.h"
 #include "my_global.h"
-#include "my_sys.h"
-#include "m_string.h" /* for TRASH */
 
-#include "my_sys.h"                    /* alloc_root, TRASH, MY_WME,
-                                          MY_FAE, MY_ALLOW_ZERO_PTR */
-#include "m_string.h"
-#include "thr_malloc.h"                         /* sql_alloc */
+#include "sql_alloc.h"         // Sql_alloc
 
 #include <algorithm>
 #include <type_traits>
+
 
 /**
   Simple intrusive linked list.

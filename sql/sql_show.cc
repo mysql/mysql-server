@@ -26,6 +26,7 @@
 #include "auth_common.h"                    // check_grant_db
 #include "debug_sync.h"                     // DEBUG_SYNC
 #include "derror.h"                         // ER_THD
+#include "error_handler.h"                  // Internal_error_handler
 #include "field.h"                          // Field
 #include "filesort.h"                       // filesort_free_buffers
 #include "item.h"                           // Item_empty_string

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #include "item_sum.h"           // Item_sum_hybrid
 #include "item_json_func.h"     // json_value, get_json_atom_wrapper
 #include "mysqld.h"             // log_10
+#include "opt_trace.h"          // Opt_trace_object
 #include "parse_tree_helpers.h" // PT_item_list
 #include "sql_class.h"          // THD
 #include "sql_optimizer.h"      // JOIN

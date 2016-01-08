@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #define _log_event_h
 
 #include "my_global.h"
+#include "m_string.h"                // native_strncasecmp
 #include "my_bitmap.h"               // MY_BITMAP
 #include "binary_log.h"              // binary_log
 #include "rpl_utility.h"             // Hash_slave_rows

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,7 +31,6 @@
 #include "mysql_com_server.h"             // NET_SERVER
 #include "auth/sql_security_ctx.h"        // Security_context
 #include "discrete_interval.h"            // Discrete_interval
-#include "error_handler.h"                // Internal_error_handler
 #include "opt_trace_context.h"            // Opt_trace_context
 #include "protocol.h"                     // Protocol
 #include "protocol_classic.h"             // Protocol_text
@@ -62,6 +61,7 @@ namespace dd {
   class DD_kill_immunizer;
 }
 
+class Internal_error_handler;
 class Reprepare_observer;
 class sp_cache;
 class Rows_log_event;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,22 +16,28 @@
 #ifndef _sql_plugin_h
 #define _sql_plugin_h
 
-#include <my_global.h>
-#include <vector>
-#include <mysql/plugin.h>
+#include "my_global.h"
 
-#include "mysql/mysql_lex_string.h"         // LEX_STRING
-#include "my_alloc.h"                       /* MEM_ROOT */
-#include "my_getopt.h"                      /* my_option */
-#include "sql_const.h"                      /* SHOW_COMP_OPTION */
+#include "my_getopt.h"              // my_open
+#include "my_sqlcommand.h"          // enum_sql_command
+#include "mysql/mysql_lex_string.h" // LEX_CSTRING
+
+#include "sql_cmd.h"                // Sql_cmd
+#include "sql_const.h"              // SHOW_COMP_OPTION
+#include "sql_plugin_ref.h"         // plugin_ref
+
+#include <vector>
+
+class i_string;
+struct st_mysql_sys_var;
+template <class T> class I_List;
+typedef struct st_mysql_const_lex_string LEX_CSTRING;
+typedef struct st_mysql_show_var SHOW_VAR;
+typedef struct st_mysql_lex_string LEX_STRING;
+
 
 extern const char *global_plugin_typelib_names[];
 extern mysql_mutex_t LOCK_plugin_delete;
-
-#include <my_sys.h>
-#include "sql_list.h"
-#include "sql_cmd.h"
-#include "sql_plugin_ref.h"
 
 #ifdef DBUG_OFF
 #define plugin_ref_to_int(A) A
@@ -47,9 +53,6 @@ extern mysql_mutex_t LOCK_plugin_delete;
 #define PLUGIN_INIT_SKIP_DYNAMIC_LOADING 1
 #define PLUGIN_INIT_SKIP_PLUGIN_TABLE    2
 #define PLUGIN_INIT_SKIP_INITIALIZATION  4
-
-typedef struct st_mysql_show_var SHOW_VAR;
-typedef struct st_mysql_lex_string LEX_STRING;
 
 #define MYSQL_ANY_PLUGIN         -1
 

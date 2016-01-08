@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@
 #include "mysqld.h"                  // LOCK_des_key_file
 #include "sha1.h"                    // SHA1_HASH_SIZE
 #include "auth_common.h"             // check_password_policy
+#include "derror.h"                  // ER_THD
 #include "des_key_file.h"            // st_des_keyblock
 #include "password.h"                // my_make_scrambled_password
 #include "spatial.h"                 // Geometry

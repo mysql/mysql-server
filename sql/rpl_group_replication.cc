@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,14 +18,17 @@
 #endif
 
 #include "rpl_group_replication.h"
-#include "rpl_channel_service_interface.h"
-#include "rpl_info_factory.h"
-#include "rpl_slave.h"
-#include "tc_log.h"
-#include "mysqld_thd_manager.h"
-#include "mysqld.h"                             // glob_hostname mysqld_port ..
-#include "mysql/group_replication_priv.h"
-#include "log.h"
+
+#include "log.h"                  // sql_print_error
+#include "mysqld.h"               // mysqld_port
+#include "mysqld_thd_manager.h"   // Global_THD_manager
+#include "replication.h"          // Trans_context_info
+#include "rpl_gtid.h"             // gtid_mode_lock
+#include "rpl_slave.h"            // report_host
+#include "sql_plugin.h"           // plugin_unlock
+#include "sql_string.h"           // to_lex_cstring
+#include "system_variables.h"     // System_variables
+
 
 extern ulong opt_mi_repository_id;
 extern ulong opt_rli_repository_id;

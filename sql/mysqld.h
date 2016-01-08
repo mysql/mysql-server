@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,9 +19,10 @@
 #include "my_global.h"
 #include "mysql_com.h"                     // SERVER_VERSION_LENGTH
 #include "my_atomic.h"                     // my_atomic_load32
+#include "my_sqlcommand.h"                 // SQLCOM_END
+#include "my_sys.h"                        // MY_TMPDIR
 #include "my_thread.h"                     // my_thread_attr_t
 #include "my_thread_local.h"               // my_get_thread_local
-#include "sql_cmd.h"                       // SQLCOM_END
 #include "sql_const.h"                     // UUID_LENGTH
 #include "atomic_class.h"                  /* Atomic_int32 */
 

@@ -20,6 +20,7 @@
 #include "current_thd.h"
 #include "debug_sync.h"       // DEBUG_SYNC
 #include "derror.h"           // ER_THD
+#include "error_handler.h"    // Strict_error_handler
 #include "events.h"           // Events
 #include "item_timefunc.h"    // Item_func_unix_timestamp
 #include "key_spec.h"         // Key_spec

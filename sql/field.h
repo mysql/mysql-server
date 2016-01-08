@@ -27,7 +27,6 @@
 #include "sql_error.h"                          // Sql_condition
 #include "sql_string.h"                         // String
 #include "table.h"                              // TABLE
-#include "mysql_version.h"                      // FRM_VER
 
 class Create_field;
 class Json_dom;

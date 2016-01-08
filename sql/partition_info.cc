@@ -29,6 +29,7 @@
 #include "derror.h"                           // ER_THD
 #include "sql_tablespace.h"                   // check_tablespace_name
 #include "template_utils.h"
+#include "error_handler.h"
 
 
 // TODO: Create ::get_copy() for getting a deep copy.

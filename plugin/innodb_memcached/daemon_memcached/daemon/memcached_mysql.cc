@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -28,6 +28,7 @@ Created 04/12/2011 Jimmy Yang
 #include <stdlib.h>
 #include <ctype.h>
 #include <mysql_version.h>
+#include "plugin.h"
 #include "sql_plugin.h"
 
 /** Configuration info passed to memcached, including

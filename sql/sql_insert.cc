@@ -22,6 +22,7 @@
 #include "auth_common.h"              // check_grant_all_columns
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "derror.h"                   // ER_THD
+#include "error_handler.h"            // Strict_error_handler
 #include "item.h"                     // Item
 #include "lock.h"                     // mysql_unlock_tables
 #include "mysqld.h"                   // stage_init

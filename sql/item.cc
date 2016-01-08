@@ -21,6 +21,7 @@
 #include "auth_common.h"     // get_column_grant
 #include "current_thd.h"
 #include "derror.h"          // ER_THD
+#include "error_handler.h"   // Internal_error_handler
 #include "item_cmpfunc.h"    // COND_EQUAL
 #include "item_create.h"     // create_temporal_literal
 #include "item_func.h"       // item_func_sleep_init

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -17,6 +17,8 @@
 #ifndef SQL_ALTER_TABLE_H
 #define SQL_ALTER_TABLE_H
 
+#include "my_global.h"
+
 #include "sql_cmd.h"  // Sql_cmd
 #include "sql_list.h" // List
 
@@ -25,6 +27,8 @@ class Item;
 class Key_spec;
 class String;
 struct TABLE_LIST;
+typedef struct st_mysql_lex_string LEX_STRING;
+
 
 /**
   Class representing DROP COLUMN, DROP KEY and DROP FOREIGN KEY

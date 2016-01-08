@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "mysql/psi/mysql_sp.h"
 #include "binlog.h"         // mysql_bin_log
 #include "derror.h"         // ER_THD
+#include "error_handler.h"  // Internal_error_handler
 #include "item_timefunc.h"  // Item_func_now_local
 #include "key.h"            // key_copy
 #include "lock.h"           // lock_object_name

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,17 +34,19 @@
 
 #include "my_aes.h"                      // my_aes_opmode_names
 #include "myisam.h"                      // myisam_flush
+
 #include "auth_common.h"                 // validate_user_plugins
 #include "binlog.h"                      // mysql_bin_log
 #include "connection_handler_impl.h"     // Per_thread_connection_handler
 #include "connection_handler_manager.h"  // Connection_handler_manager
-#include "debug_sync.h"                  // DEBUG_SYNC
 #include "derror.h"                      // read_texts
 #include "events.h"                      // Events
 #include "hostname.h"                    // host_cache_resize
 #include "item_timefunc.h"               // ISO_FORMAT
+#include "log.h"                         // sql_print_warning
 #include "log_event.h"                   // MAX_MAX_ALLOWED_PACKET
 #include "psi_memory_key.h"
+#include "rpl_group_replication.h"       // is_group_replication_running
 #include "rpl_info_factory.h"            // Rpl_info_factory
 #include "rpl_info_handler.h"            // INFO_REPOSITORY_FILE
 #include "rpl_mi.h"                      // Master_info

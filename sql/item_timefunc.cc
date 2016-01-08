@@ -28,6 +28,7 @@
 #include "item_timefunc.h"
 
 #include "current_thd.h"
+#include "derror.h"          // ER_THD
 #include "sql_class.h"       // THD
 #include "sql_locale.h"      // my_locale_en_US
 #include "sql_time.h"        // make_truncated_value_warning

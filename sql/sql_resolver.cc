@@ -29,6 +29,7 @@
 #include "auth_common.h"         // check_single_table_access
 #include "aggregate_check.h"     // Group_check
 #include "derror.h"              // ER_THD
+#include "error_handler.h"       // View_error_handler
 #include "item_sum.h"            // Item_sum
 #include "opt_range.h"           // prune_partitions
 #include "opt_trace.h"           // Opt_trace_object

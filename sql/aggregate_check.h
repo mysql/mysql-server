@@ -1,7 +1,7 @@
 #ifndef AGGREGATE_CHECK_INCLUDED
 #define AGGREGATE_CHECK_INCLUDED
 
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -447,11 +447,15 @@ VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
 */
 
 #include "my_global.h"
-#include "mem_root_array.h"
-#include "opt_trace.h"
-#include "item_cmpfunc.h"
-#include "item_sum.h"
+
+#include "item_cmpfunc.h"        // Item_func_any_value
+#include "item_sum.h"            // Item_sum
+#include "mem_root_array.h"      // Mem_root_array
+#include "sql_alloc.h"           // Sql_alloc
+
 struct st_mem_root;
+class Opt_trace_context;
+class Opt_trace_object;
 class SELECT_LEX;
 struct TABLE_LIST;
 

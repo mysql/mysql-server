@@ -30,6 +30,7 @@
 #include "dd_table_share.h"           // open_table_def
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "derror.h"                   // ER_DEFAULT
+#include "error_handler.h"            // Internal_error_handler
 #include "lock.h"                     // MYSQL_LOCK
 #include "log.h"                      // sql_print_error
 #include "log_event.h"                // Write_rows_log_event

@@ -1,7 +1,7 @@
 #ifndef JSON_BINARY_INCLUDED
 #define JSON_BINARY_INCLUDED
 
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -134,10 +134,10 @@
 */
 
 #include "my_global.h"
-#include "sql_string.h"                         // String
 #include "binary_log_types.h"                   // enum_field_types
 
 class Json_dom;
+class String;
 
 namespace json_binary
 {
