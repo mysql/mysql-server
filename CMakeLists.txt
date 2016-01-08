@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,8 +14,8 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 IF(WIN32)
-  # CMake 2.8.12 is needed for Visual Studio 2013
-  CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
+  # CMake 3.2.3 is needed for Visual Studio 2015 due to CMake bug 15552.
+  CMAKE_MINIMUM_REQUIRED(VERSION 3.2.3)
 ELSE()
   # There's a bug in unzipping prior to 2.8.2
   CMAKE_MINIMUM_REQUIRED(VERSION 2.8.2)

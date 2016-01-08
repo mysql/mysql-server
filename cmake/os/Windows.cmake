@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -35,9 +35,9 @@ INCLUDE(${CMAKE_BINARY_DIR}/win/configure.data OPTIONAL)
 GET_FILENAME_COMPONENT(_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
 INCLUDE(${_SCRIPT_DIR}/WindowsCache.cmake)
 
-# We require at least Visual Studio 2013 (aka 12.0) which has version nr 1800.
-IF(NOT FORCE_UNSUPPORTED_COMPILER AND MSVC_VERSION LESS 1800)
-  MESSAGE(FATAL_ERROR "Visual Studio 2013 or newer is required!")
+# We require at least Visual Studio 2015 (aka 14.0) which has version nr 1900.
+IF(NOT FORCE_UNSUPPORTED_COMPILER AND MSVC_VERSION LESS 1900)
+  MESSAGE(FATAL_ERROR "Visual Studio 2015 or newer is required!")
 ENDIF()
 
 # OS display name (version_compile_os etc).
@@ -111,10 +111,11 @@ IF(MSVC)
    SET("${flag}" "${${flag}} /EHsc")
   ENDFOREACH()
   
-  # Fix CMake's predefined huge stack size
   FOREACH(type EXE SHARED MODULE)
-   STRING(REGEX REPLACE "/STACK:([^ ]+)" "" CMAKE_${type}_LINKER_FLAGS "${CMAKE_${type}_LINKER_FLAGS}")
-   STRING(REGEX REPLACE "/INCREMENTAL:([^ ]+)" "" CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO}")
+    SET(CMAKE_${type}_LINKER_FLAGS_DEBUG
+	    "${CMAKE_${type}_LINKER_FLAGS_DEBUG} /INCREMENTAL:NO")
+    SET(CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO
+	    "${CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO} /INCREMENTAL:NO")
   ENDFOREACH()
   
   # Mark 32 bit executables large address aware so they can 
