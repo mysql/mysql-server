@@ -1071,7 +1071,7 @@ bool Item_field::check_column_privileges(uchar *arg)
   Internal_error_handler_holder<View_error_handler, TABLE_LIST>
     view_handler(thd, context->view_error_handler,
                  context->view_error_handler_arg);
-  if (check_column_grant_in_table_ref(thd, cached_table,
+  if (check_column_grant_in_table_ref(thd, table_ref,
                                       field_name, strlen(field_name),
                                       thd->want_privilege))
   {
