@@ -8351,23 +8351,23 @@ bool handler::my_prepare_gcolumn_template(THD *thd,
 
 
 /**
-   Callback for generated columns processing. Will open the table, in the
-   server *only*, and call my_eval_gcolumn_expr_helper() to do the actual
-   processing. This function is a variant of the other
-   handler::my_eval_gcolumn_expr() but is intended for use when no TABLE
-   object already exists - e.g. from purge threads.
+  Callback for generated columns processing. Will open the table, in the
+  server *only*, and call my_eval_gcolumn_expr_helper() to do the actual
+  processing. This function is a variant of the other
+  handler::my_eval_gcolumn_expr() but is intended for use when no TABLE
+  object already exists - e.g. from purge threads.
 
-   Note! The call to open_table_uncached() must be made with the last
-   argument (open_in_engine) set to false. Failing to do so will cause
-   deadlocks and incorrect behavior.
+  Note! The call to open_table_uncached() must be made with the last
+  argument (open_in_engine) set to false. Failing to do so will cause
+  deadlocks and incorrect behavior.
 
-   @param thd             Thread handle
-   @param db_name         Database containing the table to open
-   @param table_name      Name of table to open
-   @param fields          Bitmap of field index of evaluated generated column
-   @param record          Record buffer
+  @param thd         thread handle
+  @param db_name     database containing the table to open
+  @param table_name  name of table to open
+  @param fields      bitmap of field index of evaluated generated column
+  @param record      record buffer
 
-   @return true in case of error, false otherwise.
+  @return true in case of error, false otherwise.
 */
 
 bool handler::my_eval_gcolumn_expr_with_open(THD *thd,
@@ -8407,25 +8407,6 @@ bool handler::my_eval_gcolumn_expr_with_open(THD *thd,
 }
 
 
-/**
-  Evaluate generated Column's value. If the engine has to write an index entry
-  to its UNDO log (in a DELETE or UPDATE), and the index is on a virtual
-  generated column, engine needs to calculate the column's value. This variant
-  of handler::my_eval_gcolumn_expr() is used by client threads which have a
-  TABLE.
-
-  @param thd        Thread handle
-  @param table      mysql table object
-  @param fields     bitmap of field index of evaluated
-	            generated column
-  @param record     buff of base columns generated column depends.
-                    After calling this function, it will be used to
-                    return the value of generated column.
-
-  @retval true in case of error
-  @retval false on success.
-*/
-
 bool handler::my_eval_gcolumn_expr(THD *thd, TABLE *table,
 				   const MY_BITMAP *const fields,
                                    uchar *record)
@@ -8433,7 +8414,7 @@ bool handler::my_eval_gcolumn_expr(THD *thd, TABLE *table,
   DBUG_ENTER("my_eval_gcolumn_expr");
 
   const bool res=
-     my_eval_gcolumn_expr_helper(thd, table, fields, record, false);
+    my_eval_gcolumn_expr_helper(thd, table, fields, record, false);
   DBUG_RETURN(res);
 }
 

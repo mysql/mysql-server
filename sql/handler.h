@@ -3956,24 +3956,24 @@ public:
                                              uchar *record);
 
   /**
-   Callback for computing generated column values.
+    Callback for computing generated column values.
 
-   Storage engines that need to have virtual column values for a row
-   can use this function to get the values computed. The storage
-   engine must have filled in the values for the base columns that
-   the virutal columns depend on.
+    Storage engines that need to have virtual column values for a row
+    can use this function to get the values computed. The storage
+    engine must have filled in the values for the base columns that
+    the virtual columns depend on.
 
-   @param  thd	        thread handle
-   @param  table	table object
-   @param  fields	bitmap of field index of evaluated generated
-			column
-   @param  record	buff of base columns generated column depends.
-			After calling this function, it will be
-			used to return the value of the generated
-			columns.
+    @param         thd    thread handle
+    @param         table  table object
+    @param         fields bitmap of field index of evaluated generated
+                          column
+    @param[in,out] record buff of base columns generated column depends.
+                          After calling this function, it will be
+                          used to return the value of the generated
+                          columns.
 
-   @retval true in case of error
-   @retval false on success.
+    @retval true in case of error
+    @retval false on success
   */
   static bool my_eval_gcolumn_expr(THD *thd, TABLE *table,
 				   const MY_BITMAP *const fields,
