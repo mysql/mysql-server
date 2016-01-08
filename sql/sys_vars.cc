@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2055,24 +2055,8 @@ static bool fix_syslog(sys_var *self, THD *thd, enum_var_type type)
 
 static bool check_syslog_tag(sys_var *self, THD *THD, set_var *var)
 {
-  bool ret;
-  char *old= opt_log_syslog_tag;
-  opt_log_syslog_tag= (var->value) ? var->save_result.string_value.str : NULL;
-  ret= log_syslog_update_settings();
-  opt_log_syslog_tag= old;
-  return ret;
-}
-
-static bool check_syslog_enable(sys_var *self, THD *THD, set_var *var)
-{
-  my_bool save= opt_log_syslog_enable;
-  opt_log_syslog_enable= var->save_result.ulonglong_value;
-  if (log_syslog_update_settings())
-  {
-    opt_log_syslog_enable= save;
-    return true;
-  }
-  return false;
+  return ((var->value != NULL) &&
+          (strchr(var->save_result.string_value.str, FN_LIBCHAR) != NULL));
 }
 
 static Sys_var_mybool Sys_log_syslog_enable(
@@ -2089,7 +2073,7 @@ static Sys_var_mybool Sys_log_syslog_enable(
        DEFAULT(TRUE),
 #endif
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_syslog_enable), ON_UPDATE(0));
+       ON_CHECK(0), ON_UPDATE(fix_syslog));
 
 
 static Sys_var_charptr Sys_log_syslog_tag(
