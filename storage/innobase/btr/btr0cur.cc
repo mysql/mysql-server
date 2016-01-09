@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -1366,7 +1366,11 @@ retry_page_get:
 		level, the search becomes PAGE_CUR_LE */
 		if (page_mode == PAGE_CUR_RTREE_LOCATE
 		    && level == height) {
-			page_mode = PAGE_CUR_LE;
+			if (level == 0) {
+				page_mode = PAGE_CUR_LE;
+			} else {
+				page_mode = PAGE_CUR_RTREE_GET_FATHER;
+			}
 		}
 
 		if (page_mode == PAGE_CUR_RTREE_INSERT) {
@@ -1416,6 +1420,11 @@ retry_page_get:
 			} else {
 				ut_ad(0);
 			}
+		}
+
+		if (found && page_mode == PAGE_CUR_RTREE_GET_FATHER) {
+			cursor->low_match =
+				DICT_INDEX_SPATIAL_NODEPTR_SIZE + 1;
 		}
 	} else if (height == 0 && btr_search_enabled
 		   && !dict_index_is_spatial(index)) {

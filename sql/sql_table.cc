@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4536,6 +4536,24 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     }
   }
 
+  {
+    LEX_STRING*	encrypt_type = &create_info->encrypt_type;
+
+    if (encrypt_type->length != 0 &&
+	encrypt_type->length > TABLE_COMMENT_MAXLEN &&
+	system_charset_info->cset->charpos(system_charset_info,
+					   encrypt_type->str,
+					   encrypt_type->str
+					   + encrypt_type->length,
+					   TABLE_COMMENT_MAXLEN)
+	< encrypt_type->length)
+    {
+      my_error(ER_WRONG_STRING_LENGTH, MYF(0),
+	       encrypt_type->str, "ENCRYPTION", TABLE_COMMENT_MAXLEN);
+      DBUG_RETURN(TRUE);
+    }
+  }
+
   DBUG_RETURN(FALSE);
 }
 
@@ -8249,6 +8267,12 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   {
     create_info->compress.str= table->s->compress.str;
     create_info->compress.length= table->s->compress.length;
+  }
+
+  if (!create_info->encrypt_type.str)
+  {
+    create_info->encrypt_type.str= table->s->encrypt_type.str;
+    create_info->encrypt_type.length= table->s->encrypt_type.length;
   }
 
   /* Do not pass the update_create_info through to each partition. */

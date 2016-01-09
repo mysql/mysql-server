@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -49,6 +49,8 @@ Datafile::init(
 
 	m_name = mem_strdup(name);
 	m_flags = flags;
+	m_encryption_key = NULL;
+	m_encryption_iv = NULL;
 }
 
 /** Release the resources. */
@@ -63,6 +65,16 @@ Datafile::shutdown()
 	free_filepath();
 
 	free_first_page();
+
+	if (m_encryption_key != NULL) {
+		ut_free(m_encryption_key);
+		m_encryption_key = NULL;
+	}
+
+	if (m_encryption_iv != NULL) {
+		ut_free(m_encryption_iv);
+		m_encryption_iv = NULL;
+	}
 }
 
 /** Create/open a data file.
@@ -476,6 +488,11 @@ Datafile::validate_for_recovery()
 		break;
 
 	default:
+		/* For encryption tablespace, we skip the retry step,
+		since it is only because the keyring is not ready. */
+		if (FSP_FLAGS_GET_ENCRYPTION(m_flags)) {
+			return(err);
+		}
 		/* Re-open the file in read-write mode  Attempt to restore
 		page 0 from doublewrite and read the space ID from a survey
 		of the first few pages. */
@@ -610,6 +627,39 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 
 		return(DB_CORRUPTION);
 
+	}
+
+	/* For encrypted tablespace, check the encryption info in the
+	first page can be decrypt by master key, otherwise, this table
+	can't be open. */
+	if (FSP_FLAGS_GET_ENCRYPTION(m_flags)) {
+		m_encryption_key = static_cast<byte*>(
+			ut_malloc_nokey(ENCRYPTION_KEY_LEN));
+		m_encryption_iv = static_cast<byte*>(
+			ut_malloc_nokey(ENCRYPTION_KEY_LEN));
+#ifdef	UNIV_ENCRYPT_DEBUG
+                fprintf(stderr, "Got from file %lu:", m_space_id);
+#endif
+		if (!fsp_header_get_encryption_key(m_flags,
+						   m_encryption_key,
+						   m_encryption_iv,
+						   m_first_page)) {
+			ib::error()
+				<< "Encryption information in"
+				<< " datafile: " << m_filepath
+				<< " can't be decrypted"
+				<< " , please confirm the keyfile"
+				<< " is match and keyring plugin"
+				<< " is loaded.";
+
+			m_is_valid = false;
+			free_first_page();
+			ut_free(m_encryption_key);
+			ut_free(m_encryption_iv);
+			m_encryption_key = NULL;
+			m_encryption_iv = NULL;
+			return(DB_CORRUPTION);
+		}
 	}
 
 	if (fil_space_read_name_and_filepath(

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2579,6 +2579,7 @@ uint sp_get_flags_for_command(LEX *lex)
   case SQLCOM_CHANGE_REPLICATION_FILTER:
   case SQLCOM_SLAVE_START:
   case SQLCOM_SLAVE_STOP:
+  case SQLCOM_ALTER_INSTANCE:
     flags= sp_head::HAS_COMMIT_OR_ROLLBACK;
     break;
   default:

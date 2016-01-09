@@ -1358,6 +1358,7 @@ void clean_up(bool print_message)
   my_free(const_cast<char*>(relay_log_basename));
   my_free(const_cast<char*>(relay_log_index));
 #endif
+  free_list(opt_early_plugin_load_list_ptr);
   free_list(opt_plugin_load_list_ptr);
 
   if (THR_THD_initialized)
@@ -2332,6 +2333,7 @@ SHOW_VAR com_status_vars[]= {
   {"alter_db_upgrade",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_DB_UPGRADE]),           SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_event",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_EVENT]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_function",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_FUNCTION]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"alter_instance",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_INSTANCE]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_procedure",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_PROCEDURE]),            SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_server",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_SERVER]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_table",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_TABLE]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -2759,6 +2761,16 @@ int init_common_variables()
   compile_time_assert(sizeof(com_status_vars)/sizeof(com_status_vars[0]) - 1 ==
                      SQLCOM_END + 7);
 #endif
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
+  if (strlen(DEFAULT_EARLY_PLUGIN_LOAD))
+  {
+    i_string *default_early_plugin= new i_string(DEFAULT_EARLY_PLUGIN_LOAD);
+    opt_early_plugin_load_list_ptr->push_back(default_early_plugin);
+  }
+
+#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
   if (get_options(&remaining_argc, &remaining_argv))
     return 1;
@@ -5785,6 +5797,12 @@ struct my_option my_long_options[]=
    GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "Run mysqld daemon as user.", 0, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
+  {"early-plugin-load", OPT_EARLY_PLUGIN_LOAD,
+   "Optional semicolon-separated list of plugins to load before storage engine "
+   "initialization, where each plugin is identified as name=library, where "
+   "name is the plugin name and library is the plugin library in plugin_dir.",
+   0, 0, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"plugin-load", OPT_PLUGIN_LOAD,
    "Optional semicolon-separated list of plugins to load, where each plugin is "
    "identified as name=library, where name is the plugin name and library "
@@ -7274,7 +7292,10 @@ mysqld_get_one_option(int optid,
     }
     break;
 
-
+  case OPT_EARLY_PLUGIN_LOAD:
+    free_list(opt_early_plugin_load_list_ptr);
+    opt_early_plugin_load_list_ptr->push_back(new i_string(argument));
+    break;
   case OPT_PLUGIN_LOAD:
     free_list(opt_plugin_load_list_ptr);
     /* fall through */

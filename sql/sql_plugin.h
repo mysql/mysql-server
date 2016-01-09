@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -144,6 +144,7 @@ private:
 typedef int (*plugin_type_init)(struct st_plugin_int *);
 
 extern I_List<i_string> *opt_plugin_load_list_ptr;
+extern I_List<i_string> *opt_early_plugin_load_list_ptr;
 extern char *opt_plugin_dir_ptr;
 extern char opt_plugin_dir[FN_REFLEN];
 extern const LEX_STRING plugin_type_names[];

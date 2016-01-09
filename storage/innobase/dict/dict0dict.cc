@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -6850,11 +6850,13 @@ dict_table_t::flags |     0     |    1    |     1      |    1
 fil_space_t::flags  |     0     |    0    |     1      |    1
 @param[in]	table_flags	dict_table_t::flags
 @param[in]	is_temp		whether the tablespace is temporary
+@param[in]	is_encrypted	whether the tablespace is encrypted
 @return tablespace flags (fil_space_t::flags) */
 ulint
 dict_tf_to_fsp_flags(
 	ulint	table_flags,
-	bool	is_temp)
+	bool	is_temp,
+	bool	is_encrypted)
 {
 	DBUG_EXECUTE_IF("dict_tf_to_fsp_flags_failure",
 			return(ULINT_UNDEFINED););
@@ -6877,7 +6879,8 @@ dict_tf_to_fsp_flags(
 						   has_atomic_blobs,
 						   has_data_dir,
 						   is_shared,
-						   is_temp);
+						   is_temp,
+						   is_encrypted);
 
 	return(fsp_flags);
 }

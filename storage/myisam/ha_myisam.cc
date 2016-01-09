@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2001,6 +2001,11 @@ int ha_myisam::create(const char *name, TABLE *table_arg,
   TABLE_SHARE *share= table_arg->s;
   uint options= share->db_options_in_use;
   DBUG_ENTER("ha_myisam::create");
+  if (ha_create_info->encrypt_type.length > 0)
+  {
+    set_my_errno(HA_WRONG_CREATE_OPTION);
+    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+  }
   for (i= 0; i < share->keys; i++)
   {
     if (table_arg->key_info[i].flags & HA_USES_PARSER)

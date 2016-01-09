@@ -551,6 +551,12 @@ ha_innobase::check_if_supported_inplace_alter(
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
+	if (ha_alter_info->create_info->encrypt_type.length > 0) {
+		ha_alter_info->unsupported_reason =
+			innobase_get_err_msg(ER_INVALID_ENCRYPTION_OPTION);
+		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+	}
+
 	update_thd();
 	trx_search_latch_release_if_reserved(m_prebuilt->trx);
 

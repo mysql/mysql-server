@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -106,7 +106,8 @@ aes_evp_type(const my_aes_opmode mode)
 int my_aes_encrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest,
                    const unsigned char *key, uint32 key_length,
-                   enum my_aes_opmode mode, const unsigned char *iv)
+                   enum my_aes_opmode mode, const unsigned char *iv,
+                   bool padding)
 {
   EVP_CIPHER_CTX ctx;
   const EVP_CIPHER *cipher= aes_evp_type(mode);
@@ -120,7 +121,7 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
 
   if (!EVP_EncryptInit(&ctx, cipher, rkey, iv))
     goto aes_error;                             /* Error */
-  if (!EVP_CIPHER_CTX_set_padding(&ctx, 1))
+  if (!EVP_CIPHER_CTX_set_padding(&ctx, padding))
     goto aes_error;                             /* Error */
   if (!EVP_EncryptUpdate(&ctx, dest, &u_len, source, source_length))
     goto aes_error;                             /* Error */
@@ -138,11 +139,11 @@ aes_error:
   return MY_AES_BAD_DATA;
 }
 
-
 int my_aes_decrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest,
                    const unsigned char *key, uint32 key_length,
-                   enum my_aes_opmode mode, const unsigned char *iv)
+                   enum my_aes_opmode mode, const unsigned char *iv,
+                   bool padding)
 {
 
   EVP_CIPHER_CTX ctx;
@@ -160,7 +161,7 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
 
   if (!EVP_DecryptInit(&ctx, aes_evp_type(mode), rkey, iv))
     goto aes_error;                             /* Error */
-  if (!EVP_CIPHER_CTX_set_padding(&ctx, 1))
+  if (!EVP_CIPHER_CTX_set_padding(&ctx, padding))
     goto aes_error;                             /* Error */
   if (!EVP_DecryptUpdate(&ctx, dest, &u_len, source, source_length))
     goto aes_error;                             /* Error */
@@ -176,7 +177,6 @@ aes_error:
   EVP_CIPHER_CTX_cleanup(&ctx);
   return MY_AES_BAD_DATA;
 }
-
 
 int my_aes_get_size(uint32 source_length, my_aes_opmode opmode)
 {

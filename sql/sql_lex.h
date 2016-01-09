@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,6 +43,7 @@
 #include "xa.h"                       // xa_option_words
 #include "select_lex_visitor.h"
 #include "parse_tree_hints.h"
+#include "sql_admin.h"
 #include <map>
 
 #ifdef MYSQL_SERVER
@@ -1732,6 +1733,7 @@ union YYSTYPE {
   Mem_root_array_YY<Table_ident *> table_ident_list;
   delete_option_enum opt_delete_option;
   class PT_hint_list *optimizer_hints;
+  enum alter_instance_action_enum alter_instance_action;
 };
 
 #endif

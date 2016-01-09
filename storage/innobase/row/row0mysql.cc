@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -98,6 +98,8 @@ static ib_mutex_t row_drop_list_mutex;
 
 /** Flag: has row_mysql_drop_list been initialized? */
 static ibool	row_mysql_drop_list_inited	= FALSE;
+
+extern ib_mutex_t	master_key_id_mutex;
 
 /*******************************************************************//**
 Determine if the given name is a name reserved for MySQL system tables.
@@ -3840,6 +3842,33 @@ row_discard_tablespace(
 		return(err);
 	}
 
+	/* For encrypted table, before we discard the tablespace,
+	we need save the encryption information into table, otherwise,
+	this information will be lost in fil_discard_tablespace along
+	with fil_space_free(). */
+	if (dict_table_is_encrypted(table)) {
+		ut_ad(table->encryption_key == NULL
+		      && table->encryption_iv == NULL);
+
+		table->encryption_key =
+			static_cast<byte*>(mem_heap_alloc(table->heap,
+							  ENCRYPTION_KEY_LEN));
+
+		table->encryption_iv =
+			static_cast<byte*>(mem_heap_alloc(table->heap,
+							  ENCRYPTION_KEY_LEN));
+
+		fil_space_t*	space = fil_space_get(table->space);
+		ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
+
+		memcpy(table->encryption_key,
+		       space->encryption_key,
+		       ENCRYPTION_KEY_LEN);
+		memcpy(table->encryption_iv,
+		       space->encryption_iv,
+		       ENCRYPTION_KEY_LEN);
+	}
+
 	/* Discard the physical file that is used for the tablespace. */
 
 	err = fil_discard_tablespace(table->space);
@@ -4133,23 +4162,25 @@ This deletes the fil_space_t if found and the file on disk.
 @param[in]	tablename	Table name, same as the tablespace name
 @param[in]	filepath	File path of tablespace to delete
 @param[in]	is_temp		Is this a temporary table/tablespace
+@param[in]	is_encrypted	Is this an encrypted table/tablespace
 @param[in]	trx		Transaction handle
 @return error code or DB_SUCCESS */
 UNIV_INLINE
 dberr_t
 row_drop_single_table_tablespace(
-	ulint	space_id,
+	ulint		space_id,
 	const char*	tablename,
 	const char*	filepath,
-	bool	is_temp,
-	trx_t*	trx)
+	bool		is_temp,
+	bool		is_encrypted,
+	trx_t*		trx)
 {
 	dberr_t	err = DB_SUCCESS;
 
 	/* This might be a temporary single-table tablespace if the table
 	is compressed and temporary. If so, don't spam the log when we
 	delete one of these or if we can't find the tablespace. */
-	bool	print_msg = !is_temp;
+	bool	print_msg = !is_temp && !is_encrypted;
 
 	/* If the tablespace is not in the cache, just delete the file. */
 	if (!fil_space_for_table_exists_in_mem(
@@ -4625,6 +4656,7 @@ row_drop_table_for_mysql(
 	switch (err) {
 		ulint	space_id;
 		bool	is_temp;
+		bool	is_encrypted;
 		bool	ibd_file_missing;
 		bool	is_discarded;
 		bool	shared_tablespace;
@@ -4634,6 +4666,7 @@ row_drop_table_for_mysql(
 		ibd_file_missing = table->ibd_file_missing;
 		is_discarded = dict_table_is_discarded(table);
 		is_temp = dict_table_is_temporary(table);
+		is_encrypted = dict_table_is_encrypted(table);
 		shared_tablespace = DICT_TF_HAS_SHARED_SPACE(table->flags);
 
 		/* If there is a temp path then the temp flag is set.
@@ -4679,12 +4712,27 @@ row_drop_table_for_mysql(
 		nor system or shared general tablespaces. */
 		if (is_discarded || ibd_file_missing || shared_tablespace
 		    || is_system_tablespace(space_id)) {
-			break;
+			/* For encrypted table, if ibd file can not be decrypt,
+			we also set ibd_file_missing. We still need to try to
+			remove the ibd file for this. */
+			if (is_discarded || !is_encrypted
+			    || !ibd_file_missing) {
+				break;
+			}
 		}
 
+		if (is_encrypted) {
+			/* Require the mutex to block key rotation. */
+			mutex_enter(&master_key_id_mutex);
+		}
 		/* We can now drop the single-table tablespace. */
 		err = row_drop_single_table_tablespace(
-			space_id, tablename, filepath, is_temp, trx);
+			space_id, tablename, filepath,
+			is_temp, is_encrypted, trx);
+
+		if (is_encrypted) {
+			mutex_exit(&master_key_id_mutex);
+		}
 		break;
 
 	case DB_OUT_OF_FILE_SPACE:
