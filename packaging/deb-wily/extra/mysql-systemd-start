@@ -100,8 +100,6 @@ sanity () {
 		chmod 755 ${MYSQLRUN}
 	fi
 
-	/lib/init/apparmor-profile-load usr.sbin.mysqld
-
 	if [ ! -r /etc/mysql/my.cnf ]; then
 		echo "MySQL configuration not found at /etc/mysql/my.cnf. Please install one using update-alternatives."
 		exit 1
