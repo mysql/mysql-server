@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -141,4 +141,31 @@ public:
   virtual enum_sql_command sql_command_code() const { return SQLCOM_SHUTDOWN; }
 };
 
+
+enum alter_instance_action_enum
+{
+  ROTATE_INNODB_MASTER_KEY,
+  LAST_MASTER_KEY                       /* Add new master key type before this */
+};
+
+
+/**
+  Sql_cmd_alter_instance represents the ROTATE <alter_instance_action> MASTER KEY statement.
+*/
+class Alter_instance;
+
+class Sql_cmd_alter_instance : public Sql_cmd
+{
+  friend class PT_alter_instance;
+  const enum alter_instance_action_enum alter_instance_action;
+  Alter_instance *alter_instance;
+public:
+  explicit Sql_cmd_alter_instance(enum alter_instance_action_enum alter_instance_action_arg)
+  : alter_instance_action(alter_instance_action_arg),
+    alter_instance(NULL)
+  {}
+
+  virtual bool execute(THD *thd);
+  virtual enum_sql_command sql_command_code() const { return SQLCOM_ALTER_INSTANCE; }
+};
 #endif

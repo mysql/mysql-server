@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -71,6 +71,7 @@
 # - INSTALL_SUPPORTFILESDIR (various extra support files)
 #
 # - INSTALL_MYSQLDATADIR    (data directory)
+# - INSTALL_MYSQLKEYRING    (keyring directory)
 # - INSTALL_SECURE_FILE_PRIVDIR (--secure-file-priv directory)
 #
 # When changing this page,  _please_ do not forget to update public Wiki
@@ -172,6 +173,7 @@ SET(INSTALL_MYSQLTESTDIR_STANDALONE     "mysql-test")
 SET(INSTALL_SUPPORTFILESDIR_STANDALONE  "support-files")
 #
 SET(INSTALL_MYSQLDATADIR_STANDALONE     "data")
+SET(INSTALL_MYSQLKEYRINGDIR_STANDALONE  "keyring")
 SET(INSTALL_PLUGINTESTDIR_STANDALONE    ${plugin_tests})
 SET(INSTALL_SECURE_FILE_PRIVDIR_STANDALONE ${secure_file_priv_path})
 SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_STANDALONE ${secure_file_priv_embedded_path})
@@ -199,6 +201,7 @@ SET(INSTALL_MYSQLTESTDIR_WIN     "mysql-test")
 SET(INSTALL_SUPPORTFILESDIR_WIN  "support-files")
 #
 SET(INSTALL_MYSQLDATADIR_WIN     "data")
+SET(INSTALL_MYSQLKEYRINGDIR_WIN  "keyring")
 SET(INSTALL_PLUGINTESTDIR_WIN    ${plugin_tests})
 SET(INSTALL_SECURE_FILE_PRIVDIR_WIN ${secure_file_priv_path})
 SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_WIN ${secure_file_priv_embedded_path})
@@ -226,6 +229,7 @@ SET(INSTALL_MYSQLTESTDIR_FREEBSD     "mysql-test")
 SET(INSTALL_SUPPORTFILESDIR_FREEBSD  "support-files")
 #
 SET(INSTALL_MYSQLDATADIR_FREEBSD     "data")
+SET(INSTALL_MYSQLKEYRINGDIR_FREEBSD  "keyring")
 SET(INSTALL_PLUGINTESTDIR_FREEBSD    ${plugin_tests})
 SET(INSTALL_SECURE_FILE_PRIVDIR_FREEBSD ${secure_file_priv_path})
 SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_FREEBSD ${secure_file_priv_embedded_path})
@@ -253,6 +257,7 @@ SET(INSTALL_MYSQLTESTDIR_GLIBC     "mysql-test")
 SET(INSTALL_SUPPORTFILESDIR_GLIBC  "support-files")
 #
 SET(INSTALL_MYSQLDATADIR_GLIBC     "data")
+SET(INSTALL_MYSQLKEYRINGDIR_GLIBC  "keyring")
 SET(INSTALL_PLUGINTESTDIR_GLIBC    ${plugin_tests})
 SET(INSTALL_SECURE_FILE_PRIVDIR_GLIBC ${secure_file_priv_path})
 SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_GLIBC ${secure_file_priv_embedded_path})
@@ -280,6 +285,7 @@ SET(INSTALL_MYSQLTESTDIR_OSX     "mysql-test")
 SET(INSTALL_SUPPORTFILESDIR_OSX  "support-files")
 #
 SET(INSTALL_MYSQLDATADIR_OSX     "data")
+SET(INSTALL_MYSQLKEYRINGDIR_OSX  "keyring")
 SET(INSTALL_PLUGINTESTDIR_OSX    ${plugin_tests})
 SET(INSTALL_SECURE_FILE_PRIVDIR_OSX ${secure_file_priv_path})
 SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_OSX ${secure_file_priv_embedded_path})
@@ -307,6 +313,7 @@ SET(INSTALL_MYSQLTESTDIR_TARGZ     "mysql-test")
 SET(INSTALL_SUPPORTFILESDIR_TARGZ  "support-files")
 #
 SET(INSTALL_MYSQLDATADIR_TARGZ     "data")
+SET(INSTALL_MYSQLKEYRINGDIR_TARGZ  "keyring")
 SET(INSTALL_PLUGINTESTDIR_TARGZ    ${plugin_tests})
 SET(INSTALL_SECURE_FILE_PRIVDIR_TARGZ ${secure_file_priv_path})
 SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_TARGZ ${secure_file_priv_embedded_path})
@@ -343,6 +350,7 @@ SET(INSTALL_MYSQLTESTDIR_RPM            "share/mysql-test")
 SET(INSTALL_SUPPORTFILESDIR_RPM         "share/mysql")
 #
 SET(INSTALL_MYSQLDATADIR_RPM            "/var/lib/mysql")
+SET(INSTALL_MYSQLKEYRINGDIR_RPM         "/var/lib/mysql-keyring")
 SET(INSTALL_PLUGINTESTDIR_RPM           ${plugin_tests})
 SET(INSTALL_SECURE_FILE_PRIVDIR_RPM     ${secure_file_priv_path})
 SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_RPM     ${secure_file_priv_embedded_path})
@@ -375,6 +383,7 @@ SET(INSTALL_MYSQLTESTDIR_SLES            "share/mysql-test")
 SET(INSTALL_SUPPORTFILESDIR_SLES         "share/mysql")
 #
 SET(INSTALL_MYSQLDATADIR_SLES            "/var/lib/mysql")
+SET(INSTALL_MYSQLKEYRINGDIR_SLES         "/var/lib/mysql-keyring")
 SET(INSTALL_PLUGINTESTDIR_SLES           ${plugin_tests})
 SET(INSTALL_SECURE_FILE_PRIVDIR_SLES     ${secure_file_priv_path})
 SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_SLES     ${secure_file_priv_embedded_path})
@@ -402,6 +411,7 @@ SET(INSTALL_MYSQLTESTDIR_DEB            "mysql-test")
 SET(INSTALL_SUPPORTFILESDIR_DEB         "support-files")
 #
 SET(INSTALL_MYSQLDATADIR_DEB            "/var/lib/mysql")
+SET(INSTALL_MYSQLKEYRINGDIR_DEB         "/var/lib/mysql-keyring")
 SET(INSTALL_PLUGINTESTDIR_DEB           ${plugin_tests})
 SET(INSTALL_SECURE_FILE_PRIVDIR_DEB     ${secure_file_priv_path})
 SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_DEB     ${secure_file_priv_embedded_path})
@@ -429,6 +439,7 @@ SET(INSTALL_MYSQLTESTDIR_SVR4           "mysql-test")
 SET(INSTALL_SUPPORTFILESDIR_SVR4        "support-files")
 #
 SET(INSTALL_MYSQLDATADIR_SVR4           "/var/lib/mysql")
+SET(INSTALL_MYSQLKEYRINGDIR_SVR4        "/var/lib/mysql-keyring")
 SET(INSTALL_PLUGINTESTDIR_SVR4          ${plugin_tests})
 SET(INSTALL_SECURE_FILE_PRIVDIR_SVR4    ${secure_file_priv_path})
 SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_SVR4    ${secure_file_priv_embedded_path})
@@ -447,7 +458,7 @@ SET(OLD_INSTALL_LAYOUT ${INSTALL_LAYOUT} CACHE INTERNAL "")
 # layout is chosen)
 FOREACH(var BIN SBIN LIB MYSQLSHARE SHARE PLUGIN INCLUDE SCRIPT DOC MAN
   INFO MYSQLTEST DOCREADME SUPPORTFILES MYSQLDATA PLUGINTEST
-  SECURE_FILE_PRIV SECURE_FILE_PRIV_EMBEDDED)
+  SECURE_FILE_PRIV SECURE_FILE_PRIV_EMBEDDED MYSQLKEYRING)
   SET(INSTALL_${var}DIR  ${INSTALL_${var}DIR_${INSTALL_LAYOUT}}
   CACHE STRING "${var} installation directory" ${FORCE})
   MARK_AS_ADVANCED(INSTALL_${var}DIR)

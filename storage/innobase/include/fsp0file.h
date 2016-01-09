@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -66,7 +66,9 @@ public:
 		m_first_page(),
 		m_atomic_write(),
 		m_last_os_error(),
-		m_file_info()
+		m_file_info(),
+		m_encryption_key(NULL),
+		m_encryption_iv(NULL)
 	{
 		/* No op */
 	}
@@ -89,7 +91,9 @@ public:
 		m_first_page(),
 		m_atomic_write(),
 		m_last_os_error(),
-		m_file_info()
+		m_file_info(),
+		m_encryption_key(NULL),
+		m_encryption_iv(NULL)
 	{
 		ut_ad(m_name != NULL);
 		/* No op */
@@ -110,7 +114,9 @@ public:
 		m_first_page(),
 		m_atomic_write(file.m_atomic_write),
 		m_last_os_error(),
-		m_file_info()
+		m_file_info(),
+		m_encryption_key(NULL),
+		m_encryption_iv(NULL)
 	{
 		m_name = mem_strdup(file.m_name);
 		ut_ad(m_name != NULL);
@@ -168,6 +174,8 @@ public:
 		it should be reread if needed */
 		m_first_page_buf = NULL;
 		m_first_page = NULL;
+		m_encryption_key = NULL;
+		m_encryption_iv = NULL;
 
 		m_atomic_write = file.m_atomic_write;
 
@@ -468,6 +476,13 @@ public:
 	/* Use field st_ino. */
 	struct stat			m_file_info;
 #endif	/* WIN32 */
+
+	/** Encryption key read from first page */
+	byte*			m_encryption_key;
+
+	/** Encryption iv read from first page */
+	byte*			m_encryption_iv;
+
 };
 
 

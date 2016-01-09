@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -309,7 +309,7 @@ rtr_pcur_getnext_from_path(
 		page_cursor->rec = NULL;
 
 		if (mode == PAGE_CUR_RTREE_LOCATE) {
-			if (level == target_level) {
+			if (level == target_level && level == 0) {
 				ulint	low_match;
 
 				found = false;
@@ -335,10 +335,15 @@ rtr_pcur_getnext_from_path(
 					}
 				}
 			} else {
+				page_cur_mode_t	page_mode = mode;
+
+				if (level == target_level
+				    && target_level != 0) {
+					page_mode = PAGE_CUR_RTREE_GET_FATHER;
+				}
 				found = rtr_cur_search_with_match(
-					block, index, tuple,
-					PAGE_CUR_RTREE_LOCATE, page_cursor,
-					btr_cur->rtr_info);
+					block, index, tuple, page_mode,
+					page_cursor, btr_cur->rtr_info);
 
 				/* Save the position of parent if needed */
 				if (found && need_parent) {
@@ -427,6 +432,9 @@ rtr_pcur_getnext_from_path(
 					page_cur_get_block(page_cursor),
 					r_cur);
 
+				btr_cur->low_match = level != 0 ?
+					DICT_INDEX_SPATIAL_NODEPTR_SIZE + 1
+					: btr_cur->low_match;
 				break;
 			}
 
@@ -640,6 +648,41 @@ rtr_pcur_open_low(
 	}
 }
 
+/* Get the rtree page father.
+@param[in]	index		rtree index
+@param[in]	block		child page in the index
+@param[in]	mtr		mtr
+@param[in]	sea_cur		search cursor, contains information
+				about parent nodes in search
+@param[in]	cursor		cursor on node pointer record,
+				its page x-latched */
+void
+rtr_page_get_father(
+	dict_index_t*	index,
+	buf_block_t*	block,
+	mtr_t*		mtr,
+	btr_cur_t*	sea_cur,
+	btr_cur_t*	cursor)
+{
+	mem_heap_t*	heap = mem_heap_create(100);
+#ifdef UNIV_DEBUG
+	ulint*		offsets;
+
+	offsets = rtr_page_get_father_block(
+		NULL, heap, index, block, mtr, sea_cur, cursor);
+
+	ulint	page_no = btr_node_ptr_get_child_page_no(cursor->page_cur.rec,
+							 offsets);
+
+	ut_ad(page_no == block->page.id.page_no());
+#else
+	rtr_page_get_father_block(
+		NULL, heap, index, block, mtr, sea_cur, cursor);
+#endif
+
+	mem_heap_free(heap);
+}
+
 /************************************************************//**
 Returns the father block to a page. It is assumed that mtr holds
 an X or SX latch on the tree.
@@ -657,6 +700,7 @@ rtr_page_get_father_block(
 	btr_cur_t*	cursor)	/*!< out: cursor on node pointer record,
 				its page x-latched */
 {
+
 	rec_t*  rec = page_rec_get_next(
 		page_get_infimum_rec(buf_block_get_frame(block)));
 	btr_cur_position(index, rec, block, cursor);
@@ -784,14 +828,13 @@ rtr_get_father_node(
 	ulint		n_fields;
 	bool		new_rtr = false;
 
-get_parent:
 	/* Try to optimally locate the parent node. Level should always
 	less than sea_cur->tree_height unless the root is splitting */
 	if (sea_cur && sea_cur->tree_height > level) {
 
 		ut_ad(mtr_memo_contains_flagged(mtr,
 						dict_index_get_lock(index),
- 						MTR_MEMO_X_LOCK
+						MTR_MEMO_X_LOCK
 						| MTR_MEMO_SX_LOCK));
 		ret = rtr_cur_restore_position(
 			BTR_CONT_MODIFY_TREE, sea_cur, level, mtr);
@@ -837,14 +880,13 @@ get_parent:
 			BTR_CONT_MODIFY_TREE, btr_cur, 0,
 			__FILE__, __LINE__, mtr);
 
-
 	} else {
 		/* btr_validate */
 		ut_ad(level >= 1);
 		ut_ad(!sea_cur);
 
 		btr_cur_search_to_nth_level(
-			index, level - 1, tuple, PAGE_CUR_RTREE_LOCATE,
+			index, level, tuple, PAGE_CUR_RTREE_LOCATE,
 			BTR_CONT_MODIFY_TREE, btr_cur, 0,
 			__FILE__, __LINE__, mtr);
 
@@ -855,50 +897,11 @@ get_parent:
 		    || (btr_cur->low_match != n_fields)) {
 			ret = rtr_pcur_getnext_from_path(
 				tuple, PAGE_CUR_RTREE_LOCATE, btr_cur,
-				level - 1, BTR_CONT_MODIFY_TREE,
+				level, BTR_CONT_MODIFY_TREE,
 				true, mtr);
 
 			ut_ad(ret && btr_cur->low_match == n_fields);
 		}
-
-		/* Since there could be some identical recs in different
-		pages, we still need to compare the page_no field to
-		verify we have the right parent. */
-		btr_pcur_t*	r_cursor = rtr_get_parent_cursor(btr_cur,
-								 level,
-								 false);
-		rec = btr_pcur_get_rec(r_cursor);
-
-		ulint* offsets = rec_get_offsets(rec, index, NULL,
-						 ULINT_UNDEFINED, &heap);
-		while (page_no != btr_node_ptr_get_child_page_no(rec, offsets)) {
-			ret = rtr_pcur_getnext_from_path(
-				tuple, PAGE_CUR_RTREE_LOCATE, btr_cur,
-				level - 1, BTR_CONT_MODIFY_TREE,
-				true, mtr);
-
-			ut_ad(ret && btr_cur->low_match == n_fields);
-
-			/* There must be a rec in the path, if the path
-			is run out, the spatial index is corrupted. */
-			if (!ret) {
-				mutex_enter(&dict_sys->mutex);
-				dict_set_corrupted_index_cache_only(index);
-				mutex_exit(&dict_sys->mutex);
-
-				ib::info() << "InnoDB: Corruption of a"
-					" spatial index " << index->name
-					<< " of table " << index->table->name;
-				break;
-			}
-			r_cursor = rtr_get_parent_cursor(btr_cur, level, false);
-			rec = btr_pcur_get_rec(r_cursor);
-			offsets = rec_get_offsets(rec, index, NULL,
-						  ULINT_UNDEFINED, &heap);
-		}
-
-		sea_cur = btr_cur;
-		goto get_parent;
 	}
 
 	ret = rtr_compare_cursor_rec(
@@ -1782,6 +1785,10 @@ rtr_cur_search_with_match(
 					}
 				}
 				break;
+			case PAGE_CUR_RTREE_GET_FATHER:
+				cmp = cmp_dtuple_rec_with_gis_internal(
+					tuple, rec, offsets);
+				break;
 			default:
 				/* WITHIN etc. */
 				cmp = cmp_dtuple_rec_with_gis(
@@ -1805,6 +1812,12 @@ rtr_cur_search_with_match(
 				if (!is_leaf) {
 					ulint		page_no;
 					node_seq_t	new_seq;
+					bool		is_loc;
+
+					is_loc = (orig_mode
+						  == PAGE_CUR_RTREE_LOCATE
+						  || orig_mode
+						  == PAGE_CUR_RTREE_GET_FATHER);
 
 					offsets = rec_get_offsets(
 						rec, index, offsets,
@@ -1825,8 +1838,7 @@ rtr_cur_search_with_match(
 						new_seq, level - 1, 0,
 						NULL, 0);
 
-					if (orig_mode
-					    == PAGE_CUR_RTREE_LOCATE) {
+					if (is_loc) {
 						rtr_non_leaf_insert_stack_push(
 							index,
 							rtr_info->parent_path,
@@ -1836,8 +1848,7 @@ rtr_cur_search_with_match(
 
 					if (!srv_read_only_mode
 					    && (rtr_info->need_page_lock
-						|| orig_mode
-						!= PAGE_CUR_RTREE_LOCATE)) {
+						|| !is_loc)) {
 
 						/* Lock the page, preventing it
 						from being shrunk */

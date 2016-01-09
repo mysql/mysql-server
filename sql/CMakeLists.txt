@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -72,6 +72,7 @@ SET(SQL_SHARED_SOURCES
   auth/password_policy_service.cc
   auth/sql_security_ctx.cc
   auth/service_security_context.cc
+  keyring_service.cc
   bootstrap.cc
   conn_handler/connection_handler_manager.cc 
   datadict.cc
@@ -162,6 +163,7 @@ SET(SQL_SHARED_SOURCES
   sql_admin.cc
   sql_alloc_error_handler.cc
   sql_alter.cc
+  sql_alter_instance.cc
   sql_analyse.cc
   sql_base.cc 
   sql_bootstrap.cc
@@ -625,4 +627,3 @@ ADD_CUSTOM_TARGET(distclean
 ADD_CUSTOM_TARGET(show-dist-name
   COMMAND ${CMAKE_COMMAND} -E echo "${CPACK_PACKAGE_FILE_NAME}"
 )
-

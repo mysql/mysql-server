@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -20,9 +20,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "aes.hpp"
 #include "openssl/ssl.h"
-/** AES block size is fixed to be 128 bits for CBC and ECB */
-#define MY_AES_BLOCK_SIZE 16
-
 
 /* keep in sync with enum my_aes_opmode in my_aes.h */
 const char *my_aes_opmode_names[]=
@@ -110,7 +107,8 @@ private:
 int my_aes_encrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest,
                    const unsigned char *key, uint32 key_length,
-                   enum my_aes_opmode mode, const unsigned char *iv)
+                   enum my_aes_opmode mode, const unsigned char *iv,
+                   bool padding)
 {
   MyCipherCtx<TaoCrypt::ENCRYPTION> enc(mode);
 
@@ -135,6 +133,9 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
        i--, source+= MY_AES_BLOCK_SIZE, dest+= MY_AES_BLOCK_SIZE)
        enc.Process(dest, source, MY_AES_BLOCK_SIZE);
 
+  /* If no padding, return here */
+  if (!padding)
+	  return (int) (MY_AES_BLOCK_SIZE * num_blocks);
   /*
   Re-implement standard PKCS padding for the last block.
   Pad the last incomplete data block (even if empty) with bytes
@@ -155,11 +156,11 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
   return (int) (MY_AES_BLOCK_SIZE * num_blocks);
 }
 
-
 int my_aes_decrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest,
                    const unsigned char *key, uint32 key_length,
-                   enum my_aes_opmode mode, const unsigned char *iv)
+                   enum my_aes_opmode mode, const unsigned char *iv,
+                   bool padding)
 {
   MyCipherCtx<TaoCrypt::DECRYPTION> dec(mode);
   /* 128 bit block used for padding */
@@ -184,9 +185,13 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
     return MY_AES_BAD_DATA;
 
   /* Decode all but the last block */
-  for (i= num_blocks - 1; i > 0;
+  for (i= padding? num_blocks - 1: num_blocks; i > 0;
        i--, source+= MY_AES_BLOCK_SIZE, dest+= MY_AES_BLOCK_SIZE)
        dec.Process(dest, source, MY_AES_BLOCK_SIZE);
+
+  /* If no padding, return here. */
+  if (!padding)
+	  return MY_AES_BLOCK_SIZE * num_blocks;
 
   /* unwarp the standard PKCS padding */
   dec.Process(block, source, MY_AES_BLOCK_SIZE);
@@ -218,7 +223,6 @@ int my_aes_get_size(uint32 source_length, my_aes_opmode opmode)
   return MY_AES_BLOCK_SIZE * (source_length / MY_AES_BLOCK_SIZE)
     + MY_AES_BLOCK_SIZE;
 }
-
 
 /**
   Return true if the AES cipher and block mode requires an IV

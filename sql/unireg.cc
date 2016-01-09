@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -270,6 +270,8 @@ bool mysql_create_frm(THD *thd, const char *file_name,
 
   create_info->extra_size+= 2 + create_info->compress.length;
 
+  create_info->extra_size+= 2 + create_info->encrypt_type.length;
+
   if ((file=create_frm(thd, file_name, db, table, reclength, fileinfo,
 		       create_info, keys, key_info)) < 0)
   {
@@ -423,6 +425,19 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     if (mysql_file_write(file, length_buff, 2, MYF(MY_NABP)) ||
         mysql_file_write(file, (uchar*) create_info->compress.str,
                          create_info->compress.length, MYF(MY_NABP)))
+      goto err;
+  }
+
+  /* Write out the ENCRYPT table attribute */
+  {
+    uchar length_buff[2];
+
+    int2store(length_buff,
+	      static_cast<uint16>(create_info->encrypt_type.length));
+
+    if (mysql_file_write(file, length_buff, 2, MYF(MY_NABP)) ||
+        mysql_file_write(file, (uchar*) create_info->encrypt_type.str,
+                         create_info->encrypt_type.length, MYF(MY_NABP)))
       goto err;
   }
 

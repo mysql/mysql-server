@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -526,6 +526,9 @@ namespace AQP {
   class Join_plan;
 };
 
+/** ENCRYPTION="Y" used during table create. */
+#define HA_CREATE_USED_ENCRYPT          (1L << 27)
+
 /*
   These structures are used to pass information from a set of SQL commands
   on add/drop/change tablespace definitions to the proper hton.
@@ -967,6 +970,16 @@ struct handlerton
   bool (*notify_alter_table)(THD *thd, const MDL_key *mdl_key,
                              ha_notification_type notification_type);
 
+
+  /**
+    @brief
+    Initiate master key rotation
+
+    @returns false on success,
+             true on failure
+  */
+  bool (*rotate_encryption_master_key)(void);
+
    uint32 license; /* Flag for Engine License */
    void *data; /* Location for engines to keep personal structures */
 };
@@ -1053,6 +1066,14 @@ typedef struct st_ha_create_information
   and ignored by the Server layer. */
 
   LEX_STRING compress;
+
+  /**
+  This attibute is used for InnoDB's transparent page encryption.
+  If this attribute is set then it is hint to the storage engine to encrypt
+  the data. Note: this value is interpreted by the storage engine only.
+  and ignored by the Server layer. */
+
+  LEX_STRING encrypt_type;
 
   const char *data_file_name, *index_file_name;
   const char *alias;

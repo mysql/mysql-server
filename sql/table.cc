@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2115,6 +2115,17 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           goto err;
       }
       next_chunk+= 2 + share->compress.length;
+    }
+
+    if (next_chunk + 2 <= buff_end)
+    {
+      share->encrypt_type.length = uint2korr(next_chunk);
+      if (! (share->encrypt_type.str= strmake_root(&share->mem_root,
+             (char*)next_chunk + 2, share->encrypt_type.length)))
+      {
+          goto err;
+      }
+      next_chunk+= 2 + share->encrypt_type.length;
     }
   }
   share->key_block_size= uint2korr(head+62);

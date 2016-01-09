@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -882,6 +882,7 @@ enum options_mysqld
   OPT_WANT_CORE,
   OPT_LOG_ERROR,
   OPT_MAX_LONG_DATA_SIZE,
+  OPT_EARLY_PLUGIN_LOAD,
   OPT_PLUGIN_LOAD,
   OPT_PLUGIN_LOAD_ADD,
   OPT_SSL_CRL,
