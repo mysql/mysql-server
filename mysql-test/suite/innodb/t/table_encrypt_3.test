@@ -389,7 +389,7 @@ end|
 CREATE PROCEDURE tde_db.read_t_encrypt()
 begin
         declare i int default 1;
-        while (i <= 100) DO
+        while (i <= 30) DO
                 SELECT * FROM (SELECT * FROM tde_db.t_encrypt ORDER BY RAND() LIMIT 1) AS A WHERE A.c2 < 0 ;
                 set i = i + 1;
         end while;
